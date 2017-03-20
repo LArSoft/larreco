@@ -325,14 +325,28 @@ namespace cluster {
     for(size_t ip = 0; ip < pfpList.size(); ++ip) {
       unsigned short im = pfpList[ip];
       tca::MatchStruct const& ms = fTCAlg->GetMatchStruct(im);
+      if(ms.Count == 0) continue;
       spcol.emplace_back(ms.PDGCode, ip, ms.Parent, ms.DtrIndices);
-      for(auto& icl : ms.ClusterIndices) {
-        if(icl > Clusters.size() - 1) std::cout<<"TC module: Bad cluster index "<<icl<<" size "<<Clusters.size()<<"\n";
-      } // icl
+      // make a list of clusters that are associated with this PFParticle. Trace the association
+      // through the trajectories that 
+      std::vector<unsigned int> clsIndices;
+      for(auto& tjid : ms.TjIDs) {
+        unsigned short clsIndex = fTCAlg->GetTjClusterIndex(tjid);
+        if(clsIndex > Clusters.size() - 1) {
+          std::cout<<"Retrieved an invalid cluster index for PFParticle "<<ip<<" TjID "<<tjid<<". Ignoring it...\n";
+          clsIndices.clear();
+          break;
+        }
+      } // tjid
+      // try to recover from an error
+      if(clsIndices.empty()) {
+        spcol.pop_back();
+        continue;
+      }
       if(ms.sVtx3DIndex > Vertices.size() - 1) std::cout<<"TC module: Bad Vtx3DIndex = "<<ms.sVtx3DIndex<<" size "<<Vertices.size()<<"\n";
       
       // PFParticle - Cluster associations
-      if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, ms.ClusterIndices.begin(), ms.ClusterIndices.end()))
+      if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, clsIndices.begin(), clsIndices.end()))
       {
         throw art::Exception(art::errors::InsertFailure)<<"Failed to associate clusters with PFParticle";
       } // exception
