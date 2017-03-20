@@ -1,0 +1,67 @@
+#include "services_dune.fcl"
+#include "imagepatternalgs.fcl"
+
+# Example configuration of job applying CNN-based selection of
+# EM-like activity (3 outputs: [track, em, none]) on the level
+# of tracks / clusters / single hits.
+# The same configuration can be used for other CNN models, trained
+# to distinguish also Michel electrons or tagging vertices.
+# Configured for ProtoDUNE, hopefully straight-forward to adopt
+# to other experiments.
+
+process_name: EmTrackId
+
+services:
+{
+  # Load the service that manages root files for histograms.
+  TFileService: { fileName: "reco_hist.root" }
+  MemoryTracker:     {}
+  TimeTracker:       {}
+  RandomNumberGenerator: {} #ART native random number generator
+  message:              @local::dune_message_services_prod_debug
+  FileCatalogMetadata:  @local::art_file_catalog_mc
+                        @table::protodune_services
+}
+
+source:
+{
+  module_type: RootInput
+  maxEvents:  -1        # Number of events to create
+}
+
+physics:
+{
+ producers:
+ {
+  #emtrackid:      @local::standard_emtrackclusterid # uses 3-outs CNN model
+  emtrkmichelid:  @local::standard_emtrackmichelid   # uses 4-outs model
+ }
+
+ reco: [ emtrkmichelid ]
+ stream1: [ out1 ]
+
+ trigger_paths: [ reco ]
+ end_paths:     [ stream1 ]
+}
+
+outputs:
+{
+ out1:
+ {
+   module_type: RootOutput
+   fileName:    "%ifb_%tc_reco.root"
+   dataTier:    "full-reconstructed"
+   compressionLevel: 1
+ }
+}
+
+physics.producers.emtrkmichelid.PointIdAlg.NNetModelFile:      "/home/your_dir/your_cnn_model.nnet" # your model (there is no default one in repository!)
+physics.producers.emtrkmichelid.PointIdAlg.PatchSizeW:         44     # how many wires in patch
+physics.producers.emtrkmichelid.PointIdAlg.PatchSizeD:         48     # how many downsampled ADC entries
+physics.producers.emtrkmichelid.PointIdAlg.DriftWindow:        6      # downsampling window in drift ticks
+physics.producers.emtrkmichelid.PointIdAlg.DownscaleFn:        "mean" # downsampling function
+physics.producers.emtrkmichelid.HitModuleLabel:                "linecluster" # all hits (used to classify leftovers from clustering)
+physics.producers.emtrkmichelid.ClusterModuleLabel:            "linecluster" # clusters to be classified
+physics.producers.emtrkmichelid.TrackModuleLabel:              "pmtrack"     # tracks to be classified (leave that one empty if there are no 3D tracks yet)
+physics.producers.emtrkmichelid.Views:                         []  # possible to run over selected views only (all views if empty list)
+
