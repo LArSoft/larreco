@@ -178,6 +178,172 @@ namespace tca {
     tp.Chg = 0;
   } // UnsetUsedHits
 
+  
+  ////////////////////////////////////////////////
+  bool StoreTraj(TjStuff& tjs, Trajectory& tj)
+  {
+    
+    if(tj.EndPt[1] <= tj.EndPt[0]) return false;
+    
+    if(!(tj.StepDir == 1 || tj.StepDir == -1)) {
+      mf::LogError("TC")<<"StoreTraj: Invalid StepDir "<<tj.StepDir;
+      return false;
+    }
+    
+    if(tjs.allTraj.size() >= USHRT_MAX) {
+      mf::LogError("TC")<<"StoreTraj: Too many trajectories "<<tjs.allTraj.size();
+      return false;
+    }
+    // This shouldn't be necessary but do it anyway
+    SetEndPoints(tjs, tj);
+    
+    // Calculate the charge near the end and beginning if necessary. This must be a short
+    // trajectory. Find the average using 4 points
+    if(tj.Pts[tj.EndPt[0]].AveChg <= 0) {
+      unsigned short cnt = 0;
+      float sum = 0;
+      for(unsigned short ipt = tj.EndPt[0] + 1; ipt <= tj.EndPt[1]; ++ipt) {
+        if(tj.Pts[ipt].Chg == 0) continue;
+        sum += tj.Pts[ipt].Chg;
+        ++cnt;
+        if(cnt == 4) break;
+      }
+      tj.Pts[tj.EndPt[0]].AveChg = sum / (float)cnt;
+    }
+    if(tj.Pts[tj.EndPt[1]].AveChg <= 0) {
+      float sum = 0;
+      unsigned short cnt = 0;
+      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
+        unsigned short ipt = tj.EndPt[1] - ii;
+        if(tj.Pts[ipt].Chg == 0) continue;
+        sum += tj.Pts[ipt].Chg;
+        ++cnt;
+        if(cnt == 4) break;
+        if(ipt == 0) break;
+      } // ii
+      tj.Pts[tj.EndPt[1]].AveChg = sum / (float)cnt;
+    } // begin charge == end charge
+    
+    short trID = tjs.allTraj.size() + 1;
+    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
+      for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+        if(tj.Pts[ipt].UseHit[ii]) {
+          unsigned int iht = tj.Pts[ipt].Hits[ii];
+          if(tjs.fHits[iht].InTraj > 0) {
+            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
+            PrintTrajectory("SW", tjs, tj, USHRT_MAX);
+            ReleaseHits(tjs, tj);
+            return false;
+          } // error
+          tjs.fHits[iht].InTraj = trID;
+        }
+      } // ii
+    } // ipt
+    
+    // ensure that inTraj is clean for the ID
+    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+      if(tjs.fHits[iht].InTraj == tj.ID) {
+        mf::LogWarning("TC")<<"StoreTraj: Hit "<<PrintHit(tjs.fHits[iht])<<" thinks it belongs to traj ID "<<tj.ID<<" but it wasn't stored\n";
+        PrintTrajectory("SW", tjs, tj, USHRT_MAX);
+        return false;
+      }
+    } // iht
+    
+    tj.WorkID = tj.ID;
+    tj.ID = trID;
+    tjs.allTraj.push_back(tj);
+//    if(prt) mf::LogVerbatim("TC")<<"StoreTraj trID "<<trID<<" CTP "<<tj.CTP<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+    if(debug.Hit != UINT_MAX) {
+      // print out some debug info
+      for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+        for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+          unsigned int iht = tj.Pts[ipt].Hits[ii];
+          if(iht == debug.Hit) std::cout<<"Debug hit appears in trajectory w WorkID "<<tj.WorkID<<" UseHit "<<tj.Pts[ipt].UseHit[ii]<<"\n";
+        } // ii
+      } // ipt
+    } // debug.Hit ...
+    
+    return true;
+    
+  } // StoreTraj
+  
+  ////////////////////////////////////////////////
+  bool InTrajOK(TjStuff& tjs, std::string someText)
+  {
+    // Check tjs.allTraj -> InTraj associations
+    
+//    if(!fUseAlg[kChkInTraj]) return true;
+    
+//    ++fAlgModCount[kChkInTraj];
+    
+    unsigned short tID;
+    unsigned int iht;
+    unsigned short itj = 0;
+    std::vector<unsigned int> tHits;
+    std::vector<unsigned int> atHits;
+    for(auto& tj : tjs.allTraj) {
+      // ignore abandoned trajectories
+      if(tj.AlgMod[kKilled]) continue;
+      tID = tj.ID;
+      if(tj.AlgMod[kKilled]) {
+        std::cout<<someText<<" ChkInTraj hit size mis-match in tj ID "<<tj.ID<<" AlgBitNames";
+        for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) std::cout<<" "<<AlgBitNames[ib];
+        std::cout<<"\n";
+        continue;
+      }
+      tHits = PutTrajHitsInVector(tj, kUsedHits);
+      if(tHits.size() < 2) {
+        std::cout<<someText<<" ChkInTraj: Insufficient hits in traj "<<tj.ID<<"\n";
+        PrintTrajectory("CIT", tjs, tj, USHRT_MAX);
+        continue;
+      }
+      std::sort(tHits.begin(), tHits.end());
+      atHits.clear();
+      for(iht = 0; iht < tjs.fHits.size(); ++iht) {
+        if(tjs.fHits[iht].InTraj == tID) atHits.push_back(iht);
+      } // iht
+      if(atHits.size() < 2) {
+        std::cout<<someText<<" ChkInTraj: Insufficient hits in atHits in traj "<<tj.ID<<" Killing it\n";
+        tj.AlgMod[kKilled] = true;
+        continue;
+      }
+      if(!std::equal(tHits.begin(), tHits.end(), atHits.begin())) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<someText<<" ChkInTraj failed: inTraj - UseHit mis-match for tj ID "<<tID<<" tj.WorkID "<<tj.WorkID<<" atHits size "<<atHits.size()<<" tHits size "<<tHits.size()<<" in CTP "<<tj.CTP<<"\n";
+        myprt<<"AlgMods: ";
+        for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
+        myprt<<"\n";
+        myprt<<"index     inTraj     UseHit \n";
+        for(iht = 0; iht < atHits.size(); ++iht) {
+          myprt<<"iht "<<iht<<" "<<PrintHit(tjs.fHits[atHits[iht]]);
+          if(iht < tHits.size()) myprt<<" "<<PrintHit(tjs.fHits[tHits[iht]]);
+          if(atHits[iht] != tHits[iht]) myprt<<" <<< "<<atHits[iht]<<" != "<<tHits[iht];
+          myprt<<"\n";
+        } // iht
+        if(tHits.size() > atHits.size()) {
+          for(iht = atHits.size(); iht < atHits.size(); ++iht) {
+            myprt<<"atHits "<<iht<<" "<<PrintHit(tjs.fHits[atHits[iht]])<<"\n";
+          } // iht
+          PrintTrajectory("CIT", tjs, tj, USHRT_MAX);
+        } // tHit.size > atHits.size()
+        return false;
+      }
+      // check the VtxID
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] > tjs.vtx.size()) {
+          mf::LogVerbatim("TC")<<someText<<" ChkInTraj: Bad VtxID "<<tj.ID;
+          std::cout<<someText<<" ChkInTraj: Bad VtxID "<<tj.ID<<" vtx size "<<tjs.vtx.size()<<"\n";
+          tj.AlgMod[kKilled] = true;
+          PrintTrajectory("CIT", tjs, tj, USHRT_MAX);
+          return false;
+        }
+      } // end
+      ++itj;
+    } // tj
+    return true;
+    
+  } // InTrajOK
+
   //////////////////////////////////////////
   void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
   {
@@ -1939,73 +2105,74 @@ namespace tca {
   
   // ****************************** Printing  ******************************
   
-  void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& debug, unsigned short itj, unsigned short ipt)
+  void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& debug, unsigned short itj, unsigned short ipt, bool prtVtx)
   {
     
     mf::LogVerbatim myprt("TC");
     
-    if(!tjs.vtx3.empty()) {
-      // print out 3D vertices
-      myprt<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
-      myprt<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr  pln0 pln1 pln2  Wire\n";
-      for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
-        if(tjs.vtx3[iv].Wire == SHRT_MAX) continue;
-        myprt<<std::right<<std::setw(3)<<std::fixed<<iv<<std::setprecision(1);
-        myprt<<std::right<<std::setw(7)<<tjs.vtx3[iv].CStat;
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].TPC;
-        myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].X;
-        myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].Y;
-        myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].Z;
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].XErr;
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].YErr;
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].ZErr;
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[0]+1;
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[1]+1;
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[2]+1;
-        myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Wire;
-        if(tjs.vtx3[iv].Wire == -1) {
-          myprt<<"    Matched in all planes";
-        } else if(tjs.vtx3[iv].Wire == -2) {
-          myprt<<"    PFParticle vertex";
-        } else {
-          myprt<<"    Incomplete";
+    if(prtVtx) {
+      if(!tjs.vtx3.empty()) {
+        // print out 3D vertices
+        myprt<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
+        myprt<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr  pln0 pln1 pln2  Wire\n";
+        for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
+          if(tjs.vtx3[iv].Wire == SHRT_MAX) continue;
+          myprt<<std::right<<std::setw(3)<<std::fixed<<iv<<std::setprecision(1);
+          myprt<<std::right<<std::setw(7)<<tjs.vtx3[iv].CStat;
+          myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].TPC;
+          myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].X;
+          myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].Y;
+          myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].Z;
+          myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].XErr;
+          myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].YErr;
+          myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].ZErr;
+          myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[0]+1;
+          myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[1]+1;
+          myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Ptr2D[2]+1;
+          myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Wire;
+          if(tjs.vtx3[iv].Wire == -1) {
+            myprt<<"    Matched in all planes";
+          } else if(tjs.vtx3[iv].Wire == -2) {
+            myprt<<"    PFParticle vertex";
+          } else {
+            myprt<<"    Incomplete";
+          }
+          myprt<<"\n";
         }
-        myprt<<"\n";
-      }
-    } // tjs.vtx3.size
-    
-    if(!tjs.vtx.empty()) {
-      // print out 2D vertices
-      myprt<<"************ 2D vertices ************\n";
-      myprt<<"Vtx   CTP    wire     error   tick     error  ChiDOF  NTj Pass  Topo Nice? traj IDs\n";
-      for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
-        auto const& aVtx = tjs.vtx[iv];
-        if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aVtx.CTP).Plane) continue;
-        if(aVtx.NTraj == 0) continue;
-        myprt<<std::right<<std::setw(3)<<std::fixed<<aVtx.ID<<std::setprecision(1);
-        myprt<<std::right<<std::setw(6)<<aVtx.CTP;
-        myprt<<std::right<<std::setw(8)<<aVtx.Pos[0]<<" +/- ";
-        myprt<<std::right<<std::setw(4)<<aVtx.PosErr[0];
-        myprt<<std::right<<std::setw(8)<<aVtx.Pos[1]/tjs.UnitsPerTick<<" +/- ";
-        myprt<<std::right<<std::setw(4)<<aVtx.PosErr[1]/tjs.UnitsPerTick;
-        myprt<<std::right<<std::setw(8)<<aVtx.ChiDOF;
-        myprt<<std::right<<std::setw(5)<<aVtx.NTraj;
-        myprt<<std::right<<std::setw(5)<<aVtx.Pass;
-        myprt<<std::right<<std::setw(6)<<aVtx.Topo;
-        myprt<<std::right<<std::setw(6)<<aVtx.Stat[kNiceVtx];
-        myprt<<"    ";
-        // display the traj indices
-        for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
-          auto const& aTj = tjs.allTraj[ii];
-          if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
-          if(aTj.AlgMod[kKilled]) continue;
-          for(unsigned short end = 0; end < 2; ++end)
-            if(aTj.VtxID[end] == (short)aVtx.ID) myprt<<std::right<<std::setw(4)<<aTj.ID<<"_"<<end;
-        }
-        myprt<<"\n";
-      } // iv
-    } // tjs.vtx.size
-    
+      } // tjs.vtx3.size
+      if(!tjs.vtx.empty()) {
+        // print out 2D vertices
+        myprt<<"************ 2D vertices ************\n";
+        myprt<<"Vtx   CTP    wire     error   tick     error  ChiDOF  NTj Pass  Topo Nice? traj IDs\n";
+        for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
+          auto const& aVtx = tjs.vtx[iv];
+          if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aVtx.CTP).Plane) continue;
+          if(aVtx.NTraj == 0) continue;
+          myprt<<std::right<<std::setw(3)<<std::fixed<<aVtx.ID<<std::setprecision(1);
+          myprt<<std::right<<std::setw(6)<<aVtx.CTP;
+          myprt<<std::right<<std::setw(8)<<aVtx.Pos[0]<<" +/- ";
+          myprt<<std::right<<std::setw(4)<<aVtx.PosErr[0];
+          myprt<<std::right<<std::setw(8)<<aVtx.Pos[1]/tjs.UnitsPerTick<<" +/- ";
+          myprt<<std::right<<std::setw(4)<<aVtx.PosErr[1]/tjs.UnitsPerTick;
+          myprt<<std::right<<std::setw(8)<<aVtx.ChiDOF;
+          myprt<<std::right<<std::setw(5)<<aVtx.NTraj;
+          myprt<<std::right<<std::setw(5)<<aVtx.Pass;
+          myprt<<std::right<<std::setw(6)<<aVtx.Topo;
+          myprt<<std::right<<std::setw(6)<<aVtx.Stat[kNiceVtx];
+          myprt<<"    ";
+          // display the traj indices
+          for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
+            auto const& aTj = tjs.allTraj[ii];
+            if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
+            if(aTj.AlgMod[kKilled]) continue;
+            for(unsigned short end = 0; end < 2; ++end)
+              if(aTj.VtxID[end] == (short)aVtx.ID) myprt<<std::right<<std::setw(4)<<aTj.ID<<"_"<<end;
+          }
+          myprt<<"\n";
+        } // iv
+      } // tjs.vtx.size
+    }
+     
     if(tjs.allTraj.empty()) {
       mf::LogVerbatim("TC")<<someText<<" No allTraj trajectories to print";
       return;
