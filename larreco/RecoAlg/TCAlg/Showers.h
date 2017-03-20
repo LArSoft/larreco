@@ -36,6 +36,7 @@ namespace tca {
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag);
   void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, std::vector<std::vector<unsigned short>>& tjList);
   void FindShowerCenter(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void FindShowerAxis(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void FindShowerParent(TjStuff& tjs, const unsigned short& showerIndex, const std::vector<float>& fShowerTag, bool prt);
   void FindFirstTPAng(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
