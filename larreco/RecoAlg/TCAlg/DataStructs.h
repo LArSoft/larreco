@@ -168,7 +168,6 @@ namespace tca {
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
     std::vector<unsigned short> TjIDs;
-    std::vector<unsigned short> ClusterIndices;
     // Count of the number of time-matched hits
     int Count {0};
     std::array<float, 3> sXYZ;        // XYZ position at the start (NOT WSE units)
@@ -188,6 +187,8 @@ namespace tca {
     std::vector<unsigned short> TjIDs;          // list of InShower Tjs
     float TPAngAve {0};                             // Average angle of all InShower Tj points
     float TPAngErr {0.2};
+    float ShowerAxisAngle {0};
+    float ShowerAxisAngleErr {3};
     std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
     float EnvelopeArea;
     float EnvelopeLength;
