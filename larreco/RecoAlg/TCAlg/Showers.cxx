@@ -340,6 +340,7 @@ namespace tca {
       }
       unsigned short cotIndex = tjs.cots.size() - 1;
       FindShowerCenter(tjs, cotIndex, prt);
+      FindShowerAxis(tjs, cotIndex, prt);
       FindShowerParent(tjs, cotIndex, fShowerTag, prt);
       DefineShowerTj(tjs, cotIndex, prt);
       DefineShowerEnvelope(tjs, cotIndex, fShowerTag, prt);
@@ -797,6 +798,68 @@ namespace tca {
   } // MergeShowers
   
   ////////////////////////////////////////////////
+  void FindShowerAxis(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
+  {
+    // Find the angle of the shower using the position of all of the TPs
+
+    if(cotIndex > tjs.cots.size() - 1) return;
+    
+    ShowerStruct& ss = tjs.cots[cotIndex];
+    if(ss.TjIDs.empty()) return;
+    
+    unsigned short stjIndex = ss.ShowerTjID - 1;
+    if(stjIndex > tjs.allTraj.size() - 1) return;
+    if(tjs.allTraj[stjIndex].Pts.size() != 3) return;
+
+    // Do a least squares fit using all the points
+    double sum = 0.;
+    double sumx = 0.;
+    double sumy = 0.;
+    double sumxy = 0.;
+    double sumx2 = 0.;
+    double sumy2 = 0.;
+    double wt, xx, yy;
+    
+    TrajPoint& stp1 = tjs.allTraj[stjIndex].Pts[1];
+    
+    for(unsigned short it = 0; it < ss.TjIDs.size(); ++it) {
+      unsigned short itj = ss.TjIDs[it] - 1;
+      Trajectory& tj = tjs.allTraj[itj];
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        TrajPoint& tp = tj.Pts[ipt];
+        if(tp.Chg == 0) continue;
+        wt = 1 / tp.Chg; 
+        sum  += wt;
+        xx = wt * tp.Pos[0] - stp1.Pos[0];
+        yy = wt * tp.Pos[1] - stp1.Pos[1];
+        sumx += wt * xx;
+        sumy += wt * yy;
+        sumx2 += wt * xx * xx;
+        sumy2 += wt * yy * yy;
+        sumxy += wt * xx * yy;
+      } // ipt
+    } // it
+    // calculate coefficients and std dev
+    double delta = sum * sumx2 - sumx * sumx;
+    if(delta == 0) {
+      ss.ShowerAxisAngle = 0;
+      ss.ShowerAxisAngleErr = 3;
+      return;
+    }
+    // A is the intercept
+    double A = (sumx2 * sumy - sumx * sumxy) / delta;
+    // B is the slope
+    double B = (sumxy * sum  - sumx * sumy) / delta;
+    double ndof = sum - 2;
+    double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
+    double BErr = sqrt(varnce * sum / delta);
+    ss.ShowerAxisAngle = atan(B);
+    ss.ShowerAxisAngleErr = std::abs(atan(B + BErr) - ss.ShowerAxisAngle);
+    if(prt) mf::LogVerbatim("TC")<<"FindShowerAxis: Angle "<<ss.ShowerAxisAngle<<" Err "<<ss.ShowerAxisAngleErr;
+
+  } // FindShowerAxis
+  
+  ////////////////////////////////////////////////
   void FindShowerCenter(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
     // Finds the charge center using all sub-structure trajectories in the cot. All of the shower
@@ -850,6 +913,7 @@ namespace tca {
       ss.TPAngErr /= sqrt((float)cnt);
       stp1.AngErr = ss.TPAngErr;
     }
+    if(prt) mf::LogVerbatim("TC")<<"FindShowerCenter: Pos "<<PrintPos(tjs, stp1.Pos)<<" TPAngAve "<<ss.TPAngAve<<" Err "<<ss.TPAngErr;
     
   } // FindShowerCenter
   
