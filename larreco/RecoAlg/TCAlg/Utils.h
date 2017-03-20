@@ -45,6 +45,8 @@ namespace tca {
   unsigned short Matched3DVtx(TjStuff& tjs, unsigned short im);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
+  bool StoreTraj(TjStuff& tjs, Trajectory& tj);
+  bool InTrajOK(TjStuff& tjs, std::string someText);
   void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
   bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt);
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
@@ -145,20 +147,6 @@ namespace tca {
   bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
-/*
-  // ****************************** Shower finding  ******************************
-  // Create showers (aka clusters of trajectories, tjs.cots)
-  void FindShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag);
-  void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, std::vector<std::vector<unsigned short>>& tjList);
-  void FindShowerCenter(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void FindShowerParent(TjStuff& tjs, const unsigned short& showerIndex, const std::vector<float>& fShowerTag, bool prt);
-  void FindFirstTPAng(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void DefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void DefineShowerEnvelope(TjStuff& tjs, const unsigned short& cotIndex, const std::vector<float>& fShowerTag, bool prt);
-  void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, bool prt);
-  void CollectHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
-  float ShowerEnergy(TjStuff& tjs, const ShowerStruct& ss);
-*/
   // ****************************** Vertex finding  ******************************
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, const std::vector<float>& fVertex2DCuts, bool prt);
@@ -170,7 +158,7 @@ namespace tca {
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
   void PrintTrajectory(std::string someText, TjStuff& tjs, Trajectory const& tj ,unsigned short tPoint);
-  void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& Debug, unsigned short itj, unsigned short ipt);
+  void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& Debug, unsigned short itj, unsigned short ipt, bool printVtx = true);
   void PrintHeader(std::string someText);
   void PrintTrajPoint(std::string someText, TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
   // Print clusters after calling MakeAllTrajClusters
