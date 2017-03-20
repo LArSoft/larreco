@@ -87,6 +87,8 @@ namespace tca {
     std::vector<unsigned short> const& GetPFPList() const { return tjs.matchVecPFPList; }
     // Get a specific matchVec entry that will be turned into a PFParticle
     MatchStruct const& GetMatchStruct(unsigned short im) {return tjs.matchVec[im]; };
+    // Get the cluster index of a trajectory ID
+    unsigned short GetTjClusterIndex(unsigned short TjID) { return tjs.allTraj[TjID - 1].ClusterIndex; }
     // Get a ShowerStuct3D entry
     unsigned short GetShowerStructSize() { return tjs.showers.size(); };
     ShowerStruct3D const& GetShowerStruct(unsigned short ish) { return tjs.showers[ish]; };
@@ -312,10 +314,6 @@ namespace tca {
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
-    // Make showers from clusters of trajectories
-//    void MakeShowers();
-    // Push the trajectory into allTraj
-    void StoreTraj(Trajectory& tj);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
      // Truncates the trajectory if a soft kink is found in it
