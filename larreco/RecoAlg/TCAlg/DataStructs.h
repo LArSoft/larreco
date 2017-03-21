@@ -180,27 +180,26 @@ namespace tca {
     size_t Parent {0};
   };
   
+  struct ShowerParentStruct {
+    unsigned short ID;
+    unsigned short End;
+    float FOM {100};
+  };
+  
   // A temporary structure that defines a 2D shower-like cluster of trajectories
   struct ShowerStruct {
     CTP_t CTP;
     unsigned short ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
     std::vector<unsigned short> TjIDs;          // list of InShower Tjs
-    float TPAngAve {0};                             // Average angle of all InShower Tj points
-    float TPAngErr {0.2};
-    float ShowerAxisAngle {0};
-    float ShowerAxisAngleErr {3};
+    float Angle {10};         // Start with a bogus angle
+    float AngleErr {3};
+    float AspectRatio {1};
     std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
     float EnvelopeArea;
     float EnvelopeLength;
     float ChgDensity {0};                   // Charge density inside the Envelope
     float EnvelopeAspectRatio {0};
-    unsigned short ParentTrajID {0};    // ID of the shower Tj parent
-    unsigned short ParentTrajEnd {0};           // the Start end of the parent trajectory
-    float ParentFOM {100};                            // FOM = (min separation) * (angle difference) * Delta / (parent length)
-    // Allow for an alternate parent that is not quite as good
-    unsigned short FailedParentTrajID {0};    // ID of the next most likely shower Tj parent
-    unsigned short FailedParentTrajEnd {0};           // the Start end of the parent trajectory
-    float FailedParentFOM;                            // FOM = (min separation) * (angle difference) * Delta / (parent length)
+    std::vector<ShowerParentStruct> Parent;     // List of possible parents
     float ShowerFOM {100};
   };
   
@@ -305,6 +304,7 @@ namespace tca {
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
     unsigned short WireHitRangeCstat;
     unsigned short WireHitRangeTPC;
+    std::vector<float> AngleRanges; ///< list of max angles for each angle range
     std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
