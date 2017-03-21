@@ -137,8 +137,6 @@ namespace tca {
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
-    std::vector<float> fAngleRanges; ///< list of max angles for each angle range
-    std::vector<float> fAngleRangesMaxHitsRMS;
     float fVLAStepSize;
     
     float fLAClusSlopeCut;
@@ -194,7 +192,7 @@ namespace tca {
     TH1F *fDOCA;
     TH1F *fParentFOM;
     
-    TH1F *fShTPAngAve[3];
+    TH1F *fShowerAngle[3];
     TH1F *fShPrimIP;
     TProfile *fShPrimIP_Energy;
 
@@ -301,11 +299,6 @@ namespace tca {
     // fit, charge, etc. This is done by setting UseHit true and
     // setting inTraj < 0
      void FindUseHits(Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
-    // Sets the tp AngCode = 0 (small angle), 1 (large angle) or 2 (very large angle)
-    void SetAngleCode(TrajPoint& tp);
-    // returns the index of the angle range that tp is in
-    unsigned short AngleRange(TrajPoint const& tp);
-    unsigned short AngleRange(float angle);
     // Print debug output if hit iht exists in work or allTraj
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
@@ -341,10 +334,6 @@ namespace tca {
     // fitted points to get FitCHi < 2
     bool StopIfBadFits(Trajectory& tj);
     void PrepareForNextPass(Trajectory& tj);
-    // Fit the supplied trajectory using HitPos positions with the origin at originPt.
-    void FitTraj(Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
-    // Fit the leading edge of the trajectory
-    void FitTraj(Trajectory& tj);
     // Does a local fit of just-added TPs to identify a kink while stepping.
     // Truncates the vector and returns true if one is found.
     void GottaKink(Trajectory& tj, unsigned short& killPts);
