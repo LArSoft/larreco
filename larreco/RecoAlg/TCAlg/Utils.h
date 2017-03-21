@@ -27,7 +27,8 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
-#include "larreco/RecoAlg/TCAlg/Showers.h"
+#include "larreco/RecoAlg/TCAlg/TCShower.h"
+#include "larreco/RecoAlg/TCAlg/TCVertex.h"
 
 namespace tca {
 
@@ -73,7 +74,6 @@ namespace tca {
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj);
   void MakeVertexObsolete(TjStuff& tjs, unsigned short ivx);
   void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj);
-  void CheckVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
   bool TjHasNiceVtx(TjStuff& tjs, const Trajectory& tj);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
@@ -145,27 +145,21 @@ namespace tca {
   // Returns true if the trajectory has low hit multiplicity and is in a clean environment
   bool TrajIsClean(TjStuff& tjs, Trajectory& tj, bool prt);
   // Flag delta ray trajectories in allTraj
-  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
+  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, short debugWorkID);
   // Tag muon directions using delta proximity
-  void TagMuonDirections(TjStuff& tjs, const short& minDeltaRayLength, short debugWorkID);
+  void TagMuonDirections(TjStuff& tjs, short debugWorkID);
   // Make a bare trajectory point that only has position and direction defined
   bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
-  // ****************************** Vertex finding  ******************************
-  unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
-  bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, const std::vector<float>& fVertex2DCuts, bool prt);
-  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned short itj, const std::vector<float>& fVertex2DCuts, bool prt);
-  bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, const std::vector<float>& fVertex2DCuts, bool prt);
-  float TrajPointVertexPull(TjStuff& tjs, const TrajPoint& tp, const VtxStore& vx);
-  float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
-  bool FitVertex(TjStuff& tjs, VtxStore& vx, const std::vector<float>& fVertex2DCuts, bool prt);
+  void SetPDGCode(TjStuff& tjs, Trajectory& tj);
+  void SetPDGCode(TjStuff& tjs, unsigned short itj);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
-  void PrintTrajectory(std::string someText, TjStuff& tjs, Trajectory const& tj ,unsigned short tPoint);
-  void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& Debug, unsigned short itj, unsigned short ipt, bool printVtx = true);
+  void PrintTrajectory(std::string someText, const TjStuff& tjs, const Trajectory& tj ,unsigned short tPoint);
+  void PrintAllTraj(std::string someText, const TjStuff& tjs, const DebugStuff& Debug, unsigned short itj, unsigned short ipt, bool printVtx = true);
   void PrintHeader(std::string someText);
-  void PrintTrajPoint(std::string someText, TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
+  void PrintTrajPoint(std::string someText, const TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
   // Print clusters after calling MakeAllTrajClusters
   void PrintClusters();
   // Print a single hit in the standard format
@@ -174,7 +168,7 @@ namespace tca {
   // Print Trajectory position in the standard format
   std::string PrintPos(TjStuff& tjs, const TrajPoint& tp);
   std::string PrintPos(TjStuff& tjs, const std::array<float, 2>& pos);
-  std::string PrintStopFlag(TjStuff& tjs, const Trajectory& tj, unsigned short end);
+  std::string PrintStopFlag(const Trajectory& tj, unsigned short end);
 } // namespace tca
 
 #endif // ifndef TRAJCLUSTERALGUTILS_H
