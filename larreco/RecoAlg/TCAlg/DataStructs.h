@@ -16,6 +16,9 @@
 #include <bitset>
 
 // LArSoft libraries
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -313,6 +316,14 @@ namespace tca {
     std::vector<unsigned short> matchVecPFPList;  /// list of matchVec entries that will become PFPs
     std::vector<ShowerStruct> cots;
     std::vector<ShowerStruct3D> showers;
+    std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
+    float Vertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
+    std::vector<short> DeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
+    std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
+    std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
+    std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
+    const geo::GeometryCore* geom;
+    const detinfo::DetectorProperties* detprop;
    };
 
 } // namespace tca
