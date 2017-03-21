@@ -2,6 +2,277 @@
 
 namespace tca {
   
+  
+  /////////////////////////////////////////
+  unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp)
+  {
+    return AngleRange(tjs, tp.Ang);
+  }
+  
+  /////////////////////////////////////////
+  void SetAngleCode(TjStuff& tjs, TrajPoint& tp)
+  {
+    unsigned short ar = AngleRange(tjs, tp.Ang);
+    if(ar == tjs.AngleRanges.size() - 1) {
+      // Very large angle
+      tp.AngleCode = 2;
+    } else if(tjs.AngleRanges.size() > 2 && ar == tjs.AngleRanges.size() - 2) {
+      // Large angle
+      tp.AngleCode = 1;
+    } else {
+      // Small angle
+      tp.AngleCode = 0;
+    }
+    
+  } // SetAngleCode
+  
+  /////////////////////////////////////////
+  unsigned short AngleRange(TjStuff& tjs, float angle)
+  {
+    // returns the index of the angle range
+    if(angle > M_PI) angle = M_PI;
+    if(angle < -M_PI) angle = M_PI;
+    if(angle < 0) angle = -angle;
+    if(angle > M_PI/2) angle = M_PI - angle;
+    for(unsigned short ir = 0; ir < tjs.AngleRanges.size(); ++ir) {
+      if(angle < tjs.AngleRanges[ir]) return ir;
+    }
+    return tjs.AngleRanges.size() - 1;
+  } // AngleRange
+  
+  //////////////////////////////////////////
+  void FitTraj(TjStuff& tjs, Trajectory& tj)
+  {
+    // Jacket around FitTraj to fit the leading edge of the supplied trajectory
+    unsigned short originPt = tj.EndPt[1];
+    unsigned short npts = tj.Pts[originPt].NTPsFit;
+    TrajPoint tpFit;
+    unsigned short fitDir = -1;
+    FitTraj(tjs, tj, originPt, npts, fitDir, tpFit);
+    tj.Pts[originPt] = tpFit;
+    
+  } // FitTraj
+  
+  //////////////////////////////////////////
+  void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit)
+  {
+    // Fit the supplied trajectory using HitPos positions with the origin at originPt.
+    // The npts is interpreted as the number of points on each side of the origin
+    // The allowed modes are as follows, where i denotes a TP that is included, . denotes
+    // a TP with no hits, and x denotes a TP that is not included
+    //TP 012345678  fitDir  originPt npts
+    //   Oiiixxxxx   1        0       4 << npts in the fit
+    //   xi.iiOxxx  -1        5       4
+    //   xiiiOiiix   0        4       4 << 2 * npts + 1 points in the fit
+    //   xxxiO.ixx   0        4       1
+    //   0iiixxxxx   0        0       4
+    // This routine puts the results into tp if the fit is successfull. The
+    // fit "direction" is in increasing order along the trajectory from 0 to tj.Pts.size() - 1.
+    
+    //    static const float twoPi = 2 * M_PI;
+    
+    if(originPt > tj.Pts.size() - 1) {
+      mf::LogWarning("TC")<<"FitTraj: Requesting fit of invalid TP "<<originPt;
+      return;
+    }
+    
+    // copy the origin TP into the fit TP
+    tpFit = tj.Pts[originPt];
+    // Assume that the fit will fail
+    tpFit.FitChi = 999;
+    if(fitDir < -1 || fitDir > 1) return;
+    
+    std::vector<double> x, y;
+    std::array<float, 2> origin = tj.Pts[originPt].HitPos;
+    // Use TP position if there aren't any hits on it
+    if(tj.Pts[originPt].Chg == 0) origin = tj.Pts[originPt].Pos;
+    
+    // simple two point case
+    if(NumPtsWithCharge(tjs, tj, false) == 2) {
+      for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ++ipt) {
+        if(tj.Pts[ipt].Chg == 0) continue;
+        double xx = tj.Pts[ipt].HitPos[0] - origin[0];
+        double yy = tj.Pts[ipt].HitPos[1] - origin[1];
+        x.push_back(xx);
+        y.push_back(yy);
+      } // ii
+      if(x.size() != 2) return;
+      if(x[0] == x[1]) {
+        // Either + or - pi/2
+        tpFit.Ang = M_PI/2;
+        if(y[1] < y[0]) tpFit.Ang = -tpFit.Ang;
+      } else {
+        double dx = x[1] - x[0];
+        double dy = y[1] - y[0];
+        tpFit.Ang = atan2(dy, dx);
+      }
+      tpFit.Dir[0] = cos(tpFit.Ang);
+      tpFit.Dir[1] = sin(tpFit.Ang);
+      tpFit.Pos[0] += origin[0];
+      tpFit.Pos[1] += origin[1];
+      tpFit.AngErr = 0.01;
+      tpFit.FitChi = 0.01;
+      SetAngleCode(tjs, tpFit);
+      return;
+    } // two points
+    
+    std::vector<double> w, q;
+    std::array<double, 2> dir;
+    double xx, yy, xr, yr;
+    double chgWt;
+    
+    // Rotate the traj hit position into the coordinate system defined by the
+    // originPt traj point, where x = along the trajectory, y = transverse
+    double rotAngle = tj.Pts[originPt].Ang;
+    double cs = cos(-rotAngle);
+    double sn = sin(-rotAngle);
+    
+    // enter the originPT hit info if it exists
+    if(tj.Pts[originPt].Chg > 0) {
+      xx = tj.Pts[originPt].HitPos[0] - origin[0];
+      yy = tj.Pts[originPt].HitPos[1] - origin[1];
+      xr = cs * xx - sn * yy;
+      yr = sn * xx + cs * yy;
+      x.push_back(xr);
+      y.push_back(yr);
+      chgWt = tj.Pts[originPt].ChgPull;
+      if(chgWt < 1) chgWt = 1;
+      chgWt *= chgWt;
+      w.push_back(chgWt * tj.Pts[originPt].HitPosErr2);
+    }
+    
+    // correct npts to account for the origin point
+    if(fitDir != 0) --npts;
+    
+    // step in the + direction first
+    if(fitDir != -1) {
+      unsigned short cnt = 0;
+      for(unsigned short ipt = originPt + 1; ipt < tj.Pts.size(); ++ipt) {
+        if(tj.Pts[ipt].Chg == 0) continue;
+        xx = tj.Pts[ipt].HitPos[0] - origin[0];
+        yy = tj.Pts[ipt].HitPos[1] - origin[1];
+        xr = cs * xx - sn * yy;
+        yr = sn * xx + cs * yy;
+        x.push_back(xr);
+        y.push_back(yr);
+        chgWt = tj.Pts[ipt].ChgPull;
+        if(chgWt < 1) chgWt = 1;
+        chgWt *= chgWt;
+        w.push_back(chgWt * tj.Pts[ipt].HitPosErr2);
+        ++cnt;
+        if(cnt == npts) break;
+      } // ipt
+    } // fitDir != -1
+    
+    // step in the - direction next
+    if(fitDir != 1 && originPt > 0) {
+      unsigned short cnt = 0;
+      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
+        unsigned short ipt = originPt - ii;
+        if(ipt > tj.Pts.size() - 1) continue;
+        if(tj.Pts[ipt].Chg == 0) continue;
+        xx = tj.Pts[ipt].HitPos[0] - origin[0];
+        yy = tj.Pts[ipt].HitPos[1] - origin[1];
+        xr = cs * xx - sn * yy;
+        yr = sn * xx + cs * yy;
+        x.push_back(xr);
+        y.push_back(yr);
+        chgWt = tj.Pts[ipt].ChgPull;
+        if(chgWt < 1) chgWt = 1;
+        chgWt *= chgWt;
+        w.push_back(chgWt * tj.Pts[ipt].HitPosErr2);
+        ++cnt;
+        if(cnt == npts) break;
+        if(ipt == 0) break;
+      } // ipt
+    } // fitDir != -1
+    
+    // Not enough points to define a line?
+    if(x.size() < 2) return;
+    
+    double sum = 0.;
+    double sumx = 0.;
+    double sumy = 0.;
+    double sumxy = 0.;
+    double sumx2 = 0.;
+    double sumy2 = 0.;
+    
+    // weight by the charge ratio and accumulate sums
+    double wght;
+    for(unsigned short ipt = 0; ipt < x.size(); ++ipt) {
+      if(w[ipt] < 0.00001) w[ipt] = 0.00001;
+      wght = 1 / w[ipt];
+      sum   += wght;
+      sumx  += wght * x[ipt];
+      sumy  += wght * y[ipt];
+      sumx2 += wght * x[ipt] * x[ipt];
+      sumy2 += wght * y[ipt] * y[ipt];
+      sumxy += wght * x[ipt] * y[ipt];
+    }
+    // calculate coefficients and std dev
+    double delta = sum * sumx2 - sumx * sumx;
+    if(delta == 0) return;
+    // A is the intercept
+    double A = (sumx2 * sumy - sumx * sumxy) / delta;
+    // B is the slope
+    double B = (sumxy * sum  - sumx * sumy) / delta;
+    
+    // The chisq will be set below if there are enough points. Don't allow it to be 0
+    // so we can take Chisq ratios later
+    tpFit.FitChi = 0.01;
+    double newang = atan(B);
+    dir[0] = cos(newang);
+    dir[1] = sin(newang);
+    // rotate back into the (w,t) coordinate system
+    cs = cos(rotAngle);
+    sn = sin(rotAngle);
+    tpFit.Dir[0] = cs * dir[0] - sn * dir[1];
+    tpFit.Dir[1] = sn * dir[0] + cs * dir[1];
+    // ensure that the direction is consistent with the originPt direction
+    bool flipDir = false;
+    if(AngleRange(tjs, tj.Pts[originPt]) > 0) {
+      flipDir = std::signbit(tpFit.Dir[1]) != std::signbit(tj.Pts[originPt].Dir[1]);
+    } else {
+      flipDir = std::signbit(tpFit.Dir[0]) != std::signbit(tj.Pts[originPt].Dir[0]);
+    }
+    if(flipDir) {
+      tpFit.Dir[0] = -tpFit.Dir[0];
+      tpFit.Dir[1] = -tpFit.Dir[1];
+    }
+    tpFit.Ang = atan2(tpFit.Dir[1], tpFit.Dir[0]);
+    SetAngleCode(tjs, tpFit);
+    //    if(prt) mf::LogVerbatim("TC")<<"FitTraj "<<originPt<<" originPt Dir "<<tj.Pts[originPt].Dir[0]<<" "<<tj.Pts[originPt].Dir[1]<<" rotAngle "<<rotAngle<<" tpFit.Dir "<<tpFit.Dir[0]<<" "<<tpFit.Dir[1]<<" Ang "<<tpFit.Ang<<" flipDir "<<flipDir<<" fit vector size "<<x.size();
+    
+    // rotate (0, intcpt) into (W,T) coordinates
+    tpFit.Pos[0] = -sn * A + origin[0];
+    tpFit.Pos[1] =  cs * A + origin[1];
+    // force the origin to be at origin[0]
+    MoveTPToWire(tpFit, origin[0]);
+    
+    if(x.size() < 3) return;
+    
+    // Calculate chisq/DOF
+    double ndof = x.size() - 2;
+    double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
+    if(varnce > 0.) {
+      // Intercept error is not used
+      //      InterceptError = sqrt(varnce * sumx2 / delta);
+      double slopeError = sqrt(varnce * sum / delta);
+      tpFit.AngErr = std::abs(atan(slopeError));
+    } else {
+      tpFit.AngErr = 0.01;
+    }
+    sum = 0;
+    // calculate chisq
+    double arg;
+    for(unsigned short ii = 0; ii < y.size(); ++ii) {
+      arg = y[ii] - A - B * x[ii];
+      sum += arg * arg / w[ii];
+    }
+    tpFit.FitChi = sum / ndof;
+    
+  } // FitTraj
+
    ////////////////////////////////////////////////
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& wHit, short& wInTraj, const unsigned short& tjID)
   {
@@ -2288,27 +2559,18 @@ namespace tca {
           myprt<<someText<<" Envelope";
           for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
           myprt<<" Energy "<<(int)ShowerEnergy(tjs, ss);
-          myprt<<" AspectRatio "<<std::fixed<<std::setprecision(2)<<ss.EnvelopeAspectRatio;
+//          myprt<<" AspectRatio "<<std::fixed<<std::setprecision(2)<<ss.EnvelopeAspectRatio;
           myprt<<" Area "<<std::fixed<<std::setprecision(1)<<(int)ss.EnvelopeArea<<" ChgDensity "<<ss.ChgDensity;
           myprt<<" Tjs";
           for(auto& tjID : ss.TjIDs) {
             myprt<<" "<<tjID;
           } // tjID
           myprt<<"\n";
-          myprt<<someText<<" Parent Tj "<<ss.ParentTrajID<<"_"<<ss.ParentTrajEnd<<" FOM "<<ss.ParentFOM;
-          if(ss.ParentTrajID != 0) {
-            unsigned short ptj = ss.ParentTrajID - 1;
-            unsigned short endPt = tjs.allTraj[ptj].EndPt[ss.ParentTrajEnd];
-            myprt<<" Ang "<<std::fixed<<std::setprecision(2)<<tjs.allTraj[ptj].Pts[endPt].Ang;
-          }
-          myprt<<" TPAngAve "<<std::fixed<<std::setprecision(2)<<ss.TPAngAve<<" +/- "<<ss.TPAngErr;
-          if(ss.FailedParentTrajID != 0) {
-            myprt<<"\n";
-            myprt<<someText<<" FailedParent Tj "<<ss.FailedParentTrajID<<"_"<<ss.FailedParentTrajEnd<<" FOM "<<ss.FailedParentFOM;
-            unsigned short ptj = ss.FailedParentTrajID - 1;
-            unsigned short endPt = tjs.allTraj[ptj].EndPt[ss.FailedParentTrajEnd];
-            myprt<<" Ang "<<std::fixed<<std::setprecision(2)<<tjs.allTraj[ptj].Pts[endPt].Ang;
-          }
+          myprt<<someText<<" Parent Tj list ";
+          for(auto& parstruct : ss.Parent) myprt<<" "<<parstruct.ID<<"_"<<parstruct.End<<" FOM "<<std::fixed<<std::setprecision(2)<<parstruct.FOM;
+          myprt<<"\n";
+          myprt<<" Shower Angle "<<std::fixed<<std::setprecision(2)<<ss.Angle<<" +/- "<<ss.AngleErr;
+          myprt<<" Aspect ratio "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
         } // ic
       }
     } else {
