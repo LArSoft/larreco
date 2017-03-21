@@ -4,11 +4,11 @@ namespace tca {
   
   
   ////////////////////////////////////////////////
-  void MakeShowers(TjStuff& tjs, const std::vector<float>& fShowerTag, const art::ServiceHandle<geo::Geometry>& geom, const detinfo::DetectorProperties*& detprop, const calo::CalorimetryAlg& fCaloAlg)
+  void MakeShowers(TjStuff& tjs, const calo::CalorimetryAlg& fCaloAlg)
   {
     // Fill shower variables
     
-    if(fShowerTag[0] < 0) return;
+    if(tjs.ShowerTag[0] < 0) return;
     
     // Get the calibration constants
     
@@ -59,7 +59,7 @@ namespace tca {
           PrintTrajPoint("itp", tjs, tjs.allTraj[itj].EndPt[0], 0, 0, itp);
           PrintTrajPoint("jtp", tjs, tjs.allTraj[jtj].EndPt[0], 0, 0, jtp);
           TVector3 dir, dirErr;
-          SpacePtDir(tjs, geom, detprop, itp, jtp, dir, dirErr);
+          SpacePtDir(tjs, itp, jtp, dir, dirErr);
           if(dir.X() < -10) continue;
           ss3.Dir += dir;
           ss3.DirErr += dirErr;
@@ -91,11 +91,11 @@ namespace tca {
         unsigned short itj = msp.TjIDs[ii] - 1;
         Trajectory& tj = tjs.allTraj[itj];
         geo::PlaneID planeID = DecodeCTP(tj.CTP);
-        double wirePitch = geom->WirePitch(planeID);
-        double angleToVert = geom->WireAngleToVertical(geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
+        double wirePitch = tjs.geom->WirePitch(planeID);
+        double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
         double cosgamma = std::abs(std::sin(angleToVert) * ss3.Dir.Y() + std::cos(angleToVert) * ss3.Dir.Z());
         if(cosgamma == 0) continue;
-        double dx = geom->WirePitch(planeID) / cosgamma;
+        double dx = tjs.geom->WirePitch(planeID) / cosgamma;
         // get the average charge from the first 4 points
         double dQ = 0;
         double dQErr = 0;
@@ -128,15 +128,15 @@ namespace tca {
   } // MakeShowers
 
   ////////////////////////////////////////////////
-  void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, std::vector<std::vector<unsigned short>>& tjList)
+  void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<unsigned short>>& tjList)
   {
-    // Tag Tjs with PDGCode = 12 if they have MCSMom < fShowerTag[0] and there are more than
-    // fShowerTag[6] other Tjs with a separation < fShowerTag[1]. Returns a list of Tjs that meet this criteria
+    // Tag Tjs with PDGCode = 12 if they have MCSMom < ShowerTag[0] and there are more than
+    // ShowerTag[6] other Tjs with a separation < ShowerTag[1]. Returns a list of Tjs that meet this criteria
     
     tjList.clear();
     
-    short maxMCSMom = fShowerTag[1];
-    unsigned short minCnt = fShowerTag[7];
+    short maxMCSMom = tjs.ShowerTag[1];
+    unsigned short minCnt = tjs.ShowerTag[7];
     
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       Trajectory& tj1 = tjs.allTraj[it1];
@@ -177,9 +177,9 @@ namespace tca {
         if(tj2.Pts.size() > 10 && tj2.MCSMom > maxMCSMom) continue;
         if(TjHasNiceVtx(tjs, tj2)) continue;
         unsigned short ipt1, ipt2;
-        float doca = fShowerTag[2];
+        float doca = tjs.ShowerTag[2];
         TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca);
-        if(doca < fShowerTag[2]) {
+        if(doca < tjs.ShowerTag[2]) {
           // start the list with the ID of tj1
           if(list.empty()) list.push_back(tj1.ID);
           list.push_back(tj2.ID);
@@ -192,11 +192,11 @@ namespace tca {
   } // TagShowerTjs
   
   ////////////////////////////////////////////////
-  void FindShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag)
+  void FindShowers(TjStuff& tjs, const CTP_t& inCTP)
   {
     // Construct clusters of trajectories (cots) which will become shower PFParticles
     
-    // fShowerTag[] parameters
+    // ShowerTag[] parameters
     // 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
     // 1 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
     // 2 Max separation
@@ -207,19 +207,19 @@ namespace tca {
     // 7 Min Tjs
     // 8 Debug in CTP
     
-    if(fShowerTag[0] <= 0) return;
+    if(tjs.ShowerTag[0] <= 0) return;
     
     bool prt = false;
-    if(fShowerTag[8] >= 0) {
+    if(tjs.ShowerTag[8] >= 0) {
       geo::PlaneID planeID = DecodeCTP(inCTP);
-      CTP_t printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(fShowerTag[8]));
+      CTP_t printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(tjs.ShowerTag[8]));
       prt = (printCTP == inCTP);
     }
     
     std::vector<std::vector<unsigned short>> tjList;
-    TagShowerTjs(tjs, inCTP, fShowerTag, tjList);
+    TagShowerTjs(tjs, inCTP, tjList);
     if(prt) std::cout<<"Inside FindShowers inCTP "<<inCTP<<" tjList size "<<tjList.size()<<"\n";
-    if(fShowerTag[0] == 1) return;
+    if(tjs.ShowerTag[0] == 1) return;
     if(tjList.empty()) return;
     
     if(prt) {
@@ -278,7 +278,7 @@ namespace tca {
     
     // remove Tjs that don't have enough neighbors = ShowerTag[7] unless the shower
     // has few Tjs
-    unsigned short minNeighbors = fShowerTag[7];
+    unsigned short minNeighbors = tjs.ShowerTag[7];
     if(minNeighbors > 0) --minNeighbors;
     for(auto& tjl : tjList) {
       bool didErase = true;
@@ -344,17 +344,17 @@ namespace tca {
       // Define the shower Tj using the shower axis
       DefineShowerTj(tjs, cotIndex, prt);
       // look for a parent
-      FindShowerParent(tjs, cotIndex, fShowerTag, prt);
+      FindShowerParent(tjs, cotIndex, prt);
       // re-define the shower if a parent was found
 //      if(tjs.cots[cotIndex].ParentTrajID > 0) DefineShowerTj(tjs, cotIndex, prt);
-      DefineShowerEnvelope(tjs, cotIndex, fShowerTag, prt);
+      DefineShowerEnvelope(tjs, cotIndex, prt);
       if(prt) PrintTrajectory("FS", tjs, tjs.allTraj[stj.ID-1], USHRT_MAX);
     } // tjl
     
     if(tjs.cots.empty()) return;
     
     // merge showers?
-    if(fShowerTag[0] > 2) MergeShowers(tjs, inCTP, fShowerTag, prt);
+    if(tjs.ShowerTag[0] > 2) MergeShowers(tjs, inCTP, prt);
     
     // drop those that don't meet the requirements
     for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
@@ -364,7 +364,7 @@ namespace tca {
       // enough Tjs?
       unsigned short ntjs = ss.TjIDs.size();
       if(!ss.Parent.empty()) ++ntjs;
-      bool killit = (ntjs < fShowerTag[7]);
+      bool killit = (ntjs < tjs.ShowerTag[7]);
       if(prt) mf::LogVerbatim("TC")<<"ic "<<ic<<" nTjs "<<ss.TjIDs.size()<<" killit? "<<killit;
       unsigned short nTjWithVtx = 0;
       // require a parent Traj
@@ -372,7 +372,7 @@ namespace tca {
       // with a good FOM
       if(!killit) killit = (ss.Parent[0].FOM > 1);
       // Kill runt showers
-      if(!killit) killit = (ShowerEnergy(tjs, ss) < fShowerTag[3]);
+      if(!killit) killit = (ShowerEnergy(tjs, ss) < tjs.ShowerTag[3]);
       if(!killit) killit = (ss.ChgDensity < 0.5);
       if(!killit) killit = (ss.EnvelopeAspectRatio > 2);
       if(!killit) {
@@ -385,7 +385,7 @@ namespace tca {
         }  // tjID
         // add the parent point count
         if(!ss.Parent.empty()) nTjPts += NumPtsWithCharge(tjs, tjs.allTraj[ss.Parent[0].ID - 1], false);
-        if(nTjPts < fShowerTag[6]) killit = true;
+        if(nTjPts < tjs.ShowerTag[6]) killit = true;
         if(prt) mf::LogVerbatim("TC")<<"    "<<" nTjPts "<<nTjPts<<" killit? "<<killit;
       } // !killit
       if(killit) {
@@ -451,7 +451,7 @@ namespace tca {
       }
     } // ss
     
-    if(fShowerTag[8] >= 0) {
+    if(tjs.ShowerTag[8] >= 0) {
       for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
         if(tjs.cots[ic].TjIDs.empty()) continue;
         unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
@@ -463,7 +463,7 @@ namespace tca {
   } // FindShowers
   
   ////////////////////////////////////////////////
-  void FindShowerParent(TjStuff& tjs, const unsigned short& cotIndex, const std::vector<float>& fShowerTag, bool prt)
+  void FindShowerParent(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
     // look for a parent trajectory for the cluster of trajectories, cotIndex. This should have the
     // signature
@@ -471,7 +471,7 @@ namespace tca {
     //   -----------      The next 3 lines represent the parent trajectory that is well reconstructed
     //               \    before it enters the shower, but wanders after shower hits are added to it
     
-    // fShowerTag[] parameters
+    // ShowerTag[] parameters
     // 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
     // 1 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
     // 2 Max separation
@@ -515,7 +515,7 @@ namespace tca {
   } //FindShowerParent
 /*
   ////////////////////////////////////////////////
-  void FindShowerParent(TjStuff& tjs, const unsigned short& cotIndex, const std::vector<float>& fShowerTag, bool prt)
+  void FindShowerParent(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
     // look for a parent trajectory for the cluster of trajectories, cotIndex. This should have the
     // signature
@@ -523,7 +523,7 @@ namespace tca {
     //   -----------      The next 3 lines represent the parent trajectory that is well reconstructed
     //               \    before it enters the shower, but wanders after shower hits are added to it
     
-    // fShowerTag[] parameters
+    // ShowerTag[] parameters
     // 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
     // 1 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
     // 2 Max separation
@@ -537,7 +537,7 @@ namespace tca {
     if(cotIndex > tjs.cots.size() - 1) return;
     
     unsigned short minParentLength = 3;
-    float maxDelta = 2 * fShowerTag[2];
+    float maxDelta = 2 * tjs.ShowerTag[2];
     
     ShowerStruct& ss = tjs.cots[cotIndex];
     // clobber any previous Shower -> Parent assignment
@@ -619,7 +619,7 @@ namespace tca {
       // it can't be a parent if it is a shower tj
       if(tj.AlgMod[kShowerTj]) continue;
       // or if it has low MCSMom TODO: Is this a good idea?
-      //      if(tj.MCSMom < fShowerTag[1]) continue;
+      //      if(tj.MCSMom < tjs.ShowerTag[1]) continue;
       // or if it is too short
       float npwc = NumPtsWithCharge(tjs, tj, true);
       if(npwc < minParentLength) continue;
@@ -724,11 +724,11 @@ namespace tca {
  */
   
   ////////////////////////////////////////////////
-  void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, bool prt)
+  void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt)
   {
     // Merge showers that point roughly in the same direction and aren't too far apart
     
-    // fShowerTag[] parameters
+    // ShowerTag[] parameters
     // 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
     // 1 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
     // 2 Max separation
@@ -807,9 +807,9 @@ namespace tca {
           if(iChg > jChg) {
             iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.end());
             FindShowerCenter(tjs, ict, prt);
-            FindShowerParent(tjs, ict, fShowerTag, prt);
+            FindShowerParent(tjs, ict, prt);
             DefineShowerTj(tjs, ict, prt);
-            DefineShowerEnvelope(tjs, ict, fShowerTag, prt);
+            DefineShowerEnvelope(tjs, ict, prt);
             jss.TjIDs.clear();
             // kill the shower Tj
             jtj.AlgMod[kKilled] = true;
@@ -820,9 +820,9 @@ namespace tca {
           } else {
             jss.TjIDs.insert(jss.TjIDs.end(), iss.TjIDs.begin(), iss.TjIDs.end());
             FindShowerCenter(tjs, jct, prt);
-            FindShowerParent(tjs, jct, fShowerTag, prt);
+            FindShowerParent(tjs, jct, prt);
             DefineShowerTj(tjs, jct, prt);
-            DefineShowerEnvelope(tjs, jct, fShowerTag, prt);
+            DefineShowerEnvelope(tjs, jct, prt);
             iss.TjIDs.clear();
             itj.AlgMod[kKilled] = true;
             if(prt) {
@@ -943,7 +943,7 @@ namespace tca {
   } // FindShowerCenter
   
   ////////////////////////////////////////////////
-  float ShowerEnergy(TjStuff& tjs, const ShowerStruct& ss)
+  float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss)
   {
     if(ss.TjIDs.empty()) return 0;
     if(ss.ShowerTjID == 0) return 0;
@@ -952,7 +952,7 @@ namespace tca {
     // Divide by the expected shower containment of 90%. This needs to be calculated directly
     constexpr float fShMeVPerChg = 0.0143 / 0.9;
     
-    Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
+    const Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
     float nrg = fShMeVPerChg * (stj.Pts[0].Chg + stj.Pts[1].Chg + stj.Pts[2].Chg);
     return nrg;
     
@@ -1124,7 +1124,7 @@ namespace tca {
   } // DefineShowerTj
   
   ////////////////////////////////////////////////
-  void DefineShowerEnvelope(TjStuff& tjs, const unsigned short& cotIndex, const std::vector<float>& fShowerTag, bool prt)
+  void DefineShowerEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
     
     if(cotIndex > tjs.cots.size() - 1) return;
@@ -1144,10 +1144,10 @@ namespace tca {
     // the Pos[0] direction and then rotated into the ShowerTj direction. Use sTp1 as the origin.
     // First vertex
     ss.Envelope[0][0] = 1.1 * (stp0.Pos[0] - stp1.Pos[0]);
-    ss.Envelope[0][1] = fShowerTag[5] + fShowerTag[4] * stp0.DeltaRMS;
+    ss.Envelope[0][1] = tjs.ShowerTag[5] + tjs.ShowerTag[4] * stp0.DeltaRMS;
     // second vertex
     ss.Envelope[1][0] = 1.1 * (stp2.Pos[0] - stp1.Pos[0]);
-    ss.Envelope[1][1] = fShowerTag[5] + fShowerTag[4] * stp2.DeltaRMS;
+    ss.Envelope[1][1] = tjs.ShowerTag[5] + tjs.ShowerTag[4] * stp2.DeltaRMS;
     // third and fourth are reflections of the first and second
     ss.Envelope[2][0] =  ss.Envelope[1][0];
     ss.Envelope[2][1] = -ss.Envelope[1][1];
@@ -1288,7 +1288,7 @@ namespace tca {
 
   
   /////////////////////////////////////////
-  void SpacePtDir(TjStuff& tjs, const art::ServiceHandle<geo::Geometry>& geom, const detinfo::DetectorProperties*& detprop, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr)
+  void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr)
   {
     
     if(itp.CTP == jtp.CTP) {
@@ -1298,11 +1298,10 @@ namespace tca {
     TVector3 pt1, pt2;
     geo::PlaneID iplnID = DecodeCTP(itp.CTP);
     geo::PlaneID jplnID = DecodeCTP(jtp.CTP);
-    //    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     double y, z;
-    double xi  = detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
+    double xi  = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
     //    std::cout<<"xi "<<xi;
-    double xj = detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
+    double xj = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
     //    std::cout<<" xj "<<xj<<"\n";
     // don't continue if the points are too far apart in X
     if(std::abs(xi - xj) > 5) {
@@ -1314,7 +1313,7 @@ namespace tca {
     unsigned int wire1 = (unsigned int)(itp.Pos[0] + 0.5);
     unsigned int wire2 = (unsigned int)(jtp.Pos[0] + 0.5);
     //    std::cout<<"wire1 "<<iplnID.Plane<<":"<<wire1<<" wire2 "<<jplnID.Plane<<":"<<wire2;
-    geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
+    tjs.geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
     pt1.SetX(xi);
     pt1.SetY(y);
     pt1.SetZ(z);
@@ -1326,17 +1325,17 @@ namespace tca {
     MoveTPToWire(itp, itp.Pos[0] + 100);
     //    std::cout<<" -> "<<PrintPos(tjs, itp.Pos);
     wire1 = (unsigned int)(itp.Pos[0] + 0.5);
-    xi  = detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
+    xi  = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
     //    std::cout<<" new x "<<xi<<"\n";
     //    std::cout<<" jtp Dir "<<jtp.Dir[0]<<" "<<jtp.Dir[1]<<"\n";
     // Determine the number of wires to move jtp to get to the same X position
     std::array<float, 2> newPos;
-    newPos[1] = detprop->ConvertXToTicks(xi, jplnID) * tjs.UnitsPerTick;
+    newPos[1] = tjs.detprop->ConvertXToTicks(xi, jplnID) * tjs.UnitsPerTick;
     //    std::cout<<" jtp.Pos[1] "<<jtp.Pos[1]<<" newPos[1] "<<newPos[1]<<" UPT "<<tjs.UnitsPerTick<<"\n";
     newPos[0] = (newPos[1] - jtp.Pos[1]) * (jtp.Dir[0] / jtp.Dir[1]) + jtp.Pos[0];
     //    std::cout<<" newPos "<<PrintPos(tjs, newPos)<<"\n";
     wire2 = (unsigned int)(newPos[0] + 0.5);
-    geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
+    tjs.geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
     pt2.SetX(xi);
     pt2.SetY(y);
     pt2.SetZ(z);
