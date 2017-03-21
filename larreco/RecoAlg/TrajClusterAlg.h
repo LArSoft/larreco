@@ -9,9 +9,7 @@
 #ifndef TRAJCLUSTERALG_H
 #define TRAJCLUSTERALG_H
 
-#include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
-#include "larreco/RecoAlg/TCAlg/Showers.h"
 
 // C/C++ standard libraries
 #include <array>
@@ -36,12 +34,6 @@
 #include "canvas/Utilities/Exception.h"
 
 // LArSoft libraries
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "larcore/Geometry/Geometry.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Wire.h"
-#include "lardata/DetectorInfoServices/LArPropertiesService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/LinFitAlg.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
@@ -133,7 +125,6 @@ namespace tca {
     std::vector<float> fMatchTruth;     ///< Match to MC truth
  
     std::vector<float> fMaxVertexTrajSep;
-    std::bitset<64> fUseAlg;  ///< Allow user to mask off specific algorithms
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
@@ -142,13 +133,8 @@ namespace tca {
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
 		float VertexPullCut; 	///< maximum 2D vtx - trajectory significance
-    std::vector<short> fDeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
-    std::vector<short> fMuonTag; ///< min length and min MCSMom for a muon tag
-    std::vector<float> fShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
 
-    std::vector<float> fVertex2DCuts; ///< Max position pull, max Position error rms
-    float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
     std::vector<float> fMatch3DCuts;  ///< Max dX separation
     
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
@@ -231,11 +217,6 @@ namespace tca {
     short TJPrt; // Set to the WorkID of a trajectory that is being debugged
     bool shPrt; /// print shower info
     
-    art::ServiceHandle<geo::Geometry> geom;
-    const detinfo::DetectorProperties* detprop;
-    // TEMP for writing event filter selection
-//    std::ofstream outFile;
-    
     trkf::LinFitAlg fLinFitAlg;
     calo::CalorimetryAlg fCaloAlg;
 
@@ -307,6 +288,8 @@ namespace tca {
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
+    void FindVtxTjs();
+    void FindVtxTraj(unsigned short ivx);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
      // Truncates the trajectory if a soft kink is found in it
@@ -363,28 +346,15 @@ namespace tca {
     void ChkAllStop();
     // Sets the StopsAtEnd bits for the trajectory
     void ChkStop(Trajectory& tj);
+    void SplitTrajCrossingVertices();
     // Check the Michel electron topology, lastGoodPt is the last point of muon
     bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
     // TY: Split high charge hits near the trajectory end
     void ChkHiChgHits();
     void SplitHiChgHits(Trajectory& tj);
     void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
-    void SetPDGCode(Trajectory& tj);
-    void SetPDGCode(unsigned short itj);
     void MatchTruth();
-    // ****************************** Vertex code  ******************************
-    void Find2DVertices();
-    void FindVtxTraj(unsigned short ivx);
-//    void Refine2DVertices();
-    void SplitTrajCrossingVertices();
-    void FindHammerVertices();
-    void FindHammerVertices2();
-    void Find3DVertices(const geo::TPCID& tpcid);
-    void CompleteIncomplete3DVertices(const geo::TPCID& tpcid);
-    void CompleteIncomplete3DVerticesInGaps(const geo::TPCID& tpcid);
-    // Improve hit assignments near vertex 
-    void VtxHitsSwap();
-    // ****************************** 3D Tj matching code  ******************************
+     // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
     void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
     void Find3DEndPoints(const geo::TPCID& tpcid);
