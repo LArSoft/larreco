@@ -78,9 +78,9 @@ namespace tca {
     fShPrimIP = tfs->make<TH1F>("ShPrimIP","Primary TP - Shower TP Impact Parameter", 100, 0, 20);
     fShPrimIP_Energy = tfs->make<TProfile>("ShPrimIP_Energy","Primary TP - Shower TP Impact Parameter vs Energy", nbins, 0, 1000);
     
-    fShTPAngAve[0] = tfs->make<TH1F>("TPAngAve0","Ave TP Angle Pln 0", 100, -1, 1);
-    fShTPAngAve[1] = tfs->make<TH1F>("TPAngAve1","Ave TP Angle Pln 1", 100, -1, 1);
-    fShTPAngAve[2] = tfs->make<TH1F>("TPAngAve2","Ave TP Angle Pln 2", 100, -1, 1);
+    fShowerAngle[0] = tfs->make<TH1F>("ShowerAngle0","Shower Angle Pln 0", 100, -1, 1);
+    fShowerAngle[1] = tfs->make<TH1F>("ShowerAngle1","Shower Angle Pln 1", 100, -1, 1);
+    fShowerAngle[2] = tfs->make<TH1F>("ShowerAngle2","Shower Angle Pln 2", 100, -1, 1);
     
     // End of shower histos
 
@@ -126,7 +126,7 @@ namespace tca {
     fMode                 = pset.get< short >("Mode", 1);
     fHitErrFac            = pset.get< float >("HitErrFac", 0.4);
     fMinAmp               = pset.get< float >("MinAmp", 0.1);
-    fAngleRanges          = pset.get< std::vector<float>>("AngleRanges");
+    tjs.AngleRanges       = pset.get< std::vector<float>>("AngleRanges");
     fNPtsAve              = pset.get< short >("NPtsAve", 20);
     fMinPtsFit            = pset.get< std::vector<unsigned short >>("MinPtsFit");
     fMinPts               = pset.get< std::vector<unsigned short >>("MinPts");
@@ -197,9 +197,9 @@ namespace tca {
     if(fMatch3DCuts.size() != 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = MinMCSMom\n 2 = Min length for 2-view match\n 3 = 2-view match require dead region in 3rd view?";
     
     // check the angle ranges and convert from degrees to radians
-    if(fAngleRanges.back() < 90) {
+    if(tjs.AngleRanges.back() < 90) {
       mf::LogVerbatim("TC")<<"Last element of AngleRange != 90 degrees. Fixing it\n";
-      fAngleRanges.back() = 90;
+      tjs.AngleRanges.back() = 90;
     }
     
     // decide whether debug information should be printed
@@ -208,27 +208,27 @@ namespace tca {
       std::cout<<"Pass MinPts  MinPtsFit Max Angle\n";
       for(unsigned short pass = 0; pass < fMinPts.size(); ++pass) {
         unsigned short ir = fMaxAngleCode[pass];
-        if(ir > fAngleRanges.size() - 1) ir = fAngleRanges.size() - 1;
+        if(ir > tjs.AngleRanges.size() - 1) ir = tjs.AngleRanges.size() - 1;
         std::cout<<std::setw(3)<<pass;
         std::cout<<std::setw(7)<<fMinPts[pass];
         std::cout<<std::setw(7)<<fMinPtsFit[pass];
-        std::cout<<std::setw(12)<<(int)fAngleRanges[ir]<<"\n";
+        std::cout<<std::setw(12)<<(int)tjs.AngleRanges[ir]<<"\n";
       }
       std::cout<<"Max angle ranges\n range  degrees  radians\n";
-      for(unsigned short ir = 0; ir < fAngleRanges.size(); ++ir) {
+      for(unsigned short ir = 0; ir < tjs.AngleRanges.size(); ++ir) {
         std::cout<<std::setw(3)<<ir;
-        std::cout<<std::setw(8)<<(int)fAngleRanges[ir];
-        std::cout<<std::setw(8)<<std::setprecision(3)<<fAngleRanges[ir] * M_PI / 180;
+        std::cout<<std::setw(8)<<(int)tjs.AngleRanges[ir];
+        std::cout<<std::setw(8)<<std::setprecision(3)<<tjs.AngleRanges[ir] * M_PI / 180;
         std::cout<<"\n";
       } // ir
     }
     
-    for(auto& range : fAngleRanges) {
+    for(auto& range : tjs.AngleRanges) {
       if(range < 0 || range > 90) throw art::Exception(art::errors::Configuration)<< "Invalid angle range "<<range<<" Must be 0 - 90 degrees";
       range *= M_PI / 180;
     } // range
     // size this and set it later
-    fAngleRangesMaxHitsRMS.resize(fAngleRanges.size());
+//    fAngleRangesMaxHitsRMS.resize(tjs.AngleRanges.size());
     
     // Ensure that the size of the AlgBitNames vector is consistent with the AlgBit typedef enum
     if(kAlgBitSize != AlgBitNames.size()) throw art::Exception(art::errors::Configuration)<<"kAlgBitSize "<<kAlgBitSize<<" != AlgBitNames size "<<AlgBitNames.size();
@@ -500,11 +500,11 @@ namespace tca {
         unsigned short itj = ss.ShowerTjID - 1;
         Trajectory& stj = tjs.allTraj[itj];
         float ep = 0;
-        if(ss.ParentTrajID == 0) {
+        if(ss.Parent.empty()) {
           std::cout<<"No parent Tj for ict "<<ict<<"\n";
           continue;
         }
-        ep = tjs.allTraj[ss.ParentTrajID - 1].EffPur;
+        ep = tjs.allTraj[ss.Parent[0].ID - 1].EffPur;
         // source particle energy in MeV
         float spe = 1000 * sourceParticleEnergy;
         mf::LogVerbatim myprt("TC");
@@ -535,25 +535,26 @@ namespace tca {
         fShEP_Energy->Fill(spe, ep);
         float aspect2 = (stj.Pts[2].DeltaRMS - stj.Pts[0].DeltaRMS) / ss.EnvelopeLength;
         fShAspectRatio2->Fill(aspect2);
-        fShTPAngAve[ss.CTP]->Fill(ss.TPAngAve);
+        fShowerAngle[ss.CTP]->Fill(ss.Angle);
         float parLen = 1E6;
-        if(ss.ParentTrajID == 0) continue;
-        unsigned short iptj = ss.ParentTrajID - 1;
-        unsigned short endPt = tjs.allTraj[iptj].EndPt[ss.ParentTrajEnd];
+        if(ss.Parent.empty()) continue;
+        unsigned short iptj = ss.Parent[0].ID - 1;
+        unsigned short end = ss.Parent[0].End;
+        unsigned short endPt = tjs.allTraj[iptj].EndPt[end];
         TrajPoint& ptp = tjs.allTraj[iptj].Pts[endPt];
         float ip = PointTrajDOCA(tjs, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], ptp);
         fShPrimIP->Fill(ip);
         fShPrimIP_Energy->Fill(spe, ip);
         parLen = PosSep(ptp.Pos, stj.Pts[1].Pos);
         fParentLength_Energy->Fill(spe, parLen);
-        fParentFOM->Fill(ss.ParentFOM);
+        fParentFOM->Fill(ss.Parent[0].FOM);
         myprt<<" "<<stj.ID<<"_"<<stj.CTP<<" nTjIDs "<<ss.TjIDs.size()<<" AveMom "<<(int)aveMom;
 //        std::cout<<" aveNN "<<std::fixed<<std::setprecision(1)<<aveNN;
 //        for(auto& vtx : ss.Envelope) std::cout<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
         myprt<<" Parent "<<tjs.allTraj[iptj].ID<<" "<<PrintPos(tjs, ptp);
         myprt<<" CC "<<PrintPos(tjs, stj.Pts[1].Pos);
         myprt<<" ParLen "<<(int)parLen;
-        myprt<<" Parfom "<<std::fixed<<std::setprecision(2)<<ss.ParentFOM;
+        myprt<<" Parfom "<<std::fixed<<std::setprecision(2)<<ss.Parent[0].FOM;
         myprt<<" AspRat "<<std::fixed<<std::setprecision(2)<<ss.EnvelopeAspectRatio<<" aspect2 "<<aspect2;
         myprt<<" Chg "<<(int)totChg<<" ChgDensity "<<std::fixed<<std::setprecision(1)<<ss.ChgDensity;
         myprt<<" EffPur "<<ep;
@@ -1039,7 +1040,7 @@ namespace tca {
       unsigned short lastPt = tj.EndPt[1];
       for(unsigned short ipt = firstPt; ipt <= lastPt; ++ipt) {
         TrajPoint& tp = tj.Pts[ipt];
-        if(AngleRange(tp) == 0) continue;
+        if(AngleRange(tjs, tp) == 0) continue;
         if(tp.Hits.empty()) continue;
         bool hitsAdded = false;
         for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
@@ -1322,7 +1323,7 @@ namespace tca {
       if(chidof > 900) return;
       // A rough estimate of the trajectory angle
       work.Pts[0].Ang = atan(slope);
-      SetAngleCode(work.Pts[0]);
+      SetAngleCode(tjs, work.Pts[0]);
       // Rotate the hits into this coordinate system to find the start and end
       // points and general direction
       float cs = cos(-work.Pts[0].Ang);
@@ -1394,7 +1395,7 @@ namespace tca {
       if(!MakeBareTrajPoint(tjs, work.Pts[ipt-1], tp, tpd)) continue;
       tp.Dir = tpd.Dir;
       tp.Ang = tpd.Ang;
-      SetAngleCode(tp);
+      SetAngleCode(tjs, tp);
       if(ipt == 1) {
         work.Pts[0].Dir = tpd.Dir;
         work.Pts[0].Ang = tpd.Ang;
@@ -5777,7 +5778,7 @@ namespace tca {
     if(tj.MCSMom < 100) return;
 
     // don't bother with LA trajectories
-    if(AngleRange(tj.Pts[tj.EndPt[1]]) > 0) return;
+    if(AngleRange(tjs, tj.Pts[tj.EndPt[1]]) > 0) return;
 
     if(prt) mf::LogVerbatim("TC")<<"CheckHiDeltas: MCSMom "<<tj.MCSMom;
 
@@ -5926,7 +5927,7 @@ namespace tca {
     // Use this to limit the number of points fit for trajectories that
     // are close the LA tracking cut
     ii = tj.EndPt[1];
-    bool sortaLargeAngle = (AngleRange(tj.Pts[ii]) == 1);
+    bool sortaLargeAngle = (AngleRange(tjs, tj.Pts[ii]) == 1);
 
     if(prt) mf::LogVerbatim("TC")<<"CHMUH: First InTraj stopPt "<<stopPt<<" fracHiMult "<<fracHiMult<<" fracHitsUsed "<<fracHitsUsed<<" lastMult1Pt "<<lastMult1Pt<<" sortaLargeAngle "<<sortaLargeAngle;
     if(fracHiMult < 0.3) return;
@@ -6145,7 +6146,7 @@ namespace tca {
       DefineHitPos(tp);
       SetEndPoints(tjs, tj);
       tp.NTPsFit = newNTPSFit;
-      FitTraj(tj);
+      FitTraj(tjs, tj);
       if(prt) PrintTrajectory("MHOK2", tjs, tj, ipt);
     } // ipt
     
@@ -6182,7 +6183,7 @@ namespace tca {
       if(lastTP.NTPsFit > 3) newNTPSFit -= 2;
       else if(lastTP.NTPsFit == 3) newNTPSFit = 2;
       lastTP.NTPsFit = newNTPSFit;
-      FitTraj(tj);
+      FitTraj(tjs, tj);
       if(prt) mf::LogVerbatim("TC")<<"PrepareForNextPass: FitChi is > 1.5 "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" tj.Pass "<<tj.Pass;
       if(lastTP.NTPsFit <= fMinPtsFit[tj.Pass]) break;
       ++nit;
@@ -6295,7 +6296,7 @@ namespace tca {
     TrajPoint tpFit;
     unsigned short npts = 4;
     unsigned short fitDir = -1;
-    FitTraj(tj, lastPt, npts, fitDir, tpFit);
+    FitTraj(tjs, tj, lastPt, npts, fitDir, tpFit);
     if(tpFit.FitChi > 1) return;
  
     float dang = DeltaAngle(tj.Pts[kinkPt].Ang, tpFit.Ang);
@@ -6381,7 +6382,7 @@ namespace tca {
     tj.MCSMom = newMCSMom;
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleRange "<<AngleRange(lastTP)<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
+      mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleRange "<<AngleRange(tjs, lastTP)<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
     }
     
     UpdateAveChg(tj);
@@ -6390,22 +6391,22 @@ namespace tca {
       // Handle the second trajectory point. No error calculation. Just update
       // the position and direction
       lastTP.NTPsFit = 2;
-      FitTraj(tj);
+      FitTraj(tjs, tj);
       lastTP.FitChi = 0.01;
       lastTP.AngErr = tj.Pts[0].AngErr;
       if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: Second traj point pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1];
       fUpdateTrajOK = true;
-      SetAngleCode(lastTP);
+      SetAngleCode(tjs, lastTP);
       return;
     }
     
     if(lastPt == 2) {
       // Third trajectory point. Keep it simple
       lastTP.NTPsFit = 3;
-      FitTraj(tj);
+      FitTraj(tjs, tj);
       fUpdateTrajOK = true;
       if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: Third traj point fit "<<lastTP.FitChi;
-      SetAngleCode(lastTP);
+      SetAngleCode(tjs, lastTP);
       return;
     }
     
@@ -6427,13 +6428,13 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<" Low MCSMom? "<<localMCSMom<<" NTPsFit "<<lastTP.NTPsFit;
     } // tj.MCSMom < 100
     
-    FitTraj(tj);
+    FitTraj(tjs, tj);
     
     // don't get too fancy when we are starting out
     if(lastPt < 6) {
       fUpdateTrajOK = true;
       UpdateDeltaRMS(tj);
-      SetAngleCode(lastTP);
+      SetAngleCode(tjs, lastTP);
       if(prt) mf::LogVerbatim("TC")<<" Return with lastTP.FitChi "<<lastTP.FitChi<<" Chg "<<lastTP.Chg;
       return;
     }
@@ -6496,9 +6497,9 @@ namespace tca {
       SetEndPoints(tjs, tj);
       lastPt = tj.EndPt[1];
       lastTP.NTPsFit -= 1;
-      FitTraj(tj);
+      FitTraj(tjs, tj);
       fUpdateTrajOK = true;
-      SetAngleCode(lastTP);
+      SetAngleCode(tjs, lastTP);
       return;
     }  else {
       // a more gradual increase in chisq. Reduce the number of points
@@ -6519,7 +6520,7 @@ namespace tca {
         if(newNTPSFit < minPtsFit) newNTPSFit = minPtsFit;
         lastTP.NTPsFit = newNTPSFit;
         if(prt) mf::LogVerbatim("TC")<<"  Bad FitChi "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" Pass "<<tj.Pass;
-        FitTraj(tj);
+        FitTraj(tjs, tj);
         if(lastTP.FitChi > prevChi) {
           if(prt) mf::LogVerbatim("TC")<<"  Chisq is increasing "<<lastTP.FitChi<<"  Try to remove an earlier bad hit";
           MaskBadTPs(tj, 1.5);
@@ -6537,7 +6538,7 @@ namespace tca {
       DefineHitPos(lastTP);
       SetEndPoints(tjs, tj);
       lastPt = tj.EndPt[1];
-      FitTraj(tj);
+      FitTraj(tjs, tj);
       fUpdateTrajOK = true;
       fMaskedLastTP = true;
     }
@@ -6558,7 +6559,7 @@ namespace tca {
     }
 
     UpdateDeltaRMS(tj);
-    SetAngleCode(lastTP);
+    SetAngleCode(tjs, lastTP);
 
     fUpdateTrajOK = true;
     return;
@@ -6594,239 +6595,6 @@ namespace tca {
     if(lastTP.DeltaRMS < 0.02) lastTP.DeltaRMS = 0.02;
 
   } // UpdateDeltaRMS
-  
-  //////////////////////////////////////////
-  void TrajClusterAlg::FitTraj(Trajectory& tj)
-  {
-    // Jacket around FitTraj to fit the leading edge of the supplied trajectory
-    unsigned short originPt = tj.EndPt[1];
-    unsigned short npts = tj.Pts[originPt].NTPsFit;
-    TrajPoint tpFit;
-    unsigned short fitDir = -1;
-    FitTraj(tj, originPt, npts, fitDir, tpFit);
-    tj.Pts[originPt] = tpFit;
-    
-  } // FitTraj
-
-  //////////////////////////////////////////
-  void TrajClusterAlg::FitTraj(Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit)
-  {
-    // Fit the supplied trajectory using HitPos positions with the origin at originPt.
-    // The npts is interpreted as the number of points on each side of the origin
-    // The allowed modes are as follows, where i denotes a TP that is included, . denotes
-    // a TP with no hits, and x denotes a TP that is not included
-    //TP 012345678  fitDir  originPt npts
-    //   Oiiixxxxx   1        0       4 << npts in the fit
-    //   xi.iiOxxx  -1        5       4
-    //   xiiiOiiix   0        4       4 << 2 * npts + 1 points in the fit
-    //   xxxiO.ixx   0        4       1
-    //   0iiixxxxx   0        0       4
-   // This routine puts the results into tp if the fit is successfull. The
-    // fit "direction" is in increasing order along the trajectory from 0 to tj.Pts.size() - 1.
-    
-//    static const float twoPi = 2 * M_PI;
-    
-    if(originPt > tj.Pts.size() - 1) {
-      mf::LogWarning("TC")<<"FitTraj: Requesting fit of invalid TP "<<originPt;
-      return;
-    }
-    
-    // copy the origin TP into the fit TP
-    tpFit = tj.Pts[originPt];
-    // Assume that the fit will fail
-    tpFit.FitChi = 999;
-    if(fitDir < -1 || fitDir > 1) return;
-    
-    std::vector<double> x, y;
-    std::array<float, 2> origin = tj.Pts[originPt].HitPos;
-    // Use TP position if there aren't any hits on it
-    if(tj.Pts[originPt].Chg == 0) origin = tj.Pts[originPt].Pos;
-    
-    // simple two point case
-    if(NumPtsWithCharge(tjs, tj, false) == 2) {
-      for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ++ipt) {
-        if(tj.Pts[ipt].Chg == 0) continue;
-        double xx = tj.Pts[ipt].HitPos[0] - origin[0];
-        double yy = tj.Pts[ipt].HitPos[1] - origin[1];
-        x.push_back(xx);
-        y.push_back(yy);
-      } // ii
-      if(x.size() != 2) return;
-      if(x[0] == x[1]) {
-        // Either + or - pi/2
-        tpFit.Ang = M_PI/2;
-        if(y[1] < y[0]) tpFit.Ang = -tpFit.Ang;
-      } else {
-        double dx = x[1] - x[0];
-        double dy = y[1] - y[0];
-        tpFit.Ang = atan2(dy, dx);
-      }
-      tpFit.Dir[0] = cos(tpFit.Ang);
-      tpFit.Dir[1] = sin(tpFit.Ang);
-      tpFit.Pos[0] += origin[0];
-      tpFit.Pos[1] += origin[1];
-      tpFit.AngErr = 0.01;
-      tpFit.FitChi = 0.01;
-      SetAngleCode(tpFit);
-      return;
-    } // two points
-
-    std::vector<double> w, q;
-    std::array<float, 2> dir;
-    double xx, yy, xr, yr;
-    double chgWt;
-
-    // Rotate the traj hit position into the coordinate system defined by the
-    // originPt traj point, where x = along the trajectory, y = transverse
-    double rotAngle = tj.Pts[originPt].Ang;
-    double cs = cos(-rotAngle);
-    double sn = sin(-rotAngle);
-
-    // enter the originPT hit info if it exists
-    if(tj.Pts[originPt].Chg > 0) {
-      xx = tj.Pts[originPt].HitPos[0] - origin[0];
-      yy = tj.Pts[originPt].HitPos[1] - origin[1];
-      xr = cs * xx - sn * yy;
-      yr = sn * xx + cs * yy;
-      x.push_back(xr);
-      y.push_back(yr);
-      chgWt = tj.Pts[originPt].ChgPull;
-      if(chgWt < 1) chgWt = 1;
-      chgWt *= chgWt;
-      w.push_back(chgWt * tj.Pts[originPt].HitPosErr2);
-    }
-    
-    // correct npts to account for the origin point
-    if(fitDir != 0) --npts;
-    
-    // step in the + direction first
-    if(fitDir != -1) {
-      unsigned short cnt = 0;
-      for(unsigned short ipt = originPt + 1; ipt < tj.Pts.size(); ++ipt) {
-        if(tj.Pts[ipt].Chg == 0) continue;
-        xx = tj.Pts[ipt].HitPos[0] - origin[0];
-        yy = tj.Pts[ipt].HitPos[1] - origin[1];
-        xr = cs * xx - sn * yy;
-        yr = sn * xx + cs * yy;
-        x.push_back(xr);
-        y.push_back(yr);
-        chgWt = tj.Pts[ipt].ChgPull;
-        if(chgWt < 1) chgWt = 1;
-        chgWt *= chgWt;
-        w.push_back(chgWt * tj.Pts[ipt].HitPosErr2);
-        ++cnt;
-        if(cnt == npts) break;
-      } // ipt
-    } // fitDir != -1
-    
-    // step in the - direction next
-    if(fitDir != 1 && originPt > 0) {
-      unsigned short cnt = 0;
-      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
-        unsigned short ipt = originPt - ii;
-        if(ipt > tj.Pts.size() - 1) continue;
-        if(tj.Pts[ipt].Chg == 0) continue;
-        xx = tj.Pts[ipt].HitPos[0] - origin[0];
-        yy = tj.Pts[ipt].HitPos[1] - origin[1];
-        xr = cs * xx - sn * yy;
-        yr = sn * xx + cs * yy;
-        x.push_back(xr);
-        y.push_back(yr);
-        chgWt = tj.Pts[ipt].ChgPull;
-        if(chgWt < 1) chgWt = 1;
-        chgWt *= chgWt;
-        w.push_back(chgWt * tj.Pts[ipt].HitPosErr2);
-        ++cnt;
-        if(cnt == npts) break;
-        if(ipt == 0) break;
-      } // ipt
-    } // fitDir != -1
-    
-    // Not enough points to define a line?
-    if(x.size() < 2) return;
-    
-    double sum = 0.;
-    double sumx = 0.;
-    double sumy = 0.;
-    double sumxy = 0.;
-    double sumx2 = 0.;
-    double sumy2 = 0.;
-
-    // weight by the charge ratio and accumulate sums
-    double wght;
-    for(unsigned short ipt = 0; ipt < x.size(); ++ipt) {
-      if(w[ipt] < 0.00001) w[ipt] = 0.00001;
-      wght = 1 / w[ipt];
-      sum   += wght;
-      sumx  += wght * x[ipt];
-      sumy  += wght * y[ipt];
-      sumx2 += wght * x[ipt] * x[ipt];
-      sumy2 += wght * y[ipt] * y[ipt];
-      sumxy += wght * x[ipt] * y[ipt];
-    }
-    // calculate coefficients and std dev
-    double delta = sum * sumx2 - sumx * sumx;
-    if(delta == 0) return;
-    // A is the intercept
-    double A = (sumx2 * sumy - sumx * sumxy) / delta;
-    // B is the slope
-    double B = (sumxy * sum  - sumx * sumy) / delta;
-    
-    // The chisq will be set below if there are enough points. Don't allow it to be 0
-    // so we can take Chisq ratios later
-    tpFit.FitChi = 0.01;
-    double newang = atan(B);
-    dir[0] = cos(newang);
-    dir[1] = sin(newang);
-    // rotate back into the (w,t) coordinate system
-    cs = cos(rotAngle);
-    sn = sin(rotAngle);
-    tpFit.Dir[0] = cs * dir[0] - sn * dir[1];
-    tpFit.Dir[1] = sn * dir[0] + cs * dir[1];
-    // ensure that the direction is consistent with the originPt direction
-    bool flipDir = false;
-    if(AngleRange(tj.Pts[originPt]) > 0) {
-      flipDir = std::signbit(tpFit.Dir[1]) != std::signbit(tj.Pts[originPt].Dir[1]);
-    } else {
-      flipDir = std::signbit(tpFit.Dir[0]) != std::signbit(tj.Pts[originPt].Dir[0]);
-    }
-    if(flipDir) {
-      tpFit.Dir[0] = -tpFit.Dir[0];
-      tpFit.Dir[1] = -tpFit.Dir[1];
-    }
-    tpFit.Ang = atan2(tpFit.Dir[1], tpFit.Dir[0]);
-    SetAngleCode(tpFit);
-//    if(prt) mf::LogVerbatim("TC")<<"FitTraj "<<originPt<<" originPt Dir "<<tj.Pts[originPt].Dir[0]<<" "<<tj.Pts[originPt].Dir[1]<<" rotAngle "<<rotAngle<<" tpFit.Dir "<<tpFit.Dir[0]<<" "<<tpFit.Dir[1]<<" Ang "<<tpFit.Ang<<" flipDir "<<flipDir<<" fit vector size "<<x.size();
-
-    // rotate (0, intcpt) into (W,T) coordinates
-    tpFit.Pos[0] = -sn * A + origin[0];
-    tpFit.Pos[1] =  cs * A + origin[1];
-    // force the origin to be at origin[0]
-    MoveTPToWire(tpFit, origin[0]);
-    
-    if(x.size() < 3) return;
-    
-    // Calculate chisq/DOF
-    double ndof = x.size() - 2;
-    double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
-    if(varnce > 0.) {
-      // Intercept error is not used
-//      InterceptError = sqrt(varnce * sumx2 / delta);
-      double slopeError = sqrt(varnce * sum / delta);
-      tpFit.AngErr = std::abs(atan(slopeError));
-    } else {
-      tpFit.AngErr = 0.01;
-    }
-    sum = 0;
-    // calculate chisq
-    double arg;
-    for(unsigned short ii = 0; ii < y.size(); ++ii) {
-      arg = y[ii] - A - B * x[ii];
-      sum += arg * arg / w[ii];
-    }
-    tpFit.FitChi = sum / ndof;
-  
-  } // FitTraj
   
   //////////////////////////////////////////
   void TrajClusterAlg::UpdateAveChg(Trajectory& tj)
@@ -6922,7 +6690,7 @@ namespace tca {
       mf::LogVerbatim("TC")<<"StartTraj: Failure from MakeBareTrajPoint fromWire "<<fromWire<<" fromTick "<<fromTick<<" toWire "<<toWire<<" toTick "<<toTick;
       return false;
     }
-    SetAngleCode(tp);
+    SetAngleCode(tjs, tp);
     tp.AngErr = 0.1;
     if(tj.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = fPlane; TJPrt = tj.ID; }
     if(prt) mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tp);
@@ -7340,15 +7108,17 @@ namespace tca {
       fAveHitRMS[ipl] = sumRMS/(float)cnt;
       sumAmp  /= (float)cnt;
       if(inDebugMode) std::cout<<"Pln "<<ipl<<" fAveHitRMS "<<fAveHitRMS[ipl]<<" Ave PeakAmplitude "<<sumAmp<<"\n";
+/*
       // calculate the max RMS expected for each angle range
-      for(unsigned short ii = 0; ii < fAngleRanges.size(); ++ii) {
-        float angle = fAngleRanges[ii];
+      for(unsigned short ii = 0; ii < tjs.AngleRanges.size(); ++ii) {
+        float angle = tjs.AngleRanges[ii];
         if(angle < M_PI/2) {
-          fAngleRangesMaxHitsRMS[ii] = 1.5 * fAveHitRMS[ipl] + tan(angle) / tjs.UnitsPerTick;
+          fAngleRangesMaxHitsRMS[ii] = 1.5 * tjs.AveHitRMS[ipl] + tan(angle) / tjs.UnitsPerTick;
         } else {
           fAngleRangesMaxHitsRMS[ii] = 1000;
         }
       } // ii
+*/
     } // ipl
     
   } // FillWireHitRange
@@ -7763,43 +7533,6 @@ namespace tca {
 
   } // MergeTPHits
   
-  /////////////////////////////////////////
-  unsigned short TrajClusterAlg::AngleRange(TrajPoint const& tp)
-  {
-    return AngleRange(tp.Ang);
-  }
-  
-  /////////////////////////////////////////
-  void TrajClusterAlg::SetAngleCode(TrajPoint& tp)
-  {
-    unsigned short ar = AngleRange(tp.Ang);
-    if(ar == fAngleRanges.size() - 1) {
-      // Very large angle
-      tp.AngleCode = 2;
-    } else if(fAngleRanges.size() > 2 && ar == fAngleRanges.size() - 2) {
-      // Large angle
-      tp.AngleCode = 1;
-    } else {
-      // Small angle
-      tp.AngleCode = 0;
-    }
-      
-  } // SetAngleCode
-  
-  /////////////////////////////////////////
-  unsigned short TrajClusterAlg::AngleRange(float angle)
-  {
-    // returns the index of the angle range
-    if(angle > M_PI) angle = M_PI;
-    if(angle < -M_PI) angle = M_PI;
-    if(angle < 0) angle = -angle;
-    if(angle > M_PI/2) angle = M_PI - angle;
-    for(unsigned short ir = 0; ir < fAngleRanges.size(); ++ir) {
-      if(angle < fAngleRanges[ir]) return ir;
-    }
-    return fAngleRanges.size() - 1;
-  } // AngleRange
-  
   //////////////////////////////////////////
   void TrajClusterAlg::MaskBadTPs(Trajectory& tj, float const& maxChi)
   {
@@ -7833,7 +7566,7 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<"MaskBadTPs: lastTP.FitChi "<<lastTP.FitChi<<"  Mask point "<<imBad;
       // mask the point
       UnsetUsedHits(tjs, tj.Pts[imBad]);
-      FitTraj(tj);
+      FitTraj(tjs, tj);
       if(prt) mf::LogVerbatim("TC")<<"  after FitTraj "<<lastTP.FitChi;
       tj.AlgMod[kMaskBadTPs] = true;
       ++nit;
