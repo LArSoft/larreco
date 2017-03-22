@@ -247,7 +247,7 @@ namespace tca {
     tpFit.Pos[0] = -sn * A + origin[0];
     tpFit.Pos[1] =  cs * A + origin[1];
     // force the origin to be at origin[0]
-    MoveTPToWire(tpFit, origin[0]);
+    if(tpFit.AngleCode < 2) MoveTPToWire(tpFit, origin[0]);
     
     if(x.size() < 3) return;
     
@@ -2231,8 +2231,7 @@ namespace tca {
           mf::LogVerbatim myprt("TC");
           myprt<<someText<<" Envelope";
           for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
-          myprt<<" Energy "<<(int)ShowerEnergy(tjs, ss);
-//          myprt<<" AspectRatio "<<std::fixed<<std::setprecision(2)<<ss.EnvelopeAspectRatio;
+          myprt<<" Energy "<<(int)ss.Energy;
           myprt<<" Area "<<std::fixed<<std::setprecision(1)<<(int)ss.EnvelopeArea<<" ChgDensity "<<ss.ChgDensity;
           myprt<<" Tjs";
           for(auto& tjID : ss.TjIDs) {
@@ -2240,7 +2239,7 @@ namespace tca {
           } // tjID
           myprt<<"\n";
           myprt<<someText<<" Parent Tj list ";
-          for(auto& parstruct : ss.Parent) myprt<<" "<<parstruct.ID<<"_"<<parstruct.End<<" FOM "<<std::fixed<<std::setprecision(2)<<parstruct.FOM;
+          for(auto& parstruct : ss.Parent) myprt<<" "<<parstruct.ID<<"_"<<parstruct.Pt<<" FOM "<<std::fixed<<std::setprecision(2)<<parstruct.FOM;
           myprt<<"\n";
           myprt<<" Shower Angle "<<std::fixed<<std::setprecision(2)<<ss.Angle<<" +/- "<<ss.AngleErr;
           myprt<<" Aspect ratio "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
