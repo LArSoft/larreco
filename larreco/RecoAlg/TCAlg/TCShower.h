@@ -32,13 +32,16 @@
 namespace tca {
   void MakeShowers(TjStuff& tjs, const calo::CalorimetryAlg& fCaloAlg);
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP);
+  void AddMissedTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<unsigned short>& tjl);
   void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<unsigned short>>& tjList);
   void FindShowerCenter(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void FindShowerAxis(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void FindShowerParent(TjStuff& tjs, const unsigned short& showerIndex, bool prt);
+  void FindParent(TjStuff& tjs, const unsigned short& showerIndex, bool prt);
+  float ParentFOM(TjStuff& tjs, Trajectory& tj, const unsigned short& tjPt, ShowerStruct& ss, bool prt);
   void FindFirstTPAng(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void DefineShowerEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void DefineEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void CollectHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss);
