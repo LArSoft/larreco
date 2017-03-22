@@ -185,7 +185,7 @@ namespace tca {
   
   struct ShowerParentStruct {
     unsigned short ID;
-    unsigned short End;
+    unsigned short Pt;
     float FOM {100};
   };
   
@@ -198,10 +198,9 @@ namespace tca {
     float AngleErr {3};
     float AspectRatio {1};
     std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
-    float EnvelopeArea;
-    float EnvelopeLength;
+    float EnvelopeArea {0};
     float ChgDensity {0};                   // Charge density inside the Envelope
-    float EnvelopeAspectRatio {0};
+    float Energy {0};
     std::vector<ShowerParentStruct> Parent;     // List of possible parents
     float ShowerFOM {100};
   };
