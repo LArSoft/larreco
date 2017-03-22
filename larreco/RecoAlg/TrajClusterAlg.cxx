@@ -64,14 +64,12 @@ namespace tca {
     fShChg_Energy[1] = tfs->make<TProfile>("Chg1_Energy","Chg Pln1 vs Electron Energy", nbins, 0, 1000);
     fShChg_Energy[2] = tfs->make<TProfile>("Chg2_Energy","Chg Pln2 vs Electron Energy", nbins, 0, 1000);
     fShChgDensity_Energy = tfs->make<TProfile>("ChgDensity_Energy","ChgDensity vs Electron Energy", nbins, 0, 1000);
-    fShLength_Energy = tfs->make<TProfile>("Length_Energy","Length vs Electron Energy", nbins, 0, 1000);
     fShEP_Energy = tfs->make<TProfile>("EP_Energy","EP vs Electron Energy", nbins, 0, 1000);
     fParentLength_Energy = tfs->make<TProfile>("ParentLength_Energy","Parent Length Energy", nbins, 0, 1000);
 
     fShMCSMom = tfs->make<TH1F>("MCSMom","InShower Tj MCSMom", 100 ,  0, 200);
     fShChgDensity = tfs->make<TH1F>("ChgDensity","ChgDensity", 20, 0, 20);
     fShAspectRatio = tfs->make<TH1F>("AspectRatio","AspectRatio", 30, 0, 3);
-    fShAspectRatio2 = tfs->make<TH1F>("AspectRatio2","AspectRatio2", 50, -1, 1);
     fDOCA = tfs->make<TH1F>("DOCA","Min DOCA", 100, 0, 100);
     fParentFOM = tfs->make<TH1F>("ParentFOM","Parent FOM", 100, 0, 10);
 
@@ -205,7 +203,7 @@ namespace tca {
     // decide whether debug information should be printed
     bool inDebugMode = debug.Plane >= 0 || debug.WorkID < 0;
     if(inDebugMode) {
-      std::cout<<"Pass MinPts  MinPtsFit Max Angle\n";
+       std::cout<<"Pass MinPts  MinPtsFit Max Angle\n";
       for(unsigned short pass = 0; pass < fMinPts.size(); ++pass) {
         unsigned short ir = fMaxAngleCode[pass];
         if(ir > tjs.AngleRanges.size() - 1) ir = tjs.AngleRanges.size() - 1;
@@ -526,22 +524,18 @@ namespace tca {
         aveMom /= (float)ss.TjIDs.size();
         aveNN /= (float)ss.TjIDs.size();
         fShnTjs_Energy->Fill(spe, (float)ss.TjIDs.size());
-        fShAspectRatio_Energy->Fill(spe, ss.EnvelopeAspectRatio);
-        fShAspectRatio->Fill(ss.EnvelopeAspectRatio);
+        fShAspectRatio_Energy->Fill(spe, ss.AspectRatio);
+        fShAspectRatio->Fill(ss.AspectRatio);
         float totChg = stj.Pts[0].Chg + stj.Pts[1].Chg + stj.Pts[2].Chg;
         fShChg_Energy[ss.CTP]->Fill(spe, totChg);
         fShChgDensity_Energy->Fill(spe, ss.ChgDensity);
-        fShLength_Energy->Fill(spe, ss.EnvelopeLength);
         fShChgDensity->Fill(ss.ChgDensity);
         fShEP_Energy->Fill(spe, ep);
-        float aspect2 = (stj.Pts[2].DeltaRMS - stj.Pts[0].DeltaRMS) / ss.EnvelopeLength;
-        fShAspectRatio2->Fill(aspect2);
         fShowerAngle[ss.CTP]->Fill(ss.Angle);
         float parLen = 1E6;
         if(ss.Parent.empty()) continue;
         unsigned short iptj = ss.Parent[0].ID - 1;
-        unsigned short end = ss.Parent[0].End;
-        unsigned short endPt = tjs.allTraj[iptj].EndPt[end];
+        unsigned short endPt = ss.Parent[0].Pt;
         TrajPoint& ptp = tjs.allTraj[iptj].Pts[endPt];
         float ip = PointTrajDOCA(tjs, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], ptp);
         fShPrimIP->Fill(ip);
@@ -556,7 +550,7 @@ namespace tca {
         myprt<<" CC "<<PrintPos(tjs, stj.Pts[1].Pos);
         myprt<<" ParLen "<<(int)parLen;
         myprt<<" Parfom "<<std::fixed<<std::setprecision(2)<<ss.Parent[0].FOM;
-        myprt<<" AspRat "<<std::fixed<<std::setprecision(2)<<ss.EnvelopeAspectRatio<<" aspect2 "<<aspect2;
+        myprt<<" AspRat "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
         myprt<<" Chg "<<(int)totChg<<" ChgDensity "<<std::fixed<<std::setprecision(1)<<ss.ChgDensity;
         myprt<<" EffPur "<<ep;
         myprt<<" evts processed "<<fEventsProcessed;
@@ -5945,6 +5939,7 @@ namespace tca {
     
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
     bool inDebugMode = debug.Plane >= 0 || debug.WorkID < 0;
+    if(inDebugMode) std::cout<<"tjs.UnitsPerTick = "<<tjs.UnitsPerTick<<"\n";
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
       float sumRMS = 0;
       float sumAmp = 0;
