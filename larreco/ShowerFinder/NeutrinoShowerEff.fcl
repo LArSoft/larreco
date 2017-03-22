@@ -10,8 +10,8 @@ services:
   message:      @local::standard_info
                 @table::dunefd_simulation_services
 }
-services.Geometry: @local::dune10kt_workspace_geo
-
+#services.Geometry: @local::dune10kt_workspace_geo
+services.Geometry: @local::dune10kt_1x2x6_geo
 source:
 {
   module_type: RootInput
@@ -33,12 +33,19 @@ physics:
       module_type:      	"NeutrinoShowerEff"
       outFile:          	"Showetest.root"
       MCTruthModuleLabel:	"generator"
-      ShowerModuleLabel: 	"emshower3dc"
+      ShowerModuleLabel: 	"emshower"
       NeutrinoPDGcode:		12
       LeptonPDGcode:		11
       MaxNeutrinoE:		25.0
       MaxEfrac:			0.30
+      MinCompleteness:		0.70	
       SaveMCTree:		false
+      FidVolCutX:		10
+      FidVolCutY:		10
+      FidVolCutZ:		10	
+
+
+
     }
   }
   analysis: [ NeutrinoShowerEff ] //Directory for histograms

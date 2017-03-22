@@ -54,7 +54,7 @@ public:
     void initOutput();
 
     void processEff(const art::Event& evt, bool &isFiducial);
-    void truthMatcher( std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac);
+  void truthMatcher(std::vector<art::Ptr<recob::Hit>>all_hits, std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet);
     bool insideFV(double vertex[4]);
     void doEfficiencies();
     void reset();
@@ -70,6 +70,7 @@ private:
     double      fMaxNeutrinoE;
     bool	fSaveMCTree; 
     double 	fMaxEfrac;
+    double  fMinCompleteness;
 
     TFile *fOutFile;
     TTree *fEventTree;
@@ -82,8 +83,9 @@ private:
     TH1D *h_theta_den;
     TH1D *h_theta_num;
 
-    TH1D *h_Efrac_shContamination;
-    TH1D *h_Efrac_lepton;     
+  TH1D *h_Efrac_shContamination;
+  TH1D *h_Efrac_shPurity;     
+  TH1D *h_Ecomplet_lepton;     
 
     TEfficiency* h_Eff_Ev = 0;
     TEfficiency* h_Eff_Pe = 0;
@@ -129,6 +131,25 @@ private:
     int    n_recoShowers;
     double sh_Efrac_best;
 
+
+
+  float fFidVolCutX;
+  float fFidVolCutY;
+  float fFidVolCutZ;
+
+  float fFidVolXmin;
+  float fFidVolXmax;
+  float fFidVolYmin;
+  float fFidVolYmax;
+  float fFidVolZmin;
+  float fFidVolZmax;
+
+  art::ServiceHandle<geo::Geometry> geom;
+
+
+
+
+
  }; // class NeutrinoShowerEff
 
 
@@ -153,8 +174,11 @@ void NeutrinoShowerEff::reconfigure(fhicl::ParameterSet const& p){
     fNeutrinoPDGcode     = p.get<int>("NeutrinoPDGcode");
     fMaxNeutrinoE	 = p.get<double>("MaxNeutrinoE");
     fMaxEfrac		 = p.get<double>("MaxEfrac");
+    fMinCompleteness     = p.get<double>("MinCompleteness");
     fSaveMCTree		 = p.get<bool>("SaveMCTree");
-}
+    fFidVolCutX          = p.get<float>("FidVolCutX");
+    fFidVolCutY          = p.get<float>("FidVolCutY");
+    fFidVolCutZ          = p.get<float>("FidVolCutZ");}
 //========================================================================
 void NeutrinoShowerEff::initOutput(){
     TDirectory* tmpDir = gDirectory;
@@ -166,14 +190,19 @@ void NeutrinoShowerEff::initOutput(){
     TDirectory* subDir = fOutFile->mkdir("Histograms");
     subDir->cd();
     h_Ev_den = new TH1D("h_Ev_den","Neutrino Energy; Neutrino Energy (GeV); Tracking Efficiency",20,E_bins);
-    h_Ev_num = new TH1D("h_Ev_num","Neutrino Energy; Neutrino Energy (GeV); Tracking Efficiency",20,E_bins);
+    h_Ev_num = new TH1D("h_Ev_num","Neutrino Energy; Neutrino Energy (GeV); Tracsking Efficiency",20,E_bins);
     h_Pe_den = new TH1D("h_Pe_den","Electron Momentum; Electron Momentum (GeV); Tracking Efficiency",20,E_bins);
     h_Pe_num = new TH1D("h_Pe_num","Electron Momentum; Electron Momentum (GeV); Tracking Efficiency",20,E_bins);
     h_theta_den = new TH1D("h_theta_den","Theta; Theta w.r.t beam direction (Degrees); Tracking Efficiency",43,theta_bin);
     h_theta_num = new TH1D("h_theta_num","Theta; Theta w.r.t beam direction (Degrees); Tracking Efficiency",43,theta_bin);
 
     h_Efrac_shContamination = new TH1D("h_Efrac_shContamination","Efrac Lepton; Energy fraction (contamination);",60,0,1.2);
- 
+    h_Efrac_shContamination->Sumw2();
+    h_Efrac_shPurity = new TH1D("h_Efrac_shPurity","Efrac Lepton; Energy fraction (Purity);",60,0,1.2);
+    h_Efrac_shPurity->Sumw2();
+    h_Ecomplet_lepton = new TH1D("h_Ecomplet_lepton","Ecomplet Lepton; Track Completeness;",60,0,1.2);
+    h_Ecomplet_lepton->Sumw2();
+    
     if( fSaveMCTree ){
       TDirectory* subDirTree = fOutFile->mkdir("Events");
       subDirTree->cd();
@@ -221,6 +250,51 @@ void NeutrinoShowerEff::initOutput(){
 //========================================================================
 void NeutrinoShowerEff::beginJob(){
   cout<<"job begin..."<<endl;
+
+// Get geometry.
+  auto const* geo = lar::providerFrom<geo::Geometry>();
+  // Define histogram boundaries (cm).
+  // For now only draw cryostat=0.
+  double minx = 1e9;
+  double maxx = -1e9;
+  double miny = 1e9;
+  double maxy = -1e9;
+  double minz = 1e9;
+  double maxz = -1e9;
+  for (size_t i = 0; i<geo->NTPC(); ++i){
+    double local[3] = {0.,0.,0.};
+    double world[3] = {0.,0.,0.};
+    const geo::TPCGeo &tpc = geo->TPC(i);
+    tpc.LocalToWorld(local,world);
+    if (minx>world[0]-geo->DetHalfWidth(i))
+      minx = world[0]-geo->DetHalfWidth(i);
+    if (maxx<world[0]+geo->DetHalfWidth(i))
+      maxx = world[0]+geo->DetHalfWidth(i);
+    if (miny>world[1]-geo->DetHalfHeight(i))
+      miny = world[1]-geo->DetHalfHeight(i);
+    if (maxy<world[1]+geo->DetHalfHeight(i))
+      maxy = world[1]+geo->DetHalfHeight(i);
+    if (minz>world[2]-geo->DetLength(i)/2.)
+      minz = world[2]-geo->DetLength(i)/2.;
+    if (maxz<world[2]+geo->DetLength(i)/2.)
+      maxz = world[2]+geo->DetLength(i)/2.;
+  }
+
+  fFidVolXmin = minx + fFidVolCutX;
+  fFidVolXmax = maxx - fFidVolCutX;
+  fFidVolYmin = miny + fFidVolCutY;
+  fFidVolYmax = maxy - fFidVolCutY;
+  fFidVolZmin = minz + fFidVolCutZ;
+  fFidVolZmax = maxz - fFidVolCutZ;
+
+  std::cout<<"Fiducial volume:"<<"\n"
+	   <<fFidVolXmin<<"\t< x <\t"<<fFidVolXmax<<"\n"
+	   <<fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
+	   <<fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
+
+
+
+
 }
 //========================================================================
 void NeutrinoShowerEff::endJob(){
@@ -228,6 +302,8 @@ void NeutrinoShowerEff::endJob(){
     TDirectory* tmpDir = gDirectory;
     fOutFile->cd("/Histograms");
     h_Efrac_shContamination->Write();
+    h_Efrac_shPurity->Write();
+    h_Ecomplet_lepton->Write();
     h_Ev_den->Write();
     h_Ev_num->Write();
     h_theta_den->Write();
@@ -323,7 +399,7 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
     theta_e *= (180.0/3.14159);
 
     //save CC events within the fiducial volume with the favorite neutrino flavor 
-    if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE) ){
+    if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) ){
        if( MClepton ){
          h_Ev_den->Fill(MC_incoming_P[3]);
          h_Pe_den->Fill(Pe);
@@ -342,13 +418,26 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
     art::fill_ptr_vector(showerlist, showerHandle);
 
     n_recoShowers= showerlist.size();
-    if ( n_recoShowers == 0 || n_recoShowers> MAX_SHOWERS ) return;
+    //if ( n_recoShowers == 0 || n_recoShowers> MAX_SHOWERS ) return;
     art::FindManyP<recob::Hit> sh_hitsAll(showerHandle, event, fShowerModuleLabel);
     cout<<"Found this many showers "<<n_recoShowers<<endl; 
     double Efrac_contamination= 999.0;
+
+    double Ecomplet_lepton =0.0;
+
+
+
+
+
     const simb::MCParticle *MClepton_reco = NULL; 
     int nHits =0;
     for(int i=0; i<n_recoShowers; i++){
+
+      std::vector<art::Ptr<recob::Hit>> tmp_all_ShowerHits = sh_hitsAll.at(0);  
+      std::vector<art::Ptr<recob::Hit>> all_hits;
+      art::Handle<std::vector<recob::Hit>> hithandle;
+      if(event.get(tmp_all_ShowerHits[0].id(), hithandle))  art::fill_ptr_vector(all_hits, hithandle);
+
        art::Ptr<recob::Shower> shower = showerlist[i];
        sh_direction_X[i] = shower->Direction().X();  
        sh_direction_Y[i] = shower->Direction().Y();  
@@ -361,11 +450,21 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
        for( size_t j =0; j<shower->Energy().size(); j ++) sh_energy[i][j] = shower->Energy()[j];
        for( size_t j =0; j<shower->MIPEnergy().size(); j++) sh_MIPenergy[i][j] = shower->MIPEnergy()[j];
        for( size_t j =0; j<shower->dEdx().size(); j++) sh_dEdx[i][j] = shower->dEdx()[j];
+       
+
        std::vector<art::Ptr<recob::Hit>> sh_hits = sh_hitsAll.at(i);  
+       
+      
+
+
+
        const simb::MCParticle *particle;
        double tmpEfrac_contamination = 0.0;  //fraction of non EM energy contatiminatio (see truthMatcher for definition)
+       double tmpEcomplet =0;
+
+
        int tmp_nHits = sh_hits.size();
-       truthMatcher( sh_hits, particle, tmpEfrac_contamination );
+       truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contamination,tmpEcomplet );
        sh_Efrac_contamination[i] = tmpEfrac_contamination;
        sh_nHits[i] = tmp_nHits; 
        sh_hasPrimary_e[i] = 0;
@@ -374,30 +473,49 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
        //save the best shower based on non EM and number of hits
       
        if( particle->PdgCode()  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ){
+
+	 if(tmpEcomplet>Ecomplet_lepton){
+
+	   Ecomplet_lepton = tmpEcomplet;
+	   Efrac_contamination = tmpEfrac_contamination;
+	   MClepton_reco = particle;
+	   sh_Efrac_best =Efrac_contamination; 
+           
+	 }
+
          if( tmp_nHits > nHits ){
             nHits = tmp_nHits;
-            Efrac_contamination = tmpEfrac_contamination;
-            MClepton_reco = particle;
-            sh_Efrac_best =Efrac_contamination; 
+	    
+            //Efrac_contamination = tmpEfrac_contamination;
+            //MClepton_reco = particle;
+            //sh_Efrac_best =Efrac_contamination; 
             //cout<<"this is the best shower "<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<endl;
          } 
        }          
     }
    
     if( MClepton_reco && MClepton  ){
-      if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE) ){ 
+      if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) ){ 
         h_Efrac_shContamination->Fill(Efrac_contamination);
-        if( Efrac_contamination < fMaxEfrac ){
-          h_Pe_num->Fill(Pe);
+        h_Efrac_shPurity->Fill(1-Efrac_contamination);
+	h_Ecomplet_lepton->Fill(Ecomplet_lepton);
+	
+	// Selecting good showers requires completeness of gretaer than 70 % and Purity > 70 %	
+	if( Efrac_contamination < fMaxEfrac && Ecomplet_lepton> fMinCompleteness ){
+        
+	  h_Pe_num->Fill(Pe);
           h_Ev_num->Fill(MC_incoming_P[3]);
           h_theta_num->Fill(theta_e);
-        }
+	}
       }
     }
 }
 //========================================================================
-void NeutrinoShowerEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac){
+  void NeutrinoShowerEff::truthMatcher(std::vector<art::Ptr<recob::Hit>> all_hits, std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet){
 
+    MCparticle=0;
+    Efrac=1.0;
+    Ecomplet=0;
     art::ServiceHandle<cheat::BackTracker> bt;
     std::map<int,double> trkID_E;
     for(size_t j = 0; j < shower_hits.size(); ++j){
@@ -406,30 +524,55 @@ void NeutrinoShowerEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> shower_h
        //if( hit->View() != 2) continue;
        std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit);
        for(size_t k = 0; k < TrackIDs.size(); k++){
-          trkID_E[TrackIDs[k].trackID] += TrackIDs[k].energy;
+	 if (trkID_E.find(std::abs(TrackIDs[k].trackID))==trkID_E.end()) trkID_E[std::abs(TrackIDs[k].trackID)] = 0;
+	 trkID_E[std::abs(TrackIDs[k].trackID)] += TrackIDs[k].energy;
+
        }            
     }
     double max_E = -999.0;
     double total_E = 0.0;
     int TrackID = -999;
-    double noEM_E = 0.0;  //non electromagnetic energy is defined as energy from charged pion and protons 
+    double partial_E=0.0;
+    //double noEM_E = 0.0;  //non electromagnetic energy is defined as energy from charged pion and protons 
     if( !trkID_E.size() ) return; //Ghost shower???
     for(std::map<int,double>::iterator ii = trkID_E.begin(); ii!=trkID_E.end(); ++ii){
        total_E += ii->second;
        if((ii->second)>max_E){
-         max_E = ii->second;
+         partial_E = ii->second;
+	 max_E = ii->second;
          TrackID = ii->first;
        }
-       int ID = ii->first;
-       const simb::MCParticle *particle = bt->TrackIDToParticle(ID);
+       //int ID = ii->first;
+       // const simb::MCParticle *particle = bt->TrackIDToParticle(ID);
        //if( abs(particle->PdgCode()) == 211 || particle->PdgCode() == 2212 ){
-       if( particle->PdgCode() != 22 && abs(particle->PdgCode()) != 11){
-         noEM_E += ii->second;
-       }
+       //if( particle->PdgCode() != 22 && abs(particle->PdgCode()) != 11){
+       //noEM_E += ii->second;
+       //}
+       
+      
+
     } 
 
     MCparticle = bt->TrackIDToParticle(TrackID);
-    Efrac = noEM_E/total_E;
+    
+
+    Efrac = 1-(partial_E/total_E);
+    
+    //completeness
+    double totenergy =0;
+    for(size_t k = 0; k < all_hits.size(); ++k){
+      art::Ptr<recob::Hit> hit = all_hits[k];
+       std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit);
+       for(size_t l = 0; l < TrackIDs.size(); ++l){
+	 if(std::abs(TrackIDs[l].trackID)==TrackID) {
+	   totenergy += TrackIDs[l].energy;
+	  
+	 }
+       }
+    } 
+    Ecomplet = partial_E/totenergy;
+
+
 }
 //========================================================================
 bool NeutrinoShowerEff::insideFV( double vertex[4]){ 
@@ -440,10 +583,20 @@ bool NeutrinoShowerEff::insideFV( double vertex[4]){
      double y = vertex[1];
      double z = vertex[2];
 
-     if( fabs(x) > 350.0 ) return false;
+     /*   if( fabs(x) > 350.0 ) return false;
      else if( fabs(y) > 550.0 ) return false;
      else if( z< 0 || z> 400.0 ) return false;
      else return true;
+     */
+
+     if (x>fFidVolXmin && x<fFidVolXmax&&
+	 y>fFidVolYmin && y<fFidVolYmax&&
+	 z>fFidVolZmin && z<fFidVolZmax)
+       return true;
+     else
+       return false;
+
+
 
 }
 //========================================================================
