@@ -167,14 +167,12 @@ namespace tca {
     TProfile *fShAspectRatio_Energy;
     TProfile *fShChg_Energy[3];
     TProfile *fShChgDensity_Energy;
-    TProfile *fShLength_Energy;
     TProfile *fShEP_Energy;
     TProfile *fParentLength_Energy;
     
     TH1F *fShMCSMom;
     TH1F *fShChgDensity;
     TH1F *fShAspectRatio;
-    TH1F *fShAspectRatio2;
     TH1F *fDOCA;
     TH1F *fParentFOM;
     
