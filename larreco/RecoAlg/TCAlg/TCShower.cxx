@@ -2,15 +2,18 @@
 
 namespace tca {
   
-  
+  bool isBetter(const ShowerParentStruct& x, const ShowerParentStruct& y) { return x.FOM < y.FOM; }
+
   ////////////////////////////////////////////////
   void MakeShowers(TjStuff& tjs, const calo::CalorimetryAlg& fCaloAlg)
   {
-    // Fill shower variables
+    // Fill 3D shower variables
     
     if(tjs.ShowerTag[0] < 0) return;
     
     // Get the calibration constants
+    
+    bool prt = (tjs.ShowerTag[8] >= 0);
     
     int shID = 0;
     for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
@@ -18,7 +21,7 @@ namespace tca {
       auto& msp = tjs.matchVec[imv];
       if(msp.TjIDs.empty()) continue;
       // look for a shower parent
-      if(true) {
+      if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"MS: "<<ipfp<<" Parent "<<msp.Parent<<" PDGCode "<<msp.PDGCode<<" Dtr size "<<msp.DtrIndices.size();
         myprt<<" TjIDs:";
@@ -27,7 +30,7 @@ namespace tca {
       
       if(msp.PDGCode != 11) continue;
       if(msp.DtrIndices.empty()) continue;
-      mf::LogVerbatim("TC")<<" Shower parent. Dtr matchVecPFPList index "<<msp.DtrIndices[0];
+      if(prt) mf::LogVerbatim("TC")<<" Shower parent. Dtr matchVecPFPList index "<<msp.DtrIndices[0];
       ++shID;
       ShowerStruct3D ss3;
       ss3.Energy.resize(tjs.NumPlanes);
@@ -91,7 +94,7 @@ namespace tca {
         unsigned short itj = msp.TjIDs[ii] - 1;
         Trajectory& tj = tjs.allTraj[itj];
         geo::PlaneID planeID = DecodeCTP(tj.CTP);
-        double wirePitch = tjs.geom->WirePitch(planeID);
+//        double wirePitch = tjs.geom->WirePitch(planeID);
         double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
         double cosgamma = std::abs(std::sin(angleToVert) * ss3.Dir.Y() + std::cos(angleToVert) * ss3.Dir.Z());
         if(cosgamma == 0) continue;
@@ -114,13 +117,13 @@ namespace tca {
         dQErr = sqrt(arg / (cnt - 1));
         double time = tj.Pts[tj.EndPt[0]].Pos[1] / tjs.UnitsPerTick;
         ss3.dEdx[planeID.Plane] = fCaloAlg.dEdx_AREA(dQ, time, dx, planeID.Plane);
-        std::cout<<"ID "<<tj.ID<<" CTP "<<tj.CTP<<" pitch "<<wirePitch<<" angleToVert "<<angleToVert<<" dQ "<<dQ<<" dx "<<dx;
-        std::cout<<" dEdx "<<ss3.dEdx[planeID.Plane];
+//        std::cout<<"ID "<<tj.ID<<" CTP "<<tj.CTP<<" pitch "<<wirePitch<<" angleToVert "<<angleToVert<<" dQ "<<dQ<<" dx "<<dx;
+//        std::cout<<" dEdx "<<ss3.dEdx[planeID.Plane];
         // Estimate the error
         dQ += dQErr;
         ss3.dEdxErr[planeID.Plane] = fCaloAlg.dEdx_AREA(dQ, time, dx, planeID.Plane);
         ss3.dEdxErr[planeID.Plane] -= ss3.dEdx[planeID.Plane];
-        std::cout<<" dEdxErr "<<ss3.dEdxErr[planeID.Plane]<<"\n";
+//        std::cout<<" dEdxErr "<<ss3.dEdxErr[planeID.Plane]<<"\n";
       } // ii
       // Note that we shouldn't define the ss3 Hit vector until hit merging is done
       tjs.showers.push_back(ss3);
@@ -284,7 +287,7 @@ namespace tca {
       tjs.cots.push_back(ss);
       if(prt) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"Make cots "<<tjs.cots.size()<<" TjID_NN";
+        myprt<<"Make cots "<<tjs.cots.size()<<" in CTP "<<ss.CTP<<" TjID_NN";
         for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
       }
       unsigned short cotIndex = tjs.cots.size() - 1;
@@ -370,13 +373,20 @@ namespace tca {
       } // !killit
     } // ic
     
-    // Finish up in this CTP
-    CollectHits(tjs, inCTP, prt);
+    // Finish up in this CTP. 
+    // Re-assign hits from the InShower Tjs to the ShowerTj.
+    TransferTjHits(tjs, inCTP, prt);
+    // Assign unused hits inside the envelope to the ShowerTjs
+    CollectLooseHits(tjs, inCTP, prt);
+    std::cout<<"Final calculation shower energy...\n";
     
     // check for consistency
     for(auto& ss : tjs.cots) {
       if(ss.TjIDs.empty()) continue;
       if(ss.CTP != inCTP) continue;
+      if(ss.ShowerTjID == 0) {
+        std::cout<<"FindShowers: ShowerTjID not defined in CTP "<<ss.CTP<<"\n";
+      }
       for(auto& tjID : ss.TjIDs) {
         if(tjID > tjs.allTraj.size()) {
           std::cout<<"FindShowers: Bad tjID "<<tjID<<"\n";
@@ -390,8 +400,10 @@ namespace tca {
           PrintTrajectory("FS", tjs, tj, USHRT_MAX);
         }
       } // tjID
-      if(ss.Parent.empty() == 0) {
-        std::cout<<"No parent Tj found for shower. Just saying...\n";
+      if(ss.Parent.empty()) {
+        std::cout<<"No parent Tj found for shower Tj "<<ss.ShowerTjID<<". Just saying...\n";
+        unsigned short itj = ss.ShowerTjID - 1;
+        PrintTrajectory("FS", tjs, tjs.allTraj[itj], USHRT_MAX);
         continue;
       }
       Trajectory& ptj = tjs.allTraj[ss.Parent[0].ID - 1];
@@ -400,7 +412,7 @@ namespace tca {
       }
     } // ss
     
-    if(tjs.ShowerTag[8] >= 0) {
+    if(prt) {
       for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
         if(tjs.cots[ic].TjIDs.empty()) continue;
         unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
@@ -414,7 +426,7 @@ namespace tca {
   ////////////////////////////////////////////////
   void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<unsigned short>>& tjList)
   {
-    // Tag Tjs with PDGCode = 12 if they have MCSMom < ShowerTag[0] and there are more than
+    // Tag Tjs with PDGCode = 11 if they have MCSMom < ShowerTag[0] and there are more than
     // ShowerTag[6] other Tjs with a separation < ShowerTag[1]. Returns a list of Tjs that meet this criteria
     
     tjList.clear();
@@ -541,6 +553,8 @@ namespace tca {
     // Reference the Tp charge center of the shower Tj
     TrajPoint& stp1 = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
     
+    if(prt) mf::LogVerbatim("TC")<<"FSP: cotIndex "<<cotIndex<<" Parent candidate size "<<ss.Parent.size();
+    
     if(ss.Parent.empty()) {
       std::cout<<"FSP: No parent candidates for cotIndex "<<cotIndex<<" have been found. Assume this is bad\n";
       ss.TjIDs.clear();
@@ -574,8 +588,49 @@ namespace tca {
     
     if(prt) mf::LogVerbatim("TC")<<"FSP: Best Tj_end "<<imTheBest<<"_"<<imTheBestEnd<<" fom "<<bestFOM;
     
+    if(imTheBest == USHRT_MAX) return;
+    
+    // remove any old parent definition
+    for(auto& parentCandidate : ss.Parent) {
+      unsigned short itj = parentCandidate.ID - 1;
+      tjs.allTraj[itj].AlgMod[kShowerParent] = false;
+    }
+    // Add it to the list of parent candidates
+    ShowerParentStruct sps;
+    sps.ID = imTheBest;
+    sps.End = imTheBestEnd;
+    sps.FOM = bestFOM;
+    ss.Parent.push_back(sps);
+/*
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"Parent candidate list\n";
+      for(auto& sps : ss.Parent) myprt<<" "<<sps.ID<<" "<<sps.FOM<<"\n";
+    }
+*/
+    // sort by increasing FOM
+    std::sort(ss.Parent.begin(), ss.Parent.end(), isBetter);
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"Parent candidate list sorted\n";
+      for(auto& sps : ss.Parent) myprt<<" "<<sps.ID<<" "<<sps.FOM<<"\n";
+    }
+    
+    // See if the parent is an InShower Tj and if so change its status
+    unsigned short iptj = ss.Parent[0].ID - 1;
+    Trajectory& ptj = tjs.allTraj[iptj];
+    if(ptj.AlgMod[kInShower]) {
+      // ensure that it is associated with this shower
+      if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), ss.Parent[0].ID) == ss.TjIDs.end()) {
+        std::cout<<"FindParent: Tj "<<ss.Parent[0].ID<<" is an InShower Tj but it is not used in shower with cotIndex "<<cotIndex<<". Can't make it a parent\n";
+        ss.Parent.clear();
+        return;
+      } // Parent is an InShower TJ but not in the correct shower
+      ptj.AlgMod[kInShower] = false;
+      ptj.AlgMod[kShowerParent] = true;
+    } // Parent is an InShower Tj
+    
   } //FindParent
-
   
   ////////////////////////////////////////////////
   float ParentFOM(TjStuff& tjs, Trajectory& tj, const unsigned short& tjPt, ShowerStruct& ss, bool prt)
@@ -902,8 +957,15 @@ namespace tca {
     constexpr float fShMeVPerChg = 0.0143 / 0.9;
     
     const Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
-    float nrg = fShMeVPerChg * (stj.Pts[0].Chg + stj.Pts[1].Chg + stj.Pts[2].Chg);
-    return nrg;
+    float totChg = (stj.Pts[0].Chg + stj.Pts[1].Chg + stj.Pts[2].Chg);
+    // Add the energy of the parent
+    if(!ss.Parent.empty()) {
+      unsigned short iptj = ss.Parent[0].ID - 1;
+      if(tjs.allTraj[iptj].AlgMod[kShowerParent]) {
+        for(auto& tp : tjs.allTraj[iptj].Pts) totChg += tp.Chg;
+      } // first in the list is defined to be the parent
+    } // parent candidates exist
+    return fShMeVPerChg * totChg;
     
   } // ShowerEnergy
   
@@ -928,7 +990,8 @@ namespace tca {
       // A parent is identified so use that angle instead
       // Use the first one for now
       unsigned short ptj = ss.Parent[0].ID - 1;
-      unsigned short endPt = ss.Parent[0].Pt;
+      unsigned short end = ss.Parent[0].End;
+      unsigned short endPt = tjs.allTraj[ptj].EndPt[end];
       showerAng = tjs.allTraj[ptj].Pts[endPt].Ang;
       showerAngErr = 0.2;
     }
@@ -955,6 +1018,7 @@ namespace tca {
       float Chg;
       unsigned short TjID;
       unsigned short TjPt;
+      unsigned short TjEnd;
     };
     
     std::vector<rotStruct> rotPos;
@@ -971,6 +1035,7 @@ namespace tca {
     for(unsigned short it = 0; it < ss.TjIDs.size(); ++it) {
       unsigned short itj = ss.TjIDs[it] - 1;
       Trajectory& tj = tjs.allTraj[itj];
+      unsigned short middlePt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         TrajPoint& tp = tj.Pts[ipt];
         if(tp.Chg == 0) continue;
@@ -985,6 +1050,8 @@ namespace tca {
         rs.Chg = tp.Chg;
         rs.TjID = tj.ID;
         rs.TjPt = ipt;
+        rs.TjEnd = 0;
+        if(ipt > middlePt) rs.TjEnd = 1;
         if(along < 0) {
           // along < 0 stj Pts[0]
           if(along < minAlong) {
@@ -1056,12 +1123,14 @@ namespace tca {
     if(ss.Parent.empty()) {
       struct ShowerParentStruct sps;
       sps.ID = rotPos[minAlongRPIndex].TjID;
-      sps.Pt = rotPos[minAlongRPIndex].TjPt;
-      sps.FOM = ParentFOM(tjs, tjs.allTraj[sps.ID-1], sps.Pt, ss, prt);
+      sps.End = rotPos[minAlongRPIndex].TjEnd;
+      unsigned short endPt = tjs.allTraj[sps.ID - 1].EndPt[sps.End];
+      sps.FOM = ParentFOM(tjs, tjs.allTraj[sps.ID-1], endPt, ss, prt);
       ss.Parent.push_back(sps);
       sps.ID = rotPos[maxAlongRPIndex].TjID;
-      sps.Pt = rotPos[maxAlongRPIndex].TjPt;
-      sps.FOM = ParentFOM(tjs, tjs.allTraj[sps.ID-1], sps.Pt, ss, prt);
+      sps.End = rotPos[maxAlongRPIndex].TjEnd;
+      endPt = tjs.allTraj[sps.ID - 1].EndPt[sps.End];
+      sps.FOM = ParentFOM(tjs, tjs.allTraj[sps.ID-1], endPt, ss, prt);
       ss.Parent.push_back(sps);
     } // parent empty
 
@@ -1198,7 +1267,52 @@ namespace tca {
   } // AddTjsInsideEnvelope
   
   ////////////////////////////////////////////////
-  void CollectHits(TjStuff& tjs, const CTP_t& inCTP, bool prt)
+  void TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt)
+  {
+    // Transfer InShower hits to the shower Tj 
+    
+    for(unsigned short ish = 0; ish < tjs.cots.size(); ++ish) {
+      ShowerStruct& ss = tjs.cots[ish];
+      // Ensure that this is the correct CTP
+      if(ss.CTP != inCTP) continue;
+      // Ensure that it is valid
+      if(ss.TjIDs.empty()) continue;
+      if(ss.ShowerTjID == 0) continue;
+      // Tp 1 of stj will get all of the shower hits
+      Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
+      if(!stj.Pts[1].Hits.empty()) {
+        std::cout<<"CollectHits: ShowerTj "<<stj.ID<<" already has hits. This can't be right\n";
+        continue;
+      }
+      // make stj a daughter if there is a parent
+      if(!ss.Parent.empty()) {
+        unsigned short parentTjID = ss.Parent[0].ID;
+        stj.ParentTrajID = parentTjID;
+        tjs.allTraj[parentTjID - 1].PDGCode = 11;
+      }
+      stj.PDGCode = 11;
+      // Note that UseHit is not used since the size is limited to 16
+      for(auto& tjID : ss.TjIDs) {
+        unsigned short itj = tjID - 1;
+        if(tjs.allTraj[itj].AlgMod[kShowerTj]) {
+          std::cout<<"CollectHits: Coding error. Tj "<<tjID<<" is a ShowerTj but is in TjIDs\n";
+          continue;
+        }
+        auto thits = PutTrajHitsInVector(tjs.allTraj[itj], kUsedHits);
+        stj.Pts[1].Hits.insert(stj.Pts[1].Hits.end(), thits.begin(), thits.end());
+        // kill Tjs that are in showers
+        // Set the InShower bit to indicate the reason that it was killed
+        tjs.allTraj[itj].AlgMod[kInShower] = true;
+        tjs.allTraj[itj].AlgMod[kKilled] = true;
+      } //  tjID
+      // re-assign the hit -> stj association
+      for(auto& iht : stj.Pts[1].Hits) tjs.fHits[iht].InTraj = stj.ID;
+    } // ish
+  } // TransferTjHits
+
+  
+  ////////////////////////////////////////////////
+  void CollectLooseHits(TjStuff& tjs, const CTP_t& inCTP, bool prt)
   {
     // Collect hits in the vicinity of the shower
     
@@ -1212,40 +1326,23 @@ namespace tca {
       // Ensure that it is valid
       if(ss.TjIDs.empty()) continue;
       if(ss.ShowerTjID == 0) continue;
-      // Tp 1 of stj will get all of the shower hits
+      if(ss.ShowerTjID == 0) continue;
+      // Tp 1 of stj has all of the shower hits
       Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      // this shouldn't be necessary but do it anyway
-      ReleaseHits(tjs, stj);
-      // make stj a daughter
-/* deal with this
-      if(ss.ParentTrajID != 0) {
-        stj.ParentTrajID = ss.ParentTrajID;
-        tjs.allTraj[ss.ParentTrajID - 1].PDGCode = 13;
-      }
-*/
-      stj.PDGCode = 11;
-      // Note that UseHit is not used since the size is limited.
-      for(auto& tjID : ss.TjIDs) {
-        unsigned short itj = tjID - 1;
-        if(tjs.allTraj[itj].AlgMod[kShowerTj]) {
-          std::cout<<"CollectHits: Coding error. Tj "<<tjID<<" is a ShowerTj but is in TjIDs\n";
-          continue;
-        }
-        auto thits = PutTrajHitsInVector(tjs.allTraj[itj], kUsedHits);
-        stj.Pts[1].Hits.insert(stj.Pts[1].Hits.end(), thits.begin(), thits.end());
-        // kill Tjs that are in showers
-        tjs.allTraj[itj].AlgMod[kInShower] = true;
-        MakeTrajectoryObsolete(tjs, itj);
-      } //  tjID
-      // re-assign the hits to stj
-      for(auto& iht : stj.Pts[1].Hits) tjs.fHits[iht].InTraj = stj.ID;
-      // look for other hits inside the envelope
+      // look for other hits inside the envelope. Find the range of wires that spans the envelope
       float fLoWire = 1E6;
       float fHiWire = 0;
+      // and the range of ticks
+      float loTick = 1E6;
+      float hiTick = 0;
       for(auto& vtx : ss.Envelope) {
         if(vtx[0] < fLoWire) fLoWire = vtx[0];
         if(vtx[0] > fHiWire) fHiWire = vtx[0];
+        if(vtx[1] < loTick) loTick = vtx[1];
+        if(vtx[1] > hiTick) hiTick = vtx[1];
       } // vtx
+      loTick /= tjs.UnitsPerTick;
+      hiTick /= tjs.UnitsPerTick;
       unsigned int loWire = std::nearbyint(fLoWire);
       unsigned int hiWire = std::nearbyint(fHiWire) + 1;
       if(hiWire > tjs.LastWire[ipl]-1) hiWire = tjs.LastWire[ipl]-1;
@@ -1256,82 +1353,54 @@ namespace tca {
         unsigned int firstHit = (unsigned int)tjs.WireHitRange[ipl][wire].first;
         unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
         for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-          // already in the shower?
-          if(std::find(stj.Pts[1].Hits.begin(), stj.Pts[1].Hits.end(), iht) != stj.Pts[1].Hits.end()) continue;
+          // used in a trajectory?
+          if(tjs.fHits[iht].InTraj != 0) continue;
+          // inside the tick range?
+          if(tjs.fHits[iht].PeakTime < loTick) continue;
+          // Note that hits are sorted by increasing time so we can break here
+          if(tjs.fHits[iht].PeakTime > hiTick) break;
           // see if this hit is inside the envelope
           point[0] = tjs.fHits[iht].WireID.Wire;
           point[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
           if(!PointInsideEnvelope(point, ss.Envelope)) continue;
-          // Unused hit?
-          if(tjs.fHits[iht].InTraj == 0) {
-            // assign it to the shower tj
-            stj.Pts[1].Hits.push_back(iht);
-            tjs.fHits[iht].InTraj = stj.ID;
-            continue;
-          } // unused hit
-          if(tjs.fHits[iht].InTraj < 0) continue;
-          // Hit is inside the Envelope and is used in a Tj
-          unsigned short itj = tjs.fHits[iht].InTraj - 1;
-          Trajectory& tj = tjs.allTraj[itj];
-          if(tj.AlgMod[kKilled]) continue;
-          // correct CTP?
-          if(tj.CTP != inCTP) continue;
-          // Ignore muons
-          if(tj.PDGCode == 13) continue;
-          // ignore Tjs that are either a shower Tj or are in a shower
-          if(tj.AlgMod[kShowerTj]) continue;
-          if(tj.AlgMod[kInShower]) continue;
-          // ignore Tjs with a nice vertex
-          //          if(TjHasNiceVtx(tjs, tj)) continue;
-          // See if the Tj is fully contained inside the envelope
-          bool isContained = true;
-          for(unsigned short end = 0; end < 2; ++end) {
-            unsigned short endPt = tj.EndPt[end];
-            if(!PointInsideEnvelope(tj.Pts[endPt].Pos, ss.Envelope)) {
-              isContained = false;
-              break;
-            }
-          } // end
-          if(isContained) {
-            // re-assign the Tj hits to the shower
-            auto thits = PutTrajHitsInVector(tj, kUsedHits);
-            MakeTrajectoryObsolete(tjs, itj);
-            stj.Pts[1].Hits.insert(stj.Pts[1].Hits.end(), thits.begin(), thits.end());
-            //            std::cout<<"Put contained Tj "<<tj.ID<<" hits in shower Tj "<<stj.ID<<"\n";
-            for(auto& tht : thits) tjs.fHits[tht].InTraj = stj.ID;
-            //            WatchHit("CH3", tjs, wHit, wInTraj, stj.ID);
-          } // isContained
+          stj.Pts[1].Hits.push_back(iht);
+          tjs.fHits[iht].InTraj = stj.ID;
         } // iht
       } // wire
     } // ish
-  } // CollectHits
+  } // CollectLooseHits
 
   
   /////////////////////////////////////////
   void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr)
   {
     
-    if(itp.CTP == jtp.CTP) {
-      dir.SetX(-999);
-      return;
-    }
+    dir.SetX(-999);
+
+    if(itp.CTP == jtp.CTP) return;
+
     TVector3 pt1, pt2;
     geo::PlaneID iplnID = DecodeCTP(itp.CTP);
     geo::PlaneID jplnID = DecodeCTP(jtp.CTP);
+    
     double y, z;
     double xi  = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
     //    std::cout<<"xi "<<xi;
     double xj = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
     //    std::cout<<" xj "<<xj<<"\n";
     // don't continue if the points are too far apart in X
-    if(std::abs(xi - xj) > 5) {
-      dir.SetX(-999);
-      return;
-    }
+    if(std::abs(xi - xj) > 5) return;
     xi = 0.5 * (xi + xj);
     
     unsigned int wire1 = (unsigned int)(itp.Pos[0] + 0.5);
     unsigned int wire2 = (unsigned int)(jtp.Pos[0] + 0.5);
+/*
+    geo::WireID wireID1(iplnID, wire1), wireID2(jplnID, wire2);
+    bool exists = tjs.geom->WireIDIntersection(wireID1, wireID2, pt1);
+    if(!exists) return;
+    geom->Plane(iplnID)->DriftPoint(-xi);
+*/
+    
     //    std::cout<<"wire1 "<<iplnID.Plane<<":"<<wire1<<" wire2 "<<jplnID.Plane<<":"<<wire2;
     tjs.geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
     pt1.SetX(xi);
