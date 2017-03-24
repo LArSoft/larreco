@@ -535,7 +535,8 @@ namespace tca {
         float parLen = 1E6;
         if(ss.Parent.empty()) continue;
         unsigned short iptj = ss.Parent[0].ID - 1;
-        unsigned short endPt = ss.Parent[0].Pt;
+        unsigned short end = ss.Parent[0].End;
+        unsigned short endPt = tjs.allTraj[iptj].EndPt[end];
         TrajPoint& ptp = tjs.allTraj[iptj].Pts[endPt];
         float ip = PointTrajDOCA(tjs, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], ptp);
         fShPrimIP->Fill(ip);
