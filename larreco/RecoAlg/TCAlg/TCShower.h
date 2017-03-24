@@ -43,7 +43,8 @@ namespace tca {
   void DefineEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt);
-  void CollectHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
+  void TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
+  void CollectLooseHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss);
   void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
 }
