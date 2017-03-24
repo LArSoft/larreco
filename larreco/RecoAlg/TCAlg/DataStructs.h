@@ -185,7 +185,7 @@ namespace tca {
   
   struct ShowerParentStruct {
     unsigned short ID;
-    unsigned short Pt;
+    unsigned short End;
     float FOM {100};
   };
   
