@@ -2239,7 +2239,7 @@ namespace tca {
           } // tjID
           myprt<<"\n";
           myprt<<someText<<" Parent Tj list ";
-          for(auto& parstruct : ss.Parent) myprt<<" "<<parstruct.ID<<"_"<<parstruct.Pt<<" FOM "<<std::fixed<<std::setprecision(2)<<parstruct.FOM;
+          for(auto& parstruct : ss.Parent) myprt<<" "<<parstruct.ID<<"_"<<parstruct.End<<" FOM "<<std::fixed<<std::setprecision(2)<<parstruct.FOM;
           myprt<<"\n";
           myprt<<" Shower Angle "<<std::fixed<<std::setprecision(2)<<ss.Angle<<" +/- "<<ss.AngleErr;
           myprt<<" Aspect ratio "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
