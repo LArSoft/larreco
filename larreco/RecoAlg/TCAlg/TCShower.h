@@ -41,7 +41,7 @@ namespace tca {
   void FindFirstTPAng(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DefineEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  bool AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void CollectLooseHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
