@@ -160,7 +160,7 @@ namespace tca {
     if(prt) std::cout<<"Inside FindShowers inCTP "<<inCTP<<" tjList size "<<tjList.size()<<"\n";
     if(tjs.ShowerTag[0] == 1) return;
     if(tjList.empty()) return;
-    
+/*
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"TagShower tjlist\n";
@@ -170,7 +170,7 @@ namespace tca {
         myprt<<"\n";
       } // tjl
     } // printCTP
-    
+*/
     // Merge the lists of Tjs in showers
     bool didMerge = true;
     while(didMerge) {
@@ -234,13 +234,13 @@ namespace tca {
         }
       } // didErase
     } // tjl
-    
+
     // Add Tjs that were missed
     for(auto& tjl : tjList) {
       if(tjl.empty()) continue;
       AddMissedTjs(tjs, inCTP, tjl);
     } // tjl
-    
+
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"tjlist after merging and removing duplicates\n";
@@ -298,8 +298,14 @@ namespace tca {
       // Define the shower Tj using the shower axis
       DefineShowerTj(tjs, cotIndex, prt);
       DefineEnvelope(tjs, cotIndex, prt);
-      AddTjsInsideEnvelope(tjs, cotIndex, prt);
-      // look for a parent that starts outside the envelope and ends inside the envelope
+      if(AddTjsInsideEnvelope(tjs, cotIndex, prt)) {
+        // redo the shower definition
+        FindShowerCenter(tjs, cotIndex, prt);
+        FindShowerAxis(tjs, cotIndex, prt);
+        DefineShowerTj(tjs, cotIndex, prt);
+        DefineEnvelope(tjs, cotIndex, prt);
+      }
+      // look for a parent that starts outside the envelope and ends inside it
       FindParent(tjs, cotIndex, prt);
       if(prt) PrintTrajectory("FS", tjs, tjs.allTraj[stj.ID-1], USHRT_MAX);
     } // tjl
@@ -346,7 +352,7 @@ namespace tca {
         // shower Tj yet so nothing needs to be done to them
         for(auto& tjID : ss.TjIDs) {
           Trajectory& tj = tjs.allTraj[tjID - 1];
-          tj.AlgMod[kInShower] = false;
+//          tj.AlgMod[kInShower] = false;
           tj.AlgMod[kKilled] = false;
         } // tjID
         // kill the shower Tj
@@ -368,7 +374,7 @@ namespace tca {
           for(unsigned short end = 0; end < 2; ++end) {
             if(tj.VtxID[end] > 0) MakeVertexObsolete(tjs, tj.VtxID[end]);
           } // end
-          tj.AlgMod[kInShower] = true;
+//          tj.AlgMod[kInShower] = true;
         } // tjID
       } // !killit
     } // ic
@@ -510,13 +516,14 @@ namespace tca {
       if(std::find(tjl.begin(), tjl.end(), tj1.ID) != tjl.end()) continue;
       // check proximity to Tjs in tjl
       unsigned short ipt1, ipt2;
-      for(auto& tjid : tjl) {
-        Trajectory& tj2 = tjs.allTraj[tjid - 1];
+      for(auto& tjID : tjl) {
+        Trajectory& tjInShower = tjs.allTraj[tjID - 1];
         float doca = tjs.ShowerTag[2];
-        TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca);
+        TrajTrajDOCA(tjs, tj1, tjInShower, ipt1, ipt2, doca);
         if(doca < tjs.ShowerTag[2]) {
-          tjl.push_back(tj2.ID);
-          tj2.AlgMod[kInShower] = true;
+          tjl.push_back(tj1.ID);
+          tj1.AlgMod[kInShower] = true;
+          break;
         } // its a keeper
       } // tjid
     } // it1
@@ -526,11 +533,8 @@ namespace tca {
   ////////////////////////////////////////////////
   void FindParent(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
-    // look for a parent trajectory for the cluster of trajectories, cotIndex. This should have the
-    // signature
-    //                *   This represents the shower charge center = Point 1 of the shower trajectory
-    //   -----------      The next 3 lines represent the parent trajectory that is well reconstructed
-    //               \    before it enters the shower, but wanders after shower hits are added to it
+    // look for a parent trajectory for the cluster of trajectories, cotIndex, where one end of the
+    // parent is outside the envelope and the other end is inside
     
     // ShowerTag[] parameters
     // 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
@@ -549,6 +553,7 @@ namespace tca {
     
     // Ensure that it is valid
     if(ss.TjIDs.empty()) return;
+    if(ss.Envelope.empty()) return;
     
     // Reference the Tp charge center of the shower Tj
     TrajPoint& stp1 = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
@@ -579,16 +584,38 @@ namespace tca {
       unsigned short endPt = tj.EndPt[useEnd];
       float fom = ParentFOM(tjs, tj, endPt, ss, prt);
       if(fom > 30) continue;
-      if(prt) mf::LogVerbatim("TC")<<"FSP: Tj_end "<<tj.ID<<"_"<<useEnd<<" fom "<<fom;
+      bool farEndInside = PointInsideEnvelope(tj.Pts[endPt].Pos, ss.Envelope);
+      unsigned short oend = 1 - useEnd;
+      unsigned short oendPt = tj.EndPt[oend];
+      bool nearEndInside = PointInsideEnvelope(tj.Pts[oendPt].Pos, ss.Envelope);
+      if(prt) mf::LogVerbatim("TC")<<"FSP: Tj_end "<<tj.ID<<"_"<<useEnd<<" fom "<<fom<<" farEndInside "<<farEndInside<<" nearEndInside "<<nearEndInside;
       if(fom > bestFOM) continue;
+      // require the far end outside
+      if(farEndInside) continue;
+      // and the near end inside
+      if(!nearEndInside) continue;
       bestFOM = fom;
       imTheBest = tj.ID;
       imTheBestEnd = useEnd;
     } // tj
     
-    if(prt) mf::LogVerbatim("TC")<<"FSP: Best Tj_end "<<imTheBest<<"_"<<imTheBestEnd<<" fom "<<bestFOM;
-    
     if(imTheBest == USHRT_MAX) return;
+    
+    if(prt) mf::LogVerbatim("TC")<<"FSP: Found parent outside the envelope. Best Tj_end "<<imTheBest<<"_"<<imTheBestEnd<<" fom "<<bestFOM;
+    
+    // see if this is an existing parent
+    bool existingParent = false;
+    for(auto& parentCandidate : ss.Parent) {
+      if(parentCandidate.ID == imTheBest) {
+        parentCandidate.End = imTheBestEnd;
+        parentCandidate.FOM = bestFOM;
+        existingParent = true;
+      }
+    } // parentCandidate
+    if(existingParent) {
+      if(prt) mf::LogVerbatim("TC")<<" Updated existing parent FOM";
+      return;
+    }
     
     // remove any old parent definition
     for(auto& parentCandidate : ss.Parent) {
@@ -616,9 +643,11 @@ namespace tca {
       for(auto& sps : ss.Parent) myprt<<" "<<sps.ID<<" "<<sps.FOM<<"\n";
     }
     
-    // See if the parent is an InShower Tj and if so change its status
+    // See if the parent is an InShower Tj
     unsigned short iptj = ss.Parent[0].ID - 1;
     Trajectory& ptj = tjs.allTraj[iptj];
+    ptj.AlgMod[kShowerParent] = true;
+    
     if(ptj.AlgMod[kInShower]) {
       // ensure that it is associated with this shower
       if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), ss.Parent[0].ID) == ss.TjIDs.end()) {
@@ -626,8 +655,6 @@ namespace tca {
         ss.Parent.clear();
         return;
       } // Parent is an InShower TJ but not in the correct shower
-      ptj.AlgMod[kInShower] = false;
-      ptj.AlgMod[kShowerParent] = true;
     } // Parent is an InShower Tj
     
   } //FindParent
@@ -643,9 +670,6 @@ namespace tca {
     // Radiation length converted to WSE units (for uB)
     constexpr float radLen = 14 / 0.3;
     constexpr float tenRadLen2 = 100 * radLen * radLen;
-
-    // expected error on the angle of parent TP and the shower axis
-    constexpr float dangRMS = 0.3;
     // Expected rms if the impact parameter between the projected parent and the shower center
     constexpr float deltaRMS = 9;
 
@@ -655,7 +679,8 @@ namespace tca {
     // prospective parent TP
     TrajPoint& ptp = tj.Pts[tjPt];
     // Shower charge center TP
-    TrajPoint& stp1 = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
+    unsigned short istj = ss.ShowerTjID - 1;
+    TrajPoint& stp1 = tjs.allTraj[istj].Pts[1];
     float tp1Sep = PosSep2(ptp.Pos, stp1.Pos);
     // Make a rough cut on radiation lengths
     if(tp1Sep > tenRadLen2) {
@@ -704,8 +729,22 @@ namespace tca {
     float sepPull = (tp1Sep - expectedTPSep) / expectedTPSepRMS;
     float deltaPull = delta / deltaRMS;
     float dang = DeltaAngle(ptp.Ang, stp1.Ang);
-    float dangPull = dang / dangRMS;
+    float dangPull = dang / ss.AngleErr;
     float fom = 0.33 * sqrt(sepPull * sepPull + deltaPull * deltaPull + dangPull * dangPull);
+    
+    // Add properties of the shower. We expect the shower to be narrow at the beginning and containing
+    // a reasonable fraction of the charge. It should be wide at the end and have less charge.
+    // Determine which shower Tj point is closest to tjPt
+    unsigned short spt = 0;
+    if(PosSep2(ptp.Pos, tjs.allTraj[istj].Pts[2].Pos) < PosSep2(ptp.Pos, tjs.allTraj[istj].Pts[0].Pos)) spt = 2;
+    // index of the other shower point end
+    unsigned short ospt = 2 - spt;
+    TrajPoint& nearPt = tjs.allTraj[istj].Pts[spt];
+    TrajPoint& farPt = tjs.allTraj[istj].Pts[ospt];
+    float widRat = farPt.DeltaRMS / nearPt.DeltaRMS;
+    float chgRat = nearPt.Chg / farPt.Chg;
+    fom /= widRat;
+    fom /= chgRat;
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -714,6 +753,7 @@ namespace tca {
       myprt<<" tp1Sep "<<tp1Sep<<" sepPull "<<sepPull;
       myprt<<" delta "<<delta<<" deltaPull "<<deltaPull;
       myprt<<" dang "<<dang<<" dangPull "<<dangPull;
+      myprt<<" widRat "<<widRat<<" chgRat "<<chgRat;
       myprt<<" FOM "<<fom;
     }
     return fom;
@@ -759,7 +799,7 @@ namespace tca {
           float sepi0j2 = PosSep(itj.Pts[0].Pos, jtj.Pts[2].Pos);
           float sepi2j0 = PosSep(itj.Pts[2].Pos, jtj.Pts[0].Pos);
           if(sepi0j2 > maxSep && sepi2j0 > maxSep) {
-            //            if(prt) mf::LogVerbatim("TC")<<" Separation too large "<<sepi0j2<<" "<<sepi2j0<<" maxSep "<<maxSep;
+            if(prt) mf::LogVerbatim("TC")<<" Separation too large "<<sepi0j2<<" "<<sepi2j0<<" maxSep "<<maxSep;
             continue;
           }
           float delta;
@@ -802,28 +842,38 @@ namespace tca {
           // Merge em. Put all the InShower Tjs in the higher charge shower Tj
           if(iChg > jChg) {
             iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.end());
+            // release the jss parent. It isn't clear at this point if it should be included
+            // in the new merged shower
+            if(!jss.Parent.empty()) {
+              unsigned short jptj = jss.Parent[0].ID - 1;
+              tjs.allTraj[jptj].AlgMod[kShowerParent] = false;
+            }
             FindShowerCenter(tjs, ict, prt);
-            FindParent(tjs, ict, prt);
             DefineShowerTj(tjs, ict, prt);
             DefineEnvelope(tjs, ict, prt);
+            FindParent(tjs, ict, prt);
             jss.TjIDs.clear();
             // kill the shower Tj
             jtj.AlgMod[kKilled] = true;
             if(prt) {
               mf::LogVerbatim("TC")<<" merge done";
-              PrintTrajectory("itj", tjs, itj, USHRT_MAX);
+              PrintTrajectory("jToi", tjs, itj, USHRT_MAX);
             }
           } else {
             jss.TjIDs.insert(jss.TjIDs.end(), iss.TjIDs.begin(), iss.TjIDs.end());
+            if(!iss.Parent.empty()) {
+              unsigned short iptj = iss.Parent[0].ID - 1;
+              tjs.allTraj[iptj].AlgMod[kShowerParent] = false;
+            }
             FindShowerCenter(tjs, jct, prt);
-            FindParent(tjs, jct, prt);
             DefineShowerTj(tjs, jct, prt);
             DefineEnvelope(tjs, jct, prt);
+            FindParent(tjs, jct, prt);
             iss.TjIDs.clear();
             itj.AlgMod[kKilled] = true;
             if(prt) {
               mf::LogVerbatim("TC")<<" merge done";
-              PrintTrajectory("jtj", tjs, jtj, USHRT_MAX);
+              PrintTrajectory("iToj", tjs, jtj, USHRT_MAX);
             }
           }
           didMerge = true;
@@ -848,7 +898,6 @@ namespace tca {
     if(tjs.allTraj[stjIndex].Pts.size() != 3) return;
 
     // Do a least squares fit using all the points
-    unsigned short cnt = 0;
     double sum = 0.;
     double sumx = 0.;
     double sumy = 0.;
@@ -865,11 +914,10 @@ namespace tca {
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         TrajPoint& tp = tj.Pts[ipt];
         if(tp.Chg == 0) continue;
-        wt = 1 / tp.Chg;
-        cnt += 1;
+        wt = 1 / (tp.Chg * tp.Chg);
         sum  += wt;
-        xx = wt * tp.Pos[0] - stp1.Pos[0];
-        yy = wt * tp.Pos[1] - stp1.Pos[1];
+        xx = wt * (tp.Pos[0] - stp1.Pos[0]);
+        yy = wt * (tp.Pos[1] - stp1.Pos[1]);
         sumx += wt * xx;
         sumy += wt * yy;
         sumx2 += wt * xx * xx;
@@ -879,21 +927,18 @@ namespace tca {
     } // it
     // calculate coefficients and std dev
     double delta = sum * sumx2 - sumx * sumx;
-    if(delta == 0 || cnt < 3) {
+    if(delta == 0) {
       ss.Angle = 10;
       ss.AngleErr = 1.5;
       return;
     }
     // A is the intercept
-    double A = (sumx2 * sumy - sumx * sumxy) / delta;
+//    double A = (sumx2 * sumy - sumx * sumxy) / delta;
     // B is the slope
     double B = (sumxy * sum  - sumx * sumy) / delta;
-    double ndof = cnt - 2;
-    double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
-    double BErr = sqrt(varnce * sum / delta);
     ss.Angle = atan(B);
-    ss.AngleErr = std::abs(atan(B + BErr) - ss.Angle);
-    if(prt) mf::LogVerbatim("TC")<<"FSA: Pos "<<PrintPos(tjs, stp1)<<" Angle "<<ss.Angle<<" +/- "<<ss.AngleErr;
+    ss.AngleErr = 0.1;
+    if(prt) mf::LogVerbatim("TC")<<"FSA: Pos "<<PrintPos(tjs, stp1)<<" Angle "<<ss.Angle<<" Err "<<ss.AngleErr;
 
   } // FindShowerAxis
 
@@ -925,12 +970,22 @@ namespace tca {
         return;
       }
       Trajectory& tj = tjs.allTraj[itj];
+      if(tj.CTP != ss.CTP) {
+        std::cout<<"Tj "<<tj.ID<<" in the wrong CTP "<<tj.CTP<<" "<<ss.CTP<<"\n";
+        ss.TjIDs.clear();
+        return;
+      }
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         TrajPoint& tp = tj.Pts[ipt];
         if(tp.Chg == 0) continue;
+        if(tp.Chg < 0) {
+          std::cout<<"Oops "<<tj.ID<<" "<<tj.WorkID<<"\n";
+          continue;
+        }
         stp1.Chg += tp.Chg;
         stp1.Pos[0] += tp.Chg * tp.Pos[0];
         stp1.Pos[1] += tp.Chg * tp.Pos[1];
+//        if(ss.CTP == 2) std::cout<<"chk "<<PrintPos(tjs, tp)<<" "<<tp.Chg<<" "<<stp1.Chg<<" "<<tj.ID<<"\n";
       } // ipt
     } // it
     
@@ -986,31 +1041,30 @@ namespace tca {
     // decide which angle to use to define the shower Tj axis
     float showerAng = ss.Angle;
     float showerAngErr = ss.AngleErr;
-    if(!ss.Parent.empty()) {
-      // A parent is identified so use that angle instead
-      // Use the first one for now
-      unsigned short ptj = ss.Parent[0].ID - 1;
+    if(!ss.Parent.empty() && ss.Parent[0].FOM < 1) {
+      // A good parent is identified so use that angle instead - maybe
+      unsigned short iptj = ss.Parent[0].ID - 1;
       unsigned short end = ss.Parent[0].End;
-      unsigned short endPt = tjs.allTraj[ptj].EndPt[end];
-      showerAng = tjs.allTraj[ptj].Pts[endPt].Ang;
-      showerAngErr = 0.2;
+      unsigned short endPt = tjs.allTraj[iptj].EndPt[end];
+      float tjAngle = tjs.allTraj[iptj].Pts[endPt].Ang;
+      float dangPull = std::abs(tjAngle - ss.AngleErr) / ss.AngleErr;
+      if(dangPull < 2) {
+        showerAng = tjs.allTraj[iptj].Pts[endPt].Ang;
+        if(prt) mf::LogVerbatim("TC")<<"DSTj: Using parent Tj "<<tjs.allTraj[iptj].ID<<" Angle "<<showerAng;
+      }
     }
-    float cs = cos(showerAng);
-    float sn = sin(showerAng);
     // use this angle in all shower Tj TPs
     for(auto& stp : stj.Pts) {
       stp.Ang = showerAng;
       stp.AngErr = showerAngErr;
-      stp.Dir[0] = cs;
-      stp.Dir[1] = sn;
+      stp.Dir[0] = cos(showerAng);
+      stp.Dir[1] = sin(showerAng);
     } // stp
     
     // Determine the size of the shower along the axis and transverse to it. 
     // Rotate and translate each point into the coordinate system defined by tp[1]
-    cs = cos(-showerAng);
-    sn = sin(-showerAng);
-    float minAlong = 0;
-    float maxAlong = 0;
+    float cs = cos(-showerAng);
+    float sn = sin(-showerAng);
     
     // Struct of all in-shower Tj points rotated into the shower coordinate system
     struct rotStruct {
@@ -1028,10 +1082,6 @@ namespace tca {
     TrajPoint& stp2 = stj.Pts[2];
     rotStruct rs;
     
-    // Keep track of the index of the rotPos vector for the point which is lowest and highest
-    // One of the Tjs with these points might be the parent
-    unsigned short minAlongRPIndex = 0;
-    unsigned short maxAlongRPIndex = 0;
     for(unsigned short it = 0; it < ss.TjIDs.size(); ++it) {
       unsigned short itj = ss.TjIDs[it] - 1;
       Trajectory& tj = tjs.allTraj[itj];
@@ -1046,32 +1096,25 @@ namespace tca {
         float along = cs * rs.Pos[0] - sn * rs.Pos[1];
         float trans = sn * rs.Pos[0] + cs * rs.Pos[1];
         rs.Pos[0] = along;
-        rs.Pos[1] = std::abs(trans);
+        rs.Pos[1] = trans;
         rs.Chg = tp.Chg;
         rs.TjID = tj.ID;
         rs.TjPt = ipt;
         rs.TjEnd = 0;
         if(ipt > middlePt) rs.TjEnd = 1;
-        if(along < 0) {
-          // along < 0 stj Pts[0]
-          if(along < minAlong) {
-            minAlong = along;
-            minAlongRPIndex = rotPos.size();
-            stp0.Pos = tp.Pos;
-          }
-        }  else {
-          // along > 0 stj Pts[2]
-          if(along > maxAlong) {
-            maxAlong = along;
-            maxAlongRPIndex = rotPos.size();
-            stp2.Pos = tp.Pos;
-          }
-        } // along > 0
         rotPos.push_back(rs);
       } // ipt
     } // it
     
-    if(minAlong == 0 || maxAlong == 0) return;
+    // sort by along using using existing code
+    std::vector<ShowerParentStruct> sortVec(rotPos.size());
+    for(unsigned short irp = 0; irp < rotPos.size(); ++irp) {
+      sortVec[irp].ID = irp;
+      sortVec[irp].FOM = rotPos[irp].Pos[0];
+    }
+    std::sort(sortVec.begin(), sortVec.end(), isBetter);
+    unsigned short minAlong = sortVec[0].ID;
+    unsigned short maxAlong = sortVec[sortVec.size() - 1].ID;
     
     // Place stp0 and stp2 on the shower axis
     stp0.Pos[0] = minAlong * stp1.Dir[0] + stp1.Pos[0];
@@ -1118,27 +1161,78 @@ namespace tca {
       trans += std::abs(rp.Pos[1]);
     }
     ss.AspectRatio = trans / along;
+    if(ss.AspectRatio > 1) std::cout<<"Aspect ratio "<<ss.AspectRatio<<" is > 1. Does this make sense?\n";
+    // TODO Does this make sense? The error should be pi/2 if the aspect ratio is 1
+    ss.AngleErr = 1.57 * ss.AspectRatio;
     
-    // push the min/max Tj IDs onto the Parent vector
-    if(ss.Parent.empty()) {
+    // create the list of parent candidates near the ends. Allow no more than 3 trial candidates at each end.
+    // First wipe out anything that currently exists
+    if(!ss.Parent.empty()) {
+      unsigned short iptj = ss.Parent[0].ID - 1;
+      tjs.allTraj[iptj].AlgMod[kShowerParent] = false;
+      ss.Parent.clear();
+    }
+/*
+    if(ss.CTP == 1) {
+      for(unsigned short ii = 0; ii < rotPos.size(); ++ii) {
+        unsigned short irp = sortVec[ii].ID;
+        std::cout<<"bbb "<<rotPos[irp].Pos[0]<<" "<<rotPos[irp].Pos[1]<<" "<<rotPos[irp].Chg<<" "<<rotPos[irp].TjID<<"\n";
+      }
+    }
+*/
+    // enter the parent candidates at the low end
+    unsigned short lastParent = 0;
+    for(unsigned short ii = 0; ii < rotPos.size(); ++ii) {
       struct ShowerParentStruct sps;
-      sps.ID = rotPos[minAlongRPIndex].TjID;
-      sps.End = rotPos[minAlongRPIndex].TjEnd;
+      unsigned short irp = sortVec[ii].ID;
+      if(rotPos[irp].TjID == lastParent) continue;
+      sps.ID = rotPos[irp].TjID;
+      sps.End = rotPos[irp].TjEnd;
       unsigned short endPt = tjs.allTraj[sps.ID - 1].EndPt[sps.End];
       sps.FOM = ParentFOM(tjs, tjs.allTraj[sps.ID-1], endPt, ss, prt);
       ss.Parent.push_back(sps);
-      sps.ID = rotPos[maxAlongRPIndex].TjID;
-      sps.End = rotPos[maxAlongRPIndex].TjEnd;
-      endPt = tjs.allTraj[sps.ID - 1].EndPt[sps.End];
+      if(ss.Parent.size() == 3) break;
+      lastParent = rotPos[irp].TjID;
+    }
+    
+    // now at the high end
+    lastParent = 0;
+    for(unsigned short ii = rotPos.size() - 1; ii > 0; --ii) {
+      struct ShowerParentStruct sps;
+      unsigned short irp = sortVec[ii].ID;
+      if(rotPos[irp].TjID == lastParent) continue;
+      sps.ID = rotPos[irp].TjID;
+      sps.End = rotPos[irp].TjEnd;
+      unsigned short endPt = tjs.allTraj[sps.ID - 1].EndPt[sps.End];
       sps.FOM = ParentFOM(tjs, tjs.allTraj[sps.ID-1], endPt, ss, prt);
       ss.Parent.push_back(sps);
-    } // parent empty
+      if(ss.Parent.size() == 6) break;
+      lastParent = rotPos[irp].TjID;
+    }
+    
+    // sort by increasing FOM
+    std::sort(ss.Parent.begin(), ss.Parent.end(), isBetter);
+    // delete the bad ones
+    if(ss.Parent[0].FOM > 5) {
+      // get rid of all of them
+      ss.Parent.clear();
+    } else {
+      // truncate to keep the good ones
+      for(unsigned short ipr = 1; ipr < ss.Parent.size(); ++ipr) {
+        if(ss.Parent[ipr].FOM > 5) {
+          ss.Parent.resize(ipr);
+          break;
+        }
+      } // ipr
+    }
 
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"DSTj cotIndex "<<cotIndex<<" showerAng "<<showerAng;
       myprt<<" stj Positions "<<PrintPos(tjs, stp0.Pos)<<" "<<PrintPos(tjs, stp1.Pos)<<" "<<PrintPos(tjs, stp2.Pos);
-      myprt<<" AspectRatio "<<ss.AspectRatio;
+      myprt<<" AspectRatio "<<ss.AspectRatio<<"\n";
+      myprt<<" Parent Candidates\n";
+      for(auto& par : ss.Parent) myprt<<" "<<par.ID<<"_"<<par.End<<" FOM "<<par.FOM<<"\n";
     };
     
   } // DefineShowerTj
@@ -1201,14 +1295,14 @@ namespace tca {
   } // DefineEnvelope  
   
   ////////////////////////////////////////////////
-  void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
+  bool AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
     
-    if(cotIndex > tjs.cots.size() - 1) return;
+    if(cotIndex > tjs.cots.size() - 1) return false;
     
     ShowerStruct& ss = tjs.cots[cotIndex];
-    if(ss.Envelope.empty()) return;
-    if(ss.TjIDs.empty()) return;
+    if(ss.Envelope.empty()) return false;
+    if(ss.TjIDs.empty()) return false;
      
     Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
     
@@ -1230,39 +1324,36 @@ namespace tca {
       // See if both ends are outside the envelope
       bool end0Inside = PointInsideEnvelope(tj.Pts[tj.EndPt[0]].Pos, ss.Envelope);
       bool end1Inside = PointInsideEnvelope(tj.Pts[tj.EndPt[1]].Pos, ss.Envelope);
-      if(!end0Inside || !end1Inside) continue;
+      if(ss.CTP == 1) {
+        std::cout<<"ATIE "<<tj.ID<<" end0 "<<PrintPos(tjs, tj.Pts[tj.EndPt[0]].Pos)<<" "<<end0Inside;
+        std::cout<<" end1 "<<PrintPos(tjs, tj.Pts[tj.EndPt[1]].Pos)<<" "<<end1Inside<<"\n";
+      }
+      if(!end0Inside && !end1Inside) continue;
       // at least one end is inside. See if both are inside
-      if(end0Inside || end1Inside) {
-        // TODO: See if the Tj direction is compatible with the shower
-        // both ends are inside. Add it to the shower
+      if(end0Inside && end1Inside) {
+        // Fully contained
+        // TODO: See if the Tj direction is compatible with the shower?
         ss.TjIDs.push_back(tj.ID);
         tjs.allTraj[tj.ID-1].AlgMod[kInShower] = true;
         // Count the charge added
         for(auto& tp : tj.Pts) addedChg += tp.Chg;
-        if(prt) mf::LogVerbatim("TC")<<" Add contained Tj "<<tj.ID<<" addedChg sum "<<addedChg;
+        if(prt) mf::LogVerbatim("TC")<<" Add contained Tj "<<tj.ID<<" addedChg sum "<<(int)addedChg;
         continue;
       } // both ends inside
-      // One end is outside. Count the charge inside and the total charge
-      float tjChg = 0;
-      float tjChgInside = 0;
-      for(auto& tp : tj.Pts) {
-        if(tp.Chg == 0) continue;
-        tjChg += tp.Chg;
-        if(PointInsideEnvelope(tp.Pos, ss.Envelope)) tjChgInside += tp.Chg;
-      } // tp
-      if(tjChg == 0) continue;
-      float insideFrac = tjChgInside / tjChg;
-      float tjFrac = tjChg / showerChg;
-      // Ignore it if the total charge is small fraction of the shower charge and < 20% of the charge is inside.
-      if(prt) mf::LogVerbatim("TC")<<" Partially contained Tj "<<tj.ID<<" tjChg "<<(int)tjChg<<" tjChgInside "<<(int)tjChgInside<<" insideFrac "<<insideFrac<<" tj charge fraction "<<tjFrac;
-      if(tjFrac < 0.2 && insideFrac < 0.2) continue;
+      // Require high momentum Tjs be aligned with the shower axis
+      if(tj.MCSMom > 500) {
+        float tjAngle = tj.Pts[tj.EndPt[0]].Ang;
+        float dangPull = std::abs(tjAngle -ss.AngleErr) / ss.AngleErr;
+        if(dangPull > 2) continue;
+      } // high momentum
       ss.TjIDs.push_back(tj.ID);
       tjs.allTraj[tj.ID-1].AlgMod[kInShower] = true;
-      addedChg += tjChg;
+      for(auto& tp : tj.Pts) addedChg += tp.Chg;
     } // tj
     
     if(prt) mf::LogVerbatim("TC")<<" Beginning charge "<<(int)showerChg<<" "<<(int)addedChg;
-    // decide whether to update the 
+    
+    return (addedChg > 0);
     
   } // AddTjsInsideEnvelope
   
