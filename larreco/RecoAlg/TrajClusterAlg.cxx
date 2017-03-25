@@ -461,26 +461,21 @@ namespace tca {
       return;
     }
     
-    
-    if(TJPrt > 0 || debug.Plane >= 0) {
-      mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
+    if(TJPrt > 0) {
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         if(tjs.allTraj[itj].WorkID == TJPrt) {
           PrintAllTraj("DBG", tjs, debug, itj, USHRT_MAX);
           break;
         }
       } // itj
-      // Print summary of all TJs
+    } // TJPrt > 0
+    
+    // print trajectory summary report?
+    if(tjs.ShowerTag[0] >= 0) debug.Plane = tjs.ShowerTag[8];
+    if(debug.Plane >= 0) {
+      mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
     }
-
-    unsigned short ntj = 0;
-    unsigned short nsh = 0;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      ++ntj;
-      if(tj.AlgMod[kShowerTj]) ++nsh;
-    } // tj
 
     if(fStudyMode) {
       // shower stuff
