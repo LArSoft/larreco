@@ -301,6 +301,11 @@ public:
 			Name("SaveVtxFlags"),
 			Comment("Include (or not) vertex info in PDG map.")
 		};
+		
+		fhicl::Atom<unsigned int> AdcDelayTicks {
+			Name("AdcDelayTicks"),
+			Comment("ADC pulse peak delay in ticks (non-zero for not deconvoluted waveforms).")
+		};
     };
 
 	TrainingDataAlg(const fhicl::ParameterSet& pset) :
@@ -356,6 +361,8 @@ private:
 	art::InputTag fWireProducerLabel;
 	art::InputTag fSimulationProducerLabel;
 	bool fSaveVtxFlags;
+
+    unsigned int fAdcDelay;
 };
 // ------------------------------------------------------
 // ------------------------------------------------------

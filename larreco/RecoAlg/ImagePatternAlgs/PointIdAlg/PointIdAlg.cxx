@@ -636,6 +636,8 @@ void nnet::TrainingDataAlg::reconfigure(const Config& config)
 	fWireProducerLabel = config.WireLabel();
 	fSimulationProducerLabel = config.SimulationLabel();
 	fSaveVtxFlags = config.SaveVtxFlags();
+
+    fAdcDelay = config.AdcDelayTicks();
 }
 // ------------------------------------------------------
 
@@ -1049,8 +1051,9 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 
 			if (ttc.first < (int)labels_deposit.size())
 			{
-				labels_deposit[ttc.first] = max_deposit;
-				labels_pdg[ttc.first]     = max_pdg & type_pdg_mask;
+			    size_t tick_idx = ttc.first + fAdcDelay;
+				if (tick_idx < labels_deposit.size()) { labels_deposit[tick_idx] = max_deposit; }
+				if (tick_idx < labels_pdg.size()) { labels_pdg[tick_idx]     = max_pdg & type_pdg_mask; }
 			}
 		}
 

@@ -122,6 +122,7 @@ private:
 	int fRun, fEvent;
     float fMcDepEM, fMcDepTrack, fMcFractionEM;
     float fHitEM_0p5, fHitTrack_0p5, fHitMichel_0p5, fHitMcFractionEM;
+    float fHitMichel_mc, fHitMichel_out, fHitNotMichel_out;
     float fHitEM_0p85, fHitTrack_0p85;
     float fTotHit, fCleanHit;
 
@@ -135,6 +136,7 @@ private:
 	int fClSize;
 	int fPure;
 	double fPidValue;
+	
 
 	int fTrkOk[100], fTrkBad[100];
 	int fShOk[100], fShBad[100];
@@ -142,7 +144,7 @@ private:
 
 	double fElectronsToGeV;
 
-	TTree *fEventTree, *fClusterTree;
+	TTree *fEventTree, *fClusterTree, *fHitTree;
 
 	std::ofstream fHitsOutFile;
 
@@ -156,6 +158,9 @@ private:
 	art::InputTag fSimulationProducerLabel;
 	art::InputTag fNNetModuleLabel;
 	bool fSaveHitsFile;
+	
+	double fpMichel;
+	double fpMichel_cl;
 };
 
 } // namespace nnet
@@ -212,7 +217,16 @@ void nnet::PointIdEffTest::beginJob()
 	fClusterTree->Branch("fMcPid", &fMcPid, "fMcPid/I");
 	fClusterTree->Branch("fClSize", &fClSize, "fClSize/I");
 	fClusterTree->Branch("fPidValue", &fPidValue, "fPidValue/D");
+	fClusterTree->Branch("fpMichel_cl", &fpMichel_cl, "fpMichel_cl/D");
 
+    fHitTree = tfs->make<TTree>("hits","hits info");
+    fHitTree->Branch("fRun", &fRun, "fRun/I");
+    fHitTree->Branch("fEvent", &fEvent, "fEvent/I");
+    fHitTree->Branch("fHitMichel_mc", &fHitMichel_mc, "fHitMichel_mc/F");
+    fHitTree->Branch("fHitMichel_out", &fHitMichel_out, "fHitMichel_out/F");
+    fHitTree->Branch("fHitNotMichel_out", &fHitNotMichel_out, "fHitNotMichel_out/F");
+    fHitTree->Branch("fpMichel", &fpMichel, "fpMichel/D");
+		
 	if (fSaveHitsFile) fHitsOutFile.open("hits_pid.prn");
 
     fNone = 0; fTotal = 0;
@@ -245,7 +259,7 @@ void nnet::PointIdEffTest::endJob()
 
         //std::cout << "Threshold " << thr << "  fShErr " << shErr << " fTrkErr " << trkErr << " sum:" << shErr + trkErr <<  std::endl;
 	}
-	std::cout << "Total " << fTotal << std::endl;
+	// std::cout << "Total " << fTotal << std::endl;
 }
 
 void nnet::PointIdEffTest::cleanup(void)
@@ -259,6 +273,9 @@ void nnet::PointIdEffTest::cleanup(void)
     fHitMichel_0p5 = 0;
     fHitMcFractionEM = 0;
     fTotHit = 0; fCleanHit = 0;
+    
+    fpMichel = 0; 
+    fpMichel_cl = 0;
 
     for (size_t i = 0; i < 100; ++i)
     {
@@ -275,7 +292,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
 	fRun = e.run();
 	fEvent = e.id().event();
-	std::cout << "event " << fEvent << std::endl;
+	// std::cout << "event " << fEvent << std::endl;
 
 	// access to MC information
 	
@@ -434,8 +451,11 @@ int nnet::PointIdEffTest::testCNN(
 	double p_trk_or_sh = cnn_out[0] + cnn_out[1];
 	if (p_trk_or_sh > 0) { fPidValue = cnn_out[0] / p_trk_or_sh; }
 
-    double p_michel = 0;
-    if (MVA_LENGTH == 4) { p_michel = cnn_out[2]; }
+  double p_michel = 0;
+  if (MVA_LENGTH == 4) 
+  { 
+		fpMichel_cl = cnn_out[2]; 
+  }
 
 	double totEnSh = 0, totEnTrk = 0, totEnMichel = 0;
 	for (auto const & hit: hits)
@@ -443,7 +463,14 @@ int nnet::PointIdEffTest::testCNN(
 		// the channel associated with this hit.
 		auto hitChannelNumber = hit->Channel();
 
-        double hitEn = 0, hitEnSh = 0, hitEnTrk = 0, hitEnMichel = 0;
+		double hitEn = 0, hitEnSh = 0, hitEnTrk = 0, hitEnMichel = 0;
+        
+		auto const & vout = hit_outs[hit.key()];
+		if (MVA_LENGTH == 4)
+		{
+    	p_michel = vout[2];
+    }
+       
 		for (auto const & channel : channels)
 		{
 			if (channel.Channel() != hitChannelNumber) continue;
@@ -478,18 +505,18 @@ int nnet::PointIdEffTest::testCNN(
 							    else hitEnTrk += energy;
 
 							    if (pdg == 11) // electron, check if it is Michel
-                                {
-                                    auto msearch = fParticleMap.find(particle.Mother());
-	    					        if (msearch != fParticleMap.end())
-	    					        {
-	    					            auto const & mother = *((*msearch).second);
-	    		                        if (isMuonDecaying(mother, fParticleMap))
-	    		                        {
-	    		                            hitEnMichel += energy;
-	    		                        }
-	    					        }
-                                }
-                            }
+                  {
+                  	auto msearch = fParticleMap.find(particle.Mother());
+	    					    if (msearch != fParticleMap.end())
+	    					    {
+	    					    	auto const & mother = *((*msearch).second);
+	    		            if (isMuonDecaying(mother, fParticleMap))
+	    		            {
+	    		            	hitEnMichel += energy;
+	    		            }
+	    					    }
+                  }
+               }
 							else { mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND"; }
 						}
 					}
@@ -529,12 +556,19 @@ int nnet::PointIdEffTest::testCNN(
 		}
 
 
-        bool mcMichel = false;
-        if (hitEnMichel > 0.5 * hitEn)
-        {
-            fHitMichel_0p5 += hitAdc; mcMichel = true;
-        }
+    bool mcMichel = false;
+    fHitMichel_out = -1; fHitNotMichel_out = -1;
+        
+    fpMichel = p_michel;
+    if (hitEnMichel > 0.5 * hitEn)
+    {
+        fHitMichel_0p5 += hitAdc; mcMichel = true;
+        fHitMichel_out = p_michel;
+    }
+    else { fHitNotMichel_out = p_michel; }
+    fHitMichel_mc = hitEnMichel / hitEn;
 
+    fHitTree->Fill();
 
 		for (size_t i = 0; i < 100; ++i)
 		{

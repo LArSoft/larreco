@@ -95,8 +95,8 @@ public:
 
 	virtual void ClearAssigned(pma::Track3D* trk = 0);
 
-    void ApplyXShift(double dx) { fPoint3D[0] += dx; fXOffset += dx; }
-    double GetXShift(void) const { return fXOffset; }
+    void ApplyDriftShift(double dx) { fPoint3D[0] += dx; fDriftOffset += dx; }
+    double GetDriftShift(void) const { return fDriftOffset; }
 
 	/// Set allowed node position margin around TPC.
 	static void SetMargin(double m) { if (m >= 0.0) fMargin = m; }
@@ -124,7 +124,7 @@ private:
 
 	TVector3 fPoint3D;       // node position in 3D space in [cm]
 	TVector2 fProj2D[3];     // node projections to 2D views, scaled to [cm], updated on each change of 3D position
-    double fXOffset;         // the offset due to t0
+    double fDriftOffset;         // the offset due to t0
 
 	TVector3 fGradient;
 	bool fIsVertex;          // no penalty on segments angle if branching or kink detected
