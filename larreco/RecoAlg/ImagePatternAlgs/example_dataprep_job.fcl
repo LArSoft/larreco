@@ -47,6 +47,7 @@ physics:
 physics.analyzers.pointiddata.TrainingDataAlg.SimulationLabel: "largeant"
 physics.analyzers.pointiddata.TrainingDataAlg.SaveVtxFlags:    true         # save (or not) interaction and decay vertex info
 physics.analyzers.pointiddata.TrainingDataAlg.DriftWindow:     6            # downsampling window in drift ticks
+physics.analyzers.pointiddata.TrainingDataAlg.AdcDelayTicks:   0            # delay of ADC peak in drift ticks
 physics.analyzers.pointiddata.TrainingDataAlg.DownscaleFn:     "mean"       # downsampling function
 physics.analyzers.pointiddata.SelectedTPC:     [2]                          # all TPC's if empty list, or save data from selected TPC's only
 physics.analyzers.pointiddata.SelectedView:    [2]                          # all views if empty list, or save data from selected views only
