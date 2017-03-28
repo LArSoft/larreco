@@ -87,6 +87,10 @@ public:
 			Name("PMAlgVertexing")
 		};
 
+        fhicl::Table<pma::PMAlgCosmicTagger::Config> PMAlgCosmicTagging {
+            Name("PMAlgCosmicTagging")
+        };
+
         fhicl::Table<pma::PMAlgStitching::Config> PMAlgStitching {
             Name("PMAlgStitching")
         };
@@ -143,6 +147,7 @@ private:
 
 	pma::ProjectionMatchingAlg::Config fPmaConfig;
 	pma::PMAlgTracker::Config fPmaTrackerConfig;
+	pma::PMAlgCosmicTagger::Config fPmaTaggingConfig;
 	pma::PMAlgVertexing::Config fPmaVtxConfig;
     pma::PMAlgStitching::Config fPmaStitchConfig;
 
@@ -168,8 +173,9 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 
 	fPmaConfig(config().ProjectionMatchingAlg()),
 	fPmaTrackerConfig(config().PMAlgTracking()),
+	fPmaTaggingConfig(config().PMAlgCosmicTagging()),
 	fPmaVtxConfig(config().PMAlgVertexing()),
-  fPmaStitchConfig(config().PMAlgStitching()),
+    fPmaStitchConfig(config().PMAlgStitching()),
 
 	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
 	fSavePmaNodes(config().SavePmaNodes())
@@ -298,7 +304,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	// -------------- PMA Tracker for this event ----------------------
 	auto pmalgTracker = pma::PMAlgTracker(allhitlist,
-		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig);
+		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig, fPmaTaggingConfig);
 
     size_t mvaLength = 0;
 	if (fEmModuleLabel != "") // ----------- Exclude EM parts ---------

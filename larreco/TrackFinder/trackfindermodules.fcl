@@ -1,5 +1,6 @@
 #include "trackfinderalgorithms.fcl"
 #include "clusteralgorithms.fcl"
+#include "pmacosmictagalg.fcl"
 #include "pmavertexalg.fcl"
 #include "pmastitchalg.fcl"
 
@@ -60,6 +61,7 @@ standard_pmalgtrackmaker:
   module_type:            "PMAlgTrackMaker"
   ProjectionMatchingAlg:  @local::standard_projectionmatchingalg
   PMAlgTracking:          @local::standard_pmalgtracker
+  PMAlgCosmicTagging:     @local::standard_pmalgtagger
   PMAlgVertexing:         @local::standard_pmavertexalg
   PMAlgStitching:         @local::standard_pmastitchalg
                                       #

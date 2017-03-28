@@ -974,6 +974,12 @@ int pma::PMAlgTracker::build(void)
 		}
 	}
 
+    if (fTagCosmicTracks)
+    {
+        mf::LogVerbatim("PMAlgTracker") << "Tag cosmic tracks activity.";
+        fCosmicTagger.tag(fResult);
+    }
+
 	if (fStitchBetweenTPCs)
 	{
 		mf::LogVerbatim("PMAlgTracker") << "Stitch co-linear tracks between TPCs.";

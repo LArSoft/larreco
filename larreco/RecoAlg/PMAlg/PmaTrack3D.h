@@ -31,7 +31,11 @@ class pma::Track3D
 public:
 	enum ETrackEnd { kBegin = -1, kEnd = 1 };
 	enum EDirection { kForward = -1, kBackward = 1 };
-	enum ETag { kNotTagged = -1, kTrackLike = 0, kEmLike = 1, kStopping = 2, kCosmicMu = 3 };
+	enum ETag { kNotTagged = 0, kTrackLike = 0, kEmLike = 1, kStopping = 2, kCosmic = 4 };
+	ETag GetTag(void) const { return fTag; }
+	bool HasTagFlag(ETag value) const { return (fTag & value); }
+	void SetTagFlag(ETag value) { fTag = (ETag)(fTag | value); }
+	void SetTag(ETag value) { fTag = value; }
 
 	Track3D(void);
 	Track3D(const Track3D& src);
@@ -247,9 +251,6 @@ public:
 
 	unsigned int GetMaxHitsPerSeg(void) const { return fMaxHitsPerSeg; }
 	void SetMaxHitsPerSeg(unsigned int value) { fMaxHitsPerSeg = value; }
-
-	ETag GetTag(void) const { return fTag; }
-	void SetTag(ETag value) { fTag = value; }
 
 private:
 	void ClearNodes(void);
