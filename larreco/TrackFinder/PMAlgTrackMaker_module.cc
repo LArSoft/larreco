@@ -504,7 +504,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		    int pdg = 0;
 		    if (mvaLength == 4) pdg = getPdgFromCnnOnHits<4>(evt, *(result[t].Track()));
 		    else if (mvaLength == 3) pdg = getPdgFromCnnOnHits<3>(evt, *(result[t].Track()));
-		    else mf::LogWarning("PMAlgTrackMaker") << "Unexpected MVA vector length.";
+		    //else mf::LogInfo("PMAlgTrackMaker") << "Not using PID from CNN.";
 
 			size_t parentIdx = recob::PFParticle::kPFParticlePrimary;
 			if (result[t].Parent() >= 0) parentIdx = (size_t)result[t].Parent();

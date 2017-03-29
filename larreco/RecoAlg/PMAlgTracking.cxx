@@ -974,12 +974,6 @@ int pma::PMAlgTracker::build(void)
 		}
 	}
 
-    if (fTagCosmicTracks)
-    {
-        mf::LogVerbatim("PMAlgTracker") << "Tag cosmic tracks activity.";
-        fCosmicTagger.tag(fResult);
-    }
-
 	if (fStitchBetweenTPCs)
 	{
 		mf::LogVerbatim("PMAlgTracker") << "Stitch co-linear tracks between TPCs.";
@@ -996,6 +990,12 @@ int pma::PMAlgTracker::build(void)
 			}
 			else { trk.DeleteTrack(); }
 		}
+
+    if (fTagCosmicTracks)
+    {
+        mf::LogVerbatim("PMAlgTracker") << "Tag cosmic tracks activity.";
+        fCosmicTagger.tag(fResult);
+    }
 
 	if (fRunVertexing)
 	{
