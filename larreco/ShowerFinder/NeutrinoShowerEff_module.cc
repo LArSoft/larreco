@@ -87,6 +87,14 @@ private:
   TH1D *h_Efrac_shPurity;     
   TH1D *h_Ecomplet_lepton;     
 
+  TH1D *h_Efrac_NueCCPurity;     //Signal
+  TH1D *h_Ecomplet_NueCC;     
+  TH1D *h_HighestHitsProducedParticlePDG_NueCC;     
+  TH1D *h_HighestHitsProducedParticlePDG_bkg;     
+  TH1D *h_Efrac_bkgPurity;     //Background
+  TH1D *h_Ecomplet_bkg;     
+
+
     TEfficiency* h_Eff_Ev = 0;
     TEfficiency* h_Eff_Pe = 0;
     TEfficiency* h_Eff_theta = 0;
@@ -202,6 +210,25 @@ void NeutrinoShowerEff::initOutput(){
     h_Efrac_shPurity->Sumw2();
     h_Ecomplet_lepton = new TH1D("h_Ecomplet_lepton","Ecomplet Lepton; Track Completeness;",60,0,1.2);
     h_Ecomplet_lepton->Sumw2();
+
+    h_HighestHitsProducedParticlePDG_NueCC= new TH1D("h_HighestHitsProducedParticlePDG_NueCC","PDG Code; PDG Code;",4,-0.5,3.5);//0 for undefined, 1=electron, 2=photon, 3=anything else     //Signal     
+    h_HighestHitsProducedParticlePDG_bkg= new TH1D("h_HighestHitsProducedParticlePDG_bkg","PDG Code; PDG Code;",4,-0.5,3.5);//0 for undefined, 1=electron, 2=photon, 3=anything else     //bkg    
+ 
+
+
+    h_Efrac_NueCCPurity= new TH1D("h_Efrac_NueCCPurity","Efrac NueCC; Energy fraction (Purity);",60,0,1.2);     //Signal
+    h_Efrac_NueCCPurity->Sumw2();
+    h_Ecomplet_NueCC= new TH1D("h_Ecomplet_NueCC","Ecomplet NueCC; Track Completeness;",60,0,1.2);     
+    h_Ecomplet_NueCC->Sumw2();
+
+    
+    h_Efrac_bkgPurity= new TH1D("h_Efrac_bkgPurity","Efrac bkg; Energy fraction (Purity);",60,0,1.2);     //Background
+    h_Efrac_bkgPurity->Sumw2();
+    h_Ecomplet_bkg= new TH1D("h_Ecomplet_bkg","Ecomplet bkg; Track Completeness;",60,0,1.2);     
+    h_Ecomplet_bkg->Sumw2();
+
+
+
     
     if( fSaveMCTree ){
       TDirectory* subDirTree = fOutFile->mkdir("Events");
@@ -304,6 +331,15 @@ void NeutrinoShowerEff::endJob(){
     h_Efrac_shContamination->Write();
     h_Efrac_shPurity->Write();
     h_Ecomplet_lepton->Write();
+    h_Efrac_NueCCPurity->Write();
+    h_Ecomplet_NueCC->Write();
+    h_Efrac_bkgPurity->Write();
+    h_Ecomplet_bkg->Write();
+    h_HighestHitsProducedParticlePDG_NueCC->Write();
+    h_HighestHitsProducedParticlePDG_bkg->Write();
+ 
+    
+
     h_Ev_den->Write();
     h_Ev_num->Write();
     h_theta_den->Write();
@@ -422,11 +458,12 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
     art::FindManyP<recob::Hit> sh_hitsAll(showerHandle, event, fShowerModuleLabel);
     cout<<"Found this many showers "<<n_recoShowers<<endl; 
     double Efrac_contamination= 999.0;
+    double Efrac_contaminationNueCC= 999.0;
+    
 
     double Ecomplet_lepton =0.0;
-
-
-
+    double Ecomplet_NueCC =0.0;
+    int ParticlePGD_HighestShHits=0;//undefined
 
 
     const simb::MCParticle *MClepton_reco = NULL; 
@@ -460,14 +497,43 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
 
        const simb::MCParticle *particle;
        double tmpEfrac_contamination = 0.0;  //fraction of non EM energy contatiminatio (see truthMatcher for definition)
+  
+              
        double tmpEcomplet =0;
-
+  
+       
 
        int tmp_nHits = sh_hits.size();
        truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contamination,tmpEcomplet );
+       //truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contaminationNueCC,tmpEcompletNueCC );
+       
+
        sh_Efrac_contamination[i] = tmpEfrac_contamination;
        sh_nHits[i] = tmp_nHits; 
        sh_hasPrimary_e[i] = 0;
+       
+
+       //Shower with highest hits       
+       if( tmp_nHits > nHits ){
+	 nHits = tmp_nHits;
+	 Ecomplet_NueCC =tmpEcomplet;
+	 Efrac_contaminationNueCC = tmpEfrac_contamination; 
+	 if(std::abs(particle->PdgCode())==11){
+	   ParticlePGD_HighestShHits=1;
+	 }else if(particle->PdgCode()==22){
+	   ParticlePGD_HighestShHits=2;
+	 }else{
+	   ParticlePGD_HighestShHits=3;
+	 }
+	 
+            //Efrac_contamination = tmpEfrac_contamination;
+            //MClepton_reco = particle;
+            //sh_Efrac_best =Efrac_contamination; 
+            //cout<<"this is the best shower "<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<endl;
+       } 
+
+
+
        if( particle->PdgCode()  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ) sh_hasPrimary_e[i] = 1;
        //cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<" "<<particle->TrackId()<<" "<<MC_leptonID<<endl;
        //save the best shower based on non EM and number of hits
@@ -477,20 +543,13 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
 	 if(tmpEcomplet>Ecomplet_lepton){
 
 	   Ecomplet_lepton = tmpEcomplet;
+	   
 	   Efrac_contamination = tmpEfrac_contamination;
 	   MClepton_reco = particle;
 	   sh_Efrac_best =Efrac_contamination; 
            
 	 }
 
-         if( tmp_nHits > nHits ){
-            nHits = tmp_nHits;
-	    
-            //Efrac_contamination = tmpEfrac_contamination;
-            //MClepton_reco = particle;
-            //sh_Efrac_best =Efrac_contamination; 
-            //cout<<"this is the best shower "<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<endl;
-         } 
        }          
     }
    
@@ -509,6 +568,39 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
 	}
       }
     }
+
+
+
+    //NueCC SIgnal and background Completeness
+    if(MC_isCC==1&&
+       (fNeutrinoPDGcode == std::abs(MC_incoming_PDG))&&
+       isFiducial
+      
+       )
+      {
+	h_HighestHitsProducedParticlePDG_NueCC->Fill(ParticlePGD_HighestShHits);
+	
+	
+	if(ParticlePGD_HighestShHits>0)
+	  {
+	    h_Ecomplet_NueCC->Fill(Ecomplet_NueCC);
+	    h_Efrac_NueCCPurity->Fill(1-Efrac_contaminationNueCC);    
+	  }
+ 	
+      }
+    else if(!MC_isCC&&
+	    isFiducial
+	    ){
+      h_HighestHitsProducedParticlePDG_bkg->Fill(ParticlePGD_HighestShHits);
+      
+      
+      if(ParticlePGD_HighestShHits>0){
+	h_Ecomplet_bkg->Fill(Ecomplet_NueCC);
+	h_Efrac_bkgPurity->Fill(1-Efrac_contaminationNueCC);	
+      }
+    }
+
+
 }
 //========================================================================
   void NeutrinoShowerEff::truthMatcher(std::vector<art::Ptr<recob::Hit>> all_hits, std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet){
