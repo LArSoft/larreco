@@ -23,6 +23,8 @@ standard_trainingdataalg:
  SimulationLabel: "largeant"
  SaveVtxFlags:    true
  
+ AdcDelayTicks:   0     # ADC pulse peak delay in ticks (non-zero for not deconvoluted waveforms)
+ 
  DriftWindow:     6     # downsampling window (in drift ticks)
 
  DownscaleFn:    "mean" # "maxpool" takes the max value in the window,

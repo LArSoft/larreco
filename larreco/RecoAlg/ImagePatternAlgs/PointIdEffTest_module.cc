@@ -122,7 +122,7 @@ private:
 	int fRun, fEvent;
     float fMcDepEM, fMcDepTrack, fMcFractionEM;
     float fHitEM_0p5, fHitTrack_0p5, fHitMichel_0p5, fHitMcFractionEM;
-    float fHitMichel_out, fHitNotMichel_out;
+    float fHitMichel_mc, fHitMichel_out, fHitNotMichel_out;
     float fHitEM_0p85, fHitTrack_0p85;
     float fTotHit, fCleanHit;
 
@@ -222,9 +222,10 @@ void nnet::PointIdEffTest::beginJob()
     fHitTree = tfs->make<TTree>("hits","hits info");
     fHitTree->Branch("fRun", &fRun, "fRun/I");
     fHitTree->Branch("fEvent", &fEvent, "fEvent/I");
+    fHitTree->Branch("fHitMichel_mc", &fHitMichel_mc, "fHitMichel_mc/F");
     fHitTree->Branch("fHitMichel_out", &fHitMichel_out, "fHitMichel_out/F");
     fHitTree->Branch("fHitNotMichel_out", &fHitNotMichel_out, "fHitNotMichel_out/F");
-		fHitTree->Branch("fpMichel", &fpMichel, "fpMichel/D");
+    fHitTree->Branch("fpMichel", &fpMichel, "fpMichel/D");
 		
 	if (fSaveHitsFile) fHitsOutFile.open("hits_pid.prn");
 
@@ -561,10 +562,11 @@ int nnet::PointIdEffTest::testCNN(
     fpMichel = p_michel;
     if (hitEnMichel > 0.5 * hitEn)
     {
-      fHitMichel_0p5 += hitAdc; mcMichel = true;
-    	fHitMichel_out = p_michel;
+        fHitMichel_0p5 += hitAdc; mcMichel = true;
+        fHitMichel_out = p_michel;
     }
     else { fHitNotMichel_out = p_michel; }
+    fHitMichel_mc = hitEnMichel / hitEn;
 
     fHitTree->Fill();
 

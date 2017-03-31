@@ -58,7 +58,6 @@
 #include "lardata/Utilities/PtrMaker.h"
 
 #include "lardata/ArtDataHelper/MVAReader.h"
-#define MVA_LENGTH 4
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlgTracking.h"
@@ -87,6 +86,10 @@ public:
 		fhicl::Table<pma::PMAlgVertexing::Config> PMAlgVertexing {
 			Name("PMAlgVertexing")
 		};
+
+        fhicl::Table<pma::PMAlgCosmicTagger::Config> PMAlgCosmicTagging {
+            Name("PMAlgCosmicTagging")
+        };
 
         fhicl::Table<pma::PMAlgStitching::Config> PMAlgStitching {
             Name("PMAlgStitching")
@@ -129,10 +132,13 @@ public:
 	void produce(art::Event & e) override;
 
 private:
+    // will try to get EM- and track-like values from various lenght MVA vectors
+    template <size_t N> bool init(const art::Event & evt, pma::PMAlgTracker & pmalgTracker) const;
+
     // calculate EM/track value for hits in track, in its best 2D projection
     // (tracks are built starting from track-like cluster, some electrons
     // still may look track-like)
-    int getPdgFromCnnOnHits(const art::Event& evt, const pma::Track3D& trk) const;
+    template <size_t N> int getPdgFromCnnOnHits(const art::Event& evt, const pma::Track3D& trk) const;
 
 	// ******************** fcl parameters **********************
 	art::InputTag fHitModuleLabel; // tag for hits collection (used for trk validation)
@@ -141,6 +147,7 @@ private:
 
 	pma::ProjectionMatchingAlg::Config fPmaConfig;
 	pma::PMAlgTracker::Config fPmaTrackerConfig;
+	pma::PMAlgCosmicTagger::Config fPmaTaggingConfig;
 	pma::PMAlgVertexing::Config fPmaVtxConfig;
     pma::PMAlgStitching::Config fPmaStitchConfig;
 
@@ -166,8 +173,9 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 
 	fPmaConfig(config().ProjectionMatchingAlg()),
 	fPmaTrackerConfig(config().PMAlgTracking()),
+	fPmaTaggingConfig(config().PMAlgCosmicTagging()),
 	fPmaVtxConfig(config().PMAlgVertexing()),
-  fPmaStitchConfig(config().PMAlgStitching()),
+    fPmaStitchConfig(config().PMAlgStitching()),
 
 	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
 	fSavePmaNodes(config().SavePmaNodes())
@@ -195,14 +203,22 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 }
 // ------------------------------------------------------
 
+template <size_t N>
 int PMAlgTrackMaker::getPdgFromCnnOnHits(const art::Event& evt, const pma::Track3D& trk) const
 {
     int pdg = 0;
     if (fPmaTrackerConfig.TrackLikeThreshold() > 0)
     {
-        auto hitResults = anab::MVAReader<recob::Hit, MVA_LENGTH>::create(evt, fCluModuleLabel);
+        auto hitResults = anab::MVAReader<recob::Hit, N>::create(evt, fCluModuleLabel);
         if (hitResults)
         {
+            int trkLikeIdx = hitResults->getIndex("track");
+            int emLikeIdx = hitResults->getIndex("em");
+            if ((trkLikeIdx < 0) || (emLikeIdx < 0))
+            {
+                throw cet::exception("PMAlgTrackMaker") << "No em/track labeled columns in MVA data products." << std::endl;
+            }
+
             size_t nh[3] = { 0, 0, 0 };
             for (size_t hidx = 0; hidx < trk.size(); ++hidx) { ++nh[trk[hidx]->View2D()]; }
 
@@ -217,10 +233,10 @@ int PMAlgTrackMaker::getPdgFromCnnOnHits(const art::Event& evt, const pma::Track
                 if (trk[hidx]->View2D() == best_view) { trkHitPtrList.emplace_back(trk[hidx]->Hit2DPtr()); }
             }
             auto vout = hitResults->getOutput(trkHitPtrList);
-            double trk_like = -1, trk_or_em = vout[0] + vout[1];
+            double trk_like = -1, trk_or_em = vout[trkLikeIdx] + vout[emLikeIdx];
             if (trk_or_em > 0)
             {
-                trk_like = vout[0] / trk_or_em;
+                trk_like = vout[trkLikeIdx] / trk_or_em;
                 if (trk_like < fPmaTrackerConfig.TrackLikeThreshold()) pdg = 11; // tag if EM-like
                 // (don't set pdg for track-like, for the moment don't like the idea of using "13")
             }
@@ -228,6 +244,29 @@ int PMAlgTrackMaker::getPdgFromCnnOnHits(const art::Event& evt, const pma::Track
         }
     }
     return pdg;
+}
+
+template <size_t N>
+bool PMAlgTrackMaker::init(const art::Event & evt, pma::PMAlgTracker & pmalgTracker) const
+{
+    auto cluResults = anab::MVAReader< recob::Cluster, N >::create(evt, fCluModuleLabel);
+    if (!cluResults) { return false; }
+
+    int trkLikeIdx = cluResults->getIndex("track");
+    int emLikeIdx = cluResults->getIndex("em");
+    if ((trkLikeIdx < 0) || (emLikeIdx < 0)) { return false; }
+
+    const art::FindManyP< recob::Hit > hitsFromClusters(cluResults->dataHandle(), evt, cluResults->dataTag());
+    const auto & cnnOuts = cluResults->outputs();
+    std::vector< float > trackLike(cnnOuts.size());
+    for (size_t i = 0; i < cnnOuts.size(); ++i)
+    {
+        double trkOrEm = cnnOuts[i][trkLikeIdx] + cnnOuts[i][emLikeIdx];
+        if (trkOrEm > 0) { trackLike[i] = cnnOuts[i][trkLikeIdx] / trkOrEm; }
+        else { trackLike[i] = 0; }
+    }
+    pmalgTracker.init(hitsFromClusters, trackLike);
+    return true;
 }
 
 void PMAlgTrackMaker::produce(art::Event& evt)
@@ -265,8 +304,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	// -------------- PMA Tracker for this event ----------------------
 	auto pmalgTracker = pma::PMAlgTracker(allhitlist,
-		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig);
+		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig, fPmaTaggingConfig);
 
+    size_t mvaLength = 0;
 	if (fEmModuleLabel != "") // ----------- Exclude EM parts ---------
 	{
 	    auto cluListHandle = evt.getValidHandle< std::vector<recob::Cluster> >(fCluModuleLabel);
@@ -275,21 +315,16 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	    art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fCluModuleLabel);
 		art::FindManyP< recob::Hit > hitsFromEmParts(splitCluHandle, evt, fEmModuleLabel);
 		pmalgTracker.init(hitsFromClusters, hitsFromEmParts);
-
 	}
 	else if (fPmaTrackerConfig.TrackLikeThreshold() > 0) // --- CNN EM/trk separation ----
 	{
-	    anab::MVAReader< recob::Cluster, MVA_LENGTH > cluResults(evt, fCluModuleLabel);
-	    const art::FindManyP< recob::Hit > hitsFromClusters(cluResults.dataHandle(), evt, cluResults.dataTag());
-	    const auto & cnnOuts = cluResults.outputs();
-	    std::vector< float > trackLike(cnnOuts.size());
-	    for (size_t i = 0; i < cnnOuts.size(); ++i)
+	    // try to dig out 4- or 3-output MVA data product
+	    if (init<4>(evt, pmalgTracker) )      { mvaLength = 4; }
+	    else if (init<3>(evt, pmalgTracker))  { mvaLength = 3; }
+	    else
 	    {
-	        double trkOrEm = cnnOuts[i][0] + cnnOuts[i][1];
-	        if (trkOrEm > 0) { trackLike[i] = cnnOuts[i][0] / trkOrEm; }
-	        else { trackLike[i] = 0; }
+	        throw cet::exception("PMAlgTrackMaker") << "No EM/track MVA data products." << std::endl;
 	    }
-        pmalgTracker.init(hitsFromClusters, trackLike);
 	}
 	else // ------------------------ Use ALL clusters -----------------
 	{
@@ -466,7 +501,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 		for (size_t t = 0; t < result.size(); ++t)
 		{
-		    int pdg = getPdgFromCnnOnHits(evt, *(result[t].Track()));
+		    int pdg = 0;
+		    if (mvaLength == 4) pdg = getPdgFromCnnOnHits<4>(evt, *(result[t].Track()));
+		    else if (mvaLength == 3) pdg = getPdgFromCnnOnHits<3>(evt, *(result[t].Track()));
+		    //else mf::LogInfo("PMAlgTrackMaker") << "Not using PID from CNN.";
 
 			size_t parentIdx = recob::PFParticle::kPFParticlePrimary;
 			if (result[t].Parent() >= 0) parentIdx = (size_t)result[t].Parent();
