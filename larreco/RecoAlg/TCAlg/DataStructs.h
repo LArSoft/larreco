@@ -128,7 +128,7 @@ namespace tca {
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
-    unsigned short ParentTrajID {0};     ///< ID of the parent (if PDG = 12)
+    unsigned short ParentTrajID {0};     ///< ID of the parent
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
@@ -180,7 +180,7 @@ namespace tca {
     // stuff for constructing the PFParticle
     int PDGCode {0};
     std::vector<size_t> DtrIndices;
-    size_t Parent {0};
+    size_t ParentMSIndex {0};       // Parent MatchStruct index (or index of self if no parent exists)
   };
   
   struct ShowerParentStruct {
