@@ -354,7 +354,8 @@ namespace tca {
     void MatchTruth();
      // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
-    void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
+    void Match2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
+    void Match3Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
     void Find3DEndPoints(const geo::TPCID& tpcid);
     void FillPFPInfo();
     
