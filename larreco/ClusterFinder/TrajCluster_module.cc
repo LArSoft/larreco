@@ -326,7 +326,7 @@ namespace cluster {
       unsigned short im = pfpList[ip];
       tca::MatchStruct const& ms = fTCAlg->GetMatchStruct(im);
       if(ms.Count == 0) continue;
-      spcol.emplace_back(ms.PDGCode, ip, ms.Parent, ms.DtrIndices);
+      spcol.emplace_back(ms.PDGCode, ip, ms.ParentMSIndex, ms.DtrIndices);
       // make a list of clusters that are associated with this PFParticle. Trace the association
       // through the trajectories that 
       std::vector<unsigned int> clsIndices;
