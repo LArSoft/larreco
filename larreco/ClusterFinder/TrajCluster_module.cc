@@ -242,7 +242,7 @@ namespace cluster {
       // make the cluster - hit association
       if(!util::CreateAssn(*this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end()))
       {
-        throw art::Exception(art::errors::InsertFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
+        throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
       } // exception
 
       // make the cluster - endpoint associations
@@ -258,7 +258,7 @@ namespace cluster {
           if(vtx3.Ptr2D[plane] == clstr.BeginVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
-              throw art::Exception(art::errors::InsertFailure)<<"Failed to associate cluster "<<icl<<" with vertex";
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<icl<<" with vertex";
             } // exception
             break;
           } // vertex match
@@ -275,7 +275,7 @@ namespace cluster {
           if(vtx3.Ptr2D[plane] == clstr.EndVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
-              throw art::Exception(art::errors::InsertFailure)<<"Failed to associate cluster ID "<<clsID<<" with endpoint";
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster ID "<<clsID<<" with endpoint";
             } // exception
             break;
           } // vertex match
@@ -299,7 +299,7 @@ namespace cluster {
       // PFParticle - Cluster associations
       if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, ms.ClusterIndices.begin(), ms.ClusterIndices.end()))
       {
-        throw art::Exception(art::errors::InsertFailure)<<"Failed to associate clusters with PFParticle";
+        throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate clusters with PFParticle";
       } // exception
       // PFParticle - Vertex association
       std::vector<unsigned int> vtmp(1);
@@ -311,7 +311,7 @@ namespace cluster {
           vtmp[0] = vtxIndex;
           if(!util::CreateAssn(*this, evt, *pv_assn, spcol.size()-1, vtmp.begin(), vtmp.end())) 
           {
-            throw art::Exception(art::errors::InsertFailure)<<"Failed to associate vertex with PFParticle";
+            throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate vertex with PFParticle";
           }
           break;
         }

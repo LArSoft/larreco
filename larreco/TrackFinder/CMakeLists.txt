@@ -21,12 +21,13 @@ art_make(
 			    ${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			    ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
 			    ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-			    art_Persistency_Common canvas_Persistency_Common
-			    art_Utilities canvas_Utilities
+			    art_Persistency_Common
+			    art_Utilities
+			    canvas
 			    ${MF_MESSAGELOGGER}
 			    ${MF_UTILITIES}
 			    ${FHICLCPP}
-			    ${CETLIB}
+			    cetlib cetlib_except
 			    ${CLHEP}
 			    ${ROOT_BASIC_LIB_LIST}
 			    ${G4_LIB_LIST}
@@ -53,12 +54,13 @@ simple_plugin( Track3DKalman "module"
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-			 art_Persistency_Common canvas_Persistency_Common
-			 art_Utilities canvas_Utilities
+			 art_Persistency_Common
+			 art_Utilities
+			 canvas
 			 ${MF_MESSAGELOGGER}
 			 ${MF_UTILITIES}
 			 ${FHICLCPP}
-			 ${CETLIB}
+			 cetlib cetlib_except
 	   
         )
 
@@ -82,12 +84,13 @@ simple_plugin( Track3DKalmanSPS "module"
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
 			 ${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-			 art_Persistency_Common canvas_Persistency_Common
-			 art_Utilities canvas_Utilities
+			 art_Persistency_Common
+			 art_Utilities
+			 canvas
 			 ${MF_MESSAGELOGGER}
 			 ${MF_UTILITIES}
 			 ${FHICLCPP}
-			 ${CETLIB}
+			 cetlib cetlib_except
  	   
        )
 
