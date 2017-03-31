@@ -991,6 +991,12 @@ int pma::PMAlgTracker::build(void)
 			else { trk.DeleteTrack(); }
 		}
 
+    if (fTagCosmicTracks)
+    {
+        mf::LogVerbatim("PMAlgTracker") << "Tag cosmic tracks activity.";
+        fCosmicTagger.tag(fResult);
+    }
+
 	if (fRunVertexing)
 	{
 		mf::LogVerbatim("PMAlgTracker") << "Vertex finding / track-vertex reoptimization.";
