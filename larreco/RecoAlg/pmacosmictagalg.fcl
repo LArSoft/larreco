@@ -9,6 +9,12 @@ standard_pmalgtagger:
 
   TagTopDownTracks:    false # Tag tracks crossing full Y range (if it is not drift).
   TopDownMargin:       2.0   # The maximum distance from top and down required for tagging track as crossing full Y.
+
+	TagNonBeamT0:        false # Tag tracks that have a reconstructed T0 incompatible with the beam
+	NonBeamT0Margin:     1.0 # Number of microseconds away from the beam time to be tagged.
+
 }
 
 END_PROLOG
+
+

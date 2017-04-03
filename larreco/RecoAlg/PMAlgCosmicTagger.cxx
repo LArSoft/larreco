@@ -10,6 +10,7 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 void pma::PMAlgCosmicTagger::tag(pma::TrkCandidateColl& tracks)
 {
@@ -19,6 +20,7 @@ void pma::PMAlgCosmicTagger::tag(pma::TrkCandidateColl& tracks)
 
     if (fTagOutOfDriftTracks) n += outOfDriftWindow(tracks);
     if (fTagTopDownTracks) n += topDownCrossing(tracks);
+		if (fTagNonBeamT0Tracks) n += nonBeamT0Tag(tracks);
 
     mf::LogInfo("pma::PMAlgCosmicTagger") << "...tagged " << n << " cosmic-like tracks.";
 }
@@ -66,4 +68,33 @@ size_t pma::PMAlgCosmicTagger::topDownCrossing(pma::TrkCandidateColl& tracks)
 
     return n;
 }
+
+// Leigh: Make use of the fact that our cathode and anode crossing tracks have a reconstructed T0.
+// Check to see if this time is consistent with the beam
+size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl &tracks){
+
+	size_t n = 0;
+
+	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
+	// Search through all of the tracks
+	for(auto & t : tracks){
+
+		// Non zero T0 means we reconstructed it
+		if(t->GetT0() != 0.0){
+
+			if(fabs(t->GetT0() - detprop->GetTriggerOffset()) < fNonBeamT0Margin){
+				++n;
+				t.SetTagFlag(pma::Track3D::kCosmic);
+			}
+
+		}
+
+	}
+
+	mf::LogInfo("pma::PMAlgCosmicTagger") << " - Tagged " << n << " non-beam T0 tracks.";
+	return n;
+
+}
+
 

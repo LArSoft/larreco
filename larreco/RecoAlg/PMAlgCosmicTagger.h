@@ -45,6 +45,14 @@ public:
             Name("TopDownMargin"),
             Comment("The maximum distance from top and down required for tagging track as crossing full Y.")
         };
+				fhicl::Atom<bool> TagNonBeamT0 {
+					Name("TagNonBeamT0"),
+					Comment("Tag particles with reconstructed T0 not consistent with the beam");
+				};
+				fhicl::Atom<double> NonBeamT0Margin {
+					Name("NonBeamT0Margin"),
+					Comment("Tag only those events at least <margin> from the beam time");
+				};
     };
 
     PMAlgCosmicTagger(const pma::PMAlgCosmicTagger::Config &config) :
@@ -52,7 +60,10 @@ public:
         fOutOfDriftMargin(config.OutOfDriftMargin()),
         
         fTagTopDownTracks(config.TagTopDownTracks()),
-        fTopDownMargin(config.TopDownMargin())
+        fTopDownMargin(config.TopDownMargin()),
+
+				fTagNonBeamT0(config.TagNonBeamT0()),
+				fNonBeamT0Margin(config.NonBeamT0Margin())
     { }
 
     bool tagAny() const { return (fTagOutOfDriftTracks || fTagTopDownTracks /* || fTagSomething || fTagSomethingElse */); }
@@ -63,6 +74,7 @@ private:
 
     size_t outOfDriftWindow(pma::TrkCandidateColl& tracks);
     size_t topDownCrossing(pma::TrkCandidateColl& tracks);
+		size_t nonBeamT0Tag(pma::TrkCancidateColl& tracks);
 
     // Tagging parameters
     bool fTagOutOfDriftTracks; // Tag tracks sticking out of 1 drift window.
@@ -70,6 +82,9 @@ private:
 
     bool fTagTopDownTracks;    // Tag tracks crossing full Y range (if it is not drift).
     double fTopDownMargin;     // Max distance [cm] from top and down required for tagging track as crossing full Y.
+
+		bool fTagNonBeamT0;        // Tag tracks that have a reconstructed T0 outside of the beam range.
+		double fNonBeamT0Margin;   // Range outside which we should consider events not beam related.
 };
 
 #endif
