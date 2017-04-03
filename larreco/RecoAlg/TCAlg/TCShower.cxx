@@ -21,6 +21,7 @@ namespace tca {
       unsigned short imv = tjs.matchVecPFPList[ipfp];
       auto& msd = tjs.matchVec[imv];
       if(msd.TjIDs.empty()) continue;
+      if(msd.PDGCode == 13) continue;
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"MS: "<<ipfp<<" ParentMSIndex "<<msd.ParentMSIndex<<" PDGCode "<<msd.PDGCode<<" Dtr size "<<msd.DtrIndices.size();
@@ -462,15 +463,16 @@ namespace tca {
         std::cout<<"FindShowers: Bad parent CTP "<<ss.CTP<<" "<<ptj.CTP<<" parent ID "<<ptj.ID<<"\n";
       }
     } // ss
-    
-    if(prt) {
+
+    if(tjs.ShowerTag[8] >= 0) {
       for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
         if(tjs.cots[ic].TjIDs.empty()) continue;
         unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
         Trajectory& tj = tjs.allTraj[itj];
-        if(prt) PrintTrajectory("FS", tjs, tj, USHRT_MAX);
+        if(prt || (tjs.ShowerTag[8] == 3 && tj.CTP == inCTP)) PrintTrajectory("FSO", tjs, tj, USHRT_MAX);
       } // ic
-    }
+    } // print trajectories
+
     
   } // FindShowers
   
@@ -1322,6 +1324,22 @@ namespace tca {
       spt.AveChg = spt.Chg;
     } // ipt
     
+    // Make spt0 what looks like the shower start yyy
+    // stp2 should be wider than stp0
+    float widRat = stp0.DeltaRMS / stp2.DeltaRMS;
+    // TODO this needs to be done better
+    if(widRat > 1.5) widRat = 1.5;
+    if(widRat < 0.66) widRat = 0.66;
+    // The spt2 charge should be larger 
+    float chgRat = stp0.Chg / stp2.Chg;
+    if(chgRat > 1.5) chgRat = 1.5;
+    if(chgRat < 0.66) chgRat = 0.66;
+    float fom02 = widRat * chgRat;
+    if(fom02 < 1) {
+      std::swap(stp0, stp2);
+      if(prt) mf::LogVerbatim("TC")<<" stp2 looks like the shower start. fom "<<fom02<<" Swapped 0 <-> 2";
+    }
+
     // calculate the aspect ratio
     float along = 0;
     float trans = 0;
@@ -1341,14 +1359,7 @@ namespace tca {
       tjs.allTraj[iptj].AlgMod[kShowerParent] = false;
       ss.Parent.clear();
     }
-/*
-    if(ss.CTP == 1) {
-      for(unsigned short ii = 0; ii < rotPos.size(); ++ii) {
-        unsigned short irp = sortVec[ii].ID;
-        std::cout<<"bbb "<<rotPos[irp].Pos[0]<<" "<<rotPos[irp].Pos[1]<<" "<<rotPos[irp].Chg<<" "<<rotPos[irp].TjID<<"\n";
-      }
-    }
-*/
+
     // enter the parent candidates at the low end
     for(unsigned short ii = 0; ii < rotPos.size(); ++ii) {
       struct ShowerParentStruct sps;
@@ -1499,10 +1510,6 @@ namespace tca {
       // See if both ends are outside the envelope
       bool end0Inside = PointInsideEnvelope(tj.Pts[tj.EndPt[0]].Pos, ss.Envelope);
       bool end1Inside = PointInsideEnvelope(tj.Pts[tj.EndPt[1]].Pos, ss.Envelope);
-      if(ss.CTP == 1) {
-        std::cout<<"ATIE "<<tj.ID<<" end0 "<<PrintPos(tjs, tj.Pts[tj.EndPt[0]].Pos)<<" "<<end0Inside;
-        std::cout<<" end1 "<<PrintPos(tjs, tj.Pts[tj.EndPt[1]].Pos)<<" "<<end1Inside<<"\n";
-      }
       if(!end0Inside && !end1Inside) continue;
       // at least one end is inside. See if both are inside
       if(end0Inside && end1Inside) {
