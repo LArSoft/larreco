@@ -3,8 +3,8 @@ art_make(
                         larreco_RecoAlg_ImagePatternAlgs_Keras
                         larcore_Geometry_Geometry_service
                         larcore_Geometry
-						lardataobj_RecoBase
-						larreco_Calorimetry
+			lardataobj_RecoBase
+			larreco_Calorimetry
 			nusimdata_SimulationBase
 			${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
@@ -13,13 +13,14 @@ art_make(
 			${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_RANDOMNUMBERGENERATOR_SERVICE}
-			art_Persistency_Common canvas_Persistency_Common
-			art_Persistency_Provenance canvas_Persistency_Provenance
-			art_Utilities canvas_Utilities
+			art_Persistency_Common
+			art_Persistency_Provenance
+			art_Utilities
+			canvas
 			${MF_MESSAGELOGGER}
 			${MF_UTILITIES}
 			${FHICLCPP}
-			${CETLIB}
+			cetlib cetlib_except
 			${CLHEP}
 			${ROOT_BASIC_LIB_LIST}
 			${ROOT_MINUIT}
