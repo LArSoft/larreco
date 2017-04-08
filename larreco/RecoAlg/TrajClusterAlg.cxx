@@ -10,8 +10,6 @@
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 
-
-// TEMP for MatchTruth
 #include "larsim/MCCheater/BackTracker.h"
 
 class TH1F;
@@ -162,7 +160,7 @@ namespace tca {
     tjs.Vertex2DCuts      = pset.get< std::vector<float >>("Vertex2DCuts", {-1, -1, -1, -1, -1, -1, -1});
     tjs.Vertex3DChiCut    = pset.get< float >("Vertex3DChiCut", -1);
     fMaxVertexTrajSep     = pset.get< std::vector<float>>("MaxVertexTrajSep");
-    fMatch3DCuts          = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1});
+    tjs.Match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1});
     
     debug.Plane           = pset.get< int >("DebugPlane", -1);
     debug.Wire            = pset.get< int >("DebugWire", -1);
@@ -190,9 +188,9 @@ namespace tca {
     if(tjs.MuonTag.size() != 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging";
     if(tjs.DeltaRayTag.size() != 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3\n 0 = Max endpoint sep\n 1 = min MCSMom\n 2 = max MCSMom";
     if(fChkStopCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = Charge fit chisq cut";
-    if(tjs.ShowerTag.size() != 9) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 8\n 0 = Mode\n 1 = max MCSMom\n 2 = max separation (WSE units)\n 3 = Max angle diff\n 4 = Factor * rms width\n 5 = Min half width\n 6 = min total Tps\n 7 = Min Tjs\n 8 = Debug showers in CTP\n";
+    if(tjs.ShowerTag.size() != 10) throw art::Exception(art::errors::Configuration)<< "ShowerTag must be size 8\n 0 = Mode\n 1 = max MCSMom\n 2 = max separation (WSE units)\n 3 = Max angle diff\n 4 = Factor * rms width\n 5 = Min half width\n 6 = min total Tps\n 7 = Min Tjs\n 8 = max FOM\n 9 = Debug showers in CTP\n";
     
-    if(fMatch3DCuts.size() != 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = MinMCSMom\n 2 = Min length for 2-view match\n 3 = 2-view match require dead region in 3rd view?";
+    if(tjs.Match3DCuts.size() != 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = MinMCSMom\n 2 = Min length for 2-view match\n 3 = 2-view match require dead region in 3rd view?";
     
     // check the angle ranges and convert from degrees to radians
     if(tjs.AngleRanges.back() < 90) {
@@ -447,7 +445,7 @@ namespace tca {
     
     FillPFPInfo();
     // convert the cots vector into recob::Shower
-    MakeShowers(tjs, fCaloAlg);
+//    MakeShowers(tjs, fCaloAlg);
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     if(fQuitAlg) {
@@ -479,6 +477,7 @@ namespace tca {
 
     if(fStudyMode) {
       // shower stuff
+/*
       // count the number of showers in each plane
       std::vector<unsigned short> nShInPln(3);
       for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
@@ -551,6 +550,7 @@ namespace tca {
         myprt<<" EffPur "<<ep;
         myprt<<" evts processed "<<fEventsProcessed;
       } // ict
+*/
       // histogram Tj separation
       float minDOCA = 5000;
       for(unsigned short itj = 0; itj < tjs.allTraj.size() - 1; ++itj) {
@@ -1458,11 +1458,17 @@ namespace tca {
             sourceParticleEnergy = part->E();
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kSingleParticle;
-            if(fMatchTruth[1] > 2) std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<"\n";
+            if(fMatchTruth[1] > 2) {
+              TVector3 dir;
+              dir[0] = part->Px(); dir[1] = part->Py(); dir[2] = part->Pz();
+              dir.SetMag(1);
+              std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<" Vx "<<(int)part->Vx()<<" Vy "<<(int)part->Vy()<<" Vz "<<(int)part->Vz()<<" dir "<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<"\n";
+            }
           }
           if(sourceOrigin == simb::kBeamNeutrino) {
             sourceParticleEnergy = part->E();
             // histogram the vertex position difference
+            if(fMatchTruth[1] > 2) std::cout<<"True vertex position "<<(int)part->Vx()<<" "<<(int)part->Vy()<<" "<<(int)part->Vz()<<"\n";
             for(auto& aVtx3 : tjs.vtx3) {
               fNuVtx_dx->Fill(part->Vx() - aVtx3.X);
               fNuVtx_dy->Fill(part->Vy() - aVtx3.Y);
@@ -2771,11 +2777,11 @@ namespace tca {
     // elements of the Match Struct using a convention that sXYZ[0] is at low X end of the matched trajectories.
     
     if(!tjs.UseAlg[kMatch3D]) return;
-    if(fMatch3DCuts[0] < 0) return;
+    if(tjs.Match3DCuts[0] < 0) return;
     
     prt = (debug.Plane >= 0) && (debug.Tick == 3333);
     
-    if(prt) mf::LogVerbatim("TC")<<"inside Match3D. dX (cm) cut "<<fMatch3DCuts[0];
+    if(prt) mf::LogVerbatim("TC")<<"inside Match3D. dX (cm) cut "<<tjs.Match3DCuts[0];
     
     // vector of X positions of all hits
     std::vector<float> xx(tjs.fHits.size());
@@ -2822,8 +2828,6 @@ namespace tca {
       } // ii
     } // ipfp
     
-    Find3DEndPoints(tpcid);
-    
     // Define the parent (j) - daughter (i) relationship and the PDGCode
     for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
       unsigned short imv = tjs.matchVecPFPList[ipfp];
@@ -2833,14 +2837,12 @@ namespace tca {
       unsigned short n11 = 0;
       unsigned short n13 = 0;
       unsigned short nsh = 0;
-      unsigned short nshp = 0;
       // look for a parent (j) in the list of trajectories
       for(unsigned short ii = 0; ii < ims.TjIDs.size(); ++ii) {
         unsigned short itj = ims.TjIDs[ii] - 1;
         Trajectory& tj = tjs.allTraj[itj];
         if(tj.PDGCode == 11) ++n11;
         if(tj.PDGCode == 13) ++n13;
-        if(tj.AlgMod[kShowerParent]) ++nshp;
         if(tj.AlgMod[kShowerTj]) ++nsh;
         // Look for a parent trajectory that is matched in 3D
         if(tj.ParentTrajID > 0 && tjs.allTraj[tj.ParentTrajID - 1].AlgMod[kMatch3D]) {
@@ -2861,22 +2863,23 @@ namespace tca {
       if(nsh > 1) {
         // use PDGCode = 1111 for a shower Tj
         ims.PDGCode = 1111;
-      } else if(nshp > 1) {
-        // use PDGCode = 111 for a shower parent
-        ims.PDGCode = 111;
       } else if(n11 > n13) {
         // a generic shower-like Tj
         ims.PDGCode = 11;
       }
-      if(prt) mf::LogVerbatim("TC")<<"ipfp "<<ipfp<<" n11 "<<n11<<" n13 "<<n13<<" nsh "<<nsh<<" nshp "<<nshp<<" PDGCode "<<ims.PDGCode<<" Parent "<<ims.ParentMSIndex;
+      if(prt) mf::LogVerbatim("TC")<<"ipfp "<<ipfp<<" n11 "<<n11<<" n13 "<<n13<<" nsh "<<nsh<<" PDGCode "<<ims.PDGCode<<" Parent "<<ims.ParentMSIndex;
     } // ipfp
     
+    Find3DEndPoints(tpcid);
+//    FindShowerEndPoints(tjs, tpcid);
+
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"matchVec out\n";
       for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
         myprt<<ii<<" Count "<<tjs.matchVec[ii].Count<<" TjIDs: ";
         for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<tjID;
+        myprt<<" PDGCode "<<tjs.matchVec[ii].PDGCode;
         myprt<<"\n";
       } // ii
       myprt<<"matchVecPFPList";
@@ -2905,8 +2908,8 @@ namespace tca {
 
     
     // decide if we should take the time to check the MCSMom cut
-    bool chkMCSMom = (fMatch3DCuts[1] > 0);
-    short momCut = fMatch3DCuts[1];
+    bool chkMCSMom = (tjs.Match3DCuts[1] > 0);
+    short momCut = tjs.Match3DCuts[1];
     
     // Define the order of the planes in which hits will be considered. 
     unsigned short ipl = 2;
@@ -2949,14 +2952,14 @@ namespace tca {
             if(tjs.allTraj[jtj].AlgMod[kMatch3D]) continue;
             // don't try to match Tjs in showers
             if(tjs.allTraj[jtj].AlgMod[kInShower]) continue;
-            if(xx[jht] < xx[iht] - fMatch3DCuts[0]) continue;
-            if(xx[jht] > xx[iht] + fMatch3DCuts[0]) break;
+            if(xx[jht] < xx[iht] - tjs.Match3DCuts[0]) continue;
+            if(xx[jht] > xx[iht] + tjs.Match3DCuts[0]) break;
             for(unsigned int kht = kfirsthit; kht < klasthit; ++kht) {
               if(tjs.fHits[kht].InTraj <= 0) continue;
               unsigned short ktj = tjs.fHits[kht].InTraj - 1;
               if(tjs.allTraj[ktj].AlgMod[kMatch3D]) continue;
-              if(xx[kht] < xx[iht] - fMatch3DCuts[0]) continue;
-              if(xx[kht] > xx[iht] + fMatch3DCuts[0]) break;
+              if(xx[kht] < xx[iht] - tjs.Match3DCuts[0]) continue;
+              if(xx[kht] > xx[iht] + tjs.Match3DCuts[0]) break;
               // we have a time match
               // check MCSMom?
               if(chkMCSMom) {
@@ -3108,17 +3111,17 @@ namespace tca {
     // The xx vector of size tjs.fHits.size() has been pre-loaded by the calling routine
     
     // 2-view matching not requested
-    if(fMatch3DCuts[2] < 0) return;
+    if(tjs.Match3DCuts[2] < 0) return;
     
     unsigned int nTriple = tjs.matchVec.size();
     // make a temporary list of triple Tj match IDs to simplify searching
     std::vector<unsigned short> tripleTjList;
     for(auto& ms : tjs.matchVec) tripleTjList.insert(tripleTjList.end(), ms.TjIDs.begin(), ms.TjIDs.end());
     
-    unsigned short minTjLen = fMatch3DCuts[2];
+    unsigned short minTjLen = tjs.Match3DCuts[2];
     
     // Three plane TPC - require a 2-plane match reside in a dead region of the 3rd plane?
-    bool require3rdPlnDeadRegion = (tjs.NumPlanes == 3 && fMatch3DCuts[3] > 0);
+    bool require3rdPlnDeadRegion = (tjs.NumPlanes == 3 && tjs.Match3DCuts[3] > 0);
     
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes - 1; ++ipl) {
       for(unsigned int iwire = tjs.FirstWire[ipl]; iwire < tjs.LastWire[ipl]; ++iwire) {
@@ -3166,8 +3169,8 @@ namespace tca {
                 // don't try to match Tjs in showers
                 if(tjs.allTraj[jtj].AlgMod[kInShower]) continue;
                 if(tjs.allTraj[jtj].Pts.size() < minTjLen) continue;
-                if(xx[jht] < xx[iht] - fMatch3DCuts[0]) continue;
-                if(xx[jht] > xx[iht] + fMatch3DCuts[0]) break;
+                if(xx[jht] < xx[iht] - tjs.Match3DCuts[0]) continue;
+                if(xx[jht] > xx[iht] + tjs.Match3DCuts[0]) break;
                 // next see if the Tj IDs are in the match list
                 unsigned short indx = nTriple;
                 for(indx = nTriple; indx < tjs.matchVec.size(); ++indx) {
@@ -3263,6 +3266,8 @@ namespace tca {
       geo::PlaneID plane1ID = DecodeCTP(tjs.allTraj[it1].CTP);
       if(plane1ID.Cryostat != cstat) continue;
       if(plane1ID.TPC != tpc) continue;
+      // ignore shower Tjs. These are handled in FindShowerEndPoints
+      if(ms.PDGCode == 1111) continue;
       // Check for the existence of a 3D vertex with these trajectories and if so define the
       // 3D vertex start and end indices. Note that in it's current state MatchHas3DVertex may not
       // always define eXYZ.
@@ -3475,7 +3480,7 @@ namespace tca {
         newVx3.Z = ms.sXYZ[2];
         tjs.vtx3.push_back(newVx3);
         ms.sVtx3DIndex = tjs.vtx3.size() - 1;
-        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<tjs.vtx3.size() - 1;
+        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<tjs.vtx3.size() - 1<<" at "<<newVx3.X<<" "<<newVx3.Y<<" "<<newVx3.Z;
       }
     } // im (ms)
 
