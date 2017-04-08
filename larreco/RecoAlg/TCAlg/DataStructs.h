@@ -173,7 +173,9 @@ namespace tca {
     std::vector<unsigned short> TjIDs;
     // Count of the number of time-matched hits
     int Count {0};
-    std::array<float, 3> sXYZ;        // XYZ position at the start (NOT WSE units)
+    std::array<float, 3> sXYZ;        // XYZ position at the start (cm)
+    TVector3 sDir;        // start direction
+    TVector3 sDirErr;        // start direction error
     std::array<float, 3> eXYZ;        // XYZ position at the other end
     unsigned short sVtx3DIndex {USHRT_MAX};
     unsigned short eVtx3DIndex {USHRT_MAX};
@@ -182,27 +184,37 @@ namespace tca {
     std::vector<size_t> DtrIndices;
     size_t ParentMSIndex {0};       // Parent MatchStruct index (or index of self if no parent exists)
   };
-  
+/*
   struct ShowerParentStruct {
     unsigned short ID;
     unsigned short End;
     float FOM {100};
+    float Chg;
   };
-  
+*/
+  struct ShowerPoint {
+    std::array<float, 2> Pos;       // Position in the normal coordinate system
+    std::array<float, 2> RotPos;    // Position rotated into the shower coordinate system (0 = along, 1 = transverse)
+    float Chg;                      // Charge of this point
+    unsigned short TID;             // ID of the InShower trajectory that used this point
+  };
+
   // A temporary structure that defines a 2D shower-like cluster of trajectories
   struct ShowerStruct {
     CTP_t CTP;
     unsigned short ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
-    std::vector<unsigned short> TjIDs;          // list of InShower Tjs
-    float Angle {10};         // Start with a bogus angle
-    float AngleErr {3};
-    float AspectRatio {1};
+    std::vector<unsigned short> TjIDs;  // list of InShower Tjs
+    std::vector<ShowerPoint> Pts;    // Trajectory points inside the shower
+    float Angle {10};                   // Angle of the shower axis
+    float AngleErr {3};                 // Error
+    float AspectRatio {1};              // The ratio of charge weighted transverse/longitudinal positions
     std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
     float EnvelopeArea {0};
     float ChgDensity {0};                   // Charge density inside the Envelope
     float Energy {0};
-    std::vector<ShowerParentStruct> Parent;     // List of possible parents
-    float ShowerFOM {100};
+    float StartChg {0};              // Charge at the start of the shower
+    float StartChgErr {0};              // Start charge error
+    unsigned short ExternalParentID {0};  // The ID of an external parent Tj that was added to the shower
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -264,7 +276,6 @@ namespace tca {
     kVtxHitsSwap,
     kSplitHiChgHits,
     kInShower,
-    kShowerParent,
     kShowerTj,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
@@ -313,13 +324,14 @@ namespace tca {
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
     std::vector<unsigned short> matchVecPFPList;  /// list of matchVec entries that will become PFPs
-    std::vector<ShowerStruct> cots;
-    std::vector<ShowerStruct3D> showers;
+    std::vector<ShowerStruct> cots;       // Clusters of Trajectories that define 2D showers
+    std::vector<ShowerStruct3D> showers;  // 3D showers
     std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
     float Vertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
     std::vector<short> DeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
+    std::vector<float> Match3DCuts;  ///< 3D matching cuts
     std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
     const geo::GeometryCore* geom;
     const detinfo::DetectorProperties* detprop;
