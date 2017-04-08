@@ -30,23 +30,33 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 namespace tca {
+
+  void FindShowerEndPoints(TjStuff& tjs, const geo::TPCID& tpcid);
+  unsigned short ShowerTjCotsIndex(TjStuff& tjs, const unsigned short& ShowerTjID);
   void MakeShowers(TjStuff& tjs, const calo::CalorimetryAlg& fCaloAlg);
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP);
-  void AddMissedTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<unsigned short>& tjl);
-  void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<unsigned short>>& tjList);
-  void FindShowerCenter(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void FindShowerAxis(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void FindParent(TjStuff& tjs, const unsigned short& showerIndex, bool prt);
-  float ParentFOM(TjStuff& tjs, Trajectory& tj, const unsigned short& tjPt, ShowerStruct& ss, bool prt);
-  void FindFirstTPAng(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void DefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  bool AddTj(TjStuff& tjs, unsigned short TjID, const unsigned short& cotIndex, bool doUpdate, bool prt);
+  bool RemoveTj(TjStuff& tjs, unsigned short TjID, const unsigned short& cotIndex, bool doUpdate, bool prt);
+  bool UpdateShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  bool FindChargeCenter(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void FindAngle(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void FillRotPos(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  bool DefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  bool RefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void FindExternalParent(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  float ParentFOM(TjStuff& tjs, Trajectory& tj, const unsigned short& tjEnd, ShowerStruct& ss, bool prt);
   void DefineEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   bool AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void FindStartChg(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  
+  void AddMissedTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<unsigned short>& tjl);
+  void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<unsigned short>>& tjList);
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void CollectLooseHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss);
-  void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
+
 }
 
 
