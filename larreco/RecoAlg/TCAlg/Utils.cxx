@@ -4,6 +4,72 @@ namespace tca {
   
   
   /////////////////////////////////////////
+  void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir)
+  {
+    // Calculate the 3D direction using 2 trajectory points. 
+    
+    dir.SetX(999);
+    
+    if(itp.CTP == jtp.CTP) return;
+    
+    // protect against large angles
+    if(jtp.Dir[1] == 0) {
+      // Going either in the +X direction or -X direction
+      if(jtp.Dir[0] > 0) {
+        dir.SetX(1);
+      } else {
+        dir.SetX(-1);
+      }
+      dir.SetY(0);
+      dir.SetZ(0);
+      return;
+    } // jtp.Dir[1] == 0
+    
+    TVector3 pt1, pt2;
+    geo::PlaneID iplnID = DecodeCTP(itp.CTP);
+    geo::PlaneID jplnID = DecodeCTP(jtp.CTP);
+    
+    // shift the points so that results will always be positive
+    itp.Pos[0] += 1000;
+    itp.Pos[1] += 1000;
+    jtp.Pos[0] += 1000;
+    jtp.Pos[1] += 1000;
+    
+    double y, z;
+    double xi  = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
+    double xj = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
+    // don't continue if the points are too far apart in X
+    if(std::abs(xi - xj) > 10) return;
+    xi = 0.5 * (xi + xj);
+    
+    unsigned int wire1 = (unsigned int)(itp.Pos[0] + 0.5);
+    unsigned int wire2 = (unsigned int)(jtp.Pos[0] + 0.5);
+    
+    tjs.geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
+    pt1.SetX(xi);
+    pt1.SetY(y);
+    pt1.SetZ(z);
+    
+    // Move itp by 100 wires. It doesn't matter if we end up outside the TPC bounds since
+    // bounds checking isn't done by these utility functions
+    std::array<float, 2> newPos;
+    MoveTPToWire(itp, itp.Pos[0] + 100);
+    wire1 = (unsigned int)(itp.Pos[0] + 0.5);
+    xi  = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
+    // Determine the number of wires to move jtp to get to the same X position
+    newPos[1] = tjs.detprop->ConvertXToTicks(xi, jplnID) * tjs.UnitsPerTick;
+    newPos[0] = (newPos[1] - jtp.Pos[1]) * (jtp.Dir[0] / jtp.Dir[1]) + jtp.Pos[0];
+    if(newPos[0] < 0) newPos[0] = 0;
+    wire2 = (unsigned int)(newPos[0] + 0.5);
+    tjs.geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
+    pt2.SetX(xi);
+    pt2.SetY(y);
+    pt2.SetZ(z);
+    dir = pt2 - pt1;
+    dir.SetMag(1);
+  } // SpacePtDir
+
+  /////////////////////////////////////////
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp)
   {
     return AngleRange(tjs, tp.Ang);
@@ -294,6 +360,9 @@ namespace tca {
     if(im > tjs.matchVecPFPList.size() - 1) return false;
     
     auto& mv = tjs.matchVec[im];
+    
+    // Don't reverse showers
+    if(mv.PDGCode == 1111) return false;
 
     // through-going track? Check for outside the Fiducial Volume at the start (s) and end (e).
     // These variables assume that the TPC is exposed to a beam that contains muons entering at the front and
@@ -2030,12 +2099,12 @@ namespace tca {
     tj.MCSMom = MCSMom(tjs, tj);
     
     if(tjs.MuonTag[0] <= 0) return;
-    
+/*
     if(tj.AlgMod[kShowerParent]) {
       tj.PDGCode = 11;
       return;
     }
-    
+*/
     // Special handling of very long straight trajectories, e.g. uB cosmic rays
     bool isAMuon = (tj.Pts.size() > (unsigned short)tjs.MuonTag[0] && tj.MCSMom > tjs.MuonTag[1]);
     // anything really really long must be a muon
@@ -2233,24 +2302,22 @@ namespace tca {
           for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
           myprt<<" Energy "<<(int)ss.Energy;
           myprt<<" Area "<<std::fixed<<std::setprecision(1)<<(int)ss.EnvelopeArea<<" ChgDensity "<<ss.ChgDensity;
-          myprt<<" Tjs";
+          if(ss.StartChg > 0) myprt<<" Start Charge "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr;
+          myprt<<"\nInShower TjIDs";
           for(auto& tjID : ss.TjIDs) {
             myprt<<" "<<tjID;
           } // tjID
           myprt<<"\n";
-          myprt<<someText<<" Parent Tj list ";
-          for(auto& parstruct : ss.Parent) {
-            myprt<<" "<<parstruct.ID<<"_"<<parstruct.End<<" FOM "<<std::fixed<<std::setprecision(2)<<parstruct.FOM;
-            // print the parent angle
-            unsigned short iptj = parstruct.ID - 1;
-            unsigned short endPt = tjs.allTraj[iptj].EndPt[parstruct.End];
-            myprt<<" Ang= "<<tjs.allTraj[iptj].Pts[endPt].Ang;
-          }
-          myprt<<"\n";
-          myprt<<" Shower Angle "<<std::fixed<<std::setprecision(2)<<ss.Angle<<" +/- "<<ss.AngleErr;
+          myprt<<"Shower Angle "<<std::fixed<<std::setprecision(2)<<ss.Angle<<" +/- "<<ss.AngleErr;
           myprt<<" Aspect ratio "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
+          if(ss.ExternalParentID > 0) {
+            myprt<<" External parent Tj "<<ss.ExternalParentID<<" found";
+          } else {
+            myprt<<" No external parent Tj found";
+          }
+          myprt<<"\n................................................";
         } // ic
-      }
+      } // Shower Tj
     } else {
       // just print one traj point
       if(tPoint > tj.Pts.size() -1) {
