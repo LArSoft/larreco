@@ -115,7 +115,7 @@ def main(argv):
                 track_pixels = np.count_nonzero(tracks[x_start:x_stop, y_start:y_stop])
                 shower_pixels = np.count_nonzero(showers[x_start:x_stop, y_start:y_stop])
 
-                target = np.zeros(4)
+                target = np.zeros(4, dtype=np.int32)
                 if tracks[i,j] == 1:
                     if is_raw_zero: continue
                     # skip fraction of almost-track-only patches

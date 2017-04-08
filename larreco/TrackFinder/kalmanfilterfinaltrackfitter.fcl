@@ -40,6 +40,7 @@ kalmantrackfit: {
 	 maxNit: 10
 	 tcut: 10.
 	 wrongDirDistTolerance: 0.01
+	 propPinvErr: false
   }
 }
 END_PROLOG

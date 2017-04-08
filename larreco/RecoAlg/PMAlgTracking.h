@@ -32,6 +32,7 @@
 
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
+#include "larreco/RecoAlg/PMAlgCosmicTagger.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
 #include "larreco/RecoAlg/PMAlgStitching.h"
 
@@ -232,7 +233,8 @@ public:
 		const pma::ProjectionMatchingAlg::Config& pmalgConfig,
 		const pma::PMAlgTracker::Config& pmalgTrackerConfig,
 		const pma::PMAlgVertexing::Config& pmvtxConfig,
-		const pma::PMAlgStitching::Config& pmstitchConfig) :
+		const pma::PMAlgStitching::Config& pmstitchConfig,
+		const pma::PMAlgCosmicTagger::Config& pmtaggerConfig) :
 
 		PMAlgTrackingBase(allhitlist, pmalgConfig, pmvtxConfig),
 
@@ -250,6 +252,9 @@ public:
 		fMergeTransverseShift(pmalgTrackerConfig.MergeTransverseShift()),
 		fMergeAngle(pmalgTrackerConfig.MergeAngle()),
 
+        fCosmicTagger(pmtaggerConfig),
+        fTagCosmicTracks(fCosmicTagger.tagAny()),
+
 		fStitchBetweenTPCs(pmalgTrackerConfig.StitchBetweenTPCs()),
 		fStitchDistToWall(pmalgTrackerConfig.StitchDistToWall()),
 		fStitchTransverseShift(pmalgTrackerConfig.StitchTransverseShift()),
@@ -257,7 +262,7 @@ public:
 
 		fMatchT0inAPACrossing(pmalgTrackerConfig.MatchT0inAPACrossing()),
 		fMatchT0inCPACrossing(pmalgTrackerConfig.MatchT0inCPACrossing()),
-    fStitcher(pmstitchConfig),
+        fStitcher(pmstitchConfig),
 
 		fRunVertexing(pmalgTrackerConfig.RunVertexing()),
 
@@ -360,6 +365,9 @@ private:
 	double fMergeTransverseShift;  //   - max. transverse displacement [cm] between tracks
 	double fMergeAngle;            //   - max. angle [degree] between tracks (nearest segments)
 
+    pma::PMAlgCosmicTagger fCosmicTagger; // cosmic tagger alg
+    bool fTagCosmicTracks;         // do any tagging of cosmic rays (simple or of tagger flags)
+
 	bool fStitchBetweenTPCs;       // stitch between TPCs; finds tracks best matching by angle, with limits:
 	double fStitchDistToWall;      //   - max. track endpoint distance [cm] to TPC boundary
 	double fStitchTransverseShift; //   - max. transverse displacement [cm] between tracks
@@ -368,7 +376,7 @@ private:
 	bool fMatchT0inAPACrossing;    // match T0 of APA-crossing tracks using PMAlgStitcher
 	bool fMatchT0inCPACrossing;    // match T0 of CPA-crossing tracks using PMAlgStitcher
 
-  pma::PMAlgStitching fStitcher;
+    pma::PMAlgStitching fStitcher;
 
 	bool fRunVertexing;          // run vertex finding
 

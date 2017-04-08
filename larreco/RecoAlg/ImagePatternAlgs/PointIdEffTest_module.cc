@@ -447,6 +447,8 @@ int nnet::PointIdEffTest::testCNN(
 {
 	fClSize = hits.size();
 
+    std::unordered_map<int, int> mcHitPid;
+
 	fPidValue = 0;
 	double p_trk_or_sh = cnn_out[0] + cnn_out[1];
 	if (p_trk_or_sh > 0) { fPidValue = cnn_out[0] / p_trk_or_sh; }
@@ -468,8 +470,8 @@ int nnet::PointIdEffTest::testCNN(
 		auto const & vout = hit_outs[hit.key()];
 		if (MVA_LENGTH == 4)
 		{
-    	p_michel = vout[2];
-    }
+    	    p_michel = vout[2];
+        }
        
 		for (auto const & channel : channels)
 		{
@@ -541,6 +543,7 @@ int nnet::PointIdEffTest::testCNN(
 		    fHitTrack_0p5 += hitAdc;
 		    hitPidMc_0p5 = nnet::PointIdEffTest::kTrack;
 		}
+		mcHitPid[hit.key()] = hitPidMc_0p5;
 
         int hitPidMc_0p85 = -1;
         double hitDep = hitEnSh + hitEnTrk;
@@ -664,7 +667,7 @@ int nnet::PointIdEffTest::testCNN(
 			fHitsOutFile << fRun << " " << fEvent << " "
 				<< h->WireID().TPC  << " " << h->WireID().Wire << " " << h->PeakTime() << " "
 				<< h->SummedADC() * fCalorimetryAlg.LifetimeCorrection(h->PeakTime()) << " "
-				<< fMcPid << " " << fPidValue << " " << hitPidValue;
+				<< mcHitPid[h.key()] << " " << fPidValue << " " << hitPidValue;
 
 			if (MVA_LENGTH == 4)
 			{
