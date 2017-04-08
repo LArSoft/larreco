@@ -134,8 +134,6 @@ namespace tca {
     unsigned short fAllowNoHitWire;
 		float VertexPullCut; 	///< maximum 2D vtx - trajectory significance
     std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
-
-    std::vector<float> fMatch3DCuts;  ///< Max dX separation
     
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
     std::array<short, 5> EPCnts;
