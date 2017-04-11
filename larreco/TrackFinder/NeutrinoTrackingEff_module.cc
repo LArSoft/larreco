@@ -46,6 +46,9 @@
 #include "TEfficiency.h"
 #include "TGraphAsymmErrors.h"
 
+// C/C++ standard libraries
+#include <vector>
+
 #define MAX_TRACKS 1000
 using namespace std;
 
@@ -850,7 +853,7 @@ double NeutrinoTrackingEff::truthLength( const simb::MCParticle *MCparticle ){
 
    if( !MCparticle ) return -999.0;
    int numberTrajectoryPoints = MCparticle->NumberTrajectoryPoints();
-   std::vector<double> TPCLengthHits(numberTrajectoryPoints, 0);
+   std::vector<double> TPCLengthHits(numberTrajectoryPoints, 0.0);
    int FirstHit=0, LastHit=0;
    double TPCLength = 0.0;
    bool BeenInVolume = false;
