@@ -2302,7 +2302,7 @@ namespace tca {
           for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
           myprt<<" Energy "<<(int)ss.Energy;
           myprt<<" Area "<<std::fixed<<std::setprecision(1)<<(int)ss.EnvelopeArea<<" ChgDensity "<<ss.ChgDensity;
-          if(ss.StartChg > 0) myprt<<" Start Charge "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr;
+          myprt<<" Start Charge "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr;
           myprt<<"\nInShower TjIDs";
           for(auto& tjID : ss.TjIDs) {
             myprt<<" "<<tjID;
@@ -2310,8 +2310,8 @@ namespace tca {
           myprt<<"\n";
           myprt<<"Shower Angle "<<std::fixed<<std::setprecision(2)<<ss.Angle<<" +/- "<<ss.AngleErr;
           myprt<<" Aspect ratio "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
-          if(ss.ExternalParentID > 0) {
-            myprt<<" External parent Tj "<<ss.ExternalParentID<<" found";
+          if(ss.ParentID > 0) {
+            myprt<<" Parent Tj "<<ss.ParentID<<" found";
           } else {
             myprt<<" No external parent Tj found";
           }
