@@ -315,7 +315,7 @@ namespace cluster {
       // make the shower - hit association
       if(!util::CreateAssn(*this, evt, *hs_assn, sscol.size()-1, ss3.Hits.begin(), ss3.Hits.end()))
       {
-        throw art::Exception(art::errors::InsertFailure)<<"Failed to associate hits with Shower";
+        throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with Shower";
       } // exception
     } // ish
     
