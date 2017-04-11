@@ -31,8 +31,7 @@
 
 namespace tca {
 
-  void FindShowerEndPoints(TjStuff& tjs, const geo::TPCID& tpcid);
-  unsigned short ShowerTjCotsIndex(TjStuff& tjs, const unsigned short& ShowerTjID);
+  void Find3DShowerEndPoints(TjStuff& tjs, const geo::TPCID& tpcid);
   void MakeShowers(TjStuff& tjs, const calo::CalorimetryAlg& fCaloAlg);
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP);
   void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
@@ -55,6 +54,7 @@ namespace tca {
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void CollectLooseHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
+  unsigned short ShowerTjCotsIndex(TjStuff& tjs, const unsigned short& ShowerTjID);
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss);
 
 }
