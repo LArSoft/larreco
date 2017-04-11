@@ -445,7 +445,7 @@ namespace tca {
     
     FillPFPInfo();
     // convert the cots vector into recob::Shower
-//    MakeShowers(tjs, fCaloAlg);
+    MakeShowers(tjs, fCaloAlg);
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     if(fQuitAlg) {
@@ -469,7 +469,7 @@ namespace tca {
     } // TJPrt > 0
     
     // print trajectory summary report?
-    if(tjs.ShowerTag[0] >= 0) debug.Plane = tjs.ShowerTag[8];
+    if(tjs.ShowerTag[0] >= 0) debug.Plane = tjs.ShowerTag[9];
     if(debug.Plane >= 0) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
@@ -2871,7 +2871,7 @@ namespace tca {
     } // ipfp
     
     Find3DEndPoints(tpcid);
-//    FindShowerEndPoints(tjs, tpcid);
+    Find3DShowerEndPoints(tjs, tpcid);
 
     if(prt) {
       mf::LogVerbatim myprt("TC");
