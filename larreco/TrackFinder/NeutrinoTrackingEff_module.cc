@@ -850,12 +850,12 @@ double NeutrinoTrackingEff::truthLength( const simb::MCParticle *MCparticle ){
 
    if( !MCparticle ) return -999.0;
    int numberTrajectoryPoints = MCparticle->NumberTrajectoryPoints();
-   double TPCLengthHits[numberTrajectoryPoints];
+   std::vector<double> TPCLengthHits(numberTrajectoryPoints, 0);
    int FirstHit=0, LastHit=0;
    double TPCLength = 0.0;
    bool BeenInVolume = false;
 
-   for(int MCHit=0; MCHit < numberTrajectoryPoints; ++MCHit) {
+   for(unsigned int MCHit=0; MCHit < TPCLengthHits.size(); ++MCHit) {
       const TLorentzVector& tmpPosition= MCparticle->Position(MCHit);
       double const tmpPosArray[]={tmpPosition[0],tmpPosition[1],tmpPosition[2]};
       if (MCHit!=0) TPCLengthHits[MCHit] = sqrt( pow( (MCparticle->Vx(MCHit-1)-MCparticle->Vx(MCHit)),2)+ pow( (MCparticle->Vy(MCHit-1)-MCparticle->Vy(MCHit)),2)+ pow( (MCparticle->Vz(MCHit-1)-MCparticle->Vz(MCHit)),2));
