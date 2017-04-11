@@ -4,7 +4,7 @@ process_name: NeutrinoShowerEff
 
 services:
 {
-  # TFileService: { fileName: "test.root" }
+  TFileService: { fileName: "ShowerHistograms.root" closeFileFast: false}
   TimeTracker:       {}
   RandomNumberGenerator: {} 
   message:      @local::standard_info
@@ -31,7 +31,7 @@ physics:
     NeutrinoShowerEff: 
     {
       module_type:      	"NeutrinoShowerEff"
-      outFile:          	"Showetest.root"
+      #outFile:          	"Showetest.root"
       MCTruthModuleLabel:	"generator"
       ShowerModuleLabel: 	"emshower"
       NeutrinoPDGcode:		12

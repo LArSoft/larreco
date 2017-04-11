@@ -51,8 +51,7 @@ public:
     void analyze(const art::Event& evt);
 
     void reconfigure(fhicl::ParameterSet const& pset);
-    void initOutput();
-
+    
     void processEff(const art::Event& evt, bool &isFiducial);
   void truthMatcher(std::vector<art::Ptr<recob::Hit>>all_hits, std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet);
     bool insideFV(double vertex[4]);
@@ -62,7 +61,7 @@ public:
 private:
 
     // the parameters we'll read from the .fcl
-    std::string fOutFileName;
+    
     std::string fMCTruthModuleLabel;
     std::string fShowerModuleLabel;
     int         fNeutrinoPDGcode;
@@ -72,14 +71,19 @@ private:
     double 	fMaxEfrac;
     double  fMinCompleteness;
 
-    TFile *fOutFile;
+ 
     TTree *fEventTree;
     TTree *fHitsTree;
 
     TH1D *h_Ev_den;
     TH1D *h_Ev_num;
-    TH1D *h_Pe_den;
-    TH1D *h_Pe_num;
+
+  TH1D *h_Ee_den;
+  TH1D *h_Ee_num;
+
+  TH1D *h_Pe_den;
+  TH1D *h_Pe_num;
+
     TH1D *h_theta_den;
     TH1D *h_theta_num;
 
@@ -96,8 +100,31 @@ private:
 
 
     TEfficiency* h_Eff_Ev = 0;
-    TEfficiency* h_Eff_Pe = 0;
+  TEfficiency* h_Eff_Ee = 0;  
+  TEfficiency* h_Eff_Pe = 0;
     TEfficiency* h_Eff_theta = 0;
+
+
+  //Electron shower Best plane number
+  TH1D *h_esh_bestplane_NueCC;
+  TH1D *h_esh_bestplane_NC;
+  TH1D *h_dEdX_electronorpositron_NueCC;
+  TH1D *h_dEdX_electronorpositron_NC;
+  TH1D *h_dEdX_photon_NueCC;
+  TH1D *h_dEdX_photon_NC;
+  TH1D *h_dEdX_proton_NueCC;
+  TH1D *h_dEdX_proton_NC;
+  TH1D *h_dEdX_neutron_NueCC;
+  TH1D *h_dEdX_neutron_NC;
+  TH1D *h_dEdX_chargedpion_NueCC;
+  TH1D *h_dEdX_chargedpion_NC;
+  TH1D *h_dEdX_neutralpion_NueCC;
+  TH1D *h_dEdX_neutralpion_NC;
+  TH1D *h_dEdX_everythingelse_NueCC;
+  TH1D *h_dEdX_everythingelse_NC;
+
+
+
 
     // Event 
     int Event;
@@ -166,7 +193,7 @@ NeutrinoShowerEff::NeutrinoShowerEff(fhicl::ParameterSet const& parameterSet)
     : EDAnalyzer(parameterSet)
 {
     reconfigure(parameterSet);
-    initOutput();
+    
 }
 //========================================================================
 NeutrinoShowerEff::~NeutrinoShowerEff(){
@@ -175,7 +202,7 @@ NeutrinoShowerEff::~NeutrinoShowerEff(){
 //========================================================================
 void NeutrinoShowerEff::reconfigure(fhicl::ParameterSet const& p){
 
-    fOutFileName         = p.get<std::string>("outFile");
+ 
     fMCTruthModuleLabel  = p.get<std::string>("MCTruthModuleLabel");
     fShowerModuleLabel   = p.get<std::string>("ShowerModuleLabel");
     fLeptonPDGcode       = p.get<int>("LeptonPDGcode");
@@ -188,92 +215,6 @@ void NeutrinoShowerEff::reconfigure(fhicl::ParameterSet const& p){
     fFidVolCutY          = p.get<float>("FidVolCutY");
     fFidVolCutZ          = p.get<float>("FidVolCutZ");}
 //========================================================================
-void NeutrinoShowerEff::initOutput(){
-    TDirectory* tmpDir = gDirectory;
-
-    fOutFile = new TFile(fOutFileName.c_str(), "recreate");
-    double E_bins[21] ={0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4,4.5,5.0,5.5,6.0,7.0,8.0,10.0,12.0,14.0,17.0,20.0,25.0};
-    double theta_bin[44]= { 0.,1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15.,16.,17.,18.,19.,20.,22.,24.,26.,28.,30.,32.,34.,36.,38.,40.,42.,44.,46.,48.,50.,55.,60.,65.,70.,75.,80.,85.,90.};
-
-    TDirectory* subDir = fOutFile->mkdir("Histograms");
-    subDir->cd();
-    h_Ev_den = new TH1D("h_Ev_den","Neutrino Energy; Neutrino Energy (GeV); Tracking Efficiency",20,E_bins);
-    h_Ev_num = new TH1D("h_Ev_num","Neutrino Energy; Neutrino Energy (GeV); Tracsking Efficiency",20,E_bins);
-    h_Pe_den = new TH1D("h_Pe_den","Electron Momentum; Electron Momentum (GeV); Tracking Efficiency",20,E_bins);
-    h_Pe_num = new TH1D("h_Pe_num","Electron Momentum; Electron Momentum (GeV); Tracking Efficiency",20,E_bins);
-    h_theta_den = new TH1D("h_theta_den","Theta; Theta w.r.t beam direction (Degrees); Tracking Efficiency",43,theta_bin);
-    h_theta_num = new TH1D("h_theta_num","Theta; Theta w.r.t beam direction (Degrees); Tracking Efficiency",43,theta_bin);
-
-    h_Efrac_shContamination = new TH1D("h_Efrac_shContamination","Efrac Lepton; Energy fraction (contamination);",60,0,1.2);
-    h_Efrac_shContamination->Sumw2();
-    h_Efrac_shPurity = new TH1D("h_Efrac_shPurity","Efrac Lepton; Energy fraction (Purity);",60,0,1.2);
-    h_Efrac_shPurity->Sumw2();
-    h_Ecomplet_lepton = new TH1D("h_Ecomplet_lepton","Ecomplet Lepton; Track Completeness;",60,0,1.2);
-    h_Ecomplet_lepton->Sumw2();
-
-    h_HighestHitsProducedParticlePDG_NueCC= new TH1D("h_HighestHitsProducedParticlePDG_NueCC","PDG Code; PDG Code;",4,-0.5,3.5);//0 for undefined, 1=electron, 2=photon, 3=anything else     //Signal     
-    h_HighestHitsProducedParticlePDG_bkg= new TH1D("h_HighestHitsProducedParticlePDG_bkg","PDG Code; PDG Code;",4,-0.5,3.5);//0 for undefined, 1=electron, 2=photon, 3=anything else     //bkg    
- 
-
-
-    h_Efrac_NueCCPurity= new TH1D("h_Efrac_NueCCPurity","Efrac NueCC; Energy fraction (Purity);",60,0,1.2);     //Signal
-    h_Efrac_NueCCPurity->Sumw2();
-    h_Ecomplet_NueCC= new TH1D("h_Ecomplet_NueCC","Ecomplet NueCC; Track Completeness;",60,0,1.2);     
-    h_Ecomplet_NueCC->Sumw2();
-
-    
-    h_Efrac_bkgPurity= new TH1D("h_Efrac_bkgPurity","Efrac bkg; Energy fraction (Purity);",60,0,1.2);     //Background
-    h_Efrac_bkgPurity->Sumw2();
-    h_Ecomplet_bkg= new TH1D("h_Ecomplet_bkg","Ecomplet bkg; Track Completeness;",60,0,1.2);     
-    h_Ecomplet_bkg->Sumw2();
-
-
-
-    
-    if( fSaveMCTree ){
-      TDirectory* subDirTree = fOutFile->mkdir("Events");
-      subDirTree->cd();
-      fEventTree = new TTree("Event", "Event Tree from Sim & Reco");
-      fEventTree->Branch("eventNo", &Event);
-      fEventTree->Branch("runNo", &Run);
-      fEventTree->Branch("subRunNo", &SubRun);
-      fEventTree->Branch("mc_incoming_PDG", &MC_incoming_PDG);
-      fEventTree->Branch("mc_lepton_PDG", &MC_lepton_PDG);
-      fEventTree->Branch("mc_isCC", &MC_isCC);
-      fEventTree->Branch("mc_target", &MC_target);
-      fEventTree->Branch("mc_channel", &MC_channel);
-      fEventTree->Branch("mc_Q2", &MC_Q2);
-      fEventTree->Branch("mc_W", &MC_W);
-      fEventTree->Branch("mc_vertex", &MC_vertex, "mc_vertex[4]/D");
-      fEventTree->Branch("mc_incoming_P", &MC_incoming_P, "mc_incoming_P[4]/D");
-      fEventTree->Branch("mc_lepton_startMomentum", &MC_lepton_startMomentum, "mc_lepton_startMomentum[4]/D");
-      fEventTree->Branch("mc_lepton_endMomentum", &MC_lepton_endMomentum, "mc_lepton_endMomentum[4]/D");
-      fEventTree->Branch("mc_lepton_startXYZT", &MC_lepton_startXYZT, "mc_lepton_startXYZT[4]/D");
-      fEventTree->Branch("mc_lepton_endXYZT", &MC_lepton_endXYZT, "mc_lepton_endXYZT[4]/D");
-      fEventTree->Branch("mc_lepton_theta", &MC_lepton_theta, "mc_lepton_theta/D");
-      fEventTree->Branch("mc_leptonID", &MC_leptonID, "mc_leptonID/I");
-
-      fEventTree->Branch("n_showers", &n_recoShowers);
-      fEventTree->Branch("sh_direction_X", &sh_direction_X, "sh_direction_X[n_showers]/D");
-      fEventTree->Branch("sh_direction_Y", &sh_direction_Y, "sh_direction_Y[n_showers]/D");
-      fEventTree->Branch("sh_direction_Z", &sh_direction_Z, "sh_direction_Z[n_showers]/D");
-      fEventTree->Branch("sh_start_X", &sh_start_X, "sh_start_X[n_showers]/D");
-      fEventTree->Branch("sh_start_Y", &sh_start_Y, "sh_start_Y[n_showers]/D");
-      fEventTree->Branch("sh_start_Z", &sh_start_Z, "sh_start_Z[n_showers]/D");
-      fEventTree->Branch("sh_energy", &sh_energy, "sh_energy[n_showers][3]/D");
-      fEventTree->Branch("sh_MIPenergy", &sh_MIPenergy, "sh_MIPenergy[n_showers][3]/D");
-      fEventTree->Branch("sh_dEdx", &sh_dEdx, "sh_dEdx[n_showers][3]/D");
-      fEventTree->Branch("sh_bestplane", &sh_bestplane, "sh_bestplane[n_showers]/I");
-      fEventTree->Branch("sh_length", &sh_length, "sh_length[n_showers]/D");
-      fEventTree->Branch("sh_hasPrimary_e", &sh_hasPrimary_e, "sh_hasPrimary_e[n_showers]/I");
-      fEventTree->Branch("sh_Efrac_contamination", &sh_Efrac_contamination, "sh_Efrac_contamination[n_showers]/D");
-      fEventTree->Branch("sh_Efrac_best", &sh_Efrac_best, "sh_Efrac_best/D");
-      fEventTree->Branch("sh_nHits",&sh_nHits, "sh_nHits[n_showers]/I");
-
-      gDirectory = tmpDir;
-    }
-
-}
 //========================================================================
 void NeutrinoShowerEff::beginJob(){
   cout<<"job begin..."<<endl;
@@ -319,40 +260,143 @@ void NeutrinoShowerEff::beginJob(){
 	   <<fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
 	   <<fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
 
+  art::ServiceHandle<art::TFileService> tfs;
 
 
+  double E_bins[21] ={0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4,4.5,5.0,5.5,6.0,7.0,8.0,10.0,12.0,14.0,17.0,20.0,25.0};
+  double theta_bin[44]= { 0.,1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15.,16.,17.,18.,19.,20.,22.,24.,26.,28.,30.,32.,34.,36.,38.,40.,42.,44.,46.,48.,50.,55.,60.,65.,70.,75.,80.,85.,90.};
+  //  double Pbins[18] ={0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0};
+  
+  
+    h_Ev_den = tfs->make<TH1D>("h_Ev_den","Neutrino Energy; Neutrino Energy (GeV); Shower reconstruction Efficiency",20,E_bins);
+    h_Ev_den->Sumw2();
+    h_Ev_num = tfs->make<TH1D>("h_Ev_num","Neutrino Energy; Neutrino Energy (GeV); Shower reconstruction Efficiency",20,E_bins);
+    h_Ev_num->Sumw2();
+
+    h_Ee_den = tfs->make<TH1D>("h_Ee_den","Electron Energy; Electron Energy (GeV); Shower reconstruction Efficiency",20,E_bins);
+    h_Ee_den->Sumw2();
+    h_Ee_num = tfs->make<TH1D>("h_Ee_num","Electron Energy; Electron Energy (GeV); Shower reconstruction Efficiency",20,E_bins);
+    h_Ee_num->Sumw2();
+
+    h_Pe_den = tfs->make<TH1D>("h_Pe_den","Electron Momentum; Electron Momentum (GeV); Shower reconstruction Efficiency",20,E_bins);
+    h_Pe_den->Sumw2();
+    h_Pe_num = tfs->make<TH1D>("h_Pe_num","Electron Momentum; Electron Momentum (GeV); Shower reconstruction Efficiency",20,E_bins);
+    h_Pe_num->Sumw2();
+
+    h_theta_den = tfs->make<TH1D>("h_theta_den","Theta; Theta w.r.t beam direction (Degrees); Shower reconstruction Efficiency",43,theta_bin);
+    h_theta_den->Sumw2();
+    h_theta_num = tfs->make<TH1D>("h_theta_num","Theta; Theta w.r.t beam direction (Degrees); Shower reconstruction Efficiency",43,theta_bin);
+    h_theta_num->Sumw2();
+
+    h_Efrac_shContamination = tfs->make<TH1D>("h_Efrac_shContamination","Efrac Lepton; Energy fraction (contamination);",60,0,1.2);
+    h_Efrac_shContamination->Sumw2();
+    h_Efrac_shPurity = tfs->make<TH1D>("h_Efrac_shPurity","Efrac Lepton; Energy fraction (Purity);",60,0,1.2);
+    h_Efrac_shPurity->Sumw2();
+    h_Ecomplet_lepton = tfs->make<TH1D>("h_Ecomplet_lepton","Ecomplet Lepton; Track Completeness;",60,0,1.2);
+    h_Ecomplet_lepton->Sumw2();
+
+    h_HighestHitsProducedParticlePDG_NueCC= tfs->make<TH1D>("h_HighestHitsProducedParticlePDG_NueCC","PDG Code; PDG Code;",4,-0.5,3.5);//0 for undefined, 1=electron, 2=photon, 3=anything else     //Signal
+    h_HighestHitsProducedParticlePDG_NueCC->Sumw2();     
+    h_HighestHitsProducedParticlePDG_bkg= tfs->make<TH1D>("h_HighestHitsProducedParticlePDG_bkg","PDG Code; PDG Code;",4,-0.5,3.5);//0 for undefined, 1=electron, 2=photon, 3=anything else     //bkg    
+    h_HighestHitsProducedParticlePDG_bkg->Sumw2();
+
+
+    h_Efrac_NueCCPurity= tfs->make<TH1D>("h_Efrac_NueCCPurity","Efrac NueCC; Energy fraction (Purity);",60,0,1.2);     //Signal
+    h_Efrac_NueCCPurity->Sumw2();
+    h_Ecomplet_NueCC= tfs->make<TH1D>("h_Ecomplet_NueCC","Ecomplet NueCC; Track Completeness;",60,0,1.2);     
+    h_Ecomplet_NueCC->Sumw2();
+
+    
+    h_Efrac_bkgPurity= tfs->make<TH1D>("h_Efrac_bkgPurity","Efrac bkg; Energy fraction (Purity);",60,0,1.2);     //Background
+    h_Efrac_bkgPurity->Sumw2();
+    h_Ecomplet_bkg= tfs->make<TH1D>("h_Ecomplet_bkg","Ecomplet bkg; Track Completeness;",60,0,1.2);     
+    h_Ecomplet_bkg->Sumw2();
+
+
+
+    h_esh_bestplane_NueCC=tfs->make<TH1D>("h_esh_bestplane_NueCC","Best plane; Best plane;",4,-0.5,3.5); 
+    h_esh_bestplane_NC=tfs->make<TH1D>("h_esh_bestplane_NC","Best plane; Best plane;",4,-0.5,3.5); 
+    h_dEdX_electronorpositron_NueCC=tfs->make<TH1D>("h_dEdX_electronorpositron_NueCC","dE/dX; Electron or Positron dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_electronorpositron_NC=tfs->make<TH1D>("h_dEdX_electronorpositron_NC","dE/dX; Electron or Positron dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_photon_NueCC=tfs->make<TH1D>("h_dEdX_photon_NueCC","dE/dX; photon dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_photon_NC=tfs->make<TH1D>("h_dEdX_photon_NC","dE/dX; photon dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_proton_NueCC=tfs->make<TH1D>("h_dEdX_proton_NueCC","dE/dX; proton dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_proton_NC=tfs->make<TH1D>("h_dEdX_proton_NC","dE/dX; proton dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_neutron_NueCC=tfs->make<TH1D>("h_dEdX_neutron_NueCC","dE/dX; neutron dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_neutron_NC=tfs->make<TH1D>("h_dEdX_neutron_NC","dE/dX; neutron dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_chargedpion_NueCC=tfs->make<TH1D>("h_dEdX_chargedpion_NueCC","dE/dX; charged pion dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_chargedpion_NC=tfs->make<TH1D>("h_dEdX_chargedpion_NC","dE/dX; charged pion dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_neutralpion_NueCC=tfs->make<TH1D>("h_dEdX_neutralpion_NueCC","dE/dX; neutral pion dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_neutralpion_NC=tfs->make<TH1D>("h_dEdX_neutralpion_NC","dE/dX; neutral pion dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_everythingelse_NueCC=tfs->make<TH1D>("h_dEdX_everythingelse_NueCC","dE/dX; everythingelse dE/dX (MeV/cm);",100,0.0,15.0); 
+    h_dEdX_everythingelse_NC=tfs->make<TH1D>("h_dEdX_everythingelse_NC","dE/dX; everythingelse dE/dX (MeV/cm);",100,0.0,15.0); 
+    
+
+    h_esh_bestplane_NueCC->Sumw2();
+    h_esh_bestplane_NC->Sumw2();
+    h_dEdX_electronorpositron_NueCC->Sumw2();
+    h_dEdX_electronorpositron_NC->Sumw2();
+    h_dEdX_photon_NueCC->Sumw2();
+    h_dEdX_photon_NC->Sumw2();
+    h_dEdX_proton_NueCC->Sumw2();
+    h_dEdX_proton_NC->Sumw2();
+    h_dEdX_neutron_NueCC->Sumw2();
+    h_dEdX_neutron_NC->Sumw2();
+    h_dEdX_chargedpion_NueCC->Sumw2();
+    h_dEdX_chargedpion_NC->Sumw2();
+    h_dEdX_neutralpion_NueCC->Sumw2();
+    h_dEdX_neutralpion_NC->Sumw2();
+    h_dEdX_everythingelse_NueCC->Sumw2();
+    h_dEdX_everythingelse_NC->Sumw2();
+    
+
+
+
+    
+    if( fSaveMCTree ){
+      fEventTree = new TTree("Event", "Event Tree from Sim & Reco");
+      fEventTree->Branch("eventNo", &Event);
+      fEventTree->Branch("runNo", &Run);
+      fEventTree->Branch("subRunNo", &SubRun);
+      fEventTree->Branch("mc_incoming_PDG", &MC_incoming_PDG);
+      fEventTree->Branch("mc_lepton_PDG", &MC_lepton_PDG);
+      fEventTree->Branch("mc_isCC", &MC_isCC);
+      fEventTree->Branch("mc_target", &MC_target);
+      fEventTree->Branch("mc_channel", &MC_channel);
+      fEventTree->Branch("mc_Q2", &MC_Q2);
+      fEventTree->Branch("mc_W", &MC_W);
+      fEventTree->Branch("mc_vertex", &MC_vertex, "mc_vertex[4]/D");
+      fEventTree->Branch("mc_incoming_P", &MC_incoming_P, "mc_incoming_P[4]/D");
+      fEventTree->Branch("mc_lepton_startMomentum", &MC_lepton_startMomentum, "mc_lepton_startMomentum[4]/D");
+      fEventTree->Branch("mc_lepton_endMomentum", &MC_lepton_endMomentum, "mc_lepton_endMomentum[4]/D");
+      fEventTree->Branch("mc_lepton_startXYZT", &MC_lepton_startXYZT, "mc_lepton_startXYZT[4]/D");
+      fEventTree->Branch("mc_lepton_endXYZT", &MC_lepton_endXYZT, "mc_lepton_endXYZT[4]/D");
+      fEventTree->Branch("mc_lepton_theta", &MC_lepton_theta, "mc_lepton_theta/D");
+      fEventTree->Branch("mc_leptonID", &MC_leptonID, "mc_leptonID/I");
+
+      fEventTree->Branch("n_showers", &n_recoShowers);
+      fEventTree->Branch("sh_direction_X", &sh_direction_X, "sh_direction_X[n_showers]/D");
+      fEventTree->Branch("sh_direction_Y", &sh_direction_Y, "sh_direction_Y[n_showers]/D");
+      fEventTree->Branch("sh_direction_Z", &sh_direction_Z, "sh_direction_Z[n_showers]/D");
+      fEventTree->Branch("sh_start_X", &sh_start_X, "sh_start_X[n_showers]/D");
+      fEventTree->Branch("sh_start_Y", &sh_start_Y, "sh_start_Y[n_showers]/D");
+      fEventTree->Branch("sh_start_Z", &sh_start_Z, "sh_start_Z[n_showers]/D");
+      fEventTree->Branch("sh_energy", &sh_energy, "sh_energy[n_showers][3]/D");
+      fEventTree->Branch("sh_MIPenergy", &sh_MIPenergy, "sh_MIPenergy[n_showers][3]/D");
+      fEventTree->Branch("sh_dEdx", &sh_dEdx, "sh_dEdx[n_showers][3]/D");
+      fEventTree->Branch("sh_bestplane", &sh_bestplane, "sh_bestplane[n_showers]/I");
+      fEventTree->Branch("sh_length", &sh_length, "sh_length[n_showers]/D");
+      fEventTree->Branch("sh_hasPrimary_e", &sh_hasPrimary_e, "sh_hasPrimary_e[n_showers]/I");
+      fEventTree->Branch("sh_Efrac_contamination", &sh_Efrac_contamination, "sh_Efrac_contamination[n_showers]/D");
+      fEventTree->Branch("sh_Efrac_best", &sh_Efrac_best, "sh_Efrac_best/D");
+      fEventTree->Branch("sh_nHits",&sh_nHits, "sh_nHits[n_showers]/I");
+      
+    }
 
 }
 //========================================================================
 void NeutrinoShowerEff::endJob(){
-
-    TDirectory* tmpDir = gDirectory;
-    fOutFile->cd("/Histograms");
-    h_Efrac_shContamination->Write();
-    h_Efrac_shPurity->Write();
-    h_Ecomplet_lepton->Write();
-    h_Efrac_NueCCPurity->Write();
-    h_Ecomplet_NueCC->Write();
-    h_Efrac_bkgPurity->Write();
-    h_Ecomplet_bkg->Write();
-    h_HighestHitsProducedParticlePDG_NueCC->Write();
-    h_HighestHitsProducedParticlePDG_bkg->Write();
- 
-    
-
-    h_Ev_den->Write();
-    h_Ev_num->Write();
-    h_theta_den->Write();
-    h_theta_num->Write();
-     
     doEfficiencies();
-
-    if( fSaveMCTree ){
-      fOutFile->cd("/Events");
-      fEventTree->Write();
-      gDirectory = tmpDir;
-    }
-    fOutFile->Close();
 }
 //========================================================================
 void NeutrinoShowerEff::beginRun(const art::Run& /*run*/){
@@ -438,6 +482,7 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
     if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) ){
        if( MClepton ){
          h_Ev_den->Fill(MC_incoming_P[3]);
+	 h_Ee_den->Fill(MC_lepton_startMomentum[3]);
          h_Pe_den->Fill(Pe);
          h_theta_den->Fill(theta_e);
        }
@@ -464,7 +509,9 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
     double Ecomplet_lepton =0.0;
     double Ecomplet_NueCC =0.0;
     int ParticlePGD_HighestShHits=0;//undefined
-
+    int shower_bestplane=0;
+    double Showerparticlededx_inbestplane=0.0;
+    int showerPDGwithHighestHitsforFillingdEdX=0;//0=undefined,1=electronorpositronshower,2=photonshower,3=protonshower,4=neutronshower,5=chargedpionshower,6=neutralpionshower,7=everythingelseshower
 
     const simb::MCParticle *MClepton_reco = NULL; 
     int nHits =0;
@@ -493,7 +540,8 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
        
       
 
-
+       //  std::cout<<" shower best plane:"<<shower->best_plane()<<" shower dEdx size:"<<shower->dEdx().size()<<std::endl;
+       //for( size_t j =0; j<shower->dEdx().size(); j++) std::cout<<shower->dEdx()[j]<<" ";
 
        const simb::MCParticle *particle;
        double tmpEfrac_contamination = 0.0;  //fraction of non EM energy contatiminatio (see truthMatcher for definition)
@@ -501,12 +549,11 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
               
        double tmpEcomplet =0;
   
-       
-
        int tmp_nHits = sh_hits.size();
-       truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contamination,tmpEcomplet );
+       truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contamination,tmpEcomplet);
        //truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contaminationNueCC,tmpEcompletNueCC );
        
+
 
        sh_Efrac_contamination[i] = tmpEfrac_contamination;
        sh_nHits[i] = tmp_nHits; 
@@ -518,6 +565,7 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
 	 nHits = tmp_nHits;
 	 Ecomplet_NueCC =tmpEcomplet;
 	 Efrac_contaminationNueCC = tmpEfrac_contamination; 
+	 
 	 if(std::abs(particle->PdgCode())==11){
 	   ParticlePGD_HighestShHits=1;
 	 }else if(particle->PdgCode()==22){
@@ -526,6 +574,30 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
 	   ParticlePGD_HighestShHits=3;
 	 }
 	 
+	 
+
+	 //dedx for different showers
+	 //Highest hits shower pdg for the dEdx study 0=undefined,1=electronorpositronshower,2=photonshower,3=protonshower,4=neutronshower,5=chargedpionshower,6=neutralpionshower,7=everythingelseshower
+	 shower_bestplane=shower->best_plane();
+	 Showerparticlededx_inbestplane=shower->dEdx()[shower_bestplane];	   	   
+	   
+	 if(std::abs(particle->PdgCode())==11){//lepton shower
+	   showerPDGwithHighestHitsforFillingdEdX=1;
+	    }else if(particle->PdgCode()==22){//photon shower
+	   showerPDGwithHighestHitsforFillingdEdX=2;
+	 }else if(particle->PdgCode()==2212){//proton shower
+	   showerPDGwithHighestHitsforFillingdEdX=3;
+	 }else if(particle->PdgCode()==2112){//neutron shower
+	   showerPDGwithHighestHitsforFillingdEdX=4;
+	 }else if(std::abs(particle->PdgCode())==211){//charged pion shower
+	   showerPDGwithHighestHitsforFillingdEdX=5;
+	 }else if(particle->PdgCode()==111){//neutral pion shower
+	   showerPDGwithHighestHitsforFillingdEdX=6;
+	 }else{//everythingelse shower
+	   showerPDGwithHighestHitsforFillingdEdX=7;
+	 }
+	 
+
             //Efrac_contamination = tmpEfrac_contamination;
             //MClepton_reco = particle;
             //sh_Efrac_best =Efrac_contamination; 
@@ -551,7 +623,7 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
 	 }
 
        }          
-    }
+    }//end of looping all the showers
    
     if( MClepton_reco && MClepton  ){
       if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) ){ 
@@ -564,10 +636,12 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
         
 	  h_Pe_num->Fill(Pe);
           h_Ev_num->Fill(MC_incoming_P[3]);
-          h_theta_num->Fill(theta_e);
+	  h_Ee_num->Fill(MC_lepton_startMomentum[3]);
+	  h_theta_num->Fill(theta_e);
 	}
       }
     }
+
 
 
 
@@ -581,10 +655,36 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
 	h_HighestHitsProducedParticlePDG_NueCC->Fill(ParticlePGD_HighestShHits);
 	
 	
-	if(ParticlePGD_HighestShHits>0)
+	if(ParticlePGD_HighestShHits>0)// atleat one shower is reconstructed
 	  {
 	    h_Ecomplet_NueCC->Fill(Ecomplet_NueCC);
 	    h_Efrac_NueCCPurity->Fill(1-Efrac_contaminationNueCC);    
+	    
+	    
+	    h_esh_bestplane_NueCC->Fill(shower_bestplane);
+	    if(showerPDGwithHighestHitsforFillingdEdX==1)//electron or positron shower
+	      {
+		h_dEdX_electronorpositron_NueCC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==2)//photon shower
+	      {
+		h_dEdX_photon_NueCC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==3)//proton shower
+	      {
+		h_dEdX_proton_NueCC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==4)//neutron shower
+	      {
+		h_dEdX_neutron_NueCC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==5)//charged pion shower
+	      {
+		h_dEdX_chargedpion_NueCC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==6)//neutral pion shower
+	      {
+		h_dEdX_neutralpion_NueCC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==7)//everythingelse shower
+	      {
+		h_dEdX_everythingelse_NueCC->Fill(Showerparticlededx_inbestplane);
+	      }
+
 	  }
  	
       }
@@ -597,6 +697,34 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
       if(ParticlePGD_HighestShHits>0){
 	h_Ecomplet_bkg->Fill(Ecomplet_NueCC);
 	h_Efrac_bkgPurity->Fill(1-Efrac_contaminationNueCC);	
+
+
+	h_esh_bestplane_NC->Fill(shower_bestplane);
+	    if(showerPDGwithHighestHitsforFillingdEdX==1)//electron or positron shower
+	      {
+		h_dEdX_electronorpositron_NC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==2)//photon shower
+	      {
+		h_dEdX_photon_NC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==3)//proton shower
+	      {
+		h_dEdX_proton_NC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==4)//neutron shower
+	      {
+		h_dEdX_neutron_NC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==5)//charged pion shower
+	      {
+		h_dEdX_chargedpion_NC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==6)//neutral pion shower
+	      {
+		h_dEdX_neutralpion_NC->Fill(Showerparticlededx_inbestplane);
+	      }else if(showerPDGwithHighestHitsforFillingdEdX==7)//everythingelse shower
+	      {
+		h_dEdX_everythingelse_NC->Fill(Showerparticlededx_inbestplane);
+	      }
+
+
+
       }
     }
 
@@ -608,6 +736,7 @@ void NeutrinoShowerEff::processEff( const art::Event& event, bool &isFiducial){
     MCparticle=0;
     Efrac=1.0;
     Ecomplet=0;
+
     art::ServiceHandle<cheat::BackTracker> bt;
     std::map<int,double> trkID_E;
     for(size_t j = 0; j < shower_hits.size(); ++j){
@@ -694,22 +823,35 @@ bool NeutrinoShowerEff::insideFV( double vertex[4]){
 //========================================================================
 void NeutrinoShowerEff::doEfficiencies(){
 
+   art::ServiceHandle<art::TFileService> tfs;
+
    if(TEfficiency::CheckConsistency(*h_Ev_num,*h_Ev_den)){
-      h_Eff_Ev = new TEfficiency(*h_Ev_num,*h_Ev_den);
-      TGraphAsymmErrors *grEff_Ev = h_Eff_Ev->CreateGraph();
-      grEff_Ev->Write("grEff_Ev");
+     h_Eff_Ev = tfs->make<TEfficiency>(*h_Ev_num,*h_Ev_den);
+     TGraphAsymmErrors *grEff_Ev = h_Eff_Ev->CreateGraph();
+     grEff_Ev->Write("grEff_Ev");
+     h_Eff_Ev->Write("h_Eff_Ev");
    }
+   
+   if(TEfficiency::CheckConsistency(*h_Ee_num,*h_Ee_den)){
+     h_Eff_Ee = tfs->make<TEfficiency>(*h_Ee_num,*h_Ee_den);
+     TGraphAsymmErrors *grEff_Ee = h_Eff_Ee->CreateGraph();
+     grEff_Ee->Write("grEff_Ee");
+     h_Eff_Ee->Write("h_Eff_Ee");
+   }
+   
    if(TEfficiency::CheckConsistency(*h_Pe_num,*h_Pe_den)){ 
-     h_Eff_Pe = new TEfficiency(*h_Pe_num,*h_Pe_den);
+     h_Eff_Pe = tfs->make<TEfficiency>(*h_Pe_num,*h_Pe_den);
      TGraphAsymmErrors *grEff_Pe = h_Eff_Pe->CreateGraph();
      grEff_Pe->Write("grEff_Pe");
+     h_Eff_Pe->Write("h_Eff_Pe");
    }
    if(TEfficiency::CheckConsistency(*h_theta_num,*h_theta_den)){
-     h_Eff_theta = new TEfficiency(*h_theta_num,*h_theta_den);
+     h_Eff_theta = tfs->make<TEfficiency>(*h_theta_num,*h_theta_den);
      TGraphAsymmErrors *grEff_theta = h_Eff_theta->CreateGraph();
      grEff_theta->Write("grEff_theta");
+     h_Eff_theta->Write("h_Eff_theta");
    }
-
+   
 }
 //========================================================================
 void NeutrinoShowerEff::reset(){
