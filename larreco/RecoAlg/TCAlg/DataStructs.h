@@ -184,19 +184,12 @@ namespace tca {
     std::vector<size_t> DtrIndices;
     size_t ParentMSIndex {0};       // Parent MatchStruct index (or index of self if no parent exists)
   };
-/*
-  struct ShowerParentStruct {
-    unsigned short ID;
-    unsigned short End;
-    float FOM {100};
-    float Chg;
-  };
-*/
+
   struct ShowerPoint {
     std::array<float, 2> Pos;       // Position in the normal coordinate system
     std::array<float, 2> RotPos;    // Position rotated into the shower coordinate system (0 = along, 1 = transverse)
     float Chg;                      // Charge of this point
-    unsigned short TID;             // ID of the InShower trajectory that used this point
+    unsigned short TID;             // ID of the InShower trajectory that uses this point
   };
 
   // A temporary structure that defines a 2D shower-like cluster of trajectories
@@ -214,7 +207,8 @@ namespace tca {
     float Energy {0};
     float StartChg {0};              // Charge at the start of the shower
     float StartChgErr {0};              // Start charge error
-    unsigned short ExternalParentID {0};  // The ID of an external parent Tj that was added to the shower
+    unsigned short ParentID {0};  // The ID of an external parent Tj that was added to the shower
+    unsigned short StartPt {USHRT_MAX};       // index of the start point in the Pts vector
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
