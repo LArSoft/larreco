@@ -198,7 +198,7 @@ namespace tca {
     unsigned short ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
     std::vector<unsigned short> TjIDs;  // list of InShower Tjs
     std::vector<ShowerPoint> Pts;    // Trajectory points inside the shower
-    float Angle {10};                   // Angle of the shower axis
+    float Angle {0};                   // Angle of the shower axis
     float AngleErr {3};                 // Error
     float AspectRatio {1};              // The ratio of charge weighted transverse/longitudinal positions
     std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
