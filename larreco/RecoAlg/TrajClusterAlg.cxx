@@ -659,6 +659,9 @@ namespace tca {
       return false;
     }
     
+    // Merging shower Tjs requires merging the showers as well.
+    if(tjs.allTraj[itj1].AlgMod[kShowerTj] || tjs.allTraj[itj2].AlgMod[kShowerTj]) return MergeShowerAndStore(tjs, itj1, itj2, prt);
+    
     // make a copy so they can be trimmed as needed
     Trajectory tj1 = tjs.allTraj[itj1];
     Trajectory tj2 = tjs.allTraj[itj2];
@@ -1458,7 +1461,7 @@ namespace tca {
             sourceParticleEnergy = part->E();
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kSingleParticle;
-            if(fMatchTruth[1] > 2) {
+            if(fMatchTruth[1] > 0) {
               TVector3 dir;
               dir[0] = part->Px(); dir[1] = part->Py(); dir[2] = part->Pz();
               dir.SetMag(1);
@@ -3050,7 +3053,7 @@ namespace tca {
       // Allow one fragment for each trajectory (assumes that there is one Tj per plane...)
       std::vector<unsigned short> fragID(imv.TjIDs.size(), USHRT_MAX);
       // Stop searching when the triplet count gets low
-      int minCount = 0.5 * imv.Count;
+      int minCount = 0.3 * imv.Count;
       for(unsigned int jj = ii + 1; jj < tjs.matchVec.size(); ++jj) {
         unsigned int jndx = sortVec[jj].index;
         if(tjs.matchVec[jndx].Count < minCount) break;
