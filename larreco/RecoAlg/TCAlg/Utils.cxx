@@ -2,17 +2,56 @@
 
 namespace tca {
   
-  
   /////////////////////////////////////////
-  void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir)
+  void TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir)
   {
-    // Calculate the 3D direction using 2 trajectory points. 
+    // Calculate a 3D position and direction from two trajectory points
     
     dir.SetX(999);
+    pos = {0, 0, 0};
     
     if(itp.CTP == jtp.CTP) return;
     
-    // protect against large angles
+    geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
+    geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
+
+    double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iPlnID);
+    double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jPlnID);
+
+    // don't continue if the points are too far apart in X
+    if(std::abs(ix - jx) > 10) return;
+    pos[0] = 0.5 * (ix + jx);
+
+    unsigned int iWire = (unsigned int)(itp.Pos[0] + 0.5);
+    if(!tjs.geom->HasWire(geo::WireID(iPlnID.Cryostat, iPlnID.TPC, iPlnID.Plane, iWire))) return;
+    unsigned int jWire = (unsigned int)(jtp.Pos[0] + 0.5);
+    if(!tjs.geom->HasWire(geo::WireID(jPlnID.Cryostat, jPlnID.TPC, jPlnID.Plane, jWire))) return;
+
+    // determine the wire orientation and offsets using WireCoordinate
+    // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
+    // wire offset
+    double iw0 = tjs.geom->WireCoordinate(0, 0, iPlnID);
+    // cosine component
+    double ics = tjs.geom->WireCoordinate(1, 0, iPlnID) - iw0;
+    // sine component
+    double isn = tjs.geom->WireCoordinate(0, 1, iPlnID) - iw0;
+    
+    double jw0 = tjs.geom->WireCoordinate(0, 0, jPlnID);
+    double jcs = tjs.geom->WireCoordinate(1, 0, jPlnID) - jw0;
+    double jsn = tjs.geom->WireCoordinate(0, 1, jPlnID) - jw0;
+    
+    double den = isn * jcs - ics * jsn;
+    if(den == 0) return;
+    // Find the Z position of the intersection
+    pos[2] = (jcs * (itp.Pos[0] - iw0) - ics * (jtp.Pos[0] - jw0)) / den;
+    // and the Y position
+    if(ics != 0) {
+      pos[1] = (itp.Pos[0] - iw0 - isn * pos[2]) / ics;
+    } else {
+      pos[1] = (jtp.Pos[0] - jw0 - jsn * pos[2]) / jcs;
+    }
+    
+    // Now find the direction. Protect against large angles first
     if(jtp.Dir[1] == 0) {
       // Going either in the +X direction or -X direction
       if(jtp.Dir[0] > 0) {
@@ -25,49 +64,28 @@ namespace tca {
       return;
     } // jtp.Dir[1] == 0
     
-    TVector3 pt1, pt2;
-    geo::PlaneID iplnID = DecodeCTP(itp.CTP);
-    geo::PlaneID jplnID = DecodeCTP(jtp.CTP);
-    
-    // shift the points so that results will always be positive
-    itp.Pos[0] += 1000;
-    itp.Pos[1] += 1000;
-    jtp.Pos[0] += 1000;
-    jtp.Pos[1] += 1000;
-    
-    double y, z;
-    double xi  = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
-    double xj = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jplnID);
-    // don't continue if the points are too far apart in X
-    if(std::abs(xi - xj) > 10) return;
-    xi = 0.5 * (xi + xj);
-    
-    unsigned int wire1 = (unsigned int)(itp.Pos[0] + 0.5);
-    unsigned int wire2 = (unsigned int)(jtp.Pos[0] + 0.5);
-    
-    tjs.geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
-    pt1.SetX(xi);
-    pt1.SetY(y);
-    pt1.SetZ(z);
-    
-    // Move itp by 100 wires. It doesn't matter if we end up outside the TPC bounds since
-    // bounds checking isn't done by these utility functions
-    std::array<float, 2> newPos;
-    MoveTPToWire(itp, itp.Pos[0] + 100);
-    wire1 = (unsigned int)(itp.Pos[0] + 0.5);
-    xi  = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iplnID);
-    // Determine the number of wires to move jtp to get to the same X position
-    newPos[1] = tjs.detprop->ConvertXToTicks(xi, jplnID) * tjs.UnitsPerTick;
-    newPos[0] = (newPos[1] - jtp.Pos[1]) * (jtp.Dir[0] / jtp.Dir[1]) + jtp.Pos[0];
-    if(newPos[0] < 0) newPos[0] = 0;
-    wire2 = (unsigned int)(newPos[0] + 0.5);
-    tjs.geom->IntersectionPoint(wire1, wire2, iplnID.Plane, jplnID.Plane, iplnID.Cryostat, iplnID.TPC, y, z);
-    pt2.SetX(xi);
-    pt2.SetY(y);
-    pt2.SetZ(z);
-    dir = pt2 - pt1;
+    // make a copy of itp and shift it by 10 wires
+    TrajPoint itp2 = itp;
+    MoveTPToWire(itp2, itp2.Pos[0] + 10);
+    // Create a second TVector3 for the shifted point
+    TVector3 pos2;
+    // Find the X position corresponding to the shifted point 
+    pos2[0] = tjs.detprop->ConvertTicksToX(itp2.Pos[1] / tjs.UnitsPerTick, iPlnID);
+    // Convert X to Ticks in the j plane and then to WSE units
+    double jtp2Pos1 = tjs.detprop->ConvertXToTicks(pos2[0], jPlnID) * tjs.UnitsPerTick;
+    // Find the wire position (Pos0) in the j plane that this corresponds to
+    double jtp2Pos0 = (jtp2Pos1 - jtp.Pos[1]) * (jtp.Dir[0] / jtp.Dir[1]) + jtp.Pos[0];
+    // Find the Y,Z position using itp2 and jtp2Pos0
+    pos2[2] = (jcs * (itp2.Pos[0] - iw0) - ics * (jtp2Pos0 - jw0)) / den;
+    if(ics != 0) {
+      pos2[1] = (itp2.Pos[0] - iw0 - isn * pos2[2]) / ics;
+    } else {
+      pos2[1] = (jtp2Pos0 - jw0 - jsn * pos2[2]) / jcs;
+    }
+    dir = pos2 - pos;
     dir.SetMag(1);
-  } // SpacePtDir
+
+  } // TrajPoint3D
 
   /////////////////////////////////////////
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp)
@@ -2302,7 +2320,8 @@ namespace tca {
           for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
           myprt<<" Energy "<<(int)ss.Energy;
           myprt<<" Area "<<std::fixed<<std::setprecision(1)<<(int)ss.EnvelopeArea<<" ChgDensity "<<ss.ChgDensity;
-          myprt<<" Start Charge "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr;
+          myprt<<" StartChg "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr;
+          myprt<<" StartPt "<<ss.StartPt;
           myprt<<"\nInShower TjIDs";
           for(auto& tjID : ss.TjIDs) {
             myprt<<" "<<tjID;
