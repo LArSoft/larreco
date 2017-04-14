@@ -39,7 +39,7 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
-  void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir);
+  void TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp);
   void SetAngleCode(TjStuff& tjs, TrajPoint& tp);
   unsigned short AngleRange(TjStuff& tjs, float angle);
