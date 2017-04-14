@@ -29,6 +29,8 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
+// #include "TPrincipal.h"
+
 namespace tca {
 
   void Find3DShowerEndPoints(TjStuff& tjs, const geo::TPCID& tpcid);
@@ -47,11 +49,13 @@ namespace tca {
   float ParentFOM(TjStuff& tjs, Trajectory& tj, const unsigned short& tjEnd, ShowerStruct& ss, bool prt);
   void DefineEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   bool AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  bool AddLooseHits(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void FindStartChg(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   
   void AddMissedTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<unsigned short>& tjl);
   void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<unsigned short>>& tjList);
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt);
+  bool MergeShowerAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
   void TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void CollectLooseHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   unsigned short ShowerTjCotsIndex(TjStuff& tjs, const unsigned short& ShowerTjID);
