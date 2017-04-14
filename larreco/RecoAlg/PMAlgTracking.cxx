@@ -1005,6 +1005,8 @@ int pma::PMAlgTracker::build(void)
 		//reassignSingleViewEnds(result); // final check for correct hit-track assignments
 	}
 
+	fResult.setTreeIds();
+
   if(fMatchT0inCPACrossing)
   {
 		mf::LogVerbatim("PMAlgTracker") << "Find co-linear CPA-crossing tracks with any T0.";
