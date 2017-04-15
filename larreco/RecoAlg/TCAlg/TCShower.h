@@ -55,7 +55,7 @@ namespace tca {
   void AddMissedTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<unsigned short>& tjl);
   void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<unsigned short>>& tjList);
   void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt);
-  bool MergeShowerAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
+  bool MergeShowersAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
   void TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void CollectLooseHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   unsigned short ShowerTjCotsIndex(TjStuff& tjs, const unsigned short& ShowerTjID);
