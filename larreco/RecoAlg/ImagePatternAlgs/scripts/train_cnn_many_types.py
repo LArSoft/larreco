@@ -3,7 +3,7 @@ np.random.seed(2017)  # for reproducibility
 from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
-from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.layers.convolutional import Conv2D, MaxPooling2D
 from keras.layers.advanced_activations import LeakyReLU
 from keras.optimizers import SGD
 from keras.utils import np_utils
@@ -131,9 +131,9 @@ for p in range(parameters.shape[0]):
 
     # CNN definition
     model = Sequential()
-    model.add(Convolution2D(nb_filters1, nb_conv1, nb_conv1,
-                            border_mode='valid',
-                            input_shape=(1, img_rows, img_cols)))
+    model.add(Conv2D(nb_filters1, (nb_conv1, nb_conv1),
+                     padding='valid',
+                     input_shape=(1, img_rows, img_cols)))
                             
     if convactfn == 'leaky':
         model.add(LeakyReLU())
@@ -143,7 +143,7 @@ for p in range(parameters.shape[0]):
     #if nb_conv2 > 0:
     #    if maxpool == 1:
     #        model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
-    #    model.add(Convolution2D(nb_filters2, nb_conv2, nb_conv2))
+    #    model.add(Conv2D(nb_filters2, (nb_conv2, nb_conv2)))
     #    if convactfn == 'leaky':
     #        model.add(LeakyReLU())
     #    else:
@@ -166,7 +166,7 @@ for p in range(parameters.shape[0]):
 
     print('Fit config:', cfg_name)
 
-    model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
+    model.fit(X_train, Y_train, batch_size=batch_size, epochs=nb_epoch,
                 verbose=1, validation_data=(X_test, Y_test))
     score = model.evaluate(X_test, Y_test, verbose=0)
     print('Test score:', score)
