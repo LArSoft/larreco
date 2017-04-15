@@ -660,7 +660,7 @@ namespace tca {
     }
     
     // Merging shower Tjs requires merging the showers as well.
-    if(tjs.allTraj[itj1].AlgMod[kShowerTj] || tjs.allTraj[itj2].AlgMod[kShowerTj]) return MergeShowerAndStore(tjs, itj1, itj2, prt);
+    if(tjs.allTraj[itj1].AlgMod[kShowerTj] || tjs.allTraj[itj2].AlgMod[kShowerTj]) return MergeShowersAndStore(tjs, itj1, itj2, prt);
     
     // make a copy so they can be trimmed as needed
     Trajectory tj1 = tjs.allTraj[itj1];
@@ -6316,6 +6316,8 @@ namespace tca {
     for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
       if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
       Trajectory& tj = tjs.allTraj[itj];
+      // ignore shower Tj hits
+      if(tj.AlgMod[kShowerTj]) continue;
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         TrajPoint& tp = tj.Pts[ipt];
         if(NumHitsInTP(tp, kUsedHits) < 2) continue;
