@@ -162,13 +162,13 @@ namespace tca {
       if(ms.PDGCode != 1111) continue;
       if(prt) {
         mf::LogVerbatim myprt("TC");
-        myprt<<" Shower Tj\n";
+        myprt<<" Shower Tj";
         for(auto& tjID : ms.TjIDs) {
           Trajectory& tj = tjs.allTraj[tjID-1];
           unsigned short endPt = tj.EndPt[0];
-          myprt<<" "<<tj.ID<<" start "<<PrintPos(tjs, tj.Pts[endPt]);
+          myprt<<"\n "<<tj.ID<<" start "<<PrintPos(tjs, tj.Pts[endPt]);
           endPt = tj.EndPt[1];
-          myprt<<" "<<tj.ID<<" end "<<PrintPos(tjs, tj.Pts[endPt])<<"\n";
+          myprt<<" "<<tj.ID<<" end "<<PrintPos(tjs, tj.Pts[endPt]);
         } //  tjID
       } // prt
       ++shID;
@@ -219,7 +219,7 @@ namespace tca {
           Trajectory& stj = tjs.allTraj[tjs.cots[iss].ShowerTjID - 1];
           double time = stj.Pts[1].Pos[1] / tjs.UnitsPerTick;
           ss3.dEdx[iPln] = fCaloAlg.dEdx_AREA(dQ, time, dx, iPln);
-          if(prt) mf::LogVerbatim("TC")<<" iPln "<<iPln<<" dQ "<<(int)dQ<<" dx "<<dx<<" dE/dx "<<ss3.dEdx[iPln];
+          if(prt) mf::LogVerbatim("TC")<<"Shower index "<<iss<<" plane "<<iPln<<" plane "<<iPln<<" dQ "<<(int)dQ<<" dx "<<dx<<" dE/dx "<<ss3.dEdx[iPln];
         }
       } // ii
       // Calculate the opening angle here - somehow
@@ -444,8 +444,6 @@ namespace tca {
     // Finish up in this CTP. 
     // Re-assign hits from the InShower Tjs to the ShowerTj.
     TransferTjHits(tjs, inCTP, prt);
-    // Assign unused hits inside the envelope to the ShowerTjs
-//    CollectLooseHits(tjs, inCTP, prt);
     std::cout<<"Final calculation shower energy...\n";
 
     // check for consistency
@@ -953,12 +951,7 @@ namespace tca {
             } // ivx
           } // !domerge
           if(!doMerge) continue;
-          if(prt) {
-            mf::LogVerbatim myprt("TC");
-            myprt<<" Merge them. Re-find shower center, etc. \n";
-//            Trajectory& itj = tjs.allTraj[iss.ShowerTjID - 1];
-//            PrintTrajectory("itj", tjs, itj, USHRT_MAX);
-          }
+          if(prt) mf::LogVerbatim("TC")<<" Merge them. Re-find shower center, etc. \n";
           // Move all of the Tjs from jct to ict
           iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.end());
           DefineShower(tjs, ict, prt);
@@ -981,16 +974,13 @@ namespace tca {
   } // MergeShowers
   
   ////////////////////////////////////////////////
-  bool MergeShowerAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt)
+  bool MergeShowersAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt)
   {
     // This function is called from MergeAndStore whose function is to merge two line-like
     // trajectories and store them. This function was called because at least one of the
-    // trajectories is a shower Tj. No attempt is made here to decide if the two showers should
-    // indeed be merged. 
+    // trajectories is a shower Tj. Assume that the decision to merge them has been made elsewhere.
     
-    // First we check to make sure that both are shower Tjs.
-    
-    if(prt) mf::LogVerbatim("TC")<<"MergeShowerAndStore: istj "<<istj<<" jstj "<<jstj;
+    if(prt) mf::LogVerbatim("TC")<<"MSAS: MergeShowerAndStore istj "<<istj<<" jstj "<<jstj;
     
     if(istj > tjs.allTraj.size() - 1) return false;
     if(jstj > tjs.allTraj.size() - 1) return false;
@@ -998,6 +988,7 @@ namespace tca {
     Trajectory& itj = tjs.allTraj[istj];
     Trajectory& jtj = tjs.allTraj[jstj];
     
+    // First we check to make sure that both are shower Tjs.
     if(!itj.AlgMod[kShowerTj] && !jtj.AlgMod[kShowerTj]) return false;
     
     // We need to keep the convention used in MergeAndStore to create a new merged trajectory
@@ -1042,7 +1033,7 @@ namespace tca {
     FindStartChg(tjs, icotIndex, prt);
     return true;
     
-  } // MergeShowerAndStore
+  } // MergeShowersAndStore
 
   ////////////////////////////////////////////////
   bool FindChargeCenter(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
@@ -1732,11 +1723,22 @@ namespace tca {
       if(schg[ii] < loChg) loChg = schg[ii];
       if(schg[ii] > hiChg) hiChg = schg[ii];
     }
-    // Calculate the charge in 1 WSE unit of distance
+    // Calculate the charge in 1 WSE unit of distance. We averaged over 3 bins each
+    // of which is 4 WSE in size
     ss.StartChg /= 12;
     ss.StartChgErr = (hiChg - loChg) / 12;
+    // Then correct for the path length in the wire cell
+    TrajPoint& stp0 = tjs.allTraj[ss.ShowerTjID-1].Pts[0];
+    float path = 50;
+    if(stp0.Dir[0] != 0) path = 1 / std::abs(stp0.Dir[0]);
+    if(path > 50) path = 50;
+    ss.StartChg *= path;
+    ss.StartChgErr *= path;
     
-    if(prt) mf::LogVerbatim("TC")<<"FSC: cotIndex "<<cotIndex<<" Starting charge "<<(int)ss.StartChg<<" +/- "<<ss.StartChgErr<<" StartPt  "<<ss.StartPt<<" at pos "<<PrintPos(tjs, ss.Pts[ss.StartPt].Pos);
+//    ss.Chg *= path;
+//    ss.ChgErr *= path;
+    
+    if(prt) mf::LogVerbatim("TC")<<"FSC: cotIndex "<<cotIndex<<" path length "<<path<<" Starting charge "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr<<" StartPt  "<<ss.StartPt<<" at pos "<<PrintPos(tjs, ss.Pts[ss.StartPt].Pos);
     
   } // FindStartChg
   
@@ -1847,7 +1849,7 @@ namespace tca {
     } // iii
     return USHRT_MAX;
     
-  } // GetCotsIndex
+  } // ShowerTjCotsIndex
 
   ////////////////////////////////////////////////
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss)
