@@ -385,12 +385,6 @@ void GausHitFinder::produce(art::Event& evt)
                 // ### Search current ROI for candidate peaks and widths  ###
                 // ##########################################################
                 
-                
-                std::cout << "****************** Plane: " << plane << ", wire: " << wid.Wire << " ******************" << std::endl;
-                std::cout << "Number of adc values: " << signal.size() << std::endl;
-                std::cout << "ADC's: " << signal[0];
-                for(size_t idx = 1; idx < signal.size(); idx++) std::cout << ", " << signal[idx];
-                std::cout << std::endl;
                 TimeValsVec timeValsVec;
                 findCandidatePeaks(signal.begin(),signal.end(),timeValsVec,roiThreshold,0);
 	
