@@ -1,7 +1,0 @@
-#include "eventfindermodules.fcl"
-
-BEGIN_PROLOG
-
-argoneut_eventmaker:   @local::standard_eventmaker
-
-END_PROLOG

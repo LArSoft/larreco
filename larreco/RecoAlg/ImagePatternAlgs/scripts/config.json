@@ -2,8 +2,8 @@
   "prepare_data_em_track" : {
     "input_dir": "cnn/raw_data",
     "output_dir": "cnn/for_nn",
-    "patch_size_w": 32,
-    "patch_size_d": 44,
+    "patch_size_w": 44,
+    "patch_size_d": 48,
 
     "doing_nue": false,
     "selected_view_idx": 2,
@@ -17,8 +17,8 @@
   "prepare_data_vtx_id" : {
     "input_dir": "cnn/raw_data",
     "output_dir": "cnn/for_nn",
-    "patch_size_w": 32,
-    "patch_size_d": 44,
+    "patch_size_w": 44,
+    "patch_size_d": 48,
 
     "selected_view_idx": 2,
     "nearby_empty": 4,

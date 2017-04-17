@@ -1,5 +1,6 @@
 // Read data from MC raw files and convert it into ROOT tree
 // Chao Zhang (chao@bnl.gov) 5/13/2014
+// Added optical info --- Brooke Russell (brussell@yale.edu) 1/31/2017
 
 #ifndef CELLTREE_MODULE
 #define CELLTREE_MODULE
@@ -24,6 +25,8 @@
 #include "lardataobj/RawData/RawDigit.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
+#include "lardataobj/RecoBase/OpHit.h"
+#include "lardataobj/RecoBase/OpFlash.h"
 #include "lardataobj/AnalysisBase/ParticleID.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/RawData/TriggerData.h"
@@ -41,7 +44,6 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 
-
 // ROOT includes.
 #include "TFile.h"
 #include "TTree.h"
@@ -50,6 +52,7 @@
 #include "TString.h"
 #include "TClonesArray.h"
 #include "TH1F.h"
+#include "TH2F.h"
 #include "TLorentzVector.h"
 #include "TUnixSystem.h"
 #include "TDatabasePDG.h"
@@ -72,132 +75,153 @@ namespace wc {
 class CellTree : public art::EDAnalyzer {
 public:
 
-    explicit CellTree(fhicl::ParameterSet const& pset);
-    virtual ~CellTree();
+  explicit CellTree(fhicl::ParameterSet const& pset);
+  virtual ~CellTree();
+  
+  void beginJob();
+  void endJob();
+  void beginRun(const art::Run& run);
+  void analyze(const art::Event& evt);
+  
+  void reconfigure(fhicl::ParameterSet const& pset);
+  void initOutput();
+  void printEvent();
+  void print_vector(ostream& out, vector<double>& v, TString desc, bool end=false);
 
-    void beginJob();
-    void endJob();
-    void beginRun(const art::Run& run);
-    void analyze(const art::Event& evt);
+  void processRaw(const art::Event& evt);
+  void processCalib(const art::Event& evt);
+  void processOpHit(const art::Event& evt);
+  void processOpFlash(const art::Event& evt);
+  void processSpacePoint( const art::Event& event, TString option, ostream& out=cout);
+  void processSimChannel(const art::Event& evt);
+  void processMC(const art::Event& evt);
+  void processMCTracks();
+  void processTrigger(const art::Event& evt);
+  
+  void reset();
+  void InitProcessMap();
 
-    void reconfigure(fhicl::ParameterSet const& pset);
-    void initOutput();
-    void printEvent();
-    void print_vector(ostream& out, vector<double>& v, TString desc, bool end=false);
-
-
-    void processRaw(const art::Event& evt);
-    void processCalib(const art::Event& evt);
-    void processSpacePoint( const art::Event& event, TString option, ostream& out=cout);
-    void processSimChannel(const art::Event& evt);
-    void processMC(const art::Event& evt);
-    void processMCTracks();
-
-    void reset();
-    void InitProcessMap();
-
-    bool IsPrimary(int i) { return mc_mother[i] == 0 ; }
-    bool KeepMC(int i);
-    double KE(float* momentum);  // KE
-    TString PDGName(int pdg);
-    bool DumpMCJSON(int id, ostream& out);
-    void DumpMCJSON(ostream& out=cout);
+  bool IsPrimary(int i) { return mc_mother[i] == 0 ; }
+  bool KeepMC(int i);
+  double KE(float* momentum);  // KE
+  TString PDGName(int pdg);
+  bool DumpMCJSON(int id, ostream& out);
+  void DumpMCJSON(ostream& out=cout);
 
 
 private:
 
-    // the parameters we'll read from the .fcl
-    std::string fRawDigitLabel;
-    std::string fCalibLabel;
-    std::vector<std::string> fSpacePointLabels;
-    std::string fOutFileName;
-    std::string mcOption;
-    bool fSaveMCTrackPoints;
-    bool fSaveSimChannel;
-    bool fSaveRaw;
-    bool fSaveCalib;
-    bool fSaveMC;
-    bool fSaveJSON;
-    art::ServiceHandle<geo::Geometry> fGeometry;       // pointer to Geometry service
+  // the parameters we'll read from the .fcl
+  std::string fRawDigitLabel;
+  std::string fCalibLabel;
+  std::string fOpHitLabel;
+  std::string fOpFlashLabel;
+  std::string fTriggerLabel;
+  std::vector<std::string> fSpacePointLabels;
+  std::string fOutFileName;
+  std::string mcOption;
+  float opMultPEThresh;
+  bool fSaveMCTrackPoints;
+  bool fSaveSimChannel;
+  bool fSaveRaw;
+  bool fSaveCalib;
+  bool fSaveOpHit;
+  bool fSaveOpFlash;
+  bool fSaveMC;
+  bool fSaveTrigger;
+  bool fSaveJSON;
+  art::ServiceHandle<geo::Geometry> fGeometry;       // pointer to Geometry service
 
-    // art::ServiceHandle<geo::Geometry> fGeom;
-    // // auto const* larp = lar::providerFrom<detinfo::LArPropertiesService>();
+  // art::ServiceHandle<geo::Geometry> fGeom;
+  // // auto const* larp = lar::providerFrom<detinfo::LArPropertiesService>();
 
-    TFile *fOutFile;
-    TTree *fEventTree;
-    std::map<std::string, int> processMap;
-    std::map<int, int> savedMCTrackIdMap;  // key: id; value: pdg;
+  TFile *fOutFile;
+  TTree *fEventTree;
+  std::map<std::string, int> processMap;
+  std::map<int, int> savedMCTrackIdMap;  // key: id; value: pdg;
 
-    int entryNo;
+  int entryNo;
 
-    // Event Tree Leafs
-    int fEvent;
-    int fRun;
-    int fSubRun;
-    double fEventTime;
-    unsigned int fTriggernumber;      //trigger counter
-    double fTriggertime;        //trigger time w.r.t. electronics clock T0
-    double fBeamgatetime;       //beamgate time w.r.t. electronics clock T0
-    unsigned int fTriggerbits;        //trigger bits
+  // Event Tree Leafs
+  int fEvent;
+  int fRun;
+  int fSubRun;
+  double fEventTime;
 
-    int fCalib_nChannel;
-    // int fCalib_channelId[MAX_CHANNEL];  // hit channel id; size == fCalib_Nhit
-    // // FIXEME:: cannot save e.g std::vector<std::vector<float> > in ttree
-    std::vector<int> fCalib_channelId;
-    // std::vector<std::vector<float> > fCalib_wf;
-    TClonesArray *fCalib_wf;
-    // std::vector<std::vector<int> > fCalib_wfTDC;
+  unsigned int fTriggernumber;      //trigger counter
+  double fTriggertime;        //trigger time w.r.t. electronics clock T0
+  double fBeamgatetime;       //beamgate time w.r.t. electronics clock T0
+  unsigned int fTriggerbits;        //trigger bits
 
+  int fCalib_nChannel;
+  // int fCalib_channelId[MAX_CHANNEL];  // hit channel id; size == fCalib_Nhit
+  // // FIXEME:: cannot save e.g std::vector<std::vector<float> > in ttree
+  std::vector<int> fCalib_channelId;
+  // std::vector<std::vector<float> > fCalib_wf;
+  TClonesArray *fCalib_wf;
+  // std::vector<std::vector<int> > fCalib_wfTDC;
 
-    int fRaw_nChannel;
-    std::vector<int> fRaw_channelId;
-    TClonesArray *fRaw_wf;
+  int oh_nHits;
+  vector<int> oh_channel;
+  vector<double> oh_bgtime;
+  vector<double> oh_trigtime;
+  vector<double> oh_pe;
+  
+  int of_nFlash;
+  vector<float> of_t;
+  vector<float> of_peTotal;
+  vector<int> of_multiplicity;
+  TClonesArray *fPEperOpDet;
 
-    int fSIMIDE_size;
-    vector<int> fSIMIDE_channelIdY;
-    vector<int> fSIMIDE_trackId;
-    vector<unsigned short> fSIMIDE_tdc;
-    vector<float> fSIMIDE_x;
-    vector<float> fSIMIDE_y;
-    vector<float> fSIMIDE_z;
-    vector<float> fSIMIDE_numElectrons;
+  int fRaw_nChannel;
+  std::vector<int> fRaw_channelId;
+  TClonesArray *fRaw_wf;
 
-    int mc_Ntrack;  // number of tracks in MC
-    int mc_id[MAX_TRACKS];  // track id; size == mc_Ntrack
-    int mc_pdg[MAX_TRACKS];  // track particle pdg; size == mc_Ntrack
-    int mc_process[MAX_TRACKS];  // track generation process code; size == mc_Ntrack
-    int mc_mother[MAX_TRACKS];  // mother id of this track; size == mc_Ntrack
-    float mc_startXYZT[MAX_TRACKS][4];  // start position of this track; size == mc_Ntrack
-    float mc_endXYZT[MAX_TRACKS][4];  // end position of this track; size == mc_Ntrack
-    float mc_startMomentum[MAX_TRACKS][4];  // start momentum of this track; size == mc_Ntrack
-    float mc_endMomentum[MAX_TRACKS][4];  // end momentum of this track; size == mc_Ntrack
-    std::vector<std::vector<int> > mc_daughters;  // daughters id of this track; vector
-    TObjArray *fMC_trackPosition;
+  int fSIMIDE_size;
+  vector<int> fSIMIDE_channelIdY;
+  vector<int> fSIMIDE_trackId;
+  vector<unsigned short> fSIMIDE_tdc;
+  vector<float> fSIMIDE_x;
+  vector<float> fSIMIDE_y;
+  vector<float> fSIMIDE_z;
+  vector<float> fSIMIDE_numElectrons;
 
-    int mc_isnu; // is neutrino interaction
-    int mc_nGeniePrimaries; // number of Genie primaries
-    int mc_nu_pdg; // pdg code of neutrino
-    int mc_nu_ccnc; // cc or nc
-    int mc_nu_mode; // mode: http://nusoft.fnal.gov/larsoft/doxsvn/html/MCNeutrino_8h_source.html
-    int mc_nu_intType; // interaction type
-    int mc_nu_target; // target interaction
-    int mc_hitnuc; // hit nucleon
-    int mc_hitquark; // hit quark
-    double mc_nu_Q2; // Q^2
-    double mc_nu_W; // W
-    double mc_nu_X; // X
-    double mc_nu_Y; // Y
-    double mc_nu_Pt; // Pt
-    double mc_nu_Theta; // angle relative to lepton
-    float mc_nu_pos[4];  // interaction position of nu
-    float mc_nu_mom[4];  // interaction momentum of nu
+  int mc_Ntrack;  // number of tracks in MC
+  int mc_id[MAX_TRACKS];  // track id; size == mc_Ntrack
+  int mc_pdg[MAX_TRACKS];  // track particle pdg; size == mc_Ntrack
+  int mc_process[MAX_TRACKS];  // track generation process code; size == mc_Ntrack
+  int mc_mother[MAX_TRACKS];  // mother id of this track; size == mc_Ntrack
+  float mc_startXYZT[MAX_TRACKS][4];  // start position of this track; size == mc_Ntrack
+  float mc_endXYZT[MAX_TRACKS][4];  // end position of this track; size == mc_Ntrack
+  float mc_startMomentum[MAX_TRACKS][4];  // start momentum of this track; size == mc_Ntrack
+  float mc_endMomentum[MAX_TRACKS][4];  // end momentum of this track; size == mc_Ntrack
+  std::vector<std::vector<int> > mc_daughters;  // daughters id of this track; vector
+  TObjArray *fMC_trackPosition;
 
-    // ----- derived ---
-    std::map<int, int> trackIndex;
-    std::vector<std::vector<int> > trackParents;
-    std::vector<std::vector<int> > trackChildren;
-    std::vector<std::vector<int> > trackSiblings;
-    TDatabasePDG *dbPDG;
+  int mc_isnu; // is neutrino interaction
+  int mc_nGeniePrimaries; // number of Genie primaries
+  int mc_nu_pdg; // pdg code of neutrino
+  int mc_nu_ccnc; // cc or nc
+  int mc_nu_mode; // mode: http://nusoft.fnal.gov/larsoft/doxsvn/html/MCNeutrino_8h_source.html
+  int mc_nu_intType; // interaction type
+  int mc_nu_target; // target interaction
+  int mc_hitnuc; // hit nucleon
+  int mc_hitquark; // hit quark
+  double mc_nu_Q2; // Q^2
+  double mc_nu_W; // W
+  double mc_nu_X; // X
+  double mc_nu_Y; // Y
+  double mc_nu_Pt; // Pt
+  double mc_nu_Theta; // angle relative to lepton
+  float mc_nu_pos[4];  // interaction position of nu
+  float mc_nu_mom[4];  // interaction momentum of nu
+  
+  // ----- derived ---
+  std::map<int, int> trackIndex;
+  std::vector<std::vector<int> > trackParents;
+  std::vector<std::vector<int> > trackChildren;
+  std::vector<std::vector<int> > trackSiblings;
+  TDatabasePDG *dbPDG;
 
 }; // class CellTree
 
@@ -223,15 +247,22 @@ CellTree::~CellTree()
 void CellTree::reconfigure(fhicl::ParameterSet const& p){
     fRawDigitLabel   = p.get<std::string>("RawDigitLabel");
     fCalibLabel      = p.get<std::string>("CalibLabel");
+    fOpHitLabel      = p.get<std::string>("OpHitLabel");
+    fOpFlashLabel    = p.get<std::string>("OpFlashLabel");
+    fTriggerLabel    = p.get<std::string>("TriggerLabel");
     fSpacePointLabels= p.get<std::vector<std::string> >("SpacePointLabels");
     fOutFileName     = p.get<std::string>("outFile");
     mcOption        = p.get<std::string>("mcOption");
     fSaveMCTrackPoints = p.get<bool>("saveMCTrackPoints");
     fSaveRaw         = p.get<bool>("saveRaw");
     fSaveCalib       = p.get<bool>("saveCalib");
+    fSaveOpHit       = p.get<bool>("saveOpHit");
+    fSaveOpFlash     = p.get<bool>("saveOpFlash");
     fSaveMC          = p.get<bool>("saveMC");
     fSaveSimChannel  = p.get<bool>("saveSimChannel");
+    fSaveTrigger     = p.get<bool>("saveTrigger");
     fSaveJSON        = p.get<bool>("saveJSON");
+    opMultPEThresh   = p.get<float>("opMultPEThresh");
 }
 
 //-----------------------------------------------------------------------
@@ -242,7 +273,7 @@ void CellTree::initOutput()
     fOutFile = new TFile(fOutFileName.c_str(), "recreate");
 
     // 3.1: add mc_trackPosition
-    TNamed version("version", "3.1");
+    TNamed version("version", "4.0");
     version.Write();
 
     // init Event TTree
@@ -253,6 +284,7 @@ void CellTree::initOutput()
     fEventTree->Branch("runNo", &fRun);
     fEventTree->Branch("subRunNo", &fSubRun);
     fEventTree->Branch("eventTime", &fEventTime);  // timestamp
+
     fEventTree->Branch("triggerNo", &fTriggernumber);  // timestamp
     fEventTree->Branch("triggerTime", &fTriggertime);  // timestamp
     fEventTree->Branch("beamgateTime", &fBeamgatetime);  // timestamp
@@ -271,6 +303,19 @@ void CellTree::initOutput()
     // fCalib_wf->BypassStreamer();
     // fEventTree->Branch("calib_wfTDC", &fCalib_wfTDC);  // calib waveform tdc of each channel
 
+    fEventTree->Branch("oh_nHits", &oh_nHits); // number of op hits
+    fEventTree->Branch("oh_channel", &oh_channel); //opchannel id; size == no ophits
+    fEventTree->Branch("oh_bgtime", &oh_bgtime); // optical pulse peak time w.r.t. start of beam gate 
+    fEventTree->Branch("oh_trigtime", &oh_trigtime); // optical pulse peak time w.r.t. trigger
+    fEventTree->Branch("oh_pe", &oh_pe); // pulse PE 
+
+    fEventTree->Branch("of_nFlash", &of_nFlash);
+    fEventTree->Branch("of_t", &of_t); // time in us w.r.t. the trigger for each flash
+    fEventTree->Branch("of_peTotal", &of_peTotal); // total PE (sum of all PMTs) for each flash
+    fEventTree->Branch("of_multiplicity", &of_multiplicity); // total number of PMTs above threshold for each flash
+    fPEperOpDet = new TClonesArray("TH1F");
+    fEventTree->Branch("pe_opdet", &fPEperOpDet, 256000, 0);
+ 
     fEventTree->Branch("simide_size", &fSIMIDE_size);  // size of stored sim:IDE
     fEventTree->Branch("simide_channelIdY", &fSIMIDE_channelIdY);
     fEventTree->Branch("simide_trackId", &fSIMIDE_trackId);
@@ -369,8 +414,11 @@ void CellTree::analyze( const art::Event& event )
 
     if (fSaveRaw) processRaw(event);
     if (fSaveCalib) processCalib(event);
+    if (fSaveOpHit) processOpHit(event); 
+    if (fSaveOpFlash) processOpFlash(event); 
     if (fSaveSimChannel) processSimChannel(event);
     if (fSaveMC) processMC(event);
+    if (fSaveTrigger) processTrigger(event);
 
     if (fSaveJSON) {
         gSystem->MakeDirectory(TString::Format("data/%i", entryNo).Data());
@@ -409,6 +457,16 @@ void CellTree::reset()
 
     fCalib_channelId.clear();
     fCalib_wf->Clear();
+
+    oh_channel.clear();
+    oh_bgtime.clear();
+    oh_trigtime.clear();
+    oh_pe.clear();
+
+    of_t.clear();
+    of_peTotal.clear();
+    of_multiplicity.clear();
+    fPEperOpDet->Delete();
 
     fSIMIDE_channelIdY.clear();
     fSIMIDE_trackId.clear();
@@ -463,33 +521,6 @@ void CellTree::reset()
 //-----------------------------------------------------------------------
 void CellTree::processRaw( const art::Event& event )
 {
-    art::Handle< std::vector<raw::Trigger>> triggerListHandle;
-    std::vector<art::Ptr<raw::Trigger>> triggerlist;
-    if (event.getByLabel(fRawDigitLabel, triggerListHandle)) {
-        art::fill_ptr_vector(triggerlist, triggerListHandle);
-    }
-    else {
-        cout << "WARNING: no label " << fRawDigitLabel << endl;
-    }
-    if (triggerlist.size()){
-        fTriggernumber = triggerlist[0]->TriggerNumber();
-        fTriggertime   = triggerlist[0]->TriggerTime();
-        fBeamgatetime  = triggerlist[0]->BeamGateTime();
-        fTriggerbits   = triggerlist[0]->TriggerBits();
-    }
-    else {
-        fTriggernumber = 0;
-        fTriggertime   = 0;
-        fBeamgatetime  = 0;
-        fTriggerbits   = 0;
-    }
-    // cout << "timestamp: " << fEventTime << endl;
-    // cout << "fTriggernumber: " << fTriggernumber << endl;
-    // cout << "fTriggertime: " << fTriggertime << endl;
-    // cout << "fBeamgatetime: " << fBeamgatetime << endl;
-    // cout << "fTriggerbits: " << fTriggerbits << endl;
-
-
     art::Handle< std::vector<raw::RawDigit> > rawdigit;
     if (! event.getByLabel(fRawDigitLabel, rawdigit)) {
         cout << "WARNING: no label " << fRawDigitLabel << endl;
@@ -549,6 +580,59 @@ void CellTree::processCalib( const art::Event& event )
     }
 
 }
+
+  //---------------------------------------------------------------------- 
+void CellTree::processOpHit( const art::Event& event)
+{
+  art::Handle<std::vector<recob::OpHit> > ophit_handle;
+  if(! event.getByLabel(fOpHitLabel, ophit_handle)){
+    cout << "WARNING: no label " << fOpHitLabel << endl;
+    return;
+  }
+  std::vector<art::Ptr<recob::OpHit> > ophits;
+  art::fill_ptr_vector(ophits, ophit_handle);
+  oh_nHits = (int)ophits.size();
+ 
+  for(auto const& oh : ophits){
+    oh_channel.push_back(oh->OpChannel());
+    oh_bgtime.push_back(oh->PeakTime());
+    oh_trigtime.push_back(oh->PeakTimeAbs());
+    oh_pe.push_back(oh->PE());
+  }
+
+}
+
+  //----------------------------------------------------------------------
+  void CellTree::processOpFlash( const art::Event& event)
+  {
+    art::Handle<std::vector<recob::OpFlash> > flash_handle;
+    if(! event.getByLabel(fOpFlashLabel, flash_handle)){
+      cout << "WARNING: no label " << fOpFlashLabel << endl;
+      return;
+    }
+    std::vector<art::Ptr<recob::OpFlash> > flashes;
+    art::fill_ptr_vector(flashes, flash_handle);
+    of_nFlash = (int)flashes.size();
+
+    int a=0;
+    int nOpDet = fGeometry->NOpDets();
+
+    for(auto const& flash: flashes){
+      of_t.push_back(flash->Time());
+      of_peTotal.push_back(flash->TotalPE());
+      TH1F *h = new ((*fPEperOpDet)[a]) TH1F("","",nOpDet,0,nOpDet);
+
+      int mult = 0;
+      for(int i=0; i<nOpDet; ++i){
+	if(flash->PE(i) >= opMultPEThresh){
+	  mult++;
+	}
+	h->SetBinContent(i, flash->PE(i));
+      }
+      of_multiplicity.push_back(mult);
+      a++;
+    }
+  }
 
 //-----------------------------------------------------------------------
 void CellTree::processSimChannel( const art::Event& event )
@@ -830,6 +914,31 @@ void CellTree::processMCTracks()
         trackSiblings.push_back(siblings);
     }
 
+}
+
+//-----------------------------------------------------------------------
+void CellTree::processTrigger(const art::Event& event)
+{
+  art::Handle< std::vector<raw::Trigger>> triggerListHandle;
+  std::vector<art::Ptr<raw::Trigger>> triggerlist;
+  if (event.getByLabel(fTriggerLabel, triggerListHandle)) {
+    art::fill_ptr_vector(triggerlist, triggerListHandle);
+  }
+  else {
+    cout << "WARNING: no label " << fTriggerLabel << endl;
+  }
+  if (triggerlist.size()){
+    fTriggernumber = triggerlist[0]->TriggerNumber();
+    fTriggertime   = triggerlist[0]->TriggerTime();
+    fBeamgatetime  = triggerlist[0]->BeamGateTime();
+    fTriggerbits   = triggerlist[0]->TriggerBits();
+  }
+  else {
+    fTriggernumber = 0;
+    fTriggertime   = 0;
+    fBeamgatetime  = 0;
+    fTriggerbits   = 0;
+  }    
 }
 
 //-----------------------------------------------------------------------

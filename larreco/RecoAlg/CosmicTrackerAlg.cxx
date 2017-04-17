@@ -394,7 +394,7 @@ namespace trkf{
 	   ++itime1, ++ihit1){//loop over min-hits
 	std::vector<art::Ptr<recob::Hit>> sp_hits;
 	sp_hits.push_back(ihit1->second);
-	double hitcoord[3];
+	double hitcoord[3] = {0.,0.,0.};
 	double length1 = 0;
 	if (vtimemap[iclu1].size()==1){
 	  length1 = wire_pitch;

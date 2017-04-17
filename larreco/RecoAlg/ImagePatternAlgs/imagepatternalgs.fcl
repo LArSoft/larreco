@@ -61,6 +61,8 @@ standard_emtrackclusterid:
 
     Views:                  []  # do processing in selected views only, or use all views if empty list
 }
+standard_emtrackmichelid:   @local::standard_emtrackclusterid  # the same config, only use 4-output CNN
+standard_emtrackmichelid.module_type: "EmTrackMichelId"
 
 standard_particledecayid:
 {

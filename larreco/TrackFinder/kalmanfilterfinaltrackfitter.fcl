@@ -23,11 +23,24 @@ kalmantrackfit: {
         dirVec: [0,0,1]
         dirFromVtxPF: false
 	alwaysInvertDir: false
+ 	tryNoSkipWhenFails: true
+	produceTrackFitHitInfo: true
+  }
+  fitter: {
   	useRMSError: true
         sortHitsByPlane: true
         sortOutputHitsMinLength: true
         skipNegProp: true
-	hitErrScaleFact: 1.0
+	hitErr2ScaleFact: 1.0
+	dumpLevel: 0
+  }
+  propagator: {
+         minStep: 1.0
+	 maxElossFrac: 0.1
+	 maxNit: 10
+	 tcut: 10.
+	 wrongDirDistTolerance: 0.01
+	 propPinvErr: false
   }
 }
 END_PROLOG

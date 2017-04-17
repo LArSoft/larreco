@@ -1,0 +1,14 @@
+BEGIN_PROLOG
+
+# default parameters for the pma cosmic tracks tagging algorithm
+standard_pmalgtagger:
+{
+
+  TagOutOfDriftTracks: false # Tag tracks sticking out of 1 drift window.
+  OutOfDriftMargin:    5.0   # The minimum distance beyond 1 drift window required for tagging track as a cosmic background.
+
+  TagTopDownTracks:    false # Tag tracks crossing full Y range (if it is not drift).
+  TopDownMargin:       2.0   # The maximum distance from top and down required for tagging track as crossing full Y.
+}
+
+END_PROLOG

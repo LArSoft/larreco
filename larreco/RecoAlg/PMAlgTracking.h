@@ -32,7 +32,9 @@
 
 #include "larreco/RecoAlg/PMAlg/PmaTrkCandidate.h"
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
+#include "larreco/RecoAlg/PMAlgCosmicTagger.h"
 #include "larreco/RecoAlg/PMAlgVertexing.h"
+#include "larreco/RecoAlg/PMAlgStitching.h"
 
 // ROOT & C++
 #include <memory>
@@ -155,6 +157,11 @@ public:
 			Comment("min. cluster size used to start building a track in the 2nd pass")
 		};
 
+		fhicl::Atom<float> TrackLikeThreshold {
+			Name("TrackLikeThreshold"),
+			Comment("Threshold for track-like recognition")
+		};
+
 		fhicl::Atom<bool> RunVertexing {
 			Name("RunVertexing"),
 			Comment("find vertices from PFP hierarchy, join with tracks, reoptimize track-vertex structure")
@@ -212,19 +219,29 @@ public:
 
 		fhicl::Atom<bool> MatchT0inAPACrossing {
 			Name("MatchT0inAPACrossing"),
-			Comment("match T0 of APA-crossing tracks, TPC stitching limits are used, but track parts are not stitched into a single recob::Track")
+			Comment("match T0 of APA-crossing tracks using PMAlgStitcher")
 		};
-    };
+
+		fhicl::Atom<bool> MatchT0inCPACrossing {
+			Name("MatchT0inCPACrossing"),
+			Comment("match T0 of CPA-crossing tracks using PMAlgStitcher")
+		};
+
+  };
 
 	PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allhitlist,
 		const pma::ProjectionMatchingAlg::Config& pmalgConfig,
 		const pma::PMAlgTracker::Config& pmalgTrackerConfig,
-		const pma::PMAlgVertexing::Config& pmvtxConfig) :
+		const pma::PMAlgVertexing::Config& pmvtxConfig,
+		const pma::PMAlgStitching::Config& pmstitchConfig,
+		const pma::PMAlgCosmicTagger::Config& pmtaggerConfig) :
 
 		PMAlgTrackingBase(allhitlist, pmalgConfig, pmvtxConfig),
 
 		fMinSeedSize1stPass(pmalgTrackerConfig.MinSeedSize1stPass()),
 		fMinSeedSize2ndPass(pmalgTrackerConfig.MinSeedSize2ndPass()),
+		fTrackLikeThreshold(pmalgTrackerConfig.TrackLikeThreshold()),
+
 		fMinTwoViewFraction(pmalgConfig.MinTwoViewFraction()),
 
 		fFlipToBeam(pmalgTrackerConfig.FlipToBeam()),
@@ -235,12 +252,17 @@ public:
 		fMergeTransverseShift(pmalgTrackerConfig.MergeTransverseShift()),
 		fMergeAngle(pmalgTrackerConfig.MergeAngle()),
 
+        fCosmicTagger(pmtaggerConfig),
+        fTagCosmicTracks(fCosmicTagger.tagAny()),
+
 		fStitchBetweenTPCs(pmalgTrackerConfig.StitchBetweenTPCs()),
 		fStitchDistToWall(pmalgTrackerConfig.StitchDistToWall()),
 		fStitchTransverseShift(pmalgTrackerConfig.StitchTransverseShift()),
 		fStitchAngle(pmalgTrackerConfig.StitchAngle()),
 
 		fMatchT0inAPACrossing(pmalgTrackerConfig.MatchT0inAPACrossing()),
+		fMatchT0inCPACrossing(pmalgTrackerConfig.MatchT0inCPACrossing()),
+        fStitcher(pmstitchConfig),
 
 		fRunVertexing(pmalgTrackerConfig.RunVertexing()),
 
@@ -248,6 +270,9 @@ public:
 	{}
 
 	void init(const art::FindManyP< recob::Hit > & hitsFromClusters);
+
+    void init(const art::FindManyP< recob::Hit > & hitsFromClusters,
+        const std::vector< float > & trackLike);
 
 	void init(const art::FindManyP< recob::Hit > & hitsFromClusters,
 		const art::FindManyP< recob::Hit > & hitsFromEmParts);
@@ -278,11 +303,6 @@ private:
 
 	bool mergeCoLinear(pma::TrkCandidateColl & tracks);
 	void mergeCoLinear(pma::tpc_track_map& tracks);
-
-	bool areCoLinear(double& cos3d,
-		TVector3 f0, TVector3 b0, TVector3 f1, TVector3 b1,
-		double distProjThr);
-	void matchCoLinearAnyT0(void);
 
 	double validate(pma::Track3D& trk, unsigned int testView);
 
@@ -324,6 +344,7 @@ private:
 	}
 
 	std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
+	std::vector< float > fCluWeights;
 
 	/// these guys are temporary states, to be moved to function calls
 	std::vector< size_t > used_clusters, initial_clusters;
@@ -333,6 +354,7 @@ private:
 	// ******************** fcl parameters **********************
 	size_t fMinSeedSize1stPass;  // min. cluster size used to start building a track in the 1st pass
 	size_t fMinSeedSize2ndPass;  // min. cluster size used to start building a track in the 2nd pass
+	float  fTrackLikeThreshold;  // trk-like threshold on cnn output
 	double fMinTwoViewFraction;
 
 	bool fFlipToBeam;            // set the track direction to increasing Z values
@@ -343,12 +365,18 @@ private:
 	double fMergeTransverseShift;  //   - max. transverse displacement [cm] between tracks
 	double fMergeAngle;            //   - max. angle [degree] between tracks (nearest segments)
 
+    pma::PMAlgCosmicTagger fCosmicTagger; // cosmic tagger alg
+    bool fTagCosmicTracks;         // do any tagging of cosmic rays (simple or of tagger flags)
+
 	bool fStitchBetweenTPCs;       // stitch between TPCs; finds tracks best matching by angle, with limits:
 	double fStitchDistToWall;      //   - max. track endpoint distance [cm] to TPC boundary
 	double fStitchTransverseShift; //   - max. transverse displacement [cm] between tracks
 	double fStitchAngle;           //   - max. angle [degree] between tracks (nearest segments)
 
-	bool fMatchT0inAPACrossing;    // match T0 of APA-crossing tracks, TPC stitching limits are used
+	bool fMatchT0inAPACrossing;    // match T0 of APA-crossing tracks using PMAlgStitcher
+	bool fMatchT0inCPACrossing;    // match T0 of CPA-crossing tracks using PMAlgStitcher
+
+    pma::PMAlgStitching fStitcher;
 
 	bool fRunVertexing;          // run vertex finding
 

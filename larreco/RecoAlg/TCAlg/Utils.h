@@ -37,6 +37,24 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
+  // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
+  // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
+  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im, bool prt);
+  unsigned short Matched3DVtx(TjStuff& tjs, unsigned short im);
+  void ReleaseHits(TjStuff& tjs, Trajectory& tj);
+  void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
+  void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
+  bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt);
+  bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
+  bool SignalAtTp(TjStuff& tjs, TrajPoint const& tp);
+  bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP);
+  float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp);
+  bool CheckHitClusterAssociations(TjStuff& tjs);
+  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires);
+  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
+  float DeadWireCount(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2);
+  float DeadWireCount(TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP);
   unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
@@ -45,10 +63,14 @@ namespace tca {
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, float wire2, float time2, CTP_t pCTP, float minAmp);
   bool SignalPresent(TrajPoint const& tp, float minAmp);
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj);
+  void MakeVertexObsolete(TjStuff& tjs, unsigned short ivx);
   void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj);
+  void CheckVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
+  bool TjHasNiceVtx(TjStuff& tjs, const Trajectory& tj);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
+  bool SplitAllTraj(TjStuff& tjs, Trajectory& tj, unsigned short pos, unsigned short ivx, bool prt);
   void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
   // returns the DOCA between a hit and a trajectory
   float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp);
@@ -60,15 +82,17 @@ namespace tca {
   // close hits OR if the wire at this position is dead
   bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
   std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
+  float MaxHitDelta(TjStuff& tjs, Trajectory& tj);
   void ReverseTraj(TjStuff& tjs, Trajectory& tj);
-
   // returns the separation^2 between a point and a TP
   float PointTrajSep2(float wire, float time, TrajPoint const& tp);
   float PosSep(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);
   float PosSep2(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);
+  float PosSep2(const std::array<float, 3>& pos1, const std::array<float, 3>& pos2);
   // finds the point on trajectory tj that is closest to trajpoint tp
   void TrajPointTrajDOCA(TjStuff& tjs, TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
   // returns the intersection position, intPos, of two trajectory points
+  void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, std::array<float, 2>& pos);
   void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y);
   // Returns the separation distance between two trajectory points
   float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
@@ -76,7 +100,8 @@ namespace tca {
   // returns the separation^2 between two hits in WSE units
   float HitSep2(TjStuff& tjs, unsigned int iht, unsigned int jht);
   // Find the Distance Of Closest Approach between two trajectories, exceeding minSep
-  void TrajTrajDOCA(Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
+  void TrajTrajDOCA(TjStuff& tjs, Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
+  void TrajTrajDOCA(TjStuff& tjs, Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires);
   // Calculates the angle between two TPs
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
   // Put hits in each trajectory point into a flat vector.
@@ -84,10 +109,13 @@ namespace tca {
   // returns true if hit iht appears in trajectory tj. The last nPtsToCheck points are checked
   bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck);
   // returns true if a hit is associated with more than one point
-  bool HasDuplicateHits(Trajectory const& tj);
+  bool HasDuplicateHits(TjStuff const& tjs, Trajectory const& tj, bool prt);
   // Project TP to a "wire position" Pos[0] and update Pos[1]
   void MoveTPToWire(TrajPoint& tp, float wire);
-  float DeltaAngle(float Ang1, float Ang2);
+  bool PointInsideEnvelope(const std::array<float, 2>& Point, const std::vector<std::array<float, 2>>& Envelope);
+  double DeltaAngle(double Ang1, double Ang2);
+  double DeltaAngle2(double Ang1, double Ang2);
+  double DeltaAngle(const std::array<float,2>& p1, const std::array<float,2>& p2);
   // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
   void SetEndPoints(TjStuff& tjs, Trajectory& tj);
   // Returns the hit width using StartTick() and EndTick()
@@ -98,6 +126,7 @@ namespace tca {
   float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
   float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
   unsigned short NumHitsInTP(const TrajPoint& tp, HitStatus_t hitRequest);
+  unsigned short NearestPtWithChg(TjStuff& tjs, Trajectory& tj, unsigned short thePt);
   // Calculate MCS momentum
   short MCSMom(TjStuff& tjs, Trajectory& tj);
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short FirstPt, unsigned short lastPt);
@@ -111,11 +140,21 @@ namespace tca {
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
   // Tag muon directions using delta proximity
   void TagMuonDirections(TjStuff& tjs, const short& minDeltaRayLength, short debugWorkID);
-  void TagShowerTraj(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fShowerTag, short debugWorkID);
   // Make a bare trajectory point that only has position and direction defined
-  void MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
-  void MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
-  void MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+  bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
+  bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
+  bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+  // ****************************** Shower finding  ******************************
+  // Create showers (aka clusters of trajectories, tjs.cots)
+  void FindShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag);
+  void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, std::vector<std::vector<unsigned short>>& tjList);
+  void FindShowerCenter(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void FindShowerParent(TjStuff& tjs, const unsigned short& showerIndex, const std::vector<float>& fShowerTag, bool prt);
+  void FindFirstTPAng(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void DefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void DefineShowerEnvelope(TjStuff& tjs, const unsigned short& cotIndex, const std::vector<float>& fShowerTag, bool prt);
+  void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, bool prt);
+  void CollectHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   // ****************************** Vertex finding  ******************************
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, const std::vector<float>& fVertex2DCuts, bool prt);
@@ -136,7 +175,9 @@ namespace tca {
   std::string PrintHit(const TCHit& hit);
   std::string PrintHitShort(const TCHit& hit);
   // Print Trajectory position in the standard format
-  std::string PrintPos(TjStuff& tjs, TrajPoint const& tp);
+  std::string PrintPos(TjStuff& tjs, const TrajPoint& tp);
+  std::string PrintPos(TjStuff& tjs, const std::array<float, 2>& pos);
+  std::string PrintStopFlag(TjStuff& tjs, const Trajectory& tj, unsigned short end);
 } // namespace tca
 
 #endif // ifndef TRAJCLUSTERALGUTILS_H

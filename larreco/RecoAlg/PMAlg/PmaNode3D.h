@@ -28,7 +28,7 @@ class pma::Node3D : public pma::Element3D, public pma::SortedBranchBase
 {
 public:
 	Node3D(void);
-	Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bool vtx = false);
+	Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bool vtx = false, double xshift = 0);
 	virtual ~Node3D(void) {}
 
 	TVector3 const & Point3D(void) const { return fPoint3D; }
@@ -95,6 +95,9 @@ public:
 
 	virtual void ClearAssigned(pma::Track3D* trk = 0);
 
+    void ApplyDriftShift(double dx) { fPoint3D[0] += dx; fDriftOffset += dx; }
+    double GetDriftShift(void) const { return fDriftOffset; }
+
 	/// Set allowed node position margin around TPC.
 	static void SetMargin(double m) { if (m >= 0.0) fMargin = m; }
 
@@ -121,6 +124,7 @@ private:
 
 	TVector3 fPoint3D;       // node position in 3D space in [cm]
 	TVector2 fProj2D[3];     // node projections to 2D views, scaled to [cm], updated on each change of 3D position
+    double fDriftOffset;         // the offset due to t0
 
 	TVector3 fGradient;
 	bool fIsVertex;          // no penalty on segments angle if branching or kink detected

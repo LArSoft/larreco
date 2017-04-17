@@ -20,6 +20,7 @@
 
 //LArSoft includes
 #include "larreco/RecoAlg/TrajClusterAlg.h"
+#include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 
 // ... more includes in the implementation section
@@ -105,7 +106,8 @@ namespace cluster {
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
     produces< std::vector<recob::PFParticle> >();
-    produces< art::Assns<recob::Cluster, recob::PFParticle> >();
+    produces< art::Assns<recob::PFParticle, recob::Cluster> >();
+    produces< art::Assns<recob::PFParticle, recob::Vertex> >();
   } // TrajCluster::TrajCluster()
   
   //----------------------------------------------------------------------------
@@ -118,6 +120,7 @@ namespace cluster {
     myprt<<"TrajCluster algorithm counts\n";
     unsigned short icol = 0;
     for(unsigned short ib = 0; ib < fAlgModCount.size(); ++ib) {
+      if(ib == tca::kKilled) continue;
       myprt<<std::left<<std::setw(16)<<fAlgBitNames[ib]<<std::right<<std::setw(10)<<fAlgModCount[ib]<<" ";
       ++icol;
       if(icol == 4) { myprt<<"\n"; icol = 0; }
@@ -142,8 +145,10 @@ namespace cluster {
         hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
     std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
         cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
-    std::unique_ptr<art::Assns<recob::Cluster, recob::PFParticle>>
-        cp_assn(new art::Assns<recob::Cluster, recob::PFParticle>);
+    std::unique_ptr<art::Assns<recob::PFParticle, recob::Cluster>>
+        pc_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
+    std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
+        pv_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
 
     std::vector<tca::ClusterStore> const& Clusters = fTCAlg->GetClusters();
     
@@ -173,10 +178,8 @@ namespace cluster {
     double xyz[3] = {0, 0, 0};
     vtxID = 0;
     for(tca::Vtx3Store const& vtx3: Vertices) {
-      // ignore incomplete vertices
-      if(vtx3.Ptr2D[0] < 0) continue;
-      if(vtx3.Ptr2D[1] < 0) continue;
-      if(vtx3.Ptr2D[2] < 0) continue;
+      // ignore incomplete vertices or obsolete
+      if(vtx3.Wire >= 0) continue;
       ++vtxID;
       xyz[0] = vtx3.X;
       xyz[1] = vtx3.Y;
@@ -193,7 +196,6 @@ namespace cluster {
     unsigned short clsID = 0;
     for(size_t icl = 0; icl < Clusters.size(); ++icl) {
       tca::ClusterStore const& clstr = Clusters[icl];
-//      std::cout<<"cls "<<clstr.ID<<" "<<(int)clstr.BeginWir<<":"<<(int)clstr.BeginTim<<" "<<(int)clstr.EndWir<<":"<<(int)clstr.EndTim<<"\n";
       if(clstr.ID < 0) continue;
       ++clsID;
       geo::PlaneID planeID = tca::DecodeCTP(clstr.CTP);
@@ -240,7 +242,7 @@ namespace cluster {
       // make the cluster - hit association
       if(!util::CreateAssn(*this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end()))
       {
-        throw art::Exception(art::errors::InsertFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
+        throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
       } // exception
 
       // make the cluster - endpoint associations
@@ -251,13 +253,12 @@ namespace cluster {
         unsigned short vtxIndex = 0;
         for(tca::Vtx3Store const& vtx3: Vertices) {
           // ignore incomplete vertices
-          if(vtx3.Wire < 0) continue;
+          if(vtx3.Wire > 0) continue;
           if(vtx3.Ptr2D[plane] < 0) continue;
           if(vtx3.Ptr2D[plane] == clstr.BeginVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
-              throw art::Exception(art::errors::InsertFailure)
-                <<"Failed to associate cluster "<<icl<<" with vertex";
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<icl<<" with vertex";
             } // exception
             break;
           } // vertex match
@@ -270,44 +271,57 @@ namespace cluster {
         unsigned short vtxIndex = 0;
         for(tca::Vtx3Store const& vtx3: Vertices) {
           // ignore incomplete vertices
-          if(vtx3.Ptr2D[0] < 0) continue;
-          if(vtx3.Ptr2D[1] < 0) continue;
-          if(vtx3.Ptr2D[2] < 0) continue;
+          if(vtx3.Wire >= 0) continue;
           if(vtx3.Ptr2D[plane] == clstr.EndVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
-              throw art::Exception(art::errors::InsertFailure)
-                <<"Failed to associate cluster ID "<<clsID<<" with endpoint";
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster ID "<<clsID<<" with endpoint";
             } // exception
             break;
           } // vertex match
           ++vtxIndex;
         } // 3D vertices
       } // clstr.BeginVtx >= 0
-      // make PFParticles with ID = cluster ID, parent index = 0, no daughters
-      // There is one PFParticle for each cluster
-      size_t parent = clstr.ParentCluster;
-      if(parent == USHRT_MAX) parent = recob::PFParticle::kPFParticlePrimary;
-      dtrIndices.clear();
-      for(unsigned short jcl = 0; jcl < Clusters.size(); ++jcl)
-        if(Clusters[jcl].ParentCluster == icl) dtrIndices.push_back(jcl);
-      spcol.emplace_back((int)clstr.PDGCode, icl, parent, dtrIndices);
-      // cluster - PFParticle association
-      size_t cEnd = sccol.size();
-      size_t cStart = cEnd - 1;
-      if(!util::CreateAssn(*this, evt, sccol, spcol, *cp_assn, cStart, cEnd, sccol.size()-1))
-      {
-        throw art::Exception(art::errors::InsertFailure)
-        <<"Failed to associate cluster ID "<<clsID<<" with PFParticle";
-      } // exception
     } // icl
     
-//    std::cout<<"module clusters "<<Clusters.size()<<" sccol size "<<sccol.size()<<"\n";
+    // Get the list of PFParticles. These are a subset of the set of 3D matches of trajectory hits
+    std::vector<unsigned short> pfpList = fTCAlg->GetPFPList();
+    // get each of the match vector elements and construct the PFParticle
+    for(size_t ip = 0; ip < pfpList.size(); ++ip) {
+      unsigned short im = pfpList[ip];
+      tca::MatchStruct const& ms = fTCAlg->GetMatchStruct(im);
+      spcol.emplace_back(ms.PDGCode, ip, ms.Parent, ms.DtrIndices);
+      for(auto& icl : ms.ClusterIndices) {
+        if(icl > Clusters.size() - 1) std::cout<<"TC module: Bad cluster index "<<icl<<" size "<<Clusters.size()<<"\n";
+      } // icl
+      if(ms.sVtx3DIndex > Vertices.size() - 1) std::cout<<"TC module: Bad Vtx3DIndex = "<<ms.sVtx3DIndex<<" size "<<Vertices.size()<<"\n";
+      
+      // PFParticle - Cluster associations
+      if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, ms.ClusterIndices.begin(), ms.ClusterIndices.end()))
+      {
+        throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate clusters with PFParticle";
+      } // exception
+      // PFParticle - Vertex association
+      std::vector<unsigned int> vtmp(1);
+      // Translate the 3D vertex index ms.Vtx3DIndex into the index of complete 3D vertices that have been put into sv3col
+      unsigned short vtxIndex = 0;
+      for(unsigned short iv = 0; iv < Vertices.size(); ++iv) {
+        if(Vertices[iv].Wire >= 0) continue;
+        if(ms.sVtx3DIndex == iv) {
+          vtmp[0] = vtxIndex;
+          if(!util::CreateAssn(*this, evt, *pv_assn, spcol.size()-1, vtmp.begin(), vtmp.end())) 
+          {
+            throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate vertex with PFParticle";
+          }
+          break;
+        }
+        ++vtxIndex;
+      } // iv
+    } // ip
 
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
     std::unique_ptr<std::vector<recob::PFParticle> > pcol(new std::vector<recob::PFParticle>(std::move(spcol)));
-
 
     // clean up
     fTCAlg->ClearResults();
@@ -323,7 +337,8 @@ namespace cluster {
     evt.put(std::move(v3col));
     evt.put(std::move(cv_assn));
     evt.put(std::move(pcol));
-    evt.put(std::move(cp_assn));
+    evt.put(std::move(pc_assn));
+    evt.put(std::move(pv_assn));
 
   } // TrajCluster::produce()
   

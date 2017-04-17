@@ -2,7 +2,6 @@
 
 BEGIN_PROLOG
 
-microboone_track:                                       @local::standard_track3Dreco
 microboone_spacepts:                                    @local::standard_spacepts
 microboone_spacepts.TicksOffset:                        0.0         
 microboone_spacepts.ClusterModuleLabel:                 "dbcluster" 

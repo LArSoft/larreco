@@ -5,7 +5,7 @@ from os.path import isfile, join
 import os, json
 import argparse
 
-from utils import read_config, get_data, get_patch, get_vertices
+from utils import read_config, get_data, get_patch, get_vertices, get_nu_vertices
 
 def main(argv):
 
@@ -25,23 +25,25 @@ def main(argv):
 
     selected_view_idx = config['prepare_data_vtx_id']['selected_view_idx']   # set the view id
     nearby_empty = config['prepare_data_vtx_id']['nearby_empty']             # number of patches near each vtx, but with empty area in the central pixel
-    nearby_on_track = config['prepare_data_vtx_id']['nearby_on_track']       # number of patches on tracks, somewhere close to each vtx
+    nearby_on_track = config['prepare_data_vtx_id']['nearby_on_track']       # number of patches on tracks or showers, somewhere close to each vtx
     crop_event = config['prepare_data_vtx_id']['crop_event']                 # use true only if no crop on LArSoft level and not a noise dump
 
     print 'Using', nearby_empty, 'empty and', nearby_on_track, 'on track patches per each verex in view', selected_view_idx
 
-    max_capacity = 500000
+    max_capacity = 300000
     db = np.zeros((max_capacity, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
-    db_y = np.zeros((max_capacity, 3), dtype=np.int32)
+    db_y = np.zeros((max_capacity, 5), dtype=np.int32)
 
     kHadr  = 0x1   # hadronic inelastic scattering
     kPi0   = 0x2   # pi0 produced in this vertex
-    kDecay = 0x4   # point of particle decay
+    kDecay = 0x4   # point of particle decay (except pi0 decays)
     kConv  = 0x8   # gamma conversion
 
     cnt_ind = 0
     cnt_vtx = 0
     cnt_decay = 0
+    cnt_gamma = 0
+    cnt_nu = 0
     cnt_trk = 0
     cnt_void = 0
 
@@ -67,10 +69,18 @@ def main(argv):
             continue
 
         vtx = get_vertices(pdg)
-        print 'Found', vtx.shape[0], 'vertices'
+        nuvtx = get_nu_vertices(pdg)
+        print 'Found', vtx.shape[0], 'hadronic vertices/decay', nuvtx.shape[0], 'neutrino vertices'
 
         for v in range(vtx.shape[0]):
-            flags = vtx[v,2]
+            flags = 0
+            if vtx.shape[0] > 0:
+                flags = vtx[v,2]
+
+            nuflags = 0
+            if nuvtx.shape[0] > 0:
+                nuflags = nuvtx[v,2]
+
             if (flags & kHadr) > 0 or (flags & kDecay) > 0 or ((flags & kPi0) > 0 and (flags & kConv) > 0):
 
                 wire = vtx[v,0]
@@ -85,13 +95,19 @@ def main(argv):
                 if x_stop - x_start != PATCH_SIZE_W or y_stop - y_start != PATCH_SIZE_D:
                     continue
 
-                target = np.zeros(3)
-                if (flags & kDecay) > 0:
+                target = np.zeros(5, dtype=np.int32)     # [decay, hadronic_vtx, g_conversion, nu_primary, not_vtx]
+                if nuflags > 0:
+                    target[3] = 1
+                    cnt_nu += 1
+                elif (flags & kDecay) > 0:
                     target[0] = 1
-                    cnt_vtx += 1
-                else:
-                    target[1] = 1
                     cnt_decay += 1
+                elif (flags & kHadr) > 0:
+                    target[1] = 1
+                    cnt_vtx += 1
+                elif (flags & kConv) > 0:
+                    target[2] = 1
+                    cnt_gamma += 1
 
                 patch = get_patch(raw, wire, drif, PATCH_SIZE_W, PATCH_SIZE_D)
                 if cnt_ind < max_capacity:
@@ -109,8 +125,8 @@ def main(argv):
                         if tracks[wi,di] == 0 and showers[wi,di] == 0:
                             if cnt_ind < max_capacity:
                                 patch = get_patch(raw, wi, di, PATCH_SIZE_W, PATCH_SIZE_D)
-                                target = np.zeros(3)
-                                target[2] = 1
+                                target = np.zeros(5, dtype=np.int32)
+                                target[4] = 1
                                 db[cnt_ind] = patch
                                 db_y[cnt_ind] = target
                                 cnt_void += 1
@@ -128,8 +144,8 @@ def main(argv):
                         if tracks[wi,di] == 1 or showers[wi,di] == 1:
                             if cnt_ind < max_capacity:
                                 patch = get_patch(raw, wi, di, PATCH_SIZE_W, PATCH_SIZE_D)
-                                target = np.zeros(3)
-                                target[2] = 1
+                                target = np.zeros(5, dtype=np.int32)
+                                target[4] = 1
                                 db[cnt_ind] = patch
                                 db_y[cnt_ind] = target
                                 cnt_trk += 1
@@ -138,7 +154,7 @@ def main(argv):
                             else: break
                     n_trials += 1
 
-    print 'Total size', cnt_ind, ':: interactions:', cnt_vtx, 'decays:', cnt_decay, 'empty:', cnt_void, 'on-track', cnt_trk
+    print 'Total size', cnt_ind, ':: hadronic:', cnt_vtx, 'decays:', cnt_decay, 'nu-primary:', cnt_nu, 'g-conv:', cnt_gamma, 'empty:', cnt_void, 'on-track:', cnt_trk
 
     np.save(OUTPUT_DIR+'/db_view_'+str(selected_view_idx)+'_x', db[:cnt_ind])
     np.save(OUTPUT_DIR+'/db_view_'+str(selected_view_idx)+'_y', db_y[:cnt_ind])

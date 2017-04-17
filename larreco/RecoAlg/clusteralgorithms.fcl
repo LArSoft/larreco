@@ -8,30 +8,44 @@ standard_trajclusteralg:
    MakeNewHits:   true      # Merge hits in trajectory points and write them out
    Mode: 1                  # 1(-1) step from US(DS) to DS(US), 2 = don't use
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
-   MinPtsFit: [4, 2]        # Min number of points in the trajectory fit required on each pass
-   MinPts:   [10, 3]        # Min number of points in the trajectory required on each pass
-   MaxAngleRange: [0, 2]    # Max angle range allowed on each pass
+   MinPtsFit: [4, 4, 3]     # Min number of points in the trajectory fit required on each pass
+   MinPts:    [5, 5, 3]     # Min number of points in the trajectory required on each pass
+   MaxAngleCode: [0, 1, 2]  # Max angle range code allowed on each pass
+   MinMCSMom: [100, 0, 0]   # Minimum MCSMom for each pass
+   MaxVertexTrajSep: [6, 6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
    MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
-   HitErrFac: 0.2           # hit time error for fitting = fHitErrFac * (hit RMS)
-   MinAmp: 0.1              # Min amplitude for a wire signal being considered present (must be > 0)
-   AngleRanges: [65,85,90]  # Max angle (degrees) for small, intermediate and large angle trajectories
+   HitErrFac: 0.15          # hit time error for fitting = fHitErrFac * (hit RMS)
+   MinAmp:  1               # Min amplitude for a wire signal being considered present (must be > 0)
+   AngleRanges: [40, 55, 75, 90]  # Max angle (degrees) for small, intermediate and large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
-   ChargeCuts: [3, 0.15, 0.25]  # [Max(min) chg pull, Min allowed chg RMS, Max allowed chg RMS]
-   KinkCuts: [0.35, 1.5, 3] # kink angle, MCS kink significance, nPts fit
+   ChargeCuts: [4, 0.15, 0.25]  # [Max(min) chg pull, Min allowed chg RMS, Max allowed chg RMS]
+   KinkCuts: [0.4, 1.5, 3] # kink angle, MCS kink significance, nPts fit
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
    MaxWireSkipNoSignal:  3  # max allowed number of not-dead wires if no signal is present
    MaxWireSkipWithSignal: 100  # max allowed number of not-dead wires if a signal is present
+   QualityCuts: [ 0.8, 3] # Min points/wire, min consecutive pts after a gap
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
-   ShowerTag: [50, 5, 1]    # max MCSMom for a shower tag, max separation, min #traj < separation
+   ShowerTag: [ -1, 150, 20, 0.5, 3, 2, 100, 10, 0]
+   # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
+   # 1 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
+   # 2 Max separation
+   # 3 Max delta angle
+   # 4 rms width factor
+   # 5 Min shower 1/2 width (WSE units)
+   # 6 Min total Tj Pts
+   # 7 Min Tjs
+   # 8 Debug in CTP
    ChkStopCuts: [1.4, 5, 1] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
-   Vertex2DCuts:  [10, 4, 30, 10, 5, 100] # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr, Min MCSMom
-   Vertex3DChiCut: 10       # 3D vertex Chi/DOF cut
-   MaxVertexTrajSep: [6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
-   SkipAlgs: [  "MaskBadTPs", "ChkAllStop", "ChkStop" ]   # List of algs that should not be called
+   Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6]
+   # max short TjLen, max ShortTj-vtx sep, max LongTj-vtx sep, max PosPull, max PosErr, Min MCSMom, min frac Pts/Wire btw vtx and Tjs
+   Vertex3DChiCut: 3.5       # 3D vertex Chi/DOF cut
+   Match3DCuts: [ 0.3, 0, 3, 1 ] 
+   # dx (cm) matching cut, min MCSMom, min length for 2-view match, 2-view missing plane requirement
+   SkipAlgs: [  "VtxHitsSwap", "SplitHiChgHits", "ChkAllStop", "ChkStop", "CTKink", "HED" ]   # List of algs that should not be called
+   SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    StudyMode: false         # Set true to generate histograms (commented out)
-   TagAllTraj: false        # Tag trajectories as track-like or shower-like
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
    DebugPlane: -1           # Print debug output in a plane (3 = all planes, <0 = none)
    DebugWire: -1            # Print debug output for a trajectory that starts on DebugWire (<0 = print merging)

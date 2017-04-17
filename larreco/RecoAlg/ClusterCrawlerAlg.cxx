@@ -1258,7 +1258,7 @@ namespace cluster {
             continue;
           }
           const size_t newcl = tcl.size() -1;
-  if(prt) mf::LogVerbatim("CC")<<" Store "<<newcl;
+          if(prt) {  mf::LogVerbatim("CC")<<" Store "<<newcl; }
           tcl[newcl].BeginVtx = tcl[icl].BeginVtx;
           tcl[newcl].EndVtx = tcl[icl].EndVtx;
         } // dshits.size() > 0

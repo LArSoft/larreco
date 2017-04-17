@@ -4,11 +4,12 @@
 // File:        EmTrackClusterId_module.cc
 // Authors:     dorota.stefan@cern.ch pplonski86@gmail.com robert.sulej@cern.ch
 //
-// Module applies neural net to 2D image made of deconvoluted wire waveforms in
-// order to distinguish EM-like activity from track-like objects. Clusters of
-// hits that were recognized as EM-like event parts are produced. Module uses
-// clusters made with any algorithm as input; also single, unclustered hits are
-// saved as clusters in the output collection.
+// Module applies CNN to 2D image made of deconvoluted wire waveforms in order
+// to distinguish EM-like activity from track-like objects. New clusters of
+// hits are produced to include also unclustered hits and tag everything in
+// a common way.
+// NOTE: This module uses 3-output CNN models, see EmTrackMichelClusterId for
+// usage of 4-output models.
 //
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -92,7 +93,7 @@ private:
 	bool isViewSelected(int view) const;
 
 	PointIdAlg fPointIdAlg;
-	anab::MVAWriter<3> fMVAWriter;
+	anab::MVAWriter<3> fMVAWriter; // <-------------- using 4-output CNN model
 
 	art::InputTag fWireProducerLabel;
 	art::InputTag fHitModuleLabel;

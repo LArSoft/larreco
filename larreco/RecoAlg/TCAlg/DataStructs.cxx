@@ -3,42 +3,70 @@
 namespace tca {
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
-    "UnMaskHits",
-    "Kink",
+    "MaskBadTPs",
     "CTKink",
     "CTStepChk",
     "TryNextPass",
     "RevProp",
-    "ChkHiMultHits",
+    "CHMH",
     "SplitTraj",
     "Comp3DVx",
-    "HiEndDelta",
-    "HammerVx",
-    "HammerVx2",
+    "Comp3DVxIG",
+    "HED",
+    "HamVx",
+    "HamVx2",
     "JunkTj",
     "Killed",
-    "StopAtVtx",
     "EndMerge",
-    "TrimHits",
-    "ChkHiMultEndHits",
+    "TrimEndPts",
+    "CHMEH",
     "FillGap",
-    "UseGhostHits",
+    "Ghost",
     "ChkInTraj",
+    "StopBadFits",
+    "FixBegin",
     "FixEnd",
     "UseUnusedHits",
     "VtxTj",
-    "RefineVtx",
-    "MaskBadTPs",
+    "RefVtx",
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
-    "ChkAllStop"
+    "ChkAllStop",
+    "FTBRevProp",
+    "StopAtTj",
+    "Match3D",
+    "VtxHitsSwap",
+    "SplitHiChgHits",
+    "InShower",
+    "ShowerParent",
+    "ShowerTj"
+  };
+
+  const std::vector<std::string> StopFlagNames {
+    "Signal",
+    "AtKink",
+    "AtVtx",
+    "Bragg",
+    "AtTj"
   };
   
   const std::vector<std::string> VtxBitNames {
     "Fixed",
     "VtxTrjTried",
-    "VtxRefined"
+    "OnDeadWire",
+    "VtxRefined",
+    "NiceVtx",
+    "kInShower"
   } ;
+  
+  geo::PlaneID DecodeCTP(CTP_t CTP) {
+    geo::PlaneID tmp;
+    tmp.Cryostat = CTP / Cpad;
+    tmp.TPC = (CTP - tmp.Cryostat * Cpad) / Tpad;
+    tmp.Plane = (CTP % 10);
+    return tmp;
+  }
+  
 } // namespace tca
 

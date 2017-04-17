@@ -242,7 +242,7 @@ namespace cluster {
         *this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end())
         )
       {
-        throw art::Exception(art::errors::InsertFailure)
+        throw art::Exception(art::errors::ProductRegistrationFailure)
           <<"Failed to associate hit "<<iht<<" with cluster "<<icl;
       } // exception
       // make the cluster - endpoint associations
@@ -258,7 +258,7 @@ namespace cluster {
           if(vtx3.Ptr2D[plane] == clstr.BeginVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
-              throw art::Exception(art::errors::InsertFailure)
+              throw art::Exception(art::errors::ProductRegistrationFailure)
                 <<"Failed to associate cluster "<<icl<<" with vertex";
             } // exception
             break;
@@ -278,7 +278,7 @@ namespace cluster {
           if(vtx3.Ptr2D[plane] == clstr.EndVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
-              throw art::Exception(art::errors::InsertFailure)
+              throw art::Exception(art::errors::ProductRegistrationFailure)
                 <<"Failed to associate cluster "<<icl<<" with endpoint";
             } // exception
             break;
