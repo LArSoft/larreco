@@ -31,9 +31,9 @@ namespace tca {
     // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
     // wire offset
     double iw0 = tjs.geom->WireCoordinate(0, 0, iPlnID);
-    // cosine component
+    // cosine-like component
     double ics = tjs.geom->WireCoordinate(1, 0, iPlnID) - iw0;
-    // sine component
+    // sine-like component
     double isn = tjs.geom->WireCoordinate(0, 1, iPlnID) - iw0;
     
     double jw0 = tjs.geom->WireCoordinate(0, 0, jPlnID);
@@ -64,9 +64,9 @@ namespace tca {
       return;
     } // jtp.Dir[1] == 0
     
-    // make a copy of itp and shift it by 10 wires
+    // make a copy of itp and shift it by many wires to avoid precision problems
     TrajPoint itp2 = itp;
-    MoveTPToWire(itp2, itp2.Pos[0] + 10);
+    MoveTPToWire(itp2, itp2.Pos[0] + 100);
     // Create a second TVector3 for the shifted point
     TVector3 pos2;
     // Find the X position corresponding to the shifted point 
@@ -84,6 +84,8 @@ namespace tca {
     }
     dir = pos2 - pos;
     dir.SetMag(1);
+    // Reverse the direction?
+    if(dir[0] * itp.Dir[0] < 0) dir *= -1;
 
   } // TrajPoint3D
 
@@ -2320,6 +2322,7 @@ namespace tca {
           if(tjs.cots[ic].ShowerTjID != tj.ID) continue;
           const ShowerStruct& ss = tjs.cots[ic];
           mf::LogVerbatim myprt("TC");
+          myprt<<"Shower index "<<ic<<" ";
           myprt<<someText<<" Envelope";
           for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
           myprt<<" Energy "<<(int)ss.Energy;

@@ -33,9 +33,53 @@ namespace tca {
       if(ms.PDGCode != 1111) continue;
       // ensure we are in the correct tpcid using the first Tj CTP
       unsigned short it1 = ms.TjIDs[0] - 1;
-      geo::PlaneID plane1ID = DecodeCTP(tjs.allTraj[it1].CTP);
-      if(plane1ID.Cryostat != cstat) continue;
-      if(plane1ID.TPC != tpc) continue;
+      geo::PlaneID iPlnID = DecodeCTP(tjs.allTraj[it1].CTP);
+      if(iPlnID.Cryostat != cstat) continue;
+      if(iPlnID.TPC != tpc) continue;
+      // find the best order so we get the most likely pair on the first try.
+      // This requires knowing the X positions
+      std::vector<float> xpo(ms.TjIDs.size());
+      for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
+        // find this ID in the shower struct vector
+        unsigned short issIndex = GetCotsIndex(tjs, ms.TjIDs[ii]);
+        if(issIndex == USHRT_MAX) continue;
+        ShowerStruct& iss = tjs.cots[issIndex];
+        TrajPoint& itp = tjs.allTraj[iss.ShowerTjID - 1].Pts[0];
+        geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
+        xpo[ii] = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iPlnID);
+      } // ii
+      std::vector<float> matchWght(ms.TjIDs.size(), 100);
+      for(unsigned short ii = 0; ii < ms.TjIDs.size() - 1; ++ii) {
+        unsigned short issIndex = GetCotsIndex(tjs, ms.TjIDs[ii]);
+        if(issIndex == USHRT_MAX) continue;
+        ShowerStruct& iss = tjs.cots[issIndex];
+        for(unsigned short jj = ii + 1; jj < ms.TjIDs.size(); ++jj) {
+          unsigned short jssIndex = GetCotsIndex(tjs, ms.TjIDs[jj]);
+          if(jssIndex == USHRT_MAX) continue;
+          ShowerStruct& jss = tjs.cots[jssIndex];
+          float dxpull = (xpo[ii] - xpo[jj]) / 0.3;
+          // weight by energy match
+          float eerr = iss.Energy;
+          if(jss.Energy > eerr) eerr = jss.Energy;
+          // Assume a 30% error on the energy match
+          eerr *= 0.3;
+          float epull = (iss.Energy - jss.Energy) / eerr;
+          float wght = 0.5 * sqrt(dxpull * dxpull + epull * epull);
+          if(wght < matchWght[ii]) matchWght[ii] = wght;
+          if(wght < matchWght[jj]) matchWght[jj] = wght;
+        } // jj
+      } // ii
+      std::vector<SortEntry> sortVec(matchWght.size());
+      for(unsigned short ii = 0; ii < matchWght.size(); ++ii) {
+        sortVec[ii].index = ii;
+        sortVec[ii].length = matchWght[ii];
+      }
+      std::sort(sortVec.begin(), sortVec.end(), lessThan);
+      // re-order TjIDs
+      std::vector<unsigned short> tmp(ms.TjIDs.size());
+      for(unsigned short ii = 0; ii < matchWght.size(); ++ii) tmp[ii] = ms.TjIDs[sortVec[ii].index];
+      ms.TjIDs = tmp;
+
       // sum of the matching weights
       float wsum = 0;
       ms.sXYZ = {0, 0, 0};
@@ -44,30 +88,40 @@ namespace tca {
       unsigned short ne = 0;
       ms.eXYZ = {0, 0, 0};
       TVector3 prevDir = {0, 0, 0};
+      // count the number of times each Tj is matched
+      std::vector<unsigned short> cntUsed(ms.TjIDs.size());
+      
       for(unsigned short ii = 0; ii < ms.TjIDs.size() - 1; ++ii) {
         // find this ID in the shower struct vector
-        unsigned short issIndex = ShowerTjCotsIndex(tjs, ms.TjIDs[ii]);
+        unsigned short issIndex = GetCotsIndex(tjs, ms.TjIDs[ii]);
         if(issIndex == USHRT_MAX) continue;
         ShowerStruct& iss = tjs.cots[issIndex];
         Trajectory& itj = tjs.allTraj[iss.ShowerTjID - 1];
         TrajPoint& itp = itj.Pts[0];
-        unsigned short iPln = DecodeCTP(itp.CTP).Plane;
+        geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
+        unsigned short iPln = iPlnID.Plane;
         for(unsigned short jj = ii + 1; jj < ms.TjIDs.size(); ++jj) {
-          unsigned short jssIndex = ShowerTjCotsIndex(tjs, ms.TjIDs[jj]);
+          unsigned short jssIndex = GetCotsIndex(tjs, ms.TjIDs[jj]);
           if(jssIndex == USHRT_MAX) continue;
           ShowerStruct& jss = tjs.cots[jssIndex];
           Trajectory& jtj = tjs.allTraj[jss.ShowerTjID - 1];
           TrajPoint& jtp = jtj.Pts[0];
-          unsigned short jPln = DecodeCTP(jtp.CTP).Plane;
+          // check traj point X direction compatibility
+          if(std::abs(itp.Dir[1]) > 0.1 && std::abs(jtp.Dir[1]) > 0.1 && itp.Dir[1] * jtp.Dir[1] < 0) {
+            if(prt) mf::LogVerbatim("TC")<<" FSEP: Incompatible Tp X directions "<<itp.Dir[1]<<" "<<jtp.Dir[1];
+            continue;
+          }
+          geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
+          unsigned short jPln = jPlnID.Plane;
           TVector3 pos, dir;
           TrajPoint3D(tjs, itp, jtp, pos, dir);
           if(dir.X() > 1) {
             if(prt) mf::LogVerbatim("TC")<<" FSEP: TrajPoint3D failed using points "<<iPln<<":"<<PrintPos(tjs, itp.Pos)<<" "<<jPln<<":"<<PrintPos(tjs, jtp.Pos);
             continue;
           }
+          float wght = 2 / (matchWght[ii] + matchWght[jj]);
           // de-weight matches in which the start charge isn't known
-          float wght = 1;
-          if(iss.StartChg == 0 || jss.StartChg == 0) wght = 0.1;
+          if(iss.StartChg == 0 || jss.StartChg == 0) wght /= 0.1;
           wsum += wght;
           ms.sXYZ[0] += wght * pos[0];
           ms.sXYZ[1] += wght * pos[1];
@@ -84,30 +138,33 @@ namespace tca {
               }
             }
           } //  check for direction sign change
-          if(prt) {
-            mf::LogVerbatim myprt("TC");
-            myprt<<" itp "<<iPln<<":"<<PrintPos(tjs, itp.Pos)<<std::fixed<<std::setprecision(2)<<" Angle "<<itp.Ang;
-            myprt<<" jtp "<<jPln<<":"<<PrintPos(tjs, jtp.Pos)<<" Angle "<<jtp.Ang;
-            myprt<<" dir "<<std::fixed<<std::setprecision(2)<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<" wght "<<wght;
-            myprt<<" prevDir "<<std::fixed<<std::setprecision(2)<<prevDir[0]<<" "<<prevDir[1]<<" "<<prevDir[2];
-          }
           ms.sDir += wght * dir;
-          // now find eXYZ
+          // now find eXYZ. This is done only to get the 3D shower direction correct
           TrajPoint& ietp = itj.Pts[2];
           TrajPoint& jetp = jtj.Pts[2];
-          float ieX = tjs.detprop->ConvertTicksToX(ietp.Pos[1]/tjs.UnitsPerTick, iPln, tpc, cstat);
-          float jeX = tjs.detprop->ConvertTicksToX(jetp.Pos[1]/tjs.UnitsPerTick, iPln, tpc, cstat);
+          float ieX = tjs.detprop->ConvertTicksToX(ietp.Pos[1]/tjs.UnitsPerTick, iPlnID);
+          float jeX = tjs.detprop->ConvertTicksToX(jetp.Pos[1]/tjs.UnitsPerTick, jPlnID);
           double yp, zp;
           tjs.geom->IntersectionPoint(std::nearbyint(ietp.Pos[0]), std::nearbyint(jetp.Pos[0]), iPln, jPln, cstat, tpc, yp, zp);
-          if(yp < tjs.YLo || yp > tjs.YHi || zp < tjs.ZLo || zp > tjs.ZHi) continue;
+          ++cntUsed[ii];
+          ++cntUsed[jj];
+          if(prt) {
+            mf::LogVerbatim myprt("TC");
+            myprt<<" FSEP: itp "<<iPln<<":"<<PrintPos(tjs, itp.Pos)<<std::fixed<<std::setprecision(2)<<" Angle "<<itp.Ang;
+            myprt<<" jtp "<<jPln<<":"<<PrintPos(tjs, jtp.Pos)<<" Angle "<<jtp.Ang;
+            myprt<<" start pos "<<std::fixed<<std::setprecision(1)<<pos[0]<<" "<<pos[1]<<" "<<pos[2];
+            myprt<<" dir "<<std::fixed<<std::setprecision(2)<<dir[0]<<" "<<dir[1]<<" "<<dir[2];
+            myprt<<" wght "<<wght;
+            myprt<<" end pos "<<std::fixed<<std::setprecision(1)<<0.5 * (ieX + jeX)<<" "<<yp<<" "<<zp;
+          }
           ++ne;
           ms.eXYZ[0] += 0.5 * (ieX + jeX);
           ms.eXYZ[1] += yp;
           ms.eXYZ[2] += zp;
         } // jj
       } // ii
-      if(wsum == 0) {
-        if(prt) mf::LogVerbatim("TC")<<" FSEP: Failed to find shower start. Skip this match";
+      if(wsum == 0 || ne == 0) {
+        if(prt) mf::LogVerbatim("TC")<<" FSEP: Failed to find shower start or end. "<<wsum<<" "<<ne<<" Skip this match";
         continue;
       }
       for(auto& xyz : ms.sXYZ) xyz /= wsum;
@@ -119,8 +176,23 @@ namespace tca {
           if(ms.eXYZ[ixyz] > ms.sXYZ[ixyz] && ms.sDir[ixyz] < 0) ms.sDir *= -1;
           break;
         }
+      } // ixyz
+      // We can do better on the end point by using the shower direction instead of using the shower Tj end points.
+      // This ensures that the shower start and end lie on the shower axis
+      float length = 0;
+      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
+        length += (ms.eXYZ[ixyz] - ms.sXYZ[ixyz]) * (ms.eXYZ[ixyz] - ms.sXYZ[ixyz]);
+      } // ixyz
+      length = sqrt(length);
+      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) ms.eXYZ[ixyz] = ms.sXYZ[ixyz] + ms.sDir[ixyz] * length;
+      // Check for a shower that wasn't used in the match
+      unsigned short notUsedShower = USHRT_MAX;
+      for(unsigned short ii = 0; ii < cntUsed.size(); ++ii) if(cntUsed[ii] == 0) notUsedShower = ii;
+      if(notUsedShower != USHRT_MAX) {
+        notUsedShower = GetCotsIndex(tjs, ms.TjIDs[notUsedShower]);
+        // Zero the charge because it isn't reliable
+        tjs.cots[notUsedShower].StartChg = 0;
       }
-//      if(ms.eXYZ[2] > ms.sXYZ[2] && ms.sDir.Z() < 0) ms.sDir *= -1;
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<" FSEP: TjIDs";
@@ -128,7 +200,12 @@ namespace tca {
         myprt<<" Start "<<std::fixed<<std::setprecision(1)<<ms.sXYZ[0]<<" "<<ms.sXYZ[1]<<" "<<ms.sXYZ[2];
         myprt<<" End "<<std::fixed<<std::setprecision(1)<<ms.eXYZ[0]<<" "<<ms.eXYZ[1]<<" "<<ms.eXYZ[2];
         myprt<<" 3D Dir "<<std::setprecision(2)<<ms.sDir.X()<<" "<<ms.sDir.Y()<<" "<<ms.sDir.Z();
-      }
+        if(notUsedShower == USHRT_MAX) {
+          myprt<<" All showers matched";
+        } else {
+          myprt<<" Note: Shower "<<notUsedShower<<" was not used in the 3D match. It is probably bad.";
+        }
+      } // prt
       std::cout<<"Shower Dir "<<std::setprecision(2)<<ms.sDir.X()<<" "<<ms.sDir.Y()<<" "<<ms.sDir.Z()<<"\n";
     } // im
 
@@ -196,7 +273,7 @@ namespace tca {
       for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
         unsigned short istjID = ms.TjIDs[ii];
         // find this ID in the shower struct vector
-        unsigned short iss = ShowerTjCotsIndex(tjs, istjID);
+        unsigned short iss = GetCotsIndex(tjs, istjID);
         if(iss == USHRT_MAX) continue;
         geo::PlaneID planeID = DecodeCTP(tjs.cots[iss].CTP);
         unsigned short iPln = planeID.Plane;
@@ -213,12 +290,19 @@ namespace tca {
           double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
           double cosgamma = std::abs(std::sin(angleToVert) * ss3.Dir.Y() + std::cos(angleToVert) * ss3.Dir.Z());
           if(cosgamma == 0) continue;
-          double dx = tjs.geom->WirePitch(planeID) / cosgamma;
+          // dQ was normalized to 1 WSE (1 wire spacing equivalent) in FindStartChg
+          double dx = tjs.geom->WirePitch(planeID);
           double dQ = tjs.cots[iss].StartChg;
           // Get the time using the shower charge center position
           Trajectory& stj = tjs.allTraj[tjs.cots[iss].ShowerTjID - 1];
           double time = stj.Pts[1].Pos[1] / tjs.UnitsPerTick;
-          ss3.dEdx[iPln] = fCaloAlg.dEdx_AREA(dQ, time, dx, iPln);
+          double T0 = 0;
+          double lifeCorr = fCaloAlg.LifetimeCorrection(time, T0);
+//          double dedx = fCaloAlg.dEdx_AREA(dQ, time, dx, iPln);
+          // protect against bogus values assuming that 1 MIP = 2.3 MeV/cm in LAr
+          // Reject < 1/2 MIP and > 5 MIP
+          if(dedx < 1 || dedx > 10) dedx = 0;
+          ss3.dEdx[iPln] = dedx;
           if(prt) mf::LogVerbatim("TC")<<"Shower index "<<iss<<" plane "<<iPln<<" plane "<<iPln<<" dQ "<<(int)dQ<<" dx "<<dx<<" dE/dx "<<ss3.dEdx[iPln];
         }
       } // ii
@@ -476,15 +560,17 @@ namespace tca {
         if(prt || (tjs.ShowerTag[9] == 3 && tj.CTP == inCTP)) PrintTrajectory("FSO", tjs, tj, USHRT_MAX);
       } // ic
     } // print trajectories
-
+    
+    if(tjs.ShowerTag[9] >= 100) {
+      unsigned short ic = tjs.ShowerTag[9] - 100;
+      if(ic < tjs.cots.size() && tjs.cots[ic].CTP == inCTP) DumpShowerPts(tjs, ic);
+    }
     
   } // FindShowers
-
+  
   ////////////////////////////////////////////////
-  void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
+  void FillPts(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
-    // Defines the properties of a shower using the trajectory points within the trajectories listed
-    // in TjIDs. This wipes out any other information that may exist
     
     if(cotIndex > tjs.cots.size() - 1) return;
     
@@ -550,9 +636,17 @@ namespace tca {
     
     // Put the total charge into the shower Tj
     tjs.allTraj[ss.ShowerTjID - 1].AveChg = totChg;
+    if(prt) mf::LogVerbatim("TC'")<<"FP: cotIndex "<<cotIndex<<" filled "<<cnt<<" points including "<<stp0.Hits.size()<<" loose hits. Total charge "<<(int)totChg;
     
-    if(prt) mf::LogVerbatim("TC'")<<"DS: cotIndex "<<cotIndex<<" filled "<<cnt<<" points including "<<stp0.Hits.size()<<" loose hits. Total charge "<<(int)totChg;
+  } // FillPts
 
+  ////////////////////////////////////////////////
+  void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
+  {
+    // Defines the properties of a shower using the trajectory points within the trajectories listed
+    // in TjIDs. This wipes out any other information that may exist
+    
+    FillPts(tjs, cotIndex, prt);
     UpdateShower(tjs, cotIndex, prt);
 
   } // DefineShower
@@ -655,18 +749,16 @@ namespace tca {
       mf::LogWarning("TC")<<"Failed to define Shower Tj";
       return false;
     }
-    // iterate a few times to nudge the angle into position
+    DefineEnvelope(tjs, cotIndex, prt);
     unsigned short nit = 0;
-    bool needsUpdate = true;
-    RefineShowerTj(tjs, cotIndex, prt);
+    bool needsUpdate = RefineShowerTj(tjs, cotIndex, prt);
     while(needsUpdate && nit < 3) {
       FillRotPos(tjs, cotIndex, prt);
       DefineShowerTj(tjs, cotIndex, prt);
       needsUpdate = RefineShowerTj(tjs, cotIndex, prt);
       ++nit;
     } // needsUpdate
-    DefineEnvelope(tjs, cotIndex, prt);
-    
+
     // Try to add more Tjs to the shower
     if(AddTjsInsideEnvelope(tjs, cotIndex, prt)) {
       FindChargeCenter(tjs, cotIndex, prt);
@@ -686,12 +778,21 @@ namespace tca {
     
     // Try to add loose hits to the shower
     if(AddLooseHits(tjs, cotIndex, prt)) {
+      DefineShower(tjs, cotIndex, prt);
       FindChargeCenter(tjs, cotIndex, prt);
       FindAngle(tjs, cotIndex, prt);
       FillRotPos(tjs, cotIndex, prt);
       DefineShowerTj(tjs, cotIndex, prt);
+      unsigned short nit = 0;
+      bool needsUpdate = RefineShowerTj(tjs, cotIndex, prt);
+      while(needsUpdate && nit < 3) {
+        FillRotPos(tjs, cotIndex, prt);
+        DefineShowerTj(tjs, cotIndex, prt);
+        needsUpdate = RefineShowerTj(tjs, cotIndex, prt);
+        ++nit;
+      } // needsUpdate
+      DefineEnvelope(tjs, cotIndex, prt);
     }
-   
     return true;
   } // UpdateShower
 
@@ -995,9 +1096,9 @@ namespace tca {
     // and kill the two fragments. This doesn't require making a new shower however. We can just
     // re-purpose one of the showers
     
-    unsigned short icotIndex = ShowerTjCotsIndex(tjs, itj.ID);
+    unsigned short icotIndex = GetCotsIndex(tjs, itj.ID);
     ShowerStruct& iss = tjs.cots[icotIndex];
-    unsigned short jcotIndex = ShowerTjCotsIndex(tjs, jtj.ID);
+    unsigned short jcotIndex = GetCotsIndex(tjs, jtj.ID);
     ShowerStruct& jss = tjs.cots[jcotIndex];
     
     iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.end());
@@ -1055,7 +1156,7 @@ namespace tca {
     
     // initialize all of the points, except the first one if there is an external parent
     for(unsigned short ii = 0; ii < 3; ++ii) {
-      if(ss.ParentID > 0 && ii == 0) continue;
+//      if(ss.ParentID > 0 && ii == 0) continue;
       TrajPoint& tp = tjs.allTraj[stjIndex].Pts[ii];
       tp.Chg = 0;
       tp.HitPos[0] = 0;
@@ -1098,12 +1199,7 @@ namespace tca {
     unsigned short stjIndex = ss.ShowerTjID - 1;
     if(stjIndex > tjs.allTraj.size() - 1) return;
     if(tjs.allTraj[stjIndex].Pts.size() != 3) return;
-    
-    if(ss.ParentID > 0) {
-      if(prt) mf::LogVerbatim("TC")<<"FA: Using external parent Tj angle ";
-      return;
-    }
-    
+
     TrajPoint& stp1 = tjs.allTraj[stjIndex].Pts[1];
     
     // Do a least squares fit using all the points
@@ -1120,9 +1216,22 @@ namespace tca {
     double cs = cos(-ss.Angle);
     double sn = sin(-ss.Angle);
     
+    // fit only the starting points if the angle is known. The RotPos vector
+    // has been filled so we can use that get a better estimate of the shower angle
+    // at the start point
+    bool fitNeg = (tjs.ShowerTag[0] > 3 && ss.Angle != 0);
+    
+    unsigned short nptsFit = 0;
     for(unsigned short ii = 0; ii < ss.Pts.size(); ++ii) {
+      if(fitNeg) {
+        // only fit the points in the first half of the shower
+        if(ss.Pts[ii].RotPos[0] > 0) break;
+        // Don't use the point if it is far from the shower axis
+        if(std::abs(ss.Pts[ii].RotPos[1]) > 20) continue;
+      }
       // Weight by distance^2 from the charge center
-      wt = PosSep2(ss.Pts[ii].Pos, stp1.Pos);
+//      wt = PosSep2(ss.Pts[ii].Pos, stp1.Pos);
+      wt = 10;
       sum  += wt;
       xx = wt * (ss.Pts[ii].Pos[0] - stp1.Pos[0]);
       yy = wt * (ss.Pts[ii].Pos[1] - stp1.Pos[1]);
@@ -1133,7 +1242,13 @@ namespace tca {
       sumx2 += wt * xr * xr;
       sumy2 += wt * yr * yr;
       sumxy += wt * xr * yr;
+      ++nptsFit;
     } // ii
+    
+    if(nptsFit < 3) {
+      if(prt) mf::LogVerbatim("TC")<<"FA: Not enough points to fit at the shower start";
+      return;
+    }
     // calculate coefficients and std dev
     double delta = sum * sumx2 - sumx * sumx;
     if(delta == 0) {
@@ -1143,23 +1258,20 @@ namespace tca {
     }
     // A is the intercept (This should be ~0 if the charge center is known)
     double A = (sumx2 * sumy - sumx * sumxy) / delta;
+    double AErr = A;
     // B is the slope
     double B = (sumxy * sum  - sumx * sumy) / delta;
     float dang = atan(B);
-/*
-    // reverse by pi to be consistent with a previously found angle
-    if(std::abs(angle - ss.Angle) > 1.57) {
-      if(angle < 0) { angle += M_PI; } else { angle -= M_PI; }
-    }
-*/
     ss.Angle += dang;
     ss.AngleErr = 1.5;
-    double ndof = ss.Pts.size() - 1;
+    double ndof = nptsFit - 1;
     double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
-    if(varnce > 0) ss.AngleErr = sqrt(varnce * sum / delta);
-    // TODO need a scheme for estimating the angle error
-    if(ss.AngleErr < 0.1) ss.AngleErr = 0.1;
-    if(prt) mf::LogVerbatim("TC")<<"FA: Pos "<<PrintPos(tjs, stp1)<<" dang "<<dang<<" Angle "<<ss.Angle<<" Err "<<ss.AngleErr<<" npts "<<ss.Pts.size();
+    if(varnce > 0) {
+      ss.AngleErr = sqrt(varnce * sum / delta);
+      AErr = sqrt(varnce * sum / delta);
+    }
+    
+    if(prt) mf::LogVerbatim("TC")<<"FA: "<<cotIndex<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stp1)<<" Intercept "<<(int)A<<" +/- "<<(int)AErr<<" dang "<<dang<<" Angle "<<ss.Angle<<" Err "<<ss.AngleErr<<" npts fit "<<nptsFit<<" fitNeg? "<<fitNeg;
     
   } // FindAngle
   
@@ -1370,7 +1482,7 @@ namespace tca {
     // Ignore fat showers
     if(ss.AspectRatio > 0.5) return false;
     // Ignore showers with an external parent
-//    if(ss.ParentID > 0) return false;
+    //    if(ss.ParentID > 0) return false;
     
     // check the beginning of the shower to see if the points are most on the shower axis
     float sum = 0;
@@ -1685,7 +1797,6 @@ namespace tca {
 
   } // AddLooseHits
   
-  
   ////////////////////////////////////////////////
   void FindStartChg(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
@@ -1724,24 +1835,42 @@ namespace tca {
       if(schg[ii] > hiChg) hiChg = schg[ii];
     }
     // Calculate the charge in 1 WSE unit of distance. We averaged over 3 bins each
-    // of which is 4 WSE in size
+    // of which were 4 WSE (Wire Spacing Equivalents)
     ss.StartChg /= 12;
     ss.StartChgErr = (hiChg - loChg) / 12;
     // Then correct for the path length in the wire cell
     TrajPoint& stp0 = tjs.allTraj[ss.ShowerTjID-1].Pts[0];
-    float path = 50;
+    // The path length cannot exceed 12 WSE units
+    float path = 12;
     if(stp0.Dir[0] != 0) path = 1 / std::abs(stp0.Dir[0]);
-    if(path > 50) path = 50;
+    if(path > 12) path = 12;
     ss.StartChg *= path;
     ss.StartChgErr *= path;
-    
-//    ss.Chg *= path;
-//    ss.ChgErr *= path;
     
     if(prt) mf::LogVerbatim("TC")<<"FSC: cotIndex "<<cotIndex<<" path length "<<path<<" Starting charge "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr<<" StartPt  "<<ss.StartPt<<" at pos "<<PrintPos(tjs, ss.Pts[ss.StartPt].Pos);
     
   } // FindStartChg
   
+  ////////////////////////////////////////////////
+  void DumpShowerPts(TjStuff& tjs, const unsigned short& cotIndex)
+  {
+    // Print the shower points to the screen. The user should probably pipe the output to a text file
+    // then grep this file for the character string PTS which is piped to a text file which can then be
+    // imported into Excel, etc
+    // Finds the charge at the start of a shower
+    if(cotIndex > tjs.cots.size() - 1) return;
+    
+    ShowerStruct& ss = tjs.cots[cotIndex];
+    if(ss.TjIDs.empty()) return;
+    std::cout<<"PTS Pos0  Pos1   RPos0 RPos1 Chg TID\n";
+    for(auto& pt : ss.Pts) {
+      std::cout<<"PTS "<<std::fixed<<std::setprecision(1)<<pt.Pos[0]<<" "<<pt.Pos[1]<<" "<<pt.RotPos[0]<<" "<<pt.RotPos[1];
+      std::cout<<" "<<(int)pt.Chg<<" "<<pt.TID;
+      std::cout<<"\n";
+    }
+    
+  } // DumpShower
+
   ////////////////////////////////////////////////
   void TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt)
   {
@@ -1783,73 +1912,14 @@ namespace tca {
   } // TransferTjHits
 
   ////////////////////////////////////////////////
-  void CollectLooseHits(TjStuff& tjs, const CTP_t& inCTP, bool prt)
-  {
-    // Collect hits in the vicinity of the shower
-    
-    geo::PlaneID planeID = DecodeCTP(inCTP);
-    unsigned short ipl = planeID.Plane;
-    
-    for(unsigned short ish = 0; ish < tjs.cots.size(); ++ish) {
-      ShowerStruct& ss = tjs.cots[ish];
-      // Ensure that this is the correct CTP
-      if(ss.CTP != inCTP) continue;
-      // Ensure that it is valid
-      if(ss.TjIDs.empty()) continue;
-      if(ss.ShowerTjID == 0) continue;
-      if(ss.ShowerTjID == 0) continue;
-      // Tp 1 of stj has all of the shower hits
-      Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      // look for other hits inside the envelope. Find the range of wires that spans the envelope
-      float fLoWire = 1E6;
-      float fHiWire = 0;
-      // and the range of ticks
-      float loTick = 1E6;
-      float hiTick = 0;
-      for(auto& vtx : ss.Envelope) {
-        if(vtx[0] < fLoWire) fLoWire = vtx[0];
-        if(vtx[0] > fHiWire) fHiWire = vtx[0];
-        if(vtx[1] < loTick) loTick = vtx[1];
-        if(vtx[1] > hiTick) hiTick = vtx[1];
-      } // vtx
-      loTick /= tjs.UnitsPerTick;
-      hiTick /= tjs.UnitsPerTick;
-      unsigned int loWire = std::nearbyint(fLoWire);
-      unsigned int hiWire = std::nearbyint(fHiWire) + 1;
-      if(hiWire > tjs.LastWire[ipl]-1) hiWire = tjs.LastWire[ipl]-1;
-      std::array<float, 2> point;
-      for(unsigned int wire = loWire; wire < hiWire; ++wire) {
-        // skip bad wires or no hits on the wire
-        if(tjs.WireHitRange[ipl][wire].first < 0) continue;
-        unsigned int firstHit = (unsigned int)tjs.WireHitRange[ipl][wire].first;
-        unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
-        for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-          // used in a trajectory?
-          if(tjs.fHits[iht].InTraj != 0) continue;
-          // inside the tick range?
-          if(tjs.fHits[iht].PeakTime < loTick) continue;
-          // Note that hits are sorted by increasing time so we can break here
-          if(tjs.fHits[iht].PeakTime > hiTick) break;
-          // see if this hit is inside the envelope
-          point[0] = tjs.fHits[iht].WireID.Wire;
-          point[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
-          if(!PointInsideEnvelope(point, ss.Envelope)) continue;
-          stj.Pts[0].Hits.push_back(iht);
-          tjs.fHits[iht].InTraj = stj.ID;
-        } // iht
-      } // wire
-    } // ish
-  } // CollectLooseHits
-
-  ////////////////////////////////////////////////
-  unsigned short ShowerTjCotsIndex(TjStuff& tjs, const unsigned short& ShowerTjID)
+  unsigned short GetCotsIndex(TjStuff& tjs, const unsigned short& ShowerTjID)
   {
     for(unsigned short ii = 0; ii < tjs.cots.size(); ++ii) {
       if(ShowerTjID == tjs.cots[ii].ShowerTjID) return ii;
     } // iii
     return USHRT_MAX;
     
-  } // ShowerTjCotsIndex
+  } // GetCotsIndex
 
   ////////////////////////////////////////////////
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss)
