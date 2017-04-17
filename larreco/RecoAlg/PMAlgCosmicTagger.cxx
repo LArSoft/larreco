@@ -41,7 +41,8 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
         {
             auto const & node = *(trk.Nodes()[nidx]);
             auto const & tpcGeo = geom->TPC(node.TPC(), node.Cryo());
-            auto driftDir = abs(tpcGeo.DetectDriftDirection());
+            // DetectDriftDirection returns a short int, but switch requires an int
+            int driftDir = abs(tpcGeo.DetectDriftDirection());
             p = node.Point3D()[driftDir-1];
             switch (driftDir)
             {

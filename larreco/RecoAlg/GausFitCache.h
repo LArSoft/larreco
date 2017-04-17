@@ -241,7 +241,7 @@ namespace hit {
        * 
        * The template FuncSum is implementing all these requirements.
        */
-      template <unsigned int NFunc, template <unsigned int NFunc> class Func>
+      template <unsigned int NFunc, template <unsigned int> class Func>
       struct InitializeFuncSumVector {
         static void fill(CompiledGausFitCacheBaseStruct& cache);
       }; // struct InitializeFuncSumVector
@@ -423,7 +423,7 @@ namespace hit {
     
     // --- CompiledGausFitCacheBaseStruct::InitializeFuncSumVector -------------
     
-    template <unsigned int NFunc, template <unsigned int NFunc> class Func>
+    template <unsigned int NFunc, template <unsigned int> class Func>
     void
     CompiledGausFitCacheBaseStruct::InitializeFuncSumVector<NFunc, Func>::fill
       (CompiledGausFitCacheBaseStruct& cache)

@@ -245,12 +245,11 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 			art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
 
 			// which idx from start, except disabled, really....
-			unsigned int hIdxs[trk->size()];
-			for (size_t h = 0, cnt = 0; h < trk->size(); h++)
-			{
-				if ((*trk)[h]->IsEnabled()) hIdxs[h] = cnt++;
-				else hIdxs[h] = 0;
-			}
+                        std::vector<unsigned int> hIdxs(trk->size(), 0);
+                        for (size_t h = 0, cnt = 0; h < hIdxs.size(); h++)
+                        {
+                        	if ((*trk)[h]->IsEnabled()) hIdxs[h] = cnt++;
+                        }
 
 			art::PtrVector< recob::Hit > sp_hits;
 			spStart = allsp->size();

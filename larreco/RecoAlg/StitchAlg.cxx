@@ -104,8 +104,10 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
 	  {
 
 	    sHT2 = "NA";
-	    if (c12||c11) head=true; if (c11) sHT2 = "H"; else if (c12) sHT2 = "T";
-	    if (c21||c22) tail=true; if (c21) sHT2 = "H"; else if (c22) sHT2 = "T";
+	    if (c12||c11) { head=true; }
+            if (c11) { sHT2 = "H"; } else if (c12) { sHT2 = "T"; }
+	    if (c21||c22) { tail=true; }
+            if (c21) { sHT2 = "H"; } else if (c22) { sHT2 = "T"; }
 
 	    if (head && tail) // split the tie by distance
 	      { 

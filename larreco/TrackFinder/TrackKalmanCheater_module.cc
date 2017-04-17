@@ -369,8 +369,8 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 	    const recob::Hit& hit = **ih;
 	    unsigned int plane = hit.WireID().Plane;
 
-	    if (plane >= planehits.size());
-	      throw cet::exception("TrackKalmanCheater") << "plane " << plane << "...\n";
+	    if (plane >= planehits.size()) {
+	      throw cet::exception("TrackKalmanCheater") << "plane " << plane << "...\n"; }
 	    ++planehits[plane];
 	  }
 	  unsigned int prefplane = 0;
