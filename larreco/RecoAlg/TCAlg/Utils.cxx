@@ -2927,7 +2927,9 @@ namespace tca {
         int itick = tp.Pos[1]/tjs.UnitsPerTick;
         if(itick < 0) itick = 0;
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
-        if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
+        if(itick < 10) { myprt<<" "; }
+        if(itick < 100) { myprt<<" "; }
+        if(itick < 1000) { myprt<<" "; }
         myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(2)<<tp.AngleCode;
         myprt<<std::setw(5)<<(int)tp.AveChg;
@@ -2935,7 +2937,9 @@ namespace tca {
         tp = aTj.Pts[endPt];
         itick = tp.Pos[1]/tjs.UnitsPerTick;
         myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
-        if(itick < 10) myprt<<" "; if(itick < 100) myprt<<" "; if(itick < 1000) myprt<<" ";
+        if(itick < 10) { myprt<<" "; }
+        if(itick < 100) { myprt<<" "; }
+        if(itick < 1000) { myprt<<" "; }
         myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
         myprt<<std::setw(2)<<tp.AngleCode;
         myprt<<std::setw(5)<<(int)tp.AveChg;
@@ -3064,7 +3068,9 @@ namespace tca {
     myprt<<std::setw(5)<<ipt;
     myprt<<std::setw(5)<<tp.Step;
     myprt<<std::setw(7)<<std::setprecision(1)<<tp.Pos[0]<<":"<<tp.Pos[1]/tjs.UnitsPerTick; // W:T
-    if(tp.Pos[1] < 10) myprt<<"  "; if(tp.Pos[1] < 100) myprt<<" "; if(tp.Pos[1] < 1000) myprt<<" ";
+    if(tp.Pos[1] < 10) { myprt<<"  "; }
+    if(tp.Pos[1] < 100) { myprt<<" "; }
+    if(tp.Pos[1] < 1000) { myprt<<" "; }
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Delta;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.DeltaRMS;
     myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
