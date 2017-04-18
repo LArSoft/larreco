@@ -22,6 +22,7 @@ standard_trajclusteralg:
    ChargeCuts: [4, 0.15, 0.25]  # [Max(min) chg pull, Min allowed chg RMS, Max allowed chg RMS]
    KinkCuts: [0.4, 1.5, 3] # kink angle, MCS kink significance, nPts fit
    ProjectionErrFactor: 2   # Factor applied to calculated trajectory error
+   VLAStepSize: 1.5         # Step size for Very Large Angle trajectories
    JTMaxHitSep: 3           # max hit separation (WSE units) for making Junk Trajectories (<0) turn off
    MaxWireSkipNoSignal:  3  # max allowed number of not-dead wires if no signal is present
    MaxWireSkipWithSignal: 100  # max allowed number of not-dead wires if a signal is present
