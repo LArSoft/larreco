@@ -802,7 +802,7 @@ namespace tca {
     // modifications required
     tj.EndPt[1] = newEndPt;    
     for(unsigned short ipt = newEndPt + 1; ipt < tj.Pts.size(); ++ipt) {
-      if(prt) mf::LogVerbatim("TC")<<" unset "<<ipt;
+//      if(prt) mf::LogVerbatim("TC")<<" unset "<<ipt;
       UnsetUsedHits(tjs, tj.Pts[ipt]);
     }
     SetEndPoints(tjs, tj);
