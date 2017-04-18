@@ -206,7 +206,8 @@ namespace tca {
           myprt<<" Note: Shower "<<notUsedShower<<" was not used in the 3D match. It is probably bad.";
         }
       } // prt
-      std::cout<<"Shower Dir "<<std::setprecision(2)<<ms.sDir.X()<<" "<<ms.sDir.Y()<<" "<<ms.sDir.Z()<<"\n";
+      std::cout<<"FSEP: Start "<<std::fixed<<std::setprecision(1)<<ms.sXYZ[0]<<" "<<ms.sXYZ[1]<<" "<<ms.sXYZ[2];
+      std::cout<<" Dir "<<std::setprecision(2)<<ms.sDir.X()<<" "<<ms.sDir.Y()<<" "<<ms.sDir.Z()<<"\n";
     } // im
 
   } // Find3DShowerEndPoints
@@ -291,22 +292,30 @@ namespace tca {
           double cosgamma = std::abs(std::sin(angleToVert) * ss3.Dir.Y() + std::cos(angleToVert) * ss3.Dir.Z());
           if(cosgamma == 0) continue;
           // dQ was normalized to 1 WSE (1 wire spacing equivalent) in FindStartChg
-          double dx = tjs.geom->WirePitch(planeID);
+          double dx = tjs.geom->WirePitch(planeID) / cosgamma;
           double dQ = tjs.cots[iss].StartChg;
           // Get the time using the shower charge center position
           Trajectory& stj = tjs.allTraj[tjs.cots[iss].ShowerTjID - 1];
           double time = stj.Pts[1].Pos[1] / tjs.UnitsPerTick;
           double T0 = 0;
-          double lifeCorr = fCaloAlg.LifetimeCorrection(time, T0);
-//          double dedx = fCaloAlg.dEdx_AREA(dQ, time, dx, iPln);
-          // protect against bogus values assuming that 1 MIP = 2.3 MeV/cm in LAr
-          // Reject < 1/2 MIP and > 5 MIP
-          if(dedx < 1 || dedx > 10) dedx = 0;
+          std::cout<<iPln<<std::fixed<<" cosgamma "<<cosgamma<<" dQ "<<dQ<<" dx "<<dx;
+          dQ *= fCaloAlg.LifetimeCorrection(time, T0);
+          std::cout<<" corrected "<<(int)dQ;
+          std::cout<<" dQ/dx "<<(int)dQ/dx;
+          // Convert to number of electrons and make recombination correction for a 1 MIP particle.
+          // These are hard-coded numbers that are highly unlikely to change by a significant amount.
+          // This is a good approximation for electromagnetic showers but wouldn't be for hadronic showers.
+          double nElectrons = fCaloAlg.ElectronsFromADCArea(dQ, iPln) / 0.63;
+          std::cout<<" nElectrons "<<std::fixed<<(int)nElectrons;
+          double dedx = nElectrons * 23.6E-8 * dQ / dx;
           ss3.dEdx[iPln] = dedx;
-          if(prt) mf::LogVerbatim("TC")<<"Shower index "<<iss<<" plane "<<iPln<<" plane "<<iPln<<" dQ "<<(int)dQ<<" dx "<<dx<<" dE/dx "<<ss3.dEdx[iPln];
+          // this is a bit of a fake
+          ss3.dEdxErr[iPln] = dedx * tjs.cots[iss].StartChgErr / tjs.cots[iss].StartChg;
+          std::cout<<" dedx "<<dedx<<" +/- "<<ss3.dEdxErr[iPln]<<"\n";
+          if(prt) mf::LogVerbatim("TC")<<"MS: Shower index "<<iss<<" plane "<<iPln<<" plane "<<iPln<<" dQ "<<(int)dQ<<" dx "<<dx<<" dE/dx "<<ss3.dEdx[iPln]<<" +/- "<<ss3.dEdxErr[iPln];
         }
       } // ii
-      // Calculate the opening angle here - somehow
+      // TODO Calculate the opening angle here 
       ss3.OpenAngle = 0.1;
       // We shouldn't define the ss3 Hit vector until hit merging is done
       tjs.showers.push_back(ss3);
@@ -619,7 +628,10 @@ namespace tca {
         ss.Pts[cnt].Pos = tp.HitPos;
         ss.Pts[cnt].Chg = tp.Chg;
         ss.Pts[cnt].TID = tj.ID;
-        totChg += tp.Chg;
+        // Remove the trajectory path length correction made in function HitPosErr2
+        float pathInv = std::abs(tp.Dir[0]);
+        if(pathInv < 0.05) pathInv = 0.05;
+        totChg += tp.Chg / pathInv;
         ++cnt;
       } // ipt
     } // it
@@ -1810,44 +1822,52 @@ namespace tca {
     ss.StartChgErr = 1;
     float minAlong = ss.Pts[0].RotPos[0];
     
+    constexpr unsigned short nBinsAverage = 4;
+    float binSize = 1;
+    float totBins = binSize * nBinsAverage;
+    
     // define a temp vector to sum the charge in bins of 4 WSE units ~ 1.2 cm in uB
     std::vector<float> schg(100);
     for(auto& sspt : ss.Pts) {
-      unsigned short indx = (unsigned short)((sspt.RotPos[0] - minAlong)/4);
-//      if(prt) mf::LogVerbatim("TC")<<indx<<"  "<<sspt.RotPos[1]<<" "<<(int)sspt.Chg;
+      unsigned short indx = (unsigned short)((sspt.RotPos[0] - minAlong)/binSize);
+      if(prt && indx < 20) mf::LogVerbatim("TC")<<indx<<" Pos "<<PrintPos(tjs, sspt.Pos)<<"  RP "<<sspt.RotPos[0]<<"  "<<sspt.RotPos[1]<<" Chg "<<(int)sspt.Chg<<" TID "<<sspt.TID;
       if(indx > 99) break;
-      // Count the charge if it is within 4 WSE transverse
-      if(std::abs(sspt.RotPos[1]) < 4) schg[indx] += sspt.Chg;
+      // Count the charge if it is within a few WSE transverse from the shower axis
+      if(std::abs(sspt.RotPos[1]) < 3) schg[indx] += sspt.Chg;
     }
     // find the first index with the first non-zero charge entry
     // TODO this needs to be done much better
     unsigned short ii = 0;
-    for(ii = 0; ii < schg.size(); ++ii) if(schg[ii] > 0) break;
+    for(ii = 1; ii < schg.size(); ++ii) if(schg[ii] > 0) break;
     if(ii > schg.size() / 2) return;
     ss.StartPt = ii;
     
-    // average the first 3 bins
-    float loChg = schg[ii];
-    float hiChg = schg[ii];
-    for(ii = ss.StartPt; ii < ss.StartPt + 3; ++ii) {
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"FSC: binSize "<<binSize<<" nBinsAverage "<<nBinsAverage;
+      myprt<<" First 20 schg bins:";
+      for(ii = 0; ii < 20; ++ii) myprt<<" "<<(int)schg[ii];
+    }
+    
+    // average the first nBinsAverage bins
+    float sum2 = 0;
+    for(ii = ss.StartPt; ii < ss.StartPt + nBinsAverage; ++ii) {
       ss.StartChg += schg[ii];
-      if(schg[ii] < loChg) loChg = schg[ii];
-      if(schg[ii] > hiChg) hiChg = schg[ii];
+      sum2 += schg[ii] * schg[ii];
     }
     // Calculate the charge in 1 WSE unit of distance. We averaged over 3 bins each
     // of which were 4 WSE (Wire Spacing Equivalents)
-    ss.StartChg /= 12;
-    ss.StartChgErr = (hiChg - loChg) / 12;
-    // Then correct for the path length in the wire cell
-    TrajPoint& stp0 = tjs.allTraj[ss.ShowerTjID-1].Pts[0];
-    // The path length cannot exceed 12 WSE units
-    float path = 12;
-    if(stp0.Dir[0] != 0) path = 1 / std::abs(stp0.Dir[0]);
-    if(path > 12) path = 12;
-    ss.StartChg *= path;
-    ss.StartChgErr *= path;
-    
-    if(prt) mf::LogVerbatim("TC")<<"FSC: cotIndex "<<cotIndex<<" path length "<<path<<" Starting charge "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr<<" StartPt  "<<ss.StartPt<<" at pos "<<PrintPos(tjs, ss.Pts[ss.StartPt].Pos);
+    ss.StartChg /= totBins;
+    float arg = sum2 - nBinsAverage * ss.StartChg * ss.StartChg;
+    ss.StartChgErr = ss.StartChg;
+    if(arg > 0) ss.StartChgErr = sqrt(arg / (float)(nBinsAverage - 1));
+    // inverse of the path length for normalizing hit charge to 1 WSE unit
+    TrajPoint& tp = tjs.allTraj[ss.ShowerTjID-1].Pts[0];
+    float pathInv = std::abs(tp.Dir[0]);
+    if(pathInv < 0.05) pathInv = 0.05;
+    ss.StartChg *= pathInv;
+    ss.StartChgErr *= pathInv;
+    if(prt) mf::LogVerbatim("TC")<<"FSC: cotIndex "<<cotIndex<<" Starting charge "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr<<" StartPt  "<<ss.StartPt<<" at pos "<<PrintPos(tjs, ss.Pts[ss.StartPt].Pos);
     
   } // FindStartChg
   
