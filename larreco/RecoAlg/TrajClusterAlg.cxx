@@ -142,6 +142,12 @@ namespace tca {
     fMaxWireSkipNoSignal  = pset.get< float >("MaxWireSkipNoSignal", 1);
     fMaxWireSkipWithSignal= pset.get< float >("MaxWireSkipWithSignal", 100);
     fProjectionErrFactor  = pset.get< float >("ProjectionErrFactor", 2);
+    // Step size for very large angle trajectories
+    if(pset.has_key("VLAStepSize")) {
+      fVLAStepSize        = pset.get< float >("VLAStepSize", 1.5);
+    } else {
+      fVLAStepSize = 1.5;
+    }
     fJTMaxHitSep2         = pset.get< float >("JTMaxHitSep", 2);
     
     std::vector<std::string> skipAlgsVec = pset.get< std::vector<std::string>  >("SkipAlgs");
@@ -166,9 +172,6 @@ namespace tca {
     debug.Wire            = pset.get< int >("DebugWire", -1);
     debug.Tick            = pset.get< int >("DebugTick", -1);
     debug.WorkID          = pset.get< short>("DebugWorkID", 0);
-    
-    // Define the step size for the last angle range - (VLA = Very Large Angle)
-    fVLAStepSize = 1.5;
 
     // convert the max traj separation into a separation^2
     fMaxTrajSep *= fMaxTrajSep;
@@ -218,6 +221,8 @@ namespace tca {
         std::cout<<"\n";
       } // ir
     }
+    
+    fExpectNarrowHits = (abs(fMode) > 1);
     
     for(auto& range : tjs.AngleRanges) {
       if(range < 0 || range > 90) throw art::Exception(art::errors::Configuration)<< "Invalid angle range "<<range<<" Must be 0 - 90 degrees";
@@ -309,6 +314,7 @@ namespace tca {
       std::cout<<"Skipping algs:";
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(!tjs.UseAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
       std::cout<<"\n";
+      if(fExpectNarrowHits) std::cout<<"Configured to expect narrow hits produced by gaushit with LongMaxHits set large.\n";
     }
    
   } // reconfigure
@@ -376,8 +382,8 @@ namespace tca {
     std::sort(tjs.fHits.begin(), tjs.fHits.end(), &SortByMultiplet);
 
     // check for debugging mode triggered by Plane, Wire, Tick
-    bool noDebugHit = (debug.Tick == 3333) || (debug.Tick == 4444) || (debug.Tick == 5555) || (debug.Tick == 6666);
-    if(noDebugHit &&  debug.Plane >= 0 && debug.Plane < 3 && debug.WorkID >= 0 && debug.Wire > 0 && debug.Tick > 0) {
+    bool specialDebug = (debug.Tick == 3333) || (debug.Tick == 4444) || (debug.Tick == 5555) || (debug.Tick == 6666);
+    if(!specialDebug &&  debug.Plane >= 0 && debug.Plane < 3 && debug.WorkID >= 0 && debug.Wire > 0 && debug.Tick > 0) {
       std::cout<<"Looking for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
         if((int)tjs.fHits[iht].WireID.Plane != debug.Plane) continue;
@@ -1909,7 +1915,8 @@ namespace tca {
       wireWindow[1] = wire;
       bool hitsNear;
       // Look for hits using the requirement that the timeWindow overlaps with the hit StartTick and EndTick
-      std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, ipl, kAllHits, false, hitsNear);
+      std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, ipl, kAllHits, fExpectNarrowHits, hitsNear);
+//      std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, ipl, kAllHits, false, hitsNear);
       if(hitsNear) sigOK = true;
       for(auto& iht : closeHits) {
         // Ensure that none of these hits are already used by this trajectory
@@ -1931,7 +1938,7 @@ namespace tca {
     
     if(tp.Hits.size() > 16) {
       // TODO: sort hits by distance from ltp.Pos[0] first?
-      std::cout<<"AddLAHits truncating "<<tp.Hits.size()<<". Sort first?\n";
+      std::cout<<"AddLAHits truncating "<<tp.Hits.size()<<" ID "<<tj.ID<<"\n";
       tp.Hits.resize(16);
     }
     
