@@ -1,3 +1,8 @@
+import keras
+if keras.__version__[0] > 1:
+    print 'Please use Keras 1.x.x API due to matrix shape constraints in LArSoft interface'
+    quit()
+
 import numpy as np
 np.random.seed(2017)  # for reproducibility
 from keras.datasets import mnist

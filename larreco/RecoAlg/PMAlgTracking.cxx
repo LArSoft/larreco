@@ -191,7 +191,7 @@ pma::PMAlgFitter::PMAlgFitter(const std::vector< art::Ptr<recob::Hit> > & allhit
 			}
 		}
 
-		if (vtxFromPfps.at(i).size())
+		if (vtxFromPfps.isValid() && vtxFromPfps.at(i).size())
 		{
 			double xyz[3];
 			vtxFromPfps.at(i).front()->XYZ(xyz);
@@ -1004,6 +1004,8 @@ int pma::PMAlgTracker::build(void)
 
 		//reassignSingleViewEnds(result); // final check for correct hit-track assignments
 	}
+
+	fResult.setTreeIds();
 
   if(fMatchT0inCPACrossing)
   {

@@ -43,12 +43,14 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
         {
             auto const & node = *(trk.Nodes()[nidx]);
             auto const & tpcGeo = geom->TPC(node.TPC(), node.Cryo());
-            auto driftDir = abs(tpcGeo.DetectDriftDirection());
+            // DetectDriftDirection returns a short int, but switch requires an int
+            int driftDir = abs(tpcGeo.DetectDriftDirection());
+            p = node.Point3D()[driftDir-1];
             switch (driftDir)
             {
-                case 1: min = tpcGeo.MinX(); max = tpcGeo.MaxX(); p = node.Point3D().X(); break;
-                case 2: min = tpcGeo.MinY(); max = tpcGeo.MaxY(); p = node.Point3D().Y(); break;
-                case 3: min = tpcGeo.MinZ(); max = tpcGeo.MaxZ(); p = node.Point3D().Z(); break;
+                case 1: min = tpcGeo.MinX(); max = tpcGeo.MaxX(); break;
+                case 2: min = tpcGeo.MinY(); max = tpcGeo.MaxY(); break;
+                case 3: min = tpcGeo.MinZ(); max = tpcGeo.MaxZ(); break;
                 default: throw cet::exception("PMAlgCosmicTagger") << "Drift direction unknown: " << driftDir << std::endl;
             }
             if ((p < min - fOutOfDriftMargin) || (p > max + fOutOfDriftMargin)) { node_out_of_drift = true; break; }

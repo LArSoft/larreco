@@ -1,7 +1,7 @@
 art_make( 
           LIB_LIBRARIES 
 			${FHICLCPP}
-			${CETLIB}
+			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 			${ROOT_XMLPARSER}
 					
