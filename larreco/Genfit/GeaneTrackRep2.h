@@ -1,6 +1,5 @@
 //-----------------------------------------------------------
 // File and Version Information:
-// $Id$
 //
 // Description:
 //      a GEANE (sd-system)  track representation
