@@ -1,5 +1,5 @@
 /**
- * \file CMalgoPolyContain.h
+ * \file CBAlgoPolyContain.h
  *
  * \ingroup CMTool
  * 
