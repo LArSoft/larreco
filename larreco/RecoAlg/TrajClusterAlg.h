@@ -44,7 +44,6 @@
 #include "TProfile.h"
 
 namespace tca {
-
   
   class TrajClusterAlg {
     public:
