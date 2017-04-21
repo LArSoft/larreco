@@ -64,11 +64,52 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
 
 size_t pma::PMAlgCosmicTagger::topDownCrossing(pma::TrkCandidateColl& tracks)
 {
-    mf::LogInfo("pma::PMAlgCosmicTagger") << "   - tag tracks crossing full Y range (if it is not drift);";
-    size_t n = 0;
+	mf::LogInfo("pma::PMAlgCosmicTagger") << "   - tag tracks crossing full Y range (if it is not drift);";
+	size_t n = 0;
 
+	auto const* geom = lar::providerFrom<geo::Geometry>();
 
-    return n;
+	// Need to find the minimum and maximum height values from the geometry.
+	double minY = 1.e6;
+	double maxY = -1.e6;
+
+  for (geo::TPCID const& tID: geom->IterateTPCIDs()) {
+    geo::TPCGeo const& TPC = geom->TPC(tID);
+
+    // get center in world coordinates
+    double origin[3] = {0.};
+    double center[3] = {0.};
+    TPC.LocalToWorld(origin, center);
+    double tpcDim[3] = {TPC.HalfWidth(), TPC.HalfHeight(), 0.5*TPC.Length() };
+    
+    if( center[1] - tpcDim[1] < minY ) minY = center[1] - tpcDim[1];
+    if( center[1] + tpcDim[1] > maxY ) maxY = center[1] + tpcDim[1];
+  } // for all TPC
+
+	// Loop over the tracks
+	for(auto & t : tracks.tracks()){
+
+		// Get the first and last y-positions from the track.
+		auto const & node0 = *(t.Track()->Nodes()[0]);
+		auto const & node1 = *(t.Track()->Nodes()[t.Track()->Nodes().size()-1]);
+
+		bool atTop = false;
+		bool atBottom = false;
+
+		if(node0.Point3D()[1] - minY < fTopDownMargin) atBottom = true;
+		if(node1.Point3D()[1] - minY < fTopDownMargin) atBottom = true;
+ 
+		if(maxY - node0.Point3D()[1] < fTopDownMargin) atTop = true;
+		if(maxY - node1.Point3D()[1] < fTopDownMargin) atTop = true;
+
+		// If we are close to the top and bottom, then this is likely a crossing muon
+		if(atTop && atBottom){
+			++n;
+			t.Track()->SetTagFlag(pma::Track3D::kCosmic);
+		}
+	}
+
+	return n;
 }
 
 // Leigh: Make use of the fact that our cathode and anode crossing tracks have a reconstructed T0.
@@ -80,14 +121,14 @@ size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl &tracks){
 	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 	// Search through all of the tracks
-	for(auto & t : tracks){
+	for(auto & t : tracks.tracks()){
 
 		// Non zero T0 means we reconstructed it
-		if(t->GetT0() != 0.0){
+		if(t.Track()->GetT0() != 0.0){
 
-			if(fabs(t->GetT0() - detprop->GetTriggerOffset()) < fNonBeamT0Margin){
+			if(fabs(t.Track()->GetT0() - detprop->TriggerOffset()) < fNonBeamT0Margin){
 				++n;
-				t.SetTagFlag(pma::Track3D::kCosmic);
+				t.Track()->SetTagFlag(pma::Track3D::kCosmic);
 			}
 
 		}
