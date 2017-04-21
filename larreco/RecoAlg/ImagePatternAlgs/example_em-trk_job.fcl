@@ -13,7 +13,6 @@ process_name: EmTrackId
 
 services:
 {
-  # Load the service that manages root files for histograms.
   TFileService: { fileName: "reco_hist.root" }
   MemoryTracker:     {}
   TimeTracker:       {}

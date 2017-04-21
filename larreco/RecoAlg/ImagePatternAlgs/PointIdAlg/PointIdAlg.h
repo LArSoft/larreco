@@ -16,7 +16,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "fhiclcpp/types/Atom.h"
-//#include "fhiclcpp/types/Sequence.h"
+#include "fhiclcpp/types/Sequence.h"
 #include "fhiclcpp/types/Table.h"
 #include "canvas/Utilities/InputTag.h"
 
@@ -34,6 +34,8 @@
 
 #include "larreco/RecoAlg/ImagePatternAlgs/MLP/NNReader.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/Keras/keras_model.h"
+
+#include "CLHEP/Random/JamesRandom.h"
 
 // ROOT & C++
 #include <memory>
@@ -74,14 +76,14 @@ public:
 			Comment("Downsampling function")
 		};
 
-		fhicl::Atom<unsigned int> PatchSizeW {
-			Name("PatchSizeW"),
-			Comment("How many wires in patch.")
+		fhicl::Sequence<float> BlurKernel {
+			Name("BlurKernel"),
+			Comment("Blur kernel in wire direction")
 		};
 
-		fhicl::Atom<unsigned int> PatchSizeD {
-			Name("PatchSizeD"),
-			Comment("How many downsampled ADC entries in patch")
+		fhicl::Atom<float> NoiseSigma {
+			Name("NoiseSigma"),
+			Comment("White noise sigma")
 		};
     };
 
@@ -93,17 +95,12 @@ public:
 
 	virtual ~DataProviderAlg(void);
 
-	void reconfigure(const Config& config); // setup patch buffer, ...
+	void reconfigure(const Config& config); // setup buffers etc.
 
 	bool setWireDriftData(const std::vector<recob::Wire> & wires, // once per view: setup ADC buffer, collect & downscale ADC's
 		unsigned int view, unsigned int tpc, unsigned int cryo);
 
 	std::vector<float> const & wireData(size_t widx) const { return fWireDriftData[widx]; }
-
-	static std::vector<float> flattenData2D(std::vector< std::vector<float> > const & patch);
-
-	std::vector< std::vector<float> > const & patchData2D(void) const { return fWireDriftPatch; }
-	std::vector<float> patchData1D(void) const { return flattenData2D(fWireDriftPatch); }  // flat vector made of the patch data, wire after wire
 
 	unsigned int Cryo(void) const { return fCryo; }
 	unsigned int TPC(void) const { return fTPC; }
@@ -114,31 +111,23 @@ public:
 
     double LifetimeCorrection(double tick) const { return fCalorimetryAlg.LifetimeCorrection(tick); }
 
-	bool isInsideFiducialRegion(unsigned int wire, float drift) const;
-
 protected:
 	unsigned int fCryo, fTPC, fView;
 	unsigned int fNWires, fNDrifts, fNScaledDrifts;
 
 	std::vector< raw::ChannelID_t > fWireChannels;              // wire channels (may need this connection...), InvalidChannelID if not used
 	std::vector< std::vector<float> > fWireDriftData;           // 2D data for entire projection, drifts scaled down
-	mutable std::vector< std::vector<float> > fWireDriftPatch;  // placeholder for patch around identified point
 
-	size_t fDriftWindow, fPatchSizeW, fPatchSizeD;
 	EDownscaleMode fDownscaleMode;
+	size_t fDriftWindow;
 
 	void downscaleMax(std::vector<float> & dst, std::vector<float> const & adc) const;
 	void downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc) const;
 	void downscaleMean(std::vector<float> & dst, std::vector<float> const & adc) const;
 
-	mutable size_t fCurrentWireIdx, fCurrentScaledDrift;
-	bool bufferPatch(size_t wire, float drift) const;
-
 	bool setWireData(std::vector<float> const & adc, size_t wireIdx);
-	float scaleAdcSample(float val) const;
 
 	virtual void resizeView(size_t wires, size_t drifts);
-	void resizePatch(void);
 
 	// Calorimetry needed to equalize ADC amplitude along drift:
 	calo::CalorimetryAlg  fCalorimetryAlg;
@@ -146,6 +135,16 @@ protected:
 	// Geometry and detector properties:
 	geo::GeometryCore const* fGeometry;
 	detinfo::DetectorProperties const* fDetProp;
+
+private:
+    static float scaleAdcSample(float val);
+
+    void applyBlur();
+    std::vector<float> fBlurKernel; // blur not applied if empty
+
+    void addNoise();
+    CLHEP::HepJamesRandom fRndEngine;
+    float fNoiseSigma;              // noise not added if sigma=0
 };
 // ------------------------------------------------------
 // ------------------------------------------------------
@@ -222,6 +221,16 @@ public:
 			Name("NNetModelFile"),
 			Comment("Neural net model to apply.")
 		};
+
+		fhicl::Atom<unsigned int> PatchSizeW {
+			Name("PatchSizeW"),
+			Comment("How many wires in patch.")
+		};
+
+		fhicl::Atom<unsigned int> PatchSizeD {
+			Name("PatchSizeD"),
+			Comment("How many downsampled ADC entries in patch")
+		};
     };
 
 	PointIdAlg(const fhicl::ParameterSet& pset) :
@@ -244,9 +253,23 @@ public:
 	std::vector<float> predictIdVector(unsigned int wire, float drift) const;
 	std::vector<float> predictIdVector(std::vector< art::Ptr<recob::Hit> > const & hits) const;
 
+	static std::vector<float> flattenData2D(std::vector< std::vector<float> > const & patch);
+
+	std::vector< std::vector<float> > const & patchData2D(void) const { return fWireDriftPatch; }
+	std::vector<float> patchData1D(void) const { return flattenData2D(fWireDriftPatch); }  // flat vector made of the patch data, wire after wire
+
+    bool isInsideFiducialRegion(unsigned int wire, float drift) const;
+
 private:
 	std::string fNNetModelFilePath;
 	nnet::ModelInterface* fNNet;
+
+	mutable std::vector< std::vector<float> > fWireDriftPatch;  // placeholder for patch around identified point
+	size_t fPatchSizeW, fPatchSizeD;
+
+	mutable size_t fCurrentWireIdx, fCurrentScaledDrift;
+	bool bufferPatch(size_t wire, float drift) const;
+	void resizePatch(void);
 
 	void deleteNNet(void) { if (fNNet) delete fNNet; fNNet = 0; }
 };
