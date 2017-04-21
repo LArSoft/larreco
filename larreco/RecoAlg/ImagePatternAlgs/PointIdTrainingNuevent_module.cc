@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class:       PointIdTrainingNuevent
-// Author:      P.Plonski, R.Sulej (Robert.Sulej@cern.ch), D.Stefan, May 2016
+// Author:      P.Plonski, R.Sulej (Robert.Sulej@cern.ch), D.Stefan (Dorota.Stefan@cern.ch), May 2016
 //
 // Training data for PointIdAlg
 //
@@ -79,6 +79,11 @@ namespace nnet	 {
 			Name("SelectedView"),
 			Comment("...")
 		};
+		
+		fhicl::Atom<bool> Crop {
+		Name("Crop"),
+		Comment("...")
+		};
     };
     using Parameters = art::EDAnalyzer::Table<Config>;
 
@@ -104,6 +109,8 @@ namespace nnet	 {
 	int fEvent;     ///< number of the event being processed
 	int fRun;       ///< number of the run being processed
 	int fSubRun;    ///< number of the sub-run being processed
+	
+	bool fCrop;
 		
 	double fFidVolCut;
 	
@@ -118,6 +125,7 @@ namespace nnet	 {
 	fGenieGenLabel(config().GenModuleLabel()),
 	fOutTextFilePath(config().OutTextFilePath()),
 	fSelectedView(config().SelectedView()),
+	fCrop(config().Crop()),
 	fFidVolCut(config().FidVolCut())
   {
     fGeometry = &*(art::ServiceHandle<geo::Geometry>());
@@ -203,27 +211,48 @@ namespace nnet	 {
 		fout_nuin.open(ss1.str() + ".nuin");
 
 		fTrainingDataAlg.setEventData(event, fSelectedView[v], fPointid.tpc, fPointid.cryo);
+		
+		unsigned int w0, w1, d0, d1;
+		if (fCrop)
+		{
+			if (fTrainingDataAlg.findCrop(0.004F, w0, w1, d0, d1))
+      {
+      	std::cout << "   crop: " << w0 << " " << w1 << " " << d0 << " " << d1 << std::endl;
+      }
+      else
+      {
+       	std::cout << "   skip empty tpc:" << fPointid.tpc << " / view:" << fSelectedView[v] << std::endl;
+        continue;
+      }
+		}
+		else
+		{
+			w0 = 0;
+      w1 = fTrainingDataAlg.NWires();
+      d0 = 0;
+      d1 = fTrainingDataAlg.NScaledDrifts();
+		}
 
-		for (size_t w = 0; w < fTrainingDataAlg.NWires(); ++w)
+		for (size_t w = w0; w < w1; ++w)
 		{
 			auto const & raw = fTrainingDataAlg.wireData(w);
-			for (auto f : raw)
+			for (size_t d = d0; d < d1; ++d)
 			{
-				fout_raw << f << " ";
+				fout_raw << raw[d] << " ";
 			}
 			fout_raw << std::endl;
 
 			auto const & edep = fTrainingDataAlg.wireEdep(w);
-			for (auto f : edep)
+			for (size_t d = d0; d < d1; ++d)
 			{
-				fout_deposit << f << " ";
+				fout_deposit << edep[d] << " ";
 			}
 			fout_deposit << std::endl;
 
 			auto const & pdg = fTrainingDataAlg.wirePdg(w);
-			for (auto f : pdg)
+			for (size_t d = d0; d < d1; ++d)
 			{
-				fout_pdg << f << " ";
+				fout_pdg << pdg[d] << " ";
 			}
 			fout_pdg << std::endl;
 		}
