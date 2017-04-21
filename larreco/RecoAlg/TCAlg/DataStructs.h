@@ -188,7 +188,8 @@ namespace tca {
   struct ShowerPoint {
     std::array<float, 2> Pos;       // Position in the normal coordinate system
     std::array<float, 2> RotPos;    // Position rotated into the shower coordinate system (0 = along, 1 = transverse)
-    float Chg;                      // Charge of this point
+    std::vector<unsigned int> Hits; // vector of fHits indices
+    float Chg {0};                      // Charge of this point
     unsigned short TID;             // ID of the InShower trajectory that uses this point
   };
 
@@ -201,14 +202,16 @@ namespace tca {
     float Angle {0};                   // Angle of the shower axis
     float AngleErr {3};                 // Error
     float AspectRatio {1};              // The ratio of charge weighted transverse/longitudinal positions
+    float DirectionFOM {1};
     std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
     float EnvelopeArea {0};
     float ChgDensity {0};                   // Charge density inside the Envelope
     float Energy {0};
     float StartChg {0};              // Charge at the start of the shower
     float StartChgErr {0};              // Start charge error
+    float ParentFOM {10};
     unsigned short ParentID {0};  // The ID of an external parent Tj that was added to the shower
-    unsigned short StartPt {USHRT_MAX};       // index of the start point in the Pts vector
+    bool NewParent {false};
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
