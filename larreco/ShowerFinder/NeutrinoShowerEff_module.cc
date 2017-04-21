@@ -11,6 +11,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardataobj/RecoBase/Shower.h"
+#include "lardata/ArtDataHelper/MVAReader.h"
 
 // Framework includes
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -35,6 +36,7 @@
 #define MAX_SHOWERS 1000
 using namespace std;
 
+
 //========================================================================
 
 namespace DUNE{
@@ -54,6 +56,7 @@ namespace DUNE{
     
     void processEff(const art::Event& evt, bool &isFiducial);
     void truthMatcher(std::vector<art::Ptr<recob::Hit>>all_hits, std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet);
+    template <size_t N> void checkCNNtrkshw(const art::Event& evt, std::vector<art::Ptr<recob::Hit>>all_hits);
     bool insideFV(double vertex[4]);
     void doEfficiencies();
     void reset();
@@ -62,14 +65,16 @@ namespace DUNE{
 
     // the parameters we'll read from the .fcl
     
-    std::string fMCTruthModuleLabel;
-    std::string fShowerModuleLabel;
-    int         fNeutrinoPDGcode;
-    int		fLeptonPDGcode;
-    double      fMaxNeutrinoE;
-    bool	fSaveMCTree; 
-    double 	fMaxEfrac;
-    double  fMinCompleteness;
+    art::InputTag fMCTruthModuleLabel;
+    art::InputTag fHitModuleLabel;
+    art::InputTag fShowerModuleLabel;
+    art::InputTag fCNNEMModuleLabel;
+    int           fNeutrinoPDGcode;
+    int	       	  fLeptonPDGcode;
+    double        fMaxNeutrinoE;
+    bool	  fSaveMCTree; 
+    double 	  fMaxEfrac;
+    double        fMinCompleteness;
 
  
     TTree *fEventTree;
@@ -123,8 +128,9 @@ namespace DUNE{
     TH1D *h_dEdX_everythingelse_NueCC;
     TH1D *h_dEdX_everythingelse_NC;
 
-
-
+    //Study CNN track/shower id
+    TH1D *h_trklike_em;
+    TH1D *h_trklike_nonem;
 
     // Event 
     int Event;
@@ -203,8 +209,10 @@ namespace DUNE{
   void NeutrinoShowerEff::reconfigure(fhicl::ParameterSet const& p){
 
  
-    fMCTruthModuleLabel  = p.get<std::string>("MCTruthModuleLabel");
-    fShowerModuleLabel   = p.get<std::string>("ShowerModuleLabel");
+    fMCTruthModuleLabel  = p.get<art::InputTag>("MCTruthModuleLabel");
+    fHitModuleLabel      = p.get<art::InputTag>("HitModuleLabel");
+    fShowerModuleLabel   = p.get<art::InputTag>("ShowerModuleLabel");
+    fCNNEMModuleLabel    = p.get<art::InputTag>("CNNEMModuleLabel","");
     fLeptonPDGcode       = p.get<int>("LeptonPDGcode");
     fNeutrinoPDGcode     = p.get<int>("NeutrinoPDGcode");
     fMaxNeutrinoE	 = p.get<double>("MaxNeutrinoE");
@@ -350,8 +358,8 @@ namespace DUNE{
     h_dEdX_everythingelse_NC->Sumw2();
     
 
-
-
+    h_trklike_em = tfs->make<TH1D>("h_trklike_em","EM hits; Track-like Score;",100,0,1);
+    h_trklike_nonem = tfs->make<TH1D>("h_trklike_nonem","Non-EM hits; Track-like Score;",100,0,1);
     
     if( fSaveMCTree ){
       fEventTree = new TTree("Event", "Event Tree from Sim & Reco");
@@ -425,6 +433,7 @@ namespace DUNE{
     std::vector<art::Ptr<simb::MCTruth>> MCtruthlist;
     art::fill_ptr_vector(MCtruthlist, MCtruthHandle);
     art::Ptr<simb::MCTruth> MCtruth; 
+    
     //For now assume that there is only one neutrino interaction...
     int MCinteractions = MCtruthlist.size();
     for( int i =0; i<MCinteractions; i++){
@@ -498,6 +507,12 @@ namespace DUNE{
     std::vector<art::Ptr<recob::Shower>> showerlist;
     art::fill_ptr_vector(showerlist, showerHandle);
 
+    art::Handle<std::vector<recob::Hit>> hitHandle;
+    std::vector<art::Ptr<recob::Hit>> all_hits;
+    if(event.getByLabel(fHitModuleLabel,hitHandle)){
+      art::fill_ptr_vector(all_hits, hitHandle);
+    }
+
     n_recoShowers= showerlist.size();
     //if ( n_recoShowers == 0 || n_recoShowers> MAX_SHOWERS ) return;
     art::FindManyP<recob::Hit> sh_hitsAll(showerHandle, event, fShowerModuleLabel);
@@ -516,12 +531,7 @@ namespace DUNE{
     const simb::MCParticle *MClepton_reco = NULL; 
     int nHits =0;
     for(int i=0; i<n_recoShowers; i++){
-
-      std::vector<art::Ptr<recob::Hit>> tmp_all_ShowerHits = sh_hitsAll.at(0);  
-      std::vector<art::Ptr<recob::Hit>> all_hits;
-      art::Handle<std::vector<recob::Hit>> hithandle;
-      if(event.get(tmp_all_ShowerHits[0].id(), hithandle))  art::fill_ptr_vector(all_hits, hithandle);
-
+      
       art::Ptr<recob::Shower> shower = showerlist[i];
       sh_direction_X[i] = shower->Direction().X();  
       sh_direction_Y[i] = shower->Direction().Y();  
@@ -534,11 +544,8 @@ namespace DUNE{
       for( size_t j =0; j<shower->Energy().size(); j ++) sh_energy[i][j] = shower->Energy()[j];
       for( size_t j =0; j<shower->MIPEnergy().size(); j++) sh_MIPenergy[i][j] = shower->MIPEnergy()[j];
       for( size_t j =0; j<shower->dEdx().size(); j++) sh_dEdx[i][j] = shower->dEdx()[j];
-       
 
       std::vector<art::Ptr<recob::Hit>> sh_hits = sh_hitsAll.at(i);  
-       
-      
 
       //  std::cout<<" shower best plane:"<<shower->best_plane()<<" shower dEdx size:"<<shower->dEdx().size()<<std::endl;
       //for( size_t j =0; j<shower->dEdx().size(); j++) std::cout<<shower->dEdx()[j]<<" ";
@@ -621,7 +628,6 @@ namespace DUNE{
           sh_Efrac_best =Efrac_contamination; 
            
         }
-
       }          
     }//end of looping all the showers
    
@@ -642,63 +648,51 @@ namespace DUNE{
       }
     }
 
-
-
-
     //NueCC SIgnal and background Completeness
-    if(MC_isCC==1&&
-       (fNeutrinoPDGcode == std::abs(MC_incoming_PDG))&&
-       isFiducial
-      
-       )
-      {
-	h_HighestHitsProducedParticlePDG_NueCC->Fill(ParticlePGD_HighestShHits);
+    if(MC_isCC==1
+       &&(fNeutrinoPDGcode == std::abs(MC_incoming_PDG))
+       &&isFiducial){
+        h_HighestHitsProducedParticlePDG_NueCC->Fill(ParticlePGD_HighestShHits);
 	
-	
-	if(ParticlePGD_HighestShHits>0)// atleat one shower is reconstructed
-	  {
-	    h_Ecomplet_NueCC->Fill(Ecomplet_NueCC);
-	    h_Efrac_NueCCPurity->Fill(1-Efrac_contaminationNueCC);    
-	    
-	    
-	    h_esh_bestplane_NueCC->Fill(shower_bestplane);
-	    if(showerPDGwithHighestHitsforFillingdEdX==1)//electron or positron shower
-	      {
-		h_dEdX_electronorpositron_NueCC->Fill(Showerparticlededx_inbestplane);
-	      }else if(showerPDGwithHighestHitsforFillingdEdX==2)//photon shower
-	      {
-		h_dEdX_photon_NueCC->Fill(Showerparticlededx_inbestplane);
-	      }else if(showerPDGwithHighestHitsforFillingdEdX==3)//proton shower
-	      {
-		h_dEdX_proton_NueCC->Fill(Showerparticlededx_inbestplane);
-	      }else if(showerPDGwithHighestHitsforFillingdEdX==4)//neutron shower
-	      {
-		h_dEdX_neutron_NueCC->Fill(Showerparticlededx_inbestplane);
-	      }else if(showerPDGwithHighestHitsforFillingdEdX==5)//charged pion shower
-	      {
-		h_dEdX_chargedpion_NueCC->Fill(Showerparticlededx_inbestplane);
-	      }else if(showerPDGwithHighestHitsforFillingdEdX==6)//neutral pion shower
-	      {
-		h_dEdX_neutralpion_NueCC->Fill(Showerparticlededx_inbestplane);
-	      }else if(showerPDGwithHighestHitsforFillingdEdX==7)//everythingelse shower
-	      {
-		h_dEdX_everythingelse_NueCC->Fill(Showerparticlededx_inbestplane);
-	      }
-
-	  }
- 	
-      }
+        if(ParticlePGD_HighestShHits>0){// atleat one shower is reconstructed
+          h_Ecomplet_NueCC->Fill(Ecomplet_NueCC);
+          h_Efrac_NueCCPurity->Fill(1-Efrac_contaminationNueCC);    
+	  
+          h_esh_bestplane_NueCC->Fill(shower_bestplane);
+          if(showerPDGwithHighestHitsforFillingdEdX==1)//electron or positron shower
+            {
+              h_dEdX_electronorpositron_NueCC->Fill(Showerparticlededx_inbestplane);
+            }else if(showerPDGwithHighestHitsforFillingdEdX==2)//photon shower
+            {
+              h_dEdX_photon_NueCC->Fill(Showerparticlededx_inbestplane);
+            }else if(showerPDGwithHighestHitsforFillingdEdX==3)//proton shower
+            {
+              h_dEdX_proton_NueCC->Fill(Showerparticlededx_inbestplane);
+            }else if(showerPDGwithHighestHitsforFillingdEdX==4)//neutron shower
+            {
+              h_dEdX_neutron_NueCC->Fill(Showerparticlededx_inbestplane);
+            }else if(showerPDGwithHighestHitsforFillingdEdX==5)//charged pion shower
+            {
+              h_dEdX_chargedpion_NueCC->Fill(Showerparticlededx_inbestplane);
+            }else if(showerPDGwithHighestHitsforFillingdEdX==6)//neutral pion shower
+            {
+              h_dEdX_neutralpion_NueCC->Fill(Showerparticlededx_inbestplane);
+            }else if(showerPDGwithHighestHitsforFillingdEdX==7)//everythingelse shower
+            {
+              h_dEdX_everythingelse_NueCC->Fill(Showerparticlededx_inbestplane);
+            }
+        }
+    }
     else if(!MC_isCC&&
-	    isFiducial
-	    ){
+	    isFiducial){
       h_HighestHitsProducedParticlePDG_bkg->Fill(ParticlePGD_HighestShHits);
       
       
       if(ParticlePGD_HighestShHits>0){
 	h_Ecomplet_bkg->Fill(Ecomplet_NueCC);
 	h_Efrac_bkgPurity->Fill(1-Efrac_contaminationNueCC);	
-
-
+        
+        
 	h_esh_bestplane_NC->Fill(shower_bestplane);
         if(showerPDGwithHighestHitsforFillingdEdX==1)//electron or positron shower
           {
@@ -722,14 +716,12 @@ namespace DUNE{
           {
             h_dEdX_everythingelse_NC->Fill(Showerparticlededx_inbestplane);
           }
+      }//if(ParticlePGD_HighestShHits>0)
+    }//else if(!MC_isCC&&isFiducial)
 
-
-
-      }
-    }
-
-
+    checkCNNtrkshw<4>(event, all_hits);
   }
+
   //========================================================================
   void NeutrinoShowerEff::truthMatcher(std::vector<art::Ptr<recob::Hit>> all_hits, std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet){
 
@@ -853,6 +845,70 @@ namespace DUNE{
     }
    
   }
+
+  //============================================
+  //Check CNN track/shower ID
+  //============================================
+  template <size_t N> void NeutrinoShowerEff::checkCNNtrkshw(const art::Event& evt, std::vector<art::Ptr<recob::Hit>>all_hits){
+    if (fCNNEMModuleLabel=="") return;
+
+    art::ServiceHandle<cheat::BackTracker> bt;
+
+    auto hitResults = anab::MVAReader<recob::Hit, N>::create(evt, fCNNEMModuleLabel);
+    if (hitResults){
+      int trkLikeIdx = hitResults->getIndex("track");
+      int emLikeIdx = hitResults->getIndex("em");
+      if ((trkLikeIdx < 0) || (emLikeIdx < 0)){
+        throw cet::exception("PMAlgTrackMaker") << "No em/track labeled columns in MVA data products." << std::endl;
+      }
+      for (size_t i = 0; i<all_hits.size(); ++i){
+        //find out if the hit was generated by an EM particle
+        bool isEMparticle = false;
+        int  pdg = INT_MAX;
+        std::vector<sim::TrackIDE> TrackIDs = bt->HitToEveID(all_hits[i]);
+        if (!TrackIDs.size()) continue;
+        int trkid = INT_MAX;
+        double maxE = -1;
+        for(size_t k = 0; k < TrackIDs.size(); k++){
+          if (TrackIDs[k].energy>maxE){
+            maxE = TrackIDs[k].energy;
+            trkid = TrackIDs[k].trackID;
+          }
+        }
+        if (trkid!=INT_MAX){
+          auto *particle = bt->TrackIDToParticle(trkid);
+          if (particle){
+            pdg = particle->PdgCode();
+            if (std::abs(pdg)==11||//electron/positron
+                pdg == 22 ||//photon
+                pdg == 111){//pi0
+              isEMparticle = true;
+            }
+          }
+        }
+        auto vout = hitResults->getOutput(all_hits[i]);        
+        double trk_like = -1, trk_or_em = vout[trkLikeIdx] + vout[emLikeIdx];
+        if (trk_or_em > 0){
+          trk_like = vout[trkLikeIdx] / trk_or_em;
+          //std::cout<<"trk_like "<<trk_like<<std::endl;
+          if (isEMparticle){
+            h_trklike_em->Fill(trk_like);
+            if (trk_like>0.4&&trk_like<0.41){
+              std::cout<<vout[trkLikeIdx]<<" "<<vout[emLikeIdx]<<" "<<trk_like<<std::endl;
+            }
+          }
+          else{
+            h_trklike_nonem->Fill(trk_like);
+          }
+        }
+      }
+    }
+    else{
+      std::cout<<"Couldn't get hitResults."<<std::endl;
+    }
+  }
+
+
   //========================================================================
   void NeutrinoShowerEff::reset(){
 

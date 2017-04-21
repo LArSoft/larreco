@@ -33,7 +33,9 @@ physics:
       module_type:      	"NeutrinoShowerEff"
       #outFile:          	"Showetest.root"
       MCTruthModuleLabel:	"generator"
+      HitModuleLabel:           "linecluster"
       ShowerModuleLabel: 	"emshower"
+      CNNEMModuleLabel:         "emtrkmichelid:emtrkmichel"
       NeutrinoPDGcode:		12
       LeptonPDGcode:		11
       MaxNeutrinoE:		25.0
