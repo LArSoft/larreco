@@ -1681,6 +1681,8 @@ namespace tca {
   {
     // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
     
+    // don't mess with showerTjs
+    if(tj.AlgMod[kShowerTj]) return;
     tj.EndPt[0] = 0; tj.EndPt[1] = 0;
     if(tj.Pts.size() == 0) return;
     
@@ -2146,10 +2148,11 @@ namespace tca {
     if(prtVtx) {
       if(!tjs.vtx3.empty()) {
         // print out 3D vertices
-        myprt<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
-        myprt<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr  pln0 pln1 pln2  Wire\n";
+        myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
+        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr  pln0 pln1 pln2  Wire\n";
         for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
           if(tjs.vtx3[iv].Wire == SHRT_MAX) continue;
+          myprt<<someText;
           myprt<<std::right<<std::setw(3)<<std::fixed<<iv<<std::setprecision(1);
           myprt<<std::right<<std::setw(7)<<tjs.vtx3[iv].CStat;
           myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].TPC;
@@ -2174,35 +2177,45 @@ namespace tca {
         }
       } // tjs.vtx3.size
       if(!tjs.vtx.empty()) {
-        // print out 2D vertices
-        myprt<<"************ 2D vertices ************\n";
-        myprt<<"Vtx   CTP    wire     error   tick     error  ChiDOF  NTj Pass  Topo Nice? traj IDs\n";
+        bool foundOne = false;
         for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
-          auto const& aVtx = tjs.vtx[iv];
+          auto& aVtx = tjs.vtx[iv];
           if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aVtx.CTP).Plane) continue;
           if(aVtx.NTraj == 0) continue;
-          myprt<<std::right<<std::setw(3)<<std::fixed<<aVtx.ID<<std::setprecision(1);
-          myprt<<std::right<<std::setw(6)<<aVtx.CTP;
-          myprt<<std::right<<std::setw(8)<<aVtx.Pos[0]<<" +/- ";
-          myprt<<std::right<<std::setw(4)<<aVtx.PosErr[0];
-          myprt<<std::right<<std::setw(8)<<aVtx.Pos[1]/tjs.UnitsPerTick<<" +/- ";
-          myprt<<std::right<<std::setw(4)<<aVtx.PosErr[1]/tjs.UnitsPerTick;
-          myprt<<std::right<<std::setw(8)<<aVtx.ChiDOF;
-          myprt<<std::right<<std::setw(5)<<aVtx.NTraj;
-          myprt<<std::right<<std::setw(5)<<aVtx.Pass;
-          myprt<<std::right<<std::setw(6)<<aVtx.Topo;
-          myprt<<std::right<<std::setw(6)<<aVtx.Stat[kNiceVtx];
-          myprt<<"    ";
-          // display the traj indices
-          for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
-            auto const& aTj = tjs.allTraj[ii];
-            if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
-            if(aTj.AlgMod[kKilled]) continue;
-            for(unsigned short end = 0; end < 2; ++end)
-              if(aTj.VtxID[end] == (short)aVtx.ID) myprt<<std::right<<std::setw(4)<<aTj.ID<<"_"<<end;
-          }
-          myprt<<"\n";
+          foundOne = true;
         } // iv
+        if(foundOne) {
+          // print out 2D vertices
+          myprt<<someText<<"************ 2D vertices ************\n";
+          myprt<<someText<<"Vtx   CTP    wire     error   tick     error  ChiDOF  NTj Pass  Topo Nice? traj IDs\n";
+          for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
+            auto& aVtx = tjs.vtx[iv];
+            if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aVtx.CTP).Plane) continue;
+            if(aVtx.NTraj == 0) continue;
+            myprt<<someText;
+            myprt<<std::right<<std::setw(3)<<std::fixed<<aVtx.ID<<std::setprecision(1);
+            myprt<<std::right<<std::setw(6)<<aVtx.CTP;
+            myprt<<std::right<<std::setw(8)<<aVtx.Pos[0]<<" +/- ";
+            myprt<<std::right<<std::setw(4)<<aVtx.PosErr[0];
+            myprt<<std::right<<std::setw(8)<<aVtx.Pos[1]/tjs.UnitsPerTick<<" +/- ";
+            myprt<<std::right<<std::setw(4)<<aVtx.PosErr[1]/tjs.UnitsPerTick;
+            myprt<<std::right<<std::setw(8)<<aVtx.ChiDOF;
+            myprt<<std::right<<std::setw(5)<<aVtx.NTraj;
+            myprt<<std::right<<std::setw(5)<<aVtx.Pass;
+            myprt<<std::right<<std::setw(6)<<aVtx.Topo;
+            myprt<<std::right<<std::setw(6)<<aVtx.Stat[kNiceVtx];
+            myprt<<"    ";
+            // display the traj indices
+            for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
+              auto const& aTj = tjs.allTraj[ii];
+              if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
+              if(aTj.AlgMod[kKilled]) continue;
+              for(unsigned short end = 0; end < 2; ++end)
+                if(aTj.VtxID[end] == (short)aVtx.ID) myprt<<std::right<<std::setw(4)<<aTj.ID<<"_"<<end;
+            }
+            myprt<<"\n";
+          } // iv
+        }
       } // tjs.vtx.size
     }
      
@@ -2216,9 +2229,9 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID   CTP Pass Pts frm   to     W:Tick   Ang C AveQ     W:T      Ang C AveQ ChgRMS  Mom SDrTDr NN __Vtx__  PDG  Par TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID   CTP Pass  Pts frm   to     W:Tick   Ang C AveQ     W:T      Ang C AveQ ChgRMS  Mom SDr TDr NN __Vtx__  PDG  Par TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
-        auto const& aTj = tjs.allTraj[ii];
+        auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
         myprt<<someText<<" ";
         if(aTj.AlgMod[kKilled]) { myprt<<"xxx"; } else { myprt<<"TRJ"; }
@@ -2228,27 +2241,27 @@ namespace tca {
         myprt<<std::setw(5)<<aTj.Pts.size();
         myprt<<std::setw(4)<<aTj.EndPt[0];
         myprt<<std::setw(5)<<aTj.EndPt[1];
-        int endPt = aTj.EndPt[0];
-        TrajPoint tp = aTj.Pts[endPt];
-        int itick = tp.Pos[1]/tjs.UnitsPerTick;
+        unsigned short endPt0 = aTj.EndPt[0];
+        auto& tp0 = aTj.Pts[endPt0];
+        int itick = tp0.Pos[1]/tjs.UnitsPerTick;
         if(itick < 0) itick = 0;
-        myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
+        myprt<<std::setw(6)<<(int)(tp0.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) { myprt<<" "; }
         if(itick < 100) { myprt<<" "; }
         if(itick < 1000) { myprt<<" "; }
-        myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
-        myprt<<std::setw(2)<<tp.AngleCode;
-        myprt<<std::setw(5)<<(int)tp.AveChg;
-        endPt = aTj.EndPt[1];
-        tp = aTj.Pts[endPt];
-        itick = tp.Pos[1]/tjs.UnitsPerTick;
-        myprt<<std::setw(6)<<(int)(tp.Pos[0]+0.5)<<":"<<itick; // W:T
+        myprt<<std::setw(6)<<std::setprecision(2)<<tp0.Ang;
+        myprt<<std::setw(2)<<tp0.AngleCode;
+        myprt<<std::setw(5)<<(int)tp0.AveChg;
+        unsigned short endPt1 = aTj.EndPt[1];
+        auto& tp1 = aTj.Pts[endPt1];
+        itick = tp1.Pos[1]/tjs.UnitsPerTick;
+        myprt<<std::setw(6)<<(int)(tp1.Pos[0]+0.5)<<":"<<itick; // W:T
         if(itick < 10) { myprt<<" "; }
         if(itick < 100) { myprt<<" "; }
         if(itick < 1000) { myprt<<" "; }
-        myprt<<std::setw(6)<<std::setprecision(2)<<tp.Ang;
-        myprt<<std::setw(2)<<tp.AngleCode;
-        myprt<<std::setw(5)<<(int)tp.AveChg;
+        myprt<<std::setw(6)<<std::setprecision(2)<<tp1.Ang;
+        myprt<<std::setw(2)<<tp1.AngleCode;
+        myprt<<std::setw(5)<<(int)tp1.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(5)<<aTj.MCSMom;
         myprt<<std::setw(4)<<aTj.StepDir;
@@ -2328,18 +2341,18 @@ namespace tca {
           myprt<<" Energy "<<(int)ss.Energy;
           myprt<<" Area "<<std::fixed<<std::setprecision(1)<<(int)ss.EnvelopeArea<<" ChgDensity "<<ss.ChgDensity;
           myprt<<" StartChg "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr;
-          myprt<<" StartPt "<<ss.StartPt;
           myprt<<"\nInShower TjIDs";
           for(auto& tjID : ss.TjIDs) {
             myprt<<" "<<tjID;
           } // tjID
           myprt<<"\n";
-          myprt<<"Shower Angle "<<std::fixed<<std::setprecision(2)<<ss.Angle<<" +/- "<<ss.AngleErr;
-          myprt<<" Aspect ratio "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
+          myprt<<"Angle "<<std::fixed<<std::setprecision(2)<<ss.Angle<<" +/- "<<ss.AngleErr;
+          myprt<<" AspectRatio "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
+          myprt<<" DirectionFOM "<<std::fixed<<std::setprecision(2)<<ss.DirectionFOM;
           if(ss.ParentID > 0) {
-            myprt<<" Parent Tj "<<ss.ParentID<<" found";
+            myprt<<" Parent Tj "<<ss.ParentID<<" FOM "<<ss.ParentFOM;
           } else {
-            myprt<<" No external parent Tj found";
+            myprt<<" No external parent defined";
           }
           myprt<<"\n................................................";
         } // ic
