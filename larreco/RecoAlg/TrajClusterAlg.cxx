@@ -4231,7 +4231,7 @@ namespace tca {
       if(tj.Pts[ipt].NTPsFit >= maxPtsFit) {
         maxPtsFit = tj.Pts[ipt].NTPsFit;
         atPt = ipt;
-        // no reason to continue if there are good number of points fitted
+        // no reason to continue if there are a good number of points fitted
         if(maxPtsFit > 20) break;
       }
     } // ipt
@@ -4299,8 +4299,17 @@ namespace tca {
         if(prt) PrintTrajectory("fix", tjs, tj, ipt);
       } // ii
       ReversePropagate(tj);
-    } else {
+    } else if(firstPtFit > 0) {
       FixTrajBegin(tj, firstPtFit);
+    } else {
+      // The first points were in the fit but the angle may not be well defined
+      for(unsigned short ipt = tj.EndPt[0]; ipt < atPt; ++ipt) {
+        TrajPoint& tp = tj.Pts[ipt];
+        tp.Dir = tj.Pts[atPt].Dir;
+        tp.Ang = tj.Pts[atPt].Ang;
+        tp.AngErr = tj.Pts[atPt].AngErr;
+        tp.AngleCode = tj.Pts[atPt].AngleCode;
+      } // ipt
     }
 
   } // FixTrajBegin
@@ -6360,9 +6369,9 @@ namespace tca {
         std::vector<float> signal(hiTick - loTick, 0);
         // fill it with the hit shapes
         for(auto& iht : oldHits) {
-          float peakTime = tjs.fHits[iht].PeakTime;
-          float amp = tjs.fHits[iht].PeakAmplitude;
-          float rms = tjs.fHits[iht].RMS;
+          float& peakTime = tjs.fHits[iht].PeakTime;
+          float& amp = tjs.fHits[iht].PeakAmplitude;
+          float& rms = tjs.fHits[iht].RMS;
           // add charge in the range +/- 3 sigma
           short loTime = (short)(peakTime - 3 * rms);
           if(loTime < loTick) loTime = loTick;
