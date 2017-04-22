@@ -1,5 +1,5 @@
 /**
- * \file CRUException.hh
+ * \file CRUException.h
  *
  * \ingroup ClusterRecoUtil
  * 

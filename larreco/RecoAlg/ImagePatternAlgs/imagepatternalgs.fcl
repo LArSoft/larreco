@@ -25,6 +25,7 @@ standard_pointidtrainingnuevent:
 
     GenModuleLabel:  "generator"
     FidVolCut:	      20.0
+    Crop:             true		
 
     TrainingDataAlg:  @local::standard_trainingdataalg
 }

@@ -1,4 +1,3 @@
-// $Id: TG3Application.cxx 220 2007-11-19 16:08:06Z rdm $
 //
 // Class TG3Application
 // ----------------------- 
