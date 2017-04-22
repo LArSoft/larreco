@@ -10,7 +10,7 @@ def get_event_bounds(A, drift_margin = 0):
     end_ind = np.min([A.shape[1], np.where(cum > cum[-1]*0.995)[0][0] + drift_margin])
     return start_ind, end_ind
 
-def get_data(fname, drift_margin = 0, crop = True):
+def get_data(fname, drift_margin = 0, crop = True, blur = None, white_noise = 0, coherent_noise = 0):
     print 'Reading', fname + '.raw'
     try:
         A_raw     = np.genfromtxt(fname + '.raw', delimiter=' ', dtype=np.float32)
@@ -40,6 +40,10 @@ def get_data(fname, drift_margin = 0, crop = True):
         evt_stop_ind = A_raw.shape[1]
     print evt_start_ind, evt_stop_ind
 
+    A_raw = applyBlur(A_raw, blur)
+    A_raw = addWhiteNoise(A_raw, white_noise)
+    A_raw = addCoherentNoise(A_raw, coherent_noise)
+
     deposit_th_ind = A_deposit < 2.0e-5
     A_pdg[deposit_th_ind] = 0
     tracks = A_pdg.copy()
@@ -50,6 +54,51 @@ def get_data(fname, drift_margin = 0, crop = True):
     showers[showers > 0] = 1
     return A_raw, A_deposit, A_pdg, tracks, showers
 
+
+# MUST give the same result as nnet::DataProviderAlg::applyBlur() in PointIdAlg/PointIdAlg.cxx
+def applyBlur(a, kernel):
+    if kernel is None or kernel.shape[0] > 1: return a
+
+    margin_left = kernel.shape[0] >> 1
+    margin_right = kernel.shape[0] - margin_left - 1
+    src = np.copy(a)
+    for w in range(margin_left, a.shape[0] - margin_right):
+        for d in range(a.shape[1]):
+            s = 0.
+            for i in range(kernel.shape[0]):
+                s += kernel[i] * src[w + i - margin_left, d]
+            a[w, d] = s
+    return a
+
+# MUST give the same result as nnet::DataProviderAlg::addWhiteNoise() in PointIdAlg/PointIdAlg.cxx
+# so sigma here should be "effective": divided by ADC scaling (constant, 10) and downsampling factor
+def addWhiteNoise(a, sigma):
+    if sigma is None or sigma == 0: return a
+
+    a += np.random.normal(0, sigma, a.shape)
+
+    return a
+
+# MUST give the same result as nnet::DataProviderAlg::addCoherentNoise() in PointIdAlg/PointIdAlg.cxx
+# so sigma here should be "effective": divided by ADC scaling (constant, 10) and downsampling factor
+def addCoherentNoise(a, sigma):
+    if sigma is None or sigma == 0: return a
+
+    a += np.random.normal(0, sigma, a.shape)
+
+    amps1 = np.random.normal(1, 0.1, a.shape[0]);
+    amps2 = np.random.normal(1, 0.1, 1 + (a.shape[0] >> 5));
+
+    group_amp = 1
+    for w in range(a.shape[0]):
+        if (w & 31) == 0:
+            noise = np.random.normal(0, sigma, a.shape[1])
+            group_amp = amps2[w >> 5]
+        a[w] += group_amp * amps1[w] * noise
+
+    return a
+
+# MUST give the same result as nnet::PointIdAlg::bufferPatch() in PointIdAlg/PointIdAlg.cxx
 def get_patch(a, wire, drift, wsize, dsize):
     halfSizeW = wsize / 2;
     halfSizeD = dsize / 2;

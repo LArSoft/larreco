@@ -50,7 +50,7 @@ namespace nnet	 {
 
 		fhicl::Atom<std::string> OutTextFilePath {
 			Name("OutTextFilePath"),
-			Comment("...")
+			Comment("Text files with all needed data dumped.")
 		};
 
 		fhicl::Sequence<int> SelectedTPC {

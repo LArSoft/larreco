@@ -16,6 +16,7 @@ standard_pointidalg:
 
  BlurKernel:      []  # test effect of blurring
  NoiseSigma:      0   # test effect of white noise
+ CoherentSigma:   0   # test effect of coherent noise
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
 }
@@ -36,6 +37,7 @@ standard_trainingdataalg:
 
  BlurKernel:      []    # add wire-to-wire blurring to dumped and downscaled ADC
  NoiseSigma:      0     # add white noise to dumped and downscaled ADC
+ CoherentSigma:   0     # test effect of coherent noise
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
 }

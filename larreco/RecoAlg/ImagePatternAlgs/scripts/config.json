@@ -11,7 +11,11 @@
     "empty_fraction": 0.1,
     "clean_track_fraction": 20.0,
     "muon_track_fraction": 30.0,
-    "crop_event": false
+    "crop_event": false,
+
+    "blur": [0.03, 0.15, 0.63, 0.15, 0.03],
+    "noise": 0.067,
+    "coherent": 0.1
   },
 
   "prepare_data_vtx_id" : {

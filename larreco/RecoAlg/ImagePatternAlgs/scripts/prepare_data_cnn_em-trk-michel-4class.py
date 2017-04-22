@@ -31,9 +31,15 @@ def main(argv):
     muon_track_fraction = config['prepare_data_em_track']['muon_track_fraction']   # ***** new: preselect muos, they are many *****
     crop_event = config['prepare_data_em_track']['crop_event']                     # use true only if no crop on LArSoft level and not a noise dump
 
+    blur_kernel = np.asarray(config['prepare_data_em_track']['blur'])              # add blur in wire direction with given kernel if it is not empty (only for tests)
+    white_noise = config['prepare_data_em_track']['noise']                         # add gauss noise with given sigma if value > 0 (only for tests)
+    coherent_noise = config['prepare_data_em_track']['coherent']                   # add coherent (groups of 32 wires) gauss noise with given sigma if value > 0 (only for tests)
+
     print 'Using', patch_fraction, '% of data from view', selected_view_idx
     print 'Using', muon_track_fraction, '% of muon points'
     if doing_nue: print 'Neutrino mode, will skip more showers.'
+
+    print 'Blur kernel', blur_kernel, 'noise RMS', white_noise
 
     max_capacity = 1700000
     db = np.zeros((max_capacity, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
@@ -63,7 +69,7 @@ def main(argv):
         print 'Process file', fcount, fname, 'EVT', evt_no
 
         # get clipped data, margin depends on patch size in drift direction
-        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2, crop_event)
+        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2, crop_event, blur_kernel, white_noise, coherent_noise)
         if raw is None:
             print 'Skip empty event...'
             continue

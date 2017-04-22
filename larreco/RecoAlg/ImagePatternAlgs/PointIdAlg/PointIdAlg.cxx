@@ -31,7 +31,7 @@ nnet::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fDownscaleMode(nnet::DataProviderAlg::kMax), fDriftWindow(10),
 	fCalorimetryAlg(config.CalorimetryAlg()),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
-	fNoiseSigma(0)
+	fNoiseSigma(0), fCoherentSigma(0)
 {
 	fGeometry = &*(art::ServiceHandle<geo::Geometry>());
 
@@ -62,6 +62,7 @@ void nnet::DataProviderAlg::reconfigure(const Config& config)
 
     fBlurKernel = config.BlurKernel();
     fNoiseSigma = config.NoiseSigma();
+    fCoherentSigma = config.CoherentSigma();
 }
 // ------------------------------------------------------
 
@@ -203,7 +204,8 @@ bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wi
 	}
 	
     applyBlur();
-    addNoise();
+    addWhiteNoise();
+    addCoherentNoise();
 	
 	return true;
 }
@@ -219,7 +221,7 @@ float nnet::DataProviderAlg::scaleAdcSample(float val)
 
 void nnet::DataProviderAlg::applyBlur()
 {
-    if (fBlurKernel.empty()) return;
+    if (fBlurKernel.size() < 2) return;
 
     size_t margin_left = (fBlurKernel.size()-1) >> 1, margin_right = fBlurKernel.size() - margin_left - 1;
 
@@ -241,7 +243,7 @@ void nnet::DataProviderAlg::applyBlur()
 }
 // ------------------------------------------------------
 
-void nnet::DataProviderAlg::addNoise()
+void nnet::DataProviderAlg::addWhiteNoise()
 {
     if (fNoiseSigma == 0) return;
 
@@ -255,6 +257,37 @@ void nnet::DataProviderAlg::addNoise()
         for (size_t d = 0; d < wire.size(); ++d)
         {
             wire[d] += noise[d];
+        }
+    }
+}
+// ------------------------------------------------------
+
+void nnet::DataProviderAlg::addCoherentNoise()
+{
+    if (fCoherentSigma == 0) return;
+
+    double effectiveSigma = scaleAdcSample(fCoherentSigma) / fDriftWindow;
+
+    CLHEP::RandGauss gauss(fRndEngine);
+    std::vector<double> amps1(fWireDriftData.size());
+    std::vector<double> amps2(1 + (fWireDriftData.size() / 32));
+    gauss.fireArray(amps1.size(), amps1.data(), 1., 0.1); // 10% wire-wire ampl. variation
+    gauss.fireArray(amps2.size(), amps2.data(), 1., 0.1); // 10% group-group ampl. variation
+
+    double group_amp = 1.0;
+    std::vector<double> noise(fNScaledDrifts);
+    for (size_t w = 0; w < fWireDriftData.size(); ++w)
+    {
+        if ((w & 31) == 0)
+        {
+            group_amp = amps2[w >> 5]; // div by 32
+            gauss.fireArray(fNScaledDrifts, noise.data(), 0., effectiveSigma);
+        } // every 32 wires
+
+        auto & wire = fWireDriftData[w];
+        for (size_t d = 0; d < wire.size(); ++d)
+        {
+            wire[d] += group_amp * amps1[w] * noise[d];
         }
     }
 }

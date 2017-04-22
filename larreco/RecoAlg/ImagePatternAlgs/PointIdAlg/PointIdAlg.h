@@ -85,6 +85,11 @@ public:
 			Name("NoiseSigma"),
 			Comment("White noise sigma")
 		};
+
+		fhicl::Atom<float> CoherentSigma {
+			Name("CoherentSigma"),
+			Comment("Coherent noise sigma")
+		};
     };
 
 	DataProviderAlg(const fhicl::ParameterSet& pset) :
@@ -139,12 +144,16 @@ protected:
 private:
     static float scaleAdcSample(float val);
 
+    CLHEP::HepJamesRandom fRndEngine;
+
     void applyBlur();
     std::vector<float> fBlurKernel; // blur not applied if empty
 
-    void addNoise();
-    CLHEP::HepJamesRandom fRndEngine;
+    void addWhiteNoise();
     float fNoiseSigma;              // noise not added if sigma=0
+
+    void addCoherentNoise();
+    float fCoherentSigma;           // noise not added if sigma=0
 };
 // ------------------------------------------------------
 // ------------------------------------------------------
