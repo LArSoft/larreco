@@ -1,3 +1,6 @@
+from ROOT import TFile
+from root_numpy import hist2array
+
 import numpy as np
 from os import listdir
 from os.path import isfile, join
@@ -10,12 +13,17 @@ def get_event_bounds(A, drift_margin = 0):
     end_ind = np.min([A.shape[1], np.where(cum > cum[-1]*0.995)[0][0] + drift_margin])
     return start_ind, end_ind
 
-def get_data(fname, drift_margin = 0, crop = True, blur = None, white_noise = 0, coherent_noise = 0):
-    print 'Reading', fname + '.raw'
+def get_data(folder, fname, drift_margin = 0, crop = True, blur = None, white_noise = 0, coherent_noise = 0):
+    print 'Reading', fname
     try:
-        A_raw     = np.genfromtxt(fname + '.raw', delimiter=' ', dtype=np.float32)
-        A_deposit = np.genfromtxt(fname + '.deposit', delimiter=' ', dtype=np.float32)
-        A_pdg     = np.genfromtxt(fname + '.pdg', delimiter=' ', dtype=np.int32)
+        if isinstance(folder, TFile):  # read from ROOT file
+            A_raw     = hist2array(folder.Get(fname + '_raw'))
+            A_deposit = hist2array(folder.Get(fname + '_deposit'))
+            A_pdg     = hist2array(folder.Get(fname + '_pdg'))
+        else:                # read text files
+            A_raw     = np.genfromtxt(folder+'/'+fname + '.raw', delimiter=' ', dtype=np.float32)
+            A_deposit = np.genfromtxt(folder+'/'+fname + '.deposit', delimiter=' ', dtype=np.float32)
+            A_pdg     = np.genfromtxt(folder+'/'+fname + '.pdg', delimiter=' ', dtype=np.int32)
     except:
         print 'Bad event, return empty arrays'
         return None, None, None, None, None

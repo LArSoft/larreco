@@ -170,12 +170,12 @@ namespace nnet	 {
         if (fDumpToRoot)
         {
 	        std::ostringstream ss1;
-	        ss1 << os.str() << "_tpc_" << fSelectedTPC[i] << "_view_" << fSelectedView[v]; // TH2's name
+	        ss1 << "raw_" << os.str() << "_tpc_" << fSelectedTPC[i] << "_view_" << fSelectedView[v]; // TH2's name
 
             art::ServiceHandle<art::TFileService> tfs;
-            TH2F* rawHist = tfs->make<TH2F>((ss1.str() + "_raw").c_str(), "ADC map", w1 - w0, w0, w1, d1 - d0, d0, d1);
-            TH2F* depHist = tfs->make<TH2F>((ss1.str() + "_deposit").c_str(), "Deposit map", w1 - w0, w0, w1, d1 - d0, d0, d1);
-            TH2I* pdgHist = tfs->make<TH2I>((ss1.str() + "_pdg").c_str(), "PDG and vertex map", w1 - w0, w0, w1, d1 - d0, d0, d1);
+            TH2F* rawHist = tfs->make<TH2F>((ss1.str() + "_raw").c_str(), "ADC", w1 - w0, w0, w1, d1 - d0, d0, d1);
+            TH2F* depHist = tfs->make<TH2F>((ss1.str() + "_deposit").c_str(), "Deposit", w1 - w0, w0, w1, d1 - d0, d0, d1);
+            TH2I* pdgHist = tfs->make<TH2I>((ss1.str() + "_pdg").c_str(), "PDG", w1 - w0, w0, w1, d1 - d0, d0, d1);
 
             for (size_t w = w0; w < w1; ++w)
             {

@@ -1,5 +1,6 @@
 {
   "prepare_data_em_track" : {
+    "input_type": "txt",
     "input_dir": "cnn/raw_data",
     "output_dir": "cnn/for_nn",
     "patch_size_w": 44,
