@@ -23,6 +23,7 @@
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
@@ -33,6 +34,9 @@
 #include <string>
 #include <cmath>
 #include <fstream>
+
+#include "TH2I.h" // PDG+vertex info map
+#include "TH2F.h" // ADC and deposit maps
 
 namespace nnet	 {
 
@@ -50,7 +54,12 @@ namespace nnet	 {
 
 		fhicl::Atom<std::string> OutTextFilePath {
 			Name("OutTextFilePath"),
-			Comment("...")
+			Comment("Text files with all needed data dumped.")
+		};
+
+		fhicl::Atom<bool> DumpToRoot {
+			Name("DumpToRoot"),
+			Comment("Dump to ROOT histogram file (replaces the text files)")
 		};
 
 		fhicl::Sequence<int> SelectedTPC {
@@ -65,20 +74,21 @@ namespace nnet	 {
 
 		fhicl::Atom<bool> Crop {
 			Name("Crop"),
-			Comment("...")
+			Comment("Crop the projection to the event region plus margin")
 		};
     };
     using Parameters = art::EDAnalyzer::Table<Config>;
 
     explicit PointIdTrainingData(Parameters const& config);
 
-    virtual void analyze (const art::Event& event) override;
+    virtual void analyze(const art::Event& event) override;
 
   private:
 
     nnet::TrainingDataAlg fTrainingDataAlg;
 
 	std::string fOutTextFilePath;
+	bool fDumpToRoot;
 
 	std::vector<int> fSelectedTPC;
 	std::vector<int> fSelectedView;
@@ -96,6 +106,7 @@ namespace nnet	 {
   PointIdTrainingData::PointIdTrainingData(PointIdTrainingData::Parameters const& config) : art::EDAnalyzer(config),
 	fTrainingDataAlg(config().TrainingDataAlg()),
 	fOutTextFilePath(config().OutTextFilePath()),
+	fDumpToRoot(config().DumpToRoot()),
 	fSelectedTPC(config().SelectedTPC()),
 	fSelectedView(config().SelectedView()),
 	fCrop(config().Crop())
@@ -132,8 +143,6 @@ namespace nnet	 {
 
 	std::cout << "analyze " << os.str() << std::endl;
 
-	std::ofstream fout_raw, fout_deposit, fout_pdg;
-
 	for (size_t i = 0; i < fSelectedTPC.size(); ++i)
 		for (size_t v = 0; v < fSelectedView.size(); ++v)
 	{
@@ -154,51 +163,66 @@ namespace nnet	 {
         }
         else
         {
-            w0 = 0;
-            w1 = fTrainingDataAlg.NWires();
-            d0 = 0;
-            d1 = fTrainingDataAlg.NScaledDrifts();
+            w0 = 0; w1 = fTrainingDataAlg.NWires();
+            d0 = 0; d1 = fTrainingDataAlg.NScaledDrifts();
         }
 
-		std::ostringstream ss1;
-		ss1 << fOutTextFilePath << "/raw_" << os.str()
-			<< "_tpc_" << fSelectedTPC[i]
-			<< "_view_" << fSelectedView[v];
+        if (fDumpToRoot)
+        {
+	        std::ostringstream ss1;
+	        ss1 << "raw_" << os.str() << "_tpc_" << fSelectedTPC[i] << "_view_" << fSelectedView[v]; // TH2's name
 
-		fout_raw.open(ss1.str() + ".raw");
-		fout_deposit.open(ss1.str() + ".deposit");
-		fout_pdg.open(ss1.str() + ".pdg");
+            art::ServiceHandle<art::TFileService> tfs;
+            TH2F* rawHist = tfs->make<TH2F>((ss1.str() + "_raw").c_str(), "ADC", w1 - w0, w0, w1, d1 - d0, d0, d1);
+            TH2F* depHist = tfs->make<TH2F>((ss1.str() + "_deposit").c_str(), "Deposit", w1 - w0, w0, w1, d1 - d0, d0, d1);
+            TH2I* pdgHist = tfs->make<TH2I>((ss1.str() + "_pdg").c_str(), "PDG", w1 - w0, w0, w1, d1 - d0, d0, d1);
 
-		for (size_t w = w0; w < w1; ++w)
-		{
-			auto const & raw = fTrainingDataAlg.wireData(w);
-			for (size_t d = d0; d < d1; ++d)
-			{
-				fout_raw << raw[d] << " ";
-			}
-			fout_raw << std::endl;
+            for (size_t w = w0; w < w1; ++w)
+            {
+                auto const & raw = fTrainingDataAlg.wireData(w);
+                for (size_t d = d0; d < d1; ++d) { rawHist->Fill(w, d, raw[d]); }
 
-			auto const & edep = fTrainingDataAlg.wireEdep(w);
-			for (size_t d = d0; d < d1; ++d)
-			{
-				fout_deposit << edep[d] << " ";
-			}
-			fout_deposit << std::endl;
+		        auto const & edep = fTrainingDataAlg.wireEdep(w);
+		        for (size_t d = d0; d < d1; ++d) { depHist->Fill(w, d, edep[d]); }
 
-			auto const & pdg = fTrainingDataAlg.wirePdg(w);
-			for (size_t d = d0; d < d1; ++d)
-			{
-				fout_pdg << pdg[d] << " ";
-			}
-			fout_pdg << std::endl;
-		}
+		        auto const & pdg = fTrainingDataAlg.wirePdg(w);
+		        for (size_t d = d0; d < d1; ++d) { pdgHist->Fill(w, d, pdg[d]); }
+            }
+        }
+        else
+        {
+	        std::ostringstream ss1;
+	        ss1 << fOutTextFilePath << "/raw_" << os.str()
+        		<< "_tpc_" << fSelectedTPC[i] << "_view_" << fSelectedView[v];
 
-		fout_raw.close();
-		fout_deposit.close();
-		fout_pdg.close();
+            std::ofstream fout_raw, fout_deposit, fout_pdg;
+
+        	fout_raw.open(ss1.str() + ".raw");
+	        fout_deposit.open(ss1.str() + ".deposit");
+	        fout_pdg.open(ss1.str() + ".pdg");
+
+	        for (size_t w = w0; w < w1; ++w)
+	        {
+		        auto const & raw = fTrainingDataAlg.wireData(w);
+		        for (size_t d = d0; d < d1; ++d) { fout_raw << raw[d] << " "; }
+		        fout_raw << std::endl;
+
+		        auto const & edep = fTrainingDataAlg.wireEdep(w);
+		        for (size_t d = d0; d < d1; ++d) { fout_deposit << edep[d] << " "; }
+		        fout_deposit << std::endl;
+
+		        auto const & pdg = fTrainingDataAlg.wirePdg(w);
+		        for (size_t d = d0; d < d1; ++d) { fout_pdg << pdg[d] << " "; }
+		        fout_pdg << std::endl;
+	        }
+
+	        fout_raw.close();
+	        fout_deposit.close();
+	        fout_pdg.close();
+        }
 	}
 
-  } // Raw2DRegionID::analyze()
+  } // PointIdTrainingData::analyze()
 
   DEFINE_ART_MODULE(PointIdTrainingData)
 

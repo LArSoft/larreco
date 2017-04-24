@@ -14,7 +14,6 @@
  * provided "as is" without express or implied warranty.                  *
  **************************************************************************/
 
-/* $Id$ */
 
 /*
 $Log: TGeant3.cxx,v $

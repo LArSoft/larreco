@@ -12,14 +12,12 @@ process_name: TestPointId
 
 services:
 {
-  # Load the service that manages root files for histograms.
   TFileService: { fileName: "reco_hist.root" }
   MemoryTracker:     {}
   TimeTracker:       {}
   RandomNumberGenerator: {} #ART native random number generator
   message:              @local::dune_message_services_prod_debug
   FileCatalogMetadata:  @local::art_file_catalog_mc
-                        @table::protodune_services
 			            @table::protodune_simulation_services
 }
 

@@ -8,7 +8,9 @@ standard_pointidtrainingdata:
 
     SelectedTPC:     []
 	SelectedView:    []
-    OutTextFilePath: "."
+    OutTextFilePath: "."    # path to text files with data dumps
+    DumpToRoot:      false  # if true then data is dumped only to root histograms
+
     Crop:            true
 
     TrainingDataAlg:  @local::standard_trainingdataalg
@@ -23,6 +25,7 @@ standard_pointidtrainingnuevent:
 
     GenModuleLabel:  "generator"
     FidVolCut:	      20.0
+    Crop:             true		
 
     TrainingDataAlg:  @local::standard_trainingdataalg
 }
