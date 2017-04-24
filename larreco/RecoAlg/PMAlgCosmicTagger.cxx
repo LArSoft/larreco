@@ -35,6 +35,10 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
 
     for (auto & t : tracks.tracks())
     {
+		
+        // If this track is already tagged then don't try again!
+		    if(t.Track()->GetTag() == pma::Track3D::kCosmic) continue;
+
         pma::Track3D & trk = *(t.Track());
 
         double min, max, p;
@@ -59,12 +63,14 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
         if (node_out_of_drift) { trk.SetTagFlag(pma::Track3D::kCosmic); ++n; }
     }
 
+		mf::LogInfo("pma::PMAlgCosmicTagger") << " - Tagged " << n << " tracks out of 1 drift window.";
+
     return n;
 }
 
 size_t pma::PMAlgCosmicTagger::topDownCrossing(pma::TrkCandidateColl& tracks)
 {
-	mf::LogInfo("pma::PMAlgCosmicTagger") << "   - tag tracks crossing full Y range (if it is not drift);";
+	mf::LogInfo("pma::PMAlgCosmicTagger") << "   - tag tracks crossing full Y range.";
 	size_t n = 0;
 
 	auto const* geom = lar::providerFrom<geo::Geometry>();
@@ -86,8 +92,13 @@ size_t pma::PMAlgCosmicTagger::topDownCrossing(pma::TrkCandidateColl& tracks)
     if( center[1] + tpcDim[1] > maxY ) maxY = center[1] + tpcDim[1];
   } // for all TPC
 
+	mf::LogInfo("pma::PMAlgCosmicTagger") << " - y range of detector = " << minY << ", " << maxY;
+
 	// Loop over the tracks
 	for(auto & t : tracks.tracks()){
+
+		// If this track is already tagged then don't try again!
+		if(t.Track()->GetTag() == pma::Track3D::kCosmic) continue;
 
 		// Get the first and last y-positions from the track.
 		auto const & node0 = *(t.Track()->Nodes()[0]);
@@ -101,7 +112,7 @@ size_t pma::PMAlgCosmicTagger::topDownCrossing(pma::TrkCandidateColl& tracks)
  
 		if(maxY - node0.Point3D()[1] < fTopDownMargin) atTop = true;
 		if(maxY - node1.Point3D()[1] < fTopDownMargin) atTop = true;
-
+			
 		// If we are close to the top and bottom, then this is likely a crossing muon
 		if(atTop && atBottom){
 			++n;
@@ -109,6 +120,7 @@ size_t pma::PMAlgCosmicTagger::topDownCrossing(pma::TrkCandidateColl& tracks)
 		}
 	}
 
+	mf::LogInfo("pma::PMAlgCosmicTagger") << " - Tagged " << n << " tracks crossing the full Y range.";
 	return n;
 }
 
@@ -122,11 +134,15 @@ size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl &tracks){
 
 	// Search through all of the tracks
 	for(auto & t : tracks.tracks()){
+		
+		// If this track is already tagged then don't try again!
+		if(t.Track()->GetTag() == pma::Track3D::kCosmic) continue;
 
 		// Non zero T0 means we reconstructed it
 		if(t.Track()->GetT0() != 0.0){
+		mf::LogInfo("pma::PMAlgCosmicTagger") << " - track with T0 = " << t.Track()->GetT0();
 
-			if(fabs(t.Track()->GetT0() - detprop->TriggerOffset()) < fNonBeamT0Margin){
+			if(fabs(t.Track()->GetT0() - detprop->TriggerOffset()) > fNonBeamT0Margin){
 				++n;
 				t.Track()->SetTagFlag(pma::Track3D::kCosmic);
 			}

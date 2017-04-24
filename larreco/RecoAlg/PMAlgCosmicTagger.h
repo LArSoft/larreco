@@ -45,8 +45,8 @@ public:
             Name("TopDownMargin"),
             Comment("The maximum distance from top and down required for tagging track as crossing full Y.")
         };
-				fhicl::Atom<bool> TagNonBeamT0 {
-					Name("TagNonBeamT0"),
+				fhicl::Atom<bool> TagNonBeamT0Tracks {
+					Name("TagNonBeamT0Tracks"),
 					Comment("Tag particles with reconstructed T0 not consistent with the beam")
 				};
 				fhicl::Atom<double> NonBeamT0Margin {
@@ -62,7 +62,7 @@ public:
         fTagTopDownTracks(config.TagTopDownTracks()),
         fTopDownMargin(config.TopDownMargin()),
 
-				fTagNonBeamT0Tracks(config.TagNonBeamT0()),
+				fTagNonBeamT0Tracks(config.TagNonBeamT0Tracks()),
 				fNonBeamT0Margin(config.NonBeamT0Margin())
     { }
 
