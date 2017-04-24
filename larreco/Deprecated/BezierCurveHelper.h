@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////
 ///
-/// \file   BezierCurveHelper
+/// \file   BezierCurveHelper.h
 ///
 /// \brief  Service for finding 3D track seeds
 ///

@@ -1,5 +1,5 @@
 /**
- * \file Polygon.h
+ * \file Polygon2D.h
  *
  * \ingroup ClusterRecoUtil
  * 
