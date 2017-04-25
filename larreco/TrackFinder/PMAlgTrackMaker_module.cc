@@ -400,8 +400,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				std::vector<float> trkEnd0;
 				std::vector<float> trkEnd1;
 				// Get the drift direction, but don't care about the sign
-				int driftDir = (int)fGeom->TPC(trk->FrontTPC(), trk->FrontCryo()).DetectDriftDirection();
-				if(driftDir < 0) driftDir = driftDir * -1.0;
+				// Also need to subtract 1 due to the definition.
+				int driftDir = abs(fGeom->TPC(trk->FrontTPC(), trk->FrontCryo()).DetectDriftDirection()) - 1;
+				
 				for(int i = 0; i < 3; ++i){
 					// Get the drift direction and apply the opposite of the drift shift in order to
 					// give the CosmicTag the drift coordinate assuming T0 = T_beam as it requests. 
