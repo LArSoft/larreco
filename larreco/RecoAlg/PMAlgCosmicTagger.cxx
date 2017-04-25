@@ -79,6 +79,7 @@ size_t pma::PMAlgCosmicTagger::topDownCrossing(pma::TrkCandidateColl& tracks)
 	double minY = 1.e6;
 	double maxY = -1.e6;
 
+	// Since we can stack TPCs, we can't just use geom::TPCGeom::Height()
   for (geo::TPCID const& tID: geom->IterateTPCIDs()) {
     geo::TPCGeo const& TPC = geom->TPC(tID);
 
@@ -92,6 +93,8 @@ size_t pma::PMAlgCosmicTagger::topDownCrossing(pma::TrkCandidateColl& tracks)
     if( center[1] + tpcDim[1] > maxY ) maxY = center[1] + tpcDim[1];
   } // for all TPC
 
+	double detHeight = maxY - minY;
+
 	mf::LogInfo("pma::PMAlgCosmicTagger") << " - y range of detector = " << minY << ", " << maxY;
 
 	// Loop over the tracks
@@ -104,17 +107,9 @@ size_t pma::PMAlgCosmicTagger::topDownCrossing(pma::TrkCandidateColl& tracks)
 		auto const & node0 = *(t.Track()->Nodes()[0]);
 		auto const & node1 = *(t.Track()->Nodes()[t.Track()->Nodes().size()-1]);
 
-		bool atTop = false;
-		bool atBottom = false;
-
-		if(node0.Point3D()[1] - minY < fTopDownMargin) atBottom = true;
-		if(node1.Point3D()[1] - minY < fTopDownMargin) atBottom = true;
- 
-		if(maxY - node0.Point3D()[1] < fTopDownMargin) atTop = true;
-		if(maxY - node1.Point3D()[1] < fTopDownMargin) atTop = true;
-			
-		// If we are close to the top and bottom, then this is likely a crossing muon
-		if(atTop && atBottom){
+		double trkHeight = fabs(node0.Point3D()[1]-node1.Point3D()[1]);
+	
+		if((detHeight - trkHeight) < fTopDownMargin){
 			++n;
 			t.Track()->SetTagFlag(pma::Track3D::kCosmic);
 		}
