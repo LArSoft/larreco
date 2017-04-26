@@ -113,20 +113,18 @@ namespace hit{
                std::vector<float>&       outputVec,
                size_t                    nBinsToCombine) const;
     
-    double              threshold           = 0.;  // minimum signal size for id'ing a hit
-    double              fitWidth            = 0.;  // hit fit width initial value
-    double              minWidth		    = 0 ;  // hit minimum width
+    double              fThreshold          = 0.;  // minimum signal size for id'ing a hit
+    double              fMinWidth		    = 0 ;  // hit minimum width
     std::string         fCalDataModuleLabel;
 
-    std::vector<double> fMinSig;                   ///<signal height threshold
-    std::vector<double> fInitWidth;                ///<Initial width for fit
-    std::vector<double> fMinWidth;                 ///<Minimum hit width
-    std::vector<int>    fLongMaxHits;              ///<Maximum number hits on a really long pulse train
-    std::vector<int>    fLongPulseWidth;           ///<Sets width of hits used to describe long pulses
+    std::vector<double> fMinSigVec;                ///<signal height threshold
+    std::vector<double> fMinWidthVec;              ///<Minimum hit width
+    std::vector<int>    fLongMaxHitsVec;           ///<Maximum number hits on a really long pulse train
+    std::vector<int>    fLongPulseWidthVec;        ///<Sets width of hits used to describe long pulses
     
     size_t              fMaxMultiHit;              ///<maximum hits for multi fit
     int                 fAreaMethod;               ///<Type of area calculation
-    std::vector<double> fAreaNorms;                ///<factors for converting area to same units as peak height
+    std::vector<double> fAreaNormsVec;             ///<factors for converting area to same units as peak height
     bool	            fTryNplus1Fits;            ///<whether we will (true) or won't (false) try n+1 fits
     double	            fChi2NDFRetry;             ///<Value at which a second n+1 Fit will be tried
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
@@ -197,19 +195,18 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
       }
     }
 
-    FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),         fMinSig);
-    FillOutHitParameterVector(p.get< std::vector<double> >("InitWidth"),      fInitWidth);
-    FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),       fMinWidth);
-    FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),      fAreaNorms);
+    FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),         fMinSigVec);
+    FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),       fMinWidthVec);
+    FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),      fAreaNormsVec);
 
-    fLongMaxHits      = p.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
-    fLongPulseWidth   = p.get< std::vector<int>>("LongPulseWidth", std::vector<int>() = {16,16,16});
-    fMaxMultiHit      = p.get< int             >("MaxMultiHit");
-    fAreaMethod       = p.get< int             >("AreaMethod");
-    fTryNplus1Fits    = p.get< bool            >("TryNplus1Fits");
-    fChi2NDFRetry     = p.get< double          >("Chi2NDFRetry");
-    fChi2NDF          = p.get< double          >("Chi2NDF");
-    fNumBinsToAverage = p.get< size_t          >("NumBinsToAverage", 0);
+    fLongMaxHitsVec    = p.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
+    fLongPulseWidthVec = p.get< std::vector<int>>("LongPulseWidth", std::vector<int>() = {16,16,16});
+    fMaxMultiHit       = p.get< int             >("MaxMultiHit");
+    fAreaMethod        = p.get< int             >("AreaMethod");
+    fTryNplus1Fits     = p.get< bool            >("TryNplus1Fits");
+    fChi2NDFRetry      = p.get< double          >("Chi2NDFRetry");
+    fChi2NDF           = p.get< double          >("Chi2NDF");
+    fNumBinsToAverage  = p.get< size_t          >("NumBinsToAverage", 0);
 }  
 
 //-------------------------------------------------
@@ -310,17 +307,16 @@ void GausHitFinder::produce(art::Event& evt)
         std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
         // for now, just take the first option returned from ChannelToWire
         geo::WireID wid  = wids[0];
-        // We'll use the view as well...
-        geo::View_t view = wire->View();
-       
+        // We need to know the plane to look up parameters
+        geo::PlaneID::PlaneID_t plane = wid.Plane;
+
         // ----------------------------------------------------------
         // -- Setting the appropriate signal widths and thresholds --
         // --    for the right plane.      --
         // ----------------------------------------------------------
-       
-        threshold = fMinSig.at(view);
-        fitWidth  = fInitWidth.at(view);
-        minWidth  = fMinWidth.at(view);
+        
+        fThreshold = fMinSigVec.at(plane);
+        fMinWidth  = fMinWidthVec.at(plane);
         
 //            if (wid.Plane == geo::kV)
 //                roiThreshold = std::max(threshold,std::min(2.*threshold,*std::max_element(signal.begin(),signal.end())/3.));
@@ -348,7 +344,7 @@ void GausHitFinder::produce(art::Event& evt)
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
             
             MergedTimeWidVec mergedVec;
-            float            roiThreshold(threshold);
+            float            roiThreshold(fThreshold);
             
             // ###########################################################
             // ### If option set do bin averaging before finding peaks ###
@@ -418,10 +414,6 @@ void GausHitFinder::produce(art::Event& evt)
                 // ### In the end, this primarily catches the case where ###
                 // ### a fake pulse is at the start of the ROI           ###
                 if (endT - startT < 5) continue;
-                
-                
-                /// TEMPORARY
-                if (roiFirstBinTick + endT > 6380) continue;
 	 
                 // #######################################################
                 // ### Clearing the parameter vector for the new pulse ###
@@ -499,12 +491,12 @@ void GausHitFinder::produce(art::Event& evt)
                 // #######################################################
                 if (peakVals.size() > fMaxMultiHit || chi2PerNDF > fChi2NDF)
                 {
-                    int longPulseWidth = fLongPulseWidth.at(view);
+                    int longPulseWidth = fLongPulseWidthVec.at(plane);
                     int nHitsThisPulse = (endT - startT) / longPulseWidth;
                     
-                    if (nHitsThisPulse > fLongMaxHits.at(view))
+                    if (nHitsThisPulse > fLongMaxHitsVec.at(plane))
                     {
-                        nHitsThisPulse = fLongMaxHits.at(view);
+                        nHitsThisPulse = fLongMaxHitsVec.at(plane);
                         longPulseWidth = (endT - startT) / nHitsThisPulse;
                     }
                     
@@ -556,7 +548,8 @@ void GausHitFinder::produce(art::Event& evt)
                     double peakWidthErr = paramVec[hitIdx + 2].second;
                     
                     // ### Charge ###
-                    double charge    = chargeFunc(peakMean, peakAmp, peakWidth, fAreaNorms[view],startT,endT);;
+                    //double charge    = chargeFunc(peakMean, peakAmp, peakWidth, fAreaNorms[view],startT,endT);;
+                    double charge    = chargeFunc(peakMean, peakAmp, peakWidth, fAreaNormsVec[plane],startT,endT);;
                     double chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);
                     
                     // ### limits for getting sums
@@ -714,7 +707,7 @@ void hit::GausHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVec
             // merge if the intervening signal is above 0.5 * threshold
             int nextStartT = std::get<0>(*timeValsVecItr);
             
-            if ((nextStartT == endT) ||(nextStartT - endT  < 2 && signalVec[endT+1] > threshold/2))
+            if ((nextStartT == endT) ||(nextStartT - endT  < 2 && signalVec[endT+1] > fThreshold/2))
             {
                 timeVal = *timeValsVecItr++;
                 maxT    = std::get<1>(timeVal);
@@ -803,7 +796,7 @@ void hit::GausHitFinder::FitGaussians(const std::vector<float>& SignalVector,
         Gaus.SetParameter(2+parIdx, peakWidth);
         Gaus.SetParLimits(  parIdx, 0.0,        1.5*amplitude);
         Gaus.SetParLimits(1+parIdx, meanLowLim, meanHiLim);
-        Gaus.SetParLimits(2+parIdx, minWidth,   10.*peakWidth);
+        Gaus.SetParLimits(2+parIdx, fMinWidth,  10.*peakWidth);
         
         parIdx += 3;
     }//<---End bb loop
