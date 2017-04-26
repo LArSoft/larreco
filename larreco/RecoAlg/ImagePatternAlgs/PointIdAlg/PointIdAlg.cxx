@@ -174,32 +174,27 @@ bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wi
 		auto wireChannelNumber = wire.Channel();
 
 		size_t w_idx = 0;
-		bool right_plane = false;
 		for (auto const& id : fGeometry->ChannelToWire(wireChannelNumber))
 		{
-			w_idx = id.Wire;
-
 			if ((id.Cryostat == cryo) && (id.TPC == tpc) && (id.Plane == view))
 			{
-				right_plane = true; break;
-			}
-		}
-		if (right_plane)
-		{
-			auto adc = wire.Signal();
-			if (adc.size() < ndrifts)
-			{
-				mf::LogError("DataProviderAlg") << "Wire ADC vector size lower than NumberTimeSamples.";
-				return false;
-			}
+			    w_idx = id.Wire;
 
-			if (!setWireData(adc, w_idx))
-			{
-				mf::LogError("DataProviderAlg") << "Wire data not set.";
-				return false;
-			}
+			    auto adc = wire.Signal();
+			    if (adc.size() < ndrifts)
+			    {
+			    	mf::LogError("DataProviderAlg") << "Wire ADC vector size lower than NumberTimeSamples.";
+			    	return false;
+			    }
 
-			fWireChannels[w_idx] = wireChannelNumber;
+			    if (!setWireData(adc, w_idx))
+			    {
+			    	mf::LogError("DataProviderAlg") << "Wire data not set.";
+			    	return false;
+			    }
+
+			    fWireChannels[w_idx] = wireChannelNumber;
+			}
 		}
 	}
 	
