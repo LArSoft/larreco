@@ -1,5 +1,5 @@
 /**
- *  @file   DBScanAlg.h
+ *  @file   RecoAlg/Cluster3DAlgs/DBScanAlg.h
  * 
  *  @brief  This algorithm will create and then cluster 3D hits using DBScan
  *

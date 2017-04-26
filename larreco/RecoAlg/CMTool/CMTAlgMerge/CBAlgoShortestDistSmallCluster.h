@@ -1,5 +1,5 @@
 /**
- * \file CBAlgoShortestDistSmallCluster.hh
+ * \file CBAlgoShortestDistSmallCluster.h
  *
  * \ingroup ClusterRecoUtil
  * 

@@ -60,7 +60,7 @@ def main(argv):
         print 'Process file', fcount, fname, 'EVT', evt_no
 
         # get clipped data, margin depends on patch size in drift direction
-        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR+'/'+fname, PATCH_SIZE_D/2 + 2, crop_event)
+        raw, deposit, pdg, tracks, showers = get_data(INPUT_DIR, fname, PATCH_SIZE_D/2 + 2, crop_event)
         if raw is None:
             print 'Skip empty event...'
             continue
