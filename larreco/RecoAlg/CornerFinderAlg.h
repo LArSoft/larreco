@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////
-/// \file  CornerFinderAlgAlg.h
+/// \file  CornerFinderAlg.h
 /// \brief algorithm to find feature 2D points
 ///
 /// \author  

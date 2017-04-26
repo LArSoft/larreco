@@ -1,5 +1,5 @@
 /**
- * \file CBoolAlgoBase.hh
+ * \file CBoolAlgoBase.h
  *
  * \ingroup CMTool
  * 

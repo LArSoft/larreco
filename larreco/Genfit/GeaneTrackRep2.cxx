@@ -1,6 +1,5 @@
 //-----------------------------------------------------------
 // File and Version Information:
-// $Id$
 //
 // Description:
 //      Implementation of class GeaneTrackRep

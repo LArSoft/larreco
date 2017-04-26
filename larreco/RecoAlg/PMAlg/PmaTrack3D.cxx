@@ -1351,7 +1351,7 @@ pma::Track3D* pma::Track3D::Split(size_t idx, bool try_start_at_idx)
 
 	pma::Node3D* n = 0;
 	pma::Track3D* t0 = new pma::Track3D();
-	t0->fT0 = fT0;
+	t0->fT0 = fT0; t0->fTag = fTag;
 
 	for (size_t i = 0; i < idx; ++i)
 	{
