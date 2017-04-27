@@ -439,13 +439,13 @@ void Cluster3D::produce(art::Event &evt)
     this->PrepareEvent(evt);
 
     // Get instances of the primary data structures needed
-    Hit2DVector                  clusterHit2DMasterVec;
-    ViewToHitVectorMap           viewToHitVectorMap;
-    ViewToWireToHitSetMap        viewToWireToHitSetMap;
-    reco::HitPairClusterMap      hitPairClusterMap;
-    ClusterParametersList        clusterParametersList;
-    RecobHitToPtrMap             clusterHitToArtPtrMap;
-    std::auto_ptr< HitPairList > hitPairList(new HitPairList); // Potentially lots of hits, use heap instead of stack
+    Hit2DVector                    clusterHit2DMasterVec;
+    ViewToHitVectorMap             viewToHitVectorMap;
+    ViewToWireToHitSetMap          viewToWireToHitSetMap;
+    reco::HitPairClusterMap        hitPairClusterMap;
+    ClusterParametersList          clusterParametersList;
+    RecobHitToPtrMap               clusterHitToArtPtrMap;
+    std::unique_ptr< HitPairList > hitPairList(new HitPairList); // Potentially lots of hits, use heap instead of stack
     
     // Recover the 2D hits and then organize them into data structures which will be used in the
     // DBscan algorithm for building the 3D clusters
