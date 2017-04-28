@@ -40,6 +40,7 @@
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "larreco/RecoAlg/EMShowerAlg.h"
+#include "lardata/ArtDataHelper/MVAReader.h"
 
 // ROOT includes
 #include "TPrincipal.h"
@@ -65,11 +66,14 @@ public:
 
 private:
 
-  std::string fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel;
+  art::InputTag fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel, fCNNEMModuleLabel;
   EMShowerAlg fEMShowerAlg;
   bool fSaveNonCompleteShowers;
   bool fFindBadPlanes;
   bool fMakeSpacePoints;
+  bool fUseCNNtoIDEMPFP;
+  bool fUseCNNtoIDEMHit;
+  double fMinTrackLikeScore;
 
   art::ServiceHandle<geo::Geometry> fGeom;
   detinfo::DetectorProperties const* fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -93,13 +97,17 @@ shower::EMShower::EMShower(fhicl::ParameterSet const& pset) : fEMShowerAlg(pset.
 }
 
 void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
-  fHitsModuleLabel        = p.get<std::string>("HitsModuleLabel");
-  fClusterModuleLabel     = p.get<std::string>("ClusterModuleLabel");
-  fTrackModuleLabel       = p.get<std::string>("TrackModuleLabel");
-  fPFParticleModuleLabel  = p.get<std::string>("PFParticleModuleLabel","");
-  fFindBadPlanes          = p.get<bool>       ("FindBadPlanes");
-  fSaveNonCompleteShowers = p.get<bool>       ("SaveNonCompleteShowers");
-  fMakeSpacePoints        = p.get<bool>       ("MakeSpacePoints");
+  fHitsModuleLabel        = p.get<art::InputTag>("HitsModuleLabel");
+  fClusterModuleLabel     = p.get<art::InputTag>("ClusterModuleLabel");
+  fTrackModuleLabel       = p.get<art::InputTag>("TrackModuleLabel");
+  fPFParticleModuleLabel  = p.get<art::InputTag>("PFParticleModuleLabel","");
+  fCNNEMModuleLabel       = p.get<art::InputTag>("CNNEMModuleLabel","");
+  fFindBadPlanes          = p.get<bool>         ("FindBadPlanes");
+  fSaveNonCompleteShowers = p.get<bool>         ("SaveNonCompleteShowers");
+  fMakeSpacePoints        = p.get<bool>         ("MakeSpacePoints");
+  fUseCNNtoIDEMPFP        = p.get<bool>         ("UseCNNtoIDEMPFP");
+  fUseCNNtoIDEMHit        = p.get<bool>         ("UseCNNtoIDEMHit");
+  fMinTrackLikeScore      = p.get<double>       ("MinTrackLikeScore");
   fShower = p.get<int>("Shower",-1);
   fPlane = p.get<int>("Plane",-1);
   fDebug = p.get<int>("Debug",0);
@@ -185,7 +193,46 @@ void shower::EMShower::produce(art::Event& evt) {
     art::FindManyP<recob::Cluster> fmcp(pfpHandle, evt, fPFParticleModuleLabel);
     for (size_t ipfp = 0; ipfp<pfps.size(); ++ipfp){
       art::Ptr<recob::PFParticle> pfp = pfps[ipfp];
-      if (pfp->PdgCode()==11){ //shower particle
+      if (fCNNEMModuleLabel!="" && fUseCNNtoIDEMPFP){//use CNN to identify EM pfparticle
+        auto hitResults = anab::MVAReader<recob::Hit, 4>::create(evt, fCNNEMModuleLabel);
+        if (!hitResults){
+          throw cet::exception("EMShower") <<"Cannot get MVA results from "<<fCNNEMModuleLabel;
+        }
+        int trkLikeIdx = hitResults->getIndex("track");
+        int emLikeIdx = hitResults->getIndex("em");
+        if ((trkLikeIdx < 0) || (emLikeIdx < 0)){
+          throw cet::exception("EMShower") << "No em/track labeled columns in MVA data products.";
+        }
+        if (fmcp.isValid()){//find clusters
+          std::vector<art::Ptr<recob::Hit>> pfphits;
+	  std::vector<art::Ptr<recob::Cluster> > clus = fmcp.at(ipfp);
+	  for (size_t iclu = 0; iclu<clus.size(); ++iclu){
+            std::vector<art::Ptr<recob::Hit> > ClusterHits = fmh.at(clus[iclu].key());
+            pfphits.insert(pfphits.end(), ClusterHits.begin(), ClusterHits.end());
+          }
+          if (pfphits.size()){//find hits
+            auto vout = hitResults->getOutput(pfphits); 
+            double trk_like = -1, trk_or_em = vout[trkLikeIdx] + vout[emLikeIdx];
+            if (trk_or_em > 0){
+              trk_like = vout[trkLikeIdx] / trk_or_em;
+              if (trk_like<fMinTrackLikeScore){ //EM like
+                std::vector<int> clusters;
+                for (size_t iclu = 0; iclu<clus.size(); ++iclu){
+                  clusters.push_back(clus[iclu].key());
+                }
+                if (clusters.size()){
+                  newShowers.push_back(clusters);
+                  pfParticles.push_back(ipfp);
+                }
+              }
+            }
+          }
+        }
+        else{
+          throw cet::exception("EMShower") <<"Cannot get associated cluster for PFParticle "<<fPFParticleModuleLabel<<"["<<ipfp<<"]";
+        }
+      }
+      else if (pfp->PdgCode()==11){ //shower particle
 	if (fmcp.isValid()){
 	  std::vector<int> clusters;
 	  std::vector<art::Ptr<recob::Cluster> > clus = fmcp.at(ipfp);
@@ -228,6 +275,27 @@ void shower::EMShower::produce(art::Event& evt) {
 
       // Hits
       std::vector<art::Ptr<recob::Hit> > showerClusterHits = fmh.at(cluster.key());
+      if (fCNNEMModuleLabel!="" && fUseCNNtoIDEMHit){//use CNN to identify EM hits
+        auto hitResults = anab::MVAReader<recob::Hit, 4>::create(evt, fCNNEMModuleLabel);
+        if (!hitResults){
+          throw cet::exception("EMShower") <<"Cannot get MVA results from "<<fCNNEMModuleLabel;
+        }
+        int trkLikeIdx = hitResults->getIndex("track");
+        int emLikeIdx = hitResults->getIndex("em");
+        if ((trkLikeIdx < 0) || (emLikeIdx < 0)){
+          throw cet::exception("EMShower") << "No em/track labeled columns in MVA data products.";
+        }
+        for (auto & showerHit : showerClusterHits){
+          auto vout = hitResults->getOutput(showerHit);
+          double trk_like = -1, trk_or_em = vout[trkLikeIdx] + vout[emLikeIdx];
+          if (trk_or_em > 0){
+            trk_like = vout[trkLikeIdx] / trk_or_em;
+            if (trk_like<fMinTrackLikeScore){ //EM like
+              showerHits.push_back(showerHit);
+            }
+          }
+        }
+      }
       for (std::vector<art::Ptr<recob::Hit> >::iterator showerClusterHit = showerClusterHits.begin(); showerClusterHit != showerClusterHits.end(); ++showerClusterHit)
   	showerHits.push_back(*showerClusterHit);
 
