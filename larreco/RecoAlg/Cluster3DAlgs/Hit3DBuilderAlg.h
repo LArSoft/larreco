@@ -41,12 +41,12 @@ struct Hit2DSetCompare
 };
     
 typedef std::vector<reco::ClusterHit2D*>                     HitVector;
-typedef std::map<geo::View_t, HitVector>                     ViewToHitVectorMap;
+typedef std::map<size_t, HitVector>                          PlaneToHitVectorMap;
 typedef std::vector<reco::ClusterHit2D>                      Hit2DVector;
 typedef std::set<const reco::ClusterHit2D*, Hit2DSetCompare> Hit2DSet;
 typedef std::map<unsigned int, Hit2DSet >                    WireToHitSetMap;
-typedef std::map<geo::View_t, WireToHitSetMap >              ViewToWireToHitSetMap;
-typedef std::map<geo::View_t, HitVector >                    HitVectorMap;
+typedef std::map<size_t, WireToHitSetMap >                   PlaneToWireToHitSetMap;
+typedef std::map<size_t, HitVector >                         HitVectorMap;
     
 typedef std::vector<std::unique_ptr<reco::ClusterHit3D> >    HitPairVector;
 
@@ -73,7 +73,7 @@ public:
     /**
      *  @brief Given the ClusterHit2D objects, build the HitPairMap
      */
-    void BuildHit3D(ViewToHitVectorMap& viewToHitVectorMap, ViewToWireToHitSetMap& viewToWireToHitSetMap, reco::HitPairList& hitPairList);
+    void BuildHit3D(PlaneToHitVectorMap& planeToHitVectorMap, PlaneToWireToHitSetMap& planeToWireToHitSetMap, reco::HitPairList& hitPairList);
     
     /**
      *  @brief If monitoring, recover the time to execute a particular function
@@ -85,7 +85,7 @@ private:
     /**
      *  @brief Given the ClusterHit2D objects, build the HitPairMap
      */
-    size_t BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, reco::HitPairList& hitPairList) const;
+    size_t BuildHitPairMap(PlaneToHitVectorMap& planeToHitVectorMap, reco::HitPairList& hitPairList) const;
     
     /**
      *  @brief This builds a list of candidate hit pairs from lists of hits on two planes
@@ -140,14 +140,14 @@ private:
     /**
      *  @brief Create the internal channel status vector (assume will eventually be event-by-event)
      */
-    void BuildChannelStatusVec(ViewToWireToHitSetMap& viewToWiretoHitSetMap);
+    void BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWiretoHitSetMap);
     
     /**
      *  @brief define data structure for keeping track of channel status
      */
     
-    using ChannelStatusVec       = std::vector<size_t>;
-    using ChannelStatusByViewVec = std::vector<ChannelStatusVec>;
+    using ChannelStatusVec        = std::vector<size_t>;
+    using ChannelStatusByPlaneVec = std::vector<ChannelStatusVec>;
     
     /**
      *  @brief Data members to follow
@@ -165,7 +165,7 @@ private:
     std::vector<std::vector<double>>     m_wireDir;               ///<
     std::vector<std::vector<double>>     m_wireNormal;            ///<
     
-    ChannelStatusByViewVec               m_channelStatus;
+    ChannelStatusByPlaneVec              m_channelStatus;
  
     geo::Geometry*                       m_geometry;              //< pointer to the Geometry service
     const lariov::ChannelStatusProvider* m_channelFilter;

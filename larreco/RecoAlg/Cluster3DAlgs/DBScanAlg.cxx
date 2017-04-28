@@ -654,10 +654,10 @@ void DBScanAlg::FillClusterParams(reco::ClusterParameters& clusterParams, double
         for(const auto& hit2D : hit3D->getHits())
         {
             if (!hit2D) continue;
-            size_t view = hit2D->getHit().View();
-            if (hit2D->getStatusBits() & reco::ClusterHit2D::USED) nHitsUsed[view]++;
-            else                                                   nUniqueHits[view]++;
-            nTotalHits[view]++;
+            size_t plane = hit2D->getHit().WireID().Plane;
+            if (hit2D->getStatusBits() & reco::ClusterHit2D::USED) nHitsUsed[plane]++;
+            else                                                   nUniqueHits[plane]++;
+            nTotalHits[plane]++;
             nHits2D++;
         }
         
@@ -716,16 +716,16 @@ void DBScanAlg::FillClusterParams(reco::ClusterParameters& clusterParams, double
                 clusterParams.UpdateParameters(hit2D);
             }
             
-            size_t nViewsWithHits    = (clusterParams.getClusterParams()[geo::kU].m_hitVector.size() > 0 ? 1 : 0)
-            + (clusterParams.getClusterParams()[geo::kV].m_hitVector.size() > 0 ? 1 : 0)
-            + (clusterParams.getClusterParams()[geo::kW].m_hitVector.size() > 0 ? 1 : 0);
-            size_t nViewsWithMinHits = (clusterParams.getClusterParams()[geo::kU].m_hitVector.size() > 2 ? 1 : 0)
-            + (clusterParams.getClusterParams()[geo::kV].m_hitVector.size() > 2 ? 1 : 0)
-            + (clusterParams.getClusterParams()[geo::kW].m_hitVector.size() > 2 ? 1 : 0);
+            size_t nPlanesWithHits    = (clusterParams.getClusterParams()[0].m_hitVector.size() > 0 ? 1 : 0)
+                                      + (clusterParams.getClusterParams()[1].m_hitVector.size() > 0 ? 1 : 0)
+                                      + (clusterParams.getClusterParams()[2].m_hitVector.size() > 0 ? 1 : 0);
+            size_t nPlanesWithMinHits = (clusterParams.getClusterParams()[0].m_hitVector.size() > 2 ? 1 : 0)
+                                      + (clusterParams.getClusterParams()[1].m_hitVector.size() > 2 ? 1 : 0)
+                                      + (clusterParams.getClusterParams()[2].m_hitVector.size() > 2 ? 1 : 0);
             //            // Final selection cut, need at least 3 hits each view
             //            if (nViewsWithHits == 3 && nViewsWithMinHits > 1)
             // Final selection cut, need at least 3 hits each view for at least 2 views
-            if (nViewsWithHits > 1 && nViewsWithMinHits > 1)
+            if (nPlanesWithHits > 1 && nPlanesWithMinHits > 1)
             {
                 // First task is to remove the hits already in use
                 if (!usedHitPairList.empty())

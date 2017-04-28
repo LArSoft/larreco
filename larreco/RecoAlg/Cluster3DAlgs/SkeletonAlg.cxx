@@ -48,18 +48,18 @@ void SkeletonAlg::reconfigure(fhicl::ParameterSet const &pset)
 }
     
 double SkeletonAlg::FindFirstAndLastWires(std::vector<const reco::ClusterHit3D*>& hitVec,
-                                          int                                     viewToCheck,
+                                          int                                     planeToCheck,
                                           int                                     referenceWire,
                                           double                                  referenceTicks,
                                           int&                                    firstWire,
                                           int&                                    lastWire) const
 {
     // In the simple case the first and last wires are simply the front and back of the input vector
-    firstWire = hitVec.front()->getHits()[viewToCheck]->getHit().WireID().Wire;
-    lastWire  = hitVec.back()->getHits()[viewToCheck]->getHit().WireID().Wire;
+    firstWire = hitVec.front()->getHits()[planeToCheck]->getHit().WireID().Wire;
+    lastWire  = hitVec.back()->getHits()[planeToCheck]->getHit().WireID().Wire;
     
-    double maxDeltaTicks = referenceTicks - hitVec.front()->getHits()[viewToCheck]->getTimeTicks();
-    double minDeltaTicks = referenceTicks - hitVec.back()->getHits()[viewToCheck]->getTimeTicks();
+    double maxDeltaTicks = referenceTicks - hitVec.front()->getHits()[planeToCheck]->getTimeTicks();
+    double minDeltaTicks = referenceTicks - hitVec.back()->getHits()[planeToCheck]->getTimeTicks();
     
     if (minDeltaTicks > maxDeltaTicks) std::swap(maxDeltaTicks, minDeltaTicks);
 
@@ -77,8 +77,8 @@ double SkeletonAlg::FindFirstAndLastWires(std::vector<const reco::ClusterHit3D*>
         
         for(const auto& hitPair : hitVec)
         {
-            int    curWire    = hitPair->getHits()[viewToCheck]->getHit().WireID().Wire;
-            double deltaTicks = referenceTicks - hitPair->getHits()[viewToCheck]->getTimeTicks();
+            int    curWire    = hitPair->getHits()[planeToCheck]->getHit().WireID().Wire;
+            double deltaTicks = referenceTicks - hitPair->getHits()[planeToCheck]->getTimeTicks();
             
             maxDeltaTicks = std::max(maxDeltaTicks, deltaTicks);
             minDeltaTicks = std::min(minDeltaTicks, deltaTicks);
@@ -124,17 +124,17 @@ double SkeletonAlg::FindFirstAndLastWires(std::vector<const reco::ClusterHit3D*>
 class OrderHitsAlongWire
 {
 public:
-    OrderHitsAlongWire(int view = 0) : m_view(view) {}
+    OrderHitsAlongWire(int plane = 0) : m_plane(plane) {}
     
     bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right)
     {
         for(const auto leftHit : left->getHits())
         {
-            if (leftHit->getHit().View() == m_view)
+            if (leftHit->getHit().WireID().Plane == m_plane)
             {
                 for(const auto rightHit : right->getHits())
                 {
-                    if (rightHit->getHit().View() == m_view)
+                    if (rightHit->getHit().WireID().Plane == m_plane)
                     {
                         return leftHit->getHit().WireID().Wire < rightHit->getHit().WireID().Wire;
                     }
@@ -145,10 +145,10 @@ public:
         return false;
     }
 private:
-    int m_view;
+    size_t m_plane;
 };
     
-struct OrderBestViews
+struct OrderBestPlanes
 {
     bool operator()(const std::pair<size_t,size_t>& left, const std::pair<size_t,size_t>& right)
     {
@@ -179,9 +179,9 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
         
         for(const auto& hit2D : hitPair->getHits())
         {
-            size_t view = hit2D->getHit().View();
+            size_t plane = hit2D->getHit().WireID().Plane;
             
-            hit2DToHit3DMap[view][hit2D].push_back(hitPair);
+            hit2DToHit3DMap[plane][hit2D].push_back(hitPair);
         }
     }
     
@@ -191,9 +191,9 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
         for(auto& mapPair : hit2DToHit3DMap[idx])
         {
             size_t numHitPairs = mapPair.second.size();
-            int    viewToCheck = (idx + 1) % 3;    // have forgotten reasoning here...
+            int    planeToCheck = (idx + 1) % 3;    // have forgotten reasoning here...
             
-            if (numHitPairs > 1) std::sort(mapPair.second.begin(), mapPair.second.end(), OrderHitsAlongWire(viewToCheck));
+            if (numHitPairs > 1) std::sort(mapPair.second.begin(), mapPair.second.end(), OrderHitsAlongWire(planeToCheck));
         }
     }
     
@@ -223,66 +223,66 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
         // b) the number of 3D hits using the 2D hit in the given 3D hit
         size_t numHitPairs[3]    = {0,  0,  0};    // This keeps track of the number of 3D hits a given 2D hit is associated with
         int    deltaWires[3]     = {0,  0,  0};
-        double viewDeltaT[3]     = {0., 0., 0.};
+        double planeDeltaT[3]    = {0., 0., 0.};
         double bestDeltaTicks[3] = {0., 0., 0.};
-        int    wireNumByView[3]  = {int(hitPair->getHits()[0]->getHit().WireID().Wire),
+        int    wireNumByPlane[3] = {int(hitPair->getHits()[0]->getHit().WireID().Wire),
                                     int(hitPair->getHits()[1]->getHit().WireID().Wire),
                                     int(hitPair->getHits()[2]->getHit().WireID().Wire)};
         
-        size_t bestViewIdx(0);
+        size_t bestPlaneIdx(0);
         
         // Initiate the loop over views
-        for(size_t viewIdx = 0; viewIdx < 3; viewIdx++)
+        for(size_t planeIdx = 0; planeIdx < 3; planeIdx++)
         {
-            const reco::ClusterHit2D* hit2D          = hitPair->getHits()[viewIdx];
+            const reco::ClusterHit2D* hit2D          = hitPair->getHits()[planeIdx];
             double                    hit2DTimeTicks = hit2D->getTimeTicks();
             
-            std::vector<const reco::ClusterHit3D*>& hitVec(hit2DToHit3DMap[viewIdx][hit2D]);
+            std::vector<const reco::ClusterHit3D*>& hitVec(hit2DToHit3DMap[planeIdx][hit2D]);
             
-            numHitPairs[viewIdx] = hitVec.size();
+            numHitPairs[planeIdx] = hitVec.size();
             
-            if (numHitPairs[viewIdx] > 1)
+            if (numHitPairs[planeIdx] > 1)
             {
-                int viewToCheck = (viewIdx + 1) % 3;
+                int planeToCheck = (planeIdx + 1) % 3;
                 int firstWire;
                 int lastWire;
                 
-                bestDeltaTicks[viewIdx] = FindFirstAndLastWires(hitVec,
-                                                                viewToCheck,
-                                                                wireNumByView[viewToCheck],
-                                                                hit2DTimeTicks,
-                                                                firstWire,
-                                                                lastWire);
+                bestDeltaTicks[planeIdx] = FindFirstAndLastWires(hitVec,
+                                                                 planeToCheck,
+                                                                 wireNumByPlane[planeToCheck],
+                                                                 hit2DTimeTicks,
+                                                                 firstWire,
+                                                                 lastWire);
                 
-                int deltaFirst = wireNumByView[viewToCheck] - firstWire;
-                int deltaLast  = wireNumByView[viewToCheck] - lastWire;
+                int deltaFirst = wireNumByPlane[planeToCheck] - firstWire;
+                int deltaLast  = wireNumByPlane[planeToCheck] - lastWire;
                 
                 // If either distance to the first or last wire is zero then we are an edge point
                 if (deltaFirst == 0 || deltaLast == 0) hitPair->setStatusBit(reco::ClusterHit3D::EDGEHIT);
                 
-                deltaWires[viewIdx]  = deltaFirst + deltaLast;
-                numHitPairs[viewIdx] = lastWire - firstWire + 1;
-                viewDeltaT[viewIdx]  = fabs(hit2DTimeTicks - hitPair->getHits()[viewToCheck]->getTimeTicks());
+                deltaWires[planeIdx]  = deltaFirst + deltaLast;
+                numHitPairs[planeIdx] = lastWire - firstWire + 1;
+                planeDeltaT[planeIdx]  = fabs(hit2DTimeTicks - hitPair->getHits()[planeToCheck]->getTimeTicks());
             }
             // Otherwise, by definition, it is both a skeleton point and an edge point
             else hitPair->setStatusBit(reco::ClusterHit3D::SKELETONHIT | reco::ClusterHit3D::EDGEHIT);
             
-            if (numHitPairs[viewIdx] < numHitPairs[bestViewIdx])
+            if (numHitPairs[planeIdx] < numHitPairs[bestPlaneIdx])
             {
-                bestViewIdx = viewIdx;
+                bestPlaneIdx = planeIdx;
             }
         }
         
         // Make sure a real index was found (which should always happen)
-        if (bestViewIdx < 3 && numHitPairs[bestViewIdx] > 0)
+        if (bestPlaneIdx < 3 && numHitPairs[bestPlaneIdx] > 0)
         {
             // Make a sliding value for the width of the core region
-            int maxBestWires = 0.05 * numHitPairs[bestViewIdx] + 1;
+            int maxBestWires = 0.05 * numHitPairs[bestPlaneIdx] + 1;
             
             maxBestWires = 5000;
             
             // Check condition for a "skeleton" point
-            if (fabs(deltaWires[bestViewIdx]) < maxBestWires + 1)
+            if (fabs(deltaWires[bestPlaneIdx]) < maxBestWires + 1)
             {
                 
                 // If exactly in the middle then we are done
@@ -294,22 +294,22 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
 //                else
                 {
                     // Find the next best view
-                    int nextBestIdx = (bestViewIdx + 1) % 3;
+                    int nextBestIdx = (bestPlaneIdx + 1) % 3;
                     
                     for(size_t idx = 0; idx < 3; idx++)
                     {
-                        if (idx == bestViewIdx) continue;
+                        if (idx == bestPlaneIdx) continue;
                         
                         if (numHitPairs[idx] < numHitPairs[nextBestIdx]) nextBestIdx = idx;
                     }
                     
                     if (nextBestIdx > 2)
                     {
-                        std::cout << "***** invalid next best view: " << nextBestIdx << " *******" << std::endl;
+                        std::cout << "***** invalid next best plane: " << nextBestIdx << " *******" << std::endl;
                         continue;
                     }
                     
-                    if (viewDeltaT[bestViewIdx] < 1.01*bestDeltaTicks[bestViewIdx] && viewDeltaT[nextBestIdx] < 6.01*bestDeltaTicks[nextBestIdx])
+                    if (planeDeltaT[bestPlaneIdx] < 1.01*bestDeltaTicks[bestPlaneIdx] && planeDeltaT[nextBestIdx] < 6.01*bestDeltaTicks[nextBestIdx])
                         hitPair->setStatusBit(reco::ClusterHit3D::SKELETONHIT);
                 }
             }
@@ -354,9 +354,9 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
         
         for(const auto& hit2D : hitPair->getHits())
         {
-            size_t view = hit2D->getHit().View();
+            size_t plane = hit2D->getHit().WireID().Plane;
             
-            hit2DToHit3DMap[view][hit2D].push_back(hitPair);
+            hit2DToHit3DMap[plane][hit2D].push_back(hitPair);
         }
     }
     
@@ -370,9 +370,9 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
         for(auto& mapPair : hit2DToHit3DMap[idx])
         {
             size_t numHitPairs = mapPair.second.size();
-            int    viewToCheck = (idx + 1) % 3;    // have forgotten reasoning here...
+            int    planeToCheck = (idx + 1) % 3;    // have forgotten reasoning here...
             
-            if (numHitPairs > 1) std::sort(mapPair.second.begin(), mapPair.second.end(), OrderHitsAlongWire(viewToCheck));
+            if (numHitPairs > 1) std::sort(mapPair.second.begin(), mapPair.second.end(), OrderHitsAlongWire(planeToCheck));
         }
     }
     
@@ -385,7 +385,7 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
     //       issue arises.
     reco::HitPairListPtr::iterator hitPairItr = skeletonHitList.begin();
     
-    for(int bestViewVecIdx = 0; bestViewVecIdx < 2; bestViewVecIdx++)
+    for(int bestPlaneVecIdx = 0; bestPlaneVecIdx < 2; bestPlaneVecIdx++)
     {
         std::list<reco::ClusterHit3D> tempHitPairList;
         reco::HitPairListPtr          tempHitPairListPtr;
@@ -396,21 +396,21 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
         {
             const reco::ClusterHit3D* hit3D = *hitPairItr++;
             
-            std::vector<std::pair<size_t,size_t> > bestViewVec;
+            std::vector<std::pair<size_t,size_t> > bestPlaneVec;
             
             for(const auto& hit2D : hit3D->getHits())
             {
-                bestViewVec.push_back(std::pair<size_t,size_t>(hit2D->getHit().View(),hit2DToHit3DMap[hit2D->getHit().View()][hit2D].size()));
+                bestPlaneVec.push_back(std::pair<size_t,size_t>(hit2D->getHit().WireID().Plane,hit2DToHit3DMap[hit2D->getHit().WireID().Plane][hit2D].size()));
             }
             
-            std::sort(bestViewVec.begin(), bestViewVec.end(), OrderBestViews());
+            std::sort(bestPlaneVec.begin(), bestPlaneVec.end(), OrderBestPlanes());
             
-            size_t bestViewIdx = bestViewVec[bestViewVecIdx].first;
-            size_t bestViewCnt = bestViewVec[bestViewVecIdx].second;
+            size_t bestPlaneIdx = bestPlaneVec[bestPlaneVecIdx].first;
+            size_t bestPlaneCnt = bestPlaneVec[bestPlaneVecIdx].second;
             
-            if (bestViewCnt > 5) continue;
+            if (bestPlaneCnt > 5) continue;
             
-            std::vector<const reco::ClusterHit3D*>& hit3DVec = hit2DToHit3DMap[bestViewIdx][hit3D->getHits()[bestViewIdx]];
+            std::vector<const reco::ClusterHit3D*>& hit3DVec = hit2DToHit3DMap[bestPlaneIdx][hit3D->getHits()[bestPlaneIdx]];
             
             double avePosition[3] = {hit3D->getPosition()[0],0.,0.};
             

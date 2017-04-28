@@ -1094,42 +1094,41 @@ struct HitPairClusterOrder
 class SetCheckHitOrder
 {
 public:
-//    SetCheckHitOrder()                                : m_view(std::ve)    {}
-    SetCheckHitOrder(const std::vector<size_t>& view) : m_view(view) {}
+    SetCheckHitOrder(const std::vector<size_t>& plane) : m_plane(plane) {}
     
     bool operator()(const reco::ClusterHit3D* left, const reco::ClusterHit3D* right) const
     {
         // Check if primary view's hit is on the same wire
-        if (left->getWireIDs()[m_view[0]] == right->getWireIDs()[m_view[0]])
+        if (left->getWireIDs()[m_plane[0]] == right->getWireIDs()[m_plane[0]])
         {
             // Same wire but not same hit, order by primary hit time
-            if (left->getHits()[m_view[0]] && right->getHits()[m_view[0]] && left->getHits()[m_view[0]] != right->getHits()[m_view[0]])
+            if (left->getHits()[m_plane[0]] && right->getHits()[m_plane[0]] && left->getHits()[m_plane[0]] != right->getHits()[m_plane[0]])
             {
-                return left->getHits()[m_view[0]]->getHit().PeakTime() < right->getHits()[m_view[0]]->getHit().PeakTime();
+                return left->getHits()[m_plane[0]]->getHit().PeakTime() < right->getHits()[m_plane[0]]->getHit().PeakTime();
             }
             
             // Primary view is same hit, look at next view's wire
-            if (left->getWireIDs()[m_view[1]] == right->getWireIDs()[m_view[1]])
+            if (left->getWireIDs()[m_plane[1]] == right->getWireIDs()[m_plane[1]])
             {
                 // Same wire but not same hit, order by secondary hit time
-                if (left->getHits()[m_view[1]] && right->getHits()[m_view[1]] && left->getHits()[m_view[1]] != right->getHits()[m_view[1]])
+                if (left->getHits()[m_plane[1]] && right->getHits()[m_plane[1]] && left->getHits()[m_plane[1]] != right->getHits()[m_plane[1]])
                 {
-                    return left->getHits()[m_view[1]]->getHit().PeakTime() < right->getHits()[m_view[1]]->getHit().PeakTime();
+                    return left->getHits()[m_plane[1]]->getHit().PeakTime() < right->getHits()[m_plane[1]]->getHit().PeakTime();
                 }
             
                 // All that is left is the final view... and this can't be the same hit... (else it is the same 3D hit)
-                return left->getWireIDs()[m_view[2]] < right->getWireIDs()[m_view[2]];
+                return left->getWireIDs()[m_plane[2]] < right->getWireIDs()[m_plane[2]];
             }
             
-            return left->getWireIDs()[m_view[1]] < right->getWireIDs()[m_view[1]];
+            return left->getWireIDs()[m_plane[1]] < right->getWireIDs()[m_plane[1]];
         }
 
         // Order by primary view's wire number
-        return left->getWireIDs()[m_view[0]] < right->getWireIDs()[m_view[0]];
+        return left->getWireIDs()[m_plane[0]] < right->getWireIDs()[m_plane[0]];
     }
     
 private:
-    const std::vector<size_t>& m_view;
+    const std::vector<size_t>& m_plane;
 };
     
 void MinSpanTreeAlg::CheckHitSorting(reco::ClusterParameters& clusterParams) const
@@ -1147,35 +1146,35 @@ void MinSpanTreeAlg::CheckHitSorting(reco::ClusterParameters& clusterParams) con
         {
             const std::vector<double>& pcaAxis  = pca.getEigenVectors()[0];
             
-            std::vector<size_t> closestView = {0, 0, 0 };
-            std::vector<float>  bestAngle   = {0.,0.,0.};
+            std::vector<size_t> closestPlane = {0, 0, 0 };
+            std::vector<float>  bestAngle    = {0.,0.,0.};
             
-            for(size_t view = 0; view < 3; view++)
+            for(size_t plane = 0; plane < 3; plane++)
             {
-                const std::vector<float>& wireDir = m_wireDir[view];
+                const std::vector<float>& wireDir = m_wireDir[plane];
                 
                 float dotProd = std::fabs(pcaAxis[0]*wireDir[0] + pcaAxis[1]*wireDir[1] + pcaAxis[2]*wireDir[2]);
                 
                 if (dotProd > bestAngle[0])
                 {
-                    bestAngle[2]   = bestAngle[1];
-                    closestView[2] = closestView[1];
-                    bestAngle[1]   = bestAngle[0];
-                    closestView[1] = closestView[0];
-                    closestView[0] = view;
-                    bestAngle[0]   = dotProd;
+                    bestAngle[2]    = bestAngle[1];
+                    closestPlane[2] = closestPlane[1];
+                    bestAngle[1]    = bestAngle[0];
+                    closestPlane[1] = closestPlane[0];
+                    closestPlane[0] = plane;
+                    bestAngle[0]    = dotProd;
                 }
                 else if (dotProd > bestAngle[1])
                 {
-                    bestAngle[2]   = bestAngle[1];
-                    closestView[2] = closestView[1];
-                    closestView[1] = view;
-                    bestAngle[1]   = dotProd;
+                    bestAngle[2]    = bestAngle[1];
+                    closestPlane[2] = closestPlane[1];
+                    closestPlane[1] = plane;
+                    bestAngle[1]    = dotProd;
                 }
                 else
                 {
-                    closestView[2] = view;
-                    bestAngle[2]   = dotProd;
+                    closestPlane[2] = plane;
+                    bestAngle[2]    = dotProd;
                 }
             }
             
@@ -1183,18 +1182,18 @@ void MinSpanTreeAlg::CheckHitSorting(reco::ClusterParameters& clusterParams) con
             reco::HitPairListPtr localHitList = curCluster;
             
             // Sort the hits
-            localHitList.sort(SetCheckHitOrder(closestView));
+            localHitList.sort(SetCheckHitOrder(closestPlane));
             
             // Ok, let's print it all and take a look
             std::cout << "********************************************************************************************" << std::endl;
-            std::cout << "**>>>>> longest axis: " << closestView[0] << ", best angle: " << bestAngle[0] << std::endl;
-            std::cout << "**>>>>> second  axis: " << closestView[1] << ", best angle: " << bestAngle[1] << std::endl;
+            std::cout << "**>>>>> longest axis: " << closestPlane[0] << ", best angle: " << bestAngle[0] << std::endl;
+            std::cout << "**>>>>> second  axis: " << closestPlane[1] << ", best angle: " << bestAngle[1] << std::endl;
             std::cout << " " << std::endl;
             
             reco::HitPairListPtr::iterator firstHitItr = localHitList.begin();
             reco::HitPairListPtr::iterator lastHitItr  = localHitList.begin();
             
-            size_t bestView = closestView[0];
+            size_t bestPlane = closestPlane[0];
             
             reco::HitPairListPtr testList;
             
@@ -1206,13 +1205,13 @@ void MinSpanTreeAlg::CheckHitSorting(reco::ClusterParameters& clusterParams) con
                 while(lastHitItr != localHitList.end())
                 {
                     // If a different wire on the best view then we're certainly done
-                    if (currentHit->getWireIDs()[bestView] != (*lastHitItr)->getWireIDs()[bestView]) break;
+                    if (currentHit->getWireIDs()[bestPlane] != (*lastHitItr)->getWireIDs()[bestPlane]) break;
                     
                     // More subtle test to see if same wire but different hit (being careful of case of no hit)
-                    if (currentHit->getHits()[bestView] && (*lastHitItr)->getHits()[bestView] && currentHit->getHits()[bestView] != (*lastHitItr)->getHits()[bestView]) break;
+                    if (currentHit->getHits()[bestPlane] && (*lastHitItr)->getHits()[bestPlane] && currentHit->getHits()[bestPlane] != (*lastHitItr)->getHits()[bestPlane]) break;
                     
                     // Yet event more subtle test...
-                    if ((!(currentHit->getHits()[bestView]) && (*lastHitItr)->getHits()[bestView]) || (currentHit->getHits()[bestView] && !((*lastHitItr)->getHits()[bestView]))) break;
+                    if ((!(currentHit->getHits()[bestPlane]) && (*lastHitItr)->getHits()[bestPlane]) || (currentHit->getHits()[bestPlane] && !((*lastHitItr)->getHits()[bestPlane]))) break;
                     
                     // Not there yet...
                     lastHitItr++;
@@ -1393,16 +1392,16 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, H
         for(const auto& hit2D : hit3D->getHits())
         {
             if (!hit2D) continue;
-            size_t view = hit2D->getHit().View();
+            size_t plane = hit2D->getHit().WireID().Plane;
 
-            if (hit2D->getStatusBits() & reco::ClusterHit2D::USED) nHitsUsed[view]++;
-            else                                                   nUniqueHits[view]++;
+            if (hit2D->getStatusBits() & reco::ClusterHit2D::USED) nHitsUsed[plane]++;
+            else                                                   nUniqueHits[plane]++;
             
             // Is this 2D hit shared?
             if (hit2DToClusterMap[hit2D].size() > 1) nMultClusters++;
             for(auto& clusterCntPair : hit2DToClusterMap[hit2D]) clusterHitCountMap[clusterCntPair.first]++;
             
-            nTotalHits[view]++;
+            nTotalHits[plane]++;
             nHits2D++;
         }
         
@@ -1474,16 +1473,16 @@ void MinSpanTreeAlg::FillClusterParams(reco::ClusterParameters& clusterParams, H
                 clusterParams.UpdateParameters(hit2D);
             }
             
-            size_t nViewsWithHits    = (clusterParams.getClusterParams()[geo::kU].m_hitVector.size() > 0 ? 1 : 0)
-            + (clusterParams.getClusterParams()[geo::kV].m_hitVector.size() > 0 ? 1 : 0)
-            + (clusterParams.getClusterParams()[geo::kW].m_hitVector.size() > 0 ? 1 : 0);
-            size_t nViewsWithMinHits = (clusterParams.getClusterParams()[geo::kU].m_hitVector.size() > 2 ? 1 : 0)
-            + (clusterParams.getClusterParams()[geo::kV].m_hitVector.size() > 2 ? 1 : 0)
-            + (clusterParams.getClusterParams()[geo::kW].m_hitVector.size() > 2 ? 1 : 0);
+            size_t nPlanesWithHits    = (clusterParams.getClusterParams()[0].m_hitVector.size() > 0 ? 1 : 0)
+                                      + (clusterParams.getClusterParams()[1].m_hitVector.size() > 0 ? 1 : 0)
+                                      + (clusterParams.getClusterParams()[2].m_hitVector.size() > 0 ? 1 : 0);
+            size_t nPlanesWithMinHits = (clusterParams.getClusterParams()[0].m_hitVector.size() > 2 ? 1 : 0)
+                                      + (clusterParams.getClusterParams()[1].m_hitVector.size() > 2 ? 1 : 0)
+                                      + (clusterParams.getClusterParams()[2].m_hitVector.size() > 2 ? 1 : 0);
             //            // Final selection cut, need at least 3 hits each view
             //            if (nViewsWithHits == 3 && nViewsWithMinHits > 1)
             // Final selection cut, need at least 3 hits each view for at least 2 views
-            if (nViewsWithHits > 1 && nViewsWithMinHits > 1)
+            if (nPlanesWithHits > 1 && nPlanesWithMinHits > 1)
             {
                 // First task is to remove the hits already in use
                 if (!usedHitPairList.empty())

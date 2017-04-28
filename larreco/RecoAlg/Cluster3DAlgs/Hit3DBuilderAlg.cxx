@@ -111,12 +111,12 @@ void Hit3DBuilderAlg::reconfigure(fhicl::ParameterSet const &pset)
     m_buildTime = 0.;
 }
     
-void Hit3DBuilderAlg::BuildChannelStatusVec(ViewToWireToHitSetMap& viewToWireToHitSetMap)
+void Hit3DBuilderAlg::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireToHitSetMap)
 {
     // This is called each event, clear out the previous version and start over
     if (!m_channelStatus.empty()) m_channelStatus.clear();
     
-    m_channelStatus.resize(m_geometry->Nviews());
+    m_channelStatus.resize(m_geometry->Nplanes());
 
     // Loop through views/planes to set the wire length vectors
     for(size_t idx = 0; idx < m_channelStatus.size(); idx++)
@@ -138,9 +138,9 @@ void Hit3DBuilderAlg::BuildChannelStatusVec(ViewToWireToHitSetMap& viewToWireToH
     }
     
     // add quiet wires in U plane for microboone (this will done "correctly" in near term)
-    ViewToWireToHitSetMap::iterator uPlaneHitItr = viewToWireToHitSetMap.find(geo::kU);
+    PlaneToWireToHitSetMap::iterator plane0HitItr = planeToWireToHitSetMap.find(0);
     
-    if (uPlaneHitItr != viewToWireToHitSetMap.end())
+    if (plane0HitItr != planeToWireToHitSetMap.end())
     {
 //        WireToHitSetMap& wireToHitSetMap = uPlaneHitItr->second;
     
@@ -174,7 +174,7 @@ struct HitPairClusterOrder
     }
 };
     
-void Hit3DBuilderAlg::BuildHit3D(ViewToHitVectorMap& viewToHitVectorMap, ViewToWireToHitSetMap& viewToWireToHitSetMap, reco::HitPairList& hitPairList)
+void Hit3DBuilderAlg::BuildHit3D(PlaneToHitVectorMap& planeToHitVectorMap, PlaneToWireToHitSetMap& planeToWireToHitSetMap, reco::HitPairList& hitPairList)
 {
     /**
      *  @brief Driver for processing input 2D hits, transforming to 3D hits and building lists
@@ -186,9 +186,9 @@ void Hit3DBuilderAlg::BuildHit3D(ViewToHitVectorMap& viewToHitVectorMap, ViewToW
     
     // The first task is to take the lists of input 2D hits (a map of view to sorted lists of 2D hits)
     // and then to build a list of 3D hits to be used in downstream processing
-    BuildChannelStatusVec(viewToWireToHitSetMap);
+    BuildChannelStatusVec(planeToWireToHitSetMap);
     
-    size_t numHitPairs = BuildHitPairMap(viewToHitVectorMap, hitPairList);
+    size_t numHitPairs = BuildHitPairMap(planeToHitVectorMap, hitPairList);
     
     if (m_enableMonitoring)
     {
@@ -262,7 +262,7 @@ bool SetPairStartTimeOrder(const std::unique_ptr<reco::ClusterHit3D>& left, cons
     
 //------------------------------------------------------------------------------------------------------------------------------------------
     
-size_t Hit3DBuilderAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, reco::HitPairList& hitPairList) const
+size_t Hit3DBuilderAlg::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVectorMap, reco::HitPairList& hitPairList) const
 {
     /**
      *  @brief Given input 2D hits, build out the lists of possible 3D hits
@@ -308,20 +308,20 @@ size_t Hit3DBuilderAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, 
     
     //*********************************************************************************
     // Basically, we try to loop until done...
-    ViewToHitVectorMap::iterator mapItrU = viewToHitVectorMap.find(geo::kU);
-    ViewToHitVectorMap::iterator mapItrV = viewToHitVectorMap.find(geo::kV);
-    ViewToHitVectorMap::iterator mapItrW = viewToHitVectorMap.find(geo::kW);
+    PlaneToHitVectorMap::iterator mapItrU = planeToHitVectorMap.find(0);
+    PlaneToHitVectorMap::iterator mapItrV = planeToHitVectorMap.find(1);
+    PlaneToHitVectorMap::iterator mapItrW = planeToHitVectorMap.find(2);
     
-    size_t nViewsWithHits = (mapItrU != viewToHitVectorMap.end() ? 1 : 0)
-                          + (mapItrV != viewToHitVectorMap.end() ? 1 : 0)
-                          + (mapItrW != viewToHitVectorMap.end() ? 1 : 0);
+    size_t nPlanesWithHits = (mapItrU != planeToHitVectorMap.end() ? 1 : 0)
+                           + (mapItrV != planeToHitVectorMap.end() ? 1 : 0)
+                           + (mapItrW != planeToHitVectorMap.end() ? 1 : 0);
     
-    if (nViewsWithHits < 2) return 0;
+    if (nPlanesWithHits < 2) return 0;
     
     // We are going to resort the hits into "start time" order...
-    std::sort(viewToHitVectorMap[geo::kU].begin(), viewToHitVectorMap[geo::kU].end(), SetHitStartTimeOrder);
-    std::sort(viewToHitVectorMap[geo::kV].begin(), viewToHitVectorMap[geo::kV].end(), SetHitStartTimeOrder);
-    std::sort(viewToHitVectorMap[geo::kW].begin(), viewToHitVectorMap[geo::kW].end(), SetHitStartTimeOrder);
+    std::sort(planeToHitVectorMap[0].begin(), planeToHitVectorMap[0].end(), SetHitStartTimeOrder);
+    std::sort(planeToHitVectorMap[1].begin(), planeToHitVectorMap[1].end(), SetHitStartTimeOrder);
+    std::sort(planeToHitVectorMap[2].begin(), planeToHitVectorMap[2].end(), SetHitStartTimeOrder);
     
     HitVector& hitVectorU = mapItrU->second;
     HitVector& hitVectorV = mapItrV->second;
@@ -375,12 +375,12 @@ size_t Hit3DBuilderAlg::BuildHitPairMap(ViewToHitVectorMap& viewToHitVectorMap, 
         
         hitItrVec[0].first++;
         
-        int nViewsWithHits(0);
+        int nPlanesWithHits(0);
         
         for(auto& pair : hitItrVec)
-            if (pair.first != pair.second) nViewsWithHits++;
+            if (pair.first != pair.second) nPlanesWithHits++;
         
-        if (nViewsWithHits < 2) break;
+        if (nPlanesWithHits < 2) break;
     }
     
     // Return the hit pair list but sorted by z and y positions (faster traversal in next steps)
@@ -469,12 +469,12 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
             if (pair12.second.empty()) continue;
 
             // "Discover" the missing view (and we can't rely on assuming there are hits in the pair13Map at this point)
-            geo::View_t missView = geo::kU;
+            size_t missPlane = 0;
             
-            if      (!pair12.second.front().second.getHits()[1]) missView = geo::kV;
-            else if (!pair12.second.front().second.getHits()[2]) missView = geo::kW;
+            if      (!pair12.second.front().second.getHits()[1]) missPlane = 1;
+            else if (!pair12.second.front().second.getHits()[2]) missPlane = 2;
             
-            geo::WireID missingPlaneID(0,0,missView,0);
+            geo::WireID missingPlaneID(0,0,missPlane,0);
             
             // Get the wire ID for the nearest wire to the position of this hit
             geo::WireID wireID = NearestWireID(pair12.second.front().second.getPosition(), missingPlaneID);
@@ -617,7 +617,7 @@ bool Hit3DBuilderAlg::makeHitPair(reco::ClusterHit3D&       hitPair,
                 double position[] = {xPosition, widIntersect.y, widIntersect.z};
             
                 // If to here then we need to sort out the hit pair code telling what views are used
-                unsigned statusBits = 1 << hit1->getHit().View() | 1 << hit2->getHit().View();
+                unsigned statusBits = 1 << hit1->getHit().WireID().Plane | 1 << hit2->getHit().WireID().Plane;
                 
                 // handle status bits for the 2D hits
                 if (hit1->getStatusBits() & reco::ClusterHit2D::USEDINPAIR) hit1->setStatusBit(reco::ClusterHit2D::SHAREDINPAIR);
@@ -699,14 +699,14 @@ bool Hit3DBuilderAlg::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
             
                 pairVec.resize(3);
             
-                pairVec[hit->getHit().View()]  = &pair;
-                pairVec[hit0->getHit().View()] = &pair1h;
-                pairVec[hit1->getHit().View()] = &pair0h;
+                pairVec[hit->getHit().WireID().Plane]  = &pair;
+                pairVec[hit0->getHit().WireID().Plane] = &pair1h;
+                pairVec[hit1->getHit().WireID().Plane] = &pair0h;
             
-                double deltaZ_w  = pairVec[geo::kW]->getPosition()[2] - 0.5 * (pairVec[geo::kU]->getPosition()[2] + pairVec[geo::kV]->getPosition()[2]);
-                double deltaY_uv = pairVec[geo::kV]->getPosition()[1] - pairVec[geo::kU]->getPosition()[1];
+                double deltaZ_w  = pairVec[2]->getPosition()[2] - 0.5 * (pairVec[0]->getPosition()[2] + pairVec[1]->getPosition()[2]);
+                double deltaY_uv = pairVec[1]->getPosition()[1] - pairVec[0]->getPosition()[1];
 
-                if (std::fabs(std::fabs(deltaZ_w) - 0.5 * m_wirePitch[geo::kW]) < .05 && std::fabs(std::fabs(deltaY_uv) - 0.5774 * m_wirePitch[geo::kW]) < 0.05)
+                if (std::fabs(std::fabs(deltaZ_w) - 0.5 * m_wirePitch[2]) < .05 && std::fabs(std::fabs(deltaY_uv) - 0.5774 * m_wirePitch[2]) < 0.05)
                 {
                     // Weighted average, delta and sigmas
                     double hitSigma      = hit->getHit().RMS();
@@ -787,19 +787,19 @@ bool Hit3DBuilderAlg::makeDeadChannelPair(reco::ClusterHit3D& pairOut, const rec
     const reco::ClusterHit2D* hit0 = pair.getHits().at(0);
     const reco::ClusterHit2D* hit1 = pair.getHits().at(1);
     
-    geo::View_t missView(geo::kW);
+    size_t missPlane(2);
     
     // u plane hit is missing
     if (!hit0)
     {
-        hit0     = pair.getHits().at(2);
-        missView = geo::kU;
+        hit0      = pair.getHits().at(2);
+        missPlane = 0;
     }
     // v plane hit is missing
     else if (!hit1)
     {
-        hit1     = pair.getHits().at(2);
-        missView = geo::kV;
+        hit1      = pair.getHits().at(2);
+        missPlane = 1;
     }
     
     // Which plane is missing?
@@ -807,7 +807,7 @@ bool Hit3DBuilderAlg::makeDeadChannelPair(reco::ClusterHit3D& pairOut, const rec
     geo::WireID wireID1 = hit1->getHit().WireID();
     
     // Ok, recover the wireID expected in the third plane...
-    geo::WireID wireIn(0,0,missView,0);
+    geo::WireID wireIn(0,0,missPlane,0);
     geo::WireID wireID = NearestWireID(pair.getPosition(), wireIn);
     
     // There can be a round off issue so check the next wire as well

@@ -184,8 +184,8 @@ private:
      *  @brief define data structure for keeping track of channel status
      */
     
-    using ChannelStatusVec       = std::vector<size_t>;
-    using ChannelStatusByViewVec = std::vector<ChannelStatusVec>;
+    using ChannelStatusVec        = std::vector<size_t>;
+    using ChannelStatusByPlaneVec = std::vector<ChannelStatusVec>;
     
     /**
      *  @brief Data members to follow
@@ -205,7 +205,7 @@ private:
     mutable std::vector<float>           m_timeVector;            ///<
     std::vector<std::vector<float>>      m_wireDir;               ///<
     
-    ChannelStatusByViewVec               m_channelStatus;
+    ChannelStatusByPlaneVec              m_channelStatus;
  
     geo::Geometry*                       m_geometry;              //< pointer to the Geometry service
     const detinfo::DetectorProperties*   m_detector;              //< pointer to the detector services

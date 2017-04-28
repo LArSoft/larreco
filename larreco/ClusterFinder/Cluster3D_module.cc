@@ -141,14 +141,14 @@ private:
      * 
      *  @param  evt                   the ART event
      *  @param  hit2DVector           A container for the internal Cluster3D 2D hit objects
-     *  @param  viewToHitVectorMap    A map between view and the internal Cluster3D 2D hit objects
+     *  @param  PlaneToHitVectorMap   A map between view and the internal Cluster3D 2D hit objects
      *  @param  viewToWireToHitSetMap This maps 2D hits to wires and stores by view
      *  @param  hitToPtrMap           This maps our Cluster2D hits back to art Ptr's to reco Hits
      */
     void CollectArtHits(art::Event&             evt,
                         Hit2DVector&            hit2DVector,
-                        ViewToHitVectorMap&     viewToHitVector,
-                        ViewToWireToHitSetMap&  viewToWireToHitSetMap,
+                        PlaneToHitVectorMap&    planeToHitVector,
+                        PlaneToWireToHitSetMap& planeToWireToHitSetMap,
                         RecobHitToPtrMap&       hitToPtrMap) const;
 
     /**
@@ -361,24 +361,24 @@ void Cluster3D::produce(art::Event &evt)
     this->PrepareEvent(evt);
 
     // Get instances of the primary data structures needed
-    Hit2DVector                        clusterHit2DMasterVec;
-    ViewToHitVectorMap                 viewToHitVectorMap;
-    ViewToWireToHitSetMap              viewToWireToHitSetMap;
-    reco::ClusterParametersList        clusterParametersList;
-    RecobHitToPtrMap                   clusterHitToArtPtrMap;
-    std::auto_ptr< reco::HitPairList > hitPairList(new reco::HitPairList); // Potentially lots of hits, use heap instead of stack
+    Hit2DVector                          clusterHit2DMasterVec;
+    PlaneToHitVectorMap                  planeToHitVectorMap;
+    PlaneToWireToHitSetMap               planeToWireToHitSetMap;
+    reco::ClusterParametersList          clusterParametersList;
+    RecobHitToPtrMap                     clusterHitToArtPtrMap;
+    std::unique_ptr< reco::HitPairList > hitPairList(new reco::HitPairList); // Potentially lots of hits, use heap instead of stack
     
     // Recover the 2D hits and then organize them into data structures which will be used in the
     // DBscan algorithm for building the 3D clusters
-    this->CollectArtHits(evt, clusterHit2DMasterVec, viewToHitVectorMap, viewToWireToHitSetMap, clusterHitToArtPtrMap);
+    this->CollectArtHits(evt, clusterHit2DMasterVec, planeToHitVectorMap, planeToWireToHitSetMap, clusterHitToArtPtrMap);
     
     if (m_enableMonitoring) theClockArtHits.stop();
     
     // If there are no hits in our view/wire data structure then do not proceed with the full analysis
-    if (!viewToWireToHitSetMap.empty())
+    if (!planeToWireToHitSetMap.empty())
     {
         // Call the algorithm that builds 3D hits
-        m_hit3DBuilderAlg.BuildHit3D(viewToHitVectorMap, viewToWireToHitSetMap, *hitPairList);
+        m_hit3DBuilderAlg.BuildHit3D(planeToHitVectorMap, planeToWireToHitSetMap, *hitPairList);
         
         // Call the main workhorse algorithm for building the local version of candidate 3D clusters
         //m_dbScanAlg.ClusterHitsDBScan(*hitPairList, hitPairClusterMap, clusterParametersList);
@@ -472,11 +472,11 @@ bool Hit2DSetCompare::operator() (const reco::ClusterHit2D* left, const reco::Cl
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
-void Cluster3D::CollectArtHits(art::Event&            evt,
-                               Hit2DVector&           hitVector,
-                               ViewToHitVectorMap&    viewToHitVectorMap,
-                               ViewToWireToHitSetMap& viewToWireToHitSetMap,
-                               RecobHitToPtrMap&      hitToPtrMap) const
+void Cluster3D::CollectArtHits(art::Event&             evt,
+                               Hit2DVector&            hitVector,
+                               PlaneToHitVectorMap&    planeToHitVectorMap,
+                               PlaneToWireToHitSetMap& planeToWireToHitSetMap,
+                               RecobHitToPtrMap&       hitToPtrMap) const
 {
     /**
      *  @brief Recover the 2D hits from art and fill out the local data structures for the 3D clustering
@@ -487,11 +487,13 @@ void Cluster3D::CollectArtHits(art::Event&            evt,
     if (!recobHitHandle.isValid()) return;
     
     // We'll need the offsets for each plane
-    std::map<geo::View_t, double> viewOffsetMap;
+    std::map<size_t, double> planeOffsetMap;
     
-    viewOffsetMap[geo::kU] = m_detector->GetXTicksOffset(geo::kU, 0, 0)-m_detector->TriggerOffset();
-    viewOffsetMap[geo::kV] = m_detector->GetXTicksOffset(geo::kV, 0, 0)-m_detector->TriggerOffset();
-    viewOffsetMap[geo::kW] = m_detector->GetXTicksOffset(geo::kW, 0, 0)-m_detector->TriggerOffset();
+    planeOffsetMap[0] = m_detector->GetXTicksOffset(0, 0, 0)-m_detector->TriggerOffset();
+    planeOffsetMap[1] = m_detector->GetXTicksOffset(1, 0, 0)-m_detector->TriggerOffset();
+    planeOffsetMap[2] = m_detector->GetXTicksOffset(2, 0, 0)-m_detector->TriggerOffset();
+    
+    std::cout << "***> plane 0 offset: " << planeOffsetMap[0] << ", plane 1: " << planeOffsetMap[1] << ", plane 2: " << planeOffsetMap[2] << std::endl;
     
     // Reserve memory for the hit vector
     hitVector.reserve(recobHitHandle->size());
@@ -506,22 +508,22 @@ void Cluster3D::CollectArtHits(art::Event&            evt,
         
         const geo::WireID& hitWireID(recobHit->WireID());
         
-        double hitPeakTime(recobHit->PeakTime() - viewOffsetMap[recobHit->View()]);
+        double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[recobHit->WireID().Plane]);
         double xPosition(m_detector->ConvertTicksToX(recobHit->PeakTime(), hitWireID.Plane, hitWireID.TPC, hitWireID.Cryostat));
         
         hitVector.emplace_back(reco::ClusterHit2D(0, 0., 0., xPosition, hitPeakTime, *recobHit));
 
-        viewToHitVectorMap[recobHit->View()].push_back(&hitVector.back());
-        viewToWireToHitSetMap[recobHit->View()][recobHit->WireID().Wire].insert(&hitVector.back());
+        planeToHitVectorMap[recobHit->WireID().Plane].push_back(&hitVector.back());
+        planeToWireToHitSetMap[recobHit->WireID().Plane][recobHit->WireID().Wire].insert(&hitVector.back());
         
         const recob::Hit* recobHitPtr = recobHit.get();
         hitToPtrMap[recobHitPtr]      = recobHit;
     }
     
     // Make a loop through to sort the recover hits in time order
-    std::sort(viewToHitVectorMap[geo::kU].begin(), viewToHitVectorMap[geo::kU].end(), SetHitTimeOrder);
-    std::sort(viewToHitVectorMap[geo::kV].begin(), viewToHitVectorMap[geo::kV].end(), SetHitTimeOrder);
-    std::sort(viewToHitVectorMap[geo::kW].begin(), viewToHitVectorMap[geo::kW].end(), SetHitTimeOrder);
+    std::sort(planeToHitVectorMap[0].begin(), planeToHitVectorMap[0].end(), SetHitTimeOrder);
+    std::sort(planeToHitVectorMap[1].begin(), planeToHitVectorMap[1].end(), SetHitTimeOrder);
+    std::sort(planeToHitVectorMap[2].begin(), planeToHitVectorMap[2].end(), SetHitTimeOrder);
 
     mf::LogDebug("Cluster3D") << ">>>>> Number of ART hits: " << hitVector.size() << std::endl;
 }
@@ -990,10 +992,9 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
     // (so, thanks to metaprogramming, we finally have wrappers of wrappers);
     // configuration would happen here, but we are using the default
     // configuration for that algorithm
-    using OverriddenClusterParamsAlg_t
-      = cluster::OverriddenClusterParamsAlg<cluster::StandardClusterParamsAlg>;
-    cluster::ClusterParamsImportWrapper<OverriddenClusterParamsAlg_t>
-      ClusterParamAlgo;
+    using OverriddenClusterParamsAlg_t = cluster::OverriddenClusterParamsAlg<cluster::StandardClusterParamsAlg>;
+    
+    cluster::ClusterParamsImportWrapper<OverriddenClusterParamsAlg_t> ClusterParamAlgo;
     
     // Create id for space points
     int    spacePointID(0);
@@ -1081,9 +1082,9 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
  */
 
             // Start loop over views to build out the hit lists and the 2D cluster objects
-            for(reco::ViewToClusterParamsMap::const_iterator viewItr = clusterParameters.getClusterParams().begin(); viewItr != clusterParameters.getClusterParams().end(); viewItr++)
+            for(reco::PlaneToClusterParamsMap::const_iterator planeItr = clusterParameters.getClusterParams().begin(); planeItr != clusterParameters.getClusterParams().end(); planeItr++)
             {
-                const reco::RecobClusterParameters& clusParams = viewItr->second;
+                const reco::RecobClusterParameters& clusParams = planeItr->second;
                 
                 // Protect against a missing view
                 if (clusParams.m_view == geo::kUnknown) continue;
