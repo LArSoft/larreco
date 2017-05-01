@@ -4,14 +4,14 @@ process_name: NeutrinoShowerEff
 
 services:
 {
-  # TFileService: { fileName: "test.root" }
+  TFileService: { fileName: "ShowerHistograms.root" closeFileFast: false}
   TimeTracker:       {}
   RandomNumberGenerator: {} 
   message:      @local::standard_info
                 @table::dunefd_simulation_services
 }
-services.Geometry: @local::dune10kt_workspace_geo
-
+#services.Geometry: @local::dune10kt_workspace_geo
+services.Geometry: @local::dune10kt_1x2x6_geo
 source:
 {
   module_type: RootInput
@@ -31,17 +31,23 @@ physics:
     NeutrinoShowerEff: 
     {
       module_type:      	"NeutrinoShowerEff"
-      outFile:          	"Showetest.root"
+      #outFile:          	"Showetest.root"
       MCTruthModuleLabel:	"generator"
-      ShowerModuleLabel: 	"emshower3dc"
+      HitModuleLabel:           "linecluster"
+      ShowerModuleLabel: 	"emshower"
+      CNNEMModuleLabel:         "emtrkmichelid:emtrkmichel"
       NeutrinoPDGcode:		12
       LeptonPDGcode:		11
       MaxNeutrinoE:		25.0
       MaxEfrac:			0.30
+      MinCompleteness:		0.70	
       SaveMCTree:		false
+      FidVolCutX:		10
+      FidVolCutY:		10
+      FidVolCutZ:		10	
     }
   }
-  analysis: [ NeutrinoShowerEff ] //Directory for histograms
+  analysis: [ NeutrinoShowerEff ] #Directory for histograms
   end_paths: [ analysis ]
 }
 

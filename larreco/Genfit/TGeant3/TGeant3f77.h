@@ -1,6 +1,5 @@
 #ifndef ROOT_TGeant3f77
 #define ROOT_TGeant3f77 
-/* $Id: TGeant3f77.h 220 2007-11-19 16:08:06Z rdm $ */
 
 //////////////////////////////////////////////////// 
 //  C++/f77 interface to Geant3 basic routines    // 

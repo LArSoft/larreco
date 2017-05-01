@@ -14,6 +14,10 @@ standard_pointidalg:
                          # "maxmean" is mean from 3 ADC's around the max,
                          # "mean" is the mean value of all ADC's in the window
 
+ BlurKernel:      []  # test effect of blurring
+ NoiseSigma:      0   # test effect of white noise
+ CoherentSigma:   0   # test effect of coherent noise
+
  CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
 }
 
@@ -22,22 +26,20 @@ standard_trainingdataalg:
  WireLabel:       "caldata"
  SimulationLabel: "largeant"
  SaveVtxFlags:    true
- 
+
  AdcDelayTicks:   0     # ADC pulse peak delay in ticks (non-zero for not deconvoluted waveforms)
- 
+
  DriftWindow:     6     # downsampling window (in drift ticks)
 
  DownscaleFn:    "mean" # "maxpool" takes the max value in the window,
                         # "maxmean" is mean from 3 ADC's around the max,
                         # "mean" is the mean value of all ADC's in the window
 
- CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
+ BlurKernel:      []    # add wire-to-wire blurring to dumped and downscaled ADC
+ NoiseSigma:      0     # add white noise to dumped and downscaled ADC
+ CoherentSigma:   0     # test effect of coherent noise
 
-# the two following parameters are used to configure underlaying base algorithm,
-# but they are not used in data dumping -> no need to setup/override these parameters
-# in your job file
- PatchSizeW:      32
- PatchSizeD:      32
+ CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
 }
 
 END_PROLOG

@@ -21,16 +21,17 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
+#include "CLHEP/Random/RandGauss.h"
+
 #include <sys/stat.h>
 
 nnet::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fCryo(9999), fTPC(9999), fView(9999),
 	fNWires(0), fNDrifts(0), fNScaledDrifts(0),
-	fDriftWindow(10), fPatchSizeW(32), fPatchSizeD(32),
-	fDownscaleMode(nnet::DataProviderAlg::kMax),
-	fCurrentWireIdx(99999), fCurrentScaledDrift(99999),
+	fDownscaleMode(nnet::DataProviderAlg::kMax), fDriftWindow(10),
 	fCalorimetryAlg(config.CalorimetryAlg()),
-	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
+	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
+	fNoiseSigma(0), fCoherentSigma(0)
 {
 	fGeometry = &*(art::ServiceHandle<geo::Geometry>());
 
@@ -48,8 +49,6 @@ void nnet::DataProviderAlg::reconfigure(const Config& config)
 	fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
 
 	fDriftWindow = config.DriftWindow();
-	fPatchSizeW = config.PatchSizeW();
-	fPatchSizeD = config.PatchSizeD();
 
 	std::string mode_str = config.DownscaleFn();
 	if (mode_str == "maxpool")      fDownscaleMode = nnet::DataProviderAlg::kMax;
@@ -61,14 +60,9 @@ void nnet::DataProviderAlg::reconfigure(const Config& config)
 		fDownscaleMode = nnet::DataProviderAlg::kMax;
 	}
 
-	resizePatch();
-}
-// ------------------------------------------------------
-
-void nnet::DataProviderAlg::resizePatch(void)
-{
-	fWireDriftPatch.resize(fPatchSizeW);
-	for (auto & r : fWireDriftPatch) r.resize(fPatchSizeD);
+    fBlurKernel = config.BlurKernel();
+    fNoiseSigma = config.NoiseSigma();
+    fCoherentSigma = config.CoherentSigma();
 }
 // ------------------------------------------------------
 
@@ -88,13 +82,6 @@ void nnet::DataProviderAlg::resizeView(size_t wires, size_t drifts)
 	}
 }
 // ------------------------------------------------------
-
-float nnet::DataProviderAlg::scaleAdcSample(float val) const
-{
-	if (val < -50.) val = -50.;
-	if (val > 150.) val = 150.;
-	return 0.1 * val;
-}
 
 void nnet::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<float> const & adc) const
 {
@@ -187,122 +174,119 @@ bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wi
 		auto wireChannelNumber = wire.Channel();
 
 		size_t w_idx = 0;
-		bool right_plane = false;
 		for (auto const& id : fGeometry->ChannelToWire(wireChannelNumber))
 		{
-			w_idx = id.Wire;
-
 			if ((id.Cryostat == cryo) && (id.TPC == tpc) && (id.Plane == view))
 			{
-				right_plane = true; break;
-			}
-		}
-		if (right_plane)
-		{
-			auto adc = wire.Signal();
-			if (adc.size() < ndrifts)
-			{
-				mf::LogError("DataProviderAlg") << "Wire ADC vector size lower than NumberTimeSamples.";
-				return false;
-			}
+			    w_idx = id.Wire;
 
-			if (!setWireData(adc, w_idx))
-			{
-				mf::LogError("DataProviderAlg") << "Wire data not set.";
-				return false;
-			}
+			    auto adc = wire.Signal();
+			    if (adc.size() < ndrifts)
+			    {
+			    	mf::LogError("DataProviderAlg") << "Wire ADC vector size lower than NumberTimeSamples.";
+			    	return false;
+			    }
 
-			fWireChannels[w_idx] = wireChannelNumber;
+			    if (!setWireData(adc, w_idx))
+			    {
+			    	mf::LogError("DataProviderAlg") << "Wire data not set.";
+			    	return false;
+			    }
+
+			    fWireChannels[w_idx] = wireChannelNumber;
+			}
 		}
 	}
+	
+    applyBlur();
+    addWhiteNoise();
+    addCoherentNoise();
+	
 	return true;
 }
 // ------------------------------------------------------
 
-bool nnet::DataProviderAlg::bufferPatch(size_t wire, float drift) const
+float nnet::DataProviderAlg::scaleAdcSample(float val)
 {
-	size_t sd = (size_t)(drift / fDriftWindow);
-	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == sd))
-		return true; // still within the current position
-
-	fCurrentWireIdx = wire;
-	fCurrentScaledDrift = sd;
-
-	int halfSizeW = fPatchSizeW / 2;
-	int halfSizeD = fPatchSizeD / 2;
-
-	int w0 = fCurrentWireIdx - halfSizeW;
-	int w1 = fCurrentWireIdx + halfSizeW;
-
-	int d0 = fCurrentScaledDrift - halfSizeD;
-	int d1 = fCurrentScaledDrift + halfSizeD;
-
-    int wsize = fWireDriftData.size();
-	for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch)
-	{
-		auto & dst = fWireDriftPatch[wpatch];
-		if ((w >= 0) && (w < wsize))
-		{
-			auto & src = fWireDriftData[w];
-			int dsize = src.size();
-			for (int d = d0, dpatch = 0; d < d1; ++d, ++dpatch)
-			{
-				if ((d >= 0) && (d < dsize))
-				{
-					dst[dpatch] = src[d];
-				}
-				else
-				{
-					dst[dpatch] = 0;
-				}
-			}
-		}
-		else
-		{
-			std::fill(dst.begin(), dst.end(), 0);
-		}
-	}
-
-	return true;
+    if (val < -50.) val = -50.;
+    if (val > 150.) val = 150.;
+    return 0.1 * val;
 }
 // ------------------------------------------------------
 
-std::vector<float> nnet::DataProviderAlg::flattenData2D(std::vector< std::vector<float> > const & patch)
+void nnet::DataProviderAlg::applyBlur()
 {
-	std::vector<float> flat;
-	if (patch.empty() || patch.front().empty())
-	{
-		mf::LogError("DataProviderAlg") << "Patch is empty.";
-		return flat;
-	}
+    if (fBlurKernel.size() < 2) return;
 
-	flat.resize(patch.size() * patch.front().size());
+    size_t margin_left = (fBlurKernel.size()-1) >> 1, margin_right = fBlurKernel.size() - margin_left - 1;
 
-	for (size_t w = 0, i = 0; w < patch.size(); ++w)
-	{
-		auto const & wire = patch[w];
-		for (size_t d = 0; d < wire.size(); ++d, ++i)
-		{
-			flat[i] = wire[d];
-		}
-	}
+    std::vector< std::vector<float> > src(fWireDriftData.size());
+    for (size_t w = 0; w < fWireDriftData.size(); ++w) { src[w] = fWireDriftData[w]; }
 
-	return flat;
+    for (size_t w = margin_left; w < fWireDriftData.size() - margin_right; ++w)
+    {
+        for (size_t d = 0; d < fWireDriftData[w].size(); ++d)
+        {
+            float sum = 0;
+            for (size_t i = 0; i < fBlurKernel.size(); ++i)
+            {
+                sum += fBlurKernel[i] * src[w + i - margin_left][d];
+            }
+            fWireDriftData[w][d] = sum;
+        }
+    }
 }
 // ------------------------------------------------------
 
-bool nnet::DataProviderAlg::isInsideFiducialRegion(unsigned int wire, float drift) const
+void nnet::DataProviderAlg::addWhiteNoise()
 {
-	size_t marginW = fPatchSizeW / 8; // fPatchSizeX/2 will make patch always completely filled
-	size_t marginD = fPatchSizeD / 8;
+    if (fNoiseSigma == 0) return;
 
-	size_t scaledDrift = (size_t)(drift / fDriftWindow);
-	if ((wire >= marginW) && (wire < fNWires - marginW) &&
-	    (scaledDrift >= marginD) && (scaledDrift < fNScaledDrifts - marginD)) return true;
-	else return false;
+    double effectiveSigma = scaleAdcSample(fNoiseSigma) / fDriftWindow;
+
+    CLHEP::RandGauss gauss(fRndEngine);
+    std::vector<double> noise(fNScaledDrifts);
+    for (auto & wire : fWireDriftData)
+    {
+        gauss.fireArray(fNScaledDrifts, noise.data(), 0., effectiveSigma);
+        for (size_t d = 0; d < wire.size(); ++d)
+        {
+            wire[d] += noise[d];
+        }
+    }
 }
 // ------------------------------------------------------
 
+void nnet::DataProviderAlg::addCoherentNoise()
+{
+    if (fCoherentSigma == 0) return;
+
+    double effectiveSigma = scaleAdcSample(fCoherentSigma) / fDriftWindow;
+
+    CLHEP::RandGauss gauss(fRndEngine);
+    std::vector<double> amps1(fWireDriftData.size());
+    std::vector<double> amps2(1 + (fWireDriftData.size() / 32));
+    gauss.fireArray(amps1.size(), amps1.data(), 1., 0.1); // 10% wire-wire ampl. variation
+    gauss.fireArray(amps2.size(), amps2.data(), 1., 0.1); // 10% group-group ampl. variation
+
+    double group_amp = 1.0;
+    std::vector<double> noise(fNScaledDrifts);
+    for (size_t w = 0; w < fWireDriftData.size(); ++w)
+    {
+        if ((w & 31) == 0)
+        {
+            group_amp = amps2[w >> 5]; // div by 32
+            gauss.fireArray(fNScaledDrifts, noise.data(), 0., effectiveSigma);
+        } // every 32 wires
+
+        auto & wire = fWireDriftData[w];
+        for (size_t d = 0; d < wire.size(); ++d)
+        {
+            wire[d] += group_amp * amps1[w] * noise[d];
+        }
+    }
+}
+// ------------------------------------------------------
 
 
 // ------------------------------------------------------
@@ -339,17 +323,15 @@ nnet::MlpModelInterface::MlpModelInterface(const char* xmlFileName) :
 
 bool nnet::MlpModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
 {
-	auto input = nnet::DataProviderAlg::flattenData2D(inp2d);
+	auto input = nnet::PointIdAlg::flattenData2D(inp2d);
 	if (input.size() == m.GetInputLength())
 	{
 		m.Run(input);
 		return true;
 	}
-	else
-	{
-		mf::LogError("MlpModelInterface") << "Flattened patch size does not match MLP model.";
-		return false;
-	}
+
+	mf::LogError("MlpModelInterface") << "Flattened patch size does not match MLP model.";
+	return false;
 }
 // ------------------------------------------------------
 
@@ -370,11 +352,9 @@ float nnet::MlpModelInterface::GetOneOutput(int neuronIndex) const
 	{
 		return m.GetOneOutput(neuronIndex);
 	}
-	else
-	{
-		mf::LogError("MlpModelInterface") << "Output index does not match MLP model.";
-		return 0.;
-	}
+
+	mf::LogError("MlpModelInterface") << "Output index does not match MLP model.";
+	return 0.;
 }
 // ------------------------------------------------------
 
@@ -413,11 +393,9 @@ std::vector<float> nnet::KerasModelInterface::GetAllOutputs(void) const
 float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
 {
 	if (neuronIndex < (int)fOutput.size()) return fOutput[neuronIndex];
-	else
-	{
-		mf::LogError("KerasModelInterface") << "Output index does not match Keras model.";
-		return 0.;
-	}
+
+	mf::LogError("KerasModelInterface") << "Output index does not match Keras model.";
+	return 0.;
 }
 // ------------------------------------------------------
 
@@ -427,7 +405,9 @@ float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
 // ------------------------------------------------------
 
 nnet::PointIdAlg::PointIdAlg(const Config& config) : nnet::DataProviderAlg(config),
-	fNNet(0)
+	fNNet(0),
+	fPatchSizeW(32), fPatchSizeD(32),
+	fCurrentWireIdx(99999), fCurrentScaledDrift(99999)
 {
 	this->reconfigure(config); 
 }
@@ -442,6 +422,9 @@ nnet::PointIdAlg::~PointIdAlg(void)
 void nnet::PointIdAlg::reconfigure(const Config& config)
 {
 	fNNetModelFilePath = config.NNetModelFile();
+
+	fPatchSizeW = config.PatchSizeW();
+	fPatchSizeD = config.PatchSizeD();
 
 	deleteNNet();
 
@@ -460,6 +443,15 @@ void nnet::PointIdAlg::reconfigure(const Config& config)
 		mf::LogError("PointIdAlg") << "Loading model from file failed.";
 		return;
 	}
+
+    resizePatch();
+}
+// ------------------------------------------------------
+
+void nnet::PointIdAlg::resizePatch(void)
+{
+	fWireDriftPatch.resize(fPatchSizeW);
+	for (auto & r : fWireDriftPatch) r.resize(fPatchSizeD);
 }
 // ------------------------------------------------------
 
@@ -613,6 +605,91 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(std::vector< art::Ptr<recob
 	else std::fill(result.begin(), result.end(), 1.0 / result.size());
 
 	return result;
+}
+// ------------------------------------------------------
+
+// MUST give the same result as get_patch() in scripts/utils.py
+bool nnet::PointIdAlg::bufferPatch(size_t wire, float drift) const
+{
+	size_t sd = (size_t)(drift / fDriftWindow);
+	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == sd))
+		return true; // still within the current position
+
+	fCurrentWireIdx = wire;
+	fCurrentScaledDrift = sd;
+
+	int halfSizeW = fPatchSizeW / 2;
+	int halfSizeD = fPatchSizeD / 2;
+
+	int w0 = fCurrentWireIdx - halfSizeW;
+	int w1 = fCurrentWireIdx + halfSizeW;
+
+	int d0 = fCurrentScaledDrift - halfSizeD;
+	int d1 = fCurrentScaledDrift + halfSizeD;
+
+    int wsize = fWireDriftData.size();
+	for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch)
+	{
+		auto & dst = fWireDriftPatch[wpatch];
+		if ((w >= 0) && (w < wsize))
+		{
+			auto & src = fWireDriftData[w];
+			int dsize = src.size();
+			for (int d = d0, dpatch = 0; d < d1; ++d, ++dpatch)
+			{
+				if ((d >= 0) && (d < dsize))
+				{
+					dst[dpatch] = src[d];
+				}
+				else
+				{
+					dst[dpatch] = 0;
+				}
+			}
+		}
+		else
+		{
+			std::fill(dst.begin(), dst.end(), 0);
+		}
+	}
+
+	return true;
+}
+// ------------------------------------------------------
+
+std::vector<float> nnet::PointIdAlg::flattenData2D(std::vector< std::vector<float> > const & patch)
+{
+	std::vector<float> flat;
+	if (patch.empty() || patch.front().empty())
+	{
+		mf::LogError("DataProviderAlg") << "Patch is empty.";
+		return flat;
+	}
+
+	flat.resize(patch.size() * patch.front().size());
+
+	for (size_t w = 0, i = 0; w < patch.size(); ++w)
+	{
+		auto const & wire = patch[w];
+		for (size_t d = 0; d < wire.size(); ++d, ++i)
+		{
+			flat[i] = wire[d];
+		}
+	}
+
+	return flat;
+}
+// ------------------------------------------------------
+
+bool nnet::PointIdAlg::isInsideFiducialRegion(unsigned int wire, float drift) const
+{
+	size_t marginW = fPatchSizeW / 8; // fPatchSizeX/2 will make patch always completely filled
+	size_t marginD = fPatchSizeD / 8;
+
+	size_t scaledDrift = (size_t)(drift / fDriftWindow);
+	if ((wire >= marginW) && (wire < fNWires - marginW) &&
+	    (scaledDrift >= marginD) && (scaledDrift < fNScaledDrifts - marginD)) return true;
+	else return false;
 }
 // ------------------------------------------------------
 
