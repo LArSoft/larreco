@@ -229,7 +229,7 @@ void shower::EMShower::produce(art::Event& evt) {
           }
         }
         else{
-          throw cet::exception("EMShower") <<"Cannot get associated cluster for PFParticle "<<fPFParticleModuleLabel<<"["<<ipfp<<"]";
+          throw cet::exception("EMShower") <<"Cannot get associated cluster for PFParticle "<<fPFParticleModuleLabel.encode()<<"["<<ipfp<<"]";
         }
       }
       else if (pfp->PdgCode()==11){ //shower particle
@@ -278,7 +278,7 @@ void shower::EMShower::produce(art::Event& evt) {
       if (fCNNEMModuleLabel!="" && fUseCNNtoIDEMHit){//use CNN to identify EM hits
         auto hitResults = anab::MVAReader<recob::Hit, 4>::create(evt, fCNNEMModuleLabel);
         if (!hitResults){
-          throw cet::exception("EMShower") <<"Cannot get MVA results from "<<fCNNEMModuleLabel;
+          throw cet::exception("EMShower") <<"Cannot get MVA results from "<<fCNNEMModuleLabel.encode();
         }
         int trkLikeIdx = hitResults->getIndex("track");
         int emLikeIdx = hitResults->getIndex("em");
@@ -296,9 +296,10 @@ void shower::EMShower::produce(art::Event& evt) {
           }
         }
       }
-      for (std::vector<art::Ptr<recob::Hit> >::iterator showerClusterHit = showerClusterHits.begin(); showerClusterHit != showerClusterHits.end(); ++showerClusterHit)
-  	showerHits.push_back(*showerClusterHit);
-
+      else{
+        for (std::vector<art::Ptr<recob::Hit> >::iterator showerClusterHit = showerClusterHits.begin(); showerClusterHit != showerClusterHits.end(); ++showerClusterHit)
+          showerHits.push_back(*showerClusterHit);
+      }
       // Tracks
       if (!pfpHandle.isValid()) { // Only do this for non-pfparticle mode
 	std::vector<int> clusterTracks = clusterToTracks.at(*showerCluster);
