@@ -45,12 +45,9 @@ physics:
       FidVolCutX:		10
       FidVolCutY:		10
       FidVolCutZ:		10	
-
-
-
     }
   }
-  analysis: [ NeutrinoShowerEff ] //Directory for histograms
+  analysis: [ NeutrinoShowerEff ] #Directory for histograms
   end_paths: [ analysis ]
 }
 
