@@ -503,7 +503,10 @@ namespace DUNE{
     //========================================================================
     //========================================================================
     art::Handle<std::vector<recob::Shower>> showerHandle;
-    if(!event.getByLabel(fShowerModuleLabel,showerHandle)) return;
+    if(!event.getByLabel(fShowerModuleLabel,showerHandle)){
+      mf::LogError("NeutrinoShowerEff")<<"Could not find shower with label "<<fShowerModuleLabel.encode();
+      return;
+    }
     std::vector<art::Ptr<recob::Shower>> showerlist;
     art::fill_ptr_vector(showerlist, showerHandle);
 
@@ -739,7 +742,6 @@ namespace DUNE{
       for(size_t k = 0; k < TrackIDs.size(); k++){
         if (trkID_E.find(std::abs(TrackIDs[k].trackID))==trkID_E.end()) trkID_E[std::abs(TrackIDs[k].trackID)] = 0;
         trkID_E[std::abs(TrackIDs[k].trackID)] += TrackIDs[k].energy;
-
       }            
     }
     double max_E = -999.0;
@@ -761,14 +763,11 @@ namespace DUNE{
       //if( particle->PdgCode() != 22 && abs(particle->PdgCode()) != 11){
       //noEM_E += ii->second;
       //}
-       
-      
 
     } 
-
     MCparticle = bt->TrackIDToParticle(TrackID);
     
-
+    
     Efrac = 1-(partial_E/total_E);
     
     //completeness
@@ -779,7 +778,6 @@ namespace DUNE{
       for(size_t l = 0; l < TrackIDs.size(); ++l){
         if(std::abs(TrackIDs[l].trackID)==TrackID) {
           totenergy += TrackIDs[l].energy;
-	  
         }
       }
     } 
