@@ -137,7 +137,7 @@ private:
 	int fMcPid;
 	int fClSize;
 	int fPure;
-	double fPidValue; // P(track-like)
+	float fPidValue; // P(track-like)
 	
 
 	int fTrkOk[100], fTrkBad[100];
@@ -215,7 +215,7 @@ void nnet::PointIdEffTest::beginJob()
 	fClusterTree = tfs->make<TTree>("cluster","clusters info");
 	fClusterTree->Branch("fMcPid", &fMcPid, "fMcPid/I");
 	fClusterTree->Branch("fClSize", &fClSize, "fClSize/I");
-	fClusterTree->Branch("fPidValue", &fPidValue, "fPidValue/D");
+	fClusterTree->Branch("fPidValue", &fPidValue, "fPidValue/F");
 	fClusterTree->Branch("fpMichel_cl", &fpMichel_cl, "fpMichel_cl/F");
 
     fHitTree = tfs->make<TTree>("hits","hits info");
@@ -223,6 +223,7 @@ void nnet::PointIdEffTest::beginJob()
     fHitTree->Branch("fEvent", &fEvent, "fEvent/I");
     fHitTree->Branch("fHitEM_mc", &fHitEM_mc, "fHitEM_mc/F");
     fHitTree->Branch("fpEM", &fpEM, "fpEM/F");
+    fHitTree->Branch("fPidValue", &fPidValue, "fPidValue/F");
     fHitTree->Branch("fHitMichel_mc", &fHitMichel_mc, "fHitMichel_mc/F");
     fHitTree->Branch("fpMichel_hit", &fpMichel_hit, "fpMichel_hit/F");
     fHitTree->Branch("fOutTrk", &fOutTrk, "fOutTrk/F");
