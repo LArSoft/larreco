@@ -2099,7 +2099,13 @@ TVector2 shower::EMShowerAlg::Project3DPointOntoPlane(TVector3 const& point, int
 
   // Construct wire ID for this point projected onto the plane
   geo::PlaneID planeID = geo::PlaneID(cryostat, tpc, plane);
-  geo::WireID wireID = fGeom->NearestWireID(point, planeID);
+  geo::WireID wireID;
+  try{
+    wireID = fGeom->NearestWireID(point, planeID);
+  }
+  catch(geo::InvalidWireError const& e) {
+    wireID = e.suggestedWireID(); // pick the closest valid wire
+  }
 
   wireTickPos = TVector2(GlobalWire(wireID),
                          fDetProp->ConvertXToTicks(point.X(), planeID));
