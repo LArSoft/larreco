@@ -108,7 +108,7 @@ namespace tca {
           TrajPoint& jtp = jtj.Pts[0];
           // check traj point X direction compatibility
           if(std::abs(itp.Dir[1]) > 0.1 && std::abs(jtp.Dir[1]) > 0.1 && itp.Dir[1] * jtp.Dir[1] < 0) {
-            if(prt) mf::LogVerbatim("TC")<<" FSEP: Incompatible Tp X directions "<<itp.Dir[1]<<" "<<jtp.Dir[1];
+            if(prt) mf::LogVerbatim("TC")<<" FSEP: Incompatible Tp X directions "<<itp.Dir[1]<<" "<<jtp.Dir[1]<<" TjIDs "<<itj.ID<<" "<<jtj.ID;
             continue;
           }
           geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
@@ -225,6 +225,7 @@ namespace tca {
     bool prt = (tjs.ShowerTag[9] >= 0);
     
     int shID = 0;
+    std::vector<unsigned int> tHits;
     for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
       unsigned short imv = tjs.matchVecPFPList[ipfp];
       auto& ms = tjs.matchVec[imv];
@@ -247,6 +248,14 @@ namespace tca {
           myprt<<"\n "<<tj.ID<<" start "<<PrintPos(tjs, tj.Pts[endPt]);
           endPt = tj.EndPt[1];
           myprt<<" "<<tj.ID<<" end "<<PrintPos(tjs, tj.Pts[endPt]);
+          auto cotIndex = GetCotsIndex(tjs, tjID);
+          myprt<<" cotIndex "<<cotIndex;
+          if(cotIndex == USHRT_MAX) {
+            myprt<<" Not a shower Tj. Ignore it";
+          } else {
+            ShowerStruct& ss = tjs.cots[cotIndex];
+            myprt<<" StartChg "<<(int)ss.StartChg;
+          }
         } //  tjID
       } // prt
       ++shID;
@@ -262,6 +271,7 @@ namespace tca {
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) ss3.Pos[ixyz] = ms.sXYZ[ixyz];
       // and direction
       ss3.Dir = ms.sDir;
+      if(prt) mf::LogVerbatim("TC")<<" Shower start "<<ss3.Pos.X()<<" "<<ss3.Pos.Y()<<" "<<ss3.Pos.Z()<<" dir "<<ss3.Dir.X()<<" "<<ss3.Dir.Y()<<" "<<ss3.Dir.Z();
       ss3.DirErr = ms.sDirErr;
       // Find the shower length.
       ss3.Len = 0;
@@ -273,30 +283,32 @@ namespace tca {
       // We need the shower structs to fill the variables in each plane
       for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
         unsigned short istjID = ms.TjIDs[ii];
+        Trajectory& stj = tjs.allTraj[istjID - 1];
+        tHits = PutTrajHitsInVector(stj, kUsedHits);
+        ss3.Hits.insert(ss3.Hits.end(), tHits.begin(), tHits.end());
         // find this ID in the shower struct vector
-        unsigned short iss = GetCotsIndex(tjs, istjID);
-        if(iss == USHRT_MAX) continue;
-        geo::PlaneID planeID = DecodeCTP(tjs.cots[iss].CTP);
+        unsigned short cotIndex = GetCotsIndex(tjs, istjID);
+        if(cotIndex == USHRT_MAX) continue;
+        geo::PlaneID planeID = DecodeCTP(tjs.cots[cotIndex].CTP);
         unsigned short iPln = planeID.Plane;
         // TODO Calculate energy using fCaloAlg
-        ss3.Energy[iPln] = tjs.cots[iss].Energy;
+        ss3.Energy[iPln] = tjs.cots[cotIndex].Energy;
         // This is just a guess for now
-        ss3.EnergyErr[iPln] = 0.3 * tjs.cots[iss].Energy;
+        ss3.EnergyErr[iPln] = 0.3 * tjs.cots[cotIndex].Energy;
         // This is probably wrong also...
         ss3.MIPEnergy[iPln] = ss3.Energy[iPln] / 2.3;
         ss3.MIPEnergyErr[iPln] = ss3.EnergyErr[iPln] / 2.3;
         ss3.dEdx[iPln] = 0;
         // Calculate dE/dx
-        if(tjs.cots[iss].StartChg > 0) {
+        if(tjs.cots[cotIndex].StartChg > 0) {
           double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
           double cosgamma = std::abs(std::sin(angleToVert) * ss3.Dir.Y() + std::cos(angleToVert) * ss3.Dir.Z());
           if(cosgamma == 0) continue;
           double dx = tjs.geom->WirePitch(planeID) / cosgamma;
           // dQ was normalized to 1 WSE (1 wire spacing equivalent) in FindStartChg 
-          double dQ = tjs.cots[iss].StartChg;
+          double dQ = tjs.cots[cotIndex].StartChg;
           std::cout<<iPln<<std::fixed<<" dQ "<<(int)dQ<<" dx "<<dx;
           // Get the time using the shower charge center position
-          Trajectory& stj = tjs.allTraj[tjs.cots[iss].ShowerTjID - 1];
           double time = stj.Pts[1].Pos[1] / tjs.UnitsPerTick;
           double T0 = 0;
           dQ *= fCaloAlg.LifetimeCorrection(time, T0);
@@ -310,9 +322,9 @@ namespace tca {
           double dedx = nElectrons * 23.6E-8 * dQ / dx;
           ss3.dEdx[iPln] = dedx;
           // this is a bit of a fake
-          ss3.dEdxErr[iPln] = dedx * tjs.cots[iss].StartChgErr / tjs.cots[iss].StartChg;
+          ss3.dEdxErr[iPln] = dedx * tjs.cots[cotIndex].StartChgErr / tjs.cots[cotIndex].StartChg;
           std::cout<<" dedx "<<dedx<<" +/- "<<ss3.dEdxErr[iPln]<<"\n";
-          if(prt) mf::LogVerbatim("TC")<<"MS: Shower index "<<iss<<" plane "<<iPln<<" plane "<<iPln<<" dQ "<<(int)dQ<<" dx "<<dx<<" dE/dx "<<ss3.dEdx[iPln]<<" +/- "<<ss3.dEdxErr[iPln];
+          if(prt) mf::LogVerbatim("TC")<<"MS: cotIndex "<<cotIndex<<" plane "<<iPln<<" plane "<<iPln<<" dQ "<<(int)dQ<<" dx "<<dx<<" dE/dx "<<ss3.dEdx[iPln]<<" +/- "<<ss3.dEdxErr[iPln];
         }
       } // ii
       // TODO Calculate the opening angle here 
@@ -476,6 +488,7 @@ namespace tca {
         for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
       }
       DefineShower(tjs, cotIndex, prt);
+      if(tjs.cots[cotIndex].TjIDs.empty()) continue;
       // Try to add more Tjs to the shower
       AddTjsInsideEnvelope(tjs, cotIndex, prt);
       FindExternalParent(tjs, cotIndex, prt);
@@ -495,17 +508,17 @@ namespace tca {
     MergeSubShowers(tjs, inCTP, prt);
     
     // drop those that don't meet the requirements
-    for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
-      ShowerStruct& ss = tjs.cots[ic];
+    for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
+      ShowerStruct& ss = tjs.cots[cotIndex];
       if(ss.CTP != inCTP) continue;
       if(ss.TjIDs.empty()) continue;
       // enough Tjs?
       unsigned short ntjs = ss.TjIDs.size();
       bool killit = (ntjs < tjs.ShowerTag[7]);
       // Kill runt showers
-      if(prt && prtShower != USHRT_MAX) prt = (ic == prtShower);
+      if(prt && prtShower != USHRT_MAX) prt = (cotIndex == prtShower);
       if(!killit) killit = (ss.Energy < tjs.ShowerTag[3]);
-      if(prt) mf::LogVerbatim("TC")<<"ic "<<ic<<" nTjs "<<ss.TjIDs.size()<<" nTjs "<<ss.TjIDs.size()<<" killit? "<<killit;
+      if(prt) mf::LogVerbatim("TC")<<"cotIndex "<<cotIndex<<" nTjs "<<ss.TjIDs.size()<<" nTjs "<<ss.TjIDs.size()<<" killit? "<<killit;
       if(!killit) {
         // count the number of Tj points
         unsigned short nTjPts = 0;
@@ -517,6 +530,8 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<"    "<<" nTjPts "<<nTjPts<<" killit? "<<killit;
       } // !killit
       if(killit) {
+        MakeShowerObsolete(tjs, cotIndex, prt);
+/*
         // Unset shower and killed bits. Trajectories that are in showers haven't had their hits re-assigned to the
         // shower Tj yet so nothing needs to be done to them
         for(auto& tjID : ss.TjIDs) tjs.allTraj[tjID - 1].AlgMod[kKilled] = false;
@@ -525,6 +540,7 @@ namespace tca {
         unsigned short itj = ss.ShowerTjID - 1;
         if(prt) mf::LogVerbatim("TC")<<" killing ShowerTj "<<tjs.allTraj[itj].ID<<". Restored InShower Tjs.";
         MakeTrajectoryObsolete(tjs, itj);
+*/
       } else {
         if(tjs.allTraj[ss.ShowerTjID - 1].AlgMod[kKilled]) {
           std::cout<<"FS logic error: ShowerTj "<<tjs.allTraj[ss.ShowerTjID - 1].ID<<" is killed\n";
@@ -598,18 +614,18 @@ namespace tca {
       unsigned short itj = ss.TjIDs[it] - 1;
       if(itj > tjs.allTraj.size() - 1) {
         mf::LogWarning("TC")<<"Bad TjID "<<ss.TjIDs[it];
-        ss.TjIDs.clear();
+        MakeShowerObsolete(tjs, cotIndex, prt);
         return;
       }
       Trajectory& tj = tjs.allTraj[itj];
       if(tj.CTP != ss.CTP) {
         mf::LogWarning("TC")<<"Tj "<<tj.ID<<" is in the wrong CTP "<<tj.CTP<<" "<<ss.CTP;
-        ss.TjIDs.clear();
+        MakeShowerObsolete(tjs, cotIndex, prt);
         return;
       }
       if(tj.AlgMod[kShowerTj]) {
         mf::LogWarning("TC")<<"DSTj: Tj "<<tj.ID<<" is in TjIDs in cotIndex "<<cotIndex<<" but is a ShowerTj! Killing it";
-        ss.TjIDs.clear();
+        MakeShowerObsolete(tjs, cotIndex, prt);
         return;
       }
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
@@ -678,7 +694,8 @@ namespace tca {
     FindAngle(tjs, cotIndex, prt);
     FillRotPos(tjs, cotIndex, prt);
     if(!DefineShowerTj(tjs, cotIndex, prt)) {
-      mf::LogWarning("TC")<<"Failed to define Shower Tj";
+      if(prt) mf::LogVerbatim("TC")<<"Failed to define Shower Tj. Killed the shower";
+      MakeShowerObsolete(tjs, cotIndex, prt);
       return;
     }
     DefineEnvelope(tjs, cotIndex, prt);
@@ -1103,16 +1120,19 @@ namespace tca {
     // trajectories and store them. This function was called because at least one of the
     // trajectories is a shower Tj. Assume that the decision to merge them has been made elsewhere.
     
-    if(prt) mf::LogVerbatim("TC")<<"MSAS: MergeShowerAndStore istj "<<istj<<" jstj "<<jstj;
-    
     if(istj > tjs.allTraj.size() - 1) return false;
     if(jstj > tjs.allTraj.size() - 1) return false;
     
     Trajectory& itj = tjs.allTraj[istj];
     Trajectory& jtj = tjs.allTraj[jstj];
     
+    if(prt) mf::LogVerbatim("TC")<<"MSAS: MergeShowerAndStore Tj IDs "<<itj.ID<<"  "<<jtj.ID;
+    
     // First we check to make sure that both are shower Tjs.
-    if(!itj.AlgMod[kShowerTj] && !jtj.AlgMod[kShowerTj]) return false;
+    if(!itj.AlgMod[kShowerTj] && !jtj.AlgMod[kShowerTj]) {
+      if(prt) mf::LogVerbatim("TC")<<" One of these isn't a shower Tj";
+      return false;
+    }
     
     // We need to keep the convention used in MergeAndStore to create a new merged trajectory
     // and kill the two fragments. This doesn't require making a new shower however. We can just
@@ -1606,7 +1626,37 @@ namespace tca {
     } // found an internal parent
 */
   } // RefineShowerTj
-      
+  
+  ////////////////////////////////////////////////
+  void MakeShowerObsolete(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
+  {
+    // Gracefully kills the shower and the associated shower Tj
+    
+    if(cotIndex > tjs.cots.size() - 1) return;
+    
+    ShowerStruct& ss = tjs.cots[cotIndex];
+    if(ss.TjIDs.empty()) return;
+    
+    ss.TjIDs.clear();
+    // Kill the shower Tj if it exists. This also releases the hits
+    if(ss.ShowerTjID > 0) MakeTrajectoryObsolete(tjs, ss.ShowerTjID - 1);
+    
+    // Restore the original InShower Tjs
+    // Unset the killed bit
+    for(auto& tjID : ss.TjIDs) {
+      Trajectory& tj = tjs.allTraj[tjID - 1];
+      tj.AlgMod[kKilled] = false;
+      // Restore the hit -> tj association. This is strictly only necessary if the
+      // hits were re-assigned to the shower Tj but do it anyway just to be sure
+      for(auto& tp : tj.Pts) {
+        for(auto& iht : tp.Hits) tjs.fHits[iht].InTraj = tj.ID;
+      } // tp
+    } // tjID
+    if(prt) mf::LogVerbatim("TC")<<"MSO: Killed ShowerTj "<<ss.ShowerTjID<<" and restored InShower Tjs.";
+
+    
+  } // MakeShowerObsolete
+  
   ////////////////////////////////////////////////
   void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<unsigned short>>& tjList)
   {
