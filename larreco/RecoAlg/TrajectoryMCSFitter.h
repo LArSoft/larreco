@@ -112,7 +112,7 @@ namespace trkf {
     double energyLossLandau(const double mass,const double p, const double x) const;
     //
   private:
-    int pIdHyp_;
+    int    pIdHyp_;
     int    minNSegs_;
     double segLen_;
     double pMin_;

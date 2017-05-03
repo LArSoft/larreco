@@ -2,10 +2,14 @@ BEGIN_PROLOG
 mcsfitproducer: {
   module_type:  MCSFitProducer
   inputs: {
-        inputTrajectoryLabel: @nil
+        inputLabel: @nil
   }
   fitter: {
   	pIdHypothesis: 13
+	minNumSegments: 3
+	segmentLength: 14.0
+	pMin: 0.01
+	pMax: 7.50
   }
 }
 END_PROLOG

@@ -35,8 +35,8 @@ namespace trkf {
     struct Inputs {
       using Name = fhicl::Name;
       using Comment = fhicl::Comment;
-      fhicl::Atom<art::InputTag> inputTrajectoryLabel {
-	Name("inputTrajectoryLabel"),
+      fhicl::Atom<art::InputTag> inputLabel {
+	Name("inputLabel"),
 	Comment("Label of recob::TrackTrajectory Collection to be fit")
       };
     };
@@ -65,7 +65,7 @@ namespace trkf {
 
   private:
     Parameters p_;
-    art::InputTag trajectoryInputTag;
+    art::InputTag inputTag;
     TrajectoryMCSFitter mcsfitter;
   };
 }
@@ -73,6 +73,7 @@ namespace trkf {
 trkf::MCSFitProducer::MCSFitProducer(trkf::MCSFitProducer::Parameters const & p)
   : p_(p), mcsfitter(p_().fitter)
 {
+  inputTag = art::InputTag(p_().inputs().inputLabel());
   produces<std::vector<recob::MCSFitResult> >();
 }
 
@@ -83,13 +84,13 @@ void trkf::MCSFitProducer::produce(art::Event & e)
   //
   auto output  = std::make_unique<std::vector<recob::MCSFitResult> >();
   //
-  art::Handle<std::vector<recob::TrackTrajectory> > inputTrajectoryH;
-  bool ok = e.getByLabel(trajectoryInputTag,inputTrajectoryH);
-  if (!ok) throw cet::exception("MCSFitProducer") << "Cannot find recob::TrackTrajectory art::Handle with inputTag " << trajectoryInputTag;
-  const std::vector<recob::TrackTrajectory>& trajectoryVec = *(inputTrajectoryH.product());
-  for (const auto& inTraj : trajectoryVec) {
+  art::Handle<std::vector<recob::Track> > inputH;
+  bool ok = e.getByLabel(inputTag,inputH);
+  if (!ok) throw cet::exception("MCSFitProducer") << "Cannot find input art::Handle with inputTag " << inputTag;
+  const auto& inputVec = *(inputH.product());
+  for (const auto& element : inputVec) {
     //fit
-    recob::MCSFitResult result = mcsfitter.fitMcs(inTraj);
+    recob::MCSFitResult result = mcsfitter.fitMcs(element);
     output->emplace_back(std::move(result));
   }
   e.put(std::move(output));
