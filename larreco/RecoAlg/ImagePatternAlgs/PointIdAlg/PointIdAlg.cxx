@@ -47,6 +47,17 @@ nnet::DataProviderAlg::~DataProviderAlg(void)
 void nnet::DataProviderAlg::reconfigure(const Config& config)
 {
 	fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
+	fAmplCalibConst.resize(fGeometry->MaxPlanes());
+	mf::LogInfo("DataProviderAlg") << "Using calibration constants:";
+	for (size_t p = 0; p < fAmplCalibConst.size(); ++p)
+	{
+	    try
+	    {
+	        fAmplCalibConst[p] = fCalorimetryAlg.ElectronsFromADCPeak(1.0, p);
+    	    mf::LogInfo("DataProviderAlg") << "   plane:" << p << " const:" << 1.0 / fAmplCalibConst[p];
+    	}
+    	catch (...) { fAmplCalibConst[p] = 1.0; }
+	}
 
 	fDriftWindow = config.DriftWindow();
 
@@ -174,32 +185,27 @@ bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wi
 		auto wireChannelNumber = wire.Channel();
 
 		size_t w_idx = 0;
-		bool right_plane = false;
 		for (auto const& id : fGeometry->ChannelToWire(wireChannelNumber))
 		{
-			w_idx = id.Wire;
-
 			if ((id.Cryostat == cryo) && (id.TPC == tpc) && (id.Plane == view))
 			{
-				right_plane = true; break;
-			}
-		}
-		if (right_plane)
-		{
-			auto adc = wire.Signal();
-			if (adc.size() < ndrifts)
-			{
-				mf::LogError("DataProviderAlg") << "Wire ADC vector size lower than NumberTimeSamples.";
-				return false;
-			}
+			    w_idx = id.Wire;
 
-			if (!setWireData(adc, w_idx))
-			{
-				mf::LogError("DataProviderAlg") << "Wire data not set.";
-				return false;
-			}
+			    auto adc = wire.Signal();
+			    if (adc.size() < ndrifts)
+			    {
+			    	mf::LogError("DataProviderAlg") << "Wire ADC vector size lower than NumberTimeSamples.";
+			    	return false;
+			    }
 
-			fWireChannels[w_idx] = wireChannelNumber;
+			    if (!setWireData(adc, w_idx))
+			    {
+			    	mf::LogError("DataProviderAlg") << "Wire data not set.";
+			    	return false;
+			    }
+
+			    fWireChannels[w_idx] = wireChannelNumber;
+			}
 		}
 	}
 	
@@ -211,7 +217,7 @@ bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wi
 }
 // ------------------------------------------------------
 
-float nnet::DataProviderAlg::scaleAdcSample(float val)
+float nnet::DataProviderAlg::scaleAdcSample(float val) const
 {
     if (val < -50.) val = -50.;
     if (val > 150.) val = 150.;

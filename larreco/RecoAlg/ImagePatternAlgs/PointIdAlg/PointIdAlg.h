@@ -142,7 +142,8 @@ protected:
 	detinfo::DetectorProperties const* fDetProp;
 
 private:
-    static float scaleAdcSample(float val);
+    float scaleAdcSample(float val) const;
+    std::vector<float> fAmplCalibConst;
 
     CLHEP::HepJamesRandom fRndEngine;
 
