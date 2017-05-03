@@ -11,13 +11,14 @@
 
 namespace trkf {
   /**
-   * @brief something
+   * @brief Class for Maximum Likelihood fit of Multiple Coulomb Scattering angles between segments within a Track or Trajectory
    *
-   * Something
+   * Class for Maximum Likelihood fit of Multiple Coulomb Scattering angles between segments within a Track or Trajectory.
    *
-   * Inputs are: 
-   * Output are: 
-   *
+   * Inputs are: a Track or Trajectory, and various fit parameters (pIdHypothesis, minNumSegments, segmentLength, pMin, pMax, pStep, angResol)
+   * Outputs are: a recob::MCSFitResult, containing:
+   *   resulting momentum, momentum uncertainty, and best likelihood value (both for fwd and bwd fit);
+   *   vector of segment (radiation) lengths, vector of scattering angles, and PID hypothesis used in the fit.
    */
   class TrajectoryMCSFitter {
     // 
@@ -86,11 +87,13 @@ namespace trkf {
     //
     void linearRegression(const recob::TrackTrajectory& traj, const size_t firstPoint, const size_t lastPoint, recob::tracking::Vector_t& pcdir) const;
     double mcsLikelihood(double p, double theta0x, std::vector<double>& dthetaij, std::vector<double>& seg_nradl, std::vector<double>& cumLen, bool fwd, bool momDepConst) const;
+    //
     struct ScanResult {
-    public:
-    ScanResult(double ap, double apUnc, double alogL) : p(ap), pUnc(apUnc), logL(alogL) {}
-      double p, pUnc, logL;
+      public:
+        ScanResult(double ap, double apUnc, double alogL) : p(ap), pUnc(apUnc), logL(alogL) {}
+        double p, pUnc, logL;
     };
+    //
     const ScanResult doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& cumLen, bool fwdFit, bool momDepConst) const;
     //
     inline double MomentumDependentConstant(const double p) const {
