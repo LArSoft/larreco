@@ -266,6 +266,7 @@ public:
 
 		fRunVertexing(pmalgTrackerConfig.RunVertexing()),
 
+        fGeom(&*(art::ServiceHandle<geo::Geometry>())),
 		fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 	{}
 
@@ -346,9 +347,10 @@ private:
 	std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
 	std::vector< float > fCluWeights;
 
-	/// these guys are temporary states, to be moved to function calls
-	std::vector< size_t > used_clusters, initial_clusters;
-	mutable std::map< unsigned int, std::vector<size_t> > tried_clusters;
+	/// --------------------------------------------------------------
+	std::vector< geo::View_t > fAvailableViews;
+	std::vector< size_t > used_clusters, fInitialClusters;
+	mutable std::map< unsigned int, std::vector<size_t> > fTriedClusters;
 	/// --------------------------------------------------------------
 
 	// ******************** fcl parameters **********************
@@ -381,7 +383,7 @@ private:
 	bool fRunVertexing;          // run vertex finding
 
 	// *********************** services *************************
-	art::ServiceHandle< geo::Geometry > fGeom;
+	geo::GeometryCore const* fGeom;
 	const detinfo::DetectorProperties* fDetProp;
 };
 
