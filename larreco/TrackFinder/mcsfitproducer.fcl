@@ -10,6 +10,8 @@ mcsfitproducer: {
 	segmentLength: 14.0
 	pMin: 0.01
 	pMax: 7.50
+	pStep: 0.01
+	angResol: 3.0
   }
 }
 END_PROLOG
