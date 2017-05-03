@@ -1,0 +1,11 @@
+BEGIN_PROLOG
+mcsfitproducer: {
+  module_type:  MCSFitProducer
+  inputs: {
+        inputTrajectoryLabel: @nil
+  }
+  fitter: {
+  	pIdHypothesis: 13
+  }
+}
+END_PROLOG

@@ -8,12 +8,12 @@ using namespace std;
 using namespace trkf;
 using namespace recob::tracking;
 
-recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& traj) const {
+recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& traj, bool momDepConst) const {
   //
   const double trajlen = traj.Length();
-  const int nseg = trajlen/segLen_;
+  const int nseg = std::max(minNSegs_,int(trajlen/segLen_));
   const double thisSegLen = trajlen/double(nseg);
-  std::cout << "track with length=" << trajlen << " broken in nseg=" << nseg << " of length=" << thisSegLen << " where segLen_=" << segLen_ << std::endl;
+  //std::cout << "track with length=" << trajlen << " broken in nseg=" << nseg << " of length=" << thisSegLen << " where segLen_=" << segLen_ << std::endl;
   //
   // Break the trajectory in segments of length approximately equal to segLen_
   //
@@ -28,17 +28,13 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
   breakpoints.push_back(nextValid);
   auto pos0 = traj.LocationAtPoint(nextValid);
   nextValid = traj.NextValidPoint(nextValid+1);
-  //double totl = 0.;
   int npoints = 0;
   while (nextValid!=recob::TrackTrajectory::InvalidIndex) {
     auto pos1 = traj.LocationAtPoint(nextValid);
     thislen += ( (pos1-pos0).R() );
-    //const double dlen = (pos1-pos0).R();
-    //totl += dlen;
     pos0=pos1;
     npoints++;
     if (thislen>=thisSegLen) {
-      //cout << "thislen=" << thislen << " dlen=" << dlen << " npoints=" << npoints << " thisSegLen=" << thisSegLen << " totl=" << totl << endl;
       breakpoints.push_back(nextValid);
       if (npoints>=10) segradlengths.push_back(thislen*lar_radl_inv);
       else segradlengths.push_back(-999.);
@@ -52,6 +48,7 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
   if (thislen>0.) {
     breakpoints.push_back(nextValid);
     segradlengths.push_back(thislen*lar_radl_inv);
+    cumseglens.push_back(cumseglens.back()+thislen);
   }
   //
   // Fit segment directions, and get 3D angles between them
@@ -78,15 +75,14 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
   //
   // Perform likelihood scan in forward and backward directions
   //
-  constexpr double kcal2 = 0.002105*0.002105;//fixme input parameter?
-  vector<double> dE2Fwd;
-  vector<double> dE2Bwd;
-  for (unsigned int i = 0; i<cumseglens.size()-1; i++) {
-    dE2Fwd.push_back(kcal2*cumseglens[i]*cumseglens[i+1]);
-    dE2Bwd.push_back(kcal2*(cumseglens.back()-cumseglens[i])*(cumseglens.back()-cumseglens[i+1]));
+  vector<double> cumLenFwd;
+  vector<double> cumLenBwd;
+  for (unsigned int i = 0; i<cumseglens.size()-2; i++) {
+    cumLenFwd.push_back(cumseglens[i]);
+    cumLenBwd.push_back(cumseglens.back()-cumseglens[i+2]);
   }
-  const ScanResult fwdResult = doLikelihoodScan(dtheta, segradlengths, dE2Fwd, true);
-  const ScanResult bwdResult = doLikelihoodScan(dtheta, segradlengths, dE2Bwd, false);
+  const ScanResult fwdResult = doLikelihoodScan(dtheta, segradlengths, cumLenFwd, true,  momDepConst);
+  const ScanResult bwdResult = doLikelihoodScan(dtheta, segradlengths, cumLenBwd, false, momDepConst);
   //
   return recob::MCSFitResult(pIdHyp_,
 			     fwdResult.p,fwdResult.pUnc,fwdResult.logL,
@@ -94,13 +90,13 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
 			     segradlengths,dtheta);
 }
 
-const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& eLoss2, bool fwdFit) const {
+const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& cumLen, bool fwdFit, bool momDepConst) const {
   int    best_idx  = -1;
   double best_logL = std::numeric_limits<double>::max();
   double best_p    = -1.0;
   std::vector<double> vlogL;
   for (double p_test = pMin_; p_test <= pMax_; p_test+=pStep_) {
-    double logL = mcsLikelihood(p_test, angResol_, dtheta, seg_nradlengths, eLoss2, fwdFit, true);
+    double logL = mcsLikelihood(p_test, angResol_, dtheta, seg_nradlengths, cumLen, fwdFit, momDepConst);
     if (logL < best_logL) {
       best_p    = p_test;
       best_logL = logL;
@@ -184,7 +180,7 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, c
   //
 }
 
-double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<double>& dthetaij, std::vector<double>& seg_nradl, std::vector<double>& energyLoss2, bool fwd, bool momDepConst) const {
+double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<double>& dthetaij, std::vector<double>& seg_nradl, std::vector<double>& cumLen, bool fwd, bool momDepConst) const {
   //
   const int beg  = (fwd ? 0 : (dthetaij.size()-1));
   const int end  = (fwd ? dthetaij.size() : -1);
@@ -197,9 +193,22 @@ double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<
       //cout << "skip segment with too few points" << endl;
       continue;
     }
-    const double m2 = mass2();
+    const double m = mass();
+    const double m2 = m*m;
     const double Etot = sqrt(p*p + m2);     //Initial
-    const double Eij = Etot - sqrt(energyLoss2[i]);//energy at this segment
+    //
+    // test: MIP constant
+    // constexpr double kcal2 = 0.002105*0.002105;
+    // const double Eij = Etot - sqrt(kcal2*cumLen[i]*cumLen[i]);//energy at this segment
+    //
+    // test: Bethe-Bloch
+    // const double elbb = energyLossBetheBloch(sqrt(m2),p);
+    // const double Eij = Etot - sqrt(elbb*elbb*cumLen[i]*cumLen[i]);//energy at this segment
+    //
+    // MPV of Landau energy loss distribution
+    const double elL = energyLossLandau(m,p,cumLen[i]);
+    const double Eij = Etot - elL;//energy at this segment
+    //
     const double Eij2 = Eij*Eij;
     if ( Eij2 < m2 ) {
       result = std::numeric_limits<double>::max();
@@ -220,3 +229,54 @@ double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<
   }
   return result;
 }
+
+double TrajectoryMCSFitter::energyLossLandau(const double mass,const double p, const double x) const {
+  //
+  // eq. (33.11) in http://pdg.lbl.gov/2016/reviews/rpp2016-rev-passage-particles-matter.pdf (except density correction is ignored)
+  //
+  if (x<=0.) return 0.;
+  constexpr double I = 188.E-6;
+  constexpr double matConst = 1.4*18./40.;//density*Z/A
+  constexpr double me = 0.511;
+  constexpr double kappa = 0.307075;
+  constexpr double j = 0.200;
+  //
+  double beta2 = p*p/(mass*mass+p*p);
+  double gamma2 = 1./(1.0 - beta2);
+  //
+  double epsilon = 0.5*kappa*x*matConst/beta2;
+  double deltaE = epsilon*( log(2.*me*beta2*gamma2/I) + log(epsilon/I) + j - beta2 );
+  return deltaE*0.001;
+}
+//
+//FIXME, test: to be removed eventually
+double TrajectoryMCSFitter::energyLossBetheBloch(const double mass,const double p) const {
+  // stolen, mostly, from GFMaterialEffects.
+  const double charge(1.0);
+  const double mEE(188.); // eV
+  const double matZ(18.);
+  const double matA(40.);
+  const double matDensity(1.4);
+  const double me(0.000511);
+  //
+  double beta = p/std::sqrt(mass*mass+p*p);
+  double gammaSquare = 1./(1.0 - beta*beta);
+  // 4pi.r_e^2.N.me = 0.307075, I think.
+  double dedx = 0.307075*matDensity*matZ/matA/(beta*beta)*charge*charge;
+  double massRatio = me/mass;
+  // me=0.000511 here is in GeV. So mEE comes in here in eV.
+  double argument = gammaSquare*beta*beta*me*1.E3*2./((1.E-6*mEE) * std::sqrt(1+2*std::sqrt(gammaSquare)*massRatio + massRatio*massRatio));
+  //
+  if (mass==0.0) return(0.0);
+  if (argument <= exp(beta*beta))
+    {
+      dedx = 0.;
+    }
+  else{
+    dedx *= (log(argument)-beta*beta); // Bethe-Bloch [MeV/cm]
+    dedx *= 1.E-3;  // in GeV/cm, hence 1.e-3
+    if (dedx<0.) dedx = 0.;
+  }
+  return dedx;
+}
+//

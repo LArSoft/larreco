@@ -7,14 +7,9 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/MCSFitResult.h"
 #include "lardataobj/RecoBase/Track.h"
+#include "lardata/RecoObjects/TrackState.h"
 
 namespace trkf {
-  namespace {
-    constexpr double mumass2 = 0.105658367*0.105658367;// Muon
-    constexpr double pimass2 = 0.13957*0.13957;        // Charged pion
-    constexpr double kmass2  = 0.493677*0.493677;      // Charged kaon
-    constexpr double pmass2  = 0.938272*0.938272;      // Proton
-  }
   /**
    * @brief something
    *
@@ -33,11 +28,17 @@ namespace trkf {
       using Comment = fhicl::Comment;
       fhicl::Atom<int> pIdHypothesis {
         Name("pIdHypothesis"),
-	Comment("Particle Id Hypothesis to be used in the fit.")
+	Comment("Particle Id Hypothesis to be used in the fit."),
+	13
+      };
+      fhicl::Atom<int> minNumSegments {
+        Name("minNumSegments"),
+	Comment("Minimum number of segments the track is split into."),
+	3
       };
       fhicl::Atom<double> segmentLength {
         Name("segmentLength"),
-	Comment("Target length of track segments used in the fit."),
+	Comment("Nominal length of track segments used in the fit."),
 	14.
       };
       fhicl::Atom<double> pMin {
@@ -63,8 +64,9 @@ namespace trkf {
     };
     using Parameters = fhicl::Table<Config>;
     //
-    TrajectoryMCSFitter(int pIdHyp, double segLen, double pMin, double pMax, double pStep, double angResol){
+    TrajectoryMCSFitter(int pIdHyp, int minNSegs, double segLen, double pMin, double pMax, double pStep, double angResol){
       pIdHyp_ = pIdHyp;
+      minNSegs_ = minNSegs;
       segLen_ = segLen;
       pMin_ = pMin;
       pMax_ = pMax;
@@ -72,35 +74,43 @@ namespace trkf {
       angResol_ = angResol;
     }
     explicit TrajectoryMCSFitter(const Parameters & p)
-      : TrajectoryMCSFitter(p().pIdHypothesis(),p().segmentLength(),p().pMin(),p().pMax(),p().pStep(),p().angResol()) {}
+      : TrajectoryMCSFitter(p().pIdHypothesis(),p().minNumSegments(),p().segmentLength(),p().pMin(),p().pMax(),p().pStep(),p().angResol()) {}
     //
-    recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj) const;
-    recob::MCSFitResult fitMcs(const recob::Track& track) const { return fitMcs(track.Trajectory()); }
+    recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj, bool momDepConst = true) const;
+    recob::MCSFitResult fitMcs(const recob::Track& track, bool momDepConst = true) const { return fitMcs(track.Trajectory(),momDepConst); }
+    recob::MCSFitResult fitMcs(const recob::Trajectory& traj, bool momDepConst = true) const {
+      recob::TrackTrajectory::Flags_t flags(traj.NPoints());
+      const recob::TrackTrajectory tt(traj,std::move(flags));
+      return fitMcs(tt,momDepConst);
+    }
     //
     void linearRegression(const recob::TrackTrajectory& traj, const size_t firstPoint, const size_t lastPoint, recob::tracking::Vector_t& pcdir) const;
-    double mcsLikelihood(double p, double theta0x, std::vector<double>& dthetaij, std::vector<double>& seg_nradl, std::vector<double>& eLoss2, bool fwd, bool momDepConst) const;
+    double mcsLikelihood(double p, double theta0x, std::vector<double>& dthetaij, std::vector<double>& seg_nradl, std::vector<double>& cumLen, bool fwd, bool momDepConst) const;
     struct ScanResult {
     public:
     ScanResult(double ap, double apUnc, double alogL) : p(ap), pUnc(apUnc), logL(alogL) {}
       double p, pUnc, logL;
     };
-    const ScanResult doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& energyLoss2, bool fwdFit) const;
+    const ScanResult doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& cumLen, bool fwdFit, bool momDepConst) const;
     //
     inline double MomentumDependentConstant(const double p) const {
       constexpr double a = 0.1049;
       constexpr double c = 11.0038;
       return (a/(p*p)) + c;
     }
-    double mass2() const {
-      if (abs(pIdHyp_)==13)   { return mumass2; } 
-      if (abs(pIdHyp_)==211)  { return pimass2; }
-      if (abs(pIdHyp_)==321)  { return kmass2;  } 
-      if (abs(pIdHyp_)==2212) { return pmass2;  }
+    double mass() const {
+      if (abs(pIdHyp_)==13)   { return mumass; }
+      if (abs(pIdHyp_)==211)  { return pimass; }
+      if (abs(pIdHyp_)==321)  { return kmass;  }
+      if (abs(pIdHyp_)==2212) { return pmass;  }
       return util::kBogusD;
     }
+    double energyLossBetheBloch(const double mass,const double p) const;//fixme: remove if worse than landau
+    double energyLossLandau(const double mass,const double p, const double x) const;
     //
   private:
     int pIdHyp_;
+    int    minNSegs_;
     double segLen_;
     double pMin_;
     double pMax_;
