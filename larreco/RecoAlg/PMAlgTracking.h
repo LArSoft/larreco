@@ -43,7 +43,7 @@ namespace pma
 {
 	typedef std::map< size_t, pma::TrkCandidateColl > tpc_track_map;
 
-	recob::Track convertFrom(const pma::Track3D& src, unsigned int tidx);
+	recob::Track convertFrom(const pma::Track3D& src, unsigned int tidx, int pdg = 0);
 
 	class PMAlgTrackingBase;
 	class PMAlgFitter;
