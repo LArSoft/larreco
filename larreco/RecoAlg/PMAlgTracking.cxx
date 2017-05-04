@@ -95,17 +95,18 @@ recob::Track pma::convertFrom(const pma::Track3D& src, unsigned int tidx)
 		}
 	}
 
+	// NOW SWITCHING TO CNN-BASED INFO AND THE NEW TRACK STRUCTURE
 	// 0 is track-like (long and/or very straight, well matching 2D hits);
 	// 0x10000 is EM shower-like trajectory *** to be replaced with a better tag ***
-	unsigned int pidTag = 0;
-	if (src.GetTag() == pma::Track3D::kEmLike) pidTag = 0x10000;
+	//unsigned int pidTag = 0;
+	//if (src.GetTag() == pma::Track3D::kEmLike) pidTag = 0x10000;
 
 	if (xyz.size() != dircos.size())
 	{
 		mf::LogError("PMA") << "pma::Track3D to recob::Track conversion problem.";
 	}
 
-	return recob::Track(xyz, dircos, dst_dQdx, std::vector< double >(2, util::kBogusD), tidx + pidTag);
+	return recob::Track(xyz, dircos, dst_dQdx, std::vector< double >(2, util::kBogusD), tidx);
 }
 // ------------------------------------------------------
 
@@ -983,11 +984,7 @@ int pma::PMAlgTracker::build(void)
 	for (auto & tpc_entry : tracks) // put tracks in the single collection
 		for (auto & trk : tpc_entry.second.tracks())
 		{
-			if (trk.Track()->HasTwoViews() && (trk.Track()->Nodes().size() > 1))
-			{
-				fProjectionMatchingAlg.setTrackTag(*(trk.Track())); // tag EM-like tracks
-				fResult.push_back(trk);
-			}
+			if (trk.Track()->HasTwoViews() && (trk.Track()->Nodes().size() > 1)) { fResult.push_back(trk); }
 			else { trk.DeleteTrack(); }
 		}
 
