@@ -5810,7 +5810,12 @@ namespace cluster {
           // set the kpl 2D vertex index < 0. Let follow-on code find the 3rd plane vertex
           newVtx3.Ptr2D[kpl] = -1;
           double WPos[3] = {0, y, z};
-          newVtx3.Wire = geom->NearestWire(WPos, kpl, tpc, cstat);
+          try{
+            newVtx3.Wire = geom->NearestWire(WPos, kpl, tpc, cstat);
+          }
+          catch(geo::InvalidWireError const& e) {
+            newVtx3.Wire = e.suggestedWireID().Wire; // pick the closest valid wire
+          }
 //          std::cout<<"3D Vtx "<<ipl<<":"<<ii<<" "<<jpl<<":"<<jj<<" kpl "<<kpl<<" wire "<<newVtx3.Wire<<"\n";
           vtx3.push_back(newVtx3);
         } // jj
@@ -5940,7 +5945,14 @@ namespace cluster {
               kpl = 3 - ipl - jpl;
               kX = 0.5 * (vX[ivx] + vX[jvx]);
               kWire = -1;
-              if(TPC.Nplanes() > 2) kWire = geom->NearestWire(WPos, kpl, tpc, cstat);
+              if(TPC.Nplanes() > 2){
+                try{
+                  kWire = geom->NearestWire(WPos, kpl, tpc, cstat);
+                }
+                catch(geo::InvalidWireError const& e) {
+                  kWire = e.suggestedWireID().Wire; // pick the closest valid wire
+                }
+              }
               kpl = 3 - ipl - jpl;
               // save this incomplete 3D vertex
               Vtx3Store v3d;

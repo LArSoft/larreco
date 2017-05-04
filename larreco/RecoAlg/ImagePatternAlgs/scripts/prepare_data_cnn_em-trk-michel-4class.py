@@ -142,6 +142,7 @@ def main(argv):
 
                     target = np.zeros(4, dtype=np.int32)
                     if tracks[i,j] == 1:
+                        target[0] = 1 # label as a track-like
                         if is_raw_zero: continue
                         # skip fraction of almost-track-only patches
                         if shower_pixels < 8 and near_vtx_count == 0:
@@ -151,37 +152,38 @@ def main(argv):
                             if is_muon:
                                 if not(is_mu_near_stop) and np.random.randint(10000) > int(100*muon_track_fraction): continue
                                 sel_muon += 1
-                            target[0] = 1
-                            cnt_trk += 1
-                            sel_trk += 1
+                        cnt_trk += 1
+                        sel_trk += 1
                     elif showers[i,j] == 1:
-                        # for nu_e events (lots of showers) skip some fraction of shower patches
-                        if doing_nue:
+                        target[1] = 1 # label as a em-like
+                        if doing_nue: # for nu_e events (lots of showers) skip some fraction of shower patches
                             if near_vtx_count == 0 and np.random.randint(100) < 40: continue  # skip 40% of any shower
                             if shower_pixels > 0.05*patch_area and np.random.randint(100) < 50: continue
                             if shower_pixels > 0.20*patch_area and np.random.randint(100) < 90: continue
                         if is_raw_zero: continue
-                        target[1] = 1
                         if is_michel:
-                            target[2] = 1
+                            target[2] = 1 # additionally label as a michel electron
                             cnt_michel += 1
                             sel_michel += 1
                         cnt_sh += 1
                         sel_sh += 1
-                    else:
-                        # use small fraction of empty-but-close-to-something patches
+                    else: # use small fraction of empty-but-close-to-something patches
+                        target[3] = 1 # label an empty pixel
                         if np.random.randint(10000) < int(100*empty_fraction):
                             nclose = np.count_nonzero(showers[i-2:i+3, j-2:j+3])
                             nclose += np.count_nonzero(tracks[i-2:i+3, j-2:j+3])
                             if nclose == 0:
                                 npix = shower_pixels + track_pixels
                                 if npix > 6:
-                                    target[3] = 1
                                     cnt_void += 1
                                     sel_empty += 1
                                 else: continue # completely empty patch
                             else: continue # too close to trk/shower
                         else: continue # not selected randomly
+
+                    if np.count_nonzero(target) == 0:
+                        print 'NEED A LABEL IN THE TARGET!!!'
+                        continue
 
                     if cnt_ind < max_capacity:
                         db[cnt_ind] = get_patch(raw, i, j, PATCH_SIZE_W, PATCH_SIZE_D)

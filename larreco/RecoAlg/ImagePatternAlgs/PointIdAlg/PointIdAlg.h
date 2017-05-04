@@ -66,6 +66,11 @@ public:
 			Comment("Used to eliminate amplitude variation due to electron lifetime.")
 		};
 
+		fhicl::Atom<bool> CalibrateAmpl {
+			Name("CalibrateAmpl"),
+			Comment("Calibrate ADC values with CalAmpConstants")
+		};
+
 		fhicl::Atom<unsigned int> DriftWindow {
 			Name("DriftWindow"),
 			Comment("Downsampling window (in drift ticks).")
@@ -142,7 +147,9 @@ protected:
 	detinfo::DetectorProperties const* fDetProp;
 
 private:
-    static float scaleAdcSample(float val);
+    float scaleAdcSample(float val) const;
+    std::vector<float> fAmplCalibConst;
+    bool fCalibrateAmpl;
 
     CLHEP::HepJamesRandom fRndEngine;
 

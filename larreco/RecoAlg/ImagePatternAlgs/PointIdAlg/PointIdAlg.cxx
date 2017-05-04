@@ -47,6 +47,21 @@ nnet::DataProviderAlg::~DataProviderAlg(void)
 void nnet::DataProviderAlg::reconfigure(const Config& config)
 {
 	fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
+	fCalibrateAmpl = config.CalibrateAmpl();
+	if (fCalibrateAmpl)
+	{
+	    fAmplCalibConst.resize(fGeometry->MaxPlanes());
+	    mf::LogInfo("DataProviderAlg") << "Using calibration constants:";
+	    for (size_t p = 0; p < fAmplCalibConst.size(); ++p)
+	    {
+	        try
+	        {
+	            fAmplCalibConst[p] = 1.2e3 * fCalorimetryAlg.ElectronsFromADCPeak(1.0, p);
+    	        mf::LogInfo("DataProviderAlg") << "   plane:" << p << " const:" << 1.0 / fAmplCalibConst[p];
+    	    }
+    	    catch (...) { fAmplCalibConst[p] = 1.0; }
+	    }
+	}
 
 	fDriftWindow = config.DriftWindow();
 
@@ -206,8 +221,10 @@ bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wi
 }
 // ------------------------------------------------------
 
-float nnet::DataProviderAlg::scaleAdcSample(float val)
+float nnet::DataProviderAlg::scaleAdcSample(float val) const
 {
+    if (fCalibrateAmpl) { val *= fAmplCalibConst[fView]; }
+
     if (val < -50.) val = -50.;
     if (val > 150.) val = 150.;
     return 0.1 * val;

@@ -43,7 +43,7 @@ namespace pma
 {
 	typedef std::map< size_t, pma::TrkCandidateColl > tpc_track_map;
 
-	recob::Track convertFrom(const pma::Track3D& src, unsigned int tidx);
+	recob::Track convertFrom(const pma::Track3D& src, unsigned int tidx, int pdg = 0);
 
 	class PMAlgTrackingBase;
 	class PMAlgFitter;
@@ -266,6 +266,7 @@ public:
 
 		fRunVertexing(pmalgTrackerConfig.RunVertexing()),
 
+        fGeom(&*(art::ServiceHandle<geo::Geometry>())),
 		fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 	{}
 
@@ -346,9 +347,9 @@ private:
 	std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
 	std::vector< float > fCluWeights;
 
-	/// these guys are temporary states, to be moved to function calls
-	std::vector< size_t > used_clusters, initial_clusters;
-	mutable std::map< unsigned int, std::vector<size_t> > tried_clusters;
+	/// --------------------------------------------------------------
+	std::vector< size_t > fUsedClusters, fInitialClusters;
+	mutable std::map< unsigned int, std::vector<size_t> > fTriedClusters;
 	/// --------------------------------------------------------------
 
 	// ******************** fcl parameters **********************
@@ -381,7 +382,7 @@ private:
 	bool fRunVertexing;          // run vertex finding
 
 	// *********************** services *************************
-	art::ServiceHandle< geo::Geometry > fGeom;
+	geo::GeometryCore const* fGeom;
 	const detinfo::DetectorProperties* fDetProp;
 };
 

@@ -9,7 +9,7 @@ standard_pointidtrainingdata:
     SelectedTPC:     []
 	SelectedView:    []
     OutTextFilePath: "."    # path to text files with data dumps
-    DumpToRoot:      false  # if true then data is dumped only to root histograms
+    DumpToRoot:      false  # if true then data is dumped to root histograms
 
     Crop:            true
 
@@ -20,8 +20,9 @@ standard_pointidtrainingnuevent:
 {
     module_type:     "PointIdTrainingNuevent"
 
-	SelectedView:    []
+	  SelectedView:    []
     OutTextFilePath: "."
+    DumpToRoot:      true  # if true then data is dumped to root histograms
 
     GenModuleLabel:  "generator"
     FidVolCut:	      20.0
