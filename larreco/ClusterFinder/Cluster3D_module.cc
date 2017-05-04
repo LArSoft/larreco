@@ -486,7 +486,8 @@ void Cluster3D::CollectArtHits(art::Event&             evt,
     
     if (!recobHitHandle.isValid()) return;
     
-    // We'll need the offsets for each plane
+    // We'll want to correct the hit times for the plane offsets
+    // (note this is already taken care of when converting to position)
     std::map<size_t, double> planeOffsetMap;
     
     planeOffsetMap[0] = m_detector->GetXTicksOffset(0, 0, 0)-m_detector->TriggerOffset();
@@ -513,17 +514,16 @@ void Cluster3D::CollectArtHits(art::Event&             evt,
         
         hitVector.emplace_back(reco::ClusterHit2D(0, 0., 0., xPosition, hitPeakTime, *recobHit));
 
-        planeToHitVectorMap[recobHit->WireID().Plane].push_back(&hitVector.back());
-        planeToWireToHitSetMap[recobHit->WireID().Plane][recobHit->WireID().Wire].insert(&hitVector.back());
+        planeToHitVectorMap[recobHit->WireID().planeID()].push_back(&hitVector.back());
+        planeToWireToHitSetMap[recobHit->WireID().planeID()][recobHit->WireID().Wire].insert(&hitVector.back());
         
         const recob::Hit* recobHitPtr = recobHit.get();
         hitToPtrMap[recobHitPtr]      = recobHit;
     }
     
     // Make a loop through to sort the recover hits in time order
-    std::sort(planeToHitVectorMap[0].begin(), planeToHitVectorMap[0].end(), SetHitTimeOrder);
-    std::sort(planeToHitVectorMap[1].begin(), planeToHitVectorMap[1].end(), SetHitTimeOrder);
-    std::sort(planeToHitVectorMap[2].begin(), planeToHitVectorMap[2].end(), SetHitTimeOrder);
+    for(auto& hitVectorMap : planeToHitVectorMap)
+        std::sort(hitVectorMap.second.begin(), hitVectorMap.second.end(), SetHitTimeOrder);
 
     mf::LogDebug("Cluster3D") << ">>>>> Number of ART hits: " << hitVector.size() << std::endl;
 }

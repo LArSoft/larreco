@@ -40,15 +40,17 @@ struct Hit2DSetCompare
     bool operator() (const reco::ClusterHit2D*, const reco::ClusterHit2D*) const;
 };
     
-typedef std::vector<reco::ClusterHit2D*>                     HitVector;
-typedef std::map<size_t, HitVector>                          PlaneToHitVectorMap;
-typedef std::vector<reco::ClusterHit2D>                      Hit2DVector;
-typedef std::set<const reco::ClusterHit2D*, Hit2DSetCompare> Hit2DSet;
-typedef std::map<unsigned int, Hit2DSet >                    WireToHitSetMap;
-typedef std::map<size_t, WireToHitSetMap >                   PlaneToWireToHitSetMap;
-typedef std::map<size_t, HitVector >                         HitVectorMap;
+using HitVector                   = std::vector<reco::ClusterHit2D*>;
+using PlaneToHitVectorMap         = std::map<geo::PlaneID, HitVector>;
+using TPCToPlaneToHitVectorMap    = std::map<geo::TPCID, PlaneToHitVectorMap>;
+using Hit2DVector                 = std::vector<reco::ClusterHit2D>;
+using Hit2DSet                    = std::set<const reco::ClusterHit2D*, Hit2DSetCompare>;
+using WireToHitSetMap             = std::map<unsigned int, Hit2DSet>;
+using PlaneToWireToHitSetMap      = std::map<geo::PlaneID, WireToHitSetMap>;
+using TPCToPlaneToWireToHitSetMap = std::map<geo::TPCID, PlaneToWireToHitSetMap>;
+using HitVectorMap                = std::map<size_t, HitVector>;
     
-typedef std::vector<std::unique_ptr<reco::ClusterHit3D> >    HitPairVector;
+using HitPairVector               = std::vector<std::unique_ptr<reco::ClusterHit3D>>;
 
 /**
  *  @brief  Hit3DBuilderAlg class definiton
@@ -86,6 +88,13 @@ private:
      *  @brief Given the ClusterHit2D objects, build the HitPairMap
      */
     size_t BuildHitPairMap(PlaneToHitVectorMap& planeToHitVectorMap, reco::HitPairList& hitPairList) const;
+    
+    /**
+     *  @brief Given the ClusterHit2D objects, build the HitPairMap
+     */
+    using PlaneHitVectorItrPairVec = std::vector<std::pair<HitVector::iterator,HitVector::iterator>>;
+    
+    size_t BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& planeHitVectorItrPairVec, reco::HitPairList& hitPairList) const;
     
     /**
      *  @brief This builds a list of candidate hit pairs from lists of hits on two planes

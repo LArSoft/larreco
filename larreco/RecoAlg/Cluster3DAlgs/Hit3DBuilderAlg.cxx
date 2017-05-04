@@ -138,7 +138,7 @@ void Hit3DBuilderAlg::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireT
     }
     
     // add quiet wires in U plane for microboone (this will done "correctly" in near term)
-    PlaneToWireToHitSetMap::iterator plane0HitItr = planeToWireToHitSetMap.find(0);
+    PlaneToWireToHitSetMap::iterator plane0HitItr = planeToWireToHitSetMap.find(geo::PlaneID(0,0,0));
     
     if (plane0HitItr != planeToWireToHitSetMap.end())
     {
@@ -273,6 +273,68 @@ size_t Hit3DBuilderAlg::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVectorMap
      *         and then look for the match in the V plane. In the event we don't find the match in the V plane then we
      *         will evaluate the situation and in some instances keep the U-W pairs in order to keep efficiency high.
      */
+    size_t totalNumHits(0);
+    size_t hitPairCntr(0);
+    
+    size_t nTriplets(0);
+    size_t nDeadChanHits(0);
+    
+    // Set up to loop over cryostats and tpcs...
+    for(size_t cryoIdx = 0; cryoIdx < m_geometry->Ncryostats(); cryoIdx++)
+    {
+        for(size_t tpcIdx = 0; tpcIdx < m_geometry->NTPC(); tpcIdx++)
+        {
+            PlaneToHitVectorMap::iterator mapItr0 = planeToHitVectorMap.find(geo::PlaneID(cryoIdx,tpcIdx,0));
+            PlaneToHitVectorMap::iterator mapItr1 = planeToHitVectorMap.find(geo::PlaneID(cryoIdx,tpcIdx,1));
+            PlaneToHitVectorMap::iterator mapItr2 = planeToHitVectorMap.find(geo::PlaneID(cryoIdx,tpcIdx,2));
+    
+            size_t nPlanesWithHits = (mapItr0 != planeToHitVectorMap.end() ? 1 : 0)
+                                   + (mapItr1 != planeToHitVectorMap.end() ? 1 : 0)
+                                   + (mapItr2 != planeToHitVectorMap.end() ? 1 : 0);
+    
+            if (nPlanesWithHits < 2) continue;
+    
+            HitVector& hitVector0 = mapItr0->second;
+            HitVector& hitVector1 = mapItr1->second;
+            HitVector& hitVector2 = mapItr2->second;
+    
+            // We are going to resort the hits into "start time" order...
+            std::sort(hitVector0.begin(), hitVector0.end(), SetHitStartTimeOrder);
+            std::sort(hitVector1.begin(), hitVector1.end(), SetHitStartTimeOrder);
+            std::sort(hitVector2.begin(), hitVector2.end(), SetHitStartTimeOrder);
+    
+            PlaneHitVectorItrPairVec hitItrVec
+                     = {HitVectorItrPair(hitVector0.begin(),hitVector0.end()),
+                        HitVectorItrPair(hitVector1.begin(),hitVector1.end()),
+                        HitVectorItrPair(hitVector2.begin(),hitVector2.end())
+                        };
+    
+            totalNumHits += BuildHitPairMapByTPC(hitItrVec, hitPairList);
+        }
+    }
+    
+    // Return the hit pair list but sorted by z and y positions (faster traversal in next steps)
+    hitPairList.sort(SetPairStartTimeOrder);
+    
+    // Where are we?
+    mf::LogDebug("Cluster3D") << "Total number hits: " << totalNumHits << std::endl;
+    mf::LogDebug("Cluster3D") << "Created a total of " << hitPairList.size() << " hit pairs, counted: " << hitPairCntr << std::endl;
+    mf::LogDebug("Cluster3D") << "-- Triplets: " << nTriplets << ", dead channel pairs: " << nDeadChanHits << std::endl;
+    
+    return hitPairList.size();
+}
+    
+size_t Hit3DBuilderAlg::BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& hitItrVec, reco::HitPairList& hitPairList) const
+{
+    /**
+     *  @brief Given input 2D hits, build out the lists of possible 3D hits
+     *
+     *         The current strategy: ideally all 3D hits would be comprised of a triplet of 2D hits, one from each view
+     *         However, we have concern that, in particular, the v-plane may have some inefficiency which we have to be
+     *         be prepared to deal with. The idea, then, is to first make the association of hits in the U and W planes
+     *         and then look for the match in the V plane. In the event we don't find the match in the V plane then we
+     *         will evaluate the situation and in some instances keep the U-W pairs in order to keep efficiency high.
+     */
     
     // Define functions to set start/end iterators in the loop below
     auto SetStartIterator = [](HitVector::iterator startItr, HitVector::iterator endItr, double rms, double startTime)
@@ -280,7 +342,6 @@ size_t Hit3DBuilderAlg::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVectorMap
         while(startItr != endItr)
         {
             double numRMS(rms);
-//            if ((*startItr)->getHit().DegreesOfFreedom() == 1) numRMS *= 1.5;
             if ((*startItr)->getTimeTicks() + numRMS * (*startItr)->getHit().RMS() < startTime) startItr++;
             else break;
         }
@@ -292,47 +353,17 @@ size_t Hit3DBuilderAlg::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVectorMap
         while(firstItr != endItr)
         {
             double numRMS(rms);
-//            if ((*firstItr)->getHit().DegreesOfFreedom() == 1) numRMS *= 1.5;
             if ((*firstItr)->getTimeTicks() - numRMS * (*firstItr)->getHit().RMS() < endTime) firstItr++;
             else break;
         }
         return firstItr;
     };
     
-    // Should we set a minimum total charge for a hit?
-    size_t totalNumHits(0);
-    size_t hitPairCntr(0);
-    
     size_t nTriplets(0);
     size_t nDeadChanHits(0);
     
     //*********************************************************************************
     // Basically, we try to loop until done...
-    PlaneToHitVectorMap::iterator mapItrU = planeToHitVectorMap.find(0);
-    PlaneToHitVectorMap::iterator mapItrV = planeToHitVectorMap.find(1);
-    PlaneToHitVectorMap::iterator mapItrW = planeToHitVectorMap.find(2);
-    
-    size_t nPlanesWithHits = (mapItrU != planeToHitVectorMap.end() ? 1 : 0)
-                           + (mapItrV != planeToHitVectorMap.end() ? 1 : 0)
-                           + (mapItrW != planeToHitVectorMap.end() ? 1 : 0);
-    
-    if (nPlanesWithHits < 2) return 0;
-    
-    // We are going to resort the hits into "start time" order...
-    std::sort(planeToHitVectorMap[0].begin(), planeToHitVectorMap[0].end(), SetHitStartTimeOrder);
-    std::sort(planeToHitVectorMap[1].begin(), planeToHitVectorMap[1].end(), SetHitStartTimeOrder);
-    std::sort(planeToHitVectorMap[2].begin(), planeToHitVectorMap[2].end(), SetHitStartTimeOrder);
-    
-    HitVector& hitVectorU = mapItrU->second;
-    HitVector& hitVectorV = mapItrV->second;
-    HitVector& hitVectorW = mapItrW->second;
-    
-    std::vector<std::pair<HitVector::iterator,HitVector::iterator>> hitItrVec
-        = {HitVectorItrPair(hitVectorU.begin(),hitVectorU.end()),
-           HitVectorItrPair(hitVectorV.begin(),hitVectorV.end()),
-           HitVectorItrPair(hitVectorW.begin(),hitVectorW.end())
-          };
-    
     while(1)
     {
         // Sort so that the earliest hit time will be the first element, etc.
@@ -343,10 +374,10 @@ size_t Hit3DBuilderAlg::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVectorMap
         
         // The end of time... (for this hit)
         double numRMS = m_numSigmaPeakTime;
-
+        
         // The idea here is that if we have a single gaussian representing an extra wide pulse then
         // we might consider opening the range event a bit more...
-//        if (goldenHit->getHit().DegreesOfFreedom() == 1) numRMS *= 1.5;
+        //        if (goldenHit->getHit().DegreesOfFreedom() == 1) numRMS *= 1.5;
         
         double goldenTimeStart = goldenHit->getTimeTicks() - numRMS * goldenHit->getHit().RMS() - 0.1;
         double goldenTimeEnd   = goldenHit->getTimeTicks() + numRMS * goldenHit->getHit().RMS() + 0.1;
@@ -382,15 +413,6 @@ size_t Hit3DBuilderAlg::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVectorMap
         
         if (nPlanesWithHits < 2) break;
     }
-    
-    // Return the hit pair list but sorted by z and y positions (faster traversal in next steps)
-//    hitPairList.sort(SetPositionOrder);
-    hitPairList.sort(SetPairStartTimeOrder);
-    
-    // Where are we?
-    mf::LogDebug("Cluster3D") << "Total number hits: " << totalNumHits << std::endl;
-    mf::LogDebug("Cluster3D") << "Created a total of " << hitPairList.size() << " hit pairs, counted: " << hitPairCntr << std::endl;
-    mf::LogDebug("Cluster3D") << "-- Triplets: " << nTriplets << ", dead channel pairs: " << nDeadChanHits << std::endl;
     
     return hitPairList.size();
 }
