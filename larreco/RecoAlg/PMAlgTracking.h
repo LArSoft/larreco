@@ -348,8 +348,7 @@ private:
 	std::vector< float > fCluWeights;
 
 	/// --------------------------------------------------------------
-	std::vector< geo::View_t > fAvailableViews;
-	std::vector< size_t > used_clusters, fInitialClusters;
+	std::vector< size_t > fUsedClusters, fInitialClusters;
 	mutable std::map< unsigned int, std::vector<size_t> > fTriedClusters;
 	/// --------------------------------------------------------------
 

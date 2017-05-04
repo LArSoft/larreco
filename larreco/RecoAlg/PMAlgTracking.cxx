@@ -930,7 +930,7 @@ int pma::PMAlgTracker::build(void)
 {
 	fInitialClusters.clear();
 	fTriedClusters.clear();
-	used_clusters.clear();
+	fUsedClusters.clear();
 
 	pma::tpc_track_map tracks; // track parts in tpc's
 
@@ -1037,14 +1037,6 @@ int pma::PMAlgTracker::build(void)
 void pma::PMAlgTracker::fromMaxCluster_tpc(pma::TrkCandidateColl & result,
 	size_t minBuildSize, unsigned int tpc, unsigned int cryo)
 {
-    fAvailableViews.clear();
-    const auto & tpcGeo = fGeom->TPC(tpc, cryo);
-    if (tpcGeo.HasPlane(geo::kU)) { fAvailableViews.push_back(geo::kU); }
-    if (tpcGeo.HasPlane(geo::kV)) { fAvailableViews.push_back(geo::kV); }
-    if (tpcGeo.HasPlane(geo::kZ)) { fAvailableViews.push_back(geo::kZ); }
-    if (tpcGeo.HasPlane(geo::kX)) { fAvailableViews.push_back(geo::kX); }
-    if (tpcGeo.HasPlane(geo::kY)) { fAvailableViews.push_back(geo::kY); }
-
 	fInitialClusters.clear();
 
 	size_t minSizeCompl = minBuildSize / 8;  // smaller minimum required in complementary views
@@ -1077,19 +1069,8 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
 {
 	pma::TrkCandidate result;
 
-	geo::View_t sec_view_a, sec_view_b;
-	switch (first_view)
-	{
-		case geo::kU: sec_view_a = geo::kZ; sec_view_b = geo::kV; break;
-		case geo::kV: sec_view_a = geo::kZ; sec_view_b = geo::kU; break;
-		case geo::kZ: sec_view_a = geo::kV; sec_view_b = geo::kU; break;
-		default: mf::LogError("PMAlgTracker") << "Not a 2D view.";
-			return result;
-	}
-
-	fTriedClusters[geo::kU].clear();
-	fTriedClusters[geo::kV].clear();
-	fTriedClusters[geo::kZ].clear();
+    const auto & availableViews = fGeom->Views();
+    for (auto av : availableViews) { fTriedClusters[av].clear(); }
 
 	if (first_clu_idx >= 0)
 	{
@@ -1118,33 +1099,33 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
 		pma::TrkCandidate candidate;
 		if (first_clu_idx >= 0) candidate.Clusters().push_back((size_t)first_clu_idx);
 
-		int idx, max_sec_a_idx, max_sec_b_idx;
-		max_sec_a_idx = maxCluster(first_clu_idx, candidates, xmin, xmax, minSizeCompl, sec_view_a, tpc, cryo);
-		max_sec_b_idx = maxCluster(first_clu_idx, candidates, xmin, xmax, minSizeCompl, sec_view_b, tpc, cryo);
+        try_build = false;
+        int idx = -1, av_idx = -1;
+        unsigned int nMaxHits = 0, nHits = 0;
+        unsigned int testView = geo::kUnknown, best_view = geo::kUnknown;
+        for (auto av : availableViews)
+        {
+            if (av == first_view) continue;
 
-		unsigned int nSecHitsA = 0, nSecHitsB = 0;
-		if (max_sec_a_idx >= 0) nSecHitsA = fCluHits[max_sec_a_idx].size();
-		if (max_sec_b_idx >= 0) nSecHitsB = fCluHits[max_sec_b_idx].size();
-
-		unsigned int testView = geo::kUnknown;
-		if ((nSecHitsA > nSecHitsB) && (nSecHitsA >= minSizeCompl))
-		{
-			mf::LogVerbatim("PMAlgTracker") << "--> " << imatch++ << " match with:";
-			mf::LogVerbatim("PMAlgTracker") << "use plane  *** " << sec_view_a << " ***  size: " << nSecHitsA;
-			fTriedClusters[sec_view_a].push_back(max_sec_a_idx);
-			idx = max_sec_a_idx; testView = sec_view_b;
-		}
-		else if (nSecHitsB >= minSizeCompl)
-		{
-			mf::LogVerbatim("PMAlgTracker") << "--> " << imatch++ << " match with:";
-			mf::LogVerbatim("PMAlgTracker") << "use plane  *** " << sec_view_b << " ***  size: " << nSecHitsB;
-			fTriedClusters[sec_view_b].push_back(max_sec_b_idx);
-			idx = max_sec_b_idx; testView = sec_view_a;
-		}
-		else try_build = false;
+            av_idx = maxCluster(first_clu_idx, candidates, xmin, xmax, minSizeCompl, av, tpc, cryo);
+            if (av_idx >= 0)
+            {
+                nHits = fCluHits[av_idx].size();
+                if ((nHits > nMaxHits) && (nHits >= minSizeCompl))
+                {
+                    idx = av_idx; best_view = av;
+                    fTriedClusters[av].push_back(idx);
+                    try_build = true;
+                }
+                else { testView = av; } // not selected, and not "first_view" -> use as a test view
+            }
+        }
 
 		if (try_build)
 		{
+            mf::LogVerbatim("PMAlgTracker") << "--> " << imatch++ << " match with:";
+		    mf::LogVerbatim("PMAlgTracker") << "    use plane  *** " << best_view << " ***  size: " << nMaxHits;
+
 			if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) testView = geo::kUnknown;
 
 			double m0 = 0.0, v0 = 0.0;
@@ -1249,7 +1230,7 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
 			candidates[best_trk].Track()->ShiftEndsToHits();
 
 			for (auto c : candidates[best_trk].Clusters())
-				used_clusters.push_back(c);
+				fUsedClusters.push_back(c);
 
 			result = candidates[best_trk];
 		}
@@ -1316,7 +1297,7 @@ int pma::PMAlgTracker::matchCluster(const pma::TrkCandidate& trk,
 		unsigned int view = fCluHits[i].front()->View();
 		unsigned int nhits = fCluHits[i].size();
 
-		if (has(used_clusters, i) ||                             // don't try already used clusters
+		if (has(fUsedClusters, i) ||                             // don't try already used clusters
 			has(trk.Clusters(), i) ||                            // don't try clusters from this candidate
 		    (view == testView) ||                                // don't use clusters from validation view
 		    ((preferedView != geo::kUnknown)&&(view != preferedView)) || // only prefered view if specified
@@ -1359,7 +1340,7 @@ int pma::PMAlgTracker::maxCluster(int first_idx_tag,
 	for (size_t i = 0; i < fCluHits.size(); ++i)
 	{
 		if ((fCluHits[i].size() <  min_clu_size) || (fCluHits[i].front()->View() != view) ||
-		    has(used_clusters, i) || has(fInitialClusters, i) || has(fTriedClusters[view], i))
+		    has(fUsedClusters, i) || has(fInitialClusters, i) || has(fTriedClusters[view], i))
 			continue;
 
 		bool pair_checked = false;
@@ -1404,7 +1385,7 @@ int pma::PMAlgTracker::maxCluster(size_t min_clu_size,
 		const auto & v = fCluHits[i];
 
 		if (v.empty() || (fCluWeights[i] < fTrackLikeThreshold) ||
-		    has(used_clusters, i) || has(fInitialClusters, i) || has(fTriedClusters[view], i) ||
+		    has(fUsedClusters, i) || has(fInitialClusters, i) || has(fTriedClusters[view], i) ||
 		   ((view != geo::kUnknown) && (v.front()->View() != view)))
 		continue;
 
@@ -1427,7 +1408,7 @@ void pma::PMAlgTracker::listUsedClusters(void) const
 {
 	mf::LogVerbatim("PMAlgTracker") << std::endl << "----------- matched clusters: -----------";
 	for (size_t i = 0; i < fCluHits.size(); ++i)
-		if (!fCluHits[i].empty() && has(used_clusters, i))
+		if (!fCluHits[i].empty() && has(fUsedClusters, i))
 		{
 			mf::LogVerbatim("PMAlgTracker")
 				<< "    tpc: " << fCluHits[i].front()->WireID().TPC
@@ -1436,7 +1417,7 @@ void pma::PMAlgTracker::listUsedClusters(void) const
 		}
 	mf::LogVerbatim("PMAlgTracker") << "--------- not matched clusters: ---------";
 	for (size_t i = 0; i < fCluHits.size(); ++i)
-		if (!fCluHits[i].empty() && !has(used_clusters, i))
+		if (!fCluHits[i].empty() && !has(fUsedClusters, i))
 		{
 			mf::LogVerbatim("PMAlgTracker")
 				<< "    tpc: " << fCluHits[i].front()->WireID().TPC
