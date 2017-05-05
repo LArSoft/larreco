@@ -13,7 +13,7 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
   const double trajlen = traj.Length();
   const int nseg = std::max(minNSegs_,int(trajlen/segLen_));
   const double thisSegLen = trajlen/double(nseg);
-  //std::cout << "track with length=" << trajlen << " broken in nseg=" << nseg << " of length=" << thisSegLen << " where segLen_=" << segLen_ << std::endl;
+  // std::cout << "track with length=" << trajlen << " broken in nseg=" << nseg << " of length=" << thisSegLen << " where segLen_=" << segLen_ << std::endl;
   //
   // Break the trajectory in segments of length approximately equal to segLen_
   //
@@ -36,7 +36,7 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
     npoints++;
     if (thislen>=thisSegLen) {
       breakpoints.push_back(nextValid);
-      if (npoints>=10) segradlengths.push_back(thislen*lar_radl_inv);
+      if (npoints>=minHitsPerSegment_) segradlengths.push_back(thislen*lar_radl_inv);
       else segradlengths.push_back(-999.);
       cumseglens.push_back(cumseglens.back()+thislen);
       thislen = 0.;
@@ -66,7 +66,7 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
 	const double cosval = pcdir0.X()*pcdir1.X()+pcdir0.Y()*pcdir1.Y()+pcdir0.Z()*pcdir1.Z();
 	assert(std::abs(cosval)<=1);
 	//units are mrad
-	double dt = 1000.*acos(cosval);//fixme, use expansion for small angles?
+	double dt = 1000.*acos(cosval);//should we try to use expansion for small angles?
 	dtheta.push_back(dt);
       }
     }
@@ -186,97 +186,114 @@ double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<
   const int end  = (fwd ? dthetaij.size() : -1);
   const int incr = (fwd ? +1 : -1);
   //
+  // bool print = false;//(p>1.999 && p<2.001);
+  //
+  const double m = mass();
+  const double m2 = m*m;
+  const double Etot = sqrt(p*p + m2);//Initial energy
+  double Eij2 = 0.;
+  //
   constexpr double fixedterm = 0.5 * std::log( 2.0 * M_PI );
-  double result = std::abs(end-beg)*fixedterm;
+  double result = 0;
   for (int i = beg; i != end; i+=incr ) {
     if (dthetaij[i]<0) {
       //cout << "skip segment with too few points" << endl;
       continue;
     }
-    const double m = mass();
-    const double m2 = m*m;
-    const double Etot = sqrt(p*p + m2);     //Initial
     //
-    // test: MIP constant
-    // constexpr double kcal2 = 0.002105*0.002105;
-    // const double Eij = Etot - sqrt(kcal2*cumLen[i]*cumLen[i]);//energy at this segment
+    if (eLossMode_==1) {
+      // ELoss mode: MIP (constant)
+      constexpr double kcal = 0.002105;
+      const double Eij = Etot - kcal*cumLen[i];//energy at this segment
+      Eij2 = Eij*Eij;
+    } else {
+      // Non constant energy loss distribution
+      const double Eij = GetE(Etot,cumLen[i],m);
+      Eij2 = Eij*Eij;
+    }
     //
-    // test: Bethe-Bloch
-    // const double elbb = energyLossBetheBloch(sqrt(m2),p);
-    // const double Eij = Etot - sqrt(elbb*elbb*cumLen[i]*cumLen[i]);//energy at this segment
-    //
-    // MPV of Landau energy loss distribution
-    const double elL = energyLossLandau(m,p,cumLen[i]);
-    const double Eij = Etot - elL;//energy at this segment
-    //
-    const double Eij2 = Eij*Eij;
-    if ( Eij2 < m2 ) {
+    if ( Eij2 <= m2 ) {
       result = std::numeric_limits<double>::max();
       break;
     }
     const double pij = sqrt(Eij2 - m2);//momentum at this segment
     const double beta = sqrt( 1. - ((m2)/(pij*pij + m2)) );
-    constexpr double tuned_HL_term1 = 11.0038;//11.17; fixme
+    constexpr double tuned_HL_term1 = 11.0038; // https://arxiv.org/abs/1703.06187
     constexpr double HL_term2 = 0.038;
     const double tH0 = ( (momDepConst ? MomentumDependentConstant(pij) : tuned_HL_term1) / (pij*beta) ) * ( 1.0 + HL_term2 * std::log( seg_nradl[i] ) ) * sqrt( seg_nradl[i] );
-    const double rms = sqrt( 2.0*( tH0 * tH0 + pow(theta0x, 2.0) ) );
+    const double rms = sqrt( 2.0*( tH0 * tH0 + theta0x * theta0x ) );
     if (rms==0.0) {
       std::cout << " Error : RMS cannot be zero ! " << std::endl;
       return std::numeric_limits<double>::max();
     } 
     const double arg = dthetaij[i]/rms;
-    result += ( std::log( rms ) + 0.5 * arg * arg );
+    result += ( std::log( rms ) + 0.5 * arg * arg + fixedterm);
+    // if (print && fwd==true) cout << "TrajectoryMCSFitter pij=" << pij << " dthetaij[i]=" << dthetaij[i] << " tH0=" << tH0 << " rms=" << rms << " prob=" << ( std::log( rms ) + 0.5 * arg * arg + fixedterm) << " const=" << (momDepConst ? MomentumDependentConstant(pij) : tuned_HL_term1) << " beta=" << beta << " red_length=" << seg_nradl[i] << endl;
   }
   return result;
 }
 
-double TrajectoryMCSFitter::energyLossLandau(const double mass,const double p, const double x) const {
+double TrajectoryMCSFitter::energyLossLandau(const double mass2,const double e2, const double x) const {
   //
   // eq. (33.11) in http://pdg.lbl.gov/2016/reviews/rpp2016-rev-passage-particles-matter.pdf (except density correction is ignored)
   //
   if (x<=0.) return 0.;
-  constexpr double I = 188.E-6;
+  constexpr double Iinv2 = 1./(188.E-6*188.E-6);
   constexpr double matConst = 1.4*18./40.;//density*Z/A
   constexpr double me = 0.511;
   constexpr double kappa = 0.307075;
   constexpr double j = 0.200;
   //
-  double beta2 = p*p/(mass*mass+p*p);
-  double gamma2 = 1./(1.0 - beta2);
+  const double beta2 = (e2-mass2)/e2;
+  const double gamma2 = 1./(1.0 - beta2);
+  const double epsilon = 0.5*kappa*x*matConst/beta2;
   //
-  double epsilon = 0.5*kappa*x*matConst/beta2;
-  double deltaE = epsilon*( log(2.*me*beta2*gamma2/I) + log(epsilon/I) + j - beta2 );
-  return deltaE*0.001;
+  return 0.001*epsilon*( log(2.*me*beta2*gamma2*epsilon*Iinv2) + j - beta2 );
 }
 //
-//FIXME, test: to be removed eventually
-double TrajectoryMCSFitter::energyLossBetheBloch(const double mass,const double p) const {
+double TrajectoryMCSFitter::energyLossBetheBloch(const double mass,const double e2) const {
   // stolen, mostly, from GFMaterialEffects.
-  const double charge(1.0);
-  const double mEE(188.); // eV
-  const double matZ(18.);
-  const double matA(40.);
-  const double matDensity(1.4);
-  const double me(0.000511);
+  constexpr double Iinv = 1./188.E-6;
+  constexpr double matConst = 1.4*18./40.;//density*Z/A
+  constexpr double me = 0.511;
+  constexpr double kappa = 0.307075;
   //
-  double beta = p/std::sqrt(mass*mass+p*p);
-  double gammaSquare = 1./(1.0 - beta*beta);
-  // 4pi.r_e^2.N.me = 0.307075, I think.
-  double dedx = 0.307075*matDensity*matZ/matA/(beta*beta)*charge*charge;
-  double massRatio = me/mass;
-  // me=0.000511 here is in GeV. So mEE comes in here in eV.
-  double argument = gammaSquare*beta*beta*me*1.E3*2./((1.E-6*mEE) * std::sqrt(1+2*std::sqrt(gammaSquare)*massRatio + massRatio*massRatio));
+  const double beta2 = (e2-mass*mass)/e2;
+  const double gamma2 = 1./(1.0 - beta2);
+  const double massRatio = me/mass;
+  const double argument = (2.*me*gamma2*beta2*Iinv) * std::sqrt(1+2*std::sqrt(gamma2)*massRatio + massRatio*massRatio);
+  //
+  double dedx = kappa*matConst/beta2;
   //
   if (mass==0.0) return(0.0);
-  if (argument <= exp(beta*beta))
-    {
+  if (argument <= exp(beta2)) {
       dedx = 0.;
-    }
-  else{
-    dedx *= (log(argument)-beta*beta); // Bethe-Bloch [MeV/cm]
-    dedx *= 1.E-3;  // in GeV/cm, hence 1.e-3
+  } else{
+    dedx *= (log(argument)-beta2)*1.E-3; // Bethe-Bloch, converted to GeV/cm
     if (dedx<0.) dedx = 0.;
   }
   return dedx;
 }
 //
+double TrajectoryMCSFitter::GetE(const double initial_E, const double length_travelled, const double m) const {
+  //
+  const double step_size = length_travelled / nElossSteps_;
+  //
+  double current_E = initial_E;
+  const double m2 = m*m;
+  //
+  for (auto i = 0; i < nElossSteps_; ++i) {
+    if (eLossMode_==2) {
+      double dedx = energyLossBetheBloch(m,current_E);
+      current_E -= (dedx * step_size);
+    } else {
+      // MPV of Landau energy loss distribution
+      current_E -= energyLossLandau(m2,current_E*current_E,step_size);
+    }
+    if ( current_E <= m ) {
+      // std::cout<<"WARNING: current_E less than mu mass. it is "<<current_E<<std::endl;
+      return 0.;
+    }
+  }
+  return current_E;
+}

@@ -42,6 +42,21 @@ namespace trkf {
 	Comment("Nominal length of track segments used in the fit."),
 	14.
       };
+      fhicl::Atom<int> minHitsPerSegment {
+        Name("minHitsPerSegment"),
+	Comment("Exclude segments with less hits than this value."),
+	2
+      };
+      fhicl::Atom<int> nElossSteps {
+        Name("nElossSteps"),
+	Comment("Number of steps for computing energy loss uptream to current segment."),
+	10
+      };
+      fhicl::Atom<int> eLossMode {
+        Name("eLossMode"),
+	Comment("Default is MPV Landau. Choose 1 for MIP (constant); 2 for Bethe-Bloch."),
+	0
+      };
       fhicl::Atom<double> pMin {
         Name("pMin"),
 	Comment("Minimum momentum value in likelihood scan."),
@@ -65,17 +80,20 @@ namespace trkf {
     };
     using Parameters = fhicl::Table<Config>;
     //
-    TrajectoryMCSFitter(int pIdHyp, int minNSegs, double segLen, double pMin, double pMax, double pStep, double angResol){
+    TrajectoryMCSFitter(int pIdHyp, int minNSegs, double segLen, int minHitsPerSegment, int nElossSteps, int eLossMode, double pMin, double pMax, double pStep, double angResol){
       pIdHyp_ = pIdHyp;
       minNSegs_ = minNSegs;
       segLen_ = segLen;
+      minHitsPerSegment_ = minHitsPerSegment;
+      nElossSteps_ = nElossSteps;
+      eLossMode_ = eLossMode;
       pMin_ = pMin;
       pMax_ = pMax;
       pStep_ = pStep;
       angResol_ = angResol;
     }
     explicit TrajectoryMCSFitter(const Parameters & p)
-      : TrajectoryMCSFitter(p().pIdHypothesis(),p().minNumSegments(),p().segmentLength(),p().pMin(),p().pMax(),p().pStep(),p().angResol()) {}
+      : TrajectoryMCSFitter(p().pIdHypothesis(),p().minNumSegments(),p().segmentLength(),p().minHitsPerSegment(),p().nElossSteps(),p().eLossMode(),p().pMin(),p().pMax(),p().pStep(),p().angResol()) {}
     //
     recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj, bool momDepConst = true) const;
     recob::MCSFitResult fitMcs(const recob::Track& track, bool momDepConst = true) const { return fitMcs(track.Trajectory(),momDepConst); }
@@ -97,6 +115,7 @@ namespace trkf {
     const ScanResult doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& cumLen, bool fwdFit, bool momDepConst) const;
     //
     inline double MomentumDependentConstant(const double p) const {
+      //these are from https://arxiv.org/abs/1703.06187
       constexpr double a = 0.1049;
       constexpr double c = 11.0038;
       return (a/(p*p)) + c;
@@ -108,13 +127,18 @@ namespace trkf {
       if (abs(pIdHyp_)==2212) { return pmass;  }
       return util::kBogusD;
     }
-    double energyLossBetheBloch(const double mass,const double p) const;//fixme: remove if worse than landau
-    double energyLossLandau(const double mass,const double p, const double x) const;
+    double energyLossBetheBloch(const double mass,const double e2) const;
+    double energyLossLandau(const double mass2,const double E2, const double x) const;
+    //
+    double GetE(const double initial_E, const double length_travelled, const double mass) const;
     //
   private:
     int    pIdHyp_;
     int    minNSegs_;
     double segLen_;
+    int    minHitsPerSegment_;
+    int    nElossSteps_;
+    int    eLossMode_;
     double pMin_;
     double pMax_;
     double pStep_;
