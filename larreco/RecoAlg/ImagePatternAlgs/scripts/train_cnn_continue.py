@@ -48,36 +48,42 @@ Y_train = None
 X_test = None
 Y_test = None
 
-n_test_dir = 1 # how many dirs used as testing data
-
-subdirs = [f for f in os.listdir(CNN_INPUT_DIR) if '000' in f]
+subdirs = [f for f in os.listdir(CNN_INPUT_DIR) if 'training' in f]
 subdirs.sort()
 for dirname in subdirs:
     print 'Reading data in', dirname
     filesX = [f for f in os.listdir(CNN_INPUT_DIR + '/' + dirname) if '_x.npy' in f]
     for fnameX in filesX:
+        print '...training data', fnameX
         fnameY = fnameX.replace('_x.npy', '_y.npy')
         dataX = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameX)
         dataY = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameY)
-
-        if n_test_dir > 0:
-            print '...testing data', fnameX
-            if X_test is None:
-                X_test = dataX
-                Y_test = dataY
-            else:
-                X_test = np.concatenate((X_test, dataX))
-                Y_test = np.concatenate((Y_test, dataY))
+        if X_train is None:
+            X_train = dataX
+            Y_train = dataY
         else:
-            print '...training data', fnameX
-            if X_train is None:
-                X_train = dataX
-                Y_train = dataY
-            else:
-                X_train = np.concatenate((X_train, dataX))
-                Y_train = np.concatenate((Y_train, dataY))
+            X_train = np.concatenate((X_train, dataX))
+            Y_train = np.concatenate((Y_train, dataY))
 
-    n_test_dir -= 1
+subdirs = [f for f in os.listdir(CNN_INPUT_DIR) if 'testing' in f]
+subdirs.sort()
+for dirname in subdirs:
+    print 'Reading data in', dirname
+    filesX = [f for f in os.listdir(CNN_INPUT_DIR + '/' + dirname) if '_x.npy' in f]
+    for fnameX in filesX:
+        print '...testing data', fnameX
+        fnameY = fnameX.replace('_x.npy', '_y.npy')
+        dataX = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameX)
+        dataY = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameY)
+        if X_test is None:
+            X_test = dataX
+            Y_test = dataY
+        else:
+            X_test = np.concatenate((X_test, dataX))
+            Y_test = np.concatenate((Y_test, dataY))
+
+dataX = None
+dataY = None
 
 print 'Train', X_train.shape, 'test', X_test.shape
 
