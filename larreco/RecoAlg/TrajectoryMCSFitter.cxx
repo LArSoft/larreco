@@ -10,46 +10,12 @@ using namespace recob::tracking;
 
 recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& traj, bool momDepConst) const {
   //
-  const double trajlen = traj.Length();
-  const int nseg = std::max(minNSegs_,int(trajlen/segLen_));
-  const double thisSegLen = trajlen/double(nseg);
-  // std::cout << "track with length=" << trajlen << " broken in nseg=" << nseg << " of length=" << thisSegLen << " where segLen_=" << segLen_ << std::endl;
-  //
   // Break the trajectory in segments of length approximately equal to segLen_
-  //
-  constexpr double lar_radl_inv = 1./14.0;
   //
   vector<size_t> breakpoints;
   vector<double> segradlengths;
   vector<double> cumseglens;
-  cumseglens.push_back(0.);//first segment has zero cumulative length from previous segments
-  double thislen = 0.;
-  auto nextValid=traj.FirstValidPoint();
-  breakpoints.push_back(nextValid);
-  auto pos0 = traj.LocationAtPoint(nextValid);
-  nextValid = traj.NextValidPoint(nextValid+1);
-  int npoints = 0;
-  while (nextValid!=recob::TrackTrajectory::InvalidIndex) {
-    auto pos1 = traj.LocationAtPoint(nextValid);
-    thislen += ( (pos1-pos0).R() );
-    pos0=pos1;
-    npoints++;
-    if (thislen>=thisSegLen) {
-      breakpoints.push_back(nextValid);
-      if (npoints>=minHitsPerSegment_) segradlengths.push_back(thislen*lar_radl_inv);
-      else segradlengths.push_back(-999.);
-      cumseglens.push_back(cumseglens.back()+thislen);
-      thislen = 0.;
-      npoints = 0;
-    }
-    nextValid = traj.NextValidPoint(nextValid+1);
-  }
-  //then add last segment
-  if (thislen>0.) {
-    breakpoints.push_back(nextValid);
-    segradlengths.push_back(thislen*lar_radl_inv);
-    cumseglens.push_back(cumseglens.back()+thislen);
-  }
+  breakTrajInSegments(traj, breakpoints, segradlengths, cumseglens);
   //
   // Fit segment directions, and get 3D angles between them
   //
@@ -88,6 +54,45 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
 			     fwdResult.p,fwdResult.pUnc,fwdResult.logL,
 			     bwdResult.p,bwdResult.pUnc,bwdResult.logL,
 			     segradlengths,dtheta);
+}
+
+void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj, vector<size_t>& breakpoints, vector<double>& segradlengths, vector<double>& cumseglens) const {
+  //
+  const double trajlen = traj.Length();
+  const int nseg = std::max(minNSegs_,int(trajlen/segLen_));
+  const double thisSegLen = trajlen/double(nseg);
+  // std::cout << "track with length=" << trajlen << " broken in nseg=" << nseg << " of length=" << thisSegLen << " where segLen_=" << segLen_ << std::endl;
+  //
+  constexpr double lar_radl_inv = 1./14.0;
+  cumseglens.push_back(0.);//first segment has zero cumulative length from previous segments
+  double thislen = 0.;
+  auto nextValid=traj.FirstValidPoint();
+  breakpoints.push_back(nextValid);
+  auto pos0 = traj.LocationAtPoint(nextValid);
+  nextValid = traj.NextValidPoint(nextValid+1);
+  int npoints = 0;
+  while (nextValid!=recob::TrackTrajectory::InvalidIndex) {
+    auto pos1 = traj.LocationAtPoint(nextValid);
+    thislen += ( (pos1-pos0).R() );
+    pos0=pos1;
+    npoints++;
+    if (thislen>=thisSegLen) {
+      breakpoints.push_back(nextValid);
+      if (npoints>=minHitsPerSegment_) segradlengths.push_back(thislen*lar_radl_inv);
+      else segradlengths.push_back(-999.);
+      cumseglens.push_back(cumseglens.back()+thislen);
+      thislen = 0.;
+      npoints = 0;
+    }
+    nextValid = traj.NextValidPoint(nextValid+1);
+  }
+  //then add last segment
+  if (thislen>0.) {
+    breakpoints.push_back(traj.LastValidPoint()+1);
+    segradlengths.push_back(thislen*lar_radl_inv);
+    cumseglens.push_back(cumseglens.back()+thislen);
+  }
+  return;
 }
 
 const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& cumLen, bool fwdFit, bool momDepConst) const {
@@ -133,7 +138,7 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, c
   int npoints = 0;
   geo::MiddlePointAccumulator middlePointCalc;
   size_t nextValid = firstPoint;
-  while (nextValid!=lastPoint) {
+  while (nextValid<lastPoint) {
     middlePointCalc.add(traj.LocationAtPoint(nextValid));
     nextValid = traj.NextValidPoint(nextValid+1);
     npoints++;
@@ -145,7 +150,7 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, c
   //
   TMatrixDSym m(3);
   nextValid = firstPoint;
-  while (nextValid!=lastPoint) {
+  while (nextValid<lastPoint) {
     const auto p = traj.LocationAtPoint(nextValid);
     const double xxw0 = p.X()-avgpos.X();
     const double yyw0 = p.Y()-avgpos.Y();
