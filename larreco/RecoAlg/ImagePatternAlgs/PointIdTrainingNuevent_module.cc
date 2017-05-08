@@ -246,19 +246,8 @@ namespace nnet	 {
 	std::ostringstream os;
 	os << "event_" << fEvent << "_run_" << fRun << "_subrun_" << fSubRun;
 
-	std::ofstream fout_raw, fout_deposit, fout_pdg, fout_nuin;
-
 	for (size_t v = 0; v < fSelectedView.size(); ++v)
 	{
-		std::ostringstream ss1;
-		ss1 << fOutTextFilePath << "/raw_" << os.str()
-			<< "_tpc_" << fPointid.tpc
-			<< "_view_" << fSelectedView[v];
-
-		fout_raw.open(ss1.str() + ".raw");
-		fout_deposit.open(ss1.str() + ".deposit");
-		fout_pdg.open(ss1.str() + ".pdg");
-		fout_nuin.open(ss1.str() + ".nuin");
 
 		fTrainingDataAlg.setEventData(event, fSelectedView[v], fPointid.tpc, fPointid.cryo);
 		
@@ -315,6 +304,17 @@ namespace nnet	 {
     }
     else
     {
+
+			std::ostringstream ss1;
+			ss1 << fOutTextFilePath << "/raw_" << os.str()
+			<< "_tpc_" << fPointid.tpc
+			<< "_view_" << fSelectedView[v];
+			std::ofstream fout_raw, fout_deposit, fout_pdg, fout_nuin;
+
+			fout_raw.open(ss1.str() + ".raw");
+			fout_deposit.open(ss1.str() + ".deposit");
+			fout_pdg.open(ss1.str() + ".pdg");
+			fout_nuin.open(ss1.str() + ".nuin");
 
 			for (size_t w = w0; w < w1; ++w)
 			{
