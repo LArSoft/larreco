@@ -65,7 +65,7 @@ def get_data(folder, fname, drift_margin = 0, crop = True, blur = None, white_no
 
 # MUST give the same result as nnet::DataProviderAlg::applyBlur() in PointIdAlg/PointIdAlg.cxx
 def applyBlur(a, kernel):
-    if kernel is None or kernel.shape[0] > 1: return a
+    if kernel is None or kernel.shape[0] < 2: return a
 
     margin_left = kernel.shape[0] >> 1
     margin_right = kernel.shape[0] - margin_left - 1

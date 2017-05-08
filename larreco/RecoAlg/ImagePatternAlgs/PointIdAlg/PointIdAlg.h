@@ -21,6 +21,8 @@
 #include "canvas/Utilities/InputTag.h"
 
 // LArSoft includes
+#include "canvas/Persistency/Common/FindOneP.h" 
+#include "canvas/Persistency/Common/FindManyP.h" 
 #include "larcore/Geometry/GeometryCore.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcore/Geometry/TPCGeo.h"
@@ -28,6 +30,7 @@
 #include "larcore/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Track.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -64,6 +67,11 @@ public:
 		fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlg {
 			Name("CalorimetryAlg"),
 			Comment("Used to eliminate amplitude variation due to electron lifetime.")
+		};
+
+		fhicl::Atom<bool> CalibrateAmpl {
+			Name("CalibrateAmpl"),
+			Comment("Calibrate ADC values with CalAmpConstants")
 		};
 
 		fhicl::Atom<unsigned int> DriftWindow {
@@ -142,7 +150,9 @@ protected:
 	detinfo::DetectorProperties const* fDetProp;
 
 private:
-    static float scaleAdcSample(float val);
+    float scaleAdcSample(float val) const;
+    std::vector<float> fAmplCalibConst;
+    bool fCalibrateAmpl;
 
     CLHEP::HepJamesRandom fRndEngine;
 
@@ -324,6 +334,16 @@ public:
 			Comment("Tag of recob::Wire.")
 		};
 
+		fhicl::Atom< art::InputTag > HitLabel {
+			Name("HitLabel"),
+			Comment("Tag of recob::Hit.")
+		};
+
+		fhicl::Atom< art::InputTag > TrackLabel {
+			Name("TrackLabel"),
+			Comment("Tag of recob::Track.")
+		};
+
 		fhicl::Atom< art::InputTag > SimulationLabel {
 			Name("SimulationLabel"),
 			Comment("Tag of simulation producer.")
@@ -352,6 +372,10 @@ public:
 
 	bool setEventData(const art::Event& event,   // collect & downscale ADC's, charge deposits, pdg labels
 		unsigned int view, unsigned int tpc, unsigned int cryo);
+
+	bool setDataEventData(const art::Event& event,   // collect & downscale ADC's, charge deposits, pdg labels
+		unsigned int view, unsigned int tpc, unsigned int cryo);
+
 
 	bool findCrop(float max_e_cut, unsigned int & w0, unsigned int & w1, unsigned int & d0, unsigned int & d1) const;
 
@@ -390,7 +414,11 @@ private:
 	std::vector< std::vector<float> > fWireDriftEdep;
 	std::vector< std::vector<int> > fWireDriftPdg;
 
+	std::vector<int> events_per_bin;
+
 	art::InputTag fWireProducerLabel;
+	art::InputTag fHitProducerLabel;
+	art::InputTag fTrackModuleLabel;
 	art::InputTag fSimulationProducerLabel;
 	bool fSaveVtxFlags;
 

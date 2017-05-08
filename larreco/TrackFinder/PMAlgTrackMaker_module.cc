@@ -380,7 +380,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(geo::kV);
 			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(geo::kZ);
 
-			tracks->push_back(pma::convertFrom(*trk, trkIndex));
+		    int pdg = 0;
+		    if (mvaLength == 4) pdg = getPdgFromCnnOnHits<4>(evt, *(result[trkIndex].Track()));
+		    else if (mvaLength == 3) pdg = getPdgFromCnnOnHits<3>(evt, *(result[trkIndex].Track()));
+		    //else mf::LogInfo("PMAlgTrackMaker") << "Not using PID from CNN.";
+
+			tracks->push_back(pma::convertFrom(*trk, trkIndex, pdg));
 
 			auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
 
@@ -440,7 +445,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
 				trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
 
-				double hx = h3d->Point3D().X(); // + xShift; // now done inside track
+				double hx = h3d->Point3D().X();
 				double hy = h3d->Point3D().Y();
 				double hz = h3d->Point3D().Z();
 
@@ -534,11 +539,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 		for (size_t t = 0; t < result.size(); ++t)
 		{
-		    int pdg = 0;
-		    if (mvaLength == 4) pdg = getPdgFromCnnOnHits<4>(evt, *(result[t].Track()));
-		    else if (mvaLength == 3) pdg = getPdgFromCnnOnHits<3>(evt, *(result[t].Track()));
-		    //else mf::LogInfo("PMAlgTrackMaker") << "Not using PID from CNN.";
-
 			size_t parentIdx = recob::PFParticle::kPFParticlePrimary;
 			if (result[t].Parent() >= 0) parentIdx = (size_t)result[t].Parent();
 
@@ -546,7 +546,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			for (size_t idx : result[t].Daughters()) { daughterIdxs.push_back(idx); }
 
 			size_t pfpidx = pfps->size();
-			pfps->emplace_back(pdg, pfpidx, parentIdx, daughterIdxs);
+			pfps->emplace_back((*tracks)[t].ParticleId(), pfpidx, parentIdx, daughterIdxs);
 
 			auto const pfpptr = make_pfpptr(pfpidx);
 			auto const tptr = make_trkptr(t);

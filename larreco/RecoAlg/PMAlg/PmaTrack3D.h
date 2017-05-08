@@ -171,9 +171,6 @@ public:
 	/// MSE of hits weighted with hit amplidudes and wire plane coefficients.
 	double GetMse(unsigned int view = geo::kUnknown) const;
 
-	/// Mean angle between consecutive segments, [rad].
-	double GetMeanAng(void) const;
-
 	/// Objective function optimized in track reconstruction.
 	double GetObjFunction(float penaltyFactor = 1.0F) const;
 

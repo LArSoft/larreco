@@ -41,6 +41,6 @@ physics:
 }
 
 physics.analyzers.testeff.NNetModuleLabel:               "emtrkmichelid:emtrkmichel:RecoEm" # usually instance name is used in MVA data products, usually you can skip the process name
-physics.analyzers.testeff.View:                          2    # will do test for the selected projection
+physics.analyzers.testeff.View:                          2    # do the test in selected projection
 physics.analyzers.testeff.SaveHitsFile:                  true # this will put to text file CNN output at hit positions
 
