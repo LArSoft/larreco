@@ -146,6 +146,10 @@ size_t pma::PMAlgCosmicTagger::fullLengthCrossing(pma::TrkCandidateColl& tracks)
 
 size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks, int direction){
 
+	if(direction == -1){
+		mf::LogWarning("pma::PMAlgCosmicTagger") << " - Could not recognise direction, not attempting to perform fullCrossingTagger.";
+	}
+
 	size_t n = 0;
 
 	double detDim = fDimensions[direction];
@@ -160,6 +164,7 @@ size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks,
 		auto const & node0 = *(t.Track()->Nodes()[0]);
 		auto const & node1 = *(t.Track()->Nodes()[t.Track()->Nodes().size()-1]);
 
+		// Get the length of the track in the requested direction
 		double trkDim = fabs(node0.Point3D()[direction]-node1.Point3D()[direction]);
 	
 		if((detDim - trkDim) < fFullCrossingMargin){
