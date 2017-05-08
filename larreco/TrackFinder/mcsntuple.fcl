@@ -6,7 +6,7 @@
 process_name: MCSNtuple
 
 services: {
-  #TFileService:           { fileName: "dummyAnalysis.root" }
+  TFileService:           { fileName: "dummyAnalysis.root" }
   @table::microboone_reco_mcc8_services
   TimeTracker: { }
 } # services
