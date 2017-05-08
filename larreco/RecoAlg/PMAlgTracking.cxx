@@ -995,6 +995,12 @@ int pma::PMAlgTracker::build(void)
     fStitcher.StitchTracksAPA(fResult);
 	}
 
+  if (fTagCosmicTracks)
+  {
+    mf::LogVerbatim("PMAlgTracker") << "Second pass cosmic tagging for stitched tracks";
+    fCosmicTagger.tag(fResult);
+  }
+
 	//double dQdxFlipThr = 0.0;
 	//if (fFlipToBeam) dQdxFlipThr = 0.4;
 	if (fFlipToBeam) fResult.flipTreesToCoordinate(2);        // flip the tracks / trees to the beam direction (Z)

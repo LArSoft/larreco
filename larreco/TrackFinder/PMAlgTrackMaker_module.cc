@@ -53,6 +53,7 @@
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/AnalysisBase/T0.h" 
+#include "lardataobj/AnalysisBase/CosmicTag.h" 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/Utilities/PtrMaker.h"
@@ -186,6 +187,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	produces< std::vector<recob::Vertex> >(kKinksName); // collection of kinks on tracks
 	produces< std::vector<recob::Vertex> >(kNodesName); // collection of pma nodes
 	produces< std::vector<anab::T0> >();
+	produces< std::vector<anab::CosmicTag> >(); // Cosmic ray tags
 
 	produces< art::Assns<recob::Track, recob::Hit> >(); // ****** REMEMBER to remove when FindMany improved ******
 	produces< art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
@@ -195,6 +197,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	produces< art::Assns<recob::Vertex, recob::Track> >(); // no instance name for assns of tracks to interaction vertices
 	produces< art::Assns<recob::Track, recob::Vertex> >(kKinksName);  // assns of kinks to tracks
 	produces< art::Assns<recob::Track, anab::T0> >();
+	produces< art::Assns<recob::Track, anab::CosmicTag> >(); // Cosmic ray tags associated to tracks
 
 	produces< std::vector<recob::PFParticle> >();
 	produces< art::Assns<recob::PFParticle, recob::Cluster> >();
@@ -278,12 +281,14 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	auto kinks = std::make_unique< std::vector< recob::Vertex > >(); // kinks on tracks (no new particles start in kinks)
 	auto nodes = std::make_unique< std::vector< recob::Vertex > >(); // pma nodes
 	auto t0s = std::make_unique< std::vector< anab::T0 > >();
+	auto cosmicTags = std::make_unique< std::vector< anab::CosmicTag > >();
 
 	auto trk2hit_oldway = std::make_unique< art::Assns< recob::Track, recob::Hit > >(); // ****** REMEMBER to remove when FindMany improved ******
 	auto trk2hit = std::make_unique< art::Assns< recob::Track, recob::Hit, recob::TrackHitMeta > >();
 
 	auto trk2sp = std::make_unique< art::Assns< recob::Track, recob::SpacePoint > >();
 	auto trk2t0 = std::make_unique< art::Assns< recob::Track, anab::T0 > >();
+	auto trk2ct = std::make_unique< art::Assns< recob::Track, anab::CosmicTag > >();
 
 	auto sp2hit = std::make_unique< art::Assns< recob::SpacePoint, recob::Hit > >();
 	auto vtx2trk = std::make_unique< art::Assns< recob::Vertex, recob::Track > >();  // one or more tracks (particles) start in the vertex
@@ -362,6 +367,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		auto const make_vtxptr = lar::PtrMaker<recob::Vertex>(evt, *this);
 		auto const make_kinkptr = lar::PtrMaker<recob::Vertex>(evt, *this, kKinksName);
 		auto const make_t0ptr = lar::PtrMaker<anab::T0>(evt, *this);
+		auto const make_ctptr = lar::PtrMaker<anab::CosmicTag>(evt, *this);
 
 		tracks->reserve(result.size());
 		for (size_t trkIndex = 0; trkIndex < result.size(); ++trkIndex)
@@ -391,6 +397,34 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 				auto const t0Ptr = make_t0ptr(t0s->size() - 1);  // PtrMaker Step #3
 				trk2t0->addSingle(trkPtr, t0Ptr);
+			}
+
+			// Check if this is a cosmic ray and create an association if it is.
+			if(trk->GetTag() == pma::Track3D::kCosmic){
+				// Get the track end points
+				std::vector<float> trkEnd0;
+				std::vector<float> trkEnd1;
+				// Get the drift direction, but don't care about the sign
+				// Also need to subtract 1 due to the definition.
+				int driftDir = abs(fGeom->TPC(trk->FrontTPC(), trk->FrontCryo()).DetectDriftDirection()) - 1;
+				
+				for(int i = 0; i < 3; ++i){
+					// Get the drift direction and apply the opposite of the drift shift in order to
+					// give the CosmicTag the drift coordinate assuming T0 = T_beam as it requests. 
+					double shift = 0.0;
+					if(i == driftDir){
+						shift = trk->Nodes()[0]->GetDriftShift();
+					}
+					trkEnd0.push_back(trk->Nodes()[0]->Point3D()[i] - shift);
+					trkEnd1.push_back(trk->Nodes()[trk->Nodes().size()-1]->Point3D()[i] - shift);
+				}
+				// Make the tag object. For now, let's say this is very likely a cosmic (3rd argument = 1).
+				// Set the type of cosmic to kUnknown since by this stage we've lost the information about
+				// why exactly we tagged them.
+				anab::CosmicTag tag(trkEnd0,trkEnd1,1,anab::CosmicTagID_t::kUnknown);
+				cosmicTags->push_back(tag);
+				auto const cosmicPtr = make_ctptr(cosmicTags->size()-1);
+				trk2ct->addSingle(trkPtr,cosmicPtr);
 			}
 
 			// which idx from start, except disabled, really....
@@ -555,11 +589,13 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	evt.put(std::move(kinks), kKinksName);
 	evt.put(std::move(nodes), kNodesName);
 	evt.put(std::move(t0s));
+	evt.put(std::move(cosmicTags));
 
 	evt.put(std::move(trk2hit_oldway)); // ****** REMEMBER to remove when FindMany improved ******
 	evt.put(std::move(trk2hit));
 	evt.put(std::move(trk2sp));
 	evt.put(std::move(trk2t0));
+	evt.put(std::move(trk2ct));
 
 	evt.put(std::move(sp2hit));
 	evt.put(std::move(vtx2trk));
