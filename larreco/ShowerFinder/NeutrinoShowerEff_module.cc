@@ -589,7 +589,22 @@ namespace DUNE{
         //dedx for different showers
         //Highest hits shower pdg for the dEdx study 0=undefined,1=electronorpositronshower,2=photonshower,3=protonshower,4=neutronshower,5=chargedpionshower,6=neutralpionshower,7=everythingelseshower
         shower_bestplane=shower->best_plane();
-        Showerparticlededx_inbestplane=shower->dEdx()[shower_bestplane];	   	   
+        if (shower_bestplane<0 || shower_bestplane>=int(shower->dEdx().size())){
+          //bestplane is not set properly, just pick the first plane that has dEdx
+          for (size_t i = 0; i<shower->dEdx().size(); ++i){
+            if (shower->dEdx()[i]){
+              shower_bestplane = i;
+              break;
+            }
+          }
+        }
+        if (shower_bestplane<0 || shower_bestplane>=int(shower->dEdx().size())){
+          //still a problem? just set it to 0
+          shower_bestplane = 0;
+        }
+          
+        if (shower_bestplane>=0 and shower_bestplane<int(shower->dEdx().size()))
+          Showerparticlededx_inbestplane=shower->dEdx()[shower_bestplane]; 
 	   
         if(std::abs(particle->PdgCode())==11){//lepton shower
           showerPDGwithHighestHitsforFillingdEdX=1;
