@@ -1,0 +1,59 @@
+#include "services_microboone.fcl"
+
+process_name: NeutrinoShowerEff 
+
+services:
+{
+  TFileService: { fileName: "ShowerHistograms.root" closeFileFast: false}
+  TimeTracker:       {}
+  RandomNumberGenerator: {} 
+  message:      @local::standard_info
+                @table::microboone_full_services
+}
+#services.Geometry: @local::dune10kt_workspace_geo
+#services.Geometry: @local::dune10kt_1x2x6_geo
+source:
+{
+  module_type: RootInput
+  firstEvent : 1
+  maxEvents:  -1
+}
+
+
+outputs:{}
+
+
+physics:
+{
+
+  analyzers:
+  {
+    NeutrinoShowerEff: 
+    {
+      module_type:      	"NeutrinoShowerEff"
+      #outFile:          	"Showetest.root"
+      MCTruthModuleLabel:	"generator"
+      #HitModuleLabel:           "linecluster"
+      HitModuleLabel:           "trajcluster"				 
+      #HitModuleLabel:           "gaushit"				 
+      #ShowerModuleLabel: 	"emshower"
+      ShowerModuleLabel:        "trajcluster"
+      #ShowerModuleLabel:        "pandoraCosmic"
+      #CNNEMModuleLabel:         "emtrkmichelid:emtrkmichel"
+      CNNEMModuleLabel:         ""
+      NeutrinoPDGcode:		12
+      LeptonPDGcode:		11
+      MaxNeutrinoE:		25.0
+      MaxEfrac:			0.30
+      MinCompleteness:		0.70	
+      SaveMCTree:		false
+      FidVolCutX:		10
+      FidVolCutY:		10
+      FidVolCutZ:		10	
+    }
+  }
+  analysis: [ NeutrinoShowerEff ] #Directory for histograms
+  end_paths: [ analysis ]
+}
+services.DetectorClocksService.InheritClockConfig:                      false
+services.DetectorClocksService.TriggerOffsetTPC:                       -400 # MC bnb neutrinos

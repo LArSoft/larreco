@@ -444,7 +444,7 @@ namespace DUNE{
         else if ( nu.CCNC() == 1 ) MC_isCC = 0; 
         simb::MCParticle neutrino = nu.Nu();
         MC_target = nu.Target();
-        MC_incoming_PDG = nu.Nu().PdgCode();
+        MC_incoming_PDG = std::abs(nu.Nu().PdgCode());
         MC_Q2 = nu.QSqr();
         MC_channel = nu.InteractionType();
         MC_W = nu.W();
@@ -466,7 +466,7 @@ namespace DUNE{
 
     for( sim::ParticleList::const_iterator ipar = plist.begin(); ipar!=plist.end(); ++ipar){
       particle = ipar->second;
-      if( particle->PdgCode() == fLeptonPDGcode && particle->Mother() == 0 ){  //primary lepton
+      if( std::abs(particle->PdgCode()) == fLeptonPDGcode && particle->Mother() == 0 ){  //primary lepton
         const TLorentzVector& lepton_momentum =particle->Momentum(0); 
         const TLorentzVector& lepton_position =particle->Position(0); 
         const TLorentzVector& lepton_positionEnd   = particle->EndPosition();
@@ -589,7 +589,22 @@ namespace DUNE{
         //dedx for different showers
         //Highest hits shower pdg for the dEdx study 0=undefined,1=electronorpositronshower,2=photonshower,3=protonshower,4=neutronshower,5=chargedpionshower,6=neutralpionshower,7=everythingelseshower
         shower_bestplane=shower->best_plane();
-        Showerparticlededx_inbestplane=shower->dEdx()[shower_bestplane];	   	   
+        if (shower_bestplane<0 || shower_bestplane>=int(shower->dEdx().size())){
+          //bestplane is not set properly, just pick the first plane that has dEdx
+          for (size_t i = 0; i<shower->dEdx().size(); ++i){
+            if (shower->dEdx()[i]){
+              shower_bestplane = i;
+              break;
+            }
+          }
+        }
+        if (shower_bestplane<0 || shower_bestplane>=int(shower->dEdx().size())){
+          //still a problem? just set it to 0
+          shower_bestplane = 0;
+        }
+          
+        if (shower_bestplane>=0 and shower_bestplane<int(shower->dEdx().size()))
+          Showerparticlededx_inbestplane=shower->dEdx()[shower_bestplane]; 
 	   
         if(std::abs(particle->PdgCode())==11){//lepton shower
           showerPDGwithHighestHitsforFillingdEdX=1;
@@ -619,7 +634,7 @@ namespace DUNE{
       if( particle->PdgCode()  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ) sh_hasPrimary_e[i] = 1;
       //cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<" "<<particle->TrackId()<<" "<<MC_leptonID<<endl;
       //save the best shower based on non EM and number of hits
-      
+
       if( particle->PdgCode()  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ){
 
         if(tmpEcomplet>Ecomplet_lepton){
@@ -738,7 +753,7 @@ namespace DUNE{
       art::Ptr<recob::Hit> hit = shower_hits[j];
       //For know let's use collection plane to look at the shower reconstruction
       //if( hit->View() != 2) continue;
-      std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit);
+      std::vector<sim::TrackIDE> TrackIDs = bt->HitToEveID(hit);
       for(size_t k = 0; k < TrackIDs.size(); k++){
         if (trkID_E.find(std::abs(TrackIDs[k].trackID))==trkID_E.end()) trkID_E[std::abs(TrackIDs[k].trackID)] = 0;
         trkID_E[std::abs(TrackIDs[k].trackID)] += TrackIDs[k].energy;
@@ -774,7 +789,7 @@ namespace DUNE{
     double totenergy =0;
     for(size_t k = 0; k < all_hits.size(); ++k){
       art::Ptr<recob::Hit> hit = all_hits[k];
-      std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit);
+      std::vector<sim::TrackIDE> TrackIDs = bt->HitToEveID(hit);
       for(size_t l = 0; l < TrackIDs.size(); ++l){
         if(std::abs(TrackIDs[l].trackID)==TrackID) {
           totenergy += TrackIDs[l].energy;
