@@ -2,7 +2,9 @@
 // Class:       PMAlgTrackMaker
 // Module Type: producer
 // File:        PMAlgTrackMaker_module.cc
-// Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl) and R.Sulej (Robert.Sulej@cern.ch), May 2015
+// Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl),
+//              R.Sulej (Robert.Sulej@cern.ch),
+//              L.Whitehead (leigh.howard.whitehead@cern.ch), May 2015
 //
 // Creates 3D tracks and vertices using Projection Matching Algorithm,
 // please see RecoAlg/ProjectionMatchingAlg.h for basics of the PMA algorithm and its settings.
@@ -141,6 +143,9 @@ private:
     // still may look track-like)
     template <size_t N> int getPdgFromCnnOnHits(const art::Event& evt, const pma::Track3D& trk) const;
 
+    // convert to LArSoft's cosmic tag type
+    anab::CosmicTagID_t getCosmicTag(const pma::Track3D::ETag pmaTag) const;
+
 	// ******************** fcl parameters **********************
 	art::InputTag fHitModuleLabel; // tag for hits collection (used for trk validation)
 	art::InputTag fCluModuleLabel; // tag for input cluster collection
@@ -272,6 +277,25 @@ bool PMAlgTrackMaker::init(const art::Event & evt, pma::PMAlgTracker & pmalgTrac
     return true;
 }
 
+anab::CosmicTagID_t PMAlgTrackMaker::getCosmicTag(const pma::Track3D::ETag pmaTag) const
+{
+    anab::CosmicTagID_t anabTag;
+    
+    pma::Track3D::ETag masked = pma::Track3D::ETag(pmaTag & 0x00FFFF00);
+    switch (masked)
+    {
+        case pma::Track3D::kOutsideDrift_Partial: anabTag = anab::CosmicTagID_t::kOutsideDrift_Partial; break;
+        case pma::Track3D::kOutsideDrift_Complete: anabTag = anab::CosmicTagID_t::kOutsideDrift_Complete; break;
+        case pma::Track3D::kBeamIncompatible: anabTag = anab::CosmicTagID_t::kFlash_BeamIncompatible; break;
+        case pma::Track3D::kGeometry_XX: anabTag = anab::CosmicTagID_t::kGeometry_XX; break;
+        case pma::Track3D::kGeometry_YY: anabTag = anab::CosmicTagID_t::kGeometry_YY; break;
+        case pma::Track3D::kGeometry_ZZ: anabTag = anab::CosmicTagID_t::kGeometry_ZZ; break;
+        default: anabTag = anab::CosmicTagID_t::kUnknown; break;
+    }
+    
+    return anabTag;
+}
+
 void PMAlgTrackMaker::produce(art::Event& evt)
 {
 	// ---------------- Create data products --------------------------
@@ -400,7 +424,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			}
 
 			// Check if this is a cosmic ray and create an association if it is.
-			if(trk->GetTag() == pma::Track3D::kCosmic){
+			if(trk->HasTagFlag(pma::Track3D::kCosmic)){
 				// Get the track end points
 				std::vector<float> trkEnd0;
 				std::vector<float> trkEnd1;
@@ -419,10 +443,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 					trkEnd1.push_back(trk->Nodes()[trk->Nodes().size()-1]->Point3D()[i] - shift);
 				}
 				// Make the tag object. For now, let's say this is very likely a cosmic (3rd argument = 1).
-				// Set the type of cosmic to kUnknown since by this stage we've lost the information about
-				// why exactly we tagged them.
-				anab::CosmicTag tag(trkEnd0,trkEnd1,1,anab::CosmicTagID_t::kUnknown);
-				cosmicTags->push_back(tag);
+				// Set the type of cosmic to the value saved in pma::Track.
+				cosmicTags->emplace_back(trkEnd0, trkEnd1, 1, getCosmicTag(trk->GetTag()));
 				auto const cosmicPtr = make_ctptr(cosmicTags->size()-1);
 				trk2ct->addSingle(trkPtr,cosmicPtr);
 			}
@@ -582,6 +604,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		}
 		mf::LogVerbatim("Summary") << pfps->size() << " PFParticles created in total.";
 	}
+
+    for (const auto & ct : *cosmicTags) { std::cout << "Cosmic tag: " << ct << std::endl; }
 
 	evt.put(std::move(tracks));
 	evt.put(std::move(allsp));

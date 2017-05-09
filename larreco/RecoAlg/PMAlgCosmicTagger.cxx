@@ -1,6 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class:       PMAlgCosmicTagger
-// Author:      ..., R.Sulej (..., robert.sulej@cern.ch) March 2017
+// Author:      L. Whitehead (leigh.howard.whitehead@cern.ch),
+//              R. Sulej (robert.sulej@cern.ch) March 2017
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/PMAlgCosmicTagger.h"
@@ -14,8 +15,8 @@
 
 void pma::PMAlgCosmicTagger::tag(pma::TrkCandidateColl& tracks)
 {
-		// Get the detector dimensions
-		GetDimensions();
+    // Get the detector dimensions
+    GetDimensions();
 
     mf::LogInfo("pma::PMAlgCosmicTagger") << "Passed " << tracks.size() << " tracks for tagging cosmics.";
 
@@ -25,7 +26,7 @@ void pma::PMAlgCosmicTagger::tag(pma::TrkCandidateColl& tracks)
     if (fTagFullHeightTracks) n += fullHeightCrossing(tracks);
     if (fTagFullWidthTracks) n += fullWidthCrossing(tracks);
     if (fTagFullLengthTracks) n += fullLengthCrossing(tracks);
-		if (fTagNonBeamT0Tracks) n += nonBeamT0Tag(tracks);
+    if (fTagNonBeamT0Tracks) n += nonBeamT0Tag(tracks);
 
     mf::LogInfo("pma::PMAlgCosmicTagger") << "...tagged " << n << " cosmic-like tracks.";
 }
@@ -42,12 +43,13 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
     {
 		
         // If this track is already tagged then don't try again!
-		    if(t.Track()->GetTag() == pma::Track3D::kCosmic) continue;
+		if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
         pma::Track3D & trk = *(t.Track());
 
         double min, max, p;
-        bool node_out_of_drift = false;
+        bool node_out_of_drift_min = false;
+        bool node_out_of_drift_max = false;
         for (size_t nidx = 0; nidx < trk.Nodes().size(); ++nidx)
         {
             auto const & node = *(trk.Nodes()[nidx]);
@@ -62,10 +64,12 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
                 case 3: min = tpcGeo.MinZ(); max = tpcGeo.MaxZ(); break;
                 default: throw cet::exception("PMAlgCosmicTagger") << "Drift direction unknown: " << driftDir << std::endl;
             }
-            if ((p < min - fOutOfDriftMargin) || (p > max + fOutOfDriftMargin)) { node_out_of_drift = true; break; }
+            if (p < min - fOutOfDriftMargin) { node_out_of_drift_min = true; }
+            if (p > max + fOutOfDriftMargin) { node_out_of_drift_max = true; }
         }
 
-        if (node_out_of_drift) { trk.SetTagFlag(pma::Track3D::kCosmic); ++n; }
+        if (node_out_of_drift_min && node_out_of_drift_max) { trk.SetTagFlag(pma::Track3D::kCosmic); trk.SetTagFlag(pma::Track3D::kOutsideDrift_Complete); ++n; }
+        else if (node_out_of_drift_min || node_out_of_drift_min) { trk.SetTagFlag(pma::Track3D::kCosmic); trk.SetTagFlag(pma::Track3D::kOutsideDrift_Partial); ++n; }
     }
 
 		mf::LogInfo("pma::PMAlgCosmicTagger") << " - Tagged " << n << " tracks out of 1 drift window.";
@@ -85,7 +89,7 @@ size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl &tracks){
 	for(auto & t : tracks.tracks()){
 		
 		// If this track is already tagged then don't try again!
-		if(t.Track()->GetTag() == pma::Track3D::kCosmic) continue;
+		if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
 		// Non zero T0 means we reconstructed it
 		if(t.Track()->GetT0() != 0.0){
@@ -94,6 +98,7 @@ size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl &tracks){
 			if(fabs(t.Track()->GetT0() - detprop->TriggerOffset()) > fNonBeamT0Margin){
 				++n;
 				t.Track()->SetTagFlag(pma::Track3D::kCosmic);
+				t.Track()->SetTagFlag(pma::Track3D::kBeamIncompatible);
 			}
 
 		}
@@ -154,11 +159,20 @@ size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks,
 
 	double detDim = fDimensions[direction];
 
+    pma::Track3D::ETag dirTag = pma::Track3D::kNotTagged;
+    switch (direction)
+    {
+        case 0: dirTag = pma::Track3D::kGeometry_XX; break;
+        case 1: dirTag = pma::Track3D::kGeometry_YY; break;
+        case 2: dirTag = pma::Track3D::kGeometry_ZZ; break;
+        default: dirTag = pma::Track3D::kNotTagged; break;
+    }
+
 	// Loop over the tracks
 	for(auto & t : tracks.tracks()){
 
 		// If this track is already tagged then don't try again!
-		if(t.Track()->GetTag() == pma::Track3D::kCosmic) continue;
+		if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
 		// Get the first and last y-positions from the track.
 		auto const & node0 = *(t.Track()->Nodes()[0]);
@@ -170,6 +184,7 @@ size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks,
 		if((detDim - trkDim) < fFullCrossingMargin){
 			++n;
 			t.Track()->SetTagFlag(pma::Track3D::kCosmic);
+			t.Track()->SetTagFlag(dirTag);
 			mf::LogInfo("pma::PMAlgCosmicTagger") << " -- track tagged in direction " << direction << " with " << trkDim << " (c.f. " << detDim << ")";
 		}
 	}
