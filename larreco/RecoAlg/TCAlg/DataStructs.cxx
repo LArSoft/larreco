@@ -39,7 +39,6 @@ namespace tca {
     "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
-    "ShowerParent",
     "ShowerTj"
   };
 

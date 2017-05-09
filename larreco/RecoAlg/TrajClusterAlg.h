@@ -9,7 +9,6 @@
 #ifndef TRAJCLUSTERALG_H
 #define TRAJCLUSTERALG_H
 
-#include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
 // C/C++ standard libraries
@@ -35,22 +34,16 @@
 #include "canvas/Utilities/Exception.h"
 
 // LArSoft libraries
-#include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "larcore/Geometry/Geometry.h"
-#include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Wire.h"
-#include "lardata/DetectorInfoServices/LArPropertiesService.h"
-#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larreco/RecoAlg/LinFitAlg.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TProfile.h"
 
 namespace tca {
-
   
   class TrajClusterAlg {
     public:
@@ -85,6 +78,11 @@ namespace tca {
     std::vector<unsigned short> const& GetPFPList() const { return tjs.matchVecPFPList; }
     // Get a specific matchVec entry that will be turned into a PFParticle
     MatchStruct const& GetMatchStruct(unsigned short im) {return tjs.matchVec[im]; };
+    // Get the cluster index of a trajectory ID
+    unsigned short GetTjClusterIndex(unsigned short TjID) { return tjs.allTraj[TjID - 1].ClusterIndex; }
+    // Get a ShowerStuct3D entry
+    unsigned short GetShowerStructSize() { return tjs.showers.size(); };
+    ShowerStruct3D const& GetShowerStruct(unsigned short ish) { return tjs.showers[ish]; };
     
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
@@ -100,7 +98,6 @@ namespace tca {
     private:
     
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
-    art::InputTag fCalDataModuleLabel; ///< label of module producing ROIs on wires
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
     short fStepDir;             /// US->DS (1), DS->US (-1)
@@ -118,7 +115,7 @@ namespace tca {
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
     bool fMakeNewHits;
-   
+    bool fExpectNarrowHits;     ///< set true if GausHit is configured to split long pulses into narrow hits
     float fJTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
     
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
@@ -127,25 +124,15 @@ namespace tca {
     std::vector<float> fMatchTruth;     ///< Match to MC truth
  
     std::vector<float> fMaxVertexTrajSep;
-    std::bitset<32> fUseAlg;  ///< Allow user to mask off specific algorithms
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
-    std::vector<float> fAngleRanges; ///< list of max angles for each angle range
-    std::vector<float> fAngleRangesMaxHitsRMS;
     float fVLAStepSize;
     
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
 		float VertexPullCut; 	///< maximum 2D vtx - trajectory significance
-    std::vector<short> fDeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
-    std::vector<short> fMuonTag; ///< min length and min MCSMom for a muon tag
-    std::vector<float> fShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
-
-    std::vector<float> fVertex2DCuts; ///< Max position pull, max Position error rms
-    float fVertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
-    std::vector<float> fMatch3DCuts;  ///< Max dX separation
     
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
     std::array<short, 5> EPCnts;
@@ -177,18 +164,16 @@ namespace tca {
     TProfile *fShAspectRatio_Energy;
     TProfile *fShChg_Energy[3];
     TProfile *fShChgDensity_Energy;
-    TProfile *fShLength_Energy;
     TProfile *fShEP_Energy;
     TProfile *fParentLength_Energy;
     
     TH1F *fShMCSMom;
     TH1F *fShChgDensity;
     TH1F *fShAspectRatio;
-    TH1F *fShAspectRatio2;
     TH1F *fDOCA;
     TH1F *fParentFOM;
     
-    TH1F *fShTPAngAve[3];
+    TH1F *fShowerAngle[3];
     TH1F *fShPrimIP;
     TProfile *fShPrimIP_Energy;
 
@@ -227,13 +212,8 @@ namespace tca {
     short TJPrt; // Set to the WorkID of a trajectory that is being debugged
     bool shPrt; /// print shower info
     
-    art::ServiceHandle<geo::Geometry> geom;
-    const detinfo::LArProperties* larprop;
-    const detinfo::DetectorProperties* detprop;
-    // TEMP for writing event filter selection
-//    std::ofstream outFile;
-    
     trkf::LinFitAlg fLinFitAlg;
+    calo::CalorimetryAlg fCaloAlg;
 
     unsigned int fCstat;         // the current cryostat
     unsigned int fTpc;         // the current TPC
@@ -295,11 +275,6 @@ namespace tca {
     // fit, charge, etc. This is done by setting UseHit true and
     // setting inTraj < 0
      void FindUseHits(Trajectory& tj, unsigned short ipt, float maxDelta, bool useChg);
-    // Sets the tp AngCode = 0 (small angle), 1 (large angle) or 2 (very large angle)
-    void SetAngleCode(TrajPoint& tp);
-    // returns the index of the angle range that tp is in
-    unsigned short AngleRange(TrajPoint const& tp);
-    unsigned short AngleRange(float angle);
     // Print debug output if hit iht exists in work or allTraj
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
@@ -308,8 +283,8 @@ namespace tca {
     bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
-    // Push the trajectory into allTraj
-    void StoreTraj(Trajectory& tj);
+    void FindVtxTjs();
+    void FindVtxTraj(unsigned short ivx);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
      // Truncates the trajectory if a soft kink is found in it
@@ -337,10 +312,6 @@ namespace tca {
     // fitted points to get FitCHi < 2
     bool StopIfBadFits(Trajectory& tj);
     void PrepareForNextPass(Trajectory& tj);
-    // Fit the supplied trajectory using HitPos positions with the origin at originPt.
-    void FitTraj(Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
-    // Fit the leading edge of the trajectory
-    void FitTraj(Trajectory& tj);
     // Does a local fit of just-added TPs to identify a kink while stepping.
     // Truncates the vector and returns true if one is found.
     void GottaKink(Trajectory& tj, unsigned short& killPts);
@@ -370,29 +341,18 @@ namespace tca {
     void ChkAllStop();
     // Sets the StopsAtEnd bits for the trajectory
     void ChkStop(Trajectory& tj);
+    void SplitTrajCrossingVertices();
     // Check the Michel electron topology, lastGoodPt is the last point of muon
     bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
     // TY: Split high charge hits near the trajectory end
     void ChkHiChgHits();
     void SplitHiChgHits(Trajectory& tj);
-    void SetPDGCode(Trajectory& tj);
-    void SetPDGCode(unsigned short itj);
+    void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
     void MatchTruth();
-    // ****************************** Vertex code  ******************************
-    void Find2DVertices();
-    void FindVtxTraj(unsigned short ivx);
-//    void Refine2DVertices();
-    void SplitTrajCrossingVertices();
-    void FindHammerVertices();
-    void FindHammerVertices2();
-    void Find3DVertices(const geo::TPCID& tpcid);
-    void CompleteIncomplete3DVertices(const geo::TPCID& tpcid);
-    void CompleteIncomplete3DVerticesInGaps(const geo::TPCID& tpcid);
-    // Improve hit assignments near vertex 
-    void VtxHitsSwap();
-    // ****************************** 3D Tj matching code  ******************************
+     // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
-    void Match3D2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
+    void Match2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
+    void Match3Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
     void Find3DEndPoints(const geo::TPCID& tpcid);
     void FillPFPInfo();
     
