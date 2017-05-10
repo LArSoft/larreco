@@ -4,6 +4,7 @@ art_make(
                         larcore_Geometry
                         larcore_Geometry_Geometry_service
                         larreco_Calorimetry
+                        nusimdata_SimulationBase
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
                         art_Persistency_Common
