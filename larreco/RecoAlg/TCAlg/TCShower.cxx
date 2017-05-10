@@ -1531,6 +1531,22 @@ namespace tca {
     momNeg /= chgNeg;
     momPos /= chgPos;
     
+    unsigned short nTruHits;
+    unsigned short mcPtclIndex = GetMCPartListIndex(tjs, ss, nTruHits);
+    if(mcPtclIndex == 0) {
+      // Print variables to create an ntuple
+      float trueEnergy = tjs.MCPartList[mcPtclIndex]->E();
+      mf::LogVerbatim myprt("TC");
+      myprt<<"NTPL "<<ss.CTP<<" "<<std::fixed<<std::setprecision(2)<<trueEnergy;
+      // number of times this DefineShowerTj was called for this shower
+      myprt<<" "<<stj.Pass;
+      // number of points (hits) in the shower
+      myprt<<" "<<ss.Pts.size();
+      // shower charge
+      myprt<<" "<<stj.AveChg;
+      myprt<<" "<<transRMSNeg<<" "<<transRMSPos<<" "<<momNeg<<" "<<momPos;
+    }
+    
     ss.DirectionFOM = (transRMSNeg / transRMSPos) * (momNeg / momPos);
     bool startsNeg = ((transRMSNeg / momNeg) < (transRMSPos / momPos));
 
@@ -1613,6 +1629,9 @@ namespace tca {
       spt.AveChg = spt.Chg;
     } // ipt
     if(stj.Pts[1].DeltaRMS == 0) stj.Pts[1].DeltaRMS = 0.5 * (stj.Pts[0].DeltaRMS + stj.Pts[2].DeltaRMS);
+    
+    // use Tj Pass to count the number of times this function is used
+    ++stj.Pass;
     
     if(prt) PrintTrajectory("DSTj", tjs, stj, USHRT_MAX);
     
