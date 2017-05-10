@@ -2335,9 +2335,13 @@ namespace tca {
           if(tjs.cots[ic].ShowerTjID != tj.ID) continue;
           const ShowerStruct& ss = tjs.cots[ic];
           mf::LogVerbatim myprt("TC");
-          myprt<<"Shower index "<<ic<<" ";
+          myprt<<"cots index "<<ic<<" ";
           myprt<<someText<<" Envelope";
-          for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+          if(ss.Envelope.empty()) {
+            myprt<<" NA";
+          } else {
+            for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+          }
           myprt<<" Energy "<<(int)ss.Energy;
           myprt<<" Area "<<std::fixed<<std::setprecision(1)<<(int)ss.EnvelopeArea<<" ChgDensity "<<ss.ChgDensity;
           myprt<<" StartChg "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr;
