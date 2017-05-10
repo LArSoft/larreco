@@ -29,8 +29,6 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
-// #include "TPrincipal.h"
-
 namespace tca {
 
   void Find3DShowerEndPoints(TjStuff& tjs, const geo::TPCID& tpcid);
