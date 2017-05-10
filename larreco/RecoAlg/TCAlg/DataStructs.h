@@ -331,7 +331,7 @@ namespace tca {
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> Match3DCuts;  ///< 3D matching cuts
-    std::vector<simb::MCParticle*> MCPartList;
+    std::vector<const simb::MCParticle*> MCPartList;
     std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
     const geo::GeometryCore* geom;
     const detinfo::DetectorProperties* detprop;
