@@ -376,7 +376,6 @@ namespace tca {
     if(prt) std::cout<<"Inside FindShowers inCTP "<<inCTP<<" tjList size "<<tjList.size()<<"\n";
     if(tjs.ShowerTag[0] == 1) return;
     if(tjList.empty()) return;
-
     // Merge the lists of Tjs in showers
     bool didMerge = true;
     while(didMerge) {
@@ -483,6 +482,12 @@ namespace tca {
       // assign all TJ IDs to this ShowerStruct
       ss.TjIDs = tjl;
       ss.ShowerTjID = stj.ID;
+      // try to define the true shower parent Tj
+      unsigned short nTruHits;
+      // Find the MC particle that matches with these InShower Tjs
+      unsigned short mcpIndex = GetMCPartListIndex(tjs, ss, nTruHits);
+      // Find the Tj that is closest to the start of this MC Particle
+      if(mcpIndex != USHRT_MAX) ss.TruParentID = MCParticleStartTjID(tjs, mcpIndex, ss.CTP);
       // put it in TJ stuff. The rest of the info will be added later
       tjs.cots.push_back(ss);
       unsigned short cotIndex = tjs.cots.size() - 1;
@@ -839,7 +844,7 @@ namespace tca {
     unsigned short imTheBestPt = 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != ss.CTP) continue;
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] && !tj.AlgMod[kInShower]) continue;
       // ignore shower Tjs
       if(tj.AlgMod[kShowerTj]) continue;
       // ignore in-shower Tjs that aren't in this shower
@@ -1016,6 +1021,34 @@ namespace tca {
       myprt<<" length "<<(int)TrajLength(tj)<<" pull "<<lenPull;
       myprt<<" FOM "<<fom;
     }
+
+    if(tjs.ShowerTag[11] == -5) {
+      // special output for creating an ntuple
+      unsigned short nTruHits;
+      unsigned short mcPtclIndex = GetMCPartListIndex(tjs, ss, nTruHits);
+      if(mcPtclIndex == 0) {
+        // Print variables to create an ntuple
+        float trueEnergy = tjs.MCPartList[mcPtclIndex]->E();
+        mf::LogVerbatim myprt("TC");
+        myprt<<"NTPL "<<ss.CTP<<" "<<std::fixed<<std::setprecision(2)<<trueEnergy;
+        myprt<<" "<<MCParticleAngle(tjs, mcPtclIndex, ss.CTP);
+        myprt<<" "<<tj.ID;
+        // number of times this DefineShowerTj was called for this shower
+        Trajectory& stj = tjs.allTraj[istj];
+        myprt<<" "<<stj.Pass;
+        // number of points (hits) in the shower
+        myprt<<" "<<ss.Pts.size();
+        // shower charge
+        myprt<<" "<<(int)stj.AveChg;
+        myprt<<" "<<sepPull<<" "<<deltaPull<<" "<<dangPull<<" "<<momPull<<" "<<lenPull<<" "<<fom;
+        if(tj.ID == ss.TruParentID) {
+          myprt<<" 1";
+        } else {
+          myprt<<" 0";
+        }
+      }
+    }
+
     return fom;
   } // ParentFOM
   
@@ -1505,52 +1538,25 @@ namespace tca {
     float sec2 = maxAlong - sectionLength;
     float chgNeg = 0;
     float transRMSNeg = 0;
-    float momNeg = 0;
     float chgPos = 0;
     float transRMSPos = 0;
-    float momPos = 0;
     for(unsigned short ii = 0; ii < ss.Pts.size(); ++ii) {
-      float mom = 0;
-      if(ss.Pts[ii].TID > 0) {
-        unsigned short itj = ss.Pts[ii].TID - 1;
-        mom = tjs.allTraj[itj].MCSMom;
-      }
       if(ss.Pts[ii].RotPos[0] < sec0) {
         chgNeg += ss.Pts[ii].Chg;
         transRMSNeg += ss.Pts[ii].Chg * std::abs(ss.Pts[ii].RotPos[1]);
-        momNeg += ss.Pts[ii].Chg * mom;
       } else if(ss.Pts[ii].RotPos[0] > sec2) {
         chgPos += ss.Pts[ii].Chg;
         transRMSPos += ss.Pts[ii].Chg * std::abs(ss.Pts[ii].RotPos[1]);
-        momPos += ss.Pts[ii].Chg * mom;
       }
     } // ii
     if(chgNeg == 0 || chgPos == 0) return false;
     transRMSNeg /= chgNeg;
     transRMSPos /= chgPos;
-    momNeg /= chgNeg;
-    momPos /= chgPos;
     
-    unsigned short nTruHits;
-    unsigned short mcPtclIndex = GetMCPartListIndex(tjs, ss, nTruHits);
-    if(mcPtclIndex == 0) {
-      // Print variables to create an ntuple
-      float trueEnergy = tjs.MCPartList[mcPtclIndex]->E();
-      mf::LogVerbatim myprt("TC");
-      myprt<<"NTPL "<<ss.CTP<<" "<<std::fixed<<std::setprecision(2)<<trueEnergy;
-      // number of times this DefineShowerTj was called for this shower
-      myprt<<" "<<stj.Pass;
-      // number of points (hits) in the shower
-      myprt<<" "<<ss.Pts.size();
-      // shower charge
-      myprt<<" "<<stj.AveChg;
-      myprt<<" "<<transRMSNeg<<" "<<transRMSPos<<" "<<momNeg<<" "<<momPos;
-    }
-    
-    ss.DirectionFOM = (transRMSNeg / transRMSPos) * (momNeg / momPos);
-    bool startsNeg = ((transRMSNeg / momNeg) < (transRMSPos / momPos));
+    ss.DirectionFOM = transRMSNeg / transRMSPos;
+    bool startsNeg = (transRMSNeg < transRMSPos);
 
-    if(prt) mf::LogVerbatim("TC")<<"DSTj: "<<cotIndex<<" transRMSNeg "<<std::fixed<<std::setprecision(2)<<transRMSNeg<<" transRMSPos "<<transRMSPos<<" momNeg "<<momNeg<<" momPos "<<momPos<<" startsNeg? "<<startsNeg<<" DirectionFOM "<<ss.DirectionFOM;
+    if(prt) mf::LogVerbatim("TC")<<"DSTj: "<<cotIndex<<" transRMSNeg "<<std::fixed<<std::setprecision(2)<<transRMSNeg<<" transRMSPos "<<transRMSPos<<" startsNeg? "<<startsNeg<<" DirectionFOM "<<ss.DirectionFOM;
 
     // reverse the points vector so that the narrow end of the shower is near Pts.begin()
     if(!hasParent && !startsNeg) {
@@ -1567,6 +1573,7 @@ namespace tca {
       } else {
         ss.Angle += M_PI;
       }
+      ss.DirectionFOM = 1 / ss.DirectionFOM;
       if(prt) mf::LogVerbatim("TC")<<" Reversed everything. Shower angle = "<<ss.Angle;
     } // reverse everything
     
