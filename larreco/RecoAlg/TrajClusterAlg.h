@@ -197,7 +197,7 @@ namespace tca {
 */
     // number of primary particles in the event
     unsigned short nTruPrimary;
-    float sourceParticleEnergy;
+    float fSourceParticleEnergy;
     // number of reconstructable primary particles in the event
     unsigned short nTruPrimaryOK;
     // number of reconstructable neutrino vertices in ALL events
@@ -349,6 +349,7 @@ namespace tca {
     void SplitHiChgHits(Trajectory& tj);
     void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
     void MatchTruth();
+    void MatchTrueHits();
      // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
     void Match2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
