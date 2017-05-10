@@ -1,6 +1,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class:       PMAlgTracking
-// Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl) and R.Sulej (Robert.Sulej@cern.ch), June 2016
+// Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl),
+//              R.Sulej (Robert.Sulej@cern.ch),
+//              L.Whitehead (leigh.howard.whitehead@cern.ch), June 2016
 //
 // Single track reconstruction toolkit based on Projection Matching Algorithm. Uses cluster collections
 // to find single tracks (modularized version of our original code).
@@ -234,41 +236,7 @@ public:
 		const pma::PMAlgTracker::Config& pmalgTrackerConfig,
 		const pma::PMAlgVertexing::Config& pmvtxConfig,
 		const pma::PMAlgStitching::Config& pmstitchConfig,
-		const pma::PMAlgCosmicTagger::Config& pmtaggerConfig) :
-
-		PMAlgTrackingBase(allhitlist, pmalgConfig, pmvtxConfig),
-
-		fMinSeedSize1stPass(pmalgTrackerConfig.MinSeedSize1stPass()),
-		fMinSeedSize2ndPass(pmalgTrackerConfig.MinSeedSize2ndPass()),
-		fTrackLikeThreshold(pmalgTrackerConfig.TrackLikeThreshold()),
-
-		fMinTwoViewFraction(pmalgConfig.MinTwoViewFraction()),
-
-		fFlipToBeam(pmalgTrackerConfig.FlipToBeam()),
-		fFlipDownward(pmalgTrackerConfig.FlipDownward()),
-		fAutoFlip_dQdx(pmalgTrackerConfig.AutoFlip_dQdx()),
-
-		fMergeWithinTPC(pmalgTrackerConfig.MergeWithinTPC()),
-		fMergeTransverseShift(pmalgTrackerConfig.MergeTransverseShift()),
-		fMergeAngle(pmalgTrackerConfig.MergeAngle()),
-
-        fCosmicTagger(pmtaggerConfig),
-        fTagCosmicTracks(fCosmicTagger.tagAny()),
-
-		fStitchBetweenTPCs(pmalgTrackerConfig.StitchBetweenTPCs()),
-		fStitchDistToWall(pmalgTrackerConfig.StitchDistToWall()),
-		fStitchTransverseShift(pmalgTrackerConfig.StitchTransverseShift()),
-		fStitchAngle(pmalgTrackerConfig.StitchAngle()),
-
-		fMatchT0inAPACrossing(pmalgTrackerConfig.MatchT0inAPACrossing()),
-		fMatchT0inCPACrossing(pmalgTrackerConfig.MatchT0inCPACrossing()),
-        fStitcher(pmstitchConfig),
-
-		fRunVertexing(pmalgTrackerConfig.RunVertexing()),
-
-        fGeom(&*(art::ServiceHandle<geo::Geometry>())),
-		fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
-	{}
+		const pma::PMAlgCosmicTagger::Config& pmtaggerConfig);
 
 	void init(const art::FindManyP< recob::Hit > & hitsFromClusters);
 
@@ -350,6 +318,7 @@ private:
 	/// --------------------------------------------------------------
 	std::vector< size_t > fUsedClusters, fInitialClusters;
 	mutable std::map< unsigned int, std::vector<size_t> > fTriedClusters;
+	std::vector< geo::View_t > fAvailableViews;
 	/// --------------------------------------------------------------
 
 	// ******************** fcl parameters **********************
