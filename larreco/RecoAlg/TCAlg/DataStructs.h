@@ -213,7 +213,8 @@ namespace tca {
     float StartChgErr {0};              // Start charge error
     float ParentFOM {10};
     unsigned short ParentID {0};  // The ID of an external parent Tj that was added to the shower
-    bool NewParent {false};       // This is set true whenever the ParentID is changed 
+    bool NewParent {false};       // This is set true whenever the ParentID is changed
+    unsigned short TruParentID {0};
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
