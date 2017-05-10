@@ -1482,7 +1482,6 @@ namespace tca {
     fSourceParticleEnergy = -1;
     
     simb::Origin_t sourceOrigin = simb::kUnknown;
-//    std::vector<simb::MCParticle*> partList;
     // partList is the vector of MC particles that we want to use
     tjs.MCPartList.reserve(plist.size());
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
@@ -1533,7 +1532,7 @@ namespace tca {
       tjs.MCPartList.push_back(part);
     } // ipart
     
-    // vector of (mother, daughter) pairs of TrackIds
+    // vector of (mother, daughter) pairs of partList indices
     std::vector<std::pair<unsigned short, unsigned short>> moda;
     
     if(sourcePtclTrackID > 0) {
