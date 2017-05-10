@@ -3,6 +3,77 @@
 namespace tca {
   
   /////////////////////////////////////////
+  unsigned short GetMCPartListIndex(TjStuff& tjs, const ShowerStruct& ss, unsigned short& nTruHits)
+  {
+    // Returns the index of the MCParticle that has the most number of matches
+    // to the hits in this shower
+    
+    if(tjs.MCPartList.empty()) return USHRT_MAX;
+    if(ss.TjIDs.empty()) return USHRT_MAX;
+    
+    std::vector<unsigned short> pListCnt(tjs.MCPartList.size());
+    
+    for(auto& tjid : ss.TjIDs) {
+      Trajectory& tj = tjs.allTraj[tjid - 1];
+      for(auto& tp : tj.Pts) {
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(!tp.UseHit[ii]) continue;
+          unsigned int iht = tp.Hits[ii];
+          // ignore unmatched hits
+          if(tjs.fHits[iht].MCPartListIndex > tjs.MCPartList.size() - 1) continue;
+          ++pListCnt[tjs.fHits[iht].MCPartListIndex];
+        } // ii
+      } // pt
+    } // tjid
+    
+    unsigned short pIndex = USHRT_MAX;
+    nTruHits = 0;
+    for(unsigned short ii = 0; ii < pListCnt.size(); ++ii) {
+      if(pListCnt[ii] > nTruHits) {
+        nTruHits = pListCnt[ii];
+        pIndex = ii;
+      }
+    } // ii
+    
+    return pIndex;
+    
+  } // GetMCPartListIndex
+  
+  /////////////////////////////////////////
+  unsigned short GetMCPartListIndex(TjStuff& tjs, const Trajectory& tj, unsigned short& nTruHits)
+  {
+    // Returns the index of the MCParticle that has the most number of matches
+    // to the hits in this trajectory
+    
+    if(tjs.MCPartList.empty()) return USHRT_MAX;
+    
+    // Check all hits associated with this Tj
+    std::vector<unsigned short> pListCnt(tjs.MCPartList.size());
+    
+    for(auto& tp : tj.Pts) {
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(!tp.UseHit[ii]) continue;
+        unsigned int iht = tp.Hits[ii];
+        // ignore unmatched hits
+        if(tjs.fHits[iht].MCPartListIndex > tjs.MCPartList.size() - 1) continue;
+        ++pListCnt[tjs.fHits[iht].MCPartListIndex];
+      } // ii
+    } // pt
+    
+    unsigned short pIndex = USHRT_MAX;
+    nTruHits = 0;
+    for(unsigned short ii = 0; ii < pListCnt.size(); ++ii) {
+      if(pListCnt[ii] > nTruHits) {
+        nTruHits = pListCnt[ii];
+        pIndex = ii;
+      }
+    } // ii
+    
+    return pIndex;
+    
+  } // GetMCPartListIndex
+
+  /////////////////////////////////////////
   void TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir)
   {
     // Calculate a 3D position and direction from two trajectory points
@@ -2335,9 +2406,13 @@ namespace tca {
           if(tjs.cots[ic].ShowerTjID != tj.ID) continue;
           const ShowerStruct& ss = tjs.cots[ic];
           mf::LogVerbatim myprt("TC");
-          myprt<<"Shower index "<<ic<<" ";
+          myprt<<"cots index "<<ic<<" ";
           myprt<<someText<<" Envelope";
-          for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+          if(ss.Envelope.empty()) {
+            myprt<<" NA";
+          } else {
+            for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+          }
           myprt<<" Energy "<<(int)ss.Energy;
           myprt<<" Area "<<std::fixed<<std::setprecision(1)<<(int)ss.EnvelopeArea<<" ChgDensity "<<ss.ChgDensity;
           myprt<<" StartChg "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr;

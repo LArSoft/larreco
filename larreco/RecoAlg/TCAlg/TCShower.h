@@ -47,6 +47,7 @@ namespace tca {
   void FillRotPos(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   bool DefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void FindExternalParent(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  bool WrongSplitTj(TjStuff& tjs, Trajectory& tj, const unsigned short& tjEnd, ShowerStruct& ss, bool prt);
   float ParentFOM(TjStuff& tjs, Trajectory& tj, const unsigned short& tjEnd, ShowerStruct& ss, bool prt);
   void DefineEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);

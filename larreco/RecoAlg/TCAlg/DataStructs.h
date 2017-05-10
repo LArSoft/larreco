@@ -26,6 +26,7 @@
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "TVector3.h"
 
 namespace tca {
@@ -165,6 +166,7 @@ namespace tca {
     unsigned short LocalIndex {0};
     geo::WireID WireID;
     short InTraj {0};
+    unsigned short MCPartListIndex {USHRT_MAX};
   };
 
   // Struct for 3D trajectory matching
@@ -186,11 +188,11 @@ namespace tca {
   };
 
   struct ShowerPoint {
-    std::array<float, 2> Pos;       // Position in the normal coordinate system
+    std::array<float, 2> Pos;       // Hit Position in the normal coordinate system
     std::array<float, 2> RotPos;    // Position rotated into the shower coordinate system (0 = along, 1 = transverse)
-    std::vector<unsigned int> Hits; // vector of fHits indices
     float Chg {0};                      // Charge of this point
-    unsigned short TID;             // ID of the InShower trajectory that uses this point
+    unsigned int HitIndex;                       // the hit index
+    unsigned short TID;             // The ID of the tj the point (hit) is in. TODO eliminate this redundant variable
   };
 
   // A temporary structure that defines a 2D shower-like cluster of trajectories
@@ -211,7 +213,7 @@ namespace tca {
     float StartChgErr {0};              // Start charge error
     float ParentFOM {10};
     unsigned short ParentID {0};  // The ID of an external parent Tj that was added to the shower
-    bool NewParent {false};
+    bool NewParent {false};       // This is set true whenever the ParentID is changed 
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -329,6 +331,7 @@ namespace tca {
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> Match3DCuts;  ///< 3D matching cuts
+    std::vector<const simb::MCParticle*> MCPartList;
     std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
     const geo::GeometryCore* geom;
     const detinfo::DetectorProperties* detprop;

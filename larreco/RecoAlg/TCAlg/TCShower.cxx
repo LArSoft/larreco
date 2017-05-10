@@ -18,7 +18,7 @@ namespace tca {
     
     if(tjs.ShowerTag[0] < 0) return;
     
-    bool prt = (tjs.ShowerTag[9] == 3);
+    bool prt = (tjs.ShowerTag[11] == 3);
     
     if(prt) mf::LogVerbatim("TC")<<"Inside FindShowerEndPoints";
     
@@ -206,8 +206,8 @@ namespace tca {
           myprt<<" Note: Shower "<<notUsedShower<<" was not used in the 3D match. It is probably bad.";
         }
       } // prt
-      std::cout<<"FSEP: Start "<<std::fixed<<std::setprecision(1)<<ms.sXYZ[0]<<" "<<ms.sXYZ[1]<<" "<<ms.sXYZ[2];
-      std::cout<<" Dir "<<std::setprecision(2)<<ms.sDir.X()<<" "<<ms.sDir.Y()<<" "<<ms.sDir.Z()<<"\n";
+//      std::cout<<"FSEP: Start "<<std::fixed<<std::setprecision(1)<<ms.sXYZ[0]<<" "<<ms.sXYZ[1]<<" "<<ms.sXYZ[2];
+//      std::cout<<" Dir "<<std::setprecision(2)<<ms.sDir.X()<<" "<<ms.sDir.Y()<<" "<<ms.sDir.Z()<<"\n";
     } // im
 
   } // Find3DShowerEndPoints
@@ -222,7 +222,7 @@ namespace tca {
     
     // Get the calibration constants
     
-    bool prt = (tjs.ShowerTag[9] >= 0);
+    bool prt = (tjs.ShowerTag[11] >= 0);
     
     int shID = 0;
     std::vector<unsigned int> tHits;
@@ -340,25 +340,30 @@ namespace tca {
   {
     // Construct clusters of trajectories (cots) which will become shower PFParticles
     
-    // ShowerTag[] parameters
-    // 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
-    // 1 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
-    // 2 Max separation
-    // 3 Max delta angle
-    // 4 rms width factor
-    // 5 Min shower 1/2 width (WSE units)
-    // 6 Min total Tj Pts
-    // 7 Min Tjs
-    // 8 Debug in CTP
+    
+    /*
+     # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
+     # 1 Max Tj MCSMom for a shower tag
+     # 2 Max separation
+     # 3 Min energy (MeV)
+     # 4 rms width factor
+     # 5 Min shower 1/2 width (WSE units)
+     # 6 Min total Tj Pts
+     # 7 Min Tjs
+     # 8 max parent FOM
+     # 9 max direction FOM
+     # 10 max aspect ratio
+     # 11 Debug in CTP (>10 debug cotIndex + 10)
+     */
     
     if(tjs.ShowerTag[0] <= 0) return;
     
     bool prt = false;
     // print only one shower?
     unsigned short prtShower = USHRT_MAX;
-    if(tjs.ShowerTag[9] >= 0) {
+    if(tjs.ShowerTag[11] >= 0) {
       geo::PlaneID planeID = DecodeCTP(inCTP);
-      CTP_t printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(tjs.ShowerTag[9]));
+      CTP_t printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(tjs.ShowerTag[11]));
       prt = (printCTP == inCTP);
       if(printCTP > 2) prt = true;
       if(printCTP > 9) prtShower = printCTP - 10;
@@ -495,7 +500,6 @@ namespace tca {
       // If no external parent was found, try to refine the direction and look for
       // an internal parent
       if(tjs.cots[cotIndex].ShowerTjID == 0) RefineShowerTj(tjs, cotIndex, prt);
-      FindStartChg(tjs, cotIndex, prt);
       if(prt) PrintTrajectory("FS", tjs, tjs.allTraj[stj.ID-1], USHRT_MAX);
     } // tjl
     
@@ -531,16 +535,6 @@ namespace tca {
       } // !killit
       if(killit) {
         MakeShowerObsolete(tjs, cotIndex, prt);
-/*
-        // Unset shower and killed bits. Trajectories that are in showers haven't had their hits re-assigned to the
-        // shower Tj yet so nothing needs to be done to them
-        for(auto& tjID : ss.TjIDs) tjs.allTraj[tjID - 1].AlgMod[kKilled] = false;
-        // kill the shower Tj
-        ss.TjIDs.clear();
-        unsigned short itj = ss.ShowerTjID - 1;
-        if(prt) mf::LogVerbatim("TC")<<" killing ShowerTj "<<tjs.allTraj[itj].ID<<". Restored InShower Tjs.";
-        MakeTrajectoryObsolete(tjs, itj);
-*/
       } else {
         if(tjs.allTraj[ss.ShowerTjID - 1].AlgMod[kKilled]) {
           std::cout<<"FS logic error: ShowerTj "<<tjs.allTraj[ss.ShowerTjID - 1].ID<<" is killed\n";
@@ -556,6 +550,14 @@ namespace tca {
         }
       } // don't killit
     } // ic
+    
+    // find the start charge
+    for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
+      ShowerStruct& ss = tjs.cots[cotIndex];
+      if(ss.CTP != inCTP) continue;
+      if(ss.TjIDs.empty()) continue;
+      FindStartChg(tjs, cotIndex, prt);
+    }
     
     // Finish up in this CTP. 
     // Re-assign hits from the InShower Tjs to the ShowerTj.
@@ -584,17 +586,17 @@ namespace tca {
       } // tjID
     } // ss
     
-    if(tjs.ShowerTag[9] >= 0) {
+    if(tjs.ShowerTag[11] >= 0) {
       for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
         if(tjs.cots[ic].TjIDs.empty()) continue;
         unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
         Trajectory& tj = tjs.allTraj[itj];
-        if(prt || (tjs.ShowerTag[9] == 3 && tj.CTP == inCTP)) PrintTrajectory("FSO", tjs, tj, USHRT_MAX);
+        if(prt || (tjs.ShowerTag[11] == 3 && tj.CTP == inCTP)) PrintTrajectory("FSO", tjs, tj, USHRT_MAX);
       } // ic
     } // print trajectories
     
-    if(tjs.ShowerTag[9] >= 100) {
-      unsigned short ic = tjs.ShowerTag[9] - 100;
+    if(tjs.ShowerTag[11] >= 100) {
+      unsigned short ic = tjs.ShowerTag[11] - 100;
       if(ic < tjs.cots.size() && tjs.cots[ic].CTP == inCTP) DumpShowerPts(tjs, ic);
     }
     
@@ -609,7 +611,7 @@ namespace tca {
     ShowerStruct& ss = tjs.cots[cotIndex];
     if(ss.TjIDs.empty()) return;
     
-    unsigned short cnt = 0;
+    unsigned int cnt = 0;
     for(unsigned short it = 0; it < ss.TjIDs.size(); ++it) {
       unsigned short itj = ss.TjIDs[it] - 1;
       if(itj > tjs.allTraj.size() - 1) {
@@ -630,7 +632,8 @@ namespace tca {
       }
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         TrajPoint& tp = tj.Pts[ipt];
-        if(tp.Chg > 0) ++cnt;
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) if(tp.UseHit[ii]) ++cnt;
+//        if(tp.Chg > 0) ++cnt;
       } // ipt
     } // it
     
@@ -640,7 +643,7 @@ namespace tca {
     
     ss.Pts.resize(cnt);
     
-    // Now populate the vectors with the information we currently have
+    // Now populate the vectors with the information we currently have 
     cnt = 0;
     float totChg = 0;
     for(unsigned short it = 0; it < ss.TjIDs.size(); ++it) {
@@ -648,29 +651,30 @@ namespace tca {
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         TrajPoint& tp = tj.Pts[ipt];
         if(tp.Chg <= 0) continue;
-        ss.Pts[cnt].Pos = tp.HitPos;
-        // stash the hit indices
-        ss.Pts[cnt].Hits.clear();
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) if(tp.UseHit[ii]) ss.Pts[cnt].Hits.push_back(tp.Hits[ii]);
-        ss.Pts[cnt].Chg = tp.Chg;
-        ss.Pts[cnt].TID = tj.ID;
-        // Remove the trajectory path length correction made in function HitPosErr2
-        float pathInv = std::abs(tp.Dir[0]);
-        if(pathInv < 0.05) pathInv = 0.05;
-        totChg += tp.Chg / pathInv;
-        ++cnt;
+        // create a point for every hit
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(tp.UseHit[ii]) {
+            unsigned int iht = tp.Hits[ii];
+            ss.Pts[cnt].HitIndex = iht;
+            ss.Pts[cnt].TID = tj.ID;
+            ss.Pts[cnt].Chg = tjs.fHits[iht].Integral;
+            ss.Pts[cnt].Pos[0] = tjs.fHits[iht].WireID.Wire;
+            ss.Pts[cnt].Pos[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
+            totChg += ss.Pts[cnt].Chg;
+            ++cnt;
+          }
+        } // ii
       } // ipt
     } // it
     
-    // include the loose hits
+    // include the loose hits store in stp0.Hits
     for(auto& iht : stp0.Hits) {
+      ss.Pts[cnt].HitIndex = iht;
+      ss.Pts[cnt].TID = tjs.fHits[iht].InTraj;
       ss.Pts[cnt].Pos[0] = tjs.fHits[iht].WireID.Wire;
       ss.Pts[cnt].Pos[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
       ss.Pts[cnt].Chg = tjs.fHits[iht].Integral;
-      ss.Pts[cnt].Hits.resize(1);
-      ss.Pts[cnt].Hits[0] = iht;
       totChg += ss.Pts[cnt].Chg;
-      ss.Pts[cnt].TID = 0;
       ++cnt;
     }
     
@@ -713,25 +717,25 @@ namespace tca {
     // make sure it isn't already in a shower
     Trajectory& tj = tjs.allTraj[TjID - 1];
     if(tj.AlgMod[kInShower]) {
-      mf::LogWarning("TC")<<"AddTj: Tj "<<TjID<<" is already an InShower Tj";
+      mf::LogVerbatim("TC")<<"AddTj: Tj "<<TjID<<" is already an InShower Tj";
       return false;
     }
     ShowerStruct& ss = tjs.cots[cotIndex];
     if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), TjID) != ss.TjIDs.end()) {
-      mf::LogWarning("TC")<<"AddTj: Tj "<<TjID<<" is already in this shower "<<cotIndex;
+      mf::LogVerbatim("TC")<<"AddTj: Tj "<<TjID<<" is already in this shower "<<cotIndex;
       return false;
     }
     if(tj.CTP != ss.CTP) {
-      mf::LogWarning("TC")<<"AddTj: Tj "<<TjID<<" is in the wrong CTP "<<cotIndex;
+      mf::LogVerbatim("TC")<<"AddTj: Tj "<<TjID<<" is in the wrong CTP "<<cotIndex;
       return false;
     }
     ss.TjIDs.push_back(TjID);
-    // count the TPs
+    // count the hits in the TPs
     unsigned short cnt = 0;
     for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
       TrajPoint& tp = tj.Pts[ipt];
       if(tp.Chg == 0) continue;
-      ++cnt;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) if(tp.UseHit[ii]) ++cnt;
     } // ipt
     unsigned short newSize = ss.Pts.size() + cnt;
     cnt = ss.Pts.size();
@@ -740,12 +744,20 @@ namespace tca {
     for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
       TrajPoint& tp = tj.Pts[ipt];
       if(tp.Chg == 0) continue;
-      ss.Pts[cnt].Pos = tp.HitPos;
-      ss.Pts[cnt].Chg = tp.Chg;
-      ss.Pts[cnt].TID = tj.ID;
-      ++cnt;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(tp.UseHit[ii]) {
+          unsigned int iht = tp.Hits[ii];
+          ss.Pts[cnt].HitIndex = iht;
+          ss.Pts[cnt].TID = tj.ID;
+          ss.Pts[cnt].Chg = tjs.fHits[iht].Integral;
+          ss.Pts[cnt].Pos[0] = tjs.fHits[iht].WireID.Wire;
+          ss.Pts[cnt].Pos[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
+          ++cnt;
+        }
+      }
     } // ipt
     tj.AlgMod[kInShower] = true;
+    if(prt) mf::LogVerbatim("TC")<<"ATj: Add Tj "<<tj.ID;
     
     if(doUpdate) DefineShower(tjs, cotIndex, prt);
     
@@ -785,17 +797,21 @@ namespace tca {
   void FindExternalParent(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
     // Look for a parent trajectory that starts outside the shower and ends inside.
-    
-    // ShowerTag[] parameters
-    // 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
-    // 1 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
-    // 2 Max separation
-    // 3 Max delta angle
-    // 4 rms width factor
-    // 5 Min shower 1/2 width (WSE units)
-    // 6 Min total Tj Pts
-    // 7 Min Tjs
-    // 8 Debug in CTP
+
+    /*
+     # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
+     # 1 Max Tj MCSMom for a shower tag
+     # 2 Max separation
+     # 3 Min energy (MeV)
+     # 4 rms width factor
+     # 5 Min shower 1/2 width (WSE units)
+     # 6 Min total Tj Pts
+     # 7 Min Tjs
+     # 8 max parent FOM
+     # 9 max direction FOM
+     # 10 max aspect ratio
+     # 11 Debug in CTP (>10 debug cotIndex + 10)
+     */
 
     if(cotIndex > tjs.cots.size() - 1) return;
     ShowerStruct& ss = tjs.cots[cotIndex];
@@ -807,7 +823,16 @@ namespace tca {
     TrajPoint& stp1 = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
 //    TrajPoint& stp2 = tjs.allTraj[ss.ShowerTjID - 1].Pts[2];
     unsigned short oldParent = ss.ParentID;
-    if(prt) mf::LogVerbatim("TC")<<"FEP: Existing parent ID "<<oldParent<<" parent FOM "<<ss.ParentFOM;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"FEP: Existing parent ID "<<oldParent<<" parent FOM "<<ss.ParentFOM<<" Tjs";
+      for(auto& tid : ss.TjIDs) myprt<<" "<<tid;
+    }
+    
+    if(ss.AspectRatio > tjs.ShowerTag[10] || ss.DirectionFOM > tjs.ShowerTag[9]) {
+      if(prt) mf::LogVerbatim("TC")<<" Don't search for a parent due to poor AspectRatio "<<ss.AspectRatio<<" or ss.DirectionFOM "<<ss.DirectionFOM;
+      return;
+    }
     
     float bestFOM = ss.ParentFOM;
     unsigned short imTheBest = USHRT_MAX;
@@ -815,10 +840,10 @@ namespace tca {
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != ss.CTP) continue;
       if(tj.AlgMod[kKilled]) continue;
-      // ignore Tjs that are already in showers or are shower Tjs
-      if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
-      if(tj.AlgMod[kInShower]) continue;
+      // ignore shower Tjs
       if(tj.AlgMod[kShowerTj]) continue;
+      // ignore in-shower Tjs that aren't in this shower
+      if(tj.AlgMod[kInShower] && std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) == ss.TjIDs.end()) continue;
       // Ignore short Tjs
       if(tj.Pts.size() < 5) continue;
       // find the point that is farthest from stp1
@@ -826,6 +851,8 @@ namespace tca {
       float sep1 = PosSep2(tj.Pts[tj.EndPt[1]].Pos, stp1.Pos);
       unsigned short useEnd = 0;
       if(sep1 > sep0) useEnd = 1;
+      // Check trajectories that were split by 3D vertex matching
+      if(WrongSplitTj(tjs, tj, useEnd, ss, prt)) continue;
       float fom = ParentFOM(tjs, tj, useEnd, ss, prt);
       if(fom > bestFOM) continue;
       bestFOM = fom;
@@ -844,8 +871,17 @@ namespace tca {
     // Move the shower start point to the parent
     TrajPoint& ptp = tjs.allTraj[imTheBest - 1].Pts[imTheBestPt];
     stp0.Pos = ptp.Pos;
-    // Set the shower angle to the parent angle
-    ss.Angle = ptp.Ang;
+    // Set the shower angle to the parent angle. Ensure that they are in the same direction
+    double parAngle = ptp.Ang;
+    if(std::abs(parAngle - ss.Angle) > M_PI/2) {
+      // Need to flip ptp.Ang by pi
+      if(parAngle > 0) {
+        parAngle -= M_PI;
+      } else {
+        parAngle += M_PI;
+      }
+    } // angle consistency check
+    ss.Angle = parAngle;
     double cs = cos(ptp.Ang);
     double sn = sin(ptp.Ang);
     // move all the points onto the parent trajectory
@@ -856,16 +892,19 @@ namespace tca {
     } // tp
     
     if(imTheBest != oldParent) {
-      if(prt) mf::LogVerbatim("TC")<<"FEP: Adding external parent "<<imTheBest<<" to the shower with FOM = "<<bestFOM<<" stp1 Pos "<<PrintPos(tjs, stp1);
-      // Add the Tj to the shower and re-define it
+      Trajectory& tj = tjs.allTraj[imTheBest-1];
+      if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) == ss.TjIDs.end()) {
+        if(prt) mf::LogVerbatim("TC")<<"FEP: Adding new parent "<<imTheBest<<" to the shower with FOM = "<<bestFOM<<" stp1 Pos "<<PrintPos(tjs, stp1);
+        // Add the Tj to the shower and re-define it
+        AddTj(tjs, imTheBest, cotIndex, true, prt);
+      } else {
+        if(prt) mf::LogVerbatim("TC")<<"FEP: Existing InShower Tj "<<imTheBest<<" promoted to parent status with FOM = "<<bestFOM<<" stp1 Pos "<<PrintPos(tjs, stp1);
+      }
       ss.NewParent = true;
-      AddTj(tjs, imTheBest, cotIndex, true, prt);
     } else {
       if(prt) mf::LogVerbatim("TC")<<"FEP: Existing parent is good ";
       ss.NewParent = false;
     }
-     // Add it to the shower and update
-    
     
   } // FindExternalParent
 
@@ -938,50 +977,98 @@ namespace tca {
     // The error on delta is probably dominated by not getting all of the shower Tjs and hits included
     // + missing energy (photons, etc). Just use the shower width at the shower center 
     float deltaErr = tjs.allTraj[istj].Pts[1].DeltaRMS;
+    // protect against errors
+    if(deltaErr < 0) deltaErr = 1;
     float deltaPull = delta / deltaErr;
     float dang = DeltaAngle(ptp.Ang, stp1.Ang);
-    // TODO This should be done better. One would think that the error should be pi/2 if the aspect ratio is 1.
-    float dangErr = 1.5 * ss.AspectRatio;
+    float dangErr = ss.AngleErr;
+    if(dangErr < 0.1) dangErr = 0.1;
+    // weight by the direction FOM?
+    dangErr *= ss.DirectionFOM;
     float dangPull = dang / dangErr;
     float mom = tj.MCSMom;
     if(mom > 500) mom = 500;
-    float momPull = (mom - 500) / 50;
-    // Expect that the parent will reconstruct as a trajectory ~1/2 way from it's start to the
-    // shower center
-    float expectLength = tp1Sep / 2;
-    float tjLen = PosSep(tj.Pts[tj.EndPt[0]].Pos, tj.Pts[tj.EndPt[1]].Pos);
-    float lenPull = 2 * (tjLen - expectLength) / expectLength;
-    float fom = sqrt(sepPull * sepPull + deltaPull * deltaPull + dangPull * dangPull + momPull * momPull + lenPull * lenPull);
-    fom /= 5;
+    float momPull = (mom - 500) / 100;
+    // Pull due to the minimum separation between the other end of the parent Tj and the first shower Tj point.
+    float tp0Sep2 = 0;
+    float sep0Pull2 = 0;
+    unsigned short otherEndPt = tj.EndPt[1-tjEnd];
+    TrajPoint& optp = tj.Pts[otherEndPt];
+    TrajPoint& stp0 = tjs.allTraj[istj].Pts[0];
+    // don't bother taking the sqrt since it would be squared in a few lines anyway
+    tp0Sep2 = PosSep2(optp.Pos, stp0.Pos);
+    // expect this to be 1/2 of the separation between shower Tj point 0 and point 1
+    float expectTp0Sep = 0.25 * PosSep2(stp0.Pos, stp1.Pos);
+    sep0Pull2 = tp0Sep2 / expectTp0Sep;
+    // primary Tj length
+    float lenPull = (TrajLength(tj) - expectedTPSep) / expectedTPSepRMS;
+    float fom = sqrt(sepPull * sepPull + deltaPull * deltaPull + dangPull * dangPull + momPull * momPull + sep0Pull2 + lenPull * lenPull);
+    fom /= 6;
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"PFOM: Tj "<<tj.ID<<" Pos "<<PrintPos(tjs, ptp);
       myprt<<std::fixed<<std::setprecision(2);
-      myprt<<" tp1Sep "<<tp1Sep<<" sepPull "<<sepPull;
-      myprt<<" delta "<<delta<<" deltaPull "<<deltaPull;
-      myprt<<" dang "<<dang<<" dangPull "<<dangPull;
-      myprt<<" mcsmom "<<(int)mom<<" momPull "<<momPull;
-      myprt<<" length "<<(int)TrajLength(tj)<<" lenPull "<<lenPull;
+      myprt<<" tp1Sep "<<tp1Sep<<" pull "<<sepPull;
+      myprt<<" delta "<<delta<<" pull "<<deltaPull;
+      myprt<<" dang "<<dang<<" pull "<<dangPull;
+      myprt<<" mcsmom "<<(int)mom<<" pull "<<momPull;
+      myprt<<" sep0 "<<sqrt(tp0Sep2)<<" pull "<<sqrt(sep0Pull2);
+      myprt<<" length "<<(int)TrajLength(tj)<<" pull "<<lenPull;
       myprt<<" FOM "<<fom;
     }
     return fom;
   } // ParentFOM
+  
+  ////////////////////////////////////////////////
+  bool WrongSplitTj(TjStuff& tjs, Trajectory& tj, const unsigned short& tjEnd, ShowerStruct& ss, bool prt)
+  {
+    // Returns true if the trajectory was split by a 3D vertex match and the end of this trajectory is further
+    // away from the shower than the partner trajectory
+    // Here is a cartoon showing what we are trying to prevent. The shower is represented by a box. The trajectory
+    // that is shown as (---*---) was originally reconstructed as a single trajectory. It was later split at the * position
+    // by matching in 3D into two trajectories with ID = 1 and 2. We don't want to consider Tj 1 using end 0 as a parent for
+    // the shower. Tj is more likely to be the real parent
+    //
+    //  1111111111 2222222  TjID
+    //  0        1 0     1  Tj end
+    //               --------------
+    //               |            |
+    //  ----------*-------        |
+    //               |            |
+    //               --------------
+    if(!tj.AlgMod[kComp3DVx]) return false;
+    if(tjEnd > 1) return false;
+    
+    // See if the other end is the end that was split. It should have a vertex with Topo = 8 or 11
+    unsigned short otherEnd = 1 - tjEnd;
+//    if(prt) mf::LogVerbatim("TC")<<"WSTj: otherEnd "<<otherEnd<<" vtxID "<<tj.VtxID[otherEnd];
+    if(tj.VtxID[otherEnd] == 0) return false;
+    unsigned short ivx = tj.VtxID[otherEnd] - 1;
+    // A vertex exists but not a 3D split vertex
+    if(tjs.vtx[ivx].Topo != 8 && tjs.vtx[ivx].Topo != 10) return false;
+    return true;
+    
+  } // WrongSplitTj
 
   ////////////////////////////////////////////////
   void MergeOverlap(TjStuff& tjs, const CTP_t& inCTP, bool prt)
   {
     // Merge showers whose envelopes overlap each other
     
-    // ShowerTag[] parameters
-    // 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
-    // 1 Max Tj MCSMom for a shower tag (< 0 = no shower-like Tj tagging or shower finding)
-    // 2 Max separation
-    // 3 Max delta angle
-    // 4 rms width factor
-    // 5 Min shower 1/2 width (WSE units)
-    // 6 Min total Tj Pts
-    // 7 Min Tjs
-    // 8 Debug in CTP
+    /*
+     # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
+     # 1 Max Tj MCSMom for a shower tag
+     # 2 Max separation
+     # 3 Min energy (MeV)
+     # 4 rms width factor
+     # 5 Min shower 1/2 width (WSE units)
+     # 6 Min total Tj Pts
+     # 7 Min Tjs
+     # 8 max parent FOM
+     # 9 max direction FOM
+     # 10 max aspect ratio
+     # 11 Debug in CTP (>10 debug cotIndex + 10)
+     */
     
     // Require that the maximum separation is about two radiation lengths
     if(prt) mf::LogVerbatim("TC")<<"MO: checking using separation cut "<<tjs.ShowerTag[2];
@@ -1029,12 +1116,16 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<" Merge them. Re-find shower center, etc. \n";
           // Move all of the Tjs from jct to ict
           iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.end());
+          // drop the parent ID. It should be re-found later if it is the correct one
+          iss.ParentID = 0;
+          iss.NewParent = true;
           DefineShower(tjs, ict, prt);
           // kill the shower Tj
           Trajectory& jtj = tjs.allTraj[jss.ShowerTjID - 1];
           jtj.AlgMod[kKilled] = true;
           // erase jct
           tjs.cots.erase(tjs.cots.begin() + jct);
+          FindExternalParent(tjs, ict, prt);
           if(prt) {
             mf::LogVerbatim("TC")<<" ShowerTj after merge";
             Trajectory& itj = tjs.allTraj[iss.ShowerTjID - 1];
@@ -1094,12 +1185,15 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<" Merge them. Re-find shower center, etc. \n";
           // Move all of the Tjs from jct to ict
           iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.end());
+          iss.ParentID = 0;
+          iss.NewParent = true;
           DefineShower(tjs, ict, prt);
           // kill the shower Tj
           Trajectory& jtj = tjs.allTraj[jss.ShowerTjID - 1];
           jtj.AlgMod[kKilled] = true;
           // erase jct
           tjs.cots.erase(tjs.cots.begin() + jct);
+          FindExternalParent(tjs, ict, prt);
           if(prt) {
             mf::LogVerbatim("TC")<<" ShowerTj after merge";
             Trajectory& itj = tjs.allTraj[iss.ShowerTjID - 1];
@@ -1174,6 +1268,7 @@ namespace tca {
     iss.ShowerTjID = ktj.ID;
     iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.begin());
     iss.ParentID = 0;
+    iss.NewParent = true;
     jss.TjIDs.clear();
     DefineShower(tjs, icotIndex, prt);
     FindExternalParent(tjs, icotIndex, prt);
@@ -1261,7 +1356,7 @@ namespace tca {
     double sumx2 = 0.;
     double sumy2 = 0.;
     double xx, yy, xr, yr, wt;
-    
+
     // rotate into a coordinate system along the current shower axis
     // TODO: Use and replace RotPos?
     double cs = cos(-ss.Angle);
@@ -1269,9 +1364,8 @@ namespace tca {
     
     unsigned short nptsFit = 0;
     for(unsigned short ii = 0; ii < ss.Pts.size(); ++ii) {
-      // Weight by distance^2 from the charge center
-//      wt = PosSep2(ss.Pts[ii].Pos, stp1.Pos);
-      wt = 10;
+      // Weight by charge
+      wt = ss.Pts[ii].Chg;
       sum  += wt;
       xx = wt * (ss.Pts[ii].Pos[0] - stp1.Pos[0]);
       yy = wt * (ss.Pts[ii].Pos[1] - stp1.Pos[1]);
@@ -1286,7 +1380,7 @@ namespace tca {
     } // ii
     
     if(nptsFit < 3) {
-      if(prt) mf::LogVerbatim("TC")<<"FA: Not enough points to fit at the shower start";
+      if(prt) mf::LogVerbatim("TC")<<"FA: Not enough points to fit";
       return;
     }
     // calculate coefficients and std dev
@@ -1302,10 +1396,13 @@ namespace tca {
     double B = (sumxy * sum  - sumx * sumy) / delta;
     float dang = atan(B);
     ss.Angle += dang;
-    ss.AngleErr = 1.5;
+/* TODO: This gives errors that are much too small
     double ndof = nptsFit - 1;
     double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
-    if(varnce > 0) ss.AngleErr = sqrt(varnce * sum / delta);
+    ss.AngleErr = sqrt(varnce * sum / delta);
+*/    
+    // Fake a correction to the angle error instead
+    ss.AngleErr = ss.AspectRatio * ss.AspectRatio * 1.57;
     
     if(prt) mf::LogVerbatim("TC")<<"FA: "<<cotIndex<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stp1)<<" Intercept "<<(int)A<<" dang "<<dang<<" Angle "<<ss.Angle<<" Err "<<ss.AngleErr<<" npts fit "<<nptsFit;
     
@@ -1334,8 +1431,6 @@ namespace tca {
     float sn = sin(-ss.Angle);
 
     TrajPoint& stp1 = stj.Pts[1];
-    
-    if(prt) mf::LogVerbatim("TC")<<"FRP: "<<cotIndex<<" Rotation origin "<<PrintPos(tjs, stp1.Pos)<<" Angle "<<ss.Angle;
 
     for(unsigned short ii = 0; ii < ss.Pts.size(); ++ii) {
       ss.Pts[ii].RotPos[0] = ss.Pts[ii].Pos[0] - stp1.Pos[0];
@@ -1361,6 +1456,24 @@ namespace tca {
       ss.Pts[ii] = tPts[indx];
     } // ii
 
+    // Calculate the the aspect ratio
+    float alongSum = 0;
+    float transSum = 0;
+    for(unsigned short ii = 0; ii < ss.Pts.size(); ++ii) {
+      alongSum += std::abs(ss.Pts[ii].RotPos[0]);
+      transSum += std::abs(ss.Pts[ii].RotPos[1]);
+    } // ii
+    
+    if(alongSum > 0) {
+      ss.AspectRatio = transSum / alongSum;
+    } else {
+      ss.AspectRatio = 100;
+    }
+    // Fake a correction to the angle error
+    ss.AngleErr = ss.AspectRatio * ss.AspectRatio * 1.57;
+    
+    if(prt) mf::LogVerbatim("TC")<<"FRP: "<<cotIndex<<" Rotation origin "<<PrintPos(tjs, stp1.Pos)<<" Angle "<<std::setprecision(2)<<ss.Angle<<" AspectRatio "<<ss.AspectRatio<<" AngleErr "<<ss.AngleErr;
+    
   } // FillRotPos
   
   ////////////////////////////////////////////////
@@ -1384,8 +1497,7 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<"DSTj: Use existing Parent Tj "<<ss.ParentID<<" info.";
       return true;
     }
-    
-    // Analyse RotPos to determine the shower direction. Calculate the aspect ratio while we are here
+    // Analyse RotPos to determine the shower direction
     float minAlong = ss.Pts[0].RotPos[0];
     float maxAlong = ss.Pts[ss.Pts.size()-1].RotPos[0];
     float sectionLength = (maxAlong - minAlong) / 3;
@@ -1397,11 +1509,7 @@ namespace tca {
     float chgPos = 0;
     float transRMSPos = 0;
     float momPos = 0;
-    float alongSum = 0;
-    float transSum = 0;
     for(unsigned short ii = 0; ii < ss.Pts.size(); ++ii) {
-      alongSum += std::abs(ss.Pts[ii].RotPos[0]);
-      transSum += std::abs(ss.Pts[ii].RotPos[1]);
       float mom = 0;
       if(ss.Pts[ii].TID > 0) {
         unsigned short itj = ss.Pts[ii].TID - 1;
@@ -1420,14 +1528,29 @@ namespace tca {
     if(chgNeg == 0 || chgPos == 0) return false;
     transRMSNeg /= chgNeg;
     transRMSPos /= chgPos;
-    ss.AspectRatio = transSum / alongSum;
     momNeg /= chgNeg;
     momPos /= chgPos;
+    
+    unsigned short nTruHits;
+    unsigned short mcPtclIndex = GetMCPartListIndex(tjs, ss, nTruHits);
+    if(mcPtclIndex == 0) {
+      // Print variables to create an ntuple
+      float trueEnergy = tjs.MCPartList[mcPtclIndex]->E();
+      mf::LogVerbatim myprt("TC");
+      myprt<<"NTPL "<<ss.CTP<<" "<<std::fixed<<std::setprecision(2)<<trueEnergy;
+      // number of times this DefineShowerTj was called for this shower
+      myprt<<" "<<stj.Pass;
+      // number of points (hits) in the shower
+      myprt<<" "<<ss.Pts.size();
+      // shower charge
+      myprt<<" "<<stj.AveChg;
+      myprt<<" "<<transRMSNeg<<" "<<transRMSPos<<" "<<momNeg<<" "<<momPos;
+    }
     
     ss.DirectionFOM = (transRMSNeg / transRMSPos) * (momNeg / momPos);
     bool startsNeg = ((transRMSNeg / momNeg) < (transRMSPos / momPos));
 
-    if(prt) mf::LogVerbatim("TC")<<"DSTj: "<<cotIndex<<" transRMSNeg "<<transRMSNeg<<" transRMSPos "<<transRMSPos<<" AspectRatio "<<ss.AspectRatio<<" momNeg "<<momNeg<<" momPos "<<momPos<<" startsNeg? "<<startsNeg<<" DirectionFOM "<<ss.DirectionFOM;
+    if(prt) mf::LogVerbatim("TC")<<"DSTj: "<<cotIndex<<" transRMSNeg "<<std::fixed<<std::setprecision(2)<<transRMSNeg<<" transRMSPos "<<transRMSPos<<" momNeg "<<momNeg<<" momPos "<<momPos<<" startsNeg? "<<startsNeg<<" DirectionFOM "<<ss.DirectionFOM;
 
     // reverse the points vector so that the narrow end of the shower is near Pts.begin()
     if(!hasParent && !startsNeg) {
@@ -1449,7 +1572,6 @@ namespace tca {
     
     // Find the shower start by looking for the first point that has a small transverse distance from the shower spine. Grab
     // the longitudinal position of that point
-    transRMSNeg /= 2;
     minAlong = 0;
     for(unsigned short ii = 0; ii < ss.Pts.size(); ++ii) {
       if(std::abs(ss.Pts[ii].RotPos[1]) < transRMSNeg) {
@@ -1474,10 +1596,8 @@ namespace tca {
     TrajPoint& stp1 = stj.Pts[1];
 
     // Put first shower Tj point on the shower axis using the minAlong position
-    if(!hasParent) {
-      stp0.Pos[0] = minAlong * stp1.Dir[0] + stp1.Pos[0];
-      stp0.Pos[1] = minAlong * stp1.Dir[1] + stp1.Pos[1];
-    }
+    stp0.Pos[0] = minAlong * stp1.Dir[0] + stp1.Pos[0];
+    stp0.Pos[1] = minAlong * stp1.Dir[1] + stp1.Pos[1];
     
     // Put the third shower Tj point on the shower axis at the maximum along position
     maxAlong = ss.Pts[ss.Pts.size()-1].RotPos[0];
@@ -1508,6 +1628,10 @@ namespace tca {
       spt.DeltaRMS = sqrt(spt.DeltaRMS / spt.Chg);
       spt.AveChg = spt.Chg;
     } // ipt
+    if(stj.Pts[1].DeltaRMS == 0) stj.Pts[1].DeltaRMS = 0.5 * (stj.Pts[0].DeltaRMS + stj.Pts[2].DeltaRMS);
+    
+    // use Tj Pass to count the number of times this function is used
+    ++stj.Pass;
     
     if(prt) PrintTrajectory("DSTj", tjs, stj, USHRT_MAX);
     
@@ -1532,9 +1656,10 @@ namespace tca {
     if(stj.Pts[1].Chg == 0) return;
     
     // Ignore fat showers
-    if(ss.AspectRatio > 0.5) return;
-    // Ignore showers with an external parent
-    //    if(ss.ParentID > 0) return false;
+    if(ss.AspectRatio > tjs.ShowerTag[10] || ss.DirectionFOM > tjs.ShowerTag[9]) {
+      if(prt) mf::LogVerbatim("TC")<<"RSTj: Not possible due to poor AspectRatio "<<ss.AspectRatio<<" or ss.DirectionFOM "<<ss.DirectionFOM;
+      return;
+    }
 
     if(ss.ParentID > 0) {
       if(prt) mf::LogVerbatim("TC")<<"RSTj: Use existing Parent Tj "<<ss.ParentID<<" info.";
@@ -1569,62 +1694,6 @@ namespace tca {
 
     if(prt) mf::LogVerbatim("TC")<<"RSTj shower begin transAve "<<transAve<<" transRMS "<<transRMS;
 
-/*  old 
-    // check the beginning of the shower to see if the points are mostly on the shower axis
-    float sum = 0;
-    float sum2 = 0;
-    float chg = 0;
-    unsigned short cnt = 0;
-    // check the first 1/3 of the way along the shower
-    unsigned short lastPt = ss.Pts.size() - 1;
-    float maxAlong = ss.Pts[0].RotPos[0] + 0.3 * (ss.Pts[lastPt].RotPos[0] - ss.Pts[0].RotPos[0]);
-    unsigned short firstTID = ss.Pts[0].TID;
-    unsigned short cntTID = 0;
-    for(auto& sspt : ss.Pts) {
-      if(sspt.RotPos[0] > maxAlong) break;
-      chg += sspt.Chg;
-      sum += sspt.Chg * sspt.RotPos[1];
-      sum2 += sspt.Chg * sspt.RotPos[1] * sspt.RotPos[1];
-      if(prt && cnt < 10) mf::LogVerbatim("TC")<<"RSTj "<<sspt.Pos[0]<<":"<<(int)sspt.Pos[1]<<" RP "<<(int)sspt.RotPos[0]<<" "<<sspt.RotPos[1]<<" Chg "<<(int)sspt.Chg<<" TID "<< sspt.TID;
-      ++cnt;
-      if(sspt.TID == firstTID) ++cntTID;
-    } // sspt
-    if(chg == 0) return false;
-    float transAve = sum / chg;
-    float arg = sum2 - chg * transAve * transAve;
-    if(arg == 0) return false;
-    float transRMS = sqrt(arg / chg);
-    transRMS /= sqrt((float)cnt);
-
-    // tweak the angle
-    ss.Angle += transAve / ss.Pts[0].RotPos[0];
-    
-    if(prt) mf::LogVerbatim("TC")<<"RSTj shower begin transAve "<<transAve<<" transRMS "<<transRMS<<" New shower angle "<<ss.Angle;
-    
-    // See if we can declare an internal parent Tj
-    if(firstTID != 0 && cnt > 3) {
-      ss.ParentID = firstTID;
-      // Shower center traj point
-      TrajPoint& stp1 = stj.Pts[1];
-      // Make a temp point to define the line between the new parent and stp1
-      TrajPoint ptp, tmpTp;
-      // Define the position of the new parent
-      ptp.CTP = ss.CTP;
-      ptp.Pos = ss.Pts[0].Pos;
-      MakeBareTrajPoint(tjs, ptp, stp1, tmpTp);
-      // move all the points onto the parent trajectory
-      for(auto& stp : stj.Pts) {
-        double dist = PosSep(tmpTp.Pos, stp.Pos);
-        stp.Pos[0] = tmpTp.Pos[0] + tmpTp.Dir[0] * dist;
-        stp.Pos[1] = tmpTp.Pos[1] + tmpTp.Dir[1] * dist;
-        stp.Ang = tmpTp.Ang;
-        stp.Dir = tmpTp.Dir;
-      } // tp
-      ss.Angle = tmpTp.Ang;
-      ss.UpdateShowerTj = true;
-      if(prt) mf::LogVerbatim("TC")<<" Found an internal parent Tj: "<<firstTID<<" New stp1 Pos "<<PrintPos(tjs, stj.Pts[1].Pos)<<" Angle "<<tmpTp.Ang;
-    } // found an internal parent
-*/
   } // RefineShowerTj
   
   ////////////////////////////////////////////////
@@ -1706,7 +1775,8 @@ namespace tca {
         if(TjHasNiceVtx(tjs, tj2)) continue;
         unsigned short ipt1, ipt2;
         float doca = tjs.ShowerTag[2];
-        TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca);
+        // Find the separation between Tjs considering dead wires
+        TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca, true);
         if(doca < tjs.ShowerTag[2]) {
           // start the list with the ID of tj1
           if(list.empty()) list.push_back(tj1.ID);
@@ -1948,6 +2018,12 @@ namespace tca {
     
     ss.StartChg = 0;
     ss.StartChgErr = 1;
+    
+    if(ss.AspectRatio > tjs.ShowerTag[10] || ss.DirectionFOM > tjs.ShowerTag[9]) {
+      if(prt) mf::LogVerbatim("TC")<<"FSC: Not possible due to poor AspectRatio "<<ss.AspectRatio<<" or ss.DirectionFOM "<<ss.DirectionFOM;
+      return;
+    }
+
     // Create and fill a vector of the charge at the beginning of the shower in 1 WSE bins
     auto schg = StartChgVec(tjs, cotIndex, prt);
     if(schg.empty()) return;
@@ -1981,15 +2057,15 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<" schg:";
+      myprt<<"FSC: schg:";
       for(unsigned short ii = 0; ii < 20; ++ii) myprt<<" "<<(int)schg[ii];
       myprt<<"\n First guess at the charge "<<(int)chg<<" average charge of all bins "<<(int)ave<<" rms "<<(int)rms;
     }
     
     // initial guess at the charge rms
-    rms = 0.5 * chg;
+    rms = 0.8 * chg;
     
-    // Count the number of dead wires in this region
+    // Correct for dead wires in this region - maybe later...
 //    unsigned short nDeadWires = DeadWireCount();
     
     unsigned short nBinsAverage = 5;
@@ -2012,7 +2088,11 @@ namespace tca {
       // check for a failure
       if(cnt < 3) {
         if(prt) mf::LogVerbatim("TC")<<" nit "<<nit<<" cnt "<<cnt<<" is too low. sum "<<(int)sum<<" maxChg "<<(int)maxChg;
-        break;
+        // try to recover. Pick the next point
+        ++startPt;
+        chg = schg[startPt];
+        maxChg = 2 * chg;
+        continue;
       }
       // convert sum to the average charge
       chg = sum / cnt;
@@ -2062,25 +2142,20 @@ namespace tca {
       if(indx > nbins - 1) break;
       // Count the charge if it is within a few WSE transverse from the shower axis
       if(std::abs(sspt.RotPos[1]) > maxTrans) continue;
-      for(auto& iht : sspt.Hits) {
-        if(iht > tjs.fHits.size() - 1) {
-          std::cout<<"Bad iht found\n";
-          exit(1);
-        } // bad iht?
-        float& peakTime = tjs.fHits[iht].PeakTime;
-        float& amp = tjs.fHits[iht].PeakAmplitude;
-        float& rms = tjs.fHits[iht].RMS;
-        chgPos[0] = tjs.fHits[iht].WireID.Wire - stp1.Pos[0];
-        for(float time = peakTime - 2.5 * rms; time < peakTime + 2.5 * rms; ++time) {
-          chgPos[1] = time * tjs.UnitsPerTick - stp1.Pos[1];
-          along = cs * chgPos[0] - sn * chgPos[1];
-          if(along < minAlong) continue;
-          indx = (unsigned short)(along - minAlong);
-          if(indx > nbins - 1) continue;
-          arg = (time - peakTime) / rms;
-          schg[indx] += amp * exp(-0.5 * arg * arg);
-        } // time
-      } // iht
+      unsigned int iht = sspt.HitIndex;
+      float& peakTime = tjs.fHits[iht].PeakTime;
+      float& amp = tjs.fHits[iht].PeakAmplitude;
+      float& rms = tjs.fHits[iht].RMS;
+      chgPos[0] = tjs.fHits[iht].WireID.Wire - stp1.Pos[0];
+      for(float time = peakTime - 2.5 * rms; time < peakTime + 2.5 * rms; ++time) {
+        chgPos[1] = time * tjs.UnitsPerTick - stp1.Pos[1];
+        along = cs * chgPos[0] - sn * chgPos[1];
+        if(along < minAlong) continue;
+        indx = (unsigned short)(along - minAlong);
+        if(indx > nbins - 1) continue;
+        arg = (time - peakTime) / rms;
+        schg[indx] += amp * exp(-0.5 * arg * arg);
+      } // time
     } // sspt
 
     return schg;
