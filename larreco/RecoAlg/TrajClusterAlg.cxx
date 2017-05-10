@@ -365,7 +365,6 @@ namespace tca {
       minAmp = 0;
       badHitTickCut = -fMinAmp;
     }
-    std::cout<<"Hit check "<<minAmp<<" "<<badHitTickCut<<"\n";
     for(unsigned int iht = 0; iht < hitVecHandle->size(); ++iht) {
       art::Ptr<recob::Hit> hit = art::Ptr<recob::Hit>(hitVecHandle, iht);
       // Look for a hit with negative amplitude
@@ -404,7 +403,6 @@ namespace tca {
     MatchTrueHits();
 
     // check for debugging mode triggered by Plane, Wire, Tick
-    std::cout<<"debug "<<debug.Plane<<" "<<debug.Wire<<" "<<debug.Tick<<"\n";
     bool specialDebug = (debug.Tick == 3333) || (debug.Tick == 4444) || (debug.Tick == 5555) || (debug.Tick == 6666);
     if(!specialDebug &&  debug.Plane >= 0 && debug.Plane < 3 && debug.WorkID >= 0 && debug.Wire > 0 && debug.Tick > 0) {
       std::cout<<"Looking for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
@@ -1611,7 +1609,7 @@ namespace tca {
       unsigned short partListIndex;
       for(partListIndex = 0; partListIndex < tjs.MCPartList.size(); ++partListIndex) if(hitTruTrkID == tjs.MCPartList[partListIndex]->TrackId()) break;
       if(partListIndex == tjs.MCPartList.size()) {
-        std::cout<<"MatchTrueHits: Didn't find partList entry for MC Track ID "<<hitTruTrkID<<"\n";
+//        std::cout<<"MatchTrueHits: Didn't find partList entry for MC Track ID "<<hitTruTrkID<<"\n";
         continue;
       }
       
@@ -1761,7 +1759,7 @@ namespace tca {
           for(unsigned short jj = ii + 1; jj < partList.size(); ++jj) {
             int trackID = partList[jj]->TrackId();
             const simb::MCParticle* gmom = bt->TrackIDToMotherParticle(trackID);
-            if(gmom->TrackId() != primElectronTrackID) continue;
+            if(gmom == 0 || gmom->TrackId() != primElectronTrackID) continue;
             moda.push_back(std::make_pair(primElectronTrackID, trackID));
           } // jj
         } // ii
