@@ -3,6 +3,76 @@
 namespace tca {
   
   /////////////////////////////////////////
+  unsigned short MCParticleStartTjID(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP)
+  {
+    // Finds the trajectory that has hits matched to the MC Particle and is the closest to the
+    // MCParticle start vertex
+    
+    if(MCParticleListIndex > tjs.MCPartList.size() - 1) return 0;
+    
+    const simb::MCParticle* part = tjs.MCPartList[MCParticleListIndex];
+    geo::PlaneID planeID = DecodeCTP(inCTP);
+
+    TrajPoint truTp;
+    truTp.Pos[0] = tjs.geom->WireCoordinate(part->Vy(), part->Vz(), planeID);
+    truTp.Pos[1] = tjs.detprop->ConvertXToTicks(part->Vx(), planeID) * tjs.UnitsPerTick;
+    
+    unsigned short imTheOne = 0;
+    unsigned short nTruHits;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled] && !tj.AlgMod[kInShower]) continue;
+      if(tj.CTP != inCTP) continue;
+      for(unsigned short end = 0; end < 2; ++end) {
+        unsigned short ept = tj.EndPt[end];
+        if(PosSep2(tj.Pts[ept].Pos, truTp.Pos) > 20) continue;
+        // found a close trajectory point. See if this is the right one
+        if(GetMCPartListIndex(tjs, tj, nTruHits) != MCParticleListIndex) continue;
+        // use the longer one if we have been here already
+        if(imTheOne == USHRT_MAX) {
+          imTheOne = tj.ID;
+        } else if(tj.Pts.size() > tjs.allTraj[imTheOne].Pts.size()) {
+          imTheOne = tj.ID;
+        }
+      } // end
+    } // tj
+    
+    return imTheOne;
+    
+  } // MCParticleStartTj
+  
+  /////////////////////////////////////////
+  double MCParticleAngle(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP)
+  {
+    std::array<double, 2> dir = MCParticleDirection(tjs, MCParticleListIndex, inCTP);
+    return atan2(dir[1], dir[0]);
+  } // MCParticleAngle
+  
+  /////////////////////////////////////////
+  std::array<double, 2> MCParticleDirection(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP)
+  {
+    std::array<double, 2> dir {10, 10};
+    if(MCParticleListIndex > tjs.MCPartList.size() - 1)  return dir;
+    
+    const simb::MCParticle* part = tjs.MCPartList[MCParticleListIndex];
+    geo::PlaneID planeID = DecodeCTP(inCTP);
+    double w0 = tjs.geom->WireCoordinate(0, 0, planeID);
+    // cosine-like component
+    double cs = tjs.geom->WireCoordinate(1, 0, planeID) - w0;
+    // sine-like component
+    double sn = tjs.geom->WireCoordinate(0, 1, planeID) - w0;
+    
+    dir[0] = cs * part->Py() + sn * part->Pz();
+    dir[1] = part->Px();
+    double norm = sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
+    if(norm == 0) return dir;
+    dir[0] /= norm;
+    dir[1] /= norm;
+
+    return dir;
+    
+  } // MCParticleDirection
+  
+  /////////////////////////////////////////
   unsigned short GetMCPartListIndex(TjStuff& tjs, const ShowerStruct& ss, unsigned short& nTruHits)
   {
     // Returns the index of the MCParticle that has the most number of matches
@@ -2429,6 +2499,7 @@ namespace tca {
           } else {
             myprt<<" No external parent defined";
           }
+          myprt<<" TruParentID "<<ss.TruParentID;
           myprt<<"\n................................................";
         } // ic
       } // Shower Tj

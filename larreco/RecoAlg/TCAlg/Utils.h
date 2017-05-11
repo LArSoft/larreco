@@ -39,6 +39,9 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  unsigned short MCParticleStartTjID(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP);
+  double MCParticleAngle(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP);
+  std::array<double, 2> MCParticleDirection(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP);
   unsigned short GetMCPartListIndex(TjStuff& tjs, const Trajectory& tj, unsigned short& nTruHits);
   unsigned short GetMCPartListIndex(TjStuff& tjs, const ShowerStruct& ss, unsigned short& nTruHits);
   void TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
