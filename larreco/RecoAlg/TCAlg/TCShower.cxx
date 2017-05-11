@@ -1,6 +1,5 @@
 #include "larreco/RecoAlg/TCAlg/TCShower.h"
 
-
 struct SortEntry{
   unsigned int index;
   float length;
