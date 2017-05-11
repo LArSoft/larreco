@@ -1761,7 +1761,8 @@ namespace tca {
           for(unsigned short jj = ii + 1; jj < partList.size(); ++jj) {
             int trackID = partList[jj]->TrackId();
             const simb::MCParticle* gmom = bt->TrackIDToMotherParticle(trackID);
-            if(gmom->TrackId() != primElectronTrackID) continue;
+            if(gmom == NULL) continue;
+	    if(gmom->TrackId() != primElectronTrackID) continue;
             moda.push_back(std::make_pair(primElectronTrackID, trackID));
           } // jj
         } // ii
