@@ -14,6 +14,7 @@
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
 #include "canvas/Utilities/InputTag.h"
+#include "canvas/Persistency/Common/FindMany.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Services/Optional/TFileService.h"
@@ -29,6 +30,7 @@
 
 #include "larreco/RecoAlg/TrajectoryMCSFitter.h"
 #include "larreco/RecoAlg/TrackMomentumCalculator.h"
+#include "lardataobj/AnalysisBase/ParticleID.h"
 
 #include "TH1.h"
 #include "TH2.h"
@@ -111,7 +113,12 @@ private:
   std::vector<double> trkSegEndPosX, trkSegEndPosY, trkSegEndPosZ;
   std::vector<double> trkSegDirX, trkSegDirY, trkSegDirZ;
   //
-  //pida?
+  int    trkid0;
+  int    trkid1;
+  int    trkid2;
+  double trkpida0;
+  double trkpida1;
+  double trkpida2;
   //
   double simMom;
   double simLength;
@@ -183,6 +190,13 @@ void TrajectoryMCSNtuple::resetTree() {
   trkSegDirX.clear();
   trkSegDirY.clear();
   trkSegDirZ.clear();
+  //
+  trkid0 = -999;
+  trkid1 = -999;
+  trkid2 = -999;
+  trkpida0 = -999;
+  trkpida1 = -999;
+  trkpida2 = -999;
   //
   simMom = -999;
   simLength = -999;
@@ -271,6 +285,13 @@ void TrajectoryMCSNtuple::beginJob()
   tree->Branch("trkSegDirY"     , &trkSegDirY	  );
   tree->Branch("trkSegDirZ"     , &trkSegDirZ     );
   //
+  tree->Branch("trkid0"  , &trkid0  , "trkid0/I"  );
+  tree->Branch("trkid1"  , &trkid1  , "trkid1/I"  );
+  tree->Branch("trkid2"  , &trkid2  , "trkid2/I"  );
+  tree->Branch("trkpida0", &trkpida0, "trkpida0/D");
+  tree->Branch("trkpida1", &trkpida1, "trkpida1/D");
+  tree->Branch("trkpida2", &trkpida2, "trkpida2/D");
+  //
   tree->Branch("simMom"   , &simMom   , "simMom/D"   );
   tree->Branch("simLength", &simLength, "simLength/D");
   tree->Branch("simStartPosX", &simStartPosX, "simStartPosX/D");
@@ -324,12 +345,16 @@ void TrajectoryMCSNtuple::analyze(art::Event const & e)
   art::InputTag PMCSInputTag(inputTracksLabel+"MCSFitP");
   art::ValidHandle<std::vector<recob::MCSFitResult> > MCSP = e.getValidHandle<std::vector<recob::MCSFitResult> >(PMCSInputTag);
   //
+  art::InputTag PidInputTag(inputTracksLabel+"pid");
+  art::FindMany<anab::ParticleID> AssPid(Tracks, e, PidInputTag);
+  //
   assert(Tracks->size()==MCSMu->size());
   //
   for (unsigned int iTrack = 0; iTrack < Tracks->size(); ++iTrack) {
     const recob::Track& track = Tracks->at(iTrack);
     const recob::MCSFitResult& mcsMu = MCSMu->at(iTrack);
     const recob::MCSFitResult& mcsP = MCSP->at(iTrack);
+    std::vector<const anab::ParticleID*> pids = AssPid.at(iTrack);
     //
     resetTree();
     //
@@ -425,6 +450,24 @@ void TrajectoryMCSNtuple::analyze(art::Event const & e)
     trkSegDirX      = trkSegDirXtmp;
     trkSegDirY      = trkSegDirYtmp;
     trkSegDirZ      = trkSegDirZtmp;
+    //
+    for (size_t ipid = 0; ipid < pids.size(); ++ipid){
+      if (!pids[ipid]->PlaneID().isValid) continue;
+      int planenum = pids[ipid]->PlaneID().Plane;
+      if (planenum<0||planenum>2) continue;
+      if (planenum==0) {
+	trkid0   = pids[ipid]->Pdg();
+	trkpida0 = pids[ipid]->PIDA();
+      }
+      if (planenum==1) {
+	trkid1   = pids[ipid]->Pdg();
+	trkpida1 = pids[ipid]->PIDA();
+      }
+      if (planenum==2) {
+	trkid2   = pids[ipid]->Pdg();
+	trkpida2 = pids[ipid]->PIDA();
+      }
+    }
     //
     if (e.isRealData()==0) {
       for (unsigned int iMC = 0; iMC < (*simTracks)->size(); ++iMC) {
