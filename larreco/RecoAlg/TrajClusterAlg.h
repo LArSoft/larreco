@@ -280,7 +280,7 @@ namespace tca {
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText);
     // Merge and store the two trajectories in allTraj
-    bool MergeAndStore(unsigned short tj1,  unsigned short tj2);
+    bool MergeAndStore(unsigned short tj1,  unsigned short tj2, bool doPrt);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
     void FindVtxTjs();
