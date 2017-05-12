@@ -12,6 +12,8 @@
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardata/ArtDataHelper/MVAReader.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/PFParticle.h"
 
 // Framework includes
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -69,6 +71,7 @@ namespace DUNE{
     art::InputTag fHitModuleLabel;
     art::InputTag fShowerModuleLabel;
     art::InputTag fCNNEMModuleLabel;
+
     int           fNeutrinoPDGcode;
     int	       	  fLeptonPDGcode;
     double        fMaxNeutrinoE;
@@ -300,7 +303,7 @@ namespace DUNE{
     h_Efrac_shContamination->Sumw2();
     h_Efrac_shPurity = tfs->make<TH1D>("h_Efrac_shPurity","Efrac Lepton; Energy fraction (Purity);",60,0,1.2);
     h_Efrac_shPurity->Sumw2();
-    h_Ecomplet_lepton = tfs->make<TH1D>("h_Ecomplet_lepton","Ecomplet Lepton; Track Completeness;",60,0,1.2);
+    h_Ecomplet_lepton = tfs->make<TH1D>("h_Ecomplet_lepton","Ecomplet Lepton; Shower Completeness;",60,0,1.2);
     h_Ecomplet_lepton->Sumw2();
 
     h_HighestHitsProducedParticlePDG_NueCC= tfs->make<TH1D>("h_HighestHitsProducedParticlePDG_NueCC","PDG Code; PDG Code;",4,-0.5,3.5);//0 for undefined, 1=electron, 2=photon, 3=anything else     //Signal
@@ -311,13 +314,13 @@ namespace DUNE{
 
     h_Efrac_NueCCPurity= tfs->make<TH1D>("h_Efrac_NueCCPurity","Efrac NueCC; Energy fraction (Purity);",60,0,1.2);     //Signal
     h_Efrac_NueCCPurity->Sumw2();
-    h_Ecomplet_NueCC= tfs->make<TH1D>("h_Ecomplet_NueCC","Ecomplet NueCC; Track Completeness;",60,0,1.2);     
+    h_Ecomplet_NueCC= tfs->make<TH1D>("h_Ecomplet_NueCC","Ecomplet NueCC; Shower Completeness;",60,0,1.2);     
     h_Ecomplet_NueCC->Sumw2();
 
     
     h_Efrac_bkgPurity= tfs->make<TH1D>("h_Efrac_bkgPurity","Efrac bkg; Energy fraction (Purity);",60,0,1.2);     //Background
     h_Efrac_bkgPurity->Sumw2();
-    h_Ecomplet_bkg= tfs->make<TH1D>("h_Ecomplet_bkg","Ecomplet bkg; Track Completeness;",60,0,1.2);     
+    h_Ecomplet_bkg= tfs->make<TH1D>("h_Ecomplet_bkg","Ecomplet bkg; Shower Completeness;",60,0,1.2);     
     h_Ecomplet_bkg->Sumw2();
 
 
@@ -444,7 +447,7 @@ namespace DUNE{
         else if ( nu.CCNC() == 1 ) MC_isCC = 0; 
         simb::MCParticle neutrino = nu.Nu();
         MC_target = nu.Target();
-        MC_incoming_PDG = nu.Nu().PdgCode();
+        MC_incoming_PDG = std::abs(nu.Nu().PdgCode());
         MC_Q2 = nu.QSqr();
         MC_channel = nu.InteractionType();
         MC_W = nu.W();
@@ -466,7 +469,7 @@ namespace DUNE{
 
     for( sim::ParticleList::const_iterator ipar = plist.begin(); ipar!=plist.end(); ++ipar){
       particle = ipar->second;
-      if( particle->PdgCode() == fLeptonPDGcode && particle->Mother() == 0 ){  //primary lepton
+      if( std::abs(particle->PdgCode()) == fLeptonPDGcode && particle->Mother() == 0 ){  //primary lepton
         const TLorentzVector& lepton_momentum =particle->Momentum(0); 
         const TLorentzVector& lepton_position =particle->Position(0); 
         const TLorentzVector& lepton_positionEnd   = particle->EndPosition();
@@ -522,7 +525,6 @@ namespace DUNE{
     cout<<"Found this many showers "<<n_recoShowers<<endl; 
     double Efrac_contamination= 999.0;
     double Efrac_contaminationNueCC= 999.0;
-    
 
     double Ecomplet_lepton =0.0;
     double Ecomplet_NueCC =0.0;
@@ -550,6 +552,38 @@ namespace DUNE{
 
       std::vector<art::Ptr<recob::Hit>> sh_hits = sh_hitsAll.at(i);  
 
+      if (!sh_hits.size()){
+        //no shower hits found, try pfparticle
+        // PFParticles
+        art::Handle<std::vector<recob::PFParticle> > pfpHandle;
+        std::vector<art::Ptr<recob::PFParticle> > pfps;
+        if (event.getByLabel(fShowerModuleLabel, pfpHandle))
+          art::fill_ptr_vector(pfps, pfpHandle);
+        // Clusters
+        art::Handle<std::vector<recob::Cluster> > clusterHandle;
+        std::vector<art::Ptr<recob::Cluster> > clusters;
+        if (event.getByLabel(fShowerModuleLabel, clusterHandle))
+          art::fill_ptr_vector(clusters, clusterHandle);
+        art::FindManyP<recob::PFParticle> fmps(showerHandle, event, fShowerModuleLabel);
+        art::FindManyP<recob::Cluster> fmcp(pfpHandle, event, fShowerModuleLabel);
+        art::FindManyP<recob::Hit> fmhc(clusterHandle, event, fShowerModuleLabel);
+        if (fmps.isValid()){
+          std::vector<art::Ptr<recob::PFParticle>> pfs = fmps.at(i);
+          for (size_t ipf = 0; ipf<pfs.size(); ++ipf){
+            if (fmcp.isValid()){
+              std::vector<art::Ptr<recob::Cluster>> clus = fmcp.at(pfs[ipf].key());
+              for (size_t iclu = 0; iclu<clus.size(); ++iclu){
+                if (fmhc.isValid()){
+                  std::vector<art::Ptr<recob::Hit>> hits = fmhc.at(clus[iclu].key());
+                  for (size_t ihit = 0; ihit<hits.size(); ++ihit){
+                    sh_hits.push_back(hits[ihit]);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
       //  std::cout<<" shower best plane:"<<shower->best_plane()<<" shower dEdx size:"<<shower->dEdx().size()<<std::endl;
       //for( size_t j =0; j<shower->dEdx().size(); j++) std::cout<<shower->dEdx()[j]<<" ";
 
@@ -589,7 +623,22 @@ namespace DUNE{
         //dedx for different showers
         //Highest hits shower pdg for the dEdx study 0=undefined,1=electronorpositronshower,2=photonshower,3=protonshower,4=neutronshower,5=chargedpionshower,6=neutralpionshower,7=everythingelseshower
         shower_bestplane=shower->best_plane();
-        Showerparticlededx_inbestplane=shower->dEdx()[shower_bestplane];	   	   
+        if (shower_bestplane<0 || shower_bestplane>=int(shower->dEdx().size())){
+          //bestplane is not set properly, just pick the first plane that has dEdx
+          for (size_t i = 0; i<shower->dEdx().size(); ++i){
+            if (shower->dEdx()[i]){
+              shower_bestplane = i;
+              break;
+            }
+          }
+        }
+        if (shower_bestplane<0 || shower_bestplane>=int(shower->dEdx().size())){
+          //still a problem? just set it to 0
+          shower_bestplane = 0;
+        }
+          
+        if (shower_bestplane>=0 and shower_bestplane<int(shower->dEdx().size()))
+          Showerparticlededx_inbestplane=shower->dEdx()[shower_bestplane]; 
 	   
         if(std::abs(particle->PdgCode())==11){//lepton shower
           showerPDGwithHighestHitsforFillingdEdX=1;
@@ -619,7 +668,7 @@ namespace DUNE{
       if( particle->PdgCode()  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ) sh_hasPrimary_e[i] = 1;
       //cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<" "<<particle->TrackId()<<" "<<MC_leptonID<<endl;
       //save the best shower based on non EM and number of hits
-      
+
       if( particle->PdgCode()  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ){
 
         if(tmpEcomplet>Ecomplet_lepton){
@@ -738,7 +787,7 @@ namespace DUNE{
       art::Ptr<recob::Hit> hit = shower_hits[j];
       //For know let's use collection plane to look at the shower reconstruction
       //if( hit->View() != 2) continue;
-      std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit);
+      std::vector<sim::TrackIDE> TrackIDs = bt->HitToEveID(hit);
       for(size_t k = 0; k < TrackIDs.size(); k++){
         if (trkID_E.find(std::abs(TrackIDs[k].trackID))==trkID_E.end()) trkID_E[std::abs(TrackIDs[k].trackID)] = 0;
         trkID_E[std::abs(TrackIDs[k].trackID)] += TrackIDs[k].energy;
@@ -774,7 +823,7 @@ namespace DUNE{
     double totenergy =0;
     for(size_t k = 0; k < all_hits.size(); ++k){
       art::Ptr<recob::Hit> hit = all_hits[k];
-      std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit);
+      std::vector<sim::TrackIDE> TrackIDs = bt->HitToEveID(hit);
       for(size_t l = 0; l < TrackIDs.size(); ++l){
         if(std::abs(TrackIDs[l].trackID)==TrackID) {
           totenergy += TrackIDs[l].energy;

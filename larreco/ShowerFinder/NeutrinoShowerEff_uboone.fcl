@@ -1,0 +1,41 @@
+#include "services_microboone.fcl"
+#include "showerfindermodules_microboone.fcl"
+
+process_name: NeutrinoShowerEff 
+
+services:
+{
+  TFileService: { fileName: "ShowerHistograms.root" closeFileFast: false}
+  TimeTracker:       {}
+  RandomNumberGenerator: {} 
+  message:      @local::standard_info
+                @table::microboone_full_services
+}
+#services.Geometry: @local::dune10kt_workspace_geo
+#services.Geometry: @local::dune10kt_1x2x6_geo
+source:
+{
+  module_type: RootInput
+  firstEvent : 1
+  maxEvents:  -1
+}
+
+
+outputs:{}
+
+
+physics:
+{
+
+  analyzers:
+  {
+    trajclustershowereff:       @local::microboone_neutrinoshowereff
+    pandorashowereff:           @local::microboone_neutrinoshowereff
+  }
+  analysis: [ trajclustershowereff, pandorashowereff ] #Directory for histograms
+  end_paths: [ analysis ]
+}
+services.DetectorClocksService.InheritClockConfig:                      false
+services.DetectorClocksService.TriggerOffsetTPC:                       -400 # MC bnb neutrinos
+physics.analyzers.pandorashowereff.HitModuleLabel:    "gaushit"
+physics.analyzers.pandorashowereff.ShowerModuleLabel: "pandoraCosmic"
