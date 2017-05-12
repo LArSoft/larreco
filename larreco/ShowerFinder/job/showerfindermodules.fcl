@@ -64,6 +64,23 @@ microboone_shower.UseArea:   false
 #microboone_showerana.UseArea:   false
 
 
+standard_neutrinoshowereff:
+{
+    module_type:      	      "NeutrinoShowerEff"
+    MCTruthModuleLabel:	      "generator"
+    HitModuleLabel:           "trajcluster"
+    ShowerModuleLabel: 	      "trajcluster"
+    CNNEMModuleLabel:         ""
+    NeutrinoPDGcode:	      12
+    LeptonPDGcode:	      11
+    MaxNeutrinoE:	      25.0
+    MaxEfrac:		      0.30
+    MinCompleteness:	      0.70	
+    SaveMCTree:		      false
+    FidVolCutX:		      10
+    FidVolCutY:		      10
+    FidVolCutZ:		      10	
+}
 
 
 END_PROLOG
