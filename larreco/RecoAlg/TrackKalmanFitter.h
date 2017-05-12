@@ -57,9 +57,17 @@ namespace trkf {
         Name("cleanZigzag"),
         Comment("Flag to decide whether hits with a zigzag pattern should be iteratively removed. Zigzag identified as negative dot product of segments connecting a point to the points before and after it.")
       };
+      fhicl::Atom<bool> rejectHighMultHits {
+        Name("rejectHighMultHits"),
+        Comment("Flag to rejects hits with Multiplicity()>1.")
+      };
+      fhicl::Atom<bool> rejectHitsNegativeGOF {
+        Name("rejectHitsNegativeGOF"),
+        Comment("Flag to rejects hits with GoodnessOfFit<0.")
+      };
       fhicl::Atom<float> hitErr2ScaleFact {
         Name("hitErr2ScaleFact"),
-	Comment(".") //fixme
+	Comment("Scale the hit error squared by this factor.")
       };
       fhicl::Atom<int> dumpLevel {
         Name("dumpLevel"),
@@ -68,19 +76,23 @@ namespace trkf {
     };
     using Parameters = fhicl::Table<Config>;
 
-    TrackKalmanFitter(const TrackStatePropagator* prop, bool useRMS, bool sortHitsByPlane, bool sortOutputHitsMinLength, bool skipNegProp, bool cleanZigzag, float hitErr2ScaleFact, int dumpLevel){
+    TrackKalmanFitter(const TrackStatePropagator* prop, bool useRMS, bool sortHitsByPlane, bool sortOutputHitsMinLength, bool skipNegProp, bool cleanZigzag,
+		      bool rejectHighMultHits, bool rejectHitsNegativeGOF, float hitErr2ScaleFact, int dumpLevel){
       propagator=prop;
       useRMS_=useRMS;
       sortHitsByPlane_=sortHitsByPlane;
       sortOutputHitsMinLength_=sortOutputHitsMinLength;
       skipNegProp_=skipNegProp;
       cleanZigzag_=cleanZigzag;
+      rejectHighMultHits_=rejectHighMultHits;
+      rejectHitsNegativeGOF_=rejectHitsNegativeGOF;
       hitErr2ScaleFact_=hitErr2ScaleFact;
       dumpLevel_=dumpLevel;
       detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
     }
     explicit TrackKalmanFitter(const TrackStatePropagator* prop, Parameters const & p)
-      : TrackKalmanFitter(prop,p().useRMS(),p().sortHitsByPlane(),p().sortOutputHitsMinLength(),p().skipNegProp(),p().cleanZigzag(),p().hitErr2ScaleFact(),p().dumpLevel()) {}
+      : TrackKalmanFitter(prop,p().useRMS(),p().sortHitsByPlane(),p().sortOutputHitsMinLength(),p().skipNegProp(),p().cleanZigzag(),
+			  p().rejectHighMultHits(),p().rejectHitsNegativeGOF(),p().hitErr2ScaleFact(),p().dumpLevel()) {}
 
     bool fitTrack(const recob::Trajectory& track, int tkID,
 		  const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
@@ -104,6 +116,8 @@ namespace trkf {
     bool sortOutputHitsMinLength_;
     bool skipNegProp_;
     bool cleanZigzag_;
+    bool rejectHighMultHits_;
+    bool rejectHitsNegativeGOF_;
     float hitErr2ScaleFact_;
     int dumpLevel_;
   };

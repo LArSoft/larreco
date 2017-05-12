@@ -77,6 +77,15 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     if (flags.size()>0) hitflagsv.push_back( flags[ihit].mask() );
     else hitflagsv.push_back(recob::TrajectoryPointFlags::makeMask());
     //
+    if (rejectHighMultHits_ && hit->Multiplicity()>1)   {
+      hitflagsv.back().set(recob::TrajectoryPointFlagTraits::Merged);
+      hitflagsv.back().set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
+    }
+    if (rejectHitsNegativeGOF_ && hit->GoodnessOfFit()<0) {
+      hitflagsv.back().set(recob::TrajectoryPointFlagTraits::Suspicious);
+      hitflagsv.back().set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
+    }
+    //
     if ((hit->WireID().Plane+1)>nplanes) nplanes = hit->WireID().Plane+1;
   }
 
@@ -501,6 +510,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     std::cout << "outTrack vertex=" << outTrack.Start()
 	      << "\ndir=" << outTrack.StartDirection()
 	      << "\ncov=\n" << outTrack.StartCovariance()
+	      << "\nlength=" << outTrack.Length() << " inLenght=" << track.Length()
 	      << std::endl;
   }
 
