@@ -28,7 +28,12 @@
 #include <memory>
 
 namespace trkf {
-
+  /**
+   * @brief Producer for TrajectoryMCSFitter.
+   *
+   * Producer for TrajectoryMCSFitter, which performs a Maximum Likelihood fit of Multiple Coulomb Scattering angles between segments within a Track or Trajectory. 
+   * It reads a recob::Track collection and produces a collection of recob::MCSFitResult where the elements are in the same order as the input collection (no explicit association is written).
+   */
   class MCSFitProducer : public art::EDProducer {
   public:
 
