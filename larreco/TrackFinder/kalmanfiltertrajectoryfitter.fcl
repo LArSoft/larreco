@@ -19,12 +19,14 @@ kalmantrajfit: {
 	alwaysInvertDir: false
  	tryNoSkipWhenFails: true
 	produceTrackFitHitInfo: true
+	keepInputTrajectoryPoints: false
   }
   fitter: {
   	useRMSError: true
         sortHitsByPlane: true
         sortOutputHitsMinLength: true
         skipNegProp: true
+	cleanZigzag: false
 	hitErr2ScaleFact: 1.0
 	dumpLevel: 0
   }
