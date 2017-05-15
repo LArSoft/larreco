@@ -1,0 +1,84 @@
+#include "services_microboone.fcl"
+#include "time_memory_tracker_microboone.fcl"
+#include "reco_uboone_mcc8.fcl"
+#include "mcsfitproducer.fcl"
+
+process_name: MCSNtuple
+
+services: {
+  TFileService:           { fileName: "dummyAnalysis.root" }
+  @table::microboone_reco_mcc8_services
+  TimeTracker: { }
+} # services
+services.MemoryPeakReporter: @erase
+
+physics: {
+  producers: {
+    pandoraCosmicMCSFitMu: {
+    @table::mcsfitproducer
+    module_label: pandoraCosmicMCSFit
+    inputs: {
+          inputLabel: pandoraCosmic
+       }
+    }
+    #
+    pandoraNuMCSFitMu: {
+    @table::mcsfitproducer
+    module_label: pandoraNuMCSFit
+    inputs: {
+          inputLabel: pandoraNu
+       }
+    }
+    #
+    pandoraCosmicMCSFitP: {
+    @table::mcsfitproducer
+    module_label: pandoraCosmicMCSFit
+    inputs: {
+          inputLabel: pandoraCosmic
+       }
+    fitter: {
+    	 @table::mcsfitproducer.fitter 
+         pIdHypothesis: 2212
+        }
+    }
+    #
+    pandoraNuMCSFitP: {
+    @table::mcsfitproducer
+    module_label: pandoraNuMCSFit
+    inputs: {
+          inputLabel: pandoraNu
+       }
+    fitter: {
+    	 @table::mcsfitproducer.fitter 
+         pIdHypothesis: 2212
+        }
+    }
+  }
+
+  filters:  {}
+
+  analyzers: {
+    trajmcsntupleCosmic: {
+      module_label: TrajectoryMCSNtuple
+      module_type:  TrajectoryMCSNtuple
+      inputs: {
+      	   inputLabel: pandoraCosmic
+      }
+      mcsfitter: {@table::mcsfitproducer.fitter}
+    } # trajmcsntupleCosmic
+    trajmcsntupleNu: {
+      module_label: TrajectoryMCSNtuple
+      module_type:  TrajectoryMCSNtuple
+      inputs: {
+           inputLabel: pandoraNu
+      }
+      mcsfitter: {@table::mcsfitproducer.fitter}
+    } # trajmcsntupleNu
+  }
+
+  ana: [ trajmcsntupleCosmic, trajmcsntupleNu ]
+  pro:  [ pandoraNuMCSFitP, pandoraNuMCSFitMu, pandoraCosmicMCSFitMu, pandoraCosmicMCSFitP ]
+
+  trigger_paths: [ pro, ana ]
+
+} # physics
