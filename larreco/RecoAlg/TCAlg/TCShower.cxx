@@ -370,6 +370,27 @@ namespace tca {
     // save the requested print state in case it gets changed
     bool saveprt = prt;
     
+    // temp for testing
+    if(inCTP == 0 && !tjs.MCPartList.empty()) {
+      // Print some info on the first primary particle (electron)
+      const simb::MCParticle* part = tjs.MCPartList[0];
+      std::cout<<"Primary E = "<<std::setprecision(2)<<part->E();
+      TVector3 dir;
+      dir[0] = part->Px(); dir[1] = part->Py(); dir[2] = part->Pz();
+      dir.SetMag(1);
+      std::cout<<" dir "<<std::setprecision(2)<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<"\n";
+      for(CTP_t ctp = 0; ctp < 3; ++ctp) {
+        std::cout<<" CTP "<<ctp;
+        // print the primary trajectory ID
+        std::cout<<" primary TjID "<<MCParticleStartTjID(tjs, 0, ctp);
+        TrajPoint tp;
+        tp.CTP = ctp;
+        MakeTruTrajPoint(tjs, 0, tp);
+        std::cout<<" Tru start pos "<<PrintPos(tjs, tp.Pos)<<" Ang "<<tp.Ang<<" Projection in plane "<<tp.Delta;
+        std::cout<<"\n";
+      } // ctp
+    } // temp testing
+    
     std::vector<std::vector<unsigned short>> tjList;
     TagShowerTjs(tjs, inCTP, tjList);
     if(prt) std::cout<<"Inside FindShowers inCTP "<<inCTP<<" tjList size "<<tjList.size()<<"\n";
@@ -1030,7 +1051,10 @@ namespace tca {
         float trueEnergy = tjs.MCPartList[mcPtclIndex]->E();
         mf::LogVerbatim myprt("TC");
         myprt<<"NTPL "<<ss.CTP<<" "<<std::fixed<<std::setprecision(2)<<trueEnergy;
-        myprt<<" "<<MCParticleAngle(tjs, mcPtclIndex, ss.CTP);
+        TrajPoint truTP;
+        truTP.CTP = ss.CTP;
+        MakeTruTrajPoint(tjs, mcPtclIndex, truTP);
+        myprt<<" "<<truTP.Ang<<" "<<truTP.Delta;
         myprt<<" "<<tj.ID;
         // number of times this DefineShowerTj was called for this shower
         Trajectory& stj = tjs.allTraj[istj];
@@ -1986,6 +2010,7 @@ namespace tca {
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
         // used in a trajectory?
         if(tjs.fHits[iht].InTraj != 0) continue;
+        if(tjs.IgnoreNegChiHits && tjs.fHits[iht].GoodnessOfFit < 0) continue;
         // inside the tick range?
         if(tjs.fHits[iht].PeakTime < loTick) continue;
         // Note that hits are sorted by increasing time so we can break here

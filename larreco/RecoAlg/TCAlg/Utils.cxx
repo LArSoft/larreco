@@ -1,7 +1,51 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
 namespace tca {
-  
+
+  void MakeTruTrajPoint(TjStuff& tjs, unsigned short MCParticleListIndex, TrajPoint& tp)
+  {
+    // Creates a trajectory point at the start of the MCParticle with index MCParticleListIndex. The
+    // projected length of the MCParticle in the plane coordinate system is stored in TruTp.Delta.
+    // The calling function should specify the CTP in which this TP resides.
+    
+    if(MCParticleListIndex > tjs.MCPartList.size() - 1) return;
+    
+    const simb::MCParticle* part = tjs.MCPartList[MCParticleListIndex];
+    geo::PlaneID planeID = DecodeCTP(tp.CTP);
+    
+    tp.Pos[0] = tjs.geom->WireCoordinate(part->Vy(), part->Vz(), planeID);
+    tp.Pos[1] = tjs.detprop->ConvertXToTicks(part->Vx(), planeID) * tjs.UnitsPerTick;
+    
+    TVector3 dir;
+    dir[0] = part->Px(); dir[1] = part->Py(); dir[2] = part->Pz();
+    dir.SetMag(1);
+    TVector3 pos;
+    pos[0] = part->Vx() + 100 * dir[0];
+    pos[1] = part->Vy() + 100 * dir[1];
+    pos[2] = part->Vz() + 100 * dir[2];
+    // use HitPos as a work vector
+    tp.HitPos[0] = tjs.geom->WireCoordinate(pos[1], pos[2], planeID);
+    tp.HitPos[1] = tjs.detprop->ConvertXToTicks(pos[0], planeID) * tjs.UnitsPerTick;
+    
+    tp.Dir[0] = tp.HitPos[0] - tp.Pos[0];
+    tp.Dir[1] = tp.HitPos[1] - tp.Pos[1];
+    double norm = sqrt(tp.Dir[0] * tp.Dir[0] + tp.Dir[1] * tp.Dir[1]);
+    tp.Dir[0] /= norm;
+    tp.Dir[1] /= norm;
+    tp.Ang = atan2(tp.Dir[1], tp.Dir[0]);
+    tp.Delta = norm / 100;
+    
+    // The Orth vectors are not unit normalized so we need to correct for this
+    double w0 = tjs.geom->WireCoordinate(0, 0, planeID);
+    // cosine-like component
+    double cs = tjs.geom->WireCoordinate(1, 0, planeID) - w0;
+    // sine-like component
+    double sn = tjs.geom->WireCoordinate(0, 1, planeID) - w0;
+    norm = sqrt(cs * cs + sn * sn);
+    tp.Delta /= norm;
+
+  } // MakeTruTrajPoint
+
   /////////////////////////////////////////
   unsigned short MCParticleStartTjID(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP)
   {
@@ -18,60 +62,26 @@ namespace tca {
     truTp.Pos[1] = tjs.detprop->ConvertXToTicks(part->Vx(), planeID) * tjs.UnitsPerTick;
     
     unsigned short imTheOne = 0;
+    unsigned short length = 5;
     unsigned short nTruHits;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled] && !tj.AlgMod[kInShower]) continue;
       if(tj.CTP != inCTP) continue;
+      if(tj.Pts.size() < length) continue;
       for(unsigned short end = 0; end < 2; ++end) {
         unsigned short ept = tj.EndPt[end];
-        if(PosSep2(tj.Pts[ept].Pos, truTp.Pos) > 20) continue;
+        float sep2 = PosSep2(tj.Pts[ept].Pos, truTp.Pos);
+        if(sep2 > 20) continue;
         // found a close trajectory point. See if this is the right one
         if(GetMCPartListIndex(tjs, tj, nTruHits) != MCParticleListIndex) continue;
-        // use the longer one if we have been here already
-        if(imTheOne == USHRT_MAX) {
-          imTheOne = tj.ID;
-        } else if(tj.Pts.size() > tjs.allTraj[imTheOne].Pts.size()) {
-          imTheOne = tj.ID;
-        }
+        imTheOne = tj.ID;
+        length = tj.Pts.size();
       } // end
     } // tj
     
     return imTheOne;
     
   } // MCParticleStartTj
-  
-  /////////////////////////////////////////
-  double MCParticleAngle(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP)
-  {
-    std::array<double, 2> dir = MCParticleDirection(tjs, MCParticleListIndex, inCTP);
-    return atan2(dir[1], dir[0]);
-  } // MCParticleAngle
-  
-  /////////////////////////////////////////
-  std::array<double, 2> MCParticleDirection(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP)
-  {
-    std::array<double, 2> dir {10, 10};
-    if(MCParticleListIndex > tjs.MCPartList.size() - 1)  return dir;
-    
-    const simb::MCParticle* part = tjs.MCPartList[MCParticleListIndex];
-    geo::PlaneID planeID = DecodeCTP(inCTP);
-    double w0 = tjs.geom->WireCoordinate(0, 0, planeID);
-    // cosine-like component
-    double cs = tjs.geom->WireCoordinate(1, 0, planeID) - w0;
-    // sine-like component
-    double sn = tjs.geom->WireCoordinate(0, 1, planeID) - w0;
-    
-    dir[0] = cs * part->Py() + sn * part->Pz();
-    dir[1] = part->Px();
-    double norm = sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
-    if(norm == 0) return dir;
-    dir[0] /= norm;
-    dir[1] /= norm;
-
-    return dir;
-    
-  } // MCParticleDirection
-  
   /////////////////////////////////////////
   unsigned short GetMCPartListIndex(TjStuff& tjs, const ShowerStruct& ss, unsigned short& nTruHits)
   {
@@ -1658,6 +1668,7 @@ namespace tca {
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+        if(tjs.IgnoreNegChiHits && tjs.fHits[iht].GoodnessOfFit < 0) continue;
         if(usePeakTime) {
           if(tjs.fHits[iht].PeakTime < minTick) continue;
           if(tjs.fHits[iht].PeakTime > maxTick) break;
@@ -1709,6 +1720,7 @@ namespace tca {
 
     float fwire = wire;
     for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+      if(tjs.IgnoreNegChiHits && tjs.fHits[iht].GoodnessOfFit < 0) continue;
       bool useit = (hitRequest == kAllHits);
       if(hitRequest == kUsedHits && tjs.fHits[iht].InTraj > 0) useit = true;
       if(hitRequest == kUnusedHits && tjs.fHits[iht].InTraj == 0) useit = true;

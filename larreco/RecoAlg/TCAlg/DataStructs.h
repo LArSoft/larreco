@@ -336,6 +336,7 @@ namespace tca {
     std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
     const geo::GeometryCore* geom;
     const detinfo::DetectorProperties* detprop;
+    bool IgnoreNegChiHits;
    };
 
 } // namespace tca
