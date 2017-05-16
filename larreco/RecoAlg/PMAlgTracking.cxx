@@ -1061,17 +1061,19 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
 		fInitialClusters.push_back((size_t)first_clu_idx);
 	}
 
-	unsigned int nFirstHits = first_hits.size();
+    unsigned int nFirstHits = first_hits.size(), first_plane_idx = first_hits.front()->WireID().Plane;
 	mf::LogVerbatim("PMAlgTracker") << std::endl << "--- start new candidate ---";
-	mf::LogVerbatim("PMAlgTracker") << "use plane  *** " << first_view << " ***  size: " << nFirstHits;
+	mf::LogVerbatim("PMAlgTracker") << "use view  *** " << first_view << " *** plane idx " << first_plane_idx << " ***  size: " << nFirstHits;
 
-	float x, xmax = fDetProp->ConvertTicksToX(first_hits.front()->PeakTime(), first_view, tpc, cryo), xmin = xmax;
+	float x, xmax = fDetProp->ConvertTicksToX(first_hits.front()->PeakTime(), first_plane_idx, tpc, cryo), xmin = xmax;
+	//mf::LogVerbatim("PMAlgTracker") << "  *** x max0: " << xmax;
 	for (size_t j = 1; j < first_hits.size(); ++j)
 	{
-		x = fDetProp->ConvertTicksToX(first_hits[j]->PeakTime(), first_view, tpc, cryo);
+		x = fDetProp->ConvertTicksToX(first_hits[j]->PeakTime(), first_plane_idx, tpc, cryo);
 		if (x > xmax) { xmax = x; }
 		if (x < xmin) { xmin = x; }
 	}
+	//mf::LogVerbatim("PMAlgTracker") << "  *** x max: " << xmax << " min:" << xmin;
 
 	pma::TrkCandidateColl candidates; // possible solutions of the selected cluster and clusters in complementary views
 
@@ -1107,7 +1109,7 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
 		if (try_build)
 		{
             mf::LogVerbatim("PMAlgTracker") << "--> " << imatch++ << " match with:";
-		    mf::LogVerbatim("PMAlgTracker") << "    cluster in plane  *** " << bestView << " ***  size: " << nMaxHits;
+		    mf::LogVerbatim("PMAlgTracker") << "    cluster in view  *** " << bestView << " ***  size: " << nMaxHits;
 
 			if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) { testView = geo::kUnknown; }
 			else { mf::LogVerbatim("PMAlgTracker") << "    validation plane  *** " << testView << " ***"; }
@@ -1343,7 +1345,7 @@ int pma::PMAlgTracker::maxCluster(int first_idx_tag,
 			s = 0;
 			for (size_t j = 0; j < v.size(); ++j)
 			{
-				x = fDetProp->ConvertTicksToX(v[j]->PeakTime(), view, tpc, cryo);
+				x = fDetProp->ConvertTicksToX(v[j]->PeakTime(), v[j]->WireID().Plane, tpc, cryo);
 				if ((x >= xmin) && (x <= xmax)) s++;
 			}
 
