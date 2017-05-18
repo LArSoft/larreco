@@ -1,4 +1,5 @@
 #include "services_microboone.fcl"
+#include "showerfindermodules_microboone.fcl"
 
 process_name: NeutrinoShowerEff 
 
@@ -28,32 +29,13 @@ physics:
 
   analyzers:
   {
-    NeutrinoShowerEff: 
-    {
-      module_type:      	"NeutrinoShowerEff"
-      #outFile:          	"Showetest.root"
-      MCTruthModuleLabel:	"generator"
-      #HitModuleLabel:           "linecluster"
-      HitModuleLabel:           "trajcluster"				 
-      #HitModuleLabel:           "gaushit"				 
-      #ShowerModuleLabel: 	"emshower"
-      ShowerModuleLabel:        "trajcluster"
-      #ShowerModuleLabel:        "pandoraCosmic"
-      #CNNEMModuleLabel:         "emtrkmichelid:emtrkmichel"
-      CNNEMModuleLabel:         ""
-      NeutrinoPDGcode:		12
-      LeptonPDGcode:		11
-      MaxNeutrinoE:		25.0
-      MaxEfrac:			0.30
-      MinCompleteness:		0.70	
-      SaveMCTree:		false
-      FidVolCutX:		10
-      FidVolCutY:		10
-      FidVolCutZ:		10	
-    }
+    trajclustershowereff:       @local::microboone_neutrinoshowereff
+    pandorashowereff:           @local::microboone_neutrinoshowereff
   }
-  analysis: [ NeutrinoShowerEff ] #Directory for histograms
+  analysis: [ trajclustershowereff, pandorashowereff ] #Directory for histograms
   end_paths: [ analysis ]
 }
 services.DetectorClocksService.InheritClockConfig:                      false
 services.DetectorClocksService.TriggerOffsetTPC:                       -400 # MC bnb neutrinos
+physics.analyzers.pandorashowereff.HitModuleLabel:    "gaushit"
+physics.analyzers.pandorashowereff.ShowerModuleLabel: "pandoraCosmic"
