@@ -50,6 +50,7 @@ standard_emshower:
  ClusterModuleLabel:     "blurredcluster"
  TrackModuleLabel:       "pmtrack"
  PFParticleModuleLabel:  ""
+ VertexModuleLabel:      "pandora"
  CNNEMModuleLabel:       ""
  SaveNonCompleteShowers: true
  FindBadPlanes:          true

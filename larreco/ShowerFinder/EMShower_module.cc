@@ -66,7 +66,7 @@ public:
 
 private:
 
-  art::InputTag fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel, fCNNEMModuleLabel;
+  art::InputTag fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel, fVertexModuleLabel, fCNNEMModuleLabel;
   EMShowerAlg fEMShowerAlg;
   bool fSaveNonCompleteShowers;
   bool fFindBadPlanes;
@@ -101,6 +101,7 @@ void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
   fClusterModuleLabel     = p.get<art::InputTag>("ClusterModuleLabel");
   fTrackModuleLabel       = p.get<art::InputTag>("TrackModuleLabel");
   fPFParticleModuleLabel  = p.get<art::InputTag>("PFParticleModuleLabel","");
+  fVertexModuleLabel      = p.get<art::InputTag>("VertexModuleLabel","");
   fCNNEMModuleLabel       = p.get<art::InputTag>("CNNEMModuleLabel","");
   fFindBadPlanes          = p.get<bool>         ("FindBadPlanes");
   fSaveNonCompleteShowers = p.get<bool>         ("SaveNonCompleteShowers");
@@ -150,6 +151,12 @@ void shower::EMShower::produce(art::Event& evt) {
   std::vector<art::Ptr<recob::PFParticle> > pfps;
   if (evt.getByLabel(fPFParticleModuleLabel, pfpHandle))
     art::fill_ptr_vector(pfps, pfpHandle);
+
+  // PFParticles
+  art::Handle<std::vector<recob::Vertex> > vtxHandle;
+  std::vector<art::Ptr<recob::Vertex> > vertices;
+  if (evt.getByLabel(fVertexModuleLabel, vtxHandle))
+    art::fill_ptr_vector(vertices, vtxHandle);
 
   // Associations
   art::FindManyP<recob::Hit> fmh(clusterHandle, evt, fClusterModuleLabel);
@@ -380,11 +387,43 @@ void shower::EMShower::produce(art::Event& evt) {
     }
 
     else { // pfParticle
-      art::FindManyP<recob::Vertex> fmv(pfpHandle, evt, fPFParticleModuleLabel);
-      std::vector<art::Ptr<recob::Vertex> > vertices = fmv.at(pfParticles[newShower-newShowers.begin()]);
+
       if (vertices.size()) {
+        //found the most upstream vertex
+        TVector3 nuvtx(0,0,DBL_MAX);
+        for (auto & vtx: vertices){
+          double xyz[3];
+          vtx->XYZ(xyz);
+          if (xyz[2]<nuvtx.Z()){
+            nuvtx.SetXYZ(xyz[0], xyz[1], xyz[2]);
+          }
+        }
+
+        TVector3 shwvtx(0,0,0);
+        double mindis = DBL_MAX;
+        for (auto &sp : showerSpacePoints_p){
+          double dis = sqrt(pow(nuvtx.X()-sp->XYZ()[0],2)+pow(nuvtx.X()-sp->XYZ()[1],2)+pow(nuvtx.X()-sp->XYZ()[2],2));
+          if (dis<mindis){
+            mindis = dis;
+            shwvtx.SetXYZ(sp->XYZ()[0], sp->XYZ()[1], sp->XYZ()[2]);
+          }
+        }
+
+        art::Ptr<recob::Vertex> bestvtx;
+        mindis = DBL_MAX;
+        for (auto & vtx: vertices){
+          double xyz[3];
+          vtx->XYZ(xyz);
+          double dis = sqrt(pow(xyz[0]-shwvtx.X(),2)+pow(xyz[1]-shwvtx.Y(),2)+pow(xyz[2]-shwvtx.Z(),2));
+          if (dis<mindis){
+            mindis = dis;
+            bestvtx = vtx;
+          }
+        }
+
 	int iok = 0;
-	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, vertices[0], iok);
+        
+	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, bestvtx, iok);
 	//shower.set_id(showerNum);
 	if (iok==0) {
 	  showers->push_back(shower);
