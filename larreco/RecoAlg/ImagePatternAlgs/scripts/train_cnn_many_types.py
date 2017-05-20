@@ -90,6 +90,9 @@ for dirname in subdirs:
             X_test = np.concatenate((X_test, dataX))
             Y_test = np.concatenate((Y_test, dataY))
 
+dataX = None
+dataY = None
+
 print 'Train', X_train.shape, 'test', X_test.shape
 
 # input image dimensions

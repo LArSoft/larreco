@@ -31,11 +31,30 @@ class pma::Track3D
 public:
 	enum ETrackEnd { kBegin = -1, kEnd = 1 };
 	enum EDirection { kForward = -1, kBackward = 1 };
-	enum ETag { kNotTagged = 0, kTrackLike = 0, kEmLike = 1, kStopping = 2, kCosmic = 4 };
+	enum ETag
+	{
+	    kNotTagged = 0, kTrackLike = 0, kEmLike = 1, kStopping = 2, kCosmic = 4,
+
+        kGeometry_YY = 0x000100,
+        kGeometry_YZ = 0x000200,
+        kGeometry_ZZ = 0x000300,
+        kGeometry_XX = 0x000400,
+        kGeometry_XY = 0x000500,
+        kGeometry_XZ = 0x000600,
+
+        kGeometry_Y  = 0x001000,
+        kGeometry_Z  = 0x002000,
+        kGeometry_X  = 0x003000,
+
+        kOutsideDrift_Partial   = 0x010000,
+        kOutsideDrift_Complete  = 0x020000,
+        kBeamIncompatible       = 0x030000
+	};
 	ETag GetTag(void) const { return fTag; }
 	bool HasTagFlag(ETag value) const { return (fTag & value); }
 	void SetTagFlag(ETag value) { fTag = (ETag)(fTag | value); }
 	void SetTag(ETag value) { fTag = value; }
+	
 
 	Track3D(void);
 	Track3D(const Track3D& src);
@@ -170,9 +189,6 @@ public:
 
 	/// MSE of hits weighted with hit amplidudes and wire plane coefficients.
 	double GetMse(unsigned int view = geo::kUnknown) const;
-
-	/// Mean angle between consecutive segments, [rad].
-	double GetMeanAng(void) const;
 
 	/// Objective function optimized in track reconstruction.
 	double GetObjFunction(float penaltyFactor = 1.0F) const;

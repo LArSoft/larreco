@@ -1,4 +1,4 @@
-#include "services_dune.fcl"
+#include "services_microboone.fcl"
 
 process_name: NeutrinoShowerEff 
 
@@ -8,10 +8,10 @@ services:
   TimeTracker:       {}
   RandomNumberGenerator: {} 
   message:      @local::standard_info
-                @table::dunefd_simulation_services
+                @table::microboone_full_services
 }
 #services.Geometry: @local::dune10kt_workspace_geo
-services.Geometry: @local::dune10kt_1x2x6_geo
+#services.Geometry: @local::dune10kt_1x2x6_geo
 source:
 {
   module_type: RootInput
@@ -33,10 +33,14 @@ physics:
       module_type:      	"NeutrinoShowerEff"
       #outFile:          	"Showetest.root"
       MCTruthModuleLabel:	"generator"
-      HitModuleLabel:           "linecluster"
+      #HitModuleLabel:           "linecluster"
+      HitModuleLabel:           "trajcluster"				 
+      #HitModuleLabel:           "gaushit"				 
       #ShowerModuleLabel: 	"emshower"
-      ShowerModuleLabel: 	"emshowercnn"
-      CNNEMModuleLabel:         "emtrkmichelid:emtrkmichel"
+      ShowerModuleLabel:        "trajcluster"
+      #ShowerModuleLabel:        "pandoraCosmic"
+      #CNNEMModuleLabel:         "emtrkmichelid:emtrkmichel"
+      CNNEMModuleLabel:         ""
       NeutrinoPDGcode:		12
       LeptonPDGcode:		11
       MaxNeutrinoE:		25.0
@@ -51,4 +55,5 @@ physics:
   analysis: [ NeutrinoShowerEff ] #Directory for histograms
   end_paths: [ analysis ]
 }
-
+services.DetectorClocksService.InheritClockConfig:                      false
+services.DetectorClocksService.TriggerOffsetTPC:                       -400 # MC bnb neutrinos

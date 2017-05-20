@@ -19,6 +19,7 @@ standard_pointidalg:
  CoherentSigma:   0   # test effect of coherent noise
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
+ CalibrateAmpl:    false # calibrate ADC values with CalAmpConstants (allows different gains in MC and data)
 }
 
 standard_trainingdataalg:
@@ -40,6 +41,7 @@ standard_trainingdataalg:
  CoherentSigma:   0     # test effect of coherent noise
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
+ CalibrateAmpl:    false # calibrate ADC value with CalAmpConstants (allows different gains in MC and data)
 }
 
 END_PROLOG
