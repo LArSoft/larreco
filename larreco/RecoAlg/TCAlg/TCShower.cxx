@@ -169,7 +169,7 @@ namespace tca {
       }
       for(auto& xyz : ms.sXYZ) xyz /= wsum;
       for(auto& xyz : ms.eXYZ) xyz /= (float)ne;
-      ms.sDir.SetMag(1);
+      if(ms.sDir.Mag() != 0) ms.sDir.SetMag(1);
       // correct the direction using a large direction cosine
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
         if(std::abs(ms.sDir[ixyz]) > 0.5) {
@@ -378,7 +378,7 @@ namespace tca {
       std::cout<<"Primary E = "<<std::setprecision(2)<<part->E();
       TVector3 dir;
       dir[0] = part->Px(); dir[1] = part->Py(); dir[2] = part->Pz();
-      dir.SetMag(1);
+      if(dir.Mag() != 0) dir.SetMag(1);
       std::cout<<" dir "<<std::setprecision(2)<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<"\n";
       for(CTP_t ctp = 0; ctp < 3; ++ctp) {
         std::cout<<" CTP "<<ctp;
@@ -1013,7 +1013,7 @@ namespace tca {
     dangErr *= ss.DirectionFOM;
     float dangPull = dang / dangErr;
     float mom = tj.MCSMom;
-    if(mom > 500) mom = 500;
+    if(mom > 300) mom = 300;
     float momPull = (mom - 500) / 100;
     // Pull due to the minimum separation between the other end of the parent Tj and the first shower Tj point.
     float tp0Sep2 = 0;
@@ -1047,7 +1047,7 @@ namespace tca {
       // special output for creating an ntuple
       unsigned short nTruHits;
       unsigned short mcPtclIndex = GetMCPartListIndex(tjs, ss, nTruHits);
-      if(mcPtclIndex == 0) {
+      if(mcPtclIndex == 0 && sepPull < 4 && deltaPull < 10 && dangPull < 10) {
         // Print variables to create an ntuple
         float trueEnergy = tjs.MCPartList[mcPtclIndex]->E();
         mf::LogVerbatim myprt("TC");
@@ -1056,7 +1056,7 @@ namespace tca {
         truTP.CTP = ss.CTP;
         MakeTruTrajPoint(tjs, mcPtclIndex, truTP);
         myprt<<" "<<truTP.Ang<<" "<<truTP.Delta;
-        myprt<<" "<<tj.ID;
+//        myprt<<" "<<tj.ID;
         // number of times this DefineShowerTj was called for this shower
         Trajectory& stj = tjs.allTraj[istj];
         myprt<<" "<<stj.Pass;
@@ -1064,14 +1064,15 @@ namespace tca {
         myprt<<" "<<ss.Pts.size();
         // shower charge
         myprt<<" "<<(int)stj.AveChg;
-        myprt<<" "<<sepPull<<" "<<deltaPull<<" "<<dangPull<<" "<<momPull<<" "<<lenPull<<" "<<fom;
+        myprt<<" "<<tp1Sep<<" "<<delta<<" "<<std::setprecision(3)<<dang<<" "<<(int)mom;
+        myprt<<" "<<std::setprecision(2)<<sqrt(tp0Sep2)<<" "<<TrajLength(tj)<<" "<<fom;
         if(tj.ID == ss.TruParentID) {
           myprt<<" 1";
         } else {
           myprt<<" 0";
         }
       }
-    }
+    } // tjs.ShowerTag[11] == -5
 
     return fom;
   } // ParentFOM
