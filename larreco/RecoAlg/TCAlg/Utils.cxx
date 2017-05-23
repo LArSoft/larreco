@@ -18,6 +18,7 @@ namespace tca {
     
     TVector3 dir;
     dir[0] = part->Px(); dir[1] = part->Py(); dir[2] = part->Pz();
+    if(dir.Mag() == 0) return;
     dir.SetMag(1);
     TVector3 pos;
     pos[0] = part->Vx() + 100 * dir[0];
@@ -82,6 +83,7 @@ namespace tca {
     return imTheOne;
     
   } // MCParticleStartTj
+  
   /////////////////////////////////////////
   unsigned short GetMCPartListIndex(TjStuff& tjs, const ShowerStruct& ss, unsigned short& nTruHits)
   {
@@ -234,7 +236,7 @@ namespace tca {
       pos2[1] = (jtp2Pos0 - jw0 - jsn * pos2[2]) / jcs;
     }
     dir = pos2 - pos;
-    dir.SetMag(1);
+    if(dir.Mag() != 0) dir.SetMag(1);
     // Reverse the direction?
     if(dir[0] * itp.Dir[0] < 0) dir *= -1;
 
