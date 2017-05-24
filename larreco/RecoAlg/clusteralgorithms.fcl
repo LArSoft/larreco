@@ -1,6 +1,6 @@
 #include "trackfinderalgorithms.fcl"
 #include "cluster3dalgorithms.fcl"
-#include "calorimetry_microboone.fcl"
+#include "calorimetry.fcl"
 BEGIN_PROLOG
 
 standard_trajclusteralg:
@@ -377,9 +377,6 @@ microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
 microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
 microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
-microboone_trajclusteralg:                    @local::standard_trajclusteralg
-microboone_trajclusteralg.MaxWireSkipNoSignal: 15 # increase a bit to allow for low gain wires
-microboone_trajclusteralg.CaloAlg:            @local::microboone_calorimetryalgmc
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
