@@ -34,7 +34,8 @@ physics:
       #outFile:          	"Showetest.root"
       MCTruthModuleLabel:	"generator"
       HitModuleLabel:           "linecluster"
-      ShowerModuleLabel: 	"emshower"
+      #ShowerModuleLabel: 	"emshower"
+      ShowerModuleLabel: 	"emshowercnn"
       CNNEMModuleLabel:         "emtrkmichelid:emtrkmichel"
       NeutrinoPDGcode:		12
       LeptonPDGcode:		11
