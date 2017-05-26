@@ -28,6 +28,9 @@ standard_trainingdataalg:
  SimulationLabel: "largeant"
  SaveVtxFlags:    true
 
+ HitLabel:        ""    # used by functions dumping real data (so one has no MC truth
+ TrackLabel:      ""    # and need to go by reconstructed objects)
+
  AdcDelayTicks:   0     # ADC pulse peak delay in ticks (non-zero for not deconvoluted waveforms)
 
  DriftWindow:     6     # downsampling window (in drift ticks)
