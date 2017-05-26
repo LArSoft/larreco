@@ -133,6 +133,10 @@ namespace trkf {
         Name("produceTrackFitHitInfo"),
         Comment("Option to produce (or not) the detailed TrackFitHitInfo.")
       };
+      fhicl::Atom<bool> keepInputTrajectoryPoints {
+        Name("keepInputTrajectoryPoints"),
+        Comment("Option to keep positions and directions from input trajectory/track. The fit will provide only covariance matrices, chi2, ndof, particle Id and absolute momentum. It may also modify the trajectory point flags. In order to avoid inconsistencies, it has to be used with the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp.")
+      };
     };
 
     struct Config {
@@ -183,6 +187,8 @@ namespace trkf {
     double setMomValue(art::Ptr<recob::Track> ptrack, const std::unique_ptr<art::FindManyP<anab::Calorimetry> >& trackCalo, const double pMC, const int pId) const;
     int    setPId(const unsigned int iTrack, const std::unique_ptr<art::FindManyP<anab::ParticleID> >& trackId, const int pfPid = 0) const;
     bool   setDirFlip(const recob::Track& track, TVector3& mcdir, const std::vector<art::Ptr<recob::Vertex> >* vertices = 0) const;
+
+    void restoreInputPoints(const recob::Trajectory& track,const std::vector<art::Ptr<recob::Hit> >& inHits,recob::Track& outTrack,art::PtrVector<recob::Hit>& outHits) const;
   };
 }
 
@@ -244,6 +250,13 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   if (nPFroms>1) {
     throw cet::exception("KalmanFilterFinalTrackFitter")
       << "Incompatible configuration parameters: only at most one can be set to true among pFromCalo, pFromMSChi2, pFromLength, and pFromMC." << "\n";
+  }
+
+  if (p_().options().keepInputTrajectoryPoints()) {
+    if (p_().fitter().sortHitsByPlane() || p_().fitter().sortOutputHitsMinLength() || p_().fitter().skipNegProp()) {
+      throw cet::exception("KalmanFilterTrajectoryFitter")
+	<< "Incompatible configuration parameters: keepInputTrajectoryPoints needs the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp." << "\n";
+    }
   }
 }
 
@@ -321,19 +334,25 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 					    track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
 					    inHits,track.Trajectory().Flags(),
 					    mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
-	if (!fitok && kalmanFitter->getSkipNegProp() && p_().options().tryNoSkipWhenFails()) {
+	if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
 	  //ok try once more without skipping hits
-	  mf::LogWarning("KalmanFilterFinalTrackFitter") << "Try to recover with skipNegProp = false\n";
+	  mf::LogWarning("KalmanFilterFinalTrackFitter") << "Try to recover with skipNegProp = false and cleanZigzag = false\n";
 	  kalmanFitter->setSkipNegProp(false);
+	  kalmanFitter->setCleanZigzag(false);
 	  fitok = kalmanFitter->fitTrack(track.Trajectory().Trajectory(),track.ID(),
 					 track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
 					 inHits,track.Trajectory().Flags(),
 					 mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
-	  kalmanFitter->setSkipNegProp(true);
+	  kalmanFitter->setSkipNegProp(p_().fitter().skipNegProp());
+	  kalmanFitter->setCleanZigzag(p_().fitter().cleanZigzag());
 	}
 	if (!fitok) {
 	  mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for PFP # " << iPF << " track #" << iTrack << "\n";
 	  continue;
+	}
+
+	if (p_().options().keepInputTrajectoryPoints()) {
+	  restoreInputPoints(track.Trajectory().Trajectory(),inHits,outTrack,outHits);
 	}
 
 	outputTracks->emplace_back(std::move(outTrack));
@@ -391,19 +410,25 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 					  track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
 					  inHits,track.Trajectory().Flags(),
 					  mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
-      if (!fitok && kalmanFitter->getSkipNegProp() && p_().options().tryNoSkipWhenFails()) {
+      if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
 	//ok try once more without skipping hits
-	mf::LogWarning("KalmanFilterFinalTrackFitter") << "Try to recover with skipNegProp = false\n";
+	mf::LogWarning("KalmanFilterFinalTrackFitter") << "Try to recover with skipNegProp = false and cleanZigzag = false\n";
 	kalmanFitter->setSkipNegProp(false);
+	kalmanFitter->setCleanZigzag(false);
 	fitok = kalmanFitter->fitTrack(track.Trajectory().Trajectory(),track.ID(),
 				       track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
 				       inHits,track.Trajectory().Flags(),
 				       mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
-	kalmanFitter->setSkipNegProp(true);
+	kalmanFitter->setSkipNegProp(p_().fitter().skipNegProp());
+	kalmanFitter->setCleanZigzag(p_().fitter().cleanZigzag());
       }
       if (!fitok) {
 	mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for track #" << iTrack << "\n";
 	continue;
+      }
+
+      if (p_().options().keepInputTrajectoryPoints()) {
+	restoreInputPoints(track.Trajectory().Trajectory(),inHits,outTrack,outHits);
       }
 
       outputTracks->emplace_back(std::move(outTrack));
@@ -424,6 +449,30 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
       e.put(std::move(outputHitInfo));
     }
   }
+}
+
+void trkf::KalmanFilterFinalTrackFitter::restoreInputPoints(const recob::Trajectory& track,const std::vector<art::Ptr<recob::Hit> >& inHits,recob::Track& outTrack,art::PtrVector<recob::Hit>& outHits) const {
+  const auto np = outTrack.NumberTrajectoryPoints();
+  std::vector<Point_t>                     positions(np);
+  std::vector<Vector_t>                    momenta(np);
+  std::vector<recob::TrajectoryPointFlags> outFlags(np);
+  //
+  for (unsigned int p=0; p<np; ++p) {
+    auto flag = outTrack.FlagsAtPoint(p);
+    auto mom = outTrack.VertexMomentum();
+    auto op = flag.fromHit();
+    positions[op] = track.LocationAtPoint(op);
+    momenta[op] = mom*track.DirectionAtPoint(op);
+    auto mask = flag.mask();
+    if (mask.isSet(recob::TrajectoryPointFlagTraits::NoPoint)) mask.unset(recob::TrajectoryPointFlagTraits::NoPoint);
+    outFlags[op] = recob::TrajectoryPointFlags(op,mask);
+  }
+  auto covs = outTrack.Covariances();
+  outTrack = recob::Track(recob::TrackTrajectory(std::move(positions),std::move(momenta),std::move(outFlags),true),
+			  outTrack.ParticleId(),outTrack.Chi2(),outTrack.Ndof(),std::move(covs.first),std::move(covs.second),outTrack.ID());
+  //
+  outHits.clear();
+  for (auto h : inHits) outHits.push_back(h);
 }
 
 double trkf::KalmanFilterFinalTrackFitter::setMomValue(art::Ptr<recob::Track> ptrack, const std::unique_ptr<art::FindManyP<anab::Calorimetry> >& trackCalo, const double pMC, const int pId) const {
