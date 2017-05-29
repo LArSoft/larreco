@@ -785,21 +785,29 @@ bool nnet::TrainingDataAlg::setWireEdepsAndLabels(
 }
 // ------------------------------------------------------
 
-nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(double x, double y, double z, unsigned int view) const
+nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(const TLorentzVector& tvec, unsigned int view) const
 {
+	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 	nnet::TrainingDataAlg::WireDrift wd;
 	wd.Wire = 0; wd.Drift = 0; wd.TPC = -1;
 
     try
     {
-    	double vtx[3] = {x, y, z};
+    	double vtx[3] = {tvec.X(), tvec.Y(), tvec.Z()};
 	    if (fGeometry->FindTPCAtPosition(vtx).isValid)
 	    {
 	    	unsigned int cryo = fGeometry->FindCryostatAtPosition(vtx);
-	    	unsigned int tpc = fGeometry->FindTPCAtPosition(vtx).TPC;
-
+	    	geo::TPCID tpcid = fGeometry->FindTPCAtPosition(vtx);
+	    	unsigned int tpc = tpcid.TPC;
+	    	
+	    	// correct for the time offset
+	    	float dx = tvec.T() * 1.e-3 * detprop->DriftVelocity();
+				if (fGeometry->TPC(tpcid).DetectDriftDirection() == 1) { dx = dx*(-1); }
+				
+				vtx[0] = tvec.X() + dx;
+				
 	    	wd.Wire = fGeometry->NearestWire(vtx, view, tpc, cryo);
-	    	wd.Drift = fDetProp->ConvertXToTicks(x, view, tpc, cryo);
+	    	wd.Drift = fDetProp->ConvertXToTicks(vtx[0], view, tpc, cryo);
 	    	wd.TPC = tpc;
 	    }
 	}
@@ -989,9 +997,10 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 			flagsStart |= nnet::TrainingDataAlg::kNuPri;
 		}
 		
+		
 		if (flagsStart != nnet::TrainingDataAlg::kNone)
 		{
-			auto wd = getProjection(particle.Vx(), particle.Vy(), particle.Vz(), view);
+			auto wd = getProjection(particle.Position(), view);
 			
 			if (wd.TPC == (int)fTPC)
 			{
@@ -1002,7 +1011,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		}
 		if (flagsEnd != nnet::TrainingDataAlg::kNone)
 		{
-			auto wd = getProjection(particle.EndX(), particle.EndY(), particle.EndZ(), view);
+			auto wd = getProjection(particle.EndPosition(), view);
 			if (wd.TPC == (int)fTPC)
 			{
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;

@@ -418,7 +418,7 @@ private:
 		int TPC;
 	};
 
-	WireDrift getProjection(double x, double y, double z, unsigned int view) const;
+	WireDrift getProjection(const TLorentzVector& tvec, unsigned int view) const;
 
 	bool setWireEdepsAndLabels(
 		std::vector<float> const & edeps,
