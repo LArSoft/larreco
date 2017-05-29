@@ -292,7 +292,7 @@ namespace nnet	 {
 
 		    auto const & pdg = fTrainingDataAlg.wirePdg(w);
 		    for (size_t d = d0; d < d1; ++d) { pdgHist->Fill(w, d, pdg[d]); }
-       }
+      }
        
       fPdg = fPointid.nupdg;
 			fInteraction = fPointid.interaction;

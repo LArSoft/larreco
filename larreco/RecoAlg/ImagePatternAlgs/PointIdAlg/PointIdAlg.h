@@ -316,7 +316,7 @@ public:
 
 	enum EVtxId
 	{
-		kNuNC  = 0x0010000, kNuCC = 0x0020000,                      // nu interaction type
+		kNuNC  = 0x0010000, kNuCC = 0x0020000, kNuPri = 0x0040000,  // nu interaction type
 		kNuE   = 0x0100000, kNuMu = 0x0200000, kNuTau = 0x0400000,  // nu flavor
 		kHadr  = 0x1000000,    // hadronic inelastic scattering
 		kPi0   = 0x2000000,    // pi0 produced in this vertex
