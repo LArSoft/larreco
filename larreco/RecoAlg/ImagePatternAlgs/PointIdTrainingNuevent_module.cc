@@ -125,6 +125,7 @@ namespace nnet	 {
 	std::vector<int> fSelectedView;
 
 	TTree *fTree;
+	TTree *fTree2D;
 	int fEvent;     ///< number of the event being processed
 	int fRun;       ///< number of the run being processed
 	int fSubRun;    ///< number of the sub-run being processed
@@ -170,11 +171,13 @@ namespace nnet	 {
 		fTree->Branch("fEvent", &fEvent, "fEvent/I");
 		fTree->Branch("fCryo", &fCryo, "fCryo/I");
 		fTree->Branch("fTpc", &fTpc, "fTpc/I");
-		fTree->Branch("fView", &fView, "fView/I");
 		fTree->Branch("fPdg", &fPdg, "fPdg/I");
 		fTree->Branch("fInteraction", &fInteraction, "fInteraction/I");
-		fTree->Branch("fPosX", &fPosX, "fPosX/F");
-		fTree->Branch("fPosY", &fPosY, "fPosY/F");
+		
+		fTree2D = tfs->make<TTree>("nu vertex 2d","nu vertex 2d tree");
+		fTree2D->Branch("fView", &fView, "fView/I");
+		fTree2D->Branch("fPosX", &fPosX, "fPosX/F");
+		fTree2D->Branch("fPosY", &fPosY, "fPosY/F");
 	}
   
   //-----------------------------------------------------------------------
@@ -226,7 +229,10 @@ namespace nnet	 {
 				
 				return true;	
 			}
-			else {return false;}
+			else 
+			{
+				return false;
+			}
 		}
 	}	
 	
@@ -243,184 +249,195 @@ namespace nnet	 {
     
     if (PrepareEv(event))
     {
-	std::ostringstream os;
-	os << "event_" << fEvent << "_run_" << fRun << "_subrun_" << fSubRun;
+			std::ostringstream os;
+			os << "event_" << fEvent << "_run_" << fRun << "_subrun_" << fSubRun;
 
-	for (size_t v = 0; v < fSelectedView.size(); ++v)
-	{
-
-		fTrainingDataAlg.setEventData(event, fSelectedView[v], fPointid.tpc, fPointid.cryo);
-		
-		unsigned int w0, w1, d0, d1;
-		if (fCrop)
-		{
-			if (fTrainingDataAlg.findCrop(0.004F, w0, w1, d0, d1))
-      {
-      	std::cout << "   crop: " << w0 << " " << w1 << " " << d0 << " " << d1 << std::endl;
-      }
-      else
-      {
-       	std::cout << "   skip empty tpc:" << fPointid.tpc << " / view:" << fSelectedView[v] << std::endl;
-        continue;
-      }
-		}
-		else
-		{
-			w0 = 0;
-      w1 = fTrainingDataAlg.NWires();
-      d0 = 0;
-      d1 = fTrainingDataAlg.NScaledDrifts();
-		}
-		
-		if (fDumpToRoot)
-    {
-    	std::ostringstream ss1;
-	    ss1 << "raw_" << os.str() << "_tpc_" << fPointid.tpc << "_view_" << fSelectedView[v]; // TH2's name
-
-     	art::ServiceHandle<art::TFileService> tfs;
-      TH2F* rawHist = tfs->make<TH2F>((ss1.str() + "_raw").c_str(), "ADC", w1 - w0, w0, w1, d1 - d0, d0, d1);
-      TH2F* depHist = tfs->make<TH2F>((ss1.str() + "_deposit").c_str(), "Deposit", w1 - w0, w0, w1, d1 - d0, d0, d1);
-      TH2I* pdgHist = tfs->make<TH2I>((ss1.str() + "_pdg").c_str(), "PDG", w1 - w0, w0, w1, d1 - d0, d0, d1);
-
-      for (size_t w = w0; w < w1; ++w)
-      {
-     		auto const & raw = fTrainingDataAlg.wireData(w);
-        for (size_t d = d0; d < d1; ++d) { rawHist->Fill(w, d, raw[d]); }
-
-		    auto const & edep = fTrainingDataAlg.wireEdep(w);
-		    for (size_t d = d0; d < d1; ++d) { depHist->Fill(w, d, edep[d]); }
-
-		    auto const & pdg = fTrainingDataAlg.wirePdg(w);
-		    for (size_t d = d0; d < d1; ++d) { pdgHist->Fill(w, d, pdg[d]); }
-      }
-       
-      fPdg = fPointid.nupdg;
-			fInteraction = fPointid.interaction;
-			  
-			fPosX = fPointid.position[v].X();
-			fPosY = fPointid.position[v].Y();
-			
-			fTree->Fill();
-    }
-    else
-    {
-
-			std::ostringstream ss1;
-			ss1 << fOutTextFilePath << "/raw_" << os.str()
-			<< "_tpc_" << fPointid.tpc
-			<< "_view_" << fSelectedView[v];
-			std::ofstream fout_raw, fout_deposit, fout_pdg, fout_nuin;
-
-			fout_raw.open(ss1.str() + ".raw");
-			fout_deposit.open(ss1.str() + ".deposit");
-			fout_pdg.open(ss1.str() + ".pdg");
-			fout_nuin.open(ss1.str() + ".nuin");
-
-			for (size_t w = w0; w < w1; ++w)
+			for (size_t v = 0; v < fSelectedView.size(); ++v)
 			{
-				auto const & raw = fTrainingDataAlg.wireData(w);
-				for (size_t d = d0; d < d1; ++d)
-				{
-					fout_raw << raw[d] << " ";
-				}
-				fout_raw << std::endl;
 
-				auto const & edep = fTrainingDataAlg.wireEdep(w);
-				for (size_t d = d0; d < d1; ++d)
+				fTrainingDataAlg.setEventData(event, fSelectedView[v], fPointid.tpc, fPointid.cryo);
+		
+				unsigned int w0, w1, d0, d1;
+				if (fCrop)
 				{
-					fout_deposit << edep[d] << " ";
+					if (fTrainingDataAlg.findCrop(0.004F, w0, w1, d0, d1))
+      		{
+      			std::cout << "   crop: " << w0 << " " << w1 << " " << d0 << " " << d1 << std::endl;
+      		}
+      		else
+      		{
+       			std::cout << "   skip empty tpc:" << fPointid.tpc << " / view:" << fSelectedView[v] << std::endl;
+        		continue;
+      		}
 				}
-				fout_deposit << std::endl;
+				else
+				{
+					w0 = 0;
+      		w1 = fTrainingDataAlg.NWires();
+      		d0 = 0;
+      		d1 = fTrainingDataAlg.NScaledDrifts();
+				}
+		
+				if (fDumpToRoot)
+    		{
+    			std::ostringstream ss1;
+	    		ss1 << "raw_" << os.str() << "_tpc_" << fPointid.tpc << "_view_" << fSelectedView[v]; // TH2's name
 
-				auto const & pdg = fTrainingDataAlg.wirePdg(w);
-				for (size_t d = d0; d < d1; ++d)
+     			art::ServiceHandle<art::TFileService> tfs;
+      		TH2F* rawHist = tfs->make<TH2F>((ss1.str() + "_raw").c_str(), "ADC", w1 - w0, w0, w1, d1 - d0, d0, d1);
+      		TH2F* depHist = tfs->make<TH2F>((ss1.str() + "_deposit").c_str(), "Deposit", w1 - w0, w0, w1, d1 - d0, d0, d1);
+     			TH2I* pdgHist = tfs->make<TH2I>((ss1.str() + "_pdg").c_str(), "PDG", w1 - w0, w0, w1, d1 - d0, d0, d1);
+
+    		  for (size_t w = w0; w < w1; ++w)
+    		  {
+     				auto const & raw = fTrainingDataAlg.wireData(w);
+      		  for (size_t d = d0; d < d1; ++d) { rawHist->Fill(w, d, raw[d]); }
+
+		   		  auto const & edep = fTrainingDataAlg.wireEdep(w);
+		   		  for (size_t d = d0; d < d1; ++d) { depHist->Fill(w, d, edep[d]); }
+
+		    		auto const & pdg = fTrainingDataAlg.wirePdg(w);
+		    		for (size_t d = d0; d < d1; ++d) { pdgHist->Fill(w, d, pdg[d]); }
+      		}
+       
+      		fPdg = fPointid.nupdg;
+					fInteraction = fPointid.interaction;
+			
+					fView = v;
+			  
+		  		fPosX = fPointid.position[v].X();
+					fPosY = fPointid.position[v].Y();
+					
+					fTree2D->Fill();
+    	}
+    	else
+    	{
+
+				std::ostringstream ss1;
+				ss1 << fOutTextFilePath << "/raw_" << os.str()
+				<< "_tpc_" << fPointid.tpc
+				<< "_view_" << fSelectedView[v];
+				std::ofstream fout_raw, fout_deposit, fout_pdg, fout_nuin;
+
+				fout_raw.open(ss1.str() + ".raw");
+				fout_deposit.open(ss1.str() + ".deposit");
+				fout_pdg.open(ss1.str() + ".pdg");
+				fout_nuin.open(ss1.str() + ".nuin");
+
+				for (size_t w = w0; w < w1; ++w)
 				{
-					fout_pdg << pdg[d] << " ";
+					auto const & raw = fTrainingDataAlg.wireData(w);
+					for (size_t d = d0; d < d1; ++d)
+					{
+						fout_raw << raw[d] << " ";
+					}
+					fout_raw << std::endl;
+
+					auto const & edep = fTrainingDataAlg.wireEdep(w);
+					for (size_t d = d0; d < d1; ++d)
+					{
+						fout_deposit << edep[d] << " ";
+					}
+					fout_deposit << std::endl;
+
+					auto const & pdg = fTrainingDataAlg.wirePdg(w);
+					for (size_t d = d0; d < d1; ++d)
+					{
+						fout_pdg << pdg[d] << " ";
+					}
+					fout_pdg << std::endl;
 				}
-				fout_pdg << std::endl;
-			}
 		
 
-			fout_nuin << fPointid.interaction << " " << fPointid.nupdg 
-				<< " " << fPointid.position[v].X() << " " << fPointid.position[v].Y() << std::endl;
+				fout_nuin << fPointid.interaction << " " << fPointid.nupdg 
+					<< " " << fPointid.position[v].X() << " " << fPointid.position[v].Y() << std::endl;
 
-			fout_raw.close();
-			fout_deposit.close();
-			fout_pdg.close();
-			fout_nuin.close(); 
+				fout_raw.close();
+				fout_deposit.close();
+				fout_pdg.close();
+				fout_nuin.close(); 
+			}
 		}
-	}
 	
- }
+		fTree->Fill();
+	
+ 	}
 
 } // Raw2DRegionID::analyze()
   
   //-----------------------------------------------------------------------
   void PointIdTrainingNuevent::CorrOffset(TVector3& vec, const simb::MCParticle& particle)
   {
-	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-	float corrt0x = particle.T() * 1.e-3 * detprop->DriftVelocity();
+  	double vtx[3] = {vec.X(), vec.Y(), vec.Z()};
+  	geo::TPCID tpcid = fGeometry->FindTPCAtPosition(vtx);
+  	
+		auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+	
+		if (tpcid.isValid)
+	  {
+	  	float corrt0x = particle.T() * 1.e-3 * detprop->DriftVelocity();
+	  	if (fGeometry->TPC(tpcid).DetectDriftDirection() == 1) { corrt0x = corrt0x*(-1); }
+	  	
+	  	vtx[0] = vec.X() + corrt0x;
+	  }
 
-	float px = vec.X();
-	if (px > 0) px += corrt0x;
-	else px -= corrt0x;
-	vec.SetX(px);
+		vec.SetX(vtx[0]);
   }
 
   //-----------------------------------------------------------------------
   bool PointIdTrainingNuevent::InsideFidVol(TVector3 const & pvtx) const
   {
-	double vtx[3] = {pvtx.X(), pvtx.Y(), pvtx.Z()};
-	bool inside = false;
+		double vtx[3] = {pvtx.X(), pvtx.Y(), pvtx.Z()};
+		bool inside = false;
 
-	if (!fGeometry->FindTPCAtPosition(vtx).isValid) return false;
+		if (!fGeometry->FindTPCAtPosition(vtx).isValid) return false;
 
-	geo::TPCID idtpc = fGeometry->FindTPCAtPosition(vtx);
+		geo::TPCID idtpc = fGeometry->FindTPCAtPosition(vtx);
 
-	if (fGeometry->HasTPC(idtpc))
-	{		
-		const geo::TPCGeo& tpcgeo = fGeometry->GetElement(idtpc);
-		double minx = tpcgeo.MinX(); double maxx = tpcgeo.MaxX();
-		double miny = tpcgeo.MinY(); double maxy = tpcgeo.MaxY();
-		double minz = tpcgeo.MinZ(); double maxz = tpcgeo.MaxZ();
+		if (fGeometry->HasTPC(idtpc))
+		{		
+			const geo::TPCGeo& tpcgeo = fGeometry->GetElement(idtpc);
+			double minx = tpcgeo.MinX(); double maxx = tpcgeo.MaxX();
+			double miny = tpcgeo.MinY(); double maxy = tpcgeo.MaxY();
+			double minz = tpcgeo.MinZ(); double maxz = tpcgeo.MaxZ();
 
-		//x
-		double dista = fabs(minx - pvtx.X());
-		double distb = fabs(pvtx.X() - maxx); 
+			//x
+			double dista = fabs(minx - pvtx.X());
+			double distb = fabs(pvtx.X() - maxx); 
 
-		if ((pvtx.X() > minx) && (pvtx.X() < maxx) &&
+			if ((pvtx.X() > minx) && (pvtx.X() < maxx) &&
 		 	(dista > fFidVolCut) && (distb > fFidVolCut))
-		{ 
-			inside = true;
+			{ 
+				inside = true;
+			}
+			else { inside = false; }
+
+			//y
+			dista = fabs(maxy - pvtx.Y());
+			distb = fabs(pvtx.Y() - miny);
+			if (inside && (pvtx.Y() > miny) && (pvtx.Y() < maxy) &&
+		 		(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
+			else inside = false;
+
+			//z
+			dista = fabs(maxz - pvtx.Z());
+			distb = fabs(pvtx.Z() - minz);
+			if (inside && (pvtx.Z() > minz) && (pvtx.Z() < maxz) &&
+		 		(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
+			else inside = false;
 		}
-		else { inside = false; }
-
-		//y
-		dista = fabs(maxy - pvtx.Y());
-		distb = fabs(pvtx.Y() - miny);
-		if (inside && (pvtx.Y() > miny) && (pvtx.Y() < maxy) &&
-		 	(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
-		else inside = false;
-
-		//z
-		dista = fabs(maxz - pvtx.Z());
-		distb = fabs(pvtx.Z() - minz);
-		if (inside && (pvtx.Z() > minz) && (pvtx.Z() < maxz) &&
-		 	(dista > fFidVolCut) && (distb > fFidVolCut)) inside = true;
-		else inside = false;
-	}
 		
-	return inside;
+		return inside;
   }
   
   //-----------------------------------------------------------------------
   TVector2 PointIdTrainingNuevent::GetProjVtx(TVector3 const & vtx3d, const size_t cryo, const size_t tpc, const size_t plane) const
   {
 
-	TVector2 vtx2d = pma::GetProjectionToPlane(vtx3d, plane, tpc, cryo);
-	TVector2 vtxwd = pma::CmToWireDrift(vtx2d.X(), vtx2d.Y(), plane, tpc, cryo);
+		TVector2 vtx2d = pma::GetProjectionToPlane(vtx3d, plane, tpc, cryo);
+		TVector2 vtxwd = pma::CmToWireDrift(vtx2d.X(), vtx2d.Y(), plane, tpc, cryo);
 	
-	return vtxwd;
+		return vtxwd;
   }
 
 	void PointIdTrainingNuevent::ResetVars()
