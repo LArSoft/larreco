@@ -12,8 +12,11 @@ microboone_gaushitfinder.MinWidth:  [ 1.0, 1.0, 2.0 ]
 microboone_gaushitfinder.AreaNorms: [ 13.25, 13.25, 26.31 ]
 microboone_gaushitfinder.FilterHits: false
 
-microboone_gaushitfinder.HitFilterAlg.MinPulseHeight: [8.0, 7.0, 11.0]
-microboone_gaushitfinder.HitFilterAlg.MinPulseSigma:  [2.2, 1.7, 2.4]
+#microboone_gaushitfinder.HitFilterAlg.MinPulseHeight: [8.0, 7.0, 11.0]
+#microboone_gaushitfinder.HitFilterAlg.MinPulseSigma:  [2.2, 1.7, 2.4]
+microboone_gaushitfinder.HitFilterAlg.MinPulseHeight: [-1.0, -1.0, -1.0]
+microboone_gaushitfinder.HitFilterAlg.MinPulseSigma:  [-1.0, -1.0, -1.0]
+microboone_gaushitfinder.HitFilterAlg.MaxIntegralToADC: [9.9, 0.85, 9.9]
   
 
 microboone_rffhitfinder: @local::rff_hitfinder

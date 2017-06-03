@@ -57,6 +57,7 @@ gaus_hitfinder:
    AlgName: "HitFilterAlg"
    MinPulseHeight: [5.0, 5.0, 5.0]      #minimum hit peak amplitude per plane
    MinPulseSigma:  [1.0, 1.0, 1.0]      #minimum hit rms per plane
+   MaxIntegralToADC: [999999.9, 999999.9, 999999.9]
  }
 
 }

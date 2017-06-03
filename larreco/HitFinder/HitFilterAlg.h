@@ -27,6 +27,7 @@ namespace hit{
 
       std::vector<float> fMinPulseHeight;
       std::vector<float> fMinPulseSigma;
+      std::vector<float> fMaxIntegralToADC;
   };
 
 }//end namespace hit
