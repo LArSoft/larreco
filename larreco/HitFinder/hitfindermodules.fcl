@@ -1,5 +1,6 @@
 // from larreco/RecoAlg:
 #include "hitalgorithms.fcl"
+#include "HitFinderTools.fcl"
 
 BEGIN_PROLOG
 
@@ -51,6 +52,8 @@ gaus_hitfinder:
  Chi2NDF:              2000             # maximum Chisquared / NDF allowed for a hit to be saved (Set very high by default)
 
  FilterHits:           false            # true = do not keep undesired hits according to settings of HitFilterAlg object
+ CandidateHits:        @local::candhitfinder_derivative
+ PeakFitter:           @local::peakfitter_gaussian
  HitFilterAlg:
  {
    AlgName: "HitFilterAlg"
