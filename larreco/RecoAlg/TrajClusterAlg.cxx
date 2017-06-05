@@ -916,7 +916,7 @@ namespace tca {
             CheckTraj(work);
             // check for a major failure
             if(fQuitAlg) return;
-            if(prt) mf::LogVerbatim("TC")<<"ReconstructAllTraj: After CheckWork EndPt "<<work.EndPt[0]<<"-"<<work.EndPt[1]<<" fGoodTraj "<<fGoodTraj<<" fTryWithNextPass "<<fTryWithNextPass;
+            if(prt) mf::LogVerbatim("TC")<<"ReconstructAllTraj: After CheckTraj EndPt "<<work.EndPt[0]<<"-"<<work.EndPt[1]<<" fGoodTraj "<<fGoodTraj<<" fTryWithNextPass "<<fTryWithNextPass;
             if(fTryWithNextPass) {
               // Most likely, the first part of the trajectory was good but the latter part
               // had too many unused hits. The work vector was
@@ -926,7 +926,7 @@ namespace tca {
               // check for a major failure
               if(fQuitAlg) return;
               if(!fGoodTraj) {
-                if(prt) mf::LogVerbatim("TC")<<" xxxxxxx StepCrawl failed AGAIN after CheckWork";
+                if(prt) mf::LogVerbatim("TC")<<" xxxxxxx StepCrawl failed AGAIN after CheckTraj";
                 ReleaseHits(tjs, work);
                 continue;
               } // Failed again
@@ -1107,6 +1107,7 @@ namespace tca {
     // We are doing this probably because the trajectory is stopping.
     // Reduce the number of fitted points to a small number
     unsigned short lastPt = tjWork.Pts.size() - 1;
+    if(lastPt < 4) return;
     // update the charge
     float chg = 0;
     float cnt = 0;
@@ -1116,6 +1117,7 @@ namespace tca {
       chg += tjWork.Pts[ipt].Chg;
       ++cnt;
     } // ii
+    if(cnt == 0) return;
     if(cnt > 1) tjWork.Pts[lastPt].AveChg = chg / cnt;
     StepCrawl(tjWork);
     if(!fGoodTraj) {
@@ -1125,7 +1127,10 @@ namespace tca {
     // restore the original direction
     if(tjWork.StepDir != stepDir) ReverseTraj(tjs, tjWork);
     tj = tjWork;
-    if(prt) mf::LogVerbatim("TC")<<" ReversePropagate success. Outgoing StepDir "<<tj.StepDir;
+    if(prt) {
+      mf::LogVerbatim("TC")<<" ReversePropagate success. Outgoing StepDir "<<tj.StepDir;
+      if(tj.Pts.size() < 50) PrintTrajectory("RP", tjs, tj, USHRT_MAX);
+    }
 
   } // ReversePropagate
   
@@ -1872,7 +1877,7 @@ namespace tca {
     
     if(tp.Hits.size() > 16) {
       // TODO: sort hits by distance from ltp.Pos[0] first?
-      std::cout<<"AddLAHits truncating "<<tp.Hits.size()<<". Sort first?\n";
+//      std::cout<<"AddLAHits truncating "<<tp.Hits.size()<<". Sort first?\n";
       tp.Hits.resize(16);
     }
     
@@ -5382,8 +5387,14 @@ namespace tca {
         tp.FitChi = tj.Pts[atPt].FitChi;
         tp.AveChg = tj.Pts[firstPtFit].AveChg;
         tp.ChgPull = (tj.Pts[ipt].Chg / tj.AveChg - 1) / tj.ChgRMS;
-        if(prt) PrintTrajectory("fix", tjs, tj, ipt);
+        if(prt) PrintTrajectory("ftbPrep", tjs, tj, ipt);
       } // ii
+      // Check for quality and trim if necessary
+      TrimEndPts(tjs, tj, fQualityCuts, prt);
+      if(tj.AlgMod[kKilled]) {
+        fGoodTraj = false;
+        return;
+      }
       ReversePropagate(tj);
     } else {
       FixTrajBegin(tj, firstPtFit);
@@ -5800,7 +5811,7 @@ namespace tca {
       for(ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
         iht = tj.Pts[ipt].Hits[ii];
         if(prt) mf::LogVerbatim("TC")<<" ipt "<<ipt<<" hit "<<PrintHit(tjs.fHits[iht])<<" inTraj "<<tjs.fHits[iht].InTraj<<" delta "<<PointTrajDOCA(tjs, iht, tj.Pts[ipt]);
-        if(tjs.fHits[iht].InTraj > 0) continue;
+        if(tjs.fHits[iht].InTraj != 0) continue;
         delta = PointTrajDOCA(tjs, iht, tj.Pts[ipt]);
         if(delta > maxDelta) continue;
         if (!NumHitsInTP(TjCopy.Pts[ipt], kUsedHits)||TjCopy.Pts[ipt].UseHit[ii]){
@@ -6223,7 +6234,7 @@ namespace tca {
     tj.MCSMom = newMCSMom;
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleRange "<<AngleRange(lastTP)<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
+      mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleCode "<<lastTP.AngleCode<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
     }
     
     UpdateAveChg(tj);
@@ -6917,10 +6928,10 @@ namespace tca {
         if(tj.Pts[ipt].UseHit[ii]) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
           if(tjs.fHits[iht].InTraj > 0) {
-            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
+            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and continue";
             PrintTrajectory("SW", tjs, tj, USHRT_MAX);
             ReleaseHits(tjs, tj);
-            fQuitAlg = true;
+//            fQuitAlg = true;
             return;
           } // error
           tjs.fHits[iht].InTraj = trID;
@@ -7335,6 +7346,13 @@ namespace tca {
       return;
     }
     
+    for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+      std::cout<<"TPC "<<tpc<<" "<<ipl<<" NWires "<<tjs.NumWires[ipl];
+      std::cout<<" First wire "<<tjs.FirstWire[ipl];
+      std::cout<<" Last wire "<<tjs.LastWire[ipl];
+      std::cout<<"\n";
+    }
+
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
     bool inDebugMode = debug.Plane >= 0 || debug.WorkID < 0;
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
@@ -7360,7 +7378,7 @@ namespace tca {
       if(cnt < 4) continue;
       fAveHitRMS[ipl] = sumRMS/(float)cnt;
       sumAmp  /= (float)cnt;
-      if(inDebugMode) std::cout<<"Pln "<<ipl<<" fAveHitRMS "<<fAveHitRMS[ipl]<<" Ave PeakAmplitude "<<sumAmp<<"\n";
+      if(inDebugMode) std::cout<<"TPC "<<tpc<<" Pln "<<ipl<<" fAveHitRMS "<<fAveHitRMS[ipl]<<" Ave PeakAmplitude "<<sumAmp<<"\n";
       // calculate the max RMS expected for each angle range
       for(unsigned short ii = 0; ii < fAngleRanges.size(); ++ii) {
         float angle = fAngleRanges[ii];
