@@ -1675,7 +1675,7 @@ namespace tca {
     // We will check the most likely wire first
     std::vector<int> wires(1);
     wires[0] = std::nearbyint(tp.Pos[0]);
-    if(wires[0] > (int)tjs.LastWire[ipl]-1) return;
+    if(wires[0] < 0 || wires[0] > (int)tjs.LastWire[ipl]-1) return;
     
     if(tp.AngleCode != 2) {
       mf::LogVerbatim("TC")<<"AddLAHits called with a bad angle code. "<<tp.AngleCode<<" Don't do this";
@@ -1715,7 +1715,7 @@ namespace tca {
     
     for(unsigned short ii = 0; ii < wires.size(); ++ii) {
       int wire = wires[ii];
-      if(wire > (int)tjs.LastWire[ipl]) continue;
+      if(wire < 0 || wire > (int)tjs.LastWire[ipl]) continue;
       // Assume a signal exists on a dead wire
       if(tjs.WireHitRange[fPlane][wire].first == -1) sigOK = true;
       if(tjs.WireHitRange[fPlane][wire].first < 0) continue;
