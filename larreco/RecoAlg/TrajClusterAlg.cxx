@@ -1044,6 +1044,7 @@ namespace tca {
       chg += tjWork.Pts[ipt].Chg;
       ++cnt;
     } // ii
+    if(cnt == 0) return;
     if(cnt > 1) tjWork.Pts[lastPt].AveChg = chg / cnt;
     StepCrawl(tjWork);
     if(!fGoodTraj) {
@@ -1082,6 +1083,8 @@ namespace tca {
     for(iht = 0; iht < tjs.fHits.size(); ++iht) if(tjs.fHits[iht].InTraj < 0) tjs.fHits[iht].InTraj = 0;
     
     std::vector<unsigned int> tHits;
+    // vectors for checking hit consistency
+    std::vector<unsigned int> iHit(1), jHit(1);
     for(iwire = tjs.FirstWire[fPlane]; iwire < tjs.LastWire[fPlane] - 1; ++iwire) {
       // skip bad wires or no hits on the wire
       if(tjs.WireHitRange[fPlane][iwire].first < 0) continue;
@@ -1097,10 +1100,14 @@ namespace tca {
           mf::LogVerbatim("TC")<<"FindJunkTraj: Found debug hit "<<PrintHit(tjs.fHits[iht])<<" InTraj "<<tjs.fHits[iht].InTraj<<" fJTMaxHitSep2 "<<fJTMaxHitSep2;
         }
         if(tjs.fHits[iht].InTraj != 0) continue;
+        iHit[0] = iht;
         for(jht = jfirsthit; jht < jlasthit; ++jht) {
           if(tjs.fHits[jht].InTraj != 0) continue;
           if(prt && HitSep2(tjs, iht, jht) < 100) mf::LogVerbatim("TC")<<" use "<<PrintHit(tjs.fHits[jht])<<" HitSep2 "<<HitSep2(tjs, iht, jht);
           if(HitSep2(tjs, iht, jht) > fJTMaxHitSep2) continue;
+          jHit[0] = jht;
+          // check for hit width consistency
+          if(!TrajHitsOK(iHit, jHit)) continue;
           tHits.clear();
           // add all hits and flag them
           fromIndex = iht - tjs.fHits[iht].LocalIndex;
@@ -1129,6 +1136,9 @@ namespace tca {
                 if(tjs.fHits[kht].InTraj != 0) continue;
                 // this shouldn't be needed but do it anyway
                 if(std::find(tHits.begin(), tHits.end(), kht) != tHits.end()) continue;
+                // re-purpose jHit and check for consistency
+                jHit[0] = kht;
+                if(!TrajHitsOK(tHits, jHit)) continue;
                 // check w every hit in tHit
                 for(tht = 0; tht < tHits.size(); ++tht) {
 //                  if(prt && HitSep2(kht, tHits[tht]) < 100) mf::LogVerbatim("TC")<<" kht "<<PrintHit(tjs.fHits[kht])<<" tht "<<PrintHit(tjs.fHits[tHits[tht]])<<" HitSep2 "<<HitSep2(kht, tHits[tht])<<" cut "<<fJTMaxHitSep2;
@@ -1845,6 +1855,9 @@ namespace tca {
     
     if(deltaCut < 1) deltaCut = 1;
     if(deltaCut > 4) deltaCut = 4;
+    
+    // TY: open it up for RevProp, since we might be following a stopping track
+    if(tj.AlgMod[kRevProp]) deltaCut *= 2;
     
     // loosen up a bit if we just passed a block of dead wires
     if(abs(dw) > 20 && DeadWireCount(tjs, tp.Pos[0], tj.Pts[lastPtWithUsedHits].Pos[0], tj.CTP) > 10) deltaCut *= 2;
@@ -5247,6 +5260,12 @@ namespace tca {
         tp.ChgPull = (tj.Pts[ipt].Chg / tj.AveChg - 1) / tj.ChgRMS;
         if(prt) PrintTrajectory("fix", tjs, tj, ipt);
       } // ii
+      // Check for quality and trim if necessary
+      TrimEndPts(tjs, tj, fQualityCuts, prt);
+      if(tj.AlgMod[kKilled]) {
+        fGoodTraj = false;
+        return;
+      }
       ReversePropagate(tj);
     } else {
       FixTrajBegin(tj, firstPtFit);
@@ -5379,6 +5398,8 @@ namespace tca {
     short firstPtWithChg = tj.EndPt[0];
     bool first = true;
     float maxDelta = 1;
+    // don't let MCSMom suffer too much while filling gaps
+    short minMCSMom = 0.9 * tj.MCSMom;
     while(firstPtWithChg < tj.EndPt[1]) {
       short nextPtWithChg = firstPtWithChg + 1;
       // find the next point with charge
@@ -5447,7 +5468,7 @@ namespace tca {
           chg += tjs.fHits[iht].Integral;
           filled = true;
         } // ii
-        if(chg > maxChg) {
+        if(chg > maxChg || MCSMom(tjs, tj) < minMCSMom) {
           // don't use these hits after all
           UnsetUsedHits(tjs, tj.Pts[mpt]);
           filled = false;
@@ -5460,6 +5481,8 @@ namespace tca {
       } // mpt
       firstPtWithChg = nextPtWithChg;
     } // firstPtWithChg
+    
+    if(tj.AlgMod[kFillGap]) tj.MCSMom = MCSMom(tjs, tj);
     
   } // FillGaps 
   
@@ -5656,7 +5679,7 @@ namespace tca {
       for(ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
         iht = tj.Pts[ipt].Hits[ii];
         if(prt) mf::LogVerbatim("TC")<<" ipt "<<ipt<<" hit "<<PrintHit(tjs.fHits[iht])<<" inTraj "<<tjs.fHits[iht].InTraj<<" delta "<<PointTrajDOCA(tjs, iht, tj.Pts[ipt]);
-        if(tjs.fHits[iht].InTraj > 0) continue;
+        if(tjs.fHits[iht].InTraj != 0) continue;
         delta = PointTrajDOCA(tjs, iht, tj.Pts[ipt]);
         if(delta > maxDelta) continue;
         if (!NumHitsInTP(TjCopy.Pts[ipt], kUsedHits)||TjCopy.Pts[ipt].UseHit[ii]){
@@ -6064,8 +6087,19 @@ namespace tca {
     
     // Set the lastPT delta before doing the fit
     lastTP.Delta = PointTrajDOCA(tjs, lastTP.HitPos[0], lastTP.HitPos[1], lastTP);
-    // update MCSMom
-    tj.MCSMom = MCSMom(tjs, tj);
+    
+    // update MCSMom. First ensure that nothing bad has happened
+    float newMCSMom = MCSMom(tjs, tj);
+    if(lastPt > 5 && newMCSMom < 0.6 * tj.MCSMom) {
+      if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: MCSMom took a nose-dive ";
+      UnsetUsedHits(tjs, lastTP);
+      DefineHitPos(lastTP);
+      SetEndPoints(tjs, tj);
+      fMaskedLastTP = true;
+      fUpdateTrajOK = true;
+      return;
+    }
+    tj.MCSMom = newMCSMom;
     
     if(prt) {
       mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleRange "<<AngleRange(lastTP)<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
@@ -6765,7 +6799,7 @@ namespace tca {
             mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
             PrintTrajectory("SW", tjs, tj, USHRT_MAX);
             ReleaseHits(tjs, tj);
-            fQuitAlg = true;
+//            fQuitAlg = true;
             return;
           } // error
           tjs.fHits[iht].InTraj = trID;
@@ -7743,6 +7777,7 @@ namespace tca {
     
     for(unsigned short ii = 0; ii < nPts; ++ii) {
       unsigned short ipt = tj.Pts.size() - 1 - ii;
+      if (ipt==lastGoodPt) break;
       UnsetUsedHits(tjs, tj.Pts[ipt]);
       // Reset the position and direction of the masked off points
       tj.Pts[ipt].Dir = tj.Pts[lastGoodPt].Dir;
