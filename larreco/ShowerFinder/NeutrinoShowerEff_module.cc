@@ -135,6 +135,64 @@ namespace DUNE{
     TH1D *h_trklike_em;
     TH1D *h_trklike_nonem;
 
+
+    //Study the angle between the reconstructed shower direction w.r.t MC true particle direction
+    TH1D *h_CosThetaShDirwrtTrueparticle_electronorpositron_NueCC;
+    TH1D *h_CosThetaShDirwrtTrueparticle_electronorpositron_NC;
+    TH1D *h_CosThetaShDirwrtTrueparticle_photon_NueCC;
+    TH1D *h_CosThetaShDirwrtTrueparticle_photon_NC;
+    TH1D *h_CosThetaShDirwrtTrueparticle_proton_NueCC;
+    TH1D *h_CosThetaShDirwrtTrueparticle_proton_NC;
+    TH1D *h_CosThetaShDirwrtTrueparticle_chargedpion_NueCC;
+    TH1D *h_CosThetaShDirwrtTrueparticle_chargedpion_NC;
+    
+    //Study the reconstructed shower start position (x,y,z) w.r.t MC true particle start position
+    TH1D *h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NueCC;
+    TH1D *h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NueCC;
+    TH1D *h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NueCC;
+
+    TH1D *h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NC;
+    TH1D *h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NC;
+    TH1D *h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NC;
+
+    TH1D *h_ShStartXwrtTrueparticleStartXDiff_photon_NueCC;
+    TH1D *h_ShStartYwrtTrueparticleStartYDiff_photon_NueCC;
+    TH1D *h_ShStartZwrtTrueparticleStartZDiff_photon_NueCC;
+
+    TH1D *h_ShStartXwrtTrueparticleStartXDiff_photon_NC;
+    TH1D *h_ShStartYwrtTrueparticleStartYDiff_photon_NC;
+    TH1D *h_ShStartZwrtTrueparticleStartZDiff_photon_NC;
+
+    //True photon end position comparison with the reconstructed shower start position
+    TH1D *h_ShStartXwrtTrueparticleEndXDiff_photon_NueCC;
+    TH1D *h_ShStartYwrtTrueparticleEndYDiff_photon_NueCC;
+    TH1D *h_ShStartZwrtTrueparticleEndZDiff_photon_NueCC;
+
+    TH1D *h_ShStartXwrtTrueparticleEndXDiff_photon_NC;
+    TH1D *h_ShStartYwrtTrueparticleEndYDiff_photon_NC;
+    TH1D *h_ShStartZwrtTrueparticleEndZDiff_photon_NC;
+
+
+
+
+    TH1D *h_ShStartXwrtTrueparticleStartXDiff_proton_NueCC;
+    TH1D *h_ShStartYwrtTrueparticleStartYDiff_proton_NueCC;
+    TH1D *h_ShStartZwrtTrueparticleStartZDiff_proton_NueCC;
+
+    TH1D *h_ShStartXwrtTrueparticleStartXDiff_proton_NC;
+    TH1D *h_ShStartYwrtTrueparticleStartYDiff_proton_NC;
+    TH1D *h_ShStartZwrtTrueparticleStartZDiff_proton_NC;
+    
+    TH1D *h_ShStartXwrtTrueparticleStartXDiff_chargedpion_NueCC;
+    TH1D *h_ShStartYwrtTrueparticleStartYDiff_chargedpion_NueCC;
+    TH1D *h_ShStartZwrtTrueparticleStartZDiff_chargedpion_NueCC;
+    
+    TH1D *h_ShStartXwrtTrueparticleStartXDiff_chargedpion_NC;
+    TH1D *h_ShStartYwrtTrueparticleStartYDiff_chargedpion_NC;
+    TH1D *h_ShStartZwrtTrueparticleStartZDiff_chargedpion_NC;
+    
+
+
     // Event 
     int Event;
     int Run;
@@ -171,7 +229,12 @@ namespace DUNE{
     double sh_length[MAX_SHOWERS];
     int    sh_hasPrimary_e[MAX_SHOWERS];
     double sh_Efrac_contamination[MAX_SHOWERS];
+    double sh_purity[MAX_SHOWERS];
+    double sh_completeness[MAX_SHOWERS];
     int    sh_nHits[MAX_SHOWERS];
+    int    sh_largest;
+    int    sh_pdg[MAX_SHOWERS];
+
     int    n_recoShowers;
     double sh_Efrac_best;
 
@@ -294,9 +357,9 @@ namespace DUNE{
     h_Pe_num = tfs->make<TH1D>("h_Pe_num","Electron Momentum; Electron Momentum (GeV); Shower reconstruction Efficiency",20,E_bins);
     h_Pe_num->Sumw2();
 
-    h_theta_den = tfs->make<TH1D>("h_theta_den","Theta; Theta w.r.t beam direction (Degrees); Shower reconstruction Efficiency",43,theta_bin);
+    h_theta_den = tfs->make<TH1D>("h_theta_den","CosTheta; CosTheta w.r.t beam direction (Degrees); Shower reconstruction Efficiency",43,theta_bin);
     h_theta_den->Sumw2();
-    h_theta_num = tfs->make<TH1D>("h_theta_num","Theta; Theta w.r.t beam direction (Degrees); Shower reconstruction Efficiency",43,theta_bin);
+    h_theta_num = tfs->make<TH1D>("h_theta_num","CosTheta; CosTheta w.r.t beam direction (Degrees); Shower reconstruction Efficiency",43,theta_bin);
     h_theta_num->Sumw2();
 
     h_Efrac_shContamination = tfs->make<TH1D>("h_Efrac_shContamination","Efrac Lepton; Energy fraction (contamination);",60,0,1.2);
@@ -364,6 +427,125 @@ namespace DUNE{
     h_trklike_em = tfs->make<TH1D>("h_trklike_em","EM hits; Track-like Score;",100,0,1);
     h_trklike_nonem = tfs->make<TH1D>("h_trklike_nonem","Non-EM hits; Track-like Score;",100,0,1);
     
+
+    //Study the constheta angle between the reconstructed shower direction w.r.t MC true particle direction
+    h_CosThetaShDirwrtTrueparticle_electronorpositron_NueCC=tfs->make<TH1D>("h_CosThetaShDirwrtTrueparticle_electronorpositron_NueCC","CosTheta; cos#theta;",110,-1.1,1.1); 
+    h_CosThetaShDirwrtTrueparticle_electronorpositron_NC=tfs->make<TH1D>("h_CosThetaShDirwrtTrueparticle_electronorpositron_NC","CosTheta;cos#theta;",110,-1.1,1.1); 
+    h_CosThetaShDirwrtTrueparticle_photon_NueCC=tfs->make<TH1D>("h_CosThetaShDirwrtTrueparticle_photon_NueCC","CosTheta;cos#theta;",110,-1.1,1.1); 
+    h_CosThetaShDirwrtTrueparticle_photon_NC=tfs->make<TH1D>("h_CosThetaShDirwrtTrueparticle_photon_NC","CosTheta;cos#theta;",110,-1.1,1.1); 
+    h_CosThetaShDirwrtTrueparticle_proton_NueCC=tfs->make<TH1D>("h_CosThetaShDirwrtTrueparticle_proton_NueCC","CosTheta;cos#theta;",110,-1.1,1.1); 
+    h_CosThetaShDirwrtTrueparticle_proton_NC=tfs->make<TH1D>("h_CosThetaShDirwrtTrueparticle_proton_NC","CosTheta;cos#theta;",110,-1.1,1.1); 
+    h_CosThetaShDirwrtTrueparticle_chargedpion_NueCC=tfs->make<TH1D>("h_CosThetaShDirwrtTrueparticle_chargedpion_NueCC","CosTheta;cos#theta;",110,-1.1,1.1); 
+    h_CosThetaShDirwrtTrueparticle_chargedpion_NC=tfs->make<TH1D>("h_CosThetaShDirwrtTrueparticle_chargedpion_NC","CosTheta;cos#theta;",110,-1.1,1.1); 
+    
+    //Study the reconstructed shower start position (x,y,z) w.r.t MC true particle start position
+    h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NueCC=tfs->make<TH1D>("h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NueCC","ShVx-TrueParticleVx; ShVx-TrueParticleVx (cm);",100,-5.0,5.0); 
+    h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NueCC=tfs->make<TH1D>("h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NueCC","ShVy-TrueParticleVy; ShVy-TrueParticleVy (cm);",100,-5.0,5.0); 
+    h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NueCC=tfs->make<TH1D>("h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NueCC","ShVz-TrueParticleVz; ShVz-TrueParticleVz (cm);",100,-5.0,5.0); 
+
+    h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NC=tfs->make<TH1D>("h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NC","ShVx-TrueParticleVx; ShVx-TrueParticleVx (cm);",100,-5.0,5.0); 
+    h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NC=tfs->make<TH1D>("h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NC","ShVy-TrueParticleVy; ShVy-TrueParticleVy (cm);",100,-5.0,5.0); 
+    h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NC=tfs->make<TH1D>("h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NC","ShVz-TrueParticleVz; ShVz-TrueParticleVz (cm);",100,-5.0,5.0); 
+
+
+    h_ShStartXwrtTrueparticleStartXDiff_photon_NueCC=tfs->make<TH1D>("h_ShStartXwrtTrueparticleStartXDiff_photon_NueCC","ShVx-TrueParticleVx; ShVx-TrueParticleVx (cm);",100,-5.0,5.0); 
+    h_ShStartYwrtTrueparticleStartYDiff_photon_NueCC=tfs->make<TH1D>("h_ShStartYwrtTrueparticleStartYDiff_photon_NueCC","ShVy-TrueParticleVy; ShVy-TrueParticleVy (cm);",100,-5.0,5.0); 
+    h_ShStartZwrtTrueparticleStartZDiff_photon_NueCC=tfs->make<TH1D>("h_ShStartZwrtTrueparticleStartZDiff_photon_NueCC","ShVz-TrueParticleVz; ShVz-TrueParticleVz (cm);",100,-5.0,5.0); 
+
+    h_ShStartXwrtTrueparticleStartXDiff_photon_NC=tfs->make<TH1D>("h_ShStartXwrtTrueparticleStartXDiff_photon_NC","ShVx-TrueParticleVx; ShVx-TrueParticleVx (cm);",100,-5.0,5.0); 
+    h_ShStartYwrtTrueparticleStartYDiff_photon_NC=tfs->make<TH1D>("h_ShStartYwrtTrueparticleStartYDiff_photon_NC","ShVy-TrueParticleVy; ShVy-TrueParticleVy (cm);",100,-5.0,5.0); 
+    h_ShStartZwrtTrueparticleStartZDiff_photon_NC=tfs->make<TH1D>("h_ShStartZwrtTrueparticleStartZDiff_photon_NC","ShVz-TrueParticleVz; ShVz-TrueParticleVz (cm);",100,-5.0,5.0); 
+
+
+
+
+    h_ShStartXwrtTrueparticleEndXDiff_photon_NueCC=tfs->make<TH1D>("h_ShStartXwrtTrueparticleEndXDiff_photon_NueCC","ShVx-TrueParticleVx; ShVx-TrueParticleVx (cm);",100,-5.0,5.0); 
+    h_ShStartYwrtTrueparticleEndYDiff_photon_NueCC=tfs->make<TH1D>("h_ShStartYwrtTrueparticleEndYDiff_photon_NueCC","ShVy-TrueParticleVy; ShVy-TrueParticleVy (cm);",100,-5.0,5.0); 
+    h_ShStartZwrtTrueparticleEndZDiff_photon_NueCC=tfs->make<TH1D>("h_ShStartZwrtTrueparticleEndZDiff_photon_NueCC","ShVz-TrueParticleVz; ShVz-TrueParticleVz (cm);",100,-5.0,5.0); 
+
+    h_ShStartXwrtTrueparticleEndXDiff_photon_NC=tfs->make<TH1D>("h_ShStartXwrtTrueparticleEndXDiff_photon_NC","ShVx-TrueParticleVx; ShVx-TrueParticleVx (cm);",100,-5.0,5.0); 
+    h_ShStartYwrtTrueparticleEndYDiff_photon_NC=tfs->make<TH1D>("h_ShStartYwrtTrueparticleEndYDiff_photon_NC","ShVy-TrueParticleVy; ShVy-TrueParticleVy (cm);",100,-5.0,5.0); 
+    h_ShStartZwrtTrueparticleEndZDiff_photon_NC=tfs->make<TH1D>("h_ShStartZwrtTrueparticleEndZDiff_photon_NC","ShVz-TrueParticleVz; ShVz-TrueParticleVz (cm);",100,-5.0,5.0);
+
+
+    h_ShStartXwrtTrueparticleStartXDiff_proton_NueCC=tfs->make<TH1D>("h_ShStartXwrtTrueparticleStartXDiff_proton_NueCC","ShVx-TrueParticleVx; ShVx-TrueParticleVx (cm);",100,-5.0,5.0); 
+    h_ShStartYwrtTrueparticleStartYDiff_proton_NueCC=tfs->make<TH1D>("h_ShStartYwrtTrueparticleStartYDiff_proton_NueCC","ShVy-TrueParticleVy; ShVy-TrueParticleVy (cm);",100,-5.0,5.0); 
+    h_ShStartZwrtTrueparticleStartZDiff_proton_NueCC=tfs->make<TH1D>("h_ShStartZwrtTrueparticleStartZDiff_proton_NueCC","ShVz-TrueParticleVz; ShVz-TrueParticleVz (cm);",100,-5.0,5.0); 
+
+    h_ShStartXwrtTrueparticleStartXDiff_proton_NC=tfs->make<TH1D>("h_ShStartXwrtTrueparticleStartXDiff_proton_NC","ShVx-TrueParticleVx; ShVx-TrueParticleVx (cm);",100,-5.0,5.0); 
+    h_ShStartYwrtTrueparticleStartYDiff_proton_NC=tfs->make<TH1D>("h_ShStartYwrtTrueparticleStartYDiff_proton_NC","ShVy-TrueParticleVy; ShVy-TrueParticleVy (cm);",100,-5.0,5.0); 
+    h_ShStartZwrtTrueparticleStartZDiff_proton_NC=tfs->make<TH1D>("h_ShStartZwrtTrueparticleStartZDiff_proton_NC","ShVz-TrueParticleVz; ShVz-TrueParticleVz (cm);",100,-5.0,5.0); 
+
+
+
+    h_ShStartXwrtTrueparticleStartXDiff_chargedpion_NueCC=tfs->make<TH1D>("h_ShStartXwrtTrueparticleStartXDiff_chargedpion_NueCC","ShVx-TrueParticleVx; ShVx-TrueParticleVx (cm);",100,-5.0,5.0); 
+    h_ShStartYwrtTrueparticleStartYDiff_chargedpion_NueCC=tfs->make<TH1D>("h_ShStartYwrtTrueparticleStartYDiff_chargedpion_NueCC","ShVy-TrueParticleVy; ShVy-TrueParticleVy (cm);",100,-5.0,5.0); 
+    h_ShStartZwrtTrueparticleStartZDiff_chargedpion_NueCC=tfs->make<TH1D>("h_ShStartZwrtTrueparticleStartZDiff_chargedpion_NueCC","ShVz-TrueParticleVz; ShVz-TrueParticleVz (cm);",100,-5.0,5.0); 
+
+    h_ShStartXwrtTrueparticleStartXDiff_chargedpion_NC=tfs->make<TH1D>("h_ShStartXwrtTrueparticleStartXDiff_chargedpion_NC","ShVx-TrueParticleVx; ShVx-TrueParticleVx (cm);",100,-5.0,5.0); 
+    h_ShStartYwrtTrueparticleStartYDiff_chargedpion_NC=tfs->make<TH1D>("h_ShStartYwrtTrueparticleStartYDiff_chargedpion_NC","ShVy-TrueParticleVy; ShVy-TrueParticleVy (cm);",100,-5.0,5.0); 
+    h_ShStartZwrtTrueparticleStartZDiff_chargedpion_NC=tfs->make<TH1D>("h_ShStartZwrtTrueparticleStartZDiff_chargedpion_NC","ShVz-TrueParticleVz; ShVz-TrueParticleVz (cm);",100,-5.0,5.0); 
+
+
+    //Study the constheta angle between the reconstructed shower direction w.r.t MC true particle direction
+    h_CosThetaShDirwrtTrueparticle_electronorpositron_NueCC->Sumw2();
+    h_CosThetaShDirwrtTrueparticle_electronorpositron_NC->Sumw2();
+    h_CosThetaShDirwrtTrueparticle_photon_NueCC->Sumw2();
+    h_CosThetaShDirwrtTrueparticle_photon_NC->Sumw2();
+    h_CosThetaShDirwrtTrueparticle_proton_NueCC->Sumw2();
+    h_CosThetaShDirwrtTrueparticle_proton_NC->Sumw2();
+    h_CosThetaShDirwrtTrueparticle_chargedpion_NueCC->Sumw2();
+    h_CosThetaShDirwrtTrueparticle_chargedpion_NC->Sumw2();
+    
+    //Study the reconstructed shower start position (x,y,z) w.r.t MC true particle start position
+    h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NueCC->Sumw2();
+    h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NueCC->Sumw2();
+    h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NueCC->Sumw2();
+
+    h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NC->Sumw2();
+    h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NC->Sumw2();
+    h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NC->Sumw2();
+
+    h_ShStartXwrtTrueparticleStartXDiff_photon_NueCC->Sumw2();
+    h_ShStartYwrtTrueparticleStartYDiff_photon_NueCC->Sumw2();
+    h_ShStartZwrtTrueparticleStartZDiff_photon_NueCC->Sumw2();
+
+    h_ShStartXwrtTrueparticleStartXDiff_photon_NC->Sumw2();
+    h_ShStartYwrtTrueparticleStartYDiff_photon_NC->Sumw2();
+    h_ShStartZwrtTrueparticleStartZDiff_photon_NC->Sumw2();
+
+
+    h_ShStartXwrtTrueparticleEndXDiff_photon_NueCC->Sumw2();
+    h_ShStartYwrtTrueparticleEndYDiff_photon_NueCC->Sumw2();
+    h_ShStartZwrtTrueparticleEndZDiff_photon_NueCC->Sumw2();
+
+    h_ShStartXwrtTrueparticleEndXDiff_photon_NC->Sumw2();
+    h_ShStartYwrtTrueparticleEndYDiff_photon_NC->Sumw2();
+    h_ShStartZwrtTrueparticleEndZDiff_photon_NC->Sumw2();
+
+
+    h_ShStartXwrtTrueparticleStartXDiff_proton_NueCC->Sumw2();
+    h_ShStartYwrtTrueparticleStartYDiff_proton_NueCC->Sumw2();
+    h_ShStartZwrtTrueparticleStartZDiff_proton_NueCC->Sumw2();
+
+    h_ShStartXwrtTrueparticleStartXDiff_proton_NC->Sumw2();
+    h_ShStartYwrtTrueparticleStartYDiff_proton_NC->Sumw2();
+    h_ShStartZwrtTrueparticleStartZDiff_proton_NC->Sumw2();
+    
+    h_ShStartXwrtTrueparticleStartXDiff_chargedpion_NueCC->Sumw2();
+    h_ShStartYwrtTrueparticleStartYDiff_chargedpion_NueCC->Sumw2();
+    h_ShStartZwrtTrueparticleStartZDiff_chargedpion_NueCC->Sumw2();
+    
+    h_ShStartXwrtTrueparticleStartXDiff_chargedpion_NC->Sumw2();
+    h_ShStartYwrtTrueparticleStartYDiff_chargedpion_NC->Sumw2();
+    h_ShStartZwrtTrueparticleStartZDiff_chargedpion_NC->Sumw2();
+
+
+
+    
+
+
+
     if( fSaveMCTree ){
       fEventTree = new TTree("Event", "Event Tree from Sim & Reco");
       fEventTree->Branch("eventNo", &Event);
@@ -399,9 +581,12 @@ namespace DUNE{
       fEventTree->Branch("sh_length", &sh_length, "sh_length[n_showers]/D");
       fEventTree->Branch("sh_hasPrimary_e", &sh_hasPrimary_e, "sh_hasPrimary_e[n_showers]/I");
       fEventTree->Branch("sh_Efrac_contamination", &sh_Efrac_contamination, "sh_Efrac_contamination[n_showers]/D");
+      fEventTree->Branch("sh_purity",&sh_purity,"sh_purity[n_showers]/D");
+      fEventTree->Branch("sh_completeness",&sh_completeness,"sh_completeness[n_showers]/D");
       fEventTree->Branch("sh_Efrac_best", &sh_Efrac_best, "sh_Efrac_best/D");
       fEventTree->Branch("sh_nHits",&sh_nHits, "sh_nHits[n_showers]/I");
-      
+      fEventTree->Branch("sh_largest",&sh_largest,"sh_largest/I");
+      fEventTree->Branch("sh_pdg",&sh_pdg,"sh_pdg[n_showers]/I");
     }
 
   }
@@ -424,7 +609,7 @@ namespace DUNE{
     bool isFiducial = false;
     processEff(event, isFiducial);
     if( fSaveMCTree ){
-      if(isFiducial && MC_isCC == 1) fEventTree->Fill();
+      if(isFiducial) fEventTree->Fill();
     }
   }
   //========================================================================
@@ -528,10 +713,13 @@ namespace DUNE{
 
     double Ecomplet_lepton =0.0;
     double Ecomplet_NueCC =0.0;
-    int ParticlePGD_HighestShHits=0;//undefined
+    int ParticlePDG_HighestShHits=0;//undefined
     int shower_bestplane=0;
     double Showerparticlededx_inbestplane=0.0;
     int showerPDGwithHighestHitsforFillingdEdX=0;//0=undefined,1=electronorpositronshower,2=photonshower,3=protonshower,4=neutronshower,5=chargedpionshower,6=neutralpionshower,7=everythingelseshower
+
+    
+    double ShAngle=-9999.0,ShVxTrueParticleVxDiff=-9999.0,ShVyTrueParticleVyDiff=-9999.0,ShVzTrueParticleVzDiff=-9999.0, ShStartVxTrueParticleEndVxDiff=-9999.0,ShStartVyTrueParticleEndVyDiff=-9999.0,ShStartVzTrueParticleEndVzDiff=-9999.0;
 
     const simb::MCParticle *MClepton_reco = NULL; 
     int nHits =0;
@@ -588,34 +776,50 @@ namespace DUNE{
       //for( size_t j =0; j<shower->dEdx().size(); j++) std::cout<<shower->dEdx()[j]<<" ";
 
       const simb::MCParticle *particle;
-      double tmpEfrac_contamination = 0.0;  //fraction of non EM energy contatiminatio (see truthMatcher for definition)
-  
-              
+      double tmpEfrac_contamination = 0.0;  //fraction of non EM energy contatiminatio (see truthMatcher for definition)              
       double tmpEcomplet =0;
   
       int tmp_nHits = sh_hits.size();
+     
+
       truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contamination,tmpEcomplet);
       //truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contaminationNueCC,tmpEcompletNueCC );
        
 
-
       sh_Efrac_contamination[i] = tmpEfrac_contamination;
+      sh_purity[i] = 1 - tmpEfrac_contamination;
+      sh_completeness[i] = tmpEcomplet;
       sh_nHits[i] = tmp_nHits; 
       sh_hasPrimary_e[i] = 0;
-       
+      sh_pdg[i] = particle->PdgCode();
 
       //Shower with highest hits       
       if( tmp_nHits > nHits ){
+        sh_largest = i;
         nHits = tmp_nHits;
         Ecomplet_NueCC =tmpEcomplet;
         Efrac_contaminationNueCC = tmpEfrac_contamination; 
-	 
+	//Calculate Shower anagle w.r.t True particle
+	double ShDirMag  = sqrt(pow(sh_direction_X[i],2)+pow(sh_direction_Y[i],2)+pow(sh_direction_Z[i],2));  
+	ShAngle = (sh_direction_X[i]*particle->Px() + sh_direction_Y[i]*particle->Py() +sh_direction_Z[i]*particle->Pz())/(ShDirMag*particle->P()) ;
+
+
+	ShVxTrueParticleVxDiff=sh_start_X[i]-particle->Vx();
+      	ShVyTrueParticleVyDiff=sh_start_Y[i]-particle->Vy();
+	ShVzTrueParticleVzDiff=sh_start_Z[i]-particle->Vz();
+
+
+	ShStartVxTrueParticleEndVxDiff=sh_start_X[i]-particle->EndX();
+	ShStartVyTrueParticleEndVyDiff=sh_start_Y[i]-particle->EndY();
+	ShStartVzTrueParticleEndVzDiff=sh_start_Z[i]-particle->EndZ();
+ 
+
         if(std::abs(particle->PdgCode())==11){
-          ParticlePGD_HighestShHits=1;
+          ParticlePDG_HighestShHits=1;
         }else if(particle->PdgCode()==22){
-          ParticlePGD_HighestShHits=2;
+          ParticlePDG_HighestShHits=2;
         }else{
-          ParticlePGD_HighestShHits=3;
+          ParticlePDG_HighestShHits=3;
         }
 	 
 	 
@@ -704,9 +908,9 @@ namespace DUNE{
     if(MC_isCC==1
        &&(fNeutrinoPDGcode == std::abs(MC_incoming_PDG))
        &&isFiducial){
-        h_HighestHitsProducedParticlePDG_NueCC->Fill(ParticlePGD_HighestShHits);
+        h_HighestHitsProducedParticlePDG_NueCC->Fill(ParticlePDG_HighestShHits);
 	
-        if(ParticlePGD_HighestShHits>0){// atleat one shower is reconstructed
+        if(ParticlePDG_HighestShHits>0){// atleat one shower is reconstructed
           h_Ecomplet_NueCC->Fill(Ecomplet_NueCC);
           h_Efrac_NueCCPurity->Fill(1-Efrac_contaminationNueCC);    
 	  
@@ -714,19 +918,53 @@ namespace DUNE{
           if(showerPDGwithHighestHitsforFillingdEdX==1)//electron or positron shower
             {
               h_dEdX_electronorpositron_NueCC->Fill(Showerparticlededx_inbestplane);
-            }else if(showerPDGwithHighestHitsforFillingdEdX==2)//photon shower
+	      //Study the angle between the reconstructed shower direction w.r.t MC true particle direction
+	      h_CosThetaShDirwrtTrueparticle_electronorpositron_NueCC->Fill(ShAngle);
+	       
+	      //Study the reconstructed shower start position (x,y,z) w.r.t MC true particle start position
+	      h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NueCC->Fill(ShVxTrueParticleVxDiff);
+	      h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NueCC->Fill(ShVyTrueParticleVyDiff);
+	      h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NueCC->Fill(ShVzTrueParticleVzDiff);
+	      
+
+	    }else if(showerPDGwithHighestHitsforFillingdEdX==2)//photon shower
             {
               h_dEdX_photon_NueCC->Fill(Showerparticlededx_inbestplane);
-            }else if(showerPDGwithHighestHitsforFillingdEdX==3)//proton shower
+	      h_CosThetaShDirwrtTrueparticle_photon_NueCC->Fill(ShAngle);
+	      h_ShStartXwrtTrueparticleStartXDiff_photon_NueCC->Fill(ShVxTrueParticleVxDiff);
+	      h_ShStartYwrtTrueparticleStartYDiff_photon_NueCC->Fill(ShVyTrueParticleVyDiff);
+	      h_ShStartZwrtTrueparticleStartZDiff_photon_NueCC->Fill(ShVzTrueParticleVzDiff);
+
+
+	      h_ShStartXwrtTrueparticleEndXDiff_photon_NueCC->Fill(ShStartVxTrueParticleEndVxDiff);
+	      h_ShStartYwrtTrueparticleEndYDiff_photon_NueCC->Fill(ShStartVyTrueParticleEndVyDiff);
+	      h_ShStartZwrtTrueparticleEndZDiff_photon_NueCC->Fill(ShStartVzTrueParticleEndVzDiff);
+ 
+
+	      
+	    }else if(showerPDGwithHighestHitsforFillingdEdX==3)//proton shower
             {
               h_dEdX_proton_NueCC->Fill(Showerparticlededx_inbestplane);
-            }else if(showerPDGwithHighestHitsforFillingdEdX==4)//neutron shower
+	      h_CosThetaShDirwrtTrueparticle_proton_NueCC->Fill(ShAngle);
+
+	      h_ShStartXwrtTrueparticleStartXDiff_proton_NueCC->Fill(ShVxTrueParticleVxDiff);
+	      h_ShStartYwrtTrueparticleStartYDiff_proton_NueCC->Fill(ShVyTrueParticleVyDiff);
+	      h_ShStartZwrtTrueparticleStartZDiff_proton_NueCC->Fill(ShVzTrueParticleVzDiff);
+
+
+   	    }else if(showerPDGwithHighestHitsforFillingdEdX==4)//neutron shower
             {
               h_dEdX_neutron_NueCC->Fill(Showerparticlededx_inbestplane);
-            }else if(showerPDGwithHighestHitsforFillingdEdX==5)//charged pion shower
+            
+	    }else if(showerPDGwithHighestHitsforFillingdEdX==5)//charged pion shower
             {
               h_dEdX_chargedpion_NueCC->Fill(Showerparticlededx_inbestplane);
-            }else if(showerPDGwithHighestHitsforFillingdEdX==6)//neutral pion shower
+	      h_CosThetaShDirwrtTrueparticle_chargedpion_NueCC->Fill(ShAngle);
+	      h_ShStartXwrtTrueparticleStartXDiff_chargedpion_NueCC->Fill(ShVxTrueParticleVxDiff);
+	      h_ShStartYwrtTrueparticleStartYDiff_chargedpion_NueCC->Fill(ShVyTrueParticleVyDiff);
+	      h_ShStartZwrtTrueparticleStartZDiff_chargedpion_NueCC->Fill(ShVzTrueParticleVzDiff);
+   
+	    }else if(showerPDGwithHighestHitsforFillingdEdX==6)//neutral pion shower
             {
               h_dEdX_neutralpion_NueCC->Fill(Showerparticlededx_inbestplane);
             }else if(showerPDGwithHighestHitsforFillingdEdX==7)//everythingelse shower
@@ -737,10 +975,10 @@ namespace DUNE{
     }
     else if(!MC_isCC&&
 	    isFiducial){
-      h_HighestHitsProducedParticlePDG_bkg->Fill(ParticlePGD_HighestShHits);
+      h_HighestHitsProducedParticlePDG_bkg->Fill(ParticlePDG_HighestShHits);
       
       
-      if(ParticlePGD_HighestShHits>0){
+      if(ParticlePDG_HighestShHits>0){
 	h_Ecomplet_bkg->Fill(Ecomplet_NueCC);
 	h_Efrac_bkgPurity->Fill(1-Efrac_contaminationNueCC);	
         
@@ -749,26 +987,62 @@ namespace DUNE{
         if(showerPDGwithHighestHitsforFillingdEdX==1)//electron or positron shower
           {
             h_dEdX_electronorpositron_NC->Fill(Showerparticlededx_inbestplane);
-          }else if(showerPDGwithHighestHitsforFillingdEdX==2)//photon shower
+	    h_CosThetaShDirwrtTrueparticle_electronorpositron_NC->Fill(ShAngle);
+
+
+	    h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NC->Fill(ShVxTrueParticleVxDiff);
+	    h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NC->Fill(ShVyTrueParticleVyDiff);
+	    h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NC->Fill(ShVzTrueParticleVzDiff);
+
+	    
+	  }else if(showerPDGwithHighestHitsforFillingdEdX==2)//photon shower
           {
             h_dEdX_photon_NC->Fill(Showerparticlededx_inbestplane);
-          }else if(showerPDGwithHighestHitsforFillingdEdX==3)//proton shower
+	    h_CosThetaShDirwrtTrueparticle_photon_NC->Fill(ShAngle);
+	    
+
+	    h_ShStartXwrtTrueparticleStartXDiff_photon_NC->Fill(ShVxTrueParticleVxDiff);
+	    h_ShStartYwrtTrueparticleStartYDiff_photon_NC->Fill(ShVyTrueParticleVyDiff);
+	    h_ShStartZwrtTrueparticleStartZDiff_photon_NC->Fill(ShVzTrueParticleVzDiff);
+	    
+	    h_ShStartXwrtTrueparticleEndXDiff_photon_NC->Fill(ShStartVxTrueParticleEndVxDiff);
+	    h_ShStartYwrtTrueparticleEndYDiff_photon_NC->Fill(ShStartVyTrueParticleEndVyDiff);
+	    h_ShStartZwrtTrueparticleEndZDiff_photon_NC->Fill(ShStartVzTrueParticleEndVzDiff);
+
+
+
+	  }else if(showerPDGwithHighestHitsforFillingdEdX==3)//proton shower
           {
             h_dEdX_proton_NC->Fill(Showerparticlededx_inbestplane);
-          }else if(showerPDGwithHighestHitsforFillingdEdX==4)//neutron shower
+            h_CosThetaShDirwrtTrueparticle_proton_NC->Fill(ShAngle);
+
+	    h_ShStartXwrtTrueparticleStartXDiff_proton_NC->Fill(ShVxTrueParticleVxDiff);
+	    h_ShStartYwrtTrueparticleStartYDiff_proton_NC->Fill(ShVyTrueParticleVyDiff);
+	    h_ShStartZwrtTrueparticleStartZDiff_proton_NC->Fill(ShVzTrueParticleVzDiff);
+    
+    
+	    
+	    
+	  }else if(showerPDGwithHighestHitsforFillingdEdX==4)//neutron shower
           {
             h_dEdX_neutron_NC->Fill(Showerparticlededx_inbestplane);
           }else if(showerPDGwithHighestHitsforFillingdEdX==5)//charged pion shower
           {
             h_dEdX_chargedpion_NC->Fill(Showerparticlededx_inbestplane);
-          }else if(showerPDGwithHighestHitsforFillingdEdX==6)//neutral pion shower
+	    h_CosThetaShDirwrtTrueparticle_chargedpion_NC->Fill(ShAngle);
+	    h_ShStartXwrtTrueparticleStartXDiff_chargedpion_NC->Fill(ShVxTrueParticleVxDiff);
+	    h_ShStartYwrtTrueparticleStartYDiff_chargedpion_NC->Fill(ShVyTrueParticleVyDiff);
+	    h_ShStartZwrtTrueparticleStartZDiff_chargedpion_NC->Fill(ShVzTrueParticleVzDiff);
+
+
+	  }else if(showerPDGwithHighestHitsforFillingdEdX==6)//neutral pion shower
           {
             h_dEdX_neutralpion_NC->Fill(Showerparticlededx_inbestplane);
           }else if(showerPDGwithHighestHitsforFillingdEdX==7)//everythingelse shower
           {
             h_dEdX_everythingelse_NC->Fill(Showerparticlededx_inbestplane);
           }
-      }//if(ParticlePGD_HighestShHits>0)
+      }//if(ParticlePDG_HighestShHits>0)
     }//else if(!MC_isCC&&isFiducial)
 
     checkCNNtrkshw<4>(event, all_hits);
@@ -780,7 +1054,7 @@ namespace DUNE{
     MCparticle=0;
     Efrac=1.0;
     Ecomplet=0;
-
+    
     art::ServiceHandle<cheat::BackTracker> bt;
     std::map<int,double> trkID_E;
     for(size_t j = 0; j < shower_hits.size(); ++j){
@@ -831,7 +1105,6 @@ namespace DUNE{
       }
     } 
     Ecomplet = partial_E/totenergy;
-
 
   }
   //========================================================================
@@ -994,13 +1267,17 @@ namespace DUNE{
       sh_length[i] = -999.0;
       sh_hasPrimary_e[i] = -999.0;
       sh_Efrac_contamination[i] = -999.0;
+      sh_purity[i] = -999.0;
+      sh_completeness[i] = -999.0;
       sh_nHits[i] = -999.0;
       for( int j=0; j<3; j++){
         sh_energy[i][j] = -999.0;
         sh_MIPenergy[i][j] = -999.0;
         sh_dEdx[i][j] = -999.0;
       }
-    } 
+      sh_pdg[i] = -999;
+    }
+    sh_largest = -999;
   }
   //========================================================================
   DEFINE_ART_MODULE(NeutrinoShowerEff)
