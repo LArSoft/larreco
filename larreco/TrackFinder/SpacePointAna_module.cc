@@ -92,6 +92,15 @@ namespace trkf {
     TH1F* fHx;       // X position.
     TH1F* fHy;       // Y position.
     TH1F* fHz;       // Z position.
+    TH1F* fHAmpU;    // U hit amplitude.
+    TH1F* fHAmpV;    // V hit amplitude.
+    TH1F* fHAmpW;    // W hit amplitude.
+    TH1F* fHAreaU;   // U hit area.
+    TH1F* fHAreaV;   // V hit area.
+    TH1F* fHAreaW;   // W hit area.
+    TH1F* fHSumU;    // U hit sum ADC.
+    TH1F* fHSumV;    // V hit sum ADC.
+    TH1F* fHSumW;    // W hit sum ADC.
     TH1F* fHMCdx;    // X residual (reco vs. mc truth).
     TH1F* fHMCdy;    // Y residual (reco vs. mc truth).
     TH1F* fHMCdz;    // Z residual (reco vs. mc truth).
@@ -135,6 +144,15 @@ namespace trkf {
    , fHx(0)
    , fHy(0)
    , fHz(0)
+   , fHAmpU(0)
+   , fHAmpV(0)
+   , fHAmpW(0)
+   , fHAreaU(0)
+   , fHAreaV(0)
+   , fHAreaW(0)
+   , fHSumU(0)
+   , fHSumV(0)
+   , fHSumW(0)
    , fHMCdx(0)
    , fHMCdy(0)
    , fHMCdz(0)
@@ -184,7 +202,7 @@ namespace trkf {
 	fHDTUV = dir.make<TH1F>("DTUV", "U-V time difference", 100, -20., 20.);
 	fHDTVW = dir.make<TH1F>("DTVW", "V-W time difference", 100, -20., 20.);
 	fHDTWU = dir.make<TH1F>("DTWU", "W-U time difference", 100, -20., 20.);
-	fHS = dir.make<TH1F>("DS", "Spatial Separatoin", 100, -2., 2.);
+	fHS = dir.make<TH1F>("DS", "Spatial Separation", 100, -2., 2.);
       }
       fHchisq = dir.make<TH1F>("chisq", "Chisquare", 100, 0., 20.);
 
@@ -194,6 +212,15 @@ namespace trkf {
 			   100, -geom->DetHalfHeight(), geom->DetHalfHeight());
       fHz = dir.make<TH1F>("zpos", "Z Position",
 			   100, 0., geom->DetLength());
+      fHAmpU = dir.make<TH1F>("ampU", "U Hit Amplitude", 50, 0., 50.);
+      fHAmpV = dir.make<TH1F>("ampV", "V Hit Amplitude", 50, 0., 50.);
+      fHAmpW = dir.make<TH1F>("ampW", "W Hit Amplitude", 50, 0., 50.);
+      fHAreaU = dir.make<TH1F>("areaU", "U Hit Area", 100, 0., 500.);
+      fHAreaV = dir.make<TH1F>("areaV", "V Hit Area", 100, 0., 500.);
+      fHAreaW = dir.make<TH1F>("areaW", "W Hit Area", 100, 0., 500.);
+      fHSumU = dir.make<TH1F>("sumU", "U Hit Sum ADC", 100, 0., 500.);
+      fHSumV = dir.make<TH1F>("sumV", "V Hit Sum ADC", 100, 0., 500.);
+      fHSumW = dir.make<TH1F>("sumW", "W Hit Sum ADC", 100, 0., 500.);
       if(mc) {
 	fHMCdx = dir.make<TH1F>("MCdx", "X MC Residual", 100, -1., 1.);
 	fHMCdy = dir.make<TH1F>("MCdy", "Y MC Residual", 100, -1., 1.);
@@ -483,9 +510,39 @@ namespace trkf {
       fHx->Fill(spt.XYZ()[0]);
       fHy->Fill(spt.XYZ()[1]);
       fHz->Fill(spt.XYZ()[2]);
+
+      // Get hits associated with this SpacePoint.
+
+      const art::PtrVector<recob::Hit>& spthits = fSptalgDefault.getAssociatedHits(spt);
+
+      // Fill single hit histograms.
+
+      for(art::PtrVector<recob::Hit>::const_iterator ihit = spthits.begin();
+	  ihit != spthits.end(); ++ihit) {
+	const recob::Hit& hit = **ihit;
+
+	geo::View_t view = hit.View();
+
+	if(view == geo::kU) {
+	  fHAmpU->Fill(hit.PeakAmplitude());
+	  fHAreaU->Fill(hit.Integral());
+	  fHSumU->Fill(hit.SummedADC());
+	}
+	if(view == geo::kV) {
+	  fHAmpV->Fill(hit.PeakAmplitude());
+	  fHAreaV->Fill(hit.Integral());
+	  fHSumV->Fill(hit.SummedADC());
+	}
+	if(view == geo::kZ) {
+	  fHAmpW->Fill(hit.PeakAmplitude());
+	  fHAreaW->Fill(hit.Integral());
+	  fHSumW->Fill(hit.SummedADC());
+	}
+      }
+
       if(mc) {
 	try {
-	  std::vector<double> mcxyz = bt->SpacePointHitsToXYZ(fSptalgDefault.getAssociatedHits(spt));
+	  std::vector<double> mcxyz = bt->SpacePointHitsToXYZ(spthits);
 	  fHMCdx->Fill(spt.XYZ()[0] - mcxyz[0]);
 	  fHMCdy->Fill(spt.XYZ()[1] - mcxyz[1]);
 	  fHMCdz->Fill(spt.XYZ()[2] - mcxyz[2]);

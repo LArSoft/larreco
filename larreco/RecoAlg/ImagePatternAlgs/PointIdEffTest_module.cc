@@ -117,7 +117,8 @@ private:
 	    const std::vector< sim::SimChannel > & channels,
         const std::vector< art::Ptr<recob::Hit> > & hits,
         const std::array<float, MVA_LENGTH> & cnn_out,
-        const std::vector< anab::FeatureVector<MVA_LENGTH> > & hit_outs);
+        const std::vector< anab::FeatureVector<MVA_LENGTH> > & hit_outs,
+        size_t cidx);
 
 	int fRun, fEvent;
     float fMcDepEM, fMcDepTrack, fMcFractionEM;
@@ -322,7 +323,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
     	    const std::vector< art::Ptr<recob::Hit> > & hits = hitsFromClusters.at(c);
     	    std::array<float, MVA_LENGTH> cnn_out = cluResults->getOutput(c);
 
-            testCNN(*simChannelHandle, hits, cnn_out, hitResults.outputs()); // test hits in the cluster
+            testCNN(*simChannelHandle, hits, cnn_out, hitResults.outputs(), c); // test hits in the cluster
     	}
 
         if (fTotHit > 0) fCleanHit = fCleanHit / fTotHit;
@@ -443,7 +444,8 @@ int nnet::PointIdEffTest::testCNN(
     const std::vector< sim::SimChannel > & channels,
     const std::vector< art::Ptr<recob::Hit> > & hits,
     const std::array<float, MVA_LENGTH> & cnn_out,
-    const std::vector< anab::FeatureVector<MVA_LENGTH> > & hit_outs)
+    const std::vector< anab::FeatureVector<MVA_LENGTH> > & hit_outs,
+    size_t cidx)
 {
 	fClSize = hits.size();
 
@@ -668,7 +670,7 @@ int nnet::PointIdEffTest::testCNN(
 			    fHitsOutFile << " " << vout[2]; // is michel?
 			}
 
-			fHitsOutFile << std::endl;
+			fHitsOutFile << " " << cidx << std::endl;
 		}
 	}
 
