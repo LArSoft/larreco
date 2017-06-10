@@ -1,14 +1,34 @@
-import matplotlib
+import argparse
+parser = argparse.ArgumentParser(description='Run CNN over a full 2D projection.')
+parser.add_argument('-i', '--input', help="Input file", default='datadump_hist.root') # '/eos/user/r/rosulej/ProtoDUNE/datadump/datadump_hist.root'
+parser.add_argument('-e', '--event', help="Event index", default='0')
+parser.add_argument('-m', '--module', help="LArSoft module name", default='datadump')
+parser.add_argument('-f', '--full', help="Full 2D plane (1), or not-empty pixels only (0)", default='1')
+parser.add_argument('-n', '--net', help="Network model name (json + h5 files)", default='model') # /eos/user/r/rosulej/models/pdune_em-trk-michel_clean_iter350
+parser.add_argument('-g', '--gpu', help="GPU index to use (default is CPU)", default='-1')
+parser.add_argument('-r', '--rows', help="Patch rows (wires)", default='44')
+parser.add_argument('-c', '--cols', help="Patch cols (ticks)", default='48')
+args = parser.parse_args()
+
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from matplotlib.pylab import *
-from scipy import ndimage
-
+from ROOT import TFile
 from utils import get_data, get_patch
 
+import theano
+import theano.sandbox.cuda
+if args.gpu == '-1':
+    theano.sandbox.cuda.use('cpu')
+    print 'Running on CPU, use -g option to say which device index should be used.'
+else:
+    theano.sandbox.cuda.use('gpu' + args.gpu)
+
+import keras
 from keras.models import model_from_json
-from keras.optimizers import SGD
+
+print 'Software versions: Theano ', theano.__version__, ', Keras ', keras.__version__
+if keras.backend.backend() != 'theano': print 'You should be using Theano backend now...'
+keras.backend.set_image_dim_ordering('th')
 
 def load_model(name):
     with open(name + '_architecture.json') as f:
@@ -16,66 +36,86 @@ def load_model(name):
     model.load_weights(name + '_weights.h5')
     return model
 
-raw, deposit, pdg, tracks, showers = get_data('your_dir/raw_data_filename_no_extension')
-total_learning_patches = int(np.sum(tracks) + np.sum(showers))
 
-PATCH_SIZE_W = 32
-PATCH_SIZE_D = 44
+PATCH_SIZE_W = int(args.rows) # wires
+PATCH_SIZE_D = int(args.cols) # ticks (downsampled)
+crop_event = False
 
-# input image dimensions
-img_rows, img_cols = PATCH_SIZE_W, PATCH_SIZE_D
+rootModule = args.module
+rootFile = TFile(args.input)
+keys = [rootModule+'/'+k.GetName()[:-4] for k in rootFile.Get(rootModule).GetListOfKeys() if '_raw' in k.GetName()]
+evname = keys[int(args.event)]
 
-db = np.zeros((total_learning_patches, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
-db_y = np.zeros((total_learning_patches, 3), dtype=np.int32)
+raw, deposit, pdg, tracks, showers = get_data(rootFile, evname, PATCH_SIZE_D/2 + 2, crop_event)
+full2d = int(args.full)
+if full2d == 1: total_patches = raw.size
+else: total_patches = int(np.sum(tracks) + np.sum(showers))
+print 'Number of pixels:', total_patches
+
+inputs = np.zeros((total_patches, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
 
 cnt_ind = 0
-for i in range(raw.shape[0]):
-    for j in range(raw.shape[1]):
-        target = np.zeros(3)
-        if tracks[i,j] == 1:
-            target[0] = 1
-        elif showers[i,j] == 1:
-            target[1] = 1
-        else: continue
-
-        db[cnt_ind] = get_patch(raw, i, j, PATCH_SIZE_W, PATCH_SIZE_D)
-        db_y[cnt_ind] = target
-        cnt_ind += 1
-        
-db = db[:(cnt_ind)]
-print db.shape, cnt_ind
-
-sgd = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
-m = load_model('your_dir/cnn_model_filename_no_extension')
-m.compile(loss='categorical_crossentropy', optimizer=sgd)
-
-pred = m.predict(db.reshape(db.shape[0], 1, img_rows, img_cols))
-
-A_pred_inter = np.zeros(raw.shape)
-A_pred_decay = np.zeros(raw.shape)
-
-pred_thr = 0.9
-cnt_ind = 0
-for i in range(raw.shape[0]):
-    for j in range(raw.shape[1]):
-        if not (tracks[i,j] == 1 or showers[i,j] == 1):
+for r in range(raw.shape[0]):
+    for c in range(raw.shape[1]):
+        if full2d == 0 and not(tracks[r, c] == 1 or showers[r, c] == 1):
             continue
-        
-        if cnt_ind < pred.shape[0]:
-            A_pred_inter[i,j] = pred[cnt_ind,0]
-            A_pred_decay[i,j] = pred[cnt_ind,1]
-        
+
+        inputs[cnt_ind] = get_patch(raw, r, c, PATCH_SIZE_W, PATCH_SIZE_D)
         cnt_ind += 1
-        
-print cnt_ind, A_pred_inter.shape, A_pred_decay.shape
-        
-fig, ax = subplots(2,2, figsize=(15, 15))
-ax[0,0].imshow(-np.transpose(raw), cmap='gray', interpolation='none', aspect='auto')
-ax[0,0].set_title('ADC')
-ax[0,1].imshow(-np.transpose(showers), cmap='gray', interpolation='none', aspect='auto')
-ax[0,1].set_title('SHOWERS LABEL')
-ax[1,0].imshow(-np.transpose(A_pred_inter), cmap='gray', interpolation='none', aspect='auto')
-ax[1,0].set_title('CNN out[0]')
-ax[1,1].imshow(-np.transpose(A_pred_decay), cmap='gray', interpolation='none', aspect='auto')
-ax[1,1].set_title('CNN out[1]')
+
+inputs = inputs[:(cnt_ind)]
+print inputs.shape, cnt_ind
+
+model_name = args.net
+m = load_model(model_name)
+m.compile(loss='mean_squared_error', optimizer='sgd')
+
+print 'running CNN...'
+pred = m.predict(inputs.reshape(inputs.shape[0], 1, PATCH_SIZE_W, PATCH_SIZE_D)) # nsamples, channel, rows, cols
+print '...done', pred.shape
+
+
+outputs = np.zeros((pred.shape[1], raw.shape[0], raw.shape[1]), dtype=np.float32)
+none_idx = pred.shape[1] - 1 # here is "none" label usually
+cnt_ind = 0
+for r in range(outputs.shape[1]):
+    for c in range(outputs.shape[2]):
+        if full2d == 0 and not(tracks[r, c] == 1 or showers[r, c] == 1):
+            continue
+
+        psum = pred[cnt_ind, 0] + pred[cnt_ind, 1] + pred[cnt_ind, none_idx]
+        if psum > 0:
+            outputs[0, r, c] = pred[cnt_ind, 0] / psum
+            outputs[1, r, c] = pred[cnt_ind, 1] / psum
+            outputs[none_idx, r, c] = 1 - pred[cnt_ind, none_idx] / psum
+
+        cnt_ind += 1
+
+
+fig, ax = plt.subplots(2, 3, figsize=(26, 17))
+
+cs = ax[0,0].pcolor(np.transpose(pdg & 0xFF), cmap='gist_ncar')
+ax[0,0].set_title('PDG')
+fig.colorbar(cs, ax=ax[0,0])
+
+cs = ax[0,1].pcolor(np.transpose(deposit), cmap='jet')
+ax[0,1].set_title('MC truth')
+fig.colorbar(cs, ax=ax[0,1])
+
+cs = ax[0,2].pcolor(np.transpose(raw), cmap='jet')
+ax[0,2].set_title('ADC')
+fig.colorbar(cs, ax=ax[0,2])
+
+cs = ax[1,0].pcolor(-np.transpose(outputs[0]), cmap='CMRmap')
+ax[1,0].set_title('P(track-like)')
+fig.colorbar(cs, ax=ax[1,0])
+
+cs = ax[1,1].pcolor(-np.transpose(outputs[1]), cmap='CMRmap')
+ax[1,1].set_title('P(EM-like)')
+fig.colorbar(cs, ax=ax[1,1])
+
+cs = ax[1,2].contour(np.transpose(outputs[none_idx]), levels=[0, 0.33, 0.67, 1], colors=('black' , (0.6, 0.6, 1), (0.9, 0, 0), 'green'))
+ax[1,2].set_title('1 - P(empty)')
+fig.colorbar(cs, ax=ax[1,2])
+
 plt.show()
