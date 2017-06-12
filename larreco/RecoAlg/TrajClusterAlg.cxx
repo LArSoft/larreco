@@ -385,7 +385,9 @@ namespace tca {
     std::sort(tjs.fHits.begin(), tjs.fHits.end(), &SortByMultiplet);
 
     // check for debugging mode triggered by Plane, Wire, Tick
-    if(debug.Plane >= 0 && debug.Plane < 3 && debug.WorkID >= 0 && debug.Wire > 0 && debug.Tick > 0) {
+    //    if(debug.Plane >= 0 && debug.Plane < 3 && debug.WorkID >= 0 && debug.Wire > 0 && debug.Tick > 0) {
+
+    if(fDebugMode) {
       std::cout<<"Look for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
         if((int)tjs.fHits[iht].WireID.Plane != debug.Plane) continue;
@@ -7373,7 +7375,7 @@ namespace tca {
     }
 
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
-    if(fDebugMode && tpc == tjs.DebugTPC) std::cout<<"tjs.UnitsPerTick "<<std::setprecision(3)<<tjs.UnitsPerTick<<"\n";
+    if(fDebugMode && (int)tpc == debug.TPC) std::cout<<"tjs.UnitsPerTick "<<std::setprecision(3)<<tjs.UnitsPerTick<<"\n";
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
       float sumRMS = 0;
       float sumAmp = 0;
@@ -7397,7 +7399,7 @@ namespace tca {
       if(cnt < 4) continue;
       fAveHitRMS[ipl] = sumRMS/(float)cnt;
       sumAmp  /= (float)cnt;
-      if(fDebugMode && ipl == tjs.DebugPlane) std::cout<<"TPC "<<tpc<<" Pln "<<ipl<<" fAveHitRMS "<<fAveHitRMS[ipl]<<" Ave PeakAmplitude "<<sumAmp<<"\n";
+      if(fDebugMode && (int)tpc == debug.TPC) std::cout<<"TPC "<<tpc<<" Pln "<<ipl<<" fAveHitRMS "<<fAveHitRMS[ipl]<<" Ave PeakAmplitude "<<sumAmp<<"\n";
       // calculate the max RMS expected for each angle range
       for(unsigned short ii = 0; ii < fAngleRanges.size(); ++ii) {
         float angle = fAngleRanges[ii];
