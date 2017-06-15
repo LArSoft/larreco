@@ -54,13 +54,29 @@ outputs:
  }
 }
 
+# Model configuration:
+#
 physics.producers.emtrkmichelid.PointIdAlg.NNetModelFile:      "/home/your_dir/your_cnn_model.nnet" # your model (there is no default one in repository!)
 physics.producers.emtrkmichelid.PointIdAlg.PatchSizeW:         44     # how many wires in patch
 physics.producers.emtrkmichelid.PointIdAlg.PatchSizeD:         48     # how many downsampled ADC entries
 physics.producers.emtrkmichelid.PointIdAlg.DriftWindow:        6      # downsampling window in drift ticks
 physics.producers.emtrkmichelid.PointIdAlg.DownscaleFn:        "mean" # downsampling function
+
+# Input selection:
+#
 physics.producers.emtrkmichelid.HitModuleLabel:                "linecluster" # all hits (used to classify leftovers from clustering)
 physics.producers.emtrkmichelid.ClusterModuleLabel:            "linecluster" # clusters to be classified
 physics.producers.emtrkmichelid.TrackModuleLabel:              "pmtrack"     # tracks to be classified (leave that one empty if there are no 3D tracks yet)
 physics.producers.emtrkmichelid.Views:                         []  # possible to run over selected views only (all views if empty list)
+
+# Calibration,  NOTE: use the same settings as for the training data preparation
+#
+#physics.producers.emtrkmichelid.PointIdAlg.CalorimetryAlg:  @local::standard_calorimetryalgmc # use your detector calibration constants, this the default
+#physics.producers.emtrkmichelid.PointIdAlg.CalibrateAmpl:   true                              # this equalizes ADC amplitudes between planes and MC/data
+
+# Noise and distortions testing (off by default):
+#
+#physics.producers.emtrkmichelid.PointIdAlg.BlurKernel:      [0.03, 0.15, 0.64, 0.15, 0.03] # wire to wire blur
+#physics.producers.emtrkmichelid.PointIdAlg.NoiseSigma:      4                              # uncorrelated noise
+#physics.producers.emtrkmichelid.PointIdAlg.CoherentSigma:   6                              # coherent noise, over 32 wire groups
 

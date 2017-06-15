@@ -41,13 +41,34 @@ physics:
  end_paths:     [ anadata ]
 }
 
+# Data preparation settings:
+#
 physics.analyzers.datadump.TrainingDataAlg.SimulationLabel: "largeant"
 physics.analyzers.datadump.TrainingDataAlg.SaveVtxFlags:    true         # save (or not) interaction and decay vertex info
 physics.analyzers.datadump.TrainingDataAlg.DriftWindow:     6            # downsampling window in drift ticks
 physics.analyzers.datadump.TrainingDataAlg.AdcDelayTicks:   0            # delay of ADC peak in drift ticks
 physics.analyzers.datadump.TrainingDataAlg.DownscaleFn:     "mean"       # downsampling function
+
+# Input TPC / plane selection:
+#
 physics.analyzers.datadump.SelectedTPC:     [2]                          # all TPC's if empty list, or save data from selected TPC's only
 physics.analyzers.datadump.SelectedView:    [2]                          # all views if empty list, or save data from selected views only
+
+# Output format and location:
+#
 physics.analyzers.datadump.OutTextFilePath: "/home/your_path/to_files"   # output directory for data dump
 physics.analyzers.datadump.Crop:            true                         # set to false when dumping noise (empty) events
+physics.analyzers.datadump.DumpToRoot:      true                         # all events data is saved to a single ROOT file (otherwise text
+                                                                         # files for each PDG/ADC/deposit map are produced), both formats
+                                                                         # can be parsed by the patch making Python scripts
+# Calibration:
+#
+#physics.analyzers.datadump.TrainingDataAlg.CalorimetryAlg:  @local::standard_calorimetryalgmc # use your detector calibration constants, this the default
+physics.analyzers.datadump.TrainingDataAlg.CalibrateAmpl:   true                               # this equalizes ADC amplitudes between planes and MC/data
+
+# Noise and distortions testing (off by default):
+#
+#physics.analyzers.datadump.TrainingDataAlg.BlurKernel:      [0.03, 0.15, 0.64, 0.15, 0.03] # wire to wire blur
+#physics.analyzers.datadump.TrainingDataAlg.NoiseSigma:      4                              # uncorrelated noise
+#physics.analyzers.datadump.TrainingDataAlg.CoherentSigma:   6                              # coherent noise, over 32 wire groups
 
