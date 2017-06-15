@@ -131,7 +131,7 @@ namespace tca {
     float EffPur {0};                     ///< Efficiency * Purity
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
-    short ID;
+    int ID;
     unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
@@ -158,7 +158,7 @@ namespace tca {
     unsigned short Multiplicity {1};
     unsigned short LocalIndex {0};
     geo::WireID WireID;
-    short InTraj {0};
+    int InTraj {0};
   };
 
   // Struct for 3D trajectory matching
