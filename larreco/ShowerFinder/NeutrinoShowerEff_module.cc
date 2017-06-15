@@ -229,7 +229,12 @@ namespace DUNE{
     double sh_length[MAX_SHOWERS];
     int    sh_hasPrimary_e[MAX_SHOWERS];
     double sh_Efrac_contamination[MAX_SHOWERS];
+    double sh_purity[MAX_SHOWERS];
+    double sh_completeness[MAX_SHOWERS];
     int    sh_nHits[MAX_SHOWERS];
+    int    sh_largest;
+    int    sh_pdg[MAX_SHOWERS];
+
     int    n_recoShowers;
     double sh_Efrac_best;
 
@@ -576,9 +581,12 @@ namespace DUNE{
       fEventTree->Branch("sh_length", &sh_length, "sh_length[n_showers]/D");
       fEventTree->Branch("sh_hasPrimary_e", &sh_hasPrimary_e, "sh_hasPrimary_e[n_showers]/I");
       fEventTree->Branch("sh_Efrac_contamination", &sh_Efrac_contamination, "sh_Efrac_contamination[n_showers]/D");
+      fEventTree->Branch("sh_purity",&sh_purity,"sh_purity[n_showers]/D");
+      fEventTree->Branch("sh_completeness",&sh_completeness,"sh_completeness[n_showers]/D");
       fEventTree->Branch("sh_Efrac_best", &sh_Efrac_best, "sh_Efrac_best/D");
       fEventTree->Branch("sh_nHits",&sh_nHits, "sh_nHits[n_showers]/I");
-      
+      fEventTree->Branch("sh_largest",&sh_largest,"sh_largest/I");
+      fEventTree->Branch("sh_pdg",&sh_pdg,"sh_pdg[n_showers]/I");
     }
 
   }
@@ -601,7 +609,7 @@ namespace DUNE{
     bool isFiducial = false;
     processEff(event, isFiducial);
     if( fSaveMCTree ){
-      if(isFiducial && MC_isCC == 1) fEventTree->Fill();
+      if(isFiducial) fEventTree->Fill();
     }
   }
   //========================================================================
@@ -777,15 +785,17 @@ namespace DUNE{
       truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contamination,tmpEcomplet);
       //truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contaminationNueCC,tmpEcompletNueCC );
        
-      
 
       sh_Efrac_contamination[i] = tmpEfrac_contamination;
+      sh_purity[i] = 1 - tmpEfrac_contamination;
+      sh_completeness[i] = tmpEcomplet;
       sh_nHits[i] = tmp_nHits; 
       sh_hasPrimary_e[i] = 0;
-       
+      sh_pdg[i] = particle->PdgCode();
 
       //Shower with highest hits       
       if( tmp_nHits > nHits ){
+        sh_largest = i;
         nHits = tmp_nHits;
         Ecomplet_NueCC =tmpEcomplet;
         Efrac_contaminationNueCC = tmpEfrac_contamination; 
@@ -1257,13 +1267,17 @@ namespace DUNE{
       sh_length[i] = -999.0;
       sh_hasPrimary_e[i] = -999.0;
       sh_Efrac_contamination[i] = -999.0;
+      sh_purity[i] = -999.0;
+      sh_completeness[i] = -999.0;
       sh_nHits[i] = -999.0;
       for( int j=0; j<3; j++){
         sh_energy[i][j] = -999.0;
         sh_MIPenergy[i][j] = -999.0;
         sh_dEdx[i][j] = -999.0;
       }
-    } 
+      sh_pdg[i] = -999;
+    }
+    sh_largest = -999;
   }
   //========================================================================
   DEFINE_ART_MODULE(NeutrinoShowerEff)
