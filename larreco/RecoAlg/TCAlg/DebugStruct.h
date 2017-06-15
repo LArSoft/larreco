@@ -18,15 +18,19 @@
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "canvas/Persistency/Common/Ptr.h"
+#include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "lardataobj/RecoBase/Hit.h"
 
 namespace tca {
   
   struct DebugStuff {
+    int Cryostat {0};    ///< Select Cryostat
+    int TPC {0};    ///< Select TPC
     int Plane {-1}; ///< Select plane
+    CTP_t CTP {UINT_MAX}; ///< set to an invalid CTP
     int Wire {-1};  ///< Select hit Wire for debugging
     int Tick {-1};   ///< Select hit PeakTime for debugging (< 0 for vertex finding)
-    unsigned int Hit{UINT_MAX};    ///< set to the hit index in fHits if a Plane:Wire:Tick match is found
+    unsigned int Hit {UINT_MAX};    ///< set to the hit index in fHits if a Plane:Wire:Tick match is found
     short WorkID {0}; ///< Select the StartWorkID for debugging
   };
   extern DebugStuff debug;
