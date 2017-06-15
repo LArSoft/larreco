@@ -278,12 +278,12 @@ namespace tca {
       std::cout<<"Or specify All to turn all algs off\n";
       throw art::Exception(art::errors::Configuration)<< "Invalid SkipAlgs specification";
     }
-    
+/*    
     if(fDebugMode && fUseAlg[kChkStop] && fUseAlg[kChkAllStop]) {
       std::cout<<"ChkAllStop is ON to check for stopping TJs after ALL are reconstructed in a plane. Setting ChkStop OFF, which would check for stopping TJS after EACH one is reconstructed.\n";
       fUseAlg[kChkStop] = false;
     }
-    
+*/
     // overwrite any settings above with special algs
     for(auto strng : specialAlgsVec) {
       gotit = false;
@@ -386,7 +386,7 @@ namespace tca {
 
     // check for debugging mode triggered by Plane, Wire, Tick
     //    if(debug.Plane >= 0 && debug.Plane < 3 && debug.WorkID >= 0 && debug.Wire > 0 && debug.Tick > 0) {
-
+    debug.Hit = UINT_MAX;
     if(fDebugMode) {
       std::cout<<"Look for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
@@ -430,6 +430,8 @@ namespace tca {
       FillWireHitRange(tpcid);
       if(fQuitAlg) return;
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
+        // special mode for only reconstructing the collection plane
+        if(fMode == 2 && fPlane != TPC.Nplanes() - 1) continue;
         // no hits on this plane?
         if(tjs.FirstWire[fPlane] > tjs.LastWire[fPlane]) continue;
         // Set the CTP code to ensure objects are compared within the same plane
@@ -468,8 +470,8 @@ namespace tca {
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in CheckHitClusterAssociations";
       return;
     }
-    
-    if(TJPrt > 0 || debug.Plane >= 0) {
+
+    if(fDebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         if(tjs.allTraj[itj].WorkID == TJPrt) {
@@ -488,7 +490,7 @@ namespace tca {
       ++ntj;
       if(tj.AlgMod[kShowerTj]) ++nsh;
     } // tj
-    std::cout<<"RTC done ntj "<<ntj<<" nsh "<<nsh<<" events processed "<<fEventsProcessed<<"\n";
+    if(fDebugMode) std::cout<<"RTC done ntj "<<ntj<<" nsh "<<nsh<<" events processed "<<fEventsProcessed<<"\n";
 
     if(fStudyMode) {
       // shower stuff
@@ -1010,6 +1012,11 @@ namespace tca {
     if(tjs.allTraj.size() == 0) return;
     if(!fUseAlg[kUseUnusedHits]) return;
     
+    // max change in position allowed after adding all unused hits in a multiplet 
+    float maxPosSep2 = 0.25;
+    // Relax this cut for special tracking mode
+    if(fMode == 2) maxPosSep2 = 1;
+    
     std::vector<unsigned int> hitsInMultiplet;
     for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& tj = tjs.allTraj[itj];
@@ -1042,7 +1049,7 @@ namespace tca {
           std::array<float, 2> oldHitPos = tp.HitPos;
           DefineHitPos(tp);
           // keep it if 
-          if(PosSep2(tj.Pts[ipt].HitPos, oldHitPos) < 0.25) {
+          if(PosSep2(tj.Pts[ipt].HitPos, oldHitPos) < maxPosSep2) {
             tj.AlgMod[kUseUnusedHits] = true;
           } else {
             UnsetUsedHits(tjs, tj.Pts[ipt]);
@@ -1581,6 +1588,7 @@ namespace tca {
       for(auto itide = tides.begin(); itide != tides.end(); ++itide) {
         if(itide->energyFrac > 0.5) {
           hitTruTrkID[iht] = itide->trackID;
+//          if(hit.InTraj == 3) mf::LogVerbatim("TC")<<"eFrac "<<PrintHit(hit)<<" "<<itide->energy<<" "<<hit.Integral;
           break;
         }
       } // itid
@@ -4916,7 +4924,7 @@ namespace tca {
     
     // Call it a ghost if > 1/3 of the hits are used by another trajectory
     hitCnt /= 3;
-    unsigned short oldTjID = USHRT_MAX;
+    int oldTjID = INT_MAX;
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -4931,11 +4939,11 @@ namespace tca {
         hitCnt = tCnt[ii];
       }
     } // ii
-    if(oldTjID == USHRT_MAX) return false;
-    unsigned short oldTj = oldTjID - 1;
+    if(oldTjID == INT_MAX) return false;
+    int oldTjIndex = oldTjID - 1;
     
     // See if this looks like a short delta-ray on a long muon
-    Trajectory& oTj = tjs.allTraj[oldTj];
+    Trajectory& oTj = tjs.allTraj[oldTjIndex];
     if(oTj.PDGCode == 13 && hitCnt < 0.1 * oTj.Pts.size()) return false;
     
     // See if there are gaps in this trajectory indicating that it is really a ghost and not
@@ -5026,7 +5034,7 @@ namespace tca {
     }
     SetEndPoints(tjs, tj);
     tj.Pts.resize(tj.EndPt[1] + 1);
-    tjs.allTraj[oldTj].AlgMod[kUseGhostHits] = true;
+    tjs.allTraj[oldTjIndex].AlgMod[kUseGhostHits] = true;
     TrimEndPts(tjs, tj, fQualityCuts, prt);
     if(tj.AlgMod[kKilled]) {
       fGoodTraj = false;
@@ -5743,7 +5751,6 @@ namespace tca {
   void TrajClusterAlg::CheckHiMultUnusedHits(Trajectory& tj)
   {
     // Check for many unused hits in high multiplicity TPs in work and try to use them
-    
     
     if(!fUseAlg[kChkHiMultHits]) return;
     
@@ -6947,16 +6954,21 @@ namespace tca {
       tj.Pts[tj.EndPt[1]].AveChg = sum / (float)cnt;
     } // begin charge == end charge
     
-    short trID = tjs.allTraj.size() + 1;
+    int trID = tjs.allTraj.size() + 1;
+    if(trID == INT_MAX) {
+      mf::LogError("TC")<<"StoreTraj: Outrageous number of trajectories "<<trID<<" Quitting";
+      fQuitAlg = true;
+      return;
+    }
     for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
       for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
         if(tj.Pts[ipt].UseHit[ii]) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
           if(tjs.fHits[iht].InTraj > 0) {
-            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and continue";
+            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
             PrintTrajectory("SW", tjs, tj, USHRT_MAX);
             ReleaseHits(tjs, tj);
-//            fQuitAlg = true;
+            fQuitAlg = true;
             return;
           } // error
           tjs.fHits[iht].InTraj = trID;
