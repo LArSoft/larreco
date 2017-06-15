@@ -210,7 +210,7 @@ namespace tca {
     bool vtxPrt;
     bool didPrt;
     short TJPrt; // Set to the WorkID of a trajectory that is being debugged
-    bool shPrt; /// print shower info
+    bool fDebugMode;
     
     trkf::LinFitAlg fLinFitAlg;
     calo::CalorimetryAlg fCaloAlg;

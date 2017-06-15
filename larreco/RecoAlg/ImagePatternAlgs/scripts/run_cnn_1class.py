@@ -72,15 +72,10 @@ m.compile(loss='mean_squared_error', optimizer='sgd')
 
 print 'running CNN...'
 pred = m.predict(inputs.reshape(inputs.shape[0], 1, PATCH_SIZE_W, PATCH_SIZE_D)) # nsamples, channel, rows, cols
-print '...done', pred.shape
+pred.flatten()
+print '...done'
 
-outputs = np.zeros((pred.shape[1], raw.shape[0], raw.shape[1]), dtype=np.float32)
-
-mask = np.zeros(raw.shape, dtype=np.int32)
-mask_thr = 0.67
-
-none_idx = pred.shape[1] - 1 # here is "none" label usually
-pnorm = pred[:, 0] + pred[:, 1] + pred[:, none_idx]
+outputs = np.zeros((raw.shape[0], raw.shape[1]), dtype=np.float32)
 
 cnt_ind = 0
 for r in range(outputs.shape[1]):
@@ -88,20 +83,11 @@ for r in range(outputs.shape[1]):
         if full2d == 0 and not(tracks[r, c] == 1 or showers[r, c] == 1):
             continue
 
-        if pnorm[cnt_ind] > 0:
-            pn = 1.0 / pnorm[cnt_ind]
-            outputs[0, r, c] = pred[cnt_ind, 0] * pn
-            outputs[1, r, c] = pred[cnt_ind, 1] * pn
-
-            outputs[none_idx, r, c] = 1 - pred[cnt_ind, none_idx] * pn
-            if outputs[none_idx, r, c] > mask_thr:
-                if outputs[1, r, c] > outputs[0, r, c]: mask[r, c] = 1
-                else: mask[r, c] = -1
-
+        outputs[r, c] = pred[cnt_ind]
         cnt_ind += 1
 
 
-fig, ax = plt.subplots(2, 3, figsize=(28, 14))
+fig, ax = plt.subplots(2, 2, figsize=(17, 14))
 
 cs = ax[0,0].pcolor(np.transpose(pdg & 0xFF), cmap='gist_ncar')
 ax[0,0].set_title('PDG')
@@ -111,24 +97,13 @@ cs = ax[0,1].pcolor(np.transpose(deposit), cmap='jet')
 ax[0,1].set_title('MC truth')
 fig.colorbar(cs, ax=ax[0,1])
 
-cs = ax[0,2].pcolor(np.transpose(raw), cmap='jet')
-ax[0,2].set_title('ADC')
-fig.colorbar(cs, ax=ax[0,2])
-
-cs = ax[1,0].pcolor(-np.transpose(outputs[0]), cmap='CMRmap')
-ax[1,0].set_title('P(track-like)')
+cs = ax[1,0].pcolor(np.transpose(raw), cmap='jet')
+ax[1,0].set_title('ADC')
 fig.colorbar(cs, ax=ax[1,0])
 
-cs = ax[1,1].pcolor(-np.transpose(outputs[1]), cmap='CMRmap')
-ax[1,1].set_title('P(EM-like)')
+cs = ax[1,1].pcolor(-np.transpose(outputs), cmap='CMRmap')
+ax[1,1].set_title('CNN output')
 fig.colorbar(cs, ax=ax[1,1])
 
-#cs = ax[1,2].contour(np.transpose(outputs[none_idx]), levels=[0, 0.33, 0.67, 1], colors=('black' , (0.6, 0.6, 1), (0.9, 0, 0), 'green'))
-#ax[1,2].set_title('1 - P(empty)')
-cs = ax[1,2].pcolor(np.transpose(mask), cmap='RdYlGn')
-ax[1,2].set_title('ROI')
-fig.colorbar(cs, ax=ax[1,2])
-
-#plt.subplots_adjust(left=0.03, right=0.999, bottom=0.07, top=0.93)
 plt.tight_layout()
 plt.show()

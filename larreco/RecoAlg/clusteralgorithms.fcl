@@ -53,6 +53,8 @@ standard_trajclusteralg:
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    StudyMode: false         # Set true to generate histograms (commented out)
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
+   DebugCryostat: 0
+   DebugTPC: -1
    DebugPlane: -1           # Print debug output in a plane (3 = all planes, <0 = none)
    DebugWire: -1            # Print debug output for a trajectory that starts on DebugWire (<0 = print merging)
    DebugTick: -1            # Print debug output for a trajectory that starts at DebugTick +/- 5 ticks (<0 = print vtx finding)
