@@ -6,8 +6,8 @@ defaultqual	e14
 fcldir product_dir job
 #
 product         version
-larsim		v06_24_01
-nutools         v2_14_01
+larsim		v06_24_00
+nutools         v2_14_00
 
 cetbuildtools	v5_09_01	-	only_for_build
 end_product_list
