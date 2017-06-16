@@ -280,12 +280,6 @@ namespace tca {
       std::cout<<"Or specify All to turn all algs off\n";
       throw art::Exception(art::errors::Configuration)<< "Invalid SkipAlgs specification";
     }
-/*    
-    if(fDebugMode && fUseAlg[kChkStop] && fUseAlg[kChkAllStop]) {
-      std::cout<<"ChkAllStop is ON to check for stopping TJs after ALL are reconstructed in a plane. Setting ChkStop OFF, which would check for stopping TJS after EACH one is reconstructed.\n";
-      tjs.UseAlg[kChkStop] = false;
-    }
-*/
     // overwrite any settings above with special algs
     for(auto strng : specialAlgsVec) {
       gotit = false;
@@ -5689,8 +5683,6 @@ namespace tca {
     CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit].WireID);
     return StartTraj(tj, fromWire, fromTick, toWire, toTick, tCTP, pass);
   } // StartTraj
-//  <<<<<<< HEAD
-//=======
 
   ////////////////////////////////////////////////
   bool TrajClusterAlg::StartTraj(Trajectory& tj, const float& fromWire, const float& fromTick, const float& toWire, const float& toTick, const CTP_t& tCTP, const unsigned short& pass)
@@ -5721,7 +5713,7 @@ namespace tca {
       mf::LogVerbatim("TC")<<"StartTraj: Failure from MakeBareTrajPoint fromWire "<<fromWire<<" fromTick "<<fromTick<<" toWire "<<toWire<<" toTick "<<toTick;
       return false;
     }
-    SetAngleCode(tp);
+    SetAngleCode(tjs, tp);
     tp.AngErr = 0.1;
     if(tj.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = fPlane; TJPrt = tj.ID; debug.WorkID = tj.ID; }
     if(prt) mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tp);
@@ -5735,7 +5727,7 @@ namespace tca {
   {
     // Check tjs.allTraj -> InTraj associations
     
-    if(!fUseAlg[kChkInTraj]) return;
+    if(!tjs.UseAlg[kChkInTraj]) return;
     
     ++fAlgModCount[kChkInTraj];
     
@@ -5816,118 +5808,8 @@ namespace tca {
     } // tj
     
   } // ChkInTraj
-/*
 
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::StoreTraj(Trajectory& tj)
-  {
-    
-    if(tj.EndPt[1] <= tj.EndPt[0]) return;
-    if(tj.AlgMod[kKilled]) {
-      mf::LogWarning("TC")<<"StoreTraj: Trying to store a killed trajectory. tj ID "<<tj.ID;
-      return;
-    }
->>>>>>> develop
-  ////////////////////////////////////////////////
-  bool TrajClusterAlg::StartTraj(Trajectory& tj, const float& fromWire, const float& fromTick, const float& toWire, const float& toTick, const CTP_t& tCTP, const unsigned short& pass)
-  {
-    // Start a simple (seed) trajectory going from (fromWire, toTick) to (toWire, toTick).
-    
-    // decrement the work ID so we can use it for debugging problems
-    --fWorkID;
-    if(fWorkID == INT_MIN) fWorkID = -1;
-    tj.ID = fWorkID;
-    tj.Pass = pass;
-    // Assume we are stepping in the positive WSE units direction
-    short stepdir = 1;
-    int fWire = std::nearbyint(fromWire);
-    int tWire = std::nearbyint(toWire);
-    if(tWire < fWire) {
-      stepdir = -1;
-    } else if(tWire == fWire) {
-      // on the same wire
-      if(toTick < fromTick) stepdir = -1;
-    }
-    tj.StepDir = stepdir;
-    tj.CTP = tCTP;
-    
-    // create a trajectory point
-    TrajPoint tp;
-    if(!MakeBareTrajPoint(tjs, fromWire, fromTick, toWire, toTick, tCTP, tp)) {
-      mf::LogVerbatim("TC")<<"StartTraj: Failure from MakeBareTrajPoint fromWire "<<fromWire<<" fromTick "<<fromTick<<" toWire "<<toWire<<" toTick "<<toTick;
-      return false;
-    }
-
-    SetAngleCode(tjs, tp);
-    tp.AngErr = 0.1;
-    if(tj.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = fPlane; TJPrt = tj.ID; }
-    if(prt) mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tp);
-    tj.Pts.push_back(tp);
-    return true;
-=======
-    if(tj.Pts[tj.EndPt[1]].AveChg <= 0) {
-      float sum = 0;
-      unsigned short cnt = 0;
-      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
-        unsigned short ipt = tj.EndPt[1] - ii;
-        if(tj.Pts[ipt].Chg == 0) continue;
-        sum += tj.Pts[ipt].Chg;
-        ++cnt;
-        if(cnt == 4) break;
-        if(ipt == 0) break;
-      } // ii
-      tj.Pts[tj.EndPt[1]].AveChg = sum / (float)cnt;
-    } // begin charge == end charge
-    
-    int trID = tjs.allTraj.size() + 1;
-    if(trID == INT_MAX) {
-      mf::LogError("TC")<<"StoreTraj: Outrageous number of trajectories "<<trID<<" Quitting";
-      fQuitAlg = true;
-      return;
-    }
-    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
-      for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
-        if(tj.Pts[ipt].UseHit[ii]) {
-          unsigned int iht = tj.Pts[ipt].Hits[ii];
-          if(tjs.fHits[iht].InTraj > 0) {
-            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
-            PrintTrajectory("SW", tjs, tj, USHRT_MAX);
-            ReleaseHits(tjs, tj);
-            fQuitAlg = true;
-            return;
-          } // error
-          tjs.fHits[iht].InTraj = trID;
-        }
-      } // ii
-    } // ipt
->>>>>>> develop
-    
-  } // StartTraj
-
-=======
-    tj.WorkID = tj.ID;
-    tj.ID = trID;
-    tjs.allTraj.push_back(tj);
-    if(prt) mf::LogVerbatim("TC")<<"StoreTraj trID "<<trID<<" CTP "<<tj.CTP<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
-    if(debug.Hit != UINT_MAX) {
-      // print out some debug info
-      for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
-        for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
-          unsigned int iht = tj.Pts[ipt].Hits[ii];
-          if(iht == debug.Hit) {
-            std::cout<<"Debug hit appears in trajectory w WorkID "<<tj.WorkID<<" UseHit "<<tj.Pts[ipt].UseHit[ii]<<". Check log file\n";
-            PrintTrajectory("SW", tjs, tj, USHRT_MAX);
-          }
-        } // ii
-      } // ipt
-    } // debug.Hit ...
-    ChkInTraj("StoreTraj");
-    
-  } // StoreTraj
-  
->>>>>>> develop
-*/
-  ////////////////////////////////////////////////
+ ////////////////////////////////////////////////
   void TrajClusterAlg::MakeAllTrajClusters()
   {
     // Make clusters from all trajectories in tjs.allTraj
