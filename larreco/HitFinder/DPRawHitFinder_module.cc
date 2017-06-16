@@ -114,24 +114,26 @@ namespace hit{
                std::vector<float>&       outputVec,
                size_t                    nBinsToCombine) const;
     
-    double              threshold           = 0.;  // minimum signal size for id'ing a hit
-    double              fitWidth            = 0.;  // hit fit width initial value
-    double              minWidth		    = 0 ;  // hit minimum width
+    int              threshold = 0.;  // minimum signal size for id'ing a hit
+    double              fitWidth = 0.;  // hit fit width initial value
+    int              minWidth = 0 ;  // hit minimum width
     std::string         fCalDataModuleLabel;
 
-    std::vector<double> fMinSig;                   ///<signal height threshold
+    int fMinSig;                   ///<signal height threshold
     std::vector<double> fInitWidth;                ///<Initial width for fit
-    std::vector<double> fMinWidth;                 ///<Minimum hit width
+    int fMinWidth;                 ///<Minimum hit width
     std::vector<int>    fLongMaxHits;              ///<Maximum number hits on a really long pulse train
     std::vector<int>    fLongPulseWidth;           ///<Sets width of hits used to describe long pulses
     
-    size_t              fMaxMultiHit;              ///<maximum hits for multi fit
+    unsigned int              fMaxMultiHit;              ///<maximum hits for multi fit
     int                 fAreaMethod;               ///<Type of area calculation
     std::vector<double> fAreaNorms;                ///<factors for converting area to same units as peak height
     bool	            fTryNplus1Fits;            ///<whether we will (true) or won't (false) try n+1 fits
     double	            fChi2NDFRetry;             ///<Value at which a second n+1 Fit will be tried
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
     size_t              fNumBinsToAverage;         ///< If bin averaging for peak finding, number bins to average
+    double		fNoiseRMS = 0;
+    double		fMIPSignal = 0;
     
     std::unique_ptr<HitFilterAlg> fHitFilterAlg;   ///algorithm used to filter out noise hits
 
@@ -209,9 +211,7 @@ void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
       }
     }
 
-    FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),         fMinSig);
     FillOutHitParameterVector(p.get< std::vector<double> >("InitWidth"),      fInitWidth);
-    FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),       fMinWidth);
     FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),      fAreaNorms);
 
     fLongMaxHits      = p.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
@@ -222,6 +222,10 @@ void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fChi2NDFRetry     = p.get< double          >("Chi2NDFRetry");
     fChi2NDF          = p.get< double          >("Chi2NDF");
     fNumBinsToAverage = p.get< size_t          >("NumBinsToAverage", 0);
+    fNoiseRMS         = p.get< double          >("NoiseRMS");
+    fMIPSignal        = p.get< double          >("MIPSignal");
+    fMinSig           = p.get< double          >("MinSig");
+    fMinWidth         = p.get< double          >("MinWidth");
 }  
 
 //-------------------------------------------------
@@ -331,9 +335,9 @@ void DPRawHitFinder::produce(art::Event& evt)
         // -- Setting the appropriate signal widths and thresholds --
         // --    for the right plane.      --
         // ----------------------------------------------------------
-        threshold = fMinSig.at(plane);
+        threshold = fMinSig;
         fitWidth  = fInitWidth.at(plane);
-        minWidth  = fMinWidth.at(plane);
+        minWidth  = fMinWidth;
 //            if (wid.Plane == geo::kV)
 //                roiThreshold = std::max(threshold,std::min(2.*threshold,*std::max_element(signal.begin(),signal.end())/3.));
        
@@ -361,7 +365,6 @@ void DPRawHitFinder::produce(art::Event& evt)
  	    //std::cout << "roiFirstBinTick: " << roiFirstBinTick << std::endl;
             MergedTimeWidVec mergedVec;
             float            roiThreshold(threshold);
-	    roiThreshold=30.;
 	    //float NoiseRMS=2.4;
             
             // ###########################################################
@@ -402,10 +405,8 @@ void DPRawHitFinder::produce(art::Event& evt)
                 // ##########################################################
                 // ### Search current ROI for candidate peaks and widths  ###
                 // ##########################################################
-    std::cout << "Test1" << std::endl;
                 TimeValsVec timeValsVec;
                 findCandidatePeaks(signal.begin(),signal.end(),timeValsVec,roiThreshold,0);
-	    std::cout << "Test2" << std::endl;
                 // ####################################################
                 // ### If no startTime hit was found skip this wire ###
                 // ####################################################
@@ -415,7 +416,6 @@ void DPRawHitFinder::produce(art::Event& evt)
                 // ### Merge potentially overlapping peaks and do multi fit  ###
                 // #############################################################
                 mergeCandidatePeaks(signal, timeValsVec, mergedVec);
-    std::cout << "Test3" << std::endl;
             }
             
             // #######################################################
@@ -431,7 +431,7 @@ void DPRawHitFinder::produce(art::Event& evt)
                 // ### Putting in a protection in case things went wrong ###
                 // ### In the end, this primarily catches the case where ###
                 // ### a fake pulse is at the start of the ROI           ###
-                if (endT - startT < 5) continue;
+                if (endT - startT < fMinWidth) continue;
 	 
                 // #######################################################
                 // ### Clearing the parameter vector for the new pulse ###
@@ -449,10 +449,9 @@ void DPRawHitFinder::produce(art::Event& evt)
                 // ##########################################################
                 // ### If # requested Exponentials is too large then punt ###
                 // ##########################################################
-    std::cout << "Test4" << std::endl;
+
                 if (peakVals.size() <= fMaxMultiHit)
                 {
-    std::cout << "Test5" << std::endl;
                     FitExponentials(signal, peakVals, startT, endT, 1.0, paramVec, chi2PerNDF, NDF);
                
                     // If the chi2 is infinite then there is a real problem so we bail
@@ -548,7 +547,7 @@ void DPRawHitFinder::produce(art::Event& evt)
                         }
                     } */
                 }
-                
+                else{std::cout << "hit too long" << std::endl;}
                 // #######################################################
                 // ### If too large then force alternate solution      ###
                 // ### - Make n hits from pulse train where n will     ###
@@ -734,10 +733,11 @@ void hit::DPRawHitFinder::findCandidatePeaks(std::vector<float>::const_iterator 
 			}
 		}
 		if(*firstItr >= 0.5*(*maxItr) &&  std::distance(firstItr, maxItr) >= 2 && *firstItr <= *(firstItr+1) && *firstItr < (*(firstItr-1)) && *firstItr < (*(firstItr-2)) && *firstItr < (*(firstItr-3)) ) break;
-                if(*firstItr < 0.5*(*maxItr) &&  *firstItr <= *(firstItr+1) && *firstItr < (*(firstItr-1)) && (*(firstItr-1)) < (*(firstItr-2)) && (*(firstItr-2)) < (*(firstItr-3)) ) break;   
+                //if(*firstItr < 0.5*(*maxItr) &&  *firstItr <= *(firstItr+1) && *firstItr < (*(firstItr-1)) && (*(firstItr-1)) < (*(firstItr-2)) && (*(firstItr-2)) < (*(firstItr-3)) ) break;   
+                if(*firstItr < 0.5*(*maxItr) &&  *firstItr <= *(firstItr+1) && *firstItr < (*(firstItr-1)) && *firstItr < (*(firstItr-2)) && *firstItr < (*(firstItr-3)) ) break;   
 		//if( *firstItr <= *(firstItr+1) && *firstItr < (*(firstItr-1)) && (*(firstItr-1)) < (*(firstItr-2)) && (*(firstItr-2)) < (*(firstItr-3)) ) break;
 		//if ( *firstItr <= *(firstItr+1) && *firstItr < (*(firstItr-1)) && *firstItr < (*(firstItr-2)) && *firstItr < (*(firstItr-3))   ) break;            
-                if (*firstItr < 1) break;
+                if (*firstItr < 0) break;
 //                if ( ( *firstItr < *(firstItr+1) && *firstItr < (*(firstItr-1)-5) ) || *firstItr < 1 ) break;            
 
                 firstItr--;
@@ -769,10 +769,11 @@ void hit::DPRawHitFinder::findCandidatePeaks(std::vector<float>::const_iterator 
 		}
 
                 if ( *lastItr >= 0.5*(*maxItr) && std::distance(maxItr, lastItr) >= 2 && *lastItr <= *(lastItr-1) && *lastItr < (*(lastItr+1)) && *lastItr < (*(lastItr+2)) && *lastItr < (*(lastItr+3)) ) break;       
-                if ( *lastItr < 0.5*(*maxItr) && *lastItr <= *(lastItr-1) && *lastItr < (*(lastItr+1)) && (*(lastItr+1)) < (*(lastItr+2)) && (*(lastItr+2)) < (*(lastItr+3)) ) break;       
+                //if ( *lastItr < 0.5*(*maxItr) && *lastItr <= *(lastItr-1) && *lastItr < (*(lastItr+1)) && (*(lastItr+1)) < (*(lastItr+2)) && (*(lastItr+2)) < (*(lastItr+3)) ) break;       
+                if ( *lastItr < 0.5*(*maxItr) && *lastItr <= *(lastItr-1) && *lastItr < (*(lastItr+1)) && *lastItr < (*(lastItr+2)) && *lastItr < (*(lastItr+3)) ) break;       
 		//if ( *lastItr <= *(lastItr-1) && *lastItr < (*(lastItr+1)) && (*(lastItr+1)) < (*(lastItr+2)) && (*(lastItr+2)) < (*(lastItr+3)) ) break;
                 //if ( *lastItr < (*(lastItr+1)) && *lastItr < (*(lastItr+2)) && *lastItr < (*(lastItr+3)) && *lastItr <= *(lastItr-1)   ) break;       
-                if (*lastItr < 1) break;
+                if (*lastItr < 0) break;
                 lastItr++;
             }
 
@@ -799,7 +800,7 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
     // ### Lets loop over the candidate pulses we found in this ROI ###
     // ################################################################
     auto timeValsVecItr = timeValsVec.begin();
-    int PeaksInThisMergedPeak = 0;
+    unsigned int PeaksInThisMergedPeak = 0;
 
     while(timeValsVecItr != timeValsVec.end())
     {
@@ -832,7 +833,18 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
             // merge if the intervening signal is above 0.
             int nextStartT = std::get<0>(*timeValsVecItr);
             //int nextEndT = std::get<2>(*timeValsVecItr);
-            if( ( nextStartT - endT <= 1 ) || ( signalVec[endT] >= 0 && signalVec[nextStartT] >= 0 ) && PeaksInThisMergedPeak <= 10 )
+	    bool NegBinBetweenPeaks = 0;
+	    for(int i = endT; i <= nextStartT; i++)
+	    {
+		if(signalVec[i]<0)
+		{
+		NegBinBetweenPeaks = 1;
+		break;
+		}
+	    }
+
+            //if( ( ( nextStartT - endT <= 1 ) || ( signalVec[endT] >= 0 && signalVec[nextStartT] >= 0 ) ) && PeaksInThisMergedPeak < fMaxMultiHit-1 )
+            if( ( ( nextStartT - endT <= 1 ) || NegBinBetweenPeaks == 0 ) && PeaksInThisMergedPeak < fMaxMultiHit-1 )
             {
                 timeVal = *timeValsVecItr++;
                 maxT    = std::get<1>(timeVal);
@@ -843,7 +855,6 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
                 //std::cout << "nextStartT: " << nextStartT << "\t" << "nextEndT: " << nextEndT << std::endl;
             	//std::cout << "nextmaxT: " << maxT << std::endl;
             	//std::cout << "nextendT: " << endT << std::endl;
-
                 peakVals.emplace_back(maxT,widT,nextStartT,endT,widthRising,widthFalling);
                 
                 checkNextHit = timeValsVecItr != timeValsVec.end();
@@ -975,7 +986,6 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>& SignalVector
     // ####################################################
     // ### PERFORMING THE TOTAL Exponentials FIT OF THE HIT ###
     // ####################################################
-    std::cout << "Fit" << std::endl;
     try
       { hitSignal.Fit(&Exponentials,"QNRWM","", StartTime, EndTime);}
     catch(...)
