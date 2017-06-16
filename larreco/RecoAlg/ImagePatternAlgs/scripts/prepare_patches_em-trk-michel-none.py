@@ -94,7 +94,7 @@ def main(argv):
                 continue
 
             pdg_michel = ((pdg & 0xF000) == 0x2000)
-            vtx_map = (pdg >> 24) & 0x3 # only 1 or 2: interaction or pi0 decay
+            vtx_map = (pdg >> 24) # & 0x3 # only 1 or 2: interaction or pi0 decay
 
             print 'Tracks', np.sum(tracks), 'showers', np.sum(showers), 'michels', np.sum(pdg_michel)
 

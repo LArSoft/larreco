@@ -225,7 +225,7 @@ namespace tca {
     bool vtxPrt;
     bool didPrt;
     short TJPrt; // Set to the WorkID of a trajectory that is being debugged
-    bool shPrt; /// print shower info
+    bool fDebugMode;
     
     art::ServiceHandle<geo::Geometry> geom;
     const detinfo::LArProperties* larprop;
