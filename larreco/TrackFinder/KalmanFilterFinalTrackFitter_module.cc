@@ -274,6 +274,13 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
 	<< "Incompatible configuration parameters: keepInputTrajectoryPoints needs the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp." << "\n";
     }
   }
+
+  if (p_().options().showerFromPF()) {
+    if (nPFroms>0 || nIds>0 || nDirs>0) {
+      throw cet::exception("KalmanFilterTrajectoryFitter")
+	<< "Incompatible configuration parameters: showerFromPF currently does not support optional momentum values, particle hypotheses and directions." << "\n";
+    }
+  }
 }
 
 trkf::KalmanFilterFinalTrackFitter::~KalmanFilterFinalTrackFitter() {
