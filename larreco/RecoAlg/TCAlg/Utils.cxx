@@ -2129,6 +2129,27 @@ namespace tca {
   } // MakeBareTrajPoint
   
   /////////////////////////////////////////
+  bool MakeBareTrajPoint(const std::array<float, 2>& fromPos, const std::array<float, 2>& toPos, TrajPoint& tpOut)
+  {
+    tpOut.Pos = fromPos;
+    tpOut.Dir[0] = toPos[0] - fromPos[0];
+    tpOut.Dir[1] = toPos[1] - fromPos[1];
+    float norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
+    if(norm == 0) {
+      mf::LogError myprt("TC");
+      myprt<<"Bad Dir in MakeBareTrajPoint ";
+      myprt<<" fromPos "<<fromPos[0]<<" "<<fromPos[1];
+      myprt<<" toPos "<<toPos[0]<<" "<<toPos[1];
+      return false;
+    }
+    tpOut.Dir[0] /= norm;
+    tpOut.Dir[1] /= norm;
+    tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
+    return true;
+    
+  } // MakeBareTrajPoint
+  
+  /////////////////////////////////////////
   bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut)
   {
     tpOut.CTP = tpIn1.CTP;
@@ -2513,7 +2534,15 @@ namespace tca {
           } else {
             myprt<<" No external parent defined";
           }
-          myprt<<" TruParentID "<<ss.TruParentID;
+          myprt<<" TruParentID "<<ss.TruParentID<<"\n";
+          if(ss.PrimaryVtxIndex.empty()) {
+            myprt<<"No primary vertex candidates";
+          } else {
+            myprt<<"Primary vertex candidates:";
+            for(unsigned short ipv = 0; ipv < ss.PrimaryVtxIndex.size(); ++ipv) {
+              myprt<<" "<<ss.PrimaryVtxIndex[ipv]<<" FOM "<<std::fixed<<std::setprecision(1)<<ss.PrimaryVtxFOM[ipv];
+            } // ipv
+          }
           myprt<<"\n................................................";
         } // ic
       } // Shower Tj
