@@ -156,6 +156,7 @@ namespace tca {
   // Make a bare trajectory point that only has position and direction defined
   bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
+  bool MakeBareTrajPoint(const std::array<float, 2>& fromPos, const std::array<float, 2>& toPos, TrajPoint& tpOut);
   bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
   void SetPDGCode(TjStuff& tjs, Trajectory& tj);
   void SetPDGCode(TjStuff& tjs, unsigned short itj);
