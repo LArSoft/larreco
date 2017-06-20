@@ -129,7 +129,7 @@ namespace tca {
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
-    unsigned short ParentTrajID {0};     ///< ID of the parent
+    int ParentTrajID {0};     ///< ID of the parent
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
@@ -172,7 +172,7 @@ namespace tca {
   // Struct for 3D trajectory matching
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
-    std::vector<unsigned short> TjIDs;
+    std::vector<int> TjIDs;
     // Count of the number of time-matched hits
     int Count {0};
     std::array<float, 3> sXYZ;        // XYZ position at the start (cm)
@@ -198,8 +198,8 @@ namespace tca {
   // A temporary structure that defines a 2D shower-like cluster of trajectories
   struct ShowerStruct {
     CTP_t CTP;
-    unsigned short ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
-    std::vector<unsigned short> TjIDs;  // list of InShower Tjs
+    int ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
+    std::vector<int> TjIDs;  // list of InShower Tjs
     std::vector<ShowerPoint> Pts;    // Trajectory points inside the shower
     float Angle {0};                   // Angle of the shower axis
     float AngleErr {3};                 // Error
@@ -212,9 +212,11 @@ namespace tca {
     float StartChg {0};              // Charge at the start of the shower
     float StartChgErr {0};              // Start charge error
     float ParentFOM {10};
-    unsigned short ParentID {0};  // The ID of an external parent Tj that was added to the shower
+    int ParentID {0};  // The ID of an external parent Tj that was added to the shower
     bool NewParent {false};       // This is set true whenever the ParentID is changed
     unsigned short TruParentID {0};
+    std::vector<unsigned short> PrimaryVtxIndex;
+    std::vector<float> PrimaryVtxFOM;
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -277,6 +279,8 @@ namespace tca {
     kSplitHiChgHits,
     kInShower,
     kShowerTj,
+    kMergeOverlap,
+    kMergeSubShowers,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
