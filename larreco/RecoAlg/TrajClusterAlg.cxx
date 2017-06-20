@@ -166,8 +166,10 @@ namespace tca {
     fMaxVertexTrajSep     = pset.get< std::vector<float>>("MaxVertexTrajSep");
     tjs.Match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1});
     
-    if(pset.has_key("DebugCryostat"))     debug.Cryostat = pset.get< int >("DebugCryostat");
-    if(pset.has_key("DebugTPC"))          debug.TPC = pset.get< int >("DebugTPC");
+    debug.Cryostat = 0;
+    debug.TPC = 0;
+    if(pset.has_key("DebugCryostat")) debug.Cryostat = pset.get< int >("DebugCryostat");
+    if(pset.has_key("DebugTPC"))      debug.TPC = pset.get< int >("DebugTPC");
     debug.Plane           = pset.get< int >("DebugPlane", -1);
     debug.Wire            = pset.get< int >("DebugWire", -1);
     debug.Tick            = pset.get< int >("DebugTick", -1);
@@ -443,7 +445,7 @@ namespace tca {
         fTpc = tpcid.TPC;
         // save some processing time if in debug mode. This may cause confusion when debugging
         // subtle failures
-        if(debug.CTP != UINT_MAX && debug.CTP != fCTP) continue;
+//        if(debug.CTP != UINT_MAX && debug.CTP != fCTP) continue;
         // reconstruct all trajectories in the current plane
         ReconstructAllTraj();
         if(fQuitAlg) {
@@ -2077,7 +2079,7 @@ namespace tca {
         if(tjs.ShowerTag[0] > 1 && pdgIndex == 0 && partList[ipl]->Mother() == 0 && fSourceParticleEnergy > 50) {
           Trajectory& ptj = tjs.allTraj[itj];
           // determine if this is a parent of a shower Tj
-          unsigned short dtrID = 0;
+          int dtrID = 0;
           for(auto& tj : tjs.allTraj) {
             if(!tj.AlgMod[kShowerTj]) continue;
             if(tj.ParentTrajID == ptj.ID) {
@@ -3313,7 +3315,7 @@ namespace tca {
       } // ipl
       // Look for fragments of broken trajectories.
       // Allow one fragment for each trajectory (assumes that there is one Tj per plane...)
-      std::vector<unsigned short> fragID(imv.TjIDs.size(), USHRT_MAX);
+      std::vector<int> fragID(imv.TjIDs.size(), USHRT_MAX);
       // Stop searching when the triplet count gets low
       int minCount = 0.3 * imv.Count;
       for(unsigned int jj = ii + 1; jj < tjs.matchVec.size(); ++jj) {
@@ -3323,11 +3325,11 @@ namespace tca {
         // Count the number of ID matches in each matchVec entry
         unsigned short nmat = 0;
         // Keep track of the ID of an entry that is not matched - the presumed fragment
-        unsigned short fID = USHRT_MAX;
+        int fID = INT_MAX;
         // and the index of fID in the matchVec entry
         unsigned short fIDIndex = 0;
         for(unsigned short jjj = 0; jjj < jmv.TjIDs.size(); ++jjj) {
-          unsigned short jID = tjs.matchVec[jndx].TjIDs[jjj];
+          int jID = tjs.matchVec[jndx].TjIDs[jjj];
           if(jjj < imv.TjIDs.size() && jID == imv.TjIDs[jjj]) {
             ++nmat;
           } else if(!tjs.allTraj[jID - 1].AlgMod[kMatch3D]) {
@@ -3338,21 +3340,21 @@ namespace tca {
         } // jjj
         // Look for two (out of three) matched ID
         if(nmat != 2) continue;
-        if(fID == USHRT_MAX) continue;
+        if(fID == INT_MAX) continue;
         // The fragment should be fragID
         // Don't overwrite the fragID if one already exists
-        if(fragID[fIDIndex] == USHRT_MAX) fragID[fIDIndex] = fID;
+        if(fragID[fIDIndex] == INT_MAX) fragID[fIDIndex] = fID;
       } // jj
       // try to merge
       for(unsigned short jfg = 0; jfg < fragID.size(); ++jfg) {
-        if(fragID[jfg] == USHRT_MAX) continue;
+        if(fragID[jfg] == INT_MAX) continue;
         if(prt) mf::LogVerbatim("TC")<<"matchVec index "<<indx<<" Try to merge "<<imv.TjIDs[jfg]<<" and "<<fragID[jfg];
         unsigned short ftj1 = imv.TjIDs[jfg] - 1;
         unsigned short ftj2 = fragID[jfg] - 1;
         // Put ftj1 first so that its AlgMod state is preserved - specifically the kMatch3D bit
         if(MergeAndStore(ftj1, ftj2, prt)) {
           // merge successfull. 
-          unsigned short newTjID = tjs.allTraj[tjs.allTraj.size()-1].ID;
+          int newTjID = tjs.allTraj[tjs.allTraj.size()-1].ID;
           if(prt) mf::LogVerbatim("TC")<<" merge successfull. newTjID "<<newTjID;
           std::replace(imv.TjIDs.begin(), imv.TjIDs.end(), imv.TjIDs[jfg], newTjID);
           // Set the count to 0 for all other entries that have these fragments
@@ -3502,7 +3504,7 @@ namespace tca {
       }
       if(skipit) continue;
       for(unsigned short ipl = 0; ipl < tjs.matchVec[indx].TjIDs.size(); ++ipl) {
-        unsigned short mtid = tjs.matchVec[indx].TjIDs[ipl];
+        int mtid = tjs.matchVec[indx].TjIDs[ipl];
         // Set the match flag
         tjs.allTraj[mtid - 1].AlgMod[kMatch3D] = true;
       } // ipl
@@ -5731,7 +5733,7 @@ namespace tca {
     
     ++fAlgModCount[kChkInTraj];
     
-    unsigned short tID;
+    int tID;
     unsigned int iht;
     unsigned short itj = 0;
     std::vector<unsigned int> tHits;
