@@ -209,7 +209,7 @@ namespace tca {
     bool mrgPrt;
     bool vtxPrt;
     bool didPrt;
-    short TJPrt; // Set to the WorkID of a trajectory that is being debugged
+    int TJPrt; // Set to the WorkID of a trajectory that is being debugged
     bool fDebugMode;
     
     trkf::LinFitAlg fLinFitAlg;
