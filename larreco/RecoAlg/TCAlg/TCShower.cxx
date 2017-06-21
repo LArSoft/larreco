@@ -398,8 +398,16 @@ namespace tca {
     if(tjs.ShowerTag[0] == 1) return;
     if(tjList.empty()) return;
     MergeTjList(tjList);
-    MergeTjList2(tjs, tjList);
-    if(prt) std::cout<<" after MergeTjList2: tjList size "<<tjList.size()<<"\n";
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"tjlist\n";
+      for(auto& tjl : tjList) {
+        if(tjl.empty()) continue;
+        for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
+        myprt<<"\n";
+      } // tjl
+    } // prt
+    MergeTjList2(tjs, tjList, prt);
     
     // remove Tjs that don't have enough neighbors = ShowerTag[7] unless the shower
     // has few Tjs
@@ -420,16 +428,6 @@ namespace tca {
         }
       } // didErase
     } // tjl
-
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"tjlist after merging and removing duplicates\n";
-      for(auto& tjl : tjList) {
-        if(tjl.empty()) continue;
-        for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
-        myprt<<"\n";
-      } // tjl
-    } // prt
     
     // mark all of these as InShower Tjs
     for(auto& tjl : tjList) {
@@ -480,13 +478,16 @@ namespace tca {
       }
       DefineShower(tjs, cotIndex, prt);
       if(tjs.cots[cotIndex].TjIDs.empty()) continue;
-      Find3DVertex(tjs, cotIndex, prt);
-      // Try to add more Tjs to the shower
-      AddTjsInsideEnvelope(tjs, cotIndex, prt);
-      FindExternalParent(tjs, cotIndex, prt);
-      // If no external parent was found, try to refine the direction and look for
-      // an internal parent
-      if(tjs.cots[cotIndex].ShowerTjID == 0) RefineShowerTj(tjs, cotIndex, prt);
+      // skip the rest of the shower construction code if the mode is set > 2
+      if(tjs.ShowerTag[0] < 3) {
+        Find3DVertex(tjs, cotIndex, prt);
+        // Try to add more Tjs to the shower
+        AddTjsInsideEnvelope(tjs, cotIndex, prt);
+        FindExternalParent(tjs, cotIndex, prt);
+        // If no external parent was found, try to refine the direction and look for
+        // an internal parent
+        if(tjs.cots[cotIndex].ShowerTjID == 0) RefineShowerTj(tjs, cotIndex, prt);
+      }
       if(prt) PrintTrajectory("FS", tjs, tjs.allTraj[stj.ID-1], USHRT_MAX);
     } // tjl
     
@@ -640,13 +641,16 @@ namespace tca {
 
   
   ////////////////////////////////////////////////
-  void MergeTjList2(TjStuff& tjs, std::vector<std::vector<int>>& tjList)
+  void MergeTjList2(TjStuff& tjs, std::vector<std::vector<int>>& tjList, bool prt)
   {
     // A more exhaustive merging of tjList elements
     if(tjList.size() < 2) return;
     
+    if(tjs.ShowerTag[2] <= 0) return;
+    
     unsigned short ipt, jpt;
     
+    std::vector<int> closeTjs;
     bool didSomething = false;
     for(unsigned short itl = 0; itl < tjList.size() - 1; ++itl) {
       if(tjList[itl].empty()) continue;
@@ -654,29 +658,40 @@ namespace tca {
         if(tjList[jtl].empty()) continue;
         auto& itList = tjList[itl];
         auto& jtList = tjList[jtl];
-        bool close = false;
+        closeTjs.clear();
         for(auto& iitj : itList) {
-          Trajectory& itj = tjs.allTraj[iitj];
+          Trajectory& itj = tjs.allTraj[iitj - 1];
           for(auto& jjtj : jtList) {
-            Trajectory& jtj = tjs.allTraj[jjtj];
+            Trajectory& jtj = tjs.allTraj[jjtj - 1];
             float minSep = tjs.ShowerTag[2];
             // find the minimum separation including dead wires
             TrajTrajDOCA(tjs, itj, jtj, ipt, jpt, minSep, true);
+            // If the trajectories are close, require that at least 60% of the wires between the closest
+            // points on the trajectories have signals on them
             if(minSep < tjs.ShowerTag[2]) {
-//              std::cout<<"close Tj "<<itj.ID<<" "<<jtj.ID<<" sep "<<minSep<<"\n";
-              close = true;
-              break;
-            }
-          } // jtj
-          if(close) break;
-        } // itj
-        if(close) {
+              // Look for Tjs that have hits within 5 WSE units in-between these points
+              auto ctj = FindCloseTjs(tjs, itj.Pts[ipt], jtj.Pts[jpt], 5);
+              if(ctj.empty()) continue;
+              for(auto tjID : ctj) {
+                // Here is where we should ensure that no Tjs are long muons
+                if(std::find(closeTjs.begin(), closeTjs.end(), tjID) == closeTjs.end()) closeTjs.push_back(tjID);
+              } // tjID
+              if(prt) {
+                mf::LogVerbatim myprt("TC");
+                myprt<<"MTL2: close Tj "<<itj.ID<<" Pos "<<PrintPos(tjs, itj.Pts[ipt])<<" and "<<jtj.ID<<" Pos "<<PrintPos(tjs, jtj.Pts[jpt])<<" minSep "<<minSep;
+                myprt<<" In-between Tjs";
+                for(auto& tjID : ctj) myprt<<" "<<tjID;
+              }
+            } // minSep < ...
+          } // jjtj
+        } // iitj
+        if(!closeTjs.empty()) {
           itList.insert(itList.end(), jtList.begin(), jtList.end());
+          itList.insert(itList.end(), closeTjs.begin(), closeTjs.end());
           jtList.clear();
-//          std::cout<<"MergeTjList2: close "<<itl<<" "<<jtl<<"\n";
           didSomething = true;
         }
-      } // jj
+      } // jtl
     } // itl
     
     if(!didSomething) return;
@@ -694,6 +709,17 @@ namespace tca {
       auto last = std::unique(tjl.begin(), tjl.end());
       tjl.erase(last, tjl.end());
     } // tjl
+
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"MergeTjList2\n";
+      for(auto& tjl : tjList) {
+        if(tjl.empty()) continue;
+        for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
+        myprt<<"\n";
+      } // tjl
+    } // prt
+
     
   } // MergeTjList2
   
@@ -1051,6 +1077,8 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<"FEP: Existing InShower Tj "<<imTheBest<<" promoted to parent status with FOM = "<<bestFOM<<" stp1 Pos "<<PrintPos(tjs, stp1);
       }
       ss.NewParent = true;
+      DefineShower(tjs, cotIndex, prt);
+      AddTjsInsideEnvelope(tjs, cotIndex, prt);
     } else {
       if(prt) mf::LogVerbatim("TC")<<"FEP: Existing parent is good ";
       ss.NewParent = false;
@@ -1137,7 +1165,7 @@ namespace tca {
     dangErr *= ss.DirectionFOM;
     float dangPull = dang / dangErr;
     float mom = tj.MCSMom;
-    if(mom > 300) mom = 300;
+    if(mom > 500) mom = 500;
     float momPull = (mom - 500) / 100;
     // Pull due to the minimum separation between the other end of the parent Tj and the first shower Tj point.
     float tp0Sep2 = 0;
@@ -1252,6 +1280,7 @@ namespace tca {
      # 11 Debug in CTP (>10 debug cotIndex + 10)
      */
     
+    if(tjs.ShowerTag[2] <= 0) return;
     if(!tjs.UseAlg[kMergeOverlap]) return;
     
     // Require that the maximum separation is about two radiation lengths
@@ -1936,12 +1965,16 @@ namespace tca {
         unsigned short ipt1, ipt2;
 //        float doca = tjs.ShowerTag[2];
         float doca = 5;
-        // Find the separation between Tjs considering dead wires
-        TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca, true);
-        if(doca < tjs.ShowerTag[2]) {
+        // Find the separation between Tjs without considering dead wires
+        TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca, false);
+        if(doca < 5) {
           // start the list with the ID of tj1
-          if(list.empty()) list.push_back(tj1.ID);
+          if(list.empty()) {
+            list.push_back(tj1.ID);
+            AddCloseTjsToList(tjs, it1, list);
+          }
           list.push_back(tj2.ID);
+          AddCloseTjsToList(tjs, it2, list);
           ++tj1.NNeighbors;
         }
       } // it2
@@ -1949,43 +1982,34 @@ namespace tca {
     } // it1
     
   } // TagShowerTjs
-/*
+  
   ////////////////////////////////////////////////
-  void AddMissedTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<unsigned short>& tjl)
+  void AddCloseTjsToList(TjStuff& tjs, const unsigned short& itj, std::vector<int> list)
   {
-    // Just what it says
-    if(tjl.empty()) return;
+    // Searches the trajectory points for hits that are used in a different trajectory and add
+    // them to the list if any are found, and the MCSMomentum is not too large
+    if(itj > tjs.allTraj.size() - 1) return;
     
-    for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
-      Trajectory& tj1 = tjs.allTraj[it1];
-      if(tj1.CTP != inCTP) continue;
-      if(tj1.AlgMod[kKilled]) continue;
-      // identified as a parent
-      // ignore shower Tjs
-      if(tj1.AlgMod[kShowerTj]) continue;
-      // and Tjs that are already in showers
-      if(tj1.AlgMod[kInShower]) continue;
-      // Cut on length
-      if(tj1.Pts.size() > 10) continue;
-      if(TjHasNiceVtx(tjs, tj1)) continue;
-      // already included in tjl?
-      if(std::find(tjl.begin(), tjl.end(), tj1.ID) != tjl.end()) continue;
-      // check proximity to Tjs in tjl
-      unsigned short ipt1, ipt2;
-      for(auto& tjID : tjl) {
-        Trajectory& tjInShower = tjs.allTraj[tjID - 1];
-        float doca = tjs.ShowerTag[2];
-        TrajTrajDOCA(tjs, tj1, tjInShower, ipt1, ipt2, doca);
-        if(doca < tjs.ShowerTag[2]) {
-          tjl.push_back(tj1.ID);
-          tj1.AlgMod[kInShower] = true;
-          break;
-        } // its a keeper
-      } // tjid
-    } // it1
+    short maxMom = (short)(2 * tjs.ShowerTag[1]);
     
-  } // AddMissedTjs
-*/
+    for(auto& tp : tjs.allTraj[itj].Pts) {
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        // ignore hits that are used in this trajectory
+        if(tp.UseHit[ii]) continue;
+        unsigned int iht = tp.Hits[ii];
+        // ignore if there is no hit -> Tj association
+        if(tjs.fHits[iht].InTraj <= 0) continue;
+        // check the momentum
+        Trajectory& tj = tjs.allTraj[tjs.fHits[iht].InTraj - 1];
+        if(tj.MCSMom > maxMom) continue;
+        if(TjHasNiceVtx(tjs, tj)) continue;
+        // see if it is already in the list
+        if(std::find(list.begin(), list.end(), tjs.fHits[iht].InTraj) != list.end()) continue;
+        list.push_back(tjs.fHits[iht].InTraj);
+      } // ii
+    } // tp
+  } // AddCloseTjsToList
+
   ////////////////////////////////////////////////
   void DefineEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
@@ -2048,7 +2072,7 @@ namespace tca {
   {
     // This function adds Tjs to the shower. It updates the shower parameters.
     
-    if(tjs.ShowerTag[0] > 3) {
+    if(tjs.ShowerTag[0] > 2) {
 //      std::cout<<"ATIE disabled\n";
       return;
     }
@@ -2065,6 +2089,7 @@ namespace tca {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.AlgMod[kInShower]) continue;
       if(tj.AlgMod[kShowerTj]) continue;
+      if(TjHasNiceVtx(tjs, tj)) continue;
       // This shouldn't be necessary but do it for now
       if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
       // See if both ends are outside the envelope
