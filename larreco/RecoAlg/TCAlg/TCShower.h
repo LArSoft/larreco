@@ -56,10 +56,10 @@ namespace tca {
   std::vector<float> StartChgVec(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DumpShowerPts(TjStuff& tjs, const unsigned short& cotIndex);
   
-//  void AddMissedTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<unsigned short>& tjl);
   void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList);
+  void AddCloseTjsToList(TjStuff& tjs, const unsigned short& itj, std::vector<int> list);
   void MergeTjList(std::vector<std::vector<int>>& tjList);
-  void MergeTjList2(TjStuff& tjs, std::vector<std::vector<int>>& tjList);
+  void MergeTjList2(TjStuff& tjs, std::vector<std::vector<int>>& tjList, bool prt);
   void MergeOverlap(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void MergeSubShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   bool MergeShowersAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
