@@ -173,7 +173,7 @@ namespace tca {
     debug.Plane           = pset.get< int >("DebugPlane", -1);
     debug.Wire            = pset.get< int >("DebugWire", -1);
     debug.Tick            = pset.get< int >("DebugTick", -1);
-    debug.WorkID          = pset.get< short>("DebugWorkID", 0);
+    debug.WorkID          = pset.get< int >("DebugWorkID", 0);
 
     // convert the max traj separation into a separation^2
     fMaxTrajSep *= fMaxTrajSep;
@@ -590,7 +590,6 @@ namespace tca {
         myprt<<" EffPur "<<ep;
         myprt<<" evts processed "<<fEventsProcessed;
       } // ict
-*/
       // histogram Tj separation
       float minDOCA = 5000;
       for(unsigned short itj = 0; itj < tjs.allTraj.size() - 1; ++itj) {
@@ -610,6 +609,7 @@ namespace tca {
         fDOCA->Fill(minDOCA);
       } // itj
       // end of shower stuff
+ */
       
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         Trajectory& tj = tjs.allTraj[itj];
@@ -635,6 +635,23 @@ namespace tca {
         if(pdg == 2212) fMCSMom_TruMom_p->Fill(truMom, tj.MCSMom);
         // See if a parameterization of expected MCSMom(Length) 
         if(pdg == 11 && tj.EffPur > 0.7) fMCSMomEP_TruMom_e->Fill(truMom, tj.MCSMom);
+        // check charge rms for electrons vs others
+        if(tj.Pts.size() > 99 && tj.EffPur > 0.6) {
+          float chg = 0;
+          float rms = 0;
+          float cnt = 0;
+          for(unsigned short ipt = tj.EndPt[0] + 10; ipt < tj.EndPt[1] - 10; ++ipt) {
+            TrajPoint& tp = tj.Pts[ipt];
+            if(tp.Chg == 0) continue;
+            ++cnt;
+            chg += tp.Chg;
+            rms += tp.Chg * tp.Chg;
+          } // tp
+          chg /= cnt;
+          rms = sqrt((rms - cnt * chg * chg) / (chg - 1));
+          rms /= chg;
+          std::cout<<"NTP "<<pdg<<" "<<tj.Pts.size()<<" "<<tj.MCSMom<<" "<<std::fixed<<std::setprecision(3)<<rms<<"\n";
+        } // long matched trajectory
       } // itj
     } // studymode
     
@@ -5843,6 +5860,8 @@ namespace tca {
     for(itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& tj = tjs.allTraj[itj];
       if(tj.AlgMod[kKilled]) continue;
+      // big temp
+      if(fMode == 3 && !tj.AlgMod[kShowerTj]) continue;
       // ensure that the endPts are correct
       SetEndPoints(tjs, tj);
       auto tHits = PutTrajHitsInVector(tj, kUsedHits);
