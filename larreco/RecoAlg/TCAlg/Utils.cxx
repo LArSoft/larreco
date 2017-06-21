@@ -1691,7 +1691,7 @@ namespace tca {
     } // wire
     return closeHits;
   } // FindCloseHits
-
+  
   //////////////////////////////////////////
   bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest)
   {
@@ -1741,6 +1741,56 @@ namespace tca {
     return true;
     
   } // FindCloseHits
+  
+  //////////////////////////////////////////
+  std::vector<int> FindCloseTjs(const TjStuff& tjs, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta)
+  {
+    // Returns a list of Tj IDs that have hits on a line drawn between the two Tps
+    std::vector<int> tmp;
+    
+    TrajPoint tp;
+    // Make the tp so that stepping is positive
+    unsigned int firstWire, lastWire;
+    if(toTp.Pos[0] > fromTp.Pos[0]) {
+      if(!MakeBareTrajPoint(tjs, fromTp, toTp, tp)) return tmp;
+      firstWire = std::nearbyint(fromTp.Pos[0]);
+      lastWire = std::nearbyint(toTp.Pos[0]);
+    } else {
+      if(!MakeBareTrajPoint(tjs, toTp, fromTp, tp)) return tmp;
+      firstWire = std::nearbyint(toTp.Pos[0]);
+      lastWire = std::nearbyint(fromTp.Pos[0]);
+    }
+    geo::PlaneID planeID = DecodeCTP(tp.CTP);
+    unsigned short ipl = planeID.Plane;
+    
+    if(firstWire < tjs.FirstWire[ipl]) return tmp;
+    if(firstWire > tjs.LastWire[ipl]-1) return tmp;
+    if(firstWire < tjs.FirstWire[ipl]) return tmp;
+    if(firstWire > tjs.LastWire[ipl]-1) return tmp;
+    
+    if(firstWire == lastWire) return tmp;
+    
+    for(unsigned int wire = firstWire; wire <= lastWire; ++wire) {
+      if(tjs.WireHitRange[ipl][wire].first == -1) continue;
+      if(tjs.WireHitRange[ipl][wire].first == -2) continue;
+      float fwire = wire;
+      MoveTPToWire(tp, fwire);
+      unsigned int firstHit = (unsigned int)tjs.WireHitRange[ipl][wire].first;
+      unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
+      for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+        if(tjs.IgnoreNegChiHits && tjs.fHits[iht].GoodnessOfFit < 0) continue;
+        if(tjs.fHits[iht].InTraj <= 0) continue;
+        float ftime = tjs.UnitsPerTick * tjs.fHits[iht].PeakTime;
+        float delta = PointTrajDOCA(tjs, fwire, ftime, tp);
+        if(delta > maxDelta) continue;
+        if(std::find(tmp.begin(), tmp.end(), tjs.fHits[iht].InTraj) != tmp.end()) continue;
+        tmp.push_back(tjs.fHits[iht].InTraj);
+      } // iht
+    } // wire
+    
+    return tmp;
+    
+  } // FindCloseTjs
   
   ////////////////////////////////////////////////
   float MaxHitDelta(TjStuff& tjs, Trajectory& tj)
@@ -2104,7 +2154,7 @@ namespace tca {
   } // TagMuonDirections
 
   /////////////////////////////////////////
-  bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
+  bool MakeBareTrajPoint(const TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
   {
     CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit].WireID);
     return MakeBareTrajPoint(tjs, (float)tjs.fHits[fromHit].WireID.Wire, tjs.fHits[fromHit].PeakTime,
@@ -2113,14 +2163,14 @@ namespace tca {
   } // MakeBareTrajPoint
   
   /////////////////////////////////////////
-  bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp)
+  bool MakeBareTrajPoint(const TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp)
   {
     tp.CTP = tCTP;
     tp.Pos[0] = fromWire;
     tp.Pos[1] = tjs.UnitsPerTick * fromTick;
     tp.Dir[0] = toWire - fromWire;
     tp.Dir[1] = tjs.UnitsPerTick * (toTick - fromTick);
-    float norm = sqrt(tp.Dir[0] * tp.Dir[0] + tp.Dir[1] * tp.Dir[1]);
+    double norm = sqrt(tp.Dir[0] * tp.Dir[0] + tp.Dir[1] * tp.Dir[1]);
     if(norm == 0) return false;
     tp.Dir[0] /= norm;
     tp.Dir[1] /= norm;
@@ -2134,14 +2184,8 @@ namespace tca {
     tpOut.Pos = fromPos;
     tpOut.Dir[0] = toPos[0] - fromPos[0];
     tpOut.Dir[1] = toPos[1] - fromPos[1];
-    float norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
-    if(norm == 0) {
-      mf::LogError myprt("TC");
-      myprt<<"Bad Dir in MakeBareTrajPoint ";
-      myprt<<" fromPos "<<fromPos[0]<<" "<<fromPos[1];
-      myprt<<" toPos "<<toPos[0]<<" "<<toPos[1];
-      return false;
-    }
+    double norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
+    if(norm == 0) return false;
     tpOut.Dir[0] /= norm;
     tpOut.Dir[1] /= norm;
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
@@ -2150,20 +2194,14 @@ namespace tca {
   } // MakeBareTrajPoint
   
   /////////////////////////////////////////
-  bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut)
+  bool MakeBareTrajPoint(const TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut)
   {
     tpOut.CTP = tpIn1.CTP;
     tpOut.Pos = tpIn1.Pos;
     tpOut.Dir[0] = tpIn2.Pos[0] - tpIn1.Pos[0];
     tpOut.Dir[1] = tpIn2.Pos[1] - tpIn1.Pos[1];
-    float norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
-    if(norm == 0) {
-      mf::LogError myprt("TC");
-      myprt<<"Bad Dir in MakeBareTrajPoint ";
-      myprt<<" tpIn1 Pos "<<tpIn1.Pos[0]<<" "<<tpIn1.Pos[1];
-      myprt<<" tpIn2 Pos "<<tpIn2.Pos[0]<<" "<<tpIn2.Pos[1];
-      return false;
-    }
+    double norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
+    if(norm == 0) return false;
     tpOut.Dir[0] /= norm;
     tpOut.Dir[1] /= norm;
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
