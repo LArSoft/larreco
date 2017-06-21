@@ -65,11 +65,10 @@ dpraw_hitfinder:
  module_type:          "DPRawHitFinder"
  CalDataModuleLabel:   "caldata"
  MinSig:               10    		# signal height threshold
- InitTau:              0.5     		# initial value for tau1 and tau2
- MinWidth:             5              # hit width threshold, per plane
+ MinWidth:             5                # hit width threshold
  MaxMultiHit:          10               # maximum hits for multi fit   
- AreaMethod:           0                # 0 = area by integral, 1 = area by gaussian area formula
- AreaNorm:             13.25		# normalizations that put signal area in same scale as peak height.
+ AreaMethod:           0                # 0 = area by integral, 1 = area by area formula
+ AreaNorm:             13.25		# normalizations that put signal area in same scale as peak height
  LongMaxHits:          1		# max number hits in long pulse trains
  LongPulseWidth:       16 		# max widths for hits in long pulse trains
  TryNplus1Fits:        true		# true will try to re-fit poorly modeled hits with n+1 exponentials
@@ -81,6 +80,8 @@ dpraw_hitfinder:
 
  NoiseRMS:             2.4		# ADC counts
  MIPSignal:            100		# ADC counts
+
+ NumBinsToAverage:     0		# 0 or 1 = no averaging
 
  FilterHits:           false            # true = do not keep undesired hits according to settings of HitFilterAlg object
  HitFilterAlg:
