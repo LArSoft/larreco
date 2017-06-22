@@ -1,3 +1,13 @@
+import argparse
+parser = argparse.ArgumentParser(description='Run CNN training on patches with a few different hyperparameter sets.')
+parser.add_argument('-c', '--config', help="JSON with script configuration", default='config.json')
+parser.add_argument('-o', '--output', help="Output model file name", default='model')
+parser.add_argument('-g', '--gpu', help="Which GPU index", default='0')
+args = parser.parse_args()
+
+import theano.sandbox.cuda
+theano.sandbox.cuda.use('gpu'+args.gpu)
+
 import keras
 if keras.__version__[0] > 1:
     print 'Please use Keras 1.x.x API due to matrix shape constraints in LArSoft interface'
@@ -14,13 +24,8 @@ from keras.optimizers import SGD
 from keras.utils import np_utils
 from os.path import exists, isfile, join
 import os, json
-import argparse
 
 from utils import read_config
-
-parser = argparse.ArgumentParser(description='Run CNN training on patches with a few different hyperparameter sets.')
-parser.add_argument('-c', '--config', help="JSON with script configuration", default='config.json')
-args = parser.parse_args()
 
 config = read_config(args.config)
 
@@ -50,6 +55,14 @@ def save_model(model, name):
         print 'save failed' #sys.exc_info()  # Prints exceptions
         return False  # Save failed
 
+def shuffle_in_place(a, b):
+    assert len(a) == len(b)
+    rng_state = np.random.get_state()
+    np.random.shuffle(a)
+    np.random.set_state(rng_state)
+    np.random.shuffle(b)
+
+
 # read train and test sets
 X_train = None
 Y_train = None
@@ -66,6 +79,8 @@ for dirname in subdirs:
         fnameY = fnameX.replace('_x.npy', '_y.npy')
         dataX = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameX)
         dataY = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameY)
+        if nb_classes == 3 and dataY.shape[1] == 4:
+            dataY = dataY[:, [0, 1, 3]] #skip column with Michel labels
         if X_train is None:
             X_train = dataX
             Y_train = dataY
@@ -83,6 +98,8 @@ for dirname in subdirs:
         fnameY = fnameX.replace('_x.npy', '_y.npy')
         dataX = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameX)
         dataY = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameY)
+        if nb_classes == 3 and dataY.shape[1] == 4:
+            dataY = dataY[:, [0, 1, 3]] #skip column with Michel labels
         if X_test is None:
             X_test = dataX
             Y_test = dataY
@@ -92,6 +109,9 @@ for dirname in subdirs:
 
 dataX = None
 dataY = None
+
+print 'Shuffle training set...'
+shuffle_in_place(X_train, Y_train)
 
 print 'Train', X_train.shape, 'test', X_test.shape
 
@@ -148,14 +168,14 @@ for p in range(parameters.shape[0]):
     else:
         model.add(Activation(convactfn))
     
-    #if nb_conv2 > 0:
-    #    if maxpool == 1:
-    #        model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
-    #    model.add(Convolution2D(nb_filters2, nb_conv2, nb_conv2))
-    #    if convactfn == 'leaky':
-    #        model.add(LeakyReLU())
-    #    else:
-    #        model.add(Activation(convactfn))
+    if nb_conv2 > 0:
+        if maxpool == 1:
+            model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
+        model.add(Convolution2D(nb_filters2, nb_conv2, nb_conv2))
+        if convactfn == 'leaky':
+            model.add(LeakyReLU())
+        else:
+            model.add(Activation(convactfn))
     
     # model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
     model.add(Dropout(drop1))
@@ -165,12 +185,22 @@ for p in range(parameters.shape[0]):
     model.add(Dense(densesize))
     model.add(Activation(actfn))
     model.add(Dropout(drop2))
+
+    model.add(Dense(32))
+    model.add(Activation(actfn))
+    model.add(Dropout(drop2))
+
+    # output
     model.add(Dense(nb_classes))
-    model.add(Activation('softmax'))
-    #model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
 
     sgd = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
-    model.compile(loss='categorical_crossentropy', optimizer=sgd)
+    if nb_classes > 3:
+        model.add(Activation('sigmoid'))
+        model.compile(loss='mean_squared_error', optimizer=sgd)
+    else:
+        model.add(Activation('softmax'))
+        #model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
+        model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
     print('Fit config:', cfg_name)
 
@@ -179,6 +209,6 @@ for p in range(parameters.shape[0]):
     score = model.evaluate(X_test, Y_test, verbose=0)
     print('Test score:', score)
 
-    save_model(model, cfg_name)
+    save_model(model, args.output + cfg_name)
 
 print('All done!')
