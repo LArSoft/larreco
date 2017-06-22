@@ -16,11 +16,18 @@
 #include <bitset>
 
 // LArSoft libraries
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/LArPropertiesService.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/Shower.h"
+#include "lardataobj/AnalysisBase/Calorimetry.h"
+#include "larsim/MCCheater/BackTracker.h"
+#include "TVector3.h"
 
 namespace tca {
   
@@ -122,7 +129,7 @@ namespace tca {
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
-    unsigned short ParentTrajID {0};     ///< ID of the parent (if PDG = 12)
+    int ParentTrajID {0};     ///< ID of the parent
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
@@ -159,45 +166,77 @@ namespace tca {
     unsigned short LocalIndex {0};
     geo::WireID WireID;
     int InTraj {0};
+    unsigned short MCPartListIndex {USHRT_MAX};
   };
 
   // Struct for 3D trajectory matching
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
-    std::vector<unsigned short> TjIDs;
-    std::vector<unsigned short> ClusterIndices;
+    std::vector<int> TjIDs;
     // Count of the number of time-matched hits
     int Count {0};
-    std::array<float, 3> sXYZ;        // XYZ position at the start (NOT WSE units)
+    std::array<float, 3> sXYZ;        // XYZ position at the start (cm)
+    TVector3 sDir;        // start direction
+    TVector3 sDirErr;        // start direction error
     std::array<float, 3> eXYZ;        // XYZ position at the other end
     unsigned short sVtx3DIndex {USHRT_MAX};
     unsigned short eVtx3DIndex {USHRT_MAX};
     // stuff for constructing the PFParticle
-    int PDGCode;
+    int PDGCode {0};
     std::vector<size_t> DtrIndices;
-    size_t Parent;
+    size_t ParentMSIndex {0};       // Parent MatchStruct index (or index of self if no parent exists)
   };
-  
+
+  struct ShowerPoint {
+    std::array<float, 2> Pos;       // Hit Position in the normal coordinate system
+    std::array<float, 2> RotPos;    // Position rotated into the shower coordinate system (0 = along, 1 = transverse)
+    float Chg {0};                      // Charge of this point
+    unsigned int HitIndex;                       // the hit index
+    unsigned short TID;             // The ID of the tj the point (hit) is in. TODO eliminate this redundant variable
+  };
+
   // A temporary structure that defines a 2D shower-like cluster of trajectories
   struct ShowerStruct {
     CTP_t CTP;
-    unsigned short ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
-    std::vector<unsigned short> TjIDs;          // list of InShower Tjs
-    float TPAngAve {0};                             // Average angle of all InShower Tj points
-    float TPAngErr {0.5};
+    int ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
+    std::vector<int> TjIDs;  // list of InShower Tjs
+    std::vector<ShowerPoint> Pts;    // Trajectory points inside the shower
+    float Angle {0};                   // Angle of the shower axis
+    float AngleErr {3};                 // Error
+    float AspectRatio {1};              // The ratio of charge weighted transverse/longitudinal positions
+    float DirectionFOM {1};
     std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
-    float EnvelopeArea;
-    float EnvelopeLength;
+    float EnvelopeArea {0};
     float ChgDensity {0};                   // Charge density inside the Envelope
-    float EnvelopeAspectRatio {0};
-    unsigned short ParentTrajID {0};    // ID of the shower Tj parent
-    unsigned short ParentTrajEnd {0};           // the Start end of the parent trajectory
-    float ParentFOM {100};                            // FOM = (min separation) * (angle difference) * Delta / (parent length)
-    // Allow for an alternate parent that is not quite as good
-    unsigned short FailedParentTrajID {0};    // ID of the next most likely shower Tj parent
-    unsigned short FailedParentTrajEnd {0};           // the Start end of the parent trajectory
-    float FailedParentFOM;                            // FOM = (min separation) * (angle difference) * Delta / (parent length)
-    float ShowerFOM {100};
+    float Energy {0};
+    float StartChg {0};              // Charge at the start of the shower
+    float StartChgErr {0};              // Start charge error
+    float ParentFOM {10};
+    int ParentID {0};  // The ID of an external parent Tj that was added to the shower
+    bool NewParent {false};       // This is set true whenever the ParentID is changed
+    unsigned short TruParentID {0};
+    std::vector<unsigned short> PrimaryVtxIndex;
+    std::vector<float> PrimaryVtxFOM;
+  };
+  
+  // Shower variables filled in MakeShowers. These are in cm and radians
+  struct ShowerStruct3D {
+    TVector3 Dir;
+    TVector3 DirErr;
+    TVector3 Pos;
+    TVector3 PosErr;
+    double Len {1};
+    double OpenAngle {0.2};
+    std::vector<double> Energy;
+    std::vector<double> EnergyErr;
+    std::vector<double> MIPEnergy;
+    std::vector<double> MIPEnergyErr;
+    std::vector<double> dEdx;
+    std::vector<double> dEdxErr;
+    int BestPlane;
+    int ID;
+    std::vector<unsigned short> TjIDs;
+    std::vector<unsigned int> Hits;
   };
 
   // Algorithm modification bits
@@ -239,8 +278,9 @@ namespace tca {
     kVtxHitsSwap,
     kSplitHiChgHits,
     kInShower,
-    kShowerParent,
     kShowerTj,
+    kMergeOverlap,
+    kMergeSubShowers,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -281,13 +321,26 @@ namespace tca {
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
     unsigned short WireHitRangeCstat;
     unsigned short WireHitRangeTPC;
+    std::vector<float> AngleRanges; ///< list of max angles for each angle range
     std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
     std::vector<unsigned short> matchVecPFPList;  /// list of matchVec entries that will become PFPs
-    std::vector<ShowerStruct> cots;
+    std::vector<ShowerStruct> cots;       // Clusters of Trajectories that define 2D showers
+    std::vector<ShowerStruct3D> showers;  // 3D showers
+    std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
+    float Vertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
+    std::vector<short> DeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
+    std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
+    std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
+    std::vector<float> Match3DCuts;  ///< 3D matching cuts
+    std::vector<const simb::MCParticle*> MCPartList;
+    std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
+    const geo::GeometryCore* geom;
+    const detinfo::DetectorProperties* detprop;
+    bool IgnoreNegChiHits;
    };
 
 } // namespace tca

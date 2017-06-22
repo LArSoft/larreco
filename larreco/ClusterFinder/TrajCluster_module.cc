@@ -76,6 +76,7 @@ namespace cluster {
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Vertex.h"
+#include "lardataobj/RecoBase/Shower.h"
 
 namespace cluster {
   
@@ -103,8 +104,11 @@ namespace cluster {
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
     produces< std::vector<recob::EndPoint2D> >();
+    produces< std::vector<recob::Shower> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
+    produces< art::Assns<recob::Shower, recob::Hit> >();
+    
     produces< std::vector<recob::PFParticle> >();
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
@@ -140,11 +144,15 @@ namespace cluster {
     std::vector<recob::PFParticle> spcol;
     std::vector<recob::Vertex> sv3col;
     std::vector<recob::EndPoint2D> sv2col;
+    std::vector<recob::Shower> sscol;
 
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>>
         hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
     std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
         cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
+    std::unique_ptr<art::Assns<recob::Shower, recob::Hit>>
+        hs_assn(new art::Assns<recob::Shower, recob::Hit>);
+
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Cluster>>
         pc_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
@@ -284,20 +292,61 @@ namespace cluster {
       } // clstr.BeginVtx >= 0
     } // icl
     
+    // Make showers
+    unsigned short nshower = fTCAlg->GetShowerStructSize();
+    for(unsigned short ish = 0; ish < nshower; ++ish) {
+      tca::ShowerStruct3D const& ss3 = fTCAlg->GetShowerStruct(ish);
+      recob::Shower shower;
+      shower.set_id(ish + 1);
+      shower.set_total_energy(ss3.Energy);
+      shower.set_total_energy_err(ss3.EnergyErr);
+      shower.set_total_MIPenergy(ss3.MIPEnergy);
+      shower.set_total_MIPenergy_err(ss3.MIPEnergyErr);
+      shower.set_total_best_plane(ss3.BestPlane);
+      shower.set_direction(ss3.Dir);
+      shower.set_direction_err(ss3.DirErr);
+      shower.set_start_point(ss3.Pos);
+      shower.set_start_point_err(ss3.PosErr);
+      shower.set_dedx(ss3.dEdx);
+      shower.set_dedx_err(ss3.dEdxErr);
+      shower.set_length(ss3.Len);
+      shower.set_open_angle(ss3.OpenAngle);
+      sscol.push_back(shower);
+      // make the shower - hit association
+      if(!util::CreateAssn(*this, evt, *hs_assn, sscol.size()-1, ss3.Hits.begin(), ss3.Hits.end()))
+      {
+        throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with Shower";
+      } // exception
+    } // ish
+    
     // Get the list of PFParticles. These are a subset of the set of 3D matches of trajectory hits
     std::vector<unsigned short> pfpList = fTCAlg->GetPFPList();
     // get each of the match vector elements and construct the PFParticle
     for(size_t ip = 0; ip < pfpList.size(); ++ip) {
       unsigned short im = pfpList[ip];
       tca::MatchStruct const& ms = fTCAlg->GetMatchStruct(im);
-      spcol.emplace_back(ms.PDGCode, ip, ms.Parent, ms.DtrIndices);
-      for(auto& icl : ms.ClusterIndices) {
-        if(icl > Clusters.size() - 1) std::cout<<"TC module: Bad cluster index "<<icl<<" size "<<Clusters.size()<<"\n";
-      } // icl
+      if(ms.Count == 0) continue;
+      spcol.emplace_back(ms.PDGCode, ip, ms.ParentMSIndex, ms.DtrIndices);
+      // make a list of clusters that are associated with this PFParticle. Trace the association
+      // through the trajectories that 
+      std::vector<unsigned int> clsIndices;
+      for(auto& tjid : ms.TjIDs) {
+        unsigned short clsIndex = fTCAlg->GetTjClusterIndex(tjid);
+        if(clsIndex > Clusters.size() - 1) {
+          std::cout<<"Retrieved an invalid cluster index for PFParticle "<<ip<<" TjID "<<tjid<<". Ignoring it...\n";
+          clsIndices.clear();
+          break;
+        }
+      } // tjid
+      // try to recover from an error
+      if(clsIndices.empty()) {
+        spcol.pop_back();
+        continue;
+      }
       if(ms.sVtx3DIndex > Vertices.size() - 1) std::cout<<"TC module: Bad Vtx3DIndex = "<<ms.sVtx3DIndex<<" size "<<Vertices.size()<<"\n";
       
       // PFParticle - Cluster associations
-      if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, ms.ClusterIndices.begin(), ms.ClusterIndices.end()))
+      if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, clsIndices.begin(), clsIndices.end()))
       {
         throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate clusters with PFParticle";
       } // exception
@@ -322,6 +371,7 @@ namespace cluster {
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
     std::unique_ptr<std::vector<recob::PFParticle> > pcol(new std::vector<recob::PFParticle>(std::move(spcol)));
+    std::unique_ptr<std::vector<recob::Shower> > scol(new std::vector<recob::Shower>(std::move(sscol)));
 
     // clean up
     fTCAlg->ClearResults();
@@ -335,6 +385,8 @@ namespace cluster {
     evt.put(std::move(hc_assn));
     evt.put(std::move(v2col));
     evt.put(std::move(v3col));
+    evt.put(std::move(scol));
+    evt.put(std::move(hs_assn));
     evt.put(std::move(cv_assn));
     evt.put(std::move(pcol));
     evt.put(std::move(pc_assn));

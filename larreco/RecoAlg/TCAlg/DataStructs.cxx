@@ -39,8 +39,9 @@ namespace tca {
     "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
-    "ShowerParent",
-    "ShowerTj"
+    "ShowerTj",
+    "MergeOverlap",
+    "MergeSubShowers"
   };
 
   const std::vector<std::string> StopFlagNames {

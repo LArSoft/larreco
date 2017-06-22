@@ -1,8 +1,12 @@
 #include "hitalgorithms.fcl"
 #include "clustermodules.fcl"
+#include "calorimetry_microboone.fcl"
 
 BEGIN_PROLOG
 
+microboone_trajclusteralg:                    @local::standard_trajclusteralg
+microboone_trajclusteralg.MaxWireSkipNoSignal: 15 # increase a bit to allow for low gain wires
+microboone_trajclusteralg.CaloAlg:            @local::microboone_calorimetryalgmc
 microboone_trajcluster:                       @local::standard_trajcluster
 microboone_trajcluster.TrajClusterAlg:        @local::microboone_trajclusteralg
 

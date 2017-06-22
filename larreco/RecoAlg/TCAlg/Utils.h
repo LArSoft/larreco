@@ -27,6 +27,8 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/RecoAlg/TCAlg/TCShower.h"
+#include "larreco/RecoAlg/TCAlg/TCVertex.h"
 
 namespace tca {
 
@@ -37,6 +39,16 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  void MakeTruTrajPoint(TjStuff& tjs, unsigned short MCParticleListIndex, TrajPoint& tp);
+  unsigned short MCParticleStartTjID(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP);
+  unsigned short GetMCPartListIndex(TjStuff& tjs, const Trajectory& tj, unsigned short& nTruHits);
+  unsigned short GetMCPartListIndex(TjStuff& tjs, const ShowerStruct& ss, unsigned short& nTruHits);
+  void TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
+  unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp);
+  void SetAngleCode(TjStuff& tjs, TrajPoint& tp);
+  unsigned short AngleRange(TjStuff& tjs, float angle);
+  void FitTraj(TjStuff& tjs, Trajectory& tj);
+  void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
@@ -44,6 +56,8 @@ namespace tca {
   unsigned short Matched3DVtx(TjStuff& tjs, unsigned short im);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
+  bool StoreTraj(TjStuff& tjs, Trajectory& tj);
+  bool InTrajOK(TjStuff& tjs, std::string someText);
   void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
   bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt);
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
@@ -65,7 +79,6 @@ namespace tca {
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj);
   void MakeVertexObsolete(TjStuff& tjs, unsigned short ivx);
   void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj);
-  void CheckVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
   bool TjHasNiceVtx(TjStuff& tjs, const Trajectory& tj);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
@@ -137,38 +150,22 @@ namespace tca {
   // Returns true if the trajectory has low hit multiplicity and is in a clean environment
   bool TrajIsClean(TjStuff& tjs, Trajectory& tj, bool prt);
   // Flag delta ray trajectories in allTraj
-  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, const std::vector<short>& fDeltaRayTag, short debugWorkID);
+  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, short debugWorkID);
   // Tag muon directions using delta proximity
-  void TagMuonDirections(TjStuff& tjs, const short& minDeltaRayLength, short debugWorkID);
+  void TagMuonDirections(TjStuff& tjs, short debugWorkID);
   // Make a bare trajectory point that only has position and direction defined
   bool MakeBareTrajPoint(TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   bool MakeBareTrajPoint(TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
+  bool MakeBareTrajPoint(const std::array<float, 2>& fromPos, const std::array<float, 2>& toPos, TrajPoint& tpOut);
   bool MakeBareTrajPoint(TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
-  // ****************************** Shower finding  ******************************
-  // Create showers (aka clusters of trajectories, tjs.cots)
-  void FindShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag);
-  void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, std::vector<std::vector<unsigned short>>& tjList);
-  void FindShowerCenter(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void FindShowerParent(TjStuff& tjs, const unsigned short& showerIndex, const std::vector<float>& fShowerTag, bool prt);
-  void FindFirstTPAng(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void DefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void DefineShowerEnvelope(TjStuff& tjs, const unsigned short& cotIndex, const std::vector<float>& fShowerTag, bool prt);
-  void MergeShowers(TjStuff& tjs, const CTP_t& inCTP, const std::vector<float>& fShowerTag, bool prt);
-  void CollectHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
-  // ****************************** Vertex finding  ******************************
-  unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
-  bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, const std::vector<float>& fVertex2DCuts, bool prt);
-  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned short itj, const std::vector<float>& fVertex2DCuts, bool prt);
-  bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, const std::vector<float>& fVertex2DCuts, bool prt);
-  float TrajPointVertexPull(TjStuff& tjs, const TrajPoint& tp, const VtxStore& vx);
-  float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
-  bool FitVertex(TjStuff& tjs, VtxStore& vx, const std::vector<float>& fVertex2DCuts, bool prt);
+  void SetPDGCode(TjStuff& tjs, Trajectory& tj);
+  void SetPDGCode(TjStuff& tjs, unsigned short itj);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
-  void PrintTrajectory(std::string someText, TjStuff& tjs, Trajectory const& tj ,unsigned short tPoint);
-  void PrintAllTraj(std::string someText, TjStuff& tjs, DebugStuff& Debug, unsigned short itj, unsigned short ipt);
+  void PrintTrajectory(std::string someText, const TjStuff& tjs, const Trajectory& tj ,unsigned short tPoint);
+  void PrintAllTraj(std::string someText, const TjStuff& tjs, const DebugStuff& Debug, unsigned short itj, unsigned short ipt, bool printVtx = true);
   void PrintHeader(std::string someText);
-  void PrintTrajPoint(std::string someText, TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
+  void PrintTrajPoint(std::string someText, const TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
   // Print clusters after calling MakeAllTrajClusters
   void PrintClusters();
   // Print a single hit in the standard format
@@ -177,7 +174,7 @@ namespace tca {
   // Print Trajectory position in the standard format
   std::string PrintPos(TjStuff& tjs, const TrajPoint& tp);
   std::string PrintPos(TjStuff& tjs, const std::array<float, 2>& pos);
-  std::string PrintStopFlag(TjStuff& tjs, const Trajectory& tj, unsigned short end);
+  std::string PrintStopFlag(const Trajectory& tj, unsigned short end);
 } // namespace tca
 
 #endif // ifndef TRAJCLUSTERALGUTILS_H
