@@ -367,6 +367,14 @@ bool pma::Track3D::erase(const art::Ptr< recob::Hit > & hit)
 	return false;
 }
 
+pma::Vector3D pma::Track3D::GetDirection3D(size_t index) const
+{
+    pma::Hit3D* h = fHits[index];
+    for (auto s : fSegments) { if (s->HasHit(h)) return s->GetDirection3D(); }
+    for (auto n : fNodes) { if (n->HasHit(h)) return n->GetDirection3D(); }
+    throw cet::exception("pma::Track3D") << "Track corrupted." << std::endl;
+}
+
 void pma::Track3D::AddHits(const std::vector< art::Ptr<recob::Hit> >& hits)
 {
 	fHits.reserve(fHits.size() + hits.size());

@@ -10,12 +10,6 @@
  */
 
 #include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
-#include "larreco/RecoAlg/PMAlg/Utilities.h"
-
-#include "larcore/Geometry/TPCGeo.h"
-#include "larcore/Geometry/PlaneGeo.h"
-#include "larcore/Geometry/WireGeo.h"
-
 
 pma::Hit3D::Hit3D(void) :
 	fCryo(0), fTPC(0), fPlane(0), fWire(0),
