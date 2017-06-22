@@ -146,6 +146,17 @@ double pma::Node3D::GetDistance2To(const TVector2& p2d, unsigned int view) const
 	return pma::Dist2(fProj2D[view], p2d);
 }
 
+pma::Vector3D pma::Node3D::GetDirection3D(void) const
+{
+    pma::Element3D* seg = 0;
+    if (next) { seg = dynamic_cast< pma::Element3D* >(next); }
+    else if (prev) { seg = dynamic_cast< pma::Element3D* >(prev); }
+    else { throw cet::exception("Node3D") << "Isolated vertex." << std::endl; }
+
+    if (seg) { return seg->GetDirection3D(); }
+    else { throw cet::exception("Node3D") << "Corrupted vertex." << std::endl; }
+}
+
 void pma::Node3D::SetProjection(pma::Hit3D& h) const
 {
 	TVector2 gstart;
