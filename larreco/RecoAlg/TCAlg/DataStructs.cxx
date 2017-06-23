@@ -57,8 +57,8 @@ namespace tca {
     "VtxTrjTried",
     "OnDeadWire",
     "VtxRefined",
-    "NiceVtx",
-    "kInShower"
+    "InShower",
+    "VtxKilled"
   } ;
   
   geo::PlaneID DecodeCTP(CTP_t CTP) {
