@@ -1962,8 +1962,8 @@ namespace tca {
         if(tj2.Pts.size() > 10 && tj2.MCSMom > maxMCSMom) continue;
         if(TjHasNiceVtx(tjs, tj2)) continue;
         unsigned short ipt1, ipt2;
-//        float doca = tjs.ShowerTag[2];
-        float doca = 5;
+        //float doca = tjs.ShowerTag[2];
+	float doca = 10;
         // Find the separation between Tjs without considering dead wires
         TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca, false);
         if(doca < 5) {
