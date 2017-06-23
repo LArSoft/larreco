@@ -827,8 +827,8 @@ namespace tca {
       // require that the vertex is matched to a 2D vertex in the right TPC
       if(tjs.vtx3[ivx3].CStat != planeID.Cryostat) continue;
       if(tjs.vtx3[ivx3].TPC != planeID.TPC) continue;
-      if(tjs.vtx3[ivx3].Ptr2D[ipl] < 0) continue;
-      unsigned short ivx2 = tjs.vtx3[ivx3].Ptr2D[ipl];
+      if(tjs.vtx3[ivx3].Vtx2ID[ipl] == 0) continue;
+      unsigned short ivx2 = tjs.vtx3[ivx3].Vtx2ID[ipl] - 1;
       VtxStore& vx2 = tjs.vtx[ivx2];
       float delta = PointTrajDOCA(tjs, vx2.Pos[0], vx2.Pos[1], stj.Pts[0]);
       // This is just a WAG for now
@@ -844,7 +844,7 @@ namespace tca {
     // Set the shower angle if there is only one primary vertex candidate
     if(ss.PrimaryVtxIndex.size() != 1) return;
     unsigned short ivx3 = ss.PrimaryVtxIndex[0];
-    unsigned short ivx2 = tjs.vtx3[ivx3].Ptr2D[ipl];
+    unsigned short ivx2 = tjs.vtx3[ivx3].Vtx2ID[ipl] - 1;
     VtxStore& vx2 = tjs.vtx[ivx2];
     TrajPoint tp;
     // make a TP from the vertex to the shower center to get the angle
@@ -1942,7 +1942,7 @@ namespace tca {
       if(tj1.Pts.size() < 3) continue;
       // Cut on length and MCSMom
       if(tj1.Pts.size() > 6 && tj1.MCSMom > maxMCSMom) continue;
-      if(TjHasNiceVtx(tjs, tj1)) continue;
+      if(TjHasNiceVtx(tjs, tj1, 2)) continue;
       tj1.PDGCode = 0;
       std::vector<int> list;
       for(unsigned short it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
@@ -1961,7 +1961,7 @@ namespace tca {
         if(tj2.Pts.size() < 3) continue;
         // Cut on length and MCSMom
         if(tj2.Pts.size() > 10 && tj2.MCSMom > maxMCSMom) continue;
-        if(TjHasNiceVtx(tjs, tj2)) continue;
+        if(TjHasNiceVtx(tjs, tj2, 2)) continue;
         unsigned short ipt1, ipt2;
 //        float doca = tjs.ShowerTag[2];
         float doca = 5;
@@ -2002,7 +2002,7 @@ namespace tca {
         // check the momentum
         Trajectory& tj = tjs.allTraj[tjs.fHits[iht].InTraj - 1];
         if(tj.MCSMom > maxMom) continue;
-        if(TjHasNiceVtx(tjs, tj)) continue;
+        if(TjHasNiceVtx(tjs, tj, 2)) continue;
         // see if it is already in the list
         if(std::find(list.begin(), list.end(), tjs.fHits[iht].InTraj) != list.end()) continue;
         list.push_back(tjs.fHits[iht].InTraj);
@@ -2089,7 +2089,7 @@ namespace tca {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.AlgMod[kInShower]) continue;
       if(tj.AlgMod[kShowerTj]) continue;
-      if(TjHasNiceVtx(tjs, tj)) continue;
+      if(TjHasNiceVtx(tjs, tj, 2)) continue;
       // This shouldn't be necessary but do it for now
       if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
       // See if both ends are outside the envelope
