@@ -399,7 +399,7 @@ double pma::PMAlgVertexing::convolute(size_t idx, size_t len, double* adc, doubl
 bool pma::PMAlgVertexing::isSingleParticle(pma::Track3D* trk1, pma::Track3D* trk2) const
 {
 	const double minCos = 0.996194698; // 5 deg (is it ok?)
-	double segCos = trk1->Segments().back()->GetDirection3D() * trk2->Segments().front()->GetDirection3D();
+	double segCos = trk1->Segments().back()->GetDirection3D().Dot( trk2->Segments().front()->GetDirection3D() );
 	if (segCos < minCos)
 	{
 		mf::LogVerbatim("pma::PMAlgVertexing") << "  has large angle, cos: " << segCos;
@@ -483,7 +483,7 @@ void pma::PMAlgVertexing::mergeBrokenTracks(pma::TrkCandidateColl & trk_input) c
 
 			trk2 = 0;
 			double c, maxc = 0.0;
-			TVector3 dir1 = trk1->Segments().back()->GetDirection3D();
+			pma::Vector3D dir1 = trk1->Segments().back()->GetDirection3D();
 			node = trk1->Nodes().back();
 			for (size_t n = 0; n < node->NextCount(); n++)
 			{
@@ -491,7 +491,7 @@ void pma::PMAlgVertexing::mergeBrokenTracks(pma::TrkCandidateColl & trk_input) c
 				pma::Track3D* tst = seg->Parent();
 				if (tst != trk1) // should always be true: the last node of trk1 is tested
 				{
-					c = dir1 * tst->Segments().front()->GetDirection3D();
+					c = dir1.Dot( tst->Segments().front()->GetDirection3D() );
 					if (c > maxc) { maxc = c; trk2 = tst; }
 				}
 			}

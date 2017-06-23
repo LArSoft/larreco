@@ -381,9 +381,9 @@ standard_muontrackingeff:
       MCTruthModuleLabel:	"generator"
       TrackModuleLabel: 	"pmtrack"
       MuonPDGCode:		13
-      FidVolCutX:               10
-      FidVolCutY:               10
-      FidVolCutZ:               10
+      FidVolCutX:               0
+      FidVolCutY:               0
+      FidVolCutZ:               0
 }
 
 END_PROLOG

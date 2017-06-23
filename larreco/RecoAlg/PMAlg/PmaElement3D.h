@@ -14,8 +14,6 @@
 
 #include "larreco/RecoAlg/PMAlg/PmaHit3D.h"
 
-#include "larcore/Geometry/Geometry.h"
-
 #include "TVector2.h"
 #include "TVector3.h"
 
@@ -29,8 +27,6 @@ namespace pma
 class pma::Element3D
 {
 public:
-	virtual ~Element3D(void) {}
-
 	/// TPC index or -1 if out of any TPC.
 	int TPC(void) const { return fTPC; }
 	/// Cryostat index or -1 if out of any cryostat.
@@ -42,6 +38,9 @@ public:
 	/// Distance [cm] from the 2D point to the object's 2D projection in one of wire views.
 	virtual double GetDistance2To(const TVector2& p2d, unsigned int view) const = 0;
 
+	/// Get 3D direction cosines corresponding to this element.
+	virtual pma::Vector3D GetDirection3D(void) const = 0;
+
 	virtual TVector3 GetUnconstrainedProj3D(const TVector2& p2d, unsigned int view) const = 0;
 
 	virtual void SetProjection(pma::Hit3D& h) const = 0;
@@ -50,6 +49,12 @@ public:
 	double Length(void) const { return sqrt(Length2()); }
 
 	const std::vector< pma::Hit3D* > & Hits(void) const { return fAssignedHits; }
+
+    bool HasHit(const pma::Hit3D* h) const
+    {
+        for (const auto a : fAssignedHits) { if (h == a) return true; }
+        return false;
+    } 
 
 	pma::Hit3D& Hit(size_t index) { return *(fAssignedHits[index]); }
 	void RemoveHitAt(size_t index)

@@ -84,6 +84,9 @@ public:
 	double Dist2(const TVector2& p2d, unsigned int view, unsigned int tpc, unsigned int cryo) const;
 	double Dist2(const TVector3& p3d) const;
 
+    /// Get trajectory direction at given hit index.
+    pma::Vector3D GetDirection3D(size_t index) const;
+
 	/// Add hits; does not update hit->node/seg assignments nor hit projection to track,
 	/// so MakeProjection() and SortHits() should be called as needed.
 	void AddHits(const std::vector< art::Ptr<recob::Hit> >& hits);
