@@ -186,7 +186,9 @@ namespace tca {
     if(fMinMCSMom.size() != fMinPts.size()) badinput = true;
     if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxVertexTrajSep, MaxAngleRange and MinMCSMom should be defined for each reconstruction pass";
     
-    if(tjs.Vertex2DCuts.size() != 7) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 7\n 0 = Max length definitino for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs";
+    if(tjs.Vertex2DCuts.size() < 7) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 7\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = ID of a 2D vertex to print";
+    // resize for a debug element of the vector
+    if(tjs.Vertex2DCuts.size() < 8) tjs.Vertex2DCuts.resize(8);
     if(fKinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
     if(fChargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
     
@@ -457,6 +459,10 @@ namespace tca {
       // No sense taking muon direction if delta ray tagging is disabled
       if(tjs.DeltaRayTag[0] >= 0) TagMuonDirections(tjs, debug.WorkID);
       if(tjs.Vertex3DChiCut > 0) Find3DVertices(tjs, debug, tpcid);
+      for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
+        fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
+        CheckVtxAssociations(tjs, fCTP);
+      }
       if(tjs.ShowerTag[0] > 0) {
         // find showers after 3D vertex finding - which may split trajectories
         for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
@@ -681,7 +687,7 @@ namespace tca {
     // convert vertex time from WSE to ticks
     for(auto& avtx : tjs.vtx) avtx.Pos[1] /= tjs.UnitsPerTick;
     
-    mf::LogVerbatim("TC")<<"RunTrajCluster success run "<<fRun<<" event "<<fEvent<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<fEventsProcessed;
+    if(fDebugMode) mf::LogVerbatim("TC")<<"RunTrajCluster success run "<<fRun<<" event "<<fEvent<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<fEventsProcessed;
     
   } // RunTrajClusterAlg
 
@@ -700,21 +706,9 @@ namespace tca {
     // Merging is done between the end of tj1 and the beginning of tj2. This function preserves the
     // AlgMod state of itj1
     
-    // First check for major failures
-    fQuitAlg = false;
-    if(itj1 > tjs.allTraj.size() - 1) fQuitAlg = true;
-    if(itj2 > tjs.allTraj.size() - 1) fQuitAlg = true;
-    if(tjs.allTraj[itj1].AlgMod[kKilled] || tjs.allTraj[itj2].AlgMod[kKilled]) {
-      mf::LogWarning("TC")<<"MergeAndStore: Trying to merge a killed trajectory. Here they are ";
-      PrintAllTraj("tj1", tjs, debug, itj1, USHRT_MAX);
-      PrintAllTraj("tj1", tjs, debug, itj2, USHRT_MAX);
-      fQuitAlg = true;
-    }
-    
-    if(fQuitAlg) {
-      mf::LogError("TC")<<"Failed in MergeAndStore";
-      return false;
-    }
+    if(itj1 > tjs.allTraj.size() - 1) return false;
+    if(itj2 > tjs.allTraj.size() - 1) return false;
+    if(tjs.allTraj[itj1].AlgMod[kKilled] || tjs.allTraj[itj2].AlgMod[kKilled]) return false;
     
     // Merging shower Tjs requires merging the showers as well.
     if(tjs.allTraj[itj1].AlgMod[kShowerTj] || tjs.allTraj[itj2].AlgMod[kShowerTj]) return MergeShowersAndStore(tjs, itj1, itj2, prt);
@@ -1065,15 +1059,12 @@ namespace tca {
     // last attempt to attach Tjs to vertices
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, vtxPrt);
     
-    // Check the associations and set the kNiceVtx bit
+    // Check the Tj <-> vtx associations and define the vertex quality
     CheckVtxAssociations(tjs, fCTP);
 
     // TY: Improve hit assignments near vertex 
     VtxHitsSwap(tjs, debug, fCTP);
 
-
-//    if(tjs.ShowerTag[0] > 0) FindShowers(tjs, fCTP);
-    
     // Refine vertices, trajectories and nearby hits
 //    Refine2DVertices();
     
@@ -3035,13 +3026,12 @@ namespace tca {
           aVtx.Topo = end1 + end2;
           aVtx.ChiDOF = 0;
           aVtx.CTP = fCTP;
-          unsigned short newVtxID = tjs.vtx.size() + 1;
-          aVtx.ID = newVtxID;
-          tjs.allTraj[it1].VtxID[end1] = newVtxID;
+          aVtx.ID = tjs.vtx.size() + 1;
+          tjs.allTraj[it1].VtxID[end1] = aVtx.ID;
           tjs.allTraj[it1].AlgMod[kEndMerge] = true;
-          tjs.allTraj[it2].VtxID[end2] = newVtxID;
+          tjs.allTraj[it2].VtxID[end2] = aVtx.ID;
           tjs.allTraj[it2].AlgMod[kEndMerge] = true;
-          if(mrgPrt) mf::LogVerbatim("TC")<<"  Make vertex ID "<<newVtxID<<" at "<<(int)aVtx.Pos[0]<<":"<<(int)(aVtx.Pos[1]/tjs.UnitsPerTick);
+          if(mrgPrt) mf::LogVerbatim("TC")<<"  Make vertex ID "<<aVtx.ID<<" at "<<(int)aVtx.Pos[0]<<":"<<(int)(aVtx.Pos[1]/tjs.UnitsPerTick);
           tjs.vtx.push_back(aVtx);
         } // create a vertex
         if(tjs.allTraj[it1].AlgMod[kKilled]) break;
@@ -7166,9 +7156,8 @@ namespace tca {
         aVtx.Topo = 10;
         aVtx.ChiDOF = 0;
         aVtx.CTP = fCTP;
+        aVtx.ID = tjs.vtx.size() + 1;
         tjs.vtx.push_back(aVtx);
-        unsigned short ivx = tjs.vtx.size() - 1;
-        tjs.vtx[ivx].ID = ivx + 1;
 
         // make a copy
         Trajectory newTj = tj;
@@ -7189,7 +7178,7 @@ namespace tca {
           }//ii
         }//ipt
         SetEndPoints(tjs, tj);
-        tj.VtxID[1-end] = tjs.vtx[ivx].ID;
+        tj.VtxID[1-end] = aVtx.ID;
         tj.AlgMod[kSplitHiChgHits] = true;
         if(prt) {
           mf::LogVerbatim("TC")<<"Splitting trajectory ID "<<tj.ID<<" new EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
@@ -7202,7 +7191,7 @@ namespace tca {
           }//ii
         }//ipt
         SetEndPoints(tjs, newTj);
-        newTj.VtxID[end] = tjs.vtx[ivx].ID;
+        newTj.VtxID[end] = aVtx.ID;
         newTj.AlgMod[kSplitHiChgHits] = true;
         tjs.allTraj.push_back(newTj);
         
