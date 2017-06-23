@@ -11,8 +11,8 @@ services:
   message:      @local::standard_info
                 @table::dunefd_simulation_services
 }
-services.Geometry: @local::dunedphase10kt_workspace_geo
-#services.Geometry: @local::protodunedphase_geo
+#services.Geometry: @local::dunedphase10kt_workspace_geo
+services.Geometry: @local::protodunedphase_geo
 
 source:
 {
