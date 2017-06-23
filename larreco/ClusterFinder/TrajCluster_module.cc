@@ -262,8 +262,8 @@ namespace cluster {
         for(tca::Vtx3Store const& vtx3: Vertices) {
           // ignore incomplete vertices
           if(vtx3.Wire > 0) continue;
-          if(vtx3.Ptr2D[plane] < 0) continue;
-          if(vtx3.Ptr2D[plane] == clstr.BeginVtx) {
+          if(vtx3.Vtx2ID[plane] == 0) continue;
+          if(vtx3.Vtx2ID[plane] == clstr.BeginVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<icl<<" with vertex";
@@ -280,7 +280,8 @@ namespace cluster {
         for(tca::Vtx3Store const& vtx3: Vertices) {
           // ignore incomplete vertices
           if(vtx3.Wire >= 0) continue;
-          if(vtx3.Ptr2D[plane] == clstr.EndVtx) {
+          if(vtx3.Vtx2ID[plane] == 0) continue;
+          if(vtx3.Vtx2ID[plane] == clstr.EndVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster ID "<<clsID<<" with endpoint";
