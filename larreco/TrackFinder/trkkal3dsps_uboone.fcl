@@ -14,7 +14,7 @@ services:
   # 5 momenta, useMC=F, no outliers (adjacent wire beyond 2cm from last one)
   TFileService: { fileName: "recon_hist_Kal_mu_25deg.root" }
   TimeTracker   {}
-  MemoryTracker:     { ignoreTotal: 1 } # default is one
+  MemoryTracker:     { } # default is one
   RandomNumberGenerator: {} #ART native random number generator
   message:      @local::standard_warning
           @table::microboone_simulation_services

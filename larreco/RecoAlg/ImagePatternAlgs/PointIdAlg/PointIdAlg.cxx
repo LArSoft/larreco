@@ -823,6 +823,65 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(const TLor
 }
 // ------------------------------------------------------
 
+bool nnet::TrainingDataAlg::isElectronEnd(const simb::MCParticle & particle,
+    const std::unordered_map< int, const simb::MCParticle* > & particleMap) const
+{
+    const float minElectronLength2 = 2.5*2.5;
+    const float maxDeltaLength2 = 0.15*0.15;
+
+    int pdg = abs(particle.PdgCode());
+	if (pdg != 11) return false; // should be applied only to electrons
+
+	size_t nSec = particle.NumberDaughters();
+	for (size_t d = 0; d < nSec; ++d)
+	{
+		auto d_search = particleMap.find(particle.Daughter(d));
+		if (d_search != particleMap.end())
+		{
+			auto const & daughter = *((*d_search).second);
+			int d_pdg = abs(daughter.PdgCode());
+			if (d_pdg != 22) { return false; } // not the end of the shower
+		}
+	}
+
+    float trkLength2 = 0;
+	auto const * p = &particle;
+	bool branching = false;
+	while (!branching)
+	{
+        trkLength2 += particleRange2(*p);
+        auto m_search = particleMap.find(p->Mother());
+		if (m_search != particleMap.end())
+        {
+			p = (*m_search).second;
+			int m_pdg = abs(p->PdgCode());
+			if (m_pdg == 11)
+			{
+			    nSec = p->NumberDaughters();
+			    size_t ne = 0;
+			    for (size_t d = 0; d < nSec; ++d)
+			    {
+			        auto d_search = particleMap.find(p->Daughter(d));
+			        if (d_search != particleMap.end())
+			        {
+			            auto const & daughter = *((*d_search).second);
+			            int d_pdg = abs(daughter.PdgCode());
+			            if (d_pdg == 11)
+			            {
+                        	if (particleRange2(daughter) > maxDeltaLength2) { ne++; }
+			            }
+			        }
+			    }
+			    if (ne > 1) { branching = true; }
+			}
+			else break;
+        }
+        else break;
+    }
+
+    return (trkLength2 > minElectronLength2);
+}
+
 bool nnet::TrainingDataAlg::isMuonDecaying(const simb::MCParticle & particle,
     const std::unordered_map< int, const simb::MCParticle* > & particleMap) const
 {
@@ -877,8 +936,16 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 				}
 				break;
 
+			case 11:   // e+/-
+			    if (isElectronEnd(particle, particleMap))
+			    {
+			        flagsEnd = nnet::TrainingDataAlg::kElectronEnd;
+			    }
+				break;
+
+
 			case 13:   // mu+/-
-			    if (nnet::TrainingDataAlg::isMuonDecaying(particle, particleMap))
+			    if (isMuonDecaying(particle, particleMap))
 			    {
 			        //std::cout << "---> mu decay to electron" << std::endl;
 			        flagsEnd = nnet::TrainingDataAlg::kDecay;
@@ -1014,8 +1081,10 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 			auto wd = getProjection(particle.EndPosition(), view);
 			if (wd.TPC == (int)fTPC)
 			{
+			    //if (flagsEnd == nnet::TrainingDataAlg::kElectronEnd) { std::cout << "---> clear electron endpoint" << std::endl; }
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;
-				// std::cout << "---> flagsEnd:" << flagsEnd << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
+				//if (flagsEnd == nnet::TrainingDataAlg::kElectronEnd)
+				//    std::cout << "---> flagsEnd:" << flagsEnd << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
 			}
 			// else std::cout << "---> not in current TPC" << std::endl;
 		}
