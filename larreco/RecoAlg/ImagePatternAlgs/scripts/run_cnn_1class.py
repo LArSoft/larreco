@@ -23,11 +23,16 @@ if args.gpu == '-1':
 else:
     theano.sandbox.cuda.use('gpu' + args.gpu)
 
+import os
+os.environ['KERAS_BACKEND'] = "theano"
+
 import keras
 from keras.models import model_from_json
 
 print 'Software versions: Theano ', theano.__version__, ', Keras ', keras.__version__
-if keras.backend.backend() != 'theano': print '**** You should be using Theano backend now...****'
+if keras.backend.backend() != 'theano':
+    print '**** You should be using Theano backend now...****'
+    quit()
 keras.backend.set_image_dim_ordering('th')
 
 def load_model(name):
@@ -72,15 +77,17 @@ m.compile(loss='mean_squared_error', optimizer='sgd')
 
 print 'running CNN...'
 pred = m.predict(inputs.reshape(inputs.shape[0], 1, PATCH_SIZE_W, PATCH_SIZE_D)) # nsamples, channel, rows, cols
+if len(pred.shape) > 1 and pred.shape[1] > 1: pred = pred[:,0] # select output 0 if multiple outputs
 pred.flatten()
 print '...done'
 
 outputs = np.zeros((raw.shape[0], raw.shape[1]), dtype=np.float32)
 
 cnt_ind = 0
-for r in range(outputs.shape[1]):
-    for c in range(outputs.shape[2]):
+for r in range(outputs.shape[0]):
+    for c in range(outputs.shape[1]):
         if full2d == 0 and not(tracks[r, c] == 1 or showers[r, c] == 1):
+            outputs[r, c] = -1
             continue
 
         outputs[r, c] = pred[cnt_ind]
@@ -94,14 +101,14 @@ ax[0,0].set_title('PDG')
 fig.colorbar(cs, ax=ax[0,0])
 
 cs = ax[0,1].pcolor(np.transpose(deposit), cmap='jet')
-ax[0,1].set_title('MC truth')
+ax[0,1].set_title('MC truth deposit')
 fig.colorbar(cs, ax=ax[0,1])
 
 cs = ax[1,0].pcolor(np.transpose(raw), cmap='jet')
 ax[1,0].set_title('ADC')
 fig.colorbar(cs, ax=ax[1,0])
 
-cs = ax[1,1].pcolor(-np.transpose(outputs), cmap='CMRmap')
+cs = ax[1,1].pcolor(np.transpose(outputs), cmap='CMRmap')
 ax[1,1].set_title('CNN output')
 fig.colorbar(cs, ax=ax[1,1])
 
