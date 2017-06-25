@@ -1342,7 +1342,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 	    		                {
                 			        pdg |= nnet::TrainingDataAlg::kMichel; // tag Michel
 	    		                }
-	    		                else if (mother.Mother() >= 0)
+	    		                else if (mother.Mother() < 0)
 	    		                {
 	    		                    pdg |= nnet::TrainingDataAlg::kPriEl; // tag primary
 	    		                }
