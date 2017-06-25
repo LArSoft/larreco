@@ -31,27 +31,32 @@ def main(argv):
     if ev_idx >= len(raw_keys):
         print 'event index out of range'
         return
-    print len(raw_keys), 'reading event key:', raw_keys[ev_idx]
+    print len(raw_keys), 'keys in the file, reading event key:', raw_keys[ev_idx]
 
     dep = hist2array(file0.Get(args.module + '/' + dep_keys[ev_idx]))
     raw = hist2array(file0.Get(args.module + '/' + raw_keys[ev_idx]))
     mc  = hist2array(file0.Get(args.module + '/' + pdg_keys[ev_idx]))
     pdg = mc & 0xFF
-    vtx = (mc >> 24) & 0xFF
-    vtx_hadr = vtx & 1
-    vtx_pi0 = (vtx >> 1) & 1
-    vtx_decay = (vtx >> 2) & 1
-    vtx_conv = (vtx >> 3) & 1
-    vtx_eend = (vtx >> 4) & 1
-    vtx = vtx_hadr + 2*vtx_pi0 + 3*vtx_decay + 4*vtx_conv + 5*vtx_eend
-    print 'vtx:', np.count_nonzero(vtx), 'hadr:', np.count_nonzero(vtx_hadr), 'pi0:', np.count_nonzero(vtx_pi0), 'decay:', np.count_nonzero(vtx_decay), 'conv:', np.count_nonzero(vtx_conv), 'eend:', np.count_nonzero(vtx_eend)
 
     vtx_list = get_vertices(mc)
+
+    vtx_hadr = vtx_list[:,2] & 1
+    vtx_pi0 = (vtx_list[:,2] >> 1) & 1
+    vtx_decay = (vtx_list[:,2] >> 2) & 1
+    vtx_conv = (vtx_list[:,2] >> 3) & 1
+    vtx_eend = (vtx_list[:,2] >> 4) & 1
+    vtx_list[:,2] = vtx_hadr + 2*vtx_pi0 + 3*vtx_decay + 4*vtx_conv + 5*vtx_eend
+    print 'all vtx:', np.count_nonzero(vtx_list[:,2]), \
+          'hadr:', np.count_nonzero(vtx_hadr), \
+          'pi0:', np.count_nonzero(vtx_pi0), \
+          'decay:', np.count_nonzero(vtx_decay), \
+          'conv:', np.count_nonzero(vtx_conv), \
+          'eend:', np.count_nonzero(vtx_eend)
 
     fig, ax = plt.subplots(1, 3, figsize=(36, 10))
 
     cs = ax[0].pcolor(np.transpose(pdg), cmap='gist_ncar')
-    ax[0].scatter(vtx_list[:,0]+0.5, vtx_list[:,1]+0.5, s=50, c=32*vtx_list[:,2], cmap='rainbow', alpha=0.75)
+    ax[0].scatter(vtx_list[:,0]+0.5, vtx_list[:,1]+0.5, s=50, c=vtx_list[:,2], cmap='rainbow', alpha=0.75)
     ax[0].set_title('PDG')
     fig.colorbar(cs, ax=ax[0])
 
@@ -60,7 +65,7 @@ def main(argv):
     fig.colorbar(cs, ax=ax[1])
 
     cs = ax[2].pcolor(np.transpose(raw), cmap='jet')
-    ax[2].scatter(vtx_list[:,0]+0.5, vtx_list[:,1]+0.5, s=50, c=32*vtx_list[:,2], cmap='rainbow', alpha=0.75)
+    ax[2].scatter(vtx_list[:,0]+0.5, vtx_list[:,1]+0.5, s=50, c=vtx_list[:,2], cmap='rainbow', alpha=0.75)
     ax[2].set_title('ADC')
     fig.colorbar(cs, ax=ax[2])
 
