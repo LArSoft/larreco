@@ -1332,7 +1332,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 					    auto const & particle = *((*search).second);
 					    pdg = abs(particle.PdgCode());
 
-                        if (pdg == 11) // electron, check if it is Michel
+                        if (pdg == 11) // electron, check if it is Michel or primary electron
                         {
                             auto msearch = particleMap.find(particle.Mother());
 	    					if (msearch != particleMap.end())
@@ -1341,6 +1341,10 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 	    		                if (nnet::TrainingDataAlg::isMuonDecaying(mother, particleMap))
 	    		                {
                 			        pdg |= nnet::TrainingDataAlg::kMichel; // tag Michel
+	    		                }
+	    		                else if (mother.Mother() >= 0)
+	    		                {
+	    		                    pdg |= nnet::TrainingDataAlg::kPriEl; // tag primary
 	    		                }
 	    					}
                         }

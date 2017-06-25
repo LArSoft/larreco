@@ -334,7 +334,8 @@ public:
     enum ETrkType
     {
         kDelta  = 0x1000,      // delta electron
-        kMichel = 0x2000       // Michel electron
+        kMichel = 0x2000,      // Michel electron
+        kPriEl  = 0x3000       // primary electron
     };
 
 	enum EVtxId
