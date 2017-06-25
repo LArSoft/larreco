@@ -93,6 +93,7 @@ for r in range(outputs.shape[0]):
         outputs[r, c] = pred[cnt_ind]
         cnt_ind += 1
 
+# np.save('cnn_output.npy', outputs)
 
 fig, ax = plt.subplots(2, 2, figsize=(17, 14))
 
