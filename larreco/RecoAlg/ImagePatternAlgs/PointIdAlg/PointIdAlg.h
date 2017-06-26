@@ -335,7 +335,8 @@ public:
     {
         kDelta  = 0x1000,      // delta electron
         kMichel = 0x2000,      // Michel electron
-        kPriEl  = 0x3000       // primary electron
+        kPriEl  = 0x4000,      // primary electron
+        kPriMu  = 0x8000       // primary muon
     };
 
 	enum EVtxId
