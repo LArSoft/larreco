@@ -250,8 +250,6 @@ namespace tca {
     void AddHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
     // Large Angle version
     void AddLAHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
-    // Hits on two adjacent wires have an acceptable signal overlap
-    bool TrajHitsOK(const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet);
     // Try to use unused nearby hits in all trajectories after stepping is done
     void UseUnusedHits();
     // Finds junk trajectories using unassigned hits
@@ -295,7 +293,7 @@ namespace tca {
     void CheckHiMultUnusedHits(Trajectory& tj);
     void CheckHiMultEndHits(Trajectory& tj);
     // Check for high values of Delta at the beginning of the trajectory
-    void CheckHiDeltas(Trajectory& tj);
+    void HiEndDelta(Trajectory& tj);
     // Check for a TJ that is close to the Large Angle cut
     void CheckNearLA();
     // Updates the last added trajectory point fit, average hit rms, etc.
@@ -337,8 +335,6 @@ namespace tca {
     // Merges all of the hits used in each TP into one hit
     void MergeTPHits();
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
-    // Sets the StopsAtEnd bits for all trajectories in the current CTP
-    void ChkAllStop();
     // Sets the StopsAtEnd bits for the trajectory
     void ChkStop(Trajectory& tj);
     void SplitTrajCrossingVertices();
