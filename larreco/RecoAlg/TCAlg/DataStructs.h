@@ -75,7 +75,7 @@ namespace tca {
     unsigned short ID {0};
     unsigned short Vtx3ID {0};
     short Score {0};
-    unsigned short NN {0};            ///< Number of Nearby trajectories in the vicinity that are not attached to the vertex
+    float TjChgFrac {0};            ///< Fraction of charge near the vertex that is from hits on the vertex Tjs
     std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
   };
   
@@ -254,7 +254,7 @@ namespace tca {
     kSplitTraj,
     kComp3DVx,
     kComp3DVxIG,
-    kHiEndDelta,
+    kHED, // High End Delta
     kHamVx,
     kHamVx2,
     kJunkTj,
@@ -274,7 +274,6 @@ namespace tca {
     kNoKinkChk,
     kSoftKink,
     kChkStop,
-    kChkAllStop,
     kFTBRevProp,
     kStopAtTj,
     kMatch3D,
