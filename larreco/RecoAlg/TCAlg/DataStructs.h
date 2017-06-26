@@ -73,7 +73,9 @@ namespace tca {
     short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
     CTP_t CTP {0};
     unsigned short ID {0};
-    short Ptr3D {SHRT_MAX};
+    unsigned short Vtx3ID {0};
+    short Score {0};
+    unsigned short NN {0};            ///< Number of Nearby trajectories in the vicinity that are not attached to the vertex
     std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
   };
   
@@ -82,8 +84,8 @@ namespace tca {
     kVtxTrjTried,     ///< FindVtxTraj algorithm tried
     kOnDeadWire,
     kVtxRefined,
-    kNiceVtx,
     kVtxInShower,
+    kVtxKilled,
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
@@ -95,10 +97,11 @@ namespace tca {
     float YErr {0.5};                 // y position error
     float Z {0};                    // z position
     float ZErr {0.5};                 // z position error
-    short Wire {-1};                 // wire number for an incomplete 3D vertex, SHRT_MAX = abandoned vertex
+    short Wire {-1};                 // wire number for an incomplete 3D vertex
     unsigned short CStat {0};
     unsigned short TPC {0};
-    std::array<short, 3> Ptr2D {{-1, -1, -1}}; // pointers to 2D vertices in each plane
+    std::array<unsigned short, 3> Vtx2ID {{USHRT_MAX}}; // List of 2D vertex IDs in each plane
+    unsigned short ID {0};          // 0 = obsolete vertex
   };
   
   struct TrajPoint {

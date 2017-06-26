@@ -8,10 +8,14 @@ args = parser.parse_args()
 import theano.sandbox.cuda
 theano.sandbox.cuda.use('gpu'+args.gpu)
 
+import os
+os.environ['KERAS_BACKEND'] = "theano"
+
 import keras
 if keras.__version__[0] > 1:
     print 'Please use Keras 1.x.x API due to matrix shape constraints in LArSoft interface'
     quit()
+keras.backend.set_image_dim_ordering('th')
 
 import numpy as np
 np.random.seed(2017)  # for reproducibility

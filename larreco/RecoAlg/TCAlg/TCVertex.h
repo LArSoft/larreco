@@ -47,6 +47,7 @@ namespace tca {
   float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
   bool FitVertex(TjStuff& tjs, VtxStore& vx, bool prt);
   void CheckVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
+  void MakeVertexObsolete(TjStuff& tjs, unsigned short ivx);
   //    void Refine2DVertices();
 } // namespace
 

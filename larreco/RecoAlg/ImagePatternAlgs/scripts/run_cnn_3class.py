@@ -23,11 +23,16 @@ if args.gpu == '-1':
 else:
     theano.sandbox.cuda.use('gpu' + args.gpu)
 
+import os
+os.environ['KERAS_BACKEND'] = "theano"
+
 import keras
 from keras.models import model_from_json
 
 print 'Software versions: Theano ', theano.__version__, ', Keras ', keras.__version__
-if keras.backend.backend() != 'theano': print '**** You should be using Theano backend now...****'
+if keras.backend.backend() != 'theano':
+    print '**** You should be using Theano backend now...****'
+    quit()
 keras.backend.set_image_dim_ordering('th')
 
 def load_model(name):
