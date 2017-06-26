@@ -1098,15 +1098,17 @@ namespace tca {
     constexpr float maxVtxPosErr = 2;
     // Cuts on Tjs attached to vertices
     constexpr float maxChgRMS = 0.25;
-    constexpr short minMCSMom = 200;
-    constexpr float NNDelta = 10; 
+    constexpr float momBin = 50;
+    constexpr float NNDelta = 5; 
+    
+    geo::PlaneID planeID = DecodeCTP(inCTP);
     
     // start by setting NTraj = 0 for all vertices
     for(auto& vtx : tjs.vtx) {
       if(vtx.CTP == inCTP) {
         vtx.NTraj = 0;
         vtx.Score = 0;
-        vtx.NN = 0;
+        vtx.TjChgFrac = 0;
       } // CTP check
     } // vtx
     std::vector<std::vector<int>> vtxTjID(tjs.vtx.size());
@@ -1149,40 +1151,40 @@ namespace tca {
       // Add one for small vertex position error
       if(vtx.PosErr[0] < maxVtxPosErr && vtx.PosErr[1] < maxVtxPosErr) ++vtx.Score;
       if(sprt) std::cout<<" PosErr "<<vtx.Score;
-      // get a list of trajectories that are within 5 WSE
-      tp.Pos = vtx.Pos;
-      auto closeTj = FindCloseTjs(tjs, tp, tp, NNDelta);
-      vtx.NN = closeTj.size();
-      // correct for the number of Tjs in vtxTjID that are in the closeTj list
-      unsigned short nvtj = 0;
-      for(auto& tjID : vtxTjID[ivx]) {
-        if(std::find(closeTj.begin(), closeTj.end(), tjID) != closeTj.end()) ++nvtj;
-      } // tjID
-/*
-      if(sprt) {
-        std::cout<<ivx<<" pos "<<PrintPos(tjs, vtx.Pos)<<" NTraj "<<vtxTjID[ivx].size()<<" nvtj "<<nvtj<<" closeTj";
-        for(auto& tjID : closeTj) std::cout<<" "<<tjID;
-        std::cout<<" vtxTjID";
-        for(auto& tjID : vtxTjID[ivx]) std::cout<<" "<<tjID;
-        std::cout<<"\n";
-      }
-*/
-      if(nvtj < vtx.NN) vtx.NN -= nvtj;
+      // find the ratio of charge within a box near the vertex 
+      std::array<int, 2> wireWindow;
+      std::array<float, 2> timeWindow;
+      wireWindow[0] = vtx.Pos[0] - NNDelta;
+      wireWindow[1] = vtx.Pos[0] + NNDelta;
+      timeWindow[0] = vtx.Pos[1] - NNDelta;
+      timeWindow[1] = vtx.Pos[1] + NNDelta;
+      bool hitsNear;
+      bool usePeakTime = true;
+      std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, planeID.Plane, kAllHits, usePeakTime, hitsNear);
+      float chg = 0;
+      float vchg = 0;
+      // Add the hit charge in the box
+      for(auto& iht : closeHits) {
+        chg += tjs.fHits[iht].Integral;
+        if(tjs.fHits[iht].InTraj <= 0) continue;
+        if(std::find(vtxTjID[ivx].begin(), vtxTjID[ivx].end(), tjs.fHits[iht].InTraj) != vtxTjID[ivx].end()) vchg += tjs.fHits[iht].Integral;
+      } // iht
+      if(chg > 0) vtx.TjChgFrac = vchg / chg;
       // subtract one if there are nearby neighbors
-      if(vtx.NN > 0) --vtx.Score;
+      if(vtx.TjChgFrac < 0.5) --vtx.Score;
       // subtract more if there are many nearby neighbors
-      if(vtx.NN > 3) vtx.Score -= 2;
-      if(sprt) std::cout<<" NN "<<vtx.Score;
+      if(vtx.TjChgFrac < 0.25) vtx.Score -= 2;
+      if(sprt) std::cout<<" TjChgFrac "<<vtx.Score;
       float sum = 0;
       float cnt = 0;
       for(unsigned short it1 = 0; it1 < vtxTjID[ivx].size(); ++it1) {
         unsigned short itj1 = vtxTjID[ivx][it1] - 1;
         Trajectory& tj1 = tjs.allTraj[itj1];
-        float wght1 = 0;
+        float wght1 = (float)tj1.MCSMom / momBin;
+        if(wght1 > 10) wght1 = 10;
         // weight by charge rms
         if(tj1.ChgRMS < maxChgRMS) ++wght1;
         // weight by MCS momentum
-        if(tj1.MCSMom > minMCSMom) ++wght1;
         // Shower Tj
         if(tj1.AlgMod[kShowerTj]) ++wght1;
         unsigned end1 = 0;
@@ -1193,11 +1195,10 @@ namespace tca {
         for(unsigned short it2 = it1 + 1; it2 < vtxTjID[ivx].size(); ++it2) {
           unsigned short itj2 = vtxTjID[ivx][it2]  - 1;
           Trajectory& tj2 = tjs.allTraj[itj2];
-          float wght2 = 0;
+          float wght2 = (float)tj2.MCSMom / momBin;
+          if(wght2 > 10) wght2 = 10;
           // weight by charge rms
           if(tj2.ChgRMS < maxChgRMS) ++wght2;
-          // weight by MCS momentum
-          if(tj2.MCSMom > minMCSMom) ++wght2;
           // Shower Tj
           if(tj2.AlgMod[kShowerTj]) ++wght2;
           unsigned end2 = 0;
@@ -1215,11 +1216,11 @@ namespace tca {
         } // it2
       } // it1
       if(cnt > 0) {
-        sum /= cnt;
-        if(sprt) std::cout<<" sum "<<sum;
+        sum /= sqrt(cnt);
+        if(sprt) std::cout<<" cnt "<<(int)cnt<<" sum "<<sum;
         vtx.Score += std::nearbyint(sum);
       }
-      if(sprt) std::cout<<" done "<<vtx.Score<<"\n";
+      if(sprt) std::cout<<" Score "<<vtx.Score<<"\n";
     } // ivx
     
     // delete vertices with only one trajectory
