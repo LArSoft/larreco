@@ -32,7 +32,6 @@ namespace tca {
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
-    "ChkAllStop",
     "FTBRevProp",
     "StopAtTj",
     "Match3D",
