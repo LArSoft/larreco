@@ -1049,12 +1049,112 @@ namespace tca {
     
   } // SignalBetween
   
+  ////////////////////////////////////////////////
+  bool TrajHitsOK(TjStuff& tjs, const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet)
+  {
+    // Hits (assume to be on adjacent wires have an acceptable signal overlap
+    
+    if(iHitsInMultiplet.empty() || jHitsInMultiplet.empty()) return false;
+    
+    float sum;
+    float cvI = HitsPosTick(tjs, iHitsInMultiplet, sum, kAllHits);
+    float minI = 1E6;
+    float maxI = 0;
+    for(auto& iht : iHitsInMultiplet) {
+      float cv = tjs.fHits[iht].PeakTime;
+      float rms = tjs.fHits[iht].RMS;
+      float arg = cv - 3 * rms;
+      if(arg < minI) minI = arg;
+      arg = cv + 3 * rms;
+      if(arg > maxI) maxI = arg;
+    }
+    
+    float cvJ = HitsPosTick(tjs, jHitsInMultiplet, sum, kAllHits);
+    float minJ = 1E6;
+    float maxJ = 0;
+    for(auto& jht : jHitsInMultiplet) {
+      float cv = tjs.fHits[jht].PeakTime;
+      float rms = tjs.fHits[jht].RMS;
+      float arg = cv - 3 * rms;
+      if(arg < minJ) minJ = arg;
+      arg = cv + 3 * rms;
+      if(arg > maxJ) maxJ = arg;
+    }
+    
+    if(cvI < cvJ) {
+      if(maxI > minJ) return true;
+    } else {
+      if(minI < maxJ) return true;
+    }
+    return false;
+  } // TrajHitsOK
+  
+  /////////////////////////////////////////
+  bool TrajHitsOK(TjStuff& tjs, const unsigned int iht, const unsigned int jht)
+  {
+    // ensure that two adjacent hits have an acceptable overlap
+    if(iht > tjs.fHits.size() - 1) return false;
+    if(jht > tjs.fHits.size() - 1) return false;
+    // require that they be on adjacent wires
+    TCHit& ihit = tjs.fHits[iht];
+    TCHit& jhit = tjs.fHits[jht];
+    unsigned int iwire = ihit.WireID.Wire;
+    unsigned int jwire = jhit.WireID.Wire;
+    if(abs(iwire - jwire) > 1) return false;
+    if(ihit.PeakTime > jhit.PeakTime) {
+      float minISignal = ihit.PeakTime - 3 * ihit.RMS;
+      float maxJSignal = jhit.PeakTime + 3 * ihit.RMS;
+      if(maxJSignal > minISignal) return true;
+    } else {
+      float maxISignal = ihit.PeakTime + 3 * ihit.RMS;
+      float minJSignal = jhit.PeakTime - 3 * ihit.RMS;
+      if(minJSignal > maxISignal) return true;
+    }
+    return false;
+  } // TrajHitsOK
+
+  
   /////////////////////////////////////////
   bool SignalAtTp(TjStuff& tjs, const TrajPoint& tp)
   {
-    return SignalAtPos(tjs, tp.Pos[0], tp.Pos[1], tp.CTP);
+    // returns true if there is a hit near tp.Pos
+    
+    if(tp.Pos[0] < 0) return false;
+    unsigned int wire = std::nearbyint(tp.Pos[0]);
+    geo::PlaneID planeID = DecodeCTP(tp.CTP);
+    unsigned int ipl = planeID.Plane;
+    if(wire >= tjs.NumWires[ipl]) return false;
+    if(tp.Pos[1] > tjs.MaxPos1[ipl]) return false;
+    // Assume dead wires have a signal
+    if(tjs.WireHitRange[ipl][wire].first == -1) return true;
+    float projTick = (float)(tp.Pos[1] / tjs.UnitsPerTick);
+    // estimate the tick range for non-zero angle
+    float tickRange = 0;
+    if(std::abs(tp.Dir[1]) != 0) {
+      tickRange = std::abs(0.5 / tp.Dir[1]) / tjs.UnitsPerTick;
+      // don't let it get too large
+      if(tickRange > 40) tickRange = 40;
+    }
+    float loTpTick = projTick - tickRange;
+    float hiTpTick = projTick + tickRange;
+    unsigned int firstHit = (unsigned int)tjs.WireHitRange[ipl][wire].first;
+    unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
+    
+    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+      TCHit& hit = tjs.fHits[iht];
+      if(projTick < hit.PeakTime) {
+        float loHitTick = hit.PeakTime - 3 * hit.RMS;
+        if(hiTpTick > loHitTick) return true;
+      } else {
+        float hiHitTick = hit.PeakTime + 3 * hit.RMS;
+        if(loTpTick < hiHitTick) return true;
+      }
+    } // iht
+    return false;
+    
   } // SignalAtTp
   
+/* Function not used
   /////////////////////////////////////////
   bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP)
   {
@@ -1077,7 +1177,7 @@ namespace tca {
     } // iht
     return false;
   } // SignalAtPos
-
+*/
   //////////////////////////////////////////
   float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp){
     float totchg = 0;
@@ -2418,23 +2518,23 @@ namespace tca {
         if(foundOne) {
           // print out 2D vertices
           myprt<<someText<<"************ 2D vertices ************\n";
-          myprt<<someText<<"VtxID  CTP   wire     error   tick     error  ChiDOF  NTj Pass Topo  NN Score  traj_IDs\n";
+          myprt<<someText<<"VtxID  CTP   wire  err   tick   err  ChiDOF  NTj Pass Topo ChgFrac Score  traj_IDs\n";
           for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
             auto& aVtx = tjs.vtx[iv];
             if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aVtx.CTP).Plane) continue;
             if(aVtx.Stat[kVtxKilled]) continue;
             myprt<<someText;
-            myprt<<std::right<<std::setw(3)<<std::fixed<<aVtx.ID<<std::setprecision(1);
+            myprt<<std::right<<std::setw(3)<<std::fixed<<aVtx.ID;
             myprt<<std::right<<std::setw(6)<<aVtx.CTP;
-            myprt<<std::right<<std::setw(8)<<aVtx.Pos[0]<<" +/- ";
-            myprt<<std::right<<std::setw(4)<<aVtx.PosErr[0];
-            myprt<<std::right<<std::setw(8)<<aVtx.Pos[1]/tjs.UnitsPerTick<<" +/- ";
-            myprt<<std::right<<std::setw(4)<<aVtx.PosErr[1]/tjs.UnitsPerTick;
-            myprt<<std::right<<std::setw(8)<<aVtx.ChiDOF;
+            myprt<<std::right<<std::setw(8)<<std::setprecision(0)<<std::nearbyint(aVtx.Pos[0]);
+            myprt<<std::right<<std::setw(5)<<std::setprecision(1)<<aVtx.PosErr[0];
+            myprt<<std::right<<std::setw(8)<<std::setprecision(0)<<std::nearbyint(aVtx.Pos[1]/tjs.UnitsPerTick);
+            myprt<<std::right<<std::setw(5)<<std::setprecision(1)<<aVtx.PosErr[1]/tjs.UnitsPerTick;
+            myprt<<std::right<<std::setw(7)<<aVtx.ChiDOF;
             myprt<<std::right<<std::setw(5)<<aVtx.NTraj;
             myprt<<std::right<<std::setw(5)<<aVtx.Pass;
             myprt<<std::right<<std::setw(6)<<aVtx.Topo;
-            myprt<<std::right<<std::setw(4)<<aVtx.NN;
+            myprt<<std::right<<std::setw(9)<<std::setprecision(2)<<aVtx.TjChgFrac;
             myprt<<std::right<<std::setw(6)<<aVtx.Score;
             myprt<<"    ";
             // display the traj indices
@@ -2461,7 +2561,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID   CTP Pass  Pts frm   to     W:Tick   Ang C AveQ     W:T      Ang C AveQ ChgRMS  Mom SDr TDr NN __Vtx__  PDG  Par TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID   CTP Pass  Pts frm   to     W:Tick   Ang CS AveQ     W:T      Ang CS AveQ ChgRMS  Mom SDr TDr NN __Vtx__  PDG  Par TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -2483,6 +2583,11 @@ namespace tca {
         if(itick < 1000) { myprt<<" "; }
         myprt<<std::setw(6)<<std::setprecision(2)<<tp0.Ang;
         myprt<<std::setw(2)<<tp0.AngleCode;
+        if(aTj.StopFlag[0][kBragg]) {
+          myprt<<"B";
+        } else {
+          myprt<<" ";
+        }
         myprt<<std::setw(5)<<(int)tp0.AveChg;
         unsigned short endPt1 = aTj.EndPt[1];
         auto& tp1 = aTj.Pts[endPt1];
@@ -2493,6 +2598,11 @@ namespace tca {
         if(itick < 1000) { myprt<<" "; }
         myprt<<std::setw(6)<<std::setprecision(2)<<tp1.Ang;
         myprt<<std::setw(2)<<tp1.AngleCode;
+        if(aTj.StopFlag[1][kBragg]) {
+          myprt<<"B";
+        } else {
+          myprt<<" ";
+        }
         myprt<<std::setw(5)<<(int)tp1.AveChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(5)<<aTj.MCSMom;
