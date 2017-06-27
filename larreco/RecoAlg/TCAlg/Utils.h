@@ -98,6 +98,7 @@ namespace tca {
   bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
   std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
   std::vector<int> FindCloseTjs(const TjStuff& tjs, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta);
+  float ChgFracNearPos(TjStuff& tjs, const std::array<float, 2>& pos, const std::vector<int>& tjIDs);
   float MaxHitDelta(TjStuff& tjs, Trajectory& tj);
   void ReverseTraj(TjStuff& tjs, Trajectory& tj);
   // returns the separation^2 between a point and a TP
@@ -175,8 +176,8 @@ namespace tca {
   std::string PrintHit(const TCHit& hit);
   std::string PrintHitShort(const TCHit& hit);
   // Print Trajectory position in the standard format
-  std::string PrintPos(TjStuff& tjs, const TrajPoint& tp);
-  std::string PrintPos(TjStuff& tjs, const std::array<float, 2>& pos);
+  std::string PrintPos(const TjStuff& tjs, const TrajPoint& tp);
+  std::string PrintPos(const TjStuff& tjs, const std::array<float, 2>& pos);
   std::string PrintStopFlag(const Trajectory& tj, unsigned short end);
 } // namespace tca
 
