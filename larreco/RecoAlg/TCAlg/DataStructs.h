@@ -70,7 +70,7 @@ namespace tca {
     unsigned short NTraj {0};  // = 0 for abandoned vertices
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
-    short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
+    short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH
     CTP_t CTP {0};
     unsigned short ID {0};
     unsigned short Vtx3ID {0};
@@ -100,7 +100,7 @@ namespace tca {
     short Wire {-1};                 // wire number for an incomplete 3D vertex
     unsigned short CStat {0};
     unsigned short TPC {0};
-    std::array<unsigned short, 3> Vtx2ID {{USHRT_MAX}}; // List of 2D vertex IDs in each plane
+    std::array<unsigned short, 3> Vtx2ID {{0}}; // List of 2D vertex IDs in each plane
     unsigned short ID {0};          // 0 = obsolete vertex
   };
   
@@ -302,6 +302,7 @@ namespace tca {
   struct TjStuff {
     // These variables don't change in size from event to event
     float UnitsPerTick;     ///< scale factor from Tick to WSE equivalent units
+    geo::TPCID TPCID;
     std::vector<unsigned int> NumWires;
     std::vector<float> MaxPos0;
     std::vector<float> MaxPos1;
