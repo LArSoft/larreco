@@ -1402,9 +1402,12 @@ namespace tca {
       return false;
     }
     
-    // make a copy
+    // make a copy that will become the Tj after the split point
     Trajectory newTj = tjs.allTraj[itj];
     newTj.ID = tjs.allTraj.size() + 1;
+    // make another copy in case something goes wrong
+    Trajectory oldTj = tjs.allTraj[itj];
+    
     
     // Leave the first section of tj in place. Re-assign the hits
     // to the new trajectory
@@ -1421,17 +1424,21 @@ namespace tca {
       } // ii
     } // ipt
     SetEndPoints(tjs, tj);
-    if(ivx != USHRT_MAX) tj.VtxID[1] = tjs.vtx[ivx].ID;
-    tj.AlgMod[kSplitTraj] = true;
-    if(prt) {
-      mf::LogVerbatim("TC")<<" Splitting trajectory ID "<<tj.ID<<" new EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
-    }
     
     // Append 3 points from the end of tj onto the
     // beginning of newTj so that hits can be swapped between
     // them later
     unsigned short eraseSize = pos - 2;
-    if(eraseSize > newTj.Pts.size() - 1) return false;
+    if(eraseSize > newTj.Pts.size() - 1) {
+      tj = oldTj;
+      return false;
+    }
+    
+    if(ivx < tjs.vtx.size()) tj.VtxID[1] = tjs.vtx[ivx].ID;
+    tj.AlgMod[kSplitTraj] = true;
+    if(prt) {
+      mf::LogVerbatim("TC")<<" Splitting trajectory ID "<<tj.ID<<" new EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
+    }
     
     // erase the TPs at the beginning of the new trajectory
     newTj.Pts.erase(newTj.Pts.begin(), newTj.Pts.begin() + eraseSize);
@@ -1441,7 +1448,7 @@ namespace tca {
       newTj.Pts[ipt].Chg = 0;
     } // ipt
     SetEndPoints(tjs, newTj);
-    if(ivx != USHRT_MAX) newTj.VtxID[0] = tjs.vtx[ivx].ID;
+    if(ivx < tjs.vtx.size()) newTj.VtxID[0] = tjs.vtx[ivx].ID;
     newTj.AlgMod[kSplitTraj] = true;
     tjs.allTraj.push_back(newTj);
     if(prt) {
@@ -1900,6 +1907,41 @@ namespace tca {
     return tmp;
     
   } // FindCloseTjs
+  
+  ////////////////////////////////////////////////
+  float ChgFracNearPos(TjStuff& tjs, const std::array<float, 2>& pos, const std::vector<int>& tjIDs)
+  {
+    // returns the fraction of the charge in the region around pos that is associated with
+    // the list of Tj IDs
+    if(tjIDs.empty()) return 0;
+    std::array<int, 2> wireWindow;
+    std::array<float, 2> timeWindow;
+    // 1/2 size of the region
+    constexpr float NNDelta = 5; 
+    wireWindow[0] = pos[0] - NNDelta;
+    wireWindow[1] = pos[0] + NNDelta;
+    timeWindow[0] = pos[1] - NNDelta;
+    timeWindow[1] = pos[1] + NNDelta;
+    // do some checking
+    for(auto& tjID : tjIDs) if(tjID <= 0 || tjID > (int)tjs.allTraj.size()) return 0;
+    // Determine which plane we are in
+    geo::PlaneID planeID = DecodeCTP(tjs.allTraj[tjIDs[0]-1].CTP);
+    // get a list of all hits in this region
+    bool hitsNear;
+    std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, planeID.Plane, kAllHits, true, hitsNear);
+    if(closeHits.empty()) return 0;
+    float chg = 0;
+    float tchg = 0;
+    // Add the hit charge in the box
+    // All hits in the box, and all hits associated with the Tjs
+    for(auto& iht : closeHits) {
+      chg += tjs.fHits[iht].Integral;
+      if(tjs.fHits[iht].InTraj <= 0) continue;
+      if(std::find(tjIDs.begin(), tjIDs.end(), tjs.fHits[iht].InTraj) != tjIDs.end()) tchg += tjs.fHits[iht].Integral;
+    } // iht
+    if(chg == 0) return 0;
+    return tchg / chg;
+  } // ChgFracNearPos
   
   ////////////////////////////////////////////////
   float MaxHitDelta(TjStuff& tjs, Trajectory& tj)
@@ -2472,7 +2514,7 @@ namespace tca {
       if(!tjs.vtx3.empty()) {
         // print out 3D vertices
         myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
-        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr  pln0 pln1 pln2 Wire score \n";
+        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr  pln0 pln1 pln2 Wire score   2D_Vtx_Pos\n";
         for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
           if(tjs.vtx3[iv].ID == 0) continue;
           myprt<<someText;
@@ -2497,13 +2539,14 @@ namespace tca {
             score += tjs.vtx[iv2].Score;
           } // ipl
           myprt<<std::right<<std::setw(6)<<score;
-          if(tjs.vtx3[iv].Wire == -1) {
-            myprt<<"    Matched in all planes";
-          } else if(tjs.vtx3[iv].Wire == -2) {
-            myprt<<"    PFParticle vertex";
-          } else {
-            myprt<<"    Incomplete";
-          }
+          for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+            if(tjs.vtx3[iv].Vtx2ID[ipl] == 0) {
+              myprt<<" NA";
+            } else {
+              unsigned short ivx = tjs.vtx3[iv].Vtx2ID[ipl] - 1;
+              myprt<<" "<<ipl<<":"<<PrintPos(tjs, tjs.vtx[ivx].Pos);
+            }
+          } // ipl
           myprt<<"\n";
         }
       } // tjs.vtx3.size
@@ -2805,13 +2848,13 @@ namespace tca {
   } // PrintHit
   
   /////////////////////////////////////////
-  std::string PrintPos(TjStuff& tjs, const TrajPoint& tp)
+  std::string PrintPos(const TjStuff& tjs, const TrajPoint& tp)
   {
     return PrintPos(tjs, tp.Pos);
   } // PrintPos
   
   /////////////////////////////////////////
-  std::string PrintPos(TjStuff& tjs, const std::array<float, 2>& pos)
+  std::string PrintPos(const TjStuff& tjs, const std::array<float, 2>& pos)
   {
     unsigned int wire = std::nearbyint(pos[0]);
     int time = std::nearbyint(pos[1]/tjs.UnitsPerTick);
