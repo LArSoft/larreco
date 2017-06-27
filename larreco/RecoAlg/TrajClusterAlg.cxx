@@ -186,9 +186,13 @@ namespace tca {
     if(fMinMCSMom.size() != fMinPts.size()) badinput = true;
     if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxVertexTrajSep, MaxAngleRange and MinMCSMom should be defined for each reconstruction pass";
     
-    if(tjs.Vertex2DCuts.size() < 7) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 7\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = ID of a 2D vertex to print";
+    if(tjs.Vertex2DCuts.size() < 7) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 7\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = ID of a 2D vertex to print";
     // resize for a debug element of the vector
-    if(tjs.Vertex2DCuts.size() < 8) tjs.Vertex2DCuts.resize(8);
+    if(tjs.Vertex2DCuts.size() < 9) {
+      tjs.Vertex2DCuts.resize(9);
+      // Set a default minimum Score
+      tjs.Vertex2DCuts[7] = 3;
+    }
     if(fKinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
     if(fChargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
     
@@ -209,6 +213,8 @@ namespace tca {
       mf::LogVerbatim("TC")<<"Last element of AngleRange != 90 degrees. Fixing it\n";
       tjs.AngleRanges.back() = 90;
     }
+    
+    fExpectNarrowHits = (fMode == 4);
     
     // decide whether debug information should be printed
     bool validCTP = debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0;
@@ -482,6 +488,7 @@ namespace tca {
     FillPFPInfo();
     // convert the cots vector into recob::Shower
     MakeShowers(tjs, fCaloAlg);
+    KillPoorVertices(tjs);
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     if(fQuitAlg) {
@@ -496,7 +503,6 @@ namespace tca {
     }
 
     if(fDebugMode) {
-      mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         if(tjs.allTraj[itj].WorkID == TJPrt) {
           PrintAllTraj("DBG", tjs, debug, itj, USHRT_MAX);
@@ -2984,6 +2990,8 @@ namespace tca {
         } else {
           // create a vertex instead if it passes the vertex cuts
           VtxStore aVtx;
+          aVtx.CTP = tjs.allTraj[it1].CTP;
+          aVtx.ID = tjs.vtx.size() + 1;
           // keep it simple if tp1 and tp2 are very close
           if(std::abs(tp1.Pos[0] - tp2.Pos[0]) < 2 && std::abs(tp1.Pos[1] - tp2.Pos[1]) < 2) {
             aVtx.Pos[0] = 0.5 * (tp1.Pos[0] + tp2.Pos[0]);
@@ -3022,21 +3030,24 @@ namespace tca {
               aVtx.Stat[kFixed] = true;
             }
           } // Tps not so close
-
-          aVtx.PosErr[0] = std::abs(tp1.Pos[0] - aVtx.Pos[0]);
-          aVtx.PosErr[1] = std::abs(tp1.Pos[1] - aVtx.Pos[1]);
+          // We got this far. Try a vertex fit to ensure that the errors are reasonable
+          tjs.allTraj[it1].VtxID[end1] = aVtx.ID;
+          tjs.allTraj[it2].VtxID[end2] = aVtx.ID;
+          // do a fit
+          if(!FitVertex(tjs, aVtx, mrgPrt)) {
+            // back out
+            tjs.allTraj[it1].VtxID[end1] = 0;
+            tjs.allTraj[it2].VtxID[end2] = 0;
+            if(mrgPrt) mf::LogVerbatim("TC")<<" Vertex fit failed ";
+            continue;
+          }
           aVtx.NTraj = 2;
           aVtx.Pass = tjs.allTraj[it1].Pass;
           aVtx.Topo = end1 + end2;
-          aVtx.ChiDOF = 0;
-          aVtx.CTP = fCTP;
-          aVtx.ID = tjs.vtx.size() + 1;
-          tjs.allTraj[it1].VtxID[end1] = aVtx.ID;
           tjs.allTraj[it1].AlgMod[kEndMerge] = true;
-          tjs.allTraj[it2].VtxID[end2] = aVtx.ID;
           tjs.allTraj[it2].AlgMod[kEndMerge] = true;
           if(mrgPrt) mf::LogVerbatim("TC")<<"  Make vertex ID "<<aVtx.ID<<" at "<<(int)aVtx.Pos[0]<<":"<<(int)(aVtx.Pos[1]/tjs.UnitsPerTick);
-          tjs.vtx.push_back(aVtx);
+          if(!StoreVertex(tjs, aVtx)) continue;
         } // create a vertex
         if(tjs.allTraj[it1].AlgMod[kKilled]) break;
       } // end1
@@ -6194,6 +6205,7 @@ namespace tca {
     unsigned int tpc = tpcid.TPC;
     unsigned short nplanes = TPC.Nplanes();
     tjs.NumPlanes = nplanes;
+    tjs.TPCID = tpcid;
     
     // Y,Z limits of the detector
     double local[3] = {0.,0.,0.};
@@ -7031,11 +7043,14 @@ namespace tca {
         aVtx.Pos = tj.Pts[lastHiTP].Pos;
         aVtx.NTraj = 2;
         aVtx.Pass = tj.Pass;
-        aVtx.Topo = 10;
+        aVtx.Topo = 7;
         aVtx.ChiDOF = 0;
         aVtx.CTP = fCTP;
         aVtx.ID = tjs.vtx.size() + 1;
-        tjs.vtx.push_back(aVtx);
+        if(!StoreVertex(tjs, aVtx)) {
+          if(prt) mf::LogVerbatim("TC")<<" Failed storing vertex "<<tj.VtxID[end];
+          return;
+        }
 
         // make a copy
         Trajectory newTj = tj;
