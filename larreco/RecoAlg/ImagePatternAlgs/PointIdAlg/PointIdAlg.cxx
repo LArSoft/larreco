@@ -802,7 +802,7 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(const TLor
 	    	
 	    	// correct for the time offset
 	    	float dx = tvec.T() * 1.e-3 * detprop->DriftVelocity();
-				if (fGeometry->TPC(tpcid).DetectDriftDirection() == 1) { dx = dx*(-1); }
+				if (fGeometry->TPC(tpcid).DetectDriftDirection() == 1) { dx *= -1; }
 				
 				vtx[0] = tvec.X() + dx;
 				
@@ -1286,8 +1286,9 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 		auto wireChannelNumber = fWireChannels[widx];
 		if (wireChannelNumber == raw::InvalidChannelID) continue;
 
-		std::vector< float > labels_deposit(fNDrifts, 0);  // full-drift-length buffers
-		std::vector< int > labels_pdg(fNDrifts, 0);
+		std::vector< float > labels_deposit(fNDrifts, 0);         // full-drift-length buffers,
+		std::vector< int > labels_pdg(labels_deposit.size(), 0);  // both of the same size,
+		int labels_size = labels_deposit.size();                  // cached as int for comparisons below
 
 		std::map< int, std::map< int, double > > timeToTrackToCharge;
 		for (auto const & channel : *simChannelHandle)
@@ -1332,17 +1333,28 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 					    auto const & particle = *((*search).second);
 					    pdg = abs(particle.PdgCode());
 
-                        if (pdg == 11) // electron, check if it is Michel
-                        {
-                            auto msearch = particleMap.find(particle.Mother());
-	    					if (msearch != particleMap.end())
-	    					{
-	    					    auto const & mother = *((*msearch).second);
+                        auto msearch = particleMap.find(particle.Mother());
+	    				if (msearch != particleMap.end())
+	    				{
+	    				    auto const & mother = *((*msearch).second);
+                            if (pdg == 11) // electron, check if it is Michel or primary electron
+                            {
 	    		                if (nnet::TrainingDataAlg::isMuonDecaying(mother, particleMap))
 	    		                {
                 			        pdg |= nnet::TrainingDataAlg::kMichel; // tag Michel
 	    		                }
-	    					}
+	    		                else if (mother.Mother() < 0)
+	    		                {
+	    		                    pdg |= nnet::TrainingDataAlg::kPriEl; // tag primary
+	    		                }
+                            }
+                            else if (pdg == 13) // muon, check if primary
+                            {
+                                if (mother.Mother() < 0)
+                                {
+                                    pdg |= nnet::TrainingDataAlg::kPriMu; // tag primary
+                                }
+                            }
                         }
 					}
 
@@ -1369,18 +1381,21 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 				}			
 			}
 
-			if (ttc.first < (int)labels_deposit.size())
+			if (ttc.first < labels_size)
 			{
-			    size_t tick_idx = ttc.first + fAdcDelay;
-				if (tick_idx < labels_deposit.size()) { labels_deposit[tick_idx] = max_deposit; }
-				if (tick_idx < labels_pdg.size()) { labels_pdg[tick_idx]     = max_pdg & type_pdg_mask; }
+			    int tick_idx = ttc.first + fAdcDelay;
+				if (tick_idx < labels_size)
+				{
+				    labels_deposit[tick_idx] = max_deposit;
+				    labels_pdg[tick_idx] = max_pdg & type_pdg_mask;
+				}
 			}
 		}
 
 		for (auto const & drift_flags : wireToDriftToVtxFlags[widx])
 		{
 			int drift = drift_flags.first, flags = drift_flags.second;
-			if ((drift >= 0) && (drift < (int)labels_pdg.size()))
+			if ((drift >= 0) && (drift < labels_size))
 			{
 				labels_pdg[drift] |= flags;
 			}
