@@ -335,6 +335,7 @@ namespace tca {
     std::vector<ShowerStruct3D> showers;  // 3D showers
     std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
     float Vertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
+    std::vector<float> VertexScoreWeights;
     std::vector<short> DeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
