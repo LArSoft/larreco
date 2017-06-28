@@ -1153,6 +1153,9 @@ namespace tca {
         vtx.TjChgFrac = 0;
       } // CTP check
     } // vtx
+
+    if(tjs.VertexScoreWeights.size() < 4) return;
+
     std::vector<std::vector<int>> vtxTjID(tjs.vtx.size());
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != inCTP) continue;
@@ -1177,32 +1180,32 @@ namespace tca {
         }
       } // end
     } // tj
-    // a temporary trajectory point for finding nearby trajectories
-    TrajPoint tp;
-    tp.CTP = inCTP;
+
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
       if(vtxTjID[ivx].empty()) continue;
       VtxStore& vtx = tjs.vtx[ivx];
       vtx.NTraj = vtxTjID[ivx].size();
       // temp for debugging
       bool sprt = (vtx.ID == (unsigned short)tjs.Vertex2DCuts[8]);
-      vtx.Score = 0;
       if(sprt) std::cout<<vtx.ID<<" pos "<<inCTP<<":"<<PrintPos(tjs, vtx.Pos);
-      // Define the Quality metric
-      // Add one if it is matched in 3D
+      // Vertex position error
+      float vpeScore = -tjs.VertexScoreWeights[0] * (vtx.PosErr[0] + vtx.PosErr[1]);
+      if(sprt) std::cout<<" vpeScore "<<std::fixed<<std::setprecision(1)<<vpeScore;
+      
+      float m3DScore = 0;
       if(vtx.Vtx3ID > 0) {
-        ++vtx.Score;
+        m3DScore = tjs.VertexScoreWeights[1];
         // Add another if the 3D vertex is complete
         unsigned short ivx3 = vtx.Vtx3ID - 1;
-        if(tjs.vtx3[ivx3].Wire < 0) ++vtx.Score;
+        if(tjs.vtx3[ivx3].Wire < 0) m3DScore += tjs.VertexScoreWeights[1];
       }
-      if(sprt) std::cout<<" 3D match "<<vtx.Score;
-      // Subtract for poor vertex position error
-      vtx.Score -= std::nearbyint(vtx.PosErr[0] + vtx.PosErr[1]) + 1;
-      if(sprt) std::cout<<" PosErr "<<vtx.Score;
+      if(sprt) std::cout<<" m3DScore "<<m3DScore;
+      
       vtx.TjChgFrac = ChgFracNearPos(tjs, vtx.Pos, vtxTjID[ivx]);
-      vtx.Score -= std::nearbyint(10 * (1 - vtx.TjChgFrac));
-      if(sprt) std::cout<<" TjChgFrac "<<" "<<std::setprecision(2)<<vtx.TjChgFrac<<" "<<vtx.Score;
+      float cfScore = tjs.VertexScoreWeights[2] * vtx.TjChgFrac;
+      if(sprt) std::cout<<" TjChgFrac "<<" "<<std::setprecision(2)<<vtx.TjChgFrac<<" cfScore "<<cfScore;
+      
+      float tjScore = 0;
       float sum = 0;
       float cnt = 0;
       for(unsigned short it1 = 0; it1 < vtxTjID[ivx].size(); ++it1) {
@@ -1239,16 +1242,17 @@ namespace tca {
           if((dang / dangErr) > 3 && wght1 > 0 && wght2 > 0) {
             sum += wght1 + wght2;
             ++cnt;
-            if(sprt) std::cout<<" dang "<<dang<<" sig "<<dang/dangErr<<" wghts "<<wght1<<", "<<wght2;
+//            if(sprt) std::cout<<" dang "<<dang<<" sig "<<dang/dangErr<<" wghts "<<wght1<<", "<<wght2;
           }
         } // it2
       } // it1
       if(cnt > 0) {
         sum /= sqrt(cnt);
-        if(sprt) std::cout<<" cnt "<<(int)cnt<<" sum "<<sum;
-        vtx.Score += std::nearbyint(sum);
+        tjScore = tjs.VertexScoreWeights[3] * sum;
       }
-      if(sprt) std::cout<<" Score "<<vtx.Score<<"\n";
+      if(sprt) std::cout<<" tjScore "<<tjScore;
+      vtx.Score = std::nearbyint(vpeScore + m3DScore + cfScore + tjScore);
+      if(sprt) std::cout<<" vtx.Score "<<vtx.Score<<"\n";
     } // ivx
     
     // delete vertices with only one trajectory
