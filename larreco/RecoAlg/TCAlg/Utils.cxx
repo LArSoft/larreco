@@ -1236,7 +1236,7 @@ namespace tca {
     if(NumPtsWithCharge(tjs, tj, false, firstPt, lastPt) < 3) return 0;
         
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
-    if(tjLen == 0) return 0;
+    if(tjLen == 0) return 1;
     // mom calculated in MeV
     double mom = 13.8 * sqrt(tjLen / 14) / MCSThetaRMS(tjs, tj, firstPt, lastPt);
     if(mom > 999) mom = 999;

@@ -4126,7 +4126,11 @@ namespace tca {
       TrajPoint& jTp = jTj.Pts[jEndPt];
       std::array<float, 3> xyz;
       double yp, zp;
-      geom->IntersectionPoint(std::nearbyint(iTp.Pos[0]), std::nearbyint(jTp.Pos[0]), iPln, jPln, cstat, tpc, yp, zp);
+      unsigned int iwire = std::nearbyint(iTp.Pos[0]);
+      if(!geom->HasWire(geo::WireID(cstat, tpc, iPln, iwire))) continue;
+      unsigned int jwire = std::nearbyint(jTp.Pos[0]);
+      if(!geom->HasWire(geo::WireID(cstat, tpc, jPln, jwire))) continue;
+      geom->IntersectionPoint(iwire, jwire, iPln, jPln, cstat, tpc, yp, zp);
       // ensure this is inside the TPC
       if(yp < tjs.YLo) yp = tjs.YLo;
       if(yp > tjs.YHi) yp = tjs.YLo;
@@ -4141,7 +4145,11 @@ namespace tca {
       jEndPt = jTj.EndPt[1 - jEnd];
       TrajPoint& joTp = jTj.Pts[jEndPt];
       std::array<float, 3> oxyz;
-      geom->IntersectionPoint(std::nearbyint(ioTp.Pos[0]), std::nearbyint(joTp.Pos[0]), iPln, jPln, cstat, tpc, yp, zp);
+      iwire = std::nearbyint(ioTp.Pos[0]);
+      if(!geom->HasWire(geo::WireID(cstat, tpc, iPln, iwire))) continue;
+      jwire = std::nearbyint(joTp.Pos[0]);
+      if(!geom->HasWire(geo::WireID(cstat, tpc, jPln, jwire))) continue;
+      geom->IntersectionPoint(iwire, jwire, iPln, jPln, cstat, tpc, yp, zp);
       // ensure this is inside the TPC
       if(yp < tjs.YLo) yp = tjs.YLo;
       if(yp > tjs.YHi) yp = tjs.YLo;
