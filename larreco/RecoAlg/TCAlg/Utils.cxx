@@ -2136,7 +2136,10 @@ namespace tca {
     // It is used to define kink and vertex cuts. This should probably be named something different to
     // prevent confusion
     
-    return MCSThetaRMS(tjs, tj, tj.EndPt[0], tj.EndPt[1]) / sqrt(TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]));
+    float tps = TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
+    if(tps == 0) return 1;
+    
+    return MCSThetaRMS(tjs, tj, tj.EndPt[0], tj.EndPt[1]) / sqrt(tps);
     
   } // MCSThetaRMS
   
@@ -2178,7 +2181,7 @@ namespace tca {
     if(numPts > 5 && cnt < 0.7 * numPts) return tj.MCSMom;
     double sigmaS = sqrt(dsum / (double)cnt);
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
-    if(tjLen == 0) return 0;
+    if(tjLen == 0) return 1;
     // Theta_o =  4 * sqrt(3) * sigmaS / path
     return (6.8 * sigmaS / tjLen);
     
@@ -2533,7 +2536,7 @@ namespace tca {
           myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Wire;
           // calculate the total score for all planes
           short score = 0;
-          for(unsigned short ipl = 0; ipl < 3; ++ipl) {
+          for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
             if(tjs.vtx3[iv].Vtx2ID[ipl] == 0) continue;
             unsigned short iv2 = tjs.vtx3[iv].Vtx2ID[ipl] - 1;
             score += tjs.vtx[iv2].Score;
@@ -2561,7 +2564,7 @@ namespace tca {
         if(foundOne) {
           // print out 2D vertices
           myprt<<someText<<"************ 2D vertices ************\n";
-          myprt<<someText<<"VtxID  CTP   wire  err   tick   err  ChiDOF  NTj Pass Topo ChgFrac Score  traj_IDs\n";
+          myprt<<someText<<"VtxID  CTP   wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  traj_IDs\n";
           for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
             auto& aVtx = tjs.vtx[iv];
             if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aVtx.CTP).Plane) continue;
