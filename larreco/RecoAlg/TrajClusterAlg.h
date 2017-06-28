@@ -131,7 +131,6 @@ namespace tca {
     
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
-		float VertexPullCut; 	///< maximum 2D vtx - trajectory significance
     std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
     
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
@@ -139,43 +138,11 @@ namespace tca {
     std::array<float, 5> EPSums;
     std::array<float, 5> EPTSums;
     bool fIsRealData;
-/*
-    TH2F *fMCSMom_KE_e;
-    TH2F *fMCSMom_KE_mu;
-    TH2F *fMCSMom_KE_pi;
-    TH2F *fMCSMom_KE_p;
-    TH1F *fnHitsPerTP[3];
-    TH1F *fDelta[3];
-    TH1F *fDeltaN[3];
-    TH1F *fCharge[3];
-    TH1F *fPrEP;
-    TH1F *fMuPiEP;
-    TH2F *fnHitsPerTP_Angle[3];
-    TProfile *fnHitsPerTP_AngleP[3];
-*/
-     TH2F *fMCSMom_TruMom_e;
+
+    TH2F *fMCSMom_TruMom_e;
     TH2F *fMCSMom_TruMom_mu;
     TH2F *fMCSMom_TruMom_pi;
     TH2F *fMCSMom_TruMom_p;
-    
-    TProfile *fShMinSep;
-    TProfile *fShMCSMom_Energy;
-    TProfile *fShnTjs_Energy;
-    TProfile *fShAspectRatio_Energy;
-    TProfile *fShChg_Energy[3];
-    TProfile *fShChgDensity_Energy;
-    TProfile *fShEP_Energy;
-    TProfile *fParentLength_Energy;
-    
-    TH1F *fShMCSMom;
-    TH1F *fShChgDensity;
-    TH1F *fShAspectRatio;
-    TH1F *fDOCA;
-    TH1F *fParentFOM;
-    
-    TH1F *fShowerAngle[3];
-    TH1F *fShPrimIP;
-    TProfile *fShPrimIP_Energy;
 
     TH2F *fMCSMomEP_TruMom_e;
     
@@ -183,21 +150,22 @@ namespace tca {
     TH1F* fNuVtx_dx;
     TH1F* fNuVtx_dy;
     TH1F* fNuVtx_dz;
+    TH1F* fNuVtx_Score;
+    TProfile* fNuVtx_Enu_Score_p;
+    
+    // Vertex score for 2D and 3D vertices
+    TH1F* fVx2_Score;
+    TH1F* fVx3_Score;
     
     // Reco-MC stopping wire difference for different MC Particles
     TH1F* fdWire[5];
     // EP vs KE for different MC Particles
     TProfile* fEP_T[5];
-/*
-    TH1F *fDeltaN[3];
-    TH1F *fHitRMS[3];
-    TH2F *fTPWidth_Angle[3];
-    TProfile *fTPWidth_AngleP[3];
-    TProfile *fExpect_Angle[3];
-*/
+
     // number of primary particles in the event
     unsigned short nTruPrimary;
-    float fSourceParticleEnergy;
+    float fNeutrinoEnergy;
+    float fSourceParticleEnergy; //< in MeV
     // number of reconstructable primary particles in the event
     unsigned short nTruPrimaryOK;
     // number of reconstructable neutrino vertices in ALL events
