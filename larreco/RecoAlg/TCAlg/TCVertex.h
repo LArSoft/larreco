@@ -46,7 +46,9 @@ namespace tca {
   float TrajPointVertexPull(TjStuff& tjs, const TrajPoint& tp, const VtxStore& vx);
   float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
   bool FitVertex(TjStuff& tjs, VtxStore& vx, bool prt);
+  bool StoreVertex(TjStuff& tjs, VtxStore& vx);
   void CheckVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
+  void KillPoorVertices(TjStuff& tjs);
   void MakeVertexObsolete(TjStuff& tjs, unsigned short ivx);
   //    void Refine2DVertices();
 } // namespace
