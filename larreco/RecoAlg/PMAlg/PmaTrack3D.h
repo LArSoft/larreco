@@ -203,7 +203,7 @@ public:
 
 	void SortHitsInTree(bool skipFirst = false);
 	void MakeProjectionInTree(bool skipFirst = false);
-	void UpdateParamsInTree(bool skipFirst = false);
+	bool UpdateParamsInTree(bool skipFirst = false);
 	double GetObjFnInTree(bool skipFirst = false);
 	double TuneSinglePass(bool skipFirst = false);
 	double TuneFullTree(double eps = 0.001, double gmax = 50.0);
@@ -310,7 +310,7 @@ private:
     void DeleteSegments(void);
 	void RebuildSegments(void);
 	bool SwapVertices(size_t v0, size_t v1);
-	void UpdateParams(void);
+	bool UpdateParams(void);
 
 	bool CheckEndSegment(pma::Track3D::ETrackEnd endCode);
 
