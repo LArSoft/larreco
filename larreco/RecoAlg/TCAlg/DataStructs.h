@@ -80,12 +80,13 @@ namespace tca {
   };
   
   typedef enum {
-    kFixed,           ///< vertex position fixed manually - no fitting done
     kVtxTrjTried,     ///< FindVtxTraj algorithm tried
+    kFixed,           ///< vertex position fixed manually - no fitting done
     kOnDeadWire,
     kVtxRefined,
     kVtxInShower,
     kVtxKilled,
+    kVtxTruMatch,      ///< tagged as a vertex between Tjs that are matched to MC truth neutrino interaction particles
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
@@ -131,7 +132,7 @@ namespace tca {
     std::vector<TrajPoint> Pts;    ///< Trajectory points
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
-    unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
+    int WorkID {0};
     int ParentTrajID {0};     ///< ID of the parent
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
@@ -142,12 +143,13 @@ namespace tca {
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     int ID;
+    unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
     unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
     short TjDir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
                                         ///< 1 = in the StepDir direction, -1 in the opposite direction, 0 = don't know
-    int WorkID {0};
+    unsigned short MCPartListIndex {USHRT_MAX};
     unsigned short NNeighbors {0};    /// number of neighbors within window defined by ShowerTag
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
   };
@@ -298,6 +300,7 @@ namespace tca {
   
   extern const std::vector<std::string> AlgBitNames;
   extern const std::vector<std::string> StopFlagNames;
+  extern const std::vector<std::string> VtxBitNames;
   
   struct TjStuff {
     // These variables don't change in size from event to event
