@@ -2136,7 +2136,10 @@ namespace tca {
     // It is used to define kink and vertex cuts. This should probably be named something different to
     // prevent confusion
     
-    return MCSThetaRMS(tjs, tj, tj.EndPt[0], tj.EndPt[1]) / sqrt(TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]));
+    float tps = TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
+    if(tps == 0) return 1;
+    
+    return MCSThetaRMS(tjs, tj, tj.EndPt[0], tj.EndPt[1]) / sqrt(tps);
     
   } // MCSThetaRMS
   
@@ -2169,7 +2172,7 @@ namespace tca {
       dsum += PointTrajDOCA2(tjs, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
       ++cnt;
     } // ipt
-    if(cnt == 0) return 1;
+    if(cnt < 3) return 1;
     // require that cnt is a significant fraction of the total number of charged points
     // so that we don't get erroneously high MCSMom when there are large gaps.
     // This is the number of points expected in the count if there are no gaps
@@ -2514,7 +2517,7 @@ namespace tca {
       if(!tjs.vtx3.empty()) {
         // print out 3D vertices
         myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
-        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr  pln0 pln1 pln2 Wire score   2D_Vtx_Pos\n";
+        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score nTru  2D_Vtx_Pos\n";
         for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
           if(tjs.vtx3[iv].ID == 0) continue;
           myprt<<someText;
@@ -2533,12 +2536,15 @@ namespace tca {
           myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].Wire;
           // calculate the total score for all planes
           short score = 0;
-          for(unsigned short ipl = 0; ipl < 3; ++ipl) {
+          unsigned short nTruMatch = 0;
+          for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
             if(tjs.vtx3[iv].Vtx2ID[ipl] == 0) continue;
             unsigned short iv2 = tjs.vtx3[iv].Vtx2ID[ipl] - 1;
             score += tjs.vtx[iv2].Score;
+            if(tjs.vtx[iv2].Stat[kVtxTruMatch]) ++nTruMatch;
           } // ipl
           myprt<<std::right<<std::setw(6)<<score;
+          myprt<<std::right<<std::setw(5)<<nTruMatch;
           for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
             if(tjs.vtx3[iv].Vtx2ID[ipl] == 0) {
               myprt<<" NA";
@@ -2561,7 +2567,7 @@ namespace tca {
         if(foundOne) {
           // print out 2D vertices
           myprt<<someText<<"************ 2D vertices ************\n";
-          myprt<<someText<<"VtxID  CTP   wire  err   tick   err  ChiDOF  NTj Pass Topo ChgFrac Score  traj_IDs\n";
+          myprt<<someText<<"VtxID  CTP   wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  traj_IDs\n";
           for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
             auto& aVtx = tjs.vtx[iv];
             if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aVtx.CTP).Plane) continue;
@@ -2580,7 +2586,7 @@ namespace tca {
             myprt<<std::right<<std::setw(9)<<std::setprecision(2)<<aVtx.TjChgFrac;
             myprt<<std::right<<std::setw(6)<<aVtx.Score;
             myprt<<"    ";
-            // display the traj indices
+            // display the traj IDs
             for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
               auto const& aTj = tjs.allTraj[ii];
               if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -2588,6 +2594,8 @@ namespace tca {
               for(unsigned short end = 0; end < 2; ++end)
                 if(aTj.VtxID[end] == (short)aVtx.ID) myprt<<std::right<<std::setw(4)<<aTj.ID<<"_"<<end;
             }
+            // Special flags. Ignore the first flag bit (0 = kVtxTrjTried) which is done for every vertex
+            for(unsigned short ib = 1; ib < VtxBitNames.size(); ++ib) if(aVtx.Stat[ib]) myprt<<" "<<VtxBitNames[ib];
             myprt<<"\n";
           } // iv
         }
@@ -2656,9 +2664,16 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
         myprt<<std::setw(5)<<aTj.ParentTrajID;
-        myprt<<std::setw(6)<<aTj.TruPDG;
+        int truKE = 0;
+        int pdg = 0;
+        if(aTj.MCPartListIndex != USHRT_MAX) {
+          auto& mcp = tjs.MCPartList[aTj.MCPartListIndex];
+          truKE = 1000 * (mcp->E() - mcp->Mass());
+          pdg = mcp->PdgCode();
+        }
+        myprt<<std::setw(6)<<pdg;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
-        myprt<<std::setw(5)<<(int)aTj.TruKE;
+        myprt<<std::setw(5)<<truKE;
         myprt<<std::setw(7)<<aTj.WorkID;
 //        myprt<<" "<<PrintStopFlag(aTj, 0)<<" "<<PrintStopFlag(aTj, 1)<<" ";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];

@@ -37,6 +37,12 @@ namespace tca {
     fNuVtx_dx = tfs->make<TH1F>("Vtx dx","Vtx dx",80,-10,10);
     fNuVtx_dy = tfs->make<TH1F>("Vtx dy","Vtx dy",80,-10,10);
     fNuVtx_dz = tfs->make<TH1F>("Vtx dz","Vtx dz",80,-10,10);
+    fNuVtx_Score = tfs->make<TH1F>("Reco-True Vtx Score","Vtx Score",80, 0, 80);
+    fNuVtx_Enu_Score_p = tfs->make<TProfile>("NuVtx_E_Score_p","Score vs Enu (MeV)", 20, 0, 2000);
+    
+    fVx2_Score = tfs->make<TH1F>("Vx2_Score","Vx2 Score",80, 0, 80);
+    fVx3_Score = tfs->make<TH1F>("Vx3_Score","Vx2 Score",100, 0, 100);
+    
     
     fdWire[0] = tfs->make<TH1F>("dWireEl","dWire - Electrons",21,-10,10);
     fdWire[1] = tfs->make<TH1F>("dWireMu","dWire - Muons",21,-10,10);
@@ -50,33 +56,6 @@ namespace tca {
     fEP_T[3] = tfs->make<TProfile>("EP_T_Ka","EP vs T(MeV) - Kaons", 20, 0, 1000);
     fEP_T[4] = tfs->make<TProfile>("EP_T_Pr","EP vs T(MeV) - Protons", 20, 0, 1000);
     
-    
-    // Shower histos
-    int nbins = 10;
-    fShMCSMom_Energy = tfs->make<TProfile>("MCSMom_Energy","MCSMom vs Electron Energy", nbins, 0, 1000);
-    fShnTjs_Energy = tfs->make<TProfile>("nTjs_Energy","nTjs vs Electron Energy", nbins, 0, 1000);
-    fShAspectRatio_Energy = tfs->make<TProfile>("AspectRatio_Energy","AspectRatio vs Electron Energy", nbins, 0, 1000);
-    fShChg_Energy[0] = tfs->make<TProfile>("Chg0_Energy","Chg Pln0 vs Electron Energy", nbins, 0, 1000);
-    fShChg_Energy[1] = tfs->make<TProfile>("Chg1_Energy","Chg Pln1 vs Electron Energy", nbins, 0, 1000);
-    fShChg_Energy[2] = tfs->make<TProfile>("Chg2_Energy","Chg Pln2 vs Electron Energy", nbins, 0, 1000);
-    fShChgDensity_Energy = tfs->make<TProfile>("ChgDensity_Energy","ChgDensity vs Electron Energy", nbins, 0, 1000);
-    fShEP_Energy = tfs->make<TProfile>("EP_Energy","EP vs Electron Energy", nbins, 0, 1000);
-    fParentLength_Energy = tfs->make<TProfile>("ParentLength_Energy","Parent Length Energy", nbins, 0, 1000);
-
-    fShMCSMom = tfs->make<TH1F>("MCSMom","InShower Tj MCSMom", 100 ,  0, 200);
-    fShChgDensity = tfs->make<TH1F>("ChgDensity","ChgDensity", 20, 0, 20);
-    fShAspectRatio = tfs->make<TH1F>("AspectRatio","AspectRatio", 30, 0, 3);
-    fDOCA = tfs->make<TH1F>("DOCA","Min DOCA", 100, 0, 100);
-    fParentFOM = tfs->make<TH1F>("ParentFOM","Parent FOM", 100, 0, 10);
-
-    fShPrimIP = tfs->make<TH1F>("ShPrimIP","Primary TP - Shower TP Impact Parameter", 100, 0, 20);
-    fShPrimIP_Energy = tfs->make<TProfile>("ShPrimIP_Energy","Primary TP - Shower TP Impact Parameter vs Energy", nbins, 0, 1000);
-    
-    fShowerAngle[0] = tfs->make<TH1F>("ShowerAngle0","Shower Angle Pln 0", 100, -1, 1);
-    fShowerAngle[1] = tfs->make<TH1F>("ShowerAngle1","Shower Angle Pln 1", 100, -1, 1);
-    fShowerAngle[2] = tfs->make<TH1F>("ShowerAngle2","Shower Angle Pln 2", 100, -1, 1);
-    
-    // End of shower histos
 
     fMCSMom_TruMom_e = tfs->make<TH2F>("MCSMom_TruMom_e","MCSMom vs Tru Mom electrons", 50, 0, 100, 50, 0, 1000);
     fMCSMom_TruMom_mu = tfs->make<TH2F>("MCSMom_TruMom_mu","MCSMom vs Tru Mom electrons", 50, 0, 1000, 50, 0, 1000);
@@ -162,6 +141,7 @@ namespace tca {
     fStudyMode            = pset.get< bool  >("StudyMode", false);
     fMatchTruth           = pset.get< std::vector<float> >("MatchTruth", {-1, -1, -1, -1});
     tjs.Vertex2DCuts      = pset.get< std::vector<float >>("Vertex2DCuts", {-1, -1, -1, -1, -1, -1, -1});
+    if(pset.has_key("VertexScoreWeights")) tjs.VertexScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
     tjs.Vertex3DChiCut    = pset.get< float >("Vertex3DChiCut", -1);
     fMaxVertexTrajSep     = pset.get< std::vector<float>>("MaxVertexTrajSep");
     tjs.Match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1});
@@ -388,7 +368,7 @@ namespace tca {
       localHit.LocalIndex = hit->LocalIndex();
       localHit.WireID = hit->WireID();
       tjs.fHits.push_back(localHit);
-    } // iht
+    } // iht    
 
     // sort it as needed;
     // that is, sorted by wire ID number,
@@ -467,7 +447,7 @@ namespace tca {
       if(tjs.Vertex3DChiCut > 0) Find3DVertices(tjs, debug, tpcid);
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
-        CheckVtxAssociations(tjs, fCTP);
+        ChkVtxAssociations(tjs, fCTP, false);
       }
       if(tjs.ShowerTag[0] > 0) {
         // find showers after 3D vertex finding - which may split trajectories
@@ -484,6 +464,17 @@ namespace tca {
     } // tpcid
 
     MatchTruth();
+    
+    if(fStudyMode) {
+      // output MC-reco stuff to optimize the vertex weights
+      for (const geo::TPCID& tpcid: tjs.geom->IterateTPCIDs()) {
+        geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
+        for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
+          fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
+          ChkVtxAssociations(tjs, fCTP, true);
+        }
+      } // tpcid
+    }
     
     FillPFPInfo();
     // convert the cots vector into recob::Shower
@@ -528,101 +519,6 @@ namespace tca {
     if(fDebugMode) std::cout<<"RTC done ntj "<<ntj<<" nsh "<<nsh<<" events processed "<<fEventsProcessed<<"\n";
 
     if(fStudyMode) {
-      // shower stuff
-/*
-      // count the number of showers in each plane
-      std::vector<unsigned short> nShInPln(3);
-      for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
-        ShowerStruct& ss = tjs.cots[ict];
-        if(ss.TjIDs.empty()) continue;
-        ++nShInPln[ss.CTP];
-      } // ict
-      for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
-        ShowerStruct& ss = tjs.cots[ict];
-        if(ss.TjIDs.empty()) continue;
-        // require only one shower in the plane
-        if(nShInPln[ss.CTP] != 1) continue;
-        unsigned short itj = ss.ShowerTjID - 1;
-        Trajectory& stj = tjs.allTraj[itj];
-        float ep = 0;
-        if(ss.Parent.empty()) {
-          std::cout<<"No parent Tj for ict "<<ict<<"\n";
-          continue;
-        }
-        ep = tjs.allTraj[ss.Parent[0].ID - 1].EffPur;
-        // source particle energy in MeV
-        float spe = 1000 * fSourceParticleEnergy;
-        mf::LogVerbatim myprt("TC");
-        myprt<<"SPE "<<(int)spe;
-        float aveMom = 0;
-        short maxMom = 0;
-        float aveNN = 0;
-        for(auto& tjID : ss.TjIDs) {
-          unsigned short itj = tjID - 1;
-          float mom = tjs.allTraj[itj].MCSMom;
-          fShMCSMom_Energy->Fill(spe, (float)tjs.allTraj[itj].MCSMom);
-          fShMCSMom->Fill((float)tjs.allTraj[itj].MCSMom);
-          if(mom < 0) mom = 0;
-          if(mom > maxMom) maxMom = mom;
-          aveMom += mom;
-          aveNN += tjs.allTraj[itj].NNeighbors;
-        } // tjID
-        aveMom /= (float)ss.TjIDs.size();
-        aveNN /= (float)ss.TjIDs.size();
-        fShnTjs_Energy->Fill(spe, (float)ss.TjIDs.size());
-        fShAspectRatio_Energy->Fill(spe, ss.AspectRatio);
-        fShAspectRatio->Fill(ss.AspectRatio);
-        float totChg = stj.Pts[0].Chg + stj.Pts[1].Chg + stj.Pts[2].Chg;
-        fShChg_Energy[ss.CTP]->Fill(spe, totChg);
-        fShChgDensity_Energy->Fill(spe, ss.ChgDensity);
-        fShChgDensity->Fill(ss.ChgDensity);
-        fShEP_Energy->Fill(spe, ep);
-        fShowerAngle[ss.CTP]->Fill(ss.Angle);
-        float parLen = 1E6;
-        if(ss.Parent.empty()) continue;
-        unsigned short iptj = ss.Parent[0].ID - 1;
-        unsigned short end = ss.Parent[0].End;
-        unsigned short endPt = tjs.allTraj[iptj].EndPt[end];
-        TrajPoint& ptp = tjs.allTraj[iptj].Pts[endPt];
-        float ip = PointTrajDOCA(tjs, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], ptp);
-        fShPrimIP->Fill(ip);
-        fShPrimIP_Energy->Fill(spe, ip);
-        parLen = PosSep(ptp.Pos, stj.Pts[1].Pos);
-        fParentLength_Energy->Fill(spe, parLen);
-        fParentFOM->Fill(ss.Parent[0].FOM);
-        myprt<<" "<<stj.ID<<"_"<<stj.CTP<<" nTjIDs "<<ss.TjIDs.size()<<" AveMom "<<(int)aveMom;
-//        std::cout<<" aveNN "<<std::fixed<<std::setprecision(1)<<aveNN;
-//        for(auto& vtx : ss.Envelope) std::cout<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
-        myprt<<" Parent "<<tjs.allTraj[iptj].ID<<" "<<PrintPos(tjs, ptp);
-        myprt<<" CC "<<PrintPos(tjs, stj.Pts[1].Pos);
-        myprt<<" ParLen "<<(int)parLen;
-        myprt<<" Parfom "<<std::fixed<<std::setprecision(2)<<ss.Parent[0].FOM;
-        myprt<<" AspRat "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
-        myprt<<" Chg "<<(int)totChg<<" ChgDensity "<<std::fixed<<std::setprecision(1)<<ss.ChgDensity;
-        myprt<<" EffPur "<<ep;
-        myprt<<" evts processed "<<fEventsProcessed;
-      } // ict
-      // histogram Tj separation
-      float minDOCA = 5000;
-      for(unsigned short itj = 0; itj < tjs.allTraj.size() - 1; ++itj) {
-        Trajectory& tj1 = tjs.allTraj[itj];
-        if(tj1.AlgMod[kKilled]) continue;
-        if(tj1.Pts.size() < 3) continue;
-        for(unsigned short jtj = itj + 1; jtj < tjs.allTraj.size(); ++jtj) {
-          Trajectory& tj2 = tjs.allTraj[jtj];
-          if(tj2.AlgMod[kKilled]) continue;
-          if(tj2.CTP != tj1.CTP) continue;
-          if(tj2.Pts.size() < 3) continue;
-          float doca = 5000;
-          unsigned short ipt1, ipt2;
-          TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca);
-          if(doca < minDOCA) minDOCA = doca;
-        } // jtj
-        fDOCA->Fill(minDOCA);
-      } // itj
-      // end of shower stuff
- */
-      
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         Trajectory& tj = tjs.allTraj[itj];
         if(tj.AlgMod[kKilled]) continue;
@@ -631,16 +527,16 @@ namespace tca {
         if(len > 99) len = 99;
         // ignore really short Tjs
         if(len < 2) continue;
-        if(tj.TruKE == 0) continue;
-        // some reco-truth histos
-        unsigned short pdg = std::abs(tj.TruPDG);
+        if(tj.MCPartListIndex == USHRT_MAX) continue;
+        auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
+        int truKE = 1000 * (mcp->E() - mcp->Mass());
+        int pdg = abs(mcp->PdgCode());
         double mass = 0.511;
         if(pdg == 13) mass = 105.7;
         if(pdg == 211) mass = 139.6;
         if(pdg == 2212) mass = 938.3;
-        double tPlusM = tjs.allTraj[itj].TruKE + mass;
+        double tPlusM = truKE + mass;
         double truMom = sqrt(tPlusM * tPlusM - mass * mass);
-//        if(tj.EffPur > 0.7) std::cout<<"Good MC match: PDG "<<tj.TruPDG<<" truMom "<<(int)truMom<<" length "<<(int)len<<" MCSMom "<<tj.MCSMom<<"\n";
         if(pdg == 11) fMCSMom_TruMom_e->Fill(truMom, tj.MCSMom);
         if(pdg == 13) fMCSMom_TruMom_mu->Fill(truMom, tj.MCSMom);
         if(pdg == 211) fMCSMom_TruMom_pi->Fill(truMom, tj.MCSMom);
@@ -648,23 +544,42 @@ namespace tca {
         // See if a parameterization of expected MCSMom(Length) 
         if(pdg == 11 && tj.EffPur > 0.7) fMCSMomEP_TruMom_e->Fill(truMom, tj.MCSMom);
         // check charge rms for electrons vs others
-        if(tj.Pts.size() > 99 && tj.EffPur > 0.6) {
-          float chg = 0;
+        if(tj.EffPur > 0.7) {
           float rms = 0;
           float cnt = 0;
-          for(unsigned short ipt = tj.EndPt[0] + 10; ipt < tj.EndPt[1] - 10; ++ipt) {
+          for(unsigned short ipt = tj.EndPt[0] + 1; ipt < tj.EndPt[1] - 1; ++ipt) {
+            TrajPoint& tpm = tj.Pts[ipt - 1];
+            if(tpm.Chg == 0) continue;
             TrajPoint& tp = tj.Pts[ipt];
             if(tp.Chg == 0) continue;
+            TrajPoint& tpp = tj.Pts[ipt + 1];
+            if(tpp.Chg == 0) continue;
+            if(std::abs(tpp.Pos[0] - tpm.Pos[0]) > 4) continue;
             ++cnt;
-            chg += tp.Chg;
-            rms += tp.Chg * tp.Chg;
+            float expectChg = 0.5 * (tpm.Chg + tpp.Chg);
+            float chgRat = std::abs(tp.Chg - expectChg) / expectChg;
+            rms += chgRat;
           } // tp
-          chg /= cnt;
-          rms = sqrt((rms - cnt * chg * chg) / (chg - 1));
-          rms /= chg;
-          std::cout<<"NTP "<<pdg<<" "<<tj.Pts.size()<<" "<<tj.MCSMom<<" "<<std::fixed<<std::setprecision(3)<<rms<<"\n";
+          if(cnt == 0) continue;
+          rms /= cnt;
+          mf::LogVerbatim("TC")<<"NTP "<<pdg<<" "<<(int)cnt<<" "<<truKE<<" "<<std::fixed<<std::setprecision(3)<<rms;
         } // long matched trajectory
       } // itj
+      
+      for(auto& vx2 : tjs.vtx) {
+        if(vx2.Stat[kVtxKilled]) continue;
+        fVx2_Score->Fill((float)vx2.Score);
+      } // vx2
+      for(auto& vx3 : tjs.vtx3) {
+        if(vx3.ID == 0) continue;
+        float score = 0;
+        for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+          if(vx3.Vtx2ID[ipl] == 0) continue;
+          unsigned short iv2 = vx3.Vtx2ID[ipl] - 1;
+          score += tjs.vtx[iv2].Score;
+        } // ipl
+        fVx3_Score->Fill(score);
+      } //  vx3
     } // studymode
     
     if(fMatchTruth[0] >= 0) {
@@ -1064,7 +979,7 @@ namespace tca {
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, vtxPrt);
     
     // Check the Tj <-> vtx associations and define the vertex quality
-    CheckVtxAssociations(tjs, fCTP);
+    ChkVtxAssociations(tjs, fCTP, false);
 
     // TY: Improve hit assignments near vertex 
     VtxHitsSwap(tjs, debug, fCTP);
@@ -1531,12 +1446,13 @@ namespace tca {
         if(fMatchTruth[0] == 1) {
           // Look for beam neutrino or single particle
           if(theTruth->Origin() == simb::kBeamNeutrino) {
+            fSourceParticleEnergy = 1000 * part->E();
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kBeamNeutrino;
             if(fMatchTruth[1] > 2) std::cout<<"Found beam neutrino sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<"\n";
           } // beam neutrino
           if(theTruth->Origin() == simb::kSingleParticle) {
-            fSourceParticleEnergy = part->E();
+            fSourceParticleEnergy = 1000 * part->E();
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kSingleParticle;
             if(fMatchTruth[1] > 0) {
@@ -1547,7 +1463,6 @@ namespace tca {
             }
           } // single particle
           if(sourceOrigin == simb::kBeamNeutrino) {
-            fSourceParticleEnergy = part->E();
             // histogram the vertex position difference
             if(fMatchTruth[1] > 2) std::cout<<"True vertex position "<<(int)part->Vx()<<" "<<(int)part->Vy()<<" "<<(int)part->Vz()<<"\n";
           } // sourceOrigin != simb::kUnknown
@@ -1570,6 +1485,8 @@ namespace tca {
       if(!isCharged) continue;
       tjs.MCPartList.push_back(part);
     } // ipart
+    
+    tjs.MCPartList.shrink_to_fit();
     
     // vector of (mother, daughter) pairs of partList indices
     std::vector<std::pair<unsigned short, unsigned short>> moda;
@@ -1731,12 +1648,14 @@ namespace tca {
         if(fMatchTruth[0] == 1) {
           // Look for beam neutrino or single particle
           if(theTruth->Origin() == simb::kBeamNeutrino) {
+            fSourceParticleEnergy = 1000 * part->E(); // in MeV
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kBeamNeutrino;
-            if(fMatchTruth[1] > 2) std::cout<<"Found beam neutrino sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<"\n";
+            fNeutrinoEnergy = 1000 * theTruth->GetNeutrino().Nu().E();
+            if(fMatchTruth[1] > 2) std::cout<<"Found beam neutrino E = "<<fNeutrinoEnergy<<" sourcePtclTrackID "<<trackID<<" PDG code "<<part->PdgCode()<<"\n";
           }
           if(theTruth->Origin() == simb::kSingleParticle) {
-            fSourceParticleEnergy = part->E();
+            fSourceParticleEnergy = 1000 * part->E(); // in MeV
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kSingleParticle;
             if(fMatchTruth[1] > 0) {
@@ -1747,14 +1666,23 @@ namespace tca {
             }
           }
           if(sourceOrigin == simb::kBeamNeutrino) {
-            fSourceParticleEnergy = part->E();
             // histogram the vertex position difference
-            if(fMatchTruth[1] > 2) std::cout<<"True vertex position "<<(int)part->Vx()<<" "<<(int)part->Vy()<<" "<<(int)part->Vz()<<"\n";
+            if(fMatchTruth[1] > 2) std::cout<<" True vertex position "<<(int)part->Vx()<<" "<<(int)part->Vy()<<" "<<(int)part->Vz()<<" energy "<<(int)(1000*part->E())<<"\n";
             for(auto& aVtx3 : tjs.vtx3) {
               fNuVtx_dx->Fill(part->Vx() - aVtx3.X);
               fNuVtx_dy->Fill(part->Vy() - aVtx3.Y);
               fNuVtx_dz->Fill(part->Vz() - aVtx3.Z);
-              if(std::abs(part->Vx()-aVtx3.X) < 1 && std::abs(part->Vy()-aVtx3.Y) < 1 && std::abs(part->Vz()-aVtx3.Z) < 1) nuVtxRecoOK = true;
+              if(std::abs(part->Vx()-aVtx3.X) < 1 && std::abs(part->Vy()-aVtx3.Y) < 1 && std::abs(part->Vz()-aVtx3.Z) < 1) {
+                nuVtxRecoOK = true;
+                float score = 0;
+                for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+                  if(aVtx3.Vtx2ID[ipl] == 0) continue;
+                  unsigned short iv2 = aVtx3.Vtx2ID[ipl] - 1;
+                  score += tjs.vtx[iv2].Score;
+                } // ipl
+                fNuVtx_Score->Fill(score);
+                fNuVtx_Enu_Score_p->Fill(fNeutrinoEnergy, score);
+              }
             } // aVtx3
           } // sourceOrigin != simb::kUnknown
         } else {
@@ -1874,7 +1802,6 @@ namespace tca {
       for(auto itide = tides.begin(); itide != tides.end(); ++itide) {
         if(itide->energyFrac > 0.5) {
           hitTruTrkID[iht] = itide->trackID;
-//          if(hit.InTraj == 3) mf::LogVerbatim("TC")<<"eFrac "<<PrintHit(hit)<<" "<<itide->energy<<" "<<hit.Integral;
           break;
         }
       } // itid
@@ -2033,8 +1960,7 @@ namespace tca {
         float effpur = eff * pur;
         // This overwrites any previous match that has poorer efficiency * purity
         if(effpur > tjs.allTraj[tjWithMostHits].EffPur) {
-          tjs.allTraj[tjWithMostHits].TruPDG = partList[ipl]->PdgCode();
-          tjs.allTraj[tjWithMostHits].TruKE = 1000 * (partList[ipl]->E() - partList[ipl]->Mass());
+          tjs.allTraj[tjWithMostHits].MCPartListIndex = ipl;
           tjs.allTraj[tjWithMostHits].EffPur = effpur;
           partListToTjID[ipl][plane] = tjs.allTraj[tjWithMostHits].ID;
         }
@@ -2119,6 +2045,23 @@ namespace tca {
         }
       } // plane
     } // ipl
+
+    // match 2D vertices (crudely)
+    for(auto& tj : tjs.allTraj) {
+      // obsolete vertex
+      if(tj.AlgMod[kKilled]) continue;
+      // require a truth match
+      if(tj.MCPartListIndex == USHRT_MAX) continue;
+      // ignore electrons unless it is a primary electron
+      auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
+      int pdg = abs(mcp->PdgCode());
+      if(pdg == 11 && mcp->Mother() != 0) continue;
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] == 0) continue;
+        VtxStore& vx2 = tjs.vtx[tj.VtxID[end]-1];
+        vx2.Stat[kVtxTruMatch] = true;
+      } // end
+    } // vx2
 
   } // MatchTruth
 
@@ -5498,7 +5441,7 @@ namespace tca {
         // TP and keep going. If these conditions aren't met, we
         // should reduce the number of fitted points
         float chirat = 0;
-        if(prevPtWithHits != USHRT_MAX) chirat = lastTP.FitChi / tj.Pts[prevPtWithHits].FitChi;
+        if(prevPtWithHits != USHRT_MAX && tj.Pts[prevPtWithHits].FitChi > 0) chirat = lastTP.FitChi / tj.Pts[prevPtWithHits].FitChi;
         // Don't mask hits when doing RevProp. Reduce NTPSFit instead
         fMaskedLastTP = (chirat > 1.5 && lastTP.NTPsFit > 0.3 * NumPtsWithCharge(tjs, tj, false) && !tj.AlgMod[kRevProp]);
         if(prt) {
@@ -6879,7 +6822,7 @@ namespace tca {
       // find the point with the highest charge considering the first 3 points
       float big = 0;
       unsigned short hiPt = 0;
-      float x0;
+      float x0 = 0;
       for(unsigned short ii = 0; ii < 4; ++ii) {
         short ipt = tj.EndPt[end] + ii * dir;
         if(ipt < tj.EndPt[0] || ipt > tj.EndPt[1]) break;

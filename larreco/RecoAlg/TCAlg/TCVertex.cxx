@@ -528,10 +528,10 @@ namespace tca {
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) if(vIndex[ipl].size() > 0) ++vtxInPln;
     if(vtxInPln < 2) return;
     
-    bool prt = (debug.Plane >= 0) && (debug.Tick == 6666);
+    bool prt = (debug.Plane >= 0) && (debug.Tick == 2222);
     
     if(prt) {
-      mf::LogVerbatim("CC")<<"Inside Find3DVertices";
+      mf::LogVerbatim("TC")<<"Inside Find3DVertices";
       PrintAllTraj("F3DV", tjs, debug, USHRT_MAX, tjs.allTraj.size());
     }
     
@@ -569,7 +569,7 @@ namespace tca {
       for(unsigned short ii = 0; ii < vIndex[ipl].size(); ++ii) {
         unsigned short ivx = vIndex[ipl][ii];
         if(ivx > tjs.vtx.size() - 1) {
-          mf::LogError("CC")<<"Find3DVertices: bad ivx "<<ivx;
+          mf::LogError("TC")<<"Find3DVertices: bad ivx "<<ivx;
           return;
         }
         // vertex has been matched already
@@ -581,7 +581,7 @@ namespace tca {
           for(unsigned short jj = 0; jj < vIndex[jpl].size(); ++jj) {
             unsigned short jvx = vIndex[jpl][jj];
             if(jvx > tjs.vtx.size() - 1) {
-              mf::LogError("CC")<<"Find3DVertices: bad jvx "<<jvx;
+              mf::LogError("TC")<<"Find3DVertices: bad jvx "<<jvx;
               return;
             }
             // vertex has been matched already
@@ -593,7 +593,7 @@ namespace tca {
             float dXSigma = sqrt(vXsigma[ivx] * vXsigma[ivx] + vXsigma[jvx] * vXsigma[jvx]);
             float dXChi = dX / dXSigma;
             
-            if(prt) mf::LogVerbatim("CC")<<"Find3DVertices: ipl "<<ipl<<" ivxID "<<tjs.vtx[ivx].ID<<" ivX "<<vX[ivx]<<" +/- "<<vXsigma[ivx]
+            if(prt) mf::LogVerbatim("TC")<<"F3DV: ipl "<<ipl<<" ivxID "<<tjs.vtx[ivx].ID<<" ivX "<<vX[ivx]<<" +/- "<<vXsigma[ivx]
               <<" jpl "<<jpl<<" jvxID "<<tjs.vtx[jvx].ID<<" jvX "<<vX[jvx]<<" +/- "<<vXsigma[jvx]<<" W:T "<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dXChi "<<dXChi<<" tjs.Vertex3DChiCut "<<tjs.Vertex3DChiCut;
             
             if(dXChi > tjs.Vertex3DChiCut) continue;
@@ -610,12 +610,14 @@ namespace tca {
             if(tjs.NumPlanes > 2) {
               kWire = tjs.geom->WireCoordinate(y, z, kpl, tpc, cstat) + 0.5;
               if(kWire < 0 || (unsigned int)kWire > tjs.NumWires[kpl]) continue;
+              if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, kpl, kWire))) continue;
               tp.Pos[0] = kWire;
               // See if there is a wire signal nearby in kpl
               tp.Pos[1] = tjs.detprop->ConvertXToTicks(kX, kpl, tpc, cstat) * tjs.UnitsPerTick;
               tp.CTP = EncodeCTP(cstat, tpc, kpl);
               bool sigOK = SignalAtTp(tjs, tp);
               if(!sigOK) continue;
+              if(prt) mf::LogVerbatim("TC")<<" signal exists at "<<kpl<<":"<<PrintPos(tjs, tp);
             }
             kpl = 3 - ipl - jpl;
             // save this incomplete 3D vertex
@@ -646,7 +648,7 @@ namespace tca {
             // push the incomplete vertex onto the list
             v3temp.push_back(v3d);
             
-            if(prt) mf::LogVerbatim("CC")<<"Find3DVertices: 2 Plane match ivxID "<<tjs.vtx[ivx].ID<<" P:W:T "<<ipl<<":"<<(int)tjs.vtx[ivx].Pos[0]<<":"<<(int)tjs.vtx[ivx].Pos[1]<<" jvxID "<<tjs.vtx[jvx].ID<<" P:W:T "<<jpl<<":"<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dXChi "<<dXChi<<" yzSigma "<<yzSigma;
+            if(prt) mf::LogVerbatim("TC")<<"F3DV: 2 Plane match ivxID "<<tjs.vtx[ivx].ID<<" P:W:T "<<ipl<<":"<<(int)tjs.vtx[ivx].Pos[0]<<":"<<(int)tjs.vtx[ivx].Pos[1]<<" jvxID "<<tjs.vtx[jvx].ID<<" P:W:T "<<jpl<<":"<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dXChi "<<dXChi<<" yzSigma "<<yzSigma;
             
             if(tjs.NumPlanes == 2) continue;
             
@@ -675,7 +677,7 @@ namespace tca {
                 if(gotit) continue;
                 v3d.Wire = -1;
                 v3temp.push_back(v3d);
-                if(prt) mf::LogVerbatim("CC")<<" kvx "<<kvx<<" kpl "<<kpl
+                if(prt) mf::LogVerbatim("TC")<<" kvx "<<kvx<<" kpl "<<kpl
                   <<" wire "<<(int)tjs.vtx[kvx].Pos[0]<<" kTime "<<(int)tjs.vtx[kvx].Pos[1]<<" kChi "<<kChi<<" dW "<<tjs.vtx[kvx].Pos[0] - kWire;
               } // kChi < best
             } // kk
@@ -740,7 +742,7 @@ namespace tca {
       } else {
         if(v3d.Wire >= 0) ++ninc;
       }
-      if(prt) mf::LogVerbatim("CC")<<"3D vtx "<<tjs.vtx3.size()<<" Vtx2ID "<<v3d.Vtx2ID[0]<<" "<<v3d.Vtx2ID[1]<<" "<<v3d.Vtx2ID[2]
+      if(prt) mf::LogVerbatim("TC")<<"3D vtx "<<tjs.vtx3.size()<<" Vtx2ID "<<v3d.Vtx2ID[0]<<" "<<v3d.Vtx2ID[1]<<" "<<v3d.Vtx2ID[2]
         <<" wire "<<v3d.Wire;
       v3d.ID = tjs.vtx3.size() + 1;
       tjs.vtx3.push_back(v3d);
@@ -1137,7 +1139,7 @@ namespace tca {
   } // FitVertex
 
   //////////////////////////////////////////
-  void CheckVtxAssociations(TjStuff& tjs, const CTP_t& inCTP)
+  void ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP, bool vswPrt)
   {
     // Set the associations and also define the quality
     
@@ -1153,6 +1155,9 @@ namespace tca {
         vtx.TjChgFrac = 0;
       } // CTP check
     } // vtx
+
+    if(tjs.VertexScoreWeights.size() < 4) return;
+
     std::vector<std::vector<int>> vtxTjID(tjs.vtx.size());
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != inCTP) continue;
@@ -1170,39 +1175,40 @@ namespace tca {
             continue;
           }
           if(tjs.vtx[ivx].CTP != inCTP) {
-            std::cout<<"CheckVtxAssociations: inCTP "<<inCTP<<" vtx mis-match "<<tjs.vtx[ivx].ID<<" vtx CTP "<<tjs.vtx[ivx].CTP<<" Topo "<<tjs.vtx[ivx].Topo<<"\n";
+            std::cout<<"ChkVtxAssociations: inCTP "<<inCTP<<" vtx mis-match "<<tjs.vtx[ivx].ID<<" vtx CTP "<<tjs.vtx[ivx].CTP<<" Topo "<<tjs.vtx[ivx].Topo<<"\n";
             return;
           }
           vtxTjID[ivx].push_back(tj.ID);
         }
       } // end
     } // tj
-    // a temporary trajectory point for finding nearby trajectories
-    TrajPoint tp;
-    tp.CTP = inCTP;
+
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
       if(vtxTjID[ivx].empty()) continue;
       VtxStore& vtx = tjs.vtx[ivx];
       vtx.NTraj = vtxTjID[ivx].size();
       // temp for debugging
       bool sprt = (vtx.ID == (unsigned short)tjs.Vertex2DCuts[8]);
-      vtx.Score = 0;
       if(sprt) std::cout<<vtx.ID<<" pos "<<inCTP<<":"<<PrintPos(tjs, vtx.Pos);
-      // Define the Quality metric
-      // Add one if it is matched in 3D
+      // Vertex position error
+      float vpeScore = -tjs.VertexScoreWeights[0] * (vtx.PosErr[0] + vtx.PosErr[1]);
+      if(sprt) std::cout<<" vpeScore "<<std::fixed<<std::setprecision(1)<<vpeScore;
+      
+      unsigned short m3Dcnt = 0;
       if(vtx.Vtx3ID > 0) {
-        ++vtx.Score;
+        m3Dcnt = 1;
         // Add another if the 3D vertex is complete
         unsigned short ivx3 = vtx.Vtx3ID - 1;
-        if(tjs.vtx3[ivx3].Wire < 0) ++vtx.Score;
+        if(tjs.vtx3[ivx3].Wire < 0) m3Dcnt = 2;
       }
-      if(sprt) std::cout<<" 3D match "<<vtx.Score;
-      // Subtract for poor vertex position error
-      vtx.Score -= std::nearbyint(vtx.PosErr[0] + vtx.PosErr[1]) + 1;
-      if(sprt) std::cout<<" PosErr "<<vtx.Score;
+      float m3DScore = tjs.VertexScoreWeights[1] * m3Dcnt;
+      if(sprt) std::cout<<" m3DScore "<<m3DScore;
+      
       vtx.TjChgFrac = ChgFracNearPos(tjs, vtx.Pos, vtxTjID[ivx]);
-      vtx.Score -= std::nearbyint(10 * (1 - vtx.TjChgFrac));
-      if(sprt) std::cout<<" TjChgFrac "<<" "<<std::setprecision(2)<<vtx.TjChgFrac<<" "<<vtx.Score;
+      float cfScore = tjs.VertexScoreWeights[2] * vtx.TjChgFrac;
+      if(sprt) std::cout<<" TjChgFrac "<<" "<<std::setprecision(2)<<vtx.TjChgFrac<<" cfScore "<<cfScore;
+      
+      float tjScore = 0;
       float sum = 0;
       float cnt = 0;
       for(unsigned short it1 = 0; it1 < vtxTjID[ivx].size(); ++it1) {
@@ -1239,16 +1245,28 @@ namespace tca {
           if((dang / dangErr) > 3 && wght1 > 0 && wght2 > 0) {
             sum += wght1 + wght2;
             ++cnt;
-            if(sprt) std::cout<<" dang "<<dang<<" sig "<<dang/dangErr<<" wghts "<<wght1<<", "<<wght2;
+//            if(sprt) std::cout<<" dang "<<dang<<" sig "<<dang/dangErr<<" wghts "<<wght1<<", "<<wght2;
           }
         } // it2
       } // it1
       if(cnt > 0) {
-        sum /= sqrt(cnt);
-        if(sprt) std::cout<<" cnt "<<(int)cnt<<" sum "<<sum;
-        vtx.Score += std::nearbyint(sum);
+        sum /= cnt;
+        tjScore = tjs.VertexScoreWeights[3] * sum;
       }
-      if(sprt) std::cout<<" Score "<<vtx.Score<<"\n";
+      if(sprt) std::cout<<" tjScore "<<tjScore;
+      vtx.Score = std::nearbyint(vpeScore + m3DScore + cfScore + tjScore);
+      if(sprt) std::cout<<" vtx.Score "<<vtx.Score<<"\n";
+      if(vswPrt) {
+        // last call after vertices have been matched to the truth. Use to optimize VertexScoreWeights using
+        // an ntup;e
+        mf::LogVerbatim myprt("TC");
+        myprt<<"VSW "<<vtx.Stat[kVtxTruMatch];
+        myprt<<" "<<m3Dcnt;
+        myprt<<" "<<std::fixed<<std::setprecision(2)<<(vtx.PosErr[0] + vtx.PosErr[1]);
+        myprt<<" "<<std::fixed<<std::setprecision(3)<<vtx.TjChgFrac;
+        myprt<<" "<<std::fixed<<std::setprecision(1)<<sum;
+        myprt<<" "<<(int)cnt;
+      }
     } // ivx
     
     // delete vertices with only one trajectory
@@ -1256,7 +1274,7 @@ namespace tca {
       if(tjs.vtx[ivx].NTraj == 1) MakeVertexObsolete(tjs, tjs.vtx[ivx].ID);
     } // ii
     
-  } // CheckVtxAssociations
+  } // ChkVtxAssociations
 
   //////////////////////////////////////////
   void CompleteIncomplete3DVerticesInGaps(TjStuff& tjs, const DebugStuff& debug, const geo::TPCID& tpcid)
