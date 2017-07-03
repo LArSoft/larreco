@@ -368,7 +368,7 @@ namespace tca {
       localHit.LocalIndex = hit->LocalIndex();
       localHit.WireID = hit->WireID();
       tjs.fHits.push_back(localHit);
-    } // iht
+    } // iht    
 
     // sort it as needed;
     // that is, sorted by wire ID number,
@@ -447,7 +447,7 @@ namespace tca {
       if(tjs.Vertex3DChiCut > 0) Find3DVertices(tjs, debug, tpcid);
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
-        CheckVtxAssociations(tjs, fCTP);
+        ChkVtxAssociations(tjs, fCTP, false);
       }
       if(tjs.ShowerTag[0] > 0) {
         // find showers after 3D vertex finding - which may split trajectories
@@ -464,6 +464,17 @@ namespace tca {
     } // tpcid
 
     MatchTruth();
+    
+    if(fStudyMode) {
+      // output MC-reco stuff to optimize the vertex weights
+      for (const geo::TPCID& tpcid: tjs.geom->IterateTPCIDs()) {
+        geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
+        for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
+          fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
+          ChkVtxAssociations(tjs, fCTP, true);
+        }
+      } // tpcid
+    }
     
     FillPFPInfo();
     // convert the cots vector into recob::Shower
@@ -516,14 +527,15 @@ namespace tca {
         if(len > 99) len = 99;
         // ignore really short Tjs
         if(len < 2) continue;
-        if(tj.TruKE == 0) continue;
-        // some reco-truth histos
-        unsigned short pdg = std::abs(tj.TruPDG);
+        if(tj.MCPartListIndex == USHRT_MAX) continue;
+        auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
+        int truKE = 1000 * (mcp->E() - mcp->Mass());
+        int pdg = abs(mcp->PdgCode());
         double mass = 0.511;
         if(pdg == 13) mass = 105.7;
         if(pdg == 211) mass = 139.6;
         if(pdg == 2212) mass = 938.3;
-        double tPlusM = tjs.allTraj[itj].TruKE + mass;
+        double tPlusM = truKE + mass;
         double truMom = sqrt(tPlusM * tPlusM - mass * mass);
         if(pdg == 11) fMCSMom_TruMom_e->Fill(truMom, tj.MCSMom);
         if(pdg == 13) fMCSMom_TruMom_mu->Fill(truMom, tj.MCSMom);
@@ -550,9 +562,10 @@ namespace tca {
           } // tp
           if(cnt == 0) continue;
           rms /= cnt;
-          std::cout<<"NTP "<<pdg<<" "<<(int)cnt<<" "<<tj.TruKE<<" "<<std::fixed<<std::setprecision(3)<<rms<<"\n";
+          mf::LogVerbatim("TC")<<"NTP "<<pdg<<" "<<(int)cnt<<" "<<truKE<<" "<<std::fixed<<std::setprecision(3)<<rms;
         } // long matched trajectory
       } // itj
+      
       for(auto& vx2 : tjs.vtx) {
         if(vx2.Stat[kVtxKilled]) continue;
         fVx2_Score->Fill((float)vx2.Score);
@@ -966,7 +979,7 @@ namespace tca {
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, vtxPrt);
     
     // Check the Tj <-> vtx associations and define the vertex quality
-    CheckVtxAssociations(tjs, fCTP);
+    ChkVtxAssociations(tjs, fCTP, false);
 
     // TY: Improve hit assignments near vertex 
     VtxHitsSwap(tjs, debug, fCTP);
@@ -1473,6 +1486,8 @@ namespace tca {
       tjs.MCPartList.push_back(part);
     } // ipart
     
+    tjs.MCPartList.shrink_to_fit();
+    
     // vector of (mother, daughter) pairs of partList indices
     std::vector<std::pair<unsigned short, unsigned short>> moda;
     
@@ -1667,7 +1682,6 @@ namespace tca {
                 } // ipl
                 fNuVtx_Score->Fill(score);
                 fNuVtx_Enu_Score_p->Fill(fNeutrinoEnergy, score);
-                std::cout<<"chk "<<fNeutrinoEnergy<<" "<<score<<"\n";
               }
             } // aVtx3
           } // sourceOrigin != simb::kUnknown
@@ -1788,7 +1802,6 @@ namespace tca {
       for(auto itide = tides.begin(); itide != tides.end(); ++itide) {
         if(itide->energyFrac > 0.5) {
           hitTruTrkID[iht] = itide->trackID;
-//          if(hit.InTraj == 3) mf::LogVerbatim("TC")<<"eFrac "<<PrintHit(hit)<<" "<<itide->energy<<" "<<hit.Integral;
           break;
         }
       } // itid
@@ -1947,8 +1960,7 @@ namespace tca {
         float effpur = eff * pur;
         // This overwrites any previous match that has poorer efficiency * purity
         if(effpur > tjs.allTraj[tjWithMostHits].EffPur) {
-          tjs.allTraj[tjWithMostHits].TruPDG = partList[ipl]->PdgCode();
-          tjs.allTraj[tjWithMostHits].TruKE = 1000 * (partList[ipl]->E() - partList[ipl]->Mass());
+          tjs.allTraj[tjWithMostHits].MCPartListIndex = ipl;
           tjs.allTraj[tjWithMostHits].EffPur = effpur;
           partListToTjID[ipl][plane] = tjs.allTraj[tjWithMostHits].ID;
         }
@@ -2033,6 +2045,23 @@ namespace tca {
         }
       } // plane
     } // ipl
+
+    // match 2D vertices (crudely)
+    for(auto& tj : tjs.allTraj) {
+      // obsolete vertex
+      if(tj.AlgMod[kKilled]) continue;
+      // require a truth match
+      if(tj.MCPartListIndex == USHRT_MAX) continue;
+      // ignore electrons unless it is a primary electron
+      auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
+      int pdg = abs(mcp->PdgCode());
+      if(pdg == 11 && mcp->Mother() != 0) continue;
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] == 0) continue;
+        VtxStore& vx2 = tjs.vtx[tj.VtxID[end]-1];
+        vx2.Stat[kVtxTruMatch] = true;
+      } // end
+    } // vx2
 
   } // MatchTruth
 
@@ -5412,7 +5441,7 @@ namespace tca {
         // TP and keep going. If these conditions aren't met, we
         // should reduce the number of fitted points
         float chirat = 0;
-        if(prevPtWithHits != USHRT_MAX) chirat = lastTP.FitChi / tj.Pts[prevPtWithHits].FitChi;
+        if(prevPtWithHits != USHRT_MAX && tj.Pts[prevPtWithHits].FitChi > 0) chirat = lastTP.FitChi / tj.Pts[prevPtWithHits].FitChi;
         // Don't mask hits when doing RevProp. Reduce NTPSFit instead
         fMaskedLastTP = (chirat > 1.5 && lastTP.NTPsFit > 0.3 * NumPtsWithCharge(tjs, tj, false) && !tj.AlgMod[kRevProp]);
         if(prt) {
