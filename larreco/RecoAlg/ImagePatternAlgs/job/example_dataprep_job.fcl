@@ -63,7 +63,7 @@ physics.analyzers.datadump.DumpToRoot:      true                         # all e
                                                                          # can be parsed by the patch making Python scripts
 # Calibration:
 #
-#physics.analyzers.datadump.TrainingDataAlg.CalorimetryAlg:  @local::standard_calorimetryalgmc # use your detector calibration constants, this the default
+#physics.analyzers.datadump.TrainingDataAlg.CalorimetryAlg:  @local::standard_calorimetryalgmc # use your detector calibration constants, this is the default
 physics.analyzers.datadump.TrainingDataAlg.CalibrateAmpl:   true                               # this equalizes ADC amplitudes between planes and MC/data
 
 # Noise and distortions testing (off by default):
