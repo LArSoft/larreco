@@ -18,7 +18,7 @@ namespace tca {
     
     if(tjs.ShowerTag[0] < 0) return;
     
-    bool prt = (tjs.ShowerTag[11] == 3);
+    bool prt = (tjs.ShowerTag[12] == 3);
     
     if(prt) mf::LogVerbatim("TC")<<"Inside FindShowerEndPoints";
     
@@ -188,10 +188,10 @@ namespace tca {
       // Check for a shower that wasn't used in the match
       unsigned short notUsedShower = USHRT_MAX;
       for(unsigned short ii = 0; ii < cntUsed.size(); ++ii) if(cntUsed[ii] == 0) notUsedShower = ii;
-      if(notUsedShower != USHRT_MAX) {
-        notUsedShower = GetCotsIndex(tjs, ms.TjIDs[notUsedShower]);
+      if(notUsedShower < ms.TjIDs.size()) {
+        unsigned short cotsIndex = GetCotsIndex(tjs, ms.TjIDs[notUsedShower]);
         // Zero the charge because it isn't reliable
-        tjs.cots[notUsedShower].StartChg = 0;
+        if(cotsIndex < tjs.cots.size()) tjs.cots[notUsedShower].StartChg = 0;
       }
       if(prt) {
         mf::LogVerbatim myprt("TC");
@@ -222,7 +222,7 @@ namespace tca {
     
     // Get the calibration constants
     
-    bool prt = (tjs.ShowerTag[11] >= 0);
+    bool prt = (tjs.ShowerTag[12] >= 0);
     
     int shID = 0;
     std::vector<unsigned int> tHits;
@@ -353,7 +353,8 @@ namespace tca {
      # 8 max parent FOM
      # 9 max direction FOM
      # 10 max aspect ratio
-     # 11 Debug in CTP (>10 debug cotIndex + 10)
+     # 11 min Score to preserve a vertex and its Tjs
+     # 12 Debug in CTP (>10 debug cotIndex + 10)
      */
     
     if(tjs.ShowerTag[0] <= 0) return;
@@ -361,9 +362,9 @@ namespace tca {
     bool prt = false;
     // print only one shower?
     unsigned short prtShower = USHRT_MAX;
-    if(tjs.ShowerTag[11] >= 0) {
+    if(tjs.ShowerTag[12] >= 0) {
       geo::PlaneID planeID = DecodeCTP(inCTP);
-      CTP_t printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(tjs.ShowerTag[11]));
+      CTP_t printCTP = EncodeCTP(planeID.Cryostat, planeID.TPC, std::nearbyint(tjs.ShowerTag[12]));
       prt = (printCTP == inCTP);
       if(printCTP > 2) prt = true;
       if(printCTP > 9) prtShower = printCTP - 10;
@@ -407,7 +408,7 @@ namespace tca {
         myprt<<"\n";
       } // tjl
     } // prt
-    MergeTjList2(tjs, tjList, prt);
+//    MergeTjList2(tjs, tjList, prt);
     
     // remove Tjs that don't have enough neighbors = ShowerTag[7] unless the shower
     // has few Tjs
@@ -574,17 +575,17 @@ namespace tca {
       } // tjID
     } // ss
     
-    if(tjs.ShowerTag[11] >= 0) {
+    if(tjs.ShowerTag[12] >= 0) {
       for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
         if(tjs.cots[ic].TjIDs.empty()) continue;
         unsigned short itj = tjs.cots[ic].ShowerTjID - 1;
         Trajectory& tj = tjs.allTraj[itj];
-        if(prt || (tjs.ShowerTag[11] == 3 && tj.CTP == inCTP)) PrintTrajectory("FSO", tjs, tj, USHRT_MAX);
+        if(prt || (tjs.ShowerTag[12] == 3 && tj.CTP == inCTP)) PrintTrajectory("FSO", tjs, tj, USHRT_MAX);
       } // ic
     } // print trajectories
     
-    if(tjs.ShowerTag[11] >= 100) {
-      unsigned short ic = tjs.ShowerTag[11] - 100;
+    if(tjs.ShowerTag[12] >= 100) {
+      unsigned short ic = tjs.ShowerTag[12] - 100;
       if(ic < tjs.cots.size() && tjs.cots[ic].CTP == inCTP) DumpShowerPts(tjs, ic);
     }
     
@@ -1195,7 +1196,7 @@ namespace tca {
       myprt<<" FOM "<<fom;
     }
 
-    if(tjs.ShowerTag[11] == -5) {
+    if(tjs.ShowerTag[12] == -5) {
       // special output for creating an ntuple
       unsigned short nTruHits;
       unsigned short mcPtclIndex = GetMCPartListIndex(tjs, ss, nTruHits);
@@ -1224,7 +1225,7 @@ namespace tca {
           myprt<<" 0";
         }
       }
-    } // tjs.ShowerTag[11] == -5
+    } // tjs.ShowerTag[12] == -5
 
     return fom;
   } // ParentFOM
@@ -1942,7 +1943,7 @@ namespace tca {
       if(tj1.Pts.size() < 3) continue;
       // Cut on length and MCSMom
       if(tj1.Pts.size() > 6 && tj1.MCSMom > maxMCSMom) continue;
-      if(TjHasNiceVtx(tjs, tj1, 2)) continue;
+      if(TjHasNiceVtx(tjs, tj1, (unsigned short)tjs.ShowerTag[11])) continue;
       tj1.PDGCode = 0;
       std::vector<int> list;
       for(unsigned short it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
@@ -1961,13 +1962,13 @@ namespace tca {
         if(tj2.Pts.size() < 3) continue;
         // Cut on length and MCSMom
         if(tj2.Pts.size() > 10 && tj2.MCSMom > maxMCSMom) continue;
-        if(TjHasNiceVtx(tjs, tj2, 2)) continue;
+        if(TjHasNiceVtx(tjs, tj2, (unsigned short)tjs.ShowerTag[11])) continue;
         unsigned short ipt1, ipt2;
-//        float doca = tjs.ShowerTag[2];
-        float doca = 5;
+        float doca = tjs.ShowerTag[2];
+//        float doca = 5;
         // Find the separation between Tjs without considering dead wires
         TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca, false);
-        if(doca < 5) {
+        if(doca < tjs.ShowerTag[2]) {
           // start the list with the ID of tj1
           if(list.empty()) {
             list.push_back(tj1.ID);
@@ -2002,7 +2003,7 @@ namespace tca {
         // check the momentum
         Trajectory& tj = tjs.allTraj[tjs.fHits[iht].InTraj - 1];
         if(tj.MCSMom > maxMom) continue;
-        if(TjHasNiceVtx(tjs, tj, 2)) continue;
+        if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;
         // see if it is already in the list
         if(std::find(list.begin(), list.end(), tjs.fHits[iht].InTraj) != list.end()) continue;
         list.push_back(tjs.fHits[iht].InTraj);
@@ -2089,7 +2090,7 @@ namespace tca {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.AlgMod[kInShower]) continue;
       if(tj.AlgMod[kShowerTj]) continue;
-      if(TjHasNiceVtx(tjs, tj, 2)) continue;
+      if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;
       // This shouldn't be necessary but do it for now
       if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
       // See if both ends are outside the envelope
