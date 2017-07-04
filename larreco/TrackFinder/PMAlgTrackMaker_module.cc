@@ -605,7 +605,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		mf::LogVerbatim("Summary") << pfps->size() << " PFParticles created in total.";
 	}
 
-    for (const auto & ct : *cosmicTags) { std::cout << "Cosmic tag: " << ct << std::endl; }
+    // for (const auto & ct : *cosmicTags) { std::cout << "Cosmic tag: " << ct << std::endl; }
 
 	evt.put(std::move(tracks));
 	evt.put(std::move(allsp));
