@@ -136,6 +136,7 @@ simple_plugin(ParticleDecayId "module"
 add_subdirectory(Keras)
 add_subdirectory(MLP)
 add_subdirectory(PointIdAlg)
+add_subdirectory(job)
 
 install_headers()
 install_fhicl()

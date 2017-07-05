@@ -1153,31 +1153,7 @@ namespace tca {
     return false;
     
   } // SignalAtTp
-  
-/* Function not used
-  /////////////////////////////////////////
-  bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP)
-  {
-    // Returns true if the TP is near the position
-    
-    if(pos0 < 0) return false;
-    if(pos1 < 0) return false;
-    unsigned int wire = std::nearbyint(pos0);
-    geo::PlaneID planeID = DecodeCTP(tCTP);
-    unsigned int ipl = planeID.Plane;
-    if(wire >= tjs.NumWires[ipl]) return false;
-    if(pos1 > tjs.MaxPos1[ipl]) return false;
-    // Assume dead wires have a signal
-    if(tjs.WireHitRange[ipl][wire].first == -1) return true;
-    raw::TDCtick_t rawProjTick = (float)(pos1 / tjs.UnitsPerTick);
-    unsigned int firstHit = (unsigned int)tjs.WireHitRange[ipl][wire].first;
-    unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
-    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-      if(rawProjTick > tjs.fHits[iht].StartTick && rawProjTick < tjs.fHits[iht].EndTick) return true;
-    } // iht
-    return false;
-  } // SignalAtPos
-*/
+
   //////////////////////////////////////////
   float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp){
     float totchg = 0;
@@ -2819,6 +2795,10 @@ namespace tca {
     } else {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         unsigned int iht = tp.Hits[ii];
+        if(iht > tjs.fHits.size() - 1) {
+          std::cout<<"crazy hit "<<iht<<" CTP "<<tp.CTP<<"\n";
+          continue;
+        }
         myprt<<" "<<tjs.fHits[iht].WireID.Wire<<":"<<(int)tjs.fHits[iht].PeakTime;
         if(tp.UseHit[ii]) {
           // Distinguish used hits from nearby hits

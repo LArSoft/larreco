@@ -1665,34 +1665,16 @@ namespace tca {
       if(vx.Score < scoreCut) std::cout<<"Kill vx "<<vx.ID<<"\n";
       if(vx.Score < scoreCut) MakeVertexObsolete(tjs, vx.ID);
     } // vx
-    // check the 3D vertices
-    for(auto& vx3 : tjs.vtx3) {
-      if(vx3.ID == 0) continue;
-      for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-        if(vx3.Vtx2ID[ipl] == 0 || vx3.Vtx2ID[ipl] > tjs.vtx.size()) continue;
-        unsigned short ivx = vx3.Vtx2ID[ipl] - 1;
-        auto& vx = tjs.vtx[ivx];
-        if(vx.Stat[kVtxKilled]) vx3.Vtx2ID[ipl] = 0;
-      } // ipl
-      // count the number of 2D vertex matches that remain
-      unsigned short n2dv = 0;
-      for(auto& v2d : vx3.Vtx2ID) if(v2d > 0) ++n2dv;
-      if(n2dv < 2) std::cout<<"Kill vx3 "<<vx3.ID<<" n2dv "<<n2dv<<"\n";
-      // kill 3D vertices that have < 2 matched 2D vertices
-      if(n2dv < 2) {
-        vx3.ID = 0;
-        for(auto& v2d : vx3.Vtx2ID) v2d = 0;
-      } // n2dv < 2
-      // flag new incomplete vertices with a distinctive Wire number
-      if(n2dv == 2 && vx3.Wire < 0) vx3.Wire = 9999;
-    } // vx3
   } // KillPoorVertices
   
   ////////////////////////////////////////////////
   void MakeVertexObsolete(TjStuff& tjs, unsigned short vtxID)
   {
     // deletes a 2D vertex and possibly a 3D vertex and 2D vertices in other planes
-    if(vtxID > tjs.vtx.size()) return;
+    if(vtxID > tjs.vtx.size()) {
+      std::cout<<"MakeVertexObsolete: Invalid vertex ID "<<vtxID<<"\n";
+      return;
+    }
     unsigned short ivx = vtxID - 1;
     tjs.vtx[ivx].Stat[kVtxKilled] = true;
     for(auto& tj : tjs.allTraj) {
@@ -1709,7 +1691,26 @@ namespace tca {
     unsigned short ipl = planeID.Plane;
     if(vx3.Vtx2ID[ipl] != vtxID) return;
     vx3.Vtx2ID[ipl] = 0;
-    std::cout<<"MakeVertexObsolete: write some code here to find vtx3.Wire\n";
+    vx3.Wire = tjs.vtx[ivx].Pos[0] / tjs.UnitsPerTick;
+    // Ensure that there are at least two 2D vertices left
+    unsigned short n2D = 0;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      if(vx3.Vtx2ID[plane] > 0) ++n2D;
+    } // plane
+    // 3D vertex is incomplete
+    if(n2D > 1) return;
+    // 3D vertex is obsolete
+    vx3.ID = 0;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      if(vx3.Vtx2ID[plane] == 0) continue;
+      VtxStore& vx2 = tjs.vtx[vx3.Vtx2ID[plane] - 1];
+      vx2.Stat[kVtxKilled] = true;
+      for(auto& tj : tjs.allTraj) {
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(tj.VtxID[end] == vx2.ID) tj.VtxID[end] = 0;
+        } // end
+      } // tj
+    } // plane
   } // MakeVertexObsolete
 
   /*

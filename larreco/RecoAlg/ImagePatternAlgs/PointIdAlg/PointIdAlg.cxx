@@ -789,26 +789,29 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(const TLor
 {
 	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 	nnet::TrainingDataAlg::WireDrift wd;
-	wd.Wire = 0; wd.Drift = 0; wd.TPC = -1;
+	wd.Wire = 0; wd.Drift = 0; wd.TPC = -1; wd.Cryo = -1;
 
     try
     {
     	double vtx[3] = {tvec.X(), tvec.Y(), tvec.Z()};
 	    if (fGeometry->FindTPCAtPosition(vtx).isValid)
 	    {
-	    	unsigned int cryo = fGeometry->FindCryostatAtPosition(vtx);
 	    	geo::TPCID tpcid = fGeometry->FindTPCAtPosition(vtx);
-	    	unsigned int tpc = tpcid.TPC;
-	    	
+	    	unsigned int tpc = tpcid.TPC, cryo = tpcid.Cryostat;
+
 	    	// correct for the time offset
 	    	float dx = tvec.T() * 1.e-3 * detprop->DriftVelocity();
-				if (fGeometry->TPC(tpcid).DetectDriftDirection() == 1) { dx *= -1; }
-				
-				vtx[0] = tvec.X() + dx;
+	    	int driftDir = fGeometry->TPC(tpcid).DetectDriftDirection();
+			if (driftDir == 1) { dx *= -1; }
+			else if (driftDir != -1)
+			{
+			    throw cet::exception("nnet::TrainingDataAlg") << "drift direction is not X." << std::endl;
+			}
+			vtx[0] = tvec.X() + dx;
 				
 	    	wd.Wire = fGeometry->NearestWire(vtx, view, tpc, cryo);
 	    	wd.Drift = fDetProp->ConvertXToTicks(vtx[0], view, tpc, cryo);
-	    	wd.TPC = tpc;
+	    	wd.TPC = tpc; wd.Cryo = cryo;
 	    }
 	}
 	catch (const geo::InvalidWireIDError & e)
@@ -1069,7 +1072,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		{
 			auto wd = getProjection(particle.Position(), view);
 			
-			if (wd.TPC == (int)fTPC)
+			if ((wd.TPC == (int)fTPC) && (wd.Cryo == (int)fCryo))
 			{
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsStart;
 				// std::cout << "---> flagsStart:" << flagsStart << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
@@ -1079,7 +1082,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		if (flagsEnd != nnet::TrainingDataAlg::kNone)
 		{
 			auto wd = getProjection(particle.EndPosition(), view);
-			if (wd.TPC == (int)fTPC)
+			if ((wd.TPC == (int)fTPC) && (wd.Cryo == (int)fCryo))
 			{
 			    //if (flagsEnd == nnet::TrainingDataAlg::kElectronEnd) { std::cout << "---> clear electron endpoint" << std::endl; }
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;

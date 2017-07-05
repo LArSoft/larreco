@@ -419,6 +419,7 @@ private:
 		size_t Wire;
 		int Drift;
 		int TPC;
+		int Cryo;
 	};
 
 	WireDrift getProjection(const TLorentzVector& tvec, unsigned int view) const;

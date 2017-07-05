@@ -179,12 +179,14 @@ namespace tca {
     if(tjs.MuonTag.size() != 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging";
     if(tjs.DeltaRayTag.size() != 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3\n 0 = Max endpoint sep\n 1 = min MCSMom\n 2 = max MCSMom";
     if(fChkStopCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = Charge fit chisq cut";
-    if(tjs.ShowerTag.size() != 12) {
-      std::cout<< "ShowerTag must be size 8\n 0 = Mode\n 1 = max MCSMom\n 2 = max separation (WSE units)\n 3 = Max angle diff\n 4 = Factor * rms width\n 5 = Min half width\n 6 = min total Tps\n 7 = Min Tjs\n 8 = max parent FOM\n 9 = max direction FOM 10 = max AspectRatio\n 11 = Debug showers in CTP\n";
+    if(tjs.ShowerTag.size() < 13) {
+      std::cout<< "ShowerTag must be size 13\n 0 = Mode\n 1 = max MCSMom\n 2 = max separation (WSE units)\n 3 = Max angle diff\n 4 = Factor * rms width\n 5 = Min half width\n 6 = min total Tps\n 7 = Min Tjs\n 8 = max parent FOM\n 9 = max direction FOM 10 = max AspectRatio\n 11 = min Score to preserve a vertex\n 12 = Debug showers in CTP\n";
       std::cout<<" Fixing this problem...";
-      tjs.ShowerTag.resize(12);
+      tjs.ShowerTag.resize(13);
+      // set the min score to 0
+      tjs.ShowerTag[11] = 0;
       // turn off printing
-      tjs.ShowerTag[11] = -1;
+      tjs.ShowerTag[12] = -1;
     }
     if(tjs.Match3DCuts.size() != 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = MinMCSMom\n 2 = Min length for 2-view match\n 3 = 2-view match require dead region in 3rd view?";
     
@@ -3035,14 +3037,21 @@ namespace tca {
       myprt<<"matchVec\n";
       for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
         myprt<<ii<<" Count "<<tjs.matchVec[ii].Count<<" TjIDs: ";
-        for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<tjID;
-        myprt<<"\n";
+        unsigned short nstj = 0;
+        for(auto& tjID : tjs.matchVec[ii].TjIDs) {
+          myprt<<" "<<tjID;
+          // count shower Tjs
+          if(tjs.allTraj[tjID - 1].AlgMod[kShowerTj]) ++nstj;
+        }
+        myprt<<" nShowerTj "<<nstj<<"\n";
       } // ii
+/*
       myprt<<"matchVecPFPList";
       for(auto& pfp : tjs.matchVecPFPList) {
         myprt<<" "<<pfp<<" TjIDs";
         for(auto& tjID : tjs.matchVec[pfp].TjIDs) myprt<<" "<<tjID;
       }
+*/
     } // prt
     
     // ensure that a Tj will only used by one PFParticle
@@ -3260,12 +3269,17 @@ namespace tca {
       unsigned int indx = sortVec[ii].index;
       // skip this match if any of the trajectories is already matched or merged and killed
       bool skipit = false;
+      // count the number of shower Tjs
+      unsigned short nstj = 0;
       for(unsigned short ipl = 0; ipl < tjs.matchVec[indx].TjIDs.size(); ++ipl) {
         unsigned short itj = tjs.matchVec[indx].TjIDs[ipl] - 1;
         if(tjs.allTraj[itj].AlgMod[kMatch3D]) skipit = true;
         if(tjs.allTraj[itj].AlgMod[kKilled]) skipit = true;
+        if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
       }
       if(skipit) continue;
+      // Require 0 or 3 shower Tjs
+      if(nstj != 0 && nstj != tjs.matchVec[indx].TjIDs.size()) continue;
       auto& imv = tjs.matchVec[indx];
       if(prt && imv.Count > 20) {
         mf::LogVerbatim myprt("TC");
@@ -3280,7 +3294,7 @@ namespace tca {
       } // ipl
       // Look for fragments of broken trajectories.
       // Allow one fragment for each trajectory (assumes that there is one Tj per plane...)
-      std::vector<int> fragID(imv.TjIDs.size(), USHRT_MAX);
+      std::vector<int> fragID(imv.TjIDs.size(), INT_MAX);
       // Stop searching when the triplet count gets low
       int minCount = 0.3 * imv.Count;
       for(unsigned int jj = ii + 1; jj < tjs.matchVec.size(); ++jj) {
@@ -3463,11 +3477,14 @@ namespace tca {
       unsigned int indx = sortVec[ii].index;
       // skip this match if any of the trajectories is already matched
       bool skipit = false;
+      unsigned short nstj = 0;
       for(unsigned short ipl = 0; ipl < tjs.matchVec[indx].TjIDs.size(); ++ipl) {
         unsigned short itj = tjs.matchVec[indx].TjIDs[ipl] - 1;
         if(tjs.allTraj[itj].AlgMod[kMatch3D]) skipit = true;
+        if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
       }
       if(skipit) continue;
+      if(nstj != 0 && nstj != tjs.matchVec[indx].TjIDs.size()) continue;
       for(unsigned short ipl = 0; ipl < tjs.matchVec[indx].TjIDs.size(); ++ipl) {
         int mtid = tjs.matchVec[indx].TjIDs[ipl];
         // Set the match flag
@@ -5922,12 +5939,15 @@ namespace tca {
     // on the first try we look for small angle trajectories which will have hits
     // with a large wire window and a small time window
     // Vertex2DCuts fcl input usage
-    // 0 = maximum length of a short trajectory
-    // 1 = max vertex - trajectory separation for short trajectories
-    // 2 = max vertex - trajectory separation for long trajectories
-    // 3 = max position pull for adding TJs to a vertex
-    // 4 = max allowed vertex position error
-    // 5 = min MCSMom
+    // 0 User definition of a short Tj => max number of Tj points
+    // 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
+    // 2 max separation for a user-defined long Tj
+    // 3 max position pull when attaching a Tj to a vertex
+    // 4 max position error for creating a Tj or attaching Tjs to an existing vertex
+    // 5 Min MCSMom of Tjs that can be used to create a vertex
+    // 6 min frac of Points/Wire between a vtx and a Tj. Ideally one if the efficiency is good
+    // 7 min Score
+    // 8 ID of a vertex for printing special debugging information
     wireWindow[0] = std::nearbyint(theVtx.Pos[0] - tjs.Vertex2DCuts[2]);
     wireWindow[1] = std::nearbyint(theVtx.Pos[0] + tjs.Vertex2DCuts[2]);
     timeWindow[0] = theVtx.Pos[1] - 5;
