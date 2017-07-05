@@ -32,7 +32,6 @@ namespace tca {
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
-    "ChkAllStop",
     "FTBRevProp",
     "StopAtTj",
     "Match3D",
@@ -53,12 +52,13 @@ namespace tca {
   };
   
   const std::vector<std::string> VtxBitNames {
-    "Fixed",
     "VtxTrjTried",
+    "Fixed",
     "OnDeadWire",
     "VtxRefined",
     "InShower",
-    "VtxKilled"
+    "VtxKilled",
+    "VtxTruMatch"
   } ;
   
   geo::PlaneID DecodeCTP(CTP_t CTP) {

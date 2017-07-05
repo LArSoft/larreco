@@ -70,22 +70,23 @@ namespace tca {
     unsigned short NTraj {0};  // = 0 for abandoned vertices
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
-    short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 5 = Star, 6 = hammer, 7 = photon conversion, 8 = dead region
+    short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH
     CTP_t CTP {0};
     unsigned short ID {0};
     unsigned short Vtx3ID {0};
     short Score {0};
-    unsigned short NN {0};            ///< Number of Nearby trajectories in the vicinity that are not attached to the vertex
+    float TjChgFrac {0};            ///< Fraction of charge near the vertex that is from hits on the vertex Tjs
     std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
   };
   
   typedef enum {
-    kFixed,           ///< vertex position fixed manually - no fitting done
     kVtxTrjTried,     ///< FindVtxTraj algorithm tried
+    kFixed,           ///< vertex position fixed manually - no fitting done
     kOnDeadWire,
     kVtxRefined,
     kVtxInShower,
     kVtxKilled,
+    kVtxTruMatch,      ///< tagged as a vertex between Tjs that are matched to MC truth neutrino interaction particles
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
@@ -100,7 +101,7 @@ namespace tca {
     short Wire {-1};                 // wire number for an incomplete 3D vertex
     unsigned short CStat {0};
     unsigned short TPC {0};
-    std::array<unsigned short, 3> Vtx2ID {{USHRT_MAX}}; // List of 2D vertex IDs in each plane
+    std::array<unsigned short, 3> Vtx2ID {{0}}; // List of 2D vertex IDs in each plane
     unsigned short ID {0};          // 0 = obsolete vertex
   };
   
@@ -131,7 +132,7 @@ namespace tca {
     std::vector<TrajPoint> Pts;    ///< Trajectory points
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
-    unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
+    int WorkID {0};
     int ParentTrajID {0};     ///< ID of the parent
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
@@ -142,12 +143,13 @@ namespace tca {
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     int ID;
+    unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
     unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
     short TjDir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
                                         ///< 1 = in the StepDir direction, -1 in the opposite direction, 0 = don't know
-    int WorkID {0};
+    unsigned short MCPartListIndex {USHRT_MAX};
     unsigned short NNeighbors {0};    /// number of neighbors within window defined by ShowerTag
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
   };
@@ -254,7 +256,7 @@ namespace tca {
     kSplitTraj,
     kComp3DVx,
     kComp3DVxIG,
-    kHiEndDelta,
+    kHED, // High End Delta
     kHamVx,
     kHamVx2,
     kJunkTj,
@@ -274,7 +276,6 @@ namespace tca {
     kNoKinkChk,
     kSoftKink,
     kChkStop,
-    kChkAllStop,
     kFTBRevProp,
     kStopAtTj,
     kMatch3D,
@@ -299,10 +300,12 @@ namespace tca {
   
   extern const std::vector<std::string> AlgBitNames;
   extern const std::vector<std::string> StopFlagNames;
+  extern const std::vector<std::string> VtxBitNames;
   
   struct TjStuff {
     // These variables don't change in size from event to event
     float UnitsPerTick;     ///< scale factor from Tick to WSE equivalent units
+    geo::TPCID TPCID;
     std::vector<unsigned int> NumWires;
     std::vector<float> MaxPos0;
     std::vector<float> MaxPos1;
@@ -335,6 +338,7 @@ namespace tca {
     std::vector<ShowerStruct3D> showers;  // 3D showers
     std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
     float Vertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
+    std::vector<float> VertexScoreWeights;
     std::vector<short> DeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag

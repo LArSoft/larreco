@@ -402,7 +402,7 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 	size_t view = 0; size_t countviews = 0;
 	while (view < 3)
 	{
-		mf::LogWarning("ProjectionMatchinAlg") << "collecting hits from view: " << view;
+		mf::LogVerbatim("ProjectionMatchinAlg") << "collecting hits from view: " << view;
 		if (!tpcgeom.HasPlane(view)) {++view; continue;}
 
 		// select hits only for a single view
@@ -416,9 +416,9 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 		std::vector<art::Ptr<recob::Hit> > hitsfilter;
 		TVector2 proj_pr = pma::GetProjectionToPlane(vtxv3, view, tpc, cryo);
 	
-		mf::LogWarning("ProjectionMatchinAlg") << "start filter out: ";
+		mf::LogVerbatim("ProjectionMatchinAlg") << "start filter out: ";
 		FilterOutSmallParts(2.0, hitsview, hitsfilter, proj_pr);
-		mf::LogWarning("ProjectionMatchingAlg") << "after filter out";
+		mf::LogVerbatim("ProjectionMatchingAlg") << "after filter out";
 
 		for (size_t h = 0; h < hitsfilter.size(); ++h)
 			hitstrk.push_back(hitsfilter[h]);

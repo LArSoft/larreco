@@ -29,8 +29,8 @@ standard_trajclusteralg:
    QualityCuts: [ 0.8, 3] # Min points/wire, min consecutive pts after a gap
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
-#                0   1   2   3   4  5    6   7  8  9  10  11
-   ShowerTag: [ -1, 50, 20, 0.5, 3, 2, 100, 10, 1, 1, 1,  0]
+#                0   1   2   3   4  5    6   7  8  9 10 11 12
+   ShowerTag: [ -1, 50, 20, 0.5, 3, 2, 100, 10, 1, 1, 1, 0, 0]
   # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
   # 1 Max Tj MCSMom for a shower tag
   # 2 Max separation
@@ -42,23 +42,25 @@ standard_trajclusteralg:
   # 8 max parent FOM
   # 9 max direction FOM
   # 10 max aspect ratio
-  # 11 Debug in CTP (>10 debug cotIndex + 10)
-   ChkStopCuts: [1.4, 5, 1] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
-   Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6, 0]
-   # 0 max short TjLen
-   # 1 max ShortTj-vtx sep
-   # 2 max LongTj-vtx sep
-   # 3 max PosPull
-   # 4 max PosErr
-   # 5 Min MCSMom
-   # 6 min frac Pts/Wire btw vtx and Tjs
-   # 7 ID of vertex to print
+  # 11 min Score to preserve a vertex and its Tjs
+  # 12 Debug in CTP (>10 debug cotIndex + 10)
+   ChkStopCuts: [5, 8, 1.5] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
+   Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6, 3, 0]
+   # 0 User definition of a short Tj => max number of Tj points
+   # 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
+   # 2 max separation for a user-defined long Tj
+   # 3 max position pull when attaching a Tj to a vertex
+   # 4 max position error for creating a Tj or attaching Tjs to an existing vertex
+   # 5 Min MCSMom of Tjs that can be used to create a vertex
+   # 6 min frac of Points/Wire between a vtx and a Tj. Ideally one if the efficiency is good
+   # 7 min Score
+   # 8 ID of a vertex for printing special debugging information
    Vertex3DChiCut: 3.5       # 3D vertex Chi/DOF cut
    Match3DCuts: [ 0.3, 0, 3, 1 ] 
    # dx (cm) matching cut, min MCSMom, min length for 2-view match, 2-view missing plane requirement
-   SkipAlgs: [  "VtxHitsSwap", "SplitHiChgHits", "ChkAllStop", "ChkStop", "CTKink", "HED" ]   # List of algs that should not be called
+   SkipAlgs: [  "VtxHitsSwap", "SplitHiChgHits", "CTKink", "HED" ]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
-   StudyMode: false         # Set true to generate histograms (commented out)
+   StudyMode: false         # Set true to generate histograms
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
    DebugCryostat: 0
    DebugTPC: 0

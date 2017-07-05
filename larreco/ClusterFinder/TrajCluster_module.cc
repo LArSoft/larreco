@@ -259,7 +259,9 @@ namespace cluster {
         end = 0;
         // See if this endpoint is associated with a 3D vertex
         unsigned short vtxIndex = 0;
-        for(tca::Vtx3Store const& vtx3: Vertices) {
+        for(tca::Vtx3Store const& vtx3 : Vertices) {
+          // ignore killed vertices
+          if(vtx3.ID == 0) continue;
           // ignore incomplete vertices
           if(vtx3.Wire > 0) continue;
           if(vtx3.Vtx2ID[plane] == 0) continue;
@@ -277,7 +279,9 @@ namespace cluster {
         end = 1;
         // See if this endpoint is associated with a 3D vertex
         unsigned short vtxIndex = 0;
-        for(tca::Vtx3Store const& vtx3: Vertices) {
+        for(tca::Vtx3Store const& vtx3 : Vertices) {
+          // ignore killed vertices
+          if(vtx3.ID == 0) continue;
           // ignore incomplete vertices
           if(vtx3.Wire >= 0) continue;
           if(vtx3.Vtx2ID[plane] == 0) continue;
