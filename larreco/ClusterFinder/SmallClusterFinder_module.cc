@@ -50,7 +50,7 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/GeometryUtilities.h"
 #include "larreco/RecoAlg/SmallClusterFinderAlg.h"
-#include "larcore/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterParamsImportWrapper.h"

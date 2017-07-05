@@ -9,7 +9,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
-#include "larcore/Geometry/ChannelMapAlg.h" // geo::InvalidWireIDError
+#include "larcorealg/Geometry/ChannelMapAlg.h" // geo::InvalidWireIDError
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
