@@ -318,7 +318,7 @@ namespace tca {
           // This is a good approximation for electromagnetic showers but wouldn't be for hadronic showers.
           double nElectrons = fCaloAlg.ElectronsFromADCArea(dQ, iPln) / 0.63;
           std::cout<<" nElectrons "<<std::fixed<<(int)nElectrons;
-          double dedx = nElectrons * 23.6E-8 * dQ / dx;
+          double dedx = nElectrons * 23.6E-6 / dx;
           ss3.dEdx[iPln] = dedx;
           // this is a bit of a fake
           ss3.dEdxErr[iPln] = dedx * tjs.cots[cotIndex].StartChgErr / tjs.cots[cotIndex].StartChg;
@@ -407,7 +407,7 @@ namespace tca {
         myprt<<"\n";
       } // tjl
     } // prt
-//    MergeTjList2(tjs, tjList, prt);
+    MergeTjList2(tjs, tjList, prt);
     
     // remove Tjs that don't have enough neighbors = ShowerTag[7] unless the shower
     // has few Tjs
@@ -1966,8 +1966,10 @@ namespace tca {
         float doca = tjs.ShowerTag[2];
 //        float doca = 5;
         // Find the separation between Tjs without considering dead wires
-        TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca, false);
-        if(doca < tjs.ShowerTag[2]) {
+        //TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca, false);
+	//XL: Find the separation between Tjs without considering dead wires
+        TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca, true);
+	if(doca < tjs.ShowerTag[2]) {
           // start the list with the ID of tj1
           if(list.empty()) {
             list.push_back(tj1.ID);
@@ -1990,8 +1992,9 @@ namespace tca {
     // them to the list if any are found, and the MCSMomentum is not too large
     if(itj > tjs.allTraj.size() - 1) return;
     
-    short maxMom = (short)(2 * tjs.ShowerTag[1]);
-    
+    //short maxMom = (short)(2 * tjs.ShowerTag[1]);
+    short maxMom = tjs.ShowerTag[1];
+    //XL: why is maxMom is twice of the shower tag [1]? 
     for(auto& tp : tjs.allTraj[itj].Pts) {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         // ignore hits that are used in this trajectory
