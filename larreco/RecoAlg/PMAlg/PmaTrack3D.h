@@ -84,6 +84,9 @@ public:
 	double Dist2(const TVector2& p2d, unsigned int view, unsigned int tpc, unsigned int cryo) const;
 	double Dist2(const TVector3& p3d) const;
 
+    /// Get trajectory direction at given hit index.
+    pma::Vector3D GetDirection3D(size_t index) const;
+
 	/// Add hits; does not update hit->node/seg assignments nor hit projection to track,
 	/// so MakeProjection() and SortHits() should be called as needed.
 	void AddHits(const std::vector< art::Ptr<recob::Hit> >& hits);
@@ -200,7 +203,7 @@ public:
 
 	void SortHitsInTree(bool skipFirst = false);
 	void MakeProjectionInTree(bool skipFirst = false);
-	void UpdateParamsInTree(bool skipFirst = false);
+	bool UpdateParamsInTree(bool skipFirst = false);
 	double GetObjFnInTree(bool skipFirst = false);
 	double TuneSinglePass(bool skipFirst = false);
 	double TuneFullTree(double eps = 0.001, double gmax = 50.0);
@@ -307,7 +310,7 @@ private:
     void DeleteSegments(void);
 	void RebuildSegments(void);
 	bool SwapVertices(size_t v0, size_t v1);
-	void UpdateParams(void);
+	bool UpdateParams(void);
 
 	bool CheckEndSegment(pma::Track3D::ETrackEnd endCode);
 

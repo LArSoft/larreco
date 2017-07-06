@@ -334,7 +334,9 @@ public:
     enum ETrkType
     {
         kDelta  = 0x1000,      // delta electron
-        kMichel = 0x2000       // Michel electron
+        kMichel = 0x2000,      // Michel electron
+        kPriEl  = 0x4000,      // primary electron
+        kPriMu  = 0x8000       // primary muon
     };
 
 	enum EVtxId
@@ -417,6 +419,7 @@ private:
 		size_t Wire;
 		int Drift;
 		int TPC;
+		int Cryo;
 	};
 
 	WireDrift getProjection(const TLorentzVector& tvec, unsigned int view) const;
@@ -431,7 +434,14 @@ private:
 		const std::unordered_map< int, const simb::MCParticle* > & particleMap,
 		unsigned int view) const;
 
-    bool isClearEndingElectron(
+    static float particleRange2(const simb::MCParticle & particle)
+    {
+        float dx = particle.EndX() - particle.Vx();
+        float dy = particle.EndY() - particle.Vy();
+        float dz = particle.EndZ() - particle.Vz();
+        return dx*dx + dy*dy + dz*dz;
+    }
+    bool isElectronEnd(
         const simb::MCParticle & particle,
         const std::unordered_map< int, const simb::MCParticle* > & particleMap) const;
 
