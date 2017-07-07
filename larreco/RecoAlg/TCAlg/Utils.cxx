@@ -1349,6 +1349,7 @@ namespace tca {
     
     if(itj > tjs.allTraj.size()-1) return false;
     if(pos < tjs.allTraj[itj].EndPt[0] + 1 || pos > tjs.allTraj[itj].EndPt[1] - 1) return false;
+    if(ivx != USHRT_MAX && ivx > tjs.vtx.size() - 1) return false;
     
     Trajectory& tj = tjs.allTraj[itj];
     
@@ -2543,7 +2544,7 @@ namespace tca {
         if(foundOne) {
           // print out 2D vertices
           myprt<<someText<<"************ 2D vertices ************\n";
-          myprt<<someText<<"VtxID  CTP   wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  traj_IDs\n";
+          myprt<<someText<<"VtxID  CTP   wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D traj_IDs\n";
           for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
             auto& aVtx = tjs.vtx[iv];
             if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aVtx.CTP).Plane) continue;
@@ -2561,6 +2562,7 @@ namespace tca {
             myprt<<std::right<<std::setw(6)<<aVtx.Topo;
             myprt<<std::right<<std::setw(9)<<std::setprecision(2)<<aVtx.TjChgFrac;
             myprt<<std::right<<std::setw(6)<<aVtx.Score;
+            myprt<<std::right<<std::setw(5)<<aVtx.Vtx3ID;
             myprt<<"    ";
             // display the traj IDs
             for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
