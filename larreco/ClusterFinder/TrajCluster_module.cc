@@ -165,7 +165,7 @@ namespace cluster {
     art::ServiceHandle<geo::Geometry> geom;
     unsigned int vtxID = 0;
     for(tca::VtxStore const& vtx2: EndPts) {
-      if(vtx2.NTraj == 0) continue;
+      if(vtx2.Stat[tca::kVtxKilled]) continue;
       ++vtxID;
       unsigned int wire = std::nearbyint(vtx2.Pos[0]);
       geo::PlaneID plID = tca::DecodeCTP(vtx2.CTP);
