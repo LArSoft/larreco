@@ -449,7 +449,7 @@ namespace tca {
       if(tjs.Vertex3DChiCut > 0) Find3DVertices(tjs, debug, tpcid);
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
-        ChkVtxAssociations(tjs, fCTP, false);
+        ChkVtxAssociations(tjs, fCTP);
       }
       if(tjs.ShowerTag[0] > 0) {
         // find showers after 3D vertex finding - which may split trajectories
@@ -473,7 +473,7 @@ namespace tca {
         geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
         for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
           fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
-          ChkVtxAssociations(tjs, fCTP, true);
+          ChkVtxAssociations(tjs, fCTP);
         }
       } // tpcid
     }
@@ -494,7 +494,7 @@ namespace tca {
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in CheckHitClusterAssociations";
       return;
     }
-
+/*
     if(fDebugMode) {
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         if(tjs.allTraj[itj].WorkID == TJPrt) {
@@ -503,10 +503,10 @@ namespace tca {
         }
       } // itj
     } // TJPrt > 0
-    
+*/
     // print trajectory summary report?
     if(tjs.ShowerTag[0] >= 0) debug.Plane = tjs.ShowerTag[11];
-    if(debug.Plane >= 0) {
+    if(fDebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
     }
@@ -981,7 +981,7 @@ namespace tca {
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, vtxPrt);
     
     // Check the Tj <-> vtx associations and define the vertex quality
-    ChkVtxAssociations(tjs, fCTP, false);
+    ChkVtxAssociations(tjs, fCTP);
 
     // TY: Improve hit assignments near vertex 
     VtxHitsSwap(tjs, debug, fCTP);
@@ -5913,7 +5913,7 @@ namespace tca {
     if(!tjs.UseAlg[kVtxTj]) return;
     
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
-      if(tjs.vtx[ivx].NTraj == 0) continue;
+      if(tjs.vtx[ivx].Stat[kVtxKilled] == 0) continue;
       if(tjs.vtx[ivx].CTP != fCTP) continue;
      if(tjs.vtx[ivx].Stat[kVtxTrjTried]) continue;
       FindVtxTraj(ivx);

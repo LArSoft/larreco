@@ -47,7 +47,8 @@ namespace tca {
   float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
   bool FitVertex(TjStuff& tjs, VtxStore& vx, bool prt);
   bool StoreVertex(TjStuff& tjs, VtxStore& vx);
-  void ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP, bool prt);
+  void ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
+  void SetVtxScore(TjStuff& tjs, VtxStore& vx2, bool prt);
   void KillPoorVertices(TjStuff& tjs);
   void MakeVertexObsolete(TjStuff& tjs, unsigned short ivx);
   //    void Refine2DVertices();
