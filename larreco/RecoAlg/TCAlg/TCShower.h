@@ -37,7 +37,6 @@ namespace tca {
   void FillPts(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void Find3DVertex(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void MakeShowerObsolete(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   bool AddTj(TjStuff& tjs, unsigned short TjID, const unsigned short& cotIndex, bool doUpdate, bool prt);
   bool RemoveTj(TjStuff& tjs, unsigned short TjID, const unsigned short& cotIndex, bool doUpdate, bool prt);
@@ -66,6 +65,7 @@ namespace tca {
   void TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   unsigned short GetCotsIndex(TjStuff& tjs, const unsigned short& ShowerTjID);
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss);
+  unsigned short FarEnd(TjStuff& tjs, const Trajectory& tj, ShowerStruct& ss);
 
 }
 
