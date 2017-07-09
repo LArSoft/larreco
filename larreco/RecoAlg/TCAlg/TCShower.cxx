@@ -392,7 +392,7 @@ namespace tca {
         std::cout<<"\n";
       } // ctp
     } // temp testing
-    
+
     std::vector<std::vector<int>> tjList;
     TagShowerTjs(tjs, inCTP, tjList);
     if(prt) std::cout<<"Inside FindShowers inCTP "<<inCTP<<" tjList size "<<tjList.size()<<"\n";
@@ -408,7 +408,6 @@ namespace tca {
         myprt<<"\n";
       } // tjl
     } // prt
-//    MergeTjList2(tjs, tjList, prt);
     
     // remove Tjs that don't have enough neighbors = ShowerTag[7] unless the shower
     // has few Tjs
@@ -479,9 +478,11 @@ namespace tca {
       }
       DefineShower(tjs, cotIndex, prt);
       if(tjs.cots[cotIndex].TjIDs.empty()) continue;
+      // Fill the vector of Tjs that are close to this shower but were not included in it, most
+      // likely because the MCSMom is too high. These will be used to merge showers
+//      FindNearbyTjs(tjs, cotIndex, prt);
       // skip the rest of the shower construction code if the mode is set > 2
       if(tjs.ShowerTag[0] < 3) {
-        Find3DVertex(tjs, cotIndex, prt);
         // Try to add more Tjs to the shower
         AddTjsInsideEnvelope(tjs, cotIndex, prt);
         FindExternalParent(tjs, cotIndex, prt);
@@ -533,8 +534,21 @@ namespace tca {
         for(auto& tjID : ss.TjIDs) {
           Trajectory& tj = tjs.allTraj[tjID - 1];
           tj.PDGCode = 11;
+          // Clobber 2D vertices that are inside the shower
           for(unsigned short end = 0; end < 2; ++end) {
-            if(tj.VtxID[end] > 0) MakeVertexObsolete(tjs, tj.VtxID[end]);
+            if(tj.VtxID[end] > 0) {
+              VtxStore& vx2 = tjs.vtx[tj.VtxID[end]-1];
+              bool killMe = (vx2.Score < tjs.ShowerTag[11]);
+              // don't kill the 2D vertex if it is attached to the far end of the parent Tj
+              if(killMe && ss.ParentID == tjID) {
+                unsigned short farEnd = FarEnd(tjs, tj, ss);
+                if(farEnd == end) killMe = false;
+              }
+              if(killMe) {
+                if(prt) mf::LogVerbatim("TC")<<"Clobber vtx "<<tj.VtxID[end]<<" Score "<<vx2.Score<<" Vtx3ID "<<tjs.vtx[tj.VtxID[end]-1].Vtx3ID;
+                MakeVertexObsolete(tjs, tj.VtxID[end]);
+              }
+            }
           } // end
         }
       } // don't killit
@@ -570,7 +584,6 @@ namespace tca {
         }
         if(!tj.AlgMod[kKilled] || !tj.AlgMod[kInShower]) {
           std::cout<<"FindShowers: InShower TjID "<<tjID<<" invalid kKilled "<<tj.AlgMod[kKilled]<<" or kInShower "<<tj.AlgMod[kInShower]<<"\n";
-          PrintTrajectory("FS", tjs, tj, USHRT_MAX);
         }
       } // tjID
     } // ss
@@ -640,90 +653,6 @@ namespace tca {
     
   } // MergeTjList
 
-  
-  ////////////////////////////////////////////////
-  void MergeTjList2(TjStuff& tjs, std::vector<std::vector<int>>& tjList, bool prt)
-  {
-    // A more exhaustive merging of tjList elements
-    if(tjList.size() < 2) return;
-    
-    if(tjs.ShowerTag[2] <= 0) return;
-    
-    unsigned short ipt, jpt;
-    
-    std::vector<int> closeTjs;
-    bool didSomething = false;
-    for(unsigned short itl = 0; itl < tjList.size() - 1; ++itl) {
-      if(tjList[itl].empty()) continue;
-      for(unsigned short jtl = itl + 1; jtl < tjList.size(); ++jtl) {
-        if(tjList[jtl].empty()) continue;
-        auto& itList = tjList[itl];
-        auto& jtList = tjList[jtl];
-        closeTjs.clear();
-        for(auto& iitj : itList) {
-          Trajectory& itj = tjs.allTraj[iitj - 1];
-          for(auto& jjtj : jtList) {
-            Trajectory& jtj = tjs.allTraj[jjtj - 1];
-            float minSep = tjs.ShowerTag[2];
-            // find the minimum separation including dead wires
-            TrajTrajDOCA(tjs, itj, jtj, ipt, jpt, minSep, true);
-            // If the trajectories are close, require that at least 60% of the wires between the closest
-            // points on the trajectories have signals on them
-            if(minSep < tjs.ShowerTag[2]) {
-              // Look for Tjs that have hits within 5 WSE units in-between these points
-              auto ctj = FindCloseTjs(tjs, itj.Pts[ipt], jtj.Pts[jpt], 5);
-              if(ctj.empty()) continue;
-              for(auto tjID : ctj) {
-                // Here is where we should ensure that no Tjs are long muons
-                if(std::find(closeTjs.begin(), closeTjs.end(), tjID) == closeTjs.end()) closeTjs.push_back(tjID);
-              } // tjID
-              if(prt) {
-                mf::LogVerbatim myprt("TC");
-                myprt<<"MTL2: close Tj "<<itj.ID<<" Pos "<<PrintPos(tjs, itj.Pts[ipt])<<" and "<<jtj.ID<<" Pos "<<PrintPos(tjs, jtj.Pts[jpt])<<" minSep "<<minSep;
-                myprt<<" In-between Tjs";
-                for(auto& tjID : ctj) myprt<<" "<<tjID;
-              }
-            } // minSep < ...
-          } // jjtj
-        } // iitj
-        if(!closeTjs.empty()) {
-          itList.insert(itList.end(), jtList.begin(), jtList.end());
-          itList.insert(itList.end(), closeTjs.begin(), closeTjs.end());
-          jtList.clear();
-          didSomething = true;
-        }
-      } // jtl
-    } // itl
-    
-    if(!didSomething) return;
-    
-    // erase the deleted elements
-    unsigned short imEmpty = 0;
-    while(imEmpty < tjList.size()) {
-      for(imEmpty = 0; imEmpty < tjList.size(); ++imEmpty) if(tjList[imEmpty].empty()) break;
-      if(imEmpty < tjList.size()) tjList.erase(tjList.begin() + imEmpty);
-    } // imEmpty < tjList.size()
-    
-    // sort the lists by increasing ID and remove duplicates
-    for(auto& tjl : tjList) {
-      std::sort(tjl.begin(), tjl.end());
-      auto last = std::unique(tjl.begin(), tjl.end());
-      tjl.erase(last, tjl.end());
-    } // tjl
-
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"MergeTjList2\n";
-      for(auto& tjl : tjList) {
-        if(tjl.empty()) continue;
-        for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
-        myprt<<"\n";
-      } // tjl
-    } // prt
-
-    
-  } // MergeTjList2
-  
   ////////////////////////////////////////////////
   void FillPts(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
@@ -805,56 +734,6 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC'")<<"FP: cotIndex "<<cotIndex<<" filled "<<cnt<<" points including "<<stp0.Hits.size()<<" loose hits. Total charge "<<(int)totChg;
     
   } // FillPts
-  
-  ////////////////////////////////////////////////
-  void Find3DVertex(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
-  {
-    // Look for a 3D vertex that might be associated with the shower
-    if(cotIndex > tjs.cots.size() - 1) return;
-    ShowerStruct& ss = tjs.cots[cotIndex];
-    if(ss.TjIDs.empty()) return;
-    
-    if(!prt) return;
-    geo::PlaneID planeID = DecodeCTP(ss.CTP);
-    unsigned short ipl = planeID.Plane;
-    
-    Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
-    
-    // Require the max separation is 4 radiation lengths. Assume uB wire spacing for now
-    float maxPosSep = 4 * 14 / 0.3;
-    
-    for(unsigned short ivx3 = 0; ivx3 < tjs.vtx3.size(); ++ivx3) {
-      if(tjs.vtx3[ivx3].Wire == SHRT_MAX) continue;
-      // require that the vertex is matched to a 2D vertex in the right TPC
-      if(tjs.vtx3[ivx3].CStat != planeID.Cryostat) continue;
-      if(tjs.vtx3[ivx3].TPC != planeID.TPC) continue;
-      if(tjs.vtx3[ivx3].Vtx2ID[ipl] == 0) continue;
-      unsigned short ivx2 = tjs.vtx3[ivx3].Vtx2ID[ipl] - 1;
-      VtxStore& vx2 = tjs.vtx[ivx2];
-      float delta = PointTrajDOCA(tjs, vx2.Pos[0], vx2.Pos[1], stj.Pts[0]);
-      // This is just a WAG for now
-      if(delta > 20) continue;
-      float sep = PosSep(stj.Pts[0].Pos, vx2.Pos);
-      if(sep > maxPosSep) continue;
-      bool dirOK = (PosSep(stj.Pts[2].Pos, vx2.Pos) > sep);
-      if(prt) mf::LogVerbatim("TC")<<"F3DV "<<cotIndex<<" ivx3 "<<ivx3<<" delta "<<delta<<" sep "<<sep<<" direction OK? "<<dirOK;
-      if(!dirOK) continue;
-      ss.PrimaryVtxIndex.push_back(ivx3);
-      ss.PrimaryVtxFOM.push_back(sep / 10);
-    } // ivx3
-    // Set the shower angle if there is only one primary vertex candidate
-    if(ss.PrimaryVtxIndex.size() != 1) return;
-    unsigned short ivx3 = ss.PrimaryVtxIndex[0];
-    unsigned short ivx2 = tjs.vtx3[ivx3].Vtx2ID[ipl] - 1;
-    VtxStore& vx2 = tjs.vtx[ivx2];
-    TrajPoint tp;
-    // make a TP from the vertex to the shower center to get the angle
-    if(!MakeBareTrajPoint(vx2.Pos, stj.Pts[1].Pos, tp)) return;
-    if(prt) mf::LogVerbatim("TC")<<" old shower angle "<<ss.Angle<<" new angle "<<tp.Ang;
-    ss.Angle = tp.Ang;
-    FillRotPos(tjs, cotIndex, prt);
-    DefineShowerTj(tjs, cotIndex, prt);
-  } // Find3DVertex
 
   ////////////////////////////////////////////////
   void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
@@ -1085,7 +964,29 @@ namespace tca {
       ss.NewParent = false;
     }
     
+    // see if the parent is attached to a vertex
+    if(ss.ParentID == 0) return;
+    
+    Trajectory& ptj = tjs.allTraj[ss.ParentID-1];
+    // determine the apprropriate start end of the parent
+    unsigned short end = FarEnd(tjs, ptj, ss);
+    Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
+    stj.VtxID[0] = ptj.VtxID[end];
+    if(prt) mf::LogVerbatim("TC")<<" Set ShowerTj VtxID[0] "<<stj.VtxID[0];
+    
   } // FindExternalParent
+
+  ////////////////////////////////////////////////
+  unsigned short FarEnd(TjStuff& tjs, const Trajectory& tj, ShowerStruct& ss)
+  {
+    // Returns the end (0 or 1) of the Tj that is furthest away from the shower center
+    if(ss.ShowerTjID == 0) return 0;
+    TrajPoint& stp1 = tjs.allTraj[ss.ShowerTjID-1].Pts[1];
+    unsigned short endPt0 = tj.EndPt[0];
+    unsigned short endPt1 = tj.EndPt[1];
+    if(PosSep2(tj.Pts[endPt1].Pos, stp1.Pos) > PosSep2(tj.Pts[endPt0].Pos, stp1.Pos)) return 1;
+    return 0;
+  } // FarEnd
 
   ////////////////////////////////////////////////
   float ParentFOM(TjStuff& tjs, Trajectory& tj, const unsigned short& tjEnd, ShowerStruct& ss, bool prt)
@@ -1186,6 +1087,11 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"PFOM: Tj "<<tj.ID<<" Pos "<<PrintPos(tjs, ptp);
+      myprt<<" VtxID "<<tj.VtxID[tjEnd];
+      if(tj.VtxID[tjEnd] > 0) {
+        VtxStore& vx2 = tjs.vtx[tj.VtxID[tjEnd-1]];
+        myprt<<" Vtx3ID "<<vx2.Vtx3ID;
+      }
       myprt<<std::fixed<<std::setprecision(2);
       myprt<<" tp1Sep "<<tp1Sep<<" pull "<<sepPull;
       myprt<<" delta "<<delta<<" pull "<<deltaPull;
@@ -1943,7 +1849,7 @@ namespace tca {
       if(tj1.Pts.size() < 3) continue;
       // Cut on length and MCSMom
       if(tj1.Pts.size() > 6 && tj1.MCSMom > maxMCSMom) continue;
-      if(TjHasNiceVtx(tjs, tj1, (unsigned short)tjs.ShowerTag[11])) continue;
+//      if(TjHasNiceVtx(tjs, tj1, (unsigned short)tjs.ShowerTag[11])) continue;
       tj1.PDGCode = 0;
       std::vector<int> list;
       for(unsigned short it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
@@ -1962,7 +1868,7 @@ namespace tca {
         if(tj2.Pts.size() < 3) continue;
         // Cut on length and MCSMom
         if(tj2.Pts.size() > 10 && tj2.MCSMom > maxMCSMom) continue;
-        if(TjHasNiceVtx(tjs, tj2, (unsigned short)tjs.ShowerTag[11])) continue;
+//        if(TjHasNiceVtx(tjs, tj2, (unsigned short)tjs.ShowerTag[11])) continue;
         unsigned short ipt1, ipt2;
         float doca = tjs.ShowerTag[2];
 //        float doca = 5;
@@ -2003,7 +1909,7 @@ namespace tca {
         // check the momentum
         Trajectory& tj = tjs.allTraj[tjs.fHits[iht].InTraj - 1];
         if(tj.MCSMom > maxMom) continue;
-        if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;
+//        if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;
         // see if it is already in the list
         if(std::find(list.begin(), list.end(), tjs.fHits[iht].InTraj) != list.end()) continue;
         list.push_back(tjs.fHits[iht].InTraj);
@@ -2090,7 +1996,7 @@ namespace tca {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.AlgMod[kInShower]) continue;
       if(tj.AlgMod[kShowerTj]) continue;
-      if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;
+//      if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;
       // This shouldn't be necessary but do it for now
       if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
       // See if both ends are outside the envelope
@@ -2396,6 +2302,10 @@ namespace tca {
       // Note that UseHit is not used since the size is limited to 16
       for(auto& tjID : ss.TjIDs) {
         unsigned short itj = tjID - 1;
+        if(tjs.allTraj[itj].VtxID[0] != 0 && tjs.allTraj[itj].VtxID[0] != stj.VtxID[0]) {
+          std::cout<<"TTjH: Trying to transfer hits on Tj "<<tjID<<" attached to a vertex "<<tjs.allTraj[itj].VtxID[0]<<" at end0 that is not the showerTj vertex "<<stj.VtxID[0]<<"\n";
+          continue;
+        }
         if(tjs.allTraj[itj].AlgMod[kShowerTj]) {
           std::cout<<"TTjH: Coding error. Tj "<<tjID<<" is a ShowerTj but is in TjIDs\n";
           continue;
