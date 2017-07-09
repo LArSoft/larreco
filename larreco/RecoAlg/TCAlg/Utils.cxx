@@ -2737,15 +2737,7 @@ namespace tca {
             myprt<<" No external parent defined";
           }
           myprt<<" TruParentID "<<ss.TruParentID<<"\n";
-          if(ss.PrimaryVtxIndex.empty()) {
-            myprt<<"No primary vertex candidates";
-          } else {
-            myprt<<"Primary vertex candidates:";
-            for(unsigned short ipv = 0; ipv < ss.PrimaryVtxIndex.size(); ++ipv) {
-              myprt<<" "<<ss.PrimaryVtxIndex[ipv]<<" FOM "<<std::fixed<<std::setprecision(1)<<ss.PrimaryVtxFOM[ipv];
-            } // ipv
-          }
-          myprt<<"\n................................................";
+          myprt<<"................................................";
         } // ic
       } // Shower Tj
     } else {
