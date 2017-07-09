@@ -84,7 +84,6 @@ namespace tca {
     kFixed,           ///< vertex position fixed manually - no fitting done
     kOnDeadWire,
     kVtxRefined,
-    kVtxInShower,
     kVtxKilled,
     kVtxTruMatch,      ///< tagged as a vertex between Tjs that are matched to MC truth neutrino interaction particles
     kVtxBitSize     ///< don't mess with this line
@@ -205,6 +204,7 @@ namespace tca {
     CTP_t CTP;
     int ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
     std::vector<int> TjIDs;  // list of InShower Tjs
+    std::vector<int> NearTjIDs;   // list of Tjs that are not InShower but satisfy the maxSep cut
     std::vector<ShowerPoint> Pts;    // Trajectory points inside the shower
     float Angle {0};                   // Angle of the shower axis
     float AngleErr {3};                 // Error
@@ -220,8 +220,6 @@ namespace tca {
     int ParentID {0};  // The ID of an external parent Tj that was added to the shower
     bool NewParent {false};       // This is set true whenever the ParentID is changed
     unsigned short TruParentID {0};
-    std::vector<unsigned short> PrimaryVtxIndex;
-    std::vector<float> PrimaryVtxFOM;
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
