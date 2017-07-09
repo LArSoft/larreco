@@ -574,8 +574,6 @@ namespace tca {
         }
         // vertex has been matched already
         if(vPtr[ivx] >= 0) continue;
-        // vertex is in a shower?
-        if(tjs.vtx[ivx].Stat[kVtxInShower]) continue;
         unsigned int iWire = std::nearbyint(tjs.vtx[ivx].Pos[0]);
         for(unsigned short jpl = ipl + 1; jpl < 3; ++jpl) {
           for(unsigned short jj = 0; jj < vIndex[jpl].size(); ++jj) {
@@ -586,8 +584,6 @@ namespace tca {
             }
             // vertex has been matched already
             if(vPtr[jvx] >= 0) continue;
-            // vertex is in a shower?
-            if(tjs.vtx[jvx].Stat[kVtxInShower]) continue;
             unsigned int jWire = std::nearbyint(tjs.vtx[jvx].Pos[0]);
             float dX = fabs(vX[ivx] - vX[jvx]);
             float dXSigma = sqrt(vXsigma[ivx] * vXsigma[ivx] + vXsigma[jvx] * vXsigma[jvx]);
@@ -1137,7 +1133,7 @@ namespace tca {
   //////////////////////////////////////////
   void ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP)
   {
-    // Check the associations and also define the quality
+    // Check the associations
 
     // check the 2D -> 3D associations
     geo::PlaneID planeID = DecodeCTP(inCTP);
@@ -1672,10 +1668,7 @@ namespace tca {
   void MakeVertexObsolete(TjStuff& tjs, unsigned short vtxID)
   {
     // deletes a 2D vertex and possibly a 3D vertex and 2D vertices in other planes
-    if(vtxID > tjs.vtx.size()) {
-      std::cout<<"MakeVertexObsolete: Invalid vertex ID "<<vtxID<<"\n";
-      return;
-    }
+    if(vtxID > tjs.vtx.size()) return;
     unsigned short ivx = vtxID - 1;
     tjs.vtx[ivx].Stat[kVtxKilled] = true;
     for(auto& tj : tjs.allTraj) {
