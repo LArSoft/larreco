@@ -56,7 +56,6 @@ namespace tca {
     "Fixed",
     "OnDeadWire",
     "VtxRefined",
-    "InShower",
     "VtxKilled",
     "VtxTruMatch"
   } ;
