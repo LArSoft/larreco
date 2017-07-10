@@ -84,7 +84,6 @@ namespace tca {
     kFixed,           ///< vertex position fixed manually - no fitting done
     kOnDeadWire,
     kVtxRefined,
-    kVtxInShower,
     kVtxKilled,
     kVtxTruMatch,      ///< tagged as a vertex between Tjs that are matched to MC truth neutrino interaction particles
     kVtxBitSize     ///< don't mess with this line
@@ -205,6 +204,7 @@ namespace tca {
     CTP_t CTP;
     int ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
     std::vector<int> TjIDs;  // list of InShower Tjs
+    std::vector<int> NearTjIDs;   // list of Tjs that are not InShower but satisfy the maxSep cut
     std::vector<ShowerPoint> Pts;    // Trajectory points inside the shower
     float Angle {0};                   // Angle of the shower axis
     float AngleErr {3};                 // Error
@@ -220,8 +220,6 @@ namespace tca {
     int ParentID {0};  // The ID of an external parent Tj that was added to the shower
     bool NewParent {false};       // This is set true whenever the ParentID is changed
     unsigned short TruParentID {0};
-    std::vector<unsigned short> PrimaryVtxIndex;
-    std::vector<float> PrimaryVtxFOM;
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -318,6 +316,7 @@ namespace tca {
     float YHi;
     float ZLo;
     float ZHi;
+    std::vector<float> AveHitRMS;      ///< average RMS of an isolated hit
     // The variables below do change in size from event to event
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
@@ -325,8 +324,6 @@ namespace tca {
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
-    unsigned short WireHitRangeCstat;
-    unsigned short WireHitRangeTPC;
     std::vector<float> AngleRanges; ///< list of max angles for each angle range
     std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating

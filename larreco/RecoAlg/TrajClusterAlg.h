@@ -35,8 +35,6 @@
 
 // LArSoft libraries
 #include "larreco/RecoAlg/LinFitAlg.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include "TH1F.h"
@@ -203,7 +201,6 @@ namespace tca {
     bool fMaskedLastTP;
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
     
-    std::vector<float> fAveHitRMS;      ///< average RMS of an isolated hit
     
     std::vector<unsigned int> fAlgModCount;
     
@@ -290,10 +287,7 @@ namespace tca {
     void CheckTrajEnd();
     void EndMerge();
     void EndMerge2();
-    void FillWireHitRange(const geo::TPCID& tpcid);
     float ExpectedHitsRMS(TrajPoint const& tp);
-    /// sets fQuitAlg true if WireHitRange has a problem
-    bool CheckWireHitRange();
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
     bool EraseHit(const unsigned int& delHit);
     // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.

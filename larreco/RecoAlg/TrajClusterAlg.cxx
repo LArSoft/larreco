@@ -422,7 +422,7 @@ namespace tca {
     InitializeAllTraj();
     for (const geo::TPCID& tpcid: tjs.geom->IterateTPCIDs()) {
       geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
-      FillWireHitRange(tpcid);
+      fQuitAlg = !FillWireHitRange(tjs, tpcid, fDebugMode);
       if(fQuitAlg) return;
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         // special mode for only reconstructing the collection plane
@@ -451,7 +451,7 @@ namespace tca {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
         ChkVtxAssociations(tjs, fCTP);
       }
-      if(tjs.ShowerTag[0] > 0) {
+      if(tjs.ShowerTag[0] == 1) {
         // find showers after 3D vertex finding - which may split trajectories
         for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
           // no hits on this plane?
@@ -463,6 +463,11 @@ namespace tca {
       } // make showers
       // Match3D should be the last thing called for this tpcid
       Match3D(tpcid);
+      // Use 3D matching information to find showers in 2D. FindShowers3D returns
+      // true if the algorithm was successful indicating that the matching needs to be redone
+      if(FindShowers3D(tjs, tpcid)) {
+        std::cout<<"FindShowers3D success. Re-matching needs to be done...\n";
+      }
     } // tpcid
 
     MatchTruth();
@@ -477,7 +482,6 @@ namespace tca {
         }
       } // tpcid
     }
-    
     FillPFPInfo();
     // convert the cots vector into recob::Shower
     MakeShowers(tjs, fCaloAlg);
@@ -764,7 +768,7 @@ namespace tca {
     // Make several passes through the hits with user-specified cuts for each
     // pass. In general these are to not reconstruct large angle trajectories on
     // the first pass
-    float maxHitsRMS = 4 * fAveHitRMS[fPlane];
+    float maxHitsRMS = 4 * tjs.AveHitRMS[fPlane];
     for(unsigned short pass = 0; pass < fMinPtsFit.size(); ++pass) {
       for(ii = 0; ii < nwires; ++ii) {
         // decide which way to step given the sign of fStepDir
@@ -812,7 +816,7 @@ namespace tca {
             hitsRMSTick = HitsRMSTick(tjs, iHitsInMultiplet, kUnusedHits);
           }
           bool fatIHit = (hitsRMSTick > maxHitsRMS);
-          if(prt) mf::LogVerbatim("TC")<<" hit RMS "<<tjs.fHits[iht].RMS<<" BB Multiplicity "<<iHitsInMultiplet.size()<<" AveHitRMS["<<fPlane<<"] "<<fAveHitRMS[fPlane]<<" HitsRMSTick "<<hitsRMSTick<<" fatIHit "<<fatIHit;
+          if(prt) mf::LogVerbatim("TC")<<" hit RMS "<<tjs.fHits[iht].RMS<<" BB Multiplicity "<<iHitsInMultiplet.size()<<" AveHitRMS["<<fPlane<<"] "<<tjs.AveHitRMS[fPlane]<<" HitsRMSTick "<<hitsRMSTick<<" fatIHit "<<fatIHit;
           for(jht = jfirsthit; jht < jlasthit; ++jht) {
             // Only consider hits that are available
             if(tjs.fHits[iht].InTraj != 0) continue;
@@ -6060,13 +6064,13 @@ namespace tca {
     unsigned short ipl = tjs.fHits[theHit].WireID.Plane;
     float theTime = tjs.fHits[theHit].PeakTime;
     float theRMS = tjs.fHits[theHit].RMS;
-    float narrowHitCut = 1.5 * fAveHitRMS[ipl];
+    float narrowHitCut = 1.5 * tjs.AveHitRMS[ipl];
     bool theHitIsNarrow = (theRMS < narrowHitCut);
     float maxPeak = tjs.fHits[theHit].PeakAmplitude;
     unsigned short imTall = theHit;
     unsigned short nNarrow = 0;
     if(theHitIsNarrow) nNarrow = 1;
-//    if(prt) mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(tjs.fHits[theHit])<<" RMS "<<tjs.fHits[theHit].RMS<<" aveRMS "<<fAveHitRMS[ipl]<<" Amp "<<(int)tjs.fHits[theHit].PeakAmplitude;
+//    if(prt) mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(tjs.fHits[theHit])<<" RMS "<<tjs.fHits[theHit].RMS<<" aveRMS "<<tjs.AveHitRMS[ipl]<<" Amp "<<(int)tjs.fHits[theHit].PeakAmplitude;
     // look for hits < theTime but within hitSep
     if(theHit > 0) {
       for(unsigned int iht = theHit - 1; iht != 0; --iht) {
@@ -6156,139 +6160,7 @@ namespace tca {
     } // narrow / tall test
 
   } // GetHitMultiplet
-  
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::FillWireHitRange(const geo::TPCID& tpcid)
-  {
-    // fills the WireHitRange vector. Slightly modified version of the one in ClusterCrawlerAlg.
-    
-    // determine the number of planes
-    geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
-    unsigned int cstat = tpcid.Cryostat;
-    unsigned int tpc = tpcid.TPC;
-    unsigned short nplanes = TPC.Nplanes();
-    tjs.NumPlanes = nplanes;
-    tjs.TPCID = tpcid;
-    
-    // Y,Z limits of the detector
-    double local[3] = {0.,0.,0.};
-    double world[3] = {0.,0.,0.};
-    const geo::TPCGeo &thetpc = tjs.geom->TPC(tpc, cstat);
-    thetpc.LocalToWorld(local,world);
-    // reduce the active area of the TPC by 1 cm to prevent wire boundary issues
-    tjs.XLo = world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + 5;
-    tjs.XHi = world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - 5;
-    tjs.YLo = world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + 5;
-    tjs.YHi = world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - 5;
-    tjs.ZLo = world[2]-tjs.geom->DetLength(tpc,cstat)/2 + 5;
-    tjs.ZHi = world[2]+tjs.geom->DetLength(tpc,cstat)/2 - 5;
-    
-    lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
-    
-    if(!tjs.WireHitRange.empty()) tjs.WireHitRange.clear();
-    
-    // initialize everything
-    tjs.WireHitRange.resize(nplanes);
-    tjs.WireHitRangeCstat = cstat;
-    tjs.WireHitRangeTPC = tpc;
-    tjs.FirstWire.resize(nplanes);
-    tjs.LastWire.resize(nplanes);
-    tjs.NumWires.resize(nplanes);
-    tjs.MaxPos0.resize(nplanes);
-    tjs.MaxPos1.resize(nplanes);
-    fAveHitRMS.resize(nplanes, nplanes);
-    
-    std::pair<int, int> flag;
-    flag.first = -2; flag.second = -2;
-    
-    // Calculate tjs.UnitsPerTick, the scale factor to convert a tick into
-    // Wire Spacing Equivalent (WSE) units where the wire spacing in this plane = 1.
-    // Strictly speaking this factor should be calculated for each plane to handle the
-    // case where the wire spacing is different in each plane. Deal with this later if
-    // the approximation used here fails.
-    
-    raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel(0, 0, (int)tpc, (int)cstat);
-    float wirePitch = tjs.geom->WirePitch(tjs.geom->View(channel));
-    float tickToDist = tjs.detprop->DriftVelocity(tjs.detprop->Efield(),tjs.detprop->Temperature());
-    tickToDist *= 1.e-3 * tjs.detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
-    tjs.UnitsPerTick = tickToDist / wirePitch;
-    for(unsigned short ipl = 0; ipl < nplanes; ++ipl) {
-      tjs.FirstWire[ipl] = INT_MAX;
-      tjs.LastWire[ipl] = 0;
-      tjs.NumWires[ipl] = tjs.geom->Nwires(ipl, tpc, cstat);
-      tjs.WireHitRange[ipl].resize(tjs.NumWires[ipl], flag);
-      tjs.MaxPos0[ipl] = (float)tjs.NumWires[ipl] - 0.5;
-      tjs.MaxPos1[ipl] = (float)tjs.detprop->NumberTimeSamples() * tjs.UnitsPerTick;
-    }
-    
-    // overwrite with the "dead wires" condition
-    flag.first = -1; flag.second = -1;
-    for(unsigned short ipl = 0; ipl < nplanes; ++ipl) {
-      for(unsigned int wire = 0; wire < tjs.NumWires[ipl]; ++wire) {
-        raw::ChannelID_t chan = tjs.geom->PlaneWireToChannel((int)ipl, (int)wire, (int)tpc, (int)cstat);
-        if(!channelStatus.IsGood(chan)) tjs.WireHitRange[ipl][wire] = flag;
-      } // wire
-    } // ipl
 
-    unsigned int lastwire = 0, lastipl = 0;
-    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-      if(tjs.fHits[iht].WireID.Cryostat != cstat) continue;
-      if(tjs.fHits[iht].WireID.TPC != tpc) continue;
-      unsigned short ipl = tjs.fHits[iht].WireID.Plane;
-      unsigned int wire = tjs.fHits[iht].WireID.Wire;
-      if(wire > tjs.NumWires[ipl] - 1) {
-        mf::LogWarning("TC")<<"FillWireHitRange: Invalid wire number "<<wire<<" > "<<tjs.NumWires[ipl] - 1<<" in plane "<<ipl<<" Quitting";
-        fQuitAlg = true;
-        return;
-      } // too large wire number
-      if(ipl == lastipl && wire < lastwire) {
-        mf::LogWarning("TC")<<"FillWireHitRange: Hits are not in increasing wire order. Quitting ";
-        fQuitAlg = true;
-        return;
-      } // hits out of order
-      lastwire = wire;
-      lastipl = ipl;
-      if(tjs.FirstWire[ipl] == INT_MAX) tjs.FirstWire[ipl] = wire;
-      if(tjs.WireHitRange[ipl][wire].first < 0) tjs.WireHitRange[ipl][wire].first = iht;
-      tjs.WireHitRange[ipl][wire].second = iht + 1;
-      tjs.LastWire[ipl] = wire + 1;
-    } // iht
-    
-    if(!CheckWireHitRange()) {
-      fQuitAlg = true;
-      return;
-    }
-
-    // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
-    if(fDebugMode && (int)tpc == debug.TPC) std::cout<<"tjs.UnitsPerTick "<<std::setprecision(3)<<tjs.UnitsPerTick<<"\n";
-    for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-      float sumRMS = 0;
-      float sumAmp = 0;
-      unsigned int cnt = 0;
-      for(unsigned int wire = 0; wire < tjs.NumWires[ipl]; ++wire) {
-        if(tjs.WireHitRange[ipl][wire].first < 0) continue;
-        unsigned int firstHit = tjs.WireHitRange[ipl][wire].first;
-        unsigned int lastHit = tjs.WireHitRange[ipl][wire].second;
-        // don't let noisy wires screw up the calculation
-        if(lastHit - firstHit > 100) continue;
-        for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-          if(tjs.fHits[iht].Multiplicity != 1) continue;
-          if(tjs.fHits[iht].GoodnessOfFit < 0 || tjs.fHits[iht].GoodnessOfFit > 100) continue;
-          // don't let a lot of runt hits screw up the calculation
-          if(tjs.fHits[iht].PeakAmplitude < 1) continue;
-          ++cnt;
-          sumRMS += tjs.fHits[iht].RMS;
-          sumAmp += tjs.fHits[iht].PeakAmplitude;
-        } // iht
-      } // wire
-      if(cnt < 4) continue;
-      fAveHitRMS[ipl] = sumRMS/(float)cnt;
-      sumAmp  /= (float)cnt;
-      if(fDebugMode) std::cout<<"Pln "<<ipl<<" fAveHitRMS "<<fAveHitRMS[ipl]<<" Ave PeakAmplitude "<<sumAmp<<"\n";
-    } // ipl
-    
-  } // FillWireHitRange
-  
   ////////////////////////////////////////////////
   std::vector<recob::Hit> TrajClusterAlg::YieldHits()
   {
@@ -6320,45 +6192,11 @@ namespace tca {
     // returns the expected RMS of hits for the trajectory point in ticks
     if(std::abs(tp.Dir[0]) > 0.001) {
       geo::PlaneID planeID = DecodeCTP(tp.CTP);
-      return 1.5 * fAveHitRMS[planeID.Plane] + 2 * std::abs(tp.Dir[1]/tp.Dir[0])/tjs.UnitsPerTick;
+      return 1.5 * tjs.AveHitRMS[planeID.Plane] + 2 * std::abs(tp.Dir[1]/tp.Dir[0])/tjs.UnitsPerTick;
     } else {
       return 500;
     }
   } // ExpectedHitsRMS
-  
-  ////////////////////////////////////////////////
-  bool TrajClusterAlg::CheckWireHitRange()
-  {
-    // do a QC check
-    for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-      for(unsigned int wire = 0; wire < tjs.NumWires[ipl]; ++wire) {
-        // No hits or dead wire
-        if(tjs.WireHitRange[ipl][wire].first < 0) continue;
-        unsigned int firstHit = tjs.WireHitRange[ipl][wire].first;
-        unsigned int lastHit = tjs.WireHitRange[ipl][wire].second;
-        if(lastHit > tjs.fHits.size()) {
-          mf::LogWarning("TC")<<"CheckWireHitRange: Invalid lastHit "<<lastHit<<" > fHits.size "<<tjs.fHits.size()<<" in plane "<<ipl;
-          std::cout<<"CheckWireHitRange: Invalid lastHit "<<lastHit<<" > fHits.size "<<tjs.fHits.size()<<" in plane "<<ipl<<"\n";
-          return false;
-        }
-        for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-          if(tjs.fHits[iht].WireID.Plane != ipl) {
-            mf::LogWarning("TC")<<"CheckWireHitRange: Invalid plane "<<tjs.fHits[iht].WireID.Plane<<" != "<<ipl;
-            std::cout<<"CheckWireHitRange: Invalid plane "<<tjs.fHits[iht].WireID.Plane<<" != "<<ipl<<"\n";
-            return false;
-          }
-          if(tjs.fHits[iht].WireID.Wire != wire) {
-            mf::LogWarning("TC")<<"CheckWireHitRange: Invalid wire "<<tjs.fHits[iht].WireID.Wire<<" != "<<wire<<" in plane "<<ipl;
-            std::cout<<"CheckWireHitRange: Invalid wire "<<tjs.fHits[iht].WireID.Wire<<" != "<<wire<<" in plane "<<ipl<<"\n";
-            return false;
-          }
-        } // iht
-      } // wire
-    } // ipl
-    
-    return true;
-
-  } // CheckWireHitRange
   
   ////////////////////////////////////////////////
   bool TrajClusterAlg::EraseHit(const unsigned int& delHit)
@@ -6403,7 +6241,7 @@ namespace tca {
     } // ipl
     
     // do another sanity check
-    if(!CheckWireHitRange()) return false;
+    if(!CheckWireHitRange(tjs)) return false;
     
     // now fix the Trajectory point hit -> tjs.fHits.InTraj association. The first step is to
     // remove any use of delHit in all trajectory points. The second is to remove any trajectory point that
@@ -6571,7 +6409,7 @@ namespace tca {
     } // ipl
     
     
-    if(!CheckWireHitRange()) return UINT_MAX;
+    if(!CheckWireHitRange(tjs)) return UINT_MAX;
     
     // now correct the hit indices in the trajectories
     for(auto& tj : tjs.allTraj) {

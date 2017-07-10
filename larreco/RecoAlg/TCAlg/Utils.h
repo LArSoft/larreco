@@ -24,6 +24,8 @@
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
@@ -73,7 +75,6 @@ namespace tca {
   float DeadWireCount(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2);
   float DeadWireCount(TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP);
   unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode);
-  bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   // Returns  true if there is a signal on the line between (wire1, time1) and (wire2, time2).
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, TrajPoint const& tp, float minAmp);
   bool SignalPresent(TjStuff& tjs, unsigned int wire1, float time1, unsigned int wire2, float time2, CTP_t pCTP, float minAmp);
@@ -164,6 +165,9 @@ namespace tca {
   bool MakeBareTrajPoint(const TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
   void SetPDGCode(TjStuff& tjs, Trajectory& tj);
   void SetPDGCode(TjStuff& tjs, unsigned short itj);
+  bool FillWireHitRange(TjStuff& tjs, const geo::TPCID& tpcid, bool debugMode);
+  bool CheckWireHitRange(const TjStuff& tjs);
+  bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
   void PrintTrajectory(std::string someText, const TjStuff& tjs, const Trajectory& tj ,unsigned short tPoint);
