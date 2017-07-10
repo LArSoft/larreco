@@ -395,10 +395,18 @@ namespace tca {
 
     std::vector<std::vector<int>> tjList;
     TagShowerTjs(tjs, inCTP, tjList);
+    
+    // save stage 1 info
+    SaveTjInfo(tjs, inCTP, tjList, 1);
+    
     if(prt) std::cout<<"Inside FindShowers inCTP "<<inCTP<<" tjList size "<<tjList.size()<<"\n";
     if(tjs.ShowerTag[0] == 1) return;
     if(tjList.empty()) return;
     MergeTjList(tjList);
+
+    // save stage 2 info
+    SaveTjInfo(tjs, inCTP, tjList, 2);
+
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"tjlist\n";
@@ -410,6 +418,9 @@ namespace tca {
     } // prt
     MergeTjList2(tjs, tjList, prt);
     
+    // save stage 3 info
+    SaveTjInfo(tjs, inCTP, tjList, 3);
+
     // remove Tjs that don't have enough neighbors = ShowerTag[7] unless the shower
     // has few Tjs
     unsigned short minNeighbors = tjs.ShowerTag[7];
@@ -2442,4 +2453,54 @@ namespace tca {
     
   } // ShowerEnergy
 
+  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, std::vector<std::vector<int>>& tjList,
+		  unsigned int stageNum) {
+    
+    for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
+      Trajectory& tj1 = tjs.allTraj[it1];
+      if(tj1.CTP != inCTP) continue;
+      if(tj1.AlgMod[kKilled]) continue;
+
+      int trajID = tj1.ID;
+      // ADD OTHER VARIABLES 
+
+      TrajPoint& beginPoint = tj1.Pts[tj1.EndPt[0]];
+      TrajPoint& endPoint = tj1.Pts[tj1.EndPt[1]];
+
+      tjs.stv.BeginWir.push_back(std::nearbyint(beginPoint.Pos[0]));
+      tjs.stv.BeginTim.push_back(std::nearbyint(beginPoint.Pos[1]/tjs.UnitsPerTick));
+      tjs.stv.BeginAng.push_back(beginPoint.Ang);
+      tjs.stv.BeginChg.push_back(beginPoint.Chg);
+      tjs.stv.BeginVtx.push_back(tj1.VtxID[0]);
+
+      tjs.stv.EndWir.push_back(std::nearbyint(endPoint.Pos[0]));
+      tjs.stv.EndTim.push_back(std::nearbyint(endPoint.Pos[1]/tjs.UnitsPerTick));
+      tjs.stv.EndAng.push_back(endPoint.Ang);
+      tjs.stv.EndChg.push_back(endPoint.Chg);
+      tjs.stv.EndVtx.push_back(tj1.VtxID[1]);
+
+      tjs.stv.ShowerID.push_back(-1);
+      tjs.stv.StageNum.push_back(stageNum);
+
+
+      geo::PlaneID iPlnID = DecodeCTP(tjs.allTraj[it1].CTP);
+      tjs.stv.PlaneNum.push_back(iPlnID.Plane);
+
+      bool inShower = false;
+
+      for (size_t l1 = 0; l1 < tjList.size(); ++l1) {
+	if (inShower) break;
+	for (size_t l2 = 0; l2 < tjList[l1].size(); ++l2) {
+
+	  if (trajID == tjList[l1][l2]) {
+	    tjs.stv.ShowerID.back() = l1;
+	    inShower = true;
+	    break;
+	  }
+	} // end list loop 2
+      } // end list loop 1
+    } // end tjs loop
+
+  } // SaveTjInfo
+ 
 }

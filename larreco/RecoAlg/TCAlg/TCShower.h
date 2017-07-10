@@ -67,6 +67,8 @@ namespace tca {
   unsigned short GetCotsIndex(TjStuff& tjs, const unsigned short& ShowerTjID);
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss);
 
+  void SaveTjInfo(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList, unsigned int stageNum);
+
 }
 
 

@@ -244,6 +244,26 @@ namespace tca {
     std::vector<unsigned int> Hits;
   };
 
+  struct ShowerTreeVars {
+
+    std::vector<float> BeginWir;   // begin wire
+    std::vector<float> BeginTim;   // begin tick
+    std::vector<float> BeginAng;   // begin angle
+    std::vector<float> BeginChg;   // beginning average charge
+    std::vector<short> BeginVtx;   // ID of begin vertex
+    std::vector<float> EndWir;   // end wire
+    std::vector<float> EndTim;   // end tick
+    std::vector<float> EndAng;   // end angle
+    std::vector<float> EndChg;   // ending average charge
+    std::vector<short> EndVtx;   //ID of end vertex
+
+    std::vector<short> PlaneNum; 
+    
+    std::vector<int> ShowerID; // shower ID associated w/ trajectory. -1 = no shower
+    std::vector<unsigned int> StageNum; // stage of reconstruction
+
+  };
+
   // Algorithm modification bits
   typedef enum {
     kMaskHits,
@@ -319,6 +339,8 @@ namespace tca {
     float ZLo;
     float ZHi;
     // The variables below do change in size from event to event
+    ShowerTreeVars stv; // NEW
+    
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire

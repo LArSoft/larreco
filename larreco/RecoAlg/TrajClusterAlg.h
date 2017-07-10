@@ -42,6 +42,7 @@
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TProfile.h"
+#include "TTree.h"
 
 namespace tca {
   
@@ -58,6 +59,8 @@ namespace tca {
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
     void RunTrajClusterAlg(art::Event & evt);
+
+    void DefineTree(TTree* t);
     
     std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
@@ -161,6 +164,11 @@ namespace tca {
     TH1F* fdWire[5];
     // EP vs KE for different MC Particles
     TProfile* fEP_T[5];
+
+    // SHOWER VARIABLE TREE
+
+    TTree* showertree;
+
 
     // number of primary particles in the event
     unsigned short nTruPrimary;
@@ -320,6 +328,7 @@ namespace tca {
     void Match3Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
     void Find3DEndPoints(const geo::TPCID& tpcid);
     void FillPFPInfo();
+
     
   }; // class TrajClusterAlg
 

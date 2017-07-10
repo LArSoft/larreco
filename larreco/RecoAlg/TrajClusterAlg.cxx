@@ -460,6 +460,8 @@ namespace tca {
           fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
           FindShowers(tjs, fCTP);
         }
+
+	showertree->Fill();
       } // make showers
       // Match3D should be the last thing called for this tpcid
       Match3D(tpcid);
@@ -7056,5 +7058,29 @@ namespace tca {
     }
   }
 
+
+  void TrajClusterAlg::DefineTree(TTree* t) {
+    showertree = t;
+
+    showertree->Branch("BeginWir", &tjs.stv.BeginWir);
+    showertree->Branch("BeginTim", &tjs.stv.BeginTim);
+    showertree->Branch("BeginAng", &tjs.stv.BeginAng);
+    showertree->Branch("BeginChg", &tjs.stv.BeginChg);
+    showertree->Branch("BeginVtx", &tjs.stv.BeginVtx);
+
+    showertree->Branch("EndWir", &tjs.stv.EndWir);
+    showertree->Branch("EndTim", &tjs.stv.EndTim);
+    showertree->Branch("EndAng", &tjs.stv.EndAng);
+    showertree->Branch("EndChg", &tjs.stv.EndChg);
+    showertree->Branch("EndVtx", &tjs.stv.EndVtx);
+
+    showertree->Branch("PlaneNum", &tjs.stv.PlaneNum);
+
+    showertree->Branch("ShowerID", &tjs.stv.ShowerID);
+
+    showertree->Branch("StageNum", &tjs.stv.StageNum);
+
+
+  } // end DefineTree
 
 } // namespace cluster
