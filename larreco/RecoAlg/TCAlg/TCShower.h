@@ -34,6 +34,7 @@ namespace tca {
   void Find3DShowerEndPoints(TjStuff& tjs, const geo::TPCID& tpcid);
   void MakeShowers(TjStuff& tjs, const calo::CalorimetryAlg& fCaloAlg);
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP);
+  bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
   void FillPts(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
