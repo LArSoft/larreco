@@ -334,6 +334,22 @@ namespace tca {
       
     } // ipfp
   } // MakeShowers
+  
+  ////////////////////////////////////////////////
+  bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid)
+  {
+    // Find 2D showers using 3D-matched trajectories
+    
+    if(tjs.ShowerTag[0] != 2) return false;
+    
+    // rebuild the hits references if necessary
+    
+//    geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
+
+    
+    return false;
+    
+  } // FindShowers3D
 
   ////////////////////////////////////////////////
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP)
@@ -342,7 +358,7 @@ namespace tca {
     
     
     /*
-     # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
+     # 0 Mode (<= 0 OFF, 1 = find showers before 3D match, 2 = find showers after 3D match)
      # 1 Max Tj MCSMom for a shower tag
      # 2 Max separation
      # 3 Min energy (MeV)
@@ -357,7 +373,7 @@ namespace tca {
      # 12 Debug in CTP (>10 debug cotIndex + 10)
      */
     
-    if(tjs.ShowerTag[0] <= 0) return;
+    if(tjs.ShowerTag[0] != 1) return;
     
     bool prt = false;
     // print only one shower?
@@ -396,7 +412,6 @@ namespace tca {
     std::vector<std::vector<int>> tjList;
     TagShowerTjs(tjs, inCTP, tjList);
     if(prt) std::cout<<"Inside FindShowers inCTP "<<inCTP<<" tjList size "<<tjList.size()<<"\n";
-    if(tjs.ShowerTag[0] == 1) return;
     if(tjList.empty()) return;
     MergeTjList(tjList);
     if(prt) {
@@ -481,15 +496,12 @@ namespace tca {
       // Fill the vector of Tjs that are close to this shower but were not included in it, most
       // likely because the MCSMom is too high. These will be used to merge showers
 //      FindNearbyTjs(tjs, cotIndex, prt);
-      // skip the rest of the shower construction code if the mode is set > 2
-      if(tjs.ShowerTag[0] < 3) {
-        // Try to add more Tjs to the shower
-        AddTjsInsideEnvelope(tjs, cotIndex, prt);
-        FindExternalParent(tjs, cotIndex, prt);
-        // If no external parent was found, try to refine the direction and look for
-        // an internal parent
-        if(tjs.cots[cotIndex].ShowerTjID == 0) RefineShowerTj(tjs, cotIndex, prt);
-      }
+      // Try to add more Tjs to the shower
+      AddTjsInsideEnvelope(tjs, cotIndex, prt);
+      FindExternalParent(tjs, cotIndex, prt);
+      // If no external parent was found, try to refine the direction and look for
+      // an internal parent
+      if(tjs.cots[cotIndex].ShowerTjID == 0) RefineShowerTj(tjs, cotIndex, prt);
       if(prt) PrintTrajectory("FS", tjs, tjs.allTraj[stj.ID-1], USHRT_MAX);
     } // tjl
     
@@ -850,7 +862,7 @@ namespace tca {
     // Look for a parent trajectory that starts outside the shower and ends inside.
 
     /*
-     # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
+     # 0 Mode (<= 0 OFF, 1 = find showers before 3D match, 2 = find showers after 3D match)
      # 1 Max Tj MCSMom for a shower tag
      # 2 Max separation
      # 3 Min energy (MeV)
@@ -863,11 +875,6 @@ namespace tca {
      # 10 max aspect ratio
      # 11 Debug in CTP (>10 debug cotIndex + 10)
      */
-    
-    if(tjs.ShowerTag[0] > 2) {
-//      std::cout<<"FindExternalParent disabled\n";
-      return;
-    }
 
     if(cotIndex > tjs.cots.size() - 1) return;
     ShowerStruct& ss = tjs.cots[cotIndex];
@@ -1173,7 +1180,7 @@ namespace tca {
     // Merge showers whose envelopes overlap each other
     
     /*
-     # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
+     # 0 Mode (<= 0 OFF, 1 = find showers before 3D match, 2 = find showers after 3D match)
      # 1 Max Tj MCSMom for a shower tag
      # 2 Max separation
      # 3 Min energy (MeV)
@@ -1842,7 +1849,7 @@ namespace tca {
       // ignore shower Tjs
       if(tj1.AlgMod[kShowerTj]) continue;
       // and Tjs that are already in showers
-      if(tj1.AlgMod[kInShower]) continue;
+//      if(tj1.AlgMod[kInShower]) continue;
       // ignore muons
       if(tj1.PDGCode == 13) continue;
       // ignore stubby Tjs
@@ -1861,7 +1868,7 @@ namespace tca {
         // ignore shower Tjs
         if(tj2.AlgMod[kShowerTj]) continue;
         // and Tjs that are already in showers
-        if(tj2.AlgMod[kInShower]) continue;
+//        if(tj2.AlgMod[kInShower]) continue;
         // ignore muons
         if(tj2.PDGCode == 13) continue;
         // ignore stubby Tjs
@@ -1978,11 +1985,6 @@ namespace tca {
   void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
     // This function adds Tjs to the shower. It updates the shower parameters.
-    
-    if(tjs.ShowerTag[0] > 2) {
-//      std::cout<<"ATIE disabled\n";
-      return;
-    }
     
     if(cotIndex > tjs.cots.size() - 1) return;
     
