@@ -17,7 +17,7 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "TVector3.h"
-#include "larcore/Geometry/CryostatGeo.h"
+#include "larcorealg/Geometry/CryostatGeo.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Wire.h"
 
@@ -111,7 +111,7 @@ namespace trkf {
 #include <vector>
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
 
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h" 

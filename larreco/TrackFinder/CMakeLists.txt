@@ -7,7 +7,7 @@ art_make(
 			    larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
 			    lardata_RecoObjects larreco_Deprecated
 			    lardataobj_RecoBase
-			    larcore_Geometry
+			    larcorealg_Geometry
 			    larcore_Geometry_Geometry_service
 			    larreco_Calorimetry
 			    lardataobj_AnalysisBase
@@ -39,7 +39,7 @@ simple_plugin( Track3DKalman "module"
 			 larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
 			 lardata_RecoObjects larreco_Deprecated
 			 lardataobj_RecoBase
-			 larcore_Geometry
+			 larcorealg_Geometry
 			 larcore_Geometry_Geometry_service
 			 larreco_Calorimetry
 			 lardataobj_AnalysisBase
@@ -70,7 +70,7 @@ simple_plugin( Track3DKalmanSPS "module"
 			 larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
 			 lardata_RecoObjects larreco_Deprecated
 			 lardataobj_RecoBase
-			 larcore_Geometry
+			 larcorealg_Geometry
 			 larcore_Geometry_Geometry_service
 			 larreco_Calorimetry
 			 lardataobj_AnalysisBase

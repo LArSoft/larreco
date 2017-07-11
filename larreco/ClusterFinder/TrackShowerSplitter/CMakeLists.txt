@@ -5,7 +5,7 @@ simple_plugin(TrackShowerHits   "module"
 		 	lardataobj_RecoBase
 			larreco_RecoAlg
 			larreco_ClusterFinder_TrackShowerSplitter_Segmentation2D
-		 	larcore_Geometry
+		 	larcorealg_Geometry
 			larcore_Geometry_Geometry_service
 			lardata_Utilities
                ${ART_FRAMEWORK_CORE}
