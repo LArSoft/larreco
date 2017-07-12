@@ -16,8 +16,8 @@
 
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/TPCGeo.h"
-#include "larcore/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Seed.h"
 #include "lardataobj/RecoBase/Cluster.h"

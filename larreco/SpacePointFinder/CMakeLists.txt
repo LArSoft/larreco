@@ -5,7 +5,7 @@ art_make(
           MODULE_LIBRARIES  larreco_RecoAlg
 			    lardata_RecoObjects larreco_Deprecated
 			    lardataobj_RecoBase
-			    larcore_Geometry
+			    larcorealg_Geometry
 			    larcore_Geometry_Geometry_service
 			    lardata_Utilities
 			    nutools_MagneticField_MagneticField_service

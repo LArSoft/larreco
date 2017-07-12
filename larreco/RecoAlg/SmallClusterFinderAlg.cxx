@@ -49,7 +49,7 @@
 //#include "Simulation/sim.h"
 //#include "Simulation/SimListUtils.h"
 #include "larreco/RecoAlg/SmallClusterFinderAlg.h"
-#include "larcore/Geometry/geo.h"
+#include "larcorealg/Geometry/geo.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 //#include "SimulationBase/simbase.h"
