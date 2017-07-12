@@ -25,6 +25,7 @@
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 
@@ -233,6 +234,10 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   if (p_().options().produceTrackFitHitInfo()) {
     produces<std::vector<std::vector<recob::TrackFitHitInfo> > >();
   }
+  if (p_().options().showerFromPF()) {
+    produces<std::vector<recob::SpacePoint> >();
+    produces<art::Assns<recob::Hit, recob::SpacePoint> >();
+  }
 
   //throw expections to avoid possible silent failures due to incompatible configuration options
   if (p_().options().trackFromPF()==0 && p_().options().idFromPF())
@@ -299,6 +304,11 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 
   auto const tid = getProductID<std::vector<recob::Track> >(e);
   auto const tidgetter = e.productGetter(tid);
+
+  auto outputSpacePoints  = std::make_unique<std::vector<recob::SpacePoint> >();
+  auto outputHitSpacePointAssn = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint> >();
+  auto const spid = getProductID<std::vector<recob::SpacePoint> >(e);
+  auto const spidgetter = e.productGetter(spid);
 
   //FIXME, eventually remove this (ok only for single particle MC)
   double pMC = -1.;
@@ -441,7 +451,16 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	    //the fitter produces collections with 1-1 match between hits and point
 	    // recob::TrackHitMeta metadata(ip,-1);
 	    // outputHits->addSingle(aptr, trhit, metadata);
-	    outputHits->addSingle(aptr, trhit);
+	    if (outputTracks->back().HasValidPoint(ip)) {
+	      outputHits->addSingle(aptr, trhit);
+	      auto tp = outputTracks->back().LocationAtPoint(ip);
+	      double fXYZ[3] = {tp.X(),tp.Y(),tp.Z()};
+	      double fErrXYZ[6] = {0};
+	      recob::SpacePoint sp(fXYZ, fErrXYZ, -1.);
+	      outputSpacePoints->emplace_back(std::move(sp));
+	      art::Ptr<recob::SpacePoint> apsp(spid, outputSpacePoints->size()-1, spidgetter);
+	      outputHitSpacePointAssn->addSingle(trhit, apsp);
+	    }
 	    ip++;
 	  }
 	  outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
@@ -455,6 +474,10 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     e.put(std::move(outputPFAssn));
     if (p_().options().produceTrackFitHitInfo()) {
       e.put(std::move(outputHitInfo));
+    }
+    if (p_().options().showerFromPF()) {
+      e.put(std::move(outputSpacePoints));
+      e.put(std::move(outputHitSpacePointAssn));
     }
   } else {
 
