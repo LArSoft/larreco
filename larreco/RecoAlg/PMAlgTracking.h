@@ -229,14 +229,23 @@ public:
 			Comment("match T0 of CPA-crossing tracks using PMAlgStitcher")
 		};
 
-  };
+		fhicl::Atom<bool> ValidateOnAdc {
+			Name("ValidateOnAdc"), Comment("validate tracks using 2d adc image")
+		};
 
-	PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allhitlist,
+		fhicl::Table<nnet::DataProviderAlg::Config> AdcImageAlg {
+			Name("AdcImageAlg"), Comment("ADC based image used for the track validation")
+		};
+    };
+
+	PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allhitlist, const std::vector<recob::Wire> & wires,
 		const pma::ProjectionMatchingAlg::Config& pmalgConfig,
 		const pma::PMAlgTracker::Config& pmalgTrackerConfig,
 		const pma::PMAlgVertexing::Config& pmvtxConfig,
 		const pma::PMAlgStitching::Config& pmstitchConfig,
-		const pma::PMAlgCosmicTagger::Config& pmtaggerConfig);
+		const pma::PMAlgCosmicTagger::Config& pmtaggerConfig,
+		
+		const std::vector< TH1F* > & hclose, const std::vector< TH1F* > & hdist);
 
 	void init(const art::FindManyP< recob::Hit > & hitsFromClusters);
 
@@ -312,6 +321,7 @@ private:
 		return false;
 	}
 
+    const std::vector<recob::Wire> & fWires;
 	std::vector< std::vector< art::Ptr<recob::Hit> > > fCluHits;
 	std::vector< float > fCluWeights;
 
@@ -350,9 +360,16 @@ private:
 
 	bool fRunVertexing;          // run vertex finding
 
+    bool fValidateOnAdc;         // use ADC image to validate tracks
+    std::vector< nnet::DataProviderAlg > fAdcImages;
+
 	// *********************** services *************************
 	geo::GeometryCore const* fGeom;
 	const detinfo::DetectorProperties* fDetProp;
+
+    // testig the validation: to be removed
+	const std::vector< TH1F* > & fCloseHist;
+	const std::vector< TH1F* > & fDistantHist;
 };
 
 #endif
