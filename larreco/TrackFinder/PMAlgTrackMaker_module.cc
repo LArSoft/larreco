@@ -34,6 +34,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
@@ -113,6 +114,11 @@ public:
 			Comment("tag of unclustered hits, which were used to validate tracks")
 		};
 
+		fhicl::Atom< art::InputTag > WireModuleLabel {
+			Name("WireModuleLabel"),
+			Comment("tag of recob::Wire producer.")
+		};
+
 		fhicl::Atom<art::InputTag> ClusterModuleLabel {
 			Name("ClusterModuleLabel"),
 			Comment("tag of cluster collection, these clusters are used for track building")
@@ -147,9 +153,10 @@ private:
     anab::CosmicTagID_t getCosmicTag(const pma::Track3D::ETag pmaTag) const;
 
 	// ******************** fcl parameters **********************
-	art::InputTag fHitModuleLabel; // tag for hits collection (used for trk validation)
-	art::InputTag fCluModuleLabel; // tag for input cluster collection
-	art::InputTag fEmModuleLabel;  // tag for em-like cluster collection
+	art::InputTag fHitModuleLabel;  // tag for hits collection (used for trk validation)
+	art::InputTag fWireModuleLabel; // tag for recob::Wire collection (used for trk validation)
+	art::InputTag fCluModuleLabel;  // tag for input cluster collection
+	art::InputTag fEmModuleLabel;   // tag for em-like cluster collection
 
 	pma::ProjectionMatchingAlg::Config fPmaConfig;
 	pma::PMAlgTracker::Config fPmaTrackerConfig;
@@ -166,6 +173,10 @@ private:
 
 	// *********************** geometry **************************
 	art::ServiceHandle< geo::Geometry > fGeom;
+
+    // testig the validation: to be removed
+    std::vector< TH1F* > fCloseHist;
+    std::vector< TH1F* > fDistantHist;
 };
 // -------------------------------------------------------------
 const std::string PMAlgTrackMaker::kKinksName = "kink";
@@ -174,6 +185,7 @@ const std::string PMAlgTrackMaker::kNodesName = "node";
 
 PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	fHitModuleLabel(config().HitModuleLabel()),
+	fWireModuleLabel(config().WireModuleLabel()),
 	fCluModuleLabel(config().ClusterModuleLabel()),
 	fEmModuleLabel(config().EmClusterModuleLabel()),
 
@@ -208,6 +220,15 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	produces< art::Assns<recob::PFParticle, recob::Cluster> >();
 	produces< art::Assns<recob::PFParticle, recob::Vertex> >();
 	produces< art::Assns<recob::PFParticle, recob::Track> >();
+
+	art::ServiceHandle<art::TFileService> tfs;
+	for (size_t p = 0; p < 3; ++p)
+	{
+	    std::ostringstream ss1;
+	    ss1 << "plane_" << p ;
+	    fCloseHist.push_back( tfs->make<TH1F>((ss1.str() + "_close").c_str(), "max adc around the point on track", 100., 0., 5.) );
+	    fDistantHist.push_back( tfs->make<TH1F>((ss1.str() + "_distant").c_str(), "max adc around spurious point ", 100., 0., 5.) );
+	}
 }
 // ------------------------------------------------------
 
@@ -325,15 +346,16 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	auto pfp2trk = std::make_unique< art::Assns< recob::PFParticle, recob::Track > >();
 
 
-	// ------------------------- Hits ---------------------------------
+	// --------------------- Wires & Hits -----------------------------
+	auto wireHandle = evt.getValidHandle< std::vector<recob::Wire> >(fWireModuleLabel);
 	auto allHitListHandle = evt.getValidHandle< std::vector<recob::Hit> >(fHitModuleLabel);
 	std::vector< art::Ptr<recob::Hit> > allhitlist;
 	art::fill_ptr_vector(allhitlist, allHitListHandle);
 
 
 	// -------------- PMA Tracker for this event ----------------------
-	auto pmalgTracker = pma::PMAlgTracker(allhitlist,
-		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig, fPmaTaggingConfig);
+	auto pmalgTracker = pma::PMAlgTracker(allhitlist, *wireHandle,
+		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig, fPmaTaggingConfig,    fCloseHist, fDistantHist);
 
     size_t mvaLength = 0;
 	if (fEmModuleLabel != "") // ----------- Exclude EM parts ---------
