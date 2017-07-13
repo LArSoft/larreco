@@ -35,10 +35,13 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
+#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
+
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 // ROOT & C++
+#include "TH1F.h"
 #include <memory>
 
 namespace pma
@@ -108,6 +111,15 @@ public:
 	{}
 
 	virtual ~ProjectionMatchingAlg(void) {}
+
+	/// Calculate the fraction of the track that is closer than fTrkValidationDist2D
+	/// to any hit from hits in the testView (a view that was not used to build the track).
+	double validate_on_adc(const pma::Track3D& trk,
+		const nnet::DataProviderAlg & adcImage) const;
+	double validate_on_adc_test(const pma::Track3D& trk,
+		const nnet::DataProviderAlg & adcImage,
+		const std::vector< art::Ptr<recob::Hit> >& hits,
+		TH1F * testHistoOk, TH1F * testHistoFar) const;
 
 	/// Calculate the fraction of the track that is closer than fTrkValidationDist2D
 	/// to any hit from hits in the testView (a view that was not used to build the track).
