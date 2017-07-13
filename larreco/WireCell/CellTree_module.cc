@@ -15,7 +15,7 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "nusimdata/SimulationBase/MCNeutrino.h"

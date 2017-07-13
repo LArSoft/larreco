@@ -5,7 +5,7 @@ art_make(
                         lardata_ArtDataHelper
                         larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
                         larevt_Filters
-                        larcore_Geometry
+                        larcorealg_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_RecoObjects larreco_Deprecated
                         lardataobj_AnalysisBase

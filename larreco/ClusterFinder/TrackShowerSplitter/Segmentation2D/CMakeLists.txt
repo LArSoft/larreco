@@ -2,7 +2,7 @@ art_make(
           LIB_LIBRARIES lardataobj_RecoBase
                         larreco_RecoAlg
                         larevt_Filters
-                        larcore_Geometry
+                        larcorealg_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_RecoObjects larreco_Deprecated
                         lardataobj_AnalysisBase

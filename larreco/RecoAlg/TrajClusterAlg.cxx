@@ -5499,7 +5499,7 @@ namespace tca {
         // TP and keep going. If these conditions aren't met, we
         // should reduce the number of fitted points
         float chirat = 0;
-        if(prevPtWithHits != USHRT_MAX) chirat = lastTP.FitChi / tj.Pts[prevPtWithHits].FitChi;
+        if(prevPtWithHits != USHRT_MAX && tj.Pts[prevPtWithHits].FitChi > 0) chirat = lastTP.FitChi / tj.Pts[prevPtWithHits].FitChi;
         // Don't mask hits when doing RevProp. Reduce NTPSFit instead
         fMaskedLastTP = (chirat > 1.5 && lastTP.NTPsFit > 0.3 * NumPtsWithCharge(tjs, tj, false) && !tj.AlgMod[kRevProp]);
         if(prt) {

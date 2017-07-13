@@ -23,7 +23,7 @@
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "larreco/RecoAlg/ClusterCrawlerAlg.h"

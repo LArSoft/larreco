@@ -11,8 +11,8 @@
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
-#include "larcore/Geometry/TPCGeo.h"
-#include "larcore/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
