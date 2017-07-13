@@ -336,12 +336,13 @@ namespace cluster {
       // through the trajectories that 
       std::vector<unsigned int> clsIndices;
       for(auto& tjid : ms.TjIDs) {
-        unsigned short clsIndex = fTCAlg->GetTjClusterIndex(tjid);
+        unsigned int clsIndex = fTCAlg->GetTjClusterIndex(tjid);
         if(clsIndex > Clusters.size() - 1) {
           std::cout<<"Retrieved an invalid cluster index for PFParticle "<<ip<<" TjID "<<tjid<<". Ignoring it...\n";
           clsIndices.clear();
           break;
         }
+        clsIndices.push_back(clsIndex);
       } // tjid
       // try to recover from an error
       if(clsIndices.empty()) {
