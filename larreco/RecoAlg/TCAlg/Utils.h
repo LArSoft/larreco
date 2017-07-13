@@ -56,6 +56,8 @@ namespace tca {
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
   bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im, bool prt);
   unsigned short Matched3DVtx(TjStuff& tjs, unsigned short im);
+  unsigned int MatchVecIndex(const TjStuff& tjs, int tjID);
+  unsigned int MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   bool StoreTraj(TjStuff& tjs, Trajectory& tj);
@@ -124,8 +126,6 @@ namespace tca {
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
   // Put hits in each trajectory point into a flat vector.
   std::vector<unsigned int> PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest);
-  // returns true if hit iht appears in trajectory tj. The last nPtsToCheck points are checked
-  bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck);
   // returns true if a hit is associated with more than one point
   bool HasDuplicateHits(TjStuff const& tjs, Trajectory const& tj, bool prt);
   // Project TP to a "wire position" Pos[0] and update Pos[1]
@@ -144,6 +144,7 @@ namespace tca {
   float HitsPosTick(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
   float HitsPosTime(TjStuff& tjs, const std::vector<unsigned int>& hitsInMultiplet, float& chg, HitStatus_t hitRequest);
   unsigned short NumHitsInTP(const TrajPoint& tp, HitStatus_t hitRequest);
+  unsigned short NumUsedHitsInTj(const TjStuff& tjs, const Trajectory& tj);
   unsigned short NearestPtWithChg(TjStuff& tjs, Trajectory& tj, unsigned short thePt);
   // Calculate MCS momentum
   short MCSMom(TjStuff& tjs, Trajectory& tj);
