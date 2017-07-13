@@ -109,6 +109,55 @@ void nnet::DataProviderAlg::resizeView(size_t wires, size_t drifts)
 }
 // ------------------------------------------------------
 
+float nnet::DataProviderAlg::poolMax(int wire, int drift, size_t r) const
+{
+    size_t rw = r, rd = r;
+    if (!fDownscaleFullView) { rd *= fDriftWindow; }
+
+    size_t didx = getDriftIndex(drift);
+    int d0 = didx - rd; if (d0 < 0) { d0 = 0; }
+    int d1 = didx + rd; if (d1 >= (int)fNCachedDrifts) { d1 = fNCachedDrifts - 1; }
+
+    int w0 = wire - rw; if (w0 < 0) { w0 = 0; }
+    int w1 = wire + rw; if (w1 >= (int)fNWires) { w1 = fNWires - 1; }
+
+    float adc, max_adc = 0;
+    for (int w = w0; w <= w1; ++w)
+    {
+        auto const * col = fWireDriftData[w].data();
+        for (int d = d0; d <= d1; ++d)
+        {
+            adc = col[d]; if (adc > max_adc) { max_adc = adc; }
+        }
+    }
+
+    return max_adc;
+}
+// ------------------------------------------------------
+
+float nnet::DataProviderAlg::poolSum(int wire, int drift, size_t r) const
+{
+    size_t rw = r, rd = r;
+    if (!fDownscaleFullView) { rd *= fDriftWindow; }
+
+    size_t didx = getDriftIndex(drift);
+    int d0 = didx - rd; if (d0 < 0) { d0 = 0; }
+    int d1 = didx + rd; if (d1 >= (int)fNCachedDrifts) { d1 = fNCachedDrifts - 1; }
+
+    int w0 = wire - rw; if (w0 < 0) { w0 = 0; }
+    int w1 = wire + rw; if (w1 >= (int)fNWires) { w1 = fNWires - 1; }
+
+    float sum = 0;
+    for (int w = w0; w <= w1; ++w)
+    {
+        auto const * col = fWireDriftData[w].data();
+        for (int d = d0; d <= d1; ++d) { sum += col[d]; }
+    }
+
+    return sum;
+}
+// ------------------------------------------------------
+
 void nnet::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
 {
 	for (size_t i = 0; i < dst.size(); ++i)

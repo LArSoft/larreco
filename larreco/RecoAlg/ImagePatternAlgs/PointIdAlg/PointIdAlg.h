@@ -53,7 +53,10 @@ namespace nnet
 	class TrainingDataAlg;
 }
 
-/// Base class providing data for training / running classifiers.
+/// Base class providing data for training / running image based classifiers. It can be used
+/// also for any other algoruithms where 2D projection image is useful. Currently the image
+/// is 32-bit fp / pixel, as sson as have time will template it so e.g. byte pixels would
+/// be possible.
 class nnet::DataProviderAlg
 {
 public:
@@ -120,12 +123,34 @@ public:
 
 	std::vector<float> const & wireData(size_t widx) const { return fWireDriftData[widx]; }
 
+    /// Return value from the ADC buffer, or zero if coordinates are out of the view;
+    /// will scale the drift according to the downscale settings.
+    float getPixelOrZero(int wire, int drift) const
+    {
+        size_t didx = getDriftIndex(drift), widx = (size_t)wire;
+
+        if ((widx >= 0) && (widx < fWireDriftData.size()) &&
+            (didx >= 0) && (didx < fNCachedDrifts))
+        {
+            return fWireDriftData[widx][didx];
+        }
+        else { return 0; }
+    }
+
+    /// Pool max value in a patch around the wire/drift pixel.
+    float poolMax(int wire, int drift, size_t r = 0) const;
+
+    /// Pool sum of pixels in a patch around the wire/drift pixel.
+    float poolSum(int wire, int drift, size_t r = 0) const;
+
 	unsigned int Cryo(void) const { return fCryo; }
 	unsigned int TPC(void) const { return fTPC; }
 	unsigned int View(void) const { return fView; }
 
 	unsigned int NWires(void) const { return fNWires; }
 	unsigned int NScaledDrifts(void) const { return fNScaledDrifts; }
+	unsigned int NCachedDrifts(void) const { return fNCachedDrifts; }
+	unsigned int DriftWindow(void) const { return fDriftWindow; }
 
     double LifetimeCorrection(double tick) const { return fCalorimetryAlg.LifetimeCorrection(tick); }
 
@@ -137,8 +162,8 @@ protected:
 	std::vector< std::vector<float> > fWireDriftData;           // 2D data for entire projection, drifts scaled down
 	std::vector<float> fLifetimeCorrFactors;                    // precalculated correction factors along full drift
 
-	EDownscaleMode fDownscaleMode;
-	size_t fDriftWindow;
+   	EDownscaleMode fDownscaleMode;
+   	size_t fDriftWindow;
 	bool fDownscaleFullView;
 	float fDriftWindowInv;
 
@@ -155,6 +180,12 @@ protected:
             default: return false;
         }
         return true;
+    }
+
+    size_t getDriftIndex(float drift) const
+    {
+        if (fDownscaleFullView) return (size_t)(drift * fDriftWindowInv);
+        else return (size_t)drift;
     }
 
 	bool setWireData(std::vector<float> const & adc, size_t wireIdx);
