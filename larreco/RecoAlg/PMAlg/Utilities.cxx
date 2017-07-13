@@ -16,19 +16,26 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "TVectorT.h"
-#include "TMatrixT.h"
-
-double pma::Dist2(const TVector2& v1, const TVector2& v2)
+double pma::Dist2(const TVector2 & v1, const TVector2 & v2)
 {
-	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
-	return dx * dx + dy * dy;
+   	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
+   	return dx * dx + dy * dy;
+}
+double pma::Dist2(const Vector2D & v1, const Vector2D & v2)
+{
+   	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y();
+   	return dx * dx + dy * dy;
 }
 
-double pma::Dist2(const TVector3& v1, const TVector3& v2)
+double pma::Dist2(const TVector3 & v1, const TVector3 & v2)
 {
-	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y(), dz = v1.Z() - v2.Z();
-	return dx * dx + dy * dy + dz * dz;
+   	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y(), dz = v1.Z() - v2.Z();
+   	return dx * dx + dy * dy + dz * dz;
+}
+double pma::Dist2(const Vector3D & v1, const Vector3D & v2)
+{
+   	double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y(), dz = v1.Z() - v2.Z();
+   	return dx * dx + dy * dy + dz * dz;
 }
 
 size_t pma::GetHitsCount(const std::vector< pma::Hit3D* >& hits, unsigned int view)
@@ -115,6 +122,20 @@ double pma::GetSegmentProjVector(const TVector2& p, const TVector2& p0, const TV
 	return v0Norm * cosine / v1Norm;
 }
 
+double pma::GetSegmentProjVector(const pma::Vector2D& p, const pma::Vector2D& p0, const pma::Vector2D& p1)
+{
+	pma::Vector2D v0(p); v0 -= p0;
+	pma::Vector2D v1(p1); v1 -= p0;
+
+	double v0Norm = v0.R();
+	double v1Norm = v1.R();
+	double mag = v0Norm * v1Norm;
+	double cosine = 0.0;
+	if (mag != 0.0) cosine = v0.Dot(v1) / mag;
+
+	return v0Norm * cosine / v1Norm;
+}
+
 double pma::GetSegmentProjVector(const TVector3& p, const TVector3& p0, const TVector3& p1)
 {
 	TVector3 v0(p); v0 -= p0;
@@ -125,6 +146,20 @@ double pma::GetSegmentProjVector(const TVector3& p, const TVector3& p0, const TV
 	double mag = v0Norm * v1Norm;
 	double cosine = 0.0;
 	if (mag != 0.0) cosine = v0 * v1 / mag;
+
+	return v0Norm * cosine / v1Norm;
+}
+
+double pma::GetSegmentProjVector(const pma::Vector3D& p, const pma::Vector3D& p0, const pma::Vector3D& p1)
+{
+	pma::Vector3D v0(p); v0 -= p0;
+	pma::Vector3D v1(p1); v1 -= p0;
+
+	double v0Norm = v0.R();
+	double v1Norm = v1.R();
+	double mag = v0Norm * v1Norm;
+	double cosine = 0.0;
+	if (mag != 0.0) cosine = v0.Dot(v1) / mag;
 
 	return v0Norm * cosine / v1Norm;
 }
