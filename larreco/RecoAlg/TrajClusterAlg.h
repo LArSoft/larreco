@@ -77,7 +77,7 @@ namespace tca {
     // Get a specific matchVec entry that will be turned into a PFParticle
     MatchStruct const& GetMatchStruct(unsigned short im) {return tjs.matchVec[im]; };
     // Get the cluster index of a trajectory ID
-    unsigned short GetTjClusterIndex(unsigned short TjID) { return tjs.allTraj[TjID - 1].ClusterIndex; }
+    unsigned int GetTjClusterIndex(unsigned int TjID) { return tjs.allTraj[TjID - 1].ClusterIndex; }
     // Get a ShowerStuct3D entry
     unsigned short GetShowerStructSize() { return tjs.showers.size(); };
     ShowerStruct3D const& GetShowerStruct(unsigned short ish) { return tjs.showers[ish]; };
@@ -243,7 +243,7 @@ namespace tca {
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText);
     // Merge and store the two trajectories in allTraj
-    bool MergeAndStore(unsigned short tj1,  unsigned short tj2, bool doPrt);
+    bool MergeAndStore(unsigned int tj1,  unsigned int tj2, bool doPrt);
     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
     void FindVtxTjs();
@@ -286,7 +286,6 @@ namespace tca {
     bool IsGhost(Trajectory& tj);
     void CheckTrajEnd();
     void EndMerge();
-    void EndMerge2();
     float ExpectedHitsRMS(TrajPoint const& tp);
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
     bool EraseHit(const unsigned int& delHit);
@@ -310,8 +309,8 @@ namespace tca {
     void MatchTrueHits();
      // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
-    void Match2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
-    void Match3Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
+    void Match2Views(const geo::TPCID& tpcid, const std::vector<float>& xx, std::vector<MatchStruct>& matVec);
+    void Match3Views(const geo::TPCID& tpcid, const std::vector<float>& xx, std::vector<MatchStruct>& matVec);
     void Find3DEndPoints(const geo::TPCID& tpcid);
     void FillPFPInfo();
     
