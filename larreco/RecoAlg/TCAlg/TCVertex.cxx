@@ -226,7 +226,7 @@ namespace tca {
     
     if(!tjs.UseAlg[kHamVx2]) return;
     
-    bool prt = (debug.Plane >= 0 && debug.Tick == 6666);
+    bool prt = (debug.Plane >= 0 && debug.Tick == 66666);
     
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       if(tjs.allTraj[it1].CTP != inCTP) continue;
@@ -379,7 +379,7 @@ namespace tca {
     
     if(!tjs.UseAlg[kHamVx]) return;
     
-    bool prt = (debug.Plane >= 0 && debug.Tick == 5555);
+    bool prt = (debug.Plane >= 0 && debug.Tick == 55555);
     
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       if(tjs.allTraj[it1].CTP != inCTP) continue;
@@ -1188,15 +1188,7 @@ namespace tca {
     if(vx2.Stat[kVtxKilled]) return;    
     if(tjs.VertexScoreWeights.size() < 4) return;
     
-    std::vector<int> vtxTjID;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.CTP != vx2.CTP) continue;
-      if(tj.AlgMod[kKilled]) continue;
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] == vx2.ID) vtxTjID.push_back(tj.ID);
-      } // end
-    } // tj
-    
+    auto vtxTjID = GetVtxTjIDs(tjs, vx2);
     if(vtxTjID.empty()) return;
 
     // temp for debugging
@@ -1287,7 +1279,7 @@ namespace tca {
     
     if(!tjs.UseAlg[kComp3DVxIG]) return;
 
-    bool prt = (debug.Plane >= 0 && debug.Tick == 4444);
+    bool prt = (debug.Plane >= 0 && debug.Tick == 44444);
 
     for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
       Vtx3Store& vx3 = tjs.vtx3[iv3];
@@ -1376,7 +1368,7 @@ namespace tca {
     
     if(!tjs.UseAlg[kComp3DVx]) return;
     
-    bool prt = (debug.Plane >= 0 && debug.Tick == 3333);
+    bool prt = (debug.Plane >= 0 && debug.Tick == 33333);
     
     float maxdoca = 6;
     unsigned short ivx3 = 0;
@@ -1706,6 +1698,22 @@ namespace tca {
       } // tj
     } // plane
   } // MakeVertexObsolete
+  
+  //////////////////////////////////////////
+  std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2)
+  {
+    // returns a list of trajectory IDs that are attached to vx2
+    std::vector<int> tmp;
+    if(vx2.ID == 0) return tmp;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.CTP != vx2.CTP) continue;
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] == vx2.ID) tmp.push_back(tj.ID);
+      } // end
+    } // tj
+    return tmp;
+  } // GetVtxTjIDs
 
   /*
    //////////////////////////////////////////
