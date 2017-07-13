@@ -1,3 +1,5 @@
+#include "pointidalg.fcl"
+
 BEGIN_PROLOG
 
 standard_spacepointalg:
@@ -69,6 +71,9 @@ standard_pmalgtracker:
                                   #
   MatchT0inAPACrossing:   false   # match T0 of APA-crossing tracks using PMAlgStitcher
   MatchT0inCPACrossing:   false   # match T0 of CPA-crossing tracks using PMAlgStitcher
+
+  ValidateOnAdc:          false   # use adc image to validate tracks if true, use hits if false
+  AdcImageAlg:            @local::standard_dataprovideralg
 }
 
 standard_pmalgfitter:
