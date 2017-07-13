@@ -35,6 +35,8 @@ namespace tca {
   void MakeShowers(TjStuff& tjs, const calo::CalorimetryAlg& fCaloAlg);
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
+  void FindMatchingTjs(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void Match2DShowers(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void FillPts(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
@@ -55,18 +57,23 @@ namespace tca {
   void FindStartChg(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   std::vector<float> StartChgVec(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void DumpShowerPts(TjStuff& tjs, const unsigned short& cotIndex);
+  void CheckQuality(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   
   void TagShowerTjs(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList);
   void AddCloseTjsToList(TjStuff& tjs, const unsigned short& itj, std::vector<int> list);
   void MergeTjList(std::vector<std::vector<int>>& tjList);
   void MergeTjList2(TjStuff& tjs, std::vector<std::vector<int>>& tjList, bool prt);
+  void MergeNearby2DShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void MergeOverlap(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   void MergeSubShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt);
-  bool MergeShowersAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
+  bool MergeShowersAndStore(TjStuff& tjs, unsigned short icotIndex, unsigned short jcotIndex, bool prt);
+  bool MergeShowerTjsAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
   void TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   unsigned short GetCotsIndex(TjStuff& tjs, const unsigned short& ShowerTjID);
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss);
   unsigned short FarEnd(TjStuff& tjs, const Trajectory& tj, ShowerStruct& ss);
+  unsigned short Create2DShower(TjStuff& tjs, const std::vector<int>& tjl);
+  void FindNearbyTjs(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
 
 }
 
