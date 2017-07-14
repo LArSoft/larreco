@@ -49,7 +49,7 @@ namespace tca {
   bool WrongSplitTj(TjStuff& tjs, Trajectory& tj, const unsigned short& tjEnd, ShowerStruct& ss, bool prt);
   float ParentFOM(TjStuff& tjs, Trajectory& tj, const unsigned short& tjEnd, ShowerStruct& ss, bool prt);
   void DefineEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt, int mode);
   void RefineShowerTj(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   bool AddLooseHits(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void FindStartChg(TjStuff& tjs, const unsigned short& cotIndex, bool prt);

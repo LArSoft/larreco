@@ -423,7 +423,7 @@ namespace tca {
       } // tjl
     } // prt
 
-    MergeTjList2(tjs, tjList, prt);
+    //MergeTjList2(tjs, tjList, prt);
     
     // remove Tjs that don't have enough neighbors = ShowerTag[7] unless the shower
     // has few Tjs
@@ -498,7 +498,7 @@ namespace tca {
       // likely because the MCSMom is too high. These will be used to merge showers
 //      FindNearbyTjs(tjs, cotIndex, prt);
       // Try to add more Tjs to the shower
-      AddTjsInsideEnvelope(tjs, cotIndex, prt);
+      AddTjsInsideEnvelope(tjs, cotIndex, prt,1);
       FindExternalParent(tjs, cotIndex, prt);
       // If no external parent was found, try to refine the direction and look for
       // an internal parent
@@ -966,7 +966,7 @@ namespace tca {
       }
       ss.NewParent = true;
       DefineShower(tjs, cotIndex, prt);
-      AddTjsInsideEnvelope(tjs, cotIndex, prt);
+      AddTjsInsideEnvelope(tjs, cotIndex, prt,2);
     } else {
       if(prt) mf::LogVerbatim("TC")<<"FEP: Existing parent is good ";
       ss.NewParent = false;
@@ -1986,7 +1986,7 @@ namespace tca {
   } // DefineEnvelope  
   
   ////////////////////////////////////////////////
-  void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
+  void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt, int mode)
   {
     // This function adds Tjs to the shower. It updates the shower parameters.
     
@@ -2002,7 +2002,8 @@ namespace tca {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.AlgMod[kInShower]) continue;
       if(tj.AlgMod[kShowerTj]) continue;
-//      if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;
+      if(mode==1)
+	{if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;}
       // This shouldn't be necessary but do it for now
       if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
       // See if both ends are outside the envelope
