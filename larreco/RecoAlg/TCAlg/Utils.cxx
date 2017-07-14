@@ -2932,6 +2932,7 @@ namespace tca {
             myprt<<" No external parent defined";
           }
           myprt<<" TruParentID "<<ss.TruParentID<<"\n";
+          if(ss.NeedsUpdate) myprt<<"*********** This shower needs to be updated ***********";
           myprt<<"................................................";
         } // ic
       } // Shower Tj
