@@ -158,6 +158,7 @@ namespace tca {
     raw::TDCtick_t StartTick {0};
     raw::TDCtick_t EndTick {0};
     float PeakTime {0};
+    float X;
     float SigmaPeakTime {1};
     float PeakAmplitude {1};
     float SigmaPeakAmp {1};
@@ -189,6 +190,7 @@ namespace tca {
     int PDGCode {0};
     std::vector<size_t> DtrIndices;
     size_t ParentMSIndex {0};       // Parent MatchStruct index (or index of self if no parent exists)
+    geo::TPCID TPCID;
   };
 
   struct ShowerPoint {
@@ -219,7 +221,7 @@ namespace tca {
     float StartChgErr {0};              // Start charge error
     float ParentFOM {10};
     int ParentID {0};  // The ID of an external parent Tj that was added to the shower
-    bool NewParent {false};       // This is set true whenever the ParentID is changed
+    bool NeedsUpdate {false};       // This is set true whenever the shower needs to be updated
     unsigned short TruParentID {0};
   };
   
