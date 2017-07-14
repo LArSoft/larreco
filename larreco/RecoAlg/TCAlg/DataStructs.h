@@ -254,11 +254,23 @@ namespace tca {
     std::vector<float> EndAng;   // end angle
     std::vector<float> EndChg;   // ending average charge
     std::vector<short> EndVtx;   //ID of end vertex
+    
+    std::vector<short> MCSMom;
 
     std::vector<short> PlaneNum; 
     
     std::vector<int> ShowerID; // shower ID associated w/ trajectory. -1 = no shower
-    std::vector<unsigned int> StageNum; // stage of reconstruction
+    std::vector<int> IsShowerParent;
+    std::vector<int> StageNum; // stage of reconstruction
+
+    // envelope information
+    std::vector<float> Envelope;
+    std::vector<int>EnvPlane;
+    std::vector<int>EnvStage;
+    std::vector<int>EnvShowerID;
+
+    int nStages;
+    unsigned short nPlanes;
 
   };
 
@@ -338,7 +350,8 @@ namespace tca {
     float ZHi;
     std::vector<float> AveHitRMS;      ///< average RMS of an isolated hit
     // The variables below do change in size from event to event
-    ShowerTreeVars stv; // NEW
+    ShowerTreeVars stv; // 
+    bool SaveShowerTree;
     
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
