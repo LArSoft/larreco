@@ -25,6 +25,8 @@
 //                     electrons
 //    July 2016:       redesign module: extract trajectory fitting-only to separate module, move
 //                     tracking functionality to algorithm classes
+//    ~Jan-May 2017:   track stitching on APA and CPA, cosmics tagging
+//    July 2017:       validation on 2D ADC image
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
