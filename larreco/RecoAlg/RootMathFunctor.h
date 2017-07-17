@@ -1,4 +1,4 @@
 // wrap the root Math/Functor.h package so it does not complain about
 // the deprecated auto_ptr
 
-#include "larcore/CoreUtils/quiet_Math_Functor.h" // remove the wrapper when ROOT header is fixed
+#include "larcorealg/CoreUtils/quiet_Math_Functor.h" // remove the wrapper when ROOT header is fixed

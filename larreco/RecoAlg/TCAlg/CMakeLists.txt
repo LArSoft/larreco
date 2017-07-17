@@ -1,7 +1,7 @@
 
 art_make( 
           LIB_LIBRARIES lardataobj_RecoBase
-                        larcore_Geometry
+                        larcorealg_Geometry
                         larcore_Geometry_Geometry_service
                         larreco_Calorimetry
                         nusimdata_SimulationBase

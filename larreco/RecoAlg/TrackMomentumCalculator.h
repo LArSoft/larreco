@@ -29,7 +29,7 @@
 #include "Minuit2/FCNBase.h" 
 #include "Math/Minimizer.h"
 #include "Math/Factory.h"
-#include "larcore/CoreUtils/quiet_Math_Functor.h"
+#include "larcorealg/CoreUtils/quiet_Math_Functor.h"
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"
 #include "TVector3.h"

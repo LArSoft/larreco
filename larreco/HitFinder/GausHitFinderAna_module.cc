@@ -15,7 +15,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"

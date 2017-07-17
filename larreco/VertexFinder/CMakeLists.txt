@@ -5,7 +5,7 @@ art_make(
                         larsim_MCCheater_BackTracker_service
                         larevt_Filters
                         lardataobj_RecoBase
-                        larcore_Geometry
+                        larcorealg_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
                         larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
@@ -32,7 +32,7 @@ simple_plugin ( FeatureVertexFinder "module"
                         larsim_MCCheater_BackTracker_service
                         larevt_Filters
                         lardataobj_RecoBase
-                        larcore_Geometry
+                        larcorealg_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_Utilities
                         nusimdata_SimulationBase
