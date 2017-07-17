@@ -2,7 +2,7 @@
 
 art_make( 
 	  
-          LIB_LIBRARIES    larcore_Geometry
+          LIB_LIBRARIES    larcorealg_Geometry
 			   larcore_Geometry_Geometry_service
 			   larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
 			   lardataobj_RecoBase
@@ -27,7 +27,7 @@ art_make(
                            ${ROOT_GDML}
                            ${ROOT_BASIC_LIB_LIST}
           MODULE_LIBRARIES larreco_MCComp
-			   larcore_Geometry
+			   larcorealg_Geometry
 			   larcore_Geometry_Geometry_service
 			   larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
 			   ${ART_FRAMEWORK_CORE}

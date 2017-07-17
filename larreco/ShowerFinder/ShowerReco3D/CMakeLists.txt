@@ -39,7 +39,7 @@ art_make(
                            larsim_MCCheater_BackTracker_service
                            larevt_Filters
                            lardataobj_RecoBase
-                           larcore_Geometry
+                           larcorealg_Geometry
                            larcore_Geometry_Geometry_service
                            nusimdata_SimulationBase
                            ${ART_FRAMEWORK_CORE}

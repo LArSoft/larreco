@@ -37,8 +37,8 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/CryostatGeo.h"
-#include "larcore/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/CryostatGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nutools/ParticleNavigation/ParticleList.h"

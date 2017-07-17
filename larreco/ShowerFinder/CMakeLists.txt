@@ -9,7 +9,7 @@ art_make(
                         larsim_MCCheater_BackTracker_service
                         lardataobj_AnalysisBase
                         lardataobj_RecoBase
-                        larcore_Geometry
+                        larcorealg_Geometry
                         larcore_Geometry_Geometry_service
                         larreco_Calorimetry
                         lardataobj_AnalysisBase

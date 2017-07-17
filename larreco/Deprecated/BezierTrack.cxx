@@ -2,9 +2,9 @@
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/CryostatGeo.h"
-#include "larcore/Geometry/TPCGeo.h"
-#include "larcore/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/CryostatGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"

@@ -44,9 +44,9 @@
 // LArSoft Includes
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/CryostatGeo.h"
-#include "larcore/Geometry/TPCGeo.h"
-#include "larcore/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/CryostatGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
@@ -80,7 +80,9 @@ namespace hit{
     using TimeValsVec      = std::vector<std::tuple<int,int,int>>;
     using PeakTimeWidVec   = std::vector<std::tuple<int,int,int,int>>;
     using MergedTimeWidVec = std::vector<std::tuple<int,int,PeakTimeWidVec>>;
-    
+    using PeakDevVec	   = std::vector<std::tuple<double,int,int,int>>;
+    using ParameterVec 	   = std::vector<std::pair<double,double>>;  //< parameter/error vec 
+   
     void findCandidatePeaks(std::vector<float>::const_iterator startItr,
                             std::vector<float>::const_iterator stopItr,
                             TimeValsVec&                       timeValsVec,
@@ -92,23 +94,31 @@ namespace hit{
     // ### This function will fit N-Exponentials to a TH1D where N is set ###
     // ###            by the number of peaks found in the pulse         ###
       
-    using ParameterVec = std::vector<std::pair<double,double>>;  //< parameter/error vec
+    void FitExponentials(const std::vector<float> fSignalVector,
+                         const PeakTimeWidVec     fPeakVals,
+                         int                      fStartTime,
+                         int                      fEndTime,
+                         ParameterVec&            fparamVec,
+                         double&                  fchi2PerNDF,
+                         int&                     fNDF,
+			 std::vector<float>*	  fSignalCorrection,
+			 bool			  fDoSignalCorrection);
     
-    void FitExponentials(const std::vector<float> SignalVector,
-                         const PeakTimeWidVec     PeakVals,
-                         int                      StartTime,
-                         int                      EndTime,
-                         ParameterVec&            paramVec,
-                         double&                  chi2PerNDF,
-                         int&                     NDF);
-    
-    void FindMaxDeviation(const std::vector<float> SignalVector,
-			  int			   NPeaks,
-                          int                      StartTime,
-                          int                      EndTime,
-                          ParameterVec             paramVec,
-			  int&                     MaxPosDeviation,
-			  int&                     MaxNegDeviation);
+    void FindPeakWithMaxDeviation(const std::vector<float> fSignalVector,
+			  	  int			   fNPeaks,
+                          	  int                      fStartTime,
+                          	  int                      fEndTime,
+                          	  ParameterVec             fparamVec,
+                         	  PeakTimeWidVec           fpeakVals,
+			  	  PeakDevVec& 		   fPeakDev);
+
+    std::string CreateFitFunction(int fNPeaks);
+
+    void AddPeak(std::tuple<double,int,int,int> fPeakDevCand,
+		 PeakTimeWidVec& fpeakValsTemp);
+
+    void SplitPeak(std::tuple<double,int,int,int> fPeakDevCand,
+		   PeakTimeWidVec& fpeakValsTemp);
 
     void FillOutHitParameterVector(const std::vector<double>& input,
 				   std::vector<double>& output);
@@ -120,24 +130,37 @@ namespace hit{
     void reBin(const std::vector<float>& inputVec,
                std::vector<float>&       outputVec,
                size_t                    nBinsToCombine) const;
+
+
+    struct Comp {
+    // important: we need two overloads, because the comparison
+    // needs to be done both ways to check for equality
+
+    bool operator()(std::tuple<int,int,int,int> p, int s) const
+    { return std::get<0>(p) < s; }
+    bool operator()(int s, std::tuple<int,int,int,int> p) const
+    { return s < std::get<0>(p); }
+    };
     
     std::string      fCalDataModuleLabel;
 
     int    fMinSig;                   ///<signal height threshold
+    int    fTicksToStopPeakFinder;    ///<Number of ticks with same or higher ADC count that the current tick is needed to be followed by to define start and end of peak 
     int    fMinWidth;                 ///<Minimum hit width
-    int    fLongMaxHits;              ///<Maximum number hits on a really long pulse train
-    int    fLongPulseWidth;           ///<Sets width of hits used to describe long pulses
-    
-    unsigned int fMaxMultiHit;              ///<maximum hits for multi fit
-    int          fAreaMethod;               ///<Type of area calculation
-    double	 fAreaNorm;                ///<factors for converting area to same units as peak height
-    bool	 fTryNplus1Fits;            ///<whether we will (true) or won't (false) try n+1 fits
-    double	 fChi2NDFRetry;             ///<Value at which a second n+1 Fit will be tried
-    double	 fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
-    size_t       fNumBinsToAverage;         ///< If bin averaging for peak finding, number bins to average
-    double	 fNoiseRMS;
-    double	 fMIPSignal;
-    
+    double fMinADCSumOverWidth;        ///<Minimum hit width
+    unsigned int fMaxMultiHit;        ///<maximum hits for multi fit
+    double	 fChargeNorm;         ///<factors for converting area to same units as peak height
+    bool	 fTryNplus1Fits;      ///<whether we will (true) or won't (false) try n+1 fits
+    double	 fChi2NDFRetry;       ///<Value at which a second n+1 Fit will be tried
+    double	 fChi2NDF;            ///maximum Chisquared / NDF allowed for a hit to be saved
+    size_t       fNumBinsToAverage;   ///< If bin averaging for peak finding, number bins to average
+    double   fMinTau;                 
+    double   fMaxTau;                 
+    int   fGroupMaxDistance;           
+    bool  fDoMergePeaks;
+    double fMergeADCSumThreshold;
+    double fMergeMaxADCThreshold;
+
     std::unique_ptr<HitFilterAlg> fHitFilterAlg;   ///algorithm used to filter out noise hits
 
     art::InputTag fNewHitsTag;              // tag of hits produced by this module, need to have it for fit parameter data products 
@@ -200,33 +223,23 @@ void DPRawHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
 void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
 {
     // Implementation of optional member function here.
-    fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
-  
-    
-    bool const doHitFiltering = p.get<bool>("FilterHits", false);
-    if (doHitFiltering) {
-      if (fHitFilterAlg) { // create a new algorithm instance
-        fHitFilterAlg->reconfigure(p.get<fhicl::ParameterSet>("HitFilterAlg"));
-      }
-      else { // reconfigure the existing instance
-        fHitFilterAlg = std::make_unique<HitFilterAlg>
-          (p.get<fhicl::ParameterSet>("HitFilterAlg"));
-      }
-    }
-
-    fLongMaxHits      = p.get< int    >("LongMaxHits");
-    fLongPulseWidth   = p.get< int    >("LongPulseWidth");
-    fMaxMultiHit      = p.get< int    >("MaxMultiHit");
-    fAreaMethod       = p.get< int    >("AreaMethod");
-    fTryNplus1Fits    = p.get< bool   >("TryNplus1Fits");
-    fChi2NDFRetry     = p.get< double >("Chi2NDFRetry");
-    fChi2NDF          = p.get< double >("Chi2NDF");
-    fNumBinsToAverage = p.get< size_t >("NumBinsToAverage");
-    fNoiseRMS         = p.get< double >("NoiseRMS");
-    fMIPSignal        = p.get< double >("MIPSignal");
-    fMinSig           = p.get< int    >("MinSig");
-    fMinWidth         = p.get< double >("MinWidth");
-    fAreaNorm         = p.get< double >("AreaNorm");
+    fCalDataModuleLabel    = p.get< std::string  >("CalDataModuleLabel");
+    fMaxMultiHit      	   = p.get< int    >("MaxMultiHit");
+    fTryNplus1Fits    	   = p.get< bool   >("TryNplus1Fits");
+    fChi2NDFRetry     	   = p.get< double >("Chi2NDFRetry");
+    fChi2NDF          	   = p.get< double >("Chi2NDF");
+    fNumBinsToAverage 	   = p.get< size_t >("NumBinsToAverage");
+    fMinSig           	   = p.get< int    >("MinSig");
+    fMinWidth         	   = p.get< int >("MinWidth");
+    fMinADCSumOverWidth    = p.get< double >("MinADCSumOverWidth");
+    fChargeNorm       	   = p.get< double >("ChargeNorm");
+    fTicksToStopPeakFinder = p.get< double >("TicksToStopPeakFinder");
+    fMinTau          	   = p.get< double >("MinTau");
+    fMaxTau           	   = p.get< double >("MaxTau");
+    fGroupMaxDistance     = p.get< int >("GroupMaxDistance");
+    fDoMergePeaks	  = p.get< bool   >("DoMergePeaks");
+    fMergeADCSumThreshold = p.get< double >("MergeADCSumThreshold");
+    fMergeMaxADCThreshold = p.get< double >("MergeMaxADCThreshold");
 }  
 
 //-------------------------------------------------
@@ -236,7 +249,6 @@ void DPRawHitFinder::beginJob()
     // get access to the TFile service
     art::ServiceHandle<art::TFileService> tfs;
    
-    
     // ======================================
     // === Hit Information for Histograms ===
     fFirstChi2 = tfs->make<TH1F>("fFirstChi2", "#chi^{2}", 10000, 0, 5000);
@@ -250,16 +262,13 @@ void DPRawHitFinder::endJob()
 
 }
 
-//  This algorithm uses the fact that deconvolved signals are very smooth 
-//  and looks for hits as areas between local minima that have signal above 
-//  threshold.
 //-------------------------------------------------
 void DPRawHitFinder::produce(art::Event& evt)
 {
     //==================================================================================================
     TH1::AddDirectory(kFALSE);
    
-    // Instantiate and Reset a stop watch
+    //Instantiate and Reset a stop watch
     //TStopwatch StopWatch;
     //StopWatch.Reset();
    
@@ -292,24 +301,20 @@ void DPRawHitFinder::produce(art::Event& evt)
     // Channel Number
     raw::ChannelID_t channel = raw::InvalidChannelID;
     
-    //#################################################
-    //###    Set the charge determination method    ###
-    //### Default is to compute the normalized area ###
-    //#################################################
-    //std::function<double (double,double,double,double,int,int)> chargeFunc = [](double peakMean, double peakAmp, double peaktau1, double peaktau2, double areaNorm, int low, int hi){return std::sqrt(2*TMath::Pi())*peakAmp*peakWidth/areaNorm;};
-    
     //##############################################
-    //### Alternative is to integrate over pulse ###
+    //### Integrate over fit to determine charge ###
     //##############################################
-    //if (fAreaMethod == 0)
-        std::function<double (double,double,double,double,double,int,int)> chargeFunc = [](double peakMean, double peakAmp, double peaktau1, double peaktau2, double areaNorm, int low, int hi)
-                        {
-                            double charge(0);
-			    double ReBin = 10.;
-                            for(int x = low; x < hi*ReBin; x++)
-                                charge += ( peakAmp * exp(0.4*((x/ReBin)-peakMean)/peaktau1)) / ( 1 + exp(0.4*((x/ReBin)-peakMean)/peaktau2) );
-                            return charge/ReBin;
-                        };
+    std::function<double (double,double,double,double,double,int,int)> chargeFunc = [](double peakMean, double peakAmp, double peaktau1, double peaktau2, double chargeNorm, int low, int hi)
+    {
+	double charge(0);
+	double ReBin = 10.;
+	for(int x = low; x < hi*ReBin; x++)
+	{
+	    charge += ( peakAmp * exp(0.4*((x/ReBin)-peakMean)/peaktau1)) / ( 1 + exp(0.4*((x/ReBin)-peakMean)/peaktau2) );
+	}
+	return charge/ReBin;
+    };
+
     //##############################
     //### Looping over the wires ###
     //##############################
@@ -326,8 +331,8 @@ void DPRawHitFinder::produce(art::Event& evt)
         std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
         // for now, just take the first option returned from ChannelToWire
         geo::WireID wid  = wids[0];
-	std::cout << std::endl;
-	std::cout << "wid: " << wid << std::endl;
+	//std::cout << std::endl;
+	//std::cout << "wid: " << wid << std::endl;
         // #################################################
         // ### Set up to loop over ROI's for this wire   ###
         // #################################################
@@ -338,10 +343,8 @@ void DPRawHitFinder::produce(art::Event& evt)
             // #################################################
             // ### Getting a vector of signals for this wire ###
             // #################################################
-            //std::vector<float> signal(wire->Signal());
-
             const std::vector<float>& signal = range.data();
-      
+
             // ##########################################################
             // ### Making an iterator for the time ticks of this wire ###
             // ##########################################################
@@ -349,6 +352,7 @@ void DPRawHitFinder::produce(art::Event& evt)
            
             // ROI start time
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
+	    //std::cout << "roiFirstBinTick: " << roiFirstBinTick << std::endl;
             MergedTimeWidVec mergedVec;
             
             // ###########################################################
@@ -358,13 +362,11 @@ void DPRawHitFinder::produce(art::Event& evt)
             if (fNumBinsToAverage > 1)
             {
                 std::vector<float> timeAve;
-            
                 doBinAverage(signal, timeAve, fNumBinsToAverage);
             
                 // ###################################################################
                 // ### Search current averaged ROI for candidate peaks and widths  ###
                 // ###################################################################
-           
                 TimeValsVec timeValsVec;
                 findCandidatePeaks(timeAve.begin(),timeAve.end(),timeValsVec,fMinSig,0);
                 
@@ -376,14 +378,12 @@ void DPRawHitFinder::produce(art::Event& evt)
                 // #############################################################
                 // ### Merge potentially overlapping peaks and do multi fit  ###
                 // #############################################################
-                
                 mergeCandidatePeaks(timeAve, timeValsVec, mergedVec);
             }
             
             // ###########################################################
             // ### Otherwise, operate directonly on signal vector      ###
             // ###########################################################
-            
             else
             {
                 // ##########################################################
@@ -391,6 +391,7 @@ void DPRawHitFinder::produce(art::Event& evt)
                 // ##########################################################
                 TimeValsVec timeValsVec;
                 findCandidatePeaks(signal.begin(),signal.end(),timeValsVec,fMinSig,0);
+
                 // ####################################################
                 // ### If no startTime hit was found skip this wire ###
                 // ####################################################
@@ -403,42 +404,62 @@ void DPRawHitFinder::produce(art::Event& evt)
             }
             
             // #######################################################
+            // ### Creating the parameter vector for the new pulse ###
+            // #######################################################
+            ParameterVec paramVec;
+
+            // === Number of Exponentials to try ===
+            unsigned int nExponentialsForFit=0;
+            double       chi2PerNDF;
+            int          NDF;
+
+	    bool DoSignalCorrection = false;
+	    unsigned int NumberOfMergedVecs = mergedVec.size();
+	    int EndTOfLastMergedVec = std::get<1>(mergedVec.at(NumberOfMergedVecs-1));
+	    std::vector<float> SignalCorrection;
+	    SignalCorrection.resize(EndTOfLastMergedVec+1, 0.);
+
+            // #######################################################
             // ### Lets loop over the pulses we found on this wire ###
             // #######################################################
-            
-            for(auto& mergedCands : mergedVec)
+
+            for(unsigned int j=0; j < NumberOfMergedVecs; j++)
             {
-                int             startT   = std::get<0>(mergedCands);
-                int             endT     = std::get<1>(mergedCands);
-                PeakTimeWidVec& peakVals = std::get<2>(mergedCands);
+                int             startT   = std::get<0>(mergedVec.at(j));
+                int             endT     = std::get<1>(mergedVec.at(j));
+		int		width = endT + 1 - startT;
+                PeakTimeWidVec& peakVals = std::get<2>(mergedVec.at(j));
 
-                // ### Putting in a protection in case things went wrong ###
-                // ### In the end, this primarily catches the case where ###
-                // ### a fake pulse is at the start of the ROI           ###
-                if (endT - startT < fMinWidth) continue;
-	 
-                // #######################################################
-                // ### Clearing the parameter vector for the new pulse ###
-                // #######################################################
-                // === Setting the number of Exponential functions to try ===
-                int nExponentialsForFit = peakVals.size();
-	 
-                // #####################################################
-                // ### Calling the function for fitting Exponentials ###
-                // #####################################################
-                double       chi2PerNDF(0.);
-                int          NDF(0);
-                ParameterVec paramVec;
-                
-                // ##########################################################
-                // ### If # requested Exponentials is too large then punt ###
-                // ##########################################################
+                // ### Getting rid of noise hits ###
+                if (width < fMinWidth || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0)/width < fMinADCSumOverWidth) continue;
 
-                if (peakVals.size() <= fMaxMultiHit)
-                {
-                    FitExponentials(signal, peakVals, startT, endT, paramVec, chi2PerNDF, NDF);
-               
+		    if(j>=1 && nExponentialsForFit>0)
+		    {
+			DoSignalCorrection = true;
+			std::string eqn = CreateFitFunction(nExponentialsForFit);
+    			TF1 Exponentials("Exponentials",eqn.c_str(),startT,EndTOfLastMergedVec+1);
+ 			for(size_t i = 0; i < paramVec.size(); i++)
+    			{
+    			    Exponentials.SetParameter(i, paramVec[i].first);
+			}
+	
+			for(int i = startT; i < EndTOfLastMergedVec+1; i++)
+			{
+			    SignalCorrection.at(i)+=Exponentials(i+0.5);
+			}
+		    }
+
+
+		    // #####################################################
+                    // ### Calling the function for fitting Exponentials ###
+                    // #####################################################
+		    paramVec.clear();
+                    nExponentialsForFit = peakVals.size();
+                    chi2PerNDF=0.;
+                    NDF=0;
+                    FitExponentials(signal, peakVals, startT, endT, paramVec, chi2PerNDF, NDF, &SignalCorrection, DoSignalCorrection);
                     // If the chi2 is infinite then there is a real problem so we bail
+
                     if (!(chi2PerNDF < std::numeric_limits<double>::infinity())) continue;
                    
                     fFirstChi2->Fill(chi2PerNDF);
@@ -446,121 +467,102 @@ void DPRawHitFinder::produce(art::Event& evt)
                     // ########################################################
                     // ### Trying extra Exponentials for an initial bad fit ###
                     // ########################################################
-                   /* if( (chi2PerNDF > (fChi2NDFRetry) && fTryNplus1Fits && nExponentialsForFit == 1)||
-                        (chi2PerNDF > (fChi2NDFRetry) && fTryNplus1Fits && nExponentialsForFit > 1) )
+
+		    if( (chi2PerNDF > fChi2NDFRetry && fTryNplus1Fits && nExponentialsForFit == 1)||
+                        (chi2PerNDF > fChi2NDFRetry && fTryNplus1Fits && nExponentialsForFit > 1) )
                     {
-		    int nExponentialsBeforeRefit=nExponentialsForFit;  
-		    int nExponentialsAfterRefit=nExponentialsForFit;  
-		    	while(nExponentialsAfterRefit < 3*nExponentialsBeforeRefit)
+		    unsigned int nExponentialsBeforeRefit=nExponentialsForFit;  
+		    unsigned int nExponentialsAfterRefit=nExponentialsForFit; 
+                    double chi2PerNDF2;
+                    int    NDF2;
+		    bool   RefitSuccess;
+		    PeakTimeWidVec peakValsTemp;
+		    	while(nExponentialsAfterRefit < 3*nExponentialsBeforeRefit && chi2PerNDF > fChi2NDFRetry && nExponentialsAfterRefit < 2*fMaxMultiHit)
 		    	{
-		    int BinMaxPosDev(0);
-		    int BinMaxNegDev(0);
-                    FindMaxDeviation(signal, nExponentialsForFit, startT, endT, paramVec, BinMaxPosDev, BinMaxNegDev);
+			RefitSuccess = false;
+			PeakDevVec PeakDev;
+			FindPeakWithMaxDeviation(signal, nExponentialsForFit, startT, endT, paramVec, peakVals, PeakDev);
 
-                        // #######################################################
-                        // ### Clearing the parameter vector for the new pulse ###
-                        // #######################################################
-                        double       chi2PerNDF2(0.);
-                        int          NDF2(0);
-                        ParameterVec paramVec2;
-			std::cout << "BinMaxPosDev: " << BinMaxPosDev+roiFirstBinTick << std::endl;
-			std::cout << "BinMaxNegDev: " << BinMaxNegDev+roiFirstBinTick << std::endl;
-                        // ###############################################################
-                        // ### Modify input parameters for re-fitting n+1 Exponentials ###
-                        // ###############################################################
-             		peakVals.emplace_back(BinMaxNegDev,0,0,1);
-  			std::sort(peakVals.begin(),peakVals.end(), [](std::tuple<int,int,int,int> const &t1, std::tuple<int,int,int,int> const &t2) {return std::get<0>(t1) < std::get<0>(t2);} );
+			    //Add peak and re-fit
+			    for(auto& PeakDevCand : PeakDev)
+			    {
+                            chi2PerNDF2=0.;
+                            NDF2=0.;
+                            ParameterVec paramVecRefit;
+		    	    peakValsTemp = peakVals;
 
-                        // ############################################################
-                        // ### Calling the function for re-fitting n+1 Exponentials ###
-                        // ############################################################
-                        FitExponentials(signal, peakVals, startT, endT, paramVec2, chi2PerNDF2, NDF2);
-			nExponentialsAfterRefit++;
-	    		std::cout << "chi2PerNDF: " << chi2PerNDF << std::endl;
-	    		std::cout << "chi2PerNDF2: " << chi2PerNDF2 << std::endl;
-                        // ####################################################################################################
-                        // ### Getting the appropriate parameter into the vector if new fit is better than the previous one ###
-                        // ####################################################################################################
-                        if (chi2PerNDF2 < chi2PerNDF)
-                        {
-                            nExponentialsForFit = peakVals.size();
-                            chi2PerNDF  = chi2PerNDF2;
-                            NDF         = NDF2;
-                            paramVec    = paramVec2;
-                        }
+			    AddPeak(PeakDevCand, peakValsTemp);
+                            FitExponentials(signal, peakValsTemp, startT, endT, paramVecRefit, chi2PerNDF2, NDF2, &SignalCorrection, DoSignalCorrection);
+
+				if (chi2PerNDF2 < chi2PerNDF)
+                           	{
+			    	paramVec 	    = paramVecRefit;
+             		   	peakVals	    = peakValsTemp;
+                           	nExponentialsForFit = peakVals.size();
+                            	chi2PerNDF  	    = chi2PerNDF2;
+                            	NDF         	    = NDF2;
+			    	nExponentialsAfterRefit++;
+				RefitSuccess = true;
+				break;
+                            	}
+			    }
+			
+			    //Split peak and re-fit
+			    if(RefitSuccess == false)
+			    {
+			    	for(auto& PeakDevCand : PeakDev)
+			    	{
+                            	chi2PerNDF2=0.;
+                            	NDF2=0.;
+                            	ParameterVec paramVecRefit;
+		    	    	peakValsTemp=peakVals;
+
+				SplitPeak(PeakDevCand, peakValsTemp);
+                            	FitExponentials(signal, peakValsTemp, startT, endT, paramVecRefit, chi2PerNDF2, NDF2, &SignalCorrection, DoSignalCorrection);
+
+				    if (chi2PerNDF2 < chi2PerNDF)
+                           	    {
+			    	    paramVec 	        = paramVecRefit;
+             		   	    peakVals	        = peakValsTemp;
+                           	    nExponentialsForFit = peakVals.size();
+                            	    chi2PerNDF  	= chi2PerNDF2;
+                            	    NDF         	= NDF2;
+			    	    nExponentialsAfterRefit++;
+				    RefitSuccess = true;
+				    break;
+                            	    }
+			    	}
+			    }
+
+			    if(RefitSuccess == false)
+			    {
+			    	//if(nExponentialsAfterRefit==nExponentialsBeforeRefit) std::cout << "Refit unsuccessful" << std::endl;
+			    break;
+			    }	
 			}
-                    }*/
-                }
-                else{std::cout << "hit too long" << std::endl;}
-                // #######################################################
-                // ### If too large then force alternate solution      ###
-                // ### - Make n hits from pulse train where n will     ###
-                // ###   depend on the fhicl parameter fLongPulseWidth ###
-                // ### Also do this if chi^2 is too large              ###
-                // #######################################################
-     /*           if (peakVals.size() > fMaxMultiHit || chi2PerNDF > fChi2NDF)
-                {
-                    int longPulseWidth = fLongPulseWidth.at(view);
-                    int nHitsThisPulse = (endT - startT) / longPulseWidth;
-                    
-                    if (nHitsThisPulse > fLongMaxHits.at(view))
-                    {
-                        nHitsThisPulse = fLongMaxHits.at(view);
-                        longPulseWidth = (endT - startT) / nHitsThisPulse;
                     }
-                    
-                    if (nHitsThisPulse * longPulseWidth < endT - startT) nHitsThisPulse++;
-                    
-                    int firstTick = startT;
-                    int lastTick  = firstTick + std::min(endT,longPulseWidth);
-                    
-                    paramVec.clear();
-                    nExponentialsForFit = nHitsThisPulse;
-                    NDF         = 1.;
-                    chi2PerNDF  =  chi2PerNDF > fChi2NDF ? chi2PerNDF : -1.;
-                    
-                    for(int i = 0; i < nHitsThisPulse; i++)
-                    {
-                        // This hit parameters
-                        double sumADC    = std::accumulate(signal.begin() + firstTick, signal.begin() + lastTick, 0.);
-                        double peakSigma = (lastTick - firstTick) / 3.;  // Set the width...
-                        double peakAmp   = 0.3989 * sumADC / peakSigma;  // Use Exponentials formulation
-                        double peakMean  = (firstTick + lastTick) / 2.;
-                    
-                        // Store hit params
-                        paramVec.emplace_back(peakAmp,   0.1 * peakAmp);
-                        paramVec.emplace_back(peakMean,  0.1 * peakMean);
-                        paramVec.emplace_back(peakSigma, 0.1 * peakSigma);
-                        
-                        // set for next loop
-                        firstTick = lastTick;
-                        lastTick  = std::min(lastTick  + longPulseWidth, endT);
-                    }
-                } */
 	    
                 // #######################################################
                 // ### Loop through returned peaks and make recob hits ###
                 // #######################################################
                 
                 int numHits(0);
-          //      for(int i = 2, i = 0; i < 2*(nExponentialsForFit+1); i+=2, i++)
-                for(int i = 0; i < nExponentialsForFit; i++)
+
+                for(unsigned int i = 0; i < nExponentialsForFit; i++)
                 {
-
-
                     // Extract values for this hit
 		    double peakTau1 = paramVec[0].first;
 		    double peakTau2 = paramVec[1].first;
                     double peakAmp   = paramVec[2*(i+1)].first;
                     double peakMean  = paramVec[2*(i+1)+1].first;
-                    double peakWidth = std::max(8.175, 5.61959 + 7.93513*peakTau1 - 1.45595*peakTau1*peakTau1)/(2*sqrt(2*log(2))); //Conversion from tau1 to "width at 0.5*amplitude" to standard 																	     deviatiopn of a Gaussian. Width of elec. response (= min. width of a 																	      hit) is 8.175 at 0.5*amplitude.
+                    double peakWidth = std::max(8.175, 5.61959 + 7.93513*peakTau1 - 1.45595*peakTau1*peakTau1)/(2*sqrt(2*log(2))); //Conversion from tau1 to "width at 0.5*amplitude" to standard 																	     deviation of a Gaussian. Width of elec. response (= min. width of a 																	      hit) is 8.175 at 0.5*amplitude.
                     // Extract errors
                     double peakAmpErr   = paramVec[2*(i+1)].second;
                     double peakMeanErr  = paramVec[2*(i+1)+1].second;
                     double peakWidthErr = 0.1;
 
                     // ### Charge ###
-                    double charge    = chargeFunc(peakMean, peakAmp, peakTau1, peakTau2, fAreaNorm,startT-10,endT+20);
+                    double charge    = chargeFunc(peakMean, peakAmp, peakTau1, peakTau2, fChargeNorm,startT-10,endT+20);
                     double chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);    
 
                     // ### limits for getting sums
@@ -581,8 +583,6 @@ void DPRawHitFinder::produce(art::Event& evt)
 		    double peakMeanTrue = Exponentials.GetMaximumX(startTthisHit,endTthisHit);
 		    Exponentials.Delete();
 
-		    //std::cout << "peakMean: " << peakMean << std::endl;
-		    //std::cout << "peakMeanTrue: " << peakMeanTrue << std::endl;
                     // ok, now create the hit
                     recob::HitCreator hitcreator(*wire,                            // wire reference
                                                  wid,                              // wire ID
@@ -604,16 +604,14 @@ void DPRawHitFinder::produce(art::Event& evt)
                     
                     const recob::Hit hit(hitcreator.move());
 		    
-                    if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(hit)) {
-                        hcol.emplace_back(std::move(hit), wire, rawdigits);
-                        // add fit parameters associated to the hit just pushed to the collection
-                        std::array<float, 3> fitParams;
-                        fitParams[0] = peakMean+roiFirstBinTick;
-                        fitParams[1] = peakTau1;
-                        fitParams[2] = peakTau2;
-                        fHitParamWriter.addVector(hitID, fitParams);
-                        numHits++;
-                    }
+                    hcol.emplace_back(std::move(hit), wire, rawdigits);
+                    // add fit parameters associated to the hit just pushed to the collection
+                    std::array<float, 3> fitParams;
+                    fitParams[0] = peakMean+roiFirstBinTick;
+                    fitParams[1] = peakTau1;
+                    fitParams[2] = peakTau2;
+                    fHitParamWriter.addVector(hitID, fitParams);
+                    numHits++;
                 } // <---End loop over Exponentials
                 
                 fChi2->Fill(chi2PerNDF);
@@ -659,13 +657,22 @@ void hit::DPRawHitFinder::findCandidatePeaks(std::vector<float>::const_iterator 
         {
             // backwards to find first bin for this candidate hit
             auto firstItr = std::distance(startItr,maxItr) > 2 ? maxItr - 1 : startItr;
+	    bool PeakStartIsHere = true;
 
             while(firstItr != startItr)
             {    
-                // Check both sides of firstItr and look for min/inflection point
-		if ( *firstItr <= *(firstItr+1) && *firstItr < (*(firstItr-1)) && *firstItr < (*(firstItr-2)) && *firstItr < (*(firstItr-3)) ) break;            
-                if (*firstItr < 0) break;
-
+                //Check for inflection point & ADC count <= 0
+		PeakStartIsHere = true;
+		for(int i=1; i <= fTicksToStopPeakFinder; i++)
+		{
+		    if( *firstItr >= *(firstItr-i) )
+		    {
+		    PeakStartIsHere = false;
+		    break;
+		    }
+	
+		}
+                if (*firstItr < 1 || PeakStartIsHere) break;
                 firstItr--;
             }
 
@@ -676,17 +683,29 @@ void hit::DPRawHitFinder::findCandidatePeaks(std::vector<float>::const_iterator 
             
             // forwards to find last bin for this candidate hit
             auto lastItr = std::distance(maxItr,stopItr) > 2 ? maxItr + 1 : stopItr - 1;
+	    bool PeakEndIsHere = true;
 
             while(lastItr != stopItr)
-            {        
-                if ( *lastItr <= *(lastItr-1) && *lastItr < (*(lastItr+1)) && *lastItr < (*(lastItr+2)) && *lastItr < (*(lastItr+3)) ) break;       
-                if (*lastItr < 0) break;
+            {     
+                //Check for inflection point & ADC count <= 0
+		PeakEndIsHere = true;
+		for(int i=1; i <= fTicksToStopPeakFinder; i++)
+		{
+		    if( *lastItr >= *(lastItr+i) )
+		    {
+		    PeakEndIsHere = false;
+		    break;
+		    }
+		}
+                if (*lastItr < 1 || PeakEndIsHere) break;
                 lastItr++;
             }
 
             int lastTime = std::distance(startItr,lastItr);
             
             // Now save this candidate's start and max time info
+	    //std::cout << "firstTick+firstTime: " << firstTick+firstTime << "\t" << "firstTick+maxTime: " << firstTick+maxTime << "\t" << "firstTick+lastTime: " << firstTick+lastTime << std::endl;
+
             timeValsVec.push_back(std::make_tuple(firstTick+firstTime,firstTick+maxTime,firstTick+lastTime));
             
             // Recursive call to find all candidate hits later than this peak
@@ -708,7 +727,7 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
     // ################################################################
     auto timeValsVecItr = timeValsVec.begin();
     unsigned int PeaksInThisMergedPeak = 0;
-
+    //int EndTickOfPreviousMergedPeak=0;
     while(timeValsVecItr != timeValsVec.end())
     {
         PeakTimeWidVec peakVals;
@@ -718,7 +737,9 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
         int startT = std::get<0>(timeVal);
         int maxT   = std::get<1>(timeVal);
         int endT   = std::get<2>(timeVal);
-        int widT   = std::max(2,(endT - startT) / 6);
+        int widT   = endT - startT;
+	int FinalStartT=startT;
+	int FinalEndT=endT;
 
         peakVals.emplace_back(maxT,widT,startT,endT);
         
@@ -729,18 +750,11 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
         // Loop until no more merged pulses (or candidates in this ROI)
         while(checkNextHit)
         {
-            // If the start time of the next pulse is the end time of the current pulse then merge
-            // Alternatively, if the start time of the next pulses is one tick away then
-            // merge if the intervening signal is above 0.
-            int nextStartT = std::get<0>(*timeValsVecItr);
-	    int PrevStartT=startT;
-	    int PrevMaxT=maxT;
-	    int PrevEndT=endT;
-	    int PrevWidT=widT;
-
+            // If the start time of the next pulse is the (end time+1) or if intermediate signal between two pulses doesn't go below 0 merge until fMaxMultiHit is reached.
+            int NextStartT = std::get<0>(*timeValsVecItr);
 	    
 	    bool NegBinBetweenPeaks = 0;
-	    for(int i = endT; i <= nextStartT; i++)
+	    for(int i = endT; i <= NextStartT; i++)
 	    {
 		if(signalVec[i]<0)
 		{
@@ -748,25 +762,72 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
 		break;
 		}
 	    }
-
-            //if( ( ( nextStartT - endT <= 1 ) || ( signalVec[endT] >= 0 && signalVec[nextStartT] >= 0 ) ) && PeaksInThisMergedPeak < fMaxMultiHit-1 )
-            if( ( ( nextStartT - endT <= 1 ) || NegBinBetweenPeaks == 0 ) && PeaksInThisMergedPeak < fMaxMultiHit-1 )
+	    
+	    // Group hits
+            if( NegBinBetweenPeaks == 0  && NextStartT - endT <= fGroupMaxDistance && PeaksInThisMergedPeak < fMaxMultiHit-1 )
             {
-                timeVal = *timeValsVecItr++;
-                maxT = std::get<1>(timeVal);
-                endT = std::get<2>(timeVal);
-                widT = std::max(2,(endT - nextStartT) / 6);
+	    	int PrevStartT=startT;
+	    	int PrevMaxT=maxT;
+	    	int PrevEndT=endT;
+	    	//int PrevWidT=widT;
 
-		if(  maxT-PrevEndT <= 1 && (signalVec[maxT]-signalVec[PrevEndT]) < 0.2*(signalVec[PrevMaxT]-signalVec[PrevEndT]) )
+                timeVal = *timeValsVecItr++;
+                int NextMaxT = std::get<1>(timeVal);
+                int NextEndT = std::get<2>(timeVal);
+                int NextWidT = NextEndT - NextStartT;
+	    	FinalEndT=NextEndT;
+
+		int PrevSumADC = 0;
+		for(int i = PrevStartT; i<= PrevEndT; i++)
 		{
-		    peakVals.pop_back();  
-                    peakVals.emplace_back(PrevMaxT,PrevWidT,PrevStartT,endT);
+		    PrevSumADC+=signalVec[i];
+		} 
+
+		int NextSumADC = 0;
+		for (int i = NextStartT; i<= NextEndT; i++)
+		{
+		    NextSumADC+=signalVec[i];
+		} 
+
+		if(fDoMergePeaks)
+		{
+		    if( signalVec[NextMaxT] <= signalVec[PrevMaxT] && (signalVec[NextMaxT]-signalVec[PrevEndT]) < fMergeMaxADCThreshold*(signalVec[PrevMaxT]-signalVec[PrevEndT]) &&  NextSumADC < fMergeADCSumThreshold*PrevSumADC )
+		    {
+		    	maxT=PrevMaxT;
+		    	startT=PrevStartT;
+		    	endT=NextEndT;
+		    	widT=endT - startT;
+		    	peakVals.pop_back();
+                    	peakVals.emplace_back(maxT,widT,startT,endT);
+		    }
+		    else if( signalVec[NextMaxT] > signalVec[PrevMaxT] && (signalVec[PrevMaxT]-signalVec[NextStartT]) < fMergeMaxADCThreshold*(signalVec[NextMaxT]-signalVec[NextStartT]) &&  PrevSumADC < fMergeADCSumThreshold*NextSumADC  )
+		    {
+		    	maxT=NextMaxT;
+		    	startT=PrevStartT;
+		    	endT=NextEndT;
+		    	widT=endT - startT;
+		    	peakVals.pop_back();
+                    	peakVals.emplace_back(maxT,widT,startT,endT);
+		    }
+		    else
+		    {
+		    	maxT=NextMaxT;
+		    	startT=NextStartT;
+		    	endT=NextEndT;
+		    	widT=NextWidT;
+                    	peakVals.emplace_back(maxT,widT,startT,endT);
+		    	PeaksInThisMergedPeak++;
+                    }
 		}
 		else
 		{
-                    peakVals.emplace_back(maxT,widT,nextStartT,endT);
+		    maxT=NextMaxT;
+		    startT=NextStartT;
+		    endT=NextEndT;
+		    widT=NextWidT;
+                    peakVals.emplace_back(maxT,widT,startT,endT);
 		    PeaksInThisMergedPeak++;
-                }
+		}
                 checkNextHit = timeValsVecItr != timeValsVec.end();
             }//<---Checking adjacent pulses
             else 
@@ -778,7 +839,7 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
         }//<---End checking if there is more than one pulse on the wire
         
         // Add these to our merged vector
-        mergedVec.emplace_back(startT, endT, peakVals);
+        mergedVec.emplace_back(FinalStartT, FinalEndT, peakVals);
     }
     
     return;
@@ -787,78 +848,57 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
 // --------------------------------------------------------------------------------------------
 // Fit Exponentials
 // --------------------------------------------------------------------------------------------
-void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  SignalVector,
-                                          const PeakTimeWidVec      PeakVals,
-                                          int                       StartTime,
-                                          int                       EndTime,
-                                          ParameterVec&             paramVec,
-                                          double&                   chi2PerNDF,
-                                          int&                      NDF)
+void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  fSignalVector,
+                                          const PeakTimeWidVec      fPeakVals,
+                                          int                       fStartTime,
+                                          int                       fEndTime,
+                                          ParameterVec&             fparamVec,
+                                          double&                   fchi2PerNDF,
+                                          int&                      fNDF,
+					  std::vector<float>*	    fSignalCorrection,
+					  bool			    fDoSignalCorrection)
 {
-    int size = EndTime - StartTime;
-    int NPeaks = PeakVals.size();
+    int size = fEndTime - fStartTime + 1;
+    int NPeaks = fPeakVals.size();
 
     // #############################################
     // ### If size < 0 then set the size to zero ###
     // #############################################
-    if(EndTime - StartTime < 0){size = 0;}
+    if(fEndTime - fStartTime < 0){size = 0;}
    
     // --- TH1D HitSignal ---
-    TH1F hitSignal("hitSignal","",std::max(size,1),StartTime,EndTime);
+    TH1F hitSignal("hitSignal","",std::max(size,1),fStartTime,fEndTime+1);
     hitSignal.Sumw2();
    
     // #############################
     // ### Filling the histogram ###
     // #############################
-    for(int i = StartTime; i < EndTime; i++)
+    for(int i = fStartTime; i < fEndTime+1; i++)
     {
-        hitSignal.Fill(i,SignalVector[i]);
+	if(!fDoSignalCorrection){hitSignal.Fill(i,fSignalVector[i]);}
+	else{hitSignal.Fill(i,fSignalVector[i]-fSignalCorrection->at(i));}
     }
 
     // ################################################
     // ### Building TFormula for basic Exponentials ###
     // ################################################
-    std::string eqn = "";  // string for equation for Exponentials fit
-    std::stringstream numConv;
+    std::string eqn = CreateFitFunction(NPeaks);
 
-    for(int i = 0; i < NPeaks; i++)
-    {
-        eqn.append("+( [");
-        numConv.str("");
-        numConv << 2*(i+1);
-        eqn.append(numConv.str());
-        eqn.append("] * exp(0.4*(x-[");
-        numConv.str("");
-        numConv << 2*(i+1)+1;
-        eqn.append(numConv.str());
-        eqn.append("])/[");
-        numConv.str("");
-        numConv << 0;
-        eqn.append(numConv.str());    
-        eqn.append("]) / ( 1 + exp(0.4*(x-[");
-        numConv.str("");
-        numConv << 2*(i+1)+1;
-        eqn.append(numConv.str()); 
-        eqn.append("])/[");       
-        numConv.str("");
-        numConv << 1;
-        eqn.append(numConv.str()); 
-    eqn.append("]) ) )");
-    }
-    
     // --------------------------------------
     // --- TF1 function for Exponentials  ---
     // --------------------------------------
 
-    TF1 Exponentials("Exponentials",eqn.c_str(),0,std::max(size,1));
-   
+    //TF1 Exponentials("Exponentials",eqn.c_str(),0,std::max(size,1));
+    TF1 Exponentials("Exponentials",eqn.c_str(),fStartTime,fEndTime+1);
+
     Exponentials.SetParameter(0, 0.5);
     Exponentials.SetParameter(1, 0.5);
-    Exponentials.SetParLimits(0, 0.01, 2.);
-    Exponentials.SetParLimits(1, 0.01, 2.);
+    Exponentials.SetParLimits(0, fMinTau, fMaxTau);
+    Exponentials.SetParLimits(1, fMinTau, fMaxTau);
     double amplitude;
-    double peakMean;	
-    double peakMeanShift=2.;
+    double peakMean;
+
+    double peakMeanShift=2;
     double peakMeanRange=5.;
     double peakMeanSeed;
     double peakMeanRangeLow;
@@ -866,146 +906,250 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  SignalVector
 
     	for(int i = 0; i < NPeaks; i++)
     	{
-        peakMean = std::get<0>(PeakVals.at(i));
+        peakMean = std::get<0>(fPeakVals.at(i));
         peakMeanSeed=peakMean-peakMeanShift;
         peakMeanRangeLow=peakMeanSeed-peakMeanRange;
         peakMeanRangeHi=peakMeanSeed+peakMeanRange;	
-	std::cout << "peakMean" << i << ": " << peakMean << std::endl;
-        amplitude = SignalVector[peakMean];
+	//std::cout << "peakMean " << i << ": " << peakMean << std::endl;
+        amplitude = fSignalVector[peakMean];
 
 	Exponentials.SetParameter(2*(i+1), 1.65*amplitude);
 	Exponentials.SetParLimits(2*(i+1), 0.1*amplitude, 2*1.65*amplitude);
-	Exponentials.SetParameter(2*(i+1)+1, peakMeanSeed);	
-	
+	Exponentials.SetParameter(2*(i+1)+1, peakMeanSeed);
+
 	    if(NPeaks == 1)
 	    {
 	    Exponentials.SetParLimits(2*(i+1)+1, peakMeanRangeLow, peakMeanRangeHi);
 	    }
 	    else if(NPeaks >= 2 && i == 0)
 	    {
-	    double HalfDistanceToNextMean = 0.5*(std::get<0>(PeakVals.at(i+1)) - peakMean);
+	    double HalfDistanceToNextMean = 0.5*(std::get<0>(fPeakVals.at(i+1)) - peakMean);
 	    Exponentials.SetParLimits( 2*(i+1)+1, peakMeanRangeLow, std::min(peakMeanRangeHi, peakMeanSeed+HalfDistanceToNextMean) );
 	    }
 	    else if(NPeaks >= 2 && i == NPeaks-1)
 	    {
-	    double HalfDistanceToPrevMean = 0.5*(peakMean - std::get<0>(PeakVals.at(i-1)));
+	    double HalfDistanceToPrevMean = 0.5*(peakMean - std::get<0>(fPeakVals.at(i-1)));
 	    Exponentials.SetParLimits(2*(i+1)+1, std::max(peakMeanRangeLow, peakMeanSeed-HalfDistanceToPrevMean), peakMeanRangeHi );
 	    }
 	    else
 	    {
-	    double HalfDistanceToNextMean = 0.5*(std::get<0>(PeakVals.at(i+1)) - peakMean);
-	    double HalfDistanceToPrevMean = 0.5*(peakMean - std::get<0>(PeakVals.at(i-1)));
+	    double HalfDistanceToNextMean = 0.5*(std::get<0>(fPeakVals.at(i+1)) - peakMean);
+	    double HalfDistanceToPrevMean = 0.5*(peakMean - std::get<0>(fPeakVals.at(i-1)));
 	    Exponentials.SetParLimits(2*(i+1)+1, std::max(peakMeanRangeLow, peakMeanSeed-HalfDistanceToPrevMean), std::min(peakMeanRangeHi, peakMeanSeed+HalfDistanceToNextMean) );
-	    }
-		
-			/*if(std::get<1>(PeakVals.at(i))==999)
-			{
-				Exponentials.SetParLimits(2*(i+1), 0.1*amplitude, 2*1.65*amplitude);
-				Exponentials.SetParLimits(2*(i+1)+1, std::get<2>(PeakVals.at(i)), std::get<3>(PeakVals.at(i)));
-			}*/
+	    }	
 	}
 
     // ###########################################
     // ### PERFORMING THE TOTAL FIT OF THE HIT ###
     // ###########################################
     try
-      { hitSignal.Fit(&Exponentials,"QNRWM","", StartTime, EndTime);}
+      { hitSignal.Fit(&Exponentials,"QNRWM","", fStartTime, fEndTime+1);}
     catch(...)
       {mf::LogWarning("DPRawHitFinder") << "Fitter failed finding a hit";}
    
     // ##################################################
     // ### Getting the fitted parameters from the fit ###
     // ##################################################
-    chi2PerNDF = (Exponentials.GetChisquare() / Exponentials.GetNDF());
-    NDF        = Exponentials.GetNDF();
+    fchi2PerNDF = (Exponentials.GetChisquare() / Exponentials.GetNDF());
+    fNDF        = Exponentials.GetNDF();
 
-    paramVec.emplace_back(Exponentials.GetParameter(0),Exponentials.GetParError(0));
-    paramVec.emplace_back(Exponentials.GetParameter(1),Exponentials.GetParError(1));
+    //std::cout << "Exponentials.GetNDF(): " << Exponentials.GetNDF() << std::endl;
+    //std::cout << "Fit chi2perNDF: " << fchi2PerNDF << std::endl;
+
+    fparamVec.emplace_back(Exponentials.GetParameter(0),Exponentials.GetParError(0));
+    fparamVec.emplace_back(Exponentials.GetParameter(1),Exponentials.GetParError(1));
  
     for(int i = 0; i < NPeaks; i++)
     {
-        paramVec.emplace_back(Exponentials.GetParameter(2*(i+1)),Exponentials.GetParError(2*(i+1)));
-        paramVec.emplace_back(Exponentials.GetParameter(2*(i+1)+1),Exponentials.GetParError(2*(i+1)+1));
+        fparamVec.emplace_back(Exponentials.GetParameter(2*(i+1)),Exponentials.GetParError(2*(i+1)));
+        fparamVec.emplace_back(Exponentials.GetParameter(2*(i+1)+1),Exponentials.GetParError(2*(i+1)+1));
     }
     Exponentials.Delete();
     hitSignal.Delete();
 }//<----End FitExponentials
 
-// --------------------------------------------------------------------------------------------
-// Find point of max deviation between fit and signal
-// --------------------------------------------------------------------------------------------
-void hit::DPRawHitFinder::FindMaxDeviation(const std::vector<float>  SignalVector,
-					   int			     NPeaks,
-                                           int                       StartTime,
-                                           int                       EndTime,
-                                           ParameterVec              paramVec,
-					   int&                      BinMaxPosDeviation,
-					   int&                      BinMaxNegDeviation)
+
+//---------------------------------------------------------------------------------------------
+void hit::DPRawHitFinder::FindPeakWithMaxDeviation(const std::vector<float> fSignalVector,
+			  	  		   int			    fNPeaks,
+                          	  		   int                      fStartTime,
+                          	  		   int                      fEndTime,
+                          	  		   ParameterVec             fparamVec,
+                         	  		   PeakTimeWidVec           fpeakVals,
+			  	 		   PeakDevVec& 		    fPeakDev)
 {
-    int size = EndTime - StartTime;
-    // #############################################
-    // ### If size < 0 then set the size to zero ###
-    // #############################################
-    if(EndTime - StartTime < 0){size = 0;}
+//   int size = fEndTime - fStartTime + 1;
+//    if(fEndTime - fStartTime < 0){size = 0;}
 
-    // ################################################
-    // ### Building TFormula for basic Exponentials ###
-    // ################################################
+    std::string eqn = CreateFitFunction(fNPeaks);  // string for equation of Exponentials fit
 
-    std::string eqn = "";  // string for equation for Exponentials fit
-    std::stringstream numConv;
-    
-    for(int i = 0; i < NPeaks; i++)
-    {
-        eqn.append("+( [");
-        numConv.str("");
-        numConv << 2*(i+1);
-        eqn.append(numConv.str());
-        eqn.append("] * exp(0.4*(x-[");
-        numConv.str("");
-        numConv << 2*(i+1)+1;
-        eqn.append(numConv.str());
-        eqn.append("])/[");
-        numConv.str("");
-        numConv << 0;
-        eqn.append(numConv.str());    
-        eqn.append("]) / ( 1 + exp(0.4*(x-[");
-        numConv.str("");
-        numConv << 2*(i+1)+1;
-        eqn.append(numConv.str()); 
-        eqn.append("])/[");       
-        numConv.str("");
-        numConv << 1;
-        eqn.append(numConv.str()); 
-    eqn.append("]) ) )");
-    }
-    
-    // --------------------------------------
-    // --- TF1 function for Exponentials  ---
-    // --------------------------------------
-    TF1 Exponentials("Exponentials",eqn.c_str(),0,std::max(size,1));
+    TF1 Exponentials("Exponentials",eqn.c_str(),fStartTime,fEndTime+1);
 
- 	for(size_t i=0; i < paramVec.size(); i++)
+ 	for(size_t i=0; i < fparamVec.size(); i++)
     	{
-    	Exponentials.SetParameter(i, paramVec[i].first);
+    	Exponentials.SetParameter(i, fparamVec[i].first);
 	}
 
     // ##########################################################################
-    // ### Finding the time bin with the max deviation between fit and signal ###
+    // ### Finding the peak with the max chi2 fit and signal ###
     // ##########################################################################
-    double MaxPosDeviation=0;
-    double MaxNegDeviation=0;
-    BinMaxPosDeviation=0;
-    BinMaxNegDeviation=0;
-    for(int i = StartTime; i < EndTime; i++)
+    double Chi2PerNDFPeak;
+    double MaxPosDeviation;
+    double MaxNegDeviation;
+    int BinMaxPosDeviation;
+    int BinMaxNegDeviation;
+    for(int i = 0; i < fNPeaks; i++)
     {
-        if( (Exponentials(i+0.5)-SignalVector[i]) > MaxPosDeviation){MaxPosDeviation = Exponentials(i+0.5)-SignalVector[i]; BinMaxPosDeviation = i;}
-	if( (Exponentials(i+0.5)-SignalVector[i]) < MaxNegDeviation){MaxNegDeviation = Exponentials(i+0.5)-SignalVector[i]; BinMaxNegDeviation = i;}
+	Chi2PerNDFPeak = 0.;
+	MaxPosDeviation=0.;
+	MaxNegDeviation=0.;
+	BinMaxPosDeviation=0;
+	BinMaxNegDeviation=0;
+
+    	for(int j = std::get<2>(fpeakVals.at(i)); j < std::get<3>(fpeakVals.at(i))+1; j++)
+	{
+            if( (Exponentials(j+0.5)-fSignalVector[j]) > MaxPosDeviation && j != std::get<0>(fpeakVals.at(i)) )
+	    {
+	    MaxPosDeviation = Exponentials(j+0.5)-fSignalVector[j];
+	    BinMaxPosDeviation = j;
+	    }
+	    if( (Exponentials(j+0.5)-fSignalVector[j]) < MaxNegDeviation && j != std::get<0>(fpeakVals.at(i)) )
+	    {
+	    MaxNegDeviation = Exponentials(j+0.5)-fSignalVector[j];
+	    BinMaxNegDeviation = j;
+	    }
+	Chi2PerNDFPeak += pow((Exponentials(j+0.5)-fSignalVector[j])/sqrt(fSignalVector[j]),2);
+	}
+
+	if(BinMaxNegDeviation != 0)
+	{
+	Chi2PerNDFPeak /= static_cast<double>((std::get<3>(fpeakVals.at(i))-std::get<2>(fpeakVals.at(i))));
+	fPeakDev.emplace_back(Chi2PerNDFPeak,i,BinMaxNegDeviation,BinMaxPosDeviation);
+	}
     }
-    std::cout << "MaxPosDeviation: " << MaxPosDeviation << std::endl;
-    std::cout << "MaxNegDeviation: " << MaxNegDeviation << std::endl;
+
+std::sort(fPeakDev.begin(),fPeakDev.end(), [](std::tuple<double,int,int,int> const &t1, std::tuple<double,int,int,int> const &t2) {return std::get<0>(t1) > std::get<0>(t2);} );	
+Exponentials.Delete();
 }
 
+//---------------------------------------------------------------------------------------------
+std::string hit::DPRawHitFinder::CreateFitFunction(int fNPeaks)
+{
+    std::string feqn = "";  // string for equation for Exponentials fit
+    std::stringstream numConv;
+    
+    for(int i = 0; i < fNPeaks; i++)
+    {
+        feqn.append("+( [");
+        numConv.str("");
+        numConv << 2*(i+1);
+        feqn.append(numConv.str());
+        feqn.append("] * exp(0.4*(x-[");
+        numConv.str("");
+        numConv << 2*(i+1)+1;
+        feqn.append(numConv.str());
+        feqn.append("])/[");
+        numConv.str("");
+        numConv << 0;
+        feqn.append(numConv.str());    
+        feqn.append("]) / ( 1 + exp(0.4*(x-[");
+        numConv.str("");
+        numConv << 2*(i+1)+1;
+        feqn.append(numConv.str()); 
+        feqn.append("])/[");       
+        numConv.str("");
+        numConv << 1;
+        feqn.append(numConv.str()); 
+    feqn.append("]) ) )");
+    }
+
+return feqn;
+}
+
+
+//---------------------------------------------------------------------------------------------
+void hit::DPRawHitFinder::AddPeak(std::tuple<double,int,int,int> fPeakDevCand,
+				  PeakTimeWidVec& fpeakValsTemp)
+{
+int PeakNumberWithNewPeak = std::get<1>(fPeakDevCand);
+int NewPeakMax = std::get<2>(fPeakDevCand);
+int OldPeakMax = std::get<0>(fpeakValsTemp.at(PeakNumberWithNewPeak));
+int OldPeakOldStart = std::get<2>(fpeakValsTemp.at(PeakNumberWithNewPeak));
+int OldPeakOldEnd = std::get<3>(fpeakValsTemp.at(PeakNumberWithNewPeak));
+			    
+int NewPeakStart=0;
+int NewPeakEnd=0;
+int OldPeakNewStart=0;
+int OldPeakNewEnd=0;
+int DistanceBwOldAndNewPeak=0;
+
+    if(NewPeakMax<OldPeakMax)
+    {
+    NewPeakStart = OldPeakOldStart;
+    OldPeakNewEnd = OldPeakOldEnd;
+    DistanceBwOldAndNewPeak = OldPeakMax - NewPeakMax;
+    NewPeakEnd = NewPeakMax+0.5*(DistanceBwOldAndNewPeak-(DistanceBwOldAndNewPeak%2));
+    if(DistanceBwOldAndNewPeak%2 == 0) NewPeakEnd -= 1; 
+    OldPeakNewStart = NewPeakEnd+1;
+    }
+    else if(OldPeakMax<NewPeakMax)
+    {
+    NewPeakEnd = OldPeakOldEnd;
+    OldPeakNewStart = OldPeakOldStart;
+    DistanceBwOldAndNewPeak = NewPeakMax - OldPeakMax;
+    OldPeakNewEnd = OldPeakMax+0.5*(DistanceBwOldAndNewPeak-(DistanceBwOldAndNewPeak%2));
+    if(DistanceBwOldAndNewPeak%2 == 0) OldPeakNewEnd -= 1;
+    NewPeakStart = OldPeakNewEnd+1;
+    }
+    else if(OldPeakMax==NewPeakMax){return;} //This shouldn't happen
+
+fpeakValsTemp.at(PeakNumberWithNewPeak) = std::make_tuple(OldPeakMax,0,OldPeakNewStart,OldPeakNewEnd);
+fpeakValsTemp.emplace_back(NewPeakMax,0,NewPeakStart,NewPeakEnd);
+std::sort(fpeakValsTemp.begin(),fpeakValsTemp.end(), [](std::tuple<int,int,int,int> const &t1, std::tuple<int,int,int,int> const &t2) {return std::get<0>(t1) < std::get<0>(t2);} );
+
+return;
+}
+
+
+//---------------------------------------------------------------------------------------------
+void hit::DPRawHitFinder::SplitPeak(std::tuple<double,int,int,int> fPeakDevCand,
+				    PeakTimeWidVec& fpeakValsTemp)
+{
+int PeakNumberWithNewPeak = std::get<1>(fPeakDevCand);
+int OldPeakOldStart = std::get<2>(fpeakValsTemp.at(PeakNumberWithNewPeak));
+int OldPeakOldEnd = std::get<3>(fpeakValsTemp.at(PeakNumberWithNewPeak));
+int WidthOldPeakOld = OldPeakOldEnd - OldPeakOldStart;
+
+if(WidthOldPeakOld<3) {return;} //can't split peaks with widths < 3
+
+int NewPeakMax = 0;
+int NewPeakStart = 0;
+int NewPeakEnd = 0;
+int OldPeakNewMax = 0; 
+int OldPeakNewStart = 0;
+int OldPeakNewEnd = 0;
+
+
+OldPeakNewStart = OldPeakOldStart;
+NewPeakEnd = OldPeakOldEnd;
+
+OldPeakNewEnd = OldPeakNewStart + 0.5*(WidthOldPeakOld + (WidthOldPeakOld%2));
+NewPeakStart = OldPeakNewEnd+1;
+
+int WidthOldPeakNew = OldPeakNewEnd-OldPeakNewStart;
+int WidthNewPeak = NewPeakEnd-NewPeakStart;
+
+OldPeakNewMax = OldPeakNewStart + 0.5*(WidthOldPeakNew - (WidthOldPeakNew%2));
+NewPeakMax = NewPeakStart + 0.5*(WidthNewPeak - (WidthNewPeak%2));
+
+fpeakValsTemp.at(PeakNumberWithNewPeak) = std::make_tuple(OldPeakNewMax,0,OldPeakNewStart,OldPeakNewEnd);
+fpeakValsTemp.emplace_back(NewPeakMax,0,NewPeakStart,NewPeakEnd);
+std::sort(fpeakValsTemp.begin(),fpeakValsTemp.end(), [](std::tuple<int,int,int,int> const &t1, std::tuple<int,int,int,int> const &t2) {return std::get<0>(t1) < std::get<0>(t2);} );
+
+return;
+}
+
+//---------------------------------------------------------------------------------------------
 void hit::DPRawHitFinder::doBinAverage(const std::vector<float>& inputVec,
                                       std::vector<float>&       outputVec,
                                       size_t                    binsToAverage) const
@@ -1035,7 +1179,7 @@ void hit::DPRawHitFinder::doBinAverage(const std::vector<float>& inputVec,
     return;
 }
     
-    
+//---------------------------------------------------------------------------------------------    
 void hit::DPRawHitFinder::reBin(const std::vector<float>& inputVec,
                                std::vector<float>&       outputVec,
                                size_t                    nBinsToCombine) const
