@@ -135,6 +135,9 @@ namespace tca {
     tjs.DeltaRayTag       = pset.get< std::vector<short>>("DeltaRayTag", {-1, -1, -1});
     tjs.MuonTag           = pset.get< std::vector<short>>("MuonTag", {-1, -1, -1, - 1});
     tjs.ShowerTag         = pset.get< std::vector<float>>("ShowerTag", {-1, -1, -1, -1, -1, -1});
+    
+    tjs.SaveShowerTree    = pset.get< bool >("SaveShowerTree", false);
+
     fChkStopCuts          = pset.get< std::vector<float>>("ChkStopCuts", {-1, -1, -1});
     fMaxTrajSep           = pset.get< float >("MaxTrajSep", 4);
     
@@ -460,6 +463,9 @@ namespace tca {
           fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
           FindShowers(tjs, fCTP);
         }
+
+	std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
+	showertree->Fill();
       } // make showers
       // Match3D should be the last thing called for this tpcid
       Match3D(tpcid);
@@ -6894,5 +6900,37 @@ namespace tca {
     }
   }
 
+
+  void TrajClusterAlg::DefineTree(TTree* t) {
+    showertree = t;
+
+    showertree->Branch("BeginWir", &tjs.stv.BeginWir);
+    showertree->Branch("BeginTim", &tjs.stv.BeginTim);
+    showertree->Branch("BeginAng", &tjs.stv.BeginAng);
+    showertree->Branch("BeginChg", &tjs.stv.BeginChg);
+    showertree->Branch("BeginVtx", &tjs.stv.BeginVtx);
+
+    showertree->Branch("EndWir", &tjs.stv.EndWir);
+    showertree->Branch("EndTim", &tjs.stv.EndTim);
+    showertree->Branch("EndAng", &tjs.stv.EndAng);
+    showertree->Branch("EndChg", &tjs.stv.EndChg);
+    showertree->Branch("EndVtx", &tjs.stv.EndVtx);
+
+    showertree->Branch("MCSMom", &tjs.stv.MCSMom);
+
+    showertree->Branch("PlaneNum", &tjs.stv.PlaneNum);
+    showertree->Branch("ShowerID", &tjs.stv.ShowerID);
+    showertree->Branch("IsShowerParent", &tjs.stv.IsShowerParent);
+    showertree->Branch("StageNum", &tjs.stv.StageNum);
+
+    showertree->Branch("Envelope", &tjs.stv.Envelope);
+    showertree->Branch("EnvPlane", &tjs.stv.EnvPlane);
+    showertree->Branch("EnvStage", &tjs.stv.EnvStage);
+    showertree->Branch("EnvShowerID", &tjs.stv.EnvShowerID);
+
+    showertree->Branch("nStages", &tjs.stv.nStages);
+    showertree->Branch("nPlanes", &tjs.stv.nPlanes);
+
+  } // end DefineTree
 
 } // namespace cluster

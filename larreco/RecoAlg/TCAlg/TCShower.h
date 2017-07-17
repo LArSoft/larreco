@@ -68,6 +68,9 @@ namespace tca {
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss);
   unsigned short FarEnd(TjStuff& tjs, const Trajectory& tj, ShowerStruct& ss);
 
+  void SaveTjInfo(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList, unsigned int stageNum);
+  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotIndex,unsigned int stageNum);
+  void SaveTjInfoStuff(TjStuff& tjs,  const CTP_t& inCTP, Trajectory& tj,  unsigned int stageNum);
 }
 
 

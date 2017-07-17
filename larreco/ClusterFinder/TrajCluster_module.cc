@@ -17,11 +17,15 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "canvas/Utilities/InputTag.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 
 //LArSoft includes
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "lardataobj/RecoBase/PFParticle.h"
+
+//root includes
+#include "TTree.h"
 
 // ... more includes in the implementation section
 
@@ -46,10 +50,12 @@ namespace cluster {
     
     void reconfigure(fhicl::ParameterSet const & pset) override;
     void produce(art::Event & evt) override;
+    void beginJob();
     void endJob();
     
   private:
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
+    TTree* showertree;
     
   }; // class TrajCluster
   
@@ -79,7 +85,7 @@ namespace cluster {
 #include "lardataobj/RecoBase/Shower.h"
 
 namespace cluster {
-  
+
   //----------------------------------------------------------------------------
   void TrajCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
@@ -113,6 +119,15 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
   } // TrajCluster::TrajCluster()
+
+  // NEW FUNCTION
+  //----------------------------------------------------------------------------
+  void TrajCluster::beginJob()
+  {
+    art::ServiceHandle<art::TFileService> tfs;
+    showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
+    fTCAlg->DefineTree(showertree);
+  }
   
   //----------------------------------------------------------------------------
   void TrajCluster::endJob()
