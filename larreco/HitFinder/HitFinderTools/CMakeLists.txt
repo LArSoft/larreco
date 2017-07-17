@@ -1,7 +1,7 @@
 cet_enable_asserts()
 
 set( hitfinder_tool_lib_list
-			larcore_Geometry
+			larcorealg_Geometry
 			lardataobj_RecoBase
 			larcore_Geometry_Geometry_service
 			lardata_Utilities
@@ -28,31 +28,8 @@ set( hitfinder_tool_lib_list
 			${ROOT_BASIC_LIB_LIST}
     )
 
-
-simple_plugin( CandHitDerivative  "tool"
-               ${hitfinder_tool_lib_list}
-               BASENAME_ONLY
-             )
-
-simple_plugin( CandHitStandard  "tool"
-               ${hitfinder_tool_lib_list}
-               BASENAME_ONLY
-             )
-
-simple_plugin( WaveformAlgs  "tool"
-               ${hitfinder_tool_lib_list}
-               BASENAME_ONLY
-             )
-
-simple_plugin( PeakFitterGaussian "tool"
-               ${hitfinder_tool_lib_list}
-               BASENAME_ONLY
-             )
-
-simple_plugin( PeakFitterGaussElimination "tool"
-               ${hitfinder_tool_lib_list}
-               BASENAME_ONLY
-             )
+art_make(TOOL_LIBRARIES ${hitfinder_tool_lib_list}
+        )
 
 install_headers()
 install_source()
