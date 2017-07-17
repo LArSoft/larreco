@@ -39,8 +39,9 @@ namespace tca {
     "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
-    "ShowerParent",
-    "ShowerTj"
+    "ShowerTj",
+    "MergeOverlap",
+    "MergeSubShowers"
   };
 
   const std::vector<std::string> StopFlagNames {
@@ -56,8 +57,8 @@ namespace tca {
     "VtxTrjTried",
     "OnDeadWire",
     "VtxRefined",
-    "NiceVtx",
-    "kInShower"
+    "InShower",
+    "VtxKilled"
   } ;
   
   geo::PlaneID DecodeCTP(CTP_t CTP) {

@@ -7,7 +7,7 @@
 #include "larreco/RecoAlg/PMAlgCosmicTagger.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 

@@ -63,6 +63,39 @@ gaus_hitfinder:
 
 }
 
+dpraw_hitfinder:
+{
+ module_type:          	"DPRawHitFinder"
+ CalDataModuleLabel:   	"caldata"
+ MinSig:               	10    		# peak threshold for hit fitting (in ADC). Peaks with lower amplitudes are neither fitted nor stored.
+ TicksToStopPeakFinder: 4		# when walking along waveform to find start and end points of a peak, stop when current tick is followed by minimum "TicksToStopPeakFinder" ticks 						# with equal or higher ADC counts (stop anyway if ADC count of a tick is <= 0)
+ MinWidth:             	10              # width threshold for hit fitting (in ADC). Peaks with smaller widths are neither fitted nor stored.
+ MinADCSumOverWidth:    2.4             # threshold for ADC sum over width (ADC per ticks). Peaks with smaller values neither fitted nor stored.
+ MaxMultiHit:          	10              # maximum number of hits in multi fit for first fit attempt. If there are more hits, split in two ore more multi fits.
+					# When refitting, maximum number of hits in multi fit is: 1) not greater than 2xMaxMultiHit and 2) not greater than 3x number of hits before re-fitting
+ Chi2NDF:              	2000            # maximum chi square / NDF allowed for a hit to be saved (set very high by default)
+ Chi2NDFRetry:         	25.0            # if the first hit returns a Chi2/NDF greater than this, try to re-fit
+ TryNplus1Fits:        	true		# true: will try to re-fit poorly modeled hits (chi2PerNDF>Chi2NDFRetry) with n+1 exponentials
+ 					# false will NOT try to re-fit poorly modled hits
+ ChargeNorm:           	1		# normalizations that put integral of fit for a hit to same value as the ADC sum of this hit
+ NumBinsToAverage:     	0		# 0 or 1 = no averaging
+ MinTau:		0.01		# mainimum value of the rising and falling time constants of the fit, in ticks. Sets a minimum width for the fit (~ width the electronic shaping function)
+ MaxTau:		5		# maximum value of the rising and falling time constants of the fit, in ticks. Limits the width of the fit (maximum width depends on drift distance etc.)
+
+ GroupMaxDistance:	10		# max distance between two peaks for grouping. grouped hits are fitted together.
+ DoMergePeaks:		true		# true: peak merging (merge two peaks into one) before fitting enabled
+ MergeADCSumThreshold:	0.2		# merge two peaks only if (ADC sum of the smaller peak) < MergeADCSumThreshold*(ADC sum of the bigger peak)
+ MergeMaxADCThreshold:	0.2		# merge two peaks only if (height of the smaller peak) < MergeADCSumThreshold*(height sum of the bigger peak)
+
+ FilterHits:           	false           # true = do not keep undesired hits according to settings of HitFilterAlg object
+ HitFilterAlg:
+ {
+   AlgName: "HitFilterAlg"
+   MinPulseHeight: [5.0, 5.0, 5.0]      #minimum hit peak amplitude per plane
+   MinPulseSigma:  [1.0, 1.0, 1.0]      #minimum hit rms per plane
+ }
+
+}
 
 standard_rffhitfinderalg:
 {

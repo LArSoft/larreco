@@ -2,7 +2,7 @@
 art_make( LIB_LIBRARIES	larevt_Filters
 		        lardataobj_RecoBase
 		        lardata_ArtDataHelper
-		        larcore_Geometry
+		        larcorealg_Geometry
 		        larcore_Geometry_Geometry_service
                         lardataobj_AnalysisBase
                         lardata_Utilities
@@ -25,7 +25,7 @@ art_make( LIB_LIBRARIES	larevt_Filters
                         lardata_RecoObjects larreco_Deprecated
                         lardataobj_RecoBase
 		        lardata_ArtDataHelper
-                        larcore_Geometry
+                        larcorealg_Geometry
                         larcore_Geometry_Geometry_service
                         larsim_Simulation lardataobj_Simulation
                         lardataobj_RawData

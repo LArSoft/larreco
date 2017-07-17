@@ -29,7 +29,7 @@ recob::Track pma::convertFrom(const pma::Track3D& src, unsigned int tidx, int pd
 	{
         auto const & point3d = src[i]->Point3D();
         positions.emplace_back(point3d.X(), point3d.Y(), point3d.Z());
-        momenta.emplace_back(0, 0, 0);
+        momenta.push_back(src.GetDirection3D(i));
         outFlags.emplace_back(h++, recob::TrajectoryPointFlags::makeMask());
 	}
 
@@ -698,10 +698,10 @@ bool pma::PMAlgTracker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 		TVector3 proj2 = pma::GetProjectionToSegment(endpoint2, trk1back1, trk1back0);
 		double distProj2 = sqrt( pma::Dist2(endpoint2, proj2) );
 
-		TVector3 dir1 = trk1->Segments().back()->GetDirection3D();
-		TVector3 dir2 = trk2->Segments().front()->GetDirection3D();
+		pma::Vector3D dir1 = trk1->Segments().back()->GetDirection3D();
+		pma::Vector3D dir2 = trk2->Segments().front()->GetDirection3D();
 
-		cos3d = dir1 * dir2;
+		cos3d = dir1.Dot(dir2);
 
 		if ((cos3d > cosThr) && (distProj1 < distProjThr) && (distProj2 < distProjThr))
 			return true;
@@ -709,11 +709,11 @@ bool pma::PMAlgTracker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 		{
 			const double maxCosXZ = 0.996195; // 5 deg
 
-			TVector3 dir1_xz(dir1.X(), 0., dir1.Z());
-			dir1_xz *= 1.0 / dir1_xz.Mag();
+			pma::Vector3D dir1_xz(dir1.X(), 0., dir1.Z());
+			dir1_xz *= 1.0 / dir1_xz.R();
 
-			TVector3 dir2_xz(dir2.X(), 0., dir2.Z());
-			dir2_xz *= 1.0 / dir2_xz.Mag();
+			pma::Vector3D dir2_xz(dir2.X(), 0., dir2.Z());
+			dir2_xz *= 1.0 / dir2_xz.R();
 
 			if ((fabs(dir1_xz.Z()) > maxCosXZ) && (fabs(dir2_xz.Z()) > maxCosXZ))
 			{
@@ -731,7 +731,7 @@ bool pma::PMAlgTracker::areCoLinear(pma::Track3D* trk1, pma::Track3D* trk2,
 			
 				double cosThrXZ = cos(0.5 * acos(cosThr));
 				double distProjThrXZ = 0.5 * distProjThr;
-				double cosXZ = dir1_xz * dir2_xz;
+				double cosXZ = dir1_xz.Dot(dir2_xz);
 				if ((cosXZ > cosThrXZ) && (distProj1 < distProjThrXZ) && (distProj2 < distProjThrXZ))
 					return true;
 			}

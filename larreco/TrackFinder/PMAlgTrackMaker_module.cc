@@ -44,9 +44,9 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/TPCGeo.h"
-#include "larcore/Geometry/PlaneGeo.h"
-#include "larcore/Geometry/WireGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -605,7 +605,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		mf::LogVerbatim("Summary") << pfps->size() << " PFParticles created in total.";
 	}
 
-    for (const auto & ct : *cosmicTags) { std::cout << "Cosmic tag: " << ct << std::endl; }
+    // for (const auto & ct : *cosmicTags) { std::cout << "Cosmic tag: " << ct << std::endl; }
 
 	evt.put(std::move(tracks));
 	evt.put(std::move(allsp));

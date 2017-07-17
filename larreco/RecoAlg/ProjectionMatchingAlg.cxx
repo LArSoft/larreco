@@ -402,7 +402,7 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 	size_t view = 0; size_t countviews = 0;
 	while (view < 3)
 	{
-		mf::LogWarning("ProjectionMatchinAlg") << "collecting hits from view: " << view;
+		mf::LogVerbatim("ProjectionMatchinAlg") << "collecting hits from view: " << view;
 		if (!tpcgeom.HasPlane(view)) {++view; continue;}
 
 		// select hits only for a single view
@@ -416,9 +416,9 @@ pma::Track3D* pma::ProjectionMatchingAlg::buildShowerSeg(
 		std::vector<art::Ptr<recob::Hit> > hitsfilter;
 		TVector2 proj_pr = pma::GetProjectionToPlane(vtxv3, view, tpc, cryo);
 	
-		mf::LogWarning("ProjectionMatchinAlg") << "start filter out: ";
+		mf::LogVerbatim("ProjectionMatchinAlg") << "start filter out: ";
 		FilterOutSmallParts(2.0, hitsview, hitsfilter, proj_pr);
-		mf::LogWarning("ProjectionMatchingAlg") << "after filter out";
+		mf::LogVerbatim("ProjectionMatchingAlg") << "after filter out";
 
 		for (size_t h = 0; h < hitsfilter.size(); ++h)
 			hitstrk.push_back(hitsfilter[h]);
@@ -854,9 +854,9 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 		if ((segFront->Length() < 0.8) && (segFront1->Length() > 5.0))
 			segFront = segFront1;
 	}
-	TVector3 dirFront = segFront->GetDirection3D();
-	TVector3 dirFrontXZ(dirFront.X(), 0., dirFront.Z());
-	dirFrontXZ *= 1.0 / dirFrontXZ.Mag();
+	pma::Vector3D dirFront = segFront->GetDirection3D();
+	pma::Vector3D dirFrontXZ(dirFront.X(), 0., dirFront.Z());
+	dirFrontXZ *= 1.0 / dirFrontXZ.R();
 
 	pma::Segment3D* segBack = trk.Segments().back();
 	if (trk.Segments().size() > 2)
@@ -865,9 +865,9 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 		if ((segBack->Length() < 0.8) && (segBack1->Length() > 5.0))
 			segBack = segBack1;
 	}
-	TVector3 dirBack = segBack->GetDirection3D();
-	TVector3 dirBackXZ(dirBack.X(), 0., dirBack.Z());
-	dirBackXZ *= 1.0 / dirBackXZ.Mag();
+	pma::Vector3D dirBack = segBack->GetDirection3D();
+	pma::Vector3D dirBackXZ(dirBack.X(), 0., dirBack.Z());
+	dirBackXZ *= 1.0 / dirBackXZ.R();
 
 	if ((fabs(dirFrontXZ.Z()) < maxCosXZ) && (fabs(dirBackXZ.Z()) < maxCosXZ))
 	{
@@ -982,9 +982,9 @@ void pma::ProjectionMatchingAlg::guideEndpoints(
 	{
 		seg0 = seg1;
 	}
-	TVector3 dir0 = seg0->GetDirection3D();
-	TVector3 dir0XZ(dir0.X(), 0., dir0.Z());
-	dir0XZ *= 1.0 / dir0XZ.Mag();
+	pma::Vector3D dir0 = seg0->GetDirection3D();
+	pma::Vector3D dir0XZ(dir0.X(), 0., dir0.Z());
+	dir0XZ *= 1.0 / dir0XZ.R();
 
 	if (fabs(dir0XZ.Z()) < maxCosXZ) { return; } // not parallel to wire planes => exit
 

@@ -508,7 +508,8 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
 
   for (std::map<int,double>::iterator distanceToEndIt = distanceToEnd.begin(); distanceToEndIt != distanceToEnd.end(); ++distanceToEndIt)
     avDistanceToEnd += distanceToEndIt->second;
-  avDistanceToEnd /= distanceToEnd.size();
+  if (distanceToEnd.size() != 0)
+    avDistanceToEnd /= distanceToEnd.size();
 
   if (fDebug > 2)
     std::cout << "Distance to vertex is " << avDistanceToVertex << " and distance to end is " << avDistanceToEnd << std::endl;

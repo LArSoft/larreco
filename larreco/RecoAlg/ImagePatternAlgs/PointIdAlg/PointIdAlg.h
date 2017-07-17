@@ -23,11 +23,11 @@
 // LArSoft includes
 #include "canvas/Persistency/Common/FindOneP.h" 
 #include "canvas/Persistency/Common/FindManyP.h" 
-#include "larcore/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/GeometryCore.h"
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/TPCGeo.h"
-#include "larcore/Geometry/PlaneGeo.h"
-#include "larcore/Geometry/WireGeo.h"
+#include "larcorealg/Geometry/TPCGeo.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
@@ -328,23 +328,26 @@ public:
         kNone     = 0,
         kPdgMask  = 0x00000FFF, // pdg code mask
         kTypeMask = 0x0000F000, // track type mask
-        kVtxMask  = 0x0FFF0000  // vertex flags, still can use 0xFFFF0000 if more vtx types needed
+        kVtxMask  = 0xFFFF0000  // vertex flags
     };
 
     enum ETrkType
     {
         kDelta  = 0x1000,      // delta electron
-        kMichel = 0x2000       // Michel electron
+        kMichel = 0x2000,      // Michel electron
+        kPriEl  = 0x4000,      // primary electron
+        kPriMu  = 0x8000       // primary muon
     };
 
 	enum EVtxId
 	{
 		kNuNC  = 0x0010000, kNuCC = 0x0020000, kNuPri = 0x0040000,  // nu interaction type
 		kNuE   = 0x0100000, kNuMu = 0x0200000, kNuTau = 0x0400000,  // nu flavor
-		kHadr  = 0x1000000,    // hadronic inelastic scattering
-		kPi0   = 0x2000000,    // pi0 produced in this vertex
-		kDecay = 0x4000000,    // point of particle decay
-		kConv  = 0x8000000,    // gamma conversion
+		kHadr  = 0x1000000,       // hadronic inelastic scattering
+		kPi0   = 0x2000000,       // pi0 produced in this vertex
+		kDecay = 0x4000000,       // point of particle decay
+		kConv  = 0x8000000,       // gamma conversion
+		kElectronEnd = 0x10000000 // clear end of an electron
 	};
 
     struct Config : public nnet::DataProviderAlg::Config
@@ -416,6 +419,7 @@ private:
 		size_t Wire;
 		int Drift;
 		int TPC;
+		int Cryo;
 	};
 
 	WireDrift getProjection(const TLorentzVector& tvec, unsigned int view) const;
@@ -429,6 +433,17 @@ private:
 		std::unordered_map< size_t, std::unordered_map< int, int > > & wireToDriftToVtxFlags,
 		const std::unordered_map< int, const simb::MCParticle* > & particleMap,
 		unsigned int view) const;
+
+    static float particleRange2(const simb::MCParticle & particle)
+    {
+        float dx = particle.EndX() - particle.Vx();
+        float dy = particle.EndY() - particle.Vy();
+        float dz = particle.EndZ() - particle.Vz();
+        return dx*dx + dy*dy + dz*dz;
+    }
+    bool isElectronEnd(
+        const simb::MCParticle & particle,
+        const std::unordered_map< int, const simb::MCParticle* > & particleMap) const;
 
     bool isMuonDecaying(
         const simb::MCParticle & particle,

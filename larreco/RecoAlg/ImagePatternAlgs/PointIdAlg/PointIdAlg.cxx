@@ -9,7 +9,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
-#include "larcore/Geometry/ChannelMapAlg.h" // geo::InvalidWireIDError
+#include "larcorealg/Geometry/ChannelMapAlg.h" // geo::InvalidWireIDError
 #include "larcore/CoreUtils/ServiceUtil.h" // lar::providerFrom<>()
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
@@ -789,26 +789,29 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(const TLor
 {
 	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 	nnet::TrainingDataAlg::WireDrift wd;
-	wd.Wire = 0; wd.Drift = 0; wd.TPC = -1;
+	wd.Wire = 0; wd.Drift = 0; wd.TPC = -1; wd.Cryo = -1;
 
     try
     {
     	double vtx[3] = {tvec.X(), tvec.Y(), tvec.Z()};
 	    if (fGeometry->FindTPCAtPosition(vtx).isValid)
 	    {
-	    	unsigned int cryo = fGeometry->FindCryostatAtPosition(vtx);
 	    	geo::TPCID tpcid = fGeometry->FindTPCAtPosition(vtx);
-	    	unsigned int tpc = tpcid.TPC;
-	    	
+	    	unsigned int tpc = tpcid.TPC, cryo = tpcid.Cryostat;
+
 	    	// correct for the time offset
 	    	float dx = tvec.T() * 1.e-3 * detprop->DriftVelocity();
-				if (fGeometry->TPC(tpcid).DetectDriftDirection() == 1) { dx = dx*(-1); }
-				
-				vtx[0] = tvec.X() + dx;
+	    	int driftDir = fGeometry->TPC(tpcid).DetectDriftDirection();
+			if (driftDir == 1) { dx *= -1; }
+			else if (driftDir != -1)
+			{
+			    throw cet::exception("nnet::TrainingDataAlg") << "drift direction is not X." << std::endl;
+			}
+			vtx[0] = tvec.X() + dx;
 				
 	    	wd.Wire = fGeometry->NearestWire(vtx, view, tpc, cryo);
 	    	wd.Drift = fDetProp->ConvertXToTicks(vtx[0], view, tpc, cryo);
-	    	wd.TPC = tpc;
+	    	wd.TPC = tpc; wd.Cryo = cryo;
 	    }
 	}
 	catch (const geo::InvalidWireIDError & e)
@@ -822,6 +825,65 @@ nnet::TrainingDataAlg::WireDrift nnet::TrainingDataAlg::getProjection(const TLor
 	return wd;
 }
 // ------------------------------------------------------
+
+bool nnet::TrainingDataAlg::isElectronEnd(const simb::MCParticle & particle,
+    const std::unordered_map< int, const simb::MCParticle* > & particleMap) const
+{
+    const float minElectronLength2 = 2.5*2.5;
+    const float maxDeltaLength2 = 0.15*0.15;
+
+    int pdg = abs(particle.PdgCode());
+	if (pdg != 11) return false; // should be applied only to electrons
+
+	size_t nSec = particle.NumberDaughters();
+	for (size_t d = 0; d < nSec; ++d)
+	{
+		auto d_search = particleMap.find(particle.Daughter(d));
+		if (d_search != particleMap.end())
+		{
+			auto const & daughter = *((*d_search).second);
+			int d_pdg = abs(daughter.PdgCode());
+			if (d_pdg != 22) { return false; } // not the end of the shower
+		}
+	}
+
+    float trkLength2 = 0;
+	auto const * p = &particle;
+	bool branching = false;
+	while (!branching)
+	{
+        trkLength2 += particleRange2(*p);
+        auto m_search = particleMap.find(p->Mother());
+		if (m_search != particleMap.end())
+        {
+			p = (*m_search).second;
+			int m_pdg = abs(p->PdgCode());
+			if (m_pdg == 11)
+			{
+			    nSec = p->NumberDaughters();
+			    size_t ne = 0;
+			    for (size_t d = 0; d < nSec; ++d)
+			    {
+			        auto d_search = particleMap.find(p->Daughter(d));
+			        if (d_search != particleMap.end())
+			        {
+			            auto const & daughter = *((*d_search).second);
+			            int d_pdg = abs(daughter.PdgCode());
+			            if (d_pdg == 11)
+			            {
+                        	if (particleRange2(daughter) > maxDeltaLength2) { ne++; }
+			            }
+			        }
+			    }
+			    if (ne > 1) { branching = true; }
+			}
+			else break;
+        }
+        else break;
+    }
+
+    return (trkLength2 > minElectronLength2);
+}
 
 bool nnet::TrainingDataAlg::isMuonDecaying(const simb::MCParticle & particle,
     const std::unordered_map< int, const simb::MCParticle* > & particleMap) const
@@ -877,8 +939,16 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 				}
 				break;
 
+			case 11:   // e+/-
+			    if (isElectronEnd(particle, particleMap))
+			    {
+			        flagsEnd = nnet::TrainingDataAlg::kElectronEnd;
+			    }
+				break;
+
+
 			case 13:   // mu+/-
-			    if (nnet::TrainingDataAlg::isMuonDecaying(particle, particleMap))
+			    if (isMuonDecaying(particle, particleMap))
 			    {
 			        //std::cout << "---> mu decay to electron" << std::endl;
 			        flagsEnd = nnet::TrainingDataAlg::kDecay;
@@ -1002,7 +1072,7 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		{
 			auto wd = getProjection(particle.Position(), view);
 			
-			if (wd.TPC == (int)fTPC)
+			if ((wd.TPC == (int)fTPC) && (wd.Cryo == (int)fCryo))
 			{
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsStart;
 				// std::cout << "---> flagsStart:" << flagsStart << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
@@ -1012,10 +1082,12 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 		if (flagsEnd != nnet::TrainingDataAlg::kNone)
 		{
 			auto wd = getProjection(particle.EndPosition(), view);
-			if (wd.TPC == (int)fTPC)
+			if ((wd.TPC == (int)fTPC) && (wd.Cryo == (int)fCryo))
 			{
+			    //if (flagsEnd == nnet::TrainingDataAlg::kElectronEnd) { std::cout << "---> clear electron endpoint" << std::endl; }
 				wireToDriftToVtxFlags[wd.Wire][wd.Drift] |= flagsEnd;
-				// std::cout << "---> flagsEnd:" << flagsEnd << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
+				//if (flagsEnd == nnet::TrainingDataAlg::kElectronEnd)
+				//    std::cout << "---> flagsEnd:" << flagsEnd << " view:" << view << " wire:" << wd.Wire << " drift:" << wd.Drift << std::endl;
 			}
 			// else std::cout << "---> not in current TPC" << std::endl;
 		}
@@ -1217,8 +1289,9 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 		auto wireChannelNumber = fWireChannels[widx];
 		if (wireChannelNumber == raw::InvalidChannelID) continue;
 
-		std::vector< float > labels_deposit(fNDrifts, 0);  // full-drift-length buffers
-		std::vector< int > labels_pdg(fNDrifts, 0);
+		std::vector< float > labels_deposit(fNDrifts, 0);         // full-drift-length buffers,
+		std::vector< int > labels_pdg(labels_deposit.size(), 0);  // both of the same size,
+		int labels_size = labels_deposit.size();                  // cached as int for comparisons below
 
 		std::map< int, std::map< int, double > > timeToTrackToCharge;
 		for (auto const & channel : *simChannelHandle)
@@ -1263,17 +1336,28 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 					    auto const & particle = *((*search).second);
 					    pdg = abs(particle.PdgCode());
 
-                        if (pdg == 11) // electron, check if it is Michel
-                        {
-                            auto msearch = particleMap.find(particle.Mother());
-	    					if (msearch != particleMap.end())
-	    					{
-	    					    auto const & mother = *((*msearch).second);
+                        auto msearch = particleMap.find(particle.Mother());
+	    				if (msearch != particleMap.end())
+	    				{
+	    				    auto const & mother = *((*msearch).second);
+                            if (pdg == 11) // electron, check if it is Michel or primary electron
+                            {
 	    		                if (nnet::TrainingDataAlg::isMuonDecaying(mother, particleMap))
 	    		                {
                 			        pdg |= nnet::TrainingDataAlg::kMichel; // tag Michel
 	    		                }
-	    					}
+	    		                else if (mother.Mother() < 0)
+	    		                {
+	    		                    pdg |= nnet::TrainingDataAlg::kPriEl; // tag primary
+	    		                }
+                            }
+                            else if (pdg == 13) // muon, check if primary
+                            {
+                                if (mother.Mother() < 0)
+                                {
+                                    pdg |= nnet::TrainingDataAlg::kPriMu; // tag primary
+                                }
+                            }
                         }
 					}
 
@@ -1300,18 +1384,21 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 				}			
 			}
 
-			if (ttc.first < (int)labels_deposit.size())
+			if (ttc.first < labels_size)
 			{
-			    size_t tick_idx = ttc.first + fAdcDelay;
-				if (tick_idx < labels_deposit.size()) { labels_deposit[tick_idx] = max_deposit; }
-				if (tick_idx < labels_pdg.size()) { labels_pdg[tick_idx]     = max_pdg & type_pdg_mask; }
+			    int tick_idx = ttc.first + fAdcDelay;
+				if (tick_idx < labels_size)
+				{
+				    labels_deposit[tick_idx] = max_deposit;
+				    labels_pdg[tick_idx] = max_pdg & type_pdg_mask;
+				}
 			}
 		}
 
 		for (auto const & drift_flags : wireToDriftToVtxFlags[widx])
 		{
 			int drift = drift_flags.first, flags = drift_flags.second;
-			if ((drift >= 0) && (drift < (int)labels_pdg.size()))
+			if ((drift >= 0) && (drift < labels_size))
 			{
 				labels_pdg[drift] |= flags;
 			}
