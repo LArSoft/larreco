@@ -143,7 +143,7 @@ namespace tca {
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     int ID;
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
-    unsigned short ClusterIndex {USHRT_MAX};   ///< Index not the ID...
+    unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
     short TjDir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
@@ -158,6 +158,7 @@ namespace tca {
     raw::TDCtick_t StartTick {0};
     raw::TDCtick_t EndTick {0};
     float PeakTime {0};
+    float X;
     float SigmaPeakTime {1};
     float PeakAmplitude {1};
     float SigmaPeakAmp {1};
@@ -189,6 +190,7 @@ namespace tca {
     int PDGCode {0};
     std::vector<size_t> DtrIndices;
     size_t ParentMSIndex {0};       // Parent MatchStruct index (or index of self if no parent exists)
+    geo::TPCID TPCID;
   };
 
   struct ShowerPoint {
@@ -205,6 +207,7 @@ namespace tca {
     int ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
     std::vector<int> TjIDs;  // list of InShower Tjs
     std::vector<int> NearTjIDs;   // list of Tjs that are not InShower but satisfy the maxSep cut
+    std::vector<int> MatchedTjIDs;  /// list of Tjs in the other planes that are 3D matched to Tjs in this shower
     std::vector<ShowerPoint> Pts;    // Trajectory points inside the shower
     float Angle {0};                   // Angle of the shower axis
     float AngleErr {3};                 // Error
@@ -218,7 +221,7 @@ namespace tca {
     float StartChgErr {0};              // Start charge error
     float ParentFOM {10};
     int ParentID {0};  // The ID of an external parent Tj that was added to the shower
-    bool NewParent {false};       // This is set true whenever the ParentID is changed
+    bool NeedsUpdate {false};       // This is set true whenever the shower needs to be updated
     unsigned short TruParentID {0};
   };
   
@@ -283,7 +286,7 @@ namespace tca {
     kTryWithNextPass,
     kRevProp,
     kChkHiMultHits,
-    kSplitTraj,
+    kSplit,
     kComp3DVx,
     kComp3DVxIG,
     kHED, // High End Delta
@@ -291,24 +294,24 @@ namespace tca {
     kHamVx2,
     kJunkTj,
     kKilled,
-    kEndMerge,
-    kTrimEndPts,
-    kChkHiMultEndHits,
+    kMerge,
+    kTEP,
+    kCHMEH,
     kFillGap,
     kUseGhostHits,
     kChkInTraj,
     kStopBadFits,
     kFixBegin,
     kFixEnd,
-    kUseUnusedHits,
+    kUUH,
     kVtxTj,
     kRefineVtx,
     kNoKinkChk,
     kSoftKink,
     kChkStop,
-    kFTBRevProp,
+    kFTBRvProp,
     kStopAtTj,
-    kMatch3D,
+    kMat3D,
     kVtxHitsSwap,
     kSplitHiChgHits,
     kInShower,

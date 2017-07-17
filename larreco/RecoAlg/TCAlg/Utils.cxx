@@ -664,6 +664,32 @@ namespace tca {
     
   } // Matched3DVtx
 
+  ////////////////////////////////////////////////
+  unsigned int MatchVecIndex(const TjStuff& tjs, int tjID)
+  {
+    // returns the index into the tjs.matchVec vector of the first 3D match that
+    // includes tjID
+    for(unsigned int ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+      unsigned int ims = tjs.matchVecPFPList[ipfp];
+      const MatchStruct& ms = tjs.matchVec[ims];
+      if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID) != ms.TjIDs.end()) return ims;
+    } // indx
+    return INT_MAX;
+  } // MatchedTjs
+  
+  ////////////////////////////////////////////////
+  unsigned int MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2)
+  {
+    // returns the index into the tjs.matchVec vector of the first 3D match that
+    // includes both tjID1 and tjID2
+    for(unsigned int ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+      unsigned int ims = tjs.matchVecPFPList[ipfp];
+      const MatchStruct& ms = tjs.matchVec[ims];
+      if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID1) != ms.TjIDs.end() &&
+         std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID2) != ms.TjIDs.end()) return ims;
+    } // indx
+    return INT_MAX;
+  } // MatchedTjs
   
   ////////////////////////////////////////////////
   void ReleaseHits(TjStuff& tjs, Trajectory& tj)
@@ -887,6 +913,8 @@ namespace tca {
     //  ----DDD-D-- is OK
     //  ----DDDDD-- is not OK
     
+    if(!tjs.UseAlg[kTEP]) return;
+    
     unsigned short minPts = fQualityCuts[1];
     float maxPtSep = minPts + 2;
     if(NumPtsWithCharge(tjs, tj, false) < minPts) return;
@@ -978,7 +1006,7 @@ namespace tca {
     }
     SetEndPoints(tjs, tj);
     tj.Pts.resize(tj.EndPt[1] + 1);
-    tj.AlgMod[kTrimEndPts] = true;
+    tj.AlgMod[kTEP] = true;
     if(prt) PrintTrajectory("TEPo", tjs, tj, USHRT_MAX);
     
   } // TrimEndPts
@@ -1402,7 +1430,7 @@ namespace tca {
     }
     
     if(ivx < tjs.vtx.size()) tj.VtxID[1] = tjs.vtx[ivx].ID;
-    tj.AlgMod[kSplitTraj] = true;
+    tj.AlgMod[kSplit] = true;
     if(prt) {
       mf::LogVerbatim("TC")<<" Splitting trajectory ID "<<tj.ID<<" new EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
     }
@@ -1416,7 +1444,7 @@ namespace tca {
     } // ipt
     SetEndPoints(tjs, newTj);
     if(ivx < tjs.vtx.size()) newTj.VtxID[0] = tjs.vtx[ivx].ID;
-    newTj.AlgMod[kSplitTraj] = true;
+    newTj.AlgMod[kSplit] = true;
     tjs.allTraj.push_back(newTj);
     if(prt) {
       mf::LogVerbatim("TC")<<"  newTj ID "<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
@@ -1652,23 +1680,7 @@ namespace tca {
     } // ipt
     return hitVec;
   } // PutTrajHitsInVector
-  
-  //////////////////////////////////////////
-  bool HitIsInTj(Trajectory const& tj, const unsigned int& iht, short nPtsToCheck)
-  {
-    // returns true if hit iht is associated with trajectory tj. Checking starts at the
-    // end of tj for nPtsToCheck points
-    for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
-      unsigned short ipt = tj.Pts.size() - 1 - ii;
-      if(std::find(tj.Pts[ipt].Hits.begin(), tj.Pts[ipt].Hits.end(), iht) != tj.Pts[ipt].Hits.end()) return true;
-      // only go back a few points
-      if(nPtsToCheck >= 0 && ii == nPtsToCheck) return false;
-      if(ipt == 0) return false;
-    } // ii
-    return false;
 
-  } // HitIsInTj
-  
   //////////////////////////////////////////
   bool HasDuplicateHits(TjStuff const& tjs, Trajectory const& tj, bool prt)
   {
@@ -1677,7 +1689,7 @@ namespace tca {
     for(unsigned short ii = 0; ii < tjHits.size() - 1; ++ii) {
       for(unsigned short jj = ii + 1; jj < tjHits.size(); ++jj) {
         if(tjHits[ii] == tjHits[jj]) {
-          if(prt) mf::LogVerbatim()<<"HDH: Hit "<<PrintHit(tjs.fHits[ii])<<" is a duplicate "<<ii<<" "<<jj;
+          if(prt) mf::LogVerbatim("TC")<<"HDH: Hit "<<PrintHit(tjs.fHits[ii])<<" is a duplicate "<<ii<<" "<<jj;
           return true;
         }
       } // jj
@@ -2419,6 +2431,17 @@ namespace tca {
   } // HitsPosTick
   
   //////////////////////////////////////////
+  unsigned short NumUsedHitsInTj(const TjStuff& tjs, const Trajectory& tj)
+  {
+    if(tj.AlgMod[kKilled]) return 0;
+    unsigned short nhits = 0;
+    for(auto& tp : tj.Pts) {
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) if(tp.UseHit[ii]) ++nhits;
+    } // tp
+    return nhits;
+  } // NumHitsInTj
+  
+  //////////////////////////////////////////
   unsigned short NumHitsInTP(const TrajPoint& tp, HitStatus_t hitRequest)
   {
     // Counts the number of hits of the specified type in tp
@@ -2890,6 +2913,16 @@ namespace tca {
             myprt<<" "<<tjID;
           } // tjID
           myprt<<"\n";
+          myprt<<"NearTjIDs";
+          for(auto& tjID : ss.NearTjIDs) {
+            myprt<<" "<<tjID;
+          } // tjID
+          myprt<<"\n";
+          myprt<<"MatchedTjIDs";
+          for(auto& tjID : ss.MatchedTjIDs) {
+            myprt<<" "<<tjID;
+          } // tjID
+          myprt<<"\n";
           myprt<<"Angle "<<std::fixed<<std::setprecision(2)<<ss.Angle<<" +/- "<<ss.AngleErr;
           myprt<<" AspectRatio "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
           myprt<<" DirectionFOM "<<std::fixed<<std::setprecision(2)<<ss.DirectionFOM;
@@ -2899,6 +2932,7 @@ namespace tca {
             myprt<<" No external parent defined";
           }
           myprt<<" TruParentID "<<ss.TruParentID<<"\n";
+          if(ss.NeedsUpdate) myprt<<"*********** This shower needs to be updated ***********";
           myprt<<"................................................";
         } // ic
       } // Shower Tj

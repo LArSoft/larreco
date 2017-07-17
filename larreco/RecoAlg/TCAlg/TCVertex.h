@@ -51,6 +51,7 @@ namespace tca {
   void SetVtxScore(TjStuff& tjs, VtxStore& vx2, bool prt);
   void KillPoorVertices(TjStuff& tjs);
   void MakeVertexObsolete(TjStuff& tjs, unsigned short ivx);
+  std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2);
   //    void Refine2DVertices();
 } // namespace
 
