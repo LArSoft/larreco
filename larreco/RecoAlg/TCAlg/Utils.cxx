@@ -156,14 +156,14 @@ namespace tca {
   } // GetMCPartListIndex
 
   /////////////////////////////////////////
-  void TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir)
+  bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir)
   {
     // Calculate a 3D position and direction from two trajectory points
     
     dir.SetX(999);
     pos = {0, 0, 0};
     
-    if(itp.CTP == jtp.CTP) return;
+    if(itp.CTP == jtp.CTP) return false;
     
     geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
     geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
@@ -172,13 +172,13 @@ namespace tca {
     double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jPlnID);
 
     // don't continue if the points are too far apart in X
-    if(std::abs(ix - jx) > 10) return;
+    if(std::abs(ix - jx) > 10) return false;
     pos[0] = 0.5 * (ix + jx);
 
     unsigned int iWire = (unsigned int)(itp.Pos[0] + 0.5);
-    if(!tjs.geom->HasWire(geo::WireID(iPlnID.Cryostat, iPlnID.TPC, iPlnID.Plane, iWire))) return;
+    if(!tjs.geom->HasWire(geo::WireID(iPlnID.Cryostat, iPlnID.TPC, iPlnID.Plane, iWire))) return false;
     unsigned int jWire = (unsigned int)(jtp.Pos[0] + 0.5);
-    if(!tjs.geom->HasWire(geo::WireID(jPlnID.Cryostat, jPlnID.TPC, jPlnID.Plane, jWire))) return;
+    if(!tjs.geom->HasWire(geo::WireID(jPlnID.Cryostat, jPlnID.TPC, jPlnID.Plane, jWire))) return false;
 
     // determine the wire orientation and offsets using WireCoordinate
     // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
@@ -194,7 +194,7 @@ namespace tca {
     double jsn = tjs.geom->WireCoordinate(0, 1, jPlnID) - jw0;
     
     double den = isn * jcs - ics * jsn;
-    if(den == 0) return;
+    if(den == 0) return false;
     // Find the Z position of the intersection
     pos[2] = (jcs * (itp.Pos[0] - iw0) - ics * (jtp.Pos[0] - jw0)) / den;
     // and the Y position
@@ -214,7 +214,7 @@ namespace tca {
       }
       dir.SetY(0);
       dir.SetZ(0);
-      return;
+      return true;
     } // jtp.Dir[1] == 0
     
     // make a copy of itp and shift it by many wires to avoid precision problems
@@ -239,8 +239,149 @@ namespace tca {
     if(dir.Mag() != 0) dir.SetMag(1);
     // Reverse the direction?
     if(dir[0] * itp.Dir[0] < 0) dir *= -1;
+    return true;
 
   } // TrajPoint3D
+  
+  /////////////////////////////////////////
+  void FindMatchingPts(const TjStuff& tjs, const MatchStruct& ms, std::vector<TrajPoint>& stps)
+  {
+    // Find the points on the list of Tjs matched in MatchStruct ms that best represent a 3D position
+    stps.clear();
+    if(ms.Count == 0) return;
+    
+    // find the two Tjs that have the largest extent
+    // find the longest Tj
+    unsigned short itjLong = USHRT_MAX;
+    unsigned short ilen = 0;
+    for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
+      unsigned short itj = ms.TjIDs[ii] - 1;
+      const Trajectory& tj = tjs.allTraj[itj];
+      if(tj.Pts.size() > ilen) {
+        ilen = tj.Pts.size();
+        itjLong = itj;
+      }
+    } // ii
+    const Trajectory& itj = tjs.allTraj[itjLong];
+    // find the 2nd longest tj
+    unsigned short jtjLong = USHRT_MAX;
+    unsigned short jlen = 0;
+    for(unsigned short jj = 0; jj < ms.TjIDs.size(); ++jj) {
+      unsigned short jtj = ms.TjIDs[jj] - 1;
+      if(jtj == itjLong) continue;
+      const Trajectory& tj = tjs.allTraj[jtj];
+      // ensure that this Tj is in a different plane than the longest one
+      if(tj.CTP == itj.CTP) continue;
+      if(tj.Pts.size() > jlen) {
+        jlen = tj.Pts.size();
+        jtjLong = jtj;
+      }
+    } // ii
+    // consider both ends of each Tj
+    unsigned short ipln = DecodeCTP(itj.CTP).Plane;
+    const Trajectory& jtj = tjs.allTraj[jtjLong];
+    unsigned short jpln = DecodeCTP(jtj.CTP).Plane;
+    unsigned short iend = 0, jend = 0;
+    float bestDx = 1E6;
+    float bestDxX = 0;
+    for(unsigned short ie = 0; ie < 2; ++ie) {
+      unsigned short iEndPt = itj.EndPt[ie];
+      const TrajPoint& itp = itj.Pts[iEndPt];
+      float iX = tjs.detprop->ConvertTicksToX(itp.Pos[1]/tjs.UnitsPerTick, ipln, ms.TPCID.TPC, ms.TPCID.Cryostat);
+      for(unsigned short je = 0; je < 2; ++je) {
+        unsigned short jEndPt = jtj.EndPt[je];
+        const TrajPoint& jtp = jtj.Pts[jEndPt];
+        float jX = tjs.detprop->ConvertTicksToX(jtp.Pos[1]/tjs.UnitsPerTick, jpln, ms.TPCID.TPC, ms.TPCID.Cryostat);
+        float dx = std::abs(iX - jX);
+        if(dx < bestDx) {
+          bestDx = dx;
+          iend = ie;
+          jend = je;
+          bestDxX = iX;
+        }
+      } // e2
+    } // e1
+    if(bestDx > 5) return;
+    unsigned short iEndPt = itj.EndPt[iend];
+    TrajPoint tp = itj.Pts[iEndPt];
+    // Highjack some TP variables
+    tp.AngleCode = iend;
+    tp.Delta = itj.ID;
+    tp.Hits.clear();
+    stps.push_back(tp);
+    unsigned short jEndPt = jtj.EndPt[jend];
+    tp = jtj.Pts[jEndPt];
+    tp.AngleCode = jend;
+    tp.Delta = jtj.ID;
+    tp.Hits.clear();
+    stps.push_back(tp);
+    
+    if(ms.TjIDs.size() == 2) return;
+    
+    // now find the matching end of the other Tj
+    // find the 2nd longest tj
+    for(unsigned short kk = 0; kk < ms.TjIDs.size(); ++kk) {
+      unsigned short ktj = ms.TjIDs[kk] - 1;
+      if(ktj == itjLong || ktj == jtjLong) continue;
+      const Trajectory& tj = tjs.allTraj[ktj];
+       // ensure that this Tj is in a different plane
+      if(tj.CTP == itj.CTP || tj.CTP == jtj.CTP) continue;
+      unsigned short kpln = DecodeCTP(tj.CTP).Plane;
+      TrajPoint tp0 = tj.Pts[tj.EndPt[0]];
+      float x0 = tjs.detprop->ConvertTicksToX(tp0.Pos[1]/tjs.UnitsPerTick, kpln, ms.TPCID.TPC, ms.TPCID.Cryostat);
+      TrajPoint tp1 = tj.Pts[tj.EndPt[1]];
+      float x1 = tjs.detprop->ConvertTicksToX(tp1.Pos[1]/tjs.UnitsPerTick, kpln, ms.TPCID.TPC, ms.TPCID.Cryostat);
+      if(std::abs(x0 - bestDxX) < std::abs(x1 - bestDxX)) {
+        tp0.AngleCode = 0;
+        tp0.Delta = tj.ID;
+        tp0.Hits.clear();
+        stps.push_back(tp0);
+      } else {
+        tp1.AngleCode = 1;
+        tp1.Delta = tj.ID;
+        tp1.Hits.clear();
+        stps.push_back(tp1);
+      }
+      break;
+    } // ii
+
+  } // FindMatchingPts
+  
+  /////////////////////////////////////////
+  void FilldEdx(TjStuff& tjs, MatchStruct& ms)
+  {
+    // Fills the dEdX vector in the match struct. This function should be called after the
+    // matched trajectory points are ordered so that dE/dx is calculated at the start of the PFParticle
+    if(ms.Count == 0) return;
+    ms.dEdx.resize(tjs.NumPlanes);
+    ms.dEdxErr.resize(tjs.NumPlanes);
+
+    double t0 = 0;
+    
+    unsigned short maxlen = 0;
+    for(auto tjID : ms.TjIDs) {
+      Trajectory& tj = tjs.allTraj[tjID - 1];
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
+      double cosgamma = std::abs(std::sin(angleToVert) * ms.sDir.Y() + std::cos(angleToVert) * ms.sDir.Z());
+      if(cosgamma == 0) continue;
+      double dx = tjs.geom->WirePitch(planeID) / cosgamma;
+      if(dx == 0) continue;
+      double dQ = tj.Pts[tj.EndPt[0]].AveChg;
+      if(dQ == 0) continue;
+      // convert to dQ/dx
+      dQ /= dx;
+      double time = tj.Pts[tj.EndPt[0]].Pos[1] / tjs.UnitsPerTick;
+      ms.dEdx[planeID.Plane] = tjs.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
+      // Grab the best plane if 1 < dE/dx < 50 MeV/cm
+      if(ms.dEdx[planeID.Plane] > 1 && ms.dEdx[planeID.Plane] < 50) {
+        if(tj.Pts.size() > maxlen) {
+          maxlen = tj.Pts.size();
+          ms.BestPlane = planeID.Plane;
+        }
+      } // valid dE/dx
+    } // tj
+  } // FilldEdX
 
   /////////////////////////////////////////
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp)
@@ -597,72 +738,6 @@ namespace tca {
     return true;
     
   } // Reverse3DMatchTjs
-  
-  ////////////////////////////////////////////////
-  unsigned short Matched3DVtx(TjStuff& tjs, unsigned short im)
-  {
-    // Checks for a 3D vertex associated with trajectories in the MatchStruct. If one or more are found,
-    // define sVtx3DIndex and eVtx3DIndex (if there are a 2 vertices) and return true
-    
-    if(im > tjs.matchVecPFPList.size() - 1) return 0;
-    
-    auto& ms = tjs.matchVec[im];
-    if(ms.TjIDs.empty()) return 0;
-    
-    // There should be at most 2 unless there is a problem
-    std::vector<unsigned short> vIndex;
-    
-    for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-      unsigned short itj = ms.TjIDs[ii] - 1;
-      Trajectory& tj = tjs.allTraj[itj];
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] <= 0) continue;
-        // Has a 2D vertex
-        unsigned short iv2 = tj.VtxID[end] - 1;
-        if(tjs.vtx[iv2].Vtx3ID == 0) continue;
-        // Has a 3D vertex
-        unsigned short iv3 = tjs.vtx[iv2].Vtx3ID - 1;
-        // already in the list?
-        if(std::find(vIndex.begin(), vIndex.end(), iv3) != vIndex.end()) continue;
-        vIndex.push_back(iv3);
-      } // end
-    } // ii
-    
-    if(vIndex.empty()) return 0;
-    
-    // Need to do something here when there are more than 2 vertices
-    if(vIndex.size() > 2) {
-      mf::LogVerbatim("TC")<<"MatchHas3DVtx found more than 2 3D vertices. Ignore for now - Write some code";
-      vIndex.resize(2);
-    }
-    
-    if(vIndex.size() == 2) {
-      // Determine which should be the start vertex. Pick the one at larger X
-      if(tjs.vtx3[vIndex[0]].X > tjs.vtx3[vIndex[1]].X) {
-        ms.sVtx3DIndex = vIndex[0];
-        ms.eVtx3DIndex = vIndex[1];
-      } else {
-        ms.sVtx3DIndex = vIndex[1];
-        ms.eVtx3DIndex = vIndex[0];
-      }
-      // This shouldn't be necessary but do it anyway
-      ms.sXYZ[0] = tjs.vtx3[ms.sVtx3DIndex].X;
-      ms.sXYZ[1] = tjs.vtx3[ms.sVtx3DIndex].Y;
-      ms.sXYZ[2] = tjs.vtx3[ms.sVtx3DIndex].X;
-      ms.eXYZ[0] = tjs.vtx3[ms.eVtx3DIndex].X;
-      ms.eXYZ[1] = tjs.vtx3[ms.eVtx3DIndex].Y;
-      ms.eXYZ[2] = tjs.vtx3[ms.eVtx3DIndex].X;
-      return 2;
-    } // vIndex.size() == 2
-    
-    // Have 1 3D vertex. Make it the start vertex
-    ms.sVtx3DIndex = vIndex[0];
-    ms.sXYZ[0] = tjs.vtx3[ms.sVtx3DIndex].X;
-    ms.sXYZ[1] = tjs.vtx3[ms.sVtx3DIndex].Y;
-    ms.sXYZ[2] = tjs.vtx3[ms.sVtx3DIndex].X;
-    return 1;
-    
-  } // Matched3DVtx
 
   ////////////////////////////////////////////////
   unsigned int MatchVecIndex(const TjStuff& tjs, int tjID)
@@ -2684,8 +2759,8 @@ namespace tca {
           if(tjs.vtx3[iv].ID == 0) continue;
           myprt<<someText;
           myprt<<std::right<<std::setw(3)<<std::fixed<<tjs.vtx3[iv].ID<<std::setprecision(1);
-          myprt<<std::right<<std::setw(7)<<tjs.vtx3[iv].CStat;
-          myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].TPC;
+          myprt<<std::right<<std::setw(7)<<tjs.vtx3[iv].TPCID.Cryostat;
+          myprt<<std::right<<std::setw(5)<<tjs.vtx3[iv].TPCID.TPC;
           myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].X;
           myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].Y;
           myprt<<std::right<<std::setw(8)<<tjs.vtx3[iv].Z;
@@ -2893,7 +2968,7 @@ namespace tca {
       // See if this trajectory is a shower Tj
       if(tj.AlgMod[kShowerTj]) {
         for(unsigned short ic = 0; ic < tjs.cots.size(); ++ic) {
-          if(tjs.cots[ic].TjIDs.empty()) continue;
+          if(tjs.cots[ic].TjIDs.empty() == 0) continue;
           // only print out the info for the correct Tj
           if(tjs.cots[ic].ShowerTjID != tj.ID) continue;
           const ShowerStruct& ss = tjs.cots[ic];
