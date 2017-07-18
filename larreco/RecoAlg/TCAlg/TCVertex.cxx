@@ -639,8 +639,7 @@ namespace tca {
             v3d.Z = z;
             v3d.ZErr = yzSigma;
             v3d.Wire = kWire;
-            v3d.CStat = cstat;
-            v3d.TPC = tpc;
+            v3d.TPCID = tpcid;
             // push the incomplete vertex onto the list
             v3temp.push_back(v3d);
             
@@ -758,7 +757,132 @@ namespace tca {
 
   } // Find3DVertices
   
-  
+  void Match3DVtxTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
+  ////////////////////////////////////////////////
+  {
+    // Matches Tjs that are attached to 2D vertices that are matched in 3D. This function does not attempt
+    // to determine the appropriate ends of matched Tjs when there is a 3D vertex at both ends. This is done
+    // in Find3DEndPoints
+    
+    if(tjs.vtx3.empty()) return;
+    if(tjs.matchVec.empty()) return;
+    if(!tjs.matchVecPFPList.empty()) return;
+
+    if(prt) mf::LogVerbatim("TC")<<"Match3DVtxTjs";
+    std::vector<std::vector<int>> v3TjIDs(tjs.vtx3.size());
+    for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
+      auto& vx3 = tjs.vtx3[iv3];
+      // put the TjIDs into a vector for matching
+      short score = 0;
+      v3TjIDs[iv3] = GetVtxTjIDs(tjs, vx3, score);
+      if(v3TjIDs.empty()) continue;
+      if(score < tjs.Vertex2DCuts[7]) continue;
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"vx3 "<<vx3.ID<<" score "<<score<<" TjIDs ";
+        for(auto& tjID : v3TjIDs[iv3]) myprt<<" "<<tjID;
+      }
+    } // vx3
+    
+    // now look for matches
+    for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
+      bool skipit = false;
+      // count the number of shower Tjs
+      unsigned short nstj = 0;
+      auto& ms = tjs.matchVec[ims];
+      for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
+        unsigned short itj = ms.TjIDs[ipl] - 1;
+        if(tjs.allTraj[itj].AlgMod[kMat3D]) skipit = true;
+        if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
+      }
+      if(skipit) continue;
+      // Require 0 or matched shower Tjs in all planes
+      if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
+      for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
+        if(v3TjIDs[iv3].empty()) continue;
+        std::vector<int> shared;
+        std::set_intersection(v3TjIDs[iv3].begin(), v3TjIDs[iv3].end(), 
+                              ms.TjIDs.begin(), ms.TjIDs.end(), std::back_inserter(shared));
+        // require all Tjs matched to the vertex
+        if(shared.size() != ms.TjIDs.size()) continue;
+        tjs.matchVecPFPList.push_back(ims);
+        // declare a start or end vertex
+        if(ms.sVtx3ID == 0) {
+          // declare the start vertex. The positions will be determined later
+          ms.sVtx3ID = tjs.vtx3[iv3].ID;
+        } else {
+          ms.eVtx3ID = tjs.vtx3[iv3].ID;
+        }
+        for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
+          unsigned short itj = ms.TjIDs[ipl] - 1;
+          tjs.allTraj[itj].AlgMod[kMat3D] = true;
+        }
+        break;
+      } // iv3
+    } // ims
+    
+    // look for failed matches where there is one un-matched Tj
+    if(prt) mf::LogVerbatim("TC")<<" Failed matches";
+    for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
+      if(v3TjIDs[iv3].empty()) continue;
+      std::vector<unsigned short> cntInPln(tjs.NumPlanes);
+      std::vector<int> tjList;
+      // Keep track of the longest Tj so that we can fake the MatchStruct Count if necessary
+      unsigned short cnt = 0;
+      for(auto& tjID : v3TjIDs[iv3]) {
+        Trajectory& tj = tjs.allTraj[tjID - 1];
+        if(tj.AlgMod[kMat3D]) continue;
+        geo::PlaneID planeID = DecodeCTP(tj.CTP);
+        ++cntInPln[planeID.Plane];
+        tjList.push_back(tj.ID);
+        if(tj.Pts.size() > cnt) cnt = tj.Pts.size();
+      } // tjID
+      bool notOne = false;
+      for(auto cnt : cntInPln) if(cnt != 1) notOne = true;
+      if(notOne) continue;
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"vx3 "<<tjs.vtx3[iv3].ID<<" Unmatched Tjs";
+        for(auto tjID : tjList) myprt<<" "<<tjID;
+      }
+      // look for this combo in matchVec.
+      std::sort(tjList.begin(), tjList.end());
+      unsigned short ims = 0;
+      for(ims = 0; ims < tjs.matchVec.size(); ++ims) {
+        MatchStruct& ms = tjs.matchVec[ims];
+        if(ms.TjIDs.empty()) continue;
+        std::vector<int> shared;
+        std::set_intersection(tjList.begin(), tjList.end(), 
+                              ms.TjIDs.begin(), ms.TjIDs.end(), std::back_inserter(shared));
+        if(shared.size() != tjs.NumPlanes) continue;
+      } // ims
+      if(ims == tjs.matchVec.size()) {
+        if(prt) mf::LogVerbatim("TC")<<" This combo isn't in matchVec. Making one";
+        MatchStruct ms;
+        Vtx3Store& vx3 = tjs.vtx3[iv3];
+        ms.TPCID = vx3.TPCID;
+        // Note that the Tjs in this list were sorted by ID and may not be in plane order
+        ms.TjIDs = tjList;
+        ms.Count = cnt;
+        // declare a start vertex
+        ms.sVtx3ID = tjs.vtx3[iv3].ID;
+        // insert it at the beginning to ensure it will be used
+        tjs.matchVec.insert(tjs.matchVec.begin(), ms);
+        // increment the previous PFP matches
+        for(auto& indx : tjs.matchVecPFPList) ++indx;
+        // append the new one
+        tjs.matchVecPFPList.push_back(0);
+        for(auto& tjID : tjList) {
+          tjs.allTraj[tjID - 1].AlgMod[kMat3D] = true;
+        } // tjID
+      } else {
+        if(prt) mf::LogVerbatim("TC")<<" Found combo "<<ims<<" in matchVec";
+        tjs.matchVecPFPList.push_back(ims);
+      }
+    } // iv3
+    
+  } // Match3DVtxTjs
+
   //////////////////////////////////////////
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp)
   {
@@ -1294,7 +1418,8 @@ namespace tca {
         break;
       } // ipl
       if(mPlane == USHRT_MAX) continue;
-      CTP_t mCTP = EncodeCTP(vx3.CStat, vx3.TPC, mPlane);
+//      CTP_t mCTP = EncodeCTP(vx3.CStat, vx3.TPC, mPlane);
+      CTP_t mCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, mPlane);
       // require that the missing vertex be in a large block of dead wires
       float dwc = DeadWireCount(tjs, vx3.Wire - 4, vx3.Wire + 4, mCTP);
       if(dwc < 5) continue;
@@ -1303,7 +1428,7 @@ namespace tca {
       VtxStore aVtx;
       aVtx.ID = tjs.vtx.size() + 1;
       aVtx.Pos[0] = vx3.Wire;
-      aVtx.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPC, vx3.CStat) * tjs.UnitsPerTick;
+      aVtx.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tjs.UnitsPerTick;
       aVtx.CTP = mCTP;
       aVtx.Topo = 4;
       aVtx.NTraj = 0;
@@ -1384,12 +1509,12 @@ namespace tca {
         break;
       } // ipl
       if(mPlane == USHRT_MAX) continue;
-      CTP_t mCTP = EncodeCTP(vx3.CStat, vx3.TPC, mPlane);
+      CTP_t mCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, mPlane);
       // X position of the purported missing vertex
       // A TP for the missing 2D vertex
       TrajPoint tp;
       tp.Pos[0] = vx3.Wire;
-      tp.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPC, vx3.CStat) * tjs.UnitsPerTick;
+      tp.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tjs.UnitsPerTick;
       std::vector<int> tjIDs;
       std::vector<unsigned short> tjPts;
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
@@ -1712,6 +1837,30 @@ namespace tca {
         if(tj.VtxID[end] == vx2.ID) tmp.push_back(tj.ID);
       } // end
     } // tj
+    return tmp;
+  } // GetVtxTjIDs
+  
+  
+  //////////////////////////////////////////
+  std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const Vtx3Store& vx3, short& score)
+  {
+    // returns a list of Tjs in all planes that are attached to vx3
+    std::vector<int> tmp;
+    if(vx3.ID == 0) return tmp;
+    short nvx2 = 0;
+    for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+      if(vx3.Vtx2ID[ipl] == 0) continue;
+      const auto& vx2 = tjs.vtx[vx3.Vtx2ID[ipl] - 1];
+      auto vtxTjID2 = GetVtxTjIDs(tjs, vx2);
+      tmp.insert(tmp.end(), vtxTjID2.begin(), vtxTjID2.end());
+      score += vx2.Score;
+      ++nvx2;
+    } // ipl
+    if(nvx2 < 1) return tmp;
+    // find the average score
+    score /= nvx2;
+    // sort by increasing ID
+    std::sort(tmp.begin(), tmp.end());
     return tmp;
   } // GetVtxTjIDs
 

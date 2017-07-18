@@ -32,7 +32,7 @@
 namespace tca {
 
   void Find3DShowerEndPoints(TjStuff& tjs, const geo::TPCID& tpcid);
-  void MakeShowers(TjStuff& tjs, const calo::CalorimetryAlg& fCaloAlg);
+  void MakeShowers(TjStuff& tjs);
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
   void FindMatchingTjs(TjStuff& tjs, const unsigned short& cotIndex, bool prt);

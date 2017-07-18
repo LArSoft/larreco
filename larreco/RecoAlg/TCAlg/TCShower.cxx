@@ -19,7 +19,7 @@ namespace tca {
     
     bool prt = (tjs.ShowerTag[12] == 3);
     
-    if(prt) mf::LogVerbatim("TC")<<"Inside FindShowerEndPoints";
+    if(prt) mf::LogVerbatim("TC")<<"Inside Find3DShowerEndPoints";
     
     unsigned int cstat = tpcid.Cryostat;
     unsigned int tpc = tpcid.TPC;
@@ -27,7 +27,7 @@ namespace tca {
     for(auto& im : tjs.matchVecPFPList) {
       // a reference to a set of 3D matched trajectories
       auto& ms = tjs.matchVec[im];
-      if(ms.TjIDs.empty()) continue;
+      if(ms.Count == 0) continue;
       // Only consider shower Tjs
       if(ms.PDGCode != 1111) continue;
       // ensure we are in the correct tpcid using the first Tj CTP
@@ -212,7 +212,7 @@ namespace tca {
   } // Find3DShowerEndPoints
 
   ////////////////////////////////////////////////
-  void MakeShowers(TjStuff& tjs, const calo::CalorimetryAlg& fCaloAlg)
+  void MakeShowers(TjStuff& tjs)
   {
     // Fill 3D shower variables. First look for matching shower Tjs, then use this
     // information to find matching parent Tjs
@@ -290,7 +290,7 @@ namespace tca {
         if(cotIndex == USHRT_MAX) continue;
         geo::PlaneID planeID = DecodeCTP(tjs.cots[cotIndex].CTP);
         unsigned short iPln = planeID.Plane;
-        // TODO Calculate energy using fCaloAlg
+        // TODO Calculate energy using caloAlg
         ss3.Energy[iPln] = tjs.cots[cotIndex].Energy;
         // This is just a guess for now
         ss3.EnergyErr[iPln] = 0.3 * tjs.cots[cotIndex].Energy;
@@ -310,13 +310,13 @@ namespace tca {
           // Get the time using the shower charge center position
           double time = stj.Pts[1].Pos[1] / tjs.UnitsPerTick;
           double T0 = 0;
-          dQ *= fCaloAlg.LifetimeCorrection(time, T0);
+          dQ *= tjs.caloAlg->LifetimeCorrection(time, T0);
           std::cout<<" corrected "<<(int)dQ;
           std::cout<<" dQ/dx "<<(int)dQ/dx;
           // Convert to number of electrons and make recombination correction for a 1 MIP particle.
           // These are hard-coded numbers that are highly unlikely to change by a significant amount.
           // This is a good approximation for electromagnetic showers but wouldn't be for hadronic showers.
-          double nElectrons = fCaloAlg.ElectronsFromADCArea(dQ, iPln) / 0.63;
+          double nElectrons = tjs.caloAlg->ElectronsFromADCArea(dQ, iPln) / 0.63;
           std::cout<<" nElectrons "<<std::fixed<<(int)nElectrons;
           double dedx = nElectrons * 23.6E-6 / dx;
           ss3.dEdx[iPln] = dedx;
