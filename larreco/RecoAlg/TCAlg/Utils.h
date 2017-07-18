@@ -45,7 +45,9 @@ namespace tca {
   unsigned short MCParticleStartTjID(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP);
   unsigned short GetMCPartListIndex(TjStuff& tjs, const Trajectory& tj, unsigned short& nTruHits);
   unsigned short GetMCPartListIndex(TjStuff& tjs, const ShowerStruct& ss, unsigned short& nTruHits);
-  void TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
+  bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
+  void FindMatchingPts(const TjStuff& tjs, const MatchStruct& ms, std::vector<TrajPoint>& stps);
+  void FilldEdx(TjStuff& tjs, MatchStruct& ms);
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp);
   void SetAngleCode(TjStuff& tjs, TrajPoint& tp);
   unsigned short AngleRange(TjStuff& tjs, float angle);
@@ -55,7 +57,6 @@ namespace tca {
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
   bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im, bool prt);
-  unsigned short Matched3DVtx(TjStuff& tjs, unsigned short im);
   unsigned int MatchVecIndex(const TjStuff& tjs, int tjID);
   unsigned int MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
