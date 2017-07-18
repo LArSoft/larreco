@@ -1,6 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class:       PointIdAlg
 // Author:      P.Plonski, R.Sulej (Robert.Sulej@cern.ch), D.Stefan, May 2016
+//              D.Smith from LArIAT, BU, 2017: real data dump
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
@@ -35,17 +36,6 @@ nnet::DataProviderAlg::DataProviderAlg(const Config& config) :
 {
 	fGeometry = &*(art::ServiceHandle<geo::Geometry>());
 
-	this->reconfigure(config); 
-}
-// ------------------------------------------------------
-
-nnet::DataProviderAlg::~DataProviderAlg(void)
-{
-}
-// ------------------------------------------------------
-
-void nnet::DataProviderAlg::reconfigure(const Config& config)
-{
 	fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
 	fCalibrateAmpl = config.CalibrateAmpl();
 	if (fCalibrateAmpl)
@@ -68,18 +58,37 @@ void nnet::DataProviderAlg::reconfigure(const Config& config)
 	fDriftWindowInv = 1.0 / fDriftWindow;
 
 	std::string mode_str = config.DownscaleFn();
-	if (mode_str == "maxpool")      fDownscaleMode = nnet::DataProviderAlg::kMax;
-	else if (mode_str == "maxmean") fDownscaleMode = nnet::DataProviderAlg::kMaxMean;
-	else if (mode_str == "mean")    fDownscaleMode = nnet::DataProviderAlg::kMean;
+	mf::LogVerbatim("DataProviderAlg") << "Downscale mode is: " << mode_str;
+	if (mode_str == "maxpool")
+	{
+	    //fnDownscale = [this](std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) { downscaleMax(dst, adc, tick0); };
+	    fDownscaleMode = nnet::DataProviderAlg::kMax;
+	}
+	else if (mode_str == "maxmean")
+	{
+	    //fnDownscale = [this](std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) { downscaleMaxMean(dst, adc, tick0); };
+	    fDownscaleMode = nnet::DataProviderAlg::kMaxMean;
+	}
+	else if (mode_str == "mean")
+	{
+	    //fnDownscale = [this](std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) { downscaleMean(dst, adc, tick0); };
+	    fDownscaleMode = nnet::DataProviderAlg::kMean;
+	}
 	else
 	{
 		mf::LogError("DataProviderAlg") << "Downscale mode string not recognized, set to max pooling.";
+		//fnDownscale = [this](std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) { downscaleMax(dst, adc, tick0); };
 		fDownscaleMode = nnet::DataProviderAlg::kMax;
 	}
 
     fBlurKernel = config.BlurKernel();
     fNoiseSigma = config.NoiseSigma();
     fCoherentSigma = config.CoherentSigma();
+}
+// ------------------------------------------------------
+
+nnet::DataProviderAlg::~DataProviderAlg(void)
+{
 }
 // ------------------------------------------------------
 
@@ -212,8 +221,8 @@ void nnet::DataProviderAlg::downscaleMean(std::vector<float> & dst, std::vector<
 			sum_adc += adc[k] * fLifetimeCorrFactors[k + tick0];
 		}
 
-		if (sum_adc != 0) { dst[i] = scaleAdcSample(sum_adc * fDriftWindowInv); }
-		else { dst[i] = 0; }
+		if (sum_adc == 0) { dst[i] = 0; } // most cases
+		else { dst[i] = scaleAdcSample(sum_adc * fDriftWindowInv); }
 	}
 }
 
@@ -224,7 +233,7 @@ bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t w
 
     if (fDownscaleFullView)
     {
-        if (adc.size() / fDriftWindow <= fNCachedDrifts) { return downscale(wData, adc); }
+        if (adc.size() / fDriftWindow <= fNCachedDrifts) { downscale(wData, adc, 0); return true; }
         else { return false; }
     }
     else
@@ -242,6 +251,9 @@ bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t w
 bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wires,
 	unsigned int view, unsigned int tpc, unsigned int cryo)
 {
+    mf::LogInfo("DataProviderAlg") << "Create image for cryo:"
+        << cryo << " tpc:" << tpc << " plane:" << view;
+
 	fCryo = cryo; fTPC = tpc; fView = view;
 
 	size_t nwires = fGeometry->Nwires(view, tpc, cryo);
@@ -257,7 +269,7 @@ bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wi
 		size_t w_idx = 0;
 		for (auto const& id : fGeometry->ChannelToWire(wireChannelNumber))
 		{
-			if ((id.Cryostat == cryo) && (id.TPC == tpc) && (id.Plane == view))
+			if ((id.Plane == view) && (id.TPC == tpc) && (id.Cryostat == cryo))
 			{
 			    w_idx = id.Wire;
 
@@ -282,7 +294,7 @@ bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wi
 	if (allWrong)
 	{
 	    mf::LogError("DataProviderAlg") << "Wires data not set in the cryo:"
-	        << cryo << " tpc:" << tpc << " plane:" << view << " (skip this plane)";
+	        << cryo << " tpc:" << tpc << " plane:" << view;
 	    return false;
 	}
 	
@@ -502,18 +514,6 @@ nnet::PointIdAlg::PointIdAlg(const Config& config) : nnet::DataProviderAlg(confi
 	fPatchSizeW(32), fPatchSizeD(32),
 	fCurrentWireIdx(99999), fCurrentScaledDrift(99999)
 {
-	this->reconfigure(config); 
-}
-// ------------------------------------------------------
-
-nnet::PointIdAlg::~PointIdAlg(void)
-{
-	deleteNNet();
-}
-// ------------------------------------------------------
-
-void nnet::PointIdAlg::reconfigure(const Config& config)
-{
 	fNNetModelFilePath = config.NNetModelFile();
 
 	fPatchSizeW = config.PatchSizeW();
@@ -538,6 +538,12 @@ void nnet::PointIdAlg::reconfigure(const Config& config)
 	}
 
     resizePatch();
+}
+// ------------------------------------------------------
+
+nnet::PointIdAlg::~PointIdAlg(void)
+{
+	deleteNNet();
 }
 // ------------------------------------------------------
 
@@ -740,32 +746,20 @@ bool nnet::PointIdAlg::isInsideFiducialRegion(unsigned int wire, float drift) co
 // ------------------TrainingDataAlg---------------------
 // ------------------------------------------------------
 
-nnet::TrainingDataAlg::TrainingDataAlg(const Config& config) : nnet::DataProviderAlg(config)
+nnet::TrainingDataAlg::TrainingDataAlg(const Config& config) : nnet::DataProviderAlg(config),
+	fWireProducerLabel(config.WireLabel()),
+	fHitProducerLabel(config.HitLabel()),
+	fTrackModuleLabel(config.TrackLabel()),
+	fSimulationProducerLabel(config.SimulationLabel()),
+	fSaveVtxFlags(config.SaveVtxFlags()),
+    fAdcDelay(config.AdcDelayTicks()),
+    fEventsPerBin(100, 0)
 {
-	this->reconfigure(config); 
 }
 // ------------------------------------------------------
 
 nnet::TrainingDataAlg::~TrainingDataAlg(void)
 {
-}
-// ------------------------------------------------------
-
-void nnet::TrainingDataAlg::reconfigure(const Config& config)
-{
-	fWireProducerLabel = config.WireLabel();
-	fHitProducerLabel = config.HitLabel();
-	fTrackModuleLabel = config.TrackLabel();
-	fSimulationProducerLabel = config.SimulationLabel();
-	fSaveVtxFlags = config.SaveVtxFlags();
-
-    fAdcDelay = config.AdcDelayTicks();
-
-	for(int x = 0; x < 100; x++) {
-	  events_per_bin.push_back(0);
-	}
-
-
 }
 // ------------------------------------------------------
 
@@ -1276,14 +1270,14 @@ bool nnet::TrainingDataAlg::setDataEventData(const art::Event& event,
       double cosser = TMath::Abs(del_wire / hypo);
       double norm_ang = TMath::ACos(cosser) * 2 / TMath::Pi();
 
-      // Using events_per_bin to keep track of number of hits per angle (normalized to 0 to 1)
+      // Using fEventsPerBin to keep track of number of hits per angle (normalized to 0 to 1)
 
-      int binner = int(norm_ang * 100);      
-      if(binner == 100) { binner = 99; } // Dealing with rounding errors
+      int binner = int(norm_ang * fEventsPerBin.size());
+      if(binner >= (int)fEventsPerBin.size()) { binner = fEventsPerBin.size() - 1; } // Dealing with rounding errors
 
       // So we should get a total of 5000 * 100 = 50,000 if we use the whole set
-      if(events_per_bin.at(binner) > 5000) { continue; }
-      events_per_bin.at(binner) += 1;
+      if(fEventsPerBin[binner] > 5000) { continue; }
+      fEventsPerBin[binner]++;
       
       // If survives everything, saves the pdg
       labels_pdg[Hitlist[iHit]->PeakTime()] = 211; // Same as pion for now
@@ -1295,8 +1289,8 @@ bool nnet::TrainingDataAlg::setDataEventData(const art::Event& event,
   } // for each Wire
 
   /*
-  for(size_t i = 0; i < events_per_bin.size(); i ++) {
-    std::cout << i << ") " << events_per_bin[i] << " - ";
+  for(size_t i = 0; i < fEventsPerBin.size(); i ++) {
+    std::cout << i << ") " << fEventsPerBin[i] << " - ";
   }
   */
 

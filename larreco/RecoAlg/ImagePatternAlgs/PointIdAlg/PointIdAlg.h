@@ -1,6 +1,9 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class:       PointIdAlg
-// Author:      P.Plonski, R.Sulej (Robert.Sulej@cern.ch), D.Stefan, May 2016
+// Authors:     D.Stefan (Dorota.Stefan@ncbj.gov.pl),         from DUNE, CERN/NCBJ, since May 2016
+//              R.Sulej (Robert.Sulej@cern.ch),               from DUNE, FNAL/NCBJ, since May 2016
+//              P.Plonski,                                    from DUNE, WUT,       since May 2016
+//
 //
 // Point Identification Algorithm
 //
@@ -38,10 +41,11 @@
 #include "larreco/RecoAlg/ImagePatternAlgs/MLP/NNReader.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/Keras/keras_model.h"
 
-#include "CLHEP/Random/JamesRandom.h"
+#include "CLHEP/Random/JamesRandom.h" // for testing on noise, not used by any reco
 
 // ROOT & C++
 #include <memory>
+//#include <functional>
 
 namespace nnet
 {
@@ -116,8 +120,6 @@ public:
 
 	virtual ~DataProviderAlg(void);
 
-	void reconfigure(const Config& config); // setup buffers etc.
-
 	bool setWireDriftData(const std::vector<recob::Wire> & wires, // once per view: setup ADC buffer, collect & downscale ADC's
 		unsigned int view, unsigned int tpc, unsigned int cryo);
 
@@ -163,6 +165,8 @@ protected:
 	std::vector<float> fLifetimeCorrFactors;                    // precalculated correction factors along full drift
 
    	EDownscaleMode fDownscaleMode;
+   	//std::function<void (std::vector<float> &, std::vector<float> const &, size_t)> fnDownscale;
+
    	size_t fDriftWindow;
 	bool fDownscaleFullView;
 	float fDriftWindowInv;
@@ -170,17 +174,16 @@ protected:
 	void downscaleMax(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const;
 	void downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const;
 	void downscaleMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const;
-    bool downscale(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0 = 0) const
-    {
-        switch (fDownscaleMode)
-        {
-           	case nnet::DataProviderAlg::kMax:     downscaleMax(dst, adc, tick0);     break;
-           	case nnet::DataProviderAlg::kMaxMean: downscaleMaxMean(dst, adc, tick0); break;
-           	case nnet::DataProviderAlg::kMean:    downscaleMean(dst, adc, tick0);    break;
-            default: return false;
-        }
-        return true;
-    }
+	void downscale(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
+	{
+	    switch (fDownscaleMode)
+	    {
+	        case nnet::DataProviderAlg::kMean: downscaleMean(dst, adc, tick0); break;
+	        case nnet::DataProviderAlg::kMaxMean: downscaleMaxMean(dst, adc, tick0); break;
+	        case nnet::DataProviderAlg::kMax: downscaleMax(dst, adc, tick0); break;
+	        default:throw cet::exception("nnet::DataProviderAlg") << "Downscale mode not supported." << std::endl; break;
+	    }
+	}
 
     size_t getDriftIndex(float drift) const
     {
@@ -309,8 +312,6 @@ public:
     PointIdAlg(const Config& config);
 
 	virtual ~PointIdAlg(void);
-
-	void reconfigure(const Config& config);  // read-in nnet
 
 	size_t NClasses(void) const;
 
@@ -483,8 +484,6 @@ private:
 	std::vector< std::vector<float> > fWireDriftEdep;
 	std::vector< std::vector<int> > fWireDriftPdg;
 
-	std::vector<int> events_per_bin;
-
 	art::InputTag fWireProducerLabel;
 	art::InputTag fHitProducerLabel;
 	art::InputTag fTrackModuleLabel;
@@ -492,6 +491,8 @@ private:
 	bool fSaveVtxFlags;
 
     unsigned int fAdcDelay;
+
+    std::vector<size_t> fEventsPerBin;
 };
 // ------------------------------------------------------
 // ------------------------------------------------------
