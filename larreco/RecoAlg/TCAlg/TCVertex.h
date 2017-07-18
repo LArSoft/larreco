@@ -34,6 +34,7 @@ namespace tca {
   void FindHammerVertices(TjStuff& tjs, const DebugStuff& debug, const CTP_t& inCTP);
   void FindHammerVertices2(TjStuff& tjs, const DebugStuff& debug, const CTP_t& inCTP);
   void Find3DVertices(TjStuff& tjs, const DebugStuff& debug, const geo::TPCID& tpcid);
+  void Match3DVtxTjs(TjStuff& tjsconst, const geo::TPCID& tpcid, bool prt);
   void CompleteIncomplete3DVertices(TjStuff& tjs, const DebugStuff& debug, const geo::TPCID& tpcid);
   void CompleteIncomplete3DVerticesInGaps(TjStuff& tjs, const DebugStuff& debug, const geo::TPCID& tpcid);
   // Improve hit assignments near vertex 
@@ -52,6 +53,7 @@ namespace tca {
   void KillPoorVertices(TjStuff& tjs);
   void MakeVertexObsolete(TjStuff& tjs, unsigned short ivx);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2);
+  std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const Vtx3Store& vx3, short& score);
   //    void Refine2DVertices();
 } // namespace
 
