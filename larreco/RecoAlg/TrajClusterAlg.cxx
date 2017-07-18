@@ -30,6 +30,8 @@ namespace tca {
   TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset):fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg"))
   {
     reconfigure(pset);
+    
+    tjs.caloAlg = &fCaloAlg;
 
     art::ServiceHandle<art::TFileService> tfs;
     
@@ -484,7 +486,7 @@ namespace tca {
     KillPoorVertices(tjs);
     FillPFPInfo();
     // convert the cots vector into recob::Shower
-    MakeShowers(tjs, fCaloAlg);
+    MakeShowers(tjs);
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     if(fQuitAlg) {
@@ -3101,70 +3103,18 @@ namespace tca {
         if(len > maxlen) maxlen = len;
       }
       float matfrac = ms.Count / maxlen;
-      if(matfrac < 0.1) continue;
+      // require that at least 20% of the hits are matched in the longest Tj. Note that matfrac may be > 1
+      // in particular for small angle trajectories
+      if(matfrac < 0.2) continue;
       tjs.matchVec.push_back(ms);
     }
     if(tjs.matchVec.empty()) return;
     
     // create the list of matches that will be converted to PFParticles
     // Start with Tjs attached to 3D vertices
-    if(!tjs.vtx3.empty()) {
-      // put the TjIDs into a vector for matching
-      std::vector<std::vector<int>> v3TjIDs(tjs.vtx3.size());
-      for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
-        auto& vx3 = tjs.vtx3[iv3];
-        if(vx3.ID == 0) continue;
-        for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-          if(vx3.Vtx2ID[ipl] == 0) continue;
-          auto vx2 = tjs.vtx[vx3.Vtx2ID[ipl] - 1];
-          auto vtxTjID2 = GetVtxTjIDs(tjs, vx2);
-          v3TjIDs[iv3].insert(v3TjIDs[iv3].end(), vtxTjID2.begin(), vtxTjID2.end());
-        } // ipl
-        // sort by increasing ID
-        std::sort(v3TjIDs[iv3].begin(), v3TjIDs[iv3].end());
-      } // vx3
-      // now look for matches
-      for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
-        bool skipit = false;
-        // count the number of shower Tjs
-        unsigned short nstj = 0;
-        auto& ms = tjs.matchVec[indx];
-        for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
-          unsigned short itj = ms.TjIDs[ipl] - 1;
-          if(tjs.allTraj[itj].AlgMod[kMat3D]) skipit = true;
-          if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
-        }
-        if(skipit) continue;
-        // Require 0 or matched shower Tjs in all planes
-        if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
-/*
-        std::cout<<indx<<" TjIDs ";
-        for(auto& tjID : tjs.matchVec[indx].TjIDs) std::cout<<" "<<tjID;
-        std::cout<<"\n";
-*/
-        for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
-          if(v3TjIDs[iv3].empty()) continue;
-          std::vector<int> shared;
-          std::set_intersection(v3TjIDs[iv3].begin(), v3TjIDs[iv3].end(), 
-                                ms.TjIDs.begin(), ms.TjIDs.end(), std::back_inserter(shared));
-          // require all Tjs matched to the vertex
-          if(shared.size() != tjs.matchVec[indx].TjIDs.size()) continue;
-/*
-          std::cout<<"  "<<iv3<<" shared";
-          for(auto& tjID : shared) std::cout<<" "<<tjID;
-          std::cout<<"\n";
-*/
-          tjs.matchVecPFPList.push_back(indx);
-          for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
-            unsigned short itj = ms.TjIDs[ipl] - 1;
-            tjs.allTraj[itj].AlgMod[kMat3D] = true;
-          }
-          break;
-        } // iv3
-      } // indx
-    } // vtx3 
+    Match3DVtxTjs(tjs, tpcid, prt);
 
-    // now match the left-over Tjs
+    // now match the leftover Tjs
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
       // skip this match if any of the trajectories is already matched or merged and killed
       bool skipit = false;
@@ -3575,173 +3525,123 @@ namespace tca {
     // endpoints of the two longest trajectories in all planes. The endpoints and trajectories are then
     // reversed if necessary to put sXYZ[0] > eXYZ[0] and EndPt[0] => sXYZ 
     
-    unsigned int cstat = tpcid.Cryostat;
-    unsigned int tpc = tpcid.TPC;
-    
     for(auto& im : tjs.matchVecPFPList) {
-      // a reference to a set of 3D matched trajectories
       auto& ms = tjs.matchVec[im];
-      if(ms.TjIDs.empty()) continue;
+      if(ms.Count == 0) continue;
       if(ms.TPCID != tpcid) continue;
-      // ensure we are in the correct tpcid using the first Tj CTP
-      unsigned short it1 = ms.TjIDs[0] - 1;
-      geo::PlaneID plane1ID = DecodeCTP(tjs.allTraj[it1].CTP);
-      if(plane1ID.Cryostat != cstat) continue;
-      if(plane1ID.TPC != tpc) continue;
       // ignore shower Tjs. These are handled in FindShowerEndPoints
       if(ms.PDGCode == 1111) continue;
-      // Check for the existence of a 3D vertex with these trajectories and if so define the
-      // 3D vertex start and end indices. Note that in it's current state MatchHas3DVertex may not
-      // always define eXYZ.
-      if(Matched3DVtx(tjs, im) == 2) continue;
-      // find the longest Tj
-      unsigned short itjLong = USHRT_MAX;
-      unsigned short ilen = 0;
-      for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-        unsigned short itj = ms.TjIDs[ii] - 1;
-        Trajectory& tj = tjs.allTraj[itj];
-        if(tj.Pts.size() > ilen) {
-          ilen = tj.Pts.size();
-          itjLong = itj;
+      ms.sDir = {0, 0, 0};
+      ms.sDirErr = {0, 0, 0};
+      ms.sXYZ = {0, 0, 0};
+      // make a vector of start TPs for these Tjs
+      std::vector<TrajPoint> stps;
+      if(ms.sVtx3ID > 0) {
+        // a 3D start vertex exists. The position is known but not the direction.
+        // We still need to define stps to find the direction
+        for(auto& tjID : ms.TjIDs) {
+          Trajectory& tj = tjs.allTraj[tjID - 1];
+          for(unsigned short end = 0; end < 2; ++end) {
+            if(tj.VtxID[end] == 0) continue;
+            VtxStore& vx2 = tjs.vtx[tj.VtxID[end] - 1];
+            if(vx2.Vtx3ID != ms.sVtx3ID) continue;
+            unsigned short endPt = tj.EndPt[end];
+            TrajPoint tp = tj.Pts[endPt];
+            tp.Hits.clear();
+            tp.AngleCode = end;
+            tp.Delta = tj.ID;
+            stps.push_back(tp);
+          } // end
+        } // tjID
+        // set the direction
+        Vtx3Store& vx3 = tjs.vtx3[ms.sVtx3ID - 1];
+        ms.sXYZ[0] = vx3.X; ms.sXYZ[1] = vx3.Y; ms.sXYZ[2] = vx3.Z;
+      } // sVtx3ID > 0
+      else {
+        // Start vertex not defined so find matching points
+        FindMatchingPts(tjs, ms, stps);
+        if(stps.size() < 2) {
+          ms.Count = 0;
+          continue;
         }
-      } // ii
-      if (itjLong == USHRT_MAX){
-        mf::LogWarning("TC")<<"In Find3DEndPoints, itjLong = "<<itjLong<<", will return";
-        return;
       }
-      Trajectory& iTj = tjs.allTraj[itjLong];
-      // find the 2nd longest tj
-      unsigned short jtjLong = USHRT_MAX;
-      unsigned short jlen = 0;
-      for(unsigned short jj = 0; jj < ms.TjIDs.size(); ++jj) {
-        unsigned short jtj = ms.TjIDs[jj] - 1;
-        if(jtj == itjLong) continue;
-        Trajectory& tj = tjs.allTraj[jtj];
-        // ensure that this Tj is in a different plane than the longest one
-        if(tj.CTP == iTj.CTP) continue;
-        if(tj.Pts.size() > jlen) {
-          jlen = tj.Pts.size();
-          jtjLong = jtj;
-        }
-      } // ii
-      if (jtjLong == USHRT_MAX){
-        mf::LogWarning("TC")<<"In Find3DEndPoints, jtjLong = "<<jtjLong<<", will return";
-        return;
+      // We now have a vector of TPs that will define the direction (and position if there is no vertex)
+      // of the start of the PFParticle
+      if(stps.size() < 2) {
+        ms.Count = 0;
+        continue;
       }
-      // consider both ends of each Tj
-      unsigned short iPln = DecodeCTP(iTj.CTP).Plane;
-      Trajectory& jTj = tjs.allTraj[jtjLong];
-      unsigned short jPln = DecodeCTP(jTj.CTP).Plane;
-      unsigned short iEnd = 0, jEnd = 0;
-      float bestDx = 1E6;
-      float bestDxX = 0;
-      for(unsigned short ie = 0; ie < 2; ++ie) {
-        unsigned short iEndPt = iTj.EndPt[ie];
-        TrajPoint& iTp = iTj.Pts[iEndPt];
-        unsigned short iPln = DecodeCTP(iTp.CTP).Plane;
-        float iX = tjs.detprop->ConvertTicksToX(iTp.Pos[1]/tjs.UnitsPerTick, iPln, tpc, cstat);
-        for(unsigned short je = 0; je < 2; ++je) {
-          unsigned short jEndPt = jTj.EndPt[je];
-          TrajPoint& jTp = jTj.Pts[jEndPt];
-          unsigned short jPln = DecodeCTP(jTp.CTP).Plane;
-          float jX = tjs.detprop->ConvertTicksToX(jTp.Pos[1]/tjs.UnitsPerTick, jPln, tpc, cstat);
-          float dx = std::abs(iX - jX);
-          if(dx < bestDx) {
-            bestDx = dx;
-            iEnd = ie;
-            jEnd = je;
-            bestDxX = iX;
+      // don't let the direction reverse
+      TVector3 prevDir = {0, 0, 0};
+      // weight the direction by the errors (at some point)
+      float wsum = 0;
+      bool first = true;
+      for(unsigned short ii = 0; ii < stps.size() - 1; ++ii) {
+        for(unsigned short jj = ii + 1; jj < stps.size(); ++jj) {
+          TVector3 pos, dir;
+          if(!TrajPoint3D(tjs, stps[ii], stps[jj], pos, dir)) continue;
+          if(ms.sVtx3ID == 0) {
+            // no vertex so sum to average the start position
+            ms.sXYZ[0] += pos[0]; ms.sXYZ[1] += pos[1]; ms.sXYZ[2] += pos[2];
+            ++wsum;
           }
-        } // e2
-      } // e1
-      // Now decide which end should be the start, taking into account the possible existence of a 3D vertex.
-      // Reference the Tps at the end with the best match
-      unsigned short iEndPt = iTj.EndPt[iEnd];
-      TrajPoint& iTp = iTj.Pts[iEndPt];
-      unsigned short jEndPt = jTj.EndPt[jEnd];
-      TrajPoint& jTp = jTj.Pts[jEndPt];
-      std::array<float, 3> xyz;
-      double yp, zp;
-      unsigned int iwire = std::nearbyint(iTp.Pos[0]);
-      if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, iPln, iwire))) continue;
-      unsigned int jwire = std::nearbyint(jTp.Pos[0]);
-      if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, jPln, jwire))) continue;
-      tjs.geom->IntersectionPoint(iwire, jwire, iPln, jPln, cstat, tpc, yp, zp);
-      // ensure this is inside the TPC
-      if(yp < tjs.YLo) yp = tjs.YLo;
-      if(yp > tjs.YHi) yp = tjs.YLo;
-      if(zp < tjs.ZLo) zp = tjs.ZLo;
-      if(zp > tjs.ZHi) zp = tjs.ZLo;
-      xyz[0] = bestDxX;
-      xyz[1] = yp;
-      xyz[2] = zp;
-      // find the xyz position of the other end
-      iEndPt = iTj.EndPt[1 - iEnd];
-      TrajPoint& ioTp = iTj.Pts[iEndPt];
-      jEndPt = jTj.EndPt[1 - jEnd];
-      TrajPoint& joTp = jTj.Pts[jEndPt];
-      std::array<float, 3> oxyz;
-      iwire = std::nearbyint(ioTp.Pos[0]);
-      if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, iPln, iwire))) continue;
-      jwire = std::nearbyint(joTp.Pos[0]);
-      if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, jPln, jwire))) continue;
-      tjs.geom->IntersectionPoint(iwire, jwire, iPln, jPln, cstat, tpc, yp, zp);
-      // ensure this is inside the TPC
-      if(yp < tjs.YLo) yp = tjs.YLo;
-      if(yp > tjs.YHi) yp = tjs.YLo;
-      if(zp < tjs.ZLo) zp = tjs.ZLo;
-      if(zp > tjs.ZHi) zp = tjs.ZLo;
-      geo::PlaneID iPlaneID = DecodeCTP(ioTp.CTP);
-      float xi = tjs.detprop->ConvertTicksToX(ioTp.Pos[1]/tjs.UnitsPerTick, iPlaneID.Plane, tpc, cstat);
-      geo::PlaneID jPlaneID = DecodeCTP(joTp.CTP);
-      float xj = tjs.detprop->ConvertTicksToX(joTp.Pos[1]/tjs.UnitsPerTick, jPlaneID.Plane, tpc, cstat);
-      oxyz[0] = 0.5 * (xi + xj);
-      oxyz[1] = yp;
-      oxyz[2] = zp;
-      
-      if(ms.sVtx3DIndex != USHRT_MAX) {
-        // 3D vertex assignment exists at the start. Define the other end
-        std::array<float, 3> vpos;
-        vpos[0] = tjs.vtx3[ms.sVtx3DIndex].X;
-        vpos[1] = tjs.vtx3[ms.sVtx3DIndex].Y;
-        vpos[2] = tjs.vtx3[ms.sVtx3DIndex].Z;
-        if(PosSep2(xyz, vpos) < PosSep2(oxyz, vpos)) {
-          ms.eXYZ = oxyz;
-        } else {
-          ms.eXYZ = xyz;
-        }
-      } else {
-        // No 3D vertex assignment exists at either end so define the end positions. A new 3D vertex will be created in FillPFPInfo
-        if(xyz[0] > oxyz[0]) {
-          ms.sXYZ = xyz;
-          ms.eXYZ = oxyz;
-        } else {
-          ms.sXYZ = oxyz;
-          ms.eXYZ = xyz;
-        }
-      } // No 3D vertex assignment exists at either end
-      
-      // Reverse trajectories as necessary so that EndPt[0] is at the sXYZ end
-      std::array<float, 2> vpos;
-      for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-        unsigned short itj = ms.TjIDs[ii] - 1;
-        Trajectory& tj = tjs.allTraj[itj];
-        unsigned short endPt0 = tj.EndPt[0];
-        unsigned short endPt1 = tj.EndPt[1];
-        // Project sXYZ to this plane coordinate system
-        geo::PlaneID planeID = DecodeCTP(tj.CTP);
-        vpos[0] = tjs.geom->WireCoordinate(ms.sXYZ[1], ms.sXYZ[2], planeID) + 0.5;
-        if(vpos[0] < 0 || (unsigned int)vpos[0] > tjs.NumWires[planeID.Plane]) continue;
-        vpos[1] = tjs.detprop->ConvertXToTicks(ms.sXYZ[0], planeID.Plane, tpc, cstat) * tjs.UnitsPerTick;
-        // Reverse if end 0 is further away from vpos than end 1
-        if(PosSep2(tj.Pts[endPt0].Pos, vpos) > PosSep2(tj.Pts[endPt1].Pos, vpos)) ReverseTraj(tjs, tj);
+          if(first) {
+            first = false;
+            // ensure that the direction is away from a start vertex
+            if(ms.sVtx3ID > 0) {
+              if(pos[2] > ms.sXYZ[2] && dir[2] < 0) {
+                dir *= -1;
+              } else if(pos[2] < ms.sXYZ[2] && dir[2] > 0) {
+                dir *= -1;
+              }
+            } // start vertex exists
+            if(ms.sVtx3ID > 0 && pos[2] > ms.sXYZ[2] && dir[2] < 0) dir *= -1;
+            prevDir = dir;
+          } else {
+            // a valid direction cosine exists
+            for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
+              if(std::abs(prevDir[ixyz]) > 0.5) {
+                if(prevDir[ixyz] * dir[ixyz] < 0) dir *= -1;
+                break;
+              }
+            } // ixyz
+          } // prevDir changed
+          ms.sDir += dir;
+        } // jj
       } // ii
-//     if(prt)  mf::LogVerbatim("TC")<<"F3DEP: im "<<im<<" itjLong "<<itjLong<<" iEnd "<<iEnd<<" jtjLong "<<jtjLong<<" jEnd "<<jEnd;
-
-    } // im (ms)
-        
+      // do the average
+      if(ms.sDir.Mag() == 0) continue;
+      ms.sDir.SetMag(1);
+      // correct the direction using a large direction cosine
+      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
+        if(std::abs(ms.sDir[ixyz]) > 0.5) {
+          if(ms.eXYZ[ixyz] > ms.sXYZ[ixyz] && ms.sDir[ixyz] < 0) ms.sDir *= -1;
+          break;
+        }
+      } // ixyz
+      // define the position
+      if(wsum > 0) for(auto& xyz : ms.sXYZ) xyz /= wsum;
+      // Reverse the Tjs so that end 0 is at the start vertex
+      for(auto& tp : stps) {
+        if(tp.AngleCode == 0) continue;
+        // need to reverse the Tj
+        int tjID = tp.Delta;
+        if(tjID < 1 || tjID > (int)tjs.allTraj.size()) continue;
+        ReverseTraj(tjs, tjs.allTraj[tjID - 1]);
+      } // tp
+      // TODO: Define the end position here
+/*
+      FilldEdx(tjs, ms);
+      std::cout<<" Pos "<<(int)ms.sXYZ[0]<<" "<<(int)ms.sXYZ[1]<<" "<<(int)ms.sXYZ[2]<<" Dir "<<ms.sDir[0]<<" "<<ms.sDir[1]<<" "<<ms.sDir[2];
+      std::cout<<" dE/dx";
+      for(auto& dedx : ms.dEdx) std::cout<<" "<<std::fixed<<std::setprecision(1)<<dedx;
+      std::cout<<" BestPlane "<<ms.BestPlane;
+      std::cout<<"\n";
+*/
+    } // ms
+    
   } // Find3DEndPoints
-  
+
   //////////////////////////////////////////
   void TrajClusterAlg::FillPFPInfo()
   {
@@ -3769,7 +3669,7 @@ namespace tca {
         if(prt)  mf::LogVerbatim("TC")<<" Reversed all Tjs using advice from Reverse3DMatchTjs";
         // swap the matchVec end info also
         std::swap(ms.sXYZ, ms.eXYZ);
-        std::swap(ms.sVtx3DIndex, ms.eVtx3DIndex);
+        std::swap(ms.sVtx3ID, ms.eVtx3ID);
       } // Reverse3DMatchTjs
       // we may need to clobber 2D vertices so start a list and count them
       std::vector<unsigned short> vtxIDs, vtxIDCnt;
@@ -3796,21 +3696,21 @@ namespace tca {
         if(vtxIDCnt[ii] > 1) MakeVertexObsolete(tjs, vtxIDs[ii]);
       } // ii
       // Make a 3D vertex at the start of the PFParticle if one doesn't already exist
-      if(ms.sVtx3DIndex == USHRT_MAX) {
+      if(ms.sVtx3ID == 0) {
         // get a reference to one of the Tjs to define the cryostat and TPC
         unsigned short itj = ms.TjIDs[0] - 1;
         geo::PlaneID planeID = DecodeCTP(tjs.allTraj[itj].CTP);
         Vtx3Store newVx3;
-        newVx3.CStat = planeID.Cryostat;
-        newVx3.TPC = planeID.TPC;
+        newVx3.ID = tjs.vtx3.size();
+        newVx3.TPCID = geo::TPCID(planeID.Cryostat, planeID.TPC);
         // Set Wire < 0 as a flag that this is a "complete" 3D vertex even though no 2D vertices have been made.
         newVx3.Wire = -2;
         newVx3.X = ms.sXYZ[0];
         newVx3.Y = ms.sXYZ[1];
         newVx3.Z = ms.sXYZ[2];
         tjs.vtx3.push_back(newVx3);
-        ms.sVtx3DIndex = tjs.vtx3.size() - 1;
-        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<tjs.vtx3.size() - 1<<" at "<<newVx3.X<<" "<<newVx3.Y<<" "<<newVx3.Z;
+        ms.sVtx3ID = newVx3.ID;
+        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<newVx3.ID<<" at "<<newVx3.X<<" "<<newVx3.Y<<" "<<newVx3.Z;
       }
     } // im (ms)
 
