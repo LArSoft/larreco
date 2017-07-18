@@ -2,9 +2,9 @@
 // Class:       PMAlgTrackMaker
 // Module Type: producer
 // File:        PMAlgTrackMaker_module.cc
-// Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl),
-//              R.Sulej (Robert.Sulej@cern.ch),
-//              L.Whitehead (leigh.howard.whitehead@cern.ch), May 2015
+// Authors      D.Stefan (Dorota.Stefan@ncbj.gov.pl),         from DUNE, CERN/NCBJ, since May 2015
+//              R.Sulej (Robert.Sulej@cern.ch),               from DUNE, FNAL/NCBJ, since May 2015
+//              L.Whitehead (leigh.howard.whitehead@cern.ch), from DUNE, CERN,      since Jan 2017
 //
 // Creates 3D tracks and vertices using Projection Matching Algorithm,
 // please see RecoAlg/ProjectionMatchingAlg.h for basics of the PMA algorithm and its settings.
@@ -174,11 +174,10 @@ private:
 	static const std::string kNodesName;        // pma nodes
 
 	// *********************** geometry **************************
-	art::ServiceHandle< geo::Geometry > fGeom;
+	geo::GeometryCore const* fGeom;
 
-    // testig the validation: to be removed
-    std::vector< TH1F* > fCloseHist;
-    std::vector< TH1F* > fDistantHist;
+    // histograms created only for the calibration of the ADC-based track validation mode
+    std::vector< TH1F* > fAdcInPassingPoints, fAdcInRejectedPoints;
 };
 // -------------------------------------------------------------
 const std::string PMAlgTrackMaker::kKinksName = "kink";
@@ -198,7 +197,9 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
     fPmaStitchConfig(config().PMAlgStitching()),
 
 	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
-	fSavePmaNodes(config().SavePmaNodes())
+	fSavePmaNodes(config().SavePmaNodes()),
+	
+	fGeom( &*(art::ServiceHandle<geo::Geometry>()))
 {
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::SpacePoint> >();
@@ -223,13 +224,15 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	produces< art::Assns<recob::PFParticle, recob::Vertex> >();
 	produces< art::Assns<recob::PFParticle, recob::Track> >();
 
-	art::ServiceHandle<art::TFileService> tfs;
-	for (size_t p = 0; p < 3; ++p)
-	{
-	    std::ostringstream ss1;
-	    ss1 << "plane_" << p ;
-	    fCloseHist.push_back( tfs->make<TH1F>((ss1.str() + "_close").c_str(), "max adc around the point on track", 100., 0., 5.) );
-	    fDistantHist.push_back( tfs->make<TH1F>((ss1.str() + "_distant").c_str(), "max adc around spurious point ", 100., 0., 5.) );
+    if (fPmaTrackerConfig.Validation() == "calib") // create histograms only in the calibration mode
+    {
+    	art::ServiceHandle<art::TFileService> tfs;
+	    for (size_t p = 0; p < fGeom->MaxPlanes(); ++p)
+	    {
+	        std::ostringstream ss1; ss1 << "adc_plane_" << p ;
+	        fAdcInPassingPoints.push_back( tfs->make<TH1F>((ss1.str() + "_passing").c_str(), "max adc around the point on track", 100., 0., 5.) );
+	        fAdcInRejectedPoints.push_back( tfs->make<TH1F>((ss1.str() + "_rejected").c_str(), "max adc around spurious point ", 100., 0., 5.) );
+	    }
 	}
 }
 // ------------------------------------------------------
@@ -357,7 +360,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 	// -------------- PMA Tracker for this event ----------------------
 	auto pmalgTracker = pma::PMAlgTracker(allhitlist, *wireHandle,
-		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig, fPmaTaggingConfig,    fCloseHist, fDistantHist);
+		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig, fPmaTaggingConfig, fAdcInPassingPoints, fAdcInRejectedPoints);
 
     size_t mvaLength = 0;
 	if (fEmModuleLabel != "") // ----------- Exclude EM parts ---------

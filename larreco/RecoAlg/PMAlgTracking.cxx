@@ -323,21 +323,30 @@ pma::PMAlgTracker::PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allh
 
 	fRunVertexing(pmalgTrackerConfig.RunVertexing()),
 
-	fValidateOnAdc(pmalgTrackerConfig.ValidateOnAdc()),
+	fAdcInPassingPoints(hclose), fAdcInRejectedPoints(hdist),
 
     fGeom(&*(art::ServiceHandle<geo::Geometry>())),
-	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
-
-	fCloseHist(hclose), fDistantHist(hdist)
+	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
     for (const auto v : fGeom->Views()) { fAvailableViews.push_back(v); }
     std::reverse(fAvailableViews.begin(), fAvailableViews.end());
 
-    mf::LogInfo("PMAlgTracker") << "Using views in the following order:";
+    mf::LogVerbatim("PMAlgTracker") << "Using views in the following order:";
     for (const auto v : fAvailableViews) {  mf::LogInfo("PMAlgTracker") << " " << v; }
-    
+
+    // track validation settings:
+    mf::LogVerbatim("PMAlgTracker") << "Validation mode: " << pmalgTrackerConfig.Validation();
+
     size_t nplanes = fGeom->MaxPlanes();
     for (size_t p = 0; p < nplanes; ++p) { fAdcImages.emplace_back(pmalgTrackerConfig.AdcImageAlg()); }
+
+    if (pmalgTrackerConfig.Validation() == "hits")         { fValidation = pma::PMAlgTracker::kHits;  }
+    else if (pmalgTrackerConfig.Validation() == "adc")     { fValidation = pma::PMAlgTracker::kAdc;   }
+    else if (pmalgTrackerConfig.Validation() == "calib")   { fValidation = pma::PMAlgTracker::kCalib; }
+    else { throw cet::exception("pma::PMAlgTracker") << "validation name not supported" << std::endl; }
+
+    fAdcValidationThr = pmalgTrackerConfig.AdcValidationThr();
+    if (fValidation == pma::PMAlgTracker::kAdc) { mf::LogVerbatim("PMAlgTracker") << "Validation ADC threshold: " << fAdcValidationThr; }
 }
 // ------------------------------------------------------
 
@@ -417,13 +426,25 @@ double pma::PMAlgTracker::validate(pma::Track3D& trk, unsigned int testView)
 	if (testView != geo::kUnknown) { mf::LogVerbatim("PMAlgTracker") << "validation in plane: " << testView; }
 	else { return 1.0; }
 
-    //TH1F * testHistoOk = fCloseHist[testView];
-    //TH1F * testHistoFar = fDistantHist[testView];
-
     double v = 0;
-    //if (fValidateOnAdc) { v = fProjectionMatchingAlg.validate_on_adc_test(trk, fAdcImages[testView], fHitMap[trk.FrontCryo()][trk.FrontTPC()][testView], testHistoOk, testHistoFar); }
-    if (fValidateOnAdc) { v = fProjectionMatchingAlg.validate_on_adc(trk, fAdcImages[testView]); }
-    else { v = fProjectionMatchingAlg.validate(trk, fHitMap[trk.FrontCryo()][trk.FrontTPC()][testView], testView); }
+    switch (fValidation)
+    {
+        case pma::PMAlgTracker::kAdc:
+            v = fProjectionMatchingAlg.validate_on_adc(trk, fAdcImages[testView], fAdcValidationThr);
+            break;
+
+        case pma::PMAlgTracker::kHits:
+            v = fProjectionMatchingAlg.validate(trk, fHitMap[trk.FrontCryo()][trk.FrontTPC()][testView], testView);
+            break;
+
+        case pma::PMAlgTracker::kCalib:
+            v = fProjectionMatchingAlg.validate_on_adc_test(
+                trk, fAdcImages[testView], fHitMap[trk.FrontCryo()][trk.FrontTPC()][testView],
+                fAdcInPassingPoints[testView], fAdcInRejectedPoints[testView]);
+            break;
+            
+        default: throw cet::exception("pma::PMAlgTracker") << "validation mode not supported" << std::endl; break;
+    }
 
 	return v;
 }
@@ -941,15 +962,22 @@ int pma::PMAlgTracker::build(void)
 	        << "Reconstruct tracks within Cryo:" << tpc_iter->Cryostat
 	        << " / TPC:" << tpc_iter->TPC << ".";
 
-	    if (fValidateOnAdc) // initialize ADC images for all planes in this TPC
+	    if (fValidation != pma::PMAlgTracker::kHits) // initialize ADC images for all planes in this TPC (in "adc" and "calib")
 	    {
-            for (size_t p = 0; p < nplanes; ++p) { fAdcImages[p].setWireDriftData(fWires, p, tpc_iter->TPC, tpc_iter->Cryostat); }
+	        mf::LogVerbatim("PMAlgTracker") << "Prepare validation ADC images...";
+	        bool ok = true;
+            for (size_t p = 0; p < nplanes; ++p) { ok &= fAdcImages[p].setWireDriftData(fWires, p, tpc_iter->TPC, tpc_iter->Cryostat); }
+            if (ok) { mf::LogVerbatim("PMAlgTracker") << "  ...done."; }
+            else { mf::LogVerbatim("PMAlgTracker") << "  ...failed."; continue; }
         }
 
         // find reasonably large parts
 		fromMaxCluster_tpc(tracks[tpc_iter->TPC], fMinSeedSize1stPass, tpc_iter->TPC, tpc_iter->Cryostat);
 		// loop again to find small things
 		fromMaxCluster_tpc(tracks[tpc_iter->TPC], fMinSeedSize2ndPass, tpc_iter->TPC, tpc_iter->Cryostat);
+
+        mf::LogVerbatim("PMAlgTracker") << "Found tracks: " << tracks[tpc_iter->TPC].size();
+        if (tracks[tpc_iter->TPC].empty()) { continue; }
 
 	    // add 3D ref.points for clean endpoints of wire-plane parallel track
 		guideEndpoints(tracks[tpc_iter->TPC]);

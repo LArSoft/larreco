@@ -144,93 +144,82 @@ private:
 class pma::PMAlgTracker : public pma::PMAlgTrackingBase
 {
 public:
+    enum EValidationMode { kHits = 1, kAdc = 2, kCalib = 3 };
 
 	struct Config {
 		using Name = fhicl::Name;
 		using Comment = fhicl::Comment;
 
 		fhicl::Atom<size_t> MinSeedSize1stPass {
-			Name("MinSeedSize1stPass"),
-			Comment("min. cluster size used to start building a track in the 1st pass")
+			Name("MinSeedSize1stPass"), Comment("min. cluster size used to start building a track in the 1st pass")
 		};
 
 		fhicl::Atom<size_t> MinSeedSize2ndPass {
-			Name("MinSeedSize2ndPass"),
-			Comment("min. cluster size used to start building a track in the 2nd pass")
+			Name("MinSeedSize2ndPass"), Comment("min. cluster size used to start building a track in the 2nd pass")
 		};
 
 		fhicl::Atom<float> TrackLikeThreshold {
-			Name("TrackLikeThreshold"),
-			Comment("Threshold for track-like recognition")
+			Name("TrackLikeThreshold"), Comment("Threshold for track-like recognition")
 		};
 
 		fhicl::Atom<bool> RunVertexing {
-			Name("RunVertexing"),
-			Comment("find vertices from PFP hierarchy, join with tracks, reoptimize track-vertex structure")
+			Name("RunVertexing"), Comment("find vertices from PFP hierarchy, join with tracks, reoptimize track-vertex structure")
 		};
 
 		fhicl::Atom<bool> FlipToBeam {
-			Name("FlipToBeam"),
-			Comment("set the track direction to increasing Z values")
+			Name("FlipToBeam"), Comment("set the track direction to increasing Z values")
 		};
 
 		fhicl::Atom<bool> FlipDownward {
-			Name("FlipDownward"),
-			Comment("set the track direction to decreasing Y values (like cosmic rays)")
+			Name("FlipDownward"), Comment("set the track direction to decreasing Y values (like cosmic rays)")
 		};
 
 		fhicl::Atom<bool> AutoFlip_dQdx {
-			Name("AutoFlip_dQdx"),
-			Comment("set the track direction to increasing dQ/dx (overrides FlipToBeam and FlipDownward if significant rise of dQ/dx at the track end)")
+			Name("AutoFlip_dQdx"), Comment("set the track direction to increasing dQ/dx (overrides FlipToBeam and FlipDownward if significant rise of dQ/dx at the track end)")
 		};
 
 		fhicl::Atom<bool> MergeWithinTPC {
-			Name("MergeWithinTPC"),
-			Comment("merge witnin single TPC; finds tracks best matching by angle and displacement")
+			Name("MergeWithinTPC"), Comment("merge witnin single TPC; finds tracks best matching by angle and displacement")
 		};
 
 		fhicl::Atom<double> MergeTransverseShift {
-			Name("MergeTransverseShift"),
-			Comment("max. transverse displacement [cm] between tracks")
+			Name("MergeTransverseShift"), Comment("max. transverse displacement [cm] between tracks")
 		};
 
 		fhicl::Atom<double> MergeAngle {
-			Name("MergeAngle"),
-			Comment("max. angle [degree] between tracks (nearest segments)")
+			Name("MergeAngle"), Comment("max. angle [degree] between tracks (nearest segments)")
 		};
 
 		fhicl::Atom<bool> StitchBetweenTPCs {
-			Name("StitchBetweenTPCs"),
-			Comment("stitch between TPCs; finds tracks best matching by angle and displacement")
+			Name("StitchBetweenTPCs"), Comment("stitch between TPCs; finds tracks best matching by angle and displacement")
 		};
 
 		fhicl::Atom<double> StitchDistToWall {
-			Name("StitchDistToWall"),
-			Comment("max. track endpoint distance [cm] to TPC boundary")
+			Name("StitchDistToWall"), Comment("max. track endpoint distance [cm] to TPC boundary")
 		};
 
 		fhicl::Atom<double> StitchTransverseShift {
-			Name("StitchTransverseShift"),
-			Comment("max. transverse displacement [cm] between tracks")
+			Name("StitchTransverseShift"), Comment("max. transverse displacement [cm] between tracks")
 		};
 
 		fhicl::Atom<double> StitchAngle {
-			Name("StitchAngle"),
-			Comment("max. angle [degree] between tracks (nearest segments)")
+			Name("StitchAngle"), Comment("max. angle [degree] between tracks (nearest segments)")
 		};
 
 		fhicl::Atom<bool> MatchT0inAPACrossing {
-			Name("MatchT0inAPACrossing"),
-			Comment("match T0 of APA-crossing tracks using PMAlgStitcher")
+			Name("MatchT0inAPACrossing"), Comment("match T0 of APA-crossing tracks using PMAlgStitcher")
 		};
 
 		fhicl::Atom<bool> MatchT0inCPACrossing {
-			Name("MatchT0inCPACrossing"),
-			Comment("match T0 of CPA-crossing tracks using PMAlgStitcher")
+			Name("MatchT0inCPACrossing"), Comment("match T0 of CPA-crossing tracks using PMAlgStitcher")
 		};
 
-		fhicl::Atom<bool> ValidateOnAdc {
-			Name("ValidateOnAdc"), Comment("validate tracks using 2d adc image")
+		fhicl::Atom<std::string> Validation {
+			Name("Validation"), Comment("tracks validation mode: hits, adc, calib")
+		};
+
+		fhicl::Atom<double> AdcValidationThr {
+			Name("AdcValidationThr"), Comment("threshold for not-empty pixel in the ADC track validation")
 		};
 
 		fhicl::Table<nnet::DataProviderAlg::Config> AdcImageAlg {
@@ -360,16 +349,17 @@ private:
 
 	bool fRunVertexing;          // run vertex finding
 
-    bool fValidateOnAdc;         // use ADC image to validate tracks
-    std::vector< nnet::DataProviderAlg > fAdcImages;
+    EValidationMode fValidation;                     // track validation mode
+    std::vector< nnet::DataProviderAlg > fAdcImages; // adc image making algorithms for each plane
+    double fAdcValidationThr;                        // threshold on pixel values in the adc image
+    
+    // references to the validation calibration histograms
+	const std::vector< TH1F* > & fAdcInPassingPoints;
+	const std::vector< TH1F* > & fAdcInRejectedPoints;
 
 	// *********************** services *************************
 	geo::GeometryCore const* fGeom;
 	const detinfo::DetectorProperties* fDetProp;
-
-    // testig the validation: to be removed
-	const std::vector< TH1F* > & fCloseHist;
-	const std::vector< TH1F* > & fDistantHist;
 };
 
 #endif

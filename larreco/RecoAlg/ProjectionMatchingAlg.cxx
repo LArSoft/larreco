@@ -39,10 +39,8 @@ void pma::ProjectionMatchingAlg::reconfigure(const pma::ProjectionMatchingAlg::C
 // ------------------------------------------------------
 
 double pma::ProjectionMatchingAlg::validate_on_adc(
-    const pma::Track3D& trk, const nnet::DataProviderAlg & adcImage) const
+    const pma::Track3D& trk, const nnet::DataProviderAlg & adcImage, float thr) const
 {
-    float minValidationAdc = 1.0; // to be promoted to fcl parameter
-
 	unsigned int nAll = 0, nPassed = 0;
 	unsigned int testView = adcImage.View();
 
@@ -86,8 +84,8 @@ double pma::ProjectionMatchingAlg::validate_on_adc(
 			  raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
 			  if (channelStatus.IsGood(ch))
 			  {
-			      float max_adc = adcImage.poolMax(widx, didx, 2);
-			      if (max_adc > minValidationAdc) nPassed++;
+			      float max_adc = adcImage.poolMax(widx, didx, 2); // +/- 2 wires, can be parameterized
+			      if (max_adc > thr) nPassed++;
 
 				  nAll++;
 			  }
@@ -97,6 +95,8 @@ double pma::ProjectionMatchingAlg::validate_on_adc(
 
 			p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
 		}
+
+		p = seg->End(); // need to have it at the end due to the p in the first iter set to the hit position, not segment start
 	}
 
 	if (nAll > 0)
@@ -112,7 +112,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc(
 double pma::ProjectionMatchingAlg::validate_on_adc_test(const pma::Track3D& trk,
 	const nnet::DataProviderAlg & adcImage,
 	const std::vector< art::Ptr<recob::Hit> >& hits,
-	TH1F * testHistoOk, TH1F * testHistoFar) const
+	TH1F * histoPassing, TH1F * histoRejected) const
 {
 	double max_d = fTrkValidationDist2D;
 	double d2, max_d2 = max_d * max_d;
@@ -159,61 +159,65 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(const pma::Track3D& trk,
 	double step = 0.3;
 	// then check how points-close-to-the-track-projection are distributed along the
 	// track, namely: are there track sections crossing empty spaces, except dead wires?
-	TVector3 p(trk.front()->Point3D());
-	for (size_t i = 0; i < trk.Nodes().size() - 1; ++i)
+	pma::Vector3D p(trk.front()->Point3D().X(), trk.front()->Point3D().Y(), trk.front()->Point3D().Z());
+	for (auto const * seg : trk.Segments())
 	{
-		auto const & node = *(trk.Nodes()[i]);
-		tpc = node.TPC(); cryo = node.Cryo();
+	    if (seg->TPC() < 0) // skip segments between tpc's, look only at those contained in tpc
+	    {
+	        p = seg->End(); continue;
+	    }
+	    pma::Vector3D p0 = seg->Start();
+	    pma::Vector3D p1 = seg->End();
 
-		TVector3 vNext(trk.Nodes()[i + 1]->Point3D());
-		TVector3 vThis(node.Point3D());
+	    pma::Node3D* node = static_cast<pma::Node3D*>(seg->Prev());
+
+		tpc = seg->TPC(); cryo = seg->Cryo();
+
+		pma::Vector3D dc = step * seg->GetDirection3D();
 
 		auto const & points = all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)];
-		if (trk.Nodes()[i + 1]->TPC() == (int)tpc) // skip segments between tpc's, look only at those contained in tpc
+
+	    double f = pma::GetSegmentProjVector(p, p0, p1);
+
+		double wirepitch = fGeom->TPC(tpc, cryo).Plane(testView).WirePitch();
+		while ((f < 1.0) && node->SameTPC(p))
 		{
-			TVector3 dc(vNext); dc -= vThis;
-			dc *= step / dc.Mag();
-
-			double f = pma::GetSegmentProjVector(p, vThis, vNext);
-			double wirepitch = fGeom->TPC(tpc, cryo).Plane(testView).WirePitch();
-			while ((f < 1.0) && node.SameTPC(p))
-			{
-				pma::Vector2D p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
-				geo::WireID wireID(cryo, tpc, testView, (int)p2d.X());
+			pma::Vector2D p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
+			geo::WireID wireID(cryo, tpc, testView, (int)p2d.X());
 				
-				int widx = (int)p2d.X();
-				int didx = (int)fDetProp->ConvertXToTicks(p2d.Y(), testView, tpc, cryo);
+			int widx = (int)p2d.X();
+			int didx = (int)fDetProp->ConvertXToTicks(p2d.Y(), testView, tpc, cryo);
 
-				if (fGeom->HasWire(wireID))
-				{
-				  raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
-				  if (channelStatus.IsGood(ch))
+			if (fGeom->HasWire(wireID))
+			{
+			  raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+			  if (channelStatus.IsGood(ch))
+			  {
+			      bool is_close = false;
+			      float max_adc = adcImage.poolMax(widx, didx, 2);
+
+			      if (points.size())
 				  {
-				      bool is_close = false;
-				      float max_adc = adcImage.poolMax(widx, didx, 2);
-
-				      if (points.size())
+					  p2d.SetX(wirepitch * p2d.X());
+					  for (const auto & h : points)
 					  {
-						  p2d.SetX(wirepitch * p2d.X());
-						  for (const auto & h : points)
-						  {
-							  d2 = pma::Dist2(p2d, h);
-							  if (d2 < max_d2) { is_close = true; nPassed++; break; }
-						  }
+						  d2 = pma::Dist2(p2d, h);
+						  if (d2 < max_d2) { is_close = true; nPassed++; break; }
 					  }
-					  nAll++;
-					  
-					  if (is_close) { if (testHistoOk) testHistoOk->Fill(max_adc); }
-					  else { if (testHistoFar) testHistoFar->Fill(max_adc); }
 				  }
-				  //else mf::LogVerbatim("ProjectionMatchingAlg")
-				  //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
-				}
-
-				p += dc; f = pma::GetSegmentProjVector(p, vThis, vNext);
+				  nAll++;
+					  
+				  // now fill the calibration histograms
+				  if (is_close) { if (histoPassing) histoPassing->Fill(max_adc); }
+				  else { if (histoRejected) histoRejected->Fill(max_adc); }
+			  }
+			  //else mf::LogVerbatim("ProjectionMatchingAlg")
+			  //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
 			}
+
+			p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
 		}
-		p = vNext;
+		p = seg->End();
 	}
 
 	if (nAll > 0)
@@ -274,51 +278,54 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	double step = 0.3;
 	// then check how points-close-to-the-track-projection are distributed along the
 	// track, namely: are there track sections crossing empty spaces, except dead wires?
-	TVector3 p(trk.front()->Point3D());
-	for (size_t i = 0; i < trk.Nodes().size() - 1; ++i)
+	pma::Vector3D p(trk.front()->Point3D().X(), trk.front()->Point3D().Y(), trk.front()->Point3D().Z());
+	for (auto const * seg : trk.Segments())
 	{
-		auto const & node = *(trk.Nodes()[i]);
-		tpc = node.TPC(); cryo = node.Cryo();
+	    if (seg->TPC() < 0) // skip segments between tpc's, look only at those contained in tpc
+	    {
+	        p = seg->End(); continue;
+	    }
+	    pma::Vector3D p0 = seg->Start();
+	    pma::Vector3D p1 = seg->End();
 
-		TVector3 vNext(trk.Nodes()[i + 1]->Point3D());
-		TVector3 vThis(node.Point3D());
+	    pma::Node3D* node = static_cast<pma::Node3D*>(seg->Prev());
+
+		tpc = seg->TPC(); cryo = seg->Cryo();
+
+		pma::Vector3D dc = step * seg->GetDirection3D();
 
 		auto const & points = all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)];
-		if (trk.Nodes()[i + 1]->TPC() == (int)tpc) // skip segments between tpc's, look only at those contained in tpc
+
+	    double f = pma::GetSegmentProjVector(p, p0, p1);
+
+		double wirepitch = fGeom->TPC(tpc, cryo).Plane(testView).WirePitch();
+		while ((f < 1.0) && node->SameTPC(p))
 		{
-			TVector3 dc(vNext); dc -= vThis;
-			dc *= step / dc.Mag();
-
-			double f = pma::GetSegmentProjVector(p, vThis, vNext);
-			double wirepitch = fGeom->TPC(tpc, cryo).Plane(testView).WirePitch();
-			while ((f < 1.0) && node.SameTPC(p))
+			pma::Vector2D p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
+			geo::WireID wireID(cryo, tpc, testView, (int)p2d.X());
+			if (fGeom->HasWire(wireID))
 			{
-				pma::Vector2D p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
-				geo::WireID wireID(cryo, tpc, testView, (int)p2d.X());
-				if (fGeom->HasWire(wireID))
-				{
-				  raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
-				  if (channelStatus.IsGood(ch))
+			  raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+			  if (channelStatus.IsGood(ch))
+			  {
+			      if (points.size())
 				  {
-				      if (points.size())
+					  p2d.SetX(wirepitch * p2d.X());
+					  for (const auto & h : points)
 					  {
-						  p2d.SetX(wirepitch * p2d.X());
-						  for (const auto & h : points)
-						  {
-							  d2 = pma::Dist2(p2d, h);
-							  if (d2 < max_d2) { nPassed++; break; }
-						  }
+						  d2 = pma::Dist2(p2d, h);
+						  if (d2 < max_d2) { nPassed++; break; }
 					  }
-					nAll++;
 				  }
-				  //else mf::LogVerbatim("ProjectionMatchingAlg")
-				  //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
-				}
-
-				p += dc; f = pma::GetSegmentProjVector(p, vThis, vNext);
+				nAll++;
+			  }
+			  //else mf::LogVerbatim("ProjectionMatchingAlg")
+			  //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
 			}
+
+			p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
 		}
-		p = vNext;
+		p = seg->End();
 	}
 
 	if (nAll > 0)
