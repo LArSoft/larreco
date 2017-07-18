@@ -400,7 +400,7 @@ namespace tca {
         DefineShower(tjs, cotIndex, prt);
         // Find nearby Tjs that were not included because they had too-high
         // MCSMom, etc. This will be used to decide if showers should be merged
-        AddTjsInsideEnvelope(tjs, cotIndex, prt);
+        AddTjsInsideEnvelope(tjs, cotIndex, prt,1);
         FindNearbyTjs(tjs, cotIndex, prt);
         FindMatchingTjs(tjs, cotIndex, prt);
         if(prt) {
@@ -671,7 +671,6 @@ namespace tca {
     // Merge small showers with larger ones
     MergeSubShowers(tjs, inCTP, prt);
     
-<<<<<<< HEAD
     // drop those that don't meet the requirements
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       ShowerStruct& ss = tjs.cots[cotIndex];
