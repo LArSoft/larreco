@@ -296,8 +296,11 @@ namespace tca {
     int toWire = std::nearbyint(tp2.Pos[0]);
     
     if(fromWire == toWire) {
-      if(prt) mf::LogVerbatim("TC")<<" SignalBetween fromWire = toWire = "<<fromWire<<" SignalAtTp? "<<SignalAtTp(tjs, tp1);
-      return SignalAtTp(tjs, tp1);
+      TrajPoint tp = tp1;
+      // check for a signal midway between
+      tp.Pos[1] = 0.5 * (tp1.Pos[1] + tp2.Pos[1]);
+      if(prt) mf::LogVerbatim("TC")<<" SignalBetween fromWire = toWire = "<<fromWire<<" SignalAtTp? "<<SignalAtTp(tjs, tp);
+      return SignalAtTp(tjs, tp);
     }
 
     // define a trajectory point located at tp1 that has a direction towards tp2

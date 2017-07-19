@@ -2420,7 +2420,7 @@ namespace tca {
           // Find the distance of closest approach for small angle merging
           // Inflate the doca cut if we are bridging a block of dead wires
           float dang = DeltaAngle(tp1.Ang, tp2.Ang);
-          float doca = 5;
+          float doca = 15;
           if(isVLA) {
             // compare the minimum separation between Large Angle trajectories using a generous cut
             unsigned short ipt1, ipt2;
