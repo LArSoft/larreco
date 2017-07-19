@@ -120,6 +120,21 @@ namespace hit{
     void SplitPeak(std::tuple<double,int,int,int> fPeakDevCand,
 		   PeakTimeWidVec& fpeakValsTemp);
 
+    double WidthFunc(double fPeakMean,
+		   double fPeakAmp,
+		   double fPeakTau1,
+		   double fPeakTau2,
+		   double fStartTime,
+		   double fEndTime,
+		   double fPeakMeanTrue);
+
+    double ChargeFunc(double fPeakMean,
+		      double fPeakAmp,
+		      double fPeakTau1,
+		      double fPeakTau2,
+		      double fChargeNormFactor,
+		      double fPeakMeanTrue);
+
     void FillOutHitParameterVector(const std::vector<double>& input,
 				   std::vector<double>& output);
       
@@ -301,20 +316,6 @@ void DPRawHitFinder::produce(art::Event& evt)
     // Channel Number
     raw::ChannelID_t channel = raw::InvalidChannelID;
     
-    //##############################################
-    //### Integrate over fit to determine charge ###
-    //##############################################
-    std::function<double (double,double,double,double,double,int,int)> chargeFunc = [](double peakMean, double peakAmp, double peaktau1, double peaktau2, double chargeNorm, int low, int hi)
-    {
-	double charge(0);
-	double ReBin = 10.;
-	for(int x = low; x < hi*ReBin; x++)
-	{
-	    charge += ( peakAmp * exp(0.4*((x/ReBin)-peakMean)/peaktau1)) / ( 1 + exp(0.4*((x/ReBin)-peakMean)/peaktau2) );
-	}
-	return charge/ReBin;
-    };
-
     //##############################
     //### Looping over the wires ###
     //##############################
@@ -331,8 +332,7 @@ void DPRawHitFinder::produce(art::Event& evt)
         std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
         // for now, just take the first option returned from ChannelToWire
         geo::WireID wid  = wids[0];
-	//std::cout << std::endl;
-	//std::cout << "wid: " << wid << std::endl;
+
         // #################################################
         // ### Set up to loop over ROI's for this wire   ###
         // #################################################
@@ -352,7 +352,6 @@ void DPRawHitFinder::produce(art::Event& evt)
            
             // ROI start time
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
-	    //std::cout << "roiFirstBinTick: " << roiFirstBinTick << std::endl;
             MergedTimeWidVec mergedVec;
             
             // ###########################################################
@@ -449,7 +448,6 @@ void DPRawHitFinder::produce(art::Event& evt)
 			}
 		    }
 
-
 		    // #####################################################
                     // ### Calling the function for fitting Exponentials ###
                     // #####################################################
@@ -536,7 +534,6 @@ void DPRawHitFinder::produce(art::Event& evt)
 
 			    if(RefitSuccess == false)
 			    {
-			    	//if(nExponentialsAfterRefit==nExponentialsBeforeRefit) std::cout << "Refit unsuccessful" << std::endl;
 			    break;
 			    }	
 			}
@@ -550,22 +547,35 @@ void DPRawHitFinder::produce(art::Event& evt)
 
                 for(unsigned int i = 0; i < nExponentialsForFit; i++)
                 {
-                    // Extract values for this hit
+                    //Extract fit parameters for this hit
 		    double peakTau1 = paramVec[0].first;
 		    double peakTau2 = paramVec[1].first;
                     double peakAmp   = paramVec[2*(i+1)].first;
                     double peakMean  = paramVec[2*(i+1)+1].first;
-                    double peakWidth = std::max(8.175, 5.61959 + 7.93513*peakTau1 - 1.45595*peakTau1*peakTau1)/(2*sqrt(2*log(2))); //Conversion from tau1 to "width at 0.5*amplitude" to standard 																	     deviation of a Gaussian. Width of elec. response (= min. width of a 																	      hit) is 8.175 at 0.5*amplitude.
-                    // Extract errors
+
+		    //Calculate mean
+		    TF1 Exponentials("Exponentials","( [0] * exp(0.4*(x-[1])/[2]) / ( 1 + exp(0.4*(x-[1])/[3]) ) )",startT,endT);
+        	    Exponentials.SetParameter(0, peakAmp);
+        	    Exponentials.SetParameter(1, peakMean);
+        	    Exponentials.SetParameter(2, peakTau1);
+        	    Exponentials.SetParameter(3, peakTau2);
+		    double peakMeanTrue = Exponentials.GetMaximumX(startT,endT);
+		    Exponentials.Delete();
+
+		    //Calculate width (=FWHM)
+		    double peakWidth = WidthFunc(peakMean, peakAmp, peakTau1, peakTau2, startT, endT, peakMeanTrue);
+		    peakWidth /= 2.355; //from FWHM to "standard deviation": standard deviation = FWHM/(2*sqrt(2*ln(2)))
+
+                    // Extract fit parameters errors
                     double peakAmpErr   = paramVec[2*(i+1)].second;
                     double peakMeanErr  = paramVec[2*(i+1)+1].second;
-                    double peakWidthErr = 0.1;
+                    double peakWidthErr = 0.1*peakWidth;
 
                     // ### Charge ###
-                    double charge    = chargeFunc(peakMean, peakAmp, peakTau1, peakTau2, fChargeNorm,startT-10,endT+20);
+                    double charge = ChargeFunc(peakMean, peakAmp, peakTau1, peakTau2, fChargeNorm, peakMeanTrue);
                     double chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);    
 
-                    // ### limits for getting sums
+                    // ### limits for getting sum of ADC counts
 	            int startTthisHit = std::get<2>(peakVals.at(i));
 	            int endTthisHit = std::get<3>(peakVals.at(i));
                     std::vector<float>::const_iterator sumStartItr = signal.begin() + startTthisHit;
@@ -574,16 +584,7 @@ void DPRawHitFinder::produce(art::Event& evt)
                     // ### Sum of ADC counts
                     double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
 
-		    //Mean
-		    TF1 Exponentials("Exponentials","( [0] * exp(0.4*(x-[1])/[2]) / ( 1 + exp(0.4*(x-[1])/[3]) ) )",startTthisHit,endTthisHit);
-        	    Exponentials.SetParameter(0, peakAmp);
-        	    Exponentials.SetParameter(1, peakMean);
-        	    Exponentials.SetParameter(2, peakTau1);
-        	    Exponentials.SetParameter(3, peakTau2);
-		    double peakMeanTrue = Exponentials.GetMaximumX(startTthisHit,endTthisHit);
-		    Exponentials.Delete();
-
-                    // ok, now create the hit
+                    // Create the hit
                     recob::HitCreator hitcreator(*wire,                            // wire reference
                                                  wid,                              // wire ID
                                                  startT+roiFirstBinTick,           // start_tick TODO check
@@ -619,7 +620,6 @@ void DPRawHitFinder::produce(art::Event& evt)
            }//<---End loop over merged candidate hits
 
        } //<---End looping over ROI's
-	//std::cout << std::endl;	 
 
    }//<---End looping over all the wires
 
@@ -704,8 +704,6 @@ void hit::DPRawHitFinder::findCandidatePeaks(std::vector<float>::const_iterator 
             int lastTime = std::distance(startItr,lastItr);
             
             // Now save this candidate's start and max time info
-	    //std::cout << "firstTick+firstTime: " << firstTick+firstTime << "\t" << "firstTick+maxTime: " << firstTick+maxTime << "\t" << "firstTick+lastTime: " << firstTick+lastTime << std::endl;
-
             timeValsVec.push_back(std::make_tuple(firstTick+firstTime,firstTick+maxTime,firstTick+lastTime));
             
             // Recursive call to find all candidate hits later than this peak
@@ -877,6 +875,7 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  fSignalVecto
     {
 	if(!fDoSignalCorrection){hitSignal.Fill(i,fSignalVector[i]);}
 	else{hitSignal.Fill(i,fSignalVector[i]-fSignalCorrection->at(i));}
+	hitSignal.SetBinError(i,0.288675); //1/sqrt(12)
     }
 
     // ################################################
@@ -888,7 +887,6 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  fSignalVecto
     // --- TF1 function for Exponentials  ---
     // --------------------------------------
 
-    //TF1 Exponentials("Exponentials",eqn.c_str(),0,std::max(size,1));
     TF1 Exponentials("Exponentials",eqn.c_str(),fStartTime,fEndTime+1);
 
     Exponentials.SetParameter(0, 0.5);
@@ -909,8 +907,7 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  fSignalVecto
         peakMean = std::get<0>(fPeakVals.at(i));
         peakMeanSeed=peakMean-peakMeanShift;
         peakMeanRangeLow=peakMeanSeed-peakMeanRange;
-        peakMeanRangeHi=peakMeanSeed+peakMeanRange;	
-	//std::cout << "peakMean " << i << ": " << peakMean << std::endl;
+        peakMeanRangeHi=peakMeanSeed+peakMeanRange;
         amplitude = fSignalVector[peakMean];
 
 	Exponentials.SetParameter(2*(i+1), 1.65*amplitude);
@@ -952,9 +949,6 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  fSignalVecto
     // ##################################################
     fchi2PerNDF = (Exponentials.GetChisquare() / Exponentials.GetNDF());
     fNDF        = Exponentials.GetNDF();
-
-    //std::cout << "Exponentials.GetNDF(): " << Exponentials.GetNDF() << std::endl;
-    //std::cout << "Fit chi2perNDF: " << fchi2PerNDF << std::endl;
 
     fparamVec.emplace_back(Exponentials.GetParameter(0),Exponentials.GetParError(0));
     fparamVec.emplace_back(Exponentials.GetParameter(1),Exponentials.GetParError(1));
@@ -1147,6 +1141,126 @@ fpeakValsTemp.emplace_back(NewPeakMax,0,NewPeakStart,NewPeakEnd);
 std::sort(fpeakValsTemp.begin(),fpeakValsTemp.end(), [](std::tuple<int,int,int,int> const &t1, std::tuple<int,int,int,int> const &t2) {return std::get<0>(t1) < std::get<0>(t2);} );
 
 return;
+}
+
+//---------------------------------------------------------------------------------------------
+double hit::DPRawHitFinder::WidthFunc(double fPeakMean,
+		    		      double fPeakAmp,
+		    		      double fPeakTau1,
+		    		      double fPeakTau2,
+				      double fStartTime,
+				      double fEndTime,
+			    	      double fPeakMeanTrue)
+{
+double MaxValue = ( fPeakAmp * exp(0.4*(fPeakMeanTrue-fPeakMean)/fPeakTau1)) / ( 1 + exp(0.4*(fPeakMeanTrue-fPeakMean)/fPeakTau2) );
+double FuncValue = 0.;
+double HalfMaxLeftTime = 0.;
+double HalfMaxRightTime = 0.;
+double ReBin=10.;
+
+    //First iteration (+- 1 bin)
+    for(double x = fPeakMeanTrue; x > fStartTime-1000.; x--)
+    {
+    FuncValue = ( fPeakAmp * exp(0.4*(x-fPeakMean)/fPeakTau1)) / ( 1 + exp(0.4*(x-fPeakMean)/fPeakTau2) ); 
+	if( FuncValue < 0.5*MaxValue )
+	{
+	HalfMaxLeftTime = x;
+	break;
+	}
+    }
+
+    for(double x = fPeakMeanTrue; x < fEndTime+1000.; x++)
+    {
+    FuncValue = ( fPeakAmp * exp(0.4*(x-fPeakMean)/fPeakTau1)) / ( 1 + exp(0.4*(x-fPeakMean)/fPeakTau2) ); 
+	if( FuncValue < 0.5*MaxValue )
+	{
+	HalfMaxRightTime = x;
+	break;
+	}
+    }
+
+    //Second iteration (+- 0.1 bin)
+    for(double x = HalfMaxLeftTime+1; x > HalfMaxLeftTime; x-=(1/ReBin))
+    {
+    FuncValue = ( fPeakAmp * exp(0.4*(x-fPeakMean)/fPeakTau1)) / ( 1 + exp(0.4*(x-fPeakMean)/fPeakTau2) ); 
+	if( FuncValue < 0.5*MaxValue )
+	{
+	HalfMaxLeftTime = x;
+	break;
+	}
+    }
+
+    for(double x = HalfMaxRightTime-1; x < HalfMaxRightTime; x+=(1/ReBin))
+    {
+    FuncValue = ( fPeakAmp * exp(0.4*(x-fPeakMean)/fPeakTau1)) / ( 1 + exp(0.4*(x-fPeakMean)/fPeakTau2) ); 
+	if( FuncValue < 0.5*MaxValue )
+	{
+	HalfMaxRightTime = x;
+	break;
+	}
+    }
+
+    //Third iteration (+- 0.01 bin)
+    for(double x = HalfMaxLeftTime+1/ReBin; x > HalfMaxLeftTime; x-=1/(ReBin*ReBin))
+    {
+    FuncValue = ( fPeakAmp * exp(0.4*(x-fPeakMean)/fPeakTau1)) / ( 1 + exp(0.4*(x-fPeakMean)/fPeakTau2) ); 
+	if( FuncValue < 0.5*MaxValue )
+	{
+	HalfMaxLeftTime = x;
+	break;
+	}
+    }
+
+    for(double x = HalfMaxRightTime-1/ReBin; x < HalfMaxRightTime; x+=1/(ReBin*ReBin))
+    {
+    FuncValue = ( fPeakAmp * exp(0.4*(x-fPeakMean)/fPeakTau1)) / ( 1 + exp(0.4*(x-fPeakMean)/fPeakTau2) ); 
+	if( FuncValue < 0.5*MaxValue )
+	{
+	HalfMaxRightTime = x;
+	break;
+	}
+    }
+
+return HalfMaxRightTime-HalfMaxLeftTime;
+}
+
+//---------------------------------------------------------------------------------------------
+double hit::DPRawHitFinder::ChargeFunc(double fPeakMean,
+		      		       double fPeakAmp,
+		      		       double fPeakTau1,
+		      		       double fPeakTau2,
+				       double fChargeNormFactor,
+				       double fPeakMeanTrue)
+
+{
+double ChargeSum = 0.;
+double Charge = 0.;
+double ReBin = 10.;
+
+bool ChargeBigEnough=true;
+    for(double x = fPeakMeanTrue - 1/ReBin; ChargeBigEnough && x > fPeakMeanTrue-1000.; x-=1.)
+    {
+	for(double i=0.; i > -1.; i-=(1/ReBin))
+	{
+    	Charge = ( fPeakAmp * exp(0.4*(x+i-fPeakMean)/fPeakTau1)) / ( 1 + exp(0.4*(x+i-fPeakMean)/fPeakTau2) );
+	ChargeSum += Charge;
+    	}
+	if(Charge < 0.01) ChargeBigEnough = false;
+    }
+
+ChargeBigEnough=true;
+    for(double x = fPeakMeanTrue; ChargeBigEnough && x < fPeakMeanTrue+1000.; x+=1.)
+    {
+	for(double i=0.; i < 1.; i+=(1/ReBin))
+	{
+    	Charge = ( fPeakAmp * exp(0.4*(x+i-fPeakMean)/fPeakTau1)) / ( 1 + exp(0.4*(x+i-fPeakMean)/fPeakTau2) );
+	ChargeSum += Charge;
+    	}
+	if(Charge < 0.01) ChargeBigEnough = false;
+    }
+
+
+return ChargeSum*fChargeNormFactor/ReBin;
 }
 
 //---------------------------------------------------------------------------------------------
