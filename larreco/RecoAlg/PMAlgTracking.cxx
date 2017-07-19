@@ -444,7 +444,7 @@ double pma::PMAlgTracker::validate(pma::Track3D& trk, unsigned int testView)
             break;
 
         case pma::PMAlgTracker::kHits:
-            v = fProjectionMatchingAlg.validate(trk, fHitMap[trk.FrontCryo()][trk.FrontTPC()][testView], testView);
+            v = fProjectionMatchingAlg.validate(trk, fHitMap[trk.FrontCryo()][trk.FrontTPC()][testView]);
             break;
 
         case pma::PMAlgTracker::kCalib:

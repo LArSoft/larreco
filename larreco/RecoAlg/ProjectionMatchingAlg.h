@@ -35,7 +35,7 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
-#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/DataProviderAlg.h"
 
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
@@ -124,13 +124,14 @@ public:
 		TH1F * histoPassing, TH1F * histoRejected) const;
 
 	/// Calculate the fraction of the track that is closer than fTrkValidationDist2D
-	/// to any hit from hits in the testView (a view that was not used to build the track).
+	/// to any hit from hits in their plane (a plane that was not used to build the track).
+	/// Hits should be preselected, so all belong to the same plane.
 	double validate(const pma::Track3D& trk,
-		const std::vector< art::Ptr<recob::Hit> >& hits,
-		unsigned int testView) const;
+		const std::vector< art::Ptr<recob::Hit> >& hits) const;
 
 	/// Calculate the fraction of the 3D segment that is closer than fTrkValidationDist2D
-	/// to any hit from hits in the testView of TPC/Cryo.
+	/// to any hit from hits in the testPlane of TPC/Cryo. Hits from the testPlane are
+	/// preselected by this function among all provided (so a bit slower than fn above).
 	double validate(const TVector3& p0, const TVector3& p1,
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		unsigned int testView, unsigned int tpc, unsigned int cryo) const;

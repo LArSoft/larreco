@@ -18,38 +18,21 @@
 // Framework includes
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "fhiclcpp/types/Atom.h"
-#include "fhiclcpp/types/Sequence.h"
-#include "fhiclcpp/types/Table.h"
 #include "canvas/Utilities/InputTag.h"
 
 // LArSoft includes
 #include "canvas/Persistency/Common/FindManyP.h" 
-#include "larcorealg/Geometry/GeometryCore.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/TPCGeo.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
-#include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 
+#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/DataProviderAlg.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/MLP/NNReader.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/Keras/keras_model.h"
 
-#include "CLHEP/Random/JamesRandom.h" // for testing on noise, not used by any reco
-
 // ROOT & C++
 #include <memory>
-//#include <functional>
-
-namespace img
-{
-    class DataProviderAlg;
-}
 
 namespace nnet
 {
@@ -60,171 +43,9 @@ namespace nnet
 	class TrainingDataAlg;
 }
 
-/// Base class providing data for training / running image based classifiers. It can be used
-/// also for any other algoruithms where 2D projection image is useful. Currently the image
-/// is 32-bit fp / pixel, as sson as have time will template it so e.g. byte pixels would
-/// be possible.
-class img::DataProviderAlg
-{
-public:
-	enum EDownscaleMode { kMax = 1, kMaxMean = 2, kMean = 3 };
-
-    struct Config
-    {
-	    using Name = fhicl::Name;
-	    using Comment = fhicl::Comment;
-
-		fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlg {
-			Name("CalorimetryAlg"),
-			Comment("Used to eliminate amplitude variation due to electron lifetime.")
-		};
-
-		fhicl::Atom<bool> CalibrateAmpl {
-			Name("CalibrateAmpl"),
-			Comment("Calibrate ADC values with CalAmpConstants")
-		};
-
-		fhicl::Atom<unsigned int> DriftWindow {
-			Name("DriftWindow"),
-			Comment("Downsampling window (in drift ticks).")
-		};
-
-		fhicl::Atom<std::string> DownscaleFn {
-			Name("DownscaleFn"),
-			Comment("Downsampling function")
-		};
-
-		fhicl::Atom<bool> DownscaleFullView {
-			Name("DownscaleFullView"),
-			Comment("Downsample full view (faster / lower location precision)")
-		};
-
-		fhicl::Sequence<float> BlurKernel {
-			Name("BlurKernel"),
-			Comment("Blur kernel in wire direction")
-		};
-
-		fhicl::Atom<float> NoiseSigma {
-			Name("NoiseSigma"),
-			Comment("White noise sigma")
-		};
-
-		fhicl::Atom<float> CoherentSigma {
-			Name("CoherentSigma"),
-			Comment("Coherent noise sigma")
-		};
-    };
-
-	DataProviderAlg(const fhicl::ParameterSet& pset) :
-		DataProviderAlg(fhicl::Table<Config>(pset, {})())
-	{}
-
-    DataProviderAlg(const Config& config);
-
-	virtual ~DataProviderAlg(void);
-
-	bool setWireDriftData(const std::vector<recob::Wire> & wires, // once per view: setup ADC buffer, collect & downscale ADC's
-		unsigned int view, unsigned int tpc, unsigned int cryo);
-
-	std::vector<float> const & wireData(size_t widx) const { return fWireDriftData[widx]; }
-
-    /// Return value from the ADC buffer, or zero if coordinates are out of the view;
-    /// will scale the drift according to the downscale settings.
-    float getPixelOrZero(int wire, int drift) const
-    {
-        size_t didx = getDriftIndex(drift), widx = (size_t)wire;
-
-        if ((widx >= 0) && (widx < fWireDriftData.size()) &&
-            (didx >= 0) && (didx < fNCachedDrifts))
-        {
-            return fWireDriftData[widx][didx];
-        }
-        else { return 0; }
-    }
-
-    /// Pool max value in a patch around the wire/drift pixel.
-    float poolMax(int wire, int drift, size_t r = 0) const;
-
-    /// Pool sum of pixels in a patch around the wire/drift pixel.
-    float poolSum(int wire, int drift, size_t r = 0) const;
-
-	unsigned int Cryo(void) const { return fCryo; }
-	unsigned int TPC(void) const { return fTPC; }
-	unsigned int View(void) const { return fView; }
-
-	unsigned int NWires(void) const { return fNWires; }
-	unsigned int NScaledDrifts(void) const { return fNScaledDrifts; }
-	unsigned int NCachedDrifts(void) const { return fNCachedDrifts; }
-	unsigned int DriftWindow(void) const { return fDriftWindow; }
-
-    double LifetimeCorrection(double tick) const { return fCalorimetryAlg.LifetimeCorrection(tick); }
-
-protected:
-	unsigned int fCryo, fTPC, fView;
-	unsigned int fNWires, fNDrifts, fNScaledDrifts, fNCachedDrifts;
-
-	std::vector< raw::ChannelID_t > fWireChannels;              // wire channels (may need this connection...), InvalidChannelID if not used
-	std::vector< std::vector<float> > fWireDriftData;           // 2D data for entire projection, drifts scaled down
-	std::vector<float> fLifetimeCorrFactors;                    // precalculated correction factors along full drift
-
-   	EDownscaleMode fDownscaleMode;
-   	//std::function<void (std::vector<float> &, std::vector<float> const &, size_t)> fnDownscale;
-
-   	size_t fDriftWindow;
-	bool fDownscaleFullView;
-	float fDriftWindowInv;
-
-	void downscaleMax(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const;
-	void downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const;
-	void downscaleMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const;
-	void downscale(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
-	{
-	    switch (fDownscaleMode)
-	    {
-	        case img::DataProviderAlg::kMean: downscaleMean(dst, adc, tick0); break;
-	        case img::DataProviderAlg::kMaxMean: downscaleMaxMean(dst, adc, tick0); break;
-	        case img::DataProviderAlg::kMax: downscaleMax(dst, adc, tick0); break;
-	        default:throw cet::exception("img::DataProviderAlg") << "Downscale mode not supported." << std::endl; break;
-	    }
-	}
-
-    size_t getDriftIndex(float drift) const
-    {
-        if (fDownscaleFullView) return (size_t)(drift * fDriftWindowInv);
-        else return (size_t)drift;
-    }
-
-	bool setWireData(std::vector<float> const & adc, size_t wireIdx);
-
-	virtual void resizeView(size_t wires, size_t drifts);
-
-	// Calorimetry needed to equalize ADC amplitude along drift:
-	calo::CalorimetryAlg  fCalorimetryAlg;
-
-	// Geometry and detector properties:
-	geo::GeometryCore const* fGeometry;
-	detinfo::DetectorProperties const* fDetProp;
-
-private:
-    float scaleAdcSample(float val) const;
-    std::vector<float> fAmplCalibConst;
-    bool fCalibrateAmpl;
-
-    CLHEP::HepJamesRandom fRndEngine;
-
-    void applyBlur();
-    std::vector<float> fBlurKernel; // blur not applied if empty
-
-    void addWhiteNoise();
-    float fNoiseSigma;              // noise not added if sigma=0
-
-    void addCoherentNoise();
-    float fCoherentSigma;           // noise not added if sigma=0
-};
-// ------------------------------------------------------
-// ------------------------------------------------------
-// ------------------------------------------------------
-
+/// Interface class for various classifier models. Now MLP (NetMaker) and CNN (Keras with
+/// simple cpp interface) are supported. Will add interface to Protobuf as soon as Tensorflow
+/// may be used from UPS.
 class nnet::ModelInterface
 {
 public:
@@ -432,10 +253,10 @@ public:
 	void reconfigure(const Config& config);
 
 	bool setEventData(const art::Event& event,   // collect & downscale ADC's, charge deposits, pdg labels
-		unsigned int view, unsigned int tpc, unsigned int cryo);
+		unsigned int plane, unsigned int tpc, unsigned int cryo);
 
 	bool setDataEventData(const art::Event& event,   // collect & downscale ADC's, charge deposits, pdg labels
-		unsigned int view, unsigned int tpc, unsigned int cryo);
+		unsigned int plane, unsigned int tpc, unsigned int cryo);
 
 
 	bool findCrop(float max_e_cut, unsigned int & w0, unsigned int & w1, unsigned int & d0, unsigned int & d1) const;
@@ -457,7 +278,7 @@ private:
 		int Cryo;
 	};
 
-	WireDrift getProjection(const TLorentzVector& tvec, unsigned int view) const;
+	WireDrift getProjection(const TLorentzVector& tvec, unsigned int plane) const;
 
 	bool setWireEdepsAndLabels(
 		std::vector<float> const & edeps,
@@ -467,7 +288,7 @@ private:
 	void collectVtxFlags(
 		std::unordered_map< size_t, std::unordered_map< int, int > > & wireToDriftToVtxFlags,
 		const std::unordered_map< int, const simb::MCParticle* > & particleMap,
-		unsigned int view) const;
+		unsigned int plane) const;
 
     static float particleRange2(const simb::MCParticle & particle)
     {
