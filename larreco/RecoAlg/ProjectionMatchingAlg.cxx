@@ -13,8 +13,9 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingAlg::Config& config)
-	: fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
+pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingAlg::Config& config) :
+    fGeom( &*(art::ServiceHandle<geo::Geometry>()) ),
+	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
 	fOptimizationEps = config.OptimizationEps();
 	fFineTuningEps = config.FineTuningEps();

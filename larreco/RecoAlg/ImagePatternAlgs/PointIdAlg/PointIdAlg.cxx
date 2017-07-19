@@ -31,11 +31,10 @@ img::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fNWires(0), fNDrifts(0), fNScaledDrifts(0), fNCachedDrifts(0),
 	fDownscaleMode(img::DataProviderAlg::kMax), fDriftWindow(10),
 	fCalorimetryAlg(config.CalorimetryAlg()),
+	fGeometry( &*(art::ServiceHandle<geo::Geometry>()) ),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
 	fNoiseSigma(0), fCoherentSigma(0)
 {
-	fGeometry = &*(art::ServiceHandle<geo::Geometry>());
-
 	fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
 	fCalibrateAmpl = config.CalibrateAmpl();
 	if (fCalibrateAmpl)

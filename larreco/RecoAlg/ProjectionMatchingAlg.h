@@ -283,7 +283,7 @@ private:
 	double fMinTwoViewFraction;    // min. length fraction covered with multiple 2D view hits intertwinted with each other
 
 	// Geometry and detector properties
-	art::ServiceHandle<geo::Geometry> fGeom;
+	geo::GeometryCore const* fGeom;
 	detinfo::DetectorProperties const* fDetProp;
 };
 
