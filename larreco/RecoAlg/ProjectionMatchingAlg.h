@@ -104,13 +104,10 @@ public:
     };
 
 	ProjectionMatchingAlg(const Config& config);
-	void reconfigure(const Config& config);
 
 	ProjectionMatchingAlg(const fhicl::ParameterSet& pset) :
 		ProjectionMatchingAlg(fhicl::Table<Config>(pset, {})())
 	{}
-
-	virtual ~ProjectionMatchingAlg(void) {}
 
 	/// Calculate the fraction of the track that is close to non-empty pixel (above thr value)
 	/// in the ADC image of the testView (a view that was not used to build the track).

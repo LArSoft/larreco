@@ -16,10 +16,6 @@
 pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingAlg::Config& config)
 	: fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
-	this->reconfigure(config);
-}
-void pma::ProjectionMatchingAlg::reconfigure(const pma::ProjectionMatchingAlg::Config& config)
-{
 	fOptimizationEps = config.OptimizationEps();
 	fFineTuningEps = config.FineTuningEps();
 
