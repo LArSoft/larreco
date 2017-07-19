@@ -222,7 +222,7 @@ public:
 			Name("AdcValidationThr"), Comment("thresholds for not-empty pixel in the ADC track validation")
 		};
 
-		fhicl::Table<nnet::DataProviderAlg::Config> AdcImageAlg {
+		fhicl::Table<img::DataProviderAlg::Config> AdcImageAlg {
 			Name("AdcImageAlg"), Comment("ADC based image used for the track validation")
 		};
     };
@@ -349,9 +349,9 @@ private:
 
 	bool fRunVertexing;          // run vertex finding
 
-    EValidationMode fValidation;                     // track validation mode
-    std::vector< nnet::DataProviderAlg > fAdcImages; // adc image making algorithms for each plane
-    std::vector<double> fAdcValidationThr;           // threshold on pixel values in the adc image
+    EValidationMode fValidation;                    // track validation mode
+    std::vector< img::DataProviderAlg > fAdcImages; // adc image making algorithms for each plane
+    std::vector<double> fAdcValidationThr;          // threshold on pixel values in the adc image
     
     // references to the validation calibration histograms
 	const std::vector< TH1F* > & fAdcInPassingPoints;

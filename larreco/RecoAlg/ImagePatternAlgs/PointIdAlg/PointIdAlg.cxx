@@ -26,10 +26,10 @@
 
 #include <sys/stat.h>
 
-nnet::DataProviderAlg::DataProviderAlg(const Config& config) :
+img::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fCryo(9999), fTPC(9999), fView(9999),
 	fNWires(0), fNDrifts(0), fNScaledDrifts(0), fNCachedDrifts(0),
-	fDownscaleMode(nnet::DataProviderAlg::kMax), fDriftWindow(10),
+	fDownscaleMode(img::DataProviderAlg::kMax), fDriftWindow(10),
 	fCalorimetryAlg(config.CalorimetryAlg()),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
 	fNoiseSigma(0), fCoherentSigma(0)
@@ -62,23 +62,23 @@ nnet::DataProviderAlg::DataProviderAlg(const Config& config) :
 	if (mode_str == "maxpool")
 	{
 	    //fnDownscale = [this](std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) { downscaleMax(dst, adc, tick0); };
-	    fDownscaleMode = nnet::DataProviderAlg::kMax;
+	    fDownscaleMode = img::DataProviderAlg::kMax;
 	}
 	else if (mode_str == "maxmean")
 	{
 	    //fnDownscale = [this](std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) { downscaleMaxMean(dst, adc, tick0); };
-	    fDownscaleMode = nnet::DataProviderAlg::kMaxMean;
+	    fDownscaleMode = img::DataProviderAlg::kMaxMean;
 	}
 	else if (mode_str == "mean")
 	{
 	    //fnDownscale = [this](std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) { downscaleMean(dst, adc, tick0); };
-	    fDownscaleMode = nnet::DataProviderAlg::kMean;
+	    fDownscaleMode = img::DataProviderAlg::kMean;
 	}
 	else
 	{
 		mf::LogError("DataProviderAlg") << "Downscale mode string not recognized, set to max pooling.";
 		//fnDownscale = [this](std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) { downscaleMax(dst, adc, tick0); };
-		fDownscaleMode = nnet::DataProviderAlg::kMax;
+		fDownscaleMode = img::DataProviderAlg::kMax;
 	}
 
     fBlurKernel = config.BlurKernel();
@@ -87,12 +87,12 @@ nnet::DataProviderAlg::DataProviderAlg(const Config& config) :
 }
 // ------------------------------------------------------
 
-nnet::DataProviderAlg::~DataProviderAlg(void)
+img::DataProviderAlg::~DataProviderAlg(void)
 {
 }
 // ------------------------------------------------------
 
-void nnet::DataProviderAlg::resizeView(size_t wires, size_t drifts)
+void img::DataProviderAlg::resizeView(size_t wires, size_t drifts)
 {
     fNWires = wires; fNDrifts = drifts;
     fNScaledDrifts = drifts / fDriftWindow;
@@ -118,7 +118,7 @@ void nnet::DataProviderAlg::resizeView(size_t wires, size_t drifts)
 }
 // ------------------------------------------------------
 
-float nnet::DataProviderAlg::poolMax(int wire, int drift, size_t r) const
+float img::DataProviderAlg::poolMax(int wire, int drift, size_t r) const
 {
     size_t rw = r, rd = r;
     if (!fDownscaleFullView) { rd *= fDriftWindow; }
@@ -144,7 +144,7 @@ float nnet::DataProviderAlg::poolMax(int wire, int drift, size_t r) const
 }
 // ------------------------------------------------------
 
-float nnet::DataProviderAlg::poolSum(int wire, int drift, size_t r) const
+float img::DataProviderAlg::poolSum(int wire, int drift, size_t r) const
 {
     size_t rw = r, rd = r;
     if (!fDownscaleFullView) { rd *= fDriftWindow; }
@@ -167,7 +167,7 @@ float nnet::DataProviderAlg::poolSum(int wire, int drift, size_t r) const
 }
 // ------------------------------------------------------
 
-void nnet::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
+void img::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
 {
 	for (size_t i = 0; i < dst.size(); ++i)
 	{
@@ -185,7 +185,7 @@ void nnet::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<f
 	}
 }
 
-void nnet::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
+void img::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
 {
 	for (size_t i = 0; i < dst.size(); ++i)
 	{
@@ -208,7 +208,7 @@ void nnet::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vect
 	}
 }
 
-void nnet::DataProviderAlg::downscaleMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
+void img::DataProviderAlg::downscaleMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
 {
 	for (size_t i = 0; i < dst.size(); ++i)
 	{
@@ -226,7 +226,7 @@ void nnet::DataProviderAlg::downscaleMean(std::vector<float> & dst, std::vector<
 	}
 }
 
-bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t wireIdx)
+bool img::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t wireIdx)
 {
    	if (wireIdx >= fWireDriftData.size()) return false;
    	auto & wData = fWireDriftData[wireIdx];
@@ -248,7 +248,7 @@ bool nnet::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t w
 }
 // ------------------------------------------------------
 
-bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wires,
+bool img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wires,
 	unsigned int view, unsigned int tpc, unsigned int cryo)
 {
     mf::LogInfo("DataProviderAlg") << "Create image for cryo:"
@@ -306,7 +306,7 @@ bool nnet::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wi
 }
 // ------------------------------------------------------
 
-float nnet::DataProviderAlg::scaleAdcSample(float val) const
+float img::DataProviderAlg::scaleAdcSample(float val) const
 {
     if (val < -50.) val = -50.;
     if (val > 150.) val = 150.;
@@ -317,7 +317,7 @@ float nnet::DataProviderAlg::scaleAdcSample(float val) const
 }
 // ------------------------------------------------------
 
-void nnet::DataProviderAlg::applyBlur()
+void img::DataProviderAlg::applyBlur()
 {
     if (fBlurKernel.size() < 2) return;
 
@@ -341,7 +341,7 @@ void nnet::DataProviderAlg::applyBlur()
 }
 // ------------------------------------------------------
 
-void nnet::DataProviderAlg::addWhiteNoise()
+void img::DataProviderAlg::addWhiteNoise()
 {
     if (fNoiseSigma == 0) return;
 
@@ -361,7 +361,7 @@ void nnet::DataProviderAlg::addWhiteNoise()
 }
 // ------------------------------------------------------
 
-void nnet::DataProviderAlg::addCoherentNoise()
+void img::DataProviderAlg::addCoherentNoise()
 {
     if (fCoherentSigma == 0) return;
 
@@ -509,7 +509,7 @@ float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
 // --------------------PointIdAlg------------------------
 // ------------------------------------------------------
 
-nnet::PointIdAlg::PointIdAlg(const Config& config) : nnet::DataProviderAlg(config),
+nnet::PointIdAlg::PointIdAlg(const Config& config) : img::DataProviderAlg(config),
 	fNNet(0),
 	fPatchSizeW(32), fPatchSizeD(32),
 	fCurrentWireIdx(99999), fCurrentScaledDrift(99999)
@@ -746,7 +746,7 @@ bool nnet::PointIdAlg::isInsideFiducialRegion(unsigned int wire, float drift) co
 // ------------------TrainingDataAlg---------------------
 // ------------------------------------------------------
 
-nnet::TrainingDataAlg::TrainingDataAlg(const Config& config) : nnet::DataProviderAlg(config),
+nnet::TrainingDataAlg::TrainingDataAlg(const Config& config) : img::DataProviderAlg(config),
 	fWireProducerLabel(config.WireLabel()),
 	fHitProducerLabel(config.HitLabel()),
 	fTrackModuleLabel(config.TrackLabel()),
@@ -765,7 +765,7 @@ nnet::TrainingDataAlg::~TrainingDataAlg(void)
 
 void nnet::TrainingDataAlg::resizeView(size_t wires, size_t drifts)
 {
-	nnet::DataProviderAlg::resizeView(wires, drifts);
+	img::DataProviderAlg::resizeView(wires, drifts);
 
 	fWireDriftEdep.resize(wires);
 	for (auto & w : fWireDriftEdep)

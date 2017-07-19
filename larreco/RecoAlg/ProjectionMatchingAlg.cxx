@@ -35,7 +35,7 @@ pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingA
 // ------------------------------------------------------
 
 double pma::ProjectionMatchingAlg::validate_on_adc(
-    const pma::Track3D& trk, const nnet::DataProviderAlg & adcImage, float thr) const
+    const pma::Track3D& trk, const img::DataProviderAlg & adcImage, float thr) const
 {
 	unsigned int nAll = 0, nPassed = 0;
 	unsigned int testView = adcImage.View();
@@ -106,7 +106,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc(
 // ------------------------------------------------------
 
 double pma::ProjectionMatchingAlg::validate_on_adc_test(const pma::Track3D& trk,
-	const nnet::DataProviderAlg & adcImage,
+	const img::DataProviderAlg & adcImage,
 	const std::vector< art::Ptr<recob::Hit> >& hits,
 	TH1F * histoPassing, TH1F * histoRejected) const
 {

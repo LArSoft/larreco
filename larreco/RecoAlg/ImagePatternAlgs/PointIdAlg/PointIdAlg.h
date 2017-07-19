@@ -24,7 +24,6 @@
 #include "canvas/Utilities/InputTag.h"
 
 // LArSoft includes
-#include "canvas/Persistency/Common/FindOneP.h" 
 #include "canvas/Persistency/Common/FindManyP.h" 
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcore/Geometry/Geometry.h"
@@ -47,9 +46,13 @@
 #include <memory>
 //#include <functional>
 
+namespace img
+{
+    class DataProviderAlg;
+}
+
 namespace nnet
 {
-	class DataProviderAlg;
 	class ModelInterface;
 	class MlpModelInterface;
 	class KerasModelInterface;
@@ -61,7 +64,7 @@ namespace nnet
 /// also for any other algoruithms where 2D projection image is useful. Currently the image
 /// is 32-bit fp / pixel, as sson as have time will template it so e.g. byte pixels would
 /// be possible.
-class nnet::DataProviderAlg
+class img::DataProviderAlg
 {
 public:
 	enum EDownscaleMode { kMax = 1, kMaxMean = 2, kMean = 3 };
@@ -178,10 +181,10 @@ protected:
 	{
 	    switch (fDownscaleMode)
 	    {
-	        case nnet::DataProviderAlg::kMean: downscaleMean(dst, adc, tick0); break;
-	        case nnet::DataProviderAlg::kMaxMean: downscaleMaxMean(dst, adc, tick0); break;
-	        case nnet::DataProviderAlg::kMax: downscaleMax(dst, adc, tick0); break;
-	        default:throw cet::exception("nnet::DataProviderAlg") << "Downscale mode not supported." << std::endl; break;
+	        case img::DataProviderAlg::kMean: downscaleMean(dst, adc, tick0); break;
+	        case img::DataProviderAlg::kMaxMean: downscaleMaxMean(dst, adc, tick0); break;
+	        case img::DataProviderAlg::kMax: downscaleMax(dst, adc, tick0); break;
+	        default:throw cet::exception("img::DataProviderAlg") << "Downscale mode not supported." << std::endl; break;
 	    }
 	}
 
@@ -280,11 +283,11 @@ private:
 };
 // ------------------------------------------------------
 
-class nnet::PointIdAlg : public nnet::DataProviderAlg
+class nnet::PointIdAlg : public img::DataProviderAlg
 {
 public:
 
-    struct Config : public nnet::DataProviderAlg::Config
+    struct Config : public img::DataProviderAlg::Config
     {
 	    using Name = fhicl::Name;
 	    using Comment = fhicl::Comment;
@@ -351,7 +354,7 @@ private:
 // ------------------------------------------------------
 // ------------------------------------------------------
 
-class nnet::TrainingDataAlg : public nnet::DataProviderAlg
+class nnet::TrainingDataAlg : public img::DataProviderAlg
 {
 public:
 
@@ -382,7 +385,7 @@ public:
 		kElectronEnd = 0x10000000 // clear end of an electron
 	};
 
-    struct Config : public nnet::DataProviderAlg::Config
+    struct Config : public img::DataProviderAlg::Config
     {
 	    using Name = fhicl::Name;
 	    using Comment = fhicl::Comment;

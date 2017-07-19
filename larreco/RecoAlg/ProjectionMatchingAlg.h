@@ -112,14 +112,14 @@ public:
 	/// Calculate the fraction of the track that is close to non-empty pixel (above thr value)
 	/// in the ADC image of the testView (a view that was not used to build the track).
 	double validate_on_adc(const pma::Track3D& trk,
-		const nnet::DataProviderAlg & adcImage, float thr) const;
+		const img::DataProviderAlg & adcImage, float thr) const;
 
 	/// Calculate the fraction of the track that is closer than fTrkValidationDist2D
 	/// to any hit from hits in the testView (a view that was not used to build the track).
 	/// Creates also histograms of values in pixels for the passing and rejected points on
 	/// the track, so the threshold value for the ADC-based calibration can be estimated.
 	double validate_on_adc_test(const pma::Track3D& trk,
-		const nnet::DataProviderAlg & adcImage,
+		const img::DataProviderAlg & adcImage,
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		TH1F * histoPassing, TH1F * histoRejected) const;
 
