@@ -218,8 +218,8 @@ public:
 			Name("Validation"), Comment("tracks validation mode: hits, adc, calib")
 		};
 
-		fhicl::Atom<double> AdcValidationThr {
-			Name("AdcValidationThr"), Comment("threshold for not-empty pixel in the ADC track validation")
+		fhicl::Sequence<double> AdcValidationThr {
+			Name("AdcValidationThr"), Comment("thresholds for not-empty pixel in the ADC track validation")
 		};
 
 		fhicl::Table<nnet::DataProviderAlg::Config> AdcImageAlg {
@@ -351,7 +351,7 @@ private:
 
     EValidationMode fValidation;                     // track validation mode
     std::vector< nnet::DataProviderAlg > fAdcImages; // adc image making algorithms for each plane
-    double fAdcValidationThr;                        // threshold on pixel values in the adc image
+    std::vector<double> fAdcValidationThr;           // threshold on pixel values in the adc image
     
     // references to the validation calibration histograms
 	const std::vector< TH1F* > & fAdcInPassingPoints;

@@ -333,9 +333,9 @@ pma::PMAlgTracker::PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allh
 
     mf::LogVerbatim("PMAlgTracker") << "Using views in the following order:";
     for (const auto v : fAvailableViews) {  mf::LogInfo("PMAlgTracker") << " " << v; }
-
-    // track validation settings:
-    mf::LogVerbatim("PMAlgTracker") << "Validation mode: " << pmalgTrackerConfig.Validation();
+    
+    // ************************* track validation settings: **************************
+    mf::LogVerbatim("PMAlgTracker") << "Validation mode in config: " << pmalgTrackerConfig.Validation();
 
     size_t nplanes = fGeom->MaxPlanes();
     for (size_t p = 0; p < nplanes; ++p) { fAdcImages.emplace_back(pmalgTrackerConfig.AdcImageAlg()); }
@@ -345,8 +345,18 @@ pma::PMAlgTracker::PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allh
     else if (pmalgTrackerConfig.Validation() == "calib")   { fValidation = pma::PMAlgTracker::kCalib; }
     else { throw cet::exception("pma::PMAlgTracker") << "validation name not supported" << std::endl; }
 
+    if ((nplanes < 3) && (fValidation != pma::PMAlgTracker::kHits))
+    {
+        mf::LogWarning("PMAlgTracker") << "Not enough planes to perform validation, switch mode to hits.";
+        fValidation = pma::PMAlgTracker::kHits;
+    }
+
     fAdcValidationThr = pmalgTrackerConfig.AdcValidationThr();
-    if (fValidation == pma::PMAlgTracker::kAdc) { mf::LogVerbatim("PMAlgTracker") << "Validation ADC threshold: " << fAdcValidationThr; }
+    if (fValidation == pma::PMAlgTracker::kAdc)
+    {
+        mf::LogVerbatim("PMAlgTracker") << "Validation ADC thresholds per plane:";
+        for (auto thr : fAdcValidationThr) { mf::LogVerbatim("PMAlgTracker") << "   " << thr; }
+    }
 }
 // ------------------------------------------------------
 
@@ -430,7 +440,7 @@ double pma::PMAlgTracker::validate(pma::Track3D& trk, unsigned int testView)
     switch (fValidation)
     {
         case pma::PMAlgTracker::kAdc:
-            v = fProjectionMatchingAlg.validate_on_adc(trk, fAdcImages[testView], fAdcValidationThr);
+            v = fProjectionMatchingAlg.validate_on_adc(trk, fAdcImages[testView], fAdcValidationThr[testView]);
             break;
 
         case pma::PMAlgTracker::kHits:
