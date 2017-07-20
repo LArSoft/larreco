@@ -10,6 +10,7 @@
 #define TRAJCLUSTERALG_H
 
 #include "larreco/RecoAlg/TCAlg/Utils.h"
+#include "larreco/RecoAlg/TCAlg/TCTruth.h"
 
 // C/C++ standard libraries
 #include <array>
@@ -36,10 +37,6 @@
 // LArSoft libraries
 #include "larreco/RecoAlg/LinFitAlg.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
-
-#include "TH1F.h"
-#include "TH2F.h"
-#include "TProfile.h"
 
 namespace tca {
   
@@ -91,7 +88,8 @@ namespace tca {
     void ClearResults();
     
     TjStuff tjs;
-    DebugStuff Debug;
+    HistStuff hist;
+    TruthMatcher tm{tjs};
     
     private:
     
@@ -119,7 +117,6 @@ namespace tca {
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
-    std::vector<float> fMatchTruth;     ///< Match to MC truth
  
     std::vector<float> fMaxVertexTrajSep;
 
@@ -131,45 +128,7 @@ namespace tca {
     unsigned short fAllowNoHitWire;
     std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
     
-    // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
-    std::array<short, 5> EPCnts;
-    std::array<float, 5> EPSums;
-    std::array<float, 5> EPTSums;
     bool fIsRealData;
-
-    TH2F *fMCSMom_TruMom_e;
-    TH2F *fMCSMom_TruMom_mu;
-    TH2F *fMCSMom_TruMom_pi;
-    TH2F *fMCSMom_TruMom_p;
-
-    TH2F *fMCSMomEP_TruMom_e;
-    
-    // Reco-MC vertex position difference
-    TH1F* fNuVtx_dx;
-    TH1F* fNuVtx_dy;
-    TH1F* fNuVtx_dz;
-    TH1F* fNuVtx_Score;
-    TProfile* fNuVtx_Enu_Score_p;
-    
-    // Vertex score for 2D and 3D vertices
-    TH1F* fVx2_Score;
-    TH1F* fVx3_Score;
-    
-    // Reco-MC stopping wire difference for different MC Particles
-    TH1F* fdWire[5];
-    // EP vs KE for different MC Particles
-    TProfile* fEP_T[5];
-
-    // number of primary particles in the event
-    unsigned short nTruPrimary;
-    float fNeutrinoEnergy;
-    float fSourceParticleEnergy; //< in MeV
-    // number of reconstructable primary particles in the event
-    unsigned short nTruPrimaryOK;
-    // number of reconstructable neutrino vertices in ALL events
-    unsigned short nTruPrimaryVtxOK;
-    // number of reconstructable neutrino vertices in ALL events that were reconstructed
-    unsigned short nTruPrimaryVtxReco;
  
     bool prt;
     bool mrgPrt;
@@ -305,9 +264,7 @@ namespace tca {
     void ChkHiChgHits();
     void SplitHiChgHits(Trajectory& tj);
     void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
-    void MatchTruth();
-    void MatchTrueHits();
-     // ****************************** 3D Tj matching code  ******************************
+      // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid, bool reset);
     void Match2Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);
     void Match3Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);
