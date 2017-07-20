@@ -35,6 +35,7 @@ namespace tca {
     "FTBRvProp",
     "StopAtTj",
     "Mat3D",
+    "Mat3DMerge",
     "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
