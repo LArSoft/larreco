@@ -375,8 +375,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	else if (fPmaTrackerConfig.TrackLikeThreshold() > 0) // --- CNN EM/trk separation ----
 	{
 	    // try to dig out 4- or 3-output MVA data product
-	    if (init<4>(evt, pmalgTracker) )      { mvaLength = 4; }
-	    else if (init<3>(evt, pmalgTracker))  { mvaLength = 3; }
+	    if (init<4>(evt, pmalgTracker) )      { mvaLength = 4; } // e.g.: EM / track / Michel / none
+	    else if (init<3>(evt, pmalgTracker))  { mvaLength = 3; } // e.g.: EM / track / none
+	    else if (init<2>(evt, pmalgTracker))  { mvaLength = 2; } // just EM / track (LArIAT starts with this style)
 	    else
 	    {
 	        throw cet::exception("PMAlgTrackMaker") << "No EM/track MVA data products." << std::endl;
@@ -434,6 +435,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		    int pdg = 0;
 		    if (mvaLength == 4) pdg = getPdgFromCnnOnHits<4>(evt, *(result[trkIndex].Track()));
 		    else if (mvaLength == 3) pdg = getPdgFromCnnOnHits<3>(evt, *(result[trkIndex].Track()));
+		    else if (mvaLength == 2) pdg = getPdgFromCnnOnHits<2>(evt, *(result[trkIndex].Track()));
 		    //else mf::LogInfo("PMAlgTrackMaker") << "Not using PID from CNN.";
 
 			tracks->push_back(pma::convertFrom(*trk, trkIndex, pdg));
