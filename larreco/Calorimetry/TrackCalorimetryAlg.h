@@ -16,10 +16,10 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 
-#include "larcore/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/GeometryCore.h"
 #include "lardata/DetectorInfo/LArProperties.h"
 #include "lardata/DetectorInfo/DetectorProperties.h"
-#include "larcore/CoreUtils/ProviderPack.h"
+#include "larcorealg/CoreUtils/ProviderPack.h"
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 

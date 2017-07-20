@@ -12,7 +12,7 @@
 #define PointIdTrainingNuevent_Module
 
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/GeometryCore.h"
+#include "larcorealg/Geometry/GeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
 #include "nusimdata/SimulationBase/MCTruth.h"

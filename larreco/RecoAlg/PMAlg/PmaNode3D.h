@@ -29,7 +29,6 @@ class pma::Node3D : public pma::Element3D, public pma::SortedBranchBase
 public:
 	Node3D(void);
 	Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bool vtx = false, double xshift = 0);
-	virtual ~Node3D(void) {}
 
 	TVector3 const & Point3D(void) const { return fPoint3D; }
 
@@ -61,20 +60,23 @@ public:
 	std::vector< pma::Track3D* > GetBranches(void) const;
 
 	/// Distance [cm] from the 3D point to the point 3D.
-	virtual double GetDistance2To(const TVector3& p3d) const;
+	double GetDistance2To(const TVector3& p3d) const override;
 
 	/// Distance [cm] from the 2D point to the object's 2D projection in one of wire views.
-	virtual double GetDistance2To(const TVector2& p2d, unsigned int view) const;
+	double GetDistance2To(const TVector2& p2d, unsigned int view) const override;
+
+	/// Get 3D direction cosines of the next segment, or pevious segment if this is the last node.
+	pma::Vector3D GetDirection3D(void) const override;
 
 	/// In case of a node it is simply 3D position of the node.
-	virtual TVector3 GetUnconstrainedProj3D(const TVector2& p2d, unsigned int view) const { return fPoint3D; }
+	TVector3 GetUnconstrainedProj3D(const TVector2& p2d, unsigned int view) const override { return fPoint3D; }
 
 	/// Set hit 3D position and its 2D projection to the vertex.
-	virtual void SetProjection(pma::Hit3D& h) const;
+	void SetProjection(pma::Hit3D& h) const override;
 
 	/// Squared sum of half-lengths of connected 3D segments
 	/// (used in the vertex position optimization).
-	virtual double Length2(void) const;
+	double Length2(void) const override;
 
 	/// Cosine of 3D angle between connected segments.
 	double SegmentCos(void) const;
@@ -93,7 +95,7 @@ public:
 	/// Only MSE is used in case of branching nodes.
 	void Optimize(float penaltyValue, float endSegWeight);
 
-	virtual void ClearAssigned(pma::Track3D* trk = 0);
+	void ClearAssigned(pma::Track3D* trk = 0) override;
 
     void ApplyDriftShift(double dx) { fPoint3D[0] += dx; fDriftOffset += dx; }
     double GetDriftShift(void) const { return fDriftOffset; }

@@ -74,6 +74,7 @@ microboone_pmalgtrajfitter:                     @local::standard_pmalgtrajfitter
 microboone_pmalgtrajfitter.HitModuleLabel:      "gaushit"
 microboone_pmalgtrajfitter.PfpModuleLabel:      "pandora"
 microboone_pmalgtrajfitter.PMAlgFitting.RunVertexing:        false
+microboone_pmalgtrajfitter.PMAlgFitting.TrackingSkipPdg:     [11]
 
 #microboone_cosmicfinder: @local::standard_cosmicfinder
 microboone_neutrinotrackingeff: @local::standard_neutrinotrackingeff

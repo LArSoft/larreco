@@ -3,7 +3,7 @@ art_make(
           LIB_LIBRARIES
 			larreco_RecoAlg_CMTool_CMToolBase
 			larreco_RecoAlg_ClusterRecoUtil
-			larcore_Geometry
+			larcorealg_Geometry
 			larcore_Geometry_Geometry_service
                         lardata_Utilities
                         ${ART_FRAMEWORK_CORE}

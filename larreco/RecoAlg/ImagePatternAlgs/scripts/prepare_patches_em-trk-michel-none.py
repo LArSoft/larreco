@@ -12,16 +12,24 @@ def main(argv):
 
     parser = argparse.ArgumentParser(description='Makes training data set for EM vs track separation')
     parser.add_argument('-c', '--config', help="JSON with script configuration", default='config.json')
+    parser.add_argument('-t', '--type', help="Input file format")
+    parser.add_argument('-i', '--input', help="Input directory")
+    parser.add_argument('-o', '--output', help="Output directory")
     args = parser.parse_args()
 
     config = read_config(args.config)
 
     print '#'*50,'\nPrepare data for CNN'
-    INPUT_TYPE   = config['prepare_data_em_track']['input_type']
-    INPUT_DIR    = config['prepare_data_em_track']['input_dir']
-    OUTPUT_DIR   = config['prepare_data_em_track']['output_dir']
+    if args.type is None: INPUT_TYPE   = config['prepare_data_em_track']['input_type']
+    else: INPUT_TYPE = args.type
+    if args.input is None: INPUT_DIR   = config['prepare_data_em_track']['input_dir']
+    else: INPUT_DIR = args.input
+    if args.output is None: OUTPUT_DIR = config['prepare_data_em_track']['output_dir']
+    else: OUTPUT_DIR = args.output
+
     PATCH_SIZE_W = config['prepare_data_em_track']['patch_size_w']
     PATCH_SIZE_D = config['prepare_data_em_track']['patch_size_d']
+
     print 'Using %s as input dir, and %s as output dir' % (INPUT_DIR, OUTPUT_DIR)
     if INPUT_TYPE == 'root': print 'Reading from ROOT file'
     else: print 'Reading from TEXT files'
@@ -94,7 +102,7 @@ def main(argv):
                 continue
 
             pdg_michel = ((pdg & 0xF000) == 0x2000)
-            vtx_map = (pdg >> 24) & 0x3 # only 1 or 2: interaction or pi0 decay
+            vtx_map = (pdg >> 24) # & 0x3 # only 1 or 2: interaction or pi0 decay
 
             print 'Tracks', np.sum(tracks), 'showers', np.sum(showers), 'michels', np.sum(pdg_michel)
 

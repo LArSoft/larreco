@@ -32,7 +32,7 @@
 
 //LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larcore/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/PlaneGeo.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "nutools/ParticleNavigation/ParticleList.h"
 #include "nutools/ParticleNavigation/EmEveIdCalculator.h"

@@ -1,7 +1,7 @@
 
 simple_plugin(PointIdTrainingData "module"
 			larcore_Geometry_Geometry_service
-			larcore_Geometry
+			larcorealg_Geometry
 			lardataobj_RecoBase
 			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
@@ -23,7 +23,7 @@ simple_plugin(PointIdTrainingData "module"
 
 simple_plugin(PointIdTrainingNuevent "module"
 			larcore_Geometry_Geometry_service
-			larcore_Geometry
+			larcorealg_Geometry
 			lardataobj_RecoBase
 			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
@@ -46,7 +46,7 @@ simple_plugin(PointIdTrainingNuevent "module"
 
 simple_plugin(PointIdEffTest "module"
 			larcore_Geometry_Geometry_service
-			larcore_Geometry
+			larcorealg_Geometry
 			lardataobj_RecoBase
 			lardata_ArtDataHelper
 			larreco_Calorimetry
@@ -69,7 +69,7 @@ simple_plugin(PointIdEffTest "module"
 
 simple_plugin(EmTrackClusterId "module"
 			larcore_Geometry_Geometry_service
-			larcore_Geometry
+			larcorealg_Geometry
 			lardataobj_RecoBase
 			lardata_ArtDataHelper
 			larreco_Calorimetry
@@ -91,7 +91,7 @@ simple_plugin(EmTrackClusterId "module"
 
 simple_plugin(EmTrackMichelId "module"
 			larcore_Geometry_Geometry_service
-			larcore_Geometry
+			larcorealg_Geometry
 			lardataobj_RecoBase
 			lardata_ArtDataHelper
 			larreco_Calorimetry
@@ -113,7 +113,7 @@ simple_plugin(EmTrackMichelId "module"
 
 simple_plugin(ParticleDecayId "module"
 			larcore_Geometry_Geometry_service
-			larcore_Geometry
+			larcorealg_Geometry
 			lardataobj_RecoBase
 			lardata_ArtDataHelper
 			larreco_Calorimetry
@@ -136,6 +136,7 @@ simple_plugin(ParticleDecayId "module"
 add_subdirectory(Keras)
 add_subdirectory(MLP)
 add_subdirectory(PointIdAlg)
+add_subdirectory(job)
 
 install_headers()
 install_fhicl()
