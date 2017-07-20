@@ -26,8 +26,7 @@
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
-//#include "lardataobj/AnalysisBase/Calorimetry.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "nusimdata/SimulationBase/MCParticle.h"
 #include "TVector3.h"
 
 namespace tca {
@@ -283,6 +282,7 @@ namespace tca {
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
+    kMat3DMerge,
     kVtxHitsSwap,
     kSplitHiChgHits,
     kInShower,
@@ -346,6 +346,7 @@ namespace tca {
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> Match3DCuts;  ///< 3D matching cuts
+    std::vector<float> MatchTruth;     ///< Match to MC truth
     std::vector<const simb::MCParticle*> MCPartList;
     std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
     const geo::GeometryCore* geom;
