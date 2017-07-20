@@ -27,6 +27,7 @@
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
+#include "larreco/RecoAlg/TCAlg/TCTruth.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 namespace tca {
