@@ -1150,8 +1150,11 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
                     fTriedClusters[av].push_back(idx);
                     try_build = true;
                 }
-                else { testView = av; } // not selected, and not "first_view" -> use as a test view
             }
+        }
+        for (auto av : fAvailableViews)
+        {
+            if ((av != first_view) && (av != bestView)) { testView = av; break; }
         }
 
 		if (try_build)
@@ -1159,7 +1162,7 @@ pma::TrkCandidate pma::PMAlgTracker::matchCluster(
             mf::LogVerbatim("PMAlgTracker") << "--> " << imatch++ << " match with:";
 		    mf::LogVerbatim("PMAlgTracker") << "    cluster in view  *** " << bestView << " ***  size: " << nMaxHits;
 
-			if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) { testView = geo::kUnknown; }
+			if (!fGeom->TPC(tpc, cryo).HasPlane(testView)) { mf::LogVerbatim("PMAlgTracker") << "    no validation plane  *** "; testView = geo::kUnknown; }
 			else { mf::LogVerbatim("PMAlgTracker") << "    validation plane  *** " << testView << " ***"; }
 
 			double m0 = 0.0, v0 = 0.0;
@@ -1450,14 +1453,20 @@ void pma::PMAlgTracker::listUsedClusters(void) const
 				<< ";\tsize: " << fCluHits[i].size();
 		}
 	mf::LogVerbatim("PMAlgTracker") << "--------- not matched clusters: ---------";
+	size_t nsingles = 0;
 	for (size_t i = 0; i < fCluHits.size(); ++i)
 		if (!fCluHits[i].empty() && !has(fUsedClusters, i))
 		{
-			mf::LogVerbatim("PMAlgTracker")
-				<< "    tpc: " << fCluHits[i].front()->WireID().TPC
-				<< ";\tview: " << fCluHits[i].front()->View()
-				<< ";\tsize: " << fCluHits[i].size();
+		    if (fCluHits[i].size() == 1) { nsingles++; }
+		    else
+		    {
+    			mf::LogVerbatim("PMAlgTracker")
+	    			<< "    tpc: " << fCluHits[i].front()->WireID().TPC
+	    			<< ";\tview: " << fCluHits[i].front()->View()
+	    			<< ";\tsize: " << fCluHits[i].size();
+	    	}
 		}
+	mf::LogVerbatim("PMAlgTracker") << "    single hits: " << nsingles;
 	mf::LogVerbatim("PMAlgTracker") << "-----------------------------------------";
 }
 // ------------------------------------------------------
