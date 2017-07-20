@@ -2,159 +2,6 @@
 
 namespace tca {
 
-  void MakeTruTrajPoint(TjStuff& tjs, unsigned short MCParticleListIndex, TrajPoint& tp)
-  {
-    // Creates a trajectory point at the start of the MCParticle with index MCParticleListIndex. The
-    // projected length of the MCParticle in the plane coordinate system is stored in TruTp.Delta.
-    // The calling function should specify the CTP in which this TP resides.
-    
-    if(MCParticleListIndex > tjs.MCPartList.size() - 1) return;
-    
-    const simb::MCParticle* part = tjs.MCPartList[MCParticleListIndex];
-    geo::PlaneID planeID = DecodeCTP(tp.CTP);
-    
-    tp.Pos[0] = tjs.geom->WireCoordinate(part->Vy(), part->Vz(), planeID);
-    tp.Pos[1] = tjs.detprop->ConvertXToTicks(part->Vx(), planeID) * tjs.UnitsPerTick;
-    
-    TVector3 dir;
-    dir[0] = part->Px(); dir[1] = part->Py(); dir[2] = part->Pz();
-    if(dir.Mag() == 0) return;
-    dir.SetMag(1);
-    TVector3 pos;
-    pos[0] = part->Vx() + 100 * dir[0];
-    pos[1] = part->Vy() + 100 * dir[1];
-    pos[2] = part->Vz() + 100 * dir[2];
-    // use HitPos as a work vector
-    tp.HitPos[0] = tjs.geom->WireCoordinate(pos[1], pos[2], planeID);
-    tp.HitPos[1] = tjs.detprop->ConvertXToTicks(pos[0], planeID) * tjs.UnitsPerTick;
-    
-    tp.Dir[0] = tp.HitPos[0] - tp.Pos[0];
-    tp.Dir[1] = tp.HitPos[1] - tp.Pos[1];
-    double norm = sqrt(tp.Dir[0] * tp.Dir[0] + tp.Dir[1] * tp.Dir[1]);
-    tp.Dir[0] /= norm;
-    tp.Dir[1] /= norm;
-    tp.Ang = atan2(tp.Dir[1], tp.Dir[0]);
-    tp.Delta = norm / 100;
-    
-    // The Orth vectors are not unit normalized so we need to correct for this
-    double w0 = tjs.geom->WireCoordinate(0, 0, planeID);
-    // cosine-like component
-    double cs = tjs.geom->WireCoordinate(1, 0, planeID) - w0;
-    // sine-like component
-    double sn = tjs.geom->WireCoordinate(0, 1, planeID) - w0;
-    norm = sqrt(cs * cs + sn * sn);
-    tp.Delta /= norm;
-
-  } // MakeTruTrajPoint
-
-  /////////////////////////////////////////
-  unsigned short MCParticleStartTjID(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP)
-  {
-    // Finds the trajectory that has hits matched to the MC Particle and is the closest to the
-    // MCParticle start vertex
-    
-    if(MCParticleListIndex > tjs.MCPartList.size() - 1) return 0;
-    
-    const simb::MCParticle* part = tjs.MCPartList[MCParticleListIndex];
-    geo::PlaneID planeID = DecodeCTP(inCTP);
-
-    TrajPoint truTp;
-    truTp.Pos[0] = tjs.geom->WireCoordinate(part->Vy(), part->Vz(), planeID);
-    truTp.Pos[1] = tjs.detprop->ConvertXToTicks(part->Vx(), planeID) * tjs.UnitsPerTick;
-    
-    unsigned short imTheOne = 0;
-    unsigned short length = 5;
-    unsigned short nTruHits;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled] && !tj.AlgMod[kInShower]) continue;
-      if(tj.CTP != inCTP) continue;
-      if(tj.Pts.size() < length) continue;
-      for(unsigned short end = 0; end < 2; ++end) {
-        unsigned short ept = tj.EndPt[end];
-        float sep2 = PosSep2(tj.Pts[ept].Pos, truTp.Pos);
-        if(sep2 > 20) continue;
-        // found a close trajectory point. See if this is the right one
-        if(GetMCPartListIndex(tjs, tj, nTruHits) != MCParticleListIndex) continue;
-        imTheOne = tj.ID;
-        length = tj.Pts.size();
-      } // end
-    } // tj
-    
-    return imTheOne;
-    
-  } // MCParticleStartTj
-  
-  /////////////////////////////////////////
-  unsigned short GetMCPartListIndex(TjStuff& tjs, const ShowerStruct& ss, unsigned short& nTruHits)
-  {
-    // Returns the index of the MCParticle that has the most number of matches
-    // to the hits in this shower
-    
-    if(tjs.MCPartList.empty()) return USHRT_MAX;
-    if(ss.TjIDs.empty()) return USHRT_MAX;
-    
-    std::vector<unsigned short> pListCnt(tjs.MCPartList.size());
-    
-    for(auto& tjid : ss.TjIDs) {
-      Trajectory& tj = tjs.allTraj[tjid - 1];
-      for(auto& tp : tj.Pts) {
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(!tp.UseHit[ii]) continue;
-          unsigned int iht = tp.Hits[ii];
-          // ignore unmatched hits
-          if(tjs.fHits[iht].MCPartListIndex > tjs.MCPartList.size() - 1) continue;
-          ++pListCnt[tjs.fHits[iht].MCPartListIndex];
-        } // ii
-      } // pt
-    } // tjid
-    
-    unsigned short pIndex = USHRT_MAX;
-    nTruHits = 0;
-    for(unsigned short ii = 0; ii < pListCnt.size(); ++ii) {
-      if(pListCnt[ii] > nTruHits) {
-        nTruHits = pListCnt[ii];
-        pIndex = ii;
-      }
-    } // ii
-    
-    return pIndex;
-    
-  } // GetMCPartListIndex
-  
-  /////////////////////////////////////////
-  unsigned short GetMCPartListIndex(TjStuff& tjs, const Trajectory& tj, unsigned short& nTruHits)
-  {
-    // Returns the index of the MCParticle that has the most number of matches
-    // to the hits in this trajectory
-    
-    if(tjs.MCPartList.empty()) return USHRT_MAX;
-    
-    // Check all hits associated with this Tj
-    std::vector<unsigned short> pListCnt(tjs.MCPartList.size());
-    
-    for(auto& tp : tj.Pts) {
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        if(!tp.UseHit[ii]) continue;
-        unsigned int iht = tp.Hits[ii];
-        // ignore unmatched hits
-        if(tjs.fHits[iht].MCPartListIndex > tjs.MCPartList.size() - 1) continue;
-        ++pListCnt[tjs.fHits[iht].MCPartListIndex];
-      } // ii
-    } // pt
-    
-    unsigned short pIndex = USHRT_MAX;
-    nTruHits = 0;
-    for(unsigned short ii = 0; ii < pListCnt.size(); ++ii) {
-      if(pListCnt[ii] > nTruHits) {
-        nTruHits = pListCnt[ii];
-        pIndex = ii;
-      }
-    } // ii
-    
-    return pIndex;
-    
-  } // GetMCPartListIndex
-
   /////////////////////////////////////////
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir)
   {
@@ -346,6 +193,41 @@ namespace tca {
     } // ii
 
   } // FindMatchingPts
+  
+  /////////////////////////////////////////
+  bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2)
+  {
+    // Returns true if the two trajectories meet some basic requirements for merging
+    
+    if(tj1.CTP != tj2.CTP) return false;
+    if(tj1.AlgMod[kKilled] || tj2.AlgMod[kKilled]) return false;
+    // assume that the merge will occur between end1 of tj1 and end0 of tj2
+    unsigned short end1 = 1;
+    unsigned short end2 = 0;
+    const TrajPoint& tp10 = tj1.Pts[tj1.EndPt[0]];
+    const TrajPoint& tp11 = tj1.Pts[tj1.EndPt[1]];
+    const TrajPoint& tp20 = tj2.Pts[tj2.EndPt[0]];
+    const TrajPoint& tp21 = tj2.Pts[tj2.EndPt[1]];
+    if(PosSep2(tp10.Pos, tp21.Pos) < PosSep2(tp11.Pos, tp20.Pos)) { end1 = 0; end2 = 1; }
+    
+    const TrajPoint& tp1 = tj1.Pts[tj1.EndPt[end1]];
+    const TrajPoint& tp2 = tj1.Pts[tj1.EndPt[end2]];
+    
+    if(tp1.AngleCode == 2 && tp2.AngleCode == 2) return true;
+    
+    if(!SignalBetween(tjs, tp1, tp2, 0.8, false)) return false;
+    
+    float sep = PosSep2(tp1.Pos, tp2.Pos);
+    // require < 5^2 wires
+    if(sep > 25) return false;
+    // either one short?
+    if(tj1.Pts.size() < 5 || tj2.Pts.size() < 5) return false;
+    if(sep > 15) return false;
+    if(DeltaAngle(tp1.Ang, tp2.Ang) > 0.8) return false;
+    
+    return true;
+    
+  } // CompatibleMerge
   
   /////////////////////////////////////////
   void FilldEdx(TjStuff& tjs, MatchStruct& ms)
@@ -1096,8 +978,11 @@ namespace tca {
     int toWire = std::nearbyint(tp2.Pos[0]);
     
     if(fromWire == toWire) {
-      if(prt) mf::LogVerbatim("TC")<<" SignalBetween fromWire = toWire = "<<fromWire<<" SignalAtTp? "<<SignalAtTp(tjs, tp1);
-      return SignalAtTp(tjs, tp1);
+      TrajPoint tp = tp1;
+      // check for a signal midway between
+      tp.Pos[1] = 0.5 * (tp1.Pos[1] + tp2.Pos[1]);
+      if(prt) mf::LogVerbatim("TC")<<" SignalBetween fromWire = toWire = "<<fromWire<<" SignalAtTp? "<<SignalAtTp(tjs, tp);
+      return SignalAtTp(tjs, tp);
     }
 
     // define a trajectory point located at tp1 that has a direction towards tp2
