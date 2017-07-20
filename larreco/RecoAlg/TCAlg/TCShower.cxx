@@ -535,6 +535,8 @@ namespace tca {
     
     if(tjs.ShowerTag[0] != 1) return;
     
+    MCParticleListUtils tm{tjs};
+    
     bool prt = false;
     // print only one shower?
     unsigned short prtShower = USHRT_MAX;
@@ -560,10 +562,10 @@ namespace tca {
       for(CTP_t ctp = 0; ctp < 3; ++ctp) {
         std::cout<<" CTP "<<ctp;
         // print the primary trajectory ID
-        std::cout<<" primary TjID "<<MCParticleStartTjID(tjs, 0, ctp);
+        std::cout<<" primary TjID "<<tm.MCParticleStartTjID(0, ctp);
         TrajPoint tp;
         tp.CTP = ctp;
-        MakeTruTrajPoint(tjs, 0, tp);
+        tm.MakeTruTrajPoint(0, tp);
         std::cout<<" Tru start pos "<<PrintPos(tjs, tp.Pos)<<" Ang "<<tp.Ang<<" Projection in plane "<<tp.Delta;
         std::cout<<"\n";
       } // ctp
@@ -1140,6 +1142,8 @@ namespace tca {
     if(ss.TjIDs.empty()) return 1000;
     if(ss.ShowerTjID == 0) return 1000;
     
+    MCParticleListUtils tm{tjs};
+    
     // prospective parent TP
     unsigned short endPt = tj.EndPt[tjEnd];
     TrajPoint& ptp = tj.Pts[endPt];
@@ -1242,7 +1246,7 @@ namespace tca {
     if(tjs.ShowerTag[12] == -5) {
       // special output for creating an ntuple
       unsigned short nTruHits;
-      unsigned short mcPtclIndex = GetMCPartListIndex(tjs, ss, nTruHits);
+      unsigned short mcPtclIndex = tm.GetMCPartListIndex(ss, nTruHits);
       if(mcPtclIndex == 0 && sepPull < 4 && deltaPull < 10 && dangPull < 10) {
         // Print variables to create an ntuple
         float trueEnergy = tjs.MCPartList[mcPtclIndex]->E();
@@ -1250,7 +1254,7 @@ namespace tca {
         myprt<<"NTPL "<<ss.CTP<<" "<<std::fixed<<std::setprecision(2)<<trueEnergy;
         TrajPoint truTP;
         truTP.CTP = ss.CTP;
-        MakeTruTrajPoint(tjs, mcPtclIndex, truTP);
+        tm.MakeTruTrajPoint(mcPtclIndex, truTP);
         myprt<<" "<<truTP.Ang<<" "<<truTP.Delta;
 //        myprt<<" "<<tj.ID;
         // number of times this DefineShowerTj was called for this shower
@@ -2637,6 +2641,8 @@ namespace tca {
     // Create a shower and shower Tj using Tjs in the list
     if(tjl.empty()) return USHRT_MAX;
     
+    MCParticleListUtils tm{tjs};
+    
     // Get the CTP from the first Tj
     Trajectory stj;
     stj.CTP = tjs.allTraj[tjl[0]-1].CTP;
@@ -2662,9 +2668,9 @@ namespace tca {
     // try to define the true shower parent Tj
     unsigned short nTruHits;
     // Find the MC particle that matches with these InShower Tjs
-    unsigned short mcpIndex = GetMCPartListIndex(tjs, ss, nTruHits);
+    unsigned short mcpIndex = tm.GetMCPartListIndex(ss, nTruHits);
     // Find the Tj that is closest to the start of this MC Particle
-    if(mcpIndex != USHRT_MAX) ss.TruParentID = MCParticleStartTjID(tjs, mcpIndex, ss.CTP);
+    if(mcpIndex != USHRT_MAX) ss.TruParentID = tm.MCParticleStartTjID(mcpIndex, ss.CTP);
     // put it in TJ stuff. The rest of the info will be added later
     tjs.cots.push_back(ss);
     return tjs.cots.size() - 1;
