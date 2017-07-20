@@ -85,6 +85,8 @@ private:
     double              fThreshold          = 0.;  // minimum signal size for id'ing a hit
     double              fMinWidth		    = 0 ;  // hit minimum width
     std::string         fCalDataModuleLabel;
+    
+    std::string         fFilteredInstanceName;
 
     std::vector<double> fMinSigVec;                ///<signal height threshold
     std::vector<double> fMinWidthVec;              ///<Minimum hit width
@@ -98,6 +100,10 @@ private:
     double	            fChi2NDFRetry;             ///<Value at which a second n+1 Fit will be tried
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
     size_t              fNumBinsToAverage;         ///< If bin averaging for peak finding, number bins to average
+    
+    std::vector<float>  fPulseHeightCuts;
+    std::vector<float>  fPulseWidthCuts;
+    std::vector<float>  fPulseRatioCuts;
     
     std::unique_ptr<reco_tool::ICandidateHitFinder> fHitFinderTool;  ///< For finding candidate hits
     std::unique_ptr<reco_tool::IPeakFitter>         fPeakFitterTool; ///< Perform fit to candidate peaks
@@ -119,6 +125,9 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
     // hits and associations with wires and raw digits
     // (with no particular product label)
     recob::HitCollectionCreator::declare_products(*this);
+    
+    // Create a "filtered" output list
+    recob::HitCollectionCreator::declare_products(*this,fFilteredInstanceName);
   
 } // GausHitFinder::GausHitFinder()
 
@@ -151,6 +160,7 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
     // Implementation of optional member function here.
     fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
   
+    fFilteredInstanceName = p.get< std::string >("FilteredInstanceName","FilteredHits");
     
     bool const doHitFiltering = p.get<bool>("FilterHits", false);
     if (doHitFiltering) {
@@ -175,6 +185,10 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fChi2NDFRetry      = p.get< double          >("Chi2NDFRetry");
     fChi2NDF           = p.get< double          >("Chi2NDF");
     fNumBinsToAverage  = p.get< size_t          >("NumBinsToAverage", 0);
+    
+    fPulseHeightCuts   = p.get< std::vector<float>>("PulseHeightCuts", std::vector<float>() = {3.0,  3.0,  3.0});
+    fPulseWidthCuts    = p.get< std::vector<float>>("PulseWidthCuts",  std::vector<float>() = {2.0,  1.5,  1.0});
+    fPulseRatioCuts    = p.get< std::vector<float>>("PulseRatioCuts",  std::vector<float>() = {0.35, 0.40, 0.20});
     
     // recover the tool to do the candidate hit finding
     // Recover the baseline tool
@@ -230,6 +244,8 @@ void GausHitFinder::produce(art::Event& evt)
     // this contains the hit collection
     // and its associations to wires and raw digits
     recob::HitCollectionCreator hcol(*this, evt);
+    
+    recob::HitCollectionCreator filteredCol(*this, evt, fFilteredInstanceName);
    
     // ##########################################
     // ### Reading in the Wire List object(s) ###
@@ -354,7 +370,7 @@ void GausHitFinder::produce(art::Event& evt)
                 // ### Calling the function for fitting Gaussians ###
                 // ##################################################
                 double                                chi2PerNDF(0.);
-                int                                   NDF(0);
+                int                                   NDF(1);
                 reco_tool::IPeakFitter::PeakParamsVec peakParamsVec;
                 
                 // #######################################################
@@ -365,51 +381,14 @@ void GausHitFinder::produce(art::Event& evt)
                     fPeakFitterTool->findPeakParameters(signal, mergedCands, peakParamsVec, chi2PerNDF, NDF);
                
                     // If the chi2 is infinite then there is a real problem so we bail
-                    if (!(chi2PerNDF < std::numeric_limits<double>::infinity())) continue;
+                    if (!(chi2PerNDF < std::numeric_limits<double>::infinity()))
+                    {
+                        std::cout << "--> infinite chisquare, channel: " << channel << ", roiStart: " << roiFirstBinTick << ", nGaus: " << nGausForFit << std::endl;
+                        chi2PerNDF = 2.*fChi2NDF;
+                        NDF        = 2;
+                    }
                    
                     fFirstChi2->Fill(chi2PerNDF);
-/*
-                    // #######################################################
-                    // ### Clearing the parameter vector for the new pulse ###
-                    // #######################################################
-                    double       chi2PerNDF2(0.);
-                    int          NDF2(0);
-                    ParameterVec paramVec2;
-                
-                    // #####################################################
-                    // ### Trying extra gaussians for an initial bad fit ###
-                    // #####################################################
-                    if( (chi2PerNDF > (2*fChi2NDFRetry) && fTryNplus1Fits && nGausForFit == 1)||
-                        (chi2PerNDF > (fChi2NDFRetry)   && fTryNplus1Fits && nGausForFit >  1))
-                    {
-                        // ############################################################
-                        // ### Modify input parameters for re-fitting n+1 Gaussians ###
-                        // ############################################################
-                        int newPeakTime = peakVals[0].first + 5 * nGausForFit;
-                    
-                        // We need to make sure we are not out of range and new peak amplitude is non-negative
-                        if (newPeakTime < endT - 1 && signal[newPeakTime] > 0.)
-                        {
-                            peakVals.emplace_back(newPeakTime, 2. * peakVals[0].second);
-	    
-                            // #########################################################
-                            // ### Calling the function for re-fitting n+1 Gaussians ###
-                            // #########################################################
-                            FitGaussians(signal, peakVals, startT, endT, 0.5, paramVec2, chi2PerNDF2, NDF2);
-	    
-                            // #########################################################
-                            // ### Getting the appropriate parameter into the vector ###
-                            // #########################################################
-                            if (chi2PerNDF2 < chi2PerNDF)
-                            {
-                                nGausForFit = peakVals.size();
-                                chi2PerNDF  = chi2PerNDF2;
-                                NDF         = NDF2;
-                                paramVec    = paramVec2;
-                            }
-                        }
-                    }
- */
                 }
                 
                 // #######################################################
@@ -419,49 +398,24 @@ void GausHitFinder::produce(art::Event& evt)
                 // ### Also do this if chi^2 is too large              ###
                 // #######################################################
                 if (mergedCands.size() > fMaxMultiHit || chi2PerNDF > fChi2NDF)
-                {
-                    int longPulseWidth = fLongPulseWidthVec.at(plane);
-                    int nHitsThisPulse = (endT - startT) / longPulseWidth;
-                    
-                    if (nHitsThisPulse > fLongMaxHitsVec.at(plane))
-                    {
-                        nHitsThisPulse = fLongMaxHitsVec.at(plane);
-                        longPulseWidth = (endT - startT) / nHitsThisPulse;
-                    }
-                    
-                    if (nHitsThisPulse * longPulseWidth < endT - startT) nHitsThisPulse++;
-                    
-                    int firstTick = startT;
-                    int lastTick  = firstTick + std::min(endT,longPulseWidth);
-                    
+                {                    
                     peakParamsVec.clear();
-                    nGausForFit = nHitsThisPulse;
-                    NDF         = 1.;
+                    nGausForFit = mergedCands.size(); //nHitsThisPulse;
                     chi2PerNDF  =  chi2PerNDF > fChi2NDF ? chi2PerNDF : -1.;
-                    
-                    for(int hitIdx = 0; hitIdx < nHitsThisPulse; hitIdx++)
+
+                    for(auto& candidateHit : mergedCands)
                     {
-                        // This hit parameters
-                        double sumADC    = std::accumulate(signal.begin() + firstTick, signal.begin() + lastTick, 0.);
-                        double peakSigma = (lastTick - firstTick) / 3.;  // Set the width...
-                        double peakAmp   = 0.3989 * sumADC / peakSigma;  // Use gaussian formulation
-                        double peakMean  = (firstTick + lastTick) / 2.;
-                    
                         // Store hit params
                         reco_tool::IPeakFitter::PeakFitParams_t peakParams;
                         
-                        peakParams.peakCenter         = peakMean;
-                        peakParams.peakCenterError    = 0.1 * peakMean;
-                        peakParams.peakSigma          = peakSigma;
-                        peakParams.peakSigmaError     = 0.1 * peakSigma;
-                        peakParams.peakAmplitude      = peakAmp;
-                        peakParams.peakAmplitudeError = 0.1 * peakAmp;
+                        peakParams.peakCenter         = candidateHit.hitCenter;
+                        peakParams.peakCenterError    = 0.1 * candidateHit.hitCenter;
+                        peakParams.peakSigma          = candidateHit.hitSigma;
+                        peakParams.peakSigmaError     = 0.1 * candidateHit.hitSigma;
+                        peakParams.peakAmplitude      = candidateHit.hitHeight;
+                        peakParams.peakAmplitudeError = 0.1 * candidateHit.hitHeight;
                         
                         peakParamsVec.push_back(peakParams);
-                        
-                        // set for next loop
-                        firstTick = lastTick;
-                        lastTick  = std::min(lastTick  + longPulseWidth, endT);
                     }
                 }
 	    
@@ -471,22 +425,31 @@ void GausHitFinder::produce(art::Event& evt)
                 
                 int numHits(0);
                 
+                // Make a container for what will be the filtered collection
+                std::vector<recob::Hit> filteredHitVec;
+                
                 for(const auto& peakParams : peakParamsVec)
                 {
                     // Extract values for this hit
-                    double peakAmp   = peakParams.peakAmplitude;
-                    double peakMean  = peakParams.peakCenter;
-                    double peakWidth = peakParams.peakSigma;
+                    float peakAmp   = peakParams.peakAmplitude;
+                    float peakMean  = peakParams.peakCenter;
+                    float peakWidth = peakParams.peakSigma;
+                    
+                    // Place one bit of protection here
+                    if (std::isnan(peakAmp))
+                    {
+                        std::cout << "**** hit peak amplitude is a nan! Channel: " << channel << ", start tick: " << startT << std::endl;
+                        continue;
+                    }
                     
                     // Extract errors
-                    double peakAmpErr   = peakParams.peakAmplitudeError;
-                    double peakMeanErr  = peakParams.peakCenterError;
-                    double peakWidthErr = peakParams.peakSigmaError;
+                    float peakAmpErr   = peakParams.peakAmplitudeError;
+                    float peakMeanErr  = peakParams.peakCenterError;
+                    float peakWidthErr = peakParams.peakSigmaError;
                     
                     // ### Charge ###
-                    //double charge    = chargeFunc(peakMean, peakAmp, peakWidth, fAreaNorms[view],startT,endT);;
-                    double charge    = chargeFunc(peakMean, peakAmp, peakWidth, fAreaNormsVec[plane],startT,endT);;
-                    double chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);
+                    float charge    = chargeFunc(peakMean, peakAmp, peakWidth, fAreaNormsVec[plane],startT,endT);;
+                    float chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);
                     
                     // ### limits for getting sums
                     std::vector<float>::const_iterator sumStartItr = signal.begin() + startT;
@@ -514,13 +477,45 @@ void GausHitFinder::produce(art::Event& evt)
                                                  NDF                               // dof
                                                  );
                     
+                    filteredHitVec.push_back(hitcreator.copy());
+                    
                     const recob::Hit hit(hitcreator.move());
-		    
-                    if (!fHitFilterAlg || fHitFilterAlg->IsGoodHit(hit)) {
-                        hcol.emplace_back(std::move(hit), wire, rawdigits);
-                        numHits++;
-                    }
+
+                    // This loop will store ALL hits
+                    hcol.emplace_back(std::move(hit), wire, rawdigits);
+                    numHits++;
                 } // <---End loop over gaussians
+                
+                // Should we filter hits?
+                if (!filteredHitVec.empty())
+                {
+                    // Sort in ascending peak height
+                    std::sort(filteredHitVec.begin(),filteredHitVec.end(),[](const auto& left, const auto& right){return left.PeakAmplitude() > right.PeakAmplitude();});
+                    
+                    // Reject if the first hit fails the PH/wid cuts
+                    if (filteredHitVec.front().PeakAmplitude() < fPulseHeightCuts.at(plane) || filteredHitVec.front().RMS() < fPulseWidthCuts.at(plane)) filteredHitVec.clear();
+
+                    // Now check other hits in the snippet
+                    if (filteredHitVec.size() > 1)
+                    {
+                        // The largest pulse height will now be at the front...
+                        float largestPH = filteredHitVec.front().PeakAmplitude();
+                    
+                        // Find where the pulse heights drop below threshold
+                        float threshold(fPulseRatioCuts.at(plane));
+                    
+                        std::vector<recob::Hit>::iterator smallHitItr = std::find_if(filteredHitVec.begin(),filteredHitVec.end(),[largestPH,threshold](const auto& hit){return hit.PeakAmplitude() < 8. && hit.PeakAmplitude() / largestPH < threshold;});
+                    
+                        // Shrink to fit
+                        if (smallHitItr != filteredHitVec.end()) filteredHitVec.resize(std::distance(filteredHitVec.begin(),smallHitItr));
+                    
+                        // Resort in time order
+                        std::sort(filteredHitVec.begin(),filteredHitVec.end(),[](const auto& left, const auto& right){return left.PeakTime() < right.PeakTime();});
+                    }
+                }
+                
+                // Copy the hits we want to keep to the filtered hit collection
+                for(const auto& filteredHit : filteredHitVec) filteredCol.emplace_back(filteredHit, wire, rawdigits);
                 
                 fChi2->Fill(chi2PerNDF);
 	    
@@ -536,6 +531,8 @@ void GausHitFinder::produce(art::Event& evt)
    
     // move the hit collection and the associations into the event
     hcol.put_into(evt);
+    
+    filteredCol.put_into(evt);
 
 } // End of produce() 
 

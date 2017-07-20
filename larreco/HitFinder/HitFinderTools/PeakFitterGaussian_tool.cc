@@ -90,6 +90,9 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     //
     if (hitCandidateVec.empty()) return;
     
+    // in case of a fit failure, set the chi-square to infinity
+    chi2PerNDF = std::numeric_limits<double>::infinity();
+    
     int startTime = hitCandidateVec.front().startTick;
     int endTime   = hitCandidateVec.back().stopTick;
     int roiSize   = endTime - startTime;
@@ -125,39 +128,45 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
         Gaus.SetParameter(  parIdx, amplitude);
         Gaus.SetParameter(1+parIdx, peakMean);
         Gaus.SetParameter(2+parIdx, peakWidth);
-        Gaus.SetParLimits(  parIdx, 0.0,        fAmpRange * amplitude);
-        Gaus.SetParLimits(1+parIdx, meanLowLim, meanHiLim);
-        Gaus.SetParLimits(2+parIdx, fMinWidth,  fMaxWidthMult * peakWidth);
+        Gaus.SetParLimits(  parIdx, 0.1 * amplitude,  fAmpRange * amplitude);
+        Gaus.SetParLimits(1+parIdx, meanLowLim,       meanHiLim);
+        Gaus.SetParLimits(2+parIdx, 0.75 * peakWidth, fMaxWidthMult * peakWidth);
         
         parIdx += 3;
     }
     
+    int fitResult(-1);
+    
     try
-    { fHistogram.Fit(&Gaus,"QNRWB","", 0., roiSize);}
+    { fitResult = fHistogram.Fit(&Gaus,"QNRWB","", 0., roiSize);}
     catch(...)
     {mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";}
     
-    // ##################################################
-    // ### Getting the fitted parameters from the fit ###
-    // ##################################################
-    chi2PerNDF = (Gaus.GetChisquare() / Gaus.GetNDF());
-    NDF        = Gaus.GetNDF();
-    
-    parIdx = 0;
-    for(size_t idx = 0; idx < hitCandidateVec.size(); idx++)
+    // If the fit result is not zero there was an error
+    if (!fitResult)
     {
-        PeakFitParams_t peakParams;
+        // ##################################################
+        // ### Getting the fitted parameters from the fit ###
+        // ##################################################
+        chi2PerNDF = (Gaus.GetChisquare() / Gaus.GetNDF());
+        NDF        = Gaus.GetNDF();
+    
+        parIdx = 0;
+        for(size_t idx = 0; idx < hitCandidateVec.size(); idx++)
+        {
+            PeakFitParams_t peakParams;
         
-        peakParams.peakAmplitude      = Gaus.GetParameter(parIdx);
-        peakParams.peakAmplitudeError = Gaus.GetParError( parIdx);
-        peakParams.peakCenter         = Gaus.GetParameter(parIdx + 1) + float(startTime);
-        peakParams.peakCenterError    = Gaus.GetParError( parIdx + 1);
-        peakParams.peakSigma          = Gaus.GetParameter(parIdx + 2);
-        peakParams.peakSigmaError     = Gaus.GetParError( parIdx + 2);
+            peakParams.peakAmplitude      = Gaus.GetParameter(parIdx);
+            peakParams.peakAmplitudeError = Gaus.GetParError( parIdx);
+            peakParams.peakCenter         = Gaus.GetParameter(parIdx + 1) + float(startTime);
+            peakParams.peakCenterError    = Gaus.GetParError( parIdx + 1);
+            peakParams.peakSigma          = Gaus.GetParameter(parIdx + 2);
+            peakParams.peakSigmaError     = Gaus.GetParError( parIdx + 2);
         
-        peakParamsVec.emplace_back(peakParams);
+            peakParamsVec.emplace_back(peakParams);
         
-        parIdx += 3;
+            parIdx += 3;
+        }
     }
     
     Gaus.Delete();

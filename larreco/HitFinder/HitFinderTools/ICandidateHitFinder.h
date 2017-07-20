@@ -41,20 +41,22 @@ namespace reco_tool
         using HitCandidateVec      = std::vector<HitCandidate_t>;
         using MergeHitCandidateVec = std::vector<HitCandidateVec>;
         
+        using Waveform = std::vector<float>;
+        
         // Search for candidate hits on the input waveform
-        virtual void findHitCandidates(const std::vector<float>&,           // Waveform to analyze
+        virtual void findHitCandidates(const Waveform&,                     // Waveform to analyze
                                        size_t,                              // waveform start tick
                                        double,                              // threshold
                                        HitCandidateVec&) const = 0;         // output candidate hits
         
         // Search for candidate hits on the input waveform
-        virtual void findHitCandidates(std::vector<float>::const_iterator,  // Start of waveform
-                                       std::vector<float>::const_iterator,  // end of waveform
+        virtual void findHitCandidates(Waveform::const_iterator,            // Start of waveform
+                                       Waveform::const_iterator,            // end of waveform
                                        size_t,                              // waveform start tick
                                        double,                              // threshold
                                        HitCandidateVec&) const = 0;         // output candidate hits
         
-        virtual void MergeHitCandidates(const std::vector<float>&,
+        virtual void MergeHitCandidates(const Waveform&,
                                         const HitCandidateVec&,
                                         MergeHitCandidateVec&) const = 0;
     };

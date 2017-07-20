@@ -124,7 +124,7 @@ void WaveformAlgs::getSmoothVec(const std::vector<float>& roiSignalVec, std::vec
     
     // Now run the "triangle" smoothing operation
     for(size_t idx = 2; idx < tempVec.size() - 2; idx++)
-        smoothVec[idx] = (tempVec.at(idx-2) + 2.*tempVec.at(idx-1) + 3.*tempVec.at(idx) + 2.*tempVec.at(idx+1) + tempVec.at(idx+2))/9.;
+        smoothVec.at(idx) = (tempVec.at(idx-2) + 2.*tempVec.at(idx-1) + 3.*tempVec.at(idx) + 2.*tempVec.at(idx+1) + tempVec.at(idx+2))/9.;
     
     return;
 }
@@ -134,7 +134,7 @@ void WaveformAlgs::getDerivativeVec(const std::vector<float>& roiSignalVec, std:
     derivativeVec.resize(roiSignalVec.size(),0.);
     
     for(size_t idx = 1; idx < roiSignalVec.size()-1; idx++)
-        derivativeVec[idx] = 0.5 * (roiSignalVec.at(idx+1) - roiSignalVec.at(idx-1));
+        derivativeVec.at(idx) = 0.5 * (roiSignalVec.at(idx+1) - roiSignalVec.at(idx-1));
     
     return;
 }
@@ -147,13 +147,22 @@ void WaveformAlgs::getSmoothDerivativeVec(const std::vector<float>& roiSignalVec
     tempVec.resize(roiSignalVec.size(),0.);
     
     for(size_t idx = 1; idx < roiSignalVec.size()-1; idx++)
-        tempVec[idx] = 0.5 * (roiSignalVec.at(idx+1) - roiSignalVec.at(idx-1));
+        tempVec.at(idx) = 0.5 * (roiSignalVec.at(idx+1) - roiSignalVec.at(idx-1));
     
     // Now smooth the derivative vector
     derivativeVec.resize(roiSignalVec.size(),0.);
     
     for(size_t idx = 2; idx < tempVec.size() - 2; idx++)
-        derivativeVec[idx] = (tempVec.at(idx-2) + 2.*tempVec.at(idx-1) + 3.*tempVec.at(idx) + 2.*tempVec.at(idx+1) + tempVec.at(idx+2))/9.;
+        derivativeVec.at(idx) = (tempVec.at(idx-2) + 2.*tempVec.at(idx-1) + 3.*tempVec.at(idx) + 2.*tempVec.at(idx+1) + tempVec.at(idx+2))/9.;
+    
+    // Simply copy the two unsmoothed elements to fill out vector
+    if (derivativeVec.size() > 2)
+    {
+        derivativeVec.at(0)                      = tempVec.at(1);
+        derivativeVec.at(1)                      = tempVec.at(1);
+        derivativeVec.at(derivativeVec.size()-2) = tempVec.at(derivativeVec.size()-2);
+        derivativeVec.at(derivativeVec.size()-1) = tempVec.at(derivativeVec.size()-2);
+    }
     
     return;
 }
