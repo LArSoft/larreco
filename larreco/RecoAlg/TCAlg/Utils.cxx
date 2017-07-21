@@ -1159,7 +1159,7 @@ namespace tca {
     for(unsigned short end = 0; end < 2; ++end) {
       if(tj.VtxID[end] > 0) {
         unsigned short ivx = tj.VtxID[end] - 1;
-        if(tjs.vtx[ivx].Score > minScore) return true;
+        if(tjs.vtx[ivx].Score >= minScore) return true;
       }
     } // end
     return false;
@@ -2667,14 +2667,18 @@ namespace tca {
           } // ipl
           myprt<<std::right<<std::setw(6)<<score;
           myprt<<std::right<<std::setw(5)<<nTruMatch;
-          for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-            if(tjs.vtx3[iv].Vtx2ID[ipl] == 0) {
-              myprt<<" NA";
-            } else {
-              unsigned short ivx = tjs.vtx3[iv].Vtx2ID[ipl] - 1;
-              myprt<<" "<<ipl<<":"<<PrintPos(tjs, tjs.vtx[ivx].Pos);
-            }
-          } // ipl
+          if(tjs.vtx3[iv].Wire == -2) {
+            myprt<<" PFParticle vertex. No 2D vertices created";
+          } else {
+            for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+              if(tjs.vtx3[iv].Vtx2ID[ipl] == 0) {
+                myprt<<" NA";
+              } else {
+                unsigned short ivx = tjs.vtx3[iv].Vtx2ID[ipl] - 1;
+                myprt<<" "<<ipl<<":"<<PrintPos(tjs, tjs.vtx[ivx].Pos);
+              }
+            } // ipl
+          }
           myprt<<"\n";
         }
       } // tjs.vtx3.size
