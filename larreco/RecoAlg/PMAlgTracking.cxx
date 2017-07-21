@@ -189,9 +189,13 @@ void pma::PMAlgFitter::buildTracks(void)
 			std::vector< art::Ptr<recob::Hit> > allHits;
 
 			pma::TrkCandidate candidate;
+			std::unordered_map<geo::View_t, size_t> clu_count;
 			for (const auto & c : pfpCluEntry.second)
 			{
+				if (c->NHits() == 0) { continue; }
+
 				candidate.Clusters().push_back(c.key());
+				clu_count[c->View()]++;
 
 				allHits.reserve(allHits.size() + fCluHits.at(c.key()).size());
 				for (const auto & h : fCluHits.at(c.key()))
@@ -199,24 +203,24 @@ void pma::PMAlgFitter::buildTracks(void)
 					allHits.push_back(h);
 				}
 			}
-			candidate.SetKey(pfpCluEntry.first);
-
-			candidate.SetTrack(fProjectionMatchingAlg.buildMultiTPCTrack(allHits));
-
-			if (candidate.IsValid() &&
-			    candidate.Track()->HasTwoViews() &&
-			    (candidate.Track()->Nodes().size() > 1))
+			if (clu_count.size() > 1) // try building only if there are clusters from multiple views
 			{
-			    if (!std::isnan(candidate.Track()->Length())) { fResult.push_back(candidate); }
-			    else
-			    {
-			        mf::LogError("PMAlgFitter") << "Trajectory fit lenght is nan.";
-				    candidate.DeleteTrack();
-			    }
-			}
-			else
-			{
-				candidate.DeleteTrack();
+				candidate.SetKey(pfpCluEntry.first);
+
+				candidate.SetTrack(fProjectionMatchingAlg.buildMultiTPCTrack(allHits));
+
+				if (candidate.IsValid() &&
+				    candidate.Track()->HasTwoViews() &&
+				    (candidate.Track()->Nodes().size() > 1))
+				{
+			    		if (!std::isnan(candidate.Track()->Length())) { fResult.push_back(candidate); }
+			    		else
+			    		{
+						mf::LogError("PMAlgFitter") << "Trajectory fit lenght is nan.";
+						candidate.DeleteTrack();
+			    		}
+				}
+				else { candidate.DeleteTrack(); }
 			}
 		}
 }
@@ -246,34 +250,37 @@ void pma::PMAlgFitter::buildShowers(void)
 			std::vector< art::Ptr<recob::Hit> > allHits;
 
 			pma::TrkCandidate candidate;
+			std::unordered_map<geo::View_t, size_t> clu_count;
 			for (const auto & c : pfpCluEntry.second)
 			{
+				if (c->NHits() == 0) { continue; }
+
 				candidate.Clusters().push_back(c.key());
+				clu_count[c->View()]++;
 
 				allHits.reserve(allHits.size() + fCluHits.at(c.key()).size());
 				for (const auto & h : fCluHits.at(c.key()))
 					allHits.push_back(h);
 			}
+			if (clu_count.size() > 1) // try building only if there are clusters from multiple views
+                        {
+				candidate.SetKey(pfpCluEntry.first);
 
-			candidate.SetKey(pfpCluEntry.first);
+				mf::LogVerbatim("PMAlgFitter") << "building..." << ", pdg:" << pdg;
 
-			mf::LogVerbatim("PMAlgFitter") << "building..." << ", pdg:" << pdg;
+				auto search = fPfpVtx.find(pfPartIdx);
+				if (search != fPfpVtx.end())
+				{
+					candidate.SetTrack(fProjectionMatchingAlg.buildShowerSeg(allHits, search->second));
 
-			auto search = fPfpVtx.find(pfPartIdx);
-			if (search != fPfpVtx.end())
-			{
-				candidate.SetTrack(fProjectionMatchingAlg.buildShowerSeg(allHits, search->second));
-
-				if (candidate.IsValid()
+					if (candidate.IsValid()
 						&& candidate.Track()->HasTwoViews()
 						&& (candidate.Track()->Nodes().size() > 1)
 						&& !std::isnan(candidate.Track()->Length()))
-				{
-					fResult.push_back(candidate);
-				}
-				else
-				{
-					candidate.DeleteTrack();
+					{
+						fResult.push_back(candidate);
+					}
+					else { candidate.DeleteTrack(); }
 				}
 			}
 		}
