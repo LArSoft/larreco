@@ -41,7 +41,8 @@ namespace tca {
     "InShower",
     "ShowerTj",
     "MergeOverlap",
-    "MergeSubShowers"
+    "MergeSubShowers",
+    "MergeNrShowers"
   };
 
   const std::vector<std::string> StopFlagNames {
