@@ -234,7 +234,7 @@ public:
 		const pma::PMAlgStitching::Config& pmstitchConfig,
 		const pma::PMAlgCosmicTagger::Config& pmtaggerConfig,
 		
-		const std::vector< TH1F* > & hclose, const std::vector< TH1F* > & hdist);
+		const std::vector< TH1F* > & hpassing, const std::vector< TH1F* > & hrejected);
 
 	void init(const art::FindManyP< recob::Hit > & hitsFromClusters);
 

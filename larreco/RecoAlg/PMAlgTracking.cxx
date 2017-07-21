@@ -296,7 +296,7 @@ pma::PMAlgTracker::PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allh
 	const pma::PMAlgStitching::Config& pmstitchConfig,
 	const pma::PMAlgCosmicTagger::Config& pmtaggerConfig,
 	
-	const std::vector< TH1F* > & hclose, const std::vector< TH1F* > & hdist) :
+	const std::vector< TH1F* > & hpassing, const std::vector< TH1F* > & hrejected) :
 
 	PMAlgTrackingBase(allhitlist, pmalgConfig, pmvtxConfig),
 
@@ -330,7 +330,7 @@ pma::PMAlgTracker::PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allh
 
 	fRunVertexing(pmalgTrackerConfig.RunVertexing()),
 
-	fAdcInPassingPoints(hclose), fAdcInRejectedPoints(hdist),
+	fAdcInPassingPoints(hpassing), fAdcInRejectedPoints(hrejected),
 
     fGeom(&*(art::ServiceHandle<geo::Geometry>())),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
