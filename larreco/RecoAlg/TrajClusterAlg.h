@@ -10,6 +10,7 @@
 #define TRAJCLUSTERALG_H
 
 #include "larreco/RecoAlg/TCAlg/Utils.h"
+#include "larreco/RecoAlg/TCAlg/TCTruth.h"
 
 // C/C++ standard libraries
 #include <array>
@@ -94,7 +95,8 @@ namespace tca {
     void ClearResults();
     
     TjStuff tjs;
-    DebugStuff Debug;
+    HistStuff hist;
+    TruthMatcher tm{tjs};
     
     private:
     
@@ -122,7 +124,6 @@ namespace tca {
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
-    std::vector<float> fMatchTruth;     ///< Match to MC truth
  
     std::vector<float> fMaxVertexTrajSep;
 
@@ -134,11 +135,8 @@ namespace tca {
     unsigned short fAllowNoHitWire;
     std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
     
-    // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
-    std::array<short, 5> EPCnts;
-    std::array<float, 5> EPSums;
-    std::array<float, 5> EPTSums;
     bool fIsRealData;
+
 
     TH2F *fMCSMom_TruMom_e;
     TH2F *fMCSMom_TruMom_mu;
@@ -178,6 +176,7 @@ namespace tca {
     unsigned short nTruPrimaryVtxOK;
     // number of reconstructable neutrino vertices in ALL events that were reconstructed
     unsigned short nTruPrimaryVtxReco;
+
  
     bool prt;
     bool mrgPrt;
@@ -313,9 +312,7 @@ namespace tca {
     void ChkHiChgHits();
     void SplitHiChgHits(Trajectory& tj);
     void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
-    void MatchTruth();
-    void MatchTrueHits();
-     // ****************************** 3D Tj matching code  ******************************
+      // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid, bool reset);
     void Match2Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);
     void Match3Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);

@@ -41,12 +41,9 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
-  void MakeTruTrajPoint(TjStuff& tjs, unsigned short MCParticleListIndex, TrajPoint& tp);
-  unsigned short MCParticleStartTjID(TjStuff& tjs, unsigned short MCParticleListIndex, CTP_t inCTP);
-  unsigned short GetMCPartListIndex(TjStuff& tjs, const Trajectory& tj, unsigned short& nTruHits);
-  unsigned short GetMCPartListIndex(TjStuff& tjs, const ShowerStruct& ss, unsigned short& nTruHits);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
   void FindMatchingPts(const TjStuff& tjs, const MatchStruct& ms, std::vector<TrajPoint>& stps);
+  bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
   void FilldEdx(TjStuff& tjs, MatchStruct& ms);
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp);
   void SetAngleCode(TjStuff& tjs, TrajPoint& tp);
