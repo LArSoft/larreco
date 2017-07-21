@@ -307,23 +307,22 @@ namespace tca {
           double dx = tjs.geom->WirePitch(planeID) / cosgamma;
           // dQ was normalized to 1 WSE (1 wire spacing equivalent) in FindStartChg 
           double dQ = tjs.cots[cotIndex].StartChg;
-          std::cout<<iPln<<std::fixed<<" dQ "<<(int)dQ<<" dx "<<dx;
+//          std::cout<<iPln<<std::fixed<<" dQ "<<(int)dQ<<" dx "<<dx;
           // Get the time using the shower charge center position
           double time = stj.Pts[1].Pos[1] / tjs.UnitsPerTick;
           double T0 = 0;
           dQ *= tjs.caloAlg->LifetimeCorrection(time, T0);
-          std::cout<<" corrected "<<(int)dQ;
-          std::cout<<" dQ/dx "<<(int)dQ/dx;
+//          std::cout<<" corrected "<<(int)dQ<<" dQ/dx "<<(int)dQ/dx;
           // Convert to number of electrons and make recombination correction for a 1 MIP particle.
           // These are hard-coded numbers that are highly unlikely to change by a significant amount.
           // This is a good approximation for electromagnetic showers but wouldn't be for hadronic showers.
           double nElectrons = tjs.caloAlg->ElectronsFromADCArea(dQ, iPln) / 0.63;
-          std::cout<<" nElectrons "<<std::fixed<<(int)nElectrons;
+//          std::cout<<" nElectrons "<<std::fixed<<(int)nElectrons;
           double dedx = nElectrons * 23.6E-8 * dQ / dx;
           ss3.dEdx[iPln] = dedx;
           // this is a bit of a fake
           ss3.dEdxErr[iPln] = dedx * tjs.cots[cotIndex].StartChgErr / tjs.cots[cotIndex].StartChg;
-          std::cout<<" dedx "<<dedx<<" +/- "<<ss3.dEdxErr[iPln]<<"\n";
+//          std::cout<<" dedx "<<dedx<<" +/- "<<ss3.dEdxErr[iPln]<<"\n";
           if(prt) mf::LogVerbatim("TC")<<"MS: cotIndex "<<cotIndex<<" plane "<<iPln<<" plane "<<iPln<<" dQ "<<(int)dQ<<" dx "<<dx<<" dE/dx "<<ss3.dEdx[iPln]<<" +/- "<<ss3.dEdxErr[iPln];
         }
       } // ii
@@ -343,9 +342,10 @@ namespace tca {
     
     if(tjs.ShowerTag[0] != 2) return false;
     
-    bool prt = true;
-    unsigned short dbgPlane = tjs.ShowerTag[12];
-    CTP_t dbgCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, dbgPlane);
+    bool prt = false;
+    short dbgPlane = tjs.ShowerTag[12];
+    CTP_t dbgCTP = UINT_MAX;
+    if(dbgPlane >= 0 && dbgPlane <= tjs.NumPlanes) dbgCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, dbgPlane);
 
     if(tjs.matchVec.empty()) {
       if(prt) mf::LogVerbatim("TC")<<"FindShowers3D: Give up because matchVec is empty";
@@ -378,27 +378,28 @@ namespace tca {
     unsigned short nPlanesWithShowers = 0;
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) if(!bigList.empty()) ++nPlanesWithShowers;
     if(nPlanesWithShowers < 2) return false;
-    
+
+    // mark them all as InShower Tjs
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
-      std::cout<<"Plane "<<plane<<" tjList \n";
       for(auto& tjl : bigList[plane]) {
-        for(auto& tjID : tjl) {
-          // mark them as InShower Tjs
-          tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
-          std::cout<<" "<<tjID;
-        }
-        std::cout<<"\n";
+        for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
       } // tjl
     } // plane
-    
+
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
       CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
-      prt = (inCTP == dbgCTP || dbgPlane > 2);
+      prt = (inCTP == dbgCTP || dbgPlane >= tjs.NumPlanes);
       // Create a shower for each one
       for(auto& tjl : bigList[plane]) {
+        if(tjl.empty()) continue;
+        if(prt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<"Plane "<<plane<<" tjList";
+          for(auto& tjID : tjl) myprt<<" "<<tjID;
+        }
         unsigned short cotIndex = Create2DShower(tjs, tjl);
         if(cotIndex == USHRT_MAX) continue;
-        DefineShower(tjs, cotIndex, prt);
+        if(!DefineShower(tjs, cotIndex, prt)) continue;
         // Find nearby Tjs that were not included because they had too-high
         // MCSMom, etc. This will be used to decide if showers should be merged
         AddTjsInsideEnvelope(tjs, cotIndex, prt);
@@ -412,10 +413,12 @@ namespace tca {
       } // tjl
       // try to merge showers in this plane using the lists of nearby Tjs
       if(inCTP == UINT_MAX) continue;
+      if(tjs.cots.empty()) continue;
       MergeOverlap(tjs, inCTP, prt);
       MergeSubShowers(tjs, inCTP, prt);
       MergeNearby2DShowers(tjs, inCTP, prt);
     } // plane
+    if(tjs.cots.empty()) return false;
     
     prt = (dbgPlane > 2);
     Match2DShowers(tjs, tpcid, prt);
@@ -428,7 +431,7 @@ namespace tca {
       ShowerStruct& ss = tjs.cots[cotIndex];
       if(ss.TjIDs.empty()) continue;
       Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      std::cout<<cotIndex<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<" ParID "<<ss.ParentID<<" TruParID "<<ss.TruParentID<<"\n";
+      if(prt) std::cout<<cotIndex<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<" ParID "<<ss.ParentID<<" TruParID "<<ss.TruParentID<<"\n";
     } // cotIndex
     
     bool newShowers = false;
@@ -469,7 +472,8 @@ namespace tca {
         std::set_intersection(ss1.MatchedTjIDs.begin(), ss1.MatchedTjIDs.end(), 
                               ss2.MatchedTjIDs.begin(), ss2.MatchedTjIDs.end(), std::back_inserter(shared));
         if(shared.empty()) continue;
-        std::cout<<"M2DS: ss1 "<<ss1.CTP<<":"<<ci1<<" ss2 "<<ss2.CTP<<":"<<ci2<<" common "<<shared.size();
+//        std::cout<<"M2DS: ss1 "<<ss1.CTP<<":"<<ci1<<" ss2 "<<ss2.CTP<<":"<<ci2<<" common "<<shared.size();
+/*
         float allcnt = 0;
         float matcnt = 0;
         // find all matched pairs
@@ -482,6 +486,7 @@ namespace tca {
         float matfrac = 2 * matcnt / allcnt;
         std::cout<<" matfrac "<<matfrac;
         std::cout<<"\n";
+*/
       } // ci2
     } // ci1
 
@@ -627,7 +632,7 @@ namespace tca {
         myprt<<"Make cots "<<cotIndex<<" in CTP "<<ss.CTP<<" TjID_NN";
         for(auto& tjID : tjl) myprt<<" "<<tjID<<"_"<<tjs.allTraj[tjID-1].NNeighbors;
       }
-      DefineShower(tjs, cotIndex, prt);
+      if(!DefineShower(tjs, cotIndex, prt)) continue;
       if(tjs.cots[cotIndex].TjIDs.empty()) continue;
       // Fill the vector of Tjs that are close to this shower but were not included in it, most
       // likely because the MCSMom is too high. These will be used to merge showers
@@ -662,7 +667,7 @@ namespace tca {
     // Finish up in this CTP. 
     // Re-assign hits from the InShower Tjs to the ShowerTj.
     TransferTjHits(tjs, inCTP, prt);
-    std::cout<<"Final calculation shower energy...\n";
+//    std::cout<<"Final calculation shower energy...\n";
 
     // check for consistency
     for(auto& ss : tjs.cots) {
@@ -833,7 +838,7 @@ namespace tca {
   } // FillPts
 
   ////////////////////////////////////////////////
-  void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
+  bool DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt)
   {
     // Defines the properties of a shower using the trajectory points within the trajectories listed
     // in TjIDs. This wipes out any other information that may exist
@@ -841,17 +846,19 @@ namespace tca {
     FillPts(tjs, cotIndex, prt);
     if(!FindChargeCenter(tjs, cotIndex, prt)) {
       mf::LogWarning("TC")<<"Failed to find shower charge center";
-      return;
+      MakeShowerObsolete(tjs, cotIndex, prt);
+      return false;
     }
     FindAngle(tjs, cotIndex, prt);
     FillRotPos(tjs, cotIndex, prt);
     if(!DefineShowerTj(tjs, cotIndex, prt)) {
       if(prt) mf::LogVerbatim("TC")<<"Failed to define Shower Tj. Killed the shower";
       MakeShowerObsolete(tjs, cotIndex, prt);
-      return;
+      return false;
     }
     FindNearbyTjs(tjs, cotIndex, prt);
     DefineEnvelope(tjs, cotIndex, prt);
+    return true;
 
   } // DefineShower
   
@@ -882,7 +889,7 @@ namespace tca {
     }
     // don't add a Tj to the shower if it has a nice vertex unless it is the parent
     if(ss.ParentID != tjID && TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) {
-      mf::LogVerbatim("TC")<<"AddTj: Tj "<<tjID<<" in cotIndex "<<cotIndex<<" has a nice vertex. Not adding it";
+      if(prt) mf::LogVerbatim("TC")<<"AddTj: Tj "<<tjID<<" in cotIndex "<<cotIndex<<" has a nice vertex. Not adding it";
       return false;
     }
     // Ensure that we are not trying to add a Tj that is attached to the shower Tj vertex
@@ -923,9 +930,9 @@ namespace tca {
     tj.AlgMod[kInShower] = true;
     if(prt) mf::LogVerbatim("TC")<<"ATj: Add Tj "<<tj.ID;
     
-    if(doUpdate) DefineShower(tjs, cotIndex, prt);
-    
+    if(doUpdate) return DefineShower(tjs, cotIndex, prt);
     return true;
+    
   } // AddTj
   
   ////////////////////////////////////////////////
@@ -954,7 +961,7 @@ namespace tca {
     if(TjID == ss.ParentID) ss.ParentID = 0;
     // re-build everything?
     if(prt) mf::LogVerbatim("TC")<<"RemoveTj "<<TjID<<" from cotIndex "<<cotIndex;
-    if(doUpdate) DefineShower(tjs, cotIndex, prt);
+    if(doUpdate) return DefineShower(tjs, cotIndex, prt);
     return true;
   } // RemoveTj
 
@@ -1079,7 +1086,7 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<"FEP: Existing InShower Tj "<<imTheBest<<" promoted to parent status with FOM = "<<bestFOM<<" stp1 Pos "<<PrintPos(tjs, stp1);
       }
       ss.NeedsUpdate = true;
-      DefineShower(tjs, cotIndex, prt);
+      if(!DefineShower(tjs, cotIndex, prt)) return;
       AddTjsInsideEnvelope(tjs, cotIndex, prt);
     } else {
       if(prt) mf::LogVerbatim("TC")<<"FEP: Existing parent is good ";
@@ -1311,6 +1318,8 @@ namespace tca {
   ////////////////////////////////////////////////
   void MergeNearby2DShowers(TjStuff& tjs, const CTP_t& inCTP, bool prt)
   {
+    if(!tjs.UseAlg[kMergeNrShowers]) return;
+    if(tjs.cots.empty()) return;
     // merges showers if they share nearby Tjs
     for(unsigned short ci1 = 0; ci1 < tjs.cots.size() - 1; ++ci1) {
       ShowerStruct& ss1 = tjs.cots[ci1];
@@ -1325,9 +1334,19 @@ namespace tca {
                               ss2.NearTjIDs.begin(), ss2.NearTjIDs.end(), std::back_inserter(shared));
         if(shared.empty()) continue;
         // add the shared Tjs to ss1
-        for(auto& tjID : shared) AddTj(tjs, tjID, ci1, false, prt);
-        MergeShowersAndStore(tjs, ci1, ci2, prt);
-        if(prt) mf::LogVerbatim("TC")<<"MN2DS: Merged ss2 "<<ci2<<" into "<<ci1;
+        // ensure that the shower isn't InShower already
+        unsigned short nadd = 0;
+        for(auto& tjID : shared) {
+          if(tjs.allTraj[tjID - 1].AlgMod[kInShower]) continue;
+          if(AddTj(tjs, tjID, ci1, false, prt)) ++nadd;
+        } // tjID
+        if(nadd == 0) continue;
+        if(MergeShowersAndStore(tjs, ci1, ci2, prt)) {
+          Trajectory& stj = tjs.allTraj[ss1.ShowerTjID - 1];
+          stj.AlgMod[kMergeNrShowers] = true;
+          if(prt) mf::LogVerbatim("TC")<<"MN2DS: Merged ss2 "<<ci2<<" into "<<ci1;
+          break;
+        }
       } // ci2
     } // ci1
   } //MergeNearby2DShowers
@@ -1354,77 +1373,69 @@ namespace tca {
     
     if(tjs.ShowerTag[2] <= 0) return;
     if(!tjs.UseAlg[kMergeOverlap]) return;
+    if(tjs.cots.empty()) return;
     
     // Require that the maximum separation is about two radiation lengths
     if(prt) mf::LogVerbatim("TC")<<"MO: checking using separation cut "<<tjs.ShowerTag[2];
     
     float sepCut2 = tjs.ShowerTag[2] * tjs.ShowerTag[2];
     
-    bool didMerge = true;
-    while(didMerge) {
-      didMerge = false;
-      // See if the envelopes overlap
-      for(unsigned short ict = 0; ict < tjs.cots.size() - 1; ++ict) {
-        ShowerStruct& iss = tjs.cots[ict];
-        if(iss.TjIDs.empty()) continue;
-        if(iss.CTP != inCTP) continue;
-        for(unsigned short jct = ict + 1; jct < tjs.cots.size(); ++jct) {
-          ShowerStruct& jss = tjs.cots[jct];
-          if(jss.TjIDs.empty()) continue;
-          if(jss.CTP != iss.CTP) continue;
-          bool doMerge = false;
-          for(auto& ivx : iss.Envelope) {
-            doMerge = PointInsideEnvelope(ivx, jss.Envelope);
+    // See if the envelopes overlap
+    unsigned short maxict = tjs.cots.size() - 1;
+    for(unsigned short ict = 0; ict < tjs.cots.size() - 1; ++ict) {
+      if(ict > maxict) {
+        std::cout<<"MergeOverlap bad ict\n";
+        break;
+      }
+      ShowerStruct& iss = tjs.cots[ict];
+      if(iss.TjIDs.empty()) continue;
+      if(iss.CTP != inCTP) continue;
+      for(unsigned short jct = ict + 1; jct < tjs.cots.size(); ++jct) {
+        if(jct > tjs.cots.size() - 1) {
+          std::cout<<"MergeOverlap bad ict\n";
+          break;
+        }
+        ShowerStruct& jss = tjs.cots[jct];
+        if(jss.TjIDs.empty()) continue;
+        if(jss.CTP != iss.CTP) continue;
+        bool doMerge = false;
+        for(auto& ivx : iss.Envelope) {
+          doMerge = PointInsideEnvelope(ivx, jss.Envelope);
+          if(doMerge) break;
+        } // ivx
+        if(!doMerge) {
+          for(auto& jvx : jss.Envelope) {
+            doMerge = PointInsideEnvelope(jvx, iss.Envelope);
             if(doMerge) break;
           } // ivx
-          if(!doMerge) {
+        }
+        if(prt) mf::LogVerbatim("TC")<<" Envelopes "<<ict<<" "<<jct<<" overlap? "<<doMerge;
+        if(!doMerge) {
+          // check proximity between the envelopes
+          for(auto& ivx : iss.Envelope) {
             for(auto& jvx : jss.Envelope) {
-              doMerge = PointInsideEnvelope(jvx, iss.Envelope);
-              if(doMerge) break;
-            } // ivx
-          }
-          if(prt) mf::LogVerbatim("TC")<<" Envelopes "<<ict<<" "<<jct<<" overlap? "<<doMerge;
-          if(!doMerge) {
-            // check proximity between the envelopes
-            for(auto& ivx : iss.Envelope) {
-              for(auto& jvx : jss.Envelope) {
-                if(PosSep2(ivx, jvx) < sepCut2) {
-                  if(prt) mf::LogVerbatim("TC")<<" Envelopes "<<ict<<" "<<jct<<" are close "<<PosSep(ivx, jvx)<<" cut "<<tjs.ShowerTag[2];
-                  doMerge = true;
-                  break;
-                }
-              } // jvx
-              if(doMerge) break;
-            } // ivx
-          } // !domerge
-          if(!doMerge) continue;
-          if(prt) mf::LogVerbatim("TC")<<" Merge them. Re-find shower center, etc. \n";
-          // Move all of the Tjs from jct to ict
-          iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.end());
-          iss.NearTjIDs.insert(iss.NearTjIDs.end(), jss.NearTjIDs.begin(), jss.NearTjIDs.end());
-          iss.MatchedTjIDs.insert(iss.MatchedTjIDs.end(), jss.MatchedTjIDs.begin(), jss.MatchedTjIDs.end());
-          std::sort(iss.MatchedTjIDs.begin(), iss.MatchedTjIDs.end());
-          // drop the parent ID. It should be re-found later if it is the correct one
-          iss.ParentID = 0;
-          iss.NeedsUpdate = true;
-          DefineShower(tjs, ict, prt);
-          // kill the shower Tj
-          Trajectory& jtj = tjs.allTraj[jss.ShowerTjID - 1];
-          jtj.AlgMod[kKilled] = true;
-          // erase jct
-          tjs.cots.erase(tjs.cots.begin() + jct);
-          FindExternalParent(tjs, ict, prt);
-          if(prt) {
-            mf::LogVerbatim("TC")<<" ShowerTj after merge";
-            Trajectory& itj = tjs.allTraj[iss.ShowerTjID - 1];
-            PrintTrajectory("jToi", tjs, itj, USHRT_MAX);
-          }
-          didMerge = true;
-        } // jct
-        if(didMerge) break;
-      } // ict
-    } // didMerge
-    
+              if(PosSep2(ivx, jvx) < sepCut2) {
+                if(prt) mf::LogVerbatim("TC")<<" Envelopes "<<ict<<" "<<jct<<" are close "<<PosSep(ivx, jvx)<<" cut "<<tjs.ShowerTag[2];
+                doMerge = true;
+                break;
+              }
+            } // jvx
+            if(doMerge) break;
+          } // ivx
+        } // !domerge
+        if(!doMerge) continue;
+        if(prt) mf::LogVerbatim("TC")<<" Merge them. Re-find shower center, etc";
+        if(MergeShowersAndStore(tjs, ict, jct, prt)) {
+          Trajectory& stj = tjs.allTraj[iss.ShowerTjID - 1];
+          stj.AlgMod[kMergeOverlap] = true;
+          break;
+        }
+        else {
+          std::cout<<"merge failed "<<ict<<" "<<jct<<" \n";
+        }
+      } // jct
+    } // ict
+
   } // MergeOverlap
   
   ////////////////////////////////////////////////
@@ -1439,64 +1450,44 @@ namespace tca {
     
     constexpr float radLen = 14 / 0.3;
     
-    bool didMerge = true;
-    while(didMerge) {
-      didMerge = false;
-      for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
-        ShowerStruct& iss = tjs.cots[ict];
-        if(iss.TjIDs.empty()) continue;
-        if(iss.CTP != inCTP) continue;
-        TrajPoint& istp0 = tjs.allTraj[iss.ShowerTjID - 1].Pts[0];
-        TrajPoint& istp2 = tjs.allTraj[iss.ShowerTjID - 1].Pts[2];
-        for(unsigned short jct = 0; jct < tjs.cots.size(); ++jct) {
-          if(jct == ict) continue;
-          ShowerStruct& jss = tjs.cots[jct];
-          if(jss.TjIDs.empty()) continue;
-          if(jss.CTP != iss.CTP) continue;
-          // require that the j shower be lower energy than the i shower
-          if(jss.Energy > iss.Energy) continue;
-          // require that it be downstream of the i shower
-          TrajPoint& jstp0 = tjs.allTraj[jss.ShowerTjID - 1].Pts[0];
-          float sepj0i2 = PosSep2(jstp0.Pos, istp2.Pos);
-          if(sepj0i2 > PosSep2(jstp0.Pos, istp0.Pos)) continue;
-          sepj0i2 = sqrt(sepj0i2);
-          float trad = sepj0i2 / radLen;
-          // impact parameter between the projection of istj and the jstj charge center
-          float delta = PointTrajDOCA(tjs, jstp0.Pos[0], jstp0.Pos[1], istp2);
-          // See if delta is consistent with the cone angle of the i shower
-          float dang = delta / sepj0i2;
-          if(prt) mf::LogVerbatim("TC")<<" Candidate "<<ict<<" "<<jct<<" separation "<<sepj0i2<<" radiation lengths "<<trad<<" delta "<<delta<<" dang "<<dang;
-          if(trad > 3) continue;
-          // TODO This needs more work
-          // Require that the j energy be much lower
-          if(jss.Energy > 0.3 * iss.Energy) continue;
-          // There must be a correlation between dang and the energy of the j shower...
-          if(dang > 0.3) continue;
-          if(prt) mf::LogVerbatim("TC")<<" Merge them. Re-find shower center, etc. \n";
-          // Move all of the Tjs from jct to ict
-          iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.end());
-          iss.NearTjIDs.insert(iss.NearTjIDs.end(), jss.NearTjIDs.begin(), jss.NearTjIDs.end());
-          iss.MatchedTjIDs.insert(iss.MatchedTjIDs.end(), jss.MatchedTjIDs.begin(), jss.MatchedTjIDs.end());
-          std::sort(iss.MatchedTjIDs.begin(), iss.MatchedTjIDs.end());
-          iss.ParentID = 0;
-          iss.NeedsUpdate = true;
-          DefineShower(tjs, ict, prt);
-          // kill the shower Tj
-          Trajectory& jtj = tjs.allTraj[jss.ShowerTjID - 1];
-          jtj.AlgMod[kKilled] = true;
-          // erase jct
-          tjs.cots.erase(tjs.cots.begin() + jct);
-          FindExternalParent(tjs, ict, prt);
-          if(prt) {
-            mf::LogVerbatim("TC")<<" ShowerTj after merge";
-            Trajectory& itj = tjs.allTraj[iss.ShowerTjID - 1];
-            PrintTrajectory("jToi", tjs, itj, USHRT_MAX);
-          }
-          didMerge = true;
-        } // jct
-        if(didMerge) break;
-      } // ict
-    } // didMerge
+    for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
+      ShowerStruct& iss = tjs.cots[ict];
+      if(iss.TjIDs.empty()) continue;
+      if(iss.CTP != inCTP) continue;
+      TrajPoint& istp0 = tjs.allTraj[iss.ShowerTjID - 1].Pts[0];
+      TrajPoint& istp2 = tjs.allTraj[iss.ShowerTjID - 1].Pts[2];
+      for(unsigned short jct = 0; jct < tjs.cots.size(); ++jct) {
+        if(jct == ict) continue;
+        ShowerStruct& jss = tjs.cots[jct];
+        if(jss.TjIDs.empty()) continue;
+        if(jss.CTP != iss.CTP) continue;
+        // require that the j shower be lower energy than the i shower
+        if(jss.Energy > iss.Energy) continue;
+        // require that it be downstream of the i shower
+        TrajPoint& jstp0 = tjs.allTraj[jss.ShowerTjID - 1].Pts[0];
+        float sepj0i2 = PosSep2(jstp0.Pos, istp2.Pos);
+        if(sepj0i2 > PosSep2(jstp0.Pos, istp0.Pos)) continue;
+        sepj0i2 = sqrt(sepj0i2);
+        float trad = sepj0i2 / radLen;
+        // impact parameter between the projection of istj and the jstj charge center
+        float delta = PointTrajDOCA(tjs, jstp0.Pos[0], jstp0.Pos[1], istp2);
+        // See if delta is consistent with the cone angle of the i shower
+        float dang = delta / sepj0i2;
+        if(prt) mf::LogVerbatim("TC")<<" Candidate "<<ict<<" "<<jct<<" separation "<<sepj0i2<<" radiation lengths "<<trad<<" delta "<<delta<<" dang "<<dang;
+        if(trad > 3) continue;
+        // TODO This needs more work
+        // Require that the j energy be much lower
+        if(jss.Energy > 0.3 * iss.Energy) continue;
+        // There must be a correlation between dang and the energy of the j shower...
+        if(dang > 0.3) continue;
+        if(prt) mf::LogVerbatim("TC")<<" Merge them. Re-find shower center, etc";
+        if(MergeShowersAndStore(tjs, ict, jct, prt)) {
+          Trajectory& stj = tjs.allTraj[iss.ShowerTjID - 1];
+          stj.AlgMod[kMergeSubShowers] = true;
+          break;
+        }
+      } // jct
+    } // ict
     
   } // MergeSubShowers
   
@@ -1507,12 +1498,17 @@ namespace tca {
     // The jcotIndex shower is declared obsolete. This function also re-defines the shower and
     // sets the Parent ID to 0.
     
-    if(icotIndex == USHRT_MAX) return false;
+    if(icotIndex > tjs.cots.size() - 1) return false;
     ShowerStruct& iss = tjs.cots[icotIndex];
     if(iss.TjIDs.empty()) return false;
-    if(jcotIndex == USHRT_MAX) return false;
+    if(iss.ShowerTjID <= 0) return false;
+    
+    if(jcotIndex > tjs.cots.size() - 1) return false;
     ShowerStruct& jss = tjs.cots[jcotIndex];
     if(jss.TjIDs.empty()) return false;
+    if(jss.ShowerTjID <= 0) return false;
+
+    if(iss.CTP != jss.CTP) return false;
     
     Trajectory& itj = tjs.allTraj[iss.ShowerTjID - 1];
     Trajectory& jtj = tjs.allTraj[jss.ShowerTjID - 1];
@@ -1553,8 +1549,11 @@ namespace tca {
     iss.ParentID = 0;
     iss.NeedsUpdate = true;
     jss.TjIDs.clear();
-    DefineShower(tjs, icotIndex, prt);
-    return true;
+    bool success = DefineShower(tjs, icotIndex, prt);
+    if(!success) {
+      std::cout<<"MSAS Failed \n";
+    }
+    return success;
 
   } // MergeShowersAndStore
   
@@ -2586,8 +2585,8 @@ namespace tca {
       // Note that UseHit is not used since the size is limited to 16
       for(auto& tjID : ss.TjIDs) {
         unsigned short itj = tjID - 1;
-        if(tjs.allTraj[itj].VtxID[0] != 0 && tjs.allTraj[itj].VtxID[0] != stj.VtxID[0]) {
-          std::cout<<"TTjH: Trying to transfer hits on Tj "<<tjID<<" attached to a vertex "<<tjs.allTraj[itj].VtxID[0]<<" at end0 that is not the showerTj vertex "<<stj.VtxID[0]<<"\n";
+        if(tjs.allTraj[itj].VtxID[0] != 0 && tjs.allTraj[itj].VtxID[0] != stj.VtxID[0] && tjs.allTraj[itj].ID != ss.ParentID) {
+          std::cout<<"TTjH: Trying to transfer hits on Tj "<<tjID<<" attached to a vertex "<<tjs.allTraj[itj].VtxID[0]<<" at end0 that is not the showerTj vertex or the parent Tj "<<stj.VtxID[0]<<"\n";
           continue;
         }
         if(tjs.allTraj[itj].AlgMod[kShowerTj]) {
