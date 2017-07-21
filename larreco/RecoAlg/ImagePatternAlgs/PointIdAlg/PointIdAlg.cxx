@@ -142,13 +142,10 @@ float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
 
 nnet::PointIdAlg::PointIdAlg(const Config& config) : img::DataProviderAlg(config),
 	fNNet(0),
-	fPatchSizeW(32), fPatchSizeD(32),
+	fPatchSizeW(config.PatchSizeW()), fPatchSizeD(config.PatchSizeD()),
 	fCurrentWireIdx(99999), fCurrentScaledDrift(99999)
 {
 	fNNetModelFilePath = config.NNetModelFile();
-
-	fPatchSizeW = config.PatchSizeW();
-	fPatchSizeD = config.PatchSizeD();
 
 	deleteNNet();
 
@@ -164,9 +161,10 @@ nnet::PointIdAlg::PointIdAlg(const Config& config) : img::DataProviderAlg(config
 	}
 	else
 	{
-		mf::LogError("PointIdAlg") << "Loading model from file failed.";
-		return;
+		mf::LogError("PointIdAlg") << "File name extension not supported.";
 	}
+
+    if (!fNNet) { throw cet::exception("nnet::PointIdAlg") << "Loading model from file failed."; }
 
     resizePatch();
 }
