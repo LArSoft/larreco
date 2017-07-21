@@ -39,8 +39,7 @@ namespace tca {
   void FindMatchingTjs(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void Match2DShowers(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void FillPts(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  bool DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void MakeShowerObsolete(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   bool AddTj(TjStuff& tjs, unsigned short TjID, const unsigned short& cotIndex, bool doUpdate, bool prt);
   bool RemoveTj(TjStuff& tjs, unsigned short TjID, const unsigned short& cotIndex, bool doUpdate, bool prt);
