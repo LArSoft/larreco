@@ -5,7 +5,7 @@ BEGIN_PROLOG
 standard_dataprovideralg:
 {
  DriftWindow:          6 # downsampling window (in drift ticks)
- DownscaleFullView: true # downsample full view (faster / lower location precision)
+ DownscaleFullView: true # downsample full view
 
  DownscaleFn:     "mean" # "maxpool" takes the max value in the window,
                          # "maxmean" is mean from 3 ADC's around the max,

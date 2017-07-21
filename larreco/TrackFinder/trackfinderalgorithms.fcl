@@ -72,7 +72,11 @@ standard_pmalgtracker:
   MatchT0inAPACrossing:   false   # match T0 of APA-crossing tracks using PMAlgStitcher
   MatchT0inCPACrossing:   false   # match T0 of CPA-crossing tracks using PMAlgStitcher
 
-  ValidateOnAdc:          false   # use adc image to validate tracks if true, use hits if false
+  Validation:             "hit"   # "hit":   uses hits to validate track
+                                  # "adc":   uses adc image to validate tracks
+                                  # "calib": uses hits to validate tracks and produce histograms to find adc thresholds
+                                  #          which should be used in "adc" mode
+  AdcValidationThr:       [1.0, 1.0, 1.0]    # threshold for not-empty pixel in the ADC image used for the track validation, per plane
   AdcImageAlg:            @local::standard_dataprovideralg
 }
 
