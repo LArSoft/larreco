@@ -251,7 +251,7 @@ namespace tca {
   typedef enum {
     kMaskHits,
     kMaskBadTPs,
-    kCTKink,        ///< kink found in CheckWork
+    kCTKink,        ///< kink found in CheckTraj
     kCTStepChk,
     kTryWithNextPass,
     kRevProp,
@@ -289,6 +289,7 @@ namespace tca {
     kShowerTj,
     kMergeOverlap,
     kMergeSubShowers,
+    kMergeNrShowers,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
