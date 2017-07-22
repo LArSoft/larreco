@@ -23,6 +23,7 @@ bool pma::Node3D::fGradFixed[3] = { false, false, false };
 double pma::Node3D::fMargin = 3.0;
 
 pma::Node3D::Node3D(void) :
+    fTpcGeo(art::ServiceHandle<geo::Geometry>()->TPC(0, 0)),
 	fMinX(0), fMaxX(0),
 	fMinY(0), fMaxY(0),
 	fMinZ(0), fMaxZ(0),
@@ -38,27 +39,26 @@ pma::Node3D::Node3D(void) :
 }
 
 pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bool vtx, double xshift) :
+    fTpcGeo( art::ServiceHandle<geo::Geometry>()->TPC(tpc, cryo) ),
     fDriftOffset(xshift),
 	fIsVertex(vtx)
 {
 	fTPC = tpc; fCryo = cryo;
 
-	const auto& tpcGeo = fGeom->TPC(tpc, cryo);
-
 	unsigned int lastPlane = geo::kZ;
-	while ((lastPlane > 0) && !tpcGeo.HasPlane(lastPlane)) lastPlane--;
+	while ((lastPlane > 0) && !fTpcGeo.HasPlane(lastPlane)) lastPlane--;
 
 	auto const *detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 	fMinX = detprop->ConvertTicksToX(0, lastPlane, tpc, cryo);
 	fMaxX = detprop->ConvertTicksToX(detprop->NumberTimeSamples() - 1, lastPlane, tpc, cryo);
 	if (fMaxX < fMinX) { double tmp = fMaxX; fMaxX = fMinX; fMinX = tmp; }
 
-	fMinY = tpcGeo.MinY(); fMaxY = tpcGeo.MaxY();
-	fMinZ = tpcGeo.MinZ(); fMaxZ = tpcGeo.MaxZ();
+	fMinY = fTpcGeo.MinY(); fMaxY = fTpcGeo.MaxY();
+	fMinZ = fTpcGeo.MinZ(); fMaxZ = fTpcGeo.MaxZ();
 
 	for (size_t i = 0; i < 3; i++)
 	{
-		if (tpcGeo.HasPlane(i)) fWirePitch[i] = tpcGeo.Plane(i).WirePitch();
+		if (fTpcGeo.HasPlane(i)) fWirePitch[i] = fTpcGeo.Plane(i).WirePitch();
 		else fWirePitch[i] = 0.0;
 	}
 
@@ -118,20 +118,10 @@ bool pma::Node3D::LimitPoint3D(void)
 
 void pma::Node3D::UpdateProj2D(void)
 {
-	fProj2D[0].Set(
-		fWirePitch[0] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kU, fTPC, fCryo),
-		fPoint3D.X() - fDriftOffset
-	);
-
-	fProj2D[1].Set(
-		fWirePitch[1] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kV, fTPC, fCryo),
-		fPoint3D.X() - fDriftOffset
-	);
-	
-	fProj2D[2].Set(
-		fWirePitch[2] * fGeom->WireCoordinate(fPoint3D.Y(), fPoint3D.Z(), geo::kZ, fTPC, fCryo),
-		fPoint3D.X() - fDriftOffset
-	);
+    for (size_t i = 0; i < 3; ++i)  // *** change to MaxPlanes ***
+    {
+    	fProj2D[i].Set(fTpcGeo.Plane(i).PlaneCoordinate(fPoint3D), fPoint3D.X() - fDriftOffset);
+	}
 }
 
 bool pma::Node3D::SetPoint3D(const TVector3& p3d)

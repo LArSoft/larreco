@@ -288,44 +288,41 @@ double pma::SolveLeastSquares3D(const std::vector< std::pair<TVector3, TVector3>
 	return mse / lines.size();
 }
 
-TVector2 pma::GetProjectionToPlane(const TVector3& p, unsigned int view, unsigned int tpc, unsigned int cryo)
+TVector2 pma::GetProjectionToPlane(const TVector3& p, unsigned int plane, unsigned int tpc, unsigned int cryo)
 {
 	art::ServiceHandle<geo::Geometry> geom;
 
-	return TVector2(
-		geom->TPC(tpc, cryo).Plane(view).WirePitch() * geom->WireCoordinate(p.Y(), p.Z(), view, tpc, cryo),
-		p.X()
-	);
+    return TVector2(geom->TPC(tpc, cryo).Plane(plane).PlaneCoordinate(p), p.X());
 }
 
-TVector2 pma::GetVectorProjectionToPlane(const TVector3& v, unsigned int view, unsigned int tpc, unsigned int cryo)
+TVector2 pma::GetVectorProjectionToPlane(const TVector3& v, unsigned int plane, unsigned int tpc, unsigned int cryo)
 {
 	TVector3 v0_3d(0., 0., 0.);
-	TVector2 v0_2d = GetProjectionToPlane(v0_3d, view, tpc, cryo);
-	TVector2 v1_2d = GetProjectionToPlane(v, view, tpc, cryo);
+	TVector2 v0_2d = GetProjectionToPlane(v0_3d, plane, tpc, cryo);
+	TVector2 v1_2d = GetProjectionToPlane(v, plane, tpc, cryo);
 
 	return v1_2d - v0_2d;
 }
 
-TVector2 pma::WireDriftToCm(unsigned int wire, float drift, unsigned int view, unsigned int tpc, unsigned int cryo)
+TVector2 pma::WireDriftToCm(unsigned int wire, float drift, unsigned int plane, unsigned int tpc, unsigned int cryo)
 {
 	art::ServiceHandle<geo::Geometry> geom;
 	const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 	return TVector2(
-		geom->TPC(tpc, cryo).Plane(view).WirePitch() * wire,
-		detprop->ConvertTicksToX(drift, view, tpc, cryo)
+		geom->TPC(tpc, cryo).Plane(plane).WirePitch() * wire,
+		detprop->ConvertTicksToX(drift, plane, tpc, cryo)
 	);
 }
 
-TVector2 pma::CmToWireDrift(float xw, float yd, unsigned int view, unsigned int tpc, unsigned int cryo)
+TVector2 pma::CmToWireDrift(float xw, float yd, unsigned int plane, unsigned int tpc, unsigned int cryo)
 {
 	art::ServiceHandle<geo::Geometry> geom;
 	const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 	return TVector2(
-		xw / geom->TPC(tpc, cryo).Plane(view).WirePitch(),
-		detprop->ConvertXToTicks(yd, view, tpc, cryo)
+		xw / geom->TPC(tpc, cryo).Plane(plane).WirePitch(),
+		detprop->ConvertXToTicks(yd, plane, tpc, cryo)
 	);
 }
 
