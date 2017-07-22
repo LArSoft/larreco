@@ -123,7 +123,6 @@ private:
 	geo::TPCGeo const & fTpcGeo;
 
 	double fMinX, fMaxX, fMinY, fMaxY, fMinZ, fMaxZ; // TPC boundaries to limit the node position (+margin)
-	double fWirePitch[3];                            // TPC params to scale do [cm] domain
 
 	TVector3 fPoint3D;       // node position in 3D space in [cm]
 	TVector2 fProj2D[3];     // node projections to 2D views, scaled to [cm], updated on each change of 3D position

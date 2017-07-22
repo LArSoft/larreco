@@ -56,12 +56,6 @@ pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bo
 	fMinY = fTpcGeo.MinY(); fMaxY = fTpcGeo.MaxY();
 	fMinZ = fTpcGeo.MinZ(); fMaxZ = fTpcGeo.MaxZ();
 
-	for (size_t i = 0; i < 3; i++)
-	{
-		if (fTpcGeo.HasPlane(i)) fWirePitch[i] = fTpcGeo.Plane(i).WirePitch();
-		else fWirePitch[i] = 0.0;
-	}
-
 	SetPoint3D(p3d);
 }
 
