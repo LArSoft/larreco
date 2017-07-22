@@ -86,7 +86,7 @@ private:
     double              fMinWidth		    = 0 ;  // hit minimum width
     std::string         fCalDataModuleLabel;
     
-    std::string         fFilteredInstanceName;
+    std::string         fAllHitsInstanceName;
 
     std::vector<double> fMinSigVec;                ///<signal height threshold
     std::vector<double> fMinWidthVec;              ///<Minimum hit width
@@ -127,7 +127,7 @@ GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
     recob::HitCollectionCreator::declare_products(*this);
     
     // Create a "filtered" output list
-    recob::HitCollectionCreator::declare_products(*this,fFilteredInstanceName);
+    recob::HitCollectionCreator::declare_products(*this,fAllHitsInstanceName);
   
 } // GausHitFinder::GausHitFinder()
 
@@ -160,7 +160,7 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
     // Implementation of optional member function here.
     fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
   
-    fFilteredInstanceName = p.get< std::string >("FilteredInstanceName","FilteredHits");
+    fAllHitsInstanceName = p.get< std::string >("AllHitsInstanceName","AllHits");
     
     bool const doHitFiltering = p.get<bool>("FilterHits", false);
     if (doHitFiltering) {
@@ -245,7 +245,7 @@ void GausHitFinder::produce(art::Event& evt)
     // and its associations to wires and raw digits
     recob::HitCollectionCreator hcol(*this, evt);
     
-    recob::HitCollectionCreator filteredCol(*this, evt, fFilteredInstanceName);
+    recob::HitCollectionCreator allHitCol(*this, evt, fAllHitsInstanceName);
    
     // ##########################################
     // ### Reading in the Wire List object(s) ###
@@ -482,7 +482,7 @@ void GausHitFinder::produce(art::Event& evt)
                     const recob::Hit hit(hitcreator.move());
 
                     // This loop will store ALL hits
-                    hcol.emplace_back(std::move(hit), wire, rawdigits);
+                    allHitCol.emplace_back(std::move(hit), wire, rawdigits);
                     numHits++;
                 } // <---End loop over gaussians
                 
@@ -515,7 +515,7 @@ void GausHitFinder::produce(art::Event& evt)
                 }
                 
                 // Copy the hits we want to keep to the filtered hit collection
-                for(const auto& filteredHit : filteredHitVec) filteredCol.emplace_back(filteredHit, wire, rawdigits);
+                for(const auto& filteredHit : filteredHitVec) hcol.emplace_back(filteredHit, wire, rawdigits);
                 
                 fChi2->Fill(chi2PerNDF);
 	    
@@ -532,7 +532,7 @@ void GausHitFinder::produce(art::Event& evt)
     // move the hit collection and the associations into the event
     hcol.put_into(evt);
     
-    filteredCol.put_into(evt);
+    allHitCol.put_into(evt);
 
 } // End of produce() 
 
