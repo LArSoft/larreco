@@ -383,7 +383,7 @@ void GausHitFinder::produce(art::Event& evt)
                     // If the chi2 is infinite then there is a real problem so we bail
                     if (!(chi2PerNDF < std::numeric_limits<double>::infinity()))
                     {
-                        std::cout << "--> infinite chisquare, channel: " << channel << ", roiStart: " << roiFirstBinTick << ", nGaus: " << nGausForFit << std::endl;
+//                        std::cout << "--> infinite chisquare, channel: " << channel << ", roiStart: " << roiFirstBinTick << ", nGaus: " << nGausForFit << std::endl;
                         chi2PerNDF = 2.*fChi2NDF;
                         NDF        = 2;
                     }
