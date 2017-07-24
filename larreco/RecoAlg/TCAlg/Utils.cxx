@@ -2793,7 +2793,7 @@ namespace tca {
         myprt<<std::setw(5)<<aTj.ParentTrajID;
         int truKE = 0;
         int pdg = 0;
-        if(aTj.MCPartListIndex != USHRT_MAX) {
+        if(aTj.MCPartListIndex < tjs.MCPartList.size()) {
           auto& mcp = tjs.MCPartList[aTj.MCPartListIndex];
           truKE = 1000 * (mcp->E() - mcp->Mass());
           pdg = mcp->PdgCode();
