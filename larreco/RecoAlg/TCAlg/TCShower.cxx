@@ -370,8 +370,14 @@ namespace tca {
       CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       std::vector<std::vector<int>> tjList;
       TagShowerTjs(tjs, inCTP, tjList);
+
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 1);
+
       if(tjList.empty()) continue;
       MergeTjList(tjList);
+
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 2);
+
       bigList[plane] = tjList;
     } // plane
     unsigned short nPlanesWithShowers = 0;
@@ -388,8 +394,12 @@ namespace tca {
         }
         std::cout<<"\n";
       } // tjl
+      
+      //      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 3);
     } // plane
     
+
+
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
       CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       prt = (inCTP == dbgCTP || dbgPlane > 2);
@@ -398,9 +408,12 @@ namespace tca {
         unsigned short cotIndex = Create2DShower(tjs, tjl);
         if(cotIndex == USHRT_MAX) continue;
         DefineShower(tjs, cotIndex, prt);
+	if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 3);
+
         // Find nearby Tjs that were not included because they had too-high
         // MCSMom, etc. This will be used to decide if showers should be merged
-        AddTjsInsideEnvelope(tjs, cotIndex, prt);
+        AddTjsInsideEnvelope(tjs, cotIndex, prt, 1);
+	if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 4);
         FindNearbyTjs(tjs, cotIndex, prt);
         FindMatchingTjs(tjs, cotIndex, prt);
         if(prt) {
@@ -414,6 +427,7 @@ namespace tca {
       MergeOverlap(tjs, inCTP, prt);
       MergeSubShowers(tjs, inCTP, prt);
       MergeNearby2DShowers(tjs, inCTP, prt);
+
     } // plane
     
     prt = (dbgPlane > 2);
@@ -421,9 +435,11 @@ namespace tca {
     
     // Look for a 3D-matched parent
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
+      //      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 6);
       if(tjs.cots[cotIndex].TjIDs.empty()) continue;
       prt = (tjs.cots[cotIndex].CTP == dbgCTP || dbgPlane > 2);
       FindExternalParent(tjs, cotIndex, prt);
+      //      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 7);
       ShowerStruct& ss = tjs.cots[cotIndex];
       if(ss.TjIDs.empty()) continue;
       Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
@@ -671,7 +687,7 @@ namespace tca {
     // Merge small showers with larger ones
     MergeSubShowers(tjs, inCTP, prt);
     
-<<<<<<< HEAD
+
     // drop those that don't meet the requirements
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       ShowerStruct& ss = tjs.cots[cotIndex];
@@ -2313,9 +2329,17 @@ namespace tca {
       if(tj.AlgMod[kInShower]) continue;
       if(tj.AlgMod[kShowerTj]) continue;
 
-      if(mode==1)
-	{if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;}
+      std::cout << "=================================" << std::endl 
+		<< "Working in trajectory " << tj.ID << std::endl
+		<< tj.Pts[tj.EndPt[0]].Pos[0] << ":" << tj.Pts[tj.EndPt[0]].Pos[1]/tjs.UnitsPerTick
+		<< " - "
+		<< tj.Pts[tj.EndPt[1]].Pos[0] << ":" << tj.Pts[tj.EndPt[1]].Pos[1]/tjs.UnitsPerTick
+		<< std::endl; 
 
+      if(mode==1) {
+	std::cout << "checking if tj has nice vertex" << std::endl;
+      	if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;
+      }
       //if(TjHasNiceVtx(tjs, tj, (unsigned short)tjs.ShowerTag[11])) continue;
 
       // This shouldn't be necessary but do it for now
@@ -2325,21 +2349,29 @@ namespace tca {
       bool end1Inside = PointInsideEnvelope(tj.Pts[tj.EndPt[1]].Pos, ss.Envelope);
       if(!end0Inside && !end1Inside) continue;
       // at least one end is inside. See if both are inside
+      std::cout << "at least one end of the tj is inside the envelope" << std::endl;
       if(end0Inside && end1Inside) {
+	std::cout << "both ends of tj are inside envelope" << std::endl;
         // Fully contained
         // TODO: See if the Tj direction is compatible with the shower?
         if(AddTj(tjs, tj.ID, cotIndex, false, prt)) ++nadd;
+	std::cout << "tj has been added to shower" << std::endl;
         ++nadd;
         continue;
       } // both ends inside
       // Require high momentum Tjs be aligned with the shower axis
       // TODO also require high momentum Tjs close to the shower axis?
+      std::cout << "checking that tj has high momemntum" << std::endl;
       if(tj.MCSMom > 500) {
+	std::cout << "checking tj angle" << std::endl;
         float tjAngle = tj.Pts[tj.EndPt[0]].Ang;
         float dangPull = std::abs(tjAngle -ss.AngleErr) / ss.AngleErr;
+	std::cout << "this tj has dangPull: " << dangPull  << std::endl;
+	std::cout << "this shower contains " << ss.TjIDs.size() << " tjs." << std::endl;
         if(dangPull > 2) continue;
       } // high momentum
       if(AddTj(tjs, tj.ID, cotIndex, false, prt)) ++nadd;
+      std::cout << "tj has been added to shower" << std::endl;
     } // tj
     
     if(nadd > 0) {
@@ -2815,8 +2847,8 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
 
       // right now I exclude the shower trajectory
-      if (it1 == tjs.allTraj.size() - 1) continue;
-      
+      if (it1 == ss.ShowerTjID - 1) continue;
+
       Trajectory& tj1 = tjs.allTraj[it1];
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kKilled]) continue;
