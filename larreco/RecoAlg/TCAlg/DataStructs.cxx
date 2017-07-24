@@ -35,12 +35,14 @@ namespace tca {
     "FTBRvProp",
     "StopAtTj",
     "Mat3D",
+    "Mat3DMerge",
     "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
     "ShowerTj",
     "MergeOverlap",
-    "MergeSubShowers"
+    "MergeSubShowers",
+    "MergeNrShowers"
   };
 
   const std::vector<std::string> StopFlagNames {

@@ -1,15 +1,21 @@
 
 art_make( 
-          LIB_LIBRARIES lardataobj_RecoBase
-                        larcorealg_Geometry
-                        larcore_Geometry_Geometry_service
-                        larreco_Calorimetry
-                        nusimdata_SimulationBase
-                        ${ART_FRAMEWORK_CORE}
+      LIB_LIBRARIES larsim_MCCheater_BackTracker_service
+      larsim_Simulation
+      nutools_ParticleNavigation
+      lardataobj_Simulation
+      nusimdata_SimulationBase
+			lardataobj_RecoBase
+			larcorealg_Geometry
+      larcore_Geometry_Geometry_service
+      larreco_Calorimetry
+			${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
-                        art_Persistency_Common
-                        art_Persistency_Provenance
+			art_Persistency_Common
+			art_Persistency_Provenance
 			art_Utilities
+      ${ART_FRAMEWORK_SERVICES_OPTIONAL}
+      ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
 			canvas
 			${MF_MESSAGELOGGER}
 			${MF_UTILITIES}

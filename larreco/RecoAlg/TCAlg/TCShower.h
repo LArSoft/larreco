@@ -27,19 +27,19 @@
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
+#include "larreco/RecoAlg/TCAlg/TCTruth.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 namespace tca {
 
   void Find3DShowerEndPoints(TjStuff& tjs, const geo::TPCID& tpcid);
-  void MakeShowers(TjStuff& tjs, const calo::CalorimetryAlg& fCaloAlg);
+  void MakeShowers(TjStuff& tjs);
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
   void FindMatchingTjs(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void Match2DShowers(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void FillPts(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
-  void DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
+  bool DefineShower(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   void MakeShowerObsolete(TjStuff& tjs, const unsigned short& cotIndex, bool prt);
   bool AddTj(TjStuff& tjs, unsigned short TjID, const unsigned short& cotIndex, bool doUpdate, bool prt);
   bool RemoveTj(TjStuff& tjs, unsigned short TjID, const unsigned short& cotIndex, bool doUpdate, bool prt);

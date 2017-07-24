@@ -25,8 +25,8 @@
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Shower.h"
-#include "lardataobj/AnalysisBase/Calorimetry.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "nusimdata/SimulationBase/MCParticle.h"
 #include "TVector3.h"
 
 namespace tca {
@@ -98,8 +98,7 @@ namespace tca {
     float Z {0};                    // z position
     float ZErr {0.5};                 // z position error
     short Wire {-1};                 // wire number for an incomplete 3D vertex
-    unsigned short CStat {0};
-    unsigned short TPC {0};
+    geo::TPCID TPCID;
     std::array<unsigned short, 3> Vtx2ID {{0}}; // List of 2D vertex IDs in each plane
     unsigned short ID {0};          // 0 = obsolete vertex
   };
@@ -179,13 +178,16 @@ namespace tca {
     // IDs of Trajectories that match in all planes
     std::vector<int> TjIDs;
     // Count of the number of time-matched hits
-    int Count {0};
+    int Count {0};                    // Set to 0 if matching failed
     std::array<float, 3> sXYZ;        // XYZ position at the start (cm)
     TVector3 sDir;        // start direction
     TVector3 sDirErr;        // start direction error
     std::array<float, 3> eXYZ;        // XYZ position at the other end
-    unsigned short sVtx3DIndex {USHRT_MAX};
-    unsigned short eVtx3DIndex {USHRT_MAX};
+    std::vector<double> dEdx;
+    std::vector<double> dEdxErr;
+    int BestPlane {INT_MAX};
+    unsigned short sVtx3ID {0};
+    unsigned short eVtx3ID {0};
     // stuff for constructing the PFParticle
     int PDGCode {0};
     std::vector<size_t> DtrIndices;
@@ -281,7 +283,7 @@ namespace tca {
   typedef enum {
     kMaskHits,
     kMaskBadTPs,
-    kCTKink,        ///< kink found in CheckWork
+    kCTKink,        ///< kink found in CheckTraj
     kCTStepChk,
     kTryWithNextPass,
     kRevProp,
@@ -312,12 +314,14 @@ namespace tca {
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
+    kMat3DMerge,
     kVtxHitsSwap,
     kSplitHiChgHits,
     kInShower,
     kShowerTj,
     kMergeOverlap,
     kMergeSubShowers,
+    kMergeNrShowers,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -378,10 +382,12 @@ namespace tca {
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> Match3DCuts;  ///< 3D matching cuts
+    std::vector<float> MatchTruth;     ///< Match to MC truth
     std::vector<const simb::MCParticle*> MCPartList;
     std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
     const geo::GeometryCore* geom;
     const detinfo::DetectorProperties* detprop;
+    calo::CalorimetryAlg* caloAlg;
     bool IgnoreNegChiHits;
    };
 
