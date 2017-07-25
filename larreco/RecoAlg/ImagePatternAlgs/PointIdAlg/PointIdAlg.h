@@ -72,13 +72,13 @@ class nnet::MlpModelInterface : public nnet::ModelInterface
 public:
 	MlpModelInterface(const char* xmlFileName);
 
-	virtual unsigned int GetInputRows(void) const { return m.GetInputLength(); }
-	virtual unsigned int GetInputCols(void) const { return 1; }
-	virtual int GetOutputLength(void) const { return m.GetOutputLength(); }
+	unsigned int GetInputRows(void) const override { return m.GetInputLength(); }
+	unsigned int GetInputCols(void) const override { return 1; }
+	int GetOutputLength(void) const override { return m.GetOutputLength(); }
 
-	virtual bool Run(std::vector< std::vector<float> > const & inp2d);
-	virtual float GetOneOutput(int neuronIndex) const;
-	virtual std::vector<float> GetAllOutputs(void) const;
+	bool Run(std::vector< std::vector<float> > const & inp2d) override;
+	float GetOneOutput(int neuronIndex) const override;
+	std::vector<float> GetAllOutputs(void) const override;
 
 private:
 	nnet::NNReader m;
@@ -90,13 +90,13 @@ class nnet::KerasModelInterface : public nnet::ModelInterface
 public:
 	KerasModelInterface(const char* modelFileName);
 
-	virtual unsigned int GetInputRows(void) const { return m.get_input_rows(); }
-	virtual unsigned int GetInputCols(void) const { return m.get_input_cols(); }
-	virtual int GetOutputLength(void) const { return m.get_output_length(); }
+	unsigned int GetInputRows(void) const override { return m.get_input_rows(); }
+	unsigned int GetInputCols(void) const override { return m.get_input_cols(); }
+	int GetOutputLength(void) const override { return m.get_output_length(); }
 
-	virtual bool Run(std::vector< std::vector<float> > const & inp2d);
-	virtual float GetOneOutput(int neuronIndex) const;
-	virtual std::vector<float> GetAllOutputs(void) const;
+	bool Run(std::vector< std::vector<float> > const & inp2d) override;
+	float GetOneOutput(int neuronIndex) const override;
+	std::vector<float> GetAllOutputs(void) const override;
 
 private:
 	std::vector<float> fOutput; // buffer for output values
@@ -135,7 +135,7 @@ public:
 
     PointIdAlg(const Config& config);
 
-	virtual ~PointIdAlg(void);
+	~PointIdAlg(void) override;
 
 	size_t NClasses(void) const;
 
@@ -248,7 +248,7 @@ public:
 
     TrainingDataAlg(const Config& config);
 
-	virtual ~TrainingDataAlg(void);
+	~TrainingDataAlg(void) override;
 
 	void reconfigure(const Config& config);
 
@@ -266,7 +266,7 @@ public:
 
 protected:
 
-	virtual void resizeView(size_t wires, size_t drifts) override;
+	void resizeView(size_t wires, size_t drifts) override;
 
 private:
 
