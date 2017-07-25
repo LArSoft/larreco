@@ -159,10 +159,9 @@ float img::DataProviderAlg::poolSum(int wire, int drift, size_t r) const
 
 void img::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
 {
-	for (size_t i = 0; i < dst.size(); ++i)
+	for (size_t i = 0, k0 = 0; i < dst.size(); ++i, k0 += fDriftWindow)
 	{
-		size_t k0 = i * fDriftWindow;
-		size_t k1 = (i + 1) * fDriftWindow;
+		size_t k1 = k0 + fDriftWindow;
 
 		float max_adc = adc[k0] * fLifetimeCorrFactors[k0 + tick0];
 		for (size_t k = k0 + 1; k < k1; ++k)
@@ -177,10 +176,9 @@ void img::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<fl
 
 void img::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
 {
-	for (size_t i = 0; i < dst.size(); ++i)
+	for (size_t i = 0, k0 = 0; i < dst.size(); ++i, k0 += fDriftWindow)
 	{
-		size_t k0 = i * fDriftWindow;
-		size_t k1 = (i + 1) * fDriftWindow;
+		size_t k1 = k0 + fDriftWindow;
 
 		size_t max_idx = k0;
 		float max_adc = adc[k0] * fLifetimeCorrFactors[k0 + tick0];
@@ -200,10 +198,9 @@ void img::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vecto
 
 void img::DataProviderAlg::downscaleMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
 {
-	for (size_t i = 0; i < dst.size(); ++i)
+	for (size_t i = 0, k0 = 0; i < dst.size(); ++i, k0 += fDriftWindow)
 	{
-		size_t k0 = i * fDriftWindow;
-		size_t k1 = (i + 1) * fDriftWindow;
+		size_t k1 = k0 + fDriftWindow;
 
 		float sum_adc = 0;
 		for (size_t k = k0; k < k1; ++k)
