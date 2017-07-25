@@ -220,15 +220,12 @@ bool img::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t wi
 
     if (fDownscaleFullView)
     {
-        if (adc.size() / fDriftWindow <= fNCachedDrifts) { downscale(wData, adc, 0); return true; }
+        if (adc.size() / fDriftWindow <= fNCachedDrifts) { downscale(wData, adc, 0); }
         else { return false; }
     }
     else
     {
-        if (adc.size() <= fNCachedDrifts) // copy ADC's, no downsampling nor scaling
-        {
-            for (size_t i = 0; i < adc.size(); ++i) { wData[i] = adc[i]; }
-        }
+        if (adc.size() <= fNCachedDrifts) { std::copy(adc.begin(), adc.end(), wData.begin()); }
         else { return false; }
     }
     return true;
