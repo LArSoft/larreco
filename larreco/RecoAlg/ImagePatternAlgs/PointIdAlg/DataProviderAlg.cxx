@@ -251,10 +251,13 @@ bool img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wir
 
 	resizeView(nwires, ndrifts);
 
+    auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
+
     bool allWrong = true;
     for (auto const & wire : wires)
 	{
-		auto wireChannelNumber = wire.Channel(); // ************* remember to add check for good channels in real data
+		auto wireChannelNumber = wire.Channel();
+		if (!channelStatus.IsGood(wireChannelNumber)) { continue; }
 
 		size_t w_idx = 0;
 		for (auto const& id : fGeometry->ChannelToWire(wireChannelNumber))
