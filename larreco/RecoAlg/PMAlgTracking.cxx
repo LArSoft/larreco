@@ -1457,7 +1457,8 @@ void pma::PMAlgTracker::listUsedClusters(void) const
 			mf::LogVerbatim("PMAlgTracker")
 				<< "    tpc: " << fCluHits[i].front()->WireID().TPC
 				<< ";\tview: " << fCluHits[i].front()->View()
-				<< ";\tsize: " << fCluHits[i].size();
+				<< ";\tsize: " << fCluHits[i].size()
+				<< ";\tweight: " << fCluWeights[i];
 		}
 	mf::LogVerbatim("PMAlgTracker") << "--------- not matched clusters: ---------";
 	size_t nsingles = 0;
@@ -1470,7 +1471,8 @@ void pma::PMAlgTracker::listUsedClusters(void) const
     			mf::LogVerbatim("PMAlgTracker")
 	    			<< "    tpc: " << fCluHits[i].front()->WireID().TPC
 	    			<< ";\tview: " << fCluHits[i].front()->View()
-	    			<< ";\tsize: " << fCluHits[i].size();
+	    			<< ";\tsize: " << fCluHits[i].size()
+	    			<< ";\tweight: " << fCluWeights[i];
 	    	}
 		}
 	mf::LogVerbatim("PMAlgTracker") << "    single hits: " << nsingles;
