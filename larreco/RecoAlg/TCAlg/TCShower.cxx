@@ -692,10 +692,6 @@ namespace tca {
     // Merge small showers with larger ones
     MergeSubShowers(tjs, inCTP, prt);
     
-<<<<<<< HEAD
-
-=======
->>>>>>> b515e934cd6b732e64f29f10c148fd01f499c4a9
     // drop those that don't meet the requirements
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       ShowerStruct& ss = tjs.cots[cotIndex];
