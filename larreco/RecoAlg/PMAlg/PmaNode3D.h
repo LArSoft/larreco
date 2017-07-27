@@ -42,6 +42,7 @@ public:
 
 	/// Check if p3d is in the same TPC as the node.
 	bool SameTPC(const TVector3& p3d, float margin = 0.0F) const;
+	bool SameTPC(const pma::Vector3D& p3d, float margin = 0.0F) const;
 
 	/// Belongs to more than one track?
 	bool IsBranching(void) const;
@@ -119,10 +120,9 @@ private:
 	double MakeGradient(float penaltyValue, float endSegWeight);
 	double StepWithGradient(float alfa, float tol, float penalty, float weight);
 
-	art::ServiceHandle<geo::Geometry> fGeom;
+	geo::TPCGeo const & fTpcGeo;
 
 	double fMinX, fMaxX, fMinY, fMaxY, fMinZ, fMaxZ; // TPC boundaries to limit the node position (+margin)
-	double fWirePitch[3];                            // TPC params to scale do [cm] domain
 
 	TVector3 fPoint3D;       // node position in 3D space in [cm]
 	TVector2 fProj2D[3];     // node projections to 2D views, scaled to [cm], updated on each change of 3D position

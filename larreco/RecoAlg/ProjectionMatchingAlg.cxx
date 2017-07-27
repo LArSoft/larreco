@@ -13,12 +13,9 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingAlg::Config& config)
-	: fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
-{
-	this->reconfigure(config);
-}
-void pma::ProjectionMatchingAlg::reconfigure(const pma::ProjectionMatchingAlg::Config& config)
+pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingAlg::Config& config) :
+    fGeom( &*(art::ServiceHandle<geo::Geometry>()) ),
+	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
 	fOptimizationEps = config.OptimizationEps();
 	fFineTuningEps = config.FineTuningEps();
@@ -38,13 +35,86 @@ void pma::ProjectionMatchingAlg::reconfigure(const pma::ProjectionMatchingAlg::C
 }
 // ------------------------------------------------------
 
-double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
+double pma::ProjectionMatchingAlg::validate_on_adc(
+    const pma::Track3D& trk, const img::DataProviderAlg & adcImage, float thr) const
+{
+	unsigned int nAll = 0, nPassed = 0;
+	unsigned int testPlane = adcImage.Plane();
+
+	std::vector< unsigned int > trkTPCs = trk.TPCs();
+	std::vector< unsigned int > trkCryos = trk.Cryos();
+
+	unsigned int tpc, cryo;
+
+	auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
+
+	double step = 0.3;
+	// check how pixels with a high signal are distributed along the track
+	// namely: are there track sections crossing empty spaces, except dead wires?
+	pma::Vector3D p(trk.front()->Point3D().X(), trk.front()->Point3D().Y(), trk.front()->Point3D().Z());
+	for (auto const * seg : trk.Segments())
+	{
+	    if (seg->TPC() < 0) // skip segments between tpc's, look only at those contained in tpc
+	    {
+	        p = seg->End(); continue;
+	    }
+	    pma::Vector3D p0 = seg->Start();
+	    pma::Vector3D p1 = seg->End();
+
+	    pma::Node3D* node = static_cast<pma::Node3D*>(seg->Prev());
+
+		tpc = seg->TPC(); cryo = seg->Cryo();
+
+		pma::Vector3D dc = step * seg->GetDirection3D();
+
+		double f = pma::GetSegmentProjVector(p, p0, p1);
+		while ((f < 1.0) && node->SameTPC(p))
+		{
+			pma::Vector2D p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testPlane, tpc, cryo), p.X());
+			geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
+
+			int widx = (int)p2d.X();
+			int didx = (int)fDetProp->ConvertXToTicks(p2d.Y(), testPlane, tpc, cryo);
+
+			if (fGeom->HasWire(wireID))
+			{
+			  raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+			  if (channelStatus.IsGood(ch))
+			  {
+			      float max_adc = adcImage.poolMax(widx, didx, 2); // +/- 2 wires, can be parameterized
+			      if (max_adc > thr) nPassed++;
+
+				  nAll++;
+			  }
+			  //else mf::LogVerbatim("ProjectionMatchingAlg")
+			  //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
+			}
+
+			p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
+		}
+
+		p = seg->End(); // need to have it at the end due to the p in the first iter set to the hit position, not segment start
+	}
+
+	if (nAll > 0)
+	{
+		double v = nPassed / (double)nAll;
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  trk fraction ok: " << v;
+		return v;
+	}
+	else return 1.0;
+}
+// ------------------------------------------------------
+
+double pma::ProjectionMatchingAlg::validate_on_adc_test(const pma::Track3D& trk,
+	const img::DataProviderAlg & adcImage,
 	const std::vector< art::Ptr<recob::Hit> >& hits,
-	unsigned int testView) const
+	TH1F * histoPassing, TH1F * histoRejected) const
 {
 	double max_d = fTrkValidationDist2D;
 	double d2, max_d2 = max_d * max_d;
 	unsigned int nAll = 0, nPassed = 0;
+	unsigned int testPlane = adcImage.Plane();
 
 	std::vector< unsigned int > trkTPCs = trk.TPCs();
 	std::vector< unsigned int > trkCryos = trk.Cryos();
@@ -53,15 +123,15 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	for (auto c : trkCryos)
 		for (auto t : trkTPCs)
 		{
-			ranges[std::pair< unsigned int, unsigned int >(t, c)] = trk.WireDriftRange(testView, t, c);
-			wirePitch[std::pair< unsigned int, unsigned int >(t, c)] = fGeom->TPC(t, c).Plane(testView).WirePitch();
+			ranges[std::pair< unsigned int, unsigned int >(t, c)] = trk.WireDriftRange(testPlane, t, c);
+			wirePitch[std::pair< unsigned int, unsigned int >(t, c)] = fGeom->TPC(t, c).Plane(testPlane).WirePitch();
 		}
 
 	unsigned int tpc, cryo;
-	std::map< std::pair< unsigned int, unsigned int >, std::vector< TVector2 > > all_close_points;
+	std::map< std::pair< unsigned int, unsigned int >, std::vector< pma::Vector2D > > all_close_points;
 
 	for (const auto h : hits)
-		if (h->WireID().Plane == testView)
+		if (h->WireID().Plane == testPlane)
 	{
 		tpc = h->WireID().TPC;
 		cryo = h->WireID().Cryostat;
@@ -70,14 +140,14 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 
 		if ((h->WireID().Wire > rect.first.X() - 10) &&  // chceck only hits in the rectangle around
 		    (h->WireID().Wire < rect.second.X() + 10) && // the track projection, it is faster than
-		    (h->PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testView)
+		    (h->PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testPlane)
 		    (h->PeakTime() < rect.second.Y() + 100))
 		{
-			TVector2 p2d(wirePitch[tpc_cryo] * h->WireID().Wire, fDetProp->ConvertTicksToX(h->PeakTime(), testView, tpc, cryo));
+			TVector2 p2d(wirePitch[tpc_cryo] * h->WireID().Wire, fDetProp->ConvertTicksToX(h->PeakTime(), testPlane, tpc, cryo));
 
-			d2 = trk.Dist2(p2d, testView, tpc, cryo);
+			d2 = trk.Dist2(p2d, testPlane, tpc, cryo);
 
-			if (d2 < max_d2) all_close_points[tpc_cryo].push_back(p2d);
+			if (d2 < max_d2) { all_close_points[tpc_cryo].emplace_back(p2d.X(), p2d.Y()); }
 		}
 	}
 
@@ -86,51 +156,175 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 	double step = 0.3;
 	// then check how points-close-to-the-track-projection are distributed along the
 	// track, namely: are there track sections crossing empty spaces, except dead wires?
-	TVector3 p(trk.front()->Point3D());
-	for (size_t i = 0; i < trk.Nodes().size() - 1; ++i)
+	pma::Vector3D p(trk.front()->Point3D().X(), trk.front()->Point3D().Y(), trk.front()->Point3D().Z());
+	for (auto const * seg : trk.Segments())
 	{
-		auto const & node = *(trk.Nodes()[i]);
-		tpc = node.TPC(); cryo = node.Cryo();
+	    if (seg->TPC() < 0) // skip segments between tpc's, look only at those contained in tpc
+	    {
+	        p = seg->End(); continue;
+	    }
+	    pma::Vector3D p0 = seg->Start();
+	    pma::Vector3D p1 = seg->End();
 
-		TVector3 vNext(trk.Nodes()[i + 1]->Point3D());
-		TVector3 vThis(node.Point3D());
+	    pma::Node3D* node = static_cast<pma::Node3D*>(seg->Prev());
 
-		std::vector< TVector2 > const & points = all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)];
-		if (trk.Nodes()[i + 1]->TPC() == (int)tpc) // skip segments between tpc's, look only at those contained in tpc
+		tpc = seg->TPC(); cryo = seg->Cryo();
+
+		pma::Vector3D dc = step * seg->GetDirection3D();
+
+		auto const & points = all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)];
+
+	    double f = pma::GetSegmentProjVector(p, p0, p1);
+
+		double wirepitch = fGeom->TPC(tpc, cryo).Plane(testPlane).WirePitch();
+		while ((f < 1.0) && node->SameTPC(p))
 		{
-			TVector3 dc(vNext); dc -= vThis;
-			dc *= step / dc.Mag();
+			pma::Vector2D p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testPlane, tpc, cryo), p.X());
+			geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
+				
+			int widx = (int)p2d.X();
+			int didx = (int)fDetProp->ConvertXToTicks(p2d.Y(), testPlane, tpc, cryo);
 
-			double f = pma::GetSegmentProjVector(p, vThis, vNext);
-			double wirepitch = fGeom->TPC(tpc, cryo).Plane(testView).WirePitch();
-			while ((f < 1.0) && node.SameTPC(p))
+			if (fGeom->HasWire(wireID))
 			{
-				TVector2 p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
-				geo::WireID wireID(cryo, tpc, testView, (int)p2d.X());
-				if (fGeom->HasWire(wireID))
-				{
-				  raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
-				  if (channelStatus.IsGood(ch))
-				  {
-				        if (points.size())
-					{
-						p2d.Set(wirepitch * p2d.X(), p2d.Y());
-						for (const auto & h : points)
-						{
-							d2 = pma::Dist2(p2d, h);
-							if (d2 < max_d2) { nPassed++; break; }
-						}
-					}
-					nAll++;
-				  }
-				  //else mf::LogVerbatim("ProjectionMatchingAlg")
-				  //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
-				}
+			  raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+			  if (channelStatus.IsGood(ch))
+			  {
+			      bool is_close = false;
+			      float max_adc = adcImage.poolMax(widx, didx, 2);
 
-				p += dc; f = pma::GetSegmentProjVector(p, vThis, vNext);
+			      if (points.size())
+				  {
+					  p2d.SetX(wirepitch * p2d.X());
+					  for (const auto & h : points)
+					  {
+						  d2 = pma::Dist2(p2d, h);
+						  if (d2 < max_d2) { is_close = true; nPassed++; break; }
+					  }
+				  }
+				  nAll++;
+					  
+				  // now fill the calibration histograms
+				  if (is_close) { if (histoPassing) histoPassing->Fill(max_adc); }
+				  else { if (histoRejected) histoRejected->Fill(max_adc); }
+			  }
+			  //else mf::LogVerbatim("ProjectionMatchingAlg")
+			  //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
 			}
+
+			p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
 		}
-		p = vNext;
+		p = seg->End();
+	}
+
+	if (nAll > 0)
+	{
+		double v = nPassed / (double)nAll;
+		mf::LogVerbatim("ProjectionMatchingAlg") << "  trk fraction ok: " << v;
+		return v;
+	}
+	else return 1.0;
+}
+// ------------------------------------------------------
+
+double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
+	const std::vector< art::Ptr<recob::Hit> >& hits) const
+{
+    if (hits.empty()) { return 0; }
+
+	double max_d = fTrkValidationDist2D;
+	double d2, max_d2 = max_d * max_d;
+	unsigned int nAll = 0, nPassed = 0;
+	unsigned int testPlane = hits.front()->WireID().Plane;
+
+	std::vector< unsigned int > trkTPCs = trk.TPCs();
+	std::vector< unsigned int > trkCryos = trk.Cryos();
+	std::map< std::pair< unsigned int, unsigned int >, std::pair< TVector2, TVector2 > > ranges;
+	std::map< std::pair< unsigned int, unsigned int >, double > wirePitch;
+	for (auto c : trkCryos)
+		for (auto t : trkTPCs)
+		{
+			ranges[std::pair< unsigned int, unsigned int >(t, c)] = trk.WireDriftRange(testPlane, t, c);
+			wirePitch[std::pair< unsigned int, unsigned int >(t, c)] = fGeom->TPC(t, c).Plane(testPlane).WirePitch();
+		}
+
+	unsigned int tpc, cryo;
+	std::map< std::pair< unsigned int, unsigned int >, std::vector< pma::Vector2D > > all_close_points;
+
+	for (const auto h : hits)
+		if (h->WireID().Plane == testPlane)
+	{
+		tpc = h->WireID().TPC;
+		cryo = h->WireID().Cryostat;
+		std::pair< unsigned int, unsigned int > tpc_cryo(tpc, cryo);
+		std::pair< TVector2, TVector2 > rect = ranges[tpc_cryo];
+
+		if ((h->WireID().Wire > rect.first.X() - 10) &&  // chceck only hits in the rectangle around
+		    (h->WireID().Wire < rect.second.X() + 10) && // the track projection, it is faster than
+		    (h->PeakTime() > rect.first.Y() - 100) &&    // calculation of trk.Dist2(p2d, testPlane)
+		    (h->PeakTime() < rect.second.Y() + 100))
+		{
+			TVector2 p2d(wirePitch[tpc_cryo] * h->WireID().Wire, fDetProp->ConvertTicksToX(h->PeakTime(), testPlane, tpc, cryo));
+
+			d2 = trk.Dist2(p2d, testPlane, tpc, cryo);
+
+			if (d2 < max_d2) all_close_points[tpc_cryo].emplace_back(p2d.X(), p2d.Y());
+		}
+	}
+
+	auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
+
+	double step = 0.3;
+	// then check how points-close-to-the-track-projection are distributed along the
+	// track, namely: are there track sections crossing empty spaces, except dead wires?
+	pma::Vector3D p(trk.front()->Point3D().X(), trk.front()->Point3D().Y(), trk.front()->Point3D().Z());
+	for (auto const * seg : trk.Segments())
+	{
+	    if (seg->TPC() < 0) // skip segments between tpc's, look only at those contained in tpc
+	    {
+	        p = seg->End(); continue;
+	    }
+	    pma::Vector3D p0 = seg->Start();
+	    pma::Vector3D p1 = seg->End();
+
+	    pma::Node3D* node = static_cast<pma::Node3D*>(seg->Prev());
+
+		tpc = seg->TPC(); cryo = seg->Cryo();
+
+		pma::Vector3D dc = step * seg->GetDirection3D();
+
+		auto const & points = all_close_points[std::pair< unsigned int, unsigned int >(tpc, cryo)];
+
+	    double f = pma::GetSegmentProjVector(p, p0, p1);
+
+		double wirepitch = fGeom->TPC(tpc, cryo).Plane(testPlane).WirePitch();
+		while ((f < 1.0) && node->SameTPC(p))
+		{
+			pma::Vector2D p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testPlane, tpc, cryo), p.X());
+			geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
+			if (fGeom->HasWire(wireID))
+			{
+			  raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
+			  if (channelStatus.IsGood(ch))
+			  {
+			      if (points.size())
+				  {
+					  p2d.SetX(wirepitch * p2d.X());
+					  for (const auto & h : points)
+					  {
+						  d2 = pma::Dist2(p2d, h);
+						  if (d2 < max_d2) { nPassed++; break; }
+					  }
+				  }
+				nAll++;
+			  }
+			  //else mf::LogVerbatim("ProjectionMatchingAlg")
+			  //	<< "crossing BAD CHANNEL (wire #" << (int)p2d.X() << ")" << std::endl;
+			}
+
+			p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
+		}
+		p = seg->End();
 	}
 
 	if (nAll > 0)
@@ -146,7 +340,7 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 double pma::ProjectionMatchingAlg::validate(
 	const TVector3& p0, const TVector3& p1,
 	const std::vector< art::Ptr<recob::Hit> >& hits,
-	unsigned int testView, unsigned int tpc, unsigned int cryo) const
+	unsigned int testPlane, unsigned int tpc, unsigned int cryo) const
 {
 	double step = 0.3;
 	double max_d = fTrkValidationDist2D;
@@ -160,11 +354,11 @@ double pma::ProjectionMatchingAlg::validate(
 	auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
 
 	double f = pma::GetSegmentProjVector(p, p0, p1);
-	double wirepitch = fGeom->TPC(tpc, cryo).Plane(testView).WirePitch();
+	double wirepitch = fGeom->TPC(tpc, cryo).Plane(testPlane).WirePitch();
 	while (f < 1.0)
 	{
-		TVector2 p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testView, tpc, cryo), p.X());
-		geo::WireID wireID(cryo, tpc, testView, (int)p2d.X());
+		TVector2 p2d(fGeom->WireCoordinate(p.Y(), p.Z(), testPlane, tpc, cryo), p.X());
+		geo::WireID wireID(cryo, tpc, testPlane, (int)p2d.X());
 		if (fGeom->HasWire(wireID))
 		{
 			raw::ChannelID_t ch = fGeom->PlaneWireToChannel(wireID);
@@ -172,9 +366,11 @@ double pma::ProjectionMatchingAlg::validate(
 			{
 				p2d.Set(wirepitch * p2d.X(), p2d.Y());
 				for (const auto & h : hits)
-					if (h->WireID().Plane == testView)
+					if ((h->WireID().Plane == testPlane) &&
+					    (h->WireID().TPC == tpc) &&
+					    (h->WireID().Cryostat == cryo)) 
 				{
-					d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testView, tpc, cryo));
+					d2 = pma::Dist2(p2d, pma::WireDriftToCm(h->WireID().Wire, h->PeakTime(), testPlane, tpc, cryo));
 					if (d2 < max_d2) { nPassed++; break; }
 				}
 				nAll++;
@@ -186,7 +382,7 @@ double pma::ProjectionMatchingAlg::validate(
 		p += dc; f = pma::GetSegmentProjVector(p, p0, p1);
 	}
 
-	if (nAll > 3) // validate actually only if 2D projection in testView has some minimum length
+	if (nAll > 3) // validate actually only if 2D projection in testPlane has some minimum length
 	{
 		double v = nPassed / (double)nAll;
 		mf::LogVerbatim("ProjectionMatchingAlg") << "  segment fraction ok: " << v;

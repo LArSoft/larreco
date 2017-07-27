@@ -49,9 +49,15 @@ standard_emshower:
  HitsModuleLabel:        "linecluster"
  ClusterModuleLabel:     "blurredcluster"
  TrackModuleLabel:       "pmtrack"
+ PFParticleModuleLabel:  ""
+ VertexModuleLabel:      "pandora"
+ CNNEMModuleLabel:       ""
  SaveNonCompleteShowers: true
  FindBadPlanes:          true
  MakeSpacePoints:        true
+ UseCNNtoIDEMPFP:        false
+ UseCNNtoIDEMHit:        false
+ MinTrackLikeScore:      0.04
  EMShowerAlg:            @local::standard_emshoweralg
 }
 
