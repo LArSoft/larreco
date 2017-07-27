@@ -112,7 +112,7 @@ bool pma::Node3D::LimitPoint3D(void)
 
 void pma::Node3D::UpdateProj2D(void)
 {
-    for (size_t i = 0; i < 3; ++i)  // *** change to MaxPlanes ***
+    for (size_t i = 0; i < fTpcGeo.Nplanes(); ++i)
     {
     	fProj2D[i].Set(fTpcGeo.Plane(i).PlaneCoordinate(fPoint3D), fPoint3D.X() - fDriftOffset);
 	}
