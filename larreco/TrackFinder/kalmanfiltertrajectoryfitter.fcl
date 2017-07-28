@@ -19,6 +19,7 @@ kalmantrajfit: {
 	alwaysInvertDir: false
  	tryNoSkipWhenFails: true
 	produceTrackFitHitInfo: true
+	produceSpacePoints: true
 	keepInputTrajectoryPoints: false
   }
   fitter: {
