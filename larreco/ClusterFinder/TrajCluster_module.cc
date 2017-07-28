@@ -165,7 +165,7 @@ namespace cluster {
     art::ServiceHandle<geo::Geometry> geom;
     unsigned int vtxID = 0;
     for(tca::VtxStore const& vtx2: EndPts) {
-      if(vtx2.Stat[tca::kVtxKilled]) continue;
+      if(vtx2.ID == 0) continue;
       ++vtxID;
       unsigned int wire = std::nearbyint(vtx2.Pos[0]);
       geo::PlaneID plID = tca::DecodeCTP(vtx2.CTP);
@@ -264,8 +264,8 @@ namespace cluster {
           if(vtx3.ID == 0) continue;
           // ignore incomplete vertices
           if(vtx3.Wire > 0) continue;
-          if(vtx3.Vtx2ID[plane] == 0) continue;
-          if(vtx3.Vtx2ID[plane] == clstr.BeginVtx) {
+          if(vtx3.Vx2ID[plane] == 0) continue;
+          if(vtx3.Vx2ID[plane] == clstr.BeginVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<icl<<" with vertex";
@@ -284,8 +284,8 @@ namespace cluster {
           if(vtx3.ID == 0) continue;
           // ignore incomplete vertices
           if(vtx3.Wire >= 0) continue;
-          if(vtx3.Vtx2ID[plane] == 0) continue;
-          if(vtx3.Vtx2ID[plane] == clstr.EndVtx) {
+          if(vtx3.Vx2ID[plane] == 0) continue;
+          if(vtx3.Vx2ID[plane] == clstr.EndVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster ID "<<clsID<<" with endpoint";
@@ -349,7 +349,7 @@ namespace cluster {
         spcol.pop_back();
         continue;
       }
-      if(ms.sVtx3ID > Vertices.size()) std::cout<<"TC module: Bad Vtx3DIndex = "<<ms.sVtx3ID<<" size "<<Vertices.size()<<"\n";
+      if(ms.Vx3ID[0] > Vertices.size()) std::cout<<"TC module: Bad Vtx3DIndex = "<<ms.Vx3ID[0]<<" size "<<Vertices.size()<<"\n";
       
       // PFParticle - Cluster associations
       if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, clsIndices.begin(), clsIndices.end()))
@@ -362,7 +362,7 @@ namespace cluster {
       unsigned short vtxIndex = 0;
       for(unsigned short iv = 0; iv < Vertices.size(); ++iv) {
         if(Vertices[iv].Wire >= 0) continue;
-        if(ms.sVtx3ID == Vertices[iv].ID) {
+        if(ms.Vx3ID[0] == Vertices[iv].ID) {
           vtmp[0] = vtxIndex;
           if(!util::CreateAssn(*this, evt, *pv_assn, spcol.size()-1, vtmp.begin(), vtmp.end())) 
           {
