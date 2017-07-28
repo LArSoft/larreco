@@ -36,10 +36,12 @@ namespace tca {
     "StopAtTj",
     "Mat3D",
     "Mat3DMerge",
+    "TjHiVx3Score",
     "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
     "ShowerTj",
+    "ShwrParent",
     "MergeOverlap",
     "MergeSubShowers",
     "MergeNrShowers"
@@ -58,7 +60,7 @@ namespace tca {
     "Fixed",
     "OnDeadWire",
     "VtxRefined",
-    "VtxKilled",
+    "HiVx3Score",
     "VtxTruMatch"
   } ;
   
