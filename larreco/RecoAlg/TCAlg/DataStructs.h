@@ -139,6 +139,7 @@ namespace tca {
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
+    std::array<float, 2> dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     int ID;
