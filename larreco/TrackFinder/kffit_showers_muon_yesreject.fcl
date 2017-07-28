@@ -17,7 +17,7 @@ outputs: {
       compressionLevel: 1
       dataTier: "reconstructed"
       fastCloning: false
-      fileName: "test_kffit_showers_muon_yesreject.root"
+      fileName: "/uboone/data/users/cerati/nuMuCCincl_showertrackfit/test_kffit_showers_muon_yesreject_v2.root"
       module_type: "RootOutput"
       saveMemoryObjectThreshold: 0
       outputCommands: ["drop *_*_*_*",
@@ -27,6 +27,7 @@ outputs: {
 		       "keep *_mchitfinder_*_*",
 		       "keep *_linecluster_*_*",
 		       "keep *_pandoraNu_*_*",
+                       "keep *_showerrecopandora_*_*",
       		       "keep *_*_*_FitTest"]
    }
 }
