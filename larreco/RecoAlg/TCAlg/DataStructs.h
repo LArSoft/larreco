@@ -194,6 +194,8 @@ namespace tca {
     std::vector<size_t> DtrIndices;
     size_t ParentMSIndex {0};       // Parent MatchStruct index (or index of self if no parent exists)
     geo::TPCID TPCID;
+    float EffPur {0};                     ///< Efficiency * Purity
+    unsigned short MCPartListIndex {USHRT_MAX};
   };
 
   struct ShowerPoint {
