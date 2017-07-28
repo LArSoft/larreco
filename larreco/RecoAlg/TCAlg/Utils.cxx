@@ -360,6 +360,7 @@ namespace tca {
         dQ /= dx;
         double time = tj.Pts[tj.EndPt[startend]].Pos[1] / tjs.UnitsPerTick;
         ms.dEdx[startend][planeID.Plane] = tjs.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
+        tj.dEdx[startend] = ms.dEdx[startend][planeID.Plane];
         // ChgRMS is the fractional error
         ms.dEdxErr[startend][planeID.Plane] = ms.dEdx[startend][planeID.Plane] * tj.ChgRMS;
       } // startend
@@ -2011,6 +2012,7 @@ namespace tca {
     std::reverse(tj.Pts.begin(), tj.Pts.end());
     // reverse the stop flag
     std::reverse(tj.StopFlag.begin(), tj.StopFlag.end());
+    std::swap(tj.dEdx[0], tj.dEdx[1]);
     // reverse the direction vector on all points
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
@@ -2852,7 +2854,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID   CTP Pass  Pts frm   to     W:Tick   Ang CS AveQ     W:T      Ang CS AveQ ChgRMS  Mom SDr TDr NN __Vtx__  PDG  Par TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx chgRMS Mom SDr TDr NN __Vtx__  PDG  Par TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -2862,8 +2864,6 @@ namespace tca {
         myprt<<std::setw(6)<<aTj.CTP;
         myprt<<std::setw(5)<<aTj.Pass;
         myprt<<std::setw(5)<<aTj.Pts.size();
-        myprt<<std::setw(4)<<aTj.EndPt[0];
-        myprt<<std::setw(5)<<aTj.EndPt[1];
         unsigned short endPt0 = aTj.EndPt[0];
         auto& tp0 = aTj.Pts[endPt0];
         int itick = tp0.Pos[1]/tjs.UnitsPerTick;
@@ -2880,6 +2880,7 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp0.AveChg;
+        myprt<<std::setw(5)<<std::setprecision(1)<<aTj.dEdx[0];
         unsigned short endPt1 = aTj.EndPt[1];
         auto& tp1 = aTj.Pts[endPt1];
         itick = tp1.Pos[1]/tjs.UnitsPerTick;
@@ -2895,6 +2896,7 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp1.AveChg;
+        myprt<<std::setw(5)<<std::setprecision(1)<<aTj.dEdx[1];
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(5)<<aTj.MCSMom;
         myprt<<std::setw(4)<<aTj.StepDir;
@@ -3084,7 +3086,7 @@ namespace tca {
     if(tjs.matchVecPFPList.empty()) return;
     
     mf::LogVerbatim myprt("TC");
-    myprt<<"PFP Count sVtx  ________sVtx_______  _______sDir________ eVtx  _________eVtx______  PDG Parent  _____sdE/dx______  _____edE/dx______ BestPln TjIDs\n";
+    myprt<<"PFP Count sVtx  ________sVtx_______  _______sDir________ eVtx  _________eVtx______  PDG Parent  _____sdE/dx______    _____edE/dx______ BestPln TjIDs\n";
     unsigned short indx = 0;
     for(auto& im : tjs.matchVecPFPList) {
       auto& ms = tjs.matchVec[im];
