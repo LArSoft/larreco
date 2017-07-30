@@ -373,8 +373,6 @@ namespace calo {
      */
     double CalculateHitEnergy(recob::Hit const& hit) const;
 
-    double ConvertTickToDriftTime( double tick, geo::View_t plane ) const;
-
     double RecombinationCorrection( double dEdx ) const;  ///< TODO: make it more flexible
 
     double ModBoxInverse( double dEdx ) const;
