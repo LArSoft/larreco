@@ -659,11 +659,13 @@ namespace tca {
       // obsolete vertex
       if(tj.AlgMod[kKilled]) continue;
       // require a truth match
-      if(tj.MCPartListIndex < tjs.MCPartList.size()) {
-        // ignore electrons unless it is a primary electron
-        auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
-        int pdg = abs(mcp->PdgCode());
-        if(pdg == 11 && mcp->Mother() != 0) continue;
+
+      if(tj.MCPartListIndex == USHRT_MAX) continue;
+      if (tj.MCPartListIndex < tjs.MCPartList.size()) { 
+	// ignore electrons unless it is a primary electron    
+	auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
+	int pdg = abs(mcp->PdgCode());
+	if(pdg == 11 && mcp->Mother() != 0) continue;
       }
       for(unsigned short end = 0; end < 2; ++end) {
         if(tj.VtxID[end] == 0) continue;
