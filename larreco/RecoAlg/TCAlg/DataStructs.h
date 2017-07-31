@@ -72,9 +72,9 @@ namespace tca {
     float ChiDOF {0};
     short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH
     CTP_t CTP {0};
-    unsigned short ID {0};
+    unsigned short ID {0};          ///< set to 0 if killed
     unsigned short Vtx3ID {0};
-    short Score {0};
+    float Score {0};
     float TjChgFrac {0};            ///< Fraction of charge near the vertex that is from hits on the vertex Tjs
     std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
   };
@@ -84,7 +84,7 @@ namespace tca {
     kFixed,           ///< vertex position fixed manually - no fitting done
     kOnDeadWire,
     kVtxRefined,
-    kVtxKilled,
+    kHiVx3Score,      ///< matched to a high-score 3D vertex
     kVtxTruMatch,      ///< tagged as a vertex between Tjs that are matched to MC truth neutrino interaction particles
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
@@ -97,9 +97,10 @@ namespace tca {
     float YErr {0.5};                 // y position error
     float Z {0};                    // z position
     float ZErr {0.5};                 // z position error
+    float Score {0};
     short Wire {-1};                 // wire number for an incomplete 3D vertex
     geo::TPCID TPCID;
-    std::array<unsigned short, 3> Vtx2ID {{0}}; // List of 2D vertex IDs in each plane
+    std::array<unsigned short, 3> Vx2ID {{0}}; // List of 2D vertex IDs in each plane
     unsigned short ID {0};          // 0 = obsolete vertex
   };
   
@@ -138,6 +139,7 @@ namespace tca {
     int TruPDG {0};                    ///< MC truth
     int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
+    std::array<float, 2> dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     int ID;
@@ -179,20 +181,21 @@ namespace tca {
     std::vector<int> TjIDs;
     // Count of the number of time-matched hits
     int Count {0};                    // Set to 0 if matching failed
-    std::array<float, 3> sXYZ;        // XYZ position at the start (cm)
-    TVector3 sDir;        // start direction
-    TVector3 sDirErr;        // start direction error
-    std::array<float, 3> eXYZ;        // XYZ position at the other end
-    std::vector<double> dEdx;
-    std::vector<double> dEdxErr;
+    // Start is 0, End is 1
+    std::array<std::array<float, 3>, 2> XYZ;        // XYZ position at both ends (cm)
+    std::array<TVector3, 2> Dir;
+    std::array<TVector3, 2> DirErr;
+    std::array<std::vector<float>, 2> dEdx;
+    std::array<std::vector<float>, 2> dEdxErr;
+    std::array<unsigned short, 2> Vx3ID {0, 0};
     int BestPlane {INT_MAX};
-    unsigned short sVtx3ID {0};
-    unsigned short eVtx3ID {0};
     // stuff for constructing the PFParticle
     int PDGCode {0};
     std::vector<size_t> DtrIndices;
     size_t ParentMSIndex {0};       // Parent MatchStruct index (or index of self if no parent exists)
     geo::TPCID TPCID;
+    float EffPur {0};                     ///< Efficiency * Purity
+    unsigned short MCPartListIndex {USHRT_MAX};
   };
 
   struct ShowerPoint {
@@ -210,7 +213,7 @@ namespace tca {
     std::vector<int> TjIDs;  // list of InShower Tjs
     std::vector<int> NearTjIDs;   // list of Tjs that are not InShower but satisfy the maxSep cut
     std::vector<int> MatchedTjIDs;  /// list of Tjs in the other planes that are 3D matched to Tjs in this shower
-    std::vector<ShowerPoint> Pts;    // Trajectory points inside the shower
+    std::vector<ShowerPoint> ShPts;    // Trajectory points inside the shower
     float Angle {0};                   // Angle of the shower axis
     float AngleErr {3};                 // Error
     float AspectRatio {1};              // The ratio of charge weighted transverse/longitudinal positions
@@ -315,10 +318,12 @@ namespace tca {
     kStopAtTj,
     kMat3D,
     kMat3DMerge,
+    kTjHiVx3Score,
     kVtxHitsSwap,
     kSplitHiChgHits,
     kInShower,
     kShowerTj,
+    kShwrParent,
     kMergeOverlap,
     kMergeSubShowers,
     kMergeNrShowers,

@@ -42,7 +42,7 @@ namespace tca {
 
   // ****************************** General purpose  ******************************
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
-  void FindMatchingPts(const TjStuff& tjs, const MatchStruct& ms, std::vector<TrajPoint>& stps);
+  bool FindMatchingPts(TjStuff& tjs, MatchStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
   void FilldEdx(TjStuff& tjs, MatchStruct& ms);
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp);
@@ -82,7 +82,6 @@ namespace tca {
   bool SignalPresent(TrajPoint const& tp, float minAmp);
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj);
   void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj);
-  bool TjHasNiceVtx(const TjStuff& tjs, const Trajectory& tj, unsigned short minQuality);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
@@ -167,12 +166,14 @@ namespace tca {
   bool FillWireHitRange(TjStuff& tjs, const geo::TPCID& tpcid, bool debugMode);
   bool CheckWireHitRange(const TjStuff& tjs);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
+  MatchStruct CreateMatchStruct(TjStuff& tjs, const geo::TPCID& tpcid, unsigned short ntj);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
   void PrintTrajectory(std::string someText, const TjStuff& tjs, const Trajectory& tj ,unsigned short tPoint);
   void PrintAllTraj(std::string someText, const TjStuff& tjs, const DebugStuff& Debug, unsigned short itj, unsigned short ipt, bool printVtx = true);
   void PrintHeader(std::string someText);
   void PrintTrajPoint(std::string someText, const TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
+  void PrintPFParticles(const TjStuff& tjs);
   // Print clusters after calling MakeAllTrajClusters
   void PrintClusters();
   // Print a single hit in the standard format
