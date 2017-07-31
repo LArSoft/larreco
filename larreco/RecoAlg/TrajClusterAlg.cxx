@@ -1082,7 +1082,6 @@ namespace tca {
     // shouldn't have to do this but...
     for(iht = 0; iht < tjs.fHits.size(); ++iht) if(tjs.fHits[iht].InTraj < 0) tjs.fHits[iht].InTraj = 0;
     
-    std::vector<unsigned int> tHits;
     // vectors for checking hit consistency
     std::vector<unsigned int> iHit(1), jHit(1);
     for(iwire = tjs.FirstWire[fPlane]; iwire < tjs.LastWire[fPlane] - 1; ++iwire) {
@@ -1108,17 +1107,21 @@ namespace tca {
           jHit[0] = jht;
           // check for hit width consistency
           if(!TrajHitsOK(iHit, jHit)) continue;
-          tHits.clear();
+          std::vector<unsigned int> tHits;
           // add all hits and flag them
           fromIndex = iht - tjs.fHits[iht].LocalIndex;
           for(kht = fromIndex; kht < fromIndex + tjs.fHits[iht].Multiplicity; ++kht) {
             if(tjs.fHits[kht].InTraj != 0) continue;
+            // guard against a bad hit
+            if(tjs.fHits[kht].WireID.Wire != tjs.fHits[iht].WireID.Wire) continue;
             tHits.push_back(kht);
             tjs.fHits[kht].InTraj = -4;
           } // kht
           fromIndex = jht - tjs.fHits[jht].LocalIndex;
           for(kht = fromIndex; kht < fromIndex + tjs.fHits[jht].Multiplicity; ++kht) {
             if(tjs.fHits[kht].InTraj != 0) continue;
+            // guard against a bad hit
+            if(tjs.fHits[kht].WireID.Wire != tjs.fHits[iht].WireID.Wire) continue;
             tHits.push_back(kht);
             tjs.fHits[kht].InTraj = -4;
           } // kht
@@ -1155,7 +1158,7 @@ namespace tca {
                   break;
                 } // tht
               } // kht
-//              if(prt) mf::LogVerbatim("TC")<<" kwire "<<kwire<<" thits size "<<tHits.size();
+              if(prt) mf::LogVerbatim("TC")<<" kwire "<<kwire<<" thits size "<<tHits.size();
             } // kwire
             ++nit;
           } // hitsAdded && nit < 100
