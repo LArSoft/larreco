@@ -221,7 +221,7 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
 
   if (inputFromPF) {
     pfParticleInputTag = art::InputTag(p_().inputs().inputPFParticleLabel());
-    showerInputTag = art::InputTag(p_().inputs().inputShowersLabel());
+    if (p_().options().showerFromPF()) showerInputTag = art::InputTag(p_().inputs().inputShowersLabel());
   } else {
     trackInputTag = art::InputTag(p_().inputs().inputTracksLabel());
     if (p_().options().idFromCollection()) pidInputTag = art::InputTag(p_().inputs().inputPidLabel());
@@ -336,8 +336,8 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     auto outputPFAssn = std::make_unique<art::Assns<recob::PFParticle, recob::Track> >();
 
     art::ValidHandle<std::vector<recob::PFParticle> > inputPFParticle = e.getValidHandle<std::vector<recob::PFParticle> >(pfParticleInputTag);
-    assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPFParticle, e, pfParticleInputTag));
-    assocShowers = std::unique_ptr<art::FindManyP<recob::Shower> >(new art::FindManyP<recob::Shower>(inputPFParticle, e, showerInputTag));
+    if (p_().options().trackFromPF()) assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPFParticle, e, pfParticleInputTag));
+    if (p_().options().showerFromPF()) assocShowers = std::unique_ptr<art::FindManyP<recob::Shower> >(new art::FindManyP<recob::Shower>(inputPFParticle, e, showerInputTag));
     assocVertices = std::unique_ptr<art::FindManyP<recob::Vertex> >(new art::FindManyP<recob::Vertex>(inputPFParticle, e, pfParticleInputTag));
 
     for (unsigned int iPF = 0; iPF < inputPFParticle->size(); ++iPF) {
