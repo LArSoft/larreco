@@ -2875,30 +2875,7 @@ namespace tca {
         }
       } // ixyz
       // define the position
-<<<<<<< HEAD
-      if(wsum > 0) for(auto& xyz : ms.sXYZ) xyz /= wsum;
-      if(ms.sXYZ[0] < tjs.XLo || ms.sXYZ[0] > tjs.XHi) ms.Count = 0;
-      if(ms.sXYZ[1] < tjs.YLo || ms.sXYZ[1] > tjs.YHi) ms.Count = 0;
-      if(ms.sXYZ[2] < tjs.ZLo || ms.sXYZ[2] > tjs.ZHi) ms.Count = 0;
-      if(ms.Count == 0) continue;
-      // Reverse the Tjs so that end 0 is at the start vertex
-      for(auto& tp : stps) {
-        if(tp.AngleCode == 0) continue;
-        // need to reverse the Tj
-        int tjID = tp.Delta;
-        if(tjID < 1 || tjID > (int)tjs.allTraj.size()) continue;
-        ReverseTraj(tjs, tjs.allTraj[tjID - 1]);
-      } // tp
-      // TODO: Define the end position here
-      /*
-      FilldEdx(tjs, ms);
-      std::cout<<" Pos "<<(int)ms.sXYZ[0]<<" "<<(int)ms.sXYZ[1]<<" "<<(int)ms.sXYZ[2]<<" Dir "<<ms.sDir[0]<<" "<<ms.sDir[1]<<" "<<ms.sDir[2];
-      std::cout<<" dE/dx";
-      for(auto& dedx : ms.dEdx) std::cout<<" "<<std::fixed<<std::setprecision(1)<<dedx;
-      std::cout<<" BestPlane "<<ms.BestPlane;
-      std::cout<<"\n";
-      */
-=======
+
       if(wsum > 0) for(auto& xyz : ms.XYZ[0]) xyz /= wsum;
       if(ms.XYZ[0][0] < tjs.XLo || ms.XYZ[0][0] > tjs.XHi) ms.Count = 0;
       if(ms.XYZ[0][1] < tjs.YLo || ms.XYZ[0][1] > tjs.YHi) ms.Count = 0;

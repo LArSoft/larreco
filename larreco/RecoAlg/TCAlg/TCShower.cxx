@@ -703,65 +703,8 @@ namespace tca {
     MergeOverlap(tjs, inCTP, prt);
     // Merge small showers with larger ones
     MergeSubShowers(tjs, inCTP, prt);
-    
-    // drop those that don't meet the requirements
-    for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
-      ShowerStruct& ss = tjs.cots[cotIndex];
-      if(ss.CTP != inCTP) continue;
-      if(ss.TjIDs.empty()) continue;
-      // enough Tjs?
-      unsigned short ntjs = ss.TjIDs.size();
-      bool killit = (ntjs < tjs.ShowerTag[7]);
-      // Kill runt showers
-      if(prt && prtShower != USHRT_MAX) prt = (cotIndex == prtShower);
-      if(!killit) killit = (ss.Energy < tjs.ShowerTag[3]);
-      if(prt) mf::LogVerbatim("TC")<<"cotIndex "<<cotIndex<<" nTjs "<<ss.TjIDs.size()<<" nTjs "<<ss.TjIDs.size()<<" killit? "<<killit;
-      if(!killit) {
-        // count the number of Tj points
-        unsigned short nTjPts = 0;
-        for(auto& tjID : ss.TjIDs) {
-          Trajectory& tj = tjs.allTraj[tjID - 1];
-          nTjPts += NumPtsWithCharge(tjs, tj, false);
-        }  // tjID
-        if(nTjPts < tjs.ShowerTag[6]) killit = true;
-        if(prt) mf::LogVerbatim("TC")<<"    "<<" nTjPts "<<nTjPts<<" killit? "<<killit;
-      } // !killit
-      if(killit) {
-        MakeShowerObsolete(tjs, cotIndex, prt);
-      } else {
-        if(tjs.allTraj[ss.ShowerTjID - 1].AlgMod[kKilled]) {
-          std::cout<<"FS logic error: ShowerTj "<<tjs.allTraj[ss.ShowerTjID - 1].ID<<" is killed\n";
-          tjs.allTraj[ss.ShowerTjID - 1].AlgMod[kKilled] = false;
-        }
-        // A good shower. Set the pdgcode of InShower Tjs to 11
-        for(auto& tjID : ss.TjIDs) {
-          Trajectory& tj = tjs.allTraj[tjID - 1];
-          tj.PDGCode = 11;
-          // Clobber 2D vertices that are inside the shower
-          for(unsigned short end = 0; end < 2; ++end) {
-            if(tj.VtxID[end] > 0) {
-              VtxStore& vx2 = tjs.vtx[tj.VtxID[end]-1];
-              bool killMe = (vx2.Score < tjs.ShowerTag[11]);
-              // don't kill the 2D vertex if it is attached to the far end of the parent Tj
-              if(killMe && ss.ParentID == tjID) {
-                unsigned short farEnd = FarEnd(tjs, tj, ss);
-                if(farEnd == end) killMe = false;
-              }
-              if(killMe) {
-                if(prt) mf::LogVerbatim("TC")<<"Clobber vtx "<<tj.VtxID[end]<<" Score "<<vx2.Score<<" Vtx3ID "<<tjs.vtx[tj.VtxID[end]-1].Vtx3ID;
-                MakeVertexObsolete(tjs, tj.VtxID[end]);
-              }
-            }
-          } // end
-        }
-      } // don't killit
-
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 7);
-
-    } // ic
 
     CheckQuality(tjs, inCTP, prt);
-
     
     // find the start charge
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
@@ -1218,9 +1161,9 @@ namespace tca {
       AddTjsInsideEnvelope(tjs, cotIndex, prt,2);
     } else {
     =======/
+    */
     // we re-found the old parent
     if(ss.ParentID == oldParent) {
->>>>>>> 023b6780cca39fd1f14eb4f92a635498a33c840d
       if(prt) mf::LogVerbatim("TC")<<"FEP: Existing parent is good ";
       ss.NeedsUpdate = false;
       return;
@@ -2389,7 +2332,6 @@ namespace tca {
             if(!tj2InList) tjList[it].push_back(tj2.ID);
             inlist = true;
             break;
->>>>>>> 023b6780cca39fd1f14eb4f92a635498a33c840d
           }
           if(inlist) break;
         } // it
@@ -2927,6 +2869,7 @@ namespace tca {
           } // end
         }
       } // don't killit
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 7);
     } // ic
     
   } // CheckQuality
