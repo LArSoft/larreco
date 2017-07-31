@@ -425,7 +425,7 @@ namespace tca {
 
         // Find nearby Tjs that were not included because they had too-high
         // MCSMom, etc. This will be used to decide if showers should be merged
-        AddTjsInsideEnvelope(tjs, cotIndex, prt, 1);
+        //AddTjsInsideEnvelope(tjs, cotIndex, prt, 1);
 
         if(!DefineShower(tjs, cotIndex, prt)) continue;
         // Find nearby Tjs that were not included because they had too-high
