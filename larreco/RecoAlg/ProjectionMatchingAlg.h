@@ -35,10 +35,13 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
+#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/DataProviderAlg.h"
+
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 // ROOT & C++
+#include "TH1F.h"
 #include <memory>
 
 namespace pma
@@ -101,22 +104,34 @@ public:
     };
 
 	ProjectionMatchingAlg(const Config& config);
-	void reconfigure(const Config& config);
 
 	ProjectionMatchingAlg(const fhicl::ParameterSet& pset) :
 		ProjectionMatchingAlg(fhicl::Table<Config>(pset, {})())
 	{}
 
-	virtual ~ProjectionMatchingAlg(void) {}
+	/// Calculate the fraction of the track that is close to non-empty pixel (above thr value)
+	/// in the ADC image of the testView (a view that was not used to build the track).
+	double validate_on_adc(const pma::Track3D& trk,
+		const img::DataProviderAlg & adcImage, float thr) const;
 
 	/// Calculate the fraction of the track that is closer than fTrkValidationDist2D
 	/// to any hit from hits in the testView (a view that was not used to build the track).
-	double validate(const pma::Track3D& trk,
+	/// Creates also histograms of values in pixels for the passing and rejected points on
+	/// the track, so the threshold value for the ADC-based calibration can be estimated.
+	double validate_on_adc_test(const pma::Track3D& trk,
+		const img::DataProviderAlg & adcImage,
 		const std::vector< art::Ptr<recob::Hit> >& hits,
-		unsigned int testView) const;
+		TH1F * histoPassing, TH1F * histoRejected) const;
+
+	/// Calculate the fraction of the track that is closer than fTrkValidationDist2D
+	/// to any hit from hits in their plane (a plane that was not used to build the track).
+	/// Hits should be preselected, so all belong to the same plane.
+	double validate(const pma::Track3D& trk,
+		const std::vector< art::Ptr<recob::Hit> >& hits) const;
 
 	/// Calculate the fraction of the 3D segment that is closer than fTrkValidationDist2D
-	/// to any hit from hits in the testView of TPC/Cryo.
+	/// to any hit from hits in the testPlane of TPC/Cryo. Hits from the testPlane are
+	/// preselected by this function among all provided (so a bit slower than fn above).
 	double validate(const TVector3& p0, const TVector3& p1,
 		const std::vector< art::Ptr<recob::Hit> >& hits,
 		unsigned int testView, unsigned int tpc, unsigned int cryo) const;
@@ -269,7 +284,7 @@ private:
 	double fMinTwoViewFraction;    // min. length fraction covered with multiple 2D view hits intertwinted with each other
 
 	// Geometry and detector properties
-	art::ServiceHandle<geo::Geometry> fGeom;
+	geo::GeometryCore const* fGeom;
 	detinfo::DetectorProperties const* fDetProp;
 };
 

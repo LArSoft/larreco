@@ -40,6 +40,7 @@
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "larreco/RecoAlg/EMShowerAlg.h"
+#include "lardata/ArtDataHelper/MVAReader.h"
 
 // ROOT includes
 #include "TPrincipal.h"
@@ -65,11 +66,14 @@ public:
 
 private:
 
-  std::string fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel;
+  art::InputTag fHitsModuleLabel, fClusterModuleLabel, fTrackModuleLabel, fPFParticleModuleLabel, fVertexModuleLabel, fCNNEMModuleLabel;
   EMShowerAlg fEMShowerAlg;
   bool fSaveNonCompleteShowers;
   bool fFindBadPlanes;
   bool fMakeSpacePoints;
+  bool fUseCNNtoIDEMPFP;
+  bool fUseCNNtoIDEMHit;
+  double fMinTrackLikeScore;
 
   art::ServiceHandle<geo::Geometry> fGeom;
   detinfo::DetectorProperties const* fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -93,13 +97,18 @@ shower::EMShower::EMShower(fhicl::ParameterSet const& pset) : fEMShowerAlg(pset.
 }
 
 void shower::EMShower::reconfigure(fhicl::ParameterSet const& p) {
-  fHitsModuleLabel        = p.get<std::string>("HitsModuleLabel");
-  fClusterModuleLabel     = p.get<std::string>("ClusterModuleLabel");
-  fTrackModuleLabel       = p.get<std::string>("TrackModuleLabel");
-  fPFParticleModuleLabel  = p.get<std::string>("PFParticleModuleLabel","");
-  fFindBadPlanes          = p.get<bool>       ("FindBadPlanes");
-  fSaveNonCompleteShowers = p.get<bool>       ("SaveNonCompleteShowers");
-  fMakeSpacePoints        = p.get<bool>       ("MakeSpacePoints");
+  fHitsModuleLabel        = p.get<art::InputTag>("HitsModuleLabel");
+  fClusterModuleLabel     = p.get<art::InputTag>("ClusterModuleLabel");
+  fTrackModuleLabel       = p.get<art::InputTag>("TrackModuleLabel");
+  fPFParticleModuleLabel  = p.get<art::InputTag>("PFParticleModuleLabel","");
+  fVertexModuleLabel      = p.get<art::InputTag>("VertexModuleLabel","");
+  fCNNEMModuleLabel       = p.get<art::InputTag>("CNNEMModuleLabel","");
+  fFindBadPlanes          = p.get<bool>         ("FindBadPlanes");
+  fSaveNonCompleteShowers = p.get<bool>         ("SaveNonCompleteShowers");
+  fMakeSpacePoints        = p.get<bool>         ("MakeSpacePoints");
+  fUseCNNtoIDEMPFP        = p.get<bool>         ("UseCNNtoIDEMPFP");
+  fUseCNNtoIDEMHit        = p.get<bool>         ("UseCNNtoIDEMHit");
+  fMinTrackLikeScore      = p.get<double>       ("MinTrackLikeScore");
   fShower = p.get<int>("Shower",-1);
   fPlane = p.get<int>("Plane",-1);
   fDebug = p.get<int>("Debug",0);
@@ -143,6 +152,12 @@ void shower::EMShower::produce(art::Event& evt) {
   if (evt.getByLabel(fPFParticleModuleLabel, pfpHandle))
     art::fill_ptr_vector(pfps, pfpHandle);
 
+  // PFParticles
+  art::Handle<std::vector<recob::Vertex> > vtxHandle;
+  std::vector<art::Ptr<recob::Vertex> > vertices;
+  if (evt.getByLabel(fVertexModuleLabel, vtxHandle))
+    art::fill_ptr_vector(vertices, vtxHandle);
+
   // Associations
   art::FindManyP<recob::Hit> fmh(clusterHandle, evt, fClusterModuleLabel);
   art::FindManyP<recob::Track> fmt(hitHandle, evt, fTrackModuleLabel);
@@ -185,7 +200,46 @@ void shower::EMShower::produce(art::Event& evt) {
     art::FindManyP<recob::Cluster> fmcp(pfpHandle, evt, fPFParticleModuleLabel);
     for (size_t ipfp = 0; ipfp<pfps.size(); ++ipfp){
       art::Ptr<recob::PFParticle> pfp = pfps[ipfp];
-      if (pfp->PdgCode()==11){ //shower particle
+      if (fCNNEMModuleLabel!="" && fUseCNNtoIDEMPFP){//use CNN to identify EM pfparticle
+        auto hitResults = anab::MVAReader<recob::Hit, 4>::create(evt, fCNNEMModuleLabel);
+        if (!hitResults){
+          throw cet::exception("EMShower") <<"Cannot get MVA results from "<<fCNNEMModuleLabel;
+        }
+        int trkLikeIdx = hitResults->getIndex("track");
+        int emLikeIdx = hitResults->getIndex("em");
+        if ((trkLikeIdx < 0) || (emLikeIdx < 0)){
+          throw cet::exception("EMShower") << "No em/track labeled columns in MVA data products.";
+        }
+        if (fmcp.isValid()){//find clusters
+          std::vector<art::Ptr<recob::Hit>> pfphits;
+	  std::vector<art::Ptr<recob::Cluster> > clus = fmcp.at(ipfp);
+	  for (size_t iclu = 0; iclu<clus.size(); ++iclu){
+            std::vector<art::Ptr<recob::Hit> > ClusterHits = fmh.at(clus[iclu].key());
+            pfphits.insert(pfphits.end(), ClusterHits.begin(), ClusterHits.end());
+          }
+          if (pfphits.size()){//find hits
+            auto vout = hitResults->getOutput(pfphits); 
+            double trk_like = -1, trk_or_em = vout[trkLikeIdx] + vout[emLikeIdx];
+            if (trk_or_em > 0){
+              trk_like = vout[trkLikeIdx] / trk_or_em;
+              if (trk_like<fMinTrackLikeScore){ //EM like
+                std::vector<int> clusters;
+                for (size_t iclu = 0; iclu<clus.size(); ++iclu){
+                  clusters.push_back(clus[iclu].key());
+                }
+                if (clusters.size()){
+                  newShowers.push_back(clusters);
+                  pfParticles.push_back(ipfp);
+                }
+              }
+            }
+          }
+        }
+        else{
+          throw cet::exception("EMShower") <<"Cannot get associated cluster for PFParticle "<<fPFParticleModuleLabel.encode()<<"["<<ipfp<<"]";
+        }
+      }
+      else if (pfp->PdgCode()==11){ //shower particle
 	if (fmcp.isValid()){
 	  std::vector<int> clusters;
 	  std::vector<art::Ptr<recob::Cluster> > clus = fmcp.at(ipfp);
@@ -228,9 +282,31 @@ void shower::EMShower::produce(art::Event& evt) {
 
       // Hits
       std::vector<art::Ptr<recob::Hit> > showerClusterHits = fmh.at(cluster.key());
-      for (std::vector<art::Ptr<recob::Hit> >::iterator showerClusterHit = showerClusterHits.begin(); showerClusterHit != showerClusterHits.end(); ++showerClusterHit)
-  	showerHits.push_back(*showerClusterHit);
-
+      if (fCNNEMModuleLabel!="" && fUseCNNtoIDEMHit){//use CNN to identify EM hits
+        auto hitResults = anab::MVAReader<recob::Hit, 4>::create(evt, fCNNEMModuleLabel);
+        if (!hitResults){
+          throw cet::exception("EMShower") <<"Cannot get MVA results from "<<fCNNEMModuleLabel.encode();
+        }
+        int trkLikeIdx = hitResults->getIndex("track");
+        int emLikeIdx = hitResults->getIndex("em");
+        if ((trkLikeIdx < 0) || (emLikeIdx < 0)){
+          throw cet::exception("EMShower") << "No em/track labeled columns in MVA data products.";
+        }
+        for (auto & showerHit : showerClusterHits){
+          auto vout = hitResults->getOutput(showerHit);
+          double trk_like = -1, trk_or_em = vout[trkLikeIdx] + vout[emLikeIdx];
+          if (trk_or_em > 0){
+            trk_like = vout[trkLikeIdx] / trk_or_em;
+            if (trk_like<fMinTrackLikeScore){ //EM like
+              showerHits.push_back(showerHit);
+            }
+          }
+        }
+      }
+      else{
+        for (std::vector<art::Ptr<recob::Hit> >::iterator showerClusterHit = showerClusterHits.begin(); showerClusterHit != showerClusterHits.end(); ++showerClusterHit)
+          showerHits.push_back(*showerClusterHit);
+      }
       // Tracks
       if (!pfpHandle.isValid()) { // Only do this for non-pfparticle mode
 	std::vector<int> clusterTracks = clusterToTracks.at(*showerCluster);
@@ -311,11 +387,43 @@ void shower::EMShower::produce(art::Event& evt) {
     }
 
     else { // pfParticle
-      art::FindManyP<recob::Vertex> fmv(pfpHandle, evt, fPFParticleModuleLabel);
-      std::vector<art::Ptr<recob::Vertex> > vertices = fmv.at(pfParticles[newShower-newShowers.begin()]);
+
       if (vertices.size()) {
+        //found the most upstream vertex
+        TVector3 nuvtx(0,0,DBL_MAX);
+        for (auto & vtx: vertices){
+          double xyz[3];
+          vtx->XYZ(xyz);
+          if (xyz[2]<nuvtx.Z()){
+            nuvtx.SetXYZ(xyz[0], xyz[1], xyz[2]);
+          }
+        }
+
+        TVector3 shwvtx(0,0,0);
+        double mindis = DBL_MAX;
+        for (auto &sp : showerSpacePoints_p){
+          double dis = sqrt(pow(nuvtx.X()-sp->XYZ()[0],2)+pow(nuvtx.X()-sp->XYZ()[1],2)+pow(nuvtx.X()-sp->XYZ()[2],2));
+          if (dis<mindis){
+            mindis = dis;
+            shwvtx.SetXYZ(sp->XYZ()[0], sp->XYZ()[1], sp->XYZ()[2]);
+          }
+        }
+
+        art::Ptr<recob::Vertex> bestvtx;
+        mindis = DBL_MAX;
+        for (auto & vtx: vertices){
+          double xyz[3];
+          vtx->XYZ(xyz);
+          double dis = sqrt(pow(xyz[0]-shwvtx.X(),2)+pow(xyz[1]-shwvtx.Y(),2)+pow(xyz[2]-shwvtx.Z(),2));
+          if (dis<mindis){
+            mindis = dis;
+            bestvtx = vtx;
+          }
+        }
+
 	int iok = 0;
-	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, vertices[0], iok);
+        
+	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, bestvtx, iok);
 	//shower.set_id(showerNum);
 	if (iok==0) {
 	  showers->push_back(shower);
