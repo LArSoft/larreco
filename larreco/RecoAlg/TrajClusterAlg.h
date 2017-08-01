@@ -179,7 +179,7 @@ namespace tca {
     // Finds junk trajectories using unassigned hits
     void FindJunkTraj();
     // Finds junk trajectories using unassigned hits
-    void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned short& newTjIndex);
+    void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned int& newTjIndex);
     // Step through TPs starting at the end and moving to the beginning
     void ReversePropagate(Trajectory& tj);
     // Start a trajectory going from fromHit to (toWire, toTick)
@@ -201,9 +201,7 @@ namespace tca {
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText);
-    // Merge and store the two trajectories in allTraj
-    bool MergeAndStore(unsigned int tj1,  unsigned int tj2, bool doPrt);
-    // Make clusters from all trajectories in allTraj
+     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
     void FindVtxTjs();
     void FindVtxTraj(unsigned short ivx);
@@ -266,6 +264,7 @@ namespace tca {
     void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
       // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid, bool reset);
+    void Mat3DTj(const geo::TPCID& tpcid);
     void Match2Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);
     void Match3Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);
     void Find3DEndPoints(const geo::TPCID& tpcid);
