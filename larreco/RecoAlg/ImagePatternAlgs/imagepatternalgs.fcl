@@ -46,7 +46,7 @@ standard_pointidefftest:
 
 standard_emtrackclusterid:
 {
-	module_type:            "EmTrackClusterId"
+	module_type:            "EmTrackClusterId3out"
 
     WireLabel:              "caldata"     # tag of deconvoluted ADC on wires (recob::Wire)
     HitModuleLabel:         "linecluster" # tag of hits made to create clusters and/or tracks, nnet outputs are saved for each hit
@@ -65,8 +65,12 @@ standard_emtrackclusterid:
 
     Views:                  []  # do processing in selected views only, or use all views if empty list
 }
-standard_emtrackmichelid:   @local::standard_emtrackclusterid  # the same config, only use 4-output CNN
-standard_emtrackmichelid.module_type: "EmTrackMichelId"
+standard_emtrackclusterid2out:             @local::standard_emtrackclusterid  # the same config, only use 4-output CNN
+standard_emtrackclusterid2out.module_type: "EmTrackClusterId2out"
+standard_emtrackclusterid3out:             @local::standard_emtrackclusterid  # the same config, 3-output CNN for convenience
+standard_emtrackclusterid3out.module_type: "EmTrackClusterId3out"
+standard_emtrackmichelid:                  @local::standard_emtrackclusterid  # the same config, only use 4-output CNN
+standard_emtrackmichelid.module_type:      "EmTrackMichelId"
 
 standard_particledecayid:
 {

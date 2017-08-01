@@ -252,6 +252,8 @@ public:
 
 	void reconfigure(const Config& config);
 
+    bool saveSimInfo() const { return fSaveSimInfo; }
+
 	bool setEventData(const art::Event& event,   // collect & downscale ADC's, charge deposits, pdg labels
 		unsigned int plane, unsigned int tpc, unsigned int cryo);
 
@@ -313,6 +315,7 @@ private:
 	art::InputTag fTrackModuleLabel;
 	art::InputTag fSimulationProducerLabel;
 	bool fSaveVtxFlags;
+	bool fSaveSimInfo;
 
     unsigned int fAdcDelay;
 
