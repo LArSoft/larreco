@@ -217,7 +217,7 @@ namespace tca {
         myprt<<std::setw(6)<<dir[1];
         myprt<<std::setw(6)<<dir[2];
         myprt<<"\n";
-      } // ipl
+      } // ipart
     }
     
   } // MatchTrueHits
@@ -279,11 +279,11 @@ namespace tca {
               if(std::abs(part->Vx()-aVtx3.X) < 1 && std::abs(part->Vy()-aVtx3.Y) < 1 && std::abs(part->Vz()-aVtx3.Z) < 1) {
                 nuVtxRecoOK = true;
                 float score = 0;
-                for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-                  if(aVtx3.Vx2ID[ipl] == 0) continue;
-                  unsigned short iv2 = aVtx3.Vx2ID[ipl] - 1;
+                for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+                  if(aVtx3.Vx2ID[plane] == 0) continue;
+                  unsigned short iv2 = aVtx3.Vx2ID[plane] - 1;
                   score += tjs.vtx[iv2].Score;
-                } // ipl
+                } // plane
                 hist.fNuVtx_Score->Fill(score);
                 hist.fNuVtx_Enu_Score_p->Fill(fNeutrinoEnergy, score);
               }
@@ -389,7 +389,7 @@ namespace tca {
     std::vector<int> hitTruTrkID(tjs.fHits.size());
     // Prepare to count of the number of hits matched to each MC Track in each plane
     std::vector<std::vector<unsigned short>> nMatchedHitsInPartList(plist.size());
-    for(unsigned short ipl = 0; ipl < plist.size(); ++ipl) nMatchedHitsInPartList[ipl].resize(tjs.NumPlanes);
+    for(unsigned short ipart = 0; ipart < plist.size(); ++ipart) nMatchedHitsInPartList[ipart].resize(tjs.NumPlanes);
     // and make a list of the TJs and hit count for each MC Track
     std::vector<std::vector<std::array<unsigned short, 2>>> nMatchedHitsInTj(partList.size());
     
@@ -418,13 +418,13 @@ namespace tca {
       for(auto& md : moda) if(md.second == hitTruTrkID[iht]) hitTruTrkID[iht] = md.first;
       
       // count the number of matched hits for each MC track in each plane
-      for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
-        if(hitTruTrkID[iht] == partList[ipl]->TrackId()) {
-          ++nMatchedHitsInPartList[ipl][plane];
+      for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
+        if(hitTruTrkID[iht] == partList[ipart]->TrackId()) {
+          ++nMatchedHitsInPartList[ipart][plane];
           if(tjs.fHits[iht].InTraj > 0) {
             unsigned short itj = tjs.fHits[iht].InTraj - 1;
             bool gotit = false;
-            for(auto& hitInTj : nMatchedHitsInTj[ipl]) {
+            for(auto& hitInTj : nMatchedHitsInTj[ipart]) {
               if(hitInTj[0] == itj) {
                 ++hitInTj[1];
                 gotit = true;
@@ -432,25 +432,25 @@ namespace tca {
             } //  hitInTj
             if(!gotit) {
               std::array<unsigned short, 2> tmp {itj, 1};
-              nMatchedHitsInTj[ipl].push_back(tmp);
+              nMatchedHitsInTj[ipart].push_back(tmp);
             }
           } // inTraj > 0
         } // hit matched to partList
-      } // ipl
+      } // ipart
     } // iht
     
     // remove partList elements that have no matched hits
     std::vector<simb::MCParticle*> newPartList;
     std::vector<std::vector<unsigned short>> newnMatchedHitsInPartList;
     std::vector<std::vector<std::array<unsigned short, 2>>> newnMatchedHitsInTj;
-    for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
+    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
       unsigned short nht = 0;
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) nht += nMatchedHitsInPartList[ipl][plane];
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) nht += nMatchedHitsInPartList[ipart][plane];
       if(nht == 0) continue;
-      newPartList.push_back(partList[ipl]);
-      newnMatchedHitsInPartList.push_back(nMatchedHitsInPartList[ipl]);
-      newnMatchedHitsInTj.push_back(nMatchedHitsInTj[ipl]);
-    } // ipl
+      newPartList.push_back(partList[ipart]);
+      newnMatchedHitsInPartList.push_back(nMatchedHitsInPartList[ipart]);
+      newnMatchedHitsInTj.push_back(nMatchedHitsInTj[ipart]);
+    } // ipart
     partList = newPartList;
     nMatchedHitsInPartList = newnMatchedHitsInPartList;
     nMatchedHitsInTj = newnMatchedHitsInTj;
@@ -458,15 +458,15 @@ namespace tca {
     // count the number of primary tracks that have at least 3 hits in at least 2 planes
     nTruPrimary = 0;
     nTruPrimaryOK = 0;
-    for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
-      if(partList[ipl]->Mother() != 0) continue;
+    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
+      if(partList[ipart]->Mother() != 0) continue;
       ++nTruPrimary;
       unsigned short nInPln = 0;
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        if(nMatchedHitsInPartList[ipl][plane] > 2) ++nInPln;
+        if(nMatchedHitsInPartList[ipart][plane] > 2) ++nInPln;
       } // plane
       if(nInPln > 1) ++nTruPrimaryOK;
-    } // ipl
+    } // ipart
     
     if(nTruPrimaryOK > 1) {
       // More than one reconstructable primaries so there must a reconstructable neutrino vertex
@@ -480,26 +480,26 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<nTruPrimary<<" Number reconstructable "<<nTruPrimaryOK<<" Found neutrino vertex? "<<nuVtxRecoOK<<"\n";
       myprt<<"part   PDG TrkID MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
-      for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
-        unsigned short pdg = abs(partList[ipl]->PdgCode());
+      for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
+        unsigned short pdg = abs(partList[ipart]->PdgCode());
         bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
         if(!isCharged) continue;
         // Kinetic energy in MeV
-        int TMeV = 1000 * (partList[ipl]->E() - partList[ipl]->Mass());
-        int motherID = partList[ipl]->Mother() + sourcePtclTrackID - 1;
-        myprt<<std::setw(4)<<ipl;
-        myprt<<std::setw(6)<<partList[ipl]->PdgCode();
-        myprt<<std::setw(6)<<partList[ipl]->TrackId();
+        int TMeV = 1000 * (partList[ipart]->E() - partList[ipart]->Mass());
+        int motherID = partList[ipart]->Mother() + sourcePtclTrackID - 1;
+        myprt<<std::setw(4)<<ipart;
+        myprt<<std::setw(6)<<partList[ipart]->PdgCode();
+        myprt<<std::setw(6)<<partList[ipart]->TrackId();
         myprt<<std::setw(6)<<motherID;
         myprt<<std::setw(6)<<TMeV;
-        myprt<<std::setw(20)<<partList[ipl]->Process();
+        myprt<<std::setw(20)<<partList[ipart]->Process();
         // print the extent of the particle in each plane
         for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
           unsigned int fht = UINT_MAX;
           unsigned int lht = 0;
           for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
             if(tjs.fHits[iht].WireID.Plane != plane) continue;
-            unsigned short momTrackID = partList[ipl]->TrackId();
+            unsigned short momTrackID = partList[ipart]->TrackId();
             // Look for the real mother
             for(auto& md : moda) if(md.second == momTrackID) momTrackID = md.first;
             if(hitTruTrkID[iht] != momTrackID) continue;
@@ -510,25 +510,25 @@ namespace tca {
           myprt<<" "<<PrintHitShort(tjs.fHits[fht])<<"-"<<PrintHitShort(tjs.fHits[lht]);
         } // plane
         myprt<<"\n";
-      } // ipl
+      } // ipart
     }
     
     // Declare a TJ - partlist match for the trajectory which has the most true hits.
     // another temp vector for the one-to-one match
     std::vector<std::vector<unsigned short>> partListToTjID(partList.size());
-    for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) partListToTjID[ipl].resize(tjs.NumPlanes);
+    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) partListToTjID[ipart].resize(tjs.NumPlanes);
     
-    for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
+    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        if(nMatchedHitsInPartList[ipl][plane] < 2) continue;
+        if(nMatchedHitsInPartList[ipart][plane] < 2) continue;
         unsigned short mostHits = 0;
         unsigned short tjWithMostHits = USHRT_MAX;
-        for(unsigned short ii = 0; ii < nMatchedHitsInTj[ipl].size(); ++ii) {
-          unsigned short itj = nMatchedHitsInTj[ipl][ii][0];
+        for(unsigned short ii = 0; ii < nMatchedHitsInTj[ipart].size(); ++ii) {
+          unsigned short itj = nMatchedHitsInTj[ipart][ii][0];
           geo::PlaneID planeID = DecodeCTP(tjs.allTraj[itj].CTP);
           // ensure we only check Tjs in the correct plane
           if(planeID.Plane != plane) continue;
-          unsigned short nMatHits = nMatchedHitsInTj[ipl][ii][1];
+          unsigned short nMatHits = nMatchedHitsInTj[ipart][ii][1];
           if(nMatHits > mostHits) {
             mostHits = nMatHits;
             tjWithMostHits = itj;
@@ -544,10 +544,10 @@ namespace tca {
           auto ptmp = PutTrajHitsInVector(tjs.allTraj[ptj], kUsedHits);
           tmp.insert(tmp.end(), ptmp.begin(), ptmp.end());
           // revise the mostHits count. To do this we need to find the parent tj index in nMatchedHitsInTj
-          for(unsigned short ii = 0; ii < nMatchedHitsInTj[ipl].size(); ++ii) {
-            unsigned short itj = nMatchedHitsInTj[ipl][ii][0];
+          for(unsigned short ii = 0; ii < nMatchedHitsInTj[ipart].size(); ++ii) {
+            unsigned short itj = nMatchedHitsInTj[ipart][ii][0];
             if(itj == ptj) {
-              mostHits += nMatchedHitsInTj[ipl][ii][1];
+              mostHits += nMatchedHitsInTj[ipart][ii][1];
               // re-direct the calculation to the parent
               tjWithMostHits = ptj;
               break;
@@ -557,27 +557,27 @@ namespace tca {
         // count the number matched to a true particle
         float nTjHits = 0;
         for(auto& iht : tmp) if(hitTruTrkID[iht] > 0) ++nTjHits;
-        float nTruHits = nMatchedHitsInPartList[ipl][plane];
+        float nTruHits = nMatchedHitsInPartList[ipart][plane];
         float nTjTruRecHits = mostHits;
         float eff = nTjTruRecHits / nTruHits;
         float pur = nTjTruRecHits / nTjHits;
         float effpur = eff * pur;
         // This overwrites any previous match that has poorer efficiency * purity
         if(effpur > tjs.allTraj[tjWithMostHits].EffPur) {
-          tjs.allTraj[tjWithMostHits].MCPartListIndex = ipl;
+          tjs.allTraj[tjWithMostHits].MCPartListIndex = ipart;
           tjs.allTraj[tjWithMostHits].EffPur = effpur;
-          partListToTjID[ipl][plane] = tjs.allTraj[tjWithMostHits].ID;
+          partListToTjID[ipart][plane] = tjs.allTraj[tjWithMostHits].ID;
         }
       } // plane
-    } // ipl
+    } // ipart
     
     // Update the EP sums
-    for(unsigned short ipl = 0; ipl < partList.size(); ++ipl) {
-      float TMeV = 1000 * (partList[ipl]->E() - partList[ipl]->Mass());
+    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
+      float TMeV = 1000 * (partList[ipart]->E() - partList[ipart]->Mass());
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
         // require at least 2 matched hits
-        if(nMatchedHitsInPartList[ipl][plane] < 2) continue;
-        unsigned short pdgIndex = PDGCodeIndex(tjs, partList[ipl]->PdgCode());
+        if(nMatchedHitsInPartList[ipart][plane] < 2) continue;
+        unsigned short pdgIndex = PDGCodeIndex(tjs, partList[ipart]->PdgCode());
         // count the number of EP sums for this PDG code
         TSums[pdgIndex] += TMeV;
         ++EPCnts[pdgIndex];
@@ -587,7 +587,7 @@ namespace tca {
         // find the first and last matched hit in this plane
         for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
           if(tjs.fHits[iht].WireID.Plane != plane) continue;
-          unsigned short momTrackID = partList[ipl]->TrackId();
+          unsigned short momTrackID = partList[ipart]->TrackId();
           // Look for the real mother
           for(auto& md : moda) if(md.second == momTrackID) momTrackID = md.first;
           if(hitTruTrkID[iht] != momTrackID) continue;
@@ -595,31 +595,31 @@ namespace tca {
           lht = iht;
         } // iht
         if(fht == UINT_MAX) continue;
-        if(partListToTjID[ipl][plane] == 0) {
+        if(partListToTjID[ipart][plane] == 0) {
           // Enter 0 in the profile histogram
           hist.fEP_T[pdgIndex]->Fill(TMeV, 0);
-          if(nMatchedHitsInPartList[ipl][plane] > tjs.MatchTruth[3]) {
+          if(nMatchedHitsInPartList[ipart][plane] > tjs.MatchTruth[3]) {
             mf::LogVerbatim myprt("TC");
-            myprt<<"pdgIndex "<<pdgIndex<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to partList["<<ipl<<"]";
-            myprt<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipl][plane];
+            myprt<<"pdgIndex "<<pdgIndex<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to partList["<<ipart<<"]";
+            myprt<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipart][plane];
             myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<fEventsProcessed;
           }
           continue;
         }
-        unsigned short itj = partListToTjID[ipl][plane] - 1;
+        unsigned short itj = partListToTjID[ipart][plane] - 1;
         EPTSums[pdgIndex] += TMeV * tjs.allTraj[itj].EffPur;
         hist.fEP_T[pdgIndex]->Fill(TMeV, tjs.allTraj[itj].EffPur);
         // print out some debugging information if the EP was pitiful and the number of matched hits is large
-        if(tjs.allTraj[itj].EffPur < tjs.MatchTruth[2] && nMatchedHitsInPartList[ipl][plane] > tjs.MatchTruth[3]) {
+        if(tjs.allTraj[itj].EffPur < tjs.MatchTruth[2] && nMatchedHitsInPartList[ipart][plane] > tjs.MatchTruth[3]) {
           mf::LogVerbatim myprt("TC");
           myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<std::fixed<<std::setprecision(2)<<tjs.allTraj[itj].EffPur;
-          myprt<<" TMeV "<<(int)TMeV<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipl][plane];
+          myprt<<" TMeV "<<(int)TMeV<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipart][plane];
           myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<fEventsProcessed;
           // print alg names
           for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tjs.allTraj[itj].AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         }
         // check for a bad match to a primary electron shower
-        if(tjs.ShowerTag[0] > 1 && pdgIndex == 0 && partList[ipl]->Mother() == 0 && fSourceParticleEnergy > 50) {
+        if(tjs.ShowerTag[0] > 1 && pdgIndex == 0 && partList[ipart]->Mother() == 0 && fSourceParticleEnergy > 50) {
           Trajectory& ptj = tjs.allTraj[itj];
           // determine if this is a parent of a shower Tj
           int dtrID = 0;
@@ -648,7 +648,7 @@ namespace tca {
           hist.fdWire[pdgIndex]->Fill(recoWire0 - trueLastWire);
         }
       } // plane
-    } // ipl
+    } // ipart
     
     // match 2D vertices (crudely)
     for(auto& tj : tjs.allTraj) {
@@ -658,10 +658,10 @@ namespace tca {
 
       if(tj.MCPartListIndex == USHRT_MAX) continue;
       if (tj.MCPartListIndex < tjs.MCPartList.size()) { 
-	// ignore electrons unless it is a primary electron    
-	auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
-	int pdg = abs(mcp->PdgCode());
-	if(pdg == 11 && mcp->Mother() != 0) continue;
+        // ignore electrons unless it is a primary electron    
+        auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
+        int pdg = abs(mcp->PdgCode());
+        if(pdg == 11 && mcp->Mother() != 0) continue;
       }
       for(unsigned short end = 0; end < 2; ++end) {
         if(tj.VtxID[end] == 0) continue;
