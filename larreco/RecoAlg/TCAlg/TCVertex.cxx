@@ -799,7 +799,7 @@ namespace tca {
       float score = 0;
       v3TjIDs[iv3] = GetVtxTjIDs(tjs, vx3, score);
       if(v3TjIDs.empty()) continue;
-      if(score < tjs.Vertex2DCuts[7]) continue;
+      if(score < tjs.Vertex2DCuts[7]) v3TjIDs.clear();
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"vx3 "<<vx3.ID<<" score "<<score<<" TjIDs ";
@@ -1411,9 +1411,13 @@ namespace tca {
       // weight by MCS momentum
       // Shower Tj
       if(tj1.AlgMod[kShowerTj]) ++wght1;
-      unsigned end1 = 0;
+      // the end that has a vertex
+      unsigned short end1 = 0;
       if(tj1.VtxID[1] == vx2.ID) end1 = 1;
       unsigned short endPt1 = tj1.EndPt[end1];
+      // bump up the weight if there is a Bragg peak at the other end
+      unsigned short oend1 = 1 - end1;
+      if(tj1.StopFlag[oend1][kBragg]) ++wght1;
       float ang1 = tj1.Pts[endPt1].Ang;
       float ang1Err2 = tj1.Pts[endPt1].AngErr * tj1.Pts[endPt1].AngErr;
       for(unsigned short it2 = it1 + 1; it2 < vtxTjID.size(); ++it2) {
@@ -1427,6 +1431,9 @@ namespace tca {
         if(tj2.AlgMod[kShowerTj]) ++wght2;
         unsigned end2 = 0;
         if(tj2.VtxID[1] == vx2.ID) end2 = 1;
+        // bump up the weight if there is a Bragg peak at the other end
+        unsigned short oend2 = 1 - end2;
+        if(tj2.StopFlag[oend2][kBragg]) ++wght2;
         unsigned short endPt2 = tj2.EndPt[end2];
         float ang2 = tj2.Pts[endPt2].Ang;
         float ang2Err2 = tj2.Pts[endPt2].AngErr * tj2.Pts[endPt2].AngErr;
@@ -1915,6 +1922,7 @@ namespace tca {
     std::vector<int> tmp;
     if(vx3.ID == 0) return tmp;
     short nvx2 = 0;
+    score = 0;
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
       if(vx3.Vx2ID[ipl] == 0) continue;
       const auto& vx2 = tjs.vtx[vx3.Vx2ID[ipl] - 1];
