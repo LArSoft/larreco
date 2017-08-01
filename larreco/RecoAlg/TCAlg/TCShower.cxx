@@ -169,13 +169,14 @@ namespace tca {
           ms.XYZ[1][2] += zp;
         } // jj
       } // ii
-      if(wsum == 0 || ne == 0) {
+      if(wsum == 0 || ne == 0 || ms.Dir[0].Mag() == 0) {
         if(prt) mf::LogVerbatim("TC")<<" FSEP: Failed to find shower start or end. "<<wsum<<" "<<ne<<" Skip this match";
+        ms.Count = 0;
         continue;
       }
       for(auto& xyz : ms.XYZ[0]) xyz /= wsum;
       for(auto& xyz : ms.XYZ[1]) xyz /= (float)ne;
-      if(ms.Dir[0].Mag() != 0) ms.Dir[0].SetMag(1);
+      ms.Dir[0].SetMag(1);
       // correct the direction using a large direction cosine
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
         if(std::abs(ms.Dir[0][ixyz]) > 0.5) {
