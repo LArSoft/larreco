@@ -2,9 +2,9 @@
 // Class:       PMAlgTrackMaker
 // Module Type: producer
 // File:        PMAlgTrackMaker_module.cc
-// Author:      D.Stefan (Dorota.Stefan@ncbj.gov.pl),
-//              R.Sulej (Robert.Sulej@cern.ch),
-//              L.Whitehead (leigh.howard.whitehead@cern.ch), May 2015
+// Authors      D.Stefan (Dorota.Stefan@ncbj.gov.pl),         from DUNE, CERN/NCBJ, since May 2015
+//              R.Sulej (Robert.Sulej@cern.ch),               from DUNE, FNAL/NCBJ, since May 2015
+//              L.Whitehead (leigh.howard.whitehead@cern.ch), from DUNE, CERN,      since Jan 2017
 //
 // Creates 3D tracks and vertices using Projection Matching Algorithm,
 // please see RecoAlg/ProjectionMatchingAlg.h for basics of the PMA algorithm and its settings.
@@ -25,6 +25,8 @@
 //                     electrons
 //    July 2016:       redesign module: extract trajectory fitting-only to separate module, move
 //                     tracking functionality to algorithm classes
+//    ~Jan-May 2017:   track stitching on APA and CPA, cosmics tagging
+//    July 2017:       validation on 2D ADC image
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -34,6 +36,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Table.h"
@@ -113,6 +116,11 @@ public:
 			Comment("tag of unclustered hits, which were used to validate tracks")
 		};
 
+		fhicl::Atom< art::InputTag > WireModuleLabel {
+			Name("WireModuleLabel"),
+			Comment("tag of recob::Wire producer.")
+		};
+
 		fhicl::Atom<art::InputTag> ClusterModuleLabel {
 			Name("ClusterModuleLabel"),
 			Comment("tag of cluster collection, these clusters are used for track building")
@@ -147,9 +155,10 @@ private:
     anab::CosmicTagID_t getCosmicTag(const pma::Track3D::ETag pmaTag) const;
 
 	// ******************** fcl parameters **********************
-	art::InputTag fHitModuleLabel; // tag for hits collection (used for trk validation)
-	art::InputTag fCluModuleLabel; // tag for input cluster collection
-	art::InputTag fEmModuleLabel;  // tag for em-like cluster collection
+	art::InputTag fHitModuleLabel;  // tag for hits collection (used for trk validation)
+	art::InputTag fWireModuleLabel; // tag for recob::Wire collection (used for trk validation)
+	art::InputTag fCluModuleLabel;  // tag for input cluster collection
+	art::InputTag fEmModuleLabel;   // tag for em-like cluster collection
 
 	pma::ProjectionMatchingAlg::Config fPmaConfig;
 	pma::PMAlgTracker::Config fPmaTrackerConfig;
@@ -165,7 +174,10 @@ private:
 	static const std::string kNodesName;        // pma nodes
 
 	// *********************** geometry **************************
-	art::ServiceHandle< geo::Geometry > fGeom;
+	geo::GeometryCore const* fGeom;
+
+    // histograms created only for the calibration of the ADC-based track validation mode
+    std::vector< TH1F* > fAdcInPassingPoints, fAdcInRejectedPoints;
 };
 // -------------------------------------------------------------
 const std::string PMAlgTrackMaker::kKinksName = "kink";
@@ -174,6 +186,7 @@ const std::string PMAlgTrackMaker::kNodesName = "node";
 
 PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	fHitModuleLabel(config().HitModuleLabel()),
+	fWireModuleLabel(config().WireModuleLabel()),
 	fCluModuleLabel(config().ClusterModuleLabel()),
 	fEmModuleLabel(config().EmClusterModuleLabel()),
 
@@ -184,7 +197,9 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
     fPmaStitchConfig(config().PMAlgStitching()),
 
 	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
-	fSavePmaNodes(config().SavePmaNodes())
+	fSavePmaNodes(config().SavePmaNodes()),
+	
+	fGeom( &*(art::ServiceHandle<geo::Geometry>()))
 {
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::SpacePoint> >();
@@ -208,6 +223,17 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	produces< art::Assns<recob::PFParticle, recob::Cluster> >();
 	produces< art::Assns<recob::PFParticle, recob::Vertex> >();
 	produces< art::Assns<recob::PFParticle, recob::Track> >();
+
+    if (fPmaTrackerConfig.Validation() == "calib") // create histograms only in the calibration mode
+    {
+    	art::ServiceHandle<art::TFileService> tfs;
+	    for (size_t p = 0; p < fGeom->MaxPlanes(); ++p)
+	    {
+	        std::ostringstream ss1; ss1 << "adc_plane_" << p ;
+	        fAdcInPassingPoints.push_back( tfs->make<TH1F>((ss1.str() + "_passing").c_str(), "max adc around the point on track", 100., 0., 5.) );
+	        fAdcInRejectedPoints.push_back( tfs->make<TH1F>((ss1.str() + "_rejected").c_str(), "max adc around spurious point ", 100., 0., 5.) );
+	    }
+	}
 }
 // ------------------------------------------------------
 
@@ -325,15 +351,16 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	auto pfp2trk = std::make_unique< art::Assns< recob::PFParticle, recob::Track > >();
 
 
-	// ------------------------- Hits ---------------------------------
+	// --------------------- Wires & Hits -----------------------------
+	auto wireHandle = evt.getValidHandle< std::vector<recob::Wire> >(fWireModuleLabel);
 	auto allHitListHandle = evt.getValidHandle< std::vector<recob::Hit> >(fHitModuleLabel);
 	std::vector< art::Ptr<recob::Hit> > allhitlist;
 	art::fill_ptr_vector(allhitlist, allHitListHandle);
 
 
 	// -------------- PMA Tracker for this event ----------------------
-	auto pmalgTracker = pma::PMAlgTracker(allhitlist,
-		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig, fPmaTaggingConfig);
+	auto pmalgTracker = pma::PMAlgTracker(allhitlist, *wireHandle,
+		fPmaConfig, fPmaTrackerConfig, fPmaVtxConfig, fPmaStitchConfig, fPmaTaggingConfig, fAdcInPassingPoints, fAdcInRejectedPoints);
 
     size_t mvaLength = 0;
 	if (fEmModuleLabel != "") // ----------- Exclude EM parts ---------
@@ -348,8 +375,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	else if (fPmaTrackerConfig.TrackLikeThreshold() > 0) // --- CNN EM/trk separation ----
 	{
 	    // try to dig out 4- or 3-output MVA data product
-	    if (init<4>(evt, pmalgTracker) )      { mvaLength = 4; }
-	    else if (init<3>(evt, pmalgTracker))  { mvaLength = 3; }
+	    if (init<4>(evt, pmalgTracker) )      { mvaLength = 4; } // e.g.: EM / track / Michel / none
+	    else if (init<3>(evt, pmalgTracker))  { mvaLength = 3; } // e.g.: EM / track / none
+	    else if (init<2>(evt, pmalgTracker))  { mvaLength = 2; } // just EM / track (LArIAT starts with this style)
 	    else
 	    {
 	        throw cet::exception("PMAlgTrackMaker") << "No EM/track MVA data products." << std::endl;
@@ -407,6 +435,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		    int pdg = 0;
 		    if (mvaLength == 4) pdg = getPdgFromCnnOnHits<4>(evt, *(result[trkIndex].Track()));
 		    else if (mvaLength == 3) pdg = getPdgFromCnnOnHits<3>(evt, *(result[trkIndex].Track()));
+		    else if (mvaLength == 2) pdg = getPdgFromCnnOnHits<2>(evt, *(result[trkIndex].Track()));
 		    //else mf::LogInfo("PMAlgTrackMaker") << "Not using PID from CNN.";
 
 			tracks->push_back(pma::convertFrom(*trk, trkIndex, pdg));

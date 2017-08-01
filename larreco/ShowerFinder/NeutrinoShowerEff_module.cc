@@ -873,7 +873,7 @@ namespace DUNE{
       //cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<" "<<particle->TrackId()<<" "<<MC_leptonID<<endl;
       //save the best shower based on non EM and number of hits
 
-      if( particle->PdgCode()  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ){
+      if( std::abs(particle->PdgCode())  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ){
 
         if(tmpEcomplet>Ecomplet_lepton){
 
@@ -888,7 +888,7 @@ namespace DUNE{
     }//end of looping all the showers
    
     if( MClepton_reco && MClepton  ){
-      if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) ){ 
+      if( MC_isCC && (fNeutrinoPDGcode == std::abs(MC_incoming_PDG)) ){ 
         h_Efrac_shContamination->Fill(Efrac_contamination);
         h_Efrac_shPurity->Fill(1-Efrac_contamination);
 	h_Ecomplet_lepton->Fill(Ecomplet_lepton);

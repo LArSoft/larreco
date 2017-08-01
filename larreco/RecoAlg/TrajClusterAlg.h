@@ -38,6 +38,11 @@
 #include "larreco/RecoAlg/LinFitAlg.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
+#include "TH1F.h"
+#include "TH2F.h"
+#include "TProfile.h"
+#include "TTree.h"
+
 namespace tca {
   
   class TrajClusterAlg {
@@ -53,6 +58,8 @@ namespace tca {
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
     void RunTrajClusterAlg(art::Event & evt);
+
+    void DefineTree(TTree* t);
     
     std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
@@ -129,6 +136,47 @@ namespace tca {
     std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
     
     bool fIsRealData;
+
+
+    TH2F *fMCSMom_TruMom_e;
+    TH2F *fMCSMom_TruMom_mu;
+    TH2F *fMCSMom_TruMom_pi;
+    TH2F *fMCSMom_TruMom_p;
+
+    TH2F *fMCSMomEP_TruMom_e;
+    
+    // Reco-MC vertex position difference
+    TH1F* fNuVtx_dx;
+    TH1F* fNuVtx_dy;
+    TH1F* fNuVtx_dz;
+    TH1F* fNuVtx_Score;
+    TProfile* fNuVtx_Enu_Score_p;
+    
+    // Vertex score for 2D and 3D vertices
+    TH1F* fVx2_Score;
+    TH1F* fVx3_Score;
+    
+    // Reco-MC stopping wire difference for different MC Particles
+    TH1F* fdWire[5];
+    // EP vs KE for different MC Particles
+    TProfile* fEP_T[5];
+
+    // SHOWER VARIABLE TREE
+
+    TTree* showertree;
+
+
+    // number of primary particles in the event
+    unsigned short nTruPrimary;
+    float fNeutrinoEnergy;
+    float fSourceParticleEnergy; //< in MeV
+    // number of reconstructable primary particles in the event
+    unsigned short nTruPrimaryOK;
+    // number of reconstructable neutrino vertices in ALL events
+    unsigned short nTruPrimaryVtxOK;
+    // number of reconstructable neutrino vertices in ALL events that were reconstructed
+    unsigned short nTruPrimaryVtxReco;
+
  
     bool prt;
     bool mrgPrt;
@@ -269,6 +317,7 @@ namespace tca {
     void Match3Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);
     void Find3DEndPoints(const geo::TPCID& tpcid);
     void FillPFPInfo();
+
     
   }; // class TrajClusterAlg
 

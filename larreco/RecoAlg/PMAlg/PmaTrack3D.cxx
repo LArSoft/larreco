@@ -1186,8 +1186,7 @@ size_t pma::Track3D::CompleteMissingWires(unsigned int view)
 	{
 		for (size_t hi = 0; hi < missHits.size(); hi++)
 		{
-			mf::LogVerbatim("pma::Track3D")
-				<< "Fill missing hit on wire " << missHits[hi]->Wire();
+			//mf::LogVerbatim("pma::Track3D") << "Fill missing hit on wire " << missHits[hi]->Wire();
 			push_back(missHits[hi]);
 		}
 

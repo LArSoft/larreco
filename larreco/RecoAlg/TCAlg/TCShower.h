@@ -54,6 +54,7 @@ namespace tca {
   float ParentFOM(TjStuff& tjs, Trajectory& tj, unsigned short& tjEnd, ShowerStruct& ss, bool prt);
   void DefineEnvelope(TjStuff& tjs, unsigned short cotIndex, bool prt);
   void AddTjsInsideEnvelope(TjStuff& tjs, unsigned short cotIndex, bool prt);
+  //void AddTjsInsideEnvelope(TjStuff& tjs, unsigned short cotIndex, bool prt,int mode);
   void RefineShowerTj(TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool AddLooseHits(TjStuff& tjs, unsigned short cotIndex, bool prt);
   void FindStartChg(TjStuff& tjs, unsigned short cotIndex, bool prt);
@@ -77,6 +78,9 @@ namespace tca {
   unsigned short Create2DShower(TjStuff& tjs, const std::vector<int>& tjl);
   void FindNearbyTjs(TjStuff& tjs, unsigned short cotIndex, bool prt);
 
+  void SaveTjInfo(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList, unsigned int stageNum);
+  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotIndex,unsigned int stageNum);
+  void SaveTjInfoStuff(TjStuff& tjs,  const CTP_t& inCTP, Trajectory& tj,  unsigned int stageNum);
 }
 
 

@@ -38,8 +38,12 @@ namespace pma
 	struct bTrajectory3DDistLess;
 	struct bTrack3DLonger;
 
-	double Dist2(const TVector2& v1, const TVector2& v2);
-	double Dist2(const TVector3& v1, const TVector3& v2);
+	double Dist2(const TVector2 & v1, const TVector2 & v2);
+	double Dist2(const Vector2D & v1, const Vector2D & v2);
+
+	double Dist2(const TVector3 & v1, const TVector3 & v2);
+	double Dist2(const Vector3D & v1, const Vector3D & v2);
+
 	size_t GetHitsCount(const std::vector< pma::Hit3D* >& hits, unsigned int view);
 	double GetSummedADC(const std::vector< pma::Hit3D* >& hits, unsigned int view = geo::kUnknown);
 	double GetSummedAmpl(const std::vector< pma::Hit3D* >& hits, unsigned int view = geo::kUnknown);
@@ -48,16 +52,20 @@ namespace pma
 	double GetHitsRadius2D(const std::vector< pma::Hit3D* >& hits, bool exact = false);
 
 	double GetSegmentProjVector(const TVector2& p, const TVector2& p0, const TVector2& p1);
+	double GetSegmentProjVector(const Vector2D& p, const Vector2D& p0, const Vector2D& p1);
+
 	double GetSegmentProjVector(const TVector3& p, const TVector3& p0, const TVector3& p1);
+	double GetSegmentProjVector(const Vector3D& p, const Vector3D& p0, const Vector3D& p1);
+
 	TVector2 GetProjectionToSegment(const TVector2& p, const TVector2& p0, const TVector2& p1);
 	TVector3 GetProjectionToSegment(const TVector3& p, const TVector3& p0, const TVector3& p1);
 
 	double SolveLeastSquares3D(const std::vector< std::pair<TVector3, TVector3> >& lines, TVector3& result);
 
-	TVector2 GetProjectionToPlane(const TVector3& p, unsigned int view, unsigned int tpc, unsigned int cryo);
-    TVector2 GetVectorProjectionToPlane(const TVector3& v, unsigned int view, unsigned int tpc, unsigned int cryo);
-	TVector2 WireDriftToCm(unsigned int wire, float drift, unsigned int view, unsigned int tpc, unsigned int cryo);
-	TVector2 CmToWireDrift(float xw, float yd, unsigned int view, unsigned int tpc, unsigned int cryo);
+	TVector2 GetProjectionToPlane(const TVector3& p, unsigned int plane, unsigned int tpc, unsigned int cryo);
+    TVector2 GetVectorProjectionToPlane(const TVector3& v, unsigned int plane, unsigned int tpc, unsigned int cryo);
+	TVector2 WireDriftToCm(unsigned int wire, float drift, unsigned int plane, unsigned int tpc, unsigned int cryo);
+	TVector2 CmToWireDrift(float xw, float yd, unsigned int plane, unsigned int tpc, unsigned int cryo);
 }
 
 

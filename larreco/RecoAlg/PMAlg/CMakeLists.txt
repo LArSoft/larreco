@@ -1,8 +1,6 @@
 
 art_make( 
           LIB_LIBRARIES lardataobj_RecoBase
-                        larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
-                        larevt_Filters
                         larcorealg_Geometry
                         larcore_Geometry_Geometry_service
                         lardata_RecoObjects larreco_Deprecated
