@@ -285,6 +285,7 @@ namespace tca {
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
+    kMatTj,
     kMat3DMerge,
     kTjHiVx3Score,
     kVtxHitsSwap,
