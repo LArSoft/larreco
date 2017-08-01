@@ -18,7 +18,7 @@ namespace tca {
      // Initialize the variables used to calculate Efficiency * Purity (aka EP) for matching to truth
     for(unsigned short pdgIndex = 0; pdgIndex < 6; ++pdgIndex) {
       EPTSums[pdgIndex] = 0;
-      EPSums[pdgIndex] = 0;
+      TSums[pdgIndex] = 0;
       EPCnts[pdgIndex] = 0;
     }
     nTruPrimaryVtxOK = 0;
@@ -190,36 +190,32 @@ namespace tca {
     
     if(tjs.MatchTruth[1] > 1) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"part   PDG TrkID MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
-      for(unsigned short ipl = 0; ipl < tjs.MCPartList.size(); ++ipl) {
-        unsigned short pdg = abs(tjs.MCPartList[ipl]->PdgCode());
+      myprt<<"part   PDG TrkID MomID KE(MeV) ____Process______   ________Start________  ___Direction____\n";
+      for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
+        auto& part = tjs.MCPartList[ipart];
+        unsigned short pdg = abs(part->PdgCode());
         bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
         if(!isCharged) continue;
         // Kinetic energy in MeV
-        int TMeV = 1000 * (tjs.MCPartList[ipl]->E() - tjs.MCPartList[ipl]->Mass());
-        int motherID = tjs.MCPartList[ipl]->Mother() + sourcePtclTrackID - 1;
-        myprt<<std::setw(4)<<ipl;
-        myprt<<std::setw(6)<<tjs.MCPartList[ipl]->PdgCode();
-        myprt<<std::setw(6)<<tjs.MCPartList[ipl]->TrackId();
+        int TMeV = 1000 * (part->E() - part->Mass());
+        int motherID = part->Mother() + sourcePtclTrackID - 1;
+        myprt<<std::setw(4)<<ipart;
+        myprt<<std::setw(6)<<part->PdgCode();
+        myprt<<std::setw(6)<<part->TrackId();
         myprt<<std::setw(6)<<motherID;
         myprt<<std::setw(6)<<TMeV;
-        myprt<<std::setw(20)<<tjs.MCPartList[ipl]->Process();
-        // print the extent of the particle in each plane
-        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-          unsigned int fht = UINT_MAX;
-          unsigned int lht = 0;
-          for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-            if(tjs.fHits[iht].WireID.Plane != plane) continue;
-            unsigned short partListIndex = ipl;
-            // Look for the real mother
-            for(auto& md : moda) if(md.second == partListIndex) partListIndex = md.first;
-            if(tjs.fHits[iht].MCPartListIndex != partListIndex) continue;
-            if(fht == UINT_MAX) fht = iht;
-            lht = iht;
-          } // iht
-          if(fht == UINT_MAX) continue;
-          myprt<<" "<<PrintHitShort(tjs.fHits[fht])<<"-"<<PrintHitShort(tjs.fHits[lht]);
-        } // plane
+        myprt<<std::setw(20)<<part->Process();
+        myprt<<std::fixed<<std::setprecision(1);
+        myprt<<std::setw(8)<<part->Vx();
+        myprt<<std::setw(8)<<part->Vy();
+        myprt<<std::setw(8)<<part->Vz();
+        TVector3 dir;
+        dir[0] = part->Px(); dir[1] = part->Py(); dir[2] = part->Pz();
+        dir.SetMag(1);
+        myprt<<std::fixed<<std::setprecision(2);
+        myprt<<std::setw(6)<<dir[0];
+        myprt<<std::setw(6)<<dir[1];
+        myprt<<std::setw(6)<<dir[2];
         myprt<<"\n";
       } // ipl
     }
@@ -583,7 +579,7 @@ namespace tca {
         if(nMatchedHitsInPartList[ipl][plane] < 2) continue;
         unsigned short pdgIndex = PDGCodeIndex(tjs, partList[ipl]->PdgCode());
         // count the number of EP sums for this PDG code
-        EPSums[pdgIndex] += TMeV;
+        TSums[pdgIndex] += TMeV;
         ++EPCnts[pdgIndex];
         // find the first and last matched hit in this plane
         unsigned int fht = UINT_MAX;
@@ -672,31 +668,93 @@ namespace tca {
       } // end
     } // vx2
     
+    // match PFParticles
+    for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
+      unsigned short imv = tjs.matchVecPFPList[ii];
+      auto& ms = tjs.matchVec[imv];
+      if(ms.Count == 0) continue;
+      if(ms.TjIDs.empty()) continue;
+      ++PFP_CntTot;
+      ms.EffPur = 0;
+      float effpur = 0;
+      float cntMat = 0;
+      float cntBadMat = 0;
+      float cntNoMat = 0;
+      ms.MCPartListIndex = USHRT_MAX;
+      for(auto& tjID : ms.TjIDs) {
+        unsigned short itj = tjID - 1;
+        Trajectory& tj = tjs.allTraj[itj];
+        if(tj.MCPartListIndex > tjs.MCPartList.size()) {
+          // Tj is not matched to a MCParticle
+          ++cntNoMat;
+          continue;
+        }
+        // define the MatchStruct MCParticle match
+        if(ms.MCPartListIndex == USHRT_MAX) ms.MCPartListIndex = tj.MCPartListIndex;
+        if(tj.MCPartListIndex != ms.MCPartListIndex) {
+          // Tj is matched to a different MCParticle
+          ++cntBadMat;
+          continue;
+        }
+        // Tj is matched to the MCParticle
+        ++cntMat;
+        effpur += tj.EffPur;
+      } // tjID
+      
+      float TMeV = 0;
+      if(ms.MCPartListIndex < tjs.MCPartList.size()) {
+        const simb::MCParticle* part = tjs.MCPartList[ms.MCPartListIndex];
+        TMeV = 1000 * (part->E() - part->Mass());
+      } // valied MCPartList index
+      
+      // require a good match in at least 2 planes and no bad matches. A missed
+      // Tj is OK.
+      if(cntMat > 1 && cntBadMat == 0) {
+        // statistics for good matches
+        // average EP
+        ms.EffPur = effpur / cntMat;
+        ++PFP_CntGoodMat;
+        PFP_TSum += TMeV;
+        PFP_EPTSum += TMeV * ms.EffPur;
+      } else {
+        // statistics for failures
+        if(cntBadMat > 0) ++PFP_CntBadMat;
+        if(cntNoMat > 0) ++PFP_CntNoMat;
+      }
+    } // ii
+    
   } // MatchTruth
   
   ////////////////////////////////////////////////
   void TruthMatcher::PrintResults(int eventNum) const
   {
     mf::LogVerbatim myprt("TC");
-    myprt<<"Event "<<eventNum;
+    myprt<<"Evt "<<eventNum;
     float sum = 0;
     float sumt = 0;
-    for(unsigned short pdgIndex = 0; pdgIndex < EPSums.size(); ++pdgIndex) {
-      if(EPSums[pdgIndex] == 0) continue;
-      if(pdgIndex == 0) myprt<<" Electron";
-      if(pdgIndex == 1) myprt<<" Muon";
-      if(pdgIndex == 2) myprt<<" Pion";
-      if(pdgIndex == 3) myprt<<" Kaon";
-      if(pdgIndex == 4) myprt<<" Proton";
-      float ave = EPTSums[pdgIndex] / (float)EPSums[pdgIndex];
+    for(unsigned short pdgIndex = 0; pdgIndex < TSums.size(); ++pdgIndex) {
+      if(TSums[pdgIndex] == 0) continue;
+      if(pdgIndex == 0) myprt<<" El";
+      if(pdgIndex == 1) myprt<<" Mu";
+      if(pdgIndex == 2) myprt<<" Pi";
+      if(pdgIndex == 3) myprt<<" K";
+      if(pdgIndex == 4) myprt<<" P";
+      float ave = EPTSums[pdgIndex] / (float)TSums[pdgIndex];
       myprt<<" "<<std::fixed<<std::setprecision(2)<<ave;
       myprt<<" "<<EPCnts[pdgIndex];
       if(pdgIndex > 0) {
-        sum  += EPSums[pdgIndex];
+        sum  += TSums[pdgIndex];
         sumt += EPTSums[pdgIndex];
       }
     } // pdgIndex
     if(sum > 0) myprt<<" MuPiKP "<<std::fixed<<std::setprecision(2)<<sumt / sum;
+    if(PFP_TSum > 0) {
+      // PFParticle statistics
+      float ep = PFP_EPTSum / PFP_TSum;
+      float badfrac = PFP_CntBadMat / PFP_CntTot;
+      float nofrac = PFP_CntNoMat / PFP_CntTot;
+      myprt<<" PFP "<<ep<<" "<<(int)PFP_CntTot<<" Badfrac "<<badfrac<<" NoMatfrac "<<nofrac;
+    }
   } // PrintResults
 
   
