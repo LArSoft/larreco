@@ -282,7 +282,7 @@ namespace tca {
     if(firstAll > nxbins - 1) return false;
     unsigned short lastAll = USHRT_MAX;
     for(lastAll = nxbins - 1; lastAll > firstAll + 1; --lastAll) if(cnts[lastAll] == ms.TjIDs.size()) break;
-    if(prt) mf::LogVerbatim("TC")<<"firstAll "<<firstAll<<" lastAll "<<lastAll<<"\n";
+    if(prt) mf::LogVerbatim("TC")<<"firstAll "<<firstAll<<" lastAll "<<lastAll;
     if(lastAll <= firstAll) return false;
     
     // next find the first and last bins where at least two planes match
@@ -345,7 +345,10 @@ namespace tca {
       // make a copy to simplify getting the tjpt order correct
       Trajectory old = tj;
       if(prt) mf::LogVerbatim("TC")<<"reverse tj "<<tj.ID;
+      // temporarily mask off the 3D match bit so that ReverseTraj doesn't complain
+      tj.AlgMod[kMat3D] = false;
       ReverseTraj(tjs, tj);
+      tj.AlgMod[kMat3D] = true;
       for(unsigned short newpt = tj.EndPt[0]; newpt <= tj.EndPt[1]; ++newpt) {
         for(unsigned short oldpt = old.EndPt[0]; oldpt <= old.EndPt[1]; ++oldpt) {
           if(tj.Pts[newpt].Pos[0] != old.Pts[oldpt].Pos[0]) continue;
@@ -762,32 +765,28 @@ namespace tca {
   } // WatchHit
 
   ////////////////////////////////////////////////
-  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im, bool prt)
+  void Reverse3DMatchTjs(TjStuff& tjs, MatchStruct& ms, bool prt)
   {
     // Return true if the 3D matched hits in the trajectories in tjs.matchVecPFPList are in the wrong order in terms of the
     // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc. 
     
-    if(im > tjs.matchVecPFPList.size() - 1) return false;
-    
-    auto& mv = tjs.matchVec[im];
-    
     // Don't reverse showers
-    if(mv.PDGCode == 1111) return false;
+    if(ms.PDGCode == 1111) return;
 
     // through-going track? Check for outside the Fiducial Volume at the start (s) and end (e).
     // These variables assume that the TPC is exposed to a beam that contains muons entering at the front and
     // a background of cosmic rays that enter from the top
-    bool sAtSide = (mv.XYZ[0][0] < tjs.XLo || mv.XYZ[0][0] > tjs.XHi);
-    bool sAtTop = (mv.XYZ[0][1] > tjs.YHi);
-    bool sAtBottom = (mv.XYZ[0][1] < tjs.YLo);
-    bool sAtFront = (mv.XYZ[0][2] < tjs.ZLo);
-    bool sAtBack = (mv.XYZ[0][2] > tjs.ZHi);
+    bool sAtSide = (ms.XYZ[0][0] < tjs.XLo || ms.XYZ[0][0] > tjs.XHi);
+    bool sAtTop = (ms.XYZ[0][1] > tjs.YHi);
+    bool sAtBottom = (ms.XYZ[0][1] < tjs.YLo);
+    bool sAtFront = (ms.XYZ[0][2] < tjs.ZLo);
+    bool sAtBack = (ms.XYZ[0][2] > tjs.ZHi);
     
-    bool eAtSide = (mv.XYZ[1][0] < tjs.XLo || mv.XYZ[1][0] > tjs.XHi);
-    bool eAtTop = (mv.XYZ[1][1] > tjs.YHi);
-    bool eAtBottom = (mv.XYZ[1][1] < tjs.YLo);
-    bool eAtFront = (mv.XYZ[1][2] < tjs.ZLo);
-    bool eAtBack = (mv.XYZ[1][2] > tjs.ZHi);
+    bool eAtSide = (ms.XYZ[1][0] < tjs.XLo || ms.XYZ[1][0] > tjs.XHi);
+    bool eAtTop = (ms.XYZ[1][1] > tjs.YHi);
+    bool eAtBottom = (ms.XYZ[1][1] < tjs.YLo);
+    bool eAtFront = (ms.XYZ[1][2] < tjs.ZLo);
+    bool eAtBack = (ms.XYZ[1][2] > tjs.ZHi);
     
     // the start (end) is outside the FV
     bool sOutsideFV = sAtBottom || sAtTop || sAtFront || sAtBack;
@@ -795,43 +794,60 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"sXYZ ("<<(int)mv.XYZ[0][0]<<", "<<(int)mv.XYZ[0][1]<<", "<<(int)mv.XYZ[0][2]<<") sOutsideFV "<<sOutsideFV;
-      myprt<<" eXYZ ("<<(int)mv.XYZ[1][0]<<", "<<(int)mv.XYZ[1][1]<<", "<<(int)mv.XYZ[1][2]<<") eOutsideFV "<<eOutsideFV;
+      myprt<<"sXYZ ("<<(int)ms.XYZ[0][0]<<", "<<(int)ms.XYZ[0][1]<<", "<<(int)ms.XYZ[0][2]<<") sOutsideFV "<<sOutsideFV;
+      myprt<<" eXYZ ("<<(int)ms.XYZ[1][0]<<", "<<(int)ms.XYZ[1][1]<<", "<<(int)ms.XYZ[1][2]<<") eOutsideFV "<<eOutsideFV;
     } // prt
     
+    bool reverseMe = false;
     if(sOutsideFV && eOutsideFV) {
       // both ends are outside the FV - probably a through-going muon. See if it enters at the top or the front.
-      if(sAtFront && eAtBack) return false;
-      if(eAtFront && sAtBack) return true;
+      // looks like a beam muon
+      if(sAtFront && eAtBack) return;
+      // beam muon in the wrong direction?
+      if(eAtFront && sAtBack) reverseMe = true;
       // Next consider cosmic rays entering the top
-      if(sAtTop && eAtBottom) return false;
-      if(eAtTop && sAtBottom) return true;
+      if(sAtTop && eAtBottom) return;
+      if(eAtTop && sAtBottom) reverseMe = true;
       // entering/leaving the sides
-      if(sAtSide && eAtBottom) return false;
-      if(eAtSide && sAtBottom) return true;
-      return false;
+      if(sAtSide && eAtBottom) return;
+      if(eAtSide && sAtBottom) reverseMe = true;
     } // outside the FV
 
-    // Use a simple voting scheme using charge and muon tag direction
-    // ngt is the number of times that something (charge) has the correct behavior (for a stopping track)
-    unsigned short ngt = 0;
-    unsigned short nlt = 0;
-    for(auto& tjID : mv.TjIDs) {
-      unsigned short itj = tjID - 1;
-      unsigned short endPt0 = tjs.allTraj[itj].EndPt[0];
-      unsigned short endPt1 = tjs.allTraj[itj].EndPt[1];
-      float chgrat = tjs.allTraj[itj].Pts[endPt1].AveChg / tjs.allTraj[itj].Pts[endPt0].AveChg;
-      if(chgrat > 1.1) {
-        ++ngt;
-      } else if(chgrat < 0.9) {
-        ++nlt;
+    // look for stopping Tjs for contained PFParticles
+    if(!reverseMe) {
+      unsigned short braggCnt0 = 0;
+      unsigned short braggCnt1 = 0;
+      for(auto& tjID : ms.TjIDs) {
+        auto& tj = tjs.allTraj[tjID - 1];
+        if(tj.StopFlag[0][kBragg]) ++braggCnt0;
+        if(tj.StopFlag[1][kBragg]) ++braggCnt1;
       }
-    } // itj
+      if(braggCnt0 > 0 || braggCnt1 > 0) {
+        ms.PDGCode = 2212;
+        // Vote for a Bragg peak at the beginning. It should be at the end
+        if(braggCnt0 > braggCnt1) reverseMe = true;
+      } // found a Bragg Peak 
+    } // look for stopping Tjs 
     
-    // everything seems to be in proper order
-    if(ngt >= nlt) return false;
+    if(!reverseMe) return;
     
-    return true;
+    // All of the trajectories should be reversed
+    for(auto& tjID : ms.TjIDs) {
+      unsigned short itj = tjID - 1;
+      Trajectory& tj = tjs.allTraj[itj];
+      tj.AlgMod[kMat3D] = false;
+      ReverseTraj(tjs, tj);
+      tj.AlgMod[kMat3D] = true;
+    } // tjID
+    // swap the matchVec end info also
+    std::swap(ms.XYZ[0], ms.XYZ[1]);
+    std::swap(ms.Dir[0], ms.Dir[1]);
+    std::swap(ms.DirErr[0], ms.DirErr[1]);
+    std::swap(ms.dEdx[0], ms.dEdx[1]);
+    std::swap(ms.dEdxErr[0], ms.dEdxErr[1]);
+    std::swap(ms.Vx3ID[0], ms.Vx3ID[1]);
+    
+    return;
     
   } // Reverse3DMatchTjs
 
@@ -2107,7 +2123,9 @@ namespace tca {
   {
     // reverse the trajectory
     if(tj.Pts.empty()) return;
-    if(tj.AlgMod[kMat3D]) std::cout<<"Trying to reverse a 3D matched Tj. Need some code here...\n";
+    if(tj.AlgMod[kMat3D]) {
+      std::cout<<"Trying to reverse a 3D matched Tj. Need to modify other Tjs and the MatchStruct\n";
+    }
     // reverse the crawling direction flag
     tj.StepDir = -tj.StepDir;
     // reverse the direction
@@ -2671,12 +2689,12 @@ namespace tca {
     const geo::TPCGeo &thetpc = tjs.geom->TPC(tpc, cstat);
     thetpc.LocalToWorld(local,world);
     // reduce the active area of the TPC by 1 cm to prevent wire boundary issues
-    tjs.XLo = world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + 5;
-    tjs.XHi = world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - 5;
-    tjs.YLo = world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + 5;
-    tjs.YHi = world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - 5;
-    tjs.ZLo = world[2]-tjs.geom->DetLength(tpc,cstat)/2 + 5;
-    tjs.ZHi = world[2]+tjs.geom->DetLength(tpc,cstat)/2 - 5;
+    tjs.XLo = world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + 1;
+    tjs.XHi = world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - 1;
+    tjs.YLo = world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + 1;
+    tjs.YHi = world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - 1;
+    tjs.ZLo = world[2]-tjs.geom->DetLength(tpc,cstat)/2 + 1;
+    tjs.ZHi = world[2]+tjs.geom->DetLength(tpc,cstat)/2 - 1;
     
     lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
     
@@ -3344,7 +3362,7 @@ namespace tca {
     if(tjs.matchVecPFPList.empty()) return;
     
     mf::LogVerbatim myprt("TC");
-    myprt<<"PFP Count sVx  ________sVtx_______  ______sDir______  ______sdEdx_____ eVx  ________eVtx_______  ______eDir______  ______edEdx_____ BstPln PDG Par E*P TjIDs\n";
+    myprt<<"PFP Count sVx  ________sVtx_______  ______sDir______  ______sdEdx_____ eVx  ________eVtx_______  ______eDir______  ______edEdx_____ BstPln PDG Par E*P   TjIDs\n";
     unsigned short indx = 0;
     for(auto& im : tjs.matchVecPFPList) {
       auto& ms = tjs.matchVec[im];
@@ -3373,8 +3391,8 @@ namespace tca {
       }
       // global stuff
       myprt<<std::setw(5)<<ms.BestPlane;
-      myprt<<std::setw(5)<<ms.PDGCode;
-      myprt<<std::setw(5)<<ms.ParentMSIndex;
+      myprt<<std::setw(6)<<ms.PDGCode;
+      myprt<<std::setw(4)<<ms.ParentMSIndex;
       myprt<<std::setw(5)<<std::setprecision(2)<<ms.EffPur;
       myprt<<"  ";
       for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
