@@ -2515,12 +2515,8 @@ namespace tca {
   } // DefineEnvelope  
   
   ////////////////////////////////////////////////
-  //<<<<<<< HEAD
-  /*void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt, int mode)
-    =======*/
   void AddTjsInsideEnvelope(TjStuff& tjs, unsigned short cotIndex, bool prt)
-  //>>>>>>> 023b6780cca39fd1f14eb4f92a635498a33c840d*/
-  {
+   {
     // This function adds Tjs to the shower. It updates the shower parameters.
     
     if(cotIndex > tjs.cots.size() - 1) return;
