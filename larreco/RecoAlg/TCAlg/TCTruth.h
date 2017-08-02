@@ -26,17 +26,15 @@ namespace tca {
       EPCnts.fill(0); 
       TSums.fill(0.0);
       EPTSums.fill(0.0);
-      PFP_TSum = 0;
-      PFP_EPTSum = 0;
+      MCP_TSum = 0;
+      MCP_EPTSum = 0;
       PFP_CntGoodMat = 0;
-      PFP_CntBadMat = 0;
-      PFP_CntNoMat = 0;
       PFP_CntTot = 0;
    }
     
     void Initialize();
     void MatchTrueHits();
-    void MatchTruth(const HistStuff& hist, unsigned int& fEventsProcessed);
+    void MatchTruth(const HistStuff& hist, unsigned int fEventsProcessed);
     void PrintResults(int eventNum) const;
     
     TjStuff& tjs;
@@ -44,11 +42,9 @@ namespace tca {
     std::array<short, 5> EPCnts {{0}};
     std::array<float, 5> TSums;    // sum of kinetic energy
     std::array<float, 5> EPTSums;   // E*P sum weighted by kinetic energy for 5 particle types
-    float PFP_TSum;                   // T sum
-    float PFP_EPTSum;                  // E*P weighted sum
-    float PFP_CntGoodMat;                   // Count of well matched PFParticles (> 1 plane)
-    float PFP_CntBadMat;                // Count badly matched PFParticles
-    float PFP_CntNoMat;                // Count un-matched PFParticles
+    float MCP_TSum;                   // T sum
+    float MCP_EPTSum;                  // E*P weighted sum
+    float PFP_CntGoodMat;              // Count of well matched MCParticles (> 1 plane)
     float PFP_CntTot;
     
     // number of primary particles in the event
