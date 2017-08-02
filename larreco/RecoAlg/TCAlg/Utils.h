@@ -55,7 +55,7 @@ namespace tca {
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
-  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im, bool prt);
+  void Reverse3DMatchTjs(TjStuff& tjs, MatchStruct& ms, bool prt);
   unsigned int MatchVecIndex(const TjStuff& tjs, int tjID);
   unsigned int MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
