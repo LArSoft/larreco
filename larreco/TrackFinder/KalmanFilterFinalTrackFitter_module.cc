@@ -25,6 +25,7 @@
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
@@ -410,18 +411,31 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
       }
 
       if (p_().options().showerFromPF()) {
+	art::Ptr<recob::PFParticle> pPF(inputPFParticle, iPF);
 	const std::vector<art::Ptr<recob::Shower> >& showers = assocShowers->at(iPF);
-	auto const& shHitsAssn = *e.getValidHandle<art::Assns<recob::Shower, recob::Hit> >(showerInputTag);
+	if (showers.size()==0) continue;
+	auto const& pfClustersAssn = *e.getValidHandle<art::Assns<recob::PFParticle, recob::Cluster> >(showerInputTag);
+	auto const& clHitsAssn = *e.getValidHandle<art::Assns<recob::Cluster, recob::Hit> >(showerInputTag);
+	std::vector<art::Ptr<recob::Hit> > inHits;
+	for (auto itpf = pfClustersAssn.begin(); itpf!=pfClustersAssn.end(); ++itpf) {
+	  if (itpf->first == pPF) {
+	    art::Ptr<recob::Cluster> clust = itpf->second;
+	    for (auto it = clHitsAssn.begin(); it!=clHitsAssn.end(); ++it) {
+	      if (it->first == clust) inHits.push_back(it->second);
+	    }
+	  } else if (inHits.size()>0) break;
+	}
+	//auto const& shHitsAssn = *e.getValidHandle<art::Assns<recob::Shower, recob::Hit> >(showerInputTag);
 	for (unsigned int iShower = 0; iShower < showers.size(); ++iShower) {
 	  //
 	  const recob::Shower& shower = *showers[iShower];
-	  art::Ptr<recob::Shower> pshower = showers[iShower];
-	  //this is not computationally optimal, but at least preserves the order unlike FindManyP
-	  std::vector<art::Ptr<recob::Hit> > inHits;
-	  for (auto it = shHitsAssn.begin(); it!=shHitsAssn.end(); ++it) {
-	    if (it->first == pshower) inHits.push_back(it->second);
-	    else if (inHits.size()>0) break;
-	  }
+	  // art::Ptr<recob::Shower> pshower = showers[iShower];
+	  // //this is not computationally optimal, but at least preserves the order unlike FindManyP
+	  // std::vector<art::Ptr<recob::Hit> > inHits;
+	  // for (auto it = shHitsAssn.begin(); it!=shHitsAssn.end(); ++it) {
+	  //   if (it->first == pshower) inHits.push_back(it->second);
+	  //   else if (inHits.size()>0) break;
+	  // }
 
 	  recob::Track outTrack;
 	  art::PtrVector<recob::Hit> outHits;
