@@ -223,7 +223,7 @@ namespace tca {
   } // MatchTrueHits
   
   //////////////////////////////////////////
-  void TruthMatcher::MatchTruth(const HistStuff& hist, unsigned int& fEventsProcessed)
+  void TruthMatcher::MatchTruth(const HistStuff& hist, unsigned int fEventsProcessed)
   {
     
     if(tjs.MatchTruth[0] < 0) return;
@@ -671,59 +671,77 @@ namespace tca {
     } // vx2
     
     // match PFParticles
+    // initialize everything
+    for(auto& ms : tjs.matchVec) ms.MCPartListIndex = USHRT_MAX;
+    
+    // PFParticle reconstruction efficiency calculation
+    // 1) Find the average EP for all Tjs in a PFParticle weighted by the Tj length, aveEP
+    // 2) Accumulate MCP_EPTSum += aveEP * TMeV and MCP_TSum += TMeV in this function
+    // 3) Calculate average PFParticle EP = MCP_EPTSum / TMeV in PrintResults()
+
+    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
+      auto& part = partList[ipart];
+      unsigned short nInPln = 0;
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        // require at least 2 matched hits
+        if(nMatchedHitsInPartList[ipart][plane] < 2) continue;
+        ++nInPln;
+      } // plane
+      // require matched hits in at least two planes
+      if(nInPln < 2) continue;
+      float TMeV = 1000 * (part->E() - part->Mass());
+      MCP_TSum += TMeV;
+      bool gotit = false;
+      for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
+        unsigned short imv = tjs.matchVecPFPList[ii];
+        auto& ms = tjs.matchVec[imv];
+        if(ms.Count == 0) continue;
+        if(ms.TjIDs.empty()) continue;
+        unsigned short cnt = 0;
+        float sum = 0;
+        float epsum = 0;
+        for(auto& tjID : ms.TjIDs) {
+          unsigned short itj = tjID - 1;
+          Trajectory& tj = tjs.allTraj[itj];
+          if(tj.MCPartListIndex == ipart) {
+            ++cnt;
+            float npts = NumPtsWithCharge(tjs, tj, false);
+            sum += npts;
+            epsum += npts * tj.EffPur;
+          }
+        } // tjID
+        // require at least 2 Tjs match this PFParticle
+        if(cnt > 2 && sum > 0) {
+          float pfpEP = epsum / sum;
+          ms.EffPur = pfpEP;
+          MCP_EPTSum += TMeV * pfpEP;
+          ms.MCPartListIndex = ipart;
+          ++PFP_CntGoodMat;
+          gotit = true;
+          break;
+        }
+      } // ipart
+      
+      if(!gotit && tjs.MatchTruth[1] > 0 && TMeV > 100) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"BadPFP PDGCode "<<part->PdgCode()<<" TMeV "<<(int)TMeV;
+        myprt<<" matched Tjs ";
+        for(auto& tj : tjs.allTraj) {
+          if(tj.AlgMod[kKilled]) continue;
+          if(tj.MCPartListIndex == ipart) myprt<<" "<<tj.ID<<" EP "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
+        } // tj
+        myprt<<" events processed "<<fEventsProcessed;
+      }
+    } // ipart
+    
+    // update the total PFParticle count
     for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
       unsigned short imv = tjs.matchVecPFPList[ii];
       auto& ms = tjs.matchVec[imv];
       if(ms.Count == 0) continue;
       if(ms.TjIDs.empty()) continue;
       ++PFP_CntTot;
-      ms.EffPur = 0;
-      float effpur = 0;
-      float cntMat = 0;
-      float cntBadMat = 0;
-      float cntNoMat = 0;
-      ms.MCPartListIndex = USHRT_MAX;
-      for(auto& tjID : ms.TjIDs) {
-        unsigned short itj = tjID - 1;
-        Trajectory& tj = tjs.allTraj[itj];
-        if(tj.MCPartListIndex > tjs.MCPartList.size()) {
-          // Tj is not matched to a MCParticle
-          ++cntNoMat;
-          continue;
-        }
-        // define the MatchStruct MCParticle match
-        if(ms.MCPartListIndex == USHRT_MAX) ms.MCPartListIndex = tj.MCPartListIndex;
-        if(tj.MCPartListIndex != ms.MCPartListIndex) {
-          // Tj is matched to a different MCParticle
-          ++cntBadMat;
-          continue;
-        }
-        // Tj is matched to the MCParticle
-        ++cntMat;
-        effpur += tj.EffPur;
-      } // tjID
-      
-      float TMeV = 0;
-      if(ms.MCPartListIndex < tjs.MCPartList.size()) {
-        const simb::MCParticle* part = tjs.MCPartList[ms.MCPartListIndex];
-        TMeV = 1000 * (part->E() - part->Mass());
-      } // valied MCPartList index
-      
-      // require a good match in at least 2 planes and no bad matches. A missed
-      // Tj is OK.
-      if(cntMat > 1 && cntBadMat == 0) {
-        // statistics for good matches
-        // average EP
-        ms.EffPur = effpur / cntMat;
-        ++PFP_CntGoodMat;
-        PFP_TSum += TMeV;
-        PFP_EPTSum += TMeV * ms.EffPur;
-      } else {
-        // statistics for failures
-        if(cntBadMat > 0) ++PFP_CntBadMat;
-        if(cntNoMat > 0) ++PFP_CntNoMat;
-      }
-    } // ii
+     } // ii
     
   } // MatchTruth
   
@@ -743,22 +761,20 @@ namespace tca {
       if(pdgIndex == 4) myprt<<" P";
       float ave = EPTSums[pdgIndex] / (float)TSums[pdgIndex];
       myprt<<" "<<std::fixed<<std::setprecision(2)<<ave;
-      myprt<<" "<<EPCnts[pdgIndex];
+//      myprt<<" "<<EPCnts[pdgIndex];
       if(pdgIndex > 0) {
         sum  += TSums[pdgIndex];
         sumt += EPTSums[pdgIndex];
       }
     } // pdgIndex
     if(sum > 0) myprt<<" MuPiKP "<<std::fixed<<std::setprecision(2)<<sumt / sum;
-    if(PFP_TSum > 0) {
+    if(MCP_TSum > 0 && PFP_CntTot > 0) {
       // PFParticle statistics
-      float ep = PFP_EPTSum / PFP_TSum;
-      float badfrac = PFP_CntBadMat / PFP_CntTot;
-      float nofrac = PFP_CntNoMat / PFP_CntTot;
-      myprt<<" PFP "<<ep<<" "<<(int)PFP_CntTot<<" Badfrac "<<badfrac<<" NoMatfrac "<<nofrac;
+      float ep = MCP_EPTSum / MCP_TSum;
+      float nofrac = 1 - (PFP_CntGoodMat / PFP_CntTot);
+      myprt<<" PFP "<<ep<<" "<<(int)PFP_CntTot<<" noMatFrac "<<nofrac;
     }
   } // PrintResults
-
   
   ////////////////////////////////////////////////
   void MCParticleListUtils::MakeTruTrajPoint(unsigned short MCParticleListIndex, TrajPoint& tp)
