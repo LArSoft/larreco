@@ -159,7 +159,6 @@ namespace tca {
     raw::TDCtick_t StartTick {0};
     raw::TDCtick_t EndTick {0};
     float PeakTime {0};
-    float X;
     float SigmaPeakTime {1};
     float PeakAmplitude {1};
     float SigmaPeakAmp {1};
