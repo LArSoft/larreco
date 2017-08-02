@@ -402,11 +402,11 @@ namespace tca {
 
     // mark them all as InShower Tjs
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
+      CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       for(auto& tjl : bigList[plane]) {
         for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
       } // tjl
-      
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 3);
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, bigList[plane], 3);
     } // plane
 
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
@@ -433,7 +433,7 @@ namespace tca {
         // MCSMom, etc. This will be used to decide if showers should be merged
         //AddTjsInsideEnvelope(tjs, cotIndex, prt,1);
         AddTjsInsideEnvelope(tjs, cotIndex,prt);
-	FindNearbyTjs(tjs, cotIndex, prt);
+        FindNearbyTjs(tjs, cotIndex, prt);
         FindMatchingTjs(tjs, cotIndex, prt);
         if(prt) {
           ShowerStruct& ss = tjs.cots[cotIndex];
@@ -457,11 +457,13 @@ namespace tca {
     
     // Look for a 3D-matched parent
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 6);
+      auto& ms = tjs.cots[cotIndex];
+      if(ms.TjIDs.empty()) continue;
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ms.CTP, cotIndex, 6);
       if(tjs.cots[cotIndex].TjIDs.empty()) continue;
       prt = (tjs.cots[cotIndex].CTP == dbgCTP || dbgPlane > 2);
       FindExternalParent(tjs, cotIndex, prt);
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 7);
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ms.CTP, cotIndex, 7);
       ShowerStruct& ss = tjs.cots[cotIndex];
       if(ss.TjIDs.empty()) continue;
       Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
