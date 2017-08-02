@@ -798,8 +798,8 @@ namespace tca {
       // put the TjIDs into a vector for matching
       float score = 0;
       v3TjIDs[iv3] = GetVtxTjIDs(tjs, vx3, score);
-      if(v3TjIDs.empty()) continue;
-      if(score < tjs.Vertex2DCuts[7]) v3TjIDs.clear();
+      if(v3TjIDs[iv3].empty()) continue;
+      if(score < tjs.Vertex2DCuts[7]) v3TjIDs[iv3].clear();
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"vx3 "<<vx3.ID<<" score "<<score<<" TjIDs ";
