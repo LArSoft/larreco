@@ -63,12 +63,7 @@ namespace tca {
     fNPtsAve              = pset.get< short >("NPtsAve", 20);
     fMinPtsFit            = pset.get< std::vector<unsigned short >>("MinPtsFit");
     fMinPts               = pset.get< std::vector<unsigned short >>("MinPts");
-    if(pset.has_key("MaxAngleRange")) {
-      fMaxAngleCode         = pset.get< std::vector<unsigned short>>("MaxAngleRange");
-      std::cout<<"MaxAngleRange has been re-named MaxAngleCode: 0 = small angle (first, second range), 1 = large angle (2nd to last range), 2 = Very large angle (last range)\n";
-    } else {
-      fMaxAngleCode         = pset.get< std::vector<unsigned short>>("MaxAngleCode");
-    }
+    fMaxAngleCode         = pset.get< std::vector<unsigned short>>("MaxAngleCode");
     fMinMCSMom             = pset.get< std::vector<short >>("MinMCSMom");
 
     fMaxChi               = pset.get< float >("MaxChi", 10);
@@ -79,12 +74,7 @@ namespace tca {
     fMaxWireSkipNoSignal  = pset.get< float >("MaxWireSkipNoSignal", 1);
     fMaxWireSkipWithSignal= pset.get< float >("MaxWireSkipWithSignal", 100);
     fProjectionErrFactor  = pset.get< float >("ProjectionErrFactor", 2);
-    // Step size for very large angle trajectories
-    if(pset.has_key("VLAStepSize")) {
-      fVLAStepSize        = pset.get< float >("VLAStepSize", 1.5);
-    } else {
-      fVLAStepSize = 1.5;
-    }
+    fVLAStepSize        = pset.get< float >("VLAStepSize", 1.5);
     fJTMaxHitSep2         = pset.get< float >("JTMaxHitSep", 2);
     
     std::vector<std::string> skipAlgsVec = pset.get< std::vector<std::string>  >("SkipAlgs");
