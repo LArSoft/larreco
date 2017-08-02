@@ -312,7 +312,6 @@ namespace tca {
     void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
       // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid, bool reset);
-    void Mat3DTj(const geo::TPCID& tpcid);
     void Match2Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);
     void Match3Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);
     void Find3DEndPoints(const geo::TPCID& tpcid);
