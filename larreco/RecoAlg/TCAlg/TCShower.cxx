@@ -713,7 +713,6 @@ namespace tca {
     MergeOverlap(tjs, inCTP, prt);
     // Merge small showers with larger ones
     MergeSubShowers(tjs, inCTP, prt);
-<<<<<<< HEAD
     
     // drop those that don't meet the requirements
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
