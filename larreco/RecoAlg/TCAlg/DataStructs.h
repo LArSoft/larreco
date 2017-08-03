@@ -263,7 +263,9 @@ namespace tca {
     std::vector<short> MCSMom;
 
     std::vector<short> PlaneNum; 
-    
+   
+    std::vector<int> TjID;
+    std::vector<int> IsShowerTj;
     std::vector<int> ShowerID; // shower ID associated w/ trajectory. -1 = no shower
     std::vector<int> IsShowerParent;
     std::vector<int> StageNum; // stage of reconstruction

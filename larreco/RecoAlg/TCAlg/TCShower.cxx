@@ -387,7 +387,6 @@ namespace tca {
         for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
       } // tjl
       
-      //      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 3);
     } // plane
 
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
@@ -436,11 +435,9 @@ namespace tca {
     
     // Look for a 3D-matched parent
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
-      //      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 6);
       if(tjs.cots[cotIndex].TjIDs.empty()) continue;
       prt = (tjs.cots[cotIndex].CTP == dbgCTP || dbgPlane > 2);
       FindExternalParent(tjs, cotIndex, prt);
-      //      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 7);
       ShowerStruct& ss = tjs.cots[cotIndex];
       if(ss.TjIDs.empty()) continue;
       Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
@@ -692,10 +689,6 @@ namespace tca {
     // Merge small showers with larger ones
     MergeSubShowers(tjs, inCTP, prt);
     
-<<<<<<< HEAD
-
-=======
->>>>>>> b515e934cd6b732e64f29f10c148fd01f499c4a9
     // drop those that don't meet the requirements
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       ShowerStruct& ss = tjs.cots[cotIndex];
@@ -761,7 +754,7 @@ namespace tca {
       if(ss.CTP != inCTP) continue;
       if(ss.TjIDs.empty()) continue;
       FindStartChg(tjs, cotIndex, prt);
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 8);
+      //      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 8);
     }
     
     // Finish up in this CTP. 
@@ -2808,128 +2801,4 @@ namespace tca {
     
   } // Create2DShower
 
-  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, std::vector<std::vector<int>>& tjList,
-		  unsigned int stageNum) {
-    
-    for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
-      Trajectory& tj1 = tjs.allTraj[it1];
-      if(tj1.CTP != inCTP) continue;
-      if(tj1.AlgMod[kKilled]) continue;
-
-      SaveTjInfoStuff(tjs, inCTP, tj1,  stageNum);
-
-      int trajID = tj1.ID;
-      bool inShower = false;
-
-      for (size_t l1 = 0; l1 < tjList.size(); ++l1) {
-	if (inShower) break;
-	for (size_t l2 = 0; l2 < tjList[l1].size(); ++l2) {
-
-	  if (trajID == tjList[l1][l2]) {
-	    tjs.stv.ShowerID.back() = l1;
-	    inShower = true;
-	    break;
-	  }
-	} // end list loop 2
-      } // end list loop 1
-    } // end tjs loop
-
-    // add meaningless envelope to list for counting purposes
-    // envelopes are defined once DefineShower is called
-    // fill four times, one for each side of polygon
-    for (int i = 0; i < 8; i++) {
-      tjs.stv.Envelope.push_back(-999);
-      tjs.stv.EnvStage.push_back(stageNum);
-      tjs.stv.EnvPlane.push_back(-1);
-      tjs.stv.EnvShowerID.push_back(-1);
-    }
-
-  } // SaveTjInfo (tjlist)
-
-  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotIndex,
-                  unsigned int stageNum) {
-
-    ShowerStruct& ss = tjs.cots[cotIndex];
-
-    for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
-
-      // right now I exclude the shower trajectory
-      if (it1 == ss.ShowerTjID - 1) continue;
-
-      Trajectory& tj1 = tjs.allTraj[it1];
-      if(tj1.CTP != inCTP) continue;
-      if(tj1.AlgMod[kKilled]) continue;
-
-      SaveTjInfoStuff(tjs, inCTP, tj1, stageNum);
-
-      int trajID = tj1.ID;
-
-      //      ShowerStruct& ss = tjs.cots[cotIndex];
-
-      for (size_t i = 0; i < ss.TjIDs.size(); ++i) {
-	if (trajID == ss.TjIDs[i]) {
-	  tjs.stv.ShowerID.back() = cotIndex;
-	  break;
-	}
-	// check if tj is shower parent. if so, add to ttree
-	// and mark parent flag
-	if (trajID == ss.ParentID) {
-	  tjs.stv.ShowerID.back() = cotIndex;
-	  tjs.stv.IsShowerParent.back() = 1;
-	  break;
-
-	}
-      } // ss TjID loop
-
-    } // end tjs loop
-
-    // add envelope information to showertreevars
-    geo::PlaneID iPlnID = DecodeCTP(ss.CTP);
-    for (int i = 0; i < 8; i++) {
-      tjs.stv.EnvStage.push_back(stageNum);
-      tjs.stv.EnvPlane.push_back(iPlnID.Plane);
-      tjs.stv.EnvShowerID.push_back(cotIndex);
-    }
-    tjs.stv.Envelope.push_back(ss.Envelope[0][0]);
-    tjs.stv.Envelope.push_back(ss.Envelope[0][1]/tjs.UnitsPerTick);
-    tjs.stv.Envelope.push_back(ss.Envelope[1][0]);
-    tjs.stv.Envelope.push_back(ss.Envelope[1][1]/tjs.UnitsPerTick);
-    tjs.stv.Envelope.push_back(ss.Envelope[2][0]);
-    tjs.stv.Envelope.push_back(ss.Envelope[2][1]/tjs.UnitsPerTick);
-    tjs.stv.Envelope.push_back(ss.Envelope[3][0]);
-    tjs.stv.Envelope.push_back(ss.Envelope[3][1]/tjs.UnitsPerTick);
-
-  } // SaveTjInfo (cots)
- 
-
-  void SaveTjInfoStuff(TjStuff& tjs,  const CTP_t& inCTP, Trajectory& tj,  unsigned int stageNum) {
-    //    int trajID = tj.ID;
-    //    if (stageNum == 1 && tjs.stv.nPlanes) tjs.stv.nPlanes = 999;
-
-    TrajPoint& beginPoint = tj.Pts[tj.EndPt[0]];
-    TrajPoint& endPoint = tj.Pts[tj.EndPt[1]];
-
-    tjs.stv.BeginWir.push_back(std::nearbyint(beginPoint.Pos[0]));
-    tjs.stv.BeginTim.push_back(std::nearbyint(beginPoint.Pos[1]/tjs.UnitsPerTick));
-    tjs.stv.BeginAng.push_back(beginPoint.Ang);
-    tjs.stv.BeginChg.push_back(beginPoint.Chg);
-    tjs.stv.BeginVtx.push_back(tj.VtxID[0]);
-
-    tjs.stv.EndWir.push_back(std::nearbyint(endPoint.Pos[0]));
-    tjs.stv.EndTim.push_back(std::nearbyint(endPoint.Pos[1]/tjs.UnitsPerTick));
-    tjs.stv.EndAng.push_back(endPoint.Ang);
-    tjs.stv.EndChg.push_back(endPoint.Chg);
-    tjs.stv.EndVtx.push_back(tj.VtxID[1]);
-
-    tjs.stv.MCSMom.push_back(tj.MCSMom);
-
-    tjs.stv.ShowerID.push_back(-1);
-    tjs.stv.IsShowerParent.push_back(-1);
-    tjs.stv.StageNum.push_back(stageNum);
-    tjs.stv.nStages = stageNum;
-    geo::PlaneID iPlnID = DecodeCTP(tj.CTP);
-    tjs.stv.PlaneNum.push_back(iPlnID.Plane);
-
-    tjs.stv.nPlanes = tjs.NumPlanes;
-  } // SaveTjInfo
-}
+} // namespace tca

@@ -6114,6 +6114,8 @@ namespace tca {
     showertree->Branch("MCSMom", &tjs.stv.MCSMom);
 
     showertree->Branch("PlaneNum", &tjs.stv.PlaneNum);
+    showertree->Branch("TjID", &tjs.stv.TjID);
+    showertree->Branch("IsShowerTj", &tjs.stv.IsShowerTj);
     showertree->Branch("ShowerID", &tjs.stv.ShowerID);
     showertree->Branch("IsShowerParent", &tjs.stv.IsShowerParent);
     showertree->Branch("StageNum", &tjs.stv.StageNum);
