@@ -91,7 +91,7 @@ namespace nnet	 {
 	bool fDumpToRoot;
 
 	std::vector<int> fSelectedTPC;
-	std::vector<int> fSelectedView;
+	std::vector<int> fSelectedPlane;
 
 	int fEvent;     /// number of the event being processed
 	int fRun;       /// number of the run being processed
@@ -108,7 +108,7 @@ namespace nnet	 {
 	fOutTextFilePath(config().OutTextFilePath()),
 	fDumpToRoot(config().DumpToRoot()),
 	fSelectedTPC(config().SelectedTPC()),
-	fSelectedView(config().SelectedView()),
+	fSelectedPlane(config().SelectedView()),
 	fCrop(config().Crop())
   {
     fGeometry = &*(art::ServiceHandle<geo::Geometry>());
@@ -120,14 +120,10 @@ namespace nnet	 {
 			fSelectedTPC.push_back(tpc);
 	}
 
-	if (fSelectedView.empty())
+	if (fSelectedPlane.empty())
 	{
-		if (fGeometry->TPC(fSelectedTPC.front(), 0).HasPlane(geo::kU))
-			fSelectedView.push_back((int)geo::kU);
-		if (fGeometry->TPC(fSelectedTPC.front(), 0).HasPlane(geo::kV))
-			fSelectedView.push_back((int)geo::kV);
-		if (fGeometry->TPC(fSelectedTPC.front(), 0).HasPlane(geo::kZ))
-			fSelectedView.push_back((int)geo::kZ);
+	    for (size_t p = 0; p < fGeometry->MaxPlanes(); ++p )
+	        fSelectedPlane.push_back(p);
 	}
   }
 
@@ -138,18 +134,20 @@ namespace nnet	 {
     fRun    = event.run();
     fSubRun = event.subRun();
 
+    bool saveSim = fTrainingDataAlg.saveSimInfo() && !event.isRealData();
+
 	std::ostringstream os;
 	os << "event_" << fEvent << "_run_" << fRun << "_subrun_" << fSubRun;
 
 	std::cout << "analyze " << os.str() << std::endl;
 
 	for (size_t i = 0; i < fSelectedTPC.size(); ++i)
-		for (size_t v = 0; v < fSelectedView.size(); ++v)
+		for (size_t v = 0; v < fSelectedPlane.size(); ++v)
 	{
-		fTrainingDataAlg.setEventData(event, fSelectedView[v], fSelectedTPC[i], 0);
+		fTrainingDataAlg.setEventData(event, fSelectedPlane[v], fSelectedTPC[i], 0);
 
         unsigned int w0, w1, d0, d1;
-        if (fCrop)
+        if (fCrop && saveSim)
         {
             if (fTrainingDataAlg.findCrop(0.004F, w0, w1, d0, d1))
             {
@@ -157,7 +155,7 @@ namespace nnet	 {
             }
             else
             {
-                std::cout << "   skip empty tpc:" << fSelectedTPC[i] << " / view:" << fSelectedView[v] << std::endl;
+                std::cout << "   skip empty tpc:" << fSelectedTPC[i] << " / view:" << fSelectedPlane[v] << std::endl;
                 continue;
             }
         }
@@ -170,36 +168,47 @@ namespace nnet	 {
         if (fDumpToRoot)
         {
 	        std::ostringstream ss1;
-	        ss1 << "raw_" << os.str() << "_tpc_" << fSelectedTPC[i] << "_view_" << fSelectedView[v]; // TH2's name
+	        ss1 << "raw_" << os.str() << "_tpc_" << fSelectedTPC[i] << "_view_" << fSelectedPlane[v]; // TH2's name
 
             art::ServiceHandle<art::TFileService> tfs;
             TH2F* rawHist = tfs->make<TH2F>((ss1.str() + "_raw").c_str(), "ADC", w1 - w0, w0, w1, d1 - d0, d0, d1);
-            TH2F* depHist = tfs->make<TH2F>((ss1.str() + "_deposit").c_str(), "Deposit", w1 - w0, w0, w1, d1 - d0, d0, d1);
-            TH2I* pdgHist = tfs->make<TH2I>((ss1.str() + "_pdg").c_str(), "PDG", w1 - w0, w0, w1, d1 - d0, d0, d1);
+            TH2F* depHist = 0;
+            TH2I* pdgHist = 0;
+            if (saveSim)
+            {
+                depHist = tfs->make<TH2F>((ss1.str() + "_deposit").c_str(), "Deposit", w1 - w0, w0, w1, d1 - d0, d0, d1);
+                pdgHist = tfs->make<TH2I>((ss1.str() + "_pdg").c_str(), "PDG", w1 - w0, w0, w1, d1 - d0, d0, d1);
+            }
 
             for (size_t w = w0; w < w1; ++w)
             {
                 auto const & raw = fTrainingDataAlg.wireData(w);
                 for (size_t d = d0; d < d1; ++d) { rawHist->Fill(w, d, raw[d]); }
 
-		        auto const & edep = fTrainingDataAlg.wireEdep(w);
-		        for (size_t d = d0; d < d1; ++d) { depHist->Fill(w, d, edep[d]); }
+                if (saveSim)
+                {
+    		        auto const & edep = fTrainingDataAlg.wireEdep(w);
+	    	        for (size_t d = d0; d < d1; ++d) { depHist->Fill(w, d, edep[d]); }
 
-		        auto const & pdg = fTrainingDataAlg.wirePdg(w);
-		        for (size_t d = d0; d < d1; ++d) { pdgHist->Fill(w, d, pdg[d]); }
+	    	        auto const & pdg = fTrainingDataAlg.wirePdg(w);
+	    	        for (size_t d = d0; d < d1; ++d) { pdgHist->Fill(w, d, pdg[d]); }
+	    	    }
             }
         }
         else
         {
 	        std::ostringstream ss1;
 	        ss1 << fOutTextFilePath << "/raw_" << os.str()
-        		<< "_tpc_" << fSelectedTPC[i] << "_view_" << fSelectedView[v];
+        		<< "_tpc_" << fSelectedTPC[i] << "_view_" << fSelectedPlane[v];
 
             std::ofstream fout_raw, fout_deposit, fout_pdg;
 
         	fout_raw.open(ss1.str() + ".raw");
-	        fout_deposit.open(ss1.str() + ".deposit");
-	        fout_pdg.open(ss1.str() + ".pdg");
+        	if (saveSim)
+        	{
+    	        fout_deposit.open(ss1.str() + ".deposit");
+	            fout_pdg.open(ss1.str() + ".pdg");
+	        }
 
 	        for (size_t w = w0; w < w1; ++w)
 	        {
@@ -207,18 +216,24 @@ namespace nnet	 {
 		        for (size_t d = d0; d < d1; ++d) { fout_raw << raw[d] << " "; }
 		        fout_raw << std::endl;
 
-		        auto const & edep = fTrainingDataAlg.wireEdep(w);
-		        for (size_t d = d0; d < d1; ++d) { fout_deposit << edep[d] << " "; }
-		        fout_deposit << std::endl;
+                if (saveSim)
+                {
+    		        auto const & edep = fTrainingDataAlg.wireEdep(w);
+	    	        for (size_t d = d0; d < d1; ++d) { fout_deposit << edep[d] << " "; }
+	    	        fout_deposit << std::endl;
 
-		        auto const & pdg = fTrainingDataAlg.wirePdg(w);
-		        for (size_t d = d0; d < d1; ++d) { fout_pdg << pdg[d] << " "; }
-		        fout_pdg << std::endl;
+		            auto const & pdg = fTrainingDataAlg.wirePdg(w);
+		            for (size_t d = d0; d < d1; ++d) { fout_pdg << pdg[d] << " "; }
+		            fout_pdg << std::endl;
+		        }
 	        }
 
 	        fout_raw.close();
-	        fout_deposit.close();
-	        fout_pdg.close();
+	        if (saveSim)
+	        {
+    	        fout_deposit.close();
+	            fout_pdg.close();
+	        }
         }
 	}
 
