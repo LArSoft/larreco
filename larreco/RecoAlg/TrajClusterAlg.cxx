@@ -411,6 +411,7 @@ namespace tca {
       // No sense taking muon direction if delta ray tagging is disabled
       if(tjs.DeltaRayTag[0] >= 0) TagMuonDirections(tjs, debug.WorkID);
       if(tjs.Vertex3DChiCut > 0) Find3DVertices(tjs, debug, tpcid);
+      KillPoorVertices(tjs);
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
         ChkVtxAssociations(tjs, fCTP);
@@ -450,7 +451,7 @@ namespace tca {
         }
       } // tpcid
     }
-    KillPoorVertices(tjs);
+//    KillPoorVertices(tjs);
     FillPFPInfo();
     // convert the cots vector into recob::Shower
     MakeShowers(tjs);
@@ -474,6 +475,7 @@ namespace tca {
     if(fDebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
+      PrintPFParticles(tjs);
     }
 
     unsigned short ntj = 0;
@@ -565,7 +567,7 @@ namespace tca {
     
     if(tj1.VtxID[1] > 0 && tj2.VtxID[0] == tj1.VtxID[1]) {
       if(prt) mf::LogVerbatim("TC")<<"MergeAndStore: Found a vertex between Tjs "<<tj1.VtxID[1]<<" "<<tj2.VtxID[0]<<". Killing it";
-      MakeVertexObsolete(tjs, tj1.VtxID[1]);
+      MakeVertexObsolete(tjs, tj1.VtxID[1], true);
     }
     
     if(tj1.StopFlag[1][kBragg]) {
@@ -2342,6 +2344,24 @@ namespace tca {
     // create the list of matches that will be converted to PFParticles
     // Start with Tjs attached to 3D vertices
     Match3DVtxTjs(tjs, tpcid, prt);
+    
+    // flag the matches that have a poor match fraction
+    for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
+      auto& ms = tjs.matchVec[indx];
+      if(ms.Count == 0) continue;
+      float maxlen = 1;
+      for(auto& tjID : ms.TjIDs) {
+        float len = NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
+        if(len > maxlen) maxlen = len;
+      }
+      float matfrac = ms.Count / maxlen;
+      // check for a reasonable match fraction
+      if(matfrac > 0.5) continue;
+      // ensure this isn't in the PFParticle list
+      if(std::find(tjs.matchVecPFPList.begin(), tjs.matchVecPFPList.end(), indx) != tjs.matchVecPFPList.end()) continue;
+      // flag it dead
+      ms.Count = 0;
+    } // ms
 
     // now match the leftover Tjs
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
@@ -2350,6 +2370,8 @@ namespace tca {
       // count the number of shower Tjs
       unsigned short nstj = 0;
       auto& ms = tjs.matchVec[indx];
+      // ignore dead matches
+      if(ms.Count == 0) continue;
       for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
         unsigned short itj = ms.TjIDs[ipl] - 1;
         if(tjs.allTraj[itj].AlgMod[kMat3D]) skipit = true;
@@ -2367,7 +2389,7 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"matchVec\n";
+      myprt<<"M3D: matchVec\n";
       for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
         myprt<<ii<<" Count "<<tjs.matchVec[ii].Count<<" TjIDs:";
         for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<tjID;
@@ -2380,9 +2402,32 @@ namespace tca {
         }
         float matfrac = tjs.matchVec[ii].Count / maxlen;
         myprt<<" matfrac "<<std::fixed<<std::setprecision(2)<<matfrac;
+        myprt<<" sVx3ID "<<tjs.matchVec[ii].Vx3ID[0]<<" eVx3ID "<<tjs.matchVec[ii].Vx3ID[1];
         myprt<<"\n";
+        if(ii == 50) {
+          myprt<<"...stopped printing after 50 entries.";
+          break;
+        }
       } // ii
     } // prt
+    
+    // clean up the AlgMod bits which are probably scrambled at this point
+    for(auto& tj : tjs.allTraj) {
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      if(planeID.Cryostat != tpcid.Cryostat) continue;
+      if(planeID.TPC != tpcid.TPC) continue;
+      tj.AlgMod[kMat3D] = false;
+    } // tj
+    // now re-set them
+    for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+      unsigned short imv = tjs.matchVecPFPList[ipfp];
+      auto& ms = tjs.matchVec[imv];
+      if(ms.Count == 0) continue;
+      for(auto& tjID : ms.TjIDs) {
+        Trajectory& tj = tjs.allTraj[tjID - 1];
+        tj.AlgMod[kMat3D] = true;
+      } // tjID
+    } // ipfp
     
     // ensure that a Tj will only used by one PFParticle
     std::vector<int> tjIDs;
@@ -2440,11 +2485,11 @@ namespace tca {
     } // ipfp
     
     Find3DEndPoints(tpcid);
-    Find3DShowerEndPoints(tjs, tpcid);
+//    Find3DShowerEndPoints(tjs, tpcid);
 
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"PFPList\n";
+      myprt<<"M3D: matchVec after Find3DEndPoints and Find3DShowerEndPoints\n";
       for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
         if(tjs.matchVec[ii].PDGCode == 0) continue;
         myprt<<ii<<" Count "<<tjs.matchVec[ii].Count<<" TjIDs: ";
@@ -2542,13 +2587,11 @@ namespace tca {
               } // indx
               if(indx == matVec.size()) {
                 // not found in the match vector so add it
-                MatchStruct ms;
-                ms.TjIDs.resize(3);
+                MatchStruct ms = CreateMatchStruct(tjs, tpcid, 3);
                 ms.TjIDs[ipl] = tjs.fHits[iht].InTraj;
                 ms.TjIDs[jpl] = tjs.fHits[jht].InTraj;
                 ms.TjIDs[kpl] = tjs.fHits[kht].InTraj;
                 ms.Count = 1;
-                ms.TPCID = tpcid;
                 matVec.push_back(ms);
               } // not found in the list
             } // kht
@@ -2600,14 +2643,14 @@ namespace tca {
         if(pln0Same && !pln1Same && pln2Same) { id1 = ims.TjIDs[1]; id2 = jms.TjIDs[1]; }
         if(!pln0Same && pln1Same && pln2Same) { id1 = ims.TjIDs[0]; id2 = jms.TjIDs[0]; }
         if(id1 == 0) continue;
-        if(prt) mf::LogVerbatim("TC")<<" trial merge of "<<id1<<" Count "<<ims.Count<<" and "<<id2<<" "<<" Count "<<jms.Count;
+//        if(prt) mf::LogVerbatim("TC")<<" trial merge of "<<id1<<" Count "<<ims.Count<<" and "<<id2<<" "<<" Count "<<jms.Count;
         // Try to merge in the best order. Generally the ID that is lower will have been reconstructed first
         if(id2 < id1) std::swap(id1, id2);
         unsigned int itj1 = id1 - 1;
         unsigned int itj2 = id2 - 1;
         Trajectory& tj1 = tjs.allTraj[itj1];
         Trajectory& tj2 = tjs.allTraj[itj2];
-        if(CompatibleMerge(tjs, tj1, tj2) && MergeAndStore(itj1, itj2, prt)) {
+        if(CompatibleMerge(tjs, tj1, tj2) && MergeAndStore(itj1, itj2, false)) {
           // success
           int newTjID = tjs.allTraj.size();
           tjs.allTraj[newTjID - 1].AlgMod[kMat3DMerge] = true;
@@ -2620,8 +2663,6 @@ namespace tca {
             if(std::find(kms.TjIDs.begin(), kms.TjIDs.end(), id1) != kms.TjIDs.end()) kms.Count = 0;
             if(std::find(kms.TjIDs.begin(), kms.TjIDs.end(), id2) != kms.TjIDs.end()) kms.Count = 0;
           }
-        } else {
-          if(prt) mf::LogVerbatim("TC")<<" trial merge of "<<id1<<" and "<<id2<<" failed ";
         }
       } // jndx
     } // indx
@@ -2711,12 +2752,10 @@ namespace tca {
                   }
                 } // indx
                 if(indx == temp.size()) {
-                  MatchStruct ms;
-                  ms.TjIDs.resize(2);
+                  MatchStruct ms = CreateMatchStruct(tjs, tpcid, 2);
                   ms.TjIDs[0] = tjs.fHits[iht].InTraj;
                   ms.TjIDs[1] = tjs.fHits[jht].InTraj;
                   ms.Count = 1;
-                  ms.TPCID = tpcid;
                   temp.push_back(ms);
                 } // not found in the list
               } // jht
@@ -2759,52 +2798,33 @@ namespace tca {
     // endpoints of the two longest trajectories in all planes. The endpoints and trajectories are then
     // reversed if necessary to put sXYZ[0] > eXYZ[0] and EndPt[0] => sXYZ 
     
-    for(auto& im : tjs.matchVecPFPList) {
-      auto& ms = tjs.matchVec[im];
+    prt = (debug.Plane >= 0) && (debug.Tick == 3333);
+    
+    for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
+      unsigned short imv = tjs.matchVecPFPList[ii];
+      auto& ms = tjs.matchVec[imv];
       if(ms.Count == 0) continue;
       if(ms.TPCID != tpcid) continue;
-      // ignore shower Tjs. These are handled in FindShowerEndPoints
-      if(ms.PDGCode == 1111) continue;
-      ms.sDir = {0, 0, 0};
-      ms.sDirErr = {0, 0, 0};
-      ms.sXYZ = {0, 0, 0};
-      // make a vector of start TPs for these Tjs
-      std::vector<TrajPoint> stps;
-      if(ms.sVtx3ID > 0) {
-        // a 3D start vertex exists. The position is known but not the direction.
-        // We still need to define stps to find the direction
-        for(auto& tjID : ms.TjIDs) {
-          Trajectory& tj = tjs.allTraj[tjID - 1];
-          for(unsigned short end = 0; end < 2; ++end) {
-            if(tj.VtxID[end] == 0) continue;
-            VtxStore& vx2 = tjs.vtx[tj.VtxID[end] - 1];
-            if(vx2.Vtx3ID != ms.sVtx3ID) continue;
-            unsigned short endPt = tj.EndPt[end];
-            TrajPoint tp = tj.Pts[endPt];
-            tp.Hits.clear();
-            tp.AngleCode = end;
-            tp.Delta = tj.ID;
-            stps.push_back(tp);
-          } // end
-        } // tjID
-        // set the direction
-        Vtx3Store& vx3 = tjs.vtx3[ms.sVtx3ID - 1];
-        ms.sXYZ[0] = vx3.X; ms.sXYZ[1] = vx3.Y; ms.sXYZ[2] = vx3.Z;
-      } // sVtx3ID > 0
-      else {
-        // Start vertex not defined so find matching points
-        FindMatchingPts(tjs, ms, stps);
-        if(stps.size() < 2) {
-          ms.Count = 0;
-          continue;
-        }
+      // ignore shower Tjs. These are handled in Find3DShowerEndPoints
+//      if(prt) mf::LogVerbatim("TC")<<"F3DEP: PDGCode "<<ms.PDGCode;
+//      if(ms.PDGCode == 1111) continue;
+      for(unsigned short startend = 0; startend < 2; ++startend) {
+        ms.Dir[startend] = {0, 0, 0};
+        ms.DirErr[startend] = {0, 0, 0};
+        ms.XYZ[startend] = {0, 0, 0};
       }
-      // We now have a vector of TPs that will define the direction (and position if there is no vertex)
-      // of the start of the PFParticle
-      if(stps.size() < 2) {
+      // make a vector of start and end TPs for these Tjs
+      std::vector<TrajPoint> stps;
+      std::vector<TrajPoint> etps;
+      if(!FindMatchingPts(tjs, ms, stps, etps, false) || stps.size() < 2 || etps.size() < 2) {
+        if(prt) mf::LogVerbatim("TC")<<"  FindMatchingPts failed imv "<<imv<<" stps size "<<stps.size()<<" etps size "<<etps.size();
         ms.Count = 0;
         continue;
       }
+
+      // We now have a vector of TPs that will define the direction (and position if there is no vertex)
+      // of the start of the PFParticle. The trajectories in ms should be in a consistent order but not
+      // necessarily the right order.
       // don't let the direction reverse
       TVector3 prevDir = {0, 0, 0};
       // weight the direction by the errors (at some point)
@@ -2813,23 +2833,24 @@ namespace tca {
       for(unsigned short ii = 0; ii < stps.size() - 1; ++ii) {
         for(unsigned short jj = ii + 1; jj < stps.size(); ++jj) {
           TVector3 pos, dir;
-          if(!TrajPoint3D(tjs, stps[ii], stps[jj], pos, dir)) continue;
-          if(ms.sVtx3ID == 0) {
-            // no vertex so sum to average the start position
-            ms.sXYZ[0] += pos[0]; ms.sXYZ[1] += pos[1]; ms.sXYZ[2] += pos[2];
-            ++wsum;
+          if(!TrajPoint3D(tjs, stps[ii], stps[jj], pos, dir)) {
+            if(prt) mf::LogVerbatim("TC")<<"  TrajPoint3D failed";
+            continue;
           }
+          // sum to average the start position
+          ms.XYZ[0][0] += pos[0]; ms.XYZ[0][1] += pos[1]; ms.XYZ[0][2] += pos[2];
+          ++wsum;
           if(first) {
             first = false;
             // ensure that the direction is away from a start vertex
-            if(ms.sVtx3ID > 0) {
-              if(pos[2] > ms.sXYZ[2] && dir[2] < 0) {
+            if(ms.Vx3ID[0] > 0) {
+              if(pos[2] > ms.XYZ[0][2] && dir[2] < 0) {
                 dir *= -1;
-              } else if(pos[2] < ms.sXYZ[2] && dir[2] > 0) {
+              } else if(pos[2] < ms.XYZ[0][2] && dir[2] > 0) {
                 dir *= -1;
               }
             } // start vertex exists
-            if(ms.sVtx3ID > 0 && pos[2] > ms.sXYZ[2] && dir[2] < 0) dir *= -1;
+            if(ms.Vx3ID[0] > 0 && pos[2] > ms.XYZ[0][2] && dir[2] < 0) dir *= -1;
             prevDir = dir;
           } else {
             // a valid direction cosine exists
@@ -2840,42 +2861,82 @@ namespace tca {
               }
             } // ixyz
           } // prevDir changed
-          ms.sDir += dir;
+          ms.Dir[0] += dir;
         } // jj
       } // ii
       // do the average
-      if(ms.sDir.Mag() == 0) continue;
-      ms.sDir.SetMag(1);
+      if(ms.Dir[0].Mag() == 0) {
+        if(prt) mf::LogVerbatim("TC")<<"  Dir[0] has 0 magnitude";
+        continue;
+      }
+      ms.Dir[0].SetMag(1);
       // correct the direction using a large direction cosine
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
-        if(std::abs(ms.sDir[ixyz]) > 0.5) {
-          if(ms.eXYZ[ixyz] > ms.sXYZ[ixyz] && ms.sDir[ixyz] < 0) ms.sDir *= -1;
+        if(std::abs(ms.Dir[0][ixyz]) > 0.5) {
+          if(ms.XYZ[1][ixyz] > ms.XYZ[0][ixyz] && ms.Dir[0][ixyz] < 0) ms.Dir[0] *= -1;
           break;
         }
       } // ixyz
       // define the position
-      if(wsum > 0) for(auto& xyz : ms.sXYZ) xyz /= wsum;
-      if(ms.sXYZ[0] < tjs.XLo || ms.sXYZ[0] > tjs.XHi) ms.Count = 0;
-      if(ms.sXYZ[1] < tjs.YLo || ms.sXYZ[1] > tjs.YHi) ms.Count = 0;
-      if(ms.sXYZ[2] < tjs.ZLo || ms.sXYZ[2] > tjs.ZHi) ms.Count = 0;
-      if(ms.Count == 0) continue;
-      // Reverse the Tjs so that end 0 is at the start vertex
-      for(auto& tp : stps) {
-        if(tp.AngleCode == 0) continue;
-        // need to reverse the Tj
-        int tjID = tp.Delta;
-        if(tjID < 1 || tjID > (int)tjs.allTraj.size()) continue;
-        ReverseTraj(tjs, tjs.allTraj[tjID - 1]);
-      } // tp
-      // TODO: Define the end position here
-/*
+
+      if(wsum > 0) for(auto& xyz : ms.XYZ[0]) xyz /= wsum;
+      if(ms.XYZ[0][0] < tjs.XLo || ms.XYZ[0][0] > tjs.XHi) ms.Count = 0;
+      if(ms.XYZ[0][1] < tjs.YLo || ms.XYZ[0][1] > tjs.YHi) ms.Count = 0;
+      if(ms.XYZ[0][2] < tjs.ZLo || ms.XYZ[0][2] > tjs.ZHi) ms.Count = 0;
+      if(ms.Count == 0) {
+        if(prt) mf::LogVerbatim("TC")<<"  sXYZ is outside the TPC";
+        continue;
+      }
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"F3DEP:";
+        for(auto& tp : stps) {
+          myprt<<" Tj "<<(int)tp.Delta<<" "<<PrintPos(tjs, tp.Pos)<<"_"<<tp.AngleCode<<"_"<<tp.NTPsFit;
+        } // tp
+      } // prt
+
+      /// Now define the end vertex
+      wsum = 0;
+      first = true;
+      for(unsigned short ii = 0; ii < etps.size() - 1; ++ii) {
+        for(unsigned short jj = ii + 1; jj < etps.size(); ++jj) {
+          TVector3 pos, dir;
+          if(!TrajPoint3D(tjs, etps[ii], etps[jj], pos, dir)) continue;
+          if(ms.Vx3ID[1] == 0) {
+            // no vertex so sum to average the start position
+            ms.XYZ[1][0] += pos[0]; ms.XYZ[1][1] += pos[1]; ms.XYZ[1][2] += pos[2];
+            if(first) {
+              first = false;
+              prevDir = dir;
+            } else {
+              // a valid direction cosine exists
+              for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
+                if(std::abs(prevDir[ixyz]) > 0.5) {
+                  if(prevDir[ixyz] * dir[ixyz] < 0) dir *= -1;
+                  break;
+                }
+              } // ixyz
+              
+            }
+            ms.Dir[1][0] += dir[0]; ms.Dir[1][1] += dir[1]; ms.Dir[1][2] += dir[2];
+            ++wsum;
+          }
+        } // jj
+      } // ii
+      // define the position
+      if(wsum > 0) {
+        for(auto& xyz : ms.XYZ[1]) xyz /= wsum;
+      }
+      // do some clumsy bound checking
+      if(ms.XYZ[1][0] < tjs.XLo) ms.XYZ[1][0] = tjs.XLo;
+      if(ms.XYZ[1][0] > tjs.XHi) ms.XYZ[1][0] = tjs.XHi;
+      if(ms.XYZ[1][1] < tjs.YLo) ms.XYZ[1][1] = tjs.YLo;
+      if(ms.XYZ[1][1] > tjs.YHi) ms.XYZ[1][1] = tjs.YHi;
+      if(ms.XYZ[1][2] < tjs.ZLo) ms.XYZ[1][2] = tjs.ZLo;
+      if(ms.XYZ[1][2] > tjs.ZHi) ms.XYZ[1][2] = tjs.ZHi;
+      // this calculates dE/dx at the start
       FilldEdx(tjs, ms);
-      std::cout<<" Pos "<<(int)ms.sXYZ[0]<<" "<<(int)ms.sXYZ[1]<<" "<<(int)ms.sXYZ[2]<<" Dir "<<ms.sDir[0]<<" "<<ms.sDir[1]<<" "<<ms.sDir[2];
-      std::cout<<" dE/dx";
-      for(auto& dedx : ms.dEdx) std::cout<<" "<<std::fixed<<std::setprecision(1)<<dedx;
-      std::cout<<" BestPlane "<<ms.BestPlane;
-      std::cout<<"\n";
-*/
+//      if(prt) mf::LogVerbatim("TC")<<"  success!";
     } // ms
     
   } // Find3DEndPoints
@@ -2886,10 +2947,19 @@ namespace tca {
     // Fills the PFParticle info in matchVec. Each entry contains a list of trajectories and has a defined
     // start and end XYZ position, possibly with the index of a 3D vertex. 
     
+    bool pprt = (debug.Plane >= 0 && debug.Tick == 3333);
+    
     unsigned short pfpCount = 0;
     for(auto& im : tjs.matchVecPFPList) {
       auto& ms = tjs.matchVec[im];
       // ms contains a list of tjs that were matched in 3D. 
+/*
+      if(pprt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"FPFPI: ms Count "<<ms.Count<<" TjIDS";
+        for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
+      }
+*/
       if(ms.Count == 0) continue;
       // Set the parent index to itself for now
       ms.ParentMSIndex = pfpCount;
@@ -2904,10 +2974,10 @@ namespace tca {
           unsigned short itj = tjID - 1;
           ReverseTraj(tjs, tjs.allTraj[itj]);
         } // tjID
-        if(prt)  mf::LogVerbatim("TC")<<" Reversed all Tjs using advice from Reverse3DMatchTjs";
+//        if(pprt)  mf::LogVerbatim("TC")<<" Reversed all Tjs using advice from Reverse3DMatchTjs";
         // swap the matchVec end info also
-        std::swap(ms.sXYZ, ms.eXYZ);
-        std::swap(ms.sVtx3ID, ms.eVtx3ID);
+        std::swap(ms.XYZ[0], ms.XYZ[1]);
+        std::swap(ms.Vx3ID[0], ms.Vx3ID[1]);
       } // Reverse3DMatchTjs
       // we may need to clobber 2D vertices so start a list and count them
       std::vector<unsigned short> vtxIDs, vtxIDCnt;
@@ -2931,10 +3001,10 @@ namespace tca {
       } // tjID
       // clobber any 2D vertices that exist between trajectories in the match list
       for(unsigned short ii = 0; ii < vtxIDs.size(); ++ii) {
-        if(vtxIDCnt[ii] > 1) MakeVertexObsolete(tjs, vtxIDs[ii]);
+        if(vtxIDCnt[ii] > 1) MakeVertexObsolete(tjs, vtxIDs[ii], true);
       } // ii
       // Make a 3D vertex at the start of the PFParticle if one doesn't already exist
-      if(ms.sVtx3ID == 0) {
+      if(ms.Vx3ID[0] == 0) {
         // get a reference to one of the Tjs to define the cryostat and TPC
         unsigned short itj = ms.TjIDs[0] - 1;
         geo::PlaneID planeID = DecodeCTP(tjs.allTraj[itj].CTP);
@@ -2943,15 +3013,17 @@ namespace tca {
         newVx3.TPCID = geo::TPCID(planeID.Cryostat, planeID.TPC);
         // Set Wire < 0 as a flag that this is a "complete" 3D vertex even though no 2D vertices have been made.
         newVx3.Wire = -2;
-        newVx3.X = ms.sXYZ[0];
-        newVx3.Y = ms.sXYZ[1];
-        newVx3.Z = ms.sXYZ[2];
+        newVx3.X = ms.XYZ[0][0];
+        newVx3.Y = ms.XYZ[0][1];
+        newVx3.Z = ms.XYZ[0][2];
         tjs.vtx3.push_back(newVx3);
-        ms.sVtx3ID = newVx3.ID;
-        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<newVx3.ID<<" at "<<newVx3.X<<" "<<newVx3.Y<<" "<<newVx3.Z;
+        ms.Vx3ID[0] = newVx3.ID;
+//        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<newVx3.ID<<" at "<<newVx3.X<<" "<<newVx3.Y<<" "<<newVx3.Z;
       }
     } // im (ms)
-
+    
+    if(pprt) PrintPFParticles(tjs);
+    
   } // FillPFPInfo
   
   //////////////////////////////////////////
@@ -5118,9 +5190,9 @@ namespace tca {
     if(!tjs.UseAlg[kVtxTj]) return;
     
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
-      if(tjs.vtx[ivx].Stat[kVtxKilled] == 0) continue;
-      if(tjs.vtx[ivx].CTP != fCTP) continue;
-     if(tjs.vtx[ivx].Stat[kVtxTrjTried]) continue;
+      if(tjs.vtx[ivx].ID == 0) continue;
+       if(tjs.vtx[ivx].CTP != fCTP) continue;
+      if(tjs.vtx[ivx].Stat[kVtxTrjTried]) continue;
       FindVtxTraj(ivx);
     } // ivx
     

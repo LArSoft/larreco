@@ -27,6 +27,17 @@ public:
 	Segment3D(void) : fParent(0) {}
 	Segment3D(pma::Track3D* trk, pma::Node3D* vstart, pma::Node3D* vstop);
 
+    Vector3D Start(void) const
+    {
+        auto const & p = static_cast< Node3D* >(Prev())->Point3D();
+        return Vector3D(p.X(), p.Y(), p.Z());
+    }
+    Vector3D End(void) const
+    {
+        auto const & p = static_cast< Node3D* >(Next())->Point3D();
+        return Vector3D(p.X(), p.Y(), p.Z());
+    }
+
 	/// Distance [cm] from the 3D segment to the point 3D.
 	double GetDistance2To(const TVector3& p3d) const override;
 

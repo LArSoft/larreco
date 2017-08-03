@@ -875,7 +875,7 @@ bool ems::EMShower3D::Validate(art::Event const & e, const pma::Track3D& src, si
 	}
 	
 
-	if (fProjectionMatchingAlg.validate(src, hitscl, plane) > 0.2) result = true;
+	if (fProjectionMatchingAlg.validate(src, hitscl) > 0.2) result = true;
 		
 	return result;
 }

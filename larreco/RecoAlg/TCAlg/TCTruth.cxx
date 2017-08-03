@@ -284,8 +284,8 @@ namespace tca {
                 nuVtxRecoOK = true;
                 float score = 0;
                 for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-                  if(aVtx3.Vtx2ID[ipl] == 0) continue;
-                  unsigned short iv2 = aVtx3.Vtx2ID[ipl] - 1;
+                  if(aVtx3.Vx2ID[ipl] == 0) continue;
+                  unsigned short iv2 = aVtx3.Vx2ID[ipl] - 1;
                   score += tjs.vtx[iv2].Score;
                 } // ipl
                 hist.fNuVtx_Score->Fill(score);
@@ -659,6 +659,7 @@ namespace tca {
       // obsolete vertex
       if(tj.AlgMod[kKilled]) continue;
       // require a truth match
+
       if(tj.MCPartListIndex == USHRT_MAX) continue;
       if (tj.MCPartListIndex < tjs.MCPartList.size()) { 
 	// ignore electrons unless it is a primary electron    
@@ -666,7 +667,6 @@ namespace tca {
 	int pdg = abs(mcp->PdgCode());
 	if(pdg == 11 && mcp->Mother() != 0) continue;
       }
-
       for(unsigned short end = 0; end < 2; ++end) {
         if(tj.VtxID[end] == 0) continue;
         VtxStore& vx2 = tjs.vtx[tj.VtxID[end]-1];
