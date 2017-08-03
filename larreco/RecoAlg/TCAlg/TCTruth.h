@@ -24,20 +24,28 @@ namespace tca {
     
     TruthMatcher(TjStuff& my_tjs) : tjs(my_tjs) {
       EPCnts.fill(0); 
-      EPSums.fill(0.0);
+      TSums.fill(0.0);
       EPTSums.fill(0.0);
-    }
+      MCP_TSum = 0;
+      MCP_EPTSum = 0;
+      PFP_CntGoodMat = 0;
+      PFP_CntTot = 0;
+   }
     
     void Initialize();
     void MatchTrueHits();
-    void MatchTruth(const HistStuff& hist, unsigned int& fEventsProcessed);
+    void MatchTruth(const HistStuff& hist, unsigned int fEventsProcessed);
     void PrintResults(int eventNum) const;
     
     TjStuff& tjs;
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
     std::array<short, 5> EPCnts {{0}};
-    std::array<float, 5> EPSums;
-    std::array<float, 5> EPTSums;
+    std::array<float, 5> TSums;    // sum of kinetic energy
+    std::array<float, 5> EPTSums;   // E*P sum weighted by kinetic energy for 5 particle types
+    float MCP_TSum;                   // T sum
+    float MCP_EPTSum;                  // E*P weighted sum
+    float PFP_CntGoodMat;              // Count of well matched MCParticles (> 1 plane)
+    float PFP_CntTot;
     
     // number of primary particles in the event
     unsigned short nTruPrimary;

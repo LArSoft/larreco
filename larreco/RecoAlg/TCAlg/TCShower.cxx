@@ -169,13 +169,14 @@ namespace tca {
           ms.XYZ[1][2] += zp;
         } // jj
       } // ii
-      if(wsum == 0 || ne == 0) {
+      if(wsum == 0 || ne == 0 || ms.Dir[0].Mag() == 0) {
         if(prt) mf::LogVerbatim("TC")<<" FSEP: Failed to find shower start or end. "<<wsum<<" "<<ne<<" Skip this match";
+        ms.Count = 0;
         continue;
       }
       for(auto& xyz : ms.XYZ[0]) xyz /= wsum;
       for(auto& xyz : ms.XYZ[1]) xyz /= (float)ne;
-      if(ms.Dir[0].Mag() != 0) ms.Dir[0].SetMag(1);
+      ms.Dir[0].SetMag(1);
       // correct the direction using a large direction cosine
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
         if(std::abs(ms.Dir[0][ixyz]) > 0.5) {
@@ -401,10 +402,11 @@ namespace tca {
 
     // mark them all as InShower Tjs
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
+      CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       for(auto& tjl : bigList[plane]) {
         for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
       } // tjl
-      
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, bigList[plane], 3);
     } // plane
 
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
@@ -431,7 +433,7 @@ namespace tca {
         // MCSMom, etc. This will be used to decide if showers should be merged
         //AddTjsInsideEnvelope(tjs, cotIndex, prt,1);
         AddTjsInsideEnvelope(tjs, cotIndex,prt);
-	FindNearbyTjs(tjs, cotIndex, prt);
+        FindNearbyTjs(tjs, cotIndex, prt);
         FindMatchingTjs(tjs, cotIndex, prt);
         if(prt) {
           ShowerStruct& ss = tjs.cots[cotIndex];
@@ -458,6 +460,13 @@ namespace tca {
       if(tjs.cots[cotIndex].TjIDs.empty()) continue;
       prt = (tjs.cots[cotIndex].CTP == dbgCTP || dbgPlane > 2);
       FindExternalParent(tjs, cotIndex, prt);
+      auto& ms = tjs.cots[cotIndex];
+      if(ms.TjIDs.empty()) continue;
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ms.CTP, cotIndex, 6);
+      if(tjs.cots[cotIndex].TjIDs.empty()) continue;
+      prt = (tjs.cots[cotIndex].CTP == dbgCTP || dbgPlane > 2);
+      FindExternalParent(tjs, cotIndex, prt);
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ms.CTP, cotIndex, 7);
       ShowerStruct& ss = tjs.cots[cotIndex];
       if(ss.TjIDs.empty()) continue;
       Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
@@ -2565,12 +2574,8 @@ namespace tca {
   } // DefineEnvelope  
   
   ////////////////////////////////////////////////
-  //<<<<<<< HEAD
-  /*void AddTjsInsideEnvelope(TjStuff& tjs, const unsigned short& cotIndex, bool prt, int mode)
-    =======*/
   void AddTjsInsideEnvelope(TjStuff& tjs, unsigned short cotIndex, bool prt)
-  //>>>>>>> 023b6780cca39fd1f14eb4f92a635498a33c840d*/
-  {
+   {
     // This function adds Tjs to the shower. It updates the shower parameters.
     
     if(cotIndex > tjs.cots.size() - 1) return;

@@ -227,7 +227,7 @@ namespace tca {
     // Finds junk trajectories using unassigned hits
     void FindJunkTraj();
     // Finds junk trajectories using unassigned hits
-    void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned short& newTjIndex);
+    void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned int& newTjIndex);
     // Step through TPs starting at the end and moving to the beginning
     void ReversePropagate(Trajectory& tj);
     // Start a trajectory going from fromHit to (toWire, toTick)
@@ -249,9 +249,7 @@ namespace tca {
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText);
-    // Merge and store the two trajectories in allTraj
-    bool MergeAndStore(unsigned int tj1,  unsigned int tj2, bool doPrt);
-    // Make clusters from all trajectories in allTraj
+     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
     void FindVtxTjs();
     void FindVtxTraj(unsigned short ivx);

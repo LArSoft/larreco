@@ -1,6 +1,104 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
 namespace tca {
+  
+  /////////////////////////////////////////
+  void DefinePFParticleRelationships(TjStuff& tjs)
+  {
+    
+    // Define the parent (j) - daughter (i) relationship and the PDGCode
+    for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+      unsigned short imv = tjs.matchVecPFPList[ipfp];
+      auto& ms = tjs.matchVec[imv];
+      // assume that this is its own parent
+      ms.ParentMSIndex = ipfp;
+      unsigned short n11 = 0;
+      unsigned short n13 = 0;
+      unsigned short nsh = 0;
+      // look for a parent (j) in the list of trajectories
+      for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
+        unsigned short itj = ms.TjIDs[ii] - 1;
+        Trajectory& tj = tjs.allTraj[itj];
+        if(tj.PDGCode == 11) ++n11;
+        if(tj.PDGCode == 13) ++n13;
+        if(tj.AlgMod[kShowerTj]) ++nsh;
+        // Look for a parent trajectory that is matched in 3D
+        if(tj.ParentTrajID > 0 && tjs.allTraj[tj.ParentTrajID - 1].AlgMod[kMat3D]) {
+          // Look for this parent in matchVecPFPList
+          for(unsigned short jpfp = 0; jpfp < tjs.matchVecPFPList.size(); ++jpfp) {
+            if(jpfp == ipfp) continue;
+            unsigned short jmv = tjs.matchVecPFPList[jpfp];
+            auto& jms = tjs.matchVec[jmv];
+            if(std::find(jms.TjIDs.begin(), jms.TjIDs.end(), tj.ParentTrajID) != jms.TjIDs.end()) {
+              ms.ParentMSIndex = jpfp;
+              if(std::find(jms.DtrIndices.begin(), jms.DtrIndices.end(), ipfp) == jms.DtrIndices.end()) jms.DtrIndices.push_back(ipfp);
+              break;
+            }
+          } // jpfp
+        } // ParentTrajID > 0
+      } // ii
+      ms.PDGCode = 13;
+      if(nsh > 1) {
+        // use PDGCode = 1111 for a shower Tj
+        ms.PDGCode = 1111;
+      } else if(n11 > n13) {
+        // a generic shower-like Tj
+        ms.PDGCode = 11;
+      }
+    } // ipfp
+
+  } // DefinePFParticleRelationships
+  
+  /////////////////////////////////////////
+  void MergeBrokenTjs(TjStuff& tjs, std::vector<MatchStruct>& matVec)
+  {
+    // merge broken trajectories listed in matVec
+    if(matVec.empty()) return;
+    
+    // Merge fragments of broken Tjs
+    for(unsigned int indx = 0; indx < matVec.size() - 1; ++indx) {
+      MatchStruct& ims = matVec[indx];
+      if(ims.TjIDs.size() < 3) break;
+      if(ims.Count < 5) continue;
+      int minCnt = 0.1 * ims.Count;
+      if(minCnt < 5) minCnt = 5;
+      for(unsigned short jndx = indx + 1; jndx < matVec.size(); ++jndx) {
+        MatchStruct& jms = matVec[jndx];
+        if(jms.TjIDs.size() < 3) break;
+        if(jms.Count < minCnt) continue;
+        bool pln0Same = (jms.TjIDs[0] == ims.TjIDs[0]);
+        bool pln1Same = (jms.TjIDs[1] == ims.TjIDs[1]);
+        bool pln2Same = (jms.TjIDs[2] == ims.TjIDs[2]);
+        int id1 = 0;
+        int id2 = 0;
+        if(pln0Same && pln1Same && !pln2Same) { id1 = ims.TjIDs[2]; id2 = jms.TjIDs[2]; }
+        if(pln0Same && !pln1Same && pln2Same) { id1 = ims.TjIDs[1]; id2 = jms.TjIDs[1]; }
+        if(!pln0Same && pln1Same && pln2Same) { id1 = ims.TjIDs[0]; id2 = jms.TjIDs[0]; }
+        if(id1 == 0) continue;
+        //        if(prt) mf::LogVerbatim("TC")<<" trial merge of "<<id1<<" Count "<<ims.Count<<" and "<<id2<<" "<<" Count "<<jms.Count;
+        // Try to merge in the best order. Generally the ID that is lower will have been reconstructed first
+        if(id2 < id1) std::swap(id1, id2);
+        unsigned int itj1 = id1 - 1;
+        unsigned int itj2 = id2 - 1;
+        Trajectory& tj1 = tjs.allTraj[itj1];
+        Trajectory& tj2 = tjs.allTraj[itj2];
+        if(CompatibleMerge(tjs, tj1, tj2) && MergeAndStore(tjs, itj1, itj2, false)) {
+          // success
+          int newTjID = tjs.allTraj.size();
+          tjs.allTraj[newTjID - 1].AlgMod[kMat3DMerge] = true;
+          tjs.allTraj[itj1].AlgMod[kMat3DMerge] = true;
+          tjs.allTraj[itj2].AlgMod[kMat3DMerge] = true;
+//          if(prt) mf::LogVerbatim("TC")<<" merge successfull. newTjID "<<newTjID;
+          std::replace(ims.TjIDs.begin(), ims.TjIDs.begin(), id1, newTjID);
+          std::replace(ims.TjIDs.begin(), ims.TjIDs.begin(), id2, newTjID);
+          for(auto& kms : matVec) {
+            if(std::find(kms.TjIDs.begin(), kms.TjIDs.end(), id1) != kms.TjIDs.end()) kms.Count = 0;
+            if(std::find(kms.TjIDs.begin(), kms.TjIDs.end(), id2) != kms.TjIDs.end()) kms.Count = 0;
+          }
+        }
+      } // jndx
+    } // indx
+  } // MergeBrokenTjs
 
   /////////////////////////////////////////
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir)
@@ -117,12 +215,18 @@ namespace tca {
       } // end
     } // ii
     // the number of bins in X
-    unsigned short nxbins = (xhi - xlo) / tjs.Match3DCuts[0];
+    float xbinSize = tjs.Match3DCuts[0];
+    unsigned short nxbins = (xhi - xlo) / xbinSize;
+    if(nxbins < 2) {
+      // try going smaller if there aren't enough bins
+      xbinSize /= 2;
+      nxbins = (xhi - xlo) / xbinSize;
+    }
     // create X matching vectors for each Tj. Initialize with bogus Tj point indices
     std::vector<std::vector<unsigned short>> tjpt(ms.TjIDs.size(), std::vector<unsigned short>(nxbins, USHRT_MAX));
     // temp vector for holding the low end of the X bin value
     std::vector<float> binX(nxbins);
-    for(unsigned short bin = 0; bin < nxbins; ++bin) binX[bin] = xlo + bin * tjs.Match3DCuts[0];
+    for(unsigned short bin = 0; bin < nxbins; ++bin) binX[bin] = xlo + bin * xbinSize;
     for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
       unsigned short itj = ms.TjIDs[ii] - 1;
       const Trajectory& tj = tjs.allTraj[itj];
@@ -130,7 +234,7 @@ namespace tca {
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         const TrajPoint& tp = tj.Pts[ipt];
         float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, ms.TPCID.TPC, ms.TPCID.Cryostat);
-        unsigned short bin = (xpos - xlo) / tjs.Match3DCuts[0];
+        unsigned short bin = (xpos - xlo) / xbinSize;
         if(bin > nxbins - 1) continue;
         tjpt[ii][bin] = ipt;
         // put this in the next x bin as well
@@ -178,7 +282,7 @@ namespace tca {
     if(firstAll > nxbins - 1) return false;
     unsigned short lastAll = USHRT_MAX;
     for(lastAll = nxbins - 1; lastAll > firstAll + 1; --lastAll) if(cnts[lastAll] == ms.TjIDs.size()) break;
-    if(prt) mf::LogVerbatim("TC")<<"firstAll "<<firstAll<<" lastAll "<<lastAll<<"\n";
+    if(prt) mf::LogVerbatim("TC")<<"firstAll "<<firstAll<<" lastAll "<<lastAll;
     if(lastAll <= firstAll) return false;
     
     // next find the first and last bins where at least two planes match
@@ -241,16 +345,16 @@ namespace tca {
       // make a copy to simplify getting the tjpt order correct
       Trajectory old = tj;
       if(prt) mf::LogVerbatim("TC")<<"reverse tj "<<tj.ID;
+      // temporarily mask off the 3D match bit so that ReverseTraj doesn't complain
+      tj.AlgMod[kMat3D] = false;
       ReverseTraj(tjs, tj);
+      tj.AlgMod[kMat3D] = true;
       for(unsigned short newpt = tj.EndPt[0]; newpt <= tj.EndPt[1]; ++newpt) {
         for(unsigned short oldpt = old.EndPt[0]; oldpt <= old.EndPt[1]; ++oldpt) {
           if(tj.Pts[newpt].Pos[0] != old.Pts[oldpt].Pos[0]) continue;
           if(tj.Pts[newpt].Pos[1] != old.Pts[oldpt].Pos[1]) continue;
           // out with the old. in with the new
           std::replace(tjpt[reverseMe].begin(), tjpt[reverseMe].end(), oldpt, newpt);
-          if(oldpt == first2) first2 = newpt;
-          if(oldpt == last2) last2 = newpt;
-          // don't bother with firstAll or lastAll since they aren't used below
           break;
         } // oldpt
       } // newpt
@@ -350,6 +454,8 @@ namespace tca {
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
       for(unsigned short startend = 0; startend < 2; ++startend) {
+        ms.dEdx[startend][planeID.Plane] = 0;
+        tj.dEdx[startend] = 0;
         double cosgamma = std::abs(std::sin(angleToVert) * ms.Dir[startend].Y() + std::cos(angleToVert) * ms.Dir[startend].Z());
         if(cosgamma == 0) continue;
         double dx = tjs.geom->WirePitch(planeID) / cosgamma;
@@ -359,10 +465,12 @@ namespace tca {
         // convert to dQ/dx
         dQ /= dx;
         double time = tj.Pts[tj.EndPt[startend]].Pos[1] / tjs.UnitsPerTick;
-        ms.dEdx[startend][planeID.Plane] = tjs.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
-        tj.dEdx[startend] = ms.dEdx[startend][planeID.Plane];
+        float dedx = tjs.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
+        if(dedx > 999) dedx = 999;
+        ms.dEdx[startend][planeID.Plane] = dedx;
+        tj.dEdx[startend] = dedx;
         // ChgRMS is the fractional error
-        ms.dEdxErr[startend][planeID.Plane] = ms.dEdx[startend][planeID.Plane] * tj.ChgRMS;
+        ms.dEdxErr[startend][planeID.Plane] = dedx * tj.ChgRMS;
       } // startend
       // Grab the best plane iusing the start f 1 < dE/dx < 50 MeV/cm
       if(ms.dEdx[0][planeID.Plane] > 1 && ms.dEdx[0][planeID.Plane] < 50) {
@@ -657,32 +765,28 @@ namespace tca {
   } // WatchHit
 
   ////////////////////////////////////////////////
-  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im, bool prt)
+  void Reverse3DMatchTjs(TjStuff& tjs, MatchStruct& ms, bool prt)
   {
     // Return true if the 3D matched hits in the trajectories in tjs.matchVecPFPList are in the wrong order in terms of the
     // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc. 
     
-    if(im > tjs.matchVecPFPList.size() - 1) return false;
-    
-    auto& mv = tjs.matchVec[im];
-    
     // Don't reverse showers
-    if(mv.PDGCode == 1111) return false;
+    if(ms.PDGCode == 1111) return;
 
     // through-going track? Check for outside the Fiducial Volume at the start (s) and end (e).
     // These variables assume that the TPC is exposed to a beam that contains muons entering at the front and
     // a background of cosmic rays that enter from the top
-    bool sAtSide = (mv.XYZ[0][0] < tjs.XLo || mv.XYZ[0][0] > tjs.XHi);
-    bool sAtTop = (mv.XYZ[0][1] > tjs.YHi);
-    bool sAtBottom = (mv.XYZ[0][1] < tjs.YLo);
-    bool sAtFront = (mv.XYZ[0][2] < tjs.ZLo);
-    bool sAtBack = (mv.XYZ[0][2] > tjs.ZHi);
+    bool sAtSide = (ms.XYZ[0][0] < tjs.XLo || ms.XYZ[0][0] > tjs.XHi);
+    bool sAtTop = (ms.XYZ[0][1] > tjs.YHi);
+    bool sAtBottom = (ms.XYZ[0][1] < tjs.YLo);
+    bool sAtFront = (ms.XYZ[0][2] < tjs.ZLo);
+    bool sAtBack = (ms.XYZ[0][2] > tjs.ZHi);
     
-    bool eAtSide = (mv.XYZ[1][0] < tjs.XLo || mv.XYZ[1][0] > tjs.XHi);
-    bool eAtTop = (mv.XYZ[1][1] > tjs.YHi);
-    bool eAtBottom = (mv.XYZ[1][1] < tjs.YLo);
-    bool eAtFront = (mv.XYZ[1][2] < tjs.ZLo);
-    bool eAtBack = (mv.XYZ[1][2] > tjs.ZHi);
+    bool eAtSide = (ms.XYZ[1][0] < tjs.XLo || ms.XYZ[1][0] > tjs.XHi);
+    bool eAtTop = (ms.XYZ[1][1] > tjs.YHi);
+    bool eAtBottom = (ms.XYZ[1][1] < tjs.YLo);
+    bool eAtFront = (ms.XYZ[1][2] < tjs.ZLo);
+    bool eAtBack = (ms.XYZ[1][2] > tjs.ZHi);
     
     // the start (end) is outside the FV
     bool sOutsideFV = sAtBottom || sAtTop || sAtFront || sAtBack;
@@ -690,43 +794,60 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"sXYZ ("<<(int)mv.XYZ[0][0]<<", "<<(int)mv.XYZ[0][1]<<", "<<(int)mv.XYZ[0][2]<<") sOutsideFV "<<sOutsideFV;
-      myprt<<" eXYZ ("<<(int)mv.XYZ[1][0]<<", "<<(int)mv.XYZ[1][1]<<", "<<(int)mv.XYZ[1][2]<<") eOutsideFV "<<eOutsideFV;
+      myprt<<"sXYZ ("<<(int)ms.XYZ[0][0]<<", "<<(int)ms.XYZ[0][1]<<", "<<(int)ms.XYZ[0][2]<<") sOutsideFV "<<sOutsideFV;
+      myprt<<" eXYZ ("<<(int)ms.XYZ[1][0]<<", "<<(int)ms.XYZ[1][1]<<", "<<(int)ms.XYZ[1][2]<<") eOutsideFV "<<eOutsideFV;
     } // prt
     
+    bool reverseMe = false;
     if(sOutsideFV && eOutsideFV) {
       // both ends are outside the FV - probably a through-going muon. See if it enters at the top or the front.
-      if(sAtFront && eAtBack) return false;
-      if(eAtFront && sAtBack) return true;
+      // looks like a beam muon
+      if(sAtFront && eAtBack) return;
+      // beam muon in the wrong direction?
+      if(eAtFront && sAtBack) reverseMe = true;
       // Next consider cosmic rays entering the top
-      if(sAtTop && eAtBottom) return false;
-      if(eAtTop && sAtBottom) return true;
+      if(sAtTop && eAtBottom) return;
+      if(eAtTop && sAtBottom) reverseMe = true;
       // entering/leaving the sides
-      if(sAtSide && eAtBottom) return false;
-      if(eAtSide && sAtBottom) return true;
-      return false;
+      if(sAtSide && eAtBottom) return;
+      if(eAtSide && sAtBottom) reverseMe = true;
     } // outside the FV
 
-    // Use a simple voting scheme using charge and muon tag direction
-    // ngt is the number of times that something (charge) has the correct behavior (for a stopping track)
-    unsigned short ngt = 0;
-    unsigned short nlt = 0;
-    for(auto& tjID : mv.TjIDs) {
-      unsigned short itj = tjID - 1;
-      unsigned short endPt0 = tjs.allTraj[itj].EndPt[0];
-      unsigned short endPt1 = tjs.allTraj[itj].EndPt[1];
-      float chgrat = tjs.allTraj[itj].Pts[endPt1].AveChg / tjs.allTraj[itj].Pts[endPt0].AveChg;
-      if(chgrat > 1.1) {
-        ++ngt;
-      } else if(chgrat < 0.9) {
-        ++nlt;
+    // look for stopping Tjs for contained PFParticles
+    if(!reverseMe) {
+      unsigned short braggCnt0 = 0;
+      unsigned short braggCnt1 = 0;
+      for(auto& tjID : ms.TjIDs) {
+        auto& tj = tjs.allTraj[tjID - 1];
+        if(tj.StopFlag[0][kBragg]) ++braggCnt0;
+        if(tj.StopFlag[1][kBragg]) ++braggCnt1;
       }
-    } // itj
+      if(braggCnt0 > 0 || braggCnt1 > 0) {
+        ms.PDGCode = 2212;
+        // Vote for a Bragg peak at the beginning. It should be at the end
+        if(braggCnt0 > braggCnt1) reverseMe = true;
+      } // found a Bragg Peak 
+    } // look for stopping Tjs 
     
-    // everything seems to be in proper order
-    if(ngt >= nlt) return false;
+    if(!reverseMe) return;
     
-    return true;
+    // All of the trajectories should be reversed
+    for(auto& tjID : ms.TjIDs) {
+      unsigned short itj = tjID - 1;
+      Trajectory& tj = tjs.allTraj[itj];
+      tj.AlgMod[kMat3D] = false;
+      ReverseTraj(tjs, tj);
+      tj.AlgMod[kMat3D] = true;
+    } // tjID
+    // swap the matchVec end info also
+    std::swap(ms.XYZ[0], ms.XYZ[1]);
+    std::swap(ms.Dir[0], ms.Dir[1]);
+    std::swap(ms.DirErr[0], ms.DirErr[1]);
+    std::swap(ms.dEdx[0], ms.dEdx[1]);
+    std::swap(ms.dEdxErr[0], ms.dEdxErr[1]);
+    std::swap(ms.Vx3ID[0], ms.Vx3ID[1]);
+    
+    return;
     
   } // Reverse3DMatchTjs
 
@@ -2002,6 +2123,9 @@ namespace tca {
   {
     // reverse the trajectory
     if(tj.Pts.empty()) return;
+    if(tj.AlgMod[kMat3D]) {
+      std::cout<<"Trying to reverse a 3D matched Tj. Need to modify other Tjs and the MatchStruct\n";
+    }
     // reverse the crawling direction flag
     tj.StepDir = -tj.StepDir;
     // reverse the direction
@@ -2565,12 +2689,12 @@ namespace tca {
     const geo::TPCGeo &thetpc = tjs.geom->TPC(tpc, cstat);
     thetpc.LocalToWorld(local,world);
     // reduce the active area of the TPC by 1 cm to prevent wire boundary issues
-    tjs.XLo = world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + 5;
-    tjs.XHi = world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - 5;
-    tjs.YLo = world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + 5;
-    tjs.YHi = world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - 5;
-    tjs.ZLo = world[2]-tjs.geom->DetLength(tpc,cstat)/2 + 5;
-    tjs.ZHi = world[2]+tjs.geom->DetLength(tpc,cstat)/2 - 5;
+    tjs.XLo = world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + 1;
+    tjs.XHi = world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - 1;
+    tjs.YLo = world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + 1;
+    tjs.YHi = world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - 1;
+    tjs.ZLo = world[2]-tjs.geom->DetLength(tpc,cstat)/2 + 1;
+    tjs.ZHi = world[2]+tjs.geom->DetLength(tpc,cstat)/2 - 1;
     
     lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
     
@@ -2732,6 +2856,158 @@ namespace tca {
     if(planeID.TPC != tjs.TPCID.TPC) return false;
     return true;
   }
+  
+  ////////////////////////////////////////////////
+  bool MergeAndStore(TjStuff& tjs, unsigned int itj1, unsigned int itj2, bool doPrt)
+  {
+    // Merge the two trajectories in allTraj and store them. Returns true if it was successfull.
+    // Merging is done between the end (end = 1) of tj1 and the beginning (end = 0) of tj2. This function preserves the
+    // AlgMod state of itj1.
+    // BB: The itj1 -> itj2 merge order is reversed if end1 of itj2 is closer to end0 of itj1
+    
+    if(itj1 > tjs.allTraj.size() - 1) return false;
+    if(itj2 > tjs.allTraj.size() - 1) return false;
+    if(tjs.allTraj[itj1].AlgMod[kKilled] || tjs.allTraj[itj2].AlgMod[kKilled]) return false;
+    
+    // Merging shower Tjs requires merging the showers as well.
+    if(tjs.allTraj[itj1].AlgMod[kShowerTj] || tjs.allTraj[itj2].AlgMod[kShowerTj]) return MergeShowerTjsAndStore(tjs, itj1, itj2, doPrt);
+    
+    // make copies so they can be trimmed as needed
+    Trajectory tj1 = tjs.allTraj[itj1];
+    Trajectory tj2 = tjs.allTraj[itj2];
+    
+    // ensure that these are in the same step order
+    if(tj1.StepDir != tj2.StepDir) ReverseTraj(tjs, tj2);
+    
+    std::array<float, 2> tp1e0 = tj1.Pts[tj1.EndPt[0]].Pos;
+    std::array<float, 2> tp1e1 = tj1.Pts[tj1.EndPt[1]].Pos;
+    std::array<float, 2> tp2e0 = tj2.Pts[tj2.EndPt[0]].Pos;
+    std::array<float, 2> tp2e1 = tj2.Pts[tj2.EndPt[1]].Pos;
+    
+    if(doPrt) {
+      mf::LogVerbatim("TC")<<"MergeAndStore: tj1.ID "<<tj1.ID<<" tj2.ID "<<tj2.ID<<" Looking for "<<PosSep2(tp1e1, tp2e0)<<" < "<<PosSep2(tp2e1, tp1e0)<<" at merge points "<<PrintPos(tjs, tp1e1)<<" "<<PrintPos(tjs, tp2e0);
+    }
+    
+    // swap the order so that abs(tj1end1 - tj2end0) is less than abs(tj2end1 - tj1end0)
+    if(PosSep2(tp1e1, tp2e0) > PosSep2(tp2e1, tp1e0)) {
+      std::swap(tj1, tj2);
+      std::swap(tp1e0, tp2e0);
+      std::swap(tp1e1, tp2e1);
+    }
+    
+    // Here is what we are looking for, where - indicates a TP with charge.
+    // Note that this graphic is in the stepping direction (+1 = +wire direction)
+    // tj1:  0------------1
+    // tj2:                  0-----------1
+    // Another possibility with overlap
+    // tj1:  0-------------1
+    // tj2:               0--------------1
+    
+    if(tj1.StepDir > 1) {
+      // Not allowed
+      // tj1:  0---------------------------1
+      // tj2:                  0------1
+      if(tp2e0[0] > tp1e0[0] && tp2e1[0] < tp1e1[0]) return false;
+      /// Not allowed
+      // tj1:                  0------1
+      // tj2:  0---------------------------1
+      if(tp1e0[0] > tp2e0[0] && tp1e1[0] < tp2e1[0]) return false;
+    } else {
+      // same as above but with ends reversed
+      if(tp2e1[0] > tp1e1[0] && tp2e0[0] < tp1e0[0]) return false;
+      if(tp1e1[0] > tp2e1[0] && tp1e0[0] < tp2e0[0]) return false;
+    }
+    
+    if(tj1.VtxID[1] > 0 && tj2.VtxID[0] == tj1.VtxID[1]) {
+      if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: Found a vertex between Tjs "<<tj1.VtxID[1]<<" "<<tj2.VtxID[0]<<". Killing it";
+      MakeVertexObsolete(tjs, tj1.VtxID[1], true);
+    }
+    
+    if(tj1.StopFlag[1][kBragg]) {
+      if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: You are merging the end of a trajectory "<<tj1.ID<<" with a Bragg peak. Not merging\n";
+      return false;
+    }
+    
+    // assume that everything will succeed
+//    fQuitAlg = false;
+    
+    // remove any points at the end of tj1 that don't have used hits
+    tj1.Pts.resize(tj1.EndPt[1] + 1);
+    
+    // determine if they overlap by finding the point on tj2 that is closest
+    // to the end point of tj1.
+    TrajPoint& endtj1TP = tj1.Pts[tj1.EndPt[1]];
+    // Set minSep large so that dead wire regions are accounted for
+    float minSep = 1000;
+    unsigned short tj2ClosePt = 0;
+    // Note that TrajPointTrajDOCA only considers TPs that have charge
+    TrajPointTrajDOCA(tjs, endtj1TP, tj2, tj2ClosePt, minSep);
+    if(doPrt) mf::LogVerbatim("TC")<<" Merge point tj1 "<<PrintPos(tjs, endtj1TP)<<" tj2ClosePt "<<tj2ClosePt<<" Pos "<<PrintPos(tjs, tj2.Pts[tj2ClosePt]);
+    // check for full overlap
+    if(tj2ClosePt > tj2.EndPt[1]) return false;
+    
+    // The approach is to append tj2 to tj1, store tj1 as a new trajectory,
+    // and re-assign all hits to the new trajectory
+    
+    // First ensure that any hit will appear only once in the merged trajectory in the overlap region
+    // whether it is used or unused. The point on tj2 where the merge will begin, tj2ClosePt, will be
+    // increased until this condition is met.
+    // Make a temporary vector of tj1 hits in the end points for simpler searching
+    std::vector<unsigned int> tj1Hits;
+    for(unsigned short ii = 0; ii < tj1.Pts.size(); ++ii) {
+      // only go back a few points in tj1
+      if(ii > 10) break;
+      unsigned short ipt = tj1.Pts.size() - 1 - ii;
+      tj1Hits.insert(tj1Hits.end(), tj1.Pts[ipt].Hits.begin(), tj1.Pts[ipt].Hits.end());
+      if(ipt == 0) break;
+    } // ii
+    
+    bool bumpedPt = true;
+    while(bumpedPt) {
+      bumpedPt = false;
+      for(unsigned short ii = 0; ii < tj2.Pts[tj2ClosePt].Hits.size(); ++ii) {
+        unsigned int iht = tj2.Pts[tj2ClosePt].Hits[ii];
+        if(std::find(tj1Hits.begin(), tj1Hits.end(), iht) != tj1Hits.end()) bumpedPt = true;
+      } // ii
+      if(bumpedPt && tj2ClosePt < tj2.EndPt[1]) {
+        ++tj2ClosePt;
+      } else {
+        break;
+      }
+    } // bumpedPt
+    if(doPrt) mf::LogVerbatim("TC")<<" revised tj2ClosePt "<<tj2ClosePt;
+    // append tj2 hits to tj1
+    
+    tj1.Pts.insert(tj1.Pts.end(), tj2.Pts.begin() + tj2ClosePt, tj2.Pts.end());
+    // re-define the end points
+    SetEndPoints(tjs, tj1);
+    
+    // A more exhaustive check that hits only appear once
+    if(HasDuplicateHits(tjs, tj1, doPrt)) {
+      if(doPrt) {
+        mf::LogVerbatim("TC")<<"MergeAndStore found duplicate hits. Coding error";
+        PrintTrajectory("MAS", tjs, tj1, USHRT_MAX);
+        PrintTrajectory("tj1", tjs, tjs.allTraj[itj1], USHRT_MAX);
+        PrintTrajectory("tj2", tjs, tjs.allTraj[itj2], USHRT_MAX);
+      }
+      return false;
+    }
+    // kill the original trajectories
+    MakeTrajectoryObsolete(tjs, itj1);
+    MakeTrajectoryObsolete(tjs, itj2);
+    // Do this so that StoreTraj keeps the correct WorkID (of itj1)
+    tj1.ID = tj1.WorkID;
+    SetPDGCode(tjs, tj1);
+    return StoreTraj(tjs, tj1);
+    if(tjs.UseAlg[kChkInTraj]) {
+//      fQuitAlg = !InTrajOK(tjs, "MAS");
+//      if(fQuitAlg) mf::LogVerbatim("TC")<<"InTrajOK failed in MergeAndStore";
+      return false;
+    }
+    if(doPrt) mf::LogVerbatim("TC")<<" MAS success. New TjID "<<tjs.allTraj[tjs.allTraj.size() - 1].ID;
+    return true;
+    
+  } // MergeAndStore
   
   // ****************************** Printing  ******************************
   
@@ -3086,7 +3362,7 @@ namespace tca {
     if(tjs.matchVecPFPList.empty()) return;
     
     mf::LogVerbatim myprt("TC");
-    myprt<<"PFP Count sVtx  ________sVtx_______  _______sDir________ eVtx  _________eVtx______  PDG Parent  _____sdE/dx______    _____edE/dx______ BestPln TjIDs\n";
+    myprt<<"PFP Count sVx  ________sVtx_______  ______sDir______  ______sdEdx_____ eVx  ________eVtx_______  ______eDir______  ______edEdx_____ BstPln PDG Par E*P   TjIDs\n";
     unsigned short indx = 0;
     for(auto& im : tjs.matchVecPFPList) {
       auto& ms = tjs.matchVec[im];
@@ -3094,27 +3370,31 @@ namespace tca {
       if(ms.Count == 0) continue;
       myprt<<std::setw(4)<<indx;
       myprt<<std::setw(5)<<ms.Count;
-      myprt<<std::setw(5)<<ms.Vx3ID[0];
-      myprt<<std::fixed<<std::right<<std::setprecision(1);
-      myprt<<std::setw(7)<<ms.XYZ[0][0];
-      myprt<<std::setw(7)<<ms.XYZ[0][1];
-      myprt<<std::setw(7)<<ms.XYZ[0][2];
-      myprt<<std::fixed<<std::right<<std::setprecision(2);
-      myprt<<std::setw(7)<<ms.Dir[0][0];
-      myprt<<std::setw(7)<<ms.Dir[0][1];
-      myprt<<std::setw(7)<<ms.Dir[0][2];
-      myprt<<std::setw(5)<<ms.Vx3ID[1];
-      myprt<<std::fixed<<std::right<<std::setprecision(1);
-      myprt<<std::setw(7)<<ms.XYZ[1][0];
-      myprt<<std::setw(7)<<ms.XYZ[1][1];
-      myprt<<std::setw(7)<<ms.XYZ[1][2];
-      myprt<<std::setw(5)<<ms.PDGCode;
-      myprt<<std::setw(5)<<ms.ParentMSIndex;
+      // start and end stuff
       for(unsigned short startend = 0; startend < 2; ++startend) {
-        for(auto& dedx : ms.dEdx[startend]) myprt<<std::setw(7)<<std::setprecision(1)<<dedx;
-      } // startend
+        myprt<<std::setw(4)<<ms.Vx3ID[startend];
+        myprt<<std::fixed<<std::right<<std::setprecision(1);
+        myprt<<std::setw(7)<<ms.XYZ[startend][0];
+        myprt<<std::setw(7)<<ms.XYZ[startend][1];
+        myprt<<std::setw(7)<<ms.XYZ[startend][2];
+        myprt<<std::fixed<<std::right<<std::setprecision(2);
+        myprt<<std::setw(6)<<ms.Dir[startend][0];
+        myprt<<std::setw(6)<<ms.Dir[startend][1];
+        myprt<<std::setw(6)<<ms.Dir[startend][2];
+        for(auto& dedx : ms.dEdx[startend]) {
+          if(dedx < 50) {
+            myprt<<std::setw(6)<<std::setprecision(1)<<dedx;
+          } else {
+            myprt<<std::setw(6)<<std::setprecision(0)<<dedx;
+          }
+        } // dedx
+      }
+      // global stuff
       myprt<<std::setw(5)<<ms.BestPlane;
-      myprt<<"   ";
+      myprt<<std::setw(6)<<ms.PDGCode;
+      myprt<<std::setw(4)<<ms.ParentMSIndex;
+      myprt<<std::setw(5)<<std::setprecision(2)<<ms.EffPur;
+      myprt<<"  ";
       for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
       myprt<<"\n";
       ++indx;

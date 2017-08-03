@@ -41,6 +41,8 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  void DefinePFParticleRelationships(TjStuff& tjs);
+  void MergeBrokenTjs(TjStuff& tjs, std::vector<MatchStruct>& matVec);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
   bool FindMatchingPts(TjStuff& tjs, MatchStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
@@ -53,7 +55,7 @@ namespace tca {
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
-  bool Reverse3DMatchTjs(TjStuff& tjs, unsigned short im, bool prt);
+  void Reverse3DMatchTjs(TjStuff& tjs, MatchStruct& ms, bool prt);
   unsigned int MatchVecIndex(const TjStuff& tjs, int tjID);
   unsigned int MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
@@ -166,6 +168,7 @@ namespace tca {
   bool FillWireHitRange(TjStuff& tjs, const geo::TPCID& tpcid, bool debugMode);
   bool CheckWireHitRange(const TjStuff& tjs);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
+  bool MergeAndStore(TjStuff& tjs, unsigned int itj1, unsigned int itj2, bool doPrt);
   MatchStruct CreateMatchStruct(TjStuff& tjs, const geo::TPCID& tpcid, unsigned short ntj);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
