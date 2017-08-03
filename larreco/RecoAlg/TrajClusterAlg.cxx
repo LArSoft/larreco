@@ -446,8 +446,8 @@ namespace tca {
           FindShowers(tjs, fCTP);
         }
 
-	std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
-	showertree->Fill();
+	//std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
+	//showertree->Fill();
       } // make showers
       // Match3D should be the last thing called for this tpcid
       Match3D(tpcid, false);
@@ -455,8 +455,8 @@ namespace tca {
       // true if the algorithm was successful indicating that the matching needs to be redone
       if(tjs.ShowerTag[0] == 2 && FindShowers3D(tjs, tpcid)) Match3D(tpcid, true);
 
-      //std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
-      // showertree->Fill();
+      std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
+      showertree->Fill();
     } // tpcid
 
     if(!fIsRealData) tm.MatchTruth(hist, fEventsProcessed);

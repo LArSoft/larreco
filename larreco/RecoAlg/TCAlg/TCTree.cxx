@@ -42,6 +42,7 @@ namespace tca {
 
   void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotIndex,
                   unsigned int stageNum) {
+
     ShowerStruct& ss = tjs.cots[cotIndex];
 
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
