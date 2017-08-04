@@ -67,6 +67,7 @@ dpraw_hitfinder:
  MinSig:               	10    		# peak threshold for hit fitting (in ADC). Peaks with lower amplitudes are neither fitted nor stored.
  TicksToStopPeakFinder: 4		# when walking along waveform to find start and end points of a peak, stop when current tick is followed by minimum "TicksToStopPeakFinder" ticks 						# with equal or higher ADC counts (stop anyway if ADC count of a tick is <= 0)
  MinWidth:             	10              # width threshold for hit fitting (in ADC). Peaks with smaller widths are neither fitted nor stored.
+ MinADCSum:    		10             	# threshold for ADC sum. Peaks with smaller values neither fitted nor stored.
  MinADCSumOverWidth:    2.4             # threshold for ADC sum over width (ADC per ticks). Peaks with smaller values neither fitted nor stored.
  MaxMultiHit:          	10              # maximum number of hits in multi fit for first fit attempt. If there are more hits, split in two ore more multi fits.
 					# When refitting, maximum number of hits in multi fit is: 1) not greater than 2xMaxMultiHit and 2) not greater than 3x number of hits before re-fitting
