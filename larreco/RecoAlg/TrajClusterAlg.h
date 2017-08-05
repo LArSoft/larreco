@@ -164,12 +164,7 @@ namespace tca {
     TProfile* fEP_T[5];
 
     // SHOWER VARIABLE TREE
-
     TTree* showertree;
-
-    // Debugging histograms
-    TH1F*  cr_pfpx0;   //Min x of pfparticle
-    TH1F*  cr_pfpx1;   //Max x of pfparticle
 
     // number of primary particles in the event
     unsigned short nTruPrimary;

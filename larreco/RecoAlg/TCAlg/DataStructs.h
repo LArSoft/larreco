@@ -28,6 +28,7 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "TVector3.h"
+#include "TH1F.h"
 
 namespace tca {
   
@@ -283,6 +284,11 @@ namespace tca {
 
   };
 
+  struct CRHists {
+    TH1F *cr_pfpx0;
+    TH1F *cr_pfpx1;
+  };
+
   // Algorithm modification bits
   typedef enum {
     kMaskHits,
@@ -366,6 +372,10 @@ namespace tca {
     // The variables below do change in size from event to event
     ShowerTreeVars stv; // 
     bool SaveShowerTree;
+
+    // Save histograms to develop cosmic removal tools
+    CRHists crh;
+    bool SaveCRHists;
     
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
