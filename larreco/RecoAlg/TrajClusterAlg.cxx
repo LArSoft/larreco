@@ -446,8 +446,8 @@ namespace tca {
           FindShowers(tjs, fCTP);
         }
 
-	std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
-	showertree->Fill();
+        std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
+        showertree->Fill();
       } // make showers
       // Match3D should be the last thing called for this tpcid
       Match3D(tpcid, false);
@@ -471,10 +471,7 @@ namespace tca {
         }
       } // tpcid
     }
-//    KillPoorVertices(tjs);
     FillPFPInfo();
-    // convert the cots vector into recob::Shower
-    MakeShowers(tjs);
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     if(fQuitAlg) {
@@ -495,7 +492,7 @@ namespace tca {
     if(fDebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
-      PrintPFParticles(tjs);
+      PrintPFParticles("RTC", tjs);
     }
 
     unsigned short ntj = 0;
@@ -2129,7 +2126,7 @@ namespace tca {
   } // EndMerge
 
   //////////////////////////////////////////
-  void TrajClusterAlg::Match3D(const geo::TPCID& tpcid, bool reset)
+  void TrajClusterAlg::Match3D(const geo::TPCID& tpcid, bool secondPass)
   {
     // Match Tjs in 3D using trajectory points
     
@@ -2142,10 +2139,10 @@ namespace tca {
     bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"inside Mat3DTj. dX (cm) cut "<<tjs.Match3DCuts[0];
+      mf::LogVerbatim("TC")<<"inside Match3D. dX (cm) cut "<<tjs.Match3DCuts[0];
     }
     
-    if(reset) {
+    if(secondPass) {
       // clear out any previously made matches in this tpc. Start by resizing
       // matchVec so that the matches at the end are removed.
       unsigned short newSize = 0;
@@ -2179,23 +2176,24 @@ namespace tca {
       float xlo;
       float xhi;
       unsigned short plane;
-      // the Trajectory ID and the TP index
+      // the Trajectory ID
       unsigned short id;
-      unsigned short ipt;
       // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
       unsigned short npts;
       short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
+      bool inShower;
     };
     
-    // count the number of TPs
+    // count the number of TPs and clear out any old 3D match flags
     unsigned int ntp = 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
-      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
       if((int)planeID.TPC != tpc) continue;
       ntp += NumPtsWithCharge(tjs, tj, false);
-    } // tj
+      tj.AlgMod[kMat3D] = false;
+   } // tj
     if(ntp < 2) return;
     
     std::vector<TjPt> mallTraj(ntp);
@@ -2204,21 +2202,35 @@ namespace tca {
     unsigned int icnt = 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
-      if(tj.AlgMod[kMat3D]) continue;
-      if(tj.AlgMod[kInShower]) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
       if((int)planeID.TPC != tpc) continue;
       int plane = planeID.Plane;
+      int tjID = tj.ID;
+      // re-direct Inshower Tjs to the shower Tj
+      bool inShower = false;
+      if(tj.AlgMod[kInShower]) {
+        // look for this Tj in cots
+        unsigned short stjID = 0;
+        for(auto& ss : tjs.cots) {
+          if(ss.TjIDs.empty()) continue;
+          if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tjID) != ss.TjIDs.end()) {
+            stjID = ss.ShowerTjID;
+            inShower = true;
+            break;
+          } // found inShower tjID in ss
+        } // ss
+        tjID = stjID;
+      } // inShower
+      if(tjID == 0) continue;
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         auto& tp = tj.Pts[ipt];
         if(tp.Chg == 0) continue;
-        if(icnt > mallTraj.size() - 1) {
-          std::cout<<"oops\n";
-          break;
-        }
+        if(icnt > mallTraj.size() - 1) break;
         mallTraj[icnt].wire = std::nearbyint(tp.Pos[0]);
         bool hasWire = tjs.geom->HasWire(geo::WireID(cstat, tpc, plane, mallTraj[icnt].wire));
+        // don't try matching if the wire doesn't exist
+        if(!hasWire) continue;
         float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, tpc, cstat);
         float posPlusRMS = tp.Pos[1] + TPHitsRMSTime(tjs, tp, kUsedHits);
         float rms = tjs.detprop->ConvertTicksToX(posPlusRMS/tjs.UnitsPerTick, plane, tpc, cstat) - xpos;
@@ -2226,20 +2238,23 @@ namespace tca {
         mallTraj[icnt].xlo = xpos - rms;
         mallTraj[icnt].xhi = xpos + rms;
         mallTraj[icnt].plane = plane;
-        mallTraj[icnt].id = tj.ID;
-        mallTraj[icnt].ipt = ipt;
+        mallTraj[icnt].id = tjID;
         mallTraj[icnt].npts = tj.Pts.size();
         short score = 1;
         if(TjHasNiceVtx(tjs, tj, tjs.Vertex2DCuts[7])) score = 0;
-        // don't try matching if the wire doesn't exist
-        if(!hasWire) score = -1;
         mallTraj[icnt].score = score;
+        mallTraj[icnt].inShower = inShower;
         // populate the sort vector
         sortVec[icnt].index = icnt;
         sortVec[icnt].val = mallTraj[icnt].xlo;
         ++icnt;
       } // tp
     } // tj
+    
+    if(icnt < mallTraj.size()) {
+      mallTraj.resize(icnt);
+      sortVec.resize(icnt);
+    }
     
     // sort by increasing xlo
     std::sort(sortVec.begin(), sortVec.end(), valIncreasing);
@@ -2267,6 +2282,8 @@ namespace tca {
             // ensure that the planes are different
             if(jTjPt.plane == iTjPt.plane) continue;
             if(jTjPt.score < 0 || jTjPt.score > maxScore) continue;
+            // ensure inShower consistency
+            if(jTjPt.inShower != iTjPt.inShower) continue;
             // check for x range overlap. We know that jTjPt.xlo is >= iTjPt.xlo because of the sort
             if(jTjPt.xlo > iTjPt.xhi) continue;
             // break out if the x range difference becomes large (10 cm)
@@ -2280,6 +2297,8 @@ namespace tca {
               // ensure that the planes are different
               if(kTjPt.plane == iTjPt.plane || kTjPt.plane == jTjPt.plane) continue;
               if(kTjPt.score < 0 || kTjPt.score > maxScore) continue;
+              // ensure inShower consistency
+              if(kTjPt.inShower != iTjPt.inShower) continue;
               if(kTjPt.xlo > iTjPt.xhi) continue;
               // break out if the x range difference becomes large
               if(kTjPt.xlo > iTjPt.xhi + 10) break;
@@ -2318,15 +2337,13 @@ namespace tca {
           sortVec[indx].index = indx;
           sortVec[indx].val = matVec[indx].Count;
         }
-        if(sortVec.size() > 1) {
-          std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
-          // Re-order matVec
-          auto tmpVec = matVec;
-          for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
-            unsigned int indx = sortVec[ii].index;
-            matVec[ii] = tmpVec[indx];
-          } // ii
-        } // sortVec.size() > 1
+        std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
+        // Re-order matVec
+        auto tmpVec = matVec;
+        for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
+          unsigned int indx = sortVec[ii].index;
+          matVec[ii] = tmpVec[indx];
+        } // ii
         MergeBrokenTjs(tjs, matVec);
       }
     } // 3 planes
@@ -2355,6 +2372,8 @@ namespace tca {
           // ensure that the planes are different
           if(jTjPt.plane == iTjPt.plane) continue;
           if(jTjPt.score < 0 || jTjPt.score > maxScore) continue;
+          // ensure inShower consistency
+          if(jTjPt.inShower != iTjPt.inShower) continue;
           if(jTjPt.npts < minTjLen) continue;
           // ignore Tjs that have a triple match 
           if(std::find(tripleTjList.begin(), tripleTjList.end(), jTjPt.id) != tripleTjList.end()) continue;
@@ -2421,8 +2440,10 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"M3DTj: matVec\n";
+      myprt<<"M3D: matVec\n";
+      unsigned short cnt = 0;
       for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
+        if(matVec[ii].Count == 0) continue;
         myprt<<ii<<" Count "<<matVec[ii].Count<<" TjIDs:";
         for(auto& tjID : matVec[ii].TjIDs) myprt<<" "<<tjID;
         myprt<<" NumUsedHitsInTj ";
@@ -2434,7 +2455,9 @@ namespace tca {
         }
         float matfrac = matVec[ii].Count / maxlen;
         myprt<<" matfrac "<<std::fixed<<std::setprecision(2)<<matfrac;
-        if(ii == 50) {
+        myprt<<"\n";
+        ++cnt;
+        if(cnt == 50) {
           myprt<<"...stopped printing after 50 entries.";
           break;
         }
@@ -2503,23 +2526,27 @@ namespace tca {
       } // ipl
     } // indx
     
+    DefinePFParticleRelationships(tjs, tpcid);
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"M3DTj: matchVec\n";
+      myprt<<"M3D final: matchVec\n";
       for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
         myprt<<ii<<" Count "<<tjs.matchVec[ii].Count<<" TjIDs:";
         for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<tjID;
         myprt<<" NumUsedHitsInTj ";
         for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
         float maxlen = 1;
+        unsigned short nsh = 0;
         for(auto& tjID : tjs.matchVec[ii].TjIDs) {
           float len = NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
           if(len > maxlen) maxlen = len;
+          if(tjs.allTraj[tjID-1].AlgMod[kShowerTj]) ++nsh;
         }
         float matfrac = tjs.matchVec[ii].Count / maxlen;
         myprt<<" matfrac "<<std::fixed<<std::setprecision(2)<<matfrac;
         myprt<<" sVx3ID "<<tjs.matchVec[ii].Vx3ID[0]<<" eVx3ID "<<tjs.matchVec[ii].Vx3ID[1];
+        myprt<<" PDGCode "<<tjs.matchVec[ii].PDGCode;
         myprt<<"\n";
         if(ii == 50) {
           myprt<<"...stopped printing after 50 entries.";
@@ -2528,11 +2555,9 @@ namespace tca {
       } // ii
     } // prt
     
-    DefinePFParticleRelationships(tjs);
-    
     Find3DEndPoints(tpcid);
     
-  } // Mat3DTj
+  } // Match3D
 
   ////////////////////////////////////////////////
   void TrajClusterAlg::Find3DEndPoints(const geo::TPCID& tpcid)
@@ -2548,18 +2573,25 @@ namespace tca {
       auto& ms = tjs.matchVec[imv];
       if(ms.Count == 0) continue;
       if(ms.TPCID != tpcid) continue;
-      // ignore shower Tjs. These are handled in Find3DShowerEndPoints
-//      if(prt) mf::LogVerbatim("TC")<<"F3DEP: PDGCode "<<ms.PDGCode;
-//      if(ms.PDGCode == 1111) continue;
       for(unsigned short startend = 0; startend < 2; ++startend) {
         ms.Dir[startend] = {0, 0, 0};
         ms.DirErr[startend] = {0, 0, 0};
         ms.XYZ[startend] = {0, 0, 0};
+        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+          ms.dEdx[startend][plane] = 0;
+          ms.dEdxErr[startend][plane] = 0;
+        } // plane
+      }
+      
+      // Showers require special handling
+      if(ms.PDGCode == 1111) {
+        Find3DShowerEndPoints(tjs, ms);
+        continue;
       }
       
       std::array<std::vector<TrajPoint>, 2> endtps;
       if(!FindMatchingPts(tjs, ms, endtps[0], endtps[1], prt) || endtps[0].size() < 2 || endtps[1].size() < 2) {
-        if(prt) mf::LogVerbatim("TC")<<"  FindMatchingPts failed imv "<<imv<<" stps size "<<endtps[0].size()<<" etps size "<<endtps[1].size();
+        if(prt) mf::LogVerbatim("TC")<<"  FindMatchingPts failed imv "<<imv<<" stps size "<<endtps[0].size()<<" etps size "<<endtps[1].size()<<" PDGCode "<<ms.PDGCode;
         ms.Count = 0;
         continue;
       }
@@ -2629,7 +2661,7 @@ namespace tca {
       TVector3 generalDirection;
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) generalDirection[ixyz] = ms.XYZ[1][ixyz] - ms.XYZ[0][ixyz];
       if(generalDirection.Mag() == 0) {
-        if(prt) mf::LogVerbatim("TC")<<"  Start and End points are identical...";
+//        if(prt) mf::LogVerbatim("TC")<<"  Start and End points are identical...";
         ms.Count = 0;
         continue;
       } // generalDirection.Mag == 0
@@ -2712,7 +2744,7 @@ namespace tca {
       }
     } // im (ms)
     
-    if(pprt) PrintPFParticles(tjs);
+    if(pprt) PrintPFParticles("FPI", tjs);
     
   } // FillPFPInfo
   
@@ -4765,6 +4797,7 @@ namespace tca {
     
     // Merge hits in trajectory points?
     if(fMakeNewHits) MergeTPHits();
+    MakeShowers(tjs);
     
     ClusterStore cls;
     tjs.tcl.clear();
