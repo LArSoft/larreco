@@ -3,13 +3,15 @@
 namespace tca {
   
   /////////////////////////////////////////
-  void DefinePFParticleRelationships(TjStuff& tjs)
+  void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid)
   {
     
     // Define the parent (j) - daughter (i) relationship and the PDGCode
+
     for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
       unsigned short imv = tjs.matchVecPFPList[ipfp];
       auto& ms = tjs.matchVec[imv];
+      if(ms.TPCID != tpcid) continue;
       // assume that this is its own parent
       ms.ParentMSIndex = ipfp;
       unsigned short n11 = 0;
@@ -181,9 +183,9 @@ namespace tca {
       pos2[1] = (jtp2Pos0 - jw0 - jsn * pos2[2]) / jcs;
     }
     dir = pos2 - pos;
-    if(dir.Mag() != 0) dir.SetMag(1);
-    // Reverse the direction?
-    if(dir[0] * itp.Dir[0] < 0) dir *= -1;
+    if(dir.Mag() == 0) return false;
+    dir.SetMag(1);
+
     return true;
 
   } // TrajPoint3D
@@ -198,6 +200,8 @@ namespace tca {
     stps.clear();
     etps.clear();
     if(ms.Count == 0) return false;
+    
+    prt = false;
     
     // find the X range spanned by all matching Tjs
     float xlo = 1E6;
@@ -448,12 +452,16 @@ namespace tca {
 
     double t0 = 0;
     
+    unsigned short numEnds = 2;
+    // don't attempt to find dE/dx at the end of a shower
+    if(ms.PDGCode == 1111) numEnds = 1;
+    
     unsigned short maxlen = 0;
     for(auto tjID : ms.TjIDs) {
       Trajectory& tj = tjs.allTraj[tjID - 1];
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
-      for(unsigned short startend = 0; startend < 2; ++startend) {
+      for(unsigned short startend = 0; startend < numEnds; ++startend) {
         ms.dEdx[startend][planeID.Plane] = 0;
         tj.dEdx[startend] = 0;
         double cosgamma = std::abs(std::sin(angleToVert) * ms.Dir[startend].Y() + std::cos(angleToVert) * ms.Dir[startend].Z());
@@ -3262,7 +3270,6 @@ namespace tca {
           }
           myprt<<" Energy "<<(int)ss.Energy;
           myprt<<" Area "<<std::fixed<<std::setprecision(1)<<(int)ss.EnvelopeArea<<" ChgDensity "<<ss.ChgDensity;
-          myprt<<" StartChg "<<(int)ss.StartChg<<" +/- "<<(int)ss.StartChgErr;
           myprt<<"\nInShower TjIDs";
           for(auto& tjID : ss.TjIDs) {
             myprt<<" "<<tjID;
@@ -3357,17 +3364,19 @@ namespace tca {
   } // PrintTrajPoint
   
   /////////////////////////////////////////
-  void PrintPFParticles(const TjStuff& tjs)
+  void PrintPFParticles(std::string someText, const TjStuff& tjs)
   {
     if(tjs.matchVecPFPList.empty()) return;
     
     mf::LogVerbatim myprt("TC");
-    myprt<<"PFP Count sVx  ________sVtx_______  ______sDir______  ______sdEdx_____ eVx  ________eVtx_______  ______eDir______  ______edEdx_____ BstPln PDG Par E*P   TjIDs\n";
+    myprt<<someText;
+    myprt<<" PFP Count sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par E*P   TjIDs\n";
     unsigned short indx = 0;
     for(auto& im : tjs.matchVecPFPList) {
       auto& ms = tjs.matchVec[im];
       // ms contains a list of tjs that were matched in 3D. 
       if(ms.Count == 0) continue;
+      myprt<<someText;
       myprt<<std::setw(4)<<indx;
       myprt<<std::setw(5)<<ms.Count;
       // start and end stuff
