@@ -60,7 +60,9 @@ namespace tca {
     void RunTrajClusterAlg(art::Event & evt);
 
     void DefineTree(TTree* t);
-    
+
+    void DefineHist(TH1F *h_cr_pfpx0, TH1F *h_cr_pfpx1);
+
     std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
     /// Returns (and loses) the art::Ptr collection of previously reconstructed hits (e.g. gaushit)
@@ -165,6 +167,9 @@ namespace tca {
 
     TTree* showertree;
 
+    // Debugging histograms
+    TH1F*  cr_pfpx0;   //Min x of pfparticle
+    TH1F*  cr_pfpx1;   //Max x of pfparticle
 
     // number of primary particles in the event
     unsigned short nTruPrimary;

@@ -5909,4 +5909,12 @@ namespace tca {
 
   } // end DefineTree
 
+  void TrajClusterAlg::DefineHist(TH1F *h_cr_pfpx0,
+                                  TH1F *h_cr_pfpx1) {
+
+    cr_pfpx0 = h_cr_pfpx0;
+    cr_pfpx1 = h_cr_pfpx1;
+
+  }
+
 } // namespace cluster

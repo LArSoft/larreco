@@ -26,6 +26,7 @@
 
 //root includes
 #include "TTree.h"
+#include "TH1F.h"
 
 // ... more includes in the implementation section
 
@@ -56,7 +57,8 @@ namespace cluster {
   private:
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
     TTree* showertree;
-    
+    TH1F*  cr_pfpx0;   //Min x of pfparticle
+    TH1F*  cr_pfpx1;   //Max x of pfparticle
   }; // class TrajCluster
   
 } // namespace cluster
@@ -125,8 +127,13 @@ namespace cluster {
   void TrajCluster::beginJob()
   {
     art::ServiceHandle<art::TFileService> tfs;
+
     showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
     fTCAlg->DefineTree(showertree);
+
+    cr_pfpx0 = tfs->make<TH1F>("cr_pfpx0","PFP Min x; x0 (cm); Events",100,-3,6);
+    cr_pfpx1 = tfs->make<TH1F>("cr_pfpx1","PFP Max x; x1 (cm); Events",100,-3,6);
+    fTCAlg->DefineHist(cr_pfpx0, cr_pfpx1);
   }
   
   //----------------------------------------------------------------------------
