@@ -186,6 +186,7 @@ namespace tca {
               tjs.allTraj[it2].VtxID[end2] = 0;
               continue;
             }
+            if(MergeWithNearbyVertex(tjs, aVtx, it1, end1, it2, end2)) continue;
             // Save it
             if(!StoreVertex(tjs, aVtx)) continue;
             // Try to attach other tjs to it
@@ -210,6 +211,43 @@ namespace tca {
     if(prt) PrintAllTraj("F2DVo", tjs, debug, USHRT_MAX, USHRT_MAX);
     
   } // Find2DVertices
+  
+  //////////////////////////////////////////
+  bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& newVx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2)
+  {
+    // Tries to merge a new vertex, vx2, that has yet to be added to tjs.vtx to see if the
+    // Tjs can instead be merged with a nearby existing vertex
+    
+    // Merge vertices if the positions are within 1.5 * the maximum position error
+    float sepcut = 1.5 * tjs.Vertex2DCuts[4];
+    
+    for(auto& vx2 : tjs.vtx) {
+      if(vx2.CTP != newVx2.CTP) continue;
+      // ignore killed vertices
+      if(vx2.ID == 0) continue;
+      float sep = PosSep(vx2.Pos, newVx2.Pos);
+      // Merge them if within the specified vertex position error
+      if(sep > sepcut) continue;
+//      std::cout<<"MWNV: newVx2 "<<PrintPos(tjs, newVx2.Pos)<<" is close to "<<vx2.ID<<" at "<<PrintPos(tjs, vx2.Pos)<<" sep "<<sep<<"\n";
+      tjs.allTraj[it1].VtxID[end1] = vx2.ID;
+      if(!FitVertex(tjs, vx2, false)) {
+//        std::cout<<" First merge failed. Try the second\n";
+        tjs.allTraj[it1].VtxID[end1] = newVx2.ID;
+        FitVertex(tjs, vx2, false);
+      }
+      tjs.allTraj[it2].VtxID[end2] = vx2.ID;
+      if(!FitVertex(tjs, vx2, false)) {
+//        std::cout<<" Second merge failed\n";
+        tjs.allTraj[it1].VtxID[end1] = newVx2.ID;
+        FitVertex(tjs, vx2, false);
+        return false;
+      }
+      vx2.Stat[kVtxMerged] = true;
+//      std::cout<<" Merge successful\n";
+      return true;
+    } // vx2
+    return false;
+  } // MergeWithNearbyVertex
     
   //////////////////////////////////////////
   void FindHammerVertices2(TjStuff& tjs, const DebugStuff& debug, const CTP_t& inCTP)
@@ -779,8 +817,8 @@ namespace tca {
 
   } // Find3DVertices
   
-  void Match3DVtxTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   ////////////////////////////////////////////////
+  void Match3DVtxTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
     // Matches Tjs that are attached to 2D vertices that are matched in 3D. This function does not attempt
     // to determine the appropriate ends of matched Tjs when there is a 3D vertex at both ends. This is done
@@ -821,31 +859,58 @@ namespace tca {
       if(skipit) continue;
       // Require 0 or matched shower Tjs in all planes
       if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
+      unsigned short v3GoodMatch = USHRT_MAX;
+      unsigned short v3NearMatch = USHRT_MAX;
+      unsigned short tjMissing = USHRT_MAX;
       for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
         if(v3TjIDs[iv3].empty()) continue;
         std::vector<int> shared;
         std::set_intersection(v3TjIDs[iv3].begin(), v3TjIDs[iv3].end(), 
                               ms.TjIDs.begin(), ms.TjIDs.end(), std::back_inserter(shared));
-        // require all Tjs matched to the vertex
-        if(shared.size() != ms.TjIDs.size()) continue;
-        tjs.matchVecPFPList.push_back(ims);
-        // declare a start or end vertex
-        if(tjs.vtx3[iv3].ID > 0) {
-          if(ms.Vx3ID[0] == 0) {
-            // declare the start vertex. The positions will be determined later
-            ms.Vx3ID[0] = tjs.vtx3[iv3].ID;
-            if(prt) mf::LogVerbatim("TC")<<" Set sVx3ID "<<ms.Vx3ID[0];
-          } else {
-            ms.Vx3ID[1] = tjs.vtx3[iv3].ID;
-            if(prt) mf::LogVerbatim("TC")<<" Set eVx3ID "<<ms.Vx3ID[1];
+        if(shared.size() < 2) continue;
+        if(shared.size() == 2 && tjs.NumPlanes == 3 && v3NearMatch == USHRT_MAX) {
+          if(prt) {
+            mf::LogVerbatim myprt("TC");
+            myprt<<"M3DVTj: ims "<<ims<<" ms.TjIDs";
+            for(auto tjID : ms.TjIDs) myprt<<" "<<tjID;
+            myprt<<" shared";
+            for(auto tjID : shared) myprt<<" "<<tjID;
           }
+          v3NearMatch = iv3;
+          // find the missing Tj
+          for(unsigned short ii = 0; ii < shared.size(); ++ii) {
+            if(ms.TjIDs[ii] != shared[ii]) {
+              tjMissing = ms.TjIDs[ii];
+              break;
+            }
+            if(tjMissing == USHRT_MAX) tjMissing = ms.TjIDs[2];
+          } // ii
+          continue;
         }
-        for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
-          unsigned short itj = ms.TjIDs[ipl] - 1;
-          tjs.allTraj[itj].AlgMod[kMat3D] = true;
-        }
+        v3GoodMatch = iv3;
         break;
       } // iv3
+      if(v3GoodMatch == USHRT_MAX && v3NearMatch < tjs.vtx3.size()) {
+        if(prt) mf::LogVerbatim("TC")<<"Reconcile 3D match ims "<<ims<<" with 3D vtx Tjs. v3NearMatch "<<v3NearMatch<<" tjMissing "<<tjMissing;
+      }
+      // no good match
+      if(v3GoodMatch == USHRT_MAX) continue;
+      tjs.matchVecPFPList.insert(tjs.matchVecPFPList.begin(), ims);
+      // declare a start or end vertex
+      auto& vx3 = tjs.vtx3[v3GoodMatch];
+      if(ms.Vx3ID[0] == 0) {
+        // declare the start vertex. The positions will be determined later
+        ms.Vx3ID[0] = vx3.ID;
+//        if(prt) mf::LogVerbatim("TC")<<" Set sVx3ID "<<ms.Vx3ID[0];
+      } else {
+        ms.Vx3ID[1] = vx3.ID;
+//        if(prt) mf::LogVerbatim("TC")<<" Set eVx3ID "<<ms.Vx3ID[1];
+      }
+      if(prt) mf::LogVerbatim("TC")<<"  ims "<<ims<<" -> vx3 "<<vx3.ID<<" sVx3ID "<<ms.Vx3ID[0]<<" eVx3ID "<<ms.Vx3ID[1];
+      for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
+        unsigned short itj = ms.TjIDs[ipl] - 1;
+        tjs.allTraj[itj].AlgMod[kMat3D] = true;
+      }
     } // ims
     
     // look for failed matches where there is one un-matched Tj
