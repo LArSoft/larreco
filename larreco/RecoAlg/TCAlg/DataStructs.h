@@ -86,6 +86,7 @@ namespace tca {
     kVtxRefined,
     kHiVx3Score,      ///< matched to a high-score 3D vertex
     kVtxTruMatch,      ///< tagged as a vertex between Tjs that are matched to MC truth neutrino interaction particles
+    kVtxMerged,
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
@@ -221,8 +222,6 @@ namespace tca {
     float EnvelopeArea {0};
     float ChgDensity {0};                   // Charge density inside the Envelope
     float Energy {0};
-    float StartChg {0};              // Charge at the start of the shower
-    float StartChgErr {0};              // Start charge error
     float ParentFOM {10};
     int ParentID {0};  // The ID of an external parent Tj that was added to the shower
     bool NeedsUpdate {false};       // This is set true whenever the shower needs to be updated
