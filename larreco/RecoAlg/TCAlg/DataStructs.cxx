@@ -62,7 +62,8 @@ namespace tca {
     "OnDeadWire",
     "VtxRefined",
     "HiVx3Score",
-    "VtxTruMatch"
+    "VtxTruMatch",
+    "VtxMerged"
   } ;
   
   geo::PlaneID DecodeCTP(CTP_t CTP) {
