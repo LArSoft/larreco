@@ -9,4 +9,10 @@ namespace tca {
     tjs.crt.cr_pfpx1.push_back(std::max(ms.XYZ[0][0], ms.XYZ[1][0]));
 
   }
+
+  ////////////////////////////////////////////////
+  void ClearCRInfo(TjStuff& tjs){
+    tjs.crt.cr_pfpx0.clear();
+    tjs.crt.cr_pfpx1.clear();
+  }
 }

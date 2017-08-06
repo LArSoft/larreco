@@ -12,6 +12,7 @@
 
 namespace tca {
   void SaveCRInfo(TjStuff& tjs, MatchStruct& ms, bool prt);
+  void ClearCRInfo(TjStuff& tjs);
 }
 
 #endif

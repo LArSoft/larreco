@@ -281,8 +281,7 @@ namespace tca {
     tjs.cots.clear();
     tjs.showers.clear();
     tjs.MCPartList.clear();
-    tjs.crt.cr_pfpx0.clear();
-    tjs.crt.cr_pfpx1.clear();
+    ClearCRInfo(tjs);
   } // ClearResults()
 
   ////////////////////////////////////////////////
