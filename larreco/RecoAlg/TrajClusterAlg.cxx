@@ -5914,8 +5914,8 @@ namespace tca {
 
   void TrajClusterAlg::DefineCRTree(TTree *t){
     crtree = t;
-    crtree->Branch("cr_pfpx0", &tjs.crt.cr_pfpx0);
-    crtree->Branch("cr_pfpx1", &tjs.crt.cr_pfpx1);
+    crtree->Branch("cr_pfpmintick", &tjs.crt.cr_pfpmintick);
+    crtree->Branch("cr_pfpmaxtick", &tjs.crt.cr_pfpmaxtick);
 
   }
 
