@@ -11,6 +11,7 @@
 
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "larreco/RecoAlg/TCAlg/TCTruth.h"
+#include "larreco/RecoAlg/TCAlg/TCCR.h"
 
 // C/C++ standard libraries
 #include <array>
