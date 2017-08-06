@@ -87,7 +87,7 @@ namespace tca {
     tjs.ShowerTag         = pset.get< std::vector<float>>("ShowerTag", {-1, -1, -1, -1, -1, -1});
     
     tjs.SaveShowerTree    = pset.get< bool >("SaveShowerTree", false);
-
+    tjs.SaveCRTree        = pset.get< bool >("SaveCRTree", false);
     fChkStopCuts          = pset.get< std::vector<float>>("ChkStopCuts", {-1, -1, -1});
     fMaxTrajSep           = pset.get< float >("MaxTrajSep", 4);
     
@@ -281,6 +281,8 @@ namespace tca {
     tjs.cots.clear();
     tjs.showers.clear();
     tjs.MCPartList.clear();
+    tjs.crt.cr_pfpx0.clear();
+    tjs.crt.cr_pfpx1.clear();
   } // ClearResults()
 
   ////////////////////////////////////////////////
@@ -473,6 +475,7 @@ namespace tca {
     }
 //    KillPoorVertices(tjs);
     FillPFPInfo();
+    if (tjs.SaveCRTree) crtree->Fill();
     // convert the cots vector into recob::Shower
     MakeShowers(tjs);
     // Convert trajectories in allTraj into clusters
@@ -2710,7 +2713,7 @@ namespace tca {
         ms.Vx3ID[0] = newVx3.ID;
 //        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<newVx3.ID<<" at "<<newVx3.X<<" "<<newVx3.Y<<" "<<newVx3.Z;
       }
-      if (tjs.SaveCRHists) SaveCRInfo(tjs, ms, prt);
+      if (tjs.SaveCRTree) SaveCRInfo(tjs, ms, prt);
     } // im (ms)
     
     if(pprt) PrintPFParticles(tjs);
@@ -5910,11 +5913,10 @@ namespace tca {
 
   } // end DefineTree
 
-  void TrajClusterAlg::DefineHist(TH1F *h_cr_pfpx0,
-                                  TH1F *h_cr_pfpx1) {
-
-    tjs.crh.cr_pfpx0 = h_cr_pfpx0;
-    tjs.crh.cr_pfpx1 = h_cr_pfpx1;
+  void TrajClusterAlg::DefineCRTree(TTree *t){
+    crtree = t;
+    crtree->Branch("cr_pfpx0", &tjs.crt.cr_pfpx0);
+    crtree->Branch("cr_pfpx1", &tjs.crt.cr_pfpx1);
 
   }
 

@@ -62,7 +62,7 @@ namespace tca {
 
     void DefineTree(TTree* t);
 
-    void DefineHist(TH1F *h_cr_pfpx0, TH1F *h_cr_pfpx1);
+    void DefineCRTree(TTree* t);
 
     std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
@@ -166,6 +166,9 @@ namespace tca {
 
     // SHOWER VARIABLE TREE
     TTree* showertree;
+
+    // Cosmic Removal Variable Tree
+    TTree* crtree;
 
     // number of primary particles in the event
     unsigned short nTruPrimary;

@@ -284,9 +284,9 @@ namespace tca {
 
   };
 
-  struct CRHists {
-    TH1F *cr_pfpx0;
-    TH1F *cr_pfpx1;
+  struct CRTreeVars {
+    std::vector<float> cr_pfpx0;
+    std::vector<float> cr_pfpx1;
   };
 
   // Algorithm modification bits
@@ -374,8 +374,8 @@ namespace tca {
     bool SaveShowerTree;
 
     // Save histograms to develop cosmic removal tools
-    CRHists crh;
-    bool SaveCRHists;
+    CRTreeVars crt;
+    bool SaveCRTree;
     
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
