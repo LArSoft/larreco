@@ -5,9 +5,9 @@ namespace tca {
   ////////////////////////////////////////////////
   void SaveCRInfo(TjStuff& tjs, MatchStruct& ms, bool prt){
 
-//    tjs.crt.cr_pfpx0.push_back(std::min(ms.XYZ[0][0], ms.XYZ[1][0]));
-//    tjs.crt.cr_pfpx1.push_back(std::max(ms.XYZ[0][0], ms.XYZ[1][0]));
-
+    tjs.crt.cr_pfpxmin.push_back(std::min(ms.XYZ[0][0], ms.XYZ[1][0]));
+    tjs.crt.cr_pfpxmax.push_back(std::max(ms.XYZ[0][0], ms.XYZ[1][0]));
+    /*
     float minx = FLT_MAX;
     float maxx = FLT_MIN;
 
@@ -31,15 +31,16 @@ namespace tca {
 
     tjs.crt.cr_pfpmintick.push_back(minx);
     tjs.crt.cr_pfpmaxtick.push_back(maxx);
-
-    std::cout<<ms.MCPartListIndex<<std::endl;
+    */
+//    std::cout<<ms.MCPartListIndex<<std::endl;
+//    std::cout<<ms.XYZ[0][0]<<" "<<ms.XYZ[1][0]<<std::endl;
 
   }
 
   ////////////////////////////////////////////////
   void ClearCRInfo(TjStuff& tjs){
-    tjs.crt.cr_pfpmintick.clear();
-    tjs.crt.cr_pfpmaxtick.clear();
+    tjs.crt.cr_pfpxmin.clear();
+    tjs.crt.cr_pfpxmax.clear();
     tjs.crt.cr_origin.clear();
   }
 }

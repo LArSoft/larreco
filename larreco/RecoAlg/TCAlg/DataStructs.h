@@ -284,8 +284,8 @@ namespace tca {
   };
 
   struct CRTreeVars {
-    std::vector<float> cr_pfpmintick;
-    std::vector<float> cr_pfpmaxtick;
+    std::vector<float> cr_pfpxmin;
+    std::vector<float> cr_pfpxmax;
     std::vector<int>   cr_origin;
   };
 
