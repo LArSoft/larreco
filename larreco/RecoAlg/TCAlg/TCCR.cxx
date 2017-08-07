@@ -32,6 +32,7 @@ namespace tca {
     tjs.crt.cr_pfpmintick.push_back(minx);
     tjs.crt.cr_pfpmaxtick.push_back(maxx);
 
+    std::cout<<ms.MCPartListIndex<<std::endl;
 
   }
 
@@ -39,5 +40,6 @@ namespace tca {
   void ClearCRInfo(TjStuff& tjs){
     tjs.crt.cr_pfpmintick.clear();
     tjs.crt.cr_pfpmaxtick.clear();
+    tjs.crt.cr_origin.clear();
   }
 }

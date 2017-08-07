@@ -287,6 +287,7 @@ namespace tca {
   struct CRTreeVars {
     std::vector<float> cr_pfpmintick;
     std::vector<float> cr_pfpmaxtick;
+    std::vector<int>   cr_origin;
   };
 
   // Algorithm modification bits
