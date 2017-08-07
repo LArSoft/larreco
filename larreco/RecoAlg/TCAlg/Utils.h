@@ -43,8 +43,10 @@ namespace tca {
   // ****************************** General purpose  ******************************
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid);
   void MergeBrokenTjs(TjStuff& tjs, std::vector<MatchStruct>& matVec);
+  void DirectionInCTP(const TjStuff& tjs, TVector3& dir3, CTP_t inCTP, std::array<double, 2>& dir2, double& ang2);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
   bool FindMatchingPts(TjStuff& tjs, MatchStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
+  bool FindMatchingPts2(TjStuff& tjs, MatchStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
   void FilldEdx(TjStuff& tjs, MatchStruct& ms);
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp);
