@@ -7,7 +7,7 @@ namespace tca {
     "CTKink",
     "CTStepChk",
     "TryNextPass",
-    "RevProp",
+    "RvPrp",
     "CHMH",
     "Split",
     "Comp3DVx",
@@ -34,8 +34,7 @@ namespace tca {
     "ChkStop",
     "FTBRvProp",
     "StopAtTj",
-    "Mat3D",
-    "MatTj",
+    "M3D",
     "Mat3DMerge",
     "TjHiVx3Score",
     "VtxHitsSwap",
@@ -62,7 +61,8 @@ namespace tca {
     "OnDeadWire",
     "VtxRefined",
     "HiVx3Score",
-    "VtxTruMatch"
+    "VtxTruMatch",
+    "VtxMerged"
   } ;
   
   geo::PlaneID DecodeCTP(CTP_t CTP) {

@@ -220,6 +220,15 @@ namespace tca {
       } // ipart
     }
     
+    // Look for hits without an MC match indicating a problem with the trigger time
+    unsigned int nomat = 0;
+    for(auto& hit : tjs.fHits) {
+      if(hit.Multiplicity > 1) continue;
+      if(hit.GoodnessOfFit <= 0) continue;
+      if(hit.MCPartListIndex == USHRT_MAX) ++nomat;
+    } // hit
+    if(nomat > 0) std::cout<<"Warning: MatchTrueHits found "<<nomat<<" hits not matched to an MCParticle!\n";
+    
   } // MatchTrueHits
   
   //////////////////////////////////////////
@@ -681,6 +690,10 @@ namespace tca {
 
     for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
       auto& part = partList[ipart];
+      float TMeV = 1000 * (part->E() - part->Mass());
+      // skip low energy electrons
+      int pdg = abs(part->PdgCode());
+      if(pdg == 11 && TMeV < 100) continue;
       unsigned short nInPln = 0;
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
         // require at least 2 matched hits
@@ -689,11 +702,11 @@ namespace tca {
       } // plane
       // require matched hits in at least two planes
       if(nInPln < 2) continue;
-      float TMeV = 1000 * (part->E() - part->Mass());
       MCP_TSum += TMeV;
+      ++MCP_Cnt;
       bool gotit = false;
-      for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
-        unsigned short imv = tjs.matchVecPFPList[ii];
+      for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+        unsigned short imv = tjs.matchVecPFPList[ipfp];
         auto& ms = tjs.matchVec[imv];
         if(ms.Count == 0) continue;
         if(ms.TjIDs.empty()) continue;
@@ -720,9 +733,9 @@ namespace tca {
           gotit = true;
           break;
         }
-      } // ipart
+      } // ipfp
       
-      if(!gotit && tjs.MatchTruth[1] > 0 && TMeV > 100) {
+      if(!gotit && tjs.MatchTruth[1] > 0 && TMeV > 30) {
         mf::LogVerbatim myprt("TC");
         myprt<<"BadPFP PDGCode "<<part->PdgCode()<<" TMeV "<<(int)TMeV;
         myprt<<" matched Tjs ";
@@ -740,7 +753,7 @@ namespace tca {
       auto& ms = tjs.matchVec[imv];
       if(ms.Count == 0) continue;
       if(ms.TjIDs.empty()) continue;
-      ++PFP_CntTot;
+      ++PFP_Cnt;
      } // ii
     
   } // MatchTruth
@@ -768,11 +781,11 @@ namespace tca {
       }
     } // pdgIndex
     if(sum > 0) myprt<<" MuPiKP "<<std::fixed<<std::setprecision(2)<<sumt / sum;
-    if(MCP_TSum > 0 && PFP_CntTot > 0) {
+    if(MCP_TSum > 0 && PFP_Cnt > 0) {
       // PFParticle statistics
       float ep = MCP_EPTSum / MCP_TSum;
-      float nofrac = 1 - (PFP_CntGoodMat / PFP_CntTot);
-      myprt<<" PFP "<<ep<<" "<<(int)PFP_CntTot<<" noMatFrac "<<nofrac;
+      float nofrac = 1 - (PFP_CntGoodMat / PFP_Cnt);
+      myprt<<" PFP "<<ep<<" MCP cnt "<<(int)MCP_Cnt<<" PFP cnt "<<(int)PFP_Cnt<<" noMatFrac "<<nofrac;
     }
   } // PrintResults
   

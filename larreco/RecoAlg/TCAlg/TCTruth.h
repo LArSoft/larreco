@@ -28,8 +28,9 @@ namespace tca {
       EPTSums.fill(0.0);
       MCP_TSum = 0;
       MCP_EPTSum = 0;
+      MCP_Cnt = 0;
       PFP_CntGoodMat = 0;
-      PFP_CntTot = 0;
+      PFP_Cnt = 0;
    }
     
     void Initialize();
@@ -44,8 +45,9 @@ namespace tca {
     std::array<float, 5> EPTSums;   // E*P sum weighted by kinetic energy for 5 particle types
     float MCP_TSum;                   // T sum
     float MCP_EPTSum;                  // E*P weighted sum
+    float MCP_Cnt;
     float PFP_CntGoodMat;              // Count of well matched MCParticles (> 1 plane)
-    float PFP_CntTot;
+    float PFP_Cnt;
     
     // number of primary particles in the event
     unsigned short nTruPrimary;
