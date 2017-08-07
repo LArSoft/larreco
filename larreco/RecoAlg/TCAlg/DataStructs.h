@@ -287,7 +287,7 @@ namespace tca {
     kCTKink,        ///< kink found in CheckTraj
     kCTStepChk,
     kTryWithNextPass,
-    kRevProp,
+    kRvPrp,
     kChkHiMultHits,
     kSplit,
     kComp3DVx,
@@ -315,7 +315,6 @@ namespace tca {
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
-    kMatTj,
     kMat3DMerge,
     kTjHiVx3Score,
     kVtxHitsSwap,
