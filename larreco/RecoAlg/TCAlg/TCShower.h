@@ -33,7 +33,7 @@
 
 namespace tca {
 
-  void Find3DShowerEndPoints(TjStuff& tjs, const geo::TPCID& tpcid);
+  bool Find3DShowerEndPoints(TjStuff& tjs, MatchStruct& ms);
   void MakeShowers(TjStuff& tjs);
   void FindShowers(TjStuff& tjs, const CTP_t& inCTP);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
@@ -49,6 +49,7 @@ namespace tca {
   void FillRotPos(TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool AnalyzeRotPos(TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool DefineShowerTj(TjStuff& tjs, unsigned short cotIndex, bool prt);
+  void ReverseShower(TjStuff& tjs, unsigned short cotIndex, bool prt);
   void FindExternalParent(TjStuff& tjs, unsigned short cotIndex, bool prt);
   void UpdateShowerWithParent(TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool WrongSplitTj(TjStuff& tjs, Trajectory& tj, unsigned short tjEnd, ShowerStruct& ss, bool prt);

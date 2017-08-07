@@ -31,6 +31,7 @@
 namespace tca {
   
   void Find2DVertices(TjStuff& tjs, const DebugStuff& debug, const CTP_t& inCTP);
+  bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& vx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2);
   void FindHammerVertices(TjStuff& tjs, const DebugStuff& debug, const CTP_t& inCTP);
   void FindHammerVertices2(TjStuff& tjs, const DebugStuff& debug, const CTP_t& inCTP);
   void Find3DVertices(TjStuff& tjs, const DebugStuff& debug, const geo::TPCID& tpcid);

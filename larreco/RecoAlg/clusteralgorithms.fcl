@@ -58,8 +58,12 @@ standard_trajclusteralg:
    # 7 min Score
    # 8 ID of a vertex for printing special debugging information
    Vertex3DChiCut: 3.5       # 3D vertex Chi/DOF cut
-   Match3DCuts: [ 0.3, 0, 3, 1, 0.1 ] 
-   # dx (cm) matching cut, min MCSMom, min length for 2-view match, 2-view missing plane requirement, min match fraction
+   Match3DCuts: [ 0.3, 0.1, 5, 1, 0.1 ] 
+   # 0 dx (cm) matching cut
+   # 1 Angle cut (radians) (0 = don't use)
+   # 2 min length for 2-view match
+   # 3 2-view missing plane requirement
+   # 4 min match fraction
    SkipAlgs: [  "VtxHitsSwap", "SplitHiChgHits", "CTKink", "HED" ]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    StudyMode: false         # Set true to generate histograms
