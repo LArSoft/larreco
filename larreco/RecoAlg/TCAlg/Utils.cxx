@@ -64,6 +64,7 @@ namespace tca {
       if(ims.Count < 5) continue;
       int minCnt = 0.1 * ims.Count;
       if(minCnt < 5) minCnt = 5;
+      if(minCnt > 100) minCnt = 100;
       for(unsigned short jndx = indx + 1; jndx < matVec.size(); ++jndx) {
         MatchStruct& jms = matVec[jndx];
         if(jms.TjIDs.size() < 3) break;
@@ -77,22 +78,21 @@ namespace tca {
         if(pln0Same && !pln1Same && pln2Same) { id1 = ims.TjIDs[1]; id2 = jms.TjIDs[1]; }
         if(!pln0Same && pln1Same && pln2Same) { id1 = ims.TjIDs[0]; id2 = jms.TjIDs[0]; }
         if(id1 == 0) continue;
-        //        if(prt) mf::LogVerbatim("TC")<<" trial merge of "<<id1<<" Count "<<ims.Count<<" and "<<id2<<" "<<" Count "<<jms.Count;
         // Try to merge in the best order. Generally the ID that is lower will have been reconstructed first
         if(id2 < id1) std::swap(id1, id2);
         unsigned int itj1 = id1 - 1;
         unsigned int itj2 = id2 - 1;
         Trajectory& tj1 = tjs.allTraj[itj1];
         Trajectory& tj2 = tjs.allTraj[itj2];
-        if(CompatibleMerge(tjs, tj1, tj2) && MergeAndStore(tjs, itj1, itj2, false)) {
+        if(CompatibleMerge(tjs, tj1, tj2) && MergeAndStore(tjs, itj1, itj2, true)) {
           // success
           int newTjID = tjs.allTraj.size();
+//          std::cout<<"MBTj Merge "<<id1<<" "<<id2<<" -> "<<newTjID<<"\n";
           tjs.allTraj[newTjID - 1].AlgMod[kMat3DMerge] = true;
           tjs.allTraj[itj1].AlgMod[kMat3DMerge] = true;
           tjs.allTraj[itj2].AlgMod[kMat3DMerge] = true;
-//          if(prt) mf::LogVerbatim("TC")<<" merge successfull. newTjID "<<newTjID;
-          std::replace(ims.TjIDs.begin(), ims.TjIDs.begin(), id1, newTjID);
-          std::replace(ims.TjIDs.begin(), ims.TjIDs.begin(), id2, newTjID);
+          std::replace(ims.TjIDs.begin(), ims.TjIDs.end(), id1, newTjID);
+          std::replace(ims.TjIDs.begin(), ims.TjIDs.end(), id2, newTjID);
           for(auto& kms : matVec) {
             if(std::find(kms.TjIDs.begin(), kms.TjIDs.end(), id1) != kms.TjIDs.end()) kms.Count = 0;
             if(std::find(kms.TjIDs.begin(), kms.TjIDs.end(), id2) != kms.TjIDs.end()) kms.Count = 0;
@@ -101,6 +101,42 @@ namespace tca {
       } // jndx
     } // indx
   } // MergeBrokenTjs
+  
+  /////////////////////////////////////////
+  void DirectionInCTP(const TjStuff& tjs, TVector3& dir3, CTP_t inCTP, std::array<double, 2>& dir2, double& ang2)
+  {
+    // Calculate the 2D direction in a plane for the supplied 3D direction in space
+    
+    geo::PlaneID planeID = DecodeCTP(inCTP);
+
+    if(dir3.Mag() == 0 || planeID.Plane > tjs.NumPlanes) {
+      dir2[0] = 0; dir2[1] = 0;
+      return;
+    }
+    dir3.SetMag(1);
+    // Make a point at the origin and one 100 units away
+    TVector3 ori3 = {0, 0, 0};
+    TVector3 pos3 = 100 * dir3;
+    // 2D position of the origin and the pos3 projection
+    std::array<double, 2> ori2;
+    std::array<double, 2> pos2;
+    
+    // the wire coordinates
+    ori2[0] = tjs.geom->WireCoordinate(ori3[1], ori3[2], planeID);
+    pos2[0] = tjs.geom->WireCoordinate(pos3[1], pos3[2], planeID);
+    // the time coordinates
+    ori2[1] = tjs.detprop->ConvertXToTicks(ori3[0], planeID) * tjs.UnitsPerTick;
+    pos2[1] = tjs.detprop->ConvertXToTicks(pos3[0], planeID) * tjs.UnitsPerTick;
+    
+    dir2[0] = pos2[0] - ori2[0];
+    dir2[1] = pos2[1] - ori2[1];
+
+    double norm = sqrt(dir2[0] * dir2[0] + dir2[1] * dir2[1]);
+    dir2[0] /= norm;
+    dir2[1] /= norm;
+    ang2 = atan2(dir2[1], dir2[0]);
+
+  } // DirectionInCTP
 
   /////////////////////////////////////////
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir)
@@ -117,14 +153,15 @@ namespace tca {
 
     double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iPlnID);
     double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jPlnID);
+//    std::cout<<"TP3D: "<<PrintPos(tjs, itp.Pos)<<" X "<<ix<<" "<<PrintPos(tjs, jtp.Pos)<<" "<<jx<<"\n";
 
     // don't continue if the points are too far apart in X
     if(std::abs(ix - jx) > 10) return false;
     pos[0] = 0.5 * (ix + jx);
 
-    unsigned int iWire = (unsigned int)(itp.Pos[0] + 0.5);
+    unsigned int iWire = std::nearbyint(itp.Pos[0]);
     if(!tjs.geom->HasWire(geo::WireID(iPlnID.Cryostat, iPlnID.TPC, iPlnID.Plane, iWire))) return false;
-    unsigned int jWire = (unsigned int)(jtp.Pos[0] + 0.5);
+    unsigned int jWire = std::nearbyint(jtp.Pos[0]);
     if(!tjs.geom->HasWire(geo::WireID(jPlnID.Cryostat, jPlnID.TPC, jPlnID.Plane, jWire))) return false;
 
     // determine the wire orientation and offsets using WireCoordinate
@@ -191,6 +228,90 @@ namespace tca {
   } // TrajPoint3D
   
   /////////////////////////////////////////
+  bool FindMatchingPts2(TjStuff& tjs, MatchStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt)
+  {
+    // Finds matching points when there is little X difference. These are likely to be
+    // a match of short Tjs
+    
+    unsigned int cstat = ms.TPCID.Cryostat;
+    unsigned int tpc = ms.TPCID.TPC;
+
+    double bestsep = 1E6;
+    unsigned int bii = 0;
+    unsigned int ibend = 0;
+    unsigned int bjj = 0;
+    unsigned int jbend = 0;
+    unsigned int bkk = 0;
+    unsigned int kbend = 0;
+    for(unsigned short ii = 0; ii < ms.TjIDs.size() - 2; ++ii) {
+      auto& itj = tjs.allTraj[ms.TjIDs[ii] - 1];
+      unsigned int iplane = DecodeCTP(itj.CTP).Plane;
+      for(unsigned short iend = 0; iend < 2; ++iend) {
+        auto& itp = itj.Pts[itj.EndPt[iend]];
+        unsigned int iwire = std::nearbyint(itp.Pos[0]);
+        double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1]/tjs.UnitsPerTick, iplane, ms.TPCID.TPC, ms.TPCID.Cryostat);
+        for(unsigned short jj = ii + 1; jj < ms.TjIDs.size() - 1; ++jj) {
+          auto& jtj = tjs.allTraj[ms.TjIDs[jj] - 1];
+          unsigned int jplane = DecodeCTP(jtj.CTP).Plane;
+          for(unsigned short jend = 0; jend < 2; ++jend) {
+            auto& jtp = jtj.Pts[jtj.EndPt[jend]];
+            unsigned int jwire = std::nearbyint(jtp.Pos[0]);
+            double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1]/tjs.UnitsPerTick, jplane, ms.TPCID.TPC, ms.TPCID.Cryostat);
+            float sep = std::abs(jx - ix);
+            if(sep > tjs.Match3DCuts[0]) continue;
+            if(ms.TjIDs.size() == 2) {
+              if(sep < bestsep) {
+                bestsep = sep;
+                bii = ms.TjIDs[ii] - 1; ibend = iend; 
+                bjj = ms.TjIDs[jj] - 1; jbend = jend; 
+              }
+              continue;
+            }
+            double yp1, zp1;
+            tjs.geom->IntersectionPoint(iwire, jwire, iplane, jplane, cstat, tpc, yp1, zp1);
+            double x1 = 0.5 * (ix + jx);
+            for(unsigned short kk = jj + 1; kk < ms.TjIDs.size(); ++kk) {
+              auto& ktj = tjs.allTraj[ms.TjIDs[kk] - 1];
+              unsigned int kplane = DecodeCTP(ktj.CTP).Plane;
+              for(unsigned short kend = 0; kend < 2; ++kend) {
+                auto& ktp = ktj.Pts[ktj.EndPt[kend]];
+                unsigned int kwire = std::nearbyint(ktp.Pos[0]);
+                double kx = tjs.detprop->ConvertTicksToX(ktp.Pos[1]/tjs.UnitsPerTick, kplane, ms.TPCID.TPC, ms.TPCID.Cryostat);
+                double yp2, zp2;
+                tjs.geom->IntersectionPoint(iwire, kwire, iplane, kplane, cstat, tpc, yp2, zp2);
+                double x2 = 0.5 * (ix + kx);
+                double dx = x2 - x1;
+                double dy = yp2 - yp1;
+                double dz = zp2 - zp1;
+                double sep = dx * dx + dy * dy + dz * dz;
+                if(sep < bestsep) {
+                  bestsep = sep;
+                  bii = ms.TjIDs[ii] - 1; ibend = iend; 
+                  bjj = ms.TjIDs[jj] - 1; jbend = jend; 
+                  bkk = ms.TjIDs[kk] - 1; kbend = kend;
+                }
+              } // kend
+            } // kk
+          } // jend
+        } // jj
+      } // iend
+    } // ii
+    stps.resize(ms.TjIDs.size());
+    etps.resize(ms.TjIDs.size());
+    auto& itj = tjs.allTraj[bii];
+    stps[0] = itj.Pts[itj.EndPt[ibend]];
+    etps[0] = itj.Pts[itj.EndPt[1 - ibend]];
+    auto& jtj = tjs.allTraj[bjj];
+    stps[1] = jtj.Pts[jtj.EndPt[jbend]];
+    etps[1] = jtj.Pts[jtj.EndPt[1 - jbend]];
+    if(ms.TjIDs.size() == 3) {
+      auto& ktj = tjs.allTraj[bkk];
+      stps[2] = ktj.Pts[ktj.EndPt[kbend]];
+      etps[2] = ktj.Pts[ktj.EndPt[1 - kbend]];
+    }
+    return true;
+  } // FindMatchingPts2
+  /////////////////////////////////////////
   bool FindMatchingPts(TjStuff& tjs, MatchStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt)
   {
     // Return a set of TrajPoints in the list of Tjs matched in MatchStruct ms that match in X at the start (stps)
@@ -221,11 +342,7 @@ namespace tca {
     // the number of bins in X
     float xbinSize = tjs.Match3DCuts[0];
     unsigned short nxbins = (xhi - xlo) / xbinSize;
-    if(nxbins < 2) {
-      // try going smaller if there aren't enough bins
-      xbinSize /= 2;
-      nxbins = (xhi - xlo) / xbinSize;
-    }
+    if(nxbins < 2) return FindMatchingPts2(tjs, ms, stps, etps, prt);
     // create X matching vectors for each Tj. Initialize with bogus Tj point indices
     std::vector<std::vector<unsigned short>> tjpt(ms.TjIDs.size(), std::vector<unsigned short>(nxbins, USHRT_MAX));
     // temp vector for holding the low end of the X bin value
@@ -268,15 +385,14 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<" tjpts";
       for(auto tjID : ms.TjIDs) myprt<<" "<<tjID;
-      myprt<<"\n";
       for(unsigned short bin = 0; bin < nxbins; ++bin) {
+        myprt<<"\n";
         myprt<<" bin "<<bin<<" "<<std::fixed<<std::setprecision(1)<<binX[bin];
         myprt<<" cnts "<<cnts[bin];
         myprt<<" tjpt";
         for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
           myprt<<" "<<tjpt[ii][bin];
         } // ii
-        myprt<<"\n";
       } // bin
     }
 
@@ -405,29 +521,42 @@ namespace tca {
     
     if(tj1.CTP != tj2.CTP) return false;
     if(tj1.AlgMod[kKilled] || tj2.AlgMod[kKilled]) return false;
-    // assume that the merge will occur between end1 of tj1 and end0 of tj2
-    unsigned short end1 = 1;
-    unsigned short end2 = 0;
-    const TrajPoint& tp10 = tj1.Pts[tj1.EndPt[0]];
-    const TrajPoint& tp11 = tj1.Pts[tj1.EndPt[1]];
-    const TrajPoint& tp20 = tj2.Pts[tj2.EndPt[0]];
-    const TrajPoint& tp21 = tj2.Pts[tj2.EndPt[1]];
-    if(PosSep2(tp10.Pos, tp21.Pos) < PosSep2(tp11.Pos, tp20.Pos)) { end1 = 0; end2 = 1; }
     
-    const TrajPoint& tp1 = tj1.Pts[tj1.EndPt[end1]];
-    const TrajPoint& tp2 = tj1.Pts[tj1.EndPt[end2]];
-    
-    if(tp1.AngleCode == 2 && tp2.AngleCode == 2) return true;
-    
-    if(!SignalBetween(tjs, tp1, tp2, 0.8, false)) return false;
-    
-    float sep = PosSep2(tp1.Pos, tp2.Pos);
-    // require < 5^2 wires
-    if(sep > 25) return false;
     // either one short?
     if(tj1.Pts.size() < 5 || tj2.Pts.size() < 5) return false;
-    if(sep > 15) return false;
+    
+    // See if they share the same 2D vertex
+    for(unsigned short e1 = 0; e1 < 2; ++e1) {
+      if(tj1.VtxID[e1] == 0) continue;
+      for(unsigned short e2 = 0; e2 < 2; ++e2) if(tj1.VtxID[e1] == tj2.VtxID[e2]) return true;
+    } // e1
+    
+    // find the closest end points
+    unsigned short end1 = 1;
+    unsigned short end2 = 0;
+    float minSep = 1E6;
+    for(unsigned short e1 = 0; e1 < 2; ++e1) {
+      for(unsigned short e2 = 0; e2 < 2; ++e2) {
+        const auto& tp1 = tj1.Pts[tj1.EndPt[e1]];
+        const auto& tp2 = tj2.Pts[tj2.EndPt[e2]];
+        float sep = PosSep2(tp1.Pos, tp2.Pos);
+        if(sep < minSep) {
+          minSep = sep;
+          end1 = e1;
+          end2 = e2;
+        }
+      } // e2
+    } // e1
+    
+    // This is equivalent to 15 WSE
+    if(minSep > 225) return false;
+    
+    const auto& tp1 = tj1.Pts[tj1.EndPt[end1]];
+    const auto& tp2 = tj1.Pts[tj1.EndPt[end2]];
+    
+    if(!SignalBetween(tjs, tp1, tp2, 0.8, false)) return false;
     if(DeltaAngle(tp1.Ang, tp2.Ang) > 0.8) return false;
+//    std::cout<<"CompatibleMerge "<<tj1.ID<<" "<<tj2.ID<<"\n";
     
     return true;
     
@@ -2774,7 +2903,13 @@ namespace tca {
     if(!CheckWireHitRange(tjs)) return false;
     
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
-    if(debugMode && (int)tpc == debug.TPC) std::cout<<"tjs.UnitsPerTick "<<std::setprecision(3)<<tjs.UnitsPerTick<<"\n";
+    if(debugMode && (int)tpc == debug.TPC) {
+      std::cout<<"tpc "<<tpc<<" tjs.UnitsPerTick "<<std::setprecision(3)<<tjs.UnitsPerTick<<"\n";
+      std::cout<<"Fiducial volume (";
+      std::cout<<std::fixed<<std::setprecision(1)<<tjs.XLo<<" < X < "<<tjs.XHi<<") (";
+      std::cout<<std::fixed<<std::setprecision(1)<<tjs.YLo<<" < Y < "<<tjs.YHi<<") (";
+      std::cout<<std::fixed<<std::setprecision(1)<<tjs.ZLo<<" < Z < "<<tjs.ZHi<<")\n";
+    }
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
       float sumRMS = 0;
       float sumAmp = 0;
@@ -2927,7 +3062,7 @@ namespace tca {
     }
     
     if(tj1.VtxID[1] > 0 && tj2.VtxID[0] == tj1.VtxID[1]) {
-      if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: Found a vertex between Tjs "<<tj1.VtxID[1]<<" "<<tj2.VtxID[0]<<". Killing it";
+      if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: Found a vertex between Tjs "<<tj1.VtxID[1]<<". Killing it";
       MakeVertexObsolete(tjs, tj1.VtxID[1], true);
     }
     
@@ -3006,14 +3141,8 @@ namespace tca {
     // Do this so that StoreTraj keeps the correct WorkID (of itj1)
     tj1.ID = tj1.WorkID;
     SetPDGCode(tjs, tj1);
+    if(doPrt) mf::LogVerbatim("TC")<<" MAS success. New TjID "<<tjs.allTraj[tjs.allTraj.size() - 1].ID + 1;
     return StoreTraj(tjs, tj1);
-    if(tjs.UseAlg[kChkInTraj]) {
-//      fQuitAlg = !InTrajOK(tjs, "MAS");
-//      if(fQuitAlg) mf::LogVerbatim("TC")<<"InTrajOK failed in MergeAndStore";
-      return false;
-    }
-    if(doPrt) mf::LogVerbatim("TC")<<" MAS success. New TjID "<<tjs.allTraj[tjs.allTraj.size() - 1].ID;
-    return true;
     
   } // MergeAndStore
   
@@ -3057,15 +3186,16 @@ namespace tca {
           myprt<<std::right<<std::setw(5)<<nTruMatch;
           if(vx3.Wire == -2) {
             // find the Tjs that are attached to it
+            myprt<<"PFP";
             for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
               unsigned short mvIndex = tjs.matchVecPFPList[ipfp];
               auto& ms = tjs.matchVec[mvIndex];
               if(ms.Vx3ID[0] == tjs.vtx3[iv].ID) {
-                myprt<<" PFParticle Start vtxTjs";
+                myprt<<" sTjs";
                 for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
               }
               if(ms.Vx3ID[1] == tjs.vtx3[iv].ID) {
-                myprt<<" PFParticle End vtxTjs";
+                myprt<<" eTjs";
                 for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
               }
             } // ipfp
@@ -3160,11 +3290,15 @@ namespace tca {
         myprt<<std::setw(2)<<tp0.AngleCode;
         if(aTj.StopFlag[0][kBragg]) {
           myprt<<"B";
+        } else if(aTj.StopFlag[0][kAtVtx]) {
+          myprt<<"V";
         } else {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp0.AveChg;
-        myprt<<std::setw(5)<<std::setprecision(1)<<aTj.dEdx[0];
+        unsigned short prec = 1;
+        if(aTj.dEdx[0] > 99) prec = 0;
+        myprt<<std::setw(5)<<std::setprecision(prec)<<aTj.dEdx[0];
         unsigned short endPt1 = aTj.EndPt[1];
         auto& tp1 = aTj.Pts[endPt1];
         itick = tp1.Pos[1]/tjs.UnitsPerTick;
@@ -3176,11 +3310,15 @@ namespace tca {
         myprt<<std::setw(2)<<tp1.AngleCode;
         if(aTj.StopFlag[1][kBragg]) {
           myprt<<"B";
+        } else if(aTj.StopFlag[1][kAtVtx]) {
+          myprt<<"V";
         } else {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp1.AveChg;
-        myprt<<std::setw(5)<<std::setprecision(1)<<aTj.dEdx[1];
+        prec = 1;
+        if(aTj.dEdx[1] > 99) prec = 0;
+        myprt<<std::setw(5)<<std::setprecision(prec)<<aTj.dEdx[1];
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(5)<<aTj.MCSMom;
         myprt<<std::setw(4)<<aTj.StepDir;
@@ -3201,7 +3339,6 @@ namespace tca {
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
         myprt<<std::setw(5)<<truKE;
         myprt<<std::setw(7)<<aTj.WorkID;
-//        myprt<<" "<<PrintStopFlag(aTj, 0)<<" "<<PrintStopFlag(aTj, 1)<<" ";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         myprt<<"\n";
       } // ii
