@@ -421,8 +421,6 @@ namespace tca {
         if(minX < tjs.XLo || maxX > tjs.XHi) {
           std::cout<<"Warning!! Probable timing offset problem: minX = "<<minX<<" < "<<tjs.XLo;
           std::cout<<" or maxX = "<<maxX<<" > "<<tjs.XHi<<"\n";
-          tjs.XLo = minX;
-          tjs.XHi = maxX;
         }
       } // check hits
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
@@ -447,7 +445,7 @@ namespace tca {
       } // fPlane
       // No sense taking muon direction if delta ray tagging is disabled
       if(tjs.DeltaRayTag[0] >= 0) TagMuonDirections(tjs, debug.WorkID);
-      if(tjs.Vertex3DChiCut > 0) Find3DVertices(tjs, debug, tpcid);
+      if(tjs.Vertex3DChiCut > 0) Find3DVertices(tjs, tpcid);
       KillPoorVertices(tjs);
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
@@ -755,7 +753,7 @@ namespace tca {
       // TY: Split high charge hits near the trajectory end
       ChkHiChgHits();
 
-      Find2DVertices(tjs, debug, fCTP);
+      Find2DVertices(tjs, fCTP);
       FindVtxTjs();
       if(fQuitAlg) return;
 
@@ -770,7 +768,7 @@ namespace tca {
       if(fQuitAlg) return;
     }
     TagDeltaRays(tjs, fCTP, debug.WorkID);
-    Find2DVertices(tjs, debug, fCTP);
+    Find2DVertices(tjs, fCTP);
     // check for a major failure
     if(fQuitAlg) return;
 
@@ -781,7 +779,7 @@ namespace tca {
     ChkVtxAssociations(tjs, fCTP);
 
     // TY: Improve hit assignments near vertex 
-    VtxHitsSwap(tjs, debug, fCTP);
+    VtxHitsSwap(tjs, fCTP);
 
     // Refine vertices, trajectories and nearby hits
 //    Refine2DVertices();
@@ -2314,7 +2312,7 @@ namespace tca {
             tpj.Dir = jTjPt.dir;
             double jyp, jzp;
             tjs.geom->IntersectionPoint(iTjPt.wire, jTjPt.wire, iplane, jplane, (unsigned int)cstat, (unsigned int)tpc, jyp, jzp);
-            if(jyp < tjs.YLo || jyp > tjs.YHi || jzp < tjs.ZLo || jzp > tjs.ZHi) continue;
+//            if(jyp < tjs.YLo || jyp > tjs.YHi || jzp < tjs.ZLo || jzp > tjs.ZHi) continue;
             // get the direction. If this works, IntersectionPoint could be totally replaced with TrajPoint3D
             bool dijOK = false;
             if(useAngle && iTjPt.npts > 5 && jTjPt.npts > 5) dijOK = TrajPoint3D(tjs, tpi, tpj, pos3, dij);
@@ -2390,8 +2388,6 @@ namespace tca {
     for(auto& ms : matVec) tripleTjList.insert(tripleTjList.end(), ms.TjIDs.begin(), ms.TjIDs.end());
     
     unsigned short minTjLen = tjs.Match3DCuts[2];
-    // Three plane TPC - require a 2-plane match reside in a dead region of the 3rd plane?
-//    bool require3rdPlnDeadRegion = (tjs.NumPlanes == 3 && tjs.Match3DCuts[3] > 0);
     
     // put the 2 plane matches into a temp vector to simplify things
     std::vector<MatchStruct> temp;
