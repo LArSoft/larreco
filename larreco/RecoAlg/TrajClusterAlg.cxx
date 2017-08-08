@@ -2797,7 +2797,7 @@ namespace tca {
         ms.Vx3ID[0] = newVx3.ID;
 //        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<newVx3.ID<<" at "<<newVx3.X<<" "<<newVx3.Y<<" "<<newVx3.Z;
       }
-      if (tjs.SaveCRTree) SaveCRInfo(tjs, ms, prt);
+      if (tjs.SaveCRTree) SaveCRInfo(tjs, ms, prt, fIsRealData);
     } // im (ms)
     
     if(pprt) PrintPFParticles("FPI", tjs);
