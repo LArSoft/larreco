@@ -219,7 +219,7 @@ namespace tca {
         myprt<<"\n";
       } // ipart
     }
-    
+/*
     // Look for hits without an MC match indicating a problem with the trigger time
     unsigned int nomat = 0;
     for(auto& hit : tjs.fHits) {
@@ -228,7 +228,7 @@ namespace tca {
       if(hit.MCPartListIndex == USHRT_MAX) ++nomat;
     } // hit
     if(nomat > 0) std::cout<<"Warning: MatchTrueHits found "<<nomat<<" hits not matched to an MCParticle!\n";
-    
+*/
   } // MatchTrueHits
   
   //////////////////////////////////////////
@@ -485,7 +485,7 @@ namespace tca {
       if(fSourceParticleEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx fSourceParticleEnergy "<<std::fixed<<std::setprecision(2)<<fSourceParticleEnergy<<" events processed "<<fEventsProcessed;
     }
     
-    if(tjs.MatchTruth[1] > 1) {
+    if(tjs.MatchTruth[1] > 0) {
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<nTruPrimary<<" Number reconstructable "<<nTruPrimaryOK<<" Found neutrino vertex? "<<nuVtxRecoOK<<"\n";
       myprt<<"part   PDG TrkID MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
@@ -735,9 +735,11 @@ namespace tca {
         }
       } // ipfp
       
-      if(!gotit && tjs.MatchTruth[1] > 0 && TMeV > 30) {
+      if(!gotit && TMeV > 30) {
         mf::LogVerbatim myprt("TC");
         myprt<<"BadPFP PDGCode "<<part->PdgCode()<<" TMeV "<<(int)TMeV;
+        myprt<<" nMatchedHitsInPartList ";
+        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) myprt<<" "<<nMatchedHitsInPartList[ipart][plane];
         myprt<<" matched Tjs ";
         for(auto& tj : tjs.allTraj) {
           if(tj.AlgMod[kKilled]) continue;
