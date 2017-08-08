@@ -310,6 +310,7 @@ namespace tca {
     kFixEnd,
     kUUH,
     kVtxTj,
+    kMisdVxTj,
     kRefineVtx,
     kNoKinkChk,
     kSoftKink,
