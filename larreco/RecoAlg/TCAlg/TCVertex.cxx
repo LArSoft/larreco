@@ -1537,6 +1537,7 @@ namespace tca {
       Vtx3Store& vx3 = tjs.vtx3[iv3];
       // ignore obsolete vertices
       if(vx3.ID == 0) continue;
+      if(vx3.TPCID != tpcid) continue;
       // check for a completed 3D vertex
       if(vx3.Wire < 0) continue;
       unsigned short mPlane = USHRT_MAX;
@@ -1630,6 +1631,7 @@ namespace tca {
     for(auto& vx3 : tjs.vtx3) {
       // ignore obsolete vertices
       if(vx3.ID == 0) continue;
+      if(vx3.TPCID != tpcid) continue;
       // check for a completed 3D vertex
       if(vx3.Wire < 0) continue;
       unsigned short mPlane = USHRT_MAX;
