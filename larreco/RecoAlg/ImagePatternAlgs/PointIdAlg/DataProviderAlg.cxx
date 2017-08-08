@@ -27,6 +27,7 @@ img::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fNoiseSigma(0), fCoherentSigma(0)
 {
 	fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
+	fCalibrateLifetime = config.CalibrateLifetime();
 	fCalibrateAmpl = config.CalibrateAmpl();
 	if (fCalibrateAmpl)
 	{
@@ -101,9 +102,13 @@ void img::DataProviderAlg::resizeView(size_t wires, size_t drifts)
     }
 
     fLifetimeCorrFactors.resize(fNDrifts);
-    for (size_t t = 0; t < fNDrifts; ++t)
+    if (fCalibrateLifetime)
     {
-        fLifetimeCorrFactors[t] = fCalorimetryAlg.LifetimeCorrection(t);
+        for (size_t t = 0; t < fNDrifts; ++t) { fLifetimeCorrFactors[t] = fCalorimetryAlg.LifetimeCorrection(t); }
+    }
+    else
+    {
+        for (size_t t = 0; t < fNDrifts; ++t) { fLifetimeCorrFactors[t] = 1.0; }
     }
 }
 // ------------------------------------------------------

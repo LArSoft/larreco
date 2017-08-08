@@ -63,6 +63,11 @@ public:
 			Comment("Calibrate ADC values with CalAmpConstants")
 		};
 
+		fhicl::Atom<bool> CalibrateLifetime {
+			Name("CalibrateLifetime"),
+			Comment("Calibrate ADC values with the electron lifetime")
+		};
+
 		fhicl::Atom<unsigned int> DriftWindow {
 			Name("DriftWindow"),
 			Comment("Downsampling window (in drift ticks).")
@@ -187,7 +192,7 @@ protected:
 private:
     float scaleAdcSample(float val) const;
     std::vector<float> fAmplCalibConst;
-    bool fCalibrateAmpl;
+    bool fCalibrateAmpl, fCalibrateLifetime;
 
     CLHEP::HepJamesRandom fRndEngine;
 

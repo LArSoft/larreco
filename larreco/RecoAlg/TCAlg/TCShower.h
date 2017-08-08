@@ -28,6 +28,7 @@
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "larreco/RecoAlg/TCAlg/TCTruth.h"
+#include "larreco/RecoAlg/TCAlg/TCTree.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 namespace tca {
@@ -79,9 +80,6 @@ namespace tca {
   unsigned short Create2DShower(TjStuff& tjs, const std::vector<int>& tjl);
   void FindNearbyTjs(TjStuff& tjs, unsigned short cotIndex, bool prt);
 
-  void SaveTjInfo(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList, unsigned int stageNum);
-  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotIndex,unsigned int stageNum);
-  void SaveTjInfoStuff(TjStuff& tjs,  const CTP_t& inCTP, Trajectory& tj,  unsigned int stageNum);
 }
 
 
