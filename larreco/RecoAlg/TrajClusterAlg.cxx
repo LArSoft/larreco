@@ -445,7 +445,10 @@ namespace tca {
       } // fPlane
       // No sense taking muon direction if delta ray tagging is disabled
       if(tjs.DeltaRayTag[0] >= 0) TagMuonDirections(tjs, debug.WorkID);
-      if(tjs.Vertex3DChiCut > 0) Find3DVertices(tjs, tpcid);
+      Find3DVertices(tjs, tpcid);
+      // Look for incomplete 3D vertices that won't be recovered because there are
+      // missing trajectories in a plane
+//      FindMissingVtxTjs(tpcid);
       KillPoorVertices(tjs);
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
@@ -4977,26 +4980,24 @@ namespace tca {
     // Look for vertex trajectories in all vertices in the current fCTP
     if(!tjs.UseAlg[kVtxTj]) return;
     
-    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
-      if(tjs.vtx[ivx].ID == 0) continue;
-       if(tjs.vtx[ivx].CTP != fCTP) continue;
-      if(tjs.vtx[ivx].Stat[kVtxTrjTried]) continue;
-      FindVtxTraj(ivx);
-    } // ivx
+    for(auto& vx2 : tjs.vtx) {
+      if(vx2.ID == 0) continue;
+      if(vx2.CTP != fCTP) continue;
+      if(vx2.Stat[kVtxTrjTried]) continue;
+      FindVtxTraj(vx2);
+    } // vx2
     
   } // FindVtxTjs
   
   //////////////////////////////////////////
-  void TrajClusterAlg::FindVtxTraj(unsigned short ivx)
+  void TrajClusterAlg::FindVtxTraj(VtxStore& vx2)
   {
     // Look for available hits in the vicinity of this vertex and try to make
     // a vertex trajectory from them
     
     if(!tjs.UseAlg[kVtxTj]) return;
     
-    if(ivx > tjs.vtx.size() - 1) return;
-    if(tjs.vtx[ivx].Stat[kVtxTrjTried]) return;
-    VtxStore& theVtx = tjs.vtx[ivx];
+    if(vx2.Stat[kVtxTrjTried]) return;
     
     std::array<int, 2> wireWindow;
     std::array<float, 2> timeWindow;
@@ -5013,15 +5014,15 @@ namespace tca {
     // 6 min frac of Points/Wire between a vtx and a Tj. Ideally one if the efficiency is good
     // 7 min Score
     // 8 ID of a vertex for printing special debugging information
-    wireWindow[0] = std::nearbyint(theVtx.Pos[0] - tjs.Vertex2DCuts[2]);
-    wireWindow[1] = std::nearbyint(theVtx.Pos[0] + tjs.Vertex2DCuts[2]);
-    timeWindow[0] = theVtx.Pos[1] - 5;
-    timeWindow[1] = theVtx.Pos[1] + 5;
+    wireWindow[0] = std::nearbyint(vx2.Pos[0] - tjs.Vertex2DCuts[2]);
+    wireWindow[1] = std::nearbyint(vx2.Pos[0] + tjs.Vertex2DCuts[2]);
+    timeWindow[0] = vx2.Pos[1] - 5;
+    timeWindow[1] = vx2.Pos[1] + 5;
     
-    geo::PlaneID planeID = DecodeCTP(theVtx.CTP);
+    geo::PlaneID planeID = DecodeCTP(vx2.CTP);
     unsigned short ipl = planeID.Plane;
     
-    if(prt) mf::LogVerbatim("TC")<<"inside FindVtxTraj "<<theVtx.ID<<" Window "<<wireWindow[0]<<" "<<wireWindow[1]<<" "<<timeWindow[0]<<" "<<timeWindow[1]<<" in plane "<<ipl;
+    if(prt) mf::LogVerbatim("TC")<<"inside FindVtxTraj "<<vx2.ID<<" Window "<<wireWindow[0]<<" "<<wireWindow[1]<<" "<<timeWindow[0]<<" "<<timeWindow[1]<<" in plane "<<ipl;
     
     // find nearby available hits
     bool hitsNear;
@@ -5037,16 +5038,16 @@ namespace tca {
     SortEntry sortEntry;
     for(unsigned short ii = 0; ii < closeHits.size(); ++ii) {
       unsigned int iht = closeHits[ii];
-      float dw = tjs.fHits[iht].WireID.Wire - theVtx.Pos[0];
-      float dt = tjs.UnitsPerTick * tjs.fHits[iht].PeakTime - theVtx.Pos[1];
+      float dw = tjs.fHits[iht].WireID.Wire - vx2.Pos[0];
+      float dt = tjs.UnitsPerTick * tjs.fHits[iht].PeakTime - vx2.Pos[1];
       float d2 = dw * dw + dt * dt;
       sortEntry.index = ii;
       sortEntry.val = d2;
       sortVec[ii] = sortEntry;
     } // ii
     std::sort(sortVec.begin(), sortVec.end(), lessThan);
-    unsigned int vWire = std::nearbyint(theVtx.Pos[0]);
-    int vTick = theVtx.Pos[1]/tjs.UnitsPerTick;
+    unsigned int vWire = std::nearbyint(vx2.Pos[0]);
+    int vTick = vx2.Pos[1]/tjs.UnitsPerTick;
     if(prt) PrintHeader("FVT");
     for(unsigned short ii = 0; ii < closeHits.size(); ++ii) {
       unsigned int iht = closeHits[sortVec[ii].index];
@@ -5062,11 +5063,11 @@ namespace tca {
       // assume the last pass and fix it later after the angle is calculated
       unsigned short pass = fMinPts.size() - 1;
       Trajectory tj;
-      if(!StartTraj(tj, theVtx.Pos[0], theVtx.Pos[1]/tjs.UnitsPerTick, toWire, toTick, theVtx.CTP, pass)) continue;
+      if(!StartTraj(tj, vx2.Pos[0], vx2.Pos[1]/tjs.UnitsPerTick, toWire, toTick, vx2.CTP, pass)) continue;
       // ensure that the first TP is good
       if(tj.Pts[0].Pos[0] < 0) continue;
-      //      std::cout<<"fvt "<<theVtx.ID<<" "<<tj.ID<<" vtx0 "<<theVtx.Pos[0]<<" hit "<<PrintHit(tjs.fHits[iht])<<" StepDir "<<tj.StepDir<<"\n";
-      tj.VtxID[0] = theVtx.ID;
+      //      std::cout<<"fvt "<<vx2.ID<<" "<<tj.ID<<" vtx0 "<<vx2.Pos[0]<<" hit "<<PrintHit(tjs.fHits[iht])<<" StepDir "<<tj.StepDir<<"\n";
+      tj.VtxID[0] = vx2.ID;
       TrajPoint& tp = tj.Pts[0];
       // Move the Pt to the hit
       MoveTPToWire(tp, toWire);
@@ -5102,7 +5103,7 @@ namespace tca {
     } // ii
     
     // Flag this as tried so we don't try again
-    tjs.vtx[ivx].Stat[kVtxTrjTried] = true;
+    vx2.Stat[kVtxTrjTried] = true;
   } // FindVtxTraj
   
   ////////////////////////////////////////////////
