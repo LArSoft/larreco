@@ -27,6 +27,7 @@ namespace tca {
     "FixBegin",
     "FixEnd",
     "UUH",
+    "MisdVxTj",
     "VtxTj",
     "RefVtx",
     "NoKinkChk",
