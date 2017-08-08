@@ -342,14 +342,14 @@ namespace DUNE{
     //  double Pbins[18] ={0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0};
   
   
-    h_Ev_den = tfs->make<TH1D>("h_Ev_den","Neutrino Energy; Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
+    h_Ev_den = tfs->make<TH1D>("h_Ev_den","Neutrino Energy; Neutrino Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
     h_Ev_den->Sumw2();
-    h_Ev_num = tfs->make<TH1D>("h_Ev_num","Neutrino Energy; Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
+    h_Ev_num = tfs->make<TH1D>("h_Ev_num","Neutrino Energy; Neutrino Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
     h_Ev_num->Sumw2();
 
-    h_Ee_den = tfs->make<TH1D>("h_Ee_den","Electron Energy; Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
+    h_Ee_den = tfs->make<TH1D>("h_Ee_den","Electron Energy; Electron Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
     h_Ee_den->Sumw2();
-    h_Ee_num = tfs->make<TH1D>("h_Ee_num","Electron Energy; Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
+    h_Ee_num = tfs->make<TH1D>("h_Ee_num","Electron Energy; Electron Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
     h_Ee_num->Sumw2();
 
     h_Pe_den = tfs->make<TH1D>("h_Pe_den","Electron Momentum; Electron Momentum (GeV); Shower reconstruction Efficiency",20,E_bins);
