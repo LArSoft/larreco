@@ -451,7 +451,7 @@ namespace tca {
       Find3DVertices(tjs, tpcid);
       // Look for incomplete 3D vertices that won't be recovered because there are
       // missing trajectories in a plane
-//      FindMissingVtxTjs(tpcid);
+      FindMissedVxTjs(tpcid);
       KillPoorVertices(tjs);
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
@@ -4974,6 +4974,70 @@ namespace tca {
     
   } // MakeAllTrajClusters
   
+  
+  //////////////////////////////////////////
+  void TrajClusterAlg::FindMissedVxTjs(const geo::TPCID& tpcid)
+  {
+    // Use an approach similar to CompleteIncompleteVertices to find missing 2D
+    // vertices in a plane due to a mis-reconstructed Tj in the missing plane
+    
+    if(!tjs.UseAlg[kMisdVxTj]) return;
+
+    bool prt = (debug.Plane >= 0 && debug.Tick == 77777);
+    if(prt) mf::LogVerbatim("TC")<<"Inside FMVTjs "<<tjs.vtx3.size(); 
+
+    float maxdoca = 6;
+    for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
+      Vtx3Store& vx3 = tjs.vtx3[iv3];
+      // ignore obsolete vertices
+      if(vx3.ID == 0) continue;
+      if(vx3.TPCID != tpcid) continue;
+      // check for a completed 3D vertex
+      if(vx3.Wire < 0) continue;
+      unsigned short mPlane = USHRT_MAX;
+      unsigned short ntj_1stPlane = USHRT_MAX;
+      unsigned short ntj_2ndPlane = USHRT_MAX;
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        if(vx3.Vx2ID[plane] > 0) {
+          auto& vx2 = tjs.vtx[vx3.Vx2ID[plane] - 1];
+          if(ntj_1stPlane == USHRT_MAX) {
+            ntj_1stPlane = vx2.NTraj;
+          } else {
+            ntj_2ndPlane = vx2.NTraj;
+          }
+          continue;
+        }
+        mPlane = plane;
+      } // plane
+      if(mPlane == USHRT_MAX) continue;
+      CTP_t mCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, mPlane);
+      // X position of the purported missing vertex
+      // A TP for the missing 2D vertex
+      TrajPoint tp;
+      tp.Pos[0] = vx3.Wire;
+      tp.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tjs.UnitsPerTick;
+      std::vector<int> tjIDs;
+      std::vector<unsigned short> tjPts;
+      for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+        if(tjs.allTraj[itj].CTP != mCTP) continue;
+        if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
+        if(tjs.allTraj[itj].Pts.size() < 6) continue;
+        if(tjs.allTraj[itj].AlgMod[kComp3DVx]) continue;
+        float doca = maxdoca;
+        // find the closest distance between the vertex and the trajectory
+        unsigned short closePt = 0;
+        TrajPointTrajDOCA(tjs, tp, tjs.allTraj[itj], closePt, doca);
+        if(closePt > tjs.allTraj[itj].EndPt[1]) continue;
+        if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
+        tjIDs.push_back(tjs.allTraj[itj].ID);
+        tjPts.push_back(closePt);
+      } // itj
+      // handle the case where there are one or more TJs with TPs near the ends
+      // that make a vertex (a failure by Find2DVertices)
+      if(tjIDs.empty()) continue;
+      if(prt) mf::LogVerbatim("TC")<<"vx3 "<<vx3.ID<<" mPlane "<<mPlane<<" ntj_1stPlane "<<ntj_1stPlane<<" ntj_2ndPlane "<<ntj_2ndPlane; 
+    } // iv3
+  } // FindMissedVxTjs
   
   //////////////////////////////////////////
   void TrajClusterAlg::FindVtxTjs()
