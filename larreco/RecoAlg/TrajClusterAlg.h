@@ -252,7 +252,7 @@ namespace tca {
      // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
     void FindVtxTjs();
-    void FindVtxTraj(unsigned short ivx);
+    void FindVtxTraj(VtxStore& theVtx);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
      // Truncates the trajectory if a soft kink is found in it
