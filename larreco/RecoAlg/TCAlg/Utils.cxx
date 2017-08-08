@@ -3186,16 +3186,14 @@ namespace tca {
           myprt<<std::right<<std::setw(5)<<nTruMatch;
           if(vx3.Wire == -2) {
             // find the Tjs that are attached to it
-            myprt<<"PFP";
+            myprt<<" PFP Tjs";
             for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
               unsigned short mvIndex = tjs.matchVecPFPList[ipfp];
               auto& ms = tjs.matchVec[mvIndex];
               if(ms.Vx3ID[0] == tjs.vtx3[iv].ID) {
-                myprt<<" sTjs";
                 for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
               }
               if(ms.Vx3ID[1] == tjs.vtx3[iv].ID) {
-                myprt<<" eTjs";
                 for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
               }
             } // ipfp
