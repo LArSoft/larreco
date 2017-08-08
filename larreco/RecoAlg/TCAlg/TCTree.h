@@ -36,6 +36,8 @@ namespace tca {
   void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotIndex, unsigned int stageNum);
   void SaveTjInfoStuff(TjStuff& tjs,  const CTP_t& inCTP, Trajectory& tj,  unsigned int stageNum);
 
+  void ClearShowerTree(ShowerTreeVars& stv);
+
 } // namespace tca
 
 #endif

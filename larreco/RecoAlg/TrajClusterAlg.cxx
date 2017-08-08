@@ -281,6 +281,9 @@ namespace tca {
     tjs.cots.clear();
     tjs.showers.clear();
     tjs.MCPartList.clear();
+
+    ClearShowerTree(tjs.stv);
+
   } // ClearResults()
 
   ////////////////////////////////////////////////

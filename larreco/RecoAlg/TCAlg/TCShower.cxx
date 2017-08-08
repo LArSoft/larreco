@@ -211,7 +211,6 @@ namespace tca {
       std::vector<std::vector<int>> tjList;
       TagShowerTjs(tjs, inCTP, tjList);
 
-      std::cout << "saving info in FindShowers3D!!" << std::endl;
       if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 1);
 
       if(tjList.empty()) continue;
