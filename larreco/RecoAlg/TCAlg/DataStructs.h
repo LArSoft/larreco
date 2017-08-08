@@ -179,7 +179,7 @@ namespace tca {
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
     std::vector<int> TjIDs;
-    // Count of the number of time-matched hits
+    // Count of the number of X-matched hits
     int Count {0};                    // Set to 0 if matching failed
     // Start is 0, End is 1
     std::array<std::array<float, 3>, 2> XYZ;        // XYZ position at both ends (cm)
