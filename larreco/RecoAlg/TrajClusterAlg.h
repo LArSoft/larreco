@@ -251,6 +251,7 @@ namespace tca {
     void ChkInTraj(std::string someText);
      // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
+    void FindMissedVxTjs(const geo::TPCID& tpcid);
     void FindVtxTjs();
     void FindVtxTraj(VtxStore& theVtx);
     // Check the quality of the trajectory and possibly trim it
