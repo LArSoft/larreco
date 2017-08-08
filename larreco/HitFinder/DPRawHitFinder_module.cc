@@ -162,6 +162,7 @@ namespace hit{
     int    fMinSig;                   ///<signal height threshold
     int    fTicksToStopPeakFinder;    ///<Number of ticks with same or higher ADC count that the current tick is needed to be followed by to define start and end of peak 
     int    fMinWidth;                 ///<Minimum hit width
+    int    fMinADCSum;                 ///<Minimum hit ADC sum
     double fMinADCSumOverWidth;        ///<Minimum hit width
     unsigned int fMaxMultiHit;        ///<maximum hits for multi fit
     double	 fChargeNorm;         ///<factors for converting area to same units as peak height
@@ -246,6 +247,7 @@ void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fNumBinsToAverage 	   = p.get< size_t >("NumBinsToAverage");
     fMinSig           	   = p.get< int    >("MinSig");
     fMinWidth         	   = p.get< int >("MinWidth");
+    fMinADCSum		   = p.get< int >("MinADCSum");
     fMinADCSumOverWidth    = p.get< double >("MinADCSumOverWidth");
     fChargeNorm       	   = p.get< double >("ChargeNorm");
     fTicksToStopPeakFinder = p.get< double >("TicksToStopPeakFinder");
@@ -430,7 +432,7 @@ void DPRawHitFinder::produce(art::Event& evt)
                 PeakTimeWidVec& peakVals = std::get<2>(mergedVec.at(j));
 
                 // ### Getting rid of noise hits ###
-                if (width < fMinWidth || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0)/width < fMinADCSumOverWidth) continue;
+                if (width < fMinWidth || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0) < fMinADCSum || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0)/width < fMinADCSumOverWidth) continue;
 
 		    if(j>=1 && nExponentialsForFit>0)
 		    {

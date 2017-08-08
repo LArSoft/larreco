@@ -15,8 +15,9 @@ standard_dataprovideralg:
  NoiseSigma:      0   # apply white noise
  CoherentSigma:   0   # apply coherent noise
 
- CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
- CalibrateAmpl:    false # calibrate ADC values with CalAmpConstants (allows different gains in MC and data)
+ CalorimetryAlg:    @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
+ CalibrateAmpl:     false # calibrate ADC values with CalAmpConstants (allows different gains in MC and data)
+ CalibrateLifetime: true  # calibrate ADC values according to the electron lifetime
 }
 
 standard_pointidalg:
@@ -38,6 +39,7 @@ standard_pointidalg:
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
  CalibrateAmpl:    false # calibrate ADC values with CalAmpConstants (allows different gains in MC and data)
+ CalibrateLifetime: true  # calibrate ADC values according to the electron lifetime
 }
 
 standard_trainingdataalg:
@@ -64,6 +66,7 @@ standard_trainingdataalg:
 
  CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
  CalibrateAmpl:    false # calibrate ADC value with CalAmpConstants (allows different gains in MC and data)
+ CalibrateLifetime: true  # calibrate ADC values according to the electron lifetime
 }
 
 END_PROLOG

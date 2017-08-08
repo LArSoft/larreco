@@ -384,6 +384,7 @@ nnet::TrainingDataAlg::TrainingDataAlg(const Config& config) : img::DataProvider
     fAdcDelay(config.AdcDelayTicks()),
     fEventsPerBin(100, 0)
 {
+    fSaveSimInfo = !fSimulationProducerLabel.label().empty();
 }
 // ------------------------------------------------------
 
@@ -938,6 +939,12 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 		mf::LogError("TrainingDataAlg") << "Wire data not set.";
 		return false;
 	}
+
+    if (!fSaveSimInfo || event.isRealData())
+    {
+        mf::LogInfo("TrainingDataAlg") << "Skip MC simulation info.";
+        return true;
+    }
 
 	art::ServiceHandle<sim::LArG4Parameters> larParameters;
 	double electronsToGeV = 1. / larParameters->GeVToElectrons();
