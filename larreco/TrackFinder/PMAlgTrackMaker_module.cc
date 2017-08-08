@@ -428,9 +428,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			trk->SelectHits();  // just in case, set all to enabled
 			unsigned int itpc = trk->FrontTPC(), icryo = trk->FrontCryo();
-			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kU)) trk->CompleteMissingWires(geo::kU);
-			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(geo::kV);
-			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(geo::kZ);
+			pma::dedx_map dedx_tmp;
+			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kU)) { trk->CompleteMissingWires(geo::kU); trk->GetRawdEdxSequence(dedx_tmp, geo::kU, 1); }
+			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) { trk->CompleteMissingWires(geo::kV); trk->GetRawdEdxSequence(dedx_tmp, geo::kV, 1); }
+			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kX)) { trk->CompleteMissingWires(geo::kX); trk->GetRawdEdxSequence(dedx_tmp, geo::kX, 1); }
+			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kY)) { trk->CompleteMissingWires(geo::kY); trk->GetRawdEdxSequence(dedx_tmp, geo::kY, 1); }
+			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) { trk->CompleteMissingWires(geo::kZ); trk->GetRawdEdxSequence(dedx_tmp, geo::kZ, 1); }
 
 		    int pdg = 0;
 		    if (mvaLength == 4) pdg = getPdgFromCnnOnHits<4>(evt, *(result[trkIndex].Track()));
