@@ -1531,6 +1531,7 @@ namespace tca {
     if(!tjs.UseAlg[kComp3DVxIG]) return;
 
     bool prt = (debug.Plane >= 0 && debug.Tick == 44444);
+    if(prt) mf::LogVerbatim("TC")<<"Inside CI3DVIG:";
 
     for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
       Vtx3Store& vx3 = tjs.vtx3[iv3];
@@ -1619,8 +1620,10 @@ namespace tca {
     // assigning them to a new 2D vertex and completing 3D vertices
     
     if(!tjs.UseAlg[kComp3DVx]) return;
+    if(tjs.NumPlanes != 3) return;
     
     bool prt = (debug.Plane >= 0 && debug.Tick == 33333);
+    if(prt) mf::LogVerbatim("TC")<<"Inside CI3DV";
     
     float maxdoca = 6;
     unsigned short ivx3 = 0;
@@ -1630,10 +1633,9 @@ namespace tca {
       // check for a completed 3D vertex
       if(vx3.Wire < 0) continue;
       unsigned short mPlane = USHRT_MAX;
-      for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-        if(vx3.Vx2ID[ipl] > 0) continue;
-        mPlane = ipl;
-        break;
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        if(vx3.Vx2ID[plane] > 0) continue;
+        mPlane = plane;
       } // ipl
       if(mPlane == USHRT_MAX) continue;
       CTP_t mCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, mPlane);
