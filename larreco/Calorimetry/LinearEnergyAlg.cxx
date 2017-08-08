@@ -123,7 +123,7 @@ void calo::LinearEnergyAlg::initialize() {
 double calo::LinearEnergyAlg::CalculateHitEnergy(recob::Hit const& hit) const
 {
 
-  double const t = ConvertTickToDriftTime( hit.PeakTime(), hit.View() );
+  double const t = detc->TPCTick2TrigTime( hit.PeakTime() );
   double const LifetimeCorr = std::exp( t / fElectronLifetime );
   
   // hit charge (ADC) -> Coulomb -> Number of electrons -> eV
@@ -196,12 +196,6 @@ std::vector<double> calo::LinearEnergyAlg::CalculateEnergy(
   return clusterEnergies;
   
 } // calo::LinearEnergyAlg::CalculateEnergy()
-
-// Get the electron drift time; may move to somewhere else
-double calo::LinearEnergyAlg::ConvertTickToDriftTime( double tick, geo::View_t plane ) const {
-  double offTick = detp->GetXTicksOffset( plane, 0, 0 ) - detp->TriggerOffset();
-  return detc->TPCTick2Time( tick - offTick );
-}
 
 double calo::LinearEnergyAlg::RecombinationCorrection( double dEdx ) const {
 
