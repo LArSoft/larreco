@@ -52,7 +52,7 @@ gaus_hitfinder:
  AllHitsInstanceName:  ""                 # If non-null then this will be the instance name of all hits output to event
                                           # in this case there will be two hit collections, one filtered and one containing all hits
  FilterHits:           false              # true = do not keep undesired hits according to settings of HitFilterAlg object
- CandidateHits:        @local::candhitfinder_derivative
+ CandidateHits:        @local::candhitfinder_standard
  PeakFitter:           @local::peakfitter_gaussian
  HitFilterAlg:
  {
