@@ -1018,7 +1018,7 @@ namespace tca {
   ////////////////////////////////////////////////
   void ReleaseHits(TjStuff& tjs, Trajectory& tj)
   {
-    // Sets InTraj[] = 0 and UseHit false for all TPs in work. Called when abandoning work
+    // Sets InTraj[] = 0 for all TPs in work. Called when abandoning work
     for(auto& tp : tj.Pts) {
       for(auto& iht : tp.Hits) {
         if(tjs.fHits[iht].InTraj == tj.ID) tjs.fHits[iht].InTraj = 0;
