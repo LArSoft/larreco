@@ -240,6 +240,24 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 }
 // ------------------------------------------------------
 
+bool nnet::PointIdAlg::isCurrentPatch(unsigned int wire, float drift) const
+{
+    if (fDownscaleFullView)
+    {
+    	size_t sd = (size_t)(drift / fDriftWindow);
+    	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == sd))
+    		return true; // still within the current position
+    }
+    else
+    {
+    	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == drift))
+	    	return true; // still within the current position
+    }
+
+    return false; // not a current position
+}
+// ------------------------------------------------------
+
 // MUST give the same result as get_patch() in scripts/utils.py
 bool nnet::PointIdAlg::patchFromDownsampledView(size_t wire, float drift) const
 {
@@ -290,6 +308,9 @@ bool nnet::PointIdAlg::patchFromDownsampledView(size_t wire, float drift) const
 
 bool nnet::PointIdAlg::patchFromOriginalView(size_t wire, float drift) const
 {
+	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == drift))
+		return true; // still within the current position
+
 	fCurrentWireIdx = wire;
 	fCurrentScaledDrift = drift;
 
