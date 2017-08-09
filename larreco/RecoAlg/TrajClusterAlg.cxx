@@ -329,13 +329,33 @@ namespace tca {
       localHit.LocalIndex = hit->LocalIndex();
       localHit.WireID = hit->WireID();
       tjs.fHits.push_back(localHit);
-    } // iht    
+    } // iht
 
     // sort it as needed;
     // that is, sorted by wire ID number,
     // then by start of the region of interest in time, then by the multiplet
     std::sort(tjs.fHits.begin(), tjs.fHits.end(), &SortByMultiplet);
-    
+/* This bombs because the planes and ave hits rms isn't defined yet
+    std::cout<<"Testing local hit multiplets\n";
+    std::vector<unsigned int> hitsInMuliplet;
+    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+      // Use InTraj as a flag to indicate that this hit was already considered
+      if(tjs.fHits[iht].InTraj > 0) continue;
+      GetHitMultiplet(iht, hitsInMuliplet);
+      tjs.fHits[iht].InTraj = 1;
+      if(hitsInMuliplet.size() > 1) {
+        for(unsigned int ii = 0; ii < hitsInMuliplet.size(); ++ii) {
+          unsigned int mht = hitsInMuliplet[ii];
+          tjs.fHits[mht].LocalIndex = ii;
+          tjs.fHits[mht].InTraj = 1;
+        }
+      } // multiplet > 1
+    } // iht
+    // reset inTraj
+    for(auto& hit : tjs.fHits) hit.InTraj = 0;
+    // Re-sort the hits
+    std::sort(tjs.fHits.begin(), tjs.fHits.end(), &SortByMultiplet);
+*/
     // check the hits for indexing errors
     unsigned short nerr = 0;
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
@@ -360,9 +380,10 @@ namespace tca {
         } // jht
       }
     } // iht
+    if(nerr > 0) std::cout<<"Found "<<nerr<<" hit indexing errors\n";
     
     // Match these hits to MC tracks
-    if(!fIsRealData) tm.MatchTrueHits();
+    if(!fIsRealData) tm.MatchTrueHits(hist);
 
     // check for debugging mode triggered by Plane, Wire, Tick
     debug.Hit = UINT_MAX;
@@ -474,20 +495,12 @@ namespace tca {
       // true if the algorithm was successful indicating that the matching needs to be redone
       if(tjs.ShowerTag[0] == 2 && FindShowers3D(tjs, tpcid)) Match3D(tpcid, true);
 
-      std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
-      showertree->Fill();
+      if(tjs.SaveShowerTree) {
+        std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
+        showertree->Fill();
+      }
     } // tpcid
     
-    if(fStudyMode) {
-      // output MC-reco stuff to optimize the vertex weights
-      for (const geo::TPCID& tpcid: tjs.geom->IterateTPCIDs()) {
-        geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
-        for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
-          fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
-          ChkVtxAssociations(tjs, fCTP);
-        }
-      } // tpcid
-    }
     FillPFPInfo();
     if(!fIsRealData) tm.MatchTruth(hist, fEventsProcessed);
     // Convert trajectories in allTraj into clusters
@@ -503,7 +516,9 @@ namespace tca {
       return;
     }
     
-    if(fStudyMode) std::cout<<"StudyMode is broken right now...\n";
+    // fill some basic histograms 
+    for(auto& vx2 : tjs.vtx) if(vx2.ID > 0 && vx2.Score > 0) hist.fVx2Score->Fill(vx2.Score);
+    for(auto& vx3 : tjs.vtx3) if(vx3.ID > 0 && vx3.Score > 0) hist.fVx3Score->Fill(vx3.Score);
     
     // print trajectory summary report?
     if(tjs.ShowerTag[0] >= 0) debug.Plane = tjs.ShowerTag[11];
@@ -619,11 +634,10 @@ namespace tca {
             if(tjs.IgnoreNegChiHits && tjs.fHits[jht].GoodnessOfFit < 0) continue;
             // clear out any leftover work inTraj's that weren't cleaned up properly
 /*
-            for(unsigned short oht = jfirsthit; oht < jlasthit; ++oht) {
-              if(tjs.fHits[oht].InTraj < 0) {
-                mf::LogVerbatim("TC")<<"Bad cleanup "<<PrintHit(tjs.fHits[oht])<<" "<<tjs.fHits[oht].InTraj<<" events processed "<<fEventsProcessed;
-                std::cout<<"Bad cleanup "<<PrintHit(tjs.fHits[oht])<<" "<<tjs.fHits[oht].InTraj<<" events processed "<<fEventsProcessed<<" fWorkID "<<fWorkID<<"\n";
-                tjs.fHits[oht].InTraj = 0;
+            for(auto& hit : tjs.fHits) {
+              if(hit.InTraj < 0) {
+                std::cout<<"Bad cleanup "<<PrintHit(hit)<<" events processed "<<fEventsProcessed<<" fWorkID "<<fWorkID<<"\n";
+                hit.InTraj = 0;
               }
             }
 */
