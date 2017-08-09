@@ -137,8 +137,6 @@ namespace tca {
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
-    int TruPDG {0};                    ///< MC truth
-    int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
     std::array<float, 2> dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
