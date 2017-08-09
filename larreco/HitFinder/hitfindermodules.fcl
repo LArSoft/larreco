@@ -37,32 +37,33 @@ gaus_hitfinder:
 {
  module_type:          "GausHitFinder"
  CalDataModuleLabel:   "caldata"
- MinSig:               [ 6.0, 11.0 ]    # signal height threshold, per plane
- MinWidth:             [ 4.0, 6.0 ]     # hit width threshold, per plane
- MaxMultiHit:          10               # maximum hits for multi fit   
- AreaMethod:           0                # 0 = area by integral, 1 = area by gaussian area formula
- AreaNorms:            [ 13.25, 26.31 ] # normalizations that put signal area in 
-                                        # same scale as peak height.
- LongMaxHits:          [  1,  1,  1]    # max number hits in long pulse trains
- LongPulseWidth:       [ 16, 16, 16]    # max widths for hits in long pulse trains
- TryNplus1Fits:        true		        # true will try to re-fit poorly modeled hits with n+1 gaussians
- 					                    # false will NOT try to re-fit poorly modled hits
- Chi2NDFRetry:         25.0             # If the first hit returns a Chi2/NDF greater than (2X) this 
-                                        # number (for single pulse) it will try a second fit
- Chi2NDF:              2000             # maximum Chisquared / NDF allowed for a hit to be saved (Set very high by default)
+ MinSig:               [ 6.0, 11.0 ]      # signal height threshold, per plane
+ MinWidth:             [ 4.0, 6.0 ]       # hit width threshold, per plane
+ MaxMultiHit:          10                 # maximum hits for multi fit
+ AreaMethod:           0                  # 0 = area by integral, 1 = area by gaussian area formula
+ AreaNorms:            [ 13.25, 26.31 ]   # normalizations that put signal area in
+                                          # same scale as peak height.
+ LongMaxHits:          [  1,  1,  1]      # max number hits in long pulse trains
+ LongPulseWidth:       [ 16, 16, 16]      # max widths for hits in long pulse trains
+ TryNplus1Fits:        true		          # true will try to re-fit poorly modeled hits with n+1 gaussians
+ 					                      # false will NOT try to re-fit poorly modled hits
+ Chi2NDF:              2000               # maximum Chisquared / NDF allowed for a hit to be saved (Set very high by default)
 
- AllHitsInstanceName:  ""               # If non-null then this will be the instance name of all hits output to event
-                                        # in this case there will be two hit collections, one filtered and one containing all hits
- FilterHits:           false            # true = do not keep undesired hits according to settings of HitFilterAlg object
+ AllHitsInstanceName:  ""                 # If non-null then this will be the instance name of all hits output to event
+                                          # in this case there will be two hit collections, one filtered and one containing all hits
+ FilterHits:           false              # true = do not keep undesired hits according to settings of HitFilterAlg object
  CandidateHits:        @local::candhitfinder_derivative
  PeakFitter:           @local::peakfitter_gaussian
  HitFilterAlg:
  {
    AlgName: "HitFilterAlg"
-   MinPulseHeight: [5.0, 5.0, 5.0]      #minimum hit peak amplitude per plane
-   MinPulseSigma:  [1.0, 1.0, 1.0]      #minimum hit rms per plane
+   MinPulseHeight: [5.0, 5.0, 5.0]        #minimum hit peak amplitude per plane
+   MinPulseSigma:  [1.0, 1.0, 1.0]        #minimum hit rms per plane
  }
-
+                                          # In addition to the filter alg we can also filter hits on the same pulse train
+ PulseHeightCuts:      [3.0,  3.0,  3.0 ] # Minimum pulse height
+ PulseWidthCuts:       [2.0,  1.5,  1.0 ] # Minimum pulse width
+ PulseRatioCuts:       [0.35, 0.40, 0.20] # Ratio of pulse height to width
 }
 
 dpraw_hitfinder:

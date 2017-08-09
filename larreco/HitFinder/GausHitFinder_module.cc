@@ -97,9 +97,7 @@ private:
     int                 fAreaMethod;               ///<Type of area calculation
     std::vector<double> fAreaNormsVec;             ///<factors for converting area to same units as peak height
     bool	            fTryNplus1Fits;            ///<whether we will (true) or won't (false) try n+1 fits
-    double	            fChi2NDFRetry;             ///<Value at which a second n+1 Fit will be tried
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
-    size_t              fNumBinsToAverage;         ///< If bin averaging for peak finding, number bins to average
     
     std::vector<float>  fPulseHeightCuts;
     std::vector<float>  fPulseWidthCuts;
@@ -186,9 +184,7 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fMaxMultiHit       = p.get< int             >("MaxMultiHit");
     fAreaMethod        = p.get< int             >("AreaMethod");
     fTryNplus1Fits     = p.get< bool            >("TryNplus1Fits");
-    fChi2NDFRetry      = p.get< double          >("Chi2NDFRetry");
     fChi2NDF           = p.get< double          >("Chi2NDF");
-    fNumBinsToAverage  = p.get< size_t          >("NumBinsToAverage", 0);
     
     fPulseHeightCuts   = p.get< std::vector<float>>("PulseHeightCuts", std::vector<float>() = {3.0,  3.0,  3.0});
     fPulseWidthCuts    = p.get< std::vector<float>>("PulseWidthCuts",  std::vector<float>() = {2.0,  1.5,  1.0});
