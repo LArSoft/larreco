@@ -230,7 +230,7 @@ namespace tca {
     } // hit
     float noMatFrac = (float)nomat / (float)tjs.fHits.size();
     hist.fUnMatchedHitFrac->Fill(noMatFrac);
-    if(nomat > 0.1) std::cout<<"MTH: reco-true unmatched hitfraction  "<<std::fixed<<std::setprecision(3)<<noMatFrac<<"\n";
+//    if(nomat > 0.1) std::cout<<"MTH: reco-true unmatched hitfraction  "<<std::fixed<<std::setprecision(3)<<noMatFrac<<"\n";
 
   } // MatchTrueHits
   
@@ -729,7 +729,7 @@ namespace tca {
           }
         } // tjID
         // require at least 2 Tjs match this PFParticle
-        if(cnt > 2 && sum > 0) {
+        if(cnt > 1 && sum > 0) {
           float pfpEP = epsum / sum;
           ms.EffPur = pfpEP;
           MCP_EPTSum += TMeV * pfpEP;
