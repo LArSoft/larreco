@@ -26,12 +26,13 @@ namespace tca {
   } // Initialize
 
   //////////////////////////////////////////
-  void TruthMatcher::MatchTrueHits()
+  void TruthMatcher::MatchTrueHits(const HistStuff& hist)
   {
     // Matches reco hits to MC true tracks and puts the association into
     // TCHit TruTrkID. This code is almost identical to the first part of MatchTruth.
     
     if(tjs.MatchTruth[0] < 0) return;
+    if(tjs.fHits.empty()) return;
     
     art::ServiceHandle<cheat::BackTracker> bt;
     // list of all true particles
@@ -219,16 +220,18 @@ namespace tca {
         myprt<<"\n";
       } // ipart
     }
-/*
-    // Look for hits without an MC match indicating a problem with the trigger time
+
+    // Look for hits without an MC match 
     unsigned int nomat = 0;
     for(auto& hit : tjs.fHits) {
       if(hit.Multiplicity > 1) continue;
       if(hit.GoodnessOfFit <= 0) continue;
       if(hit.MCPartListIndex == USHRT_MAX) ++nomat;
     } // hit
-    if(nomat > 0) std::cout<<"Warning: MatchTrueHits found "<<nomat<<" hits not matched to an MCParticle!\n";
-*/
+    float noMatFrac = (float)nomat / (float)tjs.fHits.size();
+    hist.fUnMatchedHitFrac->Fill(noMatFrac);
+    if(nomat > 0.1) std::cout<<"MTH: reco-true unmatched hitfraction  "<<std::fixed<<std::setprecision(3)<<noMatFrac<<"\n";
+
   } // MatchTrueHits
   
   //////////////////////////////////////////
@@ -293,8 +296,8 @@ namespace tca {
                   unsigned short iv2 = aVtx3.Vx2ID[plane] - 1;
                   score += tjs.vtx[iv2].Score;
                 } // plane
-                hist.fNuVtx_Score->Fill(score);
-                hist.fNuVtx_Enu_Score_p->Fill(fNeutrinoEnergy, score);
+                hist.fNuVx2Score->Fill(score);
+                hist.fNuVx2Score_Enu_p->Fill(fNeutrinoEnergy, score);
               }
             } // aVtx3
           } // sourceOrigin != simb::kUnknown
@@ -658,6 +661,8 @@ namespace tca {
         }
       } // plane
     } // ipart
+    
+    // 
     
     // match 2D vertices (crudely)
     for(auto& tj : tjs.allTraj) {
