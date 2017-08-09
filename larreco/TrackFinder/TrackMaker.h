@@ -1,0 +1,71 @@
+#ifndef TRACKMAKER_H
+#define TRACKMAKER_H
+
+////////////////////////////////////////////////////////////////////////
+// Class:       TrackMaker
+// File:        TrackMaker.h
+//
+// Author: Giuseppe Cerati, cerati@fnal.gov
+////////////////////////////////////////////////////////////////////////
+
+#include "art/Framework/Principal/Event.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/TrackFitHitInfo.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/TrackingTypes.h"
+#include "canvas/Persistency/Common/Assns.h"
+
+namespace trkmkr {
+
+/**
+ * @brief Base abstract class for tools used to fit tracks.
+ *
+ * Base abstract class for tools used to fit tracks. The virtual function makeTrack comes in three flavours, 
+ * one for each possible input (Trajectory, TrackTrajectory, Track).
+ * The only purely virtual function is the one for input Trajectories (by default the other two just forward the call to it).
+ * Its arguments are the cost inputs (Trajectory, TrajectoryPointFlags, track ID) 
+ * and the non-cost ouputs (mandatory: outTrack and outHits; optional: TrackFitHitInfos, SpacePoints, SpacePoints-Hits Assns);
+ * a const reference to the Event is also provided in case the tool needs to access other data products.
+ * The tool is not meant to put collections in the event.
+ * Requirements are that a Track has at least 2 points, that it has the same number of Points and Momenta, 
+ * that TrajectoryPoints and Hit have a 1-1 correspondance (same number and  same order).
+ * The functions return a bool corresponding to the success or failure status of the fit.
+ */
+
+  class TrackMaker {
+  public:
+    virtual ~TrackMaker() noexcept = default;
+
+    virtual bool makeTrack(const recob::Trajectory& traj, const std::vector<recob::TrajectoryPointFlags>& flags, 
+			   const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
+			   recob::Track& outTrack, art::PtrVector<recob::Hit>& outHits,
+			   std::vector<recob::TrackFitHitInfo>& outTrackFitHitInfos,
+			   std::vector<recob::SpacePoint>& outSpacePoints,
+			   art::Assns<recob::Hit, recob::SpacePoint>& outHitSpacePointAssn,
+			   const art::Event& e) const = 0;
+
+    virtual bool makeTrack(const recob::TrackTrajectory& ttraj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
+			   recob::Track& outTrack, art::PtrVector<recob::Hit>& outHits, 
+			   std::vector<recob::TrackFitHitInfo>& outTrackFitHitInfos,
+			   std::vector<recob::SpacePoint>& outSpacePoints,
+			   art::Assns<recob::Hit, recob::SpacePoint>& outHitSpacePointAssn,
+			   const art::Event& e) const 
+    { 
+      return makeTrack(ttraj.Trajectory(), ttraj.Flags(), tkID, inHits, outTrack, outHits, outTrackFitHitInfos, outSpacePoints, outHitSpacePointAssn, e); 
+    }
+
+    virtual bool makeTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& inHits,
+			   recob::Track& outTrack, art::PtrVector<recob::Hit>& outHits, 
+			   std::vector<recob::TrackFitHitInfo>& outTrackFitHitInfos,
+			   std::vector<recob::SpacePoint>& outSpacePoints,
+			   art::Assns<recob::Hit, recob::SpacePoint>& outHitSpacePointAssn,
+			   const art::Event& e) const 
+    { 
+      return makeTrack(track.Trajectory(), track.ID(), inHits, outTrack, outHits, outTrackFitHitInfos, outSpacePoints, outHitSpacePointAssn, e); 
+    }
+  };
+}
+
+#endif
