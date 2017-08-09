@@ -1019,7 +1019,7 @@ void MinSpanTreeAlg::PruneAmbiguousHits(reco::ClusterParameters& clusterParams, 
         size_t nOtherCluster(0);
         
         //        reco::ClusterParameters* otherCluster;
-        const std::set<const reco::ClusterHit3D*>* otherClusterHits;
+        const std::set<const reco::ClusterHit3D*>* otherClusterHits = 0;
         
         for(const auto& hit2D : hit3D->getHits())
         {
