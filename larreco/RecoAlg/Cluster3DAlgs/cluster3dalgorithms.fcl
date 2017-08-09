@@ -1,16 +1,25 @@
 BEGIN_PROLOG
 
-standard_cluster3ddbscanalg:
+standard_cluster3dhit3dbuilderalg:
 {
-  EnableMonitoring:  true   # enable monitoring of functions
-  NumPairPts:           2   # minimum number of hit pairs for DBScan to consider
-  TimeAdvanceGap:      50.  # Window size (ticks) for comparing hits in different views
-  NumSigmaPeakTime:     5.  # Number "sigma" for peak times when building hits
+EnableMonitoring:  true    # enable monitoring of functions
+NumPairPts:           2    # minimum number of hit pairs for DBScan to consider
+TimeAdvanceGap:      50.   # Window size (ticks) for comparing hits in different views
+NumSigmaPeakTime:     1.5  # Number "sigma" for peak times when building hits
 }
 
 standard_cluster3dprincipalcomponentsalg:
 {
-  ParallelLines:        0.00001 # delta theta to be parallel
+ParallelLines:        0.00001 # delta theta to be parallel
+}
+
+standard_cluster3ddbscanalg:
+{
+EnableMonitoring:  true    # enable monitoring of functions
+NumPairPts:           2    # minimum number of hit pairs for DBScan to consider
+TimeAdvanceGap:      50.   # Window size (ticks) for comparing hits in different views
+NumSigmaPeakTime:     1.5  # Number "sigma" for peak times when building hits
+PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
 }
 
 standard_cluster3dskeletonalg:
@@ -52,8 +61,9 @@ standard_cluster3dparallelhitsseedfinderalg:
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
 }
 
-microboone_cluster3ddbscanalg:                 @local::standard_cluster3ddbscanalg 
-microboone_cluster3dprincipalcomponentsalg:    @local::standard_cluster3dprincipalcomponentsalg 
+microboone_cluster3dhit3dbuilderalg:           @local::standard_cluster3dhit3dbuilderalg
+microboone_cluster3ddbscanalg:                 @local::standard_cluster3ddbscanalg
+microboone_cluster3dprincipalcomponentsalg:    @local::standard_cluster3dprincipalcomponentsalg
 microboone_cluster3dskeletonalg:               @local::standard_cluster3dskeletonalg 
 microboone_cluster3dhoughseedfinderalg:        @local::standard_cluster3dhoughseedfinderalg 
 microboone_cluster3dpcaseedfinderalg:          @local::standard_cluster3dpcaseedfinderalg

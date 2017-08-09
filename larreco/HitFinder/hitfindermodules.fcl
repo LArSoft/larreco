@@ -1,5 +1,6 @@
 // from larreco/RecoAlg:
 #include "hitalgorithms.fcl"
+#include "HitFinderTools.fcl"
 
 BEGIN_PROLOG
 
@@ -50,7 +51,11 @@ gaus_hitfinder:
                                         # number (for single pulse) it will try a second fit
  Chi2NDF:              2000             # maximum Chisquared / NDF allowed for a hit to be saved (Set very high by default)
 
+ AllHitsInstanceName:  ""               # If non-null then this will be the instance name of all hits output to event
+                                        # in this case there will be two hit collections, one filtered and one containing all hits
  FilterHits:           false            # true = do not keep undesired hits according to settings of HitFilterAlg object
+ CandidateHits:        @local::candhitfinder_derivative
+ PeakFitter:           @local::peakfitter_gaussian
  HitFilterAlg:
  {
    AlgName: "HitFilterAlg"

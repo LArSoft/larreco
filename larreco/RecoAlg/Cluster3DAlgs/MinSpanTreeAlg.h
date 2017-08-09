@@ -1,13 +1,13 @@
 /**
- *  @file   RecoAlg/Cluster3DAlgs/DBScanAlg.h
+ *  @file   MinSpanTreeAlg.h
  * 
  *  @brief  This algorithm will create and then cluster 3D hits using DBScan
  *
  *  @author usher@slac.stanford.edu
  * 
  */
-#ifndef DBScanAlg_h
-#define DBScanAlg_h
+#ifndef MinSpanTreeAlg_h
+#define MinSpanTreeAlg_h
 
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
@@ -31,37 +31,9 @@
 namespace lar_cluster3d
 {
 /**
- *  @brief a utility class for keeping track of the state of a hit for DBScan
+ *  @brief  MinSpanTreeAlg class definiton
  */
-class DBScanParams
-{
-public:
-    DBScanParams() : m_visited(false), m_noise(false), m_inCluster(false), m_count(0) {}
-        
-    void setVisited()         {m_visited   = true;}
-    void setNoise()           {m_noise     = true;}
-    void setInCluster()       {m_inCluster = true;}
-    void setCount(int count)  {m_count     = count;}
-    
-    void clearVisited()                   const {m_visited   = false;}
-    void incrementCount(size_t count = 1) const {m_count    += count;}
-        
-    bool   visited()   const {return m_visited;}
-    bool   isNoise()   const {return m_noise;}
-    bool   inCluster() const {return m_inCluster;}
-    size_t getCount()  const {return m_count;}
-        
-private:
-    mutable bool   m_visited;
-    bool           m_noise;
-    bool           m_inCluster;
-    mutable size_t m_count;
-};
-
-/**
- *  @brief  DBScanAlg class definiton
- */
-class DBScanAlg
+class MinSpanTreeAlg
 {
 public:
     /**
@@ -69,12 +41,12 @@ public:
      * 
      *  @param  pset
      */
-    DBScanAlg(fhicl::ParameterSet const &pset);
+    MinSpanTreeAlg(fhicl::ParameterSet const &pset);
 
     /**
      *  @brief  Destructor
      */
-    virtual ~DBScanAlg();
+    virtual ~MinSpanTreeAlg();
 
     void reconfigure(fhicl::ParameterSet const &pset);
     
@@ -85,9 +57,8 @@ public:
      *  @param hitPairClusterMap     A map of hits that have been clustered
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    void ClusterHitsDBScan(reco::HitPairList&           hitPairList,
-                           reco::HitPairClusterMap&     hitPairClusterMap,
-                           reco::ClusterParametersList& clusterParametersList);
+    void Cluster3DHits(reco::HitPairList&           hitPairList,
+                       reco::ClusterParametersList& clusterParametersList);
     
     /**
      *  @brief Given the results of running DBScan, format the clusters so that they can be
@@ -99,8 +70,7 @@ public:
      *
      *                                The last two parameters are passed through to the FillClusterParams method
      */
-    void BuildClusterInfo(reco::HitPairClusterMap&     hitPairClusterMap,
-                          reco::ClusterParametersList& clusterParametersList) const;
+    void BuildClusterInfo(reco::ClusterParametersList& clusterParametersList) const;
     
     /**
      *  @brief A generic routine to actually fill the clusterParams
@@ -108,7 +78,9 @@ public:
      *  @param clusterParametersList  a container for our candidate 3D clusters
      *  @param rejectionFraction      Used for determine "hit purity" when rejecting clusters
      */
-    void FillClusterParams(reco::ClusterParameters& clusterParams, double minUniqueFrac = 0., double maxLostFrac=1.) const;
+    using Hit2DToClusterMap = std::unordered_map<const reco::ClusterHit2D*,std::unordered_map<reco::ClusterParameters*,std::set<const reco::ClusterHit3D*>>>;
+    
+    void FillClusterParams(reco::ClusterParameters& clusterParams, Hit2DToClusterMap& hit2DToClusterMap, double minUniqueFrac = 0., double maxLostFrac=1.) const;
 
     /**
      *  @brief enumerate the possible values for time checking if monitoring timing
@@ -117,6 +89,7 @@ public:
                      BUILDHITTOHITMAP = 1,
                      RUNDBSCAN        = 2,
                      BUILDCLUSTERINFO = 3,
+                     PATHFINDING      = 4,
                      NUMTIMEVALUES
     };
     
@@ -127,32 +100,85 @@ public:
     
 private:
     
+    class KdTreeNode;
+    
+    using KdTreeNodeVec  = std::vector<KdTreeNode>;
+    using KdTreeNodeList = std::list<KdTreeNode>;
+    using Hit3DVec       = std::vector<const reco::ClusterHit3D*>;
+    
+    /**
+     *  @brief Given an input set of ClusterHit3D objects, build a kd tree structure
+     *
+     *  @param hitPairList           The input list of 3D hits to run clustering on
+     *  @param kdTreeVec             Container for the nodes
+     */
+    KdTreeNode& BuildKdTree(Hit3DVec::iterator, Hit3DVec::iterator, KdTreeNodeList&, int depth=0) const;
+    
+    using CandPair    = std::pair<double,const reco::ClusterHit3D*>;
+    using CandPairVec = std::vector<CandPair>;
+    
+    size_t FindNearestNeighbors(const reco::ClusterHit3D*, const KdTreeNode&, CandPairVec&, double&) const;
+    bool   FindEntry(const reco::ClusterHit3D*, const KdTreeNode&, CandPairVec&, double&, bool&, int) const;
+    bool   FindEntryBrute(const reco::ClusterHit3D*, const KdTreeNode&, int) const;
+    
     /**
      *  @brief The bigger question: are two pairs of hits consistent?
      */
-    bool consistentPairsOrig(const reco::ClusterHit3D* pair1, const reco::ClusterHit3D* pair2, double& hitSeparation, int* wireDeltas) const;
     bool consistentPairs(const reco::ClusterHit3D* pair1, const reco::ClusterHit3D* pair2, double& hitSeparation, int* wireDeltas) const;
-
-    bool consistentPairsTest(const reco::ClusterHit3D* pair1, const reco::ClusterHit3D* pair2, double& hitSeparation, int* wireDeltas) const;
-    
-    typedef std::list<const reco::ClusterHit3D*>                           EpsPairNeighborhoodList;
-    typedef std::pair<DBScanParams, EpsPairNeighborhoodList >              EpsPairNeighborhoodPair;
-    typedef std::map<const reco::ClusterHit3D*, EpsPairNeighborhoodPair >  EpsPairNeighborhoodMap;
-    typedef std::pair<const reco::ClusterHit3D*, EpsPairNeighborhoodPair > EpsPairNeighborhoodMapPair;
-    typedef std::vector<EpsPairNeighborhoodMapPair >                       EpsPairNeighborhoodMapVec;
     
     /**
-     *  @brief the main routine for DBScan
+     *  @brief Driver for Prim's algorithm
      */
-    void expandCluster(EpsPairNeighborhoodMapVec&          nMap,
-                       EpsPairNeighborhoodMapVec::iterator vecItr,
-                       reco::HitPairListPtr&               cluster,
-                       size_t                              minPts) const;
+    void RunPrimsAlgorithm(reco::HitPairList&, KdTreeNode&, reco::ClusterParametersList&) const;
+    
+    /**
+     *  @brief Prune the obvious ambiguous hits
+     */
+    void PruneAmbiguousHits(reco::ClusterParameters&, Hit2DToClusterMap&) const;
+    
+    /**
+     *  @brief Algorithm to find the best path through the given cluster
+     */
+    void FindBestPathInCluster(reco::ClusterParameters&) const;
+    
+    /**
+     *  @brief a depth first search to find longest branches
+     */
+    reco::HitPairListPtr DepthFirstSearch(const reco::EdgeTuple&, const reco::Hit3DToEdgeMap&, double&) const;
+    
+    /**
+     *  @brief Alternative version of FindBestPathInCluster utilizing an A* algorithm
+     */
+    void FindBestPathInCluster(reco::ClusterParameters&, KdTreeNode&) const;
+    
+    /**
+     *  @brief Algorithm to find shortest path between two 3D hits
+     */
+    void AStar(const reco::ClusterHit3D*, const reco::ClusterHit3D*, double alpha, KdTreeNode&, reco::HitPairListPtr&, reco::EdgeList&) const;
+
+    using BestNodeTuple = std::tuple<const reco::ClusterHit3D*,double,double>;
+    using BestNodeMap   = std::unordered_map<const reco::ClusterHit3D*,BestNodeTuple>;
+    
+    void ReconstructBestPath(const reco::ClusterHit3D*, BestNodeMap&, reco::HitPairListPtr&, reco::EdgeList&) const;
+    
+    double DistanceBetweenNodes(const reco::ClusterHit3D*,const reco::ClusterHit3D*) const;
+    
+    /**
+     *  @brief Find the lowest cost path between two nodes using MST edges
+     */
+    void LeastCostPath(const reco::EdgeTuple&,
+                       const reco::ClusterHit3D*,
+                       const reco::Hit3DToEdgeMap&,
+                       reco::HitPairListPtr&,
+                       reco::EdgeList&,
+                       double&) const;
     
     /**
      *  @brief Given an input HitPairList, build out the map of nearest neighbors
      */
-    size_t BuildNeighborhoodMap(reco::HitPairList& hitPairList, EpsPairNeighborhoodMapVec& epsPairNeighborhoodMapVec) const;
+    KdTreeNode BuildKdTree(const reco::HitPairList&, KdTreeNodeList&) const;
+    
+    void CheckHitSorting(reco::ClusterParameters& clusterParams) const;
     
     /**
      *  @brief define data structure for keeping track of channel status
@@ -176,14 +202,13 @@ private:
     
     bool                                 m_enableMonitoring;      ///<
     int                                  m_hits;                  ///<
-    double                               m_wirePitch[3];
     mutable std::vector<float>           m_timeVector;            ///<
-    std::vector<std::vector<double>>     m_wireDir;               ///<
-    std::vector<std::vector<double>>     m_wireNormal;            ///<
+    std::vector<std::vector<float>>      m_wireDir;               ///<
     
     ChannelStatusByPlaneVec              m_channelStatus;
  
     geo::Geometry*                       m_geometry;              //< pointer to the Geometry service
+    const detinfo::DetectorProperties*   m_detector;              //< pointer to the detector services
     const lariov::ChannelStatusProvider* m_channelFilter;
     
     PrincipalComponentsAlg               m_pcaAlg;                // For running Principal Components Analysis
