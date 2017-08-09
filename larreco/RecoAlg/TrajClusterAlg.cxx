@@ -380,7 +380,7 @@ namespace tca {
         } // jht
       }
     } // iht
-    if(nerr > 0) std::cout<<"Found "<<nerr<<" hit indexing errors\n";
+//    if(nerr > 0) std::cout<<"Found "<<nerr<<" hit indexing errors\n";
     
     // Match these hits to MC tracks
     if(!fIsRealData) tm.MatchTrueHits(hist);
