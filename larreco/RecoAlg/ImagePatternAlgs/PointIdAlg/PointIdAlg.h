@@ -156,6 +156,9 @@ public:
     /// does not need to be recalculated)
     bool isCurrentPatch(unsigned int wire, float drift) const;
 
+    /// test if two wire/drift coordinates point to the same patch
+    bool isSamePatch(unsigned int wire1, float drift1, unsigned int wire2, float drift2) const;
+
 private:
 	std::string fNNetModelFilePath;
 	nnet::ModelInterface* fNNet;

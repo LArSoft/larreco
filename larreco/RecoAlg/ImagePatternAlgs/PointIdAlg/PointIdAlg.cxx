@@ -240,6 +240,24 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 }
 // ------------------------------------------------------
 
+bool nnet::PointIdAlg::isSamePatch(unsigned int wire1, float drift1, unsigned int wire2, float drift2) const
+{
+    if (fDownscaleFullView)
+    {
+    	size_t sd1 = (size_t)(drift1 / fDriftWindow);
+    	size_t sd2 = (size_t)(drift2 / fDriftWindow);
+    	if ((wire1 == wire2) && (sd1 == sd2))
+    		return true; // the same position
+    }
+    else
+    {
+    	if ((wire1 == wire2) && ((size_t)drift1 == (size_t)drift2))
+	    	return true; // the same position
+    }
+
+    return false; // not the same position
+}
+
 bool nnet::PointIdAlg::isCurrentPatch(unsigned int wire, float drift) const
 {
     if (fDownscaleFullView)
