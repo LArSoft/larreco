@@ -45,6 +45,8 @@ standard_trajclusteralg:
   # 11 min Score to preserve a vertex and its Tjs
   # 12 Debug in CTP (>10 debug cotIndex + 10)
    SaveShowerTree: false
+   SaveCRTree: false
+   TagCosmics: false
    ChkStopCuts: [5, 8, 1.5] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
    Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6, 3, 0]
    # 0 User definition of a short Tj => max number of Tj points

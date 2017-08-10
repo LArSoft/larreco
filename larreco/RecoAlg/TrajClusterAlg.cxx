@@ -87,7 +87,8 @@ namespace tca {
     tjs.ShowerTag         = pset.get< std::vector<float>>("ShowerTag", {-1, -1, -1, -1, -1, -1});
     
     tjs.SaveShowerTree    = pset.get< bool >("SaveShowerTree", false);
-
+    tjs.SaveCRTree        = pset.get< bool >("SaveCRTree", false);
+    tjs.TagCosmics        = pset.get< bool >("TagCosmics", false);
     fChkStopCuts          = pset.get< std::vector<float>>("ChkStopCuts", {-1, -1, -1});
     fMaxTrajSep           = pset.get< float >("MaxTrajSep", 4);
     
@@ -283,6 +284,7 @@ namespace tca {
     tjs.MCPartList.clear();
 
     ClearShowerTree(tjs.stv);
+    ClearCRInfo(tjs);
 
   } // ClearResults()
 
@@ -489,6 +491,7 @@ namespace tca {
     }
     FillPFPInfo();
     if(!fIsRealData) tm.MatchTruth(hist, fEventsProcessed);
+    if (tjs.SaveCRTree) crtree->Fill();
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     if(fQuitAlg) {
@@ -2800,6 +2803,7 @@ namespace tca {
         ms.Vx3ID[0] = newVx3.ID;
 //        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<newVx3.ID<<" at "<<newVx3.X<<" "<<newVx3.Y<<" "<<newVx3.Z;
       }
+      if (tjs.TagCosmics) SaveCRInfo(tjs, ms, prt, fIsRealData);
     } // im (ms)
     
     if(pprt) PrintPFParticles("FPI", tjs);
@@ -5999,5 +6003,16 @@ namespace tca {
     showertree->Branch("nPlanes", &tjs.stv.nPlanes);
 
   } // end DefineShTree
+
+  void TrajClusterAlg::DefineCRTree(TTree *t){
+    crtree = t;
+    crtree->Branch("run", &fRun, "run/I");
+    crtree->Branch("subrun", &fSubRun, "subrun/I");
+    crtree->Branch("event", &fEvent, "event/I");
+    crtree->Branch("cr_origin", &tjs.crt.cr_origin);
+    crtree->Branch("cr_pfpxmin", &tjs.crt.cr_pfpxmin);
+    crtree->Branch("cr_pfpxmax", &tjs.crt.cr_pfpxmax);
+    crtree->Branch("cr_pfpyzmindis", &tjs.crt.cr_pfpyzmindis);
+  }
 
 } // namespace cluster

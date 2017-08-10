@@ -28,6 +28,7 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "TVector3.h"
+#include "TH1F.h"
 
 namespace tca {
   
@@ -196,6 +197,7 @@ namespace tca {
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned short MCPartListIndex {USHRT_MAX};
+    float CosmicScore{0};
   };
 
   struct ShowerPoint {
@@ -282,6 +284,13 @@ namespace tca {
 
   };
 
+  struct CRTreeVars {
+    std::vector<int>   cr_origin;
+    std::vector<float> cr_pfpxmin;
+    std::vector<float> cr_pfpxmax;
+    std::vector<float> cr_pfpyzmindis;
+  };
+
   // Algorithm modification bits
   typedef enum {
     kMaskHits,
@@ -364,7 +373,12 @@ namespace tca {
     // The variables below do change in size from event to event
     ShowerTreeVars stv; // 
     bool SaveShowerTree;
-    
+
+    // Save histograms to develop cosmic removal tools
+    CRTreeVars crt;
+    bool SaveCRTree;
+    bool TagCosmics;
+
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire

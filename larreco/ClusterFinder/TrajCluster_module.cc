@@ -23,6 +23,7 @@
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/AnalysisBase/CosmicTag.h"
 
 //root includes
 #include "TTree.h"
@@ -56,7 +57,7 @@ namespace cluster {
   private:
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
     TTree* showertree;
-    
+    TTree* crtree;
   }; // class TrajCluster
   
 } // namespace cluster
@@ -118,6 +119,9 @@ namespace cluster {
     produces< std::vector<recob::PFParticle> >();
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
+
+    produces< std::vector<anab::CosmicTag>>();
+    produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
   } // TrajCluster::TrajCluster()
 
   // NEW FUNCTION
@@ -125,8 +129,11 @@ namespace cluster {
   void TrajCluster::beginJob()
   {
     art::ServiceHandle<art::TFileService> tfs;
+
     showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
     fTCAlg->DefineShTree(showertree);
+    crtree = tfs->make<TTree>("crtree", "Cosmic removal variables");
+    fTCAlg->DefineCRTree(crtree);
   }
   
   //----------------------------------------------------------------------------
@@ -160,6 +167,7 @@ namespace cluster {
     std::vector<recob::Vertex> sv3col;
     std::vector<recob::EndPoint2D> sv2col;
     std::vector<recob::Shower> sscol;
+    std::vector<anab::CosmicTag> ctcol;
 
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>>
         hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
@@ -172,6 +180,9 @@ namespace cluster {
         pc_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
         pv_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
+    
+    std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
+      pct_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
 
     std::vector<tca::ClusterStore> const& Clusters = fTCAlg->GetClusters();
     
@@ -387,12 +398,27 @@ namespace cluster {
         }
         ++vtxIndex;
       } // iv
+      // PFParticle - CosmicTag association
+      if (fTCAlg->GetTJS().TagCosmics){
+        std::vector<float> tempPt1, tempPt2;
+        tempPt1.push_back(-999);
+        tempPt1.push_back(-999);
+        tempPt1.push_back(-999);
+        tempPt2.push_back(-999);
+        tempPt2.push_back(-999);
+        tempPt2.push_back(-999);
+        ctcol.emplace_back(tempPt1, tempPt2, ms.CosmicScore, anab::CosmicTagID_t::kNotTagged);
+        if (!util::CreateAssn(*this, evt, spcol, ctcol, *pct_assn, ctcol.size()-1, ctcol.size())){
+          throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate CosmicTag with PFParticle";
+        }
+      }
     } // ip
 
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
     std::unique_ptr<std::vector<recob::PFParticle> > pcol(new std::vector<recob::PFParticle>(std::move(spcol)));
     std::unique_ptr<std::vector<recob::Shower> > scol(new std::vector<recob::Shower>(std::move(sscol)));
+    std::unique_ptr<std::vector<anab::CosmicTag>> ctgcol(new std::vector<anab::CosmicTag>(std::move(ctcol)));
 
     // clean up
     fTCAlg->ClearResults();
@@ -412,7 +438,8 @@ namespace cluster {
     evt.put(std::move(pcol));
     evt.put(std::move(pc_assn));
     evt.put(std::move(pv_assn));
-
+    evt.put(std::move(ctgcol));
+    evt.put(std::move(pct_assn));
   } // TrajCluster::produce()
   
   
