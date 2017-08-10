@@ -90,10 +90,11 @@ void TrackProducerFromTrack::produce(art::Event & e)
   // Input from event
   art::ValidHandle<std::vector<recob::Track> > inputTracks = e.getValidHandle<std::vector<recob::Track> >(trackInputTag);
   auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(trackInputTag);
+  const auto& tracksWithHits = util::associated_groups(tkHitsAssn);
   //
   // Loop over tracks to refit
   unsigned int iTrack = 0;
-  for (auto hitsRange: util::associated_groups(tkHitsAssn)) {
+  for (auto hitsRange: tracksWithHits) {
     //
     // Get track and its hits
     art::Ptr<recob::Track> track(inputTracks, iTrack++);
@@ -114,7 +115,7 @@ void TrackProducerFromTrack::produce(art::Event & e)
     // Check that the requirement Nhits == Npoints is satisfied
     // We also require the hits to the in the same order as the points (this cannot be enforced, can it?)
     if (outTrack.NumberTrajectoryPoints()!=outHits.size()) {
-      throw cet::exception("TrackProducerFromTrack") << "Produced recob::Track required to have 1-1 correspondance between hits and points.";
+      throw cet::exception("TrackProducerFromTrack") << "Produced recob::Track required to have 1-1 correspondance between hits and points.\n";
     }
     //
     // Fill output collections, including Assns

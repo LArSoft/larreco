@@ -67,7 +67,7 @@ namespace trkmkr {
 			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
 			   const art::Event& e) const
     {
-      return makeTrack(recob::TrackTrajectory(traj,std::move(recob::TrackTrajectory::Flags_t(inHits.size()))), tkID, inHits, outTrack, outHits, optionals, e);
+      return makeTrack(recob::TrackTrajectory(traj,std::move(recob::TrackTrajectory::Flags_t(traj.NPoints()))), tkID, inHits, outTrack, outHits, optionals, e);
     }
 
     virtual bool makeTrack(const art::Ptr<recob::Trajectory> traj, const std::vector<recob::TrajectoryPointFlags>& flags,
@@ -75,7 +75,7 @@ namespace trkmkr {
 			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
 			   const art::Event& e) const
     {
-      return makeTrack(recob::TrackTrajectory(*traj,std::move(recob::TrackTrajectory::Flags_t(inHits.size()))), tkID, inHits, outTrack, outHits, optionals, e);
+      return makeTrack(recob::TrackTrajectory(*traj,std::move(recob::TrackTrajectory::Flags_t(traj->NPoints()))), tkID, inHits, outTrack, outHits, optionals, e);
     }
 
     virtual bool makeTrack(const art::Ptr<recob::TrackTrajectory> ttraj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
