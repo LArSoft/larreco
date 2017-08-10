@@ -608,6 +608,11 @@ namespace tca {
         tj.dEdx[startend] = dedx;
         // ChgRMS is the fractional error
         ms.dEdxErr[startend][planeID.Plane] = dedx * tj.ChgRMS;
+	
+	// temp for testing
+	//	std::cout << "MATCHED TJ: " << tj.ID << " dEdx " << tj.dEdx[startend] << std::endl;
+
+
       } // startend
       // Grab the best plane iusing the start f 1 < dE/dx < 50 MeV/cm
       if(ms.dEdx[0][planeID.Plane] > 1 && ms.dEdx[0][planeID.Plane] < 50) {
@@ -616,6 +621,7 @@ namespace tca {
           ms.BestPlane = planeID.Plane;
         }
       } // valid dE/dx
+
     } // tj
   } // FilldEdX
 

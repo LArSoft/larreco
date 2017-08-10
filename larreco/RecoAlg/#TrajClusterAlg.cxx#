@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
 ///
 /// Step crawling code used by TrajClusterAlg
 ///
@@ -2572,7 +2572,7 @@ namespace tca {
         unsigned short itj = ms.TjIDs[ipl] - 1;
         tjs.allTraj[itj].AlgMod[kMat3D] = true;
 
-	//	std::cout << "SETTING TJID " << tjs.allTraj[itj].ID << " true" << std::endl;
+	std::cout << "SETTING TJID " << tjs.allTraj[itj].ID << " true" << std::endl;
       } // ipl
     } // indx
     
@@ -5966,7 +5966,7 @@ namespace tca {
   }
 
 
-  void TrajClusterAlg::DefineShTree(TTree* t) {
+  void TrajClusterAlg::DefineTree(TTree* t) {
     showertree = t;
 
     showertree->Branch("BeginWir", &tjs.stv.BeginWir);
@@ -5998,6 +5998,6 @@ namespace tca {
     showertree->Branch("nStages", &tjs.stv.nStages);
     showertree->Branch("nPlanes", &tjs.stv.nPlanes);
 
-  } // end DefineShTree
+  } // end DefineTree
 
 } // namespace cluster

@@ -59,7 +59,7 @@ namespace tca {
 
     void RunTrajClusterAlg(art::Event & evt);
 
-    void DefineTree(TTree* t);
+    void DefineShTree(TTree* t);
     
     std::vector<short> const& GetinClus() const {return tjs.inClus; }
     

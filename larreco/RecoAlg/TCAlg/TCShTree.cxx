@@ -1,4 +1,4 @@
-#include "larreco/RecoAlg/TCAlg/TCTree.h"
+#include "larreco/RecoAlg/TCAlg/TCShTree.h"
 
 namespace tca {
 
@@ -106,13 +106,16 @@ namespace tca {
 	  noMatch = false;
           if (tjIndex == -1) tjs.stv.ShowerID.back() = cotIndex;
 	  else tjs.stv.ShowerID.at(tjIndex) = cotIndex;
-          break;
+	  //break;
         }
 
 	if (it1 == (ss.ShowerTjID - 1)) tjs.stv.IsShowerTj.back() = 1;
         // check if tj is shower parent. if so, add to ttree
         // and mark parent flag
+	
         if (trajID == ss.ParentID) {
+
+	  //	  std::cout << "FOUND A PARENT!!" << std::endl;
           if (tjIndex == -1) {
 	    tjs.stv.ShowerID.back() = cotIndex;
 	    tjs.stv.IsShowerParent.back() = 1;

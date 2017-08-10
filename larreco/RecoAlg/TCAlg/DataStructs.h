@@ -277,8 +277,8 @@ namespace tca {
     std::vector<int>EnvStage;
     std::vector<int>EnvShowerID;
 
-    int nStages;
-    unsigned short nPlanes;
+    int nStages {0};
+    unsigned short nPlanes {0};
 
   };
 

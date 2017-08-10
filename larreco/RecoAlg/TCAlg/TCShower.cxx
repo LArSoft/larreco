@@ -296,7 +296,8 @@ namespace tca {
       FindExternalParent(tjs, cotIndex, prt);
       if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, 7);
       Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      if(prt) std::cout<<cotIndex<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<" ParID "<<ss.ParentID<<" TruParID "<<ss.TruParentID<<"\n";
+      if(prt) std::cout<<cotIndex<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<" ParID "<<ss.ParentID<<" TruParID "<<ss.TruParentID<<" PardEdx " << tjs.allTraj[ss.ShowerTjID - 1].dEdx[0] <<"\n";
+
       if(ss.ParentID == 0) FindStartChg(tjs, cotIndex, prt);
     } // cotIndex
     
@@ -993,11 +994,16 @@ namespace tca {
       if(tj.AlgMod[kShwrParent]) continue;
       // Ignore short Tjs
       if(tj.Pts.size() < 5) continue;
+      
       if(require3DMatch && !tj.AlgMod[kMat3D]) continue;
+
       unsigned short useEnd = 0;
       // Check trajectories that were split by 3D vertex matching
       if(WrongSplitTj(tjs, tj, useEnd, ss, prt)) continue;
       float fom = ParentFOM(tjs, tj, useEnd, ss, prt);
+
+      //std::cout<< "defining dEdx TjID "<<tj.ID<<" dEdx "<<tj.dEdx[useEnd]<<" 3DMat "<<tj.AlgMod[kMat3D]<<std::endl;
+
       if(fom > bestFOM) continue;
       bestFOM = fom;
       imTheBest = tj.ID;
@@ -1109,7 +1115,7 @@ namespace tca {
     
     // set dE/dx of the shower Tj
     stj.dEdx[0] = ptj.dEdx[pend];
-    
+    std::cout << "defining dEdx ParentID " << ss.ParentID << " dEdx " << stj.dEdx[0] << std::endl;
     // Clear
     for(auto& stp : stj.Pts) {
       stp.Chg = 0;
@@ -1276,6 +1282,8 @@ namespace tca {
     // weight by the direction FOM?
     dangErr *= ss.DirectionFOM;
     float dangPull = dang / dangErr;
+    // don't trust angle if shower is small
+    if (ss.TjIDs.size() < 10) dangPull = 0;
     float mom = tj.MCSMom;
     if(mom > 500) mom = 500;
     float momPull = (mom - 500) / 100;

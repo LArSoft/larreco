@@ -126,7 +126,7 @@ namespace cluster {
   {
     art::ServiceHandle<art::TFileService> tfs;
     showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
-    fTCAlg->DefineTree(showertree);
+    fTCAlg->DefineShTree(showertree);
   }
   
   //----------------------------------------------------------------------------
