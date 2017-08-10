@@ -197,6 +197,7 @@ namespace tca {
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned short MCPartListIndex {USHRT_MAX};
+    float CosmicScore{0};
   };
 
   struct ShowerPoint {
@@ -284,9 +285,10 @@ namespace tca {
   };
 
   struct CRTreeVars {
+    std::vector<int>   cr_origin;
     std::vector<float> cr_pfpxmin;
     std::vector<float> cr_pfpxmax;
-    std::vector<int>   cr_origin;
+    std::vector<float> cr_pfpyzmindis;
   };
 
   // Algorithm modification bits
@@ -375,7 +377,8 @@ namespace tca {
     // Save histograms to develop cosmic removal tools
     CRTreeVars crt;
     bool SaveCRTree;
-    
+    bool TagCosmics;
+
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire

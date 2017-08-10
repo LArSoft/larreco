@@ -7,16 +7,40 @@ namespace tca {
   void SaveCRInfo(TjStuff& tjs, MatchStruct& ms, bool prt, bool fIsRealData){
 
     //Check the origin of pfp
-    if (fIsRealData){
-      tjs.crt.cr_origin.push_back(-1);
-    }
-    else{
-      tjs.crt.cr_origin.push_back(GetOrigin(tjs, ms));
+    if (tjs.SaveCRTree){
+      if (fIsRealData){
+        tjs.crt.cr_origin.push_back(-1);
+      }
+      else{
+        tjs.crt.cr_origin.push_back(GetOrigin(tjs, ms));
+      }
     }
 
     // save the xmin and xmax of each pfp
     tjs.crt.cr_pfpxmin.push_back(std::min(ms.XYZ[0][0], ms.XYZ[1][0]));
     tjs.crt.cr_pfpxmax.push_back(std::max(ms.XYZ[0][0], ms.XYZ[1][0]));
+
+    //find max 
+    const geo::TPCGeo &tpc = tjs.geom->TPC(0);
+    float mindis0 = FLT_MAX;
+    float mindis1 = FLT_MAX;
+    if (std::abs(ms.XYZ[0][1] - tpc.MinY())<mindis0) mindis0 = std::abs(ms.XYZ[0][1] - tpc.MinY());
+    if (std::abs(ms.XYZ[0][1] - tpc.MaxY())<mindis0) mindis0 = std::abs(ms.XYZ[0][1] - tpc.MaxY());
+    if (std::abs(ms.XYZ[0][2] - tpc.MinZ())<mindis0) mindis0 = std::abs(ms.XYZ[0][2] - tpc.MinZ());
+    if (std::abs(ms.XYZ[0][2] - tpc.MaxZ())<mindis0) mindis0 = std::abs(ms.XYZ[0][2] - tpc.MaxZ());
+    if (std::abs(ms.XYZ[1][1] - tpc.MinY())<mindis1) mindis1 = std::abs(ms.XYZ[1][1] - tpc.MinY());
+    if (std::abs(ms.XYZ[1][1] - tpc.MaxY())<mindis1) mindis1 = std::abs(ms.XYZ[1][1] - tpc.MaxY());
+    if (std::abs(ms.XYZ[1][2] - tpc.MinZ())<mindis1) mindis1 = std::abs(ms.XYZ[1][2] - tpc.MinZ());
+    if (std::abs(ms.XYZ[1][2] - tpc.MaxZ())<mindis1) mindis1 = std::abs(ms.XYZ[1][2] - tpc.MaxZ());
+    //std::cout<<ms.XYZ[0][1]<<" "<<ms.XYZ[0][2]<<" "<<ms.XYZ[1][1]<<" "<<ms.XYZ[1][2]<<" "<<tpc.MinY()<<" "<<tpc.MaxY()<<" "<<tpc.MinZ()<<" "<<tpc.MaxZ()<<" "<<mindis0<<" "<<mindis1<<" "<<mindis0+mindis1<<std::endl;
+    tjs.crt.cr_pfpyzmindis.push_back(mindis0+mindis1);
+
+    if (tjs.crt.cr_pfpxmin.back()<-2||
+        tjs.crt.cr_pfpxmax.back()>260||
+        tjs.crt.cr_pfpyzmindis.back()<30){
+      ms.CosmicScore = 1.;
+    }
+    else ms.CosmicScore = 0;
 
     /*
     float minx = FLT_MAX;
@@ -89,8 +113,9 @@ namespace tca {
 
   ////////////////////////////////////////////////
   void ClearCRInfo(TjStuff& tjs){
+    tjs.crt.cr_origin.clear();
     tjs.crt.cr_pfpxmin.clear();
     tjs.crt.cr_pfpxmax.clear();
-    tjs.crt.cr_origin.clear();
+    tjs.crt.cr_pfpyzmindis.clear();
   }
 }
