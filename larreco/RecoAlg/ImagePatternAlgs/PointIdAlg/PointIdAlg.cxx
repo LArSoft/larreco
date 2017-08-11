@@ -1046,37 +1046,38 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 					else
 					{
 						auto search = particleMap.find(tid);
-					    if (search == particleMap.end())
-					    {
-						    mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND";
-						    continue;
-					    }
-					    auto const & particle = *((*search).second);
-					    pdg = abs(particle.PdgCode());
+					  if (search == particleMap.end())
+					  {
+						   mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND";
+						   continue;
+					   }
+					   auto const & particle = *((*search).second);
+					   pdg = abs(particle.PdgCode());
+					   
+					   if (particle.Process() == "primary")
+					   {
+					   		if (pdg == 11)
+					   		{
+					   			pdg |= nnet::TrainingDataAlg::kPriEl; // tag primary
+					   		}
+					   		else if (pdg == 13)
+					   		{
+					   			pdg |= nnet::TrainingDataAlg::kPriMu; // tag primary
+					   		}
+					   }
 
-                        auto msearch = particleMap.find(particle.Mother());
-	    				if (msearch != particleMap.end())
-	    				{
-	    				    auto const & mother = *((*msearch).second);
-                            if (pdg == 11) // electron, check if it is Michel or primary electron
-                            {
-	    		                if (nnet::TrainingDataAlg::isMuonDecaying(mother, particleMap))
-	    		                {
-                			        pdg |= nnet::TrainingDataAlg::kMichel; // tag Michel
-	    		                }
-	    		                else if (mother.Mother() < 0)
-	    		                {
-	    		                    pdg |= nnet::TrainingDataAlg::kPriEl; // tag primary
-	    		                }
-                            }
-                            else if (pdg == 13) // muon, check if primary
-                            {
-                                if (mother.Mother() < 0)
-                                {
-                                    pdg |= nnet::TrainingDataAlg::kPriMu; // tag primary
-                                }
-                            }
-                        }
+            auto msearch = particleMap.find(particle.Mother());
+	    			if (msearch != particleMap.end())
+	    			{
+	    				auto const & mother = *((*msearch).second);
+              if (pdg == 11) // electron, check if it is Michel
+              {
+	    		     	if (nnet::TrainingDataAlg::isMuonDecaying(mother, particleMap))
+	    		      {
+               		pdg |= nnet::TrainingDataAlg::kMichel; // tag Michel
+	    		      }
+              }
+            }
 					}
 
 					trackToPDG[energyDeposit.trackID] = pdg;
