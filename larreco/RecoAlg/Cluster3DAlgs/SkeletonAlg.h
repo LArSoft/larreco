@@ -79,7 +79,7 @@ private:
      *
      */
     double FindFirstAndLastWires(std::vector<const reco::ClusterHit3D*>& hitVec,
-                                 int                                     viewToCheck,
+                                 int                                     planeToCheck,
                                  int                                     referenceWire,
                                  double                                  referenceTicks,
                                  int&                                    firstWire,

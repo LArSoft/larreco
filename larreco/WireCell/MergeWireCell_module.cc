@@ -25,6 +25,8 @@
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "TTree.h"
+#include "TBranch.h"
+#include "TLeaf.h"
 #include "TFile.h"
 
 #include <memory>
@@ -181,14 +183,35 @@ void wc::MergeWireCell::produce(art::Event & evt){
       TC->SetBranchAddress("u_charge_err", &u_charge_err);
       TC->SetBranchAddress("v_charge_err", &v_charge_err);
       TC->SetBranchAddress("w_charge_err", &w_charge_err);
-      TC->SetBranchAddress("tpc_no", &tpc_no);
       TC->SetBranchAddress("cryostat_no", &cryostat_no);
       TC->SetBranchAddress("mcell_id",&mcell_id);
+        
+        TC->GetDirectory()->Print();
+        
+//      TC->SetBranchAddress("cell.tpc_no", &tpc_no);
+        
+        TObjArray* leafList = TC->GetListOfLeaves();
+        
+        for(int idx = 0; idx < leafList->GetEntries(); idx++)
+        {
+            leafList->At(idx)->Print();
+        }
+        
+        TObject* candObj = leafList->FindObject("tpc_no");
+        
+        std::cout << "candObj: " << candObj << std::endl;
+
+        TLeaf* candLeaf = (TLeaf*)candObj;
+        candLeaf->Print();
+        candLeaf->SetAddress(&tpc_no);
 
       std::vector<int> vcell_id;
 
       for (int i = 0; i<TC->GetEntries(); ++i){
 	TC->GetEntry(i);
+    
+    tpc_no = candLeaf->GetTypedValue<Int_t>(i) - 1;
+          
 	vcell_id.push_back(mcell_id);
 	double xyz[3] = {xx,yy,zz};
 	double err[3] = {0,0,0};
@@ -264,7 +287,7 @@ void wc::MergeWireCell::produce(art::Event & evt){
 	size_t hitEnd = hit_coll->size();
 	util::CreateAssn(*this, evt, *spt_coll, *hit_coll, *shassn, hitStart, hitEnd);
       }//Loop over TC
-
+/*
       TTree *T_goodtrack = (TTree*)f->Get("T_goodtrack");
       MakeTracks(evt, trk_coll, trkhassn, trksassn, hit_coll, spt_coll, vcell_id, T_goodtrack);
       TTree *T_shorttrack = (TTree*)f->Get("T_shorttrack");
@@ -274,13 +297,16 @@ void wc::MergeWireCell::produce(art::Event & evt){
 
       TTree *T_shower = (TTree*)f->Get("T_shower");
       MakeShowers(evt, shw_coll, shwhassn, shwsassn, hit_coll, spt_coll, vcell_id, T_shower);
-
+*/
       f->Close();
       break;
     }
     closedir(pDIR);
 
   }
+    
+    std::cout << "space point size: " << spt_coll->size() << ", hit coll size: " << hit_coll->size() << std::endl;
+    
   evt.put(std::move(spt_coll));
   evt.put(std::move(hit_coll));
   evt.put(std::move(shassn));
