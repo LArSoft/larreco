@@ -1038,10 +1038,10 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 					    }
 					    auto const & mother = *((*search).second); // mother particle of this EM
     					int mPdg = abs(mother.PdgCode());
-                        if ((mPdg == 13) || (mPdg == 211) || (mPdg == 2212))
-                        {
-                            if (energyDeposit.numElectrons > 10) pdg |= nnet::TrainingDataAlg::kDelta; // tag delta ray
-                        }
+              if ((mPdg == 13) || (mPdg == 211) || (mPdg == 2212))
+              {
+              		if (energyDeposit.numElectrons > 10) pdg |= nnet::TrainingDataAlg::kDelta; // tag delta ray
+              }
 					}
 					else
 					{
