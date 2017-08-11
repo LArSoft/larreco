@@ -587,6 +587,7 @@ namespace tca {
     
     unsigned short maxlen = 0;
     for(auto tjID : ms.TjIDs) {
+
       Trajectory& tj = tjs.allTraj[tjID - 1];
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
@@ -609,10 +610,6 @@ namespace tca {
         // ChgRMS is the fractional error
         ms.dEdxErr[startend][planeID.Plane] = dedx * tj.ChgRMS;
 	
-	// temp for testing
-	//	std::cout << "MATCHED TJ: " << tj.ID << " dEdx " << tj.dEdx[startend] << std::endl;
-
-
       } // startend
       // Grab the best plane iusing the start f 1 < dE/dx < 50 MeV/cm
       if(ms.dEdx[0][planeID.Plane] > 1 && ms.dEdx[0][planeID.Plane] < 50) {

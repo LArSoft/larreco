@@ -211,7 +211,7 @@ namespace tca {
       std::vector<std::vector<int>> tjList;
       TagShowerTjs(tjs, inCTP, tjList);
 
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 1);
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, "TSTJ");
 
       if(tjList.empty()) continue;
 /*
@@ -222,7 +222,7 @@ namespace tca {
       }
 */
       MergeTjList(tjList);
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 2);
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, "MTJL");
       bigList[plane] = tjList;
     } // plane
     unsigned short nPlanesWithShowers = 0;
@@ -235,7 +235,7 @@ namespace tca {
       for(auto& tjl : bigList[plane]) {
         for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
       } // tjl
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, bigList[plane], 3);
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, bigList[plane], "MISTJ");
     } // plane
 
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
@@ -257,14 +257,14 @@ namespace tca {
         // MCSMom, etc. This will be used to decide if showers should be merged
         //AddTjsInsideEnvelope(tjs, cotIndex, prt, 1);
 
-	if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 4);
+	if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, "DS");
 //        if(!DefineShower(tjs, cotIndex, prt)) continue;
 
         // Find nearby Tjs that were not included because they had too-high
         // MCSMom, etc. This will be used to decide if showers should be merged
         //AddTjsInsideEnvelope(tjs, cotIndex, prt,1);
         AddTjsInsideEnvelope(tjs, cotIndex,prt);
-	if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 5);
+	if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, "ATJIE");
         FindNearbyTjs(tjs, cotIndex, prt);
         FindMatchingTjs(tjs, cotIndex, prt);
         if(prt) {
@@ -291,10 +291,10 @@ namespace tca {
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       auto& ss = tjs.cots[cotIndex];
       if(ss.TjIDs.empty()) continue;
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, 6);
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, "M2DS");
       prt = (ss.CTP == dbgCTP || dbgPlane > 2);
       FindExternalParent(tjs, cotIndex, prt);
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, 7);
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, "FEP");
       Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
       if(prt) std::cout<<cotIndex<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<" ParID "<<ss.ParentID<<" TruParID "<<ss.TruParentID<<" PardEdx " << tjs.allTraj[ss.ShowerTjID - 1].dEdx[0] <<"\n";
 
@@ -460,15 +460,13 @@ namespace tca {
     std::vector<std::vector<int>> tjList;
     TagShowerTjs(tjs, inCTP, tjList);
     
-    // save stage 1 info
-    if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 1);
+    //if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, "TSTJ");
     
     if(prt) std::cout<<"Inside FindShowers inCTP "<<inCTP<<" tjList size "<<tjList.size()<<"\n";
     if(tjList.empty()) return;
     MergeTjList(tjList);
 
-    // save stage 2 info
-    if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 2);
+    //if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, "MTJL");
 
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -503,8 +501,7 @@ namespace tca {
       } // didErase
     } // tjl
     
-    // save stage 3 info                                                                            
-    if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, 3);
+    //if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, "CNN");
 
     // mark all of these as InShower Tjs
     for(auto& tjl : tjList) {
@@ -530,7 +527,7 @@ namespace tca {
       if(!DefineShower(tjs, cotIndex, prt)) continue;
       if(tjs.cots[cotIndex].TjIDs.empty()) continue;
 
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 4);
+      //if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, "DS");
       // Fill the vector of Tjs that are close to this shower but were not included in it, most
       // likely because the MCSMom is too high. These will be used to merge showers
       // FindNearbyTjs(tjs, cotIndex, prt);
@@ -538,11 +535,11 @@ namespace tca {
 
       //AddTjsInsideEnvelope(tjs, cotIndex, prt,1);
       AddTjsInsideEnvelope(tjs, cotIndex, prt);
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 5);
+      //if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, "ATJIE");
 
       FindExternalParent(tjs, cotIndex, prt);
 
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 6);
+      //if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, "FEP");
       // If no external parent was found, try to refine the direction and look for
       // an internal parent
       if(tjs.cots[cotIndex].ShowerTjID == 0) RefineShowerTj(tjs, cotIndex, prt);
@@ -612,8 +609,6 @@ namespace tca {
         }
       } // don't killit
 
-      //if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 7);
-
     } // ic
 
     CheckQuality(tjs, inCTP, prt);
@@ -624,7 +619,6 @@ namespace tca {
       if(ss.CTP != inCTP) continue;
       if(ss.TjIDs.empty()) continue;
       FindStartChg(tjs, cotIndex, prt);
-      //      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 8);
     }
     
     // Finish up in this CTP. 
@@ -652,10 +646,6 @@ namespace tca {
           std::cout<<"FindShowers: InShower TjID "<<tjID<<" invalid kKilled "<<tj.AlgMod[kKilled]<<" or kInShower "<<tj.AlgMod[kInShower]<<"\n";
         }
       } // tjID
-
-      // need write code to do this after TransferTjHits
-      // has been called. Turning off for now
-      //      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 9);
 
       cotIndex++;
     } // ss
@@ -1002,8 +992,6 @@ namespace tca {
       if(WrongSplitTj(tjs, tj, useEnd, ss, prt)) continue;
       float fom = ParentFOM(tjs, tj, useEnd, ss, prt);
 
-      //std::cout<< "defining dEdx TjID "<<tj.ID<<" dEdx "<<tj.dEdx[useEnd]<<" 3DMat "<<tj.AlgMod[kMat3D]<<std::endl;
-
       if(fom > bestFOM) continue;
       bestFOM = fom;
       imTheBest = tj.ID;
@@ -1115,7 +1103,7 @@ namespace tca {
     
     // set dE/dx of the shower Tj
     stj.dEdx[0] = ptj.dEdx[pend];
-    std::cout << "defining dEdx ParentID " << ss.ParentID << " dEdx " << stj.dEdx[0] << std::endl;
+    std::cout << "USWP: ParentID " << ss.ParentID << " dEdx " << stj.dEdx[0] << std::endl;
     // Clear
     for(auto& stp : stj.Pts) {
       stp.Chg = 0;
@@ -2781,7 +2769,7 @@ namespace tca {
           } // end
         }
       } // don't killit
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, 8);
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, "CQ");
     } // ic
     
   } // CheckQuality

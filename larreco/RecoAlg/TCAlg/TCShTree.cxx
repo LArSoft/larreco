@@ -3,17 +3,16 @@
 namespace tca {
 
   void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, std::vector<std::vector<int>>& tjList,
-                  unsigned int stageNum) {
-
-    //    std::cout << "RUNNING FOR STAGE NUM: " << stageNum << std::endl;
+                  std::string stageName) {
+    
+    int stageNum = GetStageNum(tjs.stv, stageName);
 
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       Trajectory& tj1 = tjs.allTraj[it1];
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kKilled]) continue;
 
-
-      SaveTjInfoStuff(tjs, inCTP, tj1,  stageNum);
+      SaveTjInfoStuff(tjs, inCTP, tj1,  stageNum, stageName);
 
       int trajID = tj1.ID;
       bool inShower = false;
@@ -43,9 +42,9 @@ namespace tca {
   } // SaveTjInfo (tjlist) 
 
   void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotIndex,
-                  unsigned int stageNum) {
+                  std::string stageName) {
 
-    // std::cout << "RUNNING FOR STAGE NUM: " << stageNum << std::endl;
+    int stageNum = GetStageNum(tjs.stv, stageName);
 
     ShowerStruct& ss = tjs.cots[cotIndex];
 
@@ -53,28 +52,14 @@ namespace tca {
 
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
 
-      //std::cout << tjs.allTraj.size() << " "  << it1 << std::endl << std::flush;
-   
-      // right now I exclude the shower trajectory
-      //      if (it1 == (ss.ShowerTjID - 1)) continue;
-
       Trajectory& tj1 = tjs.allTraj[it1];
 
-      //std::cout << "HERE" << std::endl << std::flush;
-
-      //      std::cout << tj1.CTP << std::endl << std::flush;
-      //      std::cout << tj1.AlgMod[kKilled] << std::endl << std::flush;
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kKilled]) {
-	//std::cout << "INSIDE KILLED LOOP" << std::endl << std::flush;
 	continue;
       }
 
-      //      std::cout << "HERE2" << std::endl << std::flush;
-
       int trajID = tj1.ID;
-
-      //      std::cout << "HERE3" << std::endl << std::flush;
 
       // check if this tj has already been added to the list
       // for this particular stage and plane
@@ -92,30 +77,21 @@ namespace tca {
 	}
       }
 
-      //      std::cout << "TJINDEX: " << tjIndex << std::endl << std::flush;
-      //      if (tjIndex != -1) std::cout << "is shower tree? " << tjs.stv.IsShowerTj.at(tjIndex) << std::endl << std::flush;
-
-      //      if (isShowerTj) std::cout << "THIS IS A SHOWER TRAJECTORY" << std::endl << std::flush;
-
       if (isShowerTj) continue;
-      if (tjIndex == -1) SaveTjInfoStuff(tjs, inCTP, tj1, stageNum);
+      if (tjIndex == -1) SaveTjInfoStuff(tjs, inCTP, tj1, stageNum, stageName);
 
       for (size_t i = 0; i < ss.TjIDs.size(); ++i) {
         if (trajID == ss.TjIDs[i]) {
-	  //	  std::cout << "TJID MATCH\n" << std::flush;
 	  noMatch = false;
           if (tjIndex == -1) tjs.stv.ShowerID.back() = cotIndex;
 	  else tjs.stv.ShowerID.at(tjIndex) = cotIndex;
-	  //break;
         }
 
 	if (it1 == (ss.ShowerTjID - 1)) tjs.stv.IsShowerTj.back() = 1;
-        // check if tj is shower parent. if so, add to ttree
-        // and mark parent flag
-	
-        if (trajID == ss.ParentID) {
 
-	  //	  std::cout << "FOUND A PARENT!!" << std::endl;
+        // check if tj is shower parent. if so, add to ttree
+        // and mark parent flag	
+        if (trajID == ss.ParentID) {
           if (tjIndex == -1) {
 	    tjs.stv.ShowerID.back() = cotIndex;
 	    tjs.stv.IsShowerParent.back() = 1;
@@ -129,22 +105,17 @@ namespace tca {
         }
       } // ss TjID loop
     } // end tjs loop
-
     
     if (noMatch) return;
 
-    //    std::cout << "OUTSIDE LOOP" << std::endl << std::flush;
     // add envelope information to showertreevars 
     geo::PlaneID iPlnID = DecodeCTP(ss.CTP);
 
-    //    std::cout << "HAVE PLANE" << std::endl << std::flush;
     for (int i = 0; i < 8; i++) {
       tjs.stv.EnvStage.push_back(stageNum);
       tjs.stv.EnvPlane.push_back(iPlnID.Plane);
       tjs.stv.EnvShowerID.push_back(cotIndex);
     }
-
-    //    std::cout << "ADDED ENVELOPE VARIABLES" << std::endl << std::flush;
 
     tjs.stv.Envelope.push_back(ss.Envelope[0][0]);
     tjs.stv.Envelope.push_back(ss.Envelope[0][1]/tjs.UnitsPerTick);
@@ -155,10 +126,9 @@ namespace tca {
     tjs.stv.Envelope.push_back(ss.Envelope[3][0]);
     tjs.stv.Envelope.push_back(ss.Envelope[3][1]/tjs.UnitsPerTick);
 
-    //    std::cout << "ADDED MORE ENVELOPE VARIABLES" << std::endl << std::flush;
   } // SaveTjInfo (cots)
 
-  void SaveTjInfoStuff(TjStuff& tjs,  const CTP_t& inCTP, Trajectory& tj,  unsigned int stageNum) {
+  void SaveTjInfoStuff(TjStuff& tjs,  const CTP_t& inCTP, Trajectory& tj, int stageNum, std::string stageName) {
 
     TrajPoint& beginPoint = tj.Pts[tj.EndPt[0]];
     TrajPoint& endPoint = tj.Pts[tj.EndPt[1]];
@@ -189,6 +159,24 @@ namespace tca {
     tjs.stv.nPlanes = tjs.NumPlanes;
 
   } // SaveTjInfoStuff  
+
+  int GetStageNum(ShowerTreeVars& stv, std::string stageName) {
+    int stageNum;
+    bool existingStage = false;
+    for (unsigned short i = 0; i < stv.StageName.size(); ++i) {
+      if (stv.StageName.at(i) == stageName) {
+        existingStage = true;
+        stageNum = i+1;
+      }
+    }
+
+    if (!existingStage) {
+      stv.StageName.push_back(stageName);
+      stageNum = stv.StageName.size();
+    }
+
+    return stageNum;
+  }
 
   void ClearShowerTree(ShowerTreeVars& stv) {
     stv.BeginWir.clear();

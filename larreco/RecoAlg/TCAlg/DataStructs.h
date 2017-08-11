@@ -251,6 +251,7 @@ namespace tca {
   };
 
   struct ShowerTreeVars {
+    // run, subrun, and event are also saved to this tree
 
     std::vector<float> BeginWir;   // begin wire
     std::vector<float> BeginTim;   // begin tick
@@ -268,10 +269,11 @@ namespace tca {
     std::vector<short> PlaneNum; 
    
     std::vector<int> TjID;
-    std::vector<int> IsShowerTj;
+    std::vector<int> IsShowerTj; // indicates tj is an shower trajectory
     std::vector<int> ShowerID; // shower ID associated w/ trajectory. -1 = no shower
-    std::vector<int> IsShowerParent;
+    std::vector<int> IsShowerParent; // this tj was chosen as a parent tj
     std::vector<int> StageNum; // stage of reconstruction
+    std::vector<std::string> StageName; // stage name
 
     // envelope information
     std::vector<float> Envelope;

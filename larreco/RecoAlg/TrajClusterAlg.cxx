@@ -475,8 +475,9 @@ namespace tca {
       // true if the algorithm was successful indicating that the matching needs to be redone
       if(tjs.ShowerTag[0] == 2 && FindShowers3D(tjs, tpcid)) Match3D(tpcid, true);
 
-      std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
-      showertree->Fill();
+
+      //std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
+      if (tjs.SaveShowerTree) showertree->Fill();
     } // tpcid
     
     if(fStudyMode) {
@@ -2575,7 +2576,6 @@ namespace tca {
         unsigned short itj = ms.TjIDs[ipl] - 1;
         tjs.allTraj[itj].AlgMod[kMat3D] = true;
 
-	//	std::cout << "SETTING TJID " << tjs.allTraj[itj].ID << " true" << std::endl;
       } // ipl
     } // indx
     
@@ -2627,6 +2627,7 @@ namespace tca {
     for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
       unsigned short imv = tjs.matchVecPFPList[ii];
       auto& ms = tjs.matchVec[imv];
+
       if(ms.Count == 0) continue;
       if(ms.TPCID != tpcid) continue;
       for(unsigned short startend = 0; startend < 2; ++startend) {
@@ -2644,14 +2645,14 @@ namespace tca {
         Find3DShowerEndPoints(tjs, ms);
         continue;
       }
-      
+
       std::array<std::vector<TrajPoint>, 2> endtps;
       if(!FindMatchingPts(tjs, ms, endtps[0], endtps[1], prt) || endtps[0].size() < 2 || endtps[1].size() < 2) {
         if(prt) mf::LogVerbatim("TC")<<"  FindMatchingPts failed imv "<<imv<<" stps size "<<endtps[0].size()<<" etps size "<<endtps[1].size()<<" PDGCode "<<ms.PDGCode;
         ms.Count = 0;
         continue;
       }
-      
+
       // grab the direction from the first calculation and don't let it reverse
       TVector3 prevDir = {0, 0, 0};
       bool first = true;
@@ -2717,7 +2718,7 @@ namespace tca {
         }
         if(ms.Dir[startend].Mag() > 0) ms.Dir[startend].SetMag(1);
       } // startend
-      
+
       // ensure that the start direction vectors is pointing from start to end
       TVector3 generalDirection;
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) generalDirection[ixyz] = ms.XYZ[1][ixyz] - ms.XYZ[0][ixyz];
@@ -2738,6 +2739,7 @@ namespace tca {
       } // ixyz
       // Calculate dE/dx at both ends
       FilldEdx(tjs, ms);
+
     } //ii
   } // Find3DEndPoints
 
@@ -5973,6 +5975,10 @@ namespace tca {
   void TrajClusterAlg::DefineShTree(TTree* t) {
     showertree = t;
 
+    showertree->Branch("run", &fRun, "run/I");
+    showertree->Branch("subrun", &fSubRun, "subrun/I");
+    showertree->Branch("event", &fEvent, "event/I");
+
     showertree->Branch("BeginWir", &tjs.stv.BeginWir);
     showertree->Branch("BeginTim", &tjs.stv.BeginTim);
     showertree->Branch("BeginAng", &tjs.stv.BeginAng);
@@ -5993,6 +5999,7 @@ namespace tca {
     showertree->Branch("ShowerID", &tjs.stv.ShowerID);
     showertree->Branch("IsShowerParent", &tjs.stv.IsShowerParent);
     showertree->Branch("StageNum", &tjs.stv.StageNum);
+    showertree->Branch("StageName", &tjs.stv.StageName);
 
     showertree->Branch("Envelope", &tjs.stv.Envelope);
     showertree->Branch("EnvPlane", &tjs.stv.EnvPlane);
