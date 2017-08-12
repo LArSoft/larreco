@@ -28,6 +28,7 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "TVector3.h"
+#include "TH1F.h"
 
 namespace tca {
   
@@ -211,6 +212,7 @@ namespace tca {
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned short MCPartListIndex {USHRT_MAX};
+    float CosmicScore{0};
   };
 
   struct ShowerPoint {
@@ -269,6 +271,7 @@ namespace tca {
   };
 
   struct ShowerTreeVars {
+    // run, subrun, and event are also saved to this tree
 
     std::vector<float> BeginWir;   // begin wire
     std::vector<float> BeginTim;   // begin tick
@@ -286,10 +289,11 @@ namespace tca {
     std::vector<short> PlaneNum; 
    
     std::vector<int> TjID;
-    std::vector<int> IsShowerTj;
+    std::vector<int> IsShowerTj; // indicates tj is an shower trajectory
     std::vector<int> ShowerID; // shower ID associated w/ trajectory. -1 = no shower
-    std::vector<int> IsShowerParent;
+    std::vector<int> IsShowerParent; // this tj was chosen as a parent tj
     std::vector<int> StageNum; // stage of reconstruction
+    std::vector<std::string> StageName; // stage name
 
     // envelope information
     std::vector<float> Envelope;
@@ -297,9 +301,16 @@ namespace tca {
     std::vector<int>EnvStage;
     std::vector<int>EnvShowerID;
 
-    int nStages;
-    unsigned short nPlanes;
+    int nStages {0};
+    unsigned short nPlanes {0};
 
+  };
+
+  struct CRTreeVars {
+    std::vector<int>   cr_origin;
+    std::vector<float> cr_pfpxmin;
+    std::vector<float> cr_pfpxmax;
+    std::vector<float> cr_pfpyzmindis;
   };
 
   // Algorithm modification bits
@@ -386,7 +397,12 @@ namespace tca {
     // The variables below do change in size from event to event
     ShowerTreeVars stv; // 
     bool SaveShowerTree;
-    
+
+    // Save histograms to develop cosmic removal tools
+    CRTreeVars crt;
+    bool SaveCRTree;
+    bool TagCosmics;
+
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TCHit> fHits;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire

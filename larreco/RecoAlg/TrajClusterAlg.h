@@ -11,6 +11,7 @@
 
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 #include "larreco/RecoAlg/TCAlg/TCTruth.h"
+#include "larreco/RecoAlg/TCAlg/TCCR.h"
 
 // C/C++ standard libraries
 #include <array>
@@ -59,8 +60,12 @@ namespace tca {
 
     void RunTrajClusterAlg(art::Event & evt);
 
-    void DefineTree(TTree* t);
+    void DefineShTree(TTree* t);
     
+    void DefineCRTree(TTree* t);
+
+    TjStuff const& GetTJS() const {return tjs;}
+
     std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
     /// Returns (and loses) the art::Ptr collection of previously reconstructed hits (e.g. gaushit)
@@ -162,9 +167,10 @@ namespace tca {
     TProfile* fEP_T[5];
 
     // SHOWER VARIABLE TREE
-
     TTree* showertree;
 
+    // Cosmic Removal Variable Tree
+    TTree* crtree;
 
     // number of primary particles in the event
     unsigned short nTruPrimary;

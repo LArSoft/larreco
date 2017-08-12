@@ -87,7 +87,8 @@ namespace tca {
     tjs.ShowerTag         = pset.get< std::vector<float>>("ShowerTag", {-1, -1, -1, -1, -1, -1});
     
     tjs.SaveShowerTree    = pset.get< bool >("SaveShowerTree", false);
-
+    tjs.SaveCRTree        = pset.get< bool >("SaveCRTree", false);
+    tjs.TagCosmics        = pset.get< bool >("TagCosmics", false);
     fChkStopCuts          = pset.get< std::vector<float>>("ChkStopCuts", {-1, -1, -1});
     fMaxTrajSep           = pset.get< float >("MaxTrajSep", 4);
     
@@ -283,6 +284,7 @@ namespace tca {
     tjs.MCPartList.clear();
 
     ClearShowerTree(tjs.stv);
+    ClearCRInfo(tjs);
 
   } // ClearResults()
 
@@ -491,6 +493,7 @@ namespace tca {
     
     FillPFPInfo();
     if(!fIsRealData) tm.MatchTruth(hist, fEventsProcessed);
+    if (tjs.SaveCRTree) crtree->Fill();
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     if(fQuitAlg) {
@@ -2556,6 +2559,7 @@ namespace tca {
       for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
         unsigned short itj = ms.TjIDs[ipl] - 1;
         tjs.allTraj[itj].AlgMod[kMat3D] = true;
+
       } // ipl
     } // indx
     
@@ -2607,6 +2611,7 @@ namespace tca {
     for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
       unsigned short imv = tjs.matchVecPFPList[ii];
       auto& ms = tjs.matchVec[imv];
+
       if(ms.Count == 0) continue;
       if(ms.TPCID != tpcid) continue;
       for(unsigned short startend = 0; startend < 2; ++startend) {
@@ -2624,14 +2629,14 @@ namespace tca {
         Find3DShowerEndPoints(tjs, ms);
         continue;
       }
-      
+
       std::array<std::vector<TrajPoint>, 2> endtps;
       if(!FindMatchingPts(tjs, ms, endtps[0], endtps[1], prt) || endtps[0].size() < 2 || endtps[1].size() < 2) {
         if(prt) mf::LogVerbatim("TC")<<"  FindMatchingPts failed imv "<<imv<<" stps size "<<endtps[0].size()<<" etps size "<<endtps[1].size()<<" PDGCode "<<ms.PDGCode;
         ms.Count = 0;
         continue;
       }
-      
+
       // grab the direction from the first calculation and don't let it reverse
       TVector3 prevDir = {0, 0, 0};
       bool first = true;
@@ -2697,7 +2702,7 @@ namespace tca {
         }
         if(ms.Dir[startend].Mag() > 0) ms.Dir[startend].SetMag(1);
       } // startend
-      
+
       // ensure that the start direction vectors is pointing from start to end
       TVector3 generalDirection;
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) generalDirection[ixyz] = ms.XYZ[1][ixyz] - ms.XYZ[0][ixyz];
@@ -2718,6 +2723,7 @@ namespace tca {
       } // ixyz
       // Calculate dE/dx at both ends
       FilldEdx(tjs, ms);
+
     } //ii
   } // Find3DEndPoints
 
@@ -2783,6 +2789,7 @@ namespace tca {
         ms.Vx3ID[0] = newVx3.ID;
 //        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<newVx3.ID<<" at "<<newVx3.X<<" "<<newVx3.Y<<" "<<newVx3.Z;
       }
+      if (tjs.TagCosmics) SaveCRInfo(tjs, ms, prt, fIsRealData);
     } // im (ms)
     
     if(pprt) PrintPFParticles("FPI", tjs);
@@ -6011,8 +6018,12 @@ namespace tca {
   }
 
 
-  void TrajClusterAlg::DefineTree(TTree* t) {
+  void TrajClusterAlg::DefineShTree(TTree* t) {
     showertree = t;
+
+    showertree->Branch("run", &fRun, "run/I");
+    showertree->Branch("subrun", &fSubRun, "subrun/I");
+    showertree->Branch("event", &fEvent, "event/I");
 
     showertree->Branch("BeginWir", &tjs.stv.BeginWir);
     showertree->Branch("BeginTim", &tjs.stv.BeginTim);
@@ -6034,6 +6045,7 @@ namespace tca {
     showertree->Branch("ShowerID", &tjs.stv.ShowerID);
     showertree->Branch("IsShowerParent", &tjs.stv.IsShowerParent);
     showertree->Branch("StageNum", &tjs.stv.StageNum);
+    showertree->Branch("StageName", &tjs.stv.StageName);
 
     showertree->Branch("Envelope", &tjs.stv.Envelope);
     showertree->Branch("EnvPlane", &tjs.stv.EnvPlane);
@@ -6043,6 +6055,17 @@ namespace tca {
     showertree->Branch("nStages", &tjs.stv.nStages);
     showertree->Branch("nPlanes", &tjs.stv.nPlanes);
 
-  } // end DefineTree
+  } // end DefineShTree
+
+  void TrajClusterAlg::DefineCRTree(TTree *t){
+    crtree = t;
+    crtree->Branch("run", &fRun, "run/I");
+    crtree->Branch("subrun", &fSubRun, "subrun/I");
+    crtree->Branch("event", &fEvent, "event/I");
+    crtree->Branch("cr_origin", &tjs.crt.cr_origin);
+    crtree->Branch("cr_pfpxmin", &tjs.crt.cr_pfpxmin);
+    crtree->Branch("cr_pfpxmax", &tjs.crt.cr_pfpxmax);
+    crtree->Branch("cr_pfpyzmindis", &tjs.crt.cr_pfpyzmindis);
+  }
 
 } // namespace cluster
