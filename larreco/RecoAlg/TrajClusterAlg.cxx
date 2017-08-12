@@ -478,23 +478,11 @@ namespace tca {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
         ChkVtxAssociations(tjs, fCTP);
       }
-      if(tjs.ShowerTag[0] == 1) {
-        // find showers after 3D vertex finding - which may split trajectories
-        for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
-          // no hits on this plane?
-          if(tjs.FirstWire[fPlane] > tjs.LastWire[fPlane]) continue;
-          // Set the CTP code to ensure objects are compared within the same plane
-          fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
-          FindShowers(tjs, fCTP);
-        }
-
-      } // make showers
       // Match3D should be the last thing called for this tpcid
       Match3D(tpcid, false);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
       // true if the algorithm was successful indicating that the matching needs to be redone
       if(tjs.ShowerTag[0] == 2 && FindShowers3D(tjs, tpcid)) Match3D(tpcid, true);
-
       if(tjs.SaveShowerTree) {
         std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
         showertree->Fill();
@@ -2189,23 +2177,6 @@ namespace tca {
         }
       } // ipfp
     } // reset
-
-    // Create a temporary struct for matching trajectory points; 1 struct for each TP in
-    // all trajectories. These are put into mallTraj which is then sorted by increasing xlo
-    struct TjPt{
-      std::array<double, 2> dir;
-      unsigned int wire;
-      // x range spanned by hits on the TP
-      float xlo;
-      float xhi;
-      CTP_t ctp;
-      // the Trajectory ID
-      unsigned short id;
-      // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
-      unsigned short npts;
-      short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
-      bool inShower;
-    };
     
     // count the number of TPs and clear out any old 3D match flags
     unsigned int ntp = 0;
@@ -2236,6 +2207,7 @@ namespace tca {
         // look for this Tj in cots
         unsigned short stjID = 0;
         for(auto& ss : tjs.cots) {
+          if(ss.ID == 0) continue;
           if(ss.TjIDs.empty()) continue;
           if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tjID) != ss.TjIDs.end()) {
             stjID = ss.ShowerTjID;
@@ -4866,7 +4838,7 @@ namespace tca {
     
     // Merge hits in trajectory points?
     if(fMakeNewHits) MergeTPHits();
-    MakeShowers(tjs);
+    Finish3DShowers(tjs);
     
     ClusterStore cls;
     tjs.tcl.clear();
