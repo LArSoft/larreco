@@ -172,6 +172,23 @@ namespace tca {
     int InTraj {0};
     unsigned short MCPartListIndex {USHRT_MAX};
   };
+  
+  // A temporary struct for matching trajectory points; 1 struct for each TP in
+  // each trajectories. These are put into mallTraj which is then sorted by increasing xlo
+  struct TjPt{
+    std::array<double, 2> dir;
+    unsigned int wire;
+    // x range spanned by hits on the TP
+    float xlo;
+    float xhi;
+    CTP_t ctp;
+    // the Trajectory ID
+    unsigned short id;
+    // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
+    unsigned short npts;
+    short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
+    bool inShower;
+  };
 
   // Struct for 3D trajectory matching
   struct MatchStruct {
@@ -221,9 +238,11 @@ namespace tca {
     float ChgDensity {0};                   // Charge density inside the Envelope
     float Energy {0};
     float ParentFOM {10};
+    int ID {0}; 
     int ParentID {0};  // The ID of an external parent Tj that was added to the shower
-    bool NeedsUpdate {false};       // This is set true whenever the shower needs to be updated
     unsigned short TruParentID {0};
+    unsigned short SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
+    bool NeedsUpdate {false};       // This is set true whenever the shower needs to be updated
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -240,10 +259,13 @@ namespace tca {
     std::vector<double> MIPEnergyErr;
     std::vector<double> dEdx;
     std::vector<double> dEdxErr;
-    int BestPlane;
-    int ID;
+    geo::TPCID TPCID;
+    std::vector<unsigned short> CotIndices;  // vector of 2D shower IDs
     std::vector<unsigned short> TjIDs;
     std::vector<unsigned int> Hits;
+    int BestPlane;
+    int ID;
+    unsigned short MatchVecPFPIndex {USHRT_MAX};
   };
 
   struct ShowerTreeVars {
@@ -326,6 +348,7 @@ namespace tca {
     kMergeOverlap,
     kMergeSubShowers,
     kMergeNrShowers,
+    kMergeShChain,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
