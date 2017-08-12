@@ -50,7 +50,7 @@ namespace tca {
     } // ipfp
 
   } // DefinePFParticleRelationships
-  
+
   /////////////////////////////////////////
   void MergeBrokenTjs(TjStuff& tjs, std::vector<MatchStruct>& matVec)
   {
@@ -84,7 +84,7 @@ namespace tca {
         unsigned int itj2 = id2 - 1;
         Trajectory& tj1 = tjs.allTraj[itj1];
         Trajectory& tj2 = tjs.allTraj[itj2];
-        if(CompatibleMerge(tjs, tj1, tj2) && MergeAndStore(tjs, itj1, itj2, true)) {
+        if(CompatibleMerge(tjs, tj1, tj2) && MergeAndStore(tjs, itj1, itj2, false)) {
           // success
           int newTjID = tjs.allTraj.size();
 //          std::cout<<"MBTj Merge "<<id1<<" "<<id2<<" -> "<<newTjID<<"\n";
@@ -987,9 +987,22 @@ namespace tca {
     return;
     
   } // Reverse3DMatchTjs
+  
+  ////////////////////////////////////////////////
+  unsigned short MatchVecPFPIndex(const TjStuff& tjs, int tjID)
+  {
+    // returns the index into the tjs.matchVec vector of the first 3D match that
+    // includes tjID
+    for(unsigned int ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+      unsigned int ims = tjs.matchVecPFPList[ipfp];
+      const MatchStruct& ms = tjs.matchVec[ims];
+      if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID) != ms.TjIDs.end()) return ipfp;
+    } // indx
+    return USHRT_MAX;
+  } // MatchVecPFPIndex
 
   ////////////////////////////////////////////////
-  unsigned int MatchVecIndex(const TjStuff& tjs, int tjID)
+  unsigned short MatchVecIndex(const TjStuff& tjs, int tjID)
   {
     // returns the index into the tjs.matchVec vector of the first 3D match that
     // includes tjID
@@ -998,11 +1011,11 @@ namespace tca {
       const MatchStruct& ms = tjs.matchVec[ims];
       if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID) != ms.TjIDs.end()) return ims;
     } // indx
-    return UINT_MAX;
-  } // MatchedTjs
+    return USHRT_MAX;
+  } // MatchVecIndex
   
   ////////////////////////////////////////////////
-  unsigned int MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2)
+  unsigned short MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2)
   {
     // returns the index into the tjs.matchVec vector of the first 3D match that
     // includes both tjID1 and tjID2
@@ -1012,8 +1025,8 @@ namespace tca {
       if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID1) != ms.TjIDs.end() &&
          std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID2) != ms.TjIDs.end()) return ims;
     } // indx
-    return INT_MAX;
-  } // MatchedTjs
+    return USHRT_MAX;
+  } // MatchVecIndex
   
   ////////////////////////////////////////////////
   void ReleaseHits(TjStuff& tjs, Trajectory& tj)
@@ -3411,7 +3424,8 @@ namespace tca {
           myprt<<"\nInShower TjIDs";
           for(auto& tjID : ss.TjIDs) {
             myprt<<" "<<tjID;
-          } // tjID
+          } // tjIDA_Klystron_4U
+          
           myprt<<"\n";
           myprt<<"NearTjIDs";
           for(auto& tjID : ss.NearTjIDs) {
@@ -3431,7 +3445,7 @@ namespace tca {
           } else {
             myprt<<" No parent";
           }
-          myprt<<" TruParentID "<<ss.TruParentID<<"\n";
+          myprt<<" TruParentID "<<ss.TruParentID<<" SS3ID "<<ss.SS3ID<<"\n";
           if(ss.NeedsUpdate) myprt<<"*********** This shower needs to be updated ***********";
           myprt<<"................................................";
         } // ic
