@@ -35,6 +35,25 @@ double pma::Segment3D::GetDistance2To(const TVector2& p2d, unsigned int view) co
 	return GetDist2(p2d, v0->Projection2D(view), v1->Projection2D(view));
 }
 
+double pma::Segment3D::SumDist2Hits(void) const
+{
+	pma::Node3D* v0 = static_cast< pma::Node3D* >(prev);
+	pma::Node3D* v1 = static_cast< pma::Node3D* >(next);
+
+	double sum = 0.0F;
+	for (auto h : fAssignedHits)
+	{
+		if (h->IsEnabled())
+		{
+			unsigned int view = h->View2D();
+
+			sum += OptFactor(view) * h->GetSigmaFactor() // alpha_i * (hit_amp / hit_max_amp)
+				* GetDist2(h->Point2D(), v0->Projection2D(view), v1->Projection2D(view));
+		}
+	}
+	return sum;
+}
+
 pma::Vector3D pma::Segment3D::GetDirection3D(void) const
 {
 	pma::Node3D* v0 = static_cast< pma::Node3D* >(prev);
