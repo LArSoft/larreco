@@ -58,8 +58,9 @@ namespace tca {
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
   void Reverse3DMatchTjs(TjStuff& tjs, MatchStruct& ms, bool prt);
-  unsigned int MatchVecIndex(const TjStuff& tjs, int tjID);
-  unsigned int MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2);
+  unsigned short MatchVecPFPIndex(const TjStuff& tjs, int tjID);
+  unsigned short MatchVecIndex(const TjStuff& tjs, int tjID);
+  unsigned short MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   bool StoreTraj(TjStuff& tjs, Trajectory& tj);
