@@ -227,45 +227,41 @@ double pma::Segment3D::GetDist2(const TVector3& psrc, const TVector3& p0, const 
 {
 	pma::Vector3D v0(psrc.X() - p0.X(), psrc.Y() - p0.Y(), psrc.Z() - p0.Z());
 	pma::Vector3D v1(p1.X() - p0.X(), p1.Y() - p0.Y(), p1.Z() - p0.Z());
-
 	pma::Vector3D v2(psrc.X() - p1.X(), psrc.Y() - p1.Y(), psrc.Z() - p1.Z());
-	pma::Vector3D v3(v1); v3 *= -1.0;
 
-	double v0Norm2 = v0.Mag2();
 	double v1Norm2 = v1.Mag2();
+	if (v1Norm2 >= 1.0E-6) // >= 0.01mm
+    {
+	    double v0v1 = v0.Dot(v1);
+	    double v2v3 = -v2.Dot(v1);
+	    double v0Norm2 = v0.Mag2();
+	    double v2Norm2 = v2.Mag2();
 
-	double eps = 1.0E-6; // 0.01mm
-	if (v1Norm2 < eps)
+	    double result = 0.0;
+	    if ((v0v1 > 0.0) && (v2v3 > 0.0))
+	    {
+		    double cosine01_square = 0.0;
+		    double mag01_square = v0Norm2 * v1Norm2;
+		    if (mag01_square != 0.0) cosine01_square = v0v1 * v0v1 / mag01_square;
+
+		    result = (1.0 - cosine01_square) * v0Norm2;
+	    }
+	    else // increase distance to prefer hit assigned to the vertex, not segment
+	    {
+		    if (v0v1 <= 0.0) result = 1.0001 * v0Norm2;
+		    else result = 1.0001 * v2Norm2;
+	    }
+
+	    if (result >= 0.0) return result;
+	    else return 0.0;
+	}
+	else // short segment or its projection
 	{
-		mf::LogWarning("pma::Segment3D") << "Short segment or its projection.";
-
 		double dx = 0.5 * (p0.X() + p1.X()) - psrc.X();
 		double dy = 0.5 * (p0.Y() + p1.Y()) - psrc.Y();
 		double dz = 0.5 * (p0.Z() + p1.Z()) - psrc.Z();
 		return dx * dx + dy * dy + dz * dz;
 	}
-
-	double v0v1 = v0.Dot(v1);
-	double v2v3 = v2.Dot(v3);
-	double v2Norm2 = v2.Mag2();
-
-	double result = 0.0;
-	if ((v0v1 > 0.0) && (v2v3 > 0.0))
-	{
-		double cosine01_square = 0.0;
-		double mag01_square = v0Norm2 * v1Norm2;
-		if (mag01_square != 0.0) cosine01_square = v0v1 * v0v1 / mag01_square;
-
-		result = (1.0 - cosine01_square) * v0Norm2;
-	}
-	else // increase distance to prefer hit assigned to the vertex, not segment
-	{
-		if (v0v1 <= 0.0) result = 1.0001 * v0Norm2;
-		else result = 1.0001 * v2Norm2;
-	}
-
-	if (result >= 0.0) return result;
-	else return 0.0;
 }
 
 double pma::Segment3D::GetDist2(const TVector2& psrc, const TVector2& p0, const TVector2& p1)
