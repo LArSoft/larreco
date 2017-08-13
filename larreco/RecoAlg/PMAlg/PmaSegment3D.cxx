@@ -86,8 +86,7 @@ TVector3 pma::Segment3D::GetProjection(const TVector2& p, unsigned int view) con
 	double v1Norm = v1.Mod();
 
 	TVector3 result(0, 0, 0);
-	double eps = 1.0E-6; // 0.01mm
-	if (v1Norm > eps)
+	if (v1Norm > 1.0E-6)// 0.01mm
 	{
 		double mag = v0Norm * v1Norm;
 		double cosine = 0.0;
@@ -128,9 +127,7 @@ TVector3 pma::Segment3D::GetUnconstrainedProj3D(const TVector2& p2d, unsigned in
 
 	double v0Norm = v0.Mod();
 	double v1Norm = v1.Mod();
-
-	double eps = 1.0E-6; // 0.01mm
-	if (v1Norm > eps)
+	if (v1Norm > 1.0E-6) // 0.01mm
 	{
 		double mag = v0Norm * v1Norm;
 		double cosine = 0.0;
@@ -141,8 +138,6 @@ TVector3 pma::Segment3D::GetUnconstrainedProj3D(const TVector2& p2d, unsigned in
 	}
 	else // segment 2D projection is almost a point
 	{
-		mf::LogWarning("pma::Segment3D") << "Short segment projection." << std::endl;
-
 		v3d = vStart->Point3D();
 		v3d += vStop->Point3D();
 		v3d *= 0.5;
@@ -177,9 +172,7 @@ void pma::Segment3D::SetProjection(pma::Hit3D& h) const
 
 	double v0Norm = sqrt(v0.Mag2());
 	double v1Norm = sqrt(v1.Mag2());
-
-	double eps = 1.0E-6; // 0.01mm
-	if (v1Norm > eps)
+	if (v1Norm > 1.0E-6) // 0.01mm
 	{
 		double mag = v0Norm * v1Norm;
 		double cosine = 0.0;
@@ -192,14 +185,12 @@ void pma::Segment3D::SetProjection(pma::Hit3D& h) const
 
 		h.SetProjection(p.X(), p.Y(), (float)b);
 		h.SetPoint3D(
-			vStart->Point3D().X() + v3d.X(),
-			vStart->Point3D().Y() + v3d.Y(),
-			vStart->Point3D().Z() + v3d.Z());
+			pointStart.X() + v3d.X(),
+			pointStart.Y() + v3d.Y(),
+			pointStart.Z() + v3d.Z());
 	}
 	else // segment 2D projection is almost a point
 	{
-		mf::LogWarning("pma::Segment3D") << "Short segment projection.";
-
 		h.SetProjection(
 			0.5 * (projStart.X() + projStop.X()),
 			0.5 * (projStart.Y() + projStop.Y()), 0.0F);
@@ -233,12 +224,12 @@ double pma::Segment3D::GetDist2(const TVector3& psrc, const TVector3& p0, const 
 	if (v1Norm2 >= 1.0E-6) // >= 0.01mm
     {
 	    double v0v1 = v0.Dot(v1);
-	    double v2v3 = -v2.Dot(v1);
+	    double v2v1 = v2.Dot(v1);
 	    double v0Norm2 = v0.Mag2();
 	    double v2Norm2 = v2.Mag2();
 
 	    double result = 0.0;
-	    if ((v0v1 > 0.0) && (v2v3 > 0.0))
+	    if ((v0v1 > 0.0) && (v2v1 < 0.0))
 	    {
 		    double cosine01_square = 0.0;
 		    double mag01_square = v0Norm2 * v1Norm2;
@@ -268,43 +259,38 @@ double pma::Segment3D::GetDist2(const TVector2& psrc, const TVector2& p0, const 
 {
 	pma::Vector2D v0(psrc.X() - p0.X(), psrc.Y() - p0.Y());
 	pma::Vector2D v1(p1.X() - p0.X(), p1.Y() - p0.Y());
-
 	pma::Vector2D v2(psrc.X() - p1.X(), psrc.Y() - p1.Y());
-	pma::Vector2D v3(v1); v3 *= -1.0;
 
-	double v0Norm2 = v0.Mag2();
 	double v1Norm2 = v1.Mag2();
-
-	double eps = 1.0E-6; // 0.01mm
-	if (v1Norm2 < eps)
+	if (v1Norm2 >= 1.0E-6) // >= 0.01mm
 	{
-		mf::LogVerbatim("pma::Segment3D") << "Short segment or its projection.";
+	    double v0v1 = v0.Dot(v1);
+	    double v2v1 = v2.Dot(v1);
+	    double v0Norm2 = v0.Mag2();
+	    double v2Norm2 = v2.Mag2();
 
+	    double result = 0.0;
+	    if ((v0v1 > 0.0) && (v2v1 < 0.0))
+	    {
+		    double cosine01_square = 0.0;
+		    double mag01_square = v0Norm2 * v1Norm2;
+		    if (mag01_square != 0.0) cosine01_square = v0v1 * v0v1 / mag01_square;
+
+		    result = (1.0 - cosine01_square) * v0Norm2;
+	    }
+	    else // increase distance to prefer hit assigned to the vertex, not segment
+	    {
+		    if (v0v1 <= 0.0) result = 1.0001 * v0Norm2;
+		    else result = 1.0001 * v2Norm2;
+	    }
+	    if (result >= 0.0) return result;
+	    else return 0.0;
+	}
+	else // short segment or its projection
+	{
 		double dx = 0.5 * (p0.X() + p1.X()) - psrc.X();
 		double dy = 0.5 * (p0.Y() + p1.Y()) - psrc.Y();
 		return dx * dx + dy * dy;
 	}
-
-	double v0v1 = v0.Dot(v1);
-	double v2v3 = v2.Dot(v3);
-	double v2Norm2 = v2.Mag2();
-
-	double result = 0.0;
-	if ((v0v1 > 0.0) && (v2v3 > 0.0))
-	{
-		double cosine01_square = 0.0;
-		double mag01_square = v0Norm2 * v1Norm2;
-		if (mag01_square != 0.0) cosine01_square = v0v1 * v0v1 / mag01_square;
-
-		result = (1.0 - cosine01_square) * v0Norm2;
-	}
-	else // increase distance to prefer hit assigned to the vertex, not segment
-	{
-		if (v0v1 <= 0.0) result = 1.0001 * v0Norm2;
-		else result = 1.0001 * v2Norm2;
-	}
-
-	if (result >= 0.0) return result;
-	else return 0.0;
 }
 
