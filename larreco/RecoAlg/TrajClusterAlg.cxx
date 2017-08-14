@@ -478,7 +478,9 @@ namespace tca {
       KillPoorVertices(tjs);
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
-        ChkVtxAssociations(tjs, fCTP);
+        if(!ChkVtxAssociations(tjs, fCTP)) {
+          std::cout<<"ChkVtxAssociations found an error\n";
+        }
       }
       // Match3D should be the last thing called for this tpcid
       Match3D(tpcid, false);
@@ -785,7 +787,9 @@ namespace tca {
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, vtxPrt);
     
     // Check the Tj <-> vtx associations and define the vertex quality
-    ChkVtxAssociations(tjs, fCTP);
+    if(!ChkVtxAssociations(tjs, fCTP)) {
+      std::cout<<"RAT: ChkVtxAssociations found an error\n";
+    }
 
     // TY: Improve hit assignments near vertex 
     VtxHitsSwap(tjs, fCTP);
