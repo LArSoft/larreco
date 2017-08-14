@@ -1,13 +1,18 @@
-#include "DummyTrackMaker.h"
+#include "larreco/TrackFinder/DummyTrackMaker.h"
+#include "larreco/RecoAlg/TrackCreationBookKeeper.h"
 #include "art/Utilities/ToolMacros.h"
-#include "canvas/Persistency/Common/PtrVector.h"
 
 bool trkmkr::DummyTrackMaker::makeTrack(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
 					recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
 					const art::Event& e) const {
   //
-  outTrack = recob::Track(traj, -1, -1, -1, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), tkID);
-  for (auto h : inHits) outHits.push_back(h);
+  TrackCreationBookKeeper tcbk(outTrack, outHits, optionals, tkID, -1, false);
+  for (unsigned int i=0;i<inHits.size();++i) {
+    tcbk.addPoint(traj.LocationAtPoint(i), traj.DirectionAtPoint(i), inHits[i], traj.FlagsAtPoint(i), 1);
+  }
+  recob::tracking::SMatrixSym55 cV;
+  recob::tracking::SMatrixSym55 cE;
+  tcbk.finalizeTrack(cV, cE);
   return true;
   //
 }

@@ -1,45 +1,11 @@
-process_name: TrackMaker
-
-source:
-{
-  module_type: RootInput
-  firstEvent : 1
-  maxEvents:  -1
+#include "kalmanfilterfittrackmakertool.fcl"
+BEGIN_PROLOG
+trackproducerfromtrack: {
+   module_type: TrackProducerFromTrack
+   trackMaker: @local::kalmanfilterfittrackmakertool
+   inputCollection: @nil
+   doTrackFitHitInfo: true
+   doSpacePoints: true
+   spacePointsFromTrajP: true
 }
-
-
-outputs:{
-   out1: {
-      compressionLevel: 1
-      dataTier: "reconstructed"
-      fastCloning: false
-      fileName: "test_trackMaker.root"
-      module_type: "RootOutput"
-      saveMemoryObjectThreshold: 0
-      outputCommands: ["drop *_*_*_*",
-      		       "keep *_gaushit_*_*",
-      		       "keep *_*_*_TrackMaker"]
-   }
-}
-
-physics: {
-  producers: {
-	trackproducer: {
-	  module_type: TrackProducerFromTrack
-	  trackMaker: {
-	        tool_type: DummyTrackMaker
-	  }
-	  inputCollection: "pandoraNu"
-	  doTrackFitHitInfo: false
-	  doSpacePoints: true
-	  spacePointsFromTrajP: true
-	}
-  }
-
-  pro: [trackproducer]
-  stream1: [ out1 ]
-
-  trigger_paths: [ pro ]
-  end_paths: [ stream1 ]
-
-}
+END_PROLOG

@@ -115,7 +115,7 @@ void TrackProducerFromTrack::produce(art::Event & e)
     // Check that the requirement Nhits == Npoints is satisfied
     // We also require the hits to the in the same order as the points (this cannot be enforced, can it?)
     if (outTrack.NumberTrajectoryPoints()!=outHits.size()) {
-      throw cet::exception("TrackProducerFromTrack") << "Produced recob::Track required to have 1-1 correspondance between hits and points.\n";
+      throw cet::exception("TrackProducerFromTrack") << "Produced recob::Track required to have 1-1 correspondance between hits and points.\noutTrack.NumberTrajectoryPoints()=" << outTrack.NumberTrajectoryPoints() << " outHits.size()=" << outHits.size() <<"\n";
     }
     //
     // Fill output collections, including Assns

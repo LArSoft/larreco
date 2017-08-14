@@ -47,7 +47,7 @@ namespace trkmkr {
       outSpacePoints = new std::vector<recob::SpacePoint>();
       outHitSpacePointAssn = new art::Assns<recob::Hit, recob::SpacePoint>();
     }
-    bool isTrackFirInfosInit() { return outTrackFitHitInfos != nullptr; }
+    bool isTrackFitInfosInit() { return outTrackFitHitInfos != nullptr; }
     bool isSpacePointssInit() { return outSpacePoints != nullptr; }
     std::vector<recob::TrackFitHitInfo>* trackFitHitInfos() { return outTrackFitHitInfos; }
     std::vector<recob::SpacePoint>* spacePoints() { return outSpacePoints; }

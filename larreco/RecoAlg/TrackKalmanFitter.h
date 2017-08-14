@@ -12,11 +12,15 @@
 
 namespace recob {
   class Track;
+  class TrackTrajectory;
   class Hit;
   class TrajectoryPointFlags;
 }
 
 class TVector3;
+namespace trkmkr {
+  class OptionalOutputs;
+}
 
 namespace trkf {
 
@@ -94,12 +98,25 @@ namespace trkf {
       : TrackKalmanFitter(prop,p().useRMS(),p().sortHitsByPlane(),p().sortOutputHitsMinLength(),p().skipNegProp(),p().cleanZigzag(),
 			  p().rejectHighMultHits(),p().rejectHitsNegativeGOF(),p().hitErr2ScaleFact(),p().dumpLevel()) {}
 
-    bool fitTrack(const recob::Trajectory& track, int tkID,
-		  const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
+    bool fitTrack(const recob::TrackTrajectory& traj, int tkID,  const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
+		  const std::vector<art::Ptr<recob::Hit> >& hits, const double pval, const int pdgid, const bool flipDirection,
+		  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals);
+
+    bool fitTrack(const Point_t& position, const Vector_t& direction,
+		  SMatrixSym55& trackStateCov, int tkID,
 		  const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
-		  const double pval, const int pdgid, const bool flipDirection,
-		  recob::Track& outTrack,    art::PtrVector<recob::Hit>& outHits,
-		  std::vector<recob::TrackFitHitInfo>& trackFitHitInfos);
+		  const double pval, const int pdgid,
+		  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals);
+
+    /* bool fitTrack(const Point_t& position, const Vector_t& direction, */
+    /* 		  SMatrixSym55& trackStateCov, int tkID, */
+    /* 		  const std::vector<art::Ptr<recob::Hit> >& hits, const double pval, const int pdgid, */
+    /* 		  recob::Track& outTrack,    art::PtrVector<recob::Hit>& outHits, */
+    /* 		  std::vector<recob::TrackFitHitInfo>& trackFitHitInfos) */
+    /* { */
+    /*   return fitTrack(position, direction, trackStateCov, tkID, hits, std::vector<recob::TrajectoryPointFlags>(), */
+    /* 		      pval, pdgid, outTrack, outHits, trackFitHitInfos); */
+    /* } */
 
     bool getSkipNegProp() const     { return skipNegProp_; }
     void setSkipNegProp(bool value) { skipNegProp_=value; }
