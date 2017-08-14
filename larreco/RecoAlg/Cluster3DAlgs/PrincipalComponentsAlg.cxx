@@ -22,15 +22,13 @@
 
 // ROOT includes
 #include "TVector3.h"
-#include "TVectorD.h"
-#include "TMatrixD.h"
-#include "TDecompSVD.h"
 
 // std includes
 #include <string>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <Eigen/Dense>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows
@@ -238,7 +236,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     
     for (const auto& hit : hitPairVector)
     {
-        if (skeletonOnly && !((hit->getStatusBits() & 0x10000000) == 0x10000000)) continue;
+        if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
         
         meanPos[0] += hit->getPosition()[0];
         meanPos[1] += hit->getPosition()[1];
@@ -253,21 +251,27 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     meanPos[2] /= numPairs;
     
     // Define elements of our covariance matrix
-    double xi2  = 0.;
-    double xiyi = 0.;
-    double xizi = 0.;
-    double yi2  = 0.;
-    double yizi = 0.;
-    double zi2  = 0.;
+    double xi2(0.);
+    double xiyi(0.);
+    double xizi(0.0);
+    double yi2(0.0);
+    double yizi(0.0);
+    double zi2(0.);
+    double weightSum(0.);
     
     // Back through the hits to build the matrix
     for (const auto& hit : hitPairVector)
     {
-        if (skeletonOnly && !((hit->getStatusBits() & 0x10000000) == 0x10000000)) continue;
+        double weight(1.);
         
-        double x = hit->getPosition()[0] - meanPos[0];
-        double y = hit->getPosition()[1] - meanPos[1];
-        double z = hit->getPosition()[2] - meanPos[2];
+        if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
+        if (hit->getHits()[2]) weight = hit->getHits()[2]->getHit().PeakAmplitude();
+        
+        double x = (hit->getPosition()[0] - meanPos[0]) * weight;
+        double y = (hit->getPosition()[1] - meanPos[1]) * weight;
+        double z = (hit->getPosition()[2] - meanPos[2]) * weight;
+        
+        weightSum += weight*weight;
         
         xi2  += x * x;
         xiyi += x * y;
@@ -277,73 +281,48 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
         zi2  += z * z;
     }
     
-    // Create the actual matrix
-    TMatrixD sigma(3, 3);
+    // Using Eigen package
+    Eigen::Matrix3f sig;
     
-    sigma(0,0) = xi2;
-    sigma(0,1) = sigma(1,0) = xiyi;
-    sigma(0,2) = sigma(2,0) = xizi;
-    sigma(1,1) = yi2;
-    sigma(1,2) = sigma(2,1) = yizi;
-    sigma(2,2) = zi2;
+    sig <<  xi2, xiyi, xizi,
+           xiyi,  yi2, yizi,
+           xizi, yizi,  zi2;
     
-    // Scale by number of pairs
-    sigma *= (1./(numPairs - 1.));
+    sig *= 1./weightSum;
     
-    // Set up the SVD
-    TDecompSVD rootSVD(sigma);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigenMat(sig);
     
-    // run the decomposition
-    bool svdOk(false);
-    
-    try
+    if (eigenMat.info() == Eigen::ComputationInfo::Success)
     {
-        svdOk = rootSVD.Decompose();
-    }
-    catch(...)
-    {
-        svdOk = false;
-        mf::LogDebug("Cluster3D") << "PCA decompose failure, numPairs = " << numPairs << std::endl;
-    }
-    
-    if (svdOk)
-    {
-        // Extract results
-        TVectorD eigenVals = rootSVD.GetSig();
-        TMatrixD eigenVecs = rootSVD.GetU();
+        using eigenValColPair = std::pair<float,size_t>;
+        std::vector<eigenValColPair> eigenValColVec;
         
+        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(0),0));
+        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(1),1));
+        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(2),2));
+        
+        std::sort(eigenValColVec.begin(),eigenValColVec.end(),[](const eigenValColPair& left, const eigenValColPair& right){return left.first > right.first;});
+        
+        // Now copy output
         // Get the eigen values
-        double recobEigenVals[] = {eigenVals[0], eigenVals[1], eigenVals[2]};
+        double recobEigenVals[] = {eigenValColVec[0].first, eigenValColVec[1].first, eigenValColVec[2].first};
         
         // Grab the principle axes
         reco::PrincipalComponents::EigenVectors recobEigenVecs;
-        std::vector<double> tempVec;
+        Eigen::Matrix3f eigenVecs(eigenMat.eigenvectors());
         
-        // Get the first column vector
-        tempVec.push_back(eigenVecs(0, 0));
-        tempVec.push_back(eigenVecs(1, 0));
-        tempVec.push_back(eigenVecs(2, 0));
-        recobEigenVecs.push_back(tempVec);
-        
-        // Now the second
-        tempVec.clear();
-        tempVec.push_back(eigenVecs(0, 1));
-        tempVec.push_back(eigenVecs(1, 1));
-        tempVec.push_back(eigenVecs(2, 1));
-        recobEigenVecs.push_back(tempVec);
-        
-        // And the last
-        tempVec.clear();
-        tempVec.push_back(eigenVecs(0, 2));
-        tempVec.push_back(eigenVecs(1, 2));
-        tempVec.push_back(eigenVecs(2, 2));
-        recobEigenVecs.push_back(tempVec);
+        for(const auto& pair : eigenValColVec)
+        {
+            std::vector<double> tempVec = {eigenVecs(0,pair.second),eigenVecs(1,pair.second),eigenVecs(2,pair.second)};
+            recobEigenVecs.push_back(tempVec);
+        }
         
         // Store away
-        pca = reco::PrincipalComponents(svdOk, numPairsInt, recobEigenVals, recobEigenVecs, meanPos);
+        pca = reco::PrincipalComponents(true, numPairsInt, recobEigenVals, recobEigenVecs, meanPos);
     }
     else
     {
+        mf::LogDebug("Cluster3D") << "PCA decompose failure, numPairs = " << numPairs << std::endl;
         pca = reco::PrincipalComponents();
     }
     
@@ -535,77 +514,52 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
     }
     
     // Accumulation done, now do the actual work
-               
-    // Create the actual matrix
-    TMatrixD sigma(3, 3);
-               
-    sigma(0,0) = xi2;
-    sigma(0,1) = sigma(1,0) = xiyi;
-    sigma(0,2) = sigma(2,0) = xizi;
-    sigma(1,1) = yi2;
-    sigma(1,2) = sigma(2,1) = yizi;
-    sigma(2,2) = zi2;
-               
-    // Scale by number of pairs
-    sigma *= (1./(nHits - 1.));
-               
-    // Set up the SVD
-    TDecompSVD rootSVD(sigma);
-               
-    // run the decomposition
-    bool svdOk(false);
     
-    try
-    {
-        svdOk = rootSVD.Decompose();
-    }
-    catch(...)
-    {
-        svdOk = false;
-        mf::LogDebug("Cluster3D") << "PCA decompose failure, nhits = " << nHits << std::endl;
-    }
+    // Using Eigen package
+    Eigen::Matrix3f sig;
     
-    if (svdOk)
+    sig <<   xi2, xiyi, xizi,
+            xiyi,  yi2, yizi,
+            xizi, yizi,  zi2;
+    
+    sig *= 1./(nHits - 1);
+    
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigenMat(sig);
+    
+    if (eigenMat.info() == Eigen::ComputationInfo::Success)
     {
-        // Extract results
-        TVectorD eigenVals = rootSVD.GetSig();
-        TMatrixD eigenVecs = rootSVD.GetU();
-                   
+        using eigenValColPair = std::pair<float,size_t>;
+        std::vector<eigenValColPair> eigenValColVec;
+        
+        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(0),0));
+        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(1),1));
+        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(2),2));
+        
+        std::sort(eigenValColVec.begin(),eigenValColVec.end(),[](const eigenValColPair& left, const eigenValColPair& right){return left.first > right.first;});
+        
+        // Now copy output
         // Get the eigen values
-        double recobEigenVals[] = {eigenVals[0], eigenVals[1], eigenVals[2]};
-                   
+        double recobEigenVals[] = {eigenValColVec[0].first, eigenValColVec[1].first, eigenValColVec[2].first};
+        
         // Grab the principle axes
         reco::PrincipalComponents::EigenVectors recobEigenVecs;
-        std::vector<double> tempVec;
-                   
-        // Get the first column vector
-        tempVec.push_back(eigenVecs(0, 0));
-        tempVec.push_back(eigenVecs(1, 0));
-        tempVec.push_back(eigenVecs(2, 0));
-        recobEigenVecs.push_back(tempVec);
-                   
-        // Now the second
-        tempVec.clear();
-        tempVec.push_back(eigenVecs(0, 1));
-        tempVec.push_back(eigenVecs(1, 1));
-        tempVec.push_back(eigenVecs(2, 1));
-        recobEigenVecs.push_back(tempVec);
-                   
-        // And the last
-        tempVec.clear();
-        tempVec.push_back(eigenVecs(0, 2));
-        tempVec.push_back(eigenVecs(1, 2));
-        tempVec.push_back(eigenVecs(2, 2));
-        recobEigenVecs.push_back(tempVec);
+        Eigen::Matrix3f eigenVecs(eigenMat.eigenvectors());
+        
+        for(const auto& pair : eigenValColVec)
+        {
+            std::vector<double> tempVec = {eigenVecs(0,pair.second),eigenVecs(1,pair.second),eigenVecs(2,pair.second)};
+            recobEigenVecs.push_back(tempVec);
+        }
         
         // Save the average position
         double avePosToSave[] = {avePosition[0],avePosition[1],avePosition[2]};
         
         // Store away
-        pca = reco::PrincipalComponents(svdOk, nHits, recobEigenVals, recobEigenVecs, avePosToSave, aveHitDoca);
+        pca = reco::PrincipalComponents(true, nHits, recobEigenVals, recobEigenVecs, avePosToSave, aveHitDoca);
     }
     else
     {
+        mf::LogDebug("Cluster3D") << "PCA decompose failure, numPairs = " << nHits << std::endl;
         pca = reco::PrincipalComponents();
     }
     

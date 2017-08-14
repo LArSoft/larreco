@@ -959,6 +959,17 @@ void pma::PMAlgTracker::mergeCoLinear(pma::tpc_track_map& tracks)
 }
 // ------------------------------------------------------
 
+size_t pma::PMAlgTracker::matchTrack(const pma::TrkCandidateColl & tracks, const std::vector< art::Ptr<recob::Hit> > & hits) const
+{
+    size_t max_hits = 0;
+    for (auto const & t : tracks.tracks())
+    {
+        size_t n = fProjectionMatchingAlg.testHits(*(t.Track()), hits);
+        if (n > max_hits) { max_hits = n; }
+    }
+    return max_hits;
+}
+
 // ------------------------------------------------------
 // ------------------------------------------------------
 int pma::PMAlgTracker::build(void)
@@ -992,6 +1003,8 @@ int pma::PMAlgTracker::build(void)
 		fromMaxCluster_tpc(tracks[tpc_iter->TPC], fMinSeedSize1stPass, tpc_iter->TPC, tpc_iter->Cryostat);
 		// loop again to find small things
 		fromMaxCluster_tpc(tracks[tpc_iter->TPC], fMinSeedSize2ndPass, tpc_iter->TPC, tpc_iter->Cryostat);
+
+        //tryClusterLeftovers();
 
         mf::LogVerbatim("PMAlgTracker") << "Found tracks: " << tracks[tpc_iter->TPC].size();
         if (tracks[tpc_iter->TPC].empty()) { continue; }
@@ -1450,8 +1463,11 @@ int pma::PMAlgTracker::maxCluster(size_t min_clu_size,
 
 void pma::PMAlgTracker::listUsedClusters(void) const
 {
+    //std::ofstream hits_file("pma_event_hits.prn");
+
 	mf::LogVerbatim("PMAlgTracker") << std::endl << "----------- matched clusters: -----------";
 	for (size_t i = 0; i < fCluHits.size(); ++i)
+	{
 		if (!fCluHits[i].empty() && has(fUsedClusters, i))
 		{
 			mf::LogVerbatim("PMAlgTracker")
@@ -1459,10 +1475,20 @@ void pma::PMAlgTracker::listUsedClusters(void) const
 				<< ";\tview: " << fCluHits[i].front()->View()
 				<< ";\tsize: " << fCluHits[i].size()
 				<< ";\tweight: " << fCluWeights[i];
+    		//for (const auto & h : fCluHits[i])
+    		//{
+    		//    hits_file << h->WireID().TPC << " " << h->View() << " "
+		    //        <<  h->WireID().Wire << " " << h->PeakTime() << " " << h->Integral() << " "
+		    //        << fCluHits[i].size() << " " << i << " "
+	    	//		<< fCluWeights[i] << " -1" << std::endl;
+    		//}
 		}
+	}
+
 	mf::LogVerbatim("PMAlgTracker") << "--------- not matched clusters: ---------";
 	size_t nsingles = 0;
 	for (size_t i = 0; i < fCluHits.size(); ++i)
+	{
 		if (!fCluHits[i].empty() && !has(fUsedClusters, i))
 		{
 		    if (fCluHits[i].size() == 1) { nsingles++; }
@@ -1472,9 +1498,20 @@ void pma::PMAlgTracker::listUsedClusters(void) const
 	    			<< "    tpc: " << fCluHits[i].front()->WireID().TPC
 	    			<< ";\tview: " << fCluHits[i].front()->View()
 	    			<< ";\tsize: " << fCluHits[i].size()
-	    			<< ";\tweight: " << fCluWeights[i];
+	    			<< ";\tweight: " << fCluWeights[i]
+	    			<< ";\tmatch: " << matchTrack(fResult, fCluHits[i]);
 	    	}
+    		//for (const auto & h : fCluHits[i])
+    		//{
+    		//    hits_file << h->WireID().TPC << " " << h->View() << " "
+		    //        <<  h->WireID().Wire << " " << h->PeakTime() << " " << h->Integral() << " "
+		    //        << fCluHits[i].size() << " " << i << " "
+	    	//		<< fCluWeights[i] << " " << matchTrack(fResult, fCluHits[i])/(float)fCluHits[i].size()
+	    	//		<< std::endl;
+    		//}
 		}
+	}
+	//hits_file.close();
 	mf::LogVerbatim("PMAlgTracker") << "    single hits: " << nsingles;
 	mf::LogVerbatim("PMAlgTracker") << "-----------------------------------------";
 }

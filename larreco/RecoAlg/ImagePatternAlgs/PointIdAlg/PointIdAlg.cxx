@@ -240,6 +240,42 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 }
 // ------------------------------------------------------
 
+bool nnet::PointIdAlg::isSamePatch(unsigned int wire1, float drift1, unsigned int wire2, float drift2) const
+{
+    if (fDownscaleFullView)
+    {
+    	size_t sd1 = (size_t)(drift1 / fDriftWindow);
+    	size_t sd2 = (size_t)(drift2 / fDriftWindow);
+    	if ((wire1 == wire2) && (sd1 == sd2))
+    		return true; // the same position
+    }
+    else
+    {
+    	if ((wire1 == wire2) && ((size_t)drift1 == (size_t)drift2))
+	    	return true; // the same position
+    }
+
+    return false; // not the same position
+}
+
+bool nnet::PointIdAlg::isCurrentPatch(unsigned int wire, float drift) const
+{
+    if (fDownscaleFullView)
+    {
+    	size_t sd = (size_t)(drift / fDriftWindow);
+    	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == sd))
+    		return true; // still within the current position
+    }
+    else
+    {
+    	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == drift))
+	    	return true; // still within the current position
+    }
+
+    return false; // not a current position
+}
+// ------------------------------------------------------
+
 // MUST give the same result as get_patch() in scripts/utils.py
 bool nnet::PointIdAlg::patchFromDownsampledView(size_t wire, float drift) const
 {
@@ -290,6 +326,9 @@ bool nnet::PointIdAlg::patchFromDownsampledView(size_t wire, float drift) const
 
 bool nnet::PointIdAlg::patchFromOriginalView(size_t wire, float drift) const
 {
+	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == drift))
+		return true; // still within the current position
+
 	fCurrentWireIdx = wire;
 	fCurrentScaledDrift = drift;
 
@@ -999,45 +1038,46 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 					    }
 					    auto const & mother = *((*search).second); // mother particle of this EM
     					int mPdg = abs(mother.PdgCode());
-                        if ((mPdg == 13) || (mPdg == 211) || (mPdg == 2212))
-                        {
-                            if (energyDeposit.numElectrons > 10) pdg |= nnet::TrainingDataAlg::kDelta; // tag delta ray
-                        }
+              if ((mPdg == 13) || (mPdg == 211) || (mPdg == 2212))
+              {
+              		if (energyDeposit.numElectrons > 10) pdg |= nnet::TrainingDataAlg::kDelta; // tag delta ray
+              }
 					}
 					else
 					{
 						auto search = particleMap.find(tid);
-					    if (search == particleMap.end())
-					    {
-						    mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND";
-						    continue;
-					    }
-					    auto const & particle = *((*search).second);
-					    pdg = abs(particle.PdgCode());
+					  if (search == particleMap.end())
+					  {
+						   mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND";
+						   continue;
+					   }
+					   auto const & particle = *((*search).second);
+					   pdg = abs(particle.PdgCode());
+					   
+					   if (particle.Process() == "primary")
+					   {
+					   		if (pdg == 11)
+					   		{
+					   			pdg |= nnet::TrainingDataAlg::kPriEl; // tag primary
+					   		}
+					   		else if (pdg == 13)
+					   		{
+					   			pdg |= nnet::TrainingDataAlg::kPriMu; // tag primary
+					   		}
+					   }
 
-                        auto msearch = particleMap.find(particle.Mother());
-	    				if (msearch != particleMap.end())
-	    				{
-	    				    auto const & mother = *((*msearch).second);
-                            if (pdg == 11) // electron, check if it is Michel or primary electron
-                            {
-	    		                if (nnet::TrainingDataAlg::isMuonDecaying(mother, particleMap))
-	    		                {
-                			        pdg |= nnet::TrainingDataAlg::kMichel; // tag Michel
-	    		                }
-	    		                else if (mother.Mother() < 0)
-	    		                {
-	    		                    pdg |= nnet::TrainingDataAlg::kPriEl; // tag primary
-	    		                }
-                            }
-                            else if (pdg == 13) // muon, check if primary
-                            {
-                                if (mother.Mother() < 0)
-                                {
-                                    pdg |= nnet::TrainingDataAlg::kPriMu; // tag primary
-                                }
-                            }
-                        }
+            auto msearch = particleMap.find(particle.Mother());
+	    			if (msearch != particleMap.end())
+	    			{
+	    				auto const & mother = *((*msearch).second);
+              if (pdg == 11) // electron, check if it is Michel
+              {
+	    		     	if (nnet::TrainingDataAlg::isMuonDecaying(mother, particleMap))
+	    		      {
+               		pdg |= nnet::TrainingDataAlg::kMichel; // tag Michel
+	    		      }
+              }
+            }
 					}
 
 					trackToPDG[energyDeposit.trackID] = pdg;

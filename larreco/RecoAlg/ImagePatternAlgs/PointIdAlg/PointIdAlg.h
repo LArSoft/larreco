@@ -139,10 +139,10 @@ public:
 
 	size_t NClasses(void) const;
 
-	// calculate single-value prediction (2-class probability) for [wire, drift] point
+	/// calculate single-value prediction (2-class probability) for [wire, drift] point
 	float predictIdValue(unsigned int wire, float drift, size_t outIdx = 0) const;
 
-	// calculate multi-class probabilities for [wire, drift] point
+	/// calculate multi-class probabilities for [wire, drift] point
 	std::vector<float> predictIdVector(unsigned int wire, float drift) const;
 
 	static std::vector<float> flattenData2D(std::vector< std::vector<float> > const & patch);
@@ -151,6 +151,13 @@ public:
 	std::vector<float> patchData1D(void) const { return flattenData2D(fWireDriftPatch); }  // flat vector made of the patch data, wire after wire
 
     bool isInsideFiducialRegion(unsigned int wire, float drift) const;
+
+    /// test if wire/drift coordinates point to the current patch (so maybe the cnn output
+    /// does not need to be recalculated)
+    bool isCurrentPatch(unsigned int wire, float drift) const;
+
+    /// test if two wire/drift coordinates point to the same patch
+    bool isSamePatch(unsigned int wire1, float drift1, unsigned int wire2, float drift2) const;
 
 private:
 	std::string fNNetModelFilePath;

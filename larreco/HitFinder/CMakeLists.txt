@@ -1,3 +1,4 @@
+add_subdirectory(HitFinderTools)
 
 art_make( 
           LIB_LIBRARIES

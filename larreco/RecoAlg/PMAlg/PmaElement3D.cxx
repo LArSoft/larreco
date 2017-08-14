@@ -176,43 +176,7 @@ double pma::Element3D::SumDist2(void) const
 		return 0.0F;
 	}
 
-	double hit_sum = 0.0F;
-	for (auto h : fAssignedHits)
-	{
-		if (h->IsEnabled())
-		{
-			unsigned int hitView = h->View2D();
-/*			if (h->IsSpanEnabled())
-			{
-				double s = 0.0F;
-
-				double d1 = sqrt(GetDistance2To(h->SpanPoint0(), hitView));
-				double d2 = sqrt(GetDistance2To(h->SpanPoint2(), hitView));
-				double d3 = sqrt(GetDistance2To(h->SpanPoint1(), hitView));
-				double d, dx, dt;
-
-				float driftSpan = h->SpanDrift();
-
-				if (driftSpan <= 0.0F) mf::LogError("pma::Element3D") << "Hit drift-length is below zero.";
-
-				dx = (d3 - d1) / 10.0;
-				dt = (d2 - d1) / driftSpan;
-
-				for (int x = 0; x < 10; x++)
-				{
-					d = d1 + x * dx;
-					for (int t = 0; t < driftSpan; t++, d += dt)
-						s += d * d;
-				}
-
-				hit_sum += s * h->GetSigmaFactor() * OptFactor(hitView);
-			}
-			else */
-			hit_sum += OptFactor(hitView) *              // alpha_i
-				h->GetSigmaFactor() *                    // hit_amp / hit_max_amp
-				GetDistance2To(h->Point2D(), hitView);   // hit_to_fit_dist^2
-		}
-	}
+    double hit_sum = SumDist2Hits();
 
 	if (fAssignedPoints.size())
 	{

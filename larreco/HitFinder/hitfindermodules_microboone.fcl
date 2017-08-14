@@ -2,14 +2,15 @@
 
 BEGIN_PROLOG
 
-microboone_hitfinder:               @local::standard_hitfinder
-microboone_gaushitfinder:           @local::gaus_hitfinder
-microboone_hitfinder.IndMinWidth:   1.0
-microboone_hitfinder.ColMinWidth:   1.0
-microboone_gaushitfinder.MinSig:    [ 5.0, 5.0, 5.0 ]
-microboone_gaushitfinder.MinWidth:  [ 1.0, 1.0, 2.0 ]
-microboone_gaushitfinder.AreaNorms: [ 13.25, 13.25, 26.31 ]
-microboone_gaushitfinder.FilterHits: false
+microboone_hitfinder:                         @local::standard_hitfinder
+microboone_gaushitfinder:                     @local::gaus_hitfinder
+microboone_hitfinder.IndMinWidth:             1.0
+microboone_hitfinder.ColMinWidth:             1.0
+microboone_gaushitfinder.MinSig:              [ 5.0, 5.0, 5.0 ]
+microboone_gaushitfinder.MinWidth:            [ 1.0, 1.0, 2.0 ]
+microboone_gaushitfinder.AreaNorms:           [ 13.25, 13.25, 26.31 ]
+microboone_gaushitfinder.AllHitsInstanceName: ""
+microboone_gaushitfinder.FilterHits:          false
 
 microboone_gaushitfinder.HitFilterAlg.MinPulseHeight: [8.0, 7.0, 11.0]
 microboone_gaushitfinder.HitFilterAlg.MinPulseSigma:  [2.2, 1.7, 2.4]
