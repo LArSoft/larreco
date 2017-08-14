@@ -55,8 +55,8 @@ namespace tca {
   void ReverseShower(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void FindExternalParent(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void UpdateShowerWithParent(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
-  bool WrongSplitTj(TjStuff& tjs, Trajectory& tj, unsigned short tjEnd, ShowerStruct& ss, bool prt);
-  float ParentFOM(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short& tjEnd, ShowerStruct& ss, bool prt);
+  bool WrongSplitTj(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short tjEnd, ShowerStruct& ss, bool prt);
+  float ParentFOM(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short& tjEnd, ShowerStruct& ss, float& tp1Sep, float& vx3Score, bool prt);
   void DefineEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void AddTjsInsideEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void RefineShowerTj(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
@@ -64,7 +64,7 @@ namespace tca {
   void FindStartChg(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   std::vector<float> StartChgVec(TjStuff& tjs, unsigned short cotIndex, bool prt);
   void DumpShowerPts(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex);
-  void CheckQuality(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, bool prt);
+  void CheckQuality(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   
   void TagShowerTjs(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList);
   void AddCloseTjsToList(std::string inFcnLabel, TjStuff& tjs, unsigned short itj, std::vector<int> list);
