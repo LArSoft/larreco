@@ -49,7 +49,7 @@ namespace tca {
   float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
   bool FitVertex(TjStuff& tjs, VtxStore& vx, bool prt);
   bool StoreVertex(TjStuff& tjs, VtxStore& vx);
-  void ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
+  bool ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
   bool TjHasNiceVtx(const TjStuff& tjs, const Trajectory& tj, float scoreCut);
   void SetVtxScore(TjStuff& tjs, VtxStore& vx2, bool prt);
   void SetVtxScore(TjStuff& tjs, Vtx3Store& vx3, bool prt);

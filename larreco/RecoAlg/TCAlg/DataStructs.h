@@ -68,7 +68,7 @@ namespace tca {
   struct VtxStore {
     std::array<float, 2> Pos {{0,0}};
     std::array<float, 2> PosErr {{2,1}};
-    unsigned short NTraj {0};  // = 0 for abandoned vertices
+    unsigned short NTraj {0};  
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
     short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH
