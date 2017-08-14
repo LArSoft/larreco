@@ -1341,7 +1341,7 @@ namespace tca {
   } // FitVertex
 
   //////////////////////////////////////////
-  void ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP)
+  bool ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP)
   {
     // Check the associations
 
@@ -1354,16 +1354,16 @@ namespace tca {
       if(vx2.Vtx3ID == 0) continue;
       if(vx2.Vtx3ID > tjs.vtx3.size()) {
         mf::LogVerbatim("TC")<<"ChkVtxAssociations: Invalid vx2.Vtx3ID "<<vx2.Vtx3ID<<" in 2D vtx "<<vx2.ID;
-        continue;
+        return false;
       }
       auto& vx3 = tjs.vtx3[vx2.Vtx3ID-1];
       if(vx3.ID == 0) {
         mf::LogVerbatim("TC")<<"ChkVtxAssociations: vx2 "<<vx2.ID<<" thinks it is matched to vx3 "<<vx3.ID<<" but vx3 is obsolete";
-        continue;
+        return false;
       }
       if(vx3.Vx2ID[plane] != vx2.ID) {
         mf::LogVerbatim("TC")<<"ChkVtxAssociations: vx2 "<<vx2.ID<<" thinks it is matched to vx3 "<<vx3.ID<<" but vx3 says no!";
-        continue;
+        return false;
       }
     } // vx2
     // check the 3D -> 2D associations
@@ -1372,14 +1372,36 @@ namespace tca {
       if(vx3.Vx2ID[plane] == 0) continue;
       if(vx3.Vx2ID[plane] > tjs.vtx.size()) {
         mf::LogVerbatim("TC")<<"ChkVtxAssociations: Invalid vx3.Vx2ID "<<vx3.Vx2ID[plane]<<" in CTP "<<inCTP;
-        continue;
+        return false;
       }
       auto& vx2 = tjs.vtx[vx3.Vx2ID[plane]-1];
       if(vx2.Vtx3ID != vx3.ID) {
         mf::LogVerbatim("TC")<<"ChkVtxAssociations: vx3 "<<vx3.ID<<" thinks it is matched to vx2 "<<vx2.ID<<" but vx2 says no!";
-        continue;
+        return false;
       }
     } // vx3
+    
+    // check the Tj -> 2D associations
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] == 0) continue;
+        if(tj.VtxID[end] > tjs.vtx.size()) {
+          mf::LogVerbatim("TC")<<"ChkVtxAssociations: tj "<<tj.ID<<" thinks it is matched to vx2 "<<tj.VtxID[end]<<" on end "<<end<<" but no vertex exists. Recovering";
+          tj.VtxID[end] = 0;
+          return false;
+        }
+        unsigned short ivx = tj.VtxID[end] - 1;
+        auto& vx2 = tjs.vtx[ivx];
+        if(vx2.ID == 0) {
+          mf::LogVerbatim("TC")<<"ChkVtxAssociations: tj "<<tj.ID<<" thinks it is matched to vx2 "<<tj.VtxID[end]<<" on end "<<end<<" but the vertex is killed. Fixing the Tj";
+          tj.VtxID[end] = 0;
+          return false;
+        }
+      } // end
+    } // tj
+    
+    return true;
     
   } // ChkVtxAssociations
   
@@ -1706,7 +1728,7 @@ namespace tca {
             newVtx.NTraj += 2;
           } else {
             // split failed. Give up
-            newVtx.NTraj = 0;
+            newVtx.ID = 0;
             break;
           }
           // Update the PDGCode for the chopped trajectory
@@ -1907,7 +1929,7 @@ namespace tca {
     // Make vertices that have a poor score obsolete
     for(auto& vx2 : tjs.vtx) {
       if(vx2.ID == 0) continue;
-      if(vx2.Score < tjs.Vertex2DCuts[7]) MakeVertexObsolete(tjs, vx2.ID, false);
+      if(vx2.Score < tjs.Vertex2DCuts[7]) MakeVertexObsolete(tjs, vx2.ID, true);
     } // vx
   } // KillPoorVertices
   
