@@ -276,6 +276,8 @@ private:
 	void fromMaxCluster_tpc(pma::TrkCandidateColl & result,
 		size_t minBuildSize, unsigned int tpc, unsigned int cryo);
 
+    size_t matchTrack(const pma::TrkCandidateColl & tracks, const std::vector< art::Ptr<recob::Hit> > & hits) const;
+
 	pma::TrkCandidate matchCluster(int first_clu_idx, const std::vector< art::Ptr<recob::Hit> > & first_hits,
 		size_t minSizeCompl, unsigned int tpc, unsigned int cryo, geo::View_t first_view);
 

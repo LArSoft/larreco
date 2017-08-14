@@ -107,6 +107,8 @@ protected:
 	Element3D(void); // Element3D is only a common base for nodes and segments
 	int fTPC, fCryo; // -1 if out of any TPC or cryostat
 
+    virtual double SumDist2Hits(void) const = 0;
+
 	bool fFrozen;
 	std::vector< pma::Hit3D* > fAssignedHits;  // 2D hits
 	std::vector< TVector3* > fAssignedPoints;  // 3D peculiar points reconstructed elsewhere

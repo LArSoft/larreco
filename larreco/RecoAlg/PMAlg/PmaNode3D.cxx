@@ -138,6 +138,23 @@ double pma::Node3D::GetDistance2To(const TVector2& p2d, unsigned int view) const
 	return pma::Dist2(fProj2D[view], p2d);
 }
 
+double pma::Node3D::SumDist2Hits(void) const
+{
+	double sum = 0.0F;
+	for (auto h : fAssignedHits)
+	{
+		if (h->IsEnabled())
+		{
+			unsigned int view = h->View2D();
+
+			sum += OptFactor(view) *    // alpha_i
+				h->GetSigmaFactor() *   // hit_amp / hit_max_amp
+				pma::Dist2(h->Point2D(), fProj2D[view]);
+		}
+	}
+	return sum;
+}
+
 pma::Vector3D pma::Node3D::GetDirection3D(void) const
 {
     pma::Element3D* seg = 0;
