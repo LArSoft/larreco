@@ -4,16 +4,19 @@ namespace  tca {
   
   void HistStuff::CreateHists(art::TFileService& tfs)
   {
+    
+    // True - Reco unmatched hit fraction
+    fUnMatchedHitFrac = tfs.make<TH1F>("UnMatchedHitFrac","True-Reco Unmatched Hit Fraction", 200, 0, 0.2);
+    
     // True - Reco vertex difference
     fNuVtx_dx = tfs.make<TH1F>("Vtx dx","Vtx dx",80,-10,10);
     fNuVtx_dy = tfs.make<TH1F>("Vtx dy","Vtx dy",80,-10,10);
     fNuVtx_dz = tfs.make<TH1F>("Vtx dz","Vtx dz",80,-10,10);
-    fNuVtx_Score = tfs.make<TH1F>("Reco-True Vtx Score","Vtx Score",80, 0, 80);
-    fNuVtx_Enu_Score_p = tfs.make<TProfile>("NuVtx_E_Score_p","Score vs Enu (MeV)", 20, 0, 2000);
     
-    fVx2_Score = tfs.make<TH1F>("Vx2_Score","Vx2 Score",80, 0, 80);
-    fVx3_Score = tfs.make<TH1F>("Vx3_Score","Vx2 Score",100, 0, 100);
-    
+    fNuVx2Score = tfs.make<TH1F>("Reco-True Vtx Score","Vtx Score",80, 0, 80);
+    fNuVx2Score_Enu_p = tfs.make<TProfile>("NuVtx_E_Score_p","Score vs Enu (MeV)", 20, 0, 2000);
+    fVx2Score = tfs.make<TH1F>("Vx2_Score","Vx2 Score",80, 0, 100);
+    fVx3Score = tfs.make<TH1F>("Vx3_Score","Vx2 Score",100, 0, 100);
     
     fdWire[0] = tfs.make<TH1F>("dWireEl","dWire - Electrons",21,-10,10);
     fdWire[1] = tfs.make<TH1F>("dWireMu","dWire - Muons",21,-10,10);

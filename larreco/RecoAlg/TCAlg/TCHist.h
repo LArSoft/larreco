@@ -20,6 +20,10 @@ namespace tca {
   
   struct HistStuff {
     void CreateHists(art::TFileService& tfs);
+    
+    TH1F *fUnMatchedHitFrac;
+    
+    // 
     TH2F *fMCSMom_TruMom_e;
     TH2F *fMCSMom_TruMom_mu;
     TH2F *fMCSMom_TruMom_pi;
@@ -31,12 +35,14 @@ namespace tca {
     TH1F* fNuVtx_dx;
     TH1F* fNuVtx_dy;
     TH1F* fNuVtx_dz;
-    TH1F* fNuVtx_Score;
-    TProfile* fNuVtx_Enu_Score_p;
     
+    
+    // Vertex score for 2D vertices that are near the neutrino interaction vertex
+   TH1F* fNuVx2Score;
+    TProfile* fNuVx2Score_Enu_p;
     // Vertex score for 2D and 3D vertices
-    TH1F* fVx2_Score;
-    TH1F* fVx3_Score;
+    TH1F* fVx2Score;
+    TH1F* fVx3Score;
     
     // Reco-MC stopping wire difference for different MC Particles
     TH1F* fdWire[5];

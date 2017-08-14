@@ -26,12 +26,13 @@ namespace tca {
   } // Initialize
 
   //////////////////////////////////////////
-  void TruthMatcher::MatchTrueHits()
+  void TruthMatcher::MatchTrueHits(const HistStuff& hist)
   {
     // Matches reco hits to MC true tracks and puts the association into
     // TCHit TruTrkID. This code is almost identical to the first part of MatchTruth.
     
     if(tjs.MatchTruth[0] < 0) return;
+    if(tjs.fHits.empty()) return;
     
     art::ServiceHandle<cheat::BackTracker> bt;
     // list of all true particles
@@ -219,16 +220,18 @@ namespace tca {
         myprt<<"\n";
       } // ipart
     }
-    
-    // Look for hits without an MC match indicating a problem with the trigger time
+
+    // Look for hits without an MC match 
     unsigned int nomat = 0;
     for(auto& hit : tjs.fHits) {
       if(hit.Multiplicity > 1) continue;
       if(hit.GoodnessOfFit <= 0) continue;
       if(hit.MCPartListIndex == USHRT_MAX) ++nomat;
     } // hit
-    if(nomat > 0) std::cout<<"Warning: MatchTrueHits found "<<nomat<<" hits not matched to an MCParticle!\n";
-    
+    float noMatFrac = (float)nomat / (float)tjs.fHits.size();
+    hist.fUnMatchedHitFrac->Fill(noMatFrac);
+//    if(nomat > 0.1) std::cout<<"MTH: reco-true unmatched hitfraction  "<<std::fixed<<std::setprecision(3)<<noMatFrac<<"\n";
+
   } // MatchTrueHits
   
   //////////////////////////////////////////
@@ -293,8 +296,8 @@ namespace tca {
                   unsigned short iv2 = aVtx3.Vx2ID[plane] - 1;
                   score += tjs.vtx[iv2].Score;
                 } // plane
-                hist.fNuVtx_Score->Fill(score);
-                hist.fNuVtx_Enu_Score_p->Fill(fNeutrinoEnergy, score);
+                hist.fNuVx2Score->Fill(score);
+                hist.fNuVx2Score_Enu_p->Fill(fNeutrinoEnergy, score);
               }
             } // aVtx3
           } // sourceOrigin != simb::kUnknown
@@ -485,7 +488,7 @@ namespace tca {
       if(fSourceParticleEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx fSourceParticleEnergy "<<std::fixed<<std::setprecision(2)<<fSourceParticleEnergy<<" events processed "<<fEventsProcessed;
     }
     
-    if(tjs.MatchTruth[1] > 1) {
+    if(tjs.MatchTruth[1] > 0) {
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<nTruPrimary<<" Number reconstructable "<<nTruPrimaryOK<<" Found neutrino vertex? "<<nuVtxRecoOK<<"\n";
       myprt<<"part   PDG TrkID MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
@@ -659,6 +662,8 @@ namespace tca {
       } // plane
     } // ipart
     
+    // 
+    
     // match 2D vertices (crudely)
     for(auto& tj : tjs.allTraj) {
       // obsolete vertex
@@ -724,7 +729,7 @@ namespace tca {
           }
         } // tjID
         // require at least 2 Tjs match this PFParticle
-        if(cnt > 2 && sum > 0) {
+        if(cnt > 1 && sum > 0) {
           float pfpEP = epsum / sum;
           ms.EffPur = pfpEP;
           MCP_EPTSum += TMeV * pfpEP;
@@ -735,9 +740,11 @@ namespace tca {
         }
       } // ipfp
       
-      if(!gotit && tjs.MatchTruth[1] > 0 && TMeV > 30) {
+      if(!gotit && TMeV > 30) {
         mf::LogVerbatim myprt("TC");
         myprt<<"BadPFP PDGCode "<<part->PdgCode()<<" TMeV "<<(int)TMeV;
+        myprt<<" nMatchedHitsInPartList ";
+        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) myprt<<" "<<nMatchedHitsInPartList[ipart][plane];
         myprt<<" matched Tjs ";
         for(auto& tj : tjs.allTraj) {
           if(tj.AlgMod[kKilled]) continue;

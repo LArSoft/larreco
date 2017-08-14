@@ -138,8 +138,6 @@ namespace tca {
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
-    int TruPDG {0};                    ///< MC truth
-    int TruKE {0};                     ///< MeV
     float EffPur {0};                     ///< Efficiency * Purity
     std::array<float, 2> dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
@@ -175,12 +173,29 @@ namespace tca {
     int InTraj {0};
     unsigned short MCPartListIndex {USHRT_MAX};
   };
+  
+  // A temporary struct for matching trajectory points; 1 struct for each TP in
+  // each trajectories. These are put into mallTraj which is then sorted by increasing xlo
+  struct TjPt{
+    std::array<double, 2> dir;
+    unsigned int wire;
+    // x range spanned by hits on the TP
+    float xlo;
+    float xhi;
+    CTP_t ctp;
+    // the Trajectory ID
+    unsigned short id;
+    // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
+    unsigned short npts;
+    short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
+    bool inShower;
+  };
 
   // Struct for 3D trajectory matching
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
     std::vector<int> TjIDs;
-    // Count of the number of time-matched hits
+    // Count of the number of X-matched hits
     int Count {0};                    // Set to 0 if matching failed
     // Start is 0, End is 1
     std::array<std::array<float, 3>, 2> XYZ;        // XYZ position at both ends (cm)
@@ -225,9 +240,11 @@ namespace tca {
     float ChgDensity {0};                   // Charge density inside the Envelope
     float Energy {0};
     float ParentFOM {10};
+    int ID {0}; 
     int ParentID {0};  // The ID of an external parent Tj that was added to the shower
-    bool NeedsUpdate {false};       // This is set true whenever the shower needs to be updated
     unsigned short TruParentID {0};
+    unsigned short SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
+    bool NeedsUpdate {false};       // This is set true whenever the shower needs to be updated
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -244,10 +261,13 @@ namespace tca {
     std::vector<double> MIPEnergyErr;
     std::vector<double> dEdx;
     std::vector<double> dEdxErr;
-    int BestPlane;
-    int ID;
+    geo::TPCID TPCID;
+    std::vector<unsigned short> CotIndices;  // vector of 2D shower IDs
     std::vector<unsigned short> TjIDs;
     std::vector<unsigned int> Hits;
+    int BestPlane;
+    int ID;
+    unsigned short MatchVecPFPIndex {USHRT_MAX};
   };
 
   struct ShowerTreeVars {
@@ -321,6 +341,7 @@ namespace tca {
     kFixEnd,
     kUUH,
     kVtxTj,
+    kMisdVxTj,
     kRefineVtx,
     kNoKinkChk,
     kSoftKink,
@@ -338,6 +359,7 @@ namespace tca {
     kMergeOverlap,
     kMergeSubShowers,
     kMergeNrShowers,
+    kMergeShChain,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   

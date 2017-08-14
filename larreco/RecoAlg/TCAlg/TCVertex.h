@@ -30,16 +30,16 @@
 
 namespace tca {
   
-  void Find2DVertices(TjStuff& tjs, const DebugStuff& debug, const CTP_t& inCTP);
+  void Find2DVertices(TjStuff& tjs, const CTP_t& inCTP);
   bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& vx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2);
-  void FindHammerVertices(TjStuff& tjs, const DebugStuff& debug, const CTP_t& inCTP);
-  void FindHammerVertices2(TjStuff& tjs, const DebugStuff& debug, const CTP_t& inCTP);
-  void Find3DVertices(TjStuff& tjs, const DebugStuff& debug, const geo::TPCID& tpcid);
-  void Match3DVtxTjs(TjStuff& tjsconst, const geo::TPCID& tpcid, bool prt);
-  void CompleteIncomplete3DVertices(TjStuff& tjs, const DebugStuff& debug, const geo::TPCID& tpcid);
-  void CompleteIncomplete3DVerticesInGaps(TjStuff& tjs, const DebugStuff& debug, const geo::TPCID& tpcid);
+  void FindHammerVertices(TjStuff& tjs, const CTP_t& inCTP);
+  void FindHammerVertices2(TjStuff& tjs, const CTP_t& inCTP);
+  void Find3DVertices(TjStuff& tjs, const geo::TPCID& tpcid);
+   void Match3DVtxTjs(TjStuff& tjsconst, const geo::TPCID& tpcid, bool prt);
+  void CompleteIncomplete3DVertices(TjStuff& tjs, const geo::TPCID& tpcid);
+  void CompleteIncomplete3DVerticesInGaps(TjStuff& tjs, const geo::TPCID& tpcid);
   // Improve hit assignments near vertex 
-  void VtxHitsSwap(TjStuff& tjs, const DebugStuff& debug, const CTP_t inCTP);
+  void VtxHitsSwap(TjStuff& tjs, const CTP_t inCTP);
 
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, bool prt);

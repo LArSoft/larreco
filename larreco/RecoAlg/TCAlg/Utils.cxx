@@ -50,7 +50,7 @@ namespace tca {
     } // ipfp
 
   } // DefinePFParticleRelationships
-  
+
   /////////////////////////////////////////
   void MergeBrokenTjs(TjStuff& tjs, std::vector<MatchStruct>& matVec)
   {
@@ -84,7 +84,7 @@ namespace tca {
         unsigned int itj2 = id2 - 1;
         Trajectory& tj1 = tjs.allTraj[itj1];
         Trajectory& tj2 = tjs.allTraj[itj2];
-        if(CompatibleMerge(tjs, tj1, tj2) && MergeAndStore(tjs, itj1, itj2, true)) {
+        if(CompatibleMerge(tjs, tj1, tj2) && MergeAndStore(tjs, itj1, itj2, false)) {
           // success
           int newTjID = tjs.allTraj.size();
 //          std::cout<<"MBTj Merge "<<id1<<" "<<id2<<" -> "<<newTjID<<"\n";
@@ -990,9 +990,22 @@ namespace tca {
     return;
     
   } // Reverse3DMatchTjs
+  
+  ////////////////////////////////////////////////
+  unsigned short MatchVecPFPIndex(const TjStuff& tjs, int tjID)
+  {
+    // returns the index into the tjs.matchVec vector of the first 3D match that
+    // includes tjID
+    for(unsigned int ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+      unsigned int ims = tjs.matchVecPFPList[ipfp];
+      const MatchStruct& ms = tjs.matchVec[ims];
+      if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID) != ms.TjIDs.end()) return ipfp;
+    } // indx
+    return USHRT_MAX;
+  } // MatchVecPFPIndex
 
   ////////////////////////////////////////////////
-  unsigned int MatchVecIndex(const TjStuff& tjs, int tjID)
+  unsigned short MatchVecIndex(const TjStuff& tjs, int tjID)
   {
     // returns the index into the tjs.matchVec vector of the first 3D match that
     // includes tjID
@@ -1001,11 +1014,11 @@ namespace tca {
       const MatchStruct& ms = tjs.matchVec[ims];
       if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID) != ms.TjIDs.end()) return ims;
     } // indx
-    return UINT_MAX;
-  } // MatchedTjs
+    return USHRT_MAX;
+  } // MatchVecIndex
   
   ////////////////////////////////////////////////
-  unsigned int MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2)
+  unsigned short MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2)
   {
     // returns the index into the tjs.matchVec vector of the first 3D match that
     // includes both tjID1 and tjID2
@@ -1015,13 +1028,13 @@ namespace tca {
       if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID1) != ms.TjIDs.end() &&
          std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID2) != ms.TjIDs.end()) return ims;
     } // indx
-    return INT_MAX;
-  } // MatchedTjs
+    return USHRT_MAX;
+  } // MatchVecIndex
   
   ////////////////////////////////////////////////
   void ReleaseHits(TjStuff& tjs, Trajectory& tj)
   {
-    // Sets InTraj[] = 0 and UseHit false for all TPs in work. Called when abandoning work
+    // Sets InTraj[] = 0 for all TPs in work. Called when abandoning work
     for(auto& tp : tj.Pts) {
       for(auto& iht : tp.Hits) {
         if(tjs.fHits[iht].InTraj == tj.ID) tjs.fHits[iht].InTraj = 0;
@@ -3189,16 +3202,14 @@ namespace tca {
           myprt<<std::right<<std::setw(5)<<nTruMatch;
           if(vx3.Wire == -2) {
             // find the Tjs that are attached to it
-            myprt<<"PFP";
+            myprt<<" PFP Tjs";
             for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
               unsigned short mvIndex = tjs.matchVecPFPList[ipfp];
               auto& ms = tjs.matchVec[mvIndex];
               if(ms.Vx3ID[0] == tjs.vtx3[iv].ID) {
-                myprt<<" sTjs";
                 for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
               }
               if(ms.Vx3ID[1] == tjs.vtx3[iv].ID) {
-                myprt<<" eTjs";
                 for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
               }
             } // ipfp
@@ -3373,11 +3384,14 @@ namespace tca {
   {
     // prints one or all trajectory points on tj
     
+    int trupdg = 0;
+    if(tj.MCPartListIndex < tjs.MCPartList.size()) trupdg = tjs.MCPartList[tj.MCPartListIndex]->PdgCode();
+    
     if(tPoint == USHRT_MAX) {
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"Work:    ID "<<tj.ID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<"Work:    ID "<<tj.ID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" StopFlags "<<PrintStopFlag(tj, 0)<<" "<<PrintStopFlag(tj, 1);
         myprt<<" AlgMod names:";
@@ -3385,7 +3399,7 @@ namespace tca {
       } else {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"tjs.allTraj: ID "<<tj.ID<<" WorkID "<<tj.WorkID<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<tj.TruPDG<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<"tjs.allTraj: ID "<<tj.ID<<" WorkID "<<tj.WorkID<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" tjs.vtx "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" StopFlags "<<PrintStopFlag(tj, 0)<<" "<<PrintStopFlag(tj, 1);
         myprt<<" AlgMod names:";
@@ -3413,7 +3427,8 @@ namespace tca {
           myprt<<"\nInShower TjIDs";
           for(auto& tjID : ss.TjIDs) {
             myprt<<" "<<tjID;
-          } // tjID
+          } // tjIDA_Klystron_4U
+          
           myprt<<"\n";
           myprt<<"NearTjIDs";
           for(auto& tjID : ss.NearTjIDs) {
@@ -3433,7 +3448,7 @@ namespace tca {
           } else {
             myprt<<" No parent";
           }
-          myprt<<" TruParentID "<<ss.TruParentID<<"\n";
+          myprt<<" TruParentID "<<ss.TruParentID<<" SS3ID "<<ss.SS3ID<<"\n";
           if(ss.NeedsUpdate) myprt<<"*********** This shower needs to be updated ***********";
           myprt<<"................................................";
         } // ic

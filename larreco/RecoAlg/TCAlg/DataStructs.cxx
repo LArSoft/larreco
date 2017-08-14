@@ -27,6 +27,7 @@ namespace tca {
     "FixBegin",
     "FixEnd",
     "UUH",
+    "MisdVxTj",
     "VtxTj",
     "RefVtx",
     "NoKinkChk",
@@ -44,7 +45,8 @@ namespace tca {
     "ShwrParent",
     "MergeOverlap",
     "MergeSubShowers",
-    "MergeNrShowers"
+    "MergeNrShowers",
+    "MergeShChain"
   };
 
   const std::vector<std::string> StopFlagNames {

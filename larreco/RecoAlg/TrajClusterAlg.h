@@ -257,8 +257,9 @@ namespace tca {
     void ChkInTraj(std::string someText);
      // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
+    void FindMissedVxTjs(const geo::TPCID& tpcid);
     void FindVtxTjs();
-    void FindVtxTraj(unsigned short ivx);
+    void FindVtxTraj(VtxStore& theVtx);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
      // Truncates the trajectory if a soft kink is found in it
