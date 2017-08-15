@@ -61,7 +61,7 @@
 #include "lardataobj/AnalysisBase/CosmicTag.h" 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "lardata/Utilities/PtrMaker.h"
+#include "art/Persistency/Common/PtrMaker.h"
 
 #include "lardata/ArtDataHelper/MVAReader.h"
 
@@ -414,12 +414,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		double sp_pos[3], sp_err[6];
 		for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
 
-        auto const make_pfpptr = lar::PtrMaker<recob::PFParticle>(evt, *this);
-		auto const make_trkptr = lar::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
-		auto const make_vtxptr = lar::PtrMaker<recob::Vertex>(evt, *this);
-		auto const make_kinkptr = lar::PtrMaker<recob::Vertex>(evt, *this, kKinksName);
-		auto const make_t0ptr = lar::PtrMaker<anab::T0>(evt, *this);
-		auto const make_ctptr = lar::PtrMaker<anab::CosmicTag>(evt, *this);
+        auto const make_pfpptr = art::PtrMaker<recob::PFParticle>(evt, *this);
+		auto const make_trkptr = art::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
+		auto const make_vtxptr = art::PtrMaker<recob::Vertex>(evt, *this);
+		auto const make_kinkptr = art::PtrMaker<recob::Vertex>(evt, *this, kKinksName);
+		auto const make_t0ptr = art::PtrMaker<anab::T0>(evt, *this);
+		auto const make_ctptr = art::PtrMaker<anab::CosmicTag>(evt, *this);
 
 		tracks->reserve(result.size());
 		for (size_t trkIndex = 0; trkIndex < result.size(); ++trkIndex)
