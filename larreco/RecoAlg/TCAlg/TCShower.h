@@ -54,11 +54,11 @@ namespace tca {
   bool DefineShowerTj(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void ReverseShower(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void FindExternalParent(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
-  void UpdateShowerWithParent(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
+  bool UpdateShowerWithParent(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool WrongSplitTj(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short tjEnd, ShowerStruct& ss, bool prt);
   float ParentFOM(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short& tjEnd, ShowerStruct& ss, float& tp1Sep, float& vx3Score, bool prt);
   void DefineEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
-  void AddTjsInsideEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
+  bool AddTjsInsideEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void RefineShowerTj(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool AddLooseHits(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void FindStartChg(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
