@@ -33,6 +33,7 @@ namespace tca {
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
+    "ChkStopEndPts",
     "FTBRvProp",
     "StopAtTj",
     "M3D",
