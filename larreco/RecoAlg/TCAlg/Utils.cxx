@@ -525,12 +525,6 @@ namespace tca {
     // either one short?
     if(tj1.Pts.size() < 5 || tj2.Pts.size() < 5) return false;
     
-    // See if they share the same 2D vertex
-    for(unsigned short e1 = 0; e1 < 2; ++e1) {
-      if(tj1.VtxID[e1] == 0) continue;
-      for(unsigned short e2 = 0; e2 < 2; ++e2) if(tj1.VtxID[e1] == tj2.VtxID[e2]) return true;
-    } // e1
-    
     // find the closest end points
     unsigned short end1 = 1;
     unsigned short end2 = 0;
@@ -548,6 +542,15 @@ namespace tca {
       } // e2
     } // e1
     
+    // check the overlap fraction
+//    std::cout<<tj1.ID<<" "<<tj2.ID<<" VtxIDs  "<<tj1.VtxID[end1]<<"  "<<tj2.VtxID[end2]<<"\n";
+    // don't merge if they have a vertex at these ends
+    if(tj1.VtxID[end1] > 0 || tj2.VtxID[end2] > 0) return false;
+    // or if there is a Bragg Peak
+    if(tj1.StopFlag[end1][kBragg] || tj2.StopFlag[end2][kBragg]) return false;
+    // don't merge if many of the TPs have charge on the same wire
+    if(OverlapFraction(tjs, tj1, tj2) > 0.3) return false;
+    
     // This is equivalent to 15 WSE
     if(minSep > 225) return false;
     
@@ -555,12 +558,60 @@ namespace tca {
     const auto& tp2 = tj1.Pts[tj1.EndPt[end2]];
     
     if(!SignalBetween(tjs, tp1, tp2, 0.8, false)) return false;
-    if(DeltaAngle(tp1.Ang, tp2.Ang) > 0.8) return false;
+    if(DeltaAngle(tp1.Ang, tp2.Ang) > 0.5) return false;
 //    std::cout<<"CompatibleMerge "<<tj1.ID<<" "<<tj2.ID<<"\n";
     
     return true;
     
   } // CompatibleMerge
+  
+  /////////////////////////////////////////
+  float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2)
+  {
+    // returns the fraction of wires spanned by two trajectories
+    float minWire = 1E6;
+    float maxWire = -1E6;
+    
+    float cnt1 = 0;
+    for(auto& tp : tj1.Pts) {
+      if(tp.Chg == 0) continue;
+      if(tp.Pos[0] < minWire) minWire = tp.Pos[0];
+      if(tp.Pos[0] > maxWire) maxWire = tp.Pos[0];
+      ++cnt1;
+    }
+    if(cnt1 == 0) return 0;
+    float cnt2 = 0;
+    for(auto& tp : tj2.Pts) {
+      if(tp.Chg == 0) continue;
+      if(tp.Pos[0] < minWire) minWire = tp.Pos[0];
+      if(tp.Pos[0] > maxWire) maxWire = tp.Pos[0];
+      ++cnt2;
+    }
+    if(cnt2 == 0) return 0;
+    int span = maxWire - minWire;
+    if(span <= 0) return 0;
+    std::vector<unsigned short> wcnt(span);
+    for(auto& tp : tj1.Pts) {
+      if(tp.Chg == 0) continue;
+      int indx = std::nearbyint(tp.Pos[0] - minWire);
+      if(indx < 0 || indx > span - 1) continue;
+      ++wcnt[indx];
+    }
+    for(auto& tp : tj2.Pts) {
+      if(tp.Chg == 0) continue;
+      int indx = std::nearbyint(tp.Pos[0] - minWire);
+      if(indx < 0 || indx > span - 1) continue;
+      ++wcnt[indx];
+    }
+    float cntOverlap = 0;
+    for(auto cnt : wcnt) if(cnt > 1) ++cntOverlap;
+    if(cnt1 < cnt2) {
+      return cntOverlap / cnt1;
+    } else {
+      return cntOverlap / cnt2;
+    }
+    
+  } // OverlapFraction
   
   /////////////////////////////////////////
   void FilldEdx(TjStuff& tjs, MatchStruct& ms)
@@ -1055,6 +1106,70 @@ namespace tca {
     } // ii
     tp.Chg = 0;
   } // UnsetUsedHits
+  
+  ////////////////////////////////////////////////
+  void ChkStopEndPts(TjStuff& tjs, Trajectory& tj, bool prt)
+  {
+    // Analyze the end of the Tj after crawling has stopped to see if any of the points
+    // should be used
+    
+    if(!tjs.UseAlg[kChkStopEndPts]) return;
+
+    unsigned short endPt = tj.EndPt[1];
+    // nothing to be done
+    
+    if(prt) {
+      mf::LogVerbatim("TC")<<"ChkStopEndPts: checking "<<tj.ID<<" endPt "<<endPt<<" Pts size "<<tj.Pts.size()<<"\n";
+    }
+    if(endPt == tj.Pts.size() - 1) return;
+    // ignore VLA Tjs
+    if(tj.Pts[endPt].AngleCode > 1) return;
+    // don't get too carried away with this
+    if(tj.Pts.size() - endPt > 10) return;
+    
+    // put the hits into a vector at the end that are associated with the tj
+    std::vector<int> tjHits;
+    for(unsigned short ipt = endPt; ipt < tj.Pts.size(); ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      tjHits.insert(tjHits.end(), tp.Hits.begin(), tp.Hits.end());
+    } // ipt
+    // sort them
+    std::sort(tjHits.begin(), tjHits.end());
+
+    // Get a list of hits a few wires beyond the last point on the Tj
+    geo::PlaneID planeID = DecodeCTP(tj.CTP);
+    unsigned short plane = planeID.Plane;
+
+    TrajPoint ltp;
+    ltp.CTP = tj.CTP;
+    ltp.Pos = tj.Pts[endPt].Pos;
+    ltp.Dir = tj.Pts[endPt].Dir;
+     double stepSize = std::abs(1/ltp.Dir[0]);
+    std::array<int, 2> wireWindow;
+    std::array<float, 2> timeWindow;
+    std::vector<int> closeHits;
+    for(unsigned short step = 0; step < 5; ++step) {
+      for(unsigned short iwt = 0; iwt < 2; ++iwt) ltp.Pos[iwt] += ltp.Dir[iwt] * stepSize;
+      int wire = std::nearbyint(ltp.Pos[0]);
+      wireWindow[0] = wire;
+      wireWindow[1] = wire;
+      timeWindow[0] = ltp.Pos[1] - 5;
+      timeWindow[1] = ltp.Pos[1] + 5;
+      bool hitsNear;
+      auto tmp = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
+      closeHits.insert(closeHits.end(), tmp.begin(), tmp.end());
+    } // step
+    std::sort(closeHits.begin(), closeHits.end());
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"tjHits";
+      for(auto iht : tjHits) myprt<<" "<<PrintHit(tjs.fHits[iht]);
+      myprt<<"\ncloseHits";
+      for(auto iht : closeHits) myprt<<" "<<PrintHit(tjs.fHits[iht]);
+    } // prt
+    
+  } // ChkStopEndPts
 
   ////////////////////////////////////////////////
   bool StoreTraj(TjStuff& tjs, Trajectory& tj)
@@ -3087,9 +3202,6 @@ namespace tca {
       return false;
     }
     
-    // assume that everything will succeed
-//    fQuitAlg = false;
-    
     // remove any points at the end of tj1 that don't have used hits
     tj1.Pts.resize(tj1.EndPt[1] + 1);
     
@@ -3150,6 +3262,11 @@ namespace tca {
         PrintTrajectory("tj2", tjs, tjs.allTraj[itj2], USHRT_MAX);
       }
       return false;
+    }
+    if(tj2.VtxID[1] > 0) {
+//      std::cout<<"MAS: Preserve vertex "<<tj2.VtxID[1]<<" merging "<<tj1.ID<<" and "<<tj2.ID<<" \n";
+      // move the end vertex of tj2 to the end of tj1
+      tj1.VtxID[1] = tj2.VtxID[1];
     }
     // kill the original trajectories
     MakeTrajectoryObsolete(tjs, itj1);
