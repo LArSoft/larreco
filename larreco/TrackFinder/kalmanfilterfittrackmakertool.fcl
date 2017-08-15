@@ -2,12 +2,13 @@ BEGIN_PROLOG
 kalmanfilterfittrackmakertool: {
    tool_type: KalmanFilterFitTrackMaker
    options: {
-      momentumInGeV: 1.0
-      pdgId: 13
+      defaultMomInGeV: 1.0
+      defaultPdgId: 13
       dirFromVec: false
       dirVec: [0,0,1]
       alwaysInvertDir: false
       tryNoSkipWhenFails: true
+      keepInputTrajectoryPoints: false
    }
    fitter: {
       useRMSError: true

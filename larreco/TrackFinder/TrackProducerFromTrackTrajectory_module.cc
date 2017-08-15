@@ -112,7 +112,7 @@ void TrackProducerFromTrackTrajectory::produce(art::Event & e)
     if (doSpacePoints_ && !spacePointsFromTrajP_) optionals.initSpacePoints();
     //
     // Invoke tool to fit track and fill output objects
-    bool fitok = trackMaker_->makeTrack(traj, iTraj, inHits, outTrack, outHits, optionals, e);
+    bool fitok = trackMaker_->makeTrack(traj, inHits, outTrack, outHits, optionals, e);
     if (!fitok) continue;
     //
     // Check that the requirement Nhits == Npoints is satisfied

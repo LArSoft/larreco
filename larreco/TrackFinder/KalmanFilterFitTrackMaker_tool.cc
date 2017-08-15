@@ -3,12 +3,13 @@
 #include "fhiclcpp/types/Atom.h"
 #include "fhiclcpp/types/Sequence.h"
 
+#include "art/Framework/Principal/Handle.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/TrackFinder/TrackMaker.h"
 #include "larreco/RecoAlg/TrackKalmanFitter.h"
-
 #include "larreco/RecoAlg/TrackCreationBookKeeper.h"
+//#include "lardataobj/RecoBase/MCSFitResult.h"
 
 namespace trkmkr {
 
@@ -31,12 +32,12 @@ namespace trkmkr {
       // 	Name("momFromCalo"),
       // 	Comment("Flag used to get initial momentum estimate from inputCaloLabel collection.")
       // };
-      fhicl::Atom<double> momentumInGeV {
-	Name("momentumInGeV"),
+      fhicl::Atom<double> defaultMomInGeV {
+	Name("defaultMomInGeV"),
 	Comment("Default momentum estimate value (all other options are set to false, or if the estimate is not available).")
       };
-      fhicl::Atom<int> pdgId {
-	Name("pdgId"),
+      fhicl::Atom<int> defaultPdgId {
+	Name("defaultPdgId"),
         Comment("Default particle id hypothesis (all other options are set to false, or if the estimate is not available).")
       };
       fhicl::Atom<bool> dirFromVec {
@@ -79,8 +80,8 @@ namespace trkmkr {
     {
       prop = new trkf::TrackStatePropagator(p_().propagator);
       kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().fitter);
-      mom_def_ = p_().options().momentumInGeV();
-      pid_def_ = p_().options().pdgId();
+      mom_def_ = p_().options().defaultMomInGeV();
+      pid_def_ = p_().options().defaultPdgId();
       alwaysFlip_ = p_().options().alwaysInvertDir();
       //
       if (p_().options().keepInputTrajectoryPoints()) {
@@ -98,10 +99,6 @@ namespace trkmkr {
     }
 
     bool makeTrack(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
-		   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-		   const art::Event& e) const override;
-
-    bool makeTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& inHits,
 		   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
 		   const art::Event& e) const override;
 
@@ -125,9 +122,12 @@ bool trkmkr::KalmanFilterFitTrackMaker::makeTrack(const recob::TrackTrajectory& 
 						  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
 						  const art::Event& e) const {
   //
-  const double mom = mom_def_;
+  // art::ValidHandle<std::vector<recob::MCSFitResult> > mcs = e.getValidHandle<std::vector<recob::MCSFitResult> >("mcsproducer");
+  // std::cout << "bestMom=" << mcs->at(tkID).bestMomentum() << " isBestFwd=" << mcs->at(tkID).isBestFwd() << std::endl;
+  //
+  const double mom = mom_def_;//mcs->at(tkID).bestMomentum();//mom_def_;//what about uncertainty? what about fit failures?
   const int    pid = pid_def_;
-  const bool   flipDirection = setDirFlip(traj);
+  const bool   flipDirection = setDirFlip(traj);//(mcs->at(tkID).isBestFwd()==false);//setDirFlip(traj);
   bool fitok = kalmanFitter->fitTrack(traj, tkID, trkf::SMatrixSym55(), trkf::SMatrixSym55(), inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
   //
   if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
@@ -149,38 +149,6 @@ bool trkmkr::KalmanFilterFitTrackMaker::makeTrack(const recob::TrackTrajectory& 
   }
   //
   return true;
-}
-
-bool trkmkr::KalmanFilterFitTrackMaker::makeTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& inHits,
-						  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-						  const art::Event& e) const {
-  //
-  const double mom = mom_def_;
-  const int    pid = pid_def_;
-  const bool   flipDirection = setDirFlip(track.Trajectory());
-  bool fitok = kalmanFitter->fitTrack(track.Trajectory(), track.ID(), track.VertexCovarianceLocal5D(), track.EndCovarianceLocal5D(), inHits,
-				      mom, pid, flipDirection, outTrack, outHits, optionals);
-  //
-  if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
-    //ok try once more without skipping hits
-    mf::LogWarning("KalmanFilterFitTrackMaker") << "Try to recover with skipNegProp = false and cleanZigzag = false\n";
-    kalmanFitter->setSkipNegProp(false);
-    kalmanFitter->setCleanZigzag(false);
-    fitok = kalmanFitter->fitTrack(track.Trajectory(), track.ID(), track.VertexCovarianceLocal5D(), track.EndCovarianceLocal5D(), inHits,
-				   mom, pid, flipDirection, outTrack, outHits, optionals);
-    kalmanFitter->setSkipNegProp(p_().fitter().skipNegProp());
-    kalmanFitter->setCleanZigzag(p_().fitter().cleanZigzag());
-  }
-  if (!fitok) {
-    mf::LogWarning("KalmanFilterFitTrackMaker") << "Fit failed for track with ID=" << track.ID() << "\n";
-    return false;
-  }
-  //
-  if (p_().options().keepInputTrajectoryPoints()) {
-    restoreInputPoints(track.Trajectory(),inHits,outTrack,outHits,optionals);
-  }
-  //
-  return fitok;
 }
 
 bool trkmkr::KalmanFilterFitTrackMaker::setDirFlip(const recob::TrackTrajectory& traj) const {
