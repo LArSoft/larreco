@@ -12,15 +12,9 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-bool trkf::TrackKalmanFitter::fitTrack(const recob::TrackTrajectory& traj, int tkID, const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
+bool trkf::TrackKalmanFitter::fitTrack(const recob::TrackTrajectory& traj, const int tkID, const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
 				       const std::vector<art::Ptr<recob::Hit> >& hits, const double pval, const int pdgid, const bool flipDirection,
-				       recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) {
-  outHits.clear();
-  if (hits.size()<4) {
-    mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
-    return false;
-  }
-
+				       recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const {
   auto position = traj.Vertex();
   auto direction = traj.VertexDirection();
 
@@ -31,20 +25,46 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::TrackTrajectory& traj, int t
 
   auto trackStateCov = (flipDirection ? covEnd : covVtx );
 
-  return fitTrack(position, direction, trackStateCov, tkID, hits, traj.Flags(), pval, pdgid, outTrack, outHits, optionals);
+  return fitTrack(position, direction, trackStateCov, hits, traj.Flags(), tkID, pval, pdgid, outTrack, outHits, optionals);
 }
 
-bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& direction,
-				       SMatrixSym55& trackStateCov, int tkID,
+bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov, 
 				       const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
-				       const double pval, const int pdgid,
-				       recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) {
-  outHits.clear();
+				       const int tkID, const double pval, const int pdgid,
+				       recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const {
   if (hits.size()<4) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
     return false;
   }
 
+  // setup the KFTrackState we'll use throughout the fit
+  KFTrackState trackState = setupInitialTrackState(position, direction, trackStateCov, pval, pdgid);
+
+  // setup vector of HitStates and flags, with either same or inverse order as input hit vector
+  // this is what we'll loop over during the fit
+  bool reverseHits = false;
+  std::vector<HitState>                            hitstatev;
+  std::vector<recob::TrajectoryPointFlags::Mask_t> hitflagsv;
+  bool inputok = setupInputStates(hits, flags, trackState, reverseHits, hitstatev, hitflagsv);
+  if (!inputok) return false;
+
+  // track vectors we use to store the fit results
+  std::vector<KFTrackState> fwdPrdTkState;
+  std::vector<KFTrackState> fwdUpdTkState;
+  std::vector<unsigned int> hitstateidx;
+  std::vector<unsigned int> rejectedhsidx;
+
+  // do the actual fit
+  bool fitok = doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx);
+  if (!fitok) return false;
+
+  // fill the track, the output hit vector, and the optional output products
+  bool fillok = fillResult(hits, tkID, pdgid, reverseHits, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, outTrack, outHits, optionals);
+  return fillok;
+}
+
+trkf::KFTrackState trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov, 
+								   const double pval, const int pdgid) const {
   if (trackStateCov==SMatrixSym55()) {
     trackStateCov(0, 0) = 1000.;
     trackStateCov(1, 1) = 1000.;
@@ -53,10 +73,12 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
     trackStateCov(4, 4) = 10.;
   }
   SVector5 trackStatePar(0.,0.,0.,0.,1./pval);
+  return KFTrackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);//along direction by definition
+}
 
-  // setup the KFTrackState we'll use throughout the fit
-  KFTrackState trackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);//along direction by definition
-
+bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags, 
+					       const KFTrackState& trackState, bool reverseHits,
+					       std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv) const {
   // figure out hit sorting based on minimum distance to first or last hit
   // (to be removed once there is a clear convention for hit sorting)
   geo::WireGeo const& wgeomF = geom->WireIDToWireGeo(hits.front()->WireID());
@@ -64,20 +86,17 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
   Plane pF = recob::tracking::makePlane(wgeomF);
   Plane pB = recob::tracking::makePlane(wgeomB);
   bool success = true;
-  double distF = propagator->distanceToPlane(success, position, direction, pF);
-  double distB = propagator->distanceToPlane(success, position, direction, pB);
+  double distF = propagator->distanceToPlane(success, trackState.trackState(), pF);
+  double distB = propagator->distanceToPlane(success, trackState.trackState(), pB);
   if (dumpLevel_>1) std::cout << "distF=" << distF << " distB=" << distB << std::endl;
   if (!success) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
     return false;
   }
-  const bool reverseHits = distB<distF;
+  reverseHits = distB<distF;
 
   // setup vector of HitStates and flags, with either same or inverse order as input hit vector
   // this is what we'll loop over during the fit
-  std::vector<HitState>                            hitstatev;
-  std::vector<recob::TrajectoryPointFlags::Mask_t> hitflagsv;
-  unsigned int nplanes = 0;
   const int beg = (reverseHits ? hits.size()-1 : 0);
   const int end = (reverseHits ? -1 : hits.size());
   for (int ihit = beg; ihit!=end; (reverseHits ? ihit-- : ihit++)) {
@@ -99,22 +118,27 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
       hitflagsv.back().set(recob::TrajectoryPointFlagTraits::Suspicious);
       hitflagsv.back().set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
     }
-    //
-    if ((hit->WireID().Plane+1)>nplanes) nplanes = hit->WireID().Plane+1;
   }
+  assert(hits.size()==hitstatev.size());
+  return true;
+}
 
-  // setup the track vectors we use to store the fit results
+bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
+					std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState, 
+					std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx) const {
+
+  fwdPrdTkState.clear();
+  fwdUpdTkState.clear();
+  hitstateidx.clear();
+  rejectedhsidx.clear();
   // these three vectors are aligned
-  std::vector<KFTrackState> fwdPrdTkState;
-  std::vector<KFTrackState> fwdUpdTkState;
-  std::vector<unsigned int> hitstateidx;
-  std::vector<unsigned int> rejectedhsidx;
-  fwdPrdTkState.reserve(hits.size());
-  fwdUpdTkState.reserve(hits.size());
-  hitstateidx.reserve(hits.size());
+  fwdPrdTkState.reserve(hitstatev.size());
+  fwdUpdTkState.reserve(hitstatev.size());
+  hitstateidx.reserve(hitstatev.size());
 
   if (sortHitsByPlane_) {
     //array of hit indices in planes, keeping the original sorting by plane
+    const unsigned int nplanes = geom->MaxPlanes();
     std::vector<std::vector<unsigned int> > hitsInPlanes(nplanes);
     for (unsigned int ihit = 0; ihit<hitstatev.size(); ihit++) {
       hitsInPlanes[hitstatev[ihit].wireId().Plane].push_back(ihit);
@@ -276,8 +300,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
   trackState.setCovariance(100.*trackState.covariance());
 
   //backward loop over track states and hits in fwdUpdTracks: use hits for backward fit and fwd track states for smoothing
-  float totChi2 = 0.;//fixme: chi2 already computed in bookkeeper
-  int nchi2 = 0;
+  int nvalidhits = 0;
   for (int itk = fwdPrdTkState.size()-1; itk>=0; itk--) {
     auto& fwdPrdTrackState = fwdPrdTkState[itk];
     auto& fwdUpdTrackState = fwdUpdTkState[itk];
@@ -325,9 +348,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
 	if (dumpLevel_>1) {
 	  std::cout << "updated state " << std::endl; trackState.dump();
 	}
-	//compute the chi2 between the combined predicted and the hit
-	totChi2+=fwdPrdTrackState.chi2(hitstate);
-	nchi2++;
+	//
+	nvalidhits++;
       }
     } else {
       // ok, if the backward propagation failed we exclude this point from the rest of the fit,
@@ -338,17 +360,26 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
     }
   }//for (unsigned int itk = fwdPrdTkState.size()-1; itk>=0; itk--) {
 
-  if (nchi2<4) {
+  if (nvalidhits<4) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
     return false;
   }
 
+  return true;
+}
+
+bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> >& inHits, const int tkID, const int pdgid, const bool reverseHits,
+					 std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
+					 std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
+					 std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx,
+					 recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const {
   //fill output trajectory objects with smoothed track and its hits
   trkmkr::TrackCreationBookKeeper tcbk(outTrack, outHits, optionals, tkID, pdgid, true);
   std::vector<unsigned int> hittpindex;
   std::vector<unsigned int> updstatesindex;
   if (sortOutputHitsMinLength_) {
     //try to sort fixing wires order on planes and picking the closest next plane
+    const unsigned int nplanes = geom->MaxPlanes();
     std::vector<std::vector<unsigned int> > tracksInPlanes(nplanes);
     for (unsigned int p = 0; p<hitstateidx.size(); ++p) {
       const auto& hitstate = hitstatev[hitstateidx[p]];
@@ -381,7 +412,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
 	iterTracksInPlanes[min_plane]++;
 	continue;
       }
-      const auto& trackstate = fwdUpdTkState[ihit];
+      auto& trackstate = fwdUpdTkState[ihit];
       const auto& hitflags = hitflagsv[hitstateidx[ihit]];
       pos = trackstate.position();
       dir = trackstate.momentum();
@@ -395,16 +426,16 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
       //
       const auto& prdtrack = fwdPrdTkState[ihit];
       const auto& hitstate = hitstatev[hitstateidx[ihit]];
-      assert(hitstate.wireId().Plane == hits[originalPos]->WireID().Plane);
-      // fixme: making copies, do we really want to do so?
-      tcbk.addPoint(Point_t(trackstate.position()), Vector_t(trackstate.momentum()), hits[originalPos],
+      assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
+      //
+      tcbk.addPoint(trackstate.movePositionRef(), trackstate.moveMomentumRef(), inHits[originalPos],
 		    recob::TrajectoryPointFlags(originalPos,hitflags), prdtrack.chi2(hitstate),
 		    recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),prdtrack.parameters(),prdtrack.covariance(),hitstate.wireId()));
       //
     }
   } else {
     for (unsigned int p = 0; p<fwdUpdTkState.size(); ++p) {
-      const auto& trackstate = fwdUpdTkState[p];
+      auto& trackstate = fwdUpdTkState[p];
       const auto& hitflags   = hitflagsv[hitstateidx[p]];
       const unsigned int originalPos = (reverseHits ? hitstatev.size()-hitstateidx[p]-1 : hitstateidx[p]);
       assert(originalPos>=0 && originalPos<hitstatev.size());
@@ -412,9 +443,9 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
       //
       const auto& prdtrack = fwdPrdTkState[p];
       const auto& hitstate = hitstatev[hitstateidx[p]];
-      assert(hitstate.wireId().Plane == hits[originalPos]->WireID().Plane);
-      // fixme: making copies, do we really want to do so?
-      tcbk.addPoint(Point_t(trackstate.position()), Vector_t(trackstate.momentum()), hits[originalPos],
+      assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
+      //
+      tcbk.addPoint(trackstate.movePositionRef(), trackstate.moveMomentumRef(), inHits[originalPos],
 		    recob::TrajectoryPointFlags(originalPos,hitflags), prdtrack.chi2(hitstate),
 		    recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),prdtrack.parameters(),prdtrack.covariance(),hitstate.wireId()));
     }
@@ -454,6 +485,8 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
     return false;
   }
 
+  SMatrixSym55 fakeCov55;
+  for (int i=0;i<5;i++) for (int j=i;j<5;j++) fakeCov55(i,j) = util::kBogusD;
   for (unsigned int rejidx = 0; rejidx<rejectedhsidx.size(); ++rejidx) {
     const unsigned int originalPos = (reverseHits ? hitstatev.size()-rejectedhsidx[rejidx]-1 : rejectedhsidx[rejidx]);
     auto& mask = hitflagsv[rejectedhsidx[rejidx]];
@@ -461,17 +494,16 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
     if (mask.isSet(recob::TrajectoryPointFlagTraits::Rejected)==0) mask.set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
     //
     const auto& hitstate = hitstatev[rejectedhsidx[rejidx]];
-    SVector5 fakePar5(util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD);
-    SMatrixSym55 fakeCov55;
-    for (int i=0;i<5;i++) for (int j=i;j<5;j++) fakeCov55(i,j) = util::kBogusD;
-    assert(hitstate.wireId().Plane == hits[originalPos]->WireID().Plane);
-    tcbk.addPoint(Point_t(util::kBogusD,util::kBogusD,util::kBogusD), Vector_t(util::kBogusD,util::kBogusD,util::kBogusD), hits[originalPos],
+    assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
+    tcbk.addPoint(Point_t(util::kBogusD,util::kBogusD,util::kBogusD), Vector_t(util::kBogusD,util::kBogusD,util::kBogusD), inHits[originalPos],
 		  recob::TrajectoryPointFlags(originalPos,mask), 0,
-		  recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),fakePar5,fakeCov55,hitstate.wireId()));
+		  recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),
+					 SVector5(util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD),fakeCov55,hitstate.wireId())
+		  );
   }
 
-  if (dumpLevel_>1) std::cout << "outHits.size()=" << outHits.size() << " hits.size()=" << hits.size() << std::endl;
-  assert(outHits.size()==hits.size());
+  if (dumpLevel_>1) std::cout << "outHits.size()=" << outHits.size() << " inHits.size()=" << inHits.size() << std::endl;
+  assert(outHits.size()==inHits.size());
 
   if (tcbk.hasZeroMomenta()) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
@@ -495,5 +527,4 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
   }
 
   return true;
-
 }

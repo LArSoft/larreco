@@ -7,14 +7,13 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/RecoObjects/TrackStatePropagator.h"
+#include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/TrackFitHitInfo.h"
+#include "lardata/RecoObjects/KFTrackState.h"
+#include "lardata/RecoObjects/TrackStatePropagator.h"
 
 namespace recob {
-  class Track;
-  class TrackTrajectory;
   class Hit;
-  class TrajectoryPointFlags;
 }
 
 class TVector3;
@@ -100,13 +99,28 @@ namespace trkf {
 
     bool fitTrack(const recob::TrackTrajectory& traj, int tkID,  const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
 		  const std::vector<art::Ptr<recob::Hit> >& hits, const double pval, const int pdgid, const bool flipDirection,
-		  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals);
+		  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const;
 
-    bool fitTrack(const Point_t& position, const Vector_t& direction,
-		  SMatrixSym55& trackStateCov, int tkID,
+    bool fitTrack(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov,
 		  const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
-		  const double pval, const int pdgid,
-		  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals);
+		  const int tkID, const double pval, const int pdgid,
+		  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const;
+
+    KFTrackState setupInitialTrackState(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov, const double pval, const int pdgid) const;
+
+    bool setupInputStates(const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
+			  const KFTrackState& trackState, bool reverseHits,
+			  std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv) const;
+
+    bool doFitWork(KFTrackState& trackState, std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
+		   std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
+		   std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx) const;
+
+    bool fillResult(const std::vector<art::Ptr<recob::Hit> >& inHits, const int tkID, const int pdgid, const bool reverseHits,
+		    std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
+		    std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
+		    std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx,
+		    recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const;
 
     /* bool fitTrack(const Point_t& position, const Vector_t& direction, */
     /* 		  SMatrixSym55& trackStateCov, int tkID, */
@@ -124,7 +138,6 @@ namespace trkf {
     void setCleanZigzag(bool value) { cleanZigzag_=value; }
 
   private:
-
     art::ServiceHandle<geo::Geometry> geom;
     const detinfo::DetectorProperties* detprop;
     const TrackStatePropagator* propagator;
