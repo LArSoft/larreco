@@ -1,13 +1,7 @@
 #include "TrackKalmanFitter.h"
 
-#include "canvas/Persistency/Common/FindManyP.h"
-
-#include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Hit.h"
-
-#include "lardata/RecoObjects/KFTrackState.h"
 #include "lardata/RecoObjects/TrackingPlaneHelper.h"
-
 #include "larreco/RecoAlg/TrackCreationBookKeeper.h"
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
@@ -48,7 +42,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
   bool inputok = setupInputStates(hits, flags, trackState, reverseHits, hitstatev, hitflagsv);
   if (!inputok) return false;
 
-  // track vectors we use to store the fit results
+  // track and index vectors we use to store the fit results
   std::vector<KFTrackState> fwdPrdTkState;
   std::vector<KFTrackState> fwdUpdTkState;
   std::vector<unsigned int> hitstateidx;

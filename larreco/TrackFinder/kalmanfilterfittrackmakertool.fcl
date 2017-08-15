@@ -16,7 +16,7 @@ kalmanfilterfittrackmakertool: {
       sortOutputHitsMinLength: true
       skipNegProp: true
       cleanZigzag: false
-      rejectHighMultHits: true
+      rejectHighMultHits: false
       rejectHitsNegativeGOF: true
       hitErr2ScaleFact: 1.0
       dumpLevel: 0
