@@ -811,159 +811,101 @@ namespace tca {
     
     if(tjs.vtx3.empty()) return;
     if(tjs.matchVec.empty()) return;
-    if(!tjs.matchVecPFPList.empty()) return;
-
-    if(prt) mf::LogVerbatim("TC")<<"Match3DVtxTjs";
-    std::vector<std::vector<int>> v3TjIDs(tjs.vtx3.size());
-    for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
-      auto& vx3 = tjs.vtx3[iv3];
+    
+    // Clear out matchVecPFPList for this tpcid
+    for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
+      unsigned short imv = tjs.matchVecPFPList[ipfp];
+      auto& mv = tjs.matchVec[imv];
+      if(mv.TPCID == tpcid) tjs.matchVecPFPList.erase(tjs.matchVecPFPList.begin() + ipfp);
+    } // ipfp
+    
+    // sort the vertices by decreasing score
+    std::vector<SortEntry> sortVec;
+    for(auto& vx3 : tjs.vtx3) {
       if(vx3.ID == 0) continue;
+      if(vx3.TPCID != tpcid) continue;
       // put the TjIDs into a vector for matching
       float score = 0;
-      v3TjIDs[iv3] = GetVtxTjIDs(tjs, vx3, score);
-      if(v3TjIDs[iv3].empty()) continue;
-      if(score < tjs.Vertex2DCuts[7]) v3TjIDs[iv3].clear();
+      auto v3TjIDs = GetVtxTjIDs(tjs, vx3, score);
+      if(v3TjIDs.empty()) continue;
+      if(score < tjs.Vertex2DCuts[7]) continue;
       if(prt) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"vx3 "<<vx3.ID<<" score "<<score<<" TjIDs ";
-        for(auto& tjID : v3TjIDs[iv3]) myprt<<" "<<tjID;
+        myprt<<"M3DVTj vx3 "<<vx3.ID<<" score "<<score<<" TjIDs ";
+        for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
       }
+      SortEntry se;
+      se.index = vx3.ID - 1;
+      se.length = score;
+      sortVec.push_back(se);
     } // vx3
+    if(sortVec.empty()) return;
+    if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), greaterThan);
     
-    // now look for matches
-    for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
-      bool skipit = false;
-      // count the number of shower Tjs
-      unsigned short nstj = 0;
-      auto& ms = tjs.matchVec[ims];
-      for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
-        unsigned short itj = ms.TjIDs[ipl] - 1;
-        if(tjs.allTraj[itj].AlgMod[kMat3D]) skipit = true;
-        if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
-      }
-      if(skipit) continue;
-      // make a copy of the TjIDs so they can be sorted in increasing order so
-      // that std::set_intersection works properly
-      auto mstjids = ms.TjIDs;
-      std::sort(mstjids.begin(), mstjids.end());
-      // Require 0 or matched shower Tjs in all planes
-      if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
-      unsigned short v3GoodMatch = USHRT_MAX;
-      unsigned short v3NearMatch = USHRT_MAX;
-      unsigned short tjMissing = USHRT_MAX;
-      for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
-        if(v3TjIDs[iv3].empty()) continue;
-        std::vector<int> shared;
-        std::set_intersection(v3TjIDs[iv3].begin(), v3TjIDs[iv3].end(), 
-                              mstjids.begin(), mstjids.end(), std::back_inserter(shared));
-        if(shared.size() < 2) continue;
-        if(shared.size() == 2 && tjs.NumPlanes == 3 && v3NearMatch == USHRT_MAX) {
-          if(prt) {
-            mf::LogVerbatim myprt("TC");
-            myprt<<"M3DVTj: ims "<<ims<<" ms.TjIDs";
-            for(auto tjID : ms.TjIDs) myprt<<" "<<tjID;
-            myprt<<" shared";
-            for(auto tjID : shared) myprt<<" "<<tjID;
-          }
-          v3NearMatch = iv3;
-          // find the missing Tj
-          for(unsigned short ii = 0; ii < shared.size(); ++ii) {
-            if(ms.TjIDs[ii] != shared[ii]) {
-              tjMissing = ms.TjIDs[ii];
-              break;
-            }
-            if(tjMissing == USHRT_MAX) tjMissing = ms.TjIDs[2];
-          } // ii
-          continue;
+    for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
+      auto& vx3 = tjs.vtx3[sortVec[ii].index];
+      float score = 0;
+      auto v3TjIDs = GetVtxTjIDs(tjs, vx3, score);
+      if(prt) mf::LogVerbatim("TC")<<ii<<" vx3 "<<vx3.ID<<" "<<score;
+      // look for these in matchVec
+      for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
+        // count the number of shower Tjs
+        unsigned short nstj = 0;
+        auto& ms = tjs.matchVec[ims];
+        bool skipit = false;
+        for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
+          unsigned short itj = ms.TjIDs[ipl] - 1;
+          if(tjs.allTraj[itj].AlgMod[kMat3D]) skipit = true;
+          if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
         }
-        v3GoodMatch = iv3;
-        break;
-      } // iv3
-      if(v3GoodMatch == USHRT_MAX && v3NearMatch < tjs.vtx3.size()) {
-        if(prt) mf::LogVerbatim("TC")<<"Reconcile 3D match ims "<<ims<<" with 3D vtx Tjs. v3NearMatch "<<v3NearMatch<<" tjMissing "<<tjMissing;
-      }
-      // no good match
-      if(v3GoodMatch == USHRT_MAX) continue;
-      tjs.matchVecPFPList.insert(tjs.matchVecPFPList.begin(), ims);
-      // declare a start or end vertex
-      auto& vx3 = tjs.vtx3[v3GoodMatch];
-      if(ms.Vx3ID[0] == 0) {
-        // declare the start vertex. The positions will be determined later
-        ms.Vx3ID[0] = vx3.ID;
-//        if(prt) mf::LogVerbatim("TC")<<" Set sVx3ID "<<ms.Vx3ID[0];
-      } else {
-        ms.Vx3ID[1] = vx3.ID;
-//        if(prt) mf::LogVerbatim("TC")<<" Set eVx3ID "<<ms.Vx3ID[1];
-      }
-      if(prt) mf::LogVerbatim("TC")<<"  ims "<<ims<<" -> vx3 "<<vx3.ID<<" sVx3ID "<<ms.Vx3ID[0]<<" eVx3ID "<<ms.Vx3ID[1];
-      for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
-        unsigned short itj = ms.TjIDs[ipl] - 1;
-        tjs.allTraj[itj].AlgMod[kMat3D] = true;
-      }
-    } // ims
-    
-    // look for failed matches where there is one un-matched Tj
-     for(unsigned short iv3 = 0; iv3 < tjs.vtx3.size(); ++iv3) {
-       if(v3TjIDs[iv3].empty()) continue;
-       std::vector<unsigned short> cntInPln(tjs.NumPlanes);
-       std::vector<int> tjList;
-      // Keep track of the longest Tj so that we can fake the MatchStruct Count if necessary
-      unsigned short cnt = 0;
-      for(auto& tjID : v3TjIDs[iv3]) {
-        Trajectory& tj = tjs.allTraj[tjID - 1];
-        if(tj.AlgMod[kMat3D]) continue;
-        geo::PlaneID planeID = DecodeCTP(tj.CTP);
-        ++cntInPln[planeID.Plane];
-        tjList.push_back(tj.ID);
-        if(tj.Pts.size() > cnt) cnt = tj.Pts.size();
-      } // tjID
-      bool notOne = false;
-      for(auto cnt : cntInPln) if(cnt != 1) notOne = true;
-      if(notOne) continue;
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"vx3 "<<tjs.vtx3[iv3].ID<<" Unmatched Tjs";
-        for(auto tjID : tjList) myprt<<" "<<tjID;
-      }
-      // look for this combo in matchVec.
-      std::sort(tjList.begin(), tjList.end());
-      unsigned short ims = 0;
-      for(ims = 0; ims < tjs.matchVec.size(); ++ims) {
-        MatchStruct& ms = tjs.matchVec[ims];
-        if(ms.TjIDs.empty()) continue;
-        std::vector<int> shared;
+        if(skipit) continue;
+        // Require 0 or matched shower Tjs in all planes
+        if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
         // make a copy of the TjIDs so they can be sorted in increasing order so
         // that std::set_intersection works properly
         auto mstjids = ms.TjIDs;
         std::sort(mstjids.begin(), mstjids.end());
-        std::set_intersection(tjList.begin(), tjList.end(), 
+        std::vector<int> shared;
+        std::set_intersection(v3TjIDs.begin(), v3TjIDs.end(), 
                               mstjids.begin(), mstjids.end(), std::back_inserter(shared));
-        if(shared.size() != tjs.NumPlanes) continue;
+        if(shared.size() < 2) continue;
+        if(shared.size() == tjs.NumPlanes) {
+          // perfect match
+          tjs.matchVecPFPList.push_back(ims);
+          std::vector<int> leftover(v3TjIDs.size());
+          auto it = std::set_difference(v3TjIDs.begin(), v3TjIDs.end(), shared.begin(), shared.end(), leftover.begin());
+          leftover.resize(it - leftover.begin());
+          if(prt) {
+            mf::LogVerbatim myprt("TC");
+            myprt<<" perfect match with ims "<<ims<<" TjIDs";
+            for(auto& tjID : mstjids) myprt<<" "<<tjID;
+            myprt<<" leftover";
+            for(auto& tjID : leftover) myprt<<" "<<tjID;
+          }
+          // declare a start or end vertex
+          if(ms.Vx3ID[0] == 0) {
+            // declare the start vertex. The positions will be determined later
+            ms.Vx3ID[0] = vx3.ID;
+          } else {
+            ms.Vx3ID[1] = vx3.ID;
+          }
+          // flag these Tjs as matched
+          for(auto id : mstjids) tjs.allTraj[id - 1].AlgMod[kMat3D] = true;
+          // keep looking using the leftovers
+          v3TjIDs = leftover;
+        } // perfect match
       } // ims
-      if(ims == tjs.matchVec.size()) {
-        if(prt) mf::LogVerbatim("TC")<<" This combo isn't in matchVec. Making one";
-        Vtx3Store& vx3 = tjs.vtx3[iv3];
-        MatchStruct ms = CreateMatchStruct(tjs, vx3.TPCID, tjList.size());
-        // Note that the Tjs in this list were sorted by ID and may not be in plane order
-        ms.TjIDs = tjList;
-        ms.Count = cnt;
-        // declare a start vertex
-        ms.Vx3ID[0] = vx3.ID;
-        // insert it at the beginning to ensure it will be used
-        tjs.matchVec.insert(tjs.matchVec.begin(), ms);
-        // increment the previous PFP matches
-        for(auto& indx : tjs.matchVecPFPList) ++indx;
-        // insert the new one
-        tjs.matchVecPFPList.insert(tjs.matchVecPFPList.begin(), 0);
-        for(auto& tjID : tjList) {
-          tjs.allTraj[tjID - 1].AlgMod[kMat3D] = true;
-        } // tjID
-      } else {
-        if(prt) mf::LogVerbatim("TC")<<" Found combo "<<ims<<" in matchVec";
-        tjs.matchVecPFPList.push_back(ims);
-      }
-    } // iv3
-    
+      if(v3TjIDs.empty()) continue;
+/* This is where recover code would be inserted
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"M3DVTj Unmatched Tjs";
+        for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
+        myprt<<" Maybe ok, maybe not";
+      } // prt
+*/
+    } // ii (vx3 sorted)
+
   } // Match3DVtxTjs
 
   //////////////////////////////////////////
@@ -2008,17 +1950,16 @@ namespace tca {
     // returns a list of Tjs in all planes that are attached to vx3
     std::vector<int> tmp;
     if(vx3.ID == 0) return tmp;
-    short nvx2 = 0;
+    float nvx2 = 0;
     score = 0;
-    for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-      if(vx3.Vx2ID[ipl] == 0) continue;
-      const auto& vx2 = tjs.vtx[vx3.Vx2ID[ipl] - 1];
+    for(auto& vx2 : tjs.vtx) {
       if(vx2.ID == 0) continue;
+      if(vx2.Vtx3ID != vx3.ID) continue;
       auto vtxTjID2 = GetVtxTjIDs(tjs, vx2);
       tmp.insert(tmp.end(), vtxTjID2.begin(), vtxTjID2.end());
       score += vx2.Score;
       ++nvx2;
-    } // ipl
+    } // vx2
     if(nvx2 < 1) return tmp;
     // find the average score
     score /= nvx2;
