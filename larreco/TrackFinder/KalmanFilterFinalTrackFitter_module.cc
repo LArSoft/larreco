@@ -274,7 +274,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
   auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
   auto outputHitInfo = std::make_unique<std::vector<std::vector<recob::TrackFitHitInfo> > >();
 
-  auto const tid = getProductID<std::vector<recob::Track> >(e);
+  auto const tid = getProductID<std::vector<recob::Track> >();
   auto const tidgetter = e.productGetter(tid);
 
   //FIXME, eventually remove this (ok only for single particle MC)

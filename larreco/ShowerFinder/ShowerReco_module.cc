@@ -812,7 +812,7 @@ for(unsigned int ij = 0; ij < fNPlanes; ++ij)
   art::PtrVector < recob::Shower >  ssvec;
 	
     //for(unsigned int ip=0;ip<1;ip++)  {
-	art::ProductID aid = this->getProductID< std::vector < recob::Shower > >(evt);
+	art::ProductID aid = this->getProductID< std::vector < recob::Shower > >();
 	art::Ptr< recob::Shower > aptr(aid, 0, evt.productGetter(aid));
 	ssvec.push_back(aptr);
       //}
