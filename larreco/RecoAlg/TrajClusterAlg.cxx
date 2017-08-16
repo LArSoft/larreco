@@ -517,8 +517,8 @@ namespace tca {
     if(tjs.ShowerTag[0] >= 0) debug.Plane = tjs.ShowerTag[11];
     if(fDebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
-      PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
       PrintPFParticles("RTC", tjs);
+      PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
     }
 
     unsigned short ntj = 0;
@@ -1185,18 +1185,6 @@ namespace tca {
       // Just use the hit position as the traj position
       tp.Pos = tp.HitPos;
       if(TrajPointSeparation(work.Pts[ipt-1], tp) < 0.5) continue;
-/* This sometimes gives bogus angles. Just use the original TP angle
-      // define the direction
-      if(!MakeBareTrajPoint(tjs, work.Pts[ipt-1], tp, tpd)) continue;
-      tp.Dir = tpd.Dir;
-      tp.Ang = tpd.Ang;
-      SetAngleCode(tjs, tp);
-      if(ipt == 1) {
-        work.Pts[0].Dir = tpd.Dir;
-        work.Pts[0].Ang = tpd.Ang;
-        work.Pts[0].AngleCode = tpd.AngleCode;
-      }
-*/
       work.Pts.push_back(tp);
       SetEndPoints(tjs, work);
     }
@@ -2774,7 +2762,9 @@ namespace tca {
       } // tjID
       // clobber any 2D vertices that exist between trajectories in the match list
       for(unsigned short ii = 0; ii < vtxIDs.size(); ++ii) {
-        if(vtxIDCnt[ii] > 1) MakeVertexObsolete(tjs, vtxIDs[ii], true);
+        if(vtxIDCnt[ii] > 1 && !MakeVertexObsolete(tjs, vtxIDs[ii], false)) {
+          std::cout<<"FillPFPInfo: MakeVertexObsolete refused to delete "<<vtxIDs[ii]<<". This must be a problem\n";
+        } 
       } // ii
       // Make a 3D vertex at the start of the PFParticle if one doesn't already exist
       if(ms.Vx3ID[0] == 0) {
