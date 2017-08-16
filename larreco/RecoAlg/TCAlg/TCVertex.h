@@ -31,7 +31,7 @@
 namespace tca {
   
   void Find2DVertices(TjStuff& tjs, const CTP_t& inCTP);
-  bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& vx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2);
+  bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& vx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2, bool prt);
   void FindHammerVertices(TjStuff& tjs, const CTP_t& inCTP);
   void FindHammerVertices2(TjStuff& tjs, const CTP_t& inCTP);
   void Find3DVertices(TjStuff& tjs, const geo::TPCID& tpcid);
@@ -43,7 +43,7 @@ namespace tca {
 
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, bool prt);
-  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned short itj, bool prt);
+  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned int itj, bool prt);
   bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, bool prt);
   float TrajPointVertexPull(TjStuff& tjs, const TrajPoint& tp, const VtxStore& vx);
   float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
