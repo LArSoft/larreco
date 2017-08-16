@@ -542,8 +542,6 @@ namespace tca {
       } // e2
     } // e1
     
-    // check the overlap fraction
-//    std::cout<<tj1.ID<<" "<<tj2.ID<<" VtxIDs  "<<tj1.VtxID[end1]<<"  "<<tj2.VtxID[end2]<<"\n";
     // don't merge if they have a vertex at these ends
     if(tj1.VtxID[end1] > 0 || tj2.VtxID[end2] > 0) return false;
     // or if there is a Bragg Peak
@@ -1256,6 +1254,9 @@ namespace tca {
         } // ii
       } // ipt
     } // debug.Hit ...
+    
+    // Try to attach to a vertex
+    AttachTrajToAnyVertex(tjs, tjs.allTraj.size() - 1, false);
     
     return true;
     
@@ -2631,6 +2632,7 @@ namespace tca {
     float sepCut = tjs.DeltaRayTag[0];
     unsigned short minMom = tjs.DeltaRayTag[1];
     unsigned short maxMom = tjs.DeltaRayTag[2];
+    unsigned short endCut = tjs.Vertex2DCuts[2];
     
     for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& muTj = tjs.allTraj[itj];
@@ -2639,6 +2641,10 @@ namespace tca {
       bool prt = (muTj.WorkID == debugWorkID);
       if(prt) mf::LogVerbatim("TC")<<"TagDeltaRays: Muon "<<muTj.CTP<<" "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]]);
       if(muTj.PDGCode != 13) continue;
+      // min length
+      if(muTj.Pts.size() < 2 * endCut) continue;
+      unsigned short end0Cut = muTj.EndPt[0] + endCut;
+      unsigned short end1Cut = muTj.EndPt[1] - endCut;
       // Found a muon, now look for delta rays
       for(unsigned short jtj = 0; jtj < tjs.allTraj.size(); ++jtj) {
         Trajectory& drTj = tjs.allTraj[jtj];
@@ -2666,20 +2672,18 @@ namespace tca {
         if(sep0 == sepCut) continue;
         if(prt) mf::LogVerbatim("TC")<<"  ID "<<drTj.ID<<" "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[0]])<<" muPt0 "<<muPt0<<" sep0 "<<sep0;
         // stay away from the ends
-        if(muPt0 < muTj.EndPt[0] + 5) continue;
-        if(muPt0 > muTj.EndPt[1] - 5) continue;
+        if(muPt0 < end0Cut) continue;
+        if(muPt0 > end1Cut) continue;
         float sep1 = sepCut;
         TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[1]], muTj, muPt1, sep1);
         if(prt) mf::LogVerbatim("TC")<<"      "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[1]])<<" muPt1 "<<muPt1<<" sep1 "<<sep1;
         if(sep1 == sepCut) continue;
         // stay away from the ends
-        if(muPt1 < muTj.EndPt[0] + 5) continue;
-        if(muPt1 > muTj.EndPt[1] - 5) continue;
+        if(muPt1 < end0Cut) continue;
+        if(muPt1 > end1Cut) continue;
         if(prt) mf::LogVerbatim("TC")<<" delta ray "<<drTj.ID<<" near "<<PrintPos(tjs, muTj.Pts[muPt0]);
         drTj.ParentTrajID = muTj.ID;
         drTj.PDGCode = 11;
-        // check for a vertex with another tj and if one is found, kill it
-        for(unsigned short end = 0; end < 2; ++end) if(drTj.VtxID[end] > 0) MakeVertexObsolete(tjs, drTj.VtxID[end], true);
       } // jtj
     } // itj
     
@@ -3193,8 +3197,10 @@ namespace tca {
     }
     
     if(tj1.VtxID[1] > 0 && tj2.VtxID[0] == tj1.VtxID[1]) {
-      if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: Found a vertex between Tjs "<<tj1.VtxID[1]<<". Killing it";
-      MakeVertexObsolete(tjs, tj1.VtxID[1], true);
+      if(!MakeVertexObsolete(tjs, tj1.VtxID[1], false)) {
+        if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: Found a good vertex between Tjs "<<tj1.VtxID[1]<<" No merging";
+        return false;
+      }
     }
     
     if(tj1.StopFlag[1][kBragg]) {
