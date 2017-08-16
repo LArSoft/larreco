@@ -185,7 +185,7 @@ namespace tca {
               tjs.allTraj[it2].VtxID[end2] = 0;
               continue;
             }
-            if(MergeWithNearbyVertex(tjs, aVtx, it1, end1, it2, end2)) continue;
+//            if(MergeWithNearbyVertex(tjs, aVtx, it1, end1, it2, end2, prt)) continue;
             // Save it
             if(!StoreVertex(tjs, aVtx)) continue;
             // Try to attach other tjs to it
@@ -212,13 +212,13 @@ namespace tca {
   } // Find2DVertices
   
   //////////////////////////////////////////
-  bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& newVx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2)
+  bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& newVx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2, bool prt)
   {
     // Tries to merge a new vertex, vx2, that has yet to be added to tjs.vtx to see if the
     // Tjs can instead be merged with a nearby existing vertex
     
     // Merge vertices if the positions are within 1.5 * the maximum position error
-    float sepcut = 1.5 * tjs.Vertex2DCuts[4];
+    float sepCut = 2 * tjs.Vertex2DCuts[4];
     
     auto& tj1 = tjs.allTraj[it1];
     auto& tj2 = tjs.allTraj[it2];
@@ -228,8 +228,12 @@ namespace tca {
       if(vx2.ID == 0) continue;
       float sep = PosSep(vx2.Pos, newVx2.Pos);
       // Try to merge them if within the specified vertex position error
-      if(sep > sepcut) continue;
-      if(AttachTrajToVertex(tjs, tj1, vx2, false) || AttachTrajToVertex(tjs, tj2, vx2, false)) return true;
+      if(sep > sepCut) continue;
+      if(prt) mf::LogVerbatim("TC")<<"MWNV: "<<tj1.ID<<"_"<<end1<<" "<<tj2.ID<<"_"<<end2<<" vx2 "<<vx2.ID<<" sep "<<sep<<" sepCut "<<sepCut<<"\n";
+      if(AttachTrajToVertex(tjs, tj1, vx2, prt) || AttachTrajToVertex(tjs, tj2, vx2, prt)) {
+        vx2.Stat[kVtxMerged] = true;
+        return true;
+      }
     } // vx2
     return false;
   } // MergeWithNearbyVertex
@@ -933,13 +937,12 @@ namespace tca {
     VtxStore& vx = tjs.vtx[ivx];
     
     unsigned short nadd = 0;
-    for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
-      Trajectory& tj = tjs.allTraj[itj];
+    for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.CTP != vx.CTP) continue;
       if(tj.VtxID[0] == vx.ID || tj.VtxID[1] == vx.ID) continue;
       if(AttachTrajToVertex(tjs, tj, vx, prt)) ++nadd;
-    } // itj
+    } // tj
     if(prt) mf::LogVerbatim("TC")<<" AttachAnyTrajToVertex: nadd "<<nadd;
     if(nadd == 0) return false;
     return true;
@@ -947,7 +950,7 @@ namespace tca {
   } // AttachAnyTrajToVertex
   
   //////////////////////////////////////////
-  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned short itj, bool prt)
+  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned int itj, bool prt)
   {
     
     if(itj > tjs.allTraj.size() - 1) return false;
@@ -961,17 +964,20 @@ namespace tca {
       VtxStore& vx2 = tjs.vtx[ivx];
       if(vx2.ID == 0) continue;
       if(vx2.CTP != tj.CTP) continue;
+      // try both ends
       if(tj.VtxID[0] == vx2.ID || tj.VtxID[1] == vx2.ID) continue;
       if(AttachTrajToVertex(tjs, tj, vx2, prt)) ++nadd;
+      if(nadd == 2) return true;
     } // ivx
-    if(nadd == 0) return false;
-    return true;
+    if(nadd > 1) return true;
+    return false;
     
   } // AttachAnyTrajToVertex
   
   //////////////////////////////////////////
   bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, bool prt)
   {
+    // Note that this function does not require a signal between the end of the Tj and the vertex
     
     // tjs.Vertex2DCuts fcl input usage
     // 0 = maximum length of a short trajectory
@@ -1031,9 +1037,10 @@ namespace tca {
       dpt = tj.EndPt[end] - closePt;
     }
     
+    float length = TrajLength(tj);
     // don't attach it if the tj length is shorter than the separation distance
-    if(TrajLength(tj) < closestApproach) return false;
-    
+    if(length > 2 && length < closestApproach) return false;
+
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"ATTV: vx.ID "<<vx.ID;
@@ -1479,8 +1486,8 @@ namespace tca {
       // last call after vertices have been matched to the truth. Use to optimize VertexScoreWeights using
       // an ntuple
       mf::LogVerbatim myprt("TC");
-      myprt<<"VSW "<<vx2.Stat[kVtxTruMatch];
-      myprt<<" "<<m3Dcnt;
+      myprt<<"VSW "<<vx2.ID;
+      myprt<<" m3Dcnt"<<m3Dcnt;
       myprt<<" "<<std::fixed<<std::setprecision(2)<<(vx2.PosErr[0] + vx2.PosErr[1]);
       myprt<<" "<<std::fixed<<std::setprecision(3)<<vx2.TjChgFrac;
       myprt<<" "<<std::fixed<<std::setprecision(1)<<sum;
@@ -1871,6 +1878,7 @@ namespace tca {
     // Make vertices that have a poor score obsolete
     for(auto& vx2 : tjs.vtx) {
       if(vx2.ID == 0) continue;
+      if(vx2.Stat[kHiVx3Score]) continue;
       if(vx2.Score < tjs.Vertex2DCuts[7]) MakeVertexObsolete(tjs, vx2.ID, true);
     } // vx
   } // KillPoorVertices
@@ -1890,7 +1898,11 @@ namespace tca {
     // Kill it
     vx2.ID = 0;
     for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
       for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.ID == 107 && tj.VtxID[end] == vx2ID) {
+          std::cout<<"Remove vtx "<<vx2ID<<" from tj 107\n";
+        }
         if(tj.VtxID[end] == vx2ID) tj.VtxID[end] = 0;
       } // end
     } // tj
