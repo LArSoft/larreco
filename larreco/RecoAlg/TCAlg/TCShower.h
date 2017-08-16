@@ -36,6 +36,7 @@ namespace tca {
   bool Find3DShowerEndPoints(TjStuff& tjs, MatchStruct& ms);
   void Finish3DShowers(TjStuff& tjs);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
+  void SaveAllCots(TjStuff& tjs, std::string someText);
   void FindMatchingTjs(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool MergeShowerTjsAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
   bool TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
@@ -58,7 +59,7 @@ namespace tca {
   bool WrongSplitTj(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short tjEnd, ShowerStruct& ss, bool prt);
   float ParentFOM(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short& tjEnd, ShowerStruct& ss, float& tp1Sep, float& vx3Score, bool prt);
   void DefineEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
-  bool AddTjsInsideEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
+  bool AddTjsInsideEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool nukeEmAll, bool prt);
   void RefineShowerTj(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool AddLooseHits(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void FindStartChg(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
