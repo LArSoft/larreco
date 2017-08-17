@@ -30,8 +30,24 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     direction = -track.EndDirection();
   }
 
-  SVector5 trackStatePar(0.,0.,0.,0.,1./pval);
   auto trackStateCov = (flipDirection ? covEnd : covVtx );
+
+  return fitTrack(position, direction, trackStateCov, tkID, hits, flags, pval, pdgid, outTrack, outHits, trackFitHitInfos);
+
+}
+
+bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& direction,
+				       SMatrixSym55& trackStateCov, int tkID,
+				       const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
+				       const double pval, const int pdgid,
+				       recob::Track& outTrack,    art::PtrVector<recob::Hit>& outHits,
+				       std::vector<recob::TrackFitHitInfo>& trackFitHitInfos) {
+  outHits.clear();
+  if (hits.size()<4) {
+    mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
+    return false;
+  }
+
   if (trackStateCov==SMatrixSym55()) {
     trackStateCov(0, 0) = 1000.;
     trackStateCov(1, 1) = 1000.;
@@ -39,6 +55,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     trackStateCov(3, 3) = 0.25;
     trackStateCov(4, 4) = 10.;
   }
+  SVector5 trackStatePar(0.,0.,0.,0.,1./pval);
 
   // setup the KFTrackState we'll use throughout the fit
   KFTrackState trackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);//along direction by definition
@@ -510,7 +527,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::Trajectory& track, int tkID,
     std::cout << "outTrack vertex=" << outTrack.Start()
 	      << "\ndir=" << outTrack.StartDirection()
 	      << "\ncov=\n" << outTrack.StartCovariance()
-	      << "\nlength=" << outTrack.Length() << " inLenght=" << track.Length()
+	      << "\nlength=" << outTrack.Length() //<< " inLenght=" << track.Length()
 	      << std::endl;
   }
 

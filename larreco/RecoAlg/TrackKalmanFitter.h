@@ -101,6 +101,23 @@ namespace trkf {
 		  recob::Track& outTrack,    art::PtrVector<recob::Hit>& outHits,
 		  std::vector<recob::TrackFitHitInfo>& trackFitHitInfos);
 
+    bool fitTrack(const Point_t& position, const Vector_t& direction,
+		  SMatrixSym55& trackStateCov, int tkID,
+		  const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
+		  const double pval, const int pdgid,
+		  recob::Track& outTrack,    art::PtrVector<recob::Hit>& outHits,
+		  std::vector<recob::TrackFitHitInfo>& trackFitHitInfos);
+
+    bool fitTrack(const Point_t& position, const Vector_t& direction,
+		  SMatrixSym55& trackStateCov, int tkID,
+		  const std::vector<art::Ptr<recob::Hit> >& hits, const double pval, const int pdgid,
+		  recob::Track& outTrack,    art::PtrVector<recob::Hit>& outHits,
+		  std::vector<recob::TrackFitHitInfo>& trackFitHitInfos)
+    {
+      return fitTrack(position, direction, trackStateCov, tkID, hits, std::vector<recob::TrajectoryPointFlags>(),
+		      pval, pdgid, outTrack, outHits, trackFitHitInfos);
+    }
+
     bool getSkipNegProp() const     { return skipNegProp_; }
     void setSkipNegProp(bool value) { skipNegProp_=value; }
     bool getCleanZigzag() const     { return cleanZigzag_; }

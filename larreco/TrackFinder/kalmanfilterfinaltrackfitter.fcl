@@ -4,12 +4,14 @@ kalmantrackfit: {
   inputs: {
         inputPFParticleLabel: @nil
   	inputTracksLabel: @nil
+  	inputShowersLabel: @nil
   	inputCaloLabel: @nil
   	inputMCLabel: mcreco
         inputPidLabel: @nil
   }
   options: {
         trackFromPF: false
+        showerFromPF: false
         momFromMSChi2: false
         momFromCalo: false
         momFromLength: false
@@ -25,6 +27,7 @@ kalmantrackfit: {
 	alwaysInvertDir: false
  	tryNoSkipWhenFails: true
 	produceTrackFitHitInfo: true
+	produceSpacePoints: true
 	keepInputTrajectoryPoints: false
   }
   fitter: {
