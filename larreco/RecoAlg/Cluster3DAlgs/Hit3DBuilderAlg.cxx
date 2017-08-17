@@ -138,20 +138,20 @@ void Hit3DBuilderAlg::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireT
     }
     
     // add quiet wires in U plane for microboone (this will done "correctly" in near term)
-    PlaneToWireToHitSetMap::iterator plane0HitItr = planeToWireToHitSetMap.find(geo::PlaneID(0,0,0));
+//    PlaneToWireToHitSetMap::iterator plane0HitItr = planeToWireToHitSetMap.find(geo::PlaneID(0,0,0));
     
-    if (plane0HitItr != planeToWireToHitSetMap.end())
-    {
-//        WireToHitSetMap& wireToHitSetMap = uPlaneHitItr->second;
+//    if (plane0HitItr != planeToWireToHitSetMap.end())
+//    {
+////        WireToHitSetMap& wireToHitSetMap = uPlaneHitItr->second;
     
-        for(size_t idx = 2016; idx < 2096; idx++)  m_channelStatus[0][idx] = 3;
-        for(size_t idx = 2192; idx < 2304; idx++)  m_channelStatus[0][idx] = 3;
-        for(size_t idx = 2352; idx < 2384; idx++)  m_channelStatus[0][idx] = 3;
-        //for(size_t idx = 2016; idx < 2096; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-        //for(size_t idx = 2192; idx < 2304; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-        //for(size_t idx = 2352; idx < 2384; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-//      for(size_t idx = 2016; idx < 2384; idx++) m_channelStatus[0][idx] = 3;
-    }
+//        for(size_t idx = 2016; idx < 2096; idx++)  m_channelStatus[0][idx] = 3;
+//        for(size_t idx = 2192; idx < 2304; idx++)  m_channelStatus[0][idx] = 3;
+//        for(size_t idx = 2352; idx < 2384; idx++)  m_channelStatus[0][idx] = 3;
+//        //for(size_t idx = 2016; idx < 2096; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
+//        //for(size_t idx = 2192; idx < 2304; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
+//        //for(size_t idx = 2352; idx < 2384; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
+////      for(size_t idx = 2016; idx < 2384; idx++) m_channelStatus[0][idx] = 3;
+//    }
     
     return;
 }
@@ -442,7 +442,7 @@ size_t Hit3DBuilderAlg::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
         tempPairVec.emplace_back(HitMatchPair(hit,pair));
     }
     
-    if (tempPairVec.size() > 10)
+    if (tempPairVec.size() > 100)
     {
         std::sort(tempPairVec.begin(),tempPairVec.end(),[](HitMatchPair& left, HitMatchPair& right){return left.second.getMaxOverlapFraction() > right.second.getMaxOverlapFraction();});
     
@@ -498,14 +498,17 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
             
             geo::WireID missingPlaneID(0,0,missPlane,0);
             
-            // Get the wire ID for the nearest wire to the position of this hit
-            geo::WireID wireID = NearestWireID(pair12.second.front().second.getPosition(), missingPlaneID);
+//            // Get the wire ID for the nearest wire to the position of this hit
+//            geo::WireID wireID = NearestWireID(pair12.second.front().second.getPosition(), missingPlaneID);
             
             // This loop is over hit pairs that share the same first two plane wires but may have different
             // hit times on those wires
             for(const auto& hit2Dhit3DPair : pair12.second)
             {
                 const reco::ClusterHit3D& pair1  = hit2Dhit3DPair.second;
+                
+                // Get the wire ID for the nearest wire to the position of this hit
+                geo::WireID wireID = NearestWireID(pair1.getPosition(), missingPlaneID);
                 
                 // populate the map with initial value
                 usedPairMap[&pair1] = false;
@@ -555,7 +558,7 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
         if(!tempDeadChanVec.empty())
         {
             // If we have many then see if we can trim down a bit by keeping those with the best overlap
-            if (tempDeadChanVec.size() > 50)
+            if (tempDeadChanVec.size() > 20)
             {
                 std::sort(tempDeadChanVec.begin(),tempDeadChanVec.end(),[](const reco::ClusterHit3D& left, const reco::ClusterHit3D& right){return left.getMaxOverlapFraction() > right.getMaxOverlapFraction();});
                 
@@ -705,10 +708,10 @@ bool Hit3DBuilderAlg::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     if (fabs(hit->getTimeTicks() - pair.getAvePeakTime()) < pairSigma + hitSigma)
     {
         // Timing in range, now check that the input hit wire "intersects" with the input pair's wires
-//        geo::WireID wireIDV   = NearestWireID(pair.getPosition(), hit->getHit().WireID());
+        geo::WireID wireID   = NearestWireID(pair.getPosition(), hit->getHit().WireID());
         
         // There is an interesting round off issue that we need to watch for...
-//        if (wireIDV.Wire == hit->getHit().WireID().Wire || wireIDV.Wire + 1 == hit->getHit().WireID().Wire)
+        if (wireID.Wire == hit->getHit().WireID().Wire || wireID.Wire + 1 == hit->getHit().WireID().Wire)
         {
             // Use the existing code to see the U and W hits are willing to pair with the V hit
             reco::ClusterHit3D pair0h;
@@ -728,6 +731,9 @@ bool Hit3DBuilderAlg::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                 double deltaZ_w  = pairVec[2]->getPosition()[2] - 0.5 * (pairVec[0]->getPosition()[2] + pairVec[1]->getPosition()[2]);
                 double deltaY_uv = pairVec[1]->getPosition()[1] - pairVec[0]->getPosition()[1];
 
+                // The intersection of wires on 3 planes is actually an equilateral triangle... Each pair will have its position at one of the
+                // corners, the difference in distance along the z axis will be 1/2 wire spacing, the difference along the y axis is
+                // 1/2 wire space / cos(pitch)
                 if (std::fabs(std::fabs(deltaZ_w) - 0.5 * m_wirePitch[2]) < .05 && std::fabs(std::fabs(deltaY_uv) - 0.5774 * m_wirePitch[2]) < 0.05)
                 {
                     // Weighted average, delta and sigmas
@@ -790,6 +796,7 @@ bool Hit3DBuilderAlg::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     
                     result = true;
                 }
+                else std::cout << "3D Build --> rejecting triplet by position, delta z: " << deltaZ_w << ", delta y: " << deltaY_uv << std::endl;
             }
         }
     }
