@@ -610,30 +610,6 @@ void trkf::KalmanFilterFinalTrackFitter::restoreInputPoints(const recob::Traject
   for (auto h : inHits) outHits.push_back(h);
 }
 
-void trkf::KalmanFilterFinalTrackFitter::restoreInputPoints(const recob::Trajectory& track,const std::vector<art::Ptr<recob::Hit> >& inHits,recob::Track& outTrack,art::PtrVector<recob::Hit>& outHits) const {
-  const auto np = outTrack.NumberTrajectoryPoints();
-  std::vector<Point_t>                     positions(np);
-  std::vector<Vector_t>                    momenta(np);
-  std::vector<recob::TrajectoryPointFlags> outFlags(np);
-  //
-  for (unsigned int p=0; p<np; ++p) {
-    auto flag = outTrack.FlagsAtPoint(p);
-    auto mom = outTrack.VertexMomentum();
-    auto op = flag.fromHit();
-    positions[op] = track.LocationAtPoint(op);
-    momenta[op] = mom*track.DirectionAtPoint(op);
-    auto mask = flag.mask();
-    if (mask.isSet(recob::TrajectoryPointFlagTraits::NoPoint)) mask.unset(recob::TrajectoryPointFlagTraits::NoPoint);
-    outFlags[op] = recob::TrajectoryPointFlags(op,mask);
-  }
-  auto covs = outTrack.Covariances();
-  outTrack = recob::Track(recob::TrackTrajectory(std::move(positions),std::move(momenta),std::move(outFlags),true),
-			  outTrack.ParticleId(),outTrack.Chi2(),outTrack.Ndof(),std::move(covs.first),std::move(covs.second),outTrack.ID());
-  //
-  outHits.clear();
-  for (auto h : inHits) outHits.push_back(h);
-}
-
 double trkf::KalmanFilterFinalTrackFitter::setMomValue(art::Ptr<recob::Track> ptrack, const std::unique_ptr<art::FindManyP<anab::Calorimetry> >& trackCalo, const double pMC, const int pId) const {
   double result = p_().options().pval();
   if (p_().options().pFromMSChi2()) {
