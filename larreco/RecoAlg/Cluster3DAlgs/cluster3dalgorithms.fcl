@@ -1,25 +1,47 @@
 BEGIN_PROLOG
 
+standard_cluster3dkdTree:
+{
+  EnableMonitoring:  true    # enable monitoring of functions
+  PairSigmaPeakTime: 3.      # "sigma" multiplier on peak time
+}
+
 standard_cluster3dhit3dbuilderalg:
 {
-EnableMonitoring:  true    # enable monitoring of functions
-NumPairPts:           2    # minimum number of hit pairs for DBScan to consider
-TimeAdvanceGap:      50.   # Window size (ticks) for comparing hits in different views
-NumSigmaPeakTime:     1.5  # Number "sigma" for peak times when building hits
+  EnableMonitoring:     true  # enable monitoring of functions
+  NumPairPts:           2     # minimum number of hit pairs for DBScan to consider
+  TimeAdvanceGap:       50.   # Window size (ticks) for comparing hits in different views
+  NumSigmaPeakTime:     1.5   # Number "sigma" for peak times when building hits
 }
 
 standard_cluster3dprincipalcomponentsalg:
 {
-ParallelLines:        0.00001 # delta theta to be parallel
+  ParallelLines:        0.00001 # delta theta to be parallel
+}
+
+standard_cluster3dParamsBuilder:
+{
+  ClusterMinHits:           3
+  ClusterMinUniqueFraction: 0.5
+  ClusterMaxLostFraction:   0.5
+  PrincipalComponentsAlg:   @local::standard_cluster3dprincipalcomponentsalg
 }
 
 standard_cluster3ddbscanalg:
 {
-EnableMonitoring:  true    # enable monitoring of functions
-NumPairPts:           2    # minimum number of hit pairs for DBScan to consider
-TimeAdvanceGap:      50.   # Window size (ticks) for comparing hits in different views
-NumSigmaPeakTime:     1.5  # Number "sigma" for peak times when building hits
-PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  EnableMonitoring:       true    # enable monitoring of functions
+  MinPairPts:             2       # minimum number of hit pairs for DBScan to consider
+  PairSigmaPeakTime:      3       # Number "sigma" for peak times when building hits
+  ClusterParamsBuilder:   @local::standard_cluster3dParamsBuilder
+}
+
+standard_cluster3dminSpanTreeAlg:
+{
+  tool_type:              MinSpanTreeAlg
+  EnableMonitoring:       true           # enable monitoring of functions
+  ClusterParamsBuilder:   @local::standard_cluster3dParamsBuilder
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  kdTree:                 @local::standard_cluster3dkdTree
 }
 
 standard_cluster3dskeletonalg:
@@ -63,10 +85,12 @@ standard_cluster3dparallelhitsseedfinderalg:
 
 microboone_cluster3dhit3dbuilderalg:           @local::standard_cluster3dhit3dbuilderalg
 microboone_cluster3ddbscanalg:                 @local::standard_cluster3ddbscanalg
+microboone_cluster3dminSpanTreeAlg:            @local::standard_cluster3dminSpanTreeAlg
 microboone_cluster3dprincipalcomponentsalg:    @local::standard_cluster3dprincipalcomponentsalg
 microboone_cluster3dskeletonalg:               @local::standard_cluster3dskeletonalg 
 microboone_cluster3dhoughseedfinderalg:        @local::standard_cluster3dhoughseedfinderalg 
 microboone_cluster3dpcaseedfinderalg:          @local::standard_cluster3dpcaseedfinderalg
 microboone_cluster3dparallelhitsseedfinderalg: @local::standard_cluster3dparallelhitsseedfinderalg
+microboone_cluster3dkdtree:                    @local::standard_cluster3dkdTree
 
 END_PROLOG
