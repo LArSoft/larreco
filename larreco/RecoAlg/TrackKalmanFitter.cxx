@@ -51,7 +51,14 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
 
   // do the actual fit
   bool fitok = doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx);
-  if (!fitok) return false;
+  if (!fitok && (skipNegProp_ || cleanZigzag_) && tryNoSkipWhenFails_) {
+    mf::LogWarning("TrackKalmanFitter") << "Trying to recover with skipNegProp = false and cleanZigzag = false\n";
+    fitok = doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx, false);
+  }
+  if (!fitok) {
+    mf::LogWarning("TrackKalmanFitter") << "Fit failed for track with ID=" << tkID << "\n";
+    return false;
+  }
 
   // fill the track, the output hit vector, and the optional output products
   bool fillok = fillResult(hits, tkID, pdgid, reverseHits, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx, outTrack, outHits, optionals);
@@ -120,7 +127,8 @@ bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob:
 
 bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
 					std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState, 
-					std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx) const {
+					std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx, 
+					bool applySkipClean) const {
 
   fwdPrdTkState.clear();
   fwdUpdTkState.clear();
@@ -170,7 +178,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
 	    continue;
 	  }
 	  if (dumpLevel_>1) std::cout << "distance to plane " << iplane << " wire=" << hitstate.wireId().Wire << " = " << dist << ", min_dist=" << min_dist << " min_plane=" << min_plane << std::endl;
-	  if (skipNegProp_ && dist<0.) {
+	  if (applySkipClean && skipNegProp_ && dist<0.) {
 	    rejectedhsidx.push_back(ihit);
 	    continue;
 	  }
@@ -192,7 +200,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
       //propagate to measurement surface
       bool propok = true;
       trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::FORWARD);
-      if (!propok && !skipNegProp_) trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
+      if (!propok && !(applySkipClean && skipNegProp_)) trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
       if (dumpLevel_>1) {
 	std::cout << "hit state " << std::endl; hitstate.dump();
 	std::cout << "propagation result=" << propok << std::endl;
@@ -243,7 +251,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
 	rejectedhsidx.push_back(ihit);
 	continue;
       }
-      if (skipNegProp_) {
+      if (applySkipClean && skipNegProp_) {
 	bool success = true;
 	const double dist = propagator->distanceToPlane(success, trackState.trackState(), hitstate.plane());
 	if (dist<0. || success==false) {
@@ -255,7 +263,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
       //propagate to measurement surface
       bool propok = true;
       trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::FORWARD);
-      if (!propok && !skipNegProp_) trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
+      if (!propok && !(applySkipClean && skipNegProp_)) trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
       if (propok) {
 	hitstateidx.push_back(ihit);
 	fwdPrdTkState.push_back(trackState);
@@ -362,7 +370,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
   }
 
   // sort output states
-  sortOutput(hitstatev, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx);
+  sortOutput(hitstatev, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx, applySkipClean);
   if (sortedtksidx.size()<4) {
     mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
     return false;
@@ -374,7 +382,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
 
 void trkf::TrackKalmanFitter::sortOutput(std::vector<HitState>& hitstatev, std::vector<KFTrackState>& fwdUpdTkState, 
 					 std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx,
-					 std::vector<unsigned int>& sortedtksidx) const {
+					 std::vector<unsigned int>& sortedtksidx, bool applySkipClean) const {
   //
   if (sortOutputHitsMinLength_) {
     //try to sort fixing wires order on planes and picking the closest next plane
@@ -406,7 +414,7 @@ void trkf::TrackKalmanFitter::sortOutput(std::vector<HitState>& hitstatev, std::
       }
       if (min_plane<0) continue;
       const unsigned int ihit = tracksInPlanes[min_plane][iterTracksInPlanes[min_plane]];
-      if (skipNegProp_ && min_dotp<0.) {
+      if (applySkipClean && skipNegProp_ && min_dotp<0.) {
 	rejectedhsidx.push_back(hitstateidx[ihit]);
 	iterTracksInPlanes[min_plane]++;
 	continue;
@@ -424,7 +432,7 @@ void trkf::TrackKalmanFitter::sortOutput(std::vector<HitState>& hitstatev, std::
     }
   }
   //
-  if (cleanZigzag_) {
+  if (applySkipClean && cleanZigzag_) {
     std::vector<unsigned int> itoerase;
     bool clean = false;
     while (!clean) {

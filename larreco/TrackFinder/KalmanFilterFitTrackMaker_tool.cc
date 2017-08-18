@@ -1,3 +1,10 @@
+////////////////////////////////////////////////////////////////////////
+// Class:       KalmanFilterFitTrackMaker
+// File:        KalmanFilterFitTrackMaker_tool.cc
+//
+// Author: Giuseppe Cerati, cerati@fnal.gov
+////////////////////////////////////////////////////////////////////////
+
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/ToolConfigTable.h"
 #include "fhiclcpp/types/Atom.h"
@@ -12,6 +19,15 @@
 #include "lardataobj/RecoBase/MCSFitResult.h"
 
 namespace trkmkr {
+
+  /**
+   * @brief Concrete implementation of a tool to fit tracks with TrackKalmanFitter.
+   *
+   * Concrete implementation of a tool to fit tracks with TrackKalmanFitter; inherits from abstract class TrackMaker.
+   * It prepares the input needed by the fitter (momentum, particleId, direction), and returns a track with all outputs filled.
+   * If the flag keepInputTrajectoryPoints is set to true, the tracjetory points from the input track are copied into the output,
+   * so that only the covariance matrices, the chi2 and the ndof in the output track are resulting from the fit.
+   */
 
   class KalmanFilterFitTrackMaker : public TrackMaker {
 
@@ -48,10 +64,6 @@ namespace trkmkr {
       fhicl::Atom<bool> alwaysInvertDir {
 	Name("alwaysInvertDir"),
 	Comment("If true, fit all tracks from end to vertex assuming inverted direction.")
-      };
-      fhicl::Atom<bool> tryNoSkipWhenFails {
-        Name("tryNoSkipWhenFails"),
-        Comment("In case skipNegProp is true and the track fit fails, make a second attempt to fit the track with skipNegProp=false in order to attempt to avoid losing efficiency.")
       };
       fhicl::Atom<bool> keepInputTrajectoryPoints {
         Name("keepInputTrajectoryPoints"),
@@ -145,20 +157,7 @@ bool trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const recob::TrackTrajecto
   const int    pid = setParticleID(traj, tkID);
   const bool   flipDirection = setDirection(traj, tkID);
   bool fitok = kalmanFitter->fitTrack(traj, tkID, covVtx, covEnd, inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
-  //
-  if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
-    //ok try once more without skipping hits
-    mf::LogWarning("KalmanFilterFitTrackMaker") << "Try to recover with skipNegProp = false and cleanZigzag = false\n";
-    kalmanFitter->setSkipNegProp(false);
-    kalmanFitter->setCleanZigzag(false);
-    fitok = kalmanFitter->fitTrack(traj, tkID, covVtx, covEnd, inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
-    kalmanFitter->setSkipNegProp(p_().fitter().skipNegProp());
-    kalmanFitter->setCleanZigzag(p_().fitter().cleanZigzag());
-  }
-  if (!fitok) {
-    mf::LogWarning("KalmanFilterFitTrackMaker") << "Fit failed for track with ID=" << tkID << "\n";
-    return false;
-  }
+  if (!fitok) return false;
   //
   if (p_().options().keepInputTrajectoryPoints()) {
     restoreInputPoints(traj,inHits,outTrack,outHits,optionals);

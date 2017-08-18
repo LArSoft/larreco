@@ -98,10 +98,6 @@ namespace trkf {
 	Name("alwaysInvertDir"),
 	Comment("If true, fit all tracks from end to vertex assuming inverted direction.")
       };
-      fhicl::Atom<bool> tryNoSkipWhenFails {
-        Name("tryNoSkipWhenFails"),
-        Comment("In case skipNegProp is true and the track fit fails, make a second attempt to fit the track with skipNegProp=false in order to attempt to avoid losing efficiency.")
-      };
       fhicl::Atom<bool> produceTrackFitHitInfo {
         Name("produceTrackFitHitInfo"),
         Comment("Option to produce (or not) the detailed TrackFitHitInfo.")
@@ -301,22 +297,7 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
 					SMatrixSym55(),SMatrixSym55(),
 					inHits,//inFlags,
 					mom, pId, flipDir, outTrack, outHits, optionals);
-    if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
-      //ok try once more without skipping hits
-      mf::LogWarning("KalmanFilterTrajectoryFitter") << "Try to recover with skipNegProp = false and cleanZigzag = false\n";
-      kalmanFitter->setSkipNegProp(false);
-      kalmanFitter->setCleanZigzag(false);
-      fitok = kalmanFitter->fitTrack(inTraj,iTraj,
-				     SMatrixSym55(),SMatrixSym55(),
-				     inHits,//inFlags,
-				     mom, pId, flipDir, outTrack, outHits, optionals);
-      kalmanFitter->setSkipNegProp(p_().fitter().skipNegProp());
-      kalmanFitter->setCleanZigzag(p_().fitter().cleanZigzag());
-    }
-    if (!fitok) {
-      mf::LogWarning("KalmanFilterTrajectoryFitter") << "Fit failed for track #" << iTraj << "\n";
-      continue;
-    }
+    if (!fitok) continue;
 
     if (p_().options().keepInputTrajectoryPoints()) {
       restoreInputPoints(inTraj,inHits,outTrack,outHits);

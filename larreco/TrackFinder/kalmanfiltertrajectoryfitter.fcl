@@ -17,7 +17,6 @@ kalmantrajfit: {
         dirFromVec: false
         dirVec: [0,0,1]
 	alwaysInvertDir: false
- 	tryNoSkipWhenFails: true
 	produceTrackFitHitInfo: true
 	keepInputTrajectoryPoints: false
   }
@@ -30,6 +29,7 @@ kalmantrajfit: {
         rejectHighMultHits: true
         rejectHitsNegativeGOF: true
 	hitErr2ScaleFact: 1.0
+ 	tryNoSkipWhenFails: true
 	dumpLevel: 0
   }
   propagator: {

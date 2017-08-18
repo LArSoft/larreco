@@ -72,6 +72,10 @@ namespace trkf {
         Name("hitErr2ScaleFact"),
 	Comment("Scale the hit error squared by this factor.")
       };
+      fhicl::Atom<bool> tryNoSkipWhenFails {
+        Name("tryNoSkipWhenFails"),
+        Comment("In case skipNegProp is true and the track fit fails, make a second attempt to fit the track with skipNegProp=false in order to attempt to avoid losing efficiency.")
+      };
       fhicl::Atom<int> dumpLevel {
         Name("dumpLevel"),
 	Comment("0 for no debug printouts, 1 for moderate, 2 for maximum.")
@@ -80,7 +84,7 @@ namespace trkf {
     using Parameters = fhicl::Table<Config>;
 
     TrackKalmanFitter(const TrackStatePropagator* prop, bool useRMS, bool sortHitsByPlane, bool sortOutputHitsMinLength, bool skipNegProp, bool cleanZigzag,
-		      bool rejectHighMultHits, bool rejectHitsNegativeGOF, float hitErr2ScaleFact, int dumpLevel){
+		      bool rejectHighMultHits, bool rejectHitsNegativeGOF, float hitErr2ScaleFact, bool tryNoSkipWhenFails, int dumpLevel){
       propagator=prop;
       useRMS_=useRMS;
       sortHitsByPlane_=sortHitsByPlane;
@@ -90,12 +94,13 @@ namespace trkf {
       rejectHighMultHits_=rejectHighMultHits;
       rejectHitsNegativeGOF_=rejectHitsNegativeGOF;
       hitErr2ScaleFact_=hitErr2ScaleFact;
+      tryNoSkipWhenFails_=tryNoSkipWhenFails;
       dumpLevel_=dumpLevel;
       detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
     }
     explicit TrackKalmanFitter(const TrackStatePropagator* prop, Parameters const & p)
       : TrackKalmanFitter(prop,p().useRMS(),p().sortHitsByPlane(),p().sortOutputHitsMinLength(),p().skipNegProp(),p().cleanZigzag(),
-			  p().rejectHighMultHits(),p().rejectHitsNegativeGOF(),p().hitErr2ScaleFact(),p().dumpLevel()) {}
+			  p().rejectHighMultHits(),p().rejectHitsNegativeGOF(),p().hitErr2ScaleFact(),p().tryNoSkipWhenFails(),p().dumpLevel()) {}
 
     bool fitTrack(const recob::TrackTrajectory& traj, int tkID,  const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
 		  const std::vector<art::Ptr<recob::Hit> >& hits, const double pval, const int pdgid, const bool flipDirection,
@@ -114,32 +119,18 @@ namespace trkf {
 
     bool doFitWork(KFTrackState& trackState, std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
 		   std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
-		   std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx) const;
+		   std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx, 
+		   bool applySkipClean = true) const;
 
     void sortOutput(std::vector<HitState>& hitstatev, std::vector<KFTrackState>& fwdUpdTkState,
 		    std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx,
-		    std::vector<unsigned int>& sortedtksidx) const;
+		    std::vector<unsigned int>& sortedtksidx, bool applySkipClean = true) const;
 
     bool fillResult(const std::vector<art::Ptr<recob::Hit> >& inHits, const int tkID, const int pdgid, const bool reverseHits,
 		    std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
 		    std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
 		    std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx,
 		    recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const;
-
-    /* bool fitTrack(const Point_t& position, const Vector_t& direction, */
-    /* 		  SMatrixSym55& trackStateCov, int tkID, */
-    /* 		  const std::vector<art::Ptr<recob::Hit> >& hits, const double pval, const int pdgid, */
-    /* 		  recob::Track& outTrack,    art::PtrVector<recob::Hit>& outHits, */
-    /* 		  std::vector<recob::TrackFitHitInfo>& trackFitHitInfos) */
-    /* { */
-    /*   return fitTrack(position, direction, trackStateCov, tkID, hits, std::vector<recob::TrajectoryPointFlags>(), */
-    /* 		      pval, pdgid, outTrack, outHits, trackFitHitInfos); */
-    /* } */
-
-    bool getSkipNegProp() const     { return skipNegProp_; }
-    void setSkipNegProp(bool value) { skipNegProp_=value; }
-    bool getCleanZigzag() const     { return cleanZigzag_; }
-    void setCleanZigzag(bool value) { cleanZigzag_=value; }
 
   private:
     art::ServiceHandle<geo::Geometry> geom;
@@ -153,6 +144,7 @@ namespace trkf {
     bool rejectHighMultHits_;
     bool rejectHitsNegativeGOF_;
     float hitErr2ScaleFact_;
+    bool tryNoSkipWhenFails_;
     int dumpLevel_;
   };
 

@@ -1,6 +1,13 @@
 #ifndef TRACKCREATIONBOOKKEEPER_H
 #define TRACKCREATIONBOOKKEEPER_H
 
+////////////////////////////////////////////////////////////////////////
+// Class:       TrackCreationBookKeeper
+// File:        TrackCreationBookKeeper.h
+//
+// Author: Giuseppe Cerati, cerati@fnal.gov
+////////////////////////////////////////////////////////////////////////
+
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/TrackingTypes.h"
@@ -8,6 +15,14 @@
 #include "lardataobj/RecoBase/TrackFitHitInfo.h"
 
 namespace trkmkr {
+
+  /**
+   * @brief Helper class to aid the creation of a recob::Track, keeping data vectors in sync.
+   *
+   * Helper class to aid the creation of a recob::Track, keeping data vectors (Point_t, Vector_t, PointFlags_t, Hit, TrackFitHitInfo) in sync.
+   * Elements of those vectors are added sequentially using the addPoint functions.
+   * Once all points have been added a call to the function finalizeTrack, builds the track moving the content of the vectors.
+   */
 
   using namespace recob;
   using Point_t = tracking::Point_t;
