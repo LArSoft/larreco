@@ -77,6 +77,7 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/SkeletonAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Hit3DBuilderAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IClusterModAlg.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/OverriddenClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
@@ -244,14 +245,15 @@ private:
     const detinfo::DetectorProperties* m_detector;              ///<  Pointer to the detector properties
 
     // Algorithms
-    Hit3DBuilderAlg                             m_hit3DBuilderAlg;   ///<  Algorithm to build 3D hits
-    std::unique_ptr<lar_cluster3d::IClusterAlg> m_clusterAlg;        ///<  Algorithm to do 3D space point clustering
-    ClusterParamsBuilder                        m_clusterBuilder;    ///<  Common cluster builder tool
-    PrincipalComponentsAlg                      m_pcaAlg;            ///<  Principal Components algorithm
-    SkeletonAlg                                 m_skeletonAlg;       ///<  Skeleton point finder
-    HoughSeedFinderAlg                          m_seedFinderAlg;     ///<  Seed finder
-    PCASeedFinderAlg                            m_pcaSeedFinderAlg;  ///<  Use PCA axis to find seeds
-    ParallelHitsSeedFinderAlg                   m_parallelHitsAlg;   ///<  Deal with parallel hits clusters
+    Hit3DBuilderAlg                                m_hit3DBuilderAlg;   ///<  Algorithm to build 3D hits
+    std::unique_ptr<lar_cluster3d::IClusterAlg>    m_clusterAlg;        ///<  Algorithm to do 3D space point clustering
+    std::unique_ptr<lar_cluster3d::IClusterModAlg> m_clusterMergeAlg;   ///<  Algorithm to do cluster merging
+    ClusterParamsBuilder                           m_clusterBuilder;    ///<  Common cluster builder tool
+    PrincipalComponentsAlg                         m_pcaAlg;            ///<  Principal Components algorithm
+    SkeletonAlg                                    m_skeletonAlg;       ///<  Skeleton point finder
+    HoughSeedFinderAlg                             m_seedFinderAlg;     ///<  Seed finder
+    PCASeedFinderAlg                               m_pcaSeedFinderAlg;  ///<  Use PCA axis to find seeds
+    ParallelHitsSeedFinderAlg                      m_parallelHitsAlg;   ///<  Deal with parallel hits clusters
 };
 
 DEFINE_ART_MODULE(Cluster3D)
@@ -306,7 +308,8 @@ void Cluster3D::reconfigure(fhicl::ParameterSet const &pset)
     m_parallelHitsCosAng   = pset.get<double>     ("ParallelHitsCosAng",       0.999);
     m_parallelHitsTransWid = pset.get<double>     ("ParallelHitsTransWid",      25.0);
     
-    m_clusterAlg = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
+    m_clusterAlg      = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
+    m_clusterMergeAlg = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterMergeAlg"));
     
     m_pcaAlg.reconfigure(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"));
     m_skeletonAlg.reconfigure(pset.get<fhicl::ParameterSet>("SkeletonAlg"));
@@ -384,6 +387,9 @@ void Cluster3D::produce(art::Event &evt)
         
         // Call the main workhorse algorithm for building the local version of candidate 3D clusters
         m_clusterAlg->Cluster3DHits(*hitPairList, clusterParametersList);
+        
+        // Try merging clusters
+        m_clusterMergeAlg->ModifyClusters(clusterParametersList);
     }
     
     if(m_enableMonitoring) theClockFinish.start();

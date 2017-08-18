@@ -73,6 +73,7 @@ standard_cluster3d:
   EnableProduction:       false
   Hit3DBuilderAlg:        @local::standard_cluster3dhit3dbuilderalg
   ClusterAlg:             @local::standard_cluster3dminSpanTreeAlg
+  ClusterMergeAlg:        @local::standard_cluster3dMergeAlg
   ClusterParamsBuilder:   @local::standard_cluster3dParamsBuilder
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
   SkeletonAlg:            @local::standard_cluster3dskeletonalg

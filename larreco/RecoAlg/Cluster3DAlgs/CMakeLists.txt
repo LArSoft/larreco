@@ -1,5 +1,5 @@
 
-art_make( EXCLUDE        MinSpanTreeAlg_tool.cc
+art_make( EXCLUDE        MinSpanTreeAlg_tool.cc DBScanAlg_tool.cc ClusterMergeAlg_tool.cc
           LIB_LIBRARIES  lardataobj_RecoBase
                          larcorealg_Geometry
                          larcore_Geometry_Geometry_service
@@ -33,6 +33,10 @@ simple_plugin( MinSpanTreeAlg  "tool"
              )
 
 simple_plugin( DBScanAlg  "tool"
+                         larreco_RecoAlg_Cluster3DAlgs
+             )
+
+simple_plugin( ClusterMergeAlg  "tool"
                          larreco_RecoAlg_Cluster3DAlgs
              )
 
