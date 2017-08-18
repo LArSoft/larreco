@@ -3,8 +3,7 @@
 #include "art/Utilities/ToolMacros.h"
 
 bool trkmkr::DummyTrackMaker::makeTrack(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
-					recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-					const art::Event& e) const {
+					recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const {
   //
   TrackCreationBookKeeper tcbk(outTrack, outHits, optionals, tkID, -1, false);
   for (unsigned int i=0;i<inHits.size();++i) {
