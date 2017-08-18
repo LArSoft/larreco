@@ -62,45 +62,41 @@ namespace trkmkr {
   public:
     virtual ~TrackMaker() noexcept = default;
 
+    virtual void initEvent(const art::Event& e) { return; }
+
     virtual bool makeTrack(const recob::Trajectory& traj, const std::vector<recob::TrajectoryPointFlags>& flags,
 			   const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-			   const art::Event& e) const
+			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
     {
-      return makeTrack(recob::TrackTrajectory(traj,std::move(recob::TrackTrajectory::Flags_t(traj.NPoints()))), tkID, inHits, outTrack, outHits, optionals, e);
+      return makeTrack(recob::TrackTrajectory(traj,std::move(recob::TrackTrajectory::Flags_t(traj.NPoints()))), tkID, inHits, outTrack, outHits, optionals);
     }
 
     virtual bool makeTrack(const art::Ptr<recob::Trajectory> traj, const std::vector<recob::TrajectoryPointFlags>& flags,
 			   const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-			   const art::Event& e) const
+			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
     {
-      return makeTrack(recob::TrackTrajectory(*traj,std::move(recob::TrackTrajectory::Flags_t(traj->NPoints()))), traj.key(), inHits, outTrack, outHits, optionals, e);
+      return makeTrack(recob::TrackTrajectory(*traj,std::move(recob::TrackTrajectory::Flags_t(traj->NPoints()))), traj.key(), inHits, outTrack, outHits, optionals);
     }
 
     virtual bool makeTrack(const art::Ptr<recob::TrackTrajectory> ttraj, const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-			   const art::Event& e) const
+			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
     {
-      return makeTrack(ttraj->Trajectory(), ttraj->Flags(), ttraj.key(), inHits, outTrack, outHits, optionals, e);
+      return makeTrack(ttraj->Trajectory(), ttraj->Flags(), ttraj.key(), inHits, outTrack, outHits, optionals);
     }
 
     virtual bool makeTrack(const recob::TrackTrajectory& ttraj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-			   const art::Event& e) const = 0;
+			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const = 0;
 
     virtual bool makeTrack(const art::Ptr<recob::Track> track, const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-			   const art::Event& e) const
+			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
     {
-      return makeTrack(track->Trajectory(), track.key(), inHits, outTrack, outHits, optionals, e);
+      return makeTrack(track->Trajectory(), track.key(), inHits, outTrack, outHits, optionals);
     }
 
     virtual bool makeTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& inHits,
-			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-			   const art::Event& e) const
+			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
     {
-      return makeTrack(track.Trajectory(), track.ID(), inHits, outTrack, outHits, optionals, e);
+      return makeTrack(track.Trajectory(), track.ID(), inHits, outTrack, outHits, optionals);
     }
   };
 }

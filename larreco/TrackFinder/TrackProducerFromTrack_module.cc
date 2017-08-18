@@ -92,6 +92,9 @@ void TrackProducerFromTrack::produce(art::Event & e)
   auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(trackInputTag);
   const auto& tracksWithHits = util::associated_groups(tkHitsAssn);
   //
+  // Initialize tool for this event
+  trackMaker_->initEvent(e);
+  //
   // Loop over tracks to refit
   unsigned int iTrack = 0;
   for (auto hitsRange: tracksWithHits) {
@@ -109,7 +112,7 @@ void TrackProducerFromTrack::produce(art::Event & e)
     if (doSpacePoints_ && !spacePointsFromTrajP_) optionals.initSpacePoints();
     //
     // Invoke tool to fit track and fill output objects
-    bool fitok = trackMaker_->makeTrack(track, inHits, outTrack, outHits, optionals, e);
+    bool fitok = trackMaker_->makeTrack(track, inHits, outTrack, outHits, optionals);
     if (!fitok) continue;
     //
     // Check that the requirement Nhits == Npoints is satisfied

@@ -42,40 +42,14 @@ namespace trkmkr {
     void addPoint(Point_t&& point, Vector_t&& vect, art::Ptr<Hit> hit, PointFlags_t&& flag, double chi2, TrackFitHitInfo&& tfhi) {
       addPoint(std::move(point), std::move(vect), hit, std::move(flag), chi2);
       if (opts->isTrackFitInfosInit()) opts->trackFitHitInfos()->push_back(tfhi);
-      //else fixme: error message?
+      else {
+	throw cet::exception("TrackCreationBookKeeper")
+	  << "Passing TrackFitHitInfo elements to addPoint, but TrackFitHitInfo collection not initialized.\n";
+      }
     }
     //
     void setTotChi2(double totChi2) { totChi2_ = totChi2; }
     //
-    void rejectPoint(unsigned int pos) {
-      if (pos>=positions.size()) return;//fixme: error message?
-      // move elements to the end of their vectors
-      std::rotate( (positions.begin()+pos),(positions.begin()+pos+1),positions.end() );
-      std::rotate( (momenta.begin()+pos),(momenta.begin()+pos+1),momenta.end() );
-      std::rotate( (flags.begin()+pos),(flags.begin()+pos+1),flags.end() );
-      std::rotate( (hits->begin()+pos),(hits->begin()+pos+1),hits->end() );
-      // overwrite values
-      positions.back() = Point_t(util::kBogusD,util::kBogusD,util::kBogusD);
-      momenta.back() = Vector_t(util::kBogusD,util::kBogusD,util::kBogusD);
-      auto mask = flags.back().mask();
-      auto fhit = flags.back().fromHit();
-      mask.set(recob::TrajectoryPointFlagTraits::HitIgnored,recob::TrajectoryPointFlagTraits::NoPoint);
-      if (mask.isSet(recob::TrajectoryPointFlagTraits::Rejected)==0) mask.set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
-      flags.back() = recob::TrajectoryPointFlags(fhit,mask);
-      // do the same for optional outputs
-      if (opts->isTrackFitInfosInit()) {
-	std::rotate( (opts->trackFitHitInfos()->begin()+pos),(opts->trackFitHitInfos()->begin()+pos+1),opts->trackFitHitInfos()->end() );
-	SVector5 fakePar5(util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD);
-	SMatrixSym55 fakeCov55;
-	for (int i=0;i<5;i++) for (int j=i;j<5;j++) fakeCov55(i,j) = util::kBogusD;
-	opts->trackFitHitInfos()->back() = recob::TrackFitHitInfo(opts->trackFitHitInfos()->back().hitMeas(),
-								  opts->trackFitHitInfos()->back().hitMeasErr2(),
-								  fakePar5,fakeCov55,opts->trackFitHitInfos()->back().WireId());
-      }
-    }
-    Point_t  posAt(unsigned int pos) const { return positions[pos]; }
-    Vector_t momAt(unsigned int pos) const { return momenta[pos]; }
-    unsigned int size() const { return positions.size(); }
     bool hasZeroMomenta() {
       for (const auto& mom : momenta) {
 	if (mom.Mag2() <= 1.0e-9) return true;

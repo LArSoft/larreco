@@ -9,7 +9,7 @@
 #include "larreco/TrackFinder/TrackMaker.h"
 #include "larreco/RecoAlg/TrackKalmanFitter.h"
 #include "larreco/RecoAlg/TrackCreationBookKeeper.h"
-//#include "lardataobj/RecoBase/MCSFitResult.h"
+#include "lardataobj/RecoBase/MCSFitResult.h"
 
 namespace trkmkr {
 
@@ -20,21 +20,18 @@ namespace trkmkr {
     struct Options {
       using Name = fhicl::Name;
       using Comment = fhicl::Comment;
-      // fhicl::Atom<bool> pFromMSChi2 {
-      //   Name("momFromMSChi2"),
-      //   Comment("Flag used to get initial momentum estimate from trkf::TrackMomentumCalculator::GetMomentumMultiScatterChi2().")
-      // };
-      // fhicl::Atom<bool> pFromLength {
-      //   Name("momFromLength"),
-      //   Comment("Flag used to get initial momentum estimate from trkf::TrackMomentumCalculator::GetTrackMomentum().")
-      // };
-      // fhicl::Atom<bool> pFromCalo {
-      // 	Name("momFromCalo"),
-      // 	Comment("Flag used to get initial momentum estimate from inputCaloLabel collection.")
-      // };
+      //
       fhicl::Atom<double> defaultMomInGeV {
 	Name("defaultMomInGeV"),
 	Comment("Default momentum estimate value (all other options are set to false, or if the estimate is not available).")
+      };
+      fhicl::Atom<bool> momFromMCS {
+        Name("momFromMCS"),
+        Comment("Flag used to get initial momentum estimate from MCSFitResult.")
+      };
+      fhicl::Atom<art::InputTag> mcsInputTag {
+        Name("mcsInputTag"),
+        Comment("InputTag of MCSFitResult collection.")
       };
       fhicl::Atom<int> defaultPdgId {
 	Name("defaultPdgId"),
@@ -60,6 +57,7 @@ namespace trkmkr {
         Name("keepInputTrajectoryPoints"),
         Comment("Option to keep positions and directions from input trajectory/track. The fit will provide only covariance matrices, chi2, ndof, particle Id and absolute momentum. It may also modify the trajectory point flags. In order to avoid inconsistencies, it has to be used with the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp.")
       };
+      //
     };
 
     struct Config {
@@ -81,14 +79,14 @@ namespace trkmkr {
       prop = new trkf::TrackStatePropagator(p_().propagator);
       kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().fitter);
       mom_def_ = p_().options().defaultMomInGeV();
+      momFromMCS_ = p_().options().momFromMCS();
+      mcsInputTag_ = p_().options().mcsInputTag();
       pid_def_ = p_().options().defaultPdgId();
       alwaysFlip_ = p_().options().alwaysInvertDir();
       //
-      if (p_().options().keepInputTrajectoryPoints()) {
-	if (p_().fitter().sortHitsByPlane() || p_().fitter().sortOutputHitsMinLength() || p_().fitter().skipNegProp()) {
-	  throw cet::exception("KalmanFilterFitTrackMaker")
-	    << "Incompatible configuration parameters: keepInputTrajectoryPoints needs the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp." << "\n";
-	}
+      if ( p_().options().keepInputTrajectoryPoints() && (p_().fitter().sortHitsByPlane() || p_().fitter().sortOutputHitsMinLength() || p_().fitter().skipNegProp()) ) {
+	throw cet::exception("KalmanFilterFitTrackMaker")
+	  << "Incompatible configuration parameters: keepInputTrajectoryPoints needs the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp." << "\n";
       }
       //
     }
@@ -98,11 +96,17 @@ namespace trkmkr {
       delete kalmanFitter;
     }
 
-    bool makeTrack(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
-		   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-		   const art::Event& e) const override;
+    virtual void initEvent(const art::Event& e) override {
+      mcs = e.getValidHandle<std::vector<recob::MCSFitResult> >(mcsInputTag_).product();
+      return;
+    }
 
-    bool setDirFlip(const recob::TrackTrajectory& traj) const;
+    bool makeTrack(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
+		   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const override;
+
+    double setMomentum  (const recob::TrackTrajectory& traj, const int tkID) const;
+    int    setParticleID(const recob::TrackTrajectory& traj, const int tkID) const;
+    bool   setDirection (const recob::TrackTrajectory& traj, const int tkID) const;
 
     void restoreInputPoints(const recob::TrackTrajectory& traj, const std::vector<art::Ptr<recob::Hit> >& inHits,
 			    recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const;
@@ -112,22 +116,21 @@ namespace trkmkr {
     trkf::TrackKalmanFitter* kalmanFitter;
     trkf::TrackStatePropagator* prop;
     double mom_def_;
+    bool   momFromMCS_;
+    art::InputTag mcsInputTag_;
     int    pid_def_;
     bool   alwaysFlip_;
+    const std::vector<recob::MCSFitResult>* mcs = nullptr;
   };
 
 }
 
 bool trkmkr::KalmanFilterFitTrackMaker::makeTrack(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
-						  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals,
-						  const art::Event& e) const {
+						  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const {
   //
-  // art::ValidHandle<std::vector<recob::MCSFitResult> > mcs = e.getValidHandle<std::vector<recob::MCSFitResult> >("mcsproducer");
-  // std::cout << "bestMom=" << mcs->at(tkID).bestMomentum() << " isBestFwd=" << mcs->at(tkID).isBestFwd() << std::endl;
-  //
-  const double mom = mom_def_;//mcs->at(tkID).bestMomentum();//mom_def_;//what about uncertainty? what about fit failures?
-  const int    pid = pid_def_;
-  const bool   flipDirection = setDirFlip(traj);//(mcs->at(tkID).isBestFwd()==false);//setDirFlip(traj);
+  const double mom = setMomentum(traj, tkID);// what about uncertainty?
+  const int    pid = setParticleID(traj, tkID);
+  const bool   flipDirection = setDirection(traj, tkID);
   bool fitok = kalmanFitter->fitTrack(traj, tkID, trkf::SMatrixSym55(), trkf::SMatrixSym55(), inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
   //
   if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
@@ -151,7 +154,21 @@ bool trkmkr::KalmanFilterFitTrackMaker::makeTrack(const recob::TrackTrajectory& 
   return true;
 }
 
-bool trkmkr::KalmanFilterFitTrackMaker::setDirFlip(const recob::TrackTrajectory& traj) const {
+double trkmkr::KalmanFilterFitTrackMaker::setMomentum(const recob::TrackTrajectory& traj, const int tkID) const {
+  double mom = mom_def_;
+  if (momFromMCS_) {
+    double mcsmom = mcs->at(tkID).bestMomentum();
+    //make sure the mcs fit converged
+    if (mcsmom>0.01 && mcsmom<7.) mom = mcsmom;
+  }
+  return mom;
+}
+
+int trkmkr::KalmanFilterFitTrackMaker::setParticleID(const recob::TrackTrajectory& traj, const int tkID) const {
+  return pid_def_;
+}
+
+bool trkmkr::KalmanFilterFitTrackMaker::setDirection(const recob::TrackTrajectory& traj, const int tkID) const {
   if (alwaysFlip_) {
     return true;
   } else if (p_().options().dirFromVec()) {

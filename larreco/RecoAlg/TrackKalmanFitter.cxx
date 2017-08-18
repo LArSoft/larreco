@@ -47,13 +47,14 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
   std::vector<KFTrackState> fwdUpdTkState;
   std::vector<unsigned int> hitstateidx;
   std::vector<unsigned int> rejectedhsidx;
+  std::vector<unsigned int> sortedtksidx;
 
   // do the actual fit
-  bool fitok = doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx);
+  bool fitok = doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx);
   if (!fitok) return false;
 
   // fill the track, the output hit vector, and the optional output products
-  bool fillok = fillResult(hits, tkID, pdgid, reverseHits, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, outTrack, outHits, optionals);
+  bool fillok = fillResult(hits, tkID, pdgid, reverseHits, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx, outTrack, outHits, optionals);
   return fillok;
 }
 
@@ -65,7 +66,7 @@ trkf::KFTrackState trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t
     trackStateCov(2, 2) = 0.25;
     trackStateCov(3, 3) = 0.25;
     trackStateCov(4, 4) = 10.;
-  }
+  } else trackStateCov*=100.;
   SVector5 trackStatePar(0.,0.,0.,0.,1./pval);
   return KFTrackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);//along direction by definition
 }
@@ -119,12 +120,13 @@ bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob:
 
 bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
 					std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState, 
-					std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx) const {
+					std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx) const {
 
   fwdPrdTkState.clear();
   fwdUpdTkState.clear();
   hitstateidx.clear();
   rejectedhsidx.clear();
+  sortedtksidx.clear();
   // these three vectors are aligned
   fwdPrdTkState.reserve(hitstatev.size());
   fwdUpdTkState.reserve(hitstatev.size());
@@ -284,7 +286,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
     }//for (auto hitstate : hitstatev)
   }
 
-  assert( rejectedhsidx.size()+hitstateidx.size() == hitstatev.size());
+  assert( rejectedhsidx.size()+hitstateidx.size() == hitstatev.size() );
   if (dumpLevel_>0) {
     std::cout << "TRACK AFTER FWD" << std::endl;
     trackState.dump();
@@ -359,18 +361,21 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
     return false;
   }
 
+  // sort output states
+  sortOutput(hitstatev, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx);
+  if (sortedtksidx.size()<4) {
+    mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
+    return false;
+  }
+
+  assert( rejectedhsidx.size()+sortedtksidx.size() == hitstatev.size() );
   return true;
 }
 
-bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> >& inHits, const int tkID, const int pdgid, const bool reverseHits,
-					 std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
-					 std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
+void trkf::TrackKalmanFitter::sortOutput(std::vector<HitState>& hitstatev, std::vector<KFTrackState>& fwdUpdTkState, 
 					 std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx,
-					 recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const {
-  //fill output trajectory objects with smoothed track and its hits
-  trkmkr::TrackCreationBookKeeper tcbk(outTrack, outHits, optionals, tkID, pdgid, true);
-  std::vector<unsigned int> hittpindex;
-  std::vector<unsigned int> updstatesindex;
+					 std::vector<unsigned int>& sortedtksidx) const {
+  //
   if (sortOutputHitsMinLength_) {
     //try to sort fixing wires order on planes and picking the closest next plane
     const unsigned int nplanes = geom->MaxPlanes();
@@ -407,78 +412,77 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
 	continue;
       }
       auto& trackstate = fwdUpdTkState[ihit];
-      const auto& hitflags = hitflagsv[hitstateidx[ihit]];
       pos = trackstate.position();
       dir = trackstate.momentum();
-      const unsigned int originalPos = (reverseHits ? hitstatev.size()-hitstateidx[ihit]-1 : hitstateidx[ihit]);
       //
-      assert(originalPos>=0 && originalPos<hitstatev.size());
-      //
-      hittpindex.push_back(p);
-      updstatesindex.push_back(ihit);
+      sortedtksidx.push_back(ihit);
       iterTracksInPlanes[min_plane]++;
-      //
-      const auto& prdtrack = fwdPrdTkState[ihit];
-      const auto& hitstate = hitstatev[hitstateidx[ihit]];
-      assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
-      //
-      tcbk.addPoint(trackstate.movePositionRef(), trackstate.moveMomentumRef(), inHits[originalPos],
-		    recob::TrajectoryPointFlags(originalPos,hitflags), prdtrack.chi2(hitstate),
-		    recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),prdtrack.parameters(),prdtrack.covariance(),hitstate.wireId()));
-      //
     }
   } else {
     for (unsigned int p = 0; p<fwdUpdTkState.size(); ++p) {
-      auto& trackstate = fwdUpdTkState[p];
-      const auto& hitflags   = hitflagsv[hitstateidx[p]];
-      const unsigned int originalPos = (reverseHits ? hitstatev.size()-hitstateidx[p]-1 : hitstateidx[p]);
-      assert(originalPos>=0 && originalPos<hitstatev.size());
-      updstatesindex.push_back(p);
-      //
-      const auto& prdtrack = fwdPrdTkState[p];
-      const auto& hitstate = hitstatev[hitstateidx[p]];
-      assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
-      //
-      tcbk.addPoint(trackstate.movePositionRef(), trackstate.moveMomentumRef(), inHits[originalPos],
-		    recob::TrajectoryPointFlags(originalPos,hitflags), prdtrack.chi2(hitstate),
-		    recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),prdtrack.parameters(),prdtrack.covariance(),hitstate.wireId()));
+      sortedtksidx.push_back(p);
     }
   }
-
-  unsigned int nrej = 0;
+  //
   if (cleanZigzag_) {
     std::vector<unsigned int> itoerase;
     bool clean = false;
     while (!clean) {
       bool broken = false;
-      auto pos0 = tcbk.posAt(0);
+      auto pos0 = fwdUpdTkState[sortedtksidx[0]].position();
       unsigned int i=1;
-      unsigned int end=tcbk.size()-1;
+      unsigned int end=sortedtksidx.size()-1;
       for (;i<end;++i) {
-	auto dir0 = tcbk.posAt(i)-pos0;
-	auto dir2 = tcbk.posAt(i+1)-tcbk.posAt(i);
+	auto dir0 = fwdUpdTkState[sortedtksidx[i]].position()-pos0;
+	auto dir2 = fwdUpdTkState[sortedtksidx[i+1]].position()-fwdUpdTkState[sortedtksidx[i]].position();
 	dir0/=dir0.R();
 	dir2/=dir2.R();
 	if (dir2.Dot(dir0)<0.) {
 	  broken = true;
 	  end--;
 	  break;
-	} else pos0 = tcbk.posAt(i);
+	} else pos0 = fwdUpdTkState[sortedtksidx[i]].position();
       }
       if (!broken) {
 	clean = true;
       } else {
-	nrej++;
-	tcbk.rejectPoint(i);
+	rejectedhsidx.push_back(hitstateidx[sortedtksidx[i]]);
+	sortedtksidx.erase(sortedtksidx.begin()+i);
       }
     }
   }
+  //
+}
 
-  if (tcbk.size()-nrej<4) {
-    mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__ << " ";
-    return false;
+
+bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> >& inHits, const int tkID, const int pdgid, const bool reverseHits,
+					 std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
+					 std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
+					 std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx,
+					 recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const {
+  // fill output trajectory objects with smoothed track and its hits
+  trkmkr::TrackCreationBookKeeper tcbk(outTrack, outHits, optionals, tkID, pdgid, true);
+  for (unsigned int p : sortedtksidx) {
+    auto& trackstate = fwdUpdTkState[p];
+    const auto& hitflags   = hitflagsv[hitstateidx[p]];
+    const unsigned int originalPos = (reverseHits ? hitstatev.size()-hitstateidx[p]-1 : hitstateidx[p]);
+    assert(originalPos>=0 && originalPos<hitstatev.size());
+    //
+    const auto& prdtrack = fwdPrdTkState[p];
+    const auto& hitstate = hitstatev[hitstateidx[p]];
+    assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
+    //
+    if (optionals.isTrackFitInfosInit()) {
+      tcbk.addPoint(trackstate.movePositionRef(), trackstate.moveMomentumRef(), inHits[originalPos],
+		    recob::TrajectoryPointFlags(originalPos,hitflags), prdtrack.chi2(hitstate),
+		    recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),prdtrack.parameters(),prdtrack.covariance(),hitstate.wireId()));
+    } else {
+      tcbk.addPoint(trackstate.movePositionRef(), trackstate.moveMomentumRef(), inHits[originalPos],
+		    recob::TrajectoryPointFlags(originalPos,hitflags), prdtrack.chi2(hitstate));
+    }
   }
 
+  // fill also with rejected hits information
   SMatrixSym55 fakeCov55;
   for (int i=0;i<5;i++) for (int j=i;j<5;j++) fakeCov55(i,j) = util::kBogusD;
   for (unsigned int rejidx = 0; rejidx<rejectedhsidx.size(); ++rejidx) {
@@ -489,11 +493,16 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
     //
     const auto& hitstate = hitstatev[rejectedhsidx[rejidx]];
     assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
-    tcbk.addPoint(Point_t(util::kBogusD,util::kBogusD,util::kBogusD), Vector_t(util::kBogusD,util::kBogusD,util::kBogusD), inHits[originalPos],
-		  recob::TrajectoryPointFlags(originalPos,mask), 0,
-		  recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),
-					 SVector5(util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD),fakeCov55,hitstate.wireId())
-		  );
+    if (optionals.isTrackFitInfosInit()) {
+      tcbk.addPoint(Point_t(util::kBogusD,util::kBogusD,util::kBogusD), Vector_t(util::kBogusD,util::kBogusD,util::kBogusD), inHits[originalPos],
+		    recob::TrajectoryPointFlags(originalPos,mask), 0,
+		    recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),
+					   SVector5(util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD),fakeCov55,hitstate.wireId())
+		    );
+    } else {
+      tcbk.addPoint(Point_t(util::kBogusD,util::kBogusD,util::kBogusD), Vector_t(util::kBogusD,util::kBogusD,util::kBogusD), inHits[originalPos],
+		    recob::TrajectoryPointFlags(originalPos,mask), 0);
+    }
   }
 
   if (dumpLevel_>1) std::cout << "outHits.size()=" << outHits.size() << " inHits.size()=" << inHits.size() << std::endl;
@@ -505,10 +514,10 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
   }
 
   bool propok = true;
-  KFTrackState resultF = propagator->rotateToPlane(propok, fwdUpdTkState[updstatesindex.front()].trackState(),
-						   Plane(fwdUpdTkState[updstatesindex.front()].position(),fwdUpdTkState[updstatesindex.front()].momentum()));
-  KFTrackState resultB = propagator->rotateToPlane(propok, fwdUpdTkState[updstatesindex.back()].trackState(),
-						   Plane(fwdUpdTkState[updstatesindex.back()].position(),fwdUpdTkState[updstatesindex.back()].momentum()));
+  KFTrackState resultF = propagator->rotateToPlane(propok, fwdUpdTkState[sortedtksidx.front()].trackState(),
+						   Plane(fwdUpdTkState[sortedtksidx.front()].position(),fwdUpdTkState[sortedtksidx.front()].momentum()));
+  KFTrackState resultB = propagator->rotateToPlane(propok, fwdUpdTkState[sortedtksidx.back()].trackState(),
+						   Plane(fwdUpdTkState[sortedtksidx.back()].position(),fwdUpdTkState[sortedtksidx.back()].momentum()));
 
   tcbk.finalizeTrack(SMatrixSym55(resultF.covariance()),SMatrixSym55(resultB.covariance()));
 

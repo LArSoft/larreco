@@ -57,6 +57,8 @@ public:
 private:
   std::unique_ptr<trkmkr::TrackMaker> trackMaker_;
   art::InputTag pfpInputTag;
+  art::InputTag trkInputTag;
+  art::InputTag shwInputTag;
   bool doTrackFitHitInfo_;
   bool doSpacePoints_;
   bool spacePointsFromTrajP_;
@@ -73,6 +75,11 @@ TrackProducerFromPFParticle::TrackProducerFromPFParticle(fhicl::ParameterSet con
   , trackFromPF_{p.get<bool>("trackFromPF")}
   , showerFromPF_{p.get<bool>("showerFromPF")}
 {
+  //
+  if (p.has_key("trackInputTag")) trkInputTag = p.get<art::InputTag>("trackInputTag");
+  else trkInputTag = pfpInputTag;
+  if (p.has_key("showerInputTag")) shwInputTag = p.get<art::InputTag>("showerInputTag");
+  else shwInputTag = pfpInputTag;
   // Call appropriate produces<>() functions here.
   produces<std::vector<recob::Track> >();
   produces<art::Assns<recob::Track, recob::Hit> >();
@@ -102,14 +109,16 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
   art::ValidHandle<std::vector<recob::PFParticle> > inputPfps = e.getValidHandle<std::vector<recob::PFParticle> >(pfpInputTag);
   const auto assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPfps, e, pfpInputTag));
   const auto assocShowers = std::unique_ptr<art::FindManyP<recob::Shower> >(new art::FindManyP<recob::Shower>(inputPfps, e, pfpInputTag));
-  auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(pfpInputTag);//fixme: should use original track input tag?
+  auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(trkInputTag);
   const auto& trackHitsGroups = util::associated_groups(tkHitsAssn);
-
+  //
   auto const& pfClustersAssn = *e.getValidHandle<art::Assns<recob::PFParticle, recob::Cluster> >(pfpInputTag);
   const auto& pfpClusterGroups = util::associated_groups(pfClustersAssn);
-  auto const& clHitsAssn = *e.getValidHandle<art::Assns<recob::Cluster, recob::Hit> >(pfpInputTag);//fixme: use original shower input tag?
+  auto const& clHitsAssn = *e.getValidHandle<art::Assns<recob::Cluster, recob::Hit> >(shwInputTag);
   const auto& clusterHitsGroups = util::associated_groups(clHitsAssn);
-
+  //
+  // Initialize tool for this event
+  trackMaker_->initEvent(e);
   //
   // Loop over pfps to fit
   for (unsigned int iPfp = 0; iPfp < inputPfps->size(); ++iPfp) {
@@ -137,7 +146,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	if (doSpacePoints_ && !spacePointsFromTrajP_) optionals.initSpacePoints();
 	//
 	// Invoke tool to fit track and fill output objects
-	bool fitok = trackMaker_->makeTrack(track, inHits, outTrack, outHits, optionals, e);
+	bool fitok = trackMaker_->makeTrack(track, inHits, outTrack, outHits, optionals);
 	if (!fitok) continue;
 	//
 	// Check that the requirement Nhits == Npoints is satisfied
@@ -216,7 +225,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	if (doSpacePoints_ && !spacePointsFromTrajP_) optionals.initSpacePoints();
 	//
 	// Invoke tool to fit track and fill output objects
-	bool fitok = trackMaker_->makeTrack(traj, iShower, inHits, outTrack, outHits, optionals, e);
+	bool fitok = trackMaker_->makeTrack(traj, iShower, inHits, outTrack, outHits, optionals);
 	if (!fitok) continue;
 	//
 	// Check that the requirement Nhits == Npoints is satisfied

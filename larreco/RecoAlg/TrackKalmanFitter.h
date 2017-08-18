@@ -114,12 +114,16 @@ namespace trkf {
 
     bool doFitWork(KFTrackState& trackState, std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
 		   std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
-		   std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx) const;
+		   std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx) const;
+
+    void sortOutput(std::vector<HitState>& hitstatev, std::vector<KFTrackState>& fwdUpdTkState,
+		    std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx,
+		    std::vector<unsigned int>& sortedtksidx) const;
 
     bool fillResult(const std::vector<art::Ptr<recob::Hit> >& inHits, const int tkID, const int pdgid, const bool reverseHits,
 		    std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
 		    std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
-		    std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx,
+		    std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx,
 		    recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const;
 
     /* bool fitTrack(const Point_t& position, const Vector_t& direction, */
