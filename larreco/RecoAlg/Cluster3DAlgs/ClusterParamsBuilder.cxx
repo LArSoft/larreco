@@ -208,7 +208,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     int numLostHits   = std::accumulate(nLostHits,nLostHits+3,0);
     
     std::cout << "*********************************************************************" << std::endl;
-    std::cout << "**--> cluster: " << &clusterParams << " has " << hitPairVector.size() << " 3D hits, " << numTotal << " 2D hits, match: " << clusterHitCountMap[&clusterParams] << ", shared: " << nMultShared2DHits << ", all: " << nAllHitsShared << std::endl;
+    std::cout << "**--> cluster: " << &clusterParams << " has " << hitPairVector.size() << " 3D hits, " << numTotal << ", numUnique: " << numUniqueHits << " 2D hits, match: " << clusterHitCountMap[&clusterParams] << ", shared: " << nMultShared2DHits << ", all: " << nAllHitsShared << std::endl;
     
     for(const auto& clusterCnt : clusterHitCountMap)
     {
@@ -233,9 +233,9 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
         
         std::sort(uniqueHitVec.begin(),uniqueHitVec.end());
         
-        //        double midHitRatio = uniqueHitVec[1];
+        double midHitRatio = uniqueHitVec[1];
         
-        //        std::cout << "--> # 3D Hits: " << hitPairVector.size() << ", nTot: " << numTotal << ", unique: " << numUniqueHits << ", lost: " << numLostHits << ", accept: " << acceptRatio << ", lost: " << lostRatio << ", mid: " << midHitRatio << ", rats: " << uniqueHitVec[0] << "/" << uniqueHitVec[1] << "/" << uniqueHitVec[2] << std::endl;
+        std::cout << "**--> # 3D Hits: " << hitPairVector.size() << ", nTot: " << numTotal << ", unique: " << numUniqueHits << ", lost: " << numLostHits << ", accept: " << acceptRatio << ", lost: " << lostRatio << ", mid: " << midHitRatio << ", rats: " << uniqueHitVec[0] << "/" << uniqueHitVec[1] << "/" << uniqueHitVec[2] << std::endl;
         
         acceptRatio = 0.;
         lostRatio   = 0.;
@@ -284,6 +284,8 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                 // Must have a valid pca
                 if (clusterParams.getFullPCA().getSvdOK())
                 {
+                    std::cout << "**--> Valid Full PCA calculated" << std::endl;
+                    
                     // If any hits were thrown away, see if we can rescue them
                     if (!usedHitPairList.empty())
                     {
