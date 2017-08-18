@@ -65,7 +65,7 @@ private:
 /**
  *  @brief  DBScanAlg class definiton
  */
-    class DBScanAlg : virtual public IClusterAlg
+class DBScanAlg : virtual public IClusterAlg
 {
 public:
     /**
@@ -650,18 +650,6 @@ bool DBScanAlg::consistentPairsTest(const reco::ClusterHit3D* pair1, const reco:
     
     return false;
 }
-    
-struct HitPairClusterOrder
-{
-    bool operator()(const reco::HitPairClusterMap::iterator& left, const reco::HitPairClusterMap::iterator& right)
-    {
-        // Watch out for the case where two clusters can have the same number of hits!
-        if (left->second.size() == right->second.size())
-            return left->first < right->first;
-        
-        return left->second.size() > right->second.size();
-    }
-};
     
 DEFINE_ART_CLASS_TOOL(DBScanAlg)
 } // namespace lar_cluster3d
