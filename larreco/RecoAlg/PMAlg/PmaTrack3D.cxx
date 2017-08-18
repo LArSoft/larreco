@@ -784,7 +784,7 @@ bool pma::Track3D::AutoFlip(std::vector< pma::Track3D* >& allTracks, pma::Track3
 
 double pma::Track3D::TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits, bool normalized) const
 {
-	if (!hits.size())
+	if (hits.empty())
 	{
 		mf::LogWarning("pma::Track3D") << "TestHitsMse(): Empty cluster.";
 		return -1.0;
@@ -807,9 +807,9 @@ double pma::Track3D::TestHitsMse(const std::vector< art::Ptr<recob::Hit> >& hits
 
 unsigned int pma::Track3D::TestHits(const std::vector< art::Ptr<recob::Hit> >& hits, double dist) const
 {
-	if (!hits.size())
+	if (hits.empty())
 	{
-		mf::LogWarning("pma::Track3D") << "TestHitsMse(): Empty cluster.";
+		mf::LogWarning("pma::Track3D") << "TestHits(): Empty cluster.";
 		return 0;
 	}
 

@@ -120,6 +120,8 @@ private:
 	double MakeGradient(float penaltyValue, float endSegWeight);
 	double StepWithGradient(float alfa, float tol, float penalty, float weight);
 
+    double SumDist2Hits(void) const override;
+
 	geo::TPCGeo const & fTpcGeo;
 
 	double fMinX, fMaxX, fMinY, fMaxY, fMinZ, fMaxZ; // TPC boundaries to limit the node position (+margin)

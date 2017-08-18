@@ -66,6 +66,8 @@ public:
 private:
 	Segment3D(const pma::Segment3D& src);
 
+    double SumDist2Hits(void) const override;
+
 	pma::Track3D* fParent;
 
 	static double GetDist2(const TVector3& psrc, const TVector3& p0, const TVector3& p1);
