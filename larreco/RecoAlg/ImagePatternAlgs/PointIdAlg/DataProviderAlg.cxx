@@ -29,9 +29,10 @@ img::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
 	fCalibrateLifetime = config.CalibrateLifetime();
 	fCalibrateAmpl = config.CalibrateAmpl();
+
+	fAmplCalibConst.resize(fGeometry->MaxPlanes());
 	if (fCalibrateAmpl)
 	{
-	    fAmplCalibConst.resize(fGeometry->MaxPlanes());
 	    mf::LogInfo("DataProviderAlg") << "Using calibration constants:";
 	    for (size_t p = 0; p < fAmplCalibConst.size(); ++p)
 	    {
@@ -42,6 +43,11 @@ img::DataProviderAlg::DataProviderAlg(const Config& config) :
     	    }
     	    catch (...) { fAmplCalibConst[p] = 1.0; }
 	    }
+	}
+	else
+	{
+	    mf::LogInfo("DataProviderAlg") << "No plane-to-plane calibration.";
+	    for (size_t p = 0; p < fAmplCalibConst.size(); ++p) { fAmplCalibConst[p] = 1.0; }
 	}
 
 	fDriftWindow = config.DriftWindow();
@@ -71,6 +77,14 @@ img::DataProviderAlg::DataProviderAlg(const Config& config) :
 		//fnDownscale = [this](std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) { downscaleMax(dst, adc, tick0); };
 		fDownscaleMode = img::DataProviderAlg::kMax;
 	}
+
+    fAdcMax = config.AdcMax();
+    fAdcMin = config.AdcMin();
+    fAdcOffset = config.OutMin();
+    fAdcScale = (config.OutMax() - fAdcOffset) / (fAdcMax - fAdcMin);
+
+    if (fAdcMax <= fAdcMin) { throw cet::exception("img::DataProviderAlg") << "Misconfigured: AdcMax <= AdcMin" << std::endl; }
+    if (fAdcScale == 0) { throw cet::exception("img::DataProviderAlg") << "Misconfigured: OutMax == OutMin" << std::endl; }
 
     fBlurKernel = config.BlurKernel();
     fNoiseSigma = config.NoiseSigma();
@@ -175,8 +189,9 @@ void img::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<fl
 			if (ak > max_adc) max_adc = ak;
 		}
 
-		dst[i] = scaleAdcSample(max_adc);
+		dst[i] = max_adc;
 	}
+	scaleAdcSamples(dst);
 }
 
 void img::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
@@ -197,8 +212,9 @@ void img::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vecto
 		if (max_idx > 0) { max_adc += adc[max_idx - 1] * fLifetimeCorrFactors[max_idx - 1 + tick0]; n++; }
 		if (max_idx + 1 < adc.size()) { max_adc += adc[max_idx + 1] * fLifetimeCorrFactors[max_idx + 1 + tick0]; n++; }
 
-		dst[i] = scaleAdcSample(max_adc / n);
+		dst[i] = max_adc / n;
 	}
+	scaleAdcSamples(dst);
 }
 
 void img::DataProviderAlg::downscaleMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
@@ -212,10 +228,9 @@ void img::DataProviderAlg::downscaleMean(std::vector<float> & dst, std::vector<f
 		{
 			sum_adc += adc[k] * fLifetimeCorrFactors[k + tick0];
 		}
-
-		if (sum_adc == 0) { dst[i] = 0; } // most cases
-		else { dst[i] = scaleAdcSample(sum_adc * fDriftWindowInv); }
+        dst[i] = sum_adc * fDriftWindowInv;
 	}
+	scaleAdcSamples(dst);
 }
 
 bool img::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t wireIdx)
@@ -300,12 +315,45 @@ bool img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wir
 
 float img::DataProviderAlg::scaleAdcSample(float val) const
 {
-    if (val < -50.) val = -50.;
-    if (val > 150.) val = 150.;
+    val *= fAmplCalibConst[fPlane];  // prescale by plane-to-plane calibration factors
 
-    if (fCalibrateAmpl) { val *= fAmplCalibConst[fPlane]; }
+    if (val < fAdcMin)      { val = fAdcMin; }  // saturate
+    else if (val > fAdcMax) { val = fAdcMax; }
 
-    return 0.1 * val;
+    return fAdcOffset + fAdcScale * (val - fAdcMin);  // shift and scale to the output range, shift to the output min
+}
+// ------------------------------------------------------
+void img::DataProviderAlg::scaleAdcSamples(std::vector< float > & values) const
+{
+    float calib = fAmplCalibConst[fPlane];
+    auto * data = values.data();
+
+    size_t k = 0, size4 = values.size() >> 2, size = values.size();
+    for (size_t i = 0; i < size4; ++i) // vectorize if you can
+    {
+        data[k] *= calib;  // prescale by plane-to-plane calibration factors
+        data[k+1] *= calib;
+        data[k+2] *= calib;
+        data[k+3] *= calib;
+
+        if (data[k] < fAdcMin) { data[k] = fAdcMin; }  // saturate min
+        if (data[k+1] < fAdcMin) { data[k+1] = fAdcMin; }
+        if (data[k+2] < fAdcMin) { data[k+2] = fAdcMin; }
+        if (data[k+3] < fAdcMin) { data[k+3] = fAdcMin; }
+
+        if (data[k] > fAdcMax) { data[k] = fAdcMax; }  // saturate max
+        if (data[k+1] > fAdcMax) { data[k+1] = fAdcMax; }
+        if (data[k+2] > fAdcMax) { data[k+2] = fAdcMax; }
+        if (data[k+3] > fAdcMax) { data[k+3] = fAdcMax; }
+
+        data[k] = fAdcOffset + fAdcScale * (data[k] - fAdcMin);  // shift and scale to the output range, shift to the output min
+        data[k+1] = fAdcOffset + fAdcScale * (data[k+1] - fAdcMin);
+        data[k+2] = fAdcOffset + fAdcScale * (data[k+2] - fAdcMin);
+        data[k+3] = fAdcOffset + fAdcScale * (data[k+3] - fAdcMin);
+
+        k += 4;
+    }
+    while (k < size) { data[k] = scaleAdcSample(data[k]); ++k; }  // do the tail
 }
 // ------------------------------------------------------
 
