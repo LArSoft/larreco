@@ -97,12 +97,24 @@ namespace trkmkr {
     }
 
     virtual void initEvent(const art::Event& e) override {
-      mcs = e.getValidHandle<std::vector<recob::MCSFitResult> >(mcsInputTag_).product();
+      if (momFromMCS_) mcs = e.getValidHandle<std::vector<recob::MCSFitResult> >(mcsInputTag_).product();
       return;
     }
 
+    bool makeTrackImpl(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
+		       const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
+		       recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const;
+
     bool makeTrack(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
-		   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const override;
+		   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const override {
+      return makeTrackImpl(traj, tkID, inHits, trkf::SMatrixSym55(), trkf::SMatrixSym55(), outTrack, outHits, optionals);
+    }
+
+    bool makeTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& inHits,
+		   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const override {
+      auto covs = track.Covariances();
+      return makeTrackImpl(track.Trajectory(), track.ID(), inHits, covs.first, covs.second, outTrack, outHits, optionals);
+    }
 
     double setMomentum  (const recob::TrackTrajectory& traj, const int tkID) const;
     int    setParticleID(const recob::TrackTrajectory& traj, const int tkID) const;
@@ -125,20 +137,21 @@ namespace trkmkr {
 
 }
 
-bool trkmkr::KalmanFilterFitTrackMaker::makeTrack(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
-						  recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const {
+bool trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
+						      const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
+						      recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const {
   //
   const double mom = setMomentum(traj, tkID);// what about uncertainty?
   const int    pid = setParticleID(traj, tkID);
   const bool   flipDirection = setDirection(traj, tkID);
-  bool fitok = kalmanFitter->fitTrack(traj, tkID, trkf::SMatrixSym55(), trkf::SMatrixSym55(), inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
+  bool fitok = kalmanFitter->fitTrack(traj, tkID, covVtx, covEnd, inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
   //
   if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
     //ok try once more without skipping hits
     mf::LogWarning("KalmanFilterFitTrackMaker") << "Try to recover with skipNegProp = false and cleanZigzag = false\n";
     kalmanFitter->setSkipNegProp(false);
     kalmanFitter->setCleanZigzag(false);
-    fitok = kalmanFitter->fitTrack(traj, tkID, trkf::SMatrixSym55(), trkf::SMatrixSym55(), inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
+    fitok = kalmanFitter->fitTrack(traj, tkID, covVtx, covEnd, inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
     kalmanFitter->setSkipNegProp(p_().fitter().skipNegProp());
     kalmanFitter->setCleanZigzag(p_().fitter().cleanZigzag());
   }

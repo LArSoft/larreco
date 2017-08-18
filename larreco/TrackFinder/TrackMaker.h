@@ -81,7 +81,7 @@ namespace trkmkr {
     virtual bool makeTrack(const art::Ptr<recob::TrackTrajectory> ttraj, const std::vector<art::Ptr<recob::Hit> >& inHits,
 			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
     {
-      return makeTrack(ttraj->Trajectory(), ttraj->Flags(), ttraj.key(), inHits, outTrack, outHits, optionals);
+      return makeTrack(*ttraj, ttraj.key(), inHits, outTrack, outHits, optionals);
     }
 
     virtual bool makeTrack(const recob::TrackTrajectory& ttraj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
@@ -90,7 +90,7 @@ namespace trkmkr {
     virtual bool makeTrack(const art::Ptr<recob::Track> track, const std::vector<art::Ptr<recob::Hit> >& inHits,
 			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
     {
-      return makeTrack(track->Trajectory(), track.key(), inHits, outTrack, outHits, optionals);
+      return makeTrack(*track, inHits, outTrack, outHits, optionals);
     }
 
     virtual bool makeTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& inHits,
