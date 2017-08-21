@@ -66,11 +66,11 @@ public:
      */
     KdTreeNode& BuildKdTree(Hit3DVec::iterator, Hit3DVec::iterator, KdTreeNodeList&, int depth=0) const;
     
-    using CandPair    = std::pair<double,const reco::ClusterHit3D*>;
-    using CandPairVec = std::vector<CandPair>;
+    using CandPair     = std::pair<double,const reco::ClusterHit3D*>;
+    using CandPairList = std::list<CandPair>;
     
-    size_t FindNearestNeighbors(const reco::ClusterHit3D*, const KdTreeNode&, CandPairVec&, double&) const;
-    bool   FindEntry(const reco::ClusterHit3D*, const KdTreeNode&, CandPairVec&, double&, bool&, int) const;
+    size_t FindNearestNeighbors(const reco::ClusterHit3D*, const KdTreeNode&, CandPairList&, double&) const;
+    bool   FindEntry(const reco::ClusterHit3D*, const KdTreeNode&, CandPairList&, double&, bool&, int) const;
     bool   FindEntryBrute(const reco::ClusterHit3D*, const KdTreeNode&, int) const;
     
     /**

@@ -140,7 +140,7 @@ kdTree::KdTreeNode& kdTree::BuildKdTree(Hit3DVec::iterator first,
     return kdTreeNodeContainer.back();
 }
     
-size_t kdTree::FindNearestNeighbors(const reco::ClusterHit3D* refHit, const KdTreeNode& node, CandPairVec& candPairVec, double& bestDist) const
+size_t kdTree::FindNearestNeighbors(const reco::ClusterHit3D* refHit, const KdTreeNode& node, CandPairList& CandPairList, double& bestDist) const
 {
     // If at a leaf then time to decide to add hit or not
     if (node.isLeafNode())
@@ -155,7 +155,7 @@ size_t kdTree::FindNearestNeighbors(const reco::ClusterHit3D* refHit, const KdTr
         // This is the tight constraint on the hits
         else if (bestDist < std::numeric_limits<double>::max() && consistentPairs(refHit, node.getClusterHit3D(), hitSeparation, wireDeltas))
         {
-            candPairVec.emplace_back(CandPair(hitSeparation,node.getClusterHit3D()));
+            CandPairList.emplace_back(CandPair(hitSeparation,node.getClusterHit3D()));
             
             //bestDist = std::max(0.35,std::min(bestDist,hitSeparation));  // This insures we will always consider neighbors with wire # changing in 2 planes
             //bestDist = std::max(0.47,std::min(bestDist,hitSeparation));  // This insures we will always consider neighbors with wire # changing in 2 planes
@@ -163,7 +163,7 @@ size_t kdTree::FindNearestNeighbors(const reco::ClusterHit3D* refHit, const KdTr
             
 //            std::cout << "###>> nearest neighbor, refHit wires: " << refHit->getWireIDs()[0].Wire << "/" << refHit->getWireIDs()[1].Wire << "/" << refHit->getWireIDs()[2].Wire << ", compare to: " << node.getClusterHit3D()->getWireIDs()[0].Wire << "/" << node.getClusterHit3D()->getWireIDs()[1].Wire << "/" << node.getClusterHit3D()->getWireIDs()[2].Wire << std::endl;
             
-//            std::cout << "  ~~~> cand " << candPairVec.size() << ", wire delta u: " << wireDeltas[0] << ", v: " << wireDeltas[1] << ", w: " << wireDeltas[2] << ", sep: " << hitSeparation << ", bestDist: " << bestDist << std::endl;
+//            std::cout << "  ~~~> cand " << CandPairList.size() << ", wire delta u: " << wireDeltas[0] << ", v: " << wireDeltas[1] << ", w: " << wireDeltas[2] << ", sep: " << hitSeparation << ", bestDist: " << bestDist << std::endl;
         }
     }
     // Otherwise we need to keep searching
@@ -173,22 +173,22 @@ size_t kdTree::FindNearestNeighbors(const reco::ClusterHit3D* refHit, const KdTr
         
         if (refPosition < node.getAxisValue())
         {
-            FindNearestNeighbors(refHit, node.leftTree(), candPairVec, bestDist);
+            FindNearestNeighbors(refHit, node.leftTree(), CandPairList, bestDist);
             
-            if (refPosition + bestDist > node.getAxisValue()) FindNearestNeighbors(refHit, node.rightTree(), candPairVec, bestDist);
+            if (refPosition + bestDist > node.getAxisValue()) FindNearestNeighbors(refHit, node.rightTree(), CandPairList, bestDist);
         }
         else
         {
-            FindNearestNeighbors(refHit, node.rightTree(), candPairVec, bestDist);
+            FindNearestNeighbors(refHit, node.rightTree(), CandPairList, bestDist);
             
-            if (refPosition - bestDist < node.getAxisValue()) FindNearestNeighbors(refHit, node.leftTree(), candPairVec, bestDist);
+            if (refPosition - bestDist < node.getAxisValue()) FindNearestNeighbors(refHit, node.leftTree(), CandPairList, bestDist);
         }
     }
     
-    return candPairVec.size();
+    return CandPairList.size();
 }
     
-bool kdTree::FindEntry(const reco::ClusterHit3D* refHit, const KdTreeNode& node, CandPairVec& candPairVec, double& bestDist, bool& selfNotFound, int depth) const
+bool kdTree::FindEntry(const reco::ClusterHit3D* refHit, const KdTreeNode& node, CandPairList& CandPairList, double& bestDist, bool& selfNotFound, int depth) const
 {
     bool foundEntry(false);
     
@@ -204,7 +204,7 @@ bool kdTree::FindEntry(const reco::ClusterHit3D* refHit, const KdTreeNode& node,
         // This is the tight constraint on the hits
         if (consistentPairs(refHit, node.getClusterHit3D(), hitSeparation, wireDeltas))
         {
-            candPairVec.emplace_back(CandPair(hitSeparation,node.getClusterHit3D()));
+            CandPairList.emplace_back(CandPair(hitSeparation,node.getClusterHit3D()));
             
             if (bestDist < std::numeric_limits<double>::max()) bestDist = std::max(bestDist,hitSeparation);
             else                                               bestDist = std::max(0.5,hitSeparation);
@@ -219,15 +219,15 @@ bool kdTree::FindEntry(const reco::ClusterHit3D* refHit, const KdTreeNode& node,
         
         if (refPosition < node.getAxisValue())
         {
-            foundEntry = FindEntry(refHit, node.leftTree(),  candPairVec, bestDist, selfNotFound, depth+1);
+            foundEntry = FindEntry(refHit, node.leftTree(),  CandPairList, bestDist, selfNotFound, depth+1);
             
-            if (!foundEntry && refPosition + bestDist > node.getAxisValue()) foundEntry = FindEntry(refHit, node.rightTree(),  candPairVec, bestDist, selfNotFound, depth+1);
+            if (!foundEntry && refPosition + bestDist > node.getAxisValue()) foundEntry = FindEntry(refHit, node.rightTree(),  CandPairList, bestDist, selfNotFound, depth+1);
         }
         else
         {
-            foundEntry = FindEntry(refHit, node.rightTree(),  candPairVec, bestDist, selfNotFound, depth+1);
+            foundEntry = FindEntry(refHit, node.rightTree(),  CandPairList, bestDist, selfNotFound, depth+1);
             
-            if (!foundEntry && refPosition - bestDist < node.getAxisValue()) foundEntry = FindEntry(refHit, node.leftTree(),  candPairVec, bestDist, selfNotFound, depth+1);
+            if (!foundEntry && refPosition - bestDist < node.getAxisValue()) foundEntry = FindEntry(refHit, node.leftTree(),  CandPairList, bestDist, selfNotFound, depth+1);
         }
     }
     
