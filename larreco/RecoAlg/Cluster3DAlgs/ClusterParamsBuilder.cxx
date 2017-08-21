@@ -142,8 +142,8 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     //    CheckHitSorting(clusterParams);
     
     // See if we can avoid duplicates by temporarily transferring to a set
-    //std::set<const reco::ClusterHit2D*> hitSet;
-    std::vector<const reco::ClusterHit2D*> hitSet;
+    std::set<const reco::ClusterHit2D*> hitSet;
+    //std::vector<const reco::ClusterHit2D*> hitSet;
     
     size_t nTotalHits[]  = {0,0,0};
     size_t nUniqueHits[] = {0,0,0};
@@ -194,8 +194,8 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
         {
             if (nHitsAlreadyUsed < nHits2D)
             {
-                //if (hit3D->getHits()[idx]) hitSet.insert(hit3D->getHits()[idx]);
-                if (hit3D->getHits()[idx]) hitSet.push_back(hit3D->getHits()[idx]);
+                if (hit3D->getHits()[idx]) hitSet.insert(hit3D->getHits()[idx]);
+                //if (hit3D->getHits()[idx]) hitSet.push_back(hit3D->getHits()[idx]);
             }
             else nLostHits[idx] += nHitsUsed[idx];
         }
