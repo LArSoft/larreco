@@ -506,8 +506,6 @@ void Cluster3D::CollectArtHits(art::Event&             evt,
     {
         art::Ptr<recob::Hit> recobHit(recobHitHandle, cIdx);
         
-        if (recobHit->StartTick() > 6300) continue;
-        
         const geo::WireID& hitWireID(recobHit->WireID());
         
         double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[recobHit->WireID().Plane]);
@@ -1177,10 +1175,6 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
                 else if ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -3.;  // skeleton and edge point
 
                 if      (hitPair->bitsAreSet(reco::ClusterHit3D::SEEDHIT)                                                          ) chisq = -4.;  // Seed point
-                
-                // "hide" the minimum overlap fraction in here too
-                if (chisq > 0.) chisq += 0.999 * hitPair->getMinOverlapFraction();
-                else            chisq -= 0.999 * hitPair->getMinOverlapFraction();
                 
                 if ((hitPair->getStatusBits() & 0x7) != 0x7) chisq = -10.;
                 
