@@ -24,9 +24,11 @@ void pma::PMAlgCosmicTagger::tag(pma::TrkCandidateColl& tracks)
 
     if (fTagOutOfDriftTracks) n += outOfDriftWindow(tracks);
     if (fTagFullHeightTracks) n += fullHeightCrossing(tracks);
-    if (fTagFullWidthTracks) n += fullWidthCrossing(tracks);
+    if (fTagFullWidthTracks)  n += fullWidthCrossing(tracks);
     if (fTagFullLengthTracks) n += fullLengthCrossing(tracks);
-    if (fTagNonBeamT0Tracks) n += nonBeamT0Tag(tracks);
+    if (fTagNonBeamT0Tracks)  n += nonBeamT0Tag(tracks);
+    if (fTagTopFrontBack)     n += tagTopFrontBack(tracks);
+    if (fTagApparentStopper)  n += tagApparentStopper(tracks);
 
     mf::LogInfo("pma::PMAlgCosmicTagger") << "...tagged " << n << " cosmic-like tracks.";
 }
@@ -110,6 +112,94 @@ size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl &tracks){
 
 }
 
+size_t pma::PMAlgCosmicTagger::tagTopFrontBack(pma::TrkCandidateColl& tracks){
+
+  size_t n = 0;
+
+  auto const* geom = lar::providerFrom<geo::Geometry>();
+
+  // Loop over the tracks
+  for(auto & t : tracks.tracks()){
+
+    // If this track is already tagged then don't try again!
+    if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
+
+    // Get the first and last positions from the track.
+    auto const & node0 = *(t.Track()->Nodes()[0]);
+    auto const & node1 = *(t.Track()->Nodes()[t.Track()->Nodes().size()-1]);
+
+    // Check we have a track starting at the top of the detector
+    bool top0 = isTopVertex(node0.Point3D(),fTopFrontBackMargin,ConvertDirToInt(geom->TPC(0,0).HeightDir()));
+    bool top1 = isTopVertex(node1.Point3D(),fTopFrontBackMargin,ConvertDirToInt(geom->TPC(0,0).HeightDir()));
+
+    // Check the track ends at the front or back of the detector
+    bool frontBack0 = isFrontBackVertex(node0.Point3D(),fTopFrontBackMargin,ConvertDirToInt(geom->TPC(0,0).LengthDir()));
+    bool frontBack1 = isFrontBackVertex(node1.Point3D(),fTopFrontBackMargin,ConvertDirToInt(geom->TPC(0,0).LengthDir()));
+
+    // Check we path both criteria but without letting either the start or end of the track fulfill both
+    if((top0 && frontBack1) || (top1 && frontBack0)){
+      std::cout << "Found track crossing from top to front/back: " << std::endl;
+      node0.Point3D().Print();
+      node1.Point3D().Print();
+      ++n;
+			t.Track()->SetTagFlag(pma::Track3D::kCosmic);
+			t.Track()->SetTagFlag(pma::Track3D::kGeometry_YZ);
+    }
+
+  }
+
+  return n;
+
+}
+
+size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks){
+
+  size_t n = 0;
+
+  // Tracks entering from the top of the detector that stop in the fiducial volume
+  // are very likely to be cosmics that leave through the APA, but have their
+  // drift coordinate incorrectly set due to lack of T0
+  auto const* geom = lar::providerFrom<geo::Geometry>();
+  TVector3 dir = geom->TPC(0,0).HeightDir();
+  short int dirIdx = ConvertDirToInt(dir);
+
+	// Loop over the tracks
+	for(auto & t : tracks.tracks()){
+
+		// If this track is already tagged then don't try again!
+		if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
+		
+    // Get the first and last positions from the track.
+		auto const & node0 = *(t.Track()->Nodes()[0]);
+		auto const & node1 = *(t.Track()->Nodes()[t.Track()->Nodes().size()-1]);
+
+    std::vector<float> vPos;
+    vPos.push_back(node0.Point3D()[dirIdx]);
+    vPos.push_back(node1.Point3D()[dirIdx]);
+    std::vector<float> vDiff;
+    vDiff.push_back(fabs(vPos[0] - fDimensionsMax[dirIdx]));
+    vDiff.push_back(fabs(vPos[1] - fDimensionsMax[dirIdx]));
+    
+    // Use a bool to tell us which element is the smaller
+    bool minIdx = (vDiff[0] < vDiff[1]) ? 0 : 1;
+    if(vDiff[minIdx] < fApparentStopperMargin){
+      std::cout << "- Found a track that starts at the top of the detector (" << vDiff[minIdx] << ")" << std::endl;
+      // Check the other element to see if it ends away from the bottom of the detector
+      if(fabs(vPos[!minIdx] - fDimensionsMin[dirIdx]) > 5.* fApparentStopperMargin){
+        std::cout << " - It also stops " << fabs(vPos[!minIdx] - fDimensionsMin[dirIdx]) << " from the bottom." << std::endl;
+        std::cout << " - " << node0.Point3D().X() << ", " << node0.Point3D().Y() << ", " << node0.Point3D().Z() << std::endl;
+        std::cout << " - " << node1.Point3D().X() << ", " << node1.Point3D().Y() << ", " << node1.Point3D().Z() << std::endl;
+        ++n;
+			  t.Track()->SetTagFlag(pma::Track3D::kCosmic);
+			  t.Track()->SetTagFlag(pma::Track3D::kGeometry_Y);
+      }
+    }
+  }
+
+  return n;
+
+}
+
 size_t pma::PMAlgCosmicTagger::fullHeightCrossing(pma::TrkCandidateColl& tracks){
 
 	// Just use the first tpc to get the height dimension (instead of assuming y).
@@ -157,7 +247,7 @@ size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks,
 
 	size_t n = 0;
 
-	double detDim = fDimensions[direction];
+	double detDim = fDimensionsMax[direction] - fDimensionsMin[direction];
 
     pma::Track3D::ETag dirTag = pma::Track3D::kNotTagged;
     switch (direction)
@@ -174,7 +264,7 @@ size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks,
 		// If this track is already tagged then don't try again!
 		if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
-		// Get the first and last y-positions from the track.
+		// Get the first and last positions from the track.
 		auto const & node0 = *(t.Track()->Nodes()[0]);
 		auto const & node1 = *(t.Track()->Nodes()[t.Track()->Nodes().size()-1]);
 
@@ -190,6 +280,20 @@ size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks,
 	}
 
 	return n;
+}
+
+bool pma::PMAlgCosmicTagger::isTopVertex(const TVector3 &pos, double tolerance, short int dirIndx) const{
+
+  return (fabs(pos[dirIndx]-fDimensionsMax[dirIndx]) < tolerance);
+
+}
+
+bool pma::PMAlgCosmicTagger::isFrontBackVertex(const TVector3 &pos, double tolerance, short int dirIndx) const{
+
+  bool front = (fabs(pos[dirIndx] - fDimensionsMin[dirIndx]) < tolerance);
+  bool back = (fabs(pos[dirIndx] - fDimensionsMax[dirIndx]) < tolerance);
+
+  return front || back;
 }
 
 void pma::PMAlgCosmicTagger::GetDimensions(){
@@ -208,6 +312,13 @@ void pma::PMAlgCosmicTagger::GetDimensions(){
   for (geo::TPCID const& tID: geom->IterateTPCIDs()) {
     geo::TPCGeo const& TPC = geom->TPC(tID);
 
+    // We need to make sure we only include the real TPCs
+    // We have dummy TPCs in the protoDUNE and DUNE geometries
+    // The dummy ones have a drift distance of only ~13 cm.
+    if(TPC.DriftDistance() < 25.0){
+      continue;
+    }
+
     // get center in world coordinates
     double origin[3] = {0.};
     double center[3] = {0.};
@@ -222,14 +333,18 @@ void pma::PMAlgCosmicTagger::GetDimensions(){
     if( center[2] + tpcDim[2] > maxZ ) maxZ = center[2] + tpcDim[2];
   } // for all TPC
 
-	fDimensions.clear();
-	fDimensions.push_back(maxX - minX);
-	fDimensions.push_back(maxY - minY);
-	fDimensions.push_back(maxZ - minZ);
+	fDimensionsMin.clear();
+	fDimensionsMax.clear();
+	fDimensionsMin.push_back(minX);
+	fDimensionsMin.push_back(minY);
+	fDimensionsMin.push_back(minZ);
+	fDimensionsMax.push_back(maxX);
+	fDimensionsMax.push_back(maxY);
+	fDimensionsMax.push_back(maxZ);
 
 }
 
-int pma::PMAlgCosmicTagger::ConvertDirToInt(TVector3 &dir){
+short int pma::PMAlgCosmicTagger::ConvertDirToInt(const TVector3 &dir) const{
 
 	if(dir.X() > 0.99) return 0; 
 	if(dir.Y() > 0.99) return 1; 
