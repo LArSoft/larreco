@@ -74,9 +74,6 @@ public:
     
 private:
     
-    using CandPair    = std::pair<double,const reco::ClusterHit3D*>;
-    using CandPairVec = std::vector<CandPair>;
-    
     /**
      *  @brief Driver for Prim's algorithm
      */
@@ -219,7 +216,6 @@ void MinSpanTreeAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
     // DBScan is driven of its "epsilon neighborhood". Computing adjacency within DBScan can be time
     // consuming so the idea is the prebuild the adjaceny map and then run DBScan.
     // The following call does this work
-    
     kdTree::KdTreeNodeList kdTreeNodeContainer;
     kdTree::KdTreeNode     topNode = m_kdTree.BuildKdTree(hitPairList, kdTreeNodeContainer);
     
@@ -305,14 +301,14 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList&           hitPairList,
         curCluster->push_back(lastAddedHit);
         
         // Set up to find the list of nearest neighbors to the last used hit...
-        CandPairVec candPairVec;
-        double      bestDistance(std::numeric_limits<double>::max());
+        kdTree::CandPairList CandPairList;
+        double              bestDistance(std::numeric_limits<double>::max());
 
         // And find them... result will be an unordered list of neigbors
-        m_kdTree.FindNearestNeighbors(lastAddedHit, topNode, candPairVec, bestDistance);
+        m_kdTree.FindNearestNeighbors(lastAddedHit, topNode, CandPairList, bestDistance);
         
         // Copy edges to the current list (but only for hits not already in a cluster)
-        for(auto& pair : candPairVec)
+        for(auto& pair : CandPairList)
             if (!(pair.second->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED)) curEdgeList.push_back(reco::EdgeTuple(lastAddedHit,pair.second,pair.first));
         
         // If the edge list is empty then we have a complete cluster
@@ -596,20 +592,20 @@ void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
             currentNode->setStatusBit(reco::ClusterHit3D::PATHCHECKED);
             
             // Set up to find the list of nearest neighbors to the last used hit...
-            CandPairVec candPairVec;
-            double      bestDistance(std::numeric_limits<double>::max());
+            kdTree::CandPairList CandPairList;
+            double              bestDistance(std::numeric_limits<double>::max());
             
             // And find them... result will be an unordered list of neigbors
-            m_kdTree.FindNearestNeighbors(currentNode, topNode, candPairVec, bestDistance);
+            m_kdTree.FindNearestNeighbors(currentNode, topNode, CandPairList, bestDistance);
             
-//            std::cout << "**> found " << candPairVec.size() << " nearest neigbhors, bestDistance: " << bestDistance;
+//            std::cout << "**> found " << CandPairList.size() << " nearest neigbhors, bestDistance: " << bestDistance;
 //            size_t nAdded(0);
             
             // Get tuple values for the current node
             const BestNodeTuple& currentNodeTuple = bestNodeMap.at(currentNode);
             double               currentNodeScore = std::get<1>(currentNodeTuple);
             
-            for(auto& candPair : candPairVec)
+            for(auto& candPair : CandPairList)
             {
                 // Ignore those nodes we're already aware of
                 //if (std::find(closedList.begin(),closedList.end(),candPair.second) != closedList.end()) continue;

@@ -9,9 +9,8 @@ standard_cluster3dkdTree:
 standard_cluster3dhit3dbuilderalg:
 {
   EnableMonitoring:     true  # enable monitoring of functions
-  NumPairPts:           2     # minimum number of hit pairs for DBScan to consider
-  TimeAdvanceGap:       50.   # Window size (ticks) for comparing hits in different views
   NumSigmaPeakTime:     1.5   # Number "sigma" for peak times when building hits
+  DeltaPeakTimeSig:     1.7   # "Significance" of agreement between 2 hit peak times
 }
 
 standard_cluster3dprincipalcomponentsalg:
@@ -37,10 +36,11 @@ standard_cluster3dMergeAlg:
 
 standard_cluster3ddbscanalg:
 {
+  tool_type:              DBScanAlg
   EnableMonitoring:       true    # enable monitoring of functions
   MinPairPts:             2       # minimum number of hit pairs for DBScan to consider
-  PairSigmaPeakTime:      3       # Number "sigma" for peak times when building hits
   ClusterParamsBuilder:   @local::standard_cluster3dParamsBuilder
+  kdTree:                 @local::standard_cluster3dkdTree
 }
 
 standard_cluster3dminSpanTreeAlg:
