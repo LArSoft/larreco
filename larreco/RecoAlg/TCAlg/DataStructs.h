@@ -267,6 +267,7 @@ namespace tca {
     std::vector<unsigned int> Hits;
     int BestPlane;
     int ID;
+    float FOM;
     unsigned short MatchVecPFPIndex {USHRT_MAX};
   };
 
