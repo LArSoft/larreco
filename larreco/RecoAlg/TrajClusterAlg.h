@@ -82,9 +82,7 @@ namespace tca {
     std::vector<Vtx3Store> const& GetVertices() const { return tjs.vtx3; }
     
     // Get the index list of matchVec entries that have PFParticle info defined
-    std::vector<unsigned short> const& GetPFPList() const { return tjs.matchVecPFPList; }
-    // Get a specific matchVec entry that will be turned into a PFParticle
-    MatchStruct const& GetMatchStruct(unsigned short im) {return tjs.matchVec[im]; };
+    std::vector<PFPStruct> const& GetPFParticles() const { return tjs.pfps; }
     // Get the cluster index of a trajectory ID
     unsigned int GetTjClusterIndex(unsigned int TjID) { return tjs.allTraj[TjID - 1].ClusterIndex; }
     // Get a ShowerStuct3D entry
