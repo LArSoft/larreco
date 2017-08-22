@@ -24,6 +24,7 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -197,6 +198,12 @@ namespace tca {
     std::vector<int> TjIDs;
     // Count of the number of X-matched hits
     int Count {0};                    // Set to 0 if matching failed
+    unsigned short pfpID {0};
+  };
+  
+  struct PFPStruct {
+    std::vector<int> TjIDs;
+    recob::Track Track;
     // Start is 0, End is 1
     std::array<std::array<float, 3>, 2> XYZ;        // XYZ position at both ends (cm)
     std::array<TVector3, 2> Dir;
@@ -207,12 +214,13 @@ namespace tca {
     int BestPlane {INT_MAX};
     // stuff for constructing the PFParticle
     int PDGCode {0};
-    std::vector<size_t> DtrIndices;
-    size_t ParentMSIndex {0};       // Parent MatchStruct index (or index of self if no parent exists)
+    std::vector<unsigned short> DtrIDs;
+    size_t ParentID {0};       // Parent MatchStruct index (or index of self if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned short MCPartListIndex {USHRT_MAX};
     float CosmicScore{0};
+    unsigned short ID {0};
   };
 
   struct ShowerPoint {
@@ -229,7 +237,7 @@ namespace tca {
     int ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
     std::vector<int> TjIDs;  // list of InShower Tjs
     std::vector<int> NearTjIDs;   // list of Tjs that are not InShower but satisfy the maxSep cut
-    std::vector<int> MatchedTjIDs;  /// list of Tjs in the other planes that are 3D matched to Tjs in this shower
+//    std::vector<int> MatchedTjIDs;  /// list of Tjs in the other planes that are 3D matched to Tjs in this shower
     std::vector<ShowerPoint> ShPts;    // Trajectory points inside the shower
     float Angle {0};                   // Angle of the shower axis
     float AngleErr {3};                 // Error
@@ -268,7 +276,7 @@ namespace tca {
     int BestPlane;
     int ID;
     float FOM;
-    unsigned short MatchVecPFPIndex {USHRT_MAX};
+    unsigned short PFPIndex {USHRT_MAX};
   };
 
   struct ShowerTreeVars {
@@ -417,7 +425,7 @@ namespace tca {
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
-    std::vector<unsigned short> matchVecPFPList;  /// list of matchVec entries that will become PFPs
+    std::vector<PFPStruct> pfps;
     std::vector<ShowerStruct> cots;       // Clusters of Trajectories that define 2D showers
     std::vector<ShowerStruct3D> showers;  // 3D showers
     std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
