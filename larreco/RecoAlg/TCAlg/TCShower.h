@@ -43,6 +43,10 @@ namespace tca {
   unsigned short GetCotsIndex(TjStuff& tjs, unsigned short ShowerTjID);
   
   void Match2DShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  float Match3DFOM(std::string inFcnLabel, TjStuff& tjs, unsigned short icotIndex, unsigned short jcotIndex, bool prt);
+  float Match3DFOM(std::string inFcnLabel, TjStuff& tjs,
+                   unsigned short icotIndex, unsigned short jcotIndex, unsigned short kcotIndex, bool prt);
+  float Match3DFOM(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   void FillPts(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool DefineShower(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void MakeShowerObsolete(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
