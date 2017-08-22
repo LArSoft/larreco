@@ -686,7 +686,7 @@ namespace tca {
     
     // match PFParticles
     // initialize everything
-    for(auto& ms : tjs.matchVec) ms.MCPartListIndex = USHRT_MAX;
+    for(auto& pfp : tjs.pfps) pfp.MCPartListIndex = USHRT_MAX;
     
     // PFParticle reconstruction efficiency calculation
     // 1) Find the average EP for all Tjs in a PFParticle weighted by the Tj length, aveEP
@@ -710,15 +710,13 @@ namespace tca {
       MCP_TSum += TMeV;
       ++MCP_Cnt;
       bool gotit = false;
-      for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
-        unsigned short imv = tjs.matchVecPFPList[ipfp];
-        auto& ms = tjs.matchVec[imv];
-        if(ms.Count == 0) continue;
-        if(ms.TjIDs.empty()) continue;
+      for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
+        auto& pfp = tjs.pfps[ipfp];
+        if(pfp.ID == 0) continue;
         unsigned short cnt = 0;
         float sum = 0;
         float epsum = 0;
-        for(auto& tjID : ms.TjIDs) {
+        for(auto& tjID : pfp.TjIDs) {
           unsigned short itj = tjID - 1;
           Trajectory& tj = tjs.allTraj[itj];
           if(tj.MCPartListIndex == ipart) {
@@ -731,9 +729,9 @@ namespace tca {
         // require at least 2 Tjs match this PFParticle
         if(cnt > 1 && sum > 0) {
           float pfpEP = epsum / sum;
-          ms.EffPur = pfpEP;
+          pfp.EffPur = pfpEP;
           MCP_EPTSum += TMeV * pfpEP;
-          ms.MCPartListIndex = ipart;
+          pfp.MCPartListIndex = ipart;
           ++PFP_CntGoodMat;
           gotit = true;
           break;
@@ -755,13 +753,7 @@ namespace tca {
     } // ipart
     
     // update the total PFParticle count
-    for(unsigned short ii = 0; ii < tjs.matchVecPFPList.size(); ++ii) {
-      unsigned short imv = tjs.matchVecPFPList[ii];
-      auto& ms = tjs.matchVec[imv];
-      if(ms.Count == 0) continue;
-      if(ms.TjIDs.empty()) continue;
-      ++PFP_Cnt;
-     } // ii
+    for(auto& pfp : tjs.pfps) if(pfp.ID > 0) ++PFP_Cnt;
     
   } // MatchTruth
   
