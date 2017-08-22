@@ -21,7 +21,7 @@ namespace tca {
     if(ms.PDGCode != 1111) return false;
     if(ms.Count == 0) return false;
     
-    bool prt = (tjs.ShowerTag[12] == 3);
+    bool prt = (((int)tjs.ShowerTag[12] % 10) == 3);
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -195,7 +195,8 @@ namespace tca {
     if(tjs.ShowerTag[0] != 2) return false;
     
     bool prt = false;
-    short dbgPlane = tjs.ShowerTag[12];
+    // Add 10 for more detailed printing 
+    short dbgPlane = ((int)tjs.ShowerTag[12] % 10);
     CTP_t dbgCTP = UINT_MAX;
     if(dbgPlane >= 0 && dbgPlane <= tjs.NumPlanes) dbgCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, dbgPlane);
     
@@ -367,9 +368,6 @@ namespace tca {
       if(tjs.showers[iss].TPCID == tpcid) tjs.showers.erase(tjs.showers.begin() + iss); 
     } // ss3
     
-    // convert the 2D separation cut into a 3D cut (later...)
-    double sepCut = tjs.ShowerTag[2];
-    
     std::string fcnLabel = inFcnLabel + ".M2DS";
     
 /*
@@ -395,6 +393,9 @@ namespace tca {
      } // temp testing
 */
     
+    float fomCut = 1;
+    
+    // A simple matching scheme 
     for(unsigned short ci = 0; ci < tjs.cots.size() - 1; ++ci) {
       ShowerStruct& iss = tjs.cots[ci];
       if(iss.ID == 0) continue;
@@ -403,7 +404,7 @@ namespace tca {
       if(iplaneID.Cryostat != tpcid.Cryostat) continue;
       if(iplaneID.TPC != tpcid.TPC) continue;
       Trajectory& istj = tjs.allTraj[iss.ShowerTjID - 1];
-//      if(prt) mf::LogVerbatim("TC")<<"ci "<<ci<<" istj "<<istj.ID<<" Energy "<<(int)iss.Energy;
+      if(prt) std::cout<<"ci "<<ci<<" istj "<<istj.ID<<" Energy "<<(int)iss.Energy<<"\n";
       for(unsigned short cj = ci + 1; cj < tjs.cots.size(); ++cj) {
         ShowerStruct& jss = tjs.cots[cj];
         if(jss.CTP == iss.CTP) continue;
@@ -413,80 +414,255 @@ namespace tca {
         if(jplaneID.Cryostat != tpcid.Cryostat) continue;
         if(jplaneID.TPC != tpcid.TPC) continue;
         Trajectory& jstj = tjs.allTraj[jss.ShowerTjID - 1];
-        TVector3 pos, dir;
+        TVector3 posij, dirij;
         // Use shower Tj point 0 which should yield the start point of the 3D shower
-        if(!TrajPoint3D(tjs, istj.Pts[0], jstj.Pts[0], pos, dir)) continue;
-/*
-        if(prt) {
-          mf::LogVerbatim myprt("TC");
-          myprt<<" cj "<<cj<<" jstj "<<jstj.ID<<" Energy "<<(int)jss.Energy;
-          myprt<<" 3D Pos "<<std::fixed<<std::setprecision(1)<<pos[0]<<" "<<pos[1]<<" "<<pos[2];
-          myprt<<" dir "<<std::setprecision(2)<<dir[0]<<" "<<dir[1]<<" "<<dir[2];
-        }
-*/
-        // see if this position is consistent with an existing 3D shower
-        unsigned short bestIndex = USHRT_MAX;
-        float bestSep = sepCut;
-        for(unsigned short ss3Index = 0; ss3Index < tjs.showers.size(); ++ ss3Index) {
-          auto& ss3 = tjs.showers[ss3Index];
-          if(ss3.ID == 0) continue;
-          // Use a temporary TVector3 to get the separation
-          TVector3 tmp = pos - ss3.Pos;
-          float sep = tmp.Mag();
-          if(sep < bestSep) {
-            bestIndex = ss3Index;
-            bestSep = sep;
-          } // sep < sepCut
-        } // ss3Index
-        // matched to an existing 3D shower
-        if(bestIndex < tjs.showers.size()) {
-          auto& ss3 = tjs.showers[bestIndex];
-          // add the cots indices to the list
-          if(std::find(ss3.CotIndices.begin(), ss3.CotIndices.end(), ci) == ss3.CotIndices.end()) ss3.CotIndices.push_back(ci);
-          if(std::find(ss3.CotIndices.begin(), ss3.CotIndices.end(), cj) == ss3.CotIndices.end()) ss3.CotIndices.push_back(cj);
-//          if(prt) mf::LogVerbatim("TC")<<" bestSep "<<bestSep<<" (cm). Update ss3 "<<ss3.ID;
-          continue;
-        } else {
-          // make a 3D shower struct to hold this information
+        if(!TrajPoint3D(tjs, istj.Pts[0], jstj.Pts[0], posij, dirij)) continue;
+        float fomij = Match3DFOM(fcnLabel, tjs, ci, cj, prt);
+        if(fomij > fomCut) continue;
+        if(tjs.NumPlanes == 2) {
           ShowerStruct3D ss3;
           ss3.ID = tjs.showers.size() + 1;
           ss3.TPCID = tpcid;
-          ss3.Pos = pos;
+          ss3.Pos = posij;
           // TODO: would be nice to have a position and direction error here
-          ss3.Dir = dir;
+          ss3.Dir = dirij;
           ss3.CotIndices.resize(2);
           ss3.CotIndices[0] = ci;
           ss3.CotIndices[1] = cj;
+          ss3.Energy.resize(2);
+          ss3.Energy[0] = tjs.cots[ci].Energy;
+          ss3.Energy[1] = tjs.cots[cj].Energy;
+          ss3.FOM = fomij;
           ss3.MatchVecPFPIndex = USHRT_MAX;
           // don't fill or use the rest of the variables
           tjs.showers.push_back(ss3);
-//          if(prt) mf::LogVerbatim("TC")<<" new ss3 "<<ss3.ID;
+          if(prt) mf::LogVerbatim("TC")<<" new ss3 "<<ss3.ID<<" with fomij "<<fomij;
+          continue;
+        } // 2-plane TPC
+        float bestFOM = fomCut;
+        unsigned short bestck = USHRT_MAX;
+        for(unsigned short ck = cj + 1; ck < tjs.cots.size(); ++ck) {
+          ShowerStruct& kss = tjs.cots[ck];
+          if(kss.CTP == iss.CTP || kss.CTP == jss.CTP) continue;
+          if(kss.ID == 0) continue;
+          if(kss.TjIDs.empty()) continue;
+          geo::PlaneID kplaneID = DecodeCTP(kss.CTP);
+          if(kplaneID.Cryostat != tpcid.Cryostat) continue;
+          if(kplaneID.TPC != tpcid.TPC) continue;
+          Trajectory& kstj = tjs.allTraj[kss.ShowerTjID - 1];
+          TVector3 posik, dirik;
+          // Use shower Tj point 0 which should yield the start point of the 3D shower
+          if(!TrajPoint3D(tjs, istj.Pts[0], kstj.Pts[0], posik, dirik)) continue;
+          float fomik = Match3DFOM(fcnLabel, tjs, ci, ck, prt);
+          if(fomik > bestFOM) continue;
+          TVector3 tmp = posik - posij;
+          float sep = tmp.Mag();
+          if(sep > 10) {
+            if(prt) mf::LogVerbatim("TC")<<" Large stp[0] point separation "<<sep;
+            continue;
+          }
+          bestFOM = fomik;
+          bestck = ck;
+        } // ck
+        if(bestck == USHRT_MAX) continue;
+        ShowerStruct3D ss3;
+        ss3.ID = tjs.showers.size() + 1;
+        ss3.TPCID = tpcid;
+        /* Not sure if doing any averaging is worth it.
+         ss3.Pos = bestPos;
+         ss3.Dir = bestDir;
+         */
+        ss3.CotIndices.resize(3);
+        ss3.CotIndices[0] = ci;
+        ss3.CotIndices[1] = cj;
+        ss3.CotIndices[2] = bestck;
+        ss3.Energy.resize(3);
+        ss3.Energy[0] = tjs.cots[ci].Energy;
+        ss3.Energy[1] = tjs.cots[cj].Energy;
+        ss3.Energy[2] = tjs.cots[bestck].Energy;
+        ss3.FOM = 0.5 * (fomij + bestFOM);
+        ss3.MatchVecPFPIndex = USHRT_MAX;
+        // don't fill or use the rest of the variables
+        tjs.showers.push_back(ss3);
+        if(prt) mf::LogVerbatim("TC")<<" new ss3 "<<ss3.ID<<" with FOM "<<ss3.FOM;
+      } // cj
+    } // ci
+/* A more general approach but needs work...
+    for(unsigned short ci = 0; ci < tjs.cots.size() - 1; ++ci) {
+      ShowerStruct& iss = tjs.cots[ci];
+      if(iss.ID == 0) continue;
+      if(iss.TjIDs.empty()) continue;
+      geo::PlaneID iplaneID = DecodeCTP(iss.CTP);
+      if(iplaneID.Cryostat != tpcid.Cryostat) continue;
+      if(iplaneID.TPC != tpcid.TPC) continue;
+      Trajectory& istj = tjs.allTraj[iss.ShowerTjID - 1];
+      if(prt) std::cout<<"ci "<<ci<<" istj "<<istj.ID<<" Energy "<<(int)iss.Energy<<"\n";
+      float bestFOM = 1E6;
+      unsigned short bestcj = USHRT_MAX;
+      TVector3 bestPos, bestDir;
+      for(unsigned short cj = ci + 1; cj < tjs.cots.size(); ++cj) {
+        ShowerStruct& jss = tjs.cots[cj];
+        if(jss.CTP == iss.CTP) continue;
+        if(jss.ID == 0) continue;
+        if(jss.TjIDs.empty()) continue;
+        geo::PlaneID jplaneID = DecodeCTP(jss.CTP);
+        if(jplaneID.Cryostat != tpcid.Cryostat) continue;
+        if(jplaneID.TPC != tpcid.TPC) continue;
+        Trajectory& jstj = tjs.allTraj[jss.ShowerTjID - 1];
+        float fom = Match3DFOM(fcnLabel, tjs, ci, cj, prt);
+        if(fom > bestFOM) continue;
+        TVector3 pos, dir;
+        // Use shower Tj point 0 which should yield the start point of the 3D shower
+        if(!TrajPoint3D(tjs, istj.Pts[0], jstj.Pts[0], pos, dir)) continue;
+        bestFOM = fom;
+        bestcj = cj;
+        // save the 3D position and direction
+        bestPos = pos;
+        bestDir = dir;
+      } // cj
+      if(bestcj == USHRT_MAX) continue;
+      // see if this match position has already been found and there is a small energy asymmetry
+      unsigned short bestIndex = USHRT_MAX;
+      float bestfom3 = 1E6;
+      for(unsigned short ss3Index = 0; ss3Index < tjs.showers.size(); ++ss3Index) {
+        auto& ss3 = tjs.showers[ss3Index];
+        if(ss3.ID == 0) continue;
+        if(ss3.CotIndices.size() != 2) continue;
+        if(bestcj == ss3.CotIndices[0] && bestcj == ss3.CotIndices[1]) continue;
+        float fom3 = Match3DFOM(fcnLabel, tjs, ss3.CotIndices[0], ss3.CotIndices[1], bestcj, prt);
+        std::cout<<ss3.CotIndices[0]<<" "<<ss3.CotIndices[1]<<" ss3.ID "<<ss3.ID<<" bestcj "<<bestcj<<" fom3 "<<fom3<<"\n";
+        if(fom3 > bestfom3) continue;
+        bestfom3 = fom3;
+        bestIndex = ss3Index;
+      } // ss3Index
+      // matched to an existing 3D shower ?
+      if(bestIndex < tjs.showers.size()) {
+        auto& ss3 = tjs.showers[bestIndex];
+        // add the cots indices to the list
+        if(std::find(ss3.CotIndices.begin(), ss3.CotIndices.end(), ci) == ss3.CotIndices.end()) ss3.CotIndices.push_back(ci);
+        if(std::find(ss3.CotIndices.begin(), ss3.CotIndices.end(), bestcj) == ss3.CotIndices.end()) ss3.CotIndices.push_back(bestcj);
+        ss3.FOM = bestfom3;
+        if(prt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<" bestfom3 "<<bestfom3<<" (cm). Update ss3 "<<ss3.ID<<" Indices ";
+          for(auto indx : ss3.CotIndices) myprt<<" "<<indx;
         }
-      } // ci2
-    } // ci1
+        continue;
+      } else {
+        // make a 3D shower struct to hold this information
+        ShowerStruct3D ss3;
+        ss3.ID = tjs.showers.size() + 1;
+        ss3.TPCID = tpcid;
+        ss3.Pos = bestPos;
+        // TODO: would be nice to have a position and direction error here
+        ss3.Dir = bestDir;
+        ss3.CotIndices.resize(2);
+        ss3.CotIndices[0] = ci;
+        ss3.CotIndices[1] = bestcj;
+        ss3.Energy.resize(2);
+        ss3.Energy[0] = tjs.cots[ci].Energy;
+        ss3.Energy[1] = tjs.cots[bestcj].Energy;
+        ss3.FOM = bestFOM;
+        ss3.MatchVecPFPIndex = USHRT_MAX;
+        // don't fill or use the rest of the variables
+        tjs.showers.push_back(ss3);
+        if(prt) mf::LogVerbatim("TC")<<" new ss3 "<<ss3.ID<<" with bestFOM "<<bestFOM;
+      }
+    } // ci
+*/
     if(tjs.showers.empty()) return;
     
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<fcnLabel<<" ss3 \n";
+      for(auto& ss3 : tjs.showers) {
+        myprt<<fcnLabel<<" "<<ss3.ID<<" cots\n";
+        for(auto ci : ss3.CotIndices) {
+          auto& ss = tjs.cots[ci];
+          myprt<<fcnLabel<<"  "<<ss.ID;
+          auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+          myprt<<" "<<stj.ID;
+          myprt<<" "<<ss.ParentID;
+          if(ss.ParentID > 0) {
+            auto& ptj = tjs.allTraj[ss.ParentID - 1];
+            auto mvi = MatchVecIndex(tjs, ptj.ID);
+            if(mvi < tjs.matchVec.size()) {
+              myprt<<" Parent matchVecIndex "<<mvi;
+            } else {
+              myprt<<" Parent not matched in 3D.";
+            }
+          } else {
+            myprt<<" Shower has no parent.";
+          }
+          myprt<<"\n";
+        } // ci
+      } // sss3
+    } // prt
+    
     // Try to set MatchVecPFPIndex
+    unsigned short cnt = 0;
     for(auto& ss3 : tjs.showers) {
+      std::vector<unsigned short> pfp3(ss3.CotIndices.size(), USHRT_MAX);
+      unsigned short cntSame = 0;
+      unsigned short validPFP = USHRT_MAX;
       for(auto cotIndex : ss3.CotIndices) {
         auto& ss = tjs.cots[cotIndex];
         if(ss.ParentID > 0) {
           auto& ptj = tjs.allTraj[ss.ParentID - 1];
-          // look for this parent ID in matchVec
-          auto mvi = MatchVecIndex(tjs, ptj.ID);
-          ss.SS3ID = ss3.ID;
-          if(mvi < tjs.matchVecPFPList.size()) {
-            // a matched parent exists
-            if(ss3.MatchVecPFPIndex == USHRT_MAX) {
+          unsigned short ipfp = MatchVecPFPIndex(tjs, ptj.ID);
+          pfp3[cnt] = ipfp;
+          ++cnt;
+          if(ipfp < USHRT_MAX) {
+            // valid matchVecIndex
+            if(validPFP == USHRT_MAX) {
               // first occurrence
-              ss3.MatchVecPFPIndex = mvi;
-            } else if(ss3.MatchVecPFPIndex != mvi) {
-              std::cout<<" Found inconsistent parent Tjs in a matched 3D shower "<<ss3.ID<<". Put some code here\n";
-              // Need to decide which is better, the shower match or the parent match
-            } 
-          } // a matched parent exists
-        } // a parent exists
+              validPFP = ipfp;
+              cntSame = 1;
+            } else if(ipfp == validPFP) {
+              // count the same
+              ++cntSame;
+            }
+          } // valid matchVecIndex
+        } // valid parent
       } // cotIndex
+      if(cntSame == ss3.CotIndices.size()) {
+        //  perfect match
+        ss3.MatchVecPFPIndex = validPFP;
+        if(prt) mf::LogVerbatim("TC")<<" ss3 "<<ss3.ID<<" showers and parents all match. validPFP "<<validPFP;
+      } else if(cntSame == 2) {
+        // one missing match
+        unsigned short badCotIndex = 0;
+        for(badCotIndex = 0; badCotIndex < pfp3.size(); ++badCotIndex) if(pfp3[badCotIndex] == USHRT_MAX) break;
+        badCotIndex = ss3.CotIndices[badCotIndex];
+        auto& badss = tjs.cots[badCotIndex];
+        // find the correct parent Tj from the 3D match
+        unsigned short mvi = tjs.matchVecPFPList[validPFP];
+        auto& mv = tjs.matchVec[mvi];
+        int correctParentID = 0;
+        for(auto& id : mv.TjIDs) {
+          // find the Tj that has the same CTP as the badss
+          auto& tj = tjs.allTraj[id - 1];
+          if(tj.CTP != badss.CTP) continue;
+          correctParentID = id;
+          break;
+        } // id
+        if(prt) mf::LogVerbatim("TC")<<" ss3 "<<ss3.ID<<" validPFP "<<validPFP<<" Shower "<<badss.ID<<" has a bad parent. The correct one is "<<correctParentID;
+        // failed for some reason
+        if(correctParentID == 0) continue;
+        // update the bad shower with the correct parent
+        badss.ParentID = correctParentID;
+        UpdateShowerWithParent(fcnLabel, tjs, badss.ID - 1, prt);
+        // update the FOM
+        ss3.FOM = Match3DFOM(fcnLabel, tjs, ss3, prt);
+        ss3.MatchVecPFPIndex = validPFP;
+        for(auto ci : ss3.CotIndices) {
+          auto& ss = tjs.cots[ci];
+          ss.SS3ID = ss3.ID;
+        } // ci
+        if(prt) mf::LogVerbatim("TC")<<" ss3 "<<ss3.ID<<" updated FOM "<<ss3.FOM;
+      } else {
+        if(prt) mf::LogVerbatim("TC")<<" ss3 "<<ss3.ID<<" none of the showers or parents match";
+      }
     } // ss3
     
     // look for incompletely defined 3D vertices
@@ -540,6 +716,94 @@ namespace tca {
     } // prt
     
   } // Match2DShowers
+  
+  ////////////////////////////////////////////////
+  float Match3DFOM(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
+  {
+    float fom = 0;
+    float cnt = 0;
+    for(unsigned short ii = 0; ii < ss3.CotIndices.size() - 1; ++ii) {
+      unsigned short ci = ss3.CotIndices[ii];
+      for(unsigned short jj = ii + 1; jj < ss3.CotIndices.size(); ++jj) {
+        unsigned short cj = ss3.CotIndices[jj];
+        fom += Match3DFOM(inFcnLabel, tjs, ci, cj, prt);
+        ++cnt;
+      } // cj
+    } // ci
+    if(cnt == 0) return 100;
+    return fom / cnt;
+  } // Match3DFOM
+
+  ////////////////////////////////////////////////
+  float Match3DFOM(std::string inFcnLabel, TjStuff& tjs,
+                   unsigned short icotIndex, unsigned short jcotIndex, unsigned short kcotIndex, bool prt)
+  {
+    if(icotIndex > tjs.cots.size() - 1) return 100;
+    if(jcotIndex > tjs.cots.size() - 1) return 100;
+    if(kcotIndex > tjs.cots.size() - 1) return 100;
+    
+    float ijfom = Match3DFOM(inFcnLabel, tjs, icotIndex, jcotIndex, prt);
+    float jkfom = Match3DFOM(inFcnLabel, tjs, jcotIndex, kcotIndex, prt);
+    
+    return 0.5 * (ijfom + jkfom);
+    
+  } // Match3DFOM
+  
+  ////////////////////////////////////////////////
+  float Match3DFOM(std::string inFcnLabel, TjStuff& tjs, unsigned short icotIndex, unsigned short jcotIndex, bool prt)
+  {
+    // returns a Figure of Merit for a 3D match of two showers
+    if(icotIndex > tjs.cots.size() - 1) return 100;
+    if(jcotIndex > tjs.cots.size() - 1) return 100;
+    
+    auto& iss = tjs.cots[icotIndex];
+    auto& istj = tjs.allTraj[iss.ShowerTjID - 1];    
+    auto& jss = tjs.cots[jcotIndex];
+    auto& jstj = tjs.allTraj[jss.ShowerTjID - 1];
+    
+    if(iss.CTP == jss.CTP) return 100;
+    
+    std::string fcnLabel = inFcnLabel + ".MFOM";
+    
+    float energyAsym = std::abs(iss.Energy - jss.Energy) / (iss.Energy + jss.Energy);
+    
+    geo::PlaneID iPlnID = DecodeCTP(iss.CTP);
+    geo::PlaneID jPlnID = DecodeCTP(jss.CTP);
+    
+    // compare match at the start of the showers
+    float ix = tjs.detprop->ConvertTicksToX(istj.Pts[0].Pos[1] / tjs.UnitsPerTick, iPlnID);
+    float jx = tjs.detprop->ConvertTicksToX(jstj.Pts[0].Pos[1] / tjs.UnitsPerTick, jPlnID);
+    float pos0fom = std::abs(ix - jx) / 5;
+    
+    // compare match at the charge center
+    ix = tjs.detprop->ConvertTicksToX(istj.Pts[1].Pos[1] / tjs.UnitsPerTick, iPlnID);
+    jx = tjs.detprop->ConvertTicksToX(jstj.Pts[1].Pos[1] / tjs.UnitsPerTick, jPlnID);
+    float pos1fom = std::abs(ix - jx) / 10;
+    
+    // and the end
+    ix = tjs.detprop->ConvertTicksToX(istj.Pts[2].Pos[1] / tjs.UnitsPerTick, iPlnID);
+    jx = tjs.detprop->ConvertTicksToX(jstj.Pts[2].Pos[1] / tjs.UnitsPerTick, jPlnID);
+    float pos2fom = std::abs(ix - jx) / 20;
+    
+    float mfom = energyAsym * energyAsym;
+    mfom += pos0fom * pos0fom;
+    mfom += pos1fom * pos1fom;
+    mfom += pos2fom * pos2fom;
+    mfom = sqrt(mfom) / 4;
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<fcnLabel<<" iss.ID "<<iss.ID<<" jss.ID "<<jss.ID;
+      myprt<<std::fixed<<std::setprecision(2);
+      myprt<<" pos0fom "<<pos0fom;
+      myprt<<" pos1fom "<<pos1fom;
+      myprt<<" pos2fom "<<pos2fom;
+      myprt<<" energyAsym "<<energyAsym;
+      myprt<<" mfom "<<mfom;
+    }
+    
+    return mfom;
+  } // MadtchFOM
 
   ////////////////////////////////////////////////
   void FindMatchingTjs(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt)
@@ -789,6 +1053,10 @@ namespace tca {
     }
     ss.TjIDs.push_back(tjID);
     std::sort(ss.TjIDs.begin(), ss.TjIDs.end());
+    // remove this ID from the NearTjIDs list
+    for(unsigned short ii = 0; ii < ss.NearTjIDs.size(); ++ii) {
+      if(ss.NearTjIDs[ii] == tjID) ss.NearTjIDs.erase(ss.NearTjIDs.begin() + ii);
+    }
     // count the hits in the TPs
     unsigned short cnt = 0;
     for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
@@ -881,7 +1149,6 @@ namespace tca {
     // Ensure that it is valid
     if(ss.ID == 0) return;
     if(ss.TjIDs.empty()) return;
-    if(ss.Envelope.empty()) return;
     
     std::string fcnLabel = inFcnLabel + ".FEP";
     
@@ -2392,6 +2659,7 @@ namespace tca {
     float docaCut = 2 * tjs.ShowerTag[2];
     
     std::vector<int> ntj;
+/*
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != ss.CTP) continue;
       if(tj.AlgMod[kKilled]) continue;
@@ -2412,6 +2680,32 @@ namespace tca {
           break;
         }
       } // inTjID
+    } // tj
+*/
+    // try a different (better?) method. Check for tj points inside the envelope
+    for(auto& tj : tjs.allTraj) {
+      if(tj.CTP != ss.CTP) continue;
+      if(tj.AlgMod[kKilled]) continue;
+      // not a showerTj
+      if(tj.AlgMod[kShowerTj]) continue;
+      // check for a valid envelope
+      if(ss.Envelope.empty()) continue;
+      // make sure it's not in the shower
+      if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
+      // don't need to check every point. Every third should be enough
+      bool isInside = false;
+      for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ipt += 3) {
+        if(PointInsideEnvelope(tj.Pts[ipt].Pos, ss.Envelope)) {
+          isInside = true;
+          break;
+        }
+      } // ipt
+      // check the last point which was probably missed above
+      if(!isInside) {
+        unsigned short ipt = tj.EndPt[1];
+        isInside = PointInsideEnvelope(tj.Pts[ipt].Pos, ss.Envelope);
+      }
+      if(isInside) ntj.push_back(tj.ID);
     } // tj
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Found "<<ntj.size()<<" Tjs near ss.ID "<<ss.ID<<" with DOCA < "<<docaCut;
     if(!ntj.empty()) ss.NearTjIDs = ntj;
@@ -2537,7 +2831,7 @@ namespace tca {
             if(tj.VtxID[end] == 0) continue;
             auto& vx = tjs.vtx[tj.VtxID[end] - 1];
             if(PointInsideEnvelope(vx.Pos, ss.Envelope)) {
-              if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss.ID "<<ss.ID<<" Kill vtx "<<vx.ID<<" inside the envelope ";
+              if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss.ID "<<ss.ID<<" nukeEmALL vtx "<<vx.ID<<" inside the envelope ";
               MakeVertexObsolete(tjs, vx.ID, true);
             } // vertex is inside the envelope
           } // end
@@ -3056,14 +3350,14 @@ namespace tca {
     } // !printAllCTP
     
     // print a header
-    myprt<<someText<<" ict  ID   CTP  ParID TruParID Energy nTjs  dFOM AspRat   stj __Pos0___ nPts dRMS __Pos1___ nPts dRMS __Pos2___ nPts dRMS Angle SS3ID\n";
+    myprt<<someText<<"  ID   CTP  ParID TruParID Energy nTjs  dFOM AspRat   stj __Pos0___ nPts dRMS __Pos1___ nPts dRMS __Pos2___ nPts dRMS Angle SS3ID\n";
 
     for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
       const auto& ss = tjs.cots[ict];
       if(!printAllCTP && ss.CTP != inCTP) continue;
       if(!printKilledShowers && ss.ID == 0) continue;
       myprt<<someText<<std::fixed;
-      myprt<<std::setw(4)<<ict;
+//      myprt<<std::setw(4)<<ict;
       myprt<<std::setw(4)<<ss.ID;
       myprt<<std::setw(6)<<ss.CTP;
       myprt<<std::setw(7)<<ss.ParentID;
@@ -3083,14 +3377,30 @@ namespace tca {
       myprt<<std::setw(6)<<ss.SS3ID;
       if(ss.NeedsUpdate) myprt<<" *** Needs update";
       myprt<<"\n";
-      // Print more detail?
-      if(printAllCTP) continue;
-      myprt<<someText<<" Tjs";
-      for(auto id : ss.TjIDs) myprt<<" "<<id;
-      myprt<<" Nrby";
+    } // ss
+    if(tjs.ShowerTag[12] > 9) {
+      // print more detail
+      for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
+        const auto& ss = tjs.cots[ict];
+        if(!printAllCTP && ss.CTP != inCTP) continue;
+        if(!printKilledShowers && ss.ID == 0) continue;
+        myprt<<someText<<std::fixed;
+        myprt<<std::setw(4)<<ss.ID;
+        myprt<<" Tjs";
+        for(auto id : ss.TjIDs) myprt<<" "<<id;
+        myprt<<"\n";
+      } // ict
+    }
+    for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
+      const auto& ss = tjs.cots[ict];
+      if(!printAllCTP && ss.CTP != inCTP) continue;
+      if(!printKilledShowers && ss.ID == 0) continue;
+      myprt<<someText<<std::fixed;
+      myprt<<std::setw(4)<<ss.ID;
+      myprt<<" Nearby";
       for(auto id : ss.NearTjIDs) myprt<<" "<<id;
       myprt<<"\n";
-    } // ss
+    } // ict
   } // Print2DShowers
 
 } // namespace tca
