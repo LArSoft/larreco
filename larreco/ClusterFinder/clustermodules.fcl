@@ -72,7 +72,9 @@ standard_cluster3d:
   EnableMonitoring:       false
   EnableProduction:       false
   Hit3DBuilderAlg:        @local::standard_cluster3dhit3dbuilderalg
-  DBScanAlg:              @local::standard_cluster3ddbscanalg
+  ClusterAlg:             @local::standard_cluster3dminSpanTreeAlg
+  ClusterMergeAlg:        @local::standard_cluster3dMergeAlg
+  ClusterParamsBuilder:   @local::standard_cluster3dParamsBuilder
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
   SkeletonAlg:            @local::standard_cluster3dskeletonalg
   SeedFinderAlg:          @local::standard_cluster3dhoughseedfinderalg
