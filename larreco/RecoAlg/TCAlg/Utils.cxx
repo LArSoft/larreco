@@ -7,46 +7,38 @@ namespace tca {
   {
     
     // Define the parent (j) - daughter (i) relationship and the PDGCode
-
-    for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
-      unsigned short imv = tjs.matchVecPFPList[ipfp];
-      auto& ms = tjs.matchVec[imv];
-      if(ms.TPCID != tpcid) continue;
+    
+    for(auto& ipfp : tjs.pfps) {
+      if(ipfp.ID == 0) continue;
       // assume that this is its own parent
-      ms.ParentMSIndex = ipfp;
+      ipfp.ParentID = ipfp.ID;
+      // count shower-like (11), track-like (13) and showers (1111)
       unsigned short n11 = 0;
       unsigned short n13 = 0;
       unsigned short nsh = 0;
-      // look for a parent (j) in the list of trajectories
-      for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-        unsigned short itj = ms.TjIDs[ii] - 1;
-        Trajectory& tj = tjs.allTraj[itj];
-        if(tj.PDGCode == 11) ++n11;
-        if(tj.PDGCode == 13) ++n13;
-        if(tj.AlgMod[kShowerTj]) ++nsh;
-        // Look for a parent trajectory that is matched in 3D
-        if(tj.ParentTrajID > 0 && tjs.allTraj[tj.ParentTrajID - 1].AlgMod[kMat3D]) {
-          // Look for this parent in matchVecPFPList
-          for(unsigned short jpfp = 0; jpfp < tjs.matchVecPFPList.size(); ++jpfp) {
-            if(jpfp == ipfp) continue;
-            unsigned short jmv = tjs.matchVecPFPList[jpfp];
-            auto& jms = tjs.matchVec[jmv];
-            if(std::find(jms.TjIDs.begin(), jms.TjIDs.end(), tj.ParentTrajID) != jms.TjIDs.end()) {
-              ms.ParentMSIndex = jpfp;
-              if(std::find(jms.DtrIndices.begin(), jms.DtrIndices.end(), ipfp) == jms.DtrIndices.end()) jms.DtrIndices.push_back(ipfp);
-              break;
+      for(auto itjID : ipfp.TjIDs) {
+        auto& tj = tjs.allTraj[itjID - 1];
+        for(auto& jpfp : tjs.pfps) {
+          if(jpfp.ID == 0) continue;
+          if(jpfp.ID == ipfp.ID) continue;
+          // count PDG code types
+          if(tj.PDGCode == 11) ++n11;
+          if(tj.PDGCode == 13) ++n13;
+          if(tj.AlgMod[kShowerTj]) ++nsh;
+          // look for a parent in the list of trajectories
+          if(tj.ParentTrajID > 0 && tjs.allTraj[tj.ParentTrajID - 1].AlgMod[kMat3D]) {
+            for(auto& kpfp : tjs.pfps) {
+              if(kpfp.ID == 0) continue;
+              if(kpfp.ID == ipfp.ID) continue;
+              if(std::find(jpfp.TjIDs.begin(), jpfp.TjIDs.end(), tj.ParentTrajID) != jpfp.TjIDs.end()) {
+                ipfp.ParentID = jpfp.ID;
+                if(std::find(jpfp.DtrIDs.begin(), jpfp.DtrIDs.end(), ipfp.ID) == jpfp.DtrIDs.end()) jpfp.DtrIDs.push_back(ipfp.ID);
+                break;
+              }
             }
-          } // jpfp
-        } // ParentTrajID > 0
-      } // ii
-      ms.PDGCode = 13;
-      if(nsh > 1) {
-        // use PDGCode = 1111 for a shower Tj
-        ms.PDGCode = 1111;
-      } else if(n11 > n13) {
-        // a generic shower-like Tj
-        ms.PDGCode = 11;
-      }
+          } // 3D matched and a parent exists
+        } // jpfp
+      } // itjID
     } // ipfp
 
   } // DefinePFParticleRelationships
@@ -228,13 +220,13 @@ namespace tca {
   } // TrajPoint3D
   
   /////////////////////////////////////////
-  bool FindMatchingPts2(TjStuff& tjs, MatchStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt)
+  bool FindMatchingPts2(TjStuff& tjs, PFPStruct& pfp, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt)
   {
     // Finds matching points when there is little X difference. These are likely to be
     // a match of short Tjs
     
-    unsigned int cstat = ms.TPCID.Cryostat;
-    unsigned int tpc = ms.TPCID.TPC;
+    unsigned int cstat = pfp.TPCID.Cryostat;
+    unsigned int tpc = pfp.TPCID.TPC;
 
     double bestsep = 1E6;
     unsigned int bii = 0;
@@ -243,40 +235,40 @@ namespace tca {
     unsigned int jbend = 0;
     unsigned int bkk = 0;
     unsigned int kbend = 0;
-    for(unsigned short ii = 0; ii < ms.TjIDs.size() - 2; ++ii) {
-      auto& itj = tjs.allTraj[ms.TjIDs[ii] - 1];
+    for(unsigned short ii = 0; ii < pfp.TjIDs.size() - 2; ++ii) {
+      auto& itj = tjs.allTraj[pfp.TjIDs[ii] - 1];
       unsigned int iplane = DecodeCTP(itj.CTP).Plane;
       for(unsigned short iend = 0; iend < 2; ++iend) {
         auto& itp = itj.Pts[itj.EndPt[iend]];
         unsigned int iwire = std::nearbyint(itp.Pos[0]);
-        double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1]/tjs.UnitsPerTick, iplane, ms.TPCID.TPC, ms.TPCID.Cryostat);
-        for(unsigned short jj = ii + 1; jj < ms.TjIDs.size() - 1; ++jj) {
-          auto& jtj = tjs.allTraj[ms.TjIDs[jj] - 1];
+        double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1]/tjs.UnitsPerTick, iplane, pfp.TPCID.TPC, pfp.TPCID.Cryostat);
+        for(unsigned short jj = ii + 1; jj < pfp.TjIDs.size() - 1; ++jj) {
+          auto& jtj = tjs.allTraj[pfp.TjIDs[jj] - 1];
           unsigned int jplane = DecodeCTP(jtj.CTP).Plane;
           for(unsigned short jend = 0; jend < 2; ++jend) {
             auto& jtp = jtj.Pts[jtj.EndPt[jend]];
             unsigned int jwire = std::nearbyint(jtp.Pos[0]);
-            double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1]/tjs.UnitsPerTick, jplane, ms.TPCID.TPC, ms.TPCID.Cryostat);
+            double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1]/tjs.UnitsPerTick, jplane, pfp.TPCID.TPC, pfp.TPCID.Cryostat);
             float sep = std::abs(jx - ix);
             if(sep > tjs.Match3DCuts[0]) continue;
-            if(ms.TjIDs.size() == 2) {
+            if(pfp.TjIDs.size() == 2) {
               if(sep < bestsep) {
                 bestsep = sep;
-                bii = ms.TjIDs[ii] - 1; ibend = iend; 
-                bjj = ms.TjIDs[jj] - 1; jbend = jend; 
+                bii = pfp.TjIDs[ii] - 1; ibend = iend; 
+                bjj = pfp.TjIDs[jj] - 1; jbend = jend; 
               }
               continue;
             }
             double yp1, zp1;
             tjs.geom->IntersectionPoint(iwire, jwire, iplane, jplane, cstat, tpc, yp1, zp1);
             double x1 = 0.5 * (ix + jx);
-            for(unsigned short kk = jj + 1; kk < ms.TjIDs.size(); ++kk) {
-              auto& ktj = tjs.allTraj[ms.TjIDs[kk] - 1];
+            for(unsigned short kk = jj + 1; kk < pfp.TjIDs.size(); ++kk) {
+              auto& ktj = tjs.allTraj[pfp.TjIDs[kk] - 1];
               unsigned int kplane = DecodeCTP(ktj.CTP).Plane;
               for(unsigned short kend = 0; kend < 2; ++kend) {
                 auto& ktp = ktj.Pts[ktj.EndPt[kend]];
                 unsigned int kwire = std::nearbyint(ktp.Pos[0]);
-                double kx = tjs.detprop->ConvertTicksToX(ktp.Pos[1]/tjs.UnitsPerTick, kplane, ms.TPCID.TPC, ms.TPCID.Cryostat);
+                double kx = tjs.detprop->ConvertTicksToX(ktp.Pos[1]/tjs.UnitsPerTick, kplane, pfp.TPCID.TPC, pfp.TPCID.Cryostat);
                 double yp2, zp2;
                 tjs.geom->IntersectionPoint(iwire, kwire, iplane, kplane, cstat, tpc, yp2, zp2);
                 double x2 = 0.5 * (ix + kx);
@@ -286,9 +278,9 @@ namespace tca {
                 double sep = dx * dx + dy * dy + dz * dz;
                 if(sep < bestsep) {
                   bestsep = sep;
-                  bii = ms.TjIDs[ii] - 1; ibend = iend; 
-                  bjj = ms.TjIDs[jj] - 1; jbend = jend; 
-                  bkk = ms.TjIDs[kk] - 1; kbend = kend;
+                  bii = pfp.TjIDs[ii] - 1; ibend = iend; 
+                  bjj = pfp.TjIDs[jj] - 1; jbend = jend; 
+                  bkk = pfp.TjIDs[kk] - 1; kbend = kend;
                 }
               } // kend
             } // kk
@@ -296,15 +288,15 @@ namespace tca {
         } // jj
       } // iend
     } // ii
-    stps.resize(ms.TjIDs.size());
-    etps.resize(ms.TjIDs.size());
+    stps.resize(pfp.TjIDs.size());
+    etps.resize(pfp.TjIDs.size());
     auto& itj = tjs.allTraj[bii];
     stps[0] = itj.Pts[itj.EndPt[ibend]];
     etps[0] = itj.Pts[itj.EndPt[1 - ibend]];
     auto& jtj = tjs.allTraj[bjj];
     stps[1] = jtj.Pts[jtj.EndPt[jbend]];
     etps[1] = jtj.Pts[jtj.EndPt[1 - jbend]];
-    if(ms.TjIDs.size() == 3) {
+    if(pfp.TjIDs.size() == 3) {
       auto& ktj = tjs.allTraj[bkk];
       stps[2] = ktj.Pts[ktj.EndPt[kbend]];
       etps[2] = ktj.Pts[ktj.EndPt[1 - kbend]];
@@ -312,29 +304,29 @@ namespace tca {
     return true;
   } // FindMatchingPts2
   /////////////////////////////////////////
-  bool FindMatchingPts(TjStuff& tjs, MatchStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt)
+  bool FindMatchingPts(TjStuff& tjs, PFPStruct& pfp, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt)
   {
-    // Return a set of TrajPoints in the list of Tjs matched in MatchStruct ms that match in X at the start (stps)
+    // Return a set of TrajPoints in the list of Tjs matched in PFPStruct pfp that match in X at the start (stps)
     // defined in this function to be the lowest X value and the end (etps) 
     // and the end (epts). 
     
     stps.clear();
     etps.clear();
-    if(ms.Count == 0) return false;
+    if(pfp.ID == 0) return false;
     
     prt = false;
     
     // find the X range spanned by all matching Tjs
     float xlo = 1E6;
     float xhi = -1E6;
-    for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-      unsigned short itj = ms.TjIDs[ii] - 1;
+    for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
+      unsigned short itj = pfp.TjIDs[ii] - 1;
       const Trajectory& tj = tjs.allTraj[itj];
       unsigned short plane = DecodeCTP(tj.CTP).Plane;
       for(unsigned short end = 0; end < 2; ++end) {
         unsigned short endPt = tj.EndPt[end];
         const TrajPoint& tp = tj.Pts[endPt];
-        float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, ms.TPCID.TPC, ms.TPCID.Cryostat);
+        float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, pfp.TPCID.TPC, pfp.TPCID.Cryostat);
         if(xpos < xlo) xlo = xpos;
         if(xpos > xhi) xhi = xpos;
       } // end
@@ -342,19 +334,19 @@ namespace tca {
     // the number of bins in X
     float xbinSize = tjs.Match3DCuts[0];
     unsigned short nxbins = (xhi - xlo) / xbinSize;
-    if(nxbins < 2) return FindMatchingPts2(tjs, ms, stps, etps, prt);
+    if(nxbins < 2) return FindMatchingPts2(tjs, pfp, stps, etps, prt);
     // create X matching vectors for each Tj. Initialize with bogus Tj point indices
-    std::vector<std::vector<unsigned short>> tjpt(ms.TjIDs.size(), std::vector<unsigned short>(nxbins, USHRT_MAX));
+    std::vector<std::vector<unsigned short>> tjpt(pfp.TjIDs.size(), std::vector<unsigned short>(nxbins, USHRT_MAX));
     // temp vector for holding the low end of the X bin value
     std::vector<float> binX(nxbins);
     for(unsigned short bin = 0; bin < nxbins; ++bin) binX[bin] = xlo + bin * xbinSize;
-    for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-      unsigned short itj = ms.TjIDs[ii] - 1;
+    for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
+      unsigned short itj = pfp.TjIDs[ii] - 1;
       const Trajectory& tj = tjs.allTraj[itj];
       unsigned short plane = DecodeCTP(tj.CTP).Plane;
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         const TrajPoint& tp = tj.Pts[ipt];
-        float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, ms.TPCID.TPC, ms.TPCID.Cryostat);
+        float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, pfp.TPCID.TPC, pfp.TPCID.Cryostat);
         unsigned short bin = (xpos - xlo) / xbinSize;
         if(bin > nxbins - 1) continue;
         tjpt[ii][bin] = ipt;
@@ -378,19 +370,19 @@ namespace tca {
     std::vector<unsigned short> cnts(nxbins);
     for(unsigned short bin = 0; bin < nxbins; ++bin) {
       cnts[bin] = 0;
-      for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) if(tjpt[ii][bin] != USHRT_MAX) ++cnts[bin];
+      for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) if(tjpt[ii][bin] != USHRT_MAX) ++cnts[bin];
     } // bin
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<" tjpts";
-      for(auto tjID : ms.TjIDs) myprt<<" "<<tjID;
+      for(auto tjID : pfp.TjIDs) myprt<<" "<<tjID;
       for(unsigned short bin = 0; bin < nxbins; ++bin) {
         myprt<<"\n";
         myprt<<" bin "<<bin<<" "<<std::fixed<<std::setprecision(1)<<binX[bin];
         myprt<<" cnts "<<cnts[bin];
         myprt<<" tjpt";
-        for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
+        for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
           myprt<<" "<<tjpt[ii][bin];
         } // ii
       } // bin
@@ -398,10 +390,10 @@ namespace tca {
 
     // find the first and last bins where all planes are matched
     unsigned short firstAll = USHRT_MAX;
-    for(firstAll = 0; firstAll < nxbins; ++firstAll) if(cnts[firstAll] == ms.TjIDs.size()) break;
+    for(firstAll = 0; firstAll < nxbins; ++firstAll) if(cnts[firstAll] == pfp.TjIDs.size()) break;
     if(firstAll > nxbins - 1) return false;
     unsigned short lastAll = USHRT_MAX;
-    for(lastAll = nxbins - 1; lastAll > firstAll + 1; --lastAll) if(cnts[lastAll] == ms.TjIDs.size()) break;
+    for(lastAll = nxbins - 1; lastAll > firstAll + 1; --lastAll) if(cnts[lastAll] == pfp.TjIDs.size()) break;
     if(prt) mf::LogVerbatim("TC")<<"firstAll "<<firstAll<<" lastAll "<<lastAll;
     if(lastAll <= firstAll) return false;
     
@@ -410,7 +402,7 @@ namespace tca {
     unsigned short last2 = lastAll;
     
     // This section is only necessary for 3-plane matches
-    if(ms.TjIDs.size() > 2) {
+    if(pfp.TjIDs.size() > 2) {
       if(first2 > 0) {
         for(unsigned short ii = 1; ii < nxbins; ++ii) {
           unsigned short bin = firstAll - ii;
@@ -439,14 +431,14 @@ namespace tca {
     if(last2 <= first2) return false;
     
     // decide if a Tjs needs to be reversed so that the match order is consistent
-    std::vector<short> posOrder(ms.TjIDs.size());
-    for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
+    std::vector<short> posOrder(pfp.TjIDs.size());
+    for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
       posOrder[ii] = -1;
       if(tjpt[ii][lastAll] > tjpt[ii][firstAll]) posOrder[ii] = 1;
     }
     
     unsigned short reverseMe = USHRT_MAX;
-    if(ms.TjIDs.size() > 2) {
+    if(pfp.TjIDs.size() > 2) {
       // 3-plane TPC
       if(posOrder[1] == posOrder[0] && posOrder[2] != posOrder[0]) {
         reverseMe = 2;
@@ -460,7 +452,7 @@ namespace tca {
       if(posOrder[0] != posOrder[1]) reverseMe = 1;
     }
     if(reverseMe != USHRT_MAX) {
-      unsigned short itj = ms.TjIDs[reverseMe] - 1;
+      unsigned short itj = pfp.TjIDs[reverseMe] - 1;
       Trajectory& tj = tjs.allTraj[itj];
       // make a copy to simplify getting the tjpt order correct
       Trajectory old = tj;
@@ -481,8 +473,8 @@ namespace tca {
     } // reverseMe
     
     // now fill the start vector and set the matched end of the Tj in the match struct
-    for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-      unsigned short itj = ms.TjIDs[ii] - 1;
+    for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
+      unsigned short itj = pfp.TjIDs[ii] - 1;
       const Trajectory& tj = tjs.allTraj[itj];
       if(tjpt[ii][first2] > tj.Pts.size() - 1) continue;
       unsigned short ipt = tjpt[ii][first2];
@@ -496,8 +488,8 @@ namespace tca {
     } // ii
     
     // and the end vector
-    for(unsigned short ii = 0; ii < ms.TjIDs.size(); ++ii) {
-      unsigned short itj = ms.TjIDs[ii] - 1;
+    for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
+      unsigned short itj = pfp.TjIDs[ii] - 1;
       const Trajectory& tj = tjs.allTraj[itj];
       if(tjpt[ii][last2] > tj.Pts.size() - 1) continue;
       unsigned short ipt = tjpt[ii][last2];
@@ -612,16 +604,16 @@ namespace tca {
   } // OverlapFraction
   
   /////////////////////////////////////////
-  void FilldEdx(TjStuff& tjs, MatchStruct& ms)
+  void FilldEdx(TjStuff& tjs, PFPStruct& pfp)
   {
     // Fills the dEdX vector in the match struct. This function should be called after the
     // matched trajectory points are ordered so that dE/dx is calculated at the start of the PFParticle
-    if(ms.Count == 0) return;
+    if(pfp.ID == 0) return;
     // error check
     bool notgood = false;
     for(unsigned short startend = 0; startend < 2; ++startend) {
-      if(ms.dEdx[startend].size() != tjs.NumPlanes) notgood = true;
-      if(ms.dEdxErr[startend].size() != tjs.NumPlanes) notgood = true;
+      if(pfp.dEdx[startend].size() != tjs.NumPlanes) notgood = true;
+      if(pfp.dEdxErr[startend].size() != tjs.NumPlanes) notgood = true;
     }
     if(notgood) {
       std::cout<<"FilldEdx found inconsistent sizes for dEdx\n";
@@ -632,18 +624,18 @@ namespace tca {
     
     unsigned short numEnds = 2;
     // don't attempt to find dE/dx at the end of a shower
-    if(ms.PDGCode == 1111) numEnds = 1;
+    if(pfp.PDGCode == 1111) numEnds = 1;
     
     unsigned short maxlen = 0;
-    for(auto tjID : ms.TjIDs) {
+    for(auto tjID : pfp.TjIDs) {
 
       Trajectory& tj = tjs.allTraj[tjID - 1];
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
       for(unsigned short startend = 0; startend < numEnds; ++startend) {
-        ms.dEdx[startend][planeID.Plane] = 0;
+        pfp.dEdx[startend][planeID.Plane] = 0;
         tj.dEdx[startend] = 0;
-        double cosgamma = std::abs(std::sin(angleToVert) * ms.Dir[startend].Y() + std::cos(angleToVert) * ms.Dir[startend].Z());
+        double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[startend].Y() + std::cos(angleToVert) * pfp.Dir[startend].Z());
         if(cosgamma == 0) continue;
         double dx = tjs.geom->WirePitch(planeID) / cosgamma;
         if(dx == 0) continue;
@@ -654,17 +646,17 @@ namespace tca {
         double time = tj.Pts[tj.EndPt[startend]].Pos[1] / tjs.UnitsPerTick;
         float dedx = tjs.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
         if(dedx > 999) dedx = 999;
-        ms.dEdx[startend][planeID.Plane] = dedx;
+        pfp.dEdx[startend][planeID.Plane] = dedx;
         tj.dEdx[startend] = dedx;
         // ChgRMS is the fractional error
-        ms.dEdxErr[startend][planeID.Plane] = dedx * tj.ChgRMS;
+        pfp.dEdxErr[startend][planeID.Plane] = dedx * tj.ChgRMS;
 	
       } // startend
       // Grab the best plane iusing the start f 1 < dE/dx < 50 MeV/cm
-      if(ms.dEdx[0][planeID.Plane] > 1 && ms.dEdx[0][planeID.Plane] < 50) {
+      if(pfp.dEdx[0][planeID.Plane] > 1 && pfp.dEdx[0][planeID.Plane] < 50) {
         if(tj.Pts.size() > maxlen) {
           maxlen = tj.Pts.size();
-          ms.BestPlane = planeID.Plane;
+          pfp.BestPlane = planeID.Plane;
         }
       } // valid dE/dx
 
@@ -954,28 +946,28 @@ namespace tca {
   } // WatchHit
 
   ////////////////////////////////////////////////
-  void Reverse3DMatchTjs(TjStuff& tjs, MatchStruct& ms, bool prt)
+  void Reverse3DMatchTjs(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
-    // Return true if the 3D matched hits in the trajectories in tjs.matchVecPFPList are in the wrong order in terms of the
+    // Return true if the 3D matched hits in the trajectories in tjs.pfps are in the wrong order in terms of the
     // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc. 
     
     // Don't reverse showers
-    if(ms.PDGCode == 1111) return;
+    if(pfp.PDGCode == 1111) return;
 
     // through-going track? Check for outside the Fiducial Volume at the start (s) and end (e).
     // These variables assume that the TPC is exposed to a beam that contains muons entering at the front and
     // a background of cosmic rays that enter from the top
-    bool sAtSide = (ms.XYZ[0][0] < tjs.XLo || ms.XYZ[0][0] > tjs.XHi);
-    bool sAtTop = (ms.XYZ[0][1] > tjs.YHi);
-    bool sAtBottom = (ms.XYZ[0][1] < tjs.YLo);
-    bool sAtFront = (ms.XYZ[0][2] < tjs.ZLo);
-    bool sAtBack = (ms.XYZ[0][2] > tjs.ZHi);
+    bool sAtSide = (pfp.XYZ[0][0] < tjs.XLo || pfp.XYZ[0][0] > tjs.XHi);
+    bool sAtTop = (pfp.XYZ[0][1] > tjs.YHi);
+    bool sAtBottom = (pfp.XYZ[0][1] < tjs.YLo);
+    bool sAtFront = (pfp.XYZ[0][2] < tjs.ZLo);
+    bool sAtBack = (pfp.XYZ[0][2] > tjs.ZHi);
     
-    bool eAtSide = (ms.XYZ[1][0] < tjs.XLo || ms.XYZ[1][0] > tjs.XHi);
-    bool eAtTop = (ms.XYZ[1][1] > tjs.YHi);
-    bool eAtBottom = (ms.XYZ[1][1] < tjs.YLo);
-    bool eAtFront = (ms.XYZ[1][2] < tjs.ZLo);
-    bool eAtBack = (ms.XYZ[1][2] > tjs.ZHi);
+    bool eAtSide = (pfp.XYZ[1][0] < tjs.XLo || pfp.XYZ[1][0] > tjs.XHi);
+    bool eAtTop = (pfp.XYZ[1][1] > tjs.YHi);
+    bool eAtBottom = (pfp.XYZ[1][1] < tjs.YLo);
+    bool eAtFront = (pfp.XYZ[1][2] < tjs.ZLo);
+    bool eAtBack = (pfp.XYZ[1][2] > tjs.ZHi);
     
     // the start (end) is outside the FV
     bool sOutsideFV = sAtBottom || sAtTop || sAtFront || sAtBack;
@@ -983,8 +975,8 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"sXYZ ("<<(int)ms.XYZ[0][0]<<", "<<(int)ms.XYZ[0][1]<<", "<<(int)ms.XYZ[0][2]<<") sOutsideFV "<<sOutsideFV;
-      myprt<<" eXYZ ("<<(int)ms.XYZ[1][0]<<", "<<(int)ms.XYZ[1][1]<<", "<<(int)ms.XYZ[1][2]<<") eOutsideFV "<<eOutsideFV;
+      myprt<<"sXYZ ("<<(int)pfp.XYZ[0][0]<<", "<<(int)pfp.XYZ[0][1]<<", "<<(int)pfp.XYZ[0][2]<<") sOutsideFV "<<sOutsideFV;
+      myprt<<" eXYZ ("<<(int)pfp.XYZ[1][0]<<", "<<(int)pfp.XYZ[1][1]<<", "<<(int)pfp.XYZ[1][2]<<") eOutsideFV "<<eOutsideFV;
     } // prt
     
     bool reverseMe = false;
@@ -1006,13 +998,13 @@ namespace tca {
     if(!reverseMe) {
       unsigned short braggCnt0 = 0;
       unsigned short braggCnt1 = 0;
-      for(auto& tjID : ms.TjIDs) {
+      for(auto& tjID : pfp.TjIDs) {
         auto& tj = tjs.allTraj[tjID - 1];
         if(tj.StopFlag[0][kBragg]) ++braggCnt0;
         if(tj.StopFlag[1][kBragg]) ++braggCnt1;
       }
       if(braggCnt0 > 0 || braggCnt1 > 0) {
-        ms.PDGCode = 2212;
+        pfp.PDGCode = 2212;
         // Vote for a Bragg peak at the beginning. It should be at the end
         if(braggCnt0 > braggCnt1) reverseMe = true;
       } // found a Bragg Peak 
@@ -1021,7 +1013,7 @@ namespace tca {
     if(!reverseMe) return;
     
     // All of the trajectories should be reversed
-    for(auto& tjID : ms.TjIDs) {
+    for(auto& tjID : pfp.TjIDs) {
       unsigned short itj = tjID - 1;
       Trajectory& tj = tjs.allTraj[itj];
       tj.AlgMod[kMat3D] = false;
@@ -1029,26 +1021,25 @@ namespace tca {
       tj.AlgMod[kMat3D] = true;
     } // tjID
     // swap the matchVec end info also
-    std::swap(ms.XYZ[0], ms.XYZ[1]);
-    std::swap(ms.Dir[0], ms.Dir[1]);
-    std::swap(ms.DirErr[0], ms.DirErr[1]);
-    std::swap(ms.dEdx[0], ms.dEdx[1]);
-    std::swap(ms.dEdxErr[0], ms.dEdxErr[1]);
-    std::swap(ms.Vx3ID[0], ms.Vx3ID[1]);
+    std::swap(pfp.XYZ[0], pfp.XYZ[1]);
+    std::swap(pfp.Dir[0], pfp.Dir[1]);
+    std::swap(pfp.DirErr[0], pfp.DirErr[1]);
+    std::swap(pfp.dEdx[0], pfp.dEdx[1]);
+    std::swap(pfp.dEdxErr[0], pfp.dEdxErr[1]);
+    std::swap(pfp.Vx3ID[0], pfp.Vx3ID[1]);
     
     return;
     
   } // Reverse3DMatchTjs
   
   ////////////////////////////////////////////////
-  unsigned short MatchVecPFPIndex(const TjStuff& tjs, int tjID)
+  unsigned short PFPIndex(const TjStuff& tjs, int tjID)
   {
     // returns the index into the tjs.matchVec vector of the first 3D match that
     // includes tjID
-    for(unsigned int ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
-      unsigned int ims = tjs.matchVecPFPList[ipfp];
-      const MatchStruct& ms = tjs.matchVec[ims];
-      if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID) != ms.TjIDs.end()) return ipfp;
+    for(unsigned int ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
+      const auto& pfp = tjs.pfps[ipfp];
+      if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjID) != pfp.TjIDs.end()) return ipfp;
     } // indx
     return USHRT_MAX;
   } // MatchVecPFPIndex
@@ -1058,28 +1049,28 @@ namespace tca {
   {
     // returns the index into the tjs.matchVec vector of the first 3D match that
     // includes tjID
-    for(unsigned int ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
-      unsigned int ims = tjs.matchVecPFPList[ipfp];
-      const MatchStruct& ms = tjs.matchVec[ims];
+    for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
+      const auto& ms = tjs.matchVec[ims];
       if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID) != ms.TjIDs.end()) return ims;
     } // indx
     return USHRT_MAX;
   } // MatchVecIndex
-  
+
   ////////////////////////////////////////////////
-  unsigned short MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2)
+  PFPStruct CreatePFPStruct(const TjStuff& tjs, const geo::TPCID& tpcid)
   {
-    // returns the index into the tjs.matchVec vector of the first 3D match that
-    // includes both tjID1 and tjID2
-    for(unsigned int ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
-      unsigned int ims = tjs.matchVecPFPList[ipfp];
-      const MatchStruct& ms = tjs.matchVec[ims];
-      if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID1) != ms.TjIDs.end() &&
-         std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID2) != ms.TjIDs.end()) return ims;
-    } // indx
-    return USHRT_MAX;
+    // The calling function should define the size of pfp.TjIDs
+    PFPStruct pfp;
+    pfp.ID = tjs.pfps.size() + 1;
+    pfp.TPCID = tpcid;
+    // initialize arrays for both ends
+    pfp.dEdx[0].resize(tjs.NumPlanes, 0);
+    pfp.dEdx[1].resize(tjs.NumPlanes, 0);
+    pfp.dEdxErr[0].resize(tjs.NumPlanes, 0);
+    pfp.dEdxErr[1].resize(tjs.NumPlanes, 0);
+    return pfp;
   } // MatchVecIndex
-  
+
   ////////////////////////////////////////////////
   void ReleaseHits(TjStuff& tjs, Trajectory& tj)
   {
@@ -3107,24 +3098,7 @@ namespace tca {
     return true;
     
   } // CheckWireHitRange
-  
-  ////////////////////////////////////////////////
-  MatchStruct CreateMatchStruct(TjStuff& tjs, const geo::TPCID& tpcid, unsigned short ntj)
-  {
-    // Creates a match struct in the requested tpcid with the requested number of matched trajectories ntj.
-    // The calling function needs to populate the struct with the correct information
-    
-    MatchStruct ms;
-    ms.TPCID = tpcid;
-    ms.TjIDs.resize(ntj);
-    // initialize arrays for both ends
-    ms.dEdx[0].resize(tjs.NumPlanes, 0);
-    ms.dEdx[1].resize(tjs.NumPlanes, 0);
-    ms.dEdxErr[0].resize(tjs.NumPlanes, 0);
-    ms.dEdxErr[1].resize(tjs.NumPlanes, 0);
-    return ms;
-  } // CreateMatchStruct
-  
+
   ////////////////////////////////////////////////
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP)
   {
@@ -3326,14 +3300,12 @@ namespace tca {
           if(vx3.Wire == -2) {
             // find the Tjs that are attached to it
             myprt<<" PFP Tjs";
-            for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
-              unsigned short mvIndex = tjs.matchVecPFPList[ipfp];
-              auto& ms = tjs.matchVec[mvIndex];
-              if(ms.Vx3ID[0] == tjs.vtx3[iv].ID) {
-                for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
+            for(auto& pfp : tjs.pfps) {
+              if(pfp.Vx3ID[0] == tjs.vtx3[iv].ID) {
+                for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
               }
-              if(ms.Vx3ID[1] == tjs.vtx3[iv].ID) {
-                for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
+              if(pfp.Vx3ID[1] == tjs.vtx3[iv].ID) {
+                for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
               }
             } // ipfp
           } else {
@@ -3558,10 +3530,6 @@ namespace tca {
             myprt<<" "<<tjID;
           } // tjID
           myprt<<"\n";
-          myprt<<"MatchedTjIDs";
-          for(auto& tjID : ss.MatchedTjIDs) {
-            myprt<<" "<<tjID;
-          } // tjID
           myprt<<"\n";
           myprt<<"Angle "<<std::fixed<<std::setprecision(2)<<ss.Angle<<" +/- "<<ss.AngleErr;
           myprt<<" AspectRatio "<<std::fixed<<std::setprecision(2)<<ss.AspectRatio;
@@ -3644,31 +3612,28 @@ namespace tca {
   /////////////////////////////////////////
   void PrintPFParticles(std::string someText, const TjStuff& tjs)
   {
-    if(tjs.matchVecPFPList.empty()) return;
+    if(tjs.pfps.empty()) return;
     
     mf::LogVerbatim myprt("TC");
     myprt<<someText;
-    myprt<<" PFP Count sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par E*P   TjIDs\n";
+    myprt<<" PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par E*P   TjIDs\n";
     unsigned short indx = 0;
-    for(auto& im : tjs.matchVecPFPList) {
-      auto& ms = tjs.matchVec[im];
-      // ms contains a list of tjs that were matched in 3D. 
-      if(ms.Count == 0) continue;
+    for(auto& pfp : tjs.pfps) {
+      if(pfp.ID == 0) continue;
       myprt<<someText;
-      myprt<<std::setw(4)<<indx;
-      myprt<<std::setw(5)<<ms.Count;
+      myprt<<std::setw(5)<<pfp.ID;
       // start and end stuff
       for(unsigned short startend = 0; startend < 2; ++startend) {
-        myprt<<std::setw(4)<<ms.Vx3ID[startend];
+        myprt<<std::setw(4)<<pfp.Vx3ID[startend];
         myprt<<std::fixed<<std::right<<std::setprecision(1);
-        myprt<<std::setw(7)<<ms.XYZ[startend][0];
-        myprt<<std::setw(7)<<ms.XYZ[startend][1];
-        myprt<<std::setw(7)<<ms.XYZ[startend][2];
+        myprt<<std::setw(7)<<pfp.XYZ[startend][0];
+        myprt<<std::setw(7)<<pfp.XYZ[startend][1];
+        myprt<<std::setw(7)<<pfp.XYZ[startend][2];
         myprt<<std::fixed<<std::right<<std::setprecision(2);
-        myprt<<std::setw(6)<<ms.Dir[startend][0];
-        myprt<<std::setw(6)<<ms.Dir[startend][1];
-        myprt<<std::setw(6)<<ms.Dir[startend][2];
-        for(auto& dedx : ms.dEdx[startend]) {
+        myprt<<std::setw(6)<<pfp.Dir[startend][0];
+        myprt<<std::setw(6)<<pfp.Dir[startend][1];
+        myprt<<std::setw(6)<<pfp.Dir[startend][2];
+        for(auto& dedx : pfp.dEdx[startend]) {
           if(dedx < 50) {
             myprt<<std::setw(6)<<std::setprecision(1)<<dedx;
           } else {
@@ -3677,12 +3642,12 @@ namespace tca {
         } // dedx
       }
       // global stuff
-      myprt<<std::setw(5)<<ms.BestPlane;
-      myprt<<std::setw(6)<<ms.PDGCode;
-      myprt<<std::setw(4)<<ms.ParentMSIndex;
-      myprt<<std::setw(5)<<std::setprecision(2)<<ms.EffPur;
+      myprt<<std::setw(5)<<pfp.BestPlane;
+      myprt<<std::setw(6)<<pfp.PDGCode;
+      myprt<<std::setw(4)<<pfp.ParentID;
+      myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
       myprt<<"  ";
-      for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
+      for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
       myprt<<"\n";
       ++indx;
     } // im
