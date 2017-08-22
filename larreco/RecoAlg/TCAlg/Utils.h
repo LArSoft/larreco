@@ -45,11 +45,11 @@ namespace tca {
   void MergeBrokenTjs(TjStuff& tjs, std::vector<MatchStruct>& matVec);
   void DirectionInCTP(const TjStuff& tjs, TVector3& dir3, CTP_t inCTP, std::array<double, 2>& dir2, double& ang2);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
-  bool FindMatchingPts(TjStuff& tjs, MatchStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
-  bool FindMatchingPts2(TjStuff& tjs, MatchStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
+  bool FindMatchingPts(TjStuff& tjs, PFPStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
+  bool FindMatchingPts2(TjStuff& tjs, PFPStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
-  void FilldEdx(TjStuff& tjs, MatchStruct& ms);
+  void FilldEdx(TjStuff& tjs, PFPStruct& ms);
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp);
   void SetAngleCode(TjStuff& tjs, TrajPoint& tp);
   unsigned short AngleRange(TjStuff& tjs, float angle);
@@ -58,10 +58,10 @@ namespace tca {
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
-  void Reverse3DMatchTjs(TjStuff& tjs, MatchStruct& ms, bool prt);
-  unsigned short MatchVecPFPIndex(const TjStuff& tjs, int tjID);
+  void Reverse3DMatchTjs(TjStuff& tjs, PFPStruct& ms, bool prt);
+  unsigned short PFPIndex(const TjStuff& tjs, int tjID);
   unsigned short MatchVecIndex(const TjStuff& tjs, int tjID);
-  unsigned short MatchVecIndex(const TjStuff& tjs, int tjID1, int tjID2);
+  PFPStruct CreatePFPStruct(const TjStuff& tjs, const geo::TPCID& tpcid);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   void ChkStopEndPts(TjStuff& tjs, Trajectory& tj, bool prt);
@@ -174,7 +174,6 @@ namespace tca {
   bool CheckWireHitRange(const TjStuff& tjs);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   bool MergeAndStore(TjStuff& tjs, unsigned int itj1, unsigned int itj2, bool doPrt);
-  MatchStruct CreateMatchStruct(TjStuff& tjs, const geo::TPCID& tpcid, unsigned short ntj);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
   void PrintTrajectory(std::string someText, const TjStuff& tjs, const Trajectory& tj ,unsigned short tPoint);
