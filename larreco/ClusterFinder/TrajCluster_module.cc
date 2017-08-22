@@ -351,20 +351,22 @@ namespace cluster {
     } // ish
     
     // Get the list of PFParticles. These are a subset of the set of 3D matches of trajectory hits
-    std::vector<unsigned short> pfpList = fTCAlg->GetPFPList();
+    std::vector<tca::PFPStruct> pfpList = fTCAlg->GetPFParticles();
     // get each of the match vector elements and construct the PFParticle
-    for(size_t ip = 0; ip < pfpList.size(); ++ip) {
-      unsigned short im = pfpList[ip];
-      tca::MatchStruct const& ms = fTCAlg->GetMatchStruct(im);
-      if(ms.Count == 0) continue;
-      spcol.emplace_back(ms.PDGCode, ip, ms.ParentMSIndex, ms.DtrIndices);
+    for(size_t ipfp = 0; ipfp < pfpList.size(); ++ipfp) {
+      auto& pfp = pfpList[ipfp];
+      if(pfp.ID == 0) continue;
+      size_t parentIndex = pfp.ID - 1;
+      std::vector<size_t> dtrIndices(pfp.DtrIDs.size());
+      for(unsigned short idtr = 0; idtr < pfp.DtrIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrIDs[idtr] - 1;
+      spcol.emplace_back(pfp.PDGCode, ipfp, parentIndex, dtrIndices);
       // make a list of clusters that are associated with this PFParticle. Trace the association
       // through the trajectories that 
       std::vector<unsigned int> clsIndices;
-      for(auto& tjid : ms.TjIDs) {
+      for(auto& tjid : pfp.TjIDs) {
         unsigned int clsIndex = fTCAlg->GetTjClusterIndex(tjid);
         if(clsIndex > Clusters.size() - 1) {
-          std::cout<<"Retrieved an invalid cluster index for PFParticle "<<ip<<" TjID "<<tjid<<". Ignoring it...\n";
+          std::cout<<"Retrieved an invalid cluster index for PFParticle "<<pfp.ID<<" TjID "<<tjid<<". Ignoring it...\n";
           clsIndices.clear();
           break;
         }
@@ -375,7 +377,7 @@ namespace cluster {
         spcol.pop_back();
         continue;
       }
-      if(ms.Vx3ID[0] > Vertices.size()) std::cout<<"TC module: Bad Vtx3DIndex = "<<ms.Vx3ID[0]<<" size "<<Vertices.size()<<"\n";
+      if(pfp.Vx3ID[0] > Vertices.size()) std::cout<<"TC module: Bad Vtx3DIndex = "<<pfp.Vx3ID[0]<<" size "<<Vertices.size()<<"\n";
       
       // PFParticle - Cluster associations
       if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, clsIndices.begin(), clsIndices.end()))
@@ -384,11 +386,11 @@ namespace cluster {
       } // exception
       // PFParticle - Vertex association
       std::vector<unsigned int> vtmp(1);
-      // Translate the 3D vertex index ms.Vtx3DIndex into the index of complete 3D vertices that have been put into sv3col
+      // Translate the 3D vertex index into the index of complete 3D vertices that have been put into sv3col
       unsigned short vtxIndex = 0;
       for(unsigned short iv = 0; iv < Vertices.size(); ++iv) {
         if(Vertices[iv].Wire >= 0) continue;
-        if(ms.Vx3ID[0] == Vertices[iv].ID) {
+        if(pfp.Vx3ID[0] == Vertices[iv].ID) {
           vtmp[0] = vtxIndex;
           if(!util::CreateAssn(*this, evt, *pv_assn, spcol.size()-1, vtmp.begin(), vtmp.end())) 
           {
@@ -407,7 +409,7 @@ namespace cluster {
         tempPt2.push_back(-999);
         tempPt2.push_back(-999);
         tempPt2.push_back(-999);
-        ctcol.emplace_back(tempPt1, tempPt2, ms.CosmicScore, anab::CosmicTagID_t::kNotTagged);
+        ctcol.emplace_back(tempPt1, tempPt2, pfp.CosmicScore, anab::CosmicTagID_t::kNotTagged);
         if (!util::CreateAssn(*this, evt, spcol, ctcol, *pct_assn, ctcol.size()-1, ctcol.size())){
           throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate CosmicTag with PFParticle";
         }
