@@ -817,10 +817,9 @@ namespace tca {
     if(tjs.matchVec.empty()) return;
     
     // Clear out matchVecPFPList for this tpcid
-    for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
-      unsigned short imv = tjs.matchVecPFPList[ipfp];
-      auto& mv = tjs.matchVec[imv];
-      if(mv.TPCID == tpcid) tjs.matchVecPFPList.erase(tjs.matchVecPFPList.begin() + ipfp);
+    for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
+      auto& pfp = tjs.pfps[ipfp];
+      if(pfp.TPCID == tpcid) tjs.pfps.erase(tjs.pfps.begin() + ipfp);
     } // ipfp
     
     // sort the vertices by decreasing score
@@ -875,7 +874,16 @@ namespace tca {
         if(shared.size() < 2) continue;
         if(shared.size() == tjs.NumPlanes) {
           // perfect match
-          tjs.matchVecPFPList.push_back(ims);
+          PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
+          pfp.TjIDs = shared;
+          // declare a start or end vertex
+          if(pfp.Vx3ID[0] == 0) {
+            // declare the start vertex. The positions will be determined later
+            pfp.Vx3ID[0] = vx3.ID;
+          } else {
+            pfp.Vx3ID[1] = vx3.ID;
+          }
+          tjs.pfps.push_back(pfp);
           std::vector<int> leftover(v3TjIDs.size());
           auto it = std::set_difference(v3TjIDs.begin(), v3TjIDs.end(), shared.begin(), shared.end(), leftover.begin());
           leftover.resize(it - leftover.begin());
@@ -885,13 +893,6 @@ namespace tca {
             for(auto& tjID : mstjids) myprt<<" "<<tjID;
             myprt<<" leftover";
             for(auto& tjID : leftover) myprt<<" "<<tjID;
-          }
-          // declare a start or end vertex
-          if(ms.Vx3ID[0] == 0) {
-            // declare the start vertex. The positions will be determined later
-            ms.Vx3ID[0] = vx3.ID;
-          } else {
-            ms.Vx3ID[1] = vx3.ID;
           }
           // flag these Tjs as matched
           for(auto id : mstjids) tjs.allTraj[id - 1].AlgMod[kMat3D] = true;
