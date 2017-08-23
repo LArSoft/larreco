@@ -834,7 +834,7 @@ namespace tca {
       if(score < tjs.Vertex2DCuts[7]) continue;
       if(prt) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"M3DVTj vx3 "<<vx3.ID<<" score "<<score<<" TjIDs ";
+        myprt<<"M3DVTj vx3 "<<vx3.ID<<" score "<<score<<" TjIDs";
         for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
       }
       SortEntry se;
@@ -849,39 +849,64 @@ namespace tca {
       auto& vx3 = tjs.vtx3[sortVec[ii].index];
       float score = 0;
       auto v3TjIDs = GetVtxTjIDs(tjs, vx3, score);
-      if(prt) mf::LogVerbatim("TC")<<ii<<" vx3 "<<vx3.ID<<" "<<score;
-      // look for these in matchVec
-      for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
-        // count the number of shower Tjs
-        unsigned short nstj = 0;
-        auto& ms = tjs.matchVec[ims];
-        bool skipit = false;
-        for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
-          unsigned short itj = ms.TjIDs[ipl] - 1;
-          if(tjs.allTraj[itj].AlgMod[kMat3D]) skipit = true;
-          if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
+      // flag Tjs that have a large separation from the 2D vertex
+      unsigned short nfar = 0;
+      for(unsigned short itj = 0; itj < v3TjIDs.size(); ++itj) {
+        auto& tj = tjs.allTraj[v3TjIDs[itj] - 1];
+        float sep = 0;
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(tj.VtxID[end] == 0) continue;
+          auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
+          if(vx2.Vtx3ID == vx3.ID) sep = PosSep(vx2.Pos, tj.Pts[tj.EndPt[end]].Pos);
+        } // end
+        if(sep > 5) {
+          v3TjIDs[itj] *= -1;
+          ++nfar;
         }
-        if(skipit) continue;
-        // Require 0 or matched shower Tjs in all planes
-        if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
-        // make a copy of the TjIDs so they can be sorted in increasing order so
-        // that std::set_intersection works properly
-        auto mstjids = ms.TjIDs;
-        std::sort(mstjids.begin(), mstjids.end());
-        std::vector<int> shared;
-        std::set_intersection(v3TjIDs.begin(), v3TjIDs.end(), 
-                              mstjids.begin(), mstjids.end(), std::back_inserter(shared));
-        if(shared.size() < 2) continue;
-        if(shared.size() == tjs.NumPlanes) {
-          // perfect match
+      } // itj
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<ii<<" vx3 "<<vx3.ID<<" "<<score<<" TjIDs tagged";
+        for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
+        myprt<<" nfar "<<nfar;
+      }
+      // look for these in matchVec with two iterations. Find matching Tjs close to the
+      // vertex on the first pass and those farther away on the second
+      for(unsigned short nit = 0; nit < 2; ++nit) {
+        for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
+          // count the number of shower Tjs
+          unsigned short nstj = 0;
+          auto& ms = tjs.matchVec[ims];
+          bool skipit = false;
+          for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
+            unsigned short itj = ms.TjIDs[ipl] - 1;
+            if(tjs.allTraj[itj].AlgMod[kMat3D]) skipit = true;
+            if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
+          }
+          if(skipit) continue;
+          // Require 0 or matched shower Tjs in all planes
+          if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
+          // make a copy of the TjIDs so they can be sorted in increasing order so
+          // that std::set_intersection works properly
+          auto mstjids = ms.TjIDs;
+          std::sort(mstjids.begin(), mstjids.end());
+          std::vector<int> shared;
+          std::set_intersection(v3TjIDs.begin(), v3TjIDs.end(), 
+                                mstjids.begin(), mstjids.end(), std::back_inserter(shared));
+          if(shared.size() != mstjids.size()) continue;
+          // perfect match. Ensure that the points near the vertex are consistent
           PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
           pfp.TjIDs = shared;
+          if(nstj == ms.TjIDs.size()) pfp.PDGCode = 1111;
+          TagBragg(tjs, pfp, prt);
           // declare a start or end vertex
           if(pfp.Vx3ID[0] == 0) {
-            // declare the start vertex. The positions will be determined later
+            // declare the start vertex and set the end points
             pfp.Vx3ID[0] = vx3.ID;
+            if(!SetPFPEndPoint(tjs, pfp, 0, prt)) continue;
           } else {
             pfp.Vx3ID[1] = vx3.ID;
+            if(!SetPFPEndPoint(tjs, pfp, 1, prt)) continue;
           }
           tjs.pfps.push_back(pfp);
           std::vector<int> leftover(v3TjIDs.size());
@@ -889,7 +914,7 @@ namespace tca {
           leftover.resize(it - leftover.begin());
           if(prt) {
             mf::LogVerbatim myprt("TC");
-            myprt<<" perfect match with ims "<<ims<<" TjIDs";
+            myprt<<"nit "<<nit<<" perfect match with ims "<<ims<<" TjIDs";
             for(auto& tjID : mstjids) myprt<<" "<<tjID;
             myprt<<" leftover";
             for(auto& tjID : leftover) myprt<<" "<<tjID;
@@ -898,17 +923,11 @@ namespace tca {
           for(auto id : mstjids) tjs.allTraj[id - 1].AlgMod[kMat3D] = true;
           // keep looking using the leftovers
           v3TjIDs = leftover;
-        } // perfect match
-      } // ims
+        } // ims
+        if(nfar == 0) break;
+        for(auto& id : v3TjIDs) id = abs(id);
+      } // nit
       if(v3TjIDs.empty()) continue;
-/* This is where recover code would be inserted
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"M3DVTj Unmatched Tjs";
-        for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
-        myprt<<" Maybe ok, maybe not";
-      } // prt
-*/
     } // ii (vx3 sorted)
 
   } // Match3DVtxTjs
@@ -1901,9 +1920,6 @@ namespace tca {
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.ID == 107 && tj.VtxID[end] == vx2ID) {
-          std::cout<<"Remove vtx "<<vx2ID<<" from tj 107\n";
-        }
         if(tj.VtxID[end] == vx2ID) tj.VtxID[end] = 0;
       } // end
     } // tj
