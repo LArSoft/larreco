@@ -486,11 +486,13 @@ namespace tca {
       Match3D(tpcid, false);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
       // true if the algorithm was successful indicating that the matching needs to be redone
-      if(tjs.ShowerTag[0] == 2 && FindShowers3D(tjs, tpcid)) Match3D(tpcid, true);
-      if(tjs.SaveShowerTree) {
-        std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
-        showertree->Fill();
-      }
+      if(tjs.ShowerTag[0] == 2) {
+        if(FindShowers3D(tjs, tpcid)) Match3D(tpcid, true);
+        if(tjs.SaveShowerTree) {
+          std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
+          showertree->Fill();
+        }
+      } // 3D shower code
     } // tpcid
     
     FillPFPInfo();
@@ -2348,7 +2350,7 @@ namespace tca {
         MergeBrokenTjs(tjs, matVec);
       }
     } // 3 planes
-    
+
     // match in 2 views
     // make a temporary list of triple Tj match IDs to simplify searching
     std::vector<int> tripleTjList;
@@ -2530,6 +2532,7 @@ namespace tca {
       if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
       PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
       pfp.TjIDs = ms.TjIDs;
+      if(nstj > 0) pfp.PDGCode = 1111;
       tjs.pfps.push_back(pfp);
       ms.pfpID = pfp.ID;
       for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
@@ -2584,16 +2587,6 @@ namespace tca {
       if(pfp.ID == 0) continue;
       if(pfp.TPCID != tpcid) continue;
 
-      for(unsigned short startend = 0; startend < 2; ++startend) {
-        pfp.Dir[startend] = {0, 0, 0};
-        pfp.DirErr[startend] = {0, 0, 0};
-        pfp.XYZ[startend] = {0, 0, 0};
-        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-          pfp.dEdx[startend][plane] = 0;
-          pfp.dEdxErr[startend][plane] = 0;
-        } // plane
-      }
-      
       // Showers require special handling
       if(pfp.PDGCode == 1111) {
         Find3DShowerEndPoints(tjs, pfp);
