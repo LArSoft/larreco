@@ -34,28 +34,51 @@ namespace trkmkr {
  * The functions return a bool corresponding to the success or failure status of the fit.
  */
 
-  struct OptionalOutputs {
+  struct OptionalPointElement {
   public:
-    OptionalOutputs() { outTrackFitHitInfos = nullptr; outSpacePoints = nullptr; outHitSpacePointAssn = nullptr; }
-    ~OptionalOutputs() {
-      if (outTrackFitHitInfos) delete outTrackFitHitInfos;
-      if (outSpacePoints) delete outSpacePoints;
-      if (outHitSpacePointAssn) delete outHitSpacePointAssn;
-    }
-    void initTrackFitInfos() { outTrackFitHitInfos = new std::vector<recob::TrackFitHitInfo>(); }
-    void initSpacePoints() {
-      outSpacePoints = new std::vector<recob::SpacePoint>();
-      outHitSpacePointAssn = new art::Assns<recob::Hit, recob::SpacePoint>();
-    }
-    bool isTrackFitInfosInit() { return outTrackFitHitInfos != nullptr; }
-    bool isSpacePointssInit() { return outSpacePoints != nullptr; }
-    std::vector<recob::TrackFitHitInfo>* trackFitHitInfos() { return outTrackFitHitInfos; }
-    std::vector<recob::SpacePoint>* spacePoints() { return outSpacePoints; }
-    art::Assns<recob::Hit, recob::SpacePoint>* hitSpacePointAssn() { return outHitSpacePointAssn; }
+    void setTrackFitHitInfo(recob::TrackFitHitInfo&& aTrackFitHitInfo) { trackFitHitInfo = std::make_unique< recob::TrackFitHitInfo >(aTrackFitHitInfo); }
+    bool isTrackFitInfoSet() { return bool(trackFitHitInfo); }
+    recob::TrackFitHitInfo&& moveTrackFitHitInfo() { return std::move( *(trackFitHitInfo.release()) ); }
+    //
+    void setSpacePoint(recob::SpacePoint&& aSpacePoint) { spacePoint = std::make_unique< recob::SpacePoint >(aSpacePoint); }
+    bool isSpacePointSet() { return bool(spacePoint); }
+    recob::SpacePoint&& moveSpacePoint() { return std::move( *(spacePoint.release()) ); }
   private:
-    std::vector<recob::TrackFitHitInfo>* outTrackFitHitInfos;
-    std::vector<recob::SpacePoint>* outSpacePoints;
-    art::Assns<recob::Hit, recob::SpacePoint>* outHitSpacePointAssn;
+    std::unique_ptr< recob::TrackFitHitInfo > trackFitHitInfo;
+    std::unique_ptr<recob::SpacePoint> spacePoint;
+  };
+
+  struct OptionalOutputs {
+    typedef std::pair<recob::SpacePoint, art::Ptr<recob::Hit> > SpHitPair;
+  public:
+    void addPoint(OptionalPointElement& ope) {
+      if (isTrackFitInfosInit() && ope.isTrackFitInfoSet()) {
+	outTrackFitHitInfos->push_back( std::move(ope.moveTrackFitHitInfo()) );
+      }
+    }
+    void addPoint(OptionalPointElement& ope, art::Ptr<recob::Hit> hptr) {
+      if (isSpacePointssInit() && ope.isSpacePointSet()) {
+	outSpacePointHitPairs->push_back( std::move( SpHitPair(ope.moveSpacePoint(), hptr) ) );
+      }
+      addPoint(ope);
+    }
+    void reset() {
+      if (isTrackFitInfosInit()) outTrackFitHitInfos.reset();
+      if (isSpacePointssInit()) {
+	outSpacePointHitPairs.reset();
+      }
+    }
+    void initTrackFitInfos() { outTrackFitHitInfos = std::make_unique< std::vector<recob::TrackFitHitInfo> >(); }
+    void initSpacePoints() {
+      outSpacePointHitPairs = std::make_unique< std::vector<SpHitPair> >();
+    }
+    bool isTrackFitInfosInit() { return bool(outTrackFitHitInfos); }
+    bool isSpacePointssInit() { return bool(outSpacePointHitPairs); }
+    std::vector<recob::TrackFitHitInfo>&& trackFitHitInfos() { return std::move( *(outTrackFitHitInfos.release()) ); }//fixme check this is the intended behavior
+    std::vector<SpHitPair>&& spacePointHitPairs() { return std::move( *(outSpacePointHitPairs.release()) ); }
+  private:
+    std::unique_ptr< std::vector<recob::TrackFitHitInfo> > outTrackFitHitInfos;
+    std::unique_ptr< std::vector<SpHitPair> > outSpacePointHitPairs;
   };
 
   class TrackMaker {

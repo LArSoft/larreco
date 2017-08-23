@@ -144,13 +144,15 @@ void TrackProducerFromTrackTrajectory::produce(art::Event & e)
       ip++;
     }
     if (doSpacePoints_ && !spacePointsFromTrajP_) {
-      outputSpacePoints->insert(outputSpacePoints->end(),optionals.spacePoints()->begin(),optionals.spacePoints()->end());
-      for (auto it = optionals.hitSpacePointAssn()->begin(); it!=optionals.hitSpacePointAssn()->end(); ++it ) {
-	outputHitSpacePointAssn->addSingle(it->first,it->second);
+      auto osp = optionals.spacePointHitPairs();
+      for (auto it = osp.begin(); it!=osp.end(); ++it ) {
+	outputSpacePoints->emplace_back(std::move(it->first));
+	const art::Ptr<recob::SpacePoint> apsp = spacePointPtrMaker(outputSpacePoints->size()-1);
+	outputHitSpacePointAssn->addSingle(it->second,apsp);
       }
     }
     if (doTrackFitHitInfo_) {
-      outputHitInfo->emplace_back(std::move(*optionals.trackFitHitInfos()));
+      outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
     }
   }
   //

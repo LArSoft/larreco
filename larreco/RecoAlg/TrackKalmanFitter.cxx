@@ -469,7 +469,7 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
 					 std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx,
 					 recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const {
   // fill output trajectory objects with smoothed track and its hits
-  trkmkr::TrackCreationBookKeeper tcbk(outTrack, outHits, optionals, tkID, pdgid, true);
+  trkmkr::TrackCreationBookKeeper tcbk(outHits, optionals, tkID, pdgid, true);
   for (unsigned int p : sortedtksidx) {
     auto& trackstate = fwdUpdTkState[p];
     const auto& hitflags   = hitflagsv[hitstateidx[p]];
@@ -480,14 +480,12 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
     const auto& hitstate = hitstatev[hitstateidx[p]];
     assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
     //
+    trkmkr::OptionalPointElement ope;
     if (optionals.isTrackFitInfosInit()) {
-      tcbk.addPoint(trackstate.movePositionRef(), trackstate.moveMomentumRef(), inHits[originalPos],
-		    recob::TrajectoryPointFlags(originalPos,hitflags), prdtrack.chi2(hitstate),
-		    recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),prdtrack.parameters(),prdtrack.covariance(),hitstate.wireId()));
-    } else {
-      tcbk.addPoint(trackstate.movePositionRef(), trackstate.moveMomentumRef(), inHits[originalPos],
-		    recob::TrajectoryPointFlags(originalPos,hitflags), prdtrack.chi2(hitstate));
+      ope.setTrackFitHitInfo(recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),prdtrack.parameters(),prdtrack.covariance(),hitstate.wireId()));
     }
+    tcbk.addPoint(trackstate.movePositionRef(), trackstate.moveMomentumRef(), inHits[originalPos],
+		  recob::TrajectoryPointFlags(originalPos,hitflags), prdtrack.chi2(hitstate), ope);
   }
 
   // fill also with rejected hits information
@@ -501,25 +499,17 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
     //
     const auto& hitstate = hitstatev[rejectedhsidx[rejidx]];
     assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
+    trkmkr::OptionalPointElement ope;
     if (optionals.isTrackFitInfosInit()) {
-      tcbk.addPoint(Point_t(util::kBogusD,util::kBogusD,util::kBogusD), Vector_t(util::kBogusD,util::kBogusD,util::kBogusD), inHits[originalPos],
-		    recob::TrajectoryPointFlags(originalPos,mask), 0,
-		    recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),
-					   SVector5(util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD),fakeCov55,hitstate.wireId())
-		    );
-    } else {
-      tcbk.addPoint(Point_t(util::kBogusD,util::kBogusD,util::kBogusD), Vector_t(util::kBogusD,util::kBogusD,util::kBogusD), inHits[originalPos],
-		    recob::TrajectoryPointFlags(originalPos,mask), 0);
+      ope.setTrackFitHitInfo( recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),
+						     SVector5(util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD,util::kBogusD),fakeCov55,hitstate.wireId()) );
     }
+    tcbk.addPoint(Point_t(util::kBogusD,util::kBogusD,util::kBogusD), Vector_t(util::kBogusD,util::kBogusD,util::kBogusD), inHits[originalPos],
+		  recob::TrajectoryPointFlags(originalPos,mask), 0, ope);
   }
 
   if (dumpLevel_>1) std::cout << "outHits.size()=" << outHits.size() << " inHits.size()=" << inHits.size() << std::endl;
   assert(outHits.size()==inHits.size());
-
-  if (tcbk.hasZeroMomenta()) {
-    mf::LogWarning("TrackKalmanFitter") << "Fit failure at " << __FILE__ << " " << __LINE__;
-    return false;
-  }
 
   bool propok = true;
   KFTrackState resultF = propagator->rotateToPlane(propok, fwdUpdTkState[sortedtksidx.front()].trackState(),
@@ -527,7 +517,13 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
   KFTrackState resultB = propagator->rotateToPlane(propok, fwdUpdTkState[sortedtksidx.back()].trackState(),
 						   Plane(fwdUpdTkState[sortedtksidx.back()].position(),fwdUpdTkState[sortedtksidx.back()].momentum()));
 
-  tcbk.finalizeTrack(SMatrixSym55(resultF.covariance()),SMatrixSym55(resultB.covariance()));
+  outTrack = tcbk.finalizeTrack(SMatrixSym55(resultF.covariance()),SMatrixSym55(resultB.covariance()));
+
+  //if there are points with zero momentum return false
+  size_t point = 0;
+  while (outTrack.HasValidPoint(point)) {
+    if (outTrack.MomentumAtPoint( outTrack.NextValidPoint(point++) ) <= 1.0e-9) return false;
+  }
 
   if (dumpLevel_>0) {
     std::cout << "outTrack vertex=" << outTrack.Start()

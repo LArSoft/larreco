@@ -198,7 +198,7 @@ void trkmkr::KalmanFilterFitTrackMaker::restoreInputPoints(const recob::TrackTra
       << "Option keepInputTrajectoryPoints not compatible with doTrackFitHitInfo, please set doTrackFitHitInfo to false in the track producer.\n";
   }
   const auto np = outTrack.NumberTrajectoryPoints();
-  trkmkr::TrackCreationBookKeeper tcbk(outTrack, outHits, optionals, outTrack.ID(), outTrack.ParticleId(), traj.HasMomentum());
+  trkmkr::TrackCreationBookKeeper tcbk(outHits, optionals, outTrack.ID(), outTrack.ParticleId(), traj.HasMomentum());
   //
   std::vector<unsigned int> flagsmap(np,-1);
   for (unsigned int i=0; i<np; ++i) flagsmap[outTrack.FlagsAtPoint(i).fromHit()] = i;
@@ -210,7 +210,7 @@ void trkmkr::KalmanFilterFitTrackMaker::restoreInputPoints(const recob::TrackTra
   }
   auto covs = outTrack.Covariances();
   tcbk.setTotChi2(outTrack.Chi2());
-  tcbk.finalizeTrack(std::move(covs.first),std::move(covs.second));
+  outTrack = tcbk.finalizeTrack(std::move(covs.first),std::move(covs.second));
   //
 }
 

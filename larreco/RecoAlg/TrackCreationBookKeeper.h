@@ -31,21 +31,19 @@ namespace trkmkr {
 
   class TrackCreationBookKeeper {
   public:
-  TrackCreationBookKeeper(Track& track, std::vector<art::Ptr<Hit> >& outhits, OptionalOutputs& optionals, int tkID, int pdgHyp, bool hasMomenta)
-    : tkID_(tkID), pdgHyp_(pdgHyp), hasMomenta_(hasMomenta), totChi2_(0), outTrack(&track), hits(&outhits), opts(&optionals)
+  TrackCreationBookKeeper(std::vector<art::Ptr<Hit> >& outhits, OptionalOutputs& optionals, int tkID, int pdgHyp, bool hasMomenta, int nfitpars = 4)
+    : tkID_(tkID), pdgHyp_(pdgHyp), hasMomenta_(hasMomenta), totChi2_(0), hits(&outhits), opts(&optionals), nfittedpars(nfitpars)
       {
 	hits->clear();
-	if (opts->isTrackFitInfosInit()) opts->trackFitHitInfos()->clear();
+	opts->reset();
       }
     //
-    void addPoint(const Point_t& point, const Vector_t& vect, art::Ptr<Hit> hit, const PointFlags_t& flag, double chi2) {
-	positions.push_back(std::move(point));
-	momenta.push_back(std::move(vect));
-	hits->push_back(hit);
-	flags.push_back(std::move(flag));
-	chi2v.push_back(chi2);
-	totChi2_+=chi2;
-    }
+    // avoid copies of this object
+    TrackCreationBookKeeper(const TrackCreationBookKeeper&) = delete;
+    TrackCreationBookKeeper(TrackCreationBookKeeper&&) = delete;
+    TrackCreationBookKeeper& operator=(const TrackCreationBookKeeper&) = delete;
+    TrackCreationBookKeeper& operator=(TrackCreationBookKeeper&& ) = delete;
+    //
     void addPoint(Point_t&& point, Vector_t&& vect, art::Ptr<Hit> hit, PointFlags_t&& flag, double chi2) {
 	positions.push_back(std::move(point));
 	momenta.push_back(std::move(vect));
@@ -54,47 +52,36 @@ namespace trkmkr {
 	chi2v.push_back(chi2);
 	totChi2_+=chi2;
     }
-    void addPoint(Point_t&& point, Vector_t&& vect, art::Ptr<Hit> hit, PointFlags_t&& flag, double chi2, TrackFitHitInfo&& tfhi) {
+    void addPoint(Point_t&& point, Vector_t&& vect, art::Ptr<Hit> hit, PointFlags_t&& flag, double chi2, OptionalPointElement& ope) {
       addPoint(std::move(point), std::move(vect), hit, std::move(flag), chi2);
-      if (opts->isTrackFitInfosInit()) opts->trackFitHitInfos()->push_back(tfhi);
-      else {
-	throw cet::exception("TrackCreationBookKeeper")
-	  << "Passing TrackFitHitInfo elements to addPoint, but TrackFitHitInfo collection not initialized.\n";
-      }
+      opts->addPoint(ope);
     }
     //
     void setTotChi2(double totChi2) { totChi2_ = totChi2; }
     //
-    bool hasZeroMomenta() {
-      for (const auto& mom : momenta) {
-	if (mom.Mag2() <= 1.0e-9) return true;
-      }
-      return false;
+    Track finalizeTrack(const tracking::SMatrixSym55& covStart, const tracking::SMatrixSym55& covEnd) {
+      return Track(std::move(positions),std::move(momenta),std::move(flags),
+		   hasMomenta_,pdgHyp_,totChi2_,int(hits->size())-nfittedpars,
+		   tracking::SMatrixSym55(covStart),tracking::SMatrixSym55(covEnd),tkID_);
     }
-    //
-    void finalizeTrack(tracking::SMatrixSym55& covStart, tracking::SMatrixSym55& covEnd) {
-      *outTrack = Track(std::move(positions),std::move(momenta),std::move(flags),
-			hasMomenta_,pdgHyp_,totChi2_,hits->size()-fittedpars,
-			std::move(covStart),std::move(covEnd),tkID_);
-    }
-    void finalizeTrack(tracking::SMatrixSym55&& covStart, tracking::SMatrixSym55&& covEnd) {
-	*outTrack = Track(std::move(positions),std::move(momenta),std::move(flags),
-			  hasMomenta_,pdgHyp_,totChi2_,hits->size()-fittedpars,
-			  std::move(covStart),std::move(covEnd),tkID_);
+    Track finalizeTrack(tracking::SMatrixSym55&& covStart, tracking::SMatrixSym55&& covEnd) {
+      return Track(std::move(positions),std::move(momenta),std::move(flags),
+		   hasMomenta_,pdgHyp_,totChi2_,int(hits->size())-nfittedpars,
+		   std::move(covStart),std::move(covEnd),tkID_);
     }
   private:
     int tkID_;
     int pdgHyp_;
     bool hasMomenta_;
     double totChi2_;
-    Track* outTrack;
     std::vector<art::Ptr<Hit> >* hits;
     OptionalOutputs*             opts;
     std::vector<Point_t>         positions;
     std::vector<Vector_t>        momenta;
     std::vector<PointFlags_t>    flags;
     std::vector<double>          chi2v;
-    constexpr static int fittedpars = 4;//hits are 1D measurement, i.e. each hit is one d.o.f.; no B field: 4 fitted parameters
+    int nfittedpars; // hits are 1D measurement, i.e. each hit is one d.o.f.; no B field: 4 fitted parameters by default
+    //
   };
 
 }
