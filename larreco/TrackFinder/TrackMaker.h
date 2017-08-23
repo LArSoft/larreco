@@ -19,20 +19,9 @@
 
 namespace trkmkr {
 
-/**
- * @brief Base abstract class for tools used to fit tracks.
- *
- * Base abstract class for tools used to fit tracks. The virtual function makeTrack comes in three flavours,
- * one for each possible input (Trajectory, TrackTrajectory, Track).
- * The only purely virtual function is the one for input Trajectories (by default the other two just forward the call to it).
- * Its arguments are the const inputs (Trajectory, TrajectoryPointFlags, track ID)
- * and the non-const ouputs (mandatory: outTrack and outHits; optional: TrackFitHitInfos, SpacePoints, SpacePoints-Hits Assns);
- * a const reference to the Event is also provided in case the tool needs to access other data products.
- * The tool is not meant to put collections in the event.
- * Requirements are that a Track has at least 2 points, that it has the same number of Points and Momenta,
- * that TrajectoryPoints and Hit have a 1-1 correspondance (same number and  same order).
- * The functions return a bool corresponding to the success or failure status of the fit.
- */
+  /**
+   * @brief Struct holding point-by-point elements used in OptionalOutputs.
+   */
 
   struct OptionalPointElement {
   public:
@@ -48,23 +37,27 @@ namespace trkmkr {
     std::unique_ptr<recob::SpacePoint> spacePoint;
   };
 
+  /**
+   * @brief Struct holding optional TrackMaker outputs.
+   */
+
   struct OptionalOutputs {
-    typedef std::pair<recob::SpacePoint, art::Ptr<recob::Hit> > SpHitPair;
   public:
+    typedef std::pair<recob::SpacePoint, art::Ptr<recob::Hit> > SpHitPair;
     void addPoint(OptionalPointElement& ope) {
       if (isTrackFitInfosInit() && ope.isTrackFitInfoSet()) {
 	outTrackFitHitInfos->push_back( std::move(ope.moveTrackFitHitInfo()) );
       }
     }
     void addPoint(OptionalPointElement& ope, art::Ptr<recob::Hit> hptr) {
-      if (isSpacePointssInit() && ope.isSpacePointSet()) {
+      if (isSpacePointsInit() && ope.isSpacePointSet()) {
 	outSpacePointHitPairs->push_back( std::move( SpHitPair(ope.moveSpacePoint(), hptr) ) );
       }
       addPoint(ope);
     }
     void reset() {
       if (isTrackFitInfosInit()) outTrackFitHitInfos.reset();
-      if (isSpacePointssInit()) {
+      if (isSpacePointsInit()) {
 	outSpacePointHitPairs.reset();
       }
     }
@@ -73,13 +66,34 @@ namespace trkmkr {
       outSpacePointHitPairs = std::make_unique< std::vector<SpHitPair> >();
     }
     bool isTrackFitInfosInit() { return bool(outTrackFitHitInfos); }
-    bool isSpacePointssInit() { return bool(outSpacePointHitPairs); }
-    std::vector<recob::TrackFitHitInfo>&& trackFitHitInfos() { return std::move( *(outTrackFitHitInfos.release()) ); }//fixme check this is the intended behavior
-    std::vector<SpHitPair>&& spacePointHitPairs() { return std::move( *(outSpacePointHitPairs.release()) ); }
+    bool isSpacePointsInit() { return bool(outSpacePointHitPairs); }
+    std::vector<recob::TrackFitHitInfo> trackFitHitInfos() {
+      if (!outTrackFitHitInfos) throw std::logic_error("outTrackFitHitInfos is not available (any more?).");
+      return std::move(*(outTrackFitHitInfos.release() ));
+    }
+    std::vector<SpHitPair> spacePointHitPairs() {
+      if (!outSpacePointHitPairs) throw std::logic_error("outSpacePointHitPairs is not available (any more?).");
+      return std::move(*(outSpacePointHitPairs.release() ));
+    }
   private:
     std::unique_ptr< std::vector<recob::TrackFitHitInfo> > outTrackFitHitInfos;
     std::unique_ptr< std::vector<SpHitPair> > outSpacePointHitPairs;
   };
+
+  /**
+   * @brief Base abstract class for tools used to fit tracks.
+   *
+   * Base abstract class for tools used to fit tracks. The virtual function makeTrack comes in three flavours,
+   * one for each possible input (Trajectory, TrackTrajectory, Track).
+   * The only purely virtual function is the one for input Trajectories (by default the other two just forward the call to it).
+   * Its arguments are the const inputs (Trajectory, TrajectoryPointFlags, track ID)
+   * and the non-const ouputs (mandatory: outTrack and outHits; optional outputs stored in OptionalOutputs).
+   * In case other products are needed from the event (e.g. associations to the input), they can be retrieved overloading the initEvent function.
+   * The tool is not meant to put collections in the event.
+   * Requirements are that a Track has at least 2 points, that it has the same number of Points and Momenta,
+   * that TrajectoryPoints and Hit have a 1-1 correspondance (same number and  same order).
+   * The functions return a bool corresponding to the success or failure status of the fit.
+   */
 
   class TrackMaker {
   public:
