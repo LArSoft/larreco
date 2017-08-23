@@ -36,7 +36,6 @@ namespace tca {
   bool Find3DShowerEndPoints(TjStuff& tjs, PFPStruct& ms);
   void Finish3DShowers(TjStuff& tjs);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
-  void SaveAllCots(TjStuff& tjs, std::string someText);
   void FindMatchingTjs(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool MergeShowerTjsAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
   bool TransferTjHits(TjStuff& tjs, const CTP_t& inCTP, bool prt);
