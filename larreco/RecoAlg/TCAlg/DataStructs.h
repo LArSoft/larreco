@@ -211,7 +211,7 @@ namespace tca {
     std::array<std::vector<float>, 2> dEdx;
     std::array<std::vector<float>, 2> dEdxErr;
     std::array<unsigned short, 2> Vx3ID {0, 0};
-    int BestPlane {INT_MAX};
+    int BestPlane {-1};
     // stuff for constructing the PFParticle
     int PDGCode {0};
     std::vector<unsigned short> DtrIDs;
