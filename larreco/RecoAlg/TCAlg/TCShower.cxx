@@ -273,15 +273,15 @@ namespace tca {
       prt = (inCTP == dbgCTP || dbgPlane == 3);
       if(prt) Print2DShowers("tjl", tjs, inCTP, false);
       MergeShowerChain(fcnLabel, tjs, inCTP, prt);
-      if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "MSC");
+      SaveAllCots(tjs, inCTP, "MSC");
       if(prt) Print2DShowers("MSCo", tjs, inCTP, false);
       MergeOverlap(fcnLabel, tjs, inCTP, prt);
-      if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "MO");
+      SaveAllCots(tjs, inCTP, "MO");
       if(prt) Print2DShowers("MO", tjs, inCTP, false);
-      if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "MSS");
+      SaveAllCots(tjs, inCTP, "MSS");
       MergeSubShowers(fcnLabel, tjs, inCTP, prt);
       MergeNearby2DShowers(fcnLabel, tjs, inCTP, prt);
-      if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "MNrby");
+      SaveAllCots(tjs, inCTP, "MNrby");
       if(prt) Print2DShowers("Nrby", tjs, inCTP, false);
       for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
         auto& ss = tjs.cots[cotIndex];
@@ -289,6 +289,7 @@ namespace tca {
         if(ss.CTP != inCTP) continue;
         AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, false, prt);
       }
+      SaveAllCots(tjs, inCTP, "ATj2");
       if(prt) Print2DShowers("ATIE", tjs, inCTP, false);
     } // plane
     if(tjs.cots.empty()) return false;
@@ -307,6 +308,7 @@ namespace tca {
     
     if(prt) Print2DShowers("FEP", tjs, USHRT_MAX, false);
     Match2DShowers(fcnLabel, tjs, tpcid, prt);
+    SaveAllCots(tjs, "M2DSo");
     if(prt) Print2DShowers("M2DSo", tjs, USHRT_MAX, false);
     
     unsigned short nNewShowers = 0;
