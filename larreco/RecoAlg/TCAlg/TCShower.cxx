@@ -273,15 +273,15 @@ namespace tca {
       prt = (inCTP == dbgCTP || dbgPlane == 3);
       if(prt) Print2DShowers("tjl", tjs, inCTP, false);
       MergeShowerChain(fcnLabel, tjs, inCTP, prt);
-      SaveAllCots(tjs, "MSC");
+      if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "MSC");
       if(prt) Print2DShowers("MSCo", tjs, inCTP, false);
       MergeOverlap(fcnLabel, tjs, inCTP, prt);
-      SaveAllCots(tjs, "MO");
+      if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "MO");
       if(prt) Print2DShowers("MO", tjs, inCTP, false);
-      SaveAllCots(tjs, "MSS");
+      if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "MSS");
       MergeSubShowers(fcnLabel, tjs, inCTP, prt);
       MergeNearby2DShowers(fcnLabel, tjs, inCTP, prt);
-      SaveAllCots(tjs, "MNrby");
+      if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "MNrby");
       if(prt) Print2DShowers("Nrby", tjs, inCTP, false);
       for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
         auto& ss = tjs.cots[cotIndex];
@@ -328,17 +328,6 @@ namespace tca {
     return (nNewShowers > 0);
     
   } // FindShowers3D
-  
-  ////////////////////////////////////////////////
-  void SaveAllCots(TjStuff& tjs, std::string someText)
-  {
-    if(!tjs.SaveShowerTree) return;
-    for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
-      auto& ss = tjs.cots[cotIndex];
-      if(ss.ID == 0) continue;
-      SaveTjInfo(tjs, ss.CTP, cotIndex, someText);
-    } // cotIndex
-  } // SaveAllCots
   
   ////////////////////////////////////////////////
   void Match2DShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)

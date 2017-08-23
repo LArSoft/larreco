@@ -64,11 +64,12 @@ void showertree::Loop() {
          TLine* t = new TLine(x1, y1, x2, y2);
          // set line color
          t->SetLineColor(2 + ShowerID->at(i));
+         if (2 + ShowerID->at(i)==10) t->SetLineColor(28);
          t->SetLineWidth(2);
-
          // check for parent and update draw settings accordingly
          if (IsShowerParent->at(i) == 1) {
             t->SetLineColor(2 + ShowerID->at(i));
+            if (2 + ShowerID->at(i)==10) t->SetLineColor(28);
             t->SetLineStyle(3);
             t->SetLineWidth(4);
          }
@@ -109,6 +110,7 @@ void showertree::Loop() {
                   xx[4] = xx[0];  yy[4] = yy[0];
                   TPolyLine* env = new TPolyLine(5, xx, yy);
                   env->SetLineColor(2 + EnvShowerID->at(k));
+                  if (2 + EnvShowerID->at(k)==10) env->SetLineColor(28);
                   senv.push_back(env);
                   vtxcnt = 0;
                   continue;
