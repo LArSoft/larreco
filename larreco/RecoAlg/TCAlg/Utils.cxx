@@ -303,6 +303,75 @@ namespace tca {
     }
     return true;
   } // FindMatchingPts2
+  
+  /////////////////////////////////////////
+  bool SetPFPEndPoint(TjStuff& tjs, PFPStruct& pfp, unsigned short end, bool prt)
+  {
+    // Sets the XYZ position in the pfp at the desired end. End = 0 is assumed to be start
+    // of the PFParticle
+    // Returns false if the end point position is inconsistent
+    
+    pfp.Dir[end] = {0, 0, 0};
+    pfp.DirErr[end] = {0, 0, 0};
+    pfp.XYZ[end] = {0, 0, 0};
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      pfp.dEdx[end][plane] = 0;
+      pfp.dEdxErr[end][plane] = 0;
+    } // plane
+    
+    if(end > 1) return false;
+    // this code doesn't handle the ends of showers
+    if(pfp.PDGCode == 1111 && end == 1) return false;
+    if(pfp.TjIDs.size() < 2) return false;
+    
+    if(pfp.Vx3ID[end] == 0) {
+      std::cout<<"SetPFPEndPoint can't deal with this\n";
+      return false;
+    }
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"PFP "<<pfp.ID<<" Tjs";
+      for(auto id : pfp.TjIDs) myprt<<" "<<id;
+    }
+    
+    // 3D vertex exists
+    auto& vx3 = tjs.vtx3[pfp.Vx3ID[end] - 1];
+    pfp.XYZ[end][0] = vx3.X;
+    pfp.XYZ[end][1] = vx3.Y;
+    pfp.XYZ[end][2] = vx3.Z;
+    
+    if(end == 1) return true;
+    
+    // reverse Tjs so that end 0 is at the start vertex
+    for(auto id : pfp.TjIDs) {
+      auto& tj = tjs.allTraj[id - 1];
+      unsigned short vtxEnd = USHRT_MAX;
+      for(unsigned short tjEnd = 0; tjEnd < 2; ++tjEnd) {
+        if(tj.VtxID[tjEnd] == 0) continue;
+        auto& vx2 = tjs.vtx[tj.VtxID[tjEnd] - 1];
+        if(vx2.Vtx3ID == vx3.ID) vtxEnd = tjEnd;
+      } // tjEnd
+      if(vtxEnd == USHRT_MAX) continue;
+      if(vtxEnd != 0) ReverseTraj(tjs, tj); 
+    } // id
+    
+    // Find the direction and set it to be away from the start vertex
+    auto& tj1 = tjs.allTraj[pfp.TjIDs[0] - 1];
+    auto& tp1 = tj1.Pts[tj1.EndPt[0]];
+    auto& tj2 = tjs.allTraj[pfp.TjIDs[1] - 1];
+    auto& tp2 = tj2.Pts[tj2.EndPt[0]];
+    TVector3 pos, dir;
+    if(!TrajPoint3D(tjs, tp1, tp2, pos, dir)) {
+      if(prt) mf::LogVerbatim("TC")<<"SPEP: "<<pfp.ID<<" TrajPoint3D failed";
+      return false;
+    }
+    // TODO: reverse the direction?
+    pfp.Dir[end] = dir;
+
+    return true;
+  } // SetPFPEndPoints
+  
   /////////////////////////////////////////
   bool FindMatchingPts(TjStuff& tjs, PFPStruct& pfp, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt)
   {
@@ -944,6 +1013,23 @@ namespace tca {
       wInTraj = tjs.fHits[wHit].InTraj;
     }
   } // WatchHit
+  
+  ////////////////////////////////////////////////
+  void TagBragg(TjStuff& tjs, PFPStruct& pfp, bool prt)
+  {
+    // sets the PDG code to 2212 if there are Bragg peaks on the Tjs
+    if(pfp.PDGCode == 11 || pfp.PDGCode == 1111) return;
+    
+    unsigned short braggCnt0 = 0;
+    unsigned short braggCnt1 = 0;
+    for(auto& tjID : pfp.TjIDs) {
+      auto& tj = tjs.allTraj[tjID - 1];
+      if(tj.StopFlag[0][kBragg]) ++braggCnt0;
+      if(tj.StopFlag[1][kBragg]) ++braggCnt1;
+    }
+    if(braggCnt0 > 1 || braggCnt1 > 1) pfp.PDGCode = 2212;
+    
+  } // TagBragg
 
   ////////////////////////////////////////////////
   void Reverse3DMatchTjs(TjStuff& tjs, PFPStruct& pfp, bool prt)
@@ -1068,6 +1154,11 @@ namespace tca {
     pfp.dEdx[1].resize(tjs.NumPlanes, 0);
     pfp.dEdxErr[0].resize(tjs.NumPlanes, 0);
     pfp.dEdxErr[1].resize(tjs.NumPlanes, 0);
+    for(unsigned short startend = 0; startend < 2; ++startend) {
+      pfp.Dir[startend] = {0, 0, 0};
+      pfp.DirErr[startend] = {0, 0, 0};
+      pfp.XYZ[startend] = {0, 0, 0};
+    }
     return pfp;
   } // MatchVecIndex
 
@@ -3688,7 +3779,7 @@ namespace tca {
   /////////////////////////////////////////
   std::string PrintPos(const TjStuff& tjs, const TrajPoint& tp)
   {
-    return PrintPos(tjs, tp.Pos);
+    return std::to_string(tp.CTP) + ":" + PrintPos(tjs, tp.Pos);
   } // PrintPos
   
   /////////////////////////////////////////
