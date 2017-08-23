@@ -45,8 +45,9 @@ namespace tca {
   void MergeBrokenTjs(TjStuff& tjs, std::vector<MatchStruct>& matVec);
   void DirectionInCTP(const TjStuff& tjs, TVector3& dir3, CTP_t inCTP, std::array<double, 2>& dir2, double& ang2);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
-  bool FindMatchingPts(TjStuff& tjs, PFPStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
-  bool FindMatchingPts2(TjStuff& tjs, PFPStruct& ms, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
+  bool SetPFPEndPoint(TjStuff& tjs, PFPStruct& pfp, unsigned short end, bool prt);
+  bool FindMatchingPts(TjStuff& tjs, PFPStruct& pfp, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
+  bool FindMatchingPts2(TjStuff& tjs, PFPStruct& pfp, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
   void FilldEdx(TjStuff& tjs, PFPStruct& ms);
@@ -56,6 +57,7 @@ namespace tca {
   void FitTraj(TjStuff& tjs, Trajectory& tj);
   void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
+  void TagBragg(TjStuff& tjs, PFPStruct& pfp, bool prt);
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
   void Reverse3DMatchTjs(TjStuff& tjs, PFPStruct& ms, bool prt);
