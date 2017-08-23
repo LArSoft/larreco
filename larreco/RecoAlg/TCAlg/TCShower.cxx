@@ -300,11 +300,6 @@ namespace tca {
       if(ss.ID == 0) continue;
       FindExternalParent("FS", tjs, cotIndex, prt);
       if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, "FEP");
-      // Add Tjs with high-score vertices inside the shower and kill those vertices
-      AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, true, prt);
-      SaveAllCots(tjs, "ATj2");
-      Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      if(prt) std::cout<<cotIndex<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<" ParID "<<ss.ParentID<<" TruParID "<<ss.TruParentID<<"\n";
       if(ss.ParentID == 0) FindStartChg(fcnLabel, tjs, cotIndex, prt);
     } // cotIndex
     
@@ -326,15 +321,7 @@ namespace tca {
     } // cotIndex
     
     if(prt) Print2DShowers("FSo", tjs, USHRT_MAX, false);
-/*
-    if(tjs.ShowerTag[12] >= 0) {
-      for(auto& tj : tjs.allTraj) {
-        if(tj.AlgMod[kKilled]) continue;
-        if(!tj.AlgMod[kShowerTj]) continue;
-        PrintTrajectory("FSO", tjs, tj, USHRT_MAX);
-      }
-    } // print trajectories
-*/
+
     // clobber ss3 MatchVecPFPIndex since it will not be valid after re-matching in 3D
     for(auto& ss3 : tjs.showers) ss3.PFPIndex = USHRT_MAX;
     
@@ -403,7 +390,6 @@ namespace tca {
       if(iplaneID.Cryostat != tpcid.Cryostat) continue;
       if(iplaneID.TPC != tpcid.TPC) continue;
       Trajectory& istj = tjs.allTraj[iss.ShowerTjID - 1];
-      if(prt) std::cout<<"ci "<<ci<<" istj "<<istj.ID<<" Energy "<<(int)iss.Energy<<"\n";
       for(unsigned short cj = ci + 1; cj < tjs.cots.size(); ++cj) {
         ShowerStruct& jss = tjs.cots[cj];
         if(jss.CTP == iss.CTP) continue;
@@ -586,7 +572,8 @@ namespace tca {
             auto& ptj = tjs.allTraj[ss.ParentID - 1];
             auto ipfp = PFPIndex(tjs, ptj.ID);
             if(ipfp < tjs.matchVec.size()) {
-              myprt<<" Parent PFP Index "<<ipfp;
+              auto& pfp = tjs.pfps[ipfp];
+              myprt<<" Parent PFP Index "<<ipfp<<" Vx3IDs "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
             } else {
               myprt<<" Parent not matched in 3D.";
             }
@@ -597,6 +584,30 @@ namespace tca {
         } // ci
       } // sss3
     } // prt
+    
+    // look for incompletely defined 3D vertices
+    for(auto& ss3 : tjs.showers) {
+      if(ss3.ID == 0) continue;
+      if(ss3.PFPIndex < tjs.pfps.size()) continue;
+      std::cout<<"Found incomplete 3D shower "<<ss3.ID;
+      std::cout<<" 2D shower info:";
+      for(auto cotIndex : ss3.CotIndices) {
+        auto& ss = tjs.cots[cotIndex];
+        std::cout<<" ss.ID "<<ss.ID;
+        auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+        std::cout<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos);
+      }
+      std::cout<<"\n";
+    } // ss3
+    
+    // look for missing 2D -> 3D matches
+    for(auto& ss : tjs.cots) {
+      if(ss.ID == 0) continue;
+      if(ss.TjIDs.empty()) continue;
+      if(ss.SS3ID > 0) continue;
+      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+      std::cout<<"Found incompletely matched 2D shower "<<ss.ID<<" at Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<"\n";
+    } // ss
     
     // Try to set PFPIndex
     unsigned short cnt = 0;
@@ -663,29 +674,47 @@ namespace tca {
       }
     } // ss3
     
-    // look for incompletely defined 3D vertices
+    // Kill poor vertices inside showers.
+    // Form a list of 2D vertices that need to be preserved
+    std::vector<int> keepVx;
     for(auto& ss3 : tjs.showers) {
       if(ss3.ID == 0) continue;
-      if(ss3.PFPIndex < tjs.pfps.size()) continue;
-      std::cout<<"Found incomplete 3D shower "<<ss3.ID;
-      std::cout<<" 2D shower info:";
-      for(auto cotIndex : ss3.CotIndices) {
-        auto& ss = tjs.cots[cotIndex];
-        std::cout<<" ss.ID "<<ss.ID;
+      if(ss3.TPCID != tpcid) continue;
+      for(auto ci : ss3.CotIndices) {
+        auto& ss = tjs.cots[ci];
+        if(ss.ParentID == 0) continue;
         auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-        std::cout<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos);
-      }
-      std::cout<<"\n";
+        if(stj.VtxID[0] > 0) keepVx.push_back(stj.VtxID[0]);
+      } // ci
     } // ss3
-    
-    // look for missing 2D -> 3D matches
-    for(auto& ss : tjs.cots) {
-      if(ss.ID == 0) continue;
-      if(ss.TjIDs.empty()) continue;
-      if(ss.SS3ID > 0) continue;
-      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      std::cout<<"Found incompletely matched 2D shower "<<ss.ID<<" at Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<"\n";
-    } // ss
+    for(auto& ss3 : tjs.showers) {
+      if(ss3.ID == 0) continue;
+      if(ss3.TPCID != tpcid) continue;
+      for(auto ci : ss3.CotIndices) {
+        auto& ss = tjs.cots[ci];
+        // A good shower. Set the pdgcode of InShower Tjs to 11
+        for(auto& tjID : ss.TjIDs) {
+          Trajectory& tj = tjs.allTraj[tjID - 1];
+          // Clobber 2D vertices that are inside the shower
+          for(unsigned short end = 0; end < 2; ++end) {
+            if(tj.VtxID[end] == 0) continue;
+            // make sure its not a keeper
+            if(std::find(keepVx.begin(), keepVx.end(), tj.VtxID[end]) != keepVx.end()) continue;
+            VtxStore& vx2 = tjs.vtx[tj.VtxID[end]-1];
+            if(vx2.Score < tjs.ShowerTag[11]) {
+              if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Clobber vtx "<<vx2.ID<<" Score "<<vx2.Score<<" Vtx3ID "<<tjs.vtx[tj.VtxID[end]-1].Vtx3ID;
+              // force killing the vertex, possibly overriding the settings of Vertex2DCuts
+              MakeVertexObsolete(tjs, tj.VtxID[end], true);
+              ss.NeedsUpdate = true;
+            }
+          } // end
+        } // tjID
+        if(ss.NeedsUpdate) DefineShower(fcnLabel, tjs, ss.ID - 1, prt);
+        // Add Tjs with high-score vertices inside the shower and kill those vertices
+        AddTjsInsideEnvelope(fcnLabel, tjs, ss.ID - 1, true, prt);
+        if(ss.NeedsUpdate) DefineShower(fcnLabel, tjs, ss.ID - 1, prt);
+      } // ci (ss)
+    } // ss3
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -967,10 +996,7 @@ namespace tca {
 
     std::string fcnLabel = inFcnLabel + ".DS";
     
-    if(ss.ParentID > 0) {
-      std::cout<<fcnLabel<<" Use UpdateShowerWithParent instead of DefineShower\n";
-      return false;
-    }
+    if(ss.ParentID > 0) return UpdateShowerWithParent(fcnLabel, tjs, cotIndex, prt);
     
     FillPts(fcnLabel, tjs, cotIndex, prt);
     if(!FindChargeCenter(fcnLabel, tjs, cotIndex, prt)) {
@@ -1279,7 +1305,7 @@ namespace tca {
     stj.VtxID[0] = ptj.VtxID[pend];
     // and dE/dx of the shower Tj
     stj.dEdx[0] = ptj.dEdx[pend];
-    if(prt) mf::LogVerbatim("TC")<<fcnLabel<< "  ParentID " << ss.ParentID << " dEdx " << stj.dEdx[0];
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<< "  ParentID " << ss.ParentID << " dEdx " << stj.dEdx[0]<<" attached to vtx "<<stj.VtxID[0];
 
     // reference to the point on the parent Tj that is furthest away from the shower
     auto& ptp = ptj.Pts[ptj.EndPt[pend]];
@@ -3155,32 +3181,7 @@ namespace tca {
         if(nTjPts < tjs.ShowerTag[6]) killit = true;
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"    "<<" nTjPts "<<nTjPts<<" killit? "<<killit;
       } // !killit
-      if(killit) {
-        MakeShowerObsolete(fcnLabel, tjs, cotIndex, prt);
-      } else {
-        // A good shower. Set the pdgcode of InShower Tjs to 11
-        for(auto& tjID : ss.TjIDs) {
-          Trajectory& tj = tjs.allTraj[tjID - 1];
-          tj.PDGCode = 11;
-          // Clobber 2D vertices that are inside the shower
-          for(unsigned short end = 0; end < 2; ++end) {
-            if(tj.VtxID[end] > 0) {
-              VtxStore& vx2 = tjs.vtx[tj.VtxID[end]-1];
-              bool killMe = (vx2.Score < tjs.ShowerTag[11]);
-              // don't kill the 2D vertex if it is attached to the far end of the parent Tj
-              if(killMe && ss.ParentID > 0 && ss.ParentID == tjID) {
-                unsigned short farEnd = FarEnd(tjs, tj, ss);
-                if(farEnd == end) killMe = false;
-              }
-              if(killMe) {
-                if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Clobber vtx "<<vx2.ID<<" Score "<<vx2.Score<<" Vtx3ID "<<tjs.vtx[tj.VtxID[end]-1].Vtx3ID;
-                // force killing the vertex, possibly overriding the settings of Vertex2DCuts
-                MakeVertexObsolete(tjs, tj.VtxID[end], true);
-              }
-            } // valid vtxID
-          } // end
-        }
-      } // don't killit
+      if(killit) MakeShowerObsolete(fcnLabel, tjs, cotIndex, prt);
       if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, "CQ");
     } // ic
     
@@ -3346,7 +3347,7 @@ namespace tca {
     } // !printAllCTP
     
     // print a header
-    myprt<<someText<<"  ID   CTP  ParID TruParID Energy nTjs  dFOM AspRat   stj __Pos0___ nPts dRMS __Pos1___ nPts dRMS __Pos2___ nPts dRMS Angle SS3ID\n";
+    myprt<<someText<<"  ID   CTP  ParID TruParID Energy nTjs  dFOM AspRat  stj vx0 __Pos0___ nPts dRMS __Pos1___ nPts dRMS __Pos2___ nPts dRMS Angle SS3ID\n";
 
     for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
       const auto& ss = tjs.cots[ict];
@@ -3360,10 +3361,11 @@ namespace tca {
       myprt<<std::setw(9)<<ss.TruParentID;
       myprt<<std::setw(7)<<(int)ss.Energy;
       myprt<<std::setw(5)<<ss.TjIDs.size();
-      const auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
       myprt<<std::setw(6)<<std::setprecision(2)<<ss.DirectionFOM;
       myprt<<std::setw(7)<<std::setprecision(2)<<ss.AspectRatio;
-      myprt<<std::setw(6)<<stj.ID;
+      const auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+      myprt<<std::setw(5)<<stj.ID;
+      myprt<<std::setw(5)<<stj.VtxID[0];
       for(auto& spt : stj.Pts) {
         myprt<<std::setw(10)<<PrintPos(tjs, spt.Pos);
         myprt<<std::setw(5)<<spt.NTPsFit;
@@ -3375,7 +3377,7 @@ namespace tca {
       myprt<<"\n";
     } // ss
     if(tjs.ShowerTag[12] > 9) {
-      // print more detail
+      // List of Tjs
       for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
         const auto& ss = tjs.cots[ict];
         if(!printAllCTP && ss.CTP != inCTP) continue;
@@ -3386,7 +3388,20 @@ namespace tca {
         for(auto id : ss.TjIDs) myprt<<" "<<id;
         myprt<<"\n";
       } // ict
+      
     }
+    // Print the envelopes
+    for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
+      const auto& ss = tjs.cots[ict];
+      if(!printAllCTP && ss.CTP != inCTP) continue;
+      if(!printKilledShowers && ss.ID == 0) continue;
+      myprt<<someText<<std::fixed;
+      myprt<<std::setw(4)<<ss.ID;
+      myprt<<" Envelope";
+      for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
+      myprt<<"\n";
+    } // ict
+    // List of nearby Tjs
     for(unsigned short ict = 0; ict < tjs.cots.size(); ++ict) {
       const auto& ss = tjs.cots[ict];
       if(!printAllCTP && ss.CTP != inCTP) continue;
