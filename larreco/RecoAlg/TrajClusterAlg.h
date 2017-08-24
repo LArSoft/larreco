@@ -244,6 +244,7 @@ namespace tca {
     // Estimates the error^2 of the time using all hits in hitVec
     float HitsTimeErr2(const std::vector<unsigned int>& hitVec);
     // defines HitPos, HitPosErr2 and Chg for the used hits in the trajectory point
+    void ChkStopEndPts(Trajectory& tj, bool prt);
     void DefineHitPos(TrajPoint& tp);
     // Decide which hits to use to determine the trajectory point
     // fit, charge, etc. This is done by setting UseHit true and
