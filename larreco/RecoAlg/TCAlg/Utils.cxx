@@ -235,14 +235,14 @@ namespace tca {
     unsigned int jbend = 0;
     unsigned int bkk = 0;
     unsigned int kbend = 0;
-    for(unsigned short ii = 0; ii < pfp.TjIDs.size() - 2; ++ii) {
+    for(unsigned short ii = 0; ii < pfp.TjIDs.size() - 1; ++ii) {
       auto& itj = tjs.allTraj[pfp.TjIDs[ii] - 1];
       unsigned int iplane = DecodeCTP(itj.CTP).Plane;
       for(unsigned short iend = 0; iend < 2; ++iend) {
         auto& itp = itj.Pts[itj.EndPt[iend]];
         unsigned int iwire = std::nearbyint(itp.Pos[0]);
         double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1]/tjs.UnitsPerTick, iplane, pfp.TPCID.TPC, pfp.TPCID.Cryostat);
-        for(unsigned short jj = ii + 1; jj < pfp.TjIDs.size() - 1; ++jj) {
+        for(unsigned short jj = ii + 1; jj < pfp.TjIDs.size(); ++jj) {
           auto& jtj = tjs.allTraj[pfp.TjIDs[jj] - 1];
           unsigned int jplane = DecodeCTP(jtj.CTP).Plane;
           for(unsigned short jend = 0; jend < 2; ++jend) {

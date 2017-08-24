@@ -2718,10 +2718,10 @@ namespace tca {
         double wsum = 0;
         TVector3 psum = {0, 0, 0};
         TVector3 dsum = {0, 0, 0};
-        for(unsigned short ii = 0; ii < endtps[startend].size() - 1; ++ii) {
-          for(unsigned short jj = ii + 1; jj < endtps[startend].size(); ++jj) {
+        for(unsigned short kk = 0; kk < endtps[startend].size() - 1; ++kk) {
+          for(unsigned short jj = kk + 1; jj < endtps[startend].size(); ++jj) {
             TVector3 pos, dir;
-            if(!TrajPoint3D(tjs, endtps[startend][ii], endtps[startend][jj], pos, dir)) {
+            if(!TrajPoint3D(tjs, endtps[startend][kk], endtps[startend][jj], pos, dir)) {
               if(prt) mf::LogVerbatim("TC")<<"F3DEP: "<<pfp.ID<<" TrajPoint3D failed";
               continue;
             }
@@ -2750,7 +2750,7 @@ namespace tca {
               
             } // a valid direction exists
             // sum to get an average position and direction. Weight by the angle error
-            double erri = endtps[startend][ii].AngErr;
+            double erri = endtps[startend][kk].AngErr;
             if(erri == 0) erri = 0.3;
             double errj = endtps[startend][jj].AngErr;
             if(errj == 0) errj = 0.3;
