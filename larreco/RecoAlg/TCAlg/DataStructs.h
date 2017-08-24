@@ -355,7 +355,7 @@ namespace tca {
     kNoKinkChk,
     kSoftKink,
     kChkStop,
-    kChkStopEndPts,
+    kChkStopEP,
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
