@@ -1760,6 +1760,117 @@ namespace tca {
 
   } // FindUseHits
   
+  ////////////////////////////////////////////////
+  void TrajClusterAlg::ChkStopEndPts(Trajectory& tj, bool prt)
+  {
+    // Analyze the end of the Tj after crawling has stopped to see if any of the points
+    // should be used
+    // TODO: This function results in a small loss of efficiency and needs work. Perhaps by requir
+    
+    if(!tjs.UseAlg[kChkStopEndPts]) return;
+    
+    unsigned short endPt = tj.EndPt[1];
+    // nothing to be done
+    if(endPt == tj.Pts.size() - 1) return;
+    // ignore VLA Tjs
+    if(tj.Pts[endPt].AngleCode > 1) return;
+    // don't get too carried away with this
+    if(tj.Pts.size() - endPt > 10) return;
+    
+    // Get a list of hits a few wires beyond the last point on the Tj
+    geo::PlaneID planeID = DecodeCTP(tj.CTP);
+    unsigned short plane = planeID.Plane;
+    
+    // find the last point that has hits on it
+    unsigned short lastPt = tj.Pts.size() - 1;
+    for(lastPt = tj.Pts.size() - 1; lastPt >= tj.EndPt[1]; --lastPt) if(!tj.Pts[lastPt].Hits.empty()) break;
+    auto& lastTP = tj.Pts[lastPt];
+    
+    if(prt) {
+      mf::LogVerbatim("TC")<<"ChkStopEndPts: checking "<<tj.ID<<" endPt "<<endPt<<" Pts size "<<tj.Pts.size()<<" lastPt Pos "<<PrintPos(tjs, lastTP.Pos);
+    }
+    
+    TrajPoint ltp;
+    ltp.CTP = tj.CTP;
+    ltp.Pos = tj.Pts[endPt].Pos;
+    ltp.Dir = tj.Pts[endPt].Dir;
+    double stepSize = std::abs(1/ltp.Dir[0]);
+    std::array<int, 2> wireWindow;
+    std::array<float, 2> timeWindow;
+    std::vector<int> closeHits;
+    bool isClean = true;
+    for(unsigned short step = 0; step < 10; ++step) {
+      for(unsigned short iwt = 0; iwt < 2; ++iwt) ltp.Pos[iwt] += ltp.Dir[iwt] * stepSize;
+      int wire = std::nearbyint(ltp.Pos[0]);
+      wireWindow[0] = wire;
+      wireWindow[1] = wire;
+      timeWindow[0] = ltp.Pos[1] - 5;
+      timeWindow[1] = ltp.Pos[1] + 5;
+      bool hitsNear;
+      auto tmp = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
+      // add close hits that are not associated with this tj
+      for(auto iht : tmp) if(tjs.fHits[iht].InTraj != tj.ID) closeHits.push_back(iht);
+      float nWiresPast = 0;
+      // Check beyond the end of the trajectory to see if there are hits there
+      if(ltp.Dir[0] > 0) {
+        // stepping +
+        nWiresPast = ltp.Pos[0] - lastTP.Pos[0];
+      }  else {
+        // stepping -
+        nWiresPast = lastTP.Pos[0] - ltp.Pos[0];
+      }
+      if(prt) mf::LogVerbatim("TC")<<" Found "<<tmp.size()<<" hits near pos "<<PrintPos(tjs, ltp.Pos)<<" nWiresPast "<<nWiresPast;
+      if(nWiresPast > 0.5) {
+        if(!tmp.empty()) isClean = false;
+        if(nWiresPast > 1.5) break;
+      } // nWiresPast > 0.5
+    } // step
+    
+    // count the number of available hits
+    unsigned short nAvailable = 0;
+    for(auto iht : closeHits) if(tjs.fHits[iht].InTraj == 0) ++nAvailable;
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"closeHits";
+      for(auto iht : closeHits) myprt<<" "<<PrintHit(tjs.fHits[iht]);
+      myprt<<" nAvailable "<<nAvailable;
+      myprt<<" isClean "<<isClean;
+    } // prt
+    
+    if(!isClean || nAvailable != closeHits.size()) return;
+    
+    unsigned short originalEndPt = tj.EndPt[1] + 1;
+    // looks clean so use all the hits
+    for(unsigned short ipt = originalEndPt; ipt <= lastPt; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      bool hitsAdded = false;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        // This shouldn't happen but check anyway
+        if(tjs.fHits[tp.Hits[ii]].InTraj != 0) continue;
+        tp.UseHit[ii] = true;
+        tjs.fHits[tp.Hits[ii]].InTraj = tj.ID;
+        hitsAdded = true;
+      } // ii
+      if(hitsAdded) DefineHitPos(tp);
+    } // ipt
+    tj.AlgMod[kChkStopEndPts] = true;
+    SetEndPoints(tjs, tj);
+    // Re-fitting the end might be a good idea but it's probably not necessary. The
+    // values of Delta should have already been filled
+    
+    // require a Bragg peak
+    ChkStop(tj);
+    if(!tj.StopFlag[1][kBragg]) {
+      // restore the original
+      for(unsigned short ipt = originalEndPt; ipt <= lastPt; ++ipt) UnsetUsedHits(tjs, tj.Pts[ipt]);
+      SetEndPoints(tjs, tj);
+    } // no Bragg Peak
+    
+    UpdateAveChg(tj);
+    
+  } // ChkStopEndPts
+    
   //////////////////////////////////////////
   void TrajClusterAlg::DefineHitPos(TrajPoint& tp)
   {
@@ -3275,8 +3386,7 @@ namespace tca {
     }
     
     // See if the points at the stopping end can be included in the Tj
-    // TODO this needs development
-//    ChkStopEndPts(tjs, tj, prt);
+    ChkStopEndPts(tj, prt);
     
     // remove any points at the end that don't have charge
     tj.Pts.resize(tj.EndPt[1] + 1);
