@@ -801,7 +801,7 @@ namespace tca {
     for(auto& vx3 : tjs.vtx3) {
       if(vx3.ID == 0) continue;
       if(vx3.TPCID != tpcid) continue;
-      SetVtxScore(tjs, vx3, prt);
+      SetVtxScore(tjs, vx3, tjs.Vertex2DCuts[7]);
     } // vx3
 
   } // Find3DVertices
@@ -1386,9 +1386,10 @@ namespace tca {
   } // TjHasNiceVtx
   
   //////////////////////////////////////////
-  void SetVtxScore(TjStuff& tjs, Vtx3Store& vx3, bool prt)
+  void SetVtxScore(TjStuff& tjs, Vtx3Store& vx3, float scoreCut)
   {
-    // Calculate the 3D vertex score and flag Tjs that are attached to high score vertices
+    // Calculate the 3D vertex score and flag Tjs that are attached to high score vertices as defined 
+    // by scoreCut
     if(vx3.ID == 0) return;
     vx3.Score = 0;
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
@@ -1397,7 +1398,7 @@ namespace tca {
       vx3.Score += vx2.Score;
     } // ipl
     vx3.Score /= (float)tjs.NumPlanes;
-    bool setHi = vx3.Score > tjs.Vertex2DCuts[7];
+    bool setHi = vx3.Score > scoreCut;
     // reset the HiVx3Score vx2 bits and keep track of good 2D vertices
     std::vector<unsigned short> vx2List;
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
@@ -1718,7 +1719,7 @@ namespace tca {
         vx3.Vx2ID[mPlane] = newVtx.ID;
         newVtx.Vtx3ID = vx3.ID;
         vx3.Wire = -1;
-        SetVtxScore(tjs, newVtx, prt);
+        SetVtxScore(tjs, newVtx, tjs.Vertex2DCuts[7]);
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<" Success: new 2D vtx ID "<<newVtx.ID<<" at "<<(int)newVtx.Pos[0]<<":"<<(int)newVtx.Pos[1]/tjs.UnitsPerTick;
@@ -1893,13 +1894,13 @@ namespace tca {
   }
   
   ////////////////////////////////////////////////
-  void KillPoorVertices(TjStuff& tjs)
+  void KillPoorVertices(TjStuff& tjs, float scoreCut)
   {
     // Make vertices that have a poor score obsolete
     for(auto& vx2 : tjs.vtx) {
       if(vx2.ID == 0) continue;
       if(vx2.Stat[kHiVx3Score]) continue;
-      if(vx2.Score < tjs.Vertex2DCuts[7]) MakeVertexObsolete(tjs, vx2.ID, true);
+      if(vx2.Score < scoreCut) MakeVertexObsolete(tjs, vx2.ID, true);
     } // vx
   } // KillPoorVertices
   
@@ -1941,7 +1942,7 @@ namespace tca {
     if(n2D > 1) {
       // 3D vertex is incomplete
       // correct the score
-      SetVtxScore(tjs, vx3, false);
+      SetVtxScore(tjs, vx3, tjs.Vertex2DCuts[7]);
       return true;
     }
   
