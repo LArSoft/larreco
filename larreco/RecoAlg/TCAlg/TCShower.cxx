@@ -263,9 +263,8 @@ namespace tca {
         // Find nearby Tjs that were not included because they had too-high
         // MCSMom, etc. This will be used to decide if showers should be merged
         AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, false, prt);
-        if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, "ATj1");
+//        if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, "ATj1");
         FindNearbyTjs(fcnLabel, tjs, cotIndex, prt);
-//        FindMatchingTjs(fcnLabel, tjs, cotIndex, prt);
       } // tjl
       // try to merge showers in this plane using the lists of nearby Tjs
       if(inCTP == UINT_MAX) continue;
@@ -288,6 +287,7 @@ namespace tca {
         if(ss.ID == 0) continue;
         if(ss.CTP != inCTP) continue;
         AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, false, prt);
+        if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "Merge");
       }
       if(prt) Print2DShowers("ATIE", tjs, inCTP, false);
     } // plane
@@ -317,6 +317,7 @@ namespace tca {
       geo::PlaneID planeID = DecodeCTP(ss.CTP);
       if(planeID.Cryostat != tpcid.Cryostat) continue;
       if(planeID.TPC != tpcid.TPC) continue;
+      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, "Done");
      ++nNewShowers;
     } // cotIndex
     
@@ -574,30 +575,6 @@ namespace tca {
       } // sss3
     } // prt
     
-    // look for incompletely defined 3D vertices
-    for(auto& ss3 : tjs.showers) {
-      if(ss3.ID == 0) continue;
-      if(ss3.PFPIndex < tjs.pfps.size()) continue;
-      std::cout<<"Found incomplete 3D shower "<<ss3.ID;
-      std::cout<<" 2D shower info:";
-      for(auto cotIndex : ss3.CotIndices) {
-        auto& ss = tjs.cots[cotIndex];
-        std::cout<<" ss.ID "<<ss.ID;
-        auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-        std::cout<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos);
-      }
-      std::cout<<"\n";
-    } // ss3
-    
-    // look for missing 2D -> 3D matches
-    for(auto& ss : tjs.cots) {
-      if(ss.ID == 0) continue;
-      if(ss.TjIDs.empty()) continue;
-      if(ss.SS3ID > 0) continue;
-      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      std::cout<<"Found incompletely matched 2D shower "<<ss.ID<<" at Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<"\n";
-    } // ss
-    
     // Try to set PFPIndex
     unsigned short cnt = 0;
     for(auto& ss3 : tjs.showers) {
@@ -704,6 +681,31 @@ namespace tca {
         if(ss.NeedsUpdate) DefineShower(fcnLabel, tjs, ss.ID - 1, prt);
       } // ci (ss)
     } // ss3
+    
+    // these two sections are for development work
+    // look for incompletely defined 3D vertices
+    for(auto& ss3 : tjs.showers) {
+      if(ss3.ID == 0) continue;
+      if(ss3.PFPIndex < tjs.pfps.size()) continue;
+      std::cout<<"Found incomplete 3D shower "<<ss3.ID;
+      std::cout<<" 2D shower info:";
+      for(auto cotIndex : ss3.CotIndices) {
+        auto& ss = tjs.cots[cotIndex];
+        std::cout<<" ss.ID "<<ss.ID;
+        auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+        std::cout<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos);
+      }
+      std::cout<<"\n";
+    } // ss3
+    
+    // look for missing 2D -> 3D matches
+    for(auto& ss : tjs.cots) {
+      if(ss.ID == 0) continue;
+      if(ss.TjIDs.empty()) continue;
+      if(ss.SS3ID > 0) continue;
+      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+      std::cout<<"Found incompletely matched 2D shower "<<ss.ID<<" at Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<"\n";
+    } // ss
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2580,7 +2582,7 @@ namespace tca {
       // ignore stubby Tjs
       if(tj1.Pts.size() < 3) continue;
       // Cut on length and MCSMom
-      if(tj1.Pts.size() > 6 && tj1.MCSMom > maxMCSMom) continue;
+      if(tj1.Pts.size() > 4 && tj1.MCSMom > maxMCSMom) continue;
       if(tj1.AlgMod[kTjHiVx3Score]) continue;
       if(TjHasNiceVtx(tjs, tj1, tjs.ShowerTag[11])) continue;
       for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
@@ -2595,7 +2597,7 @@ namespace tca {
         if(tj2.AlgMod[kTjHiVx3Score]) continue;
         if(TjHasNiceVtx(tjs, tj2, tjs.ShowerTag[11])) continue;
         // Cut on length and MCSMom
-        if(tj2.Pts.size() > 6 && tj2.MCSMom > maxMCSMom) continue;
+        if(tj2.Pts.size() > 4 && tj2.MCSMom > maxMCSMom) continue;
         unsigned short ipt1, ipt2;
         float doca = tjs.ShowerTag[2];
         // Find the separation between Tjs without considering dead wires
