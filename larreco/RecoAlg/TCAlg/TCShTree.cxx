@@ -88,7 +88,7 @@ namespace tca {
         }
 
 	if (it1 == (ss.ShowerTjID - 1)) tjs.stv.IsShowerTj.back() = 1;
-
+	else if (tj1.AlgMod[kShowerTj]) tjs.stv.IsShowerTj.back() = 1; // this is a better check
         // check if tj is shower parent. if so, add to ttree
         // and mark parent flag	
         if (trajID == ss.ParentID) {
