@@ -486,7 +486,7 @@ namespace tca {
       Match3D(tpcid, false);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
       // true if the algorithm was successful indicating that the matching needs to be redone
-      if(tjs.ShowerTag[0] == 2) {
+      if(tjs.ShowerTag[0] > 0) {
         if(FindShowers3D(tjs, tpcid)) Match3D(tpcid, true);
         if(tjs.SaveShowerTree) {
           std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
