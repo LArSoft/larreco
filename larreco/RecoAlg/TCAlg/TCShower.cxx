@@ -251,7 +251,7 @@ namespace tca {
       CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       std::vector<std::vector<int>> tjList;
       TagShowerTjs(fcnLabel, tjs, inCTP, tjList);
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, tjList, "TJL");
+      SaveTjInfo(tjs, inCTP, tjList, "TJL");
       if(tjList.empty()) continue;
       MergeTjList(tjList);
       bigList[plane] = tjList;
@@ -265,8 +265,6 @@ namespace tca {
       for(auto& tjl : bigList[plane]) {
         for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
       } // tjl
-//      CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
-//      if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, bigList[plane], "MTJL");
     } // plane
 
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
@@ -288,7 +286,7 @@ namespace tca {
           MakeShowerObsolete(fcnLabel, tjs, cotIndex, prt);
           continue;
         }
-        if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, "DS");
+        SaveTjInfo(tjs, inCTP, cotIndex, "DS");
         // Find nearby Tjs that were not included because they had too-high
         // MCSMom, etc. This will be used to decide if showers should be merged
         AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, false, prt);
@@ -329,12 +327,13 @@ namespace tca {
       auto& ss = tjs.cots[cotIndex];
       if(ss.ID == 0) continue;
       FindExternalParent("FS", tjs, cotIndex, prt);
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, "FEP");
+      SaveTjInfo(tjs, ss.CTP, cotIndex, "FEP");
       if(ss.ParentID == 0) FindStartChg(fcnLabel, tjs, cotIndex, prt);
     } // cotIndex
     
     CheckQuality(fcnLabel, tjs, tpcid, prt);
     
+    SaveAllCots(tjs, "CQ");
     if(prt) Print2DShowers("FEP", tjs, USHRT_MAX, false);
     Match2DShowers(fcnLabel, tjs, tpcid, prt);
     SaveAllCots(tjs, "M2DSo");
@@ -348,7 +347,7 @@ namespace tca {
       geo::PlaneID planeID = DecodeCTP(ss.CTP);
       if(planeID.Cryostat != tpcid.Cryostat) continue;
       if(planeID.TPC != tpcid.TPC) continue;
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, "Done");
+      SaveTjInfo(tjs, ss.CTP, cotIndex, "Done");
      ++nNewShowers;
     } // cotIndex
     
@@ -3117,7 +3116,7 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"    "<<" nTjPts "<<nTjPts<<" killit? "<<killit;
       } // !killit
       if(killit) MakeShowerObsolete(fcnLabel, tjs, cotIndex, prt);
-      if (tjs.SaveShowerTree) SaveTjInfo(tjs, ss.CTP, cotIndex, "CQ");
+      
     } // ic
     
     // check for duplicates
