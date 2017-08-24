@@ -475,7 +475,7 @@ namespace tca {
       // Look for incomplete 3D vertices that won't be recovered because there are
       // missing trajectories in a plane
       FindMissedVxTjs(tpcid);
-      KillPoorVertices(tjs);
+      KillPoorVertices(tjs, tjs.Vertex2DCuts[7]);
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
         if(!ChkVtxAssociations(tjs, fCTP)) {
@@ -1767,7 +1767,7 @@ namespace tca {
     // should be used
     // TODO: This function results in a small loss of efficiency and needs work. Perhaps by requir
     
-    if(!tjs.UseAlg[kChkStopEndPts]) return;
+    if(!tjs.UseAlg[kChkStopEP]) return;
     
     unsigned short endPt = tj.EndPt[1];
     // nothing to be done
@@ -1854,7 +1854,7 @@ namespace tca {
       } // ii
       if(hitsAdded) DefineHitPos(tp);
     } // ipt
-    tj.AlgMod[kChkStopEndPts] = true;
+    tj.AlgMod[kChkStopEP] = true;
     SetEndPoints(tjs, tj);
     // Re-fitting the end might be a good idea but it's probably not necessary. The
     // values of Delta should have already been filled
