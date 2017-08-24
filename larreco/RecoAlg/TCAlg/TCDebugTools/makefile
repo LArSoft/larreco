@@ -2,10 +2,10 @@
 CC = g++
 CCflags = -Wall
 
-all: tc_sh_debugger
+all: rsf_evd
 
 clean:
-	rm -f tc_sh_debugger *.o *~
+	rm -f rsf_evd *.o *~
 
-tc_sh_debugger: showertree.C showertree.h
-	$(CC) $(CCFlags) -o tc_sh_debugger showertree.C `root-config --cflags --glibs`
+rsf_evd: showertree.C showertree.h
+	$(CC) $(CCFlags) -o rsf_evd showertree.C `root-config --cflags --glibs`

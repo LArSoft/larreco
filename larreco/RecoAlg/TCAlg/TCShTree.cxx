@@ -4,7 +4,7 @@ namespace tca {
 
   void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, std::vector<std::vector<int>>& tjList,
                   std::string stageName) {
-    
+    if(!tjs.SaveShowerTree) return;
     int stageNum = GetStageNum(tjs.stv, stageName);
 
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
@@ -43,7 +43,7 @@ namespace tca {
 
   void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotIndex,
                   std::string stageName) {
-
+    if(!tjs.SaveShowerTree) return;
     int stageNum = GetStageNum(tjs.stv, stageName);
 
     ShowerStruct& ss = tjs.cots[cotIndex];
@@ -129,6 +129,7 @@ namespace tca {
   } // SaveTjInfo (cots)
 
   void SaveTjInfoStuff(TjStuff& tjs,  const CTP_t& inCTP, Trajectory& tj, int stageNum, std::string stageName) {
+    if(!tjs.SaveShowerTree) return;
 
     TrajPoint& beginPoint = tj.Pts[tj.EndPt[0]];
     TrajPoint& endPoint = tj.Pts[tj.EndPt[1]];
