@@ -66,7 +66,6 @@ namespace tca {
   PFPStruct CreatePFPStruct(const TjStuff& tjs, const geo::TPCID& tpcid);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
-  void ChkStopEndPts(TjStuff& tjs, Trajectory& tj, bool prt);
   bool StoreTraj(TjStuff& tjs, Trajectory& tj);
   void UpdateChgRMS(TjStuff& tjs, Trajectory& tj);
   bool InTrajOK(TjStuff& tjs, std::string someText);
