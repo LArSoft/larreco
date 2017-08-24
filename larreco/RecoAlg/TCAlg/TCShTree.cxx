@@ -161,8 +161,7 @@ namespace tca {
   } // SaveTjInfoStuff  
 
   ////////////////////////////////////////////////
-  void SaveAllCots(TjStuff& tjs, const CTP_t& inCTP, std::string someText)
-  {
+  void SaveAllCots(TjStuff& tjs, const CTP_t& inCTP, std::string someText) {
     if(!tjs.SaveShowerTree) return;
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       auto& ss = tjs.cots[cotIndex];
@@ -171,6 +170,16 @@ namespace tca {
       SaveTjInfo(tjs, ss.CTP, cotIndex, someText);
     } // cotIndex
   } // SaveAllCots
+
+
+  void SaveAllCots(TjStuff& tjs, std::string someText) {
+    if(!tjs.SaveShowerTree) return;
+    for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
+      auto& ss = tjs.cots[cotIndex];
+      if(ss.ID == 0) continue;
+      SaveTjInfo(tjs, ss.CTP, cotIndex, someText);
+    } // cotIndex
+  }
 
   int GetStageNum(ShowerTreeVars& stv, std::string stageName) {
     int stageNum;
@@ -189,7 +198,6 @@ namespace tca {
 
     return stageNum;
   }
-
 
   void ClearShowerTree(ShowerTreeVars& stv) {
     stv.BeginWir.clear();
