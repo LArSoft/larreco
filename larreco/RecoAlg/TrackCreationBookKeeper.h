@@ -44,6 +44,18 @@ namespace trkmkr {
     TrackCreationBookKeeper& operator=(const TrackCreationBookKeeper&) = delete;
     TrackCreationBookKeeper& operator=(TrackCreationBookKeeper&& ) = delete;
     //
+    void addPoint(const Point_t& point, const Vector_t& vect, art::Ptr<Hit> hit, const PointFlags_t& flag, double chi2) {
+	positions.push_back(point);
+	momenta.push_back(vect);
+	hits->push_back(hit);
+	flags.push_back(flag);
+	chi2v.push_back(chi2);
+	totChi2_+=chi2;
+    }
+    void addPoint(const Point_t& point, const Vector_t& vect, art::Ptr<Hit> hit, const PointFlags_t& flag, double chi2, OptionalPointElement& ope) {
+      addPoint(point, vect, hit, flag, chi2);
+      opts->addPoint(ope);
+    }
     void addPoint(Point_t&& point, Vector_t&& vect, art::Ptr<Hit> hit, PointFlags_t&& flag, double chi2) {
 	positions.push_back(std::move(point));
 	momenta.push_back(std::move(vect));

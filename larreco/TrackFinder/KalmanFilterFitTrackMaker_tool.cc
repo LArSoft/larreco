@@ -206,7 +206,7 @@ void trkmkr::KalmanFilterFitTrackMaker::restoreInputPoints(const recob::TrackTra
   for (unsigned int p=0; p<np; ++p) {
     auto mask = outTrack.FlagsAtPoint(flagsmap[p]).mask();
     if (mask.isSet(recob::TrajectoryPointFlagTraits::NoPoint)) mask.unset(recob::TrajectoryPointFlagTraits::NoPoint);
-    tcbk.addPoint(Point_t(traj.LocationAtPoint(p)), Vector_t(traj.MomentumVectorAtPoint(p)), inHits[p], recob::TrajectoryPointFlags(p,mask), 0);
+    tcbk.addPoint(traj.LocationAtPoint(p), traj.MomentumVectorAtPoint(p), inHits[p], recob::TrajectoryPointFlags(p,mask), 0);
   }
   auto covs = outTrack.Covariances();
   tcbk.setTotChi2(outTrack.Chi2());

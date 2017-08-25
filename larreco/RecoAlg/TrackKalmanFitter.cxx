@@ -79,7 +79,7 @@ trkf::KFTrackState trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t
 }
 
 bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags, 
-					       const KFTrackState& trackState, bool reverseHits,
+					       const KFTrackState& trackState, bool& reverseHits,
 					       std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv) const {
   // figure out hit sorting based on minimum distance to first or last hit
   // (to be removed once there is a clear convention for hit sorting)
@@ -471,7 +471,7 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
   // fill output trajectory objects with smoothed track and its hits
   trkmkr::TrackCreationBookKeeper tcbk(outHits, optionals, tkID, pdgid, true);
   for (unsigned int p : sortedtksidx) {
-    auto& trackstate = fwdUpdTkState[p];
+    const auto& trackstate = fwdUpdTkState[p];
     const auto& hitflags   = hitflagsv[hitstateidx[p]];
     const unsigned int originalPos = (reverseHits ? hitstatev.size()-hitstateidx[p]-1 : hitstateidx[p]);
     assert(originalPos>=0 && originalPos<hitstatev.size());
@@ -484,7 +484,7 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
     if (optionals.isTrackFitInfosInit()) {
       ope.setTrackFitHitInfo(recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),prdtrack.parameters(),prdtrack.covariance(),hitstate.wireId()));
     }
-    tcbk.addPoint(trackstate.movePositionRef(), trackstate.moveMomentumRef(), inHits[originalPos],
+    tcbk.addPoint(trackstate.position(), trackstate.momentum(), inHits[originalPos],
 		  recob::TrajectoryPointFlags(originalPos,hitflags), prdtrack.chi2(hitstate), ope);
   }
 

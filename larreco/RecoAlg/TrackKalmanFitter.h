@@ -114,7 +114,7 @@ namespace trkf {
     KFTrackState setupInitialTrackState(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov, const double pval, const int pdgid) const;
 
     bool setupInputStates(const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
-			  const KFTrackState& trackState, bool reverseHits,
+			  const KFTrackState& trackState, bool& reverseHits,
 			  std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv) const;
 
     bool doFitWork(KFTrackState& trackState, std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
