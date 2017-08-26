@@ -561,15 +561,13 @@ void Reco3D::produce(art::Event& evt)
               });
   }
 
-  std::vector<CollectionWireHit*> cwires, cwires_cheat;
+  std::vector<CollectionWireHit*> cwires;
   // So we can find them all to free the memory
-  std::vector<InductionWireHit*> iwires, iwires_cheat;
+  std::vector<InductionWireHit*> iwires;
 
   BuildSystem(xhits, uhits, vhits, cwires, iwires, fAlpha != 0);
 
   if(fPlots) plot(geom.get(), cwires, TString::Format("pre_%03d", evt.event()).Data());
-
-  //  return;
 
   if(fFit){
     std::cout << "Iterating..." << std::endl;
@@ -673,9 +671,6 @@ void Reco3D::produce(art::Event& evt)
 
   for(InductionWireHit* i: iwires) delete i;
   for(CollectionWireHit* c: cwires) delete c;
-
-  for(InductionWireHit* i: iwires_cheat) delete i;
-  for(CollectionWireHit* c: cwires_cheat) delete c;
 }
 
 } // end namespace reco3d
