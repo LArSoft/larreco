@@ -368,7 +368,6 @@ void BuildSystem(const std::vector<recob::Hit>& xhits,
 
       const std::vector<geo::WireID> ws = geom->ChannelToWire(hit.Channel());
       assert(ws.size() == 1);
-      double xpos = detprop->ConvertTicksToX(hit.PeakTime(), ws[0]);
 
       FastForward(uwires_begin, hit.PeakTime(), uwires[tpc].end());
       FastForward(vwires_begin, hit.PeakTime(), vwires[tpc].end());
@@ -413,9 +412,10 @@ void BuildSystem(const std::vector<recob::Hit>& xhits,
           // This average aleviates the problem with a single collection wire
           // matching multiple hits on an induction wire at different times.
           const double t = (hit.PeakTime()+uwire->fTime+vwire->fTime)/3;
+          const double xpos = detprop->ConvertTicksToX(t, ws[0]);
           // TODO exactly which 3D position to set for this point?
           // Don't have a cwire object yet, set it later
-          SpaceCharge* sc = new SpaceCharge(t, xpos, ptXU.y, ptXU.z,
+          SpaceCharge* sc = new SpaceCharge(xpos, ptXU.y, ptXU.z,
                                             0, uwire, vwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
@@ -494,7 +494,7 @@ void BuildSystem(const std::vector<recob::Hit>& xhits,
             std::cout << "ZERO DISTANCE SOMEHOW?" << std::endl;
             std::cout << sc1->fCWire << " " << sc1->fWire1 << " " << sc1->fWire2 << std::endl;
             std::cout << sc2->fCWire << " " << sc2->fWire1 << " " << sc2->fWire2 << std::endl;
-            std::cout << dist2 << " " << sc1->fTime << " " << sc2->fTime << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
+            std::cout << dist2 << " " << sc1->fX << " " << sc2->fX << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
             continue;
             dist2 = sqr(kCritDist);
           }
@@ -503,10 +503,10 @@ void BuildSystem(const std::vector<recob::Hit>& xhits,
 
           // This is a pretty random guess
           const double coupling = exp(-sqrt(dist2)/2);
-          sc1->fNeighbours.emplace_back(sc2, sqrt(dist2), coupling);
+          sc1->fNeighbours.emplace_back(sc2, coupling);
 
           if(isnan(1/sqrt(dist2)) || isinf(1/sqrt(dist2))){
-            std::cout << dist2 << " " << sc1->fTime << " " << sc2->fTime << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
+            std::cout << dist2 << " " << sc1->fX << " " << sc2->fX << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
             abort();
           }
         } // end for sc2

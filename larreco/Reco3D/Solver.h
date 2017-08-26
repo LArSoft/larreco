@@ -25,10 +25,9 @@ class SpaceCharge;
 class Neighbour
 {
 public:
-  Neighbour(SpaceCharge* sc, double dist, double coupling);
+  Neighbour(SpaceCharge* sc, double coupling);
 
   SpaceCharge* fSC;
-  double fDist;
   double fCoupling;
 };
 
@@ -37,12 +36,12 @@ class CollectionWireHit;
 class SpaceCharge
 {
 public:
-  SpaceCharge(double t, double x, double y, double z,
+  SpaceCharge(double x, double y, double z,
               CollectionWireHit* cwire,
               InductionWireHit* wire1, InductionWireHit* wire2);
 
   //protected:
-  double fTime, fX, fY, fZ;
+  double fX, fY, fZ;
   CollectionWireHit* fCWire;
   InductionWireHit *fWire1, *fWire2;
 
