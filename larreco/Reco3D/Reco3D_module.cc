@@ -435,35 +435,33 @@ void BuildSystem(const std::vector<recob::Hit>& xhits,
     {
     public:
       IntCoord(const SpaceCharge& sc)
-        : fY(sc.fY/kCritDist),
-          fZ(sc.fZ/kCritDist),
-          fT(sc.fX/kCritDist)
+        : fX(sc.fX/kCritDist),
+          fY(sc.fY/kCritDist),
+          fZ(sc.fZ/kCritDist)
       {
       }
 
       bool operator<(const IntCoord& i) const
       {
-        return std::make_tuple(fY, fZ, fT) < std::make_tuple(i.fY, i.fZ, i.fT);
+        return std::make_tuple(fX, fY, fZ) < std::make_tuple(i.fX, i.fY, i.fZ);
       }
 
       std::vector<IntCoord> Neighbours() const
       {
         std::vector<IntCoord> ret;
-        for(int dy = -1; dy <= +1; ++dy){
-          for(int dz = -1; dz <= +1; ++dz){
-            for(int dt = -1; dt <= +1; ++dt){
-              IntCoord c = *this;
-              c.fY += dy;
-              c.fZ += dz;
-              c.fT += dt;
-              ret.push_back(c);
+        for(int dx = -1; dx <= +1; ++dx){
+          for(int dy = -1; dy <= +1; ++dy){
+            for(int dz = -1; dz <= +1; ++dz){
+              ret.push_back(IntCoord(fX+dx, fY+dy, fZ+dz));
             }
           }
         }
         return ret;
       }
     protected:
-      int fY, fZ, fT;
+      IntCoord(int x, int y, int z) : fX(x), fY(y), fZ(z) {}
+
+      int fX, fY, fZ;
     };
 
     std::map<IntCoord, std::vector<SpaceCharge*>> scMap;
@@ -485,7 +483,6 @@ void BuildSystem(const std::vector<recob::Hit>& xhits,
           ++Ntests;
 
           if(sc1 == sc2) continue;
-          // TODO accurate speed conversion factor for time
           /*const*/ double dist2 = sqr(sc1->fX-sc2->fX) + sqr(sc1->fY-sc2->fY) + sqr(sc1->fZ-sc2->fZ);
 
           if(dist2 > sqr(kCritDist)) continue;
