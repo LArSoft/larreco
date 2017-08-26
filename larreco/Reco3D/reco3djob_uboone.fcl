@@ -57,3 +57,5 @@ physics:
   end_paths: [ stream1 ]
 
 }
+physics.producers.reco3d.Plots: false
+physics.producers.reco3d.PlotsTrue: false
