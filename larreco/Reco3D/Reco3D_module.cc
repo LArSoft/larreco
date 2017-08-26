@@ -34,6 +34,7 @@
 #include "TPad.h"
 
 #include "Solver.h"
+#include "HashTuple.h"
 
 template<class T> T sqr(T x){return x*x;}
 
@@ -102,9 +103,11 @@ void Reco3D::endJob()
 bool ISect(const geo::Geometry* geom, int chanA, int chanB, geo::TPCID tpc,
            geo::WireIDIntersection& pt)
 {
-  typedef std::tuple<int, int, geo::TPCID> Key_t;
-  static std::map<Key_t, bool> bCache;
-  static std::map<Key_t, geo::WireIDIntersection> pCache;
+  // string has a default implementation for hash. Perhaps TPCID should
+  // implement a hash function directly.
+  typedef std::tuple<int, int, std::string/*geo::TPCID*/> Key_t;
+  static std::unordered_map<Key_t, bool> bCache;
+  static std::unordered_map<Key_t, geo::WireIDIntersection> pCache;
 
   // Prevent cache from growing without bound
   if(bCache.size() > 1e8){
@@ -113,7 +116,7 @@ bool ISect(const geo::Geometry* geom, int chanA, int chanB, geo::TPCID tpc,
     pCache.clear();
   }
 
-  const Key_t key = std::make_tuple(chanA, chanB, tpc);
+  const Key_t key = std::make_tuple(chanA, chanB, std::string(tpc));
   if(bCache.count(key)){
     if(bCache[key]) pt = pCache[key];
     return bCache[key];
@@ -373,7 +376,7 @@ void BuildSystem(const std::vector<recob::Hit>& xhits,
       // Figure out which vwires intersect this xwire here so we don't do N^2
       // nesting inside the uwire loop below.
       std::vector<InductionWireHit*> vwires_cross;
-      std::map<InductionWireHit*, geo::WireIDIntersection> ptsXV;
+      std::unordered_map<InductionWireHit*, geo::WireIDIntersection> ptsXV;
       vwires_cross.reserve(vwires[tpc].size()); // avoid reallocations
       for(auto vit = vwires_begin; vit != vwires[tpc].end(); ++vit){
         InductionWireHit* vwire = *vit;
