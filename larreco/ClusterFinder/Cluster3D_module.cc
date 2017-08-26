@@ -29,7 +29,7 @@
  *          Configuration parameters:
  *          HitFinderModuleLabel:         the producer module responsible for making the recob:Hits to use
  *          EnableMonitoring:             if true then basic monitoring of the module performed
- *          DBScanAlg:                    Parameter block required by the 3D clustering algorithm
+ *          ClusterAlg:                   Parameter block required by the 3D clustering algorithm
  *          PrincipalComponentsAlg:       Parameter block required by the Principal Components Analysis Algorithm
  *          SkeletonAlg:                  Parameter block required by the 3D skeletonization algorithm
  *          SeedFinderAlg:                Parameter block required by the Hough Seed Finder algorithm
@@ -46,6 +46,7 @@
 // Framework Includes
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
+#include "art/Utilities/make_tool.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
@@ -71,11 +72,12 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/HoughSeedFinderAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PCASeedFinderAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/ParallelHitsSeedFinderAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/ClusterParamsBuilder.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/SkeletonAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Hit3DBuilderAlg.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/DBScanAlg.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/MinSpanTreeAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IClusterModAlg.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/OverriddenClusterParamsAlg.h"
 #include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
@@ -241,15 +243,17 @@ private:
      */
     geo::Geometry*                     m_geometry;              ///<  pointer to the Geometry service
     const detinfo::DetectorProperties* m_detector;              ///<  Pointer to the detector properties
-    
-    Hit3DBuilderAlg           m_hit3DBuilderAlg;       ///<  Algorithm to build 3D hits
-    DBScanAlg                 m_dbScanAlg;             ///<  Algorithm to cluster hits
-    MinSpanTreeAlg            m_minSpanTreeAlg;        ///<  Algorithm to cluster hits
-    PrincipalComponentsAlg    m_pcaAlg;                ///<  Principal Components algorithm
-    SkeletonAlg               m_skeletonAlg;           ///<  Skeleton point finder
-    HoughSeedFinderAlg        m_seedFinderAlg;         ///<  Seed finder
-    PCASeedFinderAlg          m_pcaSeedFinderAlg;      ///<  Use PCA axis to find seeds
-    ParallelHitsSeedFinderAlg m_parallelHitsAlg;       ///<  Deal with parallel hits clusters
+
+    // Algorithms
+    Hit3DBuilderAlg                                m_hit3DBuilderAlg;   ///<  Algorithm to build 3D hits
+    std::unique_ptr<lar_cluster3d::IClusterAlg>    m_clusterAlg;        ///<  Algorithm to do 3D space point clustering
+    std::unique_ptr<lar_cluster3d::IClusterModAlg> m_clusterMergeAlg;   ///<  Algorithm to do cluster merging
+    ClusterParamsBuilder                           m_clusterBuilder;    ///<  Common cluster builder tool
+    PrincipalComponentsAlg                         m_pcaAlg;            ///<  Principal Components algorithm
+    SkeletonAlg                                    m_skeletonAlg;       ///<  Skeleton point finder
+    HoughSeedFinderAlg                             m_seedFinderAlg;     ///<  Seed finder
+    PCASeedFinderAlg                               m_pcaSeedFinderAlg;  ///<  Use PCA axis to find seeds
+    ParallelHitsSeedFinderAlg                      m_parallelHitsAlg;   ///<  Deal with parallel hits clusters
 };
 
 DEFINE_ART_MODULE(Cluster3D)
@@ -263,8 +267,7 @@ namespace lar_cluster3d {
 
 Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
     m_hit3DBuilderAlg(pset.get<fhicl::ParameterSet>("Hit3DBuilderAlg")),
-    m_dbScanAlg(pset.get<fhicl::ParameterSet>("DBScanAlg")),
-    m_minSpanTreeAlg(pset.get<fhicl::ParameterSet>("DBScanAlg")),
+    m_clusterBuilder(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder")),
     m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg")),
     m_skeletonAlg(pset.get<fhicl::ParameterSet>("SkeletonAlg")),
     m_seedFinderAlg(pset.get<fhicl::ParameterSet>("SeedFinderAlg")),
@@ -305,7 +308,9 @@ void Cluster3D::reconfigure(fhicl::ParameterSet const &pset)
     m_parallelHitsCosAng   = pset.get<double>     ("ParallelHitsCosAng",       0.999);
     m_parallelHitsTransWid = pset.get<double>     ("ParallelHitsTransWid",      25.0);
     
-    m_dbScanAlg.reconfigure(pset.get<fhicl::ParameterSet>("DBScanAlg"));
+    m_clusterAlg      = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
+    m_clusterMergeAlg = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterMergeAlg"));
+    
     m_pcaAlg.reconfigure(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"));
     m_skeletonAlg.reconfigure(pset.get<fhicl::ParameterSet>("SkeletonAlg"));
     m_seedFinderAlg.reconfigure(pset.get<fhicl::ParameterSet>("SeedFinderAlg"));
@@ -381,11 +386,10 @@ void Cluster3D::produce(art::Event &evt)
         m_hit3DBuilderAlg.BuildHit3D(planeToHitVectorMap, planeToWireToHitSetMap, *hitPairList);
         
         // Call the main workhorse algorithm for building the local version of candidate 3D clusters
-        //m_dbScanAlg.ClusterHitsDBScan(*hitPairList, hitPairClusterMap, clusterParametersList);
-        m_minSpanTreeAlg.Cluster3DHits(*hitPairList, clusterParametersList);
+        m_clusterAlg->Cluster3DHits(*hitPairList, clusterParametersList);
         
-        // Given the work above, process and build the list of 3D clusters to output
-//        m_dbScanAlg.BuildClusterInfo(hitPairClusterMap, clusterParametersList);
+        // Try merging clusters
+        m_clusterMergeAlg->ModifyClusters(clusterParametersList);
     }
     
     if(m_enableMonitoring) theClockFinish.start();
@@ -406,13 +410,10 @@ void Cluster3D::produce(art::Event &evt)
         m_totalTime             = theClockTotal.accumulated_real_time();
         m_artHitsTime           = theClockArtHits.accumulated_real_time();
         m_makeHitsTime          = m_hit3DBuilderAlg.getTimeToExecute();
-//        m_buildNeighborhoodTime = m_dbScanAlg.getTimeToExecute(DBScanAlg::BUILDHITTOHITMAP);
-//        m_dbscanTime            = m_dbScanAlg.getTimeToExecute(DBScanAlg::RUNDBSCAN) +
-//                                  m_dbScanAlg.getTimeToExecute(DBScanAlg::BUILDCLUSTERINFO);
-        m_buildNeighborhoodTime = m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::BUILDHITTOHITMAP);
-        m_dbscanTime            = m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::RUNDBSCAN) +
-                                  m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::BUILDCLUSTERINFO);
-        m_pathFindingTime       = m_minSpanTreeAlg.getTimeToExecute(MinSpanTreeAlg::PATHFINDING);
+        m_buildNeighborhoodTime = m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDHITTOHITMAP);
+        m_dbscanTime            = m_clusterAlg->getTimeToExecute(IClusterAlg::RUNDBSCAN) +
+                                  m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDCLUSTERINFO);
+        m_pathFindingTime       = m_clusterAlg->getTimeToExecute(IClusterAlg::PATHFINDING);
         m_finishTime            = theClockFinish.accumulated_real_time();
         m_hits                  = static_cast<int>(clusterHit2DMasterVec.size());
         m_pRecoTree->Fill();
@@ -504,8 +505,6 @@ void Cluster3D::CollectArtHits(art::Event&             evt,
     for (size_t cIdx = 0; cIdx < recobHitHandle->size(); cIdx++)
     {
         art::Ptr<recob::Hit> recobHit(recobHitHandle, cIdx);
-        
-        if (recobHit->StartTick() > 6300) continue;
         
         const geo::WireID& hitWireID(recobHit->WireID());
         
@@ -906,9 +905,12 @@ void Cluster3D::splitClustersWithHough(reco::ClusterParameters&     clusterParam
         
         // And now remove these hits from the original cluster
         hitPairListPtr.remove_if(CopyIfInRange(allowedHitRange));
+        
+        // Get an empty hit to cluster map...
+        reco::Hit2DToClusterMap hit2DToClusterMap;
 
         // Now "fill" the cluster parameters but turn off the hit rejection
-        m_dbScanAlg.FillClusterParams(newClusterParams, 0., 1.);
+        m_clusterBuilder.FillClusterParams(newClusterParams, hit2DToClusterMap, 0., 1.);
 
         // Set the skeleton pca to the value calculated above on input
         clusterParameters.getSkeletonPCA() = firstHitListPCA;
@@ -948,7 +950,7 @@ void Cluster3D::splitClustersWithHough(reco::ClusterParameters&     clusterParam
         reco::ClusterParameters originalParams(hitPairListPtr);
         
         // Now "fill" the cluster parameters but turn off the hit rejection
-        m_dbScanAlg.FillClusterParams(originalParams, 0., 1.);
+        m_clusterBuilder.FillClusterParams(originalParams, hit2DToClusterMap, 0., 1.);
 
         // Overwrite original cluster parameters with our new values
         clusterParameters.getClusterParams() = originalParams.getClusterParams();
@@ -1079,7 +1081,7 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
                     splitClustersWithHough(clusterParameters, clusterParametersList);
                 }
             }
- */
+*/
 
             // Start loop over views to build out the hit lists and the 2D cluster objects
             for(reco::PlaneToClusterParamsMap::const_iterator planeItr = clusterParameters.getClusterParams().begin(); planeItr != clusterParameters.getClusterParams().end(); planeItr++)
@@ -1173,10 +1175,6 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
                 else if ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -3.;  // skeleton and edge point
 
                 if      (hitPair->bitsAreSet(reco::ClusterHit3D::SEEDHIT)                                                          ) chisq = -4.;  // Seed point
-                
-                // "hide" the minimum overlap fraction in here too
-                if (chisq > 0.) chisq += 0.999 * hitPair->getMinOverlapFraction();
-                else            chisq -= 0.999 * hitPair->getMinOverlapFraction();
                 
                 if ((hitPair->getStatusBits() & 0x7) != 0x7) chisq = -10.;
                 

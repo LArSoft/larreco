@@ -48,11 +48,9 @@ Hit3DBuilderAlg::~Hit3DBuilderAlg()
 
 void Hit3DBuilderAlg::reconfigure(fhicl::ParameterSet const &pset)
 {
-    m_enableMonitoring       = pset.get<bool>  ("EnableMonitoring",  true  );
-    m_timeAdvanceGap         = pset.get<double>("TimeAdvanceGap",   50.    );
-    m_numSigmaPeakTime       = pset.get<double>("NumSigmaPeakTime",  3.    );
-    m_pairOverlapSmall       = pset.get<double>("PairOverlapSmall",  0.5   ); //0.6   );
-    m_pairOverlapLarge       = pset.get<double>("PairOverlapLarge",  0.1   ); //0.2   );
+    m_enableMonitoring = pset.get<bool>  ("EnableMonitoring",  true  );
+    m_numSigmaPeakTime = pset.get<double>("NumSigmaPeakTime",  3.    );
+    m_deltaPeakTimeSig = pset.get<double>("DeltaPeakTimeSig",  1.7   );
     
     art::ServiceHandle<geo::Geometry> geometry;
     
@@ -138,20 +136,20 @@ void Hit3DBuilderAlg::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireT
     }
     
     // add quiet wires in U plane for microboone (this will done "correctly" in near term)
-    PlaneToWireToHitSetMap::iterator plane0HitItr = planeToWireToHitSetMap.find(geo::PlaneID(0,0,0));
+//    PlaneToWireToHitSetMap::iterator plane0HitItr = planeToWireToHitSetMap.find(geo::PlaneID(0,0,0));
     
-    if (plane0HitItr != planeToWireToHitSetMap.end())
-    {
-//        WireToHitSetMap& wireToHitSetMap = uPlaneHitItr->second;
+//    if (plane0HitItr != planeToWireToHitSetMap.end())
+//    {
+////        WireToHitSetMap& wireToHitSetMap = uPlaneHitItr->second;
     
-        for(size_t idx = 2016; idx < 2096; idx++)  m_channelStatus[0][idx] = 3;
-        for(size_t idx = 2192; idx < 2304; idx++)  m_channelStatus[0][idx] = 3;
-        for(size_t idx = 2352; idx < 2384; idx++)  m_channelStatus[0][idx] = 3;
-        //for(size_t idx = 2016; idx < 2096; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-        //for(size_t idx = 2192; idx < 2304; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-        //for(size_t idx = 2352; idx < 2384; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
-//      for(size_t idx = 2016; idx < 2384; idx++) m_channelStatus[0][idx] = 3;
-    }
+//        for(size_t idx = 2016; idx < 2096; idx++)  m_channelStatus[0][idx] = 3;
+//        for(size_t idx = 2192; idx < 2304; idx++)  m_channelStatus[0][idx] = 3;
+//        for(size_t idx = 2352; idx < 2384; idx++)  m_channelStatus[0][idx] = 3;
+//        //for(size_t idx = 2016; idx < 2096; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
+//        //for(size_t idx = 2192; idx < 2304; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
+//        //for(size_t idx = 2352; idx < 2384; idx++) if (wireToHitSetMap.find(idx) == wireToHitSetMap.end()) m_channelStatus[0][idx] = 3;
+////      for(size_t idx = 2016; idx < 2384; idx++) m_channelStatus[0][idx] = 3;
+//    }
     
     return;
 }
@@ -372,15 +370,9 @@ size_t Hit3DBuilderAlg::BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& hitItrVec
         // This loop iteration's golden hit
         const reco::ClusterHit2D* goldenHit = *hitItrVec[0].first;
         
-        // The end of time... (for this hit)
-        double numRMS = m_numSigmaPeakTime;
-        
-        // The idea here is that if we have a single gaussian representing an extra wide pulse then
-        // we might consider opening the range event a bit more...
-        //        if (goldenHit->getHit().DegreesOfFreedom() == 1) numRMS *= 1.5;
-        
-        double goldenTimeStart = goldenHit->getTimeTicks() - numRMS * goldenHit->getHit().RMS() - 0.1;
-        double goldenTimeEnd   = goldenHit->getTimeTicks() + numRMS * goldenHit->getHit().RMS() + 0.1;
+        // The range of history... (for this hit)
+        double goldenTimeStart = goldenHit->getTimeTicks() - m_numSigmaPeakTime * goldenHit->getHit().RMS() - 0.1;
+        double goldenTimeEnd   = goldenHit->getTimeTicks() + m_numSigmaPeakTime * goldenHit->getHit().RMS() + 0.1;
         
         // Set iterators to insure we'll be in the overlap ranges
         HitVector::iterator hitItr1Start = SetStartIterator(hitItrVec[1].first, hitItrVec[1].second, m_numSigmaPeakTime, goldenTimeStart);
@@ -441,17 +433,12 @@ size_t Hit3DBuilderAlg::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
         
         tempPairVec.emplace_back(HitMatchPair(hit,pair));
     }
-    
-    if (tempPairVec.size() > 10)
+
+    // Can we try to weed out extra hit pairs and keep only the "best"?
+    if (tempPairVec.size() > 1)
     {
-        std::sort(tempPairVec.begin(),tempPairVec.end(),[](HitMatchPair& left, HitMatchPair& right){return left.second.getMaxOverlapFraction() > right.second.getMaxOverlapFraction();});
-    
-        //double minOverlap = std::min(0.75 * tempPairVec.front().second.getMaxOverlapFraction(),0.5);
-        double minOverlap = 0.75 * tempPairVec.front().second.getMaxOverlapFraction();
-        
-        HitMatchPairVec::iterator firstBadElem = std::find_if(tempPairVec.begin(),tempPairVec.end(),[&minOverlap](HitMatchPair& pair){return pair.second.getMaxOverlapFraction() < minOverlap;});
-        
-        tempPairVec.resize(std::distance(tempPairVec.begin(),firstBadElem));
+        // Sort by "significance" of agreement
+        std::sort(tempPairVec.begin(),tempPairVec.end(),[](HitMatchPair& left, HitMatchPair& right){return left.second.getDeltaPeakTime()/left.second.getSigmaPeakTime() < right.second.getDeltaPeakTime()/right.second.getSigmaPeakTime();});
     }
     
     for(auto& pair : tempPairVec)
@@ -498,14 +485,14 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
             
             geo::WireID missingPlaneID(0,0,missPlane,0);
             
-            // Get the wire ID for the nearest wire to the position of this hit
-            geo::WireID wireID = NearestWireID(pair12.second.front().second.getPosition(), missingPlaneID);
-            
             // This loop is over hit pairs that share the same first two plane wires but may have different
             // hit times on those wires
             for(const auto& hit2Dhit3DPair : pair12.second)
             {
                 const reco::ClusterHit3D& pair1  = hit2Dhit3DPair.second;
+                
+                // Get the wire ID for the nearest wire to the position of this hit
+                geo::WireID wireID = NearestWireID(pair1.getPosition(), missingPlaneID);
                 
                 // populate the map with initial value
                 usedPairMap[&pair1] = false;
@@ -554,18 +541,35 @@ void Hit3DBuilderAlg::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPa
         // Handle the dead wire triplets
         if(!tempDeadChanVec.empty())
         {
-            // If we have many then see if we can trim down a bit by keeping those with the best overlap
-            if (tempDeadChanVec.size() > 50)
+            // If we have many then see if we can trim down a bit by keeping those with time significance
+            if (tempDeadChanVec.size() > 1)
             {
-                std::sort(tempDeadChanVec.begin(),tempDeadChanVec.end(),[](const reco::ClusterHit3D& left, const reco::ClusterHit3D& right){return left.getMaxOverlapFraction() > right.getMaxOverlapFraction();});
+                // Sort by "significance" of agreement
+                std::sort(tempDeadChanVec.begin(),tempDeadChanVec.end(),[](const auto& left, const auto& right){return left.getDeltaPeakTime()/left.getSigmaPeakTime() < right.getDeltaPeakTime()/right.getSigmaPeakTime();});
                 
-                double minOverlap = 0.5 * tempDeadChanVec.front().getMaxOverlapFraction();
+                // What is the range of "significance" from first to last?
+                double firstSig = tempDeadChanVec.front().getDeltaPeakTime() / tempDeadChanVec.front().getSigmaPeakTime();
+                double lastSig  = tempDeadChanVec.back().getDeltaPeakTime()  / tempDeadChanVec.back().getSigmaPeakTime();
+                double sigRange = lastSig - firstSig;
                 
-                std::vector<reco::ClusterHit3D>::iterator firstBadElem = std::find_if(tempDeadChanVec.begin(),tempDeadChanVec.end(),[&minOverlap](const reco::ClusterHit3D& pair){return pair.getMaxOverlapFraction() < minOverlap;});
-                
-                if (firstBadElem != tempDeadChanVec.end()) tempDeadChanVec.resize(std::distance(tempDeadChanVec.begin(),firstBadElem));
+                if (lastSig > 0.5 * m_deltaPeakTimeSig && sigRange > 0.5)
+                {
+                    // Declare a maximum of 1.5 * the average of the first and last pairs...
+                    double maxSignificance = std::max(0.75 * (firstSig + lastSig),1.0);
+                    
+                    std::vector<reco::ClusterHit3D>::iterator firstBadElem = std::find_if(tempDeadChanVec.begin(),tempDeadChanVec.end(),[&maxSignificance](const auto& pair){return pair.getDeltaPeakTime()/pair.getSigmaPeakTime() > maxSignificance;});
+                    
+                    // But only keep the best 10?
+                    if (std::distance(tempDeadChanVec.begin(),firstBadElem) > 20) firstBadElem = tempDeadChanVec.begin() + 20;
+                    // Keep at least one hit...
+                    else if (firstBadElem == tempDeadChanVec.begin()) firstBadElem++;
+                    
+                    std::cout << "*** Dumping " << std::distance(firstBadElem,tempDeadChanVec.end()) << " elements with total: " << tempDeadChanVec.size() << std::endl;
+                    
+                    tempDeadChanVec.resize(std::distance(tempDeadChanVec.begin(),firstBadElem));
+                }
             }
-            
+
             for(auto& pair : tempDeadChanVec)
             {
                 pair.setID(hitPairList.size());
@@ -596,8 +600,6 @@ bool Hit3DBuilderAlg::makeHitPair(reco::ClusterHit3D&       hitPair,
     if (m_geometry->WireIDsIntersect(hit1WireID, hit2WireID, widIntersect))
     {
         // Wires intersect so now we can check the timing
-        // Basically, require that the hit times "overlap"
-        // Check here is that they are inconsistent
         double hit1Peak  = hit1->getTimeTicks();
         double hit1Sigma = hit1->getHit().RMS();
         
@@ -607,29 +609,23 @@ bool Hit3DBuilderAlg::makeHitPair(reco::ClusterHit3D&       hitPair,
         double hit1Width = hitWidthSclFctr * hit1Sigma;
         double hit2Width = hitWidthSclFctr * hit2Sigma;
         
-//        if (hit1->getHit().DegreesOfFreedom() == 1) hit1Width *= 2.;
-//        if (hit2->getHit().DegreesOfFreedom() == 1) hit2Width *= 2.;
-        
-        // Check hit times are consistent
+        // Coarse check hit times are "in range"
         if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
         {
-            double maxUpper             = std::min(hit1Peak+hit1Width,hit2Peak+hit2Width);
-            double minLower             = std::max(hit1Peak-hit1Width,hit2Peak-hit2Width);
-            double overlap              = maxUpper - minLower;
-            double overlapFractionSmall = 0.5 * overlap / std::min(hit1Width,hit2Width);  // essentially fraction of small pulse contained in larger
-            double overlapFractionLarge = 0.5 * overlap / std::max(hit1Width,hit2Width);  // fraction of larger pulse overlapped by smaller
-            double minOverlapLarge      = m_pairOverlapLarge;
+            // Check to see that hit peak times are consistent with each other
+            double hit1WidSq     = hit1Width * hit1Width;
+            double hit2WidSq     = hit2Width * hit2Width;
+            double avePeakTime   = (hit1Peak / hit1WidSq + hit2Peak / hit2WidSq) * hit1WidSq * hit2WidSq / (hit1WidSq + hit2WidSq);
+            double deltaPeakTime = std::fabs(hit1Peak - hit2Peak);
+            double sigmaPeakTime = std::sqrt(hit1Sigma*hit1Sigma + hit2Sigma*hit2Sigma);
+        
+            // Taking over the meaning of "overlap" here... (from a previous version of code)
+            double overlapFractionSmall = std::fabs(hit1Peak - avePeakTime) / hit1Width;
+            double overlapFractionLarge = std::fabs(hit2Peak - avePeakTime) / hit2Width;
             
-            if (hit1->getHit().DegreesOfFreedom() == 1 || hit2->getHit().DegreesOfFreedom() == 1) minOverlapLarge = 0.;
-            
-            // require at least 10% overlap of pulses
-            if (overlapFractionSmall > m_pairOverlapSmall && overlapFractionLarge > minOverlapLarge)
+            // delta peak time consistency check here
+            if (deltaPeakTime < m_deltaPeakTimeSig * sigmaPeakTime)    // 2 sigma consistency? (do this way to avoid divide)
             {
-                double hit1WidSq     = hit1Width * hit1Width;
-                double hit2WidSq     = hit2Width * hit2Width;
-                double avePeakTime   = (hit1Peak / hit1WidSq + hit2Peak / hit2WidSq) * hit1WidSq * hit2WidSq / (hit1WidSq + hit2WidSq);
-                double deltaPeakTime = fabs(hit1Peak - hit2Peak);
-                double sigmaPeakTime = std::sqrt(hit1Sigma*hit1Sigma + hit2Sigma*hit2Sigma);
                 double totalCharge   = hit1->getHit().Integral() + hit2->getHit().Integral();
             
                 double xPositionHit1(hit1->getXPosition());
@@ -667,10 +663,10 @@ bool Hit3DBuilderAlg::makeHitPair(reco::ClusterHit3D&       hitPair,
                                              avePeakTime,
                                              deltaPeakTime,
                                              sigmaPeakTime,
-                                             overlapFractionSmall,
-                                             overlapFractionSmall,
                                              0.,
                                              0.,
+                                             overlapFractionLarge,
+                                             overlapFractionSmall,
                                              wireIDVec,
                                              hitVector);
                 
@@ -705,10 +701,10 @@ bool Hit3DBuilderAlg::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     if (fabs(hit->getTimeTicks() - pair.getAvePeakTime()) < pairSigma + hitSigma)
     {
         // Timing in range, now check that the input hit wire "intersects" with the input pair's wires
-//        geo::WireID wireIDV   = NearestWireID(pair.getPosition(), hit->getHit().WireID());
+        geo::WireID wireID   = NearestWireID(pair.getPosition(), hit->getHit().WireID());
         
         // There is an interesting round off issue that we need to watch for...
-//        if (wireIDV.Wire == hit->getHit().WireID().Wire || wireIDV.Wire + 1 == hit->getHit().WireID().Wire)
+        if (wireID.Wire == hit->getHit().WireID().Wire || wireID.Wire + 1 == hit->getHit().WireID().Wire)
         {
             // Use the existing code to see the U and W hits are willing to pair with the V hit
             reco::ClusterHit3D pair0h;
@@ -728,6 +724,9 @@ bool Hit3DBuilderAlg::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                 double deltaZ_w  = pairVec[2]->getPosition()[2] - 0.5 * (pairVec[0]->getPosition()[2] + pairVec[1]->getPosition()[2]);
                 double deltaY_uv = pairVec[1]->getPosition()[1] - pairVec[0]->getPosition()[1];
 
+                // The intersection of wires on 3 planes is actually an equilateral triangle... Each pair will have its position at one of the
+                // corners, the difference in distance along the z axis will be 1/2 wire spacing, the difference along the y axis is
+                // 1/2 wire space / cos(pitch)
                 if (std::fabs(std::fabs(deltaZ_w) - 0.5 * m_wirePitch[2]) < .05 && std::fabs(std::fabs(deltaY_uv) - 0.5774 * m_wirePitch[2]) < 0.05)
                 {
                     // Weighted average, delta and sigmas
@@ -773,9 +772,11 @@ bool Hit3DBuilderAlg::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                         hit->setStatusBit(reco::ClusterHit2D::USEDINTRIPLET);
                     }
                     
+                    unsigned int statusBits(0x7);
+                    
                     // Create the 3D cluster hit
                     hitTriplet = reco::ClusterHit3D(0,
-                                                    7,
+                                                    statusBits,
                                                     position,
                                                     totalCharge,
                                                     avePeakTime,
@@ -790,6 +791,7 @@ bool Hit3DBuilderAlg::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     
                     result = true;
                 }
+//                else std::cout << "3D Build --> rejecting triplet by position, delta z: " << deltaZ_w << ", delta y: " << deltaY_uv << std::endl;
             }
         }
     }
@@ -804,7 +806,7 @@ bool Hit3DBuilderAlg::makeDeadChannelPair(reco::ClusterHit3D& pairOut, const rec
     bool result(false);
     
     // Check minimum overlap
-    if (pair.getMaxOverlapFraction() < minOverlap) return result;
+    if (std::fabs(pair.getMaxOverlapFraction()) < minOverlap) return result;
     
     const reco::ClusterHit2D* hit0 = pair.getHits().at(0);
     const reco::ClusterHit2D* hit1 = pair.getHits().at(1);
@@ -834,13 +836,13 @@ bool Hit3DBuilderAlg::makeDeadChannelPair(reco::ClusterHit3D& pairOut, const rec
     
     // There can be a round off issue so check the next wire as well
     bool wireStatus    = m_channelStatus[wireID.Plane][wireID.Wire]   < maxChanStatus && m_channelStatus[wireID.Plane][wireID.Wire]   >= minChanStatus;
-    bool wireOneStatus = wireStatus; //m_channelStatus[wireID.Plane][wireID.Wire+1] < maxChanStatus && m_channelStatus[wireID.Plane][wireID.Wire+1] >= minChanStatus;
+    bool wireOneStatus = m_channelStatus[wireID.Plane][wireID.Wire+1] < maxChanStatus && m_channelStatus[wireID.Plane][wireID.Wire+1] >= minChanStatus;
     
     // Make sure they are of at least the minimum status
     if(wireStatus || wireOneStatus)
     {
         // Sort out which is the wire we're dealing with
-//        if (!wireStatus) wireID.Wire += 1;
+        if (!wireStatus) wireID.Wire += 1;
     
         // Want to refine position since we "know" the missing wire
         geo::WireIDIntersection widIntersect0;
