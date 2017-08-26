@@ -15,16 +15,16 @@ InductionWireHit::InductionWireHit(int chan, double t, double q)
 }
 
 // ---------------------------------------------------------------------------
-Neighbour::Neighbour(SpaceCharge* sc, double dist, double coupling)
-  : fSC(sc), fDist(dist), fCoupling(coupling)
+Neighbour::Neighbour(SpaceCharge* sc, double coupling)
+  : fSC(sc), fCoupling(coupling)
 {
 }
 
 // ---------------------------------------------------------------------------
-SpaceCharge::SpaceCharge(double t, double x, double y, double z,
+SpaceCharge::SpaceCharge(double x, double y, double z,
                          CollectionWireHit* cwire,
                          InductionWireHit* wire1, InductionWireHit* wire2)
-  : fTime(t), fX(x), fY(y), fZ(z),
+  : fX(x), fY(y), fZ(z),
     fCWire(cwire), fWire1(wire1), fWire2(wire2),
     fPred(0),
     fNeiPotential(0)

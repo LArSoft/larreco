@@ -26,6 +26,7 @@ services:
 {
   TFileService: { fileName: "grads.root" }
   TimeTracker:       {}
+  MemoryTracker:     {}
   RandomNumberGenerator: {} #ART native random number generator
   BackTracker:             @local::microboone_backtracker
   @table::microboone_reco_mcc8_services

@@ -34,6 +34,7 @@
 #include "TPad.h"
 
 #include "Solver.h"
+#include "HashTuple.h"
 
 template<class T> T sqr(T x){return x*x;}
 
@@ -102,9 +103,11 @@ void Reco3D::endJob()
 bool ISect(const geo::Geometry* geom, int chanA, int chanB, geo::TPCID tpc,
            geo::WireIDIntersection& pt)
 {
-  typedef std::tuple<int, int, geo::TPCID> Key_t;
-  static std::map<Key_t, bool> bCache;
-  static std::map<Key_t, geo::WireIDIntersection> pCache;
+  // string has a default implementation for hash. Perhaps TPCID should
+  // implement a hash function directly.
+  typedef std::tuple<int, int, std::string/*geo::TPCID*/> Key_t;
+  static std::unordered_map<Key_t, bool> bCache;
+  static std::unordered_map<Key_t, geo::WireIDIntersection> pCache;
 
   // Prevent cache from growing without bound
   if(bCache.size() > 1e8){
@@ -113,7 +116,7 @@ bool ISect(const geo::Geometry* geom, int chanA, int chanB, geo::TPCID tpc,
     pCache.clear();
   }
 
-  const Key_t key = std::make_tuple(chanA, chanB, tpc);
+  const Key_t key = std::make_tuple(chanA, chanB, std::string(tpc));
   if(bCache.count(key)){
     if(bCache[key]) pt = pCache[key];
     return bCache[key];
@@ -365,7 +368,6 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
 
       const std::vector<geo::WireID> ws = geom->ChannelToWire(hit->Channel());
       assert(ws.size() == 1);
-      double xpos = detprop->ConvertTicksToX(hit->PeakTime(), ws[0]);
 
       FastForward(uwires_begin, hit->PeakTime(), uwires[tpc].end());
       FastForward(vwires_begin, hit->PeakTime(), vwires[tpc].end());
@@ -373,7 +375,7 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
       // Figure out which vwires intersect this xwire here so we don't do N^2
       // nesting inside the uwire loop below.
       std::vector<InductionWireHit*> vwires_cross;
-      std::map<InductionWireHit*, geo::WireIDIntersection> ptsXV;
+      std::unordered_map<InductionWireHit*, geo::WireIDIntersection> ptsXV;
       vwires_cross.reserve(vwires[tpc].size()); // avoid reallocations
       for(auto vit = vwires_begin; vit != vwires[tpc].end(); ++vit){
         InductionWireHit* vwire = *vit;
@@ -410,9 +412,10 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
           // This average aleviates the problem with a single collection wire
           // matching multiple hits on an induction wire at different times.
           const double t = (hit->PeakTime()+uwire->fTime+vwire->fTime)/3;
+          const double xpos = detprop->ConvertTicksToX(t, ws[0]);
           // TODO exactly which 3D position to set for this point?
           // Don't have a cwire object yet, set it later
-          SpaceCharge* sc = new SpaceCharge(t, xpos, ptXU.y, ptXU.z,
+          SpaceCharge* sc = new SpaceCharge(xpos, ptXU.y, ptXU.z,
                                             0, uwire, vwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
@@ -435,35 +438,33 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
     {
     public:
       IntCoord(const SpaceCharge& sc)
-        : fY(sc.fY/kCritDist),
-          fZ(sc.fZ/kCritDist),
-          fT(sc.fX/kCritDist)
+        : fX(sc.fX/kCritDist),
+          fY(sc.fY/kCritDist),
+          fZ(sc.fZ/kCritDist)
       {
       }
 
       bool operator<(const IntCoord& i) const
       {
-        return std::make_tuple(fY, fZ, fT) < std::make_tuple(i.fY, i.fZ, i.fT);
+        return std::make_tuple(fX, fY, fZ) < std::make_tuple(i.fX, i.fY, i.fZ);
       }
 
       std::vector<IntCoord> Neighbours() const
       {
         std::vector<IntCoord> ret;
-        for(int dy = -1; dy <= +1; ++dy){
-          for(int dz = -1; dz <= +1; ++dz){
-            for(int dt = -1; dt <= +1; ++dt){
-              IntCoord c = *this;
-              c.fY += dy;
-              c.fZ += dz;
-              c.fT += dt;
-              ret.push_back(c);
+        for(int dx = -1; dx <= +1; ++dx){
+          for(int dy = -1; dy <= +1; ++dy){
+            for(int dz = -1; dz <= +1; ++dz){
+              ret.push_back(IntCoord(fX+dx, fY+dy, fZ+dz));
             }
           }
         }
         return ret;
       }
     protected:
-      int fY, fZ, fT;
+      IntCoord(int x, int y, int z) : fX(x), fY(y), fZ(z) {}
+
+      int fX, fY, fZ;
     };
 
     std::map<IntCoord, std::vector<SpaceCharge*>> scMap;
@@ -485,7 +486,6 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
           ++Ntests;
 
           if(sc1 == sc2) continue;
-          // TODO accurate speed conversion factor for time
           /*const*/ double dist2 = sqr(sc1->fX-sc2->fX) + sqr(sc1->fY-sc2->fY) + sqr(sc1->fZ-sc2->fZ);
 
           if(dist2 > sqr(kCritDist)) continue;
@@ -494,7 +494,7 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
             std::cout << "ZERO DISTANCE SOMEHOW?" << std::endl;
             std::cout << sc1->fCWire << " " << sc1->fWire1 << " " << sc1->fWire2 << std::endl;
             std::cout << sc2->fCWire << " " << sc2->fWire1 << " " << sc2->fWire2 << std::endl;
-            std::cout << dist2 << " " << sc1->fTime << " " << sc2->fTime << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
+            std::cout << dist2 << " " << sc1->fX << " " << sc2->fX << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
             continue;
             dist2 = sqr(kCritDist);
           }
@@ -503,10 +503,10 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
 
           // This is a pretty random guess
           const double coupling = exp(-sqrt(dist2)/2);
-          sc1->fNeighbours.emplace_back(sc2, sqrt(dist2), coupling);
+          sc1->fNeighbours.emplace_back(sc2, coupling);
 
           if(isnan(1/sqrt(dist2)) || isinf(1/sqrt(dist2))){
-            std::cout << dist2 << " " << sc1->fTime << " " << sc2->fTime << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
+            std::cout << dist2 << " " << sc1->fX << " " << sc2->fX << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
             abort();
           }
         } // end for sc2
@@ -563,15 +563,13 @@ void Reco3D::produce(art::Event& evt)
               });
   }
 
-  std::vector<CollectionWireHit*> cwires, cwires_cheat;
+  std::vector<CollectionWireHit*> cwires;
   // So we can find them all to free the memory
-  std::vector<InductionWireHit*> iwires, iwires_cheat;
+  std::vector<InductionWireHit*> iwires;
 
   BuildSystem(xhits, uhits, vhits, cwires, iwires, fAlpha != 0);
 
   if(fPlots) plot(geom.get(), cwires, TString::Format("pre_%03d", evt.event()).Data());
-
-  //  return;
 
   if(fFit){
     std::cout << "Iterating..." << std::endl;
@@ -675,10 +673,6 @@ void Reco3D::produce(art::Event& evt)
 
   for(InductionWireHit* i: iwires) delete i;
   for(CollectionWireHit* c: cwires) delete c;
-
-  for(InductionWireHit* i: iwires_cheat) delete i;
-  for(CollectionWireHit* c: cwires_cheat) delete c;
-
 
 }
 
