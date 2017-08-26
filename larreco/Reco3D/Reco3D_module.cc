@@ -511,6 +511,9 @@ void BuildSystem(const std::vector<recob::Hit>& xhits,
           }
         } // end for sc2
       } // end for icn
+
+      // The neighbours lists use the most memory, so be careful to trim
+      sc1->fNeighbours.shrink_to_fit();
     } // end for sc1
 
     for(SpaceCharge* sc: spaceCharges){
