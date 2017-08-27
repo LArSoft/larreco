@@ -42,15 +42,15 @@ namespace tca {
 
   // ****************************** General purpose  ******************************
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid);
-  void MergeBrokenTjs(TjStuff& tjs, std::vector<MatchStruct>& matVec);
   void DirectionInCTP(const TjStuff& tjs, TVector3& dir3, CTP_t inCTP, std::array<double, 2>& dir2, double& ang2);
-  bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir);
-  bool SetPFPEndPoint(TjStuff& tjs, PFPStruct& pfp, unsigned short end, bool prt);
-  bool FindMatchingPts(TjStuff& tjs, PFPStruct& pfp, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
-  bool FindMatchingPts2(TjStuff& tjs, PFPStruct& pfp, std::vector<TrajPoint>& stps, std::vector<TrajPoint>& etps, bool prt);
-  bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
+  bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt);
+  void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, PFPStruct& pfp, std::vector<MatchStruct>& matVec, 
+                    std::array<std::vector<unsigned int>, 2>& matchPts, std::array<std::array<float, 3>, 2>& matchPos, unsigned short& nMatch, bool prt);
+  bool FindSepMatch(TjStuff& tjs, PFPStruct& pfp, std::array<std::array<float, 3>, 2>& matchPos, bool prt);
+  bool FindBrokenTjs(TjStuff& tjs, PFPStruct& pfp, std::array<std::vector<unsigned int>, 2>& matchPts, bool prt);
+  bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, unsigned short end, bool prt);
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
-  void FilldEdx(TjStuff& tjs, PFPStruct& ms);
+  void FilldEdx(TjStuff& tjs, PFPStruct& pfp);
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp);
   void SetAngleCode(TjStuff& tjs, TrajPoint& tp);
   unsigned short AngleRange(TjStuff& tjs, float angle);
@@ -74,6 +74,7 @@ namespace tca {
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
   bool TrajHitsOK(TjStuff& tjs, const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet);
   bool TrajHitsOK(TjStuff& tjs, const unsigned int iht, const unsigned int jht);
+  float ExpectedHitsRMS(TjStuff& tjs, const TrajPoint& tp);
   bool SignalAtTp(TjStuff& tjs, TrajPoint const& tp);
 //  bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP);
   float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp);
@@ -113,6 +114,8 @@ namespace tca {
   float PointTrajSep2(float wire, float time, TrajPoint const& tp);
   float PosSep(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);
   float PosSep2(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);
+  float PosSep2(const std::array<float, 3>& pos1, const std::array<float, 3>& pos2);
+  float PosSep(const std::array<float, 3>& pos1, const std::array<float, 3>& pos2);
   float PosSep2(const std::array<float, 3>& pos1, const std::array<float, 3>& pos2);
   // finds the point on trajectory tj that is closest to trajpoint tp
   void TrajPointTrajDOCA(TjStuff& tjs, TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
