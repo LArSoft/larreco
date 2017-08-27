@@ -54,48 +54,44 @@ public:
 	    using Comment = fhicl::Comment;
 
 		fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlg {
-			Name("CalorimetryAlg"),
-			Comment("Used to eliminate amplitude variation due to electron lifetime.")
+			Name("CalorimetryAlg"), Comment("Used to eliminate amplitude variation due to electron lifetime.")
 		};
 
+		fhicl::Atom<float> AdcMax { Name("AdcMax"), Comment("Saturation max value") };
+		fhicl::Atom<float> AdcMin { Name("AdcMin"), Comment("Saturation min value") };
+		fhicl::Atom<float> OutMax { Name("OutMax"), Comment("Output max value") };
+		fhicl::Atom<float> OutMin { Name("OutMin"), Comment("Output min value") };
+
 		fhicl::Atom<bool> CalibrateAmpl {
-			Name("CalibrateAmpl"),
-			Comment("Calibrate ADC values with CalAmpConstants")
+			Name("CalibrateAmpl"), Comment("Calibrate ADC values with CalAmpConstants")
 		};
 
 		fhicl::Atom<bool> CalibrateLifetime {
-			Name("CalibrateLifetime"),
-			Comment("Calibrate ADC values with the electron lifetime")
+			Name("CalibrateLifetime"), Comment("Calibrate ADC values with the electron lifetime")
 		};
 
 		fhicl::Atom<unsigned int> DriftWindow {
-			Name("DriftWindow"),
-			Comment("Downsampling window (in drift ticks).")
+			Name("DriftWindow"), Comment("Downsampling window (in drift ticks).")
 		};
 
 		fhicl::Atom<std::string> DownscaleFn {
-			Name("DownscaleFn"),
-			Comment("Downsampling function")
+			Name("DownscaleFn"), Comment("Downsampling function")
 		};
 
 		fhicl::Atom<bool> DownscaleFullView {
-			Name("DownscaleFullView"),
-			Comment("Downsample full view (faster / lower location precision)")
+			Name("DownscaleFullView"), Comment("Downsample full view (faster / lower location precision)")
 		};
 
 		fhicl::Sequence<float> BlurKernel {
-			Name("BlurKernel"),
-			Comment("Blur kernel in wire direction")
+			Name("BlurKernel"), Comment("Blur kernel in wire direction")
 		};
 
 		fhicl::Atom<float> NoiseSigma {
-			Name("NoiseSigma"),
-			Comment("White noise sigma")
+			Name("NoiseSigma"), Comment("White noise sigma")
 		};
 
 		fhicl::Atom<float> CoherentSigma {
-			Name("CoherentSigma"),
-			Comment("Coherent noise sigma")
+			Name("CoherentSigma"), Comment("Coherent noise sigma")
 		};
     };
 
@@ -191,8 +187,11 @@ protected:
 
 private:
     float scaleAdcSample(float val) const;
+    void scaleAdcSamples(std::vector< float > & values) const;
     std::vector<float> fAmplCalibConst;
     bool fCalibrateAmpl, fCalibrateLifetime;
+
+    float fAdcMax, fAdcMin, fAdcScale, fAdcOffset;
 
     CLHEP::HepJamesRandom fRndEngine;
 

@@ -18,56 +18,32 @@ standard_dataprovideralg:
  CalorimetryAlg:    @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
  CalibrateAmpl:     false # calibrate ADC values with CalAmpConstants (allows different gains in MC and data)
  CalibrateLifetime: true  # calibrate ADC values according to the electron lifetime
+
+ # The following settings allow to scale the interesting ADC range into desired range of values,
+ # e.g. convenient for the CNN or for the conversion to decimal type range. Default values
+ # provided here will result with the scaling factor of 0.1.
+ AdcMax:            150.0 # input saturation max value
+ AdcMin:            -50.0 # input saturation min value
+ OutMax:             15.0 # output max value
+ OutMin:             -5.0 # output min value
 }
 
-standard_pointidalg:
-{
- NNetModelFile:   "mlp_dummy.xml"
 
- PatchSizeW:          32 # important: wire/drift patch size and drift window have to be consistent
- PatchSizeD:          44 # with training data prep configuration used in neural net model preparation
- DriftWindow:          6 # downsampling window (in drift ticks)
- DownscaleFullView: true # downsample full view (faster / lower location precision)
 
- DownscaleFn:     "mean" # "maxpool" takes the max value in the window,
-                         # "maxmean" is mean from 3 ADC's around the max,
-                         # "mean" is the mean value of all ADC's in the window
+standard_pointidalg:                 @local::standard_dataprovideralg
+standard_pointidalg.NNetModelFile:   "mlp_dummy.xml"
+standard_pointidalg.PatchSizeW:      32 # important: wire/drift patch size and drift window have to be consistent
+standard_pointidalg.PatchSizeD:      44 # with training data prep configuration used in neural net model preparation
 
- BlurKernel:      []  # test effect of blurring
- NoiseSigma:      0   # test effect of white noise
- CoherentSigma:   0   # test effect of coherent noise
 
- CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
- CalibrateAmpl:    false # calibrate ADC values with CalAmpConstants (allows different gains in MC and data)
- CalibrateLifetime: true  # calibrate ADC values according to the electron lifetime
-}
 
-standard_trainingdataalg:
-{
- WireLabel:       "caldata"
- SimulationLabel: "largeant"
- SaveVtxFlags:    true
-
- HitLabel:        ""    # used by functions dumping real data (so one has no MC truth
- TrackLabel:      ""    # and need to go by reconstructed objects)
-
- AdcDelayTicks:   0     # ADC pulse peak delay in ticks (non-zero for not deconvoluted waveforms)
-
- DriftWindow:           6  # downsampling window (in drift ticks)
- DownscaleFullView:  true  # downsample full view (false is equivalent to DriftWindow = 1)
-
- DownscaleFn:       "mean" # "maxpool" takes the max value in the window,
-                           # "maxmean" is mean from 3 ADC's around the max,
-                           # "mean" is the mean value of all ADC's in the window
-
- BlurKernel:      []    # add wire-to-wire blurring to dumped and downscaled ADC
- NoiseSigma:      0     # add white noise to dumped and downscaled ADC
- CoherentSigma:   0     # test effect of coherent noise
-
- CalorimetryAlg:   @local::standard_calorimetryalgmc  # used to eliminate amplitude variation due to electron lifetime
- CalibrateAmpl:    false # calibrate ADC value with CalAmpConstants (allows different gains in MC and data)
- CalibrateLifetime: true  # calibrate ADC values according to the electron lifetime
-}
+standard_trainingdataalg:                 @local::standard_dataprovideralg
+standard_trainingdataalg.WireLabel:       "caldata"
+standard_trainingdataalg.SimulationLabel: "largeant"
+standard_trainingdataalg.SaveVtxFlags:     true
+standard_trainingdataalg.HitLabel:        ""    # used by functions dumping real data (so one has no MC truth
+standard_trainingdataalg.TrackLabel:      ""    # and need to go by reconstructed objects)
+standard_trainingdataalg.AdcDelayTicks:   0     # ADC pulse peak delay in ticks (non-zero for not deconvoluted waveforms)
 
 END_PROLOG
 
