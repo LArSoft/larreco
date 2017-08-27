@@ -51,8 +51,8 @@ namespace tca {
   bool StoreVertex(TjStuff& tjs, VtxStore& vx);
   bool ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
   bool TjHasNiceVtx(const TjStuff& tjs, const Trajectory& tj, float scoreCut);
-  void SetVtxScore(TjStuff& tjs, VtxStore& vx2, bool prt);
-  void SetVtxScore(TjStuff& tjs, Vtx3Store& vx3, float scoreCut);
+  void SetVtxScore(TjStuff& tjs, VtxStore& vx2, float scoreCut, bool prt);
+  void SetVtxScore(TjStuff& tjs, Vtx3Store& vx3, float scoreCut, bool prt);
   void KillPoorVertices(TjStuff& tjs, float scoreCut);
   bool MakeVertexObsolete(TjStuff& tjs, unsigned short ivx, bool forceKill);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2);
