@@ -795,13 +795,13 @@ namespace tca {
       if(vx2.ID == 0) continue;
       geo::PlaneID planeID = DecodeCTP(vx2.CTP);
       if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
-      SetVtxScore(tjs, vx2, prt);
+      SetVtxScore(tjs, vx2, tjs.Vertex2DCuts[7], prt);
     } // vx2
     // and the 3D vertices
     for(auto& vx3 : tjs.vtx3) {
       if(vx3.ID == 0) continue;
       if(vx3.TPCID != tpcid) continue;
-      SetVtxScore(tjs, vx3, tjs.Vertex2DCuts[7]);
+      SetVtxScore(tjs, vx3, tjs.Vertex2DCuts[7], prt);
     } // vx3
 
   } // Find3DVertices
@@ -899,14 +899,13 @@ namespace tca {
           pfp.TjIDs = shared;
           if(nstj == ms.TjIDs.size()) pfp.PDGCode = 1111;
           TagBragg(tjs, pfp, prt);
-          // declare a start or end vertex
+          // declare a start or end vertex and set the end points
           if(pfp.Vx3ID[0] == 0) {
-            // declare the start vertex and set the end points
             pfp.Vx3ID[0] = vx3.ID;
-            if(!SetPFPEndPoint(tjs, pfp, 0, prt)) continue;
+            if(!SetPFPEndPoints(tjs, pfp, 0, prt)) continue;
           } else {
             pfp.Vx3ID[1] = vx3.ID;
-            if(!SetPFPEndPoint(tjs, pfp, 1, prt)) continue;
+            if(!SetPFPEndPoints(tjs, pfp, 1, prt)) continue;
           }
           tjs.pfps.push_back(pfp);
           std::vector<int> leftover(v3TjIDs.size());
@@ -1080,7 +1079,7 @@ namespace tca {
     // Passed all the cuts. Attach it to the vertex and try a fit
     tj.VtxID[end] = vx.ID;
     if(FitVertex(tjs, vx, prt)) {
-      SetVtxScore(tjs, vx, prt);
+      SetVtxScore(tjs, vx, tjs.Vertex2DCuts[7], prt);
       if(prt) mf::LogVerbatim("TC")<<" success";
       return true;
     }
@@ -1174,7 +1173,7 @@ namespace tca {
       }
       return false;
     }
-    SetVtxScore(tjs, vx, false);
+    SetVtxScore(tjs, vx, tjs.Vertex2DCuts[7], false);
     vx.NTraj = nok;
     tjs.vtx.push_back(vx);
     return true;
@@ -1386,7 +1385,7 @@ namespace tca {
   } // TjHasNiceVtx
   
   //////////////////////////////////////////
-  void SetVtxScore(TjStuff& tjs, Vtx3Store& vx3, float scoreCut)
+  void SetVtxScore(TjStuff& tjs, Vtx3Store& vx3, float scoreCut, bool prt)
   {
     // Calculate the 3D vertex score and flag Tjs that are attached to high score vertices as defined 
     // by scoreCut
@@ -1420,7 +1419,7 @@ namespace tca {
   } // SetVtxScore
   
   //////////////////////////////////////////
-  void SetVtxScore(TjStuff& tjs, VtxStore& vx2, bool prt)
+  void SetVtxScore(TjStuff& tjs, VtxStore& vx2, float scoreCut, bool prt)
   {
     // Calculate the 2D vertex score
     
@@ -1719,7 +1718,7 @@ namespace tca {
         vx3.Vx2ID[mPlane] = newVtx.ID;
         newVtx.Vtx3ID = vx3.ID;
         vx3.Wire = -1;
-        SetVtxScore(tjs, newVtx, tjs.Vertex2DCuts[7]);
+        SetVtxScore(tjs, newVtx, tjs.Vertex2DCuts[7], prt);
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<" Success: new 2D vtx ID "<<newVtx.ID<<" at "<<(int)newVtx.Pos[0]<<":"<<(int)newVtx.Pos[1]/tjs.UnitsPerTick;
@@ -1942,7 +1941,7 @@ namespace tca {
     if(n2D > 1) {
       // 3D vertex is incomplete
       // correct the score
-      SetVtxScore(tjs, vx3, tjs.Vertex2DCuts[7]);
+      SetVtxScore(tjs, vx3, tjs.Vertex2DCuts[7], false);
       return true;
     }
   
