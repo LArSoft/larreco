@@ -270,18 +270,19 @@ namespace tca {
   
   ////////////////////////////////////////////////
   void TrajClusterAlg::ClearResults() {
-    tjs.vtx3.clear();
-    tjs.vtx.clear();
-    tjs.tcl.clear();
-    tjs.inClus.clear();
-    tjs.matchVec.clear();
-    tjs.pfps.clear();
-    tjs.WireHitRange.clear();
-    tjs.fHits.clear();
-    tjs.allTraj.clear();
-    tjs.cots.clear();
-    tjs.showers.clear();
-    tjs.MCPartList.clear();
+    tjs.vtx3 = {};
+    tjs.vtx = {};
+    tjs.tcl = {};
+    tjs.inClus = {};
+    tjs.matchVec = {};
+    tjs.pfps = {};
+    tjs.WireHitRange = {};
+    tjs.fHits = {};
+    tjs.allTraj = {};
+    tjs.mallTraj = {};
+    tjs.cots = {};
+    tjs.showers = {};
+    tjs.MCPartList = {};
 
     ClearShowerTree(tjs.stv);
     ClearCRInfo(tjs);
@@ -434,6 +435,7 @@ namespace tca {
       geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
       fQuitAlg = !FillWireHitRange(tjs, tpcid, fDebugMode);
       if(fQuitAlg) return;
+/*
       if(fDebugMode) {
         // check the hit X range
         float maxX = -1E6;
@@ -449,6 +451,7 @@ namespace tca {
           std::cout<<" or maxX = "<<maxX<<" > "<<tjs.XHi<<"\n";
         }
       } // check hits
+*/
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         // special mode for only reconstructing the collection plane
         if(fMode == 2 && fPlane != TPC.Nplanes() - 1) continue;
@@ -495,7 +498,6 @@ namespace tca {
       } // 3D shower code
     } // tpcid
     
-    FillPFPInfo();
     if(!fIsRealData) tm.MatchTruth(hist, fEventsProcessed);
     if (tjs.SaveCRTree) crtree->Fill();
     // Convert trajectories in allTraj into clusters
@@ -1409,7 +1411,7 @@ namespace tca {
     // projected time in ticks for testing the existence of a hit signal
     raw::TDCtick_t rawProjTick = (float)(tp.Pos[1] / tjs.UnitsPerTick);
     if(prt) {
-      mf::LogVerbatim("TC")<<" AddHits: wire "<<wire<<" tp.Pos[0] "<<tp.Pos[0]<<" projTick "<<rawProjTick<<" deltaRMS "<<tp.DeltaRMS<<" tp.Dir[0] "<<tp.Dir[0]<<" deltaCut "<<deltaCut<<" dpos "<<dpos<<" projErr "<<projErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tp);
+      mf::LogVerbatim("TC")<<" AddHits: wire "<<wire<<" tp.Pos[0] "<<tp.Pos[0]<<" projTick "<<rawProjTick<<" deltaRMS "<<tp.DeltaRMS<<" tp.Dir[0] "<<tp.Dir[0]<<" deltaCut "<<deltaCut<<" dpos "<<dpos<<" projErr "<<projErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tjs, tp);
     }
     
     std::vector<unsigned int> hitsInMultiplet;
@@ -1518,7 +1520,7 @@ namespace tca {
     if(tj.AlgMod[kRvPrp]) chgPullCut *= 2;
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"FUH:  maxDelta "<<maxDelta<<" useChg requested "<<useChg<<" Norm AveChg "<<(int)tp.AveChg<<" tj.ChgRMS "<<tj.ChgRMS<<" chgPullCut "<<chgPullCut<<" TPHitsRMS "<<(int)TPHitsRMSTick(tjs, tp, kUnusedHits)<<" ExpectedHitsRMS "<<(int)ExpectedHitsRMS(tp)<<" AngCode "<<tp.AngleCode;
+      mf::LogVerbatim("TC")<<"FUH:  maxDelta "<<maxDelta<<" useChg requested "<<useChg<<" Norm AveChg "<<(int)tp.AveChg<<" tj.ChgRMS "<<tj.ChgRMS<<" chgPullCut "<<chgPullCut<<" TPHitsRMS "<<(int)TPHitsRMSTick(tjs, tp, kUnusedHits)<<" ExpectedHitsRMS "<<(int)ExpectedHitsRMS(tjs, tp)<<" AngCode "<<tp.AngleCode;
     }
 
     // inverse of the path length for normalizing hit charge to 1 WSE unit
@@ -1626,7 +1628,7 @@ namespace tca {
     } // bestDeltaHitMultiplicity == 1
     
     // Find the expected width for the angle of this TP (ticks)
-    float expectedWidth = ExpectedHitsRMS(tp);
+    float expectedWidth = ExpectedHitsRMS(tjs, tp);
     
     // Handle two available hits
     if(nAvailable == 2) {
@@ -2150,6 +2152,18 @@ namespace tca {
         if(!isVLA) signalBetween = SignalBetween(tjs, tp1, tp2, 0.99, mrgPrt);
         doMerge = doMerge && signalBetween;
         
+        if(doMerge) {
+          // don't merge if the gap between them is longer than the length of the shortest Tj
+          float len1 = TrajLength(tjs.allTraj[it1]);
+          float len2 = TrajLength(tjs.allTraj[it2]);
+          float sep = PosSep(tp1.Pos, tp2.Pos);
+          if(len1 < len2) {
+            if(sep > len1) doMerge = false;
+          } else {
+            if(sep > len2) doMerge = false;
+          }
+        }
+        
         if(mrgPrt) mf::LogVerbatim("TC")<<" EM2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2)<<" bestFOM "<<bestFOM<<" bestDOCA "<<bestDOCA<<" docaCut "<<docaCut<<" isVLA? "<<isVLA<<" dang "<<dang<<" dangCut "<<dangCut<<" chgPull "<<chgPull<<" doMerge? "<<doMerge<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom<<" signalBetween? "<<signalBetween;
 
         if(doMerge) {
@@ -2242,14 +2256,13 @@ namespace tca {
     } // it1
     
   } // EndMerge
-
+  
   //////////////////////////////////////////
   void TrajClusterAlg::Match3D(const geo::TPCID& tpcid, bool secondPass)
   {
-    // Match Tjs in 3D using trajectory points
+    // Version 2 of 3D matching that uses Utils/FindXMatches
     
     tjs.matchVec.clear();
-    tjs.pfps.clear();
     
     int cstat = tpcid.Cryostat;
     int tpc = tpcid.TPC;
@@ -2276,12 +2289,13 @@ namespace tca {
       if((int)planeID.TPC != tpc) continue;
       ntp += NumPtsWithCharge(tjs, tj, false);
       tj.AlgMod[kMat3D] = false;
-   } // tj
+    } // tj
     if(ntp < 2) return;
     
-    std::vector<TjPt> mallTraj(ntp);
+    tjs.mallTraj.resize(ntp);
     std::vector<SortEntry> sortVec(ntp);
     
+    // define mallTraj
     unsigned int icnt = 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
@@ -2312,251 +2326,56 @@ namespace tca {
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         auto& tp = tj.Pts[ipt];
         if(tp.Chg == 0) continue;
-        if(icnt > mallTraj.size() - 1) break;
-        mallTraj[icnt].wire = std::nearbyint(tp.Pos[0]);
-        bool hasWire = tjs.geom->HasWire(geo::WireID(cstat, tpc, plane, mallTraj[icnt].wire));
+        if(icnt > tjs.mallTraj.size() - 1) break;
+        tjs.mallTraj[icnt].wire = std::nearbyint(tp.Pos[0]);
+        bool hasWire = tjs.geom->HasWire(geo::WireID(cstat, tpc, plane, tjs.mallTraj[icnt].wire));
         // don't try matching if the wire doesn't exist
         if(!hasWire) continue;
         float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, tpc, cstat);
         float posPlusRMS = tp.Pos[1] + TPHitsRMSTime(tjs, tp, kUsedHits);
         float rms = tjs.detprop->ConvertTicksToX(posPlusRMS/tjs.UnitsPerTick, plane, tpc, cstat) - xpos;
         if(rms < tjs.Match3DCuts[0]) rms = tjs.Match3DCuts[0];
-        mallTraj[icnt].xlo = xpos - rms;
-        mallTraj[icnt].xhi = xpos + rms;
-        mallTraj[icnt].dir = tp.Dir;
-        mallTraj[icnt].ctp = tp.CTP;
-        mallTraj[icnt].id = tjID;
-        mallTraj[icnt].npts = tj.Pts.size();
-        mallTraj[icnt].score = score;
-        mallTraj[icnt].inShower = inShower;
+        tjs.mallTraj[icnt].xlo = xpos - rms;
+        tjs.mallTraj[icnt].xhi = xpos + rms;
+        tjs.mallTraj[icnt].dir = tp.Dir;
+        tjs.mallTraj[icnt].ctp = tp.CTP;
+        tjs.mallTraj[icnt].id = tjID;
+        tjs.mallTraj[icnt].ipt = ipt;
+        tjs.mallTraj[icnt].npts = tj.Pts.size();
+        tjs.mallTraj[icnt].score = score;
+        tjs.mallTraj[icnt].inShower = inShower;
         // populate the sort vector
         sortVec[icnt].index = icnt;
-        sortVec[icnt].val = mallTraj[icnt].xlo;
+        sortVec[icnt].val = tjs.mallTraj[icnt].xlo;
         ++icnt;
       } // tp
     } // tj
     
-    if(icnt < mallTraj.size()) {
-      mallTraj.resize(icnt);
+    if(icnt < tjs.mallTraj.size()) {
+      tjs.mallTraj.resize(icnt);
       sortVec.resize(icnt);
     }
     
     // sort by increasing xlo
     std::sort(sortVec.begin(), sortVec.end(), valIncreasing);
-    // put mallTraj into sorted order
-    auto tallTraj = mallTraj;
-    for(unsigned int ii = 0; ii < sortVec.size(); ++ii) mallTraj[ii] = tallTraj[sortVec[ii].index];
+    // put tjs.mallTraj into sorted order
+    auto tallTraj = tjs.mallTraj;
+    for(unsigned int ii = 0; ii < sortVec.size(); ++ii) tjs.mallTraj[ii] = tallTraj[sortVec[ii].index];
     
-    // these cuts presume that the resolution in X is better than it is in Y and Z
-    float xcut = tjs.Match3DCuts[0];
-    float yzcut = 1.5 * xcut;
-    bool useAngle = tjs.Match3DCuts[1] > 0;
-    
-    // create a temporary vector that will be sorted by decreasing Count and transferred into tjs.matchVec
     std::vector<MatchStruct> matVec;
-    // temp TPs used to find 3D directions. The positions are not used
-    TrajPoint tpi; tpi.Pos = {0, 0};
-    TrajPoint tpj; tpj.Pos = {0, 0};
-    TrajPoint tpk; tpk.Pos = {0, 0};
-    // Direction vectors found using the i,j and i,k TPs
-    TVector3 dij, dik, pos3;
-    // match 3 views
-    float piOver2 = M_PI / 2;
+    // we only need this to pass the tpcid to FindXMatches
+    PFPStruct dummyPfp;
+    std::array<std::vector<unsigned int>, 2> dummyMatchPts;
+    std::array<std::array<float, 3>, 2> dummyMatchPos;
+    dummyPfp.TPCID = tpcid;
+    unsigned short dummyNMatch;
+    // first look for 3-plane matches in a 3-plane TPC
     if(tjs.NumPlanes == 3) {
       // Match Tjs with high quality vertices first and the leftovers next
-      for(short maxScore = 0; maxScore < 2; ++maxScore) {
-        for(unsigned int ipt = 0; ipt < mallTraj.size() - 2; ++ipt) {
-          auto& iTjPt = mallTraj[ipt];
-          if(iTjPt.score < 0 || iTjPt.score > maxScore) continue;
-          // look for matches using Tjs that have the correct score
-          if(iTjPt.score < 0 || iTjPt.score > maxScore) continue;
-          unsigned short iplane = DecodeCTP(iTjPt.ctp).Plane;
-          // load the CTP and direction so we can find matching angles
-          tpi.CTP = iTjPt.ctp;
-          tpi.Dir = iTjPt.dir;
-          for(unsigned int jpt = ipt + 1; jpt < mallTraj.size() - 1; ++jpt) {
-            auto& jTjPt = mallTraj[jpt];
-            // ensure that the planes are different
-            if(jTjPt.ctp == iTjPt.ctp) continue;
-            if(jTjPt.score < 0 || jTjPt.score > maxScore) continue;
-            // ensure inShower consistency
-            if(jTjPt.inShower != iTjPt.inShower) continue;
-            // check for x range overlap. We know that jTjPt.xlo is >= iTjPt.xlo because of the sort
-            if(jTjPt.xlo > iTjPt.xhi) continue;
-            // break out if the x range difference becomes large (10 cm)
-            if(jTjPt.xlo > iTjPt.xhi + 10) break;
-            // ensure the intersection is inside the TPC
-            unsigned short jplane = DecodeCTP(jTjPt.ctp).Plane;
-            tpj.CTP = jTjPt.ctp;
-            tpj.Dir = jTjPt.dir;
-            double jyp, jzp;
-            tjs.geom->IntersectionPoint(iTjPt.wire, jTjPt.wire, iplane, jplane, (unsigned int)cstat, (unsigned int)tpc, jyp, jzp);
-//            if(jyp < tjs.YLo || jyp > tjs.YHi || jzp < tjs.ZLo || jzp > tjs.ZHi) continue;
-            // get the direction. If this works, IntersectionPoint could be totally replaced with TrajPoint3D
-            bool dijOK = false;
-            if(useAngle && iTjPt.npts > 5 && jTjPt.npts > 5) dijOK = TrajPoint3D(tjs, tpi, tpj, pos3, dij);
-            for(unsigned int kpt = jpt + 1; kpt < mallTraj.size(); ++kpt) {
-              auto& kTjPt = mallTraj[kpt];
-              // ensure that the planes are different
-              if(kTjPt.ctp == iTjPt.ctp || kTjPt.ctp == jTjPt.ctp) continue;
-              if(kTjPt.score < 0 || kTjPt.score > maxScore) continue;
-              // ensure inShower consistency
-              if(kTjPt.inShower != iTjPt.inShower) continue;
-              if(kTjPt.xlo > iTjPt.xhi) continue;
-              // break out if the x range difference becomes large
-              if(kTjPt.xlo > iTjPt.xhi + 10) break;
-              unsigned short kplane = DecodeCTP(kTjPt.ctp).Plane;
-              tpk.CTP = kTjPt.ctp;
-              tpk.Dir = kTjPt.dir;
-              double kyp, kzp;
-              tjs.geom->IntersectionPoint(iTjPt.wire, kTjPt.wire, iplane, kplane, (unsigned int)cstat, (unsigned int)tpc, kyp, kzp);
-              if(std::abs(kyp - jyp) > yzcut || std::abs(kzp - jzp) > yzcut) continue;
-              if(useAngle && dijOK && kTjPt.npts > 5 && TrajPoint3D(tjs, tpi, tpk, pos3, dik)) {
-                // compare the angles between the
-                float dang = dij.Angle(dik);
-                if(dang > piOver2) dang = piOver2 - dang;
-                if(dang > tjs.Match3DCuts[1]) continue;
-              } // useAngle etc
-              // we have a match. 
-              // next see if the Tj IDs are in the match list
-              unsigned short indx = 0;
-              for(indx = 0; indx < matVec.size(); ++indx) {
-                if(iTjPt.id != matVec[indx].TjIDs[iplane]) continue;
-                if(jTjPt.id != matVec[indx].TjIDs[jplane]) continue;
-                if(kTjPt.id != matVec[indx].TjIDs[kplane]) continue;
-                ++matVec[indx].Count;
-                break;
-              } // indx
-              if(indx == matVec.size()) {
-                // not found in the match vector so add it
-                MatchStruct ms;
-                ms.TjIDs.resize(3);
-                // Note that we can put the Tj IDs in plane-order since there are 3 of them
-                // This is not the case when there are 2 planes
-                ms.TjIDs[iplane] = iTjPt.id;
-                ms.TjIDs[jplane] = jTjPt.id;
-                ms.TjIDs[kplane] = kTjPt.id;
-                ms.Count = 1;
-                matVec.push_back(ms);
-              } // not found in the list
-            } // kpt
-          } // jpt
-        } // ipt
-      } // score
-      
-      if(matVec.size() > 1) {
-        // sort by decreasing match count
-        sortVec.resize(matVec.size());
-        for(unsigned int indx = 0; indx < sortVec.size(); ++indx) {
-          sortVec[indx].index = indx;
-          sortVec[indx].val = matVec[indx].Count;
-        }
-        std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
-        // Re-order matVec
-        auto tmpVec = matVec;
-        for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
-          unsigned int indx = sortVec[ii].index;
-          matVec[ii] = tmpVec[indx];
-        } // ii
-        MergeBrokenTjs(tjs, matVec);
-      }
-    } // 3 planes
-
-    // match in 2 views
-    // make a temporary list of triple Tj match IDs to simplify searching
-    std::vector<int> tripleTjList;
-    for(auto& ms : matVec) tripleTjList.insert(tripleTjList.end(), ms.TjIDs.begin(), ms.TjIDs.end());
-    
-    unsigned short minTjLen = tjs.Match3DCuts[2];
-    
-    // put the 2 plane matches into a temp vector to simplify things
-    std::vector<MatchStruct> temp;
-    for(short maxScore = 0; maxScore < 2; ++maxScore) {
-      for(unsigned int ipt = 0; ipt < mallTraj.size() - 1; ++ipt) {
-        auto& iTjPt = mallTraj[ipt];
-        if(iTjPt.score < 0 || iTjPt.score > maxScore) continue;
-        // check for minimum length
-        if(iTjPt.npts < minTjLen) continue;
-        // ignore Tjs that have a triple match 
-        if(std::find(tripleTjList.begin(), tripleTjList.end(), iTjPt.id) != tripleTjList.end()) continue;
-        unsigned short iplane = DecodeCTP(iTjPt.ctp).Plane;
-        for(unsigned int jpt = ipt + 1; jpt < mallTraj.size(); ++jpt) {
-          auto& jTjPt = mallTraj[jpt];
-          // ensure that the planes are different
-          if(jTjPt.ctp == iTjPt.ctp) continue;
-          if(jTjPt.score < 0 || jTjPt.score > maxScore) continue;
-          // ensure inShower consistency
-          if(jTjPt.inShower != iTjPt.inShower) continue;
-          if(jTjPt.npts < minTjLen) continue;
-          // ignore Tjs that have a triple match 
-          if(std::find(tripleTjList.begin(), tripleTjList.end(), jTjPt.id) != tripleTjList.end()) continue;
-          // check for x range overlap
-          if(jTjPt.xlo > iTjPt.xhi) continue;
-          // break out if the x range difference becomes large
-          if(jTjPt.xlo > iTjPt.xhi + 10) break;
-          // ensure the intersection inside the TPC
-          unsigned short jplane = DecodeCTP(jTjPt.ctp).Plane;
-          double yp, zp;
-          tjs.geom->IntersectionPoint(iTjPt.wire, jTjPt.wire, iplane, jplane, cstat, tpc, yp, zp);
-          if(yp < tjs.YLo || yp > tjs.YHi || zp < tjs.ZLo || zp > tjs.ZHi) continue;
-          if(tjs.NumPlanes == 3) {
-            // See if there is a signal at this point. Use tpk but first ensure that the intersection
-            // is reasonably OK
-            unsigned short kpl = 3 - iplane - jplane;
-            float fkwire = tjs.geom->WireCoordinate(yp, zp, kpl, tpc, cstat);
-            if(fkwire < 0 || fkwire > tjs.MaxPos0[kpl]) continue;
-            tpk.CTP = EncodeCTP(cstat, tpc, kpl);
-            geo::PlaneID planeID = DecodeCTP(tpi.CTP);
-            float xp = 0.5 * (iTjPt.xlo + iTjPt.xhi);
-            tpk.Pos[1] = tjs.detprop->ConvertXToTicks(xp, planeID) * tjs.UnitsPerTick;
-            tpk.Pos[1] = fkwire;
-            // Note that SignalAtTp assumes that a signal exists if the wire is dead
-            if(!SignalAtTp(tjs, tpk)) continue;
-          }
-          // next see if the Tjs are in the match list
-          unsigned short indx = 0;
-          for(indx = 0; indx < temp.size(); ++indx) {
-            unsigned short nm = 0;
-            for(auto tjID : temp[indx].TjIDs) {
-              if(iTjPt.id == tjID || jTjPt.id == tjID) ++nm;
-            } // ii
-            if(nm == 2) {
-              ++temp[indx].Count;
-              break;
-            }
-          } // indx
-          if(indx == temp.size()) {
-            MatchStruct ms;
-            ms.TjIDs.resize(2);
-            // Here we put the Tj IDs in no particular order
-            ms.TjIDs[0] = iTjPt.id;
-            ms.TjIDs[1] = jTjPt.id;
-            ms.Count = 1;
-            temp.push_back(ms);
-          } // not found in the list
-        } // jj
-      } // ii
-    } // score
-
-    if(temp.empty()) {
-      if(prt) mf::LogVerbatim("TC")<<"Match2Views: no 2-view matches found";
-    } else if(temp.size() == 1) {
-      matVec.push_back(temp[0]);
-    } else {
-      // multiple entries - need to sort by decreasing match count
-      sortVec.resize(temp.size());
-      for(unsigned int indx = 0; indx < sortVec.size(); ++indx) {
-        sortVec[indx].index = indx;
-        sortVec[indx].val = temp[indx].Count;
-      } // indx
-      std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
-      // Re-order temp
-      auto tmpVec = temp;
-      for(unsigned int ii = 0; ii < sortVec.size(); ++ii) temp[ii] = tmpVec[sortVec[ii].index];
-      // insert it after the triple matches
-      matVec.insert(matVec.end(), temp.begin(), temp.end());
-      if(prt) mf::LogVerbatim("TC")<<"Match2Views: Found "<<temp.size()<<" matches";
-    } // temp size > 1
+      for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 3, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+    } // 3-plane TPC
+    // 2-plane TPC or 2-plane matches in a 3-plane TPC
+    for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2644,12 +2463,17 @@ namespace tca {
       PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
       pfp.TjIDs = ms.TjIDs;
       if(nstj > 0) pfp.PDGCode = 1111;
+      // declare a start or end vertex and set the end points
+      if(pfp.Vx3ID[0] == 0) {
+        if(!SetPFPEndPoints(tjs, pfp, 0, prt)) continue;
+      } else {
+        if(!SetPFPEndPoints(tjs, pfp, 1, prt)) continue;
+      }
       tjs.pfps.push_back(pfp);
       ms.pfpID = pfp.ID;
       for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
         unsigned short itj = ms.TjIDs[ipl] - 1;
         tjs.allTraj[itj].AlgMod[kMat3D] = true;
-
       } // ipl
     } // indx
     
@@ -2681,189 +2505,8 @@ namespace tca {
       } // ii
     } // prt
     
-    Find3DEndPoints(tpcid);
-    
   } // Match3D
 
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::Find3DEndPoints(const geo::TPCID& tpcid)
-  {
-    // Define the start and end point position and direction of the matched trajectories. This is done by matching the
-    // endpoints of the two longest trajectories in all planes. The endpoints and trajectories are then
-    // reversed if necessary to put sXYZ[0] > eXYZ[0] and EndPt[0] => sXYZ 
-    
-    prt = (debug.Plane >= 0) && (debug.Tick == 3333);
-    
-    for(auto& pfp : tjs.pfps) {
-      if(pfp.ID == 0) continue;
-      if(pfp.TPCID != tpcid) continue;
-
-      // Showers require special handling
-      if(pfp.PDGCode == 1111) {
-        Find3DShowerEndPoints(tjs, pfp);
-        continue;
-      }
-
-      std::array<std::vector<TrajPoint>, 2> endtps;
-      if(!FindMatchingPts(tjs, pfp, endtps[0], endtps[1], prt) || endtps[0].size() < 2 || endtps[1].size() < 2) {
-        if(prt) mf::LogVerbatim("TC")<<"  FindMatchingPts failed "<<pfp.ID<<" stps size "<<endtps[0].size()<<" etps size "<<endtps[1].size()<<" PDGCode "<<pfp.PDGCode;
-        pfp.ID = 0;
-        continue;
-      }
-
-      // grab the direction from the first calculation and don't let it reverse
-      TVector3 prevDir = {0, 0, 0};
-      bool first = true;
-      for(unsigned short startend = 0; startend < 2; ++startend) {
-        double wsum = 0;
-        TVector3 psum = {0, 0, 0};
-        TVector3 dsum = {0, 0, 0};
-        for(unsigned short kk = 0; kk < endtps[startend].size() - 1; ++kk) {
-          for(unsigned short jj = kk + 1; jj < endtps[startend].size(); ++jj) {
-            TVector3 pos, dir;
-            if(!TrajPoint3D(tjs, endtps[startend][kk], endtps[startend][jj], pos, dir)) {
-              if(prt) mf::LogVerbatim("TC")<<"F3DEP: "<<pfp.ID<<" TrajPoint3D failed";
-              continue;
-            }
-            // ensure the position is inside the TPC, but relax the fiducial cut a bit
-            if(first) {
-              first = false;
-              // ensure that the direction is away from a start vertex if one exists
-              if(pfp.Vx3ID[startend] > 0) {
-                if(pos[2] > pfp.XYZ[startend][2] && dir[2] < 0) {
-                  dir *= -1;
-                } else if(pos[2] < pfp.XYZ[startend][2] && dir[2] > 0) {
-                  dir *= -1;
-                }
-              } // start vertex exists
-              if(pfp.Vx3ID[startend] > 0 && pos[2] > pfp.XYZ[startend][2] && dir[2] < 0) dir *= -1;
-              prevDir = dir;
-            } // first valid direction
-            else {
-              // a valid direction exists. Compare this direction with it
-              for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
-                if(std::abs(prevDir[ixyz]) > 0.5) {
-                  if(prevDir[ixyz] * dir[ixyz] < 0) dir *= -1;
-                  break;
-                }
-              } // ixyz
-              
-            } // a valid direction exists
-            // sum to get an average position and direction. Weight by the angle error
-            double erri = endtps[startend][kk].AngErr;
-            if(erri == 0) erri = 0.3;
-            double errj = endtps[startend][jj].AngErr;
-            if(errj == 0) errj = 0.3;
-            double wght = 1 / (erri * erri + errj * errj);
-            psum += wght * pos;
-            dsum += wght * dir;
-            wsum += wght;
-          } // jj
-        } // ii
-        if(wsum == 0) continue;
-        // define the position
-        for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
-          pfp.XYZ[startend][ixyz] = psum[ixyz] / wsum;
-          pfp.Dir[startend][ixyz] = dsum[ixyz] / wsum;
-        }
-        if(pfp.Dir[startend].Mag() > 0) pfp.Dir[startend].SetMag(1);
-      } // startend
-
-      // ensure that the start direction vectors is pointing from start to end
-      TVector3 generalDirection;
-      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) generalDirection[ixyz] = pfp.XYZ[1][ixyz] - pfp.XYZ[0][ixyz];
-      if(generalDirection.Mag() == 0) {
-//        if(prt) mf::LogVerbatim("TC")<<"  Start and End points are identical...";
-        pfp.ID = 0;
-        continue;
-      } // generalDirection.Mag == 0
-      generalDirection.SetMag(1);
-      // use a large direction cosine
-      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
-        if(generalDirection[ixyz] > 0.5) {
-          // reverse the start end direction?
-          if(generalDirection[ixyz] * pfp.Dir[0][ixyz] < 0) pfp.Dir[0] *= -1;
-          if(generalDirection[ixyz] * pfp.Dir[1][ixyz] < 0) pfp.Dir[1] *= -1;
-          break;
-        }
-      } // ixyz
-      // Calculate dE/dx at both ends
-      FilldEdx(tjs, pfp);
-
-    } //ii
-  } // Find3DEndPoints
-
-  //////////////////////////////////////////
-  void TrajClusterAlg::FillPFPInfo()
-  {
-    // Fills the PFParticle info in matchVec. Each entry contains a list of trajectories and has a defined
-    // start and end XYZ position, possibly with the index of a 3D vertex. 
-    
-    bool pprt = (debug.Plane >= 0 && debug.Tick == 3333);
-/*
-    unsigned short pfpCount = 0;
-    for(auto& im : tjs.matchVecPFPList) {
-      auto& ms = tjs.matchVec[im];
-      // ms contains a list of tjs that were matched in 3D. 
-      if(ms.Count == 0) continue;
-      // Set the parent index to itself for now
-      ms.ParentMSIndex = pfpCount;
-      ++pfpCount;
-      // Trajectories have been reversed so that the Tj and hit order are consistent. The
-      // next step is to decide whether the start of the PFParticle (where the 3D vertex association will be made) is indeed the
-      // start of the trajectory from a physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc.
-      // Make this decision in a utility function.
-      Reverse3DMatchTjs(tjs, ms, prt);
-      // we may need to clobber 2D vertices so start a list and count them
-      std::vector<unsigned short> vtxIDs, vtxIDCnt;
-      for(auto& tjID : ms.TjIDs) {
-        unsigned short itj = tjID - 1;
-        Trajectory& tj = tjs.allTraj[itj];
-        for(unsigned short end = 0; end < 2; ++end) {
-          if(tj.VtxID[end] > 0) {
-            // Count the number of times this 2D vertex is used.
-            unsigned short indx;
-            for(indx = 0; indx < vtxIDs.size(); ++indx) if(tj.VtxID[end] == vtxIDs[indx]) break;
-            if(indx == vtxIDs.size()) {
-              // not found so add it
-              vtxIDs.push_back(tj.VtxID[end]);
-              vtxIDCnt.push_back(1);
-            } else {
-              ++vtxIDCnt[indx];
-            }
-          } // 2D vertex exists
-        } // end
-      } // tjID
-      // clobber any 2D vertices that exist between trajectories in the match list
-      for(unsigned short ii = 0; ii < vtxIDs.size(); ++ii) {
-        if(vtxIDCnt[ii] > 1 && !MakeVertexObsolete(tjs, vtxIDs[ii], false)) {
-          std::cout<<"FillPFPInfo: MakeVertexObsolete refused to delete "<<vtxIDs[ii]<<". This must be a problem\n";
-        } 
-      } // ii
-      // Make a 3D vertex at the start of the PFParticle if one doesn't already exist
-      if(ms.Vx3ID[0] == 0) {
-        // get a reference to one of the Tjs to define the cryostat and TPC
-        unsigned short itj = ms.TjIDs[0] - 1;
-        geo::PlaneID planeID = DecodeCTP(tjs.allTraj[itj].CTP);
-        Vtx3Store newVx3;
-        newVx3.ID = tjs.vtx3.size();
-        newVx3.TPCID = geo::TPCID(planeID.Cryostat, planeID.TPC);
-        // Set Wire < 0 as a flag that this is a "complete" 3D vertex even though no 2D vertices have been made.
-        newVx3.Wire = -2;
-        newVx3.X = ms.XYZ[0][0];
-        newVx3.Y = ms.XYZ[0][1];
-        newVx3.Z = ms.XYZ[0][2];
-        tjs.vtx3.push_back(newVx3);
-        ms.Vx3ID[0] = newVx3.ID;
-//        if(prt) mf::LogVerbatim("TC")<<" Made 3D start vertex "<<newVx3.ID<<" at "<<newVx3.X<<" "<<newVx3.Y<<" "<<newVx3.Z;
-      }
-      if (tjs.TagCosmics) SaveCRInfo(tjs, ms, prt, fIsRealData);
-    } // im (ms)
-*/
-    if(pprt) PrintPFParticles("FPI", tjs);
-    
-  } // FillPFPInfo
-  
   //////////////////////////////////////////
   void TrajClusterAlg::StepCrawl(Trajectory& tj)
   {
@@ -4817,7 +4460,7 @@ namespace tca {
     SetAngleCode(tjs, tp);
     tp.AngErr = 0.1;
     if(tj.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = fPlane; TJPrt = tj.ID; debug.WorkID = tj.ID; }
-    if(prt) mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tp);
+    if(prt) mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tjs, tp);
     tj.Pts.push_back(tp);
     return true;
     
@@ -4939,7 +4582,7 @@ namespace tca {
     
     // Make one cluster for each trajectory. The indexing of trajectory parents
     // should map directly to cluster parents
-    short clID = 0;
+    int clID = 0;
     for(itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& tj = tjs.allTraj[itj];
       if(tj.AlgMod[kKilled]) continue;
@@ -4977,6 +4620,8 @@ namespace tca {
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) ++fAlgModCount[ib];
       ++clID;
       cls.ID = clID;
+      // assigne shower clusters a negative ID
+      if(tj.AlgMod[kShowerTj]) cls.ID = -cls.ID;
       cls.CTP = tj.CTP;
       cls.PDGCode = tj.PDGCode;
       cls.ParentCluster = tj.ParentTrajID - 1;
@@ -5377,18 +5022,6 @@ namespace tca {
     } // tcHit
      return tmp;
   } // YieldHits
-  
-  ////////////////////////////////////////////////
-  float TrajClusterAlg::ExpectedHitsRMS(TrajPoint const& tp)
-  {
-    // returns the expected RMS of hits for the trajectory point in ticks
-    if(std::abs(tp.Dir[0]) > 0.001) {
-      geo::PlaneID planeID = DecodeCTP(tp.CTP);
-      return 1.5 * tjs.AveHitRMS[planeID.Plane] + 2 * std::abs(tp.Dir[1]/tp.Dir[0])/tjs.UnitsPerTick;
-    } else {
-      return 500;
-    }
-  } // ExpectedHitsRMS
   
   ////////////////////////////////////////////////
   bool TrajClusterAlg::EraseHit(const unsigned int& delHit)
