@@ -48,7 +48,7 @@ namespace tca {
   
   /// struct of temporary clusters
   struct ClusterStore {
-    short ID {0};         // Cluster ID. ID < 0 = abandoned cluster
+    int ID {0};         // Cluster ID. ID < 0 = abandoned cluster
     CTP_t CTP {0};        // Cryostat/TPC/Plane code
     unsigned short PDGCode {0}; // PDG-like code shower-like or line-like
     unsigned short ParentCluster {0};
@@ -107,6 +107,24 @@ namespace tca {
     unsigned short ID {0};          // 0 = obsolete vertex
   };
   
+  // A temporary struct for matching trajectory points; 1 struct for each TP for
+  // each trajectory. These are put into mallTraj which is then sorted by increasing xlo
+  struct TjPt{
+    std::array<double, 2> dir;
+    unsigned int wire;
+    // x range spanned by hits on the TP
+    float xlo;
+    float xhi;
+    CTP_t ctp;
+    // the Trajectory ID
+    unsigned short id;
+    unsigned short ipt; // The trajectory point
+    // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
+    unsigned short npts;
+    short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
+    bool inShower;
+  };
+
   struct TrajPoint {
     CTP_t CTP {0};                   ///< Cryostat, TPC, Plane code
     std::array<float, 2> HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
@@ -174,23 +192,6 @@ namespace tca {
     int InTraj {0};
     unsigned short MCPartListIndex {USHRT_MAX};
   };
-  
-  // A temporary struct for matching trajectory points; 1 struct for each TP in
-  // each trajectories. These are put into mallTraj which is then sorted by increasing xlo
-  struct TjPt{
-    std::array<double, 2> dir;
-    unsigned int wire;
-    // x range spanned by hits on the TP
-    float xlo;
-    float xhi;
-    CTP_t ctp;
-    // the Trajectory ID
-    unsigned short id;
-    // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
-    unsigned short npts;
-    short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
-    bool inShower;
-  };
 
   // Struct for 3D trajectory matching
   struct MatchStruct {
@@ -237,7 +238,6 @@ namespace tca {
     int ShowerTjID {0};      // ID of the shower Trajectory composed of many InShower Tjs
     std::vector<int> TjIDs;  // list of InShower Tjs
     std::vector<int> NearTjIDs;   // list of Tjs that are not InShower but satisfy the maxSep cut
-//    std::vector<int> MatchedTjIDs;  /// list of Tjs in the other planes that are 3D matched to Tjs in this shower
     std::vector<ShowerPoint> ShPts;    // Trajectory points inside the shower
     float Angle {0};                   // Angle of the shower axis
     float AngleErr {3};                 // Error
@@ -414,6 +414,7 @@ namespace tca {
     bool TagCosmics;
 
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
+    std::vector<TjPt> mallTraj;      ///< vector of trajectory points ordered by increasing X
     std::vector<TCHit> fHits;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
