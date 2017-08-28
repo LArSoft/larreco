@@ -284,7 +284,7 @@ namespace tca {
     tjs.showers = {};
     tjs.MCPartList = {};
 
-    ClearShowerTree(tjs.stv);
+    if(tjs.SaveShowerTree) ClearShowerTree(tjs.stv);
     ClearCRInfo(tjs);
 
   } // ClearResults()
@@ -2275,8 +2275,10 @@ namespace tca {
     
     if(secondPass) {
       // clear out pfparticles in this tpc
-      for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
-        if(tjs.pfps[ipfp].TPCID == tpcid) tjs.pfps.erase(tjs.pfps.begin() + ipfp);
+      for(unsigned short ipfp = 0; ipfp != tjs.pfps.size(); ++ipfp) {
+        if(tjs.pfps[ipfp].TPCID.Cryostat != (unsigned int)cstat) continue;
+        if(tjs.pfps[ipfp].TPCID.TPC != (unsigned int)tpc) continue;
+        tjs.pfps[ipfp].ID = 0;
       } // ipfp
     } // reset
     
