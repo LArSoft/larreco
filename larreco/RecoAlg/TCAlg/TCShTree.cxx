@@ -66,15 +66,15 @@ namespace tca {
       int tjIndex = -1;
       bool isShowerTj = false;
       for (size_t i = 0; i < tjs.stv.TjID.size(); ++i) {
-	if (tjs.stv.StageNum.at(i) != (int)stageNum) continue;
-	if (tjs.stv.PlaneNum.at(i) != (short)DecodeCTP(ss.CTP).Plane) continue;
-
-	if (tjs.stv.TjID.at(i) == trajID) {
-	  tjIndex = i;
-	  if (tjs.stv.IsShowerTj.at(tjIndex) == 1) isShowerTj = true;
-	  //beenDoneBefore = true;
-	  break;
-	}
+        if (tjs.stv.StageNum.at(i) != (int)stageNum) continue;
+        if (tjs.stv.PlaneNum.at(i) != (short)DecodeCTP(ss.CTP).Plane) continue;
+        
+        if (tjs.stv.TjID.at(i) == trajID) {
+          tjIndex = i;
+          if (tjs.stv.IsShowerTj.at(tjIndex) == 1) isShowerTj = true;
+          //beenDoneBefore = true;
+          break;
+        }
       }
 
       if (isShowerTj) continue;
@@ -82,26 +82,26 @@ namespace tca {
 
       for (size_t i = 0; i < ss.TjIDs.size(); ++i) {
         if (trajID == ss.TjIDs[i]) {
-	  noMatch = false;
+          noMatch = false;
           if (tjIndex == -1) tjs.stv.ShowerID.back() = cotIndex;
-	  else tjs.stv.ShowerID.at(tjIndex) = cotIndex;
+          else tjs.stv.ShowerID.at(tjIndex) = cotIndex;
         }
-
-	if (it1 == (ss.ShowerTjID - 1)) tjs.stv.IsShowerTj.back() = 1;
-	else if (tj1.AlgMod[kShowerTj]) tjs.stv.IsShowerTj.back() = 1; // this is a better check
+        
+        if (it1 == (ss.ShowerTjID - 1)) tjs.stv.IsShowerTj.back() = 1;
+        else if (tj1.AlgMod[kShowerTj]) tjs.stv.IsShowerTj.back() = 1; // this is a better check
         // check if tj is shower parent. if so, add to ttree
         // and mark parent flag	
         if (trajID == ss.ParentID) {
           if (tjIndex == -1) {
-	    tjs.stv.ShowerID.back() = cotIndex;
-	    tjs.stv.IsShowerParent.back() = 1;
-	  }
-	  else {
-	    tjs.stv.ShowerID.at(tjIndex) = cotIndex;
-	    tjs.stv.IsShowerParent.at(tjIndex) = 1;
-	  }
-	  break;
-
+            tjs.stv.ShowerID.back() = cotIndex;
+            tjs.stv.IsShowerParent.back() = 1;
+          }
+          else {
+            tjs.stv.ShowerID.at(tjIndex) = cotIndex;
+            tjs.stv.IsShowerParent.at(tjIndex) = 1;
+          }
+          break;
+          
         }
       } // ss TjID loop
     } // end tjs loop
