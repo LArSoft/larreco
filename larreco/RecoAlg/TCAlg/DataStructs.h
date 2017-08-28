@@ -199,6 +199,7 @@ namespace tca {
     std::vector<int> TjIDs;
     // Count of the number of X-matched hits
     int Count {0};                    // Set to 0 if matching failed
+    float MatchFrac {0};
     unsigned short pfpID {0};
   };
   
