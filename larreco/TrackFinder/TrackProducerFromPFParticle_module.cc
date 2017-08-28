@@ -131,11 +131,9 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
       // Loop over tracks to refit
       for (art::Ptr<recob::Track> const& track: tracks) {
 	//
-	// [..] Petrillo, private communication
-	decltype(auto) hitsRange = *(std::next(trackHitsGroups.begin(), track.key()));
-	//
 	// Get track and its hits
 	std::vector<art::Ptr<recob::Hit> > inHits;
+	decltype(auto) hitsRange = util::groupByIndex(trackHitsGroups, track.key());
 	for (art::Ptr<recob::Hit> const& hit: hitsRange) inHits.push_back(hit);
 	//
 	// Declare output objects
@@ -197,11 +195,9 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
       //
       // Get hits for shower (through the chain pfp->clusters->hits)
       std::vector<art::Ptr<recob::Hit> > inHits;
-      // [..] Petrillo, private communication
-      decltype(auto) clustersRange = *(std::next(pfpClusterGroups.begin(), pfp.key()));
+      decltype(auto) clustersRange = util::groupByIndex(pfpClusterGroups, pfp.key());
       for (art::Ptr<recob::Cluster> const& cluster: clustersRange) {
-	// [..] Petrillo, private communication
-	decltype(auto) hitsRange = *(std::next(clusterHitsGroups.begin(), cluster.key()));
+	decltype(auto) hitsRange = util::groupByIndex(clusterHitsGroups, cluster.key());
 	for (art::Ptr<recob::Hit> const& hit: hitsRange) inHits.push_back(hit);
       }
       // Loop over showers to refit (should be only one)
