@@ -242,7 +242,7 @@ namespace tca {
       maxScore = SHRT_MAX;
     }
     bool first = true;
-    for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 2; ++ipt) {
+    for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 1; ++ipt) {
       auto& iTjPt = tjs.mallTraj[ipt];
       // Mode 2: check for a valid TjID
       if(returnMatchPts && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), iTjPt.id) == pfp.TjIDs.end()) continue;
@@ -311,7 +311,7 @@ namespace tca {
               if(dang > piOver2) dang = piOver2 - dang;
               if(dang > tjs.Match3DCuts[1]) continue;
             } // useAngle etc
-            // we have a match. 
+            // we have a match.
             if(returnMatchPts) {
               // return all matching end points
               matchPts[1][iplane] = ipt;
@@ -411,6 +411,18 @@ namespace tca {
     
     if(temp.empty()) return;
     
+    // Fill MatchFrac = number of 3D matched points divided by the length of the
+    // longest trajectory. Note that this can be larger than 1.
+    for(auto& ms : temp) {
+      if(ms.Count == 0) continue;
+      float maxlen = 1;
+      for(auto& tjID : ms.TjIDs) {
+        float len = NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
+        if(len > maxlen) maxlen = len;
+      }
+      ms.MatchFrac = ms.Count / maxlen;
+    } // ms
+    
     if(temp.size() == 1) {
       matVec.push_back(temp[0]);
     } else {
@@ -431,67 +443,6 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC")<<"FindXMatches: Found "<<temp.size()<<" matches";
 
   } // FindXMatches
-  
-  /////////////////////////////////////////
-  bool FindBrokenTjs(TjStuff& tjs, PFPStruct& pfp, std::array<std::vector<unsigned int>, 2>& matchPts, bool prt)
-  {
-    // This function does something.
-    
-    if(pfp.TjIDs.size() < 3) return false;
-    
-    // A list of Tjs that are possibly fragments of a broken Tj in the original list. Two Tjs in two planes are
-    // in the mallTraj vector but the the third Tj is not in the original match list.
-    std::vector<int> bTjs;
-    // The number of mis-matched Tj points for each presumed broken Tj fragment
-    std::vector<unsigned short> cnt;
-    for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 2; ++ipt) {
-      auto& iTjPt = tjs.mallTraj[ipt];
-      unsigned short iMatchID = USHRT_MAX;
-      for(auto tjid : pfp.TjIDs) if(tjid == iTjPt.id) iMatchID = iTjPt.id;
-      if(iMatchID == USHRT_MAX) continue;
-      // at least one Tj in pfp has an X match. Require two
-      for(unsigned int jpt = ipt + 1; jpt < tjs.mallTraj.size() - 1; ++jpt) {
-        auto& jTjPt = tjs.mallTraj[jpt];
-        // ensure that the planes are different
-        if(jTjPt.ctp == iTjPt.ctp) continue;
-        unsigned short jMatchID = USHRT_MAX;
-        for(auto tjid : pfp.TjIDs) if(tjid == jTjPt.id) jMatchID = jTjPt.id;
-        if(jMatchID == USHRT_MAX) continue;
-        // We now have two Tjs that are in the match list. Ignore this match if the third Tj is in the original match list since
-        // we are looking for broken Tjs here
-        unsigned short kMatchID = USHRT_MAX;
-        for(auto tjid : pfp.TjIDs) {
-          if(tjid == iMatchID) continue;
-          if(tjid == jMatchID) continue;
-          kMatchID = tjid;
-        } // tjid
-        if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), kMatchID) != pfp.TjIDs.end()) continue;
-        // look for this presumed broken tj in the list
-        unsigned short indx = 0;
-        for(indx = 0; indx < bTjs.size(); ++indx) if(kMatchID == bTjs[indx]) break;
-        if(indx == bTjs.size()) {
-          // not in the list so add it
-          bTjs.push_back(kMatchID);
-          cnt.push_back(1);
-        } else {
-          // in the list so count it
-          ++cnt[indx];
-        }
-      } // jpt
-    } // ipt
-    
-    if(bTjs.empty()) return false;
-
-    if(prt) {
-      std::cout<<"FindBrokenTjs "<<bTjs.size()<<"\n";
-      mf::LogVerbatim myprt("TC");
-      myprt<<"FindBrokenTjs: List of possibly broken Tjs";
-      for(unsigned short ii = 0; ii < bTjs.size(); ++ii) {
-        myprt<<" "<<bTjs[ii]<<"_"<<cnt[ii];
-      } // ii
-    } // prt
-    return true;
-  } // FindBrokenTjs
   
   /////////////////////////////////////////
   bool FindSepMatch(TjStuff& tjs, PFPStruct& pfp, std::array<std::array<float, 3>, 2>& matchPos, bool prt)
@@ -559,6 +510,56 @@ namespace tca {
     
     return true;
   } // FindSepMatch
+  
+  /////////////////////////////////////////
+  void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
+  {
+    // Finds long Tjs that are not 3D-matched and does something about it
+
+    unsigned int cstat = tpcid.Cryostat;
+    unsigned int tpc = tpcid.TPC;
+    
+    for(auto& tj : tjs.allTraj) {
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      if(planeID.Cryostat != cstat) continue;
+      if(planeID.TPC != tpc) continue;
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kMat3D]) continue;
+      if(tj.Pts.size() < 10) continue;
+      // look for this Tj in matchvec
+      unsigned short firstMS = 0;
+      for(firstMS = 0; firstMS < tjs.matchVec.size(); ++firstMS) {
+        auto& ms = tjs.matchVec[firstMS];
+        if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tj.ID) != ms.TjIDs.end()) break;
+      } // ms
+      // not found for some reason. Deal with this later
+      if(firstMS == tjs.matchVec.size()) continue;
+      // make a list of the Tjs that were matched
+      std::vector<int> matched;
+      for(auto tjid : tjs.matchVec[firstMS].TjIDs) if(tjid != tj.ID) matched.push_back(tjid);
+      unsigned int brokenTj = UINT_MAX;
+      int minCount = 3;
+      // look for the broken tj in an earlier entry. 
+      for(unsigned short ims = 0; ims < tjs.matchVec.size(); ++ims) {
+        auto& ms = tjs.matchVec[ims];
+        if(ms.Count < minCount) continue;
+        std::vector<int> leftover(ms.TjIDs.size());
+        auto it = std::set_difference(ms.TjIDs.begin(), ms.TjIDs.end(), matched.begin(), matched.end(), leftover.begin());
+        leftover.resize(it - leftover.begin());
+        if(leftover.size() != 1) continue;
+        minCount = ms.Count;
+        brokenTj = leftover[0];
+        if(prt) mf::LogVerbatim("TC")<<"  leftover "<<leftover[0]<<" count "<<ms.Count;
+      } // ims
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"CheckNoMatchTjs: No 3D match "<<tj.ID;
+        myprt<<" in matchVec with other Tjs";
+        for(auto tjid : matched) myprt<<" "<<tjid;
+        myprt<<" brokenTj "<<brokenTj;
+      } // prt
+    } // tj
+  } // CheckNoMatchTjs
 
   /////////////////////////////////////////
   bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, unsigned short end, bool prt)
@@ -632,11 +633,11 @@ namespace tca {
       std::cout<<"SetPFPEndPoints: no 2-plane matches. write some code\n";
       return false;
     }
-    
+/*
     if(FindBrokenTjs(tjs, pfp, matchPts, prt)) {
       std::cout<<"SetPFPEndPoints: Found broken tjs\n";
     }
-    
+*/
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"SPEP: ppfp.ID "<<pfp.ID;
