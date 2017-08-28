@@ -219,7 +219,8 @@ namespace tca {
     int tpc = pfp.TPCID.TPC;
     
     // create a temp vector to check for duplicates
-    auto temp = matVec;
+    auto inMatVec = matVec;
+    std::vector<MatchStruct> temp;
 
     std::array<float, 3> posij, posik;
     // temp TPs used to find 3D directions. The positions are not used
@@ -331,13 +332,25 @@ namespace tca {
                 matchPts[0] = matchPts[1];
               }
             } else {
-              // Just fill temp. See if the Tj IDs are in the match list
+              // Just fill temp. See if the Tj IDs are in the match list.
+              // first check the input matVec
+              bool gotit = false;
+              for(auto& ms : inMatVec) {
+                if(ms.TjIDs.size() != 3) continue;
+                if(iTjPt.id == ms.TjIDs[iplane] && jTjPt.id == ms.TjIDs[jplane] && kTjPt.id == ms.TjIDs[kplane]) {
+                  gotit = true;
+                  break;
+                } 
+              } // ms
+              if(gotit) continue;
+              // next check the temp vector
               unsigned short indx = 0;
               for(indx = 0; indx < temp.size(); ++indx) {
-                if(iTjPt.id != temp[indx].TjIDs[iplane]) continue;
-                if(jTjPt.id != temp[indx].TjIDs[jplane]) continue;
-                if(kTjPt.id != temp[indx].TjIDs[kplane]) continue;
-                ++temp[indx].Count;
+                auto& ms = temp[indx];
+                if(iTjPt.id != ms.TjIDs[iplane]) continue;
+                if(jTjPt.id != ms.TjIDs[jplane]) continue;
+                if(kTjPt.id != ms.TjIDs[kplane]) continue;
+                ++ms.Count;
                 break;
               } // indx
               if(indx == temp.size()) {
@@ -385,16 +398,21 @@ namespace tca {
           } else {
             // Just fill temp. See if the Tj IDs are in the match list
             // next see if the Tjs are in the match list
+            bool gotit = false;
+            for(auto& ms : inMatVec) {
+              if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), iTjPt.id) != ms.TjIDs.end() && 
+                 std::find(ms.TjIDs.begin(), ms.TjIDs.end(), jTjPt.id) != ms.TjIDs.end()) {
+                gotit = true;
+                break;
+              } 
+            } // ms
+            if(gotit) continue;
             unsigned short indx = 0;
             for(indx = 0; indx < temp.size(); ++indx) {
-              unsigned short nm = 0;
-              for(auto tjID : temp[indx].TjIDs) {
-                if(iTjPt.id == tjID || jTjPt.id == tjID) ++nm;
-              } // ii
-              if(nm == 2) {
-                ++temp[indx].Count;
-                break;
-              }
+              auto& ms = temp[indx];
+              // This rejects 2-plane matches that already have 3-plane matches
+              if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), iTjPt.id) != ms.TjIDs.end() &&
+                 std::find(ms.TjIDs.begin(), ms.TjIDs.end(), jTjPt.id) != ms.TjIDs.end()) break;
             } // indx
             if(indx == temp.size()) {
               MatchStruct ms;
@@ -711,7 +729,7 @@ namespace tca {
         auto& tp2 = tjs.allTraj[tjID - 1].Pts[ipt];
         // Make a 3D point to get the direction
         TVector3 pos, dir;
-        TrajPoint3D(tjs, tp1, tp2, pos, dir, prt);
+        if(!TrajPoint3D(tjs, tp1, tp2, pos, dir, prt)) return false;
         // ignore the position and use the direction
         // TODO: check position difference to a vertex to check for errors
         pfp.Dir[startend] = dir;
