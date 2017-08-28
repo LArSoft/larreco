@@ -8,9 +8,9 @@ fcldir product_dir job
 product         version
 larsim		v06_29_00
 eigen		v3_3_3
-nutools         v2_15_00
+nutools         v2_16_01
 
-cetbuildtools	v5_09_01	-	only_for_build
+cetbuildtools	v5_14_00	-	only_for_build
 end_product_list
 
   
