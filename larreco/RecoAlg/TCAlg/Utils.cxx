@@ -213,6 +213,7 @@ namespace tca {
     nMatch = 0;
     if(tjs.mallTraj.empty()) return;
     if(tjs.Match3DCuts[0] <= 0) return;
+    if(numPlanes < 2) return;
     
     int cstat = pfp.TPCID.Cryostat;
     int tpc = pfp.TPCID.TPC;
@@ -372,8 +373,8 @@ namespace tca {
           }
           if(returnMatchPts) {
             // return matching points
-            matchPts[1][iplane] = ipt;
-            matchPts[1][jplane] = jpt;
+            matchPts[1][0] = ipt;
+            matchPts[1][1] = jpt;
             matchPos[1] = posij;
             ++nMatch;
             if(first) {
@@ -515,6 +516,9 @@ namespace tca {
   void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
     // Finds long Tjs that are not 3D-matched and does something about it
+    
+    // testing
+    return;
 
     unsigned int cstat = tpcid.Cryostat;
     unsigned int tpc = tpcid.TPC;
@@ -525,6 +529,7 @@ namespace tca {
       if(planeID.TPC != tpc) continue;
       if(tj.AlgMod[kKilled]) continue;
       if(tj.AlgMod[kMat3D]) continue;
+      if(tj.AlgMod[kShowerTj]) continue;
       if(tj.Pts.size() < 10) continue;
       // look for this Tj in matchvec
       unsigned short firstMS = 0;
@@ -629,7 +634,7 @@ namespace tca {
     unsigned short nMatch;
     // get the matching points, requiring two planes
     FindXMatches(tjs, 2, SHRT_MAX, pfp, dummyMatVec, matchPts, matchPos, nMatch, prt);
-    if(matchPts.size() < 2) {
+    if(matchPts[0].size() < 2 || matchPts[1].size() < 2) {
       std::cout<<"SetPFPEndPoints: no 2-plane matches. write some code\n";
       return false;
     }
