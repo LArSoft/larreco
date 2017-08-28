@@ -2387,17 +2387,11 @@ namespace tca {
         for(auto& tjID : matVec[ii].TjIDs) myprt<<" "<<tjID;
         myprt<<" NumUsedHitsInTj ";
         for(auto& tjID : matVec[ii].TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-        float maxlen = 1;
-        for(auto& tjID : matVec[ii].TjIDs) {
-          float len = NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-          if(len > maxlen) maxlen = len;
-        }
-        float matfrac = matVec[ii].Count / maxlen;
-        myprt<<" matfrac "<<std::fixed<<std::setprecision(2)<<matfrac;
+        myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<matVec[ii].MatchFrac;
         myprt<<"\n";
         ++cnt;
-        if(cnt == 50) {
-          myprt<<"...stopped printing after 50 entries.";
+        if(cnt == 500) {
+          myprt<<"...stopped printing after 500 entries.";
           break;
         }
       } // ii
@@ -2406,15 +2400,9 @@ namespace tca {
     // put the maybe OK matches into tjs
     for(auto& ms : matVec) {
       if(ms.Count < 2) continue;
-      float maxlen = 1;
-      for(auto& tjID : ms.TjIDs) {
-        float len = NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-        if(len > maxlen) maxlen = len;
-      }
-      float matfrac = ms.Count / maxlen;
-      // require that at least 20% of the hits are matched in the longest Tj. Note that matfrac may be > 1
+      // require that at least 20% of the hits are matched in the longest Tj. Note that MatchFrac may be > 1
       // in particular for small angle trajectories
-      if(matfrac < 0.2) continue;
+      if(ms.MatchFrac < 0.2) continue;
       tjs.matchVec.push_back(ms);
     }
     if(tjs.matchVec.empty()) return;
@@ -2427,14 +2415,8 @@ namespace tca {
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
       auto& ms = tjs.matchVec[indx];
       if(ms.Count == 0) continue;
-      float maxlen = 1;
-      for(auto& tjID : ms.TjIDs) {
-        float len = NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-        if(len > maxlen) maxlen = len;
-      }
-      float matfrac = ms.Count / maxlen;
       // check for a reasonable match fraction
-      if(matfrac > 0.5) continue;
+      if(ms.MatchFrac > 0.5) continue;
       // flag it dead
       ms.Count = 0;
     } // ms
@@ -2477,6 +2459,8 @@ namespace tca {
       } // ipl
     } // indx
     
+    CheckNoMatchTjs(tjs, tpcid, prt);
+    
     DefinePFParticleRelationships(tjs, tpcid);
     
     if(prt) {
@@ -2487,15 +2471,7 @@ namespace tca {
         for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<tjID;
         myprt<<" NumUsedHitsInTj ";
         for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-        float maxlen = 1;
-        unsigned short nsh = 0;
-        for(auto& tjID : tjs.matchVec[ii].TjIDs) {
-          float len = NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-          if(len > maxlen) maxlen = len;
-          if(tjs.allTraj[tjID-1].AlgMod[kShowerTj]) ++nsh;
-        }
-        float matfrac = tjs.matchVec[ii].Count / maxlen;
-        myprt<<" matfrac "<<std::fixed<<std::setprecision(2)<<matfrac;
+        myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<tjs.matchVec[ii].MatchFrac;
         myprt<<" PFP ID "<<tjs.matchVec[ii].pfpID;
         myprt<<"\n";
         if(ii == 50) {
