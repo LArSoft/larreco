@@ -864,6 +864,7 @@ namespace tca {
           ++nfar;
         }
       } // itj
+      std::sort(v3TjIDs.begin(), v3TjIDs.end());
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<ii<<" vx3 "<<vx3.ID<<" "<<score<<" TjIDs tagged";
@@ -920,11 +921,13 @@ namespace tca {
           }
           // flag these Tjs as matched
           for(auto id : mstjids) tjs.allTraj[id - 1].AlgMod[kMat3D] = true;
+          if(leftover.empty()) break;
           // keep looking using the leftovers
           v3TjIDs = leftover;
         } // ims
         if(nfar == 0) break;
         for(auto& id : v3TjIDs) id = abs(id);
+        std::sort(v3TjIDs.begin(), v3TjIDs.end());
       } // nit
       if(v3TjIDs.empty()) continue;
     } // ii (vx3 sorted)
