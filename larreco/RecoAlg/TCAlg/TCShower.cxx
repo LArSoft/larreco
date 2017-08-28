@@ -282,7 +282,6 @@ namespace tca {
         // Find nearby Tjs that were not included because they had too-high
         // MCSMom, etc. This will be used to decide if showers should be merged
         AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, false, prt);
-//        if (tjs.SaveShowerTree) SaveTjInfo(tjs, inCTP, cotIndex, "ATj1");
         FindNearbyTjs(fcnLabel, tjs, cotIndex, prt);
       } // tjl
       // try to merge showers in this plane using the lists of nearby Tjs
