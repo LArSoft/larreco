@@ -145,120 +145,281 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     std::set<const reco::ClusterHit2D*> hitSet;
     //std::vector<const reco::ClusterHit2D*> hitSet;
     
-    size_t nTotalHits[]  = {0,0,0};
-    size_t nUniqueHits[] = {0,0,0};
-    size_t nLostHits[]   = {0,0,0};
-    size_t nMultShared2DHits(0);
-    size_t nAllHitsShared(0);
+    std::vector<int> nTotalHitsVec  = {0,0,0}; // Keep track of the total number of hits per plane
+    std::vector<int> nUniqueHitsVec = {0,0,0}; // Keep track of the number of unique hits per plane
     
-    std::map<reco::ClusterParameters*,int> clusterHitCountMap;
+    int              numLostHits(0);
+    int              numUnique3D(0);
+    int              numOneShared3D(0);
+    int              numTwoShared3D(0);
+    int              numThreeShared3D(0);
+    int              numAllShared3D(0);
+    
+    int              otherClusterSum(0);
+    int              otherClusterMaxSize(0);
+    int              otherClusterMaxSharedHits(0);
+    int              otherClusterMinSize(std::numeric_limits<int>::max());
+    int              otherClusterMinSharedHits(0);
+    
+    // Keep track of associated clusters
+    std::set<const reco::ClusterParameters*> totalOtherClusterSet;
     
     // Create a list to hold 3D hits which are already in use (criteria below)
     reco::HitPairListPtr usedHitPairList;
     
-    // First loop through the 3D hits
-    // The goal of this loop is to build a set of unique hits from the hit pairs (which may contain many
-    // ambiguous duplicate combinations).
-    // The secondary goal is to remove 3D hits marked by hit arbitration to be tossed
+    // Loop through all the 3D hits in this cluster and determine the total number of hits per plane,
+    // the number of unique and lost hits.
     for(const auto& hit3D : hitPairVector)
     {
-        size_t nMultClusters(0);
-        size_t nHits2D(0);
-        size_t nHitsUsed[] = {0,0,0};
+        int nHits2D(0);
+        int nSharedHits(0);
+        int nUniqueHits(0);
+        int nSharedHits_test(0);
         
-        // loop over the hits in this 3D Cluster hit
+        bool rejectHit(false);
+        
+        // Keep track of associated clusters
+        std::set<const reco::ClusterParameters*> associatedClusterSet;
+        
+        // First loop through hits to categorize
         for(const auto& hit2D : hit3D->getHits())
         {
             if (!hit2D) continue;
             
             size_t plane = hit2D->getHit().WireID().Plane;
+
+            // Check if this hit is shared on another cluster
+            if (hit2DToClusterMap.at(hit2D).size() > 1)
+            {
+/*
+                // Recover our delta T significance...
+                float hitDelTSig = hit3D->getHitDelTSigVec().at(plane);
+                
+                // If somewhat large then see if there is a better match in another cluster
+                if (hitDelTSig > 1.7)
+                {
+                    // Let's compare to the hits in other clusters and decide if we are going to reject this one
+                    for(const auto& clusterPair : hit2DToClusterMap.at(hit2D))
+                    {
+                        if (clusterPair.first == &clusterParams) continue;
+                
+                        for(const auto& clusterHit3D : clusterPair.second)
+                        {
+                            if (hitDelTSig > 1.2 * clusterHit3D->getHitDelTSigVec().at(plane))
+                            {
+                                nSharedHits = 3;
+                                break;
+                            }
+                        }
+                
+                        if (nSharedHits > 1) break;
+                    }
+                }
+*/
+                for(const auto& clusterPair : hit2DToClusterMap.at(hit2D))
+                {
+                    if (clusterPair.first != &clusterParams)
+                    {
+                        associatedClusterSet.insert(clusterPair.first);
+                        totalOtherClusterSet.insert(clusterPair.first);
+                        
+                        if (int(clusterPair.first->getHitPairListPtr().size()) > otherClusterMaxSize)
+                        {
+                            otherClusterMaxSize       = clusterPair.first->getHitPairListPtr().size();
+                            otherClusterMaxSharedHits = clusterPair.second.size();
+                        }
+                        if (int(clusterPair.first->getHitPairListPtr().size()) < otherClusterMinSize)
+                        {
+                            otherClusterMinSize       = clusterPair.first->getHitPairListPtr().size();
+                            otherClusterMinSharedHits = clusterPair.second.size();
+                        }
+                    }
+                }
+                
+                nSharedHits_test++;
+            }
+            else nUniqueHits++;
+
+            if (hit2D->getStatusBits() & reco::ClusterHit2D::USED) nSharedHits++;
             
-            // If 2D hit is marked as already used then record as such...
-            if (hit2D->getStatusBits() & reco::ClusterHit2D::USED) nHitsUsed[plane]++;
-            else                                                   nUniqueHits[plane]++;
+            nTotalHitsVec.at(plane)++;
             
-            // Is this 2D hit shared? (don't forget to ignore the self reference)
-            if (hit2DToClusterMap[hit2D].size() > 1)             nMultClusters++;
-            for(auto& clusterCntPair : hit2DToClusterMap[hit2D]) clusterHitCountMap[clusterCntPair.first]++;
-            
-            nTotalHits[plane]++;
             nHits2D++;
         }
         
-        size_t nHitsAlreadyUsed = std::accumulate(nHitsUsed,nHitsUsed+3,0);
+        if      (nUniqueHits == nHits2D) numUnique3D++;
+        else if (nSharedHits_test == 1)  numOneShared3D++;
+        else if (nSharedHits_test == 2)  numTwoShared3D++;
+        else                             numThreeShared3D++;
         
-        if (nMultClusters > 0)        nMultShared2DHits++;
-        if (nMultClusters == nHits2D) nAllHitsShared++;
+        otherClusterSum += associatedClusterSet.size();
         
-        for(size_t idx=0;idx<3;idx++)
+        if (nSharedHits_test == nHits2D) numAllShared3D++;
+        
+        // If more than one shared hit then candidate for removal...
+//        if (nSharedHits > nHits2D - 2)
+        if (rejectHit) //nSharedHits_test == nHits2D && nSharedHits > 0)
         {
-            if (nHitsAlreadyUsed < nHits2D)
+            usedHitPairList.emplace_back(hit3D);
+            
+            numLostHits += nHits2D;
+        }
+        else
+        {
+            // Now we can process...
+            for(const auto& hit2D : hit3D->getHits())
             {
-                if (hit3D->getHits()[idx]) hitSet.insert(hit3D->getHits()[idx]);
-                //if (hit3D->getHits()[idx]) hitSet.push_back(hit3D->getHits()[idx]);
+                if (!hit2D) continue;
+                
+                hitSet.insert(hit2D);
+                
+                size_t plane = hit2D->getHit().WireID().Plane;
+                
+                if (!(hit2D->getStatusBits() & reco::ClusterHit2D::USED)) nUniqueHitsVec.at(plane)++;
             }
-            else nLostHits[idx] += nHitsUsed[idx];
+        }
+    }
+/*
+    // Spin through the 3D hits and build a map from 2D hits to 3D hits
+    std::map<const reco::ClusterHit2D*, reco::HitPairListPtr> hit2DToHit3DListMap;
+    
+    for(const auto& hit3D : hitPairVector)
+    {
+        for(const auto& hit2D : hit3D->getHits())
+        {
+            if (!hit2D) continue;
+            
+            hit2DToHit3DListMap[hit2D].push_back(hit3D);
+            
+            size_t plane = hit2D->getHit().WireID().Plane;
+            
+            // Do some basic counting
+            if (hit2DToClusterMap.at(hit2D).size() < 2) nUniqueHitsVec.at(plane)++;
+            nTotalHitsVec.at(plane)++;
+        }
+    }
+    
+    // One pass through to see if we can thin the list of 3D hits
+    for(auto& hitPair : hit2DToHit3DListMap)
+    {
+        // Is this 2D hit shared within the same cluster?
+        if (hitPair.second.size() > 1)
+        {
+            const reco::ClusterHit3D* worstHit3D(0);
+            int                       worstNumShared(0);
+            int                       worstNumTotal(0);
+            float                     worstDeltaTSig(0.);
+            
+            // What we want to do is check the other 3D hits and see which might be the "best"
+            for(auto& hit3D : hitPair.second)
+            {
+                int num2DHits(0);
+                int num2DShared(0);
+                
+                for(auto& hit2D : hit3D->getHits())
+                {
+                    if (!hit2D) continue;
+                    
+                    if (hit2DToClusterMap.at(hit2D).size() > 1) num2DShared++;
+                    num2DHits++;
+                }
+                
+                if (num2DShared > worstNumShared)
+                {
+                    worstHit3D     = hit3D;
+                    worstNumShared = num2DShared;
+                    worstNumTotal  = num2DHits;
+                    worstDeltaTSig = hit3D->getDeltaPeakTime() / hit3D->getSigmaPeakTime();
+                }
+                else if (num2DShared == worstNumShared && num2DShared > 0)
+                {
+                    if (worstDeltaTSig > hit3D->getDeltaPeakTime() / hit3D->getSigmaPeakTime())
+                    {
+                        worstHit3D     = hit3D;
+                        worstNumShared = num2DShared;
+                        worstNumTotal  = num2DHits;
+                        worstDeltaTSig = hit3D->getDeltaPeakTime() / hit3D->getSigmaPeakTime();
+                    }
+                }
+            }
+            
+            if (worstHit3D && worstNumTotal > 1)
+            {
+                usedHitPairList.emplace_back(worstHit3D);
+                
+                reco::HitPairListPtr::iterator hit3DItr = std::find(hitPair.second.begin(),hitPair.second.end(),worstHit3D);
+                
+                hitPair.second.erase(hit3DItr);
+            }
         }
         
-        if (nHitsAlreadyUsed == nHits2D) usedHitPairList.emplace_back(hit3D);
+        // What about other clusters?
+        if (hit2DToClusterMap.at(hitPair.first).size() > 1)
+        {
+            for(const auto& clusterPair : hit2DToClusterMap.at(hit2D))
+            {
+                if (clusterPair.first != &clusterParams)
+                {
+                    totalOtherClusterSet.insert(clusterPair.first);
+                    
+                    if (int(clusterPair.first->getHitPairListPtr().size()) > otherClusterMaxSize)
+                    {
+                        otherClusterMaxSize       = clusterPair.first->getHitPairListPtr().size();
+                        otherClusterMaxSharedHits = clusterPair.second.size();
+                    }
+                    if (int(clusterPair.first->getHitPairListPtr().size()) < otherClusterMinSize)
+                    {
+                        otherClusterMinSize       = clusterPair.first->getHitPairListPtr().size();
+                        otherClusterMinSharedHits = clusterPair.second.size();
+                    }
+                }
+            }
+        }
     }
-    
-    int numTotal      = std::accumulate(nTotalHits,nTotalHits+3,0);
-    int numUniqueHits = std::accumulate(nUniqueHits,nUniqueHits+3,0);
-    int numLostHits   = std::accumulate(nLostHits,nLostHits+3,0);
-    
-    std::cout << "*********************************************************************" << std::endl;
-    std::cout << "**--> cluster: " << &clusterParams << " has " << hitPairVector.size() << " 3D hits, " << numTotal << ", numUnique: " << numUniqueHits << " 2D hits, match: " << clusterHitCountMap[&clusterParams] << ", shared: " << nMultShared2DHits << ", all: " << nAllHitsShared << std::endl;
-    
-    for(const auto& clusterCnt : clusterHitCountMap)
-    {
-        if (clusterCnt.first == &clusterParams) continue;
-        std::cout << "      --> cluster " << clusterCnt.first << ", # hits: " << clusterCnt.second << std::endl;
-    }
+*/    
+    // Get totals
+    int numTotalHits  = std::accumulate(nTotalHitsVec.begin(),nTotalHitsVec.end(),0);
+    int numUniqueHits = std::accumulate(nUniqueHitsVec.begin(),nUniqueHitsVec.end(),0);
     
     // If we have something left then at this point we make one more check
     // This check is intended to weed out clusters made from isolated groups of ambiguous hits which
     // really belong to a larger cluster
-    if (numUniqueHits > 3 && nMultShared2DHits < hitPairVector.size())
+    if (numUniqueHits > 3)
     {
         // Look at reject to accept ratio
         //double rejectToAccept = double(numRejected) / double(numAccepted);
-        double acceptRatio = double(numUniqueHits) / double(numTotal);
-        double lostRatio   = double(numLostHits)   / double(numTotal);
+        double acceptRatio = double(numUniqueHits) / double(numTotalHits);
+        double lostRatio   = double(numLostHits)   / double(numTotalHits);
         
         // Also consider the number of hits shared on a given view...
         std::vector<double> uniqueHitVec(3,0.);
         
-        for(size_t idx = 0; idx < 3; idx++) uniqueHitVec[idx] = double(nUniqueHits[idx]) / std::max(double(nTotalHits[idx]),1.);
+        for(size_t idx = 0; idx < 3; idx++) uniqueHitVec[idx] = double(nUniqueHitsVec[idx]) / std::max(double(nTotalHitsVec[idx]),1.);
         
         std::sort(uniqueHitVec.begin(),uniqueHitVec.end());
         
-        double midHitRatio = uniqueHitVec[1];
-        
-        std::cout << "**--> # 3D Hits: " << hitPairVector.size() << ", nTot: " << numTotal << ", unique: " << numUniqueHits << ", lost: " << numLostHits << ", accept: " << acceptRatio << ", lost: " << lostRatio << ", mid: " << midHitRatio << ", rats: " << uniqueHitVec[0] << "/" << uniqueHitVec[1] << "/" << uniqueHitVec[2] << std::endl;
-        
         acceptRatio = 0.;
         lostRatio   = 0.;
-        if(uniqueHitVec[1] > 0.1 && uniqueHitVec[2] > 0.5) acceptRatio = 1.;
+        //if(uniqueHitVec[1] > 0.1 && uniqueHitVec[2] > 0.5) acceptRatio = 1.;
+        if(uniqueHitVec[1] * uniqueHitVec[2] > 0.25) acceptRatio = 1.;
+        
+//        float allSharedFraction = numAllShared3D / float(hitPairVector.size());
+        
+        std::cout << "**--> # 3D Hits: " << hitPairVector.size() << ", nTot: " << numTotalHits << " " << nTotalHitsVec[0] << "/" << nTotalHitsVec[1] << "/" << nTotalHitsVec[2] << ", unique: " << numUniqueHits << " " << nUniqueHitsVec[0] << "/" << nUniqueHitsVec[1] << "/" << nUniqueHitsVec[2] << ", lost: " << usedHitPairList.size() << ", accept: " << acceptRatio << ", rats: " << uniqueHitVec[0] << "/" << uniqueHitVec[1] << "/" << uniqueHitVec[2] << std::endl;
+        std::cout << "      -- nUnique3D: " << numUnique3D << ", 1 shared: " << numOneShared3D << ", 2 shared: " << numTwoShared3D << ", 3 shared: " << numThreeShared3D << ", all shared: " << numAllShared3D << std::endl;
+        std::cout << "      -- total # other clusters: " << totalOtherClusterSet.size() << ", max size: " << otherClusterMaxSize << ", shared: " << otherClusterMaxSharedHits << ", min size: " << otherClusterMinSize << ", shared: " << otherClusterMinSharedHits << std::endl;
         
         // Arbitrary rejection criteria... need to understand
         // Anyway, if we get past this we're making a cluster
         //if (rejectToAccept < rejectFraction)
-        if (acceptRatio > minUniqueFrac && lostRatio < maxLostFrac)  // lostRatio cut was 1. - off
+//        if (numUnique3D > 0 && allSharedFraction < 0.5 && acceptRatio > minUniqueFrac && lostRatio < maxLostFrac)  // lostRatio cut was 1. - off
+        if (numUnique3D > 0 && acceptRatio > minUniqueFrac && lostRatio < maxLostFrac)  // lostRatio cut was 1. - off
         {
-            // Add the "good" hits to our cluster parameters
-            for(const auto& hit2D : hitSet)
-            {
-                hit2D->setStatusBit(reco::ClusterHit2D::USED);
-                clusterParams.UpdateParameters(hit2D);
-            }
+            int nPlanesWithHits    = std::accumulate(nUniqueHitsVec.begin(), nUniqueHitsVec.end(), 0, [](int accum, int total){return total > 0 ? ++accum : accum;});
+            int nPlanesWithMinHits = std::accumulate(nUniqueHitsVec.begin(), nUniqueHitsVec.end(), 0, [](int accum, int total){return total > 2 ? ++accum : accum;});
             
-            size_t nPlanesWithHits    = (clusterParams.getClusterParams()[0].m_hitVector.size() > 0 ? 1 : 0)
-            + (clusterParams.getClusterParams()[1].m_hitVector.size() > 0 ? 1 : 0)
-            + (clusterParams.getClusterParams()[2].m_hitVector.size() > 0 ? 1 : 0);
-            size_t nPlanesWithMinHits = (clusterParams.getClusterParams()[0].m_hitVector.size() > 2 ? 1 : 0)
-            + (clusterParams.getClusterParams()[1].m_hitVector.size() > 2 ? 1 : 0)
-            + (clusterParams.getClusterParams()[2].m_hitVector.size() > 2 ? 1 : 0);
+            std::cout << "      --> nPlanesWithHits: " << nPlanesWithHits << ", nPlanesWithMinHits: " << nPlanesWithMinHits << ", unique prod: " << uniqueHitVec[1] * uniqueHitVec[2] << std::endl;
+
             //            // Final selection cut, need at least 3 hits each view
             //            if (nViewsWithHits == 3 && nViewsWithMinHits > 1)
             // Final selection cut, need at least 3 hits each view for at least 2 views
@@ -276,42 +437,88 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                                         hitPairVector.begin() );
                     
                     hitPairVector.erase(newListEnd, hitPairVector.end());
+                    
+                    // If the clustering algorithm includes edges then need to get rid of those as well
+                    if (!clusterParams.getHit3DToEdgeMap().empty())
+                    {
+                        reco::Hit3DToEdgeMap& edgeMap = clusterParams.getHit3DToEdgeMap();
+                        
+                        for(const auto& hit3D : usedHitPairList)
+                            edgeMap.erase(edgeMap.find(hit3D));
+                    }
+
+//                    removeUsedHitsFromMap(clusterParams, usedHitPairList, hit2DToClusterMap);
                 }
-                
+
                 // First stage of feature extraction runs here
                 m_pcaAlg.PCAAnalysis_3D(clusterParams.getHitPairListPtr(), clusterParams.getFullPCA());
                 
                 // Must have a valid pca
                 if (clusterParams.getFullPCA().getSvdOK())
                 {
-                    std::cout << "**--> Valid Full PCA calculated" << std::endl;
-                    
-                    // If any hits were thrown away, see if we can rescue them
-                    if (!usedHitPairList.empty())
-                    {
-                        double maxDoca = 2. * sqrt(clusterParams.getFullPCA().getEigenValues()[1]);
-                        
-                        if (maxDoca < 5.)
-                        {
-                            size_t curHitVectorSize = hitPairVector.size();
-                            
-                            m_pcaAlg.PCAAnalysis_calc3DDocas(usedHitPairList, clusterParams.getFullPCA());
-                            
-                            for(const auto& hit3D : usedHitPairList)
-                                if (hit3D->getDocaToAxis() < maxDoca) hitPairVector.push_back(hit3D);
-                            
-                            if (hitPairVector.size() > curHitVectorSize)
-                                m_pcaAlg.PCAAnalysis_3D(clusterParams.getHitPairListPtr(), clusterParams.getFullPCA());
-                        }
-                    }
+                    std::cout << "      ******> Valid Full PCA calculated" << std::endl;
                     
                     // Set the skeleton PCA to make sure it has some value
                     clusterParams.getSkeletonPCA() = clusterParams.getFullPCA();
+                    
+                    // Add the "good" hits to our cluster parameters
+                    for(const auto& hit2D : hitSet)
+                    {
+                        hit2D->setStatusBit(reco::ClusterHit2D::USED);
+                        clusterParams.UpdateParameters(hit2D);
+                    }
                 }
             }
         }
     }
     
+    return;
+}
+    
+void ClusterParamsBuilder::removeUsedHitsFromMap(reco::ClusterParameters& clusterParams,
+                                                 reco::HitPairListPtr&    usedHitPairList,
+                                                 reco::Hit2DToClusterMap& hit2DToClusterMap) const
+{
+    // Clean up our hit to cluster map
+    for(const auto& hit3D : usedHitPairList)
+    {
+        for(const auto& hit2D : hit3D->getHits())
+        {
+            if (!hit2D) continue;
+            
+            reco::Hit2DToClusterMap::iterator hitToClusMapItr = hit2DToClusterMap.find(hit2D);
+            
+            // I am pretty sure this can't happen but let's check anyway...
+            if (hitToClusMapItr == hit2DToClusterMap.end())
+            {
+                std::cout << "*********** COULD NOT FIND ENTRY FOR 2D HIT! **************" << std::endl;
+                break;
+            }
+            
+            // Ok, the same hit can be shared in the same cluster so must be careful here
+            // First loop over clusters looking for match
+            reco::ClusterToHitPairSetMap::iterator clusToHit3DMapItr = hitToClusMapItr->second.find(&clusterParams);
+            
+            // This also can't happen
+            if (clusToHit3DMapItr == hitToClusMapItr->second.end())
+            {
+                std::cout << "************ DUCK! THE SKY HAS FALLEN!! *********" << std::endl;
+                break;
+            }
+            
+            // If this hit is shared by more than one 3D hit then pick the right one
+            if (clusToHit3DMapItr->second.size() > 1)
+            {
+                reco::HitPairSetPtr::iterator hit3DItr = clusToHit3DMapItr->second.find(hit3D);
+                
+                clusToHit3DMapItr->second.erase(hit3DItr);
+            }
+            else
+                hitToClusMapItr->second.erase(clusToHit3DMapItr);
+            
+        }
+    }
+
     return;
 }
     
