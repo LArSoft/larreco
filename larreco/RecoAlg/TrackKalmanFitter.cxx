@@ -97,8 +97,11 @@ bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob:
   }
   reverseHits = distB<distF;
 
+  if (dumpLevel_>1) std::cout << "flags.size()=" << flags.size() << " hits.size()=" << hits.size() << " reverseHits=" << reverseHits << std::endl;
+
   // setup vector of HitStates and flags, with either same or inverse order as input hit vector
   // this is what we'll loop over during the fit
+  const int fsize = flags.size();
   const int beg = (reverseHits ? hits.size()-1 : 0);
   const int end = (reverseHits ? -1 : hits.size());
   for (int ihit = beg; ihit!=end; (reverseHits ? ihit-- : ihit++)) {
@@ -109,8 +112,10 @@ bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob:
     double xerr = terr * detprop->GetXTicksCoefficient();
     hitstatev.push_back( std::move( HitState(x,hitErr2ScaleFact_*xerr*xerr,hit->WireID(),geom->WireIDToWireGeo(hit->WireID())) ) );
     //
-    if (flags.size()>0) hitflagsv.push_back( flags[ihit].mask() );
-    else hitflagsv.push_back(recob::TrajectoryPointFlags::makeMask());
+    if (fsize>0 && ihit<fsize) hitflagsv.push_back( flags[ihit].mask() );
+    else hitflagsv.push_back(recob::TrajectoryPointFlags::DefaultFlagsMask());
+    //
+    if (dumpLevel_>2) std::cout << "pushed flag mask=" << hitflagsv.back() << std::endl;
     //
     if (rejectHighMultHits_ && hit->Multiplicity()>1)   {
       hitflagsv.back().set(recob::TrajectoryPointFlagTraits::Merged);
@@ -167,17 +172,18 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
 	  if (hitflags.isSet(recob::TrajectoryPointFlagTraits::NoPoint        ) ||
 	      hitflags.isSet(recob::TrajectoryPointFlagTraits::ExcludedFromFit) ||
 	      hitflags.isSet(recob::TrajectoryPointFlagTraits::Rejected       )) {
+	    if (dumpLevel_>1) std::cout << "rejecting hit flags=" << hitflags.isSet(recob::TrajectoryPointFlagTraits::NoPoint        ) << ", " << hitflags.isSet(recob::TrajectoryPointFlagTraits::ExcludedFromFit) << ", " << hitflags.isSet(recob::TrajectoryPointFlagTraits::Rejected       ) << std::endl;
 	    rejectedhsidx.push_back(ihit);
 	    continue;
 	  }
 	  //get distance to measurement surface
 	  bool success = true;
 	  const double dist = propagator->distanceToPlane(success, trackState.trackState(), hitstate.plane());
+	  if (dumpLevel_>1) std::cout << "distance to plane " << iplane << " wire=" << hitstate.wireId().Wire << " = " << dist << ", min_dist=" << min_dist << " min_plane=" << min_plane << " success=" << success << std::endl;
 	  if (!success) {
 	    rejectedhsidx.push_back(ihit);
 	    continue;
 	  }
-	  if (dumpLevel_>1) std::cout << "distance to plane " << iplane << " wire=" << hitstate.wireId().Wire << " = " << dist << ", min_dist=" << min_dist << " min_plane=" << min_plane << std::endl;
 	  if (applySkipClean && skipNegProp_ && dist<0.) {
 	    rejectedhsidx.push_back(ihit);
 	    continue;

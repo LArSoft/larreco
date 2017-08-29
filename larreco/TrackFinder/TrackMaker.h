@@ -56,23 +56,29 @@ namespace trkmkr {
       addPoint(ope);
     }
     void reset() {
-      if (isTrackFitInfosInit()) outTrackFitHitInfos.reset();
+      if (isTrackFitInfosInit()) {
+	outTrackFitHitInfos.reset();
+	initTrackFitInfos();
+      }
       if (isSpacePointsInit()) {
 	outSpacePointHitPairs.reset();
+	initSpacePoints();
       }
     }
-    void initTrackFitInfos() { outTrackFitHitInfos = std::make_unique< std::vector<recob::TrackFitHitInfo> >(); }
+    void initTrackFitInfos() {
+      outTrackFitHitInfos = std::make_unique< std::vector<recob::TrackFitHitInfo> >();
+    }
     void initSpacePoints() {
       outSpacePointHitPairs = std::make_unique< std::vector<SpHitPair> >();
     }
     bool isTrackFitInfosInit() { return bool(outTrackFitHitInfos); }
     bool isSpacePointsInit() { return bool(outSpacePointHitPairs); }
     std::vector<recob::TrackFitHitInfo> trackFitHitInfos() {
-      if (!outTrackFitHitInfos) throw std::logic_error("outTrackFitHitInfos is not available (any more?).");
+      if (!isTrackFitInfosInit()) throw std::logic_error("outTrackFitHitInfos is not available (any more?).");
       return std::move(*(outTrackFitHitInfos.release() ));
     }
     std::vector<SpHitPair> spacePointHitPairs() {
-      if (!outSpacePointHitPairs) throw std::logic_error("outSpacePointHitPairs is not available (any more?).");
+      if (!isSpacePointsInit()) throw std::logic_error("outSpacePointHitPairs is not available (any more?).");
       return std::move(*(outSpacePointHitPairs.release() ));
     }
   private:
@@ -127,7 +133,7 @@ namespace trkmkr {
     virtual bool makeTrack(const art::Ptr<recob::Track> track, const std::vector<art::Ptr<recob::Hit> >& inHits,
 			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
     {
-      return makeTrack(*track, inHits, outTrack, outHits, optionals);
+      return makeTrack(track->Trajectory(), track.key(), inHits, outTrack, outHits, optionals);
     }
 
     virtual bool makeTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& inHits,
