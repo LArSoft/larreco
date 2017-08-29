@@ -220,8 +220,8 @@ private:
      */
     bool                      m_enableMonitoring;      ///< Turn on monitoring of this algorithm
     std::string               m_hitfinderModuleLabel;  ///< Producer of the reco hits
-    double                    m_parallelHitsCosAng;    ///< Cut for PCA 3rd axis angle to X axis
-    double                    m_parallelHitsTransWid;  ///< Cut on transverse width of cluster (PCA 2nd eigenvalue)
+    float                     m_parallelHitsCosAng;    ///< Cut for PCA 3rd axis angle to X axis
+    float                     m_parallelHitsTransWid;  ///< Cut on transverse width of cluster (PCA 2nd eigenvalue)
 
     /**
      *   Tree variables for output
@@ -305,8 +305,8 @@ void Cluster3D::reconfigure(fhicl::ParameterSet const &pset)
 {
     m_hitfinderModuleLabel = pset.get<std::string>("HitFinderModuleLabel", "gaushit");
     m_enableMonitoring     = pset.get<bool>       ("EnableMonitoring",         false);
-    m_parallelHitsCosAng   = pset.get<double>     ("ParallelHitsCosAng",       0.999);
-    m_parallelHitsTransWid = pset.get<double>     ("ParallelHitsTransWid",      25.0);
+    m_parallelHitsCosAng   = pset.get<float>      ("ParallelHitsCosAng",       0.999);
+    m_parallelHitsTransWid = pset.get<float>      ("ParallelHitsTransWid",      25.0);
     
     m_clusterAlg      = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
     m_clusterMergeAlg = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterMergeAlg"));
@@ -556,10 +556,10 @@ void Cluster3D::findTrackSeeds(art::Event&                         evt,
     
     // Some combination of the elements below will be used to determine which seed finding algorithm
     // to pursue below
-    double eigenVal0 = 3. * sqrt(skeletonPCA.getEigenValues()[0]);
-    double eigenVal1 = 3. * sqrt(skeletonPCA.getEigenValues()[1]);
-    double eigenVal2 = 3. * sqrt(skeletonPCA.getEigenValues()[2]);
-    double transRMS  = sqrt(std::pow(eigenVal1,2) + std::pow(eigenVal2,2));
+    float eigenVal0 = 3. * sqrt(skeletonPCA.getEigenValues()[0]);
+    float eigenVal1 = 3. * sqrt(skeletonPCA.getEigenValues()[1]);
+    float eigenVal2 = 3. * sqrt(skeletonPCA.getEigenValues()[2]);
+    float transRMS  = sqrt(std::pow(eigenVal1,2) + std::pow(eigenVal2,2));
     
     bool   foundGoodSeed(false);
 
@@ -623,7 +623,7 @@ void Cluster3D::findTrackSeeds(art::Event&                         evt,
     
 struct Hit3DDistanceOrder
 {
-    bool operator()(const std::pair<double, const reco::ClusterHit3D*>& left, const std::pair<double, const reco::ClusterHit3D*>& right)
+    bool operator()(const std::pair<float, const reco::ClusterHit3D*>& left, const std::pair<float, const reco::ClusterHit3D*>& right)
     {
         return left.first < right.first;
     }
@@ -643,14 +643,14 @@ void Cluster3D::splitClustersWithMST(reco::ClusterParameters& clusterParameters,
     //
     // Typedef some data structures that we will use.
     // Start with the adjacency map
-    typedef std::pair<double, const reco::ClusterHit3D*>                DistanceHit3DPair;
+    typedef std::pair<float, const reco::ClusterHit3D*>                 DistanceHit3DPair;
     typedef std::list<DistanceHit3DPair >                               DistanceHit3DPairList;
     typedef std::map<const reco::ClusterHit3D*, DistanceHit3DPairList > Hit3DToDistanceMap;
     
     // Now typedef the lists we'll keep
     typedef std::list<const reco::ClusterHit3D*>                        Hit3DList;
     typedef std::pair<Hit3DList::iterator, Hit3DList::iterator>         Hit3DEdgePair;
-    typedef std::pair<double, Hit3DEdgePair >                           DistanceEdgePair;
+    typedef std::pair<float, Hit3DEdgePair >                            DistanceEdgePair;
     typedef std::list<DistanceEdgePair >                                DistanceEdgePairList;
     
     struct DistanceEdgePairOrder
@@ -688,7 +688,7 @@ void Cluster3D::splitClustersWithMST(reco::ClusterParameters& clusterParameters,
             const reco::ClusterHit3D* hit3DInner = *hit3DInnerItr;
             TVector3                  innerPos(hit3DInner->getPosition()[0], hit3DInner->getPosition()[1], hit3DInner->getPosition()[2]);
             TVector3                  deltaPos = innerPos - outerPos;
-            double                    hitDistance(deltaPos.Mag());
+            float                     hitDistance(float(deltaPos.Mag()));
             
             if (hitDistance > 20.) continue;
             
@@ -716,15 +716,15 @@ void Cluster3D::splitClustersWithMST(reco::ClusterParameters& clusterParameters,
     
     skeletonListPtr.front()->setStatusBit(reco::ClusterHit3D::SELECTEDBYMST);
     
-    double largestDistance(0.);
-    double averageDistance(0.);
+    float largestDistance(0.);
+    float averageDistance(0.);
     
     // Now run the MST
     // Basically, we loop until the MST list is the same size as the input list
     while(hit3DList.size() < skeletonListPtr.size())
     {
         Hit3DList::iterator bestHit3DIter = hit3DList.begin();
-        double              bestDist      = 10000000.;
+        float               bestDist      = 10000000.;
         
         // Loop through all hits currently in the list and look for closest hit not in the list
         for(Hit3DList::iterator hit3DIter = hit3DList.begin(); hit3DIter != hit3DList.end(); hit3DIter++)
@@ -768,9 +768,9 @@ void Cluster3D::splitClustersWithMST(reco::ClusterParameters& clusterParameters,
         nextHit3D->setStatusBit(reco::ClusterHit3D::SELECTEDBYMST);
     }
     
-    averageDistance /= double(hit3DList.size());
+    averageDistance /= float(hit3DList.size());
     
-    double thirdDist = 2.*sqrt(clusterParameters.getSkeletonPCA().getEigenValues()[2]);
+    float thirdDist = 2.*sqrt(clusterParameters.getSkeletonPCA().getEigenValues()[2]);
     
     // Ok, find the largest distance in the iterator map
     distanceEdgePairList.sort(DistanceEdgePairOrder());
@@ -809,14 +809,14 @@ void Cluster3D::splitClustersWithMST(reco::ClusterParameters& clusterParameters,
 class CopyIfInRange
 {
 public:
-    CopyIfInRange(double maxRange) : m_maxRange(maxRange) {}
+    CopyIfInRange(float maxRange) : m_maxRange(maxRange) {}
     
     bool operator()(const reco::ClusterHit3D* hit3D)
     {
         return hit3D->getDocaToAxis() < m_maxRange;
     }
 private:
-    double m_maxRange;
+    float m_maxRange;
 };
 
 void Cluster3D::splitClustersWithHough(reco::ClusterParameters&     clusterParameters,
@@ -881,7 +881,7 @@ void Cluster3D::splitClustersWithHough(reco::ClusterParameters&     clusterParam
         m_pcaAlg.PCAAnalysis_calc3DDocas(firstHitList, firstHitListPCA);
         
         // Divine from the ether some maximum allowed range for transfering hits
-        double allowedHitRange = 6. * firstHitListPCA.getAveHitDoca();
+        float allowedHitRange = 6. * firstHitListPCA.getAveHitDoca();
         
         // Now go through and calculate the 3D doca's for ALL the hits in the original cluster
         m_pcaAlg.PCAAnalysis_calc3DDocas(hitPairListPtr, firstHitListPCA);
@@ -931,7 +931,7 @@ void Cluster3D::splitClustersWithHough(reco::ClusterParameters&     clusterParam
             m_pcaAlg.PCAAnalysis_calc3DDocas(secondHitList, secondHitListPCA);
             
             // Since this is the "other" cluster, we'll be a bit more generous in adding back hits
-            double newAllowedHitRange = 6. * secondHitListPCA.getAveHitDoca();
+            float newAllowedHitRange = 6. * secondHitListPCA.getAveHitDoca();
             
             // Go through and calculate the 3D doca's for the hits in our new candidate cluster
             m_pcaAlg.PCAAnalysis_calc3DDocas(newClusterHitList, secondHitListPCA);
@@ -1217,21 +1217,47 @@ void Cluster3D::ProduceArtClusters(art::Event&                  evt,
             artPFParticleVector->push_back(pfParticle);
             
             // Look at making the PCAxis and associations - for both the skeleton (the first) and the full
+            // First need some float to double conversion containers
+            recob::PCAxis::EigenVectors eigenVecs;
+            double                      eigenVals[]   = {0.,0.,0.};
+            double                      avePosition[] = {0.,0.,0.};
+            
+            eigenVecs.resize(3);
+            
+            for(size_t outerIdx = 0; outerIdx < 3; outerIdx++)
+            {
+                avePosition[outerIdx] = skeletonPCA.getAvePosition()[outerIdx];
+                eigenVals[outerIdx]   = skeletonPCA.getEigenValues()[outerIdx];
+                
+                eigenVecs[outerIdx].resize(3);
+                
+                for(size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = skeletonPCA.getEigenVectors()[outerIdx][innerIdx];
+            }
+            
+            
             recob::PCAxis skelPcAxis(skeletonPCA.getSvdOK(),
                                      skeletonPCA.getNumHitsUsed(),
-                                     skeletonPCA.getEigenValues(),
-                                     skeletonPCA.getEigenVectors(),
-                                     skeletonPCA.getAvePosition(),
+                                     eigenVals,                      //skeletonPCA.getEigenValues(),
+                                     eigenVecs,                      //skeletonPCA.getEigenVectors(),
+                                     avePosition,                    //skeletonPCA.getAvePosition(),
                                      skeletonPCA.getAveHitDoca(),
                                      pcaAxisID++);
             
             artPCAxisVector->push_back(skelPcAxis);
             
+            for(size_t outerIdx = 0; outerIdx < 3; outerIdx++)
+            {
+                avePosition[outerIdx] = fullPCA.getAvePosition()[outerIdx];
+                eigenVals[outerIdx]   = fullPCA.getEigenValues()[outerIdx];
+                
+                for(size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = fullPCA.getEigenVectors()[outerIdx][innerIdx];
+            }
+            
             recob::PCAxis fullPcAxis(fullPCA.getSvdOK(),
                                      fullPCA.getNumHitsUsed(),
-                                     fullPCA.getEigenValues(),
-                                     fullPCA.getEigenVectors(),
-                                     fullPCA.getAvePosition(),
+                                     eigenVals,                      //fullPCA.getEigenValues(),
+                                     eigenVecs,                      //fullPCA.getEigenVectors(),
+                                     avePosition,                    //fullPCA.getAvePosition(),
                                      fullPCA.getAveHitDoca(),
                                      pcaAxisID++);
             
