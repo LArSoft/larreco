@@ -815,13 +815,7 @@ namespace tca {
     
     if(tjs.vtx3.empty()) return;
     if(tjs.matchVec.empty()) return;
-    
-    // Clear out matchVecPFPList for this tpcid
-    for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
-      auto& pfp = tjs.pfps[ipfp];
-      if(pfp.TPCID == tpcid) tjs.pfps.erase(tjs.pfps.begin() + ipfp);
-    } // ipfp
-    
+
     // sort the vertices by decreasing score
     std::vector<SortEntry> sortVec;
     for(auto& vx3 : tjs.vtx3) {
@@ -885,8 +879,8 @@ namespace tca {
             if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
           }
           if(skipit) continue;
-          // Require 0 or matched shower Tjs in all planes
-          if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
+          // Don't consider shower Tjs
+          if(nstj != 0) continue;
           // make a copy of the TjIDs so they can be sorted in increasing order so
           // that std::set_intersection works properly
           auto mstjids = ms.TjIDs;
@@ -898,7 +892,6 @@ namespace tca {
           // perfect match. Ensure that the points near the vertex are consistent
           PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
           pfp.TjIDs = shared;
-          if(nstj == ms.TjIDs.size()) pfp.PDGCode = 1111;
           TagBragg(tjs, pfp, prt);
           // declare a start or end vertex and set the end points
           if(pfp.Vx3ID[0] == 0) {
