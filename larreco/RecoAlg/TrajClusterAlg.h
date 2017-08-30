@@ -314,14 +314,8 @@ namespace tca {
     // TY: Split high charge hits near the trajectory end
     void ChkHiChgHits();
     void SplitHiChgHits(Trajectory& tj);
-    void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
       // ****************************** 3D Tj matching code  ******************************
-    void Match3D(const geo::TPCID& tpcid, bool reset);
-    void Match3Dv2(const geo::TPCID& tpcid, bool reset);
-    void Match2Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);
-    void Match3Views(const geo::TPCID& tpcid, std::vector<MatchStruct>& matVec);
-    void Find3DEndPoints(const geo::TPCID& tpcid);
-    void FillPFPInfo();
+    void Match3D(const geo::TPCID& tpcid);
 
     
   }; // class TrajClusterAlg
