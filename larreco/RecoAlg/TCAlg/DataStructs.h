@@ -122,7 +122,6 @@ namespace tca {
     // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
     unsigned short npts;
     short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
-    bool inShower;
   };
 
   struct TrajPoint {
@@ -272,12 +271,12 @@ namespace tca {
     std::vector<double> dEdxErr;
     geo::TPCID TPCID;
     std::vector<unsigned short> CotIndices;  // vector of 2D shower IDs
-    std::vector<unsigned short> TjIDs;
     std::vector<unsigned int> Hits;
     int BestPlane;
     int ID;
     float FOM;
     unsigned short PFPIndex {USHRT_MAX};
+    unsigned short Vx3ID {0};
   };
 
   struct ShowerTreeVars {
