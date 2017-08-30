@@ -40,6 +40,8 @@ public:
               CollectionWireHit* cwire,
               InductionWireHit* wire1, InductionWireHit* wire2);
 
+  void AddCharge(double dq);
+
   //protected:
   double fX, fY, fZ;
   CollectionWireHit* fCWire;
@@ -63,13 +65,12 @@ public:
 
   double fCharge;
 
-  std::vector<double> fWeights; ///< Distribution of charge over crossings
   std::vector<SpaceCharge*> fCrossings;
 };
 
 double Metric(const std::vector<SpaceCharge*>& scs, double alpha);
 double Metric(const std::vector<CollectionWireHit*>& cwires, double alpha);
-QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double Q, double alpha);
+QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha);
 
 double SolvePair(CollectionWireHit* cwire,
                  SpaceCharge* sci, SpaceCharge* scj,

@@ -32,10 +32,21 @@ SpaceCharge::SpaceCharge(double x, double y, double z,
 }
 
 // ---------------------------------------------------------------------------
+void SpaceCharge::AddCharge(double dq)
+{
+  fPred += dq;
+
+  for(Neighbour& nei: fNeighbours)
+    nei.fSC->fNeiPotential += dq * nei.fCoupling;
+
+  fWire1->fPred += dq;
+  fWire2->fPred += dq;
+}
+
+// ---------------------------------------------------------------------------
 CollectionWireHit::CollectionWireHit(int chan, double t, double q,
                                      const std::vector<SpaceCharge*>& cross)
   : fChannel(chan), fTime(t), fCharge(q),
-    fWeights(cross.size(), 1./cross.size()),
     fCrossings(cross)
 {
   const double p = q/cross.size();
@@ -103,11 +114,11 @@ double Metric(const std::vector<CollectionWireHit*>& cwires, double alpha)
 }
 
 // ---------------------------------------------------------------------------
-QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double Q,
-                double alpha)
+QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha)
 {
   QuadExpr ret = 0;
 
+  // How much charge moves from scj to sci
   QuadExpr x = QuadExpr::X();
 
   const InductionWireHit* iwire1 = sci->fWire1;
@@ -130,13 +141,13 @@ QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double Q,
 
   if(alpha != 0){
     // Self energy. SpaceCharges are never the same object
-    ret -= alpha*sqr(scip + x*Q);
-    ret -= alpha*sqr(scjp - x*Q);
+    ret -= alpha*sqr(scip + x);
+    ret -= alpha*sqr(scjp - x);
 
     // Interaction. We're only seeing one end of the double-ended connection
     // here, so multiply by two.
-    ret -= 2 * alpha * (scip + x*Q) * sci->fNeiPotential;
-    ret -= 2 * alpha * (scjp - x*Q) * scj->fNeiPotential;
+    ret -= 2 * alpha * (scip + x) * sci->fNeiPotential;
+    ret -= 2 * alpha * (scjp - x) * scj->fNeiPotential;
     // TODO - this miscounts if i and j are neighbours of each other?
   }
 
@@ -144,16 +155,16 @@ QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double Q,
     ret += Metric(qi1, pi1);
   }
   else{
-    ret += Metric(qi1, pi1 + x*Q);
-    ret += Metric(qj1, pj1 - x*Q);
+    ret += Metric(qi1, pi1 + x);
+    ret += Metric(qj1, pj1 - x);
   }
 
   if(iwire2 == jwire2){
     ret += Metric(qi2, pi2);
   }
   else{
-    ret += Metric(qi2, pi2 + x*Q);
-    ret += Metric(qj2, pj2 - x*Q);
+    ret += Metric(qi2, pi2 + x);
+    ret += Metric(qj2, pj2 - x);
   }
 
   return ret;
@@ -162,16 +173,17 @@ QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double Q,
 // ---------------------------------------------------------------------------
 double SolvePair(CollectionWireHit* cwire,
                  SpaceCharge* sci, SpaceCharge* scj,
-                 double xmin, double xmax,
                  double alpha)
 {
-  const double Q = cwire->fCharge; // The charge available to be distributed
-
-  const QuadExpr chisq = Metric(sci, scj, Q, alpha);
+  const QuadExpr chisq = Metric(sci, scj, alpha);
   const double chisq0 = chisq.Eval(0);
 
   // Find the minimum of a quadratic expression
   double x = -chisq.Linear()/(2*chisq.Quadratic());
+
+  // Don't allow either SpaceCharge to go negative
+  const double xmin = -sci->fPred;
+  const double xmax =  scj->fPred;
 
   // Clamp to allowed range
   x = std::min(xmax, x);
@@ -205,8 +217,6 @@ double SolvePair(CollectionWireHit* cwire,
 // ---------------------------------------------------------------------------
 void Iterate(CollectionWireHit* cwire, double alpha)
 {
-  const double Q = cwire->fCharge; // The charge available to be distributed
-
   // Consider all pairs of crossings
   const unsigned int N = cwire->fCrossings.size();
 
@@ -228,43 +238,13 @@ void Iterate(CollectionWireHit* cwire, double alpha)
       // Driving all the same wires, no move can have any effect
       if(iwire1 == jwire1 && iwire2 == jwire2) continue;
 
-      // Physical limits, no weight can go outside [0,1]
-      const double wi = cwire->fWeights[i];
-      const double wj = cwire->fWeights[j];
-      double xmin = -1;
-      double xmax = +1;
-      if(wi+xmin < 0) xmin = -wi;
-      if(wj-xmax < 0) xmax = +wj;
-      if(wi+xmax > 1) xmax = 1-wi;
-      if(wj-xmin > 1) xmin = wj-1;
-
-      const double x = SolvePair(cwire, sci, scj, xmin, xmax, alpha);
+      const double x = SolvePair(cwire, sci, scj, alpha);
 
       if(x == 0) continue;
 
       // Actually make the update
-      cwire->fWeights[i] += x;
-      cwire->fWeights[j] -= x;
-
-      if(cwire->fWeights[i] < 0 ||
-         cwire->fWeights[j] < 0 ||
-         cwire->fWeights[i] > 1 ||
-         cwire->fWeights[j] > 1) abort();
-
-      sci->fPred += x*Q;
-      scj->fPred -= x*Q;
-
-      for(Neighbour& nei: sci->fNeighbours){
-        nei.fSC->fNeiPotential += x*Q * nei.fCoupling;
-      }
-      for(Neighbour& nei: scj->fNeighbours){
-        nei.fSC->fNeiPotential -= x*Q * nei.fCoupling;
-      }
-
-      iwire1->fPred += x*Q;
-      iwire2->fPred += x*Q;
-      jwire1->fPred -= x*Q;
-      jwire2->fPred -= x*Q;
+      sci->AddCharge(+x);
+      scj->AddCharge(-x);
     } // end for j
   } // end for i
 }

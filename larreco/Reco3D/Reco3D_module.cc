@@ -235,9 +235,8 @@ void Reco3D::plot(const geo::Geometry* geom,
 
     for(unsigned int icross = 0; icross < cwire->fCrossings.size(); ++icross){
       const SpaceCharge* sc = cwire->fCrossings[icross];
-      const double w = cwire->fWeights[icross];
 
-      if(w == 0) continue;
+      if(sc->fPred == 0) continue;
 
       // Approximate correction factor from time to space
       ps.emplace_back(sc->fX, sc->fY, sc->fZ);
@@ -609,9 +608,8 @@ void Reco3D::produce(art::Event& evt)
     for(const CollectionWireHit* cwire: cwires){
       for(unsigned int icross = 0; icross < cwire->fCrossings.size(); ++icross){
         const SpaceCharge* sc = cwire->fCrossings[icross];
-        const double w = cwire->fWeights[icross];
 
-        if(w == 0) continue;
+        if(sc->fPred == 0) continue;
 
         // TODO find somewhere to save the charge too
         double xyz[3] = {sc->fX, sc->fY, sc->fZ};
