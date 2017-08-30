@@ -12,13 +12,13 @@ bool lessThan (SortEntry c1, SortEntry c2) { return (c1.length < c2.length);}
 namespace tca {
 
   ////////////////////////////////////////////////
-  bool Find3DShowerEndPoints(TjStuff& tjs, PFPStruct& pfp)
+  bool Find3DShowerEndPoints(TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
   {
     
-    if(pfp.PDGCode != 1111) return false;
-    if(pfp.ID == 0) return false;
+    if(ss3.ID == 0) return false;
+    if(ss3.PFPIndex > tjs.pfps.size() - 1) return false;
     
-    bool prt = (((int)tjs.ShowerTag[12] % 10) == 3);
+    auto& pfp = tjs.pfps[ss3.PFPIndex];
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -82,6 +82,7 @@ namespace tca {
     auto& longTj = tjs.allTraj[maxID - 1];
     geo::PlaneID planeID = DecodeCTP(longTj.CTP);
     pfp.BestPlane = planeID.Plane;
+    ss3.BestPlane = planeID.Plane;
     double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
     double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[0].Y() + std::cos(angleToVert) * pfp.Dir[0].Z());
     if(cosgamma == 0) return false;
@@ -90,9 +91,18 @@ namespace tca {
     
     for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
       pfp.XYZ[1][ixyz] = pfp.XYZ[0][ixyz] + pfp.Dir[0][ixyz] * maxlen;
+      ss3.Pos[ixyz] = pfp.XYZ[0][ixyz];
     }
     // Set the end direction to the start direction
     pfp.Dir[1] = pfp.Dir[0];
+    ss3.Dir = pfp.Dir[0];
+    // Find the shower length.
+    ss3.Len = 0;
+    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
+      double dpos = pfp.XYZ[1][ixyz] - pfp.XYZ[0][ixyz];
+      ss3.Len += dpos * dpos;
+    }
+    ss3.Len = sqrt(ss3.Len);
     
     return true;
   } // Find3DShowerEndPoints
@@ -105,7 +115,7 @@ namespace tca {
     if(tjs.ShowerTag[0] < 1) return;
 
     // Transfer Tj hits from InShower Tjs to the shower Tj
-    if(TransferTjHits(tjs, false)) return;
+    if(!TransferTjHits(tjs, false)) return;
     
     // Associate shower Tj hits with 3D showers
     for(auto& ss3 : tjs.showers) {
@@ -118,6 +128,7 @@ namespace tca {
           ss3.Hits.insert(ss3.Hits.end(), tjHits.begin(), tjHits.end());
         } // tjid
       } // cotIndex
+      std::cout<<"ss3 "<<ss3.ID<<" nhits "<<ss3.Hits.size()<<"\n";
     } // ss3
 
   } // FinishShowers
@@ -651,11 +662,12 @@ namespace tca {
       pfp.Vx3ID[0] = ss3.Vx3ID;
       ss3.PFPIndex = tjs.pfps.size();
       pfp.PDGCode = 1111;
-      if(!Find3DShowerEndPoints(tjs, pfp)) {
+      tjs.pfps.push_back(pfp);
+      if(!Find3DShowerEndPoints(tjs, ss3, prt)) {
         std::cout<<fcnLabel<<" Find3DShowerEndPoints failed\n";
         continue;
       }
-      tjs.pfps.push_back(pfp);
+      ss3.OpenAngle = 0.05;
     } // ss3
     PrintPFParticles("RSo", tjs);
    
