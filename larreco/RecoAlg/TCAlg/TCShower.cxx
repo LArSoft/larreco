@@ -462,6 +462,7 @@ namespace tca {
           ss3.CotIndices[1] = cj;
           ss3.Energy[iplaneID.Plane] = tjs.cots[ci].Energy;
           ss3.Energy[jplaneID.Plane] = tjs.cots[cj].Energy;
+          if(prt) mf::LogVerbatim("TC")<<" new 2-plane ss3 "<<ss3.ID<<" ssIDs "<<iss.ID<<" "<<jss.ID<<" with FOM "<<ss3.FOM;
         } else {
           // showers match in 3 planes
           unsigned short ck = bestck;
@@ -475,11 +476,11 @@ namespace tca {
           ss3.Energy[jplaneID.Plane] = tjs.cots[cj].Energy;
           ss3.Energy[kplaneID.Plane] = tjs.cots[ck].Energy;
           tjs.cots[ck].SS3ID = ss3.ID;
+          if(prt) mf::LogVerbatim("TC")<<" new 3-plane ss3 "<<ss3.ID<<" ssIDs "<<iss.ID<<" "<<jss.ID<<" "<<tjs.cots[ck].ID<<" with FOM "<<ss3.FOM;
         }
         ss3.FOM = 0.5 * (fomij + bestFOM);
         // don't fill or use the rest of the variables yet
         tjs.showers.push_back(ss3);
-        if(prt) mf::LogVerbatim("TC")<<" new ss3 "<<ss3.ID<<" ssIDs "<<iss.ID<<" "<<jss.ID<<" "<<tjs.cots[bestck].ID<<" with FOM "<<ss3.FOM;
       } // cj
     } // ci
     if(tjs.showers.empty()) return;
