@@ -33,7 +33,7 @@
 
 namespace tca {
 
-  bool Find3DShowerEndPoints(TjStuff& tjs, PFPStruct& ms);
+  bool Find3DShowerEndPoints(TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   void KillVerticesInShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void Finish3DShowers(TjStuff& tjs);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
