@@ -261,8 +261,6 @@ namespace tca {
         // Mode 2: check for a valid TjID
         if(returnMatchPts && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), jTjPt.id) == pfp.TjIDs.end()) continue;
         if(jTjPt.score < 0 || jTjPt.score > maxScore) continue;
-        // ensure inShower consistency
-        if(jTjPt.inShower != iTjPt.inShower) continue;
         // check for x range overlap. We know that jTjPt.xlo is >= iTjPt.xlo because of the sort
         if(jTjPt.xlo > iTjPt.xhi) continue;
         // break out if the x range difference becomes large (10 cm)
@@ -295,8 +293,6 @@ namespace tca {
             // Mode 2: check for a valid TjID
             if(returnMatchPts && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), kTjPt.id) == pfp.TjIDs.end()) continue;
             if(kTjPt.score < 0 || kTjPt.score > maxScore) continue;
-            // ensure inShower consistency
-            if(kTjPt.inShower != iTjPt.inShower) continue;
             if(kTjPt.xlo > iTjPt.xhi) continue;
             // break out if the x range difference becomes large
             if(kTjPt.xlo > iTjPt.xhi + 10) break;
@@ -631,12 +627,14 @@ namespace tca {
         } // tjEnd
         if(vtxEnd == USHRT_MAX) continue;
         if(vtxEnd != 0) ReverseTraj(tjs, tj); 
+//        if(prt) mf::LogVerbatim("TC")<<" Reverse Tj "<<id<<" end0 Pos "<<PrintPos(tjs, tj.Pts[tj.EndPt[0]].Pos);
       } // id
       // Find the direction and set it to be away from the start vertex
       auto& tj1 = tjs.allTraj[pfp.TjIDs[0] - 1];
       auto& tp1 = tj1.Pts[tj1.EndPt[0]];
       auto& tj2 = tjs.allTraj[pfp.TjIDs[1] - 1];
       auto& tp2 = tj2.Pts[tj2.EndPt[0]];
+//      if(prt) mf::LogVerbatim("TC")<<" tp1 Pos "<<PrintPos(tjs, tp1.Pos)<<" tp2 Pos "<<PrintPos(tjs, tp2.Pos);
       TVector3 pos, dir;
       if(!TrajPoint3D(tjs, tp1, tp2, pos, dir, prt)) {
         if(prt) mf::LogVerbatim("TC")<<"SPEP: "<<pfp.ID<<" TrajPoint3D failed";
@@ -1300,7 +1298,7 @@ namespace tca {
   } // Reverse3DMatchTjs
   
   ////////////////////////////////////////////////
-  unsigned short PFPIndex(const TjStuff& tjs, int tjID)
+  unsigned short GetPFPIndex(const TjStuff& tjs, int tjID)
   {
     // returns the index into the tjs.matchVec vector of the first 3D match that
     // includes tjID
@@ -1309,7 +1307,7 @@ namespace tca {
       if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjID) != pfp.TjIDs.end()) return ipfp;
     } // indx
     return USHRT_MAX;
-  } // MatchVecPFPIndex
+  } // GetPFPIndex
 
   ////////////////////////////////////////////////
   unsigned short MatchVecIndex(const TjStuff& tjs, int tjID)
@@ -1329,6 +1327,8 @@ namespace tca {
     // The calling function should define the size of pfp.TjIDs
     PFPStruct pfp;
     pfp.ID = tjs.pfps.size() + 1;
+    // assume it is it's own parent
+    pfp.ParentID = pfp.ID;
     pfp.TPCID = tpcid;
     // initialize arrays for both ends
     pfp.dEdx[0].resize(tjs.NumPlanes, 0);
@@ -2628,6 +2628,12 @@ namespace tca {
       tj.Pts[ipt].Ang = std::atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
     } // ipt
     SetEndPoints(tjs, tj);
+    // correct mallTraj if it exists
+    if(tjs.mallTraj.empty()) return;
+    for(auto& tjpt : tjs.mallTraj) {
+      if(tjpt.id != tj.ID) continue;
+      tjpt.ipt = tj.Pts.size() - tjpt.ipt - 1;
+    } // tjpt
   } // ReverseTraj
   
   //////////////////////////////////////////
@@ -3495,7 +3501,7 @@ namespace tca {
       if(!tjs.vtx3.empty()) {
         // print out 3D vertices
         myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
-        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score nTru  2D_Vtx_Pos\n";
+        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score nTru  2D_Vtx_Pos          Tjs\n";
         for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
           if(tjs.vtx3[iv].ID == 0) continue;
           const Vtx3Store& vx3 = tjs.vtx3[iv];
@@ -3542,6 +3548,9 @@ namespace tca {
               }
             } // ipl
           }
+          float score;
+          auto vxtjs = GetVtxTjIDs(tjs, vx3, score);
+          for(auto tjid : vxtjs) myprt<<" "<<tjid;
           myprt<<"\n";
         }
       } // tjs.vtx3.size
@@ -3840,7 +3849,7 @@ namespace tca {
     
     mf::LogVerbatim myprt("TC");
     myprt<<someText;
-    myprt<<" PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par E*P   TjIDs\n";
+    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par E*P   TjIDs\n";
     unsigned short indx = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
