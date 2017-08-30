@@ -486,11 +486,11 @@ namespace tca {
         }
       }
       // Match3D should be the last thing called for this tpcid
-      Match3D(tpcid, false);
+      Match3D(tpcid);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
       // true if the algorithm was successful indicating that the matching needs to be redone
       if(tjs.ShowerTag[0] > 0) {
-        if(FindShowers3D(tjs, tpcid)) Match3D(tpcid, true);
+        FindShowers3D(tjs, tpcid);
         if(tjs.SaveShowerTree) {
           std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
           showertree->Fill();
@@ -2258,7 +2258,7 @@ namespace tca {
   } // EndMerge
   
   //////////////////////////////////////////
-  void TrajClusterAlg::Match3D(const geo::TPCID& tpcid, bool secondPass)
+  void TrajClusterAlg::Match3D(const geo::TPCID& tpcid)
   {
     // Version 2 of 3D matching that uses Utils/FindXMatches
     
@@ -2273,19 +2273,14 @@ namespace tca {
       mf::LogVerbatim("TC")<<"inside Match3D. dX (cm) cut "<<tjs.Match3DCuts[0];
     }
     
-    if(secondPass) {
-      // clear out pfparticles in this tpc
-      for(unsigned short ipfp = 0; ipfp != tjs.pfps.size(); ++ipfp) {
-        if(tjs.pfps[ipfp].TPCID.Cryostat != (unsigned int)cstat) continue;
-        if(tjs.pfps[ipfp].TPCID.TPC != (unsigned int)tpc) continue;
-        tjs.pfps[ipfp].ID = 0;
-      } // ipfp
-    } // reset
-    
     // count the number of TPs and clear out any old 3D match flags
     unsigned int ntp = 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
+      // don't match InShower Tjs
+      if(tj.AlgMod[kInShower]) continue;
+      // or Shower Tjs
+      if(tj.AlgMod[kShowerTj]) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
       if((int)planeID.TPC != tpc) continue;
@@ -2301,27 +2296,15 @@ namespace tca {
     unsigned int icnt = 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
+      // don't match shower-like Tjs
+      if(tj.AlgMod[kInShower]) continue;
+      // or Shower Tjs
+      if(tj.AlgMod[kShowerTj]) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
       if((int)planeID.TPC != tpc) continue;
       int plane = planeID.Plane;
       int tjID = tj.ID;
-      // re-direct Inshower Tjs to the shower Tj
-      bool inShower = false;
-      if(tj.AlgMod[kInShower]) {
-        // look for this Tj in cots
-        unsigned short stjID = 0;
-        for(auto& ss : tjs.cots) {
-          if(ss.ID == 0) continue;
-          if(ss.TjIDs.empty()) continue;
-          if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tjID) != ss.TjIDs.end()) {
-            stjID = ss.ShowerTjID;
-            inShower = true;
-            break;
-          } // found inShower tjID in ss
-        } // ss
-        tjID = stjID;
-      } // inShower
       if(tjID == 0) continue;
       short score = 1;
       if(TjHasNiceVtx(tjs, tj, tjs.Vertex2DCuts[7])) score = 0;
@@ -2337,6 +2320,10 @@ namespace tca {
         float posPlusRMS = tp.Pos[1] + TPHitsRMSTime(tjs, tp, kUsedHits);
         float rms = tjs.detprop->ConvertTicksToX(posPlusRMS/tjs.UnitsPerTick, plane, tpc, cstat) - xpos;
         if(rms < tjs.Match3DCuts[0]) rms = tjs.Match3DCuts[0];
+        if(icnt == tjs.mallTraj.size()) {
+          std::cout<<"Match3D: indexing error\n";
+          break;
+        }
         tjs.mallTraj[icnt].xlo = xpos - rms;
         tjs.mallTraj[icnt].xhi = xpos + rms;
         tjs.mallTraj[icnt].dir = tp.Dir;
@@ -2345,7 +2332,6 @@ namespace tca {
         tjs.mallTraj[icnt].ipt = ipt;
         tjs.mallTraj[icnt].npts = tj.Pts.size();
         tjs.mallTraj[icnt].score = score;
-        tjs.mallTraj[icnt].inShower = inShower;
         // populate the sort vector
         sortVec[icnt].index = icnt;
         sortVec[icnt].val = tjs.mallTraj[icnt].xlo;
@@ -2445,8 +2431,6 @@ namespace tca {
       // Require 0 or a matched shower Tj in all planes
       if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
       PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
-      pfp.TjIDs = ms.TjIDs;
-      if(nstj > 0) pfp.PDGCode = 1111;
       // declare a start or end vertex and set the end points
       if(pfp.Vx3ID[0] == 0) {
         if(!SetPFPEndPoints(tjs, pfp, 0, prt)) continue;
@@ -4564,8 +4548,6 @@ namespace tca {
     for(itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& tj = tjs.allTraj[itj];
       if(tj.AlgMod[kKilled]) continue;
-      // big temp
-      if(fMode == 3 && !tj.AlgMod[kShowerTj]) continue;
       // ensure that the endPts are correct
       SetEndPoints(tjs, tj);
       auto tHits = PutTrajHitsInVector(tj, kUsedHits);
@@ -4598,7 +4580,7 @@ namespace tca {
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) ++fAlgModCount[ib];
       ++clID;
       cls.ID = clID;
-      // assigne shower clusters a negative ID
+      // assign shower clusters a negative ID
       if(tj.AlgMod[kShowerTj]) cls.ID = -cls.ID;
       cls.CTP = tj.CTP;
       cls.PDGCode = tj.PDGCode;
@@ -4638,28 +4620,7 @@ namespace tca {
         tjs.inClus[iht] = clID;
       } //iht
     } // itj
-/*
-    // Ensure that all PFParticles have associated clusters
-    for(unsigned short ipfp = 0; ipfp < tjs.matchVecPFPList.size(); ++ipfp) {
-      MatchStruct& ms = tjs.matchVec[tjs.matchVecPFPList[ipfp]];
-      for(auto& tjid : ms.TjIDs) {
-        Trajectory& tj = tjs.allTraj[tjid - 1];
-        if(tj.ID != tjid || tj.AlgMod[kKilled] || !tj.AlgMod[kMat3D] || tj.ClusterIndex > tjs.tcl.size() - 1) {
-          std::cout<<"MATC bad PFP -> cluster association "<<ipfp<<" TjID  "<<tjid<<" ClusterIndex "<<tj.ClusterIndex<<"\n";
-          PrintAllTraj("Bad", tjs, debug, tjid - 1, USHRT_MAX, false);
-        }
-      } // tjid
-    } // ipfp
-*/
-    // Define the Hits vector for showers
-    for(unsigned short ish = 0; ish < tjs.showers.size(); ++ish) {
-      for(auto& TjID : tjs.showers[ish].TjIDs) {
-        Trajectory& tj = tjs.allTraj[TjID - 1];
-        auto tjHits = PutTrajHitsInVector(tj, kUsedHits);
-        tjs.showers[ish].Hits.insert(tjs.showers[ish].Hits.begin(), tjHits.begin(), tjHits.end());
-      } // TjID
-    } // ish
-    
+
   } // MakeAllTrajClusters
   
   
