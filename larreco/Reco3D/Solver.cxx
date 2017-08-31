@@ -148,7 +148,19 @@ QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha)
     // here, so multiply by two.
     ret -= 2 * alpha * (scip + x) * sci->fNeiPotential;
     ret -= 2 * alpha * (scjp - x) * scj->fNeiPotential;
-    // TODO - this miscounts if i and j are neighbours of each other?
+
+    // This miscounts if i and j are neighbours of each other
+    for(const Neighbour& n: sci->fNeighbours){
+      if(n.fSC == scj){
+        // If we detect that case, remove the erroneous terms
+        ret += 2 * alpha * (scip + x) * scjp * n.fCoupling;
+        ret += 2 * alpha * (scjp - x) * scip * n.fCoupling;
+
+        // And replace with the correct interaction term
+        ret -= 2 * alpha * (scip + x) * (scjp - x) * n.fCoupling;
+        break;
+      }
+    }
   }
 
   if(iwire1 == jwire1){
