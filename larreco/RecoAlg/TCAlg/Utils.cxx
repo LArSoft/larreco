@@ -54,42 +54,6 @@ namespace tca {
   } // DefinePFParticleRelationships
 
   /////////////////////////////////////////
-  void DirectionInCTP(const TjStuff& tjs, TVector3& dir3, CTP_t inCTP, std::array<double, 2>& dir2, double& ang2)
-  {
-    // Calculate the 2D direction in a plane for the supplied 3D direction in space
-    
-    geo::PlaneID planeID = DecodeCTP(inCTP);
-
-    if(dir3.Mag() == 0 || planeID.Plane > tjs.NumPlanes) {
-      dir2[0] = 0; dir2[1] = 0;
-      return;
-    }
-    dir3.SetMag(1);
-    // Make a point at the origin and one 100 units away
-    TVector3 ori3 = {0, 0, 0};
-    TVector3 pos3 = 100 * dir3;
-    // 2D position of the origin and the pos3 projection
-    std::array<double, 2> ori2;
-    std::array<double, 2> pos2;
-    
-    // the wire coordinates
-    ori2[0] = tjs.geom->WireCoordinate(ori3[1], ori3[2], planeID);
-    pos2[0] = tjs.geom->WireCoordinate(pos3[1], pos3[2], planeID);
-    // the time coordinates
-    ori2[1] = tjs.detprop->ConvertXToTicks(ori3[0], planeID) * tjs.UnitsPerTick;
-    pos2[1] = tjs.detprop->ConvertXToTicks(pos3[0], planeID) * tjs.UnitsPerTick;
-    
-    dir2[0] = pos2[0] - ori2[0];
-    dir2[1] = pos2[1] - ori2[1];
-
-    double norm = sqrt(dir2[0] * dir2[0] + dir2[1] * dir2[1]);
-    dir2[0] /= norm;
-    dir2[1] /= norm;
-    ang2 = atan2(dir2[1], dir2[0]);
-
-  } // DirectionInCTP
-
-  /////////////////////////////////////////
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt)
   {
     // Calculate a 3D position and direction from two trajectory points
@@ -2961,6 +2925,47 @@ namespace tca {
       if(muTj.StepDir < 0) muTj.TjDir = -muTj.TjDir;
     } // itj
   } // TagMuonDirections
+  
+  /////////////////////////////////////////
+  TrajPoint MakeBareTrajPoint(TjStuff& tjs, TVector3& pos, TVector3& dir, CTP_t inCTP)
+  {
+    // Projects the space point defined by pos and dir into the CTP and returns it in the form of a trajectory point.
+    // The TP Pos[0] is set to a negative number if the point has an invalid wire position but doesn't return an
+    // error if the position is on a dead wire
+    TrajPoint tp;
+    tp.CTP = inCTP;
+    geo::PlaneID planeID = DecodeCTP(inCTP);
+    
+    tp.Pos[0] = tjs.geom->WireCoordinate(pos[1], pos[2], planeID);
+    if(tp.Pos[0] < 0 || tp.Pos[0] > tjs.MaxPos0[planeID.Plane]) {
+      tp.Pos[0] = -1;
+      return tp;
+    }
+    tp.Pos[1] = tjs.detprop->ConvertXToTicks(pos[0], planeID) * tjs.UnitsPerTick;
+    // now find the direction
+    // Make a point at the origin and one 100 units away
+    TVector3 ori3 = {0, 0, 0};
+    TVector3 pos3 = 100 * dir;
+    // 2D position of ori3 and the pos3 projection
+    std::array<double, 2> ori2;
+    std::array<double, 2> pos2;
+    std::array<double, 2> dir2;
+    // the wire coordinates
+    ori2[0] = tjs.geom->WireCoordinate(ori3[1], ori3[2], planeID);
+    pos2[0] = tjs.geom->WireCoordinate(pos3[1], pos3[2], planeID);
+    // the time coordinates
+    ori2[1] = tjs.detprop->ConvertXToTicks(ori3[0], planeID) * tjs.UnitsPerTick;
+    pos2[1] = tjs.detprop->ConvertXToTicks(pos3[0], planeID) * tjs.UnitsPerTick;
+    
+    dir2[0] = pos2[0] - ori2[0];
+    dir2[1] = pos2[1] - ori2[1];
+    
+    double norm = sqrt(dir2[0] * dir2[0] + dir2[1] * dir2[1]);
+    tp.Dir[0] = dir2[0] / norm;
+    tp.Dir[1] = dir2[1] / norm;
+    tp.Ang = atan2(dir2[1], dir2[0]);
+    return tp;
+  } // MakeBareTP
 
   /////////////////////////////////////////
   bool MakeBareTrajPoint(const TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
