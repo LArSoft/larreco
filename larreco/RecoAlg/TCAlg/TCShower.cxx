@@ -128,7 +128,6 @@ namespace tca {
           ss3.Hits.insert(ss3.Hits.end(), tjHits.begin(), tjHits.end());
         } // tjid
       } // cotIndex
-      std::cout<<"ss3 "<<ss3.ID<<" nhits "<<ss3.Hits.size()<<"\n";
     } // ss3
 
   } // FinishShowers
@@ -670,7 +669,7 @@ namespace tca {
       }
       ss3.OpenAngle = 0.05;
     } // ss3
-    PrintPFParticles("RSo", tjs);
+    if(prt) PrintPFParticles("RSo", tjs);
    
   } // ReconcileShowers
   
