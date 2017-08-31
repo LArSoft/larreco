@@ -567,6 +567,7 @@ void DPRawHitFinder::produce(art::Event& evt)
 		    //Calculate width (=FWHM)
 		    double peakWidth = WidthFunc(peakMean, peakAmp, peakTau1, peakTau2, startT, endT, peakMeanTrue);
 		    peakWidth /= 2.355; //from FWHM to "standard deviation": standard deviation = FWHM/(2*sqrt(2*ln(2)))
+		    if(peakWidth<=0) continue; //Some failed fits return a negative peak width. We don't want them in our hit collection.
 
                     // Extract fit parameters errors
                     double peakAmpErr   = paramVec[2*(i+1)].second;
@@ -604,7 +605,7 @@ void DPRawHitFinder::produce(art::Event& evt)
                                                  chi2PerNDF,                       // goodness_of_fit
                                                  NDF                               // dof
                                                  );
-                    
+
                     const recob::Hit hit(hitcreator.move());
 		    
                     hcol.emplace_back(std::move(hit), wire, rawdigits);
