@@ -1913,11 +1913,19 @@ namespace tca {
     
     // Kill it
     vx2.ID = 0;
+    // Unset Tj kTjHiVx3Score bit?
+    bool unsetBit = vx2.Vtx3ID > 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] == vx2ID) tj.VtxID[end] = 0;
+        if(tj.VtxID[end] == vx2ID) {
+          tj.VtxID[end] = 0;
+          // TODO: what if there is a high score vtx at the other end?
+          if(unsetBit) tj.AlgMod[kTjHiVx3Score] = false;
+        }
       } // end
+      // crude but effective
+      if(tj.VtxID[0] == 0 && tj.VtxID[1] == 0) tj.AlgMod[kTjHiVx3Score] = false;
     } // tj
     // check for a 3D vertex
     if(vx2.Vtx3ID == 0) return true;
@@ -1948,6 +1956,13 @@ namespace tca {
       if(vx2.Vtx3ID == vx3.ID) vx2.Vtx3ID = 0;
     } // vx2
     vx3.ID = 0;
+    // remove flags from the Tjs
+    float score;
+    auto vxtj = GetVtxTjIDs(tjs, vx3, score);
+    for(auto tjid : vxtj) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      tj.AlgMod[kTjHiVx3Score] = false;
+    }
     return true;
     
   } // MakeVertexObsolete

@@ -128,7 +128,6 @@ namespace tca {
           ss3.Hits.insert(ss3.Hits.end(), tjHits.begin(), tjHits.end());
         } // tjid
       } // cotIndex
-      std::cout<<"ss3 "<<ss3.ID<<" nhits "<<ss3.Hits.size()<<"\n";
     } // ss3
 
   } // FinishShowers
@@ -406,7 +405,6 @@ namespace tca {
           ss3.ID = tjs.showers.size() + 1;
           ss3.TPCID = tpcid;
           ss3.Pos = posij;
-          // TODO: would be nice to have a position and direction error here
           ss3.Dir = dirij;
           ss3.CotIndices.resize(2);
           ss3.CotIndices[0] = ci;
@@ -448,9 +446,13 @@ namespace tca {
           bestFOM = fomik;
           bestck = ck;
         } // ck
+        // 3-plane TPC below
         ShowerStruct3D ss3;
         ss3.ID = tjs.showers.size() + 1;
         ss3.TPCID = tpcid;
+        // TODO: average posij and posik, etc here
+        ss3.Pos = posij;
+        ss3.Dir = dirij;
         iss.SS3ID = ss3.ID;
         jss.SS3ID = ss3.ID;
         // energy is entered by plane number
@@ -479,6 +481,10 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<" new 3-plane ss3 "<<ss3.ID<<" ssIDs "<<iss.ID<<" "<<jss.ID<<" "<<tjs.cots[ck].ID<<" with FOM "<<ss3.FOM;
         }
         ss3.FOM = 0.5 * (fomij + bestFOM);
+        if(bestck == USHRT_MAX && tjs.NumPlanes == 3 && FindMissingShowers(fcnLabel, tjs, ss3, prt)) {
+          // success
+          if(prt) mf::LogVerbatim("TC")<<" Found missing showers";
+        }
         // don't fill or use the rest of the variables yet
         tjs.showers.push_back(ss3);
       } // cj
@@ -530,6 +536,72 @@ namespace tca {
     } // prt
 
   } // Match2DShowers
+  
+  ////////////////////////////////////////////////
+  bool FindMissingShowers(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
+  {
+    // This function was called because only two showers were matched in a 3-plane TPC. Look for the
+    // missing showers in the third plane
+    
+    if(ss3.ID == 0) return false;
+    if(ss3.CotIndices.size() == tjs.NumPlanes) return false;
+    if(tjs.NumPlanes != 3) return false;
+    
+    std::string fcnLabel = inFcnLabel + ".FMS";
+    
+    // determine which plane has the missed shower(s)
+    std::array<bool, 3> hasShower {false};
+    unsigned int cstat = 0;
+    unsigned int tpc = 0;
+    // check for 3D-matched parent Tjs
+    unsigned short pfpIndex = USHRT_MAX;
+    unsigned short cnt = 0;
+    for(unsigned short ci = 0; ci < ss3.CotIndices.size(); ++ci) {
+      auto& ss = tjs.cots[ss3.CotIndices[ci]];
+      geo::PlaneID planeID = DecodeCTP(ss.CTP);
+      unsigned short plane = planeID.Plane;
+      cstat = planeID.Cryostat;
+      tpc = planeID.TPC;
+      hasShower[plane] = true;
+      if(ss.ParentID == 0) continue;
+      unsigned short pfpi = GetPFPIndex(tjs, ss.ParentID);
+      if(pfpi == USHRT_MAX) continue;
+      if(pfpIndex == USHRT_MAX) {
+        pfpIndex = pfpi;
+        cnt = 1;
+      } else if(pfpi == pfpIndex) {
+        ++cnt;
+      }
+     } // ci
+    unsigned short missingPlane = 0;
+    for(missingPlane = 0; missingPlane < 3; ++missingPlane) if(!hasShower[missingPlane]) break;
+    if(missingPlane == tjs.NumPlanes) return false;
+    CTP_t mCTP = EncodeCTP(cstat, tpc, missingPlane);
+    // Find the start point in this plane
+    TrajPoint mtp = MakeBareTrajPoint(tjs, ss3.Pos, ss3.Dir, mCTP);
+    if(mtp.Pos[0] < 0) {
+      mf::LogVerbatim("TC")<<fcnLabel<<" MakeBareTrajPoint failed";
+      return false;
+    }
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Look for missing showers in CTP "<<mCTP<<" pfpIndex "<<pfpIndex<<" cnt "<<cnt<<" starting at Pos "<<PrintPos(tjs, mtp.Pos)<<" dir "<<mtp.Dir[0]<<" "<<mtp.Dir[1];
+
+    // float ParentFOM(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short& tjEnd, ShowerStruct& ss, float& tp1Sep, float& vx3Score, bool prt)
+
+    // make a list of showers
+    std::vector<int> cotIDs;
+    for(auto& ss : tjs.cots) {
+      if(ss.CTP != mCTP) continue;
+      // ignore already matched
+      if(ss.SS3ID > 0) continue;
+      // Find the IP between purported missing shower Tj and the shower center
+      auto& stp1 = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
+      float delta = PointTrajDOCA(tjs, stp1.HitPos[0], stp1.HitPos[1], mtp);
+      float sep = PosSep(stp1.HitPos, mtp.Pos);
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" chk ss "<<ss.ID<<" sep "<<sep<<" delta "<<delta;
+    } // ss
+
+    return false;
+  } // FindMissingShowers
   
   ////////////////////////////////////////////////
   void ReconcileShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
@@ -670,7 +742,7 @@ namespace tca {
       }
       ss3.OpenAngle = 0.05;
     } // ss3
-    PrintPFParticles("RSo", tjs);
+    if(prt) PrintPFParticles("RSo", tjs);
    
   } // ReconcileShowers
   
@@ -760,34 +832,8 @@ namespace tca {
     }
     
     return mfom;
-  } // MadtchFOM
-/*
-  ////////////////////////////////////////////////
-  void FindMatchingTjs(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt)
-  {
-    // fill the vector of Tjs in other planes that are matched to the Tjs in the shower
-    if(cotIndex > tjs.cots.size() - 1) return;
-    
-    ShowerStruct& ss = tjs.cots[cotIndex];
-    ss.MatchedTjIDs.clear();
-    
-    std::vector<int> mtj;
-    for(auto& tjID : ss.TjIDs) {
-      unsigned short mvIndex = MatchVecIndex(tjs, tjID);
-      if(mvIndex > tjs.matchVec.size() - 1) continue;
-      for(auto& tjID : tjs.matchVec[mvIndex].TjIDs) {
-        Trajectory& tj = tjs.allTraj[tjID - 1];
-        // not in the same plane
-        if(tj.CTP == ss.CTP) continue;
-        if(std::find(mtj.begin(), mtj.end(), tj.ID) == mtj.end()) mtj.push_back(tj.ID);
-      } // otjID
-    } // tjID
-    if(mtj.empty()) return;
-    if(mtj.size() > 1) std::sort(ss.MatchedTjIDs.begin(), ss.MatchedTjIDs.end());
-    ss.MatchedTjIDs = mtj;
+  } // Madtch3DFOM
 
-  } // FindMatchingTjs
-*/
   ////////////////////////////////////////////////
   void MergeTjList(std::vector<std::vector<int>>& tjList)
   {
@@ -2801,7 +2847,8 @@ namespace tca {
 
        if(tj.MCSMom > 500) {
          float tjAngle = tj.Pts[tj.EndPt[0]].Ang;
-         float dangPull = std::abs(tjAngle -ss.AngleErr) / ss.AngleErr;
+         float dangPull = std::abs(tjAngle - ss.AngleErr) / ss.AngleErr;
+         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" high MCSMom "<<tj.MCSMom<<" dangPull "<<dangPull;
          if(dangPull > 2) continue;
        } // high momentum
        if(AddTj(fcnLabel, tjs, tj.ID, cotIndex, false, prt)) ++nadd;
