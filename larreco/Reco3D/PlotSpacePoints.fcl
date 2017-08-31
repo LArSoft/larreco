@@ -1,0 +1,17 @@
+BEGIN_PROLOG
+
+standard_plotspacepoints:
+{
+  module_type: "PlotSpacePoints"
+
+  Plots: true
+  Plots3D: false
+  PlotsTrue: true
+
+  Suffix: "" # in output files
+
+  SpacePointInstanceLabel: ""
+}
+
+END_PROLOG
+

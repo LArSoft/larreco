@@ -1,5 +1,6 @@
 #include "services_dune.fcl"
 #include "Reco3D.fcl"
+#include "PlotSpacePoints.fcl"
 
 process_name: Reco3D
 
@@ -36,10 +37,25 @@ physics:
     reco3d: @local::standard_reco3d
   }
 
+  analyzers:
+  {
+    plotpre: @local::standard_plotspacepoints
+    plotnoreg: @local::standard_plotspacepoints
+    plot: @local::standard_plotspacepoints
+  }
+
   ana: [ reco3d ]
+  plots: [ plotpre, plotnoreg, plot ]
 
   stream1:  [ out1 ]
 
   end_paths: [ stream1 ]
-
 }
+
+physics.analyzers.plotpre.SpacePointInstanceLabel: "pre"
+physics.analyzers.plotpre.Suffix: "pre"
+physics.analyzers.plotpre.PlotsTrue: false
+
+physics.analyzers.plotnoreg.SpacePointInstanceLabel: "noreg"
+physics.analyzers.plotnoreg.Suffix: "noreg"
+physics.analyzers.plotnoreg.PlotsTrue: false

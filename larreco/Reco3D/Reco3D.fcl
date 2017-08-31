@@ -4,10 +4,6 @@ standard_reco3d:
 {
   module_type: "Reco3D"
 
-  Plots: true
-  Plots3D: false
-  PlotsTrue: true
-
   Fit: true
 
   Alpha: .15

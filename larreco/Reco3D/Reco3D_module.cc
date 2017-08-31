@@ -53,13 +53,9 @@ public:
   void endJob();
 
 protected:
-  void plot(const geo::Geometry* geom,
-            const std::vector<CollectionWireHit*>& cwires,
-            std::string suffix = "");
+  void FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
+                               std::vector<recob::SpacePoint>& pts) const;
 
-  bool fPlots;
-  bool fPlots3D;
-  bool fPlotsTrue;
   bool fFit;
 
   double fAlpha;
@@ -71,14 +67,13 @@ DEFINE_ART_MODULE(Reco3D)
 
 // ---------------------------------------------------------------------------
 Reco3D::Reco3D(const fhicl::ParameterSet& pset)
-  : fPlots(pset.get<bool>("Plots")),
-    fPlots3D(pset.get<bool>("Plots3D")),
-    fPlotsTrue(pset.get<bool>("PlotsTrue")),
-    fFit(pset.get<bool>("Fit")),
+  : fFit(pset.get<bool>("Fit")),
     fAlpha(pset.get<double>("Alpha"))
 {
+  produces<std::vector<recob::SpacePoint>>("pre");
   if(fFit){
     produces<std::vector<recob::SpacePoint>>();
+    produces<std::vector<recob::SpacePoint>>("noreg");
   }
 }
 
@@ -164,101 +159,6 @@ bool CloseSpace(geo::WireIDIntersection ra, geo::WireIDIntersection rb)
 
   // TODO - figure out cut value. Empirically .25 is a bit small
   return (pa-pb).Mag() < .5;
-}
-
-// ---------------------------------------------------------------------------
-void plot3d(const std::vector<TVector3>& ps, const std::string& name)
-{
-  int frame = 0;
-  for(int phase = 0; phase < 4; ++phase){
-    const int Nang = 20;
-    for(int iang = 0; iang < Nang; ++iang){
-      const double ang = M_PI/2*iang/double(Nang);
-
-      TGraph g;
-
-      for(TVector3 p: ps){
-        double x, y;
-        if(phase == 0){
-          x = cos(ang)*p.Y()+sin(ang)*p.Z();
-          y = p.X();
-        }
-        if(phase == 1){
-          x = p.Z();
-          y = cos(ang)*p.X()+sin(ang)*p.Y();
-        }
-        if(phase == 2){
-          x = cos(ang)*p.Z()-sin(ang)*p.X();
-          y = p.Y();
-        }
-        if(phase == 3){
-          x = -cos(ang)*p.X() + sin(ang)*p.Y();
-          y = cos(ang)*p.Y() + sin(ang)*p.X();
-        }
-
-        //        const double phi = phase/3.*M_PI/2 + ang/3;
-        const double phi = 0;
-        g.SetPoint(g.GetN(), cos(phi)*x+sin(phi)*y, cos(phi)*y-sin(phi)*x);
-      }
-
-      std::string fname = TString::Format(name.c_str(), frame++).Data();
-      g.SetTitle(fname.c_str());
-      if(g.GetN()) g.Draw("ap");
-      gPad->Print(("anim/"+fname).c_str());
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-void Reco3D::plot(const geo::Geometry* geom,
-                  const std::vector<CollectionWireHit*>& cwires,
-                  std::string suffix)
-{
-  if(!suffix.empty()) suffix = "_"+suffix;
-
-  TGraph gZX;
-  TGraph gYX;
-  TGraph gZY;
-
-  gZX.SetTitle(";z;x");
-  gYX.SetTitle(";y;x");
-  gZY.SetTitle(";z;y");
-
-  std::vector<TVector3> ps;
-
-  for(const CollectionWireHit* cwire: cwires){
-    const std::vector<geo::WireID> ws = geom->ChannelToWire(cwire->fChannel);
-    assert(ws.size() == 1);
-    const geo::WireGeo& wire = geom->GetElement(ws[0]);
-    if(!cwire->fCrossings.empty())
-      gZX.SetPoint(gZX.GetN(), wire.GetCenter().Z(), cwire->fCrossings[0]->fX);
-
-    for(unsigned int icross = 0; icross < cwire->fCrossings.size(); ++icross){
-      const SpaceCharge* sc = cwire->fCrossings[icross];
-
-      if(sc->fPred == 0) continue;
-
-      // Approximate correction factor from time to space
-      ps.emplace_back(sc->fX, sc->fY, sc->fZ);
-
-      gYX.SetPoint(gYX.GetN(), sc->fY, sc->fX);
-      gZY.SetPoint(gZY.GetN(), sc->fZ, sc->fY);
-    }
-  }
-
-  if(gZX.GetN() == 0) gZX.SetPoint(0, 0, 0);
-  if(gYX.GetN() == 0) gYX.SetPoint(0, 0, 0);
-  if(gZY.GetN() == 0) gZY.SetPoint(0, 0, 0);
-
-  gZX.Draw("ap");
-  gPad->Print(("plots/evd"+suffix+".png").c_str());
-
-  gYX.Draw("ap");
-  gPad->Print(("plots/evd_ortho"+suffix+".png").c_str());
-  gZY.Draw("ap");
-  gPad->Print(("plots/evd_zy"+suffix+".png").c_str());
-
-  if(fPlots3D) plot3d(ps, "evd3d"+suffix+"_%03d.png");
 }
 
 // ---------------------------------------------------------------------------
@@ -526,10 +426,25 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
 }
 
 // ---------------------------------------------------------------------------
+void Reco3D::FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
+                                     std::vector<recob::SpacePoint>& pts) const
+{
+  const double err[6] = {0,};
+
+  for(const CollectionWireHit* cwire: cwires){
+    for(const SpaceCharge* sc: cwire->fCrossings){
+      if(sc->fPred == 0) continue;
+
+      // TODO find somewhere to save the charge too
+      const double xyz[3] = {sc->fX, sc->fY, sc->fZ};
+      pts.emplace_back(xyz, err, 0);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 void Reco3D::produce(art::Event& evt)
 {
-  std::unique_ptr<std::vector<recob::SpacePoint>> spt_coll(new std::vector<recob::SpacePoint>);
-
   art::Handle<std::vector<recob::Hit>> hits;
   std::vector<art::Ptr<recob::Hit> > hitlist;
   if (evt.getByLabel("gaushit", hits))
@@ -537,8 +452,13 @@ void Reco3D::produce(art::Event& evt)
 
   // Skip very small events
   if(hits->size() < 20){
+    auto spcol_pre = std::make_unique<std::vector<recob::SpacePoint>>();
+    evt.put(std::move(spcol_pre), "pre");
     if(fFit){
-      evt.put(std::move(spt_coll));
+      auto spcol = std::make_unique<std::vector<recob::SpacePoint>>();
+      evt.put(std::move(spcol));
+      auto spcol_noreg = std::make_unique<std::vector<recob::SpacePoint>>();
+      evt.put(std::move(spcol_noreg), "noreg");
     }
     return;
   }
@@ -571,7 +491,9 @@ void Reco3D::produce(art::Event& evt)
 
   BuildSystem(xhits, uhits, vhits, cwires, iwires, fAlpha != 0);
 
-  if(fPlots) plot(geom.get(), cwires, TString::Format("pre_%03d", evt.event()).Data());
+  auto spcol_pre = std::make_unique<std::vector<recob::SpacePoint>>();
+  FillSystemToSpacePoints(cwires, *spcol_pre);
+  evt.put(std::move(spcol_pre), "pre");
 
   if(fFit){
     std::cout << "Iterating..." << std::endl;
@@ -587,7 +509,9 @@ void Reco3D::produce(art::Event& evt)
       prevMetric = metric;
     }
 
-    if(fPlots) plot(geom.get(), cwires, TString::Format("noreg_%03d", evt.event()).Data());
+    auto spcol_noreg = std::make_unique<std::vector<recob::SpacePoint>>();
+    FillSystemToSpacePoints(cwires, *spcol_noreg);
+    evt.put(std::move(spcol_noreg), "noreg");
 
     prevMetric = Metric(cwires, fAlpha);
     std::cout << "Begin: " << prevMetric << std::endl;
@@ -601,80 +525,13 @@ void Reco3D::produce(art::Event& evt)
       prevMetric = metric;
     }
 
-
-    if(fPlots) plot(geom.get(), cwires, TString::Format("%03d", evt.event()).Data());
-
-
-    for(const CollectionWireHit* cwire: cwires){
-      for(unsigned int icross = 0; icross < cwire->fCrossings.size(); ++icross){
-        const SpaceCharge* sc = cwire->fCrossings[icross];
-
-        if(sc->fPred == 0) continue;
-
-        // TODO find somewhere to save the charge too
-        double xyz[3] = {sc->fX, sc->fY, sc->fZ};
-        double err[6] = {0,};
-        double chi2 = 0;
-        spt_coll->push_back(recob::SpacePoint(xyz, err, chi2));
-      }
-    }
-
-    evt.put(std::move(spt_coll));
+    auto spcol = std::make_unique<std::vector<recob::SpacePoint>>();
+    FillSystemToSpacePoints(cwires, *spcol);
+    evt.put(std::move(spcol));
   } // end if fFit
-
-
-  if(fPlotsTrue){
-    TGraph gTrueZX;
-    TGraph gTrueYX;
-    TGraph gTrueZY;
-    std::vector<TVector3> ps_true;
-
-    art::ServiceHandle<cheat::BackTracker> bt;
-    for(unsigned int i = 0; i < hits->size(); ++i){
-      try{
-        const std::vector<double> xyz = bt->HitToXYZ(art::Ptr<recob::Hit>(hits, i));
-        ps_true.emplace_back(xyz[0], xyz[1], xyz[2]);
-      }
-      catch(...){} // some hits have no electrons?
-    }
-
-    // art::Handle<std::vector<sim::SimChannel>> simchancol;
-    // evt.getByLabel("largeant", simchancol);
-    // for(const sim::SimChannel& simchan: *simchancol){
-    //   for(sim::TDCIDE tdcide: simchan.TDCIDEMap()){
-    //     for(sim::IDE ide: tdcide.second){
-    //       ps_true.emplace_back(ide.x, ide.y, ide.z);
-    //     }
-    //   }
-    // }
-
-    for(TVector3 p: ps_true){
-      gTrueZX.SetPoint(gTrueZX.GetN(), p.Z(), p.X());
-      gTrueYX.SetPoint(gTrueYX.GetN(), p.Y(), p.X());
-      gTrueZY.SetPoint(gTrueZY.GetN(), p.Z(), p.Y());
-    }
-
-    if(gTrueZX.GetN() == 0) gTrueZX.SetPoint(0, 0, 0);
-    if(gTrueYX.GetN() == 0) gTrueYX.SetPoint(0, 0, 0);
-    if(gTrueZY.GetN() == 0) gTrueZY.SetPoint(0, 0, 0);
-
-    gTrueZX.SetTitle(";z;x");
-    gTrueYX.SetTitle(";y;x");
-    gTrueZY.SetTitle(";z;y");
-
-    gTrueZX.Draw("ap");
-    gPad->Print(TString::Format("plots/evd_true_%03d.png", evt.event()).Data());
-    gTrueYX.Draw("ap");
-    gPad->Print(TString::Format("plots/evd_true_ortho_%03d.png", evt.event()).Data());
-    gTrueZY.Draw("ap");
-    gPad->Print(TString::Format("plots/evd_true_zy_%03d.png", evt.event()).Data());
-
-    if(fPlots3D) plot3d(ps_true, TString::Format("evd3d_true_%03d_%%03d.png", evt.event()).Data());
-  }
 
   for(InductionWireHit* i: iwires) delete i;
   for(CollectionWireHit* c: cwires) delete c;
-
 }
 
 } // end namespace reco3d
