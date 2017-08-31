@@ -168,6 +168,7 @@ namespace tca {
   // Tag muon directions using delta proximity
   void TagMuonDirections(TjStuff& tjs, short debugWorkID);
   // Make a bare trajectory point that only has position and direction defined
+  TrajPoint MakeBareTrajPoint(TjStuff& tjs, TVector3& pos, TVector3& dir, CTP_t inCTP);
   bool MakeBareTrajPoint(const TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   bool MakeBareTrajPoint(const TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   bool MakeBareTrajPoint(const std::array<float, 2>& fromPos, const std::array<float, 2>& toPos, TrajPoint& tpOut);
