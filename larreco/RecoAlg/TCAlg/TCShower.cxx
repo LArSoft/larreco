@@ -2800,7 +2800,8 @@ namespace tca {
 
        if(tj.MCSMom > 500) {
          float tjAngle = tj.Pts[tj.EndPt[0]].Ang;
-         float dangPull = std::abs(tjAngle -ss.AngleErr) / ss.AngleErr;
+         float dangPull = std::abs(tjAngle - ss.AngleErr) / ss.AngleErr;
+         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" high MCSMom "<<tj.MCSMom<<" dangPull "<<dangPull;
          if(dangPull > 2) continue;
        } // high momentum
        if(AddTj(fcnLabel, tjs, tj.ID, cotIndex, false, prt)) ++nadd;
