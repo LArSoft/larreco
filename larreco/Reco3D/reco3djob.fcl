@@ -45,9 +45,7 @@ physics:
   }
 
   ana: [ reco3d ]
-  plots: [ plotpre, plotnoreg, plot ]
-
-  stream1:  [ out1 ]
+  stream1: [ plotpre, plotnoreg, plot, out1 ]
 
   end_paths: [ stream1 ]
 }
