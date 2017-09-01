@@ -275,6 +275,7 @@ namespace tca {
       SaveTjInfo(tjs, ss.CTP, cotIndex, "FEP");
       if(ss.ParentID == 0) FindStartChg(fcnLabel, tjs, cotIndex, prt);
     } // cotIndex
+    ReconcileParents(fcnLabel, tjs, tpcid, prt);
     
     CheckQuality(fcnLabel, tjs, tpcid, prt);
     
@@ -715,6 +716,43 @@ namespace tca {
 
     return true;
   } // FindMissingShowers1
+  
+  ////////////////////////////////////////////////
+  void ReconcileParents(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
+  {
+    // Ensures that a TJ is only used as a Parent in one shower
+    
+    std::string fcnLabel = inFcnLabel + ".RP";
+
+    std::vector<int> parent;
+    std::vector<std::vector<int>> inss;
+    for(auto& ss : tjs.cots) {
+      geo::PlaneID planeID = DecodeCTP(ss.CTP);
+      if(planeID.Cryostat != tpcid.Cryostat) continue;
+      if(planeID.TPC != tpcid.TPC) continue;
+      if(ss.ParentID == 0) continue;
+      unsigned short indx = 0;
+      for(indx = 0; indx < parent.size(); ++indx) if(ss.ParentID == parent[indx]) break;
+      if(indx == parent.size()) {
+        // not found add it
+        parent.push_back(ss.ParentID);
+        std::vector<int> tmp(1);
+        tmp[0] = ss.ID;
+        inss.push_back(tmp);
+      } else {
+        inss[indx].push_back(ss.ID);
+      }
+    } // ss
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      for(unsigned short pid = 0; pid < parent.size(); ++pid) {
+        myprt<<fcnLabel<<" parent "<<parent[pid]<<" ssids";
+        for(auto ssid : inss[pid]) myprt<<" "<<ssid;
+        myprt<<"\n";
+      }  // pid
+    } // prt
+    
+  } // ReconcileParents
   
   ////////////////////////////////////////////////
   void ReconcileShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
@@ -1782,51 +1820,58 @@ namespace tca {
     
     float sepCut2 = tjs.ShowerTag[2] * tjs.ShowerTag[2];
     
-    // See if the envelopes overlap
-//    unsigned short maxict = tjs.cots.size() - 1;
-    for(unsigned short ict = 0; ict < tjs.cots.size() - 1; ++ict) {
-      auto& iss = tjs.cots[ict];
-      if(iss.ID == 0) continue;
-      if(iss.TjIDs.empty()) continue;
-      if(iss.CTP != inCTP) continue;
-      for(unsigned short jct = ict + 1; jct < tjs.cots.size(); ++jct) {
-        auto& jss = tjs.cots[jct];
-        if(jss.ID == 0) continue;
-        if(jss.TjIDs.empty()) continue;
-        if(jss.CTP != iss.CTP) continue;
-        bool doMerge = false;
-        for(auto& ivx : iss.Envelope) {
-          doMerge = PointInsideEnvelope(ivx, jss.Envelope);
-          if(doMerge) break;
-        } // ivx
-        if(!doMerge) {
-          for(auto& jvx : jss.Envelope) {
-            doMerge = PointInsideEnvelope(jvx, iss.Envelope);
-            if(doMerge) break;
-          } // ivx
-        }
-        if(!doMerge) {
-          // check proximity between the envelopes
+    // Iterate if a merge is done
+    bool didMerge = true;
+    while(didMerge) {
+      didMerge = false;
+      // See if the envelopes overlap
+      for(unsigned short ict = 0; ict < tjs.cots.size() - 1; ++ict) {
+        auto& iss = tjs.cots[ict];
+        if(iss.ID == 0) continue;
+        if(iss.TjIDs.empty()) continue;
+        if(iss.CTP != inCTP) continue;
+        for(unsigned short jct = ict + 1; jct < tjs.cots.size(); ++jct) {
+          auto& jss = tjs.cots[jct];
+          if(jss.ID == 0) continue;
+          if(jss.TjIDs.empty()) continue;
+          if(jss.CTP != iss.CTP) continue;
+          bool doMerge = false;
           for(auto& ivx : iss.Envelope) {
-            for(auto& jvx : jss.Envelope) {
-              if(PosSep2(ivx, jvx) < sepCut2) {
-                if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Envelopes "<<ict<<" "<<jct<<" are close "<<PosSep(ivx, jvx)<<" cut "<<tjs.ShowerTag[2];
-                doMerge = true;
-                break;
-              }
-            } // jvx
+            doMerge = PointInsideEnvelope(ivx, jss.Envelope);
             if(doMerge) break;
           } // ivx
-        } // !domerge
-        if(!doMerge) continue;
-        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Merge them. Re-find shower center, etc";
-        if(MergeShowersAndStore(fcnLabel, tjs, ict, jct, prt)) {
-          Trajectory& stj = tjs.allTraj[iss.ShowerTjID - 1];
-          stj.AlgMod[kMergeOverlap] = true;
-          break;
-        }
-      } // jct
-    } // ict
+          if(!doMerge) {
+            for(auto& jvx : jss.Envelope) {
+              doMerge = PointInsideEnvelope(jvx, iss.Envelope);
+              if(doMerge) break;
+            } // ivx
+          }
+          if(!doMerge) {
+            // check proximity between the envelopes
+            for(auto& ivx : iss.Envelope) {
+              for(auto& jvx : jss.Envelope) {
+                if(PosSep2(ivx, jvx) < sepCut2) {
+                  if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Envelopes "<<ict<<" "<<jct<<" are close "<<PosSep(ivx, jvx)<<" cut "<<tjs.ShowerTag[2];
+                  doMerge = true;
+                  break;
+                }
+              } // jvx
+              if(doMerge) break;
+            } // ivx
+          } // !domerge
+          if(!doMerge) continue;
+          if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Merge "<<iss.ID<<" and "<<jss.ID;
+          if(MergeShowersAndStore(fcnLabel, tjs, ict, jct, prt)) {
+            Trajectory& stj = tjs.allTraj[iss.ShowerTjID - 1];
+            stj.AlgMod[kMergeOverlap] = true;
+            didMerge = true;
+            break;
+          } else {
+            if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Merge failed";
+          }
+        } // jct
+      } // ict
+    } // didMerge
 
   } // MergeOverlap
   
@@ -1839,6 +1884,8 @@ namespace tca {
     
     std::string fcnLabel = inFcnLabel + ".MSC";
     
+    bool newCuts = (tjs.ShowerTag[0] == 2);
+    
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<": MergeShowerChain inCTP "<<inCTP;
     
     std::vector<int> shList;
@@ -1848,6 +1895,8 @@ namespace tca {
       if(iss.ID == 0) continue;
       if(iss.TjIDs.empty()) continue;
       if(iss.CTP != inCTP) continue;
+      // Test an alternate cut
+      if(newCuts && iss.NearTjIDs.empty()) continue;
       // save the shower ID
       shList.push_back(iss.ID);
       // and the shower center TP
@@ -1931,6 +1980,7 @@ namespace tca {
       // push the last one
       if(chain.size() > 2) {
         int newID = MergeShowers(fcnLabel, tjs, chain, prt);
+        if(newID > 0 && AddTjsInsideEnvelope(fcnLabel, tjs, newID - 1, false, prt)) DefineShower(fcnLabel, tjs, newID - 1, prt);
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<fcnLabel<<" merged chain";
