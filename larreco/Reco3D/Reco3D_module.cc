@@ -296,7 +296,7 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
       InductionWireHit* iwire = new InductionWireHit(hit->Channel(), hit->PeakTime(), hit->Integral() * .95);
       iwires.emplace_back(iwire);
 
-      assert(tpcs.size() == 2);
+//      assert(tpcs.size() == 2);
 
       for(geo::TPCID tpc: tpcs){
         if(hit->View() == geo::kU) uwires[tpc].push_back(iwire);
@@ -308,7 +308,7 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
   std::map<geo::TPCID, std::vector<art::Ptr<recob::Hit>>> xhits_by_tpc;
   for(auto& xhit: xhits){
     const std::vector<geo::TPCID> tpcs = geom->ROPtoTPCs(geom->ChannelToROP(xhit->Channel()));
-    assert(tpcs.size() == 1);
+//    assert(tpcs.size() == 1);
     const geo::TPCID tpc = tpcs[0];
     xhits_by_tpc[tpc].push_back(xhit);
   }
