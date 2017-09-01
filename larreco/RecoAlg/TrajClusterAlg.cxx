@@ -5444,27 +5444,31 @@ namespace tca {
       // find the point with the highest charge considering the first 3 points
       float big = 0;
       unsigned short hiPt = 0;
-      float x0 = 0;
+      float wire0 = 0;
       for(unsigned short ii = 0; ii < 4; ++ii) {
         short ipt = tj.EndPt[end] + ii * dir;
         if(ipt < tj.EndPt[0] || ipt > tj.EndPt[1]) break;
         TrajPoint& tp = tj.Pts[ipt];
         if(tp.Chg > big) {
           big = tp.Chg;
-          x0 = tp.Pos[0];
+          wire0 = tp.Pos[0];
           hiPt = ipt;
         }
       } // ii
-      if(prt) mf::LogVerbatim("TC")<<" end "<<end<<" hiPt "<<hiPt<<" big "<<big;
+      if(prt) mf::LogVerbatim("TC")<<" end "<<end<<" wire0 "<<wire0<<" Chg "<<big;
       std::vector<float> x, y, yerr2;
       float intcpt, intcpterr;
       float slope, slopeerr, chidof;
+      float prevChg = big;
       for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
         short ipt = hiPt + ii * dir;
         if(ipt < tj.EndPt[0] || ipt > tj.EndPt[1]) break;
         TrajPoint& tp = tj.Pts[ipt];
         if(tp.Chg == 0) continue;
-        x.push_back(std::abs(tp.Pos[0] - x0));
+        // quit if the charge is much larger than the previous charge
+        if(tp.Chg > 1.2 * prevChg) break;
+        prevChg = tp.Chg;
+        x.push_back(std::abs(tp.Pos[0] - wire0));
         y.push_back(tp.Chg);
         // Assume 10% point-to-point charge fluctuations
         float err = 0.1 * tp.Chg;
@@ -5472,7 +5476,7 @@ namespace tca {
         yerr2.push_back(err * err);
         if(x.size() == nPtsToCheck) break;
       } // ii
-      if(x.size() < nPtsToCheck) continue;
+      if(x.size() < 4) continue;
       fLinFitAlg.LinFit(x, y, yerr2, intcpt, slope, intcpterr, slopeerr, chidof);
       // check for really bad chidof indicating a major failure
       if(chidof > 100) continue;
