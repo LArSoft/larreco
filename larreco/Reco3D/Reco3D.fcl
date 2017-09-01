@@ -4,6 +4,8 @@ standard_reco3d:
 {
   module_type: "Reco3D"
 
+  HitLabel: "gaushit"
+
   Fit: true
 
   Alpha: .15

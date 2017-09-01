@@ -56,6 +56,8 @@ protected:
   void FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
                                std::vector<recob::SpacePoint>& pts) const;
 
+  std::string fHitLabel;
+
   bool fFit;
 
   double fAlpha;
@@ -67,7 +69,8 @@ DEFINE_ART_MODULE(Reco3D)
 
 // ---------------------------------------------------------------------------
 Reco3D::Reco3D(const fhicl::ParameterSet& pset)
-  : fFit(pset.get<bool>("Fit")),
+  : fHitLabel(pset.get<std::string>("HitLabel")),
+    fFit(pset.get<bool>("Fit")),
     fAlpha(pset.get<double>("Alpha"))
 {
   produces<std::vector<recob::SpacePoint>>("pre");
@@ -447,7 +450,7 @@ void Reco3D::produce(art::Event& evt)
 {
   art::Handle<std::vector<recob::Hit>> hits;
   std::vector<art::Ptr<recob::Hit> > hitlist;
-  if (evt.getByLabel("gaushit", hits))
+  if(evt.getByLabel(fHitLabel, hits))
     art::fill_ptr_vector(hitlist, hits);
 
   // Skip very small events

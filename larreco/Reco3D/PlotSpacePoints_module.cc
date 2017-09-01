@@ -41,6 +41,8 @@ protected:
 
   art::InputTag fSpacePointTag;
 
+  std::string fHitLabel;
+
   std::string fSuffix;
 
   bool fPlots;
@@ -53,8 +55,9 @@ DEFINE_ART_MODULE(PlotSpacePoints)
 // ---------------------------------------------------------------------------
 PlotSpacePoints::PlotSpacePoints(const fhicl::ParameterSet& pset)
   : EDAnalyzer(pset),
-    fSpacePointTag(art::InputTag("reco3d",
+    fSpacePointTag(art::InputTag(pset.get<std::string>("SpacePointLabel"),
                                  pset.get<std::string>("SpacePointInstanceLabel"))),
+    fHitLabel(pset.get<std::string>("HitLabel")),
     fSuffix(pset.get<std::string>("Suffix")),
     fPlots(pset.get<bool>("Plots")),
     fPlots3D(pset.get<bool>("Plots3D")),
@@ -179,7 +182,7 @@ void PlotSpacePoints::analyze(const art::Event& evt)
 
   if(fPlotsTrue){
     art::Handle<std::vector<recob::Hit>> hits;
-    evt.getByLabel("gaushit", hits);
+    evt.getByLabel(fHitLabel, hits);
     const std::vector<recob::SpacePoint> pts = TrueSpacePoints(hits);
 
     const std::string suffix = TString::Format("%s_true_%d", fSuffix.c_str(), evt.event()).Data();

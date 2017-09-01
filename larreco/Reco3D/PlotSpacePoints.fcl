@@ -10,6 +10,9 @@ standard_plotspacepoints:
 
   Suffix: "" # in output files
 
+  HitLabel: "gaushit" # needed for PlotsTrue
+
+  SpacePointLabel: "reco3d"
   SpacePointInstanceLabel: ""
 }
 
