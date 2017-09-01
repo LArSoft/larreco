@@ -23,7 +23,6 @@ kalmantrackfit: {
         dirVec: [0,0,1]
         dirFromVtxPF: false
 	alwaysInvertDir: false
- 	tryNoSkipWhenFails: true
 	produceTrackFitHitInfo: true
 	keepInputTrajectoryPoints: false
   }
@@ -36,6 +35,7 @@ kalmantrackfit: {
         rejectHighMultHits: true
         rejectHitsNegativeGOF: true
 	hitErr2ScaleFact: 1.0
+ 	tryNoSkipWhenFails: true
 	dumpLevel: 0
   }
   propagator: {

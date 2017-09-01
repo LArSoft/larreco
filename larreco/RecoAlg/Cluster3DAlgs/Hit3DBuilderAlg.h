@@ -161,11 +161,9 @@ private:
     /**
      *  @brief Data members to follow
      */
-    
-    double                               m_timeAdvanceGap;
+
     double                               m_numSigmaPeakTime;
-    double                               m_pairOverlapSmall;
-    double                               m_pairOverlapLarge;
+    double                               m_deltaPeakTimeSig;
     
     bool                                 m_enableMonitoring;      ///<
     int                                  m_hits;                  ///<

@@ -1,25 +1,25 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v06_38_00
+parent	larreco	v06_38_02
 defaultqual	e14
 #
 fcldir product_dir job
 #
 product         version
-larsim		v06_29_01
+larsim		v06_30_00
 eigen		v3_3_3
-nutools         v2_15_00
-tensorflow      v1_2_1_b0
+nutools         v2_15_01
+tensorflow      v1_2_1_b3
 
 cetbuildtools	v5_14_00	-	only_for_build
 end_product_list
 
   
 # e14  - with gcc 6.3.0 and -std=c++14
-qualifier	larsim		nutools		tensorflow	eigen	notes
-e14:debug	e14:debug	e14:debug	e14:debug	-nq-
-e14:opt		e14:opt		e14:opt		e14:opt		-nq-
-e14:prof	e14:prof	e14:prof	e14:p2713d:prof	-nq-
+qualifier     larsim     nutools    tensorflow        eigen	notes
+e14:debug     e14:debug  e14:debug  e14:p2713d:debug  -nq-
+e14:opt       e14:opt    e14:opt    e14:p2713d:opt    -nq-
+e14:prof      e14:prof   e14:prof   e14:p2713d:prof   -nq-
 end_qualifier_list
 
 # Preserve tabs and formatting in emacs and vi / vim:
