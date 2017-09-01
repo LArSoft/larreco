@@ -1376,7 +1376,7 @@ namespace tca {
       if(tj.VtxID[end] == 0) continue;
       const VtxStore& vx2 = tjs.vtx[tj.VtxID[end] - 1];
       if(vx2.Score > scoreCut) return true;
-    }
+    } // end
     return false;
   } // TjHasNiceVtx
   
