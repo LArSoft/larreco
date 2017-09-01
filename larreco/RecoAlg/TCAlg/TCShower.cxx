@@ -281,16 +281,16 @@ namespace tca {
     SaveAllCots(tjs, "CQ");
     if(prt) Print2DShowers("FEP", tjs, USHRT_MAX, false);
     Match2DShowers(fcnLabel, tjs, tpcid, prt);
+    if(prt) Print2DShowers("M2DS", tjs, USHRT_MAX, false);
     // Kill vertices in 2D showers that weren't matched in 3D
     KillVerticesInShowers(fcnLabel, tjs, tpcid, prt);
-    // Reconcile any differences but merging, etc and make the final set of
+    // Reconcile any differences by merging, etc and make the final set of
     // 3D showers and matching PFParticles. Note that the hits on InShower Tjs can't
     // be transferred to the shower until after hit merging has been done. This is done
     // in Finish3DShowers
     ReconcileShowers(fcnLabel, tjs, tpcid, prt);
-    SaveAllCots(tjs, "M2DSo");
-    if(prt) Print2DShowers("FS3Do", tjs, USHRT_MAX, false);
-    
+    SaveAllCots(tjs, "RS");
+     
     unsigned short nNewShowers = 0;
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       auto& ss = tjs.cots[cotIndex];
@@ -389,6 +389,7 @@ namespace tca {
         if(jss.CTP == iss.CTP) continue;
         if(jss.ID == 0) continue;
         // already matched?
+        if(iss.SS3ID > 0) continue;
         if(jss.SS3ID > 0) continue;
         if(jss.TjIDs.empty()) continue;
         geo::PlaneID jplaneID = DecodeCTP(jss.CTP);
@@ -428,6 +429,7 @@ namespace tca {
           if(kss.CTP == iss.CTP || kss.CTP == jss.CTP) continue;
           if(kss.ID == 0) continue;
           if(kss.TjIDs.empty()) continue;
+          if(kss.SS3ID > 0) continue;
           geo::PlaneID kplaneID = DecodeCTP(kss.CTP);
           if(kplaneID.Cryostat != tpcid.Cryostat) continue;
           if(kplaneID.TPC != tpcid.TPC) continue;
@@ -481,7 +483,7 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<" new 3-plane ss3 "<<ss3.ID<<" ssIDs "<<iss.ID<<" "<<jss.ID<<" "<<tjs.cots[ck].ID<<" with FOM "<<ss3.FOM;
         }
         ss3.FOM = 0.5 * (fomij + bestFOM);
-        if(bestck == USHRT_MAX && tjs.NumPlanes == 3 && FindMissingShowers(fcnLabel, tjs, ss3, prt)) {
+        if(bestck == USHRT_MAX && tjs.NumPlanes == 3 && FindMissingShowers1(fcnLabel, tjs, ss3, prt)) {
           // success
           if(prt) mf::LogVerbatim("TC")<<" Found missing showers";
         }
@@ -538,16 +540,86 @@ namespace tca {
   } // Match2DShowers
   
   ////////////////////////////////////////////////
-  bool FindMissingShowers(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
+  bool FindMissingShowers2(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt)
   {
-    // This function was called because only two showers were matched in a 3-plane TPC. Look for the
+    // The 2D shower referenced by cotIndex was not matched in 3D, presumably because it is low energy
+    // and 2D showers were not found in the other two planes or alternatively because this blob of energy
+    // was included in 2D showers in the other planes.
+    // Look for a match using the previously 3D matched Tjs
+    
+    if(cotIndex > tjs.cots.size() - 1) return false;
+    auto& ss = tjs.cots[cotIndex];
+    if(ss.ID == 0) return false;
+    if(tjs.NumPlanes != 3) return false;
+    
+    std::string fcnLabel = inFcnLabel + ".FMS2";
+    
+    std::vector<unsigned short> pfpIndices;
+    for(auto tjid : ss.TjIDs) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      if(!tj.AlgMod[kMat3D]) continue;
+      unsigned short pfpi = GetPFPIndex(tjs, tjid);
+      if(pfpi == USHRT_MAX) continue;
+      if(std::find(pfpIndices.begin(), pfpIndices.end(), pfpi) == pfpIndices.end()) pfpIndices.push_back(pfpi);
+    } // tjid
+    if(pfpIndices.empty()) return false;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<fcnLabel<<" ss "<<ss.ID<<" pfpIndices";
+      for(auto pfpi : pfpIndices) myprt<<" "<<pfpi;
+    }
+    
+    // make a list of tjs in the other planes
+    std::vector<std::vector<int>> tjlist(3);
+    // and see if those Tjs are in showers
+    std::vector<std::vector<int>> sslist(3);
+    for(auto pfpi : pfpIndices) {
+      auto& pfp = tjs.pfps[pfpi];
+      if(pfp.ID == 0) continue;
+      for(auto tjid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tjid - 1];
+        // ignore Tjs in this plane
+        if(tj.CTP == ss.CTP) continue;
+        unsigned short plane = DecodeCTP(tj.CTP).Plane;
+        tjlist[plane].push_back(tjid);
+        if(!tj.AlgMod[kInShower]) continue;
+        for(auto ss : tjs.cots) {
+          if(ss.ID == 0) continue;
+          if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tjid) != ss.TjIDs.end()) {
+            sslist[plane].push_back(ss.ID);
+            break;
+          }
+        } // ss
+      } // tjid
+    } // pfpi
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<fcnLabel<<" Candidate Tjs\n";
+      for(unsigned short plane = 0; plane < 3; ++plane) {
+        if(tjlist[plane].empty()) continue;
+        myprt<<" plane "<<plane<<" tjids:";
+        for(auto tjid : tjlist[plane]) myprt<<" "<<tjid;
+        myprt<<" ssids:";
+        for(auto ssid : sslist[plane]) myprt<<" "<<ssid;
+        myprt<<"\n";
+      } // plane
+    } // prt
+    // See if these Tjs are in showers
+    
+    return false;
+  } // FindMissingShowers2
+  
+  ////////////////////////////////////////////////
+  bool FindMissingShowers1(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
+  {
+    // This function was called because only two showers were matched in a 3-plane TPC. Look for
     // missing showers in the third plane
     
     if(ss3.ID == 0) return false;
     if(ss3.CotIndices.size() == tjs.NumPlanes) return false;
     if(tjs.NumPlanes != 3) return false;
     
-    std::string fcnLabel = inFcnLabel + ".FMS";
+    std::string fcnLabel = inFcnLabel + ".FMS1";
     
     // determine which plane has the missed shower(s)
     std::array<bool, 3> hasShower {false};
@@ -583,13 +655,18 @@ namespace tca {
       mf::LogVerbatim("TC")<<fcnLabel<<" MakeBareTrajPoint failed";
       return false;
     }
+    
+    if(pfpIndex != USHRT_MAX && cnt < 2) {
+      std::cout<<fcnLabel<<" 2D showers in this 3D shower have parent Tjs from different PFParticles\n";
+      return false;
+    }
+    
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Look for missing showers in CTP "<<mCTP<<" pfpIndex "<<pfpIndex<<" cnt "<<cnt<<" starting at Pos "<<PrintPos(tjs, mtp.Pos)<<" dir "<<mtp.Dir[0]<<" "<<mtp.Dir[1];
 
-    // float ParentFOM(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short& tjEnd, ShowerStruct& ss, float& tp1Sep, float& vx3Score, bool prt)
-
-    // make a list of showers
+    // make a list of showers that are close
     std::vector<int> cotIDs;
     for(auto& ss : tjs.cots) {
+      if(ss.ID == 0) continue;
       if(ss.CTP != mCTP) continue;
       // ignore already matched
       if(ss.SS3ID > 0) continue;
@@ -598,10 +675,46 @@ namespace tca {
       float delta = PointTrajDOCA(tjs, stp1.HitPos[0], stp1.HitPos[1], mtp);
       float sep = PosSep(stp1.HitPos, mtp.Pos);
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" chk ss "<<ss.ID<<" sep "<<sep<<" delta "<<delta;
+      if(sep > 300 || delta > 20) continue;
+      cotIDs.push_back(ss.ID);
     } // ss
+    
+    if(cotIDs.empty() && pfpIndex > 0 && cnt == 2) {
+      std::cout<<fcnLabel<<" No matching showers found in CTP "<<mCTP<<" but 3D shower "<<ss3.ID<<" has 3D-matched parent Tjs\n";
+      return false;
+    }
+    
+    if(cotIDs.empty()) {
+      std::cout<<fcnLabel<<" No matching showers found in CTP "<<mCTP<<".\n";
+      return false;
+    }
+    
+    // merge all of these showers
+    int newID = MergeShowers(fcnLabel, tjs, cotIDs, prt);
+    if(newID == 0) return false;
+    
+    auto& ss = tjs.cots[newID - 1];
+    
+    // see if a 3D-matched Tj in this plane should be declared the parent Tj of the new Tj
+    ss.ParentID = 0;
+    bool addedParent = false;
+    if(pfpIndex != USHRT_MAX) {
+      auto& pfp = tjs.pfps[pfpIndex];
+      for(auto tjid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tjid - 1];
+        if(tj.CTP == mCTP) ss.ParentID = tj.ID;
+      } // tjid
+      addedParent = UpdateShowerWithParent(fcnLabel, tjs, ss.ID - 1, prt);
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<ss.ParentID<<" is the parent of the new shower. Update success? "<<addedParent;
+    }
+    if(!addedParent) FindExternalParent(fcnLabel, tjs, ss.ID - 1, prt);
+    if(ss.NeedsUpdate) DefineShower(fcnLabel, tjs, ss.ID - 1, prt);
+    ss.SS3ID = ss3.ID;
+    // add this to ss3
+    ss3.CotIndices.push_back(ss.ID - 1);
 
-    return false;
-  } // FindMissingShowers
+    return true;
+  } // FindMissingShowers1
   
   ////////////////////////////////////////////////
   void ReconcileShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
@@ -611,22 +724,9 @@ namespace tca {
     if(tjs.showers.empty()) return;
     
     std::string fcnLabel = inFcnLabel + ".RS";
-    
-    // look for incompletely defined 3D vertices
-    for(auto& ss3 : tjs.showers) {
-      if(ss3.ID == 0) continue;
-      if(ss3.TPCID != tpcid) continue;
-      std::cout<<fcnLabel<<" Found incomplete 3D shower "<<ss3.ID;
-      std::cout<<" 2D shower info:";
-      for(auto cotIndex : ss3.CotIndices) {
-        auto& ss = tjs.cots[cotIndex];
-        std::cout<<" ss.ID "<<ss.ID;
-        auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-        std::cout<<" Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos);
-      }
-      std::cout<<"\n";
-    } // ss3
-    
+
+    PrintPFParticles("RSi", tjs);
+
     // look for mis-matched shower parents
     for(auto& ss3 : tjs.showers) {
       if(ss3.ID == 0) continue;
@@ -650,10 +750,11 @@ namespace tca {
           ++cnt;
         }
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"  ss.ID "<<ss.ID<<" ptj "<<ptjs[ci]<<" pfpi "<<pfpis[ci]<<" cnt "<<cnt;
-        if(cnt < ss3.CotIndices.size()) {
-          std::cout<<"Inconsistent PFPs for ss3 "<<ss3.ID<<" parent Tjs\n";
-        }
       } // ci
+      if(cnt < ss3.CotIndices.size()) {
+        std::cout<<"Inconsistent PFPs for ss3 "<<ss3.ID<<" parent Tjs\n";
+        mf::LogVerbatim("TC")<<"Inconsistent PFPs for ss3 "<<ss3.ID<<" parent Tjs";
+      }
     } // ss3
     
     // look for missing 2D -> 3D matches
@@ -661,11 +762,13 @@ namespace tca {
       if(ss.ID == 0) continue;
       if(ss.TjIDs.empty()) continue;
       if(ss.SS3ID > 0) continue;
-      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      std::cout<<"Found incompletely matched 2D shower "<<ss.ID<<" at Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<"\n";
+      if(!FindMissingShowers2(fcnLabel, tjs, ss.ID - 1, prt)) {
+        auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+        std::cout<<"Found incompletely matched 2D shower "<<ss.ID<<" at Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos)<<"\n";
+        mf::LogVerbatim("TC")<<"Found incompletely matched 2D shower "<<ss.ID<<" at Pos "<<ss.CTP<<":"<<PrintPos(tjs, stj.Pts[1].Pos);
+      }
     } // ss
 
-//    PrintPFParticles("RSi", tjs);
     // clobber PFParticles that have InShower tjs. Start by making a list of
     // all InShower Tjs that are in showers
     unsigned int cstat = tpcid.Cryostat;
@@ -742,7 +845,6 @@ namespace tca {
       }
       ss3.OpenAngle = 0.05;
     } // ss3
-    if(prt) PrintPFParticles("RSo", tjs);
    
   } // ReconcileShowers
   
@@ -1977,22 +2079,7 @@ namespace tca {
     // make a new trajectory using itj as a template
     Trajectory ktj = itj;
     ktj.ID = tjs.allTraj.size() + 1;
-/*
-    // re-assign the hits from itj to ktj
-    for(auto& kpt : ktj.Pts) std::replace(kpt.Hits.begin(), kpt.Hits.end(), itj.ID, ktj.ID);
-    // transfer the jtj hits to ktj
-    ktj.Pts[0].Hits.insert(ktj.Pts[0].Hits.end(), jtj.Pts[0].Hits.begin(), jtj.Pts[0].Hits.end());
-    ktj.Pts[1].Hits.insert(ktj.Pts[1].Hits.end(), jtj.Pts[1].Hits.begin(), jtj.Pts[1].Hits.end());
-    ktj.Pts[2].Hits.insert(ktj.Pts[2].Hits.end(), jtj.Pts[2].Hits.begin(), jtj.Pts[2].Hits.end());
-    // re-assign the hits from jtj to ktj
-    for(auto& kpt : ktj.Pts) {
-      std::replace(kpt.Hits.begin(), kpt.Hits.end(), jtj.ID, ktj.ID);
-      // Fix InTraj
-      for(auto& kht : kpt.Hits) {
-        if(tjs.fHits[kht].InTraj == itj.ID || tjs.fHits[kht].InTraj == jtj.ID) tjs.fHits[kht].InTraj = ktj.ID;
-      }
-    } //  kpt
-*/
+
     tjs.allTraj.push_back(ktj);
     // kill jtj
     MakeTrajectoryObsolete(tjs, iss.ShowerTjID - 1);
