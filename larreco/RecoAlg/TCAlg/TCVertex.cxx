@@ -1630,23 +1630,24 @@ namespace tca {
       CTP_t mCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, mPlane);
       // X position of the purported missing vertex
       // A TP for the missing 2D vertex
-      TrajPoint tp;
-      tp.Pos[0] = vx3.Wire;
-      tp.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tjs.UnitsPerTick;
+      TrajPoint vtp;
+      vtp.Pos[0] = vx3.Wire;
+      vtp.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tjs.UnitsPerTick;
+      if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" Pos "<<mPlane<<":"<<PrintPos(tjs, vtp.Pos);
       std::vector<int> tjIDs;
       std::vector<unsigned short> tjPts;
-      for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
-        if(tjs.allTraj[itj].CTP != mCTP) continue;
-        if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
-        if(tjs.allTraj[itj].Pts.size() < 6) continue;
-        if(tjs.allTraj[itj].AlgMod[kComp3DVx]) continue;
+      for(auto& tj : tjs.allTraj) {
+        if(tj.CTP != mCTP) continue;
+        if(tj.AlgMod[kKilled]) continue;
+        if(tj.Pts.size() < 6) continue;
+        if(tj.AlgMod[kComp3DVx]) continue;
         float doca = maxdoca;
         // find the closest distance between the vertex and the trajectory
         unsigned short closePt = 0;
-        TrajPointTrajDOCA(tjs, tp, tjs.allTraj[itj], closePt, doca);
-        if(closePt > tjs.allTraj[itj].EndPt[1]) continue;
-        if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
-        tjIDs.push_back(tjs.allTraj[itj].ID);
+        TrajPointTrajDOCA(tjs, vtp, tj, closePt, doca);
+        if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tj.ID<<" closePt "<<closePt<<" doca "<<doca;
+        if(closePt > tj.EndPt[1]) continue;
+        tjIDs.push_back(tj.ID);
         tjPts.push_back(closePt);
       } // itj
       // handle the case where there are one or more TJs with TPs near the ends
@@ -1661,7 +1662,7 @@ namespace tca {
       aVtx.NTraj = 0;
       // Give it a bogus pass to indicate it wasn't created while stepping
       aVtx.Pass = 9;
-      aVtx.Pos = tp.Pos;
+      aVtx.Pos = vtp.Pos;
       // ensure this isn't in a messy region
       aVtx.TjChgFrac = ChgFracNearPos(tjs, aVtx.Pos, tjIDs);
       if(aVtx.TjChgFrac < 0.7) continue;
@@ -1669,25 +1670,28 @@ namespace tca {
       // make a reference to the new vertex
       VtxStore& newVtx = tjs.vtx[tjs.vtx.size()-1];
       if(prt) mf::LogVerbatim("TC")<<" Stored 2D vertex "<<newVtx.ID<<" TjChgFrac = "<<newVtx.TjChgFrac;
+      // make a temporary copy so we can nudge it a bit if there is only one Tj
+      std::array<float, 2> vpos = aVtx.Pos;
       for(unsigned short ii = 0; ii < tjIDs.size(); ++ii) {
         unsigned short itj = tjIDs[ii] - 1;
+        auto& tj = tjs.allTraj[itj];
         unsigned short closePt = tjPts[ii];
         // determine which end is the closest
         unsigned short end = 1;
         // closest to the beginning?
-        if(fabs(closePt - tjs.allTraj[itj].EndPt[0]) < fabs(closePt - tjs.allTraj[itj].EndPt[1])) end = 0;
+        if(fabs(closePt - tjs.allTraj[itj].EndPt[0]) < fabs(closePt - tj.EndPt[1])) end = 0;
         // don't clobber an existing vertex
-        if(tjs.allTraj[itj].VtxID[end] > 0) continue;
-        short dpt = fabs(closePt - tjs.allTraj[itj].EndPt[end]);
+        if(tj.VtxID[end] > 0) continue;
+        short dpt = fabs(closePt - tj.EndPt[end]);
         if(dpt < 4) {
           // close to an end
-          tjs.allTraj[itj].VtxID[end] = tjs.vtx[newVtxIndx].ID;
+          tj.VtxID[end] = tjs.vtx[newVtxIndx].ID;
           ++newVtx.NTraj;
-          if(prt) mf::LogVerbatim("TC")<<" attach Traj ID "<<tjs.allTraj[itj].ID<<" to end "<<end;
-          tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
+          if(prt) mf::LogVerbatim("TC")<<" attach Traj ID "<<tj.ID<<" to end "<<end;
+          tj.AlgMod[kComp3DVx] = true;
+          vpos = tj.Pts[tj.EndPt[end]].Pos;
         } else {
           // closePt is not near an end, so split the trajectory
-          //
           if(SplitAllTraj(tjs, itj, closePt, newVtxIndx, prt)) {
             // successfully split the Tj
             newVtx.NTraj += 2;
@@ -1701,11 +1705,11 @@ namespace tca {
           // and for the new trajectory
           SetPDGCode(tjs, tjs.allTraj.size()-1);
         } // closePt is not near an end, so split the trajectory
-        tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
+        tj.AlgMod[kComp3DVx] = true;
         itj = tjs.allTraj.size() - 1;
         tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
       } // ii
-      if(newVtx.NTraj < 2) {
+      if(newVtx.NTraj == 0) {
         // A failure occurred. Recover
         if(prt) mf::LogVerbatim("TC")<<"  Failed. Recover and delete vertex "<<newVtx.ID;
         MakeVertexObsolete(tjs, newVtx.ID, true);
@@ -1714,6 +1718,12 @@ namespace tca {
         vx3.Vx2ID[mPlane] = newVtx.ID;
         newVtx.Vtx3ID = vx3.ID;
         vx3.Wire = -1;
+        // set the vertex position to the start of the Tj if there is only one and fix it
+        if(newVtx.NTraj == 1) {
+          newVtx.Pos = vpos;
+          newVtx.Stat[kFixed] = true;
+        }
+        AttachAnyTrajToVertex(tjs, newVtx.ID - 1, prt);
         SetVtxScore(tjs, newVtx, tjs.Vertex2DCuts[7], prt);
         if(prt) {
           mf::LogVerbatim myprt("TC");
