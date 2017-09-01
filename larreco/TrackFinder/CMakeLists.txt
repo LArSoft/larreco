@@ -2,7 +2,7 @@
 include_directories ( $ENV{G4INCLUDE} )
 
 art_make(  
-          EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc DumpTracks_module.cc
+          EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc DumpTracks_module.cc KalmanFilterFitTrackMaker_tool.cc
           MODULE_LIBRARIES  larreco_RecoAlg
 			    larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
 			    lardata_RecoObjects larreco_Deprecated
@@ -94,6 +94,14 @@ simple_plugin( Track3DKalmanSPS "module"
  	   
        )
 
+simple_plugin( KalmanFilterFitTrackMaker "tool"
+			    ${Boost_SYSTEM_LIBRARY}
+			    ${Boost_FILESYSTEM_LIBRARY}
+			    ${ROOT_CORE}
+			    canvas
+			    lardataobj_RecoBase
+			    larreco_RecoAlg
+       )
 
 install_headers()
 install_fhicl()
