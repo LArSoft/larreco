@@ -42,7 +42,8 @@ namespace tca {
   unsigned short GetCotsIndex(TjStuff& tjs, unsigned short ShowerTjID);
   
   void Match2DShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
-  bool FindMissingShowers(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
+  bool FindMissingShowers1(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
+  bool FindMissingShowers2(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void ReconcileShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   float Match3DFOM(std::string inFcnLabel, TjStuff& tjs, unsigned short icotIndex, unsigned short jcotIndex, bool prt);
   float Match3DFOM(std::string inFcnLabel, TjStuff& tjs,
