@@ -22,6 +22,7 @@
 #include "larcore/Geometry/Geometry.h"
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "lardata/Utilities/AssociationUtil.h"
 
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -56,6 +57,12 @@ protected:
   void FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
                                std::vector<recob::SpacePoint>& pts) const;
 
+  void FillAssns(art::Event& evt,
+                 const std::vector<CollectionWireHit*> cwires,
+                 const std::vector<recob::SpacePoint>& pts,
+                 art::Assns<recob::Hit, recob::SpacePoint>& assn,
+                 const std::map<const CollectionWireHit*, art::Ptr<recob::Hit>>& hitmap) const;
+
   std::string fHitLabel;
 
   bool fFit;
@@ -76,6 +83,7 @@ Reco3D::Reco3D(const fhicl::ParameterSet& pset)
   produces<std::vector<recob::SpacePoint>>("pre");
   if(fFit){
     produces<std::vector<recob::SpacePoint>>();
+    produces<art::Assns<recob::Hit, recob::SpacePoint>>();
     produces<std::vector<recob::SpacePoint>>("noreg");
   }
 }
@@ -180,7 +188,9 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
                  std::vector<art::Ptr<recob::Hit>>& vhits,
                  std::vector<CollectionWireHit*>& cwires,
                  std::vector<InductionWireHit*>& iwires,
-                 bool incNei)
+                 bool incNei,
+                 std::map<const CollectionWireHit*,
+                          art::Ptr<recob::Hit>>& hitmap)
 {
   art::ServiceHandle<geo::Geometry> geom;
   const detinfo::DetectorProperties* detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
@@ -325,9 +335,9 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
       } // end for uwire
 
       CollectionWireHit* cwire = new CollectionWireHit(hit->Channel(), hit->PeakTime(), hit->Integral(), crossers);
+      hitmap[cwire] = hit;
       cwires.push_back(cwire);
       for(SpaceCharge* sc: crossers) sc->fCWire = cwire;
-
     } // end for hit
   } // end for it (tpc)
 
@@ -446,6 +456,34 @@ void Reco3D::FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwire
 }
 
 // ---------------------------------------------------------------------------
+void Reco3D::FillAssns(art::Event& evt,
+                       const std::vector<CollectionWireHit*> cwires,
+                       const std::vector<recob::SpacePoint>& pts,
+                       art::Assns<recob::Hit, recob::SpacePoint>& assn,
+                       const std::map<const CollectionWireHit*,
+                                      art::Ptr<recob::Hit>>& hitmap) const
+{
+  unsigned int ptidx = 0;
+
+  // Must follow FillSystemToSpacePoints()'s looping order here
+  for(const CollectionWireHit* cwire: cwires){
+    for(const SpaceCharge* sc: cwire->fCrossings){
+      if(sc->fPred == 0) continue;
+
+      auto it = hitmap.find(cwire);
+      assert(it != hitmap.end());
+      util::CreateAssn(*this, evt, pts, it->second, assn, "", ptidx);
+      ++ptidx;
+    }
+  }
+
+  if(ptidx != pts.size()){
+    std::cout << "Didn't manage to use up all the pts when making Assns!" << std::endl;
+    abort();
+  }
+}
+
+// ---------------------------------------------------------------------------
 void Reco3D::produce(art::Event& evt)
 {
   art::Handle<std::vector<recob::Hit>> hits;
@@ -460,6 +498,8 @@ void Reco3D::produce(art::Event& evt)
     if(fFit){
       auto spcol = std::make_unique<std::vector<recob::SpacePoint>>();
       evt.put(std::move(spcol));
+      auto assns = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint>>();
+      evt.put(std::move(assns));
       auto spcol_noreg = std::make_unique<std::vector<recob::SpacePoint>>();
       evt.put(std::move(spcol_noreg), "noreg");
     }
@@ -492,7 +532,8 @@ void Reco3D::produce(art::Event& evt)
   // So we can find them all to free the memory
   std::vector<InductionWireHit*> iwires;
 
-  BuildSystem(xhits, uhits, vhits, cwires, iwires, fAlpha != 0);
+  std::map<const CollectionWireHit*, art::Ptr<recob::Hit>> hitmap;
+  BuildSystem(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
 
   auto spcol_pre = std::make_unique<std::vector<recob::SpacePoint>>();
   FillSystemToSpacePoints(cwires, *spcol_pre);
@@ -529,8 +570,11 @@ void Reco3D::produce(art::Event& evt)
     }
 
     auto spcol = std::make_unique<std::vector<recob::SpacePoint>>();
+    auto assns = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint>>();
     FillSystemToSpacePoints(cwires, *spcol);
+    FillAssns(evt, cwires, *spcol, *assns, hitmap);
     evt.put(std::move(spcol));
+    evt.put(std::move(assns));
   } // end if fFit
 
   for(InductionWireHit* i: iwires) delete i;
