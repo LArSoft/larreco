@@ -159,7 +159,7 @@ void PlotSpacePoints::Plot3D(const std::vector<recob::SpacePoint>& pts,
         g.SetPoint(g.GetN(), cos(phi)*x+sin(phi)*y, cos(phi)*y-sin(phi)*x);
       }
 
-      std::string fname = TString::Format(("anim/evd3d"+suffix+"_true_%03d.png").c_str(), frame++).Data();
+      std::string fname = TString::Format(("anim/evd3d"+suffix+"_%03d.png").c_str(), frame++).Data();
       g.SetTitle(fname.c_str());
       if(g.GetN()) g.Draw("ap");
       gPad->Print(fname.c_str());
