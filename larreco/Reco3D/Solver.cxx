@@ -9,8 +9,8 @@
 template<class T> T sqr(T x){return x*x;}
 
 // ---------------------------------------------------------------------------
-InductionWireHit::InductionWireHit(int chan, double t, double q)
-  : fChannel(chan), fTime(t), fCharge(q), fPred(0)
+InductionWireHit::InductionWireHit(int chan, double q)
+  : fChannel(chan), fCharge(q), fPred(0)
 {
 }
 
@@ -44,10 +44,9 @@ void SpaceCharge::AddCharge(double dq)
 }
 
 // ---------------------------------------------------------------------------
-CollectionWireHit::CollectionWireHit(int chan, double t, double q,
+CollectionWireHit::CollectionWireHit(int chan, double q,
                                      const std::vector<SpaceCharge*>& cross)
-  : fChannel(chan), fTime(t), fCharge(q),
-    fCrossings(cross)
+  : fChannel(chan), fCharge(q), fCrossings(cross)
 {
   const double p = q/cross.size();
 
@@ -156,7 +155,7 @@ QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha)
         ret += 2 * alpha * (scip + x) * scjp * n.fCoupling;
         ret += 2 * alpha * (scjp - x) * scip * n.fCoupling;
 
-        // And replace with the correct interaction term
+        // And replace with the correct interaction terms
         ret -= 2 * alpha * (scip + x) * (scjp - x) * n.fCoupling;
         break;
       }

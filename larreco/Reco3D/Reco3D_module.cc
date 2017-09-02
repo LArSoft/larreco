@@ -42,6 +42,18 @@ template<class T> T sqr(T x){return x*x;}
 namespace reco3d
 {
 
+/// The position in the drift direction that an induction wire's time implies
+/// depends on which TPC we assume the hit originated in.
+struct InductionWireWithXPos
+{
+  InductionWireWithXPos(InductionWireHit* w, double x) : iwire(w), xpos(x) {}
+
+  bool operator<(const InductionWireWithXPos& w) const {return xpos < w.xpos;}
+
+  InductionWireHit* iwire;
+  double xpos;
+};
+
 class Reco3D : public art::EDProducer
 {
 public:
@@ -54,6 +66,31 @@ public:
   void endJob();
 
 protected:
+  double HitToXPos(const recob::Hit& hit, geo::TPCID tpc) const;
+
+  bool CloseDrift(double xa, double xb) const;
+
+  bool CloseSpace(geo::WireIDIntersection ra,
+                  geo::WireIDIntersection rb) const;
+
+  void FastForward(std::vector<InductionWireWithXPos>::iterator& it,
+                   double target,
+                   const std::vector<InductionWireWithXPos>::const_iterator& end) const;
+
+  bool ISect(int chanA, int chanB, geo::TPCID tpc,
+             geo::WireIDIntersection& pt) const;
+
+  bool ISect(int chanA, int chanB, geo::TPCID tpc) const;
+
+  void BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
+                   const std::vector<art::Ptr<recob::Hit>>& uhits,
+                   const std::vector<art::Ptr<recob::Hit>>& vhits,
+                   std::vector<CollectionWireHit*>& cwires,
+                   std::vector<InductionWireHit*>& iwires,
+                   bool incNei,
+                   std::map<const CollectionWireHit*,
+                            art::Ptr<recob::Hit>>& hitmap) const;
+
   void FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
                                std::vector<recob::SpacePoint>& pts) const;
 
@@ -70,6 +107,7 @@ protected:
   double fAlpha;
 
   const detinfo::DetectorProperties* detprop;
+  const geo::GeometryCore* geom;
 };
 
 DEFINE_ART_MODULE(Reco3D)
@@ -97,6 +135,7 @@ Reco3D::~Reco3D()
 void Reco3D::beginJob()
 {
   detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
+  geom = art::ServiceHandle<geo::Geometry>()->provider();
 }
 
 // ---------------------------------------------------------------------------
@@ -106,8 +145,8 @@ void Reco3D::endJob()
 
 // ---------------------------------------------------------------------------
 // tpc makes sure the intersection is on the side we were expecting
-bool ISect(const geo::Geometry* geom, int chanA, int chanB, geo::TPCID tpc,
-           geo::WireIDIntersection& pt)
+bool Reco3D::ISect(int chanA, int chanB, geo::TPCID tpc,
+                   geo::WireIDIntersection& pt) const
 {
   // string has a default implementation for hash. Perhaps TPCID should
   // implement a hash function directly.
@@ -149,21 +188,26 @@ bool ISect(const geo::Geometry* geom, int chanA, int chanB, geo::TPCID tpc,
 }
 
 // ---------------------------------------------------------------------------
-bool ISect(const geo::Geometry* geom, int chanA, int chanB, geo::TPCID tpc)
+bool Reco3D::ISect(int chanA, int chanB, geo::TPCID tpc) const
 {
   geo::WireIDIntersection junk;
-  return ISect(geom, chanA, chanB, tpc, junk);
+  return ISect(chanA, chanB, tpc, junk);
 }
 
 // ---------------------------------------------------------------------------
-bool CloseTime(double ta, double tb)
+bool Reco3D::CloseDrift(double xa, double xb) const
 {
-  // TODO - figure out cut value. Emprically 5 is a bit small
-  return fabs(ta-tb) < 10;
+  // Used to cut at 10 ticks (for basically empirical reasons). Reproduce that
+  // in x.
+  static const double k = 10/detprop->SamplingRate()/detprop->DriftVelocity();
+
+  // TODO - figure out cut value
+  return fabs(xa-xb) < k;
 }
 
 // ---------------------------------------------------------------------------
-bool CloseSpace(geo::WireIDIntersection ra, geo::WireIDIntersection rb)
+bool Reco3D::CloseSpace(geo::WireIDIntersection ra,
+                        geo::WireIDIntersection rb) const
 {
   TVector3 pa(ra.y, ra.z, 0);
   TVector3 pb(rb.y, rb.z, 0);
@@ -173,30 +217,39 @@ bool CloseSpace(geo::WireIDIntersection ra, geo::WireIDIntersection rb)
 }
 
 // ---------------------------------------------------------------------------
-void FastForward(std::vector<InductionWireHit*>::iterator& it,
-                 double target,
-                 const std::vector<InductionWireHit*>::const_iterator& end)
+void Reco3D::FastForward(std::vector<InductionWireWithXPos>::iterator& it,
+                         double target,
+                         const std::vector<InductionWireWithXPos>::const_iterator& end) const
 {
-  while(it != end &&
-        (*it)->fTime < target &&
-        !CloseTime((*it)->fTime, target)) ++it;
+  while(it != end && it->xpos < target && !CloseDrift(it->xpos, target)) ++it;
 }
 
 // ---------------------------------------------------------------------------
-void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
-                 std::vector<art::Ptr<recob::Hit>>& uhits,
-                 std::vector<art::Ptr<recob::Hit>>& vhits,
-                 std::vector<CollectionWireHit*>& cwires,
-                 std::vector<InductionWireHit*>& iwires,
-                 bool incNei,
-                 std::map<const CollectionWireHit*,
-                          art::Ptr<recob::Hit>>& hitmap)
+double Reco3D::HitToXPos(const recob::Hit& hit, geo::TPCID tpc) const
 {
-  art::ServiceHandle<geo::Geometry> geom;
-  const detinfo::DetectorProperties* detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
+  const std::vector<geo::WireID> ws = geom->ChannelToWire(hit.Channel());
+  for(geo::WireID w: ws){
+    if(geo::TPCID(w) == tpc)
+      return detprop->ConvertTicksToX(hit.PeakTime(), w);
+  }
+
+  std::cout << "Wire does not exist on given TPC!" << std::endl;
+  abort();
+}
+
+// ---------------------------------------------------------------------------
+void Reco3D::BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
+                         const std::vector<art::Ptr<recob::Hit>>& uhits,
+                         const std::vector<art::Ptr<recob::Hit>>& vhits,
+                         std::vector<CollectionWireHit*>& cwires,
+                         std::vector<InductionWireHit*>& iwires,
+                         bool incNei,
+                         std::map<const CollectionWireHit*,
+                                  art::Ptr<recob::Hit>>& hitmap) const
+{
   // Maps from TPC to the induction wires. Normally want to access them this
   // way.
-  std::map<geo::TPCID, std::vector<InductionWireHit*>> uwires, vwires;
+  std::map<geo::TPCID, std::vector<InductionWireWithXPos>> uwires, vwires;
 
   for(auto& ihits: {uhits, vhits}){
       for(auto& hit: ihits){
@@ -205,17 +258,24 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
       // TODO: Empirically, total collection charge is about 5% high of total
       // induction charge, which might cause "spare" charge to go where it's
       // not wanted.
-      InductionWireHit* iwire = new InductionWireHit(hit->Channel(), hit->PeakTime(), hit->Integral() * .95);
+      InductionWireHit* iwire = new InductionWireHit(hit->Channel(), hit->Integral() * .95);
       iwires.emplace_back(iwire);
 
-      assert(tpcs.size() == 2);
-
       for(geo::TPCID tpc: tpcs){
-        if(hit->View() == geo::kU) uwires[tpc].push_back(iwire);
-        if(hit->View() == geo::kV) vwires[tpc].push_back(iwire);
+        const double xpos = HitToXPos(*hit, tpc);
+
+        if(hit->View() == geo::kU) uwires[tpc].emplace_back(iwire, xpos);
+        if(hit->View() == geo::kV) vwires[tpc].emplace_back(iwire, xpos);
       } // end for tpc
     } // end for hit
   } // end for U/V
+
+  for(auto it = uwires.begin(); it != uwires.end(); ++it){
+    std::sort(it->second.begin(), it->second.end());
+  }
+  for(auto it = vwires.begin(); it != vwires.end(); ++it){
+    std::sort(it->second.begin(), it->second.end());
+  }
 
   std::map<geo::TPCID, std::vector<art::Ptr<recob::Hit>>> xhits_by_tpc;
   for(auto& xhit: xhits){
@@ -224,6 +284,16 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
     const geo::TPCID tpc = tpcs[0];
     xhits_by_tpc[tpc].push_back(xhit);
   }
+
+  for(auto it = xhits_by_tpc.begin(); it != xhits_by_tpc.end(); ++it){
+    const geo::TPCID tpc = it->first;
+    std::sort(it->second.begin(), it->second.end(),
+              [this, tpc](art::Ptr<recob::Hit>& a, art::Ptr<recob::Hit>& b)
+              {
+                return HitToXPos(*a, tpc) < HitToXPos(*b, tpc);
+              });
+  }
+
 
   struct UVCrossing
   {
@@ -246,22 +316,21 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
 
     auto vwires_begin = vwires[tpc].begin();
 
-    for(InductionWireHit* uwire: uwires[tpc]){
+    for(InductionWireWithXPos uwire: uwires[tpc]){
 
       // Fast-forward up to the first vwire that could be relevant
-      FastForward(vwires_begin, uwire->fTime, vwires[tpc].end());
+      FastForward(vwires_begin, uwire.xpos, vwires[tpc].end());
 
       for(auto vit = vwires_begin; vit != vwires[tpc].end(); ++vit){
-        InductionWireHit* vwire = *vit;
+        const InductionWireWithXPos vwire = *vit;
 
         // No more vwires can be relevant, bail out
-        if(vwire->fTime > uwire->fTime &&
-           !CloseTime(uwire->fTime, vwire->fTime)) break;
+        if(vwire.xpos > uwire.xpos &&
+           !CloseDrift(uwire.xpos, vwire.xpos)) break;
 
-        const UVCrossing key = {tpc, uwire, vwire};
+        const UVCrossing key = {tpc, uwire.iwire, vwire.iwire};
 
-        isectUV[key] = ISect(geom.get(),
-                             uwire->fChannel, vwire->fChannel, tpc,
+        isectUV[key] = ISect(uwire.iwire->fChannel, vwire.iwire->fChannel, tpc,
                              ptsUV[key]);
       } // end for vwire
     } // end for uwire
@@ -277,64 +346,60 @@ void BuildSystem(std::vector<art::Ptr<recob::Hit>>& xhits,
     auto vwires_begin = vwires[tpc].begin();
 
     for(auto& hit: it.second){
+      const double xpos = HitToXPos(*hit, tpc);
 
-      const std::vector<geo::WireID> ws = geom->ChannelToWire(hit->Channel());
-      assert(ws.size() == 1);
-
-      FastForward(uwires_begin, hit->PeakTime(), uwires[tpc].end());
-      FastForward(vwires_begin, hit->PeakTime(), vwires[tpc].end());
+      FastForward(uwires_begin, xpos, uwires[tpc].end());
+      FastForward(vwires_begin, xpos, vwires[tpc].end());
 
       // Figure out which vwires intersect this xwire here so we don't do N^2
       // nesting inside the uwire loop below.
-      std::vector<InductionWireHit*> vwires_cross;
+      std::vector<InductionWireWithXPos> vwires_cross;
       std::unordered_map<InductionWireHit*, geo::WireIDIntersection> ptsXV;
       vwires_cross.reserve(vwires[tpc].size()); // avoid reallocations
       for(auto vit = vwires_begin; vit != vwires[tpc].end(); ++vit){
-        InductionWireHit* vwire = *vit;
+        InductionWireWithXPos vwire = *vit;
 
-        if(vwire->fTime > hit->PeakTime() &&
-           !CloseTime(vwire->fTime, hit->PeakTime())) break;
+        if(vwire.xpos > xpos && !CloseDrift(vwire.xpos, xpos)) break;
 
-        if(ISect(geom.get(), hit->Channel(), vwire->fChannel, tpc, ptsXV[vwire]))
+        if(ISect(hit->Channel(), vwire.iwire->fChannel, tpc, ptsXV[vwire.iwire]))
           vwires_cross.push_back(vwire);
       } // end for vwire
 
       std::vector<SpaceCharge*> crossers;
       for(auto uit = uwires_begin; uit != uwires[tpc].end(); ++uit){
-        InductionWireHit* uwire = *uit;
+        const InductionWireWithXPos uwire = *uit;
 
-        if(uwire->fTime > hit->PeakTime() &&
-           !CloseTime(uwire->fTime, hit->PeakTime())) break;
+        if(uwire.xpos > xpos && !CloseDrift(uwire.xpos, xpos)) break;
 
         geo::WireIDIntersection ptXU;
-        if(!ISect(geom.get(), hit->Channel(), uwire->fChannel, tpc, ptXU)) continue;
+        if(!ISect(hit->Channel(), uwire.iwire->fChannel, tpc, ptXU)) continue;
 
-        for(InductionWireHit* vwire: vwires_cross){
+        for(const InductionWireWithXPos& vwire: vwires_cross){
 
-          const geo::WireIDIntersection ptXV = ptsXV[vwire];
+          const geo::WireIDIntersection ptXV = ptsXV[vwire.iwire];
           if(!CloseSpace(ptXU, ptXV)) continue;
 
-          if(!isectUV[{tpc, uwire, vwire}]) continue;
+          if(!isectUV[{tpc, uwire.iwire, vwire.iwire}]) continue;
 
-          const geo::WireIDIntersection ptUV = ptsUV[{tpc, uwire, vwire}];
+          const geo::WireIDIntersection ptUV = ptsUV[{tpc, uwire.iwire, vwire.iwire}];
 
           if(!CloseSpace(ptXU, ptUV) ||
              !CloseSpace(ptXV, ptUV)) continue;
 
-          // This average aleviates the problem with a single collection wire
-          // matching multiple hits on an induction wire at different times.
-          const double t = (hit->PeakTime()+uwire->fTime+vwire->fTime)/3;
-          const double xpos = detprop->ConvertTicksToX(t, ws[0]);
-          // TODO exactly which 3D position to set for this point?
+          // TODO exactly which 3D position to set for this point? This average
+          // aleviates the problem with a single collection wire matching
+          // multiple hits on an induction wire at different times.
+
           // Don't have a cwire object yet, set it later
-          SpaceCharge* sc = new SpaceCharge(xpos, ptXU.y, ptXU.z,
-                                            0, uwire, vwire);
+          SpaceCharge* sc = new SpaceCharge((xpos+uwire.xpos+vwire.xpos)/3,
+                                            ptXU.y, ptXU.z,
+                                            0, uwire.iwire, vwire.iwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
         } // end for vwire
       } // end for uwire
 
-      CollectionWireHit* cwire = new CollectionWireHit(hit->Channel(), hit->PeakTime(), hit->Integral(), crossers);
+      CollectionWireHit* cwire = new CollectionWireHit(hit->Channel(), hit->Integral(), crossers);
       hitmap[cwire] = hit;
       cwires.push_back(cwire);
       for(SpaceCharge* sc: crossers) sc->fCWire = cwire;
@@ -518,15 +583,6 @@ void Reco3D::produce(art::Event& evt)
       if(hit->View() == geo::kV) vhits.push_back(hit);
     }
   } // end for hit
-
-  // BuildSystem requires the hits to be sorted in time
-  for(auto v: {&xhits, &uhits, &vhits}){
-    std::sort(v->begin(), v->end(),
-              [](art::Ptr<recob::Hit>& a, art::Ptr<recob::Hit>& b)
-              {
-                return a->PeakTime() < b->PeakTime();
-              });
-  }
 
   std::vector<CollectionWireHit*> cwires;
   // So we can find them all to free the memory

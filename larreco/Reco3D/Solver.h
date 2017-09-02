@@ -10,11 +10,10 @@
 class InductionWireHit
 {
 public:
-  InductionWireHit(int chan, double t, double q);
+  InductionWireHit(int chan, double q);
 
   //protected:
   int fChannel;
-  double fTime;
 
   double fCharge;
 
@@ -56,12 +55,11 @@ public:
 class CollectionWireHit
 {
 public:
-  CollectionWireHit(int chan, double t, double q, const std::vector<SpaceCharge*>& cross);
+  CollectionWireHit(int chan, double q, const std::vector<SpaceCharge*>& cross);
   ~CollectionWireHit();
 
   //protected:
   int fChannel;
-  double fTime;
 
   double fCharge;
 
