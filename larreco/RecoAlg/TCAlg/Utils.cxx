@@ -13,6 +13,29 @@ bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 namespace tca {
   
   /////////////////////////////////////////
+  void FinishPFParticles(TjStuff& tjs)
+  {
+    // Creates a 3D vertices for PFParticles that don't have one
+    if(tjs.pfps.empty()) return;
+    
+    for(auto& pfp : tjs.pfps) {
+      if(pfp.ID == 0) continue;
+      unsigned short end = 0;
+      if(pfp.Vx3ID[end] > 0) continue;
+      Vtx3Store vx3;
+      vx3.TPCID = pfp.TPCID;
+      vx3.Wire = -2;
+      vx3.X = pfp.XYZ[end][0];
+      vx3.Y = pfp.XYZ[end][1];
+      vx3.Z = pfp.XYZ[end][2];
+      vx3.ID = tjs.vtx3.size() + 1;
+      tjs.vtx3.push_back(vx3);
+      pfp.Vx3ID[end] = vx3.ID;
+    } // pfp
+    
+  } // FinishPFParticles
+  
+  /////////////////////////////////////////
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid)
   {
     

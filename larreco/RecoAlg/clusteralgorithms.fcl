@@ -48,7 +48,7 @@ standard_trajclusteralg:
    SaveCRTree: false
    TagCosmics: false
    ChkStopCuts: [5, 8, 1.5] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
-   Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6, 3, 0]
+   Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6, 3, 0.7]
    # 0 User definition of a short Tj => max number of Tj points
    # 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
    # 2 max separation for a user-defined long Tj
@@ -57,7 +57,7 @@ standard_trajclusteralg:
    # 5 Min MCSMom of Tjs that can be used to create a vertex
    # 6 min frac of Points/Wire between a vtx and a Tj. Ideally one if the efficiency is good
    # 7 min Score
-   # 8 ID of a vertex for printing special debugging information
+   # 8 Min charge fraction near a vertex or merge point
    Vertex3DChiCut: 3.5       # 3D vertex Chi/DOF cut
    Match3DCuts: [ 0.3, 0.1, 5, 1, 0.1 ] 
    # 0 dx (cm) matching cut

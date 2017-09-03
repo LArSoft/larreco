@@ -35,6 +35,9 @@ namespace tca {
       PrintAllTraj("F2DVi", tjs, debug, USHRT_MAX, tjs.allTraj.size());
     }
     
+    // temp for testing. Check fraction of hits near a merge point
+    std::vector<int> tjlist(2);
+    
     unsigned short maxShortTjLen = tjs.Vertex2DCuts[0];
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
@@ -56,6 +59,9 @@ namespace tca {
           if(tjs.allTraj[it1].MCSMom < tjs.Vertex2DCuts[5] && tjs.allTraj[it2].MCSMom < tjs.Vertex2DCuts[5]) continue;
           bool tj2Short = (TrajLength(tjs.allTraj[it2]) < maxShortTjLen);
           for(unsigned short end2 = 0; end2 < 2; ++end2) {
+            // Only consider topo 0 and 2 vertices here. EndMerge should be the only place where topo 1
+            // vertices are considered. TODO: Eliminate the redundant loop in this function
+            if(end2 != end1) continue;
             unsigned short  endPt2 = tjs.allTraj[it2].EndPt[end2];
             unsigned short oendPt2 = tjs.allTraj[it2].EndPt[1-end2];
             if(tjs.allTraj[it1].VtxID[end1] > 0) continue;
@@ -81,14 +87,20 @@ namespace tca {
             float dwc2 = DeadWireCount(tjs, wint, tp2.Pos[0], tp1.CTP);
             vt1Sep -= dwc1;
             vt2Sep -= dwc2;
-            bool vtxOnDeadWire = (DeadWireCount(tjs, wint, wint, tp1.CTP) == 1);
+            bool vtxOnDeadWire = (DeadWireCount(tjs, wint, wint, tp1.CTP) == 1);            
+            // Check the environment near the vertex
+            tjlist[0] = tjs.allTraj[it1].ID;
+            tjlist[1] = tjs.allTraj[it2].ID;
+            float chgFrac = ChgFracNearPos(tjs, tp1.Pos, tjlist);
             if(prt && vt1Sep < 200 && vt2Sep < 200) {
               mf::LogVerbatim myprt("TC");
               myprt<<"F2DV candidate tj1-tj2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2;
               myprt<<" vtx pos "<<(int)wint<<":"<<(int)(tint/tjs.UnitsPerTick)<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2);
               myprt<<" dwc1 "<<dwc1<<" dwc2 "<<dwc2<<" on dead wire? "<<vtxOnDeadWire;
               myprt<<" vt1Sep "<<vt1Sep<<" vt2Sep "<<vt2Sep<<" sepCut "<<sepCut;
+              myprt<<" chgFrac "<<std::fixed<<std::setprecision(2)<<chgFrac<<" cut "<<tjs.Vertex2DCuts[8];
             }
+            if(chgFrac < tjs.Vertex2DCuts[8]) continue;
             if(vt1Sep > sepCut || vt2Sep > sepCut) continue;
             // make sure that the other end isn't closer
             if(PosSep(vPos, tjs.allTraj[it1].Pts[oendPt1].Pos) < vt1Sep) {
@@ -163,6 +175,7 @@ namespace tca {
               if(prt) mf::LogVerbatim("TC")<<" Fails SignalBetween for tp2 "<<dpt;
               continue;
             }
+            
             // make a new temporary vertex
             VtxStore aVtx;
             aVtx.Pos[0] = wint;
@@ -795,13 +808,13 @@ namespace tca {
       if(vx2.ID == 0) continue;
       geo::PlaneID planeID = DecodeCTP(vx2.CTP);
       if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
-      SetVtxScore(tjs, vx2, tjs.Vertex2DCuts[7], prt);
+      SetVx2Score(tjs, vx2, prt);
     } // vx2
     // and the 3D vertices
     for(auto& vx3 : tjs.vtx3) {
       if(vx3.ID == 0) continue;
       if(vx3.TPCID != tpcid) continue;
-      SetVtxScore(tjs, vx3, tjs.Vertex2DCuts[7], prt);
+      SetVx3Score(tjs, vx3, false, prt);
     } // vx3
 
   } // Find3DVertices
@@ -1075,7 +1088,7 @@ namespace tca {
     // Passed all the cuts. Attach it to the vertex and try a fit
     tj.VtxID[end] = vx.ID;
     if(FitVertex(tjs, vx, prt)) {
-      SetVtxScore(tjs, vx, tjs.Vertex2DCuts[7], prt);
+      SetVx2Score(tjs, vx, prt);
       if(prt) mf::LogVerbatim("TC")<<" success";
       return true;
     }
@@ -1169,7 +1182,7 @@ namespace tca {
       }
       return false;
     }
-    SetVtxScore(tjs, vx, tjs.Vertex2DCuts[7], false);
+    SetVx2Score(tjs, vx, false);
     vx.NTraj = nok;
     tjs.vtx.push_back(vx);
     return true;
@@ -1368,24 +1381,17 @@ namespace tca {
     return true;
     
   } // ChkVtxAssociations
-  
+
   //////////////////////////////////////////
-  bool TjHasNiceVtx(const TjStuff& tjs, const Trajectory& tj, float scoreCut)
-  {
-    for(unsigned short end = 0; end < 2; ++end) {
-      if(tj.VtxID[end] == 0) continue;
-      const VtxStore& vx2 = tjs.vtx[tj.VtxID[end] - 1];
-      if(vx2.Score > scoreCut) return true;
-    }
-    return false;
-  } // TjHasNiceVtx
-  
-  //////////////////////////////////////////
-  void SetVtxScore(TjStuff& tjs, Vtx3Store& vx3, float scoreCut, bool prt)
+  void SetVx3Score(TjStuff& tjs, Vtx3Store& vx3, bool useShowerCut, bool prt)
   {
     // Calculate the 3D vertex score and flag Tjs that are attached to high score vertices as defined 
-    // by scoreCut
+    // by either Vertex2DCuts or ShowerTag
+    
     if(vx3.ID == 0) return;
+
+    float scoreCut = tjs.Vertex2DCuts[7];
+    if(useShowerCut) scoreCut = tjs.ShowerTag[11];
     vx3.Score = 0;
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
       if(vx3.Vx2ID[ipl] <= 0) continue;
@@ -1393,29 +1399,67 @@ namespace tca {
       vx3.Score += vx2.Score;
     } // ipl
     vx3.Score /= (float)tjs.NumPlanes;
-    bool setHi = vx3.Score > scoreCut;
-    // reset the HiVx3Score vx2 bits and keep track of good 2D vertices
-    std::vector<unsigned short> vx2List;
+    if(vx3.Score < scoreCut) return;
+    SetHighScoreBits(tjs, vx3);
+    
+  } // SetVx3Score
+  
+  //////////////////////////////////////////
+  void SetHighScoreBits(TjStuff& tjs, Vtx3Store& vx3)
+  {
+    // Sets the tj and 2D vertex score bits to true
+    
+    if(vx3.ID == 0) return;
+    
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
       if(vx3.Vx2ID[ipl] <= 0) continue;
       VtxStore& vx2 = tjs.vtx[vx3.Vx2ID[ipl] - 1];
-      if(setHi) {
-        vx2.Stat[kHiVx3Score] = true;
-        vx2List.push_back(vx2.ID);
-      } else {
-        vx2.Stat[kHiVx3Score] = false;
-      }
+      vx2.Stat[kHiVx3Score] = true;
+      // transfer this to all attached tjs and vertices attached to those tjs
+      std::vector<int> tjlist = GetVtxTjIDs(tjs, vx2);
+      std::vector<int> vxlist;
+//      std::cout<<"SHSB: vx3 "<<vx3.ID<<" vx2 "<<vx2.ID<<"\n";
+      while(true) {
+        // tag Tjs and make a list of attached vertices whose high-score
+        // bit needs to be set
+        vxlist.clear();
+//        std::cout<<" tjlist";
+        for(auto tjid : tjlist) {
+          auto& tj = tjs.allTraj[tjid - 1];
+          tj.AlgMod[kTjHiVx3Score] = true;
+//          std::cout<<" "<<tj.ID;
+          for(unsigned short end = 0; end < 2; ++end) {
+            if(tj.VtxID[end] == 0) continue;
+            auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
+            if(vx2.Stat[kHiVx3Score]) continue;
+            vx2.Stat[kHiVx3Score] = true;
+            vxlist.push_back(vx2.ID);
+          } // end
+        } // tjid
+/*
+        std::cout<<" vxlist ";
+        for(auto vxid : vxlist) std::cout<<" "<<vxid;
+        std::cout<<"\n";
+*/
+        if(vxlist.empty()) break;
+        // re-build tjlist using vxlist
+        std::vector<int> newtjlist;
+        for(auto vxid : vxlist) {
+          auto& vx2 = tjs.vtx[vxid - 1];
+          auto tmp = GetVtxTjIDs(tjs, vx2);
+          for(auto tjid : tmp) {
+            if(std::find(tjlist.begin(), tjlist.end(), tjid) == tjlist.end()) newtjlist.push_back(tjid);
+          } // tjid
+        } // vxid
+        if(newtjlist.empty()) break;
+        tjlist = newtjlist;
+      } // true
     } // ipl
-    if(vx2List.empty()) return;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      if(tj.VtxID[0] > 0 && std::find(vx2List.begin(), vx2List.end(), tj.VtxID[0]) != vx2List.end()) tj.AlgMod[kTjHiVx3Score] = true;
-      if(tj.VtxID[1] > 0 && std::find(vx2List.begin(), vx2List.end(), tj.VtxID[1]) != vx2List.end()) tj.AlgMod[kTjHiVx3Score] = true;
-    } // tj
-  } // SetVtxScore
+
+  } // SetHighScoreBits
   
   //////////////////////////////////////////
-  void SetVtxScore(TjStuff& tjs, VtxStore& vx2, float scoreCut, bool prt)
+  void SetVx2Score(TjStuff& tjs, VtxStore& vx2, bool prt)
   {
     // Calculate the 2D vertex score
     
@@ -1509,7 +1553,7 @@ namespace tca {
       myprt<<" "<<std::fixed<<std::setprecision(1)<<sum;
       myprt<<" "<<(int)cnt;
     }
-  } // SetVtxScore
+  } // SetVx2Score
 
   //////////////////////////////////////////
   void CompleteIncomplete3DVerticesInGaps(TjStuff& tjs, const geo::TPCID& tpcid)
@@ -1630,23 +1674,24 @@ namespace tca {
       CTP_t mCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, mPlane);
       // X position of the purported missing vertex
       // A TP for the missing 2D vertex
-      TrajPoint tp;
-      tp.Pos[0] = vx3.Wire;
-      tp.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tjs.UnitsPerTick;
+      TrajPoint vtp;
+      vtp.Pos[0] = vx3.Wire;
+      vtp.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tjs.UnitsPerTick;
+      if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" Pos "<<mPlane<<":"<<PrintPos(tjs, vtp.Pos);
       std::vector<int> tjIDs;
       std::vector<unsigned short> tjPts;
-      for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
-        if(tjs.allTraj[itj].CTP != mCTP) continue;
-        if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
-        if(tjs.allTraj[itj].Pts.size() < 6) continue;
-        if(tjs.allTraj[itj].AlgMod[kComp3DVx]) continue;
+      for(auto& tj : tjs.allTraj) {
+        if(tj.CTP != mCTP) continue;
+        if(tj.AlgMod[kKilled]) continue;
+        if(tj.Pts.size() < 6) continue;
+        if(tj.AlgMod[kComp3DVx]) continue;
         float doca = maxdoca;
         // find the closest distance between the vertex and the trajectory
         unsigned short closePt = 0;
-        TrajPointTrajDOCA(tjs, tp, tjs.allTraj[itj], closePt, doca);
-        if(closePt > tjs.allTraj[itj].EndPt[1]) continue;
-        if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
-        tjIDs.push_back(tjs.allTraj[itj].ID);
+        TrajPointTrajDOCA(tjs, vtp, tj, closePt, doca);
+        if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tj.ID<<" closePt "<<closePt<<" doca "<<doca;
+        if(closePt > tj.EndPt[1]) continue;
+        tjIDs.push_back(tj.ID);
         tjPts.push_back(closePt);
       } // itj
       // handle the case where there are one or more TJs with TPs near the ends
@@ -1661,7 +1706,7 @@ namespace tca {
       aVtx.NTraj = 0;
       // Give it a bogus pass to indicate it wasn't created while stepping
       aVtx.Pass = 9;
-      aVtx.Pos = tp.Pos;
+      aVtx.Pos = vtp.Pos;
       // ensure this isn't in a messy region
       aVtx.TjChgFrac = ChgFracNearPos(tjs, aVtx.Pos, tjIDs);
       if(aVtx.TjChgFrac < 0.7) continue;
@@ -1669,25 +1714,28 @@ namespace tca {
       // make a reference to the new vertex
       VtxStore& newVtx = tjs.vtx[tjs.vtx.size()-1];
       if(prt) mf::LogVerbatim("TC")<<" Stored 2D vertex "<<newVtx.ID<<" TjChgFrac = "<<newVtx.TjChgFrac;
+      // make a temporary copy so we can nudge it a bit if there is only one Tj
+      std::array<float, 2> vpos = aVtx.Pos;
       for(unsigned short ii = 0; ii < tjIDs.size(); ++ii) {
         unsigned short itj = tjIDs[ii] - 1;
+        auto& tj = tjs.allTraj[itj];
         unsigned short closePt = tjPts[ii];
         // determine which end is the closest
         unsigned short end = 1;
         // closest to the beginning?
-        if(fabs(closePt - tjs.allTraj[itj].EndPt[0]) < fabs(closePt - tjs.allTraj[itj].EndPt[1])) end = 0;
+        if(fabs(closePt - tjs.allTraj[itj].EndPt[0]) < fabs(closePt - tj.EndPt[1])) end = 0;
         // don't clobber an existing vertex
-        if(tjs.allTraj[itj].VtxID[end] > 0) continue;
-        short dpt = fabs(closePt - tjs.allTraj[itj].EndPt[end]);
+        if(tj.VtxID[end] > 0) continue;
+        short dpt = fabs(closePt - tj.EndPt[end]);
         if(dpt < 4) {
           // close to an end
-          tjs.allTraj[itj].VtxID[end] = tjs.vtx[newVtxIndx].ID;
+          tj.VtxID[end] = tjs.vtx[newVtxIndx].ID;
           ++newVtx.NTraj;
-          if(prt) mf::LogVerbatim("TC")<<" attach Traj ID "<<tjs.allTraj[itj].ID<<" to end "<<end;
-          tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
+          if(prt) mf::LogVerbatim("TC")<<" attach Traj ID "<<tj.ID<<" to end "<<end;
+          tj.AlgMod[kComp3DVx] = true;
+          vpos = tj.Pts[tj.EndPt[end]].Pos;
         } else {
           // closePt is not near an end, so split the trajectory
-          //
           if(SplitAllTraj(tjs, itj, closePt, newVtxIndx, prt)) {
             // successfully split the Tj
             newVtx.NTraj += 2;
@@ -1701,11 +1749,11 @@ namespace tca {
           // and for the new trajectory
           SetPDGCode(tjs, tjs.allTraj.size()-1);
         } // closePt is not near an end, so split the trajectory
-        tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
+        tj.AlgMod[kComp3DVx] = true;
         itj = tjs.allTraj.size() - 1;
         tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
       } // ii
-      if(newVtx.NTraj < 2) {
+      if(newVtx.NTraj == 0) {
         // A failure occurred. Recover
         if(prt) mf::LogVerbatim("TC")<<"  Failed. Recover and delete vertex "<<newVtx.ID;
         MakeVertexObsolete(tjs, newVtx.ID, true);
@@ -1714,7 +1762,13 @@ namespace tca {
         vx3.Vx2ID[mPlane] = newVtx.ID;
         newVtx.Vtx3ID = vx3.ID;
         vx3.Wire = -1;
-        SetVtxScore(tjs, newVtx, tjs.Vertex2DCuts[7], prt);
+        // set the vertex position to the start of the Tj if there is only one and fix it
+        if(newVtx.NTraj == 1) {
+          newVtx.Pos = vpos;
+          newVtx.Stat[kFixed] = true;
+        }
+        AttachAnyTrajToVertex(tjs, newVtx.ID - 1, prt);
+        SetVx2Score(tjs, newVtx, prt);
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<" Success: new 2D vtx ID "<<newVtx.ID<<" at "<<(int)newVtx.Pos[0]<<":"<<(int)newVtx.Pos[1]/tjs.UnitsPerTick;
@@ -1913,20 +1967,13 @@ namespace tca {
     
     // Kill it
     vx2.ID = 0;
-    // Unset Tj kTjHiVx3Score bit?
-    bool unsetBit = vx2.Vtx3ID > 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] == vx2ID) {
-          tj.VtxID[end] = 0;
-          // TODO: what if there is a high score vtx at the other end?
-          if(unsetBit) tj.AlgMod[kTjHiVx3Score] = false;
-        }
+        if(tj.VtxID[end] == vx2ID) tj.VtxID[end] = 0;
       } // end
-      // crude but effective
-      if(tj.VtxID[0] == 0 && tj.VtxID[1] == 0) tj.AlgMod[kTjHiVx3Score] = false;
     } // tj
+
     // check for a 3D vertex
     if(vx2.Vtx3ID == 0) return true;
     Vtx3Store& vx3 = tjs.vtx3[vx2.Vtx3ID - 1];
@@ -1945,7 +1992,7 @@ namespace tca {
     if(n2D > 1) {
       // 3D vertex is incomplete
       // correct the score
-      SetVtxScore(tjs, vx3, tjs.Vertex2DCuts[7], false);
+      SetVx3Score(tjs, vx3, false, false);
       return true;
     }
   
@@ -1956,13 +2003,6 @@ namespace tca {
       if(vx2.Vtx3ID == vx3.ID) vx2.Vtx3ID = 0;
     } // vx2
     vx3.ID = 0;
-    // remove flags from the Tjs
-    float score;
-    auto vxtj = GetVtxTjIDs(tjs, vx3, score);
-    for(auto tjid : vxtj) {
-      auto& tj = tjs.allTraj[tjid - 1];
-      tj.AlgMod[kTjHiVx3Score] = false;
-    }
     return true;
     
   } // MakeVertexObsolete
