@@ -120,13 +120,7 @@ namespace tca {
     if(fMinMCSMom.size() != fMinPts.size()) badinput = true;
     if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxVertexTrajSep, MaxAngleRange and MinMCSMom should be defined for each reconstruction pass";
     
-    if(tjs.Vertex2DCuts.size() < 7) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 7\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = ID of a 2D vertex to print";
-    // resize for a debug element of the vector
-    if(tjs.Vertex2DCuts.size() < 9) {
-      tjs.Vertex2DCuts.resize(9);
-      // Set a default minimum Score
-      tjs.Vertex2DCuts[7] = 3;
-    }
+    if(tjs.Vertex2DCuts.size() < 9) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 7\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = min ChgFrac at a vtx or merge point";
     if(fKinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
     if(fChargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
     
@@ -630,14 +624,6 @@ namespace tca {
             if(tjs.fHits[jht].InTraj != 0) continue;
             if(tjs.IgnoreNegChiHits && tjs.fHits[jht].GoodnessOfFit < 0) continue;
             // clear out any leftover work inTraj's that weren't cleaned up properly
-/*
-            for(auto& hit : tjs.fHits) {
-              if(hit.InTraj < 0) {
-                std::cout<<"Bad cleanup "<<PrintHit(hit)<<" events processed "<<fEventsProcessed<<" fWorkID "<<fWorkID<<"\n";
-                hit.InTraj = 0;
-              }
-            }
-*/
             unsigned int toWire = jwire;
             float toTick = tjs.fHits[jht].PeakTime;
             float jqtot = tjs.fHits[jht].Integral;
@@ -1986,6 +1972,9 @@ namespace tca {
     
     unsigned short maxShortTjLen = tjs.Vertex2DCuts[0];
     
+    // temp for testing. Check fraction of hits near a merge point
+    std::vector<int> tjlist(2);
+    
     for(unsigned int it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
       if(tjs.allTraj[it1].CTP != fCTP) continue;
@@ -2164,7 +2153,27 @@ namespace tca {
           }
         }
         
-        if(mrgPrt) mf::LogVerbatim("TC")<<" EM2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2)<<" bestFOM "<<bestFOM<<" bestDOCA "<<bestDOCA<<" docaCut "<<docaCut<<" isVLA? "<<isVLA<<" dang "<<dang<<" dangCut "<<dangCut<<" chgPull "<<chgPull<<" doMerge? "<<doMerge<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom<<" signalBetween? "<<signalBetween;
+        // testing. Require a large charge fraction near a merge point on the first pass? This
+        // might prevent a merge from occurring when a large angle Tj might be reconstructed on a later
+        // pass, resulting in the creation of the 3-Tj vertex
+        tjlist[0] = tjs.allTraj[it1].ID;
+        tjlist[1] = tjs.allTraj[it2].ID;
+        float chgFrac = ChgFracNearPos(tjs, tp1.Pos, tjlist);
+        
+        if(mrgPrt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<" EM2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2);
+          myprt<<" bestFOM "<<std::fixed<<std::setprecision(2)<<bestFOM;
+          myprt<<" bestDOCA "<<std::setprecision(1)<<bestDOCA;
+          myprt<<" docaCut "<<docaCut<<" isVLA? "<<isVLA;
+          myprt<<" dang "<<std::setprecision(2)<<dang<<" dangCut "<<dangCut;
+          myprt<<" chgPull "<<std::setprecision(1);
+          myprt<<chgPull<<" doMerge? "<<doMerge<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom<<" signalBetween? "<<signalBetween;
+          myprt<<" chgFrac "<<std::setprecision(2)<<chgFrac<<" cut "<<tjs.Vertex2DCuts[8];
+        }
+        
+        if(chgFrac < tjs.Vertex2DCuts[8]) continue;
+//        if(chgFrac < tjs.Vertex2DCuts[8] && tjs.allTraj[it1].Pass == 0 && tjs.allTraj[it2].Pass == 0) continue;
 
         if(doMerge) {
           if(mrgPrt) mf::LogVerbatim("TC")<<"  Merge ";
@@ -2307,7 +2316,7 @@ namespace tca {
       int tjID = tj.ID;
       if(tjID == 0) continue;
       short score = 1;
-      if(TjHasNiceVtx(tjs, tj, tjs.Vertex2DCuts[7])) score = 0;
+      if(tj.AlgMod[kTjHiVx3Score]) score = 0;
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         auto& tp = tj.Pts[ipt];
         if(tp.Chg == 0) continue;
@@ -2431,12 +2440,16 @@ namespace tca {
       // Require 0 or a matched shower Tj in all planes
       if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
       PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
+      pfp.TjIDs = ms.TjIDs;
       // declare a start or end vertex and set the end points
       if(pfp.Vx3ID[0] == 0) {
         if(!SetPFPEndPoints(tjs, pfp, 0, prt)) continue;
       } else {
         if(!SetPFPEndPoints(tjs, pfp, 1, prt)) continue;
       }
+      TagBragg(tjs, pfp, prt);
+      Reverse3DMatchTjs(tjs, pfp, prt);
+      if(prt) mf::LogVerbatim("TC")<<" Created PFP "<<pfp.ID;
       tjs.pfps.push_back(pfp);
       ms.pfpID = pfp.ID;
       for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
@@ -4523,6 +4536,7 @@ namespace tca {
     // Merge hits in trajectory points?
     if(fMakeNewHits) MergeTPHits();
     Finish3DShowers(tjs);
+    FinishPFParticles(tjs);
     
     ClusterStore cls;
     tjs.tcl.clear();
