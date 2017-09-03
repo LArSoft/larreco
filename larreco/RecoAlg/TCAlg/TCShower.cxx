@@ -187,7 +187,8 @@ namespace tca {
       for(auto& vx3 : tjs.vtx3) {
         if(vx3.ID == 0) continue;
         if(vx3.TPCID != tpcid) continue;
-        SetVtxScore(tjs, vx3, tjs.ShowerTag[11], prt);
+        // Set the score and flag associated Tjs using the ShowerTag cut
+        SetVx3Score(tjs, vx3, true, prt);
       }
     } // change high-score vertex definition
 
@@ -1180,7 +1181,7 @@ namespace tca {
       return false;
     }
     // check for high score vertex
-    if(!addParent && TjHasNiceVtx(tjs, tj, tjs.ShowerTag[11])) {
+    if(!addParent && tj.AlgMod[kTjHiVx3Score]) {
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" in cotIndex "<<cotIndex<<" has a high score 2D vertex. Not adding it";
       return false;
     }
@@ -1775,8 +1776,7 @@ namespace tca {
           if(tj.AlgMod[kInShower]) continue;
           // don't put it in the shower if it has a nice Tj
           if(tj.AlgMod[kTjHiVx3Score]) continue;
-          // or exceeds the 2D vertex Score cut
-          if(TjHasNiceVtx(tjs, tj, tjs.ShowerTag[11])) continue;
+//          if(TjHasNiceVtx(tjs, tj, tjs.ShowerTag[11])) continue;
           AddTj(fcnLabel, tjs, tjID, ci1, false, prt);
         } // tjID
         if(MergeShowersAndStore(fcnLabel, tjs, ci1, ci2, prt)) {
@@ -2703,7 +2703,7 @@ namespace tca {
       // Cut on length and MCSMom
       if(tj1.Pts.size() > 4 && tj1.MCSMom > maxMCSMom) continue;
       if(tj1.AlgMod[kTjHiVx3Score]) continue;
-      if(TjHasNiceVtx(tjs, tj1, tjs.ShowerTag[11])) continue;
+//      if(TjHasNiceVtx(tjs, tj1, tjs.ShowerTag[11])) continue;
       for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
         Trajectory& tj2 = tjs.allTraj[it2];
         if(tj2.CTP != inCTP) continue;
@@ -2714,7 +2714,7 @@ namespace tca {
         // ignore stubby Tjs
         if(tj2.Pts.size() < 3) continue;
         if(tj2.AlgMod[kTjHiVx3Score]) continue;
-        if(TjHasNiceVtx(tjs, tj2, tjs.ShowerTag[11])) continue;
+//        if(TjHasNiceVtx(tjs, tj2, tjs.ShowerTag[11])) continue;
         // Cut on length and MCSMom
         if(tj2.Pts.size() > 4 && tj2.MCSMom > maxMCSMom) continue;
         unsigned short ipt1, ipt2;
@@ -2768,7 +2768,8 @@ namespace tca {
             if(std::find(tjList[it].begin(), tjList[it].end(), vtjID) != tjList[it].end()) continue;
             if(std::find(list.begin(), list.end(), vtjID) != list.end()) continue;
             auto& tj2 = tjs.allTraj[vtjID - 1];
-            if(TjHasNiceVtx(tjs, tj2, tjs.ShowerTag[11])) continue;
+            if(tj2.AlgMod[kTjHiVx3Score]) continue;
+//            if(TjHasNiceVtx(tjs, tj2, tjs.ShowerTag[11])) continue;
             list.push_back(vtjID);
           } // vtj
         } // end
@@ -2952,7 +2953,8 @@ namespace tca {
        
        if(!nukeEmAll && tj.AlgMod[kTjHiVx3Score]) continue;
        // ignore Tjs with nice vertices unless requested otherwise
-       if(TjHasNiceVtx(tjs, tj, tjs.ShowerTag[11])) {
+//       if(TjHasNiceVtx(tjs, tj, tjs.ShowerTag[11])) {
+       if(tj.AlgMod[kTjHiVx3Score]) {
          if(nukeEmAll) {
            // see if the vertex is inside the envelope
            for(unsigned short end = 0; end < 2; ++end) {
