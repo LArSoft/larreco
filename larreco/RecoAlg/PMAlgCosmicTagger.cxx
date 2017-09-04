@@ -189,6 +189,23 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
         std::cout << " - It also stops " << fabs(vPos[!minIdx] - fDimensionsMin[dirIdx]) << " from the bottom." << std::endl;
         std::cout << " - " << node0.Point3D().X() << ", " << node0.Point3D().Y() << ", " << node0.Point3D().Z() << std::endl;
         std::cout << " - " << node1.Point3D().X() << ", " << node1.Point3D().Y() << ", " << node1.Point3D().Z() << std::endl;
+
+        // Get the de/dx information for each view
+        std::map<size_t,std::vector<double>> dedx_u;
+        std::map<size_t,std::vector<double>> dedx_v;
+        std::map<size_t,std::vector<double>> dedx_z;
+
+        t.Track()->GetRawdEdxSequence(dedx_u,geo::kU);
+        t.Track()->GetRawdEdxSequence(dedx_v,geo::kV);
+        t.Track()->GetRawdEdxSequence(dedx_z,geo::kZ);
+
+        std::cout << "de/dx u : ";
+        for(int u = t.Track()->NextHit(-1,geo::kU); u != -1; u = t.Track()->NextHit(u,geo::kU)){
+          if(u > t.Track()->PrevHit(t.Track()->size(),geo::kU)) break;
+          std::cout << "(" << u << "," << dedx_u[u][5] / dedx_u[u][6] << ") ";
+        }
+        std::cout << std::endl;
+
         ++n;
 			  t.Track()->SetTagFlag(pma::Track3D::kCosmic);
 			  t.Track()->SetTagFlag(pma::Track3D::kGeometry_Y);
