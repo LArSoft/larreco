@@ -155,6 +155,7 @@ simple_plugin(ParticleDecayId "module"
 			${ROOT_BASIC_LIB_LIST}
 )
 
+add_subdirectory(TF)
 add_subdirectory(Keras)
 add_subdirectory(MLP)
 add_subdirectory(PointIdAlg)

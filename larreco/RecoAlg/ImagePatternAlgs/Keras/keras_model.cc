@@ -3,9 +3,6 @@
 #include "tbb/parallel_for.h"
 #include "tbb/tbb.h"
 
-#include "tensorflow/core/public/session.h"
-#include "tensorflow/core/platform/env.h"
-
 #include <iostream>
 #include <fstream>
 #include <chrono>
@@ -40,13 +37,6 @@ void keras::DataChunk2D::read_from_file(const std::string &fname) {
     data.push_back(tmp_single_depth);
   }
   fin.close();
-
-  tensorflow::Session* fSession;
-  auto status = tensorflow::NewSession(tensorflow::SessionOptions(), &fSession);
-  if (!status.ok())
-  {
-      std::cout << status.ToString() << std::endl;
-  }
 }
 
 
