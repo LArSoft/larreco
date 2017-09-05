@@ -1,6 +1,6 @@
 // Christopher Backhouse - bckhouse@fnal.gov
 
-// Test file at Caltech: nfs/raid11/dunesam/prodgenie_nu_dune10kt_1x2x6_mcc7.0/prodgenie_nu_dune10kt_1x2x6_63_20160811T171439_merged.root
+// Test file at Caltech: /nfs/raid11/dunesam/prodgenie_nu_dune10kt_1x2x6_mcc7.0/prodgenie_nu_dune10kt_1x2x6_63_20160811T171439_merged.root
 
 // C/C++ standard libraries
 #include <string>
@@ -32,6 +32,7 @@
 #include "larsim/MCCheater/BackTracker.h"
 
 #include "TGraph.h"
+#include "TH1.h"
 #include "TPad.h"
 
 #include "Solver.h"
@@ -54,12 +55,12 @@ struct InductionWireWithXPos
   double xpos;
 };
 
-class Reco3D : public art::EDProducer
+class SpacePointSolver : public art::EDProducer
 {
 public:
 
-  explicit Reco3D(const fhicl::ParameterSet& pset);
-  virtual ~Reco3D();
+  explicit SpacePointSolver(const fhicl::ParameterSet& pset);
+  virtual ~SpacePointSolver();
 
   void produce(art::Event& evt);
   void beginJob();
@@ -106,14 +107,16 @@ protected:
 
   double fAlpha;
 
+  TH1* fDeltaX;
+
   const detinfo::DetectorProperties* detprop;
   const geo::GeometryCore* geom;
 };
 
-DEFINE_ART_MODULE(Reco3D)
+DEFINE_ART_MODULE(SpacePointSolver)
 
 // ---------------------------------------------------------------------------
-Reco3D::Reco3D(const fhicl::ParameterSet& pset)
+SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset)
   : fHitLabel(pset.get<std::string>("HitLabel")),
     fFit(pset.get<bool>("Fit")),
     fAlpha(pset.get<double>("Alpha"))
@@ -127,26 +130,29 @@ Reco3D::Reco3D(const fhicl::ParameterSet& pset)
 }
 
 // ---------------------------------------------------------------------------
-Reco3D::~Reco3D()
+SpacePointSolver::~SpacePointSolver()
 {
 }
 
 // ---------------------------------------------------------------------------
-void Reco3D::beginJob()
+void SpacePointSolver::beginJob()
 {
   detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
   geom = art::ServiceHandle<geo::Geometry>()->provider();
+
+  art::ServiceHandle<art::TFileService> tfs;
+  fDeltaX = tfs->make<TH1F>("deltax", ";#Deltax (cm)", 100, -2, +2);
 }
 
 // ---------------------------------------------------------------------------
-void Reco3D::endJob()
+void SpacePointSolver::endJob()
 {
 }
 
 // ---------------------------------------------------------------------------
 // tpc makes sure the intersection is on the side we were expecting
-bool Reco3D::ISect(int chanA, int chanB, geo::TPCID tpc,
-                   geo::WireIDIntersection& pt) const
+bool SpacePointSolver::ISect(int chanA, int chanB, geo::TPCID tpc,
+                             geo::WireIDIntersection& pt) const
 {
   // string has a default implementation for hash. Perhaps TPCID should
   // implement a hash function directly.
@@ -188,44 +194,50 @@ bool Reco3D::ISect(int chanA, int chanB, geo::TPCID tpc,
 }
 
 // ---------------------------------------------------------------------------
-bool Reco3D::ISect(int chanA, int chanB, geo::TPCID tpc) const
+bool SpacePointSolver::ISect(int chanA, int chanB, geo::TPCID tpc) const
 {
   geo::WireIDIntersection junk;
   return ISect(chanA, chanB, tpc, junk);
 }
 
 // ---------------------------------------------------------------------------
-bool Reco3D::CloseDrift(double xa, double xb) const
+bool SpacePointSolver::CloseDrift(double xa, double xb) const
 {
   // Used to cut at 10 ticks (for basically empirical reasons). Reproduce that
   // in x.
-  static const double k = 10/detprop->SamplingRate()/detprop->DriftVelocity();
+  // Sampling rate is in ns/ticks
+  // Drift velocity is in cm/us
+  //  static const double k = 10*detprop->SamplingRate()*1e-3*detprop->DriftVelocity();
+  const double k = 0.2;//0.4; // 1 sigma on deltax plot
 
   // TODO - figure out cut value
   return fabs(xa-xb) < k;
 }
 
 // ---------------------------------------------------------------------------
-bool Reco3D::CloseSpace(geo::WireIDIntersection ra,
-                        geo::WireIDIntersection rb) const
+bool SpacePointSolver::CloseSpace(geo::WireIDIntersection ra,
+                                  geo::WireIDIntersection rb) const
 {
   TVector3 pa(ra.y, ra.z, 0);
   TVector3 pb(rb.y, rb.z, 0);
 
   // TODO - figure out cut value. Empirically .25 is a bit small
-  return (pa-pb).Mag() < .5;
+  //  return (pa-pb).Mag() < .5;
+
+  return (pa-pb).Mag() < .35;
 }
 
 // ---------------------------------------------------------------------------
-void Reco3D::FastForward(std::vector<InductionWireWithXPos>::iterator& it,
-                         double target,
-                         const std::vector<InductionWireWithXPos>::const_iterator& end) const
+void SpacePointSolver::
+FastForward(std::vector<InductionWireWithXPos>::iterator& it,
+            double target,
+            const std::vector<InductionWireWithXPos>::const_iterator& end) const
 {
   while(it != end && it->xpos < target && !CloseDrift(it->xpos, target)) ++it;
 }
 
 // ---------------------------------------------------------------------------
-double Reco3D::HitToXPos(const recob::Hit& hit, geo::TPCID tpc) const
+double SpacePointSolver::HitToXPos(const recob::Hit& hit, geo::TPCID tpc) const
 {
   const std::vector<geo::WireID> ws = geom->ChannelToWire(hit.Channel());
   for(geo::WireID w: ws){
@@ -238,15 +250,24 @@ double Reco3D::HitToXPos(const recob::Hit& hit, geo::TPCID tpc) const
 }
 
 // ---------------------------------------------------------------------------
-void Reco3D::BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
-                         const std::vector<art::Ptr<recob::Hit>>& uhits,
-                         const std::vector<art::Ptr<recob::Hit>>& vhits,
-                         std::vector<CollectionWireHit*>& cwires,
-                         std::vector<InductionWireHit*>& iwires,
-                         bool incNei,
-                         std::map<const CollectionWireHit*,
-                                  art::Ptr<recob::Hit>>& hitmap) const
+void SpacePointSolver::
+BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
+            const std::vector<art::Ptr<recob::Hit>>& uhits,
+            const std::vector<art::Ptr<recob::Hit>>& vhits,
+            std::vector<CollectionWireHit*>& cwires,
+            std::vector<InductionWireHit*>& iwires,
+            bool incNei,
+            std::map<const CollectionWireHit*,
+                     art::Ptr<recob::Hit>>& hitmap) const
 {
+  std::map<geo::TPCID, std::vector<art::Ptr<recob::Hit>>> xhits_by_tpc;
+  for(auto& xhit: xhits){
+    const std::vector<geo::TPCID> tpcs = geom->ROPtoTPCs(geom->ChannelToROP(xhit->Channel()));
+    assert(tpcs.size() == 1);
+    const geo::TPCID tpc = tpcs[0];
+    xhits_by_tpc[tpc].push_back(xhit);
+  }
+
   // Maps from TPC to the induction wires. Normally want to access them this
   // way.
   std::map<geo::TPCID, std::vector<InductionWireWithXPos>> uwires, vwires;
@@ -262,6 +283,8 @@ void Reco3D::BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
       iwires.emplace_back(iwire);
 
       for(geo::TPCID tpc: tpcs){
+        if(xhits_by_tpc.count(tpc) == 0) continue;
+
         const double xpos = HitToXPos(*hit, tpc);
 
         if(hit->View() == geo::kU) uwires[tpc].emplace_back(iwire, xpos);
@@ -275,14 +298,6 @@ void Reco3D::BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
   }
   for(auto it = vwires.begin(); it != vwires.end(); ++it){
     std::sort(it->second.begin(), it->second.end());
-  }
-
-  std::map<geo::TPCID, std::vector<art::Ptr<recob::Hit>>> xhits_by_tpc;
-  for(auto& xhit: xhits){
-    const std::vector<geo::TPCID> tpcs = geom->ROPtoTPCs(geom->ChannelToROP(xhit->Channel()));
-    assert(tpcs.size() == 1);
-    const geo::TPCID tpc = tpcs[0];
-    xhits_by_tpc[tpc].push_back(xhit);
   }
 
   for(auto it = xhits_by_tpc.begin(); it != xhits_by_tpc.end(); ++it){
@@ -385,6 +400,10 @@ void Reco3D::BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
 
           if(!CloseSpace(ptXU, ptUV) ||
              !CloseSpace(ptXV, ptUV)) continue;
+
+          fDeltaX->Fill(xpos-uwire.xpos);
+          fDeltaX->Fill(xpos-vwire.xpos);
+          fDeltaX->Fill(uwire.xpos-vwire.xpos);
 
           // TODO exactly which 3D position to set for this point? This average
           // aleviates the problem with a single collection wire matching
@@ -504,8 +523,9 @@ void Reco3D::BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
 }
 
 // ---------------------------------------------------------------------------
-void Reco3D::FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
-                                     std::vector<recob::SpacePoint>& pts) const
+void SpacePointSolver::
+FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
+                        std::vector<recob::SpacePoint>& pts) const
 {
   const double err[6] = {0,};
 
@@ -521,12 +541,13 @@ void Reco3D::FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwire
 }
 
 // ---------------------------------------------------------------------------
-void Reco3D::FillAssns(art::Event& evt,
-                       const std::vector<CollectionWireHit*> cwires,
-                       const std::vector<recob::SpacePoint>& pts,
-                       art::Assns<recob::Hit, recob::SpacePoint>& assn,
-                       const std::map<const CollectionWireHit*,
-                                      art::Ptr<recob::Hit>>& hitmap) const
+void SpacePointSolver::
+FillAssns(art::Event& evt,
+          const std::vector<CollectionWireHit*> cwires,
+          const std::vector<recob::SpacePoint>& pts,
+          art::Assns<recob::Hit, recob::SpacePoint>& assn,
+          const std::map<const CollectionWireHit*,
+                         art::Ptr<recob::Hit>>& hitmap) const
 {
   unsigned int ptidx = 0;
 
@@ -549,7 +570,7 @@ void Reco3D::FillAssns(art::Event& evt,
 }
 
 // ---------------------------------------------------------------------------
-void Reco3D::produce(art::Event& evt)
+void SpacePointSolver::produce(art::Event& evt)
 {
   art::Handle<std::vector<recob::Hit>> hits;
   std::vector<art::Ptr<recob::Hit> > hitlist;

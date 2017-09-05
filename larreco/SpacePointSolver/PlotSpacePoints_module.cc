@@ -175,9 +175,11 @@ void PlotSpacePoints::analyze(const art::Event& evt)
 
     const std::string suffix = TString::Format("%s_%d", fSuffix.c_str(), evt.event()).Data();
 
-    Plot(*pts, suffix);
+    if(!pts->empty()){
+      Plot(*pts, suffix);
 
-    if(fPlots3D) Plot3D(*pts, suffix);
+      if(fPlots3D) Plot3D(*pts, suffix);
+    }
   }
 
   if(fPlotsTrue){

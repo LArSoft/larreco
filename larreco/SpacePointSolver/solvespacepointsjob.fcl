@@ -1,5 +1,5 @@
 #include "services_dune.fcl"
-#include "Reco3D.fcl"
+#include "SpacePointSolver.fcl"
 #include "PlotSpacePoints.fcl"
 
 process_name: Reco3D
@@ -24,9 +24,6 @@ outputs:
  {
    module_type: RootOutput
    fileName:    "reco3d.root"
-#   dataTier:    "full-reconstructed"
-#   compressionLevel: 1
-#   saveMemoryObjectThreshold: 0
  }
 }
 
@@ -34,7 +31,7 @@ physics:
 {
   producers:
   {
-    reco3d: @local::standard_reco3d
+    reco3d: @local::standard_spacepointsolver
   }
 
   analyzers:
