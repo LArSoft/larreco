@@ -1754,8 +1754,11 @@ namespace tca {
         // find the closest distance between the vertex and the trajectory
         unsigned short closePt = 0;
         TrajPointTrajDOCA(tjs, vtp, tj, closePt, doca);
-        if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tj.ID<<" closePt "<<closePt<<" doca "<<doca;
         if(closePt > tj.EndPt[1]) continue;
+        if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tj.ID<<" closePt "<<closePt<<" doca "<<doca;
+        // try to improve the location of the vertex by looking for a distinctive feature on the
+        // trajectory, e.g. high multiplicity hits or larger than normal charge
+        if(RefineVtxPosition(tjs, tj, closePt, prt)) vtp.Pos = tj.Pts[closePt].Pos;
         tjIDs.push_back(tj.ID);
         tjPts.push_back(closePt);
       } // itj
@@ -1778,7 +1781,7 @@ namespace tca {
       if(!StoreVertex(tjs, aVtx)) continue;
       // make a reference to the new vertex
       VtxStore& newVtx = tjs.vtx[tjs.vtx.size()-1];
-      if(prt) mf::LogVerbatim("TC")<<" Stored 2D vertex "<<newVtx.ID<<" TjChgFrac = "<<newVtx.TjChgFrac;
+      if(prt) mf::LogVerbatim("TC")<<" Stored 2D vertex "<<newVtx.ID;
       // make a temporary copy so we can nudge it a bit if there is only one Tj
       std::array<float, 2> vpos = aVtx.Pos;
       for(unsigned short ii = 0; ii < tjIDs.size(); ++ii) {
@@ -1789,11 +1792,13 @@ namespace tca {
         unsigned short end = 1;
         // closest to the beginning?
         if(fabs(closePt - tjs.allTraj[itj].EndPt[0]) < fabs(closePt - tj.EndPt[1])) end = 0;
-        // don't clobber an existing vertex
-        if(tj.VtxID[end] > 0) continue;
         short dpt = fabs(closePt - tj.EndPt[end]);
-        if(dpt < 4) {
+        if(dpt < 3) {
           // close to an end
+          if(tj.VtxID[end] > 0) {
+            if(prt) mf::LogVerbatim("TC")<<" Tj has a vertex "<<tj.VtxID[end]<<" at this end "<<end;
+            continue;
+          }
           tj.VtxID[end] = tjs.vtx[newVtxIndx].ID;
           ++newVtx.NTraj;
           if(prt) mf::LogVerbatim("TC")<<" attach Traj ID "<<tj.ID<<" to end "<<end;
@@ -1802,10 +1807,12 @@ namespace tca {
         } else {
           // closePt is not near an end, so split the trajectory
           if(SplitAllTraj(tjs, itj, closePt, newVtxIndx, prt)) {
+            if(prt) mf::LogVerbatim("TC")<<" SplitAllTraj success "<<tjs.vtx[newVtxIndx].ID<<" at closePt "<<closePt;
             // successfully split the Tj
             newVtx.NTraj += 2;
           } else {
             // split failed. Give up
+            if(prt) mf::LogVerbatim("TC")<<" SplitAllTraj failed";
             newVtx.ID = 0;
             break;
           }
@@ -1847,6 +1854,28 @@ namespace tca {
     
   } // CompleteIncomplete3DVertices
   
+  ////////////////////////////////////////////////
+  bool RefineVtxPosition(TjStuff& tjs, const Trajectory& tj, unsigned short& nearPt, bool prt)
+  {
+    // The tj has been slated to be split somewhere near point nearPt. This function will move
+    // the near point a bit to the most likely point of a vertex
+    
+    float maxChg = tj.Pts[nearPt].Chg;
+    short maxChgPt = nearPt;
+    
+    for(short ipt = nearPt - 3; ipt < nearPt + 3; ++ipt) {
+      if(ipt < tj.EndPt[0] || ipt > tj.EndPt[1]) continue;
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg > maxChg) {
+        maxChg = tp.Chg;
+        maxChgPt = ipt;
+      }
+      if(prt) mf::LogVerbatim("TC")<<"RVP: ipt "<<ipt<<" Pos "<<tp.CTP<<":"<<PrintPos(tjs, tp.Pos)<<" chg "<<(int)tp.Chg<<" nhits "<<tp.Hits.size();
+    } // ipt
+    if(nearPt == maxChgPt) return false;
+    nearPt = maxChgPt;
+    return true;
+  } //RefineVtxPosition
   
   /////////////////////TY:///////////////////////////
   void VtxHitsSwap(TjStuff& tjs, const CTP_t inCTP){
