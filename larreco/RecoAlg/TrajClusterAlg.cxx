@@ -1987,6 +1987,8 @@ namespace tca {
       for(unsigned short end1 = 0; end1 < 2; ++end1) {
         // no merge if there is a vertex at the end
         if(tj1.VtxID[end1] > 0) continue;
+        // or if there is a Bragg peak
+        if(tj1.StopFlag[end1][kBragg]) continue;
         // make a copy of tp1 so we can mess with it
         TrajPoint tp1 = tj1.Pts[tj1.EndPt[end1]];
         // do a local fit on the lastpass only using the last 3 points
@@ -2020,6 +2022,8 @@ namespace tca {
           unsigned short end2 = 1 - end1;
           // check for a vertex at this end
           if(tj2.VtxID[end2] > 0) continue;
+          // and for a Bragg peak
+          if(tj2.StopFlag[end2][kBragg]) continue;
           TrajPoint& tp2 = tj2.Pts[tj2.EndPt[end2]];
           TrajPoint& tp2OtherEnd = tj2.Pts[tj2.EndPt[end1]];
           // ensure that the other end isn't closer
