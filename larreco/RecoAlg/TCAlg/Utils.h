@@ -162,6 +162,7 @@ namespace tca {
   double MCSThetaRMS(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt);
   // Calculate MCS theta RMS over the entire length. Returns MCS angle for 1 WSE unit
   float MCSThetaRMS(TjStuff& tjs, Trajectory& tj);
+  void TjDeltaRMS(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt, double& rms, unsigned short& cnt);
   // Returns true if the trajectory has low hit multiplicity and is in a clean environment
   bool TrajIsClean(TjStuff& tjs, Trajectory& tj, bool prt);
   // Flag delta ray trajectories in allTraj

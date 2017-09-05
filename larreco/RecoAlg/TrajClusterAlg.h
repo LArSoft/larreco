@@ -296,7 +296,7 @@ namespace tca {
     bool IsGhost(std::vector<unsigned int>& tHits, unsigned short& ofTraj);
     bool IsGhost(Trajectory& tj);
     void CheckTrajEnd();
-    void EndMerge();
+    void EndMerge(bool lastPass);
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
     bool EraseHit(const unsigned int& delHit);
     // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.

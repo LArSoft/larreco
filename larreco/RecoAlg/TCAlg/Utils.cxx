@@ -2795,6 +2795,11 @@ namespace tca {
     lastPt = NearestPtWithChg(tjs, tj, lastPt);
     if(firstPt >= lastPt) return 1;
     
+    double sigmaS;
+    unsigned short cnt;
+    TjDeltaRMS(tjs, tj, firstPt, lastPt, sigmaS, cnt);
+    if(sigmaS < 0) return 1;
+/*
     TrajPoint tmp;
     // make a bare trajectory point to define a line between firstPt and lastPt.
     // Use the position of the hits at these points
@@ -2812,19 +2817,53 @@ namespace tca {
       ++cnt;
     } // ipt
     if(cnt < 3) return 1;
+*/
     // require that cnt is a significant fraction of the total number of charged points
     // so that we don't get erroneously high MCSMom when there are large gaps.
     // This is the number of points expected in the count if there are no gaps
     unsigned short numPts = lastPt - firstPt - 1;
     // return the previously calculated value of MCSMom
     if(numPts > 5 && cnt < 0.7 * numPts) return tj.MCSMom;
-    double sigmaS = sqrt(dsum / (double)cnt);
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
     if(tjLen == 0) return 1;
     // Theta_o =  4 * sqrt(3) * sigmaS / path
     return (6.8 * sigmaS / tjLen);
     
   } // MCSThetaRMS
+  
+  /////////////////////////////////////////
+  void TjDeltaRMS(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt, double& rms, unsigned short& cnt)
+  {
+    // returns the rms scatter of points around a line formed by the firstPt and lastPt of the trajectory
+    
+    rms = -1;
+    if(firstPt < tj.EndPt[0]) return;
+    if(lastPt > tj.EndPt[1]) return;
+    
+    firstPt = NearestPtWithChg(tjs, tj, firstPt);
+    lastPt = NearestPtWithChg(tjs, tj, lastPt);
+    if(firstPt >= lastPt) return;
+    
+    TrajPoint tmp;
+    // make a bare trajectory point to define a line between firstPt and lastPt.
+    // Use the position of the hits at these points
+    TrajPoint firstTP = tj.Pts[firstPt];
+    firstTP.Pos = firstTP.HitPos;
+    TrajPoint lastTP = tj.Pts[lastPt];
+    lastTP.Pos = lastTP.HitPos;
+    if(!MakeBareTrajPoint(tjs, firstTP, lastTP, tmp)) return;
+    // sum up the deviations^2
+    double dsum = 0;
+    cnt = 0;
+    for(unsigned short ipt = firstPt + 1; ipt < lastPt; ++ipt) {
+      if(tj.Pts[ipt].Chg == 0) continue;
+      dsum += PointTrajDOCA2(tjs, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
+      ++cnt;
+    } // ipt
+    if(cnt < 2) return;
+    rms = sqrt(dsum / (double)cnt);
+
+  } // TjDeltaRMS
 
   /////////////////////////////////////////
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, short debugWorkID)

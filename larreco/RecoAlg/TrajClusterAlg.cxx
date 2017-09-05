@@ -455,9 +455,6 @@ namespace tca {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
         fCstat = tpcid.Cryostat;
         fTpc = tpcid.TPC;
-        // save some processing time if in debug mode. This may cause confusion when debugging
-        // subtle failures
-//        if(debug.CTP != UINT_MAX && debug.CTP != fCTP) continue;
         // reconstruct all trajectories in the current plane
         ReconstructAllTraj();
         if(fQuitAlg) {
@@ -745,7 +742,8 @@ namespace tca {
         } // iht
       } // iwire
       // Try to merge trajectories before making vertices
-      EndMerge();
+      bool lastPass = (pass == fMinPtsFit.size() - 1);
+      EndMerge(lastPass);
       if(fQuitAlg) return;
       
       // Tag delta rays before making vertices
@@ -1953,9 +1951,9 @@ namespace tca {
   } // HitsTimeErr2
 
   ////////////////////////////////////////////////
-  void TrajClusterAlg::EndMerge()
+  void TrajClusterAlg::EndMerge(bool lastPass)
   {
-    // Merges trajectories end-to-end or makes vertices
+    // Merges trajectories end-to-end or makes vertices. Does a more careful check on the last pass
     
     if(tjs.allTraj.size() < 2) return;
     if(!tjs.UseAlg[kMerge]) return;
@@ -1972,39 +1970,59 @@ namespace tca {
     
     unsigned short maxShortTjLen = tjs.Vertex2DCuts[0];
     
-    // temp for testing. Check fraction of hits near a merge point
+    // temp vector for checking the fraction of hits near a merge point
     std::vector<int> tjlist(2);
+    // list of tjs that are very close to each other. Use to confirm that either
+    // a vertex or a merge occurred or didn't
+    std::vector<unsigned int> close1, close2;
+    std::vector<unsigned short> close1End;
     
     for(unsigned int it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
       if(tjs.allTraj[it1].CTP != fCTP) continue;
+      auto& tj1 = tjs.allTraj[it1];
       for(unsigned short end1 = 0; end1 < 2; ++end1) {
         // no merge if there is a vertex at the end
-        if(tjs.allTraj[it1].VtxID[end1] > 0) continue;
+        if(tj1.VtxID[end1] > 0) continue;
+        // or if there is a Bragg peak
+        if(tj1.StopFlag[end1][kBragg]) continue;
         // make a copy of tp1 so we can mess with it
-        TrajPoint tp1 = tjs.allTraj[it1].Pts[tjs.allTraj[it1].EndPt[end1]];
+        TrajPoint tp1 = tj1.Pts[tj1.EndPt[end1]];
+        // do a local fit on the lastpass only using the last 3 points
+        if(lastPass && tp1.NTPsFit > 3) {
+          // make a local copy of the tj
+          auto ttj = tjs.allTraj[it1];
+          auto& lastTP = ttj.Pts[ttj.EndPt[end1]];
+          // fit the last 3 points
+          lastTP.NTPsFit = 3;
+          FitTraj(tjs, ttj);
+          tp1 = ttj.Pts[ttj.EndPt[end1]];
+        } // last pass
         bool isVLA = (tp1.AngleCode == 2);
         float bestFOM = 5;
         if(isVLA) bestFOM = 20;
         float bestDOCA;
-        unsigned int imbest = USHRT_MAX;
+        unsigned int imbest = INT_MAX;
         for(unsigned int it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
           if(it1 == it2) continue;
-          if(tjs.allTraj[it2].AlgMod[kKilled]) continue;
-          if(tjs.allTraj[it2].CTP != fCTP) continue;
+          auto& tj2 = tjs.allTraj[it2];
+          if(tj2.AlgMod[kKilled]) continue;
+          if(tj2.CTP != fCTP) continue;
           // ensure that MCSMom isn't wildly different if they are both long
           if(tjs.allTraj[it1].Pts.size() > 8 && tjs.allTraj[it2].Pts.size() > 8) {
             if(tjs.allTraj[it2].MCSMom > tjs.allTraj[it1].MCSMom) {
-              if(tjs.allTraj[it1].MCSMom < 0.5 * tjs.allTraj[it2].MCSMom) continue;
+              if(tjs.allTraj[it1].MCSMom < 0.3 * tjs.allTraj[it2].MCSMom) continue;
             } else {
-              if(tjs.allTraj[it2].MCSMom < 0.5 * tjs.allTraj[it1].MCSMom) continue;
+              if(tjs.allTraj[it2].MCSMom < 0.3 * tjs.allTraj[it1].MCSMom) continue;
             }
           }
           unsigned short end2 = 1 - end1;
           // check for a vertex at this end
-          if(tjs.allTraj[it2].VtxID[end2] > 0) continue;
-          TrajPoint& tp2 = tjs.allTraj[it2].Pts[tjs.allTraj[it2].EndPt[end2]];
-          TrajPoint& tp2OtherEnd = tjs.allTraj[it2].Pts[tjs.allTraj[it2].EndPt[end1]];
+          if(tj2.VtxID[end2] > 0) continue;
+          // and for a Bragg peak
+          if(tj2.StopFlag[end2][kBragg]) continue;
+          TrajPoint& tp2 = tj2.Pts[tj2.EndPt[end2]];
+          TrajPoint& tp2OtherEnd = tj2.Pts[tj2.EndPt[end1]];
           // ensure that the other end isn't closer
           if(std::abs(tp2OtherEnd.Pos[0] - tp1.Pos[0]) < std::abs(tp2.Pos[0] - tp1.Pos[0])) continue;
           // ensure that the order is correct
@@ -2039,7 +2057,7 @@ namespace tca {
           }
         } // it2
         // No merge/vertex candidates
-        if(imbest == USHRT_MAX) continue;
+        if(imbest == INT_MAX) continue;
         
         // Make angle adjustments to tp1.
         unsigned int it2 = imbest;
@@ -2089,6 +2107,7 @@ namespace tca {
         
         // decide whether to merge or make a vertex
         float dang = DeltaAngle(tp1.Ang, tp2.Ang);
+        float sep = PosSep(tp1.Pos, tp2.Pos);
 
         float dangCut;
         float docaCut;
@@ -2125,6 +2144,15 @@ namespace tca {
           if(isVLA) docaCut = 15;
         }
         
+        // open up the cuts on the last pass
+        float chgFracCut = tjs.Vertex2DCuts[8];
+        float chgPullCut = fChargeCuts[0];
+        if(lastPass) {
+          docaCut *= 2;
+          chgFracCut *= 0.5;
+          chgPullCut *= 1.5;
+        }
+
         // check the merge cuts. Start with doca and dang requirements
         bool doMerge = bestDOCA < docaCut && dang < dangCut;
         bool showerTjs = tjs.allTraj[it1].PDGCode == 11 || tjs.allTraj[it2].PDGCode == 11;
@@ -2135,17 +2163,16 @@ namespace tca {
         if(!doMerge && tjs.allTraj[it1].MCSMom > 900 && tjs.allTraj[it2].MCSMom > 900 && dang < 0.1 && bestDOCA < docaCut) doMerge = true;
 
         // do not merge if chgPull is really high
-        if(doMerge && chgPull > 2*fChargeCuts[0]) doMerge = false;
+        if(doMerge && chgPull > 2 * chgPullCut) doMerge = false;
 
         bool signalBetween = true;
         if(!isVLA) signalBetween = SignalBetween(tjs, tp1, tp2, 0.99, mrgPrt);
         doMerge = doMerge && signalBetween;
         
-        if(doMerge) {
+        if(doMerge && !lastPass) {
           // don't merge if the gap between them is longer than the length of the shortest Tj
           float len1 = TrajLength(tjs.allTraj[it1]);
           float len2 = TrajLength(tjs.allTraj[it2]);
-          float sep = PosSep(tp1.Pos, tp2.Pos);
           if(len1 < len2) {
             if(sep > len1) doMerge = false;
           } else {
@@ -2153,12 +2180,31 @@ namespace tca {
           }
         }
         
-        // testing. Require a large charge fraction near a merge point on the first pass? This
+        // Require a large charge fraction near a merge point on the first pass? This
         // might prevent a merge from occurring when a large angle Tj might be reconstructed on a later
         // pass, resulting in the creation of the 3-Tj vertex
         tjlist[0] = tjs.allTraj[it1].ID;
         tjlist[1] = tjs.allTraj[it2].ID;
         float chgFrac = ChgFracNearPos(tjs, tp1.Pos, tjlist);
+        
+        if(doMerge && bestDOCA > 1 && chgFrac < chgFracCut) doMerge = false;
+        
+        // keep track of very close Tjs that may have been mis-reconstructed
+        if(lastPass && PosSep(tp1.HitPos, tp2.HitPos) < 2) {
+          bool gotit = std::find(close1.begin(), close1.end(), it1) != close1.end() && std::find(close2.begin(), close2.end(), it2) != close2.end();
+          if(!gotit) {
+            if(it1 < it2) {
+              close1.push_back(it1);
+              close1End.push_back(end1);
+              close2.push_back(imbest);
+            } else {
+              // re-order to simplify the find
+              close1.push_back(imbest);
+              close1End.push_back(1 - end1);
+              close2.push_back(it1);
+            }
+          } // !gotit
+        } // lastPass check
         
         if(mrgPrt) {
           mf::LogVerbatim myprt("TC");
@@ -2167,13 +2213,10 @@ namespace tca {
           myprt<<" bestDOCA "<<std::setprecision(1)<<bestDOCA;
           myprt<<" docaCut "<<docaCut<<" isVLA? "<<isVLA;
           myprt<<" dang "<<std::setprecision(2)<<dang<<" dangCut "<<dangCut;
-          myprt<<" chgPull "<<std::setprecision(1);
-          myprt<<chgPull<<" doMerge? "<<doMerge<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom<<" signalBetween? "<<signalBetween;
-          myprt<<" chgFrac "<<std::setprecision(2)<<chgFrac<<" cut "<<tjs.Vertex2DCuts[8];
+          myprt<<" chgPull "<<std::setprecision(1)<<chgPull;
+          myprt<<" doMerge? "<<doMerge<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom<<" signalBetween? "<<signalBetween;
+          myprt<<" chgFrac "<<std::setprecision(2)<<chgFrac<<" cut "<<chgFracCut;
         }
-        
-        if(chgFrac < tjs.Vertex2DCuts[8]) continue;
-//        if(chgFrac < tjs.Vertex2DCuts[8] && tjs.allTraj[it1].Pass == 0 && tjs.allTraj[it2].Pass == 0) continue;
 
         if(doMerge) {
           if(mrgPrt) mf::LogVerbatim("TC")<<"  Merge ";
@@ -2194,6 +2237,7 @@ namespace tca {
             // Set the end merge flag for the killed trajectories to aid tracing merges
             tjs.allTraj[it1].AlgMod[kMerge] = true;
             tjs.allTraj[it2].AlgMod[kMerge] = true;
+            if(lastPass) FillGaps(tjs.allTraj[newTjIndex]);
           } // Merge and store successfull
           else {
             if(mrgPrt) mf::LogVerbatim("TC")<<"  MergeAndStore failed ";
@@ -2263,7 +2307,18 @@ namespace tca {
         if(tjs.allTraj[it1].AlgMod[kKilled]) break;
       } // end1
     } // it1
-    
+
+    if(close1.empty()) return;
+    for(unsigned short imc = 0; imc < close1.size(); ++imc) {
+      auto& tj1 = tjs.allTraj[close1[imc]];
+      // see if it was merged
+      if(tj1.AlgMod[kKilled]) continue;
+      // see if there is a vertex
+      if(tj1.VtxID[close1End[imc]] > 0) continue;
+      auto& tj2 = tjs.allTraj[close2[imc]];
+      std::cout<<"Close Tjs "<<tj1.ID<<" and "<<tj2.ID<<" no merge and no vertex\n";
+    } // imc
+
   } // EndMerge
   
   //////////////////////////////////////////
@@ -3858,10 +3913,10 @@ namespace tca {
     } // ii
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"MaskedHitsOK2:  nMasked "<<nMasked<<" nOneHit "<<nOneHit<<" nOKChg "<<nOKChg<<" nOKDelta "<<nOKDelta;
+      mf::LogVerbatim("TC")<<"MaskedHitsOK:  nMasked "<<nMasked<<" nOneHit "<<nOneHit<<" nOKChg "<<nOKChg<<" nOKDelta "<<nOKDelta;
     }
 
-    if(nMasked < 10 || nOneHit < 10) return true;
+    if(nMasked < 8 || nOneHit < 8) return true;
     
     if(nOKDelta != nMasked) return true;
     if(nOKChg != nMasked) return true;

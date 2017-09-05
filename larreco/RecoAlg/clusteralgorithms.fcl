@@ -9,7 +9,7 @@ standard_trajclusteralg:
    MakeNewHits:   true      # Merge hits in trajectory points and write them out
    Mode: 1                  # 1(-1) step from US(DS) to DS(US), 2 = don't use
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
-   MinPtsFit: [4, 4, 3]     # Min number of points in the trajectory fit required on each pass
+   MinPtsFit: [3, 3, 3]     # Min number of points in the trajectory fit required on each pass
    MinPts:    [5, 5, 3]     # Min number of points in the trajectory required on each pass
    MaxAngleCode: [0, 1, 2]  # Max angle range code allowed on each pass
    MinMCSMom: [100, 0, 0]   # Minimum MCSMom for each pass
