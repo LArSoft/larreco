@@ -70,6 +70,8 @@ private:
     
     void mergeClusters(reco::ClusterParameters&, reco::ClusterParameters&) const;
     
+    float closestApproach(const TVector3&, const TVector3&, const TVector3&, const TVector3&, TVector3&, TVector3&) const;
+    
     /**
      *  @brief Data members to follow
      */
@@ -125,12 +127,18 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
     // Start clocks if requested
     if (m_enableMonitoring) theClockBuildClusters.start();
     
+    // Resort by the largest first eigen value (so the "longest" cluster)
+    clusterParametersList.sort([](auto& left, auto& right){return left.getFullPCA().getEigenValues()[0] > right.getFullPCA().getEigenValues()[0];});
+    
     reco::ClusterParametersList::iterator firstClusterItr = clusterParametersList.begin();
     
     while(firstClusterItr != clusterParametersList.end())
     {
         reco::ClusterParameters&              firstClusterParams = *firstClusterItr;
         reco::ClusterParametersList::iterator nextClusterItr     = firstClusterItr;
+        
+        // Once you get down to the smallest clusters if they haven't already been absorbed there is no need to check them
+        if (firstClusterParams.getFullPCA().getEigenValues()[0] < 2.) break;
         
         // want the next one...
         nextClusterItr++;
@@ -190,49 +198,73 @@ bool ClusterMergeAlg::consistentClusters(const reco::PrincipalComponents& firstP
     
         // Recover the position of the next cluster
         TVector3 nextCenter(nextPCA.getAvePosition()[0],nextPCA.getAvePosition()[1],nextPCA.getAvePosition()[2]);
+        TVector3 nextEigenVals(3. * sqrt(nextPCA.getEigenValues()[0]),
+                               3. * sqrt(nextPCA.getEigenValues()[1]),
+                               3. * sqrt(nextPCA.getEigenValues()[2]));
     
         // And form a vector between the two centers
         TVector3 firstPosToNextPos = nextCenter - firstCenter;
 
         // First check will be that the center of the second cluster lies within the cone of the projection of the first cluster
         // Start by getting the arc length to the doca of the second cluster center to the vector from the first
-        double arcLenToDoca = firstPosToNextPos.Dot(firstAxis0);
-    
-        // Get coordinates of the point on this axis that is closest to the next cluster center
-        TVector3 firstDocaPos = firstCenter + arcLenToDoca * firstAxis0;
-    
-        // Now get the vector from here to the next cluster center
-        TVector3 firstDocaPosToNext = nextCenter - firstDocaPos;
-    
-        // Get projections of this vector onto the other two PCA axes for the first cluster
-        double docaProj1 = firstAxis1.Dot(firstDocaPosToNext);
-        double docaProj2 = firstAxis2.Dot(firstDocaPosToNext);
-    
-        // Get the ratio of the first eigen value to the arc length
-        double scaleFactor = std::fabs(arcLenToDoca / firstEigenVals[0]);
-        double cutValue    = 3. * scaleFactor * std::max(firstEigenVals[1],firstEigenVals[2]);
-    
-        // Is the next cluster position consistent with the first?
-        if (std::fabs(docaProj1) < cutValue && std::fabs(docaProj2) < cutValue)
+        double cosAngFirstNextFirst = firstPosToNextPos.Unit().Dot(firstAxis0);
+        double cosAngFirstNextNext  = firstPosToNextPos.Unit().Dot(nextAxis0);
+        double firstEigenProj       = firstEigenVals[0] * cosAngFirstNextFirst;
+        double nextEigenProj        = nextEigenVals[0]  * cosAngFirstNextNext;
+        
+        std::cout << "@@@@@>> checking PCA consistency, first PCA len: " << std::fabs(firstEigenProj) << ", next: " << std::fabs(nextEigenProj) << ", first/next proj: " << firstPosToNextPos.Mag() << std::endl;
+        
+        // Require the arc length to be within reasonable range
+        if (3. * (std::fabs(firstEigenProj) + std::fabs(nextEigenProj)) > firstPosToNextPos.Mag())
         {
-            // Final check on colinearity
-            // Get the distance from the first to the next
-            double firstNextDistance = firstPosToNextPos.Mag();
-        
-            // Now make unit vector...
-            firstPosToNextPos.SetMag(1.);
-        
-            // Get the projection of the first axis on this one
-            double firstProj = firstEigenVals[0] * std::fabs(firstPosToNextPos.Dot(firstAxis0));
+
+            TVector3 firstPoca;
+            TVector3 nextPoca;
             
-            // Get the projection of the next axis on this one
-            double nextProj = nextPCA.getEigenValues()[0] * std::fabs(firstPosToNextPos.Dot(nextAxis0));
-        
-            // Require both projects are a significant fraction of distance
-            if (firstProj + nextProj > 0.5 * firstNextDistance)
+            float lineDoca      = closestApproach(firstCenter, firstAxis0, nextCenter, nextAxis0, firstPoca, nextPoca);
+            float arcLenToPoca0 = (firstPoca - firstCenter).Mag();
+            float docaCutValue  = std::fabs(arcLenToPoca0) * firstEigenVals[1] / firstEigenVals[0];
+            
+            std::cout << "       checking PCA doca, lineDoca: " << lineDoca << ", docaCutValue: " << docaCutValue << std::endl;
+ 
+            if (lineDoca < 3. * docaCutValue) consistent = true;
+/*
+            double arcLenToDoca = firstPosToNextPos.Dot(firstAxis0);
+            
+            // Get coordinates of the point on this axis that is closest to the next cluster center
+            TVector3 firstDocaPos = firstCenter + arcLenToDoca * firstAxis0;
+    
+            // Now get the vector from here to the next cluster center
+            TVector3 firstDocaPosToNext = nextCenter - firstDocaPos;
+    
+            // Get projections of this vector onto the other two PCA axes for the first cluster
+            double docaProj1 = firstAxis1.Dot(firstDocaPosToNext);
+            double docaProj2 = firstAxis2.Dot(firstDocaPosToNext);
+    
+            // Get the ratio of the first eigen value to the arc length
+            double scaleFactor = std::fabs(arcLenToDoca / firstEigenVals[0]);
+            double cutValue    = 3. * scaleFactor * firstEigenVals[1];
+    
+            // Is the next cluster position consistent with the first?
+            if (std::fabs(docaProj1) < cutValue && std::fabs(docaProj2) < cutValue)
             {
-                consistent = true;
+                // Final check on colinearity
+                // Get the distance from the first to the next
+                double firstNextDistance = firstPosToNextPos.Mag();
+        
+                // Now make unit vector...
+                firstPosToNextPos.SetMag(1.);
+        
+                // Get the projection of the first axis on this one
+                double firstProj = firstEigenVals[0] * std::fabs(firstPosToNextPos.Dot(firstAxis0));
+            
+                // Get the projection of the next axis on this one
+                double nextProj = nextPCA.getEigenValues()[0] * std::fabs(firstPosToNextPos.Dot(nextAxis0));
+        
+                // Require both projects are a significant fraction of distance
+                if (firstProj + nextProj > 0.5 * firstNextDistance) consistent = true;
             }
+ */
         }
     }
     
@@ -270,6 +302,29 @@ void ClusterMergeAlg::mergeClusters(reco::ClusterParameters& firstClusterParams,
     }
     
     return;
+}
+    
+float ClusterMergeAlg::closestApproach(const TVector3& P0, const TVector3& u0,
+                                       const TVector3& P1, const TVector3& u1,
+                                       TVector3&       poca0,
+                                       TVector3&       poca1) const
+{
+    // Technique is to compute the arclength to each point of closest approach
+    TVector3 w0 = P0 - P1;
+    float a(1.);
+    float b(u0.Dot(u1));
+    float c(1.);
+    float d(u0.Dot(w0));
+    float e(u1.Dot(w0));
+    float den(a * c - b * b);
+    
+    float arcLen0 = (b * e - c * d) / den;
+    float arcLen1 = (a * e - b * d) / den;
+    
+    poca0 = P0 + arcLen0 * u0;
+    poca1 = P1 + arcLen1 * u1;
+    
+    return (poca0 - poca1).Mag();
 }
     
 DEFINE_ART_CLASS_TOOL(ClusterMergeAlg)
