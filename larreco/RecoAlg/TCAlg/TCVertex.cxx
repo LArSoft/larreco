@@ -35,8 +35,7 @@ namespace tca {
       PrintAllTraj("F2DVi", tjs, debug, USHRT_MAX, tjs.allTraj.size());
     }
     
-    // temp for testing. Check fraction of hits near a merge point
-    std::vector<int> tjlist(2);
+    unsigned short nVtxIn = tjs.vtx.size();
     
     unsigned short maxShortTjLen = tjs.Vertex2DCuts[0];
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
@@ -88,19 +87,13 @@ namespace tca {
             vt1Sep -= dwc1;
             vt2Sep -= dwc2;
             bool vtxOnDeadWire = (DeadWireCount(tjs, wint, wint, tp1.CTP) == 1);            
-            // Check the environment near the vertex
-            tjlist[0] = tjs.allTraj[it1].ID;
-            tjlist[1] = tjs.allTraj[it2].ID;
-            float chgFrac = ChgFracNearPos(tjs, tp1.Pos, tjlist);
             if(prt && vt1Sep < 200 && vt2Sep < 200) {
               mf::LogVerbatim myprt("TC");
               myprt<<"F2DV candidate tj1-tj2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2;
               myprt<<" vtx pos "<<(int)wint<<":"<<(int)(tint/tjs.UnitsPerTick)<<" tp1 "<<PrintPos(tjs, tp1)<<" tp2 "<<PrintPos(tjs, tp2);
               myprt<<" dwc1 "<<dwc1<<" dwc2 "<<dwc2<<" on dead wire? "<<vtxOnDeadWire;
               myprt<<" vt1Sep "<<vt1Sep<<" vt2Sep "<<vt2Sep<<" sepCut "<<sepCut;
-              myprt<<" chgFrac "<<std::fixed<<std::setprecision(2)<<chgFrac<<" cut "<<tjs.Vertex2DCuts[8];
             }
-            if(chgFrac < tjs.Vertex2DCuts[8]) continue;
             if(vt1Sep > sepCut || vt2Sep > sepCut) continue;
             // make sure that the other end isn't closer
             if(PosSep(vPos, tjs.allTraj[it1].Pts[oendPt1].Pos) < vt1Sep) {
@@ -214,6 +207,9 @@ namespace tca {
         } // it2
       } // end1
     } // it1
+    
+    // check the consistency of the Tjs for the newly added vertices
+    if(tjs.vtx.size() > nVtxIn) CheckVtxTjs(tjs, nVtxIn, prt);
 
     // Split trajectories that cross a vertex
 //    SplitTrajCrossingVertices(tjs);
@@ -223,6 +219,75 @@ namespace tca {
     if(prt) PrintAllTraj("F2DVo", tjs, debug, USHRT_MAX, USHRT_MAX);
     
   } // Find2DVertices
+  
+  //////////////////////////////////////////
+  void CheckVtxTjs(TjStuff& tjs, unsigned short nOld, bool prt)
+  {
+    // 
+    
+    if(!tjs.UseAlg[kChkVxTj]) return;
+    
+    for(unsigned short ivx = nOld; ivx < tjs.vtx.size(); ++ivx) {
+      auto& vx2 = tjs.vtx[ivx];
+      auto vxtjs = GetVtxTjIDs(tjs, vx2);
+      if(vxtjs.size() < 2) continue;
+      for(unsigned short it1 = 0; it1 < vxtjs.size() - 1; ++it1) {
+        auto& tj1 = tjs.allTraj[vxtjs[it1] - 1];
+        if(tj1.AlgMod[kKilled]) continue;
+        unsigned short end1 = 0;
+        if(tj1.VtxID[1] == vx2.ID) end1 = 1;
+        auto& vtp1 = tj1.Pts[tj1.EndPt[end1]];
+        auto& otp1 = tj1.Pts[tj1.EndPt[1 - end1]];
+        float tj1sep = PosSep(vtp1.Pos, vx2.Pos);
+        for(unsigned short it2 = it1 + 1; it2 < vxtjs.size(); ++it2) {
+          auto& tj2 = tjs.allTraj[vxtjs[it2] - 1];
+          if(tj2.AlgMod[kKilled]) continue;
+          unsigned short end2 = 0;
+          if(tj2.VtxID[2] == vx2.ID) end2 = 1;
+          auto& vtp2 = tj2.Pts[tj2.EndPt[end2]];
+          auto& otp2 = tj2.Pts[tj2.EndPt[1 - end2]];
+          float tj2sep = PosSep(vtp2.Pos, vx2.Pos);
+          float otj1tj2 = PosSep(otp1.Pos, vtp2.Pos);
+          float delta12 = PointTrajDOCA(tjs, otp1.Pos[0], otp1.Pos[1], vtp2);
+          float dang12 = DeltaAngle(otp1.Ang, vtp2.Ang);
+          if(otj1tj2 < tj2sep && delta12 < 1 && otj1tj2 < 4) {
+            if(prt) {
+              mf::LogVerbatim myprt("TC");
+              myprt<<"ChkVtxTjs: "<<vx2.ID<<" tj1 "<<tj1.ID<<" tj2 "<<tj2.ID;
+              myprt<<" otj1tj2 "<<otj1tj2;
+              myprt<<" delta12 "<<delta12;
+              myprt<<" dang12 "<<dang12;
+              myprt<<" Try to merge";
+            }
+            // End 1 of tj1 is closer to end0 of tj2 than tj2 is to the vertex
+            tj2.VtxID[end2] = 0;
+            if(MergeAndStore(tjs, vxtjs[it1], vxtjs[it2], prt)) {
+              auto& newTj = tjs.allTraj[tjs.allTraj.size()-1];
+              newTj.AlgMod[kChkVxTj] = true;
+              if(prt) mf::LogVerbatim("TC")<<"CheckVtxTjs Merged tjs "<<tj1.ID<<" and "<<tj2.ID<<" -> "<<newTj.ID;
+            } else {
+              if(prt) mf::LogVerbatim("TC")<<" Merge failed";
+            }
+            continue;
+          } // other end is closer
+          // now check the other end of tj2
+          float tj1otj2 = PosSep(vtp1.Pos, otp2.Pos);
+          if(tj1otj2 < tj1sep && delta12 < 1 && tj1otj2 < 4) {
+            // End 1 of tj1 is closer to end0 of tj2 than tj2 is to the vertex
+            tj1.VtxID[end1] = 0;
+            if(MergeAndStore(tjs, vxtjs[it2], vxtjs[it1], prt)) {
+              auto& newTj = tjs.allTraj[tjs.allTraj.size()-1];
+              newTj.AlgMod[kChkVxTj] = true;
+              if(prt) mf::LogVerbatim("TC")<<"CheckVtxTjs Merged tjs "<<tj1.ID<<" and "<<tj2.ID<<" -> "<<newTj.ID;
+            } else {
+              if(prt) mf::LogVerbatim("TC")<<" Merge failed";
+            }
+          } // other end is closer
+        } // it2
+      } // it1
+    } // ivx
+    
+  } // CheckVtxTjs
   
   //////////////////////////////////////////
   bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& newVx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2, bool prt)
