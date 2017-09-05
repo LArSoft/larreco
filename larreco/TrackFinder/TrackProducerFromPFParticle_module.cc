@@ -12,10 +12,11 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "lardata/Utilities/PtrMaker.h"
+#include "art/Persistency/Common/PtrMaker.h"
 #include "lardata/Utilities/ForEachAssociatedGroup.h"
 #include "cetlib/exception.h"
 //
@@ -102,8 +103,8 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
   auto outputHitSpacePointAssn = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint> >();
   //
   // PtrMakers for Assns
-  lar::PtrMaker<recob::Track> trackPtrMaker(e, *this);
-  lar::PtrMaker<recob::SpacePoint> spacePointPtrMaker(e, *this);
+  art::PtrMaker<recob::Track> trackPtrMaker(e, *this);
+  art::PtrMaker<recob::SpacePoint> spacePointPtrMaker(e, *this);
   //
   // Input from event
   art::ValidHandle<std::vector<recob::PFParticle> > inputPfps = e.getValidHandle<std::vector<recob::PFParticle> >(pfpInputTag);
