@@ -1,5 +1,7 @@
 #include "services_microboone.fcl"
 
+#include "CellTree.fcl"
+
 process_name: celltree
 
 services:
@@ -8,7 +10,7 @@ services:
   #TimeTracker:   {}
   RandomNumberGenerator: {}
   message:      @local::standard_info
-                 @table::microboone_services
+  @table::microboone_services
 }
 
 
@@ -28,30 +30,9 @@ physics:
 {
   analyzers:
   {
-    WireCell:
-    {
-      module_type     : "CellTree"
-      saveRaw         : false
-      saveCalib       : false
-      saveOpHit	      : true
-      saveOpFlash     : true
-      saveSimChannel  : false 
-      saveTrigger     : true
-      saveMC          : false 
-      saveJSON        : false 
-      RawDigitLabel   : "daq"
-      CalibLabel      : "caldata"
-      OpHitLabel      : "ophit"
-      OpFlashLabel    : "opflash"
-      TriggerLabel    : "daq"  
-      SpacePointLabels: ["trackkalmanhit","wirecell"]
-      mcOption        : "all"
-      opMultPEThresh  : 5
-      saveMCTrackPoints : true
-      outFile           : "celltree.root"
-    }
+    wirecell: @local::standard_celltree
   }
-  analysis: [ WireCell ]
+  analysis: [ wirecell ]
   end_paths: [ analysis ]
 }
 
