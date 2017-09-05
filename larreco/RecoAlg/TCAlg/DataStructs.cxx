@@ -29,6 +29,7 @@ namespace tca {
     "UUH",
     "MisdVxTj",
     "VtxTj",
+    "ChkVxTj",
     "RefVtx",
     "NoKinkChk",
     "SoftKink",
