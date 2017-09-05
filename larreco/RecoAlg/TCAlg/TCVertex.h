@@ -38,6 +38,7 @@ namespace tca {
   void Find3DVertices(TjStuff& tjs, const geo::TPCID& tpcid);
    void Match3DVtxTjs(TjStuff& tjsconst, const geo::TPCID& tpcid, bool prt);
   void CompleteIncomplete3DVertices(TjStuff& tjs, const geo::TPCID& tpcid);
+  bool RefineVtxPosition(TjStuff& tjs, const Trajectory& tj, unsigned short& nearPt, bool prt);
   void CompleteIncomplete3DVerticesInGaps(TjStuff& tjs, const geo::TPCID& tpcid);
   // Improve hit assignments near vertex 
   void VtxHitsSwap(TjStuff& tjs, const CTP_t inCTP);
