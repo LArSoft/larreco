@@ -455,9 +455,6 @@ namespace tca {
         fCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
         fCstat = tpcid.Cryostat;
         fTpc = tpcid.TPC;
-        // save some processing time if in debug mode. This may cause confusion when debugging
-        // subtle failures
-//        if(debug.CTP != UINT_MAX && debug.CTP != fCTP) continue;
         // reconstruct all trajectories in the current plane
         ReconstructAllTraj();
         if(fQuitAlg) {
@@ -2146,6 +2143,15 @@ namespace tca {
           docaCut = 1;
           if(isVLA) docaCut = 15;
         }
+        
+        // open up the cuts on the last pass
+        float chgFracCut = tjs.Vertex2DCuts[8];
+        float chgPullCut = fChargeCuts[0];
+        if(lastPass) {
+          docaCut *= 2;
+          chgFracCut *= 0.5;
+          chgPullCut *= 1.5;
+        }
 
         // check the merge cuts. Start with doca and dang requirements
         bool doMerge = bestDOCA < docaCut && dang < dangCut;
@@ -2157,13 +2163,13 @@ namespace tca {
         if(!doMerge && tjs.allTraj[it1].MCSMom > 900 && tjs.allTraj[it2].MCSMom > 900 && dang < 0.1 && bestDOCA < docaCut) doMerge = true;
 
         // do not merge if chgPull is really high
-        if(doMerge && chgPull > 2*fChargeCuts[0]) doMerge = false;
+        if(doMerge && chgPull > 2 * chgPullCut) doMerge = false;
 
         bool signalBetween = true;
         if(!isVLA) signalBetween = SignalBetween(tjs, tp1, tp2, 0.99, mrgPrt);
         doMerge = doMerge && signalBetween;
         
-        if(doMerge) {
+        if(doMerge && !lastPass) {
           // don't merge if the gap between them is longer than the length of the shortest Tj
           float len1 = TrajLength(tjs.allTraj[it1]);
           float len2 = TrajLength(tjs.allTraj[it2]);
@@ -2181,7 +2187,7 @@ namespace tca {
         tjlist[1] = tjs.allTraj[it2].ID;
         float chgFrac = ChgFracNearPos(tjs, tp1.Pos, tjlist);
         
-        if(doMerge && bestDOCA > 1 && chgFrac < tjs.Vertex2DCuts[8]) doMerge = false;
+        if(doMerge && bestDOCA > 1 && chgFrac < chgFracCut) doMerge = false;
         
         // keep track of very close Tjs that may have been mis-reconstructed
         if(lastPass && PosSep(tp1.HitPos, tp2.HitPos) < 2) {
@@ -2207,9 +2213,9 @@ namespace tca {
           myprt<<" bestDOCA "<<std::setprecision(1)<<bestDOCA;
           myprt<<" docaCut "<<docaCut<<" isVLA? "<<isVLA;
           myprt<<" dang "<<std::setprecision(2)<<dang<<" dangCut "<<dangCut;
-          myprt<<" chgPull "<<std::setprecision(1);
-          myprt<<chgPull<<" doMerge? "<<doMerge<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom<<" signalBetween? "<<signalBetween;
-          myprt<<" chgFrac "<<std::setprecision(2)<<chgFrac<<" cut "<<tjs.Vertex2DCuts[8];
+          myprt<<" chgPull "<<std::setprecision(1)<<chgPull;
+          myprt<<" doMerge? "<<doMerge<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom<<" signalBetween? "<<signalBetween;
+          myprt<<" chgFrac "<<std::setprecision(2)<<chgFrac<<" cut "<<chgFracCut;
         }
 
         if(doMerge) {
@@ -2231,6 +2237,7 @@ namespace tca {
             // Set the end merge flag for the killed trajectories to aid tracing merges
             tjs.allTraj[it1].AlgMod[kMerge] = true;
             tjs.allTraj[it2].AlgMod[kMerge] = true;
+            if(lastPass) FillGaps(tjs.allTraj[newTjIndex]);
           } // Merge and store successfull
           else {
             if(mrgPrt) mf::LogVerbatim("TC")<<"  MergeAndStore failed ";
