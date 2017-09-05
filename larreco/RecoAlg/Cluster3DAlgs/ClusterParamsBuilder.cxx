@@ -309,7 +309,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                     
                     float cutDeltaTSig = std::min(1.1,std::max(0.2, 3. * (pair.second.front()->getDeltaPeakTime() / pair.second.front()->getSigmaPeakTime())));
                     
-//                    cutDeltaTSig = 1.0;
+                    cutDeltaTSig = 1.0;
                     
 //                    if (pair.second.size() > 1) std::cout << "       .. front sig: " << pair.second.front()->getDeltaPeakTime() / pair.second.front()->getSigmaPeakTime() << ", mid: " << cutDeltaTSig << ", back: " << pair.second.back()->getDeltaPeakTime() / pair.second.back()->getSigmaPeakTime() << std::endl;
                     
