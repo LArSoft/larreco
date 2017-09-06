@@ -74,6 +74,8 @@ public:
     
 private:
     
+    void removeUsedHitsFromMap(reco::ClusterParameters&, reco::HitPairListPtr&, reco::Hit2DToClusterMap&) const;
+    
     /**
      *  @brief Data members to follow
      */

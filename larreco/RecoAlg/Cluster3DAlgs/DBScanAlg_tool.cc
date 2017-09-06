@@ -62,7 +62,7 @@ public:
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    double getTimeToExecute(IClusterAlg::TimeValues index) const override {return m_timeVector.at(index);}
+    float getTimeToExecute(IClusterAlg::TimeValues index) const override {return m_timeVector.at(index);}
     
 private:
     
@@ -139,7 +139,7 @@ void DBScanAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
         
         // Find the neighborhood for this hit
         kdTree::CandPairList candPairList;
-        double              bestDistance(std::numeric_limits<double>::max());
+        float                bestDistance(1.); //std::numeric_limits<float>::max());
         
         m_kdTree.FindNearestNeighbors(hit.get(), topNode, candPairList, bestDistance);
         
@@ -210,7 +210,7 @@ void DBScanAlg::expandCluster(const kdTree::KdTreeNode& topNode,
             
             // get the neighborhood around this point
             kdTree::CandPairList neighborCandPairList;
-            double               bestDistance(std::numeric_limits<double>::max());
+            float                bestDistance(std::numeric_limits<float>::max());
             
             m_kdTree.FindNearestNeighbors(neighborHit, topNode, neighborCandPairList, bestDistance);
             
