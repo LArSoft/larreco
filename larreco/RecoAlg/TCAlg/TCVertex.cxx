@@ -12,7 +12,7 @@ namespace tca {
   bool lessThan (SortEntry c1, SortEntry c2) { return (c1.length < c2.length);}
 
   //////////////////////////////////////////
-  void Find2DVertices(TjStuff& tjs, const CTP_t& inCTP)
+  void Find2DVertices(TjStuff& tjs, const CTP_t& inCTP, bool lastPass)
   {
     // tjs.Vertex2DCuts fcl input usage
     // 0 = maximum length of a short trajectory
@@ -94,6 +94,8 @@ namespace tca {
               myprt<<" dwc1 "<<dwc1<<" dwc2 "<<dwc2<<" on dead wire? "<<vtxOnDeadWire;
               myprt<<" vt1Sep "<<vt1Sep<<" vt2Sep "<<vt2Sep<<" sepCut "<<sepCut;
             }
+            // Add Sep 6, 2017
+            if(!lastPass && vtxOnDeadWire) continue;
             if(vt1Sep > sepCut || vt2Sep > sepCut) continue;
             // make sure that the other end isn't closer
             if(PosSep(vPos, tjs.allTraj[it1].Pts[oendPt1].Pos) < vt1Sep) {
@@ -879,7 +881,7 @@ namespace tca {
     for(auto& vx3 : tjs.vtx3) {
       if(vx3.ID == 0) continue;
       if(vx3.TPCID != tpcid) continue;
-      SetVx3Score(tjs, vx3, false, prt);
+      SetVx3Score(tjs, vx3, prt);
     } // vx3
 
   } // Find3DVertices
@@ -1446,33 +1448,63 @@ namespace tca {
     return true;
     
   } // ChkVtxAssociations
-
+  
   //////////////////////////////////////////
-  void SetVx3Score(TjStuff& tjs, Vtx3Store& vx3, bool useShowerCut, bool prt)
+  void ScoreVertices(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
-    // Calculate the 3D vertex score and flag Tjs that are attached to high score vertices as defined 
-    // by either Vertex2DCuts or ShowerTag
+    // reset all 3D vertex, 2D vertex and Tj high-score vertex bits in tpcid 
     
-    if(vx3.ID == 0) return;
-
-    float scoreCut = tjs.Vertex2DCuts[7];
-    if(useShowerCut) scoreCut = tjs.ShowerTag[11];
-    vx3.Score = 0;
-    for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-      if(vx3.Vx2ID[ipl] <= 0) continue;
-      VtxStore& vx2 = tjs.vtx[vx3.Vx2ID[ipl] - 1];
-      vx3.Score += vx2.Score;
-    } // ipl
-    vx3.Score /= (float)tjs.NumPlanes;
-    if(vx3.Score < scoreCut) return;
-    SetHighScoreBits(tjs, vx3);
+    unsigned int cstat = tpcid.Cryostat;
+    unsigned int tpc = tpcid.TPC;
     
-  } // SetVx3Score
+    PrintAllTraj("SVi", tjs, debug, USHRT_MAX, 0);
+    // reset the 2D vertex status bits
+    for(auto& vx : tjs.vtx) {
+      if(vx.ID == 0) continue;
+      geo::PlaneID planeID = DecodeCTP(vx.CTP);
+      if(planeID.Cryostat != cstat) continue;
+      if(planeID.TPC != tpc) continue;
+      vx.Stat[kHiVx3Score] = false;
+    } // vx
+    // and the tj bits
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      if(planeID.Cryostat != cstat) continue;
+      if(planeID.TPC != tpc) continue;
+      tj.AlgMod[kTjHiVx3Score] = false;
+    } // tj
+    // Score the 2D vertices
+    for(auto& vx : tjs.vtx) {
+      if(vx.ID == 0) continue;
+      geo::PlaneID planeID = DecodeCTP(vx.CTP);
+      if(planeID.Cryostat != cstat) continue;
+      if(planeID.TPC != tpc) continue;
+      SetVx2Score(tjs, vx, prt);
+      if(vx.Score < tjs.Vertex2DCuts[7]) MakeVertexObsolete(tjs, vx, false);
+    } // vx
+    // Score the 3D vertices
+    for(auto& vx3 : tjs.vtx3) {
+      if(vx3.ID == 0) continue;
+      if(vx3.TPCID != tpcid) continue;
+       SetVx3Score(tjs, vx3, prt);
+    }
+    // Kill 2D vertices (and possibly 3D vertices) with poor score
+    for(auto& vx : tjs.vtx) {
+      if(vx.ID == 0) continue;
+      geo::PlaneID planeID = DecodeCTP(vx.CTP);
+      if(planeID.Cryostat != cstat) continue;
+      if(planeID.TPC != tpc) continue;
+     if(vx.Score < tjs.Vertex2DCuts[7]) MakeVertexObsolete(tjs, vx, false);
+    } // vx
+    PrintAllTraj("SVo", tjs, debug, USHRT_MAX, 0);
+    
+  } // ScoreVertices
   
   //////////////////////////////////////////
   void SetHighScoreBits(TjStuff& tjs, Vtx3Store& vx3)
   {
-    // Sets the tj and 2D vertex score bits to true
+    // Sets the tj and 2D vertex score bits to true 
     
     if(vx3.ID == 0) return;
     
@@ -1522,6 +1554,25 @@ namespace tca {
     } // ipl
 
   } // SetHighScoreBits
+  
+  //////////////////////////////////////////
+  void SetVx3Score(TjStuff& tjs, Vtx3Store& vx3, bool prt)
+  {
+    // Calculate the 3D vertex score and flag Tjs that are attached to high score vertices as defined 
+    // by Vertex2DCuts 
+    
+    if(vx3.ID == 0) return;
+    
+    vx3.Score = 0;
+    for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
+      if(vx3.Vx2ID[ipl] <= 0) continue;
+      VtxStore& vx2 = tjs.vtx[vx3.Vx2ID[ipl] - 1];
+      vx3.Score += vx2.Score;
+    } // ipl
+    vx3.Score /= (float)tjs.NumPlanes;
+    if(vx3.Score > tjs.Vertex2DCuts[7]) SetHighScoreBits(tjs, vx3);
+    
+  } // SetVx3Score
   
   //////////////////////////////////////////
   void SetVx2Score(TjStuff& tjs, VtxStore& vx2, bool prt)
@@ -1828,7 +1879,7 @@ namespace tca {
       if(newVtx.NTraj == 0) {
         // A failure occurred. Recover
         if(prt) mf::LogVerbatim("TC")<<"  Failed. Recover and delete vertex "<<newVtx.ID;
-        MakeVertexObsolete(tjs, newVtx.ID, true);
+        MakeVertexObsolete(tjs, newVtx, true);
       } else {
         // success
         vx3.Vx2ID[mPlane] = newVtx.ID;
@@ -2037,44 +2088,41 @@ namespace tca {
   }
   
   ////////////////////////////////////////////////
-  void KillPoorVertices(TjStuff& tjs, float scoreCut)
+  bool MakeVertexObsolete(TjStuff& tjs, VtxStore& vx2, bool forceKill)
   {
-    // Make vertices that have a poor score obsolete
-    for(auto& vx2 : tjs.vtx) {
-      if(vx2.ID == 0) continue;
-      if(vx2.Stat[kHiVx3Score]) continue;
-      if(vx2.Score < scoreCut) MakeVertexObsolete(tjs, vx2.ID, true);
-    } // vx
-  } // KillPoorVertices
-  
-  ////////////////////////////////////////////////
-  bool MakeVertexObsolete(TjStuff& tjs, unsigned short vx2ID, bool forceKill)
-  {
-    // Deletes a 2D vertex and possibly a 3D vertex and 2D vertices in other planes
-    // The 2D and 3D vertices are NOT killed if forceKill is false and the 3D vertex
-    // has a high score
-    if(vx2ID == 0) return true;
-    if(vx2ID > tjs.vtx.size()) return false;
-    VtxStore& vx2 = tjs.vtx[vx2ID - 1];
+    // Makes a 2D vertex obsolete
+    
     // check for a high-score 3D vertex
-    if(!forceKill && vx2.Vtx3ID > 0 && tjs.vtx3[vx2.Vtx3ID - 1].Score >= tjs.Vertex2DCuts[7]) return false;
+    bool hasHighScoreVx3 = (vx2.Vtx3ID > 0);
+    if(hasHighScoreVx3 && !forceKill && tjs.vtx3[vx2.Vtx3ID - 1].Score >= tjs.Vertex2DCuts[7]) return false;
     
     // Kill it
+    unsigned short vx2id = vx2.ID;
     vx2.ID = 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] == vx2ID) tj.VtxID[end] = 0;
+        if(tj.VtxID[end] != vx2id) continue;
+        tj.VtxID[end] = 0;
+        if(tj.AlgMod[kTjHiVx3Score]) {
+          // see if the vertex at the other end is high-score and if so, preserve the state
+          unsigned short oend = 1 - end;
+          if(tj.VtxID[oend] > 0) {
+            auto& ovx2 = tjs.vtx[tj.VtxID[oend] - 1];
+            if(!ovx2.Stat[kHiVx3Score]) tj.AlgMod[kTjHiVx3Score] = false;
+          } // vertex at the other end
+        } // tj.AlgMod[kTjHiVx3Score]
       } // end
     } // tj
-
-    // check for a 3D vertex
-    if(vx2.Vtx3ID == 0) return true;
+    
+    if(!hasHighScoreVx3) return true;
+    
+    // update the affected 3D vertex
     Vtx3Store& vx3 = tjs.vtx3[vx2.Vtx3ID - 1];
     // make the 3D vertex incomplete
     geo::PlaneID planeID = DecodeCTP(vx2.CTP);
     unsigned short plane = planeID.Plane;
-    if(vx3.Vx2ID[plane] != vx2ID) return true;
+    if(vx3.Vx2ID[plane] != vx2id) return true;
     vx3.Vx2ID[plane] = 0;
     vx3.Wire = vx2.Pos[0] / tjs.UnitsPerTick;
     // Ensure that there are at least two 2D vertices left
@@ -2086,10 +2134,10 @@ namespace tca {
     if(n2D > 1) {
       // 3D vertex is incomplete
       // correct the score
-      SetVx3Score(tjs, vx3, false, false);
+      SetVx3Score(tjs, vx3, false);
       return true;
     }
-  
+    
     // 3D vertex is obsolete
     // Detach the all remaining 2D vertices from the 3D vertex
     for(auto& vx2 : tjs.vtx) {
@@ -2100,7 +2148,21 @@ namespace tca {
     return true;
     
   } // MakeVertexObsolete
-  
+/*
+  ////////////////////////////////////////////////
+  bool MakeVertexObsolete(TjStuff& tjs, unsigned short vx2ID, bool forceKill)
+  {
+    // Deletes a 2D vertex and possibly a 3D vertex and 2D vertices in other planes
+    // The 2D and 3D vertices are NOT killed if forceKill is false and the 3D vertex
+    // has a high score
+    if(vx2ID == 0) return true;
+    if(vx2ID > tjs.vtx.size()) return false;
+    VtxStore& vx2 = tjs.vtx[vx2ID - 1];
+    
+    return MakeVertexObsolete(tjs, vx2, forceKill);
+   
+  } // MakeVertexObsolete
+*/
   //////////////////////////////////////////
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2)
   {
