@@ -38,6 +38,7 @@
 // LArSoft libraries
 #include "larreco/RecoAlg/LinFitAlg.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "larreco/RecoAlg/TrackKalmanFitter.h"
 
 #include "TH1F.h"
 #include "TH2F.h"
@@ -214,6 +215,9 @@ namespace tca {
     
     
     std::vector<unsigned int> fAlgModCount;
+
+    trkf::TrackStatePropagator prop;
+    trkf::TrackKalmanFitter kalmanFitter;
     
 //    short watchInTraj;
     // runs the TrajCluster algorithm on one plane specified by the calling routine
@@ -318,6 +322,7 @@ namespace tca {
     void Match3D(const geo::TPCID& tpcid);
 
     
+    void KalmanFilterFit(PFPStruct& pfp);
   }; // class TrajClusterAlg
 
 

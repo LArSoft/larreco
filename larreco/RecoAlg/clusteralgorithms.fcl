@@ -1,6 +1,7 @@
 #include "trackfinderalgorithms.fcl"
 #include "cluster3dalgorithms.fcl"
 #include "calorimetry.fcl"
+#include "kalmanfilterfittrackmakertool.fcl"
 BEGIN_PROLOG
 
 standard_trajclusteralg:
@@ -77,6 +78,9 @@ standard_trajclusteralg:
    DebugWorkID:     0       # Print debug output for a trajectory with this WorkID (Note WorkID < 0)
 }
 standard_trajclusteralg.CaloAlg: @local::standard_calorimetryalgmc
+standard_trajclusteralg.kfpropagator: @local::kalmanfilterfittrackmakertool.propagator
+standard_trajclusteralg.kffitter: @local::kalmanfilterfittrackmakertool.fitter
+#standard_trajclusteralg.skipNegProp: false # gc: do we need this?
 
 standard_clustercrawleralg:
 {
