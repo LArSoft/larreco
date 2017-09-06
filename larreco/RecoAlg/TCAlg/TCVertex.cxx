@@ -1457,7 +1457,7 @@ namespace tca {
     unsigned int cstat = tpcid.Cryostat;
     unsigned int tpc = tpcid.TPC;
     
-    PrintAllTraj("SVi", tjs, debug, USHRT_MAX, 0);
+//    PrintAllTraj("SVi", tjs, debug, USHRT_MAX, 0);
     // reset the 2D vertex status bits
     for(auto& vx : tjs.vtx) {
       if(vx.ID == 0) continue;
@@ -1497,7 +1497,7 @@ namespace tca {
       if(planeID.TPC != tpc) continue;
      if(vx.Score < tjs.Vertex2DCuts[7]) MakeVertexObsolete(tjs, vx, false);
     } // vx
-    PrintAllTraj("SVo", tjs, debug, USHRT_MAX, 0);
+//    PrintAllTraj("SVo", tjs, debug, USHRT_MAX, 0);
     
   } // ScoreVertices
   
