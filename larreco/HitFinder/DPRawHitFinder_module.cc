@@ -86,7 +86,7 @@ namespace hit{
     void findCandidatePeaks(std::vector<float>::const_iterator startItr,
                             std::vector<float>::const_iterator stopItr,
                             TimeValsVec&                       timeValsVec,
-                            int&                               PeakMin,
+                            float&                             PeakMin,
                             int                                firstTick) const;
     
     void mergeCandidatePeaks(const std::vector<float>&, TimeValsVec&, MergedTimeWidVec&) const;
@@ -159,7 +159,7 @@ namespace hit{
     
     std::string      fCalDataModuleLabel;
 
-    int    fMinSig;                   ///<signal height threshold
+    float    fMinSig;                   ///<signal height threshold
     int    fTicksToStopPeakFinder;    ///<Number of ticks with same or higher ADC count that the current tick is needed to be followed by to define start and end of peak 
     int    fMinWidth;                 ///<Minimum hit width
     int    fMinADCSum;                 ///<Minimum hit ADC sum
@@ -245,7 +245,7 @@ void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fChi2NDFRetry     	   = p.get< double >("Chi2NDFRetry");
     fChi2NDF          	   = p.get< double >("Chi2NDF");
     fNumBinsToAverage 	   = p.get< size_t >("NumBinsToAverage");
-    fMinSig           	   = p.get< int    >("MinSig");
+    fMinSig           	   = p.get< float    >("MinSig");
     fMinWidth         	   = p.get< int >("MinWidth");
     fMinADCSum		   = p.get< int >("MinADCSum");
     fMinADCSumOverWidth    = p.get< double >("MinADCSumOverWidth");
@@ -644,7 +644,7 @@ void DPRawHitFinder::produce(art::Event& evt)
 void hit::DPRawHitFinder::findCandidatePeaks(std::vector<float>::const_iterator   startItr,
                                             std::vector<float>::const_iterator    stopItr,
                                             std::vector<std::tuple<int,int,int>>& timeValsVec,
-                                            int&                                  PeakMin,
+                                            float&                                PeakMin,
                                             int                                   firstTick) const
 {
     // Need a minimum number of ticks to do any work here
@@ -656,7 +656,7 @@ void hit::DPRawHitFinder::findCandidatePeaks(std::vector<float>::const_iterator 
         float maxValue = *maxItr;
         int   maxTime  = std::distance(startItr,maxItr);
         
-        if (maxValue > PeakMin)
+        if (maxValue >= PeakMin)
         {
             // backwards to find first bin for this candidate hit
             auto firstItr = std::distance(startItr,maxItr) > 2 ? maxItr - 1 : startItr;
