@@ -190,25 +190,61 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
         std::cout << " - " << node0.Point3D().X() << ", " << node0.Point3D().Y() << ", " << node0.Point3D().Z() << std::endl;
         std::cout << " - " << node1.Point3D().X() << ", " << node1.Point3D().Y() << ", " << node1.Point3D().Z() << std::endl;
 
-        // Get the de/dx information for each view
-        std::map<size_t,std::vector<double>> dedx_u;
-        std::map<size_t,std::vector<double>> dedx_v;
-        std::map<size_t,std::vector<double>> dedx_z;
+        // Store the number of sigma from the mean for the final dedx point in each view
+        std::vector<float> nSigmaPerView;
 
-        t.Track()->GetRawdEdxSequence(dedx_u,geo::kU);
-        t.Track()->GetRawdEdxSequence(dedx_v,geo::kV);
-        t.Track()->GetRawdEdxSequence(dedx_z,geo::kZ);
+        // Loop over the views
+        for(auto const view : geom->Views()){
 
-        std::cout << "de/dx u : ";
-        for(int u = t.Track()->NextHit(-1,geo::kU); u != -1; u = t.Track()->NextHit(u,geo::kU)){
-          if(u > t.Track()->PrevHit(t.Track()->size(),geo::kU)) break;
-          std::cout << "(" << u << "," << dedx_u[u][5] / dedx_u[u][6] << ") ";
+          // Get the dedx for this track and view
+          std::map<size_t,std::vector<double>> dedx;
+          t.Track()->GetRawdEdxSequence(dedx,view);
+
+          std::vector<double> trk_dedx;
+
+          for(int h = t.Track()->NextHit(-1,view); h != -1; h = t.Track()->NextHit(h,view)){
+            // If this is the last hit then this method won't work
+            if(h > t.Track()->PrevHit(t.Track()->size(),view)) break;
+            // Make sure we have a reasonable value
+            if(dedx[h][5] / dedx[h][6] <= 0 || dedx[h][5] / dedx[h][6] > 1e6) continue;
+            trk_dedx.push_back(dedx[h][5] / dedx[h][6]);
+          }
+
+          if(trk_dedx.size() == 0){
+            std::cout << "View " << view << " has no hits." << std::endl;
+            continue;
+          }
+
+          double sum = std::accumulate(std::begin(trk_dedx), std::end(trk_dedx), 0.0);
+          double mean = sum / static_cast<double>(trk_dedx.size());
+          double accum = 0.0;
+          std::for_each(std::begin(trk_dedx), std::end(trk_dedx), [&](const double d) {
+            accum += (d - mean) * (d - mean);
+          });
+          double stdev = sqrt(accum / static_cast<double>(trk_dedx.size()-1));
+
+          std::cout << " View " << view << " has average dedx " << mean << " +/- " << stdev << " and final dedx " << trk_dedx[trk_dedx.size()-1] << std::endl;
+
+          nSigmaPerView.push_back(fabs((trk_dedx[trk_dedx.size()-1]-mean)/stdev));
         }
-        std::cout << std::endl;
+        
+        bool notStopper = true;
+        short unsigned int n2Sigma = 0;
+        short unsigned int n3Sigma = 0;
+        for(auto const nSigma : nSigmaPerView){
+          if(nSigma >= 2.0) ++n2Sigma;
+          if(nSigma >= 3.0) ++n3Sigma;
+        }
 
-        ++n;
-			  t.Track()->SetTagFlag(pma::Track3D::kCosmic);
-			  t.Track()->SetTagFlag(pma::Track3D::kGeometry_Y);
+        if(n3Sigma > 0) notStopper = false;
+        if(n2Sigma == nSigmaPerView.size()) notStopper = false;
+
+        if(notStopper){
+          std::cout << " == Tagging track: " << n2Sigma << ", " << n3Sigma << std::endl;
+          ++n;
+			    t.Track()->SetTagFlag(pma::Track3D::kCosmic);
+			    t.Track()->SetTagFlag(pma::Track3D::kGeometry_Y);
+        }
       }
     }
   }
