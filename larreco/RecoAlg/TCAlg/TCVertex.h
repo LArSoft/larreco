@@ -30,7 +30,7 @@
 
 namespace tca {
   
-  void Find2DVertices(TjStuff& tjs, const CTP_t& inCTP);
+  void Find2DVertices(TjStuff& tjs, const CTP_t& inCTP, bool lastPass);
   void CheckVtxTjs(TjStuff& tjs, unsigned short nOld, bool prt);
   bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& vx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2, bool prt);
   void FindHammerVertices(TjStuff& tjs, const CTP_t& inCTP);
@@ -52,11 +52,11 @@ namespace tca {
   bool FitVertex(TjStuff& tjs, VtxStore& vx, bool prt);
   bool StoreVertex(TjStuff& tjs, VtxStore& vx);
   bool ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
+  void ScoreVertices(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void SetVx2Score(TjStuff& tjs, VtxStore& vx2, bool prt);
-  void SetVx3Score(TjStuff& tjs, Vtx3Store& vx3, bool useShowerCut, bool prt);
+  void SetVx3Score(TjStuff& tjs, Vtx3Store& vx3, bool prt);
   void SetHighScoreBits(TjStuff& tjs, Vtx3Store& vx3);
-  void KillPoorVertices(TjStuff& tjs, float scoreCut);
-  bool MakeVertexObsolete(TjStuff& tjs, unsigned short ivx, bool forceKill);
+  bool MakeVertexObsolete(TjStuff& tjs, VtxStore& vx2, bool forceKill);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const Vtx3Store& vx3, float& score);
   //    void Refine2DVertices();
