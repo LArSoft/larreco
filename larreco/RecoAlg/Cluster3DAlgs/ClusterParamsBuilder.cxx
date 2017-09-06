@@ -156,9 +156,9 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     int              numAllShared3D(0);
     
     int              otherClusterMaxSize(0);
-    int              otherClusterMaxSharedHits(0);
+//    int              otherClusterMaxSharedHits(0);
     int              otherClusterMinSize(std::numeric_limits<int>::max());
-    int              otherClusterMinSharedHits(0);
+//    int              otherClusterMinSharedHits(0);
     
     // Keep track of associated clusters
     std::set<const reco::ClusterParameters*> totalOtherClusterSet;
@@ -201,12 +201,12 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                         if (int(clusterPair.first->getHitPairListPtr().size()) > otherClusterMaxSize)
                         {
                             otherClusterMaxSize       = clusterPair.first->getHitPairListPtr().size();
-                            otherClusterMaxSharedHits = clusterPair.second.size();
+//                            otherClusterMaxSharedHits = clusterPair.second.size();
                         }
                         if (int(clusterPair.first->getHitPairListPtr().size()) < otherClusterMinSize)
                         {
                             otherClusterMinSize       = clusterPair.first->getHitPairListPtr().size();
-                            otherClusterMinSharedHits = clusterPair.second.size();
+//                            otherClusterMinSharedHits = clusterPair.second.size();
                         }
                     }
                 }
@@ -280,9 +280,9 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
         
         float allSharedFraction = numAllShared3D / float(hitPairVector.size());
         
-        std::cout << "**--> # 3D Hits: " << hitPairVector.size() << ", nTot: " << numTotalHits << " " << nTotalHitsVec[0] << "/" << nTotalHitsVec[1] << "/" << nTotalHitsVec[2] << ", unique: " << numUniqueHits << " " << nUniqueHitsVec[0] << "/" << nUniqueHitsVec[1] << "/" << nUniqueHitsVec[2] << ", lost: " << usedHitPairList.size() << ", accept: " << acceptRatio << ", rats: " << uniqueHitVec[0] << "/" << uniqueHitVec[1] << "/" << uniqueHitVec[2] << std::endl;
-        std::cout << "      -- nUnique3D: " << numUnique3D << ", 1 shared: " << numOneShared3D << ", 2 shared: " << numTwoShared3D << ", 3 shared: " << numThreeShared3D << ", all shared: " << numAllShared3D << std::endl;
-        std::cout << "      -- total # other clusters: " << totalOtherClusterSet.size() << ", max size: " << otherClusterMaxSize << ", shared: " << otherClusterMaxSharedHits << ", min size: " << otherClusterMinSize << ", shared: " << otherClusterMinSharedHits << std::endl;
+//        std::cout << "**--> # 3D Hits: " << hitPairVector.size() << ", nTot: " << numTotalHits << " " << nTotalHitsVec[0] << "/" << nTotalHitsVec[1] << "/" << nTotalHitsVec[2] << ", unique: " << numUniqueHits << " " << nUniqueHitsVec[0] << "/" << nUniqueHitsVec[1] << "/" << nUniqueHitsVec[2] << ", lost: " << usedHitPairList.size() << ", accept: " << acceptRatio << ", rats: " << uniqueHitVec[0] << "/" << uniqueHitVec[1] << "/" << uniqueHitVec[2] << std::endl;
+//        std::cout << "      -- nUnique3D: " << numUnique3D << ", 1 shared: " << numOneShared3D << ", 2 shared: " << numTwoShared3D << ", 3 shared: " << numThreeShared3D << ", all shared: " << numAllShared3D << std::endl;
+//        std::cout << "      -- total # other clusters: " << totalOtherClusterSet.size() << ", max size: " << otherClusterMaxSize << ", shared: " << otherClusterMaxSharedHits << ", min size: " << otherClusterMinSize << ", shared: " << otherClusterMinSharedHits << std::endl;
         
         // Arbitrary rejection criteria... need to understand
         // Anyway, if we get past this we're making a cluster
@@ -292,7 +292,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
             int nPlanesWithHits    = std::accumulate(nUniqueHitsVec.begin(), nUniqueHitsVec.end(), 0, [](int accum, int total){return total > 0 ? ++accum : accum;});
             int nPlanesWithMinHits = std::accumulate(nUniqueHitsVec.begin(), nUniqueHitsVec.end(), 0, [](int accum, int total){return total > 2 ? ++accum : accum;});
             
-            std::cout << "      --> nPlanesWithHits: " << nPlanesWithHits << ", nPlanesWithMinHits: " << nPlanesWithMinHits << ", unique prod: " << uniqueHitVec[1] * uniqueHitVec[2] << std::endl;
+//            std::cout << "      --> nPlanesWithHits: " << nPlanesWithHits << ", nPlanesWithMinHits: " << nPlanesWithMinHits << ", unique prod: " << uniqueHitVec[1] * uniqueHitVec[2] << std::endl;
 
             //            // Final selection cut, need at least 3 hits each view
             //            if (nViewsWithHits == 3 && nViewsWithMinHits > 1)
@@ -310,8 +310,6 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                     float cutDeltaTSig = std::min(1.1,std::max(0.2, 3. * (pair.second.front()->getDeltaPeakTime() / pair.second.front()->getSigmaPeakTime())));
                     
                     cutDeltaTSig = 1.0;
-                    
-//                    if (pair.second.size() > 1) std::cout << "       .. front sig: " << pair.second.front()->getDeltaPeakTime() / pair.second.front()->getSigmaPeakTime() << ", mid: " << cutDeltaTSig << ", back: " << pair.second.back()->getDeltaPeakTime() / pair.second.back()->getSigmaPeakTime() << std::endl;
                     
                     while(tryRemoveHits && pair.second.size() > 1)
                     {
