@@ -29,7 +29,10 @@ namespace tca {
 
   //------------------------------------------------------------------------------
 
-  TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset):fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg"))
+  TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset)
+ :fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg"))
+ , prop(pset.get<fhicl::ParameterSet>("kfpropagator"))
+ , kalmanFitter(&prop, pset.get<fhicl::ParameterSet>("kffitter"))
   {
     reconfigure(pset);
     tjs.caloAlg = &fCaloAlg;
@@ -2534,8 +2537,86 @@ namespace tca {
         }
       } // ii
     } // prt
-    
+
   } // Match3D
+
+  //////////////////////////////////////////
+  void TrajClusterAlg::KalmanFilterFit(PFPStruct& pfp)
+  {
+    //try to run the KF fit on the ms
+    using namespace trkf;
+    //prepare the inputs
+    const Point_t position(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]);//fixme are these always filled, or should I take the vertex sometimes?
+    const Vector_t direction(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]);
+    SMatrixSym55 trackStateCov=SMatrixSym55();
+    trackStateCov(0, 0) = 1000.;
+    trackStateCov(1, 1) = 1000.;
+    trackStateCov(2, 2) = 0.25;
+    trackStateCov(3, 3) = 0.25;
+    trackStateCov(4, 4) = 10.;
+    //take momentum as average of trajectories mcs momentum, where each trajectory is weighted according to the number of points
+    float mom = 0;
+    float sumw = 0;
+    for (auto jtj : pfp.TjIDs) {
+      float w = tjs.allTraj[jtj-1].Pts.size();
+      mom+=(w*tjs.allTraj[jtj-1].MCSMom);
+      sumw += w;
+    }
+    mom/=sumw;
+    mom*=0.001;
+    const int pdgid = 13;//fixme
+    SVector5 trackStatePar(0.,0.,0.,0.,1./mom);
+    KFTrackState trackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);
+    std::cout << trackState.position() << std::endl;
+    std::vector<HitState> hitstatev;
+    //fixme, can it happen that we need to reverse the order? for instance if the trajectory was reversed in Find3DEndPoints?
+    for (auto jtj : pfp.TjIDs) {
+      for (auto iTp : tjs.allTraj[jtj-1].Pts) {
+        auto planeid = DecodeCTP(iTp.CTP);
+        int wire = std::nearbyint(iTp.Pos[0]);
+        geo::WireID wid(planeid, wire);
+        float jX = tjs.detprop->ConvertTicksToX(iTp.Pos[1]/tjs.UnitsPerTick, planeid.Plane, planeid.TPC, planeid.Cryostat);
+        float jXe = tjs.detprop->ConvertTicksToX(TPHitsRMSTick(tjs, iTp, kUsedHits), planeid.Plane, planeid.TPC, planeid.Cryostat) * fHitErrFac;//do we need to account for multiplicity as in HitTimeErr?
+        hitstatev.push_back( std::move( HitState(jX,jXe*jXe,wid,tjs.geom->WireIDToWireGeo(wid)) ) );
+      }
+    }
+    std::vector<recob::TrajectoryPointFlags::Mask_t> hitflagsv(hitstatev.size());
+    // now the outputs
+    std::vector<KFTrackState> fwdPrdTkState;
+    std::vector<KFTrackState> fwdUpdTkState;
+    std::vector<unsigned int> hitstateidx;
+    std::vector<unsigned int> rejectedhsidx;
+    std::vector<unsigned int> sortedtksidx;
+    // perform the fit
+    // do we need to avoid rejecting hits? or we do not care?
+    bool fitok = kalmanFitter.doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx);
+    std::cout << "fitok=" << fitok << std::endl;
+    // make the track
+    int ndof = -4;
+    float chi2 = 0;;
+    std::vector<Point_t>  positions;
+    std::vector<Vector_t> momenta;
+    std::vector<recob::TrajectoryPointFlags> flags;
+    for (unsigned int p : sortedtksidx) {
+      auto& trackstate = fwdUpdTkState[p];
+      const auto& hitflags   = hitflagsv[hitstateidx[p]];
+      const unsigned int originalPos = hitstateidx[p];//(reverseHits ? hitstatev.size()-hitstateidx[p]-1 : hitstateidx[p]);
+      //
+      positions.push_back(trackstate.position());
+      momenta.push_back(trackstate.momentum());
+      flags.push_back(recob::TrajectoryPointFlags(originalPos,hitflags));
+      chi2 += fwdUpdTkState[p].chi2(hitstatev[hitstateidx[p]]);
+      ndof++;
+    }
+    bool propok = true;
+    KFTrackState resultF = prop.rotateToPlane(propok, fwdUpdTkState[sortedtksidx.front()].trackState(),
+                                              Plane(fwdUpdTkState[sortedtksidx.front()].position(),fwdUpdTkState[sortedtksidx.front()].momentum()));
+    KFTrackState resultB = prop.rotateToPlane(propok, fwdUpdTkState[sortedtksidx.back()].trackState(),
+                                              Plane(fwdUpdTkState[sortedtksidx.back()].position(),fwdUpdTkState[sortedtksidx.back()].momentum()));
+    //
+    pfp.Track = recob::Track(std::move(positions), std::move(momenta), std::move(flags), true, pdgid, chi2, ndof,
+                             SMatrixSym55(resultF.covariance()), SMatrixSym55(resultB.covariance()), pfp.ID);
+  } // KalmanFilterFit
 
   //////////////////////////////////////////
   void TrajClusterAlg::StepCrawl(Trajectory& tj)
