@@ -740,56 +740,6 @@ namespace tca {
     return true;
   } // SetPFPEndPoints
 
-/*
-  /////////////////////////////////////////
-  bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2)
-  {
-    // Returns true if the two trajectories meet some basic requirements for merging
-    
-    if(tj1.CTP != tj2.CTP) return false;
-    if(tj1.AlgMod[kKilled] || tj2.AlgMod[kKilled]) return false;
-    
-    // either one short?
-    if(tj1.Pts.size() < 5 || tj2.Pts.size() < 5) return false;
-    
-    // find the closest end points
-    unsigned short end1 = 1;
-    unsigned short end2 = 0;
-    float minSep = 1E6;
-    for(unsigned short e1 = 0; e1 < 2; ++e1) {
-      for(unsigned short e2 = 0; e2 < 2; ++e2) {
-        const auto& tp1 = tj1.Pts[tj1.EndPt[e1]];
-        const auto& tp2 = tj2.Pts[tj2.EndPt[e2]];
-        float sep = PosSep2(tp1.Pos, tp2.Pos);
-        if(sep < minSep) {
-          minSep = sep;
-          end1 = e1;
-          end2 = e2;
-        }
-      } // e2
-    } // e1
-    
-    // don't merge if they have a vertex at these ends
-    if(tj1.VtxID[end1] > 0 || tj2.VtxID[end2] > 0) return false;
-    // or if there is a Bragg Peak
-    if(tj1.StopFlag[end1][kBragg] || tj2.StopFlag[end2][kBragg]) return false;
-    // don't merge if many of the TPs have charge on the same wire
-    if(OverlapFraction(tjs, tj1, tj2) > 0.3) return false;
-    
-    // This is equivalent to 15 WSE
-    if(minSep > 225) return false;
-    
-    const auto& tp1 = tj1.Pts[tj1.EndPt[end1]];
-    const auto& tp2 = tj1.Pts[tj1.EndPt[end2]];
-    
-    if(!SignalBetween(tjs, tp1, tp2, 0.8, false)) return false;
-    if(DeltaAngle(tp1.Ang, tp2.Ang) > 0.5) return false;
-//    std::cout<<"CompatibleMerge "<<tj1.ID<<" "<<tj2.ID<<"\n";
-    
-    return true;
-    
-  } // CompatibleMerge
-*/
   /////////////////////////////////////////
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2)
   {
@@ -3468,7 +3418,8 @@ namespace tca {
     }
     
     if(tj1.VtxID[1] > 0 && tj2.VtxID[0] == tj1.VtxID[1]) {
-      if(!MakeVertexObsolete(tjs, tj1.VtxID[1], false)) {
+      auto& vx = tjs.vtx[tj1.VtxID[1] - 1];
+      if(!MakeVertexObsolete(tjs, vx, false)) {
         if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: Found a good vertex between Tjs "<<tj1.VtxID[1]<<" No merging";
         return false;
       }
