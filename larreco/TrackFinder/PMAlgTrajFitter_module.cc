@@ -41,7 +41,7 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "canvas/Utilities/InputTag.h"
-//#include "lardata/Utilities/PtrMaker.h"
+//#include "art/Persistency/Common/PtrMaker.h"
 
 #include "larreco/RecoAlg/PMAlgTracking.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
@@ -223,7 +223,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 		// use the following to create PFParticle <--> Track associations;
 		std::map< size_t, std::vector< art::Ptr<recob::Track> > > pfPartToTrackVecMap;
 
-		//auto const make_trkptr = lar::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
+		//auto const make_trkptr = art::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
 
 		tracks->reserve(result.size());
 		for (size_t trkIndex = 0; trkIndex < result.size(); ++trkIndex)
@@ -241,7 +241,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 			//auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
 
 			size_t trkIdx = tracks->size() - 1; // stuff for assns:
-			art::ProductID trkId = getProductID< std::vector<recob::Track> >(evt);
+			art::ProductID trkId = getProductID< std::vector<recob::Track> >();
 			art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
 
 			// which idx from start, except disabled, really....
@@ -291,17 +291,17 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 			if (result[trkIndex].Key() > -1)
 			{
 				size_t trackIdx = tracks->size() - 1;
-				art::ProductID trackId = getProductID< std::vector<recob::Track> >(evt);
+				art::ProductID trackId = getProductID< std::vector<recob::Track> >();
 				art::Ptr<recob::Track> trackPtr(trackId, trackIdx, evt.productGetter(trackId));
 				pfPartToTrackVecMap[result[trkIndex].Key()].push_back(trackPtr);
 			}
 		}
 
-		auto vid = getProductID< std::vector<recob::Vertex> >(evt);
-		auto kid = getProductID< std::vector<recob::Vertex> >(evt, kKinksName);
+		auto vid = getProductID< std::vector<recob::Vertex> >();
+		auto kid = getProductID< std::vector<recob::Vertex> >(kKinksName);
 		auto const* kinkGetter = evt.productGetter(kid);
 
-		auto tid = getProductID< std::vector<recob::Track> >(evt);
+		auto tid = getProductID< std::vector<recob::Track> >();
 		auto const* trkGetter = evt.productGetter(tid);
 
 		auto vsel = pmalgFitter.getVertices(fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
