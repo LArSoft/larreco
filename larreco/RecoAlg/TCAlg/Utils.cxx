@@ -1320,6 +1320,7 @@ namespace tca {
       mf::LogError("TC")<<"StoreTraj: Too many trajectories "<<tjs.allTraj.size();
       return false;
     }
+    
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tjs, tj);
     
@@ -1350,7 +1351,8 @@ namespace tca {
       tj.Pts[tj.EndPt[1]].AveChg = sum / (float)cnt;
     } // begin charge == end charge
     
-    short trID = tjs.allTraj.size() + 1;
+    int trID = tjs.allTraj.size() + 1;    
+
     for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
       for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
         if(tj.Pts[ipt].UseHit[ii]) {
@@ -3480,6 +3482,7 @@ namespace tca {
     tj1.Pts.insert(tj1.Pts.end(), tj2.Pts.begin() + tj2ClosePt, tj2.Pts.end());
     // re-define the end points
     SetEndPoints(tjs, tj1);
+    tj1.StopFlag[1] = tj2.StopFlag[1];
     
     // A more exhaustive check that hits only appear once
     if(HasDuplicateHits(tjs, tj1, doPrt)) {
