@@ -205,6 +205,7 @@ namespace tca {
               myprt<<" at "<<std::fixed<<std::setprecision(1)<<aVtx.Pos[0]<<":"<<aVtx.Pos[1]/tjs.UnitsPerTick<<" call AttachAnyTrajToVertex ";
             }
             AttachAnyTrajToVertex(tjs, ivx, prt);
+            SetVx2Score(tjs, prt);
           } // end2
         } // it2
       } // end1
@@ -459,6 +460,7 @@ namespace tca {
           tjs.allTraj[it2].AlgMod[kHamVx2] = true;
           unsigned short newTjIndex = tjs.allTraj.size() - 1;
           tjs.allTraj[newTjIndex].AlgMod[kHamVx2] = true;
+          SetVx2Score(tjs, prt);
           // Update the PDGCode for the chopped trajectory
           SetPDGCode(tjs, it2);
           // and for the new trajectory
@@ -550,6 +552,7 @@ namespace tca {
           tjs.allTraj[it2].AlgMod[kHamVx] = true;
           unsigned short newTjIndex = tjs.allTraj.size() - 1;
           tjs.allTraj[newTjIndex].AlgMod[kHamVx] = true;
+          SetVx2Score(tjs, prt);
           // Update the PDGCode for the chopped trajectory
           SetPDGCode(tjs, it2);
           // and for the new trajectory
@@ -1218,15 +1221,11 @@ namespace tca {
   ////////////////////////////////////////////////
   bool StoreVertex(TjStuff& tjs, VtxStore& vx)
   {
-    // jacket around the push to ensure that the Tj and vtx CTP is consistent
+    // jacket around the push to ensure that the Tj and vtx CTP is consistent.
+    // The calling function should score the vertex after the trajectories are attached
     
     if(vx.ID != tjs.vtx.size() + 1) {
-      mf::LogVerbatim("TC")<<"StoreVertex: Invalid ID "<<vx.ID<<" It should be "<<tjs.vtx.size() + 1<<". Recovering...\n";
-      for(auto& tj : tjs.allTraj) {
-        if(tj.AlgMod[kKilled]) continue;
-        if(tj.VtxID[0] == vx.ID) tj.VtxID[0] = 0;
-        if(tj.VtxID[1] == vx.ID) tj.VtxID[1] = 0;
-      }
+      mf::LogVerbatim("TC")<<"StoreVertex: Invalid ID "<<vx.ID<<" It should be "<<tjs.vtx.size() + 1;
       return false;
     }
     
@@ -1249,7 +1248,6 @@ namespace tca {
       }
       return false;
     }
-    SetVx2Score(tjs, vx, false);
     vx.NTraj = nok;
     tjs.vtx.push_back(vx);
     return true;
@@ -1575,6 +1573,15 @@ namespace tca {
   } // SetVx3Score
   
   //////////////////////////////////////////
+  void SetVx2Score(TjStuff& tjs, bool prt)
+  {
+    // A version that sets the score of the last added vertex
+    if(tjs.vtx.empty()) return;
+    auto& vx2 = tjs.vtx[tjs.vtx.size() - 1];
+    SetVx2Score(tjs, vx2, prt);
+  } // SetVx2Score
+  
+  //////////////////////////////////////////
   void SetVx2Score(TjStuff& tjs, VtxStore& vx2, bool prt)
   {
     // Calculate the 2D vertex score
@@ -1752,6 +1759,7 @@ namespace tca {
           tjs.allTraj[itj].VtxID[tjEnds[ii]] = aVtx.ID;
           tjs.allTraj[itj].AlgMod[kComp3DVxIG] = true;
         } // ii
+        SetVx2Score(tjs, prt);
         vx3.Vx2ID[mPlane] = aVtx.ID;
         vx3.Wire = -1;
         if(prt) mf::LogVerbatim("TC")<<"CI3DVIG: new 2D tjs.vtx "<<aVtx.ID<<" points to 3D tjs.vtx ";
@@ -1891,7 +1899,7 @@ namespace tca {
           newVtx.Stat[kFixed] = true;
         }
         AttachAnyTrajToVertex(tjs, newVtx.ID - 1, prt);
-        SetVx2Score(tjs, newVtx, prt);
+        SetVx2Score(tjs, prt);
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<" Success: new 2D vtx ID "<<newVtx.ID<<" at "<<(int)newVtx.Pos[0]<<":"<<(int)newVtx.Pos[1]/tjs.UnitsPerTick;
