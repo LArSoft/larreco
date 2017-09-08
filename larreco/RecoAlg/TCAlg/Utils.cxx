@@ -15,22 +15,39 @@ namespace tca {
   /////////////////////////////////////////
   void FinishPFParticles(TjStuff& tjs)
   {
-    // Creates a 3D vertices for PFParticles that don't have one
+    // Creates 3D start vertices for PFParticles that don't have one
     if(tjs.pfps.empty()) return;
+    
+    // only create a vertex at end 0
+    constexpr unsigned short end = 0;
     
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
-      unsigned short end = 0;
       if(pfp.Vx3ID[end] > 0) continue;
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
+      // Flag it as a PFP vertex that isn't required to have matched 2D vertices
       vx3.Wire = -2;
       vx3.X = pfp.XYZ[end][0];
       vx3.Y = pfp.XYZ[end][1];
       vx3.Z = pfp.XYZ[end][2];
       vx3.ID = tjs.vtx3.size() + 1;
-      tjs.vtx3.push_back(vx3);
-      pfp.Vx3ID[end] = vx3.ID;
+      // TODO: we need to have PFP track position errors defined 
+      unsigned short mergeToVx3ID = MergeWithNearbyVertex(tjs, vx3);
+      if(mergeToVx3ID > 0) {
+        std::cout<<"Merge PFP vertex "<<vx3.ID<<" with existing vtx "<<mergeToVx3ID<<"\n";
+        if(!AttachPFPToVertex(tjs, pfp, 0, mergeToVx3ID)) {
+          std::cout<<" Failed to attach pfp "<<pfp.ID<<". Make new vertex \n";
+          mergeToVx3ID = 0;
+        }
+      } // mergeMe > 0
+      if(mergeToVx3ID == 0) {
+        // Add the new vertex and attach the PFP to it
+        tjs.vtx3.push_back(vx3);
+        if(!AttachPFPToVertex(tjs, pfp, 0, vx3.ID)) {
+          std::cout<<"Merge PFP vertex "<<vx3.ID<<" with new vtx "<<mergeToVx3ID<<"\n";
+        }
+      } // merge to new vertex
     } // pfp
     
   } // FinishPFParticles
