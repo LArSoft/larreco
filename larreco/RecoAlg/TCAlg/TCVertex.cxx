@@ -35,8 +35,6 @@ namespace tca {
       PrintAllTraj("F2DVi", tjs, debug, USHRT_MAX, tjs.allTraj.size());
     }
     
-    unsigned short nVtxIn = tjs.vtx.size();
-    
     unsigned short maxShortTjLen = tjs.Vertex2DCuts[0];
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
@@ -211,7 +209,7 @@ namespace tca {
     } // it1
     
     // check the consistency of the Tjs for the newly added vertices
-    if(tjs.vtx.size() > nVtxIn) CheckVtxTjs(tjs, nVtxIn, prt);
+    ChkVtxTjs(tjs, inCTP, prt);
 
     // Split trajectories that cross a vertex
 //    SplitTrajCrossingVertices(tjs);
@@ -223,14 +221,16 @@ namespace tca {
   } // Find2DVertices
   
   //////////////////////////////////////////
-  void CheckVtxTjs(TjStuff& tjs, unsigned short nOld, bool prt)
+  void ChkVtxTjs(TjStuff& tjs, const CTP_t& inCTP, bool prt)
   {
     // 
     
     if(!tjs.UseAlg[kChkVxTj]) return;
     
-    for(unsigned short ivx = nOld; ivx < tjs.vtx.size(); ++ivx) {
+    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
       auto& vx2 = tjs.vtx[ivx];
+      if(vx2.ID == 0) continue;
+      if(vx2.CTP != inCTP) continue;
       auto vxtjs = GetVtxTjIDs(tjs, vx2);
       if(vxtjs.size() < 2) continue;
       for(unsigned short it1 = 0; it1 < vxtjs.size() - 1; ++it1) {
@@ -255,7 +255,7 @@ namespace tca {
           if(otj1tj2 < tj2sep && delta12 < 1 && otj1tj2 < 4) {
             if(prt) {
               mf::LogVerbatim myprt("TC");
-              myprt<<"ChkVtxTjs: "<<vx2.ID<<" tj1 "<<tj1.ID<<" tj2 "<<tj2.ID;
+              myprt<<"CVTjs: "<<vx2.ID<<" tj1 "<<tj1.ID<<" tj2 "<<tj2.ID;
               myprt<<" otj1tj2 "<<otj1tj2;
               myprt<<" delta12 "<<delta12;
               myprt<<" dang12 "<<dang12;
@@ -266,9 +266,9 @@ namespace tca {
             if(MergeAndStore(tjs, vxtjs[it1], vxtjs[it2], prt)) {
               auto& newTj = tjs.allTraj[tjs.allTraj.size()-1];
               newTj.AlgMod[kChkVxTj] = true;
-              if(prt) mf::LogVerbatim("TC")<<"CheckVtxTjs Merged tjs "<<tj1.ID<<" and "<<tj2.ID<<" -> "<<newTj.ID;
+              if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merged tjs "<<tj1.ID<<" and "<<tj2.ID<<" -> "<<newTj.ID;
             } else {
-              if(prt) mf::LogVerbatim("TC")<<" Merge failed";
+              if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merge failed";
             }
             continue;
           } // other end is closer
@@ -280,16 +280,81 @@ namespace tca {
             if(MergeAndStore(tjs, vxtjs[it2], vxtjs[it1], prt)) {
               auto& newTj = tjs.allTraj[tjs.allTraj.size()-1];
               newTj.AlgMod[kChkVxTj] = true;
-              if(prt) mf::LogVerbatim("TC")<<"CheckVtxTjs Merged tjs "<<tj1.ID<<" and "<<tj2.ID<<" -> "<<newTj.ID;
+              if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merged tjs "<<tj1.ID<<" and "<<tj2.ID<<" -> "<<newTj.ID;
             } else {
-              if(prt) mf::LogVerbatim("TC")<<" Merge failed";
+              if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merge failed";
             }
           } // other end is closer
         } // it2
       } // it1
     } // ivx
     
-  } // CheckVtxTjs
+    // now look for tjs that are between the closest ends of the vertex tjs but that are
+    // not attached to that vertex
+    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
+      auto& vx2 = tjs.vtx[ivx];
+      if(vx2.ID == 0) continue;
+      if(vx2.CTP != inCTP) continue;
+      auto vxtjs = GetVtxTjIDs(tjs, vx2);
+      if(vxtjs.size() < 2) continue;
+      for(unsigned short it1 = 0; it1 < vxtjs.size(); ++it1) {
+        auto& vtj = tjs.allTraj[vxtjs[it1] - 1];
+        if(vtj.AlgMod[kKilled]) continue;
+        unsigned short vend = 0;
+        if(PosSep2(vtj.Pts[vtj.EndPt[1]].Pos, vx2.Pos) < PosSep2(vtj.Pts[vtj.EndPt[0]].Pos, vx2.Pos)) vend = 1;
+        auto& vtp = vtj.Pts[vtj.EndPt[vend]];
+        // Find the separation to the vertex but inflate it a bit
+        float vsep = 1.2 * PosSep(vtp.Pos, vx2.Pos);
+        // look for other Tjs that are closer to the vertex than this
+        for(auto& tj : tjs.allTraj) {
+          if(tj.CTP != vx2.CTP) continue;
+          if(tj.AlgMod[kKilled]) continue;
+          if(std::find(vxtjs.begin(), vxtjs.end(), tj.ID) != vxtjs.end()) continue;
+          // ignore Tjs already attached to this vertex
+          if(tj.VtxID[0] == vx2.ID || tj.VtxID[0] == vx2.ID) continue;
+          if(tj.StepDir != vtj.StepDir) {
+            std::cout<<"CVTjs: StepDir mis-match "<<vtj.ID<<" Reversing "<<tj.ID<<"\n";
+            ReverseTraj(tjs, tj);
+          }
+          auto& tp0 = tj.Pts[tj.EndPt[0]];
+          auto& tp1 = tj.Pts[tj.EndPt[1]];
+          float vsep0 = PosSep(tp0.Pos, vx2.Pos);
+          float vsep1 = PosSep(tp1.Pos, vx2.Pos);
+          // Require both ends closer to the vertex than this separation
+          if(vsep0 > vsep && vsep1 > vsep) continue;
+          // check the direction
+          if(vsep0 < vsep1) {
+            // end0 of tj is closest to the vertex. Check the separation between end1 and vtj
+            if(PosSep(tp1.Pos, vtp.Pos) > 2.5) continue;
+            tj.VtxID[0] = vx2.ID;
+            vtj.VtxID[0] = 0;
+            if(MergeAndStore(tjs, tj.ID - 1, vtj.ID - 1, prt)) {
+              auto& newTj = tjs.allTraj[tjs.allTraj.size()-1];
+              newTj.AlgMod[kChkVxTj] = true;
+              if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merged tjs "<<tj.ID<<" and "<<vtj.ID<<" -> "<<newTj.ID;
+              break;
+            } else {
+              if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merge failed";
+            }
+          } else {
+            // end1 of tj is closest to the vertex
+            if(PosSep(tp0.Pos, vtp.Pos) > 2.5) continue;
+            tj.VtxID[1] = vx2.ID;
+            vtj.VtxID[1] = 0;
+            if(MergeAndStore(tjs, vtj.ID - 1, tj.ID - 1, prt)) {
+              auto& newTj = tjs.allTraj[tjs.allTraj.size()-1];
+              newTj.AlgMod[kChkVxTj] = true;
+              if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merged tjs "<<vtj.ID<<" and "<<tj.ID<<" -> "<<newTj.ID;
+              break;
+            } else {
+              if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merge failed";
+            }
+          }
+        } // tj
+     } // it1
+    } // ivx
+    
+  } // ChkVtxTjs
   
   /////////////////////////////////////////
   unsigned short MergeWithNearbyVertex(TjStuff& tjs, Vtx3Store& vx3)
