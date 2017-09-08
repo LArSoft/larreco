@@ -2316,30 +2316,32 @@ namespace tca {
       } // it1
     } // iterate
     
+    ChkVtxTjs(tjs, fCTP, mrgPrt);
     
     // Do some checking in debug mode
-    if(fDebugMode) {
+    if(fDebugMode && lastPass) {
       for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
         auto& tj1 = tjs.allTraj[it1];
+        if(tj1.CTP != fCTP) continue;
         if(tj1.AlgMod[kKilled]) continue;
         for(unsigned short end1 = 0; end1 < 2; ++end1) {
+          unsigned short end2 = 1 - end1;
           auto& tp1 = tj1.Pts[tj1.EndPt[end1]];
           for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
             auto& tj2 = tjs.allTraj[it2];
+            if(tj2.CTP != fCTP) continue;
             if(tj2.AlgMod[kKilled]) continue;
-            for(unsigned short end2 = 0; end2 < 2; ++end2) {
-              auto& tp2 = tj2.Pts[tj2.EndPt[end2]];
-              float sep = PosSep2(tp1.HitPos, tp2.HitPos);
-              if(sep < 2.5) {
-                if(tj1.VtxID[end1] == 0 && tj2.VtxID[end2] == 0) {
-                  std::cout<<"Tjs "<<tj1.ID<<" and "<<tj2.ID<<" are close at Pos "<<tj1.CTP<<":"<<PrintPos(tjs, tp1.HitPos)<<" with no merge or vertex\n";
-                } else if(tj1.VtxID[end1] != tj2.VtxID[end2]) {
-                  std::cout<<"Tjs "<<tj1.ID<<" and "<<tj2.ID<<" are close at Pos "<<tj1.CTP<<":"<<PrintPos(tjs, tp1.HitPos);
-                  std::cout<<" but have different vertex IDs "<<tj1.VtxID[end1]<<" != "<<tj2.VtxID[end2];
-                  std::cout<<"\n";
-                }
-              } // close points
-            } // end2
+            auto& tp2 = tj2.Pts[tj2.EndPt[end2]];
+            float sep = PosSep2(tp1.HitPos, tp2.HitPos);
+            if(sep < 2.5) {
+              if(tj1.VtxID[end1] == 0 && tj2.VtxID[end2] == 0) {
+                std::cout<<"Tjs "<<tj1.ID<<" and "<<tj2.ID<<" are close at Pos "<<tj1.CTP<<":"<<PrintPos(tjs, tp1.HitPos)<<" "<<tj2.CTP<<":"<<PrintPos(tjs, tp2.HitPos)<<" with no merge or vertex\n";
+              } else if(tj1.VtxID[end1] != tj2.VtxID[end2]) {
+                std::cout<<"Tjs "<<tj1.ID<<" and "<<tj2.ID<<" are close at Pos "<<tj1.CTP<<":"<<PrintPos(tjs, tp1.HitPos);
+                std::cout<<" but have different vertex IDs "<<tj1.VtxID[end1]<<" != "<<tj2.VtxID[end2];
+                std::cout<<"\n";
+              }
+            } // close points
           } // it2
         } // end1
       } // it1
@@ -4718,7 +4720,6 @@ namespace tca {
     // Merge hits in trajectory points?
     if(fMakeNewHits) MergeTPHits();
     Finish3DShowers(tjs);
-    FinishPFParticles(tjs);
     
     ClusterStore cls;
     tjs.tcl.clear();
