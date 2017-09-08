@@ -2316,7 +2316,8 @@ namespace tca {
       } // it1
     } // iterate
     
-    ChkVtxTjs(tjs, fCTP, mrgPrt);
+    // TODO: Fix this function
+//    ChkVxTjs(tjs, fCTP, mrgPrt);
     
     // Do some checking in debug mode
     if(fDebugMode && lastPass) {
