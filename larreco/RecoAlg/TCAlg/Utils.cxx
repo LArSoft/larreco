@@ -729,6 +729,12 @@ namespace tca {
         // TODO: check position difference to a vertex to check for errors
         pfp.Dir[startend] = dir;
       } // startend
+    } else {
+      pfp.Dir[0][0] = matchPos[0][1] - matchPos[0][0];
+      pfp.Dir[0][1] = matchPos[1][1] - matchPos[1][0];
+      pfp.Dir[0][2] = matchPos[2][1] - matchPos[2][0];
+      pfp.Dir[0].SetMag(1);
+      pfp.Dir[1] = pfp.Dir[0];
     }
     
     // check the direction consistency
