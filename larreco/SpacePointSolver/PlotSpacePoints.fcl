@@ -1,0 +1,20 @@
+BEGIN_PROLOG
+
+standard_plotspacepoints:
+{
+  module_type: "PlotSpacePoints"
+
+  Plots: true
+  Plots3D: false
+  PlotsTrue: true
+
+  Suffix: "" # in output files
+
+  HitLabel: "gaushit" # needed for PlotsTrue
+
+  SpacePointLabel: "reco3d"
+  SpacePointInstanceLabel: ""
+}
+
+END_PROLOG
+
