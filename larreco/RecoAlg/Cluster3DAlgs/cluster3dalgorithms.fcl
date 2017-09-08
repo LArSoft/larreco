@@ -4,6 +4,7 @@ standard_cluster3dkdTree:
 {
   EnableMonitoring:  true    # enable monitoring of functions
   PairSigmaPeakTime: 3.      # "sigma" multiplier on peak time
+  RefLeafBestDist:   0.5     # Initial distance once reference leaf found
 }
 
 standard_cluster3dhit3dbuilderalg:

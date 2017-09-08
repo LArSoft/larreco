@@ -57,7 +57,7 @@ public:
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    virtual double getTimeToExecute(TimeValues index) const = 0;
+    virtual float getTimeToExecute(TimeValues index) const = 0;
     
 };
     
