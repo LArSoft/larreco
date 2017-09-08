@@ -41,7 +41,6 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
-  void FinishPFParticles(TjStuff& tjs);
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, PFPStruct& pfp, std::vector<MatchStruct>& matVec, 
