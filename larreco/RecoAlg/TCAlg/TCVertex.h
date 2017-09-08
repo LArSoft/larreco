@@ -46,7 +46,6 @@ namespace tca {
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
   bool AttachPFPToVertex(TjStuff& tjs, PFPStruct& pfp, unsigned short end, unsigned short vx3ID);
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, bool prt);
-  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned int itj, bool prt);
   bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, bool prt);
   float TrajPointVertexPull(TjStuff& tjs, const TrajPoint& tp, const VtxStore& vx);
   float VertexVertexPull(TjStuff& tjs, const Vtx3Store& vx1, const Vtx3Store& vx2);
