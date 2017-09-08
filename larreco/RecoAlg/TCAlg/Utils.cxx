@@ -13,14 +13,15 @@ bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 namespace tca {
   
   /////////////////////////////////////////
-  void FinishPFParticles(TjStuff& tjs)
+  void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid)
   {
-    // Creates 3D start vertices for PFParticles that don't have one
+    // This function reconciles vertices, PFParticles and Tjs, then
+    // defines the parent (j) - daughter (i) relationship and PDGCode
+    
     if(tjs.pfps.empty()) return;
     
-    // only create a vertex at end 0
+    // only create a vertex at end 0 (if one doesn't exist)
     constexpr unsigned short end = 0;
-    
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       if(pfp.Vx3ID[end] > 0) continue;
@@ -49,14 +50,6 @@ namespace tca {
         }
       } // merge to new vertex
     } // pfp
-    
-  } // FinishPFParticles
-  
-  /////////////////////////////////////////
-  void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid)
-  {
-    
-    // Define the parent (j) - daughter (i) relationship and the PDGCode
     
     for(auto& ipfp : tjs.pfps) {
       if(ipfp.ID == 0) continue;
@@ -1409,9 +1402,6 @@ namespace tca {
         } // ii
       } // ipt
     } // debug.Hit ...
-    
-    // Try to attach to a vertex
-    AttachTrajToAnyVertex(tjs, tjs.allTraj.size() - 1, false);
     
     return true;
     
