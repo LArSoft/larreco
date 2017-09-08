@@ -209,7 +209,7 @@ namespace tca {
     } // it1
     
     // check the consistency of the Tjs for the newly added vertices
-    ChkVtxTjs(tjs, inCTP, prt);
+    ChkVxTjs(tjs, inCTP, prt);
 
     // Split trajectories that cross a vertex
 //    SplitTrajCrossingVertices(tjs);
@@ -221,7 +221,7 @@ namespace tca {
   } // Find2DVertices
   
   //////////////////////////////////////////
-  void ChkVtxTjs(TjStuff& tjs, const CTP_t& inCTP, bool prt)
+  void ChkVxTjs(TjStuff& tjs, const CTP_t& inCTP, bool prt)
   {
     // 
     
@@ -288,7 +288,7 @@ namespace tca {
         } // it2
       } // it1
     } // ivx
-    
+/* This needs work. It caused a coding error in MergeAndStore
     // now look for tjs that are between the closest ends of the vertex tjs but that are
     // not attached to that vertex
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
@@ -353,8 +353,8 @@ namespace tca {
         } // tj
      } // it1
     } // ivx
-    
-  } // ChkVtxTjs
+*/
+  } // ChkVxTjs
   
   /////////////////////////////////////////
   unsigned short MergeWithNearbyVertex(TjStuff& tjs, Vtx3Store& vx3)
