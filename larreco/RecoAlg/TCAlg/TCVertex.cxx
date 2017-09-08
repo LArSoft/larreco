@@ -1065,7 +1065,7 @@ namespace tca {
     
     return true;
   } // AttachPFPToVertex
-  
+
   //////////////////////////////////////////
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short ivx, bool prt)
   {
@@ -1088,32 +1088,7 @@ namespace tca {
     return true;
     
   } // AttachAnyTrajToVertex
-  
-  //////////////////////////////////////////
-  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned int itj, bool prt)
-  {
-    
-    if(itj > tjs.allTraj.size() - 1) return false;
-    if(tjs.Vertex2DCuts[0] < 0) return false;
-    if(tjs.vtx.size() == 0) return false;
-    
-    Trajectory& tj = tjs.allTraj[itj];
-    
-    unsigned short nadd = 0;
-    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
-      VtxStore& vx2 = tjs.vtx[ivx];
-      if(vx2.ID == 0) continue;
-      if(vx2.CTP != tj.CTP) continue;
-      // try both ends
-      if(tj.VtxID[0] == vx2.ID || tj.VtxID[1] == vx2.ID) continue;
-      if(AttachTrajToVertex(tjs, tj, vx2, prt)) ++nadd;
-      if(nadd == 2) return true;
-    } // ivx
-    if(nadd > 1) return true;
-    return false;
-    
-  } // AttachAnyTrajToVertex
-  
+
   //////////////////////////////////////////
   bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, bool prt)
   {
