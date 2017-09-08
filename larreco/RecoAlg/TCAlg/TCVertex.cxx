@@ -193,7 +193,6 @@ namespace tca {
               tjs.allTraj[it2].VtxID[end2] = 0;
               continue;
             }
-//            if(MergeWithNearbyVertex(tjs, aVtx, it1, end1, it2, end2, prt)) continue;
             // Save it
             if(!StoreVertex(tjs, aVtx)) continue;
             // Try to attach other tjs to it
@@ -292,31 +291,23 @@ namespace tca {
     
   } // CheckVtxTjs
   
-  //////////////////////////////////////////
-  bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& newVx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2, bool prt)
+  /////////////////////////////////////////
+  unsigned short MergeWithNearbyVertex(TjStuff& tjs, Vtx3Store& vx3)
   {
-    // Tries to merge a new vertex, vx2, that has yet to be added to tjs.vtx to see if the
-    // Tjs can instead be merged with a nearby existing vertex
+    // Recommends merging vx3 with an existing vertex
     
-    // Merge vertices if the positions are within 1.5 * the maximum position error
-    float sepCut = 2 * tjs.Vertex2DCuts[4];
-    
-    auto& tj1 = tjs.allTraj[it1];
-    auto& tj2 = tjs.allTraj[it2];
-    for(auto& vx2 : tjs.vtx) {
-      if(vx2.CTP != newVx2.CTP) continue;
-      // ignore killed vertices
-      if(vx2.ID == 0) continue;
-      float sep = PosSep(vx2.Pos, newVx2.Pos);
-      // Try to merge them if within the specified vertex position error
-      if(sep > sepCut) continue;
-      if(prt) mf::LogVerbatim("TC")<<"MWNV: "<<tj1.ID<<"_"<<end1<<" "<<tj2.ID<<"_"<<end2<<" vx2 "<<vx2.ID<<" sep "<<sep<<" sepCut "<<sepCut<<"\n";
-      if(AttachTrajToVertex(tjs, tj1, vx2, prt) || AttachTrajToVertex(tjs, tj2, vx2, prt)) {
-        vx2.Stat[kVtxMerged] = true;
-        return true;
+    float minPull = tjs.Vertex3DChiCut;
+    unsigned short imBest = 0;
+    for(auto& oldvx3 : tjs.vtx3) {
+      if(oldvx3.ID == 0) continue;
+      float pull = VertexVertexPull(tjs, vx3, oldvx3);
+      if(pull < minPull) {
+        minPull = pull;
+        imBest = oldvx3.ID;
       }
-    } // vx2
-    return false;
+    } // oldvx3
+    return imBest;
+    
   } // MergeWithNearbyVertex
     
   //////////////////////////////////////////
@@ -1025,6 +1016,57 @@ namespace tca {
   } // TPNearVertex
   
   //////////////////////////////////////////
+  bool AttachPFPToVertex(TjStuff& tjs, PFPStruct& pfp, unsigned short end, unsigned short vx3ID)
+  {
+    if(vx3ID > tjs.vtx3.size()) {
+      mf::LogVerbatim("TC")<<"AttachPFPToVertex: vx3 "<<vx3ID<<" doesn't exist in tjs.vtx3";
+      return false;
+    }
+    if(pfp.ID > tjs.pfps.size()) {
+      mf::LogVerbatim("TC")<<"AttachPFPToVertex: pfp "<<pfp.ID<<" doesn't exist in tjs.pfps";
+      return false;
+    }
+    if(end > 1) return false;
+    
+    auto& vx3 = tjs.vtx3[vx3ID - 1];
+    
+    pfp.Vx3ID[end] = vx3.ID;
+    
+    // We are done if this a PFP-only vertex
+    if(vx3.Wire == -2) return true;
+    
+    std::cout<<"APTV: pfp.ID "<<pfp.ID<<" end "<<end<<" vx3.ID "<<vx3.ID<<" vx3.Vx2ID";
+    for(unsigned short plane = 0; plane < 3; ++plane) std::cout<<" "<<vx3.Vx2ID[plane];
+    std::cout<<"\n";
+    
+    // Update the 2D and 3D vertex and tj associations
+//    bool needsUpdate = false;
+    for(auto tjid : pfp.TjIDs) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      unsigned short plane = DecodeCTP(tj.CTP).Plane;
+      // TODO: Check to see if the Tjs have been ordered correctly? 
+      if(tj.VtxID[end] == 0) {
+        // tj is available to be attached to a 2D vertex. See if the 3D vertex is matched to 
+        // an existing 2D vertex in this plane
+        if(vx3.Vx2ID[plane] == 0) {
+          // not matched. Look for one
+          std::array<float, 2> pos;
+          PosInPlane(tjs, vx3, plane, pos);
+          std::cout<<" tj "<<tj.ID<<" has no 2D vertex. Look for one vertex near "<<tj.CTP<<":"<<PrintPos(tjs, pos)<<"\n";
+        } else {
+          // Existing 2D vertex matched to the 3D vertex
+          std::cout<<" tj "<<tj.ID<<" has no 2D vertex in CTP "<<tj.CTP<<" but vx3 is matched to 2D vertex"<<vx3.Vx2ID[plane]<<". Attach it?\n";
+        }
+      } else {
+        // tj already has a 2D vtx attachment
+        std::cout<<" tj "<<tj.ID<<" has a 2D vertex "<<tj.VtxID[end]<<". Clobber it?\n";
+      }
+    } // tjid
+    
+    return true;
+  } // AttachPFPToVertex
+  
+  //////////////////////////////////////////
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short ivx, bool prt)
   {
     
@@ -1204,6 +1246,22 @@ namespace tca {
     return (float)(dang / angErr);
     
   } // TrajPointVertexPull
+  
+  /////////////////////////////////////////
+  float VertexVertexPull(TjStuff& tjs, const Vtx3Store& vx1, const Vtx3Store& vx2)
+  {
+    // Calculates the position pull between two vertices
+    double dx = vx1.X - vx2.X;
+    double dy = vx1.Y - vx2.Y;
+    double dz = vx1.Z - vx2.Z;
+    double dxErr2 = (vx1.XErr * vx1.XErr + vx2.XErr * vx2.XErr) / 2;
+    double dyErr2 = (vx1.YErr * vx1.YErr + vx2.YErr * vx2.YErr) / 2;
+    double dzErr2 = (vx1.ZErr * vx1.ZErr + vx2.ZErr * vx2.ZErr) / 2;
+    dx = dx * dx / dxErr2;
+    dy = dy * dy / dyErr2;
+    dz = dz * dz / dzErr2;
+    return (float)(sqrt(dx + dy + dz)/3);
+  }
   
   /////////////////////////////////////////
   float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2)
@@ -2212,6 +2270,14 @@ namespace tca {
     return tmp;
   } // GetVtxTjIDs
 
+  //////////////////////////////////////////
+  void PosInPlane(const TjStuff& tjs, const Vtx3Store& vx3, unsigned short plane, std::array<float, 2>& pos)
+  {
+    // returns the 2D position of the vertex in the plane
+    pos[0] = tjs.geom->WireCoordinate(vx3.Y, vx3.Z, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat);
+    pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tjs.UnitsPerTick;
+    
+  } // PosInPlane
   /*
    //////////////////////////////////////////
    void Refine2DVertices()
