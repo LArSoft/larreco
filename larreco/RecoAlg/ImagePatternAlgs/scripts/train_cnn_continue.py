@@ -58,7 +58,7 @@ img_rows, img_cols = PATCH_SIZE_W, PATCH_SIZE_D
 
 batch_size = config['training_on_patches']['batch_size']
 nb_epoch = config['training_on_patches']['nb_epoch']
-# nb_classes = config['training_on_patches']['nb_classes']
+nb_classes = config['training_on_patches']['nb_classes']
 
 ######################  CNN commpilation  ###########################
 print 'Compiling CNN model...'
