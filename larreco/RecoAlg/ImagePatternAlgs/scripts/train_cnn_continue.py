@@ -68,8 +68,11 @@ model = load_model(cfg_name)
 #model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
 
 sgd = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
-model.compile(loss='categorical_crossentropy', optimizer=sgd)
-
+if nb_classes > 3:
+    model.compile(loss='mean_squared_error', optimizer=sgd)
+else:
+    #model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer=sgd)
 #######################  read data sets  ############################
 n_training = count_events(CNN_INPUT_DIR, 'training')
 X_train = np.zeros((n_training, 1, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
