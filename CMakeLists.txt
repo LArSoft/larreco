@@ -61,6 +61,9 @@ include(ArtDictionary)
 include(ArtMake)
 include(BuildPlugins)
 
+# find tensorflow library
+cet_find_library(TENSORFLOW NAMES tensorflow PATHS ENV TENSORFLOW_LIB NO_DEFAULT_PATH )
+
 # source
 add_subdirectory(larreco)
 
