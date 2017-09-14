@@ -1,8 +1,9 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class:       Graph
 // Authors:     R.Sulej (Robert.Sulej@cern.ch), from DUNE, FNAL/NCBJ, Sept. 2017
+//              P.Plonski,                      from DUNE, WUT, Sept. 2017
 //
-// Iterface to run Tensorflow graph saved to a file. First attempts, not functional yet.
+// Iterface to run Tensorflow graph saved to a file. First attempts, almost functional.
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -15,9 +16,6 @@
 tf::Graph::Graph(const char* graph_file_name, bool & success)
 {
     success = false; // until all is done correctly
-
-    //tensorflow::Scope root = tensorflow::Scope::NewRootScope();
-    //fSession = new tensorflow::ClientSession(root);
 
     auto status = tensorflow::NewSession(tensorflow::SessionOptions(), &fSession);
     if (!status.ok())
@@ -58,16 +56,14 @@ tf::Graph::~Graph()
 std::vector<float> tf::Graph::run(const std::vector< std::vector<float> > & x)
 {
     if (x.empty() || x.front().empty()) return std::vector<float>();
-    //size_t rows = x.size(), cols = x.front().size();
-/*
+    long long int rows = x.size(), cols = x.front().size();
+
     tensorflow::Tensor _x(tensorflow::DT_FLOAT, tensorflow::TensorShape({ rows, cols }));
 
-    //_x.scalar<float>()() = x;
-
     auto input_map = _x.tensor<float, 2>();
-    for (size_t r = 0; r < rows; ++r) {
+    for (long long int r = 0; r < rows; ++r) {
         const auto & row = x[r];
-        for (size_t c = 0; c < cols; ++c) { input_map(r, c) = row[c]; }
+        for (long long int c = 0; c < cols; ++c) { input_map(r, c) = row[c]; }
     }
 
     std::vector< std::pair<std::string, tensorflow::Tensor> > inputs = {
@@ -98,13 +94,69 @@ std::vector<float> tf::Graph::run(const std::vector< std::vector<float> > & x)
         std::cout << status.ToString() << std::endl;
         return std::vector<float>();
     }
-*/
-
-    return std::vector<float>();
 
     // (There are similar methods for vectors and matrices here:
     // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/public/tensor.h)
 }
 // -------------------------------------------------------------------
 
+std::vector< std::vector<float> > tf::Graph::run(const std::vector<  std::vector<  std::vector< std::vector<float> > > > & x)
+{
+    std::vector< std::vector<float> > empty_output;
+    if (x.empty() || x.front().empty() || x.front().front().empty() || x.front().front().front().empty())
+        return empty_output;
+
+    long long int samples = x.size(),
+              rows = x.front().size(),
+              cols = x.front().front().size(),
+              depth = x.front().front().front().size();
+
+    std::cout << "Input: " << samples << "x" << rows << "x" << cols << "x" << depth << std::endl;
+    tensorflow::Tensor _x(tensorflow::DT_FLOAT, tensorflow::TensorShape({ samples, rows, cols, depth }));
+    auto input_map = _x.tensor<float, 4>();
+    for (long long int s = 0; s < samples; ++s) {
+        const auto & sample = x[s];
+        for (long long int r = 0; r < rows; ++r) {
+            const auto & row = sample[r];
+            for (long long int c = 0; c < cols; ++c) {
+                const auto & col = row[c];
+                for (long long int d = 0; d < depth; ++d) {
+                    input_map(s, r, c, d) = col[d];
+                }
+            }
+        }
+    }
+
+    std::vector< std::pair<std::string, tensorflow::Tensor> > inputs = {
+        { fInputName, _x }
+    };
+
+    std::cout << "run session" << std::endl;
+
+    std::vector<tensorflow::Tensor> outputs;
+    auto status = fSession->Run(inputs, { fOutputName }, {}, &outputs);
+
+    if (status.ok())
+    {
+        auto output_map = outputs.front().tensor<float, 2>();
+
+        size_t nd = outputs.front().dims();
+
+        std::vector< std::vector< float > > output;
+        for(long long int s = 0; s < samples; ++s) {
+            std::vector< float > tmp(outputs.front().dim_size(nd-1));
+            for (size_t i = 0; i < tmp.size(); ++i) {
+                tmp[i] = output_map(s, i);
+            }
+            output.push_back(tmp);
+        }
+        return output;
+    }
+    else
+    {
+        std::cout << status.ToString() << std::endl;
+        return empty_output;
+    }
+}
+// -------------------------------------------------------------------
 

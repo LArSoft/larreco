@@ -81,15 +81,15 @@ public:
 private:
   
     void FillOutHitParameterVector(const std::vector<double>& input, std::vector<double>& output);
+   
+    bool                fFilterHits;
     
-    double              fThreshold          = 0.;  // minimum signal size for id'ing a hit
-    double              fMinWidth		    = 0 ;  // hit minimum width
     std::string         fCalDataModuleLabel;
     
     std::string         fAllHitsInstanceName;
 
     std::vector<double> fMinSigVec;                ///<signal height threshold
-    std::vector<double> fMinWidthVec;              ///<Minimum hit width
+//    std::vector<double> fMinWidthVec;              ///<Minimum hit width <-- NO LONGER USED (?)
     std::vector<int>    fLongMaxHitsVec;           ///<Maximum number hits on a really long pulse train
     std::vector<int>    fLongPulseWidthVec;        ///<Sets width of hits used to describe long pulses
   
@@ -100,7 +100,7 @@ private:
     double	            fChi2NDF;                  ///maximum Chisquared / NDF allowed for a hit to be saved
     
     std::vector<float>  fPulseHeightCuts;
-    std::vector<float>  fPulseWidthCuts;
+    std::vector<float>  fPulseWidthCuts;   
     std::vector<float>  fPulseRatioCuts;
     
     std::unique_ptr<reco_tool::ICandidateHitFinder> fHitFinderTool;  ///< For finding candidate hits
@@ -163,20 +163,20 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
   
     fAllHitsInstanceName = p.get< std::string >("AllHitsInstanceName","");
+   
+    fFilterHits         = p.get< bool >("FilterHits",false);
     
-    bool const doHitFiltering = p.get<bool>("FilterHits", false);
-    if (doHitFiltering) {
-      if (fHitFilterAlg) { // create a new algorithm instance
+    if (fFilterHits) {
+      if (fHitFilterAlg) { // reconfigure existing algorithm
         fHitFilterAlg->reconfigure(p.get<fhicl::ParameterSet>("HitFilterAlg"));
       }
-      else { // reconfigure the existing instance
-        fHitFilterAlg = std::make_unique<HitFilterAlg>
-          (p.get<fhicl::ParameterSet>("HitFilterAlg"));
+      else { // create a new algorithm instance
+        fHitFilterAlg = std::make_unique<HitFilterAlg>(p.get<fhicl::ParameterSet>("HitFilterAlg"));
       }
     }
 
     FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),         fMinSigVec);
-    FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),       fMinWidthVec);
+//    FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),       fMinWidthVec);
     FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),      fAreaNormsVec);
 
     fLongMaxHitsVec    = p.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
@@ -248,8 +248,9 @@ void GausHitFinder::produce(art::Event& evt)
     // Handle the filtered hits collection...
     recob::HitCollectionCreator  hcol(*this, evt);
     recob::HitCollectionCreator* filteredHitCol = 0;
-    
-    if (fAllHitsInstanceName != "") filteredHitCol = &hcol;
+   
+    if( fFilterHits ) filteredHitCol = &hcol; 
+//    if (fAllHitsInstanceName != "") filteredHitCol = &hcol;
    
     // ##########################################
     // ### Reading in the Wire List object(s) ###
@@ -310,9 +311,6 @@ void GausHitFinder::produce(art::Event& evt)
         // --    for the right plane.      --
         // ----------------------------------------------------------
         
-        fThreshold = fMinSigVec.at(plane);
-        fMinWidth  = fMinWidthVec.at(plane);
-
         // #################################################
         // ### Set up to loop over ROI's for this wire   ###
         // #################################################
@@ -334,7 +332,7 @@ void GausHitFinder::produce(art::Event& evt)
            
             // ROI start time
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
-            float          roiThreshold(fThreshold);
+            float          roiThreshold(fMinSigVec.at(plane));
             
             // ###########################################################
             // ### Scan the waveform and find candidate peaks + merge  ###
@@ -489,6 +487,13 @@ void GausHitFinder::produce(art::Event& evt)
                 // Should we filter hits?
                 if (filteredHitCol && !filteredHitVec.empty())
                 {
+                    // #######################################################################
+                    // Is all this sorting really necessary?  Would it be faster to just loop 
+                    // through the hits and perform simple cuts on amplitude and width on a 
+                    // hit-by-hit basis, either here in the module (using fPulseHeightCuts and 
+                    // fPulseWidthCuts) or in HitFilterAlg?
+                    // #######################################################################
+                    
                     // Sort in ascending peak height
                     std::sort(filteredHitVec.begin(),filteredHitVec.end(),[](const auto& left, const auto& right){return left.PeakAmplitude() > right.PeakAmplitude();});
                     
@@ -528,12 +533,25 @@ void GausHitFinder::produce(art::Event& evt)
 
 
     //==================================================================================================
-    // End of the event
-   
-    // move the hit collection and the associations into the event
-    if (filteredHitCol) filteredHitCol->put_into(evt);
+    // End of the event -- move the hit collection and the associations into the event
     
-    allHitCol.put_into(evt);
+    if ( filteredHitCol ){
+      
+      // If we filtered hits but no instance name was 
+      // specified for the "all hits" collection, then 
+      // only save the filtered hits to the event
+      if( fAllHitsInstanceName == "" ) {
+        filteredHitCol->put_into(evt);
+
+      // otherwise, save both
+      } else {
+        filteredHitCol->put_into(evt);
+        allHitCol.put_into(evt);
+      }
+
+    } else {
+      allHitCol.put_into(evt);
+    }
 
 } // End of produce() 
 

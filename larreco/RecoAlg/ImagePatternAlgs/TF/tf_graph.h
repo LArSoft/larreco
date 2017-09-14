@@ -1,8 +1,9 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //// Class:       Graph
 //// Authors:     R.Sulej (Robert.Sulej@cern.ch), from DUNE, FNAL/NCBJ, Sept. 2017
+///               P.Plonski,                      from DUNE, WUT, Sept. 2017
 ////
-//// Iterface to run Tensorflow graph saved to a file. First attempts, not functional yet.
+//// Iterface to run Tensorflow graph saved to a file. First attempts, almost functional.
 ////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -35,6 +36,8 @@ public:
     ~Graph();
 
     std::vector<float> run(const std::vector< std::vector<float> > & x);
+
+    std::vector< std::vector<float> > run(const std::vector< std::vector< std::vector< std::vector<float> > > > & x);
 
 private:
     /// Not-throwing constructor.
