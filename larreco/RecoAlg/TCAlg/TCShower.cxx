@@ -158,7 +158,8 @@ namespace tca {
     // rebuild the hit range references if necessary
     if(tpcid != tjs.TPCID && !FillWireHitRange(tjs, tpcid, false)) return false;
 
-//    PrintAllTraj("chk", tjs, debug, USHRT_MAX, 0);
+    PrintPFParticles("FSi", tjs);
+    PrintAllTraj("FSi", tjs, debug, USHRT_MAX, 0);
 
     // lists of Tj IDs in plane, (list1, list2, list3, ...)
     std::vector<std::vector<std::vector<int>>> bigList(tjs.NumPlanes);
@@ -1293,7 +1294,6 @@ namespace tca {
     
     float bestFOM = ss.ParentFOM;
     int imTheBest = 0;
-    float bestTp1Sep = 1E6;
     float bestVx3Score = 500;
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != ss.CTP) continue;
@@ -1311,19 +1311,11 @@ namespace tca {
       if(WrongSplitTj(fcnLabel, tjs, tj, useEnd, ss, prt)) continue;
       float tp1Sep, vx3Score;
       float fom = ParentFOM(fcnLabel, tjs, tj, useEnd, ss, tp1Sep, vx3Score, prt);
-      bool skipit = true;
-      if(fom < 2 && bestFOM < 2 && vx3Score > 0 && bestVx3Score > 0) {
-        skipit = (tp1Sep < bestTp1Sep);
-      } else {
-        // best FOM > 2
-        skipit = (fom > bestFOM);
-      }
-      if(skipit) continue;
+      if(fom > bestFOM) continue;
       bestFOM = fom;
       imTheBest = tj.ID;
-      bestTp1Sep = tp1Sep;
       bestVx3Score = vx3Score;
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" current best "<<imTheBest<<" bestVx3Score "<<bestVx3Score<<" bestTp1Sep "<<bestTp1Sep;
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" current best "<<imTheBest<<" bestVx3Score "<<bestVx3Score;
     } // tj
 
     if(imTheBest < 1 || imTheBest > (int)tjs.allTraj.size()) return;
@@ -1519,6 +1511,9 @@ namespace tca {
     // returns a FOM for the trajectory at the end point being the parent of ss and the end which
     // was matched.
     
+    vx3Score = 0;
+    tp1Sep = 0;
+    
     if(tjEnd > 1) return 1000;
     if(ss.Energy == 0) return 1000;
     
@@ -1616,7 +1611,6 @@ namespace tca {
     float lenPull = (TrajLength(tj) - expectedTPSep) / expectedTPSepRMS;
     float fom = sqrt(sepPull * sepPull + deltaPull * deltaPull + dangPull * dangPull + momPull * momPull + sep0Pull2 + lenPull * lenPull);
     fom /= 6;
-    vx3Score = 0;
     if(tj.VtxID[tjEnd] > 0) {
       // check for a high-score 2D vertex with a high-score 3D vertex at this end.
       VtxStore& vx2 = tjs.vtx[tj.VtxID[tjEnd] - 1];
