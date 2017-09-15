@@ -13,42 +13,88 @@ bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 namespace tca {
   
   /////////////////////////////////////////
-  void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid)
+  void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
     // This function reconciles vertices, PFParticles and Tjs, then
     // defines the parent (j) - daughter (i) relationship and PDGCode
     
     if(tjs.pfps.empty()) return;
     
-    // only create a vertex at end 0 (if one doesn't exist)
-    constexpr unsigned short end = 0;
+    // only create a PFP vertex at end 0 (if one doesn't exist)
+    constexpr unsigned short end0 = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
-      if(pfp.Vx3ID[end] > 0) continue;
+      if(pfp.Vx3ID[end0] > 0) continue;
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
       // Flag it as a PFP vertex that isn't required to have matched 2D vertices
       vx3.Wire = -2;
-      vx3.X = pfp.XYZ[end][0];
-      vx3.Y = pfp.XYZ[end][1];
-      vx3.Z = pfp.XYZ[end][2];
+      vx3.X = pfp.XYZ[end0][0];
+      vx3.Y = pfp.XYZ[end0][1];
+      vx3.Z = pfp.XYZ[end0][2];
       vx3.ID = tjs.vtx3.size() + 1;
       // TODO: we need to have PFP track position errors defined 
-      unsigned short mergeToVx3ID = MergeWithNearbyVertex(tjs, vx3);
+      unsigned short mergeToVx3ID = IsCloseToVertex(tjs, vx3);
       if(mergeToVx3ID > 0) {
-        std::cout<<"Merge PFP vertex "<<vx3.ID<<" with existing vtx "<<mergeToVx3ID<<"\n";
-        if(!AttachPFPToVertex(tjs, pfp, 0, mergeToVx3ID)) {
-          std::cout<<" Failed to attach pfp "<<pfp.ID<<". Make new vertex \n";
+        if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex "<<vx3.ID<<" with existing vtx "<<mergeToVx3ID;
+        if(!AttachPFPToVertex(tjs, pfp, 0, mergeToVx3ID, prt)) {
+          if(prt) mf::LogVerbatim("TC")<<" Failed to attach pfp "<<pfp.ID<<". Make new vertex \n";
           mergeToVx3ID = 0;
         }
       } // mergeMe > 0
       if(mergeToVx3ID == 0) {
         // Add the new vertex and attach the PFP to it
         tjs.vtx3.push_back(vx3);
-        if(!AttachPFPToVertex(tjs, pfp, 0, vx3.ID)) {
-          std::cout<<"Merge PFP vertex "<<vx3.ID<<" with new vtx "<<mergeToVx3ID<<"\n";
+        if(!AttachPFPToVertex(tjs, pfp, 0, vx3.ID, prt)) {
+          if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex "<<vx3.ID<<" with new vtx "<<mergeToVx3ID;
         }
       } // merge to new vertex
+    } // pfp
+    
+    // define the end vertex if the Tjs have end vertices
+    constexpr unsigned short end1 = 1;
+    for(auto& pfp : tjs.pfps) {
+      if(pfp.ID == 0) continue;
+      // already done?
+      if(pfp.Vx3ID[end1] > 0) continue;
+      // count 2D -> 3D matched vertices
+      unsigned short cnt3 = 0;
+      unsigned short vx3id = 0;
+      // list of unmatched 2D vertices that should be merged
+      std::vector<unsigned short> vx2ids;
+      for(auto tjid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tjid - 1];
+        if(tj.VtxID[end1] == 0) continue;
+        auto& vx2 = tjs.vtx[tj.VtxID[end1] - 1];
+        if(vx2.Vtx3ID == 0) {
+          if(vx2.Topo == 1 && vx2.NTraj == 2) vx2ids.push_back(vx2.ID);
+          continue;
+        }
+        if(vx3id == 0) vx3id = vx2.Vtx3ID;
+        if(vx2.Vtx3ID == vx3id) ++cnt3;
+      } // tjid
+      if(cnt3 > 1) {
+        pfp.Vx3ID[end1] = vx3id;
+        if(cnt3 != tjs.NumPlanes) std::cout<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code\n";
+      }
+/*
+      if(vx2ids.empty()) continue;
+      std::cout<<"PFP "<<pfp.ID<<" Un-matched 2D vertices";
+      for(auto vx2id : vx2ids) {
+        auto& vx2 = tjs.vtx[vx2id - 1];
+        auto tjids = GetVtxTjIDs(tjs, vx2);
+        if(tjids.size() != 2) continue;
+        if(MergeAndStore(tjs, tjids[0] - 1, tjids[1] - 1, true)) {
+          std::cout<<" Merged "<<tjids[0]<<" and "<<tjids[1]<<" -> "<<tjs.allTraj.size()<<"\n";
+          // correct the PFP tjlist 
+          int newTjID = tjs.allTraj.size();
+          std::replace(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjids[0], newTjID);
+          std::replace(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjids[1], newTjID);
+        } else {
+          std::cout<<" Merge of "<<tjids[0]<<" and "<<tjids[1]<<" failed\n";
+        }
+      } // vx2id
+*/
     } // pfp
     
     for(auto& ipfp : tjs.pfps) {
@@ -1255,6 +1301,7 @@ namespace tca {
   {
     // returns the index into the tjs.matchVec vector of the first 3D match that
     // includes tjID
+    if(tjs.pfps.empty()) return USHRT_MAX;
     for(unsigned int ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
       const auto& pfp = tjs.pfps[ipfp];
       if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjID) != pfp.TjIDs.end()) return ipfp;
@@ -2120,6 +2167,17 @@ namespace tca {
   } // HitSep2
   
   //////////////////////////////////////////
+  unsigned short CloseEnd(TjStuff& tjs, const Trajectory& tj, const std::array<float, 2>& pos)
+  {
+    unsigned short endPt = tj.EndPt[0];
+    auto& tp0 = tj.Pts[endPt];
+    endPt = tj.EndPt[1];
+    auto& tp1 = tj.Pts[endPt];
+    if(PosSep2(tp0.Pos, pos) < PosSep2(tp1.Pos, pos)) return 0;
+    return 1;
+  } // CloseEnd
+
+  //////////////////////////////////////////
   float PointTrajSep2(float wire, float time, TrajPoint const& tp)
   {
     float dw = wire - tp.Pos[0];
@@ -2577,7 +2635,12 @@ namespace tca {
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
       if(tj.Pts[ipt].Dir[0] != 0) tj.Pts[ipt].Dir[0] = -tj.Pts[ipt].Dir[0];
       if(tj.Pts[ipt].Dir[1] != 0) tj.Pts[ipt].Dir[1] = -tj.Pts[ipt].Dir[1];
-      tj.Pts[ipt].Ang = std::atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
+      if(tj.Pts[ipt].Ang > 0) {
+        tj.Pts[ipt].Ang -= M_PI;
+      } else {
+        tj.Pts[ipt].Ang += M_PI;
+      }
+//      tj.Pts[ipt].Ang = std::atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
     } // ipt
     SetEndPoints(tjs, tj);
     // correct mallTraj if it exists
@@ -2764,25 +2827,6 @@ namespace tca {
     unsigned short cnt;
     TjDeltaRMS(tjs, tj, firstPt, lastPt, sigmaS, cnt);
     if(sigmaS < 0) return 1;
-/*
-    TrajPoint tmp;
-    // make a bare trajectory point to define a line between firstPt and lastPt.
-    // Use the position of the hits at these points
-    TrajPoint firstTP = tj.Pts[firstPt];
-    firstTP.Pos = firstTP.HitPos;
-    TrajPoint lastTP = tj.Pts[lastPt];
-    lastTP.Pos = lastTP.HitPos;
-    if(!MakeBareTrajPoint(tjs, firstTP, lastTP, tmp)) return 1;
-    // sum up the deviations^2
-    double dsum = 0;
-    unsigned short cnt = 0;
-    for(unsigned short ipt = firstPt + 1; ipt < lastPt; ++ipt) {
-      if(tj.Pts[ipt].Chg == 0) continue;
-      dsum += PointTrajDOCA2(tjs, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
-      ++cnt;
-    } // ipt
-    if(cnt < 3) return 1;
-*/
     // require that cnt is a significant fraction of the total number of charged points
     // so that we don't get erroneously high MCSMom when there are large gaps.
     // This is the number of points expected in the count if there are no gaps
@@ -3377,7 +3421,7 @@ namespace tca {
     // Merge the two trajectories in allTraj and store them. Returns true if it was successfull.
     // Merging is done between the end (end = 1) of tj1 and the beginning (end = 0) of tj2. This function preserves the
     // AlgMod state of itj1.
-    // BB: The itj1 -> itj2 merge order is reversed if end1 of itj2 is closer to end0 of itj1
+    // The itj1 -> itj2 merge order is reversed if end1 of itj2 is closer to end0 of itj1
     
     if(itj1 > tjs.allTraj.size() - 1) return false;
     if(itj2 > tjs.allTraj.size() - 1) return false;
@@ -3385,6 +3429,18 @@ namespace tca {
     
     // Merging shower Tjs requires merging the showers as well.
     if(tjs.allTraj[itj1].AlgMod[kShowerTj] || tjs.allTraj[itj2].AlgMod[kShowerTj]) return MergeShowerTjsAndStore(tjs, itj1, itj2, doPrt);
+    
+    // Ensure that the order of 3D-matched Tjs is consistent with the convention that 
+    unsigned short pfp1 = GetPFPIndex(tjs, tjs.allTraj[itj1].ID);
+    unsigned short pfp2 = GetPFPIndex(tjs, tjs.allTraj[itj2].ID);
+    if(pfp1 == USHRT_MAX || pfp2 == USHRT_MAX) {
+      if(pfp1 != USHRT_MAX && pfp2 != USHRT_MAX) {
+        std::cout<<"MAS: Both tjs are used in a PFParticle. Need PFParticle merging code to do this. pfps size "<<tjs.pfps.size()<<"\n";
+        return false;
+      }
+      // Swap so that the order of tj1 is preserved. Tj2 may be reversed to be consistent
+      if(pfp1 == USHRT_MAX) std::swap(itj1, itj2);
+    } // one or both used in a PFParticle
     
     // make copies so they can be trimmed as needed
     Trajectory tj1 = tjs.allTraj[itj1];
@@ -3535,7 +3591,7 @@ namespace tca {
       if(!tjs.vtx3.empty()) {
         // print out 3D vertices
         myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
-        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score nTru  2D_Vtx_Pos          Tjs\n";
+        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score nTru  2D_Pos          Tjs\n";
         for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
           if(tjs.vtx3[iv].ID == 0) continue;
           const Vtx3Store& vx3 = tjs.vtx3[iv];
@@ -3561,9 +3617,14 @@ namespace tca {
           } // ipl
           myprt<<std::right<<std::setw(6)<<std::setprecision(1)<<vx3.Score;
           myprt<<std::right<<std::setw(5)<<nTruMatch;
+          std::array<float, 2> pos;
+          for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+            PosInPlane(tjs, vx3, plane, pos);
+            myprt<<" "<<PrintPos(tjs, pos);
+          } // plane
           if(vx3.Wire == -2) {
             // find the Tjs that are attached to it
-            myprt<<" PFP Tjs";
+            myprt<<" Tjs";
             for(auto& pfp : tjs.pfps) {
               if(pfp.Vx3ID[0] == tjs.vtx3[iv].ID) {
                 for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
@@ -3573,18 +3634,10 @@ namespace tca {
               }
             } // ipfp
           } else {
-            for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
-              if(vx3.Vx2ID[ipl] == 0) {
-                myprt<<" NA";
-              } else {
-                unsigned short ivx = vx3.Vx2ID[ipl] - 1;
-                myprt<<" "<<ipl<<":"<<PrintPos(tjs, tjs.vtx[ivx].Pos);
-              }
-            } // ipl
+            float score;
+            auto vxtjs = GetVtxTjIDs(tjs, vx3, score);
+            for(auto tjid : vxtjs) myprt<<" "<<tjid;
           }
-          float score;
-          auto vxtjs = GetVtxTjIDs(tjs, vx3, score);
-          for(auto tjid : vxtjs) myprt<<" "<<tjid;
           myprt<<"\n";
         }
       } // tjs.vtx3.size
