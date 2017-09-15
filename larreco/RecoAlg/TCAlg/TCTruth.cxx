@@ -235,7 +235,7 @@ namespace tca {
   } // MatchTrueHits
   
   //////////////////////////////////////////
-  void TruthMatcher::MatchTruth(const HistStuff& hist, unsigned int fEventsProcessed)
+  void TruthMatcher::MatchTruth(const HistStuff& hist)
   {
     
     if(tjs.MatchTruth[0] < 0) return;
@@ -485,7 +485,7 @@ namespace tca {
       ++nTruPrimaryVtxOK;
       // was it reconstructed?
       if(nuVtxRecoOK) ++nTruPrimaryVtxReco;
-      if(fSourceParticleEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx fSourceParticleEnergy "<<std::fixed<<std::setprecision(2)<<fSourceParticleEnergy<<" events processed "<<fEventsProcessed;
+      if(fSourceParticleEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx fSourceParticleEnergy "<<std::fixed<<std::setprecision(2)<<fSourceParticleEnergy<<" events processed "<<tjs.EventsProcessed;
     }
     
     if(tjs.MatchTruth[1] > 0) {
@@ -614,7 +614,7 @@ namespace tca {
             mf::LogVerbatim myprt("TC");
             myprt<<"pdgIndex "<<pdgIndex<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to partList["<<ipart<<"]";
             myprt<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipart][plane];
-            myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<fEventsProcessed;
+            myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<tjs.EventsProcessed;
           }
           continue;
         }
@@ -626,7 +626,7 @@ namespace tca {
           mf::LogVerbatim myprt("TC");
           myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<std::fixed<<std::setprecision(2)<<tjs.allTraj[itj].EffPur;
           myprt<<" TMeV "<<(int)TMeV<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipart][plane];
-          myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<fEventsProcessed;
+          myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<tjs.EventsProcessed;
           // print alg names
           for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tjs.allTraj[itj].AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         }
@@ -642,7 +642,7 @@ namespace tca {
               break;
             }
           } // tj
-          if(dtrID == 0) mf::LogVerbatim("TC")<<"BadShower Primary electron -> Traj "<<ptj.ID<<"_"<<ptj.CTP<<" Wrong shower parent. Events processed "<<fEventsProcessed;
+          if(dtrID == 0) mf::LogVerbatim("TC")<<"BadShower Primary electron -> Traj "<<ptj.ID<<"_"<<ptj.CTP<<" Wrong shower parent. Events processed "<<tjs.EventsProcessed;
         } // check primary electron shower
         // histogram the MC-reco stopping point difference
         unsigned short endPt = tjs.allTraj[itj].EndPt[0];
@@ -748,7 +748,7 @@ namespace tca {
           if(tj.AlgMod[kKilled]) continue;
           if(tj.MCPartListIndex == ipart) myprt<<" "<<tj.ID<<" EP "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
         } // tj
-        myprt<<" events processed "<<fEventsProcessed;
+        myprt<<" events processed "<<tjs.EventsProcessed;
       }
     } // ipart
     
