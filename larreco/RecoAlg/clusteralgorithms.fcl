@@ -60,7 +60,7 @@ standard_trajclusteralg:
    # 7 min Score
    # 8 Min charge fraction near a vertex or merge point
    # 9 max MCSmom asymmetry for a merge
-   Vertex3DChiCut: 3.5       # 3D vertex Chi/DOF cut
+   Vertex3DCuts: [0.8, 2]       # [ dX match cut, dY and dZ match cut]
    Match3DCuts: [ 0.3, 0.1, 5, 1, 0.1 ] 
    # 0 dx (cm) matching cut
    # 1 Angle cut (radians) (0 = don't use)
