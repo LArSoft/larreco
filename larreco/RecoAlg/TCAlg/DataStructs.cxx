@@ -4,6 +4,7 @@ namespace tca {
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
     "MaskBadTPs",
+    "Michel",
     "CTKink",
     "CTStepChk",
     "TryNextPass",
@@ -31,6 +32,7 @@ namespace tca {
     "VtxTj",
     "ChkVxTj",
     "RefVtx",
+    "VxMerge",
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
