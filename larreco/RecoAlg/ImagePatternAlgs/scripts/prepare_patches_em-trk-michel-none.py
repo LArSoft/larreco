@@ -102,7 +102,7 @@ def main(argv):
                 continue
 
             pdg_michel = ((pdg & 0xF000) == 0x2000)
-            vtx_map = (pdg >> 24) # & 0x3 # only 1 or 2: interaction or pi0 decay
+            vtx_map = (pdg >> 16)
 
             print 'Tracks', np.sum(tracks), 'showers', np.sum(showers), 'michels', np.sum(pdg_michel)
 
@@ -113,6 +113,7 @@ def main(argv):
             sel_michel = 0
             sel_empty = 0
             sel_clean_trk = 0
+            sel_near_nu = 0
             for i in range(raw.shape[0]):
                 for j in range(raw.shape[1]):
                     is_raw_zero = (raw[i,j] < 0.01)
@@ -137,13 +138,18 @@ def main(argv):
                             is_mu_near_stop = True
                             sel_mu_near_stop += 1
                 
+                    vtx_patch = vtx_map[x_start+2:x_stop-2, y_start+2:y_stop-2]
+                    near_vtx_count = np.count_nonzero(vtx_patch)
+
+                    nuvtx_patch = vtx_patch & 0x0040000 # any nu primary vtx
+                    is_near_nu = (np.count_nonzero(nuvtx_patch) > 0)
+
                     eff_patch_fraction = patch_fraction
-                    near_vtx_count = np.count_nonzero(vtx_map[x_start+2:x_stop-2, y_start+2:y_stop-2])
-                    if near_vtx_count > 0 and eff_patch_fraction < 50:
-                        eff_patch_fraction = 50 # min half of points near vertices
+                    if near_vtx_count > 0 and eff_patch_fraction < 40:
+                        eff_patch_fraction = 40 # min 40% of points near vertices
 
                     # randomly skip fraction of patches
-                    if not(is_michel | is_mu_near_stop | is_vtx) and np.random.randint(10000) > int(100*eff_patch_fraction): continue
+                    if not(is_michel | is_mu_near_stop | is_vtx | is_near_nu) and np.random.randint(10000) > int(100*eff_patch_fraction): continue
 
                     track_pixels = np.count_nonzero(tracks[x_start:x_stop, y_start:y_stop])
                     shower_pixels = np.count_nonzero(showers[x_start:x_stop, y_start:y_stop])
@@ -153,7 +159,7 @@ def main(argv):
                         target[0] = 1 # label as a track-like
                         if is_raw_zero: continue
                         # skip fraction of almost-track-only patches
-                        if shower_pixels < 8 and near_vtx_count == 0:
+                        if shower_pixels < 8 and near_vtx_count == 0 and not(is_near_nu):
                             if np.random.randint(10000) > int(100*clean_track_fraction): continue
                             else: sel_clean_trk += 1
                         else:
@@ -164,7 +170,7 @@ def main(argv):
                         sel_trk += 1
                     elif showers[i,j] == 1:
                         target[1] = 1 # label as a em-like
-                        if doing_nue: # for nu_e events (lots of showers) skip some fraction of shower patches
+                        if doing_nue and not(is_near_nu): # for nu_e events (lots of showers) skip some fraction of shower patches
                             if near_vtx_count == 0 and np.random.randint(100) < 40: continue  # skip 40% of any shower
                             if shower_pixels > 0.05*patch_area and np.random.randint(100) < 50: continue
                             if shower_pixels > 0.20*patch_area and np.random.randint(100) < 90: continue
@@ -189,6 +195,9 @@ def main(argv):
                             else: continue # too close to trk/shower
                         else: continue # not selected randomly
 
+                    if is_near_nu:
+                        sel_near_nu += 1
+
                     if np.count_nonzero(target) == 0:
                         print 'NEED A LABEL IN THE TARGET!!!'
                         continue
@@ -201,7 +210,7 @@ def main(argv):
                         print 'MAX CAPACITY REACHED!!!'
                         break
 
-            print 'Selected: tracks', sel_trk, 'showers', sel_sh, 'empty', sel_empty, '/// muons', sel_muon, 'michel', sel_michel, 'clean trk', sel_clean_trk
+            print 'Selected: tracks', sel_trk, 'showers', sel_sh, 'empty', sel_empty, '/// muons', sel_muon, 'michel', sel_michel, 'clean trk', sel_clean_trk, 'near nu', sel_near_nu
 
     print 'Added', cnt_ind, 'tracks:', cnt_trk, 'showers:', cnt_sh, 'michels:', cnt_michel, 'empty:', cnt_void
 

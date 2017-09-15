@@ -34,6 +34,7 @@
 
 #include "larreco/RecoAlg/TrackKalmanFitter.h"
 #include "larreco/RecoAlg/TrackMomentumCalculator.h"
+#include "larreco/TrackFinder/TrackMaker.h"
 
 #include "lardataobj/MCBase/MCTrack.h"
 
@@ -136,10 +137,6 @@ namespace trkf {
 	Name("alwaysInvertDir"),
 	Comment("If true, fit all tracks from end to vertex assuming inverted direction.")
       };
-      fhicl::Atom<bool> tryNoSkipWhenFails {
-        Name("tryNoSkipWhenFails"),
-        Comment("In case skipNegProp is true and the track fit fails, make a second attempt to fit the track with skipNegProp=false in order to attempt to avoid losing efficiency.")
-      };
       fhicl::Atom<bool> produceTrackFitHitInfo {
         Name("produceTrackFitHitInfo"),
         Comment("Option to produce (or not) the detailed TrackFitHitInfo.")
@@ -206,7 +203,7 @@ namespace trkf {
     int    setPId(const unsigned int iTrack, const std::unique_ptr<art::FindManyP<anab::ParticleID> >& trackId, const int pfPid = 0) const;
     bool   setDirFlip(const recob::Track& track, TVector3& mcdir, const std::vector<art::Ptr<recob::Vertex> >* vertices = 0) const;
 
-    void restoreInputPoints(const recob::Trajectory& track,const std::vector<art::Ptr<recob::Hit> >& inHits,recob::Track& outTrack,art::PtrVector<recob::Hit>& outHits) const;
+    void restoreInputPoints(const recob::Trajectory& track,const std::vector<art::Ptr<recob::Hit> >& inHits,recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits) const;
   };
 }
 
@@ -307,12 +304,12 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
   auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
   auto outputHitInfo = std::make_unique<std::vector<std::vector<recob::TrackFitHitInfo> > >();
 
-  auto const tid = getProductID<std::vector<recob::Track> >(e);
+  auto const tid = getProductID<std::vector<recob::Track> >();
   auto const tidgetter = e.productGetter(tid);
 
   auto outputSpacePoints  = std::make_unique<std::vector<recob::SpacePoint> >();
   auto outputHitSpacePointAssn = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint> >();
-  auto const spid = getProductID<std::vector<recob::SpacePoint> >(e);
+  auto const spid = getProductID<std::vector<recob::SpacePoint> >();
   auto const spidgetter = e.productGetter(spid);
 
   //FIXME, eventually remove this (ok only for single particle MC)
@@ -368,28 +365,13 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	  }
 
 	  recob::Track outTrack;
-	  art::PtrVector<recob::Hit> outHits;
-	  std::vector<recob::TrackFitHitInfo> trackFitHitInfos;
-	  bool fitok = kalmanFitter->fitTrack(track.Trajectory().Trajectory(),track.ID(),
+	  std::vector<art::Ptr<recob::Hit> > outHits;
+	  trkmkr::OptionalOutputs optionals;
+	  if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
+	  bool fitok = kalmanFitter->fitTrack(track.Trajectory(),track.ID(),
 					      track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
-					      inHits,track.Trajectory().Flags(),
-					      mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
-	  if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
-	    //ok try once more without skipping hits
-	    mf::LogWarning("KalmanFilterFinalTrackFitter") << "Try to recover with skipNegProp = false and cleanZigzag = false\n";
-	    kalmanFitter->setSkipNegProp(false);
-	    kalmanFitter->setCleanZigzag(false);
-	    fitok = kalmanFitter->fitTrack(track.Trajectory().Trajectory(),track.ID(),
-					   track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
-					   inHits,track.Trajectory().Flags(),
-					   mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
-	    kalmanFitter->setSkipNegProp(p_().fitter().skipNegProp());
-	    kalmanFitter->setCleanZigzag(p_().fitter().cleanZigzag());
-	  }
-	  if (!fitok) {
-	    mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for PFP # " << iPF << " track #" << iTrack << "\n";
-	    continue;
-	  }
+					      inHits, mom, pId, flipDir, outTrack, outHits, optionals);
+	  if (!fitok) continue;
 
 	  if (p_().options().keepInputTrajectoryPoints()) {
 	    restoreInputPoints(track.Trajectory().Trajectory(),inHits,outTrack,outHits);
@@ -406,7 +388,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	    ip++;
 	  }
 	  outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
-	  outputHitInfo->emplace_back(std::move(trackFitHitInfos));
+	  outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
 	}
       }
 
@@ -438,29 +420,18 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	  // }
 
 	  recob::Track outTrack;
-	  art::PtrVector<recob::Hit> outHits;
-	  std::vector<recob::TrackFitHitInfo> trackFitHitInfos;
+	  std::vector<art::Ptr<recob::Hit> > outHits;
+	  trkmkr::OptionalOutputs optionals;
+	  if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
 	  Point_t pos(shower.ShowerStart().X(),shower.ShowerStart().Y(),shower.ShowerStart().Z());
 	  Vector_t dir(shower.Direction().X(),shower.Direction().Y(),shower.Direction().Z());
 	  auto cov = SMatrixSym55();
 	  auto pid = p_().options().pdgId();
 	  auto mom = p_().options().pval();
-	  bool fitok = kalmanFitter->fitTrack(pos, dir, cov, shower.ID(), inHits, mom, pid,
-					      outTrack, outHits, trackFitHitInfos);
-	  if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
-	    //ok try once more without skipping hits
-	    mf::LogWarning("KalmanFilterFinalTrackFitter") << "Try to recover with skipNegProp = false and cleanZigzag = false\n";
-	    kalmanFitter->setSkipNegProp(false);
-	    kalmanFitter->setCleanZigzag(false);
-	    fitok = kalmanFitter->fitTrack(pos, dir, cov, shower.ID(), inHits, mom, pid,
-					   outTrack, outHits, trackFitHitInfos);
-	    kalmanFitter->setSkipNegProp(p_().fitter().skipNegProp());
-	    kalmanFitter->setCleanZigzag(p_().fitter().cleanZigzag());
-	  }
-	  if (!fitok) {
-	    mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for PFP # " << iPF << " shower #" << iShower << "\n";
-	    continue;
-	  }
+	  bool fitok = kalmanFitter->fitTrack(pos, dir, cov, inHits, std::vector<recob::TrajectoryPointFlags>(),
+					      shower.ID(), mom, pid,
+					      outTrack, outHits, optionals);
+	  if (!fitok) continue;
 
 	  outputTracks->emplace_back(std::move(outTrack));
 	  art::Ptr<recob::Track> aptr(tid, outputTracks->size()-1, tidgetter);
@@ -482,10 +453,10 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	    ip++;
 	  }
 	  outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
-	  outputHitInfo->emplace_back(std::move(trackFitHitInfos));
+	  outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
 	}
       }
-
+      
     }
     e.put(std::move(outputTracks));
     e.put(std::move(outputHits));
@@ -526,28 +497,13 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
       }
 
       recob::Track outTrack;
-      art::PtrVector<recob::Hit> outHits;
-      std::vector<recob::TrackFitHitInfo> trackFitHitInfos;
-      bool fitok = kalmanFitter->fitTrack(track.Trajectory().Trajectory(),track.ID(),
+      std::vector<art::Ptr<recob::Hit> > outHits;
+      trkmkr::OptionalOutputs optionals;
+      if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
+      bool fitok = kalmanFitter->fitTrack(track.Trajectory(),track.ID(),
 					  track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
-					  inHits,track.Trajectory().Flags(),
-					  mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
-      if (!fitok && (kalmanFitter->getSkipNegProp() || kalmanFitter->getCleanZigzag()) && p_().options().tryNoSkipWhenFails()) {
-	//ok try once more without skipping hits
-	mf::LogWarning("KalmanFilterFinalTrackFitter") << "Try to recover with skipNegProp = false and cleanZigzag = false\n";
-	kalmanFitter->setSkipNegProp(false);
-	kalmanFitter->setCleanZigzag(false);
-	fitok = kalmanFitter->fitTrack(track.Trajectory().Trajectory(),track.ID(),
-				       track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
-				       inHits,track.Trajectory().Flags(),
-				       mom, pId, flipDir, outTrack, outHits, trackFitHitInfos);
-	kalmanFitter->setSkipNegProp(p_().fitter().skipNegProp());
-	kalmanFitter->setCleanZigzag(p_().fitter().cleanZigzag());
-      }
-      if (!fitok) {
-	mf::LogWarning("KalmanFilterFinalTrackFitter") << "Fit failed for track #" << iTrack << "\n";
-	continue;
-      }
+					  inHits, mom, pId, flipDir, outTrack, outHits, optionals);
+      if (!fitok) continue;
 
       if (p_().options().keepInputTrajectoryPoints()) {
 	restoreInputPoints(track.Trajectory().Trajectory(),inHits,outTrack,outHits);
@@ -572,7 +528,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	}
 	ip++;
       }
-      outputHitInfo->emplace_back(std::move(trackFitHitInfos));
+      outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
     }
     e.put(std::move(outputTracks));
     e.put(std::move(outputHits));
@@ -586,7 +542,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
   }
 }
 
-void trkf::KalmanFilterFinalTrackFitter::restoreInputPoints(const recob::Trajectory& track,const std::vector<art::Ptr<recob::Hit> >& inHits,recob::Track& outTrack,art::PtrVector<recob::Hit>& outHits) const {
+void trkf::KalmanFilterFinalTrackFitter::restoreInputPoints(const recob::Trajectory& track,const std::vector<art::Ptr<recob::Hit> >& inHits,recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits) const {
   const auto np = outTrack.NumberTrajectoryPoints();
   std::vector<Point_t>                     positions(np);
   std::vector<Vector_t>                    momenta(np);

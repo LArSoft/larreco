@@ -1,0 +1,13 @@
+#include "kalmanfilterfittrackmakertool.fcl"
+BEGIN_PROLOG
+trackproducerfrompfparticle: {
+   module_type: TrackProducerFromPFParticle
+   trackMaker: @local::kalmanfilterfittrackmakertool
+   inputCollection: @nil
+   doTrackFitHitInfo: true
+   doSpacePoints: true
+   spacePointsFromTrajP: true
+   trackFromPF: true
+   showerFromPF: false
+}
+END_PROLOG
