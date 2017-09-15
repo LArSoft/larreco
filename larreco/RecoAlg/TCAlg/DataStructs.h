@@ -326,6 +326,7 @@ namespace tca {
   typedef enum {
     kMaskHits,
     kMaskBadTPs,
+    kMichel,
     kCTKink,        ///< kink found in CheckTraj
     kCTStepChk,
     kTryWithNextPass,
@@ -353,6 +354,7 @@ namespace tca {
     kChkVxTj,
     kMisdVxTj,
     kRefineVtx,
+    kVxMerge,
     kNoKinkChk,
     kSoftKink,
     kChkStop,
@@ -431,7 +433,7 @@ namespace tca {
     std::vector<ShowerStruct> cots;       // Clusters of Trajectories that define 2D showers
     std::vector<ShowerStruct3D> showers;  // 3D showers
     std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
-    float Vertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
+    std::vector<float> Vertex3DCuts;   ///< 2D vtx -> 3D vtx matching cuts 
     std::vector<float> VertexScoreWeights;
     std::vector<short> DeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
@@ -439,10 +441,12 @@ namespace tca {
     std::vector<float> Match3DCuts;  ///< 3D matching cuts
     std::vector<float> MatchTruth;     ///< Match to MC truth
     std::vector<const simb::MCParticle*> MCPartList;
+    unsigned int EventsProcessed;
     std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
     const geo::GeometryCore* geom;
     const detinfo::DetectorProperties* detprop;
     calo::CalorimetryAlg* caloAlg;
+    short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
     bool IgnoreNegChiHits;
    };
 
