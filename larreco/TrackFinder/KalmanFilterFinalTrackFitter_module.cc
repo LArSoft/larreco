@@ -456,7 +456,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	  outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
 	}
       }
-      
+
     }
     e.put(std::move(outputTracks));
     e.put(std::move(outputHits));
