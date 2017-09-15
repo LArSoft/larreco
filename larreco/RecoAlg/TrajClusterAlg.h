@@ -107,7 +107,6 @@ namespace tca {
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
-    short fStepDir;             /// US->DS (1), DS->US (-1)
     short fNPtsAve;         /// number of points to find AveChg
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
     std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a trajectory
@@ -197,7 +196,6 @@ namespace tca {
     unsigned int fTpc;         // the current TPC
     unsigned int fRun, fSubRun;
     unsigned int fEvent;
-    unsigned int fEventsProcessed;
     CTP_t fCTP;        ///< Cryostat/TPC/Plane code
     unsigned int fPlane;         // the current plane
     int fWorkID;
@@ -222,7 +220,6 @@ namespace tca {
 //    short watchInTraj;
     // runs the TrajCluster algorithm on one plane specified by the calling routine
     void RunStepCrawl();
-    void InitializeAllTraj();
     void ReconstructAllTraj();
     // Main stepping/crawling routine
     void StepCrawl(Trajectory& tj);
