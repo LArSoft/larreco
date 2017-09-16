@@ -37,7 +37,11 @@ public:
 
     std::vector<float> run(const std::vector< std::vector<float> > & x);
 
-    std::vector< std::vector<float> > run(const std::vector< std::vector< std::vector< std::vector<float> > > > & x);
+    // process vector of 3D inputs, return vector of 1D outputs; use all inputs
+    // if samples = -1, or only the specified number of first samples
+    std::vector< std::vector<float> > run(
+	const std::vector< std::vector< std::vector< std::vector<float> > > > & x,
+	long long int samples = -1);
 
 private:
     /// Not-throwing constructor.

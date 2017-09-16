@@ -137,6 +137,70 @@ float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
 
 
 // ------------------------------------------------------
+// -----------------TfModelInterface---------------------
+// ------------------------------------------------------
+
+nnet::TfModelInterface::TfModelInterface(const char* modelFileName, size_t bufsize, size_t wsize, size_t dsize) :
+	fInputs(bufsize, std::vector< std::vector< std::vector<float> > >(wsize, std::vector< std::vector<float> >(dsize, std::vector<float>(1, 0)))),
+	fOutputs(bufsize)
+{
+	g = tf::Graph::create(nnet::ModelInterface::findFile(modelFileName).c_str());
+	if (!g) { throw art::Exception(art::errors::Unknown) << "TF model failed."; }
+
+	mf::LogInfo("TfModelInterface") << "TF model loaded.";
+}
+// ------------------------------------------------------
+
+void nnet::TfModelInterface::Fetch(std::vector< std::vector<float> > const & inp2d, size_t idx)
+{
+        auto & s = fInputs[idx];
+        size_t rows = inp2d.size(), cols = inp2d.front().size();
+        for (size_t r = 0; r < rows; ++r)
+        {
+		auto & src = inp2d[r];
+		auto & dst = s[r];
+                for (size_t c = 0; c < cols; ++c) { dst[c][0] = src[c]; }
+        }
+}
+// ------------------------------------------------------
+
+void nnet::TfModelInterface::Run(long long int n)
+{
+	auto outs = g->run(fInputs, n);
+	for (size_t y = 0; y < outs.size(); ++y)
+	{
+		fOutputs[y] = outs[y];
+	}
+}
+// ------------------------------------------------------
+
+bool nnet::TfModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
+{
+	Fetch(inp2d, 0);
+	Run(1);
+
+	return true;
+}
+// ------------------------------------------------------
+
+std::vector<float> nnet::TfModelInterface::GetAllOutputs(void) const
+{
+	if (!fOutputs.empty()) { return fOutputs.front(); }
+	else { return std::vector<float>(); }
+}
+// ------------------------------------------------------
+
+float nnet::TfModelInterface::GetOneOutput(int neuronIndex) const
+{
+	if (!fOutputs.empty() && (neuronIndex < (int)fOutputs.front().size())) { return fOutputs.front()[neuronIndex]; }
+
+	mf::LogError("TfModelInterface") << "Output not found in TF model.";
+	return 0;
+}
+// ------------------------------------------------------
+
+
+// ------------------------------------------------------
 // --------------------PointIdAlg------------------------
 // ------------------------------------------------------
 
@@ -159,6 +223,11 @@ nnet::PointIdAlg::PointIdAlg(const Config& config) : img::DataProviderAlg(config
 	{
 		fNNet = new nnet::KerasModelInterface(fNNetModelFilePath.c_str());
 	}
+        else if ((fNNetModelFilePath.length() > 3) &&
+            (fNNetModelFilePath.compare(fNNetModelFilePath.length() - 3, 3, ".pb") == 0))
+        {
+                fNNet = new nnet::TfModelInterface(fNNetModelFilePath.c_str(), 20, fPatchSizeW, fPatchSizeD);
+        }
 	else
 	{
 		mf::LogError("PointIdAlg") << "File name extension not supported.";
@@ -215,8 +284,7 @@ float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift, size_t ou
 
 std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float drift) const
 {
-	std::vector<float> result(NClasses(), 0);
-	if (result.empty()) return result;
+	std::vector<float> result;
 
 	if (!bufferPatch(wire, drift))
 	{
@@ -226,8 +294,9 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 
 	if (fNNet)
 	{
-		if (fNNet->Run(fWireDriftPatch))
+		if (fNNet->Run(fWireDriftPatch) && (NClasses() > 0))
 		{
+			result.resize(NClasses());
 			for (size_t o = 0; o < result.size(); ++o)
 			{
 				result[o] = fNNet->GetOneOutput(o);

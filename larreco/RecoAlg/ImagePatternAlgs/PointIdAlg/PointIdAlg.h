@@ -30,6 +30,7 @@
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/DataProviderAlg.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/MLP/NNReader.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/Keras/keras_model.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/TF/tf_graph.h"
 
 // ROOT & C++
 #include <memory>
@@ -39,6 +40,7 @@ namespace nnet
 	class ModelInterface;
 	class MlpModelInterface;
 	class KerasModelInterface;
+	class TfModelInterface;
 	class PointIdAlg;
 	class TrainingDataAlg;
 }
@@ -101,6 +103,33 @@ public:
 private:
 	std::vector<float> fOutput; // buffer for output values
 	keras::KerasModel m; // network model
+};
+// ------------------------------------------------------
+
+class nnet::TfModelInterface : public nnet::ModelInterface
+{
+public:
+	TfModelInterface(const char* modelFileName, size_t bufsize, size_t wsize, size_t dsize);
+
+	unsigned int GetInputRows(void) const override { return fInputs.front().size(); }
+	unsigned int GetInputCols(void) const override { return fInputs.front().front().size(); }
+
+	unsigned int GetInputDepth(void) const { return fInputs.front().front().front().size(); }
+	unsigned int GetBufferSize(void) const { return fInputs.size(); }
+
+	int GetOutputLength(void) const override { return fOutputs.front().size(); }
+
+	bool Run(std::vector< std::vector<float> > const & inp2d) override;
+	float GetOneOutput(int neuronIndex) const override;
+	std::vector<float> GetAllOutputs(void) const override;
+
+private:
+	void Fetch(std::vector< std::vector<float> > const & inp2d, size_t idx);
+	void Run(long long int n);
+
+	std::vector< std::vector< std::vector< std::vector<float> > > > fInputs; // buffer for input patches
+	std::vector< std::vector<float> > fOutputs; // buffer for output vectors
+	std::unique_ptr<tf::Graph> g; // network graph
 };
 // ------------------------------------------------------
 

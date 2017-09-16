@@ -100,13 +100,17 @@ std::vector<float> tf::Graph::run(const std::vector< std::vector<float> > & x)
 }
 // -------------------------------------------------------------------
 
-std::vector< std::vector<float> > tf::Graph::run(const std::vector<  std::vector<  std::vector< std::vector<float> > > > & x)
+std::vector< std::vector<float> > tf::Graph::run(
+	const std::vector<  std::vector<  std::vector< std::vector<float> > > > & x,
+	long long int samples)
 {
     std::vector< std::vector<float> > empty_output;
-    if (x.empty() || x.front().empty() || x.front().front().empty() || x.front().front().front().empty())
+    if ((samples == 0) || x.empty() || x.front().empty() || x.front().front().empty() || x.front().front().front().empty())
         return empty_output;
 
-    long long int samples = x.size(),
+    if ((samples == -1) || (samples > (long long int)x.size())) { samples = x.size(); }
+
+    long long int
               rows = x.front().size(),
               cols = x.front().front().size(),
               depth = x.front().front().front().size();
