@@ -5,6 +5,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
+#include "tensorflow/core/public/session.h"
 
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
@@ -176,10 +177,22 @@ void nnet::TfModelInterface::Run(long long int n)
 
 bool nnet::TfModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
 {
-	Fetch(inp2d, 0);
-	Run(1);
+    long long int rows = inp2d.size(), cols = inp2d.front().size();
 
-	return true;
+    tensorflow::Tensor _x(tensorflow::DT_FLOAT, tensorflow::TensorShape({ 1, rows, cols, 1 }));
+    auto input_map = _x.tensor<float, 4>();
+    for (long long int r = 0; r < rows; ++r) {
+        const auto & row = inp2d[r]; 
+        for (long long int c = 0; c < cols; ++c) {
+            input_map(0, r, c, 0) = row[c];
+        }
+    }
+
+    auto output = g->run(_x);
+    if (!output.empty()) { fOutputs[0] = output.front(); }
+    else { std::fill(fOutputs[0].begin(), fOutputs[0].end(), 0); }
+
+    return  true;
 }
 // ------------------------------------------------------
 
@@ -346,15 +359,8 @@ bool nnet::PointIdAlg::isCurrentPatch(unsigned int wire, float drift) const
 // ------------------------------------------------------
 
 // MUST give the same result as get_patch() in scripts/utils.py
-bool nnet::PointIdAlg::patchFromDownsampledView(size_t wire, float drift) const
+bool nnet::PointIdAlg::patchFromDownsampledView(size_t wire, float drift, std::vector< std::vector<float> > & patch) const
 {
-	size_t sd = (size_t)(drift / fDriftWindow);
-	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == sd))
-		return true; // still within the current position
-
-	fCurrentWireIdx = wire;
-	fCurrentScaledDrift = sd;
-
 	int halfSizeW = fPatchSizeW / 2;
 	int halfSizeD = fPatchSizeD / 2;
 
@@ -364,10 +370,10 @@ bool nnet::PointIdAlg::patchFromDownsampledView(size_t wire, float drift) const
 	int d0 = fCurrentScaledDrift - halfSizeD;
 	int d1 = fCurrentScaledDrift + halfSizeD;
 
-    int wsize = fWireDriftData.size();
+	int wsize = fWireDriftData.size();
 	for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch)
 	{
-		auto & dst = fWireDriftPatch[wpatch];
+		auto & dst = patch[wpatch];
 		if ((w >= 0) && (w < wsize))
 		{
 			auto & src = fWireDriftData[w];
@@ -393,15 +399,9 @@ bool nnet::PointIdAlg::patchFromDownsampledView(size_t wire, float drift) const
 	return true;
 }
 
-bool nnet::PointIdAlg::patchFromOriginalView(size_t wire, float drift) const
+bool nnet::PointIdAlg::patchFromOriginalView(size_t wire, float drift, std::vector< std::vector<float> > & patch) const
 {
-	if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == drift))
-		return true; // still within the current position
-
-	fCurrentWireIdx = wire;
-	fCurrentScaledDrift = drift;
-
-    int dsize = fDriftWindow * fPatchSizeD;
+	int dsize = fDriftWindow * fPatchSizeD;
 	int halfSizeW = fPatchSizeW / 2;
 	int halfSizeD = dsize / 2;
 
@@ -411,8 +411,8 @@ bool nnet::PointIdAlg::patchFromOriginalView(size_t wire, float drift) const
 	int d0 = fCurrentScaledDrift - halfSizeD;
 	int d1 = fCurrentScaledDrift + halfSizeD;
 
-    std::vector<float> tmp(dsize);
-    int wsize = fWireDriftData.size();
+	std::vector<float> tmp(dsize);
+	int wsize = fWireDriftData.size();
 	for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch)
 	{
 		if ((w >= 0) && (w < wsize))
@@ -436,7 +436,7 @@ bool nnet::PointIdAlg::patchFromOriginalView(size_t wire, float drift) const
 			std::fill(tmp.begin(), tmp.end(), 0);
 		}
 
-        downscale(fWireDriftPatch[wpatch], tmp, d0);
+		downscale(patch[wpatch], tmp, d0);
 	}
 
 	return true;

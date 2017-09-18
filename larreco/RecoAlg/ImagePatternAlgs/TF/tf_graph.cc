@@ -115,7 +115,6 @@ std::vector< std::vector<float> > tf::Graph::run(
               cols = x.front().front().size(),
               depth = x.front().front().front().size();
 
-    std::cout << "Input: " << samples << "x" << rows << "x" << cols << "x" << depth << std::endl;
     tensorflow::Tensor _x(tensorflow::DT_FLOAT, tensorflow::TensorShape({ samples, rows, cols, depth }));
     auto input_map = _x.tensor<float, 4>();
     for (long long int s = 0; s < samples; ++s) {
@@ -131,11 +130,17 @@ std::vector< std::vector<float> > tf::Graph::run(
         }
     }
 
+    return run(_x);
+}
+// -------------------------------------------------------------------
+
+std::vector< std::vector< float > > tf::Graph::run(const tensorflow::Tensor & x)
+{
     std::vector< std::pair<std::string, tensorflow::Tensor> > inputs = {
-        { fInputName, _x }
+        { fInputName, x }
     };
 
-    std::cout << "run session" << std::endl;
+    //std::cout << "run session" << std::endl;
 
     std::vector<tensorflow::Tensor> outputs;
     auto status = fSession->Run(inputs, { fOutputName }, {}, &outputs);
@@ -143,12 +148,12 @@ std::vector< std::vector<float> > tf::Graph::run(
     if (status.ok())
     {
         auto output_map = outputs.front().tensor<float, 2>();
-
-        size_t nd = outputs.front().dims();
+        size_t samples = outputs.front().dim_size(0);
+        size_t nouts = outputs.front().dim_size(1);
 
         std::vector< std::vector< float > > output;
-        for(long long int s = 0; s < samples; ++s) {
-            std::vector< float > tmp(outputs.front().dim_size(nd-1));
+        for (size_t s = 0; s < samples; ++s) {
+            std::vector< float > tmp(nouts);
             for (size_t i = 0; i < tmp.size(); ++i) {
                 tmp[i] = output_map(s, i);
             }
@@ -159,7 +164,7 @@ std::vector< std::vector<float> > tf::Graph::run(
     else
     {
         std::cout << status.ToString() << std::endl;
-        return empty_output;
+        return std::vector< std::vector< float > >();
     }
 }
 // -------------------------------------------------------------------

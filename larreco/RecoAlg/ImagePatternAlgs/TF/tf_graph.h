@@ -17,6 +17,7 @@
 namespace tensorflow
 {
     class Session;
+    class Tensor;
 }
 
 namespace tf
@@ -42,6 +43,7 @@ public:
     std::vector< std::vector<float> > run(
 	const std::vector< std::vector< std::vector< std::vector<float> > > > & x,
 	long long int samples = -1);
+    std::vector< std::vector< float > > run(const tensorflow::Tensor & x);
 
 private:
     /// Not-throwing constructor.

@@ -58,6 +58,7 @@ public:
 	virtual unsigned int GetInputRows(void) const = 0;
 	virtual int GetOutputLength(void) const = 0;
 
+	//virtual std::vector< std::vector<float> > Run
 	virtual bool Run(std::vector< std::vector<float> > const & inp2d) = 0;
 	virtual std::vector<float> GetAllOutputs(void) const = 0;
 	virtual float GetOneOutput(int neuronIndex) const = 0;
@@ -196,13 +197,35 @@ private:
 	size_t fPatchSizeW, fPatchSizeD;
 
 	mutable size_t fCurrentWireIdx, fCurrentScaledDrift;
-	bool patchFromDownsampledView(size_t wire, float drift) const;
-	bool patchFromOriginalView(size_t wire, float drift) const;
-	bool bufferPatch(size_t wire, float drift) const
-    {
-        if (fDownscaleFullView) { return patchFromDownsampledView(wire, drift); }
-        else { return patchFromOriginalView(wire, drift); }
-    }
+	bool patchFromDownsampledView(size_t wire, float drift, std::vector< std::vector<float> > & patch) const;
+	bool patchFromDownsampledView(size_t wire, float drift) const
+	{
+		size_t sd = (size_t)(drift / fDriftWindow);
+		if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == sd))
+			return true; // still within the current position
+
+		fCurrentWireIdx = wire;
+		fCurrentScaledDrift = sd;
+
+		return patchFromDownsampledView(wire, drift, fWireDriftPatch);
+	}
+	bool patchFromOriginalView(size_t wire, float drift, std::vector< std::vector<float> > & patch) const;
+	bool patchFromOriginalView(size_t wire, float drift) const
+	{
+		if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == drift))
+			return true; // still within the current position
+
+		fCurrentWireIdx = wire;
+		fCurrentScaledDrift = drift;
+
+		return patchFromOriginalView(wire, drift, fWireDriftPatch);
+	}
+	bool bufferPatch(size_t wire, float drift, std::vector< std::vector<float> > & patch) const
+	{
+		if (fDownscaleFullView) { return patchFromDownsampledView(wire, drift, patch); }
+		else { return patchFromOriginalView(wire, drift, patch); }
+	}
+	bool bufferPatch(size_t wire, float drift) const { return bufferPatch(wire, drift, fWireDriftPatch); }
 	void resizePatch(void);
 
 	void deleteNNet(void) { if (fNNet) delete fNNet; fNNet = 0; }
