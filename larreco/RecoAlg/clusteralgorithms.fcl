@@ -49,6 +49,11 @@ standard_trajclusteralg:
    SaveCRTree: false
    TagCosmics: false
    ChkStopCuts: [5, 8, 1.5] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
+   VertexScoreWeights: [3, 2, 20, 1]
+    # 0 = Vertex error weight
+    # 1 = 3D match weight
+    # 2 = Charge fraction of vertex Tjs near the vertex weight
+    # 3 = Tj MCSMom, ChgRMS, Angle difference significance between Tjs weight
    Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6, 3, 0.7, 0.8]
    # 0 User definition of a short Tj => max number of Tj points
    # 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
