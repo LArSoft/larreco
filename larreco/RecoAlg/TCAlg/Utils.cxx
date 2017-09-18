@@ -115,11 +115,11 @@ namespace tca {
           if(tj.PDGCode == 13) ++n13;
           if(tj.AlgMod[kShowerTj]) ++nsh;
           // look for a parent in the list of trajectories
-          if(tj.ParentTrajID > 0 && tjs.allTraj[tj.ParentTrajID - 1].AlgMod[kMat3D]) {
+          if(tj.ParentID > 0 && tjs.allTraj[tj.ParentID - 1].AlgMod[kMat3D]) {
             for(auto& kpfp : tjs.pfps) {
               if(kpfp.ID == 0) continue;
               if(kpfp.ID == ipfp.ID) continue;
-              if(std::find(jpfp.TjIDs.begin(), jpfp.TjIDs.end(), tj.ParentTrajID) != jpfp.TjIDs.end()) {
+              if(std::find(jpfp.TjIDs.begin(), jpfp.TjIDs.end(), tj.ParentID) != jpfp.TjIDs.end()) {
                 ipfp.ParentID = jpfp.ID;
                 if(std::find(jpfp.DtrIDs.begin(), jpfp.DtrIDs.end(), ipfp.ID) == jpfp.DtrIDs.end()) jpfp.DtrIDs.push_back(ipfp.ID);
                 break;
@@ -801,6 +801,64 @@ namespace tca {
 
     return true;
   } // SetPFPEndPoints
+  
+  /////////////////////////////////////////
+  bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt)
+  {
+    // returns true if the two Tjs are compatible with and end0-end1 merge. This function has many aspects of the
+    // compatibility checks done in EndMerge but with looser cuts.
+    if(tj1.AlgMod[kKilled] || tj2.AlgMod[kKilled]) return false;
+    if(tj1.CTP != tj2.CTP) return false;
+    unsigned short end1 = -1, end2 = 0;
+    float minLen = PosSep(tj1.Pts[tj1.EndPt[0]].Pos, tj1.Pts[tj1.EndPt[1]].Pos);
+    float len2 = PosSep(tj2.Pts[tj2.EndPt[0]].Pos, tj2.Pts[tj2.EndPt[1]].Pos);
+    if(len2 < minLen) minLen = len2;
+    minLen *= 1.2;
+    if(minLen > 10) minLen = 10;
+    for(unsigned short e1 = 0; e1 < 2; ++e1) {
+      auto& tp1 = tj1.Pts[tj1.EndPt[e1]];
+      for(unsigned short e2 = 0; e2 < 2; ++e2) {
+        auto& tp2 = tj2.Pts[tj2.EndPt[e2]];
+        float sep = PosSep(tp1.Pos, tp2.Pos);
+        if(sep < minLen) {
+          minLen = sep;
+          end1 = e1; end2 = e2;
+        }
+      } // e2
+    } // e1
+    if(end1 < 0) return false;
+    // require end to end
+    if(end2 != 1 - end1) return false;
+    
+    float overlapFraction = OverlapFraction(tjs, tj1, tj2);
+    if(overlapFraction > 0.25) {
+      if(prt) mf::LogVerbatim("TC")<<"CM: "<<tj1.ID<<" "<<tj2.ID<<" overlapFraction "<<overlapFraction<<" > 0.25 ";
+      return false;
+    }
+    
+    auto& tp1 = tj1.Pts[tj1.EndPt[end1]];
+    auto& tp2 = tj2.Pts[tj2.EndPt[end2]];
+
+    if(!SignalBetween(tjs, tp1, tp2, 0.8, false)) {
+      if(prt) mf::LogVerbatim("TC")<<"CM: "<<tj1.ID<<" "<<tj2.ID<<" no signal between these points "<<PrintPos(tjs, tp1.Pos)<<" "<<PrintPos(tjs, tp2.Pos);
+      return false;
+    }
+
+    float doca1 = PointTrajDOCA(tjs, tp1.Pos[0], tp1.Pos[1], tp2);
+    float doca2 = PointTrajDOCA(tjs, tp2.Pos[0], tp2.Pos[1], tp1);
+    if(doca1 > 1.5 && doca2 > 1.5) {
+      if(prt) mf::LogVerbatim("TC")<<"CM: "<<tj1.ID<<" "<<tj2.ID<<" Bad docas (> 1.5) "<<doca1<<" "<<doca2;
+      return false;
+    }
+    
+    float dang = DeltaAngle(tp1.Ang, tp2.Ang);
+    if(dang > 2 * tjs.KinkCuts[0]) {
+      if(prt) mf::LogVerbatim("TC")<<"CM: "<<tj1.ID<<" "<<tj2.ID<<" dang "<<dang<<" > "<<2 * tjs.KinkCuts[0];
+      return false;
+    }
+    
+    return true;
+  } // CompatibleMerge
 
   /////////////////////////////////////////
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2)
@@ -2135,6 +2193,35 @@ namespace tca {
   void TrajTrajDOCA(TjStuff& tjs, Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires)
   {
     // Find the Distance Of Closest Approach between two trajectories less than minSep
+    // start with some rough cuts to minimize the use of the more expensive checking
+    for(unsigned short iwt = 0; iwt < 2; ++iwt) {
+      // Apply box cuts on the ends of the trajectories
+      // The Lo/Hi wire(time) at each end of tj1
+      float wt0 = tj1.Pts[tj1.EndPt[0]].Pos[iwt];
+      float wt1 = tj1.Pts[tj1.EndPt[1]].Pos[iwt];
+      float lowt1 = wt0;
+      float hiwt1 = wt1;
+      if(wt1 < lowt1) {
+        lowt1 = wt1;
+        hiwt1 = wt0;
+      }
+      // The Lo/Hi wire(time) at each end of tj2
+      wt0 = tj2.Pts[tj2.EndPt[0]].Pos[iwt];
+      wt1 = tj2.Pts[tj2.EndPt[1]].Pos[iwt];
+      float lowt2 = wt0;
+      float hiwt2 = wt1;
+      if(wt1 < lowt2) {
+        lowt2 = wt1;
+        hiwt2 = wt0;
+      }
+      // Check for this configuration
+      //  loWire1.......hiWire1   minSep  loWire2....hiWire2
+      //  loTime1.......hiTime1   minSep  loTime2....hiTime2
+      if(lowt2 > hiwt1 + minSep) return;
+      // and the other
+      if(lowt1 > hiwt2 + minSep) return;
+    } // iwt
+
     float best = minSep * minSep;
     ipt1 = 0; ipt2 = 0;
     float dwc = 0;
@@ -2938,7 +3025,7 @@ namespace tca {
         if(muPt1 < end0Cut) continue;
         if(muPt1 > end1Cut) continue;
         if(prt) mf::LogVerbatim("TC")<<" delta ray "<<drTj.ID<<" near "<<PrintPos(tjs, muTj.Pts[muPt0]);
-        drTj.ParentTrajID = muTj.ID;
+        drTj.ParentID = muTj.ID;
         drTj.PDGCode = 11;
       } // jtj
     } // itj
@@ -2970,7 +3057,7 @@ namespace tca {
         Trajectory& drTj = tjs.allTraj[jtj];
         if(drTj.AlgMod[kKilled]) continue;
         if(drTj.PDGCode != 11) continue;
-        if(drTj.ParentTrajID != muTj.ID) continue;
+        if(drTj.ParentID != muTj.ID) continue;
         // ignore short delta rays
         if(drTj.Pts.size() < minLen) continue;
         float sep0 = 100;
@@ -3756,7 +3843,7 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.VtxID[0];
         myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
-        myprt<<std::setw(5)<<aTj.ParentTrajID;
+        myprt<<std::setw(5)<<aTj.ParentID;
         int truKE = 0;
         int pdg = 0;
         if(aTj.MCPartListIndex < tjs.MCPartList.size()) {
