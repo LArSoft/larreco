@@ -4,22 +4,24 @@ BEGIN_PROLOG
 standard_pmalgtagger:
 {
 
-  TagOutOfDriftTracks: true # Tag tracks sticking out of 1 drift window.
+  TagOutOfDriftTracks: false # Tag tracks sticking out of 1 drift window.
   OutOfDriftMargin:    5.0   # The minimum distance beyond 1 drift window required for tagging track as a cosmic background.
 
-  TagFullHeightTracks: true # Tag tracks crossing full height.
-  TagFullWidthTracks:  true # Tag tracks crossing full width.
-  TagFullLengthTracks: true # Tag tracks crossing full length.
+  TagFullHeightTracks: false # Tag tracks crossing full height.
+  TagFullWidthTracks:  false # Tag tracks crossing full width.
+  TagFullLengthTracks: false # Tag tracks crossing full length.
   FullCrossingMargin:  15.0  # The maximum difference in size between the detector and track required for tagging track as crossing full dimensions.
 
-	TagNonBeamT0Tracks:  true # Tag tracks that have a reconstructed T0 incompatible with the beam
+	TagNonBeamT0Tracks:  false # Tag tracks that have a reconstructed T0 incompatible with the beam
 	NonBeamT0Margin:     100.0 # Number of nanoseconds away from the beam time to be tagged.
 
   TagTopFrontBack: true
   TopFrontBackMargin: 5.0
 
-  TagApparentStopper: true
+  TagApparentStopper: false
   ApparentStopperMargin: 5.0
+  VetoActualStopper: false
+  StopperBuffer: 2.0
 }
 
 END_PROLOG
