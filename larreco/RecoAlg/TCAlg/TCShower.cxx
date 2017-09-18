@@ -112,7 +112,7 @@ namespace tca {
   {
     // Finish defining the shower properties that were not done previously
     
-    if(tjs.ShowerTag[0] < 1) return;
+    if(tjs.ShowerTag[0] < 2) return;
 
     // Transfer Tj hits from InShower Tjs to the shower Tj
     if(!TransferTjHits(tjs, false)) return;
@@ -138,7 +138,7 @@ namespace tca {
     // Find 2D showers using 3D-matched trajectories. This returns true if showers were found
     // which requires re-doing the 3D trajectory match
     
-    if(tjs.ShowerTag[0] < 1) return false;
+    if(tjs.ShowerTag[0] < 2) return false;
     
     bool prt = false;
     // Add 10 for more detailed printing 
@@ -166,23 +166,24 @@ namespace tca {
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
       CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       std::vector<std::vector<int>> tjList;
-      TagShowerTjs(fcnLabel, tjs, inCTP, tjList);
+      TagInShowerTjs(fcnLabel, tjs, inCTP, tjList, false);
       SaveTjInfo(tjs, inCTP, tjList, "TJL");
       if(tjList.empty()) continue;
-      MergeTjList(tjList);
+      // Move this inside TagInShowerTjs
+//      MergeTjList(tjList);
       bigList[plane] = tjList;
     } // plane
     unsigned short nPlanesWithShowers = 0;
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) if(!bigList.empty()) ++nPlanesWithShowers;
     if(nPlanesWithShowers < 2) return false;
-
+/* Moved to TagInShowerTjs
     // mark them all as InShower Tjs
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
       for(auto& tjl : bigList[plane]) {
         for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
       } // tjl
     } // plane
-
+*/
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
       CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       // print detailed debug info for one plane
@@ -1859,8 +1860,6 @@ namespace tca {
     
     std::string fcnLabel = inFcnLabel + ".MSC";
     
-    bool newCuts = (tjs.ShowerTag[0] == 2);
-    
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<": MergeShowerChain inCTP "<<inCTP;
     
     std::vector<int> shList;
@@ -1871,7 +1870,7 @@ namespace tca {
       if(iss.TjIDs.empty()) continue;
       if(iss.CTP != inCTP) continue;
       // Test an alternate cut
-      if(newCuts && iss.NearTjIDs.empty()) continue;
+//      if(newCuts && iss.NearTjIDs.empty()) continue;
       // save the shower ID
       shList.push_back(iss.ID);
       // and the shower center TP
@@ -2656,12 +2655,28 @@ namespace tca {
   } // MakeShowerObsolete
   
   ////////////////////////////////////////////////
-  void TagShowerTjs(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList)
+  void TagInShowerTjs(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList, bool applyMinTjCuts)
   {
-    // Tag Tjs with PDGCode = 11 if they have MCSMom < ShowerTag[0] and there are more than
-    // ShowerTag[6] other Tjs with a separation < ShowerTag[1]. Returns a list of Tjs that meet this criteria
+    // Tag Tjs as InShower if they have MCSMom < ShowerTag[0] and there are more than
+    // ShowerTag[6] other Tjs with a separation < ShowerTag[1]. Returns a list of Tjs that meet this criteria.
+    // The shower cuts that are applicable are done here if applyMinTjCuts is true, for example when this function is called
+    // from RunTrajClusterAlg before 3D vertex and tj matching is done. This reduces the number of spurious vertices and 3D matches.
+    // When called from FindShowers3D, applyMinTjCuts is set false and the cuts are applied after 2D showers are reconstructed.
     
     tjList.clear();
+    
+    if(tjs.ShowerTag[0] < 1) return;
+    
+    // clear out any old information
+    unsigned short cnt = 0;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.CTP != inCTP) continue;
+      if(tj.AlgMod[kKilled]) continue;
+      tj.AlgMod[kInShower] = false;
+      ++cnt;
+    } // tj
+    
+    if(cnt < 2) return;
     
     short maxMCSMom = tjs.ShowerTag[1];
     
@@ -2719,33 +2734,18 @@ namespace tca {
       } // it2
     } // it1
     if(tjList.empty()) return;
+
+    MergeTjList(tjList);
+
+    // mark them all as InShower Tjs
+    for(auto& tjl : tjList) {
+      if(applyMinTjCuts) {
+        if(tjl.size() < tjs.ShowerTag[7]) continue;
+      } // applyMinTjCuts
+      for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
+    } // tjl
     
-    // Add Tjs that are attached to vertices that are attached to Tjs in tjList
-    for(unsigned short it = 0; it < tjList.size(); ++it) {
-      if(tjList[it].empty()) continue;
-      std::vector<int> list;
-      for(auto tjID : tjList[it]) {
-        if(tjID < 1 || tjID > (int)tjs.allTraj.size()) continue;
-        Trajectory& tj = tjs.allTraj[tjID - 1];
-        for(unsigned short end = 0; end < 2; ++end) {
-          if(tj.VtxID[end] == 0) continue;
-          VtxStore& vx2 = tjs.vtx[tj.VtxID[end] - 1];
-          // get a list of Tjs attached to this vertex
-          auto vxTjs = GetVtxTjIDs(tjs, vx2);
-          if(vxTjs.empty()) continue;
-          for(auto vtjID : vxTjs) {
-            if(std::find(tjList[it].begin(), tjList[it].end(), vtjID) != tjList[it].end()) continue;
-            if(std::find(list.begin(), list.end(), vtjID) != list.end()) continue;
-            auto& tj2 = tjs.allTraj[vtjID - 1];
-            if(tj2.AlgMod[kTjHiVx3Score]) continue;
-            list.push_back(vtjID);
-          } // vtj
-        } // end
-      } // tjID
-      if(!list.empty()) tjList[it].insert(tjList[it].end(), list.begin(), list.end());
-    } // it
-    
-  } // TagShowerTjs
+  } // TagInShowerTjs
   
   ////////////////////////////////////////////////
   void FindNearbyTjs(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt)
@@ -3392,6 +3392,7 @@ namespace tca {
     stj.ID = tjs.allTraj.size() + 1;
     // Declare that stj is a shower Tj
     stj.AlgMod[kShowerTj] = true;
+    stj.PDGCode = 1111;
     tjs.allTraj.push_back(stj);
     // Create the shower struct
     ShowerStruct ss;
