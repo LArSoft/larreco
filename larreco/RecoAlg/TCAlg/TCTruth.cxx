@@ -549,9 +549,9 @@ namespace tca {
         if(tjWithMostHits == USHRT_MAX) continue;
         // Count the total number of used hits in the TJ
         auto tmp = PutTrajHitsInVector(tjs.allTraj[tjWithMostHits], kUsedHits);
-        if(tjs.allTraj[tjWithMostHits].ParentTrajID > 0) {
+        if(tjs.allTraj[tjWithMostHits].ParentID > 0) {
           // This is a daughter trajectory that has more truth matched hits than the parent
-          unsigned short ptj = tjs.allTraj[tjWithMostHits].ParentTrajID - 1;
+          unsigned short ptj = tjs.allTraj[tjWithMostHits].ParentID - 1;
           // add the parent hits to the vector of daughter hits
           auto ptmp = PutTrajHitsInVector(tjs.allTraj[ptj], kUsedHits);
           tmp.insert(tmp.end(), ptmp.begin(), ptmp.end());
@@ -637,7 +637,7 @@ namespace tca {
           int dtrID = 0;
           for(auto& tj : tjs.allTraj) {
             if(!tj.AlgMod[kShowerTj]) continue;
-            if(tj.ParentTrajID == ptj.ID) {
+            if(tj.ParentID == ptj.ID) {
               dtrID = tj.ID;
               break;
             }
