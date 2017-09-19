@@ -62,6 +62,7 @@ standard_emtrackclusterid:
                                           # - NOTE: use tracks made of hits configured with HitModuleLabel
 
     PointIdAlg:             @local::standard_pointidalg
+    BatchSize:              64  # number of inputs to process in a single batch (parallelized with TF)
 
     Views:                  []  # do processing in selected views only, or use all views if empty list
 }

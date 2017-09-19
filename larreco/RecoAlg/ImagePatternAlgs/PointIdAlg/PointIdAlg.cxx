@@ -1,7 +1,9 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class:       PointIdAlg
-// Author:      P.Plonski, R.Sulej (Robert.Sulej@cern.ch), D.Stefan, May 2016
-//              D.Smith from LArIAT, BU, 2017: real data dump
+// Authors:     D.Stefan (Dorota.Stefan@ncbj.gov.pl),      from DUNE,   CERN/NCBJ, since May 2016
+//              R.Sulej (Robert.Sulej@cern.ch),            from DUNE,   FNAL/NCBJ, since May 2016
+//              P.Plonski,                                 from DUNE,   WUT,       since May 2016
+//              D.Smith,                                   from LArIAT, BU, 2017: real data dump
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
@@ -30,6 +32,22 @@
 // -------------------ModelInterface---------------------
 // ------------------------------------------------------
 
+std::vector< std::vector<float> > nnet::ModelInterface::Run(std::vector< std::vector< std::vector<float> > > const & inps, int samples)
+{
+    if ((samples == 0) || inps.empty() || inps.front().empty() || inps.front().front().empty())
+        return std::vector< std::vector<float> >();
+
+    if ((samples == -1) || (samples > (int)inps.size())) { samples = inps.size(); }
+
+    std::vector< std::vector<float> > results;
+    for (int i = 0; i < samples; ++i)
+    {
+        results.push_back(Run(inps[i]));
+    }
+    return results;
+}
+
+
 std::string nnet::ModelInterface::findFile(const char* fileName) const
 {
     std::string fname_out;
@@ -47,54 +65,6 @@ std::string nnet::ModelInterface::findFile(const char* fileName) const
     return fname_out;
 }
 
-// ------------------------------------------------------
-// -----------------MlpModelInterface--------------------
-// ------------------------------------------------------
-
-nnet::MlpModelInterface::MlpModelInterface(const char* xmlFileName) :
-	m(nnet::ModelInterface::findFile(xmlFileName).c_str())
-{
-	mf::LogInfo("MlpModelInterface") << "MLP model loaded.";
-}
-// ------------------------------------------------------
-
-bool nnet::MlpModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
-{
-	auto input = nnet::PointIdAlg::flattenData2D(inp2d);
-	if (input.size() == m.GetInputLength())
-	{
-		m.Run(input);
-		return true;
-	}
-
-	mf::LogError("MlpModelInterface") << "Flattened patch size does not match MLP model.";
-	return false;
-}
-// ------------------------------------------------------
-
-std::vector<float> nnet::MlpModelInterface::GetAllOutputs(void) const
-{
-	std::vector<float> result(m.GetOutputLength(), 0);
-	for (size_t o = 0; o < result.size(); ++o)
-	{
-		result[o] = m.GetOneOutput(o);
-	}
-	return result;
-}
-// ------------------------------------------------------
-
-float nnet::MlpModelInterface::GetOneOutput(int neuronIndex) const
-{
-	if ((int)neuronIndex < m.GetOutputLength())
-	{
-		return m.GetOneOutput(neuronIndex);
-	}
-
-	mf::LogError("MlpModelInterface") << "Output index does not match MLP model.";
-	return 0.;
-}
-// ------------------------------------------------------
-
 
 // ------------------------------------------------------
 // ----------------KerasModelInterface-------------------
@@ -107,34 +77,17 @@ nnet::KerasModelInterface::KerasModelInterface(const char* modelFileName) :
 }
 // ------------------------------------------------------
 
-bool nnet::KerasModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
+std::vector<float> nnet::KerasModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
 {
 	std::vector< std::vector< std::vector<float> > > inp3d;
 	inp3d.push_back(inp2d); // lots of copy, should add 2D to keras...
 
 	keras::DataChunk *sample = new keras::DataChunk2D();
 	sample->set_data(inp3d); // and more copy...
-	fOutput = m.compute_output(sample);
+	std::vector<float> out = m.compute_output(sample);
 	delete sample;
-
-	return true;
+	return out;
 }
-// ------------------------------------------------------
-
-std::vector<float> nnet::KerasModelInterface::GetAllOutputs(void) const
-{
-	return fOutput;
-}
-// ------------------------------------------------------
-
-float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
-{
-	if (neuronIndex < (int)fOutput.size()) return fOutput[neuronIndex];
-
-	mf::LogError("KerasModelInterface") << "Output index does not match Keras model.";
-	return 0.;
-}
-// ------------------------------------------------------
 
 
 // ------------------------------------------------------
@@ -150,10 +103,10 @@ nnet::TfModelInterface::TfModelInterface(const char* modelFileName)
 }
 // ------------------------------------------------------
 
-bool nnet::TfModelInterface::Run(std::vector< std::vector< std::vector<float> > > const & inps, int samples)
+std::vector< std::vector<float> > nnet::TfModelInterface::Run(std::vector< std::vector< std::vector<float> > > const & inps, int samples)
 {
     if ((samples == 0) || inps.empty() || inps.front().empty() || inps.front().front().empty())
-        return false;
+        return std::vector< std::vector<float> >();
 
     if ((samples == -1) || (samples > (long long int)inps.size())) { samples = inps.size(); }
 
@@ -171,13 +124,11 @@ bool nnet::TfModelInterface::Run(std::vector< std::vector< std::vector<float> > 
         }
     }
 
-    fOutputs = g->run(_x);
-
-    return true;
+    return g->run(_x);
 }
 // ------------------------------------------------------
 
-bool nnet::TfModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
+std::vector<float> nnet::TfModelInterface::Run(std::vector< std::vector<float> > const & inp2d)
 {
     long long int rows = inp2d.size(), cols = inp2d.front().size();
 
@@ -190,29 +141,10 @@ bool nnet::TfModelInterface::Run(std::vector< std::vector<float> > const & inp2d
         }
     }
 
-    fOutputs.clear();
-    auto output = g->run(_x);
-    if (!output.empty()) { fOutputs.push_back(output.front()); }
-
-    return  true;
+    auto out = g->run(_x);
+    if (!out.empty()) return out.front();
+    else return std::vector<float>();
 }
-// ------------------------------------------------------
-
-std::vector<float> nnet::TfModelInterface::GetAllOutputs(void) const
-{
-	if (!fOutputs.empty()) { return fOutputs.front(); }
-	else { return std::vector<float>(); }
-}
-// ------------------------------------------------------
-
-float nnet::TfModelInterface::GetOneOutput(int neuronIndex) const
-{
-	if (!fOutputs.empty() && (neuronIndex < (int)fOutputs.front().size())) { return fOutputs.front()[neuronIndex]; }
-
-	mf::LogError("TfModelInterface") << "Output not found in TF model.";
-	return 0;
-}
-// ------------------------------------------------------
 
 
 // ------------------------------------------------------
@@ -228,12 +160,7 @@ nnet::PointIdAlg::PointIdAlg(const Config& config) : img::DataProviderAlg(config
 
 	deleteNNet();
 
-	if ((fNNetModelFilePath.length() > 4) &&
-	    (fNNetModelFilePath.compare(fNNetModelFilePath.length() - 4, 4, ".xml") == 0))
-	{
-		fNNet = new nnet::MlpModelInterface(fNNetModelFilePath.c_str());
-	}
-	else if ((fNNetModelFilePath.length() > 5) &&
+	if ((fNNetModelFilePath.length() > 5) &&
 	    (fNNetModelFilePath.compare(fNNetModelFilePath.length() - 5, 5, ".nnet") == 0))
 	{
 		fNNet = new nnet::KerasModelInterface(fNNetModelFilePath.c_str());
@@ -267,13 +194,6 @@ void nnet::PointIdAlg::resizePatch(void)
 }
 // ------------------------------------------------------
 
-size_t nnet::PointIdAlg::NClasses(void) const
-{
-	if (fNNet) return fNNet->GetOutputLength();
-	else return 0;
-}
-// ------------------------------------------------------
-
 float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift, size_t outIdx) const
 {
 	float result = 0.;
@@ -286,11 +206,12 @@ float nnet::PointIdAlg::predictIdValue(unsigned int wire, float drift, size_t ou
 
 	if (fNNet)
 	{
-		if (fNNet->Run(fWireDriftPatch))
+		auto out = fNNet->Run(fWireDriftPatch);
+		if (!out.empty()) { result = out[outIdx]; }
+		else
 		{
-			result = fNNet->GetOneOutput(outIdx);
+			mf::LogError("PointIdAlg") << "Problem with applying model to input.";
 		}
-		else mf::LogError("PointIdAlg") << "Problem with applying model to input.";
 	}
 
 	return result;
@@ -309,18 +230,39 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 
 	if (fNNet)
 	{
-		if (fNNet->Run(fWireDriftPatch) && (NClasses() > 0))
+		result = fNNet->Run(fWireDriftPatch);
+		if (result.empty())
 		{
-			result.resize(NClasses());
-			for (size_t o = 0; o < result.size(); ++o)
-			{
-				result[o] = fNNet->GetOneOutput(o);
-			}
+			mf::LogError("PointIdAlg") << "Problem with applying model to input.";
 		}
-		else mf::LogError("PointIdAlg") << "Problem with applying model to input.";
 	}
 
 	return result;
+}
+// ------------------------------------------------------
+
+std::vector< std::vector<float> > nnet::PointIdAlg::predictIdVectors(std::vector< std::pair<unsigned int, float> > points) const
+{
+	if (points.empty() || !fNNet) { return std::vector< std::vector<float> >(); }
+
+	std::vector< std::vector< std::vector<float> > > inps;
+	for (size_t i = 0; i < points.size(); ++i)
+	{
+		unsigned int wire = points[i].first;
+		float drift = points[i].second;
+		if (bufferPatch(wire, drift))
+		{
+			inps.push_back(fWireDriftPatch);
+		}
+		else
+		{
+			mf::LogError("PointIdAlg") << "Patch buffering failed.";
+			continue; // so the output have less entries than vector of points!
+		}
+
+	}
+
+	return fNNet->Run(inps);
 }
 // ------------------------------------------------------
 
