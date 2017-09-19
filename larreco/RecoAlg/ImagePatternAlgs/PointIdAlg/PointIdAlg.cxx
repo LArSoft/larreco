@@ -141,9 +141,7 @@ float nnet::KerasModelInterface::GetOneOutput(int neuronIndex) const
 // -----------------TfModelInterface---------------------
 // ------------------------------------------------------
 
-nnet::TfModelInterface::TfModelInterface(const char* modelFileName, size_t bufsize, size_t wsize, size_t dsize) :
-	fInputs(bufsize, std::vector< std::vector< std::vector<float> > >(wsize, std::vector< std::vector<float> >(dsize, std::vector<float>(1, 0)))),
-	fOutputs(bufsize)
+nnet::TfModelInterface::TfModelInterface(const char* modelFileName)
 {
 	g = tf::Graph::create(nnet::ModelInterface::findFile(modelFileName).c_str());
 	if (!g) { throw art::Exception(art::errors::Unknown) << "TF model failed."; }
@@ -152,26 +150,30 @@ nnet::TfModelInterface::TfModelInterface(const char* modelFileName, size_t bufsi
 }
 // ------------------------------------------------------
 
-void nnet::TfModelInterface::Fetch(std::vector< std::vector<float> > const & inp2d, size_t idx)
+bool nnet::TfModelInterface::Run(std::vector< std::vector< std::vector<float> > > const & inps, int samples)
 {
-        auto & s = fInputs[idx];
-        size_t rows = inp2d.size(), cols = inp2d.front().size();
-        for (size_t r = 0; r < rows; ++r)
-        {
-		auto & src = inp2d[r];
-		auto & dst = s[r];
-                for (size_t c = 0; c < cols; ++c) { dst[c][0] = src[c]; }
-        }
-}
-// ------------------------------------------------------
+    if ((samples == 0) || inps.empty() || inps.front().empty() || inps.front().front().empty())
+        return false;
 
-void nnet::TfModelInterface::Run(long long int n)
-{
-	auto outs = g->run(fInputs, n);
-	for (size_t y = 0; y < outs.size(); ++y)
-	{
-		fOutputs[y] = outs[y];
-	}
+    if ((samples == -1) || (samples > (long long int)inps.size())) { samples = inps.size(); }
+
+    long long int rows = inps.front().size(), cols = inps.front().front().size();
+
+    tensorflow::Tensor _x(tensorflow::DT_FLOAT, tensorflow::TensorShape({ samples, rows, cols, 1 }));
+    auto input_map = _x.tensor<float, 4>();
+    for (long long int s = 0; s < samples; ++s) {
+        const auto & sample = inps[s]; 
+        for (long long int r = 0; r < rows; ++r) {
+            const auto & row = sample[r]; 
+            for (long long int c = 0; c < cols; ++c) {
+                input_map(s, r, c, 0) = row[c];
+            }
+        }
+    }
+
+    fOutputs = g->run(_x);
+
+    return true;
 }
 // ------------------------------------------------------
 
@@ -188,9 +190,9 @@ bool nnet::TfModelInterface::Run(std::vector< std::vector<float> > const & inp2d
         }
     }
 
+    fOutputs.clear();
     auto output = g->run(_x);
-    if (!output.empty()) { fOutputs[0] = output.front(); }
-    else { std::fill(fOutputs[0].begin(), fOutputs[0].end(), 0); }
+    if (!output.empty()) { fOutputs.push_back(output.front()); }
 
     return  true;
 }
@@ -239,7 +241,7 @@ nnet::PointIdAlg::PointIdAlg(const Config& config) : img::DataProviderAlg(config
         else if ((fNNetModelFilePath.length() > 3) &&
             (fNNetModelFilePath.compare(fNNetModelFilePath.length() - 3, 3, ".pb") == 0))
         {
-                fNNet = new nnet::TfModelInterface(fNNetModelFilePath.c_str(), 20, fPatchSizeW, fPatchSizeD);
+                fNNet = new nnet::TfModelInterface(fNNetModelFilePath.c_str());
         }
 	else
 	{

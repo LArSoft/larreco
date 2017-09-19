@@ -110,25 +110,23 @@ private:
 class nnet::TfModelInterface : public nnet::ModelInterface
 {
 public:
-	TfModelInterface(const char* modelFileName, size_t bufsize, size_t wsize, size_t dsize);
+	TfModelInterface(const char* modelFileName);
 
-	unsigned int GetInputRows(void) const override { return fInputs.front().size(); }
-	unsigned int GetInputCols(void) const override { return fInputs.front().front().size(); }
+	unsigned int GetInputRows(void) const override { return 0; } // we'll see if need this
+	unsigned int GetInputCols(void) const override { return 0; } //    ---''--- 
 
-	unsigned int GetInputDepth(void) const { return fInputs.front().front().front().size(); }
-	unsigned int GetBufferSize(void) const { return fInputs.size(); }
+	int GetOutputLength(void) const override
+	{
+		if (!fOutputs.empty()) return fOutputs.front().size();
+		else return 0;
+	}
 
-	int GetOutputLength(void) const override { return fOutputs.front().size(); }
-
+	bool Run(std::vector< std::vector< std::vector<float> > > const & inps, int samples);
 	bool Run(std::vector< std::vector<float> > const & inp2d) override;
 	float GetOneOutput(int neuronIndex) const override;
 	std::vector<float> GetAllOutputs(void) const override;
 
 private:
-	void Fetch(std::vector< std::vector<float> > const & inp2d, size_t idx);
-	void Run(long long int n);
-
-	std::vector< std::vector< std::vector< std::vector<float> > > > fInputs; // buffer for input patches
 	std::vector< std::vector<float> > fOutputs; // buffer for output vectors
 	std::unique_ptr<tf::Graph> g; // network graph
 };
