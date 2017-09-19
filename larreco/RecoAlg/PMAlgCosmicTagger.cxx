@@ -71,7 +71,7 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
         }
 
         if (node_out_of_drift_min && node_out_of_drift_max) { trk.SetTagFlag(pma::Track3D::kCosmic); trk.SetTagFlag(pma::Track3D::kOutsideDrift_Complete); ++n; }
-        else if (node_out_of_drift_min || node_out_of_drift_min) { trk.SetTagFlag(pma::Track3D::kCosmic); trk.SetTagFlag(pma::Track3D::kOutsideDrift_Partial); ++n; }
+        else if (node_out_of_drift_min || node_out_of_drift_max) { trk.SetTagFlag(pma::Track3D::kCosmic); trk.SetTagFlag(pma::Track3D::kOutsideDrift_Partial); ++n; }
     }
 
 		mf::LogInfo("pma::PMAlgCosmicTagger") << " - Tagged " << n << " tracks out of 1 drift window.";
@@ -181,7 +181,7 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
     TVector3 vtx = (node0.Point3D()[hIdx] > node1.Point3D()[hIdx]) ? node0.Point3D() : node1.Point3D();
     TVector3 end = (node0.Point3D()[hIdx] <= node1.Point3D()[hIdx]) ? node0.Point3D() : node1.Point3D();
     
-    if((vtx[hIdx]-fDimensionsMax[hIdx]) < fApparentStopperMargin){
+    if(fabs(vtx[hIdx]-fDimensionsMax[hIdx]) < fApparentStopperMargin){
       // Check the other element to see if it ends away from the bottom of the detector
       if(fabs(end[hIdx] - fDimensionsMin[hIdx]) > 5.* fApparentStopperMargin){
 
