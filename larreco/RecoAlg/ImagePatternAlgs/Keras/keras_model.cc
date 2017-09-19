@@ -193,9 +193,6 @@ keras::DataChunk* keras::LayerActivation::compute_output(keras::DataChunk* dc) {
           }
         }
       }
-      keras::DataChunk *out = new keras::DataChunk2D();
-      out->set_data(y);
-      return out;
     } else if(m_activation_type == "tanh") {
       for(unsigned int i = 0; i < y.size(); ++i) {
         for(unsigned int j = 0; j < y[0].size(); ++j) {
@@ -204,12 +201,14 @@ keras::DataChunk* keras::LayerActivation::compute_output(keras::DataChunk* dc) {
           }
         }
       }
-      keras::DataChunk *out = new keras::DataChunk2D();
-      out->set_data(y);
-      return out;
     } else {
       keras::missing_activation_impl(m_activation_type);
     }
+
+    keras::DataChunk *out = new keras::DataChunk2D();
+    out->set_data(y);
+    return out;
+
   } else if (dc->get_data_dim() == 1) { // flat data, use 1D
     vector<float> y = dc->get_1d();
     if(m_activation_type == "relu") {
@@ -240,6 +239,7 @@ keras::DataChunk* keras::LayerActivation::compute_output(keras::DataChunk* dc) {
     keras::DataChunk *out = new DataChunkFlat();
     out->set_data(y);
     return out;
+
   } else { throw "data dim not supported"; }
 
   return dc;
