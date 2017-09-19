@@ -196,6 +196,17 @@ keras::DataChunk* keras::LayerActivation::compute_output(keras::DataChunk* dc) {
       keras::DataChunk *out = new keras::DataChunk2D();
       out->set_data(y);
       return out;
+    } else if(m_activation_type == "tanh") {
+      for(unsigned int i = 0; i < y.size(); ++i) {
+        for(unsigned int j = 0; j < y[0].size(); ++j) {
+          for(unsigned int k = 0; k < y[0][0].size(); ++k) {
+            y[i][j][k] = tanh(y[i][j][k]);
+          }
+        }
+      }
+      keras::DataChunk *out = new keras::DataChunk2D();
+      out->set_data(y);
+      return out;
     } else {
       keras::missing_activation_impl(m_activation_type);
     }
