@@ -55,6 +55,7 @@ find_ups_product( postgresql v9_1_5 )
 find_ups_product( range )
 find_ups_product( eigen )
 find_ups_product( tensorflow )
+find_ups_product( protobuf )
 
 # macros for dictionary and simple_plugin
 include(ArtDictionary)
@@ -63,7 +64,7 @@ include(BuildPlugins)
 
 # find tensorflow library
 cet_find_library(TENSORFLOW NAMES tensorflow-core PATHS ENV TENSORFLOW_LIB NO_DEFAULT_PATH )
-cet_find_library(PROTOBUF NAMES protobuf PATHS ENV TENSORFLOW_LIB NO_DEFAULT_PATH )
+cet_find_library(PROTOBUF NAMES protobuf PATHS ENV PROTOBUF_LIB NO_DEFAULT_PATH )
 
 # source
 add_subdirectory(larreco)
