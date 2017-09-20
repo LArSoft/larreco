@@ -475,6 +475,8 @@ namespace tca {
       // missing trajectories in a plane
       FindMissedVxTjs(tpcid);
       ScoreVertices(tjs, tpcid, prt);
+      // Define the ParentID of trajectories using the vertex score
+      DefineTjParents(tjs, tpcid, prt);
       for(fPlane = 0; fPlane < TPC.Nplanes(); ++fPlane) {
         CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, fPlane);
         if(!ChkVtxAssociations(tjs, inCTP)) {
@@ -2204,6 +2206,9 @@ namespace tca {
             myprt<<" momAsym "<<momAsym;
             myprt<<" doMerge? "<<doMerge;
           }
+          
+          // Sep 20
+          if(bestDOCA > docaCut) continue;
           
           if(doMerge) {
             if(mrgPrt) mf::LogVerbatim("TC")<<"  Merge ";
