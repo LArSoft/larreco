@@ -62,7 +62,8 @@ include(ArtMake)
 include(BuildPlugins)
 
 # find tensorflow library
-cet_find_library(TENSORFLOW NAMES tensorflow PATHS ENV TENSORFLOW_LIB NO_DEFAULT_PATH )
+cet_find_library(TENSORFLOW NAMES tensorflow-core PATHS ENV TENSORFLOW_LIB NO_DEFAULT_PATH )
+cet_find_library(PROTOBUF NAMES protobuf PATHS ENV TENSORFLOW_LIB NO_DEFAULT_PATH )
 
 # source
 add_subdirectory(larreco)

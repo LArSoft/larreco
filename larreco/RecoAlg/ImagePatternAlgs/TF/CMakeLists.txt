@@ -3,6 +3,7 @@ art_make(
 			${FHICLCPP}
 			cetlib cetlib_except
 			${TENSORFLOW}
+			${PROTOBUF}
         )
 
 install_headers()
