@@ -67,6 +67,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
 
 trkf::KFTrackState trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov, 
 								   const double pval, const int pdgid) const {
+  //start from large enough covariance matrix so that the fit is not biased
   if (trackStateCov==SMatrixSym55()) {
     trackStateCov(0, 0) = 1000.;
     trackStateCov(1, 1) = 1000.;
@@ -74,6 +75,7 @@ trkf::KFTrackState trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t
     trackStateCov(3, 3) = 0.25;
     trackStateCov(4, 4) = 10.;
   } else trackStateCov*=100.;
+  // build vector of parameters on plane with point on the track and direction normal to the plane parallel to the track (so the first four parameters are zero by construction)
   SVector5 trackStatePar(0.,0.,0.,0.,1./pval);
   return KFTrackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);//along direction by definition
 }
