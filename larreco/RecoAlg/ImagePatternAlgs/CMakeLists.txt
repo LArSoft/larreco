@@ -1,4 +1,7 @@
 
+# tensorflow eigen headers
+include_directories ( $ENV{TENSORFLOW_INC}/eigen )
+
 simple_plugin(PointIdTrainingData "module"
 			larcore_Geometry_Geometry_service
 			larcorealg_Geometry
