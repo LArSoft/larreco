@@ -245,19 +245,16 @@ std::vector< std::vector<float> > nnet::PointIdAlg::predictIdVectors(std::vector
 {
 	if (points.empty() || !fNNet) { return std::vector< std::vector<float> >(); }
 
-	std::vector< std::vector< std::vector<float> > > inps;
+	std::vector< std::vector< std::vector<float> > > inps(
+		points.size(), std::vector< std::vector<float> >(
+			fPatchSizeW, std::vector<float>(fPatchSizeD)));
 	for (size_t i = 0; i < points.size(); ++i)
 	{
 		unsigned int wire = points[i].first;
 		float drift = points[i].second;
-		if (bufferPatch(wire, drift))
+		if (!bufferPatch(wire, drift, inps[i]))
 		{
-			inps.push_back(fWireDriftPatch);
-		}
-		else
-		{
-			mf::LogError("PointIdAlg") << "Patch buffering failed.";
-			continue; // so the output have less entries than vector of points!
+			throw cet::exception("PointIdAlg") << "Patch buffering failed" << std::endl;
 		}
 
 	}
