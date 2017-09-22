@@ -72,10 +72,10 @@ namespace tca {
     unsigned short NTraj {0};  
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
-    short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH
+    short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC
     CTP_t CTP {0};
     unsigned short ID {0};          ///< set to 0 if killed
-    unsigned short Vtx3ID {0};
+    unsigned short Vx3ID {0};
     float Score {0};
     float TjChgFrac {0};            ///< Fraction of charge near the vertex that is from hits on the vertex Tjs
     std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
@@ -105,6 +105,7 @@ namespace tca {
     geo::TPCID TPCID;
     std::array<unsigned short, 3> Vx2ID {{0}}; // List of 2D vertex IDs in each plane
     unsigned short ID {0};          // 0 = obsolete vertex
+    bool Primary {false};
   };
   
   // A temporary struct for matching trajectory points; 1 struct for each TP for
@@ -215,13 +216,14 @@ namespace tca {
     int BestPlane {-1};
     // stuff for constructing the PFParticle
     int PDGCode {0};
-    std::vector<unsigned short> DtrIDs;
-    size_t ParentID {0};       // Parent MatchStruct index (or index of self if no parent exists)
+    std::vector<int> DtrIDs;
+    size_t ParentID {0};       // Parent PFP ID (or ID of self if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned short MCPartListIndex {USHRT_MAX};
     float CosmicScore{0};
     unsigned short ID {0};
+    bool Primary;             // PFParticle is attached to a primary vertex
   };
 
   struct ShowerPoint {
@@ -252,7 +254,7 @@ namespace tca {
     int ParentID {0};  // The ID of an external parent Tj that was added to the shower
     unsigned short TruParentID {0};
     unsigned short SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
-    bool NeedsUpdate {false};       // This is set true whenever the shower needs to be updated
+    bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -327,6 +329,7 @@ namespace tca {
     kMaskHits,
     kMaskBadTPs,
     kMichel,
+    kDeltaRay,
     kCTKink,        ///< kink found in CheckTraj
     kCTStepChk,
     kTryWithNextPass,
@@ -348,6 +351,7 @@ namespace tca {
     kChkInTraj,
     kStopBadFits,
     kFixBegin,
+    kBeginChg,
     kFixEnd,
     kUUH,
     kVtxTj,
