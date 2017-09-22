@@ -734,18 +734,20 @@ namespace tca {
                 mf::LogVerbatim("TC")<<"InTrajOK failed in ReconstructAllTraj";
                 return;
               }
-            }
+            } // use ChkInTraj
+            // See if it should be split
+            CheckTrajBeginChg(tjs, tjs.allTraj.size() - 1, prt);
             break;
           } // jht
         } // iht
       } // iwire
+      
+      // Tag delta rays before merging and making vertices
+      TagDeltaRays(tjs, inCTP, debug.WorkID);
       // Try to merge trajectories before making vertices
       bool lastPass = (pass == fMinPtsFit.size() - 1);
       EndMerge(inCTP, lastPass);
       if(fQuitAlg) return;
-      
-      // Tag delta rays before making vertices
-      TagDeltaRays(tjs, inCTP, debug.WorkID);
 
       // TY: Split high charge hits near the trajectory end
       ChkHiChgHits(inCTP);
@@ -1970,7 +1972,9 @@ namespace tca {
     
     // temp vector for checking the fraction of hits near a merge point
     std::vector<int> tjlist(2);
-    
+ 
+    float minChgRMS = 0.5 * (fChargeCuts[1] + fChargeCuts[2]);
+
     // iterate whenever a merge occurs since allTraj will change. This is not necessary
     // when a vertex is created however.
     bool iterate = true;
@@ -2100,12 +2104,10 @@ namespace tca {
           float dangCut;
           float docaCut;
           float chgPull = 0;
-          float minChgRMS = tjs.allTraj[it1].ChgRMS;
-          if(tjs.allTraj[it2].ChgRMS < minChgRMS) minChgRMS = tjs.allTraj[it2].ChgRMS;
-          if(tp1.Chg > tp2.Chg) {
-            chgPull = (tp1.Chg / tp2.Chg - 1) / minChgRMS;
+          if(tp1.AveChg > tp2.AveChg) {
+            chgPull = (tp1.AveChg / tp2.AveChg - 1) / minChgRMS;
           } else {
-            chgPull = (tp2.Chg / tp1.Chg - 1) / minChgRMS;
+            chgPull = (tp2.AveChg / tp1.AveChg - 1) / minChgRMS;
           }
           if(loMCSMom) {
             // increase dangCut dramatically for low MCSMom tjs
@@ -2192,15 +2194,17 @@ namespace tca {
           float momAsym = std::abs(tj1.MCSMom - tj2.MCSMom) / (float)(tj1.MCSMom + tj2.MCSMom);
           if(doMerge && momAsym > tjs.Vertex2DCuts[9]) doMerge = false;
           
+          // don't allow vertices to be created between delta-rays
+          if(!doMerge && (tj1.AlgMod[kDeltaRay] || tj2.AlgMod[kDeltaRay])) doMerge = true;
+          
           if(mrgPrt) {
             mf::LogVerbatim myprt("TC");
-            myprt<<" EM2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2);
+            myprt<<"EM2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2);
             myprt<<" bestFOM "<<std::fixed<<std::setprecision(2)<<bestFOM;
             myprt<<" bestDOCA "<<std::setprecision(1)<<bestDOCA;
             myprt<<" cut "<<docaCut<<" isVLA? "<<isVLA;
             myprt<<" dang "<<std::setprecision(2)<<dang<<" dangCut "<<dangCut;
-            myprt<<" chgPull "<<std::setprecision(1)<<chgPull;
-//            myprt<<" loMCSMom? "<<loMCSMom<<" hiMCSMom? "<<hiMCSMom;
+            myprt<<" chgPull "<<std::setprecision(1)<<chgPull<<" Cut "<<chgPullCut;
             myprt<<" signal? "<<signalBetween;
             myprt<<" chgFrac "<<std::setprecision(2)<<chgFrac;
             myprt<<" momAsym "<<momAsym;
@@ -2219,16 +2223,9 @@ namespace tca {
               didMerge = MergeAndStore(tjs, it2, it1, mrgPrt);
             }
             if(didMerge) {
-              // wipe out the AlgMods for the new Trajectory
-              unsigned short newTjIndex = tjs.allTraj.size()-1;
-              tjs.allTraj[newTjIndex].AlgMod.reset();
-              // and set the EndMerge bit
-              tjs.allTraj[newTjIndex].AlgMod[kMerge] = true;
-              // and maybe the RevProp bit
-              if(tjs.allTraj[it1].AlgMod[kRvPrp] || tjs.allTraj[it2].AlgMod[kRvPrp]) tjs.allTraj[newTjIndex].AlgMod[kRvPrp] = true;
               // Set the end merge flag for the killed trajectories to aid tracing merges
-              tjs.allTraj[it1].AlgMod[kMerge] = true;
-              tjs.allTraj[it2].AlgMod[kMerge] = true;
+              tj1.AlgMod[kMerge] = true;
+              tj1.AlgMod[kMerge] = true;
               iterate = true;
             } // Merge and store successfull
             else {
@@ -2297,17 +2294,13 @@ namespace tca {
             tj1.AlgMod[kMerge] = true;
             tj2.AlgMod[kMerge] = true;
             // Set pion-like PDGCodes
-            if(tj1.StopFlag[end1][kBragg] && !tj2.StopFlag[end2][kBragg]) {
-              tj1.PDGCode = 211;
-            }
-            if(tj2.StopFlag[end2][kBragg] && !tj1.StopFlag[end1][kBragg]) {
-              tj2.PDGCode = 211;
-            }
+            if(tj1.StopFlag[end1][kBragg] && !tj2.StopFlag[end2][kBragg]) tj1.PDGCode = 211;
+            if(tj2.StopFlag[end2][kBragg] && !tj1.StopFlag[end1][kBragg]) tj2.PDGCode = 211;
             if(mrgPrt) mf::LogVerbatim("TC")<<"  New vtx Vx_"<<aVtx.ID<<" at "<<(int)aVtx.Pos[0]<<":"<<(int)(aVtx.Pos[1]/tjs.UnitsPerTick);
             if(!StoreVertex(tjs, aVtx)) continue;
             SetVx2Score(tjs, prt);
           } // create a vertex
-          if(tjs.allTraj[it1].AlgMod[kKilled]) break;
+          if(tj1.AlgMod[kKilled]) break;
         } // end1
       } // it1
     } // iterate
