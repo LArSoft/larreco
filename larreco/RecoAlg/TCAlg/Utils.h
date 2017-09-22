@@ -41,6 +41,7 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, PFPStruct& pfp, std::vector<MatchStruct>& matVec, 
@@ -69,6 +70,7 @@ namespace tca {
   bool StoreTraj(TjStuff& tjs, Trajectory& tj);
   void UpdateChgRMS(TjStuff& tjs, Trajectory& tj);
   bool InTrajOK(TjStuff& tjs, std::string someText);
+  void CheckTrajBeginChg(TjStuff& tjs, unsigned short itj, bool prt);
   void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
   bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt);
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
@@ -94,7 +96,6 @@ namespace tca {
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
-  bool SplitAllTraj(TjStuff& tjs, Trajectory& tj, unsigned short pos, unsigned short ivx, bool prt);
   void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
   // returns the DOCA between a hit and a trajectory
   float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp);
