@@ -488,11 +488,11 @@ namespace tca {
         auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
         if(stj.VtxID[0] > 0) {
           auto& vx2 = tjs.vtx[stj.VtxID[0] - 1];
-          if(vx2.Vtx3ID > 0) {
+          if(vx2.Vx3ID > 0) {
             if(vid == USHRT_MAX) {
-              vid = vx2.Vtx3ID;
+              vid = vx2.Vx3ID;
               cnt = 1;
-            } else if(vx2.Vtx3ID == vid) {
+            } else if(vx2.Vx3ID == vid) {
               ++cnt;
             }
           }
@@ -1615,8 +1615,8 @@ namespace tca {
     if(tj.VtxID[tjEnd] > 0) {
       // check for a high-score 2D vertex with a high-score 3D vertex at this end.
       VtxStore& vx2 = tjs.vtx[tj.VtxID[tjEnd] - 1];
-      if(vx2.ID > 0 && vx2.Vtx3ID > 0 && vx2.Vtx3ID < tjs.vtx3.size() && vx2.Stat[kHiVx3Score]) {
-        vx3Score = tjs.vtx3[vx2.Vtx3ID - 1].Score;
+      if(vx2.ID > 0 && vx2.Vx3ID > 0 && vx2.Vx3ID < tjs.vtx3.size() && vx2.Stat[kHiVx3Score]) {
+        vx3Score = tjs.vtx3[vx2.Vx3ID - 1].Score;
         if(vx3Score > 0) fom /= sqrt(vx3Score);
       }
     }
@@ -1628,7 +1628,7 @@ namespace tca {
       myprt<<" VtxID "<<tj.VtxID[tjEnd];
       if(tj.VtxID[tjEnd] > 0) {
         VtxStore& vx2 = tjs.vtx[tj.VtxID[tjEnd] - 1];
-        if(vx2.Vtx3ID > 0) myprt<<" Vtx3ID "<<vx2.Vtx3ID;
+        if(vx2.Vx3ID > 0) myprt<<" Vtx3ID "<<vx2.Vx3ID;
       }
       myprt<<std::fixed<<std::setprecision(2);
       myprt<<" tp1Sep "<<std::fixed<<std::setprecision(1)<<tp1Sep<<" pull "<<sepPull;
@@ -2665,7 +2665,10 @@ namespace tca {
     
     tjList.clear();
     
-    if(tjs.ShowerTag[0] < 1) return;
+    if(tjs.ShowerTag[0] < 0) return;
+    unsigned int mode = tjs.ShowerTag[0];
+    // Only use this function if bit 0 is set, ShowerTag[0] = 1, 3, etc
+    if(!(mode & (1 << 0))) return;
     
     // clear out any old information
     unsigned short cnt = 0;
