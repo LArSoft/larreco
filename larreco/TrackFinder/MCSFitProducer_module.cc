@@ -1,10 +1,3 @@
-/// \class MCSFitProducer
-///
-/// \brief Producer 
-///
-/// \author G. Cerati, based on code from L. Kalousis and D. Kaleko
-///
-
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
@@ -29,10 +22,19 @@
 
 namespace trkf {
   /**
+   * @file  MCSFitProducer_module.cc
+   * @class trkf::MCSFitProducer
+   *
    * @brief Producer for TrajectoryMCSFitter.
    *
    * Producer for TrajectoryMCSFitter, which performs a Maximum Likelihood fit of Multiple Coulomb Scattering angles between segments within a Track or Trajectory. 
    * It reads a recob::Track collection and produces a collection of recob::MCSFitResult where the elements are in the same order as the input collection (no explicit association is written).
+   *
+   * For configuration options see MCSFitProducer#Inputs and MCSFitProducer#Config
+   *
+   * @author  G. Cerati (FNAL, MicroBooNE), based on code from L. Kalousis and D. Kaleko
+   * @date    2017
+   * @version 1.0
    */
   class MCSFitProducer : public art::EDProducer {
   public:
