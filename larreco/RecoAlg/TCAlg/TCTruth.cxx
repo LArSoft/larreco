@@ -549,6 +549,7 @@ namespace tca {
         if(tjWithMostHits == USHRT_MAX) continue;
         // Count the total number of used hits in the TJ
         auto tmp = PutTrajHitsInVector(tjs.allTraj[tjWithMostHits], kUsedHits);
+/* Sep20: This is a bad thing to do
         if(tjs.allTraj[tjWithMostHits].ParentID > 0) {
           // This is a daughter trajectory that has more truth matched hits than the parent
           unsigned short ptj = tjs.allTraj[tjWithMostHits].ParentID - 1;
@@ -566,6 +567,7 @@ namespace tca {
             } // found the parent tj
           } // ii
         } // deal with daughters
+*/
         // count the number matched to a true particle
         float nTjHits = 0;
         for(auto& iht : tmp) if(hitTruTrkID[iht] > 0) ++nTjHits;
