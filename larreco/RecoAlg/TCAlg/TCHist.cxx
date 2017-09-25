@@ -13,10 +13,19 @@ namespace  tca {
     fNuVtx_dy = tfs.make<TH1F>("Vtx dy","Vtx dy",80,-10,10);
     fNuVtx_dz = tfs.make<TH1F>("Vtx dz","Vtx dz",80,-10,10);
     
-    fNuVx2Score = tfs.make<TH1F>("Reco-True Vtx Score","Vtx Score",80, 0, 80);
-    fNuVx2Score_Enu_p = tfs.make<TProfile>("NuVtx_E_Score_p","Score vs Enu (MeV)", 20, 0, 2000);
+    // Score of all 2D and 3D vertices
     fVx2Score = tfs.make<TH1F>("Vx2_Score","Vx2 Score",80, 0, 100);
     fVx3Score = tfs.make<TH1F>("Vx3_Score","Vx2 Score",100, 0, 100);
+    // Score of vertices that are matched to a true neutrino interaction vertex
+    fNuVx3Score = tfs.make<TH1F>("NuVx3Score","Vx3Score - TruNuVx matched",80, 0, 80);
+    fNuVx2Score = tfs.make<TH1F>("NuVx2Score","Vx2Score - TruNuVx matched",80, 0, 80);
+    // Difference in score between all others and the one matched to the true neutrino vertex
+    // Score(True matched) - Score(all others). Ideally the one matched to the true neutrino
+    // has the highest score resulting in all entries begin negative in this histogram
+    fNuVx3ScoreDiff = tfs.make<TH1F>("NuVx3ScoreDiff","Vx3Score - TruNuVx matched", 100, -100, 100);
+    
+    fVxTopoMat = tfs.make<TH1F>("VxTopoMat","VxTopo - True Vtx match",10, 0, 10);
+    fVxTopoNoMat = tfs.make<TH1F>("VxTopoNoMat","VxTopo - No MC match",10, 0, 10);
     
     fdWire[0] = tfs.make<TH1F>("dWireEl","dWire - Electrons",21,-10,10);
     fdWire[1] = tfs.make<TH1F>("dWireMu","dWire - Muons",21,-10,10);
