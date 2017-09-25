@@ -67,7 +67,7 @@ namespace tca {
 
     TjStuff const& GetTJS() const {return tjs;}
 
-    std::vector<short> const& GetinClus() const {return tjs.inClus; }
+//    std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
     /// Returns (and loses) the art::Ptr collection of previously reconstructed hits (e.g. gaushit)
     std::vector<recob::Hit> YieldHits();
