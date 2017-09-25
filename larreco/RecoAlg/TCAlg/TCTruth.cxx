@@ -16,13 +16,11 @@ namespace tca {
   void TruthMatcher::Initialize()
   {
      // Initialize the variables used to calculate Efficiency * Purity (aka EP) for matching to truth
-    for(unsigned short pdgIndex = 0; pdgIndex < 6; ++pdgIndex) {
-      EPTSums[pdgIndex] = 0;
-      TSums[pdgIndex] = 0;
-      EPCnts[pdgIndex] = 0;
-    }
-    nTruPrimaryVtxOK = 0;
-    nTruPrimaryVtxReco = 0;
+    EPCnts.fill(0); 
+    TSums.fill(0.0);
+    EPTSums.fill(0.0);
+    TruVxCounts.fill(0);
+    nBadEP = 0;
   } // Initialize
 
   //////////////////////////////////////////
@@ -245,12 +243,17 @@ namespace tca {
     sim::ParticleList const& plist = bt->ParticleList();
     if(plist.empty()) return;
     
-    // set true if there is a reconstructed 3D vertex within 1 cm of the true vertex
-    bool nuVtxRecoOK = false;
-    
     // MC Particles for the desired true particles
     int sourcePtclTrackID = -1;
     fSourceParticleEnergy = -1;
+    
+    bool neutrinoVxInFiducialVolume = false;
+    bool neutrinoVxReconstructable = false;
+    bool neutrinoVxReconstructed = false;
+    bool neutrinoVxCorrect = false;
+    float truPrimVtxX = -100;
+    float truPrimVtxY = -100;
+    float truPrimVtxZ = -100;
     
     simb::Origin_t sourceOrigin = simb::kUnknown;
     std::vector<simb::MCParticle*> partList;
@@ -274,6 +277,9 @@ namespace tca {
             fSourceParticleEnergy = 1000 * part->E(); // in MeV
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kSingleParticle;
+            truPrimVtxX = part->Vx();
+            truPrimVtxY = part->Vy();
+            truPrimVtxZ = part->Vz();
             if(tjs.MatchTruth[1] > 0) {
               TVector3 dir;
               dir[0] = part->Px(); dir[1] = part->Py(); dir[2] = part->Pz();
@@ -284,22 +290,12 @@ namespace tca {
           if(sourceOrigin == simb::kBeamNeutrino) {
             // histogram the vertex position difference
             if(tjs.MatchTruth[1] > 2) std::cout<<" True vertex position "<<(int)part->Vx()<<" "<<(int)part->Vy()<<" "<<(int)part->Vz()<<" energy "<<(int)(1000*part->E())<<"\n";
-            for(auto& aVtx3 : tjs.vtx3) {
-              hist.fNuVtx_dx->Fill(part->Vx() - aVtx3.X);
-              hist.fNuVtx_dy->Fill(part->Vy() - aVtx3.Y);
-              hist.fNuVtx_dz->Fill(part->Vz() - aVtx3.Z);
-              if(std::abs(part->Vx()-aVtx3.X) < 1 && std::abs(part->Vy()-aVtx3.Y) < 1 && std::abs(part->Vz()-aVtx3.Z) < 1) {
-                nuVtxRecoOK = true;
-                float score = 0;
-                for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-                  if(aVtx3.Vx2ID[plane] == 0) continue;
-                  unsigned short iv2 = aVtx3.Vx2ID[plane] - 1;
-                  score += tjs.vtx[iv2].Score;
-                } // plane
-                hist.fNuVx2Score->Fill(score);
-                hist.fNuVx2Score_Enu_p->Fill(fNeutrinoEnergy, score);
-              }
-            } // aVtx3
+            truPrimVtxX = part->Vx();
+            truPrimVtxY = part->Vy();
+            truPrimVtxZ = part->Vz();
+            neutrinoVxInFiducialVolume = (truPrimVtxX > tjs.XLo && truPrimVtxX < tjs.XHi &&
+                                truPrimVtxY > tjs.YLo && truPrimVtxY < tjs.YHi &&
+                                truPrimVtxZ > tjs.ZLo && truPrimVtxZ < tjs.ZHi);
           } // sourceOrigin != simb::kUnknown
         } else {
           // look for cosmic rays
@@ -320,7 +316,9 @@ namespace tca {
       if(!isCharged) continue;
       partList.push_back(part);
     } // ipart
-    
+
+    if(neutrinoVxInFiducialVolume) ++TruVxCounts[0];
+
     if(tjs.MatchTruth[1] > 2) {
       for(unsigned int ii = 0; ii < partList.size(); ++ii) {
         int trackID = partList[ii]->TrackId();
@@ -468,8 +466,8 @@ namespace tca {
     nMatchedHitsInTj = newnMatchedHitsInTj;
     
     // count the number of primary tracks that have at least 3 hits in at least 2 planes
-    nTruPrimary = 0;
-    nTruPrimaryOK = 0;
+    unsigned short nTruPrimary = 0;
+    unsigned short nTruPrimaryOK = 0;
     for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
       if(partList[ipart]->Mother() != 0) continue;
       ++nTruPrimary;
@@ -480,17 +478,63 @@ namespace tca {
       if(nInPln > 1) ++nTruPrimaryOK;
     } // ipart
     
-    if(nTruPrimaryOK > 1) {
+    neutrinoVxReconstructable = (neutrinoVxInFiducialVolume && nTruPrimaryOK > 1);
+    
+    if(neutrinoVxReconstructable) {
+      ++TruVxCounts[1];
+      // Find the closest reconstructed vertex to the true vertex
+      float closest = 1;
+      unsigned short imTheOne = 0;
+      for(auto& aVtx3 : tjs.vtx3) {
+        float dx = aVtx3.X - truPrimVtxX;
+        float dy = aVtx3.Y - truPrimVtxY;
+        float dz = aVtx3.Z - truPrimVtxZ;
+        hist.fNuVtx_dx->Fill(dx);
+        hist.fNuVtx_dy->Fill(dy);
+        hist.fNuVtx_dz->Fill(dz);
+        float sep = dx * dx + dy * dy + dz * dz;
+        if(sep < closest) {
+          closest = sep;
+          imTheOne = aVtx3.ID;
+        }
+      } // aVtx3
+      if(imTheOne > 0) {
+        neutrinoVxReconstructed = true;
+        ++TruVxCounts[2];
+        auto& vx3 = tjs.vtx3[imTheOne - 1];
+        hist.fNuVx3Score->Fill(vx3.Score);
+        // Histogram the score of 2D vertices
+        for(auto vx2id : vx3.Vx2ID) {
+          if(vx2id == 0) continue;
+          auto& vx2 = tjs.vtx[vx2id - 1];
+          hist.fNuVx2Score->Fill(vx2.Score);
+        } // vx2id
+        // histogram the relative score of other vertices
+        float maxScore = 0;
+        for(auto& ovx3 : tjs.vtx3) {
+          if(ovx3.ID == 0) continue;
+          if(ovx3.Score > maxScore) maxScore = ovx3.Score;
+          if(ovx3.ID == vx3.ID) continue;
+          float dScore = ovx3.Score - vx3.Score;
+          hist.fNuVx3ScoreDiff->Fill(dScore);
+        } // ovx3
+        neutrinoVxCorrect = (maxScore == vx3.Score);
+        if(neutrinoVxCorrect) ++TruVxCounts[3];
+        // find the most common Topo of the 2D vertices that were matched to the
+        // primary vertex. This might be a useful to tag neutrino interaction vertices
+        float vx3Topo = Vx3Topo(tjs, vx3);
+        hist.fVxTopoMat->Fill(vx3Topo);
+      }
+    } // neutrinoVxInFiducialVolume
+    
+    if(neutrinoVxInFiducialVolume && neutrinoVxReconstructable && !neutrinoVxCorrect) {
       // More than one reconstructable primaries so there must a reconstructable neutrino vertex
-      ++nTruPrimaryVtxOK;
-      // was it reconstructed?
-      if(nuVtxRecoOK) ++nTruPrimaryVtxReco;
-      if(fSourceParticleEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx fSourceParticleEnergy "<<std::fixed<<std::setprecision(2)<<fSourceParticleEnergy<<" events processed "<<tjs.EventsProcessed;
+      mf::LogVerbatim("TC")<<"BadVtx Reconstructed? "<<neutrinoVxReconstructed<<" and not correct. events processed "<<tjs.EventsProcessed;
     }
     
     if(tjs.MatchTruth[1] > 0) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"Number of primary particles "<<nTruPrimary<<" Number reconstructable "<<nTruPrimaryOK<<" Found neutrino vertex? "<<nuVtxRecoOK<<"\n";
+      myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<" Correct? "<<neutrinoVxCorrect<<"\n";
       myprt<<"part   PDG   TrkID   MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
       for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
         unsigned short pdg = abs(partList[ipart]->PdgCode());
@@ -613,6 +657,7 @@ namespace tca {
           // Enter 0 in the profile histogram
           hist.fEP_T[pdgIndex]->Fill(TMeV, 0);
           if(nMatchedHitsInPartList[ipart][plane] > tjs.MatchTruth[3]) {
+            ++nBadEP;
             mf::LogVerbatim myprt("TC");
             myprt<<"pdgIndex "<<pdgIndex<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to partList["<<ipart<<"]";
             myprt<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipart][plane];
@@ -782,12 +827,16 @@ namespace tca {
       }
     } // pdgIndex
     if(sum > 0) myprt<<" MuPiKP "<<std::fixed<<std::setprecision(2)<<sumt / sum;
+    myprt<<" BadEP "<<nBadEP;
+    // Vertex reconstruction
     if(MCP_TSum > 0 && PFP_Cnt > 0) {
       // PFParticle statistics
       float ep = MCP_EPTSum / MCP_TSum;
       float nofrac = 1 - (PFP_CntGoodMat / PFP_Cnt);
       myprt<<" PFP "<<ep<<" MCP cnt "<<(int)MCP_Cnt<<" PFP cnt "<<(int)PFP_Cnt<<" noMatFrac "<<nofrac;
     }
+    myprt<<" VxCount";
+    for(auto cnt : TruVxCounts) myprt<<" "<<cnt;
   } // PrintResults
   
   ////////////////////////////////////////////////
