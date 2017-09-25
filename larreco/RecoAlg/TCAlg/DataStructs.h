@@ -428,7 +428,7 @@ namespace tca {
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
     std::vector<float> AngleRanges; ///< list of max angles for each angle range
-    std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
+//    std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
