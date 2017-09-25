@@ -9,6 +9,8 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "larsim/MCCheater/BackTracker.h"
 
+#include "lardata/RecoObjects/TrackStatePropagator.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 
 namespace tca {
 
@@ -235,7 +237,7 @@ namespace tca {
   } // MatchTrueHits
   
   //////////////////////////////////////////
-  void TruthMatcher::MatchTruth(const HistStuff& hist, unsigned int fEventsProcessed)
+  void TruthMatcher::MatchTruth(const HistStuff& hist, unsigned int fEventsProcessed, bool fStudyMode)
   {
     
     if(tjs.MatchTruth[0] < 0) return;
@@ -734,6 +736,112 @@ namespace tca {
           pfp.MCPartListIndex = ipart;
           ++PFP_CntGoodMat;
           gotit = true;
+	  //
+	  if (fStudyMode) {
+	    //
+	    if (abs(part->PdgCode())==11) continue;
+	    //
+	    bool wrongid = part->PdgCode()!=pfp.PDGCode;
+	    //
+	    hist.hasfit_match->Fill(pfp.Track.ID()>=0);
+	    if (wrongid) {
+	      hist.hasfit_wrongid->Fill(pfp.Track.ID()>=0);
+	    } else {
+	      hist.hasfit_okid->Fill(pfp.Track.ID()>=0);
+	    }
+	    //
+	    if (pfp.Track.ID()<0) continue;
+	    // std::cout << "pfp #" << ipfp << " pdg=" << pfp.PDGCode << " tj vtx=" << recob::tracking::Point_t(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]) << " dir=" << recob::tracking::Vector_t(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]) << " fit vtx=" << pfp.Track.Start() << " dir=" << pfp.Track.StartDirection() << " match part #" << ipart << " vtx=" << recob::tracking::Point_t(part->Vx(), part->Vy(), part->Vz()) << " dir=" << recob::tracking::Vector_t(part->Px()/part->P(), part->Py()/part->P(), part->Pz()/part->P()) << " mom=" << part->P() << std::endl;
+	    hist.nvalidpoints_match->Fill(pfp.Track.CountValidPoints());
+	    if (pfp.Track.CountValidPoints()>1) {
+	      //
+	      detinfo::DetectorClocks const* detClocks = lar::providerFrom<detinfo::DetectorClocksService>();
+	      double g4Ticks = detClocks->TPCG4Time2Tick(part->T())+tjs.detprop->GetXTicksOffset(0,0,0)-tjs.detprop->TriggerOffset();
+	      double xOffset = tjs.detprop->ConvertTicksToX(g4Ticks, 0, 0, 0);
+	      //
+	      trkf::TrackStatePropagator prop(1.0, 0.1, 10, 10., 0.01, false);
+	      recob::tracking::Plane mcplane(recob::tracking::Point_t(part->Vx()+xOffset, part->Vy(), part->Vz()),
+					     recob::tracking::Vector_t(part->Px()/part->P(), part->Py()/part->P(), part->Pz()/part->P()));
+	      recob::tracking::Plane tkplane(pfp.Track.Start(), pfp.Track.StartDirection());
+	      trkf::TrackState tkstart(pfp.Track.VertexParametersLocal5D(), pfp.Track.VertexCovarianceLocal5D(), tkplane, true, pfp.Track.ParticleId());
+	      //
+	      recob::tracking::Plane tjplane(recob::tracking::Point_t(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]),
+					     recob::tracking::Vector_t(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]));
+	      auto tjpar5 = tjplane.Global6DToLocal5DParameters({pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2],pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]});
+	      trkf::TrackState tjstart(tjpar5, pfp.Track.VertexCovarianceLocal5D(), tjplane, true, pfp.Track.ParticleId());
+	      //
+	      bool propok = true;
+	      trkf::TrackState tkatmc = prop.propagateToPlane(propok, tkstart, mcplane, true, true, trkf::TrackStatePropagator::UNKNOWN);
+	      trkf::TrackState tjatmc = prop.propagateToPlane(propok, tjstart, mcplane, true, true, trkf::TrackStatePropagator::UNKNOWN);
+	      //
+	      if (!propok) continue;
+	      //
+	      auto recmom = tkatmc.momentum().R();
+	      auto c = tkatmc.plane().Local5DToGlobal6DCovariance(tkatmc.covariance(),false,tkatmc.momentum());//consider direction not momentum
+	      auto cv = pfp.Track.VertexCovarianceLocal5D();
+	      //
+	      hist.dXkf_match->Fill(tkatmc.position().X()-part->Vx()-xOffset);
+	      hist.dXtc_match->Fill(tjatmc.position().X()-part->Vx()-xOffset);
+	      hist.dYkf_match->Fill(tkatmc.position().Y()-part->Vy());
+	      hist.dYtc_match->Fill(tjatmc.position().Y()-part->Vy());
+	      hist.dZkf_match->Fill(tkatmc.position().Z()-part->Vz());
+	      hist.dZtc_match->Fill(tjatmc.position().Z()-part->Vz());
+	      hist.dUXkf_match->Fill(tkatmc.momentum().X()/recmom-part->Px()/part->P());
+	      hist.dUXtc_match->Fill(tjatmc.momentum().Unit().X()-part->Px()/part->P());
+	      hist.dUYkf_match->Fill(tkatmc.momentum().Y()/recmom-part->Py()/part->P());
+	      hist.dUYtc_match->Fill(tjatmc.momentum().Unit().Y()-part->Py()/part->P());
+	      hist.dUZkf_match->Fill(tkatmc.momentum().Z()/recmom-part->Pz()/part->P());
+	      hist.dUZtc_match->Fill(tjatmc.momentum().Unit().Z()-part->Pz()/part->P());
+	      hist.dXpull_match->Fill( (tkatmc.position().X()-part->Vx()-xOffset)/ sqrt(c(0,0)) );
+	      hist.dYpull_match->Fill( (tkatmc.position().Y()-part->Vy())/ sqrt(c(1,1)) );
+	      hist.dZpull_match->Fill( (tkatmc.position().Z()-part->Vz())/ sqrt(c(2,2)) );
+	      hist.dUXpull_match->Fill( (tkatmc.momentum().X()/recmom-part->Px()/part->P())/ sqrt(c(3,3)) );
+	      hist.dUYpull_match->Fill( (tkatmc.momentum().Y()/recmom-part->Py()/part->P())/ sqrt(c(4,4)) );
+	      hist.dUZpull_match->Fill( (tkatmc.momentum().Z()/recmom-part->Pz()/part->P())/ sqrt(c(5,5)) );
+	      hist.nchi2_match->Fill( pfp.Track.Chi2PerNdof() );
+	      hist.covtrace_match->Fill( cv(0,0)+cv(1,1)+cv(2,2)+cv(3,3) );
+	      if (wrongid) {
+		hist.nchi2_wrongid->Fill( pfp.Track.Chi2PerNdof() );
+		hist.dXkf_wrongid->Fill(tkatmc.position().X()-part->Vx()-xOffset);
+		hist.dXtc_wrongid->Fill(tjatmc.position().X()-part->Vx()-xOffset);
+		hist.dYkf_wrongid->Fill(tkatmc.position().Y()-part->Vy());
+		hist.dYtc_wrongid->Fill(tjatmc.position().Y()-part->Vy());
+		hist.dZkf_wrongid->Fill(tkatmc.position().Z()-part->Vz());
+		hist.dZtc_wrongid->Fill(tjatmc.position().Z()-part->Vz());
+		hist.dUXkf_wrongid->Fill(tkatmc.momentum().X()/recmom-part->Px()/part->P());
+		hist.dUXtc_wrongid->Fill(tjatmc.momentum().Unit().X()-part->Px()/part->P());
+		hist.dUYkf_wrongid->Fill(tkatmc.momentum().Y()/recmom-part->Py()/part->P());
+		hist.dUYtc_wrongid->Fill(tjatmc.momentum().Unit().Y()-part->Py()/part->P());
+		hist.dUZkf_wrongid->Fill(tkatmc.momentum().Z()/recmom-part->Pz()/part->P());
+		hist.dUZtc_wrongid->Fill(tjatmc.momentum().Unit().Z()-part->Pz()/part->P());
+	      } else {
+		hist.dXkf_okid->Fill(tkatmc.position().X()-part->Vx()-xOffset);
+		hist.dXtc_okid->Fill(tjatmc.position().X()-part->Vx()-xOffset);
+		hist.dYkf_okid->Fill(tkatmc.position().Y()-part->Vy());
+		hist.dYtc_okid->Fill(tjatmc.position().Y()-part->Vy());
+		hist.dZkf_okid->Fill(tkatmc.position().Z()-part->Vz());
+		hist.dZtc_okid->Fill(tjatmc.position().Z()-part->Vz());
+		hist.dUXkf_okid->Fill(tkatmc.momentum().X()/recmom-part->Px()/part->P());
+		hist.dUXtc_okid->Fill(tjatmc.momentum().Unit().X()-part->Px()/part->P());
+		hist.dUYkf_okid->Fill(tkatmc.momentum().Y()/recmom-part->Py()/part->P());
+		hist.dUYtc_okid->Fill(tjatmc.momentum().Unit().Y()-part->Py()/part->P());
+		hist.dUZkf_okid->Fill(tkatmc.momentum().Z()/recmom-part->Pz()/part->P());
+		hist.dUZtc_okid->Fill(tjatmc.momentum().Unit().Z()-part->Pz()/part->P());
+		hist.dXpull_okid->Fill( (tkatmc.position().X()-part->Vx()-xOffset)/ sqrt(c(0,0)) );
+		hist.dYpull_okid->Fill( (tkatmc.position().Y()-part->Vy())/ sqrt(c(1,1)) );
+		hist.dZpull_okid->Fill( (tkatmc.position().Z()-part->Vz())/ sqrt(c(2,2)) );
+		hist.dUXpull_okid->Fill( (tkatmc.momentum().X()/recmom-part->Px()/part->P())/ sqrt(c(3,3)) );
+		hist.dUYpull_okid->Fill( (tkatmc.momentum().Y()/recmom-part->Py()/part->P())/ sqrt(c(4,4)) );
+		hist.dUZpull_okid->Fill( (tkatmc.momentum().Z()/recmom-part->Pz()/part->P())/ sqrt(c(5,5)) );
+		hist.nchi2_okid->Fill( pfp.Track.Chi2PerNdof() );
+	      }
+	      //
+	      // if (std::abs(tkatmc.position().X()-part->Vx())>10. && std::abs(tjatmc.position().X()-part->Vx())<1.) {
+	      //   std::cout << "DEBUG ME" << std::endl;
+	      // }
+	      //
+	    }
+	  } //fStudyMode
           break;
         }
       } // ipfp
@@ -751,10 +859,29 @@ namespace tca {
         myprt<<" events processed "<<fEventsProcessed;
       }
     } // ipart
+
+    if (fStudyMode) {
+      // nomatch
+      for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
+	auto& pfp = tjs.pfps[ipfp];
+	if(pfp.ID == 0) continue;
+	if (pfp.MCPartListIndex!=USHRT_MAX) continue;
+	//
+	hist.hasfit_nomatch->Fill(pfp.Track.ID()>=0);
+	if (pfp.Track.ID()<0) continue;
+	hist.nvalidpoints_nomatch->Fill(pfp.Track.CountValidPoints());
+	if (pfp.Track.CountValidPoints()>1) {
+	  hist.nchi2_nomatch->Fill( pfp.Track.Chi2PerNdof() );
+	  auto cv = pfp.Track.VertexCovarianceLocal5D();
+	  hist.covtrace_nomatch->Fill( cv(0,0)+cv(1,1)+cv(2,2)+cv(3,3) );
+	}
+      }
+    } //fStudyMode
     
     // update the total PFParticle count
     for(auto& pfp : tjs.pfps) if(pfp.ID > 0) ++PFP_Cnt;
     
+    std::cout << "end MatchTruth" << std::endl;
   } // MatchTruth
   
   ////////////////////////////////////////////////

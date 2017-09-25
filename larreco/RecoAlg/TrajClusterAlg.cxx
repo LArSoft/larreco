@@ -492,7 +492,7 @@ namespace tca {
       } // 3D shower code
     } // tpcid
     
-    if(!fIsRealData) tm.MatchTruth(hist, fEventsProcessed);
+    if(!fIsRealData) tm.MatchTruth(hist, fEventsProcessed, fStudyMode);
     if (tjs.SaveCRTree) crtree->Fill();
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
@@ -2351,7 +2351,7 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim("TC")<<"inside Match3D. dX (cm) cut "<<tjs.Match3DCuts[0];
     }
-    
+
     // count the number of TPs and clear out any old 3D match flags
     unsigned int ntp = 0;
     for(auto& tj : tjs.allTraj) {
@@ -2417,7 +2417,7 @@ namespace tca {
         ++icnt;
       } // tp
     } // tj
-    
+
     if(icnt < tjs.mallTraj.size()) {
       tjs.mallTraj.resize(icnt);
       sortVec.resize(icnt);
@@ -2531,6 +2531,11 @@ namespace tca {
     CheckNoMatchTjs(tjs, tpcid, prt);
     
     DefinePFParticleRelationships(tjs, tpcid);
+
+    //fit all pfps that are in pfps
+    for (unsigned int ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
+      KalmanFilterFit(tjs.pfps[ipfp]);
+    }
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2555,11 +2560,16 @@ namespace tca {
   //////////////////////////////////////////
   void TrajClusterAlg::KalmanFilterFit(PFPStruct& pfp)
   {
-    //try to run the KF fit on the ms
+    //try to run the KF fit on the pfp
     using namespace trkf;
     //prepare the inputs
-    const Point_t position(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]);//fixme are these always filled, or should I take the vertex sometimes?
-    const Vector_t direction(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]);
+    const Point_t position(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]);
+    Vector_t direction = Vector_t(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]);
+    //just in case for some reason this is not set
+    if (direction.Mag2()<0.5) {
+      const Point_t end(pfp.XYZ[1][0],pfp.XYZ[1][1],pfp.XYZ[1][2]);
+      direction = (end-position).Unit();
+    }
     SMatrixSym55 trackStateCov=SMatrixSym55();
     trackStateCov(0, 0) = 1000.;
     trackStateCov(1, 1) = 1000.;
@@ -2576,10 +2586,9 @@ namespace tca {
     }
     mom/=sumw;
     mom*=0.001;
-    const int pdgid = 13;//fixme
+    const int pdgid = (pfp.PDGCode!=0 ? pfp.PDGCode : 13);
     SVector5 trackStatePar(0.,0.,0.,0.,1./mom);
     KFTrackState trackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);
-    std::cout << trackState.position() << std::endl;
     std::vector<HitState> hitstatev;
     //fixme, can it happen that we need to reverse the order? for instance if the trajectory was reversed in Find3DEndPoints?
     for (auto jtj : pfp.TjIDs) {
@@ -2587,9 +2596,12 @@ namespace tca {
         auto planeid = DecodeCTP(iTp.CTP);
         int wire = std::nearbyint(iTp.Pos[0]);
         geo::WireID wid(planeid, wire);
-        float jX = tjs.detprop->ConvertTicksToX(iTp.Pos[1]/tjs.UnitsPerTick, planeid.Plane, planeid.TPC, planeid.Cryostat);
-        float jXe = tjs.detprop->ConvertTicksToX(TPHitsRMSTick(tjs, iTp, kUsedHits), planeid.Plane, planeid.TPC, planeid.Cryostat) * fHitErrFac;//do we need to account for multiplicity as in HitTimeErr?
-        hitstatev.push_back( std::move( HitState(jX,jXe*jXe,wid,tjs.geom->WireIDToWireGeo(wid)) ) );
+        float xpos = tjs.detprop->ConvertTicksToX(iTp.Pos[1]/tjs.UnitsPerTick, planeid.Plane, planeid.TPC, planeid.Cryostat);
+        float posPlusRMS = iTp.Pos[1]/tjs.UnitsPerTick + TPHitsRMSTick(tjs, iTp, kUsedHits);
+        float rms = tjs.detprop->ConvertTicksToX(posPlusRMS, planeid.Plane, planeid.TPC, planeid.Cryostat) - xpos;
+	//do we need to account for multiplicity as in HitTimeErr?
+	float xposerr = rms*fHitErrFac;
+        hitstatev.push_back( std::move( HitState(xpos,xposerr*xposerr,wid,tjs.geom->WireIDToWireGeo(wid)) ) );
       }
     }
     std::vector<recob::TrajectoryPointFlags::Mask_t> hitflagsv(hitstatev.size());
@@ -2600,9 +2612,11 @@ namespace tca {
     std::vector<unsigned int> rejectedhsidx;
     std::vector<unsigned int> sortedtksidx;
     // perform the fit
-    // do we need to avoid rejecting hits? or we do not care?
     bool fitok = kalmanFitter.doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx);
-    std::cout << "fitok=" << fitok << std::endl;
+    if (!fitok) {
+      fitok = kalmanFitter.doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx, false);
+    }
+    if (!fitok) return;
     // make the track
     int ndof = -4;
     float chi2 = 0;;

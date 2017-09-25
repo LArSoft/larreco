@@ -35,7 +35,7 @@ namespace tca {
     
     void Initialize();
     void MatchTrueHits(const HistStuff& hist);
-    void MatchTruth(const HistStuff& hist, unsigned int fEventsProcessed);
+    void MatchTruth(const HistStuff& hist, unsigned int fEventsProcessed, bool fStudyMode);
     void PrintResults(int eventNum) const;
     
     TjStuff& tjs;

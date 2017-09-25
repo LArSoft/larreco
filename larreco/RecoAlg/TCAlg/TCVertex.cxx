@@ -981,6 +981,7 @@ namespace tca {
             pfp.Vx3ID[1] = vx3.ID;
             if(!SetPFPEndPoints(tjs, pfp, 1, prt)) continue;
           }
+	  //fixme fit here
           tjs.pfps.push_back(pfp);
           std::vector<int> leftover(v3TjIDs.size());
           auto it = std::set_difference(v3TjIDs.begin(), v3TjIDs.end(), shared.begin(), shared.end(), leftover.begin());
