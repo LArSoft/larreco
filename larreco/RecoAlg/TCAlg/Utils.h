@@ -80,7 +80,7 @@ namespace tca {
   bool SignalAtTp(TjStuff& tjs, TrajPoint const& tp);
 //  bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP);
   float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp);
-  bool CheckHitClusterAssociations(TjStuff& tjs);
+//  bool CheckHitClusterAssociations(TjStuff& tjs);
   unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires);
   unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
   float DeadWireCount(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2);
