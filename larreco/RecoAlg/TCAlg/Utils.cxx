@@ -93,7 +93,7 @@ namespace tca {
     // Start with the highest score vertex 
     for(unsigned short indx = 0; indx < vlist.size(); ++indx) {
       auto& vx3 = tjs.vtx3[vlist[indx] - 1];
-      std::cout<<"vx3 "<<vx3.ID<<" Score "<<vx3.Score<<" lookedAt3? "<<lookedAt3[vx3.ID]<<"\n";
+//      std::cout<<"vx3 "<<vx3.ID<<" Score "<<vx3.Score<<" lookedAt3? "<<lookedAt3[vx3.ID]<<"\n";
       if(lookedAt3[vx3.ID]) continue;
       vx3.Primary = true;
       lookedAt3[vx3.ID] = true;
@@ -105,6 +105,7 @@ namespace tca {
         auto& primTj = tjs.allTraj[primTjID - 1];
         if(primTj.ParentID > 0) {
           std::cout<<"primTj "<<primTj.ID<<" ParentID "<<primTj.ParentID<<" is already set\n";
+          continue;
         }
         // declare this a primary Tj
         primTj.ParentID = 0;
@@ -126,11 +127,13 @@ namespace tca {
         } // end
       } // primTjID
       if(pardtr.empty()) continue;
+/*
       std::cout<<" pardtr";
       for(auto pair : pardtr) std::cout<<" "<<pair.first<<"_"<<pair.second;
       std::cout<<"\n";
+*/
       // iterate through the parent - daughter stack, removing the last element when a 
-      // ParentID is updated and adding elements for new parent daughters
+      // ParentID is updated and adding elements for new daughters
       while(true) {
         auto lastPair = pardtr[pardtr.size() - 1];
         auto& dtj = tjs.allTraj[lastPair.second - 1];
@@ -244,6 +247,8 @@ namespace tca {
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       int pfpParentID = INT_MAX;
+      // assign 0 = don't know
+      pfp.PDGCode = 0;
       unsigned short nParent = 0;
       std::array<unsigned short, 5> cnts = {0};
       for(auto tjid : pfp.TjIDs) {
@@ -260,12 +265,20 @@ namespace tca {
         if(ppid == pfpParentID) ++nParent;
       } // ii
       unsigned short code = 0;
-      for(code = 0; code < 5; ++code) if(cnts[code] > 1) break;
-      if(code == cnts.size()) {
-        if(prt) mf::LogVerbatim("TC")<<"DPFPR: Can't resolve PFParticle "<<pfp.ID<<" PDGCode ";
-        std::cout<<"DPFPR: Can't resolve PFParticle "<<pfp.ID<<" PDGCode \n";
-        continue;
-      }
+      unsigned maxCnt = 0;
+      // ignore the first PDG code in the list which is 0 (don't know)
+      for(unsigned short ii = 1; ii < 5; ++ii) {
+        if(cnts[ii] > maxCnt) {
+          maxCnt = cnts[ii];
+          code = ii;
+        }
+      } // ii
+      // check for an inconsistent code
+      for(unsigned short ii = 1; ii < 5; ++ii) {
+        if(ii == code) continue;
+        if(cnts[ii] == 0) continue;
+        std::cout<<"DPFPR: PFParticle "<<pfp.ID<<" Inconsistent tj codes "<<codeList[code]<<" "<<codeList[ii]<<"\n";
+      } // ii
       pfp.PDGCode = codeList[code];
       // look for a parent
       if(nParent > 1) {
@@ -2135,7 +2148,7 @@ namespace tca {
     }
     return totchg;
   } // TpSumHitChg
-
+/*
   //////////////////////////////////////////
   bool CheckHitClusterAssociations(TjStuff& tjs)
   {
@@ -2185,7 +2198,7 @@ namespace tca {
     return true;
     
   } // CheckHitClusterAssociations()
-  
+*/
   //////////////////////////////////////////
   unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires)
   {
@@ -2328,10 +2341,10 @@ namespace tca {
     }
     
     // make a copy that will become the Tj after the split point
-    Trajectory newTj = tjs.allTraj[itj];
+    Trajectory newTj = tj;
     newTj.ID = tjs.allTraj.size() + 1;
     // make another copy in case something goes wrong
-    Trajectory oldTj = tjs.allTraj[itj];
+    Trajectory oldTj = tj;
     
     // Leave the first section of tj in place. Re-assign the hits
     // to the new trajectory
@@ -3540,9 +3553,10 @@ namespace tca {
     tj.MCSMom = MCSMom(tjs, tj);
     if(tjs.MuonTag[0] <= 0) return;
     // Special handling of very long straight trajectories, e.g. uB cosmic rays
-    bool isAMuon = (tj.Pts.size() > (unsigned short)tjs.MuonTag[0] && tj.MCSMom > tjs.MuonTag[1]);
+    unsigned short npts = tj.EndPt[1] - tj.EndPt[0];
+    bool isAMuon = (npts > (unsigned short)tjs.MuonTag[0] && tj.MCSMom > tjs.MuonTag[1]);
     // anything really really long must be a muon
-    if(tj.Pts.size() > 200) isAMuon = true;
+    if(npts > 200) isAMuon = true;
     if(isAMuon) tj.PDGCode = 13;
     
   } // SetPDGCode
