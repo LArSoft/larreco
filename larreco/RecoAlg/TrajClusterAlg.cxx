@@ -271,7 +271,7 @@ namespace tca {
     tjs.vtx3 = {};
     tjs.vtx = {};
     tjs.tcl = {};
-    tjs.inClus = {};
+//    tjs.inClus = {};
     tjs.matchVec = {};
     tjs.pfps = {};
     tjs.WireHitRange = {};
@@ -494,9 +494,7 @@ namespace tca {
         }
       } // 3D shower code
     } // tpcid
-    
-    if(!fIsRealData) tm.MatchTruth(hist);
-    if (tjs.SaveCRTree) crtree->Fill();
+
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     if(fQuitAlg) {
@@ -504,12 +502,17 @@ namespace tca {
       ClearResults();
       return;
     }
+/*
     if(!CheckHitClusterAssociations(tjs)) {
       ClearResults();
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in CheckHitClusterAssociations";
       return;
     }
-    
+*/
+
+    if(!fIsRealData) tm.MatchTruth(hist);
+    if (tjs.SaveCRTree) crtree->Fill();
+
     // fill some basic histograms 
     for(auto& vx2 : tjs.vtx) if(vx2.ID > 0 && vx2.Score > 0) hist.fVx2Score->Fill(vx2.Score);
     for(auto& vx3 : tjs.vtx3) if(vx3.ID > 0 && vx3.Score > 0) hist.fVx3Score->Fill(vx3.Score);
@@ -4726,10 +4729,11 @@ namespace tca {
     
     ClusterStore cls;
     tjs.tcl.clear();
+/*
     tjs.inClus.resize(tjs.fHits.size());
     unsigned int iht;
     for(iht = 0; iht < tjs.inClus.size(); ++iht) tjs.inClus[iht] = 0;
-    
+*/
     if(prt) mf::LogVerbatim("TC")<<"MakeAllTrajClusters: tjs.allTraj size "<<tjs.allTraj.size();
     
     if(tjs.UseAlg[kChkInTraj]) {
@@ -4779,7 +4783,8 @@ namespace tca {
       // count AlgMod bits
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) ++fAlgModCount[ib];
       ++clID;
-      cls.ID = clID;
+//      cls.ID = clID;
+      cls.ID = tj.ID;
       // assign shower clusters a negative ID
       if(tj.AlgMod[kShowerTj]) cls.ID = -cls.ID;
       cls.CTP = tj.CTP;
@@ -4801,6 +4806,7 @@ namespace tca {
       // Set the traj info
       tj.ClusterIndex = tjs.tcl.size();
       tjs.tcl.push_back(cls);
+/*
       // do some checking and define tjs.inClus
       geo::PlaneID planeID = DecodeCTP(cls.CTP);
       for(unsigned short ii = 0; ii < cls.tclhits.size(); ++ii) {
@@ -4819,7 +4825,8 @@ namespace tca {
         }
         tjs.inClus[iht] = clID;
       } //iht
-    } // itj
+*/
+  } // itj
 
   } // MakeAllTrajClusters
   
