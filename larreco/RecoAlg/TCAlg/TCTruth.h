@@ -26,11 +26,13 @@ namespace tca {
       EPCnts.fill(0); 
       TSums.fill(0.0);
       EPTSums.fill(0.0);
+      TruVxCounts.fill(0);
       MCP_TSum = 0;
       MCP_EPTSum = 0;
       MCP_Cnt = 0;
       PFP_CntGoodMat = 0;
       PFP_Cnt = 0;
+      nBadEP = 0;
    }
     
     void Initialize();
@@ -49,16 +51,23 @@ namespace tca {
     float PFP_CntGoodMat;              // Count of well matched MCParticles (> 1 plane)
     float PFP_Cnt;
     
-    // number of primary particles in the event
-    unsigned short nTruPrimary;
     float fNeutrinoEnergy;
     float fSourceParticleEnergy; //< in MeV
+    unsigned short nBadEP;
+    // Counts of:
+    // [0] = the number of true neutrino interaction vertices in the fiducial volume
+    // [1] = the number of those [0] that are reconstructable by TrajCluster
+    // [2] = the number of those [1] in which a reconstructed vertex is within 1 cm of the true vertex
+    // [3] = the number of those [2] in which the reconstructed vertex is identified as the true vertex
+    std::array<unsigned short, 4> TruVxCounts;
+/*
     // number of reconstructable primary particles in the event
     unsigned short nTruPrimaryOK;
     // number of reconstructable neutrino vertices in ALL events
     unsigned short nTruPrimaryVtxOK;
     // number of reconstructable neutrino vertices in ALL events that were reconstructed
     unsigned short nTruPrimaryVtxReco;
+*/
   };
   
   class MCParticleListUtils
