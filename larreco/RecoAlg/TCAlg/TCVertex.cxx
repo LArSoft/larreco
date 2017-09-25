@@ -1222,11 +1222,11 @@ namespace tca {
     // We are done if this a PFP-only vertex
     if(vx3.Wire == -2) return true;
     
-//    if(prt) {
+    if(prt) {
       std::cout<<"APTV: pfp.ID "<<pfp.ID<<" end "<<end<<" vx3.ID "<<vx3.ID<<" vx3.Vx2ID";
       for(unsigned short plane = 0; plane < 3; ++plane) std::cout<<" "<<vx3.Vx2ID[plane];
       std::cout<<"\n";
-//    }
+    }
     
     // Update the 2D and 3D vertex and tj associations
     for(auto tjid : pfp.TjIDs) {
@@ -1245,9 +1245,6 @@ namespace tca {
           // Existing 2D vertex matched to the 3D vertex
           std::cout<<" tj "<<tj.ID<<" has no 2D vertex in CTP "<<tj.CTP<<" but vx3 is matched to 2D vertex"<<vx3.Vx2ID[plane]<<". Attach it? Events processed "<<tjs.EventsProcessed<<"\n";
         }
-      } else {
-        // tj already has a 2D vtx attachment
-        std::cout<<" tj "<<tj.ID<<" has a 2D vertex "<<tj.VtxID[end]<<". Clobber it? Events processed "<<tjs.EventsProcessed<<"\n";
       }
     } // tjid
     
@@ -1958,6 +1955,33 @@ namespace tca {
       myprt<<" "<<(int)cnt;
     }
   } // SetVx2Score
+  
+  //////////////////////////////////////////
+  unsigned short Vx3Topo(TjStuff& tjs, Vtx3Store& vx3)
+  {
+    // Returns the most common value of Topo for the 2D vertices that are matched
+    // to this 3D vertex. This **might** be a useful measure to identify neutrino interaction
+    // vertices
+    
+    if(vx3.ID == 0) return USHRT_MAX;
+    // Consider Topo values between 0 and 9
+    std::array<short, 10> cnts = {0};
+    for(auto vx2id : vx3.Vx2ID) {
+      if(vx2id == 0) continue;
+      auto& vx2 = tjs.vtx[vx2id - 1];
+      if(vx2.Topo < 0 || vx2.Topo > 9) continue;
+      ++cnts[vx2.Topo];
+    } // vx2id
+    short most = 0;
+    unsigned short theMost = USHRT_MAX;
+    for(unsigned short itp = 0; itp < 10; ++itp) {
+      if(cnts[itp] > most) {
+        most = cnts[itp];
+        theMost = itp;
+      }
+    } // itp
+    return theMost;
+  } // Vx3Topo
 
   //////////////////////////////////////////
   void CompleteIncomplete3DVerticesInGaps(TjStuff& tjs, const geo::TPCID& tpcid)
