@@ -58,6 +58,7 @@ namespace tca {
   void SetVx2Score(TjStuff& tjs, bool prt);
   void SetVx2Score(TjStuff& tjs, VtxStore& vx2, bool prt);
   void SetVx3Score(TjStuff& tjs, Vtx3Store& vx3, bool prt);
+  unsigned short Vx3Topo(TjStuff& tjs, Vtx3Store& vx3);
   void SetHighScoreBits(TjStuff& tjs, Vtx3Store& vx3);
   bool MakeVertexObsolete(TjStuff& tjs, VtxStore& vx2, bool forceKill);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2);
