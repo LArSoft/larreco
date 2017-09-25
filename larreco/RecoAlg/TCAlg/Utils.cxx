@@ -13,33 +13,43 @@ bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 namespace tca {
   
   /////////////////////////////////////////
-  void FinishPFParticles(TjStuff& tjs)
+  void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid)
   {
-    // Creates a 3D vertices for PFParticles that don't have one
+    // This function reconciles vertices, PFParticles and Tjs, then
+    // defines the parent (j) - daughter (i) relationship and PDGCode
+    
     if(tjs.pfps.empty()) return;
     
+    // only create a vertex at end 0 (if one doesn't exist)
+    constexpr unsigned short end = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
-      unsigned short end = 0;
       if(pfp.Vx3ID[end] > 0) continue;
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
+      // Flag it as a PFP vertex that isn't required to have matched 2D vertices
       vx3.Wire = -2;
       vx3.X = pfp.XYZ[end][0];
       vx3.Y = pfp.XYZ[end][1];
       vx3.Z = pfp.XYZ[end][2];
       vx3.ID = tjs.vtx3.size() + 1;
-      tjs.vtx3.push_back(vx3);
-      pfp.Vx3ID[end] = vx3.ID;
+      // TODO: we need to have PFP track position errors defined 
+      unsigned short mergeToVx3ID = MergeWithNearbyVertex(tjs, vx3);
+      if(mergeToVx3ID > 0) {
+        std::cout<<"Merge PFP vertex "<<vx3.ID<<" with existing vtx "<<mergeToVx3ID<<"\n";
+        if(!AttachPFPToVertex(tjs, pfp, 0, mergeToVx3ID)) {
+          std::cout<<" Failed to attach pfp "<<pfp.ID<<". Make new vertex \n";
+          mergeToVx3ID = 0;
+        }
+      } // mergeMe > 0
+      if(mergeToVx3ID == 0) {
+        // Add the new vertex and attach the PFP to it
+        tjs.vtx3.push_back(vx3);
+        if(!AttachPFPToVertex(tjs, pfp, 0, vx3.ID)) {
+          std::cout<<"Merge PFP vertex "<<vx3.ID<<" with new vtx "<<mergeToVx3ID<<"\n";
+        }
+      } // merge to new vertex
     } // pfp
-    
-  } // FinishPFParticles
-  
-  /////////////////////////////////////////
-  void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid)
-  {
-    
-    // Define the parent (j) - daughter (i) relationship and the PDGCode
     
     for(auto& ipfp : tjs.pfps) {
       if(ipfp.ID == 0) continue;
@@ -719,6 +729,12 @@ namespace tca {
         // TODO: check position difference to a vertex to check for errors
         pfp.Dir[startend] = dir;
       } // startend
+    } else {
+      pfp.Dir[0][0] = matchPos[0][1] - matchPos[0][0];
+      pfp.Dir[0][1] = matchPos[1][1] - matchPos[1][0];
+      pfp.Dir[0][2] = matchPos[2][1] - matchPos[2][0];
+      pfp.Dir[0].SetMag(1);
+      pfp.Dir[1] = pfp.Dir[0];
     }
     
     // check the direction consistency
@@ -1320,6 +1336,7 @@ namespace tca {
       mf::LogError("TC")<<"StoreTraj: Too many trajectories "<<tjs.allTraj.size();
       return false;
     }
+    
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tjs, tj);
     
@@ -1350,7 +1367,8 @@ namespace tca {
       tj.Pts[tj.EndPt[1]].AveChg = sum / (float)cnt;
     } // begin charge == end charge
     
-    short trID = tjs.allTraj.size() + 1;
+    int trID = tjs.allTraj.size() + 1;    
+
     for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
       for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
         if(tj.Pts[ipt].UseHit[ii]) {
@@ -1390,9 +1408,6 @@ namespace tca {
         } // ii
       } // ipt
     } // debug.Hit ...
-    
-    // Try to attach to a vertex
-    AttachTrajToAnyVertex(tjs, tjs.allTraj.size() - 1, false);
     
     return true;
     
@@ -3480,6 +3495,7 @@ namespace tca {
     tj1.Pts.insert(tj1.Pts.end(), tj2.Pts.begin() + tj2ClosePt, tj2.Pts.end());
     // re-define the end points
     SetEndPoints(tjs, tj1);
+    tj1.StopFlag[1] = tj2.StopFlag[1];
     
     // A more exhaustive check that hits only appear once
     if(HasDuplicateHits(tjs, tj1, doPrt)) {

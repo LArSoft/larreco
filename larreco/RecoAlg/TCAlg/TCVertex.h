@@ -31,8 +31,8 @@
 namespace tca {
   
   void Find2DVertices(TjStuff& tjs, const CTP_t& inCTP, bool lastPass);
-  void CheckVtxTjs(TjStuff& tjs, unsigned short nOld, bool prt);
-  bool MergeWithNearbyVertex(TjStuff& tjs, VtxStore& vx2, unsigned short it1, unsigned short end1, unsigned short it2, unsigned short end2, bool prt);
+  void ChkVxTjs(TjStuff& tjs, const CTP_t& inCTP, bool prt);
+  unsigned short MergeWithNearbyVertex(TjStuff& tjs, Vtx3Store& vx3);
   void FindHammerVertices(TjStuff& tjs, const CTP_t& inCTP);
   void FindHammerVertices2(TjStuff& tjs, const CTP_t& inCTP);
   void Find3DVertices(TjStuff& tjs, const geo::TPCID& tpcid);
@@ -44,21 +44,24 @@ namespace tca {
   void VtxHitsSwap(TjStuff& tjs, const CTP_t inCTP);
 
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp);
+  bool AttachPFPToVertex(TjStuff& tjs, PFPStruct& pfp, unsigned short end, unsigned short vx3ID);
   bool AttachAnyTrajToVertex(TjStuff& tjs, unsigned short iv, bool prt);
-  bool AttachTrajToAnyVertex(TjStuff& tjs, unsigned int itj, bool prt);
   bool AttachTrajToVertex(TjStuff& tjs, Trajectory& tj, VtxStore& vx, bool prt);
   float TrajPointVertexPull(TjStuff& tjs, const TrajPoint& tp, const VtxStore& vx);
+  float VertexVertexPull(TjStuff& tjs, const Vtx3Store& vx1, const Vtx3Store& vx2);
   float VertexVertexPull(TjStuff& tjs, const VtxStore& vx1, const VtxStore& vx2);
   bool FitVertex(TjStuff& tjs, VtxStore& vx, bool prt);
   bool StoreVertex(TjStuff& tjs, VtxStore& vx);
   bool ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
   void ScoreVertices(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  void SetVx2Score(TjStuff& tjs, bool prt);
   void SetVx2Score(TjStuff& tjs, VtxStore& vx2, bool prt);
   void SetVx3Score(TjStuff& tjs, Vtx3Store& vx3, bool prt);
   void SetHighScoreBits(TjStuff& tjs, Vtx3Store& vx3);
   bool MakeVertexObsolete(TjStuff& tjs, VtxStore& vx2, bool forceKill);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const Vtx3Store& vx3, float& score);
+  void PosInPlane(const TjStuff& tjs, const Vtx3Store& vx3, unsigned short plane, std::array<float, 2>& pos);
   //    void Refine2DVertices();
 } // namespace
 

@@ -147,11 +147,6 @@ namespace tca {
     if(dbgPlane >= 0 && dbgPlane <= tjs.NumPlanes) dbgCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, dbgPlane);
     
     std::string fcnLabel = "FS";
-
-    if(tjs.matchVec.empty()) {
-      if(prt) mf::LogVerbatim("TC")<<"FindShowers3D: Give up because matchVec is empty";
-      return false;
-    }
     
     geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
     // check for already-existing showers

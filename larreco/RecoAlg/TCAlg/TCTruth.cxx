@@ -193,7 +193,7 @@ namespace tca {
     
     if(tjs.MatchTruth[1] > 1) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"part   PDG TrkID MomID KE(MeV) ____Process______   ________Start________  ___Direction____\n";
+      myprt<<"part   PDG     TrkID     MomID KE(MeV) ____Process______   ________Start________  ___Direction____\n";
       for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         auto& part = tjs.MCPartList[ipart];
         unsigned short pdg = abs(part->PdgCode());
@@ -204,8 +204,8 @@ namespace tca {
         int motherID = part->Mother() + sourcePtclTrackID - 1;
         myprt<<std::setw(4)<<ipart;
         myprt<<std::setw(6)<<part->PdgCode();
-        myprt<<std::setw(6)<<part->TrackId();
-        myprt<<std::setw(6)<<motherID;
+        myprt<<std::setw(10)<<part->TrackId();
+        myprt<<std::setw(10)<<motherID;
         myprt<<std::setw(6)<<TMeV;
         myprt<<std::setw(20)<<part->Process();
         myprt<<std::fixed<<std::setprecision(1);
@@ -493,7 +493,7 @@ namespace tca {
     if(tjs.MatchTruth[1] > 0) {
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<nTruPrimary<<" Number reconstructable "<<nTruPrimaryOK<<" Found neutrino vertex? "<<nuVtxRecoOK<<"\n";
-      myprt<<"part   PDG TrkID MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
+      myprt<<"part   PDG   TrkID   MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
       for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
         unsigned short pdg = abs(partList[ipart]->PdgCode());
         bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
@@ -503,8 +503,8 @@ namespace tca {
         int motherID = partList[ipart]->Mother() + sourcePtclTrackID - 1;
         myprt<<std::setw(4)<<ipart;
         myprt<<std::setw(6)<<partList[ipart]->PdgCode();
-        myprt<<std::setw(6)<<partList[ipart]->TrackId();
-        myprt<<std::setw(6)<<motherID;
+        myprt<<std::setw(10)<<partList[ipart]->TrackId();
+        myprt<<std::setw(10)<<motherID;
         myprt<<std::setw(6)<<TMeV;
         myprt<<std::setw(20)<<partList[ipart]->Process();
         // print the extent of the particle in each plane
