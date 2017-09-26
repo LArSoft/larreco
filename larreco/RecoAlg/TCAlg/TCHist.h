@@ -38,8 +38,11 @@ namespace tca {
 
 
     // Vertex score for 2D vertices that are near the neutrino interaction vertex
+    TH1F* fNuVx3Score;
     TH1F* fNuVx2Score;
-    TProfile* fNuVx2Score_Enu_p;
+    TH1F* fNuVx3ScoreDiff;
+    TH1F* fVxTopoMat;
+    TH1F* fVxTopoNoMat;
     // Vertex score for 2D and 3D vertices
     TH1F* fVx2Score;
     TH1F* fVx3Score;

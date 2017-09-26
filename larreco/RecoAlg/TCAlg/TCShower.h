@@ -74,7 +74,7 @@ namespace tca {
   void DumpShowerPts(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex);
   void CheckQuality(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   
-  void TagShowerTjs(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList);
+  void TagInShowerTjs(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList, bool applyMinTjCuts);
   void AddCloseTjsToList(std::string inFcnLabel, TjStuff& tjs, unsigned short itj, std::vector<int> list);
   void MergeTjList(std::vector<std::vector<int>>& tjList);
   void MergeTjList2(std::string inFcnLabel, TjStuff& tjs, std::vector<std::vector<int>>& tjList, bool prt);

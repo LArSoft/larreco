@@ -67,7 +67,7 @@ namespace tca {
 
     TjStuff const& GetTJS() const {return tjs;}
 
-    std::vector<short> const& GetinClus() const {return tjs.inClus; }
+//    std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
     /// Returns (and loses) the art::Ptr collection of previously reconstructed hits (e.g. gaushit)
     std::vector<recob::Hit> YieldHits();
@@ -107,7 +107,6 @@ namespace tca {
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
-    short fStepDir;             /// US->DS (1), DS->US (-1)
     short fNPtsAve;         /// number of points to find AveChg
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
     std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a trajectory
@@ -115,7 +114,6 @@ namespace tca {
     std::vector<short> fMinMCSMom;   ///< Min MCSMom for each pass
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
-    std::vector<float> fKinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
     std::vector<float> fQualityCuts; ///< Min points/wire, min consecutive pts after a gap
     std::vector<float> fChargeCuts;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
@@ -193,13 +191,9 @@ namespace tca {
     trkf::LinFitAlg fLinFitAlg;
     calo::CalorimetryAlg fCaloAlg;
 
-    unsigned int fCstat;         // the current cryostat
-    unsigned int fTpc;         // the current TPC
     unsigned int fRun, fSubRun;
     unsigned int fEvent;
-    unsigned int fEventsProcessed;
-    CTP_t fCTP;        ///< Cryostat/TPC/Plane code
-    unsigned int fPlane;         // the current plane
+//    unsigned int fPlane;         // the current plane
     int fWorkID;
 
 
@@ -216,14 +210,14 @@ namespace tca {
     
     std::vector<unsigned int> fAlgModCount;
 
+    bool fKalmanFilterFit;
     trkf::TrackStatePropagator prop;
     trkf::TrackKalmanFitter kalmanFitter;
     
 //    short watchInTraj;
     // runs the TrajCluster algorithm on one plane specified by the calling routine
     void RunStepCrawl();
-    void InitializeAllTraj();
-    void ReconstructAllTraj();
+    void ReconstructAllTraj(CTP_t inCTP);
     // Main stepping/crawling routine
     void StepCrawl(Trajectory& tj);
     // Add hits on the trajectory point ipt that are close to the trajectory point Pos
@@ -233,7 +227,7 @@ namespace tca {
     // Try to use unused nearby hits in all trajectories after stepping is done
     void UseUnusedHits();
     // Finds junk trajectories using unassigned hits
-    void FindJunkTraj();
+    void FindJunkTraj(CTP_t inCTP);
     // Finds junk trajectories using unassigned hits
     void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned int& newTjIndex);
     // Step through TPs starting at the end and moving to the beginning
@@ -261,7 +255,7 @@ namespace tca {
      // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
     void FindMissedVxTjs(const geo::TPCID& tpcid);
-    void FindVtxTjs();
+    void FindVtxTjs(CTP_t inCTP);
     void FindVtxTraj(VtxStore& theVtx);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
@@ -300,7 +294,7 @@ namespace tca {
     bool IsGhost(std::vector<unsigned int>& tHits, unsigned short& ofTraj);
     bool IsGhost(Trajectory& tj);
     void CheckTrajEnd();
-    void EndMerge(bool lastPass);
+    void EndMerge(CTP_t inCTP, bool lastPass);
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
     bool EraseHit(const unsigned int& delHit);
     // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.
@@ -316,7 +310,7 @@ namespace tca {
     // Check the Michel electron topology, lastGoodPt is the last point of muon
     bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
     // TY: Split high charge hits near the trajectory end
-    void ChkHiChgHits();
+    void ChkHiChgHits(CTP_t inCTP);
     void SplitHiChgHits(Trajectory& tj);
       // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);

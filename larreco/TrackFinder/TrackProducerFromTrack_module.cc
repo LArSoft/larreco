@@ -1,11 +1,3 @@
-////////////////////////////////////////////////////////////////////////
-// Class:       TrackProducerFromTrack
-// Plugin Type: producer (art v2_07_03)
-// File:        TrackProducerFromTrack_module.cc
-//
-// Author: Giuseppe Cerati, cerati@fnal.gov
-////////////////////////////////////////////////////////////////////////
-//
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
@@ -25,6 +17,9 @@
 #include "larreco/TrackFinder/TrackMaker.h"
 //
   /**
+   * @file  larreco/TrackFinder/TrackProducerFromTrack_module.cc
+   * @class TrackProducerFromTrack
+   *
    * @brief Produce a reco::Track collection, as a result of the fit of an existing recob::Track collection.
    *
    * This producer takes an input an existing recob::Track collection (and the associated hits) and re-fits them.
@@ -33,6 +28,14 @@
    * An option is provided to create SpacePoints from the TrajectoryPoints in the Track.
    * Note: SpacePoints should not be used and will be soon deprecated as their functionality is covered by TrajectoryPoints.
    * The fit is performed by an user-defined tool, which must inherit from larreco/TrackFinder/TrackMaker.
+   *
+   * Parameters: trackMaker (fhicl::ParameterSet for the trkmkr::TrackMaker tool used to do the fit), inputCollection (art::InputTag of the input recob::Track collection),
+   * doTrackFitHitInfo (bool to decide whether to produce recob::TrackFitHitInfo's), doSpacePoints (bool to decide whether to produce recob::SpacePoint's), and
+   * spacePointsFromTrajP (bool to decide whether the produced recob::SpacePoint's are taken from the recob::tracking::TrajectoryPoint_t's of the fitted recob::Track).
+   *
+   * @author  G. Cerati (FNAL, MicroBooNE)
+   * @date    2017
+   * @version 1.0
    */
 //
 //
@@ -64,7 +67,6 @@ TrackProducerFromTrack::TrackProducerFromTrack(fhicl::ParameterSet const & p)
   , doSpacePoints_{p.get<bool>("doSpacePoints")}
   , spacePointsFromTrajP_{p.get<bool>("spacePointsFromTrajP")}
 {
-  // Call appropriate produces<>() functions here.
   produces<std::vector<recob::Track> >();
   produces<art::Assns<recob::Track, recob::Hit> >();
   if (doTrackFitHitInfo_) produces<std::vector<std::vector<recob::TrackFitHitInfo> > >();

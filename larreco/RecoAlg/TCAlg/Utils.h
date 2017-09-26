@@ -41,13 +41,15 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
-  void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid);
+  void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, PFPStruct& pfp, std::vector<MatchStruct>& matVec, 
                     std::array<std::vector<unsigned int>, 2>& matchPts, std::array<std::array<float, 3>, 2>& matchPos, unsigned short& nMatch, bool prt);
   bool FindSepMatch(TjStuff& tjs, PFPStruct& pfp, std::array<std::array<float, 3>, 2>& matchPos, bool prt);
   void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, unsigned short end, bool prt);
+  bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt);
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
   void FilldEdx(TjStuff& tjs, PFPStruct& pfp);
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp);
@@ -68,6 +70,7 @@ namespace tca {
   bool StoreTraj(TjStuff& tjs, Trajectory& tj);
   void UpdateChgRMS(TjStuff& tjs, Trajectory& tj);
   bool InTrajOK(TjStuff& tjs, std::string someText);
+  void CheckTrajBeginChg(TjStuff& tjs, unsigned short itj, bool prt);
   void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
   bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt);
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
@@ -77,7 +80,7 @@ namespace tca {
   bool SignalAtTp(TjStuff& tjs, TrajPoint const& tp);
 //  bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP);
   float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp);
-  bool CheckHitClusterAssociations(TjStuff& tjs);
+//  bool CheckHitClusterAssociations(TjStuff& tjs);
   unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires);
   unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
   float DeadWireCount(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2);
@@ -93,7 +96,6 @@ namespace tca {
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
-  bool SplitAllTraj(TjStuff& tjs, Trajectory& tj, unsigned short pos, unsigned short ivx, bool prt);
   void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& iClosePt, float& Distance);
   // returns the DOCA between a hit and a trajectory
   float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp);
@@ -109,6 +111,8 @@ namespace tca {
   float ChgFracNearPos(TjStuff& tjs, const std::array<float, 2>& pos, const std::vector<int>& tjIDs);
   float MaxHitDelta(TjStuff& tjs, Trajectory& tj);
   void ReverseTraj(TjStuff& tjs, Trajectory& tj);
+  // returns the end of a trajectory that is closest to a point
+  unsigned short CloseEnd(TjStuff& tjs, const Trajectory& tj, const std::array<float, 2>& pos);
   // returns the separation^2 between a point and a TP
   float PointTrajSep2(float wire, float time, TrajPoint const& tp);
   float PosSep(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2);

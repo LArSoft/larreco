@@ -72,10 +72,10 @@ namespace tca {
     unsigned short NTraj {0};  
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
-    short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH
+    short Topo {0}; 			// 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC
     CTP_t CTP {0};
     unsigned short ID {0};          ///< set to 0 if killed
-    unsigned short Vtx3ID {0};
+    unsigned short Vx3ID {0};
     float Score {0};
     float TjChgFrac {0};            ///< Fraction of charge near the vertex that is from hits on the vertex Tjs
     std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
@@ -105,6 +105,7 @@ namespace tca {
     geo::TPCID TPCID;
     std::array<unsigned short, 3> Vx2ID {{0}}; // List of 2D vertex IDs in each plane
     unsigned short ID {0};          // 0 = obsolete vertex
+    bool Primary {false};
   };
   
   // A temporary struct for matching trajectory points; 1 struct for each TP for
@@ -152,7 +153,7 @@ namespace tca {
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     int WorkID {0};
-    int ParentTrajID {0};     ///< ID of the parent
+    int ParentID {0};     ///< ID of the parent
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
@@ -215,13 +216,14 @@ namespace tca {
     int BestPlane {-1};
     // stuff for constructing the PFParticle
     int PDGCode {0};
-    std::vector<unsigned short> DtrIDs;
-    size_t ParentID {0};       // Parent MatchStruct index (or index of self if no parent exists)
+    std::vector<int> DtrIDs;
+    size_t ParentID {0};       // Parent PFP ID (or ID of self if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned short MCPartListIndex {USHRT_MAX};
     float CosmicScore{0};
     unsigned short ID {0};
+    bool Primary;             // PFParticle is attached to a primary vertex
   };
 
   struct ShowerPoint {
@@ -252,7 +254,7 @@ namespace tca {
     int ParentID {0};  // The ID of an external parent Tj that was added to the shower
     unsigned short TruParentID {0};
     unsigned short SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
-    bool NeedsUpdate {false};       // This is set true whenever the shower needs to be updated
+    bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -326,6 +328,8 @@ namespace tca {
   typedef enum {
     kMaskHits,
     kMaskBadTPs,
+    kMichel,
+    kDeltaRay,
     kCTKink,        ///< kink found in CheckTraj
     kCTStepChk,
     kTryWithNextPass,
@@ -347,12 +351,14 @@ namespace tca {
     kChkInTraj,
     kStopBadFits,
     kFixBegin,
+    kBeginChg,
     kFixEnd,
     kUUH,
     kVtxTj,
     kChkVxTj,
     kMisdVxTj,
     kRefineVtx,
+    kVxMerge,
     kNoKinkChk,
     kSoftKink,
     kChkStop,
@@ -422,7 +428,7 @@ namespace tca {
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
     std::vector<float> AngleRanges; ///< list of max angles for each angle range
-    std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
+//    std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
@@ -431,19 +437,21 @@ namespace tca {
     std::vector<ShowerStruct> cots;       // Clusters of Trajectories that define 2D showers
     std::vector<ShowerStruct3D> showers;  // 3D showers
     std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
-    float Vertex3DChiCut;   ///< 2D vtx -> 3D vtx matching cut (chisq/dof)
+    std::vector<float> Vertex3DCuts;   ///< 2D vtx -> 3D vtx matching cuts 
     std::vector<float> VertexScoreWeights;
     std::vector<short> DeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
+    std::vector<float> KinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
     std::vector<float> Match3DCuts;  ///< 3D matching cuts
     std::vector<float> MatchTruth;     ///< Match to MC truth
     std::vector<const simb::MCParticle*> MCPartList;
+    unsigned int EventsProcessed;
     std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
     const geo::GeometryCore* geom;
     const detinfo::DetectorProperties* detprop;
     calo::CalorimetryAlg* caloAlg;
-    bool IgnoreNegChiHits;
+    short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
    };
 
 } // namespace tca
