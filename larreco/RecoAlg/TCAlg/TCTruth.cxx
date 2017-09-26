@@ -881,7 +881,6 @@ namespace tca {
     // update the total PFParticle count
     for(auto& pfp : tjs.pfps) if(pfp.ID > 0) ++PFP_Cnt;
     
-    std::cout << "end MatchTruth" << std::endl;
   } // MatchTruth
   
   ////////////////////////////////////////////////
