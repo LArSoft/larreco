@@ -452,7 +452,6 @@ namespace tca {
     const detinfo::DetectorProperties* detprop;
     calo::CalorimetryAlg* caloAlg;
     short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
-    bool IgnoreNegChiHits;
    };
 
 } // namespace tca

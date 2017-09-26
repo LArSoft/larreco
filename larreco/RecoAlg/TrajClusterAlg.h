@@ -193,7 +193,7 @@ namespace tca {
 
     unsigned int fRun, fSubRun;
     unsigned int fEvent;
-    unsigned int fPlane;         // the current plane
+//    unsigned int fPlane;         // the current plane
     int fWorkID;
 
 
@@ -210,6 +210,7 @@ namespace tca {
     
     std::vector<unsigned int> fAlgModCount;
 
+    bool fKalmanFilterFit;
     trkf::TrackStatePropagator prop;
     trkf::TrackKalmanFitter kalmanFitter;
     
@@ -226,7 +227,7 @@ namespace tca {
     // Try to use unused nearby hits in all trajectories after stepping is done
     void UseUnusedHits();
     // Finds junk trajectories using unassigned hits
-    void FindJunkTraj();
+    void FindJunkTraj(CTP_t inCTP);
     // Finds junk trajectories using unassigned hits
     void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned int& newTjIndex);
     // Step through TPs starting at the end and moving to the beginning

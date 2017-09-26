@@ -72,6 +72,7 @@ standard_trajclusteralg:
    # 2 min length for 2-view match
    # 3 2-view missing plane requirement
    # 4 min match fraction
+   KalmanFilterFit: false
    SkipAlgs: [  "VtxHitsSwap", "SplitHiChgHits", "CTKink", "HED" ]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    StudyMode: false         # Set true to generate histograms
@@ -86,7 +87,7 @@ standard_trajclusteralg:
 standard_trajclusteralg.CaloAlg: @local::standard_calorimetryalgmc
 standard_trajclusteralg.kfpropagator: @local::kalmanfilterfittrackmakertool.propagator
 standard_trajclusteralg.kffitter: @local::kalmanfilterfittrackmakertool.fitter
-#standard_trajclusteralg.skipNegProp: false # gc: do we need this?
+#standard_trajclusteralg.kffitter.skipNegProp: false # gc: do we need this?
 
 standard_clustercrawleralg:
 {

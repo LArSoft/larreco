@@ -158,9 +158,11 @@ namespace tca {
           }
         } // end
         if(pardtr.empty()) break;
+/*
         std::cout<<" pardtr";
         for(auto pair : pardtr) std::cout<<" "<<pair.first<<"_"<<pair.second;
         std::cout<<"\n";
+*/
       } // true
     } // indx
     
@@ -287,7 +289,7 @@ namespace tca {
         auto& ppfp = tjs.pfps[pfpParentID - 1];
         ppfp.DtrIDs.push_back(pfp.ID);
       }
-      std::cout<<"DPFPR: Set PFParticle "<<pfp.ID<<" PDGCode = "<<pfp.PDGCode<<" with parent "<<pfp.ParentID<<"\n";
+//      std::cout<<"DPFPR: Set PFParticle "<<pfp.ID<<" PDGCode = "<<pfp.PDGCode<<" with parent "<<pfp.ParentID<<"\n";
     } // ipfp
     
   } // DefinePFParticleRelationships
@@ -1566,7 +1568,7 @@ namespace tca {
   {
     // Sets InTraj[] = 0 for all TPs in work. Called when abandoning work
     for(auto& tp : tj.Pts) {
-      for(auto& iht : tp.Hits) {
+      for(auto iht : tp.Hits) {
         if(tjs.fHits[iht].InTraj == tj.ID) tjs.fHits[iht].InTraj = 0;
       }
     } // tp
@@ -2738,7 +2740,6 @@ namespace tca {
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-        if(tjs.IgnoreNegChiHits && tjs.fHits[iht].GoodnessOfFit < 0) continue;
         if(usePeakTime) {
           if(tjs.fHits[iht].PeakTime < minTick) continue;
           if(tjs.fHits[iht].PeakTime > maxTick) break;
@@ -2790,7 +2791,6 @@ namespace tca {
 
     float fwire = wire;
     for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-      if(tjs.IgnoreNegChiHits && tjs.fHits[iht].GoodnessOfFit < 0) continue;
       bool useit = (hitRequest == kAllHits);
       if(hitRequest == kUsedHits && tjs.fHits[iht].InTraj > 0) useit = true;
       if(hitRequest == kUnusedHits && tjs.fHits[iht].InTraj == 0) useit = true;
@@ -2869,7 +2869,6 @@ namespace tca {
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[ipl][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-        if(tjs.IgnoreNegChiHits && tjs.fHits[iht].GoodnessOfFit < 0) continue;
         if(tjs.fHits[iht].InTraj <= 0) continue;
         if(tjs.fHits[iht].PeakTime < minTick) continue;
         // Hits are sorted by increasing time so we can break when maxTick is reached
@@ -3205,6 +3204,7 @@ namespace tca {
     // [1] = minimum MCSMom
     // [2] = maximum MCSMom
     
+    if(!tjs.UseAlg[kDeltaRay]) return;
     if(tjs.DeltaRayTag[0] < 0) return;
     if(tjs.DeltaRayTag.size() < 3) return;
     

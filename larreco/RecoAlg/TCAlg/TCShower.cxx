@@ -3032,7 +3032,6 @@ namespace tca {
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
         // used in a trajectory?
         if(tjs.fHits[iht].InTraj != 0) continue;
-        if(tjs.IgnoreNegChiHits && tjs.fHits[iht].GoodnessOfFit < 0) continue;
         // inside the tick range?
         if(tjs.fHits[iht].PeakTime < loTick) continue;
         // Note that hits are sorted by increasing time so we can break here
