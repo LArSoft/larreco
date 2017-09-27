@@ -1145,7 +1145,7 @@ namespace tca {
           // perfect match. Ensure that the points near the vertex are consistent
           PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
           pfp.TjIDs = shared;
-          TagBragg(tjs, pfp, prt);
+//          TagBragg(tjs, pfp, prt);
           // declare a start or end vertex and set the end points
           if(pfp.Vx3ID[0] == 0) {
             pfp.Vx3ID[0] = vx3.ID;

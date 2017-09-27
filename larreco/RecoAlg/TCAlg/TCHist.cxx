@@ -47,6 +47,8 @@ namespace  tca {
     
     // Same as above but with good Efficiency * Purity
     fMCSMomEP_TruMom_e = tfs.make<TH2F>("MCSMomEP_TruMom_e","MCSMom vs Tru Mom electrons", 50, 0, 100, 50, 0, 1000);
+    
+    PDGCode_reco_true = tfs.make<TH2F>("PDGCode_reco_true", "PDGCode Reco vs True", 5, -0.5, 4.5, 5, -0.5, 4.5);
 
     art::TFileDirectory kffitdir = tfs.mkdir( "kffit" );
     dXkf_match = kffitdir.make<TH1F>("dXkf_match","dXkf_match",50,-10,10);
