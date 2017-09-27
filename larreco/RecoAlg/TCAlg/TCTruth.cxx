@@ -920,7 +920,6 @@ namespace tca {
         std::cout<<"MT: Found an unknown PDGCode "<<pfp.PDGCode<<" in PFParticle "<<pfp.ID<<"\n";
         continue;
       }
-      std::cout<<"PFP "<<pfp.ID<<" truIndex "<<truIndex<<" PDGCode "<<partList[pfp.MCPartListIndex]->PdgCode()<<" recIndex "<<recIndex<<" recPDG "<<pfp.PDGCode<<"\n";
       hist.PDGCode_reco_true->Fill((float)truIndex, (float)recIndex);
     } // pfp
 
