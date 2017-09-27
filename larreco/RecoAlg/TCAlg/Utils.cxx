@@ -280,7 +280,12 @@ namespace tca {
       for(unsigned short ii = 1; ii < 5; ++ii) {
         if(ii == code) continue;
         if(cnts[ii] == 0) continue;
-        std::cout<<"DPFPR: PFParticle "<<pfp.ID<<" Inconsistent tj codes "<<codeList[code]<<" "<<codeList[ii]<<"\n";
+        // make it pion-like if one of the codes is pion-like
+        if(ii == 3) {
+          code = 3;
+        } else {
+          std::cout<<"DPFPR: PFParticle "<<pfp.ID<<" Inconsistent tj PDG codes "<<codeList[code]<<" "<<codeList[ii]<<" Events processed"<<tjs.EventsProcessed<<"\n";
+        }
       } // ii
       pfp.PDGCode = codeList[code];
       std::cout << "pfp id=" << pfp.ID << " pdgcode=" << pfp.PDGCode << std::endl;

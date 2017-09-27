@@ -786,19 +786,18 @@ namespace tca {
     
     // create a array/vector of 2D vertex indices in each plane
     std::vector<std::vector<unsigned short>> vIndex(3);
-    unsigned short ipl;
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
       // obsolete vertex
       if(tjs.vtx[ivx].ID == 0) continue;
-      geo::PlaneID iplID = DecodeCTP(tjs.vtx[ivx].CTP);
-      if(iplID.TPC != tpc || iplID.Cryostat != cstat) continue;
-      ipl = iplID.Plane;
-      if(ipl > 2) continue;
-      vIndex[ipl].push_back(ivx);
+      geo::PlaneID planeID = DecodeCTP(tjs.vtx[ivx].CTP);
+      if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
+      unsigned short plane = planeID.Plane;
+      if(plane > 2) continue;
+      vIndex[plane].push_back(ivx);
     }
     
     unsigned short vtxInPln = 0;
-    for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) if(vIndex[ipl].size() > 0) ++vtxInPln;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) if(vIndex[plane].size() > 0) ++vtxInPln;
     if(vtxInPln < 2) return;
     
     bool prt = (debug.Plane >= 0) && (debug.Tick == 2222);
@@ -820,13 +819,14 @@ namespace tca {
     
     for(unsigned short ivx = 0; ivx < vsize; ++ivx) {
       if(tjs.vtx[ivx].ID == 0) continue;
-      geo::PlaneID iplID = DecodeCTP(tjs.vtx[ivx].CTP);
-      if(iplID.TPC != tpc || iplID.Cryostat != cstat) continue;
+      geo::PlaneID planeID = DecodeCTP(tjs.vtx[ivx].CTP);
+      if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
+      int plane = planeID.Plane;
       unsigned int wire = std::nearbyint(tjs.vtx[ivx].Pos[0]);
-      if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, ipl, wire))) continue;
+      if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, plane, wire))) continue;
       // Convert 2D vertex time error to X error
       double ticks = tjs.vtx[ivx].Pos[1] / tjs.UnitsPerTick;
-      vX[ivx]  = tjs.detprop->ConvertTicksToX(ticks, (int)iplID.Plane, (int)tpc, (int)cstat);
+      vX[ivx]  = tjs.detprop->ConvertTicksToX(ticks, plane, (int)tpc, (int)cstat);
 /*
       ticks = (tjs.vtx[ivx].Pos[1] + tjs.vtx[ivx].PosErr[1]) / tjs.UnitsPerTick;
       vXp = tjs.detprop->ConvertTicksToX(ticks, (int)iplID.Plane, (int)tpc, (int)cstat);
@@ -845,22 +845,14 @@ namespace tca {
       for(unsigned short ii = 0; ii < vIndex[ipl].size(); ++ii) {
         unsigned short ivx = vIndex[ipl][ii];
         if(vX[ivx] < 0) continue;
-        // vertex has been matched already
-//        if(vPtr[ivx] >= 0) continue;
         unsigned int iWire = std::nearbyint(tjs.vtx[ivx].Pos[0]);
         for(unsigned short jpl = ipl + 1; jpl < 3; ++jpl) {
           for(unsigned short jj = 0; jj < vIndex[jpl].size(); ++jj) {
             unsigned short jvx = vIndex[jpl][jj];
             if(vX[jvx] < 0) continue;
-            // vertex has been matched already
-//            if(vPtr[jvx] >= 0) continue;
             unsigned int jWire = std::nearbyint(tjs.vtx[jvx].Pos[0]);
             float dX = std::abs(vX[ivx] - vX[jvx]);
             if(dX > tjs.Vertex3DCuts[0]) continue;
-/*
-            float dXSigma = sqrt(vXsigma[ivx] * vXsigma[ivx] + vXsigma[jvx] * vXsigma[jvx]);
-            float dXPull = dX / dXSigma;
-*/
             
             if(prt) mf::LogVerbatim("TC")<<"F3DV: ipl "<<ipl<<" ivxID "<<tjs.vtx[ivx].ID<<" iX "<<vX[ivx]
               <<" jpl "<<jpl<<" jvxID "<<tjs.vtx[jvx].ID<<" jvX "<<vX[jvx]<<" W:T "<<(int)tjs.vtx[jvx].Pos[0]<<":"<<(int)tjs.vtx[jvx].Pos[1]<<" dX "<<dX;
