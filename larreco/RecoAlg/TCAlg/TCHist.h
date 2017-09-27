@@ -36,7 +36,6 @@ namespace tca {
     TH1F* fNuVtx_dy;
     TH1F* fNuVtx_dz;
 
-
     // Vertex score for 2D vertices that are near the neutrino interaction vertex
     TH1F* fNuVx3Score;
     TH1F* fNuVx2Score;
@@ -51,6 +50,9 @@ namespace tca {
     TH1F* fdWire[5];
     // EP vs KE for different MC Particles
     TProfile* fEP_T[5];
+    
+    // PFParticle PDGCode vs true PDG code
+    TH2F* PDGCode_reco_true;
 
     //Test KF Fit
     TH1F* dXkf_match;
