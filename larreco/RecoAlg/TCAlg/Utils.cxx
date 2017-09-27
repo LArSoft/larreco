@@ -240,7 +240,7 @@ namespace tca {
       } // tjid
       if(cnt3 > 1) {
         pfp.Vx3ID[end1] = vx3id;
-        if(cnt3 != tjs.NumPlanes) std::cout<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code\n";
+        if(cnt3 != tjs.NumPlanes) mf::LogVerbatim("TC")<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code\n";
       }
     } // pfp
     
@@ -284,7 +284,7 @@ namespace tca {
         if(ii == 3) {
           code = 3;
         } else {
-          std::cout<<"DPFPR: PFParticle "<<pfp.ID<<" Inconsistent tj PDG codes "<<codeList[code]<<" "<<codeList[ii]<<" Events processed"<<tjs.EventsProcessed<<"\n";
+          if(prt) mf::LogVerbatim("TC")<<"DPFPR: PFParticle "<<pfp.ID<<" Inconsistent tj PDG codes "<<codeList[code]<<" "<<codeList[ii]<<" Events processed"<<tjs.EventsProcessed;
         }
       } // ii
       pfp.PDGCode = codeList[code];
@@ -299,6 +299,23 @@ namespace tca {
     } // ipfp
     
   } // DefinePFParticleRelationships
+  
+  /////////////////////////////////////////
+  int EveID(const TjStuff& tjs, const PFPStruct& pfp)
+  {
+    // returns the ID of the most upstream PFParticle
+    
+    if(pfp.ParentID == pfp.ID || pfp.ParentID == 0) return pfp.ID;
+    int parid = pfp.ParentID;
+    while(true) {
+      auto& parent = tjs.pfps[parid - 1];
+      // found a primary PFParticle
+      if(parent.ParentID == 0) return parent.ID;
+      if(parent.ParentID == parent.ID) return parent.ID;
+      parid = parent.ParentID;
+      if(parid < 0) return 0;
+    }
+  } // EveID
 
   /////////////////////////////////////////
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt)
@@ -862,7 +879,7 @@ namespace tca {
     // get the matching points, requiring two planes
     FindXMatches(tjs, 2, SHRT_MAX, pfp, dummyMatVec, matchPts, matchPos, nMatch, prt);
     if(matchPts[0].size() < 2 || matchPts[1].size() < 2) {
-      std::cout<<"SetPFPEndPoints: no 2-plane matches. write some code\n";
+      if(prt) mf::LogVerbatim("TC")<<"SetPFPEndPoints: no 2-plane matches. write some code\n";
       return false;
     }
 /*
@@ -1089,7 +1106,7 @@ namespace tca {
       if(pfp.dEdxErr[startend].size() != tjs.NumPlanes) notgood = true;
     }
     if(notgood) {
-      std::cout<<"FilldEdx found inconsistent sizes for dEdx\n";
+//      if(prt) mf::LogVerbatim("TC")<<"FilldEdx found inconsistent sizes for dEdx\n";
       return;
     }
 
@@ -2970,7 +2987,8 @@ namespace tca {
     // reverse the trajectory
     if(tj.Pts.empty()) return;
     if(tj.AlgMod[kMat3D]) {
-      std::cout<<"Trying to reverse a 3D matched Tj. Need to modify other Tjs and the MatchStruct\n";
+      mf::LogVerbatim("TC")<<"Trying to reverse a 3D matched Tj. Need to modify other Tjs and the MatchStruct\n";
+      return;
     }
     // reverse the crawling direction flag
     tj.StepDir = -tj.StepDir;
@@ -4301,7 +4319,7 @@ namespace tca {
     
     mf::LogVerbatim myprt("TC");
     myprt<<someText;
-    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par E*P   TjIDs\n";
+    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Eve E*P   TjIDs\n";
     unsigned short indx = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
@@ -4329,7 +4347,8 @@ namespace tca {
       // global stuff
       myprt<<std::setw(5)<<pfp.BestPlane;
       myprt<<std::setw(6)<<pfp.PDGCode;
-      myprt<<std::setw(4)<<pfp.ParentID;
+      myprt<<std::setw(4)<<EveID(tjs, pfp);
+//      myprt<<std::setw(4)<<pfp.ParentID;
       myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
       myprt<<"  ";
       for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
