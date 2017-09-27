@@ -249,8 +249,9 @@ namespace tca {
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       int pfpParentID = INT_MAX;
+      // The PDG code may have already been set
       // assign 0 = don't know
-      pfp.PDGCode = 0;
+//      pfp.PDGCode = 0;
       unsigned short nParent = 0;
       std::array<unsigned short, 5> cnts = {0};
       for(auto tjid : pfp.TjIDs) {
@@ -1418,6 +1419,30 @@ namespace tca {
   } // WatchHit
   
   ////////////////////////////////////////////////
+  void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
+  {
+    const unsigned int cstat = tpcid.Cryostat;
+    const unsigned int tpc = tpcid.TPC;
+    std::vector<int> tjlist(1);
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
+      // ignore tagged muons
+      if(tj.PDGCode == 13) continue;
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] != 0) continue;
+        if(!tj.StopFlag[end][kBragg]) continue;
+        // check the environment near this end
+        tjlist[0] = tj.ID;
+        float chgFrac = ChgFracNearPos(tjs, tj.Pts[tj.EndPt[end]].Pos, tjlist);
+        if(prt) mf::LogVerbatim("TC")<<"TagProtons: Tj "<<tj.ID<<" Charge fraction near end "<<end<<" "<<chgFrac;
+        if(chgFrac > 0.9) tj.PDGCode = 2212;
+      } // end
+    } // tj
+  } // TagProtons
+/*
+  ////////////////////////////////////////////////
   void TagBragg(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // sets the PDG code to 2212 if there are Bragg peaks on the Tjs
@@ -1433,7 +1458,7 @@ namespace tca {
     if(braggCnt0 > 1 || braggCnt1 > 1) pfp.PDGCode = 2212;
     
   } // TagBragg
-
+*/
   ////////////////////////////////////////////////
   void Reverse3DMatchTjs(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
@@ -3561,7 +3586,7 @@ namespace tca {
     unsigned short npts = tj.EndPt[1] - tj.EndPt[0];
     bool isAMuon = (npts > (unsigned short)tjs.MuonTag[0] && tj.MCSMom > tjs.MuonTag[1]);
     // anything really really long must be a muon
-    if(npts > 200) isAMuon = true;
+    if(npts > 500) isAMuon = true;
     if(isAMuon) tj.PDGCode = 13;
     
   } // SetPDGCode
