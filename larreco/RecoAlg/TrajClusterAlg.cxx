@@ -466,9 +466,6 @@ namespace tca {
           }
         } // vx2
       } // plane
-      unsigned int nhused = 0;
-      for(auto& hit : tjs.fHits) if(hit.InTraj > 0) ++nhused;
-      std::cout<<"RAT: "<<fRun<<" "<<fEvent<<" ntj "<<tjs.allTraj.size()<<" nhused "<<nhused<<" nhits "<<tjs.fHits.size()<<"\n";
       
       // No sense taking muon direction if delta ray tagging is disabled
       if(tjs.DeltaRayTag[0] >= 0) TagMuonDirections(tjs, debug.WorkID);
@@ -477,6 +474,7 @@ namespace tca {
       // missing trajectories in a plane
       FindMissedVxTjs(tpcid);
       ScoreVertices(tjs, tpcid, prt);
+      TagProtons(tjs, tpcid, prt);
       // Define the ParentID of trajectories using the vertex score
       DefineTjParents(tjs, tpcid, prt);
       for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
@@ -2511,7 +2509,8 @@ namespace tca {
       } else {
         if(!SetPFPEndPoints(tjs, pfp, 1, prt)) continue;
       }
-      TagBragg(tjs, pfp, prt);
+      // This is done in DefinePFParticleRelationships
+//      TagBragg(tjs, pfp, prt);
       Reverse3DMatchTjs(tjs, pfp, prt);
       if(prt) mf::LogVerbatim("TC")<<" Created PFP "<<pfp.ID;
       tjs.pfps.push_back(pfp);
