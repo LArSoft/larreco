@@ -58,7 +58,8 @@ namespace tca {
   void FitTraj(TjStuff& tjs, Trajectory& tj);
   void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
-  void TagBragg(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+//  void TagBragg(TjStuff& tjs, PFPStruct& pfp, bool prt);
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
   void Reverse3DMatchTjs(TjStuff& tjs, PFPStruct& ms, bool prt);
