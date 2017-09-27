@@ -71,6 +71,7 @@ namespace  tca {
     hasfit_match = kffitdir.make<TH1F>("hasfit_match", "hasfit_match", 3, 0, 3);
     nchi2_match = kffitdir.make<TH1F>("nchi2_match", "nchi2_match", 50, 0, 100);
     nvalidpoints_match = kffitdir.make<TH1F>("nvalidpoints_match", "nvalidpoints_match", 100, 0, 1000);
+    nrejectpoints_match = kffitdir.make<TH1F>("nrejectpoints_match", "nrejectpoints_match", 100, 0, 100);
     //
     dXkf_okid = kffitdir.make<TH1F>("dXkf_okid","dXkf_okid",50,-10,10);
     dXtc_okid = kffitdir.make<TH1F>("dXtc_okid","dXtc_okid",50,-10,10);
@@ -112,6 +113,7 @@ namespace  tca {
     hasfit_nomatch = kffitdir.make<TH1F>("hasfit_nomatch", "hasfit_nomatch", 3, 0, 3);
     nchi2_nomatch = kffitdir.make<TH1F>("nchi2_nomatch", "nchi2_nomatch", 50, 0, 100);
     nvalidpoints_nomatch = kffitdir.make<TH1F>("nvalidpoints_nomatch", "nvalidpoints_nomatch", 100, 0, 1000);
+    nrejectpoints_nomatch = kffitdir.make<TH1F>("nrejectpoints_nomatch", "nrejectpoints_nomatch", 100, 0, 100);
   }
   
   

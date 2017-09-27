@@ -2599,6 +2599,8 @@ namespace tca {
       }
     }
     std::vector<recob::TrajectoryPointFlags::Mask_t> hitflagsv(hitstatev.size());
+    // printouts
+    std::cout << "fitting pfp #" << pfp.ID << " with nhits=" << hitstatev.size() << " pos=" << position << " dir=" << direction << " mom=" << mom << " pid=" << pfp.PDGCode << std::endl;
     // now the outputs
     std::vector<KFTrackState> fwdPrdTkState;
     std::vector<KFTrackState> fwdUpdTkState;
@@ -2610,7 +2612,10 @@ namespace tca {
     if (!fitok) {
       fitok = kalmanFitter.doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx, false);
     }
-    if (!fitok) return;
+    if (!fitok) {
+      std::cout << "fit failed" << std::endl;
+      return;
+    }
     // make the track
     int ndof = -4;
     float chi2 = 0;;
@@ -2636,6 +2641,9 @@ namespace tca {
     //
     pfp.Track = recob::Track(std::move(positions), std::move(momenta), std::move(flags), true, pdgid, chi2, ndof,
                              SMatrixSym55(resultF.covariance()), SMatrixSym55(resultB.covariance()), pfp.ID);
+    // printouts
+    std::cout << "fit succeeded with npoints=" << sortedtksidx.size() << " rejected=" << rejectedhsidx.size() << " start=" << pfp.Track.Start() << " dir=" << pfp.Track.StartDirection() << " nchi2=" << pfp.Track.Chi2PerNdof() << std::endl;
+    //
   } // KalmanFilterFit
 
   //////////////////////////////////////////

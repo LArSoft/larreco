@@ -800,6 +800,7 @@ namespace tca {
             if (pfp.Track.ID()<0) continue;
             // std::cout << "pfp #" << ipfp << " pdg=" << pfp.PDGCode << " tj vtx=" << recob::tracking::Point_t(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]) << " dir=" << recob::tracking::Vector_t(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]) << " fit vtx=" << pfp.Track.Start() << " dir=" << pfp.Track.StartDirection() << " match part #" << ipart << " vtx=" << recob::tracking::Point_t(part->Vx(), part->Vy(), part->Vz()) << " dir=" << recob::tracking::Vector_t(part->Px()/part->P(), part->Py()/part->P(), part->Pz()/part->P()) << " mom=" << part->P() << std::endl;
             hist.nvalidpoints_match->Fill(pfp.Track.CountValidPoints());
+            hist.nrejectpoints_match->Fill(pfp.Track.NPoints()-pfp.Track.CountValidPoints());
             if (pfp.Track.CountValidPoints()>1) {
               //
               detinfo::DetectorClocks const* detClocks = lar::providerFrom<detinfo::DetectorClocksService>();
@@ -917,6 +918,7 @@ namespace tca {
         hist.hasfit_nomatch->Fill(pfp.Track.ID()>=0);
         if (pfp.Track.ID()<0) continue;
         hist.nvalidpoints_nomatch->Fill(pfp.Track.CountValidPoints());
+	hist.nrejectpoints_nomatch->Fill(pfp.Track.NPoints()-pfp.Track.CountValidPoints());
         if (pfp.Track.CountValidPoints()>1) {
           hist.nchi2_nomatch->Fill( pfp.Track.Chi2PerNdof() );
           auto cv = pfp.Track.VertexCovarianceLocal5D();

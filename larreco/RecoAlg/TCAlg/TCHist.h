@@ -75,6 +75,7 @@ namespace tca {
     TH1F* hasfit_match;
     TH1F* nchi2_match;
     TH1F* nvalidpoints_match;
+    TH1F* nrejectpoints_match;
     //
     TH1F* dXkf_okid;
     TH1F* dXtc_okid;
@@ -116,6 +117,7 @@ namespace tca {
     TH1F* hasfit_nomatch;
     TH1F* nchi2_nomatch;
     TH1F* nvalidpoints_nomatch;
+    TH1F* nrejectpoints_nomatch;
   };
 } // namespace tca
 
