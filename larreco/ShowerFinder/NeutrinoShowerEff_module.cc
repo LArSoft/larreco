@@ -85,9 +85,11 @@ namespace DUNE{
 
     TH1D *h_Ev_den;
     TH1D *h_Ev_num;
+    TH1D *h_Ev_num_dEdx;
 
     TH1D *h_Ee_den;
     TH1D *h_Ee_num;
+    TH1D *h_Ee_num_dEdx;
 
     TH1D *h_Pe_den;
     TH1D *h_Pe_num;
@@ -108,7 +110,9 @@ namespace DUNE{
 
 
     TEfficiency* h_Eff_Ev = 0;
+    TEfficiency* h_Eff_Ev_dEdx = 0;
     TEfficiency* h_Eff_Ee = 0;  
+    TEfficiency* h_Eff_Ee_dEdx = 0;  
     TEfficiency* h_Eff_Pe = 0;
     TEfficiency* h_Eff_theta = 0;
 
@@ -171,9 +175,6 @@ namespace DUNE{
     TH1D *h_ShStartXwrtTrueparticleEndXDiff_photon_NC;
     TH1D *h_ShStartYwrtTrueparticleEndYDiff_photon_NC;
     TH1D *h_ShStartZwrtTrueparticleEndZDiff_photon_NC;
-
-
-
 
     TH1D *h_ShStartXwrtTrueparticleStartXDiff_proton_NueCC;
     TH1D *h_ShStartYwrtTrueparticleStartYDiff_proton_NueCC;
@@ -342,15 +343,19 @@ namespace DUNE{
     //  double Pbins[18] ={0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.2,1.4,1.6,1.8,2.0,2.5,3.0};
   
   
-    h_Ev_den = tfs->make<TH1D>("h_Ev_den","Neutrino Energy; Neutrino Energy (GeV); Shower reconstruction Efficiency",20,E_bins);
+    h_Ev_den = tfs->make<TH1D>("h_Ev_den","Neutrino Energy; Neutrino Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
     h_Ev_den->Sumw2();
-    h_Ev_num = tfs->make<TH1D>("h_Ev_num","Neutrino Energy; Neutrino Energy (GeV); Shower reconstruction Efficiency",20,E_bins);
+    h_Ev_num = tfs->make<TH1D>("h_Ev_num","Neutrino Energy; Neutrino Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
     h_Ev_num->Sumw2();
+    h_Ev_num_dEdx = tfs->make<TH1D>("h_Ev_num_dEdx","Neutrino Energy; Neutrino Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
+    h_Ev_num_dEdx->Sumw2();
 
-    h_Ee_den = tfs->make<TH1D>("h_Ee_den","Electron Energy; Electron Energy (GeV); Shower reconstruction Efficiency",20,E_bins);
+    h_Ee_den = tfs->make<TH1D>("h_Ee_den","Electron Energy; Electron Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
     h_Ee_den->Sumw2();
-    h_Ee_num = tfs->make<TH1D>("h_Ee_num","Electron Energy; Electron Energy (GeV); Shower reconstruction Efficiency",20,E_bins);
+    h_Ee_num = tfs->make<TH1D>("h_Ee_num","Electron Energy; Electron Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
     h_Ee_num->Sumw2();
+    h_Ee_num_dEdx = tfs->make<TH1D>("h_Ee_num_dEdx","Electron Energy; Electron Energy (GeV); Shower Reconstruction Efficiency",20,E_bins);
+    h_Ee_num_dEdx->Sumw2();
 
     h_Pe_den = tfs->make<TH1D>("h_Pe_den","Electron Momentum; Electron Momentum (GeV); Shower reconstruction Efficiency",20,E_bins);
     h_Pe_den->Sumw2();
@@ -808,6 +813,14 @@ namespace DUNE{
       	ShVyTrueParticleVyDiff=sh_start_Y[i]-particle->Vy();
 	ShVzTrueParticleVzDiff=sh_start_Z[i]-particle->Vz();
 
+	//put overflow and underflow at top and bottom bins:
+	if (ShVxTrueParticleVxDiff > 5) ShVxTrueParticleVxDiff = 4.99;
+	else if (ShVxTrueParticleVxDiff < -5) ShVxTrueParticleVxDiff = -5;
+	if (ShVyTrueParticleVyDiff > 5) ShVyTrueParticleVyDiff = 4.99;
+	else if (ShVyTrueParticleVyDiff < -5) ShVyTrueParticleVyDiff = -5;
+	if (ShVzTrueParticleVzDiff > 5) ShVzTrueParticleVzDiff = 4.99;
+	else if (ShVzTrueParticleVzDiff < -5) ShVzTrueParticleVzDiff = -5;
+
 
 	ShStartVxTrueParticleEndVxDiff=sh_start_X[i]-particle->EndX();
 	ShStartVyTrueParticleEndVyDiff=sh_start_Y[i]-particle->EndY();
@@ -873,7 +886,7 @@ namespace DUNE{
       //cout<<particle->PdgCode()<<" "<<particle->TrackId()<<" Efrac "<<tmpEfrac_contamination<<" "<<sh_hits.size()<<" "<<particle->TrackId()<<" "<<MC_leptonID<<endl;
       //save the best shower based on non EM and number of hits
 
-      if( particle->PdgCode()  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ){
+      if( std::abs(particle->PdgCode())  == fLeptonPDGcode && particle->TrackId() == MC_leptonID ){
 
         if(tmpEcomplet>Ecomplet_lepton){
 
@@ -888,7 +901,7 @@ namespace DUNE{
     }//end of looping all the showers
    
     if( MClepton_reco && MClepton  ){
-      if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) ){ 
+      if( MC_isCC && (fNeutrinoPDGcode == std::abs(MC_incoming_PDG)) ){ 
         h_Efrac_shContamination->Fill(Efrac_contamination);
         h_Efrac_shPurity->Fill(1-Efrac_contamination);
 	h_Ecomplet_lepton->Fill(Ecomplet_lepton);
@@ -900,6 +913,11 @@ namespace DUNE{
           h_Ev_num->Fill(MC_incoming_P[3]);
 	  h_Ee_num->Fill(MC_lepton_startMomentum[3]);
 	  h_theta_num->Fill(theta_e);
+
+	  if (Showerparticlededx_inbestplane > 1 && Showerparticlededx_inbestplane < 3) {
+	    h_Ev_num_dEdx->Fill(MC_incoming_P[3]);
+	    h_Ee_num_dEdx->Fill(MC_lepton_startMomentum[3]);
+	  }
 	}
       }
     }
@@ -1143,12 +1161,26 @@ namespace DUNE{
       grEff_Ev->Write("grEff_Ev");
       h_Eff_Ev->Write("h_Eff_Ev");
     }
+
+    if(TEfficiency::CheckConsistency(*h_Ev_num_dEdx,*h_Ev_den)){
+      h_Eff_Ev_dEdx = tfs->make<TEfficiency>(*h_Ev_num_dEdx,*h_Ev_den);
+      TGraphAsymmErrors *grEff_Ev_dEdx = h_Eff_Ev_dEdx->CreateGraph();
+      grEff_Ev_dEdx->Write("grEff_Ev_dEdx");
+      h_Eff_Ev_dEdx->Write("h_Eff_Ev_dEdx");
+    }
    
     if(TEfficiency::CheckConsistency(*h_Ee_num,*h_Ee_den)){
       h_Eff_Ee = tfs->make<TEfficiency>(*h_Ee_num,*h_Ee_den);
       TGraphAsymmErrors *grEff_Ee = h_Eff_Ee->CreateGraph();
       grEff_Ee->Write("grEff_Ee");
       h_Eff_Ee->Write("h_Eff_Ee");
+    }
+
+    if(TEfficiency::CheckConsistency(*h_Ee_num_dEdx,*h_Ee_den)){
+      h_Eff_Ee_dEdx = tfs->make<TEfficiency>(*h_Ee_num_dEdx,*h_Ee_den);
+      TGraphAsymmErrors *grEff_Ee_dEdx = h_Eff_Ee_dEdx->CreateGraph();
+      grEff_Ee_dEdx->Write("grEff_Ee_dEdx");
+      h_Eff_Ee_dEdx->Write("h_Eff_Ee_dEdx");
     }
    
     if(TEfficiency::CheckConsistency(*h_Pe_num,*h_Pe_den)){ 
