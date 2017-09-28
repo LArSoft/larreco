@@ -17,11 +17,16 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "canvas/Utilities/InputTag.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 
 //LArSoft includes
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/AnalysisBase/CosmicTag.h"
+
+//root includes
+#include "TTree.h"
 
 // ... more includes in the implementation section
 
@@ -46,11 +51,13 @@ namespace cluster {
     
     void reconfigure(fhicl::ParameterSet const & pset) override;
     void produce(art::Event & evt) override;
+    void beginJob();
     void endJob();
     
   private:
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
-    
+    TTree* showertree;
+    TTree* crtree;
   }; // class TrajCluster
   
 } // namespace cluster
@@ -79,7 +86,7 @@ namespace cluster {
 #include "lardataobj/RecoBase/Shower.h"
 
 namespace cluster {
-  
+
   //----------------------------------------------------------------------------
   void TrajCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
@@ -112,7 +119,22 @@ namespace cluster {
     produces< std::vector<recob::PFParticle> >();
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
+
+    produces< std::vector<anab::CosmicTag>>();
+    produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
   } // TrajCluster::TrajCluster()
+
+  // NEW FUNCTION
+  //----------------------------------------------------------------------------
+  void TrajCluster::beginJob()
+  {
+    art::ServiceHandle<art::TFileService> tfs;
+
+    showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
+    fTCAlg->DefineShTree(showertree);
+    crtree = tfs->make<TTree>("crtree", "Cosmic removal variables");
+    fTCAlg->DefineCRTree(crtree);
+  }
   
   //----------------------------------------------------------------------------
   void TrajCluster::endJob()
@@ -145,6 +167,7 @@ namespace cluster {
     std::vector<recob::Vertex> sv3col;
     std::vector<recob::EndPoint2D> sv2col;
     std::vector<recob::Shower> sscol;
+    std::vector<anab::CosmicTag> ctcol;
 
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>>
         hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
@@ -157,6 +180,9 @@ namespace cluster {
         pc_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
         pv_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
+    
+    std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
+      pct_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
 
     std::vector<tca::ClusterStore> const& Clusters = fTCAlg->GetClusters();
     
@@ -165,7 +191,7 @@ namespace cluster {
     art::ServiceHandle<geo::Geometry> geom;
     unsigned int vtxID = 0;
     for(tca::VtxStore const& vtx2: EndPts) {
-      if(vtx2.NTraj == 0) continue;
+      if(vtx2.ID == 0) continue;
       ++vtxID;
       unsigned int wire = std::nearbyint(vtx2.Pos[0]);
       geo::PlaneID plID = tca::DecodeCTP(vtx2.CTP);
@@ -204,7 +230,6 @@ namespace cluster {
     unsigned short clsID = 0;
     for(size_t icl = 0; icl < Clusters.size(); ++icl) {
       tca::ClusterStore const& clstr = Clusters[icl];
-      if(clstr.ID < 0) continue;
       ++clsID;
       geo::PlaneID planeID = tca::DecodeCTP(clstr.CTP);
       unsigned short plane = planeID.Plane;
@@ -259,11 +284,13 @@ namespace cluster {
         end = 0;
         // See if this endpoint is associated with a 3D vertex
         unsigned short vtxIndex = 0;
-        for(tca::Vtx3Store const& vtx3: Vertices) {
+        for(tca::Vtx3Store const& vtx3 : Vertices) {
+          // ignore killed vertices
+          if(vtx3.ID == 0) continue;
           // ignore incomplete vertices
           if(vtx3.Wire > 0) continue;
-          if(vtx3.Vtx2ID[plane] == 0) continue;
-          if(vtx3.Vtx2ID[plane] == clstr.BeginVtx) {
+          if(vtx3.Vx2ID[plane] == 0) continue;
+          if(vtx3.Vx2ID[plane] == clstr.BeginVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<icl<<" with vertex";
@@ -277,11 +304,13 @@ namespace cluster {
         end = 1;
         // See if this endpoint is associated with a 3D vertex
         unsigned short vtxIndex = 0;
-        for(tca::Vtx3Store const& vtx3: Vertices) {
+        for(tca::Vtx3Store const& vtx3 : Vertices) {
+          // ignore killed vertices
+          if(vtx3.ID == 0) continue;
           // ignore incomplete vertices
           if(vtx3.Wire >= 0) continue;
-          if(vtx3.Vtx2ID[plane] == 0) continue;
-          if(vtx3.Vtx2ID[plane] == clstr.EndVtx) {
+          if(vtx3.Vx2ID[plane] == 0) continue;
+          if(vtx3.Vx2ID[plane] == clstr.EndVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster ID "<<clsID<<" with endpoint";
@@ -321,30 +350,33 @@ namespace cluster {
     } // ish
     
     // Get the list of PFParticles. These are a subset of the set of 3D matches of trajectory hits
-    std::vector<unsigned short> pfpList = fTCAlg->GetPFPList();
+    std::vector<tca::PFPStruct> pfpList = fTCAlg->GetPFParticles();
     // get each of the match vector elements and construct the PFParticle
-    for(size_t ip = 0; ip < pfpList.size(); ++ip) {
-      unsigned short im = pfpList[ip];
-      tca::MatchStruct const& ms = fTCAlg->GetMatchStruct(im);
-      if(ms.Count == 0) continue;
-      spcol.emplace_back(ms.PDGCode, ip, ms.ParentMSIndex, ms.DtrIndices);
+    for(size_t ipfp = 0; ipfp < pfpList.size(); ++ipfp) {
+      auto& pfp = pfpList[ipfp];
+      if(pfp.ID == 0) continue;
+      size_t parentIndex = pfp.ID - 1;
+      std::vector<size_t> dtrIndices(pfp.DtrIDs.size());
+      for(unsigned short idtr = 0; idtr < pfp.DtrIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrIDs[idtr] - 1;
+      spcol.emplace_back(pfp.PDGCode, ipfp, parentIndex, dtrIndices);
       // make a list of clusters that are associated with this PFParticle. Trace the association
       // through the trajectories that 
       std::vector<unsigned int> clsIndices;
-      for(auto& tjid : ms.TjIDs) {
-        unsigned short clsIndex = fTCAlg->GetTjClusterIndex(tjid);
+      for(auto& tjid : pfp.TjIDs) {
+        unsigned int clsIndex = fTCAlg->GetTjClusterIndex(tjid);
         if(clsIndex > Clusters.size() - 1) {
-          std::cout<<"Retrieved an invalid cluster index for PFParticle "<<ip<<" TjID "<<tjid<<". Ignoring it...\n";
+          std::cout<<"Retrieved an invalid cluster index for PFParticle "<<pfp.ID<<" TjID "<<tjid<<". Ignoring it...\n";
           clsIndices.clear();
           break;
         }
+        clsIndices.push_back(clsIndex);
       } // tjid
       // try to recover from an error
       if(clsIndices.empty()) {
         spcol.pop_back();
         continue;
       }
-      if(ms.sVtx3DIndex > Vertices.size() - 1) std::cout<<"TC module: Bad Vtx3DIndex = "<<ms.sVtx3DIndex<<" size "<<Vertices.size()<<"\n";
+      if(pfp.Vx3ID[0] > Vertices.size()) std::cout<<"TC module: Bad Vtx3DIndex = "<<pfp.Vx3ID[0]<<" size "<<Vertices.size()<<"\n";
       
       // PFParticle - Cluster associations
       if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, clsIndices.begin(), clsIndices.end()))
@@ -353,11 +385,11 @@ namespace cluster {
       } // exception
       // PFParticle - Vertex association
       std::vector<unsigned int> vtmp(1);
-      // Translate the 3D vertex index ms.Vtx3DIndex into the index of complete 3D vertices that have been put into sv3col
+      // Translate the 3D vertex index into the index of complete 3D vertices that have been put into sv3col
       unsigned short vtxIndex = 0;
       for(unsigned short iv = 0; iv < Vertices.size(); ++iv) {
         if(Vertices[iv].Wire >= 0) continue;
-        if(ms.sVtx3DIndex == iv) {
+        if(pfp.Vx3ID[0] == Vertices[iv].ID) {
           vtmp[0] = vtxIndex;
           if(!util::CreateAssn(*this, evt, *pv_assn, spcol.size()-1, vtmp.begin(), vtmp.end())) 
           {
@@ -367,12 +399,27 @@ namespace cluster {
         }
         ++vtxIndex;
       } // iv
+      // PFParticle - CosmicTag association
+      if (fTCAlg->GetTJS().TagCosmics){
+        std::vector<float> tempPt1, tempPt2;
+        tempPt1.push_back(-999);
+        tempPt1.push_back(-999);
+        tempPt1.push_back(-999);
+        tempPt2.push_back(-999);
+        tempPt2.push_back(-999);
+        tempPt2.push_back(-999);
+        ctcol.emplace_back(tempPt1, tempPt2, pfp.CosmicScore, anab::CosmicTagID_t::kNotTagged);
+        if (!util::CreateAssn(*this, evt, spcol, ctcol, *pct_assn, ctcol.size()-1, ctcol.size())){
+          throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate CosmicTag with PFParticle";
+        }
+      }
     } // ip
 
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
     std::unique_ptr<std::vector<recob::PFParticle> > pcol(new std::vector<recob::PFParticle>(std::move(spcol)));
     std::unique_ptr<std::vector<recob::Shower> > scol(new std::vector<recob::Shower>(std::move(sscol)));
+    std::unique_ptr<std::vector<anab::CosmicTag>> ctgcol(new std::vector<anab::CosmicTag>(std::move(ctcol)));
 
     // clean up
     fTCAlg->ClearResults();
@@ -392,7 +439,8 @@ namespace cluster {
     evt.put(std::move(pcol));
     evt.put(std::move(pc_assn));
     evt.put(std::move(pv_assn));
-
+    evt.put(std::move(ctgcol));
+    evt.put(std::move(pct_assn));
   } // TrajCluster::produce()
   
   

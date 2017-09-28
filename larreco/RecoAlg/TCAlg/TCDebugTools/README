@@ -1,0 +1,15 @@
+TrajCluster Shower Debug Tools
+Author: Rory Fitzpatrick
+
+This directory contains tools for visualizing trajcluster shower reconstruction
+at intermediate stages. To compile the tool
+
+> cd /larreco/RecoAlg/TCAlg/TCDebugTools/
+> make
+
+This produces the executable 'tc_sh_debugger' which can be executed as follows:
+
+> tc_sh_debugger [inputfile]
+
+Output files will be placed in the folder tc_sh_debug_output in your working 
+directory. The folder will be created if it does not already exist.

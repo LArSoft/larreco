@@ -1,0 +1,15 @@
+BEGIN_PROLOG
+
+standard_spacepointsolver:
+{
+  module_type: "SpacePointSolver"
+
+  HitLabel: "gaushit"
+
+  Fit: true
+
+  Alpha: .05
+}
+
+END_PROLOG
+

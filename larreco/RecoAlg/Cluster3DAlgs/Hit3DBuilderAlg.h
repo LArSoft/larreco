@@ -80,7 +80,7 @@ public:
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    double getTimeToExecute() const {return m_buildTime;}
+    float getTimeToExecute() const {return m_buildTime;}
     
 private:
     
@@ -116,7 +116,7 @@ private:
     bool makeHitPair(reco::ClusterHit3D&       pairOut,
                      const reco::ClusterHit2D* hit1,
                      const reco::ClusterHit2D* hit2,
-                     double                    hitWidthSclFctr = 1.,
+                     float                     hitWidthSclFctr = 1.,
                      size_t                    hitPairCntr = 0) const;
     
     /**
@@ -129,22 +129,22 @@ private:
     /**
      *  @brief Make a 3D HitPair object from a valid pair and a dead channel in the missing plane
      */
-    bool makeDeadChannelPair(reco::ClusterHit3D& pairOut, const reco::ClusterHit3D& pair, size_t maxStatus = 4, size_t minStatus = 0, double minOverlap=0.2) const;
+    bool makeDeadChannelPair(reco::ClusterHit3D& pairOut, const reco::ClusterHit3D& pair, size_t maxStatus = 4, size_t minStatus = 0, float minOverlap=0.2) const;
     
     /**
      *  @brief A utility routine for finding a 2D hit closest in time to the given pair
      */
-    const reco::ClusterHit2D* FindBestMatchingHit(const Hit2DSet& hit2DSet, const reco::ClusterHit3D& pair, double pairDeltaTimeLimits) const;
+    const reco::ClusterHit2D* FindBestMatchingHit(const Hit2DSet& hit2DSet, const reco::ClusterHit3D& pair, float pairDeltaTimeLimits) const;
     
     /**
      *  @brief A utility routine for returning the number of 2D hits from the list in a given range
      */
-    int FindNumberInRange(const Hit2DSet& hit2DSet, const reco::ClusterHit3D& pair, double range) const;
+    int FindNumberInRange(const Hit2DSet& hit2DSet, const reco::ClusterHit3D& pair, float range) const;
     
     /** 
      *  @brief Jacket the calls to finding the nearest wire in order to intercept the exceptions if out of range
      */
-    geo::WireID NearestWireID(const double* position, const geo::WireID& wireID) const;
+    geo::WireID NearestWireID(const float* position, const geo::WireID& wireID) const;
     
     /**
      *  @brief Create the internal channel status vector (assume will eventually be event-by-event)
@@ -162,15 +162,13 @@ private:
      *  @brief Data members to follow
      */
 
-    double                               m_numSigmaPeakTime;
-    double                               m_deltaPeakTimeSig;
+    float                                m_numSigmaPeakTime;
+    float                                m_hitWidthSclFctr;
+    float                                m_deltaPeakTimeSig;
     
     bool                                 m_enableMonitoring;      ///<
-    int                                  m_hits;                  ///<
-    double                               m_wirePitch[3];
-    float                                m_buildTime;            ///<
-    std::vector<std::vector<double>>     m_wireDir;               ///<
-    std::vector<std::vector<double>>     m_wireNormal;            ///<
+    float                                m_wirePitch[3];
+    float                                m_buildTime;             ///<
     
     ChannelStatusByPlaneVec              m_channelStatus;
  

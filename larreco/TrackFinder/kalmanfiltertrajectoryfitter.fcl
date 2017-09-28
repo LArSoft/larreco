@@ -18,6 +18,7 @@ kalmantrajfit: {
         dirVec: [0,0,1]
 	alwaysInvertDir: false
 	produceTrackFitHitInfo: true
+	produceSpacePoints: true
 	keepInputTrajectoryPoints: false
   }
   fitter: {

@@ -10,6 +10,8 @@
 #define TRAJCLUSTERALG_H
 
 #include "larreco/RecoAlg/TCAlg/Utils.h"
+#include "larreco/RecoAlg/TCAlg/TCTruth.h"
+#include "larreco/RecoAlg/TCAlg/TCCR.h"
 
 // C/C++ standard libraries
 #include <array>
@@ -35,13 +37,13 @@
 
 // LArSoft libraries
 #include "larreco/RecoAlg/LinFitAlg.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
-#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "larreco/RecoAlg/TrackKalmanFitter.h"
 
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TProfile.h"
+#include "TTree.h"
 
 namespace tca {
   
@@ -58,8 +60,14 @@ namespace tca {
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
     void RunTrajClusterAlg(art::Event & evt);
+
+    void DefineShTree(TTree* t);
     
-    std::vector<short> const& GetinClus() const {return tjs.inClus; }
+    void DefineCRTree(TTree* t);
+
+    TjStuff const& GetTJS() const {return tjs;}
+
+//    std::vector<short> const& GetinClus() const {return tjs.inClus; }
     
     /// Returns (and loses) the art::Ptr collection of previously reconstructed hits (e.g. gaushit)
     std::vector<recob::Hit> YieldHits();
@@ -75,11 +83,9 @@ namespace tca {
     std::vector<Vtx3Store> const& GetVertices() const { return tjs.vtx3; }
     
     // Get the index list of matchVec entries that have PFParticle info defined
-    std::vector<unsigned short> const& GetPFPList() const { return tjs.matchVecPFPList; }
-    // Get a specific matchVec entry that will be turned into a PFParticle
-    MatchStruct const& GetMatchStruct(unsigned short im) {return tjs.matchVec[im]; };
+    std::vector<PFPStruct> const& GetPFParticles() const { return tjs.pfps; }
     // Get the cluster index of a trajectory ID
-    unsigned short GetTjClusterIndex(unsigned short TjID) { return tjs.allTraj[TjID - 1].ClusterIndex; }
+    unsigned int GetTjClusterIndex(unsigned int TjID) { return tjs.allTraj[TjID - 1].ClusterIndex; }
     // Get a ShowerStuct3D entry
     unsigned short GetShowerStructSize() { return tjs.showers.size(); };
     ShowerStruct3D const& GetShowerStruct(unsigned short ish) { return tjs.showers[ish]; };
@@ -93,14 +99,14 @@ namespace tca {
     void ClearResults();
     
     TjStuff tjs;
-    DebugStuff Debug;
+    HistStuff hist;
+    TruthMatcher tm{tjs};
     
     private:
     
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
-    short fStepDir;             /// US->DS (1), DS->US (-1)
     short fNPtsAve;         /// number of points to find AveChg
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
     std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a trajectory
@@ -108,7 +114,6 @@ namespace tca {
     std::vector<short> fMinMCSMom;   ///< Min MCSMom for each pass
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
-    std::vector<float> fKinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
     std::vector<float> fQualityCuts; ///< Min points/wire, min consecutive pts after a gap
     std::vector<float> fChargeCuts;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
@@ -121,7 +126,6 @@ namespace tca {
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
-    std::vector<float> fMatchTruth;     ///< Match to MC truth
  
     std::vector<float> fMaxVertexTrajSep;
 
@@ -131,51 +135,15 @@ namespace tca {
     
     float fLAClusSlopeCut;
     unsigned short fAllowNoHitWire;
-		float VertexPullCut; 	///< maximum 2D vtx - trajectory significance
     std::vector<float> fChkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
     
-    // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons
-    std::array<short, 5> EPCnts;
-    std::array<float, 5> EPSums;
-    std::array<float, 5> EPTSums;
     bool fIsRealData;
-/*
-    TH2F *fMCSMom_KE_e;
-    TH2F *fMCSMom_KE_mu;
-    TH2F *fMCSMom_KE_pi;
-    TH2F *fMCSMom_KE_p;
-    TH1F *fnHitsPerTP[3];
-    TH1F *fDelta[3];
-    TH1F *fDeltaN[3];
-    TH1F *fCharge[3];
-    TH1F *fPrEP;
-    TH1F *fMuPiEP;
-    TH2F *fnHitsPerTP_Angle[3];
-    TProfile *fnHitsPerTP_AngleP[3];
-*/
-     TH2F *fMCSMom_TruMom_e;
+
+
+    TH2F *fMCSMom_TruMom_e;
     TH2F *fMCSMom_TruMom_mu;
     TH2F *fMCSMom_TruMom_pi;
     TH2F *fMCSMom_TruMom_p;
-    
-    TProfile *fShMinSep;
-    TProfile *fShMCSMom_Energy;
-    TProfile *fShnTjs_Energy;
-    TProfile *fShAspectRatio_Energy;
-    TProfile *fShChg_Energy[3];
-    TProfile *fShChgDensity_Energy;
-    TProfile *fShEP_Energy;
-    TProfile *fParentLength_Energy;
-    
-    TH1F *fShMCSMom;
-    TH1F *fShChgDensity;
-    TH1F *fShAspectRatio;
-    TH1F *fDOCA;
-    TH1F *fParentFOM;
-    
-    TH1F *fShowerAngle[3];
-    TH1F *fShPrimIP;
-    TProfile *fShPrimIP_Energy;
 
     TH2F *fMCSMomEP_TruMom_e;
     
@@ -183,27 +151,35 @@ namespace tca {
     TH1F* fNuVtx_dx;
     TH1F* fNuVtx_dy;
     TH1F* fNuVtx_dz;
+    TH1F* fNuVtx_Score;
+    TProfile* fNuVtx_Enu_Score_p;
+    
+    // Vertex score for 2D and 3D vertices
+    TH1F* fVx2_Score;
+    TH1F* fVx3_Score;
     
     // Reco-MC stopping wire difference for different MC Particles
     TH1F* fdWire[5];
     // EP vs KE for different MC Particles
     TProfile* fEP_T[5];
-/*
-    TH1F *fDeltaN[3];
-    TH1F *fHitRMS[3];
-    TH2F *fTPWidth_Angle[3];
-    TProfile *fTPWidth_AngleP[3];
-    TProfile *fExpect_Angle[3];
-*/
+
+    // SHOWER VARIABLE TREE
+    TTree* showertree;
+
+    // Cosmic Removal Variable Tree
+    TTree* crtree;
+
     // number of primary particles in the event
     unsigned short nTruPrimary;
-    float fSourceParticleEnergy;
+    float fNeutrinoEnergy;
+    float fSourceParticleEnergy; //< in MeV
     // number of reconstructable primary particles in the event
     unsigned short nTruPrimaryOK;
     // number of reconstructable neutrino vertices in ALL events
     unsigned short nTruPrimaryVtxOK;
     // number of reconstructable neutrino vertices in ALL events that were reconstructed
     unsigned short nTruPrimaryVtxReco;
+
  
     bool prt;
     bool mrgPrt;
@@ -215,13 +191,9 @@ namespace tca {
     trkf::LinFitAlg fLinFitAlg;
     calo::CalorimetryAlg fCaloAlg;
 
-    unsigned int fCstat;         // the current cryostat
-    unsigned int fTpc;         // the current TPC
     unsigned int fRun, fSubRun;
     unsigned int fEvent;
-    unsigned int fEventsProcessed;
-    CTP_t fCTP;        ///< Cryostat/TPC/Plane code
-    unsigned int fPlane;         // the current plane
+//    unsigned int fPlane;         // the current plane
     int fWorkID;
 
 
@@ -235,29 +207,29 @@ namespace tca {
     bool fMaskedLastTP;
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
     
-    std::vector<float> fAveHitRMS;      ///< average RMS of an isolated hit
     
     std::vector<unsigned int> fAlgModCount;
+
+    bool fKalmanFilterFit;
+    trkf::TrackStatePropagator prop;
+    trkf::TrackKalmanFitter kalmanFitter;
     
 //    short watchInTraj;
     // runs the TrajCluster algorithm on one plane specified by the calling routine
     void RunStepCrawl();
-    void InitializeAllTraj();
-    void ReconstructAllTraj();
+    void ReconstructAllTraj(CTP_t inCTP);
     // Main stepping/crawling routine
     void StepCrawl(Trajectory& tj);
     // Add hits on the trajectory point ipt that are close to the trajectory point Pos
     void AddHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
     // Large Angle version
     void AddLAHits(Trajectory& tj, unsigned short ipt, bool& sigOK);
-    // Hits on two adjacent wires have an acceptable signal overlap
-    bool TrajHitsOK(const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet);
     // Try to use unused nearby hits in all trajectories after stepping is done
     void UseUnusedHits();
     // Finds junk trajectories using unassigned hits
-    void FindJunkTraj();
+    void FindJunkTraj(CTP_t inCTP);
     // Finds junk trajectories using unassigned hits
-    void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned short& newTjIndex);
+    void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned int& newTjIndex);
     // Step through TPs starting at the end and moving to the beginning
     void ReversePropagate(Trajectory& tj);
     // Start a trajectory going from fromHit to (toWire, toTick)
@@ -270,6 +242,7 @@ namespace tca {
     // Estimates the error^2 of the time using all hits in hitVec
     float HitsTimeErr2(const std::vector<unsigned int>& hitVec);
     // defines HitPos, HitPosErr2 and Chg for the used hits in the trajectory point
+    void ChkStopEndPts(Trajectory& tj, bool prt);
     void DefineHitPos(TrajPoint& tp);
     // Decide which hits to use to determine the trajectory point
     // fit, charge, etc. This is done by setting UseHit true and
@@ -279,12 +252,11 @@ namespace tca {
     void FindHit(std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText);
-    // Merge and store the two trajectories in allTraj
-    bool MergeAndStore(unsigned short tj1,  unsigned short tj2, bool doPrt);
-    // Make clusters from all trajectories in allTraj
+     // Make clusters from all trajectories in allTraj
     void MakeAllTrajClusters();
-    void FindVtxTjs();
-    void FindVtxTraj(unsigned short ivx);
+    void FindMissedVxTjs(const geo::TPCID& tpcid);
+    void FindVtxTjs(CTP_t inCTP);
+    void FindVtxTraj(VtxStore& theVtx);
     // Check the quality of the trajectory and possibly trim it
     void CheckTraj(Trajectory& tj);
      // Truncates the trajectory if a soft kink is found in it
@@ -295,7 +267,7 @@ namespace tca {
     void CheckHiMultUnusedHits(Trajectory& tj);
     void CheckHiMultEndHits(Trajectory& tj);
     // Check for high values of Delta at the beginning of the trajectory
-    void CheckHiDeltas(Trajectory& tj);
+    void HiEndDelta(Trajectory& tj);
     // Check for a TJ that is close to the Large Angle cut
     void CheckNearLA();
     // Updates the last added trajectory point fit, average hit rms, etc.
@@ -322,12 +294,7 @@ namespace tca {
     bool IsGhost(std::vector<unsigned int>& tHits, unsigned short& ofTraj);
     bool IsGhost(Trajectory& tj);
     void CheckTrajEnd();
-    void EndMerge();
-    void EndMerge2();
-    void FillWireHitRange(const geo::TPCID& tpcid);
-    float ExpectedHitsRMS(TrajPoint const& tp);
-    /// sets fQuitAlg true if WireHitRange has a problem
-    bool CheckWireHitRange();
+    void EndMerge(CTP_t inCTP, bool lastPass);
     // Erases delHit and makes corrections to inTraj, allTraj and WireHitRange
     bool EraseHit(const unsigned int& delHit);
     // Creates a hit in tjs.fHits using the supplied information. Returns UINT_MAX if there is failure.
@@ -337,26 +304,19 @@ namespace tca {
     // Merges all of the hits used in each TP into one hit
     void MergeTPHits();
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
-    // Sets the StopsAtEnd bits for all trajectories in the current CTP
-    void ChkAllStop();
     // Sets the StopsAtEnd bits for the trajectory
     void ChkStop(Trajectory& tj);
     void SplitTrajCrossingVertices();
     // Check the Michel electron topology, lastGoodPt is the last point of muon
     bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
     // TY: Split high charge hits near the trajectory end
-    void ChkHiChgHits();
+    void ChkHiChgHits(CTP_t inCTP);
     void SplitHiChgHits(Trajectory& tj);
-    void SpacePtDir(TjStuff& tjs, TrajPoint itp, TrajPoint jtp, TVector3& dir, TVector3& dirErr);
-    void MatchTruth();
-    void MatchTrueHits();
-     // ****************************** 3D Tj matching code  ******************************
+      // ****************************** 3D Tj matching code  ******************************
     void Match3D(const geo::TPCID& tpcid);
-    void Match2Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
-    void Match3Views(const geo::TPCID& tpcid, const std::vector<float>& xx);
-    void Find3DEndPoints(const geo::TPCID& tpcid);
-    void FillPFPInfo();
+
     
+    void KalmanFilterFit(PFPStruct& pfp);
   }; // class TrajClusterAlg
 
 
