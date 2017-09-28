@@ -493,6 +493,7 @@ namespace tca {
       // bypass maxScore
       maxScore = SHRT_MAX;
     }
+    if(prt) mf::LogVerbatim("TC")<<"FXM: numPlanes "<<numPlanes<<" maxScore "<<maxScore<<" returnMatchPts? "<<returnMatchPts;
     bool first = true;
     for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 1; ++ipt) {
       auto& iTjPt = tjs.mallTraj[ipt];
@@ -508,6 +509,8 @@ namespace tca {
         auto& jTjPt = tjs.mallTraj[jpt];
         // ensure that the planes are different
         if(jTjPt.ctp == iTjPt.ctp) continue;
+        // ensure they are both showerlike or both not showerlike
+        if(jTjPt.showerlike != iTjPt.showerlike) continue;
         // Mode 2: check for a valid TjID
         if(returnMatchPts && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), jTjPt.id) == pfp.TjIDs.end()) continue;
         if(jTjPt.score < 0 || jTjPt.score > maxScore) continue;
@@ -535,11 +538,13 @@ namespace tca {
           posij[2] = jzp;
         }
         if(numPlanes == 3) {
-          // 3-plane TPC
+          // numPlanes == 3
           for(unsigned int kpt = jpt + 1; kpt < tjs.mallTraj.size(); ++kpt) {
             auto& kTjPt = tjs.mallTraj[kpt];
             // ensure that the planes are different
             if(kTjPt.ctp == iTjPt.ctp || kTjPt.ctp == jTjPt.ctp) continue;
+            // ensure they are all showerlike or all not showerlike
+            if(kTjPt.showerlike != iTjPt.showerlike) continue;
             // Mode 2: check for a valid TjID
             if(returnMatchPts && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), kTjPt.id) == pfp.TjIDs.end()) continue;
             if(kTjPt.score < 0 || kTjPt.score > maxScore) continue;
@@ -613,7 +618,7 @@ namespace tca {
               } // not found in the list
             } // fill temp
           } // kpt
-          // 3-plane TPC
+          // numPlanes == 3
         } else {
           // 2-plane TPC or 2-plane match in a 3-plane TPC
           if(tjs.NumPlanes == 3) {
@@ -625,8 +630,8 @@ namespace tca {
             tpk.CTP = EncodeCTP(cstat, tpc, kpl);
             geo::PlaneID planeID = DecodeCTP(tpi.CTP);
             float xp = 0.5 * (iTjPt.xlo + iTjPt.xhi);
+            tpk.Pos[0] = fkwire;
             tpk.Pos[1] = tjs.detprop->ConvertXToTicks(xp, planeID) * tjs.UnitsPerTick;
-            tpk.Pos[1] = fkwire;
             // Note that SignalAtTp assumes that a signal exists if the wire is dead
             if(!SignalAtTp(tjs, tpk)) continue;
           }
@@ -656,7 +661,6 @@ namespace tca {
             unsigned short indx = 0;
             for(indx = 0; indx < temp.size(); ++indx) {
               auto& ms = temp[indx];
-              // This rejects 2-plane matches that already have 3-plane matches
               if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), iTjPt.id) != ms.TjIDs.end() &&
                  std::find(ms.TjIDs.begin(), ms.TjIDs.end(), jTjPt.id) != ms.TjIDs.end()) break;
             } // indx
@@ -669,6 +673,9 @@ namespace tca {
               ms.Count = 1;
               temp.push_back(ms);
             } // not found in the list
+            else {
+              ++temp[indx].Count;
+            }
           } // fill temp
         } // 2-plane TPC
       } // jpt
@@ -898,7 +905,7 @@ namespace tca {
     std::array<std::vector<unsigned int>, 2> matchPts;
     std::array<std::array<float, 3>, 2> matchPos;
     unsigned short nMatch;
-    // get the matching points, requiring two planes
+    // get the matching points, only requiring two planes
     FindXMatches(tjs, 2, SHRT_MAX, pfp, dummyMatVec, matchPts, matchPos, nMatch, prt);
     if(matchPts[0].size() < 2 || matchPts[1].size() < 2) {
       if(prt) mf::LogVerbatim("TC")<<"SetPFPEndPoints: no 2-plane matches. write some code\n";
@@ -1731,7 +1738,8 @@ namespace tca {
     
     tj.WorkID = tj.ID;
     tj.ID = trID;
-    tj.ParentID = trID;
+    // Don't clobber the ParentID if it was defined by the calling function
+    if(tj.ParentID == 0) tj.ParentID = trID;
     // Calculate the overall charge RMS relative to a linear
     UpdateChgRMS(tjs, tj);
     tjs.allTraj.push_back(tj);
@@ -3267,7 +3275,7 @@ namespace tca {
   } // TjDeltaRMS
 
   /////////////////////////////////////////
-  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, short debugWorkID)
+  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP)
   {
     // DeltaRayTag vector elements
     // [0] = max separation of both endpoints from a muon
@@ -3278,7 +3286,12 @@ namespace tca {
     if(tjs.DeltaRayTag[0] < 0) return;
     if(tjs.DeltaRayTag.size() < 3) return;
     
-    float sepCut = tjs.DeltaRayTag[0];
+    bool prt = (debug.CTP == inCTP) && (debug.Tick == 31313);
+
+    // double the user-defined separation cut. We will require that at least one of the ends of 
+    // a delta ray be within the user-defined cut and allow
+    float maxSep = 2 * tjs.DeltaRayTag[0];
+    float maxMinSep = 0.5 * tjs.DeltaRayTag[0];
     unsigned short minMom = tjs.DeltaRayTag[1];
     unsigned short maxMom = tjs.DeltaRayTag[2];
     unsigned short endCut = tjs.Vertex2DCuts[2];
@@ -3287,9 +3300,8 @@ namespace tca {
       Trajectory& muTj = tjs.allTraj[itj];
       if(muTj.CTP != inCTP) continue;
       if(muTj.AlgMod[kKilled]) continue;
-      bool prt = (muTj.WorkID == debugWorkID);
-      if(prt) mf::LogVerbatim("TC")<<"TagDeltaRays: Muon "<<muTj.CTP<<" "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]]);
       if(muTj.PDGCode != 13) continue;
+      if(prt) mf::LogVerbatim("TC")<<"TagDeltaRays: Muon "<<muTj.ID<<" EndPts "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]]);
       // min length
       if(muTj.Pts.size() < 2 * endCut) continue;
       unsigned short end0Cut = muTj.EndPt[0] + endCut;
@@ -3300,8 +3312,6 @@ namespace tca {
         if(drTj.AlgMod[kKilled]) continue;
         if(drTj.CTP != inCTP) continue;
         if(drTj.PDGCode == 13) continue;
-        // already tagged
-        if(drTj.AlgMod[kDeltaRay]) continue;
         // MCSMom cut
         if(drTj.MCSMom < minMom) continue;
         if(drTj.MCSMom > maxMom) continue;
@@ -3315,22 +3325,28 @@ namespace tca {
           if(drTj.Pts[drTj.EndPt[1]].Pos[0] < muTj.Pts[muTj.EndPt[1]].Pos[0]) continue;
         }
         unsigned short muPt0, muPt1;
-        float sep0 = sepCut;
+        float sep0 = maxSep;
         // check both ends of the prospective delta ray
         TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[0]], muTj, muPt0, sep0);
-        if(sep0 == sepCut) continue;
+        if(sep0 == maxSep) continue;
         if(prt) mf::LogVerbatim("TC")<<"  ID "<<drTj.ID<<" "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[0]])<<" muPt0 "<<muPt0<<" sep0 "<<sep0;
         // stay away from the ends
         if(muPt0 < end0Cut) continue;
         if(muPt0 > end1Cut) continue;
-        float sep1 = sepCut;
+        float sep1 = maxSep;
         TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[1]], muTj, muPt1, sep1);
         if(prt) mf::LogVerbatim("TC")<<"      "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[1]])<<" muPt1 "<<muPt1<<" sep1 "<<sep1;
-        if(sep1 == sepCut) continue;
+        if(sep1 == maxSep) continue;
         // stay away from the ends
         if(muPt1 < end0Cut) continue;
         if(muPt1 > end1Cut) continue;
-        if(prt) mf::LogVerbatim("TC")<<" delta ray "<<drTj.ID<<" near "<<PrintPos(tjs, muTj.Pts[muPt0]);
+        // make the maximum minimum separation cut
+        if(sep0 < sep1) {
+          if(sep0 > maxMinSep) continue;
+        } else {
+          if(sep1 > maxMinSep) continue;
+        }
+        if(prt) mf::LogVerbatim("TC")<<" delta ray "<<drTj.ID<<" parent -> "<<muTj.ID;
         drTj.ParentID = muTj.ID;
         drTj.PDGCode = 11;
         drTj.AlgMod[kDeltaRay] = true;
@@ -3964,7 +3980,10 @@ namespace tca {
     }   
     // Transfer some of the AlgMod bits
     if(tj2.AlgMod[kMichel]) tj1.AlgMod[kMichel] = true;
-    if(tj2.AlgMod[kDeltaRay]) tj1.AlgMod[kDeltaRay] = true;
+    if(tj2.AlgMod[kDeltaRay]) {
+      tj1.AlgMod[kDeltaRay] = true;
+      tj1.ParentID = tj2.ParentID;
+    }
     // keep track of the IDs before they are clobbered
     int tj1ID = tj1.ID;
     int tj2ID = tj2.ID;
@@ -4169,6 +4188,7 @@ namespace tca {
           auto& mcp = tjs.MCPartList[aTj.MCPartListIndex];
           truKE = 1000 * (mcp->E() - mcp->Mass());
           pdg = mcp->PdgCode();
+          std::cout<<"PAT: "<<aTj.ID<<" "<<aTj.MCPartListIndex<<" pdg "<<pdg<<"\n";
         }
         myprt<<std::setw(6)<<pdg;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
