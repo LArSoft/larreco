@@ -3,7 +3,7 @@
 // Authors:     R.Sulej (Robert.Sulej@cern.ch), from DUNE, FNAL/NCBJ, Sept. 2017
 //              P.Plonski,                      from DUNE, WUT, Sept. 2017
 //
-// Iterface to run Tensorflow graph saved to a file. First attempts, almost functional.
+// Iterface to run Tensorflow graph saved to a file. First attempts, quite functional.
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -13,7 +13,7 @@
 #include "tensorflow/core/platform/env.h"
 
 // -------------------------------------------------------------------
-tf::Graph::Graph(const char* graph_file_name, bool & success)
+tf::Graph::Graph(const char* graph_file_name, const std::vector<std::string> & outputs, bool & success)
 {
     success = false; // until all is done correctly
 
@@ -34,7 +34,41 @@ tf::Graph::Graph(const char* graph_file_name, bool & success)
 
     size_t ng = graph_def.node().size();
     fInputName = graph_def.node()[0].name();
-    fOutputName = graph_def.node()[ng - 1].name();
+
+    // last node as output if no specific name provided
+    if (outputs.empty()) { fOutputNames.push_back(graph_def.node()[ng - 1].name()); }
+    else // or last nodes with names containing provided strings
+    {
+        std::string last, current, basename, name;
+        for (size_t n = 0; n < ng; ++n)
+        {
+            name = graph_def.node()[n].name();
+            auto pos = name.find("/");
+            if (pos != std::string::npos) { basename = name.substr(0, pos); }
+            else { continue; }
+
+            bool found = false;
+            for (const auto & s : outputs)
+            {
+                if (name.find(s) != std::string::npos) { found = true; break; }
+            }
+            if (found)
+            {
+                if (!last.empty() && (basename != current))
+                {
+                    fOutputNames.push_back(last);
+                }
+                current = basename;
+                last = name;
+            }
+        }
+        if (!last.empty()) { fOutputNames.push_back(last); }
+    }
+    if (fOutputNames.empty())
+    {
+        std::cout << "Output nodes not found in the graph." << std::endl;
+        return;
+    }
 
     status = fSession->Create(graph_def);
     if (!status.ok())
@@ -43,7 +77,7 @@ tf::Graph::Graph(const char* graph_file_name, bool & success)
         return;
     }
 
-    success = true; // ok, graph oaded from the file
+    success = true; // ok, graph loaded from the file
 }
 
 tf::Graph::~Graph()
@@ -55,48 +89,23 @@ tf::Graph::~Graph()
 
 std::vector<float> tf::Graph::run(const std::vector< std::vector<float> > & x)
 {
-    if (x.empty() || x.front().empty()) return std::vector<float>();
+    if (x.empty() || x.front().empty()) { return std::vector<float>(); }
+
     long long int rows = x.size(), cols = x.front().size();
 
-    tensorflow::Tensor _x(tensorflow::DT_FLOAT, tensorflow::TensorShape({ rows, cols }));
+    tensorflow::Tensor _x(tensorflow::DT_FLOAT, tensorflow::TensorShape({ 1, rows, cols, 1 }));
+    auto input_map = _x.tensor<float, 4>();
 
-    auto input_map = _x.tensor<float, 2>();
     for (long long int r = 0; r < rows; ++r) {
         const auto & row = x[r];
-        for (long long int c = 0; c < cols; ++c) { input_map(r, c) = row[c]; }
+        for (long long int c = 0; c < cols; ++c) {
+            input_map(0, r, c, 0) = row[c];
+        }
     }
 
-    std::vector< std::pair<std::string, tensorflow::Tensor> > inputs = {
-        { fInputName, _x }
-    };
-
-    std::cout << "run session" << std::endl;
-
-    std::vector<tensorflow::Tensor> outputs;
-    auto status = fSession->Run(inputs, { fOutputName }, {}, &outputs);
-
-    if (status.ok())
-    {
-        std::cout << "get output" << std::endl;
-        auto output_map = outputs.front().tensor<float, 2>();
-
-        std::cout << "shape:";
-        size_t nd = outputs.front().dims();
-        for (size_t d = 0; d < nd; ++d) { std::cout << " " << outputs.front().dim_size(d); }
-        std::cout << std::endl;
-
-        std::vector< float > output(outputs.front().dim_size(nd-1));
-        for (size_t i = 0; i < output.size(); ++i) { output[i] = output_map(0, i); }
-        return output;
-    }
-    else
-    {
-        std::cout << status.ToString() << std::endl;
-        return std::vector<float>();
-    }
-
-    // (There are similar methods for vectors and matrices here:
-    // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/public/tensor.h)
+    auto result = run(_x);
+    if (!result.empty()) { return result.front(); }
+    else { return std::vector<float>(); }
 }
 // -------------------------------------------------------------------
 
@@ -104,9 +113,8 @@ std::vector< std::vector<float> > tf::Graph::run(
 	const std::vector<  std::vector<  std::vector< std::vector<float> > > > & x,
 	long long int samples)
 {
-    std::vector< std::vector<float> > empty_output;
     if ((samples == 0) || x.empty() || x.front().empty() || x.front().front().empty() || x.front().front().front().empty())
-        return empty_output;
+        return std::vector< std::vector<float> >();
 
     if ((samples == -1) || (samples > (long long int)x.size())) { samples = x.size(); }
 
@@ -143,23 +151,42 @@ std::vector< std::vector< float > > tf::Graph::run(const tensorflow::Tensor & x)
     //std::cout << "run session" << std::endl;
 
     std::vector<tensorflow::Tensor> outputs;
-    auto status = fSession->Run(inputs, { fOutputName }, {}, &outputs);
+    auto status = fSession->Run(inputs, fOutputNames, {}, &outputs);
+
+    //std::cout << "out size " << outputs.size() << std::endl;
 
     if (status.ok())
     {
-        auto output_map = outputs.front().tensor<float, 2>();
-        size_t samples = outputs.front().dim_size(0);
-        size_t nouts = outputs.front().dim_size(1);
-
-        std::vector< std::vector< float > > output;
-        for (size_t s = 0; s < samples; ++s) {
-            std::vector< float > tmp(nouts);
-            for (size_t i = 0; i < tmp.size(); ++i) {
-                tmp[i] = output_map(s, i);
+        size_t samples = 0, nouts = 0;
+        for (size_t o = 0; o < outputs.size(); ++o)
+        {
+            if (o == 0) { samples = outputs[o].dim_size(0); }
+            else if ((int)samples != outputs[o].dim_size(0))
+            {
+                throw std::string("TF outputs size inconsistent.");
             }
-            output.push_back(tmp);
+            nouts += outputs[o].dim_size(1);
         }
-        return output;
+        //std::cout << "samples " << samples << " nouts " << nouts << std::endl;
+
+        std::vector< std::vector< float > > result;
+        result.resize(samples, std::vector< float >(nouts));
+
+        size_t idx0 = 0;
+        for (size_t o = 0; o < outputs.size(); ++o)
+        {
+            auto output_map = outputs[o].tensor<float, 2>();
+
+            size_t n = outputs[o].dim_size(1);
+            for (size_t s = 0; s < samples; ++s) {
+                std::vector< float > & vs = result[s];
+                for (size_t i = 0; i < n; ++i) {
+                    vs[idx0 + i] = output_map(s, i);
+                }
+            }
+            idx0 += n;
+        }
+        return result;
     }
     else
     {

@@ -96,7 +96,7 @@ std::vector<float> nnet::KerasModelInterface::Run(std::vector< std::vector<float
 
 nnet::TfModelInterface::TfModelInterface(const char* modelFileName)
 {
-	g = tf::Graph::create(nnet::ModelInterface::findFile(modelFileName).c_str());
+	g = tf::Graph::create(nnet::ModelInterface::findFile(modelFileName).c_str(), {"cnn_output", "_netout"});
 	if (!g) { throw art::Exception(art::errors::Unknown) << "TF model failed."; }
 
 	mf::LogInfo("TfModelInterface") << "TF model loaded.";

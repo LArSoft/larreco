@@ -26,10 +26,10 @@ namespace tf
 class Graph
 {
 public:
-    static std::unique_ptr<Graph> create(const char* graph_file_name)
+    static std::unique_ptr<Graph> create(const char* graph_file_name, const std::vector<std::string> & outputs = {})
     {
         bool success;
-        std::unique_ptr<Graph> ptr(new Graph(graph_file_name, success));
+        std::unique_ptr<Graph> ptr(new Graph(graph_file_name, outputs,  success));
         if (success) { return ptr; }
         else { return nullptr; }
     }
@@ -47,10 +47,11 @@ public:
 
 private:
     /// Not-throwing constructor.
-    Graph(const char* graph_file_name, bool & success);
+    Graph(const char* graph_file_name, const std::vector<std::string> & outputs, bool & success);
 
     tensorflow::Session* fSession;
-    std::string fInputName, fOutputName;
+    std::string fInputName;
+    std::vector< std::string > fOutputNames;
 };
 
 } // namespace tf
