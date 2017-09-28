@@ -123,6 +123,7 @@ namespace tca {
     // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
     unsigned short npts;
     short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
+    bool showerlike;
   };
 
   struct TrajPoint {
