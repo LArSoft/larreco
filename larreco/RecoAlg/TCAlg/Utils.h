@@ -170,7 +170,7 @@ namespace tca {
   // Returns true if the trajectory has low hit multiplicity and is in a clean environment
   bool TrajIsClean(TjStuff& tjs, Trajectory& tj, bool prt);
   // Flag delta ray trajectories in allTraj
-  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, short debugWorkID);
+  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP);
   // Tag muon directions using delta proximity
   void TagMuonDirections(TjStuff& tjs, short debugWorkID);
   // Make a bare trajectory point that only has position and direction defined
