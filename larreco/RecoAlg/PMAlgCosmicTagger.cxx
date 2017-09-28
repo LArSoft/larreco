@@ -235,7 +235,7 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
           }
 
           if(trk_dedx.size() == 0){
-            std::cout << "View " << view << " has no hits." << std::endl;
+            mf::LogInfo("pma::PMAlgCosmicTagger") << "View " << view << " has no hits." << std::endl;
             continue;
           }
 
@@ -247,7 +247,7 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
           });
           double stdev = sqrt(accum / static_cast<double>(trk_dedx.size()-1));
 
-          std::cout << " View " << view << " has average dedx " << mean << " +/- " << stdev << " and final dedx " << trk_dedx[trk_dedx.size()-1] << std::endl;
+          mf::LogInfo("pma::PMAlgCosmicTagger") << " View " << view << " has average dedx " << mean << " +/- " << stdev << " and final dedx " << trk_dedx[trk_dedx.size()-1] << std::endl;
 
           nSigmaPerView.push_back(fabs((trk_dedx[trk_dedx.size()-1]-mean)/stdev));
         }
@@ -264,7 +264,6 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
         if(n2Sigma == nSigmaPerView.size()) notStopper = false;
 
         if(notStopper){
-          std::cout << " == Tagging track: " << n2Sigma << ", " << n3Sigma << std::endl;
           ++n;
 			    t.Track()->SetTagFlag(pma::Track3D::kCosmic);
 			    t.Track()->SetTagFlag(pma::Track3D::kGeometry_Y);
