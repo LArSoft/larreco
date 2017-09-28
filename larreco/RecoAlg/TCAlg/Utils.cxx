@@ -85,6 +85,23 @@ namespace tca {
     auto vlist = temp;
     for(unsigned short indx = 0; indx < temp.size(); ++indx) vlist[indx] = temp[sortVec[indx].index];
     
+    // make a neutrino PFParticle to associate with the highest score vertex
+    auto neutrinoPFP = CreatePFPStruct(tjs, tpcid);
+    auto& vx3 = tjs.vtx3[vlist[0] - 1];
+    // put the vertex at the end of the neutrino
+    neutrinoPFP.XYZ[1][0] = vx3.X;
+    neutrinoPFP.XYZ[1][1] = vx3.Y;
+    neutrinoPFP.XYZ[1][2] = vx3.Z;
+    neutrinoPFP.XYZ[0] = neutrinoPFP.XYZ[1];
+    neutrinoPFP.Dir[1][2] = 1;
+    neutrinoPFP.Dir[0][2] = 1;
+    // This may be set to 12 later on if a primary shower is reconstructed 
+    neutrinoPFP.PDGCode = 14;
+    neutrinoPFP.Vx3ID[1] = vx3.ID;
+    neutrinoPFP.Vx3ID[0] = vx3.ID;
+    // the rest of this will be defined later
+    tjs.pfps.push_back(neutrinoPFP);
+    
     // a temp vector to ensure that we only consider a vertex once
     std::vector<bool> lookedAt3(tjs.vtx3.size() + 1, false);
     std::vector<bool> lookedAt2(tjs.vtx.size() + 1, false);
@@ -93,7 +110,6 @@ namespace tca {
     // Start with the highest score vertex 
     for(unsigned short indx = 0; indx < vlist.size(); ++indx) {
       auto& vx3 = tjs.vtx3[vlist[indx] - 1];
-//      std::cout<<"vx3 "<<vx3.ID<<" Score "<<vx3.Score<<" lookedAt3? "<<lookedAt3[vx3.ID]<<"\n";
       if(lookedAt3[vx3.ID]) continue;
       vx3.Primary = true;
       lookedAt3[vx3.ID] = true;
@@ -127,18 +143,13 @@ namespace tca {
         } // end
       } // primTjID
       if(pardtr.empty()) continue;
-/*
-      std::cout<<" pardtr";
-      for(auto pair : pardtr) std::cout<<" "<<pair.first<<"_"<<pair.second;
-      std::cout<<"\n";
-*/
       // iterate through the parent - daughter stack, removing the last element when a 
       // ParentID is updated and adding elements for new daughters
       while(true) {
         auto lastPair = pardtr[pardtr.size() - 1];
         auto& dtj = tjs.allTraj[lastPair.second - 1];
         if(dtj.ParentID > 0) {
-          std::cout<<"Coding error\n";
+          std::cout<<"Parent-daughter error\n";
           break;
         }
         dtj.ParentID = lastPair.first;
@@ -158,11 +169,6 @@ namespace tca {
           }
         } // end
         if(pardtr.empty()) break;
-/*
-        std::cout<<" pardtr";
-        for(auto pair : pardtr) std::cout<<" "<<pair.first<<"_"<<pair.second;
-        std::cout<<"\n";
-*/
       } // true
     } // indx
     
@@ -186,8 +192,11 @@ namespace tca {
     
     // only create a PFP vertex at end 0 (if one doesn't exist)
     constexpr unsigned short end0 = 0;
+    int neutrinoPFPID = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
+      if(pfp.TPCID != tpcid) continue;
+      if(neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) neutrinoPFPID = pfp.ID;
       if(pfp.Vx3ID[end0] > 0) continue;
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
@@ -216,10 +225,12 @@ namespace tca {
       } // merge to new vertex
     } // pfp
     
+    
     // define the end vertex if the Tjs have end vertices
     constexpr unsigned short end1 = 1;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
+      if(pfp.TPCID != tpcid) continue;
       // already done?
       if(pfp.Vx3ID[end1] > 0) continue;
       // count 2D -> 3D matched vertices
@@ -248,10 +259,11 @@ namespace tca {
     std::array<int, 5> codeList = {0, 11, 13, 211, 2212};
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
+      if(pfp.TPCID != tpcid) continue;
+      // skip a neutrino PFParticle
+      if(pfp.PDGCode == 12 || pfp.PDGCode == 14) continue;
       int pfpParentID = INT_MAX;
       // The PDG code may have already been set
-      // assign 0 = don't know
-//      pfp.PDGCode = 0;
       unsigned short nParent = 0;
       std::array<unsigned short, 5> cnts = {0};
       for(auto tjid : pfp.TjIDs) {
@@ -259,9 +271,9 @@ namespace tca {
         for(unsigned short code = 0; code < 5; ++code) {
           if(tj.PDGCode == codeList[code]) ++cnts[code];
         } // code
-        // look for a PFParticle parent
+        // look for a PFParticle parent while we are here
         if(tj.ParentID == tj.ID) continue;
-        unsigned short ppindex = GetPFPIndex(tjs, tj.ID);
+        unsigned short ppindex = GetPFPIndex(tjs, tj.ParentID);
         if(ppindex == USHRT_MAX) continue;
         int ppid = ppindex + 1;
         if(pfpParentID == INT_MAX) pfpParentID = ppid;
@@ -290,14 +302,24 @@ namespace tca {
       pfp.PDGCode = codeList[code];
       // look for a parent
       if(nParent > 1) {
-        pfp.ParentID = pfpParentID;
-        // add this daughter to the parent
-        auto& ppfp = tjs.pfps[pfpParentID - 1];
-        ppfp.DtrIDs.push_back(pfp.ID);
-      }
-//      std::cout<<"DPFPR: Set PFParticle "<<pfp.ID<<" PDGCode = "<<pfp.PDGCode<<" with parent "<<pfp.ParentID<<"\n";
+        pfp.ParentID = (size_t)pfpParentID;
+        auto& parpfp = tjs.pfps[pfpParentID - 1];
+        parpfp.DtrIDs.push_back(pfp.ID);
+      } // nParent > 1
     } // ipfp
     
+    // associate primary PFParticles with a neutrino PFParticle
+    if(neutrinoPFPID > 0) {
+      auto& neutrinoPFP = tjs.pfps[neutrinoPFPID - 1];
+      int vx3id = neutrinoPFP.Vx3ID[1];
+      for(auto& pfp : tjs.pfps) {
+        if(pfp.ID == 0 || pfp.ID == neutrinoPFPID) continue;
+        if(pfp.TPCID != tpcid) continue;
+        if(pfp.Vx3ID[0] != vx3id) continue;
+        pfp.ParentID = (size_t)neutrinoPFPID;
+        neutrinoPFP.DtrIDs.push_back(pfp.ID);
+      } // pfp
+    } // neutrino PFP exists    
   } // DefinePFParticleRelationships
   
   /////////////////////////////////////////
@@ -3973,7 +3995,8 @@ namespace tca {
       if(!tjs.vtx3.empty()) {
         // print out 3D vertices
         myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
-        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? nTru  2D_Pos          Tjs\n";
+        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? nTru";
+        myprt<<" ___________2D_Pos____________ _____Tjs________\n";
         for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
           if(tjs.vtx3[iv].ID == 0) continue;
           const Vtx3Store& vx3 = tjs.vtx3[iv];
@@ -4319,7 +4342,7 @@ namespace tca {
     
     mf::LogVerbatim myprt("TC");
     myprt<<someText;
-    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Eve E*P   TjIDs\n";
+    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par Eve E*P\n";
     unsigned short indx = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
@@ -4347,11 +4370,13 @@ namespace tca {
       // global stuff
       myprt<<std::setw(5)<<pfp.BestPlane;
       myprt<<std::setw(6)<<pfp.PDGCode;
+      myprt<<std::setw(4)<<pfp.ParentID;
       myprt<<std::setw(4)<<EveID(tjs, pfp);
-//      myprt<<std::setw(4)<<pfp.ParentID;
       myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
-      myprt<<"  ";
+      myprt<<" tjs";
       for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
+      myprt<<" dtrs";
+      for(auto& dtrID : pfp.DtrIDs) myprt<<" "<<dtrID;
       myprt<<"\n";
       ++indx;
     } // im
