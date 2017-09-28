@@ -745,7 +745,7 @@ namespace tca {
       } // iwire
       
       // Tag delta rays before merging and making vertices
-      TagDeltaRays(tjs, inCTP, debug.WorkID);
+      TagDeltaRays(tjs, inCTP);
       // Try to merge trajectories before making vertices
       bool lastPass = (pass == fMinPtsFit.size() - 1);
       EndMerge(inCTP, lastPass);
@@ -768,7 +768,7 @@ namespace tca {
       FindJunkTraj(inCTP);
       if(fQuitAlg) return;
     }
-    TagDeltaRays(tjs, inCTP, debug.WorkID);
+    TagDeltaRays(tjs, inCTP);
     Find2DVertices(tjs, inCTP);
     // check for a major failure
     if(fQuitAlg) return;
@@ -2401,8 +2401,13 @@ namespace tca {
         tjs.mallTraj[icnt].ctp = tp.CTP;
         tjs.mallTraj[icnt].id = tjID;
         tjs.mallTraj[icnt].ipt = ipt;
-        tjs.mallTraj[icnt].npts = tj.Pts.size();
+        tjs.mallTraj[icnt].npts = tj.EndPt[1] - tj.EndPt[0];
         tjs.mallTraj[icnt].score = score;
+        if(tj.PDGCode == 11) {
+          tjs.mallTraj[icnt].showerlike = true;
+        } else {
+          tjs.mallTraj[icnt].showerlike = false;
+        }
         // populate the sort vector
         sortVec[icnt].index = icnt;
         sortVec[icnt].val = tjs.mallTraj[icnt].xlo;
@@ -2434,7 +2439,13 @@ namespace tca {
       for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 3, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
     } // 3-plane TPC
     // 2-plane TPC or 2-plane matches in a 3-plane TPC
-    for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+    if(tjs.NumPlanes == 2) {
+      for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+    } else {
+      // Make one attempt at 2-plane matches in a 3-plane TPC, setting maxScore large
+      FindXMatches(tjs, 2, 3, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+    }
+    
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
