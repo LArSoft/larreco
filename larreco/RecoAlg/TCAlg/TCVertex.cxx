@@ -1232,10 +1232,10 @@ namespace tca {
           // not matched. Look for one
           std::array<float, 2> pos;
           PosInPlane(tjs, vx3, plane, pos);
-          std::cout<<" tj "<<tj.ID<<" has no 2D vertex. Look for one vertex near "<<tj.CTP<<":"<<PrintPos(tjs, pos)<<" Events processed "<<tjs.EventsProcessed<<"\n";
+          if(prt) std::cout<<" tj "<<tj.ID<<" has no 2D vertex. Look for one vertex near "<<tj.CTP<<":"<<PrintPos(tjs, pos)<<" Events processed "<<tjs.EventsProcessed<<"\n";
         } else {
           // Existing 2D vertex matched to the 3D vertex
-          std::cout<<" tj "<<tj.ID<<" has no 2D vertex in CTP "<<tj.CTP<<" but vx3 is matched to 2D vertex"<<vx3.Vx2ID[plane]<<". Attach it? Events processed "<<tjs.EventsProcessed<<"\n";
+          if(prt) std::cout<<" tj "<<tj.ID<<" has no 2D vertex in CTP "<<tj.CTP<<" but vx3 is matched to 2D vertex"<<vx3.Vx2ID[plane]<<". Attach it? Events processed "<<tjs.EventsProcessed<<"\n";
         }
       }
     } // tjid
