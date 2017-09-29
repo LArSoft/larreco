@@ -9,7 +9,7 @@ product         version
 larsim		v06_31_01
 eigen		v3_3_3
 nutools         v2_16_04
-tensorflow      v1_3_0_b4
+tensorflow      v1_3_0_b5
 
 cetbuildtools	v5_14_00	-	only_for_build
 end_product_list
