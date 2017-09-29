@@ -61,7 +61,7 @@ namespace tca {
         // Temp? Check for an existing parentID
         auto& tj = tjs.allTraj[tjid - 1];
         if(tj.ParentID != tj.ID) {
-          std::cout<<"**** Tj "<<tj.ID<<" Existing parent "<<tj.ParentID<<" PDGCode "<<tj.PDGCode<<". with a vertex... \n";
+//          std::cout<<"**** Tj "<<tj.ID<<" Existing parent "<<tj.ParentID<<" PDGCode "<<tj.PDGCode<<". with a vertex... \n";
         }
         if(std::find(masterlist.begin(), masterlist.end(), tjid) == masterlist.end()) masterlist.push_back(tjid);
       } // tjid
@@ -171,7 +171,7 @@ namespace tca {
         if(pardtr.empty()) break;
       } // true
     } // indx
-    
+/*
     // check the master list
     for(auto tjid : masterlist) {
       auto& tj = tjs.allTraj[tjid - 1];
@@ -179,7 +179,7 @@ namespace tca {
         std::cout<<"Tj "<<tj.ID<<" is in the master list but doesn't have a Parent\n";
       }
     } // tjid
-    
+*/
   } // DefineTjParents
   
   /////////////////////////////////////////
@@ -323,21 +323,25 @@ namespace tca {
   } // DefinePFParticleRelationships
   
   /////////////////////////////////////////
-  int EveID(const TjStuff& tjs, const PFPStruct& pfp)
+  int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp)
   {
-    // returns the ID of the most upstream PFParticle
+    // returns the ID of the most upstream PFParticle (that is not a neutrino)
     
     if(pfp.ParentID == pfp.ID || pfp.ParentID == 0) return pfp.ID;
     int parid = pfp.ParentID;
+    int dtrid = pfp.ID;
     while(true) {
       auto& parent = tjs.pfps[parid - 1];
-      // found a primary PFParticle
+      // found a neutrino
+      if(parent.PDGCode == 14 || parent.PDGCode == 12) return dtrid;
+      // found a primary PFParticle?
       if(parent.ParentID == 0) return parent.ID;
       if(parent.ParentID == parent.ID) return parent.ID;
+      dtrid = parent.ID;
       parid = parent.ParentID;
       if(parid < 0) return 0;
     }
-  } // EveID
+  } // PrimaryID
 
   /////////////////////////////////////////
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt)
@@ -471,6 +475,11 @@ namespace tca {
     // create a temp vector to check for duplicates
     auto inMatVec = matVec;
     std::vector<MatchStruct> temp;
+    
+    // the minimum number of points for matching
+    unsigned short minPts = 2 - 1;
+    // override this with the user minimum for 2-plane matches
+    if(numPlanes == 2) minPts = tjs.Match3DCuts[2];
 
     std::array<float, 3> posij, posik;
     // temp TPs used to find 3D directions. The positions are not used
@@ -497,6 +506,8 @@ namespace tca {
     bool first = true;
     for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 1; ++ipt) {
       auto& iTjPt = tjs.mallTraj[ipt];
+      // length cut
+      if(iTjPt.npts < minPts) continue;
       // Mode 2: check for a valid TjID
       if(returnMatchPts && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), iTjPt.id) == pfp.TjIDs.end()) continue;
       // look for matches using Tjs that have the correct score
@@ -509,6 +520,8 @@ namespace tca {
         auto& jTjPt = tjs.mallTraj[jpt];
         // ensure that the planes are different
         if(jTjPt.ctp == iTjPt.ctp) continue;
+        // length cut
+        if(jTjPt.npts < minPts) continue;
         // ensure they are both showerlike or both not showerlike
         if(jTjPt.showerlike != iTjPt.showerlike) continue;
         // Mode 2: check for a valid TjID
@@ -4188,7 +4201,6 @@ namespace tca {
           auto& mcp = tjs.MCPartList[aTj.MCPartListIndex];
           truKE = 1000 * (mcp->E() - mcp->Mass());
           pdg = mcp->PdgCode();
-          std::cout<<"PAT: "<<aTj.ID<<" "<<aTj.MCPartListIndex<<" pdg "<<pdg<<"\n";
         }
         myprt<<std::setw(6)<<pdg;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
@@ -4362,7 +4374,7 @@ namespace tca {
     
     mf::LogVerbatim myprt("TC");
     myprt<<someText;
-    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par Eve E*P\n";
+    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par Prim E*P\n";
     unsigned short indx = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
@@ -4391,12 +4403,16 @@ namespace tca {
       myprt<<std::setw(5)<<pfp.BestPlane;
       myprt<<std::setw(6)<<pfp.PDGCode;
       myprt<<std::setw(4)<<pfp.ParentID;
-      myprt<<std::setw(4)<<EveID(tjs, pfp);
+      myprt<<std::setw(5)<<PrimaryID(tjs, pfp);
       myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
-      myprt<<" tjs";
-      for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
-      myprt<<" dtrs";
-      for(auto& dtrID : pfp.DtrIDs) myprt<<" "<<dtrID;
+      if(!pfp.TjIDs.empty()) {
+        myprt<<" tjs";
+        for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
+      }
+      if(!pfp.DtrIDs.empty()) {
+        myprt<<" dtrs";
+        for(auto& dtrID : pfp.DtrIDs) myprt<<" "<<dtrID;
+      }
       myprt<<"\n";
       ++indx;
     } // im
