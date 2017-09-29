@@ -159,7 +159,6 @@ namespace tca {
     if(tpcid != tjs.TPCID && !FillWireHitRange(tjs, tpcid, false)) return false;
 
     PrintPFParticles("FSi", tjs);
-    PrintAllTraj("FSi", tjs, debug, USHRT_MAX, 0);
 
     // lists of Tj IDs in plane, (list1, list2, list3, ...)
     std::vector<std::vector<std::vector<int>>> bigList(tjs.NumPlanes);
@@ -169,21 +168,11 @@ namespace tca {
       TagInShowerTjs(fcnLabel, tjs, inCTP, tjList, false);
       SaveTjInfo(tjs, inCTP, tjList, "TJL");
       if(tjList.empty()) continue;
-      // Move this inside TagInShowerTjs
-//      MergeTjList(tjList);
       bigList[plane] = tjList;
     } // plane
     unsigned short nPlanesWithShowers = 0;
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) if(!bigList.empty()) ++nPlanesWithShowers;
     if(nPlanesWithShowers < 2) return false;
-/* Moved to TagInShowerTjs
-    // mark them all as InShower Tjs
-    for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
-      for(auto& tjl : bigList[plane]) {
-        for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
-      } // tjl
-    } // plane
-*/
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
       CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       // print detailed debug info for one plane
@@ -1141,7 +1130,7 @@ namespace tca {
     if(ss.ShowerTjID == 0) return false;
     Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
     
-    bool addParent = (ss.ParentID == tjID);
+//    bool addParent = (ss.ParentID == tjID);
     
     std::string fcnLabel = inFcnLabel + ".ATj";
 
@@ -1159,6 +1148,7 @@ namespace tca {
       mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" is in the wrong CTP "<<cotIndex;
       return false;
     }
+/*
     // don't add a Tj to the shower if it has a nice vertex unless it is the parent
     if(!addParent && tj.AlgMod[kTjHiVx3Score]) {
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" in SS "<<ss.ID<<" has a high score 3D VtxID[0] "<<tj.VtxID[0]<<" or VtxID[1] "<<tj.VtxID[1]<<" and is not the ParentID "<<ss.ParentID<<". Not adding it";
@@ -1169,6 +1159,7 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" in cotIndex "<<cotIndex<<" has a high score 2D vertex. Not adding it";
       return false;
     }
+*/
     // Ensure that we are not trying to add a Tj that is attached to the shower Tj vertex
     if(stj.VtxID[0] > 0) {
       // Get a list of TjIDs that are attached to the shower Tj vertex
@@ -1329,7 +1320,7 @@ namespace tca {
         // remove the parent flag
         oldParentTj.AlgMod[kShwrParent] = false;
         // remove it from the shower and update if it is attached to a high-score 3D vertex
-        if(oldParentTj.AlgMod[kTjHiVx3Score]) RemoveTj(fcnLabel, tjs, oldParent, cotIndex, true, prt);
+//        if(oldParentTj.AlgMod[kTjHiVx3Score]) RemoveTj(fcnLabel, tjs, oldParent, cotIndex, true, prt);
       }
       ss.ParentID = 0;
       // detach the showerTj from a vertex if one exists
@@ -1752,7 +1743,7 @@ namespace tca {
           auto& tj = tjs.allTraj[tjID - 1];
           if(tj.AlgMod[kInShower]) continue;
           // don't put it in the shower if it has a nice Tj
-          if(tj.AlgMod[kTjHiVx3Score]) continue;
+//          if(tj.AlgMod[kTjHiVx3Score]) continue;
           AddTj(fcnLabel, tjs, tjID, ci1, false, prt);
         } // tjID
         if(MergeShowersAndStore(fcnLabel, tjs, ci1, ci2, prt)) {
@@ -2506,7 +2497,7 @@ namespace tca {
       stp.Dir[1] = sin(stp.Ang);
     } // stp
     
-    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" stj "<<stj.ID<<" Pos "<<PrintPos(tjs, stj.Pts[0].Pos)<<" "<<PrintPos(tjs, stj.Pts[1].Pos)<<" "<<PrintPos(tjs, stj.Pts[2].Pos)<<"\n";
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" stj "<<stj.ID<<" Pos "<<PrintPos(tjs, stj.Pts[0].Pos)<<" "<<PrintPos(tjs, stj.Pts[1].Pos)<<" "<<PrintPos(tjs, stj.Pts[2].Pos);
     // Guard against too-narrow shower widths at the charge center
     if(stj.Pts[1].DeltaRMS < stj.Pts[0].DeltaRMS || stj.Pts[1].DeltaRMS < stj.Pts[2].DeltaRMS) {
       // take the average
@@ -2665,10 +2656,7 @@ namespace tca {
     
     tjList.clear();
     
-    if(tjs.ShowerTag[0] < 0) return;
-    unsigned int mode = tjs.ShowerTag[0];
-    // Only use this function if bit 0 is set, ShowerTag[0] = 1, 3, etc
-    if(!(mode & (1 << 0))) return;
+    if(tjs.ShowerTag[0] <= 0) return;
     
     // clear out any old information
     unsigned short cnt = 0;
@@ -2695,7 +2683,8 @@ namespace tca {
       if(tj1.Pts.size() < 3) continue;
       // Cut on length and MCSMom
       if(tj1.Pts.size() > 4 && tj1.MCSMom > maxMCSMom) continue;
-      if(tj1.AlgMod[kTjHiVx3Score]) continue;
+      // ignore Tjs with parents
+      if(tj1.ParentID != tj1.ID) continue;
       for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
         Trajectory& tj2 = tjs.allTraj[it2];
         if(tj2.CTP != inCTP) continue;
@@ -2705,7 +2694,8 @@ namespace tca {
         if(tj2.AlgMod[kShowerTj]) continue;
         // ignore stubby Tjs
         if(tj2.Pts.size() < 3) continue;
-        if(tj2.AlgMod[kTjHiVx3Score]) continue;
+        // ignore Tjs with parents
+        if(tj2.ParentID != tj2.ID) continue;
         // Cut on length and MCSMom
         if(tj2.Pts.size() > 4 && tj2.MCSMom > maxMCSMom) continue;
         unsigned short ipt1, ipt2;
@@ -2840,7 +2830,7 @@ namespace tca {
         // check the momentum
         Trajectory& tj = tjs.allTraj[tjs.fHits[iht].InTraj - 1];
         if(tj.MCSMom > maxMom) continue;
-        if(tj.AlgMod[kTjHiVx3Score]) continue;
+//        if(tj.AlgMod[kTjHiVx3Score]) continue;
         // see if it is already in the list
         if(std::find(list.begin(), list.end(), tjs.fHits[iht].InTraj) != list.end()) continue;
         list.push_back(tjs.fHits[iht].InTraj);
@@ -2931,7 +2921,7 @@ namespace tca {
        if(tj.AlgMod[kKilled]) continue;
        if(tj.AlgMod[kInShower]) continue;
        if(tj.AlgMod[kShowerTj]) continue;
-       
+/*
        if(!nukeEmAll && tj.AlgMod[kTjHiVx3Score]) continue;
        // ignore Tjs with high-score 3D vertices unless requested otherwise
        if(tj.AlgMod[kTjHiVx3Score]) {
@@ -2949,6 +2939,7 @@ namespace tca {
            continue;
          }
        } // tj has nice vertex
+*/
        // This shouldn't be necessary but do it for now
        if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
        // See if both ends are outside the envelope
