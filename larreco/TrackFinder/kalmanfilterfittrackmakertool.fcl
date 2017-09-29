@@ -1,3 +1,4 @@
+#include "mcsfitproducer.fcl"
 BEGIN_PROLOG
 kalmanfilterfittrackmakertool: {
    tool_type: KalmanFilterFitTrackMaker
@@ -5,6 +6,9 @@ kalmanfilterfittrackmakertool: {
       defaultMomInGeV: 1.0
       momFromMCS: false #true
       mcsInputTag: "mcsproducer"
+      momFromTagAndPid: false #true
+      contInputTag: ""
+      pidInputTag: ""
       defaultPdgId: 13
       dirFromVec: false
       dirVec: [0,0,1]
@@ -31,5 +35,6 @@ kalmanfilterfittrackmakertool: {
       wrongDirDistTolerance: 0.01
       propPinvErr: false
    }
+   mcsfit: @local::mcsfitproducer.fitter
 }
 END_PROLOG
