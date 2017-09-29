@@ -141,7 +141,11 @@ namespace tca {
       // turn off printing
       tjs.ShowerTag[12] = -1;
     }
-    if(tjs.Match3DCuts.size() != 5) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = 2-view match require dead region in 3rd view?\n 4 = minimum match fraction";
+    if(tjs.Match3DCuts.size() < 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 4\n 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = minimum match fraction";
+    if(tjs.Match3DCuts[3] <= 0) {
+      std::cout<<"Match3DCuts[3] improperly defined. Setting it to 0.5";
+      tjs.Match3DCuts[3] = 0.5;
+    }
     
     // check the angle ranges and convert from degrees to radians
     if(tjs.AngleRanges.back() < 90) {
@@ -448,7 +452,7 @@ namespace tca {
         }
         // Tag InShower Tjs. The list of inshower Tjs within each shower isn't used here.
         std::vector<std::vector<int>> tjlist;
-        TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
+        if(tjs.ShowerTag[0] == 1) TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
         // kill vertices that have more than one InShower Tj. This is meant to reduce
         // the number of spurious 3D vertices reconstructed inside of showers
         for(auto& vx2 : tjs.vtx) {
@@ -461,7 +465,7 @@ namespace tca {
             if(tj.AlgMod[kInShower]) ++cnt;
           } // tjid
           if(cnt > 1) {
-            std::cout<<"Kill vtx "<<vx2.ID<<" with cnt "<<cnt<<"?\n";
+//            std::cout<<"Kill vtx "<<vx2.ID<<" with cnt "<<cnt<<"?\n";
             MakeVertexObsolete(tjs, vx2, false);
           }
         } // vx2
@@ -2296,7 +2300,7 @@ namespace tca {
     } // iterate
     
     ChkVxTjs(tjs, inCTP, mrgPrt);
-    
+/*
     // Do some checking in debug mode
     if(fDebugMode && lastPass) {
       for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
@@ -2325,7 +2329,7 @@ namespace tca {
         } // end1
       } // it1
     } // debug mode
-
+*/
   } // EndMerge
   
   //////////////////////////////////////////
@@ -2401,7 +2405,7 @@ namespace tca {
         tjs.mallTraj[icnt].ctp = tp.CTP;
         tjs.mallTraj[icnt].id = tjID;
         tjs.mallTraj[icnt].ipt = ipt;
-        tjs.mallTraj[icnt].npts = tj.EndPt[1] - tj.EndPt[0];
+        tjs.mallTraj[icnt].npts = tj.EndPt[1] - tj.EndPt[0] + 1;
         tjs.mallTraj[icnt].score = score;
         if(tj.PDGCode == 11) {
           tjs.mallTraj[icnt].showerlike = true;
@@ -2481,14 +2485,12 @@ namespace tca {
     // Start with Tjs attached to 3D vertices
     Match3DVtxTjs(tjs, tpcid, prt);
     
-    // Re-check matchVec with a tighter matchfrac cut to reduce junk
+    // Re-check matchVec with the user cut matchfrac cut to reduce junk
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
       auto& ms = tjs.matchVec[indx];
       if(ms.Count == 0) continue;
-      // check for a reasonable match fraction
-      if(ms.MatchFrac > 0.5) continue;
-      // flag it dead
-      ms.Count = 0;
+      // check for a minimum user-defined match fraction
+      if(ms.MatchFrac < tjs.Match3DCuts[3]) ms.Count = 0;
     } // ms
     
     // define the PFParticleList
