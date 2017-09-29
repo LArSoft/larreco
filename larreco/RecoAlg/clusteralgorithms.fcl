@@ -1,6 +1,7 @@
 #include "trackfinderalgorithms.fcl"
 #include "cluster3dalgorithms.fcl"
 #include "calorimetry.fcl"
+#include "kalmanfilterfittrackmakertool.fcl"
 BEGIN_PROLOG
 
 standard_trajclusteralg:
@@ -9,7 +10,7 @@ standard_trajclusteralg:
    MakeNewHits:   true      # Merge hits in trajectory points and write them out
    Mode: 1                  # 1(-1) step from US(DS) to DS(US), 2 = don't use
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
-   MinPtsFit: [4, 4, 3]     # Min number of points in the trajectory fit required on each pass
+   MinPtsFit: [3, 3, 3]     # Min number of points in the trajectory fit required on each pass
    MinPts:    [5, 5, 3]     # Min number of points in the trajectory required on each pass
    MaxAngleCode: [0, 1, 2]  # Max angle range code allowed on each pass
    MinMCSMom: [100, 0, 0]   # Minimum MCSMom for each pass
@@ -29,8 +30,8 @@ standard_trajclusteralg:
    QualityCuts: [ 0.8, 3] # Min points/wire, min consecutive pts after a gap
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
-#                0   1   2   3   4  5    6   7  8  9  10  11
-   ShowerTag: [ -1, 50, 20, 0.5, 3, 2, 100, 10, 1, 1, 1,  0]
+#                0   1   2   3   4  5    6   7  8  9 10 11 12
+   ShowerTag: [ -1, 50, 20, 0.5, 3, 2, 100, 10, 1, 1, 1, 0, 0]
   # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
   # 1 Max Tj MCSMom for a shower tag
   # 2 Max separation
@@ -42,23 +43,38 @@ standard_trajclusteralg:
   # 8 max parent FOM
   # 9 max direction FOM
   # 10 max aspect ratio
-  # 11 Debug in CTP (>10 debug cotIndex + 10)
-   ChkStopCuts: [1.4, 5, 1] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
-   Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6, 0]
-   # 0 max short TjLen
-   # 1 max ShortTj-vtx sep
-   # 2 max LongTj-vtx sep
-   # 3 max PosPull
-   # 4 max PosErr
-   # 5 Min MCSMom
-   # 6 min frac Pts/Wire btw vtx and Tjs
-   # 7 ID of vertex to print
-   Vertex3DChiCut: 3.5       # 3D vertex Chi/DOF cut
-   Match3DCuts: [ 0.3, 0, 3, 1 ] 
-   # dx (cm) matching cut, min MCSMom, min length for 2-view match, 2-view missing plane requirement
-   SkipAlgs: [  "VtxHitsSwap", "SplitHiChgHits", "ChkAllStop", "ChkStop", "CTKink", "HED" ]   # List of algs that should not be called
+  # 11 not used
+  # 12 Print 2D showers in plane (0,1,2) or all planes (3) or just 3D matching (4)
+   SaveShowerTree: false
+   SaveCRTree: false
+   TagCosmics: false
+   ChkStopCuts: [5, 8, 1.5] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
+   VertexScoreWeights: [1, 2, 10, 2]
+    # 0 = Vertex error weight
+    # 1 = 3D match weight
+    # 2 = Charge fraction of vertex Tjs near the vertex weight
+    # 3 = Tj MCSMom, ChgRMS, Angle difference significance between Tjs weight
+   Vertex2DCuts:  [6, 8, 45, 3, 3, 50, 0.6, 0, 0.8, 0.8]
+   # 0 User definition of a short Tj => max number of Tj points
+   # 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
+   # 2 max separation for a user-defined long Tj
+   # 3 max position pull when attaching a Tj to a vertex
+   # 4 max position error for creating a Tj or attaching Tjs to an existing vertex
+   # 5 Min MCSMom of Tjs that can be used to create a vertex
+   # 6 min frac of Points/Wire between a vtx and a Tj. Ideally one if the efficiency is good
+   # 7 min Score
+   # 8 Min charge fraction near a vertex or merge point
+   # 9 max MCSmom asymmetry for a merge
+   Vertex3DCuts: [0.8, 2]       # [ dX match cut, dY and dZ match cut]
+   Match3DCuts: [ 0.3, 0.1, 5, 0.5 ] 
+   # 0 dx (cm) matching cut
+   # 1 Angle cut (radians) (0 = don't use)
+   # 2 min length for 2-view match
+   # 3 min match fraction
+   KalmanFilterFit: false
+   SkipAlgs: [  "VtxHitsSwap", "SplitHiChgHits", "CTKink", "HED" ]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
-   StudyMode: false         # Set true to generate histograms (commented out)
+   StudyMode: false         # Set true to generate histograms
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
    DebugCryostat: 0
    DebugTPC: 0
@@ -68,6 +84,9 @@ standard_trajclusteralg:
    DebugWorkID:     0       # Print debug output for a trajectory with this WorkID (Note WorkID < 0)
 }
 standard_trajclusteralg.CaloAlg: @local::standard_calorimetryalgmc
+standard_trajclusteralg.kfpropagator: @local::kalmanfilterfittrackmakertool.propagator
+standard_trajclusteralg.kffitter: @local::kalmanfilterfittrackmakertool.fitter
+#standard_trajclusteralg.kffitter.skipNegProp: false # gc: do we need this?
 
 standard_clustercrawleralg:
 {
@@ -386,6 +405,7 @@ microboone_cornerfinderalg:		      @local::standard_cornerfinderalg
 microboone_clusterparamsalg:                  @local::standard_clusterparamsalg
 microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
+
 microboone_trajclusteralg:                    @local::standard_trajclusteralg
 microboone_trajclusteralg.MaxWireSkipNoSignal: 15 # increase a bit to allow for low gain wires
 
