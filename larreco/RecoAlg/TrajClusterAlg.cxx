@@ -124,7 +124,7 @@ namespace tca {
     if(fMinMCSMom.size() != fMinPts.size()) badinput = true;
     if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxVertexTrajSep, MaxAngleRange and MinMCSMom should be defined for each reconstruction pass";
     
-    if(tjs.Vertex2DCuts.size() < 10) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 7\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = min ChgFrac at a vtx or merge point\n 9 = max MCSMom asymmetry";
+    if(tjs.Vertex2DCuts.size() < 10) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 10\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = min ChgFrac at a vtx or merge point\n 9 = max MCSMom asymmetry";
     if(tjs.Vertex3DCuts.size() < 2)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size 2\n 0 = Max dX (cm)\n 1 = Max pull";
     if(tjs.KinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
     if(fChargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
@@ -141,7 +141,11 @@ namespace tca {
       // turn off printing
       tjs.ShowerTag[12] = -1;
     }
-    if(tjs.Match3DCuts.size() != 5) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 3\n 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = 2-view match require dead region in 3rd view?\n 4 = minimum match fraction";
+    if(tjs.Match3DCuts.size() < 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 4\n 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = minimum match fraction";
+    if(tjs.Match3DCuts[3] <= 0) {
+      std::cout<<"Match3DCuts[3] improperly defined. Setting it to 0.5";
+      tjs.Match3DCuts[3] = 0.5;
+    }
     
     // check the angle ranges and convert from degrees to radians
     if(tjs.AngleRanges.back() < 90) {
@@ -448,7 +452,7 @@ namespace tca {
         }
         // Tag InShower Tjs. The list of inshower Tjs within each shower isn't used here.
         std::vector<std::vector<int>> tjlist;
-        TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
+        if(tjs.ShowerTag[0] == 1) TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
         // kill vertices that have more than one InShower Tj. This is meant to reduce
         // the number of spurious 3D vertices reconstructed inside of showers
         for(auto& vx2 : tjs.vtx) {
@@ -461,7 +465,7 @@ namespace tca {
             if(tj.AlgMod[kInShower]) ++cnt;
           } // tjid
           if(cnt > 1) {
-            std::cout<<"Kill vtx "<<vx2.ID<<" with cnt "<<cnt<<"?\n";
+//            std::cout<<"Kill vtx "<<vx2.ID<<" with cnt "<<cnt<<"?\n";
             MakeVertexObsolete(tjs, vx2, false);
           }
         } // vx2
@@ -745,7 +749,7 @@ namespace tca {
       } // iwire
       
       // Tag delta rays before merging and making vertices
-      TagDeltaRays(tjs, inCTP, debug.WorkID);
+      TagDeltaRays(tjs, inCTP);
       // Try to merge trajectories before making vertices
       bool lastPass = (pass == fMinPtsFit.size() - 1);
       EndMerge(inCTP, lastPass);
@@ -768,7 +772,7 @@ namespace tca {
       FindJunkTraj(inCTP);
       if(fQuitAlg) return;
     }
-    TagDeltaRays(tjs, inCTP, debug.WorkID);
+    TagDeltaRays(tjs, inCTP);
     Find2DVertices(tjs, inCTP);
     // check for a major failure
     if(fQuitAlg) return;
@@ -2296,7 +2300,7 @@ namespace tca {
     } // iterate
     
     ChkVxTjs(tjs, inCTP, mrgPrt);
-    
+/*
     // Do some checking in debug mode
     if(fDebugMode && lastPass) {
       for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
@@ -2325,7 +2329,7 @@ namespace tca {
         } // end1
       } // it1
     } // debug mode
-
+*/
   } // EndMerge
   
   //////////////////////////////////////////
@@ -2401,8 +2405,13 @@ namespace tca {
         tjs.mallTraj[icnt].ctp = tp.CTP;
         tjs.mallTraj[icnt].id = tjID;
         tjs.mallTraj[icnt].ipt = ipt;
-        tjs.mallTraj[icnt].npts = tj.Pts.size();
+        tjs.mallTraj[icnt].npts = tj.EndPt[1] - tj.EndPt[0] + 1;
         tjs.mallTraj[icnt].score = score;
+        if(tj.PDGCode == 11) {
+          tjs.mallTraj[icnt].showerlike = true;
+        } else {
+          tjs.mallTraj[icnt].showerlike = false;
+        }
         // populate the sort vector
         sortVec[icnt].index = icnt;
         sortVec[icnt].val = tjs.mallTraj[icnt].xlo;
@@ -2434,7 +2443,13 @@ namespace tca {
       for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 3, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
     } // 3-plane TPC
     // 2-plane TPC or 2-plane matches in a 3-plane TPC
-    for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+    if(tjs.NumPlanes == 2) {
+      for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+    } else {
+      // Make one attempt at 2-plane matches in a 3-plane TPC, setting maxScore large
+      FindXMatches(tjs, 2, 3, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+    }
+    
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2470,14 +2485,12 @@ namespace tca {
     // Start with Tjs attached to 3D vertices
     Match3DVtxTjs(tjs, tpcid, prt);
     
-    // Re-check matchVec with a tighter matchfrac cut to reduce junk
+    // Re-check matchVec with the user cut matchfrac cut to reduce junk
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
       auto& ms = tjs.matchVec[indx];
       if(ms.Count == 0) continue;
-      // check for a reasonable match fraction
-      if(ms.MatchFrac > 0.5) continue;
-      // flag it dead
-      ms.Count = 0;
+      // check for a minimum user-defined match fraction
+      if(ms.MatchFrac < tjs.Match3DCuts[3]) ms.Count = 0;
     } // ms
     
     // define the PFParticleList

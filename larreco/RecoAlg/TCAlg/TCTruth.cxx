@@ -911,13 +911,15 @@ namespace tca {
     std::array<int, 5> recoCodeList = {0, 11, 13, 211, 2212};
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
+      // ignore showers
+      if(pfp.PDGCode == 1111) continue;
       // require match to MC
       if(pfp.MCPartListIndex == USHRT_MAX) continue;
       short truIndex = PDGCodeIndex(tjs, partList[pfp.MCPartListIndex]->PdgCode());
       short recIndex = 0;
       for(recIndex = 0; recIndex < 5; ++recIndex) if(pfp.PDGCode == recoCodeList[recIndex]) break;
       if(recIndex == 5) {
-        std::cout<<"MT: Found an unknown PDGCode "<<pfp.PDGCode<<" in PFParticle "<<pfp.ID<<"\n";
+        std::cout<<"MatchTruth: Found an unknown PDGCode "<<pfp.PDGCode<<" in PFParticle "<<pfp.ID<<"\n";
         continue;
       }
       hist.PDGCode_reco_true->Fill((float)truIndex, (float)recIndex);
