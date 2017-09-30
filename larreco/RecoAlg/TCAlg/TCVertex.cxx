@@ -653,8 +653,6 @@ namespace tca {
     
     bool prt = (debug.Plane >= 0 && debug.Tick == 55555);
 
-    geo::PlaneID planeID = DecodeCTP(inCTP);
-
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       if(tjs.allTraj[it1].CTP != inCTP) continue;
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
@@ -686,7 +684,6 @@ namespace tca {
           float doca = minDOCA;
           unsigned short closePt2 = 0;
           TrajPointTrajDOCA(tjs, tjs.allTraj[it1].Pts[endPt1], tjs.allTraj[it2], closePt2, doca);
-          if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<it1<<" and traj "<<it2<<" closePt "<<closePt2<<" in plane "<<planeID.Plane<<" CTP "<<inCTP;
           if(doca == minDOCA) continue;
           // ensure that the closest point is not near an end
           if(prt) mf::LogVerbatim("TC")<<"FindHammerVertices: Candidate "<<tjs.allTraj[it1].ID<<"  "<<tjs.allTraj[it2].ID<<" doca "<<doca<<" tj2.EndPt[0] "<<tjs.allTraj[it2].EndPt[0]<<" closePt2 "<<closePt2<<" tj2.EndPt[1] "<<tjs.allTraj[it2].EndPt[1];
@@ -755,6 +752,8 @@ namespace tca {
       // obsolete trajectory
       if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
       if(tjs.allTraj[itj].AlgMod[kSplitTarjCV]) continue;
+      // too short
+      if(tjs.allTraj[itj].EndPt[1] < 6) continue;
       tPass = tjs.allTraj[itj].Pass;
       for(iv = 0; iv < tjs.vtx.size(); ++iv) {
         // obsolete vertex
@@ -764,12 +763,26 @@ namespace tca {
            tjs.allTraj[itj].VtxID[1] == tjs.vtx[iv].ID) continue;
         // not in the cryostat/tpc/plane
         if(tjs.allTraj[itj].CTP != tjs.vtx[iv].CTP) continue;
-        // too short
-        if(tjs.allTraj[itj].EndPt[1] < 6) continue;
         TrajClosestApproach(tjs.allTraj[itj], tjs.vtx[iv].Pos[0], tjs.vtx[iv].Pos[1], closePt, doca);
         if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<itj<<" and tjs.vtx "<<iv<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
         //if(doca > fMaxVertexTrajSep[tPass]) continue;
         if(doca > 3) continue;
+        // compare the length of the Tjs used to make the vertex with the length of the
+        // Tj that we want to split. Don't allow a vertex using very short Tjs to split a long
+        // Tj in the 3rd plane
+        auto vxtjs = GetVtxTjIDs(tjs, tjs.vtx[iv]);
+        unsigned short maxPts = 0;
+        for(auto tjid : vxtjs) {
+          auto& tj = tjs.allTraj[tjid - 1];
+          unsigned short npwc = NumPtsWithCharge(tjs, tj, false);
+          if(npwc > maxPts) maxPts = npwc;
+        } // tjid
+        // skip this operation if any of the Tjs in the split list are > 3 * maxPts
+        maxPts *= 3;
+        bool skipit = false;
+        if(NumPtsWithCharge(tjs,tjs.allTraj[itj] , false) > maxPts) skipit = true;
+        if(prt) mf::LogVerbatim("TC")<<"  maxPts "<<maxPts<<" vxtjs[0] "<<vxtjs[0]<<" skipit? "<<skipit;
+        if(skipit) continue;
         if(prt)  {
           mf::LogVerbatim("TC")<<"Good doca "<<doca<<" btw traj "<<itj<<" and tjs.vtx "<<iv<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
           PrintTrajPoint("STCV", tjs, closePt, 1, tPass, tjs.allTraj[itj].Pts[closePt]);
