@@ -378,6 +378,7 @@ namespace tca {
     kMergeSubShowers,
     kMergeNrShowers,
     kMergeShChain,
+    kSplitTarjCV,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
