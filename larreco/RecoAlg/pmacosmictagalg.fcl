@@ -15,6 +15,13 @@ standard_pmalgtagger:
 	TagNonBeamT0Tracks:  false # Tag tracks that have a reconstructed T0 incompatible with the beam
 	NonBeamT0Margin:     100.0 # Number of nanoseconds away from the beam time to be tagged.
 
+  TagTopFrontBack: true
+  TopFrontBackMargin: 5.0
+
+  TagApparentStopper: false
+  ApparentStopperMargin: 5.0
+  VetoActualStopper: false
+  StopperBuffer: 2.0
 }
 
 END_PROLOG

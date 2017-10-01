@@ -38,4 +38,5 @@ physics:
 services.DetectorClocksService.InheritClockConfig:                      false
 services.DetectorClocksService.TriggerOffsetTPC:                       -400 # MC bnb neutrinos
 physics.analyzers.pandorashowereff.HitModuleLabel:    "gaushit"
-physics.analyzers.pandorashowereff.ShowerModuleLabel: "pandoraCosmic"
+#physics.analyzers.pandorashowereff.ShowerModuleLabel: "pandoraCosmic"
+physics.analyzers.pandorashowereff.ShowerModuleLabel: "pandoraNu"

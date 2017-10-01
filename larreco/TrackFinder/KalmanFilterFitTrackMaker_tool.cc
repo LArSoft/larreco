@@ -1,10 +1,3 @@
-////////////////////////////////////////////////////////////////////////
-// Class:       KalmanFilterFitTrackMaker
-// File:        KalmanFilterFitTrackMaker_tool.cc
-//
-// Author: Giuseppe Cerati, cerati@fnal.gov
-////////////////////////////////////////////////////////////////////////
-
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/ToolConfigTable.h"
 #include "fhiclcpp/types/Atom.h"
@@ -21,12 +14,21 @@
 namespace trkmkr {
 
   /**
+   * @file larreco/TrackFinder/KalmanFilterFitTrackMaker_tool.cc
+   * @class trkmkr::KalmanFilterFitTrackMaker
+   *
    * @brief Concrete implementation of a tool to fit tracks with TrackKalmanFitter.
    *
-   * Concrete implementation of a tool to fit tracks with TrackKalmanFitter; inherits from abstract class TrackMaker.
+   * Concrete implementation of a tool to fit tracks with trkf::TrackKalmanFitter; inherits from abstract class TrackMaker.
    * It prepares the input needed by the fitter (momentum, particleId, direction), and returns a track with all outputs filled.
    * If the flag keepInputTrajectoryPoints is set to true, the tracjetory points from the input track are copied into the output,
    * so that only the covariance matrices, the chi2 and the ndof in the output track are resulting from the fit.
+   *
+   * For configuration options see KalmanFilterFitTrackMaker#Options and KalmanFilterFitTrackMaker#Config.
+   *
+   * @author  G. Cerati (FNAL, MicroBooNE)
+   * @date    2017
+   * @version 1.0
    */
 
   class KalmanFilterFitTrackMaker : public TrackMaker {
@@ -39,11 +41,13 @@ namespace trkmkr {
       //
       fhicl::Atom<double> defaultMomInGeV {
 	Name("defaultMomInGeV"),
-	Comment("Default momentum estimate value (all other options are set to false, or if the estimate is not available).")
+	Comment("Default momentum estimate value (all other options are set to false, or if the estimate is not available)."),
+	1.0
       };
       fhicl::Atom<bool> momFromMCS {
         Name("momFromMCS"),
-        Comment("Flag used to get initial momentum estimate from MCSFitResult.")
+	Comment("Flag used to get initial momentum estimate from MCSFitResult."),
+	false
       };
       fhicl::Atom<art::InputTag> mcsInputTag {
         Name("mcsInputTag"),
@@ -51,11 +55,13 @@ namespace trkmkr {
       };
       fhicl::Atom<int> defaultPdgId {
 	Name("defaultPdgId"),
-        Comment("Default particle id hypothesis (all other options are set to false, or if the estimate is not available).")
+	Comment("Default particle id hypothesis (all other options are set to false, or if the estimate is not available)."),
+	13
       };
       fhicl::Atom<bool> dirFromVec {
         Name("dirFromVec"),
-        Comment("Assume track direction as the one giving positive dot product with vector specified by dirVec.")
+	Comment("Assume track direction as the one giving positive dot product with vector specified by dirVec."),
+	false
       };
       fhicl::Sequence<float,3u> dirVec {
         Name("dirVec"),
@@ -63,11 +69,13 @@ namespace trkmkr {
       };
       fhicl::Atom<bool> alwaysInvertDir {
 	Name("alwaysInvertDir"),
-	Comment("If true, fit all tracks from end to vertex assuming inverted direction.")
+	Comment("If true, fit all tracks from end to vertex assuming inverted direction."),
+	false
       };
       fhicl::Atom<bool> keepInputTrajectoryPoints {
         Name("keepInputTrajectoryPoints"),
-        Comment("Option to keep positions and directions from input trajectory/track. The fit will provide only covariance matrices, chi2, ndof, particle Id and absolute momentum. It may also modify the trajectory point flags. In order to avoid inconsistencies, it has to be used with the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp.")
+	Comment("Option to keep positions and directions from input trajectory/track. The fit will provide only covariance matrices, chi2, ndof, particle Id and absolute momentum. It may also modify the trajectory point flags. In order to avoid inconsistencies, it has to be used with the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp."),
+	false
       };
       //
     };
@@ -86,13 +94,16 @@ namespace trkmkr {
     };
     using Parameters = art::ToolConfigTable<Config>;
 
+    /// Constructor from Parameters
     explicit KalmanFilterFitTrackMaker(Parameters const& p) : p_(p)
     {
       prop = new trkf::TrackStatePropagator(p_().propagator);
       kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().fitter);
       mom_def_ = p_().options().defaultMomInGeV();
       momFromMCS_ = p_().options().momFromMCS();
-      mcsInputTag_ = p_().options().mcsInputTag();
+      if (momFromMCS_) {
+	mcsInputTag_ = p_().options().mcsInputTag();
+      }
       pid_def_ = p_().options().defaultPdgId();
       alwaysFlip_ = p_().options().alwaysInvertDir();
       //
@@ -103,35 +114,44 @@ namespace trkmkr {
       //
     }
 
+    /// Destructor
     ~KalmanFilterFitTrackMaker() {
       delete prop;
       delete kalmanFitter;
     }
 
+    /// initialize event: get collection of recob::MCSFitResult
     virtual void initEvent(const art::Event& e) override {
       if (momFromMCS_) mcs = e.getValidHandle<std::vector<recob::MCSFitResult> >(mcsInputTag_).product();
       return;
     }
 
+    /// function that actually calls the fitter
     bool makeTrackImpl(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
 		       const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
 		       recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const;
 
+    /// override of TrackMaker purely virtual function with recob::TrackTrajectory as argument
     bool makeTrack(const recob::TrackTrajectory& traj, const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
 		   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const override {
       return makeTrackImpl(traj, tkID, inHits, trkf::SMatrixSym55(), trkf::SMatrixSym55(), outTrack, outHits, optionals);
     }
 
+    /// override of TrackMaker virtual function with recob::Track as argument
     bool makeTrack(const recob::Track& track, const std::vector<art::Ptr<recob::Hit> >& inHits,
 		   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const override {
       auto covs = track.Covariances();
       return makeTrackImpl(track.Trajectory(), track.ID(), inHits, covs.first, covs.second, outTrack, outHits, optionals);
     }
 
+    /// set the initial momentum estimate
     double setMomentum  (const recob::TrackTrajectory& traj, const int tkID) const;
+    /// set the particle ID hypothesis
     int    setParticleID(const recob::TrackTrajectory& traj, const int tkID) const;
-    bool   setDirection (const recob::TrackTrajectory& traj, const int tkID) const;
+    /// decide whether to flip the direction or not
+    bool   isFlipDirection (const recob::TrackTrajectory& traj, const int tkID) const;
 
+    /// restore the TrajectoryPoints in the Track to be the same as those in the input TrackTrajectory (but keep covariance matrices and chi2 from fit).
     void restoreInputPoints(const recob::TrackTrajectory& traj, const std::vector<art::Ptr<recob::Hit> >& inHits,
 			    recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const;
 
@@ -155,7 +175,7 @@ bool trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const recob::TrackTrajecto
   //
   const double mom = setMomentum(traj, tkID);// what about uncertainty?
   const int    pid = setParticleID(traj, tkID);
-  const bool   flipDirection = setDirection(traj, tkID);
+  const bool   flipDirection = isFlipDirection(traj, tkID);
   bool fitok = kalmanFitter->fitTrack(traj, tkID, covVtx, covEnd, inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
   if (!fitok) return false;
   //
@@ -180,7 +200,7 @@ int trkmkr::KalmanFilterFitTrackMaker::setParticleID(const recob::TrackTrajector
   return pid_def_;
 }
 
-bool trkmkr::KalmanFilterFitTrackMaker::setDirection(const recob::TrackTrajectory& traj, const int tkID) const {
+bool trkmkr::KalmanFilterFitTrackMaker::isFlipDirection(const recob::TrackTrajectory& traj, const int tkID) const {
   if (alwaysFlip_) {
     return true;
   } else if (p_().options().dirFromVec()) {

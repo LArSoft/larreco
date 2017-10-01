@@ -1,5 +1,6 @@
 #include "services_microboone.fcl"
-#include "Reco3D.fcl"
+#include "time_memory_tracker_microboone.fcl"
+#include "SpacePointSolver.fcl"
 
 process_name: Reco3D
 
@@ -25,8 +26,8 @@ source:
 services:
 {
   TFileService: { fileName: "grads.root" }
-  TimeTracker:       {}
-  MemoryTracker:     {}
+  TimeTracker:             @local::microboone_time_tracker
+  MemoryTracker:           @local::microboone_memory_tracker
   RandomNumberGenerator: {} #ART native random number generator
   BackTracker:             @local::microboone_backtracker
   @table::microboone_reco_mcc8_services
@@ -48,10 +49,10 @@ physics:
 {
   producers:
   {
-    reco3d: @local::standard_reco3d
+    reco3d: @local::standard_spacepointsolver
   }
 
-  ana: [ reco3d ]
+  reco: [ reco3d ]
 
   stream1:  [ out1 ]
 

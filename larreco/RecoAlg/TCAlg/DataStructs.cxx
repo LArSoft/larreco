@@ -4,12 +4,14 @@ namespace tca {
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
     "MaskBadTPs",
+    "Michel",
+    "DeltaRay",
     "CTKink",
     "CTStepChk",
     "TryNextPass",
-    "RevProp",
+    "RvPrp",
     "CHMH",
-    "SplitTraj",
+    "Split",
     "Comp3DVx",
     "Comp3DVxIG",
     "HED",
@@ -17,31 +19,40 @@ namespace tca {
     "HamVx2",
     "JunkTj",
     "Killed",
-    "EndMerge",
-    "TrimEndPts",
+    "Merge",
+    "TEP",
     "CHMEH",
     "FillGap",
     "Ghost",
     "ChkInTraj",
     "StopBadFits",
     "FixBegin",
+    "BeginChg",
     "FixEnd",
-    "UseUnusedHits",
+    "UUH",
+    "MisdVxTj",
     "VtxTj",
+    "ChkVxTj",
     "RefVtx",
+    "VxMerge",
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
-    "ChkAllStop",
-    "FTBRevProp",
+    "ChkStopEP",
+    "FTBRvProp",
     "StopAtTj",
-    "Match3D",
-    "VtxHitsSwap",
+    "M3D",
+    "Mat3DMerge",
+    "TjHiVx3Score",
+     "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
     "ShowerTj",
+    "ShwrParent",
     "MergeOverlap",
-    "MergeSubShowers"
+    "MergeSubShowers",
+    "MergeNrShowers",
+    "MergeShChain"
   };
 
   const std::vector<std::string> StopFlagNames {
@@ -53,12 +64,13 @@ namespace tca {
   };
   
   const std::vector<std::string> VtxBitNames {
-    "Fixed",
     "VtxTrjTried",
+    "Fixed",
     "OnDeadWire",
     "VtxRefined",
-    "InShower",
-    "VtxKilled"
+    "HiVx3Score",
+    "VtxTruMatch",
+    "VtxMerged"
   } ;
   
   geo::PlaneID DecodeCTP(CTP_t CTP) {

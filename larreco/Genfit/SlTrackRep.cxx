@@ -96,10 +96,10 @@ double genf::SlTrackRep::extrapolate(const GFDetPlane& pl,
   double state2=(dir*u)/(dir*w);
   double state3=(dir*v)/(dir*w);
 
-  statePred[0]=state0;
-  statePred[1]=state1;
-  statePred[2]=state2;
-  statePred[3]=state3;
+  statePred[0].Assign(state0);
+  statePred[1].Assign(state1);
+  statePred[2].Assign(state2);
+  statePred[3].Assign(state3);
   return dist;
 }
 double genf::SlTrackRep::extrapolate(const GFDetPlane& pl,
@@ -325,10 +325,10 @@ double genf::SlTrackRep::extrapolate(const GFDetPlane& pl,
  jacobianT.T();
  covPred=jacobian*fCov*(jacobianT);
  // std::cout<<"covariance[0][0]"<<covPred[0][0]<<std::endl;
- statePred[0]=state0;
- statePred[1]=state1;
- statePred[2]=state2;
- statePred[3]=state3;
+ statePred[0].Assign(state0);
+ statePred[1].Assign(state1);
+ statePred[2].Assign(state2);
+ statePred[3].Assign(state3);
  return dist;
 }
 void genf::SlTrackRep::extrapolateToPoint(const TVector3& pos,
