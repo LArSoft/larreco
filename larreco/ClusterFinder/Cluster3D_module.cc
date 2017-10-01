@@ -1095,7 +1095,9 @@ void Cluster3D::breakIntoTinyBits(reco::ClusterParameters&     clusterToBreak,
     // Use the parameters of the incoming cluster to decide what to do
     // Recover the prime ingredients
     reco::PrincipalComponents& fullPCA     = clusterToBreak.getFullPCA();
-    std::vector<float>         eigenValVec = {fullPCA.getEigenValues()[0],fullPCA.getEigenValues()[1],fullPCA.getEigenValues()[2]};
+    std::vector<double>        eigenValVec = {3. * std::sqrt(fullPCA.getEigenValues()[0]),
+                                              3. * std::sqrt(fullPCA.getEigenValues()[1]),
+                                              3. * std::sqrt(fullPCA.getEigenValues()[2])};
     std::vector<TVector3>      pcaAxisVec  = {TVector3(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]),
                                               TVector3(fullPCA.getEigenVectors()[1][0],fullPCA.getEigenVectors()[1][1],fullPCA.getEigenVectors()[1][2]),
                                               TVector3(fullPCA.getEigenVectors()[2][0],fullPCA.getEigenVectors()[2][1],fullPCA.getEigenVectors()[2][2])};
@@ -1113,7 +1115,7 @@ void Cluster3D::breakIntoTinyBits(reco::ClusterParameters&     clusterToBreak,
     // 1) ratio of secondary spread to maximum spread is more than 4
     // 2) the secondary spread must be "enough"
     // 3)
-    bool moreSplitting = (eigenValVec[0] / eigenValVec[1] > 2.5 || eigenValVec[1] > 0.5) &&  magWidYZProj > 0.1 && magWidXZProj > 0.01 && clusterToBreak.getHitPairListPtr().size() > m_minTinyClusterSize;
+    bool moreSplitting = (eigenValVec[0] / eigenValVec[1] > 2.0 || eigenValVec[1] > 0.25) &&  magWidYZProj > 0.1 && magWidXZProj > 0.01 && clusterToBreak.getHitPairListPtr().size() > m_minTinyClusterSize;
     
     std::cout << "===> Cluster with " << clusterToBreak.getHitPairListPtr().size() << " hits, eigen: " << eigenValVec[0] << "/" << eigenValVec[1] << "/" << eigenValVec[2] << ", magWidYZProj: " << magWidYZProj << ", magWidXZProj: " << magWidXZProj << " split: " << moreSplitting << std::endl;
     

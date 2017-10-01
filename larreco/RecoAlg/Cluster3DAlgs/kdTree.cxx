@@ -48,9 +48,6 @@ void kdTree::configure(fhicl::ParameterSet const &pset)
     m_enableMonitoring  = pset.get<bool> ("EnableMonitoring",  true);
     m_pairSigmaPeakTime = pset.get<float>("PairSigmaPeakTime", 3.  );
     m_refLeafBestDist   = pset.get<float>("RefLeafBestDist",   0.5 );
-    
-    
-    std::cout << "kdTree setting PairSigmaPeakTime to " << m_pairSigmaPeakTime << ", RefLeafBestDist: " << m_refLeafBestDist << std::endl;
 
     m_timeToBuild = 0;
     
