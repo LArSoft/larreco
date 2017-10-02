@@ -106,6 +106,7 @@ namespace tca {
     std::array<unsigned short, 3> Vx2ID {{0}}; // List of 2D vertex IDs in each plane
     unsigned short ID {0};          // 0 = obsolete vertex
     bool Primary {false};
+    bool Neutrino {false};
   };
   
   // A temporary struct for matching trajectory points; 1 struct for each TP for
@@ -447,7 +448,7 @@ namespace tca {
     std::vector<float> KinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
     std::vector<float> Match3DCuts;  ///< 3D matching cuts
     std::vector<float> MatchTruth;     ///< Match to MC truth
-    std::vector<const simb::MCParticle*> MCPartList;
+    std::vector<simb::MCParticle*> MCPartList;
     unsigned int EventsProcessed;
     std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
     const geo::GeometryCore* geom;
