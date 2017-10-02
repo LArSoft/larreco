@@ -88,6 +88,8 @@ namespace tca {
     // make a neutrino PFParticle to associate with the highest score vertex
     auto neutrinoPFP = CreatePFPStruct(tjs, tpcid);
     auto& vx3 = tjs.vtx3[vlist[0] - 1];
+    // call it the neutrino vertex
+    vx3.Neutrino = true;
     // put the vertex at the end of the neutrino
     neutrinoPFP.XYZ[1][0] = vx3.X;
     neutrinoPFP.XYZ[1][1] = vx3.Y;
@@ -251,7 +253,7 @@ namespace tca {
       } // tjid
       if(cnt3 > 1) {
         pfp.Vx3ID[end1] = vx3id;
-        if(cnt3 != tjs.NumPlanes) mf::LogVerbatim("TC")<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code\n";
+        if(cnt3 != tjs.NumPlanes) mf::LogVerbatim("TC")<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code";
       }
     } // pfp
     
@@ -323,13 +325,53 @@ namespace tca {
   } // DefinePFParticleRelationships
   
   /////////////////////////////////////////
+  int NeutrinoPrimaryTjID(const TjStuff& tjs, const Trajectory& tj)
+  {
+    // Returns the ID of the grandparent of this tj that is a primary tj that is attached
+    // to the neutrino vertex. 0 is returned if this condition is not met.
+    if(tj.AlgMod[kKilled]) return tj.ID;
+    if(tj.ParentID <= 0) return tj.ID;
+    int primID = PrimaryID(tjs, tj);
+    // We have the ID of the primary tj. Now see if it is attached to the neutrino vertex
+    auto& ptj = tjs.allTraj[primID - 1];
+    for(unsigned short end = 0; end < 2; ++end) {
+      if(ptj.VtxID[end] == 0) continue;
+      auto& vx2 = tjs.vtx[ptj.VtxID[end] - 1];
+      if(vx2.Vx3ID == 0) continue;
+      auto& vx3 = tjs.vtx3[vx2.Vx3ID - 1];
+      if(vx3.Neutrino) return primID;
+    } // end
+    return 0;
+  } // NeutrinoPrimaryTjID
+  
+  /////////////////////////////////////////
+  int PrimaryID(const TjStuff& tjs, const Trajectory& tj)
+  {
+    // Returns the ID of the grandparent trajectory of this trajectory that is a primary
+    // trajectory (i.e. whose ParentID = 0). 
+    if(tj.AlgMod[kKilled]) return tj.ID;
+    if(tj.ParentID <= 0) return tj.ID;
+    int parid = tj.ParentID;
+    unsigned short nit = 0;
+    while(true) {
+      auto& tj = tjs.allTraj[parid - 1];
+      if(tj.ParentID == 0) return tj.ID;
+      if(tj.ParentID == tj.ID) return 0;
+      parid = tj.ParentID;
+      ++nit;
+      if(nit == 10) return 0;
+    }
+  } // PrimaryID
+  
+  /////////////////////////////////////////
   int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp)
   {
     // returns the ID of the most upstream PFParticle (that is not a neutrino)
     
-    if(pfp.ParentID == pfp.ID || pfp.ParentID == 0) return pfp.ID;
+    if(pfp.ParentID == pfp.ID || pfp.ParentID <= 0) return pfp.ID;
     int parid = pfp.ParentID;
     int dtrid = pfp.ID;
+    unsigned short nit = 0;
     while(true) {
       auto& parent = tjs.pfps[parid - 1];
       // found a neutrino
@@ -340,6 +382,8 @@ namespace tca {
       dtrid = parent.ID;
       parid = parent.ParentID;
       if(parid < 0) return 0;
+      ++nit;
+      if(nit == 10) return 0;
     }
   } // PrimaryID
 
@@ -4027,7 +4071,7 @@ namespace tca {
       if(!tjs.vtx3.empty()) {
         // print out 3D vertices
         myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
-        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? nTru";
+        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? Nu? nTru";
         myprt<<" ___________2D_Pos____________ _____Tjs________\n";
         for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
           if(tjs.vtx3[iv].ID == 0) continue;
@@ -4054,6 +4098,7 @@ namespace tca {
           } // ipl
           myprt<<std::right<<std::setw(6)<<std::setprecision(1)<<vx3.Score;
           myprt<<std::setw(6)<<vx3.Primary;
+          myprt<<std::setw(4)<<vx3.Neutrino;
           myprt<<std::right<<std::setw(5)<<nTruMatch;
           std::array<float, 2> pos;
           for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
@@ -4135,7 +4180,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx chgRMS Mom SDr TDr NN __Vtx__  PDG  Par TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx chgRMS Mom SDr TDr NN __Vtx__  PDG  Par NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -4195,6 +4240,7 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
         myprt<<std::setw(5)<<aTj.ParentID;
+        myprt<<std::setw(6)<<NeutrinoPrimaryTjID(tjs, aTj);
         int truKE = 0;
         int pdg = 0;
         if(aTj.MCPartListIndex < tjs.MCPartList.size()) {
