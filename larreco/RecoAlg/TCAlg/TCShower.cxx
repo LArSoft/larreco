@@ -112,7 +112,7 @@ namespace tca {
   {
     // Finish defining the shower properties that were not done previously
     
-    if(tjs.ShowerTag[0] < 1) return;
+    if(tjs.ShowerTag[0] < 2) return;
 
     // Transfer Tj hits from InShower Tjs to the shower Tj
     if(!TransferTjHits(tjs, false)) return;
@@ -138,7 +138,7 @@ namespace tca {
     // Find 2D showers using 3D-matched trajectories. This returns true if showers were found
     // which requires re-doing the 3D trajectory match
     
-    if(tjs.ShowerTag[0] < 1) return false;
+    if(tjs.ShowerTag[0] < 2) return false;
     
     bool prt = false;
     // Add 10 for more detailed printing 
@@ -147,11 +147,6 @@ namespace tca {
     if(dbgPlane >= 0 && dbgPlane <= tjs.NumPlanes) dbgCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, dbgPlane);
     
     std::string fcnLabel = "FS";
-
-    if(tjs.matchVec.empty()) {
-      if(prt) mf::LogVerbatim("TC")<<"FindShowers3D: Give up because matchVec is empty";
-      return false;
-    }
     
     geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
     // check for already-existing showers
@@ -163,57 +158,21 @@ namespace tca {
     // rebuild the hit range references if necessary
     if(tpcid != tjs.TPCID && !FillWireHitRange(tjs, tpcid, false)) return false;
 
-    // Change the definition of a Tj with a high-score vertex to that used here. This doesn't
-    // actually change the vertex score but it does update the kTjHiVx3Score bit of the Tjs
-    if(tjs.ShowerTag[11] != tjs.Vertex2DCuts[7]) {
-      KillPoorVertices(tjs, tjs.ShowerTag[11]);
-      // reset the 2D vertex status bits
-      for(auto& vx : tjs.vtx) {
-        if(vx.ID == 0) continue;
-        geo::PlaneID planeID = DecodeCTP(vx.CTP);
-        if(planeID.Cryostat != tpcid.Cryostat) continue;
-        if(planeID.TPC != tpcid.TPC) continue;
-        vx.Stat[kHiVx3Score] = false;
-      } // vx
-      // and the tj bits
-      for(auto& tj : tjs.allTraj) {
-        if(tj.AlgMod[kKilled]) continue;
-        geo::PlaneID planeID = DecodeCTP(tj.CTP);
-        if(planeID.Cryostat != tpcid.Cryostat) continue;
-        if(planeID.TPC != tpcid.TPC) continue;
-        tj.AlgMod[kTjHiVx3Score] = false;
-      } // tj
-      // reset everything
-      for(auto& vx3 : tjs.vtx3) {
-        if(vx3.ID == 0) continue;
-        if(vx3.TPCID != tpcid) continue;
-        // Set the score and flag associated Tjs using the ShowerTag cut
-        SetVx3Score(tjs, vx3, true, prt);
-      }
-    } // change high-score vertex definition
+    PrintPFParticles("FSi", tjs);
 
     // lists of Tj IDs in plane, (list1, list2, list3, ...)
     std::vector<std::vector<std::vector<int>>> bigList(tjs.NumPlanes);
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
       CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       std::vector<std::vector<int>> tjList;
-      TagShowerTjs(fcnLabel, tjs, inCTP, tjList);
+      TagInShowerTjs(fcnLabel, tjs, inCTP, tjList, false);
       SaveTjInfo(tjs, inCTP, tjList, "TJL");
       if(tjList.empty()) continue;
-      MergeTjList(tjList);
       bigList[plane] = tjList;
     } // plane
     unsigned short nPlanesWithShowers = 0;
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) if(!bigList.empty()) ++nPlanesWithShowers;
     if(nPlanesWithShowers < 2) return false;
-
-    // mark them all as InShower Tjs
-    for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
-      for(auto& tjl : bigList[plane]) {
-        for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
-      } // tjl
-    } // plane
-
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
       CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       // print detailed debug info for one plane
@@ -259,7 +218,7 @@ namespace tca {
         auto& ss = tjs.cots[cotIndex];
         if(ss.ID == 0) continue;
         if(ss.CTP != inCTP) continue;
-        AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, false, prt);
+        if(AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, false, prt)) MergeNearby2DShowers(fcnLabel, tjs, inCTP, prt);
         if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "Merge");
       }
       SaveAllCots(tjs, inCTP, "ATj2");
@@ -314,10 +273,11 @@ namespace tca {
   ////////////////////////////////////////////////
   void KillVerticesInShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
-    // Kill vertices inside showers that were not matched in 3D. 
+    // Kill vertices inside showers 
     
     std::string fcnLabel = inFcnLabel + ".KVIS";
     
+    // first kill the vertices
     for(auto& ss : tjs.cots) {
       if(ss.ID == 0) continue;
       geo::PlaneID planeID = DecodeCTP(ss.CTP);
@@ -326,16 +286,16 @@ namespace tca {
       auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
       unsigned short parentTjVxID = stj.VtxID[0];
       // look for vertices inside the envelope
-      for(auto vx : tjs.vtx) {
+      for(auto& vx : tjs.vtx) {
         if(vx.CTP != ss.CTP) continue;
         if(vx.ID == 0) continue;
         if(vx.ID == parentTjVxID) continue;
         bool insideEnvelope = PointInsideEnvelope(vx.Pos, ss.Envelope);
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss "<<ss.ID<<" vx "<<vx.ID<<" Score "<<std::fixed<<std::setprecision(1)<<vx.Score<<" insideEnvelope? "<<insideEnvelope;
         if(!insideEnvelope) continue;
-        if(vx.Score > tjs.ShowerTag[11]) continue;
-        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Clobber it ";
-        MakeVertexObsolete(tjs, vx.ID, true);
+//        if(vx.Score > tjs.ShowerTag[11]) continue;
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Clobber vtx "<<vx.ID;
+        MakeVertexObsolete(tjs, vx, true);
         ss.NeedsUpdate = true;
       } // vx
       // check InShower tjs next
@@ -345,16 +305,28 @@ namespace tca {
           if(tj.VtxID[end] == 0) continue;
           if(tj.VtxID[end] == parentTjVxID) continue;
           if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Clobber vx "<<tj.VtxID[end]<<" on tj "<<tj.ID;
-          MakeVertexObsolete(tjs, tj.VtxID[end], true);
+          auto& vx = tjs.vtx[tj.VtxID[end] - 1];
+          MakeVertexObsolete(tjs, vx, true);
           ss.NeedsUpdate = true;
         } // end
       } // tj
+    } // ci
+    
+    // reset the scores
+    ScoreVertices(tjs, tpcid, prt);
+    
+    // update the showers
+    for(auto& ss : tjs.cots) {
+      geo::PlaneID planeID = DecodeCTP(ss.CTP);
+      if(planeID.Cryostat != tpcid.Cryostat) continue;
+      if(planeID.TPC != tpcid.TPC) continue;
       if(!ss.NeedsUpdate) continue;
       DefineShower(fcnLabel, tjs, ss.ID - 1, prt);
       // Add Tjs with high-score vertices inside the shower and kill those vertices
       AddTjsInsideEnvelope(fcnLabel, tjs, ss.ID - 1, true, prt);
       if(ss.NeedsUpdate) DefineShower(fcnLabel, tjs, ss.ID - 1, prt);
     } // ci
+    
   } // KillVerticesInShowers
   
   ////////////////////////////////////////////////
@@ -461,6 +433,7 @@ namespace tca {
         jss.SS3ID = ss3.ID;
         // energy is entered by plane number
         ss3.Energy.resize(tjs.NumPlanes);
+        ss3.FOM = bestFOM;
         if(bestck == USHRT_MAX) {
           // showers match in 2 planes
           ss3.CotIndices.resize(2);
@@ -504,11 +477,11 @@ namespace tca {
         auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
         if(stj.VtxID[0] > 0) {
           auto& vx2 = tjs.vtx[stj.VtxID[0] - 1];
-          if(vx2.Vtx3ID > 0) {
+          if(vx2.Vx3ID > 0) {
             if(vid == USHRT_MAX) {
-              vid = vx2.Vtx3ID;
+              vid = vx2.Vx3ID;
               cnt = 1;
-            } else if(vx2.Vtx3ID == vid) {
+            } else if(vx2.Vx3ID == vid) {
               ++cnt;
             }
           }
@@ -773,7 +746,7 @@ namespace tca {
       std::vector<unsigned short> pfpis(ss3.CotIndices.size());
       unsigned short parentPFPIndex = USHRT_MAX;
       unsigned short cnt = 0;
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss3.ID ";
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss3.ID "<<ss3.ID;
       for(unsigned short ci = 0; ci < ss3.CotIndices.size(); ++ci) {
         auto& ss = tjs.cots[ss3.CotIndices[ci]];
         ptjs[ci] = ss.ParentID;
@@ -1157,7 +1130,7 @@ namespace tca {
     if(ss.ShowerTjID == 0) return false;
     Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
     
-    bool addParent = (ss.ParentID == tjID);
+//    bool addParent = (ss.ParentID == tjID);
     
     std::string fcnLabel = inFcnLabel + ".ATj";
 
@@ -1175,9 +1148,10 @@ namespace tca {
       mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" is in the wrong CTP "<<cotIndex;
       return false;
     }
+/*
     // don't add a Tj to the shower if it has a nice vertex unless it is the parent
     if(!addParent && tj.AlgMod[kTjHiVx3Score]) {
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" in cotIndex "<<cotIndex<<" has a high score 3D vertex and is not the ParentID "<<ss.ParentID<<". Not adding it";
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" in SS "<<ss.ID<<" has a high score 3D VtxID[0] "<<tj.VtxID[0]<<" or VtxID[1] "<<tj.VtxID[1]<<" and is not the ParentID "<<ss.ParentID<<". Not adding it";
       return false;
     }
     // check for high score vertex
@@ -1185,6 +1159,7 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" in cotIndex "<<cotIndex<<" has a high score 2D vertex. Not adding it";
       return false;
     }
+*/
     // Ensure that we are not trying to add a Tj that is attached to the shower Tj vertex
     if(stj.VtxID[0] > 0) {
       // Get a list of TjIDs that are attached to the shower Tj vertex
@@ -1311,7 +1286,6 @@ namespace tca {
     
     float bestFOM = ss.ParentFOM;
     int imTheBest = 0;
-    float bestTp1Sep = 1E6;
     float bestVx3Score = 500;
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != ss.CTP) continue;
@@ -1329,19 +1303,11 @@ namespace tca {
       if(WrongSplitTj(fcnLabel, tjs, tj, useEnd, ss, prt)) continue;
       float tp1Sep, vx3Score;
       float fom = ParentFOM(fcnLabel, tjs, tj, useEnd, ss, tp1Sep, vx3Score, prt);
-      bool skipit = true;
-      if(fom < 2 && bestFOM < 2 && vx3Score > 0 && bestVx3Score > 0) {
-        skipit = (tp1Sep < bestTp1Sep);
-      } else {
-        // best FOM > 2
-        skipit = (fom > bestFOM);
-      }
-      if(skipit) continue;
+      if(fom > bestFOM) continue;
       bestFOM = fom;
       imTheBest = tj.ID;
-      bestTp1Sep = tp1Sep;
       bestVx3Score = vx3Score;
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" current best "<<imTheBest<<" bestVx3Score "<<bestVx3Score<<" bestTp1Sep "<<bestTp1Sep;
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" current best "<<imTheBest<<" bestVx3Score "<<bestVx3Score;
     } // tj
 
     if(imTheBest < 1 || imTheBest > (int)tjs.allTraj.size()) return;
@@ -1354,7 +1320,7 @@ namespace tca {
         // remove the parent flag
         oldParentTj.AlgMod[kShwrParent] = false;
         // remove it from the shower and update if it is attached to a high-score 3D vertex
-        if(oldParentTj.AlgMod[kTjHiVx3Score]) RemoveTj(fcnLabel, tjs, oldParent, cotIndex, true, prt);
+//        if(oldParentTj.AlgMod[kTjHiVx3Score]) RemoveTj(fcnLabel, tjs, oldParent, cotIndex, true, prt);
       }
       ss.ParentID = 0;
       // detach the showerTj from a vertex if one exists
@@ -1537,6 +1503,9 @@ namespace tca {
     // returns a FOM for the trajectory at the end point being the parent of ss and the end which
     // was matched.
     
+    vx3Score = 0;
+    tp1Sep = 0;
+    
     if(tjEnd > 1) return 1000;
     if(ss.Energy == 0) return 1000;
     
@@ -1634,12 +1603,11 @@ namespace tca {
     float lenPull = (TrajLength(tj) - expectedTPSep) / expectedTPSepRMS;
     float fom = sqrt(sepPull * sepPull + deltaPull * deltaPull + dangPull * dangPull + momPull * momPull + sep0Pull2 + lenPull * lenPull);
     fom /= 6;
-    vx3Score = 0;
     if(tj.VtxID[tjEnd] > 0) {
       // check for a high-score 2D vertex with a high-score 3D vertex at this end.
       VtxStore& vx2 = tjs.vtx[tj.VtxID[tjEnd] - 1];
-      if(vx2.ID > 0 && vx2.Score > tjs.ShowerTag[11] && vx2.Vtx3ID > 0 && vx2.Vtx3ID < tjs.vtx3.size() && vx2.Stat[kHiVx3Score]) {
-        vx3Score = tjs.vtx3[vx2.Vtx3ID - 1].Score;
+      if(vx2.ID > 0 && vx2.Vx3ID > 0 && vx2.Vx3ID < tjs.vtx3.size() && vx2.Stat[kHiVx3Score]) {
+        vx3Score = tjs.vtx3[vx2.Vx3ID - 1].Score;
         if(vx3Score > 0) fom /= sqrt(vx3Score);
       }
     }
@@ -1651,7 +1619,7 @@ namespace tca {
       myprt<<" VtxID "<<tj.VtxID[tjEnd];
       if(tj.VtxID[tjEnd] > 0) {
         VtxStore& vx2 = tjs.vtx[tj.VtxID[tjEnd] - 1];
-        if(vx2.Vtx3ID > 0) myprt<<" Vtx3ID "<<vx2.Vtx3ID;
+        if(vx2.Vx3ID > 0) myprt<<" Vtx3ID "<<vx2.Vx3ID;
       }
       myprt<<std::fixed<<std::setprecision(2);
       myprt<<" tp1Sep "<<std::fixed<<std::setprecision(1)<<tp1Sep<<" pull "<<sepPull;
@@ -1775,8 +1743,7 @@ namespace tca {
           auto& tj = tjs.allTraj[tjID - 1];
           if(tj.AlgMod[kInShower]) continue;
           // don't put it in the shower if it has a nice Tj
-          if(tj.AlgMod[kTjHiVx3Score]) continue;
-//          if(TjHasNiceVtx(tjs, tj, tjs.ShowerTag[11])) continue;
+//          if(tj.AlgMod[kTjHiVx3Score]) continue;
           AddTj(fcnLabel, tjs, tjID, ci1, false, prt);
         } // tjID
         if(MergeShowersAndStore(fcnLabel, tjs, ci1, ci2, prt)) {
@@ -1884,8 +1851,6 @@ namespace tca {
     
     std::string fcnLabel = inFcnLabel + ".MSC";
     
-    bool newCuts = (tjs.ShowerTag[0] == 2);
-    
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<": MergeShowerChain inCTP "<<inCTP;
     
     std::vector<int> shList;
@@ -1896,7 +1861,7 @@ namespace tca {
       if(iss.TjIDs.empty()) continue;
       if(iss.CTP != inCTP) continue;
       // Test an alternate cut
-      if(newCuts && iss.NearTjIDs.empty()) continue;
+//      if(newCuts && iss.NearTjIDs.empty()) continue;
       // save the shower ID
       shList.push_back(iss.ID);
       // and the shower center TP
@@ -2532,7 +2497,7 @@ namespace tca {
       stp.Dir[1] = sin(stp.Ang);
     } // stp
     
-    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" stj "<<stj.ID<<" Pos "<<PrintPos(tjs, stj.Pts[0].Pos)<<" "<<PrintPos(tjs, stj.Pts[1].Pos)<<" "<<PrintPos(tjs, stj.Pts[2].Pos)<<"\n";
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" stj "<<stj.ID<<" Pos "<<PrintPos(tjs, stj.Pts[0].Pos)<<" "<<PrintPos(tjs, stj.Pts[1].Pos)<<" "<<PrintPos(tjs, stj.Pts[2].Pos);
     // Guard against too-narrow shower widths at the charge center
     if(stj.Pts[1].DeltaRMS < stj.Pts[0].DeltaRMS || stj.Pts[1].DeltaRMS < stj.Pts[2].DeltaRMS) {
       // take the average
@@ -2681,12 +2646,28 @@ namespace tca {
   } // MakeShowerObsolete
   
   ////////////////////////////////////////////////
-  void TagShowerTjs(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList)
+  void TagInShowerTjs(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList, bool applyMinTjCuts)
   {
-    // Tag Tjs with PDGCode = 11 if they have MCSMom < ShowerTag[0] and there are more than
-    // ShowerTag[6] other Tjs with a separation < ShowerTag[1]. Returns a list of Tjs that meet this criteria
+    // Tag Tjs as InShower if they have MCSMom < ShowerTag[0] and there are more than
+    // ShowerTag[6] other Tjs with a separation < ShowerTag[1]. Returns a list of Tjs that meet this criteria.
+    // The shower cuts that are applicable are done here if applyMinTjCuts is true, for example when this function is called
+    // from RunTrajClusterAlg before 3D vertex and tj matching is done. This reduces the number of spurious vertices and 3D matches.
+    // When called from FindShowers3D, applyMinTjCuts is set false and the cuts are applied after 2D showers are reconstructed.
     
     tjList.clear();
+    
+    if(tjs.ShowerTag[0] <= 0) return;
+    
+    // clear out any old information
+    unsigned short cnt = 0;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.CTP != inCTP) continue;
+      if(tj.AlgMod[kKilled]) continue;
+      tj.AlgMod[kInShower] = false;
+      ++cnt;
+    } // tj
+    
+    if(cnt < 2) return;
     
     short maxMCSMom = tjs.ShowerTag[1];
     
@@ -2702,8 +2683,8 @@ namespace tca {
       if(tj1.Pts.size() < 3) continue;
       // Cut on length and MCSMom
       if(tj1.Pts.size() > 4 && tj1.MCSMom > maxMCSMom) continue;
-      if(tj1.AlgMod[kTjHiVx3Score]) continue;
-//      if(TjHasNiceVtx(tjs, tj1, tjs.ShowerTag[11])) continue;
+      // ignore Tjs with parents
+      if(tj1.ParentID != tj1.ID) continue;
       for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
         Trajectory& tj2 = tjs.allTraj[it2];
         if(tj2.CTP != inCTP) continue;
@@ -2713,8 +2694,8 @@ namespace tca {
         if(tj2.AlgMod[kShowerTj]) continue;
         // ignore stubby Tjs
         if(tj2.Pts.size() < 3) continue;
-        if(tj2.AlgMod[kTjHiVx3Score]) continue;
-//        if(TjHasNiceVtx(tjs, tj2, tjs.ShowerTag[11])) continue;
+        // ignore Tjs with parents
+        if(tj2.ParentID != tj2.ID) continue;
         // Cut on length and MCSMom
         if(tj2.Pts.size() > 4 && tj2.MCSMom > maxMCSMom) continue;
         unsigned short ipt1, ipt2;
@@ -2746,38 +2727,18 @@ namespace tca {
       } // it2
     } // it1
     if(tjList.empty()) return;
+
+    MergeTjList(tjList);
+
+    // mark them all as InShower Tjs
+    for(auto& tjl : tjList) {
+      if(applyMinTjCuts) {
+        if(tjl.size() < tjs.ShowerTag[7]) continue;
+      } // applyMinTjCuts
+      for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
+    } // tjl
     
-    // Add Tjs that are attached to vertices that are attached to Tjs in tjList
-    for(unsigned short it = 0; it < tjList.size(); ++it) {
-      if(tjList[it].empty()) continue;
-      std::vector<int> list;
-      for(auto tjID : tjList[it]) {
-        if(tjID < 1 || tjID > (int)tjs.allTraj.size()) continue;
-        Trajectory& tj = tjs.allTraj[tjID - 1];
-        for(unsigned short end = 0; end < 2; ++end) {
-          if(tj.VtxID[end] == 0) continue;
-          VtxStore& vx2 = tjs.vtx[tj.VtxID[end] - 1];
-          // this shouldn't happen but check anyway
-          if(vx2.ID == 0) continue;
-          // ignore high score vertices
-          if(vx2.Score > tjs.ShowerTag[11]) continue;
-          // get a list of Tjs attached to this vertex
-          auto vxTjs = GetVtxTjIDs(tjs, vx2);
-          if(vxTjs.empty()) continue;
-          for(auto vtjID : vxTjs) {
-            if(std::find(tjList[it].begin(), tjList[it].end(), vtjID) != tjList[it].end()) continue;
-            if(std::find(list.begin(), list.end(), vtjID) != list.end()) continue;
-            auto& tj2 = tjs.allTraj[vtjID - 1];
-            if(tj2.AlgMod[kTjHiVx3Score]) continue;
-//            if(TjHasNiceVtx(tjs, tj2, tjs.ShowerTag[11])) continue;
-            list.push_back(vtjID);
-          } // vtj
-        } // end
-      } // tjID
-      if(!list.empty()) tjList[it].insert(tjList[it].end(), list.begin(), list.end());
-    } // it
-    
-  } // TagShowerTjs
+  } // TagInShowerTjs
   
   ////////////////////////////////////////////////
   void FindNearbyTjs(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt)
@@ -2789,6 +2750,7 @@ namespace tca {
     
     // check for a valid envelope
     if(ss.Envelope.empty()) return;
+    auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
     
     std::string fcnLabel = inFcnLabel + ".FNTj";
     
@@ -2819,6 +2781,15 @@ namespace tca {
       if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
       // or already in the list
       if(std::find(ntj.begin(), ntj.end(), tj.ID) != ntj.end()) continue;
+      // check proximity of long high MCSMom Tjs to the shower center
+      if(tj.Pts.size() > 40 && tj.MCSMom > 200) {
+        float delta = PointTrajDOCA(tjs, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], tj.Pts[tj.EndPt[0]]);
+        // TODO: This could be done much better
+        if(delta < 20) {
+          ntj.push_back(tj.ID);
+          continue;
+        }
+      } // long hi-MCSMom tj
       // don't need to check every point. Every third should be enough
       bool isInside = false;
       for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ipt += 3) {
@@ -2859,7 +2830,7 @@ namespace tca {
         // check the momentum
         Trajectory& tj = tjs.allTraj[tjs.fHits[iht].InTraj - 1];
         if(tj.MCSMom > maxMom) continue;
-        if(tj.AlgMod[kTjHiVx3Score]) continue;
+//        if(tj.AlgMod[kTjHiVx3Score]) continue;
         // see if it is already in the list
         if(std::find(list.begin(), list.end(), tjs.fHits[iht].InTraj) != list.end()) continue;
         list.push_back(tjs.fHits[iht].InTraj);
@@ -2950,10 +2921,9 @@ namespace tca {
        if(tj.AlgMod[kKilled]) continue;
        if(tj.AlgMod[kInShower]) continue;
        if(tj.AlgMod[kShowerTj]) continue;
-       
+/*
        if(!nukeEmAll && tj.AlgMod[kTjHiVx3Score]) continue;
-       // ignore Tjs with nice vertices unless requested otherwise
-//       if(TjHasNiceVtx(tjs, tj, tjs.ShowerTag[11])) {
+       // ignore Tjs with high-score 3D vertices unless requested otherwise
        if(tj.AlgMod[kTjHiVx3Score]) {
          if(nukeEmAll) {
            // see if the vertex is inside the envelope
@@ -2962,13 +2932,14 @@ namespace tca {
              auto& vx = tjs.vtx[tj.VtxID[end] - 1];
              if(PointInsideEnvelope(vx.Pos, ss.Envelope)) {
                if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss.ID "<<ss.ID<<" nukeEmALL vtx "<<vx.ID<<" inside the envelope ";
-               MakeVertexObsolete(tjs, vx.ID, true);
+               MakeVertexObsolete(tjs, vx, true);
              } // vertex is inside the envelope
            } // end
          } else {
            continue;
          }
        } // tj has nice vertex
+*/
        // This shouldn't be necessary but do it for now
        if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
        // See if both ends are outside the envelope
@@ -2984,7 +2955,7 @@ namespace tca {
        // Require high momentum Tjs be aligned with the shower axis
        // TODO also require high momentum Tjs close to the shower axis?
 
-       if(tj.MCSMom > 500) {
+       if(tj.MCSMom > 200) {
          float tjAngle = tj.Pts[tj.EndPt[0]].Ang;
          float dangPull = std::abs(tjAngle - ss.AngleErr) / ss.AngleErr;
          if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" high MCSMom "<<tj.MCSMom<<" dangPull "<<dangPull;
@@ -3052,7 +3023,6 @@ namespace tca {
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
         // used in a trajectory?
         if(tjs.fHits[iht].InTraj != 0) continue;
-        if(tjs.IgnoreNegChiHits && tjs.fHits[iht].GoodnessOfFit < 0) continue;
         // inside the tick range?
         if(tjs.fHits[iht].PeakTime < loTick) continue;
         // Note that hits are sorted by increasing time so we can break here
@@ -3415,6 +3385,7 @@ namespace tca {
     stj.ID = tjs.allTraj.size() + 1;
     // Declare that stj is a shower Tj
     stj.AlgMod[kShowerTj] = true;
+    stj.PDGCode = 1111;
     tjs.allTraj.push_back(stj);
     // Create the shower struct
     ShowerStruct ss;

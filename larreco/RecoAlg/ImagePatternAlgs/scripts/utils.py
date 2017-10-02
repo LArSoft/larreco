@@ -6,6 +6,23 @@ from os import listdir
 from os.path import isfile, join
 import os, json
 
+def count_events(folder, key):
+    nevents = 0
+    dlist = [f for f in listdir(folder) if key in f]
+    dlist.sort()
+    for dirname in dlist:
+        flist = [f for f in listdir(folder + '/' + dirname) if '_y.npy' in f]
+        for fname in flist:
+            d = np.load(folder + '/' + dirname + '/' + fname)
+            nevents += d.shape[0]
+    return nevents
+
+def get_patch_size(folder):
+    dlist = [f for f in listdir(folder) if 'training' in f]
+    flist = [f for f in listdir(folder + '/' + dlist[0]) if '_x.npy' in f]
+    d = np.load(folder + '/' + dlist[0] + '/' + flist[0])
+    return d.shape[1], d.shape[2]
+
 def get_event_bounds(A, drift_margin = 0):
     # get center with 99% of signal
     cum = np.cumsum(np.sum(A, axis=0))
@@ -164,6 +181,13 @@ def get_nu_vertices(A):
                 vtx[nvtx] = v
                 nvtx += 1
     return vtx[:nvtx]
+
+def shuffle_in_place(a, b):
+    assert len(a) == len(b)
+    rng_state = np.random.get_state()
+    np.random.shuffle(a)
+    np.random.set_state(rng_state)
+    np.random.shuffle(b)
 
 def read_config(cfgname):
     config = None

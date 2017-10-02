@@ -22,8 +22,11 @@
 
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 
@@ -53,6 +56,10 @@ namespace trkf {
 	Name("inputTracksLabel"),
 	Comment("Label of recob::Track Collection to be fit")
       };
+      fhicl::Atom<art::InputTag> inputShowersLabel {
+	Name("inputShowersLabel"),
+	Comment("Label of recob::Shower Collection (associated to PFParticles) to be fit")
+      };
       fhicl::Atom<art::InputTag> inputCaloLabel {
 	Name("inputCaloLabel"),
 	Comment("Label of anab::Calorimetry Collection, matching inputTracksLabel, to be used for initial momentum estimate. Used only if momFromCalo is set to true.")
@@ -73,6 +80,10 @@ namespace trkf {
       fhicl::Atom<bool> trackFromPF {
         Name("trackFromPF"),
         Comment("If true extract tracks from inputPFParticleLabel collection, if false from inputTracksLabel.")
+      };
+      fhicl::Atom<bool> showerFromPF {
+        Name("showerFromPF"),
+        Comment("If true extract showers from inputPFParticleLabel collection.")
       };
       fhicl::Atom<bool> pFromMSChi2 {
         Name("momFromMSChi2"),
@@ -130,6 +141,10 @@ namespace trkf {
         Name("produceTrackFitHitInfo"),
         Comment("Option to produce (or not) the detailed TrackFitHitInfo.")
       };
+      fhicl::Atom<bool> produceSpacePoints {
+        Name("produceSpacePoints"),
+        Comment("Option to produce (or not) the associated SpacePoints.")
+      };
       fhicl::Atom<bool> keepInputTrajectoryPoints {
         Name("keepInputTrajectoryPoints"),
         Comment("Option to keep positions and directions from input trajectory/track. The fit will provide only covariance matrices, chi2, ndof, particle Id and absolute momentum. It may also modify the trajectory point flags. In order to avoid inconsistencies, it has to be used with the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp.")
@@ -169,9 +184,11 @@ namespace trkf {
     trkf::TrackKalmanFitter* kalmanFitter;
     TrackStatePropagator* prop;
     trkf::TrackMomentumCalculator* tmc;
+    bool inputFromPF;
 
     art::InputTag pfParticleInputTag;
     art::InputTag trackInputTag;
+    art::InputTag showerInputTag;
     art::InputTag caloInputTag;
     art::InputTag pidInputTag;
     art::InputTag simTrackInputTag;
@@ -179,6 +196,7 @@ namespace trkf {
     std::unique_ptr<art::FindManyP<anab::Calorimetry> > trackCalo;
     std::unique_ptr<art::FindManyP<anab::ParticleID> > trackId;
     std::unique_ptr<art::FindManyP<recob::Track> > assocTracks;
+    std::unique_ptr<art::FindManyP<recob::Shower> > assocShowers;
     std::unique_ptr<art::FindManyP<recob::Vertex> > assocVertices;
 
     double setMomValue(art::Ptr<recob::Track> ptrack, const std::unique_ptr<art::FindManyP<anab::Calorimetry> >& trackCalo, const double pMC, const int pId) const;
@@ -197,8 +215,12 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().fitter);
   tmc = new trkf::TrackMomentumCalculator();
 
-  if (p_().options().trackFromPF()) pfParticleInputTag = art::InputTag(p_().inputs().inputPFParticleLabel());
-  else {
+  inputFromPF = ( p_().options().trackFromPF() || p_().options().showerFromPF() );
+
+  if (inputFromPF) {
+    pfParticleInputTag = art::InputTag(p_().inputs().inputPFParticleLabel());
+    if (p_().options().showerFromPF()) showerInputTag = art::InputTag(p_().inputs().inputShowersLabel());
+  } else {
     trackInputTag = art::InputTag(p_().inputs().inputTracksLabel());
     if (p_().options().idFromCollection()) pidInputTag = art::InputTag(p_().inputs().inputPidLabel());
   }
@@ -208,11 +230,15 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   produces<std::vector<recob::Track> >();
   // produces<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
   produces<art::Assns<recob::Track, recob::Hit> >();
-  if (p_().options().trackFromPF()) {
+  if (inputFromPF) {
     produces<art::Assns<recob::PFParticle, recob::Track> >();
   }
   if (p_().options().produceTrackFitHitInfo()) {
     produces<std::vector<std::vector<recob::TrackFitHitInfo> > >();
+  }
+  if (p_().options().produceSpacePoints()) {
+    produces<std::vector<recob::SpacePoint> >();
+    produces<art::Assns<recob::Hit, recob::SpacePoint> >();
   }
 
   //throw expections to avoid possible silent failures due to incompatible configuration options
@@ -255,6 +281,13 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
 	<< "Incompatible configuration parameters: keepInputTrajectoryPoints needs the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp." << "\n";
     }
   }
+
+  if (p_().options().showerFromPF()) {
+    if (nPFroms>0 || nIds>0 || nDirs>0) {
+      throw cet::exception("KalmanFilterTrajectoryFitter")
+	<< "Incompatible configuration parameters: showerFromPF currently does not support optional momentum values, particle hypotheses and directions." << "\n";
+    }
+  }
 }
 
 trkf::KalmanFilterFinalTrackFitter::~KalmanFilterFinalTrackFitter() {
@@ -271,8 +304,13 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
   auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
   auto outputHitInfo = std::make_unique<std::vector<std::vector<recob::TrackFitHitInfo> > >();
 
-  auto const tid = getProductID<std::vector<recob::Track> >(e);
+  auto const tid = getProductID<std::vector<recob::Track> >();
   auto const tidgetter = e.productGetter(tid);
+
+  auto outputSpacePoints  = std::make_unique<std::vector<recob::SpacePoint> >();
+  auto outputHitSpacePointAssn = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint> >();
+  auto const spid = getProductID<std::vector<recob::SpacePoint> >();
+  auto const spidgetter = e.productGetter(spid);
 
   //FIXME, eventually remove this (ok only for single particle MC)
   double pMC = -1.;
@@ -291,71 +329,144 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     //std::cout << "mc momentum value = " << pval << " GeV" << std::endl;
   }
 
-  if (p_().options().trackFromPF()) {
+  if (inputFromPF) {
 
     auto outputPFAssn = std::make_unique<art::Assns<recob::PFParticle, recob::Track> >();
 
     art::ValidHandle<std::vector<recob::PFParticle> > inputPFParticle = e.getValidHandle<std::vector<recob::PFParticle> >(pfParticleInputTag);
-    assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPFParticle, e, pfParticleInputTag));
+    if (p_().options().trackFromPF()) assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPFParticle, e, pfParticleInputTag));
+    if (p_().options().showerFromPF()) assocShowers = std::unique_ptr<art::FindManyP<recob::Shower> >(new art::FindManyP<recob::Shower>(inputPFParticle, e, showerInputTag));
     assocVertices = std::unique_ptr<art::FindManyP<recob::Vertex> >(new art::FindManyP<recob::Vertex>(inputPFParticle, e, pfParticleInputTag));
 
     for (unsigned int iPF = 0; iPF < inputPFParticle->size(); ++iPF) {
 
-      const std::vector<art::Ptr<recob::Track> >& tracks = assocTracks->at(iPF);
-      auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(pfParticleInputTag);
-      const std::vector<art::Ptr<recob::Vertex> >& vertices = assocVertices->at(iPF);
+      if (p_().options().trackFromPF()) {
+	const std::vector<art::Ptr<recob::Track> >& tracks = assocTracks->at(iPF);
+	auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(pfParticleInputTag);
+	const std::vector<art::Ptr<recob::Vertex> >& vertices = assocVertices->at(iPF);
 
-      if (p_().options().pFromCalo()) {
-	trackCalo = std::unique_ptr<art::FindManyP<anab::Calorimetry> >(new art::FindManyP<anab::Calorimetry>(tracks, e, caloInputTag));
+	if (p_().options().pFromCalo()) {
+	  trackCalo = std::unique_ptr<art::FindManyP<anab::Calorimetry> >(new art::FindManyP<anab::Calorimetry>(tracks, e, caloInputTag));
+	}
+
+	for (unsigned int iTrack = 0; iTrack < tracks.size(); ++iTrack) {
+
+	  const recob::Track& track = *tracks[iTrack];
+	  art::Ptr<recob::Track> ptrack = tracks[iTrack];
+	  const int pId = setPId(iTrack, trackId, inputPFParticle->at(iPF).PdgCode());
+	  const double mom = setMomValue(ptrack, trackCalo, pMC, pId);
+	  const bool flipDir = setDirFlip(track, mcdir, &vertices);
+
+	  //this is not computationally optimal, but at least preserves the order unlike FindManyP
+	  std::vector<art::Ptr<recob::Hit> > inHits;
+	  for (auto it = tkHitsAssn.begin(); it!=tkHitsAssn.end(); ++it) {
+	    if (it->first == ptrack) inHits.push_back(it->second);
+	    else if (inHits.size()>0) break;
+	  }
+
+	  recob::Track outTrack;
+	  std::vector<art::Ptr<recob::Hit> > outHits;
+	  trkmkr::OptionalOutputs optionals;
+	  if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
+	  bool fitok = kalmanFitter->fitTrack(track.Trajectory(),track.ID(),
+					      track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
+					      inHits, mom, pId, flipDir, outTrack, outHits, optionals);
+	  if (!fitok) continue;
+
+	  if (p_().options().keepInputTrajectoryPoints()) {
+	    restoreInputPoints(track.Trajectory().Trajectory(),inHits,outTrack,outHits);
+	  }
+
+	  outputTracks->emplace_back(std::move(outTrack));
+	  art::Ptr<recob::Track> aptr(tid, outputTracks->size()-1, tidgetter);
+	  unsigned int ip = 0;
+	  for (auto const& trhit: outHits) {
+	    //the fitter produces collections with 1-1 match between hits and point
+	    // recob::TrackHitMeta metadata(ip,-1);
+	    // outputHits->addSingle(aptr, trhit, metadata);
+	    outputHits->addSingle(aptr, trhit);
+	    ip++;
+	  }
+	  outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
+	  outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
+	}
       }
 
-      for (unsigned int iTrack = 0; iTrack < tracks.size(); ++iTrack) {
-
-	const recob::Track& track = *tracks[iTrack];
-	art::Ptr<recob::Track> ptrack = tracks[iTrack];
-	const int pId = setPId(iTrack, trackId, inputPFParticle->at(iPF).PdgCode());
-	const double mom = setMomValue(ptrack, trackCalo, pMC, pId);
-	const bool flipDir = setDirFlip(track, mcdir, &vertices);
-
-	//this is not computationally optimal, but at least preserves the order unlike FindManyP
+      if (p_().options().showerFromPF()) {
+	art::Ptr<recob::PFParticle> pPF(inputPFParticle, iPF);
+	const std::vector<art::Ptr<recob::Shower> >& showers = assocShowers->at(iPF);
+	if (showers.size()==0) continue;
+	auto const& pfClustersAssn = *e.getValidHandle<art::Assns<recob::PFParticle, recob::Cluster> >(showerInputTag);
+	auto const& clHitsAssn = *e.getValidHandle<art::Assns<recob::Cluster, recob::Hit> >(showerInputTag);
 	std::vector<art::Ptr<recob::Hit> > inHits;
-	for (auto it = tkHitsAssn.begin(); it!=tkHitsAssn.end(); ++it) {
-	  if (it->first == ptrack) inHits.push_back(it->second);
-	  else if (inHits.size()>0) break;
+	for (auto itpf = pfClustersAssn.begin(); itpf!=pfClustersAssn.end(); ++itpf) {
+	  if (itpf->first == pPF) {
+	    art::Ptr<recob::Cluster> clust = itpf->second;
+	    for (auto it = clHitsAssn.begin(); it!=clHitsAssn.end(); ++it) {
+	      if (it->first == clust) inHits.push_back(it->second);
+	    }
+	  } else if (inHits.size()>0) break;
 	}
+	//auto const& shHitsAssn = *e.getValidHandle<art::Assns<recob::Shower, recob::Hit> >(showerInputTag);
+	for (unsigned int iShower = 0; iShower < showers.size(); ++iShower) {
+	  //
+	  const recob::Shower& shower = *showers[iShower];
+	  // art::Ptr<recob::Shower> pshower = showers[iShower];
+	  // //this is not computationally optimal, but at least preserves the order unlike FindManyP
+	  // std::vector<art::Ptr<recob::Hit> > inHits;
+	  // for (auto it = shHitsAssn.begin(); it!=shHitsAssn.end(); ++it) {
+	  //   if (it->first == pshower) inHits.push_back(it->second);
+	  //   else if (inHits.size()>0) break;
+	  // }
 
-	recob::Track outTrack;
-	std::vector<art::Ptr<recob::Hit> > outHits;
-	trkmkr::OptionalOutputs optionals;
-	if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
-	bool fitok = kalmanFitter->fitTrack(track.Trajectory(),track.ID(),
-					    track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
-					    inHits, mom, pId, flipDir, outTrack, outHits, optionals);
-	if (!fitok) continue;
+	  recob::Track outTrack;
+	  std::vector<art::Ptr<recob::Hit> > outHits;
+	  trkmkr::OptionalOutputs optionals;
+	  if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
+	  Point_t pos(shower.ShowerStart().X(),shower.ShowerStart().Y(),shower.ShowerStart().Z());
+	  Vector_t dir(shower.Direction().X(),shower.Direction().Y(),shower.Direction().Z());
+	  auto cov = SMatrixSym55();
+	  auto pid = p_().options().pdgId();
+	  auto mom = p_().options().pval();
+	  bool fitok = kalmanFitter->fitTrack(pos, dir, cov, inHits, std::vector<recob::TrajectoryPointFlags>(),
+					      shower.ID(), mom, pid,
+					      outTrack, outHits, optionals);
+	  if (!fitok) continue;
 
-	if (p_().options().keepInputTrajectoryPoints()) {
-	  restoreInputPoints(track.Trajectory().Trajectory(),inHits,outTrack,outHits);
+	  outputTracks->emplace_back(std::move(outTrack));
+	  art::Ptr<recob::Track> aptr(tid, outputTracks->size()-1, tidgetter);
+	  unsigned int ip = 0;
+	  for (auto const& trhit: outHits) {
+	    //the fitter produces collections with 1-1 match between hits and point
+	    // recob::TrackHitMeta metadata(ip,-1);
+	    // outputHits->addSingle(aptr, trhit, metadata);
+	    outputHits->addSingle(aptr, trhit);
+	    if (p_().options().produceSpacePoints() && outputTracks->back().HasValidPoint(ip)) {
+	      auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
+	      double fXYZ[3] = {tp.X(),tp.Y(),tp.Z()};
+	      double fErrXYZ[6] = {0};
+	      recob::SpacePoint sp(fXYZ, fErrXYZ, -1.);
+	      outputSpacePoints->emplace_back(std::move(sp));
+	      art::Ptr<recob::SpacePoint> apsp(spid, outputSpacePoints->size()-1, spidgetter);
+	      outputHitSpacePointAssn->addSingle(trhit, apsp);
+	    }
+	    ip++;
+	  }
+	  outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
+	  outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
 	}
-
-	outputTracks->emplace_back(std::move(outTrack));
-	art::Ptr<recob::Track> aptr(tid, outputTracks->size()-1, tidgetter);
-	unsigned int ip = 0;
-	for (auto const& trhit: outHits) {
-	  //the fitter produces collections with 1-1 match between hits and point
-	  // recob::TrackHitMeta metadata(ip,-1);
-	  // outputHits->addSingle(aptr, trhit, metadata);
-	  outputHits->addSingle(aptr, trhit);
-	  ip++;
-	}
-	outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
-	outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
       }
+
     }
     e.put(std::move(outputTracks));
     e.put(std::move(outputHits));
     e.put(std::move(outputPFAssn));
     if (p_().options().produceTrackFitHitInfo()) {
       e.put(std::move(outputHitInfo));
+    }
+    if (p_().options().produceSpacePoints()) {
+      e.put(std::move(outputSpacePoints));
+      e.put(std::move(outputHitSpacePointAssn));
     }
   } else {
 
@@ -406,6 +517,15 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	// recob::TrackHitMeta metadata(ip,-1);
 	// outputHits->addSingle(aptr, trhit, metadata);
 	outputHits->addSingle(aptr, trhit);
+	if (p_().options().produceSpacePoints() && outputTracks->back().HasValidPoint(ip)) {
+	  auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
+	  double fXYZ[3] = {tp.X(),tp.Y(),tp.Z()};
+	  double fErrXYZ[6] = {0};
+	  recob::SpacePoint sp(fXYZ, fErrXYZ, -1.);
+	  outputSpacePoints->emplace_back(std::move(sp));
+	  art::Ptr<recob::SpacePoint> apsp(spid, outputSpacePoints->size()-1, spidgetter);
+	  outputHitSpacePointAssn->addSingle(trhit, apsp);
+	}
 	ip++;
       }
       outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
@@ -414,6 +534,10 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     e.put(std::move(outputHits));
     if (p_().options().produceTrackFitHitInfo()) {
       e.put(std::move(outputHitInfo));
+    }
+    if (p_().options().produceSpacePoints()) {
+      e.put(std::move(outputSpacePoints));
+      e.put(std::move(outputHitSpacePointAssn));
     }
   }
 }

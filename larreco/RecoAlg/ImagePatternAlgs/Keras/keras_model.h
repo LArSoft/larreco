@@ -1,3 +1,14 @@
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// Class:       KerasModel, plus all the data and network layer classes
+// Authors:     P.Plonski,                                    from DUNE,   WUT,       since 2016
+//              R.Sulej: adopt to LArSoft, vectorize dense,   from DUNE,   FNAL/NCBJ, since 2016
+//              D.Smith: optimize Conv2D compute              from LArIAT, BU,      2017
+//
+//
+// Simple implementation of running Keras models in the inference mode, see README.md.
+//
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #ifndef KERAS_MODEL__H
 #define KERAS_MODEL__H
 

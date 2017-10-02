@@ -9,6 +9,8 @@
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "larsim/MCCheater/BackTracker.h"
 
+#include "lardata/RecoObjects/TrackStatePropagator.h"
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
 
 namespace tca {
 
@@ -16,13 +18,11 @@ namespace tca {
   void TruthMatcher::Initialize()
   {
      // Initialize the variables used to calculate Efficiency * Purity (aka EP) for matching to truth
-    for(unsigned short pdgIndex = 0; pdgIndex < 6; ++pdgIndex) {
-      EPTSums[pdgIndex] = 0;
-      TSums[pdgIndex] = 0;
-      EPCnts[pdgIndex] = 0;
-    }
-    nTruPrimaryVtxOK = 0;
-    nTruPrimaryVtxReco = 0;
+    EPCnts.fill(0); 
+    TSums.fill(0.0);
+    EPTSums.fill(0.0);
+    TruVxCounts.fill(0);
+    nBadEP = 0;
   } // Initialize
 
   //////////////////////////////////////////
@@ -191,7 +191,7 @@ namespace tca {
     
     if(tjs.MatchTruth[1] > 1) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"part   PDG TrkID MomID KE(MeV) ____Process______   ________Start________  ___Direction____\n";
+      myprt<<"part   PDG     TrkID     MomID KE(MeV) ____Process______   ________Start________  ___Direction____\n";
       for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         auto& part = tjs.MCPartList[ipart];
         unsigned short pdg = abs(part->PdgCode());
@@ -202,8 +202,8 @@ namespace tca {
         int motherID = part->Mother() + sourcePtclTrackID - 1;
         myprt<<std::setw(4)<<ipart;
         myprt<<std::setw(6)<<part->PdgCode();
-        myprt<<std::setw(6)<<part->TrackId();
-        myprt<<std::setw(6)<<motherID;
+        myprt<<std::setw(10)<<part->TrackId();
+        myprt<<std::setw(10)<<motherID;
         myprt<<std::setw(6)<<TMeV;
         myprt<<std::setw(20)<<part->Process();
         myprt<<std::fixed<<std::setprecision(1);
@@ -235,7 +235,7 @@ namespace tca {
   } // MatchTrueHits
   
   //////////////////////////////////////////
-  void TruthMatcher::MatchTruth(const HistStuff& hist, unsigned int fEventsProcessed)
+  void TruthMatcher::MatchTruth(const HistStuff& hist, bool fStudyMode)
   {
     
     if(tjs.MatchTruth[0] < 0) return;
@@ -245,12 +245,17 @@ namespace tca {
     sim::ParticleList const& plist = bt->ParticleList();
     if(plist.empty()) return;
     
-    // set true if there is a reconstructed 3D vertex within 1 cm of the true vertex
-    bool nuVtxRecoOK = false;
-    
     // MC Particles for the desired true particles
     int sourcePtclTrackID = -1;
     fSourceParticleEnergy = -1;
+    
+    bool neutrinoVxInFiducialVolume = false;
+    bool neutrinoVxReconstructable = false;
+    bool neutrinoVxReconstructed = false;
+    bool neutrinoVxCorrect = false;
+    float truPrimVtxX = -100;
+    float truPrimVtxY = -100;
+    float truPrimVtxZ = -100;
     
     simb::Origin_t sourceOrigin = simb::kUnknown;
     std::vector<simb::MCParticle*> partList;
@@ -274,6 +279,9 @@ namespace tca {
             fSourceParticleEnergy = 1000 * part->E(); // in MeV
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kSingleParticle;
+            truPrimVtxX = part->Vx();
+            truPrimVtxY = part->Vy();
+            truPrimVtxZ = part->Vz();
             if(tjs.MatchTruth[1] > 0) {
               TVector3 dir;
               dir[0] = part->Px(); dir[1] = part->Py(); dir[2] = part->Pz();
@@ -284,22 +292,12 @@ namespace tca {
           if(sourceOrigin == simb::kBeamNeutrino) {
             // histogram the vertex position difference
             if(tjs.MatchTruth[1] > 2) std::cout<<" True vertex position "<<(int)part->Vx()<<" "<<(int)part->Vy()<<" "<<(int)part->Vz()<<" energy "<<(int)(1000*part->E())<<"\n";
-            for(auto& aVtx3 : tjs.vtx3) {
-              hist.fNuVtx_dx->Fill(part->Vx() - aVtx3.X);
-              hist.fNuVtx_dy->Fill(part->Vy() - aVtx3.Y);
-              hist.fNuVtx_dz->Fill(part->Vz() - aVtx3.Z);
-              if(std::abs(part->Vx()-aVtx3.X) < 1 && std::abs(part->Vy()-aVtx3.Y) < 1 && std::abs(part->Vz()-aVtx3.Z) < 1) {
-                nuVtxRecoOK = true;
-                float score = 0;
-                for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-                  if(aVtx3.Vx2ID[plane] == 0) continue;
-                  unsigned short iv2 = aVtx3.Vx2ID[plane] - 1;
-                  score += tjs.vtx[iv2].Score;
-                } // plane
-                hist.fNuVx2Score->Fill(score);
-                hist.fNuVx2Score_Enu_p->Fill(fNeutrinoEnergy, score);
-              }
-            } // aVtx3
+            truPrimVtxX = part->Vx();
+            truPrimVtxY = part->Vy();
+            truPrimVtxZ = part->Vz();
+            neutrinoVxInFiducialVolume = (truPrimVtxX > tjs.XLo && truPrimVtxX < tjs.XHi &&
+                                truPrimVtxY > tjs.YLo && truPrimVtxY < tjs.YHi &&
+                                truPrimVtxZ > tjs.ZLo && truPrimVtxZ < tjs.ZHi);
           } // sourceOrigin != simb::kUnknown
         } else {
           // look for cosmic rays
@@ -320,7 +318,9 @@ namespace tca {
       if(!isCharged) continue;
       partList.push_back(part);
     } // ipart
-    
+
+    if(neutrinoVxInFiducialVolume) ++TruVxCounts[0];
+
     if(tjs.MatchTruth[1] > 2) {
       for(unsigned int ii = 0; ii < partList.size(); ++ii) {
         int trackID = partList[ii]->TrackId();
@@ -468,8 +468,8 @@ namespace tca {
     nMatchedHitsInTj = newnMatchedHitsInTj;
     
     // count the number of primary tracks that have at least 3 hits in at least 2 planes
-    nTruPrimary = 0;
-    nTruPrimaryOK = 0;
+    unsigned short nTruPrimary = 0;
+    unsigned short nTruPrimaryOK = 0;
     for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
       if(partList[ipart]->Mother() != 0) continue;
       ++nTruPrimary;
@@ -480,18 +480,64 @@ namespace tca {
       if(nInPln > 1) ++nTruPrimaryOK;
     } // ipart
     
-    if(nTruPrimaryOK > 1) {
+    neutrinoVxReconstructable = (neutrinoVxInFiducialVolume && nTruPrimaryOK > 1);
+    
+    if(neutrinoVxReconstructable) {
+      ++TruVxCounts[1];
+      // Find the closest reconstructed vertex to the true vertex
+      float closest = 1;
+      unsigned short imTheOne = 0;
+      for(auto& aVtx3 : tjs.vtx3) {
+        float dx = aVtx3.X - truPrimVtxX;
+        float dy = aVtx3.Y - truPrimVtxY;
+        float dz = aVtx3.Z - truPrimVtxZ;
+        hist.fNuVtx_dx->Fill(dx);
+        hist.fNuVtx_dy->Fill(dy);
+        hist.fNuVtx_dz->Fill(dz);
+        float sep = dx * dx + dy * dy + dz * dz;
+        if(sep < closest) {
+          closest = sep;
+          imTheOne = aVtx3.ID;
+        }
+      } // aVtx3
+      if(imTheOne > 0) {
+        neutrinoVxReconstructed = true;
+        ++TruVxCounts[2];
+        auto& vx3 = tjs.vtx3[imTheOne - 1];
+        hist.fNuVx3Score->Fill(vx3.Score);
+        // Histogram the score of 2D vertices
+        for(auto vx2id : vx3.Vx2ID) {
+          if(vx2id == 0) continue;
+          auto& vx2 = tjs.vtx[vx2id - 1];
+          hist.fNuVx2Score->Fill(vx2.Score);
+        } // vx2id
+        // histogram the relative score of other vertices
+        float maxScore = 0;
+        for(auto& ovx3 : tjs.vtx3) {
+          if(ovx3.ID == 0) continue;
+          if(ovx3.Score > maxScore) maxScore = ovx3.Score;
+          if(ovx3.ID == vx3.ID) continue;
+          float dScore = ovx3.Score - vx3.Score;
+          hist.fNuVx3ScoreDiff->Fill(dScore);
+        } // ovx3
+        neutrinoVxCorrect = (maxScore == vx3.Score);
+        if(neutrinoVxCorrect) ++TruVxCounts[3];
+        // find the most common Topo of the 2D vertices that were matched to the
+        // primary vertex. This might be a useful to tag neutrino interaction vertices
+        float vx3Topo = Vx3Topo(tjs, vx3);
+        hist.fVxTopoMat->Fill(vx3Topo);
+      }
+    } // neutrinoVxInFiducialVolume
+    
+    if(neutrinoVxInFiducialVolume && neutrinoVxReconstructable && !neutrinoVxCorrect) {
       // More than one reconstructable primaries so there must a reconstructable neutrino vertex
-      ++nTruPrimaryVtxOK;
-      // was it reconstructed?
-      if(nuVtxRecoOK) ++nTruPrimaryVtxReco;
-      if(fSourceParticleEnergy > 0 && !nuVtxRecoOK) mf::LogVerbatim("TC")<<"BadVtx fSourceParticleEnergy "<<std::fixed<<std::setprecision(2)<<fSourceParticleEnergy<<" events processed "<<fEventsProcessed;
+      mf::LogVerbatim("TC")<<"BadVtx Reconstructed? "<<neutrinoVxReconstructed<<" and not correct. events processed "<<tjs.EventsProcessed;
     }
     
     if(tjs.MatchTruth[1] > 0) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"Number of primary particles "<<nTruPrimary<<" Number reconstructable "<<nTruPrimaryOK<<" Found neutrino vertex? "<<nuVtxRecoOK<<"\n";
-      myprt<<"part   PDG TrkID MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
+      myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<" Correct? "<<neutrinoVxCorrect<<"\n";
+      myprt<<"part   PDG   TrkID   MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
       for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
         unsigned short pdg = abs(partList[ipart]->PdgCode());
         bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
@@ -501,8 +547,8 @@ namespace tca {
         int motherID = partList[ipart]->Mother() + sourcePtclTrackID - 1;
         myprt<<std::setw(4)<<ipart;
         myprt<<std::setw(6)<<partList[ipart]->PdgCode();
-        myprt<<std::setw(6)<<partList[ipart]->TrackId();
-        myprt<<std::setw(6)<<motherID;
+        myprt<<std::setw(10)<<partList[ipart]->TrackId();
+        myprt<<std::setw(10)<<motherID;
         myprt<<std::setw(6)<<TMeV;
         myprt<<std::setw(20)<<partList[ipart]->Process();
         // print the extent of the particle in each plane
@@ -549,9 +595,10 @@ namespace tca {
         if(tjWithMostHits == USHRT_MAX) continue;
         // Count the total number of used hits in the TJ
         auto tmp = PutTrajHitsInVector(tjs.allTraj[tjWithMostHits], kUsedHits);
-        if(tjs.allTraj[tjWithMostHits].ParentTrajID > 0) {
+/* Sep20: This is a bad thing to do
+        if(tjs.allTraj[tjWithMostHits].ParentID > 0) {
           // This is a daughter trajectory that has more truth matched hits than the parent
-          unsigned short ptj = tjs.allTraj[tjWithMostHits].ParentTrajID - 1;
+          unsigned short ptj = tjs.allTraj[tjWithMostHits].ParentID - 1;
           // add the parent hits to the vector of daughter hits
           auto ptmp = PutTrajHitsInVector(tjs.allTraj[ptj], kUsedHits);
           tmp.insert(tmp.end(), ptmp.begin(), ptmp.end());
@@ -566,6 +613,7 @@ namespace tca {
             } // found the parent tj
           } // ii
         } // deal with daughters
+*/
         // count the number matched to a true particle
         float nTjHits = 0;
         for(auto& iht : tmp) if(hitTruTrkID[iht] > 0) ++nTjHits;
@@ -611,10 +659,11 @@ namespace tca {
           // Enter 0 in the profile histogram
           hist.fEP_T[pdgIndex]->Fill(TMeV, 0);
           if(nMatchedHitsInPartList[ipart][plane] > tjs.MatchTruth[3]) {
+            ++nBadEP;
             mf::LogVerbatim myprt("TC");
             myprt<<"pdgIndex "<<pdgIndex<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to partList["<<ipart<<"]";
             myprt<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipart][plane];
-            myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<fEventsProcessed;
+            myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<tjs.EventsProcessed;
           }
           continue;
         }
@@ -626,7 +675,7 @@ namespace tca {
           mf::LogVerbatim myprt("TC");
           myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<std::fixed<<std::setprecision(2)<<tjs.allTraj[itj].EffPur;
           myprt<<" TMeV "<<(int)TMeV<<" nMatchedHitsInPartList "<<nMatchedHitsInPartList[ipart][plane];
-          myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<fEventsProcessed;
+          myprt<<" from true hit "<<PrintHit(tjs.fHits[fht])<<" to "<<PrintHit(tjs.fHits[lht])<<" events processed "<<tjs.EventsProcessed;
           // print alg names
           for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tjs.allTraj[itj].AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         }
@@ -637,12 +686,12 @@ namespace tca {
           int dtrID = 0;
           for(auto& tj : tjs.allTraj) {
             if(!tj.AlgMod[kShowerTj]) continue;
-            if(tj.ParentTrajID == ptj.ID) {
+            if(tj.ParentID == ptj.ID) {
               dtrID = tj.ID;
               break;
             }
           } // tj
-          if(dtrID == 0) mf::LogVerbatim("TC")<<"BadShower Primary electron -> Traj "<<ptj.ID<<"_"<<ptj.CTP<<" Wrong shower parent. Events processed "<<fEventsProcessed;
+          if(dtrID == 0) mf::LogVerbatim("TC")<<"BadShower Primary electron -> Traj "<<ptj.ID<<"_"<<ptj.CTP<<" Wrong shower parent. Events processed "<<tjs.EventsProcessed;
         } // check primary electron shower
         // histogram the MC-reco stopping point difference
         unsigned short endPt = tjs.allTraj[itj].EndPt[0];
@@ -734,6 +783,112 @@ namespace tca {
           pfp.MCPartListIndex = ipart;
           ++PFP_CntGoodMat;
           gotit = true;
+
+          if (fStudyMode) {
+            //
+            if (abs(part->PdgCode())==11) continue;
+            //
+            bool wrongid = part->PdgCode()!=pfp.PDGCode;
+            //
+            hist.hasfit_match->Fill(pfp.Track.ID()>=0);
+            if (wrongid) {
+              hist.hasfit_wrongid->Fill(pfp.Track.ID()>=0);
+            } else {
+              hist.hasfit_okid->Fill(pfp.Track.ID()>=0);
+            }
+            //
+            if (pfp.Track.ID()<0) continue;
+            // std::cout << "pfp #" << ipfp << " pdg=" << pfp.PDGCode << " tj vtx=" << recob::tracking::Point_t(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]) << " dir=" << recob::tracking::Vector_t(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]) << " fit vtx=" << pfp.Track.Start() << " dir=" << pfp.Track.StartDirection() << " match part #" << ipart << " vtx=" << recob::tracking::Point_t(part->Vx(), part->Vy(), part->Vz()) << " dir=" << recob::tracking::Vector_t(part->Px()/part->P(), part->Py()/part->P(), part->Pz()/part->P()) << " mom=" << part->P() << std::endl;
+            hist.nvalidpoints_match->Fill(pfp.Track.CountValidPoints());
+            if (pfp.Track.CountValidPoints()>1) {
+              //
+              detinfo::DetectorClocks const* detClocks = lar::providerFrom<detinfo::DetectorClocksService>();
+              double g4Ticks = detClocks->TPCG4Time2Tick(part->T())+tjs.detprop->GetXTicksOffset(0,0,0)-tjs.detprop->TriggerOffset();
+              double xOffset = tjs.detprop->ConvertTicksToX(g4Ticks, 0, 0, 0);
+              //
+              trkf::TrackStatePropagator prop(1.0, 0.1, 10, 10., 0.01, false);
+              recob::tracking::Plane mcplane(recob::tracking::Point_t(part->Vx()+xOffset, part->Vy(), part->Vz()),
+                                             recob::tracking::Vector_t(part->Px()/part->P(), part->Py()/part->P(), part->Pz()/part->P()));
+              recob::tracking::Plane tkplane(pfp.Track.Start(), pfp.Track.StartDirection());
+              trkf::TrackState tkstart(pfp.Track.VertexParametersLocal5D(), pfp.Track.VertexCovarianceLocal5D(), tkplane, true, pfp.Track.ParticleId());
+              //
+              recob::tracking::Plane tjplane(recob::tracking::Point_t(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]),
+                                             recob::tracking::Vector_t(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]));
+              auto tjpar5 = tjplane.Global6DToLocal5DParameters({pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2],pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]});
+              trkf::TrackState tjstart(tjpar5, pfp.Track.VertexCovarianceLocal5D(), tjplane, true, pfp.Track.ParticleId());
+              //
+              bool propok = true;
+              trkf::TrackState tkatmc = prop.propagateToPlane(propok, tkstart, mcplane, true, true, trkf::TrackStatePropagator::UNKNOWN);
+              trkf::TrackState tjatmc = prop.propagateToPlane(propok, tjstart, mcplane, true, true, trkf::TrackStatePropagator::UNKNOWN);
+              //
+              if (!propok) continue;
+              //
+              auto recmom = tkatmc.momentum().R();
+              auto c = tkatmc.plane().Local5DToGlobal6DCovariance(tkatmc.covariance(),false,tkatmc.momentum());//consider direction not momentum
+              auto cv = pfp.Track.VertexCovarianceLocal5D();
+              //
+              hist.dXkf_match->Fill(tkatmc.position().X()-part->Vx()-xOffset);
+              hist.dXtc_match->Fill(tjatmc.position().X()-part->Vx()-xOffset);
+              hist.dYkf_match->Fill(tkatmc.position().Y()-part->Vy());
+              hist.dYtc_match->Fill(tjatmc.position().Y()-part->Vy());
+              hist.dZkf_match->Fill(tkatmc.position().Z()-part->Vz());
+              hist.dZtc_match->Fill(tjatmc.position().Z()-part->Vz());
+              hist.dUXkf_match->Fill(tkatmc.momentum().X()/recmom-part->Px()/part->P());
+              hist.dUXtc_match->Fill(tjatmc.momentum().Unit().X()-part->Px()/part->P());
+              hist.dUYkf_match->Fill(tkatmc.momentum().Y()/recmom-part->Py()/part->P());
+              hist.dUYtc_match->Fill(tjatmc.momentum().Unit().Y()-part->Py()/part->P());
+              hist.dUZkf_match->Fill(tkatmc.momentum().Z()/recmom-part->Pz()/part->P());
+              hist.dUZtc_match->Fill(tjatmc.momentum().Unit().Z()-part->Pz()/part->P());
+              hist.dXpull_match->Fill( (tkatmc.position().X()-part->Vx()-xOffset)/ sqrt(c(0,0)) );
+              hist.dYpull_match->Fill( (tkatmc.position().Y()-part->Vy())/ sqrt(c(1,1)) );
+              hist.dZpull_match->Fill( (tkatmc.position().Z()-part->Vz())/ sqrt(c(2,2)) );
+              hist.dUXpull_match->Fill( (tkatmc.momentum().X()/recmom-part->Px()/part->P())/ sqrt(c(3,3)) );
+              hist.dUYpull_match->Fill( (tkatmc.momentum().Y()/recmom-part->Py()/part->P())/ sqrt(c(4,4)) );
+              hist.dUZpull_match->Fill( (tkatmc.momentum().Z()/recmom-part->Pz()/part->P())/ sqrt(c(5,5)) );
+              hist.nchi2_match->Fill( pfp.Track.Chi2PerNdof() );
+              hist.covtrace_match->Fill( cv(0,0)+cv(1,1)+cv(2,2)+cv(3,3) );
+              if (wrongid) {
+                hist.nchi2_wrongid->Fill( pfp.Track.Chi2PerNdof() );
+                hist.dXkf_wrongid->Fill(tkatmc.position().X()-part->Vx()-xOffset);
+                hist.dXtc_wrongid->Fill(tjatmc.position().X()-part->Vx()-xOffset);
+                hist.dYkf_wrongid->Fill(tkatmc.position().Y()-part->Vy());
+                hist.dYtc_wrongid->Fill(tjatmc.position().Y()-part->Vy());
+                hist.dZkf_wrongid->Fill(tkatmc.position().Z()-part->Vz());
+                hist.dZtc_wrongid->Fill(tjatmc.position().Z()-part->Vz());
+                hist.dUXkf_wrongid->Fill(tkatmc.momentum().X()/recmom-part->Px()/part->P());
+                hist.dUXtc_wrongid->Fill(tjatmc.momentum().Unit().X()-part->Px()/part->P());
+                hist.dUYkf_wrongid->Fill(tkatmc.momentum().Y()/recmom-part->Py()/part->P());
+                hist.dUYtc_wrongid->Fill(tjatmc.momentum().Unit().Y()-part->Py()/part->P());
+                hist.dUZkf_wrongid->Fill(tkatmc.momentum().Z()/recmom-part->Pz()/part->P());
+                hist.dUZtc_wrongid->Fill(tjatmc.momentum().Unit().Z()-part->Pz()/part->P());
+              } else {
+                hist.dXkf_okid->Fill(tkatmc.position().X()-part->Vx()-xOffset);
+                hist.dXtc_okid->Fill(tjatmc.position().X()-part->Vx()-xOffset);
+                hist.dYkf_okid->Fill(tkatmc.position().Y()-part->Vy());
+                hist.dYtc_okid->Fill(tjatmc.position().Y()-part->Vy());
+                hist.dZkf_okid->Fill(tkatmc.position().Z()-part->Vz());
+                hist.dZtc_okid->Fill(tjatmc.position().Z()-part->Vz());
+                hist.dUXkf_okid->Fill(tkatmc.momentum().X()/recmom-part->Px()/part->P());
+                hist.dUXtc_okid->Fill(tjatmc.momentum().Unit().X()-part->Px()/part->P());
+                hist.dUYkf_okid->Fill(tkatmc.momentum().Y()/recmom-part->Py()/part->P());
+                hist.dUYtc_okid->Fill(tjatmc.momentum().Unit().Y()-part->Py()/part->P());
+                hist.dUZkf_okid->Fill(tkatmc.momentum().Z()/recmom-part->Pz()/part->P());
+                hist.dUZtc_okid->Fill(tjatmc.momentum().Unit().Z()-part->Pz()/part->P());
+                hist.dXpull_okid->Fill( (tkatmc.position().X()-part->Vx()-xOffset)/ sqrt(c(0,0)) );
+                hist.dYpull_okid->Fill( (tkatmc.position().Y()-part->Vy())/ sqrt(c(1,1)) );
+                hist.dZpull_okid->Fill( (tkatmc.position().Z()-part->Vz())/ sqrt(c(2,2)) );
+                hist.dUXpull_okid->Fill( (tkatmc.momentum().X()/recmom-part->Px()/part->P())/ sqrt(c(3,3)) );
+                hist.dUYpull_okid->Fill( (tkatmc.momentum().Y()/recmom-part->Py()/part->P())/ sqrt(c(4,4)) );
+                hist.dUZpull_okid->Fill( (tkatmc.momentum().Z()/recmom-part->Pz()/part->P())/ sqrt(c(5,5)) );
+                hist.nchi2_okid->Fill( pfp.Track.Chi2PerNdof() );
+              }
+              //
+              // if (std::abs(tkatmc.position().X()-part->Vx())>10. && std::abs(tjatmc.position().X()-part->Vx())<1.) {
+              //   std::cout << "DEBUG ME" << std::endl;
+              // }
+              //
+            }
+          } //fStudyMode
           break;
         }
       } // ipfp
@@ -748,9 +903,46 @@ namespace tca {
           if(tj.AlgMod[kKilled]) continue;
           if(tj.MCPartListIndex == ipart) myprt<<" "<<tj.ID<<" EP "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
         } // tj
-        myprt<<" events processed "<<fEventsProcessed;
+        myprt<<" events processed "<<tjs.EventsProcessed;
       }
     } // ipart
+    
+    // histogram reconstructed PDG code vs true PDG code
+    std::array<int, 5> recoCodeList = {0, 11, 13, 211, 2212};
+    for(auto& pfp : tjs.pfps) {
+      if(pfp.ID == 0) continue;
+      // ignore showers
+      if(pfp.PDGCode == 1111) continue;
+      // require match to MC
+      if(pfp.MCPartListIndex == USHRT_MAX) continue;
+      short truIndex = PDGCodeIndex(tjs, partList[pfp.MCPartListIndex]->PdgCode());
+      short recIndex = 0;
+      for(recIndex = 0; recIndex < 5; ++recIndex) if(pfp.PDGCode == recoCodeList[recIndex]) break;
+      if(recIndex == 5) {
+        std::cout<<"MatchTruth: Found an unknown PDGCode "<<pfp.PDGCode<<" in PFParticle "<<pfp.ID<<"\n";
+        continue;
+      }
+      hist.PDGCode_reco_true->Fill((float)truIndex, (float)recIndex);
+    } // pfp
+
+
+    if (fStudyMode) {
+      // nomatch
+      for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
+        auto& pfp = tjs.pfps[ipfp];
+        if(pfp.ID == 0) continue;
+        if (pfp.MCPartListIndex!=USHRT_MAX) continue;
+        //
+        hist.hasfit_nomatch->Fill(pfp.Track.ID()>=0);
+        if (pfp.Track.ID()<0) continue;
+        hist.nvalidpoints_nomatch->Fill(pfp.Track.CountValidPoints());
+        if (pfp.Track.CountValidPoints()>1) {
+          hist.nchi2_nomatch->Fill( pfp.Track.Chi2PerNdof() );
+          auto cv = pfp.Track.VertexCovarianceLocal5D();
+          hist.covtrace_nomatch->Fill( cv(0,0)+cv(1,1)+cv(2,2)+cv(3,3) );
+        }
+      }
+    } //fStudyMode
     
     // update the total PFParticle count
     for(auto& pfp : tjs.pfps) if(pfp.ID > 0) ++PFP_Cnt;
@@ -780,12 +972,16 @@ namespace tca {
       }
     } // pdgIndex
     if(sum > 0) myprt<<" MuPiKP "<<std::fixed<<std::setprecision(2)<<sumt / sum;
+    myprt<<" BadEP "<<nBadEP;
+    // Vertex reconstruction
     if(MCP_TSum > 0 && PFP_Cnt > 0) {
       // PFParticle statistics
       float ep = MCP_EPTSum / MCP_TSum;
       float nofrac = 1 - (PFP_CntGoodMat / PFP_Cnt);
       myprt<<" PFP "<<ep<<" MCP cnt "<<(int)MCP_Cnt<<" PFP cnt "<<(int)PFP_Cnt<<" noMatFrac "<<nofrac;
     }
+    myprt<<" VxCount";
+    for(auto cnt : TruVxCounts) myprt<<" "<<cnt;
   } // PrintResults
   
   ////////////////////////////////////////////////

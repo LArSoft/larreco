@@ -6,6 +6,7 @@ art_make(
       lardataobj_Simulation
       nusimdata_SimulationBase
 			lardataobj_RecoBase
+			lardata_RecoObjects
 			larcorealg_Geometry
       larcore_Geometry_Geometry_service
       larreco_Calorimetry
@@ -23,6 +24,7 @@ art_make(
       ${ROOT_BASIC_LIB_LIST}
       ${ROOT_GEOM}
 			${Boost_SYSTEM_LIBRARY}
+			${ROOT_GENVECTOR}
         )
 
 install_headers()

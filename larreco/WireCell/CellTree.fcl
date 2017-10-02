@@ -1,0 +1,27 @@
+BEGIN_PROLOG
+
+standard_celltree:
+{
+  module_type     : "CellTree"
+
+  saveRaw         : false
+  saveCalib       : false
+  saveOpHit	  : true
+  saveOpFlash     : true
+  saveSimChannel  : false
+  saveTrigger     : true
+  saveMC          : false
+  saveJSON        : false
+  RawDigitLabel   : "daq"
+  CalibLabel      : "caldata"
+  OpHitLabel      : "ophit"
+  OpFlashLabel    : "opflash"
+  TriggerLabel    : "daq"
+  SpacePointLabels: ["trackkalmanhit","wirecell"]
+  mcOption        : "all"
+  opMultPEThresh  : 5
+  saveMCTrackPoints : true
+  outFile           : "celltree.root"
+}
+
+END_PROLOG

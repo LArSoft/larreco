@@ -1,6 +1,7 @@
 #include "trackfinderalgorithms.fcl"
 #include "cluster3dalgorithms.fcl"
 #include "calorimetry.fcl"
+#include "kalmanfilterfittrackmakertool.fcl"
 BEGIN_PROLOG
 
 standard_trajclusteralg:
@@ -42,13 +43,18 @@ standard_trajclusteralg:
   # 8 max parent FOM
   # 9 max direction FOM
   # 10 max aspect ratio
-  # 11 min Score to preserve a vertex and its Tjs
-  # 12 Debug in CTP (>10 debug cotIndex + 10)
+  # 11 not used
+  # 12 Print 2D showers in plane (0,1,2) or all planes (3) or just 3D matching (4)
    SaveShowerTree: false
    SaveCRTree: false
    TagCosmics: false
    ChkStopCuts: [5, 8, 1.5] # [Min chg ratio, Chg slope pull cut, Chg fit Chi cut]
-   Vertex2DCuts:  [6, 8, 40, 3, 5, 60, 0.6, 3, 0.7]
+   VertexScoreWeights: [1, 2, 10, 2]
+    # 0 = Vertex error weight
+    # 1 = 3D match weight
+    # 2 = Charge fraction of vertex Tjs near the vertex weight
+    # 3 = Tj MCSMom, ChgRMS, Angle difference significance between Tjs weight
+   Vertex2DCuts:  [6, 8, 45, 3, 3, 50, 0.6, 0, 0.8, 0.8]
    # 0 User definition of a short Tj => max number of Tj points
    # 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
    # 2 max separation for a user-defined long Tj
@@ -58,13 +64,14 @@ standard_trajclusteralg:
    # 6 min frac of Points/Wire between a vtx and a Tj. Ideally one if the efficiency is good
    # 7 min Score
    # 8 Min charge fraction near a vertex or merge point
-   Vertex3DChiCut: 3.5       # 3D vertex Chi/DOF cut
-   Match3DCuts: [ 0.3, 0.1, 5, 1, 0.1 ] 
+   # 9 max MCSmom asymmetry for a merge
+   Vertex3DCuts: [0.8, 2]       # [ dX match cut, dY and dZ match cut]
+   Match3DCuts: [ 0.3, 0.1, 5, 0.5 ] 
    # 0 dx (cm) matching cut
    # 1 Angle cut (radians) (0 = don't use)
    # 2 min length for 2-view match
-   # 3 2-view missing plane requirement
-   # 4 min match fraction
+   # 3 min match fraction
+   KalmanFilterFit: false
    SkipAlgs: [  "VtxHitsSwap", "SplitHiChgHits", "CTKink", "HED" ]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    StudyMode: false         # Set true to generate histograms
@@ -77,6 +84,9 @@ standard_trajclusteralg:
    DebugWorkID:     0       # Print debug output for a trajectory with this WorkID (Note WorkID < 0)
 }
 standard_trajclusteralg.CaloAlg: @local::standard_calorimetryalgmc
+standard_trajclusteralg.kfpropagator: @local::kalmanfilterfittrackmakertool.propagator
+standard_trajclusteralg.kffitter: @local::kalmanfilterfittrackmakertool.fitter
+#standard_trajclusteralg.kffitter.skipNegProp: false # gc: do we need this?
 
 standard_clustercrawleralg:
 {

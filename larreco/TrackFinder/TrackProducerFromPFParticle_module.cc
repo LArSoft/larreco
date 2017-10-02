@@ -1,21 +1,14 @@
-////////////////////////////////////////////////////////////////////////
-// Class:       TrackProducerFromPFParticle
-// Plugin Type: producer (art v2_07_03)
-// File:        TrackProducerFromPFParticle_module.cc
-//
-// Author: Giuseppe Cerati, cerati@fnal.gov
-////////////////////////////////////////////////////////////////////////
-//
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Principal/Run.h"
 #include "art/Framework/Principal/SubRun.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "lardata/Utilities/PtrMaker.h"
+#include "art/Persistency/Common/PtrMaker.h"
 #include "lardata/Utilities/ForEachAssociatedGroup.h"
 #include "cetlib/exception.h"
 //
@@ -28,6 +21,9 @@
 #include "lardataobj/RecoBase/Cluster.h"
 //
   /**
+   * @file  larreco/TrackFinder/TrackProducerFromPFParticle_module.cc
+   * @class TrackProducerFromPFParticle
+   *
    * @brief Produce a reco::Track collection, as a result of the fit of an existing recob::PFParticle collection.
    *
    * This producer takes an input an existing recob::PFParticle collection and refits the associated tracks;
@@ -38,6 +34,16 @@
    * An option is provided to create SpacePoints from the TrajectoryPoints in the Track.
    * Note: SpacePoints should not be used and will be soon deprecated as their functionality is covered by TrajectoryPoints.
    * The fit is performed by an user-defined tool, which must inherit from larreco/TrackFinder/TrackMaker.
+   *
+   * Parameters: trackMaker (fhicl::ParameterSet for the trkmkr::TrackMaker tool used to do the fit), inputCollection (art::InputTag of the input recob::Track collection),
+   * doTrackFitHitInfo (bool to decide whether to produce recob::TrackFitHitInfo's), doSpacePoints (bool to decide whether to produce recob::SpacePoint's),
+   * spacePointsFromTrajP (bool to decide whether the produced recob::SpacePoint's are taken from the recob::tracking::TrajectoryPoint_t's of the fitted recob::Track),
+   * trackFromPF (bool to decide whether to fit the recob::Track associated to the recob::PFParticle), and
+   * showerFromPF (bool to decide whether to fit the recob::Shower associated to the recob::PFParticle - this option is intended to mitigate possible problems due to tracks being mis-identified as showers)
+   *
+   * @author  G. Cerati (FNAL, MicroBooNE)
+   * @date    2017
+   * @version 1.0
    */
 //
 //
@@ -80,7 +86,6 @@ TrackProducerFromPFParticle::TrackProducerFromPFParticle(fhicl::ParameterSet con
   else trkInputTag = pfpInputTag;
   if (p.has_key("showerInputTag")) shwInputTag = p.get<art::InputTag>("showerInputTag");
   else shwInputTag = pfpInputTag;
-  // Call appropriate produces<>() functions here.
   produces<std::vector<recob::Track> >();
   produces<art::Assns<recob::Track, recob::Hit> >();
   produces<art::Assns<recob::PFParticle, recob::Track> >();
@@ -102,8 +107,8 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
   auto outputHitSpacePointAssn = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint> >();
   //
   // PtrMakers for Assns
-  lar::PtrMaker<recob::Track> trackPtrMaker(e, *this);
-  lar::PtrMaker<recob::SpacePoint> spacePointPtrMaker(e, *this);
+  art::PtrMaker<recob::Track> trackPtrMaker(e, *this);
+  art::PtrMaker<recob::SpacePoint> spacePointPtrMaker(e, *this);
   //
   // Input from event
   art::ValidHandle<std::vector<recob::PFParticle> > inputPfps = e.getValidHandle<std::vector<recob::PFParticle> >(pfpInputTag);

@@ -64,6 +64,30 @@ public:
 					Name("NonBeamT0Margin"),
 					Comment("Tag only those events at least <margin> from the beam time")
 				};
+        fhicl::Atom<bool> TagTopFrontBack {
+          Name("TagTopFrontBack"),
+          Comment("Tag tracks that enter through the top of the detector and exit through the front or back")
+        };
+        fhicl::Atom<double> TopFrontBackMargin {
+          Name("TopFrontBackMargin"),
+          Comment("Distance tolerence from the top, front and back of the detector")
+        };
+        fhicl::Atom<bool> TagApparentStopper {
+          Name("TagApparentStopper"),
+          Comment("Tag tracks that enter through the top of the detector appear to stop (without seeing evidence of stopping)")
+        };
+        fhicl::Atom<double> ApparentStopperMargin {
+          Name("ApparentStopperMargin"),
+          Comment("Distance tolerence from the top of the detector to be considered coming in from the top")
+        };
+        fhicl::Atom<bool> VetoActualStopper {
+          Name("VetoActualStopper"),
+          Comment("If true: use de/dx information to identify stopping muons but do not tag them")
+        };
+        fhicl::Atom<double> StopperBuffer {
+          Name("StopperBuffer"),
+          Comment("Should find no tracks starting within this distance from the end point of the track")
+        };
     };
 
     PMAlgCosmicTagger(const pma::PMAlgCosmicTagger::Config &config) :
@@ -76,10 +100,17 @@ public:
         fFullCrossingMargin(config.FullCrossingMargin()),
 
 				fTagNonBeamT0Tracks(config.TagNonBeamT0Tracks()),
-				fNonBeamT0Margin(config.NonBeamT0Margin())
+				fNonBeamT0Margin(config.NonBeamT0Margin()),
+        fTagTopFrontBack(config.TagTopFrontBack()),
+        fTopFrontBackMargin(config.TopFrontBackMargin()),
+        fTagApparentStopper(config.TagApparentStopper()),
+        fApparentStopperMargin(config.ApparentStopperMargin()),
+        fVetoActualStopper(config.VetoActualStopper()),
+        fStopperBuffer(config.StopperBuffer())
     { }
 
-    bool tagAny() const { return (fTagOutOfDriftTracks || fTagFullHeightTracks || fTagFullWidthTracks || fTagFullLengthTracks || fTagNonBeamT0Tracks); }
+    bool tagAny() const { return (fTagOutOfDriftTracks || fTagFullHeightTracks || fTagFullWidthTracks || fTagFullLengthTracks 
+                               || fTagNonBeamT0Tracks || fTagApparentStopper || fTagTopFrontBack); }
 
     void tag(pma::TrkCandidateColl& tracks);
 
@@ -91,9 +122,16 @@ private:
 		size_t fullLengthCrossing(pma::TrkCandidateColl& tracks);
 		size_t fullCrossingTagger(pma::TrkCandidateColl& tracks, int direction);
 		size_t nonBeamT0Tag(pma::TrkCandidateColl& tracks);
+    size_t tagTopFrontBack(pma::TrkCandidateColl& tracks);
+    size_t tagApparentStopper(pma::TrkCandidateColl& tracks);
+
+    // Convenience functions to see if we have a vertex at the top of the detector
+    bool isTopVertex(const TVector3 &pos, double tolerance, short int dirIndx) const;
+    // or at the front / back walls 
+    bool isFrontBackVertex(const TVector3 &pos, double tolerance, short int dirIndx) const;
 
 		void GetDimensions(); // Use the geometry to get the extent of the detector in x, y and z.
-		int ConvertDirToInt(TVector3 &dir); // Is the direction along x, y or z?
+		short int ConvertDirToInt(const TVector3 &dir) const; // Is the direction along x, y or z?
     // Tagging parameters
     bool fTagOutOfDriftTracks; // Tag tracks sticking out of 1 drift window.
     double fOutOfDriftMargin;  // Min distance [cm] beyond 1 drift window required for tagging track as a cosmic background.
@@ -101,12 +139,23 @@ private:
     bool fTagFullHeightTracks;    // Tag tracks crossing full height
     bool fTagFullWidthTracks;     // Tag tracks crossing full heightwidth
     bool fTagFullLengthTracks;    // Tag tracks crossing full heightlength
-    double fFullCrossingMargin;     // Max distance [cm] between track dimension and detector dimension for crossing tracks.
+    double fFullCrossingMargin;   // Max distance [cm] between track dimension and detector dimension for crossing tracks.
 
 		bool fTagNonBeamT0Tracks;  // Tag tracks that have a reconstructed T0 outside of the beam range.
 		double fNonBeamT0Margin;   // Range outside which we should consider events not beam related.
 
-		std::vector<double> fDimensions; // The size of the detector in the x, y and z dimensions.
+    bool fTagTopFrontBack;
+    double fTopFrontBackMargin;
+
+    bool fTagApparentStopper;
+    double fApparentStopperMargin;
+    bool fVetoActualStopper;
+    double fStopperBuffer;          // A distance from the end of the track within which we should find no other track starting.
+                                    // Helps to prevent identifying broken tracks or interacting particles as stoppers.
+
+    // The dimensions of the detector from the geometry
+		std::vector<double> fDimensionsMin;
+		std::vector<double> fDimensionsMax;
 };
 
 #endif

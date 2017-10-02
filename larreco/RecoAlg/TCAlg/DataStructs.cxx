@@ -4,6 +4,8 @@ namespace tca {
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
     "MaskBadTPs",
+    "Michel",
+    "DeltaRay",
     "CTKink",
     "CTStepChk",
     "TryNextPass",
@@ -25,12 +27,14 @@ namespace tca {
     "ChkInTraj",
     "StopBadFits",
     "FixBegin",
+    "BeginChg",
     "FixEnd",
     "UUH",
     "MisdVxTj",
     "VtxTj",
     "ChkVxTj",
     "RefVtx",
+    "VxMerge",
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
@@ -40,7 +44,7 @@ namespace tca {
     "M3D",
     "Mat3DMerge",
     "TjHiVx3Score",
-    "VtxHitsSwap",
+     "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
     "ShowerTj",
@@ -48,7 +52,8 @@ namespace tca {
     "MergeOverlap",
     "MergeSubShowers",
     "MergeNrShowers",
-    "MergeShChain"
+    "MergeShChain",
+    "SplitTarjCV"  
   };
 
   const std::vector<std::string> StopFlagNames {
