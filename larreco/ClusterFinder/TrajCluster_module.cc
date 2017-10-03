@@ -214,6 +214,7 @@ namespace cluster {
     for(tca::Vtx3Store const& vtx3: Vertices) {
       // ignore incomplete vertices or obsolete
       if(vtx3.Wire >= 0) continue;
+      if(vtx3.ID == 0) continue;
       ++vtxID;
       xyz[0] = vtx3.X;
       xyz[1] = vtx3.Y;
