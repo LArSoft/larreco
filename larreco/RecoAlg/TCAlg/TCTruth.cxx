@@ -788,7 +788,7 @@ namespace tca {
             //
             if (abs(part->PdgCode())==11) continue;
             //
-            bool wrongid = part->PdgCode()!=pfp.PDGCode;
+            bool wrongid = ( std::abs(part->PdgCode())!=std::abs(pfp.Track.ParticleId()) );
             //
             hist.hasfit_match->Fill(pfp.Track.ID()>=0);
             if (wrongid) {
@@ -801,6 +801,7 @@ namespace tca {
             // std::cout << "pfp #" << ipfp << " pdg=" << pfp.PDGCode << " tj vtx=" << recob::tracking::Point_t(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]) << " dir=" << recob::tracking::Vector_t(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]) << " fit vtx=" << pfp.Track.Start() << " dir=" << pfp.Track.StartDirection() << " match part #" << ipart << " vtx=" << recob::tracking::Point_t(part->Vx(), part->Vy(), part->Vz()) << " dir=" << recob::tracking::Vector_t(part->Px()/part->P(), part->Py()/part->P(), part->Pz()/part->P()) << " mom=" << part->P() << std::endl;
             hist.nvalidpoints_match->Fill(pfp.Track.CountValidPoints());
             hist.nrejectpoints_match->Fill(pfp.Track.NPoints()-pfp.Track.CountValidPoints());
+            hist.fracreject_match->Fill( float(pfp.Track.NPoints()-pfp.Track.CountValidPoints())/float(pfp.Track.NPoints()) );
             if (pfp.Track.CountValidPoints()>1) {
               //
               detinfo::DetectorClocks const* detClocks = lar::providerFrom<detinfo::DetectorClocksService>();
@@ -849,6 +850,12 @@ namespace tca {
               hist.nchi2_match->Fill( pfp.Track.Chi2PerNdof() );
               hist.covtrace_match->Fill( cv(0,0)+cv(1,1)+cv(2,2)+cv(3,3) );
               if (wrongid) {
+		int wid = 0;
+		if (std::abs(part->PdgCode())==11) wid=1;
+		if (std::abs(part->PdgCode())==13) wid=2;
+		if (std::abs(part->PdgCode())==211) wid=3;
+		if (std::abs(part->PdgCode())==2212) wid=4;
+		hist.pdgid_wrongid->Fill( wid );
                 hist.nchi2_wrongid->Fill( pfp.Track.Chi2PerNdof() );
                 hist.dXkf_wrongid->Fill(tkatmc.position().X()-part->Vx()-xOffset);
                 hist.dXtc_wrongid->Fill(tjatmc.position().X()-part->Vx()-xOffset);
@@ -937,6 +944,7 @@ namespace tca {
         if (pfp.Track.ID()<0) continue;
         hist.nvalidpoints_nomatch->Fill(pfp.Track.CountValidPoints());
 	hist.nrejectpoints_nomatch->Fill(pfp.Track.NPoints()-pfp.Track.CountValidPoints());
+	hist.fracreject_nomatch->Fill( float(pfp.Track.NPoints()-pfp.Track.CountValidPoints())/float(pfp.Track.NPoints()) );
         if (pfp.Track.CountValidPoints()>1) {
           hist.nchi2_nomatch->Fill( pfp.Track.Chi2PerNdof() );
           auto cv = pfp.Track.VertexCovarianceLocal5D();

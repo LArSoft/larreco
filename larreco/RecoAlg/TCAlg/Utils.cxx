@@ -256,7 +256,6 @@ namespace tca {
       std::array<unsigned short, 5> cnts = {0};
       for(auto tjid : pfp.TjIDs) {
         auto& tj = tjs.allTraj[tjid - 1];
-	std::cout << "pfp id=" << pfp.ID << " tjid=" << tjid << " pdgcode=" << tj.PDGCode << std::endl;
         for(unsigned short code = 0; code < 5; ++code) {
           if(tj.PDGCode == codeList[code]) ++cnts[code];
         } // code
@@ -289,7 +288,6 @@ namespace tca {
         }
       } // ii
       pfp.PDGCode = codeList[code];
-      std::cout << "pfp id=" << pfp.ID << " pdgcode=" << pfp.PDGCode << std::endl;
       // look for a parent
       if(nParent > 1) {
         pfp.ParentID = pfpParentID;
