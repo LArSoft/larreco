@@ -270,6 +270,7 @@ public:
 
 	bool findCrop(float max_e_cut, unsigned int & w0, unsigned int & w1, unsigned int & d0, unsigned int & d1) const;
 
+	double getEdepTot(void) const { return fEdepTot; } // [GeV]
 	std::vector<float> const & wireEdep(size_t widx) const { return fWireDriftEdep[widx]; }
 	std::vector<int> const & wirePdg(size_t widx) const { return fWireDriftPdg[widx]; }
 
@@ -314,6 +315,7 @@ private:
         const simb::MCParticle & particle,
         const std::unordered_map< int, const simb::MCParticle* > & particleMap) const;
 
+	double fEdepTot; // [GeV]
 	std::vector< std::vector<float> > fWireDriftEdep;
 	std::vector< std::vector<int> > fWireDriftPdg;
 

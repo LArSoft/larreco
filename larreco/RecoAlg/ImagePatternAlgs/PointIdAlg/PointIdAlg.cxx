@@ -425,6 +425,7 @@ bool nnet::PointIdAlg::isInsideFiducialRegion(unsigned int wire, float drift) co
 // ------------------------------------------------------
 
 nnet::TrainingDataAlg::TrainingDataAlg(const Config& config) : img::DataProviderAlg(config),
+	fEdepTot(0),
 	fWireProducerLabel(config.WireLabel()),
 	fHitProducerLabel(config.HitLabel()),
 	fTrackModuleLabel(config.TrackLabel()),
@@ -1011,8 +1012,10 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 	std::unordered_map< size_t, std::unordered_map< int, int > > wireToDriftToVtxFlags;
 	if (fSaveVtxFlags) collectVtxFlags(wireToDriftToVtxFlags, particleMap, plane);
 
+	fEdepTot = 0;
+
 	std::map< int, int > trackToPDG;
-    for (size_t widx = 0; widx < fNWires; ++widx)
+	for (size_t widx = 0; widx < fNWires; ++widx)
 	{
 		auto wireChannelNumber = fWireChannels[widx];
 		if (wireChannelNumber == raw::InvalidChannelID) continue;
@@ -1047,15 +1050,15 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 						    continue;
 					    }
 					    auto const & mother = *((*search).second); // mother particle of this EM
-    					int mPdg = abs(mother.PdgCode());
-              if ((mPdg == 13) || (mPdg == 211) || (mPdg == 2212))
-              {
-              		if (energyDeposit.numElectrons > 10) pdg |= nnet::TrainingDataAlg::kDelta; // tag delta ray
-              }
+					    int mPdg = abs(mother.PdgCode());
+					    if ((mPdg == 13) || (mPdg == 211) || (mPdg == 2212))
+					    {
+					        if (energyDeposit.numElectrons > 10) pdg |= nnet::TrainingDataAlg::kDelta; // tag delta ray
+					    }
 					}
 					else
 					{
-						auto search = particleMap.find(tid);
+					  auto search = particleMap.find(tid);
 					  if (search == particleMap.end())
 					  {
 						   mf::LogWarning("TrainingDataAlg") << "PARTICLE NOT FOUND";
@@ -1094,6 +1097,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
 
 					double energy = energyDeposit.numElectrons * electronsToGeV;
 					timeToTrackToCharge[time][energyDeposit.trackID] += energy;
+					fEdepTot += energy;
 
 	      		} // loop over energy deposits
       		} // loop over time slices
