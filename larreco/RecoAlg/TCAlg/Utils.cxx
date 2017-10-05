@@ -364,6 +364,8 @@ namespace tca {
     if(tj.AlgMod[kKilled]) return tj.ID;
     if(tj.ParentID <= 0) return tj.ID;
     int primID = PrimaryID(tjs, tj);
+    if(primID==0) return tj.ID;
+
     // We have the ID of the primary tj. Now see if it is attached to the neutrino vertex
     auto& ptj = tjs.allTraj[primID - 1];
     for(unsigned short end = 0; end < 2; ++end) {
@@ -4476,6 +4478,11 @@ namespace tca {
             myprt<<std::setw(6)<<std::setprecision(0)<<dedx;
           }
         } // dedx
+        if (pfp.dEdx[startend].size()<3){
+          for(size_t i = 0; i<3-pfp.dEdx[startend].size(); ++i){
+            myprt<<std::setw(6)<<' ';
+          }
+        }
       }
       // global stuff
       myprt<<std::setw(5)<<pfp.BestPlane;
