@@ -451,27 +451,29 @@ namespace tca {
       } // ipart
     } // iht
     
-    // remove partList elements that have no matched hits
-    std::vector<simb::MCParticle*> newPartList;
+    // remove partList elements that have no matched hits and put the results in tjs
+    tjs.MCPartList.clear();
+//    std::vector<simb::MCParticle*> newPartList;
     std::vector<std::vector<unsigned short>> newnMatchedHitsInPartList;
     std::vector<std::vector<std::array<unsigned short, 2>>> newnMatchedHitsInTj;
     for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
       unsigned short nht = 0;
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) nht += nMatchedHitsInPartList[ipart][plane];
       if(nht == 0) continue;
-      newPartList.push_back(partList[ipart]);
+//      newPartList.push_back(partList[ipart]);
+      tjs.MCPartList.push_back(partList[ipart]);
       newnMatchedHitsInPartList.push_back(nMatchedHitsInPartList[ipart]);
       newnMatchedHitsInTj.push_back(nMatchedHitsInTj[ipart]);
     } // ipart
-    partList = newPartList;
     nMatchedHitsInPartList = newnMatchedHitsInPartList;
     nMatchedHitsInTj = newnMatchedHitsInTj;
+    partList.clear();
     
     // count the number of primary tracks that have at least 3 hits in at least 2 planes
     unsigned short nTruPrimary = 0;
     unsigned short nTruPrimaryOK = 0;
-    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
-      if(partList[ipart]->Mother() != 0) continue;
+    for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
+      if(tjs.MCPartList[ipart]->Mother() != 0) continue;
       ++nTruPrimary;
       unsigned short nInPln = 0;
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
@@ -538,26 +540,27 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<" Correct? "<<neutrinoVxCorrect<<"\n";
       myprt<<"part   PDG   TrkID   MomID KE(MeV)   Process         Trajectory_extent_in_plane \n";
-      for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
-        unsigned short pdg = abs(partList[ipart]->PdgCode());
+      for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
+        auto& mcp = tjs.MCPartList[ipart];
+        unsigned short pdg = abs(mcp->PdgCode());
         bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
         if(!isCharged) continue;
         // Kinetic energy in MeV
-        int TMeV = 1000 * (partList[ipart]->E() - partList[ipart]->Mass());
-        int motherID = partList[ipart]->Mother() + sourcePtclTrackID - 1;
+        int TMeV = 1000 * (mcp->E() - mcp->Mass());
+        int motherID = mcp->Mother() + sourcePtclTrackID - 1;
         myprt<<std::setw(4)<<ipart;
-        myprt<<std::setw(6)<<partList[ipart]->PdgCode();
-        myprt<<std::setw(10)<<partList[ipart]->TrackId();
+        myprt<<std::setw(6)<<mcp->PdgCode();
+        myprt<<std::setw(10)<<mcp->TrackId();
         myprt<<std::setw(10)<<motherID;
         myprt<<std::setw(6)<<TMeV;
-        myprt<<std::setw(20)<<partList[ipart]->Process();
+        myprt<<std::setw(20)<<mcp->Process();
         // print the extent of the particle in each plane
         for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
           unsigned int fht = UINT_MAX;
           unsigned int lht = 0;
           for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
             if(tjs.fHits[iht].WireID.Plane != plane) continue;
-            unsigned short momTrackID = partList[ipart]->TrackId();
+            unsigned short momTrackID = mcp->TrackId();
             // Look for the real mother
             for(auto& md : moda) if(md.second == momTrackID) momTrackID = md.first;
             if(hitTruTrkID[iht] != momTrackID) continue;
@@ -573,10 +576,10 @@ namespace tca {
     
     // Declare a TJ - partlist match for the trajectory which has the most true hits.
     // another temp vector for the one-to-one match
-    std::vector<std::vector<unsigned short>> partListToTjID(partList.size());
-    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) partListToTjID[ipart].resize(tjs.NumPlanes);
+    std::vector<std::vector<unsigned short>> partListToTjID(tjs.MCPartList.size());
+    for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) partListToTjID[ipart].resize(tjs.NumPlanes);
     
-    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
+    for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
         if(nMatchedHitsInPartList[ipart][plane] < 2) continue;
         unsigned short mostHits = 0;
@@ -632,12 +635,13 @@ namespace tca {
     } // ipart
     
     // Update the EP sums
-    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
-      float TMeV = 1000 * (partList[ipart]->E() - partList[ipart]->Mass());
+    for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
+      auto& mcp = tjs.MCPartList[ipart];
+      float TMeV = 1000 * (mcp->E() - mcp->Mass());
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
         // require at least 2 matched hits
         if(nMatchedHitsInPartList[ipart][plane] < 2) continue;
-        unsigned short pdgIndex = PDGCodeIndex(tjs, partList[ipart]->PdgCode());
+        unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
         // count the number of EP sums for this PDG code
         TSums[pdgIndex] += TMeV;
         ++EPCnts[pdgIndex];
@@ -647,7 +651,7 @@ namespace tca {
         // find the first and last matched hit in this plane
         for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
           if(tjs.fHits[iht].WireID.Plane != plane) continue;
-          unsigned short momTrackID = partList[ipart]->TrackId();
+          unsigned short momTrackID = mcp->TrackId();
           // Look for the real mother
           for(auto& md : moda) if(md.second == momTrackID) momTrackID = md.first;
           if(hitTruTrkID[iht] != momTrackID) continue;
@@ -680,7 +684,7 @@ namespace tca {
           for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tjs.allTraj[itj].AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         }
         // check for a bad match to a primary electron shower
-        if(tjs.ShowerTag[0] > 1 && pdgIndex == 0 && partList[ipart]->Mother() == 0 && fSourceParticleEnergy > 50) {
+        if(tjs.ShowerTag[0] > 1 && pdgIndex == 0 && mcp->Mother() == 0 && fSourceParticleEnergy > 50) {
           Trajectory& ptj = tjs.allTraj[itj];
           // determine if this is a parent of a shower Tj
           int dtrID = 0;
@@ -919,16 +923,17 @@ namespace tca {
     std::array<int, 5> recoCodeList = {0, 11, 13, 211, 2212};
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
+      // ignore showers
+      if(pfp.PDGCode == 1111) continue;
       // require match to MC
       if(pfp.MCPartListIndex == USHRT_MAX) continue;
       short truIndex = PDGCodeIndex(tjs, partList[pfp.MCPartListIndex]->PdgCode());
       short recIndex = 0;
       for(recIndex = 0; recIndex < 5; ++recIndex) if(pfp.PDGCode == recoCodeList[recIndex]) break;
       if(recIndex == 5) {
-        std::cout<<"MT: Found an unknown PDGCode "<<pfp.PDGCode<<" in PFParticle "<<pfp.ID<<"\n";
+        std::cout<<"MatchTruth: Found an unknown PDGCode "<<pfp.PDGCode<<" in PFParticle "<<pfp.ID<<"\n";
         continue;
       }
-      std::cout<<"PFP "<<pfp.ID<<" truIndex "<<truIndex<<" PDGCode "<<partList[pfp.MCPartListIndex]->PdgCode()<<" recIndex "<<recIndex<<" recPDG "<<pfp.PDGCode<<"\n";
       hist.PDGCode_reco_true->Fill((float)truIndex, (float)recIndex);
     } // pfp
 

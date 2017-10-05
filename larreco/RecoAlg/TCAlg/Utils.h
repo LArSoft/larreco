@@ -43,6 +43,9 @@ namespace tca {
   // ****************************** General purpose  ******************************
   void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  int NeutrinoPrimaryTjID(const TjStuff& tjs, const Trajectory& tj);
+  int PrimaryID(const TjStuff& tjs, const Trajectory& tj);
+  int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, PFPStruct& pfp, std::vector<MatchStruct>& matVec, 
                     std::array<std::vector<unsigned int>, 2>& matchPts, std::array<std::array<float, 3>, 2>& matchPos, unsigned short& nMatch, bool prt);
@@ -169,7 +172,7 @@ namespace tca {
   // Returns true if the trajectory has low hit multiplicity and is in a clean environment
   bool TrajIsClean(TjStuff& tjs, Trajectory& tj, bool prt);
   // Flag delta ray trajectories in allTraj
-  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP, short debugWorkID);
+  void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP);
   // Tag muon directions using delta proximity
   void TagMuonDirections(TjStuff& tjs, short debugWorkID);
   // Make a bare trajectory point that only has position and direction defined
