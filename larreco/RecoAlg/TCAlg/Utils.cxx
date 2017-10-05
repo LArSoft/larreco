@@ -4446,6 +4446,11 @@ namespace tca {
             myprt<<std::setw(6)<<std::setprecision(0)<<dedx;
           }
         } // dedx
+        if (pfp.dEdx[startend].size()<3){
+          for(size_t i = 0; i<3-pfp.dEdx[startend].size(); ++i){
+            myprt<<std::setw(6)<<' ';
+          }
+        }
       }
       // global stuff
       myprt<<std::setw(5)<<pfp.BestPlane;
