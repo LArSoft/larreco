@@ -90,7 +90,7 @@ kdTree::KdTreeNode& kdTree::BuildKdTree(Hit3DVec::iterator first,
     // Ok, so if the input list is more than one element then we have work to do... but if less then handle end condition
     if (std::distance(first,last) < 2)
     {
-        if (first != last) kdTreeNodeContainer.emplace_back(KdTreeNode(*first));
+        if (first != last) kdTreeNodeContainer.emplace_back(*first);
         else               kdTreeNodeContainer.emplace_back(KdTreeNode());
     }
     // Otherwise we need to keep splitting...
@@ -150,7 +150,7 @@ size_t kdTree::FindNearestNeighbors(const reco::ClusterHit3D* refHit, const KdTr
         // This is the tight constraint on the hits
         else if (consistentPairs(refHit, node.getClusterHit3D(), bestDist))
         {
-            CandPairList.emplace_back(CandPair(bestDist,node.getClusterHit3D()));
+            CandPairList.emplace_back(bestDist,node.getClusterHit3D());
             
             bestDist = std::max(m_refLeafBestDist, bestDist);  // This insures we will always consider neighbors with wire # changing in 2 planes
         }
@@ -192,7 +192,7 @@ bool kdTree::FindEntry(const reco::ClusterHit3D* refHit, const KdTreeNode& node,
         // This is the tight constraint on the hits
         if (consistentPairs(refHit, node.getClusterHit3D(), hitSeparation))
         {
-            CandPairList.emplace_back(CandPair(hitSeparation,node.getClusterHit3D()));
+            CandPairList.emplace_back(hitSeparation,node.getClusterHit3D());
             
             if (bestDist < std::numeric_limits<float>::max()) bestDist = std::max(bestDist,hitSeparation);
             else                                              bestDist = std::max(float(0.5),hitSeparation);
