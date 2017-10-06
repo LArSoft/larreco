@@ -238,8 +238,8 @@ bool ClusterMergeAlg::consistentClusters(const reco::PrincipalComponents& firstP
     // Use the angle between the vector between cluster centers and the first axis to moderate the selection cut
     double firstToNextDist  = firstPosToNextPos.Mag();
     double cosAngFTNtoAxis0 = arcLenToNextDoca / firstToNextDist;
-    double docaVecProj1Cut  = std::max( 1., (1. + cosAngFTNtoAxis0) * firstEigenVals[1]);
-    double docaVecProj2Cut  = std::max(0.5, (1. + cosAngFTNtoAxis0) * firstEigenVals[2]);
+    double docaVecProj1Cut  = std::max( 1., (1. + 2. * cosAngFTNtoAxis0) * firstEigenVals[1]);
+    double docaVecProj2Cut  = std::max(0.5, (1. + 2. * cosAngFTNtoAxis0) * firstEigenVals[2]);
     
     std::cout << "   ==> Check in tube, doca: " << nextDocaVec.Mag() << ", proj: " << docaVecProj1 << "/" << docaVecProj2 << ", cut: " << docaVecProj1Cut << "/" << docaVecProj2Cut << ", eigen: " << firstEigenVals[0] << "/" << firstEigenVals[1] << "/" << firstEigenVals[2] << ", arcLenToNextDoca: " << arcLenToNextDoca << ", cos(ang): " << cosAngFTNtoAxis0 << std::endl;
 
