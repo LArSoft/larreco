@@ -46,6 +46,17 @@ namespace tca {
   /// @{
   /// @name Data structures for the reconstruction results
   
+/*
+    Associations
+    Hit.InTraj <-> tj.Pts.Hits
+    Tj.ParentID -> ID of parent tj
+    PFParticle.TjIDs -> IDs of tjs in each plane that define the PFParticle
+    PFParticle.ParentID -> PFParticle ID of parent
+    Shower.TjIDs -> IDs of InShower tjs, (tj.AlgMod[kInShower] set true)
+    Shower.ShowerTjID -> ID of the shower tj (3 pts for start, chg center, end) (tj.AlgMod[kShowerTj] set true)
+    Shower.ParentID -> ID of the tj identified as the shower parent (tj.AlgMod[kShwrParent] set true)
+*/ 
+  
   /// struct of temporary clusters
   struct ClusterStore {
     int ID {0};         // Cluster ID. ID < 0 = abandoned cluster
