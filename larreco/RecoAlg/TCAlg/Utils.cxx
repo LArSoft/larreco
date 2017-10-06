@@ -23,22 +23,23 @@ namespace tca {
     2D vertices that are matched to a high-score 3D vertex. The V1 Score is greater than the V2 Score and V3 Score. 
     V1 and V4 are declared to be primary vertices. T1, T2, T6 and T7 are declared to be primary Tjs.
 
-      V1 - T1 - V2 - T3          V4 - T6
-         \                          \
+      V1 - T1 - V2 - T3          V4 - T6         / T8
+         \                          \           /
            T2 - V3 - T4               T7
                    \
                      T5
  
-    This is represented as:
-     Tj   ParentID
-     ---------------
-     T1      0
-     T2      0
-     T3     T1
-     T4     T2
-     T5     T2
-     T6      0
-     T7      0
+    This is represented as follows. The NeutrinoPrimaryTjID is defined by a function.
+     Tj   ParentID   NeutrinoPrimaryTjID
+     -----------------------------------
+     T1      0          T1
+     T2      0          T2
+     T3     T1          T2
+     T4     T2          T2
+     T5     T2          T2
+     T6      0          0
+     T7      0          0
+     T8     T8          0
 */
     // sort vertice by decreasing score
     std::vector<int> temp;
@@ -88,6 +89,8 @@ namespace tca {
     // make a neutrino PFParticle to associate with the highest score vertex
     auto neutrinoPFP = CreatePFPStruct(tjs, tpcid);
     auto& vx3 = tjs.vtx3[vlist[0] - 1];
+    // call it the neutrino vertex
+    vx3.Neutrino = true;
     // put the vertex at the end of the neutrino
     neutrinoPFP.XYZ[1][0] = vx3.X;
     neutrinoPFP.XYZ[1][1] = vx3.Y;
@@ -171,23 +174,54 @@ namespace tca {
         if(pardtr.empty()) break;
       } // true
     } // indx
-/*
     // check the master list
     for(auto tjid : masterlist) {
       auto& tj = tjs.allTraj[tjid - 1];
       if(tj.ParentID < 0) {
         std::cout<<"Tj "<<tj.ID<<" is in the master list but doesn't have a Parent\n";
+        tj.ParentID = tj.ID;
       }
     } // tjid
-*/
+
   } // DefineTjParents
   
   /////////////////////////////////////////
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
-    // This function reconciles vertices, PFParticles and Tjs, then
-    // defines the parent (j) - daughter (i) relationship and PDGCode
-    
+/*
+    This function reconciles vertices, PFParticles and Tjs, then
+    defines the parent (j) - daughter (i) relationship and PDGCode. Here is a
+    description of the conventions:
+ 
+    V1 is the highest score 3D vertex in this tpcid so a neutrino PFParticle P1 is defined.
+    V4 is a high-score vertex that has lower score than V1. It is declared to be a
+      primary vertex because its score is higher than V5 and it is not associated with the
+      neutrino interaction
+    V6 was created to adhere to the convention that all PFParticles, in this case P9,
+      be associated with a start vertex. There is no score for V6. P9 is it's own parent 
+      but is not a primary PFParticle.
+ 
+      P1 - V1 - P2 - V2 - P4 - V3 - P5        V4 - P6                  V6 - P9
+              \                                  \
+                P3                                 P7 - V5 - P8
+ 
+      The PrimaryID in this table is the ID of the PFParticle that is attached to the
+      primary vertex, which may or may not be a neutrino interaction vertex.
+      The PrimaryID is returned by the PrimaryID function
+      PFP  parentID  DtrIDs     PrimaryID
+      -----------------------------------
+       P1     P1     P2, P3        P1
+       P2     P1     P4            P2
+       P3     P1     none          P3
+       P4     P2     P5            P2
+       P5     P4     none          P2
+ 
+       P6     P6     none          P6
+       P7     P7     P8            P7
+ 
+       P9     P9     none          0
+ 
+*/    
     if(tjs.pfps.empty()) return;
     
     // only create a PFP vertex at end 0 (if one doesn't exist)
@@ -251,7 +285,7 @@ namespace tca {
       } // tjid
       if(cnt3 > 1) {
         pfp.Vx3ID[end1] = vx3id;
-        if(cnt3 != tjs.NumPlanes) mf::LogVerbatim("TC")<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code\n";
+        if(cnt3 != tjs.NumPlanes) mf::LogVerbatim("TC")<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code";
       }
     } // pfp
     
@@ -323,13 +357,55 @@ namespace tca {
   } // DefinePFParticleRelationships
   
   /////////////////////////////////////////
+  int NeutrinoPrimaryTjID(const TjStuff& tjs, const Trajectory& tj)
+  {
+    // Returns the ID of the grandparent of this tj that is a primary tj that is attached
+    // to the neutrino vertex. 0 is returned if this condition is not met.
+    if(tj.AlgMod[kKilled]) return tj.ID;
+    if(tj.ParentID <= 0) return tj.ID;
+    int primID = PrimaryID(tjs, tj);
+    if(primID==0) return tj.ID;
+
+    // We have the ID of the primary tj. Now see if it is attached to the neutrino vertex
+    auto& ptj = tjs.allTraj[primID - 1];
+    for(unsigned short end = 0; end < 2; ++end) {
+      if(ptj.VtxID[end] == 0) continue;
+      auto& vx2 = tjs.vtx[ptj.VtxID[end] - 1];
+      if(vx2.Vx3ID == 0) continue;
+      auto& vx3 = tjs.vtx3[vx2.Vx3ID - 1];
+      if(vx3.Neutrino) return primID;
+    } // end
+    return 0;
+  } // NeutrinoPrimaryTjID
+  
+  /////////////////////////////////////////
+  int PrimaryID(const TjStuff& tjs, const Trajectory& tj)
+  {
+    // Returns the ID of the grandparent trajectory of this trajectory that is a primary
+    // trajectory (i.e. whose ParentID = 0). 
+    if(tj.AlgMod[kKilled]) return tj.ID;
+    if(tj.ParentID <= 0) return tj.ID;
+    int parid = tj.ParentID;
+    unsigned short nit = 0;
+    while(true) {
+      auto& tj = tjs.allTraj[parid - 1];
+      if(tj.ParentID == 0) return tj.ID;
+      if(tj.ParentID == tj.ID) return 0;
+      parid = tj.ParentID;
+      ++nit;
+      if(nit == 10) return 0;
+    }
+  } // PrimaryID
+  
+  /////////////////////////////////////////
   int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp)
   {
     // returns the ID of the most upstream PFParticle (that is not a neutrino)
     
-    if(pfp.ParentID == pfp.ID || pfp.ParentID == 0) return pfp.ID;
+    if(pfp.ParentID == pfp.ID || pfp.ParentID <= 0) return pfp.ID;
     int parid = pfp.ParentID;
     int dtrid = pfp.ID;
+    unsigned short nit = 0;
     while(true) {
       auto& parent = tjs.pfps[parid - 1];
       // found a neutrino
@@ -340,6 +416,8 @@ namespace tca {
       dtrid = parent.ID;
       parid = parent.ParentID;
       if(parid < 0) return 0;
+      ++nit;
+      if(nit == 10) return 0;
     }
   } // PrimaryID
 
@@ -4027,7 +4105,7 @@ namespace tca {
       if(!tjs.vtx3.empty()) {
         // print out 3D vertices
         myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
-        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? nTru";
+        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? Nu? nTru";
         myprt<<" ___________2D_Pos____________ _____Tjs________\n";
         for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
           if(tjs.vtx3[iv].ID == 0) continue;
@@ -4054,6 +4132,7 @@ namespace tca {
           } // ipl
           myprt<<std::right<<std::setw(6)<<std::setprecision(1)<<vx3.Score;
           myprt<<std::setw(6)<<vx3.Primary;
+          myprt<<std::setw(4)<<vx3.Neutrino;
           myprt<<std::right<<std::setw(5)<<nTruMatch;
           std::array<float, 2> pos;
           for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
@@ -4135,7 +4214,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx chgRMS Mom SDr TDr NN __Vtx__  PDG  Par TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx chgRMS Mom SDr TDr NN __Vtx__  PDG  Par NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -4195,6 +4274,7 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
         myprt<<std::setw(5)<<aTj.ParentID;
+        myprt<<std::setw(6)<<NeutrinoPrimaryTjID(tjs, aTj);
         int truKE = 0;
         int pdg = 0;
         if(aTj.MCPartListIndex < tjs.MCPartList.size()) {
@@ -4398,6 +4478,11 @@ namespace tca {
             myprt<<std::setw(6)<<std::setprecision(0)<<dedx;
           }
         } // dedx
+        if (pfp.dEdx[startend].size()<3){
+          for(size_t i = 0; i<3-pfp.dEdx[startend].size(); ++i){
+            myprt<<std::setw(6)<<' ';
+          }
+        }
       }
       // global stuff
       myprt<<std::setw(5)<<pfp.BestPlane;
