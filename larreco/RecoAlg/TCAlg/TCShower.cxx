@@ -110,13 +110,20 @@ namespace tca {
   ////////////////////////////////////////////////
   void Finish3DShowers(TjStuff& tjs)
   {
-    // Finish defining the shower properties that were not done previously
+    // Finish defining the shower properties that were not done previously.
+    // Note to the reader: This code doesn't use MakeVertexObsolete to kill vertices using the assumption
+    // that Finish3DShowers is being called after reconstruction is complete, in which case there is no
+    // need to re-calculate the 2D and 3D vertex score which could potentially screw up the decisions that have
+    // already been made.
     
     if(tjs.ShowerTag[0] < 2) return;
 
-    // Transfer Tj hits from InShower Tjs to the shower Tj
+    // Transfer Tj hits from InShower Tjs to the shower Tj. This kills the InShower Tjs but doesn't consider how
+    // this action affects vertices
     if(!TransferTjHits(tjs, false)) return;
     
+    // Use special care if a neutrino PFParticle exists so that we don't clobber the neutrino vertex
+    bool foundNeutrino = !tjs.pfps.empty() && (tjs.pfps[0].PDGCode == 12 || tjs.pfps[0].PDGCode == 14);
     // Associate shower Tj hits with 3D showers
     for(auto& ss3 : tjs.showers) {
       if(ss3.ID == 0) continue;
@@ -124,11 +131,52 @@ namespace tca {
         auto& ss = tjs.cots[ss3.CotIndices[cotIndex]];
         for(auto tjid : ss.TjIDs) {
           Trajectory& tj = tjs.allTraj[tjid - 1];
+          // see if this is a primary trajectory of the neutrino.
+          // The neutrino was found && This tj is a primary tj && The Eve ID is itself
+//          bool neutrinoPrimary = foundNeutrino && tj.ParentID == 0 && NeutrinoPrimaryTjID(tjs, tj) == tj.ID;
           auto tjHits = PutTrajHitsInVector(tj, kUsedHits);
           ss3.Hits.insert(ss3.Hits.end(), tjHits.begin(), tjHits.end());
+          // kill vertices associated with the Tj unless it is the neutrino primary vtx
+          for(unsigned short end = 0; end < 2; ++end) {
+            if(tj.VtxID[end] == 0) continue;
+            auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
+            if(vx2.Vx3ID <= 0) {
+              // This is a 2D vertex that is not matched in 3D. Kill it
+              vx2.ID = 0;
+              continue;
+            }
+            // vx2 is matched in 3D. Kill it if it is NOT the neutrino primary
+            auto& vx3 = tjs.vtx3[vx2.Vx3ID - 1];
+            if(vx3.Neutrino) continue;
+            vx3.ID = 0;
+          } // end
         } // tjid
       } // cotIndex
     } // ss3
+    
+    // kill PFParticles
+    if(!tjs.pfps.empty()) {
+      for(auto& pfp : tjs.pfps) {
+        if(pfp.ID == 0) continue;
+        unsigned short ndead = 0;
+        for(auto tjid : pfp.TjIDs) {
+          auto& tj = tjs.allTraj[tjid - 1];
+          if(tj.AlgMod[kKilled]) ++ndead;
+        } // tjid
+        if(ndead == 0) continue;
+        if(foundNeutrino && pfp.ParentID == 1) {
+          std::cout<<"FinishShowers wants to kill primary PFParticle "<<pfp.ID<<". Not doing it.\n";
+          continue;
+        }
+        pfp.ID = 0;
+        // kill the 3D vertex it is associated with
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(pfp.Vx3ID[end] <=  0) continue;
+          auto& vx3 = tjs.vtx3[pfp.Vx3ID[end] - 1];
+          vx3.ID = 0;
+        } // end
+      } // pfp
+    } // pfps not empty
 
   } // FinishShowers
   
@@ -159,6 +207,7 @@ namespace tca {
     if(tpcid != tjs.TPCID && !FillWireHitRange(tjs, tpcid, false)) return false;
 
     PrintPFParticles("FSi", tjs);
+    PrintAllTraj("FSi", tjs, debug, USHRT_MAX, 0);
 
     // lists of Tj IDs in plane, (list1, list2, list3, ...)
     std::vector<std::vector<std::vector<int>>> bigList(tjs.NumPlanes);
@@ -195,7 +244,7 @@ namespace tca {
         SaveTjInfo(tjs, inCTP, cotIndex, "DS");
         // Find nearby Tjs that were not included because they had too-high
         // MCSMom, etc. This will be used to decide if showers should be merged
-        AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, false, prt);
+        AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, prt);
         FindNearbyTjs(fcnLabel, tjs, cotIndex, prt);
       } // tjl
       // try to merge showers in this plane using the lists of nearby Tjs
@@ -218,7 +267,7 @@ namespace tca {
         auto& ss = tjs.cots[cotIndex];
         if(ss.ID == 0) continue;
         if(ss.CTP != inCTP) continue;
-        if(AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, false, prt)) MergeNearby2DShowers(fcnLabel, tjs, inCTP, prt);
+        if(AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, prt)) MergeNearby2DShowers(fcnLabel, tjs, inCTP, prt);
         if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "Merge");
       }
       SaveAllCots(tjs, inCTP, "ATj2");
@@ -227,6 +276,12 @@ namespace tca {
     if(tjs.cots.empty()) return false;
     
     prt = (dbgPlane > 2);
+    // See if any of the primary PFParticles associated with a neutrino PFParticle
+    // match with the 2D showers. 
+    if(FindPrimaryShower("FS", tjs, prt)) {
+      std::cout<<"Found Primary Shower succeeded\n";
+    }
+/*
     // Look for a 3D-matched parent
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       auto& ss = tjs.cots[cotIndex];
@@ -236,7 +291,7 @@ namespace tca {
       if(ss.ParentID == 0) FindStartChg(fcnLabel, tjs, cotIndex, prt);
     } // cotIndex
     ReconcileParents(fcnLabel, tjs, tpcid, prt);
-    
+*/
     CheckQuality(fcnLabel, tjs, tpcid, prt);
     
     SaveAllCots(tjs, "CQ");
@@ -244,7 +299,7 @@ namespace tca {
     Match2DShowers(fcnLabel, tjs, tpcid, prt);
     if(prt) Print2DShowers("M2DS", tjs, USHRT_MAX, false);
     // Kill vertices in 2D showers that weren't matched in 3D
-    KillVerticesInShowers(fcnLabel, tjs, tpcid, prt);
+//    KillVerticesInShowers(fcnLabel, tjs, tpcid, prt);
     // Reconcile any differences by merging, etc and make the final set of
     // 3D showers and matching PFParticles. Note that the hits on InShower Tjs can't
     // be transferred to the shower until after hit merging has been done. This is done
@@ -271,6 +326,103 @@ namespace tca {
   } // FindShowers3D
   
   ////////////////////////////////////////////////
+  bool FindPrimaryShower(std::string inFcnLabel, TjStuff& tjs, bool prt)
+  {
+    // Try to match 2D showers to a PFParticle that is the daughter of a neutrino PFParticle
+    if(tjs.cots.empty()) return false;
+    if(tjs.pfps.empty()) return false;
+    if(tjs.pfps[0].PDGCode != 14) return false;
+    
+    std::string fcnLabel = inFcnLabel + ".FPS";
+    
+    // Find the figure of merit for each trajectory in each neutrino daughter PFParticle to be the
+    // parent of each 2D shower. Find the best FOM.
+    float tp1sep, score;
+    auto& neutrinoPFP = tjs.pfps[0];
+    float bestFOM = tjs.ShowerTag[8];
+    int shParentPFP = 0;
+    int ssID = 0;
+    for(auto pfpid : neutrinoPFP.DtrIDs) {
+      // iterate through the daughter PFParticles
+      auto& pfp = tjs.pfps[pfpid - 1];
+      for(auto tjid : pfp.TjIDs) {
+        // iterate through the daughter trajectories
+        auto& tj = tjs.allTraj[tjid - 1];
+        for(auto& ss : tjs.cots) {
+          // iterate through the 2D showers
+          if(ss.ID == 0) continue;
+          if(ss.CTP != tj.CTP) continue;
+          unsigned short end = 0;
+          std::string pfpLabel = fcnLabel + "_" + std::to_string(pfp.ID);
+          float fom = ParentFOM(pfpLabel, tjs, tj, end, ss, tp1sep, score, prt);
+          if(fom < bestFOM) {
+            bestFOM = fom;
+            shParentPFP = pfpid;
+            ssID = ss.ID;
+          }
+        } // cot
+      } // tjid
+    } // pfpid
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" bestFOM "<<bestFOM<<" pfp "<<shParentPFP<<" is a shower matched to ssid "<<ssID;
+    if(shParentPFP == 0) return false;
+    // We now know which PFParticle should be converted into a shower parent, hopefully one in each plane. Create
+    // a 3D shower
+    auto& showerParentPFP = tjs.pfps[shParentPFP - 1];
+    ShowerStruct3D ss3;
+    ss3.ID = tjs.showers.size() + 1;
+    ss3.TPCID = showerParentPFP.TPCID;
+    ss3.Pos[0] = showerParentPFP.XYZ[0][0];
+    ss3.Pos[1] = showerParentPFP.XYZ[0][1];
+    ss3.Pos[2] = showerParentPFP.XYZ[0][2];
+    ss3.Dir = showerParentPFP.Dir[0];
+    ss3.CotIndices.clear();
+    ss3.Energy.clear();
+    ss3.FOM = bestFOM;
+    ss3.PFPIndex = USHRT_MAX;
+    // don't fill or use the rest of the variables
+    tjs.showers.push_back(ss3);
+    // Convert the muon neutrino to an electron neutrino
+    neutrinoPFP.PDGCode = 12;
+    // set the showerPFP pdgcode
+    showerParentPFP.PDGCode = 11;
+    for(auto tjid : showerParentPFP.TjIDs) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      bestFOM = tjs.ShowerTag[8];
+      ssID = 0;
+      for(auto& ss : tjs.cots) {
+        // iterate through the 2D showers
+        if(ss.ID == 0) continue;
+        if(ss.CTP != tj.CTP) continue;
+        unsigned short end = 0;
+        std::string pfpLabel = fcnLabel + "_" + std::to_string(shParentPFP);
+        float fom = ParentFOM(pfpLabel, tjs, tj, end, ss, tp1sep, score, prt);
+        if(fom < bestFOM) {
+          bestFOM = fom;
+          ssID = ss.ID;
+        }
+      } // ss
+      if(ssID == 0) continue;
+      auto& ss = tjs.cots[ssID - 1];
+      ss.ParentID = tjid;
+      if(!AddTj(fcnLabel, tjs, tjid, ssID - 1, true, prt)) {
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Failed to add primary tj "<<tjid<<" to ss "<<ssID;
+        ss.ParentID = 0;
+        continue;
+      }
+      ss.SS3ID = ss3.ID;
+      ss3.CotIndices.push_back(ssID);
+      ss3.Energy.push_back(ss.Energy);
+      // update the shower parent PFParticle and the neutrino PFParticle
+      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+      std::replace(neutrinoPFP.DtrIDs.begin(), neutrinoPFP.DtrIDs.begin(), tjid, stj.ID);
+      stj.ParentID = tjid;
+      tj.PDGCode = 11;
+    } // tjid
+    
+    return false;
+  } // FindPrimaryShower
+  
+  ////////////////////////////////////////////////
   void KillVerticesInShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
     // Kill vertices inside showers 
@@ -286,18 +438,23 @@ namespace tca {
       auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
       unsigned short parentTjVxID = stj.VtxID[0];
       // look for vertices inside the envelope
-      for(auto& vx : tjs.vtx) {
-        if(vx.CTP != ss.CTP) continue;
-        if(vx.ID == 0) continue;
-        if(vx.ID == parentTjVxID) continue;
-        bool insideEnvelope = PointInsideEnvelope(vx.Pos, ss.Envelope);
-        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss "<<ss.ID<<" vx "<<vx.ID<<" Score "<<std::fixed<<std::setprecision(1)<<vx.Score<<" insideEnvelope? "<<insideEnvelope;
+      for(auto& vx2 : tjs.vtx) {
+        if(vx2.CTP != ss.CTP) continue;
+        if(vx2.ID == 0) continue;
+        if(vx2.ID == parentTjVxID) continue;
+        // make sure it isn't associated with the neutrino vertex
+        if(vx2.Vx3ID > 0) {
+          auto& vx3 = tjs.vtx3[vx2.Vx3ID - 1];
+          if(vx3.Neutrino) continue;
+        }
+        bool insideEnvelope = PointInsideEnvelope(vx2.Pos, ss.Envelope);
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss "<<ss.ID<<" vx2 "<<vx2.ID<<" Score "<<std::fixed<<std::setprecision(1)<<vx2.Score<<" insideEnvelope? "<<insideEnvelope;
         if(!insideEnvelope) continue;
-//        if(vx.Score > tjs.ShowerTag[11]) continue;
-        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Clobber vtx "<<vx.ID;
-        MakeVertexObsolete(tjs, vx, true);
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Clobber vtx "<<vx2.ID;
+        MakeVertexObsolete(tjs, vx2, true);
         ss.NeedsUpdate = true;
-      } // vx
+      } // vx2
+/*
       // check InShower tjs next
       for(auto tjid : ss.TjIDs) {
         auto& tj = tjs.allTraj[tjid - 1];
@@ -310,8 +467,9 @@ namespace tca {
           ss.NeedsUpdate = true;
         } // end
       } // tj
-    } // ci
-    
+*/
+    } // ss
+/*
     // reset the scores
     ScoreVertices(tjs, tpcid, prt);
     
@@ -323,10 +481,10 @@ namespace tca {
       if(!ss.NeedsUpdate) continue;
       DefineShower(fcnLabel, tjs, ss.ID - 1, prt);
       // Add Tjs with high-score vertices inside the shower and kill those vertices
-      AddTjsInsideEnvelope(fcnLabel, tjs, ss.ID - 1, true, prt);
+      AddTjsInsideEnvelope(fcnLabel, tjs, ss.ID - 1, prt);
       if(ss.NeedsUpdate) DefineShower(fcnLabel, tjs, ss.ID - 1, prt);
     } // ci
-    
+*/
   } // KillVerticesInShowers
   
   ////////////////////////////////////////////////
@@ -1128,9 +1286,6 @@ namespace tca {
     if(cotIndex > tjs.cots.size() - 1) return false;
     ShowerStruct& ss = tjs.cots[cotIndex];
     if(ss.ShowerTjID == 0) return false;
-    Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];
-    
-//    bool addParent = (ss.ParentID == tjID);
     
     std::string fcnLabel = inFcnLabel + ".ATj";
 
@@ -1148,25 +1303,7 @@ namespace tca {
       mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" is in the wrong CTP "<<cotIndex;
       return false;
     }
-/*
-    // don't add a Tj to the shower if it has a nice vertex unless it is the parent
-    if(!addParent && tj.AlgMod[kTjHiVx3Score]) {
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" in SS "<<ss.ID<<" has a high score 3D VtxID[0] "<<tj.VtxID[0]<<" or VtxID[1] "<<tj.VtxID[1]<<" and is not the ParentID "<<ss.ParentID<<". Not adding it";
-      return false;
-    }
-    // check for high score vertex
-    if(!addParent && tj.AlgMod[kTjHiVx3Score]) {
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tjID<<" in cotIndex "<<cotIndex<<" has a high score 2D vertex. Not adding it";
-      return false;
-    }
-*/
-    // Ensure that we are not trying to add a Tj that is attached to the shower Tj vertex
-    if(stj.VtxID[0] > 0) {
-      // Get a list of TjIDs that are attached to the shower Tj vertex
-      auto vxTjIDs = GetVtxTjIDs(tjs, tjs.vtx[stj.VtxID[0] - 1]);
-      // make sure this Tj ID isn't in the list
-      if(std::find(vxTjIDs.begin(), vxTjIDs.end(), tjID) != vxTjIDs.end()) return false;
-    }
+
     ss.TjIDs.push_back(tjID);
     std::sort(ss.TjIDs.begin(), ss.TjIDs.end());
     // remove this ID from the NearTjIDs list
@@ -1200,7 +1337,7 @@ namespace tca {
       }
     } // ipt
     tj.AlgMod[kInShower] = true;
-    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Add Tj "<<tj.ID;
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Add Tj "<<tj.ID<<" parent "<<tj.ParentID<<" NeutrinoPrimaryTjID "<<NeutrinoPrimaryTjID(tjs, tj);
     
     if(doUpdate) return DefineShower(fcnLabel, tjs, cotIndex, prt);
     return true;
@@ -1480,7 +1617,7 @@ namespace tca {
     if(stp2.DeltaRMS < expectedRMS) stp2.DeltaRMS = expectedRMS;
     DefineEnvelope(fcnLabel, tjs, cotIndex, prt);
     // kill all vertices inside the envelope (except the parent of course...)
-    if(AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, false, prt)) ss.NeedsUpdate = true;
+    if(AddTjsInsideEnvelope(fcnLabel, tjs, cotIndex, prt)) ss.NeedsUpdate = true;
     
     return true;
   } // UpdateShowerWithParent
@@ -1945,7 +2082,7 @@ namespace tca {
       // push the last one
       if(chain.size() > 2) {
         int newID = MergeShowers(fcnLabel, tjs, chain, prt);
-        if(newID > 0 && AddTjsInsideEnvelope(fcnLabel, tjs, newID - 1, false, prt)) DefineShower(fcnLabel, tjs, newID - 1, prt);
+        if(newID > 0 && AddTjsInsideEnvelope(fcnLabel, tjs, newID - 1, prt)) DefineShower(fcnLabel, tjs, newID - 1, prt);
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<fcnLabel<<" merged chain";
@@ -2900,7 +3037,7 @@ namespace tca {
   } // DefineEnvelope  
   
   ////////////////////////////////////////////////
-  bool AddTjsInsideEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool nukeEmAll, bool prt)
+  bool AddTjsInsideEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt)
    {
     // This function adds Tjs to the shower. It updates the shower parameters.
     
@@ -2913,7 +3050,7 @@ namespace tca {
      
      std::string fcnLabel = inFcnLabel + ".ATIE";
 
-     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss.ID "<<ss.ID<<" nukeEmALL "<<nukeEmAll;
+     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss.ID "<<ss.ID;
 
      unsigned short nadd = 0;
      for(auto& tj : tjs.allTraj) {
@@ -2921,26 +3058,15 @@ namespace tca {
        if(tj.AlgMod[kKilled]) continue;
        if(tj.AlgMod[kInShower]) continue;
        if(tj.AlgMod[kShowerTj]) continue;
-/*
-       if(!nukeEmAll && tj.AlgMod[kTjHiVx3Score]) continue;
-       // ignore Tjs with high-score 3D vertices unless requested otherwise
-       if(tj.AlgMod[kTjHiVx3Score]) {
-         if(nukeEmAll) {
-           // see if the vertex is inside the envelope
-           for(unsigned short end = 0; end < 2; ++end) {
-             if(tj.VtxID[end] == 0) continue;
-             auto& vx = tjs.vtx[tj.VtxID[end] - 1];
-             if(PointInsideEnvelope(vx.Pos, ss.Envelope)) {
-               if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss.ID "<<ss.ID<<" nukeEmALL vtx "<<vx.ID<<" inside the envelope ";
-               MakeVertexObsolete(tjs, vx, true);
-             } // vertex is inside the envelope
-           } // end
-         } else {
-           continue;
-         }
-       } // tj has nice vertex
-*/
-       // This shouldn't be necessary but do it for now
+       // See if this Tjs is attached to a neutrino vertex. 
+       int neutPrimTj = NeutrinoPrimaryTjID(tjs, tj);
+       if(neutPrimTj > 0 && neutPrimTj != tj.ID) {
+         // The Tj is connected to a primary Tj that is associated with a neutrino primary.
+         // Don't allow tjs to be added to the shower that are not connected to this neutrino primary (if
+         // one exists)
+         if(ss.ParentID > 0 && neutPrimTj != ss.ParentID) continue;
+       } // neutrino primary tj
+       // This shouldn't be necessary but ensure that the Tj ID appears only once in ss.TjIDs
        if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
        // See if both ends are outside the envelope
        bool end0Inside = PointInsideEnvelope(tj.Pts[tj.EndPt[0]].Pos, ss.Envelope);
@@ -2961,7 +3087,11 @@ namespace tca {
          if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" high MCSMom "<<tj.MCSMom<<" dangPull "<<dangPull;
          if(dangPull > 2) continue;
        } // high momentum
-       if(AddTj(fcnLabel, tjs, tj.ID, cotIndex, false, prt)) ++nadd;
+       if(AddTj(fcnLabel, tjs, tj.ID, cotIndex, false, prt)) {
+         ++nadd;
+       } else {
+         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" AddTj failed to add Tj "<<tj.ID;
+       }
     } // tj
     
     if(nadd > 0) {
@@ -3311,10 +3441,6 @@ namespace tca {
       // Note that UseHit is not used since the size is limited to 16
       for(auto& tjID : ss.TjIDs) {
         unsigned short itj = tjID - 1;
-        if(tjs.allTraj[itj].VtxID[0] != 0 && tjs.allTraj[itj].VtxID[0] != stj.VtxID[0] && tjs.allTraj[itj].ID != ss.ParentID) {
-          std::cout<<"TTjH: Trying to transfer hits on Tj "<<tjID<<" in ss.ID "<<ss.ID<<" attached to a vertex "<<tjs.allTraj[itj].VtxID[0]<<" at end0 that is not the showerTj vertex or the parent Tj "<<stj.VtxID[0]<<"\n";
-          continue;
-        }
         if(tjs.allTraj[itj].AlgMod[kShowerTj]) {
           std::cout<<"TTjH: Coding error. Tj "<<tjID<<" is a ShowerTj but is in TjIDs\n";
           continue;

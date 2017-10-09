@@ -224,7 +224,7 @@ namespace tca {
     ChkVxTjs(tjs, inCTP, prt);
     
     // Split trajectories that cross a vertex
-    //    SplitTrajCrossingVertices(tjs);
+    SplitTrajCrossingVertices(tjs, inCTP);
     FindHammerVertices(tjs, inCTP);
     FindHammerVertices2(tjs, inCTP);
     
@@ -652,7 +652,7 @@ namespace tca {
     if(!tjs.UseAlg[kHamVx]) return;
     
     bool prt = (debug.Plane >= 0 && debug.Tick == 55555);
-    
+
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       if(tjs.allTraj[it1].CTP != inCTP) continue;
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
@@ -728,48 +728,80 @@ namespace tca {
     } // tj1
     
   } // FindHammerVertices
-/*
+
   //////////////////////////////////////////
-  void SplitTrajCrossingVertices((TjStuff& tjs, bool prt)
+  void SplitTrajCrossingVertices(TjStuff& tjs, const CTP_t& inCTP)
   {
     // This is kind of self-explanatory...
-    
+
+    if(!tjs.UseAlg[kSplitTarjCV]) return;
+
     if(tjs.vtx.empty()) return;
     if(tjs.allTraj.empty()) return;
-    
-    if(prt) {
-      //      mf::LogVerbatim("TC")<<"prt set for plane "<<planeID.Plane<<" in SplitTrajCrossingVertices";
-      mf::LogVerbatim("TC")<<"SplitTrajCrossingVertices needs some work. Skip it for now";
-      return;
-    }
-    
+
+    bool prt = (debug.Plane >= 0 && debug.Tick == 77777);
+
+    geo::PlaneID planeID = DecodeCTP(inCTP);        
+
     // Splits trajectories in tjs.allTraj that cross a vertex
     unsigned short itj, iv, nTraj = tjs.allTraj.size();
     unsigned short tPass, closePt;
     float doca;
     for(itj = 0; itj < nTraj; ++itj) {
+      if(tjs.allTraj[itj].CTP != inCTP) continue;
       // obsolete trajectory
       if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
+      if(tjs.allTraj[itj].AlgMod[kSplitTarjCV]) continue;
+      // too short
+      if(tjs.allTraj[itj].EndPt[1] < 6) continue;
       tPass = tjs.allTraj[itj].Pass;
       for(iv = 0; iv < tjs.vtx.size(); ++iv) {
         // obsolete vertex
         if(tjs.vtx[iv].NTraj == 0) continue;
+        // trajectory already associated with vertex
+        if(tjs.allTraj[itj].VtxID[0] == tjs.vtx[iv].ID ||
+           tjs.allTraj[itj].VtxID[1] == tjs.vtx[iv].ID) continue;
         // not in the cryostat/tpc/plane
         if(tjs.allTraj[itj].CTP != tjs.vtx[iv].CTP) continue;
-        // too short
-        if(tjs.allTraj[itj].EndPt[1] < 6) continue;
         TrajClosestApproach(tjs.allTraj[itj], tjs.vtx[iv].Pos[0], tjs.vtx[iv].Pos[1], closePt, doca);
         if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<itj<<" and tjs.vtx "<<iv<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
-        if(doca > fMaxVertexTrajSep[tPass]) continue;
+        //if(doca > fMaxVertexTrajSep[tPass]) continue;
+        if(doca > 3) continue;
+        // compare the length of the Tjs used to make the vertex with the length of the
+        // Tj that we want to split. Don't allow a vertex using very short Tjs to split a long
+        // Tj in the 3rd plane
+        auto vxtjs = GetVtxTjIDs(tjs, tjs.vtx[iv]);
+        unsigned short maxPts = 0;
+        for(auto tjid : vxtjs) {
+          auto& tj = tjs.allTraj[tjid - 1];
+          unsigned short npwc = NumPtsWithCharge(tjs, tj, false);
+          if(npwc > maxPts) maxPts = npwc;
+        } // tjid
+        // skip this operation if any of the Tjs in the split list are > 3 * maxPts
+        maxPts *= 3;
+        bool skipit = false;
+        if(NumPtsWithCharge(tjs,tjs.allTraj[itj] , false) > maxPts) skipit = true;
+        if(prt) mf::LogVerbatim("TC")<<"  maxPts "<<maxPts<<" vxtjs[0] "<<vxtjs[0]<<" skipit? "<<skipit;
+        if(skipit) continue;
         if(prt)  {
-          mf::LogVerbatim("TC")<<"Good doca "<<doca<<" btw traj "<<itj<<" and tjs.vtx "<<iv<<" closePt "<<closePt<<" in plane "<<fPlane<<" CTP "<<tjs.vtx[iv].CTP;
+          mf::LogVerbatim("TC")<<"Good doca "<<doca<<" btw traj "<<itj<<" and tjs.vtx "<<iv<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
           PrintTrajPoint("STCV", tjs, closePt, 1, tPass, tjs.allTraj[itj].Pts[closePt]);
         }
+        // ensure that the closest point is not near an end
+        if(closePt < tjs.allTraj[itj].EndPt[0] + 3) continue;
+        if(closePt > tjs.allTraj[itj].EndPt[1] - 3) continue;
+        if(!SplitAllTraj(tjs, itj, closePt, iv, prt)) {
+          if(prt) mf::LogVerbatim("TC")<<"SplitTrajCrossingVertices: Failed to split trajectory";
+          continue;
+        }
+        tjs.allTraj[itj].AlgMod[kSplitTarjCV] = true;
+        unsigned short newTjIndex = tjs.allTraj.size() - 1;
+        tjs.allTraj[newTjIndex].AlgMod[kSplitTarjCV] = true;
+
       } // iv
     } // itj
     
   } // SplitTrajCrossingVertices
-*/
 
   //////////////////////////////////////
   void Find3DVertices(TjStuff& tjs, const geo::TPCID& tpcid)
