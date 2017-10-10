@@ -181,7 +181,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
 	  //get distance to measurement surface
 	  bool success = true;
 	  const double dist = propagator->distanceToPlane(success, trackState.trackState(), hitstate.plane());
-	  if (dumpLevel_>1) std::cout << "distance to plane " << iplane << " wire=" << hitstate.wireId().Wire << " = " << dist << ", min_dist=" << min_dist << " min_plane=" << min_plane << " success=" << success << std::endl;
+	  if (dumpLevel_>1) std::cout << "distance to plane " << iplane << " wire=" << hitstate.wireId().Wire << " = " << dist << ", min_dist=" << std::min(min_dist,999.) << " min_plane=" << min_plane << " success=" << success << std::endl;
 	  if (!success) {
 	    rejectedhsidx.push_back(ihit);
 	    continue;
@@ -208,7 +208,10 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
       //propagate to measurement surface
       bool propok = true;
       trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::FORWARD);
-      if (!propok && !(applySkipClean && skipNegProp_)) trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
+      if (!propok && !(applySkipClean && skipNegProp_)) {
+	if (dumpLevel_>1) std::cout << "attempt backward prop" << std::endl;
+	trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
+      }
       if (dumpLevel_>1) {
 	std::cout << "hit state " << std::endl; hitstate.dump();
 	std::cout << "propagation result=" << propok << std::endl;

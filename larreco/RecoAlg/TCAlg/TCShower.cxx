@@ -281,17 +281,18 @@ namespace tca {
     if(FindPrimaryShower("FS", tjs, prt)) {
       std::cout<<"Found Primary Shower succeeded\n";
     }
-/*
     // Look for a 3D-matched parent
-    for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
-      auto& ss = tjs.cots[cotIndex];
-      if(ss.ID == 0) continue;
-      FindExternalParent("FS", tjs, cotIndex, prt);
-      SaveTjInfo(tjs, ss.CTP, cotIndex, "FEP");
-      if(ss.ParentID == 0) FindStartChg(fcnLabel, tjs, cotIndex, prt);
-    } // cotIndex
-    ReconcileParents(fcnLabel, tjs, tpcid, prt);
-*/
+    // BB: Allow turning this off to aid in developing FindPrimaryShower
+    if(tjs.ShowerTag[0] < 3) {
+      for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
+        auto& ss = tjs.cots[cotIndex];
+        if(ss.ID == 0) continue;
+        FindExternalParent("FS", tjs, cotIndex, prt);
+        SaveTjInfo(tjs, ss.CTP, cotIndex, "FEP");
+        if(ss.ParentID == 0) FindStartChg(fcnLabel, tjs, cotIndex, prt);
+      } // cotIndex
+      ReconcileParents(fcnLabel, tjs, tpcid, prt);
+    }
     CheckQuality(fcnLabel, tjs, tpcid, prt);
     
     SaveAllCots(tjs, "CQ");
@@ -859,10 +860,11 @@ namespace tca {
     std::vector<int> parent;
     std::vector<std::vector<int>> inss;
     for(auto& ss : tjs.cots) {
+      if(ss.ID == 0) continue;
+      if(ss.ParentID == 0) continue;
       geo::PlaneID planeID = DecodeCTP(ss.CTP);
       if(planeID.Cryostat != tpcid.Cryostat) continue;
       if(planeID.TPC != tpcid.TPC) continue;
-      if(ss.ParentID == 0) continue;
       unsigned short indx = 0;
       for(indx = 0; indx < parent.size(); ++indx) if(ss.ParentID == parent[indx]) break;
       if(indx == parent.size()) {
@@ -875,6 +877,7 @@ namespace tca {
         inss[indx].push_back(ss.ID);
       }
     } // ss
+    if(parent.empty()) return;
     if(prt) {
       mf::LogVerbatim myprt("TC");
       for(unsigned short pid = 0; pid < parent.size(); ++pid) {
@@ -883,7 +886,14 @@ namespace tca {
         myprt<<"\n";
       }  // pid
     } // prt
-    
+
+    for(unsigned short pid = 0; pid < parent.size(); ++pid) {
+      if(inss[pid].size() < 2) continue;
+      std::cout<<fcnLabel<<" Tj "<<parent[pid]<<" is a parent in more than one shower";
+      for(auto ssid : inss[pid]) std::cout<<" "<<ssid;
+      std::cout<<". Do something about this.\n";
+    } // pid
+
   } // ReconcileParents
   
   ////////////////////////////////////////////////
@@ -966,10 +976,12 @@ namespace tca {
       } // tjid
     } // pfp
     
-    // Define the rest of the 3D shower struct (except for transferring the hits) and make a PFParticle for each one
+    // Define the rest of the 3D shower struct (except for transferring the hits) 
+    // and make a PFParticle for each one if none exists
     for(auto& ss3 : tjs.showers) {
       if(ss3.ID == 0) continue;
       if(ss3.TPCID != tpcid) continue;
+      // Create a PFParticle?
       ss3.Energy.resize(tjs.NumPlanes);
       ss3.EnergyErr.resize(tjs.NumPlanes);
       ss3.MIPEnergy.resize(tjs.NumPlanes);
@@ -1014,6 +1026,8 @@ namespace tca {
         continue;
       }
       ss3.OpenAngle = 0.05;
+      // change the neutrino PFParticle PDG code if this is a primary shower
+      
     } // ss3
    
   } // ReconcileShowers
@@ -1404,6 +1418,12 @@ namespace tca {
     if(ss.TjIDs.empty()) return;
     
     std::string fcnLabel = inFcnLabel + ".FEP";
+    
+    // See if anything needs to be done
+    if(ss.SS3ID > 0) {
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss "<<ss.ID<<" already matched in 3D";
+      return;
+    }
     
     // References to shower Tj points
     Trajectory& stj = tjs.allTraj[ss.ShowerTjID - 1];

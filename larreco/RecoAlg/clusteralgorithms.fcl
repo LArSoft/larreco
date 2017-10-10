@@ -87,6 +87,7 @@ standard_trajclusteralg.CaloAlg: @local::standard_calorimetryalgmc
 standard_trajclusteralg.kfpropagator: @local::kalmanfilterfittrackmakertool.propagator
 standard_trajclusteralg.kffitter: @local::kalmanfilterfittrackmakertool.fitter
 #standard_trajclusteralg.kffitter.skipNegProp: false # gc: do we need this?
+#standard_trajclusteralg.kffitter.dumpLevel: 10
 
 standard_clustercrawleralg:
 {
