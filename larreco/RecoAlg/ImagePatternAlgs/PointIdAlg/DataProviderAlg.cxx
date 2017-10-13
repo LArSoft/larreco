@@ -24,6 +24,8 @@ img::DataProviderAlg::DataProviderAlg(const Config& config) :
 	fCalorimetryAlg(config.CalorimetryAlg()),
 	fGeometry( &*(art::ServiceHandle<geo::Geometry>()) ),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>()),
+	fAdcSumOverThr(0), fAdcSumThr(10), // set fixed threshold of 10 ADC counts for counting the sum
+	fAdcAreaOverThr(0),
 	fNoiseSigma(0), fCoherentSigma(0)
 {
 	fCalorimetryAlg.reconfigure(config.CalorimetryAlg());
@@ -82,6 +84,7 @@ img::DataProviderAlg::DataProviderAlg(const Config& config) :
     fAdcMin = config.AdcMin();
     fAdcOffset = config.OutMin();
     fAdcScale = (config.OutMax() - fAdcOffset) / (fAdcMax - fAdcMin);
+    fAdcZero = fAdcOffset + fAdcScale * (0 - fAdcMin); // level of zero ADC after scaling
 
     if (fAdcMax <= fAdcMin) { throw cet::exception("img::DataProviderAlg") << "Misconfigured: AdcMax <= AdcMin" << std::endl; }
     if (fAdcScale == 0) { throw cet::exception("img::DataProviderAlg") << "Misconfigured: OutMax == OutMin" << std::endl; }
@@ -112,7 +115,7 @@ void img::DataProviderAlg::resizeView(size_t wires, size_t drifts)
     for (auto & w : fWireDriftData)
     {
     	w.resize(fNCachedDrifts);
-    	std::fill(w.begin(), w.end(), 0.0F);
+    	std::fill(w.begin(), w.end(), fAdcZero);
     }
 
     fLifetimeCorrFactors.resize(fNDrifts);
@@ -260,6 +263,9 @@ bool img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wir
 
 	fCryo = cryo; fTPC = tpc; fPlane = plane;
 
+    fAdcSumOverThr = 0;
+    fAdcAreaOverThr = 0;
+
 	size_t nwires = fGeometry->Nwires(plane, tpc, cryo);
 	size_t ndrifts = fDetProp->NumberTimeSamples();
 
@@ -293,6 +299,8 @@ bool img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wir
 			    	continue; // also not critical, try to set other wires
 			    }
 
+                for (auto v : adc) { if (v >= fAdcSumThr) { fAdcSumOverThr += v; fAdcAreaOverThr++; } }
+
 			    fWireChannels[w_idx] = wireChannelNumber;
 			    allWrong = false;
 			}
@@ -308,7 +316,7 @@ bool img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wir
     applyBlur();
     addWhiteNoise();
     addCoherentNoise();
-	
+
 	return true;
 }
 // ------------------------------------------------------
