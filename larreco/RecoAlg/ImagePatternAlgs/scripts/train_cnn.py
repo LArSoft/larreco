@@ -5,31 +5,33 @@ parser.add_argument('-o', '--output', help="Output model file name", default='mo
 parser.add_argument('-g', '--gpu', help="Which GPU index", default='0')
 args = parser.parse_args()
 
-import theano.sandbox.cuda
-theano.sandbox.cuda.use('gpu'+args.gpu)
-
 import os
-os.environ['KERAS_BACKEND'] = "theano"
+os.environ['KERAS_BACKEND'] = "tensorflow"
+os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
+import tensorflow as tf
 import keras
-if keras.__version__[0] != '1':
-    print 'Please use Keras 1.x.x API due to matrix shape constraints in LArSoft interface'
+if keras.__version__[0] != '2':
+    print 'Please use the newest Keras 2.x.x API with the Tensorflow backend'
     quit()
-keras.backend.set_image_dim_ordering('th')
+keras.backend.set_image_data_format('channels_last')
+keras.backend.set_image_dim_ordering('tf')
 
 import numpy as np
 np.random.seed(2017)  # for reproducibility
-from keras.datasets import mnist
-from keras.models import Sequential
+from keras.models import Model
+from keras.layers import Input
 from keras.layers.core import Dense, Dropout, Activation, Flatten
-from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.layers.convolutional import Conv2D, MaxPooling2D
 from keras.layers.advanced_activations import LeakyReLU
+# from keras.layers.normalization import BatchNormalization
+from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import SGD
 from keras.utils import np_utils
 from os.path import exists, isfile, join
 import json
 
-from utils import read_config, get_patch_size, count_events, shuffle_in_place
+from utils import read_config, get_patch_size, count_events
 
 def save_model(model, name):
     try:
@@ -60,72 +62,73 @@ cfg_name = 'sgd_lorate'
 # convolutional layers:
 nb_filters1 = 48  # number of convolutional filters in the first layer
 nb_conv1 = 5      # 1st convolution kernel size
+convactfn1 = 'relu'
 
-maxpool = 0       # max pooling between conv. layers
+maxpool = False   # max pooling between conv. layers
 
 nb_filters2 = 0   # number of convolutional filters in the second layer
 nb_conv2 = 7      # convolution kernel size
+convactfn2 = 'relu'
 
-convactfn = 'relu'
 drop1 = 0.2
 
 # dense layers:
 densesize1 = 128
+actfn1 = 'relu'
 densesize2 = 32
-actfn = 'tanh'    
+actfn2 = 'relu' 
 drop2 = 0.2
 
 #######################  CNN definition  ############################
 print 'Compiling CNN model...'
-model = Sequential()
-model.add(Convolution2D(nb_filters1, nb_conv1, nb_conv1,
-                        border_mode='valid',
-                        input_shape=(1, img_rows, img_cols)))
-                            
-if convactfn == 'leaky':
-    model.add(LeakyReLU())
-else:
-    model.add(Activation(convactfn))
-    
-if nb_filters2 > 0:
-    if maxpool == 1:
-        model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
-    model.add(Convolution2D(nb_filters2, nb_conv2, nb_conv2))
-    if convactfn == 'leaky':
-        model.add(LeakyReLU())
+with tf.device('/gpu:' + args.gpu):
+    main_input = Input(shape=(img_rows, img_cols, 1), name='main_input')
+
+    if convactfn1 == 'leaky':
+        x = Conv2D(nb_filters1, (nb_conv1, nb_conv1),
+                   padding='valid', data_format='channels_last',
+                   activation=LeakyReLU())(main_input)
     else:
-        model.add(Activation(convactfn))
-    
-# model.add(MaxPooling2D(pool_size=(nb_pool, nb_pool)))
-model.add(Dropout(drop1))
-model.add(Flatten())
-    
-# dense layers
-model.add(Dense(densesize1))
-model.add(Activation(actfn))
-model.add(Dropout(drop2))
+        x = Conv2D(nb_filters1, (nb_conv1, nb_conv1),
+                   padding='valid', data_format='channels_last',
+                   activation=convactfn1)(main_input)
 
-if densesize2 > 0:
-    model.add(Dense(densesize2))
-    model.add(Activation(actfn))
-    model.add(Dropout(drop2))
+    if nb_filters2 > 0:
+        if maxpool:
+	    x = MaxPooling2D(pool_size=(nb_pool, nb_pool))(x)
+        x = Conv2D(nb_filters2, (nb_conv2, nb_conv2))(x)
+        if convactfn2 == 'leaky':
+            x = Conv2D(nb_filters2, (nb_conv2, nb_conv2), activation=LeakyReLU())(x)
+        else:
+            x = Conv2D(nb_filters2, (nb_conv2, nb_conv2), activation=convactfn2)(x)
 
-# output
-model.add(Dense(nb_classes))
+    x = Dropout(drop1)(x)
+    x = Flatten()(x)
+    # x = BatchNormalization()(x)
 
-sgd = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
-if nb_classes > 3:
-    model.add(Activation('sigmoid'))
-    model.compile(loss='mean_squared_error', optimizer=sgd)
-else:
-    model.add(Activation('softmax'))
-    #model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
-    model.compile(loss='categorical_crossentropy', optimizer=sgd)
+    # dense layers
+    x = Dense(densesize1, activation=actfn1)(x)
+    x = Dropout(drop2)(x)
+
+    if densesize2 > 0:
+        x = Dense(densesize2, activation=actfn2)(x)
+        x = Dropout(drop2)(x)
+
+    # outputs
+    em_trk_none = Dense(3, activation='softmax', name='em_trk_none_netout')(x)
+    michel = Dense(1, activation='sigmoid', name='michel_netout')(x)
+
+    sgd = SGD(lr=0.01, decay=1e-5, momentum=0.9, nesterov=True)
+    model = Model(inputs=[main_input], outputs=[em_trk_none, michel])
+    model.compile(optimizer=sgd,
+                  loss={'em_trk_none_netout': 'categorical_crossentropy', 'michel_netout': 'mean_squared_error'},
+                  loss_weights={'em_trk_none_netout': 0.1, 'michel_netout': 2.})
 
 #######################  read data sets  ############################
 n_training = count_events(CNN_INPUT_DIR, 'training')
-X_train = np.zeros((n_training, 1, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
-Y_train = np.zeros((n_training, nb_classes), dtype=np.int32)
+X_train = np.zeros((n_training, PATCH_SIZE_W, PATCH_SIZE_D, 1), dtype=np.float32)
+EmTrkNone_train = np.zeros((n_training, 3), dtype=np.int32)
+Michel_train = np.zeros((n_training, 1), dtype=np.int32)
 print 'Training data size:', n_training, 'events; patch size:', PATCH_SIZE_W, 'x', PATCH_SIZE_D
 
 ntot = 0
@@ -142,14 +145,16 @@ for dirname in subdirs:
             dataX = dataX.astype("float32")
         dataY = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameY)
         n = dataY.shape[0]
-        X_train[ntot:ntot+n] = dataX.reshape(n, 1, img_rows, img_cols)
-        Y_train[ntot:ntot+n] = dataY
+        X_train[ntot:ntot+n] = dataX.reshape(n, img_rows, img_cols, 1)
+        EmTrkNone_train[ntot:ntot+n] = dataY[:,[0, 1, 3]]
+        Michel_train[ntot:ntot+n] = dataY[:,[2]]
         ntot += n
 print ntot, 'events ready'
 
 n_testing = count_events(CNN_INPUT_DIR, 'testing')
-X_test = np.zeros((n_testing, 1, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
-Y_test = np.zeros((n_testing, nb_classes), dtype=np.int32)
+X_test = np.zeros((n_testing, PATCH_SIZE_W, PATCH_SIZE_D, 1), dtype=np.float32)
+EmTrkNone_test = np.zeros((n_testing, 3), dtype=np.int32)
+Michel_test = np.zeros((n_testing, 1), dtype=np.int32)
 print 'Testing data size:', n_testing, 'events'
 
 ntot = 0
@@ -166,50 +171,73 @@ for dirname in subdirs:
             dataX = dataX.astype("float32")
         dataY = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameY)
         n = dataY.shape[0]
-        X_test[ntot:ntot+n] = dataX.reshape(n, 1, img_rows, img_cols)
-        Y_test[ntot:ntot+n] = dataY
+        X_test[ntot:ntot+n] = dataX.reshape(n, img_rows, img_cols, 1)
+        EmTrkNone_test[ntot:ntot+n] = dataY[:,[0, 1, 3]]
+        Michel_test[ntot:ntot+n] = dataY[:,[2]]
         ntot += n
 print ntot, 'events ready'
 
 dataX = None
 dataY = None
 
-print 'Shuffle training set...'
-shuffle_in_place(X_train, Y_train)
-
 print 'Training', X_train.shape, 'testing', X_test.shape
 
 ##########################  training  ###############################
+datagen = ImageDataGenerator(
+                featurewise_center=False,  # set input mean to 0 over the dataset
+                samplewise_center=False,   # set each sample mean to 0
+                featurewise_std_normalization=False,  # divide inputs by std of the dataset
+                samplewise_std_normalization=False,   # divide each input by its std
+                zca_whitening=False,  # apply ZCA whitening
+                rotation_range=0,     # randomly rotate images in the range (degrees, 0 to 180)
+                width_shift_range=0,  # randomly shift images horizontally (fraction of total width)
+                height_shift_range=0, # randomly shift images vertically (fraction of total height)
+                horizontal_flip=True, # randomly flip images
+                vertical_flip=True)  # randomly flip images
+datagen.fit(X_train)
 
-#datagen = ImageDataGenerator(
-#                featurewise_center=False,  # set input mean to 0 over the dataset
-#                samplewise_center=False,   # set each sample mean to 0
-#                featurewise_std_normalization=False,  # divide inputs by std of the dataset
-#                samplewise_std_normalization=False,   # divide each input by its std
-#                zca_whitening=False,  # apply ZCA whitening
-#                rotation_range=0,     # randomly rotate images in the range (degrees, 0 to 180)
-#                width_shift_range=0,  # randomly shift images horizontally (fraction of total width)
-#                height_shift_range=0, # randomly shift images vertically (fraction of total height)
-#                horizontal_flip=True, # randomly flip images
-#                vertical_flip=False)  # randomly flip images
-#datagen.fit(X)
-#model.fit_generator(datagen.flow(X, y, batch_size = self.batch_size),
-#                                        samples_per_epoch=X.shape[0],
-#                                        nb_epoch = self.one_step_rounds)
+def generate_data_generator(generator, X, Y1, Y2, b):
+    genY1 = generator.flow(X, Y1, batch_size=b, seed=7)
+    genY2 = generator.flow(X, Y2, batch_size=b, seed=7)
+    while True:
+            i1 = genY1.next()
+            i2 = genY2.next()
+            yield {'main_input': i1[0]}, {'em_trk_none_netout': i1[1], 'michel_netout': i2[1]}
+
+#gg = generate_data_generator(datagen, X_train, EmTrkNone_train, Michel_train, 2)
+#print next(gg)[1]['michel_netout']
+#print next(gg)[1]['michel_netout']
+#print next(gg)[1]['em_trk_none_netout']
+#print next(gg)[1]['em_trk_none_netout']
 
 print 'Fit config:', cfg_name
-model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
-          verbose=1, validation_data=(X_test, Y_test))
-          
-X_train = None
-Y_train = None
+h = model.fit_generator(
+              generate_data_generator(datagen, X_train, EmTrkNone_train, Michel_train, b=batch_size),
+#              datagen.flow({'main_input': X_train},
+#                           {'em_trk_none_netout': EmTrkNone_train, 'michel_netout': Michel_train},
+#                           batch_size=batch_size),
+              validation_data=(
+                  {'main_input': X_test},
+                  {'em_trk_none_netout': EmTrkNone_test, 'michel_netout': Michel_test}),
+              steps_per_epoch=X_train.shape[0]/batch_size, epochs=nb_epoch,
+              verbose=1)
 
-score = model.evaluate(X_test, Y_test, verbose=0)
+X_train = None
+EmTrkNone_train = None
+Michel_train = None
+
+score = model.evaluate({'main_input': X_test},
+                       {'em_trk_none_netout': EmTrkNone_test, 'michel_netout': Michel_test},
+                       verbose=0)
 print('Test score:', score)
 
 X_test = None
-Y_test = None
+EmTrkNone_test = None
+Michel_test = None
 #####################################################################
+
+print h.history['loss']
+print h.history['val_loss']
 
 if save_model(model, args.output + cfg_name):
     print('All done!')

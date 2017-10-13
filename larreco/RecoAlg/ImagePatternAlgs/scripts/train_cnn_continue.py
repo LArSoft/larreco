@@ -6,21 +6,21 @@ parser.add_argument('-o', '--output', help="output CNN model name (saved in JSON
 parser.add_argument('-g', '--gpu', help="Which GPU index", default='0')
 args = parser.parse_args()
 
-import theano.sandbox.cuda
-theano.sandbox.cuda.use('gpu'+args.gpu)
-
 import os
-os.environ['KERAS_BACKEND'] = "theano"
+os.environ['KERAS_BACKEND'] = "tensorflow"
+os.environ["CUDA_VISIBLE_DEVICES"]=args.gpu
 
+import tensorflow as tf
 import keras
-if keras.__version__[0] != '1':
-    print 'Please use Keras 1.x.x API due to matrix shape constraints in LArSoft interface'
+if keras.__version__[0] != '2':
+    print 'Please use the newest Keras 2.x.x API with the Tensorflow backend'
     quit()
-keras.backend.set_image_dim_ordering('th')
+keras.backend.set_image_data_format('channels_last')
+keras.backend.set_image_dim_ordering('tf')
 
 import numpy as np
 np.random.seed(2017)  # for reproducibility
-from keras.datasets import mnist
+from keras.preprocessing.image import ImageDataGenerator
 from keras.models import model_from_json
 from keras.optimizers import SGD
 from keras.utils import np_utils
@@ -48,6 +48,7 @@ def save_model(model, name):
 print 'Reading configuration...'
 
 config = read_config(args.config)
+
 cfg_name = args.model
 out_name = args.output
 
@@ -62,21 +63,19 @@ nb_classes = config['training_on_patches']['nb_classes']
 
 ######################  CNN commpilation  ###########################
 print 'Compiling CNN model...'
+with tf.device('/gpu:' + args.gpu):
+    model = load_model(cfg_name)
 
-model = load_model(cfg_name)
+    sgd = SGD(lr=0.002, decay=1e-5, momentum=0.9, nesterov=True)
+    model.compile(optimizer=sgd,
+                  loss={'em_trk_none_netout': 'categorical_crossentropy', 'michel_netout': 'mean_squared_error'},
+                  loss_weights={'em_trk_none_netout': 0.1, 'michel_netout': 1.0})
 
-#model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
-
-sgd = SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
-if nb_classes > 3:
-    model.compile(loss='mean_squared_error', optimizer=sgd)
-else:
-    #model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
-    model.compile(loss='categorical_crossentropy', optimizer=sgd)
 #######################  read data sets  ############################
 n_training = count_events(CNN_INPUT_DIR, 'training')
-X_train = np.zeros((n_training, 1, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
-Y_train = np.zeros((n_training, nb_classes), dtype=np.int32)
+X_train = np.zeros((n_training, PATCH_SIZE_W, PATCH_SIZE_D, 1), dtype=np.float32)
+EmTrkNone_train = np.zeros((n_training, 3), dtype=np.int32)
+Michel_train = np.zeros((n_training, 1), dtype=np.int32)
 print 'Training data size:', n_training, 'events; patch size:', PATCH_SIZE_W, 'x', PATCH_SIZE_D
 
 ntot = 0
@@ -93,14 +92,16 @@ for dirname in subdirs:
             dataX = dataX.astype("float32")
         dataY = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameY)
         n = dataY.shape[0]
-        X_train[ntot:ntot+n] = dataX.reshape(n, 1, img_rows, img_cols)
-        Y_train[ntot:ntot+n] = dataY
+        X_train[ntot:ntot+n] = dataX.reshape(n, img_rows, img_cols, 1)
+        EmTrkNone_train[ntot:ntot+n] = dataY[:,[0, 1, 3]]
+        Michel_train[ntot:ntot+n] = dataY[:,[2]]
         ntot += n
 print ntot, 'events ready'
 
 n_testing = count_events(CNN_INPUT_DIR, 'testing')
-X_test = np.zeros((n_testing, 1, PATCH_SIZE_W, PATCH_SIZE_D), dtype=np.float32)
-Y_test = np.zeros((n_testing, nb_classes), dtype=np.int32)
+X_test = np.zeros((n_testing, PATCH_SIZE_W, PATCH_SIZE_D, 1), dtype=np.float32)
+EmTrkNone_test = np.zeros((n_testing, 3), dtype=np.int32)
+Michel_test = np.zeros((n_testing, 1), dtype=np.int32)
 print 'Testing data size:', n_testing, 'events'
 
 ntot = 0
@@ -117,35 +118,63 @@ for dirname in subdirs:
             dataX = dataX.astype("float32")
         dataY = np.load(CNN_INPUT_DIR + '/' + dirname + '/' + fnameY)
         n = dataY.shape[0]
-        X_test[ntot:ntot+n] = dataX.reshape(n, 1, img_rows, img_cols)
-        Y_test[ntot:ntot+n] = dataY
+        X_test[ntot:ntot+n] = dataX.reshape(n, img_rows, img_cols, 1)
+        EmTrkNone_test[ntot:ntot+n] = dataY[:,[0, 1, 3]]
+        Michel_test[ntot:ntot+n] = dataY[:,[2]]
         ntot += n
 print ntot, 'events ready'
 
 dataX = None
 dataY = None
 
-print 'Shuffle training set...'
-shuffle_in_place(X_train, Y_train)
-
 print 'Training', X_train.shape, 'testing', X_test.shape
 
 ##########################  training  ###############################
-print 'Fit config:', out_name
-model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
-            verbose=1, validation_data=(X_test, Y_test))
+datagen = ImageDataGenerator(
+                featurewise_center=False, samplewise_center=False,
+                featurewise_std_normalization=False,
+                samplewise_std_normalization=False,
+                zca_whitening=False,
+                rotation_range=0, width_shift_range=0, height_shift_range=0,
+                horizontal_flip=True, # randomly flip images
+                vertical_flip=True)  # randomly flip images
+datagen.fit(X_train)
+
+def generate_data_generator(generator, X, Y1, Y2, b):
+    genY1 = generator.flow(X, Y1, batch_size=b, seed=7)
+    genY2 = generator.flow(X, Y2, batch_size=b, seed=7)
+    while True:
+            g1 = genY1.next()
+            g2 = genY2.next()
+            yield {'main_input': g1[0]}, {'em_trk_none_netout': g1[1], 'michel_netout': g2[1]}
+
+print 'Fit config:', cfg_name
+h = model.fit_generator(
+              generate_data_generator(datagen, X_train, EmTrkNone_train, Michel_train, b=batch_size),
+              validation_data=(
+                  {'main_input': X_test},
+                  {'em_trk_none_netout': EmTrkNone_test, 'michel_netout': Michel_test}),
+              steps_per_epoch=X_train.shape[0]/batch_size, epochs=nb_epoch,
+              verbose=1)
 
 X_train = None
-Y_train = None
+EmTrkNone_train = None
+Michel_train = None
 
-score = model.evaluate(X_test, Y_test, verbose=0)
+score = model.evaluate({'main_input': X_test},
+                       {'em_trk_none_netout': EmTrkNone_test, 'michel_netout': Michel_test},
+                       verbose=0)
 print('Test score:', score)
 
 X_test = None
-Y_test = None
+EmTrkNone_test = None
+Michel_test = None
 #####################################################################
 
-if save_model(model, out_name):
+print h.history['loss']
+print h.history['val_loss']
+
+if save_model(model, args.output + cfg_name):
     print('All done!')
 else:
     print('Error: model not saved.')

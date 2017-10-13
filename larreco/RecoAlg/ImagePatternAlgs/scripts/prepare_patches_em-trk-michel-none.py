@@ -141,7 +141,7 @@ def main(argv):
                     vtx_patch = vtx_map[x_start+2:x_stop-2, y_start+2:y_stop-2]
                     near_vtx_count = np.count_nonzero(vtx_patch)
 
-                    nuvtx_patch = vtx_patch & 0x0040000 # any nu primary vtx
+                    nuvtx_patch = vtx_patch & 0x4 # any nu primary vtx
                     is_near_nu = (np.count_nonzero(nuvtx_patch) > 0)
 
                     eff_patch_fraction = patch_fraction

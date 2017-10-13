@@ -1,6 +1,7 @@
 {
   "prepare_data_em_track" : {
     "input_type": "txt",
+    "module_name": "datadump",
     "input_dir": "cnn/raw_data",
     "output_dir": "cnn/for_nn",
     "patch_size_w": 44,
@@ -20,6 +21,8 @@
   },
 
   "prepare_data_vtx_id" : {
+    "input_type": "txt",
+    "module_name": "datadump",
     "input_dir": "cnn/raw_data",
     "output_dir": "cnn/for_nn",
     "patch_size_w": 44,
@@ -34,8 +37,8 @@
   "training_on_patches" : {
     "input_dir": "cnn/for_nn",
 
-    "batch_size": 192,
-    "nb_classes": 3,
-    "nb_epoch": 500
+    "batch_size": 256,
+    "nb_classes": 4,
+    "nb_epoch": 30
   }
 }
