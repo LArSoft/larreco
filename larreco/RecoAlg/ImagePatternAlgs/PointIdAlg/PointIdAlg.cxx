@@ -226,6 +226,7 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 
 	if (fNNet)
 	{
+        //mf::LogInfo("DataProviderAlg") << "Apply...";
 		if (fNNet->Run(fWireDriftPatch))
 		{
 			for (size_t o = 0; o < result.size(); ++o)
@@ -234,6 +235,7 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 			}
 		}
 		else mf::LogError("PointIdAlg") << "Problem with applying model to input.";
+		//mf::LogInfo("DataProviderAlg") << "OK";
 	}
 
 	return result;
