@@ -17,6 +17,7 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/PFParticle.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
@@ -62,29 +63,18 @@ public:
 		using Comment = fhicl::Comment;
 
 		fhicl::Table<calo::CalorimetryAlg::Config> CalorimetryAlg {
-			Name("CalorimetryAlg"),
-			Comment("Used to calculate electron lifetime correction.")
+			Name("CalorimetryAlg"), Comment("Used to calculate electron lifetime correction.")
 		};
 
-		fhicl::Atom<art::InputTag> SimModuleLabel {
-			Name("SimModuleLabel"),
-			Comment("...")
-		};
+		fhicl::Atom<art::InputTag> SimModuleLabel { Name("SimModuleLabel"), Comment("Simulation producer") };
 
-		fhicl::Atom<art::InputTag> NNetModuleLabel {
-			Name("NNetModuleLabel"),
-			Comment("NNet outputs tag")
-		};
+		fhicl::Atom<art::InputTag> PfpModuleLabel { Name("PfpModuleLabel"), Comment("PFP producer tag, to compare with NNet results") };
 
-		fhicl::Atom<bool> SaveHitsFile {
-			Name("SaveHitsFile"),
-			Comment("...")
-		};
+		fhicl::Atom<art::InputTag> NNetModuleLabel { Name("NNetModuleLabel"), Comment("NNet outputs tag") };
 
-		fhicl::Atom<unsigned int> View {
-			Name("View"),
-			Comment("...")
-		};
+		fhicl::Atom<bool> SaveHitsFile { Name("SaveHitsFile"), Comment("Dump hits info to text file") };
+
+		fhicl::Atom<unsigned int> View { Name("View"), Comment("Which view is evaluated") };
     };
     using Parameters = art::EDAnalyzer::Table<Config>;
 
@@ -109,6 +99,12 @@ private:
         const std::vector< sim::SimChannel > & channels,
         float & emLike, float & trackLike) const;
 
+    void countPfpDep(
+        const std::vector< recob::PFParticle > & pfparticles,
+        const art::FindManyP<recob::Cluster> & pfpclus,
+        const art::FindManyP<recob::Hit> & cluhits,
+        float & emLike, float & trackLike) const;
+
     bool isMuonDecaying(
         const simb::MCParticle & particle,
         const std::unordered_map< int, const simb::MCParticle* > & particleMap) const;
@@ -122,6 +118,7 @@ private:
 
 	int fRun, fEvent;
     float fMcDepEM, fMcDepTrack, fMcFractionEM;
+    float fPfpDepEM, fPfpDepTrack;
     float fHitEM_0p5, fHitTrack_0p5, fHitMichel_0p5, fHitMcFractionEM;
     float fHitEM_mc, fpEM;
     float fHitMichel_mc, fpMichel_hit, fpMichel_cl;
@@ -159,6 +156,7 @@ private:
 
     calo::CalorimetryAlg fCalorimetryAlg;
 	art::InputTag fSimulationProducerLabel;
+	art::InputTag fPfpModuleLabel;
 	art::InputTag fNNetModuleLabel;
 	bool fSaveHitsFile;
 };
@@ -171,6 +169,7 @@ nnet::PointIdEffTest::PointIdEffTest(nnet::PointIdEffTest::Parameters const& con
 	fView(config().View()),
 	fCalorimetryAlg(config().CalorimetryAlg()),
 	fSimulationProducerLabel(config().SimModuleLabel()),
+	fPfpModuleLabel(config().PfpModuleLabel()),
 	fNNetModuleLabel(config().NNetModuleLabel()),
 	fSaveHitsFile(config().SaveHitsFile())
 {
@@ -193,6 +192,8 @@ void nnet::PointIdEffTest::beginJob()
     fEventTree->Branch("fMcDepEM", &fMcDepEM, "fMcDepEM/F");
     fEventTree->Branch("fMcDepTrack", &fMcDepTrack, "fMcDepTrack/F");
     fEventTree->Branch("fMcFractionEM", &fMcFractionEM, "fMcFractionEM/F");
+    fEventTree->Branch("fPfpDepEM", &fPfpDepEM, "fPfpDepEM/F");
+    fEventTree->Branch("fPfpDepTrack", &fPfpDepTrack, "fPfpDepTrack/F");
     fEventTree->Branch("fHitEM_0p5", &fHitEM_0p5, "fHitEM_0p5/F");
     fEventTree->Branch("fHitMichel_0p5", &fHitMichel_0p5, "fHitMichel_0p5/F");
     fEventTree->Branch("fHitTrack_0p5", &fHitTrack_0p5, "fHitTrack_0p5/F");
@@ -272,6 +273,7 @@ void nnet::PointIdEffTest::cleanup(void)
 
     fMcDepEM = 0; fMcDepTrack = 0;
     fMcFractionEM = 0;
+    fPfpDepEM = 0; fPfpDepTrack = 0;
     fHitEM_0p5 = 0; fHitTrack_0p5 = 0;
     fHitEM_0p85 = 0; fHitTrack_0p85 = 0;
     fHitMichel_0p5 = 0;
@@ -303,8 +305,17 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 
 	// SimChannels
 	auto simChannelHandle = e.getValidHandle< std::vector<sim::SimChannel> >(fSimulationProducerLabel);
-
 	countTruthDep(*simChannelHandle, fMcDepEM, fMcDepTrack);
+
+    // PFParticle selection results
+	art::Handle< std::vector<recob::PFParticle> > pfpHandle;
+	if (e.getByLabel(fPfpModuleLabel, pfpHandle))
+	{
+	    auto cluHandle = e.getValidHandle< std::vector<recob::Cluster> >(fPfpModuleLabel);
+	    const art::FindManyP<recob::Cluster> clusFromPfps(pfpHandle, e, fPfpModuleLabel);
+	    const art::FindManyP<recob::Hit> hitsFromClus(cluHandle, e, fPfpModuleLabel);
+	    countPfpDep(*pfpHandle, clusFromPfps, hitsFromClus, fPfpDepEM, fPfpDepTrack);
+    }
 
     // output from cnn's
 
@@ -411,6 +422,34 @@ void nnet::PointIdEffTest::countTruthDep(
 			}
 		}
 	}
+}
+/******************************************/
+
+void nnet::PointIdEffTest::countPfpDep(
+        const std::vector< recob::PFParticle > & pfparticles,
+        const art::FindManyP<recob::Cluster> & pfpclus,
+        const art::FindManyP<recob::Hit> & cluhits,
+        float & emLike, float & trackLike) const
+{
+    emLike = 0; trackLike = 0;
+    for (size_t i = 0; i < pfparticles.size(); ++i)
+    {
+        const auto & pfp = pfparticles[i];
+        const auto & clus = pfpclus.at(i);
+
+        float hitdep = 0;
+        for (const auto & c : clus)
+        {
+            const auto & hits = cluhits.at(c.key());
+            for (const auto & h : hits)
+            {
+                if (h->View() == fView) { hitdep += h->SummedADC() * fCalorimetryAlg.LifetimeCorrection(h->PeakTime()); }
+            }
+        }
+
+        if ((pfp.PdgCode() == 11) || pfp.PdgCode() == -11) { emLike += hitdep; }
+        else { trackLike += hitdep; }
+    }
 }
 
 /******************************************/
