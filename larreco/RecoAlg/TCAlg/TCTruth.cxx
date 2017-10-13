@@ -746,7 +746,7 @@ namespace tca {
     // 2) Accumulate MCP_EPTSum += aveEP * TMeV and MCP_TSum += TMeV in this function
     // 3) Calculate average PFParticle EP = MCP_EPTSum / TMeV in PrintResults()
 
-    for(unsigned short ipart = 0; ipart < partList.size(); ++ipart) {
+    for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
       auto& part = partList[ipart];
       float TMeV = 1000 * (part->E() - part->Mass());
       // skip low energy electrons
