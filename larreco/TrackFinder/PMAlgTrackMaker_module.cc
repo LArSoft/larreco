@@ -316,6 +316,8 @@ anab::CosmicTagID_t PMAlgTrackMaker::getCosmicTag(const pma::Track3D::ETag pmaTa
         case pma::Track3D::kGeometry_XX: anabTag = anab::CosmicTagID_t::kGeometry_XX; break;
         case pma::Track3D::kGeometry_YY: anabTag = anab::CosmicTagID_t::kGeometry_YY; break;
         case pma::Track3D::kGeometry_ZZ: anabTag = anab::CosmicTagID_t::kGeometry_ZZ; break;
+        case pma::Track3D::kGeometry_YZ:  anabTag = anab::CosmicTagID_t::kGeometry_YZ; break;
+        case pma::Track3D::kGeometry_Y:  anabTag = anab::CosmicTagID_t::kGeometry_Y; break;
         default: anabTag = anab::CosmicTagID_t::kUnknown; break;
     }
     

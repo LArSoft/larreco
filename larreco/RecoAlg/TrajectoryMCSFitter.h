@@ -11,14 +11,24 @@
 
 namespace trkf {
   /**
+   * @file  larreco/RecoAlg/TrajectoryMCSFitter.h
+   * @class trkf::TrajectoryMCSFitter
+   *
    * @brief Class for Maximum Likelihood fit of Multiple Coulomb Scattering angles between segments within a Track or Trajectory
    *
    * Class for Maximum Likelihood fit of Multiple Coulomb Scattering angles between segments within a Track or Trajectory.
    *
    * Inputs are: a Track or Trajectory, and various fit parameters (pIdHypothesis, minNumSegments, segmentLength, pMin, pMax, pStep, angResol)
+   *
    * Outputs are: a recob::MCSFitResult, containing:
    *   resulting momentum, momentum uncertainty, and best likelihood value (both for fwd and bwd fit);
    *   vector of segment (radiation) lengths, vector of scattering angles, and PID hypothesis used in the fit.
+   *
+   * For configuration options see TrajectoryMCSFitter#Config
+   *
+   * @author  G. Cerati (FNAL, MicroBooNE)
+   * @date    2017
+   * @version 1.0
    */
   class TrajectoryMCSFitter {
     // 

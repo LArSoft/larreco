@@ -24,6 +24,7 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 
@@ -102,6 +103,10 @@ namespace trkf {
         Name("produceTrackFitHitInfo"),
         Comment("Option to produce (or not) the detailed TrackFitHitInfo.")
       };
+      fhicl::Atom<bool> produceSpacePoints {
+        Name("produceSpacePoints"),
+        Comment("Option to produce (or not) the associated SpacePoints.")
+      };
       fhicl::Atom<bool> keepInputTrajectoryPoints {
         Name("keepInputTrajectoryPoints"),
         Comment("Option to keep positions and directions from input trajectory. The fit will provide only covariance matrices, chi2, ndof, particle Id and absolute momentum. It may also modify the trajectory point flags. In order to avoid inconsistencies, it has to be used with the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp.")
@@ -179,6 +184,10 @@ trkf::KalmanFilterTrajectoryFitter::KalmanFilterTrajectoryFitter(trkf::KalmanFil
   if (p_().options().produceTrackFitHitInfo()) {
     produces<std::vector<std::vector<recob::TrackFitHitInfo> > >();
   }
+  if (p_().options().produceSpacePoints()) {
+    produces<std::vector<recob::SpacePoint> >();
+    produces<art::Assns<recob::Hit, recob::SpacePoint> >();
+  }
 
   //throw expections to avoid possible silent failures due to incompatible configuration options
 
@@ -228,6 +237,11 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
 
   auto const tid = getProductID<std::vector<recob::Track> >();
   auto const tidgetter = e.productGetter(tid);
+
+  auto outputSpacePoints  = std::make_unique<std::vector<recob::SpacePoint> >();
+  auto outputHitSpacePointAssn = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint> >();
+  auto const spid = getProductID<std::vector<recob::SpacePoint> >();
+  auto const spidgetter = e.productGetter(spid);
 
   //FIXME, eventually remove this (ok only for single particle MC)
   double pMC = -1.;
@@ -311,6 +325,15 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
       // recob::TrackHitMeta metadata(ip,-1);
       // outputHits->addSingle(aptr, trhit, metadata);
       outputHits->addSingle(aptr, trhit);
+      if (p_().options().produceSpacePoints() && outputTracks->back().HasValidPoint(ip)) {
+	auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
+	double fXYZ[3] = {tp.X(),tp.Y(),tp.Z()};
+	double fErrXYZ[6] = {0};
+	recob::SpacePoint sp(fXYZ, fErrXYZ, -1.);
+	outputSpacePoints->emplace_back(std::move(sp));
+	art::Ptr<recob::SpacePoint> apsp(spid, outputSpacePoints->size()-1, spidgetter);
+	outputHitSpacePointAssn->addSingle(trhit, apsp);
+      }
       ip++;
     }
     outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
@@ -324,6 +347,10 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
   e.put(std::move(outputHits));
   if (p_().options().produceTrackFitHitInfo()) {
     e.put(std::move(outputHitInfo));
+  }
+  if (p_().options().produceSpacePoints()) {
+    e.put(std::move(outputSpacePoints));
+    e.put(std::move(outputHitSpacePointAssn));
   }
   if (isTT) e.put(std::move(outputTTjTAssn));
   else e.put(std::move(outputTjTAssn));

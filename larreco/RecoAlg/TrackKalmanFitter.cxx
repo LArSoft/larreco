@@ -67,6 +67,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
 
 trkf::KFTrackState trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov, 
 								   const double pval, const int pdgid) const {
+  //start from large enough covariance matrix so that the fit is not biased
   if (trackStateCov==SMatrixSym55()) {
     trackStateCov(0, 0) = 1000.;
     trackStateCov(1, 1) = 1000.;
@@ -74,6 +75,7 @@ trkf::KFTrackState trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t
     trackStateCov(3, 3) = 0.25;
     trackStateCov(4, 4) = 10.;
   } else trackStateCov*=100.;
+  // build vector of parameters on plane with point on the track and direction normal to the plane parallel to the track (so the first four parameters are zero by construction)
   SVector5 trackStatePar(0.,0.,0.,0.,1./pval);
   return KFTrackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);//along direction by definition
 }
@@ -179,7 +181,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
 	  //get distance to measurement surface
 	  bool success = true;
 	  const double dist = propagator->distanceToPlane(success, trackState.trackState(), hitstate.plane());
-	  if (dumpLevel_>1) std::cout << "distance to plane " << iplane << " wire=" << hitstate.wireId().Wire << " = " << dist << ", min_dist=" << min_dist << " min_plane=" << min_plane << " success=" << success << std::endl;
+	  if (dumpLevel_>1) std::cout << "distance to plane " << iplane << " wire=" << hitstate.wireId().Wire << " = " << dist << ", min_dist=" << std::min(min_dist,999.) << " min_plane=" << min_plane << " success=" << success << std::endl;
 	  if (!success) {
 	    rejectedhsidx.push_back(ihit);
 	    continue;
@@ -206,7 +208,10 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
       //propagate to measurement surface
       bool propok = true;
       trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::FORWARD);
-      if (!propok && !(applySkipClean && skipNegProp_)) trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
+      if (!propok && !(applySkipClean && skipNegProp_)) {
+	if (dumpLevel_>1) std::cout << "attempt backward prop" << std::endl;
+	trackState = propagator->propagateToPlane(propok, trackState.trackState(), hitstate.plane(), true, true, TrackStatePropagator::BACKWARD);
+      }
       if (dumpLevel_>1) {
 	std::cout << "hit state " << std::endl; hitstate.dump();
 	std::cout << "propagation result=" << propok << std::endl;
