@@ -59,28 +59,39 @@ namespace nnet	 {
   class EventImageData // full image for one plane
   {
   public:
-    EventImageData(size_t weff, size_t nw, size_t nt, size_t nx, size_t ny, size_t nz) :
+    EventImageData(size_t weff, size_t nw, size_t nt, size_t nx, size_t ny, size_t nz, bool saveDep) :
         fVtxX(-9999), fVtxY(-9999),
         fLayerOffset(0), fTpcEffW(weff), fTpcSizeW(nw), fTpcSizeD(nt),
-        fNTpcX(nx), fNTpcY(ny), fNTpcZ(nz)
+        fNTpcX(nx), fNTpcY(ny), fNTpcZ(nz),
+        fSaveDep(saveDep)
     {
         fGeometry = &*(art::ServiceHandle<geo::Geometry>());
 
         size_t ntotw = (fNTpcZ - 1) * fTpcEffW + fTpcSizeW;
-        fData.resize(ntotw, std::vector<float>(fNTpcX * fTpcSizeD, 0));
+        fAdc.resize(ntotw, std::vector<float>(fNTpcX * fTpcSizeD, 0));
+        if (saveDep) { fDeposit.resize(ntotw, std::vector<float>(fNTpcX * fTpcSizeD, 0)); }
+        fPdg.resize(ntotw, std::vector<unsigned int>(fNTpcX * fTpcSizeD, 0));
     }
 
     void addTpc(const TrainingDataAlg & dataAlg);
     bool findCrop(size_t max_area_cut, unsigned int & w0, unsigned int & w1, unsigned int & d0, unsigned int & d1) const;
 
-    const std::vector< std::vector<float> > & data(void) const { return fData; }
-    const std::vector<float> & wireData(size_t widx) const { return fData[widx]; }
+    const std::vector< std::vector<float> > & adcData(void) const { return fAdc; }
+    const std::vector<float> & wireAdc(size_t widx) const { return fAdc[widx]; }
+
+    const std::vector< std::vector<float> > & depData(void) const { return fDeposit; }
+    const std::vector<float> & wireDep(size_t widx) const { return fDeposit[widx]; }
+
+    const std::vector< std::vector<unsigned int> > & pdgData(void) const { return fPdg; }
+    const std::vector<unsigned int> & wirePdg(size_t widx) const { return fPdg[widx]; }
 
   private:
-    std::vector< std::vector<float> > fData;
+    std::vector< std::vector<float> > fAdc, fDeposit;
+    std::vector< std::vector<unsigned int> > fPdg;
     int fVtxX, fVtxY;
     size_t fLayerOffset, fTpcEffW, fTpcSizeW, fTpcSizeD;
     size_t fNTpcX, fNTpcY, fNTpcZ;
+    bool fSaveDep;
 
     geo::GeometryCore const* fGeometry;
   };
@@ -100,7 +111,7 @@ namespace nnet	 {
     std::cout << "      flipw:" << flipw << " flipd:" << flipd << " nwires:" << dataAlg.NWires() << std::endl;
     for (size_t w = 0; w < dataAlg.NWires(); ++w)
     {
-        std::vector<float> & dst = fData[gw + w];
+        std::vector<float> & dst = fAdc[gw + w];
         const float* src = 0;
         if (flipw)
         {
@@ -134,17 +145,17 @@ namespace nnet	 {
 
     w0 = 0;
     size_t cut = 0;
-    while (w0 < fData.size())
+    while (w0 < fAdc.size())
     {
-        for (auto const d : fData[w0]) { if (d > adcThr) cut++; }
+        for (auto const d : fAdc[w0]) { if (d > adcThr) cut++; }
         if (cut < max_cut) w0++;
         else break;
     }
-    w1 = fData.size() - 1;
+    w1 = fAdc.size() - 1;
     cut = 0;
     while (w1 > w0)
     {
-        for (auto const d : fData[w1]) { if (d > adcThr) cut++; }
+        for (auto const d : fAdc[w1]) { if (d > adcThr) cut++; }
         if (cut < max_cut) w1--;
         else break;
     }
@@ -152,17 +163,17 @@ namespace nnet	 {
 
     d0 = 0;
     cut = 0;
-    while (d0 < fData.front().size())
+    while (d0 < fAdc.front().size())
     {
-        for (size_t i = w0; i < w1; ++i) { if (fData[i][d0] > adcThr) cut++; }
+        for (size_t i = w0; i < w1; ++i) { if (fAdc[i][d0] > adcThr) cut++; }
         if (cut < max_cut) d0++;
         else break;
     }
-    d1 = fData.front().size() - 1;
+    d1 = fAdc.front().size() - 1;
     cut = 0;
     while (d1 > d0)
     {
-        for (size_t i = w0; i < w1; ++i) { if (fData[i][d1] > adcThr) cut++; }
+        for (size_t i = w0; i < w1; ++i) { if (fAdc[i][d1] > adcThr) cut++; }
         if (cut < max_cut) d1--;
         else break;
     }
@@ -174,13 +185,13 @@ namespace nnet	 {
         if (w0 < margin) w0 = 0;
         else w0 -= margin;
 
-        if (w1 > fData.size() - margin) w1 = fData.size();
+        if (w1 > fAdc.size() - margin) w1 = fAdc.size();
         else w1 += margin;
         
         if (d0 < margin) d0 = 0;
         else d0 -= margin;
         
-        if (d1 > fData.front().size() - margin) d1 = fData.front().size();
+        if (d1 > fAdc.front().size() - margin) d1 = fAdc.front().size();
         else d1 += margin;
         
         return true;
@@ -208,14 +219,14 @@ namespace nnet	 {
 
     explicit PointIdTrainingNuevent(Parameters const& config);
     
-    virtual void beginJob() override;
+    void beginJob() override;
 
-    virtual void analyze(const art::Event& event) override;
+    void analyze(const art::Event& event) override;
 
   private:
   	void ResetVars();
   
-  	bool PrepareEv(const art::Event& event);
+  	bool prepareEv(const art::Event& event);
   	bool InsideFidVol(TVector3 const & pvtx) const;
   	void CorrOffset(TVector3& vec, const simb::MCParticle& particle);
 
@@ -280,11 +291,11 @@ namespace nnet	 {
   }
   
   //-----------------------------------------------------------------------
-  bool PointIdTrainingNuevent::PrepareEv(const art::Event& event)
+  bool PointIdTrainingNuevent::prepareEv(const art::Event& event)
   {
-  	art::ValidHandle< std::vector<simb::MCTruth> > mctruthHandle 
-  		= event.getValidHandle< std::vector<simb::MCTruth> >(fGenieGenLabel);
-	
+	art::Handle< std::vector<simb::MCTruth> > mctruthHandle;
+	if (!event.getByLabel(fGenieGenLabel, mctruthHandle)) { return false; }
+
 	for (auto const & mc : (*mctruthHandle))
 	{
 		if (mc.Origin() == simb::kBeamNeutrino)
@@ -324,14 +335,11 @@ namespace nnet	 {
 				fPointid.tpc = tpc;
 				
 				fCryo = cryo;
-			  fTpc = tpc;
+				fTpc = tpc;
 				
 				return true;	
 			}
-			else 
-			{
-				return false;
-			}
+			else { return false; }
 		}
 	}	
 	
@@ -346,7 +354,7 @@ namespace nnet	 {
     fSubRun = event.subRun();
     ResetVars();
     
-    //if (!PrepareEv(event)) { return; }
+    prepareEv(event);
 
 	std::ostringstream os;
 	os << "event_" << fEvent << "_run_" << fRun << "_subrun_" << fSubRun;
@@ -355,15 +363,18 @@ namespace nnet	 {
 
     size_t cryo = 0;
     size_t weff[3] = { 400, 400, 480 };
-    //size_t tpcs[3] = { 2, 2, 6 };
-    size_t tpcs[3] = { 4, 1, 3 }; // ProtoDUNE
+    size_t tpcs[3] = { 2, 2, 6 };   // FD workspace
+    //size_t tpcs[3] = { 4, 1, 3 }; // ProtoDUNE
 
+    bool goodEvent = false;
+    unsigned int gd0 = 0, gd1 = 0;
 	for (size_t p : fSelectedPlane)
 	{
 	    std::cout << "Plane: " << p << ", wires: " << fGeometry->Nwires(p, 0, cryo) << ", eff: " << weff[p] << ", zero:" << fTrainingDataAlg.ZeroLevel() << std::endl;
 	    EventImageData fullimg(weff[p],
 	        fGeometry->Nwires(p, 0, cryo), fDetProp->NumberTimeSamples() / fTrainingDataAlg.DriftWindow(),
-	        tpcs[0], tpcs[1], tpcs[2]);
+	        tpcs[0], tpcs[1], tpcs[2],
+	        fSaveDepositMap);
 
 	    for (size_t t = 0; t < fGeometry->NTPC(cryo); ++t)
 	    {
@@ -382,13 +393,18 @@ namespace nnet	 {
         unsigned int w0, w1, d0, d1;
 		if (fullimg.findCrop(40, w0, w1, d0, d1))
    		{
+   		    if (goodEvent)
+   		    {
+   		        d0 = gd0; d1 = gd1;
+   		    }
+   		    else
+   		    {
+   		        goodEvent = true;
+   		        gd0 = d0; gd1 = d1;
+   		    }
    			std::cout << "   crop: " << w0 << " " << w1 << " " << d0 << " " << d1 << std::endl;
    		}
-	    else
-	    {
-	    	std::cout << "   skip empty tpc:" << fPointid.tpc << " / plane:" << p << std::endl;
-            continue;
-	    }
+	    else { std::cout << "   skip empty event" << std::endl; break; }
 
 		std::ostringstream ss1;
    		ss1 << os.str() << "_plane_" << p; // TH2's name
@@ -399,7 +415,7 @@ namespace nnet	 {
    		float zero = fTrainingDataAlg.ZeroLevel();
         for (size_t w = w0; w < w1; ++w)
         {
-            auto const & raw = fullimg.wireData(w);
+            auto const & raw = fullimg.wireAdc(w);
             for (size_t d = d0; d < d1; ++d)
             {
                 rawHist->Fill(w, d, (char)(raw[d] + zero));
@@ -436,8 +452,7 @@ namespace nnet	 {
 
 		fTree2D->Fill();
 	}
-	
-	fTree->Fill();
+	if (goodEvent) { fTree->Fill(); }
 
 } // Raw2DRegionID::analyze()
   
