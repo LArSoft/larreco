@@ -28,8 +28,8 @@
 #include "nusimdata/SimulationBase/MCParticle.h"
 
 #include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/DataProviderAlg.h"
-#include "larreco/RecoAlg/ImagePatternAlgs/MLP/NNReader.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/Keras/keras_model.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/TF/tf_graph.h"
 
 // ROOT & C++
 #include <memory>
@@ -37,8 +37,8 @@
 namespace nnet
 {
 	class ModelInterface;
-	class MlpModelInterface;
 	class KerasModelInterface;
+	class TfModelInterface;
 	class PointIdAlg;
 	class TrainingDataAlg;
 }
@@ -51,37 +51,13 @@ class nnet::ModelInterface
 public:
 	virtual ~ModelInterface(void) { }
 
-	unsigned int GetInputLength(void) const { return GetInputCols() * GetInputRows(); }
-	virtual unsigned int GetInputCols(void) const = 0;
-	virtual unsigned int GetInputRows(void) const = 0;
-	virtual int GetOutputLength(void) const = 0;
-
-	virtual bool Run(std::vector< std::vector<float> > const & inp2d) = 0;
-	virtual std::vector<float> GetAllOutputs(void) const = 0;
-	virtual float GetOneOutput(int neuronIndex) const = 0;
+	virtual std::vector<float> Run(std::vector< std::vector<float> > const & inp2d) = 0;
+	virtual std::vector< std::vector<float> > Run(std::vector< std::vector< std::vector<float> > > const & inps, int samples = -1);
 
 protected:
 	ModelInterface(void) { }
 
-    std::string findFile(const char* fileName) const;
-};
-// ------------------------------------------------------
-
-class nnet::MlpModelInterface : public nnet::ModelInterface
-{
-public:
-	MlpModelInterface(const char* xmlFileName);
-
-	unsigned int GetInputRows(void) const override { return m.GetInputLength(); }
-	unsigned int GetInputCols(void) const override { return 1; }
-	int GetOutputLength(void) const override { return m.GetOutputLength(); }
-
-	bool Run(std::vector< std::vector<float> > const & inp2d) override;
-	float GetOneOutput(int neuronIndex) const override;
-	std::vector<float> GetAllOutputs(void) const override;
-
-private:
-	nnet::NNReader m;
+	std::string findFile(const char* fileName) const;
 };
 // ------------------------------------------------------
 
@@ -90,17 +66,23 @@ class nnet::KerasModelInterface : public nnet::ModelInterface
 public:
 	KerasModelInterface(const char* modelFileName);
 
-	unsigned int GetInputRows(void) const override { return m.get_input_rows(); }
-	unsigned int GetInputCols(void) const override { return m.get_input_cols(); }
-	int GetOutputLength(void) const override { return m.get_output_length(); }
-
-	bool Run(std::vector< std::vector<float> > const & inp2d) override;
-	float GetOneOutput(int neuronIndex) const override;
-	std::vector<float> GetAllOutputs(void) const override;
+	std::vector<float> Run(std::vector< std::vector<float> > const & inp2d) override;
 
 private:
-	std::vector<float> fOutput; // buffer for output values
 	keras::KerasModel m; // network model
+};
+// ------------------------------------------------------
+
+class nnet::TfModelInterface : public nnet::ModelInterface
+{
+public:
+	TfModelInterface(const char* modelFileName);
+
+	std::vector< std::vector<float> > Run(std::vector< std::vector< std::vector<float> > > const & inps, int samples = -1) override;
+	std::vector<float> Run(std::vector< std::vector<float> > const & inp2d) override;
+
+private:
+	std::unique_ptr<tf::Graph> g; // network graph
 };
 // ------------------------------------------------------
 
@@ -133,17 +115,17 @@ public:
 		PointIdAlg(fhicl::Table<Config>(pset, {})())
 	{}
 
-    PointIdAlg(const Config& config);
+	PointIdAlg(const Config& config);
 
 	~PointIdAlg(void) override;
-
-	size_t NClasses(void) const;
 
 	/// calculate single-value prediction (2-class probability) for [wire, drift] point
 	float predictIdValue(unsigned int wire, float drift, size_t outIdx = 0) const;
 
 	/// calculate multi-class probabilities for [wire, drift] point
 	std::vector<float> predictIdVector(unsigned int wire, float drift) const;
+
+	std::vector< std::vector<float> > predictIdVectors(std::vector< std::pair<unsigned int, float> > points) const;
 
 	static std::vector<float> flattenData2D(std::vector< std::vector<float> > const & patch);
 
@@ -167,13 +149,31 @@ private:
 	size_t fPatchSizeW, fPatchSizeD;
 
 	mutable size_t fCurrentWireIdx, fCurrentScaledDrift;
-	bool patchFromDownsampledView(size_t wire, float drift) const;
-	bool patchFromOriginalView(size_t wire, float drift) const;
-	bool bufferPatch(size_t wire, float drift) const
-    {
-        if (fDownscaleFullView) { return patchFromDownsampledView(wire, drift); }
-        else { return patchFromOriginalView(wire, drift); }
-    }
+	bool patchFromDownsampledView(size_t wire, float drift, std::vector< std::vector<float> > & patch) const;
+	bool patchFromOriginalView(size_t wire, float drift, std::vector< std::vector<float> > & patch) const;
+	bool bufferPatch(size_t wire, float drift, std::vector< std::vector<float> > & patch) const
+	{
+		if (fDownscaleFullView)
+		{
+	                size_t sd = (size_t)(drift / fDriftWindow);
+        	        if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == sd))
+                	        return true; // still within the current position
+
+                	fCurrentWireIdx = wire; fCurrentScaledDrift = sd;
+
+			return patchFromDownsampledView(wire, drift, patch);
+		}
+		else
+		{
+			if ((fCurrentWireIdx == wire) && (fCurrentScaledDrift == drift))
+				return true; // still within the current position
+
+			fCurrentWireIdx = wire; fCurrentScaledDrift = drift;
+
+			return patchFromOriginalView(wire, drift, patch);
+		}
+	}
+	bool bufferPatch(size_t wire, float drift) const { return bufferPatch(wire, drift, fWireDriftPatch); }
 	void resizePatch(void);
 
 	void deleteNNet(void) { if (fNNet) delete fNNet; fNNet = 0; }
@@ -270,6 +270,7 @@ public:
 
 	bool findCrop(float max_e_cut, unsigned int & w0, unsigned int & w1, unsigned int & d0, unsigned int & d1) const;
 
+	double getEdepTot(void) const { return fEdepTot; } // [GeV]
 	std::vector<float> const & wireEdep(size_t widx) const { return fWireDriftEdep[widx]; }
 	std::vector<int> const & wirePdg(size_t widx) const { return fWireDriftPdg[widx]; }
 
@@ -314,6 +315,7 @@ private:
         const simb::MCParticle & particle,
         const std::unordered_map< int, const simb::MCParticle* > & particleMap) const;
 
+	double fEdepTot; // [GeV]
 	std::vector< std::vector<float> > fWireDriftEdep;
 	std::vector< std::vector<int> > fWireDriftPdg;
 

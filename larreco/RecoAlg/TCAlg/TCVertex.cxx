@@ -67,9 +67,9 @@ namespace tca {
         // may have been biased by the presence of another trajectory at the vertex or by
         // other close unresolved tracks
         if(tj1.Pts.size() > 6 && tj1.Pts[endPt1].NTPsFit < 4) {
-          if(end == 0) {
+          if(end == 0 && endPt1 < int(tj1.Pts.size()) - 3) {
             endPt1 += 3;
-          } else {
+          } else if (end == 1 && endPt1 >=3 ) {
             endPt1 -= 3;
           }
           if(tj1.Pts[endPt1].Chg == 0) endPt1 = NearestPtWithChg(tjs, tj1, endPt1);
@@ -92,9 +92,9 @@ namespace tca {
           short endPt2 = tj2.EndPt[end];
           float wire2 = tj2.Pts[endPt2].Pos[0];
           if(tj2.Pts.size() > 6 && tj2.Pts[endPt2].NTPsFit < 4) {
-            if(end == 0) {
+            if(end == 0 && endPt2 < int(tj2.Pts.size()) - 3) {
               endPt2 += 3;
-            } else {
+            } else if (end == 1 && endPt2 >= 3){
               endPt2 -= 3;
             }
             if(tj2.Pts[endPt2].Chg == 0) endPt2 = NearestPtWithChg(tjs, tj2, endPt2);
