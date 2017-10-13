@@ -122,7 +122,7 @@ with tf.device('/gpu:' + args.gpu):
     model = Model(inputs=[main_input], outputs=[em_trk_none, michel])
     model.compile(optimizer=sgd,
                   loss={'em_trk_none_netout': 'categorical_crossentropy', 'michel_netout': 'mean_squared_error'},
-                  loss_weights={'em_trk_none_netout': 0.1, 'michel_netout': 2.})
+                  loss_weights={'em_trk_none_netout': 0.1, 'michel_netout': 1.})
 
 #######################  read data sets  ############################
 n_training = count_events(CNN_INPUT_DIR, 'training')
@@ -184,14 +184,11 @@ print 'Training', X_train.shape, 'testing', X_test.shape
 
 ##########################  training  ###############################
 datagen = ImageDataGenerator(
-                featurewise_center=False,  # set input mean to 0 over the dataset
-                samplewise_center=False,   # set each sample mean to 0
-                featurewise_std_normalization=False,  # divide inputs by std of the dataset
-                samplewise_std_normalization=False,   # divide each input by its std
-                zca_whitening=False,  # apply ZCA whitening
-                rotation_range=0,     # randomly rotate images in the range (degrees, 0 to 180)
-                width_shift_range=0,  # randomly shift images horizontally (fraction of total width)
-                height_shift_range=0, # randomly shift images vertically (fraction of total height)
+                featurewise_center=False, samplewise_center=False,
+                featurewise_std_normalization=False,
+                samplewise_std_normalization=False,
+                zca_whitening=False,
+                rotation_range=0, width_shift_range=0, height_shift_range=0,
                 horizontal_flip=True, # randomly flip images
                 vertical_flip=True)  # randomly flip images
 datagen.fit(X_train)
@@ -200,22 +197,13 @@ def generate_data_generator(generator, X, Y1, Y2, b):
     genY1 = generator.flow(X, Y1, batch_size=b, seed=7)
     genY2 = generator.flow(X, Y2, batch_size=b, seed=7)
     while True:
-            i1 = genY1.next()
-            i2 = genY2.next()
-            yield {'main_input': i1[0]}, {'em_trk_none_netout': i1[1], 'michel_netout': i2[1]}
-
-#gg = generate_data_generator(datagen, X_train, EmTrkNone_train, Michel_train, 2)
-#print next(gg)[1]['michel_netout']
-#print next(gg)[1]['michel_netout']
-#print next(gg)[1]['em_trk_none_netout']
-#print next(gg)[1]['em_trk_none_netout']
+            g1 = genY1.next()
+            g2 = genY2.next()
+            yield {'main_input': g1[0]}, {'em_trk_none_netout': g1[1], 'michel_netout': g2[1]}
 
 print 'Fit config:', cfg_name
 h = model.fit_generator(
               generate_data_generator(datagen, X_train, EmTrkNone_train, Michel_train, b=batch_size),
-#              datagen.flow({'main_input': X_train},
-#                           {'em_trk_none_netout': EmTrkNone_train, 'michel_netout': Michel_train},
-#                           batch_size=batch_size),
               validation_data=(
                   {'main_input': X_test},
                   {'em_trk_none_netout': EmTrkNone_test, 'michel_netout': Michel_test}),

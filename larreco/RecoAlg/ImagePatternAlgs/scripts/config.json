@@ -1,6 +1,6 @@
 {
   "prepare_data_em_track" : {
-    "input_type": "txt",
+    "input_type": "root",
     "module_name": "datadump",
     "input_dir": "cnn/raw_data",
     "output_dir": "cnn/for_nn",
