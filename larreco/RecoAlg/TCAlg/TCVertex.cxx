@@ -1789,7 +1789,21 @@ namespace tca {
       geo::PlaneID planeID = DecodeCTP(vx.CTP);
       if(planeID.Cryostat != cstat) continue;
       if(planeID.TPC != tpc) continue;
-     if(vx.Score < tjs.Vertex2DCuts[7]) MakeVertexObsolete(tjs, vx, false);
+/*
+      if(vx.Score < tjs.Vertex2DCuts[7]) {
+        // try to merge the Tjs if there are two and they have an
+        // end-to-end topology. MergeAndStore will also kill this
+        // vertex if the merge succeeds
+        bool didMerge = false;
+        if(vx.NTraj == 2 && vx.Topo == 1) {
+          auto tjids = GetVtxTjIDs(tjs, vx);
+          unsigned int tj1 = tjids[0] - 1;
+          unsigned int tj2 = tjids[1] - 1;
+          didMerge = MergeAndStore(tjs, tj1, tj2, true);
+        }
+        if(!didMerge) MakeVertexObsolete(tjs, vx, false);
+      }
+*/
     } // vx
 //    PrintAllTraj("SVo", tjs, debug, USHRT_MAX, 0);
     
