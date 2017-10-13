@@ -53,6 +53,10 @@ public:
 		fhicl::Table<nnet::PointIdAlg::Config> PointIdAlg {
 			Name("PointIdAlg")
 		};
+                fhicl::Atom<size_t> BatchSize {
+                        Name("BatchSize"),
+                        Comment("number of samples processed in one batch")
+                };
 
 		fhicl::Atom<art::InputTag> WireLabel {
 			Name("WireLabel"),
@@ -92,6 +96,7 @@ public:
 private:
 	bool isViewSelected(int view) const;
 
+        size_t fBatchSize;
 	PointIdAlg fPointIdAlg;
 	anab::MVAWriter<2> fMVAWriter; // <-------------- using 2-output CNN model
 
@@ -103,11 +108,12 @@ private:
 
 	std::vector< int > fViews;
 
-    art::InputTag fNewClustersTag; // input tag for the clusters produced by this module
+        art::InputTag fNewClustersTag; // input tag for the clusters produced by this module
 };
 // ------------------------------------------------------
 
 EmTrackClusterId2out::EmTrackClusterId2out(EmTrackClusterId2out::Parameters const& config) :
+	fBatchSize(config().BatchSize()),
 	fPointIdAlg(config().PointIdAlg()), fMVAWriter(this, "emtrack"),
 	fWireProducerLabel(config().WireLabel()),
 	fHitModuleLabel(config().HitModuleLabel()),
@@ -183,13 +189,33 @@ void EmTrackClusterId2out::produce(art::Event & evt)
                 fPointIdAlg.setWireDriftData(*wireHandle, view, tpc, cryo);
 
                 // (1) do all hits in this plane ------------------------------------------------
-                for (size_t h : pview.second) // h is the Ptr< recob::Hit >::key()
+                for (size_t idx = 0; idx < pview.second.size(); idx += fBatchSize)
                 {
-                    const recob::Hit & hit = *(hitPtrList[h]);
-                    fMVAWriter.setOutput(hitID, h,
-                        fPointIdAlg.predictIdVector(hit.WireID().Wire, hit.PeakTime()));
-                    if (fPointIdAlg.isInsideFiducialRegion(hit.WireID().Wire, hit.PeakTime()))
-                    { hitInFA[h] = 1; }
+                    std::vector< std::pair<unsigned int, float> > points;
+                    std::vector< size_t > keys;
+                    for (size_t k = 0; k < fBatchSize; ++k)
+                    {
+                        if (idx + k >= pview.second.size()) { break; } // careful about the tail
+
+                        size_t h = pview.second[idx+k]; // h is the Ptr< recob::Hit >::key()
+                        const recob::Hit & hit = *(hitPtrList[h]);
+                        points.emplace_back(hit.WireID().Wire, hit.PeakTime());
+                        keys.push_back(h);
+                    }
+
+                    auto batch_out = fPointIdAlg.predictIdVectors(points);
+                    if (points.size() != batch_out.size())
+                    {
+                        throw cet::exception("EmTrackClusterId") << "hits processing failed" << std::endl;
+                    }
+
+                    for (size_t k = 0; k < points.size(); ++k)
+                    {
+                        size_t h = keys[k];
+                        fMVAWriter.setOutput(hitID, h, batch_out[k]);
+                        if (fPointIdAlg.isInsideFiducialRegion(points[k].first, points[k].second))
+                        { hitInFA[h] = 1; }
+                    }
                 } // hits done ------------------------------------------------------------------
             }
         }
