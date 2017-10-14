@@ -96,18 +96,18 @@ public:
 	    using Comment = fhicl::Comment;
 
 		fhicl::Atom<std::string> NNetModelFile {
-			Name("NNetModelFile"),
-			Comment("Neural net model to apply.")
+			Name("NNetModelFile"), Comment("Neural net model to apply.")
+		};
+		fhicl::Sequence<std::string> NNetOutputs {
+			Name("NNetOutputs"), Comment("Labels of the network outputs.")
 		};
 
 		fhicl::Atom<unsigned int> PatchSizeW {
-			Name("PatchSizeW"),
-			Comment("How many wires in patch.")
+			Name("PatchSizeW"), Comment("How many wires in patch.")
 		};
 
 		fhicl::Atom<unsigned int> PatchSizeD {
-			Name("PatchSizeD"),
-			Comment("How many downsampled ADC entries in patch")
+			Name("PatchSizeD"), Comment("How many downsampled ADC entries in patch")
 		};
     };
 
@@ -118,6 +118,9 @@ public:
 	PointIdAlg(const Config& config);
 
 	~PointIdAlg(void) override;
+
+    /// network output labels
+    std::vector< std::string > const & outputLabels(void) const { return fNNetOutputs; }
 
 	/// calculate single-value prediction (2-class probability) for [wire, drift] point
 	float predictIdValue(unsigned int wire, float drift, size_t outIdx = 0) const;
@@ -143,6 +146,7 @@ public:
 
 private:
 	std::string fNNetModelFilePath;
+	std::vector< std::string > fNNetOutputs;
 	nnet::ModelInterface* fNNet;
 
 	mutable std::vector< std::vector<float> > fWireDriftPatch;  // patch data around the identified point

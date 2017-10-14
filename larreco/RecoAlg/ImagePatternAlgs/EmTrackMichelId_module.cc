@@ -56,19 +56,16 @@ public:
 		fhicl::Table<nnet::PointIdAlg::Config> PointIdAlg {
 			Name("PointIdAlg")
 		};
-                fhicl::Atom<size_t> BatchSize {
-                        Name("BatchSize"),
-                        Comment("number of samples processed in one batch")
-                };
+		fhicl::Atom<size_t> BatchSize {
+		    Name("BatchSize"), Comment("number of samples processed in one batch")
+		};
 
 		fhicl::Atom<art::InputTag> WireLabel {
-			Name("WireLabel"),
-			Comment("tag of deconvoluted ADC on wires (recob::Wire)")
+			Name("WireLabel"), Comment("tag of deconvoluted ADC on wires (recob::Wire)")
 		};
 
 		fhicl::Atom<art::InputTag> HitModuleLabel {
-			Name("HitModuleLabel"),
-			Comment("tag of hits to be EM/track / Michel tagged")
+			Name("HitModuleLabel"), Comment("tag of hits to be EM/track / Michel tagged")
 		};
 
 		fhicl::Atom<art::InputTag> ClusterModuleLabel {
@@ -175,7 +172,7 @@ void EmTrackMichelId::produce(art::Event & evt)
 	}
 
     // ********************* classify hits **********************
-    auto hitID = fMVAWriter.initOutputs<recob::Hit>(fHitModuleLabel, hitPtrList.size(), { "track", "em", "michel", "none" });
+    auto hitID = fMVAWriter.initOutputs<recob::Hit>(fHitModuleLabel, hitPtrList.size(), fPointIdAlg.outputLabels());
 
     std::vector< char > hitInFA(hitPtrList.size(), 0); // tag hits in fid. area as 1, use 0 for hits close to the projectrion edges
     for (auto const & pcryo : hitMap)
@@ -248,7 +245,7 @@ void EmTrackMichelId::produce(art::Event & evt)
 	    	cluMap[cryo][tpc][view].push_back(c.key());
 	    }
 
-        auto cluID = fMVAWriter.initOutputs<recob::Cluster>(fNewClustersTag, { "track", "em", "michel", "none" });
+        auto cluID = fMVAWriter.initOutputs<recob::Cluster>(fNewClustersTag, fPointIdAlg.outputLabels());
 
         unsigned int cidx = 0; // new clusters index
         art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fClusterModuleLabel);
@@ -349,7 +346,7 @@ void EmTrackMichelId::produce(art::Event & evt)
             }
         }
 
-        auto trkID = fMVAWriter.initOutputs<recob::Track>(fTrackModuleLabel, trkHitPtrList.size(), { "track", "em", "michel", "none" });
+        auto trkID = fMVAWriter.initOutputs<recob::Track>(fTrackModuleLabel, trkHitPtrList.size(), fPointIdAlg.outputLabels());
         for (size_t t = 0; t < trkHitPtrList.size(); ++t) // t is the Ptr< recob::Track >::key()
         {
             auto vout = fMVAWriter.getOutput<recob::Hit>(trkHitPtrList[t],

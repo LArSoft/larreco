@@ -157,6 +157,7 @@ nnet::PointIdAlg::PointIdAlg(const Config& config) : img::DataProviderAlg(config
 	fCurrentWireIdx(99999), fCurrentScaledDrift(99999)
 {
 	fNNetModelFilePath = config.NNetModelFile();
+	fNNetOutputs = config.NNetOutputs();
 
 	deleteNNet();
 
