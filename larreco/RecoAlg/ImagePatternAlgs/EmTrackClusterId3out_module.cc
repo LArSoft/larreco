@@ -173,7 +173,7 @@ void EmTrackClusterId::produce(art::Event & evt)
 	}
 
     // ********************* classify hits **********************
-    auto hitID = fMVAWriter.initOutputs<recob::Hit>(fHitModuleLabel, hitPtrList.size(), { "track", "em", "none" });
+    auto hitID = fMVAWriter.initOutputs<recob::Hit>(fHitModuleLabel, hitPtrList.size(), fPointIdAlg.outputLabels());
 
     std::vector< char > hitInFA(hitPtrList.size(), 0); // tag hits in fid. area as 1, use 0 for hits close to the projectrion edges
     for (auto const & pcryo : hitMap)
@@ -246,7 +246,7 @@ void EmTrackClusterId::produce(art::Event & evt)
 	    	cluMap[cryo][tpc][view].push_back(c.key());
 	    }
 
-        auto cluID = fMVAWriter.initOutputs<recob::Cluster>(fNewClustersTag, { "track", "em", "none" });
+        auto cluID = fMVAWriter.initOutputs<recob::Cluster>(fNewClustersTag, fPointIdAlg.outputLabels());
 
         unsigned int cidx = 0; // new clusters index
         art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fClusterModuleLabel);
@@ -347,7 +347,7 @@ void EmTrackClusterId::produce(art::Event & evt)
             }
         }
 
-        auto trkID = fMVAWriter.initOutputs<recob::Track>(fTrackModuleLabel, trkHitPtrList.size(), { "track", "em", "none" });
+        auto trkID = fMVAWriter.initOutputs<recob::Track>(fTrackModuleLabel, trkHitPtrList.size(), fPointIdAlg.outputLabels());
         for (size_t t = 0; t < trkHitPtrList.size(); ++t) // t is the Ptr< recob::Track >::key()
         {
             auto vout = fMVAWriter.getOutput<recob::Hit>(trkHitPtrList[t],

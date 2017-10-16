@@ -122,6 +122,9 @@ public:
         else { return 0; }
     }
 
+    double getAdcSum(void) const { return fAdcSumOverThr; }
+    size_t getAdcArea(void) const { return fAdcAreaOverThr; }
+
     /// Pool max value in a patch around the wire/drift pixel.
     float poolMax(int wire, int drift, size_t r = 0) const;
 
@@ -136,6 +139,9 @@ public:
 	unsigned int NScaledDrifts(void) const { return fNScaledDrifts; }
 	unsigned int NCachedDrifts(void) const { return fNCachedDrifts; }
 	unsigned int DriftWindow(void) const { return fDriftWindow; }
+
+    /// Level of zero ADC after scaling.
+    float ZeroLevel(void) const { return fAdcZero; }
 
     double LifetimeCorrection(double tick) const { return fCalorimetryAlg.LifetimeCorrection(tick); }
 
@@ -191,7 +197,9 @@ private:
     std::vector<float> fAmplCalibConst;
     bool fCalibrateAmpl, fCalibrateLifetime;
 
-    float fAdcMax, fAdcMin, fAdcScale, fAdcOffset;
+    float fAdcMax, fAdcMin, fAdcScale, fAdcOffset, fAdcZero;
+    double fAdcSumOverThr, fAdcSumThr;
+    size_t fAdcAreaOverThr;
 
     CLHEP::HepJamesRandom fRndEngine;
 

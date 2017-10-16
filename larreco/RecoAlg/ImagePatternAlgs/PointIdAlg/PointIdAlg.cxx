@@ -157,6 +157,7 @@ nnet::PointIdAlg::PointIdAlg(const Config& config) : img::DataProviderAlg(config
 	fCurrentWireIdx(99999), fCurrentScaledDrift(99999)
 {
 	fNNetModelFilePath = config.NNetModelFile();
+	fNNetOutputs = config.NNetOutputs();
 
 	deleteNNet();
 
@@ -230,11 +231,11 @@ std::vector<float> nnet::PointIdAlg::predictIdVector(unsigned int wire, float dr
 
 	if (fNNet)
 	{
-		result = fNNet->Run(fWireDriftPatch);
-		if (result.empty())
-		{
-			mf::LogError("PointIdAlg") << "Problem with applying model to input.";
-		}
+        result = fNNet->Run(fWireDriftPatch);
+        if (result.empty())
+        {
+            mf::LogError("PointIdAlg") << "Problem with applying model to input.";
+        }
 	}
 
 	return result;

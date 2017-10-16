@@ -81,7 +81,7 @@ namespace nnet	 {
 
     explicit PointIdTrainingData(Parameters const& config);
 
-    virtual void analyze(const art::Event& event) override;
+    void analyze(const art::Event& event) override;
 
   private:
 
