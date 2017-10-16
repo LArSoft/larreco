@@ -83,7 +83,7 @@ namespace tca {
     geo::PlaneID planeID = DecodeCTP(longTj.CTP);
     pfp.BestPlane = planeID.Plane;
     ss3.BestPlane = planeID.Plane;
-    double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
+    double angleToVert = tjs.geom->Plane(planeID).ThetaZ() - 0.5 * ::util::pi<>();
     double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[0].Y() + std::cos(angleToVert) * pfp.Dir[0].Z());
     if(cosgamma == 0) return false;
     // convert maxlen from WSE units (1 wire spacing) to cm and find the 3D distance
