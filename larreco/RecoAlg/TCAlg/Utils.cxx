@@ -1241,7 +1241,7 @@ namespace tca {
 
       Trajectory& tj = tjs.allTraj[tjID - 1];
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
-      double angleToVert = tjs.geom->WireAngleToVertical(tjs.geom->View(planeID), planeID.TPC, planeID.Cryostat) - 0.5 * ::util::pi<>();
+      double angleToVert = tjs.geom->Plane(planeID).ThetaZ() - 0.5 * ::util::pi<>();
       for(unsigned short startend = 0; startend < numEnds; ++startend) {
         pfp.dEdx[startend][planeID.Plane] = 0;
         tj.dEdx[startend] = 0;
