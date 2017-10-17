@@ -174,7 +174,7 @@ trkf::KalmanFilterTrajectoryFitter::KalmanFilterTrajectoryFitter(trkf::KalmanFil
   isTT = p_().inputs().isTrackTrajectory();
 
   produces<std::vector<recob::Track> >();
-  // produces<art::Assns<recob::Track, recob::Hit> >();
+  produces<art::Assns<recob::Track, recob::Hit> >();
   produces<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
   if (isTT) {
     produces<art::Assns<recob::TrackTrajectory, recob::Track> >();
@@ -227,8 +227,8 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
 {
 
   auto outputTracks  = std::make_unique<std::vector<recob::Track> >();
-  auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
-  // auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
+  auto outputHitsMeta = std::make_unique<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
+  auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
   auto outputHitInfo = std::make_unique<std::vector<std::vector<recob::TrackFitHitInfo> > >();
 
   //only one will be filled and pushed into the event:
@@ -323,8 +323,8 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
     for (auto const& trhit: outHits) {
       //the fitter produces collections with 1-1 match between hits and point
       recob::TrackHitMeta metadata(ip,-1);
-      outputHits->addSingle(aptr, trhit, metadata);
-      // outputHits->addSingle(aptr, trhit);
+      outputHitsMeta->addSingle(aptr, trhit, metadata);
+      outputHits->addSingle(aptr, trhit);
       if (p_().options().produceSpacePoints() && outputTracks->back().HasValidPoint(ip)) {
 	auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
 	double fXYZ[3] = {tp.X(),tp.Y(),tp.Z()};
@@ -344,6 +344,7 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
     }
   }
   e.put(std::move(outputTracks));
+  e.put(std::move(outputHitsMeta));
   e.put(std::move(outputHits));
   if (p_().options().produceTrackFitHitInfo()) {
     e.put(std::move(outputHitInfo));
