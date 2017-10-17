@@ -327,6 +327,7 @@ void calo::Calorimetry::produce(art::Event& evt)
           auto vmeta = fmthm.data(trkIter);
           for (size_t ii = 0; ii<vhit.size(); ++ii){
             if (vhit[ii].key() == allHits[hits[ipl][ihit]].key()){
+              if (!tracklist[trkIter]->HasValidPoint(vmeta[ii]->Index())) continue;
               double angleToVert = geom->WireAngleToVertical(vhit[ii]->View(), vhit[ii]->WireID().TPC, vhit[ii]->WireID().Cryostat) - 0.5*::util::pi<>();
               const TVector3& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
               double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
