@@ -62,11 +62,16 @@ namespace tca {
         // Temp? Check for an existing parentID
         auto& tj = tjs.allTraj[tjid - 1];
         if(tj.ParentID != tj.ID) {
-//          std::cout<<"**** Tj "<<tj.ID<<" Existing parent "<<tj.ParentID<<" PDGCode "<<tj.PDGCode<<". with a vertex... \n";
+          std::cout<<"**** Tj "<<tj.ID<<" Existing parent "<<tj.ParentID<<" PDGCode "<<tj.PDGCode<<". with a vertex... \n";
         }
         if(std::find(masterlist.begin(), masterlist.end(), tjid) == masterlist.end()) masterlist.push_back(tjid);
       } // tjid
     } // vxid
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"DTP: masterlist Tjs";
+      for(auto tjid : masterlist) myprt<<" "<<tjid;
+    }
     
     // Set the ParentID of these Tjs to a distinctive value. This will be over-written below
     for(auto tjid : masterlist) {
@@ -119,24 +124,24 @@ namespace tca {
       // make a list of primary Tjs attached to this primary vertex
       float score;
       auto primTjList = GetVtxTjIDs(tjs, vx3, score);
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"DTP: vx3 "<<vx3.ID<<" Tjs";
+        for(auto tjid : primTjList) myprt<<" "<<tjid;
+      }
       pardtr.clear();
       for(auto primTjID : primTjList) {
         auto& primTj = tjs.allTraj[primTjID - 1];
-        if(primTj.ParentID > 0) {
-          std::cout<<"primTj "<<primTj.ID<<" ParentID "<<primTj.ParentID<<" is already set\n";
-          continue;
-        }
+        if(primTj.ParentID > 0) continue;
         // declare this a primary Tj
         primTj.ParentID = 0;
         // look for daughter vertices
         for(unsigned short end = 0; end < 2; ++end) {
           if(primTj.VtxID[end] == 0) continue;
           auto& vx2 = tjs.vtx[primTj.VtxID[end] - 1];
-          if(vx2.Vx3ID == 0) continue;
-          if(vx2.Vx3ID == vx3.ID) continue;
           if(lookedAt2[vx2.ID]) continue;
           lookedAt2[vx2.ID] = true;
-          if(vx2.Vx3ID > 0) lookedAt3[vx2.Vx3ID] = true;
+          if(vx2.Vx3ID == vx3.ID) continue;
           // found a daughter vertex. Add the daughter Tjs to the stack
           auto tjlist = GetVtxTjIDs(tjs, vx2);
           for(auto tjid : tjlist) {
@@ -146,15 +151,16 @@ namespace tca {
         } // end
       } // primTjID
       if(pardtr.empty()) continue;
-      // iterate through the parent - daughter stack, removing the last element when a 
-      // ParentID is updated and adding elements for new daughters
-      while(true) {
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<" par_dtr";
+        for(auto pdtr : pardtr) myprt<<" "<<pdtr.first<<"_"<<pdtr.second;
+      }
+      // iterate through the parent - daughter stack, removing the last pair when a 
+      // ParentID is updated and adding pairs for new daughters
+      for(unsigned short nit = 0; nit < 100; ++nit) {
         auto lastPair = pardtr[pardtr.size() - 1];
         auto& dtj = tjs.allTraj[lastPair.second - 1];
-        if(dtj.ParentID > 0) {
-          std::cout<<"Parent-daughter error\n";
-          break;
-        }
         dtj.ParentID = lastPair.first;
         // remove that entry
         pardtr.pop_back();
@@ -164,16 +170,23 @@ namespace tca {
           auto& vx2 = tjs.vtx[dtj.VtxID[end] - 1];
           if(lookedAt2[vx2.ID]) continue;
           lookedAt2[vx2.ID] = true;
-          if(vx2.Vx3ID > 0) lookedAt3[vx2.Vx3ID] = true;
           auto tjlist = GetVtxTjIDs(tjs, vx2);
           for(auto tjid : tjlist) {
             if(tjid == dtj.ID) continue;
             pardtr.push_back(std::make_pair(dtj.ID, tjid));
+            if(prt) {
+              mf::LogVerbatim myprt("TC");
+              myprt<<" add par_dtr";
+              for(auto pdtr : pardtr) myprt<<" "<<pdtr.first<<"_"<<pdtr.second;
+            }
           }
         } // end
         if(pardtr.empty()) break;
-      } // true
+      } // nit
     } // indx
+    if(!pardtr.empty()) {
+      std::cout<<"DefineTjParents: pardtr isn't empty...\n";
+    }
     // check the master list
     for(auto tjid : masterlist) {
       auto& tj = tjs.allTraj[tjid - 1];
@@ -739,7 +752,6 @@ namespace tca {
             }
           } else {
             // Just fill temp. See if the Tj IDs are in the match list
-            // next see if the Tjs are in the match list
             bool gotit = false;
             for(auto& ms : inMatVec) {
               if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), iTjPt.id) != ms.TjIDs.end() && 
@@ -769,7 +781,11 @@ namespace tca {
             }
           } // fill temp
         } // 2-plane TPC
+        // give up if there are too many
+        if(temp.size() > 2000) break;
       } // jpt
+      // give up if there are too many
+      if(temp.size() > 2000) break;
     } // ipt
     
     if(temp.empty()) return;
@@ -1151,8 +1167,8 @@ namespace tca {
 
     float doca1 = PointTrajDOCA(tjs, tp1.Pos[0], tp1.Pos[1], tp2);
     float doca2 = PointTrajDOCA(tjs, tp2.Pos[0], tp2.Pos[1], tp1);
-    if(doca1 > 1.5 && doca2 > 1.5) {
-      if(prt) mf::LogVerbatim("TC")<<"CM: "<<tj1.ID<<" "<<tj2.ID<<" Bad docas (> 1.5) "<<doca1<<" "<<doca2;
+    if(doca1 > 2 && doca2 > 2) {
+      if(prt) mf::LogVerbatim("TC")<<"CM: "<<tj1.ID<<" "<<tj2.ID<<" Both docas > 2 "<<doca1<<" "<<doca2;
       return false;
     }
     
@@ -2000,13 +2016,15 @@ namespace tca {
     aVtx.ChiDOF = 0;
     aVtx.CTP = tj.CTP;
     aVtx.ID = tjs.vtx.size() + 1;
+    aVtx.Stat[kFixed] = true;
     unsigned short ivx = tjs.vtx.size();
     if(!StoreVertex(tjs, aVtx)) return;
     if(!SplitAllTraj(tjs, itj, breakPt, ivx, prt)) {
       if(prt) mf::LogVerbatim("TC")<<"CTBC: Failed to split trajectory";
       MakeVertexObsolete(tjs, tjs.vtx[ivx], false);
       return;
-     }
+    }
+    SetVx2Score(tjs, prt);
     
     if(prt) mf::LogVerbatim("TC")<<"CTBC: Split Tj "<<tj.ID<<" at "<<PrintPos(tjs, tj.Pts[breakPt].Pos)<<"\n";
     
@@ -4223,7 +4241,8 @@ namespace tca {
         myprt<<std::fixed<<std::setw(4)<<aTj.ID;
         myprt<<std::setw(6)<<aTj.CTP;
         myprt<<std::setw(5)<<aTj.Pass;
-        myprt<<std::setw(5)<<aTj.Pts.size();
+//        myprt<<std::setw(5)<<aTj.Pts.size();
+        myprt<<std::setw(5)<<aTj.EndPt[1] - aTj.EndPt[0] + 1;
         unsigned short endPt0 = aTj.EndPt[0];
         auto& tp0 = aTj.Pts[endPt0];
         int itick = tp0.Pos[1]/tjs.UnitsPerTick;
