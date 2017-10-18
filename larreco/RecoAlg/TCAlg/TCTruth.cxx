@@ -735,7 +735,9 @@ namespace tca {
         VtxStore& vx2 = tjs.vtx[tj.VtxID[end]-1];
         vx2.Stat[kVtxTruMatch] = true;
       } // end
-    } // vx2
+    } // tj
+    
+    for(auto& vx2 : tjs.vtx) if(vx2.ID > 0) ++RecoVx2Count;
     
     // match PFParticles
     // initialize everything
@@ -854,12 +856,12 @@ namespace tca {
               hist.nchi2_match->Fill( pfp.Track.Chi2PerNdof() );
               hist.covtrace_match->Fill( cv(0,0)+cv(1,1)+cv(2,2)+cv(3,3) );
               if (wrongid) {
-		int wid = 0;
-		if (std::abs(part->PdgCode())==11) wid=1;
-		if (std::abs(part->PdgCode())==13) wid=2;
-		if (std::abs(part->PdgCode())==211) wid=3;
-		if (std::abs(part->PdgCode())==2212) wid=4;
-		hist.pdgid_wrongid->Fill( wid );
+                int wid = 0;
+                if (std::abs(part->PdgCode())==11) wid=1;
+                if (std::abs(part->PdgCode())==13) wid=2;
+                if (std::abs(part->PdgCode())==211) wid=3;
+                if (std::abs(part->PdgCode())==2212) wid=4;
+                hist.pdgid_wrongid->Fill( wid );
                 hist.nchi2_wrongid->Fill( pfp.Track.Chi2PerNdof() );
                 hist.dXkf_wrongid->Fill(tkatmc.position().X()-part->Vx()-xOffset);
                 hist.dXtc_wrongid->Fill(tjatmc.position().X()-part->Vx()-xOffset);
@@ -948,8 +950,8 @@ namespace tca {
         hist.hasfit_nomatch->Fill(pfp.Track.ID()>=0);
         if (pfp.Track.ID()<0) continue;
         hist.nvalidpoints_nomatch->Fill(pfp.Track.CountValidPoints());
-	hist.nrejectpoints_nomatch->Fill(pfp.Track.NPoints()-pfp.Track.CountValidPoints());
-	hist.fracreject_nomatch->Fill( float(pfp.Track.NPoints()-pfp.Track.CountValidPoints())/float(pfp.Track.NPoints()) );
+        hist.nrejectpoints_nomatch->Fill(pfp.Track.NPoints()-pfp.Track.CountValidPoints());
+        hist.fracreject_nomatch->Fill( float(pfp.Track.NPoints()-pfp.Track.CountValidPoints())/float(pfp.Track.NPoints()) );
         if (pfp.Track.CountValidPoints()>1) {
           hist.nchi2_nomatch->Fill( pfp.Track.Chi2PerNdof() );
           auto cv = pfp.Track.VertexCovarianceLocal5D();
@@ -996,6 +998,9 @@ namespace tca {
     }
     myprt<<" VxCount";
     for(auto cnt : TruVxCounts) myprt<<" "<<cnt;
+    float vx2Cnt = 0;
+    if(tjs.EventsProcessed > 0) vx2Cnt = (float)RecoVx2Count / (float)tjs.EventsProcessed;
+    myprt<<" RecoVx2Cnt/Evt "<<std::fixed<<std::setprecision(1)<<vx2Cnt;
   } // PrintResults
   
   ////////////////////////////////////////////////
