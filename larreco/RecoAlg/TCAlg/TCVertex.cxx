@@ -1751,7 +1751,6 @@ namespace tca {
     unsigned int cstat = tpcid.Cryostat;
     unsigned int tpc = tpcid.TPC;
     
-//    PrintAllTraj("SVi", tjs, debug, USHRT_MAX, 0);
     // reset the 2D vertex status bits
     for(auto& vx : tjs.vtx) {
       if(vx.ID == 0) continue;
@@ -1782,30 +1781,7 @@ namespace tca {
       if(vx3.ID == 0) continue;
       if(vx3.TPCID != tpcid) continue;
        SetVx3Score(tjs, vx3, prt);
-    }
-    // Kill 2D vertices (and possibly 3D vertices) with poor score
-    for(auto& vx : tjs.vtx) {
-      if(vx.ID == 0) continue;
-      geo::PlaneID planeID = DecodeCTP(vx.CTP);
-      if(planeID.Cryostat != cstat) continue;
-      if(planeID.TPC != tpc) continue;
-/*
-      if(vx.Score < tjs.Vertex2DCuts[7]) {
-        // try to merge the Tjs if there are two and they have an
-        // end-to-end topology. MergeAndStore will also kill this
-        // vertex if the merge succeeds
-        bool didMerge = false;
-        if(vx.NTraj == 2 && vx.Topo == 1) {
-          auto tjids = GetVtxTjIDs(tjs, vx);
-          unsigned int tj1 = tjids[0] - 1;
-          unsigned int tj2 = tjids[1] - 1;
-          didMerge = MergeAndStore(tjs, tj1, tj2, true);
-        }
-        if(!didMerge) MakeVertexObsolete(tjs, vx, false);
-      }
-*/
-    } // vx
-//    PrintAllTraj("SVo", tjs, debug, USHRT_MAX, 0);
+    } // vx3
     
   } // ScoreVertices
   
@@ -1819,7 +1795,7 @@ namespace tca {
     for(unsigned short ipl = 0; ipl < tjs.NumPlanes; ++ipl) {
       if(vx3.Vx2ID[ipl] <= 0) continue;
       VtxStore& vx2 = tjs.vtx[vx3.Vx2ID[ipl] - 1];
-      vx2.Stat[kHiVx3Score] = true;
+      vx2.Stat[kHiVx3Score] = false;
       // transfer this to all attached tjs and vertices attached to those tjs
       std::vector<int> tjlist = GetVtxTjIDs(tjs, vx2);
       std::vector<int> vxlist;
@@ -1895,6 +1871,14 @@ namespace tca {
   void SetVx2Score(TjStuff& tjs, VtxStore& vx2, bool prt)
   {
     // Calculate the 2D vertex score
+    
+    // Don't score vertices from CheckTrajBeginChg. Set to the minimum
+    if(vx2.Topo == 8) {
+      vx2.Score = tjs.Vertex2DCuts[7] + 0.1;
+      auto vtxTjID = GetVtxTjIDs(tjs, vx2);
+      vx2.TjChgFrac = ChgFracNearPos(tjs, vx2.Pos, vtxTjID);
+      return;
+    }
     
     // Cuts on Tjs attached to vertices
     constexpr float maxChgRMS = 0.25;
