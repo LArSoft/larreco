@@ -764,9 +764,9 @@ namespace tca {
         // not in the cryostat/tpc/plane
         if(tjs.allTraj[itj].CTP != tjs.vtx[iv].CTP) continue;
         TrajClosestApproach(tjs.allTraj[itj], tjs.vtx[iv].Pos[0], tjs.vtx[iv].Pos[1], closePt, doca);
-        if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<itj<<" and tjs.vtx "<<iv<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
+        if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<tjs.allTraj[itj].ID<<" and tjs.vtx "<<tjs.vtx[iv].ID<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
         //if(doca > fMaxVertexTrajSep[tPass]) continue;
-        if(doca > 3) continue;
+        if(doca > tjs.Vertex2DCuts[1]) continue;
         // compare the length of the Tjs used to make the vertex with the length of the
         // Tj that we want to split. Don't allow a vertex using very short Tjs to split a long
         // Tj in the 3rd plane
@@ -780,7 +780,7 @@ namespace tca {
         // skip this operation if any of the Tjs in the split list are > 3 * maxPts
         maxPts *= 3;
         bool skipit = false;
-        if(NumPtsWithCharge(tjs,tjs.allTraj[itj] , false) > maxPts) skipit = true;
+        if(NumPtsWithCharge(tjs,tjs.allTraj[itj] , false) > maxPts && maxPts < 100) skipit = true;
         if(prt) mf::LogVerbatim("TC")<<"  maxPts "<<maxPts<<" vxtjs[0] "<<vxtjs[0]<<" skipit? "<<skipit;
         if(skipit) continue;
         if(prt)  {
