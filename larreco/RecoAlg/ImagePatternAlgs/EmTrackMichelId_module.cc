@@ -2,7 +2,9 @@
 // Class:       EmTrackMichelId
 // Module Type: producer
 // File:        EmTrackMichelId_module.cc
-// Authors:     dorota.stefan@cern.ch pplonski86@gmail.com robert.sulej@cern.ch
+// Authors:     D.Stefan (dorota.stefan@cern.ch), from DUNE, CERN/NCBJ
+//              P.Plonski (pplonski86@gmail.com), from DUNE, WUT
+//              R.Sulej (robert.sulej@cern.ch),   from DUNE, FNAL/NCBJ
 //
 // Module applies CNN to 2D image made of deconvoluted wire waveforms in order
 // to distinguish EM-like activity from track-like objects. In addition the activity
@@ -54,15 +56,16 @@ public:
 		fhicl::Table<nnet::PointIdAlg::Config> PointIdAlg {
 			Name("PointIdAlg")
 		};
+		fhicl::Atom<size_t> BatchSize {
+		    Name("BatchSize"), Comment("number of samples processed in one batch")
+		};
 
 		fhicl::Atom<art::InputTag> WireLabel {
-			Name("WireLabel"),
-			Comment("tag of deconvoluted ADC on wires (recob::Wire)")
+			Name("WireLabel"), Comment("tag of deconvoluted ADC on wires (recob::Wire)")
 		};
 
 		fhicl::Atom<art::InputTag> HitModuleLabel {
-			Name("HitModuleLabel"),
-			Comment("tag of hits to be EM/track / Michel tagged")
+			Name("HitModuleLabel"), Comment("tag of hits to be EM/track / Michel tagged")
 		};
 
 		fhicl::Atom<art::InputTag> ClusterModuleLabel {
@@ -93,6 +96,7 @@ public:
 private:
 	bool isViewSelected(int view) const;
 
+	size_t fBatchSize;
 	PointIdAlg fPointIdAlg;
 	anab::MVAWriter<4> fMVAWriter; // <-------------- using 4-output CNN model
 
@@ -109,6 +113,7 @@ private:
 // ------------------------------------------------------
 
 EmTrackMichelId::EmTrackMichelId(EmTrackMichelId::Parameters const& config) :
+	fBatchSize(config().BatchSize()),
 	fPointIdAlg(config().PointIdAlg()), fMVAWriter(this, "emtrkmichel"),
 	fWireProducerLabel(config().WireLabel()),
 	fHitModuleLabel(config().HitModuleLabel()),
@@ -167,7 +172,7 @@ void EmTrackMichelId::produce(art::Event & evt)
 	}
 
     // ********************* classify hits **********************
-    auto hitID = fMVAWriter.initOutputs<recob::Hit>(fHitModuleLabel, hitPtrList.size(), { "track", "em", "michel", "none" });
+    auto hitID = fMVAWriter.initOutputs<recob::Hit>(fHitModuleLabel, hitPtrList.size(), fPointIdAlg.outputLabels());
 
     std::vector< char > hitInFA(hitPtrList.size(), 0); // tag hits in fid. area as 1, use 0 for hits close to the projectrion edges
     for (auto const & pcryo : hitMap)
@@ -184,13 +189,33 @@ void EmTrackMichelId::produce(art::Event & evt)
                 fPointIdAlg.setWireDriftData(*wireHandle, view, tpc, cryo);
 
                 // (1) do all hits in this plane ------------------------------------------------
-                for (size_t h : pview.second) // h is the Ptr< recob::Hit >::key()
+                for (size_t idx = 0; idx < pview.second.size(); idx += fBatchSize)
                 {
-                    const recob::Hit & hit = *(hitPtrList[h]);
-                    fMVAWriter.setOutput(hitID, h,
-                        fPointIdAlg.predictIdVector(hit.WireID().Wire, hit.PeakTime()));
-                    if (fPointIdAlg.isInsideFiducialRegion(hit.WireID().Wire, hit.PeakTime()))
-                    { hitInFA[h] = 1; }
+                    std::vector< std::pair<unsigned int, float> > points;
+                    std::vector< size_t > keys;
+                    for (size_t k = 0; k < fBatchSize; ++k)
+                    {
+                        if (idx + k >= pview.second.size()) { break; } // careful about the tail
+
+                        size_t h = pview.second[idx+k]; // h is the Ptr< recob::Hit >::key()
+                        const recob::Hit & hit = *(hitPtrList[h]);
+                        points.emplace_back(hit.WireID().Wire, hit.PeakTime());
+                        keys.push_back(h);
+                    }
+
+                    auto batch_out = fPointIdAlg.predictIdVectors(points);
+                    if (points.size() != batch_out.size())
+                    {
+                        throw cet::exception("EmTrackMichelId") << "hits processing failed" << std::endl;
+                    }
+
+                    for (size_t k = 0; k < points.size(); ++k)
+                    {
+                        size_t h = keys[k];
+                        fMVAWriter.setOutput(hitID, h, batch_out[k]);
+                        if (fPointIdAlg.isInsideFiducialRegion(points[k].first, points[k].second))
+                        { hitInFA[h] = 1; }
+                    }
                 } // hits done ------------------------------------------------------------------
             }
         }
@@ -220,7 +245,7 @@ void EmTrackMichelId::produce(art::Event & evt)
 	    	cluMap[cryo][tpc][view].push_back(c.key());
 	    }
 
-        auto cluID = fMVAWriter.initOutputs<recob::Cluster>(fNewClustersTag, { "track", "em", "michel", "none" });
+        auto cluID = fMVAWriter.initOutputs<recob::Cluster>(fNewClustersTag, fPointIdAlg.outputLabels());
 
         unsigned int cidx = 0; // new clusters index
         art::FindManyP< recob::Hit > hitsFromClusters(cluListHandle, evt, fClusterModuleLabel);
@@ -321,7 +346,7 @@ void EmTrackMichelId::produce(art::Event & evt)
             }
         }
 
-        auto trkID = fMVAWriter.initOutputs<recob::Track>(fTrackModuleLabel, trkHitPtrList.size(), { "track", "em", "michel", "none" });
+        auto trkID = fMVAWriter.initOutputs<recob::Track>(fTrackModuleLabel, trkHitPtrList.size(), fPointIdAlg.outputLabels());
         for (size_t t = 0; t < trkHitPtrList.size(); ++t) // t is the Ptr< recob::Track >::key()
         {
             auto vout = fMVAWriter.getOutput<recob::Hit>(trkHitPtrList[t],

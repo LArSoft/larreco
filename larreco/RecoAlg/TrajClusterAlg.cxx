@@ -2592,7 +2592,7 @@ namespace tca {
     }
     mom/=sumw;
     mom*=0.001;
-    const int pdgid = (pfp.PDGCode!=0 ? pfp.PDGCode : 13);
+    const int pdgid = (pfp.PDGCode!=0 ? pfp.PDGCode : 2212);
     SVector5 trackStatePar(0.,0.,0.,0.,1./mom);
     KFTrackState trackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);
     std::vector<HitState> hitstatev;
@@ -2607,10 +2607,23 @@ namespace tca {
         float rms = tjs.detprop->ConvertTicksToX(posPlusRMS, planeid.Plane, planeid.TPC, planeid.Cryostat) - xpos;
 	//do we need to account for multiplicity as in HitTimeErr?
 	float xposerr = rms*fHitErrFac;
+	bool notused = true;
+	for (unsigned int ih=0;ih<iTp.Hits.size();++ih) {
+	  if (iTp.UseHit[ih]) {
+	    notused = false;
+	    break;
+	  }
+	}
+	// std::cout << std::setprecision(10);
+	// std::cout << "hit plane=" << planeid << " wire=" << wire << " xpos=" << xpos << " xposerr=" << xposerr << " nhits=" << iTp.Hits.size() << " wirepos=" << iTp.Pos[0] << " used=" << !notused << std::endl;
+	if (notused) continue;
         hitstatev.push_back( std::move( HitState(xpos,xposerr*xposerr,wid,tjs.geom->WireIDToWireGeo(wid)) ) );
       }
     }
     std::vector<recob::TrajectoryPointFlags::Mask_t> hitflagsv(hitstatev.size());
+    // printouts
+    // std::cout << std::setprecision(6) << std::endl;
+    // std::cout << "fitting pfp #" << pfp.ID << " with nhits=" << hitstatev.size() << " pos=" << position << " dir=" << direction << " mom=" << mom << " pid=" << pdgid << std::endl;
     // now the outputs
     std::vector<KFTrackState> fwdPrdTkState;
     std::vector<KFTrackState> fwdUpdTkState;
@@ -2622,7 +2635,10 @@ namespace tca {
     if (!fitok) {
       fitok = kalmanFitter.doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx, false);
     }
-    if (!fitok) return;
+    if (!fitok) {
+      // std::cout << "fit failed" << std::endl;
+      return;
+    }
     // make the track
     int ndof = -4;
     float chi2 = 0;;
@@ -2639,6 +2655,21 @@ namespace tca {
       flags.push_back(recob::TrajectoryPointFlags(originalPos,hitflags));
       chi2 += fwdUpdTkState[p].chi2(hitstatev[hitstateidx[p]]);
       ndof++;
+      // std::cout << "ok hit original pos=" << originalPos << " wire=" << hitstatev[originalPos].wireId() << " pos=" << trackstate.position() << " mom=" << trackstate.momentum() << std::endl;
+    }
+    // fill also with rejected hits information
+    SMatrixSym55 fakeCov55;
+    for (int i=0;i<5;i++) for (int j=i;j<5;j++) fakeCov55(i,j) = util::kBogusD;
+    for (unsigned int rejidx = 0; rejidx<rejectedhsidx.size(); ++rejidx) {
+      const unsigned int originalPos = rejectedhsidx[rejidx];//(reverseHits ? hitstatev.size()-rejectedhsidx[rejidx]-1 : rejectedhsidx[rejidx]);
+      auto& mask = hitflagsv[rejectedhsidx[rejidx]];
+      mask.set(recob::TrajectoryPointFlagTraits::HitIgnored,recob::TrajectoryPointFlagTraits::NoPoint);
+      if (mask.isSet(recob::TrajectoryPointFlagTraits::Rejected)==0) mask.set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
+      //
+      positions.push_back(Point_t(util::kBogusD,util::kBogusD,util::kBogusD));
+      momenta.push_back(Vector_t(util::kBogusD,util::kBogusD,util::kBogusD));
+      flags.push_back(recob::TrajectoryPointFlags(originalPos,mask));
+      // std::cout << "rj hit original pos=" << originalPos << " wire=" << hitstatev[originalPos].wireId() << std::endl;
     }
     bool propok = true;
     KFTrackState resultF = prop.rotateToPlane(propok, fwdUpdTkState[sortedtksidx.front()].trackState(),
@@ -2648,6 +2679,9 @@ namespace tca {
     //
     pfp.Track = recob::Track(std::move(positions), std::move(momenta), std::move(flags), true, pdgid, chi2, ndof,
                              SMatrixSym55(resultF.covariance()), SMatrixSym55(resultB.covariance()), pfp.ID);
+    // printouts
+    // std::cout << "fit succeeded with npoints=" << sortedtksidx.size() << " rejected=" << rejectedhsidx.size() << " start=" << pfp.Track.Start() << " dir=" << pfp.Track.StartDirection() << " nchi2=" << pfp.Track.Chi2PerNdof() << std::endl;
+    //
   } // KalmanFilterFit
 
   //////////////////////////////////////////

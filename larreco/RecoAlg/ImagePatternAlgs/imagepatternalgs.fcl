@@ -20,15 +20,15 @@ standard_pointidtrainingnuevent:
 {
     module_type:     "PointIdTrainingNuevent"
 
-	  SelectedView:    []
-    OutTextFilePath: "."
-    DumpToRoot:      true  # if true then data is dumped to root histograms
+    SelectedView:    []
+    SaveDepositMap:  false
+    SavePdgMap:      false
 
     GenModuleLabel:  "generator"
     FidVolCut:	      20.0
     Crop:             true		
 
-    TrainingDataAlg:  @local::standard_trainingdataalg
+    TrainingDataAlg:        @local::standard_trainingdataalg
 }
 
 standard_pointidefftest:
@@ -37,6 +37,8 @@ standard_pointidefftest:
 	CalorimetryAlg:         @local::standard_calorimetryalgmc
 
     SimModuleLabel:         "largeant"	
+
+    PfpModuleLabel:         "pandora" # for comparison
 
    	NNetModuleLabel:        "emtrackid"
     View:                   2
@@ -62,6 +64,7 @@ standard_emtrackclusterid:
                                           # - NOTE: use tracks made of hits configured with HitModuleLabel
 
     PointIdAlg:             @local::standard_pointidalg
+    BatchSize:              256  # number of inputs to process in a single batch (parallelized with TF)
 
     Views:                  []  # do processing in selected views only, or use all views if empty list
 }

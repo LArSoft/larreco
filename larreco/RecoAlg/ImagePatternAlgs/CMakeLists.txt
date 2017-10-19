@@ -1,4 +1,7 @@
 
+# tensorflow eigen headers
+include_directories ( $ENV{TENSORFLOW_INC}/eigen )
+
 simple_plugin(PointIdTrainingData "module"
 			larcore_Geometry_Geometry_service
 			larcorealg_Geometry
@@ -155,8 +158,8 @@ simple_plugin(ParticleDecayId "module"
 			${ROOT_BASIC_LIB_LIST}
 )
 
+add_subdirectory(TF)
 add_subdirectory(Keras)
-add_subdirectory(MLP)
 add_subdirectory(PointIdAlg)
 add_subdirectory(job)
 
