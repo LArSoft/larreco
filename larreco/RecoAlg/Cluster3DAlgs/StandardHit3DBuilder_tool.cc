@@ -193,6 +193,8 @@ private:
     float                                m_wirePitch[3];
     mutable std::vector<float>           m_timeVector;            ///<
     
+    float                                m_zPosOffset;
+    
     // Get instances of the primary data structures needed
     mutable Hit2DVector                  m_clusterHit2DMasterVec;
     mutable PlaneToHitVectorMap          m_planeToHitVectorMap;
@@ -228,6 +230,7 @@ void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     m_numSigmaPeakTime = pset.get<float>        ("NumSigmaPeakTime",    3.  );
     m_hitWidthSclFctr  = pset.get<float>        ("HitWidthScaleFactor", 6.  );
     m_deltaPeakTimeSig = pset.get<float>        ("DeltaPeakTimeSig",    1.7 );
+    m_zPosOffset       = pset.get<float>        ("ZPosOffset",          0.0 );
     
     art::ServiceHandle<geo::Geometry> geometry;
     
@@ -422,9 +425,9 @@ size_t StandardHit3DBuilder::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVect
             PlaneToHitVectorMap::iterator mapItr1 = planeToHitVectorMap.find(geo::PlaneID(cryoIdx,tpcIdx,1));
             PlaneToHitVectorMap::iterator mapItr2 = planeToHitVectorMap.find(geo::PlaneID(cryoIdx,tpcIdx,2));
             
-            size_t nPlanesWithHits = (mapItr0 != planeToHitVectorMap.end() ? 1 : 0)
-            + (mapItr1 != planeToHitVectorMap.end() ? 1 : 0)
-            + (mapItr2 != planeToHitVectorMap.end() ? 1 : 0);
+            size_t nPlanesWithHits = (mapItr0 != planeToHitVectorMap.end() && !mapItr0->second.empty() ? 1 : 0)
+                                   + (mapItr1 != planeToHitVectorMap.end() && !mapItr1->second.empty() ? 1 : 0)
+                                   + (mapItr2 != planeToHitVectorMap.end() && !mapItr2->second.empty() ? 1 : 0);
             
             if (nPlanesWithHits < 2) continue;
             
@@ -437,11 +440,9 @@ size_t StandardHit3DBuilder::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVect
             std::sort(hitVector1.begin(), hitVector1.end(), SetHitStartTimeOrder);
             std::sort(hitVector2.begin(), hitVector2.end(), SetHitStartTimeOrder);
             
-            PlaneHitVectorItrPairVec hitItrVec
-            = {HitVectorItrPair(hitVector0.begin(),hitVector0.end()),
-                HitVectorItrPair(hitVector1.begin(),hitVector1.end()),
-                HitVectorItrPair(hitVector2.begin(),hitVector2.end())
-            };
+            PlaneHitVectorItrPairVec hitItrVec = {HitVectorItrPair(hitVector0.begin(),hitVector0.end()),
+                                                  HitVectorItrPair(hitVector1.begin(),hitVector1.end()),
+                                                  HitVectorItrPair(hitVector2.begin(),hitVector2.end())};
             
             totalNumHits += BuildHitPairMapByTPC(hitItrVec, hitPairList);
         }
@@ -613,20 +614,23 @@ void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMa
         {
             if (pair12.second.empty()) continue;
             
+            // Use the planeID for the first hit
+            geo::WireID missingPlaneID = pair12.second.front().second.getWireIDs()[0];
+            
             // "Discover" the missing view (and we can't rely on assuming there are hits in the pair13Map at this point)
             size_t missPlane = 0;
             
             if      (!pair12.second.front().second.getHits()[1]) missPlane = 1;
             else if (!pair12.second.front().second.getHits()[2]) missPlane = 2;
             
-            geo::WireID missingPlaneID(0,0,missPlane,0);
+            missingPlaneID.Plane = missPlane;
             
             // This loop is over hit pairs that share the same first two plane wires but may have different
             // hit times on those wires
             for(const auto& hit2Dhit3DPair : pair12.second)
             {
                 const reco::ClusterHit3D& pair1  = hit2Dhit3DPair.second;
-                
+
                 // Get the wire ID for the nearest wire to the position of this hit
                 geo::WireID wireID = NearestWireID(pair1.getPosition(), missingPlaneID);
                 
@@ -715,10 +719,10 @@ void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMa
 }
 
 bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
-                                  const reco::ClusterHit2D* hit1,
-                                  const reco::ClusterHit2D* hit2,
-                                  float                     hitWidthSclFctr,
-                                  size_t                    hitPairCntr) const
+                                       const reco::ClusterHit2D* hit1,
+                                       const reco::ClusterHit2D* hit2,
+                                       float                     hitWidthSclFctr,
+                                       size_t                    hitPairCntr) const
 {
     // Assume failure
     bool result(false);
@@ -741,7 +745,7 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
         
         float hit1Width = hitWidthSclFctr * hit1Sigma;
         float hit2Width = hitWidthSclFctr * hit2Sigma;
-        
+
         // Coarse check hit times are "in range"
         if (fabs(hit1Peak - hit2Peak) <= (hit1Width + hit2Width))
         {
@@ -761,7 +765,7 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
                 float xPositionHit2(hit2->getXPosition());
                 float xPosition = (xPositionHit1 / hit1SigSq + xPositionHit2 / hit2SigSq) * hit1SigSq * hit2SigSq / (hit1SigSq + hit2SigSq);
                 
-                float position[] = {xPosition, float(widIntersect.y), float(widIntersect.z)};
+                float position[] = {xPosition, float(widIntersect.y), float(widIntersect.z)-m_zPosOffset};
                 
                 // If to here then we need to sort out the hit pair code telling what views are used
                 unsigned statusBits = 1 << hit1->getHit().WireID().Plane | 1 << hit2->getHit().WireID().Plane;
@@ -778,8 +782,13 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
                 hitVector.at(hit1->getHit().WireID().Plane) = hit1;
                 hitVector.at(hit2->getHit().WireID().Plane) = hit2;
                 
-                // And get the wire IDs
-                std::vector<geo::WireID> wireIDVec = {geo::WireID(0,0,geo::kU,0), geo::WireID(0,0,geo::kV,0), geo::WireID(0,0,geo::kW,0)};
+                unsigned int cryostatIdx = hit1->getHit().WireID().Cryostat;
+                unsigned int tpcIdx      = hit1->getHit().WireID().TPC;
+                
+                // Initialize the wireIdVec
+                std::vector<geo::WireID> wireIDVec = {geo::WireID(cryostatIdx,tpcIdx,0,0),
+                                                      geo::WireID(cryostatIdx,tpcIdx,1,0),
+                                                      geo::WireID(cryostatIdx,tpcIdx,2,0)};
                 
                 wireIDVec[hit1->getHit().WireID().Plane] = hit1->getHit().WireID();
                 wireIDVec[hit2->getHit().WireID().Plane] = hit2->getHit().WireID();
@@ -797,7 +806,7 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
                                              totalCharge,
                                              avePeakTime,
                                              deltaPeakTime,
-                                             0.5 * sigmaPeakTime,
+                                             sigmaPeakTime,
                                              0.,
                                              0.,
                                              hitDelTSigVec,
@@ -814,8 +823,8 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
 
 
 bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
-                                     const reco::ClusterHit3D& pair,
-                                     const reco::ClusterHit2D* hit) const
+                                          const reco::ClusterHit3D& pair,
+                                          const reco::ClusterHit2D* hit) const
 {
     // Assume failure
     bool result(false);
@@ -826,14 +835,14 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     
     if      (!hit0) hit0 = pair.getHits()[2];
     else if (!hit1) hit1 = pair.getHits()[2];
-    
+
     // Let's do a quick consistency check on the input hits to make sure we are in range...
     // Require the W hit to be "in range" with the UV Pair
     if (fabs(hit->getTimeTicks() - pair.getAvePeakTime()) < m_hitWidthSclFctr * (pair.getSigmaPeakTime() + hit->getHit().RMS()))
     {
         // Timing in range, now check that the input hit wire "intersects" with the input pair's wires
-        geo::WireID wireID   = NearestWireID(pair.getPosition(), hit->getHit().WireID());
-        
+        geo::WireID wireID = NearestWireID(pair.getPosition(), hit->getHit().WireID());
+
         // There is an interesting round off issue that we need to watch for...
         if (wireID.Wire == hit->getHit().WireID().Wire || wireID.Wire + 1 == hit->getHit().WireID().Wire)
         {
@@ -852,13 +861,18 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                 pairVec[hit0->getHit().WireID().Plane] = &pair1h;
                 pairVec[hit1->getHit().WireID().Plane] = &pair0h;
                 
-                float deltaZ_w  = pairVec[2]->getPosition()[2] - 0.5 * (pairVec[0]->getPosition()[2] + pairVec[1]->getPosition()[2]);
-                float deltaY_uv = pairVec[1]->getPosition()[1] - pairVec[0]->getPosition()[1];
+                // We want to make sure the 3 sets of pair are really consistent - ie the difference in position in the Y-Z
+                // plane (the wire plane) is less than the wire pitch. Note that we are forming an equalateral triangle so we
+                // really only need compute one side of it to get the answer we're looking for...
+                float deltaPairY = pair1h.getPosition()[1] - pair0h.getPosition()[1];
+                float deltaPairZ = pair1h.getPosition()[2] - pair0h.getPosition()[2];
+                double yzdistance = std::sqrt(deltaPairY * deltaPairY + deltaPairZ * deltaPairZ);
                 
                 // The intersection of wires on 3 planes is actually an equilateral triangle... Each pair will have its position at one of the
                 // corners, the difference in distance along the z axis will be 1/2 wire spacing, the difference along the y axis is
                 // 1/2 wire space / cos(pitch)
-                if (std::fabs(std::fabs(deltaZ_w) - 0.5 * m_wirePitch[2]) < .05 && std::fabs(std::fabs(deltaY_uv) - 0.5774 * m_wirePitch[2]) < 0.05)
+//                if (std::fabs(std::fabs(deltaZ_w) - 0.5 * m_wirePitch[2]) < .05 && std::fabs(std::fabs(deltaY_uv) - 0.5774 * m_wirePitch[2]) < 0.05)
+                if (yzdistance < 0.3)
                 {
                     // Weighted average, delta and sigmas
                     float hitSigma      = hit->getHit().RMS();
@@ -873,8 +887,8 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     // The x position is a weighted sum but the y-z position is simply the average
                     float xPosition   = (hit->getXPosition() * hitWidWeight + hit0->getXPosition() * hit0WidWeight + hit1->getXPosition() * hit1WidWeight) * denominator;
                     float position[]  = { xPosition,
-                        float((pair.getPosition()[1] + pair0h.getPosition()[1] + pair1h.getPosition()[1]) / 3.),
-                        float((pair.getPosition()[2] + pair0h.getPosition()[2] + pair1h.getPosition()[2]) / 3.)};
+                                          float((pair.getPosition()[1] + pair0h.getPosition()[1] + pair1h.getPosition()[1]) / 3.),
+                                          float((pair.getPosition()[2] + pair0h.getPosition()[2] + pair1h.getPosition()[2]) / 3.)};
                     float totalCharge = pair.getTotalCharge() + pair0h.getTotalCharge() + pair1h.getTotalCharge();
                     
                     std::vector<const reco::ClusterHit2D*> hitVector(3);
@@ -944,7 +958,6 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     
                     result = true;
                 }
-                //                else std::cout << "3D Build --> rejecting triplet by position, delta z: " << deltaZ_w << ", delta y: " << deltaY_uv << std::endl;
             }
         }
     }
@@ -985,7 +998,7 @@ bool StandardHit3DBuilder::makeDeadChannelPair(reco::ClusterHit3D&       pairOut
     geo::WireID wireID1 = hit1->getHit().WireID();
     
     // Ok, recover the wireID expected in the third plane...
-    geo::WireID wireIn(0,0,missPlane,0);
+    geo::WireID wireIn(wireID0.Cryostat,wireID0.TPC,missPlane,0);
     geo::WireID wireID = NearestWireID(pair.getPosition(), wireIn);
     
     // There can be a round off issue so check the next wire as well
@@ -1010,7 +1023,7 @@ bool StandardHit3DBuilder::makeDeadChannelPair(reco::ClusterHit3D&       pairOut
                 float newPosition[] = {pair.getPosition()[0],pair.getPosition()[1],pair.getPosition()[2]};
                 
                 newPosition[1] = (newPosition[1] + widIntersect0.y + widIntersect1.y) / 3.;
-                newPosition[2] = (newPosition[2] + widIntersect0.z + widIntersect1.z) / 3.;
+                newPosition[2] = (newPosition[2] + widIntersect0.z + widIntersect1.z - 2. * m_zPosOffset) / 3.;
                 
                 pairOut = pair;
                 pairOut.setWireID(wireID);
@@ -1084,12 +1097,15 @@ int StandardHit3DBuilder::FindNumberInRange(const Hit2DSet& hit2DSet, const reco
 
 geo::WireID StandardHit3DBuilder::NearestWireID(const float* position, const geo::WireID& wireIDIn) const
 {
-    geo::WireID wireID(wireIDIn,0);
+    geo::WireID wireID = wireIDIn;
     
     // Embed the call to the geometry's services nearest wire id method in a try-catch block
     try
     {
-        wireID = m_geometry->NearestWireID(position, wireIDIn.Plane);
+        // Shift the z coordinate to compensate for an unknown offset...
+        float locPosition[] = {position[0],position[1],position[2]}; // - m_zPosOffset};
+        
+        wireID = m_geometry->NearestWireID(locPosition, geo::PlaneID(wireIDIn.Cryostat,wireIDIn.TPC,wireIDIn.Plane));
     }
     catch(std::exception& exc)
     {
@@ -1136,15 +1152,26 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
     // (note this is already taken care of when converting to position)
     std::map<size_t, double> planeOffsetMap;
     
-    planeOffsetMap[0] = m_detector->GetXTicksOffset(0, 0, 0)-m_detector->TriggerOffset();
-    planeOffsetMap[1] = m_detector->GetXTicksOffset(1, 0, 0)-m_detector->TriggerOffset();
-    planeOffsetMap[2] = m_detector->GetXTicksOffset(2, 0, 0)-m_detector->TriggerOffset();
+    planeOffsetMap[0] = 0; //m_detector->GetXTicksOffset(0, 0, 0)-m_detector->TriggerOffset();
+    planeOffsetMap[1] = 0; //m_detector->GetXTicksOffset(1, 0, 0)-m_detector->TriggerOffset();
+    planeOffsetMap[2] = 0; //m_detector->GetXTicksOffset(2, 0, 0)-m_detector->TriggerOffset();
     
     std::cout << "***> plane 0 offset: " << planeOffsetMap[0] << ", plane 1: " << planeOffsetMap[1] << ", plane 2: " << planeOffsetMap[2] << std::endl;
     
     // Reserve memory for the hit vector
     m_clusterHit2DMasterVec.reserve(recobHitHandle->size());
     
+    // Initialize the plane to hit vector map
+    for(size_t cryoIdx = 0; cryoIdx < m_geometry->Ncryostats(); cryoIdx++)
+    {
+        for(size_t tpcIdx = 0; tpcIdx < m_geometry->NTPC(); tpcIdx++)
+        {
+            m_planeToHitVectorMap[geo::PlaneID(cryoIdx,tpcIdx,0)] = HitVector();
+            m_planeToHitVectorMap[geo::PlaneID(cryoIdx,tpcIdx,1)] = HitVector();
+            m_planeToHitVectorMap[geo::PlaneID(cryoIdx,tpcIdx,2)] = HitVector();
+        }
+    }
+
     // Cycle through the recob hits to build ClusterHit2D objects and insert
     // them into the map
     for (size_t cIdx = 0; cIdx < recobHitHandle->size(); cIdx++)

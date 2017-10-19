@@ -83,9 +83,9 @@ kdTree::KdTreeNode kdTree::BuildKdTree(const reco::HitPairList& hitPairList,
 }
     
 kdTree::KdTreeNode& kdTree::BuildKdTree(Hit3DVec::iterator first,
-                                                        Hit3DVec::iterator last,
-                                                        KdTreeNodeList&    kdTreeNodeContainer,
-                                                        int                depth) const
+                                        Hit3DVec::iterator last,
+                                        KdTreeNodeList&    kdTreeNodeContainer,
+                                        int                depth) const
 {
     // Ok, so if the input list is more than one element then we have work to do... but if less then handle end condition
     if (std::distance(first,last) < 2)
@@ -130,7 +130,7 @@ kdTree::KdTreeNode& kdTree::BuildKdTree(Hit3DVec::iterator first,
         }
         
         KdTreeNode::SplitAxis axis[]    = {KdTreeNode::xPlane,KdTreeNode::yPlane,KdTreeNode::zPlane};
-        float                axisVal   = 0.5*((*middleItr)->getPosition()[maxRangeIdx] + (*(middleItr-1))->getPosition()[maxRangeIdx]);
+        float                 axisVal   = 0.5*((*middleItr)->getPosition()[maxRangeIdx] + (*(middleItr-1))->getPosition()[maxRangeIdx]);
         KdTreeNode&           leftNode  = BuildKdTree(first,     middleItr, kdTreeNodeContainer, depth+1);
         KdTreeNode&           rightNode = BuildKdTree(middleItr, last,      kdTreeNodeContainer, depth+1);
     
@@ -252,7 +252,7 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
     
     bool consistent(false);
     
-    if (bestDist < std::numeric_limits<float>::max())
+    if (bestDist < std::numeric_limits<float>::max() && pair1->getWireIDs()[0].Cryostat == pair2->getWireIDs()[0].Cryostat && pair1->getWireIDs()[0].TPC == pair2->getWireIDs()[0].TPC)
     {
         // Loose constraint to weed out the obviously bad combinations
         // So this is not strictly correct but is close enough and should save computation time...
@@ -275,6 +275,9 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
                 // Final cut...
                 if (hitSeparation < bestDist)
                 {
+                    std::cout << "==> Peak t,sig: " << pair1->getAvePeakTime() << "/" << pair1->getSigmaPeakTime() << ", " << pair2->getAvePeakTime() << "/" << pair1->getSigmaPeakTime() << ", wire Deltas: " << wireDeltas[0] << "/" << wireDeltas[1] << "/" << wireDeltas[2] << ", hit sep: " << hitSeparation << std::endl;
+                    std::cout << "         wires: " << pair1->getWireIDs()[0].Wire << "/" << pair1->getWireIDs()[1].Wire << "/" << pair1->getWireIDs()[2].Wire << ", " << pair2->getWireIDs()[0].Wire << "/" << pair2->getWireIDs()[1].Wire << "/" << pair2->getWireIDs()[2].Wire << std::endl;
+                    
                     bestDist = hitSeparation;
                     consistent = true;
                 }
