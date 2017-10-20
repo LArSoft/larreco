@@ -2044,10 +2044,10 @@ namespace tca {
         --newEndPt;
         continue;
       }
-      for(unsigned short jj = 0; jj < minPts; ++jj) {
+      for(unsigned short jj = 0; jj < minPts && jj<= newEndPt; ++jj) {
         unsigned short jpt = newEndPt - jj;
         if(tj.Pts[jpt].Chg > 0) ++nPtsWithCharge; 
-        if(jpt < minPts) break;
+        //if(jpt < minPts) break; //TY: so trajectory with 4 points won't be killed
       } // jj
       
       float ptSep = std::abs(tj.Pts[newEndPt - minPts].Pos[0] - tj.Pts[newEndPt].Pos[0]);
