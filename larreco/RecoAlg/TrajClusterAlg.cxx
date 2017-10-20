@@ -477,6 +477,7 @@ namespace tca {
       // Look for incomplete 3D vertices that won't be recovered because there are
       // missing trajectories in a plane
       FindMissedVxTjs(tpcid);
+      prt = (debug.Plane >= tjs.NumPlanes && debug.Tick == 6666);
       ScoreVertices(tjs, tpcid, prt);
       TagProtons(tjs, tpcid, prt);
       // Define the ParentID of trajectories using the vertex score
@@ -536,7 +537,7 @@ namespace tca {
       ++ntj;
       if(tj.AlgMod[kShowerTj]) ++nsh;
     } // tj
-    if(fDebugMode) std::cout<<"RTC done ntj "<<ntj<<" nsh "<<nsh<<" events processed "<<tjs.EventsProcessed<<"\n";
+    if(fDebugMode) std::cout<<"RTC done ntjs "<<ntj<<" nshowers "<<nsh<<" events processed "<<tjs.EventsProcessed<<"\n";
     
     if(tjs.MatchTruth[0] >= 0) tm.PrintResults(fEvent);
     
@@ -2293,6 +2294,28 @@ namespace tca {
             if(mrgPrt) mf::LogVerbatim("TC")<<"  New vtx Vx_"<<aVtx.ID<<" at "<<(int)aVtx.Pos[0]<<":"<<(int)(aVtx.Pos[1]/tjs.UnitsPerTick);
             if(!StoreVertex(tjs, aVtx)) continue;
             SetVx2Score(tjs, prt);
+            // check the score and kill it if it is below the cut
+            auto& newVx2 = tjs.vtx[tjs.vtx.size() - 1];
+            if(newVx2.Score < tjs.Vertex2DCuts[7] && CompatibleMerge(tjs, tj1, tj2, mrgPrt)) {
+              tjs.allTraj[it1].VtxID[end1] = 0;
+              tjs.allTraj[it2].VtxID[end2] = 0;
+              tjs.vtx.pop_back();
+              bool didMerge = false;
+              if(end1 == 1) {
+                didMerge = MergeAndStore(tjs, it1, it2, mrgPrt);
+              } else {
+                didMerge = MergeAndStore(tjs, it2, it1, mrgPrt);
+              }
+              if(didMerge) {
+                // Set the end merge flag for the killed trajectories to aid tracing merges
+                tj1.AlgMod[kMerge] = true;
+                tj1.AlgMod[kMerge] = true;
+                iterate = true;
+              } // Merge and store successfull
+              else {
+                if(mrgPrt) mf::LogVerbatim("TC")<<"  MergeAndStore failed ";
+              }
+            }
           } // create a vertex
           if(tj1.AlgMod[kKilled]) break;
         } // end1

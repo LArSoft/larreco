@@ -27,6 +27,7 @@ namespace tca {
       TSums.fill(0.0);
       EPTSums.fill(0.0);
       TruVxCounts.fill(0);
+      RecoVx2Count = 0;
       MCP_TSum = 0;
       MCP_EPTSum = 0;
       MCP_Cnt = 0;
@@ -60,14 +61,7 @@ namespace tca {
     // [2] = the number of those [1] in which a reconstructed vertex is within 1 cm of the true vertex
     // [3] = the number of those [2] in which the reconstructed vertex is identified as the true vertex
     std::array<unsigned short, 4> TruVxCounts;
-/*
-    // number of reconstructable primary particles in the event
-    unsigned short nTruPrimaryOK;
-    // number of reconstructable neutrino vertices in ALL events
-    unsigned short nTruPrimaryVtxOK;
-    // number of reconstructable neutrino vertices in ALL events that were reconstructed
-    unsigned short nTruPrimaryVtxReco;
-*/
+    unsigned int RecoVx2Count;
   };
   
   class MCParticleListUtils
