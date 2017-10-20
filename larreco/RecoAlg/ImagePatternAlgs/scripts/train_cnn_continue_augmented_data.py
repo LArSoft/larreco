@@ -20,6 +20,7 @@ keras.backend.set_image_dim_ordering('tf')
 
 import numpy as np
 np.random.seed(2017)  # for reproducibility
+from keras.preprocessing.image import ImageDataGenerator
 from keras.models import model_from_json
 from keras.optimizers import SGD
 from keras.utils import np_utils
@@ -65,10 +66,10 @@ print 'Compiling CNN model...'
 with tf.device('/gpu:' + args.gpu):
     model = load_model(cfg_name)
 
-    sgd = SGD(lr=0.005, decay=1e-5, momentum=0.9, nesterov=True)
+    sgd = SGD(lr=0.002, decay=1e-5, momentum=0.9, nesterov=True)
     model.compile(optimizer=sgd,
                   loss={'em_trk_none_netout': 'categorical_crossentropy', 'michel_netout': 'mean_squared_error'},
-                  loss_weights={'em_trk_none_netout': 0.1, 'michel_netout': 1.})
+                  loss_weights={'em_trk_none_netout': 0.1, 'michel_netout': 1.0})
 
 #######################  read data sets  ############################
 n_training = count_events(CNN_INPUT_DIR, 'training')
@@ -129,13 +130,31 @@ dataY = None
 print 'Training', X_train.shape, 'testing', X_test.shape
 
 ##########################  training  ###############################
+datagen = ImageDataGenerator(
+                featurewise_center=False, samplewise_center=False,
+                featurewise_std_normalization=False,
+                samplewise_std_normalization=False,
+                zca_whitening=False,
+                rotation_range=0, width_shift_range=0, height_shift_range=0,
+                horizontal_flip=True, # randomly flip images
+                vertical_flip=False)  # only horizontal flip
+datagen.fit(X_train)
+
+def generate_data_generator(generator, X, Y1, Y2, b):
+    genY1 = generator.flow(X, Y1, batch_size=b, seed=7)
+    genY2 = generator.flow(X, Y2, batch_size=b, seed=7)
+    while True:
+            g1 = genY1.next()
+            g2 = genY2.next()
+            yield {'main_input': g1[0]}, {'em_trk_none_netout': g1[1], 'michel_netout': g2[1]}
+
 print 'Fit config:', cfg_name
-h = model.fit({'main_input': X_train},
-              {'em_trk_none_netout': EmTrkNone_train, 'michel_netout': Michel_train},
+h = model.fit_generator(
+              generate_data_generator(datagen, X_train, EmTrkNone_train, Michel_train, b=batch_size),
               validation_data=(
                   {'main_input': X_test},
                   {'em_trk_none_netout': EmTrkNone_test, 'michel_netout': Michel_test}),
-              batch_size=batch_size, epochs=nb_epoch, shuffle=True,
+              steps_per_epoch=X_train.shape[0]/batch_size, epochs=nb_epoch,
               verbose=1)
 
 X_train = None

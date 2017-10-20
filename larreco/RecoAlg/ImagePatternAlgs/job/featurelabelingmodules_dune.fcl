@@ -4,6 +4,7 @@ BEGIN_PROLOG
 
 protodune_emtrkmichelid:                              @local::standard_emtrackmichelid
 protodune_emtrkmichelid.PointIdAlg.NNetModelFile:     "CnnModels/cnn_emtrackid_pitch_5_wire_44_drift_48_down_6_mean_notes_protoduneBeamAndCosmics.nnet"
+protodune_emtrkmichelid.PointIdAlg.NNetOutputs:       ["track", "em", "michel", "none"]
 protodune_emtrkmichelid.PointIdAlg.PatchSizeW:        44
 protodune_emtrkmichelid.PointIdAlg.PatchSizeD:        48
 protodune_emtrkmichelid.PointIdAlg.DriftWindow:       6

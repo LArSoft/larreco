@@ -53,7 +53,7 @@ namespace tca {
     "MergeSubShowers",
     "MergeNrShowers",
     "MergeShChain",
-    "SplitTarjCV"  
+    "SplitTrajCV"  
   };
 
   const std::vector<std::string> StopFlagNames {
@@ -75,11 +75,12 @@ namespace tca {
   } ;
   
   geo::PlaneID DecodeCTP(CTP_t CTP) {
-    geo::PlaneID tmp;
-    tmp.Cryostat = CTP / Cpad;
-    tmp.TPC = (CTP - tmp.Cryostat * Cpad) / Tpad;
-    tmp.Plane = (CTP % 10);
-    return tmp;
+    auto const cryo = (CTP / Cpad);
+    return geo::PlaneID(
+      /* Cryostat */ cryo,
+           /* TPC */ (CTP - cryo * Cpad) / Tpad,
+         /* Plane */ (CTP % 10)
+      );
   }
   
 } // namespace tca

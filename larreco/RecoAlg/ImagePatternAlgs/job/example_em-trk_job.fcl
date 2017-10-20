@@ -57,6 +57,7 @@ outputs:
 # Model configuration:
 #
 physics.producers.emtrkmichelid.PointIdAlg.NNetModelFile:      "/home/your_dir/your_cnn_model.nnet" # your model (there is no default one in repository!)
+physics.producers.emtrkmichelid.PointIdAlg.NNetOutputs:        ["track", "em", "michel", "none"]    # be sure that the order corresponds to your model outputs
 physics.producers.emtrkmichelid.PointIdAlg.PatchSizeW:         44     # how many wires in patch
 physics.producers.emtrkmichelid.PointIdAlg.PatchSizeD:         48     # how many downsampled ADC entries
 physics.producers.emtrkmichelid.PointIdAlg.DriftWindow:        6      # downsampling window in drift ticks
