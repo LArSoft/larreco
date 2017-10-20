@@ -53,7 +53,7 @@ namespace tca {
     "MergeSubShowers",
     "MergeNrShowers",
     "MergeShChain",
-    "SplitTarjCV"  
+    "SplitTrajCV"  
   };
 
   const std::vector<std::string> StopFlagNames {
