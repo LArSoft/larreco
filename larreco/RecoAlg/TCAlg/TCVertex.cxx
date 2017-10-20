@@ -783,6 +783,13 @@ namespace tca {
         if(NumPtsWithCharge(tjs,tjs.allTraj[itj] , false) > maxPts && maxPts < 100) skipit = true;
         if(prt) mf::LogVerbatim("TC")<<"  maxPts "<<maxPts<<" vxtjs[0] "<<vxtjs[0]<<" skipit? "<<skipit;
         if(skipit) continue;
+
+        // improve closePt based on vertex position
+        // check if closePt and EndPt[1] are the two sides of vertex
+        // take dot product of closePt-vtx and EndPt[1]-vtx
+        if ((tjs.allTraj[itj].Pts[closePt].Pos[0]-tjs.vtx[iv].Pos[0])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[1]].Pos[0]-tjs.vtx[iv].Pos[0]) + (tjs.allTraj[itj].Pts[closePt].Pos[1]-tjs.vtx[iv].Pos[1])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[1]].Pos[1]-tjs.vtx[iv].Pos[1]) <0 && closePt < tjs.allTraj[itj].EndPt[1] - 1) ++closePt;
+        else if ((tjs.allTraj[itj].Pts[closePt].Pos[0]-tjs.vtx[iv].Pos[0])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]].Pos[0]-tjs.vtx[iv].Pos[0]) + (tjs.allTraj[itj].Pts[closePt].Pos[1]-tjs.vtx[iv].Pos[1])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]].Pos[1]-tjs.vtx[iv].Pos[1]) <0 && closePt > tjs.allTraj[itj].EndPt[0] + 1) --closePt;
+        
         if(prt)  {
           mf::LogVerbatim("TC")<<"Good doca "<<doca<<" btw traj "<<itj<<" and tjs.vtx "<<iv<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
           PrintTrajPoint("STCV", tjs, closePt, 1, tPass, tjs.allTraj[itj].Pts[closePt]);
