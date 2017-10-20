@@ -1,12 +1,13 @@
-////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class:       PointIdTrainingNuevent
 // Author:      P.Plonski, R.Sulej (Robert.Sulej@cern.ch), D.Stefan (Dorota.Stefan@cern.ch), May 2016
 //
-// Training data for PointIdAlg
+// Produces "global image" of events in multi-tpc detector, could be FD workspace or ProtoDUNE.
+// Projections of ADC are saved to 1-byte / pixel (TH1C) format, int-size (TH2I) projection of PDG
+// truth and float-size (TH2F) projection of true charge deposits can be saved as well. We use this
+// to dump deconvoluted ADC images for preparation of various classifiers and CNN based pattern reco.
 //
-//      We use this to dump deconv. ADC for preparation of various classifiers.
-//
-////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef PointIdTrainingNuevent_Module
 #define PointIdTrainingNuevent_Module
@@ -59,21 +60,16 @@ namespace nnet	 {
   class EventImageData // full image for one plane
   {
   public:
-    EventImageData(size_t weff, size_t nw, size_t nt, size_t nx, size_t ny, size_t nz, bool saveDep) :
+    EventImageData(size_t w, size_t d, bool saveDep) :
         fVtxX(-9999), fVtxY(-9999),
-        fLayerOffset(0), fTpcEffW(weff), fTpcSizeW(nw), fTpcSizeD(nt),
-        fNTpcX(nx), fNTpcY(ny), fNTpcZ(nz),
         fSaveDep(saveDep)
     {
-        fGeometry = &*(art::ServiceHandle<geo::Geometry>());
-
-        size_t ntotw = (fNTpcZ - 1) * fTpcEffW + fTpcSizeW;
-        fAdc.resize(ntotw, std::vector<float>(fNTpcX * fTpcSizeD, 0));
-        if (saveDep) { fDeposit.resize(ntotw, std::vector<float>(fNTpcX * fTpcSizeD, 0)); }
-        fPdg.resize(ntotw, std::vector<unsigned int>(fNTpcX * fTpcSizeD, 0));
+        fAdc.resize(w, std::vector<float>(d, 0));
+        if (saveDep) { fDeposit.resize(w, std::vector<float>(d, 0)); }
+        fPdg.resize(w, std::vector<int>(d, 0));
     }
 
-    void addTpc(const TrainingDataAlg & dataAlg);
+    void addTpc(const TrainingDataAlg & dataAlg, size_t gw, bool flipw, size_t gd, bool flipd);
     bool findCrop(size_t max_area_cut, unsigned int & w0, unsigned int & w1, unsigned int & d0, unsigned int & d1) const;
 
     const std::vector< std::vector<float> > & adcData(void) const { return fAdc; }
@@ -82,57 +78,60 @@ namespace nnet	 {
     const std::vector< std::vector<float> > & depData(void) const { return fDeposit; }
     const std::vector<float> & wireDep(size_t widx) const { return fDeposit[widx]; }
 
-    const std::vector< std::vector<unsigned int> > & pdgData(void) const { return fPdg; }
-    const std::vector<unsigned int> & wirePdg(size_t widx) const { return fPdg[widx]; }
+    const std::vector< std::vector<int> > & pdgData(void) const { return fPdg; }
+    const std::vector<int> & wirePdg(size_t widx) const { return fPdg[widx]; }
 
   private:
     std::vector< std::vector<float> > fAdc, fDeposit;
-    std::vector< std::vector<unsigned int> > fPdg;
+    std::vector< std::vector<int> > fPdg;
     int fVtxX, fVtxY;
-    size_t fLayerOffset, fTpcEffW, fTpcSizeW, fTpcSizeD;
-    size_t fNTpcX, fNTpcY, fNTpcZ;
     bool fSaveDep;
-
-    geo::GeometryCore const* fGeometry;
   };
 
-  void EventImageData::addTpc(const TrainingDataAlg & dataAlg)
+  void EventImageData::addTpc(const TrainingDataAlg & dataAlg, size_t gw, bool flipw, size_t gd, bool flipd)
   {
-    size_t tpc_z = dataAlg.TPC() / (fNTpcX * fNTpcY);
-    size_t tpc_y = (dataAlg.TPC() / fNTpcX) % fNTpcY;
-    size_t tpc_x = dataAlg.TPC() % fNTpcX;
-    bool flipd = (fGeometry->TPC(dataAlg.TPC(), dataAlg.Cryo()).DetectDriftDirection() > 0);
-    bool flipw = (dataAlg.Plane() == 1);
     float zero = dataAlg.ZeroLevel();
-    
-    size_t gw = tpc_z * fTpcEffW + tpc_y * fLayerOffset;
-    size_t gd = tpc_x * fTpcSizeD;
-
-    std::cout << "      flipw:" << flipw << " flipd:" << flipd << " nwires:" << dataAlg.NWires() << std::endl;
     for (size_t w = 0; w < dataAlg.NWires(); ++w)
     {
-        std::vector<float> & dst = fAdc[gw + w];
-        const float* src = 0;
+        size_t drift_size = dataAlg.NScaledDrifts();
+        std::vector<float> & dstAdc = fAdc[gw + w];
+        std::vector<int> & dstPdg = fPdg[gw + w];
+        const float* srcAdc = 0;
+        const int* srcPdg = 0;
         if (flipw)
         {
-            src = dataAlg.wireData(dataAlg.NWires() - w - 1).data();
+            srcAdc = dataAlg.wireData(dataAlg.NWires() - w - 1).data();
+            srcPdg = dataAlg.wirePdg(dataAlg.NWires() - w - 1).data();
         }
         else
         {
-            src = dataAlg.wireData(w).data();
+            srcAdc = dataAlg.wireData(w).data();
+            srcPdg = dataAlg.wirePdg(w).data();
         }
         if (flipd)
         {
-            for (size_t d = 0; d < fTpcSizeD; ++d)
+            for (size_t d = 0; d < drift_size; ++d) { dstAdc[gd + d] += srcAdc[drift_size - d - 1] - zero; }
+            for (size_t d = 0; d < drift_size; ++d)
             {
-                dst[gd + d] += src[fTpcSizeD - d - 1] - zero;
+                int code = srcPdg[drift_size - d - 1];
+                int best_pdg = code & nnet::TrainingDataAlg::kPdgMask;
+                int vtx_flags = (dstPdg[gd + d] | code) & nnet::TrainingDataAlg::kVtxMask;
+                dstPdg[gd + d] = vtx_flags | best_pdg; // now just overwrite pdg and keep all vtx flags
+                
+                if (code & nnet::TrainingDataAlg::kNuPri) { std::cout << "*** nu primary: " << (gw+w) << ", " << (gd+d) << std::endl; }
             }
         }
         else
         {
-            for (size_t d = 0; d < fTpcSizeD; ++d)
+            for (size_t d = 0; d < drift_size; ++d) { dstAdc[gd + d] += srcAdc[d] - zero; }
+            for (size_t d = 0; d < drift_size; ++d)
             {
-                dst[gd + d] += src[d] - zero;
+                int code = srcPdg[d];
+                int best_pdg = code & nnet::TrainingDataAlg::kPdgMask;
+                int vtx_flags = (dstPdg[gd + d] | code) & nnet::TrainingDataAlg::kVtxMask;
+                dstPdg[gd + d] = vtx_flags | best_pdg; // now just overwrite pdg and keep all vtx flags
+
+                if (code & nnet::TrainingDataAlg::kNuPri) { std::cout << "*** nu primary: " << (gw+w) << ", " << (gd+d) << std::endl; }
             }
         }
     }
@@ -235,8 +234,6 @@ namespace nnet	 {
 
     nnet::TrainingDataAlg fTrainingDataAlg;
     art::InputTag fGenieGenLabel;
-	
-	std::vector<int> fSelectedPlane;
 
 	TTree *fTree;
 	TTree *fTree2D;
@@ -261,7 +258,6 @@ namespace nnet	 {
   PointIdTrainingNuevent::PointIdTrainingNuevent(PointIdTrainingNuevent::Parameters const& config) : art::EDAnalyzer(config),
 	fTrainingDataAlg(config().TrainingDataAlg()),
 	fGenieGenLabel(config().GenModuleLabel()),
-	fSelectedPlane(config().SelectedView()),
 	fCrop(config().Crop()),
 	fSaveDepositMap(config().SaveDepositMap()),
 	fSavePdgMap(config().SavePdgMap()),
@@ -311,16 +307,6 @@ namespace nnet	 {
 				unsigned int cryo = fGeometry->FindCryostatAtPosition(v);
 				unsigned int tpc = fGeometry->FindTPCAtPosition(v).TPC;
 				
-				if (fSelectedPlane.empty())
-				{
-					if (fGeometry->TPC(tpc, cryo).HasPlane(geo::kZ))
-						fSelectedPlane.push_back((int)geo::kZ);
-					if (fGeometry->TPC(tpc, cryo).HasPlane(geo::kV))
-						fSelectedPlane.push_back((int)geo::kV);
-					if (fGeometry->TPC(tpc, cryo).HasPlane(geo::kU))
-						fSelectedPlane.push_back((int)geo::kU);
-				}
-				
 				for (size_t i = 0; i < 3; ++i)
 				{
 					if (fGeometry->TPC(tpc, cryo).HasPlane(i))
@@ -358,40 +344,74 @@ namespace nnet	 {
 
 	std::ostringstream os;
 	os << "event_" << fEvent << "_run_" << fRun << "_subrun_" << fSubRun;
-	
 	std::cout << "analyze " << os.str() << std::endl;
 
     size_t cryo = 0;
-    size_t weff[3] = { 400, 400, 480 };
-    size_t tpcs[3] = { 2, 2, 6 };   // FD workspace
-    //size_t tpcs[3] = { 4, 1, 3 }; // ProtoDUNE
+    size_t weff[3] = { 404, 404, 485 }; // effective offset in wires between consecutive tpc's, incl. dead spaces, per plane
+    size_t tpcs[3] = { 2, 2, 6 };       // FD workspace dimension in #tpc's 
+    //size_t tpcs[3] = { 4, 1, 3 };     // the same for ProtoDUNE
+    size_t apa_gap = 21;                // APA thickness (dead space in drift direction) in pixels
 
     bool goodEvent = false;
     unsigned int gd0 = 0, gd1 = 0;
-	for (size_t p : fSelectedPlane)
+	for (int p = 2; p >= 0; --p) // loop over planes and make global images
 	{
-	    std::cout << "Plane: " << p << ", wires: " << fGeometry->Nwires(p, 0, cryo) << ", eff: " << weff[p] << ", zero:" << fTrainingDataAlg.ZeroLevel() << std::endl;
-	    EventImageData fullimg(weff[p],
-	        fGeometry->Nwires(p, 0, cryo), fDetProp->NumberTimeSamples() / fTrainingDataAlg.DriftWindow(),
-	        tpcs[0], tpcs[1], tpcs[2],
-	        fSaveDepositMap);
+	    size_t drift_size = fDetProp->NumberTimeSamples() / fTrainingDataAlg.DriftWindow(); // tpc size in drift direction
+	    size_t wire_size = fGeometry->Nwires(p, 0, cryo);                                   // tpc size in wire direction
+	    size_t max_offset = (p < 2) ? 752 : 0;                                              // top-bottom projection max offset
 
-	    for (size_t t = 0; t < fGeometry->NTPC(cryo); ++t)
+        size_t ntotw = (tpcs[2] - 1) * weff[p] + wire_size + tpcs[1] * max_offset;          // global image size in wire direction
+        size_t ntotd = tpcs[0] * drift_size + apa_gap * tpcs[0] / 2;                        // global image size in drift direction
+
+	    std::cout << "Plane: " << p << ", wires: " << ntotw << " drift: " << ntotd << std::endl;
+	    EventImageData fullimg(ntotw, ntotd, fSaveDepositMap);
+
+	    for (size_t t = 0; t < fGeometry->NTPC(cryo); ++t) // loop over tpc's
 	    {
-		    fTrainingDataAlg.setEventData(event, p, t, cryo);
+            size_t tpc_z = t / (tpcs[0] * tpcs[1]);
+            size_t tpc_y = (t / tpcs[0]) % tpcs[1];
+            size_t tpc_x = t % tpcs[0];
+
+            int dir = fGeometry->TPC(t, cryo).DetectDriftDirection();
+            bool flip_d = (dir > 0); // need the flip in drift direction?
+
+	        bool flip_w = false;     // need the flip in wire direction?
+	        size_t eff_p = p;        // global plane
+	        int offset = 0;
+
+            if (p < 2) // no wire flip nor top-bottom alignments in Z (collection) plane
+            {
+	            if ((t % 4 == 0) || (t % 4 == 2)) { eff_p = (p == 1) ? 0 : 1; } // swap U and V
+
+                if ((t % 4 == 0) || (t % 4 == 1)) // bottom tpc's
+                {
+                    flip_w = (dir > 0) ? (eff_p == 1) : (eff_p == 0);
+                }
+                else                              // top tpc's
+                {
+                    flip_w = (dir < 0) ? (eff_p == 1) : (eff_p == 0);
+                }
+
+                offset = (p == 0) ? 48 : 752;     // top-bottopm offsets
+            }
+
+            size_t gw = tpc_z * weff[p] + tpc_y * offset;                // global wire
+            size_t gd = tpc_x * drift_size + apa_gap * (1 + tpc_x) / 2;  // global drift
+
+		    fTrainingDataAlg.setEventData(event, eff_p, t, cryo); // prepare ADC and truth projections for 1 plane in 1 tpc
 		    std::cout << "   TPC: " << t << " wires: " << fTrainingDataAlg.NWires() << std::endl;
-		    std::cout << "   ADC sum: " << fTrainingDataAlg.getAdcSum() << ", area: " << fTrainingDataAlg.getAdcArea() << std::endl;
+		    //std::cout << "   ADC sum: " << fTrainingDataAlg.getAdcSum() << ", area: " << fTrainingDataAlg.getAdcArea() << std::endl;
 		    if (fTrainingDataAlg.getAdcArea() > 150)
 		    {
-		        std::cout << "   add data..." << std::endl;
-		        fullimg.addTpc(fTrainingDataAlg);
+		        //std::cout << "   add data..." << std::endl;
+		        fullimg.addTpc(fTrainingDataAlg, gw, flip_w, gd, flip_d);
 		    }
-		    else { std::cout << "   ---> too low signal, skip tpc" << std::endl; }
+		    //else { std::cout << "   ---> too low signal, skip tpc" << std::endl; }
 		}
 
         std::cout << "   find crop..." << std::endl;
         unsigned int w0, w1, d0, d1;
-		if (fullimg.findCrop(40, w0, w1, d0, d1))
+		if (fullimg.findCrop(80, w0, w1, d0, d1))
    		{
    		    if (goodEvent)
    		    {
