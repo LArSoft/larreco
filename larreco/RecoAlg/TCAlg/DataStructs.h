@@ -62,7 +62,6 @@ namespace tca {
     int ID {0};         // Cluster ID. ID < 0 = abandoned cluster
     CTP_t CTP {0};        // Cryostat/TPC/Plane code
     unsigned short PDGCode {0}; // PDG-like code shower-like or line-like
-    unsigned short ParentCluster {0};
     float BeginWir {0};   // begin wire
     float BeginTim {0};   // begin tick
     float BeginAng {0};   // begin angle
@@ -166,7 +165,7 @@ namespace tca {
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     int WorkID {0};
-    int ParentID {0};     ///< ID of the parent
+    int ParentID {-1};     ///< ID of the parent
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
@@ -390,7 +389,8 @@ namespace tca {
     kMergeSubShowers,
     kMergeNrShowers,
     kMergeShChain,
-    kSplitTarjCV,
+    kSplitTjCVx,
+    kSetDir,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
