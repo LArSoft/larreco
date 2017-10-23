@@ -1,8 +1,10 @@
 //////////////////////////////////////////////////////////////////////
 ///
-/// Step crawling code used by TrajClusterAlg
+/// TrajClusterAlg
 ///
 /// Bruce Baller, baller@fnal.gov
+/// Citation: Liquid argon TPC signal formation, signal processing and reconstruction techniques
+/// B. Baller 2017 JINST 12 P07010
 ///
 ///
 ////////////////////////////////////////////////////////////////////////
@@ -452,7 +454,7 @@ namespace tca {
         }
         // Tag InShower Tjs. The list of inshower Tjs within each shower isn't used here.
         std::vector<std::vector<int>> tjlist;
-        if(tjs.ShowerTag[0] == 1) TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
+        if(tjs.ShowerTag[0] > 0) TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
         // kill vertices that have more than one InShower Tj. This is meant to reduce
         // the number of spurious 3D vertices reconstructed inside of showers
         for(auto& vx2 : tjs.vtx) {
@@ -620,6 +622,7 @@ namespace tca {
             // Only consider hits that are available
             if(tjs.fHits[iht].InTraj != 0) continue;
             if(tjs.fHits[jht].InTraj != 0) continue;
+            prt = (iht == debug.Hit);
             // clear out any leftover work inTraj's that weren't cleaned up properly
             for(auto& hit : tjs.fHits) {
               if(hit.InTraj < 0) {
@@ -651,11 +654,12 @@ namespace tca {
               // pass > 0
               if(jHitsInMultiplet.size() > 1) toTick = HitsPosTick(tjs, jHitsInMultiplet, jqtot, kUnusedHits);
             }
+            bool hitsOK = TrajHitsOK(tjs, iHitsInMultiplet, jHitsInMultiplet);
             if(prt) {
-              mf::LogVerbatim("TC")<<"+++++++ checking TrajHitsOK with jht "<<plane<<":"<<PrintHit(tjs.fHits[jht])<<" BB Multiplicity "<<jHitsInMultiplet.size()<<" HitsRMSTick "<<HitsRMSTick(tjs, jHitsInMultiplet, kUnusedHits)<<" fatJhit "<<fatJHit<<" setting toTick to "<<(int)toTick<<" TrajHitsOK "<<TrajHitsOK(tjs, iHitsInMultiplet, jHitsInMultiplet);
+              mf::LogVerbatim("TC")<<"+++++++ checking TrajHitsOK with jht "<<plane<<":"<<PrintHit(tjs.fHits[jht])<<" BB Multiplicity "<<jHitsInMultiplet.size()<<" HitsRMSTick "<<HitsRMSTick(tjs, jHitsInMultiplet, kUnusedHits)<<" fatJhit "<<fatJHit<<" setting toTick to "<<(int)toTick<<" TrajHitsOK "<<hitsOK;
             }
             // Ensure that the hits StartTick and EndTick have the proper overlap
-            if(!TrajHitsOK(tjs, iHitsInMultiplet, jHitsInMultiplet)) continue;
+            if(!hitsOK) continue;
             // start a trajectory with direction from iht -> jht
             Trajectory work;
             if(!StartTraj(work, fromWire, fromTick, toWire, toTick, inCTP, pass)) continue;
@@ -1387,6 +1391,8 @@ namespace tca {
     float bigDelta = 2 * deltaCut;
     unsigned int imBig = UINT_MAX;
     tp.Delta = deltaCut;
+    // ignore all hits with delta larger than maxDeltaCut
+    float maxDeltaCut = 2 * bigDelta;
     
     // projected time in ticks for testing the existence of a hit signal
     raw::TDCtick_t rawProjTick = (float)(tp.Pos[1] / tjs.UnitsPerTick);
@@ -1410,6 +1416,7 @@ namespace tca {
       if(rawProjTick > tjs.fHits[iht].StartTick && rawProjTick < tjs.fHits[iht].EndTick) sigOK = true;
       float ftime = tjs.UnitsPerTick * tjs.fHits[iht].PeakTime;
       float delta = PointTrajDOCA(tjs, fwire, ftime, tp);
+      if(delta > maxDeltaCut) continue;
       float dt = std::abs(ftime - tp.Pos[1]);
       unsigned short localIndex = 0;
       GetHitMultiplet(iht, hitsInMultiplet, localIndex);
@@ -1490,6 +1497,18 @@ namespace tca {
     TrajPoint& tp = tj.Pts[ipt];
     
     if(tp.Hits.empty()) return;
+    
+    // Use all available hits on the last pass for the first few points when starting out
+    if(ipt < 3 && tj.Pass == fMinPts.size() - 1) {
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        unsigned int iht = tp.Hits[ii];
+        if(tjs.fHits[iht].InTraj > 0) continue;
+        tp.UseHit[ii] = true;
+        tjs.fHits[iht].InTraj = tj.ID;
+      }
+      if(prt) mf::LogVerbatim("TC")<<"FUH: Using all hits on seed trajectory on the last pass";
+      return;
+    } // last pass for the first two points
 
     // don't check charge when starting out
     if(ipt < 5) useChg = false; 
@@ -1576,7 +1595,7 @@ namespace tca {
     } // isLA
 
     // don't use the best UNUSED hit if the best delta is for a USED hit and it is much better
-    // TY: ignore for PevProg
+    // TY: ignore for RevProp
     if(bestDelta < 0.5 * tp.Delta && !tj.AlgMod[kRvPrp]) return;
     
     if(!useChg || (useChg && (tj.AveChg <= 0 || tj.ChgRMS <= 0))) {
@@ -1960,7 +1979,7 @@ namespace tca {
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.CTP != inCTP) continue;
-      if(tj.StepDir != tjs.StepDir) ReverseTraj(tjs, tj);
+      if(tj.StepDir != tjs.StepDir && !tj.AlgMod[kSetDir]) ReverseTraj(tjs, tj);
     } // tj
     
     unsigned short maxShortTjLen = tjs.Vertex2DCuts[0];
@@ -2002,6 +2021,8 @@ namespace tca {
           for(unsigned int it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
             if(it1 == it2) continue;
             auto& tj2 = tjs.allTraj[it2];
+            // check for consistent direction
+            if(tj1.StepDir != tj2.StepDir) continue;
             if(tj2.AlgMod[kKilled]) continue;
             if(tj2.CTP != inCTP) continue;
             unsigned short end2 = 1 - end1;
@@ -2361,6 +2382,8 @@ namespace tca {
     // Version 2 of 3D matching that uses Utils/FindXMatches
     
     tjs.matchVec.clear();
+    
+    if(tjs.Match3DCuts[0] <= 0) return;
     
     int cstat = tpcid.Cryostat;
     int tpc = tpcid.TPC;
@@ -4688,6 +4711,7 @@ namespace tca {
     }
     tj.StepDir = stepdir;
     tj.CTP = tCTP;
+    tj.ParentID = -1;
     
     // create a trajectory point
     TrajPoint tp;
@@ -4697,11 +4721,11 @@ namespace tca {
     }
     SetAngleCode(tjs, tp);
     tp.AngErr = 0.1;
-    prt = false;
+//    prt = false;
     if(tj.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = DecodeCTP(tCTP).Plane; TJPrt = tj.ID; }
     if(prt) mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tjs, tp);
     tj.Pts.push_back(tp);
-    if(tj.ID == debug.WorkID) std::cout<<"ST: "<<tj.ID<<" "<<(int)fromWire<<":"<<(int)fromTick<<" "<<(int)toWire<<":"<<(int)toTick<<"\n";
+//    if(tj.ID == debug.WorkID) std::cout<<"ST: "<<tj.ID<<" "<<(int)fromWire<<":"<<(int)fromTick<<" "<<(int)toWire<<":"<<(int)toTick<<"\n";
     return true;
     
   } // StartTraj
@@ -4864,7 +4888,6 @@ namespace tca {
       if(tj.AlgMod[kShowerTj]) cls.ID = -cls.ID;
       cls.CTP = tj.CTP;
       cls.PDGCode = tj.PDGCode;
-      cls.ParentCluster = tj.ParentID - 1;
       endPt0 = tj.EndPt[0];
       cls.BeginWir = tj.Pts[endPt0].Pos[0];
       cls.BeginTim = tj.Pts[endPt0].Pos[1] / tjs.UnitsPerTick;
@@ -5085,7 +5108,7 @@ namespace tca {
         ReleaseHits(tjs, tj);
         continue;
       }
-      if(prt) prt = false;
+//      if(prt) prt = false;
       tj.AlgMod[kVtxTj] = true;
       fQuitAlg = !StoreTraj(tjs, tj);
       if(tjs.UseAlg[kChkInTraj]) {
@@ -5128,7 +5151,12 @@ namespace tca {
     unsigned short imTall = theHit;
     unsigned short nNarrow = 0;
     if(theHitIsNarrow) nNarrow = 1;
-//    if(prt) mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(tjs.fHits[theHit])<<" RMS "<<tjs.fHits[theHit].RMS<<" aveRMS "<<tjs.AveHitRMS[ipl]<<" Amp "<<(int)tjs.fHits[theHit].PeakAmplitude;
+/*
+    bool mprt = (theHit == 425);
+    if(mprt) {
+      mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(tjs.fHits[theHit])<<" RMS "<<tjs.fHits[theHit].RMS<<" aveRMS "<<tjs.AveHitRMS[ipl]<<" Amp "<<(int)tjs.fHits[theHit].PeakAmplitude;
+    }
+*/
     // look for hits < theTime but within hitSep
     if(theHit > 0) {
       for(unsigned int iht = theHit - 1; iht != 0; --iht) {
@@ -5139,8 +5167,9 @@ namespace tca {
           hitSep = fMultHitSep * tjs.fHits[iht].RMS;
           theRMS = tjs.fHits[iht].RMS;
         }
-        if(theTime - tjs.fHits[iht].PeakTime > hitSep) break;
-//        if(prt) mf::LogVerbatim("TC")<<" iht- "<<iht<<" "<<tjs.fHits[iht].WireID.Plane<<":"<<PrintHit(tjs.fHits[iht])<<" RMS "<<tjs.fHits[iht].RMS<<" dt "<<theTime - tjs.fHits[iht].PeakTime<<" "<<hitSep<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
+        float dTick = std::abs(tjs.fHits[iht].PeakTime - theTime);
+        if(dTick > hitSep) break;
+//        if(mprt) mf::LogVerbatim("TC")<<" iht- "<<iht<<" "<<tjs.fHits[iht].WireID.Plane<<":"<<PrintHit(tjs.fHits[iht])<<" RMS "<<tjs.fHits[iht].RMS<<" dTick "<<dTick<<" hitSep "<<hitSep<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
          hitsInMultiplet.push_back(iht);
         if(tjs.fHits[iht].RMS < narrowHitCut) ++nNarrow;
         if(tjs.fHits[iht].PeakAmplitude > maxPeak) {
@@ -5166,9 +5195,10 @@ namespace tca {
         hitSep = fMultHitSep * tjs.fHits[iht].RMS;
         theRMS = tjs.fHits[iht].RMS;
       }
-      if(tjs.fHits[iht].PeakTime - theTime > hitSep) break;
-//      if(prt) mf::LogVerbatim("TC")<<" iht+ "<<iht<<" "<<PrintHit(tjs.fHits[iht])<<" dt "<<(theTime - tjs.fHits[iht].PeakTime)<<" RMS "<<tjs.fHits[iht].RMS<<" "<<hitSep<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
-       hitsInMultiplet.push_back(iht);
+      float dTick = std::abs(tjs.fHits[iht].PeakTime - theTime);
+      if(dTick > hitSep) break;
+//      if(mprt) mf::LogVerbatim("TC")<<" iht+ "<<iht<<" "<<PrintHit(tjs.fHits[iht])<<" dTick "<<dTick<<" RMS "<<tjs.fHits[iht].RMS<<" "<<hitSep<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
+      hitsInMultiplet.push_back(iht);
       if(tjs.fHits[iht].RMS < narrowHitCut) ++nNarrow;
       if(tjs.fHits[iht].PeakAmplitude > maxPeak) {
         maxPeak = tjs.fHits[iht].PeakAmplitude;
@@ -5176,7 +5206,13 @@ namespace tca {
       }
       theTime = tjs.fHits[iht].PeakTime;
     } // iht
-
+/*
+    if(mprt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<" return ";
+      for(auto iht : hitsInMultiplet) myprt<<" "<<PrintHit(tjs.fHits[iht]);
+    }
+*/
     if(hitsInMultiplet.size() == 1) return;
     
     if(hitsInMultiplet.size() > 16) {
@@ -5190,7 +5226,7 @@ namespace tca {
     if(nNarrow == 0) return;
     
     if(theHitIsNarrow && theHit == imTall) {
-//      if(prt) mf::LogVerbatim("TC")<<" theHit is narrow and tall. Use only it";
+//      if(mprt) mf::LogVerbatim("TC")<<" theHit is narrow and tall. Use only it";
       // theHit is narrow and it is the highest amplitude hit in the multiplet. Ignore any
       // others that are short and fat
       auto tmp = hitsInMultiplet;
@@ -5200,7 +5236,7 @@ namespace tca {
     } else {
       // theHit is not narrow and it is not the tallest. Ignore a single hit if it is
       // the tallest and narrow
-//      if(prt) mf::LogVerbatim("TC")<<" theHit  is not narrow or tall";
+//      if(mprt) mf::LogVerbatim("TC")<<" theHit  is not narrow or tall";
       if(tjs.fHits[imTall].RMS < narrowHitCut) {
         unsigned short killMe = 0;
         for(unsigned short ii = 0; ii < hitsInMultiplet.size(); ++ii) {
