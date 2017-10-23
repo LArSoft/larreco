@@ -37,9 +37,9 @@ namespace tca {
      T3     T1          T2
      T4     T2          T2
      T5     T2          T2
-     T6      0          0
-     T7      0          0
-     T8     T8          0
+     T6      0          -1
+     T7      0          -1
+     T8     -1          -1
 */
     // sort vertice by decreasing score
     std::vector<int> temp;
@@ -61,8 +61,9 @@ namespace tca {
       for(auto tjid : tjlist) {
         // Temp? Check for an existing parentID
         auto& tj = tjs.allTraj[tjid - 1];
-        if(tj.ParentID != tj.ID) {
+        if(tj.ParentID != -1) {
           std::cout<<"**** Tj "<<tj.ID<<" Existing parent "<<tj.ParentID<<" PDGCode "<<tj.PDGCode<<". with a vertex... \n";
+          tj.ParentID = -1;
         }
         if(std::find(masterlist.begin(), masterlist.end(), tjid) == masterlist.end()) masterlist.push_back(tjid);
       } // tjid
@@ -72,12 +73,6 @@ namespace tca {
       myprt<<"DTP: masterlist Tjs";
       for(auto tjid : masterlist) myprt<<" "<<tjid;
     }
-    
-    // Set the ParentID of these Tjs to a distinctive value. This will be over-written below
-    for(auto tjid : masterlist) {
-      auto& tj = tjs.allTraj[tjid - 1];
-      tj.ParentID = -1;
-    } // tj
     
     // Do the sort
     std::vector<SortEntry> sortVec(temp.size());
@@ -121,35 +116,46 @@ namespace tca {
       if(lookedAt3[vx3.ID]) continue;
       vx3.Primary = true;
       lookedAt3[vx3.ID] = true;
-      // make a list of primary Tjs attached to this primary vertex
+      // make a list of Tjs attached to this vertex
       float score;
       auto primTjList = GetVtxTjIDs(tjs, vx3, score);
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"DTP: vx3 "<<vx3.ID<<" Tjs";
-        for(auto tjid : primTjList) myprt<<" "<<tjid;
-      }
+      if(primTjList.empty()) continue;
       pardtr.clear();
       for(auto primTjID : primTjList) {
         auto& primTj = tjs.allTraj[primTjID - 1];
-        if(primTj.ParentID > 0) continue;
-        // declare this a primary Tj
+        // This isn't a primary tj if the parent ID isn't -1
+        if(primTj.ParentID != -1) continue;
+        if(prt) mf::LogVerbatim("TC")<<"Vx3 "<<vx3.ID<<" Primary tj "<<primTj.ID;
+        // declare this a primary tj
         primTj.ParentID = 0;
-        // look for daughter vertices
+        // look for daughter tjs = those that are attached to a 2D vertex
+        // at the other end
         for(unsigned short end = 0; end < 2; ++end) {
           if(primTj.VtxID[end] == 0) continue;
           auto& vx2 = tjs.vtx[primTj.VtxID[end] - 1];
-          if(lookedAt2[vx2.ID]) continue;
-          lookedAt2[vx2.ID] = true;
           if(vx2.Vx3ID == vx3.ID) continue;
-          // found a daughter vertex. Add the daughter Tjs to the stack
-          auto tjlist = GetVtxTjIDs(tjs, vx2);
-          for(auto tjid : tjlist) {
-            if(tjid == primTj.ID) continue;
-            pardtr.push_back(std::make_pair(primTj.ID, tjid));
-          }
+          // found a 2D vertex. Check for daughters
+          auto dtrList = GetVtxTjIDs(tjs, vx2);
+          for(auto dtrID : dtrList) {
+            // ignore the primary tj
+            if(dtrID == primTjID) continue;
+            auto& dtj = tjs.allTraj[dtrID - 1];
+            if(dtj.ParentID != -1) {
+              std::cout<<"DTP Error: dtr "<<dtrID<<" already has a parent "<<dtj.ParentID<<". Can't make it daughter of "<<primTjID<<"\n";
+              continue;
+            }
+            pardtr.push_back(std::make_pair(primTjID, dtrID));
+            if(prt) mf::LogVerbatim("TC")<<"  primTj "<<primTjID<<" dtrID "<<dtrID;
+          } // tjid
         } // end
-      } // primTjID
+        // Ensure that end 0 of the trajectory is attached to the primary vertex
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(primTj.VtxID[end] == 0) continue;
+          auto& vx2 = tjs.vtx[primTj.VtxID[end] - 1];
+          if(vx2.Vx3ID == vx3.ID && end != 0) ReverseTraj(tjs, primTj);
+        } // end
+        primTj.AlgMod[kSetDir] = true;
+      } // tjid
       if(pardtr.empty()) continue;
       if(prt) {
         mf::LogVerbatim myprt("TC");
@@ -162,6 +168,17 @@ namespace tca {
         auto lastPair = pardtr[pardtr.size() - 1];
         auto& dtj = tjs.allTraj[lastPair.second - 1];
         dtj.ParentID = lastPair.first;
+        // reverse the daughter trajectory if necessary so that end 0 is closest to the parent
+        float doca = 100;
+        unsigned short dpt, ppt;
+        auto& ptj = tjs.allTraj[lastPair.first - 1];
+        // find the point on the daughter tj that is closest to the parent
+        TrajTrajDOCA(tjs, dtj, ptj, dpt, ppt, doca);
+        // reverse the daughter if the closest point is near end 1 of the daughter
+        unsigned short midPt = (dtj.EndPt[0] + dtj.EndPt[1]) / 2;
+        if(dpt > midPt && !dtj.AlgMod[kSetDir]) ReverseTraj(tjs, dtj);
+        if(prt) mf::LogVerbatim("TC")<<"Set parent "<<ptj.ID<<" dtr "<<dtj.ID;
+        dtj.AlgMod[kSetDir] = true;
         // remove that entry
         pardtr.pop_back();
         // Add entries for new daughters
@@ -172,7 +189,7 @@ namespace tca {
           lookedAt2[vx2.ID] = true;
           auto tjlist = GetVtxTjIDs(tjs, vx2);
           for(auto tjid : tjlist) {
-            if(tjid == dtj.ID) continue;
+            if(tjid == dtj.ID || tjid == ptj.ID) continue;
             pardtr.push_back(std::make_pair(dtj.ID, tjid));
             if(prt) {
               mf::LogVerbatim myprt("TC");
@@ -374,10 +391,10 @@ namespace tca {
   {
     // Returns the ID of the grandparent of this tj that is a primary tj that is attached
     // to the neutrino vertex. 0 is returned if this condition is not met.
-    if(tj.AlgMod[kKilled]) return tj.ID;
-    if(tj.ParentID <= 0) return tj.ID;
+    if(tj.AlgMod[kKilled]) return -1;
+    if(tj.ParentID <= 0) return -1;
     int primID = PrimaryID(tjs, tj);
-    if(primID==0) return tj.ID;
+    if(primID <= 0) return -1;
 
     // We have the ID of the primary tj. Now see if it is attached to the neutrino vertex
     auto& ptj = tjs.allTraj[primID - 1];
@@ -388,7 +405,7 @@ namespace tca {
       auto& vx3 = tjs.vtx3[vx2.Vx3ID - 1];
       if(vx3.Neutrino) return primID;
     } // end
-    return 0;
+    return -1;
   } // NeutrinoPrimaryTjID
   
   /////////////////////////////////////////
@@ -396,18 +413,17 @@ namespace tca {
   {
     // Returns the ID of the grandparent trajectory of this trajectory that is a primary
     // trajectory (i.e. whose ParentID = 0). 
-    if(tj.AlgMod[kKilled]) return tj.ID;
-    if(tj.ParentID <= 0) return tj.ID;
+    if(tj.AlgMod[kKilled]) return -1;
+    if(tj.ParentID < 0 || tj.ParentID > (int)tjs.allTraj.size()) return -1;
+    if(tj.ParentID == 0) return tj.ID;
     int parid = tj.ParentID;
-    unsigned short nit = 0;
-    while(true) {
+    for(unsigned short nit = 0; nit < 10; ++nit) {
       auto& tj = tjs.allTraj[parid - 1];
       if(tj.ParentID == 0) return tj.ID;
-      if(tj.ParentID == tj.ID) return 0;
       parid = tj.ParentID;
-      ++nit;
-      if(nit == 10) return 0;
-    }
+      if(parid > (int)tjs.allTraj.size()) break;
+    } // nit
+    return -1;
   } // PrimaryID
   
   /////////////////////////////////////////
@@ -721,6 +737,8 @@ namespace tca {
                 temp.push_back(ms);
               } // not found in the list
             } // fill temp
+            // give up if there are too many
+            if(temp.size() > 2000) break;
           } // kpt
           // numPlanes == 3
         } else {
@@ -2577,7 +2595,7 @@ namespace tca {
     if(splittingMuon) SetPDGCode(tjs, newTj);
     if(ivx < tjs.vtx.size()) newTj.VtxID[0] = tjs.vtx[ivx].ID;
     newTj.AlgMod[kSplit] = true;
-    newTj.ParentID = newTj.ID;
+    newTj.ParentID = -1;
     tjs.allTraj.push_back(newTj);
 
     if(prt) {
@@ -3126,7 +3144,11 @@ namespace tca {
     // reverse the trajectory
     if(tj.Pts.empty()) return;
     if(tj.AlgMod[kMat3D]) {
-      mf::LogVerbatim("TC")<<"Trying to reverse a 3D matched Tj. Need to modify other Tjs and the MatchStruct\n";
+      std::cout<<"Trying to reverse a 3D matched Tj. Need to modify other Tjs and the MatchStruct\n";
+      return;
+    }
+    if(tj.AlgMod[kSetDir]) {
+      std::cout<<"Trying to reverse Tj "<<tj.ID<<" whose direction has been set. Not doing it.\n";
       return;
     }
     // reverse the crawling direction flag
@@ -3960,13 +3982,24 @@ namespace tca {
       // Swap so that the order of tj1 is preserved. Tj2 may be reversed to be consistent
       if(pfp1 == USHRT_MAX) std::swap(itj1, itj2);
     } // one or both used in a PFParticle
-    
+        
     // make copies so they can be trimmed as needed
     Trajectory tj1 = tjs.allTraj[itj1];
     Trajectory tj2 = tjs.allTraj[itj2];
     
     // ensure that these are in the same step order
-    if(tj1.StepDir != tj2.StepDir) ReverseTraj(tjs, tj2);
+    if(tj1.StepDir != tj2.StepDir) {
+      // See if the direction has been set elsewhere
+      if(tj1.AlgMod[kSetDir] || tj2.AlgMod[kSetDir]) {
+        if(tj1.AlgMod[kSetDir]) {
+          ReverseTraj(tjs, tj2);
+        } else {
+          ReverseTraj(tjs, tj1);
+        }
+      } else {
+        ReverseTraj(tjs, tj2);
+      }
+    } // inconsistent step direction
     
     std::array<float, 2> tp1e0 = tj1.Pts[tj1.EndPt[0]].Pos;
     std::array<float, 2> tp1e1 = tj1.Pts[tj1.EndPt[1]].Pos;
@@ -4171,6 +4204,7 @@ namespace tca {
           } else {
             float score;
             auto vxtjs = GetVtxTjIDs(tjs, vx3, score);
+            myprt<<" Tjs";
             for(auto tjid : vxtjs) myprt<<" "<<tjid;
           }
           myprt<<"\n";
@@ -4232,7 +4266,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx chgRMS Mom SDr TDr NN __Vtx__  PDG  Par NuPar TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx chgRMS Mom SDr TDr NN __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -4293,6 +4327,7 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
         myprt<<std::setw(5)<<aTj.ParentID;
+        myprt<<std::setw(5)<<PrimaryID(tjs, aTj);
         myprt<<std::setw(6)<<NeutrinoPrimaryTjID(tjs, aTj);
         int truKE = 0;
         int pdg = 0;
