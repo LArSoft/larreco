@@ -46,7 +46,7 @@ namespace tca {
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.CTP != inCTP) continue;
-      if(tj.StepDir != tjs.StepDir) ReverseTraj(tjs, tj);
+      if(tj.StepDir != tjs.StepDir && !tj.AlgMod[kSetDir]) ReverseTraj(tjs, tj);
     } // tj
     
     unsigned short maxShortTjLen = tjs.Vertex2DCuts[0];
@@ -734,7 +734,7 @@ namespace tca {
   {
     // This is kind of self-explanatory...
 
-    if(!tjs.UseAlg[kSplitTarjCV]) return;
+    if(!tjs.UseAlg[kSplitTjCVx]) return;
 
     if(tjs.vtx.empty()) return;
     if(tjs.allTraj.empty()) return;
@@ -751,7 +751,7 @@ namespace tca {
       if(tjs.allTraj[itj].CTP != inCTP) continue;
       // obsolete trajectory
       if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
-      if(tjs.allTraj[itj].AlgMod[kSplitTarjCV]) continue;
+      if(tjs.allTraj[itj].AlgMod[kSplitTjCVx]) continue;
       // too short
       if(tjs.allTraj[itj].EndPt[1] < 6) continue;
       tPass = tjs.allTraj[itj].Pass;
@@ -794,9 +794,9 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<"SplitTrajCrossingVertices: Failed to split trajectory";
           continue;
         }
-        tjs.allTraj[itj].AlgMod[kSplitTarjCV] = true;
+        tjs.allTraj[itj].AlgMod[kSplitTjCVx] = true;
         unsigned short newTjIndex = tjs.allTraj.size() - 1;
-        tjs.allTraj[newTjIndex].AlgMod[kSplitTarjCV] = true;
+        tjs.allTraj[newTjIndex].AlgMod[kSplitTjCVx] = true;
 
       } // iv
     } // itj
