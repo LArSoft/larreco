@@ -39,7 +39,8 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nutools/ParticleNavigation/ParticleList.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -214,9 +215,10 @@ namespace hit{
     art::Handle< std::vector<recob::Hit> > hitHandle;
     evt.getByLabel(fFFTHitFinderModuleLabel,hitHandle);
 
-    art::ServiceHandle<cheat::BackTracker> bt;
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 
-    sim::ParticleList const& _particleList = bt->ParticleList();
+    sim::ParticleList const& _particleList = pi_serv->ParticleList();
 
     LOG_VERBATIM("HitFinderAna") << _particleList;
 
@@ -239,9 +241,9 @@ namespace hit{
 	fRun = evt.run();
 	fEvt = evt.id().event();
 	  
-	std::vector<sim::TrackIDE> trackides = bt->HitToTrackID(*itr);
+	std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(*itr);
 	std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
-	std::vector<double> xyz = bt->HitToXYZ(*itr);
+	std::vector<double> xyz = bt_serv->HitToXYZ(*itr);
 	
 	if (pid.Plane == 0 && fNp0 < 9000){
 	  fTimep0[fNp0] = (*itr)->PeakTime();
