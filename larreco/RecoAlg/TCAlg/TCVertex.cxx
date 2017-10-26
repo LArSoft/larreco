@@ -231,6 +231,49 @@ namespace tca {
     if(prt) PrintAllTraj("F2DVo", tjs, debug, USHRT_MAX, USHRT_MAX);
     
   } // Find2DVertices
+
+  
+  //////////////////////////////////////////
+  void MakeJunkTjVertices(TjStuff& tjs, const CTP_t& inCTP)
+  {
+    // Make 2D vertices between the end of Tjs that have a junk Tj near an end
+    
+    if(!tjs.UseAlg[kBlobVx]) return;
+    
+    if(tjs.allTraj.empty()) return;
+    
+    unsigned short plane = DecodeCTP(inCTP).Plane;
+    bool prt = (debug.Plane >= 0 && debug.Tick == 99999);
+    if(prt) {
+      mf::LogVerbatim("TC")<<"MakeJunkTjVertices: prt set for plane "<<plane;
+    }
+
+    float window = 3;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.CTP != inCTP) continue;
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kInShower]) continue;
+      if(tj.AlgMod[kShowerTj]) continue;
+      if(tj.Pts.size() < 10) continue;
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] > 0) continue;
+        auto tp = tj.Pts[tj.EndPt[end]];
+        auto closeTjs = FindCloseTjs(tjs, tp, tp, window);
+        // make a subset of junk tj candidates
+        std::vector<int> junkTjs;
+        for(auto tjid : closeTjs) {
+          auto& ctj = tjs.allTraj[tjid - 1];
+          if(ctj.ID == tj.ID) continue;
+          if(!tj.AlgMod[kJunkTj]) continue;
+          junkTjs.push_back(tjid);
+        } // tjid
+        if(junkTjs.empty()) continue;
+        std::cout<<"MakeJunkTjVertices:";
+        for(auto tjid : junkTjs) std::cout<<" "<<tjid;
+        std::cout<<"\n";
+      } // end
+    } //  tj
+  } // MakeJunkTjVertices
   
   //////////////////////////////////////////
   bool MergeWithVertex(TjStuff& tjs, VtxStore& vx, unsigned short oVxID, bool prt)
@@ -764,9 +807,9 @@ namespace tca {
         // not in the cryostat/tpc/plane
         if(tjs.allTraj[itj].CTP != tjs.vtx[iv].CTP) continue;
         TrajClosestApproach(tjs.allTraj[itj], tjs.vtx[iv].Pos[0], tjs.vtx[iv].Pos[1], closePt, doca);
-        if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<itj<<" and tjs.vtx "<<iv<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
+        if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<tjs.allTraj[itj].ID<<" and tjs.vtx "<<tjs.vtx[iv].ID<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
         //if(doca > fMaxVertexTrajSep[tPass]) continue;
-        if(doca > 3) continue;
+        if(doca > tjs.Vertex2DCuts[1]) continue;
         // compare the length of the Tjs used to make the vertex with the length of the
         // Tj that we want to split. Don't allow a vertex using very short Tjs to split a long
         // Tj in the 3rd plane
@@ -780,9 +823,16 @@ namespace tca {
         // skip this operation if any of the Tjs in the split list are > 3 * maxPts
         maxPts *= 3;
         bool skipit = false;
-        if(NumPtsWithCharge(tjs,tjs.allTraj[itj] , false) > maxPts) skipit = true;
+        if(NumPtsWithCharge(tjs,tjs.allTraj[itj] , false) > maxPts && maxPts < 100) skipit = true;
         if(prt) mf::LogVerbatim("TC")<<"  maxPts "<<maxPts<<" vxtjs[0] "<<vxtjs[0]<<" skipit? "<<skipit;
         if(skipit) continue;
+
+        // improve closePt based on vertex position
+        // check if closePt and EndPt[1] are the two sides of vertex
+        // take dot product of closePt-vtx and EndPt[1]-vtx
+        if ((tjs.allTraj[itj].Pts[closePt].Pos[0]-tjs.vtx[iv].Pos[0])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[1]].Pos[0]-tjs.vtx[iv].Pos[0]) + (tjs.allTraj[itj].Pts[closePt].Pos[1]-tjs.vtx[iv].Pos[1])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[1]].Pos[1]-tjs.vtx[iv].Pos[1]) <0 && closePt < tjs.allTraj[itj].EndPt[1] - 1) ++closePt;
+        else if ((tjs.allTraj[itj].Pts[closePt].Pos[0]-tjs.vtx[iv].Pos[0])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]].Pos[0]-tjs.vtx[iv].Pos[0]) + (tjs.allTraj[itj].Pts[closePt].Pos[1]-tjs.vtx[iv].Pos[1])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]].Pos[1]-tjs.vtx[iv].Pos[1]) <0 && closePt > tjs.allTraj[itj].EndPt[0] + 1) --closePt;
+        
         if(prt)  {
           mf::LogVerbatim("TC")<<"Good doca "<<doca<<" btw traj "<<itj<<" and tjs.vtx "<<iv<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
           PrintTrajPoint("STCV", tjs, closePt, 1, tPass, tjs.allTraj[itj].Pts[closePt]);
@@ -797,7 +847,6 @@ namespace tca {
         tjs.allTraj[itj].AlgMod[kSplitTjCVx] = true;
         unsigned short newTjIndex = tjs.allTraj.size() - 1;
         tjs.allTraj[newTjIndex].AlgMod[kSplitTjCVx] = true;
-
       } // iv
     } // itj
     

@@ -911,13 +911,14 @@ namespace tca {
   /////////////////////////////////////////
   void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
-    // Finds long Tjs that are not 3D-matched and does something about it
-    
-    // testing
-    return;
+    // Finds long-ish Tjs that are not 3D-matched and does something about it
 
     unsigned int cstat = tpcid.Cryostat;
     unsigned int tpc = tpcid.TPC;
+    
+    if(!tjs.UseAlg[kMat3DMerge]) return;
+    
+    if(prt) mf::LogVerbatim("TC")<<"Inside CheckNoMatchTjs";
     
     for(auto& tj : tjs.allTraj) {
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
@@ -927,6 +928,7 @@ namespace tca {
       if(tj.AlgMod[kMat3D]) continue;
       if(tj.AlgMod[kShowerTj]) continue;
       if(tj.Pts.size() < 10) continue;
+      if(prt) mf::LogVerbatim("TC")<<"CNMT: Tj "<<tj.ID<<" nPts "<<tj.Pts.size()<<" is not matched in 3D. Look for it in matchVec ";
       // look for this Tj in matchvec
       unsigned short firstMS = 0;
       for(firstMS = 0; firstMS < tjs.matchVec.size(); ++firstMS) {
@@ -935,9 +937,15 @@ namespace tca {
       } // ms
       // not found for some reason. Deal with this later
       if(firstMS == tjs.matchVec.size()) continue;
+      auto& ms = tjs.matchVec[firstMS];
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<" First entry has tjs:";
+        for(auto tjid : ms.TjIDs) myprt<<" "<<tjid;
+      }
       // make a list of the Tjs that were matched
       std::vector<int> matched;
-      for(auto tjid : tjs.matchVec[firstMS].TjIDs) if(tjid != tj.ID) matched.push_back(tjid);
+      for(auto tjid : ms.TjIDs) if(tjid != tj.ID) matched.push_back(tjid);
       unsigned int brokenTj = UINT_MAX;
       int minCount = 3;
       // look for the broken tj in an earlier entry. 
@@ -950,9 +958,21 @@ namespace tca {
         if(leftover.size() != 1) continue;
         minCount = ms.Count;
         brokenTj = leftover[0];
-        if(prt) mf::LogVerbatim("TC")<<"  leftover "<<leftover[0]<<" count "<<ms.Count;
+        if(prt) mf::LogVerbatim("TC")<<"  merge with leftover "<<brokenTj<<" count "<<ms.Count;
+        auto& btj = tjs.allTraj[brokenTj - 1];
+        if(CompatibleMerge(tjs, tj, btj, prt) && MergeAndStore(tjs, tj.ID - 1, brokenTj - 1, prt)) {
+          auto& newTj = tjs.allTraj[tjs.allTraj.size() - 1];
+          newTj.AlgMod[kMat3DMerge] = true;
+          // Update the PFParticle TjIDs
+          unsigned short pfpIndex = GetPFPIndex(tjs, tj.ID);
+          if(pfpIndex > tjs.pfps.size() - 1) continue;
+          auto& pfp = tjs.pfps[pfpIndex];
+          std::replace(pfp.TjIDs.begin(), pfp.TjIDs.end(), tj.ID, newTj.ID);
+          if(prt) mf::LogVerbatim("TC")<<"  success "<<tj.ID<<" merged with "<<brokenTj<<" -> "<<newTj.ID;
+          break;
+        }
       } // ims
-      if(prt) {
+      if(prt && !tj.AlgMod[kKilled]) {
         mf::LogVerbatim myprt("TC");
         myprt<<"CheckNoMatchTjs: No 3D match "<<tj.ID;
         myprt<<" in matchVec with other Tjs";
@@ -2047,7 +2067,7 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC")<<"CTBC: Split Tj "<<tj.ID<<" at "<<PrintPos(tjs, tj.Pts[breakPt].Pos)<<"\n";
     
   } // CheckTrajBeginChg
-
+  
   //////////////////////////////////////////
   void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
   {
@@ -2062,10 +2082,93 @@ namespace tca {
     
     if(!tjs.UseAlg[kTEP]) return;
     
+    unsigned short npwc = NumPtsWithCharge(tjs, tj, false);
+    unsigned short minPts = fQualityCuts[1];
+    if(minPts < 1) return;
+    if(npwc < minPts) return;
+    
+    // handle short tjs
+    if(npwc == minPts + 1) {
+      unsigned short endPt1 = tj.EndPt[1];
+      auto& tp = tj.Pts[endPt1];
+      auto& ptp = tj.Pts[endPt1 - 1];
+      // remove the last point if the previous point has no charge or if
+      // it isn't on the next wire
+      float dwire = std::abs(ptp.Pos[0] - tp.Pos[0]);
+      if(ptp.Chg == 0 || dwire > 1.1) {
+        UnsetUsedHits(tjs, tp);
+        SetEndPoints(tjs, tj);
+        tj.AlgMod[kTEP] = true;
+      }
+      return;
+    } // short tj
+    
+    // find the separation between adjacent points, starting at the end
+    unsigned short lastPt = 0;
+    for(lastPt = tj.EndPt[1]; lastPt > minPts; --lastPt) {
+      // check for an error
+      if(lastPt == 1) break;
+      if(tj.Pts[lastPt].Chg == 0) continue;
+      // number of adjacent points on adjacent wires
+      unsigned short nadj = 0;
+      unsigned short npwc = 0;
+      for(unsigned short ipt = lastPt - minPts; ipt < lastPt; ++ipt) {
+        if(ipt == 1) break;
+        // the current point
+        auto& tp = tj.Pts[ipt];
+        // the previous point
+        auto& ptp = tj.Pts[ipt - 1];
+        if(tp.Chg > 0 && ptp.Chg > 0) {
+          ++npwc;
+          if(abs(tp.Pos[0] - ptp.Pos[0]) == 1) ++nadj;
+        }
+//        std::cout<<" "<<PrintPos(tjs, ptp.Pos)<<"_"<<(int)ptp.Chg<<" "<<PrintPos(tjs, tp.Pos)<<"_"<<(int)tp.Chg<<"\n";
+      } // ipt
+      float ntpwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], lastPt);
+      float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[lastPt].Pos[0]) + 1;
+      float hitFrac = ntpwc / nwires;
+      if(prt) mf::LogVerbatim("TC")<<"TEP: ID "<<tj.ID<<" lastPt "<<lastPt<<" npwc "<<npwc<<" nadj "<<nadj<<" hitFrac "<<hitFrac;
+      if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj == minPts) break;
+    } // lastPt
+    
+    // Nothing needs to be done
+    if(lastPt == tj.EndPt[1]) return;
+    
+    // clear the points after lastPt
+    for(unsigned short ipt = lastPt + 1; ipt <= tj.EndPt[1]; ++ipt) UnsetUsedHits(tjs, tj.Pts[ipt]);
+    SetEndPoints(tjs, tj);
+//    tj.Pts.resize(tj.EndPt[1] + 1);
+    tj.AlgMod[kTEP] = true;
+    if(prt) PrintTrajectory("TEPo", tjs, tj, USHRT_MAX);
+    
+  } // TrimEndPts
+/*  
+  //////////////////////////////////////////
+  void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
+  {
+    // Trim the hits off the end until there are at least fMinPts consecutive hits at the end
+    // and the fraction of hits on the trajectory exceeds fQualityCuts[0]
+    // Minimum length requirement accounting for dead wires where - denotes a wire with a point
+    // and D is a dead wire. Here is an example with minPts = 3
+    //  ---DDDDD--- is OK
+    //  ----DD-DD-- is OK
+    //  ----DDD-D-- is OK
+    //  ----DDDDD-- is not OK
+    
+    if(!tjs.UseAlg[kTEP]) return;
+    
+    float npwc = NumPtsWithCharge(tjs, tj, false);
+    if(npwc < fQualityCuts[1] + 1) return;
+    
+    // consider short Tjs that the code below doesn't handle
+    if(npwc == fQualityCuts[1] + 1) {
+      float sep = PosSep(tj.Pts[tj.EndPt[0]].Pos, tj.Pts[tj.EndPt[1]].Pos);
+      std::cout<<"TEP: "<<tj.ID<<" npwc "<<npwc<<" sep "<<sep<<"\n";
+    } // short tj
+    
     unsigned short minPts = fQualityCuts[1];
     float maxPtSep = minPts + 2;
-    if(NumPtsWithCharge(tjs, tj, false) < minPts) return;
-    
+
     if(prt) {
       mf::LogVerbatim("TC")<<"TrimEndPts: minPts "<<minPts<<" required. maxPtSep "<<maxPtSep<<" Minimum hit fraction "<<fQualityCuts[0];
       if(tj.Pts.size() < 50) PrintTrajectory("TEPi", tjs, tj, USHRT_MAX);
@@ -2074,16 +2177,16 @@ namespace tca {
     unsigned short newEndPt = tj.EndPt[1];
     unsigned short nPtsWithCharge;
     float hitFrac = 0;
-    while(newEndPt >= minPts) {
+    while(newEndPt > minPts) {
       nPtsWithCharge = 0;
       if(tj.Pts[newEndPt].Chg == 0) {
         --newEndPt;
         continue;
       }
-      for(unsigned short jj = 0; jj < minPts; ++jj) {
+      for(unsigned short jj = 0; jj < minPts && jj<= newEndPt; ++jj) {
         unsigned short jpt = newEndPt - jj;
         if(tj.Pts[jpt].Chg > 0) ++nPtsWithCharge; 
-        if(jpt < minPts) break;
+        if(jpt < minPts) break; //TY: so trajectory with 4 points won't be killed
       } // jj
       
       float ptSep = std::abs(tj.Pts[newEndPt - minPts].Pos[0] - tj.Pts[newEndPt].Pos[0]);
@@ -2099,6 +2202,8 @@ namespace tca {
         newEndPt -= minPts;
       }
       --newEndPt;
+      // check for a serious failure
+      if(newEndPt > tj.EndPt[1]) return;
     } // newEndPt
 
     // passed the cuts with no modifications
@@ -2137,7 +2242,7 @@ namespace tca {
     }
     
     float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[newEndPt].Pos[0]) + 1;
-    float npwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], newEndPt);
+    npwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], newEndPt);
     hitFrac = npwc / nwires;
     
     if(hitFrac < fQualityCuts[0]) tj.AlgMod[kKilled] = true;
@@ -2148,17 +2253,14 @@ namespace tca {
     
     // modifications required
     tj.EndPt[1] = newEndPt;    
-    for(unsigned short ipt = newEndPt + 1; ipt < tj.Pts.size(); ++ipt) {
-//      if(prt) mf::LogVerbatim("TC")<<" unset "<<ipt;
-      UnsetUsedHits(tjs, tj.Pts[ipt]);
-    }
+    for(unsigned short ipt = newEndPt + 1; ipt < tj.Pts.size(); ++ipt) UnsetUsedHits(tjs, tj.Pts[ipt]);
     SetEndPoints(tjs, tj);
     tj.Pts.resize(tj.EndPt[1] + 1);
     tj.AlgMod[kTEP] = true;
     if(prt) PrintTrajectory("TEPo", tjs, tj, USHRT_MAX);
     
   } // TrimEndPts
-  
+*/
   /////////////////////////////////////////
   bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt)
   {
@@ -2882,6 +2984,32 @@ namespace tca {
     } // ipt
     return hitVec;
   } // PutTrajHitsInVector
+  
+  //////////////////////////////////////////
+  void TagJunkTj(TjStuff const& tjs, Trajectory& tj, bool prt)
+  {
+    // Characterizes the trajectory as a junk tj even though it may not
+    // have been reconstructed in FindJunkTraj. The distinguishing feature is
+    // that it is short and has many used hits in each trajectory point.
+    
+    // Don't bother if it is too long
+    if(tj.Pts.size() > 10) return;
+    // count the number of points that have many used hits
+    unsigned short nhm = 0;
+    unsigned short npwc = 0;
+    for(auto& tp : tj.Pts) {
+      if(tp.Chg == 0) continue;
+      ++npwc;
+      unsigned short nused = 0;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(tp.UseHit[ii]) ++nused;
+      } // ii
+      if(nused > 3) ++nhm;
+    } // tp
+    // Set the junkTj bit if most of the hits are used in most of the tps
+    if(nhm > 0.5 * npwc) tj.AlgMod[kJunkTj] = true;
+    if(prt) mf::LogVerbatim("TC")<<"TGT: "<<tj.ID<<" npwc "<<npwc<<" nhm "<<nhm<<" junk? "<<tj.AlgMod[kJunkTj];
+  } // TagJunkTj
 
   //////////////////////////////////////////
   bool HasDuplicateHits(TjStuff const& tjs, Trajectory const& tj, bool prt)

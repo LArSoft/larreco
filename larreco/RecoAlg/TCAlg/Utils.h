@@ -139,6 +139,7 @@ namespace tca {
   void TrajTrajDOCA(TjStuff& tjs, Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires);
   // Calculates the angle between two TPs
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
+  void TagJunkTj(TjStuff const& tjs, Trajectory& tj, bool prt);
   // Put hits in each trajectory point into a flat vector.
   std::vector<unsigned int> PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest);
   // returns true if a hit is associated with more than one point
