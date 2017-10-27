@@ -640,7 +640,6 @@ void nnet::TrainingDataAlg::collectVtxFlags(
 	const std::unordered_map< int, const simb::MCParticle* > & particleMap,
 	unsigned int plane) const
 {
-	std::cout << "collectVtxFlags" << std::endl;
 	for (auto const & p : particleMap)
 	{
 		auto const & particle = *p.second;
