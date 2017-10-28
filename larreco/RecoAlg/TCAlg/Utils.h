@@ -97,6 +97,7 @@ namespace tca {
   bool SignalPresent(TrajPoint const& tp, float minAmp);
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj);
   void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj);
+  void MergeGhostTjs(TjStuff& tjs, CTP_t inCTP);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
