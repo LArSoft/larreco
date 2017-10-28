@@ -525,7 +525,7 @@ namespace tca {
     for(auto& vx3 : tjs.vtx3) if(vx3.ID > 0 && vx3.Score > 0) hist.fVx3Score->Fill(vx3.Score);
     
     // print trajectory summary report?
-    if(tjs.ShowerTag[0] >= 0) debug.Plane = tjs.ShowerTag[11];
+    if(tjs.ShowerTag[0] >= 1) debug.Plane = tjs.ShowerTag[11];
     if(fDebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       PrintPFParticles("RTC", tjs);
@@ -772,6 +772,9 @@ namespace tca {
       if(fQuitAlg) return;
 
     } // pass
+    
+    // Merge Tjs that share a lot of hits with each other
+//    MergeGhostTjs(tjs, inCTP);
     
     // Use unused hits in all trajectories
     UseUnusedHits();
@@ -1073,6 +1076,9 @@ namespace tca {
     unsigned short pass = fMinPts.size() - 1;
     if(!StartTraj(work, tHits[0], tHits[tHits.size()-1], pass)) return false;
     
+    // Make TPs with the same separation as the wire spacing
+    constexpr float pointSize = 1;
+    
     // Do a more detailed specification of TPs if there
     // are enough hits
     if(tHits.size() > 6) {
@@ -1106,7 +1112,6 @@ namespace tca {
       double cs = cos(-work.Pts[0].Ang);
       double sn = sin(-work.Pts[0].Ang);
       float tAlong, minAlong = 1E6, maxAlong = -1E6;
-      float pointSize = 2.1;
       // sort the hits by the distance along the general direction
       std::vector<SortEntry> sortVec(tHits.size());
       SortEntry sortEntry;
@@ -1134,7 +1139,7 @@ namespace tca {
         ipt = (unsigned short)((sortVec[ii].val - minAlong) / pointSize);
         if(ipt > npts - 1) ipt = npts - 1;
         if(jtPrt) mf::LogVerbatim("TC")<<"tHit "<<PrintHit(tjs.fHits[tHits[ii]])<<" length "<<sortVec[ii].val<<" ipt "<<ipt<<" Chg "<<(int)tjs.fHits[tHits[ii]].Integral;
-        tpHits[ipt].push_back(tHits[ii]);
+        if(tpHits[ipt].size() < 16) tpHits[ipt].push_back(tHits[ii]);
       }
     }  else {
       // just a few hits. Put each one at a TP in the order that
@@ -1403,9 +1408,10 @@ namespace tca {
     unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
     float fwire = wire;
     for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-      if(tjs.fHits[iht].InTraj == tj.ID) continue;
-      if(rawProjTick > tjs.fHits[iht].StartTick && rawProjTick < tjs.fHits[iht].EndTick) sigOK = true;
-      float ftime = tjs.UnitsPerTick * tjs.fHits[iht].PeakTime;
+      auto& hit = tjs.fHits[iht];
+      if(hit.InTraj == tj.ID) continue;
+      if(rawProjTick > hit.StartTick && rawProjTick < hit.EndTick) sigOK = true;
+      float ftime = tjs.UnitsPerTick * hit.PeakTime;
       float delta = PointTrajDOCA(tjs, fwire, ftime, tp);
       if(delta > maxDeltaCut) continue;
       float dt = std::abs(ftime - tp.Pos[1]);
@@ -1414,15 +1420,16 @@ namespace tca {
       if(prt && delta < 100 && dt < 100) {
         mf::LogVerbatim myprt("TC");
         myprt<<"  iht "<<iht;
-        myprt<<" "<<tjs.fHits[iht].WireID.Plane<<":"<<PrintHit(tjs.fHits[iht]);
+        myprt<<" "<<hit.WireID.Plane<<":"<<PrintHit(hit);
         myprt<<" delta "<<std::fixed<<std::setprecision(2)<<delta<<" deltaCut "<<deltaCut<<" dt "<<dt;
-        myprt<<" BB Mult "<<hitsInMultiplet.size()<<" localIndex "<<localIndex<<" RMS "<<std::setprecision(1)<<tjs.fHits[iht].RMS;
-        myprt<<" Chi "<<std::setprecision(1)<<tjs.fHits[iht].GoodnessOfFit;
-        myprt<<" InTraj "<<tjs.fHits[iht].InTraj;
-        myprt<<" Chg "<<(int)tjs.fHits[iht].Integral;
+        myprt<<" BB Mult "<<hitsInMultiplet.size()<<" localIndex "<<localIndex<<" RMS "<<std::setprecision(1)<<hit.RMS;
+        myprt<<" Chi "<<std::setprecision(1)<<hit.GoodnessOfFit;
+        myprt<<" InTraj "<<hit.InTraj;
+        myprt<<" Chg "<<(int)hit.Integral;
+        myprt<<" mcpIndex "<<hit.MCPartListIndex;
         myprt<<" Signal? "<<sigOK;
       }
-      if(tjs.fHits[iht].InTraj == 0 && delta < bigDelta && hitsInMultiplet.size() < 3 && !tj.AlgMod[kRvPrp]) {
+      if(hit.InTraj == 0 && delta < bigDelta && hitsInMultiplet.size() < 3 && !tj.AlgMod[kRvPrp]) {
         // An available hit that is just outside the window that is not part of a large multiplet
         bigDelta = delta;
         imBig = iht;
@@ -2861,7 +2868,7 @@ namespace tca {
         float tps = TrajPointSeparation(tj.Pts[tj.EndPt[1]], ltp);
         float dwc = DeadWireCount(tjs, ltp, tj.Pts[tj.EndPt[1]]);
         float nMissedWires = tps * std::abs(ltp.Dir[0]) - dwc;
-        if(prt)  mf::LogVerbatim("TC")<<" Hits exist on the trajectory but are not used. Missed wires "<<nMissedWires<<" dead wire count "<<(int)dwc;
+        if(prt)  mf::LogVerbatim("TC")<<" Hits exist on the trajectory but are not used. Missed wires "<<std::nearbyint(nMissedWires)<<" dead wire count "<<(int)dwc;
         // break if this is a reverse propagate activity with no dead wires
         if(tj.AlgMod[kRvPrp] && dwc == 0) break;
         if(nMissedWires > fMaxWireSkipWithSignal) break;
@@ -2888,6 +2895,11 @@ namespace tca {
         // ensure that this didn't start as a small angle trajectory and immediately turn
         // into a large angle one
         if(!badTj && tj.Pts[lastPt].AngleCode > fMaxAngleCode[tj.Pass]) badTj = true;
+        // check for a large change in angle
+        if(!badTj) {
+          float dang = DeltaAngle(tj.Pts[0].Ang, tj.Pts[2].Ang);
+          if(dang > 0.5) badTj = false;
+        }
         //check for a wacky delta
         if(!badTj && tj.Pts[2].Delta > 2) badTj = true;
         if(badTj) {
@@ -4096,7 +4108,7 @@ namespace tca {
     // number of points with Delta increasing vs ipt
     unsigned short nDeltaIncreasing = 0;
     // Fake this a bit to simplify comparing the counts
-    float prevDelta = tj.Pts[endPt].Delta + 0.1;
+    float prevDelta = tj.Pts[endPt].Delta;
     float maxOKDelta = 10 * tj.Pts[endPt].DeltaRMS;
     float maxOKChg = 0;
     // find the maximum charge point on the trajectory
@@ -4120,6 +4132,7 @@ namespace tca {
       if(tp.Pos[1] > tp.HitPos[1]) ++nPosDelta;
       // The number of increasing delta points: Note implied absolute value
       if(tp.Delta < prevDelta) ++nDeltaIncreasing;
+      if(prt) std::cout<<ipt<<" chk "<<PrintPos(tjs, tp.Pos)<<" delta "<<tp.Delta<<" prev "<<prevDelta<<" nDeltaIncreasing "<<nDeltaIncreasing<<"\n";
       prevDelta = tp.Delta;
       ++nMasked;
     } // ii
@@ -4128,20 +4141,14 @@ namespace tca {
     // nPosDelta either being ~0 or ~equal to the number of masked points. nPosDelta should have something
     // in between these two extremes if we are stepping through a messy region
     bool driftingAway = nMasked > 2 && (nPosDelta == 0 || nPosDelta == nMasked);
-    if(prt) {
-      std::cout<<"tp "<<PrintPos(tjs, tj.Pts[endPt].Pos);
-      std::cout<<" nMasked "<<nMasked<<" nOneHit "<<nOneHit<<" nOKChg "<<nOKChg<<" nOKDelta "<<nOKDelta<<" nPosDelta "<<nPosDelta<<" nDeltaIncreasing "<<nDeltaIncreasing<<" driftingAway? "<<driftingAway;
-    }
-    if(driftingAway) driftingAway = (nDeltaIncreasing < nMasked - 1);
-    if(prt) std::cout<<" driftingAway? "<<driftingAway<<"\n";
+    // Note that nDeltaIncreasing is always positive
+    if(driftingAway && nDeltaIncreasing < nMasked - 1) driftingAway = false;
     
     if(prt) {
       mf::LogVerbatim("TC")<<"MHOK:  nMasked "<<nMasked<<" nOneHit "<<nOneHit<<" nOKChg "<<nOKChg<<" nOKDelta "<<nOKDelta<<" nPosDelta "<<nPosDelta<<" nDeltaIncreasing "<<nDeltaIncreasing<<" driftingAway? "<<driftingAway;
     }
     
-    if(driftingAway) {
-      return false;
-    } else {
+    if(!driftingAway) {
       if(nMasked < 8 || nOneHit < 8) return true;
       if(nOKDelta != nMasked) return true;
       if(nOKChg != nMasked) return true;
@@ -4405,7 +4412,7 @@ namespace tca {
 
     // update MCSMom. First ensure that nothing bad has happened
     float newMCSMom = MCSMom(tjs, tj);
-    if(lastPt > 5 && newMCSMom < 0.6 * tj.MCSMom) {
+    if(lastPt > 10 && newMCSMom < 0.6 * tj.MCSMom) {
       if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: MCSMom took a nose-dive "<<newMCSMom;
       UnsetUsedHits(tjs, lastTP);
       DefineHitPos(lastTP);
