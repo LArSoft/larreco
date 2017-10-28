@@ -2866,42 +2866,32 @@ namespace tca {
     
     if(tjs.ShowerTag[0] <= 0) return;
     
-    // clear out old tags
+    if(tjs.allTraj.size() > 20000) {
+      std::cout<<"TagInShowerTjs: Crazy number of Tjs "<<tjs.allTraj.size()<<". No shower tagging. Events processed "<<tjs.EventsProcessed<<" \n";
+      return;
+    }
+    
+    // clear out old tags and make a list of Tjs to consider
+    std::vector<int> tjids;
+    short maxMCSMom = tjs.ShowerTag[1];
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != inCTP) continue;
       if(tj.AlgMod[kKilled]) continue;
       tj.AlgMod[kInShower] = false;
+      tj.NNeighbors = 0;
+      if(tj.AlgMod[kShowerTj]) continue;
+      if(tj.Pts.size() > 4 && tj.MCSMom > maxMCSMom) continue;
+      tjids.push_back(tj.ID);
     } // tj
     
-    short maxMCSMom = tjs.ShowerTag[1];
+    if(tjids.size() < 2) return;
     
-    for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
-      Trajectory& tj1 = tjs.allTraj[it1];
+    for(unsigned short it1 = 0; it1 < tjids.size() - 1; ++it1) {
+      Trajectory& tj1 = tjs.allTraj[tjids[it1] - 1];
       if(tj1.CTP != inCTP) continue;
-      if(tj1.AlgMod[kKilled]) continue;
-      tj1.NNeighbors = 0;
-      // identified as a parent
-      // ignore shower Tjs
-      if(tj1.AlgMod[kShowerTj]) continue;
-      // ignore stubby Tjs
-      if(tj1.Pts.size() < 3) continue;
-      // Cut on length and MCSMom
-      if(tj1.Pts.size() > 4 && tj1.MCSMom > maxMCSMom) continue;
-      // ignore Tjs with parents
-//      if(tj1.ParentID != -1) continue;
-      for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
-        Trajectory& tj2 = tjs.allTraj[it2];
+      for(unsigned short it2 = it1 + 1; it2 < tjids.size(); ++it2) {
+        Trajectory& tj2 = tjs.allTraj[tjids[it2] - 1];
         if(tj2.CTP != inCTP) continue;
-        if(tj2.AlgMod[kKilled]) continue;
-        // identified as a parent
-        // ignore shower Tjs
-        if(tj2.AlgMod[kShowerTj]) continue;
-        // ignore stubby Tjs
-        if(tj2.Pts.size() < 3) continue;
-        // ignore Tjs with parents
-//        if(tj2.ParentID != -1) continue;
-        // Cut on length and MCSMom
-        if(tj2.Pts.size() > 4 && tj2.MCSMom > maxMCSMom) continue;
         unsigned short ipt1, ipt2;
         float doca = tjs.ShowerTag[2];
         // Find the separation between Tjs without considering dead wires
