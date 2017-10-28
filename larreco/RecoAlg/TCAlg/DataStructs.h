@@ -363,6 +363,7 @@ namespace tca {
     kCHMEH,
     kFillGap,
     kUseGhostHits,
+    kMrgGhost,
     kChkInTraj,
     kStopBadFits,
     kFixBegin,
