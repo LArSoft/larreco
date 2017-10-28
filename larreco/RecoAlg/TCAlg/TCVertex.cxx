@@ -240,6 +240,9 @@ namespace tca {
     
     if(!tjs.UseAlg[kBlobVx]) return;
     
+    // This algorithm doesn't do anything useful in it's current form
+    return;
+    
     if(tjs.allTraj.empty()) return;
     
     unsigned short plane = DecodeCTP(inCTP).Plane;
@@ -519,7 +522,7 @@ namespace tca {
         if(tj1.AlgMod[kDeltaRay] || tj2.AlgMod[kDeltaRay]) {
           if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merge delta rays "<<tj1.ID<<" and "<<tj2.ID<<" CompatibleMerge? "<<CompatibleMerge(tjs, tj1, tj2, prt);
           MakeVertexObsolete(tjs, vx2, true);
-          MergeAndStore(tjs, vxtjs[0], vxtjs[1], prt);
+          MergeAndStore(tjs, vxtjs[0] - 1, vxtjs[1] - 1, prt);
         } // one is a tagged delta-ray
       } // delta-ray check
     } // ivx
