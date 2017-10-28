@@ -31,6 +31,156 @@ namespace tca {
     // Matches reco hits to MC true tracks and puts the association into
     // TCHit TruTrkID. This code is almost identical to the first part of MatchTruth.
     
+    tjs.MCPartList.clear();
+
+    if(tjs.MatchTruth[0] < 0) return;
+    if(tjs.fHits.empty()) return;
+    
+    art::ServiceHandle<cheat::BackTracker> bt;
+    // list of all true particles
+    sim::ParticleList const& plist = bt->ParticleList();
+    if(plist.empty()) return;
+    
+    // MC Particles for the desired true particles
+    int sourcePtclTrackID = -1;
+    fSourceParticleEnergy = -1;
+
+    // first find the source particle 
+    simb::Origin_t sourceOrigin = simb::kUnknown;
+    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+      simb::MCParticle* mcp = (*ipart).second;
+      int trackID = mcp->TrackId();
+      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
+      if(tjs.MatchTruth[0] == 1) {
+        // Look for beam neutrino or single particle
+        if(theTruth->Origin() == simb::kBeamNeutrino) {
+          fSourceParticleEnergy = 1000 * mcp->E();
+          sourcePtclTrackID = trackID;
+          sourceOrigin = simb::kBeamNeutrino;
+          if(tjs.MatchTruth[1] > 2) std::cout<<"Found beam neutrino sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode()<<"\n";
+          break;
+        } // beam neutrino
+        if(theTruth->Origin() == simb::kSingleParticle) {
+          fSourceParticleEnergy = 1000 * mcp->E();
+          sourcePtclTrackID = trackID;
+          sourceOrigin = simb::kSingleParticle;
+          if(tjs.MatchTruth[1] > 0) {
+            TVector3 dir;
+            dir[0] = mcp->Px(); dir[1] = mcp->Py(); dir[2] = mcp->Pz();
+            dir.SetMag(1);
+            std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode()<<" Vx "<<(int)mcp->Vx()<<" Vy "<<(int)mcp->Vy()<<" Vz "<<(int)mcp->Vz()<<" dir "<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<"\n";
+            break;
+          }
+        } // single particle
+      } else if(tjs.MatchTruth[0] == 2 && theTruth->Origin() == simb::kCosmicRay) {
+        sourcePtclTrackID = trackID;
+        sourceOrigin = simb::kCosmicRay;
+      }
+    } // ipart
+    
+    if(sourcePtclTrackID == -1) return;
+      
+    // flag MCParticles to select for measuring performance. 
+    std::vector<bool> select(plist.size(), false);
+    // make a temp vector of hit -> geant trackID
+    std::vector<int> gtid(tjs.fHits.size(), 0);
+    // find hits that match to the source particle
+    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+      std::vector<sim::IDE> ides;
+      auto& tcHit = tjs.fHits[iht];
+      geo::PlaneID planeID = geo::PlaneID(tcHit.WireID.Cryostat, tcHit.WireID.TPC, tcHit.WireID.Plane);
+      raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel((int)tcHit.WireID.Plane, (int)tcHit.WireID.Wire, (int)tcHit.WireID.TPC, (int)tcHit.WireID.Cryostat);
+      auto rhit = recob::Hit(channel,
+                             tcHit.StartTick, tcHit.EndTick,
+                             tcHit.PeakTime, tcHit.SigmaPeakTime,
+                             tcHit.RMS,
+                             tcHit.PeakAmplitude, tcHit.SigmaPeakAmp,
+                             tcHit.Integral, tcHit.Integral, tcHit.SigmaIntegral,
+                             tcHit.Multiplicity, tcHit.LocalIndex,
+                             tcHit.GoodnessOfFit, tcHit.NDOF,
+                             tjs.geom->View(channel),
+                             tjs.geom->SignalType(planeID),
+                             tcHit.WireID);
+      try {
+        bt->HitToSimIDEs(rhit, ides);
+      }
+      catch(...) {}
+      if(ides.empty()) continue;
+      float energy = 0;
+      for(auto ide : ides) energy += ide.energy;
+      if(energy == 0) continue;
+      // require 1/2 of the energy be due to one MC particle
+      energy /= 2;
+      int hitTruTrkID = 0;
+      for(auto ide : ides) {
+        if(ide.energy > energy) {
+          hitTruTrkID = ide.trackID;
+          break;
+        }
+      } // ide
+      if(hitTruTrkID == 0) continue;
+      // ensure it has the correct source
+      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(hitTruTrkID);
+      if(theTruth->Origin() != sourceOrigin) continue;
+      unsigned short indx = 0;
+      for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+        ++indx;
+        simb::MCParticle* mcp = (*ipart).second;
+        if(mcp->TrackId() != hitTruTrkID) continue;
+        select[indx - 1] = true;
+        gtid[iht] = mcp->TrackId();
+        // find the eve particle and select it as well
+        const simb::MCParticle* momMCP = bt->TrackIDToMotherParticle(mcp->TrackId());
+        unsigned short mindx = 0;
+        for(sim::ParticleList::const_iterator mpart = plist.begin(); mpart != plist.end(); ++mpart) {
+          simb::MCParticle* mmcp = (*mpart).second;
+          if(mmcp->TrackId() == momMCP->TrackId()) {
+            select[mindx] = true;
+            break;
+          }
+          ++mindx;
+        } // mpart
+        break;
+      } // ipart
+    } // iht
+    
+    // save the selected MCParticles in tjs
+    unsigned short indx = 0;
+    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+      if(select[indx]) {
+        simb::MCParticle* mcp = (*ipart).second;
+        tjs.MCPartList.push_back(mcp);
+      }
+      ++indx;
+    } // ipart
+    
+    if(tjs.MCPartList.size() > USHRT_MAX) {
+      std::cout<<"MatchTrueHits: Crazy large number of MCParticles "<<tjs.MCPartList.size()<<". Ignoring this event\n";
+      tjs.MCPartList.clear();
+      return;
+    }
+    
+    // define MCPartListIndex for the hits
+    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+      if(gtid[iht] == 0) continue;
+      auto& hit = tjs.fHits[iht];
+      for(unsigned short indx = 0; indx < tjs.MCPartList.size(); ++indx) {
+        auto& mcp = tjs.MCPartList[indx];
+        if(mcp->TrackId() != gtid[iht]) continue;
+        hit.MCPartListIndex = indx;
+      } // indx
+    } // iht
+      
+
+  } // MatchTrueHits
+
+/*
+  //////////////////////////////////////////
+  void TruthMatcher::MatchTrueHits(const HistStuff& hist)
+  {
+    // Matches reco hits to MC true tracks and puts the association into
+    // TCHit TruTrkID. This code is almost identical to the first part of MatchTruth.
+    
     if(tjs.MatchTruth[0] < 0) return;
     if(tjs.fHits.empty()) return;
     
@@ -89,6 +239,7 @@ namespace tca {
           }
         }
       }
+      if(trackID == 2474363) std::cout<<"Found it "<<mcp->PdgCode()<<" origin "<<theTruth->Origin()<<" "<<1000 * mcp->E()<<"\n";
       // ignore anything that has the incorrect origin
       if(theTruth->Origin() != sourceOrigin) continue;
       // ignore processes that aren't a stable final state particle
@@ -208,7 +359,7 @@ namespace tca {
     // Dump all MC particle info 
     if(tjs.MatchTruth[1] > 1) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"part   PDG     TrkID     MomID KE(MeV) ____Process______   ________Start________  ___Direction____\n";
+      myprt<<"part   PDG     TrkID     MomID momIndex KE(MeV) ____Process______   ________Start________  ___Direction____\n";
       for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         auto& mcp = tjs.MCPartList[ipart];
         unsigned short pdg = abs(mcp->PdgCode());
@@ -221,6 +372,9 @@ namespace tca {
         myprt<<std::setw(6)<<mcp->PdgCode();
         myprt<<std::setw(10)<<mcp->TrackId();
         myprt<<std::setw(10)<<motherID;
+        const simb::MCParticle* momMCP = bt->TrackIDToMotherParticle(mcp->TrackId());
+        myprt<<std::setw(9)<<momMCP->TrackId();
+        myprt<<std::setw(9)<<momMCP->PdgCode();
         myprt<<std::setw(6)<<TMeV;
         myprt<<std::setw(20)<<mcp->Process();
         myprt<<std::fixed<<std::setprecision(1);
@@ -234,6 +388,20 @@ namespace tca {
         myprt<<std::setw(6)<<dir[0];
         myprt<<std::setw(6)<<dir[1];
         myprt<<std::setw(6)<<dir[2];
+        myprt<<" hits: ";
+        std::vector<unsigned int> mhits;
+        for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+          auto& hit = tjs.fHits[iht];
+          if(hit.MCPartListIndex == ipart) mhits.push_back(iht);
+        }
+        if(!mhits.empty()) {
+          if(mhits.size() < 5) {
+            myprt<<" hits:";
+            for(auto iht : mhits) myprt<<" "<<PrintHit(tjs.fHits[iht]);
+          } else {
+            myprt<<" nhits = "<<mhits.size();
+          }
+        }
         myprt<<"\n";
       } // ipart
     }
@@ -250,7 +418,7 @@ namespace tca {
 //    if(nomat > 0.1) std::cout<<"MTH: reco-true unmatched hitfraction  "<<std::fixed<<std::setprecision(3)<<noMatFrac<<"\n";
 
   } // MatchTrueHits
-  
+*/
   //////////////////////////////////////////
   void TruthMatcher::MatchTruth(const HistStuff& hist, bool fStudyMode)
   {
@@ -258,6 +426,7 @@ namespace tca {
     // to the truth-matched hits to measure performance    
     
     if(tjs.MatchTruth[0] < 0) return;
+    if(tjs.MCPartList.empty()) return;
     
     art::ServiceHandle<cheat::BackTracker> bt;
     // list of all true particles
@@ -504,6 +673,7 @@ namespace tca {
       auto& mcp = tjs.MCPartList[ipart];
       float TMeV = 1000 * (mcp->E() - mcp->Mass());
       unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
+      if(pdgIndex > 4) continue;
       for(const geo::TPCID& tpcid : tjs.geom->IterateTPCIDs()) {
         geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
         for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
@@ -527,7 +697,7 @@ namespace tca {
             if((float)mcpHits.size() > tjs.MatchTruth[3]) {
               ++nBadEP;
               mf::LogVerbatim myprt("TC");
-              myprt<<"pdgIndex "<<pdgIndex<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to MCParticle["<<ipart<<"]";
+              myprt<<"pdgIndex "<<pdgIndex<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to mcpIndex["<<ipart<<"]";
               myprt<<" nTrue hits "<<mcpHits.size();
               myprt<<" extent "<<PrintHit(tjs.fHits[mcpHits[0]])<<"-"<<PrintHit(tjs.fHits[mcpHits[mcpHits.size() - 1]]);
               myprt<<" events processed "<<tjs.EventsProcessed;
@@ -542,6 +712,7 @@ namespace tca {
             ++nBadEP;
             mf::LogVerbatim myprt("TC");
             myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
+            myprt<<" mcpIndex "<<ipart;
             myprt<<" TMeV "<<(int)TMeV<<" MCP hits "<<mcpHits.size();
             myprt<<" extent "<<PrintHit(tjs.fHits[mcpHits[0]])<<"-"<<PrintHit(tjs.fHits[mcpHits[mcpHits.size() - 1]]);
             myprt<<" events processed "<<tjs.EventsProcessed;
@@ -715,6 +886,7 @@ namespace tca {
       // require match to MC
       if(pfp.MCPartListIndex == USHRT_MAX) continue;
       short truIndex = PDGCodeIndex(tjs, tjs.MCPartList[pfp.MCPartListIndex]->PdgCode());
+      if(truIndex == USHRT_MAX) continue;
       short recIndex = 0;
       for(recIndex = 0; recIndex < 5; ++recIndex) if(pfp.PDGCode == recoCodeList[recIndex]) break;
       if(recIndex == 5) {
