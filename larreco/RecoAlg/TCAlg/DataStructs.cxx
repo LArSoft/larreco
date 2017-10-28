@@ -25,6 +25,7 @@ namespace tca {
     "CHMEH",
     "FillGap",
     "Ghost",
+    "MrgGhost",
     "ChkInTraj",
     "StopBadFits",
     "FixBegin",
