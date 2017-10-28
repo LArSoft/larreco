@@ -1321,7 +1321,7 @@ std::map<int,std::vector<art::Ptr<recob::Hit> > > shower::EMShowerAlg::OrderShow
   //   ++trueParticleHits[FindParticleID(*showerHitIt)];
   // }
   // int trueParticleID = FindTrueParticle(showerHitsVector);
-  // const simb::MCParticle* trueParticle = bt_serv->TrackIDToParticle(trueParticleID);
+  // const simb::MCParticle* trueParticle = bt->TrackIDToParticle(trueParticleID);
   // TVector3 trueStart3D = trueParticle->Position().Vect();
   // double purity = trueParticleHits[trueParticleID]/(double)shower.size();
 
@@ -2325,7 +2325,7 @@ int shower::EMShowerAlg::FindParticleID(const art::Ptr<recob::Hit>& hit) {
 
   double particleEnergy = 0;
   int likelyTrackID = 0;
-  std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(hit);
+  std::vector<sim::TrackIDE> trackIDs = bt->HitToTrackID(hit);
   for (unsigned int idIt = 0; idIt < trackIDs.size(); ++idIt) {
     if (trackIDs.at(idIt).energy > particleEnergy) {
       particleEnergy = trackIDs.at(idIt).energy;

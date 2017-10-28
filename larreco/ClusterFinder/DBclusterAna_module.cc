@@ -45,8 +45,7 @@
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RawData/RawDigit.h"
-#include "larsim/MCCheater/BackTrackerService.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 
@@ -213,8 +212,7 @@ namespace cluster{
       }
   
     art::ServiceHandle<geo::Geometry>      geom;  
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTracker> bt;
     
     art::Handle< std::vector<raw::RawDigit>  > rdListHandle;
     evt.getByLabel(fDigitModuleLabel,rdListHandle);
@@ -242,9 +240,9 @@ namespace cluster{
   
     //get the simb::MCParticle collection from the art::Event and then use the 
     //Simulation/SimListUtils object to create a sim::ParticleList from the art::Event.  
-    pi_serv->SetEveIdCalculator(new sim::EmEveIdCalculator);
+    bt->SetEveIdCalculator(new sim::EmEveIdCalculator);
     
-    sim::ParticleList const& _particleList = pi_serv->ParticleList();
+    sim::ParticleList const& _particleList = bt->ParticleList();
     
     std::vector<int> mc_trackids;
     
@@ -386,9 +384,9 @@ namespace cluster{
   		
   	      hit_energy=_hits[itr-hits_vec.begin()]->Integral();
   		
-  	      std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(*itr);
+  	      std::vector<sim::TrackIDE> trackides = bt->HitToTrackID(*itr);
   	 		
-  	      std::vector<sim::TrackIDE> eveides   = bt_serv->HitToEveTrackIDEs(*itr);
+  	      std::vector<sim::TrackIDE> eveides   = bt->HitToEveID(*itr);
   		
   	      std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
   		
@@ -803,8 +801,8 @@ namespace cluster{
     std::vector< art::Ptr<recob::Hit> >::iterator itr = hits.begin();
     while(itr != hits.end()) {
      
-      std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(*itr);
-      std::vector<sim::TrackIDE> eveides   = bt_serv->HitToEveTrackIDEs(*itr);
+      std::vector<sim::TrackIDE> trackides = bt->HitToTrackID(*itr);
+      std::vector<sim::TrackIDE> eveides   = bt->HitToEveID(*itr);
   		
       std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
   		

@@ -26,8 +26,8 @@
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Principal/View.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-//\todo Remove include of BackTrackerService.h once this algorithm is stripped of test for MC
-#include "larsim/MCCheater/BackTrackerService.h"
+//\todo Remove include of BackTracker.h once this algorithm is stripped of test for MC
+#include "larsim/MCCheater/BackTracker.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/RecoObjects/KHitTrack.h"
@@ -925,7 +925,7 @@ namespace  trkf{
         ///\todo Why are we still checking on whether this is MC or not?
         ///\todo Such checks should not be in reconstruction code.
         if(useMC) {
-            art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+            art::ServiceHandle<cheat::BackTracker> bt;
             
             // First loop over hits and fill track ids and mc position.
             for(unsigned int cstat = 0; cstat < ncstat; ++cstat){
@@ -945,7 +945,8 @@ namespace  trkf{
                             
                             // Get sim::IDEs for this hit.
                             
-                            std::vector<sim::IDE> ides = bt_serv->HitToAvgSimIDEs(phit);
+                            std::vector<sim::IDE> ides;
+                            bt->HitToSimIDEs(phit, ides);
                             
                             // Get sorted track ids. for this hit.
                             
@@ -958,7 +959,7 @@ namespace  trkf{
                             // Get position of ionization for this hit.
                             
                             try {
-                                mcinfo.xyz = bt_serv->SimIDEsToXYZ(ides);
+                                mcinfo.xyz = bt->SimIDEsToXYZ(ides);
                             }
                             catch(cet::exception& x) {
                                 mcinfo.xyz.clear();

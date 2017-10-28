@@ -1,7 +1,7 @@
 //
 //**Tracking Efficiency module***
 //The basic idea is to loop over the hits from a given track and call BackTracker
-//then look at std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackID(hit); 
+//then look at std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit); 
 //then associete the hits to a G4 track ID (particle) that generate those hits(electrons)
 //It was developed for CC neutrio interactions, it also can handle proton decay events p->k+nu_bar
 //And protons, pion and muons from particle cannon by using the option isNeutrinoInt = false;
@@ -21,8 +21,7 @@
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "larsim/MCCheater/BackTrackerService.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RawData/ExternalTrigger.h"
@@ -427,8 +426,8 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
     simb::MCParticle *MCkaon = NULL;
     simb::MCParticle *MCmichel = NULL;
  
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    const sim::ParticleList& plist = pi_serv->ParticleList();
+    art::ServiceHandle<cheat::BackTracker> bt;
+    const sim::ParticleList& plist = bt->ParticleList();
     simb::MCParticle *particle=0;
     int i=0; // particle index
 
@@ -797,12 +796,11 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
 void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> all_hits, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet){
 
     //std::cout<<"truthMatcher..."<<std::endl;
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTracker> bt;
     std::map<int,double> trkID_E;
     for(size_t j = 0; j < track_hits.size(); ++j){
        art::Ptr<recob::Hit> hit = track_hits[j];
-       std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(hit);
+       std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit);
        for(size_t k = 0; k < TrackIDs.size(); k++){
           trkID_E[TrackIDs[k].trackID] += TrackIDs[k].energy;
        }            
@@ -827,7 +825,7 @@ void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> all_hi
          if( TrackID < 0 ) E_em += ii->second;
        }
     } 
-    MCparticle = pi_serv->TrackIdToParticle_P(TrackID);
+    MCparticle = bt->TrackIDToParticle(TrackID);
 
     //In the current simulation, we do not save EM Shower daughters in GEANT. But we do save the energy deposition in TrackIDEs. If the energy deposition is from a particle that is the daughter of 
     //an EM particle, the negative of the parent track ID is saved in TrackIDE for the daughter particle
@@ -841,7 +839,7 @@ void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> all_hi
     double totenergy =0;
     for(size_t k = 0; k < all_hits.size(); ++k){
        art::Ptr<recob::Hit> hit = all_hits[k];
-       std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(hit);
+       std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit);
        for(size_t l = 0; l < TrackIDs.size(); ++l){
           if(TrackIDs[l].trackID==TrackID) totenergy += TrackIDs[l].energy;
        }

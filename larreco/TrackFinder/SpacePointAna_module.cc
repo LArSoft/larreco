@@ -39,8 +39,7 @@
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "larsim/MCCheater/BackTrackerService.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "larsim/MCCheater/BackTracker.h"
 
 #include "TH1F.h"
 
@@ -240,7 +239,7 @@ namespace trkf {
   // Arguments: event - Art event.
   //
   {
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::BackTracker> bt;
 
     ++fNumEvent;
 
@@ -348,7 +347,7 @@ namespace trkf {
 	bool tav_ok = true;
 	double tav = 0.;
 	try {
-	  std::vector<double> hitxyz = bt_serv->HitToXYZ(*ihit);
+	  std::vector<double> hitxyz = bt->HitToXYZ(*ihit);
 	  tav = detprop->ConvertXToTicks(hitxyz[0], (*ihit)->WireID().Plane, (*ihit)->WireID().TPC, (*ihit)->WireID().Cryostat);
 	}
 	catch(cet::exception& x) {
@@ -514,9 +513,7 @@ namespace trkf {
 
       // Get hits associated with this SpacePoint.
 
-      std::vector<art::Ptr<recob::Hit> > spthits;
-      const art::PtrVector<recob::Hit>& av_spthits = fSptalgDefault.getAssociatedHits(spt);
-      for( auto const& ptr : av_spthits ){ spthits.push_back(ptr);}
+      const art::PtrVector<recob::Hit>& spthits = fSptalgDefault.getAssociatedHits(spt);
 
       // Fill single hit histograms.
 
@@ -545,7 +542,7 @@ namespace trkf {
 
       if(mc) {
 	try {
-	  std::vector<double> mcxyz = bt_serv->SpacePointHitsToWeightedXYZ(spthits);
+	  std::vector<double> mcxyz = bt->SpacePointHitsToXYZ(spthits);
 	  fHMCdx->Fill(spt.XYZ()[0] - mcxyz[0]);
 	  fHMCdy->Fill(spt.XYZ()[1] - mcxyz[1]);
 	  fHMCdz->Fill(spt.XYZ()[2] - mcxyz[2]);

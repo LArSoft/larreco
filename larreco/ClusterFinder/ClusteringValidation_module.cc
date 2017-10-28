@@ -37,8 +37,7 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RawData/ExternalTrigger.h"
-#include "larsim/MCCheater/BackTrackerService.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "lardataobj/AnalysisBase/ParticleID.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
@@ -110,8 +109,7 @@ private:
   std::map<TrackID,simb::MCParticle>              trueParticles;
 
   art::ServiceHandle<geo::Geometry> geometry;
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+  art::ServiceHandle<cheat::BackTracker> backtracker;
 
 };
 
@@ -147,7 +145,7 @@ TrackIDs ClusteringValidation::ClusterCounter::GetListOfTrackIDs() { TrackIDs v;
 std::vector<std::pair<TrackID,ClusterIDs> > ClusteringValidation::ClusterCounter::GetPhotons() {
   std::vector<std::pair<TrackID,ClusterIDs> > photonVector;
   for (unsigned int track = 0; track < GetListOfTrackIDs().size(); ++track)
-    if (!IsNoise(GetListOfTrackIDs().at(track)) && pi_serv->TrackIdToParticle_P((int)GetListOfTrackIDs().at(track))->PdgCode() == 22)
+    if (!IsNoise(GetListOfTrackIDs().at(track)) && backtracker->TrackIDToParticle((int)GetListOfTrackIDs().at(track))->PdgCode() == 22)
       photonVector.push_back(std::pair<TrackID,ClusterIDs>(GetListOfTrackIDs().at(track),trackToClusterIDs.at(GetListOfTrackIDs().at(track))));
   return photonVector;
 }
@@ -205,8 +203,7 @@ private:
 
   // Services
   art::ServiceHandle<geo::Geometry> geometry;
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+  art::ServiceHandle<cheat::BackTracker> backtracker;
 
 };
 
@@ -261,7 +258,7 @@ void ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::
 
   // Save true tracks
   trueParticles.clear();
-  const sim::ParticleList& particles = pi_serv->ParticleList();
+  const sim::ParticleList& particles = backtracker->ParticleList();
   for (sim::ParticleList::const_iterator particleIt = particles.begin(); particleIt != particles.end(); ++particleIt) {
     const simb::MCParticle *particle = particleIt->second;
     trueParticles[(TrackID)particle->TrackId()] = particle;
@@ -303,7 +300,7 @@ void ClusteringValidation::ClusterAnalyser::Analyse(std::vector<art::Ptr<recob::
 TrackID ClusteringValidation::ClusterAnalyser::FindTrackID(art::Ptr<recob::Hit> &hit) {
   double particleEnergy = 0;
   TrackID likelyTrackID = (TrackID)0;
-  std::vector<sim::TrackIDE> trackIDs = bt_serv->HitToTrackIDEs(hit);
+  std::vector<sim::TrackIDE> trackIDs = backtracker->HitToTrackID(hit);
   for (unsigned int idIt = 0; idIt < trackIDs.size(); ++idIt) {
     if (trackIDs.at(idIt).energy > particleEnergy) {
       particleEnergy = trackIDs.at(idIt).energy;

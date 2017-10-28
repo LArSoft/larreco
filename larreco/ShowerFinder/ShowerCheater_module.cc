@@ -14,8 +14,7 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "larsim/MCCheater/BackTrackerService.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Shower.h"
@@ -87,8 +86,7 @@ namespace shwf{
   //--------------------------------------------------------------------
   void ShowerCheater::produce(art::Event& evt)
   {
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTracker> bt;
     art::ServiceHandle<geo::Geometry> geo;
 
     // grab the clusters that have been reconstructed
@@ -155,7 +153,7 @@ namespace shwf{
 	  art::Ptr<recob::Hit> hit = hits[h];
 	  // add up the charge from the hits on the collection plane
 	  if(hit->SignalType() == geo::kCollection) totalCharge += hit->Integral();
-	  std::vector<double> xyz = bt_serv->HitToXYZ(hit);
+	  std::vector<double> xyz = bt->HitToXYZ(hit);
 	  double sperr[6] = {0.01, 0.01, 0.1, 0.001, 0.001, 0.001};
 
 	  // make the space point and set its ID and XYZ
@@ -176,17 +174,17 @@ namespace shwf{
 
       // is this prong electro-magnetic in nature or 
       // hadronic/muonic?  EM --> shower, everything else is a track
-      if( std::abs(pi_serv->ParticleList()[clusterMapItr.first]->PdgCode()) == 11  ||
-	  std::abs(pi_serv->ParticleList()[clusterMapItr.first]->PdgCode()) == 22  ||
-	  std::abs(pi_serv->ParticleList()[clusterMapItr.first]->PdgCode()) == 111 ){
+      if( std::abs(bt->ParticleList()[clusterMapItr.first]->PdgCode()) == 11  ||
+	  std::abs(bt->ParticleList()[clusterMapItr.first]->PdgCode()) == 22  ||
+	  std::abs(bt->ParticleList()[clusterMapItr.first]->PdgCode()) == 111 ){
 
 	mf::LogInfo("ShowerCheater") << "prong of " << clusterMapItr.first 
 				    << " is a shower with pdg code "
-				    << pi_serv->ParticleList()[clusterMapItr.first]->PdgCode();
+				    << bt->ParticleList()[clusterMapItr.first]->PdgCode();
 
 	// get the direction cosine for the eve ID particle
 	// just use the same for both the start and end of the prong
-	const TLorentzVector initmom = pi_serv->ParticleList()[clusterMapItr.first]->Momentum();
+	const TLorentzVector initmom = bt->ParticleList()[clusterMapItr.first]->Momentum();
 	TVector3 dcos( initmom.Px()/initmom.Mag(),
 		       initmom.Py()/initmom.Mag(),
 		       initmom.Pz()/initmom.Mag() );

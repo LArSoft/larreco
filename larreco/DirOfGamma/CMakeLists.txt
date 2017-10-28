@@ -28,7 +28,7 @@ art_make(
 	  MODULE_LIBRARIES larreco_RecoAlg
 			   larreco_RecoAlg_PMAlg
 			   larreco_DirOfGamma
-			   larsim_MCCheater_BackTrackerService_service
+			   larsim_MCCheater_BackTracker_service
       			   lardataobj_RecoBase
 			   larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
 			   larcorealg_Geometry

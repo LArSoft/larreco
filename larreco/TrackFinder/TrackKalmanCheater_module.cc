@@ -34,8 +34,7 @@
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larsim/MCCheater/BackTrackerService.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "larreco/RecoAlg/KalmanFilterAlg.h"
 #include "lardata/RecoObjects/KHitContainerWireX.h"
 #include "lardata/RecoObjects/SurfYZPlane.h"
@@ -208,8 +207,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
   // Get Services.
 
   art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+  art::ServiceHandle<cheat::BackTracker> bt;
 
   // Reset space point algorithm.
 
@@ -273,7 +271,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
     // Get track ids for this hit.
 
-    std::vector<sim::TrackIDE> tids = bt_serv->HitToTrackIDEs(*ihit);
+    std::vector<sim::TrackIDE> tids = bt->HitToTrackID(*ihit);
 
     // Loop over track ids.
 
@@ -289,7 +287,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
   // Extract geant mc particles.
 
-  sim::ParticleList const& plist = pi_serv->ParticleList();
+  sim::ParticleList const& plist = bt->ParticleList();
 
   // Loop over geant particles.
 

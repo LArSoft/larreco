@@ -15,7 +15,7 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 
-#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/BackTracker.h"
 
 #include "TGraph.h"
 #include "TPad.h"
@@ -109,10 +109,10 @@ TrueSpacePoints(art::Handle<std::vector<recob::Hit>> hits) const
 
   const double err[6] = {0,};
 
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+  art::ServiceHandle<cheat::BackTracker> bt;
   for(unsigned int i = 0; i < hits->size(); ++i){
     try{
-      const std::vector<double> xyz = bt_serv->HitToXYZ(art::Ptr<recob::Hit>(hits, i));
+      const std::vector<double> xyz = bt->HitToXYZ(art::Ptr<recob::Hit>(hits, i));
       pts_true.emplace_back(&xyz[0], err, 0);
     }
     catch(...){} // some hits have no electrons?

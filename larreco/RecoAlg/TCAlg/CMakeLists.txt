@@ -1,6 +1,6 @@
 
 art_make( 
-      LIB_LIBRARIES larsim_MCCheater_BackTrackerService_service
+      LIB_LIBRARIES larsim_MCCheater_BackTracker_service
       larsim_Simulation
       nutools_ParticleNavigation
       lardataobj_Simulation

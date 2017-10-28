@@ -25,7 +25,7 @@
 #include "lardataobj/RecoBase/Cluster.h"
 #include "larreco/RecoAlg/APAGeometryAlg.h"
 
-#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/BackTracker.h"
 
 #include "TMatrixD.h"
 #include "TVectorD.h"
@@ -73,7 +73,7 @@ namespace apa{
     apa::APAGeometryAlg                           fAPAGeo;
     art::ServiceHandle<geo::Geometry>             geom;
     const detinfo::DetectorProperties*           detprop;
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;                     ///< For *TEMPORARY* monitering of potential problems
+    art::ServiceHandle<cheat::BackTracker> bt;                     ///< For *TEMPORARY* monitering of potential problems
 
     // Hits organization
     std::map< raw::ChannelID_t, std::vector< art::Ptr< recob::Hit > > > fChannelToHits; 

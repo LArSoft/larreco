@@ -30,7 +30,7 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Seed.h"
-#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "lardataobj/MCBase/MCTrack.h"
  
 #include "TH2F.h"

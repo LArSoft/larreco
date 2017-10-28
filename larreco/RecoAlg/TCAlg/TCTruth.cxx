@@ -7,8 +7,7 @@
 
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
-#include "larsim/MCCheater/BackTrackerService.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "larsim/MCCheater/BackTracker.h"
 
 #include "lardata/RecoObjects/TrackStatePropagator.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -35,10 +34,9 @@ namespace tca {
     if(tjs.MatchTruth[0] < 0) return;
     if(tjs.fHits.empty()) return;
     
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTracker> bt;
     // list of all true particles
-    sim::ParticleList const& plist = pi_serv->ParticleList();
+    sim::ParticleList const& plist = bt->ParticleList();
     if(plist.empty()) return;
     
     tjs.MCPartList.clear();
@@ -53,7 +51,7 @@ namespace tca {
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       simb::MCParticle* part = (*ipart).second;
       int trackID = part->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
       if(sourcePtclTrackID < 0) {
         if(tjs.MatchTruth[0] == 1) {
           // Look for beam neutrino or single particle
@@ -114,7 +112,7 @@ namespace tca {
           int primElectronTrackID = tjs.MCPartList[ii]->TrackId();
           for(unsigned short jj = ii + 1; jj < tjs.MCPartList.size(); ++jj) {
             int trackID = tjs.MCPartList[jj]->TrackId();
-            const simb::MCParticle* gmom = pi_serv->TrackIdToMotherParticle_P(trackID);
+            const simb::MCParticle* gmom = bt->TrackIDToMotherParticle(trackID);
             if(gmom == 0 || gmom->TrackId() != primElectronTrackID) continue;
             moda.push_back(std::make_pair(ii, jj));
           } // jj
@@ -164,7 +162,8 @@ namespace tca {
       double endTick = hit.PeakTime + hit.RMS;
       unsigned short hitTruTrkID = 0;
       // get a list of track IDEs that are close to this hit
-      std::vector<sim::TrackIDE> tides = bt_serv->ChannelToTrackIDEs( channel, startTick, endTick);
+      std::vector<sim::TrackIDE> tides;
+      bt->ChannelToTrackIDEs(tides, channel, startTick, endTick);
       // Declare a match to the one which has an energy fraction > 0.5
       for(auto itide = tides.begin(); itide != tides.end(); ++itide) {
         if(itide->energyFrac > 0.5) {
@@ -241,10 +240,9 @@ namespace tca {
     
     if(tjs.MatchTruth[0] < 0) return;
     
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTracker> bt;
     // list of all true particles
-    sim::ParticleList const& plist = pi_serv->ParticleList();
+    sim::ParticleList const& plist = bt->ParticleList();
     if(plist.empty()) return;
     
     // MC Particles for the desired true particles
@@ -266,7 +264,7 @@ namespace tca {
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       simb::MCParticle* part = (*ipart).second;
       int trackID = part->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
       if(sourcePtclTrackID < 0) {
         if(tjs.MatchTruth[0] == 1) {
           // Look for beam neutrino or single particle
@@ -326,7 +324,7 @@ namespace tca {
     if(tjs.MatchTruth[1] > 2) {
       for(unsigned int ii = 0; ii < partList.size(); ++ii) {
         int trackID = partList[ii]->TrackId();
-        const simb::MCParticle* gmom = pi_serv->TrackIdToMotherParticle_P(trackID);
+        const simb::MCParticle* gmom = bt->TrackIDToMotherParticle(trackID);
         std::cout<<ii<<" PDG Code  "<<partList[ii]->PdgCode()<<" TrackId "<<trackID<<" Mother  "<<partList[ii]->Mother()<<" Grandmother "<<gmom->TrackId()<<" Process "<<partList[ii]->Process()<<"\n";
       } // ii
     }
@@ -345,7 +343,7 @@ namespace tca {
           int primElectronTrackID = partList[ii]->TrackId();
           for(unsigned short jj = ii + 1; jj < partList.size(); ++jj) {
             int trackID = partList[jj]->TrackId();
-            const simb::MCParticle* gmom = pi_serv->TrackIdToMotherParticle_P(trackID);
+            const simb::MCParticle* gmom = bt->TrackIDToMotherParticle(trackID);
             if(gmom == 0 || gmom->TrackId() != primElectronTrackID) continue;
             moda.push_back(std::make_pair(primElectronTrackID, trackID));
           } // jj
@@ -414,7 +412,8 @@ namespace tca {
       double endTick = hit.PeakTime + hit.RMS;
       unsigned short plane = tjs.fHits[iht].WireID.Plane;
       // get a list of track IDEs that are close to this hit
-      std::vector<sim::TrackIDE> tides =  bt_serv->ChannelToTrackIDEs( channel, startTick, endTick);
+      std::vector<sim::TrackIDE> tides;
+      bt->ChannelToTrackIDEs(tides, channel, startTick, endTick);
       // Declare a match to the one which has an energy fraction > 0.5
       for(auto itide = tides.begin(); itide != tides.end(); ++itide) {
         if(itide->energyFrac > 0.5) {

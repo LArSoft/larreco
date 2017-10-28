@@ -13,7 +13,7 @@
 // ROOT includes
 
 // LArSoft includes
-#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Shower.h"
@@ -85,10 +85,10 @@ namespace vertex{
   //--------------------------------------------------------------------
   void VertexCheater::produce(art::Event& evt)
   {
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTracker> bt;
 
     // grab the sim::ParticleList
-    const sim::ParticleList& plist = pi_serv->ParticleList();
+    const sim::ParticleList& plist = bt->ParticleList();
 
     // grab the showers that have been reconstructed
     art::Handle< std::vector<recob::Shower> > showercol;

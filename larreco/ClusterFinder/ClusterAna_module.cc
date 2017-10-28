@@ -41,8 +41,7 @@
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Vertex.h"
 // #include "RawData/RawDigit.h"
-#include "larsim/MCCheater/BackTrackerService.h"
-#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 #include "art/Framework/Core/EDAnalyzer.h"
@@ -270,9 +269,8 @@ namespace cluster{
     } // vertexListHandle
     
     // list of all true particles
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    sim::ParticleList const& plist = pi_serv->ParticleList();
+    art::ServiceHandle<cheat::BackTracker> bt;
+    sim::ParticleList const& plist = bt->ParticleList();
     // list of all true particles that will be considered
     std::vector<const simb::MCParticle*> plist2;
     // true (reconstructed) hits for each particle in plist2
@@ -308,7 +306,7 @@ namespace cluster{
       assert(part != 0);
       int pdg = abs(part->PdgCode());
       int trackID = part->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
       if(fSkipCosmics && theTruth->Origin() == simb::kCosmicRay) continue;
       if(theTruth->Origin() == simb::kBeamNeutrino) isNeutrino = true;
       if(theTruth->Origin() == simb::kSingleParticle) isSingleParticle = true;
@@ -394,7 +392,7 @@ namespace cluster{
     if(plist2.size() == 0) return;
     
     // get the hits (in all planes) that are matched to the true tracks
-    hlist2 = bt_serv->TrackIdsToHits_Ps( tidlist,allhits);
+    hlist2 = bt->TrackIDsToHits(allhits, tidlist);
     if(hlist2.size() != plist2.size()) {
       mf::LogError("ClusterAna")
         <<"MC particle list size "<<plist2.size()
@@ -534,7 +532,7 @@ namespace cluster{
       if(hlist2[ipl].size() < 3) continue;
       
       int trackID = plist2[ipl]->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
       bool isCosmic = (theTruth->Origin() == simb::kCosmicRay);
       float KE = 1000 * (plist2[ipl]->E() - plist2[ipl]->Mass());
       int PDG = abs(plist2[ipl]->PdgCode());

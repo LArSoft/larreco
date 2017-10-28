@@ -46,7 +46,7 @@ extern "C" {
 #include "larcorealg/Geometry/WireGeo.h"
 #include "nutools/MagneticField/MagneticField.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/BackTracker.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Hit.h"
 
@@ -260,7 +260,7 @@ namespace hit {
     // simulted Z. For that purpose we use the simultion backtracking.
     //
 
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::BackTracker> bt;
 
     //    art::PtrVector<recob::Hit> hits;
     std::vector< art::Ptr<recob::Hit> > hits;
@@ -290,7 +290,7 @@ namespace hit {
       fHitZpos->Fill(HitZpos,Charge);
 	
       // Charge deposition in the detector
-      std::vector<double> xyz = bt_serv->HitToXYZ(itr);
+      std::vector<double> xyz = bt->HitToXYZ(itr);
       fChargeXpos->Fill(xyz[0],Charge);
       fChargeYpos->Fill(xyz[1],Charge);
       double ChargeZpos = xyz[2];
