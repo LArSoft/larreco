@@ -30,7 +30,8 @@
 //tmp
 #include "art/Framework/Principal/Event.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "larsim/MCCheater/BackTracker.h"
+//The backtracker is not actually used, so it is commented out.
+//#include "larsim/MCCheater/BackTrackerService.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
@@ -81,7 +82,7 @@ private:
   art::ServiceHandle<geo::Geometry> fGeom;
   const detinfo::DetectorProperties* fDetProp;
   art::ServiceHandle<art::TFileService> tfs;
-  art::ServiceHandle<cheat::BackTracker> backtracker;
+//  art::ServiceHandle<cheat::BackTracker> backtracker;
 
   std::map<int,int> trueClusterMap;
 

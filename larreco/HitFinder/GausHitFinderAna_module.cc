@@ -16,7 +16,7 @@
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -117,8 +117,8 @@ namespace hit{
     // === Total Hit Information ===
     Float_t fTotalHitChargePerEvent;	//Total charge recorded in each event
     
-    // === Truth Hit Info from BackTracker ===
-    Float_t fTruePeakPos[kMaxHits];	// Truth Time Tick info from BackTracker
+    // === Truth Hit Info from BackTrackerService ===
+    Float_t fTruePeakPos[kMaxHits];	// Truth Time Tick info from BackTrackerService
 
     
       
@@ -190,7 +190,7 @@ namespace hit{
     // === Total Hit Information ===
     fHTree->Branch("TotalHitChargePerEvent", &fTotalHitChargePerEvent, "TotalHitChargePerEvent/F");
     
-    // === Truth Hit Information from BackTracker ===
+    // === Truth Hit Information from BackTrackerService ===
     fHTree->Branch("TruePeakPos", &fTruePeakPos, "fTruePeakPos[nHits]/F");
 
     return;
@@ -357,15 +357,15 @@ namespace hit{
        try
           {
           // ####################################
-          // ### Using BackTracker HitCheater ###
+          // ### Using BackTrackerService HitCheater ###
           // ####################################
-          art::ServiceHandle<cheat::BackTracker> bt;
+          art::ServiceHandle<cheat::BackTrackerService> bt_serv;
 
-          trackides = bt->HitToTrackID(hitPoint);
-          xyz = bt->HitToXYZ(hitPoint);
+          trackides = bt_serv->HitToTrackIDEs(hitPoint);
+          xyz = bt_serv->HitToXYZ(hitPoint);
           }
        catch(cet::exception e)
-          {mf::LogWarning("GausHitFinderAna") << "BackTracker Failed";
+          {mf::LogWarning("GausHitFinderAna") << "BackTrackerService Failed";
            continue;}
 
       

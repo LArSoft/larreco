@@ -7,7 +7,7 @@ art_make( BASENAME_ONLY
 			larevt_Filters
 			lardataobj_RawData
 			lardataobj_RecoBase
-                        larsim_MCCheater_BackTracker_service
+                        larsim_MCCheater_BackTrackerService_service
 			lardata_ArtDataHelper
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}

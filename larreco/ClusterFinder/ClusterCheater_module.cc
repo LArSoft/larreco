@@ -19,7 +19,8 @@
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -117,7 +118,8 @@ namespace cluster{
   void ClusterCheater::produce(art::Event& evt)
   {
     art::ServiceHandle<geo::Geometry>      geo;
-    art::ServiceHandle<cheat::BackTracker> bt;
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     
     // grab the hits that have been reconstructed
     art::Handle< std::vector<recob::Hit> > hitcol;
@@ -131,9 +133,9 @@ namespace cluster{
     // adopt an EmEveIdCalculator to find the eve ID.  
     // will return a primary particle if it doesn't find 
     // a responsible particle for an EM process
-    bt->SetEveIdCalculator(new sim::EmEveIdCalculator);
+    pi_serv->SetEveIdCalculator(new sim::EmEveIdCalculator);
 
-    LOG_DEBUG("ClusterCheater") << bt->ParticleList();
+    LOG_DEBUG("ClusterCheater") << pi_serv->ParticleList();
 
     // make a map of vectors of art::Ptrs keyed by eveID values and 
     // location in cryostat, TPC, plane coordinates of where the hit originated
@@ -142,7 +144,7 @@ namespace cluster{
     // loop over all hits and fill in the map
     for( auto const& itr : hits ){ 
 
-      std::vector<sim::TrackIDE> eveides = bt->HitToEveID(itr);
+      std::vector<sim::TrackIDE> eveides = bt_serv->HitToEveTrackIDEs(itr);
 
       // loop over all eveides for this hit
       for(size_t e = 0; e < eveides.size(); ++e){
@@ -192,7 +194,7 @@ namespace cluster{
 				  << " view: "                  << hitMapItr.second.at(0)->View();
 
       // get the direction of this particle in the current cryostat, tpc and plane
-      const simb::MCParticle *part = bt->TrackIDToParticle(hitMapItr.first.eveID);
+      const simb::MCParticle *part = pi_serv->TrackIdToParticle_P(hitMapItr.first.eveID);
       if(!part) continue;
 
       // now set the y and z coordinates of xyz to be the first point on the particle

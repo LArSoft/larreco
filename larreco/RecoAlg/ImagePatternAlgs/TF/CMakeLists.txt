@@ -4,6 +4,7 @@ art_make(
 			cetlib cetlib_except
 			${TENSORFLOW}
 			${PROTOBUF}
+      rt #WORKAROUND FOR LARSOFT ISSUE 17960
         )
 
 install_headers()
