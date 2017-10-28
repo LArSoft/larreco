@@ -394,7 +394,7 @@ namespace tca {
     if(tj.AlgMod[kKilled]) return -1;
     if(tj.ParentID <= 0) return -1;
     int primID = PrimaryID(tjs, tj);
-    if(primID <= 0) return -1;
+    if(primID <= 0 || primID > (int)tjs.allTraj.size()) return -1;
 
     // We have the ID of the primary tj. Now see if it is attached to the neutrino vertex
     auto& ptj = tjs.allTraj[primID - 1];
@@ -1855,7 +1855,7 @@ namespace tca {
       tj.Pts[tj.EndPt[1]].AveChg = sum / (float)cnt;
     } // begin charge == end charge
     
-    int trID = tjs.allTraj.size() + 1;    
+    int trID = tjs.allTraj.size() + 1;
 
     for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
       for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
@@ -2557,10 +2557,13 @@ namespace tca {
   {
     unsigned short pdg = abs(PDGCode);
     if(pdg == 11) return 0; // electron
+    if(pdg == 22) return 0; // call photons electrons
     if(pdg == 13) return 1; // muon
     if(pdg == 211) return 2; // pion
     if(pdg == 321) return 3; // kaon
     if(pdg == 2212) return 4; // proton
+    
+//    std::cout<<"PDGCodeIndex: unknown code "<<PDGCode<<"\n";
     
     return USHRT_MAX;
     
@@ -2603,6 +2606,57 @@ namespace tca {
     } // tp
     tjs.allTraj[itj].AlgMod[kKilled] = false;
   } // RestoreObsoleteTrajectory
+  
+  //////////////////////////////////////////
+  void MergeGhostTjs(TjStuff& tjs, CTP_t inCTP)
+  {
+    // Merges short Tjs that share many hits with a longer Tj
+    if(!tjs.UseAlg[kMrgGhost]) return;
+    
+    for(auto& shortTj : tjs.allTraj) {
+      if(shortTj.AlgMod[kKilled]) continue;
+      if(shortTj.CTP != inCTP) continue;
+      unsigned short spts = shortTj.EndPt[1] - shortTj.EndPt[0];
+      if(spts > 20) continue;
+      // ignore delta rays
+      if(shortTj.PDGCode == 11) continue;
+      // ignore InShower Tjs
+      if(shortTj.AlgMod[kInShower]) continue;
+      auto tjhits = PutTrajHitsInVector(shortTj, kAllHits);
+      if(tjhits.empty()) continue;
+      std::vector<int> tids;
+      std::vector<unsigned short> tcnt;
+      for(auto iht : tjhits) {
+        auto& hit = tjs.fHits[iht];
+        if(hit.InTraj <= 0) continue;
+        if(hit.InTraj == shortTj.ID) continue;
+        unsigned short indx = 0;
+        for(indx = 0; indx < tids.size(); ++indx) if(hit.InTraj == tids[indx]) break;
+        if(indx == tids.size()) {
+          tids.push_back(hit.InTraj);
+          tcnt.push_back(1);
+        } else {
+          ++tcnt[indx];
+        }
+      } // iht
+      if(tids.empty()) continue;
+      // find the max count for Tjs that are longer than this one
+      unsigned short maxcnt = 0;
+      unsigned short ltjID = 0;
+      for(unsigned short indx = 0; indx < tids.size(); ++indx) {
+        if(tcnt[indx] > maxcnt) {
+          auto& ltj = tjs.allTraj[tids[indx] - 1];
+          unsigned short lpts = ltj.EndPt[1] - ltj.EndPt[0];
+          if(lpts < spts) continue;
+          maxcnt = tcnt[indx];
+          ltjID = tids[indx];
+        }
+      } // indx
+      float hitFrac = (float)maxcnt / (float)tjhits.size();
+      if(hitFrac < 0.1) continue;
+      std::cout<<"MergeGhostTjs: tj "<<shortTj.ID<<" ghost of "<<ltjID<<"?  cnt "<<maxcnt<<" hitFrac "<<hitFrac<<"\n";
+    } // shortTj
+  } // MergeGhostTjs
 
   //////////////////////////////////////////
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt)
