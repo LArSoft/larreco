@@ -142,8 +142,6 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     catch(...)
     {mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";}
     
-    std::cout << "   >>> fit result: " << fitResult;
-    
     // If the fit result is not zero there was an error
     if (!fitResult)
     {
@@ -164,16 +162,12 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
             peakParams.peakCenterError    = Gaus.GetParError( parIdx + 1);
             peakParams.peakSigma          = Gaus.GetParameter(parIdx + 2);
             peakParams.peakSigmaError     = Gaus.GetParError( parIdx + 2);
-            
-            std::cout << ", amp: " << peakParams.peakAmplitude << ", center: " << peakParams.peakCenter << ", sig: " << peakParams.peakSigma;
         
             peakParamsVec.emplace_back(peakParams);
         
             parIdx += 3;
         }
     }
-    
-    std::cout << std::endl;
     
     Gaus.Delete();
     
