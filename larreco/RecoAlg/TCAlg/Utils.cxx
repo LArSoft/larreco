@@ -584,7 +584,7 @@ namespace tca {
     std::vector<MatchStruct> temp;
     
     // the minimum number of points for matching
-    unsigned short minPts = 2 - 1;
+    unsigned short minPts = 3;
     // override this with the user minimum for 2-plane matches
     if(numPlanes == 2) minPts = tjs.Match3DCuts[2];
 
@@ -926,7 +926,6 @@ namespace tca {
       if(planeID.TPC != tpc) continue;
       if(tj.AlgMod[kKilled]) continue;
       if(tj.AlgMod[kMat3D]) continue;
-      if(tj.AlgMod[kShowerTj]) continue;
       if(tj.Pts.size() < 10) continue;
       if(prt) mf::LogVerbatim("TC")<<"CNMT: Tj "<<tj.ID<<" nPts "<<tj.Pts.size()<<" is not matched in 3D. Look for it in matchVec ";
       // look for this Tj in matchvec
@@ -943,41 +942,48 @@ namespace tca {
         myprt<<" First entry has tjs:";
         for(auto tjid : ms.TjIDs) myprt<<" "<<tjid;
       }
+      // skip 2-plane matches for now
+      if(ms.TjIDs.size() != tjs.NumPlanes) continue;
       // make a list of the Tjs that were matched
       std::vector<int> matched;
       for(auto tjid : ms.TjIDs) if(tjid != tj.ID) matched.push_back(tjid);
-      unsigned int brokenTj = UINT_MAX;
-      int minCount = 3;
+      int btjID = INT_MAX;
       // look for the broken tj in an earlier entry. 
-      for(unsigned short ims = 0; ims < tjs.matchVec.size(); ++ims) {
+      for(unsigned short ims = 0; ims < firstMS; ++ims) {
         auto& ms = tjs.matchVec[ims];
-        if(ms.Count < minCount) continue;
+        if(ms.Count < 3) break;
+        if(ms.TjIDs.size() < tjs.NumPlanes) break;
         std::vector<int> leftover(ms.TjIDs.size());
         auto it = std::set_difference(ms.TjIDs.begin(), ms.TjIDs.end(), matched.begin(), matched.end(), leftover.begin());
         leftover.resize(it - leftover.begin());
         if(leftover.size() != 1) continue;
-        minCount = ms.Count;
-        brokenTj = leftover[0];
-        if(prt) mf::LogVerbatim("TC")<<"  merge with leftover "<<brokenTj<<" count "<<ms.Count;
-        auto& btj = tjs.allTraj[brokenTj - 1];
-        if(CompatibleMerge(tjs, tj, btj, prt) && MergeAndStore(tjs, tj.ID - 1, brokenTj - 1, prt)) {
-          auto& newTj = tjs.allTraj[tjs.allTraj.size() - 1];
-          newTj.AlgMod[kMat3DMerge] = true;
-          // Update the PFParticle TjIDs
-          unsigned short pfpIndex = GetPFPIndex(tjs, tj.ID);
-          if(pfpIndex > tjs.pfps.size() - 1) continue;
-          auto& pfp = tjs.pfps[pfpIndex];
-          std::replace(pfp.TjIDs.begin(), pfp.TjIDs.end(), tj.ID, newTj.ID);
-          if(prt) mf::LogVerbatim("TC")<<"  success "<<tj.ID<<" merged with "<<brokenTj<<" -> "<<newTj.ID;
-          break;
-        }
+        btjID = leftover[0];
+        break;
       } // ims
+      if(btjID == INT_MAX) continue;
+      unsigned short pfpIndex = GetPFPIndex(tjs, btjID);
+      if(prt) mf::LogVerbatim("TC")<<"  try to merge with broken Tj "<<btjID<<" count "<<ms.Count<<" pfpIndex "<<pfpIndex;
+      if(MergeAndStore(tjs, tj.ID - 1, btjID - 1, prt)) {
+        auto& newTj = tjs.allTraj[tjs.allTraj.size() - 1];
+        newTj.AlgMod[kMat3DMerge] = true;
+        // Update the PFParticle TjIDs
+        if(pfpIndex < tjs.pfps.size()) {
+          auto& pfp = tjs.pfps[pfpIndex];
+          std::replace(pfp.TjIDs.begin(), pfp.TjIDs.end(), btjID, newTj.ID);
+        }
+        // update matchVec
+        for(auto& ms : tjs.matchVec) {
+          std::replace(ms.TjIDs.begin(), ms.TjIDs.end(), tj.ID, newTj.ID);
+          std::replace(ms.TjIDs.begin(), ms.TjIDs.end(), btjID, newTj.ID);
+        } // ms
+        if(prt) mf::LogVerbatim("TC")<<"  success "<<tj.ID<<" merged with "<<btjID<<" -> "<<newTj.ID;
+      }
       if(prt && !tj.AlgMod[kKilled]) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"CheckNoMatchTjs: No 3D match "<<tj.ID;
+        myprt<<" CheckNoMatchTjs: No 3D match "<<tj.ID;
         myprt<<" in matchVec with other Tjs";
         for(auto tjid : matched) myprt<<" "<<tjid;
-        myprt<<" brokenTj "<<brokenTj;
+        myprt<<" btjID "<<btjID;
       } // prt
     } // tj
   } // CheckNoMatchTjs
