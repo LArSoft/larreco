@@ -355,7 +355,6 @@ namespace tca {
     kHED, // High End Delta
     kHamVx,
     kHamVx2,
-    kBlobVx,
     kJunkTj,
     kKilled,
     kMerge,
