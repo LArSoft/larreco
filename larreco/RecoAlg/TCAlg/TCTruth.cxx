@@ -52,7 +52,7 @@ namespace tca {
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       simb::MCParticle* mcp = (*ipart).second;
       int trackID = mcp->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth(trackID);
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       if(tjs.MatchTruth[0] == 1) {
         // Look for beam neutrino or single particle
         if(theTruth->Origin() == simb::kBeamNeutrino) {
@@ -122,7 +122,7 @@ namespace tca {
       } // ide
       if(hitTruTrkID == 0) continue;
       // ensure it has the correct source
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth(hitTruTrkID);
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(hitTruTrkID);
       if(theTruth->Origin() != sourceOrigin) continue;
       unsigned short indx = 0;
       for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
@@ -132,7 +132,7 @@ namespace tca {
         select[indx - 1] = true;
         gtid[iht] = mcp->TrackId();
         // find the eve particle and select it as well
-        const simb::MCParticle* momMCP = pi_serv->TrackIdToMotherParticle(mcp->TrackId());
+        const simb::MCParticle* momMCP = pi_serv->TrackIdToMotherParticle_P(mcp->TrackId());
         unsigned short mindx = 0;
         for(sim::ParticleList::const_iterator mpart = plist.begin(); mpart != plist.end(); ++mpart) {
           simb::MCParticle* mmcp = (*mpart).second;
@@ -454,7 +454,7 @@ namespace tca {
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       simb::MCParticle* mcp = (*ipart).second;
       int trackID = mcp->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth(trackID);
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       if(sourcePtclTrackID < 0) {
         if(tjs.MatchTruth[0] == 1) {
           // Look for beam neutrino or single particle
