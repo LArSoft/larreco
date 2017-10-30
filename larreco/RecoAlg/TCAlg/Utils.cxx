@@ -2126,7 +2126,7 @@ namespace tca {
         auto& ptp = tj.Pts[ipt - 1];
         if(tp.Chg > 0 && ptp.Chg > 0) {
           ++npwc;
-          if(abs(tp.Pos[0] - ptp.Pos[0]) == 1) ++nadj;
+          if(std::abs(tp.Pos[0] - ptp.Pos[0]) < 1.5) ++nadj;
         }
 //        std::cout<<" "<<PrintPos(tjs, ptp.Pos)<<"_"<<(int)ptp.Chg<<" "<<PrintPos(tjs, tp.Pos)<<"_"<<(int)tp.Chg<<"\n";
       } // ipt
