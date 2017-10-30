@@ -231,52 +231,6 @@ namespace tca {
     if(prt) PrintAllTraj("F2DVo", tjs, debug, USHRT_MAX, USHRT_MAX);
     
   } // Find2DVertices
-
-  
-  //////////////////////////////////////////
-  void MakeJunkTjVertices(TjStuff& tjs, const CTP_t& inCTP)
-  {
-    // Make 2D vertices between the end of Tjs that have a junk Tj near an end
-    
-    if(!tjs.UseAlg[kBlobVx]) return;
-    
-    // This algorithm doesn't do anything useful in it's current form
-    return;
-    
-    if(tjs.allTraj.empty()) return;
-    
-    unsigned short plane = DecodeCTP(inCTP).Plane;
-    bool prt = (debug.Plane >= 0 && debug.Tick == 99999);
-    if(prt) {
-      mf::LogVerbatim("TC")<<"MakeJunkTjVertices: prt set for plane "<<plane;
-    }
-
-    float window = 3;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.CTP != inCTP) continue;
-      if(tj.AlgMod[kKilled]) continue;
-      if(tj.AlgMod[kInShower]) continue;
-      if(tj.AlgMod[kShowerTj]) continue;
-      if(tj.Pts.size() < 10) continue;
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] > 0) continue;
-        auto tp = tj.Pts[tj.EndPt[end]];
-        auto closeTjs = FindCloseTjs(tjs, tp, tp, window);
-        // make a subset of junk tj candidates
-        std::vector<int> junkTjs;
-        for(auto tjid : closeTjs) {
-          auto& ctj = tjs.allTraj[tjid - 1];
-          if(ctj.ID == tj.ID) continue;
-          if(!tj.AlgMod[kJunkTj]) continue;
-          junkTjs.push_back(tjid);
-        } // tjid
-        if(junkTjs.empty()) continue;
-        std::cout<<"MakeJunkTjVertices:";
-        for(auto tjid : junkTjs) std::cout<<" "<<tjid;
-        std::cout<<"\n";
-      } // end
-    } //  tj
-  } // MakeJunkTjVertices
   
   //////////////////////////////////////////
   bool MergeWithVertex(TjStuff& tjs, VtxStore& vx, unsigned short oVxID, bool prt)
@@ -345,16 +299,20 @@ namespace tca {
     vpos[1] = 0.5 * (vx.Pos[1] + oVx.Pos[1]);
     for(unsigned short ii = 0; ii < tjpts.size(); ++ii) {
       auto& tj = tjs.allTraj[tjlist[ii] - 1];
+      unsigned short npwc = NumPtsWithCharge(tjs, tj, false);
       unsigned short end = CloseEnd(tjs, tj, vpos);
       // assume that we will use the end point of the tj
       unsigned short endPt = tj.EndPt[end];
-      if(tj.Pts.size() > 6 && tj.Pts[endPt].NTPsFit < 4) {
+      if(npwc > 6 && tj.Pts[endPt].NTPsFit < 4) {
         if(end == 0) {
           endPt += 3;
         } else {
           endPt -= 3;
         }
+        endPt = NearestPtWithChg(tjs, tj, endPt);
       } // few points fit at the end
+      if(endPt < tj.EndPt[0]) endPt = tj.EndPt[0];
+      if(endPt > tj.EndPt[1]) endPt = tj.EndPt[1];
       // define tjpts
       tjpts[ii].CTP = tj.CTP;
       tjpts[ii].Pos = tj.Pts[endPt].Pos;
