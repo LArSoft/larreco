@@ -788,10 +788,6 @@ namespace tca {
     Find2DVertices(tjs, inCTP);
     // check for a major failure
     if(fQuitAlg) return;
-    // Look for tjs that have a blob of hits at the end that are near a junk tj and
-    // make a fixed vertex between them. This ensures that the hierarchy is preserved
-    // when constructing showers
-    MakeJunkTjVertices(tjs, inCTP);
 
     // last attempt to attach Tjs to vertices
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, vtxPrt);
