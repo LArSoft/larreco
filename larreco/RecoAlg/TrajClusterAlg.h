@@ -229,7 +229,7 @@ namespace tca {
     // Finds junk trajectories using unassigned hits
     void FindJunkTraj(CTP_t inCTP);
     // Finds junk trajectories using unassigned hits
-    void MakeJunkTraj(std::vector<unsigned int> tHits, unsigned int& newTjIndex);
+    bool MakeJunkTraj(std::vector<unsigned int> tHits, bool prt);
     // Step through TPs starting at the end and moving to the beginning
     void ReversePropagate(Trajectory& tj);
     // Start a trajectory going from fromHit to (toWire, toTick)

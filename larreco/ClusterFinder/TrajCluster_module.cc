@@ -389,6 +389,7 @@ namespace cluster {
       // Translate the 3D vertex index into the index of complete 3D vertices that have been put into sv3col
       unsigned short vtxIndex = 0;
       for(unsigned short iv = 0; iv < Vertices.size(); ++iv) {
+        if(Vertices[iv].ID == 0) continue;
         if(Vertices[iv].Wire >= 0) continue;
         if(pfp.Vx3ID[0] == Vertices[iv].ID) {
           vtmp[0] = vtxIndex;

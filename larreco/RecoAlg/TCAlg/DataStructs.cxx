@@ -24,6 +24,7 @@ namespace tca {
     "CHMEH",
     "FillGap",
     "Ghost",
+    "MrgGhost",
     "ChkInTraj",
     "StopBadFits",
     "FixBegin",
@@ -41,10 +42,10 @@ namespace tca {
     "ChkStopEP",
     "FTBRvProp",
     "StopAtTj",
-    "M3D",
+    "Mat3D",
     "Mat3DMerge",
     "TjHiVx3Score",
-     "VtxHitsSwap",
+    "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
     "ShowerTj",
@@ -53,7 +54,8 @@ namespace tca {
     "MergeSubShowers",
     "MergeNrShowers",
     "MergeShChain",
-    "SplitTarjCV"  
+    "SplitTjCVx",
+    "SetDir"
   };
 
   const std::vector<std::string> StopFlagNames {
