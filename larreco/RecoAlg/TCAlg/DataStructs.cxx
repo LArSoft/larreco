@@ -17,7 +17,6 @@ namespace tca {
     "HED",
     "HamVx",
     "HamVx2",
-    "BlobVx",
     "JunkTj",
     "Killed",
     "Merge",
