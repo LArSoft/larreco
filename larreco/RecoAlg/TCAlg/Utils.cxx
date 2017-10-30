@@ -170,7 +170,7 @@ namespace tca {
         dtj.ParentID = lastPair.first;
         // reverse the daughter trajectory if necessary so that end 0 is closest to the parent
         float doca = 100;
-        unsigned short dpt, ppt;
+        unsigned short dpt = 0, ppt = 0;
         auto& ptj = tjs.allTraj[lastPair.first - 1];
         // find the point on the daughter tj that is closest to the parent
         TrajTrajDOCA(tjs, dtj, ptj, dpt, ppt, doca);
