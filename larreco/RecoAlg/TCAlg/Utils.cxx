@@ -170,7 +170,7 @@ namespace tca {
         dtj.ParentID = lastPair.first;
         // reverse the daughter trajectory if necessary so that end 0 is closest to the parent
         float doca = 100;
-        unsigned short dpt, ppt;
+        unsigned short dpt = 0, ppt = 0;
         auto& ptj = tjs.allTraj[lastPair.first - 1];
         // find the point on the daughter tj that is closest to the parent
         TrajTrajDOCA(tjs, dtj, ptj, dpt, ppt, doca);
@@ -2126,7 +2126,7 @@ namespace tca {
         auto& ptp = tj.Pts[ipt - 1];
         if(tp.Chg > 0 && ptp.Chg > 0) {
           ++npwc;
-          if(abs(tp.Pos[0] - ptp.Pos[0]) == 1) ++nadj;
+          if(std::abs(tp.Pos[0] - ptp.Pos[0]) < 1.5) ++nadj;
         }
 //        std::cout<<" "<<PrintPos(tjs, ptp.Pos)<<"_"<<(int)ptp.Chg<<" "<<PrintPos(tjs, tp.Pos)<<"_"<<(int)tp.Chg<<"\n";
       } // ipt
