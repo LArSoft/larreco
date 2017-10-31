@@ -155,8 +155,6 @@ namespace tca {
       tjs.AngleRanges.back() = 90;
     }
     
-    fExpectNarrowHits = (fMode == 4);
-    
     // decide whether debug information should be printed
     bool validCTP = debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0 && debug.Wire >= 0 && debug.Tick >= 0;
     if(validCTP) debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
@@ -266,7 +264,6 @@ namespace tca {
       std::cout<<"Skipping algs:";
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(!tjs.UseAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
       std::cout<<"\n";
-      if(fExpectNarrowHits) std::cout<<"Configured to expect narrow hits produced by gaushit with LongMaxHits set large.\n";
     }
     tjs.EventsProcessed = 0;
    
@@ -1259,7 +1256,7 @@ namespace tca {
       wireWindow[1] = wire;
       bool hitsNear;
       // Look for hits using the requirement that the timeWindow overlaps with the hit StartTick and EndTick
-      std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, fExpectNarrowHits, hitsNear);
+      std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
       if(hitsNear) sigOK = true;
       for(auto& iht : closeHits) {
         // Ensure that none of these hits are already used by this trajectory
