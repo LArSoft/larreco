@@ -46,7 +46,7 @@ namespace tca {
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.CTP != inCTP) continue;
-      if(tj.StepDir != tjs.StepDir) ReverseTraj(tjs, tj);
+      if(tj.StepDir != tjs.StepDir && !tj.AlgMod[kSetDir]) ReverseTraj(tjs, tj);
     } // tj
     
     unsigned short maxShortTjLen = tjs.Vertex2DCuts[0];
@@ -299,16 +299,20 @@ namespace tca {
     vpos[1] = 0.5 * (vx.Pos[1] + oVx.Pos[1]);
     for(unsigned short ii = 0; ii < tjpts.size(); ++ii) {
       auto& tj = tjs.allTraj[tjlist[ii] - 1];
+      unsigned short npwc = NumPtsWithCharge(tjs, tj, false);
       unsigned short end = CloseEnd(tjs, tj, vpos);
       // assume that we will use the end point of the tj
       unsigned short endPt = tj.EndPt[end];
-      if(tj.Pts.size() > 6 && tj.Pts[endPt].NTPsFit < 4) {
+      if(npwc > 6 && tj.Pts[endPt].NTPsFit < 4) {
         if(end == 0) {
           endPt += 3;
         } else {
           endPt -= 3;
         }
+        endPt = NearestPtWithChg(tjs, tj, endPt);
       } // few points fit at the end
+      if(endPt < tj.EndPt[0]) endPt = tj.EndPt[0];
+      if(endPt > tj.EndPt[1]) endPt = tj.EndPt[1];
       // define tjpts
       tjpts[ii].CTP = tj.CTP;
       tjpts[ii].Pos = tj.Pts[endPt].Pos;
@@ -476,7 +480,7 @@ namespace tca {
         if(tj1.AlgMod[kDeltaRay] || tj2.AlgMod[kDeltaRay]) {
           if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merge delta rays "<<tj1.ID<<" and "<<tj2.ID<<" CompatibleMerge? "<<CompatibleMerge(tjs, tj1, tj2, prt);
           MakeVertexObsolete(tjs, vx2, true);
-          MergeAndStore(tjs, vxtjs[0], vxtjs[1], prt);
+          MergeAndStore(tjs, vxtjs[0] - 1, vxtjs[1] - 1, prt);
         } // one is a tagged delta-ray
       } // delta-ray check
     } // ivx
@@ -734,7 +738,7 @@ namespace tca {
   {
     // This is kind of self-explanatory...
 
-    if(!tjs.UseAlg[kSplitTrajCV]) return;
+    if(!tjs.UseAlg[kSplitTjCVx]) return;
 
     if(tjs.vtx.empty()) return;
     if(tjs.allTraj.empty()) return;
@@ -751,7 +755,7 @@ namespace tca {
       if(tjs.allTraj[itj].CTP != inCTP) continue;
       // obsolete trajectory
       if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
-      if(tjs.allTraj[itj].AlgMod[kSplitTrajCV]) continue;
+      if(tjs.allTraj[itj].AlgMod[kSplitTjCVx]) continue;
       // too short
       if(tjs.allTraj[itj].EndPt[1] < 6) continue;
       tPass = tjs.allTraj[itj].Pass;
@@ -801,10 +805,9 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<"SplitTrajCrossingVertices: Failed to split trajectory";
           continue;
         }
-        tjs.allTraj[itj].AlgMod[kSplitTrajCV] = true;
+        tjs.allTraj[itj].AlgMod[kSplitTjCVx] = true;
         unsigned short newTjIndex = tjs.allTraj.size() - 1;
-        tjs.allTraj[newTjIndex].AlgMod[kSplitTrajCV] = true;
-
+        tjs.allTraj[newTjIndex].AlgMod[kSplitTjCVx] = true;
       } // iv
     } // itj
     

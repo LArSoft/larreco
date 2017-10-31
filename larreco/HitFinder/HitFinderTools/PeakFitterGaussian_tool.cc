@@ -130,7 +130,7 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
         Gaus.SetParameter(2+parIdx, peakWidth);
         Gaus.SetParLimits(  parIdx, 0.1 * amplitude,  fAmpRange * amplitude);
         Gaus.SetParLimits(1+parIdx, meanLowLim,       meanHiLim);
-        Gaus.SetParLimits(2+parIdx, 0.75 * peakWidth, fMaxWidthMult * peakWidth);
+        Gaus.SetParLimits(2+parIdx, std::max(fMinWidth, 0.1 * peakWidth), fMaxWidthMult * peakWidth);
         
         parIdx += 3;
     }

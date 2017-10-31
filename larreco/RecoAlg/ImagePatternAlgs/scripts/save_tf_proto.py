@@ -2,6 +2,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Save model to TF protobuf')
 parser.add_argument('-m', '--model', help="Keras TF model", default='model')
 parser.add_argument('-o', '--output', help="TF graph", default='tf_graph.proto')
+parser.add_argument('-n', '--nname', help="Use node as output if name contains", default='cnn_output')
 parser.add_argument('-g', '--gpu', help="Which GPU index", default='0')
 args = parser.parse_args()
 
@@ -32,7 +33,7 @@ output_nodes = []
 for i, n in enumerate(nnames):
     basename = n[:n.find('/')]
     print i, n, basename
-    if ('_netout' in n) or ('cnn_output' in n):
+    if ('_netout' in n) or (args.nname in n):
         if (not lastnode is None) and (basename != currentname):
             output_nodes.append(lastnode)
         currentname = basename
