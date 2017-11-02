@@ -568,14 +568,15 @@ namespace tca {
     
     // count the number of primary tracks that can be reconstructed
     unsigned short nTruPrimary = 0;
-    unsigned short nTruPrimaryOK = 0;
+    // vector of reconstructable primary particles
+    std::vector<unsigned short> primMCPs;
     for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
       if(tjs.MCPartList[ipart]->Mother() != 0) continue;
       ++nTruPrimary;
-      if(CanReconstruct(ipart, 3)) ++nTruPrimaryOK;
+      if(CanReconstruct(ipart, 3)) primMCPs.push_back(ipart);
     } // ipart
     
-    neutrinoVxReconstructable = (neutrinoVxInFiducialVolume && nTruPrimaryOK > 1);
+    neutrinoVxReconstructable = (neutrinoVxInFiducialVolume && primMCPs.size() > 1);
     
     if(neutrinoVxReconstructable) {
       ++TruVxCounts[1];
@@ -667,6 +668,30 @@ namespace tca {
     
     // Fill counts for PFParticles
     AccumulatePFPSums();
+    
+    // Check primary particle reconstruction performance
+    if(!primMCPs.empty()) {
+      float tsum = 0;
+      float eptsum = 0;
+      for(auto primMCP : primMCPs) {
+        auto& mcp = tjs.MCPartList[primMCP];
+        float TMeV = 1000 * (mcp->E() - mcp->Mass());
+        mf::LogVerbatim("TC")<<"Primary particle "<<primMCP<<" T "<<TMeV;
+        tsum += TMeV;
+        for(auto& pfp : tjs.pfps) {
+          if(pfp.ID == 0) continue;
+          if(pfp.MCPartListIndex != primMCP) continue;
+          mf::LogVerbatim("TC")<<"Primary particle "<<primMCP<<" T "<<TMeV<<" pfp EffPur v"<<pfp.EffPur;
+          eptsum += pfp.EffPur * TMeV;
+        } // pfp
+      } // primMCP
+      if(tsum == 0) {
+        mf::LogVerbatim("TC")<<"MatchTruth: tsum = 0 for all primary particles...";
+      } else {
+        float ep = eptsum / tsum;
+        mf::LogVerbatim("TC")<<"Primary particles EP "<<ep<<" num Primaries "<<primMCPs.size();
+      }
+    } // primMCPs exist
 
     // Update the trajectory EP sums
     for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
