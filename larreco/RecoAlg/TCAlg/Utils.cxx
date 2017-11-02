@@ -418,10 +418,11 @@ namespace tca {
     if(tj.ParentID == 0) return tj.ID;
     int parid = tj.ParentID;
     for(unsigned short nit = 0; nit < 10; ++nit) {
+      if(parid < 1 || parid > (int)tjs.allTraj.size()) break;
       auto& tj = tjs.allTraj[parid - 1];
+      if(tj.ParentID < 0 || tj.ParentID > (int)tjs.allTraj.size()) return -1;
       if(tj.ParentID == 0) return tj.ID;
       parid = tj.ParentID;
-      if(parid > (int)tjs.allTraj.size()) break;
     } // nit
     return -1;
   } // PrimaryID
@@ -465,6 +466,7 @@ namespace tca {
     
     geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
     geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
+    std::cout<<"";
 
     double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iPlnID);
     double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jPlnID);
