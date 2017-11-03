@@ -4698,7 +4698,7 @@ namespace tca {
     
     mf::LogVerbatim myprt("TC");
     myprt<<someText;
-    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par Prim E*P\n";
+    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG  MCP Par Prim E*P\n";
     unsigned short indx = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
@@ -4731,6 +4731,11 @@ namespace tca {
       // global stuff
       myprt<<std::setw(5)<<pfp.BestPlane;
       myprt<<std::setw(6)<<pfp.PDGCode;
+      if(pfp.MCPartListIndex < tjs.pfps.size()) {
+        myprt<<std::setw(5)<<pfp.MCPartListIndex;
+      } else {
+        myprt<<"   NA";
+      }
       myprt<<std::setw(4)<<pfp.ParentID;
       myprt<<std::setw(5)<<PrimaryID(tjs, pfp);
       myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
