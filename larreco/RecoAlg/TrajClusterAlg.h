@@ -190,9 +190,6 @@ namespace tca {
     trkf::LinFitAlg fLinFitAlg;
     calo::CalorimetryAlg fCaloAlg;
 
-    unsigned int fRun, fSubRun;
-    unsigned int fEvent;
-//    unsigned int fPlane;         // the current plane
     int fWorkID;
 
 
