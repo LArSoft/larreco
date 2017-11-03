@@ -334,6 +334,13 @@ namespace tca {
     neutrinoVxReconstructable = (neutrinoVxInFiducialVolume && primMCPs.size() > 1);
     
     if(neutrinoVxReconstructable) {
+      // Print event information so that one can create a list of selected events.
+      // The user would then 
+      // 1) grep EventSelect <outputfilename> > myEvents.txt.
+      // 2) Edit myEvents.txt and remove all occurrences of EventSelect
+      // 3) Use myEvents.txt as input to the EventFilter module using 
+      //    fcl parameters Selection: 1 and EventList: "myEvents.txt"
+      mf::LogVerbatim("TC")<<"EventSelect "<<tjs.Run<<" "<<tjs.SubRun<<" "<<tjs.Event;
       ++TruVxCounts[1];
       // Find the closest reconstructed vertex to the true vertex
       float closest = 1;
@@ -431,20 +438,22 @@ namespace tca {
       for(auto primMCP : primMCPs) {
         auto& mcp = tjs.MCPartList[primMCP];
         float TMeV = 1000 * (mcp->E() - mcp->Mass());
-        mf::LogVerbatim("TC")<<"Primary particle "<<primMCP<<" T "<<TMeV;
         tsum += TMeV;
         for(auto& pfp : tjs.pfps) {
           if(pfp.ID == 0) continue;
           if(pfp.MCPartListIndex != primMCP) continue;
-          mf::LogVerbatim("TC")<<"Primary particle "<<primMCP<<" T "<<TMeV<<" pfp EffPur v"<<pfp.EffPur;
+ //         mf::LogVerbatim("TC")<<"Primary particle "<<primMCP<<" T "<<TMeV<<" pfp ID "<<pfp.ID<<" EffPur "<<pfp.EffPur;
           eptsum += pfp.EffPur * TMeV;
         } // pfp
       } // primMCP
       if(tsum == 0) {
-        mf::LogVerbatim("TC")<<"MatchTruth: tsum = 0 for all primary particles...";
+//        mf::LogVerbatim("TC")<<"(MatchTruth): tsum = 0 for all primary particles...";
       } else {
         float ep = eptsum / tsum;
         mf::LogVerbatim("TC")<<"Primary particles EP "<<ep<<" num Primaries "<<primMCPs.size();
+        if(ep < 0.5) mf::LogVerbatim("TC")<<"BadPrim EP "<<ep<<" num Primaries "<<primMCPs.size();
+        Prim_TSum += tsum;
+        Prim_EPTSum += eptsum;
       }
     } // primMCPs exist
 
@@ -695,6 +704,8 @@ namespace tca {
     for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
       auto& pfp = tjs.pfps[ipfp];
       if(pfp.ID == 0) continue;
+      // ignore the neutrino PFParticle
+      if(pfp.PDGCode == 14 || pfp.PDGCode == 12) continue;
       ++PFP_Cnt;
       pfp.EffPur = 0;
       // put all of the hits into a vector
@@ -845,8 +856,14 @@ namespace tca {
       float nofrac = 1 - (PFP_CntMat / PFP_Cnt);
       myprt<<" PFP "<<ep<<" MCP cnt "<<(int)MCP_Cnt<<" PFP cnt "<<(int)PFP_Cnt<<" noMatFrac "<<nofrac;
     }
+    if(Prim_TSum > 0) {
+      float ep = Prim_EPTSum / Prim_TSum;
+      myprt<<" PrimPFP "<<std::fixed<<std::setprecision(2)<<ep;
+    }
+/*
     myprt<<" VxCount";
     for(auto cnt : TruVxCounts) myprt<<" "<<cnt;
+*/
     float vx2Cnt = 0;
     if(tjs.EventsProcessed > 0) vx2Cnt = (float)RecoVx2Count / (float)tjs.EventsProcessed;
     myprt<<" RecoVx2Cnt/Evt "<<std::fixed<<std::setprecision(1)<<vx2Cnt;
