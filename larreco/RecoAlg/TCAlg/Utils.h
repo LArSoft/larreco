@@ -97,6 +97,7 @@ namespace tca {
   bool SignalPresent(TrajPoint const& tp, float minAmp);
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj);
   void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj);
+  void MergeGhostTjs(TjStuff& tjs, CTP_t inCTP);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
   bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
@@ -139,6 +140,7 @@ namespace tca {
   void TrajTrajDOCA(TjStuff& tjs, Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires);
   // Calculates the angle between two TPs
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
+  void TagJunkTj(TjStuff const& tjs, Trajectory& tj, bool prt);
   // Put hits in each trajectory point into a flat vector.
   std::vector<unsigned int> PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest);
   // returns true if a hit is associated with more than one point

@@ -16,7 +16,7 @@ standard_trajclusteralg:
    MinMCSMom: [100, 0, 0]   # Minimum MCSMom for each pass
    MaxVertexTrajSep: [6, 6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
    MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
-   HitErrFac: 0.15          # hit time error for fitting = fHitErrFac * (hit RMS)
+   HitErrFac: 0.4          # hit time error for fitting = fHitErrFac * (hit RMS)
    MinAmp:  1               # Min amplitude for a wire signal being considered present (must be > 0)
    AngleRanges: [40, 55, 75, 90]  # Max angle (degrees) for small, intermediate and large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
@@ -408,7 +408,8 @@ microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
 
 microboone_trajclusteralg:                    @local::standard_trajclusteralg
-microboone_trajclusteralg.MaxWireSkipNoSignal: 15 # increase a bit to allow for low gain wires
+microboone_trajclusteralg.MaxWireSkipNoSignal: 5
+microboone_trajclusteralg.MuonTag: [40, 500, 5, 3]
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
