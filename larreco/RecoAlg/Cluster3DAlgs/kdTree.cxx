@@ -268,16 +268,14 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
             std::sort(wireDeltas, wireDeltas + 3);
         
             // Requirement to be considered a nearest neighbor
-            if (wireDeltas[0] < 2 && wireDeltas[1] < 2 && wireDeltas[2] < 3)
+            //if (wireDeltas[0] < 2 && wireDeltas[1] < 2 && wireDeltas[2] < 3)
+            if (wireDeltas[2] < 3) //2)
             {
                 float hitSeparation = std::max(float(0.0001),DistanceBetweenNodes(pair1,pair2));
             
                 // Final cut...
                 if (hitSeparation < bestDist)
                 {
-                    std::cout << "==> Peak t,sig: " << pair1->getAvePeakTime() << "/" << pair1->getSigmaPeakTime() << ", " << pair2->getAvePeakTime() << "/" << pair1->getSigmaPeakTime() << ", wire Deltas: " << wireDeltas[0] << "/" << wireDeltas[1] << "/" << wireDeltas[2] << ", hit sep: " << hitSeparation << std::endl;
-                    std::cout << "         wires: " << pair1->getWireIDs()[0].Wire << "/" << pair1->getWireIDs()[1].Wire << "/" << pair1->getWireIDs()[2].Wire << ", " << pair2->getWireIDs()[0].Wire << "/" << pair2->getWireIDs()[1].Wire << "/" << pair2->getWireIDs()[2].Wire << std::endl;
-                    
                     bestDist = hitSeparation;
                     consistent = true;
                 }

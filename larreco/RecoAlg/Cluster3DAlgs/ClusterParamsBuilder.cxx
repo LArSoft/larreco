@@ -163,9 +163,11 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     // Ultimately we want to keep track of the number of unique 2D hits in this cluster
     // So use a vector (by plane) of sets of hits
     std::vector<std::set<const reco::ClusterHit2D*>> planeHit2DSetVec;
-    
+    std::vector<std::set<const reco::ClusterHit2D*>> planeUniqueHit2DSetVec;
+
     planeHit2DSetVec.resize(3);
-    
+    planeUniqueHit2DSetVec.resize(3);
+
     // Keep track of associated clusters
     std::set<const reco::ClusterParameters*> totalOtherClusterSet;
     
@@ -231,6 +233,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
             
             // Keep track of the hits on each plane
             planeHit2DSetVec[plane].insert(hit2D);
+            if (!(hit2D->getStatusBits() & reco::ClusterHit2D::USED)) planeUniqueHit2DSetVec[plane].insert(hit2D);
         }
         
         if      (nUniqueHits == nHits2D) numUnique3D++;
@@ -238,7 +241,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
         else if (nSharedHits_test == 2)  numTwoShared3D++;
         else                             numThreeShared3D++;
         
-        if (nSharedHits_test == nHits2D) numAllShared3D++;
+        if (nSharedHits == nHits2D) numAllShared3D++;
         
         // If more than one shared hit then candidate for removal...
         if (nSharedHits_test > 4 && nSharedHits > 0)
@@ -264,33 +267,42 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     }
 
     // Get totals
-    int numTotalHits  = std::accumulate(nTotalHitsVec.begin(),nTotalHitsVec.end(),0);
-    int numUniqueHits = std::accumulate(nUniqueHitsVec.begin(),nUniqueHitsVec.end(),0);
+    int numTotalHits(0);
+    int numUniqueHits(0);
+    
+    for(int idx = 0; idx < 3; idx++)
+    {
+        numTotalHits += planeHit2DSetVec.at(idx).size();
+        numUniqueHits += planeUniqueHit2DSetVec.at(idx).size();
+    }
     
     // If we have something left then at this point we make one more check
     // This check is intended to weed out clusters made from isolated groups of ambiguous hits which
     // really belong to a larger cluster
-    if (numUniqueHits > -1)
+    if (numUniqueHits > 0)
     {
         // Look at reject to accept ratio
         //double rejectToAccept = double(numRejected) / double(numAccepted);
-        double acceptRatio = double(numUniqueHits) / double(numTotalHits);
-        double lostRatio   = double(numLostHits)   / double(numTotalHits);
+        float acceptRatio = float(numUniqueHits) / float(numTotalHits);
+        float lostRatio   = float(numLostHits)   / float(numTotalHits);
         
         // Also consider the number of hits shared on a given view...
-        std::vector<double> uniqueHitVec(3,0.);
+        std::vector<float> uniqueHitVec(3,0.);
         
-        for(size_t idx = 0; idx < 3; idx++) uniqueHitVec[idx] = double(nUniqueHitsVec[idx]) / std::max(double(nTotalHitsVec[idx]),1.);
+        for(size_t idx = 0; idx < 3; idx++) uniqueHitVec[idx] = float(planeUniqueHit2DSetVec.at(idx).size()) / std::max(float(planeHit2DSetVec.at(idx).size()),float(1.));
         
+        // Sorts lowest to highest
         std::sort(uniqueHitVec.begin(),uniqueHitVec.end());
         
         acceptRatio = 0.;
         lostRatio   = 0.;
         //if(uniqueHitVec[1] > 0.1 && uniqueHitVec[2] > 0.5) acceptRatio = 1.;
-        if(uniqueHitVec[1] * uniqueHitVec[2] > 0.25) acceptRatio = 1.;
+        if(uniqueHitVec[0] * uniqueHitVec[1] > 0.25) acceptRatio = 1.;
         
-        float allSharedFraction = numAllShared3D / float(hitPairVector.size());
-        
+//        float allSharedFraction = numAllShared3D / float(hitPairVector.size());
+//        float uniqueFraction = float(numUniqueHits) / float(numTotalHits);
+        float uniqueFraction = uniqueHitVec[0] * uniqueHitVec[1] * uniqueHitVec[2];
+
 //        std::cout << "**--> # 3D Hits: " << hitPairVector.size() << ", nTot: " << numTotalHits << " " << nTotalHitsVec[0] << "/" << nTotalHitsVec[1] << "/" << nTotalHitsVec[2] << ", unique: " << numUniqueHits << " " << nUniqueHitsVec[0] << "/" << nUniqueHitsVec[1] << "/" << nUniqueHitsVec[2] << ", lost: " << usedHitPairList.size() << ", accept: " << acceptRatio << ", rats: " << uniqueHitVec[0] << "/" << uniqueHitVec[1] << "/" << uniqueHitVec[2] << std::endl;
 //        std::cout << "      -- nUnique3D: " << numUnique3D << ", 1 shared: " << numOneShared3D << ", 2 shared: " << numTwoShared3D << ", 3 shared: " << numThreeShared3D << ", all shared: " << numAllShared3D << std::endl;
 //        std::cout << "      -- total # other clusters: " << totalOtherClusterSet.size() << ", max size: " << otherClusterMaxSize << ", shared: " << otherClusterMaxSharedHits << ", min size: " << otherClusterMinSize << ", shared: " << otherClusterMinSharedHits << std::endl;
@@ -299,7 +311,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
         // Anyway, if we get past this we're making a cluster
         //if (rejectToAccept < rejectFraction)
         //if (numUnique3D+numOneShared3D > 0 && allSharedFraction < 1.0 && acceptRatio > minUniqueFrac && lostRatio < maxLostFrac)  // lostRatio cut was 1. - off
-        if (allSharedFraction > -1. && acceptRatio > -1. && lostRatio > -1.)
+        if (uniqueFraction > 0.6 && acceptRatio > 0. && lostRatio > -1.)
         {
             int nPlanesWithHits    = std::accumulate(nUniqueHitsVec.begin(), nUniqueHitsVec.end(), 0, [](int accum, int total){return total > 0 ? ++accum : accum;});
             int nPlanesWithMinHits = std::accumulate(nUniqueHitsVec.begin(), nUniqueHitsVec.end(), 0, [](int accum, int total){return total > 2 ? ++accum : accum;});
@@ -326,7 +338,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                     
                     // No point in doing anything if not more than one entry
                     if (pair.second.size() < 2) continue;
-                    
+
                     // If this hit is associated to a number of 3D hits then do some arbitration
                     pair.second.sort([](const auto& left, const auto& right){return left->getDeltaPeakTime()/left->getSigmaPeakTime() < right->getDeltaPeakTime()/right->getSigmaPeakTime();});
                     
@@ -359,7 +371,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                             reco::HitPairListPtr& removeHitList = hit2DToHit3DListMap.at(hit2D);
 
                             // Don't allow all the 3D hits associated to this 2D hit to be rejected?
-                            if (removeHitList.size() < 2)
+                            if (removeHitList.size() > 0) //< 2)
                             {
                                 std::cout << "   ---> remove list too small, size: " << removeHitList.size() << " for hit: " << hit2D << ", pair.first: " << pair.first << std::endl;
                                 rejectThisHit = false;
@@ -379,7 +391,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                             usedHitPairList.push_back(hit3D);
                         }
                     }
-                    
+
                     hitSet.insert(pair.first);
                 }
                 

@@ -125,14 +125,14 @@ private:
      */
     using HitMatchPair       = std::pair<const reco::ClusterHit2D*,reco::ClusterHit3D>;
     using HitMatchPairVec    = std::vector<HitMatchPair>;
-    using HitMatchPairVecMap = std::map<size_t,HitMatchPairVec>;
+    using HitMatchPairVecMap = std::map<geo::WireID,HitMatchPairVec>;
     
-    size_t findGoodHitPairs(const reco::ClusterHit2D*, HitVector::iterator&, HitVector::iterator&, reco::HitPairList&, HitMatchPairVecMap&) const;
+    int findGoodHitPairs(const reco::ClusterHit2D*, HitVector::iterator&, HitVector::iterator&, HitMatchPairVecMap&) const;
     
     /**
      *  @brief This algorithm takes lists of hit pairs and finds good triplets
      */
-    void findGoodTriplets(HitMatchPairVecMap&, HitMatchPairVecMap&, reco::HitPairList&) const;
+    void findGoodTriplets(HitMatchPairVecMap&, HitMatchPairVecMap&, reco::HitPairList&, bool = false) const;
     
     /**
      *  @brief Make a HitPair object by checking two hits
@@ -522,9 +522,9 @@ size_t StandardHit3DBuilder::BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& hitI
         HitMatchPairVecMap pair12Map;
         HitMatchPairVecMap pair13Map;
         
-        size_t n12Pairs = findGoodHitPairs(goldenHit, hitItr1Start, hitItr1End, hitPairList, pair12Map);
-        size_t n13Pairs = findGoodHitPairs(goldenHit, hitItr2Start, hitItr2End, hitPairList, pair13Map);
-        
+        size_t n12Pairs = findGoodHitPairs(goldenHit, hitItr1Start, hitItr1End, pair12Map);
+        size_t n13Pairs = findGoodHitPairs(goldenHit, hitItr2Start, hitItr2End, pair13Map);
+
         nDeadChanHits  += hitPairList.size() - curHitListSize;
         curHitListSize  = hitPairList.size();
         
@@ -546,19 +546,14 @@ size_t StandardHit3DBuilder::BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& hitI
     return hitPairList.size();
 }
 
-size_t StandardHit3DBuilder::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
-                                         HitVector::iterator&      startItr,
-                                         HitVector::iterator&      endItr,
-                                         reco::HitPairList&        hitPairList,
-                                         HitMatchPairVecMap&       hitMatchMap) const
+int StandardHit3DBuilder::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
+                                           HitVector::iterator&      startItr,
+                                           HitVector::iterator&      endItr,
+                                           HitMatchPairVecMap&       hitMatchMap) const
 {
-    // temporary container for dead channel hits
-    std::vector<reco::ClusterHit3D> tempDeadChanVec;
-    reco::ClusterHit3D              deadChanPair;
+    int numPairs(0);
     
-    // Temporary container for pairs
-    HitMatchPairVec tempPairVec;
-    
+    // Loop through the input secon hits and make pairs
     while(startItr != endItr)
     {
         reco::ClusterHit2D* hit = *startItr++;
@@ -566,32 +561,20 @@ size_t StandardHit3DBuilder::findGoodHitPairs(const reco::ClusterHit2D* goldenHi
         
         makeHitPair(pair, goldenHit, hit, m_hitWidthSclFctr);
         
+        // pair returned with a negative ave time is signal of failure
         if (!(pair.getAvePeakTime() > 0.)) continue;
-        
-        tempPairVec.emplace_back(hit,pair);
-    }
-    
-    // Can we try to weed out extra hit pairs and keep only the "best"?
-    if (tempPairVec.size() > 1)
-    {
-        // Sort by "significance" of agreement
-        std::sort(tempPairVec.begin(),tempPairVec.end(),[](HitMatchPair& left, HitMatchPair& right){return left.second.getDeltaPeakTime()/left.second.getSigmaPeakTime() < right.second.getDeltaPeakTime()/right.second.getSigmaPeakTime();});
-    }
-    
-    for(auto& pair : tempPairVec)
-    {
-        const reco::ClusterHit2D* hit   = pair.first;
-        reco::ClusterHit3D&       pair2 = pair.second;
         
         geo::WireID wireID = hit->getHit().WireID();
         
-        hitMatchMap[wireID.Wire].emplace_back(hit,pair2);
+        hitMatchMap[wireID].emplace_back(hit,pair);
+        
+        numPairs++;
     }
     
-    return tempPairVec.size();
+    return numPairs;
 }
 
-void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPairVecMap& pair13Map, reco::HitPairList& hitPairList) const
+void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMatchPairVecMap& pair13Map, reco::HitPairList& hitPairList, bool tagged) const
 {
     // Build triplets from the two lists of hit pairs
     if (!pair12Map.empty())
@@ -615,7 +598,7 @@ void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMa
             if (pair12.second.empty()) continue;
             
             // Use the planeID for the first hit
-            geo::WireID missingPlaneID = pair12.second.front().second.getWireIDs()[0];
+            geo::WireID missingPlaneID = pair12.first;
             
             // "Discover" the missing view (and we can't rely on assuming there are hits in the pair13Map at this point)
             size_t missPlane = 0;
@@ -638,10 +621,17 @@ void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMa
                 usedPairMap[&pair1] = false;
                 
                 // Now look up the hit pairs on the wire which matches the current hit pair
-                std::map<size_t,HitMatchPairVec>::iterator thirdPlaneHitMapItr = pair13Map.find(wireID.Wire);
+                HitMatchPairVecMap::iterator thirdPlaneHitMapItr = pair13Map.find(wireID);
                 
-                // Watch for the interesting case of round off error... which means we look at the next wire
-                if (thirdPlaneHitMapItr == pair13Map.end()) thirdPlaneHitMapItr = pair13Map.find(wireID.Wire+1);
+                // It may be that the "nearest" wire is actually the next wire (which can happen
+                // because we are right between two wires in this plane and may have some round off
+                // error pointing us a the wrong wire)
+                if (thirdPlaneHitMapItr == pair13Map.end())
+                {
+                    wireID.Wire += 1;
+
+                    thirdPlaneHitMapItr = pair13Map.find(wireID);
+                }
                 
                 // Loop over third plane hits and try to form a triplet
                 if (thirdPlaneHitMapItr != pair13Map.end())
@@ -743,6 +733,10 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
         float hit2Peak  = hit2->getTimeTicks();
         float hit2Sigma = hit2->getHit().RMS();
         
+        // ad hoc correction for most bad fits...
+        if (hit1Sigma > 2. * hit1->getHit().PeakAmplitude()) hit1Sigma = 2. * hit1->getHit().PeakAmplitude();
+        if (hit2Sigma > 2. * hit2->getHit().PeakAmplitude()) hit2Sigma = 2. * hit2->getHit().PeakAmplitude();
+
         float hit1Width = hitWidthSclFctr * hit1Sigma;
         float hit2Width = hitWidthSclFctr * hit2Sigma;
 
@@ -835,10 +829,17 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     
     if      (!hit0) hit0 = pair.getHits()[2];
     else if (!hit1) hit1 = pair.getHits()[2];
+    
+    // Recover hit info
+    float hitTimeTicks = hit->getTimeTicks();
+    float hitSigma     = hit->getHit().RMS();
+    
+    // Special case check
+    if (hitSigma > 2. * hit->getHit().PeakAmplitude()) hitSigma = 2. * hit->getHit().PeakAmplitude();
 
     // Let's do a quick consistency check on the input hits to make sure we are in range...
     // Require the W hit to be "in range" with the UV Pair
-    if (fabs(hit->getTimeTicks() - pair.getAvePeakTime()) < m_hitWidthSclFctr * (pair.getSigmaPeakTime() + hit->getHit().RMS()))
+    if (fabs(hitTimeTicks - pair.getAvePeakTime()) < m_hitWidthSclFctr * (pair.getSigmaPeakTime() + hitSigma))
     {
         // Timing in range, now check that the input hit wire "intersects" with the input pair's wires
         geo::WireID wireID = NearestWireID(pair.getPosition(), hit->getHit().WireID());
@@ -866,7 +867,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                 // really only need compute one side of it to get the answer we're looking for...
                 float deltaPairY = pair1h.getPosition()[1] - pair0h.getPosition()[1];
                 float deltaPairZ = pair1h.getPosition()[2] - pair0h.getPosition()[2];
-                double yzdistance = std::sqrt(deltaPairY * deltaPairY + deltaPairZ * deltaPairZ);
+                float yzdistance = std::sqrt(deltaPairY * deltaPairY + deltaPairZ * deltaPairZ);
                 
                 // The intersection of wires on 3 planes is actually an equilateral triangle... Each pair will have its position at one of the
                 // corners, the difference in distance along the z axis will be 1/2 wire spacing, the difference along the y axis is
@@ -875,14 +876,13 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                 if (yzdistance < 0.3)
                 {
                     // Weighted average, delta and sigmas
-                    float hitSigma      = hit->getHit().RMS();
                     float hit0Sigma     = hit0->getHit().RMS();
                     float hit1Sigma     = hit1->getHit().RMS();
                     float hitWidWeight  = 1. / (hitSigma  * hitSigma);
                     float hit0WidWeight = 1. / (hit0Sigma * hit0Sigma);
                     float hit1WidWeight = 1. / (hit1Sigma * hit1Sigma);
                     float denominator   = 1. / (hitWidWeight + hit0WidWeight + hit1WidWeight);
-                    float avePeakTime   = (hit->getTimeTicks() * hitWidWeight + hit0->getTimeTicks() * hit0WidWeight + hit1->getTimeTicks() * hit1WidWeight) * denominator;
+                    float avePeakTime   = (hitTimeTicks * hitWidWeight + hit0->getTimeTicks() * hit0WidWeight + hit1->getTimeTicks() * hit1WidWeight) * denominator;
                     
                     // The x position is a weighted sum but the y-z position is simply the average
                     float xPosition   = (hit->getXPosition() * hitWidWeight + hit0->getXPosition() * hit0WidWeight + hit1->getXPosition() * hit1WidWeight) * denominator;
@@ -915,7 +915,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     // For compiling at the moment
                     std::vector<float> hitDelTSigVec = {0.,0.,0.};
                     
-                    float hitPairDeltaT   = std::fabs(hit->getTimeTicks()-pair.getAvePeakTime());
+                    float hitPairDeltaT   = std::fabs(hitTimeTicks-pair.getAvePeakTime());
                     float hitPairSig      = std::sqrt(hitSigma*hitSigma + pair.getSigmaPeakTime()*pair.getSigmaPeakTime());
                     float hit0Pair1DeltaT = std::fabs(hit0->getTimeTicks()-pair1h.getAvePeakTime());
                     float hit0Pair1Sig    = std::sqrt(hit0Sigma*hit0Sigma + pair1h.getSigmaPeakTime()*pair1h.getSigmaPeakTime());
@@ -1102,10 +1102,10 @@ geo::WireID StandardHit3DBuilder::NearestWireID(const float* position, const geo
     // Embed the call to the geometry's services nearest wire id method in a try-catch block
     try
     {
-        // Shift the z coordinate to compensate for an unknown offset...
-        float locPosition[] = {position[0],position[1],position[2]}; // - m_zPosOffset};
+        // Switch from NearestWireID to this method to avoid the roundoff error issues...
+        double distanceToWire = m_geometry->Plane(wireIDIn).WireCoordinate(position);
         
-        wireID = m_geometry->NearestWireID(locPosition, geo::PlaneID(wireIDIn.Cryostat,wireIDIn.TPC,wireIDIn.Plane));
+        wireID.Wire = int(distanceToWire);
     }
     catch(std::exception& exc)
     {
@@ -1153,8 +1153,8 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
     std::map<size_t, double> planeOffsetMap;
     
     planeOffsetMap[0] = 0; //m_detector->GetXTicksOffset(0, 0, 0)-m_detector->TriggerOffset();
-    planeOffsetMap[1] = 0; //m_detector->GetXTicksOffset(1, 0, 0)-m_detector->TriggerOffset();
-    planeOffsetMap[2] = 0; //m_detector->GetXTicksOffset(2, 0, 0)-m_detector->TriggerOffset();
+    planeOffsetMap[1] = 3; //m_detector->GetXTicksOffset(1, 0, 0)-m_detector->TriggerOffset();
+    planeOffsetMap[2] = 6; //m_detector->GetXTicksOffset(2, 0, 0)-m_detector->TriggerOffset();
     
     std::cout << "***> plane 0 offset: " << planeOffsetMap[0] << ", plane 1: " << planeOffsetMap[1] << ", plane 2: " << planeOffsetMap[2] << std::endl;
     

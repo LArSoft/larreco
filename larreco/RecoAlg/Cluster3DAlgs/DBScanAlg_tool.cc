@@ -139,7 +139,7 @@ void DBScanAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
         
         // Find the neighborhood for this hit
         kdTree::CandPairList candPairList;
-        float                bestDistance(1.); //std::numeric_limits<float>::max());
+        float                bestDistance(std::numeric_limits<float>::max());
         
         m_kdTree.FindNearestNeighbors(hit.get(), topNode, candPairList, bestDistance);
         
@@ -213,8 +213,8 @@ void DBScanAlg::expandCluster(const kdTree::KdTreeNode& topNode,
             float                bestDistance(std::numeric_limits<float>::max());
             
             m_kdTree.FindNearestNeighbors(neighborHit, topNode, neighborCandPairList, bestDistance);
-            
-            // If the epsilon neighborhood of this point is large enogh then add its points to our list
+
+            // If the epsilon neighborhood of this point is large enough then add its points to our list
             if (neighborCandPairList.size() >= minPts)
             {
                 std::copy(neighborCandPairList.begin(),neighborCandPairList.end(),std::back_inserter(candPairList));
