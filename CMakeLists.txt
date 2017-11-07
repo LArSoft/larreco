@@ -68,9 +68,9 @@ cet_find_library(PROTOBUF NAMES protobuf PATHS ENV PROTOBUF_LIB NO_DEFAULT_PATH 
 # This is a hack for a broken tensorflow link, which 
 # requires -lrt for glibc earlier than 2.17 (i.e. SLF6)
 # We take advantage of OSTYPE defined by cetbuildtools
-if ( ${OSTYPE} MATCHES "slf6" )
-  set(FOR_TENSORFLOW, "-lrt")
-endif ( ${OSTYPE} MATCHES "slf6" )
+if ( "${OSTYPE}" MATCHES "slf6" )
+  set(FOR_TENSORFLOW "-lrt")
+endif ()
 
 # source
 add_subdirectory(larreco)
