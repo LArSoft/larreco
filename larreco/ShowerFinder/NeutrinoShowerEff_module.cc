@@ -790,7 +790,7 @@ namespace DUNE{
 
       truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contamination,tmpEcomplet);
       //truthMatcher( all_hits, sh_hits, particle, tmpEfrac_contaminationNueCC,tmpEcompletNueCC );
-       
+      if (!particle) continue;
 
       sh_Efrac_contamination[i] = tmpEfrac_contamination;
       sh_purity[i] = 1 - tmpEfrac_contamination;

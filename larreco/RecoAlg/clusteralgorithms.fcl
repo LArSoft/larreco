@@ -408,7 +408,8 @@ microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
 
 microboone_trajclusteralg:                    @local::standard_trajclusteralg
-microboone_trajclusteralg.MaxWireSkipNoSignal: 15 # increase a bit to allow for low gain wires
+microboone_trajclusteralg.MaxWireSkipNoSignal: 5
+microboone_trajclusteralg.MuonTag: [40, 500, 5, 3]
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg

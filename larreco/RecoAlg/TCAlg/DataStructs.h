@@ -464,6 +464,9 @@ namespace tca {
     std::vector<float> MatchTruth;     ///< Match to MC truth
     std::vector<simb::MCParticle*> MCPartList;
     unsigned int EventsProcessed;
+    unsigned int Run;
+    unsigned int SubRun;
+    unsigned int Event;
     std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
     const geo::GeometryCore* geom;
     const detinfo::DetectorProperties* detprop;

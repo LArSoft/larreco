@@ -120,7 +120,6 @@ namespace tca {
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
     bool fMakeNewHits;
-    bool fExpectNarrowHits;     ///< set true if GausHit is configured to split long pulses into narrow hits
     float fJTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
     
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
@@ -191,9 +190,6 @@ namespace tca {
     trkf::LinFitAlg fLinFitAlg;
     calo::CalorimetryAlg fCaloAlg;
 
-    unsigned int fRun, fSubRun;
-    unsigned int fEvent;
-//    unsigned int fPlane;         // the current plane
     int fWorkID;
 
 

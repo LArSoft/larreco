@@ -170,7 +170,7 @@ namespace tca {
         dtj.ParentID = lastPair.first;
         // reverse the daughter trajectory if necessary so that end 0 is closest to the parent
         float doca = 100;
-        unsigned short dpt, ppt;
+        unsigned short dpt = 0, ppt = 0;
         auto& ptj = tjs.allTraj[lastPair.first - 1];
         // find the point on the daughter tj that is closest to the parent
         TrajTrajDOCA(tjs, dtj, ptj, dpt, ppt, doca);
@@ -418,10 +418,11 @@ namespace tca {
     if(tj.ParentID == 0) return tj.ID;
     int parid = tj.ParentID;
     for(unsigned short nit = 0; nit < 10; ++nit) {
+      if(parid < 1 || parid > (int)tjs.allTraj.size()) break;
       auto& tj = tjs.allTraj[parid - 1];
+      if(tj.ParentID < 0 || tj.ParentID > (int)tjs.allTraj.size()) return -1;
       if(tj.ParentID == 0) return tj.ID;
       parid = tj.ParentID;
-      if(parid > (int)tjs.allTraj.size()) break;
     } // nit
     return -1;
   } // PrimaryID
@@ -465,6 +466,7 @@ namespace tca {
     
     geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
     geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
+    std::cout<<"";
 
     double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iPlnID);
     double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jPlnID);
@@ -2126,7 +2128,7 @@ namespace tca {
         auto& ptp = tj.Pts[ipt - 1];
         if(tp.Chg > 0 && ptp.Chg > 0) {
           ++npwc;
-          if(abs(tp.Pos[0] - ptp.Pos[0]) == 1) ++nadj;
+          if(std::abs(tp.Pos[0] - ptp.Pos[0]) < 1.5) ++nadj;
         }
 //        std::cout<<" "<<PrintPos(tjs, ptp.Pos)<<"_"<<(int)ptp.Chg<<" "<<PrintPos(tjs, tp.Pos)<<"_"<<(int)tp.Chg<<"\n";
       } // ipt
@@ -4696,7 +4698,7 @@ namespace tca {
     
     mf::LogVerbatim myprt("TC");
     myprt<<someText;
-    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par Prim E*P\n";
+    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG  MCP Par Prim E*P\n";
     unsigned short indx = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
@@ -4729,6 +4731,11 @@ namespace tca {
       // global stuff
       myprt<<std::setw(5)<<pfp.BestPlane;
       myprt<<std::setw(6)<<pfp.PDGCode;
+      if(pfp.MCPartListIndex < tjs.pfps.size()) {
+        myprt<<std::setw(5)<<pfp.MCPartListIndex;
+      } else {
+        myprt<<"   NA";
+      }
       myprt<<std::setw(4)<<pfp.ParentID;
       myprt<<std::setw(5)<<PrimaryID(tjs, pfp);
       myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;

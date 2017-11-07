@@ -155,8 +155,6 @@ namespace tca {
       tjs.AngleRanges.back() = 90;
     }
     
-    fExpectNarrowHits = (fMode == 4);
-    
     // decide whether debug information should be printed
     bool validCTP = debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0 && debug.Wire >= 0 && debug.Tick >= 0;
     if(validCTP) debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
@@ -266,7 +264,6 @@ namespace tca {
       std::cout<<"Skipping algs:";
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(!tjs.UseAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
       std::cout<<"\n";
-      if(fExpectNarrowHits) std::cout<<"Configured to expect narrow hits produced by gaushit with LongMaxHits set large.\n";
     }
     tjs.EventsProcessed = 0;
    
@@ -415,9 +412,9 @@ namespace tca {
     
 //    if(fDebugMode && nerr > 0) std::cout<<"Found "<<nerr<<" hits with indexing errors. Set Multiplicity = 1 for these hits.\n";
     
-    fRun = evt.run();
-    fSubRun  = evt.subRun();
-    fEvent = evt.event();
+    tjs.Run = evt.run();
+    tjs.SubRun  = evt.subRun();
+    tjs.Event = evt.event();
     fWorkID = 0;
     
     // Set true if a truly bad situation occurs
@@ -521,8 +518,10 @@ namespace tca {
     if (tjs.SaveCRTree) crtree->Fill();
 
     // fill some basic histograms 
-    for(auto& vx2 : tjs.vtx) if(vx2.ID > 0 && vx2.Score > 0) hist.fVx2Score->Fill(vx2.Score);
-    for(auto& vx3 : tjs.vtx3) if(vx3.ID > 0 && vx3.Score > 0) hist.fVx3Score->Fill(vx3.Score);
+    if(fStudyMode) {
+      for(auto& vx2 : tjs.vtx) if(vx2.ID > 0 && vx2.Score > 0) hist.fVx2Score->Fill(vx2.Score);
+      for(auto& vx3 : tjs.vtx3) if(vx3.ID > 0 && vx3.Score > 0) hist.fVx3Score->Fill(vx3.Score);
+    }
     
     // print trajectory summary report?
     if(tjs.ShowerTag[0] >= 1) debug.Plane = tjs.ShowerTag[11];
@@ -541,12 +540,12 @@ namespace tca {
     } // tj
     if(fDebugMode) std::cout<<"RTC done ntjs "<<ntj<<" nshowers "<<nsh<<" events processed "<<tjs.EventsProcessed<<"\n";
     
-    if(tjs.MatchTruth[0] >= 0) tm.PrintResults(fEvent);
+    if(tjs.MatchTruth[0] >= 0) tm.PrintResults(tjs.Event);
     
     // convert vertex time from WSE to ticks
     for(auto& avtx : tjs.vtx) avtx.Pos[1] /= tjs.UnitsPerTick;
     
-    if(fDebugMode) mf::LogVerbatim("TC")<<"RunTrajCluster success run "<<fRun<<" event "<<fEvent<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<tjs.EventsProcessed;
+    if(fDebugMode) mf::LogVerbatim("TC")<<"RunTrajCluster success run "<<tjs.Run<<" event "<<tjs.Event<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<tjs.EventsProcessed;
     
   } // RunTrajClusterAlg
 
@@ -1259,7 +1258,7 @@ namespace tca {
       wireWindow[1] = wire;
       bool hitsNear;
       // Look for hits using the requirement that the timeWindow overlaps with the hit StartTick and EndTick
-      std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, fExpectNarrowHits, hitsNear);
+      std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
       if(hitsNear) sigOK = true;
       for(auto& iht : closeHits) {
         // Ensure that none of these hits are already used by this trajectory
@@ -4128,7 +4127,6 @@ namespace tca {
       if(tp.Pos[1] > tp.HitPos[1]) ++nPosDelta;
       // The number of increasing delta points: Note implied absolute value
       if(tp.Delta < prevDelta) ++nDeltaIncreasing;
-      if(prt) std::cout<<ipt<<" chk "<<PrintPos(tjs, tp.Pos)<<" delta "<<tp.Delta<<" prev "<<prevDelta<<" nDeltaIncreasing "<<nDeltaIncreasing<<"\n";
       prevDelta = tp.Delta;
       ++nMasked;
     } // ii
@@ -6001,9 +5999,9 @@ namespace tca {
   void TrajClusterAlg::DefineShTree(TTree* t) {
     showertree = t;
 
-    showertree->Branch("run", &fRun, "run/I");
-    showertree->Branch("subrun", &fSubRun, "subrun/I");
-    showertree->Branch("event", &fEvent, "event/I");
+    showertree->Branch("run", &tjs.Run, "run/I");
+    showertree->Branch("subrun", &tjs.SubRun, "subrun/I");
+    showertree->Branch("event", &tjs.Event, "event/I");
 
     showertree->Branch("BeginWir", &tjs.stv.BeginWir);
     showertree->Branch("BeginTim", &tjs.stv.BeginTim);
@@ -6039,9 +6037,9 @@ namespace tca {
 
   void TrajClusterAlg::DefineCRTree(TTree *t){
     crtree = t;
-    crtree->Branch("run", &fRun, "run/I");
-    crtree->Branch("subrun", &fSubRun, "subrun/I");
-    crtree->Branch("event", &fEvent, "event/I");
+    crtree->Branch("run", &tjs.Run, "run/I");
+    crtree->Branch("subrun", &tjs.SubRun, "subrun/I");
+    crtree->Branch("event", &tjs.Event, "event/I");
     crtree->Branch("cr_origin", &tjs.crt.cr_origin);
     crtree->Branch("cr_pfpxmin", &tjs.crt.cr_pfpxmin);
     crtree->Branch("cr_pfpxmax", &tjs.crt.cr_pfpxmax);
