@@ -228,7 +228,7 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   if (p_().options().pFromMC() || p_().options().dirFromMC()) simTrackInputTag = art::InputTag(p_().inputs().inputMCLabel());
 
   produces<std::vector<recob::Track> >();
-  // produces<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
+  produces<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
   produces<art::Assns<recob::Track, recob::Hit> >();
   if (inputFromPF) {
     produces<art::Assns<recob::PFParticle, recob::Track> >();
@@ -300,7 +300,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 {
 
   auto outputTracks  = std::make_unique<std::vector<recob::Track> >();
-  // auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
+  auto outputHitsMeta = std::make_unique<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
   auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
   auto outputHitInfo = std::make_unique<std::vector<std::vector<recob::TrackFitHitInfo> > >();
 
@@ -382,8 +382,8 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	  unsigned int ip = 0;
 	  for (auto const& trhit: outHits) {
 	    //the fitter produces collections with 1-1 match between hits and point
-	    // recob::TrackHitMeta metadata(ip,-1);
-	    // outputHits->addSingle(aptr, trhit, metadata);
+	    recob::TrackHitMeta metadata(ip,-1);
+	    outputHitsMeta->addSingle(aptr, trhit, metadata);
 	    outputHits->addSingle(aptr, trhit);
 	    ip++;
 	  }
@@ -437,9 +437,9 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	  art::Ptr<recob::Track> aptr(tid, outputTracks->size()-1, tidgetter);
 	  unsigned int ip = 0;
 	  for (auto const& trhit: outHits) {
-	    //the fitter produces collections with 1-1 match between hits and point
-	    // recob::TrackHitMeta metadata(ip,-1);
-	    // outputHits->addSingle(aptr, trhit, metadata);
+	    // the fitter produces collections with 1-1 match between hits and point
+	    recob::TrackHitMeta metadata(ip,-1);
+	    outputHitsMeta->addSingle(aptr, trhit, metadata);
 	    outputHits->addSingle(aptr, trhit);
 	    if (p_().options().produceSpacePoints() && outputTracks->back().HasValidPoint(ip)) {
 	      auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
@@ -459,6 +459,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 
     }
     e.put(std::move(outputTracks));
+    e.put(std::move(outputHitsMeta));
     e.put(std::move(outputHits));
     e.put(std::move(outputPFAssn));
     if (p_().options().produceTrackFitHitInfo()) {
@@ -514,8 +515,8 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
       unsigned int ip = 0;
       for (auto const& trhit: outHits) {
 	//the fitter produces collections with 1-1 match between hits and point
-	// recob::TrackHitMeta metadata(ip,-1);
-	// outputHits->addSingle(aptr, trhit, metadata);
+	recob::TrackHitMeta metadata(ip,-1);
+	outputHitsMeta->addSingle(aptr, trhit, metadata);
 	outputHits->addSingle(aptr, trhit);
 	if (p_().options().produceSpacePoints() && outputTracks->back().HasValidPoint(ip)) {
 	  auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
@@ -531,6 +532,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
       outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
     }
     e.put(std::move(outputTracks));
+    e.put(std::move(outputHitsMeta));
     e.put(std::move(outputHits));
     if (p_().options().produceTrackFitHitInfo()) {
       e.put(std::move(outputHitInfo));
