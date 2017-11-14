@@ -31,6 +31,8 @@ namespace tca {
       MCP_TSum = 0;
       MCP_EPTSum = 0;
       MCP_Cnt = 0;
+      Prim_TSum = 0;
+      Prim_EPTSum = 0;
       PFP_CntMat = 0;
       PFP_Cnt = 0;
       nBadEP = 0;
@@ -54,7 +56,9 @@ namespace tca {
     float MCP_TSum;                // T sum of MCParticles that should be reconstructed in 3D
     float MCP_EPTSum;              // E*P weighted T sum of MCParticles that ARE reconstructed in 3D
     float MCP_Cnt;                 // Count of MCParticles that should be reconstructed in 3D
-    float PFP_CntMat;          // Count of PFParticles that are matched to an MCParticle
+    float Prim_TSum;               // T sum of Primary MCParticles that should be reconstructed in 3D 
+    float Prim_EPTSum;             // E*P weighted T sum of primary MCParticles that ARE reconstructed in 3D
+    float PFP_CntMat;              // Count of PFParticles that are matched to an MCParticle
     float PFP_Cnt;                 // Count of ALL PFParticles
     
     float fNeutrinoEnergy;

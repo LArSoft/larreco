@@ -1162,6 +1162,9 @@ namespace tca {
   void MergeTjList(std::vector<std::vector<int>>& tjList)
   {
     // Merge the lists of Tjs in the lists if they share a common Tj ID
+    
+    if(tjList.size() < 2) return;
+    
     bool didMerge = true;
     while(didMerge) {
       didMerge = false;
@@ -2867,7 +2870,7 @@ namespace tca {
     if(tjs.ShowerTag[0] <= 0) return;
     
     if(tjs.allTraj.size() > 20000) {
-      std::cout<<"TagInShowerTjs: Crazy number of Tjs "<<tjs.allTraj.size()<<". No shower tagging. Events processed "<<tjs.EventsProcessed<<" \n";
+//      std::cout<<"TagInShowerTjs: Crazy number of Tjs "<<tjs.allTraj.size()<<". No shower tagging. Events processed "<<tjs.EventsProcessed<<" \n";
       return;
     }
     
@@ -2880,6 +2883,7 @@ namespace tca {
       tj.AlgMod[kInShower] = false;
       tj.NNeighbors = 0;
       if(tj.AlgMod[kShowerTj]) continue;
+      if(tj.Pts.size() < 3) continue;
       if(tj.Pts.size() > 4 && tj.MCSMom > maxMCSMom) continue;
       tjids.push_back(tj.ID);
     } // tj
@@ -2889,6 +2893,7 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjids.size() - 1; ++it1) {
       Trajectory& tj1 = tjs.allTraj[tjids[it1] - 1];
       if(tj1.CTP != inCTP) continue;
+      float len1 = TrajLength(tj1);
       for(unsigned short it2 = it1 + 1; it2 < tjids.size(); ++it2) {
         Trajectory& tj2 = tjs.allTraj[tjids[it2] - 1];
         if(tj2.CTP != inCTP) continue;
@@ -2897,6 +2902,13 @@ namespace tca {
         // Find the separation between Tjs without considering dead wires
         TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca, false);
         if(doca == tjs.ShowerTag[2]) continue;
+        // make tighter cuts for user-defined short Tjs
+        float len2 = TrajLength(tj2);
+        if(len1 < len2) {
+          if(len1 < doca) continue;
+        } else {
+          if(len2 < doca) continue;
+        }
         // found a close pair. See if one of these is in an existing cluster of Tjs
         bool inlist = false;
         for(unsigned short it = 0; it < tjList.size(); ++it) {
@@ -2921,6 +2933,11 @@ namespace tca {
       } // it2
     } // it1
     if(tjList.empty()) return;
+    
+    // eliminate entries that fail ShowerTag[7]
+    std::vector<std::vector<int>> newList;
+    for(auto& tjl : tjList) if(tjl.size() >= tjs.ShowerTag[7]) newList.push_back(tjl);
+    tjList = newList;
 
     MergeTjList(tjList);
 
@@ -2933,7 +2950,7 @@ namespace tca {
       nsh += tjl.size();
       for(auto& tjID : tjl) tjs.allTraj[tjID - 1].AlgMod[kInShower] = true;
     } // tjl
-    if(tjs.ShowerTag[12] >= 0) mf::LogVerbatim("TC")<<"TagInShowerTjs tagged "<<nsh<<" InShower Tjs";
+    if(tjs.ShowerTag[12] >= 0) mf::LogVerbatim("TC")<<"TagInShowerTjs tagged "<<nsh<<" InShower Tjs in CTP "<<inCTP;
     
   } // TagInShowerTjs
   
@@ -2952,6 +2969,9 @@ namespace tca {
     std::string fcnLabel = inFcnLabel + ".FNTj";
     
     std::vector<int> ntj;
+    
+    // set max distance of closest approach ~ 5 radiation lengths ~200 WSE 
+    constexpr float fiveRadLen = 200;
     
     // look for vertices inside the envelope
     for(auto vx : tjs.vtx) {
@@ -2983,8 +3003,13 @@ namespace tca {
         float delta = PointTrajDOCA(tjs, stj.Pts[1].Pos[0], stj.Pts[1].Pos[1], tj.Pts[tj.EndPt[0]]);
         // TODO: This could be done much better
         if(delta < 20) {
-          ntj.push_back(tj.ID);
-          continue;
+          float doca = fiveRadLen;
+          unsigned short spt = 0, ipt = 0;
+          TrajTrajDOCA(tjs, stj, tj, spt, ipt, doca);
+          if(doca < fiveRadLen) {
+            ntj.push_back(tj.ID);
+            continue;
+          }
         }
       } // long hi-MCSMom tj
       // don't need to check every point. Every third should be enough
@@ -3637,7 +3662,7 @@ namespace tca {
       } // spt
       myprt<<std::setw(6)<<std::setprecision(2)<<stj.Pts[1].Ang;
       myprt<<std::setw(6)<<ss.SS3ID;
-      if(ss.SS3ID > 0) {
+      if(ss.SS3ID < tjs.showers.size()) {
         auto& ss3 = tjs.showers[ss.SS3ID - 1];
         if(ss3.PFPIndex < tjs.pfps.size()) {
           auto& pfp = tjs.pfps[ss3.PFPIndex];

@@ -143,10 +143,11 @@ namespace tca {
       // turn off printing
       tjs.ShowerTag[12] = -1;
     }
-    if(tjs.Match3DCuts.size() < 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 4\n 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = minimum match fraction";
-    if(tjs.Match3DCuts[3] <= 0) {
-      std::cout<<"Match3DCuts[3] improperly defined. Setting it to 0.5";
-      tjs.Match3DCuts[3] = 0.5;
+    if(tjs.Match3DCuts.size() < 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 4\n 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = minimum match fraction\n 4 = max number of allowed 3D combinations";
+    if(tjs.Match3DCuts.size() < 5) {
+      tjs.Match3DCuts.resize(5);
+      std::cout<<"Match3DCuts[4] not defined. Setting it to 2000";
+      tjs.Match3DCuts[4] = 2000;
     }
     
     // check the angle ranges and convert from degrees to radians
@@ -154,8 +155,6 @@ namespace tca {
       mf::LogVerbatim("TC")<<"Last element of AngleRange != 90 degrees. Fixing it\n";
       tjs.AngleRanges.back() = 90;
     }
-    
-    fExpectNarrowHits = (fMode == 4);
     
     // decide whether debug information should be printed
     bool validCTP = debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0 && debug.Wire >= 0 && debug.Tick >= 0;
@@ -266,7 +265,6 @@ namespace tca {
       std::cout<<"Skipping algs:";
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(!tjs.UseAlg[ib] && ib != kKilled) std::cout<<" "<<AlgBitNames[ib];
       std::cout<<"\n";
-      if(fExpectNarrowHits) std::cout<<"Configured to expect narrow hits produced by gaushit with LongMaxHits set large.\n";
     }
     tjs.EventsProcessed = 0;
    
@@ -277,7 +275,6 @@ namespace tca {
     tjs.vtx3 = {};
     tjs.vtx = {};
     tjs.tcl = {};
-//    tjs.inClus = {};
     tjs.matchVec = {};
     tjs.pfps = {};
     tjs.WireHitRange = {};
@@ -415,9 +412,9 @@ namespace tca {
     
 //    if(fDebugMode && nerr > 0) std::cout<<"Found "<<nerr<<" hits with indexing errors. Set Multiplicity = 1 for these hits.\n";
     
-    fRun = evt.run();
-    fSubRun  = evt.subRun();
-    fEvent = evt.event();
+    tjs.Run = evt.run();
+    tjs.SubRun  = evt.subRun();
+    tjs.Event = evt.event();
     fWorkID = 0;
     
     // Set true if a truly bad situation occurs
@@ -455,6 +452,7 @@ namespace tca {
         // Tag InShower Tjs. The list of inshower Tjs within each shower isn't used here.
         std::vector<std::vector<int>> tjlist;
         if(tjs.ShowerTag[0] > 0) TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
+/* Seems to be a bad idea
         // kill vertices that have more than one InShower Tj. This is meant to reduce
         // the number of spurious 3D vertices reconstructed inside of showers
         for(auto& vx2 : tjs.vtx) {
@@ -471,6 +469,7 @@ namespace tca {
             MakeVertexObsolete(tjs, vx2, false);
           }
         } // vx2
+*/
       } // plane
       
       // No sense taking muon direction if delta ray tagging is disabled
@@ -521,8 +520,10 @@ namespace tca {
     if (tjs.SaveCRTree) crtree->Fill();
 
     // fill some basic histograms 
-    for(auto& vx2 : tjs.vtx) if(vx2.ID > 0 && vx2.Score > 0) hist.fVx2Score->Fill(vx2.Score);
-    for(auto& vx3 : tjs.vtx3) if(vx3.ID > 0 && vx3.Score > 0) hist.fVx3Score->Fill(vx3.Score);
+    if(fStudyMode) {
+      for(auto& vx2 : tjs.vtx) if(vx2.ID > 0 && vx2.Score > 0) hist.fVx2Score->Fill(vx2.Score);
+      for(auto& vx3 : tjs.vtx3) if(vx3.ID > 0 && vx3.Score > 0) hist.fVx3Score->Fill(vx3.Score);
+    }
     
     // print trajectory summary report?
     if(tjs.ShowerTag[0] >= 1) debug.Plane = tjs.ShowerTag[11];
@@ -541,12 +542,12 @@ namespace tca {
     } // tj
     if(fDebugMode) std::cout<<"RTC done ntjs "<<ntj<<" nshowers "<<nsh<<" events processed "<<tjs.EventsProcessed<<"\n";
     
-    if(tjs.MatchTruth[0] >= 0) tm.PrintResults(fEvent);
+    if(tjs.MatchTruth[0] >= 0) tm.PrintResults(tjs.Event);
     
     // convert vertex time from WSE to ticks
     for(auto& avtx : tjs.vtx) avtx.Pos[1] /= tjs.UnitsPerTick;
     
-    if(fDebugMode) mf::LogVerbatim("TC")<<"RunTrajCluster success run "<<fRun<<" event "<<fEvent<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<tjs.EventsProcessed;
+    if(fDebugMode) mf::LogVerbatim("TC")<<"RunTrajCluster success run "<<tjs.Run<<" event "<<tjs.Event<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<tjs.EventsProcessed;
     
   } // RunTrajClusterAlg
 
@@ -786,6 +787,8 @@ namespace tca {
     }
     TagDeltaRays(tjs, inCTP);
     Find2DVertices(tjs, inCTP);
+    // Make vertices between long Tjs and junk Tjs.
+    MakeJunkVertices(tjs, inCTP);
     // check for a major failure
     if(fQuitAlg) return;
 
@@ -1259,7 +1262,7 @@ namespace tca {
       wireWindow[1] = wire;
       bool hitsNear;
       // Look for hits using the requirement that the timeWindow overlaps with the hit StartTick and EndTick
-      std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, fExpectNarrowHits, hitsNear);
+      std::vector<unsigned int> closeHits = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
       if(hitsNear) sigOK = true;
       for(auto& iht : closeHits) {
         // Ensure that none of these hits are already used by this trajectory
@@ -2483,14 +2486,17 @@ namespace tca {
       // Match Tjs with high quality vertices first and the leftovers next
       for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 3, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
     } // 3-plane TPC
-    // 2-plane TPC or 2-plane matches in a 3-plane TPC
-    if(tjs.NumPlanes == 2) {
-      for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
-    } else {
-      // Make one attempt at 2-plane matches in a 3-plane TPC, setting maxScore large
-      FindXMatches(tjs, 2, 3, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
-    }
-    
+    // Make 2-plane matches if we haven't hit the user-defined size limit
+    if(matVec.size() < tjs.Match3DCuts[4]) {
+      // 2-plane TPC or 2-plane matches in a 3-plane TPC
+      if(tjs.NumPlanes == 2) {
+        for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+      } else {
+        // Make one attempt at 2-plane matches in a 3-plane TPC, setting maxScore large
+        FindXMatches(tjs, 2, 3, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+      }
+    } // can add more combinations
+    if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"M3D: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2526,7 +2532,7 @@ namespace tca {
     // Start with Tjs attached to 3D vertices
     Match3DVtxTjs(tjs, tpcid, prt);
     
-    // Re-check matchVec with the user cut matchfrac cut to reduce junk
+    // Re-check matchVec with the user cut matchfrac cut to reduce poor combinations
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
       auto& ms = tjs.matchVec[indx];
       if(ms.Count == 0) continue;
@@ -2558,10 +2564,12 @@ namespace tca {
       PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
       pfp.TjIDs = ms.TjIDs;
       // declare a start or end vertex and set the end points
-      if(pfp.Vx3ID[0] == 0) {
-        if(!SetPFPEndPoints(tjs, pfp, 0, prt)) continue;
-      } else {
-        if(!SetPFPEndPoints(tjs, pfp, 1, prt)) continue;
+      unsigned short vxAtEnd = 0;
+      if(pfp.Vx3ID[0] == 0) vxAtEnd = 1;
+      if(!SetPFPEndPoints(tjs, pfp, vxAtEnd, prt)) {
+        if(prt) mf::LogVerbatim("TC")<<" SetPFPEndPoints failed";
+        pfp.ID = 0;
+        continue;
       }
       Reverse3DMatchTjs(tjs, pfp, prt);
       if(prt) mf::LogVerbatim("TC")<<" Created PFP "<<pfp.ID;
@@ -4128,7 +4136,6 @@ namespace tca {
       if(tp.Pos[1] > tp.HitPos[1]) ++nPosDelta;
       // The number of increasing delta points: Note implied absolute value
       if(tp.Delta < prevDelta) ++nDeltaIncreasing;
-      if(prt) std::cout<<ipt<<" chk "<<PrintPos(tjs, tp.Pos)<<" delta "<<tp.Delta<<" prev "<<prevDelta<<" nDeltaIncreasing "<<nDeltaIncreasing<<"\n";
       prevDelta = tp.Delta;
       ++nMasked;
     } // ii
@@ -6001,9 +6008,9 @@ namespace tca {
   void TrajClusterAlg::DefineShTree(TTree* t) {
     showertree = t;
 
-    showertree->Branch("run", &fRun, "run/I");
-    showertree->Branch("subrun", &fSubRun, "subrun/I");
-    showertree->Branch("event", &fEvent, "event/I");
+    showertree->Branch("run", &tjs.Run, "run/I");
+    showertree->Branch("subrun", &tjs.SubRun, "subrun/I");
+    showertree->Branch("event", &tjs.Event, "event/I");
 
     showertree->Branch("BeginWir", &tjs.stv.BeginWir);
     showertree->Branch("BeginTim", &tjs.stv.BeginTim);
@@ -6039,9 +6046,9 @@ namespace tca {
 
   void TrajClusterAlg::DefineCRTree(TTree *t){
     crtree = t;
-    crtree->Branch("run", &fRun, "run/I");
-    crtree->Branch("subrun", &fSubRun, "subrun/I");
-    crtree->Branch("event", &fEvent, "event/I");
+    crtree->Branch("run", &tjs.Run, "run/I");
+    crtree->Branch("subrun", &tjs.SubRun, "subrun/I");
+    crtree->Branch("event", &tjs.Event, "event/I");
     crtree->Branch("cr_origin", &tjs.crt.cr_origin);
     crtree->Branch("cr_pfpxmin", &tjs.crt.cr_pfpxmin);
     crtree->Branch("cr_pfpxmax", &tjs.crt.cr_pfpxmax);

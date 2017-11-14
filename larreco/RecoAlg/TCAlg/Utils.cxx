@@ -170,7 +170,7 @@ namespace tca {
         dtj.ParentID = lastPair.first;
         // reverse the daughter trajectory if necessary so that end 0 is closest to the parent
         float doca = 100;
-        unsigned short dpt, ppt;
+        unsigned short dpt = 0, ppt = 0;
         auto& ptj = tjs.allTraj[lastPair.first - 1];
         // find the point on the daughter tj that is closest to the parent
         TrajTrajDOCA(tjs, dtj, ptj, dpt, ppt, doca);
@@ -381,6 +381,7 @@ namespace tca {
         if(pfp.TPCID != tpcid) continue;
         if(pfp.Vx3ID[0] != vx3id) continue;
         pfp.ParentID = (size_t)neutrinoPFPID;
+        pfp.Primary = true;
         neutrinoPFP.DtrIDs.push_back(pfp.ID);
       } // pfp
     } // neutrino PFP exists    
@@ -418,10 +419,11 @@ namespace tca {
     if(tj.ParentID == 0) return tj.ID;
     int parid = tj.ParentID;
     for(unsigned short nit = 0; nit < 10; ++nit) {
+      if(parid < 1 || parid > (int)tjs.allTraj.size()) break;
       auto& tj = tjs.allTraj[parid - 1];
+      if(tj.ParentID < 0 || tj.ParentID > (int)tjs.allTraj.size()) return -1;
       if(tj.ParentID == 0) return tj.ID;
       parid = tj.ParentID;
-      if(parid > (int)tjs.allTraj.size()) break;
     } // nit
     return -1;
   } // PrimaryID
@@ -587,6 +589,11 @@ namespace tca {
     unsigned short minPts = 3;
     // override this with the user minimum for 2-plane matches
     if(numPlanes == 2) minPts = tjs.Match3DCuts[2];
+    
+    // max number of match combos left
+    unsigned int nAvailable = 0;
+    if(matVec.size() < tjs.Match3DCuts[4]) nAvailable = tjs.Match3DCuts[4] - matVec.size();
+    if(nAvailable == 0 || nAvailable > tjs.Match3DCuts[4]) return;
 
     std::array<float, 3> posij, posik;
     // temp TPs used to find 3D directions. The positions are not used
@@ -604,12 +611,12 @@ namespace tca {
     if(returnMatchPts) {
       // allow 2-plane matches in a 3-plane TPC
       numPlanes = pfp.TjIDs.size();
-      matchPts[0].resize(numPlanes);
-      matchPts[1].resize(numPlanes);
+      matchPts[0].resize(numPlanes, INT_MAX);
+      matchPts[1].resize(numPlanes, INT_MAX);
       // bypass maxScore
       maxScore = SHRT_MAX;
     }
-    if(prt) mf::LogVerbatim("TC")<<"FXM: numPlanes "<<numPlanes<<" maxScore "<<maxScore<<" returnMatchPts? "<<returnMatchPts;
+//    if(prt) mf::LogVerbatim("TC")<<"FXM: numPlanes "<<numPlanes<<" maxScore "<<maxScore<<" returnMatchPts? "<<returnMatchPts;
     bool first = true;
     for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 1; ++ipt) {
       auto& iTjPt = tjs.mallTraj[ipt];
@@ -738,7 +745,7 @@ namespace tca {
               } // not found in the list
             } // fill temp
             // give up if there are too many
-            if(temp.size() > 2000) break;
+            if(temp.size() > nAvailable) break;
           } // kpt
           // numPlanes == 3
         } else {
@@ -800,11 +807,14 @@ namespace tca {
           } // fill temp
         } // 2-plane TPC
         // give up if there are too many
-        if(temp.size() > 2000) break;
+        if(temp.size() > nAvailable) break;
       } // jpt
       // give up if there are too many
-      if(temp.size() > 2000) break;
+      if(temp.size() > nAvailable) break;
     } // ipt
+    
+    // temp
+    if(returnMatchPts) return;
     
     if(temp.empty()) return;
     
@@ -1003,7 +1013,7 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"PFP "<<pfp.ID;
+      myprt<<"SPEP: PFP "<<pfp.ID;
       myprt<<" end "<<end;
       myprt<<" Vx3ID "<<pfp.Vx3ID[end];
       myprt<<" Tjs";
@@ -1059,22 +1069,30 @@ namespace tca {
     // get the matching points, only requiring two planes
     FindXMatches(tjs, 2, SHRT_MAX, pfp, dummyMatVec, matchPts, matchPos, nMatch, prt);
     if(matchPts[0].size() < 2 || matchPts[1].size() < 2) {
-      if(prt) mf::LogVerbatim("TC")<<"SetPFPEndPoints: no 2-plane matches. write some code\n";
+      if(prt) mf::LogVerbatim("TC")<<"SPEP: no 2-plane matches. write some code";
       return false;
     }
-/*
-    if(FindBrokenTjs(tjs, pfp, matchPts, prt)) {
-      std::cout<<"SetPFPEndPoints: Found broken tjs\n";
+    // check validity
+    bool validMatch = true;
+    for(unsigned short startend = 0; startend < 2; ++startend) {
+      unsigned short nok = 0;
+      for(auto mp : matchPts[startend]) if(mp < tjs.mallTraj.size()) ++nok;
+      if(nok < 2) validMatch = false;
+    } // startend
+    if(!validMatch) {
+      if(prt) mf::LogVerbatim("TC")<<"SPEP: Not enough valid matches";
+      return false;
     }
-*/
+
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"SPEP: ppfp.ID "<<pfp.ID;
+      myprt<<" nMatch "<<nMatch;
       myprt<<" FindXMatches Pts";
       for(unsigned short startend = 0; startend < 2; ++startend) {
-        myprt<<" end"<<end;
-        myprt<<" nMatch "<<nMatch;
+        myprt<<" end"<<startend;
         for(unsigned short ii = 0; ii < matchPts.size(); ++ii) {
+          if(matchPts[startend][ii] > tjs.mallTraj.size() - 1) continue;
           auto& tjpt = tjs.mallTraj[matchPts[startend][ii]];
           unsigned int tjID = tjpt.id;
           unsigned short ipt = tjpt.ipt;
@@ -1087,9 +1105,9 @@ namespace tca {
     // Check the end point separation. A small separation means that the X range was
     // too small for FindXMatches
     float sep = PosSep(matchPos[0], matchPos[1]);
+    if(prt) mf::LogVerbatim("TC")<<" end point separation "<<sep;
     bool useSepMatch = false;
     if(sep < 1) {
-      if(prt) mf::LogVerbatim("TC")<<" matchPos separation too close "<<sep<<" nMatch "<<nMatch;
       if(!FindSepMatch(tjs, pfp, matchPos, prt)) {
         if(prt) mf::LogVerbatim("TC")<<"SPEP: FindSepMatch failed";
         return false;
@@ -1128,7 +1146,7 @@ namespace tca {
         unsigned int tjID = tjpt1.id;
         unsigned short ipt = tjpt1.ipt;
         auto& tp1 = tjs.allTraj[tjID - 1].Pts[ipt];
-        // and the point from the second plane
+        // and the second point
         auto& tjpt2 = tjs.mallTraj[matchPts[startend][1]];
         tjID = tjpt2.id;
         ipt = tjpt2.ipt;
@@ -3487,6 +3505,8 @@ namespace tca {
     if(lastPt > tj.EndPt[1]) return 0;
     // Can't do this with only 2 points
     if(NumPtsWithCharge(tjs, tj, false, firstPt, lastPt) < 3) return 0;
+    // Ignore junk Tjs
+    if(tj.AlgMod[kJunkTj]) return 0;
         
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
     if(tjLen == 0) return 0;
@@ -4696,7 +4716,7 @@ namespace tca {
     
     mf::LogVerbatim myprt("TC");
     myprt<<someText;
-    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG Par Prim E*P\n";
+    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG  MCP Par Prim E*P\n";
     unsigned short indx = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
@@ -4729,6 +4749,11 @@ namespace tca {
       // global stuff
       myprt<<std::setw(5)<<pfp.BestPlane;
       myprt<<std::setw(6)<<pfp.PDGCode;
+      if(pfp.MCPartListIndex < tjs.pfps.size()) {
+        myprt<<std::setw(5)<<pfp.MCPartListIndex;
+      } else {
+        myprt<<"   NA";
+      }
       myprt<<std::setw(4)<<pfp.ParentID;
       myprt<<std::setw(5)<<PrimaryID(tjs, pfp);
       myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
