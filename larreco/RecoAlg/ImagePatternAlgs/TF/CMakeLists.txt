@@ -4,6 +4,7 @@ art_make(
 			cetlib cetlib_except
 			${TENSORFLOW}
 			${PROTOBUF}
+			${FOR_TENSORFLOW}
         )
 
 install_headers()
