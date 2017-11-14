@@ -64,6 +64,7 @@ namespace tca {
         junkVx.ID = USHRT_MAX;
         for(auto tj2id : tjlist) {
           auto& tj2 = tjs.allTraj[tj2id - 1];
+          if(tj2.CTP != inCTP) continue;
           if(tj2id == tj1.ID) continue;
 //          if(tj2.MCSMom > 50) continue;
           if(tj2.AlgMod[kInShower]) continue;
