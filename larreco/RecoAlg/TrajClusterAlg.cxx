@@ -4923,26 +4923,6 @@ namespace tca {
       // Set the traj info
       tj.ClusterIndex = tjs.tcl.size();
       tjs.tcl.push_back(cls);
-/*
-      // do some checking and define tjs.inClus
-      geo::PlaneID planeID = DecodeCTP(cls.CTP);
-      for(unsigned short ii = 0; ii < cls.tclhits.size(); ++ii) {
-        unsigned int iht = cls.tclhits[ii];
-        if(tjs.fHits[iht].WireID.Plane != planeID.Plane ||
-           tjs.fHits[iht].WireID.Cryostat != planeID.Cryostat ||
-           tjs.fHits[iht].WireID.TPC != planeID.TPC) {
-          mf::LogWarning("TC")<<"MakeAllTrajClusters: Bad OLD hit CTP in itj "<<itj<<" hit "<<PrintHit(tjs.fHits[iht])<<" WorkID "<<tjs.allTraj[itj].WorkID<<" Plane "<<tjs.fHits[iht].WireID.Plane<<" vs "<<planeID.Plane<<" Cstat "<<tjs.fHits[iht].WireID.Cryostat<<" vs "<<planeID.Cryostat<<" TPC "<<tjs.fHits[iht].WireID.TPC<<" vs "<<planeID.TPC;
-          fQuitAlg = true;
-          return;
-        }
-        if(tjs.inClus[iht] != 0) {
-          mf::LogWarning("TC")<<"MakeAllTrajClusters: Trying to assign tj.ID "<<tj.ID<<" hit "<<iht<<" "<<PrintHit(tjs.fHits[iht])<<" to already-assigned cluster "<<tjs.inClus[iht]<<" workID "<<tj.WorkID;
-          fQuitAlg = true;
-          return;
-        }
-        tjs.inClus[iht] = clID;
-      } //iht
-*/
   } // itj
 
   } // MakeAllTrajClusters
