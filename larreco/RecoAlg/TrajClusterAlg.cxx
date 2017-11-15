@@ -143,10 +143,11 @@ namespace tca {
       // turn off printing
       tjs.ShowerTag[12] = -1;
     }
-    if(tjs.Match3DCuts.size() < 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 4\n 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = minimum match fraction";
-    if(tjs.Match3DCuts[3] <= 0) {
-      std::cout<<"Match3DCuts[3] improperly defined. Setting it to 0.5";
-      tjs.Match3DCuts[3] = 0.5;
+    if(tjs.Match3DCuts.size() < 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 4\n 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = minimum match fraction\n 4 = max number of allowed 3D combinations";
+    if(tjs.Match3DCuts.size() < 5) {
+      tjs.Match3DCuts.resize(5);
+      std::cout<<"Match3DCuts[4] not defined. Setting it to 2000";
+      tjs.Match3DCuts[4] = 2000;
     }
     
     // check the angle ranges and convert from degrees to radians
@@ -274,7 +275,6 @@ namespace tca {
     tjs.vtx3 = {};
     tjs.vtx = {};
     tjs.tcl = {};
-//    tjs.inClus = {};
     tjs.matchVec = {};
     tjs.pfps = {};
     tjs.WireHitRange = {};
@@ -452,6 +452,7 @@ namespace tca {
         // Tag InShower Tjs. The list of inshower Tjs within each shower isn't used here.
         std::vector<std::vector<int>> tjlist;
         if(tjs.ShowerTag[0] > 0) TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
+/* Seems to be a bad idea
         // kill vertices that have more than one InShower Tj. This is meant to reduce
         // the number of spurious 3D vertices reconstructed inside of showers
         for(auto& vx2 : tjs.vtx) {
@@ -468,6 +469,7 @@ namespace tca {
             MakeVertexObsolete(tjs, vx2, false);
           }
         } // vx2
+*/
       } // plane
       
       // No sense taking muon direction if delta ray tagging is disabled
@@ -785,6 +787,8 @@ namespace tca {
     }
     TagDeltaRays(tjs, inCTP);
     Find2DVertices(tjs, inCTP);
+    // Make vertices between long Tjs and junk Tjs.
+    MakeJunkVertices(tjs, inCTP);
     // check for a major failure
     if(fQuitAlg) return;
 
@@ -2482,14 +2486,17 @@ namespace tca {
       // Match Tjs with high quality vertices first and the leftovers next
       for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 3, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
     } // 3-plane TPC
-    // 2-plane TPC or 2-plane matches in a 3-plane TPC
-    if(tjs.NumPlanes == 2) {
-      for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
-    } else {
-      // Make one attempt at 2-plane matches in a 3-plane TPC, setting maxScore large
-      FindXMatches(tjs, 2, 3, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
-    }
-    
+    // Make 2-plane matches if we haven't hit the user-defined size limit
+    if(matVec.size() < tjs.Match3DCuts[4]) {
+      // 2-plane TPC or 2-plane matches in a 3-plane TPC
+      if(tjs.NumPlanes == 2) {
+        for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+      } else {
+        // Make one attempt at 2-plane matches in a 3-plane TPC, setting maxScore large
+        FindXMatches(tjs, 2, 3, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+      }
+    } // can add more combinations
+    if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"M3D: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2525,7 +2532,7 @@ namespace tca {
     // Start with Tjs attached to 3D vertices
     Match3DVtxTjs(tjs, tpcid, prt);
     
-    // Re-check matchVec with the user cut matchfrac cut to reduce junk
+    // Re-check matchVec with the user cut matchfrac cut to reduce poor combinations
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
       auto& ms = tjs.matchVec[indx];
       if(ms.Count == 0) continue;
@@ -2557,10 +2564,12 @@ namespace tca {
       PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
       pfp.TjIDs = ms.TjIDs;
       // declare a start or end vertex and set the end points
-      if(pfp.Vx3ID[0] == 0) {
-        if(!SetPFPEndPoints(tjs, pfp, 0, prt)) continue;
-      } else {
-        if(!SetPFPEndPoints(tjs, pfp, 1, prt)) continue;
+      unsigned short vxAtEnd = 0;
+      if(pfp.Vx3ID[0] == 0) vxAtEnd = 1;
+      if(!SetPFPEndPoints(tjs, pfp, vxAtEnd, prt)) {
+        if(prt) mf::LogVerbatim("TC")<<" SetPFPEndPoints failed";
+        pfp.ID = 0;
+        continue;
       }
       Reverse3DMatchTjs(tjs, pfp, prt);
       if(prt) mf::LogVerbatim("TC")<<" Created PFP "<<pfp.ID;
