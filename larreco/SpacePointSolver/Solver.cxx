@@ -39,8 +39,8 @@ void SpaceCharge::AddCharge(double dq)
   for(Neighbour& nei: fNeighbours)
     nei.fSC->fNeiPotential += dq * nei.fCoupling;
 
-  if(fWire1) fWire1->fPred += dq;
-  if(fWire2) fWire2->fPred += dq;
+  fWire1->fPred += dq;
+  fWire2->fPred += dq;
 }
 
 // ---------------------------------------------------------------------------
@@ -52,8 +52,8 @@ CollectionWireHit::CollectionWireHit(int chan, double q,
 
   for(SpaceCharge* iwires: cross){
     iwires->fPred += p;
-    if(iwires->fWire1) iwires->fWire1->fPred += p;
-    if(iwires->fWire2) iwires->fWire2->fPred += p;
+    iwires->fWire1->fPred += p;
+    iwires->fWire2->fPred += p;
   }
 }
 
@@ -85,8 +85,8 @@ double Metric(const std::vector<SpaceCharge*>& scs, double alpha)
 
   std::set<InductionWireHit*> iwires;
   for(const SpaceCharge* sc: scs){
-    if(sc->fWire1) iwires.insert(sc->fWire1);
-    if(sc->fWire2) iwires.insert(sc->fWire2);
+    iwires.insert(sc->fWire1);
+    iwires.insert(sc->fWire2);
 
     if(alpha != 0){
       ret -= alpha*sqr(sc->fPred);
@@ -120,10 +120,25 @@ QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha)
   // How much charge moves from scj to sci
   QuadExpr x = QuadExpr::X();
 
-  if(alpha != 0){
-    const double scip = sci->fPred;
-    const double scjp = scj->fPred;
+  const InductionWireHit* iwire1 = sci->fWire1;
+  const InductionWireHit* iwire2 = sci->fWire2;
+  const InductionWireHit* jwire1 = scj->fWire1;
+  const InductionWireHit* jwire2 = scj->fWire2;
 
+  const double scip = sci->fPred;
+  const double scjp = scj->fPred;
+
+  const double qi1 = iwire1->fCharge;
+  const double qi2 = iwire2->fCharge;
+  const double pi1 = iwire1->fPred;
+  const double pi2 = iwire2->fPred;
+
+  const double qj1 = jwire1->fCharge;
+  const double qj2 = jwire2->fCharge;
+  const double pj1 = jwire1->fPred;
+  const double pj2 = jwire2->fPred;
+
+  if(alpha != 0){
     // Self energy. SpaceCharges are never the same object
     ret -= alpha*sqr(scip + x);
     ret -= alpha*sqr(scjp - x);
@@ -147,41 +162,20 @@ QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha)
     }
   }
 
-
-  const InductionWireHit* iwire1 = sci->fWire1;
-  const InductionWireHit* jwire1 = scj->fWire1;
-  if(iwire1 && jwire1){
-    const double qi1 = iwire1->fCharge;
-    const double pi1 = iwire1->fPred;
-
-    const double qj1 = jwire1->fCharge;
-    const double pj1 = jwire1->fPred;
-
-    if(iwire1 == jwire1){
-      ret += Metric(qi1, pi1);
-    }
-    else{
-      ret += Metric(qi1, pi1 + x);
-      ret += Metric(qj1, pj1 - x);
-    }
+  if(iwire1 == jwire1){
+    ret += Metric(qi1, pi1);
+  }
+  else{
+    ret += Metric(qi1, pi1 + x);
+    ret += Metric(qj1, pj1 - x);
   }
 
-  const InductionWireHit* iwire2 = sci->fWire2;
-  const InductionWireHit* jwire2 = scj->fWire2;
-  if(iwire2 && jwire2){
-    const double qi2 = iwire2->fCharge;
-    const double pi2 = iwire2->fPred;
-
-    const double qj2 = jwire2->fCharge;
-    const double pj2 = jwire2->fPred;
-
-    if(iwire2 == jwire2){
-      ret += Metric(qi2, pi2);
-    }
-    else{
-      ret += Metric(qi2, pi2 + x);
-      ret += Metric(qj2, pj2 - x);
-    }
+  if(iwire2 == jwire2){
+    ret += Metric(qi2, pi2);
+  }
+  else{
+    ret += Metric(qi2, pi2 + x);
+    ret += Metric(qj2, pj2 - x);
   }
 
   return ret;
