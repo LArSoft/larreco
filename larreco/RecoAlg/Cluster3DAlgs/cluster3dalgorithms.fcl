@@ -45,14 +45,6 @@ standard_cluster3dMergeAlg:
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
 }
 
-standard_cluster3dPathAlg:
-{
-  tool_type:              ClusterPathFinder
-  EnableMonitoring:       true    # enable monitoring of functions
-  MinTinyClusterSize:     40      # minimum number of hits to consider splitting
-  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
-}
-
 standard_cluster3ddbscanalg:
 {
   tool_type:              DBScanAlg
@@ -69,6 +61,15 @@ standard_cluster3dminSpanTreeAlg:
   ClusterParamsBuilder:   @local::standard_cluster3dParamsBuilder
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
   kdTree:                 @local::standard_cluster3dkdTree
+}
+
+standard_cluster3dPathAlg:
+{
+  tool_type:              ClusterPathFinder
+  EnableMonitoring:       true    # enable monitoring of functions
+  MinTinyClusterSize:     40      # minimum number of hits to consider splitting
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  ClusterAlg:             @local::standard_cluster3ddbscanalg
 }
 
 standard_cluster3dskeletonalg:

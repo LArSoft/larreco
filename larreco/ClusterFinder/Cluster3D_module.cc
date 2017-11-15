@@ -285,8 +285,23 @@ private:
     size_t ConvertToArtOutput(ArtOutputHandler&        output,
                               reco::ClusterParameters& clusterParameters,
                               size_t                   pfParticleParent,
-                              RecobHitToPtrMap&        hitToPtrMap) const;
+                              RecobHitToPtrMap&        hitToPtrMap,
+                              Hit3DToSPPtrMap&         hit3DToSPPtrMap) const;
     
+    /**
+     *  @brief Special routine to handle creating and saving space points
+     *
+     *  @param output                the object containting the art output
+     *  @param clusterParameters     Cluster info to output (in internal format)
+     *  @param pfParticleParent      The parent ID reference for the output PFParticle
+     *  @param hitToPtrMap           This maps our Cluster2D hits back to art Ptr's to reco Hits
+     */
+    void MakeAndSaveSpacePoints(ArtOutputHandler&     output,
+                                reco::HitPairListPtr& clusHitPairVector,
+                                RecobHitToPtrMap&     hitToPtrMap,
+                                Hit3DToSPPtrMap&      hit3DToSPPtrMap,
+                                int                   spacePointStart) const;
+
     /**
      *  @brief Top level output routine, allows checking cluster status
      *
@@ -1005,13 +1020,8 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
         // This is the loop over candidate 3D clusters
         // Note that it might be that the list of candidate clusters is modified by splitting
         // So we use the following construct to make sure we get all of them
-        reco::ClusterParametersList::iterator clusterParametersListItr = clusterParametersList.begin();
-        
-        while(clusterParametersListItr != clusterParametersList.end())
+        for(auto& clusterParameters : clusterParametersList)
         {
-            // Dereference to get the cluster paramters
-            reco::ClusterParameters& clusterParameters = *clusterParametersListItr;
-            
             // It should be straightforward at this point to transfer information from our vector of clusters
             // to the larsoft objects... of course we still have some work to do first, in particular to
             // find the candidate seeds and their seed hits
@@ -1020,15 +1030,20 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
             if (!clusterParameters.getFullPCA().getSvdOK())
             {
                 mf::LogDebug("Cluster3D") << "--> no feature extraction done on this cluster!!" << std::endl;
-                clusterParametersListItr++;
                 continue;
             }
             
+            // Keep track of hit 3D to SP for when we do edges
+            Hit3DToSPPtrMap hit3DToSPPtrMap;
+            
+            // Keep track of current start for space points
+            int spacePointStart(output.artSpacePointVector->size());
+
             // Special case handling... if no daughters then call standard conversion routine to make sure space points
             // created, etc.
             if (clusterParameters.daughterList().empty())
             {
-                ConvertToArtOutput(output, clusterParameters, recob::PFParticle::kPFParticlePrimary, hitToPtrMap);
+                ConvertToArtOutput(output, clusterParameters, recob::PFParticle::kPFParticlePrimary, hitToPtrMap, hit3DToSPPtrMap);
             }
             // Otherwise, the cluster has daughters so we handle specially
             else
@@ -1039,7 +1054,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
             
                 for(auto& tinyCluster : clusterParameters.daughterList())
                 {
-                    size_t daughterIdx = ConvertToArtOutput(output, tinyCluster, pfParticleIdx, hitToPtrMap);
+                    size_t daughterIdx = ConvertToArtOutput(output, tinyCluster, pfParticleIdx, hitToPtrMap, hit3DToSPPtrMap);
                     
                     daughterVec.push_back(daughterIdx);
                 }
@@ -1099,10 +1114,28 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
                 
                 // Create associations to the PFParticle
                 output.makePFPartPCAAssns();
+                
+                // Make associations to all space points for this cluster
+                MakeAndSaveSpacePoints(output, clusterParameters.getHitPairListPtr(), hitToPtrMap, hit3DToSPPtrMap, spacePointStart);
+
+                // Build the edges now
+                size_t edgeStart(output.artEdgeVector->size());
+                
+                for(const auto& edge : clusterParameters.getBestEdgeList())
+                {
+                    Hit3DToSPPtrMap::iterator hit0Itr = hit3DToSPPtrMap.find(std::get<0>(edge));
+                    Hit3DToSPPtrMap::iterator hit1Itr = hit3DToSPPtrMap.find(std::get<1>(edge));
+                    
+                    bool hit0Found = hit0Itr != hit3DToSPPtrMap.end();
+                    bool hit1Found = hit1Itr != hit3DToSPPtrMap.end();
+                    
+                    if (!hit0Found || !hit1Found) std::cout << "<<<<< Did not find matching space point " << hit0Found << ", " << hit1Found << " >>>>>>" << std::endl;
+
+                    output.artEdgeVector->push_back(recob::Edge(std::get<2>(edge), hit3DToSPPtrMap[std::get<0>(edge)], hit3DToSPPtrMap[std::get<1>(edge)], output.artEdgeVector->size()));
+                }
+                
+                output.makePFPartEdgeAssns(edgeStart);
             }
-            
-            // Go to next cluster parameters object
-            clusterParametersListItr++;
         }
     }
     
@@ -1147,7 +1180,8 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
 size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
                                      reco::ClusterParameters& clusterParameters,
                                      size_t                   pfParticleParent,
-                                     RecobHitToPtrMap&        hitToPtrMap) const
+                                     RecobHitToPtrMap&        hitToPtrMap,
+                                     Hit3DToSPPtrMap&         hit3DToSPPtrMap) const
 {
     
     // prepare the algorithm to compute the cluster characteristics;
@@ -1272,7 +1306,7 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
     
     // Call the magical algorith to do the dirty work
     //            findTrackSeeds(evt, clusterParameters, hitToPtrMap, *artSeedVector, *artSeedHitAssociations);
-    
+
     // Deal with converting the Hit Pairs to art
     // Recover the hit pairs and start looping! Love to loop!
     reco::HitPairListPtr& clusHitPairVector = clusterParameters.getHitPairListPtr();
@@ -1283,9 +1317,6 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
     
     // Keep track of current start for space points
     int spacePointStart(output.artSpacePointVector->size());
-    
-    // Keep track of hit 3D to SP for when we do edges
-    Hit3DToSPPtrMap hit3DToSPPtrMap;
     
     // Copy these hits to the vector to be stored with the event
     for (auto& hitPair : clusHitPairVector)
@@ -1326,7 +1357,7 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
         
         if (!recobHits.empty()) output.makeSpacePointHitAssns(recobHits);
     }
-    
+
     // Build the edges now
     size_t edgeStart(output.artEdgeVector->size());
     
@@ -1395,6 +1426,63 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
     output.makePFPartEdgeAssns(edgeStart);
 
     return pfParticleIdx;
+}
+    
+void Cluster3D::MakeAndSaveSpacePoints(ArtOutputHandler&     output,
+                                       reco::HitPairListPtr& clusHitPairVector,
+                                       RecobHitToPtrMap&     hitToPtrMap,
+                                       Hit3DToSPPtrMap&      hit3DToSPPtrMap,
+                                       int                   spacePointStart) const
+{
+    // Right now error matrix is uniform...
+    double spError[] = {1., 0., 1., 0., 0., 1.};
+    
+    // Copy these hits to the vector to be stored with the event
+    for (auto& hitPair : clusHitPairVector)
+    {
+        // Skip those space points that have already been created
+        if (hit3DToSPPtrMap.find(hitPair) != hit3DToSPPtrMap.end()) continue;
+        
+        // Don't make space point if this hit was "rejected"
+        if (hitPair->bitsAreSet(reco::ClusterHit3D::REJECTEDHIT)) continue;
+        
+        double chisq = 1.;    // secret handshake...
+        
+        if      ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) && !hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -1.;  // pure skeleton point
+        else if (!hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -2.;  // pure edge point
+        else if ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -3.;  // skeleton and edge point
+        
+        if      (hitPair->bitsAreSet(reco::ClusterHit3D::SEEDHIT)                                                          ) chisq = -4.;  // Seed point
+        
+        if ((hitPair->getStatusBits() & 0x7) != 0x7) chisq = -10.;
+        
+        // Mark this hit pair as in use
+        hitPair->setStatusBit(reco::ClusterHit3D::MADESPACEPOINT);
+        
+        // Create and store the space point
+        size_t spacePointID    = output.artSpacePointVector->size();
+        double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
+        output.artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, output.artSpacePointVector->size()));
+        
+        // Update mapping
+        hit3DToSPPtrMap[hitPair] = spacePointID;
+        
+        // space point hits associations
+        RecobHitVector recobHits;
+        
+        for(const auto& hit : hitPair->getHits())
+        {
+            if (!hit) continue;
+            art::Ptr<recob::Hit> hitPtr = hitToPtrMap[&hit->getHit()];
+            recobHits.push_back(hitPtr);
+        }
+        
+        if (!recobHits.empty()) output.makeSpacePointHitAssns(recobHits);
+    }
+    
+    output.makePFPartSpacePointAssns(spacePointStart);
+
+    return;
 }
 
 } // namespace lar_cluster3d

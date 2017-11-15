@@ -78,6 +78,11 @@ public:
      */
     KdTreeNode BuildKdTree(const reco::HitPairList&, KdTreeNodeList&) const;
     
+    /**
+     *  @brief Given an input HitPairListPtr, build out the map of nearest neighbors
+     */
+    KdTreeNode BuildKdTree(const reco::HitPairListPtr&, KdTreeNodeList&) const;
+
     float getTimeToExecute() const {return m_timeToBuild;}
     
 private:

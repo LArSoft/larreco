@@ -67,6 +67,9 @@ public:
     void Cluster3DHits(reco::HitPairList&           hitPairList,
                        reco::ClusterParametersList& clusterParametersList) const override;
     
+    void Cluster3DHits(reco::HitPairListPtr&        hitPairList,
+                       reco::ClusterParametersList& clusterParametersList) const override {return;}
+
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */

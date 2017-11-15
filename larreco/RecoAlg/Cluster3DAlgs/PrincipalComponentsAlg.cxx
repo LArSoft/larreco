@@ -232,24 +232,30 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     
     // Run through the HitPairList and get the mean position of all the hits
     float meanPos[] = {0.,0.,0.};
+    float meanWeightSum(0.);
     int   numPairsInt(0);
+    
+    const float minimumDeltaPeakSig(0.00001);
     
     for (const auto& hit : hitPairVector)
     {
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
+
+        // Weight the hit by the peak time difference significance
+        float weight = 1. / std::max(minimumDeltaPeakSig, hit->getDeltaPeakTime()/hit->getSigmaPeakTime());
         
-        meanPos[0] += hit->getPosition()[0];
-        meanPos[1] += hit->getPosition()[1];
-        meanPos[2] += hit->getPosition()[2];
+        meanPos[0] += hit->getPosition()[0] * weight;
+        meanPos[1] += hit->getPosition()[1] * weight;
+        meanPos[2] += hit->getPosition()[2] * weight;
         numPairsInt++;
+        
+        meanWeightSum += weight;
     }
     
-    float numPairs = float(numPairsInt);
-    
-    meanPos[0] /= numPairs;
-    meanPos[1] /= numPairs;
-    meanPos[2] /= numPairs;
-    
+    meanPos[0] /= meanWeightSum;
+    meanPos[1] /= meanWeightSum;
+    meanPos[2] /= meanWeightSum;
+
     // Define elements of our covariance matrix
     float xi2(0.);
     float xiyi(0.);
@@ -262,14 +268,12 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     // Back through the hits to build the matrix
     for (const auto& hit : hitPairVector)
     {
-        float weight(1.);
-        
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
-        if (hit->getHits()[2]) weight = hit->getHits()[2]->getHit().PeakAmplitude();
-        
-        float x = (hit->getPosition()[0] - meanPos[0]) * weight;
-        float y = (hit->getPosition()[1] - meanPos[1]) * weight;
-        float z = (hit->getPosition()[2] - meanPos[2]) * weight;
+
+        float weight = 1. / std::max(minimumDeltaPeakSig, hit->getDeltaPeakTime()/hit->getSigmaPeakTime());
+        float x      = (hit->getPosition()[0] - meanPos[0]) * weight;
+        float y      = (hit->getPosition()[1] - meanPos[1]) * weight;
+        float z      = (hit->getPosition()[2] - meanPos[2]) * weight;
         
         weightSum += weight*weight;
         
@@ -322,7 +326,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     }
     else
     {
-        mf::LogDebug("Cluster3D") << "PCA decompose failure, numPairs = " << numPairs << std::endl;
+        mf::LogDebug("Cluster3D") << "PCA decompose failure, numPairs = " << numPairsInt << std::endl;
         pca = reco::PrincipalComponents();
     }
     

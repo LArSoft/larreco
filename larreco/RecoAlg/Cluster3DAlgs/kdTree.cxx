@@ -82,6 +82,42 @@ kdTree::KdTreeNode kdTree::BuildKdTree(const reco::HitPairList& hitPairList,
     return topNode;
 }
     
+//------------------------------------------------------------------------------------------------------------------------------------------
+kdTree::KdTreeNode kdTree::BuildKdTree(const reco::HitPairListPtr& hitPairList,
+                                       KdTreeNodeList&             kdTreeNodeContainer) const
+{
+    
+    // The first task is to build the kd tree
+    cet::cpu_timer theClockBuildNeighborhood;
+    
+    if (m_enableMonitoring) theClockBuildNeighborhood.start();
+    
+    // The input is a list and we need to copy to a vector so we can sort ranges
+    //Hit3DVec hit3DVec{std::begin(hitPairList),std::end(hitPairList)};
+    Hit3DVec hit3DVec;
+    
+    hit3DVec.reserve(hitPairList.size());
+    
+    for(const auto& hit3D : hitPairList)
+    {
+        // Make sure all the bits used by the clustering stage have been cleared
+        hit3D->clearStatusBits(~(reco::ClusterHit3D::HITINVIEW0 | reco::ClusterHit3D::HITINVIEW1 | reco::ClusterHit3D::HITINVIEW2));
+        for(const auto& hit2D : hit3D->getHits())
+            if (hit2D) hit2D->clearStatusBits(0xFFFFFFFF);
+        hit3DVec.emplace_back(hit3D);
+    }
+
+    KdTreeNode topNode = BuildKdTree(hit3DVec.begin(), hit3DVec.end(), kdTreeNodeContainer);
+    
+    if (m_enableMonitoring)
+    {
+        theClockBuildNeighborhood.stop();
+        m_timeToBuild = theClockBuildNeighborhood.accumulated_real_time();
+    }
+    
+    return topNode;
+}
+
 kdTree::KdTreeNode& kdTree::BuildKdTree(Hit3DVec::iterator first,
                                         Hit3DVec::iterator last,
                                         KdTreeNodeList&    kdTreeNodeContainer,

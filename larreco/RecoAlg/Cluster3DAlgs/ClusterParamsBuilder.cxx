@@ -128,7 +128,6 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
      *  @brief Given a list of hits fill out the remaining parameters for this cluster and evaluate the
      *         candidate's worthiness to achieve stardom in the event display
      */
-    
     // Recover the HitPairListPtr from the input clusterParams (which will be the
     // only thing that has been provided)
     reco::HitPairListPtr& hitPairVector = clusterParams.getHitPairListPtr();
@@ -143,326 +142,246 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     
     // See if we can avoid duplicates by temporarily transferring to a set
     std::set<const reco::ClusterHit2D*> hitSet;
-    //std::vector<const reco::ClusterHit2D*> hitSet;
-    
-    std::vector<int> nTotalHitsVec  = {0,0,0}; // Keep track of the total number of hits per plane
-    std::vector<int> nUniqueHitsVec = {0,0,0}; // Keep track of the number of unique hits per plane
-    
-    int              numLostHits(0);
-    int              numUnique3D(0);
-    int              numOneShared3D(0);
-    int              numTwoShared3D(0);
-    int              numThreeShared3D(0);
-    int              numAllShared3D(0);
-    
-    int              otherClusterMaxSize(0);
-//    int              otherClusterMaxSharedHits(0);
-    int              otherClusterMinSize(std::numeric_limits<int>::max());
-//    int              otherClusterMinSharedHits(0);
     
     // Ultimately we want to keep track of the number of unique 2D hits in this cluster
     // So use a vector (by plane) of sets of hits
-    std::vector<std::set<const reco::ClusterHit2D*>> planeHit2DSetVec;
-    std::vector<std::set<const reco::ClusterHit2D*>> planeUniqueHit2DSetVec;
+    std::vector<size_t> planeHit2DVec;
+    std::vector<size_t> planeUniqueHit2DVec;
 
-    planeHit2DSetVec.resize(3);
-    planeUniqueHit2DSetVec.resize(3);
-
-    // Keep track of associated clusters
-    std::set<const reco::ClusterParameters*> totalOtherClusterSet;
+    planeHit2DVec.resize(3);
+    planeUniqueHit2DVec.resize(3);
     
     // Map from 2D hits to associated 3D hits
-    std::map<const reco::ClusterHit2D*, reco::HitPairListPtr> hit2DToHit3DListMap;
-    
-    // Create a list to hold 3D hits which are already in use (criteria below)
-    reco::HitPairListPtr usedHitPairList;
+    reco::Hit2DToHit3DListMap& hit2DToHit3DListMap = clusterParams.getHit2DToHit3DListMap();
     
     std::cout << "*** building cluster, starting with " << hitPairVector.size() << " 3D hits" << std::endl;
 
-    // Loop through all the 3D hits in this cluster and determine the total number of hits per plane,
-    // the number of unique and lost hits.
-    for(const auto& hit3D : hitPairVector)
+    // The map from 2D to 3D hits will contain unique entries for 2D hits so we can do some quick accounting here
+    for(const auto& hitMapPair : hit2DToHit3DListMap)
     {
-        int nHits2D(0);
-        int nSharedHits(0);
-        int nUniqueHits(0);
-        int nSharedHits_test(0);
+        size_t plane = hitMapPair.first->getHit().WireID().Plane;
         
-        // Keep track of associated clusters
-        std::set<const reco::ClusterParameters*> associatedClusterSet;
-        
-        // First loop through hits to categorize
-        for(const auto& hit2D : hit3D->getHits())
-        {
-            if (!hit2D) continue;
-            
-            size_t plane = hit2D->getHit().WireID().Plane;
-
-            // Check if this hit is shared on another cluster
-            if (hit2DToClusterMap.at(hit2D).size() > 1)
-            {
-                for(const auto& clusterPair : hit2DToClusterMap.at(hit2D))
-                {
-                    if (clusterPair.first != &clusterParams)
-                    {
-                        associatedClusterSet.insert(clusterPair.first);
-                        totalOtherClusterSet.insert(clusterPair.first);
-                        
-                        if (int(clusterPair.first->getHitPairListPtr().size()) > otherClusterMaxSize)
-                        {
-                            otherClusterMaxSize       = clusterPair.first->getHitPairListPtr().size();
-//                            otherClusterMaxSharedHits = clusterPair.second.size();
-                        }
-                        if (int(clusterPair.first->getHitPairListPtr().size()) < otherClusterMinSize)
-                        {
-                            otherClusterMinSize       = clusterPair.first->getHitPairListPtr().size();
-//                            otherClusterMinSharedHits = clusterPair.second.size();
-                        }
-                    }
-                }
-                
-                nSharedHits_test++;
-            }
-            else nUniqueHits++;
-
-            if (hit2D->getStatusBits() & reco::ClusterHit2D::USED) nSharedHits++;
-            
-            nTotalHitsVec.at(plane)++;
-            
-            nHits2D++;
-            
-            // Keep track of the hits on each plane
-            planeHit2DSetVec[plane].insert(hit2D);
-            if (!(hit2D->getStatusBits() & reco::ClusterHit2D::USED)) planeUniqueHit2DSetVec[plane].insert(hit2D);
-        }
-        
-        if      (nUniqueHits == nHits2D) numUnique3D++;
-        else if (nSharedHits_test == 1)  numOneShared3D++;
-        else if (nSharedHits_test == 2)  numTwoShared3D++;
-        else                             numThreeShared3D++;
-        
-        if (nSharedHits == nHits2D) numAllShared3D++;
-        
-        // If more than one shared hit then candidate for removal...
-        if (nSharedHits_test > 4 && nSharedHits > 0)
-        {
-            usedHitPairList.emplace_back(hit3D);
-            
-            numLostHits += nHits2D;
-        }
-        else
-        {
-            // One more intermediate step... make map of 2D to 3D hits for final stage
-            for(const auto& hit2D : hit3D->getHits())
-            {
-                if (!hit2D) continue;
-            
-                hit2DToHit3DListMap[hit2D].push_back(hit3D);
-                
-                size_t plane = hit2D->getHit().WireID().Plane;
-                
-                if (!(hit2D->getStatusBits() & reco::ClusterHit2D::USED)) nUniqueHitsVec.at(plane)++;
-            }
-        }
+        planeHit2DVec[plane] += hitMapPair.second.size();
+        if (!(hitMapPair.first->getStatusBits() & reco::ClusterHit2D::USED)) planeUniqueHit2DVec[plane] += hitMapPair.second.size();
     }
 
     // Get totals
     int numTotalHits(0);
     int numUniqueHits(0);
     
+    // Also consider the number of hits shared on a given view...
+    std::vector<float> uniqueHitFracVec(3,0.);
+    int                nPlanesWithHits(0);
+    int                nPlanesWithUniqueHits(0);
+    size_t             minPlane(0);
+    size_t             minPlaneCnt = planeUniqueHit2DVec.at(0);
+    
+    // Loop through the planes
     for(int idx = 0; idx < 3; idx++)
     {
-        numTotalHits += planeHit2DSetVec.at(idx).size();
-        numUniqueHits += planeUniqueHit2DSetVec.at(idx).size();
+        // numerology
+        numTotalHits  += planeHit2DVec.at(idx);
+        numUniqueHits += planeUniqueHit2DVec.at(idx);
+        
+        if (planeHit2DVec.at(idx)       > 0) nPlanesWithHits++;
+        if (planeUniqueHit2DVec.at(idx) > 0) nPlanesWithUniqueHits++;
+        
+        // Compute the fraction of unique hits in this plane
+        uniqueHitFracVec[idx] = float(planeUniqueHit2DVec.at(idx)) / std::max(float(planeHit2DVec.at(idx)),float(1.));
+        
+        // Finding the plane with the fewest hits
+        if (planeHit2DVec.at(idx) < minPlaneCnt)
+        {
+            minPlaneCnt = planeHit2DVec.at(idx);
+            minPlane    = idx;
+        }
+        
+        std::cout << ">>>>>>>>> plane " << idx << " has " << planeHit2DVec.at(idx) << " 2D hits" << std::endl;
     }
-    
+    std::cout << " --------> plane " << minPlane << " is min with " << minPlaneCnt << " 2D hits" << std::endl;
+    std::cout << " --------> numUniqueHits: " << numUniqueHits << ", numTotalHits: " << numTotalHits << ", nPlanesWithHits: " << nPlanesWithHits << ", nPlanesWithUniqueHits: " << nPlanesWithUniqueHits << std::endl;
+
     // If we have something left then at this point we make one more check
     // This check is intended to weed out clusters made from isolated groups of ambiguous hits which
     // really belong to a larger cluster
-    if (numUniqueHits > 0)
+    if (numUniqueHits > 0.25 * numTotalHits && nPlanesWithHits > 1 && nPlanesWithUniqueHits > 1)
     {
-        // Look at reject to accept ratio
-        //double rejectToAccept = double(numRejected) / double(numAccepted);
-        float acceptRatio = float(numUniqueHits) / float(numTotalHits);
-        float lostRatio   = float(numLostHits)   / float(numTotalHits);
-        
-        // Also consider the number of hits shared on a given view...
-        std::vector<float> uniqueHitVec(3,0.);
-        
-        for(size_t idx = 0; idx < 3; idx++) uniqueHitVec[idx] = float(planeUniqueHit2DSetVec.at(idx).size()) / std::max(float(planeHit2DSetVec.at(idx).size()),float(1.));
-        
         // Sorts lowest to highest
-        std::sort(uniqueHitVec.begin(),uniqueHitVec.end());
+        std::sort(uniqueHitFracVec.begin(),uniqueHitFracVec.end());
         
-        acceptRatio = 0.;
-        lostRatio   = 0.;
-        //if(uniqueHitVec[1] > 0.1 && uniqueHitVec[2] > 0.5) acceptRatio = 1.;
-        if(uniqueHitVec[0] * uniqueHitVec[1] > 0.25) acceptRatio = 1.;
-        
-//        float allSharedFraction = numAllShared3D / float(hitPairVector.size());
-//        float uniqueFraction = float(numUniqueHits) / float(numTotalHits);
-        float uniqueFraction = uniqueHitVec[0] * uniqueHitVec[1] * uniqueHitVec[2];
+        float acceptRatio = 0.;
 
-//        std::cout << "**--> # 3D Hits: " << hitPairVector.size() << ", nTot: " << numTotalHits << " " << nTotalHitsVec[0] << "/" << nTotalHitsVec[1] << "/" << nTotalHitsVec[2] << ", unique: " << numUniqueHits << " " << nUniqueHitsVec[0] << "/" << nUniqueHitsVec[1] << "/" << nUniqueHitsVec[2] << ", lost: " << usedHitPairList.size() << ", accept: " << acceptRatio << ", rats: " << uniqueHitVec[0] << "/" << uniqueHitVec[1] << "/" << uniqueHitVec[2] << std::endl;
-//        std::cout << "      -- nUnique3D: " << numUnique3D << ", 1 shared: " << numOneShared3D << ", 2 shared: " << numTwoShared3D << ", 3 shared: " << numThreeShared3D << ", all shared: " << numAllShared3D << std::endl;
-//        std::cout << "      -- total # other clusters: " << totalOtherClusterSet.size() << ", max size: " << otherClusterMaxSize << ", shared: " << otherClusterMaxSharedHits << ", min size: " << otherClusterMinSize << ", shared: " << otherClusterMinSharedHits << std::endl;
+        if(uniqueHitFracVec[0] * uniqueHitFracVec[1] > 0.25) acceptRatio = 1.;
+        
+        float uniqueFraction = uniqueHitFracVec[0] * uniqueHitFracVec[1] * uniqueHitFracVec[2];
         
         // Arbitrary rejection criteria... need to understand
-        // Anyway, if we get past this we're making a cluster
-        //if (rejectToAccept < rejectFraction)
-        //if (numUnique3D+numOneShared3D > 0 && allSharedFraction < 1.0 && acceptRatio > minUniqueFrac && lostRatio < maxLostFrac)  // lostRatio cut was 1. - off
-        if (uniqueFraction > 0.6 && acceptRatio > 0. && lostRatio > -1.)
+        if (uniqueFraction > 0.6 && acceptRatio > 0.)
         {
-            int nPlanesWithHits    = std::accumulate(nUniqueHitsVec.begin(), nUniqueHitsVec.end(), 0, [](int accum, int total){return total > 0 ? ++accum : accum;});
-            int nPlanesWithMinHits = std::accumulate(nUniqueHitsVec.begin(), nUniqueHitsVec.end(), 0, [](int accum, int total){return total > 2 ? ++accum : accum;});
+            // Create a list to hold 3D hits which are already in use (criteria below)
+            reco::HitPairListPtr usedHitPairList;
             
-//            std::cout << "      --> nPlanesWithHits: " << nPlanesWithHits << ", nPlanesWithMinHits: " << nPlanesWithMinHits << ", unique prod: " << uniqueHitVec[1] * uniqueHitVec[2] << std::endl;
-
-            //            // Final selection cut, need at least 3 hits each view
-            //            if (nViewsWithHits == 3 && nViewsWithMinHits > 1)
-            // Final selection cut, need at least 3 hits each view for at least 2 views
-            //if (nPlanesWithHits > 1 && nPlanesWithMinHits > 1)
-            if (nPlanesWithHits > -1 && nPlanesWithMinHits > -1)
+            std::cout << "--------> Starting 3D hit removal, # 2D hits/plane: " << planeHit2DVec[0] << "/" << planeHit2DVec[1] << "/" << planeHit2DVec[2] << std::endl;
+            
+            // Have survived laugh test, do final processing...
+            // In this first loop go through all the 2D hits and identify the 3D hits that are candidates for deletion
+            for(auto& pair : hit2DToHit3DListMap)
             {
-                std::cout << "--------> Starting 3D hit removal, # 2D hits/plane: " << planeHit2DSetVec[0].size() << "/" << planeHit2DSetVec[1].size() << "/" << planeHit2DSetVec[2].size() << std::endl;
-                // Have survived laugh test, do final processing...
-                // In this first loop go through all the 2D hits and identify the 3D hits that are candidates for deletion
-                for(auto& pair : hit2DToHit3DListMap)
+                // Check to see if this can happen
+                if (pair.second.empty())
                 {
-                    // Check to see if this can happen
-                    if (pair.second.empty())
-                    {
-                        std::cout << "<<<<<< no matching 3D hits for reco hit in final hit processing >>>>>>" << std::endl;
-                        continue;
-                    }
-                    
-                    // No point in doing anything if not more than one entry
-                    if (pair.second.size() < 2) continue;
-
+                    std::cout << "<<<<<< no matching 3D hits for reco hit in final hit processing >>>>>>" << std::endl;
+                    continue;
+                }
+                
+                // Which plane for this hit?
+                size_t hitPlane = pair.first->getHit().WireID().Plane;
+                
+                // Only reject hits on the planes not the fewest 2D hits and really only do this if more than a couple
+                if (hitPlane != minPlane && pair.second.size() > 2)
+                {
                     // If this hit is associated to a number of 3D hits then do some arbitration
-                    pair.second.sort([](const auto& left, const auto& right){return left->getDeltaPeakTime()/left->getSigmaPeakTime() < right->getDeltaPeakTime()/right->getSigmaPeakTime();});
-                    
-                    std::cout << "~~~~> Checking hit removal, # matches: " << pair.second.size() << ", first params: " << pair.second.front()->getDeltaPeakTime() << "/" << pair.second.front()->getSigmaPeakTime() << ", last params: "<< pair.second.back()->getDeltaPeakTime() << "/" << pair.second.back()->getSigmaPeakTime();
-                    
-                    //float cutDeltaTSig = std::min(1.1,std::max(0.2, 3. * (pair.second.front()->getDeltaPeakTime() / pair.second.front()->getSigmaPeakTime())));
-                    float cutDeltaTSig = std::min(1.7,std::max(0.5, 2.0 * (pair.second.front()->getDeltaPeakTime() / pair.second.front()->getSigmaPeakTime())));
-                    
+                    // Start by sorting the 3D hits by "significance"
+                    // --> Really should do this by the significance of adding the hit we are looking at?
+//                    pair.second.sort([](const auto& left, const auto& right){return left->getDeltaPeakTime()/left->getSigmaPeakTime() < right->getDeltaPeakTime()/right->getSigmaPeakTime();});
+                    pair.second.sort([hitPlane](const auto& left, const auto& right){return left->getHitDelTSigVec()[hitPlane] < right->getHitDelTSigVec()[hitPlane];});
+
+//                    std::cout << "~~~~> Checking hit removal, # matches: " << pair.second.size() << ", first params: " << pair.second.front()->getDeltaPeakTime() << "/" << pair.second.front()->getSigmaPeakTime() << ", last params: "<< pair.second.back()->getDeltaPeakTime() << "/" << pair.second.back()->getSigmaPeakTime();
+                    std::cout << "~~~~> Checking hit removal, # matches: " << pair.second.size() << ", first params: " << pair.second.front()->getHitDelTSigVec()[hitPlane] << ", last params: "<< pair.second.back()->getHitDelTSigVec()[hitPlane];
+
+                    // From sorted list, determine a rejection value to eliminate bad hits
+                    //float cutDeltaTSig = std::min(2.0,std::max(0.2, double((pair.second.front()->getHitDelTSigVec()[hitPlane]))));  // This really works well!
+                    float cutDeltaTSig = std::min(2.0,std::max(0.5, double((pair.second.front()->getHitDelTSigVec()[hitPlane]))));
+
                     std::cout << ", cutDeltaTSig: " << cutDeltaTSig;
-                    
-                    reco::HitPairListPtr::iterator firstBadHitItr = std::find_if(pair.second.begin(),pair.second.end(),[cutDeltaTSig](const auto& hitPtr){return hitPtr->getDeltaPeakTime() > cutDeltaTSig * hitPtr->getSigmaPeakTime();});
-                    
+   
+                    // And here go through the process of eliminating it
+//                    reco::HitPairListPtr::iterator firstBadHitItr = std::find_if(pair.second.begin(),pair.second.end(),[cutDeltaTSig](const auto& hitPtr){return hitPtr->getDeltaPeakTime() > cutDeltaTSig * hitPtr->getSigmaPeakTime();});
+                    reco::HitPairListPtr::iterator firstBadHitItr = std::find_if(pair.second.begin(),pair.second.end(),[hitPlane,cutDeltaTSig](const auto& hitPtr){return hitPtr->getHitDelTSigVec()[hitPlane] > cutDeltaTSig;});
+
+                    // We need to worry about cutting too many hits... use this loop to try to expand the range in a reasonable fashion
+                    while(std::distance(pair.second.begin(),firstBadHitItr) < int(pair.second.size()/3) && cutDeltaTSig < 0.5)
+                    {
+                        float candDeltaTSig = (*firstBadHitItr)->getHitDelTSigVec()[hitPlane];
+                        
+                        if (candDeltaTSig > 2. * cutDeltaTSig) break;
+                        
+                        firstBadHitItr++;
+                        cutDeltaTSig = candDeltaTSig;
+                    }
+                
                     reco::HitPairListPtr rejectCandList;
-                    
+                
                     std::copy(firstBadHitItr,pair.second.end(),std::back_inserter(rejectCandList));
-                    
+                
                     std::cout << ", bad hits: " << rejectCandList.size() << std::endl;
-                    
+                
                     // Remove the 3D hits from all the lists
                     for(const auto& hit3D : rejectCandList)
                     {
                         bool rejectThisHit(true);
                         std::vector<std::pair<reco::HitPairListPtr&,reco::HitPairListPtr::iterator>> deleteVec;
-                        
+                    
                         for(const auto& hit2D : hit3D->getHits())
                         {
                             // Watch for null hit (dead channels)
                             if (!hit2D) continue;
-                            
+                        
                             reco::HitPairListPtr& removeHitList = hit2DToHit3DListMap.at(hit2D);
 
                             // Don't allow all the 3D hits associated to this 2D hit to be rejected?
-                            if (removeHitList.size() > 0) //< 2)
+                            if (removeHitList.size() < 2)
                             {
                                 std::cout << "   ---> remove list too small, size: " << removeHitList.size() << " for hit: " << hit2D << ", pair.first: " << pair.first << std::endl;
                                 rejectThisHit = false;
                                 break;
                             }
-                            
+                        
                             reco::HitPairListPtr::iterator removeItr = std::find(removeHitList.begin(),removeHitList.end(),hit3D);
-                            
+                        
                             if (removeItr != removeHitList.end()) deleteVec.emplace_back(removeHitList,removeItr);
                             else std::cout << "======>> Did not find 3D hit to remove from list for 2D hit! <<+++++++++" << std::endl;
                         }
-                        
+                    
                         if (rejectThisHit)
                         {
                             for(auto& rejectPair : deleteVec) rejectPair.first.erase(rejectPair.second);
-                            
+                        
                             usedHitPairList.push_back(hit3D);
                         }
                     }
-
-                    hitSet.insert(pair.first);
                 }
+
+                hitSet.insert(pair.first);
+            }
+            
+            // Now we go through the list of candidates and delete those which are unworthy of being processed...
+            if (!usedHitPairList.empty())
+            {
+                // Loop through the hits watching out for double counting
+                const reco::ClusterHit3D* lastHit3D = 0;
                 
-                // Now we go through the list of candidates and delete those which are unworthy of being processed...
-                if (!usedHitPairList.empty())
+                for(const auto& hit3D : usedHitPairList)
                 {
-                    // Loop through the hits watching out for double counting
-                    const reco::ClusterHit3D* lastHit3D = 0;
+                    if (hit3D == lastHit3D) continue;
                     
-                    for(const auto& hit3D : usedHitPairList)
-                    {
-                        if (hit3D == lastHit3D) continue;
-                        
-                        // Loop through the 2D hits to cross check that each has more than one 3D hit associated to it
-                        bool okToDelete(true);
+                    // Loop through the 2D hits to cross check that each has more than one 3D hit associated to it
+                    bool okToDelete(true);
 /*
-                        for(const auto& hit2D : hit3D->getHits())
-                        {
-                            if (!hit2D) continue;
-                            
-                            if (hit2DToHit3DListMap.at(hit2D).size() < 2)
-                            {
-                                okToDelete = false;
-                                break;
-                            }
-                        }
-*/
-                        if (okToDelete)
-                        {
-                            reco::HitPairListPtr::iterator hit3DItr = std::find(hitPairVector.begin(),hitPairVector.end(),hit3D);
-                            
-                            if (hit3DItr != hitPairVector.end())
-                            {
-                                // Mark the hit
-                                hit3D->setStatusBit(reco::ClusterHit3D::REJECTEDHIT);
-                                
-                                // Remove from the cluster's hit container
-                                hitPairVector.erase(hit3DItr);
-                                
-                                // If the clustering algorithm includes edges then need to get rid of those as well
-                                if (!clusterParams.getHit3DToEdgeMap().empty())
-                                {
-                                    reco::Hit3DToEdgeMap& edgeMap = clusterParams.getHit3DToEdgeMap();
-                                    
-                                    edgeMap.erase(edgeMap.find(hit3D));
-                                }
-                            }
-                        }
-                        
-                        lastHit3D = hit3D;
-                    }
-//                    removeUsedHitsFromMap(clusterParams, usedHitPairList, hit2DToClusterMap);
-                }
-
-                // First stage of feature extraction runs here
-                m_pcaAlg.PCAAnalysis_3D(hitPairVector, clusterParams.getFullPCA());
-                
-                // Must have a valid pca
-                if (clusterParams.getFullPCA().getSvdOK())
-                {
-                    std::cout << "      ******> Valid Full PCA calculated over " << clusterParams.getHitPairListPtr().size() << " hits" << std::endl;
-                    
-                    // Set the skeleton PCA to make sure it has some value
-                    clusterParams.getSkeletonPCA() = clusterParams.getFullPCA();
-                    
-                    // Add the "good" hits to our cluster parameters
-                    for(const auto& hit2D : hitSet)
+                    for(const auto& hit2D : hit3D->getHits())
                     {
-                        hit2D->setStatusBit(reco::ClusterHit2D::USED);
-                        clusterParams.UpdateParameters(hit2D);
+                        if (!hit2D) continue;
+ 
+                        if (hit2DToHit3DListMap.at(hit2D).size() < 2)
+                        {
+                            okToDelete = false;
+                            break;
+                        }
                     }
+*/
+                    if (okToDelete)
+                    {
+                        reco::HitPairListPtr::iterator hit3DItr = std::find(hitPairVector.begin(),hitPairVector.end(),hit3D);
+                        
+                        if (hit3DItr != hitPairVector.end())
+                        {
+                            // Mark the hit
+                            hit3D->setStatusBit(reco::ClusterHit3D::REJECTEDHIT);
+                            
+                            // Remove from the cluster's hit container
+                            hitPairVector.erase(hit3DItr);
+                            
+                            // If the clustering algorithm includes edges then need to get rid of those as well
+                            if (!clusterParams.getHit3DToEdgeMap().empty())
+                            {
+                                reco::Hit3DToEdgeMap& edgeMap = clusterParams.getHit3DToEdgeMap();
+                                
+                                edgeMap.erase(edgeMap.find(hit3D));
+                            }
+                        }
+                    }
+                    
+                    lastHit3D = hit3D;
+                }
+//                removeUsedHitsFromMap(clusterParams, usedHitPairList, hit2DToClusterMap);
+            }
+
+            // First stage of feature extraction runs here
+            m_pcaAlg.PCAAnalysis_3D(hitPairVector, clusterParams.getFullPCA());
+            
+            // Must have a valid pca
+            if (clusterParams.getFullPCA().getSvdOK())
+            {
+                std::cout << "      ******> Valid Full PCA calculated over " << clusterParams.getHitPairListPtr().size() << " hits" << std::endl;
+                
+                // Set the skeleton PCA to make sure it has some value
+                clusterParams.getSkeletonPCA() = clusterParams.getFullPCA();
+                
+                // Add the "good" hits to our cluster parameters
+                for(const auto& hit2D : hitSet)
+                {
+                    hit2D->setStatusBit(reco::ClusterHit2D::USED);
+                    clusterParams.UpdateParameters(hit2D);
                 }
             }
         }
