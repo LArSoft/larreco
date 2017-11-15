@@ -83,14 +83,24 @@ protected:
 
   bool ISect(int chanA, int chanB, geo::TPCID tpc) const;
 
-  void BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
-                   const std::vector<art::Ptr<recob::Hit>>& uhits,
-                   const std::vector<art::Ptr<recob::Hit>>& vhits,
-                   std::vector<CollectionWireHit*>& cwires,
-                   std::vector<InductionWireHit*>& iwires,
-                   bool incNei,
-                   std::map<const CollectionWireHit*,
-                            art::Ptr<recob::Hit>>& hitmap) const;
+  void AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const;
+
+  void BuildSystemSP(const std::vector<art::Ptr<recob::Hit>>& xhits,
+                     const std::vector<art::Ptr<recob::Hit>>& uhits,
+                     const std::vector<art::Ptr<recob::Hit>>& vhits,
+                     std::vector<CollectionWireHit*>& cwires,
+                     std::vector<InductionWireHit*>& iwires,
+                     bool incNei,
+                     std::map<const CollectionWireHit*,
+                              art::Ptr<recob::Hit>>& hitmap) const;
+
+  void BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
+                     const std::vector<art::Ptr<recob::Hit>>& vhits,
+                     std::vector<CollectionWireHit*>& cwires,
+                     std::vector<InductionWireHit*>& iwires,
+                     bool incNei,
+                     std::map<const CollectionWireHit*,
+                              art::Ptr<recob::Hit>>& hitmap) const;
 
   void FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
                                std::vector<recob::SpacePoint>& pts) const;
@@ -251,14 +261,112 @@ double SpacePointSolver::HitToXPos(const recob::Hit& hit, geo::TPCID tpc) const
 
 // ---------------------------------------------------------------------------
 void SpacePointSolver::
-BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
-            const std::vector<art::Ptr<recob::Hit>>& uhits,
-            const std::vector<art::Ptr<recob::Hit>>& vhits,
-            std::vector<CollectionWireHit*>& cwires,
-            std::vector<InductionWireHit*>& iwires,
-            bool incNei,
-            std::map<const CollectionWireHit*,
-                     art::Ptr<recob::Hit>>& hitmap) const
+AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const
+{
+  static const double kCritDist = 5;
+
+  // Could use a QuadTree or VPTree etc, but seems like overkill
+  class IntCoord
+  {
+  public:
+    IntCoord(const SpaceCharge& sc)
+      : fX(sc.fX/kCritDist),
+        fY(sc.fY/kCritDist),
+        fZ(sc.fZ/kCritDist)
+    {
+    }
+
+    bool operator<(const IntCoord& i) const
+    {
+      return std::make_tuple(fX, fY, fZ) < std::make_tuple(i.fX, i.fY, i.fZ);
+    }
+
+    std::vector<IntCoord> Neighbours() const
+    {
+      std::vector<IntCoord> ret;
+      for(int dx = -1; dx <= +1; ++dx){
+        for(int dy = -1; dy <= +1; ++dy){
+          for(int dz = -1; dz <= +1; ++dz){
+            ret.push_back(IntCoord(fX+dx, fY+dy, fZ+dz));
+          }
+        }
+      }
+      return ret;
+    }
+  protected:
+    IntCoord(int x, int y, int z) : fX(x), fY(y), fZ(z) {}
+
+    int fX, fY, fZ;
+  };
+
+  std::map<IntCoord, std::vector<SpaceCharge*>> scMap;
+  for(SpaceCharge* sc: spaceCharges){
+    scMap[IntCoord(*sc)].push_back(sc);
+  }
+
+  std::cout << "Neighbour search..." << std::endl;
+  std::cout << spaceCharges.size() << std::endl;
+  // Now that we know all the space charges, can go through and assign neighbours
+
+  int Ntests = 0;
+  int Nnei = 0;
+  for(SpaceCharge* sc1: spaceCharges){
+    IntCoord ic(*sc1);
+    for(IntCoord icn: ic.Neighbours()){
+      for(SpaceCharge* sc2: scMap[icn]){
+
+        ++Ntests;
+
+        if(sc1 == sc2) continue;
+        /*const*/ double dist2 = sqr(sc1->fX-sc2->fX) + sqr(sc1->fY-sc2->fY) + sqr(sc1->fZ-sc2->fZ);
+
+        if(dist2 > sqr(kCritDist)) continue;
+
+        if(dist2 == 0){
+          std::cout << "ZERO DISTANCE SOMEHOW?" << std::endl;
+          std::cout << sc1->fCWire << " " << sc1->fWire1 << " " << sc1->fWire2 << std::endl;
+          std::cout << sc2->fCWire << " " << sc2->fWire1 << " " << sc2->fWire2 << std::endl;
+          std::cout << dist2 << " " << sc1->fX << " " << sc2->fX << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
+          continue;
+          dist2 = sqr(kCritDist);
+        }
+
+        ++Nnei;
+
+        // This is a pretty random guess
+        const double coupling = exp(-sqrt(dist2)/2);
+        sc1->fNeighbours.emplace_back(sc2, coupling);
+
+        if(isnan(1/sqrt(dist2)) || isinf(1/sqrt(dist2))){
+          std::cout << dist2 << " " << sc1->fX << " " << sc2->fX << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
+          abort();
+        }
+      } // end for sc2
+    } // end for icn
+
+      // The neighbours lists use the most memory, so be careful to trim
+    sc1->fNeighbours.shrink_to_fit();
+  } // end for sc1
+
+  for(SpaceCharge* sc: spaceCharges){
+    for(Neighbour& nei: sc->fNeighbours){
+      sc->fNeiPotential += nei.fCoupling * nei.fSC->fPred;
+    }
+  }
+
+  std::cout << Ntests << " tests to find " << Nnei << std::endl;
+}
+
+// ---------------------------------------------------------------------------
+void SpacePointSolver::
+BuildSystemSP(const std::vector<art::Ptr<recob::Hit>>& xhits,
+              const std::vector<art::Ptr<recob::Hit>>& uhits,
+              const std::vector<art::Ptr<recob::Hit>>& vhits,
+              std::vector<CollectionWireHit*>& cwires,
+              std::vector<InductionWireHit*>& iwires,
+              bool incNei,
+              std::map<const CollectionWireHit*,
+                       art::Ptr<recob::Hit>>& hitmap) const
 {
   std::map<geo::TPCID, std::vector<art::Ptr<recob::Hit>>> xhits_by_tpc;
   for(auto& xhit: xhits){
@@ -425,101 +533,100 @@ BuildSystem(const std::vector<art::Ptr<recob::Hit>>& xhits,
     } // end for hit
   } // end for it (tpc)
 
+  if(incNei) AddNeighbours(spaceCharges);
+}
 
-  if(incNei){
-    static const double kCritDist = 5;
-
-    // Could use a QuadTree or VPTree etc, but seems like overkill
-    class IntCoord
-    {
-    public:
-      IntCoord(const SpaceCharge& sc)
-        : fX(sc.fX/kCritDist),
-          fY(sc.fY/kCritDist),
-          fZ(sc.fZ/kCritDist)
-      {
-      }
-
-      bool operator<(const IntCoord& i) const
-      {
-        return std::make_tuple(fX, fY, fZ) < std::make_tuple(i.fX, i.fY, i.fZ);
-      }
-
-      std::vector<IntCoord> Neighbours() const
-      {
-        std::vector<IntCoord> ret;
-        for(int dx = -1; dx <= +1; ++dx){
-          for(int dy = -1; dy <= +1; ++dy){
-            for(int dz = -1; dz <= +1; ++dz){
-              ret.push_back(IntCoord(fX+dx, fY+dy, fZ+dz));
-            }
-          }
-        }
-        return ret;
-      }
-    protected:
-      IntCoord(int x, int y, int z) : fX(x), fY(y), fZ(z) {}
-
-      int fX, fY, fZ;
-    };
-
-    std::map<IntCoord, std::vector<SpaceCharge*>> scMap;
-    for(SpaceCharge* sc: spaceCharges){
-      scMap[IntCoord(*sc)].push_back(sc);
-    }
-
-    std::cout << "Neighbour search..." << std::endl;
-    std::cout << spaceCharges.size() << std::endl;
-    // Now that we know all the space charges, can go through and assign neighbours
-
-    int Ntests = 0;
-    int Nnei = 0;
-    for(SpaceCharge* sc1: spaceCharges){
-      IntCoord ic(*sc1);
-      for(IntCoord icn: ic.Neighbours()){
-        for(SpaceCharge* sc2: scMap[icn]){
-
-          ++Ntests;
-
-          if(sc1 == sc2) continue;
-          /*const*/ double dist2 = sqr(sc1->fX-sc2->fX) + sqr(sc1->fY-sc2->fY) + sqr(sc1->fZ-sc2->fZ);
-
-          if(dist2 > sqr(kCritDist)) continue;
-
-          if(dist2 == 0){
-            std::cout << "ZERO DISTANCE SOMEHOW?" << std::endl;
-            std::cout << sc1->fCWire << " " << sc1->fWire1 << " " << sc1->fWire2 << std::endl;
-            std::cout << sc2->fCWire << " " << sc2->fWire1 << " " << sc2->fWire2 << std::endl;
-            std::cout << dist2 << " " << sc1->fX << " " << sc2->fX << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
-            continue;
-            dist2 = sqr(kCritDist);
-          }
-
-          ++Nnei;
-
-          // This is a pretty random guess
-          const double coupling = exp(-sqrt(dist2)/2);
-          sc1->fNeighbours.emplace_back(sc2, coupling);
-
-          if(isnan(1/sqrt(dist2)) || isinf(1/sqrt(dist2))){
-            std::cout << dist2 << " " << sc1->fX << " " << sc2->fX << " " << sc1->fY << " " << sc2->fY << " " << sc1->fZ << " " << sc2->fZ << std::endl;
-            abort();
-          }
-        } // end for sc2
-      } // end for icn
-
-      // The neighbours lists use the most memory, so be careful to trim
-      sc1->fNeighbours.shrink_to_fit();
-    } // end for sc1
-
-    for(SpaceCharge* sc: spaceCharges){
-      for(Neighbour& nei: sc->fNeighbours){
-        sc->fNeiPotential += nei.fCoupling * nei.fSC->fPred;
-      }
-    }
-
-    std::cout << Ntests << " tests to find " << Nnei << std::endl;
+// ---------------------------------------------------------------------------
+void SpacePointSolver::
+BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
+              const std::vector<art::Ptr<recob::Hit>>& vhits,
+              std::vector<CollectionWireHit*>& cwires,
+              std::vector<InductionWireHit*>& iwires,
+              bool incNei,
+              std::map<const CollectionWireHit*,
+                       art::Ptr<recob::Hit>>& hitmap) const
+{
+  std::map<geo::TPCID, std::vector<art::Ptr<recob::Hit>>> xhits_by_tpc;
+  for(auto& xhit: xhits){
+    const std::vector<geo::TPCID> tpcs = geom->ROPtoTPCs(geom->ChannelToROP(xhit->Channel()));
+    assert(tpcs.size() == 1);
+    const geo::TPCID tpc = tpcs[0];
+    xhits_by_tpc[tpc].push_back(xhit);
   }
+
+  // Maps from TPC to the induction wires. Normally want to access them this
+  // way.
+  std::map<geo::TPCID, std::vector<InductionWireWithXPos>> vwires;
+
+  for(auto& hit: vhits){
+    const std::vector<geo::TPCID> tpcs = geom->ROPtoTPCs(geom->ChannelToROP(hit->Channel()));
+
+    InductionWireHit* iwire = new InductionWireHit(hit->Channel(), hit->Integral());
+    iwires.emplace_back(iwire);
+
+    for(geo::TPCID tpc: tpcs){
+      if(xhits_by_tpc.count(tpc) == 0) continue;
+
+      const double xpos = HitToXPos(*hit, tpc);
+
+      vwires[tpc].emplace_back(iwire, xpos);
+    } // end for tpc
+  } // end for hit
+
+  for(auto it = vwires.begin(); it != vwires.end(); ++it){
+    std::sort(it->second.begin(), it->second.end());
+  }
+
+  for(auto it = xhits_by_tpc.begin(); it != xhits_by_tpc.end(); ++it){
+    const geo::TPCID tpc = it->first;
+    std::sort(it->second.begin(), it->second.end(),
+              [this, tpc](art::Ptr<recob::Hit>& a, art::Ptr<recob::Hit>& b)
+              {
+                return HitToXPos(*a, tpc) < HitToXPos(*b, tpc);
+              });
+  }
+
+
+  std::cout << "Finding XV coincidences..." << std::endl;
+  std::vector<SpaceCharge*> spaceCharges;
+
+  for(auto it: xhits_by_tpc){
+    const geo::TPCID tpc = it.first;
+
+    auto vwires_begin = vwires[tpc].begin();
+
+    for(auto& hit: it.second){
+      const double xpos = HitToXPos(*hit, tpc);
+
+      std::vector<SpaceCharge*> crossers;
+
+      FastForward(vwires_begin, xpos, vwires[tpc].end());
+
+      // Figure out which vwires intersect this xwire here.
+      for(auto vit = vwires_begin; vit != vwires[tpc].end(); ++vit){
+        InductionWireWithXPos vwire = *vit;
+
+        if(vwire.xpos > xpos && !CloseDrift(vwire.xpos, xpos)) break;
+
+        geo::WireIDIntersection ptXV;
+        if(ISect(hit->Channel(), vwire.iwire->fChannel, tpc, ptXV)){
+
+          // Don't have a cwire object yet, set it later
+          SpaceCharge* sc = new SpaceCharge((xpos+vwire.xpos)/2, ptXV.y, ptXV.z,
+                                            0, 0, vwire.iwire);
+          spaceCharges.push_back(sc);
+          crossers.push_back(sc);
+        } // end for vwire
+      } // end for vit
+
+      CollectionWireHit* cwire = new CollectionWireHit(hit->Channel(), hit->Integral(), crossers);
+      hitmap[cwire] = hit;
+      cwires.push_back(cwire);
+      for(SpaceCharge* sc: crossers) sc->fCWire = cwire;
+    } // end for hit
+  } // end for it (tpc)
+
+  if(incNei) AddNeighbours(spaceCharges);
 }
 
 // ---------------------------------------------------------------------------
@@ -594,10 +701,26 @@ void SpacePointSolver::produce(art::Event& evt)
 
   art::ServiceHandle<geo::Geometry> geom;
 
+  bool isDP = false;
   std::vector<art::Ptr<recob::Hit>> xhits, uhits, vhits;
-  for(auto & hit: hitlist){
+  for(auto& hit: hitlist){
+    if(isnan(hit->Integral()) || isinf(hit->Integral())){
+      std::cout << "WARNING: bad recob::Hit::Integral() = "
+                << hit->Integral()
+                << ". Skipping." << std::endl;
+      continue;
+    }
+
     if(hit->SignalType() == geo::kCollection){
-      xhits.push_back(hit);
+      // For DualPhase, both view are collection. Arbitrarily map U to the main
+      // "X" view and keep V as-is.
+      if(hit->View() == geo::kZ || hit->View() == geo::kU){
+        xhits.push_back(hit);
+      }
+      else{
+        vhits.push_back(hit);
+        isDP = true;
+      }
     }
     else{
       if(hit->View() == geo::kU) uhits.push_back(hit);
@@ -610,7 +733,10 @@ void SpacePointSolver::produce(art::Event& evt)
   std::vector<InductionWireHit*> iwires;
 
   std::map<const CollectionWireHit*, art::Ptr<recob::Hit>> hitmap;
-  BuildSystem(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
+  if(isDP)
+    BuildSystemDP(xhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
+  else
+    BuildSystemSP(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
 
   auto spcol_pre = std::make_unique<std::vector<recob::SpacePoint>>();
   FillSystemToSpacePoints(cwires, *spcol_pre);
