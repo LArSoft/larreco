@@ -85,8 +85,7 @@ protected:
 
   void AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const;
 
-  typedef std::map<const CollectionWireHit*, art::Ptr<recob::Hit>> CHitMap_t;
-  typedef std::map<const InductionWireHit*,  art::Ptr<recob::Hit>> IHitMap_t;
+  typedef std::map<const WireHit*, art::Ptr<recob::Hit>> HitMap_t;
 
   void BuildSystemSP(const std::vector<art::Ptr<recob::Hit>>& xhits,
                      const std::vector<art::Ptr<recob::Hit>>& uhits,
@@ -94,16 +93,14 @@ protected:
                      std::vector<CollectionWireHit*>& cwires,
                      std::vector<InductionWireHit*>& iwires,
                      bool incNei,
-                     CHitMap_t& hitmap,
-                     IHitMap_t& ihitmap) const;
+                     HitMap_t& hitmap) const;
 
   void BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
                      const std::vector<art::Ptr<recob::Hit>>& vhits,
                      std::vector<CollectionWireHit*>& cwires,
                      std::vector<InductionWireHit*>& iwires,
                      bool incNei,
-                     CHitMap_t& hitmap,
-                     IHitMap_t& ihitmap) const;
+                     HitMap_t& hitmap) const;
 
   void FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
                                std::vector<recob::SpacePoint>& pts) const;
@@ -112,8 +109,7 @@ protected:
                  const std::vector<CollectionWireHit*> cwires,
                  const std::vector<recob::SpacePoint>& pts,
                  art::Assns<recob::Hit, recob::SpacePoint>& assn,
-                 const CHitMap_t& hitmap,
-                 const IHitMap_t& ihitmap) const;
+                 const HitMap_t& hitmap) const;
 
   std::string fHitLabel;
 
@@ -369,8 +365,7 @@ BuildSystemSP(const std::vector<art::Ptr<recob::Hit>>& xhits,
               std::vector<CollectionWireHit*>& cwires,
               std::vector<InductionWireHit*>& iwires,
               bool incNei,
-              CHitMap_t& hitmap,
-              IHitMap_t& ihitmap) const
+              HitMap_t& hitmap) const
 {
   std::map<geo::TPCID, std::vector<art::Ptr<recob::Hit>>> xhits_by_tpc;
   for(auto& xhit: xhits){
@@ -527,8 +522,8 @@ BuildSystemSP(const std::vector<art::Ptr<recob::Hit>>& xhits,
                                             0, uwire.iwire, vwire.iwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
-          ihitmap[uwire.iwire] = hit;
-          ihitmap[vwire.iwire] = hit;
+          hitmap[uwire.iwire] = hit;
+          hitmap[vwire.iwire] = hit;
         } // end for vwire
       } // end for uwire
 
@@ -549,8 +544,7 @@ BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
               std::vector<CollectionWireHit*>& cwires,
               std::vector<InductionWireHit*>& iwires,
               bool incNei,
-              CHitMap_t& hitmap,
-              IHitMap_t& ihitmap) const
+              HitMap_t& hitmap) const
 {
   std::map<geo::TPCID, std::vector<art::Ptr<recob::Hit>>> xhits_by_tpc;
   for(auto& xhit: xhits){
@@ -622,7 +616,7 @@ BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
                                             0, 0, vwire.iwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
-          ihitmap[vwire.iwire] = hit;
+          hitmap[vwire.iwire] = hit;
         } // end for vwire
       } // end for vit
 
@@ -660,8 +654,7 @@ FillAssns(art::Event& evt,
           const std::vector<CollectionWireHit*> cwires,
           const std::vector<recob::SpacePoint>& pts,
           art::Assns<recob::Hit, recob::SpacePoint>& assn,
-          const CHitMap_t& hitmap,
-          const IHitMap_t& ihitmap) const
+          const HitMap_t& hitmap) const
 {
   unsigned int ptidx = 0;
 
@@ -675,12 +668,12 @@ FillAssns(art::Event& evt,
       util::CreateAssn(*this, evt, pts, it->second, assn, "", ptidx);
 
       if(sc->fWire1){
-        auto it1 = ihitmap.find(sc->fWire1);
+        auto it1 = hitmap.find(sc->fWire1);
         assert(it1);
         util::CreateAssn(*this, evt, pts, it1->second, assn, "", ptidx);
       }
       if(sc->fWire2){
-        auto it2 = ihitmap.find(sc->fWire2);
+        auto it2 = hitmap.find(sc->fWire2);
         assert(it2);
         util::CreateAssn(*this, evt, pts, it2->second, assn, "", ptidx);
       }
@@ -751,12 +744,11 @@ void SpacePointSolver::produce(art::Event& evt)
   // So we can find them all to free the memory
   std::vector<InductionWireHit*> iwires;
 
-  CHitMap_t hitmap;
-  IHitMap_t ihitmap;
+  HitMap_t hitmap;
   if(isDP)
-    BuildSystemDP(xhits, vhits, cwires, iwires, fAlpha != 0, hitmap, ihitmap);
+    BuildSystemDP(xhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
   else
-    BuildSystemSP(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap, ihitmap);
+    BuildSystemSP(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
 
   auto spcol_pre = std::make_unique<std::vector<recob::SpacePoint>>();
   FillSystemToSpacePoints(cwires, *spcol_pre);
@@ -795,7 +787,7 @@ void SpacePointSolver::produce(art::Event& evt)
     auto spcol = std::make_unique<std::vector<recob::SpacePoint>>();
     auto assns = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint>>();
     FillSystemToSpacePoints(cwires, *spcol);
-    FillAssns(evt, cwires, *spcol, *assns, hitmap, ihitmap);
+    FillAssns(evt, cwires, *spcol, *assns, hitmap);
     evt.put(std::move(spcol));
     evt.put(std::move(assns));
   } // end if fFit
