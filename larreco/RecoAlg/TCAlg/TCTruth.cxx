@@ -84,6 +84,15 @@ namespace tca {
       
     // flag MCParticles to select for measuring performance. 
     std::vector<bool> select(plist.size(), false);
+    // ensure that we get all of the primary particles
+    unsigned short indx = 0;
+    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+      simb::MCParticle* mcp = (*ipart).second;
+      // primaries come first
+      if(mcp->Process() != "primary") break;
+      select[indx] = true;
+      ++indx;
+    }
     // make a temp vector of hit -> geant trackID
     std::vector<int> gtid(tjs.fHits.size(), 0);
     // find hits that match to the source particle
@@ -133,6 +142,8 @@ namespace tca {
         gtid[iht] = mcp->TrackId();
         // find the eve particle and select it as well
         const simb::MCParticle* momMCP = pi_serv->TrackIdToMotherParticle_P(mcp->TrackId());
+        if(!momMCP) continue;
+        if(momMCP->TrackId() == mcp->TrackId()) break;
         unsigned short mindx = 0;
         for(sim::ParticleList::const_iterator mpart = plist.begin(); mpart != plist.end(); ++mpart) {
           simb::MCParticle* mmcp = (*mpart).second;
@@ -145,9 +156,21 @@ namespace tca {
         break;
       } // ipart
     } // iht
-    
+/*
+    // temp
+    unsigned short ii = 0;
+    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+      simb::MCParticle* mcp = (*ipart).second;
+      // find the eve particle and select it as well
+      const simb::MCParticle* momMCP = bt->TrackIDToMotherParticle(mcp->TrackId());
+      std::cout<<ii<<" ID "<<mcp->TrackId()<<" PDG "<<mcp->PdgCode()<<" mom "<<mcp->Mother();
+      if(momMCP) std::cout<<" TrackIDToMotherParticle "<<momMCP->TrackId();
+      std::cout<<" Select? "<<select[ii]<<" Process "<<mcp->Process()<<"\n";
+      ++ii;
+    } // ipart
+*/
     // save the selected MCParticles in tjs
-    unsigned short indx = 0;
+    indx = 0;
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       if(select[indx]) {
         simb::MCParticle* mcp = (*ipart).second;
@@ -394,12 +417,12 @@ namespace tca {
       // More than one reconstructable primaries so there must a reconstructable neutrino vertex
       mf::LogVerbatim("TC")<<"BadVtx Reconstructed? "<<neutrinoVxReconstructed<<" and not correct. events processed "<<tjs.EventsProcessed;
     }
-    
+
     // Print MCParticles that can be reconstructed
     if(tjs.MatchTruth[1] > 0) {
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<" Correct? "<<neutrinoVxCorrect<<"\n";
-      myprt<<"part   PDG     TrkID     MomID KE(MeV)   Process         TrajectoryExtentInPlane_nTruHits \n";
+      myprt<<"part   PDG  MomID KE(MeV)   Process         TrajectoryExtentInPlane_nTruHits \n";
       for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         // Skip if it can't be reconstructed in 2D
         if(!CanReconstruct(ipart, 2)) continue;
@@ -409,11 +432,21 @@ namespace tca {
         if(!isCharged) continue;
         // Kinetic energy in MeV
         int TMeV = 1000 * (mcp->E() - mcp->Mass());
-        int motherID = mcp->Mother() + sourcePtclTrackID - 1;
-        myprt<<std::setw(4)<<ipart;
+         myprt<<std::setw(4)<<ipart;
         myprt<<std::setw(6)<<mcp->PdgCode();
-        myprt<<std::setw(10)<<mcp->TrackId();
-        myprt<<std::setw(10)<<motherID;
+//        myprt<<std::setw(10)<<mcp->TrackId();
+        // find the mother in the list
+        const simb::MCParticle* momMCP = bt->TrackIDToMotherParticle(mcp->TrackId());
+        if(!momMCP) continue;
+        unsigned short momIndex = 0;
+        for(momIndex = 0; momIndex < tjs.MCPartList.size(); ++momIndex) {
+          if(momMCP->TrackId() == momMCP->TrackId()) break;
+        } // momIndex
+        if(momIndex == tjs.MCPartList.size()) {
+          myprt<<"  NA";
+        } else {
+          myprt<<std::setw(4)<<momIndex;
+        }
         myprt<<std::setw(6)<<TMeV;
         myprt<<std::setw(20)<<mcp->Process();
         // print the extent of the particle in each TPC plane
@@ -435,9 +468,14 @@ namespace tca {
     AccumulatePFPSums();
     
     // Check primary particle reconstruction performance
-    if(!primMCPs.empty()) {
+    if(neutrinoVxReconstructable) {
       float tsum = 0;
       float eptsum = 0;
+      auto& neutrinoPFP = tjs.pfps[0];
+      if(!(neutrinoPFP.PDGCode == 14 || neutrinoPFP.PDGCode == 12)) {
+        std::cout<<"MatchTruth logic error. First PFParticle is not a neutrino "<<neutrinoPFP.PDGCode<<"\n";
+        return;
+      }
       for(auto primMCP : primMCPs) {
         auto& mcp = tjs.MCPartList[primMCP];
         float TMeV = 1000 * (mcp->E() - mcp->Mass());
@@ -445,6 +483,9 @@ namespace tca {
         for(auto& pfp : tjs.pfps) {
           if(pfp.ID == 0) continue;
           if(pfp.MCPartListIndex != primMCP) continue;
+          if(!pfp.Primary) {
+            std::cout<<"MatchTruth PFParticle "<<pfp.ID<<" is matched to a primary MCP but is not a Primary\n";
+          }
  //         mf::LogVerbatim("TC")<<"Primary particle "<<primMCP<<" T "<<TMeV<<" pfp ID "<<pfp.ID<<" EffPur "<<pfp.EffPur;
           eptsum += pfp.EffPur * TMeV;
         } // pfp
@@ -864,8 +905,14 @@ namespace tca {
       myprt<<" PrimPFP "<<std::fixed<<std::setprecision(2)<<ep;
     }
 /*
-    myprt<<" VxCount";
-    for(auto cnt : TruVxCounts) myprt<<" "<<cnt;
+    if(TruVxCounts[1] > 0) {
+      // print fraction of neutrino primary vertices reconstructed
+      float fracReco = (float)TruVxCounts[2] / (float)TruVxCounts[2];
+      // print fraction of neutrino primary vertices identified as the neutrino vertex
+      float fracRecoCorrect = (float)TruVxCounts[3] / (float)TruVxCounts[2];
+      myprt<<" NuVxReco "<<std::fixed<<std::setprecision(2)<<fracReco;
+      myprt<<" NuVxCorrect "<<std::fixed<<std::setprecision(2)<<fracRecoCorrect;
+    }
 */
     float vx2Cnt = 0;
     if(tjs.EventsProcessed > 0) vx2Cnt = (float)RecoVx2Count / (float)tjs.EventsProcessed;

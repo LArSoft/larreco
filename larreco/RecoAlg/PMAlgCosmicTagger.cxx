@@ -45,7 +45,7 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
     {
 		
         // If this track is already tagged then don't try again!
-		if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
+	// if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
         pma::Track3D & trk = *(t.Track());
 
@@ -74,7 +74,7 @@ size_t pma::PMAlgCosmicTagger::outOfDriftWindow(pma::TrkCandidateColl& tracks)
         else if (node_out_of_drift_min || node_out_of_drift_max) { trk.SetTagFlag(pma::Track3D::kCosmic); trk.SetTagFlag(pma::Track3D::kOutsideDrift_Partial); ++n; }
     }
 
-		mf::LogInfo("pma::PMAlgCosmicTagger") << " - Tagged " << n << " tracks out of 1 drift window.";
+    mf::LogInfo("pma::PMAlgCosmicTagger") << " - Tagged " << n << " tracks out of 1 drift window.";
 
     return n;
 }
@@ -91,7 +91,7 @@ size_t pma::PMAlgCosmicTagger::nonBeamT0Tag(pma::TrkCandidateColl &tracks){
 	for(auto & t : tracks.tracks()){
 		
 		// If this track is already tagged then don't try again!
-		if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
+		//if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
 		// Non zero T0 means we reconstructed it
 		if(t.Track()->GetT0() != 0.0){
@@ -125,7 +125,7 @@ size_t pma::PMAlgCosmicTagger::tagTopFrontBack(pma::TrkCandidateColl& tracks){
   for(auto & t : tracks.tracks()){
 
     // If this track is already tagged then don't try again!
-    if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
+    //if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
     // Get the first and last positions from the track.
     auto const & node0 = *(t.Track()->Nodes()[0]);
@@ -167,15 +167,15 @@ size_t pma::PMAlgCosmicTagger::tagApparentStopper(pma::TrkCandidateColl& tracks)
 
   short int hIdx = ConvertDirToInt(geom->TPC(0,0).HeightDir());
 
-	// Loop over the tracks
-	for(auto & t : tracks.tracks()){
+  // Loop over the tracks
+  for(auto & t : tracks.tracks()){
 
-		// If this track is already tagged then don't try again!
-		if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
+    // If this track is already tagged then don't try again!
+    //if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 		
     // Get the first and last positions from the track.
-		auto const & node0 = *(t.Track()->Nodes()[0]);
-		auto const & node1 = *(t.Track()->Nodes()[t.Track()->Nodes().size()-1]);
+    auto const & node0 = *(t.Track()->Nodes()[0]);
+    auto const & node1 = *(t.Track()->Nodes()[t.Track()->Nodes().size()-1]);
 
     // Check which end is the vertex (assume the largest height)
     TVector3 vtx = (node0.Point3D()[hIdx] > node1.Point3D()[hIdx]) ? node0.Point3D() : node1.Point3D();
@@ -341,7 +341,7 @@ size_t pma::PMAlgCosmicTagger::fullCrossingTagger(pma::TrkCandidateColl& tracks,
 	for(auto & t : tracks.tracks()){
 
 		// If this track is already tagged then don't try again!
-		if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
+		//if(t.Track()->HasTagFlag(pma::Track3D::kCosmic)) continue;
 
 		// Get the first and last positions from the track.
 		auto const & node0 = *(t.Track()->Nodes()[0]);
