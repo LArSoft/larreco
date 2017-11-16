@@ -87,15 +87,15 @@ protected:
 
   typedef std::map<const WireHit*, art::Ptr<recob::Hit>> HitMap_t;
 
-  void BuildSystemSP(const std::vector<art::Ptr<recob::Hit>>& xhits,
-                     const std::vector<art::Ptr<recob::Hit>>& uhits,
-                     const std::vector<art::Ptr<recob::Hit>>& vhits,
-                     std::vector<CollectionWireHit*>& cwires,
-                     std::vector<InductionWireHit*>& iwires,
-                     bool incNei,
-                     HitMap_t& hitmap) const;
+  void BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
+                      const std::vector<art::Ptr<recob::Hit>>& uhits,
+                      const std::vector<art::Ptr<recob::Hit>>& vhits,
+                      std::vector<CollectionWireHit*>& cwires,
+                      std::vector<InductionWireHit*>& iwires,
+                      bool incNei,
+                      HitMap_t& hitmap) const;
 
-  void BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
+  void BuildSystemXU(const std::vector<art::Ptr<recob::Hit>>& xhits,
                      const std::vector<art::Ptr<recob::Hit>>& uhits,
                      std::vector<CollectionWireHit*>& cwires,
                      std::vector<InductionWireHit*>& iwires,
@@ -359,13 +359,13 @@ AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const
 
 // ---------------------------------------------------------------------------
 void SpacePointSolver::
-BuildSystemSP(const std::vector<art::Ptr<recob::Hit>>& xhits,
-              const std::vector<art::Ptr<recob::Hit>>& uhits,
-              const std::vector<art::Ptr<recob::Hit>>& vhits,
-              std::vector<CollectionWireHit*>& cwires,
-              std::vector<InductionWireHit*>& iwires,
-              bool incNei,
-              HitMap_t& hitmap) const
+BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
+               const std::vector<art::Ptr<recob::Hit>>& uhits,
+               const std::vector<art::Ptr<recob::Hit>>& vhits,
+               std::vector<CollectionWireHit*>& cwires,
+               std::vector<InductionWireHit*>& iwires,
+               bool incNei,
+               HitMap_t& hitmap) const
 {
   std::map<geo::TPCID, std::vector<art::Ptr<recob::Hit>>> xhits_by_tpc;
   for(auto& xhit: xhits){
@@ -539,7 +539,7 @@ BuildSystemSP(const std::vector<art::Ptr<recob::Hit>>& xhits,
 
 // ---------------------------------------------------------------------------
 void SpacePointSolver::
-BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
+BuildSystemXU(const std::vector<art::Ptr<recob::Hit>>& xhits,
               const std::vector<art::Ptr<recob::Hit>>& uhits,
               std::vector<CollectionWireHit*>& cwires,
               std::vector<InductionWireHit*>& iwires,
@@ -713,7 +713,7 @@ void SpacePointSolver::produce(art::Event& evt)
 
   art::ServiceHandle<geo::Geometry> geom;
 
-  bool isDP = false;
+  bool is2view = false;
   std::vector<art::Ptr<recob::Hit>> xhits, uhits, vhits;
   for(auto& hit: hitlist){
     if(isnan(hit->Integral()) || isinf(hit->Integral())){
@@ -727,12 +727,16 @@ void SpacePointSolver::produce(art::Event& evt)
       // For DualPhase, both view are collection. Arbitrarily map V to the main
       // "X" view and keep U as-is. For Argoneut and Lariat, collection=V is
       // also the right convention.
-      if(hit->View() == geo::kZ || hit->View() == geo::kV){
+      if(hit->View() == geo::kZ){
         xhits.push_back(hit);
       }
-      else{
+      if(hit->View() == geo::kV){
+        xhits.push_back(hit);
+        is2view = true;
+      }
+      if(hit->View() == geo::kU){
         uhits.push_back(hit);
-        isDP = true;
+        is2view = true;
       }
     }
     else{
@@ -746,10 +750,10 @@ void SpacePointSolver::produce(art::Event& evt)
   std::vector<InductionWireHit*> iwires;
 
   HitMap_t hitmap;
-  if(isDP)
-    BuildSystemDP(xhits, uhits, cwires, iwires, fAlpha != 0, hitmap);
+  if(is2view)
+    BuildSystemXU(xhits, uhits, cwires, iwires, fAlpha != 0, hitmap);
   else
-    BuildSystemSP(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
+    BuildSystemXUV(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
 
   auto spcol_pre = std::make_unique<std::vector<recob::SpacePoint>>();
   FillSystemToSpacePoints(cwires, *spcol_pre);
