@@ -1035,6 +1035,7 @@ namespace tca {
     // We are doing this probably because the trajectory is stopping.
     // Reduce the number of fitted points to a small number
     unsigned short lastPt = tjWork.Pts.size() - 1;
+    if(lastPt < 4) return;
     // update the charge
     float chg = 0;
     float cnt = 0;
