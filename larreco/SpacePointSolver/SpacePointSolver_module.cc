@@ -724,13 +724,14 @@ void SpacePointSolver::produce(art::Event& evt)
     }
 
     if(hit->SignalType() == geo::kCollection){
-      // For DualPhase, both view are collection. Arbitrarily map U to the main
-      // "X" view and keep V as-is.
-      if(hit->View() == geo::kZ || hit->View() == geo::kU){
+      // For DualPhase, both view are collection. Arbitrarily map V to the main
+      // "X" view and keep U as-is. For Argoneut and Lariat, collection=V is
+      // also the right convention.
+      if(hit->View() == geo::kZ || hit->View() == geo::kV){
         xhits.push_back(hit);
       }
       else{
-        vhits.push_back(hit);
+        uhits.push_back(hit);
         isDP = true;
       }
     }
