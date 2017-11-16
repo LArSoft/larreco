@@ -436,7 +436,7 @@ namespace tca {
         myprt<<std::setw(6)<<mcp->PdgCode();
 //        myprt<<std::setw(10)<<mcp->TrackId();
         // find the mother in the list
-        const simb::MCParticle* momMCP = bt_serv->TrackIdToMotherParticle_P(mcp->TrackId());
+        const simb::MCParticle* momMCP = pi_serv->TrackIdToMotherParticle_P(mcp->TrackId());
         if(!momMCP) continue;
         unsigned short momIndex = 0;
         for(momIndex = 0; momIndex < tjs.MCPartList.size(); ++momIndex) {
