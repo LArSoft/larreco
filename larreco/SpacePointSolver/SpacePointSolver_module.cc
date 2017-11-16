@@ -96,7 +96,7 @@ protected:
                      HitMap_t& hitmap) const;
 
   void BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
-                     const std::vector<art::Ptr<recob::Hit>>& vhits,
+                     const std::vector<art::Ptr<recob::Hit>>& uhits,
                      std::vector<CollectionWireHit*>& cwires,
                      std::vector<InductionWireHit*>& iwires,
                      bool incNei,
@@ -540,7 +540,7 @@ BuildSystemSP(const std::vector<art::Ptr<recob::Hit>>& xhits,
 // ---------------------------------------------------------------------------
 void SpacePointSolver::
 BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
-              const std::vector<art::Ptr<recob::Hit>>& vhits,
+              const std::vector<art::Ptr<recob::Hit>>& uhits,
               std::vector<CollectionWireHit*>& cwires,
               std::vector<InductionWireHit*>& iwires,
               bool incNei,
@@ -556,9 +556,9 @@ BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
 
   // Maps from TPC to the induction wires. Normally want to access them this
   // way.
-  std::map<geo::TPCID, std::vector<InductionWireWithXPos>> vwires;
+  std::map<geo::TPCID, std::vector<InductionWireWithXPos>> uwires;
 
-  for(auto& hit: vhits){
+  for(auto& hit: uhits){
     const std::vector<geo::TPCID> tpcs = geom->ROPtoTPCs(geom->ChannelToROP(hit->Channel()));
 
     InductionWireHit* iwire = new InductionWireHit(hit->Channel(), hit->Integral());
@@ -569,11 +569,11 @@ BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
 
       const double xpos = HitToXPos(*hit, tpc);
 
-      vwires[tpc].emplace_back(iwire, xpos);
+      uwires[tpc].emplace_back(iwire, xpos);
     } // end for tpc
   } // end for hit
 
-  for(auto it = vwires.begin(); it != vwires.end(); ++it){
+  for(auto it = uwires.begin(); it != uwires.end(); ++it){
     std::sort(it->second.begin(), it->second.end());
   }
 
@@ -587,38 +587,38 @@ BuildSystemDP(const std::vector<art::Ptr<recob::Hit>>& xhits,
   }
 
 
-  std::cout << "Finding XV coincidences..." << std::endl;
+  std::cout << "Finding UV coincidences..." << std::endl;
   std::vector<SpaceCharge*> spaceCharges;
 
   for(auto it: xhits_by_tpc){
     const geo::TPCID tpc = it.first;
 
-    auto vwires_begin = vwires[tpc].begin();
+    auto uwires_begin = uwires[tpc].begin();
 
     for(auto& hit: it.second){
       const double xpos = HitToXPos(*hit, tpc);
 
       std::vector<SpaceCharge*> crossers;
 
-      FastForward(vwires_begin, xpos, vwires[tpc].end());
+      FastForward(uwires_begin, xpos, uwires[tpc].end());
 
-      // Figure out which vwires intersect this xwire here.
-      for(auto vit = vwires_begin; vit != vwires[tpc].end(); ++vit){
-        InductionWireWithXPos vwire = *vit;
+      // Figure out which uwires intersect this xwire here.
+      for(auto uit = uwires_begin; uit != uwires[tpc].end(); ++uit){
+        InductionWireWithXPos uwire = *uit;
 
-        if(vwire.xpos > xpos && !CloseDrift(vwire.xpos, xpos)) break;
+        if(uwire.xpos > xpos && !CloseDrift(uwire.xpos, xpos)) break;
 
-        geo::WireIDIntersection ptXV;
-        if(ISect(hit->Channel(), vwire.iwire->fChannel, tpc, ptXV)){
+        geo::WireIDIntersection ptXU;
+        if(ISect(hit->Channel(), uwire.iwire->fChannel, tpc, ptXU)){
 
           // Don't have a cwire object yet, set it later
-          SpaceCharge* sc = new SpaceCharge((xpos+vwire.xpos)/2, ptXV.y, ptXV.z,
-                                            0, 0, vwire.iwire);
+          SpaceCharge* sc = new SpaceCharge((xpos+uwire.xpos)/2, ptXU.y, ptXU.z,
+                                            0, 0, uwire.iwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
-          hitmap[vwire.iwire] = hit;
-        } // end for vwire
-      } // end for vit
+          hitmap[uwire.iwire] = hit;
+        } // end for uwire
+      } // end for uit
 
       CollectionWireHit* cwire = new CollectionWireHit(hit->Channel(), hit->Integral(), crossers);
       hitmap[cwire] = hit;
@@ -747,7 +747,7 @@ void SpacePointSolver::produce(art::Event& evt)
 
   HitMap_t hitmap;
   if(isDP)
-    BuildSystemDP(xhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
+    BuildSystemDP(xhits, uhits, cwires, iwires, fAlpha != 0, hitmap);
   else
     BuildSystemSP(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
 
