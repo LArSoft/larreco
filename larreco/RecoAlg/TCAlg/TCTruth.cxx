@@ -162,7 +162,7 @@ namespace tca {
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       simb::MCParticle* mcp = (*ipart).second;
       // find the eve particle and select it as well
-      const simb::MCParticle* momMCP = bt->TrackIDToMotherParticle(mcp->TrackId());
+      const simb::MCParticle* momMCP = bt_serv->TrackIDToMotherParticle(mcp->TrackId());
       std::cout<<ii<<" ID "<<mcp->TrackId()<<" PDG "<<mcp->PdgCode()<<" mom "<<mcp->Mother();
       if(momMCP) std::cout<<" TrackIDToMotherParticle "<<momMCP->TrackId();
       std::cout<<" Select? "<<select[ii]<<" Process "<<mcp->Process()<<"\n";
@@ -436,7 +436,7 @@ namespace tca {
         myprt<<std::setw(6)<<mcp->PdgCode();
 //        myprt<<std::setw(10)<<mcp->TrackId();
         // find the mother in the list
-        const simb::MCParticle* momMCP = bt->TrackIDToMotherParticle(mcp->TrackId());
+        const simb::MCParticle* momMCP = bt_serv->TrackIdToMotherParticle_P(mcp->TrackId());
         if(!momMCP) continue;
         unsigned short momIndex = 0;
         for(momIndex = 0; momIndex < tjs.MCPartList.size(); ++momIndex) {
