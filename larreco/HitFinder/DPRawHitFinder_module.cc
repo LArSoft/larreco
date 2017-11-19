@@ -159,10 +159,10 @@ namespace hit{
     
     std::string      fCalDataModuleLabel;
 
-    float    fMinSig;                   ///<signal height threshold
+    float  fMinSig;                   ///<signal height threshold
     int    fTicksToStopPeakFinder;    ///<Number of ticks with same or higher ADC count that the current tick is needed to be followed by to define start and end of peak 
     int    fMinWidth;                 ///<Minimum hit width
-    int    fMinADCSum;                 ///<Minimum hit ADC sum
+    double fMinADCSum;                 ///<Minimum hit ADC sum
     double fMinADCSumOverWidth;        ///<Minimum hit width
     unsigned int fMaxMultiHit;        ///<maximum hits for multi fit
     double	 fChargeNorm;         ///<factors for converting area to same units as peak height
@@ -171,8 +171,10 @@ namespace hit{
     double	 fChi2NDF;            ///maximum Chisquared / NDF allowed for a hit to be saved
     size_t       fNumBinsToAverage;   ///< If bin averaging for peak finding, number bins to average
     double   fMinTau;                 
-    double   fMaxTau;                 
-    int   fGroupMaxDistance;           
+    double   fMaxTau;      
+    double   fFitPeakMeanRange;           
+    int   fGroupMaxDistance;
+    double fGroupMinADC;           
     bool  fDoMergePeaks;
     double fMergeADCSumThreshold;
     double fMergeMaxADCThreshold;
@@ -247,16 +249,18 @@ void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fNumBinsToAverage 	   = p.get< size_t >("NumBinsToAverage");
     fMinSig           	   = p.get< float    >("MinSig");
     fMinWidth         	   = p.get< int >("MinWidth");
-    fMinADCSum		   = p.get< int >("MinADCSum");
+    fMinADCSum		   = p.get< double >("MinADCSum");
     fMinADCSumOverWidth    = p.get< double >("MinADCSumOverWidth");
     fChargeNorm       	   = p.get< double >("ChargeNorm");
     fTicksToStopPeakFinder = p.get< double >("TicksToStopPeakFinder");
     fMinTau          	   = p.get< double >("MinTau");
     fMaxTau           	   = p.get< double >("MaxTau");
-    fGroupMaxDistance     = p.get< int >("GroupMaxDistance");
-    fDoMergePeaks	  = p.get< bool   >("DoMergePeaks");
-    fMergeADCSumThreshold = p.get< double >("MergeADCSumThreshold");
-    fMergeMaxADCThreshold = p.get< double >("MergeMaxADCThreshold");
+    fFitPeakMeanRange	   = p.get< double >("FitPeakMeanRange");
+    fGroupMaxDistance      = p.get< int >("GroupMaxDistance");
+    fGroupMinADC           = p.get< int >("GroupMinADC");
+    fDoMergePeaks	   = p.get< bool   >("DoMergePeaks");
+    fMergeADCSumThreshold  = p.get< double >("MergeADCSumThreshold");
+    fMergeMaxADCThreshold  = p.get< double >("MergeMaxADCThreshold");
 }  
 
 //-------------------------------------------------
@@ -587,6 +591,11 @@ void DPRawHitFinder::produce(art::Event& evt)
                     // ### Sum of ADC counts
                     double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
 
+		    std::cout << "Channel: " << channel << std::endl;
+		    std::cout << "Peak: " << peakMeanTrue+roiFirstBinTick << std::endl;
+		    std::cout << "Charge: " << charge << std::endl;
+		    std::cout << "SumADC: " << sumADC << std::endl;
+		    std::cout << std::endl;
                     // Create the hit
                     recob::HitCreator hitcreator(*wire,                            // wire reference
                                                  wid,                              // wire ID
@@ -675,7 +684,7 @@ void hit::DPRawHitFinder::findCandidatePeaks(std::vector<float>::const_iterator 
 		    }
 	
 		}
-                if (*firstItr < 1 || PeakStartIsHere) break;
+                if (*firstItr <= 0 || PeakStartIsHere) break;
                 firstItr--;
             }
 
@@ -700,7 +709,7 @@ void hit::DPRawHitFinder::findCandidatePeaks(std::vector<float>::const_iterator 
 		    break;
 		    }
 		}
-                if (*lastItr < 1 || PeakEndIsHere) break;
+                if (*lastItr <= 0 || PeakEndIsHere) break;
                 lastItr++;
             }
 
@@ -751,21 +760,20 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
         // Loop until no more merged pulses (or candidates in this ROI)
         while(checkNextHit)
         {
-            // If the start time of the next pulse is the (end time+1) or if intermediate signal between two pulses doesn't go below 0 merge until fMaxMultiHit is reached.
+            // If: start time of the next pulse is < end time + fGroupMaxDistance of last ppulse or if: intermediate signal between two pulses doesn't go below fMinBinToGroup merge until fMaxMultiHit is reached.
             int NextStartT = std::get<0>(*timeValsVecItr);
 	    
-	    bool NegBinBetweenPeaks = 0;
+	    double MinADC = signalVec[endT];
 	    for(int i = endT; i <= NextStartT; i++)
 	    {
-		if(signalVec[i]<0)
+		if(signalVec[i]<MinADC)
 		{
-		NegBinBetweenPeaks = 1;
-		break;
+		MinADC = signalVec[i];
 		}
 	    }
 	    
-	    // Group hits
-            if( NegBinBetweenPeaks == 0  && NextStartT - endT <= fGroupMaxDistance && PeaksInThisMergedPeak < fMaxMultiHit-1 )
+	    // Group peaks (grouped peaks are fitted together and can be merged)
+            if( MinADC >= fGroupMinADC && NextStartT - endT <= fGroupMaxDistance && PeaksInThisMergedPeak < fMaxMultiHit-1 )
             {
 	    	int PrevStartT=startT;
 	    	int PrevMaxT=maxT;
@@ -789,10 +797,12 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
 		{
 		    NextSumADC+=signalVec[i];
 		} 
-
+		
+		//Merge peaks within a group
 		if(fDoMergePeaks)
 		{
-		    if( signalVec[NextMaxT] <= signalVec[PrevMaxT] && (signalVec[NextMaxT]-signalVec[PrevEndT]) < fMergeMaxADCThreshold*(signalVec[PrevMaxT]-signalVec[PrevEndT]) &&  NextSumADC < fMergeADCSumThreshold*PrevSumADC )
+//		    if( signalVec[NextMaxT] <= signalVec[PrevMaxT] && (signalVec[NextMaxT]-signalVec[PrevEndT]) < fMergeMaxADCThreshold*(signalVec[PrevMaxT]-signalVec[PrevEndT]) &&  NextSumADC < fMergeADCSumThreshold*PrevSumADC )
+		    if( signalVec[NextMaxT] <= signalVec[PrevMaxT] && signalVec[NextMaxT] < fMergeMaxADCThreshold*signalVec[PrevMaxT] &&  NextSumADC < fMergeADCSumThreshold*PrevSumADC )
 		    {
 		    	maxT=PrevMaxT;
 		    	startT=PrevStartT;
@@ -801,7 +811,8 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
 		    	peakVals.pop_back();
                     	peakVals.emplace_back(maxT,widT,startT,endT);
 		    }
-		    else if( signalVec[NextMaxT] > signalVec[PrevMaxT] && (signalVec[PrevMaxT]-signalVec[NextStartT]) < fMergeMaxADCThreshold*(signalVec[NextMaxT]-signalVec[NextStartT]) &&  PrevSumADC < fMergeADCSumThreshold*NextSumADC  )
+//		    else if( signalVec[NextMaxT] > signalVec[PrevMaxT] && (signalVec[PrevMaxT]-signalVec[NextStartT]) < fMergeMaxADCThreshold*(signalVec[NextMaxT]-signalVec[NextStartT]) &&  PrevSumADC < fMergeADCSumThreshold*NextSumADC  )
+		    else if( signalVec[NextMaxT] > signalVec[PrevMaxT] && signalVec[PrevMaxT] < fMergeMaxADCThreshold*signalVec[NextMaxT] &&  PrevSumADC < fMergeADCSumThreshold*NextSumADC  )
 		    {
 		    	maxT=NextMaxT;
 		    	startT=PrevStartT;
@@ -896,21 +907,24 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  fSignalVecto
     Exponentials.SetParameter(1, 0.5);
     Exponentials.SetParLimits(0, fMinTau, fMaxTau);
     Exponentials.SetParLimits(1, fMinTau, fMaxTau);
-    double amplitude;
-    double peakMean;
+    double amplitude=0;
+    double peakMean=0;
 
     double peakMeanShift=2;
-    double peakMeanRange=5.;
-    double peakMeanSeed;
-    double peakMeanRangeLow;
-    double peakMeanRangeHi;
+    double peakMeanSeed=0;
+    double peakMeanRangeLow=0;
+    double peakMeanRangeHi=0;
+    double peakStart=0;
+    double peakEnd=0;
 
     	for(int i = 0; i < NPeaks; i++)
     	{
         peakMean = std::get<0>(fPeakVals.at(i));
+	peakStart = std::get<2>(fPeakVals.at(i));
+	peakEnd = std::get<3>(fPeakVals.at(i));
         peakMeanSeed=peakMean-peakMeanShift;
-        peakMeanRangeLow=peakMeanSeed-peakMeanRange;
-        peakMeanRangeHi=peakMeanSeed+peakMeanRange;
+        peakMeanRangeLow = std::max(peakStart-peakMeanShift, peakMeanSeed-fFitPeakMeanRange);
+        peakMeanRangeHi = std::min(peakEnd, peakMeanSeed+fFitPeakMeanRange);
         amplitude = fSignalVector[peakMean];
 
 	Exponentials.SetParameter(2*(i+1), 1.65*amplitude);
