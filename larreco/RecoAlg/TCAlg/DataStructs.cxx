@@ -17,6 +17,7 @@ namespace tca {
     "HED",
     "HamVx",
     "HamVx2",
+    "JunkVx",
     "JunkTj",
     "Killed",
     "Merge",
@@ -70,7 +71,6 @@ namespace tca {
     "VtxTrjTried",
     "Fixed",
     "OnDeadWire",
-    "VtxRefined",
     "HiVx3Score",
     "VtxTruMatch",
     "VtxMerged"

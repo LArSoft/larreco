@@ -11,6 +11,107 @@ namespace tca {
   bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
   
   //////////////////////////////////////////
+  void MakeJunkVertices(TjStuff& tjs, const CTP_t& inCTP)
+  {
+    // Vertices between poorly reconstructed tjs (especially junk tjs) and normal
+    // tjs can fail because the junk tj trajectory parameters are inaccurate. This function
+    // uses proximity and not pointing to make junk vertices
+    // Don't use this if standard vertex reconstruction is disabled
+    if(tjs.Vertex2DCuts[0] <= 0) return;
+    if(!tjs.UseAlg[kJunkVx]) return;
+    if(tjs.allTraj.size() < 2) return;
+    
+    // Look for tjs that are within maxSep of the end of a Tj
+    constexpr float maxSep = 4;
+    
+    geo::PlaneID planeID = DecodeCTP(inCTP);
+    bool prt = (debug.Plane == (int)planeID.Plane && debug.Tick == 99999);
+    if(prt) {
+      mf::LogVerbatim("TC")<<"MakeJunkVertices: prt set for plane "<<planeID.Plane<<" maxSep btw tjs "<<maxSep;
+//      PrintAllTraj("MJTi", tjs, debug, USHRT_MAX, tjs.allTraj.size());
+    }
+    
+    // make a template vertex
+    VtxStore junkVx;
+    junkVx.CTP = inCTP;
+    junkVx.Topo = 9;
+    junkVx.Stat[kJunkVx] = true;
+    junkVx.Stat[kFixed] = true;
+    // set an invalid ID
+    junkVx.ID = USHRT_MAX;
+    // put in generous errors
+    junkVx.PosErr = {2, 2};
+    // define a minimal score so it won't get clobbered
+    junkVx.Score = tjs.Vertex2DCuts[7] + 0.1;
+
+    // look at both ends of long tjs
+    for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
+      auto& tj1 = tjs.allTraj[it1];
+      if(tj1.AlgMod[kKilled]) continue;
+      if(tj1.AlgMod[kInShower]) continue;
+      if(tj1.CTP != inCTP) continue;
+      if(tj1.AlgMod[kJunkTj]) continue;
+      if(TrajLength(tj1) < 10) continue;
+      if(tj1.MCSMom < 100) continue;
+      for(unsigned short end1 = 0; end1 < 2; ++end1) {
+        // existing vertex?
+        if(tj1.VtxID[end1] > 0) continue;
+        auto& tp1 = tj1.Pts[tj1.EndPt[end1]];
+        // get a list of tjs in this vicinity
+        auto tjlist = FindCloseTjs(tjs, tp1, tp1, maxSep);
+        if(tjlist.empty()) continue;
+        // set to an invalid ID
+        junkVx.ID = USHRT_MAX;
+        for(auto tj2id : tjlist) {
+          auto& tj2 = tjs.allTraj[tj2id - 1];
+          if(tj2.CTP != inCTP) continue;
+          if(tj2id == tj1.ID) continue;
+//          if(tj2.MCSMom > 50) continue;
+          if(tj2.AlgMod[kInShower]) continue;
+//          if(tj2.Pts.size() > 20) continue;
+          float close = maxSep;
+          unsigned short closeEnd = USHRT_MAX;
+          for(unsigned short end2 = 0; end2 < 2; ++end2) {
+            auto& tp2 = tj2.Pts[tj2.EndPt[end2]];
+            float sep = PosSep(tp1.Pos, tp2.Pos);
+            if(sep < close) {
+              close = sep;
+              closeEnd = end2;
+            } // sep
+          } // end2
+          if(closeEnd > 1) continue;
+          auto& tp2 = tj2.Pts[tj2.EndPt[closeEnd]];
+          bool signalBetween = SignalBetween(tjs, tp1, tp2, 0.8, prt);
+          if(!signalBetween) continue;
+          if(junkVx.ID == USHRT_MAX) {
+            // define the new vertex
+            junkVx.ID = tjs.vtx.size() + 1;
+            junkVx.Pos = tp1.Pos;
+          } // new vertex
+          tj2.VtxID[closeEnd] = junkVx.ID;
+          tj1.VtxID[end1] = junkVx.ID;
+//          std::cout<<"MJV: "<<tj1.ID<<"_"<<end1<<" tj2 "<<tj2.ID<<" closeEnd "<<closeEnd<<" junkVx.ID "<<junkVx.ID<<"\n";
+        } // tjid
+        if(junkVx.ID == USHRT_MAX) continue;
+        if(!StoreVertex(tjs, junkVx)) {
+          mf::LogVerbatim("TC")<<"MJV: StoreVertex failed";
+          for(auto& tj : tjs.allTraj) {
+            if(tj.AlgMod[kKilled]) continue;
+            if(tj.VtxID[0] == junkVx.ID) tj.VtxID[0] = 0;
+            if(tj.VtxID[1] == junkVx.ID) tj.VtxID[1] = 0;
+          } // tj
+          continue;
+        } // StoreVertex failed
+        if(prt) {
+          mf::LogVerbatim("TC")<<" New junkVx_"<<junkVx.ID<<" at "<<std::fixed<<std::setprecision(1)<<junkVx.Pos[0]<<":"<<junkVx.Pos[1]/tjs.UnitsPerTick;
+        } // prt
+        junkVx.ID = USHRT_MAX;
+      } // end1
+    } // it1
+    
+  } // MakeJunkVertices
+  
+  //////////////////////////////////////////
   void Find2DVertices(TjStuff& tjs, const CTP_t& inCTP)
   {
     // Find 2D vertices between pairs of tjs that have a same-end topology. Using an example
@@ -508,6 +609,8 @@ namespace tca {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
       if(tjs.allTraj[it1].AlgMod[kHamVx]) continue;
       if(tjs.allTraj[it1].AlgMod[kHamVx2]) continue;
+      if(tjs.allTraj[it1].AlgMod[kInShower]) continue;
+      if(tjs.allTraj[it1].AlgMod[kJunkTj]) continue;
       unsigned short numPtsWithCharge1 = NumPtsWithCharge(tjs, tjs.allTraj[it1], false);
       if(numPtsWithCharge1 < 6) continue;
       if(prt) mf::LogVerbatim("TC")<<"FindHammerVertices2: tj1 "<<tjs.allTraj[it1].ID<<" "<<tjs.allTraj[it1].MCSMom;
@@ -524,6 +627,8 @@ namespace tca {
           if(tjs.allTraj[it2].AlgMod[kHamVx2]) continue;
           // require that both be in the same CTP
           if(tjs.allTraj[it2].CTP != inCTP) continue;
+          if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
+          if(tjs.allTraj[it2].AlgMod[kJunkTj]) continue;
           // Don't mess with muons
           if(tjs.allTraj[it2].PDGCode == 13) continue;
           unsigned short numPtsWithCharge2 = NumPtsWithCharge(tjs, tjs.allTraj[it2], true);
@@ -660,6 +765,8 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       if(tjs.allTraj[it1].CTP != inCTP) continue;
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
+      if(tjs.allTraj[it1].AlgMod[kInShower]) continue;
+      if(tjs.allTraj[it1].AlgMod[kJunkTj]) continue;
       // minimum length requirements
       unsigned short tj1len = tjs.allTraj[it1].EndPt[1] - tjs.allTraj[it1].EndPt[0];
       if(tj1len < 6) continue;
@@ -673,6 +780,8 @@ namespace tca {
           if(tjs.allTraj[it2].CTP != inCTP) continue;
           if(it1 == it2) continue;
           if(tjs.allTraj[it2].AlgMod[kKilled]) continue;
+          if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
+          if(tjs.allTraj[it2].AlgMod[kJunkTj]) continue;
           // length of tj2 cut
           unsigned short tj2len = tjs.allTraj[it2].EndPt[1] - tjs.allTraj[it2].EndPt[0];
           if(tj2len < 6) continue;
@@ -1197,6 +1306,7 @@ namespace tca {
             if(!SetPFPEndPoints(tjs, pfp, 1, prt)) continue;
           }
           tjs.pfps.push_back(pfp);
+          ms.pfpID = pfp.ID;
           std::vector<int> leftover(v3TjIDs.size());
           auto it = std::set_difference(v3TjIDs.begin(), v3TjIDs.end(), shared.begin(), shared.end(), leftover.begin());
           leftover.resize(it - leftover.begin());
@@ -1498,10 +1608,9 @@ namespace tca {
     } // tj
     
     if(nok != nvxtj) {
-      mf::LogVerbatim("TC")<<"StoreVertex: vertex "<<vx.ID<<" has inconsistent CTP code "<<vx.CTP<<" with one or more Tjs\n";
+      mf::LogVerbatim("TC")<<"StoreVertex: vertex "<<vx.ID<<" Topo "<<vx.Topo<<" has inconsistent CTP code "<<vx.CTP<<" with one or more Tjs\n";
       for(auto& tj : tjs.allTraj) {
         if(tj.AlgMod[kKilled]) continue;
-        mf::LogVerbatim("TC")<<"Tj ID "<<tj.ID<<" CTP "<<tj.CTP<<"\n";
         if(tj.VtxID[0] == vx.ID) tj.VtxID[0] = 0;
         if(tj.VtxID[1] == vx.ID) tj.VtxID[1] = 0;
       }
@@ -1882,8 +1991,8 @@ namespace tca {
   {
     // Calculate the 2D vertex score
     
-    // Don't score vertices from CheckTrajBeginChg. Set to the minimum
-    if(vx2.Topo == 8) {
+    // Don't score vertices from CheckTrajBeginChg or MakeJunkVertices. Set to the minimum
+    if(vx2.Topo == 8 || vx2.Topo == 9) {
       vx2.Score = tjs.Vertex2DCuts[7] + 0.1;
       auto vtxTjID = GetVtxTjIDs(tjs, vx2);
       vx2.TjChgFrac = ChgFracNearPos(tjs, vx2.Pos, vtxTjID);
