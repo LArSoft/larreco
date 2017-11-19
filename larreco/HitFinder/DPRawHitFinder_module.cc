@@ -591,11 +591,6 @@ void DPRawHitFinder::produce(art::Event& evt)
                     // ### Sum of ADC counts
                     double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
 
-		    std::cout << "Channel: " << channel << std::endl;
-		    std::cout << "Peak: " << peakMeanTrue+roiFirstBinTick << std::endl;
-		    std::cout << "Charge: " << charge << std::endl;
-		    std::cout << "SumADC: " << sumADC << std::endl;
-		    std::cout << std::endl;
                     // Create the hit
                     recob::HitCreator hitcreator(*wire,                            // wire reference
                                                  wid,                              // wire ID
