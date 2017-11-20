@@ -392,14 +392,15 @@ namespace tca {
     // check for debugging mode triggered by Plane, Wire, Tick
     debug.Hit = UINT_MAX;
     if(fDebugMode) {
-      std::cout<<"Look for debug hit "<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
+      std::cout<<"Look for hit near Cryo:TPC:Pln:Wire:Tick "<<debug.Cryostat;
+      std::cout<<":"<<debug.TPC<<":"<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
         if((int)tjs.fHits[iht].WireID.Plane != debug.Plane) continue;
         if((int)tjs.fHits[iht].WireID.Wire != debug.Wire) continue;
         if(tjs.fHits[iht].PeakTime < debug.Tick - 5) continue;
         if(tjs.fHits[iht].PeakTime > debug.Tick + 5) continue;
         debug.Hit = iht;
-        std::cout<<" iht "<<iht<<" "<<debug.Cryostat<<":"<<debug.TPC<<":"<<debug.Plane<<":"<<PrintHit(tjs.fHits[iht]);
+        std::cout<<" Found iht "<<iht<<" "<<debug.Plane<<":"<<PrintHit(tjs.fHits[iht]);
         std::cout<<" Amp "<<(int)tjs.fHits[iht].PeakAmplitude;
         std::cout<<" RMS "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].RMS;
         std::cout<<" Chisq "<<std::fixed<<std::setprecision(1)<<tjs.fHits[iht].GoodnessOfFit;
