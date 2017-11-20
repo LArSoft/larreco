@@ -51,7 +51,8 @@ namespace tca {
     "InShower",
     "ShowerTj",
     "ShwrParent",
-    "ChkShwrParEnd",
+    "ChkShwrParEnd",  // Ensure that the end of a shower parent already inside a shower has an end near a shower end
+    "KillShwrNuPFP",  // Kill neutrino PFP particles with a vertex inside a shower
     "MergeOverlap",
     "MergeSubShowers",
     "MergeNrShowers",
