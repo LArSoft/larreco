@@ -85,8 +85,10 @@ dpraw_hitfinder:
  NumBinsToAverage:     	0		# 0 or 1 = no averaging
  MinTau:		0.01		# mainimum value of the rising and falling time constants of the fit, in ticks. Sets a minimum width for the fit (~ width the electronic shaping function)
  MaxTau:		5		# maximum value of the rising and falling time constants of the fit, in ticks. Limits the width of the fit (maximum width depends on drift distance etc.)
+ FitPeakMeanRange:	5		# par limits for mean of the fit
 
- GroupMaxDistance:	10		# max distance between two peaks for grouping. grouped hits are fitted together.
+ GroupMaxDistance:	10		# max distance between two peaks for grouping. Grouped peaks are fitted together.
+ GroupMinADC:		-5		# minimum ADC count between two peaks to be grouped.
  DoMergePeaks:		true		# true: peak merging (merge two peaks into one) before fitting enabled
  MergeADCSumThreshold:	0.2		# merge two peaks only if (ADC sum of the smaller peak) < MergeADCSumThreshold*(ADC sum of the bigger peak)
  MergeMaxADCThreshold:	0.2		# merge two peaks only if (height of the smaller peak) < MergeADCSumThreshold*(height sum of the bigger peak)
