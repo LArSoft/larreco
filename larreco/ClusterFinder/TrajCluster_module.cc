@@ -372,11 +372,6 @@ namespace cluster {
         }
         clsIndices.push_back(clsIndex);
       } // tjid
-      // try to recover from an error
-      if(clsIndices.empty()) {
-        spcol.pop_back();
-        continue;
-      }
       if(pfp.Vx3ID[0] > Vertices.size()) std::cout<<"TC module: Bad Vtx3DIndex = "<<pfp.Vx3ID[0]<<" size "<<Vertices.size()<<"\n";
       
       // PFParticle - Cluster associations
