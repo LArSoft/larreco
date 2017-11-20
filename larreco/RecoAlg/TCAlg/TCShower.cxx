@@ -2407,7 +2407,8 @@ namespace tca {
     for(unsigned short ii = 0; ii < ss.ShPts.size(); ++ii) {
       if(ss.ShPts[ii].Chg <= 0) {
         std::cout<<fcnLabel<<" Found point with no charge. This shouldn't happen\n";
-        exit(1);
+        ss.ID = 0;
+        return false;
       }
       stp1.Chg += ss.ShPts[ii].Chg;
       stp1.HitPos[0] += ss.ShPts[ii].Chg * ss.ShPts[ii].Pos[0];
