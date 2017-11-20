@@ -388,6 +388,7 @@ namespace tca {
     kInShower,
     kShowerTj,
     kShwrParent,
+    kChkShwrParEnd,
     kMergeOverlap,
     kMergeSubShowers,
     kMergeNrShowers,
