@@ -350,25 +350,46 @@ namespace tca {
     
     std::string fcnLabel = inFcnLabel + ".FPS";
     auto& neutrinoPFP = tjs.pfps[0];
-/*
-    // ensure that what we think is the neutrino vertex is not inside a shower
-    if(neutrinoPFP.Vx3ID[0] == 0 || neutrinoPFP.Vx3ID[0] > tjs.vtx3.size()) return false;
-    auto& vx3 = tjs.vtx3[neutrinoPFP.Vx3ID[0] - 1];
-    unsigned short ninsh = 0;
-    std::array<float, 2> v2pos;
-    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-      PosInPlane(tjs, vx3, plane, v2pos);
-      for(auto& ss : tjs.cots) {
-        if(ss.ID == 0) continue;
-        CTP_t inCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, plane);
-        if(ss.CTP != inCTP) continue;
-        bool insideEnvelope = PointInsideEnvelope(v2pos, ss.Envelope);
-        std::cout<<fcnLabel<<" plane "<<plane<<" ss "<<ss.ID<<" inside? "<<insideEnvelope<<"\n";
-        if(insideEnvelope) ++ninsh;
-      } // ss
-    } // plane
-    std::cout<<" ninsh "<<ninsh<<"\n";
-*/    
+
+    if(tjs.UseAlg[kKillShwrNuPFP]) {
+      // ensure that what we think is the neutrino vertex is not inside a shower
+      if(neutrinoPFP.Vx3ID[0] == 0 || neutrinoPFP.Vx3ID[0] > tjs.vtx3.size()) return false;
+      auto& vx3 = tjs.vtx3[neutrinoPFP.Vx3ID[0] - 1];
+      unsigned short ninsh = 0;
+      std::array<float, 2> v2pos;
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        PosInPlane(tjs, vx3, plane, v2pos);
+        for(auto& ss : tjs.cots) {
+          if(ss.ID == 0) continue;
+          CTP_t inCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, plane);
+          if(ss.CTP != inCTP) continue;
+          // TODO: This maybe should be done more carefully
+          bool insideEnvelope = PointInsideEnvelope(v2pos, ss.Envelope);
+          if(!insideEnvelope) continue;
+          // See if the vertex is close to the ends of the shower
+          auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+          if(PosSep(stj.Pts[0].Pos, v2pos) < 5) continue;
+          if(PosSep(stj.Pts[2].Pos, v2pos) < 5) continue;
+//          std::cout<<fcnLabel<<" plane "<<plane<<" PFP vertex is inside shower ss "<<ss.ID<<"\n";
+          ++ninsh;
+        } // ss
+      } // plane
+      if(ninsh == tjs.NumPlanes) {
+        // Vertex is inside a shower in all planes. Clobber the neutrino PFParticle
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" neutrino PFP is inside showers in all planes. Killing it ";
+        neutrinoPFP.ID = 0;
+        for(auto dtrid : neutrinoPFP.DtrIDs) {
+          auto& dtr = tjs.pfps[dtrid - 1];
+          if(dtr.ParentID != neutrinoPFP.ID) {
+            std::cout<<fcnLabel<<" neutrino - daughter association error\n";
+            continue;
+          }
+          dtr.ParentID = 0;
+        }
+        return false;
+      }
+    } // kKillShwrNuPFP
+
     // Find the figure of merit for each trajectory in each neutrino daughter PFParticle to be the
     // parent of each 2D shower. Find the best FOM.
     float tp1sep, score;
