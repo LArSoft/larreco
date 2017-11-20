@@ -662,19 +662,16 @@ FillAssns(art::Event& evt,
     for(const SpaceCharge* sc: cwire->fCrossings){
       if(sc->fPred == 0) continue;
 
-      auto it = hitmap.find(cwire);
-      assert(it != hitmap.end());
-      util::CreateAssn(*this, evt, pts, it->second, assn, "", ptidx);
+      auto const& hit = hitmap.at(cwire);
+      util::CreateAssn(*this, evt, pts, hit, assn, "", ptidx);
 
       if(sc->fWire1){
-        auto it1 = hitmap.find(sc->fWire1);
-        assert(it1);
-        util::CreateAssn(*this, evt, pts, it1->second, assn, "", ptidx);
+        auto const& hit1 = hitmap.at(sc->fWire1);
+        util::CreateAssn(*this, evt, pts, hit1, assn, "", ptidx);
       }
       if(sc->fWire2){
-        auto it2 = hitmap.find(sc->fWire2);
-        assert(it2);
-        util::CreateAssn(*this, evt, pts, it2->second, assn, "", ptidx);
+        auto const& hit2 = hitmap.at(sc->fWire2);
+        util::CreateAssn(*this, evt, pts, hit2, assn, "", ptidx);
       }
 
       ++ptidx;
