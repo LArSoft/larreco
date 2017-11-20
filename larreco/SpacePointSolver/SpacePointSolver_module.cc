@@ -388,6 +388,7 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
       // not wanted.
       InductionWireHit* iwire = new InductionWireHit(hit->Channel(), hit->Integral() * .95);
       iwires.emplace_back(iwire);
+      hitmap[iwire] = hit;
 
       for(geo::TPCID tpc: tpcs){
         if(xhits_by_tpc.count(tpc) == 0) continue;
@@ -522,8 +523,6 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
                                             0, uwire.iwire, vwire.iwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
-          hitmap[uwire.iwire] = hit;
-          hitmap[vwire.iwire] = hit;
         } // end for vwire
       } // end for uwire
 
@@ -563,6 +562,7 @@ BuildSystemXU(const std::vector<art::Ptr<recob::Hit>>& xhits,
 
     InductionWireHit* iwire = new InductionWireHit(hit->Channel(), hit->Integral());
     iwires.emplace_back(iwire);
+    hitmap[iwire] = hit;
 
     for(geo::TPCID tpc: tpcs){
       if(xhits_by_tpc.count(tpc) == 0) continue;
@@ -616,7 +616,6 @@ BuildSystemXU(const std::vector<art::Ptr<recob::Hit>>& xhits,
                                             0, 0, uwire.iwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
-          hitmap[uwire.iwire] = hit;
         } // end for uwire
       } // end for uit
 
