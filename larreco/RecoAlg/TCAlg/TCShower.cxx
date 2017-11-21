@@ -349,11 +349,29 @@ namespace tca {
     if(tjs.pfps[0].PDGCode != 14) return false;
     
     std::string fcnLabel = inFcnLabel + ".FPS";
-    
+    auto& neutrinoPFP = tjs.pfps[0];
+/*
+    // ensure that what we think is the neutrino vertex is not inside a shower
+    if(neutrinoPFP.Vx3ID[0] == 0 || neutrinoPFP.Vx3ID[0] > tjs.vtx3.size()) return false;
+    auto& vx3 = tjs.vtx3[neutrinoPFP.Vx3ID[0] - 1];
+    unsigned short ninsh = 0;
+    std::array<float, 2> v2pos;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      PosInPlane(tjs, vx3, plane, v2pos);
+      for(auto& ss : tjs.cots) {
+        if(ss.ID == 0) continue;
+        CTP_t inCTP = EncodeCTP(vx3.TPCID.Cryostat, vx3.TPCID.TPC, plane);
+        if(ss.CTP != inCTP) continue;
+        bool insideEnvelope = PointInsideEnvelope(v2pos, ss.Envelope);
+        std::cout<<fcnLabel<<" plane "<<plane<<" ss "<<ss.ID<<" inside? "<<insideEnvelope<<"\n";
+        if(insideEnvelope) ++ninsh;
+      } // ss
+    } // plane
+    std::cout<<" ninsh "<<ninsh<<"\n";
+*/    
     // Find the figure of merit for each trajectory in each neutrino daughter PFParticle to be the
     // parent of each 2D shower. Find the best FOM.
     float tp1sep, score;
-    auto& neutrinoPFP = tjs.pfps[0];
     float bestFOM = tjs.ShowerTag[8];
     int shParentPFP = 0;
     int ssID = 0;
@@ -1495,13 +1513,44 @@ namespace tca {
       if(tj.AlgMod[kKilled] && !tj.AlgMod[kInShower]) continue;
       // ignore shower Tjs. Note that this also rejects parent Tjs of other showers
       if(tj.AlgMod[kShowerTj]) continue;
+      bool isInThisShower = (std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end());
       // ignore in-shower Tjs that aren't in this shower
-      if(tj.AlgMod[kInShower] && std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) == ss.TjIDs.end()) continue;
+      if(tj.AlgMod[kInShower] && !isInThisShower) continue;
       // ignore existing shower parents
       if(tj.AlgMod[kShwrParent]) continue;
       // Ignore short Tjs
       if(tj.Pts.size() < 5) continue;
+      // See if this tj has an end that is near and end of the shower if it is inside the shower
       unsigned short useEnd = 0;
+      // Check to see if the end of the Tj that will be used to determine if it is a parent is anywhere
+      // near the end of the shower. It can't be a parent if there is another Tj that is further away...
+      if(isInThisShower && tjs.UseAlg[kChkShwrParEnd]) {
+        // find the end of the tj that is farthest away from the shower center
+        useEnd = FarEnd(tjs, tj, ss);
+        // determine which end of the shower is closest to that point
+        auto& tp = tj.Pts[tj.EndPt[useEnd]];
+        unsigned short shEnd = 0;
+        if(PosSep2(stj.Pts[2].Pos, tp.Pos) < PosSep2(stj.Pts[0].Pos, tp.Pos)) shEnd = 1;
+        // inspect the list of Tjs that are in the shower near that end.
+        // Check the first (last) 20% of the points
+        bool nearShowerEnd = false;
+        short start = 0;
+        short end = 0.2 * ss.ShPts.size();
+        if(shEnd == 1) {
+          // near end 1
+          start = 0.8 * ss.ShPts.size();
+          end = ss.ShPts.size();
+        } // shEnd == 1
+        unsigned short usid = stj.ID;
+        for(unsigned short ipt = start; ipt < end; ++ipt) {
+          if(ss.ShPts[ipt].TID == usid) {
+            nearShowerEnd = true;
+            break;
+          }
+        } // ipt
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Tj "<<tj.ID<<" is inside shower "<<ss.ID<<". Is it near an end? "<<nearShowerEnd;
+        if(!nearShowerEnd) continue;
+      } // isInThisShower
       // Check trajectories that were split by 3D vertex matching
       if(WrongSplitTj(fcnLabel, tjs, tj, useEnd, ss, prt)) continue;
       float tp1Sep, vx3Score;
@@ -1623,6 +1672,10 @@ namespace tca {
         for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
           if(tp.UseHit[ii]) {
             unsigned int iht = tp.Hits[ii];
+            if(cnt > ss.ShPts.size() - 1) {
+              std::cout<<fcnLabel<<" bad cnt "<<cnt<<" "<<ss.ShPts.size()<<"\n";
+              return false;
+            }
             ss.ShPts[cnt].HitIndex = iht;
             ss.ShPts[cnt].TID = tj.ID;
             ss.ShPts[cnt].Chg = tjs.fHits[iht].Integral;
@@ -1650,6 +1703,10 @@ namespace tca {
       return false;
     }
     
+    if(ss.ID == 1) {
+      std::cout<<fcnLabel<<" HitPos "<<PrintPos(tjs, stj.Pts[1].HitPos)<<" Pos "<<PrintPos(tjs, stj.Pts[1].Pos)<<"\n";
+    }
+    
     // define the angle of the shower Tj points
     for(auto& stp : stj.Pts) {
       stp.Ang = ptp.Ang;
@@ -1673,7 +1730,12 @@ namespace tca {
     TrajPoint& stp2 = stj.Pts[2];
     stp2.Pos[0] = stp0.Pos[0] + stp1.Dir[0] * (maxAlong - minAlong);
     stp2.Pos[1] = stp0.Pos[1] + stp1.Dir[1] * (maxAlong - minAlong);
+
     
+    if(ss.ID == 1) {
+      std::cout<<fcnLabel<<" new "<<PrintPos(tjs, stj.Pts[1].HitPos)<<" Pos "<<PrintPos(tjs, stj.Pts[1].Pos)<<"\n";
+    }
+
     FindNearbyTjs(fcnLabel, tjs, cotIndex, prt);
     // modify the shower tj points so that DefineEnvelope gives a reasonable result
     // TODO: Do this correctly, perhaps scaling by the aspect ratio
@@ -2407,7 +2469,8 @@ namespace tca {
     for(unsigned short ii = 0; ii < ss.ShPts.size(); ++ii) {
       if(ss.ShPts[ii].Chg <= 0) {
         std::cout<<fcnLabel<<" Found point with no charge. This shouldn't happen\n";
-        exit(1);
+        ss.ID = 0;
+        return false;
       }
       stp1.Chg += ss.ShPts[ii].Chg;
       stp1.HitPos[0] += ss.ShPts[ii].Chg * ss.ShPts[ii].Pos[0];
@@ -3027,6 +3090,7 @@ namespace tca {
       }
       if(isInside) ntj.push_back(tj.ID);
     } // tj
+    if(ntj.size() > 1) std::sort(ntj.begin(), ntj.end());
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Found "<<ntj.size()<<" Tjs near ss.ID "<<ss.ID;
     ss.NearTjIDs = ntj;
     

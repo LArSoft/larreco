@@ -51,6 +51,7 @@ namespace tca {
     "InShower",
     "ShowerTj",
     "ShwrParent",
+    "ChkShwrParEnd",
     "MergeOverlap",
     "MergeSubShowers",
     "MergeNrShowers",
