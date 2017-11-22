@@ -49,6 +49,7 @@ namespace tca {
     "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
+    "KillInShowerVx",
     "ShowerTj",
     "ShwrParent",
     "ChkShwrParEnd",  // Ensure that the end of a shower parent already inside a shower has an end near a shower end
