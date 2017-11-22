@@ -213,6 +213,7 @@ namespace tca {
     // Count of the number of X-matched hits
     int Count {0};                    // Set to 0 if matching failed
     float MatchFrac {0};
+    float TjChgAsymmetry {0};
     unsigned short pfpID {0};
   };
   
@@ -386,6 +387,7 @@ namespace tca {
     kVtxHitsSwap,
     kSplitHiChgHits,
     kInShower,
+    kKillInShowerVx,
     kShowerTj,
     kShwrParent,
     kChkShwrParEnd,
