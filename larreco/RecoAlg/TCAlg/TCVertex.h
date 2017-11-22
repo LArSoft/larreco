@@ -64,6 +64,7 @@ namespace tca {
   unsigned short Vx3Topo(TjStuff& tjs, Vtx3Store& vx3);
   void SetHighScoreBits(TjStuff& tjs, Vtx3Store& vx3);
   bool MakeVertexObsolete(TjStuff& tjs, VtxStore& vx2, bool forceKill);
+  bool MakeVertexObsolete(TjStuff& tjs, Vtx3Store& vx3);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const Vtx3Store& vx3, float& score);
   void PosInPlane(const TjStuff& tjs, const Vtx3Store& vx3, unsigned short plane, std::array<float, 2>& pos);
