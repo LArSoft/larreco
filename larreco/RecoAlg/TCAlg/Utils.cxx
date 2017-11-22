@@ -936,8 +936,10 @@ namespace tca {
       if(planeID.TPC != tpc) continue;
       if(tj.AlgMod[kKilled]) continue;
       if(tj.AlgMod[kMat3D]) continue;
-      if(tj.Pts.size() < 10) continue;
-      if(prt) mf::LogVerbatim("TC")<<"CNMT: Tj "<<tj.ID<<" nPts "<<tj.Pts.size()<<" is not matched in 3D. Look for it in matchVec ";
+      if(tj.AlgMod[kInShower]) continue;
+      unsigned short npts = tj.EndPt[1] - tj.EndPt[0];
+      if(npts < 10) continue;
+      if(prt) mf::LogVerbatim("TC")<<"CNMT: Tj "<<tj.ID<<" npts "<<npts<<" is not matched in 3D. Look for it in matchVec ";
       // look for this Tj in matchvec
       unsigned short firstMS = 0;
       for(firstMS = 0; firstMS < tjs.matchVec.size(); ++firstMS) {
