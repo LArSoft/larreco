@@ -143,11 +143,16 @@ namespace tca {
       // turn off printing
       tjs.ShowerTag[12] = -1;
     }
-    if(tjs.Match3DCuts.size() < 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 4\n 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = minimum match fraction\n 4 = max number of allowed 3D combinations";
-    if(tjs.Match3DCuts.size() < 5) {
-      tjs.Match3DCuts.resize(5);
-      std::cout<<"Match3DCuts[4] not defined. Setting it to 2000";
+//    if(tjs.Match3DCuts.size() < 4) throw art::Exception(art::errors::Configuration)<< "Match3DCuts must be size 4\n 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = minimum match fraction\n 4 = max number of allowed 3D combinations";
+    if(tjs.Match3DCuts.size() < 6) {
+      std::cout<<">>>>>>>> Match3DCuts has been expanded to size 6. Please update your fcl file with these parameters:";
+      std::cout<< " 0 = dx(cm) match\n 1 = dAngle (radians)\n 2 = Min length for 2-view match\n 3 = minimum match fraction\n 4 = max number of allowed 3D combinations\n 5 = max inter-plane trajectory charge asymmetry\n";
+      unsigned short oldsize = tjs.Match3DCuts.size();
+      tjs.Match3DCuts.resize(6);
+      if(oldsize < 5) std::cout<<" Setting Match3DCuts[4] = 2000 combinations\n";
+      if(oldsize < 6) std::cout<<" Setting Match3DCuts[5] = 1, which disables charge asymmetry checking\n";
       tjs.Match3DCuts[4] = 2000;
+      tjs.Match3DCuts[5] = 1;
     }
     
     // check the angle ranges and convert from degrees to radians
@@ -450,9 +455,6 @@ namespace tca {
           ClearResults();
           return;
         }
-        // Tag InShower Tjs. The list of inshower Tjs within each shower isn't used here.
-        std::vector<std::vector<int>> tjlist;
-        if(tjs.ShowerTag[0] > 0) TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
 /* Seems to be a bad idea
         // kill vertices that have more than one InShower Tj. This is meant to reduce
         // the number of spurious 3D vertices reconstructed inside of showers
@@ -758,7 +760,15 @@ namespace tca {
           } // jht
         } // iht
       } // iwire
+
       
+      // Ensure that all tjs are in the same order
+      for(auto& tj : tjs.allTraj) {
+        if(tj.AlgMod[kKilled]) continue;
+        if(tj.CTP != inCTP) continue;
+        if(tj.StepDir != tjs.StepDir && !tj.AlgMod[kSetDir]) ReverseTraj(tjs, tj);
+      } // tj
+
       // Tag delta rays before merging and making vertices
       TagDeltaRays(tjs, inCTP);
       // Try to merge trajectories before making vertices
@@ -787,6 +797,11 @@ namespace tca {
       if(fQuitAlg) return;
     }
     TagDeltaRays(tjs, inCTP);
+    
+    // Tag InShower Tjs. The list of inshower Tjs within each shower isn't used here.
+    std::vector<std::vector<int>> tjlist;
+    if(tjs.ShowerTag[0] > 0) TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
+    
     Find2DVertices(tjs, inCTP);
     // Make vertices between long Tjs and junk Tjs.
     MakeJunkVertices(tjs, inCTP);
@@ -2184,6 +2199,7 @@ namespace tca {
               if(nwires == 0) nwires = 1;
               float hitFrac = npwc / nwires;
               doMerge = (hitFrac > fQualityCuts[0]);
+              if(prt) mf::LogVerbatim("TC")<<" lastPass merged Tj from "<<PrintPos(tjs, tp1OtherEnd.Pos)<<" to "<<PrintPos(tjs, tp2OtherEnd.Pos)<<" hitfrac "<<hitFrac<<" cut "<<fQualityCuts[0]; 
             } else {
               // don't merge if the gap between them is longer than the length of the shortest Tj
               float len1 = TrajLength(tjs.allTraj[it1]);
@@ -2193,7 +2209,8 @@ namespace tca {
               } else {
                 if(sep > len2) doMerge = false;
               }
-            }
+              if(prt) mf::LogVerbatim("TC")<<" merge check sep "<<sep<<" len1 "<<len1<<" len2 "<<len2<<" Merge? "<<doMerge;
+            } // not lastPass
           } // doMerge
           
           // Require a large charge fraction near a merge point
@@ -2210,7 +2227,8 @@ namespace tca {
           if(doMerge && momAsym > tjs.Vertex2DCuts[9]) doMerge = false;
           
           // don't allow vertices to be created between delta-rays
-          if(!doMerge && (tj1.AlgMod[kDeltaRay] || tj2.AlgMod[kDeltaRay])) doMerge = true;
+          // This needs to be done more carefully
+//          if(!doMerge && (tj1.AlgMod[kDeltaRay] || tj2.AlgMod[kDeltaRay])) doMerge = true;
           
           if(mrgPrt) {
             mf::LogVerbatim myprt("TC");
@@ -2223,6 +2241,7 @@ namespace tca {
             myprt<<" signal? "<<signalBetween;
             myprt<<" chgFrac "<<std::setprecision(2)<<chgFrac;
             myprt<<" momAsym "<<momAsym;
+            myprt<<" lastPass? "<<lastPass;
             myprt<<" doMerge? "<<doMerge;
           }
           
@@ -2412,6 +2431,11 @@ namespace tca {
     tjs.mallTraj.resize(ntp);
     std::vector<SortEntry> sortVec(ntp);
     
+    bool checkChgAsymmetry = (tjs.Match3DCuts[5] < 1);
+    std::vector<float> tjchg;
+    // resize the vector so we can index by the Tj ID
+    if(checkChgAsymmetry) tjchg.resize(tjs.allTraj.size() + 1);
+    
     // define mallTraj
     unsigned int icnt = 0;
     for(auto& tj : tjs.allTraj) {
@@ -2461,6 +2485,8 @@ namespace tca {
         sortVec[icnt].index = icnt;
         sortVec[icnt].val = tjs.mallTraj[icnt].xlo;
         ++icnt;
+        // sum the charge
+        if(checkChgAsymmetry) tjchg[tjID] += tp.Chg;
       } // tp
     } // tj
 
@@ -2499,6 +2525,27 @@ namespace tca {
     } // can add more combinations
     if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"M3D: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
     
+    if(checkChgAsymmetry) {
+      // calculate the charge asymmetry and put the largest value in matVec
+      for(auto& ms : matVec) {
+        ms.TjChgAsymmetry = 0;
+        for(unsigned short ipl = 0; ipl < ms.TjIDs.size() - 1; ++ipl) {
+          unsigned int itjID = ms.TjIDs[ipl];
+          if(itjID > tjchg.size() - 1) continue;
+          float itjchg = tjchg[itjID];
+          if(itjchg <= 0) continue;
+          for(unsigned short jpl = ipl + 1; jpl < ms.TjIDs.size(); ++jpl) {
+            unsigned int jtjID = ms.TjIDs[jpl];
+            if(jtjID > tjchg.size() - 1) continue;
+            float jtjchg = tjchg[jtjID];
+            if(jtjchg <= 0) continue;
+            float asym = std::abs(itjchg - jtjchg) / (itjchg + jtjchg);
+            if(asym > ms.TjChgAsymmetry) ms.TjChgAsymmetry = asym;
+          } // jpl
+        } // ipl
+      } // ms
+    }
+    
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"M3D: matVec\n";
@@ -2510,6 +2557,7 @@ namespace tca {
         myprt<<" NumUsedHitsInTj ";
         for(auto& tjID : matVec[ii].TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
         myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<matVec[ii].MatchFrac;
+        if(checkChgAsymmetry) myprt<<" TjChgAsymmetry "<<std::fixed<<std::setprecision(2)<<matVec[ii].TjChgAsymmetry;
         myprt<<"\n";
         ++cnt;
         if(cnt == 500) {
@@ -2525,6 +2573,7 @@ namespace tca {
       // require that at least 20% of the hits are matched in the longest Tj. Note that MatchFrac may be > 1
       // in particular for small angle trajectories
       if(ms.MatchFrac < 0.2) continue;
+      if(checkChgAsymmetry && ms.TjChgAsymmetry > tjs.Match3DCuts[5]) continue;
       tjs.matchVec.push_back(ms);
     }
     if(tjs.matchVec.empty()) return;
@@ -2584,11 +2633,24 @@ namespace tca {
     
     CheckNoMatchTjs(tjs, tpcid, prt);
     
+    if (tjs.TagCosmics) {
+      for(auto& pfp : tjs.pfps) {
+        if(pfp.ID == 0) continue;
+        if(pfp.TPCID != tpcid) continue;
+        SaveCRInfo(tjs, pfp, prt, fIsRealData);
+      } // pfp
+    } // TagCosmics
+    
     DefinePFParticleRelationships(tjs, tpcid, prt);
 
     //fit all pfps that are in pfps
     if(fKalmanFilterFit) {
-      for (unsigned int ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) KalmanFilterFit(tjs.pfps[ipfp]);
+      for(auto& pfp : tjs.pfps) {
+        if(pfp.ID == 0) continue;
+        if(pfp.TPCID != tpcid) continue;
+        KalmanFilterFit(pfp);
+      } // pfp
+//      for (unsigned int ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) KalmanFilterFit(tjs.pfps[ipfp]);
     } // fKalmanFilterFit
     
     if(prt) {
