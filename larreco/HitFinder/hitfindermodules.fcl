@@ -69,6 +69,8 @@ gaus_hitfinder:
 dpraw_hitfinder:
 {
  module_type:          	"DPRawHitFinder"
+ LogLevel:	   	0
+
  CalDataModuleLabel:   	"caldata"
  MinSig:               	10    		# peak threshold for hit fitting (in ADC). Peaks with lower amplitudes are neither fitted nor stored.
  TicksToStopPeakFinder: 4		# when walking along waveform to find start and end points of a peak, stop when current tick is followed by minimum "TicksToStopPeakFinder" ticks 						# with equal or higher ADC counts (stop anyway if ADC count of a tick is <= 0)
@@ -85,11 +87,16 @@ dpraw_hitfinder:
  NumBinsToAverage:     	0		# 0 or 1 = no averaging
  MinTau:		0.01		# mainimum value of the rising and falling time constants of the fit, in ticks. Sets a minimum width for the fit (~ width the electronic shaping function)
  MaxTau:		5		# maximum value of the rising and falling time constants of the fit, in ticks. Limits the width of the fit (maximum width depends on drift distance etc.)
+ FitPeakMeanRange:	5		# par limits for mean of the fit
 
- GroupMaxDistance:	10		# max distance between two peaks for grouping. grouped hits are fitted together.
+ GroupMaxDistance:	10		# max distance between two peaks for grouping. Grouped peaks are fitted together.
+ GroupMinADC:		-5		# minimum ADC count between two peaks to be grouped.
  DoMergePeaks:		true		# true: peak merging (merge two peaks into one) before fitting enabled
  MergeADCSumThreshold:	0.2		# merge two peaks only if (ADC sum of the smaller peak) < MergeADCSumThreshold*(ADC sum of the bigger peak)
  MergeMaxADCThreshold:	0.2		# merge two peaks only if (height of the smaller peak) < MergeADCSumThreshold*(height sum of the bigger peak)
+
+ WidthNormalization:    2.335		# standard width of the fitted hit is the FWHM of the fitted function (full width at half maximum). This width is then divied by 'WidthNormalization' and saved to the hit object.
+					# standard value is chosen to be 2.335 = 2*sqrt(2*ln(2)), which is the relation between FWHM and standard deviation for the Gaussian distribution.
 
  FilterHits:           	false           # true = do not keep undesired hits according to settings of HitFilterAlg object
  HitFilterAlg:

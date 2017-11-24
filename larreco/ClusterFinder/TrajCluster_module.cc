@@ -58,6 +58,10 @@ namespace cluster {
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
     TTree* showertree;
     TTree* crtree;
+
+    bool fDoWireAssns;
+    bool fDoRawDigitAssns;
+    
   }; // class TrajCluster
   
 } // namespace cluster
@@ -96,6 +100,10 @@ namespace cluster {
     else {
       fTCAlg.reset(new tca::TrajClusterAlg(pset.get< fhicl::ParameterSet >("TrajClusterAlg")));
     }
+
+    fDoWireAssns = pset.get<bool>("DoWireAssns",true);
+    fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
+
   } // TrajCluster::reconfigure()
   
   //----------------------------------------------------------------------------
@@ -106,7 +114,7 @@ namespace cluster {
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
-    recob::HitCollectionAssociator::declare_products(*this);
+    recob::HitCollectionAssociator::declare_products(*this,"",fDoWireAssns,fDoRawDigitAssns);
     
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
@@ -372,11 +380,6 @@ namespace cluster {
         }
         clsIndices.push_back(clsIndex);
       } // tjid
-      // try to recover from an error
-      if(clsIndices.empty()) {
-        spcol.pop_back();
-        continue;
-      }
       if(pfp.Vx3ID[0] > Vertices.size()) std::cout<<"TC module: Bad Vtx3DIndex = "<<pfp.Vx3ID[0]<<" size "<<Vertices.size()<<"\n";
       
       // PFParticle - Cluster associations
@@ -428,7 +431,7 @@ namespace cluster {
 
     // move the cluster collection and the associations into the event:
     art::InputTag hitModuleLabel = fTCAlg->GetHitFinderModuleLabel();
-    recob::HitRefinerAssociator shcol(*this, evt, hitModuleLabel);
+    recob::HitRefinerAssociator shcol(*this, evt, hitModuleLabel, fDoWireAssns, fDoRawDigitAssns);
     shcol.use_hits(std::move(newHits));
     shcol.put_into(evt);
     evt.put(std::move(ccol));
