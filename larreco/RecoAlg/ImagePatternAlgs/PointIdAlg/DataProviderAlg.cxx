@@ -389,6 +389,94 @@ void img::DataProviderAlg::applyBlur()
 }
 // ------------------------------------------------------
 
+// MUST give the same result as get_patch() in scripts/utils.py
+bool img::DataProviderAlg::patchFromDownsampledView(size_t wire, float drift, size_t size_w, size_t size_d,
+	std::vector< std::vector<float> > & patch) const
+{
+	int halfSizeW = size_w / 2;
+	int halfSizeD = size_d / 2;
+
+	int w0 = wire - halfSizeW;
+	int w1 = wire + halfSizeW;
+
+	size_t sd = (size_t)(drift / fDriftWindow);
+	int d0 = sd - halfSizeD;
+	int d1 = sd + halfSizeD;
+
+	int wsize = fWireDriftData.size();
+	for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch)
+	{
+		auto & dst = patch[wpatch];
+		if ((w >= 0) && (w < wsize))
+		{
+			auto & src = fWireDriftData[w];
+			int dsize = src.size();
+			for (int d = d0, dpatch = 0; d < d1; ++d, ++dpatch)
+			{
+				if ((d >= 0) && (d < dsize))
+				{
+					dst[dpatch] = src[d];
+				}
+				else
+				{
+					dst[dpatch] = 0;
+				}
+			}
+		}
+		else
+		{
+			std::fill(dst.begin(), dst.end(), 0);
+		}
+	}
+
+	return true;
+}
+
+bool img::DataProviderAlg::patchFromOriginalView(size_t wire, float drift, size_t size_w, size_t size_d,
+	std::vector< std::vector<float> > & patch) const
+{
+	int dsize = fDriftWindow * size_d;
+	int halfSizeW = size_w / 2;
+	int halfSizeD = dsize / 2;
+
+	int w0 = wire - halfSizeW;
+	int w1 = wire + halfSizeW;
+
+	int d0 = drift - halfSizeD;
+	int d1 = drift + halfSizeD;
+
+	std::vector<float> tmp(dsize);
+	int wsize = fWireDriftData.size();
+	for (int w = w0, wpatch = 0; w < w1; ++w, ++wpatch)
+	{
+		if ((w >= 0) && (w < wsize))
+		{
+			auto & src = fWireDriftData[w];
+			int src_size = src.size();
+			for (int d = d0, dpatch = 0; d < d1; ++d, ++dpatch)
+			{
+				if ((d >= 0) && (d < src_size))
+				{
+					tmp[dpatch] = src[d];
+				}
+				else
+				{
+					tmp[dpatch] = 0;
+				}
+			}
+		}
+		else
+		{
+			std::fill(tmp.begin(), tmp.end(), 0);
+		}
+
+		downscale(patch[wpatch], tmp, d0);
+	}
+
+	return true;
+}
+// ------------------------------------------------------
+
 void img::DataProviderAlg::addWhiteNoise()
 {
     if (fNoiseSigma == 0) return;
