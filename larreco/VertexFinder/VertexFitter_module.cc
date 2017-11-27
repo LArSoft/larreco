@@ -50,8 +50,8 @@ namespace trkf {
       fhicl::Table<VertexFitter::Inputs> inputs {
 	Name("inputs"),
       };
-      fhicl::Table<Geometric3DVertexFitter::Options> options {
-	Name("options")
+      fhicl::Table<Geometric3DVertexFitter::Config> geom3dvtxfit {
+	Name("geom3dvtxfit")
       };
       fhicl::Table<TrackStatePropagator::Config> propagator {
 	Name("propagator")
@@ -79,7 +79,7 @@ namespace trkf {
 trkf::VertexFitter::VertexFitter(Parameters const & p)
   : pfParticleInputTag(p().inputs().inputPFParticleLabel())
   , trackInputTag(p().inputs().inputTracksLabel())
-  , fitter(p().options,p().propagator)
+  , fitter(p().geom3dvtxfit,p().propagator)
 {
   produces<std::vector<recob::Vertex> >();
   produces<art::Assns<recob::PFParticle, recob::Vertex> >();
@@ -117,6 +117,7 @@ void trkf::VertexFitter::produce(art::Event & e)
     //
     VertexWrapper vtx = fitter.fitTracks(tracks);
     if (vtx.isValid()==false) continue;
+    vtx.setVertexId(outputVertices->size());
     //
     auto meta = fitter.computeMeta(vtx, tracks);
     //

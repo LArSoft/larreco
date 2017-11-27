@@ -41,44 +41,34 @@ trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTracks(TrackRefVec& tracks
 {
   if (debugLevel>0) std::cout << "fitting vertex with ntracks=" << tracks.size() << std::endl;
   if (tracks.size()<2) return VertexWrapper();
-  // if (tracks.size()==0) return VertexWrapper();
-  // if (tracks.size()==1) {
-  //   VertexWrapper vtx;
-  //   vtx.addTrackAndUpdateVertex(tracks[0]->Start(), tracks[0]->VertexCovarianceGlobal6D().Sub<SMatrixSym33>(0,0), 0, 0, tracks[0], 0);
-  //   return vtx;
-  // }
-  if (tracks.size()>2) {
-    // sort tracks by number of hits
-    std::sort(tracks.begin(), tracks.end(), [](std::reference_wrapper<const recob::Track> a, std::reference_wrapper<const recob::Track> b) {
-	return a.get().CountValidPoints() > b.get().CountValidPoints();}
-      );
-    //find pair with closest start positions
-    unsigned int tk0 = tracks.size();
-    unsigned int tk1 = tracks.size();
-    float mind = FLT_MAX;
-    for (unsigned int i=0;i<tracks.size()-1;i++) {
-      for (unsigned int j=i+1;j<tracks.size();j++) {
-	float d = (tracks[i].get().Trajectory().Start()-tracks[j].get().Trajectory().Start()).Mag2();
-	std::cout << "test i=" << i << " start=" << tracks[i].get().Trajectory().Start() << " j=" << j << " start=" << tracks[j].get().Trajectory().Start() << " d=" << d << " mind=" << mind << " tk0=" << tk0 << " tk1=" << tk1 << std::endl;
-	if (d<mind) {
-	  mind=d;
-	  tk0 = i;
-	  tk1 = j;
-	}
+  // sort tracks by number of hits
+  std::sort(tracks.begin(), tracks.end(), [](std::reference_wrapper<const recob::Track> a, std::reference_wrapper<const recob::Track> b) {
+      return a.get().CountValidPoints() > b.get().CountValidPoints();}
+    );
+  //find pair with closest start positions and put them upfront
+  unsigned int tk0 = tracks.size();
+  unsigned int tk1 = tracks.size();
+  float mind = FLT_MAX;
+  for (unsigned int i=0;i<tracks.size()-1;i++) {
+    for (unsigned int j=i+1;j<tracks.size();j++) {
+      float d = (tracks[i].get().Trajectory().Start()-tracks[j].get().Trajectory().Start()).Mag2();
+      if (debugLevel>1) std::cout << "test i=" << i << " start=" << tracks[i].get().Trajectory().Start() << " j=" << j << " start=" << tracks[j].get().Trajectory().Start() << " d=" << d << " mind=" << mind << " tk0=" << tk0 << " tk1=" << tk1 << std::endl;
+      if (d<mind) {
+	mind=d;
+	tk0 = i;
+	tk1 = j;
       }
     }
-    if (tk0>1 || tk1>1) {
-      //
-      if (tk0>1 && tk1>1) {
-	std::swap(tracks[0],tracks[tk0]);
-	std::swap(tracks[1],tracks[tk1]);
-      }
-      if (tk0==0) std::swap(tracks[1],tracks[tk1]);
-      if (tk0==1) std::swap(tracks[0],tracks[tk1]);
-      if (tk1==0) std::swap(tracks[1],tracks[tk0]);
-      if (tk1==1) std::swap(tracks[0],tracks[tk0]);
-      //
+  }
+  if (tk0>1 || tk1>1) {
+    if (tk0>1 && tk1>1) {
+      std::swap(tracks[0],tracks[tk0]);
+      std::swap(tracks[1],tracks[tk1]);
     }
+    if (tk0==0) std::swap(tracks[1],tracks[tk1]);
+    if (tk0==1) std::swap(tracks[0],tracks[tk1]);
+    if (tk1==0) std::swap(tracks[1],tracks[tk0]);
+    if (tk1==1) std::swap(tracks[0],tracks[tk0]);
   }
   //
   // find vertex between the first two tracks
@@ -88,7 +78,7 @@ trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTracks(TrackRefVec& tracks
   // then add other tracks and update vertex measurement
   for (auto tk = tracks.begin()+2; tk<tracks.end(); ++tk) {
     auto sipv = sip(vtx, *tk);
-    std::cout << "sip=" << sipv << std::endl;
+    if (debugLevel>1) std::cout << "sip=" << sipv << std::endl;
     if (sipv>sipCut) continue;
     addTrackToVertex(vtx, *tk);
   }
@@ -111,16 +101,8 @@ trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTracksWithVtx(TrackRefVec&
 {
   if (debugLevel>0) std::cout << "fitting vertex with ntracks=" << tracks.size() << std::endl;
   if (tracks.size()<2) return VertexWrapper();
-  // if (tracks.size()==0) return VertexWrapper();
-  // if (tracks.size()==1) {
-  //   VertexWrapper vtx;
-  //   vtx.addTrackAndUpdateVertex(tracks[0]->Start(), tracks[0]->VertexCovarianceGlobal6D().Sub<SMatrixSym33>(0,0), 0, 0, tracks[0], 0);
-  //   return vtx;
-  // }
-  if (tracks.size()>2) {
-    // sort tracks by proximity to input vertex
-    std::sort(tracks.begin(), tracks.end(), TracksFromVertexSorter(vtxPos) );
-  }
+  // sort tracks by proximity to input vertex
+  std::sort(tracks.begin(), tracks.end(), TracksFromVertexSorter(vtxPos) );
   //
   // find vertex between the first two tracks
   VertexWrapper vtx = fitTwoTracks(tracks[0], tracks[1]);
@@ -129,7 +111,7 @@ trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTracksWithVtx(TrackRefVec&
   // then add other tracks and update vertex measurement
   for (auto tk = tracks.begin()+2; tk<tracks.end(); ++tk) {
     auto sipv = sip(vtx, *tk);
-    std::cout << "sip=" << sipv << std::endl;
+    if (debugLevel>1) std::cout << "sip=" << sipv << std::endl;
     if (sipv>sipCut) continue;
     addTrackToVertex(vtx, *tk);
   }
@@ -177,7 +159,6 @@ std::pair<trkf::TrackState, double> trkf::Geometric3DVertexFitter::weightedAvera
   if (debugLevel>1) {
     std::cout << "inverted covsum=\n" << covsum << std::endl;
     std::cout << "k=\n" << k << std::endl;
-    // std::cout << "dist1=" << dist1 << " dist2=" << dist2 << " propok1=" << propok1 << " propok2=" << propok2 << " invertok=" << invertok << std::endl;
   }
 
   SVector2 vtxpar2 = par1 + k*deltapar;
@@ -234,7 +215,6 @@ trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTwoTracks(const recob::Tra
   bool propok1 = true;
   state1 = prop->propagateToPlane(propok1, state1, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
   if (!propok1) {
-    //return VertexWrapper();
     std::cout << "failed propagation, return track1 start pos=" << tk1.Start() << std::endl;
     VertexWrapper vtx;
     vtx.addTrackAndUpdateVertex(tk1.Start(), tk1.VertexCovarianceGlobal6D().Sub<SMatrixSym33>(0,0), 0, 0, tk1);
@@ -246,7 +226,6 @@ trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTwoTracks(const recob::Tra
   bool propok2 = true;
   state2 = prop->propagateToPlane(propok2, state2, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
   if (!propok2) {
-    //return VertexWrapper();
     std::cout << "failed propagation, return track1 start pos=" << tk1.Start() << std::endl;
     VertexWrapper vtx;
     vtx.addTrackAndUpdateVertex(tk1.Start(), tk1.VertexCovarianceGlobal6D().Sub<SMatrixSym33>(0,0), 0, 0, tk1);
@@ -411,6 +390,11 @@ double trkf::Geometric3DVertexFitter::sip(const VertexWrapper& vtx, const recob:
   return sip(getParsCovsOnPlane(vtx, tk));
 }
 
+double trkf::Geometric3DVertexFitter::pDist(const VertexWrapper& vtx, const recob::Track& tk) const
+{
+  return tk.Trajectory().StartDirection().Dot(vtx.position()-tk.Trajectory().Start());
+}
+
 trkf::VertexWrapper trkf::Geometric3DVertexFitter::unbiasedVertex(const trkf::VertexWrapper& vtx, const recob::Track& tk) const 
 {
   auto ittoerase = vtx.findTrack(tk);
@@ -462,6 +446,16 @@ double trkf::Geometric3DVertexFitter::sipUnbiased(const trkf::VertexWrapper& vtx
   }
 }
 
+double trkf::Geometric3DVertexFitter::pDistUnbiased(const trkf::VertexWrapper& vtx, const recob::Track& tk) const {
+  auto ittoerase = vtx.findTrack(tk);
+  if (ittoerase == vtx.tracksSize()) {
+    return pDist(vtx,tk);
+  } else {
+    auto tks = vtx.tracksWithoutElement(ittoerase);
+    return pDist(fitTracks(tks),tk);
+  }
+}
+
 std::vector<recob::TrackVertexMeta> trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx)
 {
   return computeMeta(vtx, vtx.tracks());
@@ -479,7 +473,7 @@ std::vector<recob::TrackVertexMeta> trkf::Geometric3DVertexFitter::computeMeta(c
   std::vector<recob::TrackVertexMeta> result;
   for (auto tk : trks) {
     auto ubvtx =  unbiasedVertex(vtx,tk.get());
-    float d = tk.get().Trajectory().StartDirection().Dot(ubvtx.position()-tk.get().Trajectory().Start());    
+    float d = pDist(ubvtx, tk.get());
     auto pcop = getParsCovsOnPlane(ubvtx, tk.get());
     float i = ip(pcop);
     float e = ipErr(pcop);
@@ -490,6 +484,6 @@ std::vector<recob::TrackVertexMeta> trkf::Geometric3DVertexFitter::computeMeta(c
     } else {
       result.push_back(recob::TrackVertexMeta(d,i,e,c,recob::TrackVertexMeta::IncludedInFit));
     }
-    }
+  }
   return result;
 }

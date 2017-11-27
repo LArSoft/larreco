@@ -29,7 +29,7 @@ namespace trkf {
     //
   public:
     //
-    struct Options {
+    struct Config {
       using Name = fhicl::Name;
       using Comment = fhicl::Comment;
       fhicl::Atom<int> debugLevel {
@@ -60,7 +60,7 @@ namespace trkf {
     };
 
     // Constructor
-    Geometric3DVertexFitter(const fhicl::Table<Options>& o, const fhicl::Table<TrackStatePropagator::Config>& p)
+    Geometric3DVertexFitter(const fhicl::Table<Config>& o, const fhicl::Table<TrackStatePropagator::Config>& p)
       : debugLevel(o().debugLevel()), sipCut(o().sipCut())
       {
 	prop = std::make_unique<TrackStatePropagator>(p);
@@ -84,12 +84,14 @@ namespace trkf {
     double ip   (const VertexWrapper& vtx, const recob::Track& tk) const;
     double ipErr(const VertexWrapper& vtx, const recob::Track& tk) const;
     double sip  (const VertexWrapper& vtx, const recob::Track& tk) const;
+    double pDist(const VertexWrapper& vtx, const recob::Track& tk) const;
     //
     VertexWrapper unbiasedVertex(const VertexWrapper& vtx, const recob::Track& tk) const;
     double chi2Unbiased (const VertexWrapper& vtx, const recob::Track& tk) const;
     double ipUnbiased   (const VertexWrapper& vtx, const recob::Track& tk) const;
     double ipErrUnbiased(const VertexWrapper& vtx, const recob::Track& tk) const;
     double sipUnbiased  (const VertexWrapper& vtx, const recob::Track& tk) const;
+    double pDistUnbiased(const VertexWrapper& vtx, const recob::Track& tk) const;
   private:
     std::unique_ptr<TrackStatePropagator> prop;
     int debugLevel;

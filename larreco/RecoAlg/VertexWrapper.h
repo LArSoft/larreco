@@ -23,6 +23,8 @@ namespace trkf {
     const recob::tracking::Point_t& position() const { return vtx_.position(); }
     const recob::tracking::SMatrixSym33& covariance() const { return vtx_.covariance(); }
     //
+    void setVertexId(int newID) { vtx_.setID(newID); }
+    //
     void addTrack(const recob::Track& tk) { vtxtks_.push_back(tk); }
     void addTrackAndUpdateVertex(const recob::tracking::Point_t& pos, const recob::tracking::SMatrixSym33& cov,
     				 double chi2, int ndof, const recob::Track& tk) {
