@@ -108,6 +108,9 @@ public:
 
 	std::vector<float> const & wireData(size_t widx) const { return fWireDriftData[widx]; }
 
+	/// Return patch of data centered on the wire and drift, witht the size in (downscaled) pixels givent
+	/// with patchSizeW and patchSizeD.  Pad with the zero-level calue if patch extends beyond the event
+	/// projection.
 	std::vector< std::vector<float> > getPatch(size_t wire, float drift, size_t patchSizeW, size_t patchSizeD) const
 	{
 		bool ok = false;

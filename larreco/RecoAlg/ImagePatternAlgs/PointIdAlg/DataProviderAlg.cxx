@@ -419,13 +419,13 @@ bool img::DataProviderAlg::patchFromDownsampledView(size_t wire, float drift, si
 				}
 				else
 				{
-					dst[dpatch] = 0;
+					dst[dpatch] = fAdcZero;
 				}
 			}
 		}
 		else
 		{
-			std::fill(dst.begin(), dst.end(), 0);
+			std::fill(dst.begin(), dst.end(), fAdcZero);
 		}
 	}
 
@@ -461,13 +461,13 @@ bool img::DataProviderAlg::patchFromOriginalView(size_t wire, float drift, size_
 				}
 				else
 				{
-					tmp[dpatch] = 0;
+					tmp[dpatch] = fAdcZero;
 				}
 			}
 		}
 		else
 		{
-			std::fill(tmp.begin(), tmp.end(), 0);
+			std::fill(tmp.begin(), tmp.end(), fAdcZero);
 		}
 
 		downscale(patch[wpatch], tmp, d0);
