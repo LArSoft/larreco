@@ -10,6 +10,7 @@ art_make(
                         lardata_Utilities
                         larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
                         nusimdata_SimulationBase
+			lardata_RecoObjects
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
@@ -24,6 +25,8 @@ art_make(
 	                ${FHICLCPP}
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
+			${ROOT_GENVECTOR}
+			larreco_RecoAlg
          )
 
 
