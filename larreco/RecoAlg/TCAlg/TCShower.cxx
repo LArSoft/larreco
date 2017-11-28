@@ -1314,7 +1314,7 @@ namespace tca {
             ss.ShPts[cnt].HitIndex = iht;
             ss.ShPts[cnt].TID = tj.ID;
             ss.ShPts[cnt].Chg = tjs.fHits[iht].Integral;
-            ss.ShPts[cnt].Pos[0] = tjs.fHits[iht].WireID.Wire;
+            ss.ShPts[cnt].Pos[0] = tjs.fHits[iht].ArtPtr->WireID().Wire;
             ss.ShPts[cnt].Pos[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
             totChg += ss.ShPts[cnt].Chg;
             ++cnt;
@@ -1435,7 +1435,7 @@ namespace tca {
           ss.ShPts[cnt].HitIndex = iht;
           ss.ShPts[cnt].TID = tj.ID;
           ss.ShPts[cnt].Chg = tjs.fHits[iht].Integral;
-          ss.ShPts[cnt].Pos[0] = tjs.fHits[iht].WireID.Wire;
+          ss.ShPts[cnt].Pos[0] = tjs.fHits[iht].ArtPtr->WireID().Wire;
           ss.ShPts[cnt].Pos[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
           ++cnt;
         }
@@ -1730,7 +1730,7 @@ namespace tca {
             ss.ShPts[cnt].HitIndex = iht;
             ss.ShPts[cnt].TID = tj.ID;
             ss.ShPts[cnt].Chg = tjs.fHits[iht].Integral;
-            ss.ShPts[cnt].Pos[0] = tjs.fHits[iht].WireID.Wire;
+            ss.ShPts[cnt].Pos[0] = tjs.fHits[iht].ArtPtr->WireID().Wire;
             ss.ShPts[cnt].Pos[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
             totChg += ss.ShPts[cnt].Chg;
             ++cnt;
@@ -3403,7 +3403,7 @@ namespace tca {
         // Note that hits are sorted by increasing time so we can break here
         if(tjs.fHits[iht].PeakTime > hiTick) break;
         // see if this hit is inside the envelope
-        point[0] = tjs.fHits[iht].WireID.Wire;
+        point[0] = tjs.fHits[iht].ArtPtr->WireID().Wire;
         point[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
         if(!PointInsideEnvelope(point, ss.Envelope)) continue;
         newHits.push_back(iht);
@@ -3570,7 +3570,7 @@ namespace tca {
       float& peakTime = tjs.fHits[iht].PeakTime;
       float& amp = tjs.fHits[iht].PeakAmplitude;
       float& rms = tjs.fHits[iht].RMS;
-      chgPos[0] = tjs.fHits[iht].WireID.Wire - stp1.Pos[0];
+      chgPos[0] = tjs.fHits[iht].ArtPtr->WireID().Wire - stp1.Pos[0];
       for(float time = peakTime - 2.5 * rms; time < peakTime + 2.5 * rms; ++time) {
         chgPos[1] = time * tjs.UnitsPerTick - stp1.Pos[1];
         along = cs * chgPos[0] - sn * chgPos[1];
