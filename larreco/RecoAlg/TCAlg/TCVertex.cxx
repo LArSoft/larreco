@@ -967,7 +967,6 @@ namespace tca {
     std::vector<short> vPtr(vsize, -1);
     // fill temp vectors of 2D vertex X and X errors
     std::vector<float> vX(vsize, -100);
-//    std::vector<float> vXsigma(vsize);
     
     for(unsigned short ivx = 0; ivx < vsize; ++ivx) {
       if(tjs.vtx[ivx].ID == 0) continue;
@@ -979,11 +978,6 @@ namespace tca {
       // Convert 2D vertex time error to X error
       double ticks = tjs.vtx[ivx].Pos[1] / tjs.UnitsPerTick;
       vX[ivx]  = tjs.detprop->ConvertTicksToX(ticks, plane, (int)tpc, (int)cstat);
-/*
-      ticks = (tjs.vtx[ivx].Pos[1] + tjs.vtx[ivx].PosErr[1]) / tjs.UnitsPerTick;
-      vXp = tjs.detprop->ConvertTicksToX(ticks, (int)iplID.Plane, (int)tpc, (int)cstat);
-      vXsigma[ivx] = std::abs(vXp - vX[ivx]);
-*/
     } // ivx
     
     // temp vector of all 2D vertex matches
@@ -1082,30 +1076,6 @@ namespace tca {
               v3d.Score = dX * dX + dY * dY + dZ * dZ;
               if(v3d.Score > maxScore) maxScore = v3d.Score;
               v3temp.push_back(v3d);
-/*
-              // X difference error
-              dX = (vX[kvx] - kX) / dXSigma;
-              float kChi = 0.5 * sqrt(dW * dW + dX * dX);
-              if(kChi < tjs.Vertex3DCuts[1]) {
-                // push all complete vertices onto the list
-                v3d.X = (vX[kvx] + 2 * kX) / 3;
-                v3d.XErr = kChi;
-                v3d.Vx2ID[kpl] = kvx + 1;
-                // see if this is already in the list
-                gotit = false;
-                for(unsigned short i3t = 0; i3t < v3temp.size(); ++i3t) {
-                  if(v3temp[i3t].Vx2ID[0] == v3d.Vx2ID[0] && v3temp[i3t].Vx2ID[1] == v3d.Vx2ID[1] && v3temp[i3t].Vx2ID[2] == v3d.Vx2ID[2]) {
-                    gotit = true;
-                    break;
-                  }
-                } // i3t
-                if(gotit) continue;
-                v3d.Wire = -1;
-                v3temp.push_back(v3d);
-                if(prt) mf::LogVerbatim("TC")<<" kvx "<<kvx<<" kpl "<<kpl
-                  <<" wire "<<(int)tjs.vtx[kvx].Pos[0]<<" kTime "<<(int)tjs.vtx[kvx].Pos[1]<<" kChi "<<kChi<<" dW "<<tjs.vtx[kvx].Pos[0] - kWire;
-              } // kChi < best
-*/
             } // kk
           } // jj
         } // jpl
