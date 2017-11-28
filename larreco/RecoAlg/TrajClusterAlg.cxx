@@ -349,15 +349,18 @@ namespace tca {
     // then by start of the region of interest in time, then by the multiplet
     std::sort(tjs.fHits.begin(), tjs.fHits.end(), &SortByMultiplet);
     
+    bool useSpacePts = (fSpacePointModuleLabel != "NA");
+    
     // check the hits for local index errors
     unsigned short nerr = 0;
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       // See if the sort changed the order of the hits. This would create a difference
       // between the fHits index and the ArtPtr key. We will rely on this correspondence
       // later when associating space points with trajectories
-      if(iht != tjs.fHits[iht].ArtPtr.key()) {
-        std::cout<<"Hit order was changed after sorting. Using a slower indexing scheme for space points.\n";
+      if(useSpacePts && iht != tjs.fHits[iht].ArtPtr.key()) {
+        std::cout<<"Hit order was changed after sorting. Turned off matching using SpacePoints.\n";
         tjs.UseAlg[kHitsOrdered] = false;
+        useSpacePts = false;
       }
       if(tjs.fHits[iht].Multiplicity < 2) continue;
       auto& iHit = tjs.fHits[iht];
@@ -367,7 +370,6 @@ namespace tca {
       for(unsigned int jht = fromIndex; jht < fromIndex + iHit.Multiplicity; ++jht) {
         auto& jHit = tjs.fHits[jht];
         if(iHit.Multiplicity != jHit.Multiplicity) badHit = true;
-//        if(iHit.WireID.Wire != jHit.WireID.Wire) badHit = true;
         if(iHit.LocalIndex != indx) badHit = true;
         ++indx;
       } // jht
@@ -386,7 +388,7 @@ namespace tca {
     if(!fIsRealData) tm.MatchTrueHits(hist);
     
     // Look for a space point collection that uses these hits
-    GetSpacePointCollection(evt);
+    if(useSpacePts) GetSpacePointCollection(evt);
 
     // check for debugging mode triggered by Plane, Wire, Tick
     debug.Hit = UINT_MAX;
@@ -2604,7 +2606,6 @@ namespace tca {
       return;
     }
     
-    std::cout<<"Match3D old code\n";
     tjs.matchVec.clear();
     
     int cstat = tpcid.Cryostat;
