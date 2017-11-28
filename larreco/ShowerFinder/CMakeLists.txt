@@ -6,7 +6,7 @@ art_make(
 #          EXCLUDE ShowerSelectorFilter_module.cc
           MODULE_LIBRARIES
 			larreco_RecoAlg
-                        larsim_MCCheater_BackTracker_service
+                        larsim_MCCheater_BackTrackerService_service
                         lardataobj_AnalysisBase
                         lardataobj_RecoBase
                         larcorealg_Geometry

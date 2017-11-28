@@ -18,7 +18,8 @@
 #include "TVector3.h"
 
 // LArSoft includes
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -90,7 +91,8 @@ namespace trkf{
   //--------------------------------------------------------------------
   void TrackCheater::produce(art::Event& evt)
   {
-    art::ServiceHandle<cheat::BackTracker>       bt;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
     art::ServiceHandle<geo::Geometry>            geo;
 
     // grab the clusters that have been reconstructed
@@ -137,7 +139,7 @@ namespace trkf{
       // separate out the hits for each particle into the different views
       std::vector< std::pair<size_t, art::Ptr<recob::Cluster> > > const& eveClusters = clusterMapItr.second;
 
-      simb::MCParticle *part = bt->ParticleList()[clusterMapItr.first];
+      simb::MCParticle *part = pi_serv->ParticleList()[clusterMapItr.first];
 
       // is this prong electro-magnetic in nature or 
       // hadronic/muonic?  EM --> shower, everything else is a track
@@ -178,7 +180,7 @@ namespace trkf{
 	// loop over the hits to get the positions and directions
 	size_t spStart = spcol->size();
 	for(size_t t = 0; t < hits.size(); ++t){
-	  std::vector<double> xyz = bt->HitToXYZ(hits[t]);
+	  std::vector<double> xyz = bt_serv->HitToXYZ(hits[t]);
 	  points.push_back(TVector3(xyz[0], xyz[1], xyz[2]));
 
 	  std::vector<double> xyz1;
@@ -187,10 +189,10 @@ namespace trkf{
 	  double sign   = 1.;
 
 	  if(t < hits.size()-1){
-	    xyz1 = bt->HitToXYZ(hits[t+1]);
+	    xyz1 = bt_serv->HitToXYZ(hits[t+1]);
 	  }
 	  else{
-	    xyz1 = bt->HitToXYZ(hits[t-1]);
+	    xyz1 = bt_serv->HitToXYZ(hits[t-1]);
 	    sign = -1.;
 	  }
 

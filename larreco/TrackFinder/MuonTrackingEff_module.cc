@@ -24,7 +24,8 @@
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
 #include "lardataobj/RawData/ExternalTrigger.h"
@@ -614,8 +615,8 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
     EventCounter++;
     simb::MCParticle *MCTruthMuonParticle = NULL;
  
-    art::ServiceHandle<cheat::BackTracker> bt;
-    const sim::ParticleList& plist = bt->ParticleList();
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    const sim::ParticleList& plist = pi_serv->ParticleList();
     simb::MCParticle *particle=0;
 
     for( sim::ParticleList::const_iterator ipar = plist.begin(); ipar!=plist.end(); ++ipar){
@@ -1007,11 +1008,12 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 void MuonTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> AllHits, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Purity, double &Completeness, double &TotalRecoEnergy){
 
     //std::cout<<"truthMatcher..."<<std::endl;
-    art::ServiceHandle<cheat::BackTracker> bt;
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     std::map<int,double> trkID_E;   //map that connects TrackID and energy for each hit <trackID, energy>
     for(size_t j = 0; j < track_hits.size(); ++j){			 //loop over all the hits in this track
        art::Ptr<recob::Hit> hit = track_hits[j];
-       std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit);	//TrackIDE contains TrackID, energy and energyFrac. A hit can have several TrackIDs (so this hit is associated with multiple MC truth track IDs (EM shower IDs are negative). If a hit ahs multiple trackIDs, "energyFrac" contains the fraction of the energy of for each ID compared to the total energy of the hit. "energy" contains only the energy associated with the specific ID in that case. This requires MC truth info!
+       std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(hit);	//TrackIDE contains TrackID, energy and energyFrac. A hit can have several TrackIDs (so this hit is associated with multiple MC truth track IDs (EM shower IDs are negative). If a hit ahs multiple trackIDs, "energyFrac" contains the fraction of the energy of for each ID compared to the total energy of the hit. "energy" contains only the energy associated with the specific ID in that case. This requires MC truth info!
        for(size_t k = 0; k < TrackIDs.size(); k++){			//Loop over the TrackIDs of each hit
           trkID_E[TrackIDs[k].trackID] += TrackIDs[k].energy;		//sum up the energy for each TrackID and store <TrackID, energy> in "TrkID_E"
        }            
@@ -1038,7 +1040,7 @@ void MuonTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> AllHits, s
          if( TrackID < 0 ) E_em += ii->second;  //IDs of em shower particles are negative
        }
     }
-    MCparticle = bt->TrackIDToParticle(TrackID);
+    MCparticle = pi_serv->TrackIdToParticle_P(TrackID);
     //In the current simulation, we do not save EM Shower daughters in GEANT. But we do save the energy deposition in TrackIDEs. If the energy deposition is from a particle that is the daughter of 
     //an EM particle, the negative of the parent track ID is saved in TrackIDE for the daughter particle
     //we don't want to track gammas or any other EM activity 
@@ -1051,7 +1053,7 @@ void MuonTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> AllHits, s
     TotalRecoEnergy =0;
     for(size_t k = 0; k < AllHits.size(); ++k){ //loop over all hits (all hits in all tracks of the event, not only the hits in the track we were looking at before)
        art::Ptr<recob::Hit> hit = AllHits[k];
-       std::vector<sim::TrackIDE> TrackIDs = bt->HitToTrackID(hit);
+       std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(hit);
        for(size_t l = 0; l < TrackIDs.size(); ++l){  //and over all track IDs of the hits
           if(TrackIDs[l].trackID==TrackID) TotalRecoEnergy += TrackIDs[l].energy;  //and sum up the energy fraction of all hits that correspond ot the saved trackID
        }

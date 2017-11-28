@@ -25,7 +25,7 @@
 #include "larcorealg/Geometry/WireGeo.h"
 #include "lardataobj/Simulation/sim.h"
 #include "larsim/Simulation/SimListUtils.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
@@ -297,9 +297,9 @@ void FeatureVertexFinderAna::analyze(const art::Event& evt)
   evt.getByLabel(fGenieModuleLabel,mctruthListHandle); 
   
   // ############################################
-  // ### Getting information from BackTracker ###
+  // ### Getting information from BackTrackerService ###
   // ############################################
-  art::ServiceHandle<cheat::BackTracker> bt;
+  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
   
   // ####################################
   // ### Getting Geometry Information ###

@@ -59,7 +59,7 @@
 #include "TCanvas.h"
 #include "TString.h"
 #include "TF1.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
 #include "TH1I.h"
 #include "TText.h"
 #include "TFile.h"
@@ -246,7 +246,7 @@ private:
   // tmp
   int FindTrueParticle(const std::vector<art::Ptr<recob::Hit> >& showerHits);
   int FindParticleID(const art::Ptr<recob::Hit>& hit);
-  art::ServiceHandle<cheat::BackTracker> bt;
+  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
   TH1I* hTrueDirection;
   TProfile* hNumHitsInSegment, *hNumSegments;
   void MakePicture();

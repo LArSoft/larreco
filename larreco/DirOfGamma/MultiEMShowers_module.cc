@@ -26,7 +26,7 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Shower.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
@@ -143,8 +143,8 @@ void ems::MCinfo::Info(const art::Event& evt)
 	fConvgamma1.SetXYZ(0,0,0); fConvgamma2.SetXYZ(0,0,0); 
 	fDirgamma1.SetXYZ(0,0,0); fDirgamma2.SetXYZ(0,0,0);
 
-	art::ServiceHandle< cheat::BackTracker > bt;
-	const sim::ParticleList& plist = bt->ParticleList();
+	art::ServiceHandle< cheat::ParticleInventoryService > pi_serv;
+	const sim::ParticleList& plist = pi_serv->ParticleList();
 	for (sim::ParticleList::const_iterator ipar = plist.begin(); ipar != plist.end(); ++ipar)
 	{
 		const simb::MCParticle* particle = ipar->second;
@@ -166,27 +166,27 @@ void ems::MCinfo::Info(const art::Event& evt)
 	
 			if (particle->NumberDaughters() != 2) continue;
 
-			const simb::MCParticle* daughter1 = bt->TrackIDToParticle(particle->Daughter(0));
+			const simb::MCParticle* daughter1 = pi_serv->TrackIdToParticle_P(particle->Daughter(0));
 			if (daughter1->PdgCode() != 22) continue;
 
-			const simb::MCParticle* daughter2 = bt->TrackIDToParticle(particle->Daughter(1));
+			const simb::MCParticle* daughter2 = pi_serv->TrackIdToParticle_P(particle->Daughter(1));
 			if (daughter2->PdgCode() != 22) continue; 
 
 			fNgammas = particle->NumberDaughters();
-			TLorentzVector mom1 = bt->TrackIDToParticle(particle->Daughter(0))->Momentum();
-			TLorentzVector mom2 = bt->TrackIDToParticle(particle->Daughter(1))->Momentum();
+			TLorentzVector mom1 = pi_serv->TrackIdToParticle_P(particle->Daughter(0))->Momentum();
+			TLorentzVector mom2 = pi_serv->TrackIdToParticle_P(particle->Daughter(1))->Momentum();
 
 			// compton process
 			if (daughter1->EndProcess() == "phot") fCompton = true;
 			if (daughter2->EndProcess() == "phot") fCompton = true;
 
 			TVector3 mom1vec3(mom1.Px(), mom1.Py(), mom1.Pz());
-			fGammamom1 = bt->TrackIDToParticle(particle->Daughter(0))->P();
+			fGammamom1 = pi_serv->TrackIdToParticle_P(particle->Daughter(0))->P();
 			TVector3 mom2vec3(mom2.Px(), mom2.Py(), mom2.Pz());
-			fGammamom2 = bt->TrackIDToParticle(particle->Daughter(1))->P();
+			fGammamom2 = pi_serv->TrackIdToParticle_P(particle->Daughter(1))->P();
 
-			TLorentzVector pos1 = bt->TrackIDToParticle(particle->Daughter(0))->EndPosition();
-			TLorentzVector pos2 = bt->TrackIDToParticle(particle->Daughter(1))->EndPosition();
+			TLorentzVector pos1 = pi_serv->TrackIdToParticle_P(particle->Daughter(0))->EndPosition();
+			TLorentzVector pos2 = pi_serv->TrackIdToParticle_P(particle->Daughter(1))->EndPosition();
 				
 			if (insideFidVol(pos1)) fInside1 = true; 
 			if (insideFidVol(pos2)) fInside2 = true;
