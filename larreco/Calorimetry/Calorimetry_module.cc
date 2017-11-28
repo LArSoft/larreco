@@ -322,12 +322,16 @@ void calo::Calorimetry::produce(art::Event& evt)
 	//not all hits are associated with space points, the method uses neighboring spacepts to interpolate
 	double xyz3d[3];
 	double pitch;
+        bool fBadhit = false;
         if (fmthm.isValid()){
           auto vhit = fmthm.at(trkIter);
           auto vmeta = fmthm.data(trkIter);
           for (size_t ii = 0; ii<vhit.size(); ++ii){
             if (vhit[ii].key() == allHits[hits[ipl][ihit]].key()){
-              if (!tracklist[trkIter]->HasValidPoint(vmeta[ii]->Index())) continue;
+              if (!tracklist[trkIter]->HasValidPoint(vmeta[ii]->Index())){
+                fBadhit = true;
+                continue;
+              }
               double angleToVert = geom->WireAngleToVertical(vhit[ii]->View(), vhit[ii]->WireID().TPC, vhit[ii]->WireID().Cryostat) - 0.5*::util::pi<>();
               const TVector3& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
               double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
@@ -348,6 +352,7 @@ void calo::Calorimetry::produce(art::Event& evt)
         else
           GetPitch(allHits[hits[ipl][ihit]], trkx, trky, trkz, trkw, trkx0, xyz3d, pitch, TickT0);
 
+        if (fBadhit) continue;
 	if (xyz3d[2]<-100) continue; //hit not on track
 	if (pitch<=0) pitch = fTrkPitch;
 	if (!pitch) continue;
