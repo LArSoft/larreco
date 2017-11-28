@@ -13,6 +13,61 @@ bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 namespace tca {
   
   /////////////////////////////////////////
+  void SpacePtNear(TjStuff& tjs, const TrajPoint& tp, TVector3& pos, std::vector<int>& hitlist, std::vector<int>& tjlist)
+  {
+    // Finds space points that use hits associated with the Tp and return the
+    // average xyz position, and lists of hits and Tjs associated with those space points.
+    // The hitlist vector is empty if there is a failure.
+    hitlist.clear();
+    tjlist.clear();
+    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) pos(ixyz) = pos(ixyz) = 0;
+    if(tp.Chg <= 0) return;
+    double cnt = 0;
+    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+      if(!tp.UseHit[ii]) continue;
+      auto sptlist = GetSpacePts(tjs, tp.Hits[ii]);
+      if(sptlist.empty()) continue;
+      for(auto isp : sptlist) {
+        auto& spt = tjs.spts[isp];
+        pos += spt.Pos;
+        for(auto iht : spt.Hits) {
+          if(iht > tjs.fHits.size() - 1) continue;
+          hitlist.push_back(iht);
+          auto& hit = tjs.fHits[iht];
+          if(hit.InTraj <= 0) continue;
+          if(std::find(tjlist.begin(), tjlist.end(), hit.InTraj) == tjlist.end()) tjlist.push_back(hit.InTraj);
+        } // hit
+        ++cnt;
+      } // sphit
+    } // ii
+    if(cnt == 0) return;
+    std::sort(hitlist.begin(), hitlist.end());
+    std::sort(tjlist.begin(), tjlist.end());
+    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) pos(ixyz) = pos(ixyz) / cnt;
+    return;
+    
+  } // MakeSpacePt
+  
+  /////////////////////////////////////////
+  std::vector<unsigned int> GetSpacePts(TjStuff& tjs, unsigned int iht)
+  {
+    // returns a vector of indices into the tjs.spts vector of SpacePoints that
+    // contain hit with index iht
+    std::vector<unsigned int> temp;
+    if(tjs.spts.empty()) return temp;
+    for(unsigned int isp = 0; isp < tjs.spts.size(); ++isp) {
+      auto& spt = tjs.spts[isp];
+      for(auto hit : spt.Hits) {
+        if(hit == iht) {
+          temp.push_back(isp);
+          break;
+        }
+      } // hit
+    } // isp
+    return temp;
+  } // GetSpacePts
+  
+  /////////////////////////////////////////
   void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
 /*
@@ -2405,8 +2460,8 @@ namespace tca {
     // require that they be on adjacent wires
     TCHit& ihit = tjs.fHits[iht];
     TCHit& jhit = tjs.fHits[jht];
-    unsigned int iwire = ihit.WireID.Wire;
-    unsigned int jwire = jhit.WireID.Wire;
+    unsigned int iwire = ihit.ArtPtr->WireID().Wire;
+    unsigned int jwire = jhit.ArtPtr->WireID().Wire;
     if(abs(iwire - jwire) > 1) return false;
     if(ihit.PeakTime > jhit.PeakTime) {
       float minISignal = ihit.PeakTime - 3 * ihit.RMS;
@@ -2872,7 +2927,7 @@ namespace tca {
   {
     // returns the separation^2 between two hits in WSE units
     if(iht > tjs.fHits.size()-1 || jht > tjs.fHits.size()-1) return 1E6;
-    float dw = (float)tjs.fHits[iht].WireID.Wire - (float)tjs.fHits[jht].WireID.Wire;
+    float dw = (float)tjs.fHits[iht].ArtPtr->WireID().Wire - (float)tjs.fHits[jht].ArtPtr->WireID().Wire;
     float dt = (tjs.fHits[iht].PeakTime - tjs.fHits[jht].PeakTime) * tjs.UnitsPerTick;
     return dw * dw + dt * dt;
   } // HitSep2
@@ -2899,7 +2954,7 @@ namespace tca {
   //////////////////////////////////////////
   float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp)
   {
-    float wire = tjs.fHits[iht].WireID.Wire;
+    float wire = tjs.fHits[iht].ArtPtr->WireID().Wire;
     float time = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
     return sqrt(PointTrajDOCA2(tjs, wire, time, tp));
   } // PointTrajDOCA
@@ -3792,9 +3847,9 @@ namespace tca {
   /////////////////////////////////////////
   bool MakeBareTrajPoint(const TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp)
   {
-    CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit].WireID);
-    return MakeBareTrajPoint(tjs, (float)tjs.fHits[fromHit].WireID.Wire, tjs.fHits[fromHit].PeakTime,
-                                  (float)tjs.fHits[toHit].WireID.Wire,   tjs.fHits[toHit].PeakTime, tCTP, tp);
+    CTP_t tCTP = EncodeCTP(tjs.fHits[fromHit].ArtPtr->WireID());
+    return MakeBareTrajPoint(tjs, (float)tjs.fHits[fromHit].ArtPtr->WireID().Wire, tjs.fHits[fromHit].PeakTime,
+                                  (float)tjs.fHits[toHit].ArtPtr->WireID().Wire,   tjs.fHits[toHit].PeakTime, tCTP, tp);
     
   } // MakeBareTrajPoint
   
@@ -3937,6 +3992,7 @@ namespace tca {
   unsigned short NumUsedHitsInTj(const TjStuff& tjs, const Trajectory& tj)
   {
     if(tj.AlgMod[kKilled]) return 0;
+    if(tj.Pts.empty()) return 0;
     unsigned short nhits = 0;
     for(auto& tp : tj.Pts) {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) if(tp.UseHit[ii]) ++nhits;
@@ -4063,10 +4119,10 @@ namespace tca {
     
     unsigned int lastwire = 0, lastipl = 0;
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-      if(tjs.fHits[iht].WireID.Cryostat != cstat) continue;
-      if(tjs.fHits[iht].WireID.TPC != tpc) continue;
-      unsigned short ipl = tjs.fHits[iht].WireID.Plane;
-      unsigned int wire = tjs.fHits[iht].WireID.Wire;
+      if(tjs.fHits[iht].ArtPtr->WireID().Cryostat != cstat) continue;
+      if(tjs.fHits[iht].ArtPtr->WireID().TPC != tpc) continue;
+      unsigned short ipl = tjs.fHits[iht].ArtPtr->WireID().Plane;
+      unsigned int wire = tjs.fHits[iht].ArtPtr->WireID().Wire;
       if(wire > tjs.NumWires[ipl] - 1) {
         mf::LogWarning("TC")<<"FillWireHitRange: Invalid wire number "<<wire<<" > "<<tjs.NumWires[ipl] - 1<<" in plane "<<ipl<<" Quitting";
         return false;
@@ -4138,14 +4194,14 @@ namespace tca {
           return false;
         }
         for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-          if(tjs.fHits[iht].WireID.Plane != ipl) {
-            mf::LogWarning("TC")<<"CheckWireHitRange: Invalid plane "<<tjs.fHits[iht].WireID.Plane<<" != "<<ipl;
-            std::cout<<"CheckWireHitRange: Invalid plane "<<tjs.fHits[iht].WireID.Plane<<" != "<<ipl<<"\n";
+          if(tjs.fHits[iht].ArtPtr->WireID().Plane != ipl) {
+            mf::LogWarning("TC")<<"CheckWireHitRange: Invalid plane "<<tjs.fHits[iht].ArtPtr->WireID().Plane<<" != "<<ipl;
+            std::cout<<"CheckWireHitRange: Invalid plane "<<tjs.fHits[iht].ArtPtr->WireID().Plane<<" != "<<ipl<<"\n";
             return false;
           }
-          if(tjs.fHits[iht].WireID.Wire != wire) {
-            mf::LogWarning("TC")<<"CheckWireHitRange: Invalid wire "<<tjs.fHits[iht].WireID.Wire<<" != "<<wire<<" in plane "<<ipl;
-            std::cout<<"CheckWireHitRange: Invalid wire "<<tjs.fHits[iht].WireID.Wire<<" != "<<wire<<" in plane "<<ipl<<"\n";
+          if(tjs.fHits[iht].ArtPtr->WireID().Wire != wire) {
+            mf::LogWarning("TC")<<"CheckWireHitRange: Invalid wire "<<tjs.fHits[iht].ArtPtr->WireID().Wire<<" != "<<wire<<" in plane "<<ipl;
+            std::cout<<"CheckWireHitRange: Invalid wire "<<tjs.fHits[iht].ArtPtr->WireID().Wire<<" != "<<wire<<" in plane "<<ipl<<"\n";
             return false;
           }
         } // iht
@@ -4699,7 +4755,7 @@ namespace tca {
           std::cout<<"crazy hit "<<iht<<" CTP "<<tp.CTP<<"\n";
           continue;
         }
-        myprt<<" "<<tjs.fHits[iht].WireID.Wire<<":"<<(int)tjs.fHits[iht].PeakTime;
+        myprt<<" "<<tjs.fHits[iht].ArtPtr->WireID().Wire<<":"<<(int)tjs.fHits[iht].PeakTime;
         if(tp.UseHit[ii]) {
           // Distinguish used hits from nearby hits
           myprt<<"_";
@@ -4795,13 +4851,13 @@ namespace tca {
   /////////////////////////////////////////
   std::string PrintHitShort(const TCHit& hit)
   {
-    return std::to_string(hit.WireID.Plane) + ":" + std::to_string(hit.WireID.Wire) + ":" + std::to_string((int)hit.PeakTime);
+    return std::to_string(hit.ArtPtr->WireID().Plane) + ":" + std::to_string(hit.ArtPtr->WireID().Wire) + ":" + std::to_string((int)hit.PeakTime);
   } // PrintHit
   
   /////////////////////////////////////////
   std::string PrintHit(const TCHit& hit)
   {
-    return std::to_string(hit.WireID.Plane) + ":" + std::to_string(hit.WireID.Wire) + ":" + std::to_string((int)hit.PeakTime) + "_" + std::to_string(hit.InTraj);
+    return std::to_string(hit.ArtPtr->WireID().Plane) + ":" + std::to_string(hit.ArtPtr->WireID().Wire) + ":" + std::to_string((int)hit.PeakTime) + "_" + std::to_string(hit.InTraj);
   } // PrintHit
   
   /////////////////////////////////////////
