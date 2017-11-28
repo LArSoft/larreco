@@ -97,8 +97,8 @@ namespace tca {
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       std::vector<sim::IDE> ides;
       auto& tcHit = tjs.fHits[iht];
-      geo::PlaneID planeID = geo::PlaneID(tcHit.WireID.Cryostat, tcHit.WireID.TPC, tcHit.WireID.Plane);
-      raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel((int)tcHit.WireID.Plane, (int)tcHit.WireID.Wire, (int)tcHit.WireID.TPC, (int)tcHit.WireID.Cryostat);
+      geo::PlaneID planeID = geo::PlaneID(tcHit.ArtPtr->WireID().Cryostat, tcHit.ArtPtr->WireID().TPC, tcHit.ArtPtr->WireID().Plane);
+      raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel((int)tcHit.ArtPtr->WireID().Plane, (int)tcHit.ArtPtr->WireID().Wire, (int)tcHit.ArtPtr->WireID().TPC, (int)tcHit.ArtPtr->WireID().Cryostat);
       auto rhit = recob::Hit(channel,
                              tcHit.StartTick, tcHit.EndTick,
                              tcHit.PeakTime, tcHit.SigmaPeakTime,
@@ -109,7 +109,7 @@ namespace tca {
                              tcHit.GoodnessOfFit, tcHit.NDOF,
                              tjs.geom->View(channel),
                              tjs.geom->SignalType(planeID),
-                             tcHit.WireID);
+                             tcHit.ArtPtr->WireID());
       try {
         bt->HitToSimIDEs(rhit, ides);
       }
@@ -784,8 +784,8 @@ namespace tca {
       float ntru = 0;
       for(auto& hit : tjs.fHits) {
         if(hit.MCPartListIndex != tmpIndex) continue; 
-        if(hit.WireID.Cryostat != pfp.TPCID.Cryostat) continue;
-        if(hit.WireID.TPC != pfp.TPCID.TPC) continue;
+        if(hit.ArtPtr->WireID().Cryostat != pfp.TPCID.Cryostat) continue;
+        if(hit.ArtPtr->WireID().TPC != pfp.TPCID.TPC) continue;
         ++ntru;
       } // hit
       if(ntru == 0) continue;
@@ -824,9 +824,9 @@ namespace tca {
         for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
           auto& hit = tjs.fHits[iht];
           if(hit.MCPartListIndex != ipart) continue;
-          if(hit.WireID.Cryostat != tpcid.Cryostat) continue;
-          if(hit.WireID.TPC != tpcid.TPC) continue;
-          unsigned short plane = hit.WireID.Plane;
+          if(hit.ArtPtr->WireID().Cryostat != tpcid.Cryostat) continue;
+          if(hit.ArtPtr->WireID().TPC != tpcid.TPC) continue;
+          unsigned short plane = hit.ArtPtr->WireID().Plane;
           ++cntInPln[plane];
         } // iht
         unsigned short nOKInPln = 0;
@@ -924,7 +924,7 @@ namespace tca {
     if(nDimensions < 2 || nDimensions > 3) return false;
     
     std::vector<unsigned short> cntInPln(tjs.NumPlanes);
-    for(auto& hit : tjs.fHits) if(hit.MCPartListIndex == mcpIndex) ++cntInPln[hit.WireID.Plane];
+    for(auto& hit : tjs.fHits) if(hit.MCPartListIndex == mcpIndex) ++cntInPln[hit.ArtPtr->WireID().Plane];
     unsigned short nPlnOK = 0;
     for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) if(cntInPln[plane] > 2) ++nPlnOK;
     if(nPlnOK < nDimensions - 1) return false;
@@ -941,9 +941,9 @@ namespace tca {
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       auto& hit = tjs.fHits[iht];
       if(hit.MCPartListIndex != mcpIndex) continue;
-      if(hit.WireID.Plane != planeID.Plane) continue;
-      if(hit.WireID.TPC != planeID.TPC) continue;
-      if(hit.WireID.Cryostat != planeID.Cryostat) continue;
+      if(hit.ArtPtr->WireID().Plane != planeID.Plane) continue;
+      if(hit.ArtPtr->WireID().TPC != planeID.TPC) continue;
+      if(hit.ArtPtr->WireID().Cryostat != planeID.Cryostat) continue;
       hitVec.push_back(iht);
     } // iht
     return hitVec;
