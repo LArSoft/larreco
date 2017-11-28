@@ -87,7 +87,7 @@ namespace tca {
           if(!tp.UseHit[ii]) continue;
           unsigned int iht = tp.Hits[ii];
           TCHit& hit = tjs.fHits[iht];
-          raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel((int)hit.WireID.Plane, (int)hit.WireID.Wire, (int)hit.WireID.TPC, (int)hit.WireID.Cryostat);
+          raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel((int)hit.ArtPtr->WireID().Plane, (int)hit.ArtPtr->WireID().Wire, (int)hit.ArtPtr->WireID().TPC, (int)hit.ArtPtr->WireID().Cryostat);
           double startTick = hit.PeakTime - hit.RMS;
           double endTick = hit.PeakTime + hit.RMS;
           // get a list of track IDEs that are close to this hit
