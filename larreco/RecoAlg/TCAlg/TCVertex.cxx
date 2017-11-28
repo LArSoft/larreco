@@ -878,8 +878,9 @@ namespace tca {
         if(tjs.allTraj[itj].CTP != tjs.vtx[iv].CTP) continue;
         TrajClosestApproach(tjs.allTraj[itj], tjs.vtx[iv].Pos[0], tjs.vtx[iv].Pos[1], closePt, doca);
         if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<tjs.allTraj[itj].ID<<" and tjs.vtx "<<tjs.vtx[iv].ID<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
-        //if(doca > fMaxVertexTrajSep[tPass]) continue;
-        if(doca > tjs.Vertex2DCuts[1]) continue;
+//        if(doca > tjs.Vertex2DCuts[1]) continue;
+        // BB: Nov 19. The Vertex2DCuts[1] cut is too loose
+        if(doca > 2) continue;
         // compare the length of the Tjs used to make the vertex with the length of the
         // Tj that we want to split. Don't allow a vertex using very short Tjs to split a long
         // Tj in the 3rd plane
