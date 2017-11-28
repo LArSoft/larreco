@@ -388,6 +388,7 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
       // not wanted.
       InductionWireHit* iwire = new InductionWireHit(hit->Channel(), hit->Integral() * .95);
       iwires.emplace_back(iwire);
+      hitmap[iwire] = hit;
 
       for(geo::TPCID tpc: tpcs){
         if(xhits_by_tpc.count(tpc) == 0) continue;
@@ -522,8 +523,6 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
                                             0, uwire.iwire, vwire.iwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
-          hitmap[uwire.iwire] = hit;
-          hitmap[vwire.iwire] = hit;
         } // end for vwire
       } // end for uwire
 
@@ -563,6 +562,7 @@ BuildSystemXU(const std::vector<art::Ptr<recob::Hit>>& xhits,
 
     InductionWireHit* iwire = new InductionWireHit(hit->Channel(), hit->Integral());
     iwires.emplace_back(iwire);
+    hitmap[iwire] = hit;
 
     for(geo::TPCID tpc: tpcs){
       if(xhits_by_tpc.count(tpc) == 0) continue;
@@ -616,7 +616,6 @@ BuildSystemXU(const std::vector<art::Ptr<recob::Hit>>& xhits,
                                             0, 0, uwire.iwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
-          hitmap[uwire.iwire] = hit;
         } // end for uwire
       } // end for uit
 
@@ -722,8 +721,8 @@ void SpacePointSolver::produce(art::Event& evt)
 
     if(hit->SignalType() == geo::kCollection){
       // For DualPhase, both view are collection. Arbitrarily map V to the main
-      // "X" view and keep U as-is. For Argoneut and Lariat, collection=V is
-      // also the right convention.
+      // "X" view. For Argoneut and Lariat, collection=V is also the right
+      // convention.
       if(hit->View() == geo::kZ){
         xhits.push_back(hit);
       }
@@ -731,7 +730,7 @@ void SpacePointSolver::produce(art::Event& evt)
         xhits.push_back(hit);
         is2view = true;
       }
-      if(hit->View() == geo::kU){
+      if(hit->View() == geo::kU || hit->View() == geo::kY){
         uhits.push_back(hit);
         is2view = true;
       }
