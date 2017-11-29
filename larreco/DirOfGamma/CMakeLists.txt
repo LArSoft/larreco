@@ -29,6 +29,7 @@ art_make(
 			   larreco_RecoAlg_PMAlg
 			   larreco_DirOfGamma
 			   larsim_MCCheater_BackTrackerService_service
+	                   larsim_MCCheater_ParticleInventoryService_service
       			   lardataobj_RecoBase
 			   larsim_Simulation nutools_ParticleNavigation lardataobj_Simulation
 			   larcorealg_Geometry

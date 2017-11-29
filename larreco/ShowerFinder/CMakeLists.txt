@@ -7,6 +7,7 @@ art_make(
           MODULE_LIBRARIES
 			larreco_RecoAlg
                         larsim_MCCheater_BackTrackerService_service
+	                larsim_MCCheater_ParticleInventoryService_service
                         lardataobj_AnalysisBase
                         lardataobj_RecoBase
                         larcorealg_Geometry

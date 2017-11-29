@@ -8,6 +8,7 @@ art_make( BASENAME_ONLY
 			lardataobj_RawData
 			lardataobj_RecoBase
                         larsim_MCCheater_BackTrackerService_service
+	                larsim_MCCheater_ParticleInventoryService_service
 			lardata_ArtDataHelper
                         ${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
