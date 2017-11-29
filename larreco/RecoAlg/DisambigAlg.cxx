@@ -30,8 +30,6 @@
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 
-// **tomporarily** here to look at performance without noise hits
-#include "larsim/MCCheater/BackTracker.h"
 
 
 #include <map>
@@ -75,7 +73,7 @@ void DisambigAlg::RunDisambig(   art::Handle< std::vector<recob::Hit> > ChannelH
 {
 
   // **tomporarily** here to look at performance without noise hits
-  art::ServiceHandle<cheat::BackTracker> bt;
+  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
 
   fUeffSoFar.clear();
   fVeffSoFar.clear();
@@ -105,7 +103,7 @@ void DisambigAlg::RunDisambig(   art::Handle< std::vector<recob::Hit> > ChannelH
     art::Ptr<recob::Hit> hit = ChHits[h];
 
     // **temporary** option to skip noise hits
-    try{ bt->HitToXYZ(hit); }
+    try{ bt_serv->HitToXYZ(hit); }
     catch(...){ 
       skipNoise++;
       continue;
@@ -127,7 +125,7 @@ void DisambigAlg::RunDisambig(   art::Handle< std::vector<recob::Hit> > ChannelH
   }
 
   if(skipNoise>0)
-    mf::LogWarning("DisambigAlg")<<"\nSkipped "<< skipNoise <<" induction noise hits using the BackTracker.\n"
+    mf::LogWarning("DisambigAlg")<<"\nSkipped "<< skipNoise <<" induction noise hits using the BackTrackerService.\n"
 				 <<"This is only to temporarily deal with the excessive amount of noise due to the bad deconvolution.\n"; 
 
   mf::LogVerbatim("RunDisambig")<<"\n~~~~~~~~~~~ Running Disambiguation ~~~~~~~~~~~\n";
@@ -285,7 +283,7 @@ void DisambigAlg::TrivialDisambig( unsigned int apa )
 	if( chan <= ZminChan || ZmaxChan <= chan ) continue;
 	art::Ptr<recob::Hit> zhit = fAPAToZHits[apa][z];
 
-// 	try{ bt->HitToXYZ(zhit); }
+// 	try{ bt_serv->HitToXYZ(zhit); }
 // 	catch(...){ 
 // 	  mf::LogWarning("DisambigAlg")<<"skipping a noise collection hit"; 
 // 	  continue;
@@ -301,7 +299,7 @@ void DisambigAlg::TrivialDisambig( unsigned int apa )
 
     if(nPossibleWids==0){
       std::vector<double> xyz;
-      try{ xyz = bt->HitToXYZ(hit); } // TEMPORARY
+      try{ xyz = bt_serv->HitToXYZ(hit); } // TEMPORARY
       catch(...){ continue; }
       ///\ todo: Figure out why sometimes non-noise hits dont match any Z hits at all.
       mf::LogWarning ("UniqueTimeSeg") << "U/V hit inconsistent with Z info; peak time is " 
