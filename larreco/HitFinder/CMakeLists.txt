@@ -18,6 +18,7 @@ art_make(
           MODULE_LIBRARIES 
 	  		larreco_HitFinder
                         larsim_MCCheater_BackTrackerService_service
+	                larsim_MCCheater_ParticleInventoryService_service
 			larreco_RecoAlg
                         lardataobj_RecoBase
 			lardataobj_MCBase

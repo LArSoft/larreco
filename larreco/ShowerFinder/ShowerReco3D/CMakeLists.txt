@@ -37,6 +37,7 @@ art_make(
 	  		   larreco_ShowerFinder_ShowerReco3D
 	  		   larreco_RecoAlg
                            larsim_MCCheater_BackTrackerService_service
+	                   larsim_MCCheater_ParticleInventoryService_service
                            larevt_Filters
                            lardataobj_RecoBase
                            larcorealg_Geometry
