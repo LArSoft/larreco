@@ -37,7 +37,8 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 #include "lardataobj/Simulation/sim.h"
 #include "lardataobj/MCBase/MCTrack.h"
@@ -851,7 +852,8 @@ namespace trkf {
   //
   {
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    art::ServiceHandle<cheat::BackTracker> bt;
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     art::ServiceHandle<geo::Geometry> geom;
 
 
@@ -1292,8 +1294,8 @@ namespace trkf {
 		    std::set<int> tkidset;
 		    tkidset.insert(mcid);
 		    double hiteff = 
-		      bt->HitCollectionEfficiency(tkidset, trackhits, allhits, geo::k3D);
-		    double hitpurity = bt->HitCollectionPurity(tkidset, trackhits);
+		      bt_serv->HitCollectionEfficiency(tkidset, trackhits, allhits, geo::k3D);
+		    double hitpurity = bt_serv->HitCollectionPurity(tkidset, trackhits);
 		    mchists.fHHitEff->Fill(hiteff);
 		    mchists.fHHitPurity->Fill(hitpurity);
 
@@ -1320,7 +1322,7 @@ namespace trkf {
         selected_mctracks[imc].second = i;
         
         if(fPrintLevel > 0) {
-          const simb::MCParticle* ptkl = bt->TrackIDToParticle(mcid);
+          const simb::MCParticle* ptkl = pi_serv->TrackIdToParticle_P(mcid);
           float KE = ptkl->E() - ptkl->Mass();
           std::string KEUnits = " GeV";
           if(mctrk.Origin() != simb::kCosmicRay) {
@@ -1416,7 +1418,7 @@ namespace trkf {
       for(unsigned int imc = 0; imc < selected_mctracks.size(); ++imc) {
         if(selected_mctracks[imc].second >= 0) continue;
         const sim::MCTrack& mctrk = *selected_mctracks[imc].first;
-        const simb::MCParticle* ptkl = bt->TrackIDToParticle(mctrk.TrackID());
+        const simb::MCParticle* ptkl = pi_serv->TrackIdToParticle_P(mctrk.TrackID());
         float KE = ptkl->E() - ptkl->Mass();
         std::string KEUnits = " GeV";
         if(mctrk.Origin() != simb::kCosmicRay) {
@@ -1454,7 +1456,8 @@ namespace trkf {
   void TrackAna::anaStitch(const art::Event& evt)
   {
 
-    art::ServiceHandle<cheat::BackTracker> bt;
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     art::ServiceHandle<geo::Geometry> geom;
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
@@ -1539,7 +1542,7 @@ namespace trkf {
 		rhistsStitched.fHHitWidth->Fill(2. * hit->RMS());
 		if (mc)
 		  {
-		    std::vector<sim::TrackIDE> tids = bt->HitToTrackID(hit);
+		    std::vector<sim::TrackIDE> tids = bt_serv->HitToTrackIDEs(hit);
 		    // more here.
 		    // Loop over track ids.
 		    bool justOne(true); // Only take first trk that contributed to this hit
@@ -1551,7 +1554,7 @@ namespace trkf {
 		      if (justOne) { vecNtrkIds.push_back(trackID); justOne=false; }
 		      // Add hit to PtrVector corresponding to this track id.
 		      rhistsStitched.fHHitTrkId->Fill(trackID); 
-		      const simb::MCParticle* part = bt->TrackIDToParticle(trackID);
+		      const simb::MCParticle* part = pi_serv->TrackIdToParticle_P(trackID);
 		      if (!part) break;
 
 		      rhistsStitched.fHHitPdg->Fill(part->PdgCode()); 
@@ -1642,7 +1645,7 @@ namespace trkf {
 	  {
 	    //	    int tval = it->second; // grab trkIDs in order, since they're sorted by KE
 	    //	    int ke = it->first; // grab trkIDs in order, since they're sorted by KE
-	    //	    const simb::MCParticle* part = bt->TrackIDToParticle(tval);
+	    //	    const simb::MCParticle* part = bt_serv->TrackIDToParticle(tval);
 	    
 	    //	    std::cout << "TrackAnaStitch: KEmap cntr vtmp, Length ke, tval, pdg : "  << vtmp << ", " << ke <<", " << tval <<", " << part->PdgCode() << ", " << std::endl;
 
@@ -1657,7 +1660,7 @@ namespace trkf {
 	for (auto it = KEmap.rbegin(); it!=KEmap.rend(); ++it) 
 	  {
 	    int val = it->second; // grab trkIDs in order, since they're sorted by KE
-	    //	    const simb::MCParticle* part = bt->TrackIDToParticle(val);
+	    //	    const simb::MCParticle* part = pi_serv->TrackIDToParticle(val);
 	    //	    std::cout << "TrackAnaStitch: trk o, KEmap cntr v, KE val, pdg  hitmap[val][o].size(): "  << o <<", " << v << ", " << val <<", " << part->PdgCode() << ", " << hitmap[val][o].size() << std::endl;
 	    rhistsStitched.fNTrkIdTrks3->Fill(o,v,hitmap[val][o].size());
 	    v++;
@@ -1674,7 +1677,7 @@ namespace trkf {
       {
 	if (val != (unsigned int)sim::NoParticleId)
 	  {
-	    const simb::MCParticle* part = bt->TrackIDToParticle( val ); 
+	    const simb::MCParticle* part = pi_serv->TrackIdToParticle_P( val ); 
 	    double T(part->E() - 0.001*part->Mass());
 	    rhistsStitched.fNTrkIdTrks->Fill(std::count(v.begin(),v.end(),val));
 	    rhistsStitched.fNTrkIdTrks2->Fill(std::count(v.begin(),v.end(),val),T);

@@ -26,7 +26,7 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Shower.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
 
 #include "larreco/RecoAlg/ProjectionMatchingAlg.h"
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
@@ -722,12 +722,12 @@ std::vector< ems::ShowersCollection > ems::MergeEMShower3D::collectshowers(art::
 
 int ems::MergeEMShower3D::getClusterBestId(const std::vector< art::Ptr<recob::Hit> >& v)
 {
-	art::ServiceHandle< cheat::BackTracker > bt;
+	art::ServiceHandle< cheat::BackTrackerService > bt_serv;
 
 	std::map< int, size_t > ids;
 	for (auto ptr : v)
 	{
-		auto hid = bt->HitToTrackID(ptr);
+		auto hid = bt_serv->HitToTrackIDEs(ptr);
 		if (hid.size()) ids[hid.front().trackID]++;
 	}
 
