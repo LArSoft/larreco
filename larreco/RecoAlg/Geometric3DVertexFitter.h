@@ -72,6 +72,7 @@ namespace trkf {
     VertexWrapper fitTracks(TrackRefVec& tracks) const;
     VertexWrapper fitTracksWithVtx(const std::vector< art::Ptr<recob::Track> >& tracks, const recob::tracking::Point_t& vtxPos) const;
     VertexWrapper fitTracksWithVtx(TrackRefVec& tracks, const recob::tracking::Point_t& vtxPos) const;
+    VertexWrapper closestPointAlongTrack(const recob::Track& track, const recob::Track& other) const;
     VertexWrapper fitTwoTracks(const recob::Track& tk1, const recob::Track& tk2) const;
     //
     void addTrackToVertex(VertexWrapper& vtx, const recob::Track& tk) const;

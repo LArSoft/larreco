@@ -178,6 +178,57 @@ std::pair<trkf::TrackState, double> trkf::Geometric3DVertexFitter::weightedAvera
   return std::make_pair(vtxstate, chi2);
 }
 
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::closestPointAlongTrack(const recob::Track& track, const recob::Track& other) const
+{
+  // find the closest approach point along track
+  const auto& start1 = track.Trajectory().Start();
+  const auto& start2 = other.Trajectory().Start();
+
+  const auto dir1 = track.Trajectory().StartDirection();
+  const auto dir2 = other.Trajectory().StartDirection();
+
+  if (debugLevel>0) {
+    std::cout << "track1 with start=" << start1 << " dir=" << dir1
+	      << " length=" << track.Length() << " points=" << track.CountValidPoints()
+	      << std::endl;
+    std::cout << "covariance=\n" << track.VertexCovarianceGlobal6D() << std::endl;
+    std::cout << "track2 with start=" << start2 << " dir=" << dir2
+              << " length=" << other.Length() << " points=" << other.CountValidPoints()
+	      << std::endl;
+    std::cout << "covariance=\n" << other.VertexCovarianceGlobal6D() << std::endl;
+  }
+
+  const auto dpos = start1-start2;
+  const auto dotd1d2 = dir1.Dot(dir2);
+  const auto dotdpd1 = dpos.Dot(dir1);
+  const auto dotdpd2 = dpos.Dot(dir2);
+  const auto dist2 = ( dotd1d2*dotdpd1 - dotdpd2 )/( dotd1d2*dotd1d2 - 1 );
+  const auto dist1 = ( dotd1d2*dist2 - dotdpd1 );
+
+  if (debugLevel>0) {
+    std::cout << "track1 pca=" << start1+dist1*dir1 << " dist=" << dist1 << std::endl;
+    std::cout << "track2 pca=" << start2+dist2*dir2 << " dist=" << dist2 << std::endl;
+  }
+
+  //by construction both point of closest approach on the two lines lie on this plane
+  recob::tracking::Plane target(start1+dist1*dir1, dir1);
+
+  recob::tracking::Plane plane1(start1, dir1);
+  trkf::TrackState state1(track.VertexParametersLocal5D(), track.VertexCovarianceLocal5D(), plane1, true, track.ParticleId());
+  bool propok1 = true;
+  state1 = prop->propagateToPlane(propok1, state1, target, true, true, trkf::TrackStatePropagator::UNKNOWN);
+  if (!propok1) {
+    std::cout << "failed propagation, return track1 start pos=" << track.Start() << std::endl;
+    VertexWrapper vtx;
+    vtx.addTrackAndUpdateVertex(track.Start(), track.VertexCovarianceGlobal6D().Sub<SMatrixSym33>(0,0), 0, 0, track);
+    return vtx;
+  } else {
+    VertexWrapper vtx;
+    vtx.addTrackAndUpdateVertex(state1.position(), state1.covariance6D().Sub<SMatrixSym33>(0,0), 0, 0, track);
+    return vtx;
+  }
+}
+
 trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTwoTracks(const recob::Track& tk1, const recob::Track& tk2) const
 {
   // find the closest approach points
@@ -237,17 +288,20 @@ trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitTwoTracks(const recob::Tra
     std::cout << "track2 pca=" << start2+dist2*dir2 << " dist=" << dist2 << std::endl;
   }
 
+  //here we neglect that to find dist1 and dist2 one track depends on the other...
+  SMatrixSym22 cov1 = state1.covariance().Sub<SMatrixSym22>(0,0);
+  SMatrixSym22 cov2 = state2.covariance().Sub<SMatrixSym22>(0,0);
+
   if (debugLevel>1) {
     std::cout << "target pos=" << target.position() << " dir=" << target.direction() << std::endl;
     //test if orthogonal
     auto dcp = state1.position()-state2.position();
     std::cout << "dot dcp-dir1=" << dcp.Dot(tk1.Trajectory().StartDirection()) << std::endl;
     std::cout << "dot dcp-dir2=" << dcp.Dot(tk2.Trajectory().StartDirection()) << std::endl;
+    //
+    std::cout << "cov1=" << cov1 << std::endl;
+    std::cout << "cov2=" << cov2 << std::endl;
   }
-
-  //here we neglect that to find dist1 and dist2 one track depends on the other...
-  SMatrixSym22 cov1 = state1.covariance().Sub<SMatrixSym22>(0,0);
-  SMatrixSym22 cov2 = state2.covariance().Sub<SMatrixSym22>(0,0);
 
   SVector2 par1(state1.parameters()[0],state1.parameters()[1]);
   SVector2 par2(state2.parameters()[0],state2.parameters()[1]);
@@ -295,6 +349,7 @@ trkf::Geometric3DVertexFitter::ParsCovsOnPlane trkf::Geometric3DVertexFitter::ge
     std::cout << "input vtx=" << vtxpos << std::endl;
     std::cout << "input cov=\n" << vtxcov << std::endl;
     std::cout << "track pca=" << start+dist*dir << " dist=" << dist << std::endl;
+    std::cout << "target pos=" << target.position() << " dir=" << target.direction() << std::endl;
   }
 
   //rotate the vertex position and covariance to the target plane
@@ -308,6 +363,15 @@ trkf::Geometric3DVertexFitter::ParsCovsOnPlane trkf::Geometric3DVertexFitter::ge
   //here we neglect that to find dist, the vertex is used...
   SMatrixSym22 cov1 = target.Global6DToLocal5DCovariance(vtxcov66,false,Vector_t()).Sub<SMatrixSym22>(0,0);
   SMatrixSym22 cov2 = state.covariance().Sub<SMatrixSym22>(0,0);
+
+  if (debugLevel>1) {
+    std::cout << "vtxpar5=" << vtxpar5 << std::endl;
+    std::cout << "state.parameters()=" << state.parameters() << std::endl;
+    std::cout << "vtx covariance=\n" << vtxcov66 << std::endl;
+    std::cout << "trk covariance=\n" << state.covariance6D() << std::endl;
+    std::cout << "cov1=\n" << cov1 << std::endl;
+    std::cout << "cov2=\n" << cov2 << std::endl;
+  }
 
   return ParsCovsOnPlane(par1,par2,cov1,cov2,target);
 }
@@ -472,13 +536,32 @@ std::vector<recob::TrackVertexMeta> trkf::Geometric3DVertexFitter::computeMeta(c
 {
   std::vector<recob::TrackVertexMeta> result;
   for (auto tk : trks) {
-    auto ubvtx =  unbiasedVertex(vtx,tk.get());
-    float d = pDist(ubvtx, tk.get());
-    auto pcop = getParsCovsOnPlane(ubvtx, tk.get());
-    float i = ip(pcop);
-    float e = ipErr(pcop);
-    float c = chi2(pcop);
+    float d = util::kBogusF;
+    float i = util::kBogusF;
+    float e = util::kBogusF;
+    float c = util::kBogusF;
     auto ittoerase = vtx.findTrack(tk);
+    if (debugLevel>1) std::cout << "computeMeta for vertex with ntracks=" << vtx.tracksSize() << std::endl;
+    auto ubvtx = unbiasedVertex(vtx,tk.get());
+    if (debugLevel>1) std::cout << "got unbiased vertex with ntracks=" << ubvtx.tracksSize() << " isValid=" << ubvtx.isValid() << std::endl;
+    if (ubvtx.isValid()) {
+      d = pDist(ubvtx, tk.get());
+      auto pcop = getParsCovsOnPlane(ubvtx, tk.get());
+      i = ip(pcop);
+      e = ipErr(pcop);
+      c = chi2(pcop);
+      if (debugLevel>1) std::cout << "unbiasedVertex d=" << d << " i=" << i << " e=" << e << " c=" << c << std::endl;
+    } else if (vtx.tracksSize()==2 && ittoerase != vtx.tracksSize()) {
+      auto tks = vtx.tracksWithoutElement(ittoerase);
+      auto fakevtx = closestPointAlongTrack(tks[0],tk);
+      d = pDist(fakevtx, tk.get());
+      // these will be identical for the two tracks (modulo numerical instabilities in the matrix inversion for the chi2)
+      auto pcop = getParsCovsOnPlane(fakevtx, tk.get());
+      i = ip(pcop);
+      e = ipErr(pcop);
+      c = chi2(pcop);
+      if (debugLevel>1) std::cout << "closestPointAlongTrack d=" << d << " i=" << i << " e=" << e << " c=" << c << std::endl;
+    }
     if (ittoerase == vtx.tracksSize()) {
       result.push_back(recob::TrackVertexMeta(d,i,e,c,recob::TrackVertexMeta::NotUsedInFit));
     } else {
