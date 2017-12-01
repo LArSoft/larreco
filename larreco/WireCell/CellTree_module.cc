@@ -706,7 +706,7 @@ void CellTree::processMC( const art::Event& event )
         //          << ", truth: " << mctruth->Origin()
         //          << endl;
         // }
-        // const art::Ptr<simb::MCTruth> mctruth = bt->TrackIDToMCTruth(mc_id[i]);
+        // const art::Ptr<simb::MCTruth> mctruth = bt_serv->TrackIDToMCTruth(mc_id[i]);
 
         mc_process[i] = processMap[particle->Process()];
         if (mc_process[i] == 0) cout << "unknown process: " << particle->Process() << endl;

@@ -1,5 +1,6 @@
 #include "larreco/RecoAlg/TCAlg/TCCR.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 
 namespace tca {
 
@@ -75,7 +76,8 @@ namespace tca {
   ////////////////////////////////////////////////
   int GetOrigin(TjStuff& tjs, PFPStruct& pfp){
 
-    art::ServiceHandle<cheat::BackTracker> bt;    
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;    
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;    
 
     std::map<int, float> omap; //<origin, energy>
 
@@ -92,9 +94,9 @@ namespace tca {
           double endTick = hit.PeakTime + hit.RMS;
           // get a list of track IDEs that are close to this hit
           std::vector<sim::TrackIDE> tides;
-          bt->ChannelToTrackIDEs(tides, channel, startTick, endTick);          
+          tides = bt_serv->ChannelToTrackIDEs(channel, startTick, endTick);          
           for(auto itide = tides.begin(); itide != tides.end(); ++itide) {
-            omap[bt->TrackIDToMCTruth(itide->trackID)->Origin()] += itide->energy;
+            omap[pi_serv->TrackIdToMCTruth_P(itide->trackID)->Origin()] += itide->energy;
           }
         }
       }
