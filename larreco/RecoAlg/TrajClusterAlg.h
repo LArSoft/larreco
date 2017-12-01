@@ -311,7 +311,6 @@ namespace tca {
     void SplitHiChgHits(Trajectory& tj);
       // ****************************** 3D Tj matching code  ******************************
     void Match3D(const art::Event& evt, const geo::TPCID& tpcid);
-    void Match3DSpts(const art::Event& evt, const geo::TPCID& tpcid);
     void GetSpacePointCollection(const art::Event& evt);
 
     
