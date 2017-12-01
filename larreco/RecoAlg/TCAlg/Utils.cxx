@@ -1,6 +1,5 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
-
 struct SortEntry{
   unsigned int index;
   float val;
@@ -9,64 +8,9 @@ struct SortEntry{
 bool valDecreasing (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
 bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 
-
 namespace tca {
   
-  /////////////////////////////////////////
-  void SpacePtNear(TjStuff& tjs, const TrajPoint& tp, TVector3& pos, std::vector<int>& hitlist, std::vector<int>& tjlist)
-  {
-    // Finds space points that use hits associated with the Tp and return the
-    // average xyz position, and lists of hits and Tjs associated with those space points.
-    // The hitlist vector is empty if there is a failure.
-    hitlist.clear();
-    tjlist.clear();
-    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) pos(ixyz) = pos(ixyz) = 0;
-    if(tp.Chg <= 0) return;
-    double cnt = 0;
-    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-      if(!tp.UseHit[ii]) continue;
-      auto sptlist = GetSpacePts(tjs, tp.Hits[ii]);
-      if(sptlist.empty()) continue;
-      for(auto isp : sptlist) {
-        auto& spt = tjs.spts[isp];
-        pos += spt.Pos;
-        for(auto iht : spt.Hits) {
-          if(iht > tjs.fHits.size() - 1) continue;
-          hitlist.push_back(iht);
-          auto& hit = tjs.fHits[iht];
-          if(hit.InTraj <= 0) continue;
-          if(std::find(tjlist.begin(), tjlist.end(), hit.InTraj) == tjlist.end()) tjlist.push_back(hit.InTraj);
-        } // hit
-        ++cnt;
-      } // sphit
-    } // ii
-    if(cnt == 0) return;
-    std::sort(hitlist.begin(), hitlist.end());
-    std::sort(tjlist.begin(), tjlist.end());
-    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) pos(ixyz) = pos(ixyz) / cnt;
-    return;
-    
-  } // MakeSpacePt
-  
-  /////////////////////////////////////////
-  std::vector<unsigned int> GetSpacePts(TjStuff& tjs, unsigned int iht)
-  {
-    // returns a vector of indices into the tjs.spts vector of SpacePoints that
-    // contain hit with index iht
-    std::vector<unsigned int> temp;
-    if(tjs.spts.empty()) return temp;
-    for(unsigned int isp = 0; isp < tjs.spts.size(); ++isp) {
-      auto& spt = tjs.spts[isp];
-      for(auto hit : spt.Hits) {
-        if(hit == iht) {
-          temp.push_back(isp);
-          break;
-        }
-      } // hit
-    } // isp
-    return temp;
-  } // GetSpacePts
-  
+
   /////////////////////////////////////////
   void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
@@ -1278,12 +1222,12 @@ namespace tca {
     
     auto& tp1 = tj1.Pts[tj1.EndPt[end1]];
     auto& tp2 = tj2.Pts[tj2.EndPt[end2]];
-
+/* This causes problems with hit collections that have cosmics removed
     if(!SignalBetween(tjs, tp1, tp2, 0.8, false)) {
       if(prt) mf::LogVerbatim("TC")<<"CM: "<<tj1.ID<<" "<<tj2.ID<<" no signal between these points "<<PrintPos(tjs, tp1.Pos)<<" "<<PrintPos(tjs, tp2.Pos);
       return false;
     }
-
+*/
     float doca1 = PointTrajDOCA(tjs, tp1.Pos[0], tp1.Pos[1], tp2);
     float doca2 = PointTrajDOCA(tjs, tp2.Pos[0], tp2.Pos[1], tp1);
     if(doca1 > 2 && doca2 > 2) {
@@ -4273,7 +4217,7 @@ namespace tca {
     std::array<float, 2> tp2e1 = tj2.Pts[tj2.EndPt[1]].Pos;
     
     if(doPrt) {
-      mf::LogVerbatim("TC")<<"MergeAndStore: tj1.ID "<<tj1.ID<<" tj2.ID "<<tj2.ID<<" Looking for "<<PosSep2(tp1e1, tp2e0)<<" < "<<PosSep2(tp2e1, tp1e0)<<" at merge points "<<PrintPos(tjs, tp1e1)<<" "<<PrintPos(tjs, tp2e0);
+      mf::LogVerbatim("TC")<<"MergeAndStore: tj1.ID "<<tj1.ID<<" tj2.ID "<<tj2.ID<<" at merge points "<<PrintPos(tjs, tp1e1)<<" "<<PrintPos(tjs, tp2e0);
     }
     
     // swap the order so that abs(tj1end1 - tj2end0) is less than abs(tj2end1 - tj1end0)
@@ -4281,6 +4225,7 @@ namespace tca {
       std::swap(tj1, tj2);
       std::swap(tp1e0, tp2e0);
       std::swap(tp1e1, tp2e1);
+      if(doPrt) mf::LogVerbatim("TC")<<" swapped the order. Merge points "<<PrintPos(tjs, tp1e1)<<" "<<PrintPos(tjs, tp2e0);
     }
     
     // Here is what we are looking for, where - indicates a TP with charge.
