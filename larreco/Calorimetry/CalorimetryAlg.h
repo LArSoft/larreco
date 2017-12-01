@@ -52,6 +52,11 @@ namespace calo{
                         Comment("0 = exponential, 1 = exponential + constant")
 		};
 
+		fhicl::Atom< bool > CaloDoLifeTimeCorrection {
+			Name("DoCaloLifeTimeCorrection"),
+			Comment("Apply lifetime correction if true")
+		};
+
     };
 
 	CalorimetryAlg(const fhicl::ParameterSet& pset) :
@@ -95,6 +100,7 @@ namespace calo{
     std::vector< double > fCalAreaConstants;
     bool fUseModBox;
     int  fLifeTimeForm;
+    bool fDoLifeTimeCorrection;
     
     }; // class CalorimetryAlg
 } //namespace calo
