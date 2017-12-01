@@ -51,7 +51,6 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "larreco/HitFinder/HitFilterAlg.h"
-
 #include "lardata/ArtDataHelper/MVAWriter.h"
 
 // ROOT Includes
@@ -159,6 +158,8 @@ namespace hit{
     
     std::string      fCalDataModuleLabel;
 
+    //FHiCL parameter
+    int  fLogLevel;                   ///<signal height threshold
     float  fMinSig;                   ///<signal height threshold
     int    fTicksToStopPeakFinder;    ///<Number of ticks with same or higher ADC count that the current tick is needed to be followed by to define start and end of peak 
     int    fMinWidth;                 ///<Minimum hit width
@@ -178,6 +179,7 @@ namespace hit{
     bool  fDoMergePeaks;
     double fMergeADCSumThreshold;
     double fMergeMaxADCThreshold;
+    double fWidthNormalization;
 
     std::unique_ptr<HitFilterAlg> fHitFilterAlg;   ///algorithm used to filter out noise hits
 
@@ -241,6 +243,7 @@ void DPRawHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
 void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
 {
     // Implementation of optional member function here.
+    fLogLevel              = p.get< int >("LogLevel");
     fCalDataModuleLabel    = p.get< std::string  >("CalDataModuleLabel");
     fMaxMultiHit      	   = p.get< int    >("MaxMultiHit");
     fTryNplus1Fits    	   = p.get< bool   >("TryNplus1Fits");
@@ -261,6 +264,7 @@ void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fDoMergePeaks	   = p.get< bool   >("DoMergePeaks");
     fMergeADCSumThreshold  = p.get< double >("MergeADCSumThreshold");
     fMergeMaxADCThreshold  = p.get< double >("MergeMaxADCThreshold");
+    fWidthNormalization    = p.get< double >("WidthNormalization");
 }  
 
 //-------------------------------------------------
@@ -570,8 +574,7 @@ void DPRawHitFinder::produce(art::Event& evt)
 
 		    //Calculate width (=FWHM)
 		    double peakWidth = WidthFunc(peakMean, peakAmp, peakTau1, peakTau2, startT, endT, peakMeanTrue);
-		    peakWidth /= 2.355; //from FWHM to "standard deviation": standard deviation = FWHM/(2*sqrt(2*ln(2)))
-		    if(peakWidth<=0) continue; //Some failed fits return a negative peak width. We don't want them in our hit collection.
+		    peakWidth /= fWidthNormalization; //from FWHM to "standard deviation": standard deviation = FWHM/(2*sqrt(2*ln(2)))
 
                     // Extract fit parameters errors
                     double peakAmpErr   = paramVec[2*(i+1)].second;
@@ -590,6 +593,37 @@ void DPRawHitFinder::produce(art::Event& evt)
 
                     // ### Sum of ADC counts
                     double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
+
+
+		    //Check if fit returns reasonable values
+		    if(peakWidth <= 0 || charge <= 0. || charge != charge)
+		    {
+		      if(fLogLevel == 1)
+		      {
+			std::cout << "Fit failed" << std::endl;
+		      }
+		      peakWidth = ( ( (double)endTthisHit - (double)startTthisHit )/4. ) / fWidthNormalization; //~4 is the factor between FWHM and full width of the hit (last bin - first bin). no drift: 4.4, 6m drift: 3.7
+		      peakWidth *= 2;	//double the peak width again (overestimating the width is safer than underestimating it)
+		      charge = sumADC;
+		      peakMeanTrue = std::get<0>(peakVals.at(i));
+		      //set the fit values to make it visible in the event display that this fit failed
+                      peakMean = -50000;
+                      peakTau1 = 1;
+                      peakTau2 = 1;
+		    }
+
+		    if(fLogLevel == 1)
+		    {
+		      std::cout << "channel: " << channel << std::endl;
+		      std::cout << "charge: " << charge << std::endl;
+		      std::cout << "sumADC: " << sumADC << std::endl;
+		      std::cout << "peakAmp: " << peakAmp << std::endl;
+		      std::cout << "startT: " << startT+roiFirstBinTick << std::endl;
+		      std::cout << "peakMeanTrue: " << peakMeanTrue+roiFirstBinTick << std::endl;
+		      std::cout << "endT: " << endT+roiFirstBinTick << std::endl;
+		      std::cout << "peakWidth: " << peakWidth << std::endl;
+		      std::cout << std::endl;
+		    }
 
                     // Create the hit
                     recob::HitCreator hitcreator(*wire,                            // wire reference
@@ -796,7 +830,6 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
 		//Merge peaks within a group
 		if(fDoMergePeaks)
 		{
-//		    if( signalVec[NextMaxT] <= signalVec[PrevMaxT] && (signalVec[NextMaxT]-signalVec[PrevEndT]) < fMergeMaxADCThreshold*(signalVec[PrevMaxT]-signalVec[PrevEndT]) &&  NextSumADC < fMergeADCSumThreshold*PrevSumADC )
 		    if( signalVec[NextMaxT] <= signalVec[PrevMaxT] && signalVec[NextMaxT] < fMergeMaxADCThreshold*signalVec[PrevMaxT] &&  NextSumADC < fMergeADCSumThreshold*PrevSumADC )
 		    {
 		    	maxT=PrevMaxT;
@@ -806,7 +839,6 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
 		    	peakVals.pop_back();
                     	peakVals.emplace_back(maxT,widT,startT,endT);
 		    }
-//		    else if( signalVec[NextMaxT] > signalVec[PrevMaxT] && (signalVec[PrevMaxT]-signalVec[NextStartT]) < fMergeMaxADCThreshold*(signalVec[NextMaxT]-signalVec[NextStartT]) &&  PrevSumADC < fMergeADCSumThreshold*NextSumADC  )
 		    else if( signalVec[NextMaxT] > signalVec[PrevMaxT] && signalVec[PrevMaxT] < fMergeMaxADCThreshold*signalVec[NextMaxT] &&  PrevSumADC < fMergeADCSumThreshold*NextSumADC  )
 		    {
 		    	maxT=NextMaxT;

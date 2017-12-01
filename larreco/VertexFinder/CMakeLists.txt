@@ -2,7 +2,8 @@
 art_make( 
           EXCLUDE FeatureVertexFinder_module.cc CornerFinder_module.cc
           MODULE_LIBRARIES 
-                        larsim_MCCheater_BackTracker_service
+                        larsim_MCCheater_BackTrackerService_service
+			larsim_MCCheater_ParticleInventoryService_service
                         larevt_Filters
                         lardataobj_RecoBase
                         larcorealg_Geometry
@@ -29,7 +30,8 @@ art_make(
 
 simple_plugin ( FeatureVertexFinder "module"
                         larreco_RecoAlg
-                        larsim_MCCheater_BackTracker_service
+                        larsim_MCCheater_BackTrackerService_service
+			larsim_MCCheater_ParticleInventoryService_service
                         larevt_Filters
                         lardataobj_RecoBase
                         larcorealg_Geometry

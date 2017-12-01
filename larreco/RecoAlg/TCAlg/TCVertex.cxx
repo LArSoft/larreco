@@ -967,7 +967,6 @@ namespace tca {
     std::vector<short> vPtr(vsize, -1);
     // fill temp vectors of 2D vertex X and X errors
     std::vector<float> vX(vsize, -100);
-//    std::vector<float> vXsigma(vsize);
     
     for(unsigned short ivx = 0; ivx < vsize; ++ivx) {
       if(tjs.vtx[ivx].ID == 0) continue;
@@ -979,11 +978,6 @@ namespace tca {
       // Convert 2D vertex time error to X error
       double ticks = tjs.vtx[ivx].Pos[1] / tjs.UnitsPerTick;
       vX[ivx]  = tjs.detprop->ConvertTicksToX(ticks, plane, (int)tpc, (int)cstat);
-/*
-      ticks = (tjs.vtx[ivx].Pos[1] + tjs.vtx[ivx].PosErr[1]) / tjs.UnitsPerTick;
-      vXp = tjs.detprop->ConvertTicksToX(ticks, (int)iplID.Plane, (int)tpc, (int)cstat);
-      vXsigma[ivx] = std::abs(vXp - vX[ivx]);
-*/
     } // ivx
     
     // temp vector of all 2D vertex matches
@@ -1082,30 +1076,6 @@ namespace tca {
               v3d.Score = dX * dX + dY * dY + dZ * dZ;
               if(v3d.Score > maxScore) maxScore = v3d.Score;
               v3temp.push_back(v3d);
-/*
-              // X difference error
-              dX = (vX[kvx] - kX) / dXSigma;
-              float kChi = 0.5 * sqrt(dW * dW + dX * dX);
-              if(kChi < tjs.Vertex3DCuts[1]) {
-                // push all complete vertices onto the list
-                v3d.X = (vX[kvx] + 2 * kX) / 3;
-                v3d.XErr = kChi;
-                v3d.Vx2ID[kpl] = kvx + 1;
-                // see if this is already in the list
-                gotit = false;
-                for(unsigned short i3t = 0; i3t < v3temp.size(); ++i3t) {
-                  if(v3temp[i3t].Vx2ID[0] == v3d.Vx2ID[0] && v3temp[i3t].Vx2ID[1] == v3d.Vx2ID[1] && v3temp[i3t].Vx2ID[2] == v3d.Vx2ID[2]) {
-                    gotit = true;
-                    break;
-                  }
-                } // i3t
-                if(gotit) continue;
-                v3d.Wire = -1;
-                v3temp.push_back(v3d);
-                if(prt) mf::LogVerbatim("TC")<<" kvx "<<kvx<<" kpl "<<kpl
-                  <<" wire "<<(int)tjs.vtx[kvx].Pos[0]<<" kTime "<<(int)tjs.vtx[kvx].Pos[1]<<" kChi "<<kChi<<" dW "<<tjs.vtx[kvx].Pos[0] - kWire;
-              } // kChi < best
-*/
             } // kk
           } // jj
         } // jpl
@@ -2338,7 +2308,7 @@ namespace tca {
           } else {
             // split failed. Give up
             if(prt) mf::LogVerbatim("TC")<<" SplitAllTraj failed";
-            newVtx.ID = 0;
+            newVtx.NTraj = 0;
             break;
           }
           // Update the PDGCode for the chopped trajectory
@@ -2368,7 +2338,7 @@ namespace tca {
         SetVx2Score(tjs, prt);
         if(prt) {
           mf::LogVerbatim myprt("TC");
-          myprt<<" Success: new 2D vtx ID "<<newVtx.ID<<" at "<<(int)newVtx.Pos[0]<<":"<<(int)newVtx.Pos[1]/tjs.UnitsPerTick;
+          myprt<<" Success: new 2D vx_"<<newVtx.ID<<" at "<<(int)newVtx.Pos[0]<<":"<<(int)newVtx.Pos[1]/tjs.UnitsPerTick;
           myprt<<" points to 3D vtx "<<vx3.ID;
           myprt<<" TjIDs:";
           for(auto& tjID : tjIDs) myprt<<" "<<tjID;
@@ -2622,21 +2592,27 @@ namespace tca {
     return true;
     
   } // MakeVertexObsolete
-/*
+
   ////////////////////////////////////////////////
-  bool MakeVertexObsolete(TjStuff& tjs, unsigned short vx2ID, bool forceKill)
+  bool MakeVertexObsolete(TjStuff& tjs, Vtx3Store& vx3)
   {
-    // Deletes a 2D vertex and possibly a 3D vertex and 2D vertices in other planes
+    // Deletes a 3D vertex and 2D vertices in all planes
     // The 2D and 3D vertices are NOT killed if forceKill is false and the 3D vertex
     // has a high score
-    if(vx2ID == 0) return true;
-    if(vx2ID > tjs.vtx.size()) return false;
-    VtxStore& vx2 = tjs.vtx[vx2ID - 1];
+    if(vx3.ID == 0) return true;
+    if(vx3.ID > tjs.vtx3.size()) return false;
     
-    return MakeVertexObsolete(tjs, vx2, forceKill);
-   
+    // set the score to 0
+    vx3.Score = 0;
+    
+    for(auto vx2id : vx3.Vx2ID) {
+      if(vx2id == 0 || vx2id > tjs.vtx.size()) continue;
+      auto& vx2 = tjs.vtx[vx2id - 1];
+      MakeVertexObsolete(tjs, vx2, true);
+    }
+    return true;
   } // MakeVertexObsolete
-*/
+  
   //////////////////////////////////////////
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2)
   {

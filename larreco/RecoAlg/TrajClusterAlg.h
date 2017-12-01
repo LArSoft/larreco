@@ -59,7 +59,7 @@ namespace tca {
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
-    void RunTrajClusterAlg(art::Event & evt);
+    void RunTrajClusterAlg(const art::Event & evt);
 
     void DefineShTree(TTree* t);
     
@@ -104,6 +104,7 @@ namespace tca {
     
     private:
     
+    art::InputTag fSpacePointModuleLabel; ///< label of module producing space points
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
@@ -309,7 +310,8 @@ namespace tca {
     void ChkHiChgHits(CTP_t inCTP);
     void SplitHiChgHits(Trajectory& tj);
       // ****************************** 3D Tj matching code  ******************************
-    void Match3D(const geo::TPCID& tpcid);
+    void Match3D(const art::Event& evt, const geo::TPCID& tpcid);
+    void GetSpacePointCollection(const art::Event& evt);
 
     
     void KalmanFilterFit(PFPStruct& pfp);

@@ -40,7 +40,8 @@
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/PFParticle.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
 
@@ -249,8 +250,9 @@ namespace pfpf {
     }
     
     // list of all true particles
-    art::ServiceHandle<cheat::BackTracker> bt;
-    sim::ParticleList const& plist = bt->ParticleList();
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    sim::ParticleList const& plist = pi_serv->ParticleList();
     // list of all true particles that will be considered
     std::vector<const simb::MCParticle*> plist2;
     // true (reconstructed) hits for each particle in plist2
@@ -284,7 +286,7 @@ namespace pfpf {
       assert(part != 0);
       int pdg = abs(part->PdgCode());
       int trackID = part->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       if(fSkipCosmics && theTruth->Origin() == simb::kCosmicRay) continue;
 
       if(fPrintLevel > 3) mf::LogVerbatim("PFPAna")
@@ -365,7 +367,7 @@ namespace pfpf {
     if(plist2.size() == 0) return;
     
     // get the hits (in all planes) that are matched to the true tracks
-    hlist2 = bt->TrackIDsToHits(allhits, tidlist);
+    hlist2 = bt_serv->TrackIdsToHits_Ps( tidlist, allhits);
     if(hlist2.size() != plist2.size()) {
       mf::LogError("PFPAna")
         <<"MC particle list size "<<plist2.size()
@@ -502,7 +504,7 @@ namespace pfpf {
       if(hlist2[ipl].size() < 3) continue;
       
       int trackID = plist2[ipl]->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       bool isCosmic = (theTruth->Origin() == simb::kCosmicRay);
       float KE = 1000 * (plist2[ipl]->E() - plist2[ipl]->Mass());
       int PDG = abs(plist2[ipl]->PdgCode());

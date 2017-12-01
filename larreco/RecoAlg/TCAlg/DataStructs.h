@@ -21,6 +21,7 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "canvas/Persistency/Common/Ptr.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -33,6 +34,9 @@
 
 namespace tca {
   
+  using Point_t = ROOT::Math::PositionVector3D<ROOT::Math::Cartesian3D<double>>;
+  using Vector_t = ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double>>;
+
   // some functions to handle the CTP_t type
   typedef unsigned int CTP_t;
   constexpr unsigned int Tpad = 10; // alignment for CTP sub-items - TPC
@@ -198,13 +202,19 @@ namespace tca {
     float SigmaIntegral {1};
     float RMS {1};
     float GoodnessOfFit {0};
+    art::Ptr<recob::Hit> ArtPtr;
     unsigned short NDOF {0};
     unsigned short Multiplicity {1};
     unsigned short LocalIndex {0};
-    geo::WireID WireID;
     int InTraj {0};
     unsigned short MCPartListIndex {USHRT_MAX};
   };
+  
+  struct SptStruct {
+    Point_t Pos;
+    std::array<unsigned int, 3> Hits {UINT_MAX};
+    unsigned short TPC {USHRT_MAX};
+  }; 
 
   // Struct for 3D trajectory matching
   struct MatchStruct {
@@ -213,6 +223,7 @@ namespace tca {
     // Count of the number of X-matched hits
     int Count {0};                    // Set to 0 if matching failed
     float MatchFrac {0};
+    float TjChgAsymmetry {0};
     unsigned short pfpID {0};
   };
   
@@ -339,6 +350,7 @@ namespace tca {
 
   // Algorithm modification bits
   typedef enum {
+    kHitsOrdered,
     kMaskHits,
     kMaskBadTPs,
     kMichel,
@@ -386,9 +398,11 @@ namespace tca {
     kVtxHitsSwap,
     kSplitHiChgHits,
     kInShower,
+    kKillInShowerVx,
     kShowerTj,
     kShwrParent,
     kChkShwrParEnd,
+    kKillShwrNuPFP,
     kMergeOverlap,
     kMergeSubShowers,
     kMergeNrShowers,
@@ -441,12 +455,12 @@ namespace tca {
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<TjPt> mallTraj;      ///< vector of trajectory points ordered by increasing X
     std::vector<TCHit> fHits;
+    std::vector<SptStruct> spts;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
     std::vector<float> AngleRanges; ///< list of max angles for each angle range
-//    std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices

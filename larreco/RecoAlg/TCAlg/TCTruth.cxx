@@ -7,7 +7,8 @@
 
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
-#include "larsim/MCCheater/BackTracker.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 
 #include "lardata/RecoObjects/TrackStatePropagator.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
@@ -36,9 +37,10 @@ namespace tca {
     if(tjs.MatchTruth[0] < 0) return;
     if(tjs.fHits.empty()) return;
     
-    art::ServiceHandle<cheat::BackTracker> bt;
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     // list of all true particles
-    sim::ParticleList const& plist = bt->ParticleList();
+    sim::ParticleList const& plist = pi_serv->ParticleList();
     if(plist.empty()) return;
     
     // MC Particles for the desired true particles
@@ -50,7 +52,7 @@ namespace tca {
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       simb::MCParticle* mcp = (*ipart).second;
       int trackID = mcp->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       if(tjs.MatchTruth[0] == 1) {
         // Look for beam neutrino or single particle
         if(theTruth->Origin() == simb::kBeamNeutrino) {
@@ -95,10 +97,10 @@ namespace tca {
     std::vector<int> gtid(tjs.fHits.size(), 0);
     // find hits that match to the source particle
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-      std::vector<sim::IDE> ides;
+      std::vector<const sim::IDE*> ides;
       auto& tcHit = tjs.fHits[iht];
-      geo::PlaneID planeID = geo::PlaneID(tcHit.WireID.Cryostat, tcHit.WireID.TPC, tcHit.WireID.Plane);
-      raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel((int)tcHit.WireID.Plane, (int)tcHit.WireID.Wire, (int)tcHit.WireID.TPC, (int)tcHit.WireID.Cryostat);
+      geo::PlaneID planeID = geo::PlaneID(tcHit.ArtPtr->WireID().Cryostat, tcHit.ArtPtr->WireID().TPC, tcHit.ArtPtr->WireID().Plane);
+      raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel((int)tcHit.ArtPtr->WireID().Plane, (int)tcHit.ArtPtr->WireID().Wire, (int)tcHit.ArtPtr->WireID().TPC, (int)tcHit.ArtPtr->WireID().Cryostat);
       auto rhit = recob::Hit(channel,
                              tcHit.StartTick, tcHit.EndTick,
                              tcHit.PeakTime, tcHit.SigmaPeakTime,
@@ -109,27 +111,27 @@ namespace tca {
                              tcHit.GoodnessOfFit, tcHit.NDOF,
                              tjs.geom->View(channel),
                              tjs.geom->SignalType(planeID),
-                             tcHit.WireID);
+                             tcHit.ArtPtr->WireID());
       try {
-        bt->HitToSimIDEs(rhit, ides);
+        ides = bt_serv->HitToSimIDEs_Ps(rhit);
       }
       catch(...) {}
       if(ides.empty()) continue;
       float energy = 0;
-      for(auto ide : ides) energy += ide.energy;
+      for(auto ide : ides) energy += ide->energy;
       if(energy == 0) continue;
       // require 1/2 of the energy be due to one MC particle
       energy /= 2;
       int hitTruTrkID = 0;
       for(auto ide : ides) {
-        if(ide.energy > energy) {
-          hitTruTrkID = ide.trackID;
+        if(ide->energy > energy) {
+          hitTruTrkID = ide->trackID;
           break;
         }
       } // ide
       if(hitTruTrkID == 0) continue;
       // ensure it has the correct source
-      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(hitTruTrkID);
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(hitTruTrkID);
       if(theTruth->Origin() != sourceOrigin) continue;
       unsigned short indx = 0;
       for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
@@ -139,7 +141,7 @@ namespace tca {
         select[indx - 1] = true;
         gtid[iht] = mcp->TrackId();
         // find the eve particle and select it as well
-        const simb::MCParticle* momMCP = bt->TrackIDToMotherParticle(mcp->TrackId());
+        const simb::MCParticle* momMCP = pi_serv->TrackIdToMotherParticle_P(mcp->TrackId());
         if(!momMCP) continue;
         if(momMCP->TrackId() == mcp->TrackId()) break;
         unsigned short mindx = 0;
@@ -160,7 +162,7 @@ namespace tca {
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       simb::MCParticle* mcp = (*ipart).second;
       // find the eve particle and select it as well
-      const simb::MCParticle* momMCP = bt->TrackIDToMotherParticle(mcp->TrackId());
+      const simb::MCParticle* momMCP = bt_serv->TrackIDToMotherParticle(mcp->TrackId());
       std::cout<<ii<<" ID "<<mcp->TrackId()<<" PDG "<<mcp->PdgCode()<<" mom "<<mcp->Mother();
       if(momMCP) std::cout<<" TrackIDToMotherParticle "<<momMCP->TrackId();
       std::cout<<" Select? "<<select[ii]<<" Process "<<mcp->Process()<<"\n";
@@ -206,9 +208,10 @@ namespace tca {
     if(tjs.MatchTruth[0] < 0) return;
     if(tjs.MCPartList.empty()) return;
     
-    art::ServiceHandle<cheat::BackTracker> bt;
+    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     // list of all true particles
-    sim::ParticleList const& plist = bt->ParticleList();
+    sim::ParticleList const& plist = pi_serv->ParticleList();
     if(plist.empty()) return;
     
     // MC Particles for the desired true particles
@@ -228,7 +231,7 @@ namespace tca {
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       simb::MCParticle* mcp = (*ipart).second;
       int trackID = mcp->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = bt->TrackIDToMCTruth(trackID);
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       if(sourcePtclTrackID < 0) {
         if(tjs.MatchTruth[0] == 1) {
           // Look for beam neutrino or single particle
@@ -433,7 +436,7 @@ namespace tca {
         myprt<<std::setw(6)<<mcp->PdgCode();
 //        myprt<<std::setw(10)<<mcp->TrackId();
         // find the mother in the list
-        const simb::MCParticle* momMCP = bt->TrackIDToMotherParticle(mcp->TrackId());
+        const simb::MCParticle* momMCP = pi_serv->TrackIdToMotherParticle_P(mcp->TrackId());
         if(!momMCP) continue;
         unsigned short momIndex = 0;
         for(momIndex = 0; momIndex < tjs.MCPartList.size(); ++momIndex) {
@@ -784,8 +787,8 @@ namespace tca {
       float ntru = 0;
       for(auto& hit : tjs.fHits) {
         if(hit.MCPartListIndex != tmpIndex) continue; 
-        if(hit.WireID.Cryostat != pfp.TPCID.Cryostat) continue;
-        if(hit.WireID.TPC != pfp.TPCID.TPC) continue;
+        if(hit.ArtPtr->WireID().Cryostat != pfp.TPCID.Cryostat) continue;
+        if(hit.ArtPtr->WireID().TPC != pfp.TPCID.TPC) continue;
         ++ntru;
       } // hit
       if(ntru == 0) continue;
@@ -824,9 +827,9 @@ namespace tca {
         for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
           auto& hit = tjs.fHits[iht];
           if(hit.MCPartListIndex != ipart) continue;
-          if(hit.WireID.Cryostat != tpcid.Cryostat) continue;
-          if(hit.WireID.TPC != tpcid.TPC) continue;
-          unsigned short plane = hit.WireID.Plane;
+          if(hit.ArtPtr->WireID().Cryostat != tpcid.Cryostat) continue;
+          if(hit.ArtPtr->WireID().TPC != tpcid.TPC) continue;
+          unsigned short plane = hit.ArtPtr->WireID().Plane;
           ++cntInPln[plane];
         } // iht
         unsigned short nOKInPln = 0;
@@ -924,7 +927,7 @@ namespace tca {
     if(nDimensions < 2 || nDimensions > 3) return false;
     
     std::vector<unsigned short> cntInPln(tjs.NumPlanes);
-    for(auto& hit : tjs.fHits) if(hit.MCPartListIndex == mcpIndex) ++cntInPln[hit.WireID.Plane];
+    for(auto& hit : tjs.fHits) if(hit.MCPartListIndex == mcpIndex) ++cntInPln[hit.ArtPtr->WireID().Plane];
     unsigned short nPlnOK = 0;
     for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) if(cntInPln[plane] > 2) ++nPlnOK;
     if(nPlnOK < nDimensions - 1) return false;
@@ -941,9 +944,9 @@ namespace tca {
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       auto& hit = tjs.fHits[iht];
       if(hit.MCPartListIndex != mcpIndex) continue;
-      if(hit.WireID.Plane != planeID.Plane) continue;
-      if(hit.WireID.TPC != planeID.TPC) continue;
-      if(hit.WireID.Cryostat != planeID.Cryostat) continue;
+      if(hit.ArtPtr->WireID().Plane != planeID.Plane) continue;
+      if(hit.ArtPtr->WireID().TPC != planeID.TPC) continue;
+      if(hit.ArtPtr->WireID().Cryostat != planeID.Cryostat) continue;
       hitVec.push_back(iht);
     } // iht
     return hitVec;

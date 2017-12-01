@@ -9,7 +9,6 @@
 #ifndef TRAJCLUSTERALGUTILS_H
 #define TRAJCLUSTERALGUTILS_H
 
-
 // C/C++ standard libraries
 #include <array>
 #include <vector>
@@ -47,8 +46,7 @@ namespace tca {
   int PrimaryID(const TjStuff& tjs, const Trajectory& tj);
   int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt);
-  void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, PFPStruct& pfp, std::vector<MatchStruct>& matVec, 
-                    std::array<std::vector<unsigned int>, 2>& matchPts, std::array<std::array<float, 3>, 2>& matchPos, unsigned short& nMatch, bool prt);
+  void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, PFPStruct& pfp, std::vector<MatchStruct>& matVec, std::array<std::vector<unsigned int>, 2>& matchPts, std::array<std::array<float, 3>, 2>& matchPos, unsigned short& nMatch, bool prt);
   bool FindSepMatch(TjStuff& tjs, PFPStruct& pfp, std::array<std::array<float, 3>, 2>& matchPos, bool prt);
   void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, unsigned short end, bool prt);
