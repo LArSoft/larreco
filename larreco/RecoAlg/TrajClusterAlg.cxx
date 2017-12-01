@@ -11,6 +11,7 @@
 
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/RecoAlg/TCAlg/TCSpacePtUtils.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 
 class TH1F;
@@ -21,9 +22,6 @@ struct SortEntry{
   unsigned int index;
   float val;
 };
-
-bool greaterThan (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
-bool lessThan (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 
 bool valDecreasing (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
 bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
@@ -64,7 +62,7 @@ namespace tca {
     fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel", "NA");
     fMakeNewHits          = pset.get< bool >("MakeNewHits", true);
     fMode                 = pset.get< short >("Mode", 1);
-    fHitErrFac            = pset.get< float >("HitErrFac", 0.4);
+    fHitErrFac         = pset.get< float >("HitErrFac", 0.4);
     fMinAmp               = pset.get< float >("MinAmp", 0.1);
     tjs.AngleRanges       = pset.get< std::vector<float>>("AngleRanges");
     fNPtsAve              = pset.get< short >("NPtsAve", 20);
@@ -1120,7 +1118,7 @@ namespace tca {
         sortEntry.val = tAlong;
         sortVec[ii] = sortEntry;
       } // ii
-      std::sort(sortVec.begin(), sortVec.end(), lessThan);
+      std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
       // make a temp vector
       std::vector<unsigned int> tmp(sortVec.size());
       // overwrite with the sorted values
@@ -2017,6 +2015,9 @@ namespace tca {
           for(unsigned int it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
             if(it1 == it2) continue;
             auto& tj2 = tjs.allTraj[it2];
+            if(tj1.ID > (int)tjs.allTraj.size() || tj2.ID > (int)tjs.allTraj.size()) {
+              std::cout<<"oops "<<tj1.ID<<" "<<tj2.ID<<"\n";
+            }
             // check for consistent direction
             if(tj1.StepDir != tj2.StepDir) continue;
             if(tj2.AlgMod[kKilled]) continue;
@@ -2035,8 +2036,8 @@ namespace tca {
               if(tp2.Pos[0] > tp1.Pos[0] + 2) continue;
             }
             // ensure that there is a signal on most of the wires between these points
-            if(!SignalBetween(tjs, tp1, tp2, 0.8, false)) {
-//            if(mrgPrt) mf::LogVerbatim("TC")<<" no signal between these points "<<PrintPos(tjs, tp1.Pos)<<" "<<PrintPos(tjs, tp2.Pos);
+            if(!SignalBetween(tjs, tp1, tp2, 0.8, mrgPrt)) {
+              if(mrgPrt) mf::LogVerbatim("TC")<<" no signal between "<<PrintPos(tjs, tp1.Pos)<<" and "<<PrintPos(tjs, tp2.Pos);
               continue;
             }
             // Find the distance of closest approach for small angle merging
@@ -2109,6 +2110,8 @@ namespace tca {
             if(MakeBareTrajPoint(tjs, tj2.Pts[pt1], tj2.Pts[pt2], tpdir)) tp2.Ang = tpdir.Ang;
           } // low MCSMom
           
+          if(!isVLA && !SignalBetween(tjs, tp1, tp2, 0.99, mrgPrt)) continue;
+          
           // decide whether to merge or make a vertex
           float dang = DeltaAngle(tp1.Ang, tp2.Ang);
           float sep = PosSep(tp1.Pos, tp2.Pos);
@@ -2166,11 +2169,7 @@ namespace tca {
           
           // do not merge if chgPull is really high
           if(doMerge && chgPull > 2 * chgPullCut) doMerge = false;
-          
-          bool signalBetween = true;
-          if(!isVLA) signalBetween = SignalBetween(tjs, tp1, tp2, 0.99, mrgPrt);
-          doMerge = doMerge && signalBetween;
-          
+         
           if(doMerge) {
             if(lastPass) {
               // last pass cuts are looser but ensure that the tj after merging meets the quality cut
@@ -2220,7 +2219,6 @@ namespace tca {
             myprt<<" cut "<<docaCut<<" isVLA? "<<isVLA;
             myprt<<" dang "<<std::setprecision(2)<<dang<<" dangCut "<<dangCut;
             myprt<<" chgPull "<<std::setprecision(1)<<chgPull<<" Cut "<<chgPullCut;
-            myprt<<" signal? "<<signalBetween;
             myprt<<" chgFrac "<<std::setprecision(2)<<chgFrac;
             myprt<<" momAsym "<<momAsym;
             myprt<<" lastPass? "<<lastPass;
@@ -2394,7 +2392,7 @@ namespace tca {
       auto& lspt = tjs.spts[isp];
       // event space point
       art::Ptr<recob::SpacePoint> espt = art::Ptr<recob::SpacePoint>(spVecHandle, isp);
-      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) lspt.Pos[ixyz] = espt->XYZ()[ixyz];
+      lspt.Pos.SetCoordinates(espt->XYZ()[0], espt->XYZ()[1], espt->XYZ()[2]);
       // put the hit indices into SptStruct Hits
       std::vector<art::Ptr<recob::Hit> > spHits;
       spt_hit.get(isp, spHits);
@@ -2430,168 +2428,6 @@ namespace tca {
   } // GetSpacePointCollection
   
   //////////////////////////////////////////
-  void TrajClusterAlg::Match3DSpts(const art::Event& evt, const geo::TPCID& tpcid)
-  {
-    // Match Tjs in 3D using SpacePoint <-> Hit associations.
-    std::cout<<"Inside Match3DSpts\n";
-    if(!tjs.UseAlg[kHitsOrdered]) {
-      std::cout<<"Match3DSpts: Write some code to deal with un-ordered hits\n";
-      return;
-    }
-    
-//    bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
-    
-    // sort the Tjs in this tpc by decreasing length
-    std::vector<SortEntry> sortVec;
-    SortEntry se;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      if(DecodeCTP(tj.CTP).Cryostat != tpcid.Cryostat) continue;
-      if(DecodeCTP(tj.CTP).TPC != tpcid.TPC) continue;
-      se.index = tj.ID;
-      se.val = tj.EndPt[1] - tj.EndPt[0];
-      sortVec.push_back(se);
-    } // tj
-    if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
-    
-    for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
-      int tjid = sortVec[ii].index;
-      auto& tj = tjs.allTraj[tjid - 1];
-      if(tj.AlgMod[kMat3D]) continue;
-      unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
-      // try to create a space point at each Tj point
-      std::vector<TVector3> sptPos(npts);
-      // keep track of tj IDs at each point
-      std::vector<std::vector<int>> sptTjLists(npts);
-      std::vector<std::vector<int>> sptHitLists(npts);
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        unsigned short indx = ipt - tj.EndPt[0];
-        auto& tp = tj.Pts[ipt];
-        SpacePtNear(tjs, tp, sptPos[indx], sptHitLists[indx], sptTjLists[indx]);
-        if(ii == 0 && ipt < 50) {
-          std::cout<<PrintPos(tjs, tp.Pos)<<" "<<std::fixed<<std::setprecision(1)<<sptPos[indx](2);
-          std::cout<<" tjs";
-          for(auto tjid : sptTjLists[indx]) std::cout<<" "<<tjid;
-          std::cout<<"\n";
-        }
-      } // ipt
-      // find the most common Tjs in the lists
-      std::vector<std::pair<int, int>> tjcnts;
-      for(auto& sptTjList : sptTjLists) {
-        for(auto tjid : sptTjList) {
-          unsigned short indx = 0;
-          for(indx = 0; indx < tjcnts.size(); ++indx) if(tjid == tjcnts[indx].first) break;
-          if(indx == tjcnts.size()) {
-            tjcnts.push_back(std::make_pair(tjid, 1));
-          } else {
-            ++tjcnts[indx].second;
-          }
-        } // tjid
-      } // sptTjList
-      std::cout<<tj.ID<<" tjcnts ";
-      for(auto& tjid : tjcnts) {
-        // check the overlap
-        auto& mtj = tjs.allTraj[tjid.first - 1];
-        if(mtj.AlgMod[kDeltaRay]) continue;
-        int npwc = NumPtsWithCharge(tjs, mtj, false);
-        if(tjid.second < npwc) continue;
-        std::cout<<" "<<tjid.first<<"_"<<tjid.second;
-      }
-      std::cout<<"\n";
-      if(ii == 10) break;
-    } // ii (tj)
-    
-/*
-    unsigned short tpc = tpcid.TPC;
-    std::vector<MatchStruct> matVec;
-    MatchStruct ms;
-    
-    for(auto& spt : tjs.spts) {
-      if(spt.TPC != tpc) continue;
-      unsigned short size = 0;
-      for(auto iht : spt.Hits) {
-        if(iht > tjs.fHits.size() - 1) continue;
-        auto& hit = tjs.fHits[iht];
-        if(hit.InTraj <= 0 || (unsigned int)hit.InTraj > tjs.allTraj.size()) continue;
-        ++size;
-      }
-      if(size < 2) continue;
-      ms.TjIDs.resize(size);
-      unsigned short cnt = 0;
-      for(auto iht : spt.Hits) {
-        if(iht > tjs.fHits.size() - 1) continue;
-        auto& hit = tjs.fHits[iht];
-        if(hit.InTraj <= 0 || (unsigned int)hit.InTraj > tjs.allTraj.size()) continue;
-        if(size == 3) {
-          // put the Tj ID in plane order
-          ms.TjIDs[hit.ArtPtr->WireID().Plane] = hit.InTraj;
-        } else {
-          ms.TjIDs[cnt] = hit.InTraj;
-          ++cnt;
-        } // two hits in space point
-      } // iht
-      // swap the IDs for two-plane matches so that the ID of the first is lower. This
-      // will make combo matching simpler
-      if(size == 2 && ms.TjIDs[1] < ms.TjIDs[0]) std::swap(ms.TjIDs[0], ms.TjIDs[1]);
-      // look for this combo in matVec
-      unsigned short indx = 0;
-      for(indx = 0; indx < matVec.size(); ++indx) {
-        if(ms.TjIDs.size() != matVec[indx].TjIDs.size()) continue;
-        // Use == operator to compare
-        if(matVec[indx].TjIDs == ms.TjIDs) break;
-      } // indx
-      if(indx == matVec.size()) {
-        // not found so add it
-        ms.Count = 1;
-        matVec.push_back(ms);
-      } else {
-        ++matVec[indx].Count;
-      }
-    } // spt
-
-    std::vector<SortEntry> sortVec(matVec.size());
-    for(unsigned short ii = 0; ii < matVec.size(); ++ii) {
-      sortVec[ii].index = ii;
-      sortVec[ii].val = matVec[ii].Count;
-    } // ii
-    if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
-    auto temp = matVec;
-    for(unsigned short ii = 0; ii < matVec.size(); ++ii) matVec[ii] = temp[sortVec[ii].index];
-    
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"M3DSpts: matVec\n";
-      unsigned short cnt = 0;
-      for(auto& ms : matVec) {
-        ++cnt;
-        if(ms.Count == 0) continue;
-//        if(ms.MatchFrac < 0.2) continue;
-        myprt<<cnt-1<<" Count "<<ms.Count<<" TjIDs:";
-        for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
-        myprt<<" NumUsedHitsInTj ";
-        for(auto& tjID : ms.TjIDs) if(tjID > 0) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-        myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<ms.MatchFrac;
-        myprt<<"\n";
-        if(cnt == 500) {
-          myprt<<"...stopped printing after 500 entries.";
-          break;
-        }
-      } // ii
-    } // prt
-
-    // put the maybe OK matches into tjs
-    for(auto& ms : matVec) {
-      if(ms.Count < 2) continue;
-      // require that at least 20% of the hits are matched in the longest Tj. Note that MatchFrac may be > 1
-      // in particular for small angle trajectories
-      if(ms.MatchFrac < 0.2) continue;
-      tjs.matchVec.push_back(ms);
-    }
-    if(tjs.matchVec.empty()) return;
-*/
-  } // Match3DSpts
-  
-  //////////////////////////////////////////
   void TrajClusterAlg::Match3D(const art::Event& evt, const geo::TPCID& tpcid)
   {
     // Version 2 of 3D matching that uses Utils/FindXMatches
@@ -2602,7 +2438,7 @@ namespace tca {
     
     // match using space points if they exist
     if(!tjs.spts.empty()) {
-      Match3DSpts(evt, tpcid);
+      Match3DSpts(tjs, evt, tpcid, fSpacePointModuleLabel);
       return;
     }
     
@@ -2875,7 +2711,7 @@ namespace tca {
     } // prt
 
   } // Match3D
-
+  
   //////////////////////////////////////////
   void TrajClusterAlg::KalmanFilterFit(PFPStruct& pfp)
   {
@@ -2918,18 +2754,18 @@ namespace tca {
         float xpos = tjs.detprop->ConvertTicksToX(iTp.Pos[1]/tjs.UnitsPerTick, planeid.Plane, planeid.TPC, planeid.Cryostat);
         float posPlusRMS = iTp.Pos[1]/tjs.UnitsPerTick + TPHitsRMSTick(tjs, iTp, kUsedHits);
         float rms = tjs.detprop->ConvertTicksToX(posPlusRMS, planeid.Plane, planeid.TPC, planeid.Cryostat) - xpos;
-	//do we need to account for multiplicity as in HitTimeErr?
-	float xposerr = rms*fHitErrFac;
-	bool notused = true;
-	for (unsigned int ih=0;ih<iTp.Hits.size();++ih) {
-	  if (iTp.UseHit[ih]) {
-	    notused = false;
-	    break;
-	  }
-	}
-	// std::cout << std::setprecision(10);
-	// std::cout << "hit plane=" << planeid << " wire=" << wire << " xpos=" << xpos << " xposerr=" << xposerr << " nhits=" << iTp.Hits.size() << " wirepos=" << iTp.Pos[0] << " used=" << !notused << std::endl;
-	if (notused) continue;
+        //do we need to account for multiplicity as in HitTimeErr?
+        float xposerr = rms*fHitErrFac;
+        bool notused = true;
+        for (unsigned int ih=0;ih<iTp.Hits.size();++ih) {
+          if (iTp.UseHit[ih]) {
+            notused = false;
+            break;
+          }
+        }
+        // std::cout << std::setprecision(10);
+        // std::cout << "hit plane=" << planeid << " wire=" << wire << " xpos=" << xpos << " xposerr=" << xposerr << " nhits=" << iTp.Hits.size() << " wirepos=" << iTp.Pos[0] << " used=" << !notused << std::endl;
+        if (notused) continue;
         hitstatev.push_back( std::move( HitState(xpos,xposerr*xposerr,wid,tjs.geom->WireIDToWireGeo(wid)) ) );
       }
     }
@@ -2986,9 +2822,9 @@ namespace tca {
     }
     bool propok = true;
     KFTrackState resultF = prop.rotateToPlane(propok, fwdUpdTkState[sortedtksidx.front()].trackState(),
-                                              Plane(fwdUpdTkState[sortedtksidx.front()].position(),fwdUpdTkState[sortedtksidx.front()].momentum()));
+                                                     Plane(fwdUpdTkState[sortedtksidx.front()].position(),fwdUpdTkState[sortedtksidx.front()].momentum()));
     KFTrackState resultB = prop.rotateToPlane(propok, fwdUpdTkState[sortedtksidx.back()].trackState(),
-                                              Plane(fwdUpdTkState[sortedtksidx.back()].position(),fwdUpdTkState[sortedtksidx.back()].momentum()));
+                                                     Plane(fwdUpdTkState[sortedtksidx.back()].position(),fwdUpdTkState[sortedtksidx.back()].momentum()));
     //
     pfp.Track = recob::Track(std::move(positions), std::move(momenta), std::move(flags), true, pdgid, chi2, ndof,
                              SMatrixSym55(resultF.covariance()), SMatrixSym55(resultB.covariance()), pfp.ID);
@@ -5157,7 +4993,7 @@ namespace tca {
           sortEntry.val = PosSep2(hpos, tj.Pts[0].Pos);
           sortVec[ii] = sortEntry;
         } // ii
-        std::sort(sortVec.begin(), sortVec.end(), lessThan);
+        std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
         // make a temp vector
         std::vector<unsigned int> tmp(sortVec.size());
         // enter the sorted hits
@@ -5329,7 +5165,7 @@ namespace tca {
       sortEntry.val = d2;
       sortVec[ii] = sortEntry;
     } // ii
-    std::sort(sortVec.begin(), sortVec.end(), lessThan);
+    std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
     unsigned int vWire = std::nearbyint(vx2.Pos[0]);
     int vTick = vx2.Pos[1]/tjs.UnitsPerTick;
     if(prt) PrintHeader("FVT");
