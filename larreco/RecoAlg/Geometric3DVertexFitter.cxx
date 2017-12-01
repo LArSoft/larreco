@@ -520,21 +520,21 @@ double trkf::Geometric3DVertexFitter::pDistUnbiased(const trkf::VertexWrapper& v
   }
 }
 
-std::vector<recob::TrackVertexMeta> trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx)
+std::vector<recob::VertexAssnMeta> trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx)
 {
   return computeMeta(vtx, vtx.tracks());
 }
 
-std::vector<recob::TrackVertexMeta> trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx, const std::vector< art::Ptr<recob::Track> >& arttracks)
+std::vector<recob::VertexAssnMeta> trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx, const std::vector< art::Ptr<recob::Track> >& arttracks)
 {
   TrackRefVec tracks;
   for (auto t : arttracks) tracks.push_back(*t);
   return computeMeta(vtx, tracks);
 }
 
-std::vector<recob::TrackVertexMeta> trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx, const TrackRefVec& trks)
+std::vector<recob::VertexAssnMeta> trkf::Geometric3DVertexFitter::computeMeta(const VertexWrapper& vtx, const TrackRefVec& trks)
 {
-  std::vector<recob::TrackVertexMeta> result;
+  std::vector<recob::VertexAssnMeta> result;
   for (auto tk : trks) {
     float d = util::kBogusF;
     float i = util::kBogusF;
@@ -563,9 +563,9 @@ std::vector<recob::TrackVertexMeta> trkf::Geometric3DVertexFitter::computeMeta(c
       if (debugLevel>1) std::cout << "closestPointAlongTrack d=" << d << " i=" << i << " e=" << e << " c=" << c << std::endl;
     }
     if (ittoerase == vtx.tracksSize()) {
-      result.push_back(recob::TrackVertexMeta(d,i,e,c,recob::TrackVertexMeta::NotUsedInFit));
+      result.push_back(recob::VertexAssnMeta(d,i,e,c,recob::VertexAssnMeta::NotUsedInFit));
     } else {
-      result.push_back(recob::TrackVertexMeta(d,i,e,c,recob::TrackVertexMeta::IncludedInFit));
+      result.push_back(recob::VertexAssnMeta(d,i,e,c,recob::VertexAssnMeta::IncludedInFit));
     }
   }
   return result;

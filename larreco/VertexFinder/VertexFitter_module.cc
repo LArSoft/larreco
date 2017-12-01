@@ -83,7 +83,7 @@ trkf::VertexFitter::VertexFitter(Parameters const & p)
 {
   produces<std::vector<recob::Vertex> >();
   produces<art::Assns<recob::PFParticle, recob::Vertex> >();
-  produces<art::Assns<recob::Vertex, recob::Track, recob::TrackVertexMeta> >();
+  produces<art::Assns<recob::Vertex, recob::Track, recob::VertexAssnMeta> >();
 }
 
 void trkf::VertexFitter::produce(art::Event & e)
@@ -93,7 +93,7 @@ void trkf::VertexFitter::produce(art::Event & e)
 
   auto outputVertices = make_unique<vector<recob::Vertex> >();
   auto outputPFVxAssn = make_unique<art::Assns<recob::PFParticle, recob::Vertex> >();
-  auto outputVxTkMtAssn = make_unique<art::Assns<recob::Vertex, recob::Track, recob::TrackVertexMeta> >();
+  auto outputVxTkMtAssn = make_unique<art::Assns<recob::Vertex, recob::Track, recob::VertexAssnMeta> >();
 
   const auto& inputPFParticle = e.getValidHandle<vector<recob::PFParticle> >(pfParticleInputTag);
   auto assocTracks = unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPFParticle, e, trackInputTag));

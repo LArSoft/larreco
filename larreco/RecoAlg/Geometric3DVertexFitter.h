@@ -1,13 +1,6 @@
 #ifndef GEOMETRIC3DVERTEXFITTER_H
 #define GEOMETRIC3DVERTEXFITTER_H
 
-////////////////////////////////////////////////////////////////////////
-// Class:       Geometric3DVertexFitter
-// File:        Geometric3DVertexFitter.h
-//
-// Author: Giuseppe Cerati, cerati@fnal.gov
-////////////////////////////////////////////////////////////////////////
-
 #include "canvas/Persistency/Common/Ptr.h"
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/FindManyP.h"
@@ -16,14 +9,41 @@
 
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "larreco/RecoAlg/VertexWrapper.h"
-#include "lardataobj/RecoBase/TrackVertexMeta.h"
+#include "lardataobj/RecoBase/VertexAssnMeta.h"
 #include "lardata/RecoObjects/TrackStatePropagator.h"
 
 namespace trkf {
+  //
   using SMatrixSym22 = recob::tracking::SMatrixSym22;
   using SVector2     = recob::tracking::SVector2;
   using SMatrixSym33 = recob::tracking::SMatrixSym33;
   using SVector3     = recob::tracking::SVector3;
+  //
+  /**
+   * @file  larreco/RecoAlg/Geometric3DVertexFitter.h
+   * @class trkf::Geometric3DVertexFitter
+   *
+   * @brief 3D vertex fitter based on the geometric properties (start position, direction, covariance) of the tracks.
+   *
+   * This algorithm fits vertices with following procedure.
+   * First, tracks are sorted based on their start positions and the number of hits.
+   * A vertex is created from the first two tracks: it is defined as the weighted average of the points of closest approaches of the two tracks.
+   * Then the other tracks are added, to the vertex: the updated vertex is defined as the weighted average
+   * of the n-1 track vertex position and the point of closest approach of the n-th track.
+   * Methods to obtain the (unbiased) propagation distance, impact parameter, impact parameter error, impact parameter significance, and chi2
+   * of a track with respect to the vertex are provided.
+   *
+   * Inputs are: a set of tracks; interface is provided allowing these to be passed directly of through a PFParticle hierarchy.
+   *
+   * Outputs are: a VertexWrapper, containing the vertex and the reference to the tracks actually used in the fit;
+   * also methods to produce recob::VertexAssnMeta are provided.
+   *
+   * For configuration options see Geometric3DVertexFitter#Config
+   *
+   * @author  G. Cerati (FNAL, MicroBooNE)
+   * @date    2017
+   * @version 1.0
+   */
   //
   class Geometric3DVertexFitter {
     //
@@ -51,8 +71,8 @@ namespace trkf {
       const recob::tracking::Point_t& vtxPos_;
     };
     //
-    struct ParsCovsOnPlane {//fixme understand copies
-    ParsCovsOnPlane(SVector2 p1, SVector2 p2, SMatrixSym22 c1, SMatrixSym22 c2, recob::tracking::Plane p)
+    struct ParsCovsOnPlane {
+    ParsCovsOnPlane(const SVector2& p1, const SVector2& p2, const SMatrixSym22& c1, const SMatrixSym22& c2, const recob::tracking::Plane& p)
     : par1(p1), par2(p2), cov1(c1), cov2(c2), plane(p) {}
       SVector2 par1, par2;
       SMatrixSym22 cov1, cov2;
@@ -77,9 +97,9 @@ namespace trkf {
     //
     void addTrackToVertex(VertexWrapper& vtx, const recob::Track& tk) const;
     //
-    std::vector<recob::TrackVertexMeta> computeMeta(const VertexWrapper& vtx);
-    std::vector<recob::TrackVertexMeta> computeMeta(const VertexWrapper& vtx, const std::vector< art::Ptr<recob::Track> >& arttracks);
-    std::vector<recob::TrackVertexMeta> computeMeta(const VertexWrapper& vtx, const TrackRefVec& trks);
+    std::vector<recob::VertexAssnMeta> computeMeta(const VertexWrapper& vtx);
+    std::vector<recob::VertexAssnMeta> computeMeta(const VertexWrapper& vtx, const std::vector< art::Ptr<recob::Track> >& arttracks);
+    std::vector<recob::VertexAssnMeta> computeMeta(const VertexWrapper& vtx, const TrackRefVec& trks);
     //
     double chi2 (const VertexWrapper& vtx, const recob::Track& tk) const;
     double ip   (const VertexWrapper& vtx, const recob::Track& tk) const;

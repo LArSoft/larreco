@@ -6,6 +6,21 @@
 #include "lardataobj/RecoBase/Track.h"
 
 namespace trkf {
+  //
+  /**
+   * @file  larreco/RecoAlg/VertexWrapper.h
+   * @class trkf::VertexWrapper
+   *
+   * @brief Wrapper class to facilitate vertex production.
+   *
+   * It stores the recob::Vertex being built and the references to the tracks being used in the vertex fit.
+   * Tracks are stored in a vector of std::reference_wrapper<const recob::Track>,
+   * so the wrapper does not own the pointer to the original track object.
+   *
+   * @author  G. Cerati (FNAL, MicroBooNE)
+   * @date    2017
+   * @version 1.0
+   */
   
   // use reference_wrapper instead of pointers: we do not want ownership of the tracks
   typedef std::vector<std::reference_wrapper<const recob::Track> > TrackRefVec;
