@@ -34,6 +34,9 @@
 
 namespace tca {
   
+  using Point_t = ROOT::Math::PositionVector3D<ROOT::Math::Cartesian3D<double>>;
+  using Vector_t = ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double>>;
+
   // some functions to handle the CTP_t type
   typedef unsigned int CTP_t;
   constexpr unsigned int Tpad = 10; // alignment for CTP sub-items - TPC
@@ -208,7 +211,7 @@ namespace tca {
   };
   
   struct SptStruct {
-    TVector3 Pos;
+    Point_t Pos;
     std::array<unsigned int, 3> Hits {UINT_MAX};
     unsigned short TPC {USHRT_MAX};
   }; 
