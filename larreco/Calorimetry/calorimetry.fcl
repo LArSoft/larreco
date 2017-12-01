@@ -6,6 +6,7 @@ standard_calorimetryalgdata:
   CalAreaConstants:  	[ 0.544391e-2 , 2.0376e-2 ]
   CaloUseModBox:        true   #use modified Box model recombination correction
   CaloLifeTimeForm:     0 # 0 is single exponential and 1 is constant+exponential using database values (only works for microboone.
+  CaloDoLifeTimeCorrection: true
 }
 
 standard_calorimetryalgmc:
@@ -14,6 +15,7 @@ standard_calorimetryalgmc:
   CalAreaConstants:   	[ 0.773887e-2 , 1.78186e-2 ]
   CaloUseModBox:        true   #use modified Box model recombination correction
   CaloLifeTimeForm:     0
+  CaloDoLifeTimeCorrection: true
 }
 
 standard_calodata:
