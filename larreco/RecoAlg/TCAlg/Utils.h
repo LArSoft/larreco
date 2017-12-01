@@ -9,7 +9,6 @@
 #ifndef TRAJCLUSTERALGUTILS_H
 #define TRAJCLUSTERALGUTILS_H
 
-
 // C/C++ standard libraries
 #include <array>
 #include <vector>
@@ -41,8 +40,6 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
-  void SpacePtNear(TjStuff& tjs, const TrajPoint& tp, TVector3& pos, std::vector<int>& hitlist, std::vector<int>& tjlist);
-  std::vector<unsigned int> GetSpacePts(TjStuff& tjs, unsigned int iht);
   void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   int NeutrinoPrimaryTjID(const TjStuff& tjs, const Trajectory& tj);
