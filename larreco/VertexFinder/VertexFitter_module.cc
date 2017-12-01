@@ -1,11 +1,3 @@
-////////////////////////////////////////////////////////////////////////
-// Class:       VertexFitter
-// Plugin Type: producer (art v2_07_03)
-// File:        VertexFitter_module.cc
-//
-// Author: Giuseppe Cerati, cerati@fnal.gov
-////////////////////////////////////////////////////////////////////////
-
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
@@ -28,6 +20,28 @@
 #include <memory>
 
 namespace trkf {
+  //
+  /**
+   * @file  larreco/VertexFinder/VertexFitter_module.cc
+   * @class trkf::VertexFitter
+   *
+   * @brief Module for fitting a vertex using the Geometric3DVertexFitter.
+   *
+   * It selects primary PFParticles, and then collects all tracks associated to its daughters;
+   * if at least 2 tracks are found, they are passed to the vertex fitter.
+   *
+   * Inputs are: a PFParticle collection, and the associated tracks.
+   *
+   * Outputs are: vector of recob::Vertex, Assns of (neutrino) recob::PFParticle to recob::Vertex,
+   * Assns of recob::Vertex and recob::Track with recob::VertexAssnMeta.
+   *
+   * For configuration options see Geometric3DVertexFitter#Parameters
+   *
+   * @author  G. Cerati (FNAL, MicroBooNE)
+   * @date    2017
+   * @version 1.0
+   */
+  //
 
   class VertexFitter : public art::EDProducer {
   public:
