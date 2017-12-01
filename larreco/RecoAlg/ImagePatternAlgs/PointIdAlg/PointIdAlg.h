@@ -153,8 +153,6 @@ private:
 	size_t fPatchSizeW, fPatchSizeD;
 
 	mutable size_t fCurrentWireIdx, fCurrentScaledDrift;
-	bool patchFromDownsampledView(size_t wire, float drift, std::vector< std::vector<float> > & patch) const;
-	bool patchFromOriginalView(size_t wire, float drift, std::vector< std::vector<float> > & patch) const;
 	bool bufferPatch(size_t wire, float drift, std::vector< std::vector<float> > & patch) const
 	{
 		if (fDownscaleFullView)
@@ -165,7 +163,7 @@ private:
 
                 	fCurrentWireIdx = wire; fCurrentScaledDrift = sd;
 
-			return patchFromDownsampledView(wire, drift, patch);
+			return patchFromDownsampledView(wire, drift, fPatchSizeW, fPatchSizeD, patch);
 		}
 		else
 		{
@@ -174,7 +172,7 @@ private:
 
 			fCurrentWireIdx = wire; fCurrentScaledDrift = drift;
 
-			return patchFromOriginalView(wire, drift, patch);
+			return patchFromOriginalView(wire, drift, fPatchSizeW, fPatchSizeD, patch);
 		}
 	}
 	bool bufferPatch(size_t wire, float drift) const { return bufferPatch(wire, drift, fWireDriftPatch); }

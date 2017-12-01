@@ -108,6 +108,29 @@ public:
 
 	std::vector<float> const & wireData(size_t widx) const { return fWireDriftData[widx]; }
 
+	/// Return patch of data centered on the wire and drift, witht the size in (downscaled) pixels givent
+	/// with patchSizeW and patchSizeD.  Pad with the zero-level calue if patch extends beyond the event
+	/// projection.
+	std::vector< std::vector<float> > getPatch(size_t wire, float drift, size_t patchSizeW, size_t patchSizeD) const
+	{
+		bool ok = false;
+		std::vector< std::vector<float> > patch;
+		if (fDownscaleFullView)
+		{
+			ok = patchFromDownsampledView(wire, drift, patchSizeW, patchSizeD, patch);
+		}
+		else
+		{
+			ok = patchFromOriginalView(wire, drift, patchSizeW, patchSizeD, patch);
+		}
+
+		if (ok) return patch;
+		else
+		{
+			throw cet::exception("img::DataProviderAlg") << "Patch filling failed." << std::endl;
+		}
+	}
+
     /// Return value from the ADC buffer, or zero if coordinates are out of the view;
     /// will scale the drift according to the downscale settings.
     float getPixelOrZero(int wire, int drift) const
@@ -181,6 +204,9 @@ protected:
     }
 
 	bool setWireData(std::vector<float> const & adc, size_t wireIdx);
+
+	bool patchFromDownsampledView(size_t wire, float drift, size_t size_w, size_t size_d, std::vector< std::vector<float> > & patch) const;
+	bool patchFromOriginalView(size_t wire, float drift, size_t size_w, size_t size_d, std::vector< std::vector<float> > & patch) const;
 
 	virtual void resizeView(size_t wires, size_t drifts);
 

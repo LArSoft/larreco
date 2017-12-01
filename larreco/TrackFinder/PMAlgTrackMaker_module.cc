@@ -307,19 +307,15 @@ anab::CosmicTagID_t PMAlgTrackMaker::getCosmicTag(const pma::Track3D::ETag pmaTa
 {
     anab::CosmicTagID_t anabTag;
     
-    pma::Track3D::ETag masked = pma::Track3D::ETag(pmaTag & 0x00FFFF00);
-    switch (masked)
-    {
-        case pma::Track3D::kOutsideDrift_Partial: anabTag = anab::CosmicTagID_t::kOutsideDrift_Partial; break;
-        case pma::Track3D::kOutsideDrift_Complete: anabTag = anab::CosmicTagID_t::kOutsideDrift_Complete; break;
-        case pma::Track3D::kBeamIncompatible: anabTag = anab::CosmicTagID_t::kFlash_BeamIncompatible; break;
-        case pma::Track3D::kGeometry_XX: anabTag = anab::CosmicTagID_t::kGeometry_XX; break;
-        case pma::Track3D::kGeometry_YY: anabTag = anab::CosmicTagID_t::kGeometry_YY; break;
-        case pma::Track3D::kGeometry_ZZ: anabTag = anab::CosmicTagID_t::kGeometry_ZZ; break;
-        case pma::Track3D::kGeometry_YZ:  anabTag = anab::CosmicTagID_t::kGeometry_YZ; break;
-        case pma::Track3D::kGeometry_Y:  anabTag = anab::CosmicTagID_t::kGeometry_Y; break;
-        default: anabTag = anab::CosmicTagID_t::kUnknown; break;
-    }
+    if      (pmaTag & pma::Track3D::kOutsideDrift_Partial)  { anabTag = anab::CosmicTagID_t::kOutsideDrift_Partial;   }
+    else if (pmaTag & pma::Track3D::kOutsideDrift_Complete) { anabTag = anab::CosmicTagID_t::kOutsideDrift_Complete;  }
+    else if (pmaTag & pma::Track3D::kBeamIncompatible)      { anabTag = anab::CosmicTagID_t::kFlash_BeamIncompatible; }
+    else if (pmaTag & pma::Track3D::kGeometry_XX)           { anabTag = anab::CosmicTagID_t::kGeometry_XX;            }
+    else if (pmaTag & pma::Track3D::kGeometry_YY)           { anabTag = anab::CosmicTagID_t::kGeometry_YY;            }
+    else if (pmaTag & pma::Track3D::kGeometry_ZZ)           { anabTag = anab::CosmicTagID_t::kGeometry_ZZ;            }
+    else if (pmaTag & pma::Track3D::kGeometry_YZ)           { anabTag = anab::CosmicTagID_t::kGeometry_YZ;            }
+    else if (pmaTag & pma::Track3D::kGeometry_Y)            { anabTag = anab::CosmicTagID_t::kGeometry_Y;             }
+    else                                                    { anabTag = anab::CosmicTagID_t::kUnknown;                }
     
     return anabTag;
 }
