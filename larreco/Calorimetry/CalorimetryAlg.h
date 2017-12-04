@@ -53,7 +53,7 @@ namespace calo{
 		};
 
 		fhicl::Atom< bool > CaloDoLifeTimeCorrection {
-			Name("DoCaloLifeTimeCorrection"),
+			Name("CaloDoLifeTimeCorrection"),
 			Comment("Apply lifetime correction if true")
 		};
 
