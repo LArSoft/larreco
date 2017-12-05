@@ -2388,7 +2388,6 @@ namespace tca {
     
     art::ValidHandle<std::vector<recob::SpacePoint>> spVecHandle = evt.getValidHandle<std::vector<recob::SpacePoint>>(fSpacePointModuleLabel);
     art::FindManyP<recob::Hit> spt_hit(spVecHandle, evt, fSpacePointModuleLabel);
-    std::cout<<"Number of space points "<<spVecHandle->size()<<"\n";
     if(spVecHandle->size() == 0) return;
     tjs.spts.resize(spVecHandle->size());
     bool first = true;
@@ -2405,14 +2404,14 @@ namespace tca {
       for(auto sphit : spHits) {
         // the Ptr key() is the index into the hits collection
         if(sphit.key() < 0 || sphit.key() > tjs.fHits.size() - 1) {
-          std::cout<<"GSPC: Bad art Ptr key. Reverting to old matching code\n";
+          mf::LogVerbatim("TC")<<"GSPC: Bad art Ptr key. Reverting to old matching code";
           tjs.spts.clear();
           return;
         }
         auto& tchit = tjs.fHits[sphit.key()];
         // make a simple check
         if(tchit.PeakTime != sphit->PeakTime()) {
-          std::cout<<"GSPC: Hit indexing error. Reverting to old matching code\n";
+          mf::LogVerbatim("TC"<<"GSPC: Hit indexing error. Reverting to old matching code";
           tjs.spts.clear();
           return;
         }
@@ -2420,7 +2419,7 @@ namespace tca {
         // have the same product id
         if(first) {
           if(sphit.id() != tjs.fHits[0].ArtPtr.id()) {
-            std::cout<<"GSPC: SpacePointModuleLabel and HitFinderModuleLabel reference a different hit collection. Reverting to old code\n";
+            mf::LogVerbatim("TC"<<"GSPC: SpacePointModuleLabel and HitFinderModuleLabel reference a different hit collection. Reverting to old code";
             tjs.spts.clear();
             return;
           }
