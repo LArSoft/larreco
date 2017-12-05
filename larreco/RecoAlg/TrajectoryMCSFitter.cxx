@@ -1,6 +1,6 @@
 #include "TrajectoryMCSFitter.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "larcoreobj/SimpleTypesAndConstants/geo_vectors.h"
+#include "larcorealg/Geometry/geo_vectors_utils.h"
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"
 
@@ -136,7 +136,7 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std:
 void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, const size_t firstPoint, const size_t lastPoint, Vector_t& pcdir) const {
   //
   int npoints = 0;
-  geo::MiddlePointAccumulator middlePointCalc;
+  geo::vect::MiddlePointAccumulator middlePointCalc;
   size_t nextValid = firstPoint;
   while (nextValid<lastPoint) {
     middlePointCalc.add(traj.LocationAtPoint(nextValid));
