@@ -31,6 +31,7 @@
 namespace tca {
   
   void Match3DSpts(TjStuff& tjs, const art::Event& evt, const geo::TPCID& tpcid, const art::InputTag& fSpacePointModuleLabel);
+  bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, std::vector<std::vector<unsigned int>>& sptLists, int tjID, bool prt);
   bool MergeBrokenTjs(TjStuff& tjs, std::vector<int>& tjInPln, bool prt);
   std::vector<int> TjsNearSpacePts(TjStuff& tjs, std::vector<unsigned int> sptlist);
   std::vector<unsigned int> SpacePtsAssociatedWith(TjStuff& tjs, const TrajPoint& tp);
