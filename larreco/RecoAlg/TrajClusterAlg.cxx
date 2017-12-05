@@ -434,13 +434,18 @@ namespace tca {
       // or step in the other direction
       tjs.StepDir = -1;
     }
+    if(fMode == 4) std::cout<<"RTCA: fMode set to 4 for debugging\n";
     for (const geo::TPCID& tpcid: tjs.geom->IterateTPCIDs()) {
       geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
+      // special debug mode for multi-TPC detectors like protoDUNE
+      if(fMode == 4 && (int)tpcid.TPC != debug.TPC) continue;
       fQuitAlg = !FillWireHitRange(tjs, tpcid, fDebugMode);
       if(fQuitAlg) return;
       for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
         // special mode for only reconstructing the collection plane
         if(fMode == 2 && plane != TPC.Nplanes() - 1) continue;
+        // special debug mode for multi-TPC detectors like protoDUNE
+        if(fMode == 4 && (int)plane != debug.Plane) continue;
         // no hits on this plane?
         if(tjs.FirstWire[plane] > tjs.LastWire[plane]) continue;
         // Set the CTP code to ensure objects are compared within the same plane
