@@ -51,7 +51,9 @@ namespace cluster {
       std::unique_ptr<ClusterCrawlerAlg> fCCAlg; // define ClusterCrawlerAlg object
       
       art::InputTag fHitFinderLabel; ///< label of module producing input hits
-//      std::string fFilteredDataModuleLabel; ///< label of module producing filtered wires
+
+      bool fDoWireAssns;
+      bool fDoRawDigitAssns;
     
   }; // class LineCluster
   
@@ -91,7 +93,7 @@ namespace cluster {
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
-    recob::HitCollectionAssociator::declare_products(*this);
+    recob::HitCollectionAssociator::declare_products(*this,"",fDoWireAssns,fDoRawDigitAssns);
     
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
@@ -106,6 +108,8 @@ namespace cluster {
   void LineCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
     fHitFinderLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
+    fDoWireAssns = pset.get<bool>("DoWireAssns",true);
+    fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",false);
     
     // this trick avoids double configuration on construction
     if (fCCAlg)
@@ -134,7 +138,7 @@ namespace cluster {
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
     // we get the association to raw digits through wire associations
-    recob::HitRefinerAssociator shcol(*this, evt, fHitFinderLabel);
+    recob::HitRefinerAssociator shcol(*this, evt, fHitFinderLabel, fDoWireAssns, fDoRawDigitAssns);
     std::vector<recob::Cluster> sccol;
     std::vector<recob::Vertex> sv3col;
     std::vector<recob::EndPoint2D> sv2col;
