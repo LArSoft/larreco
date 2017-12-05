@@ -137,7 +137,11 @@ namespace tca {
           tj.AlgMod[kMat3D] = true;
         }
       } // plane
-      // set the end points
+      // set the end points using the local version that uses SpacePoints instead
+      // of tjs.malltraj
+      if(!SetPFPEndPoints(tjs, pfp, sptLists, tj.ID, prt)) {
+        std::cout<<"SetPFPEndPoints failed";
+      }
 /*
       auto& spt = tjs.spts[firstPt];
       pfp.XYZ[0][0] = spt.Pos.X();
@@ -150,6 +154,41 @@ namespace tca {
     
   } // Match3DSpts
 
+  /////////////////////////////////////////
+  bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, std::vector<std::vector<unsigned int>>& sptLists, int tjID, bool prt)
+  {
+    // Find PFParticle end points using the lists spacepoints that are associated with each TP
+    // on Trajectory tjID. This is the longest trajectory of the PFParticle
+    
+    // this code doesn't handle the ends of showers
+    if(pfp.PDGCode == 1111) return false;
+    if(pfp.TjIDs.size() < 2) return false;
+    if(sptLists.empty()) return false;
+    // this function needs spacepoints
+    if(tjs.pfps.empty()) return false;
+    unsigned short tjIndex = 0;
+    for(tjIndex = 0; tjIndex < pfp.TjIDs.size(); ++tjIndex) if(tjID == pfp.TjIDs[tjIndex]) break;
+    if(tjIndex == pfp.TjIDs.size()) return false;
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"SPEP: PFP "<<pfp.ID;
+//      myprt<<" Vx3ID "<<pfp.Vx3ID[end];
+      myprt<<" Tjs";
+      for(auto id : pfp.TjIDs) myprt<<" "<<id;
+      if(pfp.PDGCode == 1111) myprt<<" This is a shower PFP ";
+    }
+    
+    // find the first point that has all Tjs in a space point. We will use this to decide
+    // which ends of the Tjs match
+/*
+    for(auto& sptlist : sptLists) {
+      if() 
+    } // sptlist
+*/
+    return true;
+  } // SetPFPEndPoints
+  
   /////////////////////////////////////////
   bool MergeBrokenTjs(TjStuff& tjs, std::vector<int>& tjInPln, bool prt)
   {
