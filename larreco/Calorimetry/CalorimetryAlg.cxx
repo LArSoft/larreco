@@ -44,6 +44,7 @@ namespace calo{
     fCalAreaConstants   = config.CalAreaConstants();
     fUseModBox          = config.CaloUseModBox();
     fLifeTimeForm       = config.CaloLifeTimeForm();
+    fDoLifeTimeCorrection = config.CaloDoLifeTimeCorrection();
 
     return;
   }
@@ -116,7 +117,8 @@ namespace calo{
   // ----------------- apply Lifetime and recombination correction.  -----------------//
   double CalorimetryAlg::dEdx_from_dQdx_e(double dQdx_e, double time, double T0) const
   {
-    dQdx_e *= LifetimeCorrection(time, T0);   // Lifetime Correction (dQdx_e in e/cm)
+    if (fDoLifeTimeCorrection)
+      dQdx_e *= LifetimeCorrection(time, T0);   // Lifetime Correction (dQdx_e in e/cm)
     if(fUseModBox) {
       return detprop->ModBoxCorrection(dQdx_e);
     } else {
