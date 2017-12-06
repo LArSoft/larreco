@@ -301,6 +301,8 @@ namespace tca {
   {
 
     if(fMode == 0) return;
+
+    fIsRealData = evt.isRealData();
     
     // Get the hits
     art::ValidHandle< std::vector<recob::Hit>> hitVecHandle = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderModuleLabel);
@@ -422,7 +424,6 @@ namespace tca {
     
     // Set true if a truly bad situation occurs
     fQuitAlg = false;
-    fIsRealData = evt.isRealData();
     vtxPrt = false;
     mrgPrt = false;
     didPrt = false;
