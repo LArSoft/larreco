@@ -128,7 +128,7 @@ bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob:
       hitflagsv.back().set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
     }
   }
-  assert(hits.size()==hitstatev.size());
+  if (dumpLevel_>2) assert(hits.size()==hitstatev.size());
   return true;
 }
 
@@ -305,7 +305,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
     }//for (auto hitstate : hitstatev)
   }
 
-  assert( rejectedhsidx.size()+hitstateidx.size() == hitstatev.size() );
+  if (dumpLevel_>2) assert( rejectedhsidx.size()+hitstateidx.size() == hitstatev.size() );
   if (dumpLevel_>0) {
     std::cout << "TRACK AFTER FWD" << std::endl;
     trackState.dump();
@@ -387,7 +387,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
     return false;
   }
 
-  assert( rejectedhsidx.size()+sortedtksidx.size() == hitstatev.size() );
+  if (dumpLevel_>2) assert( rejectedhsidx.size()+sortedtksidx.size() == hitstatev.size() );
   return true;
 }
 
@@ -485,11 +485,11 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
     const auto& trackstate = fwdUpdTkState[p];
     const auto& hitflags   = hitflagsv[hitstateidx[p]];
     const unsigned int originalPos = (reverseHits ? hitstatev.size()-hitstateidx[p]-1 : hitstateidx[p]);
-    assert(originalPos>=0 && originalPos<hitstatev.size());
+    if (dumpLevel_>2) assert(originalPos>=0 && originalPos<hitstatev.size());
     //
     const auto& prdtrack = fwdPrdTkState[p];
     const auto& hitstate = hitstatev[hitstateidx[p]];
-    assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
+    if (dumpLevel_>2) assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
     //
     trkmkr::OptionalPointElement ope;
     if (optionals.isTrackFitInfosInit()) {
@@ -509,7 +509,7 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
     if (mask.isSet(recob::TrajectoryPointFlagTraits::Rejected)==0) mask.set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
     //
     const auto& hitstate = hitstatev[rejectedhsidx[rejidx]];
-    assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
+    if (dumpLevel_>2) assert(hitstate.wireId().Plane == inHits[originalPos]->WireID().Plane);
     trkmkr::OptionalPointElement ope;
     if (optionals.isTrackFitInfosInit()) {
       ope.setTrackFitHitInfo( recob::TrackFitHitInfo(hitstate.hitMeas(),hitstate.hitMeasErr2(),
@@ -520,7 +520,7 @@ bool trkf::TrackKalmanFitter::fillResult(const std::vector<art::Ptr<recob::Hit> 
   }
 
   if (dumpLevel_>1) std::cout << "outHits.size()=" << outHits.size() << " inHits.size()=" << inHits.size() << std::endl;
-  assert(outHits.size()==inHits.size());
+  if (dumpLevel_>2) assert(outHits.size()==inHits.size());
 
   bool propok = true;
   KFTrackState resultF = propagator->rotateToPlane(propok, fwdUpdTkState[sortedtksidx.front()].trackState(),
