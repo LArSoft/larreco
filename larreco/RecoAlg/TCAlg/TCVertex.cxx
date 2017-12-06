@@ -853,6 +853,7 @@ namespace tca {
     if(tjs.allTraj.empty()) return;
 
     bool prt = (debug.Plane >= 0 && debug.Tick == 77777);
+    if(prt) mf::LogVerbatim("TC")<<"Inside SplitTrajCrossingVertices inCTP "<<inCTP;
 
     geo::PlaneID planeID = DecodeCTP(inCTP);        
 
@@ -877,25 +878,36 @@ namespace tca {
         // not in the cryostat/tpc/plane
         if(tjs.allTraj[itj].CTP != tjs.vtx[iv].CTP) continue;
         TrajClosestApproach(tjs.allTraj[itj], tjs.vtx[iv].Pos[0], tjs.vtx[iv].Pos[1], closePt, doca);
-        if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<tjs.allTraj[itj].ID<<" and tjs.vtx "<<tjs.vtx[iv].ID<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
 //        if(doca > tjs.Vertex2DCuts[1]) continue;
         // BB: Nov 19. The Vertex2DCuts[1] cut is too loose
         if(doca > 2) continue;
+        if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<tjs.allTraj[itj].ID<<" and tjs.vtx "<<tjs.vtx[iv].ID<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
         // compare the length of the Tjs used to make the vertex with the length of the
         // Tj that we want to split. Don't allow a vertex using very short Tjs to split a long
         // Tj in the 3rd plane
         auto vxtjs = GetVtxTjIDs(tjs, tjs.vtx[iv]);
         unsigned short maxPts = 0;
+        // ensure that there is a large angle between a Tj already attached to the vertex and the
+        // tj that we want to split. We might be considering a delta-ray here
+        float maxdang = 0;
+        float tjAng = tjs.allTraj[itj].Pts[closePt].Ang;
         for(auto tjid : vxtjs) {
-          auto& tj = tjs.allTraj[tjid - 1];
-          unsigned short npwc = NumPtsWithCharge(tjs, tj, false);
+          auto& vtj = tjs.allTraj[tjid - 1];
+          if(vtj.AlgMod[kDeltaRay]) continue;
+          unsigned short npwc = NumPtsWithCharge(tjs, vtj, false);
           if(npwc > maxPts) maxPts = npwc;
+          unsigned short end = 0;
+          if(vtj.VtxID[1] == tjs.vtx[iv].ID) end = 1;
+          auto& vtp = vtj.Pts[vtj.EndPt[end]];
+          float dang = DeltaAngle(vtp.Ang, tjAng);
+          if(dang > maxdang) maxdang = dang; 
         } // tjid
         // skip this operation if any of the Tjs in the split list are > 3 * maxPts
         maxPts *= 3;
         bool skipit = false;
         if(NumPtsWithCharge(tjs,tjs.allTraj[itj] , false) > maxPts && maxPts < 100) skipit = true;
-        if(prt) mf::LogVerbatim("TC")<<"  maxPts "<<maxPts<<" vxtjs[0] "<<vxtjs[0]<<" skipit? "<<skipit;
+        if(!skipit && maxdang < tjs.KinkCuts[0]) skipit = true;
+        if(prt) mf::LogVerbatim("TC")<<"  maxPts "<<maxPts<<" vxtjs[0] "<<vxtjs[0]<<" maxdang "<<maxdang<<" skipit? "<<skipit;
         if(skipit) continue;
 
         // improve closePt based on vertex position
