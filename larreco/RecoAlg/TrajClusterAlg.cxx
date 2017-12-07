@@ -2411,7 +2411,7 @@ namespace tca {
         auto& tchit = tjs.fHits[sphit.key()];
         // make a simple check
         if(tchit.PeakTime != sphit->PeakTime()) {
-          mf::LogVerbatim("TC"<<"GSPC: Hit indexing error. Reverting to old matching code";
+          mf::LogVerbatim("TC")<<"GSPC: Hit indexing error. Reverting to old matching code";
           tjs.spts.clear();
           return;
         }
@@ -2419,7 +2419,7 @@ namespace tca {
         // have the same product id
         if(first) {
           if(sphit.id() != tjs.fHits[0].ArtPtr.id()) {
-            mf::LogVerbatim("TC"<<"GSPC: SpacePointModuleLabel and HitFinderModuleLabel reference a different hit collection. Reverting to old code";
+            mf::LogVerbatim("TC")<<"GSPC: SpacePointModuleLabel and HitFinderModuleLabel reference a different hit collection. Reverting to old code";
             tjs.spts.clear();
             return;
           }
@@ -2439,13 +2439,13 @@ namespace tca {
     if(tjs.Match3DCuts[0] <= 0) return;
     
     bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
-    
+/* Dec 6, 2017: Disable this until dead wire gaps are considered when makng SpacePoints
     // match using space points if they exist
     if(!tjs.spts.empty()) {
       Match3DSpts(tjs, evt, tpcid, fSpacePointModuleLabel);
       return;
     }
-    
+*/
     tjs.matchVec.clear();
     
     int cstat = tpcid.Cryostat;
@@ -2601,6 +2601,7 @@ namespace tca {
         for(auto& tjID : matVec[ii].TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
         myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<matVec[ii].MatchFrac;
         if(checkChgAsymmetry) myprt<<" TjChgAsymmetry "<<std::fixed<<std::setprecision(2)<<matVec[ii].TjChgAsymmetry;
+        myprt<<" PDGCodeVote "<<PDGCodeVote(tjs, matVec[ii].TjIDs, false);
         myprt<<"\n";
         ++cnt;
         if(cnt == 500) {
@@ -2609,6 +2610,9 @@ namespace tca {
         }
       } // ii
     } // prt
+    
+    // try to merge Tjs in the match vector
+    MatVecMerge(tjs, matVec, prt);
     
     // put the maybe OK matches into tjs
     for(auto& ms : matVec) {
