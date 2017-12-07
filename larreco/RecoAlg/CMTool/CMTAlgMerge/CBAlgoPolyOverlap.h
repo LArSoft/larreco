@@ -1,5 +1,5 @@
 /**
- * \file CMAlgoPolyOverlap.h
+ * \file CBAlgoPolyOverlap.h
  *
  * \ingroup CMTool
  * 
