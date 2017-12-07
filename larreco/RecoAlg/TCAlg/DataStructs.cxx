@@ -22,6 +22,7 @@ namespace tca {
     "JunkTj",
     "Killed",
     "Merge",
+    "MergeChain",
     "TEP",
     "CHMEH",
     "FillGap",
