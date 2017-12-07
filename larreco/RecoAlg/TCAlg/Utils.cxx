@@ -318,23 +318,18 @@ namespace tca {
       }
     } // pfp
     
-    // Assign a PDGCode to each PFParticle. This is the list of possibilities
-    std::array<int, 5> codeList = {0, 11, 13, 211, 2212};
+    // Assign a PDGCode to each PFParticle and look for a parent
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       if(pfp.TPCID != tpcid) continue;
       // skip a neutrino PFParticle
       if(pfp.PDGCode == 12 || pfp.PDGCode == 14) continue;
+      pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
+      // next look for a parent
       int pfpParentID = INT_MAX;
-      // The PDG code may have already been set
       unsigned short nParent = 0;
-      std::array<unsigned short, 5> cnts = {0};
       for(auto tjid : pfp.TjIDs) {
         auto& tj = tjs.allTraj[tjid - 1];
-        for(unsigned short code = 0; code < 5; ++code) {
-          if(tj.PDGCode == codeList[code]) ++cnts[code];
-        } // code
-        // look for a PFParticle parent while we are here
         if(tj.ParentID == tj.ID) continue;
         unsigned short ppindex = GetPFPIndex(tjs, tj.ParentID);
         if(ppindex == USHRT_MAX) continue;
@@ -342,27 +337,6 @@ namespace tca {
         if(pfpParentID == INT_MAX) pfpParentID = ppid;
         if(ppid == pfpParentID) ++nParent;
       } // ii
-      unsigned short code = 0;
-      unsigned maxCnt = 0;
-      // ignore the first PDG code in the list which is 0 (don't know)
-      for(unsigned short ii = 1; ii < 5; ++ii) {
-        if(cnts[ii] > maxCnt) {
-          maxCnt = cnts[ii];
-          code = ii;
-        }
-      } // ii
-      // check for an inconsistent code
-      for(unsigned short ii = 1; ii < 5; ++ii) {
-        if(ii == code) continue;
-        if(cnts[ii] == 0) continue;
-        // make it pion-like if one of the codes is pion-like
-        if(ii == 3) {
-          code = 3;
-        } else {
-          if(prt) mf::LogVerbatim("TC")<<"DPFPR: PFParticle "<<pfp.ID<<" Inconsistent tj PDG codes "<<codeList[code]<<" "<<codeList[ii]<<" Events processed"<<tjs.EventsProcessed;
-        }
-      } // ii
-      pfp.PDGCode = codeList[code];
       // look for a parent
       if(nParent > 1) {
         pfp.ParentID = (size_t)pfpParentID;
@@ -386,6 +360,61 @@ namespace tca {
     } // neutrino PFP exists    
   } // DefinePFParticleRelationships
   
+  /////////////////////////////////////////
+  int PDGCodeVote(TjStuff& tjs, std::vector<int>& tjIDs, bool prt)
+  {
+    // Returns the most likely PDGCode for the set of Tjs provided
+    // The PDG codes are:
+    // 0 = your basic track-like trajectory
+    // 11 = Tagged delta-ray
+    // 13 = Tagged muon
+    // 211 = pion-like. There exists a Bragg peak at an end with a vertex
+    // 2212 = proton-like. There exists a Bragg peak at an end without a vertex
+    std::array<int, 5> codeList = {0, 11, 13, 211, 2212};
+    unsigned short codeIndex = 0;
+    if(tjIDs.empty()) return codeList[codeIndex];
+    
+    std::array<unsigned short, 5> cnts = {0};
+    for(auto tjid : tjIDs) {
+      if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) continue;
+      auto& tj = tjs.allTraj[tjid - 1];
+      for(unsigned short ii = 0; ii < 5; ++ii) if(tj.PDGCode == codeList[ii]) ++cnts[ii];
+    } // tjid
+    unsigned maxCnt = 0;
+    // ignore the first PDG code in the list which is the default
+    for(unsigned short ii = 1; ii < 5; ++ii) {
+      if(cnts[ii] > maxCnt) {
+        maxCnt = cnts[ii];
+        codeIndex = ii;
+      }
+    } // ii
+    // check for an inconsistent code
+    bool confused = false;
+    for(unsigned short ii = 1; ii < 5; ++ii) {
+      if(ii == codeIndex) continue;
+      if(cnts[ii] == 0) continue;
+      // make it pion-like if one of the codes is pion-like
+      if(ii == 3) {
+        codeIndex = 3;
+      } else {
+        confused = true;
+      }
+    } // ii
+    if(confused) {
+      codeIndex = 0;
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"PDGCodeVote: mixed vote on the PDGCode: Tj_PDGCode";
+        for(auto tjid : tjIDs) {
+          if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) continue;
+          auto& tj = tjs.allTraj[tjid - 1];
+          myprt<<" "<<tj.ID<<"_"<<tj.PDGCode;
+        } // tjid
+      }
+    } // confused
+    return codeList[codeIndex];
+  } // PDGCodeVote
+
   /////////////////////////////////////////
   int NeutrinoPrimaryTjID(const TjStuff& tjs, const Trajectory& tj)
   {
@@ -918,6 +947,238 @@ namespace tca {
   } // FindSepMatch
   
   /////////////////////////////////////////
+  void MatVecMerge(TjStuff& tjs, std::vector<MatchStruct>& matVec,  bool prt)
+  {
+    // Inspect the matVec vector to identify and merge broken Tjs. This function is
+    // written for 3-plane TPCs
+    
+    if(!tjs.UseAlg[kMergeChain]) return;
+    
+    if(matVec.size() < 1) return;
+    for(unsigned short im1 = 0; im1 < matVec.size() - 1; ++im1) {
+      auto& ms1 = matVec[im1];
+      if(ms1.Count < 3) continue;
+      if(ms1.TjIDs.size() == 2) continue;
+      // make a copy and sort so we can use set_difference
+      auto tjid1 = ms1.TjIDs;
+      std::sort(tjid1.begin(), tjid1.end());
+      unsigned short minCount = 0.1 * ms1.Count;
+      std::vector<int> mergeList;
+      for(unsigned short im2 = im1 + 1; im2 < matVec.size(); ++im2) {
+        auto& ms2 = matVec[im2];
+        if(ms2.Count < minCount) break;
+        if(ms2.TjIDs.size() == 2) continue;
+        // make a copy and sort so we can use set_difference
+        auto tjid2 = ms2.TjIDs;
+        std::sort(tjid2.begin(), tjid2.end());
+        // look for two common Tjs
+        std::vector<int> common;
+        std::set_intersection(tjid1.begin(), tjid1.end(), tjid2.begin(), tjid2.end(), std::back_inserter(common));
+        if(common.size() != 2) continue;
+        // look for the difference in the first
+        std::vector<int> btj1(tjid1.size());
+        auto it1 = std::set_difference(tjid1.begin(), tjid1.end(), common.begin(), common.end(), btj1.begin());
+        btj1.resize(it1 - btj1.begin());
+        if(btj1.size() != 1) continue;
+        // and in the second
+        std::vector<int> btj2(tjid1.size());
+        auto it2 = std::set_difference(tjid2.begin(), tjid2.end(), common.begin(), common.end(), btj2.begin());
+        btj2.resize(it2 - btj2.begin());
+        if(btj2.size() != 1) continue;
+        // get references to these Tjs
+        auto& tj1 = tjs.allTraj[btj1[0] - 1];
+        // ensure that it isn't already matched
+        if(tj1.AlgMod[kMat3D] || tj1.AlgMod[kKilled]) {
+          std::cout<<" Tj "<<tj1.ID<<" is already matched or has been killed.\n";
+          continue;
+        }
+        auto& tj2 = tjs.allTraj[btj2[0] - 1];
+        if(tj2.AlgMod[kMat3D] || tj2.AlgMod[kKilled]) {
+          std::cout<<" Tj "<<tj2.ID<<" is already matched or has been killed.\n";
+          continue;
+        }
+        std::cout<<"MVM: "<<im1<<" "<<im2<<" common";
+        for(auto tjid : common) std::cout<<" "<<tjid;
+        std::cout<<" merge "<<btj1[0]<<" and "<<btj2[0];
+        std::cout<<"\n";
+        if(std::find(mergeList.begin(), mergeList.end(), btj1[0]) == mergeList.end()) mergeList.push_back(btj1[0]);
+        if(std::find(mergeList.begin(), mergeList.end(), btj2[0]) == mergeList.end()) mergeList.push_back(btj2[0]);
+      } // im2
+      if(mergeList.size() < 2) continue;
+      std::cout<<" mergeList";
+      for(auto tjid : mergeList) std::cout<<" "<<tjid;
+      std::cout<<"\n";
+      // merge this chain of Tjs and return with a list of merged Tjs. Hopefully only one.
+      auto mergedList = MergeChain(tjs, mergeList, prt);
+      // a serious failure occurred
+      if(mergedList.empty()) continue;
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"MergeChain success. Returned with mergedList";
+        for(auto tjid : mergedList) myprt<<" "<<tjid;
+      }
+      for(unsigned short im3 = im1; im3 < matVec.size(); ++im3) {
+        auto& ms3 = matVec[im3];
+        for(auto ktj : mergeList) {
+          // Replace all occurrences of the tj with the one to which it was merged
+          auto& killedTj = tjs.allTraj[ktj];
+          if(!killedTj.AlgMod[kKilled] || killedTj.ParentID <= 0 || killedTj.ParentID > (int)tjs.allTraj.size()) {
+            std::cout<<"ChainMerge returned invalid information. Blithely continue...\n";
+            continue;
+          } // bad return from ChainMerge
+          std::replace(ms3.TjIDs.begin(), ms3.TjIDs.end(), killedTj.ID, killedTj.ParentID);
+        } // killedTj
+      } // im3
+    } // im1
+  } // MatVecMerge
+  
+  /////////////////////////////////////////
+  std::vector<int> MergeChain(TjStuff& tjs, std::vector<int> mergeList, bool prt)
+  {
+    // Merges a chain of Tjs that are referenced in mergeList using a more careful approach
+    // than that used in EndMerge. The returned vector contains the list of Tjs that were made
+    // after merging. An empty vector is returned if there was an error.
+    std::vector<int> mergedList;
+    if(mergeList.size() < 2) return mergedList;
+    if(!tjs.UseAlg[kMergeChain]) return mergedList;
+    
+    // start a list of vertices attached to these Tjs
+    std::vector<unsigned short> vxids;
+    // find the extent in Pos[0] = wire number
+    float loPos0 = 1E6;
+    float hiPos0 = 0;
+    CTP_t inCTP = 0;
+    for(auto tjid : mergeList) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kMat3D]) return mergedList;
+      inCTP = tj.CTP;
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] > 0 && std::find(vxids.begin(), vxids.end(), tj.VtxID[end]) == vxids.end()) vxids.push_back(tj.VtxID[end]);
+        auto& tp = tj.Pts[tj.EndPt[end]];
+        if(tp.Pos[0] < loPos0) loPos0 = tp.Pos[0];
+        if(tp.Pos[0] > hiPos0) hiPos0 = tp.Pos[0];
+      } // end
+    } // tjid
+    // ensure that any vertices in the list are near the ends of this range. These
+    // need to be preserved and re-attached to the new merged Tj. The existence of one
+    // in the middle of the range needs to be dealt with by either deleting the vertex
+    // or abandoning the merge
+    std::array<unsigned short, 2> vtxID {0,0};
+    if(!vxids.empty()) {
+      std::vector<unsigned short> vxToKill;
+      for(auto vxid : vxids) {
+        if(vxid == 0 || vxid > tjs.vtx.size()) continue;
+        auto& vx2 = tjs.vtx[vxid - 1];
+        if(std::abs(vx2.Pos[0] - loPos0) < 4) {
+          vtxID[0] = vxid;
+        } else if(std::abs(vx2.Pos[0] < hiPos0) < 4) {
+          vtxID[1] = vxid;
+        } else {
+          vxToKill.push_back(vxid);
+        }
+      } // vxid
+      std::cout<<" merged Tj vtxID[0] "<<vtxID[0]<<" vtxID[1] "<<vtxID[1]<<" Number to kill "<<vxToKill.size()<<"\n";
+    } // vertices exist
+    unsigned int loWire = std::nearbyint(loPos0);
+    unsigned int hiWire = std::nearbyint(hiPos0);
+    unsigned int mergedSize = hiWire - loWire + 1;
+    // Put the position of each TP in the vector if it is unambiguous
+    std::vector<std::array<float, 2>> pos(mergedSize);
+    std::vector<unsigned short> cnt(mergedSize);
+    std::vector<int> mtjid(mergedSize);
+    std::vector<unsigned short> mtjpt(mergedSize);
+    for(auto tjid : mergeList) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        auto& tp = tj.Pts[ipt];
+        unsigned short indx = std::nearbyint(tp.Pos[0]) - loWire;
+        if(indx > mergedSize - 1) continue;
+        pos[indx] = tp.Pos;
+        mtjid[indx] = tj.ID;
+        mtjpt[indx] = ipt;
+        // Preserve Tps that have hits on a wire but none of them are used.
+        if(tp.Chg > 0) ++cnt[indx];
+      } // ipt
+    } // tjid
+    // look for overlapping regions; where the count is > 1
+    std::array<float, 2> goodPos;
+    for(unsigned short startIndx = 1; startIndx < mergedSize; ++startIndx) {
+      if(cnt[startIndx] == 0) continue;
+      if(cnt[startIndx] == 1) {
+        goodPos = pos[startIndx];
+        continue;
+      } // cnt == 1
+      std::cout<<"Found overlap starting at "<<startIndx<<"\n";
+      // find the end
+      unsigned short endIndx = 0;
+      for(endIndx = startIndx + 1; endIndx < mergedSize; ++endIndx) if(cnt[endIndx] == 1) break;
+      if(endIndx == mergedSize) endIndx = mergedSize - 1;
+      // make a bare TP between the previous good position and this good position
+      TrajPoint tmp;
+      MakeBareTrajPoint(tjs, goodPos[0], goodPos[1], pos[endIndx][0], pos[endIndx][1], 0, tmp);
+      // revise the intervening points with the one that has the best delta
+      for(unsigned short jndx = startIndx; jndx < endIndx; ++jndx) {
+        float bestDelta = 5;
+        for(auto tjid : mergeList) {
+          auto& ktj = tjs.allTraj[tjid - 1];
+          for(unsigned short kpt = ktj.EndPt[0]; kpt <= ktj.EndPt[1]; ++kpt) {
+            auto& ktp = ktj.Pts[kpt];
+            unsigned short kndx = std::nearbyint(ktp.Pos[0]) - loWire;
+            if(kndx == jndx) {
+              float delta = PointTrajDOCA(tjs, pos[kndx][0], pos[kndx][1], tmp);
+              if(delta < bestDelta) {
+                // overwrite the contents
+                cnt[kndx] = 1;
+                pos[kndx] = ktp.Pos;
+                mtjid[kndx] = ktj.ID;
+                mtjpt[kndx] = kpt;
+                bestDelta = delta;
+              } // best delta
+              break;
+            } // kndx = jndx
+          } // kpt
+        } // tjid
+      } // jpt
+    } // ipt
+/*
+    for(unsigned short indx = 0; indx < mergedSize; ++indx) {
+      mf::LogVerbatim("TC")<<"wire "<<loWire+indx<<" mtjid "<<mtjid[indx]<<" ipt "<<mtjpt[indx]<<" pos "<<(int)pos[indx][0]<<":"<<(int)pos[indx][1]<<" cnt "<<cnt[indx];
+    } // indx
+*/
+    // Create a new merged Tj
+    Trajectory ntj;
+    // StoreTraj expects to see a Tj with a negative ID
+    ntj.ID = -666;
+    ntj.StepDir = 1;
+    ntj.CTP = inCTP;
+    ntj.Pass = 9;
+    ntj.ParentID = -1;
+    ntj.VtxID = vtxID;
+    ntj.AlgMod[kMergeChain] = true;
+    // TODO: Transfer stop flags
+    for(auto tjid : mergeList) {
+      auto& mtj = tjs.allTraj[tjid - 1];
+      auto tHits = PutTrajHitsInVector(mtj, kUsedHits);
+      MakeTrajectoryObsolete(tjs, tjid - 1);
+      for(auto iht : tHits) tjs.fHits[iht].InTraj = ntj.ID;
+      mtj.ParentID = ntj.ID;
+    } // tjid
+    for(unsigned short indx = 0; indx < mergedSize; ++indx) {
+      if(mtjid[indx] <= 0) continue;
+      auto& mtj = tjs.allTraj[mtjid[indx] - 1];
+      auto& mtp = mtj.Pts[mtjpt[indx]];
+      ntj.Pts.push_back(mtp);
+    } // indx
+    SetEndPoints(tjs, ntj);
+    if(!StoreTraj(tjs, ntj)) {
+      std::cout<<"StoreTraj failed\n";
+      return mergedList;
+    }
+    mergedList.push_back(ntj.ID);
+    return mergedList;
+  } // MergeChain
+  
+  /////////////////////////////////////////
   void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
     // Finds long-ish Tjs that are not 3D-matched and does something about it
@@ -929,6 +1190,7 @@ namespace tca {
     
     if(prt) mf::LogVerbatim("TC")<<"Inside CheckNoMatchTjs";
     
+    std::vector<unsigned short> pfpsToFix;
     for(auto& tj : tjs.allTraj) {
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if(planeID.Cryostat != cstat) continue;
@@ -973,6 +1235,7 @@ namespace tca {
       } // ims
       if(btjID == INT_MAX) continue;
       unsigned short pfpIndex = GetPFPIndex(tjs, btjID);
+      if(pfpIndex > tjs.pfps.size() - 1) continue;
       if(prt) mf::LogVerbatim("TC")<<"  try to merge with broken Tj "<<btjID<<" count "<<ms.Count<<" pfpIndex "<<pfpIndex;
       if(MergeAndStore(tjs, tj.ID - 1, btjID - 1, prt)) {
         auto& newTj = tjs.allTraj[tjs.allTraj.size() - 1];
@@ -982,6 +1245,8 @@ namespace tca {
           auto& pfp = tjs.pfps[pfpIndex];
           std::replace(pfp.TjIDs.begin(), pfp.TjIDs.end(), btjID, newTj.ID);
         }
+        // add the pfp index to the list of those that need fixing
+        if(std::find(pfpsToFix.begin(), pfpsToFix.end(), pfpIndex) == pfpsToFix.end()) pfpsToFix.push_back(pfpIndex);
         // update matchVec
         for(auto& ms : tjs.matchVec) {
           std::replace(ms.TjIDs.begin(), ms.TjIDs.end(), tj.ID, newTj.ID);
@@ -997,6 +1262,19 @@ namespace tca {
         myprt<<" btjID "<<btjID;
       } // prt
     } // tj
+    
+    // update the PFParticle end points
+    for(auto pfpIndex : pfpsToFix) {
+      auto& pfp = tjs.pfps[pfpIndex];
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(!SetPFPEndPoints(tjs, pfp, end, prt)) {
+          if(prt) mf::LogVerbatim("TC")<<" SetPFPEndPoints failed";
+          pfp.ID = 0;
+          continue;
+        }
+      } // end
+    } // pfpIndex
+
   } // CheckNoMatchTjs
 
   /////////////////////////////////////////
@@ -2595,7 +2873,7 @@ namespace tca {
   } // PDGCodeIndex
 
   ////////////////////////////////////////////////
-  void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj)
+  void MakeTrajectoryObsolete(TjStuff& tjs, unsigned int itj)
   {
     // Note that this does not change the state of UseHit to allow
     // resurrecting the trajectory later (RestoreObsoleteTrajectory)
@@ -2611,7 +2889,7 @@ namespace tca {
   } // MakeTrajectoryObsolete
   
   ////////////////////////////////////////////////
-  void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj)
+  void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned int itj)
   {
     if(itj > tjs.allTraj.size() - 1) return;
     if(!tjs.allTraj[itj].AlgMod[kKilled]) {
@@ -3631,10 +3909,12 @@ namespace tca {
     // double the user-defined separation cut. We will require that at least one of the ends of 
     // a delta ray be within the user-defined cut and allow
     float maxSep = 2 * tjs.DeltaRayTag[0];
-    float maxMinSep = 0.5 * tjs.DeltaRayTag[0];
+    float maxMinSep = tjs.DeltaRayTag[0];
     unsigned short minMom = tjs.DeltaRayTag[1];
     unsigned short maxMom = tjs.DeltaRayTag[2];
-    unsigned short endCut = tjs.Vertex2DCuts[2];
+    unsigned short minMuonLength = 2 * tjs.Vertex2DCuts[2];
+    unsigned short minpts = 4;
+    if(prt) mf::LogVerbatim("TC")<<"TagDeltaRays: maxSep "<<maxSep<<" maxMinSep "<<maxMinSep<<" Mom range "<<minMom<<" to "<<maxMom<<" minpts "<<minpts;
     
     for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& muTj = tjs.allTraj[itj];
@@ -3643,53 +3923,57 @@ namespace tca {
       if(muTj.PDGCode != 13) continue;
       if(prt) mf::LogVerbatim("TC")<<"TagDeltaRays: Muon "<<muTj.ID<<" EndPts "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]]);
       // min length
-      if(muTj.Pts.size() < 2 * endCut) continue;
-      unsigned short end0Cut = muTj.EndPt[0] + endCut;
-      unsigned short end1Cut = muTj.EndPt[1] - endCut;
+      if(muTj.EndPt[1] - muTj.EndPt[0] < minMuonLength) continue;
+      auto& mtp0 = muTj.Pts[muTj.EndPt[0]];
+      auto& mtp1 = muTj.Pts[muTj.EndPt[1]];
       // Found a muon, now look for delta rays
       for(unsigned short jtj = 0; jtj < tjs.allTraj.size(); ++jtj) {
-        Trajectory& drTj = tjs.allTraj[jtj];
-        if(drTj.AlgMod[kKilled]) continue;
-        if(drTj.CTP != inCTP) continue;
-        if(drTj.PDGCode == 13) continue;
+        if(jtj == itj) continue;
+        Trajectory& dtj = tjs.allTraj[jtj];
+        if(dtj.AlgMod[kKilled]) continue;
+        if(dtj.CTP != inCTP) continue;
+        if(dtj.PDGCode == 13) continue;
         // MCSMom cut
-        if(drTj.MCSMom < minMom) continue;
-        if(drTj.MCSMom > maxMom) continue;
+        if(dtj.MCSMom < minMom) continue;
+        if(dtj.MCSMom > maxMom) continue;
+        if(dtj.EndPt[1] - dtj.EndPt[0] < minpts) continue;
         // some rough cuts to require that the delta ray is within the
         // ends of the muon
+        auto& dtp0 = dtj.Pts[dtj.EndPt[0]];
+        auto& dtp1 = dtj.Pts[dtj.EndPt[1]];
         if(muTj.StepDir > 0) {
-          if(drTj.Pts[drTj.EndPt[0]].Pos[0] < muTj.Pts[muTj.EndPt[0]].Pos[0]) continue;
-          if(drTj.Pts[drTj.EndPt[1]].Pos[0] > muTj.Pts[muTj.EndPt[1]].Pos[0]) continue;
+          if(dtp0.Pos[0] < mtp0.Pos[0]) continue;
+          if(dtp1.Pos[0] > mtp1.Pos[0]) continue;
         } else {
-          if(drTj.Pts[drTj.EndPt[0]].Pos[0] > muTj.Pts[muTj.EndPt[0]].Pos[0]) continue;
-          if(drTj.Pts[drTj.EndPt[1]].Pos[0] < muTj.Pts[muTj.EndPt[1]].Pos[0]) continue;
+          if(dtp0.Pos[0] > mtp0.Pos[0]) continue;
+          if(dtp1.Pos[0] < mtp1.Pos[0]) continue;
         }
-        unsigned short muPt0, muPt1;
-        float sep0 = maxSep;
-        // check both ends of the prospective delta ray
-        TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[0]], muTj, muPt0, sep0);
-        if(sep0 == maxSep) continue;
-        if(prt) mf::LogVerbatim("TC")<<"  ID "<<drTj.ID<<" "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[0]])<<" muPt0 "<<muPt0<<" sep0 "<<sep0;
-        // stay away from the ends
-        if(muPt0 < end0Cut) continue;
-        if(muPt0 > end1Cut) continue;
-        float sep1 = maxSep;
-        TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[1]], muTj, muPt1, sep1);
-        if(prt) mf::LogVerbatim("TC")<<"      "<<PrintPos(tjs, drTj.Pts[drTj.EndPt[1]])<<" muPt1 "<<muPt1<<" sep1 "<<sep1;
-        if(sep1 == maxSep) continue;
-        // stay away from the ends
-        if(muPt1 < end0Cut) continue;
-        if(muPt1 > end1Cut) continue;
-        // make the maximum minimum separation cut
-        if(sep0 < sep1) {
-          if(sep0 > maxMinSep) continue;
-        } else {
-          if(sep1 > maxMinSep) continue;
-        }
-        if(prt) mf::LogVerbatim("TC")<<" delta ray "<<drTj.ID<<" parent -> "<<muTj.ID;
-        drTj.ParentID = muTj.ID;
-        drTj.PDGCode = 11;
-        drTj.AlgMod[kDeltaRay] = true;
+        // find the minimum separation
+        float doca = maxMinSep;
+        unsigned short mpt = 0;
+        unsigned short dpt = 0;
+        TrajTrajDOCA(tjs, muTj, dtj, mpt, dpt, doca, false);
+        if(doca == maxMinSep) continue;
+        auto& dTp = dtj.Pts[dpt];
+        // cut on the distance from the muon ends
+        if(PosSep(dTp.Pos, mtp0.Pos) < tjs.Vertex2DCuts[2]) continue;
+        if(PosSep(dTp.Pos, mtp1.Pos) < tjs.Vertex2DCuts[2]) continue;
+       // make an angle cut at this point. A delta-ray should have a small angle
+        float dang = DeltaAngle(muTj.Pts[mpt].Ang, dtj.Pts[dpt].Ang);
+        if(prt) mf::LogVerbatim("TC")<<" dRay? "<<dtj.ID<<" at "<<PrintPos(tjs, dtj.Pts[dpt].Pos)<<" dang "<<dang;
+        if(dang > tjs.KinkCuts[0]) continue;
+        unsigned short oend = 0;
+        // check the delta at the end of the delta-ray that is farthest away from the
+        // closest point
+        if(dpt > 0.5 * (dtj.EndPt[0] + dtj.EndPt[1])) oend = 1;
+        auto& farEndTP = dtj.Pts[dtj.EndPt[oend]];
+        float farEndDelta = PointTrajDOCA(tjs, farEndTP.Pos[0], farEndTP.Pos[1], muTj.Pts[mpt]);
+        if(prt) mf::LogVerbatim("TC")<<"  farEnd "<<PrintPos(tjs, farEndTP.Pos)<<" farEndDelta "<<farEndDelta;
+        if(farEndDelta > maxSep) continue;
+        if(prt) mf::LogVerbatim("TC")<<"   delta ray "<<dtj.ID<<" parent -> "<<muTj.ID;
+        dtj.ParentID = muTj.ID;
+        dtj.PDGCode = 11;
+        dtj.AlgMod[kDeltaRay] = true;
       } // jtj
     } // itj
     
@@ -4348,6 +4632,9 @@ namespace tca {
     SetPDGCode(tjs, tj1);
     if(!StoreTraj(tjs, tj1)) return false;
     int newTjID = tjs.allTraj.size();
+    // Use the ParentID to trace which new Tj is superseding the merged ones
+    tj1.ParentID = newTjID;
+    tj2.ParentID = newTjID;
     if(doPrt) mf::LogVerbatim("TC")<<" MAS success. New TjID "<<newTjID;
     // Transfer the ParentIDs of any other Tjs that refer to Tj1 and Tj2 to the new Tj
     for(auto& tj : tjs.allTraj) if(tj.ParentID == tj1ID || tj.ParentID == tj2ID) tj.ParentID = newTjID;
