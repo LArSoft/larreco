@@ -170,7 +170,7 @@ namespace tca {
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     int WorkID {0};
-    int ParentID {-1};     ///< ID of the parent
+    int ParentID {-1};     ///< ID of the parent, or the ID of the Tj this one was merged with if it is killed
     float AveChg {0};                   ///< Calculated using ALL hits
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
@@ -370,6 +370,7 @@ namespace tca {
     kJunkTj,
     kKilled,
     kMerge,
+    kMergeChain,
     kTEP,
     kCHMEH,
     kFillGap,
