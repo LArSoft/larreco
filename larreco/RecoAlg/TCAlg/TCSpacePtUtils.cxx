@@ -157,7 +157,7 @@ namespace tca {
   /////////////////////////////////////////
   bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, std::vector<std::vector<unsigned int>>& sptLists, int tjID, bool prt)
   {
-    // Find PFParticle end points using the lists spacepoints that are associated with each TP
+    // Find PFParticle end points using the lists of spacepoints that are associated with each TP
     // on Trajectory tjID. This is the longest trajectory of the PFParticle
     
     // this code doesn't handle the ends of showers
@@ -181,11 +181,39 @@ namespace tca {
     
     // find the first point that has all Tjs in a space point. We will use this to decide
     // which ends of the Tjs match
-/*
-    for(auto& sptlist : sptLists) {
-      if() 
-    } // sptlist
-*/
+    std::array<unsigned short, 2> tjPtWithSpt {USHRT_MAX};
+//    unsigned short firstTjPt = USHRT_MAX;
+//    unsigned short lastTjPt = USHRT_MAX;
+    for(unsigned short ipt = 0; ipt < sptLists.size(); ++ipt) {
+      // sptList is a vector of all spacepoints that are associated with the trajectory point ipt
+      auto tmp = TjsNearSpacePts(tjs, sptLists[ipt]);
+      unsigned short cnt = 0;
+      for(auto tjn : tmp) {
+        if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjn) != pfp.TjIDs.end()) ++cnt;
+      } // tjn
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<ipt<<" tjn ";
+        for(auto tjid : tmp) myprt<<" "<<tjid;
+        myprt<<" cnt "<<cnt;
+      }
+      if(cnt != pfp.TjIDs.size()) continue;
+      if(tjPtWithSpt[0] == USHRT_MAX) tjPtWithSpt[0] = ipt;
+      tjPtWithSpt[1] = ipt;
+    } // ipt
+    // Do something quick and dirty
+    for(unsigned short end = 0; end < 2; ++end) {
+      unsigned short ipt = tjPtWithSpt[end];
+      if(ipt > sptLists.size() - 1) continue;
+      unsigned int isp = sptLists[ipt][0];
+      std::cout<<"ipt "<<ipt<<" "<<isp<<"\n";
+      auto& spt = tjs.spts[isp];
+      pfp.XYZ[end][0] = spt.Pos.X();
+      pfp.XYZ[end][1] = spt.Pos.Y();
+      pfp.XYZ[end][2] = spt.Pos.Z();
+    }
+    if(prt) mf::LogVerbatim("TC")<<" firstPt "<<tjPtWithSpt[0]<<" lastPt "<<tjPtWithSpt[1];
+
     return true;
   } // SetPFPEndPoints
   
