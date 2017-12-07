@@ -97,7 +97,7 @@ namespace tca {
     std::vector<int> gtid(tjs.fHits.size(), 0);
     // find hits that match to the source particle
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-      std::vector<const sim::IDE*> ides;
+      std::vector<sim::TrackIDE> ides;
       auto& tcHit = tjs.fHits[iht];
       geo::PlaneID planeID = geo::PlaneID(tcHit.ArtPtr->WireID().Cryostat, tcHit.ArtPtr->WireID().TPC, tcHit.ArtPtr->WireID().Plane);
       raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel((int)tcHit.ArtPtr->WireID().Plane, (int)tcHit.ArtPtr->WireID().Wire, (int)tcHit.ArtPtr->WireID().TPC, (int)tcHit.ArtPtr->WireID().Cryostat);
@@ -113,19 +113,19 @@ namespace tca {
                              tjs.geom->SignalType(planeID),
                              tcHit.ArtPtr->WireID());
       try {
-        ides = bt_serv->HitToSimIDEs_Ps(rhit);
+        ides = bt_serv->HitToTrackIDEs(rhit);
       }
       catch(...) {}
       if(ides.empty()) continue;
       float energy = 0;
-      for(auto ide : ides) energy += ide->energy;
+      for(auto ide : ides) energy += ide.energy;
       if(energy == 0) continue;
       // require 1/2 of the energy be due to one MC particle
       energy /= 2;
       int hitTruTrkID = 0;
       for(auto ide : ides) {
-        if(ide->energy > energy) {
-          hitTruTrkID = ide->trackID;
+        if(ide.energy > energy) {
+          hitTruTrkID = ide.trackID;
           break;
         }
       } // ide
