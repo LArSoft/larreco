@@ -42,12 +42,15 @@ namespace tca {
   // ****************************** General purpose  ******************************
   void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  int PDGCodeVote(TjStuff& tjs, std::vector<int>& tjIDs, bool prt);
   int NeutrinoPrimaryTjID(const TjStuff& tjs, const Trajectory& tj);
   int PrimaryID(const TjStuff& tjs, const Trajectory& tj);
   int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp);
   bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, PFPStruct& pfp, std::vector<MatchStruct>& matVec, std::array<std::vector<unsigned int>, 2>& matchPts, std::array<std::array<float, 3>, 2>& matchPos, unsigned short& nMatch, bool prt);
   bool FindSepMatch(TjStuff& tjs, PFPStruct& pfp, std::array<std::array<float, 3>, 2>& matchPos, bool prt);
+  void MatVecMerge(TjStuff& tjs, std::vector<MatchStruct>& matVec,  bool prt);
+  std::vector<int> MergeChain(TjStuff& tjs, std::vector<int> mergeList, bool prt);
   void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, unsigned short end, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt);
@@ -93,8 +96,8 @@ namespace tca {
   bool SignalPresent(TjStuff& tjs, unsigned int wire1, float time1, unsigned int wire2, float time2, CTP_t pCTP, float minAmp);
   bool SignalPresent(TjStuff& tjs, float wire1, float time1, float wire2, float time2, CTP_t pCTP, float minAmp);
   bool SignalPresent(TrajPoint const& tp, float minAmp);
-  void MakeTrajectoryObsolete(TjStuff& tjs, unsigned short itj);
-  void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned short itj);
+  void MakeTrajectoryObsolete(TjStuff& tjs, unsigned int itj);
+  void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned int itj);
   void MergeGhostTjs(TjStuff& tjs, CTP_t inCTP);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
