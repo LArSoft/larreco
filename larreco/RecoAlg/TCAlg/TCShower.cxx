@@ -2425,6 +2425,8 @@ namespace tca {
     // kill jtj
     MakeTrajectoryObsolete(tjs, iss.ShowerTjID - 1);
     MakeTrajectoryObsolete(tjs, jss.ShowerTjID - 1);
+    tjs.allTraj[iss.ShowerTjID - 1].ParentID = ktj.ID;
+    tjs.allTraj[jss.ShowerTjID - 1].ParentID = ktj.ID;
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" killed ShowerTjs "<<iss.ShowerTjID<<" and "<<jss.ShowerTjID<<" new Tj "<<ktj.ID;
     // revise the shower
     iss.ShowerTjID = ktj.ID;
