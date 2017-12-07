@@ -7,7 +7,8 @@ standard_trajcluster:
 {
   module_type:          "TrajCluster"
   TrajClusterAlg:       @local::standard_trajclusteralg
-  MakeNewHits:          true    # Make a new collection of merged hits
+  DoWireAssns: true
+  DoRawDigitAssns: false
 } # standard_trajcluster
 
 standard_blurredcluster:
@@ -51,8 +52,9 @@ standard_linecluster:
 {
 # this is the cluster finding component of former ClusterCrawler
   module_type:          "LineCluster"
-  FilteredDataModuleLabel: "NA"
   HitFinderModuleLabel: "gaushit"
+  DoWireAssns: true
+  DoRawDigitAssns: false
   ClusterCrawlerAlg:    @local::standard_clustercrawleralg
 } # standard_linecluster
 
