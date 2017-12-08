@@ -478,6 +478,7 @@ namespace tca {
     std::vector<float> KinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
     std::vector<float> Match3DCuts;  ///< 3D matching cuts
     std::vector<float> MatchTruth;     ///< Match to MC truth
+    std::vector<float> ChargeCuts;
     std::vector<simb::MCParticle*> MCPartList;
     unsigned int EventsProcessed;
     unsigned int Run;
@@ -488,6 +489,7 @@ namespace tca {
     const detinfo::DetectorProperties* detprop;
     calo::CalorimetryAlg* caloAlg;
     short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
+    short NPtsAve;         /// number of points to find AveChg
    };
 
 } // namespace tca
