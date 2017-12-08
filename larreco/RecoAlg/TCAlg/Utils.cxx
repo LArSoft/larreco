@@ -361,6 +361,31 @@ namespace tca {
   } // DefinePFParticleRelationships
   
   /////////////////////////////////////////
+  float MaxChargeAsymmetry(TjStuff& tjs, std::vector<int>& tjIDs)
+  {
+    // calculates the maximum charge asymmetry of the supplied list of Tjs
+    if(tjIDs.size() < 2) return 1;
+    std::vector<float> tjchg(tjIDs.size(), 0);
+    // the average charge has already been calculated. Multiply this by the
+    // total number of points to get an estimate that includes dead wires
+    for(unsigned short indx = 0; indx < tjIDs.size(); ++indx) {
+      int tjid = tjIDs[indx];
+      if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) return 1;
+      auto& tj = tjs.allTraj[tjid - 1];
+      if(tj.AveChg <= 0) UpdateAveChg(tjs, tj);
+      tjchg[indx] = (tj.EndPt[1] - tj.EndPt[0]) * tj.AveChg;
+    } // indx
+    float maxAsym = 0;
+    for(unsigned short indx = 0; indx < tjIDs.size() - 1; ++indx) {
+      for(unsigned short jndx = indx + 1; jndx < tjIDs.size(); ++jndx) {
+        float asym = std::abs(tjchg[indx] - tjchg[jndx]) / (tjchg[indx] + tjchg[jndx]);
+        if(asym > maxAsym) maxAsym = asym;
+      } // jtj
+    } // itj
+    return maxAsym;
+  } // MaxChargeAsymmetry
+  
+  /////////////////////////////////////////
   int PDGCodeVote(TjStuff& tjs, std::vector<int>& tjIDs, bool prt)
   {
     // Returns the most likely PDGCode for the set of Tjs provided
@@ -945,29 +970,49 @@ namespace tca {
     
     return true;
   } // FindSepMatch
-  
+/* This code does some damage to neutrino trajectories so turn it off
   /////////////////////////////////////////
   void MatVecMerge(TjStuff& tjs, std::vector<MatchStruct>& matVec,  bool prt)
   {
     // Inspect the matVec vector to identify and merge broken Tjs. This function is
-    // written for 3-plane TPCs
+    // written for 3-plane TPCs. Restrict its use to long muons for now
     
     if(!tjs.UseAlg[kMergeChain]) return;
-    
     if(matVec.size() < 1) return;
+    
     for(unsigned short im1 = 0; im1 < matVec.size() - 1; ++im1) {
       auto& ms1 = matVec[im1];
       if(ms1.Count < 3) continue;
       if(ms1.TjIDs.size() == 2) continue;
+      if(ms1.MatchFrac < 0.2) continue;
+      if(PDGCodeVote(tjs, ms1.TjIDs, prt) != 13) continue;
       // make a copy and sort so we can use set_difference
       auto tjid1 = ms1.TjIDs;
       std::sort(tjid1.begin(), tjid1.end());
+      // do a QC check
+      bool skipit = false;
+      for(auto tjid : tjid1) {
+        auto& tj = tjs.allTraj[tjid - 1];
+        if(tj.AlgMod[kKilled] || tj.AlgMod[kMergeChain]) {
+          std::cout<<"QC check found a problem. Skip matVec entry "<<im1<<"\n";
+          skipit = true;
+        }
+      } // tjid
+      if(skipit) continue;
       unsigned short minCount = 0.1 * ms1.Count;
       std::vector<int> mergeList;
       for(unsigned short im2 = im1 + 1; im2 < matVec.size(); ++im2) {
         auto& ms2 = matVec[im2];
         if(ms2.Count < minCount) break;
         if(ms2.TjIDs.size() == 2) continue;
+        if(ms2.MatchFrac < 0.2) continue;
+        bool muon = false;
+        // require one of these to be a muon
+        for(auto tjid : ms2.TjIDs) {
+          auto& tj = tjs.allTraj[tjid - 1];
+          if(tj.PDGCode == 13) muon = true;
+        }
+        if(!muon) continue;
         // make a copy and sort so we can use set_difference
         auto tjid2 = ms2.TjIDs;
         std::sort(tjid2.begin(), tjid2.end());
@@ -988,50 +1033,73 @@ namespace tca {
         // get references to these Tjs
         auto& tj1 = tjs.allTraj[btj1[0] - 1];
         // ensure that it isn't already matched
-        if(tj1.AlgMod[kMat3D] || tj1.AlgMod[kKilled]) {
-          std::cout<<" Tj "<<tj1.ID<<" is already matched or has been killed.\n";
-          continue;
-        }
+        if(tj1.AlgMod[kMat3D] || tj1.AlgMod[kKilled]) continue;
         auto& tj2 = tjs.allTraj[btj2[0] - 1];
-        if(tj2.AlgMod[kMat3D] || tj2.AlgMod[kKilled]) {
-          std::cout<<" Tj "<<tj2.ID<<" is already matched or has been killed.\n";
-          continue;
+        if(tj2.AlgMod[kMat3D] || tj2.AlgMod[kKilled]) continue;
+        int commonPDGCode = PDGCodeVote(tjs, common, prt);
+        if(prt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<"MVM: "<<im1<<" "<<im2<<" common";
+          for(auto tjid : common) myprt<<" "<<tjid;
+          myprt<<" ChgAsym "<<MaxChargeAsymmetry(tjs, common);
+          myprt<<" PDGCode "<<commonPDGCode;
+          myprt<<" merge "<<btj1[0]<<" PDGCode "<<PDGCodeVote(tjs, btj1, prt);
+          myprt<<" and "<<btj2[0]<<" PDGCode "<<PDGCodeVote(tjs, btj2, prt);
         }
-        std::cout<<"MVM: "<<im1<<" "<<im2<<" common";
-        for(auto tjid : common) std::cout<<" "<<tjid;
-        std::cout<<" merge "<<btj1[0]<<" and "<<btj2[0];
-        std::cout<<"\n";
         if(std::find(mergeList.begin(), mergeList.end(), btj1[0]) == mergeList.end()) mergeList.push_back(btj1[0]);
         if(std::find(mergeList.begin(), mergeList.end(), btj2[0]) == mergeList.end()) mergeList.push_back(btj2[0]);
       } // im2
       if(mergeList.size() < 2) continue;
-      std::cout<<" mergeList";
-      for(auto tjid : mergeList) std::cout<<" "<<tjid;
-      std::cout<<"\n";
-      // merge this chain of Tjs and return with a list of merged Tjs. Hopefully only one.
-      auto mergedList = MergeChain(tjs, mergeList, prt);
-      // a serious failure occurred
-      if(mergedList.empty()) continue;
       if(prt) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"MergeChain success. Returned with mergedList";
+        myprt<<" mergeList";
+        for(auto tjid : mergeList) myprt<<" "<<tjid;
+      }
+      // merge this chain of Tjs and return with a list of merged Tjs. Hopefully only one.
+      auto mergedList = MergeChain(tjs, mergeList, prt);
+      // a failure occurred. TODO: Add some error recovery here
+      if(mergedList.size() != 1) continue;
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"MergeChain success. Tjs in";
+        for(auto tjid : mergeList) myprt<<" "<<tjid;
+        myprt<<" Tjs out";
         for(auto tjid : mergedList) myprt<<" "<<tjid;
       }
-      for(unsigned short im3 = im1; im3 < matVec.size(); ++im3) {
-        auto& ms3 = matVec[im3];
-        for(auto ktj : mergeList) {
-          // Replace all occurrences of the tj with the one to which it was merged
-          auto& killedTj = tjs.allTraj[ktj];
-          if(!killedTj.AlgMod[kKilled] || killedTj.ParentID <= 0 || killedTj.ParentID > (int)tjs.allTraj.size()) {
-            std::cout<<"ChainMerge returned invalid information. Blithely continue...\n";
-            continue;
-          } // bad return from ChainMerge
-          std::replace(ms3.TjIDs.begin(), ms3.TjIDs.end(), killedTj.ID, killedTj.ParentID);
-        } // killedTj
-      } // im3
+      // correct the current matVec entry
+      for(auto ktjid : mergeList) std::replace(ms1.TjIDs.begin(), ms1.TjIDs.end(), ktjid, mergedList[0]);
+      // Declare later entries invalid if they reference killed trajectories
+      for(unsigned short im2 = im1 + 1; im2 < matVec.size(); ++im2) {
+        auto& ms2 = matVec[im2];
+        if(ms2.Count == 0) continue;
+        for(auto ktjid : mergeList) {
+          if(std::find(ms2.TjIDs.begin(), ms2.TjIDs.end(), ktjid) != ms2.TjIDs.end()) ms2.Count = 0;
+        } // ktjid
+      } // im2
+      // correct mallTraj
+      auto& ntj = tjs.allTraj[mergedList[0] - 1];
+      unsigned short npts = NumPtsWithCharge(tjs, ntj, false);
+      // convert Tj IDs to unsigned to simplify the comparison
+      std::vector<unsigned short> uslist(mergeList.size());
+      for(unsigned short ii = 0; ii < mergeList.size(); ++ii) uslist[ii] = mergeList[ii];
+      for(auto& tjpt : tjs.mallTraj) {
+        // see if this point is in one of the Tjs that was merged
+        if(std::find(uslist.begin(), uslist.end(), tjpt.id) == uslist.end()) continue;
+        // correct the ID
+        // This assumes that all Tjs were merged into one
+        tjpt.id = mergedList[0];
+        // Find the point and correct the index
+        for(unsigned short ipt = ntj.EndPt[0]; ipt <= ntj.EndPt[1]; ++ipt) {
+          unsigned int wire = std::nearbyint(ntj.Pts[ipt].Pos[0]);
+          if(wire != tjpt.wire) continue;
+          tjpt.ipt = ipt;
+          break;
+        } // ipt
+        tjpt.npts = npts;
+      } // tjpt
     } // im1
   } // MatVecMerge
-  
+*/
   /////////////////////////////////////////
   std::vector<int> MergeChain(TjStuff& tjs, std::vector<int> mergeList, bool prt)
   {
@@ -1065,7 +1133,6 @@ namespace tca {
     // or abandoning the merge
     std::array<unsigned short, 2> vtxID {0,0};
     if(!vxids.empty()) {
-      std::vector<unsigned short> vxToKill;
       for(auto vxid : vxids) {
         if(vxid == 0 || vxid > tjs.vtx.size()) continue;
         auto& vx2 = tjs.vtx[vxid - 1];
@@ -1074,10 +1141,9 @@ namespace tca {
         } else if(std::abs(vx2.Pos[0] < hiPos0) < 4) {
           vtxID[1] = vxid;
         } else {
-          vxToKill.push_back(vxid);
+          MakeVertexObsolete(tjs, vx2, true);
         }
       } // vxid
-      std::cout<<" merged Tj vtxID[0] "<<vtxID[0]<<" vtxID[1] "<<vtxID[1]<<" Number to kill "<<vxToKill.size()<<"\n";
     } // vertices exist
     unsigned int loWire = std::nearbyint(loPos0);
     unsigned int hiWire = std::nearbyint(hiPos0);
@@ -1108,12 +1174,12 @@ namespace tca {
         goodPos = pos[startIndx];
         continue;
       } // cnt == 1
-      std::cout<<"Found overlap starting at "<<startIndx<<"\n";
       // find the end
       unsigned short endIndx = 0;
       for(endIndx = startIndx + 1; endIndx < mergedSize; ++endIndx) if(cnt[endIndx] == 1) break;
       if(endIndx == mergedSize) endIndx = mergedSize - 1;
       // make a bare TP between the previous good position and this good position
+      if(prt) mf::LogVerbatim("TC")<<" MergeChain inCTP "<<inCTP<<" overlap from "<<PrintPos(tjs, pos[startIndx])<<"to "<<PrintPos(tjs, pos[endIndx]);
       TrajPoint tmp;
       MakeBareTrajPoint(tjs, goodPos[0], goodPos[1], pos[endIndx][0], pos[endIndx][1], 0, tmp);
       // revise the intervening points with the one that has the best delta
@@ -1138,8 +1204,9 @@ namespace tca {
             } // kndx = jndx
           } // kpt
         } // tjid
-      } // jpt
-    } // ipt
+      } // jndx
+      startIndx = endIndx;
+    } // startIndx
 /*
     for(unsigned short indx = 0; indx < mergedSize; ++indx) {
       mf::LogVerbatim("TC")<<"wire "<<loWire+indx<<" mtjid "<<mtjid[indx]<<" ipt "<<mtjpt[indx]<<" pos "<<(int)pos[indx][0]<<":"<<(int)pos[indx][1]<<" cnt "<<cnt[indx];
@@ -1155,13 +1222,13 @@ namespace tca {
     ntj.ParentID = -1;
     ntj.VtxID = vtxID;
     ntj.AlgMod[kMergeChain] = true;
+    int newID = tjs.allTraj.size() + 1;
     // TODO: Transfer stop flags
     for(auto tjid : mergeList) {
       auto& mtj = tjs.allTraj[tjid - 1];
       auto tHits = PutTrajHitsInVector(mtj, kUsedHits);
       MakeTrajectoryObsolete(tjs, tjid - 1);
-      for(auto iht : tHits) tjs.fHits[iht].InTraj = ntj.ID;
-      mtj.ParentID = ntj.ID;
+      mtj.ParentID = newID;
     } // tjid
     for(unsigned short indx = 0; indx < mergedSize; ++indx) {
       if(mtjid[indx] <= 0) continue;
@@ -1169,6 +1236,9 @@ namespace tca {
       auto& mtp = mtj.Pts[mtjpt[indx]];
       ntj.Pts.push_back(mtp);
     } // indx
+    // re-assign the hits to ntj
+    auto tHits = PutTrajHitsInVector(ntj, kUsedHits);
+    for(auto iht : tHits) tjs.fHits[iht].InTraj = ntj.ID;
     SetEndPoints(tjs, ntj);
     if(!StoreTraj(tjs, ntj)) {
       std::cout<<"StoreTraj failed\n";
@@ -2130,6 +2200,7 @@ namespace tca {
     
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tjs, tj);
+    UpdateAveChg(tjs, tj);
     
     // Calculate the charge near the end and beginning if necessary. This must be a short
     // trajectory. Find the average using 4 points
@@ -2205,6 +2276,58 @@ namespace tca {
     return true;
     
   } // StoreTraj
+  
+  //////////////////////////////////////////
+  void UpdateAveChg(TjStuff& tjs, Trajectory& tj)
+  {
+    
+    if(tj.EndPt[1] == 0) return;
+    unsigned short lastPt = tj.EndPt[1];
+    tj.AveChg = 0;
+    tj.Pts[lastPt].AveChg = 0;
+    
+    // calculate ave charge and charge RMS using hits in the trajectory
+    unsigned short ii, ipt, cnt = 0;
+    float fcnt, sum = 0;
+    float sum2 = 0;
+    // Don't include the first point in the average. It will be too
+    // low if this is a stopping/starting particle
+    for(ii = 0; ii < tj.Pts.size(); ++ii) {
+      ipt = tj.EndPt[1] - ii;
+      if(ipt == 0) break;
+      if(tj.Pts[ipt].Chg == 0) continue;
+      ++cnt;
+      sum += tj.Pts[ipt].Chg;
+      sum2 += tj.Pts[ipt].Chg * tj.Pts[ipt].Chg;
+      if(cnt == tjs.NPtsAve) break;
+    } // iii
+    if(cnt == 0) return;
+    fcnt = cnt;
+    sum /= fcnt;
+    tj.AveChg = sum;
+    tj.Pts[lastPt].AveChg = sum;
+    // define the first point average charge if necessary
+    if(tj.Pts[tj.EndPt[0]].AveChg <= 0) tj.Pts[tj.EndPt[0]].AveChg = sum;
+    if(cnt > 3) {
+      float arg = sum2 - fcnt * sum * sum;
+      if(arg < 0) arg = 0;
+      float rms = sqrt(arg / (fcnt - 1));
+      // convert this to a normalized RMS
+      rms /= sum;
+      // don't let the calculated charge RMS dominate the default
+      // RMS until it is well known. Start with 50% error on the
+      // charge RMS
+      float defFrac = 1 / (float)(tj.EndPt[1]);
+      tj.ChgRMS = defFrac * 0.5 + (1 - defFrac) * rms;
+      if(tj.EndPt[1] > 10) {
+        // don't let it get crazy small
+        if(tj.ChgRMS < tjs.ChargeCuts[1]) tj.ChgRMS = tjs.ChargeCuts[1];
+        // or crazy large
+        if(tj.ChgRMS > tjs.ChargeCuts[2]) tj.ChgRMS = tjs.ChargeCuts[2];
+      }
+      tj.Pts[lastPt].ChgPull = (tj.Pts[lastPt].Chg / tj.AveChg - 1) / tj.ChgRMS;
+    } // cnt > 3
+  } // UpdateAveChg
   
   ////////////////////////////////////////////////
   void UpdateChgRMS(TjStuff& tjs, Trajectory& tj)
@@ -2580,13 +2703,10 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<" SignalBetween fromWire = toWire = "<<fromWire<<" SignalAtTp? "<<SignalAtTp(tjs, tp);
       return SignalAtTp(tjs, tp);
     }
-
     // define a trajectory point located at tp1 that has a direction towards tp2
     TrajPoint tp;
     if(!MakeBareTrajPoint(tjs, tp1, tp2, tp)) return true;
-    
     return SignalBetween(tjs, tp, toWire, MinWireSignalFraction, prt);
-
   } // SignalBetween
 
   /////////////////////////////////////////
