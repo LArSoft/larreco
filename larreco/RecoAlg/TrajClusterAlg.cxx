@@ -2440,114 +2440,17 @@ namespace tca {
     if(tjs.Match3DCuts[0] <= 0) return;
     
     bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
-/* Dec 6, 2017: Disable this until dead wire gaps are considered when makng SpacePoints
-    // match using space points if they exist
-    if(!tjs.spts.empty()) {
-      Match3DSpts(tjs, evt, tpcid, fSpacePointModuleLabel);
-      return;
-    }
-*/
-
+    
+    // Fill tjs.malltraj with all trajectory points in this tpcid
     FillmAllTraj(tjs, tpcid);
-/*
-    tjs.matchVec.clear();
-    
-    int cstat = tpcid.Cryostat;
-    int tpc = tpcid.TPC;
-    
-    if(prt) {
-      mf::LogVerbatim("TC")<<"inside Match3D. dX (cm) cut "<<tjs.Match3DCuts[0];
-    }
 
-    // count the number of TPs and clear out any old 3D match flags
-    unsigned int ntp = 0;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      // don't match InShower Tjs
-      if(tj.AlgMod[kInShower]) continue;
-      // or Shower Tjs
-      if(tj.AlgMod[kShowerTj]) continue;
-      geo::PlaneID planeID = DecodeCTP(tj.CTP);
-      if((int)planeID.Cryostat != cstat) continue;
-      if((int)planeID.TPC != tpc) continue;
-      ntp += NumPtsWithCharge(tjs, tj, false);
-      tj.AlgMod[kMat3D] = false;
-    } // tj
-    if(ntp < 2) return;
-    
-    tjs.mallTraj.resize(ntp);
-    std::vector<SortEntry> sortVec(ntp);
-    
-    bool checkChgAsymmetry = (tjs.Match3DCuts[5] < 1);
-    std::vector<float> tjchg;
-    
-    // define mallTraj
-    unsigned int icnt = 0;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      // don't match shower-like Tjs
-      if(tj.AlgMod[kInShower]) continue;
-      // or Shower Tjs
-      if(tj.AlgMod[kShowerTj]) continue;
-      geo::PlaneID planeID = DecodeCTP(tj.CTP);
-      if((int)planeID.Cryostat != cstat) continue;
-      if((int)planeID.TPC != tpc) continue;
-      int plane = planeID.Plane;
-      int tjID = tj.ID;
-      if(tjID == 0) continue;
-      short score = 1;
-      if(tj.AlgMod[kTjHiVx3Score]) score = 0;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        auto& tp = tj.Pts[ipt];
-        if(tp.Chg == 0) continue;
-        if(icnt > tjs.mallTraj.size() - 1) break;
-        tjs.mallTraj[icnt].wire = std::nearbyint(tp.Pos[0]);
-        bool hasWire = tjs.geom->HasWire(geo::WireID(cstat, tpc, plane, tjs.mallTraj[icnt].wire));
-        // don't try matching if the wire doesn't exist
-        if(!hasWire) continue;
-        float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, tpc, cstat);
-        float posPlusRMS = tp.Pos[1] + TPHitsRMSTime(tjs, tp, kUsedHits);
-        float rms = tjs.detprop->ConvertTicksToX(posPlusRMS/tjs.UnitsPerTick, plane, tpc, cstat) - xpos;
-        if(rms < tjs.Match3DCuts[0]) rms = tjs.Match3DCuts[0];
-        if(icnt == tjs.mallTraj.size()) {
-          std::cout<<"Match3D: indexing error\n";
-          break;
-        }
-        tjs.mallTraj[icnt].xlo = xpos - rms;
-        tjs.mallTraj[icnt].xhi = xpos + rms;
-        tjs.mallTraj[icnt].dir = tp.Dir;
-        tjs.mallTraj[icnt].ctp = tp.CTP;
-        tjs.mallTraj[icnt].id = tjID;
-        tjs.mallTraj[icnt].ipt = ipt;
-        tjs.mallTraj[icnt].npts = tj.EndPt[1] - tj.EndPt[0] + 1;
-        tjs.mallTraj[icnt].score = score;
-        if(tj.PDGCode == 11) {
-          tjs.mallTraj[icnt].showerlike = true;
-        } else {
-          tjs.mallTraj[icnt].showerlike = false;
-        }
-        // populate the sort vector
-        sortVec[icnt].index = icnt;
-        sortVec[icnt].val = tjs.mallTraj[icnt].xlo;
-        ++icnt;
-      } // tp
-    } // tj
+    // match using space points if they exist
+    if(!tjs.spts.empty()) Match3DSpts(tjs, evt, tpcid, fSpacePointModuleLabel);
 
-    if(icnt < tjs.mallTraj.size()) {
-      tjs.mallTraj.resize(icnt);
-      sortVec.resize(icnt);
-    }
-    
-    // sort by increasing xlo
-    std::sort(sortVec.begin(), sortVec.end(), valIncreasing);
-    // put tjs.mallTraj into sorted order
-    auto tallTraj = tjs.mallTraj;
-    for(unsigned int ii = 0; ii < sortVec.size(); ++ii) tjs.mallTraj[ii] = tallTraj[sortVec[ii].index];
-*/
     std::vector<MatchStruct> matVec;
     // we only need this to pass the tpcid to FindXMatches
     PFPStruct dummyPfp;
-    std::array<std::vector<unsigned int>, 2> dummy(MatchPts);
+    std::array<std::vector<unsigned int>, 2> dummyMatchPts;
     std::array<std::array<float, 3>, 2> dummyMatchPos;
     dummyPfp.TPCID = tpcid;
     unsigned short dummyNMatch;
@@ -2568,10 +2471,7 @@ namespace tca {
     } // can add more combinations
     if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"M3D: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
     
-    if(checkChgAsymmetry) {
-      // calculate the charge asymmetry and put the largest value in matVec
-      for(auto& ms : matVec) ms.TjChgAsymmetry = MaxChargeAsymmetry(tjs, ms.TjIDs);
-    }
+    for(auto& ms : matVec) ms.TjChgAsymmetry = MaxChargeAsymmetry(tjs, ms.TjIDs);
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2584,7 +2484,7 @@ namespace tca {
         myprt<<" NumUsedHitsInTj ";
         for(auto& tjID : matVec[ii].TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
         myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<matVec[ii].MatchFrac;
-        if(checkChgAsymmetry) myprt<<" TjChgAsymmetry "<<std::fixed<<std::setprecision(2)<<matVec[ii].TjChgAsymmetry;
+        myprt<<" TjChgAsymmetry "<<std::fixed<<std::setprecision(2)<<matVec[ii].TjChgAsymmetry;
         myprt<<" PDGCodeVote "<<PDGCodeVote(tjs, matVec[ii].TjIDs, false);
         myprt<<"\n";
         ++cnt;
@@ -2599,10 +2499,6 @@ namespace tca {
     // BNB neutrinos but it does provide some benefit to merge broken cosmic ray tjs
 //    MatVecMerge(tjs, matVec, prt);
     
-    if(checkChgAsymmetry) {
-      // calculate the charge asymmetry and put the largest value in matVec
-      for(auto& ms : matVec) ms.TjChgAsymmetry = MaxChargeAsymmetry(tjs, ms.TjIDs);
-    }
     
     // put the maybe OK matches into tjs
     for(auto& ms : matVec) {
@@ -2610,7 +2506,7 @@ namespace tca {
       // require that at least 20% of the hits are matched in the longest Tj. Note that MatchFrac may be > 1
       // in particular for small angle trajectories
       if(ms.MatchFrac < 0.2) continue;
-      if(checkChgAsymmetry && ms.TjChgAsymmetry > tjs.Match3DCuts[5]) continue;
+      if(ms.TjChgAsymmetry > tjs.Match3DCuts[5]) continue;
       // check for duplicates
       bool skipit = false;
       for(auto& oms : tjs.matchVec) {
