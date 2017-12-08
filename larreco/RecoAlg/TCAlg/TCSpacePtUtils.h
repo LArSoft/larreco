@@ -37,7 +37,7 @@ namespace tca {
   std::vector<unsigned int> SpacePtsAssociatedWith(TjStuff& tjs, const TrajPoint& tp);
   std::vector<unsigned int> SpacePtsAssociatedWith(TjStuff& tjs, const Trajectory& tj);
   std::vector<unsigned int> SpacePtsAtHit(TjStuff& tjs, unsigned int iht);
-  void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid) ;
+  void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
   
 } // namespace tca
 
