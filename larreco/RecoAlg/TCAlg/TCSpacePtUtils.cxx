@@ -142,12 +142,6 @@ namespace tca {
       if(!SetPFPEndPoints(tjs, pfp, sptLists, tj.ID, prt)) {
         std::cout<<"SetPFPEndPoints failed";
       }
-/*
-      auto& spt = tjs.spts[firstPt];
-      pfp.XYZ[0][0] = spt.Pos.X();
-      pfp.XYZ[0][1] = spt.Pos.Y();
-      pfp.XYZ[0][2] = spt.Pos.Z();
-*/
       tjs.pfps.push_back(pfp);
       if(ii > 10) break;
     } // ii (tj)
@@ -367,10 +361,6 @@ namespace tca {
     int cstat = tpcid.Cryostat;
     int tpc = tpcid.TPC;
     
-    if(prt) {
-      mf::LogVerbatim("TC")<<"inside Match3D. dX (cm) cut "<<tjs.Match3DCuts[0];
-    }
-    
     // count the number of TPs and clear out any old 3D match flags
     unsigned int ntp = 0;
     for(auto& tj : tjs.allTraj) {
@@ -379,6 +369,7 @@ namespace tca {
       if(tj.AlgMod[kInShower]) continue;
       // or Shower Tjs
       if(tj.AlgMod[kShowerTj]) continue;
+      if(tj.ID <= 0) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
       if((int)planeID.TPC != tpc) continue;
@@ -389,9 +380,6 @@ namespace tca {
     
     tjs.mallTraj.resize(ntp);
     std::vector<SortEntry> sortVec(ntp);
-    
-    bool checkChgAsymmetry = (tjs.Match3DCuts[5] < 1);
-    std::vector<float> tjchg;
     
     // define mallTraj
     unsigned int icnt = 0;
@@ -406,7 +394,7 @@ namespace tca {
       if((int)planeID.TPC != tpc) continue;
       int plane = planeID.Plane;
       int tjID = tj.ID;
-      if(tjID == 0) continue;
+      if(tjID <= 0) continue;
       short score = 1;
       if(tj.AlgMod[kTjHiVx3Score]) score = 0;
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
@@ -451,7 +439,7 @@ namespace tca {
     }
     
     // sort by increasing xlo
-    std::sort(sortVec.begin(), sortVec.end(), valIncreasing);
+    std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
     // put tjs.mallTraj into sorted order
     auto tallTraj = tjs.mallTraj;
     for(unsigned int ii = 0; ii < sortVec.size(); ++ii) tjs.mallTraj[ii] = tallTraj[sortVec[ii].index];
