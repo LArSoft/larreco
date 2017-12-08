@@ -357,5 +357,105 @@ namespace tca {
     } // isp
     return temp;
   } // SpacePtsAtHit
+  
+  /////////////////////////////////////////
+  void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid) 
+  {
+    // Fills the tjs.mallTraj vector with trajectory points in the tpc
+    tjs.matchVec.clear();
+    
+    int cstat = tpcid.Cryostat;
+    int tpc = tpcid.TPC;
+    
+    if(prt) {
+      mf::LogVerbatim("TC")<<"inside Match3D. dX (cm) cut "<<tjs.Match3DCuts[0];
+    }
+    
+    // count the number of TPs and clear out any old 3D match flags
+    unsigned int ntp = 0;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      // don't match InShower Tjs
+      if(tj.AlgMod[kInShower]) continue;
+      // or Shower Tjs
+      if(tj.AlgMod[kShowerTj]) continue;
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      if((int)planeID.Cryostat != cstat) continue;
+      if((int)planeID.TPC != tpc) continue;
+      ntp += NumPtsWithCharge(tjs, tj, false);
+      tj.AlgMod[kMat3D] = false;
+    } // tj
+    if(ntp < 2) return;
+    
+    tjs.mallTraj.resize(ntp);
+    std::vector<SortEntry> sortVec(ntp);
+    
+    bool checkChgAsymmetry = (tjs.Match3DCuts[5] < 1);
+    std::vector<float> tjchg;
+    
+    // define mallTraj
+    unsigned int icnt = 0;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      // don't match shower-like Tjs
+      if(tj.AlgMod[kInShower]) continue;
+      // or Shower Tjs
+      if(tj.AlgMod[kShowerTj]) continue;
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      if((int)planeID.Cryostat != cstat) continue;
+      if((int)planeID.TPC != tpc) continue;
+      int plane = planeID.Plane;
+      int tjID = tj.ID;
+      if(tjID == 0) continue;
+      short score = 1;
+      if(tj.AlgMod[kTjHiVx3Score]) score = 0;
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        auto& tp = tj.Pts[ipt];
+        if(tp.Chg == 0) continue;
+        if(icnt > tjs.mallTraj.size() - 1) break;
+        tjs.mallTraj[icnt].wire = std::nearbyint(tp.Pos[0]);
+        bool hasWire = tjs.geom->HasWire(geo::WireID(cstat, tpc, plane, tjs.mallTraj[icnt].wire));
+        // don't try matching if the wire doesn't exist
+        if(!hasWire) continue;
+        float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, tpc, cstat);
+        float posPlusRMS = tp.Pos[1] + TPHitsRMSTime(tjs, tp, kUsedHits);
+        float rms = tjs.detprop->ConvertTicksToX(posPlusRMS/tjs.UnitsPerTick, plane, tpc, cstat) - xpos;
+        if(rms < tjs.Match3DCuts[0]) rms = tjs.Match3DCuts[0];
+        if(icnt == tjs.mallTraj.size()) {
+          std::cout<<"Match3D: indexing error\n";
+          break;
+        }
+        tjs.mallTraj[icnt].xlo = xpos - rms;
+        tjs.mallTraj[icnt].xhi = xpos + rms;
+        tjs.mallTraj[icnt].dir = tp.Dir;
+        tjs.mallTraj[icnt].ctp = tp.CTP;
+        tjs.mallTraj[icnt].id = tjID;
+        tjs.mallTraj[icnt].ipt = ipt;
+        tjs.mallTraj[icnt].npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+        tjs.mallTraj[icnt].score = score;
+        if(tj.PDGCode == 11) {
+          tjs.mallTraj[icnt].showerlike = true;
+        } else {
+          tjs.mallTraj[icnt].showerlike = false;
+        }
+        // populate the sort vector
+        sortVec[icnt].index = icnt;
+        sortVec[icnt].val = tjs.mallTraj[icnt].xlo;
+        ++icnt;
+      } // tp
+    } // tj
+    
+    if(icnt < tjs.mallTraj.size()) {
+      tjs.mallTraj.resize(icnt);
+      sortVec.resize(icnt);
+    }
+    
+    // sort by increasing xlo
+    std::sort(sortVec.begin(), sortVec.end(), valIncreasing);
+    // put tjs.mallTraj into sorted order
+    auto tallTraj = tjs.mallTraj;
+    for(unsigned int ii = 0; ii < sortVec.size(); ++ii) tjs.mallTraj[ii] = tallTraj[sortVec[ii].index];
+    
+  } // FillmAllTraj
 
 } // namespace
