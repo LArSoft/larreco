@@ -108,7 +108,6 @@ namespace tca {
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
-    short fNPtsAve;         /// number of points to find AveChg
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
     std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a trajectory
     std::vector<unsigned short> fMaxAngleCode;   ///< max allowed angle code for each pass
@@ -116,7 +115,6 @@ namespace tca {
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     std::vector<float> fQualityCuts; ///< Min points/wire, min consecutive pts after a gap
-    std::vector<float> fChargeCuts;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
@@ -269,8 +267,6 @@ namespace tca {
     void CheckNearLA();
     // Updates the last added trajectory point fit, average hit rms, etc.
     void UpdateTraj(Trajectory& tj);
-    // Find the average charge using fNPtsAve values of TP Chg.
-    void UpdateAveChg(Trajectory& tj);
    // Estimate the Delta RMS of the TPs on the end of tj.
     void UpdateDeltaRMS(Trajectory& tj);
     void MaskBadTPs(Trajectory& tj, float const& maxChi);
