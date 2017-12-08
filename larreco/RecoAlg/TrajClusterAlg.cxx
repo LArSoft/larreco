@@ -62,17 +62,17 @@ namespace tca {
     fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel", "NA");
     fMakeNewHits          = pset.get< bool >("MakeNewHits", true);
     fMode                 = pset.get< short >("Mode", 1);
-    fHitErrFac         = pset.get< float >("HitErrFac", 0.4);
+    fHitErrFac            = pset.get< float >("HitErrFac", 0.4);
     fMinAmp               = pset.get< float >("MinAmp", 0.1);
     tjs.AngleRanges       = pset.get< std::vector<float>>("AngleRanges");
-    fNPtsAve              = pset.get< short >("NPtsAve", 20);
+    tjs.NPtsAve           = pset.get< short >("NPtsAve", 20);
     fMinPtsFit            = pset.get< std::vector<unsigned short >>("MinPtsFit");
     fMinPts               = pset.get< std::vector<unsigned short >>("MinPts");
     fMaxAngleCode         = pset.get< std::vector<unsigned short>>("MaxAngleCode");
-    fMinMCSMom             = pset.get< std::vector<short >>("MinMCSMom");
+    fMinMCSMom            = pset.get< std::vector<short >>("MinMCSMom");
 
     fMaxChi               = pset.get< float >("MaxChi", 10);
-    fChargeCuts           = pset.get< std::vector<float >>("ChargeCuts", {3, 0.15, 0.25});
+    tjs.ChargeCuts           = pset.get< std::vector<float >>("ChargeCuts", {3, 0.15, 0.25});
     fMultHitSep           = pset.get< float >("MultHitSep", 2.5);
     tjs.KinkCuts             = pset.get< std::vector<float >>("KinkCuts", {0.4, 1.5, 4});
     fQualityCuts          = pset.get< std::vector<float >>("QualityCuts", {0.8, 3});
@@ -129,7 +129,7 @@ namespace tca {
     if(tjs.Vertex2DCuts.size() < 10) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 10\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = min ChgFrac at a vtx or merge point\n 9 = max MCSMom asymmetry";
     if(tjs.Vertex3DCuts.size() < 2)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size 2\n 0 = Max dX (cm)\n 1 = Max pull";
     if(tjs.KinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
-    if(fChargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
+    if(tjs.ChargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
     
     if(tjs.MuonTag.size() != 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging";
     if(tjs.DeltaRayTag.size() != 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3\n 0 = Max endpoint sep\n 1 = min MCSMom\n 2 = max MCSMom";
@@ -1330,7 +1330,7 @@ namespace tca {
     } // ii
     DefineHitPos(tp);
     SetEndPoints(tjs, tj);
-    UpdateAveChg(tj);
+    UpdateAveChg(tjs, tj);
  
   } // AddLAHits
 
@@ -1512,7 +1512,7 @@ namespace tca {
     // don't check charge when starting out
     if(ipt < 5) useChg = false; 
     float chgPullCut = 1000;
-    if(useChg) chgPullCut = fChargeCuts[0];
+    if(useChg) chgPullCut = tjs.ChargeCuts[0];
     // open it up for RevProp, since we might be following a stopping track
     if(tj.AlgMod[kRvPrp]) chgPullCut *= 2;
     
@@ -1867,7 +1867,7 @@ namespace tca {
       SetEndPoints(tjs, tj);
     } // no Bragg Peak
     
-    UpdateAveChg(tj);
+    UpdateAveChg(tjs, tj);
     
   } // ChkStopEndPts
     
@@ -1987,7 +1987,7 @@ namespace tca {
     // temp vector for checking the fraction of hits near a merge point
     std::vector<int> tjlist(2);
  
-    float minChgRMS = 0.5 * (fChargeCuts[1] + fChargeCuts[2]);
+    float minChgRMS = 0.5 * (tjs.ChargeCuts[1] + tjs.ChargeCuts[2]);
 
     // iterate whenever a merge occurs since allTraj will change. This is not necessary
     // when a vertex is created however.
@@ -2157,7 +2157,7 @@ namespace tca {
           
           // open up the cuts on the last pass
           float chgFracCut = tjs.Vertex2DCuts[8];
-          float chgPullCut = fChargeCuts[0];
+          float chgPullCut = tjs.ChargeCuts[0];
           if(lastPass) {
             docaCut *= 2;
             chgFracCut *= 0.5;
@@ -2169,7 +2169,7 @@ namespace tca {
           bool showerTjs = tj1.PDGCode == 11 || tj2.PDGCode == 11;
           bool hiMCSMom = tj1.MCSMom > 200 || tj2.MCSMom > 200;
           // add a charge similarity requirement if not shower-like or low momentum or not LA
-          if(doMerge && !showerTjs && hiMCSMom && chgPull > fChargeCuts[0] && !isVLA) doMerge = false;
+          if(doMerge && !showerTjs && hiMCSMom && chgPull > tjs.ChargeCuts[0] && !isVLA) doMerge = false;
           // ignore the charge pull cut if both are high momentum and dang is really small
           if(!doMerge && tj1.MCSMom > 900 && tj2.MCSMom > 900 && dang < 0.1 && bestDOCA < docaCut) doMerge = true;
           
@@ -2447,6 +2447,9 @@ namespace tca {
       return;
     }
 */
+
+    FillmAllTraj(tjs, tpcid);
+/*
     tjs.matchVec.clear();
     
     int cstat = tpcid.Cryostat;
@@ -2477,8 +2480,6 @@ namespace tca {
     
     bool checkChgAsymmetry = (tjs.Match3DCuts[5] < 1);
     std::vector<float> tjchg;
-    // resize the vector so we can index by the Tj ID
-    if(checkChgAsymmetry) tjchg.resize(tjs.allTraj.size() + 1);
     
     // define mallTraj
     unsigned int icnt = 0;
@@ -2529,8 +2530,6 @@ namespace tca {
         sortVec[icnt].index = icnt;
         sortVec[icnt].val = tjs.mallTraj[icnt].xlo;
         ++icnt;
-        // sum the charge
-        if(checkChgAsymmetry) tjchg[tjID] += tp.Chg;
       } // tp
     } // tj
 
@@ -2544,11 +2543,11 @@ namespace tca {
     // put tjs.mallTraj into sorted order
     auto tallTraj = tjs.mallTraj;
     for(unsigned int ii = 0; ii < sortVec.size(); ++ii) tjs.mallTraj[ii] = tallTraj[sortVec[ii].index];
-    
+*/
     std::vector<MatchStruct> matVec;
     // we only need this to pass the tpcid to FindXMatches
     PFPStruct dummyPfp;
-    std::array<std::vector<unsigned int>, 2> dummyMatchPts;
+    std::array<std::vector<unsigned int>, 2> dummy(MatchPts);
     std::array<std::array<float, 3>, 2> dummyMatchPos;
     dummyPfp.TPCID = tpcid;
     unsigned short dummyNMatch;
@@ -2571,23 +2570,7 @@ namespace tca {
     
     if(checkChgAsymmetry) {
       // calculate the charge asymmetry and put the largest value in matVec
-      for(auto& ms : matVec) {
-        ms.TjChgAsymmetry = 0;
-        for(unsigned short ipl = 0; ipl < ms.TjIDs.size() - 1; ++ipl) {
-          unsigned int itjID = ms.TjIDs[ipl];
-          if(itjID > tjchg.size() - 1) continue;
-          float itjchg = tjchg[itjID];
-          if(itjchg <= 0) continue;
-          for(unsigned short jpl = ipl + 1; jpl < ms.TjIDs.size(); ++jpl) {
-            unsigned int jtjID = ms.TjIDs[jpl];
-            if(jtjID > tjchg.size() - 1) continue;
-            float jtjchg = tjchg[jtjID];
-            if(jtjchg <= 0) continue;
-            float asym = std::abs(itjchg - jtjchg) / (itjchg + jtjchg);
-            if(asym > ms.TjChgAsymmetry) ms.TjChgAsymmetry = asym;
-          } // jpl
-        } // ipl
-      } // ms
+      for(auto& ms : matVec) ms.TjChgAsymmetry = MaxChargeAsymmetry(tjs, ms.TjIDs);
     }
     
     if(prt) {
@@ -2612,8 +2595,14 @@ namespace tca {
       } // ii
     } // prt
     
-    // try to merge Tjs in the match vector
-    MatVecMerge(tjs, matVec, prt);
+    // try to merge Tjs in the match vector. This does more damage than good for
+    // BNB neutrinos but it does provide some benefit to merge broken cosmic ray tjs
+//    MatVecMerge(tjs, matVec, prt);
+    
+    if(checkChgAsymmetry) {
+      // calculate the charge asymmetry and put the largest value in matVec
+      for(auto& ms : matVec) ms.TjChgAsymmetry = MaxChargeAsymmetry(tjs, ms.TjIDs);
+    }
     
     // put the maybe OK matches into tjs
     for(auto& ms : matVec) {
@@ -2622,6 +2611,15 @@ namespace tca {
       // in particular for small angle trajectories
       if(ms.MatchFrac < 0.2) continue;
       if(checkChgAsymmetry && ms.TjChgAsymmetry > tjs.Match3DCuts[5]) continue;
+      // check for duplicates
+      bool skipit = false;
+      for(auto& oms : tjs.matchVec) {
+        if(ms.TjIDs == oms.TjIDs) {
+          skipit = true;
+          break;
+        }
+      } // oms
+      if(skipit) continue;
       tjs.matchVec.push_back(ms);
     }
     if(tjs.matchVec.empty()) return;
@@ -3853,7 +3851,7 @@ namespace tca {
         first = false;
       } // first
       // define a loose charge cut using the average charge at the first point with charge
-      float maxChg = tj.Pts[firstPtWithChg].AveChg * (1 + 2 * fChargeCuts[0] * tj.ChgRMS);
+      float maxChg = tj.Pts[firstPtWithChg].AveChg * (1 + 2 * tjs.ChargeCuts[0] * tj.ChgRMS);
       // Eliminate the charge cut altogether if we are close to an end
       if(tj.Pts.size() < 10) {
         maxChg = 1E6;
@@ -4300,7 +4298,7 @@ namespace tca {
     } // ipt
     
     tj.AlgMod[kMaskHits] = true;
-    UpdateAveChg(tj);
+    UpdateAveChg(tjs, tj);
     return true;
     
   } // MaskedHitsOK
@@ -4540,7 +4538,7 @@ namespace tca {
       mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleCode "<<lastTP.AngleCode<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
     }
     
-    UpdateAveChg(tj);
+    UpdateAveChg(tjs, tj);
 
     if(lastPt == 1) {
       // Handle the second trajectory point. No error calculation. Just update
@@ -4753,59 +4751,6 @@ namespace tca {
     if(lastTP.DeltaRMS < 0.02) lastTP.DeltaRMS = 0.02;
 
   } // UpdateDeltaRMS
-  
-  //////////////////////////////////////////
-  void TrajClusterAlg::UpdateAveChg(Trajectory& tj)
-  {
-    
-    if(tj.EndPt[1] == 0) return;
-    unsigned short lastPt = tj.EndPt[1];
-    tj.AveChg = 0;
-    tj.Pts[lastPt].AveChg = 0;
-
-    // calculate ave charge and charge RMS using hits in the trajectory
-    unsigned short ii, ipt, cnt = 0;
-    float fcnt, sum = 0;
-    float sum2 = 0;
-    // Don't include the first point in the average. It will be too
-    // low if this is a stopping/starting particle
-    for(ii = 0; ii < tj.Pts.size(); ++ii) {
-      ipt = tj.EndPt[1] - ii;
-      if(ipt == 0) break;
-      if(tj.Pts[ipt].Chg == 0) continue;
-      ++cnt;
-      sum += tj.Pts[ipt].Chg;
-      sum2 += tj.Pts[ipt].Chg * tj.Pts[ipt].Chg;
-      if(cnt == fNPtsAve) break;
-    } // iii
-    if(cnt == 0) return;
-    fcnt = cnt;
-    sum /= fcnt;
-    tj.AveChg = sum;
-    tj.Pts[lastPt].AveChg = sum;
-    // define the first point average charge if necessary
-    if(tj.Pts[tj.EndPt[0]].AveChg <= 0) tj.Pts[tj.EndPt[0]].AveChg = sum;
-    if(cnt > 3) {
-      float arg = sum2 - fcnt * sum * sum;
-      if(arg < 0) arg = 0;
-      float rms = sqrt(arg / (fcnt - 1));
-      // convert this to a normalized RMS
-      rms /= sum;
-      // don't let the calculated charge RMS dominate the default
-      // RMS until it is well known. Start with 50% error on the
-      // charge RMS
-      float defFrac = 1 / (float)(tj.EndPt[1]);
-      tj.ChgRMS = defFrac * 0.5 + (1 - defFrac) * rms;
-      if(tj.EndPt[1] > 10) {
-        // don't let it get crazy small
-        if(tj.ChgRMS < fChargeCuts[1]) tj.ChgRMS = fChargeCuts[1];
-        // or crazy large
-        if(tj.ChgRMS > fChargeCuts[2]) tj.ChgRMS = fChargeCuts[2];
-      }
-      tj.Pts[lastPt].ChgPull = (tj.Pts[lastPt].Chg / tj.AveChg - 1) / tj.ChgRMS;
-    } // cnt > 3
-
-  } // UpdateAveChg
 
   ////////////////////////////////////////////////
   bool TrajClusterAlg::StartTraj(Trajectory& tj, const unsigned int& fromHit, const unsigned int& toHit, const unsigned short& pass)
