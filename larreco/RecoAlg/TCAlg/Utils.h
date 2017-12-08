@@ -42,6 +42,7 @@ namespace tca {
   // ****************************** General purpose  ******************************
   void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  float MaxChargeAsymmetry(TjStuff& tjs, std::vector<int>& tjIDs);
   int PDGCodeVote(TjStuff& tjs, std::vector<int>& tjIDs, bool prt);
   int NeutrinoPrimaryTjID(const TjStuff& tjs, const Trajectory& tj);
   int PrimaryID(const TjStuff& tjs, const Trajectory& tj);
@@ -63,7 +64,6 @@ namespace tca {
   void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
   void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
-//  void TagBragg(TjStuff& tjs, PFPStruct& pfp, bool prt);
   // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
   // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
   void Reverse3DMatchTjs(TjStuff& tjs, PFPStruct& ms, bool prt);
@@ -73,6 +73,7 @@ namespace tca {
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   bool StoreTraj(TjStuff& tjs, Trajectory& tj);
+  void UpdateAveChg(TjStuff& tjs, Trajectory& tj);
   void UpdateChgRMS(TjStuff& tjs, Trajectory& tj);
   bool InTrajOK(TjStuff& tjs, std::string someText);
   void CheckTrajBeginChg(TjStuff& tjs, unsigned short itj, bool prt);
