@@ -1,6 +1,6 @@
 #include "TrajectoryMCSFitter.h"
 #include "lardataobj/RecoBase/Track.h"
-#include "larcoreobj/SimpleTypesAndConstants/geo_vectors.h"
+#include "larcorealg/Geometry/geo_vectors_utils.h"
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"
 
@@ -30,7 +30,7 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
 	dtheta.push_back(-999.);
       } else { 
 	const double cosval = pcdir0.X()*pcdir1.X()+pcdir0.Y()*pcdir1.Y()+pcdir0.Z()*pcdir1.Z();
-	assert(std::abs(cosval)<=1);
+	//assert(std::abs(cosval)<=1);
 	//units are mrad
 	double dt = 1000.*acos(cosval);//should we try to use expansion for small angles?
 	dtheta.push_back(dt);
@@ -136,7 +136,7 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std:
 void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, const size_t firstPoint, const size_t lastPoint, Vector_t& pcdir) const {
   //
   int npoints = 0;
-  geo::MiddlePointAccumulator middlePointCalc;
+  geo::vect::MiddlePointAccumulator middlePointCalc;
   size_t nextValid = firstPoint;
   while (nextValid<lastPoint) {
     middlePointCalc.add(traj.LocationAtPoint(nextValid));
@@ -146,7 +146,7 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, c
   const auto avgpos = middlePointCalc.middlePoint();
   const double norm = 1./double(npoints);
   //
-  assert(npoints>0);
+  //assert(npoints>0);
   //
   TMatrixDSym m(3);
   nextValid = firstPoint;
