@@ -1159,7 +1159,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 	      //double dQdx = totQ/(nhits*pitch);
               //std::sort(vQ.begin(), vQ.end());
               //double dQdx = vQ[vQ.size()/2]/pitch;
-              double dQdx = TMath::Median(vQ.size(), &vQ[0]);
+              double dQdx = TMath::Median(vQ.size(), &vQ[0])/pitch;
 	      fdEdx = fCalorimetryAlg.dEdx_AREA(dQdx, avgT/nhits, initialTrackHits[plane][0]->WireID().Plane);
 	    }
 	  }
