@@ -433,6 +433,9 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kY)) { trk->CompleteMissingWires(geo::kY); trk->GetRawdEdxSequence(dedx_tmp, geo::kY, 1); }
 			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) { trk->CompleteMissingWires(geo::kZ); trk->GetRawdEdxSequence(dedx_tmp, geo::kZ, 1); }
 
+			//gc: make sure no tracks are created with less than 2 points
+			if (trk->size()<2) continue;
+
 		    int pdg = 0;
 		    if (mvaLength == 4) pdg = getPdgFromCnnOnHits<4>(evt, *(result[trkIndex].Track()));
 		    else if (mvaLength == 3) pdg = getPdgFromCnnOnHits<3>(evt, *(result[trkIndex].Track()));
@@ -479,11 +482,15 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				trk2ct->addSingle(trkPtr,cosmicPtr);
 			}
 
-			// which idx from start, except disabled, really....
-			std::vector<unsigned int> hIdxs(trk->size(), 0);
-			for (size_t h = 0, cnt = 0; h < hIdxs.size(); h++)
+			//gc: save associated hits in the same order as trajectory points
+                        for (size_t h = 0; h < trk->size(); h++)
 			{
-				if ((*trk)[h]->IsEnabled()) hIdxs[h] = cnt++;
+                                pma::Hit3D* h3d = (*trk)[h];
+                                if (!h3d->IsEnabled()) continue;
+
+                                recob::TrackHitMeta metadata(h, h3d->Dx());
+                                trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
+                                trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
 			}
 
 			art::PtrVector< recob::Hit > sp_hits;
@@ -492,10 +499,6 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			{
 				pma::Hit3D* h3d = (*trk)[h];
 				if (!h3d->IsEnabled()) continue;
-
-				recob::TrackHitMeta metadata(hIdxs[h], h3d->Dx());
-				trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
-				trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
 
 				double hx = h3d->Point3D().X();
 				double hy = h3d->Point3D().Y();
