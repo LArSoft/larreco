@@ -607,17 +607,21 @@ namespace tca {
         if(jplaneID.Cryostat != tpcid.Cryostat) continue;
         if(jplaneID.TPC != tpcid.TPC) continue;
         Trajectory& jstj = tjs.allTraj[jss.ShowerTjID - 1];
+        Tp3Struct tp3;
+        MakeTp3(tjs, istj.Pts[0], jstj.Pts[0], tp3);
+/*
         TVector3 posij, dirij;
         // Use shower Tj point 0 which should yield the start point of the 3D shower
         if(!TrajPoint3D(tjs, istj.Pts[0], jstj.Pts[0], posij, dirij, prt)) continue;
+*/
         float fomij = Match3DFOM(fcnLabel, tjs, ci, cj, prt);
         if(fomij > fomCut) continue;
         if(tjs.NumPlanes == 2) {
           ShowerStruct3D ss3;
           ss3.ID = tjs.showers.size() + 1;
           ss3.TPCID = tpcid;
-          ss3.Pos = posij;
-          ss3.Dir = dirij;
+          ss3.Pos = tp3.Pos;
+          ss3.Dir = tp3.Dir;
           ss3.CotIndices.resize(2);
           ss3.CotIndices[0] = ci;
           ss3.CotIndices[1] = cj;
@@ -645,13 +649,16 @@ namespace tca {
           if(kplaneID.Cryostat != tpcid.Cryostat) continue;
           if(kplaneID.TPC != tpcid.TPC) continue;
           Trajectory& kstj = tjs.allTraj[kss.ShowerTjID - 1];
+          Tp3Struct iktp3;
+          MakeTp3(tjs, istj.Pts[0], kstj.Pts[0], iktp3);
+/*
           TVector3 posik, dirik;
           // Use shower Tj point 0 which should yield the start point of the 3D shower
           if(!TrajPoint3D(tjs, istj.Pts[0], kstj.Pts[0], posik, dirik, prt)) continue;
+*/
           float fomik = Match3DFOM(fcnLabel, tjs, ci, ck, prt);
           if(fomik > bestFOM) continue;
-          TVector3 tmp = posik - posij;
-          float sep = tmp.Mag();
+          float sep = PosSep(tp3.Pos, iktp3.Pos);
           if(sep > 50) {
             if(prt) mf::LogVerbatim("TC")<<" Large stp[0] point separation "<<sep;
             continue;
@@ -664,8 +671,8 @@ namespace tca {
         ss3.ID = tjs.showers.size() + 1;
         ss3.TPCID = tpcid;
         // TODO: average posij and posik, etc here
-        ss3.Pos = posij;
-        ss3.Dir = dirij;
+        ss3.Pos = tp3.Pos;
+        ss3.Dir = tp3.Dir;
         iss.SS3ID = ss3.ID;
         jss.SS3ID = ss3.ID;
         // energy is entered by plane number
