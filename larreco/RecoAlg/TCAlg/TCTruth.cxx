@@ -59,7 +59,14 @@ namespace tca {
           fSourceParticleEnergy = 1000 * mcp->E();
           sourcePtclTrackID = trackID;
           sourceOrigin = simb::kBeamNeutrino;
-          if(tjs.MatchTruth[1] > 2) std::cout<<"Found beam neutrino sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode()<<"\n";
+          if(tjs.MatchTruth[1] > 0) {
+            Vector3_t dir;
+            dir[0] = mcp->Px(); dir[1] = mcp->Py(); dir[2] = mcp->Pz();
+            SetMag(dir, 1);
+            std::cout<<"Found beam neutrino sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode();
+            std::cout<<" Vx "<<std::fixed<<std::setprecision(1)<<mcp->Vx()<<" Vy "<<mcp->Vy()<<" Vz "<<mcp->Vz();
+            std::cout<<" dir "<<std::setprecision(3)<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<"\n";
+          }
           break;
         } // beam neutrino
         if(theTruth->Origin() == simb::kSingleParticle) {
@@ -67,10 +74,12 @@ namespace tca {
           sourcePtclTrackID = trackID;
           sourceOrigin = simb::kSingleParticle;
           if(tjs.MatchTruth[1] > 0) {
-            TVector3 dir;
+            Vector3_t dir;
             dir[0] = mcp->Px(); dir[1] = mcp->Py(); dir[2] = mcp->Pz();
-            dir.SetMag(1);
-            std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode()<<" Vx "<<(int)mcp->Vx()<<" Vy "<<(int)mcp->Vy()<<" Vz "<<(int)mcp->Vz()<<" dir "<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<"\n";
+            SetMag(dir, 1);
+            std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode();
+            std::cout<<" Vx "<<std::fixed<<std::setprecision(1)<<mcp->Vx()<<" Vy "<<mcp->Vy()<<" Vz "<<mcp->Vz();
+            std::cout<<" dir "<<std::setprecision(3)<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<"\n";
             break;
           }
         } // single particle
@@ -240,7 +249,6 @@ namespace tca {
             sourcePtclTrackID = trackID;
             sourceOrigin = simb::kBeamNeutrino;
             fNeutrinoEnergy = 1000 * theTruth->GetNeutrino().Nu().E();
-            if(tjs.MatchTruth[1] > 2) std::cout<<"Found beam neutrino E = "<<fNeutrinoEnergy<<" sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode()<<"\n";
           }
           if(theTruth->Origin() == simb::kSingleParticle) {
             fSourceParticleEnergy = 1000 * mcp->E(); // in MeV
@@ -249,16 +257,9 @@ namespace tca {
             truPrimVtxX = mcp->Vx();
             truPrimVtxY = mcp->Vy();
             truPrimVtxZ = mcp->Vz();
-            if(tjs.MatchTruth[1] > 0) {
-              TVector3 dir;
-              dir[0] = mcp->Px(); dir[1] = mcp->Py(); dir[2] = mcp->Pz();
-              dir.SetMag(1);
-              std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode()<<" Vx "<<(int)mcp->Vx()<<" Vy "<<(int)mcp->Vy()<<" Vz "<<(int)mcp->Vz()<<" dir "<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<"\n";
-            }
           }
           if(sourceOrigin == simb::kBeamNeutrino) {
             // histogram the vertex position difference
-            if(tjs.MatchTruth[1] > 2) std::cout<<" True vertex position "<<(int)mcp->Vx()<<" "<<(int)mcp->Vy()<<" "<<(int)mcp->Vz()<<" energy "<<(int)(1000*mcp->E())<<"\n";
             truPrimVtxX = mcp->Vx();
             truPrimVtxY = mcp->Vy();
             truPrimVtxZ = mcp->Vz();
@@ -422,7 +423,7 @@ namespace tca {
     if(tjs.MatchTruth[1] > 0) {
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<" Correct? "<<neutrinoVxCorrect<<"\n";
-      myprt<<"part   PDG  MomID KE(MeV)   Process         TrajectoryExtentInPlane_nTruHits \n";
+      myprt<<"part   PDG  MomID KE(MeV) _____Dir_______       Process         TrajectoryExtentInPlane_nTruHits \n";
       for(unsigned short ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         // Skip if it can't be reconstructed in 2D
         if(!CanReconstruct(ipart, 2)) continue;
@@ -434,7 +435,6 @@ namespace tca {
         int TMeV = 1000 * (mcp->E() - mcp->Mass());
          myprt<<std::setw(4)<<ipart;
         myprt<<std::setw(6)<<mcp->PdgCode();
-//        myprt<<std::setw(10)<<mcp->TrackId();
         // find the mother in the list
         const simb::MCParticle* momMCP = pi_serv->TrackIdToMotherParticle_P(mcp->TrackId());
         if(!momMCP) continue;
@@ -448,6 +448,12 @@ namespace tca {
           myprt<<std::setw(4)<<momIndex;
         }
         myprt<<std::setw(6)<<TMeV;
+        Vector3_t dir;
+        dir[0] = mcp->Px(); dir[1] = mcp->Py(); dir[2] = mcp->Pz();
+        SetMag(dir, 1);
+        for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
+          myprt<<std::setw(8)<<std::setprecision(3)<<dir[ixyz];
+        }
         myprt<<std::setw(20)<<mcp->Process();
         // print the extent of the particle in each TPC plane
         for(const geo::TPCID& tpcid : tjs.geom->IterateTPCIDs()) {
