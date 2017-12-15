@@ -516,7 +516,7 @@ namespace tca {
   } // FillmAllTraj
 
   /////////////////////////////////////////
-  void MakePFPSpacePts(TjStuff& tjs, PFPStruct& pfp, bool anyTj)
+  void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj)
   {
     // Creates a vector of TrajCluster space points using 3D matches in mallTraj. If anyTj is set true
     // any Trajectory point in the 3rd plane that is consistent will be added as well, otherwise
@@ -551,11 +551,11 @@ namespace tca {
         // check for x range overlap. We know that jTjPt.xlo is >= iTjPt.xlo because of the sort
         if(jTj2Pt.xlo > iTj2Pt.xhi) continue;
         auto& jtp = tjs.allTraj[jTj2Pt.id - 1].Pts[jTj2Pt.ipt];
-        Tp3Struct tcspt;
-        if(!MakeSpt(tjs, itp, jtp, tcspt.Pos, tcspt.Dir)) continue;
-        tcspt.Tj2Pts.resize(2);
-        tcspt.Tj2Pts[0] = iTj2Pt;
-        tcspt.Tj2Pts[1] = jTj2Pt;
+        Tp3Struct tp3;
+        if(!MakeTp3(tjs, itp, jtp, tp3)) continue;
+        tp3.Tj2Pts.resize(2);
+        tp3.Tj2Pts[0] = iTj2Pt;
+        tp3.Tj2Pts[1] = jTj2Pt;
         // try for a triple w/o the requirement for a Tj in the pfp
         if(tjs.NumPlanes == 3) {
           for(unsigned int kpt = jpt + 1; kpt < tjs.mallTraj.size(); ++kpt) {
@@ -567,44 +567,43 @@ namespace tca {
             if(!anyTj && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), kTj2Pt.id) == pfp.TjIDs.end()) continue;
             if(kTj2Pt.xlo > iTj2Pt.xhi) continue;
             auto& ktp = tjs.allTraj[kTj2Pt.id - 1].Pts[kTj2Pt.ipt];
-            Point3_t pos;
-            Vector3_t dir;
-            if(!MakeSpt(tjs, itp, ktp, pos, dir)) continue;
-            if(std::abs(pos[1] - tcspt.Pos[1]) > yzcut) continue;
-            if(std::abs(pos[2] - tcspt.Pos[2]) > yzcut) continue;
+            Tp3Struct iktp3;
+            if(!MakeTp3(tjs, itp, ktp, iktp3)) continue;
+            if(std::abs(iktp3.Pos[1] - tp3.Pos[1]) > yzcut) continue;
+            if(std::abs(iktp3.Pos[2] - tp3.Pos[2]) > yzcut) continue;
             // make a rough angle cut
-            if(DotProd(tcspt.Dir, dir) < 0.8) continue;
-            tcspt.Tj2Pts.push_back(kTj2Pt);
+            if(DotProd(tp3.Dir, iktp3.Dir) < 0.8) continue;
             // update the position and direction
             for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
-              tcspt.Pos[ixyz] += pos[ixyz]; tcspt.Pos[ixyz] /= 2;
-              tcspt.Dir[ixyz] += dir[ixyz]; tcspt.Dir[ixyz] /= 2;
+              tp3.Pos[ixyz] += iktp3.Pos[ixyz]; tp3.Pos[ixyz] /= 2;
+              tp3.Dir[ixyz] += iktp3.Dir[ixyz]; tp3.Dir[ixyz] /= 2;
             }
+            tp3.Tj2Pts.push_back(kTj2Pt);
             // only allow one addition
             break;
           } // kpt
         } // 3 planes
         // sort the Tj2Pts by increasing Tj ID
-        std::vector<SortEntry> sortVec(tcspt.Tj2Pts.size());
+        std::vector<SortEntry> sortVec(tp3.Tj2Pts.size());
         for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
           sortVec[ii].index = ii;
-          sortVec[ii].val = tcspt.Tj2Pts[ii].id;
+          sortVec[ii].val = tp3.Tj2Pts[ii].id;
         } // ii
         std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
-        auto temp = tcspt.Tj2Pts;
-        for(unsigned short ii = 0; ii < temp.size(); ++ii) tcspt.Tj2Pts[ii] = temp[sortVec[ii].index];
-        tcspt.Chg = 0;
-        for(auto tj2pt : tcspt.Tj2Pts) {
+        auto temp = tp3.Tj2Pts;
+        for(unsigned short ii = 0; ii < temp.size(); ++ii) tp3.Tj2Pts[ii] = temp[sortVec[ii].index];
+        tp3.Chg = 0;
+        for(auto tj2pt : tp3.Tj2Pts) {
           auto& tp = tjs.allTraj[tj2pt.id - 1].Pts[tj2pt.ipt];
-          tcspt.Chg += tp.Chg;
+          tp3.Chg += tp.Chg;
         } // mi
-        tcspt.Chg /= (float)tcspt.Tj2Pts.size();
-        pfp.Tp3s.push_back(tcspt);
+        tp3.Chg /= (float)tp3.Tj2Pts.size();
+        pfp.Tp3s.push_back(tp3);
         break;
       } // jpt
     } // ipt
     
-  } // MakePFPSpacePts
+  } // MakePFPTp3s
 
   
   /////////////////////////////////////////
@@ -621,8 +620,8 @@ namespace tca {
     Point3_t maxXYZ = {-1E6, -1E6, -1E6};
     unsigned int maxXYZPt[3] = {0, 0, 0};
     for(unsigned short ipt = 0; ipt < pfp.Tp3s.size(); ++ipt) {
-      auto& tcspt = pfp.Tp3s[ipt];
-      auto& pos = tcspt.Pos;
+      auto& tp3 = pfp.Tp3s[ipt];
+      auto& pos = tp3.Pos;
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
         if(pos[ixyz] < minXYZ[ixyz]) {
           minXYZ[ixyz] = pos[ixyz];
@@ -633,7 +632,7 @@ namespace tca {
           maxXYZPt[ixyz] = ipt;
         }
       } // ixyz
-    } // tcspt
+    } // tp3
     
     // check for a fully contained track
     bool insideX = minXYZ[0] > tjs.XLo && maxXYZ[0] < tjs.XHi;
@@ -723,7 +722,7 @@ namespace tca {
   } // SortByDistanceFromStart
   
   /////////////////////////////////////////
-  void CheckSptValidity(TjStuff& tjs, PFPStruct& pfp, bool prt)
+  void CheckTp3Validity(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // Checks and corrects the ordering of Tj points in the pfp space points. Checks for
     // consistency between the tjs listed in pfp.TjIDs and those appearing in the space points.
@@ -760,12 +759,11 @@ namespace tca {
       std::cout<<"\n";
     }
     
-    if(pfp.Tp3s.size() < 5) {
-      return;
-    } // short vector
+    if(pfp.Tp3s.size() < 5) return;
+
     std::cout<<"write some code here\n";
     
-  } // CheckSptValidity
+  } // CheckTp3Validity
 
   /////////////////////////////////////////
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, std::vector<MatchStruct>& matVec, bool prt)
@@ -794,16 +792,10 @@ namespace tca {
     if(matVec.size() < tjs.Match3DCuts[4]) nAvailable = tjs.Match3DCuts[4] - matVec.size();
     if(nAvailable == 0 || nAvailable > tjs.Match3DCuts[4]) return;
     
-    // temp TPs used to find 3D directions. The positions are not used
-    TrajPoint tpi; tpi.Pos = {0, 0};
-    TrajPoint tpj; tpj.Pos = {0, 0};
-    TrajPoint tpk; tpk.Pos = {0, 0};
-    // Direction vectors found using the i,j and i,k TPs
-    TVector3 dij, dik, pos3;
     float piOver2 = M_PI / 2;
     // these cuts presume that the resolution in X is better than it is in Y and Z
     float xcut = tjs.Match3DCuts[0];
-    float yzcut = 1.5 * xcut;
+    double yzcut = 1.5 * xcut;
     bool useAngle = tjs.Match3DCuts[1] > 0;
     for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 1; ++ipt) {
       auto& iTjPt = tjs.mallTraj[ipt];
@@ -811,10 +803,8 @@ namespace tca {
       if(iTjPt.npts < minPts) continue;
       // look for matches using Tjs that have the correct score
       if(iTjPt.score < 0 || iTjPt.score > maxScore) continue;
-      unsigned short iplane = DecodeCTP(iTjPt.ctp).Plane;
-      // load the CTP and direction so we can find matching angles
-      tpi.CTP = iTjPt.ctp;
-      tpi.Dir = iTjPt.dir;
+      auto& itp = tjs.allTraj[iTjPt.id - 1].Pts[iTjPt.ipt];
+      unsigned short iplane = DecodeCTP(itp.CTP).Plane;
       for(unsigned int jpt = ipt + 1; jpt < tjs.mallTraj.size() - 1; ++jpt) {
         auto& jTjPt = tjs.mallTraj[jpt];
         // ensure that the planes are different
@@ -826,17 +816,13 @@ namespace tca {
         if(jTjPt.score < 0 || jTjPt.score > maxScore) continue;
         // check for x range overlap. We know that jTjPt.xlo is >= iTjPt.xlo because of the sort
         if(jTjPt.xlo > iTjPt.xhi) continue;
-        // break out if the x range difference becomes large (10 cm)
-        if(jTjPt.xlo > iTjPt.xhi + 10) break;
-        // ensure the intersection is inside the TPC
-        unsigned short jplane = DecodeCTP(jTjPt.ctp).Plane;
-        tpj.CTP = jTjPt.ctp;
-        tpj.Dir = jTjPt.dir;
-        double jyp = 0, jzp = 0;
-        tjs.geom->IntersectionPoint(iTjPt.wire, jTjPt.wire, iplane, jplane, (unsigned int)cstat, (unsigned int)tpc, jyp, jzp);
-        // get the direction. If this works, IntersectionPoint could be totally replaced with TrajPoint3D
-        bool dijOK = false;
-        if(useAngle && iTjPt.npts > 5 && jTjPt.npts > 5) dijOK = TrajPoint3D(tjs, tpi, tpj, pos3, dij, prt);
+        // break out if the x range difference becomes large (5 cm)
+        if(jTjPt.xlo > iTjPt.xhi + 5) break;
+        auto& jtp = tjs.allTraj[jTjPt.id - 1].Pts[jTjPt.ipt];
+        unsigned short jplane = DecodeCTP(jtp.CTP).Plane;
+        Tp3Struct tp3;
+        if(!MakeTp3(tjs, itp, jtp, tp3)) continue;
+        bool dijOK = (useAngle && iTjPt.npts > 5 && jTjPt.npts > 5);
         if(numPlanes == 3) {
           // numPlanes == 3
           for(unsigned int kpt = jpt + 1; kpt < tjs.mallTraj.size(); ++kpt) {
@@ -848,19 +834,18 @@ namespace tca {
             if(kTjPt.score < 0 || kTjPt.score > maxScore) continue;
             if(kTjPt.xlo > iTjPt.xhi) continue;
             // break out if the x range difference becomes large
-            if(kTjPt.xlo > iTjPt.xhi + 10) break;
-            unsigned short kplane = DecodeCTP(kTjPt.ctp).Plane;
-            tpk.CTP = kTjPt.ctp;
-            tpk.Dir = kTjPt.dir;
-            double kyp, kzp;
-            tjs.geom->IntersectionPoint(iTjPt.wire, kTjPt.wire, iplane, kplane, (unsigned int)cstat, (unsigned int)tpc, kyp, kzp);
-            if(std::abs(kyp - jyp) > yzcut || std::abs(kzp - jzp) > yzcut) continue;
-            if(useAngle && dijOK && kTjPt.npts > 5 && TrajPoint3D(tjs, tpi, tpk, pos3, dik, prt)) {
-              // compare the angles between the
-              float dang = dij.Angle(dik);
+            if(kTjPt.xlo > iTjPt.xhi + 5) break;
+            auto& ktp = tjs.allTraj[kTjPt.id - 1].Pts[kTjPt.ipt];
+            unsigned short kplane = DecodeCTP(ktp.CTP).Plane;
+            Tp3Struct iktp3;
+            if(!MakeTp3(tjs, itp, ktp, iktp3)) continue;
+            if(std::abs(tp3.Pos[1] - iktp3.Pos[1]) > yzcut) continue;
+            if(std::abs(tp3.Pos[2] - iktp3.Pos[2]) > yzcut) continue;
+            if(dijOK && kTjPt.npts > 5) {
+              float dang = std::abs(DeltaAngle(tp3.Dir, iktp3.Dir));
               if(dang > piOver2) dang = piOver2 - dang;
               if(dang > tjs.Match3DCuts[1]) continue;
-            } // useAngle etc
+            } // check angle difference
             // we have a match.
             // Just fill temp. See if the Tj IDs are in the match list.
             // first check the input matVec
@@ -902,16 +887,16 @@ namespace tca {
         } else {
           // 2-plane TPC or 2-plane match in a 3-plane TPC
           if(tjs.NumPlanes == 3) {
-            // See if there is a signal at this point. Use tpk but first ensure that the intersection
-            // is reasonably OK
-            unsigned short kpl = 3 - iplane - jplane;
-            float fkwire = tjs.geom->WireCoordinate(jyp, jzp, kpl, tpc, cstat);
-            if(fkwire < 0 || fkwire > tjs.MaxPos0[kpl]) continue;
-            tpk.CTP = EncodeCTP(cstat, tpc, kpl);
-            geo::PlaneID planeID = DecodeCTP(tpi.CTP);
-            float xp = 0.5 * (iTjPt.xlo + iTjPt.xhi);
+            // See if there is a signal at this point.
+            unsigned short kplane = 3 - iplane - jplane;
+            float fkwire = tjs.geom->WireCoordinate(tp3.Pos[1], tp3.Pos[2], kplane, tpc, cstat);
+//            float fkwire = tjs.geom->WireCoordinate(jyp, jzp, kpl, tpc, cstat);
+            if(fkwire < 0 || fkwire > tjs.MaxPos0[kplane]) continue;
+            TrajPoint tpk;
+            tpk.CTP = EncodeCTP(cstat, tpc, kplane);
             tpk.Pos[0] = fkwire;
-            tpk.Pos[1] = tjs.detprop->ConvertXToTicks(xp, planeID) * tjs.UnitsPerTick;
+            float xp = 0.5 * (iTjPt.xlo + iTjPt.xhi);
+            tpk.Pos[1] = tjs.detprop->ConvertXToTicks(xp, kplane, tpc, cstat) * tjs.UnitsPerTick;
             // Note that SignalAtTp assumes that a signal exists if the wire is dead
             if(!SignalAtTp(tjs, tpk)) continue;
           }
@@ -989,11 +974,11 @@ namespace tca {
   } // FindXMatches
 
   /////////////////////////////////////////
-  bool MakeSpt(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, Point3_t& pos, Vector3_t& dir)
+  bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, Tp3Struct& tp3)
   {
-    // A variant (replacement) for TrajPoint3D that doesn't use TVector3
-    dir = {999};
-    pos = {999};
+    // Make a 3D trajectory point using two 2D trajectory points
+    tp3.Dir = {999};
+    tp3.Pos = {999};
     geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
     geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
     double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iPlnID);
@@ -1002,7 +987,7 @@ namespace tca {
     
     // don't continue if the points are wildly far apart in X
     if(std::abs(ix - jx) > 10) return false;
-    pos[0] = 0.5 * (ix + jx);
+    tp3.Pos[0] = 0.5 * (ix + jx);
     
     unsigned int iWire = std::nearbyint(itp.Pos[0]);
     if(!tjs.geom->HasWire(geo::WireID(iPlnID.Cryostat, iPlnID.TPC, iPlnID.Plane, iWire))) return false;
@@ -1024,28 +1009,28 @@ namespace tca {
     double iPos0 = itp.Pos[0];
     double jPos0 = jtp.Pos[0];
     // Find the Z position of the intersection
-    pos[2] = (jcs * (iPos0 - iw0) - ics * (jPos0 - jw0)) / den;
+    tp3.Pos[2] = (jcs * (iPos0 - iw0) - ics * (jPos0 - jw0)) / den;
     // and the Y position
     bool useI = std::abs(ics) > std::abs(jcs);
     if(useI) {
-      pos[1] = (iPos0 - iw0 - isn * pos[2]) / ics;
+      tp3.Pos[1] = (iPos0 - iw0 - isn * tp3.Pos[2]) / ics;
     } else {
-      pos[1] = (jPos0 - jw0 - jsn * pos[2]) / jcs;
+      tp3.Pos[1] = (jPos0 - jw0 - jsn * tp3.Pos[2]) / jcs;
     }
     
     // Now find the direction. Protect against large angles first
     if(jtp.Dir[1] == 0) {
       // Going either in the +X direction or -X direction
-      if(jtp.Dir[0] > 0) { dir[0] = 1; } else { dir[0] = -1; }
-      dir[1] = 0;
-      dir[2] = 0;
+      if(jtp.Dir[0] > 0) { tp3.Dir[0] = 1; } else { tp3.Dir[0] = -1; }
+      tp3.Dir[1] = 0;
+      tp3.Dir[2] = 0;
       return true;
     } // jtp.Dir[1] == 0
     
     // make a copy of itp and shift it by many wires to avoid precision problems
     TrajPoint itp2 = itp;
     MoveTPToWire(itp2, itp2.Pos[0] + 100);
-    // Create a second TVector3 for the shifted point
+    // Create a second Vector3 for the shifted point
     Point3_t pos2;
     // Find the X position corresponding to the shifted point 
     pos2[0] = tjs.detprop->ConvertTicksToX(itp2.Pos[1] / tjs.UnitsPerTick, iPlnID);
@@ -1060,12 +1045,12 @@ namespace tca {
     } else {
       pos2[1] = (jtp2Pos0 - jw0 - jsn * pos2[2]) / jcs;
     }
-    double sep = PosSep(pos, pos2);
+    double sep = PosSep(tp3.Pos, pos2);
     if(sep == 0) return false;
-    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) dir[ixyz] = (pos2[ixyz] - pos[ixyz]) /sep;
-    
+    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) tp3.Dir[ixyz] = (pos2[ixyz] - tp3.Pos[ixyz]) /sep;
     return true;
-  } // MakeSpt
+    
+  } // MakeTP3
   
   ////////////////////////////////////////////////
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2)
@@ -1081,121 +1066,7 @@ namespace tca {
     for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
       dir[ixyz] = p2[ixyz] - p1[ixyz];
     }
-/*
-    std::cout<<"chk "<<std::setprecision(2)<<p1[0]<<" "<<p1[1]<<" "<<p1[2];
-    std::cout<<" -> "<<std::setprecision(2)<<p2[0]<<" "<<p2[1]<<" "<<p2[2];
-    std::cout<<" dir "<<std::setprecision(3)<<dir[0]<<" "<<dir[1]<<" "<<dir[2];
-*/
     if(!SetMag(dir, 1)) { dir[0] = 0; dir[1] = 0; dir[3] = 999; }
-/*
-    std::cout<<" norm "<<std::setprecision(3)<<dir[0]<<" "<<dir[1]<<" "<<dir[2];
-    std::cout<<"\n";
-*/
     return dir;
   } // PointDirection
-
-  /////////////////////////////////////////
-  bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt)
-  {
-    // Calculate a 3D position and direction from two trajectory points
-    
-    dir.SetX(999);
-    pos = {0, 0, 0};
-    
-    if(itp.CTP == jtp.CTP) {
-      if(prt) mf::LogVerbatim("TC")<<"TP3D: points "<<itp.CTP<<":"<<PrintPos(tjs, itp.Pos)<<" "<<jtp.CTP<<":"<<PrintPos(tjs, jtp.Pos)<<" are in the same CTP";
-      return false;
-    }
-    
-    geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
-    geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
-    
-    double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iPlnID);
-    double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jPlnID);
-    //    std::cout<<"TP3D: "<<PrintPos(tjs, itp.Pos)<<" X "<<ix<<" "<<PrintPos(tjs, jtp.Pos)<<" "<<jx<<"\n";
-    
-    // don't continue if the points are too far apart in X
-    if(std::abs(ix - jx) > 10) {
-      if(prt) mf::LogVerbatim("TC")<<"TP3D: points "<<iPlnID.Plane<<":"<<PrintPos(tjs, itp.Pos)<<" "<<jPlnID.Plane<<":"<<PrintPos(tjs, jtp.Pos)<<" too far apart";
-      return false;
-    }
-    pos[0] = 0.5 * (ix + jx);
-    
-    unsigned int iWire = std::nearbyint(itp.Pos[0]);
-    if(!tjs.geom->HasWire(geo::WireID(iPlnID.Cryostat, iPlnID.TPC, iPlnID.Plane, iWire))) {
-      if(prt) mf::LogVerbatim("TC")<<"TP3D: No wire at this position "<<iPlnID.Plane<<":"<<PrintPos(tjs, itp.Pos);
-      return false;
-    }
-    unsigned int jWire = std::nearbyint(jtp.Pos[0]);
-    if(!tjs.geom->HasWire(geo::WireID(jPlnID.Cryostat, jPlnID.TPC, jPlnID.Plane, jWire))) {
-      if(prt) mf::LogVerbatim("TC")<<"TP3D: No wire at this position "<<jPlnID.Plane<<":"<<PrintPos(tjs, jtp.Pos);
-      return false;
-    }
-    
-    // determine the wire orientation and offsets using WireCoordinate
-    // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
-    // wire offset
-    double iw0 = tjs.geom->WireCoordinate(0, 0, iPlnID);
-    // cosine-like component
-    double ics = tjs.geom->WireCoordinate(1, 0, iPlnID) - iw0;
-    // sine-like component
-    double isn = tjs.geom->WireCoordinate(0, 1, iPlnID) - iw0;
-    
-    double jw0 = tjs.geom->WireCoordinate(0, 0, jPlnID);
-    double jcs = tjs.geom->WireCoordinate(1, 0, jPlnID) - jw0;
-    double jsn = tjs.geom->WireCoordinate(0, 1, jPlnID) - jw0;
-    
-    double den = isn * jcs - ics * jsn;
-    if(den == 0) return false;
-    // Find the Z position of the intersection
-    pos[2] = (jcs * (itp.Pos[0] - iw0) - ics * (jtp.Pos[0] - jw0)) / den;
-    // and the Y position
-    if(ics != 0) {
-      pos[1] = (itp.Pos[0] - iw0 - isn * pos[2]) / ics;
-    } else {
-      pos[1] = (jtp.Pos[0] - jw0 - jsn * pos[2]) / jcs;
-    }
-    
-    // Now find the direction. Protect against large angles first
-    if(jtp.Dir[1] == 0) {
-      // Going either in the +X direction or -X direction
-      if(jtp.Dir[0] > 0) {
-        dir.SetX(1);
-      } else {
-        dir.SetX(-1);
-      }
-      dir.SetY(0);
-      dir.SetZ(0);
-      return true;
-    } // jtp.Dir[1] == 0
-    
-    // make a copy of itp and shift it by many wires to avoid precision problems
-    TrajPoint itp2 = itp;
-    MoveTPToWire(itp2, itp2.Pos[0] + 100);
-    // Create a second TVector3 for the shifted point
-    TVector3 pos2;
-    // Find the X position corresponding to the shifted point 
-    pos2[0] = tjs.detprop->ConvertTicksToX(itp2.Pos[1] / tjs.UnitsPerTick, iPlnID);
-    // Convert X to Ticks in the j plane and then to WSE units
-    double jtp2Pos1 = tjs.detprop->ConvertXToTicks(pos2[0], jPlnID) * tjs.UnitsPerTick;
-    // Find the wire position (Pos0) in the j plane that this corresponds to
-    double jtp2Pos0 = (jtp2Pos1 - jtp.Pos[1]) * (jtp.Dir[0] / jtp.Dir[1]) + jtp.Pos[0];
-    // Find the Y,Z position using itp2 and jtp2Pos0
-    pos2[2] = (jcs * (itp2.Pos[0] - iw0) - ics * (jtp2Pos0 - jw0)) / den;
-    if(ics != 0) {
-      pos2[1] = (itp2.Pos[0] - iw0 - isn * pos2[2]) / ics;
-    } else {
-      pos2[1] = (jtp2Pos0 - jw0 - jsn * pos2[2]) / jcs;
-    }
-    dir = pos2 - pos;
-    if(dir.Mag() == 0) {
-      if(prt) mf::LogVerbatim("TC")<<"TP3D: points "<<iPlnID.Plane<<":"<<PrintPos(tjs, itp.Pos)<<" "<<jPlnID.Plane<<":"<<PrintPos(tjs, jtp.Pos)<<" Magnitude is 0";
-      return false;
-    }
-    dir.SetMag(1);
-    
-    return true;
-    
-  } // TrajPoint3D
-
 } // namespace
