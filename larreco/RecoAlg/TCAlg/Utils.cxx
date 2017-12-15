@@ -253,21 +253,20 @@ namespace tca {
 */    
     if(tjs.pfps.empty()) return;
     
-    // only create a PFP vertex at end 0 (if one doesn't exist)
-    constexpr unsigned short end0 = 0;
     int neutrinoPFPID = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       if(pfp.TPCID != tpcid) continue;
       if(neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) neutrinoPFPID = pfp.ID;
-      if(pfp.Vx3ID[end0] > 0) continue;
+      if(pfp.Vx3ID[0] > 0) continue;
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
       // Flag it as a PFP vertex that isn't required to have matched 2D vertices
       vx3.Wire = -2;
-      vx3.X = pfp.XYZ[end0][0];
-      vx3.Y = pfp.XYZ[end0][1];
-      vx3.Z = pfp.XYZ[end0][2];
+      vx3.X = pfp.XYZ[0][0];
+      vx3.Y = pfp.XYZ[0][1];
+      vx3.Z = pfp.XYZ[0][2];
+      std::cout<<"DPFPR: Making a bogus PFP vertex\n";
       vx3.ID = tjs.vtx3.size() + 1;
       vx3.Primary = true;
       // TODO: we need to have PFP track position errors defined 
@@ -400,10 +399,16 @@ namespace tca {
     if(tjIDs.empty()) return codeList[codeIndex];
     
     std::array<unsigned short, 5> cnts = {0};
+    // Count Bragg peaks. This assumes that the Tjs are in order...
+    std::array<unsigned short, 2> stopCnt {0};
+    float maxLen = 0;
     for(auto tjid : tjIDs) {
       if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) continue;
       auto& tj = tjs.allTraj[tjid - 1];
       for(unsigned short ii = 0; ii < 5; ++ii) if(tj.PDGCode == codeList[ii]) ++cnts[ii];
+      for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[kBragg][end]) ++stopCnt[end];
+      float len = TrajLength(tj);
+      if(len > maxLen) maxLen = len;
     } // tjid
     unsigned maxCnt = 0;
     // ignore the first PDG code in the list which is the default
@@ -426,6 +431,13 @@ namespace tca {
       }
     } // ii
     if(confused) {
+      // Check for a muon called it a proton
+      if(cnts[4] > 0 && stopCnt[2] > 0 && NumDeltaRays(tjs, tjIDs) == 0) {
+        codeIndex = 4;
+        confused = false;
+      }
+    } // confused
+    if(confused) {
       codeIndex = 0;
       if(prt) {
         mf::LogVerbatim myprt("TC");
@@ -433,12 +445,40 @@ namespace tca {
         for(auto tjid : tjIDs) {
           if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) continue;
           auto& tj = tjs.allTraj[tjid - 1];
-          myprt<<" "<<tj.ID<<"_"<<tj.PDGCode;
+          myprt<<" "<<tj.ID<<"_"<<tj.PDGCode<<"_"<<tj.StopFlag[kBragg][1];
         } // tjid
       }
     } // confused
     return codeList[codeIndex];
   } // PDGCodeVote
+  
+  /////////////////////////////////////////
+  unsigned short NumDeltaRays(const TjStuff& tjs, const Trajectory& tj)
+  {
+    // returns the number of delta rays that have this tj as a parent
+    unsigned short cnt = 0;
+    for(auto& dtj : tjs.allTraj) {
+      if(dtj.AlgMod[kKilled]) continue;
+      if(!dtj.AlgMod[kDeltaRay]) continue;
+      if(dtj.ParentID == tj.ID) ++cnt;
+    } // tj
+    return cnt;
+  } // NumDeltaRays
+  
+  /////////////////////////////////////////
+  unsigned short NumDeltaRays(const TjStuff& tjs, std::vector<int>& tjIDs)
+  {
+    // Count the number of delta-rays that have a Tj in the list of TjIDs as a parent.
+    if(tjIDs.empty()) return 0;
+    if(tjIDs[0] <= 0 || tjIDs[0] > (int)tjs.allTraj.size()) return 0;
+    unsigned short cnt = 0;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(!tj.AlgMod[kDeltaRay]) continue;
+      if(std::find(tjIDs.begin(), tjIDs.end(), tj.ParentID) != tjIDs.end()) ++cnt;
+    } // tj
+    return cnt;
+  } // NumDeltaRays
 
   /////////////////////////////////////////
   int NeutrinoPrimaryTjID(const TjStuff& tjs, const Trajectory& tj)
@@ -505,472 +545,7 @@ namespace tca {
     }
   } // PrimaryID
 
-  /////////////////////////////////////////
-  bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt)
-  {
-    // Calculate a 3D position and direction from two trajectory points
-    
-    dir.SetX(999);
-    pos = {0, 0, 0};
-    
-    if(itp.CTP == jtp.CTP) {
-      if(prt) mf::LogVerbatim("TC")<<"TP3D: points "<<itp.CTP<<":"<<PrintPos(tjs, itp.Pos)<<" "<<jtp.CTP<<":"<<PrintPos(tjs, jtp.Pos)<<" are in the same CTP";
-      return false;
-    }
-    
-    geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
-    geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
-
-    double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iPlnID);
-    double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jPlnID);
-//    std::cout<<"TP3D: "<<PrintPos(tjs, itp.Pos)<<" X "<<ix<<" "<<PrintPos(tjs, jtp.Pos)<<" "<<jx<<"\n";
-
-    // don't continue if the points are too far apart in X
-    if(std::abs(ix - jx) > 10) {
-      if(prt) mf::LogVerbatim("TC")<<"TP3D: points "<<iPlnID.Plane<<":"<<PrintPos(tjs, itp.Pos)<<" "<<jPlnID.Plane<<":"<<PrintPos(tjs, jtp.Pos)<<" too far apart";
-      return false;
-    }
-    pos[0] = 0.5 * (ix + jx);
-
-    unsigned int iWire = std::nearbyint(itp.Pos[0]);
-    if(!tjs.geom->HasWire(geo::WireID(iPlnID.Cryostat, iPlnID.TPC, iPlnID.Plane, iWire))) {
-      if(prt) mf::LogVerbatim("TC")<<"TP3D: No wire at this position "<<iPlnID.Plane<<":"<<PrintPos(tjs, itp.Pos);
-      return false;
-    }
-    unsigned int jWire = std::nearbyint(jtp.Pos[0]);
-    if(!tjs.geom->HasWire(geo::WireID(jPlnID.Cryostat, jPlnID.TPC, jPlnID.Plane, jWire))) {
-      if(prt) mf::LogVerbatim("TC")<<"TP3D: No wire at this position "<<jPlnID.Plane<<":"<<PrintPos(tjs, jtp.Pos);
-      return false;
-    }
-
-    // determine the wire orientation and offsets using WireCoordinate
-    // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
-    // wire offset
-    double iw0 = tjs.geom->WireCoordinate(0, 0, iPlnID);
-    // cosine-like component
-    double ics = tjs.geom->WireCoordinate(1, 0, iPlnID) - iw0;
-    // sine-like component
-    double isn = tjs.geom->WireCoordinate(0, 1, iPlnID) - iw0;
-    
-    double jw0 = tjs.geom->WireCoordinate(0, 0, jPlnID);
-    double jcs = tjs.geom->WireCoordinate(1, 0, jPlnID) - jw0;
-    double jsn = tjs.geom->WireCoordinate(0, 1, jPlnID) - jw0;
-    
-    double den = isn * jcs - ics * jsn;
-    if(den == 0) return false;
-    // Find the Z position of the intersection
-    pos[2] = (jcs * (itp.Pos[0] - iw0) - ics * (jtp.Pos[0] - jw0)) / den;
-    // and the Y position
-    if(ics != 0) {
-      pos[1] = (itp.Pos[0] - iw0 - isn * pos[2]) / ics;
-    } else {
-      pos[1] = (jtp.Pos[0] - jw0 - jsn * pos[2]) / jcs;
-    }
-    
-    // Now find the direction. Protect against large angles first
-    if(jtp.Dir[1] == 0) {
-      // Going either in the +X direction or -X direction
-      if(jtp.Dir[0] > 0) {
-        dir.SetX(1);
-      } else {
-        dir.SetX(-1);
-      }
-      dir.SetY(0);
-      dir.SetZ(0);
-      return true;
-    } // jtp.Dir[1] == 0
-    
-    // make a copy of itp and shift it by many wires to avoid precision problems
-    TrajPoint itp2 = itp;
-    MoveTPToWire(itp2, itp2.Pos[0] + 100);
-    // Create a second TVector3 for the shifted point
-    TVector3 pos2;
-    // Find the X position corresponding to the shifted point 
-    pos2[0] = tjs.detprop->ConvertTicksToX(itp2.Pos[1] / tjs.UnitsPerTick, iPlnID);
-    // Convert X to Ticks in the j plane and then to WSE units
-    double jtp2Pos1 = tjs.detprop->ConvertXToTicks(pos2[0], jPlnID) * tjs.UnitsPerTick;
-    // Find the wire position (Pos0) in the j plane that this corresponds to
-    double jtp2Pos0 = (jtp2Pos1 - jtp.Pos[1]) * (jtp.Dir[0] / jtp.Dir[1]) + jtp.Pos[0];
-    // Find the Y,Z position using itp2 and jtp2Pos0
-    pos2[2] = (jcs * (itp2.Pos[0] - iw0) - ics * (jtp2Pos0 - jw0)) / den;
-    if(ics != 0) {
-      pos2[1] = (itp2.Pos[0] - iw0 - isn * pos2[2]) / ics;
-    } else {
-      pos2[1] = (jtp2Pos0 - jw0 - jsn * pos2[2]) / jcs;
-    }
-    dir = pos2 - pos;
-    if(dir.Mag() == 0) {
-      if(prt) mf::LogVerbatim("TC")<<"TP3D: points "<<iPlnID.Plane<<":"<<PrintPos(tjs, itp.Pos)<<" "<<jPlnID.Plane<<":"<<PrintPos(tjs, jtp.Pos)<<" Magnitude is 0";
-      return false;
-    }
-    dir.SetMag(1);
-
-    return true;
-
-  } // TrajPoint3D
-  
-  /////////////////////////////////////////
-  void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, PFPStruct& pfp, std::vector<MatchStruct>& matVec, 
-                    std::array<std::vector<unsigned int>, 2>& matchPts, std::array<std::array<float, 3>, 2>& matchPos, unsigned short& nMatch, bool prt)
-  {
-    // This function matches trajectory points in tjs.mallTraj using the X position. These points should
-    // have already been sorted by increasing X by the function that created mallTraj. There are two modes:
-    //
-    // Mode 1: Only the matVec vector is filled when the pfp struct has no TjIDs. This is used to determine
-    // which Tjs have a 3D match. If matVec is not empty, it is assumed that it contains 3-plane matches which are
-    // scanned to prevent duplicate 2-plane matches. Note that pfp.TPCID must be defined. nMatch is undetermined.
-    //
-    // Mode 2: A 3D match has been done and set of Trajectory IDs has been defined for one PFParticle candidate.
-    // In this case, the matchPts is set to the tjs.mallTraj indices at each end. The start (end) XYZ position
-    // is set to the min (max) X point. nMatch is the number of points that were 3D matched
-    
-    matchPts[0].clear();
-    matchPts[1].clear();
-    nMatch = 0;
-    if(tjs.mallTraj.empty()) return;
-    if(tjs.Match3DCuts[0] <= 0) return;
-    if(numPlanes < 2) return;
-    
-    int cstat = pfp.TPCID.Cryostat;
-    int tpc = pfp.TPCID.TPC;
-    
-    // create a temp vector to check for duplicates
-    auto inMatVec = matVec;
-    std::vector<MatchStruct> temp;
-    
-    // the minimum number of points for matching
-    unsigned short minPts = 3;
-    // override this with the user minimum for 2-plane matches
-    if(numPlanes == 2) minPts = tjs.Match3DCuts[2];
-    
-    // max number of match combos left
-    unsigned int nAvailable = 0;
-    if(matVec.size() < tjs.Match3DCuts[4]) nAvailable = tjs.Match3DCuts[4] - matVec.size();
-    if(nAvailable == 0 || nAvailable > tjs.Match3DCuts[4]) return;
-
-    std::array<float, 3> posij, posik;
-    // temp TPs used to find 3D directions. The positions are not used
-    TrajPoint tpi; tpi.Pos = {0, 0};
-    TrajPoint tpj; tpj.Pos = {0, 0};
-    TrajPoint tpk; tpk.Pos = {0, 0};
-    // Direction vectors found using the i,j and i,k TPs
-    TVector3 dij, dik, pos3;
-    float piOver2 = M_PI / 2;
-    // these cuts presume that the resolution in X is better than it is in Y and Z
-    float xcut = tjs.Match3DCuts[0];
-    float yzcut = 1.5 * xcut;
-    bool useAngle = tjs.Match3DCuts[1] > 0;
-    bool returnMatchPts = !pfp.TjIDs.empty();
-    if(returnMatchPts) {
-      // allow 2-plane matches in a 3-plane TPC
-      numPlanes = pfp.TjIDs.size();
-      matchPts[0].resize(numPlanes, INT_MAX);
-      matchPts[1].resize(numPlanes, INT_MAX);
-      // bypass maxScore
-      maxScore = SHRT_MAX;
-    }
-//    if(prt) mf::LogVerbatim("TC")<<"FXM: numPlanes "<<numPlanes<<" maxScore "<<maxScore<<" returnMatchPts? "<<returnMatchPts;
-    bool first = true;
-    for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 1; ++ipt) {
-      auto& iTjPt = tjs.mallTraj[ipt];
-      // length cut
-      if(iTjPt.npts < minPts) continue;
-      // Mode 2: check for a valid TjID
-      if(returnMatchPts && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), iTjPt.id) == pfp.TjIDs.end()) continue;
-      // look for matches using Tjs that have the correct score
-      if(iTjPt.score < 0 || iTjPt.score > maxScore) continue;
-      unsigned short iplane = DecodeCTP(iTjPt.ctp).Plane;
-      // load the CTP and direction so we can find matching angles
-      tpi.CTP = iTjPt.ctp;
-      tpi.Dir = iTjPt.dir;
-      for(unsigned int jpt = ipt + 1; jpt < tjs.mallTraj.size() - 1; ++jpt) {
-        auto& jTjPt = tjs.mallTraj[jpt];
-        // ensure that the planes are different
-        if(jTjPt.ctp == iTjPt.ctp) continue;
-        // length cut
-        if(jTjPt.npts < minPts) continue;
-        // ensure they are both showerlike or both not showerlike
-        if(jTjPt.showerlike != iTjPt.showerlike) continue;
-        // Mode 2: check for a valid TjID
-        if(returnMatchPts && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), jTjPt.id) == pfp.TjIDs.end()) continue;
-        if(jTjPt.score < 0 || jTjPt.score > maxScore) continue;
-        // check for x range overlap. We know that jTjPt.xlo is >= iTjPt.xlo because of the sort
-        if(jTjPt.xlo > iTjPt.xhi) continue;
-        // break out if the x range difference becomes large (10 cm)
-        if(jTjPt.xlo > iTjPt.xhi + 10) break;
-        // ensure the intersection is inside the TPC
-        unsigned short jplane = DecodeCTP(jTjPt.ctp).Plane;
-        tpj.CTP = jTjPt.ctp;
-        tpj.Dir = jTjPt.dir;
-        double jyp = 0, jzp = 0;
-        tjs.geom->IntersectionPoint(iTjPt.wire, jTjPt.wire, iplane, jplane, (unsigned int)cstat, (unsigned int)tpc, jyp, jzp);
-        //            if(jyp < tjs.YLo || jyp > tjs.YHi || jzp < tjs.ZLo || jzp > tjs.ZHi) continue;
-        // get the direction. If this works, IntersectionPoint could be totally replaced with TrajPoint3D
-        bool dijOK = false;
-        if(useAngle && iTjPt.npts > 5 && jTjPt.npts > 5) dijOK = TrajPoint3D(tjs, tpi, tpj, pos3, dij, prt);
-        float ix = 0, jx = 0;
-        if(returnMatchPts) {
-          // these variables are only needed when returning end points
-          ix = 0.5 * (iTjPt.xlo + iTjPt.xhi);
-          jx = 0.5 * (jTjPt.xlo + jTjPt.xhi);
-          posij[0] = 0.5 * (ix + jx);
-          posij[1] = jyp;
-          posij[2] = jzp;
-        }
-        if(numPlanes == 3) {
-          // numPlanes == 3
-          for(unsigned int kpt = jpt + 1; kpt < tjs.mallTraj.size(); ++kpt) {
-            auto& kTjPt = tjs.mallTraj[kpt];
-            // ensure that the planes are different
-            if(kTjPt.ctp == iTjPt.ctp || kTjPt.ctp == jTjPt.ctp) continue;
-            // ensure they are all showerlike or all not showerlike
-            if(kTjPt.showerlike != iTjPt.showerlike) continue;
-            // Mode 2: check for a valid TjID
-            if(returnMatchPts && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), kTjPt.id) == pfp.TjIDs.end()) continue;
-            if(kTjPt.score < 0 || kTjPt.score > maxScore) continue;
-            if(kTjPt.xlo > iTjPt.xhi) continue;
-            // break out if the x range difference becomes large
-            if(kTjPt.xlo > iTjPt.xhi + 10) break;
-            unsigned short kplane = DecodeCTP(kTjPt.ctp).Plane;
-            tpk.CTP = kTjPt.ctp;
-            tpk.Dir = kTjPt.dir;
-            double kyp, kzp;
-            tjs.geom->IntersectionPoint(iTjPt.wire, kTjPt.wire, iplane, kplane, (unsigned int)cstat, (unsigned int)tpc, kyp, kzp);
-            if(std::abs(kyp - jyp) > yzcut || std::abs(kzp - jzp) > yzcut) continue;
-            float kx = 0.5 * (kTjPt.xlo + kTjPt.xhi);
-            if(useAngle && dijOK && kTjPt.npts > 5 && TrajPoint3D(tjs, tpi, tpk, pos3, dik, prt)) {
-              // compare the angles between the
-              float dang = dij.Angle(dik);
-              if(dang > piOver2) dang = piOver2 - dang;
-              if(dang > tjs.Match3DCuts[1]) continue;
-            } // useAngle etc
-            // we have a match.
-            if(returnMatchPts) {
-              // return all matching end points
-              matchPts[1][iplane] = ipt;
-              matchPts[1][jplane] = jpt;
-              matchPts[1][kplane] = kpt;
-              posik[0] = 0.5 * (ix + kx);
-              posik[1] = kyp;
-              posik[2] = kzp;
-              matchPos[1][0] = 0.5 * (posij[0] + posik[0]);
-              matchPos[1][1] = 0.5 * (posij[1] + posik[1]);
-              matchPos[1][2] = 0.5 * (posij[2] + posik[2]);
-              ++nMatch;
-              if(first) {
-                first = false;
-                matchPos[0] = matchPos[1];
-                matchPts[0] = matchPts[1];
-              }
-            } else {
-              // Just fill temp. See if the Tj IDs are in the match list.
-              // first check the input matVec
-              bool gotit = false;
-              for(auto& ms : inMatVec) {
-                if(ms.TjIDs.size() != 3) continue;
-                if(iTjPt.id == ms.TjIDs[iplane] && jTjPt.id == ms.TjIDs[jplane] && kTjPt.id == ms.TjIDs[kplane]) {
-                  gotit = true;
-                  break;
-                } 
-              } // ms
-              if(gotit) continue;
-              // next check the temp vector
-              unsigned short indx = 0;
-              for(indx = 0; indx < temp.size(); ++indx) {
-                auto& ms = temp[indx];
-                if(iTjPt.id != ms.TjIDs[iplane]) continue;
-                if(jTjPt.id != ms.TjIDs[jplane]) continue;
-                if(kTjPt.id != ms.TjIDs[kplane]) continue;
-                ++ms.Count;
-                break;
-              } // indx
-              if(indx == temp.size()) {
-                // not found in the match vector so add it
-                MatchStruct ms;
-                ms.TjIDs.resize(3);
-                // Note that we can put the Tj IDs in plane-order since there are 3 of them
-                // This is not the case when there are 2 planes
-                ms.TjIDs[iplane] = iTjPt.id;
-                ms.TjIDs[jplane] = jTjPt.id;
-                ms.TjIDs[kplane] = kTjPt.id;
-                ms.Count = 1;
-                temp.push_back(ms);
-              } // not found in the list
-            } // fill temp
-            // give up if there are too many
-            if(temp.size() > nAvailable) break;
-          } // kpt
-          // numPlanes == 3
-        } else {
-          // 2-plane TPC or 2-plane match in a 3-plane TPC
-          if(tjs.NumPlanes == 3) {
-            // See if there is a signal at this point. Use tpk but first ensure that the intersection
-            // is reasonably OK
-            unsigned short kpl = 3 - iplane - jplane;
-            float fkwire = tjs.geom->WireCoordinate(jyp, jzp, kpl, tpc, cstat);
-            if(fkwire < 0 || fkwire > tjs.MaxPos0[kpl]) continue;
-            tpk.CTP = EncodeCTP(cstat, tpc, kpl);
-            geo::PlaneID planeID = DecodeCTP(tpi.CTP);
-            float xp = 0.5 * (iTjPt.xlo + iTjPt.xhi);
-            tpk.Pos[0] = fkwire;
-            tpk.Pos[1] = tjs.detprop->ConvertXToTicks(xp, planeID) * tjs.UnitsPerTick;
-            // Note that SignalAtTp assumes that a signal exists if the wire is dead
-            if(!SignalAtTp(tjs, tpk)) continue;
-          }
-          if(returnMatchPts) {
-            // return matching points
-            matchPts[1][0] = ipt;
-            matchPts[1][1] = jpt;
-            matchPos[1] = posij;
-            ++nMatch;
-            if(first) {
-              first = false;
-              matchPos[0] = matchPos[1];
-              matchPts[0] = matchPts[1];
-            }
-          } else {
-            // Just fill temp. See if the Tj IDs are in the match list
-            bool gotit = false;
-            for(auto& ms : inMatVec) {
-              if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), iTjPt.id) != ms.TjIDs.end() && 
-                 std::find(ms.TjIDs.begin(), ms.TjIDs.end(), jTjPt.id) != ms.TjIDs.end()) {
-                gotit = true;
-                break;
-              } 
-            } // ms
-            if(gotit) continue;
-            unsigned short indx = 0;
-            for(indx = 0; indx < temp.size(); ++indx) {
-              auto& ms = temp[indx];
-              if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), iTjPt.id) != ms.TjIDs.end() &&
-                 std::find(ms.TjIDs.begin(), ms.TjIDs.end(), jTjPt.id) != ms.TjIDs.end()) break;
-            } // indx
-            if(indx == temp.size()) {
-              MatchStruct ms;
-              ms.TjIDs.resize(2);
-              // Here we put the Tj IDs in no particular order
-              ms.TjIDs[0] = iTjPt.id;
-              ms.TjIDs[1] = jTjPt.id;
-              ms.Count = 1;
-              temp.push_back(ms);
-            } // not found in the list
-            else {
-              ++temp[indx].Count;
-            }
-          } // fill temp
-        } // 2-plane TPC
-        // give up if there are too many
-        if(temp.size() > nAvailable) break;
-      } // jpt
-      // give up if there are too many
-      if(temp.size() > nAvailable) break;
-    } // ipt
-    
-    // temp
-    if(returnMatchPts) return;
-    
-    if(temp.empty()) return;
-    
-    // Fill MatchFrac = number of 3D matched points divided by the length of the
-    // longest trajectory. Note that this can be larger than 1.
-    for(auto& ms : temp) {
-      if(ms.Count == 0) continue;
-      float maxlen = 1;
-      for(auto& tjID : ms.TjIDs) {
-        float len = NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-        if(len > maxlen) maxlen = len;
-      }
-      ms.MatchFrac = ms.Count / maxlen;
-    } // ms
-    
-    if(temp.size() == 1) {
-      matVec.push_back(temp[0]);
-    } else {
-      // multiple entries - need to sort by decreasing match count
-      std::vector<SortEntry> sortVec(temp.size());
-      for(unsigned int indx = 0; indx < sortVec.size(); ++indx) {
-        sortVec[indx].index = indx;
-        sortVec[indx].val = temp[indx].Count;
-      } // indx
-      std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
-      // Re-order temp
-      auto tmpVec = temp;
-      for(unsigned int ii = 0; ii < sortVec.size(); ++ii) temp[ii] = tmpVec[sortVec[ii].index];
-      // insert it after the triple matches
-      matVec.insert(matVec.end(), temp.begin(), temp.end());
-    } // temp size > 1
-
-    if(prt) mf::LogVerbatim("TC")<<"FindXMatches: Found "<<temp.size()<<" matches";
-
-  } // FindXMatches
-  
-  /////////////////////////////////////////
-  bool FindSepMatch(TjStuff& tjs, PFPStruct& pfp, std::array<std::array<float, 3>, 2>& matchPos, bool prt)
-  {
-    // Find the end points using the maximum separation between the end points of all Tjs in pfp
-    
-    if(pfp.TjIDs.empty()) return false;
-    
-    // find the maximum 2D separation of each trajectory. The 3D separation shouldn't be too much larger than this
-    float maxMaxSep = 0;
-    for(auto tjid : pfp.TjIDs) {
-      auto& tj = tjs.allTraj[tjid - 1];
-      float len = TrajLength(tj);
-      if(len > maxMaxSep) maxMaxSep = len;
-    } // tjid
-    // Convert the 2D separation (in WSE) units to cm. We don't need to be too precise about this so assume that the
-    // wire spacing is 0.4 cm
-    maxMaxSep *= 0.4;
-    // Assume that the relative wire angles are such that the maximum 3D separation should be less than 1.5x the
-    // maximum 2D separation. Return an error if any separation found below exceeds this value
-    maxMaxSep *= 1.5;
-    
-    float maxSep = 0;
-    TVector3 dir, posTry1, posTry2, diff;
-    TVector3 pt1, pt2;
-    for(auto tj1id : pfp.TjIDs) {
-      auto& tj1 = tjs.allTraj[tj1id - 1];
-      for(auto tj2id : pfp.TjIDs) {
-        auto& tj2 = tjs.allTraj[tj2id - 1];
-        if(tj1.ID == tj2.ID) continue;
-        for(unsigned short end1 = 0; end1 < 2; ++end1) {
-          auto& tp1 = tj1.Pts[tj1.EndPt[end1]];
-          auto& otp1 = tj1.Pts[tj1.EndPt[1 - end1]];
-          for(unsigned short end2 = 0; end2 < 2; ++end2) {
-            auto& tp2 = tj2.Pts[tj2.EndPt[end2]];
-            auto& otp2 = tj2.Pts[tj2.EndPt[1 - end2]];
-            bool try1OK = TrajPoint3D(tjs, tp1, tp2, posTry1, dir, prt);
-            bool try2OK = TrajPoint3D(tjs, otp1, otp2, posTry2, dir, prt);
-            if(try1OK && try2OK) {
-              diff = posTry1 - posTry2;
-              float sep = diff.Mag();
-              if(sep > maxMaxSep) return false;
-              if(sep > maxSep) {
-                maxSep = sep;
-                pt1 = posTry1; 
-                pt2 = posTry2;
-                if(prt) {
-                  mf::LogVerbatim myprt("TC");
-                  myprt<<"FindSepMatch: "<<tj1.ID<<"_"<<PrintPos(tjs, tp1)<<"_"<<PrintPos(tjs, otp1);
-                  myprt<<" "<<tj2.ID<<"_"<<PrintPos(tjs, tp2)<<"_"<<PrintPos(tjs, otp2);
-                  myprt<<" sep "<<sep;
-                }
-              } // sep2 > maxSep
-            } // Valid 3D point
-          } // end2
-        } // end1
-      } // tj2id
-    } // tj1id
-    
-    if(maxSep == 0) return false;
-    for(unsigned short xyz = 0; xyz < 3; ++xyz) {
-      matchPos[0][xyz] = pt1[xyz];
-      matchPos[1][xyz] = pt2[xyz];
-    } // xyz
-    
-    return true;
-  } // FindSepMatch
-/* This code does some damage to neutrino trajectories so turn it off
+  /* This code does some damage to neutrino trajectories so turn it off
   /////////////////////////////////////////
   void MatVecMerge(TjStuff& tjs, std::vector<MatchStruct>& matVec,  bool prt)
   {
@@ -1082,21 +657,21 @@ namespace tca {
       // convert Tj IDs to unsigned to simplify the comparison
       std::vector<unsigned short> uslist(mergeList.size());
       for(unsigned short ii = 0; ii < mergeList.size(); ++ii) uslist[ii] = mergeList[ii];
-      for(auto& tjpt : tjs.mallTraj) {
+      for(auto& tj2pt : tjs.mallTraj) {
         // see if this point is in one of the Tjs that was merged
-        if(std::find(uslist.begin(), uslist.end(), tjpt.id) == uslist.end()) continue;
+        if(std::find(uslist.begin(), uslist.end(), tj2pt.id) == uslist.end()) continue;
         // correct the ID
         // This assumes that all Tjs were merged into one
-        tjpt.id = mergedList[0];
+        tj2pt.id = mergedList[0];
         // Find the point and correct the index
         for(unsigned short ipt = ntj.EndPt[0]; ipt <= ntj.EndPt[1]; ++ipt) {
           unsigned int wire = std::nearbyint(ntj.Pts[ipt].Pos[0]);
-          if(wire != tjpt.wire) continue;
-          tjpt.ipt = ipt;
+          if(wire != tj2pt.wire) continue;
+          tj2pt.ipt = ipt;
           break;
         } // ipt
-        tjpt.npts = npts;
-      } // tjpt
+        tj2pt.npts = npts;
+      } // tj2pt
     } // im1
   } // MatVecMerge
 */
@@ -1149,7 +724,7 @@ namespace tca {
     unsigned int hiWire = std::nearbyint(hiPos0);
     unsigned int mergedSize = hiWire - loWire + 1;
     // Put the position of each TP in the vector if it is unambiguous
-    std::vector<std::array<float, 2>> pos(mergedSize);
+    std::vector<Point2_t> pos(mergedSize);
     std::vector<unsigned short> cnt(mergedSize);
     std::vector<int> mtjid(mergedSize);
     std::vector<unsigned short> mtjpt(mergedSize);
@@ -1167,7 +742,7 @@ namespace tca {
       } // ipt
     } // tjid
     // look for overlapping regions; where the count is > 1
-    std::array<float, 2> goodPos;
+    Point2_t goodPos;
     for(unsigned short startIndx = 1; startIndx < mergedSize; ++startIndx) {
       if(cnt[startIndx] == 0) continue;
       if(cnt[startIndx] == 1) {
@@ -1322,6 +897,11 @@ namespace tca {
           std::replace(ms.TjIDs.begin(), ms.TjIDs.end(), tj.ID, newTj.ID);
           std::replace(ms.TjIDs.begin(), ms.TjIDs.end(), btjID, newTj.ID);
         } // ms
+        // update mallTraj
+        std::vector<int> oldTjs(2);
+        oldTjs[0] = tj.ID;
+        oldTjs[1] = btjID;
+        UpdateMatchStructs(tjs, oldTjs, newTj.ID);
         if(prt) mf::LogVerbatim("TC")<<"  success "<<tj.ID<<" merged with "<<btjID<<" -> "<<newTj.ID;
       }
       if(prt && !tj.AlgMod[kKilled]) {
@@ -1334,6 +914,8 @@ namespace tca {
     } // tj
     
     // update the PFParticle end points
+    std::cout<<"CNMTj is disabled\n";
+/*
     for(auto pfpIndex : pfpsToFix) {
       auto& pfp = tjs.pfps[pfpIndex];
       for(unsigned short end = 0; end < 2; ++end) {
@@ -1344,30 +926,30 @@ namespace tca {
         }
       } // end
     } // pfpIndex
-
+*/
   } // CheckNoMatchTjs
 
   /////////////////////////////////////////
-  bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, unsigned short end, bool prt)
+  bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
-    // Sets the XYZ position in the pfp at the desired end. End = 0 is assumed to be start
-    // of the PFParticle. This function defines end1 of the PFParticle when end = 0 or if a 
-    // 3D vertex is declared at end 1
-    // Returns false if the end point position is inconsistent
+    // This function is called after the 3D matched TjIDs have been specified and optionally
+    // a start or end vertex ID. It defins the PFParticle but doesn't store it
     
-    if(end > 1) return false;
-    // this code doesn't handle the ends of showers
-    if(pfp.PDGCode == 1111 && end == 1) return false;
+    if(pfp.PDGCode == 1111) return false;
     if(pfp.TjIDs.size() < 2) return false;
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"SPEP: PFP "<<pfp.ID;
-      myprt<<" end "<<end;
-      myprt<<" Vx3ID "<<pfp.Vx3ID[end];
+      myprt<<"DPFP: PFP "<<pfp.ID;
+      myprt<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
       myprt<<" Tjs";
       for(auto id : pfp.TjIDs) myprt<<" "<<id;
       if(pfp.PDGCode == 1111) myprt<<" This is a shower PFP ";
+    }
+    
+    if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
+      std::cout<<"DPFP: pfp "<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
+      return false;
     }
     
     // set the start and end positions on any call
@@ -1381,7 +963,7 @@ namespace tca {
       }
     } // startend
     
-    if(end == 0 && pfp.Vx3ID[0] > 0) {
+    if(pfp.Vx3ID[0] > 0) {
       // reverse Tjs so that end 0 is at the start vertex if one exists
       auto& vx3 = tjs.vtx3[pfp.Vx3ID[0] - 1];
       for(auto id : pfp.TjIDs) {
@@ -1396,143 +978,52 @@ namespace tca {
         if(vtxEnd != 0) ReverseTraj(tjs, tj); 
 //        if(prt) mf::LogVerbatim("TC")<<" Reverse Tj "<<id<<" end0 Pos "<<PrintPos(tjs, tj.Pts[tj.EndPt[0]].Pos);
       } // id
-      // Find the direction and set it to be away from the start vertex
-      auto& tj1 = tjs.allTraj[pfp.TjIDs[0] - 1];
-      auto& tp1 = tj1.Pts[tj1.EndPt[0]];
-      auto& tj2 = tjs.allTraj[pfp.TjIDs[1] - 1];
-      auto& tp2 = tj2.Pts[tj2.EndPt[0]];
-//      if(prt) mf::LogVerbatim("TC")<<" tp1 Pos "<<PrintPos(tjs, tp1.Pos)<<" tp2 Pos "<<PrintPos(tjs, tp2.Pos);
-      TVector3 pos, dir;
-      if(!TrajPoint3D(tjs, tp1, tp2, pos, dir, prt)) {
-        if(prt) mf::LogVerbatim("TC")<<"SPEP: "<<pfp.ID<<" TrajPoint3D failed";
-        return false;
-      }
-      // TODO: reverse the direction?
-      pfp.Dir[end] = dir;
     } // end = 0
  
-    std::vector<MatchStruct> dummyMatVec;
-    std::array<std::vector<unsigned int>, 2> matchPts;
-    std::array<std::array<float, 3>, 2> matchPos;
-    unsigned short nMatch;
-    // get the matching points, only requiring two planes
-    FindXMatches(tjs, 2, SHRT_MAX, pfp, dummyMatVec, matchPts, matchPos, nMatch, prt);
-    if(matchPts[0].size() < 2 || matchPts[1].size() < 2) {
-      if(prt) mf::LogVerbatim("TC")<<"SPEP: no 2-plane matches. write some code";
-      return false;
-    }
-    // check validity
-    bool validMatch = true;
-    for(unsigned short startend = 0; startend < 2; ++startend) {
-      unsigned short nok = 0;
-      for(auto mp : matchPts[startend]) if(mp < tjs.mallTraj.size()) ++nok;
-      if(nok < 2) validMatch = false;
-    } // startend
-    if(!validMatch) {
-      if(prt) mf::LogVerbatim("TC")<<"SPEP: Not enough valid matches";
-      return false;
-    }
-
+    // Make a list of TC space points allowing for Tjs that are not in the pfp.TjIDs list in
+    // the 3rd plane
+    MakePFPSpacePts(tjs, pfp, true);
+    if(prt) mf::LogVerbatim("TC")<<"DPFP: found "<<pfp.Tp3s.size()<<" space points";
+    if(pfp.Tp3s.size() < 2) return false;
+    pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
+    // The space points are naturally ordered by increasing X. We want to select the first
+    // space point as the start if no start vertex exists so pick a point using other criteria,
+    // such as muon direction, TPC boundaries etc. This function will set pfp.XYZ[0].
+    // SortByDistanceFrom Start will sort the space points by distance from this point
+    if(SetNewStart(tjs, pfp, prt)) SortByDistanceFromStart(tjs, pfp);
+    CheckSptValidity(tjs, pfp, prt);
+    pfp.Dir[0] = pfp.Tp3s[0].Dir;
+    if(pfp.Vx3ID[1] == 0) pfp.XYZ[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Pos;
+    pfp.Dir[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Dir;
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"SPEP: ppfp.ID "<<pfp.ID;
-      myprt<<" nMatch "<<nMatch;
-      myprt<<" FindXMatches Pts";
-      for(unsigned short startend = 0; startend < 2; ++startend) {
-        myprt<<" end"<<startend;
-        for(unsigned short ii = 0; ii < matchPts.size(); ++ii) {
-          if(matchPts[startend][ii] > tjs.mallTraj.size() - 1) continue;
-          auto& tjpt = tjs.mallTraj[matchPts[startend][ii]];
-          unsigned int tjID = tjpt.id;
-          unsigned short ipt = tjpt.ipt;
-          auto& tp = tjs.allTraj[tjID - 1].Pts[ipt];
-          myprt<<" "<<tjID<<"_"<<tp.CTP<<":"<<PrintPos(tjs, tp);
-        } // ipt
-      } // end
+      myprt<<" TC space points\n";
+      for(unsigned short ipt = 0; ipt < pfp.Tp3s.size(); ++ipt) {
+        auto tcspt = pfp.Tp3s[ipt];
+        myprt<<ipt<<" pos ";
+        myprt<<" "<<std::fixed<<std::setprecision(1)<<tcspt.Pos[0]<<" "<<tcspt.Pos[1]<<" "<<tcspt.Pos[2];
+        myprt<<ipt<<" dir ";
+        myprt<<" "<<std::fixed<<std::setprecision(3)<<tcspt.Dir[0]<<" "<<tcspt.Dir[1]<<" "<<tcspt.Dir[2];
+        myprt<<" tj_ipt";
+        for(auto tj2pt : tcspt.Tj2Pts) {
+          auto& tj = tjs.allTraj[tj2pt.id - 1];
+          auto& tp = tj.Pts[tj2pt.ipt];
+          myprt<<" "<<tj.ID<<"_"<<PrintPos(tjs, tp);
+        } // matIndex
+        myprt<<" Chg "<<(int)tcspt.Chg;
+        myprt<<" IsValid? "<<tcspt.IsValid;
+        if(ipt > 0) {
+          myprt<<" dang1 "<<DeltaAngle(pfp.Tp3s[ipt].Dir, pfp.Tp3s[ipt-1].Dir);
+          auto dir = PointDirection(pfp.Tp3s[0].Pos, pfp.Tp3s[ipt].Pos);
+          myprt<<" dir2 "<<std::fixed<<std::setprecision(3)<<dir[0]<<" "<<dir[1]<<" "<<dir[2];
+          myprt<<" dang2 "<<DeltaAngle(pfp.Tp3s[ipt].Dir, dir);
+        }
+        myprt<<"\n";
+      } // ipt
     } // prt
-
-    // Check the end point separation. A small separation means that the X range was
-    // too small for FindXMatches
-    float sep = PosSep(matchPos[0], matchPos[1]);
-    if(prt) mf::LogVerbatim("TC")<<" end point separation "<<sep;
-    bool useSepMatch = false;
-    if(sep < 1) {
-      if(!FindSepMatch(tjs, pfp, matchPos, prt)) {
-        if(prt) mf::LogVerbatim("TC")<<"SPEP: FindSepMatch failed";
-        return false;
-      }
-      useSepMatch = true;
-    } // small end point separation
-
-    if(end == 0 && pfp.Vx3ID[0] > 0) {
-      // A start vertex exists
-      // We have defined the position at the start so we need to define it at the end.
-      // matchPos[0] is at the low X end
-      float sepLoX0 = PosSep(matchPos[0], pfp.XYZ[0]);
-      float sepHiX0 = PosSep(matchPos[1], pfp.XYZ[0]);
-      if(sepLoX0 < sepHiX0) {
-        // TODO: check for a really poor separation here?
-        // set end1
-        pfp.XYZ[1] = matchPos[1];
-      } else {
-        // The high X position is closer to the vertex
-        pfp.XYZ[1] = matchPos[0];
-        // The start of the PFParticle should be at the end
-        std::swap(matchPts[0], matchPts[1]);
-        std::swap(matchPos[0], matchPos[1]);
-      }
-    } else {
-      // no start vertex so just use matchPos
-      pfp.XYZ = matchPos;
-    } // no start vertex
-    
-    // now define the direction. This code doesn't work with a SepMatch
-    if(!useSepMatch) {
-      for(unsigned short startend = 0; startend < 2; ++startend) {
-        // The first step is to get two TPs at each end.
-        // Get the TP from the first plane (0)
-        auto& tjpt1 = tjs.mallTraj[matchPts[startend][0]];
-        unsigned int tjID = tjpt1.id;
-        unsigned short ipt = tjpt1.ipt;
-        auto& tp1 = tjs.allTraj[tjID - 1].Pts[ipt];
-        // and the second point
-        auto& tjpt2 = tjs.mallTraj[matchPts[startend][1]];
-        tjID = tjpt2.id;
-        ipt = tjpt2.ipt;
-        auto& tp2 = tjs.allTraj[tjID - 1].Pts[ipt];
-        // Make a 3D point to get the direction
-        TVector3 pos, dir;
-        if(!TrajPoint3D(tjs, tp1, tp2, pos, dir, prt)) return false;
-        // ignore the position and use the direction
-        // TODO: check position difference to a vertex to check for errors
-        pfp.Dir[startend] = dir;
-      } // startend
-    } else {
-      pfp.Dir[0][0] = matchPos[0][1] - matchPos[0][0];
-      pfp.Dir[0][1] = matchPos[1][1] - matchPos[1][0];
-      pfp.Dir[0][2] = matchPos[2][1] - matchPos[2][0];
-      pfp.Dir[0].SetMag(1);
-      pfp.Dir[1] = pfp.Dir[0];
-    }
-    
-    // check the direction consistency
-    TVector3 generalDirection;
-    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) generalDirection[ixyz] = pfp.XYZ[1][ixyz] - pfp.XYZ[0][ixyz];
-    if(generalDirection.Mag() == 0) return false;
-
-    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
-      if(generalDirection[ixyz] > 0.5) {
-        // reverse the start end direction?
-        if(generalDirection[ixyz] * pfp.Dir[0][ixyz] < 0) pfp.Dir[0] *= -1;
-        if(generalDirection[ixyz] * pfp.Dir[1][ixyz] < 0) pfp.Dir[1] *= -1;
-        break;
-      }
-    } // ixyz
-    // Calculate dE/dx at both ends
     FilldEdx(tjs, pfp);
-
     return true;
-  } // SetPFPEndPoints
+  } // DefinePFP
   
   /////////////////////////////////////////
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt)
@@ -1672,7 +1163,7 @@ namespace tca {
       for(unsigned short startend = 0; startend < numEnds; ++startend) {
         pfp.dEdx[startend][planeID.Plane] = 0;
         tj.dEdx[startend] = 0;
-        double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[startend].Y() + std::cos(angleToVert) * pfp.Dir[startend].Z());
+        double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[startend][1] + std::cos(angleToVert) * pfp.Dir[startend][2]);
         if(cosgamma == 0) continue;
         double dx = tjs.geom->WirePitch(planeID) / cosgamma;
         if(dx == 0) continue;
@@ -1780,7 +1271,7 @@ namespace tca {
     if(fitDir < -1 || fitDir > 1) return;
     
     std::vector<double> x, y;
-    std::array<float, 2> origin = tj.Pts[originPt].HitPos;
+    Point2_t origin = tj.Pts[originPt].HitPos;
     // Use TP position if there aren't any hits on it
     if(tj.Pts[originPt].Chg == 0) origin = tj.Pts[originPt].Pos;
     
@@ -2031,46 +1522,8 @@ namespace tca {
     
     // Don't reverse showers
     if(pfp.PDGCode == 1111) return;
-
-    // through-going track? Check for outside the Fiducial Volume at the start (s) and end (e).
-    // These variables assume that the TPC is exposed to a beam that contains muons entering at the front and
-    // a background of cosmic rays that enter from the top
-    bool sAtSide = (pfp.XYZ[0][0] < tjs.XLo || pfp.XYZ[0][0] > tjs.XHi);
-    bool sAtTop = (pfp.XYZ[0][1] > tjs.YHi);
-    bool sAtBottom = (pfp.XYZ[0][1] < tjs.YLo);
-    bool sAtFront = (pfp.XYZ[0][2] < tjs.ZLo);
-    bool sAtBack = (pfp.XYZ[0][2] > tjs.ZHi);
-    
-    bool eAtSide = (pfp.XYZ[1][0] < tjs.XLo || pfp.XYZ[1][0] > tjs.XHi);
-    bool eAtTop = (pfp.XYZ[1][1] > tjs.YHi);
-    bool eAtBottom = (pfp.XYZ[1][1] < tjs.YLo);
-    bool eAtFront = (pfp.XYZ[1][2] < tjs.ZLo);
-    bool eAtBack = (pfp.XYZ[1][2] > tjs.ZHi);
-    
-    // the start (end) is outside the FV
-    bool sOutsideFV = sAtBottom || sAtTop || sAtFront || sAtBack;
-    bool eOutsideFV = eAtBottom || eAtTop || eAtFront || eAtBack;
-    
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"sXYZ ("<<(int)pfp.XYZ[0][0]<<", "<<(int)pfp.XYZ[0][1]<<", "<<(int)pfp.XYZ[0][2]<<") sOutsideFV "<<sOutsideFV;
-      myprt<<" eXYZ ("<<(int)pfp.XYZ[1][0]<<", "<<(int)pfp.XYZ[1][1]<<", "<<(int)pfp.XYZ[1][2]<<") eOutsideFV "<<eOutsideFV;
-    } // prt
     
     bool reverseMe = false;
-    if(sOutsideFV && eOutsideFV) {
-      // both ends are outside the FV - probably a through-going muon. See if it enters at the top or the front.
-      // looks like a beam muon
-      if(sAtFront && eAtBack) return;
-      // beam muon in the wrong direction?
-      if(eAtFront && sAtBack) reverseMe = true;
-      // Next consider cosmic rays entering the top
-      if(sAtTop && eAtBottom) return;
-      if(eAtTop && sAtBottom) reverseMe = true;
-      // entering/leaving the sides
-      if(sAtSide && eAtBottom) return;
-      if(eAtSide && sAtBottom) reverseMe = true;
-    } // outside the FV
 
     // look for stopping Tjs for contained PFParticles
     if(!reverseMe) {
@@ -2202,9 +1655,12 @@ namespace tca {
     SetEndPoints(tjs, tj);
     UpdateAveChg(tjs, tj);
     
+    auto& endTp0 = tj.Pts[tj.EndPt[0]];
+    auto& endTp1 = tj.Pts[tj.EndPt[1]];
+    
     // Calculate the charge near the end and beginning if necessary. This must be a short
     // trajectory. Find the average using 4 points
-    if(tj.Pts[tj.EndPt[0]].AveChg <= 0) {
+    if(endTp0.AveChg <= 0) {
       unsigned short cnt = 0;
       float sum = 0;
       for(unsigned short ipt = tj.EndPt[0] + 1; ipt <= tj.EndPt[1]; ++ipt) {
@@ -2215,7 +1671,7 @@ namespace tca {
       }
       tj.Pts[tj.EndPt[0]].AveChg = sum / (float)cnt;
     }
-    if(tj.Pts[tj.EndPt[1]].AveChg <= 0) {
+    if(endTp1.AveChg <= 0) {
       float sum = 0;
       unsigned short cnt = 0;
       for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
@@ -3205,16 +2661,17 @@ namespace tca {
   } // TrajPointTrajDOCA
   
   //////////////////////////////////////////
-  void TrajTrajDOCA(TjStuff& tjs, Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep)
+  bool TrajTrajDOCA(TjStuff& tjs, Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep)
   {
-    TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, minSep, false);
+    return TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, minSep, false);
   } // TrajTrajDOCA
   
   //////////////////////////////////////////
-  void TrajTrajDOCA(TjStuff& tjs, Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires)
+  bool TrajTrajDOCA(TjStuff& tjs, Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires)
   {
     // Find the Distance Of Closest Approach between two trajectories less than minSep
-    // start with some rough cuts to minimize the use of the more expensive checking
+    // start with some rough cuts to minimize the use of the more expensive checking. This
+    // function returns true if the DOCA is less than minSep
     for(unsigned short iwt = 0; iwt < 2; ++iwt) {
       // Apply box cuts on the ends of the trajectories
       // The Lo/Hi wire(time) at each end of tj1
@@ -3238,14 +2695,15 @@ namespace tca {
       // Check for this configuration
       //  loWire1.......hiWire1   minSep  loWire2....hiWire2
       //  loTime1.......hiTime1   minSep  loTime2....hiTime2
-      if(lowt2 > hiwt1 + minSep) return;
+      if(lowt2 > hiwt1 + minSep) return false;
       // and the other
-      if(lowt1 > hiwt2 + minSep) return;
+      if(lowt1 > hiwt2 + minSep) return false;
     } // iwt
 
     float best = minSep * minSep;
     ipt1 = 0; ipt2 = 0;
     float dwc = 0;
+    bool isClose = false;
     for(unsigned short i1 = tj1.EndPt[0]; i1 < tj1.EndPt[1] + 1; ++i1) {
       for(unsigned short i2 = tj2.EndPt[0]; i2 < tj2.EndPt[1] + 1; ++i2) {
         if(considerDeadWires) dwc = DeadWireCount(tjs, tj1.Pts[i1], tj2.Pts[i2]);
@@ -3258,10 +2716,12 @@ namespace tca {
           best = dp2;
           ipt1 = i1;
           ipt2 = i2;
+          isClose = true;
         }
       } // i2
     } // i1
     minSep = sqrt(best);
+    return isClose;
   } // TrajTrajDOCA
 
   //////////////////////////////////////////
@@ -3275,7 +2735,7 @@ namespace tca {
   } // HitSep2
   
   //////////////////////////////////////////
-  unsigned short CloseEnd(TjStuff& tjs, const Trajectory& tj, const std::array<float, 2>& pos)
+  unsigned short CloseEnd(TjStuff& tjs, const Trajectory& tj, const Point2_t& pos)
   {
     unsigned short endPt = tj.EndPt[0];
     auto& tp0 = tj.Pts[endPt];
@@ -3321,7 +2781,7 @@ namespace tca {
   } // PointTrajDOCA2
   
   //////////////////////////////////////////
-  void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, std::array<float, 2>& pos)
+  void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, Point2_t& pos)
   {
     TrajIntersection(tp1, tp2, pos[0], pos[1]);
   } // TrajIntersection
@@ -3360,36 +2820,48 @@ namespace tca {
   } // TrajLength
 
   //////////////////////////////////////////
-  float PosSep(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2)
-  {
-    return sqrt(PosSep2(pos1, pos2));
-  } // PosSep
-
-  //////////////////////////////////////////
-  float PosSep(const std::array<float, 3>& pos1, const std::array<float, 3>& pos2)
+  float PosSep(const Point2_t& pos1, const Point2_t& pos2)
   {
     return sqrt(PosSep2(pos1, pos2));
   } // PosSep
   
   //////////////////////////////////////////
-  float PosSep2(const std::array<float, 2>& pos1, const std::array<float, 2>& pos2)
+  float PosSep2(const Point2_t& pos1, const Point2_t& pos2)
   {
     // returns the separation distance^2 between two positions
     float d0 = pos1[0] - pos2[0];
     float d1 = pos1[1] - pos2[1];
     return d0*d0+d1*d1;
   } // PosSep2
+
+  //////////////////////////////////////////
+  double PosSep(const Point3_t& pos1, const Point3_t& pos2)
+  {
+    return sqrt(PosSep2(pos1, pos2));
+  } // PosSep
   
   //////////////////////////////////////////
-  float PosSep2(const std::array<float, 3>& pos1, const std::array<float, 3>& pos2)
+  double PosSep2(const Point3_t& pos1, const Point3_t& pos2)
   {
     // returns the separation distance^2 between two positions in 3D
-    float d0 = pos1[0] - pos2[0];
-    float d1 = pos1[1] - pos2[1];
-    float d2 = pos1[2] - pos2[2];
+    double d0 = pos1[0] - pos2[0];
+    double d1 = pos1[1] - pos2[1];
+    double d2 = pos1[2] - pos2[2];
     return d0*d0 + d1*d1 + d2*d2;
   } // PosSep2
 
+  //////////////////////////////////////////
+  bool SetMag(Vector3_t& v1, double mag)
+  {
+    double den = v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2];
+    if(den == 0) return false;
+    den = sqrt(den);
+      
+    v1[0] *= mag / den;
+    v1[1] *= mag / den;
+    v1[2] *= mag / den;
+    return true;
+  } // SetMag
   
   //////////////////////////////////////////
   float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2)
@@ -3401,29 +2873,32 @@ namespace tca {
   } // TrajPointSeparation
   
   //////////////////////////////////////////
-  void TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& closePt, float& Distance)
+  bool TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& closePt, float& DOCA)
   {
     // find the closest approach between a trajectory tj and a point (x,y). Returns
-    // the index of the closest trajectory point and the distance
+    // the index of the closest trajectory point and the distance. Returns false if none
+    // of the points on the tj are within DOCA
     
-    float dx, dy, dist, best = 1E6;
+    float close2 = DOCA * DOCA;
     closePt = 0;
-    Distance = best;
+    bool foundClose = false;
     
     for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
       if(tj.Pts[ipt].Chg == 0) continue;
-      dx = tj.Pts[ipt].Pos[0] - x;
-      dy = tj.Pts[ipt].Pos[1] - y;
-      dist = dx * dx + dy * dy;
-      if(dist < best) {
-        best = dist;
+      float dx = tj.Pts[ipt].Pos[0] - x;
+      if(std::abs(dx) > DOCA) continue;
+      float dy = tj.Pts[ipt].Pos[1] - y;
+      if(std::abs(dy) > DOCA) continue;
+      float sep2 = dx * dx + dy * dy;
+      if(sep2 < close2) {
+        close2 = sep2;
         closePt = ipt;
+        foundClose = true;
       }
-      // TODO is this wise?
-      //      if(dist > best) break;
     } // ipt
     
-    Distance = sqrt(best);
+    DOCA = sqrt(close2);
+    return foundClose;
     
   } // TrajClosestApproach
   
@@ -3516,7 +2991,7 @@ namespace tca {
   } // MoveTPToWire
   
   //////////////////////////////////////////
-  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, std::array<float, 2> const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear)
+  std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, Point2_t const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear)
   {
     // returns a vector of hits that are within the Window[Pos0][Pos1] in plane.
     // Note that hits on wire wireWindow[1] are returned as well. The definition of close
@@ -3692,13 +3167,13 @@ namespace tca {
   } // FindCloseTjs
   
   ////////////////////////////////////////////////
-  float ChgFracNearPos(TjStuff& tjs, const std::array<float, 2>& pos, const std::vector<int>& tjIDs)
+  float ChgFracNearPos(TjStuff& tjs, const Point2_t& pos, const std::vector<int>& tjIDs)
   {
     // returns the fraction of the charge in the region around pos that is associated with
     // the list of Tj IDs
     if(tjIDs.empty()) return 0;
     std::array<int, 2> wireWindow;
-    std::array<float, 2> timeWindow;
+    Point2_t timeWindow;
     // 1/2 size of the region
     constexpr float NNDelta = 5; 
     wireWindow[0] = pos[0] - NNDelta;
@@ -3758,8 +3233,6 @@ namespace tca {
     }
     // reverse the crawling direction flag
     tj.StepDir = -tj.StepDir;
-    // reverse the direction
-    tj.TjDir = -tj.TjDir;
     // Vertices
     std::swap(tj.VtxID[0], tj.VtxID[1]);
     // trajectory points
@@ -3781,21 +3254,21 @@ namespace tca {
     SetEndPoints(tjs, tj);
     // correct mallTraj if it exists
     if(tjs.mallTraj.empty()) return;
-    for(auto& tjpt : tjs.mallTraj) {
-      if(tjpt.id != tj.ID) continue;
-      tjpt.ipt = tj.Pts.size() - tjpt.ipt - 1;
-    } // tjpt
+    for(auto& tj2pt : tjs.mallTraj) {
+      if(tj2pt.id != tj.ID) continue;
+      tj2pt.ipt = tj.Pts.size() - tj2pt.ipt - 1;
+    } // tj2pt
   } // ReverseTraj
   
   //////////////////////////////////////////
-  bool PointInsideEnvelope(const std::array<float, 2>& Point, const std::vector<std::array<float, 2>>& Envelope)
+  bool PointInsideEnvelope(const Point2_t& Point, const std::vector<Point2_t>& Envelope)
   {
     // returns true if the Point is within the Envelope polygon. Entries in Envelope are the
     // Pos[0], Pos[1] locations of the polygon vertices. This is based on the algorithm that the
     // sum of the angles of a vector between a point and the vertices will be 2 * pi for an interior
     // point and 0 for an exterior point
     
-    std::array<float, 2> p1, p2;
+    Point2_t p1, p2;
     unsigned short nvx = Envelope.size();
     double angleSum = 0;
     for(unsigned short ii = 0; ii < Envelope.size(); ++ii) {
@@ -3811,7 +3284,7 @@ namespace tca {
   } // InsideEnvelope
 
   //////////////////////////////////////////
-  double DeltaAngle(const std::array<float,2>& p1, const std::array<float,2>& p2)
+  double DeltaAngle(const Point2_t& p1, const Point2_t& p2)
   {
     // angle between two points
     double ang1 = atan2(p1[1], p1[0]);
@@ -4094,6 +3567,9 @@ namespace tca {
         dtj.ParentID = muTj.ID;
         dtj.PDGCode = 11;
         dtj.AlgMod[kDeltaRay] = true;
+        // Set the start of the delta-ray to be end 0
+        if(oend != 1) ReverseTraj(tjs, dtj);
+        dtj.AlgMod[kSetDir] = true;
       } // jtj
     } // itj
     
@@ -4117,37 +3593,25 @@ namespace tca {
       }
       if(muTj.PDGCode != 13) continue;
       // look for delta ray trajectories and count the number of times that
-      // one end is closer than the other to the muon
-      unsigned short n0 = 0;
-      unsigned short n1 = 0;
-      for(unsigned short jtj = 0; jtj < tjs.allTraj.size(); ++jtj) {
-        Trajectory& drTj = tjs.allTraj[jtj];
-        if(drTj.AlgMod[kKilled]) continue;
-        if(drTj.PDGCode != 11) continue;
-        if(drTj.ParentID != muTj.ID) continue;
-        // ignore short delta rays
-        if(drTj.Pts.size() < minLen) continue;
-        float sep0 = 100;
-        unsigned short muPt0;
-        TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[0]], muTj, muPt0, sep0);
-        if(muPt0 > muTj.EndPt[1]) continue;
-        float sep1 = 100;
-        unsigned short muPt1;
-        TrajPointTrajDOCA(tjs, drTj.Pts[drTj.EndPt[1]], muTj, muPt1, sep1);
-        if(prt) mf::LogVerbatim("TC")<<" drTj.ID "<<drTj.ID<<" sep 0 "<<sep0<<" sep1 "<<sep1;
-        if(muPt1 > muTj.EndPt[1]) continue;
-        if(sep0 < sep1) { ++n0; } else { ++n1; }
-      } // unsigned short jtj
-      // Can't tell the direction using this method, so leave the current assignment unchanged
-      if(prt) mf::LogVerbatim("TC")<<" n0 "<<n0<<" n1 "<<n1;
-      if(n0 == n1) continue;
-      if(n0 > n1) {
-        // Delta-rays are closer to the beginning (0) end than the end (1) end
-        muTj.TjDir = 1;
+      unsigned short nPos = 0;
+      unsigned short nNeg = 0;
+      for(auto& dtj : tjs.allTraj) {
+        if(dtj.AlgMod[kKilled]) continue;
+        if(dtj.ParentID != muTj.ID) continue;
+        if(dtj.EndPt[1] - dtj.EndPt[0] > minLen) continue;
+        if(dtj.StepDir > 0) {
+          ++nPos;
+        } else {
+          ++nNeg;
+        }
+      } // dtj
+      if(nPos == nNeg) continue;
+      if(nPos > nNeg) {
+        if(muTj.StepDir < 0) ReverseTraj(tjs, muTj);
       } else {
-        muTj.TjDir = -1;
+        if(muTj.StepDir > 0) ReverseTraj(tjs, muTj);
       }
-      if(muTj.StepDir < 0) muTj.TjDir = -muTj.TjDir;
+      muTj.AlgMod[kSetDir] = true;
     } // itj
   } // TagMuonDirections
   
@@ -4218,7 +3682,7 @@ namespace tca {
   } // MakeBareTrajPoint
   
   /////////////////////////////////////////
-  bool MakeBareTrajPoint(const std::array<float, 2>& fromPos, const std::array<float, 2>& toPos, TrajPoint& tpOut)
+  bool MakeBareTrajPoint(const Point2_t& fromPos, const Point2_t& toPos, TrajPoint& tpOut)
   {
     tpOut.Pos = fromPos;
     tpOut.Dir[0] = toPos[0] - fromPos[0];
@@ -4615,10 +4079,10 @@ namespace tca {
       }
     } // inconsistent step direction
     
-    std::array<float, 2> tp1e0 = tj1.Pts[tj1.EndPt[0]].Pos;
-    std::array<float, 2> tp1e1 = tj1.Pts[tj1.EndPt[1]].Pos;
-    std::array<float, 2> tp2e0 = tj2.Pts[tj2.EndPt[0]].Pos;
-    std::array<float, 2> tp2e1 = tj2.Pts[tj2.EndPt[1]].Pos;
+    Point2_t tp1e0 = tj1.Pts[tj1.EndPt[0]].Pos;
+    Point2_t tp1e1 = tj1.Pts[tj1.EndPt[1]].Pos;
+    Point2_t tp2e0 = tj2.Pts[tj2.EndPt[0]].Pos;
+    Point2_t tp2e1 = tj2.Pts[tj2.EndPt[1]].Pos;
     
     if(doPrt) {
       mf::LogVerbatim("TC")<<"MergeAndStore: tj1.ID "<<tj1.ID<<" tj2.ID "<<tj2.ID<<" at merge points "<<PrintPos(tjs, tp1e1)<<" "<<PrintPos(tjs, tp2e0);
@@ -4755,6 +4219,11 @@ namespace tca {
     // Use the ParentID to trace which new Tj is superseding the merged ones
     tj1.ParentID = newTjID;
     tj2.ParentID = newTjID;
+    // update match structs if they exist
+    std::vector<int> oldTjs(2);
+    oldTjs[0] = tj1.ID;
+    oldTjs[1] = tj2.ID;
+    UpdateMatchStructs(tjs, oldTjs, newTjID);
     if(doPrt) mf::LogVerbatim("TC")<<" MAS success. New TjID "<<newTjID;
     // Transfer the ParentIDs of any other Tjs that refer to Tj1 and Tj2 to the new Tj
     for(auto& tj : tjs.allTraj) if(tj.ParentID == tj1ID || tj.ParentID == tj2ID) tj.ParentID = newTjID;
@@ -4803,7 +4272,7 @@ namespace tca {
           myprt<<std::setw(6)<<vx3.Primary;
           myprt<<std::setw(4)<<vx3.Neutrino;
           myprt<<std::right<<std::setw(5)<<nTruMatch;
-          std::array<float, 2> pos;
+          Point2_t pos;
           for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
             PosInPlane(tjs, vx3, plane, pos);
             myprt<<" "<<PrintPos(tjs, pos);
@@ -4884,7 +4353,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx chgRMS Mom SDr TDr NN __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx chgRMS Mom SDr NN __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -4939,7 +4408,6 @@ namespace tca {
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(5)<<aTj.MCSMom;
         myprt<<std::setw(4)<<aTj.StepDir;
-        myprt<<std::setw(3)<<aTj.TjDir;
         myprt<<std::setw(3)<<aTj.NNeighbors;
         myprt<<std::setw(4)<<aTj.VtxID[0];
         myprt<<std::setw(4)<<aTj.VtxID[1];
@@ -5219,7 +4687,7 @@ namespace tca {
   } // PrintPos
   
   /////////////////////////////////////////
-  std::string PrintPos(const TjStuff& tjs, const std::array<float, 2>& pos)
+  std::string PrintPos(const TjStuff& tjs, const Point2_t& pos)
   {
     unsigned int wire = std::nearbyint(pos[0]);
     int time = std::nearbyint(pos[1]/tjs.UnitsPerTick);
