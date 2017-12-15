@@ -37,7 +37,7 @@ namespace tca {
     "MisdVxTj",
     "VtxTj",
     "ChkVxTj",
-    "RefVtx",
+    "Photon",
     "VxMerge",
     "NoKinkChk",
     "SoftKink",
