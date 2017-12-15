@@ -29,13 +29,8 @@
 #include "lardataobj/RecoBase/Shower.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
-#include "TVector3.h"
-#include "TH1F.h"
 
 namespace tca {
-  
-//  using Point_t = ROOT::Math::PositionVector3D<ROOT::Math::Cartesian3D<double>>;
-//  using Vector_t = ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double>>;
   
   using Point3_t = std::array<double, 3>;
   using Vector3_t = std::array<double, 3>;
@@ -296,10 +291,10 @@ namespace tca {
   
   // Shower variables filled in MakeShowers. These are in cm and radians
   struct ShowerStruct3D {
-    TVector3 Dir;
-    TVector3 DirErr;
-    TVector3 Pos;
-    TVector3 PosErr;
+    Vector3_t Dir;
+    Vector3_t DirErr;
+    Point3_t Pos;
+    Point3_t PosErr;
     double Len {1};
     double OpenAngle {0.2};
     std::vector<double> Energy;
