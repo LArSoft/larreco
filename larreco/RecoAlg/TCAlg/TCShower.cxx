@@ -52,6 +52,7 @@ namespace tca {
       return false;
     }
 //    if(prt) mf::LogVerbatim("TC")<<" stps size "<<spts.size();
+/* needs redo
     TVector3 pos, dir;
     if(!TrajPoint3D(tjs, spts[0], spts[1], pos, dir, prt)) {
       if(prt) mf::LogVerbatim("TC")<<"  TrajPoint3D failed. Maybe the shower direction is fubar";
@@ -66,8 +67,8 @@ namespace tca {
       pfp.XYZ[0][0] = pos[0]; pfp.XYZ[0][1] = pos[1]; pfp.XYZ[0][2] = pos[2]; 
     }
     pfp.Dir[0] = dir;
-    
-    // Now find the end point using the longest 2D shower
+
+ // Now find the end point using the longest 2D shower
     double maxlen = 0;
     unsigned int maxID = 0;
     for(auto tjID : pfp.TjIDs) {
@@ -99,7 +100,7 @@ namespace tca {
     ss3.Dir = pfp.Dir[0];
     ss3.OpenAngle = 0.05;
     if(prt) mf::LogVerbatim("TC")<<" ss3.Len "<<ss3.Len;
-    
+*/
     return true;
   } // Find3DShowerEndPoints
 
@@ -434,7 +435,7 @@ namespace tca {
     ss3.Pos[0] = showerParentPFP.XYZ[0][0];
     ss3.Pos[1] = showerParentPFP.XYZ[0][1];
     ss3.Pos[2] = showerParentPFP.XYZ[0][2];
-    ss3.Dir = showerParentPFP.Dir[0];
+//    ss3.Dir = showerParentPFP.Dir[0];
     ss3.OpenAngle = 0.05;
     ss3.CotIndices.clear();
     ss3.Energy.resize(tjs.NumPlanes);
