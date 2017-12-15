@@ -236,6 +236,9 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kV)) trk->CompleteMissingWires(geo::kV);
 			if (fGeom->TPC(itpc, icryo).HasPlane(geo::kZ)) trk->CompleteMissingWires(geo::kZ);
 
+			//gc: make sure no tracks are created with less than 2 points
+			if (trk->size()<2) continue;
+
 			tracks->push_back(pma::convertFrom(*trk, trkIndex));
 
 			//auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
@@ -244,12 +247,16 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 			art::ProductID trkId = getProductID< std::vector<recob::Track> >();
 			art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
 
-			// which idx from start, except disabled, really....
-                        std::vector<unsigned int> hIdxs(trk->size(), 0);
-                        for (size_t h = 0, cnt = 0; h < hIdxs.size(); h++)
-                        {
-                        	if ((*trk)[h]->IsEnabled()) hIdxs[h] = cnt++;
-                        }
+			//gc: save associated hits in the same order as trajectory points
+                        for (size_t h = 0; h < trk->size(); h++)
+			{
+				pma::Hit3D* h3d = (*trk)[h];
+				if (!h3d->IsEnabled()) continue;
+
+				recob::TrackHitMeta metadata(h, h3d->Dx());
+				trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
+				trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
+			}
 
 			art::PtrVector< recob::Hit > sp_hits;
 			spStart = allsp->size();
@@ -257,10 +264,6 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 			{
 				pma::Hit3D* h3d = (*trk)[h];
 				if (!h3d->IsEnabled()) continue;
-
-				recob::TrackHitMeta metadata(hIdxs[h], h3d->Dx());
-				trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
-				trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
 
 				double hx = h3d->Point3D().X();
 				double hy = h3d->Point3D().Y();

@@ -25,6 +25,7 @@ art_make( LIB_LIBRARIES  lardataobj_RecoBase
                          ${Boost_SYSTEM_LIBRARY}
                          ${CLHEP}
 			             ${ROOT_BASIC_LIB_LIST}
+                         ${ROOT_GEOM}
                          ${ROOT_MINUIT}
 	      TOOL_LIBRARIES larreco_RecoAlg_Cluster3DAlgs
         )

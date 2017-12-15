@@ -1142,11 +1142,13 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 	    }
 	    int nhits = 0;
 	    //std::cout<<"pitch = "<<pitch<<std::endl;
+            std::vector<float> vQ;
 	    for (auto const& hit: initialTrackHits[plane]){
 	      //std::cout<<hit->WireID()<<" "<<hit->PeakTime()<<" "<<std::abs((hit->WireID().Wire-initialTrackHits[plane][0]->WireID().Wire)*pitch)<<" "<<fdEdxTrackLength<<std::endl;
 	      int w1 = hit->WireID().Wire;
 	      int w0 = initialTrackHits[plane][0]->WireID().Wire;
 	      if (std::abs((w1-w0)*pitch)<fdEdxTrackLength){
+                vQ.push_back(hit->Integral());
 		totQ += hit->Integral();
 		avgT+= hit->PeakTime();
 		++nhits;
@@ -1154,7 +1156,10 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 	      }
 	    }
 	    if (totQ) {
-	      double dQdx = totQ/(nhits*pitch);
+	      //double dQdx = totQ/(nhits*pitch);
+              //std::sort(vQ.begin(), vQ.end());
+              //double dQdx = vQ[vQ.size()/2]/pitch;
+              double dQdx = TMath::Median(vQ.size(), &vQ[0])/pitch;
 	      fdEdx = fCalorimetryAlg.dEdx_AREA(dQdx, avgT/nhits, initialTrackHits[plane][0]->WireID().Plane);
 	    }
 	  }
