@@ -39,16 +39,15 @@ namespace tca {
   std::vector<unsigned int> SpacePtsAtHit(TjStuff& tjs, unsigned int iht);
   void UpdateMatchStructs(TjStuff& tjs, std::vector<int> oldTjs, int newTj);
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
-  void MakePFPSpacePts(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
+  void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void SortByDistanceFromStart(TjStuff& tjs, PFPStruct& pfp);
-  void CheckSptValidity(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  void CheckTp3Validity(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, std::vector<MatchStruct>& matVec, bool prt);
-  bool MakeSpt(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, Point3_t& pos, Vector3_t& dir);
+  bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, Tp3Struct& tp3);
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2);
   inline double DotProd(const Vector3_t& v1, const Vector3_t& v2) {return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]; }
   Vector3_t PointDirection(const Point3_t p1, const Point3_t p2);
-  bool TrajPoint3D(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TVector3& pos, TVector3& dir, bool prt);
   
 } // namespace tca
 
