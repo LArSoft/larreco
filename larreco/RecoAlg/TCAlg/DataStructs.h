@@ -34,8 +34,12 @@
 
 namespace tca {
   
-  using Point_t = ROOT::Math::PositionVector3D<ROOT::Math::Cartesian3D<double>>;
-  using Vector_t = ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double>>;
+//  using Point_t = ROOT::Math::PositionVector3D<ROOT::Math::Cartesian3D<double>>;
+//  using Vector_t = ROOT::Math::DisplacementVector3D<ROOT::Math::Cartesian3D<double>>;
+  
+  using Point3_t = std::array<double, 3>;
+  using Vector3_t = std::array<double, 3>;
+  using Point2_t = std::array<float, 2>;
 
   // some functions to handle the CTP_t type
   typedef unsigned int CTP_t;
@@ -81,8 +85,8 @@ namespace tca {
   
   /// struct of temporary 2D vertices (end points)
   struct VtxStore {
-    std::array<float, 2> Pos {{0,0}};
-    std::array<float, 2> PosErr {{2,1}};
+    Point2_t Pos {{0,0}};
+    Point2_t PosErr {{2,1}};
     unsigned short NTraj {0};  
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
@@ -126,7 +130,7 @@ namespace tca {
   
   // A temporary struct for matching trajectory points; 1 struct for each TP for
   // each trajectory. These are put into mallTraj which is then sorted by increasing xlo
-  struct TjPt{
+  struct Tj2Pt{
     std::array<double, 2> dir;
     unsigned int wire;
     // x range spanned by hits on the TP
@@ -144,8 +148,8 @@ namespace tca {
 
   struct TrajPoint {
     CTP_t CTP {0};                   ///< Cryostat, TPC, Plane code
-    std::array<float, 2> HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
-    std::array<float, 2> Pos {{0,0}}; // Trajectory position in wire equivalent units
+    Point2_t HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
+    Point2_t Pos {{0,0}}; // Trajectory position in wire equivalent units
     std::array<double, 2> Dir {{0,0}}; // Direction cosines in the StepDir direction
     double HitPosErr2 {0};         // Uncertainty^2 of the hit position perpendiclar to the direction
     // HitPosErr2 < 0 = HitPos not defined because no hits used
@@ -175,16 +179,14 @@ namespace tca {
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     float EffPur {0};                     ///< Efficiency * Purity
-    std::array<float, 2> dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
+    Point2_t dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     int ID;
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
     unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
-    short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
-    short TjDir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
-                                        ///< 1 = in the StepDir direction, -1 in the opposite direction, 0 = don't know
+    short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     unsigned short MCPartListIndex {USHRT_MAX};
     unsigned short NNeighbors {0};    /// number of neighbors within window defined by ShowerTag
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
@@ -210,8 +212,18 @@ namespace tca {
     unsigned short MCPartListIndex {USHRT_MAX};
   };
   
+  // struct used for TrajCluster 3D trajectory points
+  struct Tp3Struct {
+    Point3_t Pos {0};
+    Vector3_t Dir {0};
+    std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
+    float Chg {0};
+    bool IsValid {true};     // Is consistent with the position/angle of nearby space points
+  };
+  
+  // struct used for recob::SpacePoints
   struct SptStruct {
-    Point_t Pos;
+    Point3_t Pos;
     std::array<unsigned int, 3> Hits {UINT_MAX};
     unsigned short TPC {USHRT_MAX};
   }; 
@@ -229,17 +241,18 @@ namespace tca {
   
   struct PFPStruct {
     std::vector<int> TjIDs;
+    std::vector<Tp3Struct> Tp3s;    // TrajCluster 3D trajectory points
     recob::Track Track;
     // Start is 0, End is 1
-    std::array<std::array<float, 3>, 2> XYZ;        // XYZ position at both ends (cm)
-    std::array<TVector3, 2> Dir;
-    std::array<TVector3, 2> DirErr;
+    std::array<Point3_t, 2> XYZ;        // XYZ position at both ends (cm)
+    std::array<Vector3_t, 2> Dir;
+    std::array<Vector3_t, 2> DirErr;
     std::array<std::vector<float>, 2> dEdx;
     std::array<std::vector<float>, 2> dEdxErr;
     std::array<unsigned short, 2> Vx3ID {0, 0};
     int BestPlane {-1};
     // stuff for constructing the PFParticle
-    int PDGCode {0};
+    int PDGCode {-1};
     std::vector<int> DtrIDs;
     size_t ParentID {0};       // Parent PFP ID (or ID of self if no parent exists)
     geo::TPCID TPCID;
@@ -251,8 +264,8 @@ namespace tca {
   };
 
   struct ShowerPoint {
-    std::array<float, 2> Pos;       // Hit Position in the normal coordinate system
-    std::array<float, 2> RotPos;    // Position rotated into the shower coordinate system (0 = along, 1 = transverse)
+    Point2_t Pos;       // Hit Position in the normal coordinate system
+    Point2_t RotPos;    // Position rotated into the shower coordinate system (0 = along, 1 = transverse)
     float Chg {0};                      // Charge of this point
     unsigned int HitIndex;                       // the hit index
     unsigned short TID;             // The ID of the tj the point (hit) is in. TODO eliminate this redundant variable
@@ -269,7 +282,7 @@ namespace tca {
     float AngleErr {3};                 // Error
     float AspectRatio {1};              // The ratio of charge weighted transverse/longitudinal positions
     float DirectionFOM {1};
-    std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
+    std::vector<Point2_t> Envelope; // Vertices of a polygon that encompasses the shower
     float EnvelopeArea {0};
     float ChgDensity {0};                   // Charge density inside the Envelope
     float Energy {0};
@@ -385,7 +398,7 @@ namespace tca {
     kVtxTj,
     kChkVxTj,
     kMisdVxTj,
-    kRefineVtx,
+    kPhoton,
     kVxMerge,
     kNoKinkChk,
     kSoftKink,
@@ -454,7 +467,7 @@ namespace tca {
     bool TagCosmics;
 
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
-    std::vector<TjPt> mallTraj;      ///< vector of trajectory points ordered by increasing X
+    std::vector<Tj2Pt> mallTraj;      ///< vector of trajectory points ordered by increasing X
     std::vector<TCHit> fHits;
     std::vector<SptStruct> spts;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
