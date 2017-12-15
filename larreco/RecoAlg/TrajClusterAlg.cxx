@@ -1084,23 +1084,21 @@ namespace tca {
     // are enough hits
     if(tHits.size() > 6) {
       // fit all of the hits to a line
-      std::vector<float> x(tHits.size()), y(tHits.size()), yerr2(tHits.size());
-      float intcpt, slope, intcpterr, slopeerr, chidof, qtot = 0;
+      std::vector<float> x(tHits.size()), y(tHits.size()), yerr2(tHits.size(), 1000.);
+      float intcpt, slope, intcpterr, slopeerr, chidof;
       
       for(ii = 0; ii < tHits.size(); ++ii) {
         iht = tHits[ii];
         tjs.fHits[iht].InTraj = work.ID;
         x[ii] = tjs.fHits[iht].ArtPtr->WireID().Wire;
         y[ii] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
-        qtot += tjs.fHits[iht].Integral;
-        yerr2[ii] = tjs.fHits[iht].Integral;
       } // ii
       fLinFitAlg.LinFit(x, y, yerr2, intcpt, slope, intcpterr, slopeerr, chidof);
-      
+
       if(jtPrt) mf::LogVerbatim("TC")<<" tHits line fit chidof "<<chidof<<" Angle "<<atan(slope);
       // return without making a junk trajectory
-      if(chidof > 900) {
-        ReleaseHits(tjs, work);
+      if(chidof == 999.) {
+        for(auto iht : tHits) tjs.fHits[iht].InTraj = 0;
         return false;
       }
       // A rough estimate of the trajectory angle
@@ -2043,7 +2041,7 @@ namespace tca {
             }
             // ensure that there is a signal on most of the wires between these points
             if(!SignalBetween(tjs, tp1, tp2, 0.8, mrgPrt)) {
-              if(mrgPrt) mf::LogVerbatim("TC")<<" no signal between "<<PrintPos(tjs, tp1.Pos)<<" and "<<PrintPos(tjs, tp2.Pos);
+//              if(mrgPrt) mf::LogVerbatim("TC")<<" no signal between "<<PrintPos(tjs, tp1.Pos)<<" and "<<PrintPos(tjs, tp2.Pos);
               continue;
             }
             // Find the distance of closest approach for small angle merging
@@ -2264,7 +2262,9 @@ namespace tca {
               aVtx.Stat[kFixed] = true;
             } else {
               // Tps not so close
-              float sepCut = tjs.Vertex2DCuts[2];
+              // Dec 11, 2017. Require small separation in EndMerge.
+//              float sepCut = tjs.Vertex2DCuts[2];
+              float sepCut = tjs.Vertex2DCuts[1];
               bool tj1Short = (tjs.allTraj[it1].EndPt[1] - tjs.allTraj[it1].EndPt[0] < maxShortTjLen);
               bool tj2Short = (tjs.allTraj[it2].EndPt[1] - tjs.allTraj[it2].EndPt[0] < maxShortTjLen);
               if(tj1Short || tj2Short) sepCut = tjs.Vertex2DCuts[1];
@@ -2397,7 +2397,9 @@ namespace tca {
       auto& lspt = tjs.spts[isp];
       // event space point
       art::Ptr<recob::SpacePoint> espt = art::Ptr<recob::SpacePoint>(spVecHandle, isp);
-      lspt.Pos.SetCoordinates(espt->XYZ()[0], espt->XYZ()[1], espt->XYZ()[2]);
+      lspt.Pos[0] = espt->XYZ()[0];
+      lspt.Pos[1] = espt->XYZ()[1];
+      lspt.Pos[2] = espt->XYZ()[2];
       // put the hit indices into SptStruct Hits
       std::vector<art::Ptr<recob::Hit> > spHits;
       spt_hit.get(isp, spHits);
@@ -2449,24 +2451,19 @@ namespace tca {
 
     std::vector<MatchStruct> matVec;
     // we only need this to pass the tpcid to FindXMatches
-    PFPStruct dummyPfp;
-    std::array<std::vector<unsigned int>, 2> dummyMatchPts;
-    std::array<std::array<float, 3>, 2> dummyMatchPos;
-    dummyPfp.TPCID = tpcid;
-    unsigned short dummyNMatch;
     // first look for 3-plane matches in a 3-plane TPC
     if(tjs.NumPlanes == 3) {
       // Match Tjs with high quality vertices first and the leftovers next
-      for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 3, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+      for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 3, maxScore, matVec, prt);
     } // 3-plane TPC
     // Make 2-plane matches if we haven't hit the user-defined size limit
     if(matVec.size() < tjs.Match3DCuts[4]) {
       // 2-plane TPC or 2-plane matches in a 3-plane TPC
       if(tjs.NumPlanes == 2) {
-        for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+        for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, matVec, prt);
       } else {
         // Make one attempt at 2-plane matches in a 3-plane TPC, setting maxScore large
-        FindXMatches(tjs, 2, 3, dummyPfp, matVec, dummyMatchPts, dummyMatchPos, dummyNMatch, prt);
+        FindXMatches(tjs, 2, 3, matVec, prt);
       }
     } // can add more combinations
     if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"M3D: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
@@ -2555,15 +2552,12 @@ namespace tca {
       if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
       PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
       pfp.TjIDs = ms.TjIDs;
-      // declare a start or end vertex and set the end points
-      unsigned short vxAtEnd = 0;
-      if(pfp.Vx3ID[0] == 0) vxAtEnd = 1;
-      if(!SetPFPEndPoints(tjs, pfp, vxAtEnd, prt)) {
-        if(prt) mf::LogVerbatim("TC")<<" SetPFPEndPoints failed";
+      pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
+      if(!DefinePFP(tjs, pfp, prt)) {
+        if(prt) mf::LogVerbatim("TC")<<" DefinePFP failed";
         pfp.ID = 0;
         continue;
       }
-      Reverse3DMatchTjs(tjs, pfp, prt);
       if(prt) mf::LogVerbatim("TC")<<" Created PFP "<<pfp.ID;
       tjs.pfps.push_back(pfp);
       ms.pfpID = pfp.ID;
@@ -3154,6 +3148,7 @@ namespace tca {
     TrimEndPts(tjs, tj, fQualityCuts, prt);
     if(tj.AlgMod[kKilled]) {
       fGoodTraj = false;
+      if(prt)  mf::LogVerbatim("TC")<<" Failed quality cuts";
       return true;
     }
     tj.MCSMom = MCSMom(tjs, tj);
@@ -3291,6 +3286,7 @@ namespace tca {
     // See if this is a ghost trajectory
     if(IsGhost(tj)) {
       if(prt) mf::LogVerbatim("TC")<<" CT: Ghost trajectory - trimmed hits ";
+      if(!fGoodTraj) return;
     }
     
     if(tj.AlgMod[kJunkTj]) return;
@@ -4922,7 +4918,7 @@ namespace tca {
       tp.Pos[0] = vx3.Wire;
       tp.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tjs.UnitsPerTick;
       std::vector<int> tjIDs;
-      std::vector<unsigned short> tjPts;
+      std::vector<unsigned short> tj2Pts;
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
         if(tjs.allTraj[itj].CTP != mCTP) continue;
         if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
@@ -4935,7 +4931,7 @@ namespace tca {
         if(closePt > tjs.allTraj[itj].EndPt[1]) continue;
         if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
         tjIDs.push_back(tjs.allTraj[itj].ID);
-        tjPts.push_back(closePt);
+        tj2Pts.push_back(closePt);
       } // itj
       // handle the case where there are one or more TJs with TPs near the ends
       // that make a vertex (a failure by Find2DVertices)
@@ -5731,7 +5727,7 @@ namespace tca {
         TrajPoint& tp = tj.Pts[ipt];
         if(tp.Chg == 0) continue;
         // quit if the charge is much larger than the previous charge
-        if(tp.Chg > 1.2 * prevChg) break;
+        if(tp.Chg > 1.5 * prevChg) break;
         prevChg = tp.Chg;
         x.push_back(std::abs(tp.Pos[0] - wire0));
         y.push_back(tp.Chg);
