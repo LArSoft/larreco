@@ -982,7 +982,7 @@ namespace tca {
  
     // Make a list of TC space points allowing for Tjs that are not in the pfp.TjIDs list in
     // the 3rd plane
-    MakePFPSpacePts(tjs, pfp, true);
+    MakePFPTp3s(tjs, pfp, true);
     if(prt) mf::LogVerbatim("TC")<<"DPFP: found "<<pfp.Tp3s.size()<<" space points";
     if(pfp.Tp3s.size() < 2) return false;
     pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
@@ -991,7 +991,7 @@ namespace tca {
     // such as muon direction, TPC boundaries etc. This function will set pfp.XYZ[0].
     // SortByDistanceFrom Start will sort the space points by distance from this point
     if(SetNewStart(tjs, pfp, prt)) SortByDistanceFromStart(tjs, pfp);
-    CheckSptValidity(tjs, pfp, prt);
+    CheckTp3Validity(tjs, pfp, prt);
     pfp.Dir[0] = pfp.Tp3s[0].Dir;
     if(pfp.Vx3ID[1] == 0) pfp.XYZ[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Pos;
     pfp.Dir[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Dir;
@@ -999,19 +999,19 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<" TC space points\n";
       for(unsigned short ipt = 0; ipt < pfp.Tp3s.size(); ++ipt) {
-        auto tcspt = pfp.Tp3s[ipt];
+        auto tp3 = pfp.Tp3s[ipt];
         myprt<<ipt<<" pos ";
-        myprt<<" "<<std::fixed<<std::setprecision(1)<<tcspt.Pos[0]<<" "<<tcspt.Pos[1]<<" "<<tcspt.Pos[2];
+        myprt<<" "<<std::fixed<<std::setprecision(1)<<tp3.Pos[0]<<" "<<tp3.Pos[1]<<" "<<tp3.Pos[2];
         myprt<<ipt<<" dir ";
-        myprt<<" "<<std::fixed<<std::setprecision(3)<<tcspt.Dir[0]<<" "<<tcspt.Dir[1]<<" "<<tcspt.Dir[2];
+        myprt<<" "<<std::fixed<<std::setprecision(3)<<tp3.Dir[0]<<" "<<tp3.Dir[1]<<" "<<tp3.Dir[2];
         myprt<<" tj_ipt";
-        for(auto tj2pt : tcspt.Tj2Pts) {
+        for(auto tj2pt : tp3.Tj2Pts) {
           auto& tj = tjs.allTraj[tj2pt.id - 1];
           auto& tp = tj.Pts[tj2pt.ipt];
           myprt<<" "<<tj.ID<<"_"<<PrintPos(tjs, tp);
         } // matIndex
-        myprt<<" Chg "<<(int)tcspt.Chg;
-        myprt<<" IsValid? "<<tcspt.IsValid;
+        myprt<<" Chg "<<(int)tp3.Chg;
+        myprt<<" IsValid? "<<tp3.IsValid;
         if(ipt > 0) {
           myprt<<" dang1 "<<DeltaAngle(pfp.Tp3s[ipt].Dir, pfp.Tp3s[ipt-1].Dir);
           auto dir = PointDirection(pfp.Tp3s[0].Pos, pfp.Tp3s[ipt].Pos);
@@ -3616,7 +3616,7 @@ namespace tca {
   } // TagMuonDirections
   
   /////////////////////////////////////////
-  TrajPoint MakeBareTrajPoint(TjStuff& tjs, TVector3& pos, TVector3& dir, CTP_t inCTP)
+  TrajPoint MakeBareTrajPoint(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP)
   {
     // Projects the space point defined by pos and dir into the CTP and returns it in the form of a trajectory point.
     // The TP Pos[0] is set to a negative number if the point has an invalid wire position but doesn't return an
@@ -3633,8 +3633,8 @@ namespace tca {
     tp.Pos[1] = tjs.detprop->ConvertXToTicks(pos[0], planeID) * tjs.UnitsPerTick;
     // now find the direction
     // Make a point at the origin and one 100 units away
-    TVector3 ori3 = {0, 0, 0};
-    TVector3 pos3 = 100 * dir;
+    Point3_t ori3 = {0, 0, 0};
+    Point3_t pos3 = {100 * dir[0], 100 * dir[1], 100 * dir[2]};
     // 2D position of ori3 and the pos3 projection
     std::array<double, 2> ori2;
     std::array<double, 2> pos2;
