@@ -410,7 +410,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 	{
 		size_t spStart = 0, spEnd = 0;
 		double sp_pos[3], sp_err[6];
-		for (size_t i = 0; i < 6; i++) sp_err[i] = 1.0;
+		for (size_t i = 0; i < 3; ++i) sp_pos[i] = 0.0;
+		for (size_t i = 0; i < 6; ++i) sp_err[i] = 1.0;
 
         auto const make_pfpptr = art::PtrMaker<recob::PFParticle>(evt, *this);
 		auto const make_trkptr = art::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
@@ -495,7 +496,8 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			art::PtrVector< recob::Hit > sp_hits;
 			spStart = allsp->size();
-			for (int h = trk->size() - 1; h >= 0; h--)
+			//rs: so make also associations to space points in the order of trajectory points
+			for (size_t h = 0; h < trk->size(); ++h)
 			{
 				pma::Hit3D* h3d = (*trk)[h];
 				if (!h3d->IsEnabled()) continue;
@@ -504,7 +506,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				double hy = h3d->Point3D().Y();
 				double hz = h3d->Point3D().Z();
 
-				if ((h == 0) || (sp_pos[0] != hx) || (sp_pos[1] != hy) || (sp_pos[2] != hz))
+				if ((h == 0) ||
+				    (std::fabs(sp_pos[0] - hx) > 1.0e-5) ||
+				    (std::fabs(sp_pos[1] - hy) > 1.0e-5) ||
+				    (std::fabs(sp_pos[2] - hz) > 1.0e-5))
 				{
 					if (sp_hits.size()) // hits assigned to the previous sp
 					{
