@@ -16,7 +16,7 @@ namespace tca {
   {
     // Match Tjs in 3D using SpacePoint <-> Hit associations.
     if(!tjs.UseAlg[kHitsOrdered]) {
-//      std::cout<<"Match3DSpts: Write some code to deal with un-ordered hits\n";
+      std::cout<<"Match3DSpts: Write some code to deal with un-ordered hits\n";
       return;
     }
     
@@ -139,11 +139,9 @@ namespace tca {
       } // plane
       // set the end points using the local version that uses SpacePoints instead
       // of tjs.malltraj
-/*
       if(!SetPFPEndPoints(tjs, pfp, sptLists, tj.ID, prt)) {
         std::cout<<"SetPFPEndPoints failed";
       }
-*/
       tjs.pfps.push_back(pfp);
       if(ii > 10) break;
     } // ii (tj)
@@ -172,7 +170,6 @@ namespace tca {
 //      myprt<<" Vx3ID "<<pfp.Vx3ID[end];
       myprt<<" Tjs";
       for(auto id : pfp.TjIDs) myprt<<" "<<id;
-      if(pfp.PDGCode == 1111) myprt<<" This is a shower PFP ";
     }
     
     // find the first point that has all Tjs in a space point. We will use this to decide
@@ -477,6 +474,10 @@ namespace tca {
         float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, tpc, cstat);
         float posPlusRMS = tp.Pos[1] + TPHitsRMSTime(tjs, tp, kUsedHits);
         float rms = tjs.detprop->ConvertTicksToX(posPlusRMS/tjs.UnitsPerTick, plane, tpc, cstat) - xpos;
+        if((tj.ID == 12 && tjs.mallTraj[icnt].wire == 972) ||
+           (tj.ID == 18 && tjs.mallTraj[icnt].wire == 1235)) {
+          std::cout<<"chk "<<tj.ID<<" "<<tjs.mallTraj[icnt].wire<<" xpos "<<xpos<<" rms "<<rms<<"\n";
+        }
         if(rms < tjs.Match3DCuts[0]) rms = tjs.Match3DCuts[0];
         if(icnt == tjs.mallTraj.size()) {
           std::cout<<"Match3D: indexing error\n";
@@ -540,18 +541,10 @@ namespace tca {
         if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), jTj2Pt.id) == pfp.TjIDs.end()) continue;
         // ensure that the planes are different
         if(jTj2Pt.ctp == iTj2Pt.ctp) continue;
-        bool got2 = ((iTj2Pt.id == 2 && iTj2Pt.ipt < 5) || (jTj2Pt.id == 2 && jTj2Pt.ipt < 5));
-        bool got6 = ((iTj2Pt.id == 6 && iTj2Pt.ipt < 5) || (jTj2Pt.id == 6 && jTj2Pt.ipt < 5));
-        if(got2 && got6) {
-          std::cout<<"Got2+6 ";
-          std::cout<<ipt<<"_"<<iTj2Pt.id<<"_"<<iTj2Pt.ipt<<" "<<iTj2Pt.xlo<<" "<<iTj2Pt.xhi<<" ";
-          std::cout<<jpt<<"_"<<jTj2Pt.id<<"_"<<jTj2Pt.ipt<<" "<<jTj2Pt.xlo<<" "<<jTj2Pt.xhi;
-          std::cout<<"\n";
-        }
         // check for x range overlap. We know that jTjPt.xlo is >= iTjPt.xlo because of the sort
         if(jTj2Pt.xlo > iTj2Pt.xhi) continue;
         auto& jtp = tjs.allTraj[jTj2Pt.id - 1].Pts[jTj2Pt.ipt];
-        Tp3Struct tp3;
+        TrajPoint3 tp3;
         if(!MakeTp3(tjs, itp, jtp, tp3)) continue;
         tp3.Tj2Pts.resize(2);
         tp3.Tj2Pts[0] = iTj2Pt;
@@ -567,7 +560,7 @@ namespace tca {
             if(!anyTj && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), kTj2Pt.id) == pfp.TjIDs.end()) continue;
             if(kTj2Pt.xlo > iTj2Pt.xhi) continue;
             auto& ktp = tjs.allTraj[kTj2Pt.id - 1].Pts[kTj2Pt.ipt];
-            Tp3Struct iktp3;
+            TrajPoint3 iktp3;
             if(!MakeTp3(tjs, itp, ktp, iktp3)) continue;
             if(std::abs(iktp3.Pos[1] - tp3.Pos[1]) > yzcut) continue;
             if(std::abs(iktp3.Pos[2] - tp3.Pos[2]) > yzcut) continue;
@@ -583,6 +576,7 @@ namespace tca {
             break;
           } // kpt
         } // 3 planes
+/* This should no longer be necessary
         // sort the Tj2Pts by increasing Tj ID
         std::vector<SortEntry> sortVec(tp3.Tj2Pts.size());
         for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
@@ -592,12 +586,8 @@ namespace tca {
         std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
         auto temp = tp3.Tj2Pts;
         for(unsigned short ii = 0; ii < temp.size(); ++ii) tp3.Tj2Pts[ii] = temp[sortVec[ii].index];
-        tp3.Chg = 0;
-        for(auto tj2pt : tp3.Tj2Pts) {
-          auto& tp = tjs.allTraj[tj2pt.id - 1].Pts[tj2pt.ipt];
-          tp3.Chg += tp.Chg;
-        } // mi
-        tp3.Chg /= (float)tp3.Tj2Pts.size();
+*/
+        FilldEdx(tjs, tp3);
         pfp.Tp3s.push_back(tp3);
         break;
       } // jpt
@@ -642,9 +632,9 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<std::fixed<<std::setprecision(1);
-      myprt<<" Xlo "<<tjs.XLo<<" minX "<<minXYZ[0]<<" maxX "<<maxXYZ[0]<<" XHi "<<tjs.XHi<<" insideX? "<<insideX<<"\n";
-      myprt<<" Ylo "<<tjs.YLo<<" minY "<<minXYZ[1]<<" maxY "<<maxXYZ[1]<<" YHi "<<tjs.YHi<<" insideY? "<<insideY<<"\n";
-      myprt<<" Zlo "<<tjs.ZLo<<" minZ "<<minXYZ[2]<<" maxZ "<<maxXYZ[2]<<" ZHi "<<tjs.ZHi<<" insideZ? "<<insideZ<<"\n";
+      myprt<<" Xlo "<<std::setw(7)<<tjs.XLo<<" minX "<<std::setw(7)<<minXYZ[0]<<" maxX "<<std::setw(7)<<maxXYZ[0]<<" XHi "<<std::setw(7)<<tjs.XHi<<" insideX? "<<insideX<<"\n";
+      myprt<<" Ylo "<<std::setw(7)<<tjs.YLo<<" minY "<<std::setw(7)<<minXYZ[1]<<" maxY "<<std::setw(7)<<maxXYZ[1]<<" YHi "<<std::setw(7)<<tjs.YHi<<" insideY? "<<insideY<<"\n";
+      myprt<<" Zlo "<<std::setw(7)<<tjs.ZLo<<" minZ "<<std::setw(7)<<minXYZ[2]<<" maxZ "<<std::setw(7)<<maxXYZ[2]<<" ZHi "<<std::setw(7)<<tjs.ZHi<<" insideZ? "<<insideZ;
     }
     
     // default is to do nothing. Start at the low X end
@@ -700,7 +690,7 @@ namespace tca {
       startPos[1] = vx3.Y;
       startPos[2] = vx3.Z;
     }
-    mf::LogVerbatim("TC")<<"SBDFS: StartPos "<<std::fixed<<std::setprecision(1)<<startPos[0]<<" "<<startPos[1]<<" "<<startPos[2]<<"\n";
+//    mf::LogVerbatim("TC")<<"SBDFS: StartPos "<<std::fixed<<std::setprecision(1)<<startPos[0]<<" "<<startPos[1]<<" "<<startPos[2];
 
     std::vector<SortEntry> sortVec(pfp.Tp3s.size());
     for(unsigned short ii = 0; ii < pfp.Tp3s.size(); ++ii) {
@@ -715,7 +705,7 @@ namespace tca {
 
     std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
     // put them into order
-    std::vector<Tp3Struct> temp;
+    std::vector<TrajPoint3> temp;
     for(unsigned short ii = 0; ii < sortVec.size(); ++ii) temp.push_back(pfp.Tp3s[sortVec[ii].index]);
     pfp.Tp3s = temp;
     
@@ -729,28 +719,46 @@ namespace tca {
     // Sets the IsValid flag false for space points in the vector that are inconsistent
     // with their neighbors
     
+    if(prt) mf::LogVerbatim("TC")<<"CheckTp3Validity: pfp "<<pfp.ID;
+    
     // ensure that the Tj points are in increasing order and reverse them if they aren't. This
     // presumes that the space points have been ordered from pfp start to pfp end
     std::vector<int> tjids;
-    for(auto& spt : pfp.Tp3s) {
-      for(auto& tj2pt : spt.Tj2Pts) {
+    // list of tj points to check for increasing (or decreasing) order
+    std::vector<unsigned short> firstIpt;
+    std::vector<unsigned short> lastIpt;
+    for(auto& Tp3 : pfp.Tp3s) {
+      for(auto& tj2pt : Tp3.Tj2Pts) {
         int tjid = tj2pt.id;
         // check for the first occurrence
-        if(std::find(tjids.begin(), tjids.end(), tjid) != tjids.end()) continue;
+        unsigned short ii = 0;
+        for(ii = 0; ii < tjids.size(); ++ii) if(tjid == tjids[ii]) break;
+        if(ii < tjids.size()) {
+          // exists in the list. Keep track of the last point
+          lastIpt[ii] = tj2pt.ipt;
+          continue;
+        }
         tjids.push_back(tjid);
-        auto& tj = tjs.allTraj[tjid - 1];
-        if(tj2pt.ipt > tj.EndPt[0] + 3) {
-          std::cout<<"pfp "<<pfp.ID<<" tj "<<tjid<<" first point not at end0 "<<tj2pt.ipt<<" tj SetDir "<<tj.AlgMod[kSetDir]<<"\n";
-          if(tj.AlgMod[kSetDir]) {
-            tj.AlgMod[kSetDir] = false;
-            ReverseTraj(tjs, tj);
-          }
-        } // first tj point not at the beginning
-        tj.AlgMod[kSetDir] = true;
-      } // tjpt
+        firstIpt.push_back(tj2pt.ipt);
+        lastIpt.push_back(tj2pt.ipt);
+     } // tjpt
     } // spt
-    if(tjids.size() > 1) std::sort(tjids.begin(), tjids.end());
-    if(tjids != pfp.TjIDs) {
+    // reverse Tjs if necessary so that end0 is at the start of the pfp
+    for(unsigned short ii = 0; ii < tjids.size(); ++ii) {
+      auto& tj = tjs.allTraj[tjids[ii] - 1];
+      if(prt) mf::LogVerbatim("TC")<<" tj "<<tjids[ii]<<" firstIpt "<<firstIpt[ii]<<" lastIpt "<<lastIpt[ii]<<" SetDir? "<<tj.AlgMod[kSetDir];
+      if(lastIpt[ii] < firstIpt[ii]) {
+        if(prt) mf::LogVerbatim("TC")<<" reverse tj "<<tjids[ii];
+        if(tj.AlgMod[kSetDir]) {
+          if(prt) mf::LogVerbatim("TC")<<"   Violating the SetDir flag ";
+          tj.AlgMod[kSetDir] = false;
+        }
+        ReverseTraj(tjs, tj);
+      } // lastIpt[ii] > firstIpt[ii]
+      tj.AlgMod[kSetDir] = true;
+    } // ii
+    std::vector<int> different = SetDifference(tjids, pfp.TjIDs);
+    if(!different.empty()) {
       std::cout<<"CSV: Tjs are inconsistent";
       std::cout<<" pfp.TjIDs";
       for(auto tjid : pfp.TjIDs) std::cout<<" "<<tjid;
@@ -759,11 +767,97 @@ namespace tca {
       std::cout<<"\n";
     }
     
-    if(pfp.Tp3s.size() < 5) return;
-
-    std::cout<<"write some code here\n";
+    // find the average separation between adjacent points
+    float sum = 0;
+    float sum2 = 0;
+    float cnt = 0;
+    std::vector<float> seps(pfp.Tp3s.size());
+    for(unsigned short ipt = 1; ipt < pfp.Tp3s.size(); ++ipt) {
+      float sep = PosSep(pfp.Tp3s[ipt].Pos, pfp.Tp3s[ipt - 1].Pos);
+      seps[ipt] = sep;
+      // ignore large separations (> ~1.5 cm)
+      if(sep > 1.5) continue;
+      sum += sep;
+      sum2 += sep * sep;
+      ++cnt;
+    } // ii
+    // return if something is seriously wrong
+    if(cnt < 0.5 * pfp.Tp3s.size()) return;
+    float aveSep = sum / cnt;
+    float arg = sum2 - cnt * aveSep * aveSep;
+    float maxSep = 2 * aveSep;
+    if(arg > 0) {
+      float rms = sqrt(arg / (cnt - 1));
+      maxSep = aveSep + 3 * rms;
+    }
+    TrajPoint3 lastGoodTp3 = pfp.Tp3s[0];
+    for(unsigned short ipt = 1; ipt < pfp.Tp3s.size(); ++ipt) {
+      // Set large sep points not valid
+      if(seps[ipt] > maxSep) pfp.Tp3s[ipt].IsValid = false;
+      // Set not valid if there is a large change in angle
+      if(DeltaAngle(pfp.Tp3s[ipt].Dir, lastGoodTp3.Dir) > tjs.KinkCuts[0]) pfp.Tp3s[ipt].IsValid = false;
+      if(pfp.Tp3s[ipt].IsValid) lastGoodTp3 = pfp.Tp3s[ipt];
+    }
+    // TODO: Deal with the case where the first point should be invalid
     
   } // CheckTp3Validity
+  
+  /////////////////////////////////////////
+  bool FitTp3(TjStuff& tjs, std::vector<TrajPoint3> tp3s, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint3& outTp3)
+  {
+    // fits a section of the vector of Tp3s from point fromPt to toPt and returns the
+    // result in outTp3. This function returns false if there
+    // was a failure
+    outTp3.IsValid = false;
+    if(originPt > tp3s.size() - 1) return false;
+    if(!(fitDir == 1 || fitDir == -1)) return false;
+    unsigned short toPt = originPt + fitDir * npts;
+    if(toPt > tp3s.size() - 1) return false;
+    // This doesn't really do a fit (for now) but does a simple average of the directions defined by pairs.
+    // get a loop lower and upper limit
+    unsigned short fromPt = originPt;
+    if(toPt < fromPt) std::swap(toPt, fromPt);
+    outTp3.Dir = {0, 0, 0};
+    double wgtsum = 0;
+    std::cout<<"Start summing\n";
+    for(unsigned short ipt = fromPt; ipt < toPt; ++ipt) {
+      if(!tp3s[ipt].IsValid) continue;
+      auto& itpt0 = tp3s[ipt].Tj2Pts[0];
+      float x0 = 0.5 * (itpt0.xlo + itpt0.xhi);
+      auto& itpt1 = tp3s[ipt].Tj2Pts[1];
+      float x1 = 0.5 * (itpt1.xlo + itpt1.xhi);
+      float idx = std::abs(x1 - x0);
+      if(idx < 0.01) idx = 0.01;
+      for(unsigned short jpt = ipt + 2; jpt <= toPt; ++jpt) {
+        if(!tp3s[jpt].IsValid) continue;
+        auto& jtpt0 = tp3s[jpt].Tj2Pts[0];
+        float x0 = 0.5 * (jtpt0.xlo + jtpt0.xhi);
+        auto& jtpt1 = tp3s[jpt].Tj2Pts[1];
+        float x1 = 0.5 * (jtpt1.xlo + jtpt1.xhi);
+        float jdx = std::abs(x1 - x0);
+        if(jdx < 0.01) jdx = 0.01;
+        // Find the direction vector between these points
+        double sep2 = PosSep2(tp3s[ipt].Pos, tp3s[jpt].Pos);
+        // ignore a separation less than 0.1 cm
+        if(sep2 < 0.01) continue;
+        auto dir = PointDirection(tp3s[ipt].Pos, tp3s[jpt].Pos);
+        std::cout<<"ipt "<<ipt<<" "<<jpt<<" dir "<<std::fixed<<std::setprecision(3)<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<" sep "<<sqrt(sep2);
+        std::cout<<" idx "<<idx<<" "<<jdx;
+        std::cout<<"\n";
+        // weight by the separation^2
+        double wgt = sep2 / (idx * jdx);
+        for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) outTp3.Dir[ixyz] += dir[ixyz] * wgt;
+        wgtsum += wgt;
+      } // jpt
+    } // ipt
+    if(wgtsum == 0) return false;
+    outTp3.Pos = tp3s[originPt].Pos;
+    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) outTp3.Dir[ixyz] /= wgtsum;
+    std::cout<<"result "<<std::fixed<<std::setprecision(3)<<outTp3.Dir[0]<<" "<<outTp3.Dir[1]<<" "<<outTp3.Dir[2]<<"\n";
+    outTp3.IsValid = SetMag(outTp3.Dir, 1);
+    return outTp3.IsValid;
+
+  } // FitTP3
 
   /////////////////////////////////////////
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, std::vector<MatchStruct>& matVec, bool prt)
@@ -820,7 +914,7 @@ namespace tca {
         if(jTjPt.xlo > iTjPt.xhi + 5) break;
         auto& jtp = tjs.allTraj[jTjPt.id - 1].Pts[jTjPt.ipt];
         unsigned short jplane = DecodeCTP(jtp.CTP).Plane;
-        Tp3Struct tp3;
+        TrajPoint3 tp3;
         if(!MakeTp3(tjs, itp, jtp, tp3)) continue;
         bool dijOK = (useAngle && iTjPt.npts > 5 && jTjPt.npts > 5);
         if(numPlanes == 3) {
@@ -837,7 +931,7 @@ namespace tca {
             if(kTjPt.xlo > iTjPt.xhi + 5) break;
             auto& ktp = tjs.allTraj[kTjPt.id - 1].Pts[kTjPt.ipt];
             unsigned short kplane = DecodeCTP(ktp.CTP).Plane;
-            Tp3Struct iktp3;
+            TrajPoint3 iktp3;
             if(!MakeTp3(tjs, itp, ktp, iktp3)) continue;
             if(std::abs(tp3.Pos[1] - iktp3.Pos[1]) > yzcut) continue;
             if(std::abs(tp3.Pos[2] - iktp3.Pos[2]) > yzcut) continue;
@@ -974,7 +1068,7 @@ namespace tca {
   } // FindXMatches
 
   /////////////////////////////////////////
-  bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, Tp3Struct& tp3)
+  bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3)
   {
     // Make a 3D trajectory point using two 2D trajectory points
     tp3.Dir = {999};
@@ -1069,4 +1163,112 @@ namespace tca {
     if(!SetMag(dir, 1)) { dir[0] = 0; dir[1] = 0; dir[3] = 999; }
     return dir;
   } // PointDirection
+
+  //////////////////////////////////////////
+  double PosSep(const Point3_t& pos1, const Point3_t& pos2)
+  {
+    return sqrt(PosSep2(pos1, pos2));
+  } // PosSep
+  
+  //////////////////////////////////////////
+  double PosSep2(const Point3_t& pos1, const Point3_t& pos2)
+  {
+    // returns the separation distance^2 between two positions in 3D
+    double d0 = pos1[0] - pos2[0];
+    double d1 = pos1[1] - pos2[1];
+    double d2 = pos1[2] - pos2[2];
+    return d0*d0 + d1*d1 + d2*d2;
+  } // PosSep2
+  
+  //////////////////////////////////////////
+  bool SetMag(Vector3_t& v1, double mag)
+  {
+    double den = v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2];
+    if(den == 0) return false;
+    den = sqrt(den);
+    
+    v1[0] *= mag / den;
+    v1[1] *= mag / den;
+    v1[2] *= mag / den;
+    return true;
+  } // SetMag
+  
+  ////////////////////////////////////////////////
+  void FilldEdx(TjStuff& tjs, TrajPoint3& tp3)
+  {
+    // fills the dEdx variables in tp3 (MeV/cm)
+    tp3.dEdx = 0;
+    tp3.dEdxErr = 0.5;
+    if(!tp3.IsValid) return;
+    if(tp3.Tj2Pts.empty()) return;
+    double t0 = 0;
+    float sum = 0;
+    float sum2 = 0;
+    float cnt = 0;
+    for(auto& tj2pt : tp3.Tj2Pts) {
+      auto& tp = tjs.allTraj[tj2pt.id - 1].Pts[tj2pt.ipt];
+      if(tp.Chg <= 0) continue;
+      geo::PlaneID planeID = DecodeCTP(tp.CTP);
+      double angleToVert = tjs.geom->Plane(planeID).ThetaZ() - 0.5 * ::util::pi<>();
+      double cosgamma = std::abs(std::sin(angleToVert) * tp3.Dir[1] + std::cos(angleToVert) * tp3.Dir[2]);
+      if(cosgamma == 0) continue;
+      double dx = tjs.geom->WirePitch(planeID) / cosgamma;
+      // sum the hit charge
+      double chg = 0;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(!tp.UseHit[ii]) continue;
+        unsigned int iht = tp.Hits[ii];
+        chg += tjs.fHits[iht].Integral;
+      }
+      double dQ = chg / dx;
+      double time = tp.Pos[1] / tjs.UnitsPerTick;
+      float dedx = tjs.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
+//      std::cout<<cnt<<" "<<PrintPos(tjs, tp)<<" dedx "<<dedx<<" dx "<<dx<<"\n";
+      if(dedx > 200) continue;
+      sum += dedx;
+      sum2 += dedx * dedx;
+      ++cnt;
+    } // tj2pt
+    if(cnt == 0) return;
+    tp3.dEdx = sum / cnt;
+    if(cnt > 1) {
+      float arg = sum2 - cnt * tp3.dEdx * tp3.dEdx;
+      if(arg > 0) {
+        tp3.dEdxErr = sqrt(arg / (cnt - 1));
+        // convert to error on the mean
+        tp3.dEdxErr /= sqrt(cnt);
+      }
+    } // cnt > 1
+  } // FilldEdx
+
+  ////////////////////////////////////////////////
+  double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep)
+  {
+    // calculate a kink angle at the TjPt 
+    if(tp3s.empty()) return -1;
+    if(atPt < 1 || atPt > tp3s.size() - 2) return -1;
+    double sep2 = sep * sep;
+    unsigned short pt1 = USHRT_MAX;
+    for(unsigned short ii = 1; ii < tp3s.size(); ++ii) {
+      unsigned short ipt = atPt - ii;
+      if(tp3s[ipt].IsValid && PosSep2(tp3s[atPt].Pos, tp3s[ipt].Pos) > sep2) {
+        pt1 = ipt;
+        break;
+      }
+      if(ipt == 0) break;
+    } // ii
+    if(pt1 == USHRT_MAX) return -1;
+    unsigned short pt2 = USHRT_MAX;
+    for(unsigned short ii = 1; ii < tp3s.size(); ++ii) {
+      unsigned short ipt = atPt + ii;
+      if(ipt == tp3s.size()) break;
+      if(tp3s[ipt].IsValid && PosSep2(tp3s[atPt].Pos, tp3s[ipt].Pos) > sep2) {
+        pt2 = ipt;
+        break;
+      }
+    } // ii
+    if(pt2 == USHRT_MAX) return -1;
+    return DeltaAngle(tp3s[pt1].Dir, tp3s[pt2].Dir);
+  } // KinkAngle
+  
 } // namespace
