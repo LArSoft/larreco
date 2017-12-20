@@ -1274,7 +1274,7 @@ namespace tca {
     for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
       auto& vx3 = tjs.vtx3[sortVec[ii].index];
       float score = 0;
-      auto v3TjIDs = GetVtxTjIDs(tjs, vx3, score);
+      std::vector<int> v3TjIDs = GetVtxTjIDs(tjs, vx3, score);
       // flag Tjs that have a large separation from the 2D vertex
       unsigned short nfar = 0;
       for(unsigned short itj = 0; itj < v3TjIDs.size(); ++itj) {
@@ -1313,40 +1313,32 @@ namespace tca {
           if(skipit) continue;
           // Don't consider shower Tjs
           if(nstj != 0) continue;
-          // make a copy of the TjIDs so they can be sorted in increasing order so
-          // that std::set_intersection works properly
-          auto mstjids = ms.TjIDs;
-          std::sort(mstjids.begin(), mstjids.end());
-          std::vector<int> shared;
-          std::set_intersection(v3TjIDs.begin(), v3TjIDs.end(), 
-                                mstjids.begin(), mstjids.end(), std::back_inserter(shared));
-          if(shared.size() != mstjids.size()) continue;
+          std::vector<int> shared = SetIntersection(ms.TjIDs, v3TjIDs);
+          if(shared.size() != ms.TjIDs.size()) continue;
           // perfect match. Ensure that the points near the vertex are consistent
           PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
           pfp.TjIDs = shared;
           pfp.Vx3ID[0] = vx3.ID;
+          if(prt) mf::LogVerbatim("TC")<<"M3DVTj: "<<pfp.ID<<" "<<vx3.ID;
           if(!DefinePFP(tjs, pfp, prt)) continue;
           tjs.pfps.push_back(pfp);
           ms.pfpID = pfp.ID;
-          std::vector<int> leftover(v3TjIDs.size());
-          auto it = std::set_difference(v3TjIDs.begin(), v3TjIDs.end(), shared.begin(), shared.end(), leftover.begin());
-          leftover.resize(it - leftover.begin());
+          std::vector<int> leftover = SetDifference(v3TjIDs, shared);
           if(prt) {
             mf::LogVerbatim myprt("TC");
             myprt<<"nit "<<nit<<" perfect match with ims "<<ims<<" TjIDs";
-            for(auto& tjID : mstjids) myprt<<" "<<tjID;
+            for(auto tjid : ms.TjIDs) myprt<<" "<<tjid;
             myprt<<" leftover";
-            for(auto& tjID : leftover) myprt<<" "<<tjID;
+            for(auto tjid : leftover) myprt<<" "<<tjid;
           }
           // flag these Tjs as matched
-          for(auto id : mstjids) tjs.allTraj[id - 1].AlgMod[kMat3D] = true;
+          for(auto tjid : ms.TjIDs) tjs.allTraj[tjid - 1].AlgMod[kMat3D] = true;
           if(leftover.empty()) break;
           // keep looking using the leftovers
           v3TjIDs = leftover;
         } // ims
         if(nfar == 0) break;
         for(auto& id : v3TjIDs) id = abs(id);
-        std::sort(v3TjIDs.begin(), v3TjIDs.end());
       } // nit
       if(v3TjIDs.empty()) continue;
     } // ii (vx3 sorted)
