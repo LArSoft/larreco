@@ -50,27 +50,37 @@ namespace trkmkr {
 	Comment("Default momentum estimate value (all other options are set to false, or if the estimate is not available)."),
 	1.0
       };
-      fhicl::Atom<bool> momFromMCS {
-        Name("momFromMCS"),
-	Comment("Flag used to get initial momentum estimate from MCSFitResult."),
+      fhicl::Atom<bool> momFromMCSCollection {
+        Name("momFromMCSCollection"),
+	Comment("Flag used to get initial momentum estimate from MCSFitResult collection specified by mcsInputTag."),
 	false
       };
       fhicl::Atom<art::InputTag> mcsInputTag {
         Name("mcsInputTag"),
         Comment("InputTag of MCSFitResult collection.")
       };
-      fhicl::Atom<bool> momFromTagAndPid {
-        Name("momFromTagAndPid"),
-	Comment("Flag used to get initial momentum estimate from either range or mcs fit, based on particle id (from pidInputTag) and containement (from contInputTag)."),
+      fhicl::Atom<bool> momFromCombAndPid {
+        Name("momFromCombAndPid"),
+	Comment("Flag used to get initial momentum estimate from either range or mcs fit, based on particle id and containement (from contInputTag collection)."),
 	false
       };
       fhicl::Atom<art::InputTag> contInputTag {
         Name("contInputTag"),
         Comment("InputTag of CosmicTag collection for containement.")
       };
+      fhicl::Atom<bool> pidFromCollection {
+        Name("pidFromCollection"),
+	Comment("Flag used to get initial particle id estimate from ParticleID collection specified by pidInputTag."),
+	false
+      };
       fhicl::Atom<art::InputTag> pidInputTag {
         Name("pidInputTag"),
         Comment("InputTag of ParticleID collection.")
+      };
+      fhicl::Atom<double> pidFromLengthCut {
+        Name("pidFromLengthCut"),
+	Comment("Particle ID based on length: if shorted than cut is assumed to be a proton, if longer a muon; disabled if negative."),
+	-1.
       };
       fhicl::Atom<int> defaultPdgId {
 	Name("defaultPdgId"),
@@ -123,21 +133,42 @@ namespace trkmkr {
       kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().fitter);
       mcsfitter = new trkf::TrajectoryMCSFitter(p_().mcsfit);
       mom_def_ = p_().options().defaultMomInGeV();
-      momFromMCS_ = p_().options().momFromMCS();
-      if (momFromMCS_) {
+      momFromMCSColl_ = p_().options().momFromMCSCollection();
+      if (momFromMCSColl_) {
 	mcsInputTag_ = p_().options().mcsInputTag();
       }
-      momFromTagAndPid_ = p_().options().momFromTagAndPid();
-      if (momFromTagAndPid_) {
+      momFromCombAndPid_ = p_().options().momFromCombAndPid();
+      if (momFromCombAndPid_) {
 	contInputTag_ = p_().options().contInputTag();
+      }
+      pidFromColl_ = p_().options().pidFromCollection();
+      if (pidFromColl_) {
 	pidInputTag_ = p_().options().pidInputTag();
       }
+      mom_len_cut_ = p_().options().pidFromLengthCut();
       pid_def_ = p_().options().defaultPdgId();
       alwaysFlip_ = p_().options().alwaysInvertDir();
+      dirFromVec_ = p_().options().dirFromVec();
+      if (dirFromVec_) {
+	auto d = p_().options().dirVec();
+	dirVec = recob::tracking::Vector_t(d[0],d[1],d[2]);
+      }
       //
       if ( p_().options().keepInputTrajectoryPoints() && (p_().fitter().sortHitsByPlane() || p_().fitter().sortOutputHitsMinLength() || p_().fitter().skipNegProp()) ) {
 	throw cet::exception("KalmanFilterFitTrackMaker")
 	  << "Incompatible configuration parameters: keepInputTrajectoryPoints needs the following fitter options all set to false: sortHitsByPlane, sortOutputHitsMinLength, skipNegProp." << "\n";
+      }
+      if (momFromMCSColl_ && momFromCombAndPid_) {
+	throw cet::exception("KalmanFilterFitTrackMaker")
+	  << "Incompatible configuration parameters: momFromMCSCollection and momFromCombAndPid cannot be both true at the same time." << "\n";
+      }
+      if (pidFromColl_ && mom_len_cut_>0) {
+	throw cet::exception("KalmanFilterFitTrackMaker")
+	  << "Incompatible configuration parameters: pidFromCollection and pidFromLengthCut cannot be respectively true and >0. at the same time." << "\n";
+      }
+      if (alwaysFlip_ && dirFromVec_) {
+	throw cet::exception("KalmanFilterFitTrackMaker")
+	  << "Incompatible configuration parameters: alwaysInvertDir and dirFromVec cannot be both true at the same time." << "\n";
       }
       //
     }
@@ -151,9 +182,11 @@ namespace trkmkr {
 
     /// initialize event: get collection of recob::MCSFitResult
     virtual void initEvent(const art::Event& e) override {
-      if (momFromMCS_) mcs = e.getValidHandle<std::vector<recob::MCSFitResult> >(mcsInputTag_).product();
-      if (momFromTagAndPid_) {
+      if (momFromMCSColl_) mcs = e.getValidHandle<std::vector<recob::MCSFitResult> >(mcsInputTag_).product();
+      if (momFromCombAndPid_) {
 	cont = e.getValidHandle<std::vector<anab::CosmicTag> >(contInputTag_).product();
+      }
+      if (pidFromColl_) {
 	pid = e.getValidHandle<std::vector<anab::ParticleID> >(pidInputTag_).product();
       }
       return;
@@ -177,10 +210,10 @@ namespace trkmkr {
       return makeTrackImpl(track.Trajectory(), track.ID(), inHits, covs.first, covs.second, outTrack, outHits, optionals);
     }
 
-    /// set the initial momentum estimate
-    double setMomentum  (const recob::TrackTrajectory& traj, const int tkID) const;
     /// set the particle ID hypothesis
     int    setParticleID(const recob::TrackTrajectory& traj, const int tkID) const;
+    /// set the initial momentum estimate
+    double setMomentum  (const recob::TrackTrajectory& traj, const int pid, const bool isFlip, const int tkID) const;
     /// decide whether to flip the direction or not
     bool   isFlipDirection (const recob::TrackTrajectory& traj, const int tkID) const;
 
@@ -194,13 +227,17 @@ namespace trkmkr {
     const trkf::TrackStatePropagator* prop;
     const trkf::TrajectoryMCSFitter* mcsfitter;
     double mom_def_;
-    bool   momFromMCS_;
+    bool   momFromMCSColl_;
     art::InputTag mcsInputTag_;
-    bool momFromTagAndPid_;
+    bool   momFromCombAndPid_;
     art::InputTag contInputTag_;
+    bool   pidFromColl_;
     art::InputTag pidInputTag_;
+    double mom_len_cut_;
     int    pid_def_;
     bool   alwaysFlip_;
+    bool   dirFromVec_;
+    recob::tracking::Vector_t dirVec;
     const std::vector<recob::MCSFitResult>* mcs = nullptr;
     const std::vector<anab::CosmicTag>* cont = nullptr;
     const std::vector<anab::ParticleID>* pid = nullptr;
@@ -213,14 +250,14 @@ bool trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const recob::TrackTrajecto
 						      const SMatrixSym55& covVtx, const SMatrixSym55& covEnd,
 						      recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const {
   //
-  const double mom = setMomentum(traj, tkID);// what about uncertainty?
   const int    pid = setParticleID(traj, tkID);
   const bool   flipDirection = isFlipDirection(traj, tkID);
-  std::cout << "fitting track with mom=" << mom << " pid=" << pid << " flip=" << flipDirection << " start pos=" << traj.Start() << " dir=" << traj.StartDirection() << std::endl;
+  const double mom = setMomentum(traj, pid, flipDirection, tkID);// what about mom uncertainty?
+  //std::cout << "fitting track with mom=" << mom << " pid=" << pid << " flip=" << flipDirection << " start pos=" << traj.Start() << " dir=" << traj.StartDirection() << std::endl;
   bool fitok = kalmanFitter->fitTrack(traj, tkID, covVtx, covEnd, inHits, mom, pid, flipDirection, outTrack, outHits, optionals);
   if (!fitok) return false;
   //
-  std::cout << "fitted track with mom=" << outTrack.StartMomentum() << " pid=" << outTrack.ParticleId() << " flip=" << flipDirection << " start pos=" << outTrack.Start() << " dir=" << outTrack.StartDirection() << " nchi2=" << outTrack.Chi2PerNdof() << std::endl;
+  //std::cout << "fitted track with mom=" << outTrack.StartMomentum() << " pid=" << outTrack.ParticleId() << " flip=" << flipDirection << " start pos=" << outTrack.Start() << " dir=" << outTrack.StartDirection() << " nchi2=" << outTrack.Chi2PerNdof() << std::endl;
   //
   if (p_().options().keepInputTrajectoryPoints()) {
     restoreInputPoints(traj,inHits,outTrack,outHits,optionals);
@@ -229,40 +266,37 @@ bool trkmkr::KalmanFilterFitTrackMaker::makeTrackImpl(const recob::TrackTrajecto
   return true;
 }
 
-double trkmkr::KalmanFilterFitTrackMaker::setMomentum(const recob::TrackTrajectory& traj, const int tkID) const {
+double trkmkr::KalmanFilterFitTrackMaker::setMomentum(const recob::TrackTrajectory& traj, const int pid, const bool isFlip, const int tkID) const {
   double mom = mom_def_;
-  if (momFromMCS_) {
-    double mcsmom = mcs->at(tkID).fwdMomentum();
+  if (momFromMCSColl_) {
+    double mcsmom = ( isFlip ? mcs->at(tkID).bwdMomentum() : mcs->at(tkID).fwdMomentum() );
     //make sure the mcs fit converged
     if (mcsmom>0.01 && mcsmom<7.) mom = mcsmom;
   }
-  if (momFromTagAndPid_) {
+  if (momFromCombAndPid_) {
     bool isContained = cont->at(tkID).CosmicType()==anab::kNotTagged;
-    int pid = setParticleID(traj, tkID);
-    std::cout << "pid=" << pid << std::endl;
     // for now momentum from range implemented only for muons and protons
     // so treat pions as muons (~MIPs) and kaons as protons
     int pidtmp = pid;
     if (pidtmp==211 || pidtmp==13) pidtmp = 13;
     else pidtmp = 2212;
     mom = tmc.GetTrackMomentum(traj.Length(),pidtmp);
-    std::cout << "range mom=" << mom << std::endl;
     if (isContained==false) {
-      double mcsmom = mcsfitter->fitMcs(traj,pid).fwdMomentum();
-      std::cout << "mcs mom=" << mcsmom << std::endl;
+      auto mcsresult = mcsfitter->fitMcs(traj,pid);
+      double mcsmom = ( isFlip ? mcsresult.bwdMomentum() : mcsresult.fwdMomentum() );
       //make sure the mcs fit converged, also the mcsmom should not be less than the range!
       if (mcsmom>0.01 && mcsmom<7. && mcsmom>mom) mom = mcsmom;
     }
   }
-  std::cout << "resulting mom=" << mom << std::endl;
   return mom;
 }
 
 int trkmkr::KalmanFilterFitTrackMaker::setParticleID(const recob::TrackTrajectory& traj, const int tkID) const {
-  if (momFromTagAndPid_) {
-    int idfrompid = pid->at(tkID).Pdg();
-    // std::cout << "pid=" << idfrompid << " pida=" << pid->at(tkID).PIDA() << std::endl;
-    if (idfrompid!=0) return idfrompid;
+  if (pidFromColl_) {
+    return pid->at(tkID).Pdg();
+  }
+  if (mom_len_cut_>0.) {
+    return (traj.Length()<mom_len_cut_ ? 2212 : 13);
   }
   return pid_def_;
 }
@@ -270,10 +304,9 @@ int trkmkr::KalmanFilterFitTrackMaker::setParticleID(const recob::TrackTrajector
 bool trkmkr::KalmanFilterFitTrackMaker::isFlipDirection(const recob::TrackTrajectory& traj, const int tkID) const {
   if (alwaysFlip_) {
     return true;
-  } else if (p_().options().dirFromVec()) {
-    std::array<float, 3> dir = p_().options().dirVec();
+  } else if (dirFromVec_) {
     auto tdir =  traj.VertexDirection();
-    if ( (dir[0]*tdir.X() + dir[1]*tdir.Y() + dir[2]*tdir.Z())<0. ) return true;
+    if ( tdir.Dot(dirVec)<0. ) return true;
   }
   return false;
 }
