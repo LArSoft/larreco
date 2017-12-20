@@ -41,6 +41,7 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
+  
   void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   float MaxChargeAsymmetry(TjStuff& tjs, std::vector<int>& tjIDs);
@@ -50,7 +51,6 @@ namespace tca {
   int NeutrinoPrimaryTjID(const TjStuff& tjs, const Trajectory& tj);
   int PrimaryID(const TjStuff& tjs, const Trajectory& tj);
   int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp);
-  void MatVecMerge(TjStuff& tjs, std::vector<MatchStruct>& matVec,  bool prt);
   std::vector<int> MergeChain(TjStuff& tjs, std::vector<int> mergeList, bool prt);
   void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
@@ -124,9 +124,6 @@ namespace tca {
   float PointTrajSep2(float wire, float time, TrajPoint const& tp);
   float PosSep(const Point2_t& pos1, const Point2_t& pos2);
   float PosSep2(const Point2_t& pos1, const Point2_t& pos2);
-  double PosSep(const Point3_t& pos1, const Point3_t& pos2);
-  double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
-  bool SetMag(Vector3_t& v1, double mag);
   // finds the point on trajectory tj that is closest to trajpoint tp
   void TrajPointTrajDOCA(TjStuff& tjs, TrajPoint const& tp, Trajectory const& tj, unsigned short& closePt, float& minSep);
   // returns the intersection position, intPos, of two trajectory points
@@ -191,6 +188,10 @@ namespace tca {
   bool CheckWireHitRange(const TjStuff& tjs);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   bool MergeAndStore(TjStuff& tjs, unsigned int itj1, unsigned int itj2, bool doPrt);
+  template <typename T>
+  std::vector<T> SetIntersection(std::vector<T>& set1, std::vector<T>& set2);
+  template <typename T>
+  std::vector<T> SetDifference(std::vector<T>& set1, std::vector<T>& set2);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
   void PrintTrajectory(std::string someText, const TjStuff& tjs, const Trajectory& tj ,unsigned short tPoint);
@@ -207,6 +208,53 @@ namespace tca {
   std::string PrintPos(const TjStuff& tjs, const TrajPoint& tp);
   std::string PrintPos(const TjStuff& tjs, const Point2_t& pos);
   std::string PrintStopFlag(const Trajectory& tj, unsigned short end);
+  
+  ////////////////////////////////////////////////
+  template <typename T>
+  std::vector<T> SetIntersection(std::vector<T>& set1, std::vector<T>& set2)
+  {
+    // returns a vector containing the elements of set1 and set2 that are common. This function
+    // is a replacement for std::set_intersection which fails in the following situation:
+    // set1 = {11 12 17 18} and set2 = {6 12 18}
+    // There is no requirement that the elements be sorted, unlike std::set_intersection
+    std::vector<T> shared;
+    if(set1.empty() || set2.empty()) return shared;
+    for(auto element1 : set1) {
+      // check for a common element
+      if(std::find(set2.begin(), set2.end(), element1) == set2.end()) continue;
+      // check for a duplicate
+      if(std::find(shared.begin(), shared.end(), element1) != shared.end()) continue;
+      shared.push_back(element1);
+    } // element1
+    return shared;
+  } // SetIntersection
+  
+  ////////////////////////////////////////////////
+  template <typename T>
+  std::vector<T> SetDifference(std::vector<T>& set1, std::vector<T>& set2)
+  {
+    // returns the elements of set1 and set2 that are different
+    std::vector<T> different;
+    if(set1.empty() && set2.empty()) return different;
+    if(!set1.empty() && set2.empty()) return set1;
+    if(set1.empty() && !set2.empty()) return set2;
+    for(auto element1 : set1) {
+      // check for a common element
+      if(std::find(set2.begin(), set2.end(), element1) != set2.end()) continue;
+      // check for a duplicate
+      if(std::find(different.begin(), different.end(), element1) != different.end()) continue;
+      different.push_back(element1);
+    } // element1
+    for(auto element2 : set2) {
+      // check for a common element
+      if(std::find(set1.begin(), set1.end(), element2) != set1.end()) continue;
+      // check for a duplicate
+      if(std::find(different.begin(), different.end(), element2) != different.end()) continue;
+      different.push_back(element2);
+    } // element1
+    return different;
+  } // SetDifference
+
 } // namespace tca
 
 #endif // ifndef TRAJCLUSTERALGUTILS_H
