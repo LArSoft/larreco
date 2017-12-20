@@ -43,11 +43,17 @@ namespace tca {
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void SortByDistanceFromStart(TjStuff& tjs, PFPStruct& pfp);
   void CheckTp3Validity(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  bool FitTp3(TjStuff& tjs, std::vector<TrajPoint3> tp3s, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint3& outTp3);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, std::vector<MatchStruct>& matVec, bool prt);
-  bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, Tp3Struct& tp3);
+  bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3);
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2);
   inline double DotProd(const Vector3_t& v1, const Vector3_t& v2) {return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]; }
   Vector3_t PointDirection(const Point3_t p1, const Point3_t p2);
+  double PosSep(const Point3_t& pos1, const Point3_t& pos2);
+  double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
+  bool SetMag(Vector3_t& v1, double mag);
+  void FilldEdx(TjStuff& tjs, TrajPoint3& tp3);
+  double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep);
   
 } // namespace tca
 
