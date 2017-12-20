@@ -10,7 +10,6 @@ bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 
 namespace tca {
   
-
   /////////////////////////////////////////
   void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
@@ -545,136 +544,6 @@ namespace tca {
     }
   } // PrimaryID
 
-  /* This code does some damage to neutrino trajectories so turn it off
-  /////////////////////////////////////////
-  void MatVecMerge(TjStuff& tjs, std::vector<MatchStruct>& matVec,  bool prt)
-  {
-    // Inspect the matVec vector to identify and merge broken Tjs. This function is
-    // written for 3-plane TPCs. Restrict its use to long muons for now
-    
-    if(!tjs.UseAlg[kMergeChain]) return;
-    if(matVec.size() < 1) return;
-    
-    for(unsigned short im1 = 0; im1 < matVec.size() - 1; ++im1) {
-      auto& ms1 = matVec[im1];
-      if(ms1.Count < 3) continue;
-      if(ms1.TjIDs.size() == 2) continue;
-      if(ms1.MatchFrac < 0.2) continue;
-      if(PDGCodeVote(tjs, ms1.TjIDs, prt) != 13) continue;
-      // make a copy and sort so we can use set_difference
-      auto tjid1 = ms1.TjIDs;
-      std::sort(tjid1.begin(), tjid1.end());
-      // do a QC check
-      bool skipit = false;
-      for(auto tjid : tjid1) {
-        auto& tj = tjs.allTraj[tjid - 1];
-        if(tj.AlgMod[kKilled] || tj.AlgMod[kMergeChain]) {
-          std::cout<<"QC check found a problem. Skip matVec entry "<<im1<<"\n";
-          skipit = true;
-        }
-      } // tjid
-      if(skipit) continue;
-      unsigned short minCount = 0.1 * ms1.Count;
-      std::vector<int> mergeList;
-      for(unsigned short im2 = im1 + 1; im2 < matVec.size(); ++im2) {
-        auto& ms2 = matVec[im2];
-        if(ms2.Count < minCount) break;
-        if(ms2.TjIDs.size() == 2) continue;
-        if(ms2.MatchFrac < 0.2) continue;
-        bool muon = false;
-        // require one of these to be a muon
-        for(auto tjid : ms2.TjIDs) {
-          auto& tj = tjs.allTraj[tjid - 1];
-          if(tj.PDGCode == 13) muon = true;
-        }
-        if(!muon) continue;
-        // make a copy and sort so we can use set_difference
-        auto tjid2 = ms2.TjIDs;
-        std::sort(tjid2.begin(), tjid2.end());
-        // look for two common Tjs
-        std::vector<int> common;
-        std::set_intersection(tjid1.begin(), tjid1.end(), tjid2.begin(), tjid2.end(), std::back_inserter(common));
-        if(common.size() != 2) continue;
-        // look for the difference in the first
-        std::vector<int> btj1(tjid1.size());
-        auto it1 = std::set_difference(tjid1.begin(), tjid1.end(), common.begin(), common.end(), btj1.begin());
-        btj1.resize(it1 - btj1.begin());
-        if(btj1.size() != 1) continue;
-        // and in the second
-        std::vector<int> btj2(tjid1.size());
-        auto it2 = std::set_difference(tjid2.begin(), tjid2.end(), common.begin(), common.end(), btj2.begin());
-        btj2.resize(it2 - btj2.begin());
-        if(btj2.size() != 1) continue;
-        // get references to these Tjs
-        auto& tj1 = tjs.allTraj[btj1[0] - 1];
-        // ensure that it isn't already matched
-        if(tj1.AlgMod[kMat3D] || tj1.AlgMod[kKilled]) continue;
-        auto& tj2 = tjs.allTraj[btj2[0] - 1];
-        if(tj2.AlgMod[kMat3D] || tj2.AlgMod[kKilled]) continue;
-        int commonPDGCode = PDGCodeVote(tjs, common, prt);
-        if(prt) {
-          mf::LogVerbatim myprt("TC");
-          myprt<<"MVM: "<<im1<<" "<<im2<<" common";
-          for(auto tjid : common) myprt<<" "<<tjid;
-          myprt<<" ChgAsym "<<MaxChargeAsymmetry(tjs, common);
-          myprt<<" PDGCode "<<commonPDGCode;
-          myprt<<" merge "<<btj1[0]<<" PDGCode "<<PDGCodeVote(tjs, btj1, prt);
-          myprt<<" and "<<btj2[0]<<" PDGCode "<<PDGCodeVote(tjs, btj2, prt);
-        }
-        if(std::find(mergeList.begin(), mergeList.end(), btj1[0]) == mergeList.end()) mergeList.push_back(btj1[0]);
-        if(std::find(mergeList.begin(), mergeList.end(), btj2[0]) == mergeList.end()) mergeList.push_back(btj2[0]);
-      } // im2
-      if(mergeList.size() < 2) continue;
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<" mergeList";
-        for(auto tjid : mergeList) myprt<<" "<<tjid;
-      }
-      // merge this chain of Tjs and return with a list of merged Tjs. Hopefully only one.
-      auto mergedList = MergeChain(tjs, mergeList, prt);
-      // a failure occurred. TODO: Add some error recovery here
-      if(mergedList.size() != 1) continue;
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"MergeChain success. Tjs in";
-        for(auto tjid : mergeList) myprt<<" "<<tjid;
-        myprt<<" Tjs out";
-        for(auto tjid : mergedList) myprt<<" "<<tjid;
-      }
-      // correct the current matVec entry
-      for(auto ktjid : mergeList) std::replace(ms1.TjIDs.begin(), ms1.TjIDs.end(), ktjid, mergedList[0]);
-      // Declare later entries invalid if they reference killed trajectories
-      for(unsigned short im2 = im1 + 1; im2 < matVec.size(); ++im2) {
-        auto& ms2 = matVec[im2];
-        if(ms2.Count == 0) continue;
-        for(auto ktjid : mergeList) {
-          if(std::find(ms2.TjIDs.begin(), ms2.TjIDs.end(), ktjid) != ms2.TjIDs.end()) ms2.Count = 0;
-        } // ktjid
-      } // im2
-      // correct mallTraj
-      auto& ntj = tjs.allTraj[mergedList[0] - 1];
-      unsigned short npts = NumPtsWithCharge(tjs, ntj, false);
-      // convert Tj IDs to unsigned to simplify the comparison
-      std::vector<unsigned short> uslist(mergeList.size());
-      for(unsigned short ii = 0; ii < mergeList.size(); ++ii) uslist[ii] = mergeList[ii];
-      for(auto& tj2pt : tjs.mallTraj) {
-        // see if this point is in one of the Tjs that was merged
-        if(std::find(uslist.begin(), uslist.end(), tj2pt.id) == uslist.end()) continue;
-        // correct the ID
-        // This assumes that all Tjs were merged into one
-        tj2pt.id = mergedList[0];
-        // Find the point and correct the index
-        for(unsigned short ipt = ntj.EndPt[0]; ipt <= ntj.EndPt[1]; ++ipt) {
-          unsigned int wire = std::nearbyint(ntj.Pts[ipt].Pos[0]);
-          if(wire != tj2pt.wire) continue;
-          tj2pt.ipt = ipt;
-          break;
-        } // ipt
-        tj2pt.npts = npts;
-      } // tj2pt
-    } // im1
-  } // MatVecMerge
-*/
   /////////////////////////////////////////
   std::vector<int> MergeChain(TjStuff& tjs, std::vector<int> mergeList, bool prt)
   {
@@ -1000,24 +869,28 @@ namespace tca {
       myprt<<" TC space points\n";
       for(unsigned short ipt = 0; ipt < pfp.Tp3s.size(); ++ipt) {
         auto tp3 = pfp.Tp3s[ipt];
-        myprt<<ipt<<" pos ";
-        myprt<<" "<<std::fixed<<std::setprecision(1)<<tp3.Pos[0]<<" "<<tp3.Pos[1]<<" "<<tp3.Pos[2];
-        myprt<<ipt<<" dir ";
-        myprt<<" "<<std::fixed<<std::setprecision(3)<<tp3.Dir[0]<<" "<<tp3.Dir[1]<<" "<<tp3.Dir[2];
+        myprt<<std::setw(3)<<ipt<<" pos ";
+        myprt<<" "<<std::fixed<<std::setprecision(1);
+        myprt<<std::setw(6)<<tp3.Pos[0]<<std::setw(6)<<tp3.Pos[1]<<std::setw(6)<<tp3.Pos[2];
+        myprt<<" sep "<<std::setprecision(1)<<std::setw(5)<<PosSep(tp3.Pos, pfp.Tp3s[0].Pos);
+        float sep2 = -1;
+        if(ipt > 0) sep2 = PosSep(tp3.Pos, pfp.Tp3s[ipt - 1].Pos);
+        myprt<<" sep2 "<<std::setprecision(2)<<std::setw(5)<<sep2;
+        myprt<<" dir ";
+        myprt<<" "<<std::setprecision(3)<<std::setw(7)<<tp3.Dir[0]<<std::setw(7)<<tp3.Dir[1]<<std::setw(7)<<tp3.Dir[2];
+        myprt<<" dEdx "<<std::setw(4)<<std::setprecision(1)<<tp3.dEdx;
+        myprt<<" Err "<<std::setw(4)<<std::setprecision(1)<<tp3.dEdxErr;
+        myprt<<" IsValid? "<<tp3.IsValid;
+        // Calculate the kink angle at point ipt, using the two points that are
+        // +/- 1 cm on either side of that point
+        double sep = 1;
+        myprt<<" kinkAngle "<<std::setprecision(3)<<std::setw(7)<<KinkAngle(tjs, pfp.Tp3s, ipt, sep);
         myprt<<" tj_ipt";
         for(auto tj2pt : tp3.Tj2Pts) {
           auto& tj = tjs.allTraj[tj2pt.id - 1];
           auto& tp = tj.Pts[tj2pt.ipt];
           myprt<<" "<<tj.ID<<"_"<<PrintPos(tjs, tp);
-        } // matIndex
-        myprt<<" Chg "<<(int)tp3.Chg;
-        myprt<<" IsValid? "<<tp3.IsValid;
-        if(ipt > 0) {
-          myprt<<" dang1 "<<DeltaAngle(pfp.Tp3s[ipt].Dir, pfp.Tp3s[ipt-1].Dir);
-          auto dir = PointDirection(pfp.Tp3s[0].Pos, pfp.Tp3s[ipt].Pos);
-          myprt<<" dir2 "<<std::fixed<<std::setprecision(3)<<dir[0]<<" "<<dir[1]<<" "<<dir[2];
-          myprt<<" dang2 "<<DeltaAngle(pfp.Tp3s[ipt].Dir, dir);
-        }
+        } // tj2pt
         myprt<<"\n";
       } // ipt
     } // prt
@@ -2833,35 +2706,6 @@ namespace tca {
     float d1 = pos1[1] - pos2[1];
     return d0*d0+d1*d1;
   } // PosSep2
-
-  //////////////////////////////////////////
-  double PosSep(const Point3_t& pos1, const Point3_t& pos2)
-  {
-    return sqrt(PosSep2(pos1, pos2));
-  } // PosSep
-  
-  //////////////////////////////////////////
-  double PosSep2(const Point3_t& pos1, const Point3_t& pos2)
-  {
-    // returns the separation distance^2 between two positions in 3D
-    double d0 = pos1[0] - pos2[0];
-    double d1 = pos1[1] - pos2[1];
-    double d2 = pos1[2] - pos2[2];
-    return d0*d0 + d1*d1 + d2*d2;
-  } // PosSep2
-
-  //////////////////////////////////////////
-  bool SetMag(Vector3_t& v1, double mag)
-  {
-    double den = v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2];
-    if(den == 0) return false;
-    den = sqrt(den);
-      
-    v1[0] *= mag / den;
-    v1[1] *= mag / den;
-    v1[2] *= mag / den;
-    return true;
-  } // SetMag
   
   //////////////////////////////////////////
   float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2)
@@ -4594,7 +4438,7 @@ namespace tca {
     
     mf::LogVerbatim myprt("TC");
     myprt<<someText;
-    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG  MCP Par Prim E*P\n";
+    myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG TruPDG Par Prim E*P\n";
     unsigned short indx = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
@@ -4627,10 +4471,10 @@ namespace tca {
       // global stuff
       myprt<<std::setw(5)<<pfp.BestPlane;
       myprt<<std::setw(6)<<pfp.PDGCode;
-      if(pfp.MCPartListIndex < tjs.pfps.size()) {
-        myprt<<std::setw(5)<<pfp.MCPartListIndex;
+      if(pfp.MCPartListIndex < tjs.MCPartList.size()) {
+        myprt<<std::setw(6)<<tjs.MCPartList[pfp.MCPartListIndex]->PdgCode();
       } else {
-        myprt<<"   NA";
+        myprt<<"    NA";
       }
       myprt<<std::setw(4)<<pfp.ParentID;
       myprt<<std::setw(5)<<PrimaryID(tjs, pfp);
