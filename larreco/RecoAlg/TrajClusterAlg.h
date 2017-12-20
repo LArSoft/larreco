@@ -93,8 +93,6 @@ namespace tca {
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
     
-    static bool SortByMultiplet(TCHit const& a, TCHit const& b);
-    
     /// Deletes all the results
     void ClearResults();
     
@@ -106,6 +104,7 @@ namespace tca {
     
     art::InputTag fSpacePointModuleLabel; ///< label of module producing space points
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
+    art::InputTag fHitTruthModuleLabel; ///< label of module producing MCParticle -> hit associations
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
@@ -208,7 +207,9 @@ namespace tca {
     bool fKalmanFilterFit;
     trkf::TrackStatePropagator prop;
     trkf::TrackKalmanFitter kalmanFitter;
-    
+
+    static bool SortByMultiplet(TCHit const& a, TCHit const& b);
+
 //    short watchInTraj;
     // runs the TrajCluster algorithm on one plane specified by the calling routine
     void RunStepCrawl();
@@ -305,14 +306,13 @@ namespace tca {
     // TY: Split high charge hits near the trajectory end
     void ChkHiChgHits(CTP_t inCTP);
     void SplitHiChgHits(Trajectory& tj);
-      // ****************************** 3D Tj matching code  ******************************
+
     void Match3D(const art::Event& evt, const geo::TPCID& tpcid);
     void GetSpacePointCollection(const art::Event& evt);
-
+    void GetHitCollection(const art::Event& evt);
     
     void KalmanFilterFit(PFPStruct& pfp);
   }; // class TrajClusterAlg
-
 
 } // namespace cluster
 
