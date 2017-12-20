@@ -150,7 +150,7 @@ namespace tca {
     // HitPosErr2 < 0 = HitPos not defined because no hits used
     double Ang {0};                // Trajectory angle (-pi, +pi)
     double AngErr {0.1};             // Trajectory angle error
-    float Chg {0};                // Charge
+    float Chg {0};                // Chargetj2pt
     float AveChg {-1};             // Average charge of last ~20 TPs
     float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
     float Delta {0};              // Deviation between trajectory and hits (WSE)
@@ -182,7 +182,7 @@ namespace tca {
     unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
-    unsigned short MCPartListIndex {USHRT_MAX};
+    unsigned int MCPartListIndex {UINT_MAX};
     unsigned short NNeighbors {0};    /// number of neighbors within window defined by ShowerTag
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
   };
@@ -204,15 +204,16 @@ namespace tca {
     unsigned short Multiplicity {1};
     unsigned short LocalIndex {0};
     int InTraj {0};
-    unsigned short MCPartListIndex {USHRT_MAX};
+    unsigned int MCPartListIndex {UINT_MAX};
   };
   
   // struct used for TrajCluster 3D trajectory points
-  struct Tp3Struct {
+  struct TrajPoint3 {
     Point3_t Pos {0};
     Vector3_t Dir {0};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
-    float Chg {0};
+    float dEdx {0};
+    float dEdxErr {1};
     bool IsValid {true};     // Is consistent with the position/angle of nearby space points
   };
   
@@ -236,7 +237,7 @@ namespace tca {
   
   struct PFPStruct {
     std::vector<int> TjIDs;
-    std::vector<Tp3Struct> Tp3s;    // TrajCluster 3D trajectory points
+    std::vector<TrajPoint3> Tp3s;    // TrajCluster 3D trajectory points
     recob::Track Track;
     // Start is 0, End is 1
     std::array<Point3_t, 2> XYZ;        // XYZ position at both ends (cm)
@@ -252,7 +253,7 @@ namespace tca {
     size_t ParentID {0};       // Parent PFP ID (or ID of self if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
-    unsigned short MCPartListIndex {USHRT_MAX};
+    unsigned int MCPartListIndex {UINT_MAX};
     float CosmicScore{0};
     unsigned short ID {0};
     bool Primary;             // PFParticle is attached to a primary vertex
