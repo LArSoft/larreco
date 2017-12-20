@@ -12,7 +12,11 @@
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/TCSpacePtUtils.h"
+#include "canvas/Persistency/Common/FindMany.h"
 #include "canvas/Persistency/Common/FindManyP.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
 
 class TH1F;
 class TH2F;
@@ -27,6 +31,17 @@ bool valDecreasing (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
 bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 
 namespace tca {
+  
+  bool TrajClusterAlg::SortByMultiplet(TCHit const& a, TCHit const& b)
+  {
+    // compare the wire IDs first:
+    int cmp_res = a.ArtPtr->WireID().cmp(b.ArtPtr->WireID());
+    if (cmp_res != 0) return cmp_res < 0; // order is decided, unless equal
+    // decide by start time
+    if (a.StartTick != b.StartTick) return a.StartTick < b.StartTick;
+    // if still undecided, resolve by local index
+    return a.LocalIndex < b.LocalIndex; // if still unresolved, it's a bug!
+  } // SortByMultiplet
 
   //------------------------------------------------------------------------------
 
@@ -41,24 +56,14 @@ namespace tca {
     hist.CreateHists(*tfs);
     tm.Initialize();
   }
-  
-  bool TrajClusterAlg::SortByMultiplet(TCHit const& a, TCHit const& b)
-  {
-    // compare the wire IDs first:
-    int cmp_res = a.ArtPtr->WireID().cmp(b.ArtPtr->WireID());
-    if (cmp_res != 0) return cmp_res < 0; // order is decided, unless equal
-    // decide by start time
-    if (a.StartTick != b.StartTick) return a.StartTick < b.StartTick;
-    // if still undecided, resolve by local index
-    return a.LocalIndex < b.LocalIndex; // if still unresolved, it's a bug!
-  } // SortByMultiplet
 
   //------------------------------------------------------------------------------
   void TrajClusterAlg::reconfigure(fhicl::ParameterSet const& pset)
   {
 
     bool badinput = false;
-    fHitFinderModuleLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
+    fHitFinderModuleLabel  = pset.get<art::InputTag>("HitFinderModuleLabel");
+    fHitTruthModuleLabel   = pset.get<art::InputTag>("HitTruthModuleLabel", "NA");
     fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel", "NA");
     fMakeNewHits          = pset.get< bool >("MakeNewHits", true);
     fMode                 = pset.get< short >("Mode", 1);
@@ -304,89 +309,21 @@ namespace tca {
 
     fIsRealData = evt.isRealData();
     
-    // Get the hits
-    art::ValidHandle< std::vector<recob::Hit>> hitVecHandle = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderModuleLabel);
-
-    ++tjs.EventsProcessed;
-    if(hitVecHandle->size() < 3) return;
-    
     // a gratuitous clearing of everything before we start
     ClearResults();
+    
+    // Get the hits and associations
+    GetHitCollection(evt);
+    if(tjs.fHits.empty()) {
+      ++tjs.EventsProcessed;
+      return;
+    }
  
     tjs.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tjs.geom = lar::providerFrom<geo::Geometry>();
     
-    tjs.fHits.reserve(hitVecHandle->size());
-    
-    // transfer the hits into the local vector so we can modify them
-//    float minAmp = fMinAmp;
-//    if(fMinAmp < 0) minAmp = 0;
-    for(unsigned int iht = 0; iht < hitVecHandle->size(); ++iht) {
-      art::Ptr<recob::Hit> hit = art::Ptr<recob::Hit>(hitVecHandle, iht);
-      // Look for a hit with negative amplitude. 
-      // This will screw up th associations between space points and hits
-//      if(hit->PeakAmplitude() < minAmp) continue;
-      TCHit localHit;
-      localHit.StartTick = hit->StartTick();
-      localHit.EndTick = hit->EndTick();
-      localHit.PeakTime = hit->PeakTime();
-      localHit.SigmaPeakTime = hit->SigmaPeakTime();
-      localHit.PeakAmplitude = hit->PeakAmplitude();
-      localHit.SigmaPeakAmp = hit->SigmaPeakAmplitude();
-      localHit.Integral = hit->Integral();
-      localHit.SigmaIntegral = hit->SigmaIntegral();
-      localHit.RMS = hit->RMS();
-      localHit.GoodnessOfFit = hit->GoodnessOfFit();
-      localHit.NDOF = hit->DegreesOfFreedom();
-      localHit.Multiplicity = hit->Multiplicity();
-      localHit.LocalIndex = hit->LocalIndex();
-      localHit.ArtPtr = hit;
-      tjs.fHits.push_back(localHit);
-    } // iht
-
-    // sort it as needed;
-    // that is, sorted by wire ID number,
-    // then by start of the region of interest in time, then by the multiplet
-    std::sort(tjs.fHits.begin(), tjs.fHits.end(), &SortByMultiplet);
-    
-    bool useSpacePts = (fSpacePointModuleLabel != "NA");
-    
-    // check the hits for local index errors
-    unsigned short nerr = 0;
-    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-      // See if the sort changed the order of the hits. This would create a difference
-      // between the fHits index and the ArtPtr key. We will rely on this correspondence
-      // later when associating space points with trajectories
-      if(useSpacePts && iht != tjs.fHits[iht].ArtPtr.key()) {
-        std::cout<<"Hit order was changed after sorting. Turned off matching using SpacePoints.\n";
-        tjs.UseAlg[kHitsOrdered] = false;
-        useSpacePts = false;
-      }
-      if(tjs.fHits[iht].Multiplicity < 2) continue;
-      auto& iHit = tjs.fHits[iht];
-      bool badHit = false;
-      unsigned int fromIndex = iht - iHit.LocalIndex;
-      unsigned short indx = 0;
-      for(unsigned int jht = fromIndex; jht < fromIndex + iHit.Multiplicity; ++jht) {
-        auto& jHit = tjs.fHits[jht];
-        if(iHit.Multiplicity != jHit.Multiplicity) badHit = true;
-        if(iHit.LocalIndex != indx) badHit = true;
-        ++indx;
-      } // jht
-      if(badHit) {
-        ++nerr;
-        for(unsigned int jht = fromIndex; jht < fromIndex + iHit.Multiplicity; ++jht) {
-          auto& jHit = tjs.fHits[jht];
-          jHit.Multiplicity = 1;
-          jHit.LocalIndex = 0;
-        } // jht
-      }
-    } // iht
-//    if(nerr > 0) std::cout<<"Found "<<nerr<<" hit indexing errors\n";
-    
-    // Match these hits to MC tracks
-    if(!fIsRealData) tm.MatchTrueHits(hist);
-    
+    bool useSpacePts = (fSpacePointModuleLabel != "NA") && tjs.UseAlg[kHitsOrdered];
+   
     // Look for a space point collection that uses these hits
     if(useSpacePts) GetSpacePointCollection(evt);
 
@@ -1521,7 +1458,7 @@ namespace tca {
     // inverse of the path length for normalizing hit charge to 1 WSE unit
     float pathInv = std::abs(tp.Dir[0]);
     if(pathInv < 0.05) pathInv = 0.05;
-   
+    
     // Find the hit that has the smallest delta and the number of available hits
     tp.Delta = maxDelta;
     float delta;
@@ -1931,12 +1868,10 @@ namespace tca {
     
     tp.HitPos[0] = newpos[0] / tp.Chg;
     tp.HitPos[1] = newpos[1] * tjs.UnitsPerTick / tp.Chg;
-    
     // Normalize to 1 WSE path length
     float pathInv = std::abs(tp.Dir[0]);
     if(pathInv < 0.05) pathInv = 0.05;
     tp.Chg *= pathInv;
-    
     // Error is the wire error (1/sqrt(12))^2 if all hits are on one wire.
     // Scale it by the wire range
     float dWire = 1 + hiWire - loWire;
@@ -2492,11 +2427,6 @@ namespace tca {
       } // ii
     } // prt
     
-    // try to merge Tjs in the match vector. This does more damage than good for
-    // BNB neutrinos but it does provide some benefit to merge broken cosmic ray tjs
-//    MatVecMerge(tjs, matVec, prt);
-    
-    
     // put the maybe OK matches into tjs
     for(auto& ms : matVec) {
       if(ms.Count < 2) continue;
@@ -2521,7 +2451,7 @@ namespace tca {
     // Start with Tjs attached to 3D vertices
     Match3DVtxTjs(tjs, tpcid, prt);
     
-    // Re-check matchVec with the user cut matchfrac cut to reduce poor combinations
+    // Re-check matchVec with the user cut matchfrac cut to eliminate poor combinations
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
       auto& ms = tjs.matchVec[indx];
       if(ms.Count == 0) continue;
@@ -4964,6 +4894,8 @@ namespace tca {
     if(!tjs.UseAlg[kVtxTj]) return;
     
     if(vx2.Stat[kVtxTrjTried]) return;
+    // ignore low score
+    if(vx2.Score < tjs.Vertex2DCuts[7]) return;
     
     std::array<int, 2> wireWindow;
     std::array<float, 2> timeWindow;
@@ -5050,7 +4982,7 @@ namespace tca {
       if(fQuitAlg) return;
       // Check the quality of the trajectory
       CheckTraj(tj);
-      if(!fGoodTraj || NumPtsWithCharge(tjs, tj, true) < fMinPts[tj.Pass]) {
+      if(!fGoodTraj || NumPtsWithCharge(tjs, tj, true) < 2) {
         if(prt) mf::LogVerbatim("TC")<<" xxxxxxx Not enough points "<<NumPtsWithCharge(tjs, tj, true)<<" minimum "<<fMinPts[tj.Pass]<<" or !fGoodTraj";
         ReleaseHits(tjs, tj);
         continue;
@@ -5932,7 +5864,7 @@ namespace tca {
     }
   }
 
-
+  /////////////////////////////////////////
   void TrajClusterAlg::DefineShTree(TTree* t) {
     showertree = t;
 
@@ -5972,6 +5904,7 @@ namespace tca {
 
   } // end DefineShTree
 
+  /////////////////////////////////////////
   void TrajClusterAlg::DefineCRTree(TTree *t){
     crtree = t;
     crtree->Branch("run", &tjs.Run, "run/I");
@@ -5982,5 +5915,112 @@ namespace tca {
     crtree->Branch("cr_pfpxmax", &tjs.crt.cr_pfpxmax);
     crtree->Branch("cr_pfpyzmindis", &tjs.crt.cr_pfpyzmindis);
   }
+  
+  /////////////////////////////////////////
+  void TrajClusterAlg::GetHitCollection(const art::Event& evt)
+  {
+    // Puts the hits and MCParticles into TjStuff
+    tjs.fHits.clear();
+    tjs.MCPartList.clear();
+    art::ValidHandle< std::vector<recob::Hit>> hitVecHandle = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderModuleLabel);
+    if(hitVecHandle->size() < 2) return;
+    tjs.fHits.reserve(hitVecHandle->size());
+    
+    for(unsigned int iht = 0; iht < hitVecHandle->size(); ++iht) {
+      art::Ptr<recob::Hit> hit = art::Ptr<recob::Hit>(hitVecHandle, iht);
+      TCHit localHit;
+      localHit.StartTick = hit->StartTick();
+      localHit.EndTick = hit->EndTick();
+      localHit.PeakTime = hit->PeakTime();
+      localHit.SigmaPeakTime = hit->SigmaPeakTime();
+      localHit.PeakAmplitude = hit->PeakAmplitude();
+      localHit.SigmaPeakAmp = hit->SigmaPeakAmplitude();
+      localHit.Integral = hit->Integral();
+      localHit.SigmaIntegral = hit->SigmaIntegral();
+      localHit.RMS = hit->RMS();
+      localHit.GoodnessOfFit = hit->GoodnessOfFit();
+      localHit.NDOF = hit->DegreesOfFreedom();
+      localHit.Multiplicity = hit->Multiplicity();
+      localHit.LocalIndex = hit->LocalIndex();
+      localHit.ArtPtr = hit;
+      tjs.fHits.push_back(localHit);
+    } // iht
+    
+    // sort it as needed;
+    // that is, sorted by wire ID number,
+    // then by start of the region of interest in time, then by the multiplet
+    std::sort(tjs.fHits.begin(), tjs.fHits.end(), &SortByMultiplet);
+    
+    // check the hits for local index errors
+    unsigned short nerr = 0;
+    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+      // See if the sort changed the order of the hits. This would create a difference
+      // between the fHits index and the ArtPtr key. We will rely on this correspondence
+      // later when associating space points with trajectories
+      if(iht != tjs.fHits[iht].ArtPtr.key()) {
+        std::cout<<"Hit order was changed after sorting. Turned off matching using SpacePoints.\n";
+        tjs.UseAlg[kHitsOrdered] = false;
+      }
+      if(tjs.fHits[iht].Multiplicity < 2) continue;
+      auto& iHit = tjs.fHits[iht];
+      bool badHit = false;
+      unsigned int fromIndex = iht - iHit.LocalIndex;
+      unsigned short indx = 0;
+      for(unsigned int jht = fromIndex; jht < fromIndex + iHit.Multiplicity; ++jht) {
+        auto& jHit = tjs.fHits[jht];
+        if(iHit.Multiplicity != jHit.Multiplicity) badHit = true;
+        if(iHit.LocalIndex != indx) badHit = true;
+        ++indx;
+      } // jht
+      if(badHit) {
+        ++nerr;
+        for(unsigned int jht = fromIndex; jht < fromIndex + iHit.Multiplicity; ++jht) {
+          auto& jHit = tjs.fHits[jht];
+          jHit.Multiplicity = 1;
+          jHit.LocalIndex = 0;
+        } // jht
+      }
+    } // iht
+    
+    if(evt.isRealData()) return;
+
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    sim::ParticleList const& plist = pi_serv->ParticleList();
+    if(plist.empty()) return;
+    // save all MCParticles in TjStuff
+    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+      tjs.MCPartList.push_back((*ipart).second);
+    } // ipart
+    
+    if(tjs.MCPartList.size() > USHRT_MAX) {
+      std::cout<<"MCPartList size "<<tjs.MCPartList.size()<<" too large. Truncated to USHRT_MAX.\n";
+      tjs.MCPartList.resize(USHRT_MAX);
+    }
+    
+    art::FindMany<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(hitVecHandle, evt, fHitTruthModuleLabel);
+    std::vector<simb::MCParticle const*> particle_vec;
+    std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
+
+    // associate a hit with a MCParticle > 50% of the deposited energy is from it
+    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+      particle_vec.clear(); match_vec.clear();
+      particles_per_hit.get(iht, particle_vec, match_vec);
+      int trackID = 0;
+      for(unsigned short im = 0; im < match_vec.size(); ++im) {
+        if(match_vec[im]->ideFraction < 0.5) continue;
+        trackID = particle_vec[im]->TrackId();
+        break;
+      } // im
+      if(trackID == 0) continue;
+      // look for this in MCPartList
+      for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
+        auto& mcp = tjs.MCPartList[ipart];
+        if(mcp->TrackId() != trackID) continue;
+        tjs.fHits[iht].MCPartListIndex = ipart;
+        break;
+      } // ipart
+    } // iht
+    
+  } // GetHitCollection
 
 } // namespace cluster
