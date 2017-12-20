@@ -607,7 +607,7 @@ namespace tca {
         if(jplaneID.Cryostat != tpcid.Cryostat) continue;
         if(jplaneID.TPC != tpcid.TPC) continue;
         Trajectory& jstj = tjs.allTraj[jss.ShowerTjID - 1];
-        Tp3Struct tp3;
+        TrajPoint3 tp3;
         MakeTp3(tjs, istj.Pts[0], jstj.Pts[0], tp3);
 /*
         TVector3 posij, dirij;
@@ -649,7 +649,7 @@ namespace tca {
           if(kplaneID.Cryostat != tpcid.Cryostat) continue;
           if(kplaneID.TPC != tpcid.TPC) continue;
           Trajectory& kstj = tjs.allTraj[kss.ShowerTjID - 1];
-          Tp3Struct iktp3;
+          TrajPoint3 iktp3;
           MakeTp3(tjs, istj.Pts[0], kstj.Pts[0], iktp3);
 /*
           TVector3 posik, dirik;
@@ -1376,9 +1376,9 @@ namespace tca {
       // Find the MC particle that matches with these InShower Tjs
       MCParticleListUtils tm{tjs};
       unsigned short nTruHits;
-      unsigned short mcpIndex = tm.GetMCPartListIndex(ss, nTruHits);
+      unsigned int mcpIndex = tm.GetMCPartListIndex(ss, nTruHits);
       // Find the Tj that is closest to the start of this MC Particle
-      if(mcpIndex != USHRT_MAX) ss.TruParentID = tm.MCParticleStartTjID(mcpIndex, ss.CTP);
+      if(mcpIndex != UINT_MAX) ss.TruParentID = tm.MCParticleStartTjID(mcpIndex, ss.CTP);
     }
 
     return true;
@@ -1691,9 +1691,9 @@ namespace tca {
       // get the truth if it exists
       MCParticleListUtils tm{tjs};
       unsigned short nTruHits;
-      unsigned short mcpIndex = tm.GetMCPartListIndex(ss, nTruHits);
+      unsigned int mcpIndex = tm.GetMCPartListIndex(ss, nTruHits);
       // Find the Tj that is closest to the start of this MC Particle
-      if(mcpIndex != USHRT_MAX) ss.TruParentID = tm.MCParticleStartTjID(mcpIndex, ss.CTP);
+      if(mcpIndex != UINT_MAX) ss.TruParentID = tm.MCParticleStartTjID(mcpIndex, ss.CTP);
     }
 
     // set the start vertex
@@ -2060,9 +2060,7 @@ namespace tca {
         if(ss2.CTP != inCTP) continue;
         if(ss2.ID == 0) continue;
         if(ss2.TjIDs.empty()) continue;
-        std::vector<int> shared;
-        std::set_intersection(ss1.NearTjIDs.begin(), ss1.NearTjIDs.end(), 
-                              ss2.NearTjIDs.begin(), ss2.NearTjIDs.end(), std::back_inserter(shared));
+        std::vector<int> shared = SetIntersection(ss1.NearTjIDs, ss2.NearTjIDs);
         if(shared.empty()) continue;
         if(prt) {
           mf::LogVerbatim myprt("TC");
