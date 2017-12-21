@@ -219,7 +219,7 @@ namespace tca {
     // that will be used to measure performance
     std::vector<unsigned int> mcpSelect;
     int sourceParticleIndex = -1;
-    geo::TPCID inTPCID;
+    geo::TPCID inTPCID = tjs.TPCID;
     for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
       auto& mcp = tjs.MCPartList[part];
       int trackID = mcp->TrackId();
@@ -230,15 +230,6 @@ namespace tca {
       // ignore neutrinos that aren't primary
       if(isNeutrino && sourceParticleIndex >= 0) continue;
       if(isNeutrino && originNeutrino && sourceParticleIndex < 0) {
-        // Found the primary neutrino. See if it is inside the TPC
-        // TODO: This will fail for multi-TPC detectors...
-        neutrinoVxInFiducialVolume = (mcp->Vx() > tjs.XLo && mcp->Vx() < tjs.XHi &&
-                                      mcp->Vy() > tjs.YLo && mcp->Vy() < tjs.YHi &&
-                                      mcp->Vz() > tjs.ZLo && mcp->Vz() < tjs.ZHi);
-        if(!neutrinoVxInFiducialVolume) {
-          if(tjs.MatchTruth[1] > 0) std::cout<<"Neutrino vertex is outside the TPC\n";
-          return;
-        }
         sourceParticleIndex = part;
         continue;
       } // primary neutrino
@@ -255,8 +246,9 @@ namespace tca {
         PrimVtx[2] = mcp->Vz();
         // select the primary whether it is charged or not
         mcpSelect.push_back(part);
-        // Determine which TPC this is in
-        FindTPCID(PrimVtx, inTPCID);
+        // Determine which TPC this is in. Ignore this event if the primary start is
+        // outside the fiducial volume
+        if(!FindTPCID(PrimVtx, inTPCID)) return;
         // print out?
         if(tjs.MatchTruth[1] > 0) {
           Vector3_t dir;
@@ -459,8 +451,10 @@ namespace tca {
     if(tjs.MatchTruth[1] > 0) {
       // print out
       mf::LogVerbatim myprt("TC");
-      myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<" Correct? "<<neutrinoVxCorrect<<"\n";
-      myprt<<"  part   PDG  MomID    KE _________Dir___________       Process         TrajectoryExtentInPlane_nTruHits \n";
+      myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx";
+      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<PrimVtx[ixyz];
+      myprt<<" Reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<" Correct? "<<neutrinoVxCorrect<<"\n";
+      myprt<<"    part   PDG   MomID    KE _________Dir___________       Process         TrajectoryExtentInPlane_nTruHits \n";
       for(auto mcpIndex : mcpSelect) {
         auto& mcp = tjs.MCPartList[mcpIndex];
         // Kinetic energy in MeV
@@ -473,7 +467,7 @@ namespace tca {
         dir[0] = mcp->Px(); dir[1] = mcp->Py(); dir[2] = mcp->Pz();
         SetMag(dir, 1);
         myprt<<std::setprecision(3);
-        for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) myprt<<std::setw(8)<<dir[ixyz];
+        for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) myprt<<std::setw(8)<<std::setprecision(3)<<dir[ixyz];
         myprt<<std::setw(22)<<mcp->Process();
         // print the extent of the particle in each TPC plane
         for(const geo::TPCID& tpcid : tjs.geom->IterateTPCIDs()) {
@@ -490,9 +484,9 @@ namespace tca {
       } // ipart
     } // tjs.MatchTruth[1] > 0
     
-    // Fill counts for PFParticles
-    AccumulatePFPSums(mcpSelect, inTPCID);
-    
+    // Match Tjs and PFParticles and accumulate statistics
+    MatchAndSum(hist, mcpSelect, inTPCID);
+/*
     // Check primary particle reconstruction performance
     if(neutrinoVxReconstructable) {
       float tsum = 0;
@@ -580,7 +574,7 @@ namespace tca {
         } // plane
       } // tpcid
     } // ipart
-    
+*/
     // match 2D vertices (crudely)
     for(auto& tj : tjs.allTraj) {
       // obsolete vertex
@@ -759,16 +753,13 @@ namespace tca {
   } // MatchTruth
   
   ////////////////////////////////////////////////
-  void TruthMatcher::AccumulatePFPSums(const std::vector<unsigned int>& mcpSelect, const geo::TPCID& inTPCID)
+  void TruthMatcher::MatchAndSum(const HistStuff& hist, const std::vector<unsigned int>& mcpSelect, const geo::TPCID& inTPCID)
   {
-    // accumulate performance statistics for PFParticles
-    
-    // Calculate PFParticle efficiency and purity
-    if(tjs.pfps.empty()) return;
+    // Match Tjs and PFParticles and accumulate performance statistics
+    if(mcpSelect.empty()) return;
     
     // get the hits associated with all MCParticles in mcpSelect
     std::vector<std::vector<unsigned int>> mcpHits(mcpSelect.size());
-    std::vector<bool> matched(mcpSelect.size());
     for(unsigned short part = 0; part < mcpSelect.size(); ++part) {
       unsigned int mcpIndex = mcpSelect[part];
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
@@ -777,17 +768,96 @@ namespace tca {
       } // iht
     } // mcpIndex
     
-    // get the hits in all pfparticles
+    // get the hits in all Tjs in this TPCID
+    unsigned int tpc = inTPCID.TPC;
+    unsigned int cstat = inTPCID.Cryostat;
+    std::vector<std::vector<unsigned int>> tjHits(tjs.allTraj.size());
+    for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+      auto& tj = tjs.allTraj[itj];
+      if(tj.AlgMod[kKilled]) continue;
+      if(DecodeCTP(tj.CTP).TPC != tpc) continue;
+      tjHits[itj] = PutTrajHitsInVector(tj, kUsedHits);
+    } // itj
+    
+    // match them up
+    for(unsigned short part = 0; part < mcpSelect.size(); ++part) {
+      if(mcpHits[part].empty()) continue;
+      unsigned short mtj = USHRT_MAX;
+      unsigned short maxShared = 0;
+      auto& mcp = tjs.MCPartList[mcpSelect[part]];
+      unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
+      float TMeV = 1000 * (mcp->E() - mcp->Mass());
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        // put the mcpHits (which are already in this TPCID) in this plane in a vector
+        std::vector<unsigned int> mcpPlnHits;
+        for(auto iht : mcpHits[part]) {
+          auto& hit = tjs.fHits[iht];
+          if(hit.ArtPtr->WireID().Plane == plane) mcpPlnHits.push_back(iht);
+        } // iht
+        // require 2 truth-matched hits
+        if(mcpPlnHits.size() < 2) continue;
+        CTP_t inCTP = EncodeCTP(cstat, tpc, plane);
+        for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
+          // wrong TPC or dead?
+          if(tjHits[itj].empty()) continue;
+          auto& tj = tjs.allTraj[itj];
+          // wrong CTP?
+          if(tj.CTP != inCTP) continue;
+          // already matched?
+          if(tj.MCPartListIndex != UINT_MAX) continue;
+          auto shared = SetIntersection(mcpPlnHits, tjHits[itj]);
+          if(shared.size() > maxShared) {
+            maxShared = shared.size();
+            mtj = itj;
+          }
+        } // itj
+        if(mtj == USHRT_MAX) {
+          // Enter 0 in the profile histogram
+          hist.fEP_T[pdgIndex]->Fill(TMeV, 0);
+          if((float)mcpPlnHits.size() > tjs.MatchTruth[3]) {
+            ++nBadEP;
+            mf::LogVerbatim myprt("TC");
+            myprt<<"pdgIndex "<<pdgIndex<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to mcpIndex["<<part<<"]";
+            myprt<<" nTrue hits "<<mcpPlnHits.size();
+            myprt<<" extent "<<PrintHit(tjs.fHits[mcpPlnHits[0]])<<"-"<<PrintHit(tjs.fHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
+            myprt<<" events processed "<<tjs.EventsProcessed;
+          }
+          continue;
+        }
+        float eff = (float)maxShared / (float)mcpPlnHits.size();
+        float pur = (float)maxShared / (float)tjHits[mtj].size();
+        auto& tj = tjs.allTraj[mtj];
+        tj.EffPur = eff * pur;
+        tj.MCPartListIndex = part;
+        hist.fEP_T[pdgIndex]->Fill(TMeV, tj.EffPur);
+        if(tj.EffPur < tjs.MatchTruth[2] && (float)mcpPlnHits.size() > tjs.MatchTruth[3]) {
+          ++nBadEP;
+          mf::LogVerbatim myprt("TC");
+          myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
+          myprt<<" mcpIndex "<<part;
+          myprt<<" TMeV "<<(int)TMeV<<" MCP hits "<<mcpPlnHits.size();
+          myprt<<" extent "<<PrintHit(tjs.fHits[mcpPlnHits[0]])<<"-"<<PrintHit(tjs.fHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
+          myprt<<" events processed "<<tjs.EventsProcessed;
+        }
+        // badep
+      } // plane
+    } // part
+
+    // Calculate PFParticle efficiency and purity
+    if(tjs.pfps.empty()) return;
+    
+    // get the hits in all pfparticles in this TPCID
     std::vector<std::vector<unsigned int>> pfpHits(tjs.pfps.size());
     for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
       auto& pfp = tjs.pfps[ipfp];
       if(pfp.ID == 0) continue;
+      // in the right TPCID?
+      if(pfp.TPCID != inTPCID) continue;
       // ignore the neutrino PFParticle
       if(pfp.PDGCode == 14 || pfp.PDGCode == 12) continue;
       for(auto& tjid : pfp.TjIDs) {
-        auto& tj = tjs.allTraj[tjid - 1];
-        auto tmp = PutTrajHitsInVector(tj, kUsedHits);
-        pfpHits[ipfp].insert(pfpHits[ipfp].end(), tmp.begin(), tmp.end());
+        unsigned short itj = tjid - 1;
+        pfpHits[ipfp].insert(pfpHits[ipfp].end(), tjHits[itj].begin(), tjHits[itj].end());
       } // tj
     } // ipfp
     
@@ -835,7 +905,7 @@ namespace tca {
     
     MCP_Cnt += mcpSelect.size();
 
-  } // AccumulatePFPSums
+  } // MatchAndSum
   
   ////////////////////////////////////////////////
   void TruthMatcher::PrintResults(int eventNum) const
@@ -925,7 +995,7 @@ namespace tca {
   } // PutMCPHitsInVector
   
   ////////////////////////////////////////////////
-  void TruthMatcher::FindTPCID(Point3_t& pos, geo::TPCID& inTPCID)
+  bool TruthMatcher::FindTPCID(Point3_t& pos, geo::TPCID& inTPCID)
   {
     // determine which TPC we should use. Tjs and PFParticles in other TPCs are ignored
     for (const geo::TPCID& tpcid: tjs.geom->IterateTPCIDs()) {
@@ -943,8 +1013,9 @@ namespace tca {
       if(pos[2] < world[2]-tjs.geom->DetLength(tpc,cstat)/2 + 1) continue;
       if(pos[2] > world[2]+tjs.geom->DetLength(tpc,cstat)/2 - 1) continue;
       inTPCID = tpcid;
-      return;
+      return true;
     } // tpcid
+    return false;
   } // FindTPCID
 
   ////////////////////////////////////////////////
