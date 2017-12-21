@@ -41,12 +41,12 @@ namespace tca {
     void Initialize();
     void MatchTrueHits();
     void MatchTruth(const HistStuff& hist, bool fStudyMode);
-    void AccumulatePFPSums(const std::vector<unsigned int>& mcpSelect, const geo::TPCID& inTPCID);
+    void MatchAndSum(const HistStuff& hist, const std::vector<unsigned int>& mcpSelect, const geo::TPCID& inTPCID);
     void PrintResults(int eventNum) const;
     bool CanReconstruct(unsigned int mcpIndex, unsigned short nDimensions, const geo::TPCID& tpcid);
     // Put hits matched to a MCParticle in CTP into a vector
     std::vector<unsigned int> PutMCPHitsInVector(unsigned int mcpIndex, CTP_t inCTP);
-    void FindTPCID(Point3_t& pos, geo::TPCID& inTPCID);
+    bool FindTPCID(Point3_t& pos, geo::TPCID& inTPCID);
     
     TjStuff& tjs;
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons for Trajectories
