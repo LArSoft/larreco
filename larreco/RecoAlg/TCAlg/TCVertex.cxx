@@ -244,8 +244,8 @@ namespace tca {
           }
           // Ensure that the vertex position is close to the end of each Tj
           unsigned short closePt1;
-          float doca1;
-          TrajClosestApproach(tjs.allTraj[it1], wint, tint, closePt1, doca1);
+          float doca1 = sepCut;
+          if(!TrajClosestApproach(tj1, wint, tint, closePt1, doca1)) continue;
           // dpt1 (and dpt2) will be 0 if the vertex 
           short dpt1 = tjs.StepDir * (closePt1 - endPt1);
           if(prt) mf::LogVerbatim("TC")<<" endPt1 "<<endPt1<<" closePt1 "<<closePt1<<" dpt1 "<<dpt1<<" doca1 "<<doca1;
@@ -256,8 +256,8 @@ namespace tca {
             if(dpt1 > 2) continue;
           }
           unsigned short closePt2;
-          float doca2;
-          TrajClosestApproach(tjs.allTraj[it2], wint, tint, closePt2, doca2);
+          float doca2 = sepCut;
+          if(!TrajClosestApproach(tj2, wint, tint, closePt2, doca2)) continue;
           short dpt2 = tjs.StepDir * (closePt2 - endPt2);
           if(prt) mf::LogVerbatim("TC")<<" endPt2 "<<endPt2<<" closePt2 "<<closePt2<<" dpt2 "<<dpt2<<" doca2 "<<doca2;
           if(tjs.allTraj[it2].EndPt[1] > 4) {
@@ -874,7 +874,7 @@ namespace tca {
     if(tjs.vtx.empty()) return;
     if(tjs.allTraj.empty()) return;
     
-    constexpr float docaCut = 2;
+    constexpr float docaCut = 4;
 
     bool prt = (debug.Plane >= 0 && debug.Tick == 77777);
     if(prt) mf::LogVerbatim("TC")<<"Inside SplitTrajCrossingVertices inCTP "<<inCTP;
@@ -906,6 +906,9 @@ namespace tca {
         if(vx2.Stat[kOnDeadWire]) doca = 100;
         unsigned short closePt = 0;
         if(!TrajClosestApproach(tj, vx2.Pos[0], vx2.Pos[1], closePt, doca)) continue;
+        if(tj.ID == 98 && vx2.ID == 12) {
+          std::cout<<"doca "<<doca<<" closePt "<<closePt<<"\n";
+        }
         if(vx2.Stat[kOnDeadWire]) {
           // special handling for vertices in dead wire regions. Find the IP between
           // the closest point on the Tj and the vertex
