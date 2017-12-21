@@ -311,13 +311,11 @@ namespace tca {
     
     // a gratuitous clearing of everything before we start
     ClearResults();
-    
+    ++tjs.EventsProcessed;
+
     // Get the hits and associations
     GetHitCollection(evt);
-    if(tjs.fHits.empty()) {
-      ++tjs.EventsProcessed;
-      return;
-    }
+    if(tjs.fHits.empty()) return;
  
     tjs.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tjs.geom = lar::providerFrom<geo::Geometry>();
@@ -5983,6 +5981,8 @@ namespace tca {
     } // iht
     
     if(evt.isRealData()) return;
+    // don't bother loading MC info if it won't be used.
+    if(tjs.MatchTruth[0] <= 0) return;
 
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     sim::ParticleList const& plist = pi_serv->ParticleList();
