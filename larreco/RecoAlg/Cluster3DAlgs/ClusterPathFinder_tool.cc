@@ -13,6 +13,7 @@
 
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterModAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/ConvexHull.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/Voronoi.h"
 
 // LArSoft includes
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
@@ -428,6 +429,9 @@ void ClusterPathFinder::buildConvexHull(reco::ClusterParameters& clusterParamete
     std::vector<PointList>  rejectedListVec;
     bool                    increaseDepth(pointList.size() > 4);
     float                   lastArea(std::numeric_limits<float>::max());
+    
+    // Testing
+    VoronoiDiagram voronoiDiagram(pointList);
     
     while(increaseDepth)
     {
