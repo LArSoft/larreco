@@ -1,7 +1,12 @@
-#include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/Trajectory.h"
 #include "lardataobj/RecoBase/Seed.h"
+#include "canvas/Persistency/Common/Ptr.h"
+
+#include "TVector3.h"
+
+#include <vector>
 
 #ifndef BEZIERTRACK_h
 #define BEZIERTRACK_h
@@ -21,19 +26,17 @@ namespace calo
 
 namespace trkf {
   
-  class BezierTrack: public recob::Track
+  class BezierTrack
   {
   public:
-    BezierTrack();
-    BezierTrack(const recob::Track& btb);
-    BezierTrack(std::vector<TVector3> Pos, 
-                std::vector<TVector3> Dir, 
-                std::vector<std::vector<double> > dQdx,
-                int const& id);
+    BezierTrack(int id, const recob::Trajectory& traj);
+    BezierTrack(const recob::Track& track);
+    BezierTrack(std::vector<TVector3> const& Pos, 
+                std::vector<TVector3> const& Dir, 
+                std::vector<std::vector<double> > const& dQdx,
+                int id);
     BezierTrack(std::vector<recob::Seed> const& );
-     
-    ~BezierTrack();
-
+    
     int NSegments()                                     const;
 
     double GetLength()                                  const;
@@ -84,12 +87,13 @@ namespace trkf {
     std::vector<recob::SpacePoint> GetSpacePointTrajectory(int N);
  
     BezierTrack GetPartialTrack(double LowS, double HighS);
-    std::unique_ptr<recob::Track> GetBaseTrack();
     
     std::vector<recob::Seed> GetSeedVector();
     
     int WhichSegment(double S) const;
     
+    /// Returns the current trajectory.
+    recob::Trajectory const& GetTrajectory() const { return fTraj; }
     
   private:
  
@@ -97,6 +101,12 @@ namespace trkf {
     
     void FillTrajectoryVectors();
     void FillSeedVector();
+    
+    recob::Trajectory fTraj;    ///< Internal trajectory representation.
+    int               fID = -1; ///< Track's ID.
+    
+    std::vector<std::vector<double>> fdQdx; ///< Charge deposition per unit length at points
+                                            ///< along track outer vector index is, per plane.
     
     std::vector<double>       fSegmentLength;
     std::vector<double>       fCumulativeLength;

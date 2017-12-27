@@ -5,6 +5,7 @@
 #include "larcorealg/Geometry/CryostatGeo.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
+#include "larcorealg/Geometry/geo_vectors_utils.h" // geo::vect namespace
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h"
@@ -12,29 +13,37 @@
 #include "larreco/Deprecated/BezierCurveHelper.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
-#include "TVector3.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "cetlib/exception.h"
+
+#include <utility> // std::forward()
+#include <cassert>
+
 
 namespace trkf {
 
   //----------------------------------------------------------------------
   // Constructor from Base object (for analysis)
   //
-  BezierTrack::BezierTrack(const recob::Track& btb)
-    : recob::Track(btb)
+  BezierTrack::BezierTrack(int id, const recob::Trajectory& traj)
+    : fTraj(traj)
+    , fID(id)
   {
-    fID = btb.ID();
     fBezierResolution=1000;
     CalculateSegments();
   }
 
 
   //----------------------------------------------------------------------
+  BezierTrack::BezierTrack(const recob::Track& track)
+    : BezierTrack(track.ID(), track.Trajectory().Trajectory()) {}
+  
+  //----------------------------------------------------------------------
   // Constructor from seed vector (for production)
   //
   BezierTrack::BezierTrack(std::vector<recob::Seed> const& SeedCol )
-    : recob::Track()
+    : fTraj()
   {
     if(SeedCol.size()>0)
       {
@@ -78,24 +87,17 @@ namespace trkf {
   //----------------------------------------------------------------------
   // Constructor from track coordinates
   //
-  BezierTrack::BezierTrack(std::vector<TVector3> Pos,
-                           std::vector<TVector3> Dir,
-                           std::vector<std::vector<double> > dQdx,
-                           int const& id)
-    : recob::Track(Pos, Dir, dQdx, std::vector<double>(2, util::kBogusD), id)
+  BezierTrack::BezierTrack(std::vector<TVector3> const& Pos,
+                           std::vector<TVector3> const& Dir,
+                           std::vector<std::vector<double> > const& dQdx,
+                           int id)
+    : fTraj(geo::vect::convertCollToPoint(Pos), geo::vect::convertCollToVector(Dir), false)
+    , fID(id)
+    , fdQdx(dQdx)
   {
     fBezierResolution=1000;
     CalculateSegments();
   }
-
-
-  //----------------------------------------------------------------------
-  // Default constructor
-  //
-  BezierTrack::~BezierTrack()
-  {
-  }
-
 
 
   //----------------------------------------------------------------------
@@ -302,14 +304,15 @@ namespace trkf {
     for(int i=0; i!=NSeg; i++)
       {
 
+        auto const& pos = fTraj.LocationAtPoint(i);
+        Pt[0]=pos.X();
+        Pt[1]=pos.Y();
+        Pt[2]=pos.Z();
 
-        Pt[0]=(LocationAtPoint(i))[0];
-        Pt[1]=(LocationAtPoint(i))[1];
-        Pt[2]=(LocationAtPoint(i))[2];
-
-        Dir[0]=(DirectionAtPoint(i))[0];
-        Dir[1]=(DirectionAtPoint(i))[1];
-        Dir[2]=(DirectionAtPoint(i))[2];
+        auto const& dir = fTraj.DirectionAtPoint(i);
+        Dir[0]=dir.X();
+        Dir[1]=dir.Y();
+        Dir[2]=dir.Z();
 
         fSeedCollection.push_back(recob::Seed(Pt,Dir));
       }
@@ -326,6 +329,8 @@ namespace trkf {
     int NPlanes = geom->Nplanes();
     fdQdx.resize(NPlanes) ;
     double Pt[3], Dir[3], ErrPt[3], ErrDir[3];
+    recob::Trajectory::Positions_t positions;
+    recob::Trajectory::Momenta_t directions;
     for(std::vector<recob::Seed>::const_iterator it=fSeedCollection.begin();
         it!=fSeedCollection.end(); ++it)
       {
@@ -338,9 +343,13 @@ namespace trkf {
         for(int i=0; i!=NPlanes; ++i)
           fdQdx.at(i).push_back(0);
 
-        fTraj.fPositions.push_back(Point);
-        fTraj.fMomenta.push_back(Direction);
+        positions.push_back(Point);
+        directions.push_back(Direction);
       }
+    
+    fTraj
+      = recob::Trajectory(std::move(positions), std::move(directions), false);
+    
   }
 
 
@@ -401,7 +410,7 @@ namespace trkf {
         // catch these easy floating point errors
         if((s>0.9999)&&(s<1.00001))
           {
-            auto End1 = End();
+            auto End1 = fTraj.End();
             xyz[0]=End1.X();
             xyz[1]=End1.Y();
             xyz[2]=End1.Z();
@@ -410,7 +419,7 @@ namespace trkf {
           }
         else if((s<0.0001)&&(s>-0.00001))
           {
-            auto End0 = Start();
+            auto End0 = fTraj.Start();
             xyz[0]=End0.X();
             xyz[1]=End0.Y();
             xyz[2]=End0.Z();
@@ -1148,19 +1157,9 @@ namespace trkf {
 
   int BezierTrack::NSegments() const
   {
-    return NumberTrajectoryPoints();
+    return fTraj.NumberTrajectoryPoints();
   }
 
-
-  //----------------------------------------------------------------------
-  // Return a fresh copy of the RecoBase track object
-  //
-
-  std::unique_ptr<recob::Track> BezierTrack::GetBaseTrack()
-  {
-    std::vector<double> mom(2, util::kBogusD);
-    return std::unique_ptr<recob::Track>(new recob::Track(*this));
-  }
 
   //----------------------------------------------------------------------
 
