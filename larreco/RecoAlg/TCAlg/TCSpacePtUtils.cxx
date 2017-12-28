@@ -474,10 +474,6 @@ namespace tca {
         float xpos = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, plane, tpc, cstat);
         float posPlusRMS = tp.Pos[1] + TPHitsRMSTime(tjs, tp, kUsedHits);
         float rms = tjs.detprop->ConvertTicksToX(posPlusRMS/tjs.UnitsPerTick, plane, tpc, cstat) - xpos;
-        if((tj.ID == 12 && tjs.mallTraj[icnt].wire == 972) ||
-           (tj.ID == 18 && tjs.mallTraj[icnt].wire == 1235)) {
-          std::cout<<"chk "<<tj.ID<<" "<<tjs.mallTraj[icnt].wire<<" xpos "<<xpos<<" rms "<<rms<<"\n";
-        }
         if(rms < tjs.Match3DCuts[0]) rms = tjs.Match3DCuts[0];
         if(icnt == tjs.mallTraj.size()) {
           std::cout<<"Match3D: indexing error\n";
@@ -760,10 +756,11 @@ namespace tca {
     std::vector<int> different = SetDifference(tjids, pfp.TjIDs);
     if(!different.empty()) {
       std::cout<<"CSV: Tjs are inconsistent";
-      std::cout<<" pfp.TjIDs";
-      for(auto tjid : pfp.TjIDs) std::cout<<" "<<tjid;
-      std::cout<<" tjs in space points";
-      for(auto tjid : tjids) std::cout<<" "<<tjid;
+      auto common = SetIntersection(tjids, pfp.TjIDs);
+      std::cout<<" common";
+      for(auto tjid : common) std::cout<<" "<<tjid;
+      std::cout<<" different";
+      for(auto tjid : different) std::cout<<" "<<tjid;
       std::cout<<"\n";
     }
     
