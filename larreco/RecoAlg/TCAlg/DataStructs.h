@@ -395,6 +395,7 @@ namespace tca {
     kChkVxTj,
     kMisdVxTj,
     kPhoton,
+    kNoFitToVx,
     kVxMerge,
     kNoKinkChk,
     kSoftKink,
@@ -499,6 +500,7 @@ namespace tca {
     calo::CalorimetryAlg* caloAlg;
     short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
     short NPtsAve;         /// number of points to find AveChg
+    bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
    };
 
 } // namespace tca
