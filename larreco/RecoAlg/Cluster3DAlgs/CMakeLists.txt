@@ -25,6 +25,7 @@ art_make( EXCLUDE        MinSpanTreeAlg_tool.cc DBScanAlg_tool.cc ClusterMergeAl
                          ${Boost_SYSTEM_LIBRARY}
                          ${CLHEP}
 			             ${ROOT_BASIC_LIB_LIST}
+                         ${ROOT_GEOM}
                          ${ROOT_MINUIT}
         )
 

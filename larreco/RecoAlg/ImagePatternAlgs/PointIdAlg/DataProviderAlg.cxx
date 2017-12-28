@@ -181,7 +181,9 @@ float img::DataProviderAlg::poolSum(int wire, int drift, size_t r) const
 
 void img::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
 {
-	for (size_t i = 0, k0 = 0; i < dst.size(); ++i, k0 += fDriftWindow)
+        size_t kStop = dst.size();
+        if (adc.size() < kStop) { kStop = adc.size(); }
+	for (size_t i = 0, k0 = 0; i < kStop; ++i, k0 += fDriftWindow)
 	{
 		size_t k1 = k0 + fDriftWindow;
 
@@ -199,7 +201,9 @@ void img::DataProviderAlg::downscaleMax(std::vector<float> & dst, std::vector<fl
 
 void img::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
 {
-	for (size_t i = 0, k0 = 0; i < dst.size(); ++i, k0 += fDriftWindow)
+        size_t kStop = dst.size();
+        if (adc.size() < kStop) { kStop = adc.size(); }
+	for (size_t i = 0, k0 = 0; i < kStop; ++i, k0 += fDriftWindow)
 	{
 		size_t k1 = k0 + fDriftWindow;
 
@@ -222,7 +226,9 @@ void img::DataProviderAlg::downscaleMaxMean(std::vector<float> & dst, std::vecto
 
 void img::DataProviderAlg::downscaleMean(std::vector<float> & dst, std::vector<float> const & adc, size_t tick0) const
 {
-	for (size_t i = 0, k0 = 0; i < dst.size(); ++i, k0 += fDriftWindow)
+	size_t kStop = dst.size();
+	if (adc.size() < kStop) { kStop = adc.size(); }
+	for (size_t i = 0, k0 = 0; i < kStop; ++i, k0 += fDriftWindow)
 	{
 		size_t k1 = k0 + fDriftWindow;
 
@@ -243,13 +249,14 @@ bool img::DataProviderAlg::setWireData(std::vector<float> const & adc, size_t wi
 
     if (fDownscaleFullView)
     {
-        if (adc.size() / fDriftWindow <= fNCachedDrifts) { downscale(wData, adc, 0); }
+        if (!adc.empty()) { downscale(wData, adc, 0); }
         else { return false; }
     }
     else
     {
-        if (adc.size() <= fNCachedDrifts) { std::copy(adc.begin(), adc.end(), wData.begin()); }
-        else { return false; }
+        if (adc.empty()) { return false; }
+        else if (adc.size() <= wData.size()) { std::copy(adc.begin(), adc.end(), wData.begin()); }
+        else { std::copy(adc.begin(), adc.begin()+wData.size(), wData.begin()); }
     }
     return true;
 }

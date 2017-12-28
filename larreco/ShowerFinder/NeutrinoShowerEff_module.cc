@@ -135,6 +135,12 @@ namespace DUNE{
     TH1D *h_dEdX_neutralpion_NC;
     TH1D *h_dEdX_everythingelse_NueCC;
     TH1D *h_dEdX_everythingelse_NC;
+    
+    TH1D *h_dEdXasymm_electronorpositron_NueCC;
+    TH1D *h_dEdXasymm_photon_NC;
+
+    TH1D *h_mpi0_electronorpositron_NueCC;
+    TH1D *h_mpi0_photon_NC;
 
     //Study CNN track/shower id
     TH1D *h_trklike_em;
@@ -236,6 +242,8 @@ namespace DUNE{
     int    sh_nHits[MAX_SHOWERS];
     int    sh_largest;
     int    sh_pdg[MAX_SHOWERS];
+    double sh_dEdxasymm[MAX_SHOWERS];
+    double sh_mpi0;
 
     int    n_recoShowers;
     double sh_Efrac_best;
@@ -411,6 +419,11 @@ namespace DUNE{
     h_dEdX_everythingelse_NueCC=tfs->make<TH1D>("h_dEdX_everythingelse_NueCC","dE/dX; everythingelse dE/dX (MeV/cm);",100,0.0,15.0); 
     h_dEdX_everythingelse_NC=tfs->make<TH1D>("h_dEdX_everythingelse_NC","dE/dX; everythingelse dE/dX (MeV/cm);",100,0.0,15.0); 
     
+    h_dEdXasymm_electronorpositron_NueCC=tfs->make<TH1D>("h_dEdXasymm_electronorpositron_NueCC","dE/dX asymmetry; Electron or Positron dE/dX asymmetry;",60,0.0,1.2); 
+    h_dEdXasymm_photon_NC=tfs->make<TH1D>("h_dEdXasymm_photon_NC","dE/dX asymmetry; photon dE/dx asymmetry;",60,0.0,1.2); 
+
+    h_mpi0_electronorpositron_NueCC=tfs->make<TH1D>("h_mpi0_electronorpositron_NueCC","m(#gamma#gamma); Electron or Positron dE/dX (MeV/cm);",100,0,1); 
+    h_mpi0_photon_NC=tfs->make<TH1D>("h_mpi0_photon_NC","m(#gamma#gamma); Electron or Positron dE/dX (MeV/cm);",100,0,1);
 
     h_esh_bestplane_NueCC->Sumw2();
     h_esh_bestplane_NC->Sumw2();
@@ -429,6 +442,11 @@ namespace DUNE{
     h_dEdX_everythingelse_NueCC->Sumw2();
     h_dEdX_everythingelse_NC->Sumw2();
     
+    h_dEdXasymm_electronorpositron_NueCC->Sumw2();
+    h_dEdXasymm_photon_NC->Sumw2();
+
+    h_mpi0_electronorpositron_NueCC->Sumw2();
+    h_mpi0_photon_NC->Sumw2();
 
     h_trklike_em = tfs->make<TH1D>("h_trklike_em","EM hits; Track-like Score;",100,0,1);
     h_trklike_nonem = tfs->make<TH1D>("h_trklike_nonem","Non-EM hits; Track-like Score;",100,0,1);
@@ -593,6 +611,8 @@ namespace DUNE{
       fEventTree->Branch("sh_nHits",&sh_nHits, "sh_nHits[n_showers]/I");
       fEventTree->Branch("sh_largest",&sh_largest,"sh_largest/I");
       fEventTree->Branch("sh_pdg",&sh_pdg,"sh_pdg[n_showers]/I");
+      fEventTree->Branch("sh_dEdxasymm", &sh_dEdxasymm, "sh_dEdxasymm[n_showers]/D");
+      fEventTree->Branch("sh_mpi0",&sh_mpi0,"sh_mpi0/D");
     }
 
   }
@@ -722,6 +742,8 @@ namespace DUNE{
     int ParticlePDG_HighestShHits=0;//undefined
     int shower_bestplane=0;
     double Showerparticlededx_inbestplane=0.0;
+    double dEdxasymm_largestshw = -1.;
+
     int showerPDGwithHighestHitsforFillingdEdX=0;//0=undefined,1=electronorpositronshower,2=photonshower,3=protonshower,4=neutronshower,5=chargedpionshower,6=neutralpionshower,7=everythingelseshower
 
     
@@ -729,6 +751,11 @@ namespace DUNE{
 
     const simb::MCParticle *MClepton_reco = NULL; 
     int nHits =0;
+    
+    TVector3 p1, p2;
+    double E1st = 0;
+    double E2nd = 0;
+
     for(int i=0; i<n_recoShowers; i++){
       
       art::Ptr<recob::Shower> shower = showerlist[i];
@@ -743,6 +770,47 @@ namespace DUNE{
       for( size_t j =0; j<shower->Energy().size(); j ++) sh_energy[i][j] = shower->Energy()[j];
       for( size_t j =0; j<shower->MIPEnergy().size(); j++) sh_MIPenergy[i][j] = shower->MIPEnergy()[j];
       for( size_t j =0; j<shower->dEdx().size(); j++) sh_dEdx[i][j] = shower->dEdx()[j];
+
+      double dEdxasymm = -1;
+      double dEdx0 = 0;
+      if (shower->best_plane()>=0&&shower->best_plane()<int(shower->dEdx().size())){
+        dEdx0 = shower->dEdx()[shower->best_plane()];
+      }
+      double dEdx1 = 0;
+      double maxE = 0;
+      for (int j = 0; j<3; ++j){
+        if (j==shower->best_plane()) continue;
+        if (j>=int(shower->Energy().size())) continue;
+        if (shower->Energy()[j]>maxE){
+          maxE = shower->Energy()[j];
+          dEdx1 = shower->dEdx()[j];
+        }
+      }
+      if (dEdx0||dEdx1){
+        dEdxasymm = std::abs(dEdx0-dEdx1)/(dEdx0+dEdx1);
+      }
+      sh_dEdxasymm[i] = dEdxasymm;
+
+      if (shower->best_plane()>=0 && shower->best_plane()<int(shower->Energy().size())){
+        if (shower->Energy()[shower->best_plane()]>E1st){
+          if (p1.Mag()){
+            E2nd = E1st;
+            p2 = p1;
+          }
+          E1st = shower->Energy()[shower->best_plane()];
+          p1[0] = E1st * shower->Direction().X();
+          p1[1] = E1st * shower->Direction().Y();
+          p1[2] = E1st * shower->Direction().Z();
+        }
+        else{
+          if (shower->Energy()[shower->best_plane()]>E2nd){
+            E2nd = shower->Energy()[shower->best_plane()];
+            p2[0] = E2nd * shower->Direction().X();
+            p2[1] = E2nd * shower->Direction().Y();
+            p2[2] = E2nd * shower->Direction().Z();
+          }
+        }
+      }
 
       std::vector<art::Ptr<recob::Hit>> sh_hits = sh_hitsAll.at(i);  
 
@@ -802,6 +870,7 @@ namespace DUNE{
       //Shower with highest hits       
       if( tmp_nHits > nHits ){
         sh_largest = i;
+        dEdxasymm_largestshw = dEdxasymm;
         nHits = tmp_nHits;
         Ecomplet_NueCC =tmpEcomplet;
         Efrac_contaminationNueCC = tmpEfrac_contamination; 
@@ -900,6 +969,11 @@ namespace DUNE{
         }
       }          
     }//end of looping all the showers
+
+    if (p1.Mag()&&p2.Mag()){
+      sh_mpi0 = sqrt(pow(p1.Mag()+p2.Mag(),2)-(p1+p2).Mag2());
+    }
+    else sh_mpi0 = 0;
    
     if( MClepton_reco && MClepton  ){
       if( MC_isCC && (fNeutrinoPDGcode == std::abs(MC_incoming_PDG)) ){ 
@@ -944,7 +1018,10 @@ namespace DUNE{
 	      h_ShStartXwrtTrueparticleStartXDiff_electronorpositron_NueCC->Fill(ShVxTrueParticleVxDiff);
 	      h_ShStartYwrtTrueparticleStartYDiff_electronorpositron_NueCC->Fill(ShVyTrueParticleVyDiff);
 	      h_ShStartZwrtTrueparticleStartZDiff_electronorpositron_NueCC->Fill(ShVzTrueParticleVzDiff);
-	      
+
+	      h_dEdXasymm_electronorpositron_NueCC->Fill(dEdxasymm_largestshw);
+
+              h_mpi0_electronorpositron_NueCC->Fill(sh_mpi0);
 
 	    }else if(showerPDGwithHighestHitsforFillingdEdX==2)//photon shower
             {
@@ -1028,7 +1105,9 @@ namespace DUNE{
 	    h_ShStartYwrtTrueparticleEndYDiff_photon_NC->Fill(ShStartVyTrueParticleEndVyDiff);
 	    h_ShStartZwrtTrueparticleEndZDiff_photon_NC->Fill(ShStartVzTrueParticleEndVzDiff);
 
+            h_dEdXasymm_photon_NC->Fill(dEdxasymm_largestshw);
 
+            h_mpi0_photon_NC->Fill(sh_mpi0);
 
 	  }else if(showerPDGwithHighestHitsforFillingdEdX==3)//proton shower
           {
@@ -1311,8 +1390,10 @@ namespace DUNE{
         sh_dEdx[i][j] = -999.0;
       }
       sh_pdg[i] = -999;
+      sh_dEdxasymm[i] = -999;
     }
     sh_largest = -999;
+    sh_mpi0 = -999;
   }
   //========================================================================
   DEFINE_ART_MODULE(NeutrinoShowerEff)
