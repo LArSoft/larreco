@@ -336,6 +336,7 @@ namespace tca {
             myprt<<" Tjs "<<tj1.ID<<"_"<<end<<"-"<<tj2.ID<<"_"<<end;
             myprt<<" at "<<std::fixed<<std::setprecision(1)<<aVtx.Pos[0]<<":"<<aVtx.Pos[1]/tjs.UnitsPerTick;
           }
+          AttachAnyTrajToVertex(tjs, tjs.vtx.size() - 1, prt);
           SetVx2Score(tjs, prt);
         } // it2
       } // end1
@@ -906,9 +907,6 @@ namespace tca {
         if(vx2.Stat[kOnDeadWire]) doca = 100;
         unsigned short closePt = 0;
         if(!TrajClosestApproach(tj, vx2.Pos[0], vx2.Pos[1], closePt, doca)) continue;
-        if(tj.ID == 98 && vx2.ID == 12) {
-          std::cout<<"doca "<<doca<<" closePt "<<closePt<<"\n";
-        }
         if(vx2.Stat[kOnDeadWire]) {
           // special handling for vertices in dead wire regions. Find the IP between
           // the closest point on the Tj and the vertex
@@ -1293,7 +1291,7 @@ namespace tca {
           ++nfar;
         }
       } // itj
-      std::sort(v3TjIDs.begin(), v3TjIDs.end());
+//      std::sort(v3TjIDs.begin(), v3TjIDs.end());
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<ii<<" vx3 "<<vx3.ID<<" "<<score<<" TjIDs tagged";
@@ -1317,6 +1315,7 @@ namespace tca {
           // Don't consider shower Tjs
           if(nstj != 0) continue;
           std::vector<int> shared = SetIntersection(ms.TjIDs, v3TjIDs);
+          if(prt) mf::LogVerbatim("TC")<<" nit "<<nit<<" vx3 "<<vx3.ID<<" ims "<<ims<<" shared size "<<shared.size();
           if(shared.size() != ms.TjIDs.size()) continue;
           // perfect match. Ensure that the points near the vertex are consistent
           PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
@@ -1502,9 +1501,15 @@ namespace tca {
     // don't attach it if the tj length is shorter than the separation distance
     if(length > 2 && length < closestApproach) return false;
 
+    float pullCut = tjs.Vertex2DCuts[3];
+    // Dec 21, 2017 Loosen up the pull cut for short close Tjs. These are likely to
+    // be poorly reconstructed. It is better to have them associated with the vertex
+    // than not.
+    if(tjShort) pullCut = 10;
+    
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"ATTV: vx.ID "<<vx.ID;
+      myprt<<"ATTV: Vx_"<<vx.ID;
       myprt<<" NTraj "<<vx.NTraj;
       myprt<<" oldTJs";
       for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
@@ -1514,14 +1519,18 @@ namespace tca {
         if(tj.VtxID[0] == vx.ID) myprt<<" "<<tj.ID<<"_0";
         if(tj.VtxID[1] == vx.ID) myprt<<" "<<tj.ID<<"_1";
       }
-      myprt<<" +tjID "<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull<<" tjs.Vertex2DCuts[3] "<<tjs.Vertex2DCuts[3]<<" dpt "<<dpt;
+      myprt<<" +tjID "<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull<<" pullCut "<<pullCut<<" dpt "<<dpt;
     }
-    if(tpVxPull > tjs.Vertex2DCuts[3]) return false;
+//    if(tpVxPull > tjs.Vertex2DCuts[3]) return false;
+    if(tpVxPull > pullCut) return false;
     if(dpt > tjs.Vertex2DCuts[2]) return true;
     
     // remove the fixed position flag if there are more than 2 tjs
     bool fixedBit = vx.Stat[kFixed];
     if(fixedBit && vx.NTraj < 2) vx.Stat[kFixed] = false;
+    
+    // don't allow a short Tj with a large pull to bias the fit
+    if(tjShort && tpVxPull > tjs.Vertex2DCuts[3]) tj.AlgMod[kNoFitToVx] = true;
 
     // Passed all the cuts. Attach it to the vertex and try a fit
     tj.VtxID[end] = vx.ID;
@@ -1559,9 +1568,11 @@ namespace tca {
     double vxErrW = vx.PosErr[0] * tp.Dir[1];
     double vxErrT = vx.PosErr[1] * tp.Dir[0];
     double vxErr2 = vxErrW * vxErrW + vxErrT * vxErrT;
+    // add the TP position error^2
+    vxErr2 += tp.HitPosErr2;
     
     // close together so ignore the TP projection error and return
-    // the pull using only the vertex error
+    // the pull using the vertex error and TP position error
     if(sep2 < 1) return (float)(ip/sqrt(vxErr2));
     
     double dang = ip / sqrt(sep2);
@@ -1662,12 +1673,14 @@ namespace tca {
       return true;
     }
     
+    
     // Create a vector of trajectory points that will be used to fit the vertex position
     std::vector<TrajPoint> vxTp;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.CTP != vx.CTP) continue;
       if(tj.AlgMod[kPhoton]) continue;
+      if(tj.AlgMod[kNoFitToVx]) continue;
       if(tj.VtxID[0] == vx.ID) vxTp.push_back(tj.Pts[tj.EndPt[0]]);
       if(tj.VtxID[1] == vx.ID) vxTp.push_back(tj.Pts[tj.EndPt[1]]);
     } // tj
@@ -1725,7 +1738,7 @@ namespace tca {
         TrajIntersection(vxTp[itj], vxTp[jtj], p0, p1);
         intTp.Pos[0] = p0; intTp.Pos[1] = p1;
         wgt = 1;
-        if(prt) std::cout<<itj<<" "<<jtj<<" "<<std::fixed<<std::setprecision(1)<<p0<<" "<<p1<<" "<<wgt<<"\n";
+//        if(prt) std::cout<<itj<<" "<<jtj<<" "<<std::fixed<<std::setprecision(1)<<p0<<" "<<p1<<" "<<wgt<<"\n";
         // accumulate
         sum0 += wgt * p0; sum02 += wgt * p0 * p0; 
         sum1 += wgt * p1; sum12 += wgt * p1 * p1; sumw += wgt; ++cnt;
