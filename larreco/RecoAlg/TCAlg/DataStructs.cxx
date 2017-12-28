@@ -38,6 +38,7 @@ namespace tca {
     "VtxTj",
     "ChkVxTj",
     "Photon",
+    "NoFitToVx",
     "VxMerge",
     "NoKinkChk",
     "SoftKink",
