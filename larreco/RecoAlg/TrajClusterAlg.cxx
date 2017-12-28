@@ -355,11 +355,11 @@ namespace tca {
     tjs.Run = evt.run();
     tjs.SubRun  = evt.subRun();
     tjs.Event = evt.event();
+    tjs.SelectEvent = false;
     fWorkID = 0;
     
     // Set true if a truly bad situation occurs
     fQuitAlg = false;
-    vtxPrt = false;
     mrgPrt = false;
     didPrt = false;
     
@@ -730,7 +730,13 @@ namespace tca {
     if(fQuitAlg) return;
 
     // last attempt to attach Tjs to vertices
-    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) if(tjs.vtx[ivx].NTraj > 0) AttachAnyTrajToVertex(tjs, ivx, vtxPrt);
+    bool vprt = (debug.Plane == (int)DecodeCTP(inCTP).Plane && debug.Tick < 0);
+    for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
+      auto& vx2 = tjs.vtx[ivx];
+      if(vx2.ID == 0) continue;
+      if(vx2.CTP != inCTP) continue;
+      AttachAnyTrajToVertex(tjs, ivx, vprt);
+    } // ivx
     
     // Check the Tj <-> vtx associations and define the vertex quality
     if(!ChkVtxAssociations(tjs, inCTP)) {
@@ -2402,6 +2408,22 @@ namespace tca {
     if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"M3D: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
     
     for(auto& ms : matVec) ms.TjChgAsymmetry = MaxChargeAsymmetry(tjs, ms.TjIDs);
+    
+    // sort by decreasing match count
+    if(matVec.size() > 1) {
+      std::vector<SortEntry> sortVec(matVec.size());
+      for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
+        sortVec[ii].index = ii;
+        sortVec[ii].val = matVec[ii].Count;
+      } // ii
+      std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
+      std::vector<MatchStruct> tmpVec;
+      tmpVec.reserve(matVec.size());
+      for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
+        tmpVec.push_back(matVec[sortVec[ii].index]);
+      } // ii
+      matVec = tmpVec;
+    } // sort matVec
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
