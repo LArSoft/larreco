@@ -2925,11 +2925,9 @@ namespace tca {
       if(!useit) continue;
       float ftime = tjs.UnitsPerTick * tjs.fHits[iht].PeakTime;
       float delta = PointTrajDOCA(tjs, fwire, ftime, tp);
-//      std::cout<<"chk "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<"\n";
       if(delta < maxDelta) tp.Hits.push_back(iht);
     } // iht
     if(tp.Hits.size() > 16) {
-//      mf::LogWarning("TC")<<"FindCloseHits: Found "<<tp.Hits.size()<<" hits. Truncating to 16";
       tp.Hits.resize(16);
     }
     // Set UseHit false. The calling routine should decide if these hits should be used
