@@ -180,7 +180,6 @@ namespace tca {
  
     bool prt;
     bool mrgPrt;
-    bool vtxPrt;
     bool didPrt;
     int TJPrt; // Set to the WorkID of a trajectory that is being debugged
     bool fDebugMode;
