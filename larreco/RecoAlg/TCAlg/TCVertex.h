@@ -58,6 +58,7 @@ namespace tca {
   bool StoreVertex(TjStuff& tjs, VtxStore& vx);
   bool ChkVtxAssociations(TjStuff& tjs, const CTP_t& inCTP);
   void ScoreVertices(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  void KillPoorVertices(TjStuff& tjs, const geo::TPCID& tpcid);
   void SetVx2Score(TjStuff& tjs, bool prt);
   void SetVx2Score(TjStuff& tjs, VtxStore& vx2, bool prt);
   void SetVx3Score(TjStuff& tjs, Vtx3Store& vx3, bool prt);
