@@ -517,14 +517,16 @@ namespace tca {
   {
     // Creates a vector of TrajCluster space points using 3D matches in mallTraj. If anyTj is set true
     // any Trajectory point in the 3rd plane that is consistent will be added as well, otherwise
-    // only those Tjs that are in the pfp.TjIDs list are considered
+    // only those Tjs that are in the pfp.TjIDs list are considered. Note that the Tp3 directions may
+    // be 
     
     pfp.Tp3s.clear();
     if(pfp.ID == 0) return;
     if(pfp.TjIDs.empty()) return;
     if(tjs.mallTraj.empty()) return;
     double xcut = tjs.Match3DCuts[0];
-    double yzcut = 1.5 * xcut;
+//    double yzcut = 1.5 * xcut;
+    double yzcut = xcut;
 
     for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 1; ++ipt) {
       auto& iTj2Pt = tjs.mallTraj[ipt];
@@ -560,8 +562,8 @@ namespace tca {
             if(!MakeTp3(tjs, itp, ktp, iktp3)) continue;
             if(std::abs(iktp3.Pos[1] - tp3.Pos[1]) > yzcut) continue;
             if(std::abs(iktp3.Pos[2] - tp3.Pos[2]) > yzcut) continue;
-            // make a rough angle cut
-            if(DotProd(tp3.Dir, iktp3.Dir) < 0.8) continue;
+            float dang = std::abs(DeltaAngle(tp3.Dir, iktp3.Dir));
+            if(dang > 0.2) continue;
             // update the position and direction
             for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
               tp3.Pos[ixyz] += iktp3.Pos[ixyz]; tp3.Pos[ixyz] /= 2;
@@ -572,17 +574,6 @@ namespace tca {
             break;
           } // kpt
         } // 3 planes
-/* This should no longer be necessary
-        // sort the Tj2Pts by increasing Tj ID
-        std::vector<SortEntry> sortVec(tp3.Tj2Pts.size());
-        for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
-          sortVec[ii].index = ii;
-          sortVec[ii].val = tp3.Tj2Pts[ii].id;
-        } // ii
-        std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
-        auto temp = tp3.Tj2Pts;
-        for(unsigned short ii = 0; ii < temp.size(); ++ii) tp3.Tj2Pts[ii] = temp[sortVec[ii].index];
-*/
         FilldEdx(tjs, tp3);
         pfp.Tp3s.push_back(tp3);
         break;
@@ -708,21 +699,21 @@ namespace tca {
   } // SortByDistanceFromStart
   
   /////////////////////////////////////////
-  void CheckTp3Validity(TjStuff& tjs, PFPStruct& pfp, bool prt)
+  bool CheckTp3Validity(TjStuff& tjs, PFPStruct& pfp, Vector3_t generalDirection, bool prt)
   {
     // Checks and corrects the ordering of Tj points in the pfp space points. Checks for
     // consistency between the tjs listed in pfp.TjIDs and those appearing in the space points.
     // Sets the IsValid flag false for space points in the vector that are inconsistent
-    // with their neighbors
+    // with their neighbors and with the general direction
     
     if(prt) mf::LogVerbatim("TC")<<"CheckTp3Validity: pfp "<<pfp.ID;
-    
+        
     // ensure that the Tj points are in increasing order and reverse them if they aren't. This
     // presumes that the space points have been ordered from pfp start to pfp end
     std::vector<int> tjids;
     // list of tj points to check for increasing (or decreasing) order
-    std::vector<unsigned short> firstIpt;
-    std::vector<unsigned short> lastIpt;
+    std::vector<short> firstIpt;
+    std::vector<short> lastIpt;
     for(auto& Tp3 : pfp.Tp3s) {
       for(auto& tj2pt : Tp3.Tj2Pts) {
         int tjid = tj2pt.id;
@@ -735,8 +726,8 @@ namespace tca {
           continue;
         }
         tjids.push_back(tjid);
-        firstIpt.push_back(tj2pt.ipt);
-        lastIpt.push_back(tj2pt.ipt);
+        firstIpt.push_back((short)tj2pt.ipt);
+        lastIpt.push_back((short)tj2pt.ipt);
      } // tjpt
     } // spt
     // reverse Tjs if necessary so that end0 is at the start of the pfp
@@ -755,14 +746,46 @@ namespace tca {
     } // ii
     std::vector<int> different = SetDifference(tjids, pfp.TjIDs);
     if(!different.empty()) {
-      std::cout<<"CSV: Tjs are inconsistent";
-      auto common = SetIntersection(tjids, pfp.TjIDs);
-      std::cout<<" common";
-      for(auto tjid : common) std::cout<<" "<<tjid;
-      std::cout<<" different";
-      for(auto tjid : different) std::cout<<" "<<tjid;
-      std::cout<<"\n";
-    }
+      // Check the number of points used by the different tjs in this pfp. Start
+      // a new list of tjs with a significant number
+      std::vector<int> bigDifference;
+      for(auto dtjid : different) {
+        // find the tjid and compare the first and last points used
+        for(unsigned short ii = 0; ii < tjids.size(); ++ii) {
+          if(tjids[ii] != dtjid) continue;
+          auto& tj = tjs.allTraj[tjids[ii] - 1];
+          // the number of points in the tj
+          short npts = tj.EndPt[1] - tj.EndPt[0];
+          // ignore short tjs
+          if(npts < 5) continue;
+          short nptsInPFP = abs(lastIpt[ii] - firstIpt[ii]);
+          if(nptsInPFP < 0.3 * npts) continue;
+          // This shouldn't happen but check anyway
+          if(std::find(bigDifference.begin(), bigDifference.end(), dtjid) != bigDifference.end()) continue;
+          bigDifference.push_back(dtjid);
+        } // ii
+      } // dtjid
+      if(prt && !bigDifference.empty()) {
+        std::cout<<"CSV: Found bigDifference tjs:";
+        auto common = SetIntersection(tjids, pfp.TjIDs);
+        std::cout<<" common";
+        for(auto tjid : common) std::cout<<" "<<tjid;
+        std::cout<<" different";
+        for(auto tjid : different) std::cout<<" "<<tjid;
+        std::cout<<"\n";
+      } // bigDifference
+    } // !different.empty
+    // look for Tjs that aren't fully matched along their length
+    for(unsigned short ii = 0; ii < tjids.size(); ++ii) {
+      auto& tj = tjs.allTraj[tjids[ii] - 1];
+      // the number of points in the tj
+      short npts = tj.EndPt[1] - tj.EndPt[0];
+      // ignore short tjs
+      if(npts < 5) continue;
+      short nptsInPFP = abs(lastIpt[ii] - firstIpt[ii]);
+      if(nptsInPFP < 0.5 * npts) continue;
+      if(prt) std::cout<<"CSV: tj "<<tjids[ii]<<" isn't fully matched. nptsInPFP "<<nptsInPFP<<" npts "<<npts<<"\n";
+    } // ii
     
     // find the average separation between adjacent points
     float sum = 0;
@@ -779,7 +802,7 @@ namespace tca {
       ++cnt;
     } // ii
     // return if something is seriously wrong
-    if(cnt < 0.5 * pfp.Tp3s.size()) return;
+    if(cnt < 0.5 * pfp.Tp3s.size()) return false;
     float aveSep = sum / cnt;
     float arg = sum2 - cnt * aveSep * aveSep;
     float maxSep = 2 * aveSep;
@@ -787,16 +810,19 @@ namespace tca {
       float rms = sqrt(arg / (cnt - 1));
       maxSep = aveSep + 3 * rms;
     }
-    TrajPoint3 lastGoodTp3 = pfp.Tp3s[0];
-    for(unsigned short ipt = 1; ipt < pfp.Tp3s.size(); ++ipt) {
+    unsigned short nValid = 0;
+    for(unsigned short ipt = 0; ipt < pfp.Tp3s.size(); ++ipt) {
       // Set large sep points not valid
       if(seps[ipt] > maxSep) pfp.Tp3s[ipt].IsValid = false;
       // Set not valid if there is a large change in angle
-      if(DeltaAngle(pfp.Tp3s[ipt].Dir, lastGoodTp3.Dir) > tjs.KinkCuts[0]) pfp.Tp3s[ipt].IsValid = false;
-      if(pfp.Tp3s[ipt].IsValid) lastGoodTp3 = pfp.Tp3s[ipt];
-    }
-    // TODO: Deal with the case where the first point should be invalid
-    
+      if(DeltaAngle(pfp.Tp3s[ipt].Dir, generalDirection) > 0.2) pfp.Tp3s[ipt].IsValid = false;
+      // update the general direction vector
+      if(pfp.Tp3s[ipt].IsValid) generalDirection = pfp.Tp3s[ipt].Dir;
+      if(pfp.Tp3s[ipt].IsValid) ++nValid;
+    } // ipt
+    // require most of the point valid
+    if(nValid < 0.7 * pfp.Tp3s.size()) return false;
+    return true;
   } // CheckTp3Validity
   
   /////////////////////////////////////////
@@ -914,6 +940,8 @@ namespace tca {
         TrajPoint3 tp3;
         if(!MakeTp3(tjs, itp, jtp, tp3)) continue;
         bool dijOK = (useAngle && iTjPt.npts > 5 && jTjPt.npts > 5);
+        // count weight is one for a two-plane match
+        float cntWght = 1;
         if(numPlanes == 3) {
           // numPlanes == 3
           for(unsigned int kpt = jpt + 1; kpt < tjs.mallTraj.size(); ++kpt) {
@@ -932,8 +960,9 @@ namespace tca {
             if(!MakeTp3(tjs, itp, ktp, iktp3)) continue;
             if(std::abs(tp3.Pos[1] - iktp3.Pos[1]) > yzcut) continue;
             if(std::abs(tp3.Pos[2] - iktp3.Pos[2]) > yzcut) continue;
+            float dang = 0;
             if(dijOK && kTjPt.npts > 5) {
-              float dang = std::abs(DeltaAngle(tp3.Dir, iktp3.Dir));
+              dang = std::abs(DeltaAngle(tp3.Dir, iktp3.Dir));
               if(dang > piOver2) dang = piOver2 - dang;
               if(dang > tjs.Match3DCuts[1]) continue;
             } // check angle difference
@@ -949,6 +978,8 @@ namespace tca {
               } 
             } // ms
             if(gotit) continue;
+            // Triple match count = 2 de-weighted by delta angle
+            cntWght = 2 - dang;
             // next check the temp vector
             unsigned short indx = 0;
             for(indx = 0; indx < temp.size(); ++indx) {
@@ -956,7 +987,8 @@ namespace tca {
               if(iTjPt.id != ms.TjIDs[iplane]) continue;
               if(jTjPt.id != ms.TjIDs[jplane]) continue;
               if(kTjPt.id != ms.TjIDs[kplane]) continue;
-              ++ms.Count;
+              ms.Count += cntWght;
+//              ++ms.Count;
               break;
             } // indx
             if(indx == temp.size()) {
@@ -968,7 +1000,8 @@ namespace tca {
               ms.TjIDs[iplane] = iTjPt.id;
               ms.TjIDs[jplane] = jTjPt.id;
               ms.TjIDs[kplane] = kTjPt.id;
-              ms.Count = 1;
+              ms.Count = cntWght;
+//              ms.Count = 1;
               temp.push_back(ms);
               // give up if there are too many
               if(temp.size() > nAvailable) break;
@@ -1072,18 +1105,20 @@ namespace tca {
     tp3.Pos = {999};
     geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
     geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
-    double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1] / tjs.UnitsPerTick, iPlnID);
-    double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / tjs.UnitsPerTick, jPlnID);
+    double upt = tjs.UnitsPerTick;
+    double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1] / upt, iPlnID);
+    double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / upt, jPlnID);
     //    std::cout<<"MSPT: "<<PrintPos(tjs, itp.Pos)<<" X "<<ix<<" "<<PrintPos(tjs, jtp.Pos)<<" "<<jx<<"\n";
     
     // don't continue if the points are wildly far apart in X
     if(std::abs(ix - jx) > 10) return false;
     tp3.Pos[0] = 0.5 * (ix + jx);
-    
+/*
     unsigned int iWire = std::nearbyint(itp.Pos[0]);
     if(!tjs.geom->HasWire(geo::WireID(iPlnID.Cryostat, iPlnID.TPC, iPlnID.Plane, iWire))) return false;
     unsigned int jWire = std::nearbyint(jtp.Pos[0]);
     if(!tjs.geom->HasWire(geo::WireID(jPlnID.Cryostat, jPlnID.TPC, jPlnID.Plane, jWire))) return false;
+*/
     // determine the wire orientation and offsets using WireCoordinate
     // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
     // wire offset
@@ -1119,20 +1154,25 @@ namespace tca {
     } // jtp.Dir[1] == 0
     
     // make a copy of itp and shift it by many wires to avoid precision problems
-    TrajPoint itp2 = itp;
-    MoveTPToWire(itp2, itp2.Pos[0] + 100);
-    // Create a second Vector3 for the shifted point
+    double itp2_0 = itp.Pos[0] + 100;
+    double itp2_1 = itp.Pos[1];
+    if(std::abs(itp.Dir[0]) > 0.01) itp2_1 += 100 * itp.Dir[1] / itp.Dir[0];
+//    tp.Pos[1] += dw * tp.Dir[1] / tp.Dir[0];
+//    TrajPoint itp2 = itp;
+//    MoveTPToWire(itp2, itp2.Pos[0] + 100);
+    // Create a second Point3 for the shifted point
     Point3_t pos2;
     // Find the X position corresponding to the shifted point 
-    pos2[0] = tjs.detprop->ConvertTicksToX(itp2.Pos[1] / tjs.UnitsPerTick, iPlnID);
+//    pos2[0] = tjs.detprop->ConvertTicksToX(itp2.Pos[1] / tjs.UnitsPerTick, iPlnID);
+    pos2[0] = tjs.detprop->ConvertTicksToX(itp2_1 / upt, iPlnID);
     // Convert X to Ticks in the j plane and then to WSE units
-    double jtp2Pos1 = tjs.detprop->ConvertXToTicks(pos2[0], jPlnID) * tjs.UnitsPerTick;
+    double jtp2Pos1 = tjs.detprop->ConvertXToTicks(pos2[0], jPlnID) * upt;
     // Find the wire position (Pos0) in the j plane that this corresponds to
     double jtp2Pos0 = (jtp2Pos1 - jtp.Pos[1]) * (jtp.Dir[0] / jtp.Dir[1]) + jtp.Pos[0];
     // Find the Y,Z position using itp2 and jtp2Pos0
-    pos2[2] = (jcs * (itp2.Pos[0] - iw0) - ics * (jtp2Pos0 - jw0)) / den;
+    pos2[2] = (jcs * (itp2_0 - iw0) - ics * (jtp2Pos0 - jw0)) / den;
     if(useI) {
-      pos2[1] = (itp2.Pos[0] - iw0 - isn * pos2[2]) / ics;
+      pos2[1] = (itp2_0 - iw0 - isn * pos2[2]) / ics;
     } else {
       pos2[1] = (jtp2Pos0 - jw0 - jsn * pos2[2]) / jcs;
     }
@@ -1268,4 +1308,24 @@ namespace tca {
     return DeltaAngle(tp3s[pt1].Dir, tp3s[pt2].Dir);
   } // KinkAngle
   
+  ////////////////////////////////////////////////
+  void PrintTp3(std::string fcnLabel, const TjStuff& tjs, const TrajPoint3& tp3)
+  {
+    mf::LogVerbatim myprt("TC");
+    myprt<<fcnLabel<<" Tp3";
+    myprt<<std::fixed<<std::setprecision(1);
+    myprt<<std::setw(6)<<tp3.Pos[0]<<std::setw(6)<<tp3.Pos[1]<<std::setw(6)<<tp3.Pos[2];
+    myprt<<std::fixed<<std::setprecision(3);
+    myprt<<std::setw(7)<<tp3.Dir[0]<<std::setw(7)<<tp3.Dir[1]<<std::setw(7)<<tp3.Dir[2];
+    myprt<<" dEdx "<<std::setw(4)<<std::setprecision(1)<<tp3.dEdx;
+    myprt<<" Err "<<std::setw(4)<<std::setprecision(1)<<tp3.dEdxErr;
+    myprt<<" IsValid? "<<tp3.IsValid;
+    myprt<<" tj_ipt";
+    for(auto tj2pt : tp3.Tj2Pts) {
+      auto& tj = tjs.allTraj[tj2pt.id - 1];
+      auto& tp = tj.Pts[tj2pt.ipt];
+      myprt<<" "<<tj.ID<<"_"<<PrintPos(tjs, tp);
+    } // tj2pt
+  } // PrintTp3
+
 } // namespace
