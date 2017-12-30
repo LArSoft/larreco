@@ -860,7 +860,28 @@ namespace tca {
     // such as muon direction, TPC boundaries etc. This function will set pfp.XYZ[0].
     // SortByDistanceFrom Start will sort the space points by distance from this point
     if(SetNewStart(tjs, pfp, prt)) SortByDistanceFromStart(tjs, pfp);
-    CheckTp3Validity(tjs, pfp, prt);
+    // Set the Tp3 directions to be consistent with the general direction
+    Vector3_t generalDirection;
+    auto& startPt = pfp.Tp3s[0].Pos;
+    auto& endPt = pfp.Tp3s[pfp.Tp3s.size() - 1].Pos;
+    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) generalDirection[ixyz] = endPt[ixyz] - startPt[ixyz];
+    if(!SetMag(generalDirection, 1)) return false;
+    if(prt) mf::LogVerbatim("TC")<<" generalDirection "<<std::fixed<<std::setprecision(3)<<generalDirection[0]<<" "<<generalDirection[1]<<" "<<generalDirection[2];
+    // Find the largest component
+    unsigned short doXYZ = 0;
+    double len = 0;
+    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
+      if(std::abs(generalDirection[ixyz]) > len) {
+        len = std::abs(generalDirection[ixyz]);
+        doXYZ = ixyz;
+      }
+    } // ixyz
+    // Reverse direction vectors if necessary
+    for(auto& tp3 : pfp.Tp3s) {
+      if(std::signbit(tp3.Dir[doXYZ]) == std::signbit(generalDirection[doXYZ])) continue;
+      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) tp3.Dir[ixyz] = -tp3.Dir[ixyz];
+    } // tp3
+    if(!CheckTp3Validity(tjs, pfp, generalDirection, prt)) return false;
     pfp.Dir[0] = pfp.Tp3s[0].Dir;
     if(pfp.Vx3ID[1] == 0) pfp.XYZ[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Pos;
     pfp.Dir[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Dir;
@@ -871,7 +892,7 @@ namespace tca {
         auto tp3 = pfp.Tp3s[ipt];
         myprt<<std::setw(3)<<ipt<<" pos ";
         myprt<<" "<<std::fixed<<std::setprecision(1);
-        myprt<<std::setw(6)<<tp3.Pos[0]<<std::setw(6)<<tp3.Pos[1]<<std::setw(6)<<tp3.Pos[2];
+        myprt<<std::setw(7)<<tp3.Pos[0]<<std::setw(7)<<tp3.Pos[1]<<std::setw(7)<<tp3.Pos[2];
         myprt<<" sep "<<std::setprecision(1)<<std::setw(5)<<PosSep(tp3.Pos, pfp.Tp3s[0].Pos);
         float sep2 = -1;
         if(ipt > 0) sep2 = PosSep(tp3.Pos, pfp.Tp3s[ipt - 1].Pos);
@@ -897,6 +918,33 @@ namespace tca {
     FilldEdx(tjs, pfp);
     return true;
   } // DefinePFP
+  
+  /////////////////////////////////////////
+  bool MergeTjIntoPFP(TjStuff& tjs, int mtjid, PFPStruct& pfp, bool prt)
+  {
+    // Tries to merge Tj with ID tjid into PFParticle pfp
+    if(mtjid > (int)tjs.allTraj.size()) return false;
+    auto& mtj = tjs.allTraj[mtjid - 1];
+    // find the Tj in pfp.TjIDs which it should be merged with
+    int otjid = 0;
+    for(auto tjid : pfp.TjIDs) {
+      auto& otj = tjs.allTraj[tjid - 1];
+      if(otj.CTP == mtj.CTP) {
+        otjid = tjid;
+        break;
+      }
+    } // tjid
+    if(otjid == 0) return false;
+    if(MergeAndStore(tjs, otjid - 1, mtjid - 1, prt)) {
+      int newtjid = tjs.allTraj.size();
+      if(prt) mf::LogVerbatim("TC")<<"MergeTjIntoPFP: merged "<<otjid<<" with "<<mtjid<<" -> "<<newtjid;
+      std::replace(pfp.TjIDs.begin(), pfp.TjIDs.begin(), otjid, newtjid);
+      return true;
+    } else {
+      if(prt) mf::LogVerbatim("TC")<<"MergeTjIntoPFP: "<<otjid<<" "<<mtjid<<" failed ";
+      return false;
+    }
+  } // MergeTjIntoPFP
   
   /////////////////////////////////////////
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt)
@@ -1892,130 +1940,70 @@ namespace tca {
     // clear the points after lastPt
     for(unsigned short ipt = lastPt + 1; ipt <= tj.EndPt[1]; ++ipt) UnsetUsedHits(tjs, tj.Pts[ipt]);
     SetEndPoints(tjs, tj);
-//    tj.Pts.resize(tj.EndPt[1] + 1);
     tj.AlgMod[kTEP] = true;
     if(prt) PrintTrajectory("TEPo", tjs, tj, USHRT_MAX);
     
   } // TrimEndPts
-/*  
-  //////////////////////////////////////////
-  void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
+
+  /////////////////////////////////////////
+  void ChkChgAsymmetry(TjStuff& tjs, Trajectory& tj, bool prt)
   {
-    // Trim the hits off the end until there are at least fMinPts consecutive hits at the end
-    // and the fraction of hits on the trajectory exceeds fQualityCuts[0]
-    // Minimum length requirement accounting for dead wires where - denotes a wire with a point
-    // and D is a dead wire. Here is an example with minPts = 3
-    //  ---DDDDD--- is OK
-    //  ----DD-DD-- is OK
-    //  ----DDD-D-- is OK
-    //  ----DDDDD-- is not OK
-    
-    if(!tjs.UseAlg[kTEP]) return;
-    
-    float npwc = NumPtsWithCharge(tjs, tj, false);
-    if(npwc < fQualityCuts[1] + 1) return;
-    
-    // consider short Tjs that the code below doesn't handle
-    if(npwc == fQualityCuts[1] + 1) {
-      float sep = PosSep(tj.Pts[tj.EndPt[0]].Pos, tj.Pts[tj.EndPt[1]].Pos);
-      std::cout<<"TEP: "<<tj.ID<<" npwc "<<npwc<<" sep "<<sep<<"\n";
-    } // short tj
-    
-    unsigned short minPts = fQualityCuts[1];
-    float maxPtSep = minPts + 2;
-
-    if(prt) {
-      mf::LogVerbatim("TC")<<"TrimEndPts: minPts "<<minPts<<" required. maxPtSep "<<maxPtSep<<" Minimum hit fraction "<<fQualityCuts[0];
-      if(tj.Pts.size() < 50) PrintTrajectory("TEPi", tjs, tj, USHRT_MAX);
-    }
-
-    unsigned short newEndPt = tj.EndPt[1];
-    unsigned short nPtsWithCharge;
-    float hitFrac = 0;
-    while(newEndPt > minPts) {
-      nPtsWithCharge = 0;
-      if(tj.Pts[newEndPt].Chg == 0) {
-        --newEndPt;
-        continue;
+    // looks for a high-charge point in the trajectory which may be due to the
+    // trajectory crossing an interaction vertex. The properties of points on the opposite
+    // sides of the high-charge point are analyzed. If significant differences are found, all points
+    // near the high-charge point are removed as well as those from that point to the end
+    if(!tjs.UseAlg[kChkChgAsym]) return;
+    unsigned short npts = tj.EndPt[1] - tj.EndPt[0];
+    if(prt) mf::LogVerbatim("TC")<<" Inside ChkChgAsymmetry "<<tj.ID;
+    // ignore long tjs
+    if(npts > 50) return;
+    // ignore short tjs
+    if(npts < 8) return;
+    // require the charge pull > 5
+    float bigPull = 5;
+    unsigned short atPt = 0;
+    // Don't consider the first/last few points in case there is a Bragg peak
+    for(unsigned short ipt = tj.EndPt[0] + 2; ipt <= tj.EndPt[1] - 2; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.ChgPull > bigPull) {
+        bigPull = tp.ChgPull;
+        atPt = ipt;
       }
-      for(unsigned short jj = 0; jj < minPts && jj<= newEndPt; ++jj) {
-        unsigned short jpt = newEndPt - jj;
-        if(tj.Pts[jpt].Chg > 0) ++nPtsWithCharge; 
-        if(jpt < minPts) break; //TY: so trajectory with 4 points won't be killed
-      } // jj
-      
-      float ptSep = std::abs(tj.Pts[newEndPt - minPts].Pos[0] - tj.Pts[newEndPt].Pos[0]);
-      if(prt) mf::LogVerbatim("TC")<<" newEndPt "<<newEndPt<<" ptSep "<<ptSep<<" nPtsWithCharge "<<nPtsWithCharge;
-      // allow only one dead wire at the end
-      if(nPtsWithCharge == minPts && ptSep < maxPtSep) {
-        // minPts consecutive points have charge. Check the TP Chg fraction
-        float npwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], newEndPt);
-        float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[newEndPt].Pos[0]) + 1;
-        hitFrac = npwc / nwires;
-        if(prt) mf::LogVerbatim("TC")<<" check hitFrac "<<newEndPt<<" nwires "<<(int)nwires<<" npwc "<<(int)npwc<<" hitFrac "<<hitFrac;
-        if(hitFrac > fQualityCuts[0]) break;
-        newEndPt -= minPts;
-      }
-      --newEndPt;
-      // check for a serious failure
-      if(newEndPt > tj.EndPt[1]) return;
-    } // newEndPt
-
-    // passed the cuts with no modifications
-    if(newEndPt == tj.EndPt[1]) return;
-
-    // newEndPt is now the last point that satisfies these conditions
-    // dead wire check
-    nPtsWithCharge = 0;
-    unsigned short nConsecutivePts = 0;
-    for(unsigned short jj = 0; jj < minPts; ++jj) {
-      unsigned short jpt = newEndPt - jj;
-      if(tj.Pts[jpt].Chg > 0) ++nPtsWithCharge;
-      if(jj > 0 && std::abs(tj.Pts[jpt+1].Pos[0] - tj.Pts[jpt].Pos[0]) < 1.5) ++nConsecutivePts;
-      if(jpt == 0) break;
-    } // jj
-    
-    if(prt) mf::LogVerbatim("TC")<<" newEndPt "<<newEndPt<<" nConsecutivePts "<<nConsecutivePts<<" Required "<<minPts - 1;
-    
-    // lop off the last point if the consecutive point condition isn't met and re-calculate
-    if(nConsecutivePts < minPts - 1 && newEndPt > minPts) {
-      --newEndPt;
-      nPtsWithCharge = 0;
-      unsigned short nConsecutivePts = 0;
-      for(unsigned short jj = 0; jj < minPts; ++jj) {
-        unsigned short jpt = newEndPt - jj;
-        if(tj.Pts[jpt].Chg > 0) ++nPtsWithCharge;
-        if(jj > 0 && std::abs(tj.Pts[jpt+1].Pos[0] - tj.Pts[jpt].Pos[0]) < 1.5) ++nConsecutivePts;
-        if(jpt == 0) break;
-      } // jj
-      if(prt) mf::LogVerbatim("TC")<<"   newEndPt "<<newEndPt<<" nConsecutivePts "<<nConsecutivePts<<" Required "<<minPts - 1;
-    }
-    
-    if(newEndPt < minPts) {
-      tj.AlgMod[kKilled] = true;
-      return;
-    }
-    
-    float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[newEndPt].Pos[0]) + 1;
-    npwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], newEndPt);
-    hitFrac = npwc / nwires;
-    
-    if(hitFrac < fQualityCuts[0]) tj.AlgMod[kKilled] = true;
-    if(prt) mf::LogVerbatim("TC")<<" Old endpoint "<<tj.EndPt[1]<<" newEndPt "<<newEndPt<<" nwires "<<nwires<<" npwc "<<npwc<<" nConsecutivePts "<<nConsecutivePts<<" hitFrac "<<hitFrac<<" Killed? "<<tj.AlgMod[kKilled];
-    
-    // failed the cuts
-    if(tj.AlgMod[kKilled]) return;
-    
-    // modifications required
-    tj.EndPt[1] = newEndPt;    
-    for(unsigned short ipt = newEndPt + 1; ipt < tj.Pts.size(); ++ipt) UnsetUsedHits(tjs, tj.Pts[ipt]);
+    } // ipt
+    if(atPt == 0) return;
+    // require that this point be near the DS end
+    if((atPt - tj.EndPt[0]) < 0.5 * npts) return;
+    if(prt) mf::LogVerbatim("TC")<<"CCA: ID "<<tj.ID<<" Large Chg point at "<<atPt<<". Check charge asymmetry around it.";
+    unsigned short nchk = 0;
+    unsigned short npos = 0;
+    unsigned short nneg = 0;
+    for(short ii = 1; ii < 5; ++ii) {
+      short iplu = atPt + ii;
+      if(iplu > tj.EndPt[1]) break;
+      short ineg = atPt - ii;
+      if(ineg < tj.EndPt[0]) break;
+      if(tj.Pts[iplu].Chg == 0) continue;
+      if(tj.Pts[ineg].Chg == 0) continue;
+      float asym = (tj.Pts[iplu].Chg - tj.Pts[ineg].Chg) / (tj.Pts[iplu].Chg + tj.Pts[ineg].Chg);
+      ++nchk;
+      if(asym > 0.5) ++npos;
+      if(asym < -0.5) ++nneg;
+      if(prt) mf::LogVerbatim("TC")<<" ineg "<<ineg<<" iplu "<<iplu<<" asym "<<asym<<" nchk "<<nchk;
+    } // ii
+    if(nchk < 3) return;
+    // require most of the points be very positive or very negative
+    nchk -= 2;
+    bool doTrim = (nneg > nchk) || (npos > nchk);
+    if(!doTrim) return;
+    // remove all the points at the end starting at the one just before the peak if the pull is not so good
+    auto& prevTP = tj.Pts[atPt - 1];
+    if(std::abs(prevTP.ChgPull) > 2) --atPt;
+    for(unsigned short ipt = atPt; ipt <= tj.EndPt[1]; ++ipt) UnsetUsedHits(tjs, tj.Pts[ipt]);
     SetEndPoints(tjs, tj);
-    tj.Pts.resize(tj.EndPt[1] + 1);
-    tj.AlgMod[kTEP] = true;
-    if(prt) PrintTrajectory("TEPo", tjs, tj, USHRT_MAX);
-    
-  } // TrimEndPts
-*/
+    tj.AlgMod[kChkChgAsym] = true;
+    if(prt) PrintTrajectory("CCA", tjs, tj, USHRT_MAX);
+  } // ChkChgAsymmetry
+
   /////////////////////////////////////////
   bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt)
   {
