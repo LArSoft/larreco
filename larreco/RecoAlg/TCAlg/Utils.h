@@ -54,6 +54,7 @@ namespace tca {
   std::vector<int> MergeChain(TjStuff& tjs, std::vector<int> mergeList, bool prt);
   void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  bool MergeTjIntoPFP(TjStuff& tjs, int mtjid, PFPStruct& pfp, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt);
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
   void FilldEdx(TjStuff& tjs, PFPStruct& pfp);
@@ -78,6 +79,7 @@ namespace tca {
   bool InTrajOK(TjStuff& tjs, std::string someText);
   void CheckTrajBeginChg(TjStuff& tjs, unsigned short itj, bool prt);
   void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
+  void ChkChgAsymmetry(TjStuff& tjs, Trajectory& tj, bool prt);
   bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt);
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
   bool TrajHitsOK(TjStuff& tjs, const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet);
