@@ -228,8 +228,8 @@ namespace tca {
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
     std::vector<int> TjIDs;
-    // Count of the number of X-matched hits
-    int Count {0};                    // Set to 0 if matching failed
+    // Count of the number of X-matched hits and de-weight by angle
+    float Count {0};                    // Set to 0 if matching failed
     float MatchFrac {0};
     float TjChgAsymmetry {0};
     unsigned short pfpID {0};
@@ -401,6 +401,7 @@ namespace tca {
     kSoftKink,
     kChkStop,
     kChkStopEP,
+    kChkChgAsym,
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
