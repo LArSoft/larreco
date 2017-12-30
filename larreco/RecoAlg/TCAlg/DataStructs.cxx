@@ -44,6 +44,7 @@ namespace tca {
     "SoftKink",
     "ChkStop",
     "ChkStopEP",
+    "ChkChgAsym",
     "FTBRvProp",
     "StopAtTj",
     "Mat3D",
