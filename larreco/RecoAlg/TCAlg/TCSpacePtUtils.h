@@ -42,7 +42,7 @@ namespace tca {
   void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void SortByDistanceFromStart(TjStuff& tjs, PFPStruct& pfp);
-  void CheckTp3Validity(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  bool CheckTp3Validity(TjStuff& tjs, PFPStruct& pfp, Vector3_t generalDirection, bool prt);
   bool FitTp3(TjStuff& tjs, std::vector<TrajPoint3> tp3s, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint3& outTp3);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, std::vector<MatchStruct>& matVec, bool prt);
   bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3);
@@ -54,6 +54,7 @@ namespace tca {
   bool SetMag(Vector3_t& v1, double mag);
   void FilldEdx(TjStuff& tjs, TrajPoint3& tp3);
   double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep);
+  void PrintTp3(std::string fcnLabel, const TjStuff& tjs, const TrajPoint3& tp3);
   
 } // namespace tca
 
