@@ -29,14 +29,9 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
 namespace tca {
-  
-  void Match3DSpts(TjStuff& tjs, const art::Event& evt, const geo::TPCID& tpcid, const art::InputTag& fSpacePointModuleLabel);
-  bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, std::vector<std::vector<unsigned int>>& sptLists, int tjID, bool prt);
+
+  bool Repair(TjStuff& tjs, PFPStruct& pfp, int tjNotInVx, bool prt);
   bool MergeBrokenTjs(TjStuff& tjs, std::vector<int>& tjInPln, bool prt);
-  std::vector<int> TjsNearSpacePts(TjStuff& tjs, std::vector<unsigned int> sptlist);
-  std::vector<unsigned int> SpacePtsAssociatedWith(TjStuff& tjs, const TrajPoint& tp);
-  std::vector<unsigned int> SpacePtsAssociatedWith(TjStuff& tjs, const Trajectory& tj);
-  std::vector<unsigned int> SpacePtsAtHit(TjStuff& tjs, unsigned int iht);
   void UpdateMatchStructs(TjStuff& tjs, std::vector<int> oldTjs, int newTj);
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
   void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
@@ -53,8 +48,11 @@ namespace tca {
   double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
   bool SetMag(Vector3_t& v1, double mag);
   void FilldEdx(TjStuff& tjs, TrajPoint3& tp3);
+  std::vector<unsigned short> FindKinks(const TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
   double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep);
   void PrintTp3(std::string fcnLabel, const TjStuff& tjs, const TrajPoint3& tp3);
+  PFPStruct CreatePFP(const TjStuff& tjs, const geo::TPCID& tpcid);
+  bool StorePFP(TjStuff& tjs, PFPStruct& pfp);
   
 } // namespace tca
 
