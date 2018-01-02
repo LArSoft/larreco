@@ -226,7 +226,7 @@ namespace tca {
     if(tpcid != tjs.TPCID && !FillWireHitRange(tjs, tpcid, false)) return false;
 
     if(prt) {
-      PrintPFParticles("FSi", tjs);
+      PrintPFPs("FSi", tjs);
       PrintAllTraj("FSi", tjs, debug, USHRT_MAX, 0);
     }
 
@@ -992,7 +992,7 @@ namespace tca {
     
     std::string fcnLabel = inFcnLabel + ".RS";
 
-    if(prt) PrintPFParticles("RSi", tjs);
+    if(prt) PrintPFPs("RSi", tjs);
 
     // look for mis-matched shower parents
     for(auto& ss3 : tjs.showers) {
@@ -1079,7 +1079,7 @@ namespace tca {
       ss3.MIPEnergyErr.resize(tjs.NumPlanes);
       ss3.dEdx.resize(tjs.NumPlanes);
       ss3.dEdxErr.resize(tjs.NumPlanes);
-      auto pfp = CreatePFPStruct(tjs, tpcid);
+      auto pfp = CreatePFP(tjs, tpcid);
       // the list of of pfp TjIDs are for the Shower Tjs
       pfp.TjIDs.resize(ss3.CotIndices.size());
       float maxLen = 0;
@@ -1111,7 +1111,7 @@ namespace tca {
       pfp.Vx3ID[0] = ss3.Vx3ID;
       ss3.PFPIndex = tjs.pfps.size();
       pfp.PDGCode = 1111;
-      tjs.pfps.push_back(pfp);
+      if(!StorePFP(tjs, pfp)) continue;
       if(!Find3DShowerEndPoints(tjs, ss3, prt)) {
         std::cout<<fcnLabel<<" Find3DShowerEndPoints failed\n";
         continue;
