@@ -30,7 +30,7 @@
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
-#include "larreco/RecoAlg/TCAlg/TCSpacePtUtils.h"
+#include "larreco/RecoAlg/TCAlg/Tp3Utils.h"
 
 namespace tca {
 
