@@ -102,7 +102,6 @@ namespace tca {
     
     private:
     
-    art::InputTag fSpacePointModuleLabel; ///< label of module producing space points
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
     art::InputTag fHitTruthModuleLabel; ///< label of module producing MCParticle -> hit associations
     
@@ -307,7 +306,6 @@ namespace tca {
     void SplitHiChgHits(Trajectory& tj);
 
     void Match3D(const art::Event& evt, const geo::TPCID& tpcid);
-    void GetSpacePointCollection(const art::Event& evt);
     void GetHitCollection(const art::Event& evt);
     
     void KalmanFilterFit(PFPStruct& pfp);
