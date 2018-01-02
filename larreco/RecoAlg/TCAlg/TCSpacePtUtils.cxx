@@ -1,4 +1,6 @@
 #include "larreco/RecoAlg/TCAlg/TCSpacePtUtils.h"
+// temp include for study
+#include "larreco/RecoAlg/TCAlg/TCTruth.h"
 
 namespace tca {
 
@@ -10,6 +12,72 @@ namespace tca {
   bool valDecreasings (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
   bool valIncreasings (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
   
+  //////////////////////////////////////////
+  bool Repair(TjStuff& tjs, PFPStruct& pfp, int tjNotInVx, bool prt)
+  {
+    // The tj tjNotInVx was matched in 3D to other Tjs in the pfp but it wasn't 
+    // attached to the vertex that the pfp is attached to. Try to repair it. This
+    // function returns false if there is a failure. The NeedsUpdate pfp flag is set
+    // true if an update is needed
+    if(tjNotInVx <= 0 || tjNotInVx > (int)tjs.allTraj.size()) return false;
+    if(pfp.ID == 0) return false;
+    if(pfp.TjIDs.empty()) return false;
+    auto& missTj = tjs.allTraj[tjNotInVx - 1];
+    int mtjid = 0;
+    for(auto tjid : pfp.TjIDs) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      if(tj.CTP == missTj.CTP) mtjid = tjid;
+    }
+    if(mtjid == 0) {
+      // This is a strange situation but is easy to repair
+      if(prt) mf::LogVerbatim("TC")<<" No other pfp Tj found in the same plane. Simple update needed";
+      pfp.TjIDs.push_back(tjNotInVx);
+      pfp.NeedsUpdate = true;
+      return true;
+    }
+    // reference to the tj that is 3D-matched
+    auto& m3Tj = tjs.allTraj[mtjid - 1];
+    // look for a 2D vertex between them
+    unsigned short vx2id = 0;
+    for(unsigned short e1 = 0; e1 < 2; ++e1) {
+      if(m3Tj.VtxID[e1] == 0) continue;
+      for(unsigned short e2 = 0; e2 < 2; ++e2) {
+        if(missTj.VtxID[e2] == m3Tj.VtxID[e1]) vx2id = missTj.VtxID[e2];
+      } // e2
+    } // e1
+    if(vx2id == 0) {
+      std::cout<<"Repair: No common vertex between "<<missTj.ID<<" and "<<m3Tj.ID<<". Deal with this case. \n";
+      return false;
+    }
+    // separation distance (cm) for kink detection
+    double sep = 1;
+    auto kinkPts = FindKinks(tjs, pfp, sep, prt);
+    if(prt) mf::LogVerbatim("TC")<<" number of kinks found "<<kinkPts.size();
+/*
+    // The vertex exists because there is a significant kink in one plane
+    // but not a significant kink in the other planes. We need to split the
+    // Tjs in the other planes and re-build
+    if(prt) mf::LogVerbatim("TC")<<" Two Tjs needs to be split at the X position of vx2id "<<vx2id;
+    auto& vx2 = tjs.vtx[vx2id - 1];
+    geo::PlaneID planeID = DecodeCTP(vx2.CTP);
+    float splitX = tjs.detprop->ConvertTicksToX(vx2.Pos[1] / tjs.UnitsPerTick, planeID);
+    // create a 3D vertex
+    Vtx3Store vx3;
+    vx3.TPCID = pfp.TPCID;
+    vx3.Vx2ID[planeID.Plane] = vx2id;
+    for(auto tjid : pfp.TjIDs) {
+      if(tjid == mtjid) continue;
+      if(!SplitTraj(tjs, tjid - 1, splitX, true, prt)) continue;
+      // If successful, SplitTraj will have created a new 2D vertex and put it at the end of tjs.vtx
+      geo::PlaneID planeID = DecodeCTP(tjs.allTraj[tjid - 1].CTP);
+      vx3.Vx2ID[planeID.Plane] = tjs.vtx.size();
+    } // tjid
+    std::cout<<"Repair: Find 3D vertex position and re-build everything\n";
+    tjs.Needs3DRebuild
+*/
+    return true;
+  } // Repair
+/*
   //////////////////////////////////////////
   void Match3DSpts(TjStuff& tjs, const art::Event& evt, const geo::TPCID& tpcid, 
                    const art::InputTag& fSpacePointModuleLabel)
@@ -127,28 +195,24 @@ namespace tca {
           for(auto tjid : tjInPln[plane]) myprt<<" "<<tjid;
         } // plane
       } // prt
-      PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
+      PFPStruct pfp = CreatePFP(tjs, tpcid);
       pfp.TjIDs.clear();
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
         if(tjInPln[plane].empty()) continue;
-        if(tjInPln[plane][0] > 0) {
-          pfp.TjIDs.push_back(tjInPln[plane][0]);
-          auto& tj = tjs.allTraj[tjInPln[plane][0] - 1];
-          tj.AlgMod[kMat3D] = true;
-        }
+        if(tjInPln[plane][0] > 0) pfp.TjIDs.push_back(tjInPln[plane][0]);
       } // plane
       // set the end points using the local version that uses SpacePoints instead
       // of tjs.malltraj
       if(!SetPFPEndPoints(tjs, pfp, sptLists, tj.ID, prt)) {
         std::cout<<"SetPFPEndPoints failed";
       }
-      tjs.pfps.push_back(pfp);
+      if(!StorePFP(tjs, pfp)) continue;
       if(ii > 10) break;
     } // ii (tj)
     
   } // Match3DSpts
 
-  /////////////////////////////////////////
+ /////////////////////////////////////////
   bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, std::vector<std::vector<unsigned int>>& sptLists, int tjID, bool prt)
   {
     // Find PFParticle end points using the lists of spacepoints that are associated with each TP
@@ -182,14 +246,6 @@ namespace tca {
       for(auto tjn : tmp) {
         if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjn) != pfp.TjIDs.end()) ++cnt;
       } // tjn
-/*
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<ipt<<" tjn ";
-        for(auto tjid : tmp) myprt<<" "<<tjid;
-        myprt<<" cnt "<<cnt;
-      }
-*/
       if(cnt != pfp.TjIDs.size()) continue;
       if(tj2PtWithSpt[0] == USHRT_MAX) tj2PtWithSpt[0] = ipt;
       tj2PtWithSpt[1] = ipt;
@@ -207,7 +263,7 @@ namespace tca {
 
     return true;
   } // SetPFPEndPoints
-  
+*/
   /////////////////////////////////////////
   bool MergeBrokenTjs(TjStuff& tjs, std::vector<int>& tjInPln, bool prt)
   {
@@ -279,77 +335,6 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC")<<"MergeBrokenTjs returns "<<mergedTjID;
     return true;
   } // MergeBrokenTjs
-  
-  /////////////////////////////////////////
-  std::vector<int> TjsNearSpacePts(TjStuff& tjs, std::vector<unsigned int> sptlist)
-  {
-    // Returns a list of Tjs that use hits that are associated with space
-    // points in the list
-    std::vector<int> tjlist;
-    if(sptlist.empty()) return tjlist;
-    for(auto isp : sptlist) {
-      if(isp > tjs.spts.size() - 1) continue;
-      auto& spt = tjs.spts[isp];
-      for(auto iht : spt.Hits) {
-        if(iht > tjs.fHits.size() - 1) continue;
-        auto& hit = tjs.fHits[iht];
-        if(hit.InTraj <= 0) continue;
-        if(std::find(tjlist.begin(), tjlist.end(), hit.InTraj) == tjlist.end()) tjlist.push_back(hit.InTraj);
-      } // iht
-    } // isp
-    if(tjlist.size() > 1) std::sort(tjlist.begin(), tjlist.end());
-    return tjlist;
-  } // TjsNearSpacePts
-
-  /////////////////////////////////////////
-  std::vector<unsigned int> SpacePtsAssociatedWith(TjStuff& tjs, const Trajectory& tj)
-  {
-    // returns a list of space point indices associated with the trajectory
-    std::vector<unsigned int> allSptList;
-    if(tj.AlgMod[kKilled]) return allSptList;
-    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-      auto& tp = tj.Pts[ipt];
-      if(tp.Chg == 0) continue;
-      auto sptlist = SpacePtsAssociatedWith(tjs, tp);
-      for(auto isp : sptlist) if(std::find(allSptList.begin(), allSptList.end(), isp) == allSptList.end()) allSptList.push_back(isp);
-    } // ipt
-    return allSptList;
-  } // SpacePtsAssociatedWith
-
-  /////////////////////////////////////////
-  std::vector<unsigned int> SpacePtsAssociatedWith(TjStuff& tjs, const TrajPoint& tp)
-  {
-    // returns a list of space point indices associated with the trajectory point
-    std::vector<unsigned int> allSptList;
-    if(tp.Chg <= 0) return allSptList;
-    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-      if(!tp.UseHit[ii]) continue;
-      unsigned int iht = tp.Hits[ii];
-      auto sptlist = SpacePtsAtHit(tjs, iht);
-      if(sptlist.empty()) continue;
-      for(auto isp : sptlist) if(std::find(allSptList.begin(), allSptList.end(), isp) == allSptList.end()) allSptList.push_back(isp);
-    } // ii
-    return allSptList;
-  } // SpacePtsAssociatedWith
-  
-  /////////////////////////////////////////
-  std::vector<unsigned int> SpacePtsAtHit(TjStuff& tjs, unsigned int iht)
-  {
-    // returns a vector of indices into the tjs.Tp3s vector of SpacePoints that
-    // contain hit with index iht
-    std::vector<unsigned int> temp;
-    if(tjs.spts.empty()) return temp;
-    for(unsigned int isp = 0; isp < tjs.spts.size(); ++isp) {
-      auto& spt = tjs.spts[isp];
-      for(auto hit : spt.Hits) {
-        if(hit == iht) {
-          temp.push_back(isp);
-          break;
-        }
-      } // hit
-    } // isp
-    return temp;
-  } // SpacePtsAtHit
   
   /////////////////////////////////////////
   void UpdateMatchStructs(TjStuff& tjs, int tjid)
@@ -525,13 +510,24 @@ namespace tca {
     if(pfp.TjIDs.empty()) return;
     if(tjs.mallTraj.empty()) return;
     double xcut = tjs.Match3DCuts[0];
-//    double yzcut = 1.5 * xcut;
-    double yzcut = xcut;
-
+    double yzcut = 1.5 * xcut;
+    constexpr double twopi = 2 * M_PI;
+    
+//    MCParticleListUtils mcplu{tjs};
+    
     for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 1; ++ipt) {
       auto& iTj2Pt = tjs.mallTraj[ipt];
       if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), iTj2Pt.id) == pfp.TjIDs.end()) continue;
       auto& itp = tjs.allTraj[iTj2Pt.id - 1].Pts[iTj2Pt.ipt];
+      // temp 
+/*
+      unsigned int imcpi = mcplu.GetMCPartListIndex(itp);
+      int TMeV = 0;
+      if(imcpi != UINT_MAX) {
+        auto& mcp = tjs.MCPartList[imcpi];
+        TMeV = 1000 * (mcp->E() - mcp->Mass());
+      }
+*/
       for(unsigned int jpt = ipt + 1; jpt < tjs.mallTraj.size(); ++jpt) {
         auto& jTj2Pt = tjs.mallTraj[jpt];
         // break out if we are well past the X matching region
@@ -542,6 +538,7 @@ namespace tca {
         // check for x range overlap. We know that jTjPt.xlo is >= iTjPt.xlo because of the sort
         if(jTj2Pt.xlo > iTj2Pt.xhi) continue;
         auto& jtp = tjs.allTraj[jTj2Pt.id - 1].Pts[jTj2Pt.ipt];
+//        unsigned int jmcpi = mcplu.GetMCPartListIndex(jtp);
         TrajPoint3 tp3;
         if(!MakeTp3(tjs, itp, jtp, tp3)) continue;
         tp3.Tj2Pts.resize(2);
@@ -558,12 +555,23 @@ namespace tca {
             if(!anyTj && std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), kTj2Pt.id) == pfp.TjIDs.end()) continue;
             if(kTj2Pt.xlo > iTj2Pt.xhi) continue;
             auto& ktp = tjs.allTraj[kTj2Pt.id - 1].Pts[kTj2Pt.ipt];
+//            unsigned int kmcpi = mcplu.GetMCPartListIndex(ktp);
+//            bool ijkMatch = (imcpi != UINT_MAX && jmcpi == imcpi && kmcpi == imcpi);
             TrajPoint3 iktp3;
             if(!MakeTp3(tjs, itp, ktp, iktp3)) continue;
             if(std::abs(iktp3.Pos[1] - tp3.Pos[1]) > yzcut) continue;
             if(std::abs(iktp3.Pos[2] - tp3.Pos[2]) > yzcut) continue;
-            float dang = std::abs(DeltaAngle(tp3.Dir, iktp3.Dir));
-            if(dang > 0.2) continue;
+            if(tjs.Match3DCuts[1] > 0) {
+              double dang = DeltaAngle(tp3.Dir, iktp3.Dir);
+              while(dang >  M_PI) dang -= twopi;
+              while(dang < -M_PI) dang += twopi;
+              if(dang >  M_PI/2) dang = M_PI - dang;
+              if(dang < -M_PI/2) dang = M_PI + dang;
+              float mcsmom = tjs.allTraj[iTj2Pt.id - 1].MCSMom + tjs.allTraj[jTj2Pt.id - 1].MCSMom + tjs.allTraj[kTj2Pt.id - 1].MCSMom;
+              mcsmom /= 3;
+//              mf::LogVerbatim("TC")<<"dang "<<std::fixed<<std::setprecision(3)<<dang<<std::setprecision(2)<<" "<<(iktp3.Pos[1] - tp3.Pos[1])<<" "<<(iktp3.Pos[2] - tp3.Pos[2])<<" "<<(int)mcsmom<<" "<<ijkMatch<<" "<<TMeV;
+              if(mcsmom > 150 && dang > tjs.Match3DCuts[1]) continue;
+            }
             // update the position and direction
             for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
               tp3.Pos[ixyz] += iktp3.Pos[ixyz]; tp3.Pos[ixyz] /= 2;
@@ -707,86 +715,7 @@ namespace tca {
     // with their neighbors and with the general direction
     
     if(prt) mf::LogVerbatim("TC")<<"CheckTp3Validity: pfp "<<pfp.ID;
-        
-    // ensure that the Tj points are in increasing order and reverse them if they aren't. This
-    // presumes that the space points have been ordered from pfp start to pfp end
-    std::vector<int> tjids;
-    // list of tj points to check for increasing (or decreasing) order
-    std::vector<short> firstIpt;
-    std::vector<short> lastIpt;
-    for(auto& Tp3 : pfp.Tp3s) {
-      for(auto& tj2pt : Tp3.Tj2Pts) {
-        int tjid = tj2pt.id;
-        // check for the first occurrence
-        unsigned short ii = 0;
-        for(ii = 0; ii < tjids.size(); ++ii) if(tjid == tjids[ii]) break;
-        if(ii < tjids.size()) {
-          // exists in the list. Keep track of the last point
-          lastIpt[ii] = tj2pt.ipt;
-          continue;
-        }
-        tjids.push_back(tjid);
-        firstIpt.push_back((short)tj2pt.ipt);
-        lastIpt.push_back((short)tj2pt.ipt);
-     } // tjpt
-    } // spt
-    // reverse Tjs if necessary so that end0 is at the start of the pfp
-    for(unsigned short ii = 0; ii < tjids.size(); ++ii) {
-      auto& tj = tjs.allTraj[tjids[ii] - 1];
-      if(prt) mf::LogVerbatim("TC")<<" tj "<<tjids[ii]<<" firstIpt "<<firstIpt[ii]<<" lastIpt "<<lastIpt[ii]<<" SetDir? "<<tj.AlgMod[kSetDir];
-      if(lastIpt[ii] < firstIpt[ii]) {
-        if(prt) mf::LogVerbatim("TC")<<" reverse tj "<<tjids[ii];
-        if(tj.AlgMod[kSetDir]) {
-          if(prt) mf::LogVerbatim("TC")<<"   Violating the SetDir flag ";
-          tj.AlgMod[kSetDir] = false;
-        }
-        ReverseTraj(tjs, tj);
-      } // lastIpt[ii] > firstIpt[ii]
-      tj.AlgMod[kSetDir] = true;
-    } // ii
-    std::vector<int> different = SetDifference(tjids, pfp.TjIDs);
-    if(!different.empty()) {
-      // Check the number of points used by the different tjs in this pfp. Start
-      // a new list of tjs with a significant number
-      std::vector<int> bigDifference;
-      for(auto dtjid : different) {
-        // find the tjid and compare the first and last points used
-        for(unsigned short ii = 0; ii < tjids.size(); ++ii) {
-          if(tjids[ii] != dtjid) continue;
-          auto& tj = tjs.allTraj[tjids[ii] - 1];
-          // the number of points in the tj
-          short npts = tj.EndPt[1] - tj.EndPt[0];
-          // ignore short tjs
-          if(npts < 5) continue;
-          short nptsInPFP = abs(lastIpt[ii] - firstIpt[ii]);
-          if(nptsInPFP < 0.3 * npts) continue;
-          // This shouldn't happen but check anyway
-          if(std::find(bigDifference.begin(), bigDifference.end(), dtjid) != bigDifference.end()) continue;
-          bigDifference.push_back(dtjid);
-        } // ii
-      } // dtjid
-      if(prt && !bigDifference.empty()) {
-        std::cout<<"CSV: Found bigDifference tjs:";
-        auto common = SetIntersection(tjids, pfp.TjIDs);
-        std::cout<<" common";
-        for(auto tjid : common) std::cout<<" "<<tjid;
-        std::cout<<" different";
-        for(auto tjid : different) std::cout<<" "<<tjid;
-        std::cout<<"\n";
-      } // bigDifference
-    } // !different.empty
-    // look for Tjs that aren't fully matched along their length
-    for(unsigned short ii = 0; ii < tjids.size(); ++ii) {
-      auto& tj = tjs.allTraj[tjids[ii] - 1];
-      // the number of points in the tj
-      short npts = tj.EndPt[1] - tj.EndPt[0];
-      // ignore short tjs
-      if(npts < 5) continue;
-      short nptsInPFP = abs(lastIpt[ii] - firstIpt[ii]);
-      if(nptsInPFP < 0.5 * npts) continue;
-      if(prt) std::cout<<"CSV: tj "<<tjids[ii]<<" isn't fully matched. nptsInPFP "<<nptsInPFP<<" npts "<<npts<<"\n";
-    } // ii
-    
+
     // find the average separation between adjacent points
     float sum = 0;
     float sum2 = 0;
@@ -802,7 +731,10 @@ namespace tca {
       ++cnt;
     } // ii
     // return if something is seriously wrong
-    if(cnt < 0.5 * pfp.Tp3s.size()) return false;
+    if(cnt < 0.5 * pfp.Tp3s.size()) {
+      if(prt) mf::LogVerbatim("TC")<<" Tp3 separations too large. cnt "<<cnt<<" minimum required "<<0.5 * pfp.Tp3s.size();
+      return false;
+    }
     float aveSep = sum / cnt;
     float arg = sum2 - cnt * aveSep * aveSep;
     float maxSep = 2 * aveSep;
@@ -810,18 +742,33 @@ namespace tca {
       float rms = sqrt(arg / (cnt - 1));
       maxSep = aveSep + 3 * rms;
     }
+    // decide whether to use angle in the decision
+    float mcsmom = 0;
+    for(auto tjid : pfp.TjIDs) mcsmom += tjs.allTraj[tjid - 1].MCSMom;
+    mcsmom /= (float)pfp.TjIDs.size();
+    bool useAngle = tjs.Match3DCuts[1] > 0 && mcsmom > 150;
+    if(prt) mf::LogVerbatim("TC")<<" ave Tj mcsmom "<<mcsmom<<" use Angle (< 0.3) to check validity? "<<useAngle;
     unsigned short nValid = 0;
     for(unsigned short ipt = 0; ipt < pfp.Tp3s.size(); ++ipt) {
       // Set large sep points not valid
       if(seps[ipt] > maxSep) pfp.Tp3s[ipt].IsValid = false;
       // Set not valid if there is a large change in angle
-      if(DeltaAngle(pfp.Tp3s[ipt].Dir, generalDirection) > 0.2) pfp.Tp3s[ipt].IsValid = false;
+      float dang = 0;
+      if(useAngle) {
+        dang = DeltaAngle(pfp.Tp3s[ipt].Dir, generalDirection);
+        if(dang > 0.3) pfp.Tp3s[ipt].IsValid = false;
+      }
+//      if(prt) mf::LogVerbatim("TC")<<ipt<<" sep "<<seps[ipt]<<" dang "<<dang<<" isValid? "<<pfp.Tp3s[ipt].IsValid;
       // update the general direction vector
       if(pfp.Tp3s[ipt].IsValid) generalDirection = pfp.Tp3s[ipt].Dir;
       if(pfp.Tp3s[ipt].IsValid) ++nValid;
     } // ipt
     // require most of the point valid
-    if(nValid < 0.7 * pfp.Tp3s.size()) return false;
+    if(nValid < 0.5 * pfp.Tp3s.size()) {
+      if(prt) mf::LogVerbatim("TC")<<" Not enough valid points "<<nValid<<" minimum required "<<0.5 * pfp.Tp3s.size();
+      return false;
+    }
+    if(prt) mf::LogVerbatim("TC")<<" Found "<<nValid<<" Tp3s. Looks good. ";
     return true;
   } // CheckTp3Validity
   
@@ -894,6 +841,8 @@ namespace tca {
     
     int cstat = DecodeCTP(tjs.mallTraj[0].ctp).Cryostat;
     int tpc = DecodeCTP(tjs.mallTraj[0].ctp).TPC;
+    constexpr float twopi = 2 * M_PI;
+    constexpr float piOver2 = M_PI / 2;
     
     // create a temp vector to check for duplicates
     auto inMatVec = matVec;
@@ -909,11 +858,9 @@ namespace tca {
     if(matVec.size() < tjs.Match3DCuts[4]) nAvailable = tjs.Match3DCuts[4] - matVec.size();
     if(nAvailable == 0 || nAvailable > tjs.Match3DCuts[4]) return;
     
-    float piOver2 = M_PI / 2;
     // these cuts presume that the resolution in X is better than it is in Y and Z
     float xcut = tjs.Match3DCuts[0];
     double yzcut = 1.5 * xcut;
-    bool useAngle = tjs.Match3DCuts[1] > 0;
     for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 1; ++ipt) {
       auto& iTjPt = tjs.mallTraj[ipt];
       // length cut
@@ -939,7 +886,7 @@ namespace tca {
         unsigned short jplane = DecodeCTP(jtp.CTP).Plane;
         TrajPoint3 tp3;
         if(!MakeTp3(tjs, itp, jtp, tp3)) continue;
-        bool dijOK = (useAngle && iTjPt.npts > 5 && jTjPt.npts > 5);
+//        bool dijOK = (useAngle && iTjPt.npts > 5 && jTjPt.npts > 5);
         // count weight is one for a two-plane match
         float cntWght = 1;
         if(numPlanes == 3) {
@@ -961,11 +908,15 @@ namespace tca {
             if(std::abs(tp3.Pos[1] - iktp3.Pos[1]) > yzcut) continue;
             if(std::abs(tp3.Pos[2] - iktp3.Pos[2]) > yzcut) continue;
             float dang = 0;
-            if(dijOK && kTjPt.npts > 5) {
+            if(tjs.Match3DCuts[1] > 0) {
               dang = std::abs(DeltaAngle(tp3.Dir, iktp3.Dir));
-              if(dang > piOver2) dang = piOver2 - dang;
-              if(dang > tjs.Match3DCuts[1]) continue;
-            } // check angle difference
+              while(dang >  M_PI) dang -= twopi;
+              if(dang >  piOver2) dang = M_PI - dang;
+              float mcsmom = tjs.allTraj[iTjPt.id - 1].MCSMom + tjs.allTraj[jTjPt.id - 1].MCSMom + tjs.allTraj[kTjPt.id - 1].MCSMom;
+              mcsmom /= 3;
+              //              mf::LogVerbatim("TC")<<"dang "<<std::fixed<<std::setprecision(3)<<dang<<std::setprecision(2)<<" "<<(iktp3.Pos[1] - tp3.Pos[1])<<" "<<(iktp3.Pos[2] - tp3.Pos[2])<<" "<<(int)mcsmom<<" "<<ijkMatch<<" "<<TMeV;
+              if(mcsmom > 150 && dang > tjs.Match3DCuts[1]) continue;
+            }
             // we have a match.
             // Just fill temp. See if the Tj IDs are in the match list.
             // first check the input matVec
@@ -980,6 +931,7 @@ namespace tca {
             if(gotit) continue;
             // Triple match count = 2 de-weighted by delta angle
             cntWght = 2 - dang;
+            if(cntWght <= 0) continue;
             // next check the temp vector
             unsigned short indx = 0;
             for(indx = 0; indx < temp.size(); ++indx) {
@@ -1113,12 +1065,6 @@ namespace tca {
     // don't continue if the points are wildly far apart in X
     if(std::abs(ix - jx) > 10) return false;
     tp3.Pos[0] = 0.5 * (ix + jx);
-/*
-    unsigned int iWire = std::nearbyint(itp.Pos[0]);
-    if(!tjs.geom->HasWire(geo::WireID(iPlnID.Cryostat, iPlnID.TPC, iPlnID.Plane, iWire))) return false;
-    unsigned int jWire = std::nearbyint(jtp.Pos[0]);
-    if(!tjs.geom->HasWire(geo::WireID(jPlnID.Cryostat, jPlnID.TPC, jPlnID.Plane, jWire))) return false;
-*/
     // determine the wire orientation and offsets using WireCoordinate
     // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
     // wire offset
@@ -1157,13 +1103,9 @@ namespace tca {
     double itp2_0 = itp.Pos[0] + 100;
     double itp2_1 = itp.Pos[1];
     if(std::abs(itp.Dir[0]) > 0.01) itp2_1 += 100 * itp.Dir[1] / itp.Dir[0];
-//    tp.Pos[1] += dw * tp.Dir[1] / tp.Dir[0];
-//    TrajPoint itp2 = itp;
-//    MoveTPToWire(itp2, itp2.Pos[0] + 100);
     // Create a second Point3 for the shifted point
     Point3_t pos2;
     // Find the X position corresponding to the shifted point 
-//    pos2[0] = tjs.detprop->ConvertTicksToX(itp2.Pos[1] / tjs.UnitsPerTick, iPlnID);
     pos2[0] = tjs.detprop->ConvertTicksToX(itp2_1 / upt, iPlnID);
     // Convert X to Ticks in the j plane and then to WSE units
     double jtp2Pos1 = tjs.detprop->ConvertXToTicks(pos2[0], jPlnID) * upt;
@@ -1277,6 +1219,48 @@ namespace tca {
       }
     } // cnt > 1
   } // FilldEdx
+  
+  ////////////////////////////////////////////////
+  std::vector<unsigned short> FindKinks(const TjStuff& tjs, PFPStruct& pfp, double sep, bool prt)
+  {
+    // returns a vector of indices in pfp.Tp3s where kinks exist. The kink angle is calculated using
+    // Tp3s separated by +/- sep (cm)
+    std::vector<unsigned short> kinkPts;
+//    double kang = tjs.KinkCuts[0];
+    // look for a kink angle greater than angCut
+    double angCut = 0.3;
+    double kang = 0;
+    unsigned short kStart = USHRT_MAX;
+    // foundKink is set true after a kink is found to skip past some number of points after the kink
+    bool foundKink = false;
+    double kinkSep2 = 2 * sep * sep;
+    for(unsigned short ipt = 1; ipt < pfp.Tp3s.size(); ++ipt) {
+      // skip ahead after a kink?
+      if(foundKink) {
+        // location of the previously found kink
+        unsigned short kpt = kinkPts[kinkPts.size() - 1];
+        if(foundKink && PosSep2(pfp.Tp3s[ipt].Pos, pfp.Tp3s[kpt].Pos) < kinkSep2) continue;
+      }
+      foundKink = false;
+      double dang = KinkAngle(tjs, pfp.Tp3s, ipt, sep);
+      if(dang < angCut && kStart == USHRT_MAX) continue;
+      // found a kink larger than the cut. See if this is the onset of a kink
+      if(kStart == USHRT_MAX) {
+        // onset of a kink
+        kStart = ipt;
+      } else {
+        // a kink was found. Keep scanning until delta angle (dang) is less than the maximum (kang)
+        if(dang < kang) {
+          if(prt) mf::LogVerbatim("TC")<<" findKinks: kink angle "<<kang<<" at point "<<ipt;
+          kinkPts.push_back(ipt - 1);
+          foundKink = true;
+          kStart = USHRT_MAX;
+        } // dang < kang
+      } // kink found
+      kang = dang;
+    } // ipt
+    return kinkPts;
+  } // findKinks
 
   ////////////////////////////////////////////////
   double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep)
@@ -1327,5 +1311,99 @@ namespace tca {
       myprt<<" "<<tj.ID<<"_"<<PrintPos(tjs, tp);
     } // tj2pt
   } // PrintTp3
+
+  ////////////////////////////////////////////////
+  PFPStruct CreatePFP(const TjStuff& tjs, const geo::TPCID& tpcid)
+  {
+    // The calling function should define the size of pfp.TjIDs
+    PFPStruct pfp;
+    pfp.ID = tjs.pfps.size() + 1;
+    // assume it is it's own parent
+    pfp.ParentID = pfp.ID;
+    pfp.TPCID = tpcid;
+    // initialize arrays for both ends
+    pfp.dEdx[0].resize(tjs.NumPlanes, 0);
+    pfp.dEdx[1].resize(tjs.NumPlanes, 0);
+    pfp.dEdxErr[0].resize(tjs.NumPlanes, 0);
+    pfp.dEdxErr[1].resize(tjs.NumPlanes, 0);
+    for(unsigned short startend = 0; startend < 2; ++startend) {
+      pfp.Dir[startend] = {0, 0, 0};
+      pfp.DirErr[startend] = {0, 0, 0};
+      pfp.XYZ[startend] = {0, 0, 0};
+    }
+    return pfp;
+  } // MatchVecIndex
+  
+  ////////////////////////////////////////////////
+  bool StorePFP(TjStuff& tjs, PFPStruct& pfp)
+  {
+    // stores the PFParticle in TJStuff
+    if(pfp.ID < tjs.pfps.size()) return false;
+    bool neutrinoPFP = pfp.PDGCode == 12 || pfp.PDGCode == 14;
+    if(!neutrinoPFP && pfp.TjIDs.empty()) return false;
+    // check the ID and correct it if it is wrong
+    if(pfp.ID != (int)tjs.pfps.size() + 1) {
+      std::cout<<"StorePFP ID is wrong. Fixing it\n";
+      pfp.ID = tjs.pfps.size() + 1;
+    }
+    // check the Tjs and set the 3D match flag
+    for(auto tjid : pfp.TjIDs) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      if(tj.AlgMod[kMat3D]) {
+        int matchedTo = 0;
+        for(auto& opfp : tjs.pfps) {
+          if(std::find(opfp.TjIDs.begin(), opfp.TjIDs.end(), tjid) != opfp.TjIDs.end()) {
+            matchedTo = opfp.ID;
+            break;
+          }
+        } // old pfp
+        std::cout<<"StorePFP "<<pfp.ID<<" Tj "<<tj.ID<<" is already 3D matched to pfp "<<matchedTo<<"\n";
+        return false;
+      }
+      tj.AlgMod[kMat3D] = true;
+    } // tjid
+    
+    if(!pfp.Tp3s.empty()) {
+      // ensure that the Tj points are in increasing order and reverse them if they aren't. This
+      // presumes that the space points have been ordered from pfp start to pfp end
+      std::vector<int> tjids;
+      // list of tj points to check for increasing (or decreasing) order
+      std::vector<short> firstIpt;
+      std::vector<short> lastIpt;
+      for(auto& Tp3 : pfp.Tp3s) {
+        for(auto& tj2pt : Tp3.Tj2Pts) {
+          int tjid = tj2pt.id;
+          // check for the first occurrence
+          unsigned short ii = 0;
+          for(ii = 0; ii < tjids.size(); ++ii) if(tjid == tjids[ii]) break;
+          if(ii < tjids.size()) {
+            // exists in the list. Keep track of the last point
+            lastIpt[ii] = tj2pt.ipt;
+            continue;
+          }
+          tjids.push_back(tjid);
+          firstIpt.push_back((short)tj2pt.ipt);
+          lastIpt.push_back((short)tj2pt.ipt);
+        } // tjpt
+      } // spt
+      // reverse Tjs if necessary so that end0 is at the start of the pfp
+      for(unsigned short ii = 0; ii < tjids.size(); ++ii) {
+        // ignore Tjs that aren't associated with this pfp
+        if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjids[ii]) == pfp.TjIDs.end()) continue;
+        auto& tj = tjs.allTraj[tjids[ii] - 1];
+        if(lastIpt[ii] < firstIpt[ii]) {
+          if(tj.AlgMod[kSetDir]) {
+            std::cout<<"StorePFP "<<pfp.ID<<" Violating the SetDir flag for Tj "<<tj.ID<<"\n";
+            tj.AlgMod[kSetDir] = false;
+          }
+          ReverseTraj(tjs, tj);
+        } // lastIpt[ii] > firstIpt[ii]
+        tj.AlgMod[kSetDir] = true;
+      } // ii
+    } // Tp3s exist    
+    
+    tjs.pfps.push_back(pfp);
+    return true;
+  } // StorePFP
 
 } // namespace
