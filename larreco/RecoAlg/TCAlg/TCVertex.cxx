@@ -742,7 +742,7 @@ namespace tca {
           aVtx.ID = tjs.vtx.size() + 1;
           unsigned short ivx = tjs.vtx.size();
           if(!StoreVertex(tjs, aVtx)) continue;
-          if(!SplitAllTraj(tjs, it2, intPt2, ivx, prt)) {
+          if(!SplitTraj(tjs, it2, intPt2, ivx, prt)) {
             if(prt) mf::LogVerbatim("TC")<<"FHV2: Failed to split trajectory";
             // we can just remove the vertex since no Tj VtxID association has been made yet
             tjs.vtx.pop_back();
@@ -840,7 +840,7 @@ namespace tca {
           aVtx.ID = tjs.vtx.size() + 1;
           unsigned short ivx = tjs.vtx.size();
           if(!StoreVertex(tjs, aVtx)) continue;
-          if(!SplitAllTraj(tjs, it2, closePt2, ivx, prt)) {
+          if(!SplitTraj(tjs, it2, closePt2, ivx, prt)) {
             if(prt) mf::LogVerbatim("TC")<<"FindHammerVertices: Failed to split trajectory";
             tjs.vtx.pop_back();
             continue;
@@ -969,7 +969,7 @@ namespace tca {
         // ensure that the closest point is not near an end
         if(closePt < tj.EndPt[0] + 3) continue;
         if(closePt > tj.EndPt[1] - 3) continue;
-        if(!SplitAllTraj(tjs, itj, closePt, iv, prt)) {
+        if(!SplitTraj(tjs, itj, closePt, iv, prt)) {
           if(prt) mf::LogVerbatim("TC")<<"SplitTrajCrossingVertices: Failed to split trajectory";
           continue;
         }
@@ -1277,6 +1277,7 @@ namespace tca {
     if(sortVec.empty()) return;
     if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
     
+    
     for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
       auto& vx3 = tjs.vtx3[sortVec[ii].index];
       float score = 0;
@@ -1286,29 +1287,38 @@ namespace tca {
         myprt<<"M3DVTj Vertex "<<vx3.ID<<" score "<<score<<" Tjs";
         for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
       }
+      // temporary vector of PFParticles attached to this vertex
+      std::vector<PFPStruct> vxpfps;
       for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
+        // temp for debugging
+        if(ims == 9) break;
         auto& ms = tjs.matchVec[ims];
         bool skipit = false;
-        for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
-          unsigned short itj = ms.TjIDs[ipl] - 1;
-          if(tjs.allTraj[itj].AlgMod[kMat3D]) skipit = true;
-          if(tjs.allTraj[itj].AlgMod[kShowerTj]) skipit = true;
+        for(auto tjid : ms.TjIDs) {
+          auto& tj = tjs.allTraj[tjid - 1];
+          if(tj.AlgMod[kMat3D]) skipit = true;
+          if(tj.AlgMod[kShowerTj]) skipit = true;
         }
         if(skipit) continue;
         std::vector<int> shared = SetIntersection(ms.TjIDs, v3TjIDs);
         if(shared.size() < 2) continue;
         if(prt) mf::LogVerbatim("TC")<<" ims "<<ims<<" shared size "<<shared.size();
-        if(shared.size() != ms.TjIDs.size()) {
-          auto tjNotInVx = SetDifference(ms.TjIDs, shared);
-          if(prt) mf::LogVerbatim("TC")<<" tjNotInVx size "<<tjNotInVx.size()<<" tj "<<tjNotInVx[0];
-        }
-        PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
+        PFPStruct pfp = CreatePFP(tjs, tpcid);
         pfp.TjIDs = ms.TjIDs;
         pfp.Vx3ID[0] = vx3.ID;
         if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp "<<pfp.ID<<" vx3 "<<vx3.ID;
         if(!DefinePFP(tjs, pfp, prt)) continue;
-        tjs.pfps.push_back(pfp);
-        ms.pfpID = pfp.ID;
+        if(prt) PrintPFP("M3D", tjs, pfp, true);
+        if(shared.size() != ms.TjIDs.size()) {
+          auto tjNotInVx = SetDifference(ms.TjIDs, shared);
+          if(prt) mf::LogVerbatim("TC")<<" tjNotInVx size "<<tjNotInVx.size()<<" tj "<<tjNotInVx[0]<<". Try to repair it";
+          // Try to repair the PFParticle by merging the Tj that was in the match list but
+          // wasn't attached to the vertex. Hopefully there aren't more than one...
+          Repair(tjs, pfp, tjNotInVx[0], prt);
+        }
+        // make a temporary copy and 
+        vxpfps.push_back(pfp);
+//        if(!StorePFP(tjs, pfp)) continue;
         std::vector<int> leftover = SetDifference(v3TjIDs, shared);
         if(prt) {
           mf::LogVerbatim myprt("TC");
@@ -1317,82 +1327,14 @@ namespace tca {
           myprt<<" leftover";
           for(auto tjid : leftover) myprt<<" "<<tjid;
         }
-        // flag these Tjs as matched
-        for(auto tjid : ms.TjIDs) tjs.allTraj[tjid - 1].AlgMod[kMat3D] = true;
         if(leftover.empty()) break;
         // keep looking using the leftovers
         v3TjIDs = leftover;
       } // ims
+      std::cout<<"Found "<<vxpfps.size()<<" PFP candidates\n";
+      std::cout<<"break\n";
+      break;
     } // ii
-    
-/* This seems needlessly complicated
-    for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
-      auto& vx3 = tjs.vtx3[sortVec[ii].index];
-      float score = 0;
-      std::vector<int> v3TjIDs = GetVtxTjIDs(tjs, vx3, score);
-      // flag Tjs that have a large separation from the 2D vertex
-      unsigned short nfar = 0;
-      for(unsigned short itj = 0; itj < v3TjIDs.size(); ++itj) {
-        auto& tj = tjs.allTraj[v3TjIDs[itj] - 1];
-        float sep = 0;
-        for(unsigned short end = 0; end < 2; ++end) {
-          if(tj.VtxID[end] == 0) continue;
-          auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
-          if(vx2.Vx3ID == vx3.ID) sep = PosSep(vx2.Pos, tj.Pts[tj.EndPt[end]].Pos);
-        } // end
-        if(sep > 5) {
-          v3TjIDs[itj] *= -1;
-          ++nfar;
-        }
-      } // itj
-      
-      // look for these in matchVec with two iterations. Find matching Tjs close to the
-      // vertex on the first pass and those farther away on the second
-      for(unsigned short nit = 0; nit < 2; ++nit) {
-        for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
-          // count the number of shower Tjs
-          unsigned short nstj = 0;
-          auto& ms = tjs.matchVec[ims];
-          bool skipit = false;
-          for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
-            unsigned short itj = ms.TjIDs[ipl] - 1;
-            if(tjs.allTraj[itj].AlgMod[kMat3D]) skipit = true;
-            if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
-          }
-          if(skipit) continue;
-          // Don't consider shower Tjs
-          if(nstj != 0) continue;
-          std::vector<int> shared = SetIntersection(ms.TjIDs, v3TjIDs);
-//          if(prt) mf::LogVerbatim("TC")<<" nit "<<nit<<" vx3 "<<vx3.ID<<" ims "<<ims<<" shared size "<<shared.size();
-          if(shared.size() != ms.TjIDs.size()) continue;
-          // perfect match. Ensure that the points near the vertex are consistent
-          PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
-          pfp.TjIDs = shared;
-          pfp.Vx3ID[0] = vx3.ID;
-          if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp "<<pfp.ID<<" vx3 "<<vx3.ID;
-          if(!DefinePFP(tjs, pfp, prt)) continue;
-          tjs.pfps.push_back(pfp);
-          ms.pfpID = pfp.ID;
-          std::vector<int> leftover = SetDifference(v3TjIDs, shared);
-          if(prt) {
-            mf::LogVerbatim myprt("TC");
-            myprt<<"nit "<<nit<<" perfect match with ims "<<ims<<" TjIDs";
-            for(auto tjid : ms.TjIDs) myprt<<" "<<tjid;
-            myprt<<" leftover";
-            for(auto tjid : leftover) myprt<<" "<<tjid;
-          }
-          // flag these Tjs as matched
-          for(auto tjid : ms.TjIDs) tjs.allTraj[tjid - 1].AlgMod[kMat3D] = true;
-          if(leftover.empty()) break;
-          // keep looking using the leftovers
-          v3TjIDs = leftover;
-        } // ims
-        if(nfar == 0) break;
-        for(auto& id : v3TjIDs) id = abs(id);
-      } // nit
-      if(v3TjIDs.empty()) continue;
-    } // ii (vx3 sorted)
-*/
   } // Match3DVtxTjs
 
   //////////////////////////////////////////
@@ -2440,13 +2382,13 @@ namespace tca {
           vpos = tj.Pts[tj.EndPt[end]].Pos;
         } else {
           // closePt is not near an end, so split the trajectory
-          if(SplitAllTraj(tjs, itj, closePt, newVtxIndx, prt)) {
-            if(prt) mf::LogVerbatim("TC")<<" SplitAllTraj success "<<tjs.vtx[newVtxIndx].ID<<" at closePt "<<closePt;
+          if(SplitTraj(tjs, itj, closePt, newVtxIndx, prt)) {
+            if(prt) mf::LogVerbatim("TC")<<" SplitTraj success "<<tjs.vtx[newVtxIndx].ID<<" at closePt "<<closePt;
             // successfully split the Tj
             newVtx.NTraj += 2;
           } else {
             // split failed. Give up
-            if(prt) mf::LogVerbatim("TC")<<" SplitAllTraj failed";
+            if(prt) mf::LogVerbatim("TC")<<" SplitTraj failed";
             newVtx.NTraj = 0;
             break;
           }
@@ -2678,10 +2620,6 @@ namespace tca {
     // check for a high-score 3D vertex
     bool hasHighScoreVx3 = (vx2.Vx3ID > 0);
     if(hasHighScoreVx3 && !forceKill && tjs.vtx3[vx2.Vx3ID - 1].Score >= tjs.Vertex2DCuts[7]) return false;
-    
-    if(vx2.ID == 14) {
-      std::cout<<"stop here\n";
-    }
     
     // Kill it
     unsigned short vx2id = vx2.ID;
