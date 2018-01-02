@@ -884,7 +884,7 @@ namespace tca {
     if(MCP_TSum > 0) {
       // PFParticle statistics
       float ep = MCP_EPTSum / MCP_TSum;
-      myprt<<" PFP "<<ep<<" MCP cnt "<<(int)MCP_Cnt<<" PFP "<<std::fixed<<std::setprecision(2)<<ep;
+      myprt<<" MCP cnt "<<(int)MCP_Cnt<<" PFP "<<std::fixed<<std::setprecision(2)<<ep;
     }
     if(Prim_TSum > 0) {
       float ep = Prim_EPTSum / Prim_TSum;
@@ -1038,6 +1038,41 @@ namespace tca {
     return imTheOne;
     
   } // MCParticleStartTj
+  
+  /////////////////////////////////////////
+  unsigned int MCParticleListUtils::GetMCPartListIndex(const TrajPoint& tp)
+  {
+    // Returns the MCParticle index that best matches the hits used in the Tp
+    if(tjs.MCPartList.empty()) return UINT_MAX;
+    if(tp.Chg <= 0) return UINT_MAX;
+    std::vector<unsigned int> mcpIndex;
+    std::vector<unsigned short> mcpCnt;
+    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+      if(!tp.UseHit[ii]) continue;
+      unsigned int mcpi = tjs.fHits[tp.Hits[ii]].MCPartListIndex;
+      if(mcpi == UINT_MAX) continue;
+      unsigned short indx = 0;
+      for(indx = 0; indx < mcpIndex.size(); ++indx) if(mcpi == mcpIndex[indx]) break;
+      if(indx == mcpIndex.size()) {
+        // not in the list so add it
+        mcpIndex.push_back(mcpi);
+        mcpCnt.push_back(1);
+      } else {
+        ++mcpCnt[indx];
+      }
+    } // ii
+    if(mcpIndex.empty()) return UINT_MAX;
+    if(mcpIndex.size() == 1) return mcpIndex[0];
+    unsigned int indx = 0;
+    unsigned short maxCnt = 0;
+    for(unsigned short ii = 0; ii < mcpIndex.size(); ++ii) {
+      if(mcpCnt[ii] > maxCnt) {
+        maxCnt = mcpCnt[ii];
+        indx = mcpIndex[ii];
+      }
+    } // ii
+    return indx;
+  } // GetMCPartListIndex
   
   /////////////////////////////////////////
   unsigned int MCParticleListUtils::GetMCPartListIndex(const ShowerStruct& ss, unsigned short& nTruHits)
