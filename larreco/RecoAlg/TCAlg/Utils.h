@@ -51,8 +51,8 @@ namespace tca {
   int NeutrinoPrimaryTjID(const TjStuff& tjs, const Trajectory& tj);
   int PrimaryID(const TjStuff& tjs, const Trajectory& tj);
   int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp);
-  std::vector<int> MergeChain(TjStuff& tjs, std::vector<int> mergeList, bool prt);
-  void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+//  std::vector<int> MergeChain(TjStuff& tjs, std::vector<int> mergeList, bool prt);
+//  void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool MergeTjIntoPFP(TjStuff& tjs, int mtjid, PFPStruct& pfp, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt);
@@ -65,12 +65,8 @@ namespace tca {
   void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
   void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
-  // Return true if the 3D matched trajectories in tjs.matchVecPFPList are in the wrong order in terms of
-  // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc
-//  void Reverse3DMatchTjs(TjStuff& tjs, PFPStruct& ms, bool prt);
   unsigned short GetPFPIndex(const TjStuff& tjs, int tjID);
   unsigned short MatchVecIndex(const TjStuff& tjs, int tjID);
-  PFPStruct CreatePFPStruct(const TjStuff& tjs, const geo::TPCID& tpcid);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   bool StoreTraj(TjStuff& tjs, Trajectory& tj);
@@ -104,7 +100,8 @@ namespace tca {
   void MergeGhostTjs(TjStuff& tjs, CTP_t inCTP);
   // Split the allTraj trajectory itj at position pos into two trajectories
   // with an optional vertex assignment
-  bool SplitAllTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
+  bool SplitTraj(TjStuff& tjs, unsigned short itj, unsigned short pos, unsigned short ivx, bool prt);
+  bool SplitTraj(TjStuff& tjs, unsigned short itj, float XPos, bool makeVx2, bool prt);
   bool TrajClosestApproach(Trajectory const& tj, float x, float y, unsigned short& closePt, float& DOCA);
   // returns the DOCA between a hit and a trajectory
   float PointTrajDOCA(TjStuff const& tjs, unsigned int iht, TrajPoint const& tp);
@@ -200,7 +197,8 @@ namespace tca {
   void PrintAllTraj(std::string someText, const TjStuff& tjs, const DebugStuff& Debug, unsigned short itj, unsigned short ipt, bool printVtx = true);
   void PrintHeader(std::string someText);
   void PrintTrajPoint(std::string someText, const TjStuff& tjs, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
-  void PrintPFParticles(std::string someText, const TjStuff& tjs);
+  void PrintPFP(std::string someText, const TjStuff& tjs, const PFPStruct& pfp, bool printHeader);
+  void PrintPFPs(std::string someText, const TjStuff& tjs);
   // Print clusters after calling MakeAllTrajClusters
   void PrintClusters();
   // Print a single hit in the standard format
