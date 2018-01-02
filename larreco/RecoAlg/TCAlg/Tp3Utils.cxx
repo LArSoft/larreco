@@ -1,4 +1,4 @@
-#include "larreco/RecoAlg/TCAlg/TCSpacePtUtils.h"
+#include "larreco/RecoAlg/TCAlg/Tp3Utils.h"
 // temp include for study
 #include "larreco/RecoAlg/TCAlg/TCTruth.h"
 
