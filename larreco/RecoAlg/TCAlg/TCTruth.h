@@ -80,6 +80,7 @@ namespace tca {
     TjStuff& tjs;
     void MakeTruTrajPoint(unsigned int MCParticleListIndex, TrajPoint& tp);
     unsigned short MCParticleStartTjID(unsigned int MCParticleListIndex, CTP_t inCTP);
+    unsigned int GetMCPartListIndex(const TrajPoint& tp);
     unsigned int GetMCPartListIndex(const Trajectory& tj, unsigned short& nTruHits);
     unsigned int GetMCPartListIndex(const ShowerStruct& ss, unsigned short& nTruHits);
 
