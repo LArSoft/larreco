@@ -86,7 +86,7 @@ namespace tca {
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 
-    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk
+    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = 3D split
     short Topo {0}; 			
     CTP_t CTP {0};
     unsigned short ID {0};          ///< set to 0 if killed
@@ -232,7 +232,6 @@ namespace tca {
     float Count {0};                    // Set to 0 if matching failed
     float MatchFrac {0};
     float TjChgAsymmetry {0};
-    unsigned short pfpID {0};
   };
   
   struct PFPStruct {
@@ -257,6 +256,7 @@ namespace tca {
     float CosmicScore{0};
     unsigned short ID {0};
     bool Primary;             // PFParticle is attached to a primary vertex
+    bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
   };
 
   struct ShowerPoint {
@@ -502,6 +502,7 @@ namespace tca {
     short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
     short NPtsAve;         /// number of points to find AveChg
     bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
+    bool NeedsRebuild;  ///< Significant changes were made necessitating a complete re-do of the 3D matching and vertexing
    };
 
 } // namespace tca
