@@ -64,7 +64,6 @@ namespace tca {
     bool badinput = false;
     fHitFinderModuleLabel  = pset.get<art::InputTag>("HitFinderModuleLabel");
     fHitTruthModuleLabel   = pset.get<art::InputTag>("HitTruthModuleLabel", "NA");
-    fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel", "NA");
     fMakeNewHits          = pset.get< bool >("MakeNewHits", true);
     fMode                 = pset.get< short >("Mode", 1);
     fHitErrFac            = pset.get< float >("HitErrFac", 0.4);
@@ -289,7 +288,6 @@ namespace tca {
     tjs.pfps = {};
     tjs.WireHitRange = {};
     tjs.fHits = {};
-    tjs.spts = {};
     tjs.allTraj = {};
     tjs.mallTraj = {};
     tjs.cots = {};
@@ -319,11 +317,6 @@ namespace tca {
  
     tjs.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tjs.geom = lar::providerFrom<geo::Geometry>();
-    
-    bool useSpacePts = (fSpacePointModuleLabel != "NA") && tjs.UseAlg[kHitsOrdered];
-   
-    // Look for a space point collection that uses these hits
-    if(useSpacePts) GetSpacePointCollection(evt);
 
     // check for debugging mode triggered by Plane, Wire, Tick
     debug.Hit = UINT_MAX;
@@ -413,6 +406,16 @@ namespace tca {
         }
       }
       Match3D(evt, tpcid);
+      // See if 3D vertex finding and matching needs to be re-done because Tjs
+      // were split while matching. 2D vertices were made inside Match3D already.
+      if(tjs.NeedsRebuild) {
+        Find3DVertices(tjs, tpcid);
+        ScoreVertices(tjs, tpcid, prt);
+        DefineTjParents(tjs, tpcid, prt);
+        Match3D(evt, tpcid);
+      }
+      // This reduces the efficiency of reconstructing BNB pions by 1% for some reason
+      KillPoorVertices(tjs, tpcid);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
       // true if the algorithm was successful indicating that the matching needs to be redone
       if(tjs.ShowerTag[0] > 1) {
@@ -452,7 +455,7 @@ namespace tca {
     if(tjs.ShowerTag[0] >= 1) debug.Plane = tjs.ShowerTag[11];
     if(fDebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
-      PrintPFParticles("RTC", tjs);
+      PrintPFPs("RTC", tjs);
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
     }
 
@@ -2255,9 +2258,12 @@ namespace tca {
             // Set pion-like PDGCodes
             if(tj1.StopFlag[end1][kBragg] && !tj2.StopFlag[end2][kBragg]) tj1.PDGCode = 211;
             if(tj2.StopFlag[end2][kBragg] && !tj1.StopFlag[end1][kBragg]) tj2.PDGCode = 211;
-            if(mrgPrt) mf::LogVerbatim("TC")<<"  New vtx Vx_"<<aVtx.ID<<" at "<<(int)aVtx.Pos[0]<<":"<<(int)(aVtx.Pos[1]/tjs.UnitsPerTick);
             if(!StoreVertex(tjs, aVtx)) continue;
             SetVx2Score(tjs, prt);
+            if(mrgPrt) {
+              auto& newVx = tjs.vtx[tjs.vtx.size() - 1];
+              mf::LogVerbatim("TC")<<"  New vtx 2V"<<newVx.ID<<" at "<<(int)newVx.Pos[0]<<":"<<(int)(newVx.Pos[1]/tjs.UnitsPerTick)<<" Score "<<newVx.Score;
+            }
             // check the score and kill it if it is below the cut
             auto& newVx2 = tjs.vtx[tjs.vtx.size() - 1];
             if(newVx2.Score < tjs.Vertex2DCuts[7] && CompatibleMerge(tjs, tj1, tj2, mrgPrt)) {
@@ -2318,7 +2324,7 @@ namespace tca {
     } // debug mode
 */
   } // EndMerge
-  
+/*
   //////////////////////////////////////////
   void TrajClusterAlg::GetSpacePointCollection(const art::Event& evt)
   {
@@ -2372,21 +2378,20 @@ namespace tca {
       } // hit
     } // isp
   } // GetSpacePointCollection
-  
+*/
   //////////////////////////////////////////
   void TrajClusterAlg::Match3D(const art::Event& evt, const geo::TPCID& tpcid)
   {
     // Version 2 of 3D matching that uses Utils/FindXMatches
     
     if(tjs.Match3DCuts[0] <= 0) return;
+    // assume that this will be successful
+    tjs.NeedsRebuild = false;
     
     bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
     
     // Fill tjs.malltraj with all trajectory points in this tpcid
     FillmAllTraj(tjs, tpcid);
-
-    // match using space points if they exist
-    if(!tjs.spts.empty()) Match3DSpts(tjs, evt, tpcid, fSpacePointModuleLabel);
 
     std::vector<MatchStruct> matVec;
     // we only need this to pass the tpcid to FindXMatches
@@ -2478,7 +2483,7 @@ namespace tca {
       // check for a minimum user-defined match fraction
       if(ms.MatchFrac < tjs.Match3DCuts[3]) ms.Count = 0;
     } // ms
-    
+/*  temp turn off for debuggin
     // define the PFParticleList
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
       auto& ms = tjs.matchVec[indx];
@@ -2500,7 +2505,7 @@ namespace tca {
       if(skipit) continue;
       // Require 0 or a matched shower Tj in all planes
       if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
-      PFPStruct pfp = CreatePFPStruct(tjs, tpcid);
+      PFPStruct pfp = CreatePFP(tjs, tpcid);
       pfp.TjIDs = ms.TjIDs;
       pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
       if(!DefinePFP(tjs, pfp, prt)) {
@@ -2508,16 +2513,12 @@ namespace tca {
         pfp.ID = 0;
         continue;
       }
-      if(prt) mf::LogVerbatim("TC")<<" Created PFP "<<pfp.ID;
-      tjs.pfps.push_back(pfp);
-      ms.pfpID = pfp.ID;
-      for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
-        unsigned short itj = ms.TjIDs[ipl] - 1;
-        tjs.allTraj[itj].AlgMod[kMat3D] = true;
-      } // ipl
+      if(!StorePFP(tjs, pfp)) {
+        if(prt) mf::LogVerbatim("TC")<<" StorePFP failed "<<pfp.ID;
+      }
     } // indx
-    
-    CheckNoMatchTjs(tjs, tpcid, prt);
+*/
+//    CheckNoMatchTjs(tjs, tpcid, prt);
     
     if (tjs.TagCosmics) {
       for(auto& pfp : tjs.pfps) {
@@ -2548,7 +2549,6 @@ namespace tca {
         myprt<<" NumUsedHitsInTj ";
         for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
         myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<tjs.matchVec[ii].MatchFrac;
-        myprt<<" PFP ID "<<tjs.matchVec[ii].pfpID;
         myprt<<"\n";
         if(ii == 50) {
           myprt<<"...stopped printing after 50 entries.";
@@ -3209,6 +3209,10 @@ namespace tca {
       fGoodTraj = false;
       return;
     }
+    
+    // Look for a charge asymmetry between points on both sides of a high-
+    // charge point and trim points in the vicinity
+    ChkChgAsymmetry(tjs, tj, prt);
     
     // flag this tj as a junk Tj (even though it wasn't created in FindJunkTraj).
     // Drop it and let FindJunkTraj do it's job
