@@ -11,7 +11,7 @@
 
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
-#include "larreco/RecoAlg/TCAlg/TCSpacePtUtils.h"
+#include "larreco/RecoAlg/TCAlg/Tp3Utils.h"
 #include "canvas/Persistency/Common/FindMany.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "larsim/MCCheater/BackTrackerService.h"
@@ -406,13 +406,13 @@ namespace tca {
         }
       }
       Match3D(evt, tpcid);
-      // See if 3D vertex finding and matching needs to be re-done because Tjs
-      // were split while matching. 2D vertices were made inside Match3D already.
+      // See if matching needs to be re-done because Tjs
+      // were split while matching. 2D and 3D vertices were made inside Match3D already.
       if(tjs.NeedsRebuild) {
-        Find3DVertices(tjs, tpcid);
         ScoreVertices(tjs, tpcid, prt);
         DefineTjParents(tjs, tpcid, prt);
         Match3D(evt, tpcid);
+        if(tjs.NeedsRebuild) std::cout<<"Match3D wants another rebuild...\n";
       }
       // This reduces the efficiency of reconstructing BNB pions by 1% for some reason
       KillPoorVertices(tjs, tpcid);
@@ -685,7 +685,6 @@ namespace tca {
         } // iht
       } // iwire
 
-      
       // Ensure that all tjs are in the same order
       for(auto& tj : tjs.allTraj) {
         if(tj.AlgMod[kKilled]) continue;
@@ -2385,7 +2384,22 @@ namespace tca {
     // Version 2 of 3D matching that uses Utils/FindXMatches
     
     if(tjs.Match3DCuts[0] <= 0) return;
-    // assume that this will be successful
+    // remove PFParticles in this tpcid
+    for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
+      auto& pfp = tjs.pfps[ipfp];
+      if(pfp.TPCID == tpcid) {
+        tjs.pfps.resize(ipfp);
+        break;
+      }
+    } // ipfp
+    // remove the match flag from the Tjs
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(DecodeCTP(tj.CTP).Cryostat != tpcid.Cryostat) continue;
+      if(DecodeCTP(tj.CTP).TPC != tpcid.TPC) continue;
+      tj.AlgMod[kMat3D] = false;
+    } // tj
+    // assume that this will not have to be re-done
     tjs.NeedsRebuild = false;
     
     bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
@@ -2475,6 +2489,8 @@ namespace tca {
     // create the list of associations to matches that will be converted to PFParticles
     // Start with Tjs attached to 3D vertices
     Match3DVtxTjs(tjs, tpcid, prt);
+    // do it all over
+    if(tjs.NeedsRebuild) return;
     
     // Re-check matchVec with the user cut matchfrac cut to eliminate poor combinations
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
