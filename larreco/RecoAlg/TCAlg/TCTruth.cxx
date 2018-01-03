@@ -247,7 +247,7 @@ namespace tca {
         mcpSelect.push_back(part);
         // Determine which TPC this is in. Ignore this event if the primary start is
         // outside the fiducial volume
-        if(!FindTPCID(PrimVtx, inTPCID)) return;
+        if(!InsideTPC(tjs, PrimVtx, inTPCID)) return;
         // print out?
         if(tjs.MatchTruth[1] > 0) {
           Vector3_t dir;
@@ -931,30 +931,6 @@ namespace tca {
     } // iht
     return hitVec;
   } // PutMCPHitsInVector
-  
-  ////////////////////////////////////////////////
-  bool TruthMatcher::FindTPCID(Point3_t& pos, geo::TPCID& inTPCID)
-  {
-    // determine which TPC we should use. Tjs and PFParticles in other TPCs are ignored
-    for (const geo::TPCID& tpcid: tjs.geom->IterateTPCIDs()) {
-      const geo::TPCGeo& TPC = tjs.geom->TPC(tpcid);
-      double local[3] = {0.,0.,0.};
-      double world[3] = {0.,0.,0.};
-      TPC.LocalToWorld(local,world);
-      unsigned int cstat = tpcid.Cryostat;
-      unsigned int tpc = tpcid.TPC;
-      // reduce the active area of the TPC by 1 cm to be consistent with FillWireHitRange
-      if(pos[0] < world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + 1) continue;
-      if(pos[0] > world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - 1) continue;
-      if(pos[1] < world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + 1) continue;
-      if(pos[1] > world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - 1) continue;
-      if(pos[2] < world[2]-tjs.geom->DetLength(tpc,cstat)/2 + 1) continue;
-      if(pos[2] > world[2]+tjs.geom->DetLength(tpc,cstat)/2 - 1) continue;
-      inTPCID = tpcid;
-      return true;
-    } // tpcid
-    return false;
-  } // FindTPCID
 
   ////////////////////////////////////////////////
   void MCParticleListUtils::MakeTruTrajPoint(unsigned int MCParticleListIndex, TrajPoint& tp)
