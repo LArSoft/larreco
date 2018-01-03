@@ -171,6 +171,7 @@ namespace tca {
     int WorkID {0};
     int ParentID {-1};     ///< ID of the parent, or the ID of the Tj this one was merged with if it is killed
     float AveChg {0};                   ///< Calculated using ALL hits
+    float TotChg {0};                   ///< Total including an estimate for dead wires
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     float EffPur {0};                     ///< Efficiency * Purity
@@ -255,6 +256,7 @@ namespace tca {
     unsigned int MCPartListIndex {UINT_MAX};
     float CosmicScore{0};
     unsigned short ID {0};
+    std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
   };
@@ -379,7 +381,6 @@ namespace tca {
     kJunkTj,
     kKilled,
     kMerge,
-    kMergeChain,
     kTEP,
     kCHMEH,
     kFillGap,
@@ -431,6 +432,7 @@ namespace tca {
     kAtVtx,
     kBragg,
     kAtTj,
+    kOutFV,
     kFlagBitSize     ///< don't mess with this line
   } StopFlag_t; 
   
