@@ -41,6 +41,12 @@ namespace tca {
 */
     
     // clear old information
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(DecodeCTP(tj.CTP).Cryostat != tpcid.Cryostat) continue;
+      if(DecodeCTP(tj.CTP).TPC != tpcid.TPC) continue;
+      tj.ParentID = -1;
+    } // tj
     
     // sort vertice by decreasing score
     std::vector<int> temp;
@@ -157,7 +163,6 @@ namespace tca {
           auto& vx2 = tjs.vtx[primTj.VtxID[end] - 1];
           if(vx2.Vx3ID == vx3.ID && end != 0) ReverseTraj(tjs, primTj);
         } // end
-        primTj.AlgMod[kSetDir] = true;
       } // tjid
       if(pardtr.empty()) continue;
       if(prt) {
@@ -181,7 +186,6 @@ namespace tca {
         unsigned short midPt = (dtj.EndPt[0] + dtj.EndPt[1]) / 2;
         if(dpt > midPt && !dtj.AlgMod[kSetDir]) ReverseTraj(tjs, dtj);
         if(prt) mf::LogVerbatim("TC")<<"Set parent "<<ptj.ID<<" dtr "<<dtj.ID;
-        dtj.AlgMod[kSetDir] = true;
         // remove that entry
         pardtr.pop_back();
         // Add entries for new daughters
@@ -372,22 +376,25 @@ namespace tca {
     for(auto tjid : tjIDs) {
       if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) return 1;
       auto& tj = tjs.allTraj[tjid - 1];
-      // the average charge has already been calculated. Multiply this by the
-      // total number of points to get an estimate that includes dead wires
-      if(tj.AveChg <= 0) UpdateAveChg(tjs, tj);
       unsigned plane = DecodeCTP(tj.CTP).Plane;
-      plnchg[plane] += tj.AveChg * (tj.EndPt[1] - tj.EndPt[0]);
+      plnchg[plane] += tj.TotChg;
     } // tjid
+    float aveChg = 0;
+    float cnt = 0;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      if(plnchg[plane] == 0) continue;
+      aveChg += plnchg[plane];
+      ++cnt;
+    } // plane
+    if(cnt < 2) return 1;
+    aveChg /= cnt;
     float maxAsym = 0;
-    for(unsigned short iPlane = 0; iPlane < tjs.NumPlanes - 1; ++iPlane) {
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
       // ignore zeros
-      if(plnchg[iPlane] == 0) continue;
-      for(unsigned short jPlane = iPlane + 1; jPlane < tjs.NumPlanes; ++jPlane) {
-        if(plnchg[jPlane] == 0) continue;
-        float asym = std::abs(plnchg[iPlane] - plnchg[jPlane]) / (plnchg[iPlane] + plnchg[jPlane]);
-        if(asym > maxAsym) maxAsym = asym;
-      } // jtj
-    } // itj
+      if(plnchg[plane] == 0) continue;
+      float asym = std::abs(plnchg[plane] - aveChg) / (plnchg[plane] + aveChg);
+      if(asym > maxAsym) maxAsym = asym;
+    } // plane
     return maxAsym;
   } // MaxChargeAsymmetry
   
@@ -413,7 +420,7 @@ namespace tca {
       if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) continue;
       auto& tj = tjs.allTraj[tjid - 1];
       for(unsigned short ii = 0; ii < 5; ++ii) if(tj.PDGCode == codeList[ii]) ++cnts[ii];
-      for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[kBragg][end]) ++stopCnt[end];
+      for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[end][kBragg]) ++stopCnt[end];
       float len = TrajLength(tj);
       if(len > maxLen) maxLen = len;
     } // tjid
@@ -452,7 +459,7 @@ namespace tca {
         for(auto tjid : tjIDs) {
           if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) continue;
           auto& tj = tjs.allTraj[tjid - 1];
-          myprt<<" "<<tj.ID<<"_"<<tj.PDGCode<<"_"<<tj.StopFlag[kBragg][1];
+          myprt<<" "<<tj.ID<<"_"<<tj.PDGCode<<"_"<<tj.StopFlag[1][kBragg];
         } // tjid
       }
     } // confused
@@ -551,347 +558,6 @@ namespace tca {
       if(nit == 10) return 0;
     }
   } // PrimaryID
-/*
-  /////////////////////////////////////////
-  std::vector<int> MergeChain(TjStuff& tjs, std::vector<int> mergeList, bool prt)
-  {
-    // Merges a chain of Tjs that are referenced in mergeList using a more careful approach
-    // than that used in EndMerge. The returned vector contains the list of Tjs that were made
-    // after merging. An empty vector is returned if there was an error.
-    std::vector<int> mergedList;
-    if(mergeList.size() < 2) return mergedList;
-    if(!tjs.UseAlg[kMergeChain]) return mergedList;
-    
-    // start a list of vertices attached to these Tjs
-    std::vector<unsigned short> vxids;
-    // find the extent in Pos[0] = wire number
-    float loPos0 = 1E6;
-    float hiPos0 = 0;
-    CTP_t inCTP = 0;
-    for(auto tjid : mergeList) {
-      auto& tj = tjs.allTraj[tjid - 1];
-      if(tj.AlgMod[kKilled] || tj.AlgMod[kMat3D]) return mergedList;
-      inCTP = tj.CTP;
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] > 0 && std::find(vxids.begin(), vxids.end(), tj.VtxID[end]) == vxids.end()) vxids.push_back(tj.VtxID[end]);
-        auto& tp = tj.Pts[tj.EndPt[end]];
-        if(tp.Pos[0] < loPos0) loPos0 = tp.Pos[0];
-        if(tp.Pos[0] > hiPos0) hiPos0 = tp.Pos[0];
-      } // end
-    } // tjid
-    // ensure that any vertices in the list are near the ends of this range. These
-    // need to be preserved and re-attached to the new merged Tj. The existence of one
-    // in the middle of the range needs to be dealt with by either deleting the vertex
-    // or abandoning the merge
-    std::array<unsigned short, 2> vtxID {0,0};
-    if(!vxids.empty()) {
-      for(auto vxid : vxids) {
-        if(vxid == 0 || vxid > tjs.vtx.size()) continue;
-        auto& vx2 = tjs.vtx[vxid - 1];
-        if(std::abs(vx2.Pos[0] - loPos0) < 4) {
-          vtxID[0] = vxid;
-        } else if(std::abs(vx2.Pos[0] < hiPos0) < 4) {
-          vtxID[1] = vxid;
-        } else {
-          MakeVertexObsolete(tjs, vx2, true);
-        }
-      } // vxid
-    } // vertices exist
-    unsigned int loWire = std::nearbyint(loPos0);
-    unsigned int hiWire = std::nearbyint(hiPos0);
-    unsigned int mergedSize = hiWire - loWire + 1;
-    // Put the position of each TP in the vector if it is unambiguous
-    std::vector<Point2_t> pos(mergedSize);
-    std::vector<unsigned short> cnt(mergedSize);
-    std::vector<int> mtjid(mergedSize);
-    std::vector<unsigned short> mtjpt(mergedSize);
-    for(auto tjid : mergeList) {
-      auto& tj = tjs.allTraj[tjid - 1];
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        auto& tp = tj.Pts[ipt];
-        unsigned short indx = std::nearbyint(tp.Pos[0]) - loWire;
-        if(indx > mergedSize - 1) continue;
-        pos[indx] = tp.Pos;
-        mtjid[indx] = tj.ID;
-        mtjpt[indx] = ipt;
-        // Preserve Tps that have hits on a wire but none of them are used.
-        if(tp.Chg > 0) ++cnt[indx];
-      } // ipt
-    } // tjid
-    // look for overlapping regions; where the count is > 1
-    Point2_t goodPos;
-    for(unsigned short startIndx = 1; startIndx < mergedSize; ++startIndx) {
-      if(cnt[startIndx] == 0) continue;
-      if(cnt[startIndx] == 1) {
-        goodPos = pos[startIndx];
-        continue;
-      } // cnt == 1
-      // find the end
-      unsigned short endIndx = 0;
-      for(endIndx = startIndx + 1; endIndx < mergedSize; ++endIndx) if(cnt[endIndx] == 1) break;
-      if(endIndx == mergedSize) endIndx = mergedSize - 1;
-      // make a bare TP between the previous good position and this good position
-      if(prt) mf::LogVerbatim("TC")<<" MergeChain inCTP "<<inCTP<<" overlap from "<<PrintPos(tjs, pos[startIndx])<<"to "<<PrintPos(tjs, pos[endIndx]);
-      TrajPoint tmp;
-      MakeBareTrajPoint(tjs, goodPos[0], goodPos[1], pos[endIndx][0], pos[endIndx][1], 0, tmp);
-      // revise the intervening points with the one that has the best delta
-      for(unsigned short jndx = startIndx; jndx < endIndx; ++jndx) {
-        float bestDelta = 5;
-        for(auto tjid : mergeList) {
-          auto& ktj = tjs.allTraj[tjid - 1];
-          for(unsigned short kpt = ktj.EndPt[0]; kpt <= ktj.EndPt[1]; ++kpt) {
-            auto& ktp = ktj.Pts[kpt];
-            unsigned short kndx = std::nearbyint(ktp.Pos[0]) - loWire;
-            if(kndx == jndx) {
-              float delta = PointTrajDOCA(tjs, pos[kndx][0], pos[kndx][1], tmp);
-              if(delta < bestDelta) {
-                // overwrite the contents
-                cnt[kndx] = 1;
-                pos[kndx] = ktp.Pos;
-                mtjid[kndx] = ktj.ID;
-                mtjpt[kndx] = kpt;
-                bestDelta = delta;
-              } // best delta
-              break;
-            } // kndx = jndx
-          } // kpt
-        } // tjid
-      } // jndx
-      startIndx = endIndx;
-    } // startIndx
-    // Create a new merged Tj
-    Trajectory ntj;
-    // StoreTraj expects to see a Tj with a negative ID
-    ntj.ID = -666;
-    ntj.StepDir = 1;
-    ntj.CTP = inCTP;
-    ntj.Pass = 9;
-    ntj.ParentID = -1;
-    ntj.VtxID = vtxID;
-    ntj.AlgMod[kMergeChain] = true;
-    int newID = tjs.allTraj.size() + 1;
-    // TODO: Transfer stop flags
-    for(auto tjid : mergeList) {
-      auto& mtj = tjs.allTraj[tjid - 1];
-      auto tHits = PutTrajHitsInVector(mtj, kUsedHits);
-      MakeTrajectoryObsolete(tjs, tjid - 1);
-      mtj.ParentID = newID;
-    } // tjid
-    for(unsigned short indx = 0; indx < mergedSize; ++indx) {
-      if(mtjid[indx] <= 0) continue;
-      auto& mtj = tjs.allTraj[mtjid[indx] - 1];
-      auto& mtp = mtj.Pts[mtjpt[indx]];
-      ntj.Pts.push_back(mtp);
-    } // indx
-    // re-assign the hits to ntj
-    auto tHits = PutTrajHitsInVector(ntj, kUsedHits);
-    for(auto iht : tHits) tjs.fHits[iht].InTraj = ntj.ID;
-    SetEndPoints(tjs, ntj);
-    if(!StoreTraj(tjs, ntj)) {
-      std::cout<<"StoreTraj failed\n";
-      return mergedList;
-    }
-    mergedList.push_back(ntj.ID);
-    return mergedList;
-  } // MergeChain
-  /////////////////////////////////////////
-  void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
-  {
-    // Finds long-ish Tjs that are not 3D-matched and does something about it
-
-    unsigned int cstat = tpcid.Cryostat;
-    unsigned int tpc = tpcid.TPC;
-    
-    if(!tjs.UseAlg[kMat3DMerge]) return;
-    
-    if(prt) mf::LogVerbatim("TC")<<"Inside CheckNoMatchTjs";
-    
-    std::vector<unsigned short> pfpsToFix;
-    for(auto& tj : tjs.allTraj) {
-      geo::PlaneID planeID = DecodeCTP(tj.CTP);
-      if(planeID.Cryostat != cstat) continue;
-      if(planeID.TPC != tpc) continue;
-      if(tj.AlgMod[kKilled]) continue;
-      if(tj.AlgMod[kMat3D]) continue;
-      if(tj.AlgMod[kInShower]) continue;
-      unsigned short npts = tj.EndPt[1] - tj.EndPt[0];
-      if(npts < 10) continue;
-      if(prt) mf::LogVerbatim("TC")<<"CNMT: Tj "<<tj.ID<<" npts "<<npts<<" is not matched in 3D. Look for it in matchVec ";
-      // look for this Tj in matchvec
-      unsigned short firstMS = 0;
-      for(firstMS = 0; firstMS < tjs.matchVec.size(); ++firstMS) {
-        auto& ms = tjs.matchVec[firstMS];
-        if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tj.ID) != ms.TjIDs.end()) break;
-      } // ms
-      // not found for some reason. Deal with this later
-      if(firstMS == tjs.matchVec.size()) continue;
-      auto& ms = tjs.matchVec[firstMS];
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<" First entry has tjs:";
-        for(auto tjid : ms.TjIDs) myprt<<" "<<tjid;
-      }
-      // skip 2-plane matches for now
-      if(ms.TjIDs.size() != tjs.NumPlanes) continue;
-      // make a list of the Tjs that were matched
-      std::vector<int> matched;
-      for(auto tjid : ms.TjIDs) if(tjid != tj.ID) matched.push_back(tjid);
-      int btjID = INT_MAX;
-      // look for the broken tj in an earlier entry. 
-      for(unsigned short ims = 0; ims < firstMS; ++ims) {
-        auto& ms = tjs.matchVec[ims];
-        if(ms.Count < 3) break;
-        if(ms.TjIDs.size() < tjs.NumPlanes) break;
-        std::vector<int> leftover(ms.TjIDs.size());
-        auto it = std::set_difference(ms.TjIDs.begin(), ms.TjIDs.end(), matched.begin(), matched.end(), leftover.begin());
-        leftover.resize(it - leftover.begin());
-        if(leftover.size() != 1) continue;
-        btjID = leftover[0];
-        break;
-      } // ims
-      if(btjID == INT_MAX) continue;
-      unsigned short pfpIndex = GetPFPIndex(tjs, btjID);
-      if(pfpIndex > tjs.pfps.size() - 1) continue;
-      if(prt) mf::LogVerbatim("TC")<<"  try to merge with broken Tj "<<btjID<<" count "<<ms.Count<<" pfpIndex "<<pfpIndex;
-      if(MergeAndStore(tjs, tj.ID - 1, btjID - 1, prt)) {
-        auto& newTj = tjs.allTraj[tjs.allTraj.size() - 1];
-        newTj.AlgMod[kMat3DMerge] = true;
-        // Update the PFParticle TjIDs
-        if(pfpIndex < tjs.pfps.size()) {
-          auto& pfp = tjs.pfps[pfpIndex];
-          std::replace(pfp.TjIDs.begin(), pfp.TjIDs.end(), btjID, newTj.ID);
-        }
-        // add the pfp index to the list of those that need fixing
-        if(std::find(pfpsToFix.begin(), pfpsToFix.end(), pfpIndex) == pfpsToFix.end()) pfpsToFix.push_back(pfpIndex);
-        // update matchVec
-        for(auto& ms : tjs.matchVec) {
-          std::replace(ms.TjIDs.begin(), ms.TjIDs.end(), tj.ID, newTj.ID);
-          std::replace(ms.TjIDs.begin(), ms.TjIDs.end(), btjID, newTj.ID);
-        } // ms
-        // update mallTraj
-        std::vector<int> oldTjs(2);
-        oldTjs[0] = tj.ID;
-        oldTjs[1] = btjID;
-        UpdateMatchStructs(tjs, oldTjs, newTj.ID);
-        if(prt) mf::LogVerbatim("TC")<<"  success "<<tj.ID<<" merged with "<<btjID<<" -> "<<newTj.ID;
-      }
-      if(prt && !tj.AlgMod[kKilled]) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<" CheckNoMatchTjs: No 3D match "<<tj.ID;
-        myprt<<" in matchVec with other Tjs";
-        for(auto tjid : matched) myprt<<" "<<tjid;
-        myprt<<" btjID "<<btjID;
-      } // prt
-    } // tj
-    
-    // update the PFParticle end points
-    std::cout<<"CNMTj is disabled\n";
-  } // CheckNoMatchTjs
-*/
-  /////////////////////////////////////////
-  bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt)
-  {
-    // This function is called after the 3D matched TjIDs have been specified and optionally
-    // a start or end vertex ID. It defines the PFParticle but doesn't store it
-    
-    if(pfp.PDGCode == 1111) return false;
-    if(pfp.TjIDs.size() < 2) return false;
-    
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"DPFP: PFP "<<pfp.ID;
-      myprt<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
-      myprt<<" Tjs";
-      for(auto id : pfp.TjIDs) myprt<<" "<<id;
-      if(pfp.PDGCode == 1111) myprt<<" This is a shower PFP ";
-    }
-    
-    if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
-      std::cout<<"DPFP: pfp "<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
-      return false;
-    }
-    
-    // set the start and end positions on any call
-    for(unsigned short startend = 0; startend < 2; ++startend) {
-      if(pfp.Vx3ID[startend] > 0) {
-        // 3D vertex exists
-        auto& vx3 = tjs.vtx3[pfp.Vx3ID[startend] - 1];
-        pfp.XYZ[startend][0] = vx3.X;
-        pfp.XYZ[startend][1] = vx3.Y;
-        pfp.XYZ[startend][2] = vx3.Z;
-      }
-    } // startend
-
-    // Make a list of TC space points allowing for Tjs that are not in the pfp.TjIDs list in
-    // the 3rd plane
-    MakePFPTp3s(tjs, pfp, true);
-    if(prt) mf::LogVerbatim("TC")<<"DPFP: found "<<pfp.Tp3s.size()<<" space points";
-    if(pfp.Tp3s.size() < 2) return false;
-    pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
-    // The space points are naturally ordered by increasing X. We want to select the first
-    // space point as the start if no start vertex exists so pick a point using other criteria,
-    // such as muon direction, TPC boundaries etc. This function will set pfp.XYZ[0].
-    // SortByDistanceFrom Start will sort the space points by distance from this point
-    if(SetNewStart(tjs, pfp, prt)) SortByDistanceFromStart(tjs, pfp);
-    // Set the Tp3 directions to be consistent with the general direction
-    Vector3_t generalDirection;
-    auto& startPt = pfp.Tp3s[0].Pos;
-    auto& endPt = pfp.Tp3s[pfp.Tp3s.size() - 1].Pos;
-    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) generalDirection[ixyz] = endPt[ixyz] - startPt[ixyz];
-    if(!SetMag(generalDirection, 1)) return false;
-    if(prt) mf::LogVerbatim("TC")<<" generalDirection "<<std::fixed<<std::setprecision(3)<<generalDirection[0]<<" "<<generalDirection[1]<<" "<<generalDirection[2];
-    // Find the largest component
-    unsigned short doXYZ = 0;
-    double len = 0;
-    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
-      if(std::abs(generalDirection[ixyz]) > len) {
-        len = std::abs(generalDirection[ixyz]);
-        doXYZ = ixyz;
-      }
-    } // ixyz
-    // Reverse direction vectors if necessary
-    for(auto& tp3 : pfp.Tp3s) {
-      if(std::signbit(tp3.Dir[doXYZ]) == std::signbit(generalDirection[doXYZ])) continue;
-      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) tp3.Dir[ixyz] = -tp3.Dir[ixyz];
-    } // tp3
-    if(!CheckTp3Validity(tjs, pfp, generalDirection, prt)) return false;
-    pfp.Dir[0] = pfp.Tp3s[0].Dir;
-    if(pfp.Vx3ID[1] == 0) pfp.XYZ[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Pos;
-    pfp.Dir[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Dir;
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<" TC space points\n";
-      for(unsigned short ipt = 0; ipt < pfp.Tp3s.size(); ++ipt) {
-        auto tp3 = pfp.Tp3s[ipt];
-        myprt<<std::setw(3)<<ipt<<" pos ";
-        myprt<<" "<<std::fixed<<std::setprecision(1);
-        myprt<<std::setw(7)<<tp3.Pos[0]<<std::setw(7)<<tp3.Pos[1]<<std::setw(7)<<tp3.Pos[2];
-        myprt<<" sep "<<std::setprecision(1)<<std::setw(5)<<PosSep(tp3.Pos, pfp.Tp3s[0].Pos);
-        float sep2 = -1;
-        if(ipt > 0) sep2 = PosSep(tp3.Pos, pfp.Tp3s[ipt - 1].Pos);
-        myprt<<" sep2 "<<std::setprecision(2)<<std::setw(5)<<sep2;
-        myprt<<" dir ";
-        myprt<<" "<<std::setprecision(3)<<std::setw(7)<<tp3.Dir[0]<<std::setw(7)<<tp3.Dir[1]<<std::setw(7)<<tp3.Dir[2];
-        myprt<<" dEdx "<<std::setw(4)<<std::setprecision(1)<<tp3.dEdx;
-        myprt<<" Err "<<std::setw(4)<<std::setprecision(1)<<tp3.dEdxErr;
-        myprt<<" IsValid? "<<tp3.IsValid;
-        // Calculate the kink angle at point ipt, using the two points that are
-        // +/- 1 cm on either side of that point
-        double sep = 1;
-        myprt<<" kinkAngle "<<std::setprecision(3)<<std::setw(7)<<KinkAngle(tjs, pfp.Tp3s, ipt, sep);
-        myprt<<" tj_ipt";
-        for(auto tj2pt : tp3.Tj2Pts) {
-          auto& tj = tjs.allTraj[tj2pt.id - 1];
-          auto& tp = tj.Pts[tj2pt.ipt];
-          myprt<<" "<<tj.ID<<"_"<<PrintPos(tjs, tp);
-        } // tj2pt
-        myprt<<"\n";
-      } // ipt
-    } // prt
-    FilldEdx(tjs, pfp);
-    pfp.NeedsUpdate = false;
-    return true;
-  } // DefinePFP
   
   /////////////////////////////////////////
   bool MergeTjIntoPFP(TjStuff& tjs, int mtjid, PFPStruct& pfp, bool prt)
@@ -1527,6 +1193,8 @@ namespace tca {
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tjs, tj);
     UpdateAveChg(tjs, tj);
+    UpdateTotChg(tjs, tj);
+    UpdateChgRMS(tjs, tj);
     
     auto& endTp0 = tj.Pts[tj.EndPt[0]];
     auto& endTp1 = tj.Pts[tj.EndPt[1]];
@@ -1560,7 +1228,7 @@ namespace tca {
     
     int trID = tjs.allTraj.size() + 1;
 
-    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1] + 1; ++ipt) {
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
       for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
         if(tj.Pts[ipt].UseHit[ii]) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
@@ -1588,8 +1256,6 @@ namespace tca {
     tj.ID = trID;
     // Don't clobber the ParentID if it was defined by the calling function
     if(tj.ParentID == 0) tj.ParentID = trID;
-    // Calculate the overall charge RMS relative to a linear
-    UpdateChgRMS(tjs, tj);
     tjs.allTraj.push_back(tj);
 //    if(prt) mf::LogVerbatim("TC")<<"StoreTraj trID "<<trID<<" CTP "<<tj.CTP<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
     if(debug.Hit != UINT_MAX) {
@@ -1605,6 +1271,25 @@ namespace tca {
     return true;
     
   } // StoreTraj
+  
+  //////////////////////////////////////////
+  void UpdateTotChg(TjStuff& tjs, Trajectory& tj)
+  {
+    tj.TotChg = 0;
+    float npwc = 0;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg <= 0) continue;
+      ++npwc;
+      for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+        if(!tp.UseHit[ii]) continue;
+        unsigned int iht = tp.Hits[ii];
+        tj.TotChg += tjs.fHits[iht].Integral;
+      } // ii
+    } // ipt
+    // correct the total charge for dead wires
+    tj.TotChg *= (float)(tj.EndPt[1] - tj.EndPt[0] + 1) / npwc;
+  } // UpdateTotChg
   
   //////////////////////////////////////////
   void UpdateAveChg(TjStuff& tjs, Trajectory& tj)
@@ -2407,6 +2092,9 @@ namespace tca {
     bool splittingMuon = (tj.PDGCode == 13);
     if(splittingMuon) tj.PDGCode = 0;
     
+    // unset the direction flag
+    tj.AlgMod[kSetDir] = false;
+    
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"SplitTraj: Split Tj ID "<<tj.ID<<" at point "<<pos;
@@ -2454,6 +2142,9 @@ namespace tca {
       } // ii
     } // ipt
     SetEndPoints(tjs, tj);
+    UpdateAveChg(tjs, tj);
+    UpdateTotChg(tjs, tj);
+    UpdateChgRMS(tjs, tj);
     if(splittingMuon) SetPDGCode(tjs, tj);
     
     // Append 3 points from the end of tj onto the
@@ -2479,6 +2170,9 @@ namespace tca {
       newTj.Pts[ipt].Chg = 0;
     } // ipt
     SetEndPoints(tjs, newTj);
+    UpdateAveChg(tjs, newTj);
+    UpdateTotChg(tjs, newTj);
+    UpdateChgRMS(tjs, newTj);
     if(splittingMuon) SetPDGCode(tjs, newTj);
     if(ivx < tjs.vtx.size()) newTj.VtxID[0] = tjs.vtx[ivx].ID;
     newTj.AlgMod[kSplit] = true;
@@ -3045,7 +2739,7 @@ namespace tca {
     // reverse the trajectory
     if(tj.Pts.empty()) return;
     if(tj.AlgMod[kMat3D]) {
-      std::cout<<"Trying to reverse a 3D matched Tj. Need to modify other Tjs and the MatchStruct\n";
+      std::cout<<"Trying to reverse 3D matched Tj "<<tj.ID<<". Need to modify other Tjs and the MatchStruct\n";
       return;
     }
     if(tj.AlgMod[kSetDir]) {
@@ -4174,7 +3868,7 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx chgRMS Mom SDr NN __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx    Chg chgRMS  Mom SDr __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -4226,10 +3920,10 @@ namespace tca {
         prec = 1;
         if(aTj.dEdx[1] > 99) prec = 0;
         myprt<<std::setw(5)<<std::setprecision(prec)<<aTj.dEdx[1];
+        myprt<<std::setw(7)<<(int)aTj.TotChg;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(5)<<aTj.MCSMom;
         myprt<<std::setw(4)<<aTj.StepDir;
-        myprt<<std::setw(3)<<aTj.NNeighbors;
         myprt<<std::setw(4)<<aTj.VtxID[0];
         myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
@@ -4415,7 +4109,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG TruPDG Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______  ____sdEdx____ eVx  ________ePos_______ CS _______eDir______  ____edEdx____ BstPln PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
     myprt<<std::setw(5)<<pfp.ID;
@@ -4426,15 +4120,21 @@ namespace tca {
       myprt<<std::setw(7)<<pfp.XYZ[startend][0];
       myprt<<std::setw(7)<<pfp.XYZ[startend][1];
       myprt<<std::setw(7)<<pfp.XYZ[startend][2];
+      // print character for Outside or Inside the FV
+      if(pfp.StopFlag[startend][kOutFV]) {
+        myprt<<"  O";
+      } else {
+        myprt<<"  I";
+      }
       myprt<<std::fixed<<std::right<<std::setprecision(2);
       myprt<<std::setw(6)<<pfp.Dir[startend][0];
       myprt<<std::setw(6)<<pfp.Dir[startend][1];
       myprt<<std::setw(6)<<pfp.Dir[startend][2];
       for(auto& dedx : pfp.dEdx[startend]) {
         if(dedx < 50) {
-          myprt<<std::setw(6)<<std::setprecision(1)<<dedx;
+          myprt<<std::setw(5)<<std::setprecision(1)<<dedx;
         } else {
-          myprt<<std::setw(6)<<std::setprecision(0)<<dedx;
+          myprt<<std::setw(5)<<std::setprecision(0)<<dedx;
         }
       } // dedx
       if (pfp.dEdx[startend].size()<3){
@@ -4447,9 +4147,9 @@ namespace tca {
     myprt<<std::setw(5)<<pfp.BestPlane;
     myprt<<std::setw(6)<<pfp.PDGCode;
     if(pfp.MCPartListIndex < tjs.MCPartList.size()) {
-      myprt<<std::setw(6)<<tjs.MCPartList[pfp.MCPartListIndex]->PdgCode();
+      myprt<<std::setw(8)<<pfp.MCPartListIndex;
     } else {
-      myprt<<"    NA";
+      myprt<<"      NA";
     }
     myprt<<std::setw(4)<<pfp.ParentID;
     myprt<<std::setw(5)<<PrimaryID(tjs, pfp);
