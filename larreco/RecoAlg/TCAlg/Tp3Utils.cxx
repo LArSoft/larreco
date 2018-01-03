@@ -49,10 +49,6 @@ namespace tca {
       std::cout<<"Repair: No common vertex between "<<missTj.ID<<" and "<<m3Tj.ID<<". Deal with this case. \n";
       return false;
     }
-    // separation distance (cm) for kink detection
-    double sep = 1;
-    auto kinkPts = FindKinks(tjs, pfp, sep, prt);
-    if(prt) mf::LogVerbatim("TC")<<" number of kinks found "<<kinkPts.size();
 /*
     // The vertex exists because there is a significant kink in one plane
     // but not a significant kink in the other planes. We need to split the
@@ -77,264 +73,6 @@ namespace tca {
 */
     return true;
   } // Repair
-/*
-  //////////////////////////////////////////
-  void Match3DSpts(TjStuff& tjs, const art::Event& evt, const geo::TPCID& tpcid, 
-                   const art::InputTag& fSpacePointModuleLabel)
-  {
-    // Match Tjs in 3D using SpacePoint <-> Hit associations.
-    if(!tjs.UseAlg[kHitsOrdered]) {
-      std::cout<<"Match3DSpts: Write some code to deal with un-ordered hits\n";
-      return;
-    }
-    
-    bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
-    if(prt) mf::LogVerbatim("TC")<<"Inside Match3DSpts";
-    
-    // sort the Tjs in this tpc by decreasing length
-    std::vector<SortEntry> sortVec;
-    SortEntry se;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      if(DecodeCTP(tj.CTP).Cryostat != tpcid.Cryostat) continue;
-      if(DecodeCTP(tj.CTP).TPC != tpcid.TPC) continue;
-      if(tj.AlgMod[kInShower]) continue;
-      se.index = tj.ID;
-      se.val = tj.EndPt[1] - tj.EndPt[0];
-      sortVec.push_back(se);
-    } // tj
-    if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasings);
-    
-    for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
-      int tjid = sortVec[ii].index;
-      auto& tj = tjs.allTraj[tjid - 1];
-      if(tj.AlgMod[kKilled]) continue;
-      if(tj.AlgMod[kMat3D]) continue;
-      unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
-      // try to find a space point at each Tj point
-      std::vector<std::vector<unsigned int>> sptLists(npts);
-      // keep track of tj IDs at each point
-      std::vector<std::vector<int>> sptTjLists(npts);
-      // list of Tjs and the occurrence count
-      std::vector<std::pair<int, int>> tjcnts;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        unsigned short indx = ipt - tj.EndPt[0];
-        auto& tp = tj.Pts[ipt];
-        if(tp.Chg == 0) continue;
-        // Find space points using hits associated with this Tp. 
-        sptLists[indx] = SpacePtsAssociatedWith(tjs, tp);
-        if(sptLists[indx].empty()) continue;
-        // next get a list of Tjs that use hits that are in those space points
-        auto tmp = TjsNearSpacePts(tjs, sptLists[indx]);
-        for(auto tjid : tmp) {
-          auto& tj = tjs.allTraj[tjid - 1];
-          if(!tj.AlgMod[kMat3D]) sptTjLists[indx].push_back(tjid);
-        } // tjid
-        for(auto tjid : sptTjLists[indx]) {
-          unsigned short jndx = 0;
-          for(jndx = 0; jndx < tjcnts.size(); ++jndx) if(tjid == tjcnts[jndx].first) break;
-          if(jndx == tjcnts.size()) {
-            // not in the list so add it
-            tjcnts.push_back(std::make_pair(tjid, 1));
-          } else {
-            ++tjcnts[jndx].second;
-          }
-        } // tjid
-      } // ipt
-      if(tjcnts.empty()) continue;
-      // put the list of matching tjs into plane ordered lists
-      std::array<std::vector<int>, 3> tjInPln;
-      // require that a broken Tj be not too short
-      unsigned short minpts = 0.1 * (tj.EndPt[1] - tj.EndPt[0]);
-      if(minpts < 2) minpts = 2;
-      for(auto& tjcnt : tjcnts) {
-        auto& mtj = tjs.allTraj[tjcnt.first - 1];
-        if(mtj.EndPt[1] - mtj.EndPt[0] < minpts) continue;
-        // ignore if killed or already matched
-        if(mtj.AlgMod[kKilled]) continue;
-        if(mtj.AlgMod[kMat3D]) continue;
-        unsigned short plane = DecodeCTP(mtj.CTP).Plane;
-        tjInPln[plane].push_back(tjcnt.first);
-      }
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<tj.ID<<" tjInPln\n";
-        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-          myprt<<" pln "<<plane<<" Tjs";
-          for(auto tjid : tjInPln[plane]) myprt<<" "<<tjid;
-        } // plane
-      } // prt
-      // Look for broken Tjs, that is the existence of more than one
-      // tj that is matched to the space points in a plane
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        if(tjInPln[plane].size() < 2) continue;
-        // TODO: Check for the existence of a vertex here and decide if
-        // Tjs should split instead of merging. 
-        if(!MergeBrokenTjs(tjs, tjInPln[plane], prt)) {
-          if(prt) mf::LogVerbatim("TC")<<"Merge failed. Skipping this combination";
-          continue;
-        }
-      } // plane
-      // Ensure that there is an un-matched Tj in at least 2 planes
-      unsigned short nPlnWithTj = 0;
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        if(tjInPln[plane].empty()) continue;
-        bool tjAvailable = false;
-        for(auto tjid : tjInPln[plane]) {
-          auto& tj = tjs.allTraj[tjid - 1];
-          if(!tj.AlgMod[kMat3D]) tjAvailable = true;
-        } // tjid
-        if(tjAvailable) ++nPlnWithTj;
-      } // plane
-      if(nPlnWithTj < 2) continue;
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<tj.ID<<" After merging\n";
-        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-          myprt<<" pln "<<plane<<" Tjs";
-          for(auto tjid : tjInPln[plane]) myprt<<" "<<tjid;
-        } // plane
-      } // prt
-      PFPStruct pfp = CreatePFP(tjs, tpcid);
-      pfp.TjIDs.clear();
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        if(tjInPln[plane].empty()) continue;
-        if(tjInPln[plane][0] > 0) pfp.TjIDs.push_back(tjInPln[plane][0]);
-      } // plane
-      // set the end points using the local version that uses SpacePoints instead
-      // of tjs.malltraj
-      if(!SetPFPEndPoints(tjs, pfp, sptLists, tj.ID, prt)) {
-        std::cout<<"SetPFPEndPoints failed";
-      }
-      if(!StorePFP(tjs, pfp)) continue;
-      if(ii > 10) break;
-    } // ii (tj)
-    
-  } // Match3DSpts
-
- /////////////////////////////////////////
-  bool SetPFPEndPoints(TjStuff& tjs, PFPStruct& pfp, std::vector<std::vector<unsigned int>>& sptLists, int tjID, bool prt)
-  {
-    // Find PFParticle end points using the lists of spacepoints that are associated with each TP
-    // on Trajectory tjID. This is the longest trajectory of the PFParticle
-    
-    // this code doesn't handle the ends of showers
-    if(pfp.PDGCode == 1111) return false;
-    if(pfp.TjIDs.size() < 2) return false;
-    if(sptLists.empty()) return false;
-    // this function needs spacepoints
-    if(tjs.pfps.empty()) return false;
-    unsigned short tjIndex = 0;
-    for(tjIndex = 0; tjIndex < pfp.TjIDs.size(); ++tjIndex) if(tjID == pfp.TjIDs[tjIndex]) break;
-    if(tjIndex == pfp.TjIDs.size()) return false;
-    
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"SPEP: PFP "<<pfp.ID;
-//      myprt<<" Vx3ID "<<pfp.Vx3ID[end];
-      myprt<<" Tjs";
-      for(auto id : pfp.TjIDs) myprt<<" "<<id;
-    }
-    
-    // find the first point that has all Tjs in a space point. We will use this to decide
-    // which ends of the Tjs match
-    std::array<unsigned short, 2> tj2PtWithSpt {USHRT_MAX};
-    for(unsigned short ipt = 0; ipt < sptLists.size(); ++ipt) {
-      // sptList is a vector of all spacepoints that are associated with the trajectory point ipt
-      auto tmp = TjsNearSpacePts(tjs, sptLists[ipt]);
-      unsigned short cnt = 0;
-      for(auto tjn : tmp) {
-        if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjn) != pfp.TjIDs.end()) ++cnt;
-      } // tjn
-      if(cnt != pfp.TjIDs.size()) continue;
-      if(tj2PtWithSpt[0] == USHRT_MAX) tj2PtWithSpt[0] = ipt;
-      tj2PtWithSpt[1] = ipt;
-    } // ipt
-    // Do something quick and dirty
-    for(unsigned short end = 0; end < 2; ++end) {
-      unsigned short ipt = tj2PtWithSpt[end];
-      if(ipt > sptLists.size() - 1) continue;
-      unsigned int isp = sptLists[ipt][0];
-      std::cout<<"ipt "<<ipt<<" "<<isp<<"\n";
-      auto& spt = pfp.Tp3s[isp];
-      pfp.XYZ[end] = spt.Pos;
-    }
-    if(prt) mf::LogVerbatim("TC")<<" firstPt "<<tj2PtWithSpt[0]<<" lastPt "<<tj2PtWithSpt[1];
-
-    return true;
-  } // SetPFPEndPoints
-*/
-  /////////////////////////////////////////
-  bool MergeBrokenTjs(TjStuff& tjs, std::vector<int>& tjInPln, bool prt)
-  {
-    // The vector tjInPln contains a list of Tjs that are in SpacePoints that are matched to
-    // trajectories in the other planes. This function will merge them and correct the tjInPln vector
-    
-    if(tjInPln.size() < 2) return false;
-    
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"MergeBrokenTjs working on";
-      for(auto tjid : tjInPln) myprt<<" "<<tjid;
-    }
-    // put these into the same wire order
-    for(auto tjid : tjInPln) {
-      auto& tj = tjs.allTraj[tjid - 1];
-      if(tj.StepDir != tjs.StepDir) ReverseTraj(tjs, tj);
-    } // tjid
-    // Put them into a consistent order - the step direction
-    std::vector<SortEntry> sortVec(tjInPln.size());
-    for(unsigned short ii = 0; ii < tjInPln.size(); ++ii) {
-      auto& tj = tjs.allTraj[tjInPln[ii] - 1];
-      if(tj.AlgMod[kKilled]) return false;
-      if(tj.AlgMod[kMat3D]) return false;
-      auto& tp0 = tj.Pts[tj.EndPt[0]];
-      sortVec[ii].index = ii;
-      sortVec[ii].val = tp0.Pos[0];
-    } // ii
-    std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
-    // put them into the right order
-    auto temp = tjInPln;
-    for(unsigned short ii = 0; ii < sortVec.size(); ++ii) tjInPln[ii] = temp[sortVec[ii].index];
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"After sort";
-      for(auto tjid : tjInPln) myprt<<" "<<tjid;
-    }
-    // merge them
-    int mergedTjID = tjInPln[0];
-    for(unsigned short nit = 1; nit < tjInPln.size(); ++nit) {
-      auto& tj1 = tjs.allTraj[mergedTjID - 1];
-      auto& tj2 = tjs.allTraj[tjInPln[nit] - 1];
-      // check for a compatible merge
-      if(!CompatibleMerge(tjs, tj1, tj2, prt)) continue;
-      // check for a vertex between them and clobber it. The decision to break this into
-      // two tracks should be done later using 3D angles
-      if(tj1.VtxID[1] > 0 && tj1.VtxID[1] == tj2.VtxID[0]) {
-        auto& vx2 = tjs.vtx[tj1.VtxID[1] - 1];
-        MakeVertexObsolete(tjs, vx2, true);
-      }
-      // check for Bragg peaks and clobber them
-      if(tj1.StopFlag[1][kBragg]) {
-        if(prt) mf::LogVerbatim("TC")<<" clobbered Bragg Stop flag on Tj "<<tj1.ID;
-        tj1.StopFlag[1][kBragg] = false;
-      }
-      if(tj2.StopFlag[0][kBragg]) {
-        if(prt) mf::LogVerbatim("TC")<<" clobbered Bragg Stop flag on Tj "<<tj2.ID;
-        tj2.StopFlag[0][kBragg] = false;
-      }
-      // TODO: The above actions should be done more carefully
-      if(!MergeAndStore(tjs, tj1.ID - 1, tj2.ID - 1, prt)) return false;
-      // Successfull merge
-      mergedTjID = tjs.allTraj.size();
-    } // nit
-    // Revise tjs.mallTraj
-    UpdateMatchStructs(tjs, tjInPln, mergedTjID);
-    tjInPln.resize(1);
-    tjInPln[0] = mergedTjID;
-    if(prt) mf::LogVerbatim("TC")<<"MergeBrokenTjs returns "<<mergedTjID;
-    return true;
-  } // MergeBrokenTjs
   
   /////////////////////////////////////////
   void UpdateMatchStructs(TjStuff& tjs, int tjid)
@@ -507,11 +245,30 @@ namespace tca {
     
     pfp.Tp3s.clear();
     if(pfp.ID == 0) return;
-    if(pfp.TjIDs.empty()) return;
+    if(pfp.TjIDs.size() < 2) return;
     if(tjs.mallTraj.empty()) return;
     double xcut = tjs.Match3DCuts[0];
     double yzcut = 1.5 * xcut;
     constexpr double twopi = 2 * M_PI;
+    
+    bool useAngle = tjs.Match3DCuts[1] > 0;
+    if(useAngle) {
+      // turn this off if the Tjs are short or have low MCSMom
+      float mcsmom = 0;
+      float cnt = 0;
+      for(auto tjid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tjid - 1];
+        if(tj.EndPt[1] - tj.EndPt[0] < 5) continue;
+        ++cnt;
+        mcsmom += tj.MCSMom;
+      } // tjid
+      if(cnt < 2) {
+        useAngle = false;
+      } else {
+        mcsmom /= cnt;
+        if(mcsmom < 150) useAngle = false;
+      }
+    } // useAngle
     
 //    MCParticleListUtils mcplu{tjs};
     
@@ -561,16 +318,13 @@ namespace tca {
             if(!MakeTp3(tjs, itp, ktp, iktp3)) continue;
             if(std::abs(iktp3.Pos[1] - tp3.Pos[1]) > yzcut) continue;
             if(std::abs(iktp3.Pos[2] - tp3.Pos[2]) > yzcut) continue;
-            if(tjs.Match3DCuts[1] > 0) {
+            if(useAngle) {
               double dang = DeltaAngle(tp3.Dir, iktp3.Dir);
               while(dang >  M_PI) dang -= twopi;
               while(dang < -M_PI) dang += twopi;
               if(dang >  M_PI/2) dang = M_PI - dang;
               if(dang < -M_PI/2) dang = M_PI + dang;
-              float mcsmom = tjs.allTraj[iTj2Pt.id - 1].MCSMom + tjs.allTraj[jTj2Pt.id - 1].MCSMom + tjs.allTraj[kTj2Pt.id - 1].MCSMom;
-              mcsmom /= 3;
-//              mf::LogVerbatim("TC")<<"dang "<<std::fixed<<std::setprecision(3)<<dang<<std::setprecision(2)<<" "<<(iktp3.Pos[1] - tp3.Pos[1])<<" "<<(iktp3.Pos[2] - tp3.Pos[2])<<" "<<(int)mcsmom<<" "<<ijkMatch<<" "<<TMeV;
-              if(mcsmom > 150 && dang > tjs.Match3DCuts[1]) continue;
+              if(dang > tjs.Match3DCuts[1]) continue;
             }
             // update the position and direction
             for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
@@ -582,7 +336,6 @@ namespace tca {
             break;
           } // kpt
         } // 3 planes
-        FilldEdx(tjs, tp3);
         pfp.Tp3s.push_back(tp3);
         break;
       } // jpt
@@ -1221,6 +974,92 @@ namespace tca {
   } // FilldEdx
   
   ////////////////////////////////////////////////
+  void SplitAtKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt)
+  {
+    // Finds kinks in the PFParticle, splits Tjs, creates 2D vertices and forces a rebuild if any are found
+    if(pfp.Tp3s.empty()) return;
+    
+    auto kinkPts = FindKinks(tjs, pfp, sep, prt);
+    if(kinkPts.empty()) return;
+    if(prt) mf::LogVerbatim("TC")<<"SplitAtKink found a kink at Tp3s point "<<kinkPts[0];
+    
+    // Only split the biggest angle kink
+    double big = 0;
+    unsigned short kpt = 0;
+    for(auto ipt : kinkPts) {
+      double dang = KinkAngle(tjs, pfp.Tp3s, ipt, sep);
+      if(dang > big) {
+        big = dang;
+        kpt = ipt;
+      }
+    } // ipt
+    if(kpt < 1 || kpt > pfp.Tp3s.size() - 1) return;
+    // determine which tjs need to be split
+    std::vector<unsigned short> tjids;
+    std::vector<unsigned short> vx2ids;
+    // inspect a few Tp3s near the kink point to get a list of Tjs
+    for(unsigned short ipt = kpt; ipt < kpt + 2; ++ipt) {
+      auto& tp3 = pfp.Tp3s[ipt];
+      for(auto& tp2 : tp3.Tj2Pts) {
+        // see if this Tj id is in the list
+        if(std::find(tjids.begin(), tjids.end(), tp2.id) != tjids.end()) continue;
+        // ensure that it is pfp.TjIDs
+        if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tp2.id) == pfp.TjIDs.end()) continue;
+        tjids.push_back(tp2.id);
+        auto& tj = tjs.allTraj[tp2.id - 1];
+        auto& tp = tj.Pts[tp2.ipt];
+        unsigned short closeEnd = USHRT_MAX;
+        if(tp2.ipt < tj.EndPt[0] + 2) closeEnd = 0;
+        if(tp2.ipt > tj.EndPt[1] - 2) closeEnd = 1;
+        if(closeEnd < 2) {
+          // No split is needed and there should be a vertex at this end of the Tj that
+          // should be associated with a 3D vertex that we will construct
+          if(tj.VtxID[closeEnd] == 0) {
+            std::cout<<"SplitAtKink: TODO Tj "<<tj.ID<<" has no vertex attached on end "<<closeEnd<<". Write some code.\n";
+            return;
+          }
+          vx2ids.push_back(tj.VtxID[closeEnd]);
+          if(prt) mf::LogVerbatim("TC")<<" tj "<<tj.ID<<" use existing 2V"<<tj.VtxID[closeEnd];
+        } else {
+          // make a 2D vertex at this point
+          VtxStore vx2;
+          vx2.ID = tjs.vtx.size() + 1;
+          vx2.CTP = tj.CTP;
+          vx2.Topo = 10;
+          vx2.Pos = tp.Pos;
+          if(!StoreVertex(tjs, vx2)) return;
+          if(!SplitTraj(tjs, tp2.id - 1, tp2.ipt, tjs.vtx.size() - 1, prt)) return;
+          vx2ids.push_back(vx2.ID);
+          AttachAnyTrajToVertex(tjs, tjs.vtx.size() - 1, prt);
+          if(prt) mf::LogVerbatim("TC")<<" tj "<<tj.ID<<" new 2V"<<vx2.ID;
+          tjs.NeedsRebuild = true;
+        }
+//        std::cout<<"Split Tj "<<tp2.id<<" at point "<<tp2.ipt<<" "<<PrintPos(tjs, tp)<<" 2V"<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" closeEnd "<<closeEnd<<"\n";
+      } // tp2
+    } // ipt
+    
+    if(vx2ids.size() != tjs.NumPlanes) {
+      std::cout<<"SplitAtKink: TODO pfp "<<pfp.ID<<" only has "<<vx2ids.size()<<" 2D vertices. \n";
+      return;
+    }
+    Vtx3Store vx3;
+    vx3.TPCID = pfp.TPCID;
+    vx3.ID = tjs.vtx3.size() + 1;
+    vx3.X = pfp.Tp3s[kpt].Pos[0];
+    vx3.Y = pfp.Tp3s[kpt].Pos[1];
+    vx3.Z = pfp.Tp3s[kpt].Pos[2];
+    for(auto vx2id : vx2ids) {
+      if(vx2id == 0) continue;
+      auto& vx2 = tjs.vtx[vx2id - 1];
+      unsigned short plane = DecodeCTP(vx2.CTP).Plane;
+      vx3.Vx2ID[plane] = vx2id;
+      vx2.Vx3ID = vx3.ID;
+    } // vx2id
+    tjs.vtx3.push_back(vx3);
+    
+  } // SplitAtKink
+  
+  ////////////////////////////////////////////////
   std::vector<unsigned short> FindKinks(const TjStuff& tjs, PFPStruct& pfp, double sep, bool prt)
   {
     // returns a vector of indices in pfp.Tp3s where kinks exist. The kink angle is calculated using
@@ -1333,7 +1172,114 @@ namespace tca {
     }
     return pfp;
   } // MatchVecIndex
-  
+
+  /////////////////////////////////////////
+  bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt)
+  {
+    // This function is called after the 3D matched TjIDs have been specified and optionally
+    // a start or end vertex ID. It defines the PFParticle but doesn't store it
+    
+    if(pfp.PDGCode == 1111) return false;
+    if(pfp.TjIDs.size() < 2) return false;
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"DPFP: PFP "<<pfp.ID;
+      myprt<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
+      myprt<<" Tjs";
+      for(auto id : pfp.TjIDs) myprt<<" "<<id;
+      if(pfp.PDGCode == 1111) myprt<<" This is a shower PFP ";
+    }
+    
+    if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
+      std::cout<<"DPFP: pfp "<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
+      return false;
+    }
+    
+    // set the start and end positions on any call
+    for(unsigned short startend = 0; startend < 2; ++startend) {
+      if(pfp.Vx3ID[startend] > 0) {
+        // 3D vertex exists
+        auto& vx3 = tjs.vtx3[pfp.Vx3ID[startend] - 1];
+        pfp.XYZ[startend][0] = vx3.X;
+        pfp.XYZ[startend][1] = vx3.Y;
+        pfp.XYZ[startend][2] = vx3.Z;
+      }
+    } // startend
+    
+    // Make a list of TC space points allowing for Tjs that are not in the pfp.TjIDs list in
+    // the 3rd plane
+    MakePFPTp3s(tjs, pfp, true);
+    if(prt) mf::LogVerbatim("TC")<<"DPFP: found "<<pfp.Tp3s.size()<<" space points";
+    if(pfp.Tp3s.size() < 2) return false;
+    pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
+    // The space points are naturally ordered by increasing X. We want to select the first
+    // space point as the start if no start vertex exists so pick a point using other criteria,
+    // such as muon direction, TPC boundaries etc. This function will set pfp.XYZ[0].
+    // SortByDistanceFrom Start will sort the space points by distance from this point
+    if(SetNewStart(tjs, pfp, prt)) SortByDistanceFromStart(tjs, pfp);
+    // Set the Tp3 directions to be consistent with the general direction
+    Vector3_t generalDirection;
+    auto& startPt = pfp.Tp3s[0].Pos;
+    auto& endPt = pfp.Tp3s[pfp.Tp3s.size() - 1].Pos;
+    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) generalDirection[ixyz] = endPt[ixyz] - startPt[ixyz];
+    if(!SetMag(generalDirection, 1)) return false;
+    if(prt) mf::LogVerbatim("TC")<<" generalDirection "<<std::fixed<<std::setprecision(3)<<generalDirection[0]<<" "<<generalDirection[1]<<" "<<generalDirection[2];
+    // Find the largest component
+    unsigned short doXYZ = 0;
+    double len = 0;
+    for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) {
+      if(std::abs(generalDirection[ixyz]) > len) {
+        len = std::abs(generalDirection[ixyz]);
+        doXYZ = ixyz;
+      }
+    } // ixyz
+    // Reverse direction vectors if necessary
+    for(auto& tp3 : pfp.Tp3s) {
+      if(std::signbit(tp3.Dir[doXYZ]) == std::signbit(generalDirection[doXYZ])) continue;
+      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) tp3.Dir[ixyz] = -tp3.Dir[ixyz];
+      FilldEdx(tjs, tp3);
+    } // tp3
+    if(!CheckTp3Validity(tjs, pfp, generalDirection, prt)) return false;
+    pfp.Dir[0] = pfp.Tp3s[0].Dir;
+    if(pfp.Vx3ID[1] == 0) pfp.XYZ[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Pos;
+    pfp.Dir[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Dir;
+    SetStopFlags(tjs, pfp, prt);
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<" TC space points\n";
+      for(unsigned short ipt = 0; ipt < pfp.Tp3s.size(); ++ipt) {
+        auto tp3 = pfp.Tp3s[ipt];
+        myprt<<std::setw(3)<<ipt<<" pos ";
+        myprt<<" "<<std::fixed<<std::setprecision(1);
+        myprt<<std::setw(7)<<tp3.Pos[0]<<std::setw(7)<<tp3.Pos[1]<<std::setw(7)<<tp3.Pos[2];
+        myprt<<" sep "<<std::setprecision(1)<<std::setw(5)<<PosSep(tp3.Pos, pfp.Tp3s[0].Pos);
+        float sep2 = -1;
+        if(ipt > 0) sep2 = PosSep(tp3.Pos, pfp.Tp3s[ipt - 1].Pos);
+        myprt<<" sep2 "<<std::setprecision(2)<<std::setw(5)<<sep2;
+        myprt<<" dir ";
+        myprt<<" "<<std::setprecision(3)<<std::setw(7)<<tp3.Dir[0]<<std::setw(7)<<tp3.Dir[1]<<std::setw(7)<<tp3.Dir[2];
+        myprt<<" dEdx "<<std::setw(4)<<std::setprecision(1)<<tp3.dEdx;
+        myprt<<" Err "<<std::setw(4)<<std::setprecision(1)<<tp3.dEdxErr;
+        myprt<<" IsValid? "<<tp3.IsValid;
+        // Calculate the kink angle at point ipt, using the two points that are
+        // +/- 1 cm on either side of that point
+        double sep = 1;
+        myprt<<" kinkAngle "<<std::setprecision(3)<<std::setw(7)<<KinkAngle(tjs, pfp.Tp3s, ipt, sep);
+        myprt<<" tj_ipt";
+        for(auto tj2pt : tp3.Tj2Pts) {
+          auto& tj = tjs.allTraj[tj2pt.id - 1];
+          auto& tp = tj.Pts[tj2pt.ipt];
+          myprt<<" "<<tj.ID<<"_"<<PrintPos(tjs, tp);
+        } // tj2pt
+        myprt<<"\n";
+      } // ipt
+    } // prt
+    FilldEdx(tjs, pfp);
+    pfp.NeedsUpdate = false;
+    return true;
+  } // DefinePFP
+
   ////////////////////////////////////////////////
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp)
   {
@@ -1405,5 +1351,45 @@ namespace tca {
     tjs.pfps.push_back(pfp);
     return true;
   } // StorePFP
+  
+  ////////////////////////////////////////////////
+  void SetStopFlags(TjStuff& tjs, PFPStruct& pfp, bool prt)
+  {
+    if(pfp.ID == 0) return;
+    if(pfp.Tp3s.empty()) return;
+    for(unsigned short end = 0; end < 2; ++end) {
+      unsigned short ipt = 0;
+      if(end == 1) ipt = pfp.Tp3s.size() - 1;
+      auto& tp3 = pfp.Tp3s[ipt];
+      geo::TPCID tmp;
+      pfp.StopFlag[end][kOutFV] = !InsideTPC(tjs, tp3.Pos, tmp);
+    } // end
+    // TODO: Set the kBragg flag here
+  } // SetStopFlags
+  
+  ////////////////////////////////////////////////
+  bool InsideTPC(const TjStuff& tjs, Point3_t& pos, geo::TPCID& inTPCID)
+  {
+    // determine which TPC this point is in. This function returns false
+    // if the point is not inside any TPC
+    for (const geo::TPCID& tpcid: tjs.geom->IterateTPCIDs()) {
+      const geo::TPCGeo& TPC = tjs.geom->TPC(tpcid);
+      double local[3] = {0.,0.,0.};
+      double world[3] = {0.,0.,0.};
+      TPC.LocalToWorld(local,world);
+      unsigned int cstat = tpcid.Cryostat;
+      unsigned int tpc = tpcid.TPC;
+      // reduce the active area of the TPC by 1 cm to be consistent with FillWireHitRange
+      if(pos[0] < world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + 1) continue;
+      if(pos[0] > world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - 1) continue;
+      if(pos[1] < world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + 1) continue;
+      if(pos[1] > world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - 1) continue;
+      if(pos[2] < world[2]-tjs.geom->DetLength(tpc,cstat)/2 + 1) continue;
+      if(pos[2] > world[2]+tjs.geom->DetLength(tpc,cstat)/2 - 1) continue;
+      inTPCID = tpcid;
+      return true;
+    } // tpcid
+    return false;
+  } // InsideTPC
 
 } // namespace
