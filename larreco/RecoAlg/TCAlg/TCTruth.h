@@ -46,7 +46,6 @@ namespace tca {
     bool CanReconstruct(unsigned int mcpIndex, unsigned short nDimensions, const geo::TPCID& tpcid);
     // Put hits matched to a MCParticle in CTP into a vector
     std::vector<unsigned int> PutMCPHitsInVector(unsigned int mcpIndex, CTP_t inCTP);
-    bool FindTPCID(Point3_t& pos, geo::TPCID& inTPCID);
     
     TjStuff& tjs;
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons for Trajectories
