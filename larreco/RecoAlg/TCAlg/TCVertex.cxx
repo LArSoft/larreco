@@ -1277,7 +1277,6 @@ namespace tca {
     if(sortVec.empty()) return;
     if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
     
-    
     for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
       auto& vx3 = tjs.vtx3[sortVec[ii].index];
       float score = 0;
@@ -1287,8 +1286,6 @@ namespace tca {
         myprt<<"M3DVTj Vertex "<<vx3.ID<<" score "<<score<<" Tjs";
         for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
       }
-      // temporary vector of PFParticles attached to this vertex
-      std::vector<PFPStruct> vxpfps;
       for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
         // temp for debugging
         if(ims == 9) break;
@@ -1307,8 +1304,13 @@ namespace tca {
         pfp.TjIDs = ms.TjIDs;
         pfp.Vx3ID[0] = vx3.ID;
         if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp "<<pfp.ID<<" vx3 "<<vx3.ID;
+        // Find Tp3s and end points
         if(!DefinePFP(tjs, pfp, prt)) continue;
+        // separation distance (cm) for kink detection.
+        double sep = 1;
+        SplitAtKink(tjs, pfp, sep, prt);
         if(prt) PrintPFP("M3D", tjs, pfp, true);
+        if(tjs.NeedsRebuild) std::cout<<"PFP "<<pfp.ID<<" has a kink that was split. NeedsRebuild\n";
         if(shared.size() != ms.TjIDs.size()) {
           auto tjNotInVx = SetDifference(ms.TjIDs, shared);
           if(prt) mf::LogVerbatim("TC")<<" tjNotInVx size "<<tjNotInVx.size()<<" tj "<<tjNotInVx[0]<<". Try to repair it";
@@ -1316,9 +1318,7 @@ namespace tca {
           // wasn't attached to the vertex. Hopefully there aren't more than one...
           Repair(tjs, pfp, tjNotInVx[0], prt);
         }
-        // make a temporary copy and 
-        vxpfps.push_back(pfp);
-//        if(!StorePFP(tjs, pfp)) continue;
+        if(!StorePFP(tjs, pfp)) continue;
         std::vector<int> leftover = SetDifference(v3TjIDs, shared);
         if(prt) {
           mf::LogVerbatim myprt("TC");
@@ -1331,9 +1331,16 @@ namespace tca {
         // keep looking using the leftovers
         v3TjIDs = leftover;
       } // ims
-      std::cout<<"Found "<<vxpfps.size()<<" PFP candidates\n";
-      std::cout<<"break\n";
-      break;
+      if(v3TjIDs.size() > 1 && v3TjIDs.size() <= tjs.NumPlanes) {
+        // a last-ditch attempt
+        std::cout<<"Match3DVtxTjs: Deal with "<<v3TjIDs.size()<<" leftovers\n";
+        PFPStruct pfp = CreatePFP(tjs, tpcid);
+        pfp.TjIDs = v3TjIDs;
+        pfp.Vx3ID[0] = vx3.ID;
+        if(!DefinePFP(tjs, pfp, prt)) continue;
+        if(prt) PrintPFP("left", tjs, pfp, true);
+        if(!StorePFP(tjs, pfp)) continue;
+      }
     } // ii
   } // Match3DVtxTjs
 
@@ -1461,10 +1468,13 @@ namespace tca {
     
     // is the trajectory short?
     bool tjShort = (tj.EndPt[1] - tj.EndPt[0] < maxShortTjLen);
+    float closestApproach;
     // ignore bad separation between the closest tj end and the vertex
     if(tjShort) {
       if(vtxTjSep2 > maxSepCutShort2) return false;
+      closestApproach = tjs.Vertex2DCuts[1];
     } else {
+      closestApproach = tjs.Vertex2DCuts[2];
       if(vtxTjSep2 > maxSepCutLong2) return false;
     }
     
@@ -1475,7 +1485,6 @@ namespace tca {
     
     // See if the vertex position is close to an end
     unsigned short closePt;
-    float closestApproach;
     TrajClosestApproach(tj, vx.Pos[0], vx.Pos[1], closePt, closestApproach);
     // count the number of points between the end of the trajectory and the vertex.
     // tj     -------------   tj ------------
@@ -1532,12 +1541,17 @@ namespace tca {
       return true;
     }
     
-    // fit failed so remove the tj -> vx assignment
-    tj.VtxID[end] = 0;
-    // restore the fixed flag
-    vx.Stat[kFixed] = fixedBit;
+    // fit failed so remove the tj -> vx assignment if it is long and
+    // set noFitToVtx if it is short
+    if(tjShort) {
+      tj.AlgMod[kNoFitToVx] = true;
+    } else {
+      tj.VtxID[end] = 0;
+      // restore the fixed flag
+      vx.Stat[kFixed] = fixedBit;
+      if(prt) mf::LogVerbatim("TC")<<" failed. Re-fit w/o this tj ";
+    }
     // and refit
-    if(prt) mf::LogVerbatim("TC")<<" failed. Re-fit w/o this tj ";
     FitVertex(tjs, vx, prt);
     return false;
     
