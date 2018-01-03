@@ -22,7 +22,6 @@ namespace tca {
     "JunkTj",
     "Killed",
     "Merge",
-    "MergeChain",
     "TEP",
     "CHMEH",
     "FillGap",
@@ -71,7 +70,8 @@ namespace tca {
     "AtKink",
     "AtVtx",
     "Bragg",
-    "AtTj"
+    "AtTj",
+    "OutFV"
   };
   
   const std::vector<std::string> VtxBitNames {
