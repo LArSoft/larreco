@@ -31,7 +31,6 @@
 namespace tca {
 
   bool Repair(TjStuff& tjs, PFPStruct& pfp, int tjNotInVx, bool prt);
-  bool MergeBrokenTjs(TjStuff& tjs, std::vector<int>& tjInPln, bool prt);
   void UpdateMatchStructs(TjStuff& tjs, std::vector<int> oldTjs, int newTj);
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
   void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
@@ -48,11 +47,15 @@ namespace tca {
   double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
   bool SetMag(Vector3_t& v1, double mag);
   void FilldEdx(TjStuff& tjs, TrajPoint3& tp3);
+  void SplitAtKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
   std::vector<unsigned short> FindKinks(const TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
   double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep);
   void PrintTp3(std::string fcnLabel, const TjStuff& tjs, const TrajPoint3& tp3);
   PFPStruct CreatePFP(const TjStuff& tjs, const geo::TPCID& tpcid);
+  bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp);
+  void SetStopFlags(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  bool InsideTPC(const TjStuff& tjs, Point3_t& pos, geo::TPCID& inTPCID);
   
 } // namespace tca
 
