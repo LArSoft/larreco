@@ -53,7 +53,6 @@ namespace tca {
   int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp);
 //  std::vector<int> MergeChain(TjStuff& tjs, std::vector<int> mergeList, bool prt);
 //  void CheckNoMatchTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
-  bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool MergeTjIntoPFP(TjStuff& tjs, int mtjid, PFPStruct& pfp, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt);
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
@@ -70,6 +69,7 @@ namespace tca {
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   bool StoreTraj(TjStuff& tjs, Trajectory& tj);
+  void UpdateTotChg(TjStuff& tjs, Trajectory& tj);
   void UpdateAveChg(TjStuff& tjs, Trajectory& tj);
   void UpdateChgRMS(TjStuff& tjs, Trajectory& tj);
   bool InTrajOK(TjStuff& tjs, std::string someText);
