@@ -1,4 +1,4 @@
-#include "larreco/RecoAlg/TCAlg/Tp3Utils.h"
+#include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 // temp include for study
 #include "larreco/RecoAlg/TCAlg/TCTruth.h"
 
@@ -140,6 +140,94 @@ namespace tca {
     } // tjid (otj)
     
   } // UpdateMatchStructs
+  
+  /////////////////////////////////////////
+  void FillMatchVectors(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
+  {
+    // Create and fill the tjs.mallTraj vector of Tj points, Tj2Pt, and sort them
+    FillmAllTraj(tjs, tpcid);
+    
+    // Match these points in 3D and put the results in tjs.matchVec
+    std::vector<MatchStruct> matVec;
+    // we only need this to pass the tpcid to FindXMatches
+    // first look for 3-plane matches in a 3-plane TPC
+    if(tjs.NumPlanes == 3) {
+      // Match Tjs with high quality vertices first and the leftovers next
+      for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 3, maxScore, matVec, prt);
+    } // 3-plane TPC
+    // Make 2-plane matches if we haven't hit the user-defined size limit
+    if(matVec.size() < tjs.Match3DCuts[4]) {
+      // 2-plane TPC or 2-plane matches in a 3-plane TPC
+      if(tjs.NumPlanes == 2) {
+        for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, matVec, prt);
+      } else {
+        // Make one attempt at 2-plane matches in a 3-plane TPC, setting maxScore large
+        FindXMatches(tjs, 2, 3, matVec, prt);
+      }
+    } // can add more combinations
+    if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"FMV: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
+    
+    for(auto& ms : matVec) ms.TjChgAsymmetry = MaxChargeAsymmetry(tjs, ms.TjIDs);
+    
+    // sort by decreasing match count
+    if(matVec.size() > 1) {
+      std::vector<SortEntry> sortVec(matVec.size());
+      for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
+        sortVec[ii].index = ii;
+        sortVec[ii].val = matVec[ii].Count;
+      } // ii
+      std::sort(sortVec.begin(), sortVec.end(), valDecreasings);
+      std::vector<MatchStruct> tmpVec;
+      tmpVec.reserve(matVec.size());
+      for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
+        tmpVec.push_back(matVec[sortVec[ii].index]);
+      } // ii
+      matVec = tmpVec;
+    } // sort matVec
+    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"FMV: matVec\n";
+      unsigned short cnt = 0;
+      for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
+        if(matVec[ii].Count == 0) continue;
+        myprt<<ii<<" Count "<<matVec[ii].Count<<" TjIDs:";
+        for(auto& tjID : matVec[ii].TjIDs) myprt<<" "<<tjID;
+        myprt<<" NumUsedHitsInTj ";
+        for(auto& tjID : matVec[ii].TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
+        myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<matVec[ii].MatchFrac;
+        myprt<<" TjChgAsymmetry "<<std::fixed<<std::setprecision(2)<<matVec[ii].TjChgAsymmetry;
+        myprt<<" PDGCodeVote "<<PDGCodeVote(tjs, matVec[ii].TjIDs, false);
+        myprt<<"\n";
+        ++cnt;
+        if(cnt == 500) {
+          myprt<<"...stopped printing after 500 entries.";
+          break;
+        }
+      } // ii
+    } // prt
+    
+    // put the maybe OK matches into tjs
+    for(auto& ms : matVec) {
+      if(ms.Count < 2) continue;
+      // require that at least 20% of the hits are matched in the longest Tj. Note that MatchFrac may be > 1
+      // in particular for small angle trajectories
+      if(ms.MatchFrac < 0.2) continue;
+      if(ms.TjChgAsymmetry > tjs.Match3DCuts[5]) continue;
+      // check for duplicates
+      bool skipit = false;
+      for(auto& oms : tjs.matchVec) {
+        if(ms.TjIDs == oms.TjIDs) {
+          skipit = true;
+          break;
+        }
+      } // oms
+      if(skipit) continue;
+      tjs.matchVec.push_back(ms);
+    }
+    if(tjs.matchVec.empty()) return;
+    
+  } // FillMatchVectors
   
   /////////////////////////////////////////
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid) 
@@ -1279,6 +1367,150 @@ namespace tca {
     pfp.NeedsUpdate = false;
     return true;
   } // DefinePFP
+  
+  /////////////////////////////////////////
+  void DefinePFPParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
+  {
+    /*
+     This function reconciles vertices, PFParticles and Tjs, then
+     defines the parent (j) - daughter (i) relationship and PDGCode. Here is a
+     description of the conventions:
+     
+     V1 is the highest score 3D vertex in this tpcid so a neutrino PFParticle P1 is defined.
+     V4 is a high-score vertex that has lower score than V1. It is declared to be a
+     primary vertex because its score is higher than V5 and it is not associated with the
+     neutrino interaction
+     V6 was created to adhere to the convention that all PFParticles, in this case P9,
+     be associated with a start vertex. There is no score for V6. P9 is it's own parent 
+     but is not a primary PFParticle.
+     
+     P1 - V1 - P2 - V2 - P4 - V3 - P5        V4 - P6                  V6 - P9
+     \                                  \
+     P3                                 P7 - V5 - P8
+     
+     The PrimaryID in this table is the ID of the PFParticle that is attached to the
+     primary vertex, which may or may not be a neutrino interaction vertex.
+     The PrimaryID is returned by the PrimaryID function
+     PFP  parentID  DtrIDs     PrimaryID
+     -----------------------------------
+     P1     P1     P2, P3        P1
+     P2     P1     P4            P2
+     P3     P1     none          P3
+     P4     P2     P5            P2
+     P5     P4     none          P2
+     
+     P6     P6     none          P6
+     P7     P7     P8            P7
+     
+     P9     P9     none          0
+     
+     */    
+    if(tjs.pfps.empty()) return;
+    
+    int neutrinoPFPID = 0;
+    for(auto& pfp : tjs.pfps) {
+      if(pfp.ID == 0) continue;
+      if(pfp.TPCID != tpcid) continue;
+      if(neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) neutrinoPFPID = pfp.ID;
+      if(pfp.Vx3ID[0] > 0) continue;
+      Vtx3Store vx3;
+      vx3.TPCID = pfp.TPCID;
+      // Flag it as a PFP vertex that isn't required to have matched 2D vertices
+      vx3.Wire = -2;
+      vx3.X = pfp.XYZ[0][0];
+      vx3.Y = pfp.XYZ[0][1];
+      vx3.Z = pfp.XYZ[0][2];
+      std::cout<<"DPFPR: Making a bogus PFP vertex\n";
+      vx3.ID = tjs.vtx3.size() + 1;
+      vx3.Primary = true;
+      // TODO: we need to have PFP track position errors defined 
+      unsigned short mergeToVx3ID = IsCloseToVertex(tjs, vx3);
+      if(mergeToVx3ID > 0) {
+        if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex "<<vx3.ID<<" with existing vtx "<<mergeToVx3ID;
+        if(!AttachPFPToVertex(tjs, pfp, 0, mergeToVx3ID, prt)) {
+          if(prt) mf::LogVerbatim("TC")<<" Failed to attach pfp "<<pfp.ID<<". Make new vertex \n";
+          mergeToVx3ID = 0;
+        }
+      } // mergeMe > 0
+      if(mergeToVx3ID == 0) {
+        // Add the new vertex and attach the PFP to it
+        tjs.vtx3.push_back(vx3);
+        if(!AttachPFPToVertex(tjs, pfp, 0, vx3.ID, prt)) {
+          if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex "<<vx3.ID<<" with new vtx "<<mergeToVx3ID;
+        }
+      } // merge to new vertex
+    } // pfp
+    
+    // define the end vertex if the Tjs have end vertices
+    constexpr unsigned short end1 = 1;
+    for(auto& pfp : tjs.pfps) {
+      if(pfp.ID == 0) continue;
+      if(pfp.TPCID != tpcid) continue;
+      // already done?
+      if(pfp.Vx3ID[end1] > 0) continue;
+      // count 2D -> 3D matched vertices
+      unsigned short cnt3 = 0;
+      unsigned short vx3id = 0;
+      // list of unmatched 2D vertices that should be merged
+      std::vector<unsigned short> vx2ids;
+      for(auto tjid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tjid - 1];
+        if(tj.VtxID[end1] == 0) continue;
+        auto& vx2 = tjs.vtx[tj.VtxID[end1] - 1];
+        if(vx2.Vx3ID == 0) {
+          if(vx2.Topo == 1 && vx2.NTraj == 2) vx2ids.push_back(vx2.ID);
+          continue;
+        }
+        if(vx3id == 0) vx3id = vx2.Vx3ID;
+        if(vx2.Vx3ID == vx3id) ++cnt3;
+      } // tjid
+      if(cnt3 > 1) {
+        pfp.Vx3ID[end1] = vx3id;
+        if(cnt3 != tjs.NumPlanes) mf::LogVerbatim("TC")<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code";
+      }
+    } // pfp
+    
+    // Assign a PDGCode to each PFParticle and look for a parent
+    for(auto& pfp : tjs.pfps) {
+      if(pfp.ID == 0) continue;
+      if(pfp.TPCID != tpcid) continue;
+      // skip a neutrino PFParticle
+      if(pfp.PDGCode == 12 || pfp.PDGCode == 14) continue;
+      pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
+      // next look for a parent
+      int pfpParentID = INT_MAX;
+      unsigned short nParent = 0;
+      for(auto tjid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tjid - 1];
+        if(tj.ParentID == tj.ID) continue;
+        unsigned short ppindex = GetPFPIndex(tjs, tj.ParentID);
+        if(ppindex == USHRT_MAX) continue;
+        int ppid = ppindex + 1;
+        if(pfpParentID == INT_MAX) pfpParentID = ppid;
+        if(ppid == pfpParentID) ++nParent;
+      } // ii
+      // look for a parent
+      if(nParent > 1) {
+        pfp.ParentID = (size_t)pfpParentID;
+        auto& parpfp = tjs.pfps[pfpParentID - 1];
+        parpfp.DtrIDs.push_back(pfp.ID);
+      } // nParent > 1
+    } // ipfp
+    
+    // associate primary PFParticles with a neutrino PFParticle
+    if(neutrinoPFPID > 0) {
+      auto& neutrinoPFP = tjs.pfps[neutrinoPFPID - 1];
+      int vx3id = neutrinoPFP.Vx3ID[1];
+      for(auto& pfp : tjs.pfps) {
+        if(pfp.ID == 0 || pfp.ID == neutrinoPFPID) continue;
+        if(pfp.TPCID != tpcid) continue;
+        if(pfp.Vx3ID[0] != vx3id) continue;
+        pfp.ParentID = (size_t)neutrinoPFPID;
+        pfp.Primary = true;
+        neutrinoPFP.DtrIDs.push_back(pfp.ID);
+      } // pfp
+    } // neutrino PFP exists    
+  } // DefinePFPParents
 
   ////////////////////////////////////////////////
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp)
