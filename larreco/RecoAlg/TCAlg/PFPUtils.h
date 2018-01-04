@@ -2,7 +2,7 @@
 ////////////////////////////////////////////////////////////////////////
 //
 //
-// Tp3  utilities
+// PFParticle  utilities
 //
 // Bruce Baller
 //
@@ -32,6 +32,7 @@ namespace tca {
 
   bool Repair(TjStuff& tjs, PFPStruct& pfp, int tjNotInVx, bool prt);
   void UpdateMatchStructs(TjStuff& tjs, std::vector<int> oldTjs, int newTj);
+  void FillMatchVectors(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
   void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
@@ -53,6 +54,7 @@ namespace tca {
   void PrintTp3(std::string fcnLabel, const TjStuff& tjs, const TrajPoint3& tp3);
   PFPStruct CreatePFP(const TjStuff& tjs, const geo::TPCID& tpcid);
   bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  void DefinePFPParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp);
   void SetStopFlags(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool InsideTPC(const TjStuff& tjs, Point3_t& pos, geo::TPCID& inTPCID);
