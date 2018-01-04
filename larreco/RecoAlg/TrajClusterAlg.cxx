@@ -11,7 +11,7 @@
 
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
-#include "larreco/RecoAlg/TCAlg/Tp3Utils.h"
+#include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 #include "canvas/Persistency/Common/FindMany.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "larsim/MCCheater/BackTrackerService.h"
@@ -404,17 +404,36 @@ namespace tca {
         if(!ChkVtxAssociations(tjs, inCTP)) {
           std::cout<<"RTC: ChkVtxAssociations found an error\n";
         }
-      }
-      Match3D(evt, tpcid);
-      // See if matching needs to be re-done because Tjs
-      // were split while matching. 2D and 3D vertices were made inside Match3D already.
-      if(tjs.NeedsRebuild) {
-        ScoreVertices(tjs, tpcid, prt);
-        DefineTjParents(tjs, tpcid, prt);
-        Match3D(evt, tpcid);
-        if(tjs.NeedsRebuild) std::cout<<"Match3D wants another rebuild...\n";
-      }
-      // This reduces the efficiency of reconstructing BNB pions by 1% for some reason
+      } // plane
+      if(tjs.Match3DCuts[0] > 0) {
+        // Fill tjs.mallTraj and tjs.MatchVec
+        bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
+        FillMatchVectors(tjs, tpcid, prt);
+        FindPFParticles(tpcid, prt);
+        // See if the Tj hierarchy needs to be re-built. Match3D 
+        if(tjs.NeedsRebuild) {
+          ScoreVertices(tjs, tpcid, prt);
+          DefineTjParents(tjs, tpcid, prt);
+          FindPFParticles(tpcid, prt);
+          if(tjs.NeedsRebuild) std::cout<<"Match3D wants another rebuild...\n";
+        }
+        DefinePFPParents(tjs, tpcid, prt);
+        //fit all pfps that are in pfps
+        if(fKalmanFilterFit) {
+          for(auto& pfp : tjs.pfps) {
+            if(pfp.ID == 0) continue;
+            if(pfp.TPCID != tpcid) continue;
+            KalmanFilterFit(pfp);
+          } // pfp
+        } // fKalmanFilterFit
+        if (tjs.TagCosmics) {
+          for(auto& pfp : tjs.pfps) {
+            if(pfp.ID == 0) continue;
+            if(pfp.TPCID != tpcid) continue;
+            SaveCRInfo(tjs, pfp, prt, fIsRealData);
+          } // pfp
+        } // TagCosmics
+      } // 3D matching requested
       KillPoorVertices(tjs, tpcid);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
       // true if the algorithm was successful indicating that the matching needs to be redone
@@ -2379,9 +2398,9 @@ namespace tca {
   } // GetSpacePointCollection
 */
   //////////////////////////////////////////
-  void TrajClusterAlg::Match3D(const art::Event& evt, const geo::TPCID& tpcid)
+  void TrajClusterAlg::FindPFParticles(const geo::TPCID& tpcid, bool prt)
   {
-    // Version 2 of 3D matching that uses Utils/FindXMatches
+    // Match Tjs in 3D and create PFParticles
     
     if(tjs.Match3DCuts[0] <= 0) return;
     // remove PFParticles in this tpcid
@@ -2402,94 +2421,11 @@ namespace tca {
     // assume that this will not have to be re-done
     tjs.NeedsRebuild = false;
     
-    bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
-    
-    // Fill tjs.malltraj with all trajectory points in this tpcid
-    FillmAllTraj(tjs, tpcid);
-
-    std::vector<MatchStruct> matVec;
-    // we only need this to pass the tpcid to FindXMatches
-    // first look for 3-plane matches in a 3-plane TPC
-    if(tjs.NumPlanes == 3) {
-      // Match Tjs with high quality vertices first and the leftovers next
-      for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 3, maxScore, matVec, prt);
-    } // 3-plane TPC
-    // Make 2-plane matches if we haven't hit the user-defined size limit
-    if(matVec.size() < tjs.Match3DCuts[4]) {
-      // 2-plane TPC or 2-plane matches in a 3-plane TPC
-      if(tjs.NumPlanes == 2) {
-        for(short maxScore = 0; maxScore < 2; ++maxScore) FindXMatches(tjs, 2, maxScore, matVec, prt);
-      } else {
-        // Make one attempt at 2-plane matches in a 3-plane TPC, setting maxScore large
-        FindXMatches(tjs, 2, 3, matVec, prt);
-      }
-    } // can add more combinations
-    if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"M3D: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
-    
-    for(auto& ms : matVec) ms.TjChgAsymmetry = MaxChargeAsymmetry(tjs, ms.TjIDs);
-    
-    // sort by decreasing match count
-    if(matVec.size() > 1) {
-      std::vector<SortEntry> sortVec(matVec.size());
-      for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
-        sortVec[ii].index = ii;
-        sortVec[ii].val = matVec[ii].Count;
-      } // ii
-      std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
-      std::vector<MatchStruct> tmpVec;
-      tmpVec.reserve(matVec.size());
-      for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
-        tmpVec.push_back(matVec[sortVec[ii].index]);
-      } // ii
-      matVec = tmpVec;
-    } // sort matVec
-    
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"M3D: matVec\n";
-      unsigned short cnt = 0;
-      for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
-        if(matVec[ii].Count == 0) continue;
-        myprt<<ii<<" Count "<<matVec[ii].Count<<" TjIDs:";
-        for(auto& tjID : matVec[ii].TjIDs) myprt<<" "<<tjID;
-        myprt<<" NumUsedHitsInTj ";
-        for(auto& tjID : matVec[ii].TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-        myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<matVec[ii].MatchFrac;
-        myprt<<" TjChgAsymmetry "<<std::fixed<<std::setprecision(2)<<matVec[ii].TjChgAsymmetry;
-        myprt<<" PDGCodeVote "<<PDGCodeVote(tjs, matVec[ii].TjIDs, false);
-        myprt<<"\n";
-        ++cnt;
-        if(cnt == 500) {
-          myprt<<"...stopped printing after 500 entries.";
-          break;
-        }
-      } // ii
-    } // prt
-    
-    // put the maybe OK matches into tjs
-    for(auto& ms : matVec) {
-      if(ms.Count < 2) continue;
-      // require that at least 20% of the hits are matched in the longest Tj. Note that MatchFrac may be > 1
-      // in particular for small angle trajectories
-      if(ms.MatchFrac < 0.2) continue;
-      if(ms.TjChgAsymmetry > tjs.Match3DCuts[5]) continue;
-      // check for duplicates
-      bool skipit = false;
-      for(auto& oms : tjs.matchVec) {
-        if(ms.TjIDs == oms.TjIDs) {
-          skipit = true;
-          break;
-        }
-      } // oms
-      if(skipit) continue;
-      tjs.matchVec.push_back(ms);
-    }
-    if(tjs.matchVec.empty()) return;
-    
     // create the list of associations to matches that will be converted to PFParticles
     // Start with Tjs attached to 3D vertices
     Match3DVtxTjs(tjs, tpcid, prt);
-    // do it all over
+    // Re-do the Tj hierarchy and re-find PFParticles if Match3DVtxTjs merged/split Tjs or
+    // added/removed vertices
     if(tjs.NeedsRebuild) return;
     
     // Re-check matchVec with the user cut matchfrac cut to eliminate poor combinations
@@ -2535,45 +2471,8 @@ namespace tca {
     } // indx
 */
 //    CheckNoMatchTjs(tjs, tpcid, prt);
-    
-    if (tjs.TagCosmics) {
-      for(auto& pfp : tjs.pfps) {
-        if(pfp.ID == 0) continue;
-        if(pfp.TPCID != tpcid) continue;
-        SaveCRInfo(tjs, pfp, prt, fIsRealData);
-      } // pfp
-    } // TagCosmics
-    
-    DefinePFParticleRelationships(tjs, tpcid, prt);
 
-    //fit all pfps that are in pfps
-    if(fKalmanFilterFit) {
-      for(auto& pfp : tjs.pfps) {
-        if(pfp.ID == 0) continue;
-        if(pfp.TPCID != tpcid) continue;
-        KalmanFilterFit(pfp);
-      } // pfp
-//      for (unsigned int ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) KalmanFilterFit(tjs.pfps[ipfp]);
-    } // fKalmanFilterFit
-    
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"M3D final: matchVec\n";
-      for(unsigned int ii = 0; ii < tjs.matchVec.size(); ++ii) {
-        myprt<<ii<<" Count "<<tjs.matchVec[ii].Count<<" TjIDs:";
-        for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<tjID;
-        myprt<<" NumUsedHitsInTj ";
-        for(auto& tjID : tjs.matchVec[ii].TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-        myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<tjs.matchVec[ii].MatchFrac;
-        myprt<<"\n";
-        if(ii == 50) {
-          myprt<<"...stopped printing after 50 entries.";
-          break;
-        }
-      } // ii
-    } // prt
-
-  } // Match3D
+  } // FindPFParticles
   
   //////////////////////////////////////////
   void TrajClusterAlg::KalmanFilterFit(PFPStruct& pfp)
