@@ -30,7 +30,7 @@
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
 #include "larreco/RecoAlg/TCAlg/TCShower.h"
 #include "larreco/RecoAlg/TCAlg/TCVertex.h"
-#include "larreco/RecoAlg/TCAlg/Tp3Utils.h"
+#include "larreco/RecoAlg/TCAlg/PFPUtils.h"
 
 namespace tca {
 
@@ -43,7 +43,6 @@ namespace tca {
   // ****************************** General purpose  ******************************
   
   void DefineTjParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
-  void DefinePFParticleRelationships(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   float MaxChargeAsymmetry(TjStuff& tjs, std::vector<int>& tjIDs);
   int PDGCodeVote(TjStuff& tjs, std::vector<int>& tjIDs, bool prt);
   unsigned short NumDeltaRays(const TjStuff& tjs, const Trajectory& tj);
