@@ -305,9 +305,9 @@ namespace tca {
     void ChkHiChgHits(CTP_t inCTP);
     void SplitHiChgHits(Trajectory& tj);
 
-    void Match3D(const art::Event& evt, const geo::TPCID& tpcid);
     void GetHitCollection(const art::Event& evt);
     
+    void FindPFParticles(const geo::TPCID& tpcid, bool prt);
     void KalmanFilterFit(PFPStruct& pfp);
   }; // class TrajClusterAlg
 
