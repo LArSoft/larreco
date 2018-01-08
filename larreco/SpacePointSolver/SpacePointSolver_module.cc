@@ -117,6 +117,9 @@ protected:
 
   double fAlpha;
 
+  double fDistThresh;
+  double fDistThreshDrift;
+
   TH1* fDeltaX;
 
   const detinfo::DetectorProperties* detprop;
@@ -129,7 +132,9 @@ DEFINE_ART_MODULE(SpacePointSolver)
 SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset)
   : fHitLabel(pset.get<std::string>("HitLabel")),
     fFit(pset.get<bool>("Fit")),
-    fAlpha(pset.get<double>("Alpha"))
+    fAlpha(pset.get<double>("Alpha")),
+    fDistThresh(pset.get<double>("WireIntersectThreshold")),
+    fDistThreshDrift(pset.get<double>("WireIntersectThresholdDriftDir"))
 {
   produces<std::vector<recob::SpacePoint>>("pre");
   if(fFit){
@@ -213,28 +218,17 @@ bool SpacePointSolver::ISect(int chanA, int chanB, geo::TPCID tpc) const
 // ---------------------------------------------------------------------------
 bool SpacePointSolver::CloseDrift(double xa, double xb) const
 {
-  // Used to cut at 10 ticks (for basically empirical reasons). Reproduce that
-  // in x.
-  // Sampling rate is in ns/ticks
-  // Drift velocity is in cm/us
-  //  static const double k = 10*detprop->SamplingRate()*1e-3*detprop->DriftVelocity();
-  const double k = 0.2;//0.4; // 1 sigma on deltax plot
-
-  // TODO - figure out cut value
-  return fabs(xa-xb) < k;
+  return fabs(xa-xb) < fDistThreshDrift;
 }
 
 // ---------------------------------------------------------------------------
 bool SpacePointSolver::CloseSpace(geo::WireIDIntersection ra,
                                   geo::WireIDIntersection rb) const
 {
-  TVector3 pa(ra.y, ra.z, 0);
-  TVector3 pb(rb.y, rb.z, 0);
+  const TVector3 pa(ra.y, ra.z, 0);
+  const TVector3 pb(rb.y, rb.z, 0);
 
-  // TODO - figure out cut value. Empirically .25 is a bit small
-  //  return (pa-pb).Mag() < .5;
-
-  return (pa-pb).Mag() < .35;
+  return (pa-pb).Mag() < fDistThresh;
 }
 
 // ---------------------------------------------------------------------------
