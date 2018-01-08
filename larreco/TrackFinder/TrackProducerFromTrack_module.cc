@@ -129,7 +129,7 @@ void TrackProducerFromTrack::produce(art::Event & e)
     for (auto const& trhit: outHits) {
       outputHits->addSingle(aptr, trhit);
       //
-      if (spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
+      if (doSpacePoints_ && spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
 	auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
 	const double fXYZ[3] = {tp.X(),tp.Y(),tp.Z()};
 	const double fErrXYZ[6] = {0};
