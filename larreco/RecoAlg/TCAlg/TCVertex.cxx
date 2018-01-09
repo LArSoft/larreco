@@ -1308,15 +1308,14 @@ namespace tca {
         if(!DefinePFP(tjs, pfp, prt)) continue;
         // separation distance (cm) for kink detection.
         double sep = 1;
-        SplitAtKink(tjs, pfp, sep, prt);
+        bool didSplit = SplitAtKink(tjs, pfp, sep, prt);
         if(prt) PrintPFP("M3D", tjs, pfp, true);
         if(tjs.NeedsRebuild) std::cout<<"PFP "<<pfp.ID<<" has a kink that was split. NeedsRebuild\n";
-        if(shared.size() != ms.TjIDs.size()) {
-          auto tjNotInVx = SetDifference(ms.TjIDs, shared);
-          if(prt) mf::LogVerbatim("TC")<<" tjNotInVx size "<<tjNotInVx.size()<<" tj "<<tjNotInVx[0]<<". Try to repair it";
+        if(!didSplit && shared.size() != ms.TjIDs.size()) {
           // Try to repair the PFParticle by merging the Tj that was in the match list but
           // wasn't attached to the vertex. Hopefully there aren't more than one...
-          Repair(tjs, pfp, tjNotInVx[0], prt);
+          auto tjNotInVx = SetDifference(ms.TjIDs, shared);
+          if(prt) std::cout<<"M3DVTj pfp "<<pfp.ID<<" tjNotInVx size "<<tjNotInVx.size()<<" tj "<<tjNotInVx[0]<<". Try to repair it\n";
         }
         if(!StorePFP(tjs, pfp)) continue;
         std::vector<int> leftover = SetDifference(v3TjIDs, shared);
@@ -1333,7 +1332,6 @@ namespace tca {
       } // ims
       if(v3TjIDs.size() > 1 && v3TjIDs.size() <= tjs.NumPlanes) {
         // a last-ditch attempt
-        std::cout<<"Match3DVtxTjs: Deal with "<<v3TjIDs.size()<<" leftovers\n";
         PFPStruct pfp = CreatePFP(tjs, tpcid);
         pfp.TjIDs = v3TjIDs;
         pfp.Vx3ID[0] = vx3.ID;
@@ -1535,9 +1533,12 @@ namespace tca {
     tj.VtxID[end] = vx.ID;
     // flag as a photon Tj so it isn't included in the fit
     tj.AlgMod[kPhoton] = !signalBetween;
-    if(FitVertex(tjs, vx, prt)) {
-      SetVx2Score(tjs, vx, prt);
-      if(prt) mf::LogVerbatim("TC")<<" success";
+    // make a copy of the vertex and fit it
+    auto vxTmp = vx;
+    if(FitVertex(tjs, vxTmp, prt)) {
+      SetVx2Score(tjs, vxTmp, prt);
+      if(prt) mf::LogVerbatim("TC")<<" Success";
+      vx = vxTmp;
       return true;
     }
     
@@ -1545,15 +1546,15 @@ namespace tca {
     // set noFitToVtx if it is short
     if(tjShort) {
       tj.AlgMod[kNoFitToVx] = true;
+      if(prt) mf::LogVerbatim("TC")<<" Poor fit. Keep short Tj "<<tj.ID<<" with kNoFitToVx";
+      return true;
     } else {
       tj.VtxID[end] = 0;
       // restore the fixed flag
       vx.Stat[kFixed] = fixedBit;
-      if(prt) mf::LogVerbatim("TC")<<" failed. Re-fit w/o this tj ";
+      if(prt) mf::LogVerbatim("TC")<<" Poor fit. Removed Tj "<<tj.ID;
+      return false;
     }
-    // and refit
-    FitVertex(tjs, vx, prt);
-    return false;
     
   } // AttachTrajToVertex
   
@@ -2154,7 +2155,7 @@ namespace tca {
       // last call after vertices have been matched to the truth. Use to optimize VertexScoreWeights using
       // an ntuple
       mf::LogVerbatim myprt("TC");
-      myprt<<"VSW "<<vx2.ID;
+      myprt<<"SVx2W "<<vx2.ID;
       myprt<<" m3Dcnt"<<m3Dcnt;
       myprt<<" "<<std::fixed<<std::setprecision(2)<<(vx2.PosErr[0] + vx2.PosErr[1]);
       myprt<<" "<<std::fixed<<std::setprecision(3)<<vx2.TjChgFrac;
