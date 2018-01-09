@@ -36,6 +36,9 @@ namespace tca {
       Prim_EPTSum = 0;
       PFP_Cnt = 0;
       nBadEP = 0;
+      nLongInPln = 0;
+      nLongMCP = 0;
+      nGoodLongMCP = 0;
    }
     
     void Initialize();
@@ -61,7 +64,11 @@ namespace tca {
     float Prim_EPTSum;             // E*P weighted T sum of primary MCParticles that ARE reconstructed in 3D
     float PFP_Cnt;                 // Count of ALL PFParticles
     
-    unsigned short nBadEP;
+    unsigned short nBadEP;      // Number of MCParticles that have >= MatchTruth[3] hits in a plane  && EP < MatchTruth[2]
+    unsigned short nLongInPln;   // Number of MCParticles that have >= MatchTruth[3] hits in a plane
+    unsigned short nLongMCP;   // Number of MCParticles that have >= MatchTruth[3] hits
+    unsigned short nGoodLongMCP;   // Number of MCParticles that have >= 2 * MatchTruth[3] hits with EP > 0.8
+
     // Counts of:
     // [0] = the number of true neutrino interaction vertices in the fiducial volume
     // [1] = the number of those [0] that are reconstructable by TrajCluster
