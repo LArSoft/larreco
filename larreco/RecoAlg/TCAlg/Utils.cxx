@@ -48,7 +48,7 @@ namespace tca {
       // ignore delta rays
       if(tj.AlgMod[kDeltaRay]) continue;
       // ignore pion-like
-      if(tj.PDGCode == 211) continue;
+//      if(tj.PDGCode == 211) continue;
       tj.ParentID = -1;
     } // tj
     
@@ -296,12 +296,7 @@ namespace tca {
     for(unsigned short ii = 1; ii < 5; ++ii) {
       if(ii == codeIndex) continue;
       if(cnts[ii] == 0) continue;
-      // make it pion-like if one of the codes is pion-like
-      if(ii == 3) {
-        codeIndex = 3;
-      } else {
-        confused = true;
-      }
+      confused = true;
     } // ii
     if(confused) {
       // Check for a muon called it a proton
@@ -2001,6 +1996,8 @@ namespace tca {
     UpdateAveChg(tjs, tj);
     UpdateTotChg(tjs, tj);
     UpdateChgRMS(tjs, tj);
+    // We shouldn't need to do this.
+//    UpdateMatchStructs(tjs, tj.ID, tj.ID);
     if(splittingMuon) SetPDGCode(tjs, tj);
     
     // Append 3 points from the end of tj onto the
@@ -2034,6 +2031,7 @@ namespace tca {
     newTj.AlgMod[kSplit] = true;
     newTj.ParentID = -1;
     tjs.allTraj.push_back(newTj);
+    UpdateMatchStructs(tjs, tj.ID, newTj.ID);
 
     if(prt) {
       mf::LogVerbatim("TC")<<"  newTj ID "<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
@@ -2623,12 +2621,7 @@ namespace tca {
 //      tj.Pts[ipt].Ang = std::atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
     } // ipt
     SetEndPoints(tjs, tj);
-    // correct mallTraj if it exists
-    if(tjs.mallTraj.empty()) return;
-    for(auto& tj2pt : tjs.mallTraj) {
-      if(tj2pt.id != tj.ID) continue;
-      tj2pt.ipt = tj.Pts.size() - tj2pt.ipt - 1;
-    } // tj2pt
+    UpdateMatchStructs(tjs, tj.ID, tj.ID);
   } // ReverseTraj
   
   //////////////////////////////////////////
@@ -3278,10 +3271,10 @@ namespace tca {
     // the approximation used here fails.
     
     raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel(0, 0, (int)tpc, (int)cstat);
-    float wirePitch = tjs.geom->WirePitch(tjs.geom->View(channel));
+    tjs.WirePitch = tjs.geom->WirePitch(tjs.geom->View(channel));
     float tickToDist = tjs.detprop->DriftVelocity(tjs.detprop->Efield(),tjs.detprop->Temperature());
     tickToDist *= 1.e-3 * tjs.detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
-    tjs.UnitsPerTick = tickToDist / wirePitch;
+    tjs.UnitsPerTick = tickToDist / tjs.WirePitch;
     for(unsigned short ipl = 0; ipl < nplanes; ++ipl) {
       tjs.FirstWire[ipl] = INT_MAX;
       tjs.LastWire[ipl] = 0;
@@ -3591,10 +3584,8 @@ namespace tca {
     tj1.ParentID = newTjID;
     tj2.ParentID = newTjID;
     // update match structs if they exist
-    std::vector<int> oldTjs(2);
-    oldTjs[0] = tj1.ID;
-    oldTjs[1] = tj2.ID;
-    UpdateMatchStructs(tjs, oldTjs, newTjID);
+    UpdateMatchStructs(tjs, tj1.ID, newTjID);
+    UpdateMatchStructs(tjs, tj2.ID, newTjID);
     if(doPrt) mf::LogVerbatim("TC")<<" MAS success. New TjID "<<newTjID;
     // Transfer the ParentIDs of any other Tjs that refer to Tj1 and Tj2 to the new Tj
     for(auto& tj : tjs.allTraj) if(tj.ParentID == tj1ID || tj.ParentID == tj2ID) tj.ParentID = newTjID;
@@ -3965,7 +3956,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______  ____sdEdx____ eVx  ________ePos_______ CS _______eDir______  ____edEdx____ BstPln PDG mcpIndx Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______  ____sdEdx____ eVx  ________ePos_______ CS _______eDir______  ____edEdx____  Len   PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
     myprt<<std::setw(5)<<pfp.ID;
@@ -3998,9 +3989,15 @@ namespace tca {
           myprt<<std::setw(6)<<' ';
         }
       }
-    }
+    } // startend
     // global stuff
-    myprt<<std::setw(5)<<pfp.BestPlane;
+//    myprt<<std::setw(5)<<pfp.BestPlane;
+    float length = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+    if(length < 100) {
+      myprt<<std::setw(5)<<std::setprecision(1)<<length;
+    } else {
+      myprt<<std::setw(5)<<std::setprecision(0)<<length;
+    }
     myprt<<std::setw(6)<<pfp.PDGCode;
     if(pfp.MCPartListIndex < tjs.MCPartList.size()) {
       myprt<<std::setw(8)<<pfp.MCPartListIndex;
