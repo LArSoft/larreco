@@ -30,15 +30,14 @@
 
 namespace tca {
 
-  bool Repair(TjStuff& tjs, PFPStruct& pfp, int tjNotInVx, bool prt);
-  void UpdateMatchStructs(TjStuff& tjs, std::vector<int> oldTjs, int newTj);
-  void FillMatchVectors(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  void UpdateMatchStructs(TjStuff& tjs, int oldTj, int newTj);
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
   void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void SortByDistanceFromStart(TjStuff& tjs, PFPStruct& pfp);
-  bool CheckTp3Validity(TjStuff& tjs, PFPStruct& pfp, Vector3_t generalDirection, bool prt);
-  bool FitTp3(TjStuff& tjs, std::vector<TrajPoint3> tp3s, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint3& outTp3);
+  bool CheckTp3Validity(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  void MoveTp3ToZ(TjStuff& tjs, TrajPoint3& tp3, double z);
+  void FitTp3(TjStuff& tjs, std::vector<TrajPoint3>& tp3s, unsigned short originPt, double fitLen, short fitDir, bool prt);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, std::vector<MatchStruct>& matVec, bool prt);
   bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3);
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2);
@@ -48,12 +47,14 @@ namespace tca {
   double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
   bool SetMag(Vector3_t& v1, double mag);
   void FilldEdx(TjStuff& tjs, TrajPoint3& tp3);
-  void SplitAtKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
+  bool SplitAtKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
   std::vector<unsigned short> FindKinks(const TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
   double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep);
   void PrintTp3(std::string fcnLabel, const TjStuff& tjs, const TrajPoint3& tp3);
   PFPStruct CreatePFP(const TjStuff& tjs, const geo::TPCID& tpcid);
+  void FindPFParticles(std::string fcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  void AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void DefinePFPParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp);
   void SetStopFlags(TjStuff& tjs, PFPStruct& pfp, bool prt);
