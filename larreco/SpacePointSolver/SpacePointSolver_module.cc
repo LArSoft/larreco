@@ -104,11 +104,11 @@ protected:
                      bool incNei,
                      HitMap_t& hitmap) const;
 
+  /// return whether the point was inserted (only happens when it has charge)
   bool AddSpacePoint(const SpaceCharge& sc,
-                     int ID,
-                     recob::ChargedSpacePointCollectionCreator& points
-                     ) const;
-  
+                     int id,
+                     recob::ChargedSpacePointCollectionCreator& points) const;
+
   void FillSystemToSpacePoints(const std::vector<CollectionWireHit*>& cwires,
                                recob::ChargedSpacePointCollectionCreator& pts) const;
 
@@ -638,32 +638,29 @@ BuildSystemXU(const std::vector<art::Ptr<recob::Hit>>& xhits,
 // ---------------------------------------------------------------------------
 bool SpacePointSolver::
 AddSpacePoint(const SpaceCharge& sc,
-              int ID,
-              recob::ChargedSpacePointCollectionCreator& points
-              ) const
+              int id,
+              recob::ChargedSpacePointCollectionCreator& points) const
 {
-  // return whether the point was inserted (only happens when it has charge)
-  
   static const double err[6] = {0,};
-  
-  double const charge = sc.fPred;
-  if (charge == 0) return false;
+
+  const float charge = sc.fPred;
+  if(charge == 0) return false;
 
   const double xyz[3] = {sc.fX, sc.fY, sc.fZ};
-  points.add({ xyz, err, 0.0, ID }, { static_cast<float>(charge) });
+  points.add({ xyz, err, 0.0, id }, charge);
+
   return true;
 }
 
 // ---------------------------------------------------------------------------
 void SpacePointSolver::
 FillSystemToSpacePoints(const std::vector<CollectionWireHit*>& cwires,
-                        recob::ChargedSpacePointCollectionCreator& points
-                        ) const
+                        recob::ChargedSpacePointCollectionCreator& points) const
 {
-  unsigned int iPoint = 0;
+  int iPoint = 0;
   for(const CollectionWireHit* cwire: cwires){
     for(const SpaceCharge* sc: cwire->fCrossings){
-      AddSpacePoint(*sc, (int)(iPoint++), points);
+      AddSpacePoint(*sc, iPoint++, points);
     } // for sc
   } // for cwire
 }
@@ -674,35 +671,27 @@ void SpacePointSolver::
 FillSystemToSpacePointsAndAssns(const std::vector<CollectionWireHit*>& cwires,
                                 const HitMap_t& hitmap,
                                 recob::ChargedSpacePointCollectionCreator& points,
-                                art::Assns<recob::SpacePoint, recob::Hit>& assn
-                                ) const
+                                art::Assns<recob::SpacePoint, recob::Hit>& assn) const
 {
-  unsigned int iPoint = 0;
+  int iPoint = 0;
   for(const CollectionWireHit* cwire: cwires){
     for(const SpaceCharge* sc: cwire->fCrossings){
-      //
       // fill the space point and reconstructed charge information;
       // if the point is filtered out, it's not inserted (no association either)
-      //
-      if (!AddSpacePoint(*sc, (int)(iPoint++), points)) continue;
+      if(!AddSpacePoint(*sc, iPoint++, points)) continue;
 
-      //
       // now fill the associations to the last added space point
-      //
-      auto const& spsPtr = points.lastSpacePointPtr();
-      
-      auto const& hit = hitmap.at(cwire);
+      const auto& spsPtr = points.lastSpacePointPtr();
+
+      const auto& hit = hitmap.at(cwire);
       assn.addSingle(spsPtr, hit);
 
-      if(sc->fWire1) {
-        auto const& hit1 = hitmap.at(sc->fWire1);
-        assn.addSingle(spsPtr, hit1);
+      if(sc->fWire1){
+        assn.addSingle(spsPtr, hitmap[sc->fWire1]);
       }
       if(sc->fWire2){
-        auto const& hit2 = hitmap.at(sc->fWire2);
-        assn.addSingle(spsPtr, hit2);
+        assn.addSingle(spsPtr, hitmap[sc->fWire2]);
       }
-      
     } // for sc
   } // for cwire
 }
@@ -720,7 +709,7 @@ void SpacePointSolver::produce(art::Event& evt)
   recob::ChargedSpacePointCollectionCreator spcol_noreg(evt, *this, "noreg");
   recob::ChargedSpacePointCollectionCreator spcol(evt, *this);
   auto assns = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
-  
+
   // Skip very small events
   if(hits->size() < 20){
     spcol_pre.put();
@@ -775,7 +764,7 @@ void SpacePointSolver::produce(art::Event& evt)
     BuildSystemXU(xhits, uhits, cwires, iwires, fAlpha != 0, hitmap);
   else
     BuildSystemXUV(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
-  
+
   FillSystemToSpacePoints(cwires, spcol_pre);
   spcol_pre.put();
 
