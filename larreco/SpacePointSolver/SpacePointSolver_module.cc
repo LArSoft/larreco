@@ -687,10 +687,10 @@ FillSystemToSpacePointsAndAssns(const std::vector<CollectionWireHit*>& cwires,
       assn.addSingle(spsPtr, hit);
 
       if(sc->fWire1){
-        assn.addSingle(spsPtr, hitmap[sc->fWire1]);
+        assn.addSingle(spsPtr, hitmap.at(sc->fWire1));
       }
       if(sc->fWire2){
-        assn.addSingle(spsPtr, hitmap[sc->fWire2]);
+        assn.addSingle(spsPtr, hitmap.at(sc->fWire2));
       }
     } // for sc
   } // for cwire
