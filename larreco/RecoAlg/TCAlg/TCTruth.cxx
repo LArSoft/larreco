@@ -507,7 +507,7 @@ namespace tca {
     
     // Match Tjs and PFParticles and accumulate statistics
     MatchAndSum(hist, mcpSelect, inTPCID);
-
+/* This needs work...
     // match 2D vertices (crudely)
     for(auto& tj : tjs.allTraj) {
       // obsolete vertex
@@ -526,7 +526,7 @@ namespace tca {
         vx2.Stat[kVtxTruMatch] = true;
       } // end
     } // tj
-    
+*/
     for(auto& vx2 : tjs.vtx) if(vx2.ID > 0) ++RecoVx2Count;
     
     if (fStudyMode) {
@@ -732,6 +732,7 @@ namespace tca {
         } // iht
         // require 2 truth-matched hits
         if(mcpPlnHits.size() < 2) continue;
+        if((float)mcpPlnHits.size() >= tjs.MatchTruth[3]) ++nLongInPln;
         TSums[pdgIndex] += TMeV;
         ++EPCnts[pdgIndex];
         CTP_t inCTP = EncodeCTP(cstat, tpc, plane);
@@ -773,7 +774,7 @@ namespace tca {
         tj.MCPartListIndex = mcpIndex;
         EPTSums[pdgIndex] += TMeV * tj.EffPur;
         hist.fEP_T[pdgIndex]->Fill(TMeV, tj.EffPur);
-        if(tj.EffPur < tjs.MatchTruth[2] && (float)mcpPlnHits.size() > tjs.MatchTruth[3]) {
+        if(tj.EffPur < tjs.MatchTruth[2] && (float)mcpPlnHits.size() >= tjs.MatchTruth[3]) {
           ++nBadEP;
           mf::LogVerbatim myprt("TC");
           myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
@@ -813,6 +814,10 @@ namespace tca {
       auto& mcp = tjs.MCPartList[mcpIndex];
       float TMeV = 1000 * (mcp->E() - mcp->Mass());
       MCP_TSum += TMeV;
+      // Performance reconstructing long muons, pions, kaons and protons
+      unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
+      bool longMCP = (pdgIndex > 0 && pdgIndex < 5 && (float)mcpHits[isel].size() >= 2 * tjs.MatchTruth[3]);
+      if(longMCP) ++nLongMCP;
       for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
         auto& pfp = tjs.pfps[ipfp];
         if(pfp.ID == 0) continue;
@@ -848,6 +853,7 @@ namespace tca {
       pfp.MCPartListIndex = mcpIndex;
       MCP_EPTSum += TMeV * ep;
       ++MCP_PFP_Cnt;
+      if(longMCP && ep > 0.8) ++nGoodLongMCP;
     } // isel
     
     MCP_Cnt += mcpSelect.size();
@@ -881,6 +887,10 @@ namespace tca {
     } // pdgIndex
     if(sum > 0) myprt<<" MuPiKP "<<std::fixed<<std::setprecision(2)<<sumt / sum;
     myprt<<" BadEP "<<nBadEP;
+    if(nLongInPln > 0) {
+      float longGood = 1 - (float)nBadEP / (float)nLongInPln;
+      myprt<<" longGood "<<std::fixed<<std::setprecision(2)<<longGood;
+    }
     if(MCP_TSum > 0) {
       // PFParticle statistics
       float ep = MCP_EPTSum / MCP_TSum;
@@ -889,6 +899,10 @@ namespace tca {
     if(Prim_TSum > 0) {
       float ep = Prim_EPTSum / Prim_TSum;
       myprt<<" PrimPFP "<<std::fixed<<std::setprecision(2)<<ep;
+    }
+    if(nLongMCP > 0) {
+      float longGood = (float)nGoodLongMCP / (float)nLongMCP;
+      myprt<<" longGood "<<std::fixed<<std::setprecision(2)<<longGood;
     }
 
   } // PrintResults
