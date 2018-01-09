@@ -307,7 +307,6 @@ namespace tca {
 
     void GetHitCollection(const art::Event& evt);
     
-    void FindPFParticles(const geo::TPCID& tpcid, bool prt);
     void KalmanFilterFit(PFPStruct& pfp);
   }; // class TrajClusterAlg
 
