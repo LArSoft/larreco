@@ -110,11 +110,11 @@ namespace trkf {
     recob::MCSFitResult fitMcs(const recob::Trajectory& traj,      bool momDepConst = true) const { return fitMcs(traj,pIdHyp_,momDepConst); }
     //
     recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj, int pid, bool momDepConst = true) const;
-    recob::MCSFitResult fitMcs(const recob::Track& track,          int pid, bool momDepConst = true) const { return fitMcs(track.Trajectory(),momDepConst,pid); }
+    recob::MCSFitResult fitMcs(const recob::Track& track,          int pid, bool momDepConst = true) const { return fitMcs(track.Trajectory(),pid,momDepConst); }
     recob::MCSFitResult fitMcs(const recob::Trajectory& traj,      int pid, bool momDepConst = true) const {
       recob::TrackTrajectory::Flags_t flags(traj.NPoints());
       const recob::TrackTrajectory tt(traj,std::move(flags));
-      return fitMcs(tt,momDepConst,pid);
+      return fitMcs(tt,pid,momDepConst);
     }
     //
     void breakTrajInSegments(const recob::TrackTrajectory& traj, std::vector<size_t>& breakpoints, std::vector<double>& segradlengths, std::vector<double>& cumseglens) const;
