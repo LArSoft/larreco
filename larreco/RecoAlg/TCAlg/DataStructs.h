@@ -138,7 +138,6 @@ namespace tca {
     // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
     unsigned short npts;
     short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
-    bool showerlike;
   };
 
   struct TrajPoint {
@@ -210,11 +209,15 @@ namespace tca {
   
   // struct used for TrajCluster 3D trajectory points
   struct TrajPoint3 {
+    Point3_t FitPos {0};
+    Vector3_t FitDir {0};
     Point3_t Pos {0};
     Vector3_t Dir {0};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
     float dEdx {0};
     float dEdxErr {1};
+    float ChiDOF {10};             // Chi/DOF of the fit < 0 = not valid
+    unsigned short nPtsFit {2}; 
     bool IsValid {true};     // Is consistent with the position/angle of nearby space points
   };
   
@@ -232,7 +235,6 @@ namespace tca {
     // Count of the number of X-matched hits and de-weight by angle
     float Count {0};                    // Set to 0 if matching failed
     float MatchFrac {0};
-    float TjChgAsymmetry {0};
   };
   
   struct PFPStruct {
@@ -456,6 +458,7 @@ namespace tca {
     float YHi;
     float ZLo;
     float ZHi;
+    float WirePitch;
     std::vector<float> AveHitRMS;      ///< average RMS of an isolated hit
     // The variables below do change in size from event to event
     ShowerTreeVars stv; // 
