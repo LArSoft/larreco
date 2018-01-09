@@ -408,14 +408,27 @@ namespace tca {
       if(tjs.Match3DCuts[0] > 0) {
         // Fill tjs.mallTraj and tjs.MatchVec
         bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
-        FillMatchVectors(tjs, tpcid, prt);
-        FindPFParticles(tpcid, prt);
+        FillmAllTraj(tjs, tpcid);
+        FindPFParticles("RTCA0", tjs, tpcid, prt);
         // See if the Tj hierarchy needs to be re-built. Match3D 
         if(tjs.NeedsRebuild) {
+          // Remove the 3D match flag
+          unsigned short firstPFP = 0;
+          for(auto& pfp : tjs.pfps) {
+            if(pfp.ID == 0) continue;
+            if(pfp.TPCID != tpcid) continue;
+            if(firstPFP == 0) firstPFP = pfp.ID;
+            for(auto tjid : pfp.TjIDs) {
+              auto& tj = tjs.allTraj[tjid - 1];
+              tj.AlgMod[kMat3D] = false;
+            } // tjid
+          } // pfp
+          if(firstPFP > 0) tjs.pfps.resize(firstPFP - 1);
           ScoreVertices(tjs, tpcid, prt);
           DefineTjParents(tjs, tpcid, prt);
-          FindPFParticles(tpcid, prt);
-          if(tjs.NeedsRebuild) std::cout<<"Match3D wants another rebuild...\n";
+          FillmAllTraj(tjs, tpcid);
+          FindPFParticles("RTCA1", tjs, tpcid, prt);
+          if(tjs.NeedsRebuild) std::cout<<"Match3D wants yet another rebuild...\n";
         }
         DefinePFPParents(tjs, tpcid, prt);
         //fit all pfps that are in pfps
@@ -2397,83 +2410,6 @@ namespace tca {
     } // isp
   } // GetSpacePointCollection
 */
-  //////////////////////////////////////////
-  void TrajClusterAlg::FindPFParticles(const geo::TPCID& tpcid, bool prt)
-  {
-    // Match Tjs in 3D and create PFParticles
-    
-    if(tjs.Match3DCuts[0] <= 0) return;
-    // remove PFParticles in this tpcid
-    for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
-      auto& pfp = tjs.pfps[ipfp];
-      if(pfp.TPCID == tpcid) {
-        tjs.pfps.resize(ipfp);
-        break;
-      }
-    } // ipfp
-    // remove the match flag from the Tjs
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      if(DecodeCTP(tj.CTP).Cryostat != tpcid.Cryostat) continue;
-      if(DecodeCTP(tj.CTP).TPC != tpcid.TPC) continue;
-      tj.AlgMod[kMat3D] = false;
-    } // tj
-    // assume that this will not have to be re-done
-    tjs.NeedsRebuild = false;
-    
-    // create the list of associations to matches that will be converted to PFParticles
-    // Start with Tjs attached to 3D vertices
-    Match3DVtxTjs(tjs, tpcid, prt);
-    // Re-do the Tj hierarchy and re-find PFParticles if Match3DVtxTjs merged/split Tjs or
-    // added/removed vertices
-    if(tjs.NeedsRebuild) return;
-    
-    // Re-check matchVec with the user cut matchfrac cut to eliminate poor combinations
-    for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
-      auto& ms = tjs.matchVec[indx];
-      if(ms.Count == 0) continue;
-      // check for a minimum user-defined match fraction
-      if(ms.MatchFrac < tjs.Match3DCuts[3]) ms.Count = 0;
-    } // ms
-/*  temp turn off for debuggin
-    // define the PFParticleList
-    for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
-      auto& ms = tjs.matchVec[indx];
-      // ignore dead matches
-      if(ms.Count == 0) continue;
-      // skip this match if any of the trajectories is already matched or merged and killed
-      bool skipit = false;
-      for(auto tjID : ms.TjIDs) {
-        if(tjs.allTraj[tjID - 1].AlgMod[kMat3D]) skipit = true;
-      } // tjID
-      if(skipit) continue;
-      // count the number of shower Tjs
-      unsigned short nstj = 0;
-      for(unsigned short ipl = 0; ipl < ms.TjIDs.size(); ++ipl) {
-        unsigned short itj = ms.TjIDs[ipl] - 1;
-        if(tjs.allTraj[itj].AlgMod[kMat3D]) skipit = true;
-        if(tjs.allTraj[itj].AlgMod[kShowerTj]) ++nstj;
-      }
-      if(skipit) continue;
-      // Require 0 or a matched shower Tj in all planes
-      if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
-      PFPStruct pfp = CreatePFP(tjs, tpcid);
-      pfp.TjIDs = ms.TjIDs;
-      pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
-      if(!DefinePFP(tjs, pfp, prt)) {
-        if(prt) mf::LogVerbatim("TC")<<" DefinePFP failed";
-        pfp.ID = 0;
-        continue;
-      }
-      if(!StorePFP(tjs, pfp)) {
-        if(prt) mf::LogVerbatim("TC")<<" StorePFP failed "<<pfp.ID;
-      }
-    } // indx
-*/
-//    CheckNoMatchTjs(tjs, tpcid, prt);
-
-  } // FindPFParticles
-  
   //////////////////////////////////////////
   void TrajClusterAlg::KalmanFilterFit(PFPStruct& pfp)
   {
