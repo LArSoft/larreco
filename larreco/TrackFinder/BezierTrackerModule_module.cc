@@ -21,7 +21,7 @@
 namespace recob
 {
   class Seed;
-  class Track;
+  class Trajectory;
   class Hit;
 }
 
@@ -94,26 +94,27 @@ namespace trkf {
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Cluster.h"
-#include "lardataobj/RecoBase/Track.h"
+#include "lardataobj/RecoBase/Trajectory.h"
 #include "larreco/Deprecated/BezierTrack.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/BezierTrackerAlgorithm.h"
+#include "larcorealg/Geometry/geo_vectors_utils.h" // geo::vect namespace
 
 namespace trkf {
 
   BezierTrackerModule::BezierTrackerModule(const fhicl::ParameterSet& pset)
   {
     reconfigure(pset);
-    produces< std::vector<recob::Track> >("bezierformat");
+    produces< std::vector<recob::Trajectory> >("bezierformat");
     produces< std::vector<recob::Vertex> >();
-    produces< art::Assns<recob::Track, recob::Hit> >("bezierformat");
-    produces< art::Assns<recob::Cluster, recob::Track> >("bezierformat");
-    produces< art::Assns<recob::Track, recob::Vertex> >("bezierformat");
+    produces< art::Assns<recob::Trajectory, recob::Hit> >("bezierformat");
+    produces< art::Assns<recob::Cluster, recob::Trajectory> >("bezierformat");
+    produces< art::Assns<recob::Trajectory, recob::Vertex> >("bezierformat");
       
-    produces< std::vector<recob::Track> >();
-    produces< art::Assns<recob::Track, recob::Hit> >();
-    produces< art::Assns<recob::Cluster, recob::Track> >();
-    produces< art::Assns<recob::Track, recob::Vertex> >();
+    produces< std::vector<recob::Trajectory> >();
+    produces< art::Assns<recob::Trajectory, recob::Hit> >();
+    produces< art::Assns<recob::Cluster, recob::Trajectory> >();
+    produces< art::Assns<recob::Trajectory, recob::Vertex> >();
 
   }
 
@@ -139,16 +140,16 @@ namespace trkf {
  
     // Declare products to store
 
-    std::unique_ptr< std::vector<recob::Track > > btracks ( new std::vector<recob::Track>);
+    std::unique_ptr< std::vector<recob::Trajectory > > btracks ( new std::vector<recob::Trajectory>);
     std::unique_ptr< std::vector<recob::Vertex > > vertices ( new std::vector<recob::Vertex>);
-    std::unique_ptr< art::Assns<recob::Track, recob::Hit > >  assnhit( new art::Assns<recob::Track, recob::Hit>);
-    std::unique_ptr< art::Assns<recob::Track, recob::Vertex > > assnvtx( new art::Assns<recob::Track, recob::Vertex>);
-    std::unique_ptr< art::Assns<recob::Cluster, recob::Track > > assnclus( new art::Assns<recob::Cluster, recob::Track>);
+    std::unique_ptr< art::Assns<recob::Trajectory, recob::Hit > >  assnhit( new art::Assns<recob::Trajectory, recob::Hit>);
+    std::unique_ptr< art::Assns<recob::Trajectory, recob::Vertex > > assnvtx( new art::Assns<recob::Trajectory, recob::Vertex>);
+    std::unique_ptr< art::Assns<recob::Cluster, recob::Trajectory> > assnclus( new art::Assns<recob::Cluster, recob::Trajectory>);
    
-    std::unique_ptr< std::vector<recob::Track > > ub_tracks ( new std::vector<recob::Track>);
-    std::unique_ptr< art::Assns<recob::Track, recob::Hit > >  ub_assnhit( new art::Assns<recob::Track, recob::Hit>);
-    std::unique_ptr< art::Assns<recob::Track, recob::Vertex > > ub_assnvtx( new art::Assns<recob::Track, recob::Vertex>);
-    std::unique_ptr< art::Assns<recob::Cluster, recob::Track > > ub_assnclus( new art::Assns<recob::Cluster, recob::Track>);
+    std::unique_ptr< std::vector<recob::Trajectory > > ub_tracks ( new std::vector<recob::Trajectory>);
+    std::unique_ptr< art::Assns<recob::Trajectory, recob::Hit > >  ub_assnhit( new art::Assns<recob::Trajectory, recob::Hit>);
+    std::unique_ptr< art::Assns<recob::Trajectory, recob::Vertex > > ub_assnvtx( new art::Assns<recob::Trajectory, recob::Vertex>);
+    std::unique_ptr< art::Assns<recob::Cluster, recob::Trajectory > > ub_assnclus( new art::Assns<recob::Cluster, recob::Trajectory>);
 
     std::vector<trkf::BezierTrack >           BTracks;
     
@@ -179,17 +180,12 @@ namespace trkf {
     for(size_t i=0; i!=BTracks.size(); ++i)
       {
 	
-	std::unique_ptr<recob::Track>  ToStore = BTracks.at(i).GetBaseTrack();
-	btracks->push_back(*ToStore);
+	btracks->push_back(BTracks.at(i).GetTrajectory());
 
 	std::vector<TVector3> track_xyz,track_dir;
 	BTracks.at(i).FillTrackVectors(track_xyz,track_dir,fTrajPtPitch);
 
-	std::vector< std::vector <double> > dQdx;
-	std::vector<double> fitMomentum(std::vector<double>(2, util::kBogusD));
-	int ID = (int)ub_tracks->size();
-	
-	ub_tracks->emplace_back(track_xyz,track_dir,dQdx,fitMomentum,ID);
+	ub_tracks->emplace_back(geo::vect::convertCollToPoint(track_xyz), geo::vect::convertCollToVector(track_dir), false);
 
 	util::CreateAssn(*this, evt, *(btracks.get()), HitsForAssns.at(i), *(assnhit.get()));
 	util::CreateAssn(*this, evt, *(ub_tracks), HitsForAssns.at(i), *(assnhit.get()));
