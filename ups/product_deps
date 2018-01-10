@@ -11,7 +11,7 @@ eigen		v3_3_3
 nutools         v2_16_09
 tensorflow      v1_3_0a
 
-cetbuildtools	v6_01_00	-	only_for_build
+cetbuildtools	v6_01_01	-	only_for_build
 end_product_list
 
   
