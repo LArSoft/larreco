@@ -32,7 +32,6 @@
    * between the input PFParticle and the output Track.
    * Optional outputs are recob::TrackFitHitInfo and recob::SpacePoint collections, plus the Assns of SpacePoints to Hits.
    * An option is provided to create SpacePoints from the TrajectoryPoints in the Track.
-   * Note: SpacePoints should not be used and will be soon deprecated as their functionality is covered by TrajectoryPoints.
    * The fit is performed by an user-defined tool, which must inherit from larreco/TrackFinder/TrackMaker.
    *
    * Parameters: trackMaker (fhicl::ParameterSet for the trkmkr::TrackMaker tool used to do the fit), inputCollection (art::InputTag of the input recob::Track collection),
@@ -108,7 +107,8 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
   //
   // PtrMakers for Assns
   art::PtrMaker<recob::Track> trackPtrMaker(e, *this);
-  art::PtrMaker<recob::SpacePoint> spacePointPtrMaker(e, *this);
+  art::PtrMaker<recob::SpacePoint>* spacePointPtrMaker = nullptr;
+  if (doSpacePoints_) spacePointPtrMaker = new art::PtrMaker<recob::SpacePoint>(e, *this);
   //
   // Input from event
   art::ValidHandle<std::vector<recob::PFParticle> > inputPfps = e.getValidHandle<std::vector<recob::PFParticle> >(pfpInputTag);
@@ -166,13 +166,13 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	for (auto const& trhit: outHits) {
 	  outputHits->addSingle(aptr, trhit);
 	  //
-	  if (spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
+	  if (doSpacePoints_ && spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
 	    auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
 	    const double fXYZ[3] = {tp.X(),tp.Y(),tp.Z()};
 	    const double fErrXYZ[6] = {0};
 	    recob::SpacePoint sp(fXYZ, fErrXYZ, -1.);
 	    outputSpacePoints->emplace_back(std::move(sp));
-	    const art::Ptr<recob::SpacePoint> apsp = spacePointPtrMaker(outputSpacePoints->size()-1);
+	    const art::Ptr<recob::SpacePoint> apsp = (*spacePointPtrMaker)(outputSpacePoints->size()-1);
 	    outputHitSpacePointAssn->addSingle(trhit, apsp);
 	  }
 	  ip++;
@@ -181,7 +181,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	  auto osp = optionals.spacePointHitPairs();
 	  for (auto it = osp.begin(); it!=osp.end(); ++it ) {
 	    outputSpacePoints->emplace_back(std::move(it->first));
-	    const art::Ptr<recob::SpacePoint> apsp = spacePointPtrMaker(outputSpacePoints->size()-1);
+	    const art::Ptr<recob::SpacePoint> apsp = (*spacePointPtrMaker)(outputSpacePoints->size()-1);
 	    outputHitSpacePointAssn->addSingle(it->second,apsp);
 	  }
 	}
@@ -245,13 +245,13 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	for (auto const& trhit: outHits) {
 	  outputHits->addSingle(aptr, trhit);
 	  //
-	  if (spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
+	  if (doSpacePoints_ && spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
 	    auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
 	    const double fXYZ[3] = {tp.X(),tp.Y(),tp.Z()};
 	    const double fErrXYZ[6] = {0};
 	    recob::SpacePoint sp(fXYZ, fErrXYZ, -1.);
 	    outputSpacePoints->emplace_back(std::move(sp));
-	    const art::Ptr<recob::SpacePoint> apsp = spacePointPtrMaker(outputSpacePoints->size()-1);
+	    const art::Ptr<recob::SpacePoint> apsp = (*spacePointPtrMaker)(outputSpacePoints->size()-1);
 	    outputHitSpacePointAssn->addSingle(trhit, apsp);
 	  }
 	  ip++;
@@ -260,7 +260,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	  auto osp = optionals.spacePointHitPairs();
 	  for (auto it = osp.begin(); it!=osp.end(); ++it ) {
 	    outputSpacePoints->emplace_back(std::move(it->first));
-	    const art::Ptr<recob::SpacePoint> apsp = spacePointPtrMaker(outputSpacePoints->size()-1);
+	    const art::Ptr<recob::SpacePoint> apsp = (*spacePointPtrMaker)(outputSpacePoints->size()-1);
 	    outputHitSpacePointAssn->addSingle(it->second,apsp);
 	  }
 	}
@@ -283,6 +283,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
     e.put(std::move(outputSpacePoints));
     e.put(std::move(outputHitSpacePointAssn));
   }
+  if (doSpacePoints_) delete spacePointPtrMaker;
 }
 //
 DEFINE_ART_MODULE(TrackProducerFromPFParticle)
