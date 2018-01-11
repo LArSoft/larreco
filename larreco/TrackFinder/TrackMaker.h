@@ -22,7 +22,7 @@ namespace trkmkr {
    *
    * It stores a unique_ptr to each optional output object element.
    * Functions are provided to set the unique_ptr and to check if it set.
-   * When the elements are returned, the unique_ptr is released and the associated object moved.
+   * When the elements are returned, the unique_ptr is reset.
    *
    * @author  G. Cerati (FNAL, MicroBooNE)
    * @date    2017
@@ -33,17 +33,19 @@ namespace trkmkr {
   public:
     /// set the recob::TrackFitHitInfo unique_ptr
     void setTrackFitHitInfo(recob::TrackFitHitInfo&& aTrackFitHitInfo) { trackFitHitInfo = std::make_unique< recob::TrackFitHitInfo >(aTrackFitHitInfo); }
+    void setTrackFitHitInfo(const recob::TrackFitHitInfo& aTrackFitHitInfo) { trackFitHitInfo = std::make_unique< recob::TrackFitHitInfo >(aTrackFitHitInfo); }
     /// check if the recob::TrackFitHitInfo unique_ptr is set
     bool isTrackFitInfoSet() { return bool(trackFitHitInfo); }
-    /// get the recob::TrackFitHitInfo object, and release the unique_ptr
-    recob::TrackFitHitInfo&& moveTrackFitHitInfo() { return std::move( *(trackFitHitInfo.release()) ); }
+    /// get the recob::TrackFitHitInfo object, and reset the unique_ptr
+    recob::TrackFitHitInfo getTrackFitHitInfo() { auto tmp = *trackFitHitInfo; trackFitHitInfo.reset(); return tmp; }
     //
     /// set the recob::SpacePoint unique_ptr
     void setSpacePoint(recob::SpacePoint&& aSpacePoint) { spacePoint = std::make_unique< recob::SpacePoint >(aSpacePoint); }
+    void setSpacePoint(const recob::SpacePoint& aSpacePoint) { spacePoint = std::make_unique< recob::SpacePoint >(aSpacePoint); }
     /// check if the recob::SpacePoint unique_ptr is set
     bool isSpacePointSet() { return bool(spacePoint); }
     /// get the recob::SpacePoint object, and release the unique_ptr
-    recob::SpacePoint&& moveSpacePoint() { return std::move( *(spacePoint.release()) ); }
+    recob::SpacePoint getSpacePoint() { auto tmp = *spacePoint; spacePoint.reset(); return tmp; }
   private:
     std::unique_ptr< recob::TrackFitHitInfo > trackFitHitInfo;
     std::unique_ptr<recob::SpacePoint> spacePoint;
@@ -61,7 +63,7 @@ namespace trkmkr {
    * It stores a unique_ptr to the vector of each optional output object (meant to be per-track).
    * Track making tools need to init the outional outputs they will produce, so that only the unique_ptrs that are needed are actually created.
    * Functions are provided (called addPoint) to add point-by-point elements (see OptionalPointElement).
-   * When the output objects are returned, the unique_ptr is released and the vector moved, so that no new elements should be added and a new initialization is needed.
+   * When the output objects are returned, the unique_ptr is reset, so that no new elements should be added and a new initialization is needed.
    *
    * @author  G. Cerati (FNAL, MicroBooNE)
    * @date    2017
@@ -75,13 +77,13 @@ namespace trkmkr {
     /// add one OptionalPointElement
     void addPoint(OptionalPointElement& ope) {
       if (isTrackFitInfosInit() && ope.isTrackFitInfoSet()) {
-	outTrackFitHitInfos->push_back( std::move(ope.moveTrackFitHitInfo()) );
+	outTrackFitHitInfos->push_back( std::move(ope.getTrackFitHitInfo()) );
       }
     }
     /// add one OptionalPointElement and the corresponding hit
     void addPoint(OptionalPointElement& ope, art::Ptr<recob::Hit> hptr) {
       if (isSpacePointsInit() && ope.isSpacePointSet()) {
-	outSpacePointHitPairs->push_back( std::move( SpHitPair(ope.moveSpacePoint(), hptr) ) );
+	outSpacePointHitPairs->push_back( std::move( SpHitPair(ope.getSpacePoint(), hptr) ) );
       }
       addPoint(ope);
     }
@@ -111,12 +113,12 @@ namespace trkmkr {
     /// get the output vector of TrackFitHitInfos by releasing and moving
     std::vector<recob::TrackFitHitInfo> trackFitHitInfos() {
       if (!isTrackFitInfosInit()) throw std::logic_error("outTrackFitHitInfos is not available (any more?).");
-      return std::move(*(outTrackFitHitInfos.release() ));
+      auto tmp = *outTrackFitHitInfos; outTrackFitHitInfos.reset(); return tmp;
     }
     /// get the output vector of SpHitPair by releasing and moving
     std::vector<SpHitPair> spacePointHitPairs() {
       if (!isSpacePointsInit()) throw std::logic_error("outSpacePointHitPairs is not available (any more?).");
-      return std::move(*(outSpacePointHitPairs.release() ));
+      auto tmp = *outSpacePointHitPairs; outSpacePointHitPairs.reset(); return tmp;
     }
   private:
     std::unique_ptr< std::vector<recob::TrackFitHitInfo> > outTrackFitHitInfos;

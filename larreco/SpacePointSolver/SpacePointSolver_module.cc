@@ -23,10 +23,12 @@
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
+#include "lardata/ArtDataHelper/ChargedSpacePointCreator.h"
 
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/Simulation/SimChannel.h"
+#include "lardataobj/RecoBase/PointCharge.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 
 #include "larsim/MCCheater/BackTracker.h"
@@ -102,20 +104,27 @@ protected:
                      bool incNei,
                      HitMap_t& hitmap) const;
 
-  void FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
-                               std::vector<recob::SpacePoint>& pts) const;
+  /// return whether the point was inserted (only happens when it has charge)
+  bool AddSpacePoint(const SpaceCharge& sc,
+                     int id,
+                     recob::ChargedSpacePointCollectionCreator& points) const;
 
-  void FillAssns(art::Event& evt,
-                 const std::vector<CollectionWireHit*> cwires,
-                 const std::vector<recob::SpacePoint>& pts,
-                 art::Assns<recob::Hit, recob::SpacePoint>& assn,
-                 const HitMap_t& hitmap) const;
+  void FillSystemToSpacePoints(const std::vector<CollectionWireHit*>& cwires,
+                               recob::ChargedSpacePointCollectionCreator& pts) const;
+
+  void FillSystemToSpacePointsAndAssns(const std::vector<CollectionWireHit*>& cwires,
+                                       const HitMap_t& hitmap,
+                                       recob::ChargedSpacePointCollectionCreator& points,
+                                       art::Assns<recob::SpacePoint, recob::Hit>& assn) const;
 
   std::string fHitLabel;
 
   bool fFit;
 
   double fAlpha;
+
+  double fDistThresh;
+  double fDistThreshDrift;
 
   TH1* fDeltaX;
 
@@ -129,13 +138,15 @@ DEFINE_ART_MODULE(SpacePointSolver)
 SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset)
   : fHitLabel(pset.get<std::string>("HitLabel")),
     fFit(pset.get<bool>("Fit")),
-    fAlpha(pset.get<double>("Alpha"))
+    fAlpha(pset.get<double>("Alpha")),
+    fDistThresh(pset.get<double>("WireIntersectThreshold")),
+    fDistThreshDrift(pset.get<double>("WireIntersectThresholdDriftDir"))
 {
-  produces<std::vector<recob::SpacePoint>>("pre");
+  recob::ChargedSpacePointCollectionCreator::produces(*this, "pre");
   if(fFit){
-    produces<std::vector<recob::SpacePoint>>();
-    produces<art::Assns<recob::Hit, recob::SpacePoint>>();
-    produces<std::vector<recob::SpacePoint>>("noreg");
+    recob::ChargedSpacePointCollectionCreator::produces(*this);
+    produces<art::Assns<recob::SpacePoint, recob::Hit>>();
+    recob::ChargedSpacePointCollectionCreator::produces(*this, "noreg");
   }
 }
 
@@ -213,28 +224,17 @@ bool SpacePointSolver::ISect(int chanA, int chanB, geo::TPCID tpc) const
 // ---------------------------------------------------------------------------
 bool SpacePointSolver::CloseDrift(double xa, double xb) const
 {
-  // Used to cut at 10 ticks (for basically empirical reasons). Reproduce that
-  // in x.
-  // Sampling rate is in ns/ticks
-  // Drift velocity is in cm/us
-  //  static const double k = 10*detprop->SamplingRate()*1e-3*detprop->DriftVelocity();
-  const double k = 0.2;//0.4; // 1 sigma on deltax plot
-
-  // TODO - figure out cut value
-  return fabs(xa-xb) < k;
+  return fabs(xa-xb) < fDistThreshDrift;
 }
 
 // ---------------------------------------------------------------------------
 bool SpacePointSolver::CloseSpace(geo::WireIDIntersection ra,
                                   geo::WireIDIntersection rb) const
 {
-  TVector3 pa(ra.y, ra.z, 0);
-  TVector3 pb(rb.y, rb.z, 0);
+  const TVector3 pa(ra.y, ra.z, 0);
+  const TVector3 pb(rb.y, rb.z, 0);
 
-  // TODO - figure out cut value. Empirically .25 is a bit small
-  //  return (pa-pb).Mag() < .5;
-
-  return (pa-pb).Mag() < .35;
+  return (pa-pb).Mag() < fDistThresh;
 }
 
 // ---------------------------------------------------------------------------
@@ -630,59 +630,66 @@ BuildSystemXU(const std::vector<art::Ptr<recob::Hit>>& xhits,
 }
 
 // ---------------------------------------------------------------------------
-void SpacePointSolver::
-FillSystemToSpacePoints(const std::vector<CollectionWireHit*> cwires,
-                        std::vector<recob::SpacePoint>& pts) const
+bool SpacePointSolver::
+AddSpacePoint(const SpaceCharge& sc,
+              int id,
+              recob::ChargedSpacePointCollectionCreator& points) const
 {
-  const double err[6] = {0,};
+  static const double err[6] = {0,};
 
-  for(const CollectionWireHit* cwire: cwires){
-    for(const SpaceCharge* sc: cwire->fCrossings){
-      if(sc->fPred == 0) continue;
+  const float charge = sc.fPred;
+  if(charge == 0) return false;
 
-      // TODO find somewhere to save the charge too
-      const double xyz[3] = {sc->fX, sc->fY, sc->fZ};
-      pts.emplace_back(xyz, err, 0);
-    }
-  }
+  const double xyz[3] = {sc.fX, sc.fY, sc.fZ};
+  points.add({ xyz, err, 0.0, id }, charge);
+
+  return true;
 }
 
 // ---------------------------------------------------------------------------
 void SpacePointSolver::
-FillAssns(art::Event& evt,
-          const std::vector<CollectionWireHit*> cwires,
-          const std::vector<recob::SpacePoint>& pts,
-          art::Assns<recob::Hit, recob::SpacePoint>& assn,
-          const HitMap_t& hitmap) const
+FillSystemToSpacePoints(const std::vector<CollectionWireHit*>& cwires,
+                        recob::ChargedSpacePointCollectionCreator& points) const
 {
-  unsigned int ptidx = 0;
-
-  // Must follow FillSystemToSpacePoints()'s looping order here
+  int iPoint = 0;
   for(const CollectionWireHit* cwire: cwires){
     for(const SpaceCharge* sc: cwire->fCrossings){
-      if(sc->fPred == 0) continue;
+      AddSpacePoint(*sc, iPoint++, points);
+    } // for sc
+  } // for cwire
+}
 
-      auto const& hit = hitmap.at(cwire);
-      util::CreateAssn(*this, evt, pts, hit, assn, "", ptidx);
+
+// ---------------------------------------------------------------------------
+void SpacePointSolver::
+FillSystemToSpacePointsAndAssns(const std::vector<CollectionWireHit*>& cwires,
+                                const HitMap_t& hitmap,
+                                recob::ChargedSpacePointCollectionCreator& points,
+                                art::Assns<recob::SpacePoint, recob::Hit>& assn) const
+{
+  int iPoint = 0;
+  for(const CollectionWireHit* cwire: cwires){
+    for(const SpaceCharge* sc: cwire->fCrossings){
+      // fill the space point and reconstructed charge information;
+      // if the point is filtered out, it's not inserted (no association either)
+      if(!AddSpacePoint(*sc, iPoint++, points)) continue;
+
+      // now fill the associations to the last added space point
+      const auto& spsPtr = points.lastSpacePointPtr();
+
+      const auto& hit = hitmap.at(cwire);
+      assn.addSingle(spsPtr, hit);
 
       if(sc->fWire1){
-        auto const& hit1 = hitmap.at(sc->fWire1);
-        util::CreateAssn(*this, evt, pts, hit1, assn, "", ptidx);
+        assn.addSingle(spsPtr, hitmap.at(sc->fWire1));
       }
       if(sc->fWire2){
-        auto const& hit2 = hitmap.at(sc->fWire2);
-        util::CreateAssn(*this, evt, pts, hit2, assn, "", ptidx);
+        assn.addSingle(spsPtr, hitmap.at(sc->fWire2));
       }
-
-      ++ptidx;
-    }
-  }
-
-  if(ptidx != pts.size()){
-    std::cout << "Didn't manage to use up all the pts when making Assns!" << std::endl;
-    abort();
-  }
+    } // for sc
+  } // for cwire
 }
+
 
 // ---------------------------------------------------------------------------
 void SpacePointSolver::produce(art::Event& evt)
@@ -692,17 +699,18 @@ void SpacePointSolver::produce(art::Event& evt)
   if(evt.getByLabel(fHitLabel, hits))
     art::fill_ptr_vector(hitlist, hits);
 
+  recob::ChargedSpacePointCollectionCreator spcol_pre(evt, *this, "pre");
+  recob::ChargedSpacePointCollectionCreator spcol_noreg(evt, *this, "noreg");
+  recob::ChargedSpacePointCollectionCreator spcol(evt, *this);
+  auto assns = std::make_unique<art::Assns<recob::SpacePoint, recob::Hit>>();
+
   // Skip very small events
   if(hits->size() < 20){
-    auto spcol_pre = std::make_unique<std::vector<recob::SpacePoint>>();
-    evt.put(std::move(spcol_pre), "pre");
+    spcol_pre.put();
     if(fFit){
-      auto spcol = std::make_unique<std::vector<recob::SpacePoint>>();
-      evt.put(std::move(spcol));
-      auto assns = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint>>();
+      spcol.put();
       evt.put(std::move(assns));
-      auto spcol_noreg = std::make_unique<std::vector<recob::SpacePoint>>();
-      evt.put(std::move(spcol_noreg), "noreg");
+      spcol_noreg.put();
     }
     return;
   }
@@ -751,9 +759,8 @@ void SpacePointSolver::produce(art::Event& evt)
   else
     BuildSystemXUV(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
 
-  auto spcol_pre = std::make_unique<std::vector<recob::SpacePoint>>();
-  FillSystemToSpacePoints(cwires, *spcol_pre);
-  evt.put(std::move(spcol_pre), "pre");
+  FillSystemToSpacePoints(cwires, spcol_pre);
+  spcol_pre.put();
 
   if(fFit){
     std::cout << "Iterating..." << std::endl;
@@ -769,9 +776,8 @@ void SpacePointSolver::produce(art::Event& evt)
       prevMetric = metric;
     }
 
-    auto spcol_noreg = std::make_unique<std::vector<recob::SpacePoint>>();
-    FillSystemToSpacePoints(cwires, *spcol_noreg);
-    evt.put(std::move(spcol_noreg), "noreg");
+    FillSystemToSpacePoints(cwires, spcol_noreg);
+    spcol_noreg.put();
 
     prevMetric = Metric(cwires, fAlpha);
     std::cout << "Begin: " << prevMetric << std::endl;
@@ -785,11 +791,8 @@ void SpacePointSolver::produce(art::Event& evt)
       prevMetric = metric;
     }
 
-    auto spcol = std::make_unique<std::vector<recob::SpacePoint>>();
-    auto assns = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint>>();
-    FillSystemToSpacePoints(cwires, *spcol);
-    FillAssns(evt, cwires, *spcol, *assns, hitmap);
-    evt.put(std::move(spcol));
+    FillSystemToSpacePointsAndAssns(cwires, hitmap, spcol, *assns);
+    spcol.put();
     evt.put(std::move(assns));
   } // end if fFit
 

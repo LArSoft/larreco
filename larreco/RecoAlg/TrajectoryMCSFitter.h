@@ -39,7 +39,7 @@ namespace trkf {
       using Comment = fhicl::Comment;
       fhicl::Atom<int> pIdHypothesis {
         Name("pIdHypothesis"),
-	Comment("Particle Id Hypothesis to be used in the fit."),
+	Comment("Default particle Id Hypothesis to be used in the fit when not specified."),
 	13
       };
       fhicl::Atom<int> minNumSegments {
@@ -105,17 +105,21 @@ namespace trkf {
     explicit TrajectoryMCSFitter(const Parameters & p)
       : TrajectoryMCSFitter(p().pIdHypothesis(),p().minNumSegments(),p().segmentLength(),p().minHitsPerSegment(),p().nElossSteps(),p().eLossMode(),p().pMin(),p().pMax(),p().pStep(),p().angResol()) {}
     //
-    recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj, bool momDepConst = true) const;
-    recob::MCSFitResult fitMcs(const recob::Track& track, bool momDepConst = true) const { return fitMcs(track.Trajectory(),momDepConst); }
-    recob::MCSFitResult fitMcs(const recob::Trajectory& traj, bool momDepConst = true) const {
+    recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj, bool momDepConst = true) const { return fitMcs(traj,pIdHyp_,momDepConst); }
+    recob::MCSFitResult fitMcs(const recob::Track& track,          bool momDepConst = true) const { return fitMcs(track,pIdHyp_,momDepConst); }
+    recob::MCSFitResult fitMcs(const recob::Trajectory& traj,      bool momDepConst = true) const { return fitMcs(traj,pIdHyp_,momDepConst); }
+    //
+    recob::MCSFitResult fitMcs(const recob::TrackTrajectory& traj, int pid, bool momDepConst = true) const;
+    recob::MCSFitResult fitMcs(const recob::Track& track,          int pid, bool momDepConst = true) const { return fitMcs(track.Trajectory(),pid,momDepConst); }
+    recob::MCSFitResult fitMcs(const recob::Trajectory& traj,      int pid, bool momDepConst = true) const {
       recob::TrackTrajectory::Flags_t flags(traj.NPoints());
       const recob::TrackTrajectory tt(traj,std::move(flags));
-      return fitMcs(tt,momDepConst);
+      return fitMcs(tt,pid,momDepConst);
     }
     //
     void breakTrajInSegments(const recob::TrackTrajectory& traj, std::vector<size_t>& breakpoints, std::vector<double>& segradlengths, std::vector<double>& cumseglens) const;
     void linearRegression(const recob::TrackTrajectory& traj, const size_t firstPoint, const size_t lastPoint, recob::tracking::Vector_t& pcdir) const;
-    double mcsLikelihood(double p, double theta0x, std::vector<double>& dthetaij, std::vector<double>& seg_nradl, std::vector<double>& cumLen, bool fwd, bool momDepConst) const;
+    double mcsLikelihood(double p, double theta0x, std::vector<double>& dthetaij, std::vector<double>& seg_nradl, std::vector<double>& cumLen, bool fwd, bool momDepConst, int pid) const;
     //
     struct ScanResult {
       public:
@@ -123,7 +127,7 @@ namespace trkf {
         double p, pUnc, logL;
     };
     //
-    const ScanResult doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& cumLen, bool fwdFit, bool momDepConst) const;
+    const ScanResult doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& cumLen, bool fwdFit, bool momDepConst, int pid) const;
     //
     inline double MomentumDependentConstant(const double p) const {
       //these are from https://arxiv.org/abs/1703.06187
@@ -131,11 +135,11 @@ namespace trkf {
       constexpr double c = 11.0038;
       return (a/(p*p)) + c;
     }
-    double mass() const {
-      if (abs(pIdHyp_)==13)   { return mumass; }
-      if (abs(pIdHyp_)==211)  { return pimass; }
-      if (abs(pIdHyp_)==321)  { return kmass;  }
-      if (abs(pIdHyp_)==2212) { return pmass;  }
+    double mass(int pid) const {
+      if (abs(pid)==13)   { return mumass; }
+      if (abs(pid)==211)  { return pimass; }
+      if (abs(pid)==321)  { return kmass;  }
+      if (abs(pid)==2212) { return pmass;  }
       return util::kBogusD;
     }
     double energyLossBetheBloch(const double mass,const double e2) const;
