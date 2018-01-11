@@ -428,7 +428,7 @@ namespace tca {
           DefineTjParents(tjs, tpcid, prt);
           FillmAllTraj(tjs, tpcid);
           FindPFParticles("RTCA1", tjs, tpcid, prt);
-          if(tjs.NeedsRebuild) std::cout<<"Match3D wants yet another rebuild...\n";
+//          if(tjs.NeedsRebuild) std::cout<<"Match3D wants yet another rebuild...\n";
         }
         DefinePFPParents(tjs, tpcid, prt);
         //fit all pfps that are in pfps
@@ -1992,9 +1992,6 @@ namespace tca {
           for(unsigned int it2 = 0; it2 < tjs.allTraj.size(); ++it2) {
             if(it1 == it2) continue;
             auto& tj2 = tjs.allTraj[it2];
-            if(tj1.ID > (int)tjs.allTraj.size() || tj2.ID > (int)tjs.allTraj.size()) {
-              std::cout<<"oops "<<tj1.ID<<" "<<tj2.ID<<"\n";
-            }
             // check for consistent direction
             if(tj1.StepDir != tj2.StepDir) continue;
             if(tj2.AlgMod[kKilled]) continue;
