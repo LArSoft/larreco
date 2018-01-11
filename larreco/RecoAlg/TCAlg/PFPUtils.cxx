@@ -128,10 +128,7 @@ namespace tca {
         float posPlusRMS = tp.Pos[1] + TPHitsRMSTime(tjs, tp, kUsedHits);
         float rms = tjs.detprop->ConvertTicksToX(posPlusRMS/tjs.UnitsPerTick, plane, tpc, cstat) - xpos;
         if(rms < tjs.Match3DCuts[0]) rms = tjs.Match3DCuts[0];
-        if(icnt == tjs.mallTraj.size()) {
-          std::cout<<"Match3D: indexing error\n";
-          break;
-        }
+        if(icnt == tjs.mallTraj.size()) break;
         tjs.mallTraj[icnt].xlo = xpos - rms;
         tjs.mallTraj[icnt].xhi = xpos + rms;
         tjs.mallTraj[icnt].dir = tp.Dir;
@@ -437,7 +434,6 @@ namespace tca {
       // Fit the points within +/- 3 cm on both sides of this point
       FitTp3(tjs, pfp.Tp3s, ipt, 3, 0, false);
       auto& tp3 = pfp.Tp3s[ipt];
-      if(pfp.ID == 4) PrintTp3("CTV", tjs, tp3);
       if(isShort && ipt == 0 && tp3.nPtsFit == pfp.Tp3s.size()) {
         // All points fit on a short track. 
         nValid = tp3.nPtsFit;
@@ -544,8 +540,6 @@ namespace tca {
 
     if(fTp3.nPtsFit < 2) return;
     
-    if(prt) std::cout<<"fromPt "<<fromPt<<" "<<toPt<<"\n";
-    
     // adapted from gsl_fit_linear
     double mx = 0, my = 0, mdx2 = 0, mdxdy = 0;
     double mz = 0, mdxdz = 0;
@@ -556,7 +550,6 @@ namespace tca {
       double xx = tp3.Pos[2];
       double yy = tp3.Pos[0];
       double zz = tp3.Pos[1];
-      if(prt) std::cout<<ipt<<" "<<xx<<" "<<yy<<" "<<zz<<"\n";
       mx += (xx - mx) / (cnt + 1);
       my += (yy - my) / (cnt + 1);
       mz += (zz - mz) / (cnt + 1);
@@ -582,18 +575,16 @@ namespace tca {
     double ay = mz - mx * by;
     fTp3.FitPos[1] = ay;
     fTp3.FitPos[2] = 0;
-    if(prt) std::cout<<"Pos "<<fTp3.FitPos[0]<<" "<<fTp3.FitPos[1]<<" "<<fTp3.FitPos[2]<<" mx "<<mx<<" bx "<<bx<<" by "<<by<<"\n";
     // Move to the origin
     fTp3.FitPos[2] += fTp3.Pos[2];
     fTp3.FitPos[0] += fTp3.FitPos[2] * bx;
     fTp3.FitPos[1] += fTp3.FitPos[2] * by;
-    if(prt) std::cout<<"Pos "<<fTp3.FitPos[0]<<" "<<fTp3.FitPos[1]<<" "<<fTp3.FitPos[2]<<"\n";
     
     if(fTp3.nPtsFit == 2) {
       fTp3.ChiDOF = 0.01;
       return;
     }
-/*
+/* This is left here for historical purposes
     // calculate chisq
     double d2 = 0;
     for(unsigned short ipt = fromPt; ipt <= toPt; ++ipt) {
@@ -631,8 +622,6 @@ namespace tca {
     // scale Chisq/DOF by the 1 / wire spacing^2. The calculation above applied a weight of 1 (cm)
     d2 /= wsp2;
     fTp3.ChiDOF = d2 / (double)(2 * fTp3.nPtsFit - 2);
-    if(prt) std::cout<<"FitTp3: "<<fromPt<<" "<<toPt<<" ChiDOF "<<fTp3.ChiDOF<<" nPtsFit "<<fTp3.nPtsFit<<"\n";
-//    std::cout<<"ChiDOF "<<fTp3.ChiDOF<<"\n";
     
   } // FitTP3
 
@@ -863,7 +852,6 @@ namespace tca {
     double upt = tjs.UnitsPerTick;
     double ix = tjs.detprop->ConvertTicksToX(itp.Pos[1] / upt, iPlnID);
     double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / upt, jPlnID);
-    //    std::cout<<"MSPT: "<<PrintPos(tjs, itp.Pos)<<" X "<<ix<<" "<<PrintPos(tjs, jtp.Pos)<<" "<<jx<<"\n";
     
     // don't continue if the points are wildly far apart in X
     if(std::abs(ix - jx) > 10) return false;
@@ -1005,7 +993,6 @@ namespace tca {
       double dQ = chg / dx;
       double time = tp.Pos[1] / tjs.UnitsPerTick;
       float dedx = tjs.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
-//      std::cout<<cnt<<" "<<PrintPos(tjs, tp)<<" dedx "<<dedx<<" dx "<<dx<<"\n";
       if(dedx > 200) continue;
       sum += dedx;
       sum2 += dedx * dedx;
@@ -1065,7 +1052,7 @@ namespace tca {
           // No split is needed and there should be a vertex at this end of the Tj that
           // should be associated with a 3D vertex that we will construct
           if(tj.VtxID[closeEnd] == 0) {
-            std::cout<<"SplitAtKink: TODO Tj "<<tj.ID<<" has no vertex attached on end "<<closeEnd<<". Write some code.\n";
+//            std::cout<<"SplitAtKink: TODO Tj "<<tj.ID<<" has no vertex attached on end "<<closeEnd<<". Write some code.\n";
             return false;
           }
           vx2ids.push_back(tj.VtxID[closeEnd]);
@@ -1084,12 +1071,11 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<" tj "<<tj.ID<<" new 2V"<<vx2.ID;
           tjs.NeedsRebuild = true;
         }
-//        std::cout<<"Split Tj "<<tp2.id<<" at point "<<tp2.ipt<<" "<<PrintPos(tjs, tp)<<" 2V"<<tj.EndPt[0]<<" "<<tj.EndPt[1]<<" closeEnd "<<closeEnd<<"\n";
       } // tp2
     } // ipt
     
     if(vx2ids.size() != tjs.NumPlanes) {
-      std::cout<<"SplitAtKink: TODO pfp "<<pfp.ID<<" only has "<<vx2ids.size()<<" 2D vertices. \n";
+//      std::cout<<"SplitAtKink: TODO pfp "<<pfp.ID<<" only has "<<vx2ids.size()<<" 2D vertices. \n";
       return false;
     }
     Vtx3Store vx3;
@@ -1258,7 +1244,7 @@ namespace tca {
         FindXMatches(tjs, 2, 3, matVec, prt);
       }
     } // can add more combinations
-    if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"FMV: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
+//    if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"FMV: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
     
     // sort by decreasing match count
     if(matVec.size() > 1) {
@@ -1392,14 +1378,14 @@ namespace tca {
     }
     
     if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
-      std::cout<<"DPFP: pfp "<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
+//      std::cout<<"DPFP: pfp "<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
       return false;
     }
     
     for(auto tjid : pfp.TjIDs) {
       auto& tj = tjs.allTraj[tjid - 1];
       if(tj.AlgMod[kMat3D]) {
-        std::cout<<"DPFP: pfp "<<pfp.ID<<" uses tj "<<tj.ID<<" kMat3D is set true\n";
+//        std::cout<<"DPFP: pfp "<<pfp.ID<<" uses tj "<<tj.ID<<" kMat3D is set true\n";
         return false;
       }
     } // tjid
@@ -1598,7 +1584,6 @@ namespace tca {
       vx3.X = pfp.XYZ[0][0];
       vx3.Y = pfp.XYZ[0][1];
       vx3.Z = pfp.XYZ[0][2];
-      std::cout<<"DPFPR: Making a bogus PFP vertex\n";
       vx3.ID = tjs.vtx3.size() + 1;
       vx3.Primary = true;
       // TODO: we need to have PFP track position errors defined 
@@ -1699,23 +1684,13 @@ namespace tca {
     if(!neutrinoPFP && pfp.TjIDs.empty()) return false;
     // check the ID and correct it if it is wrong
     if(pfp.ID != (int)tjs.pfps.size() + 1) {
-      std::cout<<"StorePFP ID is wrong. Fixing it\n";
+//      std::cout<<"StorePFP ID is wrong. Fixing it\n";
       pfp.ID = tjs.pfps.size() + 1;
     }
     // check the Tjs and set the 3D match flag
     for(auto tjid : pfp.TjIDs) {
       auto& tj = tjs.allTraj[tjid - 1];
-      if(tj.AlgMod[kMat3D]) {
-        int matchedTo = 0;
-        for(auto& opfp : tjs.pfps) {
-          if(std::find(opfp.TjIDs.begin(), opfp.TjIDs.end(), tjid) != opfp.TjIDs.end()) {
-            matchedTo = opfp.ID;
-            break;
-          }
-        } // old pfp
-        std::cout<<"StorePFP "<<pfp.ID<<" Tj "<<tj.ID<<" is already 3D matched to pfp "<<matchedTo<<"\n";
-        return false;
-      }
+      if(tj.AlgMod[kMat3D]) return false;
       tj.AlgMod[kMat3D] = true;
     } // tjid
     
@@ -1749,7 +1724,7 @@ namespace tca {
         auto& tj = tjs.allTraj[tjids[ii] - 1];
         if(lastIpt[ii] < firstIpt[ii]) {
           if(tj.AlgMod[kSetDir]) {
-            std::cout<<"StorePFP "<<pfp.ID<<" Violating the SetDir flag for Tj "<<tj.ID<<"\n";
+//            std::cout<<"StorePFP "<<pfp.ID<<" Violating the SetDir flag for Tj "<<tj.ID<<"\n";
             tj.AlgMod[kSetDir] = false;
           }
           ReverseTraj(tjs, tj);
