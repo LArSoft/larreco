@@ -90,7 +90,6 @@ namespace tca {
           } // new vertex
           tj2.VtxID[closeEnd] = junkVx.ID;
           tj1.VtxID[end1] = junkVx.ID;
-//          std::cout<<"MJV: "<<tj1.ID<<"_"<<end1<<" tj2 "<<tj2.ID<<" closeEnd "<<closeEnd<<" junkVx.ID "<<junkVx.ID<<"\n";
         } // tjid
         if(junkVx.ID == USHRT_MAX) continue;
         if(!StoreVertex(tjs, junkVx)) {
@@ -498,7 +497,7 @@ namespace tca {
       unsigned short end = tjpt.AngleCode;
       auto& tj = tjs.allTraj[fittjs[ii] - 1];
       if(tj.VtxID[end] != 0) {
-        std::cout<<"MWV: coding error. tj "<<tj.ID<<" end "<<end<<" VtxID "<<tj.VtxID[end]<<" != 0\n";
+//        std::cout<<"MWV: coding error. tj "<<tj.ID<<" end "<<end<<" VtxID "<<tj.VtxID[end]<<" != 0\n";
         return false;
       }
       tj.VtxID[end] = oVxID;
@@ -1310,12 +1309,10 @@ namespace tca {
         double sep = 1;
         bool didSplit = SplitAtKink(tjs, pfp, sep, prt);
         if(prt) PrintPFP("M3D", tjs, pfp, true);
-        if(tjs.NeedsRebuild) std::cout<<"PFP "<<pfp.ID<<" has a kink that was split. NeedsRebuild\n";
         if(!didSplit && shared.size() != ms.TjIDs.size()) {
           // Try to repair the PFParticle by merging the Tj that was in the match list but
           // wasn't attached to the vertex. Hopefully there aren't more than one...
           auto tjNotInVx = SetDifference(ms.TjIDs, shared);
-          if(prt) std::cout<<"M3DVTj pfp "<<pfp.ID<<" tjNotInVx size "<<tjNotInVx.size()<<" tj "<<tjNotInVx[0]<<". Try to repair it\n";
         }
         if(!StorePFP(tjs, pfp)) continue;
         std::vector<int> leftover = SetDifference(v3TjIDs, shared);
@@ -1376,12 +1373,6 @@ namespace tca {
     // We are done if this a PFP-only vertex
     if(vx3.Wire == -2) return true;
     
-    if(prt) {
-      std::cout<<"APTV: pfp.ID "<<pfp.ID<<" end "<<end<<" vx3.ID "<<vx3.ID<<" vx3.Vx2ID";
-      for(unsigned short plane = 0; plane < 3; ++plane) std::cout<<" "<<vx3.Vx2ID[plane];
-      std::cout<<"\n";
-    }
-    
     // Update the 2D and 3D vertex and tj associations
     for(auto tjid : pfp.TjIDs) {
       auto& tj = tjs.allTraj[tjid - 1];
@@ -1394,10 +1385,10 @@ namespace tca {
           // not matched. Look for one
           std::array<float, 2> pos;
           PosInPlane(tjs, vx3, plane, pos);
-          if(prt) std::cout<<" tj "<<tj.ID<<" has no 2D vertex. Look for one vertex near "<<tj.CTP<<":"<<PrintPos(tjs, pos)<<" Events processed "<<tjs.EventsProcessed<<"\n";
+//          if(prt) std::cout<<" tj "<<tj.ID<<" has no 2D vertex. Look for one vertex near "<<tj.CTP<<":"<<PrintPos(tjs, pos)<<" Events processed "<<tjs.EventsProcessed<<"\n";
         } else {
           // Existing 2D vertex matched to the 3D vertex
-          if(prt) std::cout<<" tj "<<tj.ID<<" has no 2D vertex in CTP "<<tj.CTP<<" but vx3 is matched to 2D vertex"<<vx3.Vx2ID[plane]<<". Attach it? Events processed "<<tjs.EventsProcessed<<"\n";
+//          if(prt) std::cout<<" tj "<<tj.ID<<" has no 2D vertex in CTP "<<tj.CTP<<" but vx3 is matched to 2D vertex"<<vx3.Vx2ID[plane]<<". Attach it? Events processed "<<tjs.EventsProcessed<<"\n";
         }
       }
     } // tjid
@@ -1743,7 +1734,6 @@ namespace tca {
         TrajIntersection(vxTp[itj], vxTp[jtj], p0, p1);
         intTp.Pos[0] = p0; intTp.Pos[1] = p1;
         wgt = 1;
-//        if(prt) std::cout<<itj<<" "<<jtj<<" "<<std::fixed<<std::setprecision(1)<<p0<<" "<<p1<<" "<<wgt<<"\n";
         // accumulate
         sum0 += wgt * p0; sum02 += wgt * p0 * p0; 
         sum1 += wgt * p1; sum12 += wgt * p1 * p1; sumw += wgt; ++cnt;
@@ -1755,7 +1745,6 @@ namespace tca {
         intTp.Pos[0] = p0; intTp.Pos[1] = p1;
         // adjust the weight for 4 points at +/1 1 sigma = 0.607 / 4
         wgt = 0.152;
-//        if(prt) std::cout<<itj<<" "<<jtj<<" "<<std::fixed<<std::setprecision(1)<<p0<<" "<<p1<<" "<<wgt<<"\n";
         // accumulate
         sum0 += wgt * p0; sum02 += wgt * p0 * p0; 
         sum1 += wgt * p1; sum12 += wgt * p1 * p1; sumw += wgt; ++cnt;
@@ -1764,7 +1753,6 @@ namespace tca {
         tmp.Ang -= 2 * tmp.AngErr;
         tmp.Dir[0] = cos(tmp.Ang); tmp.Dir[1] = sin(tmp.Ang);
         TrajIntersection(tmp, vxTp[jtj], p0, p1);
-///        if(prt) std::cout<<itj<<" "<<jtj<<" "<<std::fixed<<std::setprecision(1)<<p0<<" "<<p1<<" "<<wgt<<"\n";
         intTp.Pos[0] = p0; intTp.Pos[1] = p1;
         // accumulate
         sum0 += wgt * p0; sum02 += wgt * p0 * p0; 
@@ -1775,7 +1763,6 @@ namespace tca {
         tmp.Ang += tmp.AngErr;
         tmp.Dir[0] = cos(tmp.Ang); tmp.Dir[1] = sin(tmp.Ang);
         TrajIntersection(vxTp[itj], tmp, p0, p1);
-//        if(prt) std::cout<<itj<<" "<<jtj<<" "<<std::fixed<<std::setprecision(1)<<p0<<" "<<p1<<" "<<wgt<<"\n";
         intTp.Pos[0] = p0; intTp.Pos[1] = p1;
         // accumulate
         sum0 += wgt * p0; sum02 += wgt * p0 * p0; 
@@ -1785,7 +1772,6 @@ namespace tca {
         tmp.Ang -= 2 * tmp.AngErr;
         tmp.Dir[0] = cos(tmp.Ang); tmp.Dir[1] = sin(tmp.Ang);
         TrajIntersection(vxTp[itj], tmp, p0, p1);
-//        if(prt) std::cout<<itj<<" "<<jtj<<" "<<std::fixed<<std::setprecision(1)<<p0<<" "<<p1<<" "<<wgt<<"\n";
         intTp.Pos[0] = p0; intTp.Pos[1] = p1;
         // accumulate
         sum0 += wgt * p0; sum02 += wgt * p0 * p0; 
@@ -1795,7 +1781,6 @@ namespace tca {
     
     if(sumw == 0) return false;
     
-//    if(prt) std::cout<<" sum0 "<<(int)sum0<<" "<<sumw<<"\n";
     double vxP0 = sum0 / sumw;
     double vxP1 = sum1 / sumw;
     double vxP0rms = sqrt((sum02 - sumw * vxP0 * vxP0) / sumw);
@@ -1803,7 +1788,6 @@ namespace tca {
     double rootN = sqrt(cnt);
     vxP0rms /= rootN;
     vxP1rms /= rootN;
-//    if(prt) std::cout<<"done "<<std::fixed<<std::setprecision(1)<<vxP0<<" "<<vxP0rms<<" "<<vxP1<<" "<<vxP1rms<<"\n";
     // don't let the errors get too small
     if(vxP0rms < 0.5) vxP0rms = 0.5;
     if(vxP1rms < 0.5) vxP1rms = 0.5;
@@ -2149,7 +2133,6 @@ namespace tca {
       sum /= cnt;
       tjScore = tjs.VertexScoreWeights[3] * sum;
     }
-//    std::cout<<" vpe "<<vpeScore<<" m3d "<<m3DScore<<" cf "<<cfScore<<" tj "<<tjScore<<"\n";
     vx2.Score = vpeScore + m3DScore + cfScore + tjScore;
     if(prt) {
       // last call after vertices have been matched to the truth. Use to optimize VertexScoreWeights using
