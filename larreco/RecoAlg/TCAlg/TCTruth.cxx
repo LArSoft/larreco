@@ -469,7 +469,7 @@ namespace tca {
       myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx";
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<PrimVtx[ixyz];
       myprt<<" Reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<" Correct? "<<neutrinoVxCorrect<<"\n";
-      myprt<<"mcpIndex   PDG    momIndex    KE _________Dir___________       Process         TrajectoryExtentInPlane_nTruHits \n";
+      myprt<<"mcpIndex   PDG  momIndex    KE _________Dir___________       Process         TrajectoryExtentInPlane_nTruHits \n";
       for(auto mcpIndex : mcpSelect) {
         auto& mcp = tjs.MCPartList[mcpIndex];
         // Kinetic energy in MeV
@@ -496,7 +496,8 @@ namespace tca {
           for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
             CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
             auto mcpHits = PutMCPHitsInVector(mcpIndex, inCTP);
-            if(mcpHits.size() < 3) continue;
+            if(mcpHits.empty()) continue;
+//            if(mcpHits.size() < 3) continue;
             myprt<<" "<<PrintHitShort(tjs.fHits[mcpHits[0]])<<"-"<<PrintHitShort(tjs.fHits[mcpHits[mcpHits.size() - 1]]);
             myprt<<"_"<<mcpHits.size();
           } // plane
@@ -693,6 +694,7 @@ namespace tca {
     
     unsigned int tpc = inTPCID.TPC;
     unsigned int cstat = inTPCID.Cryostat;
+    
     // get the hits associated with all MCParticles in mcpSelect
     std::vector<std::vector<unsigned int>> mcpHits(mcpSelect.size());
     for(unsigned short isel = 0; isel < mcpSelect.size(); ++isel) {
@@ -737,19 +739,26 @@ namespace tca {
         ++EPCnts[pdgIndex];
         CTP_t inCTP = EncodeCTP(cstat, tpc, plane);
         unsigned short mtj = USHRT_MAX;
-        unsigned short maxShared = 0;
+        float maxEP = 0;
         for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
           // No hits in this TPC and plane
           if(tjHits[itj].empty()) continue;
           auto& tj = tjs.allTraj[itj];
           // wrong CTP?
           if(tj.CTP != inCTP) continue;
-          // already matched?
-          if(tj.MCPartListIndex != UINT_MAX) continue;
           // make a list of hits that are common
           auto shared = SetIntersection(mcpPlnHits, tjHits[itj]);
-          if(shared.size() > maxShared) {
-            maxShared = shared.size();
+          if(shared.empty()) continue;
+          float eff = (float)shared.size() / (float)mcpPlnHits.size();
+          float pur = (float)shared.size() / (float)tjHits[itj].size();
+          float ep = eff * pur;
+          // Replace a previously made poorer match with a better one?
+          if(tj.MCPartListIndex != UINT_MAX && ep > tj.EffPur) {
+            tj.EffPur = ep;
+            tj.MCPartListIndex = mcpIndex;
+          }
+          if(ep > maxEP) {
+            maxEP = ep;
             mtj = itj;
           }
         } // itj
@@ -767,10 +776,10 @@ namespace tca {
           }
           continue;
         } // match failed
-        float eff = (float)maxShared / (float)mcpPlnHits.size();
-        float pur = (float)maxShared / (float)tjHits[mtj].size();
         auto& tj = tjs.allTraj[mtj];
-        tj.EffPur = eff * pur;
+        // don't clobber a better match
+        if(maxEP < tj.EffPur) continue;
+        tj.EffPur = maxEP;
         tj.MCPartListIndex = mcpIndex;
         EPTSums[pdgIndex] += TMeV * tj.EffPur;
         hist.fEP_T[pdgIndex]->Fill(TMeV, tj.EffPur);
@@ -809,8 +818,9 @@ namespace tca {
     // match them up
     for(unsigned short isel = 0; isel < mcpSelect.size(); ++isel) {
       unsigned short mpfp = USHRT_MAX;
-      unsigned short maxShared = 0;
+      float maxEP = 0;
       unsigned int mcpIndex = mcpSelect[isel];
+      if(mcpHits[isel].empty()) continue;
       auto& mcp = tjs.MCPartList[mcpIndex];
       float TMeV = 1000 * (mcp->E() - mcp->Mass());
       MCP_TSum += TMeV;
@@ -823,12 +833,20 @@ namespace tca {
         if(pfp.ID == 0) continue;
         // in the right TPCID?
         if(pfp.TPCID != inTPCID) continue;
+        // not enough hits?
         if(pfpHits[ipfp].empty()) continue;
-        // already matched?
-        if(pfp.MCPartListIndex != UINT_MAX) continue;
         auto shared = SetIntersection(mcpHits[isel], pfpHits[ipfp]);
-        if(shared.size() > maxShared) {
-          maxShared = shared.size();
+        if(shared.empty()) continue;
+        float eff = (float)shared.size() / (float)mcpHits[isel].size();
+        float pur = (float)shared.size() / (float)pfpHits[ipfp].size();
+        float ep = eff * pur;
+        // Replace a previously made poorer match with a better one?
+        if(pfp.MCPartListIndex != UINT_MAX && ep > pfp.EffPur) {
+          pfp.EffPur = ep;
+          pfp.MCPartListIndex = mcpIndex;
+        }
+        if(ep > maxEP) {
+          maxEP = ep;
           mpfp = ipfp;
         }
       } // ipfp
@@ -845,15 +863,13 @@ namespace tca {
         } // TMeV > 30
         continue;
       }
-      float eff = (float)maxShared / (float)mcpHits[isel].size();
-      float pur = (float)maxShared / (float)pfpHits[mpfp].size();
-      float ep = eff * pur;
       auto& pfp = tjs.pfps[mpfp];
-      pfp.EffPur = ep;
+      if(maxEP < pfp.EffPur) continue;
+      pfp.EffPur = maxEP;
       pfp.MCPartListIndex = mcpIndex;
-      MCP_EPTSum += TMeV * ep;
+      MCP_EPTSum += TMeV * maxEP;
       ++MCP_PFP_Cnt;
-      if(longMCP && ep > 0.8) ++nGoodLongMCP;
+      if(longMCP && maxEP > 0.8) ++nGoodLongMCP;
     } // isel
     
     MCP_Cnt += mcpSelect.size();
