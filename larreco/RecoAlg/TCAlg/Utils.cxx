@@ -73,7 +73,7 @@ namespace tca {
         // Temp? Check for an existing parentID
         auto& tj = tjs.allTraj[tjid - 1];
         if(tj.ParentID != -1) {
-          std::cout<<"**** Tj "<<tj.ID<<" Existing parent "<<tj.ParentID<<" PDGCode "<<tj.PDGCode<<". with a vertex... \n";
+//          std::cout<<"**** Tj "<<tj.ID<<" Existing parent "<<tj.ParentID<<" PDGCode "<<tj.PDGCode<<". with a vertex... \n";
           tj.ParentID = -1;
         }
         if(std::find(masterlist.begin(), masterlist.end(), tjid) == masterlist.end()) masterlist.push_back(tjid);
@@ -115,7 +115,7 @@ namespace tca {
     neutrinoPFP.Vx3ID[0] = vx3.ID;
     // the rest of this will be defined later
     if(!StorePFP(tjs, neutrinoPFP)) {
-      std::cout<<"DefineTjParents: Failed to store the neutrino PFParticle\n";
+//      std::cout<<"DefineTjParents: Failed to store the neutrino PFParticle\n";
       return;
     }
     // a temp vector to ensure that we only consider a vertex once
@@ -154,7 +154,7 @@ namespace tca {
             if(dtrID == primTjID) continue;
             auto& dtj = tjs.allTraj[dtrID - 1];
             if(dtj.ParentID != -1) {
-              std::cout<<"DTP Error: dtr "<<dtrID<<" already has a parent "<<dtj.ParentID<<". Can't make it daughter of "<<primTjID<<"\n";
+//              std::cout<<"DTP Error: dtr "<<dtrID<<" already has a parent "<<dtj.ParentID<<". Can't make it daughter of "<<primTjID<<"\n";
               continue;
             }
             pardtr.push_back(std::make_pair(primTjID, dtrID));
@@ -212,14 +212,11 @@ namespace tca {
         if(pardtr.empty()) break;
       } // nit
     } // indx
-    if(!pardtr.empty()) {
-      std::cout<<"DefineTjParents: pardtr isn't empty...\n";
-    }
     // check the master list
     for(auto tjid : masterlist) {
       auto& tj = tjs.allTraj[tjid - 1];
       if(tj.ParentID < 0) {
-        std::cout<<"Tj "<<tj.ID<<" is in the master list but doesn't have a Parent\n";
+//        std::cout<<"Tj "<<tj.ID<<" is in the master list but doesn't have a Parent\n";
         tj.ParentID = tj.ID;
       }
     } // tjid
@@ -1416,7 +1413,6 @@ namespace tca {
           ++npwc;
           if(std::abs(tp.Pos[0] - ptp.Pos[0]) < 1.5) ++nadj;
         }
-//        std::cout<<" "<<PrintPos(tjs, ptp.Pos)<<"_"<<(int)ptp.Chg<<" "<<PrintPos(tjs, tp.Pos)<<"_"<<(int)tp.Chg<<"\n";
       } // ipt
       float ntpwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], lastPt);
       float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[lastPt].Pos[0]) + 1;
@@ -1794,8 +1790,6 @@ namespace tca {
     if(pdg == 321) return 3; // kaon
     if(pdg == 2212) return 4; // proton
     
-//    std::cout<<"PDGCodeIndex: unknown code "<<PDGCode<<"\n";
-    
     return USHRT_MAX;
     
   } // PDGCodeIndex
@@ -1873,19 +1867,16 @@ namespace tca {
       if(tids.empty()) continue;
       // find the max count for Tjs that are longer than this one
       unsigned short maxcnt = 0;
-      unsigned short ltjID = 0;
       for(unsigned short indx = 0; indx < tids.size(); ++indx) {
         if(tcnt[indx] > maxcnt) {
           auto& ltj = tjs.allTraj[tids[indx] - 1];
           unsigned short lpts = ltj.EndPt[1] - ltj.EndPt[0];
           if(lpts < spts) continue;
           maxcnt = tcnt[indx];
-          ltjID = tids[indx];
         }
       } // indx
       float hitFrac = (float)maxcnt / (float)tjhits.size();
       if(hitFrac < 0.1) continue;
-      std::cout<<"MergeGhostTjs: tj "<<shortTj.ID<<" ghost of "<<ltjID<<"?  cnt "<<maxcnt<<" hitFrac "<<hitFrac<<"\n";
     } // shortTj
   } // MergeGhostTjs
   
@@ -2425,7 +2416,7 @@ namespace tca {
     tp.Hits.clear();
     tp.UseHit.reset();
     if(!WireHitRangeOK(tjs, tp.CTP)) {
-      std::cout<<"FindCloseHits: WireHitRange not valid for CTP "<<tp.CTP<<". tjs.WireHitRange Cstat "<<tjs.TPCID.Cryostat<<" TPC "<<tjs.TPCID.TPC<<"\n";
+//      std::cout<<"FindCloseHits: WireHitRange not valid for CTP "<<tp.CTP<<". tjs.WireHitRange Cstat "<<tjs.TPCID.Cryostat<<" TPC "<<tjs.TPCID.TPC<<"\n";
       return false;
     }
     
@@ -2592,6 +2583,7 @@ namespace tca {
   {
     // reverse the trajectory
     if(tj.Pts.empty()) return;
+/*
     if(tj.AlgMod[kMat3D]) {
       std::cout<<"Trying to reverse 3D matched Tj "<<tj.ID<<". Need to modify other Tjs and the MatchStruct\n";
       return;
@@ -2600,6 +2592,7 @@ namespace tca {
       std::cout<<"Trying to reverse Tj "<<tj.ID<<" whose direction has been set. Not doing it.\n";
       return;
     }
+*/
     // reverse the crawling direction flag
     tj.StepDir = -tj.StepDir;
     // Vertices
@@ -2745,9 +2738,11 @@ namespace tca {
     if(tj.AlgMod[kJunkTj]) return 0;
         
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
-    if(tjLen == 0) return 0;
+    if(tjLen < 1) return 0;
     // mom calculated in MeV
-    double mom = 13.8 * sqrt(tjLen / 14) / MCSThetaRMS(tjs, tj, firstPt, lastPt);
+    double thetaRMS = MCSThetaRMS(tjs, tj, firstPt, lastPt);
+    if(thetaRMS < 0.001) return 999;
+    double mom = 13.8 * sqrt(tjLen / 14) / thetaRMS;
     if(mom > 999) mom = 999;
     return (short)mom;
   } // MCSMom
@@ -2933,7 +2928,8 @@ namespace tca {
         dtj.AlgMod[kDeltaRay] = true;
         // Set the start of the delta-ray to be end 0
         if(oend != 1) ReverseTraj(tjs, dtj);
-        dtj.AlgMod[kSetDir] = true;
+        // allow it to be swapped later however
+//        dtj.AlgMod[kSetDir] = true;
       } // jtj
     } // itj
     
@@ -2975,7 +2971,7 @@ namespace tca {
       } else {
         if(muTj.StepDir > 0) ReverseTraj(tjs, muTj);
       }
-      muTj.AlgMod[kSetDir] = true;
+//      muTj.AlgMod[kSetDir] = true;
     } // itj
   } // TagMuonDirections
   
@@ -3366,18 +3362,15 @@ namespace tca {
         unsigned int lastHit = tjs.WireHitRange[ipl][wire].second;
         if(lastHit > tjs.fHits.size()) {
           mf::LogWarning("TC")<<"CheckWireHitRange: Invalid lastHit "<<lastHit<<" > fHits.size "<<tjs.fHits.size()<<" in plane "<<ipl;
-          std::cout<<"CheckWireHitRange: Invalid lastHit "<<lastHit<<" > fHits.size "<<tjs.fHits.size()<<" in plane "<<ipl<<"\n";
           return false;
         }
         for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
           if(tjs.fHits[iht].ArtPtr->WireID().Plane != ipl) {
             mf::LogWarning("TC")<<"CheckWireHitRange: Invalid plane "<<tjs.fHits[iht].ArtPtr->WireID().Plane<<" != "<<ipl;
-            std::cout<<"CheckWireHitRange: Invalid plane "<<tjs.fHits[iht].ArtPtr->WireID().Plane<<" != "<<ipl<<"\n";
             return false;
           }
           if(tjs.fHits[iht].ArtPtr->WireID().Wire != wire) {
             mf::LogWarning("TC")<<"CheckWireHitRange: Invalid wire "<<tjs.fHits[iht].ArtPtr->WireID().Wire<<" != "<<wire<<" in plane "<<ipl;
-            std::cout<<"CheckWireHitRange: Invalid wire "<<tjs.fHits[iht].ArtPtr->WireID().Wire<<" != "<<wire<<" in plane "<<ipl<<"\n";
             return false;
           }
         } // iht
@@ -3418,7 +3411,7 @@ namespace tca {
     unsigned short pfp2 = GetPFPIndex(tjs, tjs.allTraj[itj2].ID);
     if(pfp1 == USHRT_MAX || pfp2 == USHRT_MAX) {
       if(pfp1 != USHRT_MAX && pfp2 != USHRT_MAX) {
-        std::cout<<"MAS: Both tjs are used in a PFParticle. Need PFParticle merging code to do this. pfps size "<<tjs.pfps.size()<<"\n";
+//        std::cout<<"MAS: Both tjs are used in a PFParticle. Need PFParticle merging code to do this. pfps size "<<tjs.pfps.size()<<"\n";
         return false;
       }
       // Swap so that the order of tj1 is preserved. Tj2 may be reversed to be consistent
@@ -3559,7 +3552,6 @@ namespace tca {
       return false;
     }
     if(tj2.VtxID[1] > 0) {
-//      std::cout<<"MAS: Preserve vertex "<<tj2.VtxID[1]<<" merging "<<tj1.ID<<" and "<<tj2.ID<<" \n";
       // move the end vertex of tj2 to the end of tj1
       tj1.VtxID[1] = tj2.VtxID[1];
     }   
@@ -3740,6 +3732,10 @@ namespace tca {
           myprt<<"B";
         } else if(aTj.StopFlag[0][kAtVtx]) {
           myprt<<"V";
+        } else if(aTj.StopFlag[0][kAtKink]) {
+          myprt<<"K";
+        } else if(aTj.StopFlag[0][kAtTj]) {
+          myprt<<"T";
         } else {
           myprt<<" ";
         }
@@ -3933,10 +3929,6 @@ namespace tca {
     } else {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         unsigned int iht = tp.Hits[ii];
-        if(iht > tjs.fHits.size() - 1) {
-          std::cout<<"crazy hit "<<iht<<" CTP "<<tp.CTP<<"\n";
-          continue;
-        }
         myprt<<" "<<tjs.fHits[iht].ArtPtr->WireID().Wire<<":"<<(int)tjs.fHits[iht].PeakTime;
         if(tp.UseHit[ii]) {
           // Distinguish used hits from nearby hits
