@@ -2668,6 +2668,9 @@ namespace tca {
       if(vx2.ID == 0) continue;
       if(vx2.Vx3ID == vx3.ID) vx2.Vx3ID = 0;
     } // vx2
+    for(auto& pfp : tjs.pfps) {
+      for(unsigned short end = 0; end < 2; ++end) if(pfp.Vx3ID[end] == vx3.ID) pfp.Vx3ID[end] = 0;
+    } // pfp
     vx3.ID = 0;
     return true;
     
