@@ -1665,11 +1665,6 @@ namespace tca {
         if(rmsRat < 1) rmsRat = 1 / rmsRat;
         doubletFOM *= rmsRat;
         if(prt) mf::LogVerbatim("TC")<<" doublet FOM "<<PointTrajDOCA(tjs, tp.Pos[0], doubletTime, tp)/doubletRMSTimeErr<<" doubletChgPull "<<doubletChgPull<<" rmsRat "<<rmsRat<<" doubletFOM "<<doubletFOM;
-        // Assume the doublet is best
-        if(tjs.fHits[bestDeltaHit].InTraj > 0 || tjs.fHits[otherHit].InTraj > 0) {
-          std::cout<<"Crap \n";
-          exit(1);
-        }
         if(doubletFOM < bestDeltaHitFOM && doubletFOM < otherHitFOM) {
           tp.UseHit[imbest] = true;
           tjs.fHits[bestDeltaHit].InTraj = tj.ID;
@@ -4004,7 +3999,6 @@ namespace tca {
     // fitted points to get FitCHi < 2
     
     fTryWithNextPass = false;
-    std::cout<<"PrepareForNextPass "<<tj.ID<<"\n";
 
     // See if there is another pass available
     if(tj.Pass > fMinPtsFit.size()-2) return;
@@ -5055,17 +5049,6 @@ namespace tca {
           // skip checking
           continue;
         }
-        // check the first hit
-        if(tjs.fHits[firstHit].ArtPtr->WireID().Plane != ipl || tjs.fHits[firstHit].ArtPtr->WireID().Wire != wire) {
-          std::cout<<"WireHitRange screwup on firstHit "<<tjs.fHits[firstHit].ArtPtr->WireID().Plane<<":"<<tjs.fHits[firstHit].ArtPtr->WireID().Wire;
-          std::cout<<" != "<<ipl<<":"<<wire<<"\n";
-          exit(1);
-        } // and the last hit
-        if(tjs.fHits[lastHit].ArtPtr->WireID().Plane != ipl || tjs.fHits[lastHit].ArtPtr->WireID().Wire != wire) {
-          std::cout<<"WireHitRange screwup on lastHit "<<tjs.fHits[lastHit].ArtPtr->WireID().Plane<<":"<<tjs.fHits[lastHit].ArtPtr->WireID().Wire;
-          std::cout<<" != "<<ipl<<":"<<wire<<"\n";
-          exit(1);
-        } // error checking
       } // wire
     } // ipl
     
@@ -5176,7 +5159,7 @@ namespace tca {
     
     // this shouldn't be possible
     if(newHitIndex == UINT_MAX) {
-      std::cout<<"CreateHit: Failed to find newHitIndex for new hit "<<PrintHit(tcHit)<<"\n";
+//      std::cout<<"CreateHit: Failed to find newHitIndex for new hit "<<PrintHit(tcHit)<<"\n";
       return newHitIndex;
     }
     
@@ -5200,6 +5183,7 @@ namespace tca {
       if(tjs.WireHitRange[newHitPlane][wire].first < 0) continue;
       ++tjs.WireHitRange[newHitPlane][wire].first;
       ++tjs.WireHitRange[newHitPlane][wire].second;
+/*
       // check the hits
       int firstHit = tjs.WireHitRange[newHitPlane][wire].first;
       int lastHit = tjs.WireHitRange[newHitPlane][wire].second - 1;
@@ -5213,6 +5197,7 @@ namespace tca {
         std::cout<<" != "<<newHitPlane<<":"<<wire<<"\n";
         exit(1);
       } // error checking
+*/
     } // wire
     
     // correct the hit ranges for the later planes
@@ -5245,13 +5230,13 @@ namespace tca {
       for(auto& tp : tj.Pts) {
         for(unsigned short iht = 0; iht < tp.Hits.size(); ++iht) {
           if(tp.Hits[iht] >= newHitIndex) ++tp.Hits[iht];
-          
+/*
           if(tp.Hits.size() == 1 && tp.Chg > 0 && tjs.fHits[tp.Hits[iht]].ArtPtr->WireID().Wire != std::nearbyint(tp.Pos[0])) {
             std::cout<<"  Create index problem tj.ID "<<tj.ID<<" iht "<<iht<<" newHitIndex "<<newHitIndex;
             std::cout<<" hit "<<PrintHit(tjs.fHits[tp.Hits[iht]])<<" Pos "<<PrintPos(tjs, tp)<<"\n";
             exit(1);
           }
-          
+*/
         } // iht
       } // tp
     }
@@ -5830,7 +5815,7 @@ namespace tca {
       // between the fHits index and the ArtPtr key. We will rely on this correspondence
       // later when associating space points with trajectories
       if(iht != tjs.fHits[iht].ArtPtr.key()) {
-        std::cout<<"Hit order was changed after sorting. Turned off matching using SpacePoints.\n";
+//        std::cout<<"Hit order was changed after sorting. Turned off matching using SpacePoints.\n";
         tjs.UseAlg[kHitsOrdered] = false;
       }
       if(tjs.fHits[iht].Multiplicity < 2) continue;
@@ -5867,7 +5852,7 @@ namespace tca {
     } // ipart
     
     if(tjs.MCPartList.size() > USHRT_MAX) {
-      std::cout<<"MCPartList size "<<tjs.MCPartList.size()<<" too large. Truncated to USHRT_MAX.\n";
+//      std::cout<<"MCPartList size "<<tjs.MCPartList.size()<<" too large. Truncated to USHRT_MAX.\n";
       tjs.MCPartList.resize(USHRT_MAX);
     }
     
