@@ -1392,6 +1392,7 @@ namespace tca {
     
     // set the start and end positions on any call
     for(unsigned short startend = 0; startend < 2; ++startend) {
+      if(pfp.Vx3ID[startend] > tjs.vtx3.size()) pfp.Vx3ID[startend] = 0;
       if(pfp.Vx3ID[startend] > 0) {
         // 3D vertex exists
         auto& vx3 = tjs.vtx3[pfp.Vx3ID[startend] - 1];
@@ -1479,6 +1480,7 @@ namespace tca {
       auto& tj = tjs.allTraj[tjid - 1];
       for(unsigned short end = 0; end < 2; ++end) {
         if(tj.VtxID[end] == 0) continue;
+        if(tj.VtxID[end] > tjs.vtx.size()) continue;
         // ignore 3D matched vertices at the ends of the pfp
         auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
         if(vx2.Vx3ID > 0) {
