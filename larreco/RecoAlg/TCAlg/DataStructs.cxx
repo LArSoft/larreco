@@ -2,6 +2,7 @@
 
 namespace tca {
   const std::vector<std::string> AlgBitNames {
+    "HitsOrdered",
     "MaskHits",
     "MaskBadTPs",
     "Michel",
@@ -35,12 +36,14 @@ namespace tca {
     "MisdVxTj",
     "VtxTj",
     "ChkVxTj",
-    "RefVtx",
+    "Photon",
+    "NoFitToVx",
     "VxMerge",
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
     "ChkStopEP",
+    "ChkChgAsym",
     "FTBRvProp",
     "StopAtTj",
     "Mat3D",
@@ -49,9 +52,11 @@ namespace tca {
     "VtxHitsSwap",
     "SplitHiChgHits",
     "InShower",
+    "KillInShowerVx",
     "ShowerTj",
     "ShwrParent",
-    "ChkShwrParEnd",
+    "ChkShwrParEnd",  // Ensure that the end of a shower parent already inside a shower has an end near a shower end
+    "KillShwrNuPFP",  // Kill neutrino PFP particles with a vertex inside a shower
     "MergeOverlap",
     "MergeSubShowers",
     "MergeNrShowers",
@@ -65,7 +70,8 @@ namespace tca {
     "AtKink",
     "AtVtx",
     "Bragg",
-    "AtTj"
+    "AtTj",
+    "OutFV"
   };
   
   const std::vector<std::string> VtxBitNames {

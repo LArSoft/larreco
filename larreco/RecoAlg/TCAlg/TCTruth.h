@@ -31,21 +31,24 @@ namespace tca {
       MCP_TSum = 0;
       MCP_EPTSum = 0;
       MCP_Cnt = 0;
+      MCP_PFP_Cnt = 0;
       Prim_TSum = 0;
       Prim_EPTSum = 0;
-      PFP_CntMat = 0;
       PFP_Cnt = 0;
       nBadEP = 0;
+      nLongInPln = 0;
+      nLongMCP = 0;
+      nGoodLongMCP = 0;
    }
     
     void Initialize();
-    void MatchTrueHits(const HistStuff& hist);
+    void MatchTrueHits();
     void MatchTruth(const HistStuff& hist, bool fStudyMode);
-    void AccumulatePFPSums();
+    void MatchAndSum(const HistStuff& hist, const std::vector<unsigned int>& mcpSelect, const geo::TPCID& inTPCID);
     void PrintResults(int eventNum) const;
-    bool CanReconstruct(unsigned short mcpIndex, unsigned short nDimensions);
+    bool CanReconstruct(unsigned int mcpIndex, unsigned short nDimensions, const geo::TPCID& tpcid);
     // Put hits matched to a MCParticle in CTP into a vector
-    std::vector<unsigned int> PutMCPHitsInVector(unsigned short mcpIndex, CTP_t inCTP);
+    std::vector<unsigned int> PutMCPHitsInVector(unsigned int mcpIndex, CTP_t inCTP);
     
     TjStuff& tjs;
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons for Trajectories
@@ -56,14 +59,16 @@ namespace tca {
     float MCP_TSum;                // T sum of MCParticles that should be reconstructed in 3D
     float MCP_EPTSum;              // E*P weighted T sum of MCParticles that ARE reconstructed in 3D
     float MCP_Cnt;                 // Count of MCParticles that should be reconstructed in 3D
+    float MCP_PFP_Cnt;             // Count of MCParticles that are matched to a PFParticle
     float Prim_TSum;               // T sum of Primary MCParticles that should be reconstructed in 3D 
     float Prim_EPTSum;             // E*P weighted T sum of primary MCParticles that ARE reconstructed in 3D
-    float PFP_CntMat;              // Count of PFParticles that are matched to an MCParticle
     float PFP_Cnt;                 // Count of ALL PFParticles
     
-    float fNeutrinoEnergy;
-    float fSourceParticleEnergy; //< in MeV
-    unsigned short nBadEP;
+    unsigned short nBadEP;      // Number of MCParticles that have >= MatchTruth[3] hits in a plane  && EP < MatchTruth[2]
+    unsigned short nLongInPln;   // Number of MCParticles that have >= MatchTruth[3] hits in a plane
+    unsigned short nLongMCP;   // Number of MCParticles that have >= MatchTruth[3] hits
+    unsigned short nGoodLongMCP;   // Number of MCParticles that have >= 2 * MatchTruth[3] hits with EP > 0.8
+
     // Counts of:
     // [0] = the number of true neutrino interaction vertices in the fiducial volume
     // [1] = the number of those [0] that are reconstructable by TrajCluster
@@ -79,10 +84,11 @@ namespace tca {
 
     MCParticleListUtils(TjStuff& my_tjs) : tjs(my_tjs) {}
     TjStuff& tjs;
-    void MakeTruTrajPoint(unsigned short MCParticleListIndex, TrajPoint& tp);
-    unsigned short MCParticleStartTjID(unsigned short MCParticleListIndex, CTP_t inCTP);
-    unsigned short GetMCPartListIndex(const Trajectory& tj, unsigned short& nTruHits);
-    unsigned short GetMCPartListIndex(const ShowerStruct& ss, unsigned short& nTruHits);
+    void MakeTruTrajPoint(unsigned int MCParticleListIndex, TrajPoint& tp);
+    unsigned short MCParticleStartTjID(unsigned int MCParticleListIndex, CTP_t inCTP);
+    unsigned int GetMCPartListIndex(const TrajPoint& tp);
+    unsigned int GetMCPartListIndex(const Trajectory& tj, unsigned short& nTruHits);
+    unsigned int GetMCPartListIndex(const ShowerStruct& ss, unsigned short& nTruHits);
 
   }; // MCParticleListUtils class
 
