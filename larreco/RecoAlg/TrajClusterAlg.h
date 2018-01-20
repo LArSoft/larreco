@@ -122,8 +122,7 @@ namespace tca {
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
- 
-    std::vector<float> fMaxVertexTrajSep;
+    bool fUseOldBackTracker {false};
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
