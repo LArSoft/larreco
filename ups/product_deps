@@ -1,15 +1,15 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v06_50_00
+parent	larreco	v06_63_00_rc0
 defaultqual	e14
 #
 fcldir product_dir job
 #
 product         version
-larsim		v06_38_02
+larsim		v06_63_00_rc0
 eigen		v3_3_3
-nutools         v2_16_09
-tensorflow      v1_3_0a
+nutools         v2_17_01
+tensorflow      v1_3_0b
 
 cetbuildtools	v6_01_00	-	only_for_build
 end_product_list
@@ -17,9 +17,9 @@ end_product_list
   
 # e14  - with gcc 6.3.0 and -std=c++14
 qualifier     larsim     nutools    tensorflow        eigen	notes
-e14:debug     e14:debug  e14:debug  e14:p2713d:debug  -nq-
-e14:opt       e14:opt    e14:opt    e14:p2713d:opt    -nq-
-e14:prof      e14:prof   e14:prof   e14:p2713d:prof   -nq-
+e14:debug     e14:debug  e14:debug  e14:p2714:debug  -nq-
+e14:opt       e14:opt    e14:opt    e14:p2714:opt    -nq-
+e14:prof      e14:prof   e14:prof   e14:p2714:prof   -nq-
 end_qualifier_list
 
 # table fragment workaround for genie cling "error"
