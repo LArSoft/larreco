@@ -106,7 +106,6 @@ namespace tca {
     tjs.Vertex2DCuts      = pset.get< std::vector<float >>("Vertex2DCuts", {-1, -1, -1, -1, -1, -1, -1});
     tjs.Vertex3DCuts      = pset.get< std::vector<float >>("Vertex3DCuts", {-1, -1});
     tjs.VertexScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
-    fMaxVertexTrajSep     = pset.get< std::vector<float>>("MaxVertexTrajSep");
     tjs.Match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1, -1});
     fKalmanFilterFit      = pset.get< bool >("KalmanFilterFit", false);
     
@@ -125,10 +124,9 @@ namespace tca {
     
     // in the following section we ensure that the fcl vectors are appropriately sized so that later references are valid
     if(fMinPtsFit.size() != fMinPts.size()) badinput = true;
-    if(fMaxVertexTrajSep.size() != fMinPts.size()) badinput = true;
     if(fMaxAngleCode.size() != fMinPts.size()) badinput = true;
     if(fMinMCSMom.size() != fMinPts.size()) badinput = true;
-    if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxVertexTrajSep, MaxAngleRange and MinMCSMom should be defined for each reconstruction pass";
+    if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxAngleRange and MinMCSMom should be defined for each reconstruction pass";
     
     if(tjs.Vertex2DCuts.size() < 10) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 10\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = min ChgFrac at a vtx or merge point\n 9 = max MCSMom asymmetry";
     if(tjs.Vertex3DCuts.size() < 2)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size 2\n 0 = Max dX (cm)\n 1 = Max pull";
@@ -276,6 +274,7 @@ namespace tca {
       std::cout<<"\n";
     }
     tjs.EventsProcessed = 0;
+    fUseOldBackTracker = false;
    
   } // reconfigure
   
@@ -327,8 +326,6 @@ namespace tca {
         auto& hit = tjs.fHits[iht];
         if((int)hit.ArtPtr->WireID().Plane != debug.Plane) continue;
         if((int)hit.ArtPtr->WireID().Wire != debug.Wire) continue;
-//        if((int)tjs.fHits[iht].WireID.Plane != debug.Plane) continue;
-//        if((int)tjs.fHits[iht].WireID.Wire != debug.Wire) continue;
         if(tjs.fHits[iht].PeakTime < debug.Tick - 5) continue;
         if(tjs.fHits[iht].PeakTime > debug.Tick + 5) continue;
         debug.Hit = iht;
@@ -558,7 +555,6 @@ namespace tca {
           if(tjs.fHits[iht].InTraj != 0) continue;
           // We hope to make a trajectory point at the hit position of iht in WSE units
           // with a direction pointing to jht
-//          unsigned int fromWire = tjs.fHits[iht].WireID.Wire;
           unsigned int fromWire = tjs.fHits[iht].ArtPtr->WireID().Wire;
           float fromTick = tjs.fHits[iht].PeakTime;
           float iqtot = tjs.fHits[iht].Integral;
@@ -2347,61 +2343,7 @@ namespace tca {
     } // debug mode
 */
   } // EndMerge
-/*
-  //////////////////////////////////////////
-  void TrajClusterAlg::GetSpacePointCollection(const art::Event& evt)
-  {
-    // Finds a space point collection that is associated with the hit collection in TjStuff
-    
-    if(fSpacePointModuleLabel == "NA") return;
-    
-    art::ValidHandle<std::vector<recob::SpacePoint>> spVecHandle = evt.getValidHandle<std::vector<recob::SpacePoint>>(fSpacePointModuleLabel);
-    art::FindManyP<recob::Hit> spt_hit(spVecHandle, evt, fSpacePointModuleLabel);
-    if(spVecHandle->size() == 0) return;
-    tjs.spts.resize(spVecHandle->size());
-    bool first = true;
-    for(unsigned int isp = 0; isp < spVecHandle->size(); ++isp) {
-      // local space point
-      auto& lspt = tjs.spts[isp];
-      // event space point
-      art::Ptr<recob::SpacePoint> espt = art::Ptr<recob::SpacePoint>(spVecHandle, isp);
-      lspt.Pos[0] = espt->XYZ()[0];
-      lspt.Pos[1] = espt->XYZ()[1];
-      lspt.Pos[2] = espt->XYZ()[2];
-      // put the hit indices into SptStruct Hits
-      std::vector<art::Ptr<recob::Hit> > spHits;
-      spt_hit.get(isp, spHits);
-      if(spHits.size() < 2) continue;
-      for(auto sphit : spHits) {
-        // the Ptr key() is the index into the hits collection
-        if(sphit.key() < 0 || sphit.key() > tjs.fHits.size() - 1) {
-          mf::LogVerbatim("TC")<<"GSPC: Bad art Ptr key. Reverting to old matching code";
-          tjs.spts.clear();
-          return;
-        }
-        auto& tchit = tjs.fHits[sphit.key()];
-        // make a simple check
-        if(tchit.PeakTime != sphit->PeakTime()) {
-          mf::LogVerbatim("TC")<<"GSPC: Hit indexing error. Reverting to old matching code";
-          tjs.spts.clear();
-          return;
-        }
-        // compare the first space point hit with the first hit in fHits to confirm that they
-        // have the same product id
-        if(first) {
-          if(sphit.id() != tjs.fHits[0].ArtPtr.id()) {
-            mf::LogVerbatim("TC")<<"GSPC: SpacePointModuleLabel and HitFinderModuleLabel reference a different hit collection. Reverting to old code";
-            tjs.spts.clear();
-            return;
-          }
-          first = false;
-        }
-        lspt.Hits[sphit->WireID().Plane] = sphit.key();
-        lspt.TPC = sphit->WireID().TPC;
-      } // hit
-    } // isp
-  } // GetSpacePointCollection
-*/
+
   //////////////////////////////////////////
   void TrajClusterAlg::KalmanFilterFit(PFPStruct& pfp)
   {
@@ -5851,15 +5793,28 @@ namespace tca {
       tjs.MCPartList.push_back((*ipart).second);
     } // ipart
     
-    if(tjs.MCPartList.size() > USHRT_MAX) {
-//      std::cout<<"MCPartList size "<<tjs.MCPartList.size()<<" too large. Truncated to USHRT_MAX.\n";
-      tjs.MCPartList.resize(USHRT_MAX);
+    if(tjs.MCPartList.size() > USHRT_MAX) tjs.MCPartList.resize(USHRT_MAX);
+    
+    if(fUseOldBackTracker) {
+      tm.MatchTrueHits();
+      return;
     }
     
     art::FindMany<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(hitVecHandle, evt, fHitTruthModuleLabel);
     std::vector<simb::MCParticle const*> particle_vec;
     std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
-
+    
+    // check for the existence of BackTrackerHitMatchingData
+    try{
+      particles_per_hit.get(0, particle_vec, match_vec);
+    }
+    catch(...){
+      fUseOldBackTracker = true;
+    }
+    if(fUseOldBackTracker) {
+      tm.MatchTrueHits();
+      return;
+    }
     // associate a hit with a MCParticle > 50% of the deposited energy is from it
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       particle_vec.clear(); match_vec.clear();
