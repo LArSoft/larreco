@@ -105,8 +105,8 @@ namespace tca {
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       std::vector<sim::TrackIDE> ides;
       auto& tcHit = tjs.fHits[iht];
+      raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel(cHit.ArtPtr->WireID());
       geo::PlaneID planeID = geo::PlaneID(tcHit.ArtPtr->WireID().Cryostat, tcHit.ArtPtr->WireID().TPC, tcHit.ArtPtr->WireID().Plane);
-      raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel((int)tcHit.ArtPtr->WireID().Plane, (int)tcHit.ArtPtr->WireID().Wire, (int)tcHit.ArtPtr->WireID().TPC, (int)tcHit.ArtPtr->WireID().Cryostat);
       auto rhit = recob::Hit(channel,
                              tcHit.StartTick, tcHit.EndTick,
                              tcHit.PeakTime, tcHit.SigmaPeakTime,
