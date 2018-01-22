@@ -1360,7 +1360,7 @@ namespace tca {
   } // CheckTrajBeginChg
   
   //////////////////////////////////////////
-  void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
+  void TrimEndPts(std::string fcnLabel, TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
   {
     // Trim the hits off the end until there are at least fMinPts consecutive hits at the end
     // and the fraction of hits on the trajectory exceeds fQualityCuts[0]
@@ -1417,18 +1417,24 @@ namespace tca {
       float ntpwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], lastPt);
       float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[lastPt].Pos[0]) + 1;
       float hitFrac = ntpwc / nwires;
-      if(prt) mf::LogVerbatim("TC")<<"TEP: ID "<<tj.ID<<" lastPt "<<lastPt<<" npwc "<<npwc<<" nadj "<<nadj<<" hitFrac "<<hitFrac;
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: ID "<<tj.ID<<" lastPt "<<lastPt<<" npwc "<<npwc<<" nadj "<<nadj<<" hitFrac "<<hitFrac;
       if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj == minPts) break;
     } // lastPt
     
     // Nothing needs to be done
-    if(lastPt == tj.EndPt[1]) return;
+    if(lastPt == tj.EndPt[1]) {
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"-TEPo: Tj is OK";
+      return;
+    }
     
     // clear the points after lastPt
     for(unsigned short ipt = lastPt + 1; ipt <= tj.EndPt[1]; ++ipt) UnsetUsedHits(tjs, tj.Pts[ipt]);
     SetEndPoints(tjs, tj);
     tj.AlgMod[kTEP] = true;
-    if(prt) PrintTrajectory("TEPo", tjs, tj, USHRT_MAX);
+    if(prt) {
+      fcnLabel += "-TEPo";
+      PrintTrajectory(fcnLabel, tjs, tj, USHRT_MAX);
+    }
     
   } // TrimEndPts
 
