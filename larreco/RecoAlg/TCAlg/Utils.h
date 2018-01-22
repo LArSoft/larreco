@@ -73,7 +73,7 @@ namespace tca {
   void UpdateChgRMS(TjStuff& tjs, Trajectory& tj);
   bool InTrajOK(TjStuff& tjs, std::string someText);
   void CheckTrajBeginChg(TjStuff& tjs, unsigned short itj, bool prt);
-  void TrimEndPts(TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
+  void TrimEndPts(std::string fcnLabel, TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
   void ChkChgAsymmetry(TjStuff& tjs, Trajectory& tj, bool prt);
   bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt);
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
