@@ -151,8 +151,8 @@ private:
     // still may look track-like)
     template <size_t N> int getPdgFromCnnOnHits(const art::Event& evt, const pma::Track3D& trk) const;
 
-    // convert to LArSoft's cosmic tag type
-    anab::CosmicTagID_t getCosmicTag(const pma::Track3D::ETag pmaTag) const;
+    // convert to a vector of LArSoft's cosmic tags
+    std::vector<anab::CosmicTagID_t> getCosmicTag(const pma::Track3D::ETag pmaTag) const;
 
 	// ******************** fcl parameters **********************
 	art::InputTag fHitModuleLabel;  // tag for hits collection (used for trk validation)
@@ -303,21 +303,22 @@ bool PMAlgTrackMaker::init(const art::Event & evt, pma::PMAlgTracker & pmalgTrac
     return true;
 }
 
-anab::CosmicTagID_t PMAlgTrackMaker::getCosmicTag(const pma::Track3D::ETag pmaTag) const
+std::vector<anab::CosmicTagID_t> PMAlgTrackMaker::getCosmicTag(const pma::Track3D::ETag pmaTag) const
 {
-    anab::CosmicTagID_t anabTag;
+    std::vector<anab::CosmicTagID_t> anabTags;
     
-    if      (pmaTag & pma::Track3D::kOutsideDrift_Partial)  { anabTag = anab::CosmicTagID_t::kOutsideDrift_Partial;   }
-    else if (pmaTag & pma::Track3D::kOutsideDrift_Complete) { anabTag = anab::CosmicTagID_t::kOutsideDrift_Complete;  }
-    else if (pmaTag & pma::Track3D::kBeamIncompatible)      { anabTag = anab::CosmicTagID_t::kFlash_BeamIncompatible; }
-    else if (pmaTag & pma::Track3D::kGeometry_XX)           { anabTag = anab::CosmicTagID_t::kGeometry_XX;            }
-    else if (pmaTag & pma::Track3D::kGeometry_YY)           { anabTag = anab::CosmicTagID_t::kGeometry_YY;            }
-    else if (pmaTag & pma::Track3D::kGeometry_ZZ)           { anabTag = anab::CosmicTagID_t::kGeometry_ZZ;            }
-    else if (pmaTag & pma::Track3D::kGeometry_YZ)           { anabTag = anab::CosmicTagID_t::kGeometry_YZ;            }
-    else if (pmaTag & pma::Track3D::kGeometry_Y)            { anabTag = anab::CosmicTagID_t::kGeometry_Y;             }
-    else                                                    { anabTag = anab::CosmicTagID_t::kUnknown;                }
+    if (pmaTag & pma::Track3D::kOutsideDrift_Partial)  { anabTags.push_back(anab::CosmicTagID_t::kOutsideDrift_Partial);   }
+    if (pmaTag & pma::Track3D::kOutsideDrift_Complete) { anabTags.push_back(anab::CosmicTagID_t::kOutsideDrift_Complete);  }
+    if (pmaTag & pma::Track3D::kBeamIncompatible)      { anabTags.push_back(anab::CosmicTagID_t::kFlash_BeamIncompatible); }
+    if (pmaTag & pma::Track3D::kGeometry_XX)           { anabTags.push_back(anab::CosmicTagID_t::kGeometry_XX);            }
+    if (pmaTag & pma::Track3D::kGeometry_YY)           { anabTags.push_back(anab::CosmicTagID_t::kGeometry_YY);            }
+    if (pmaTag & pma::Track3D::kGeometry_ZZ)           { anabTags.push_back(anab::CosmicTagID_t::kGeometry_ZZ);            }
+    if (pmaTag & pma::Track3D::kGeometry_YZ)           { anabTags.push_back(anab::CosmicTagID_t::kGeometry_YZ);            }
+    if (pmaTag & pma::Track3D::kGeometry_Y)            { anabTags.push_back(anab::CosmicTagID_t::kGeometry_Y);             }
+
+    if (anabTags.empty())                              { anabTags.push_back(anab::CosmicTagID_t::kUnknown);                }
     
-    return anabTag;
+    return anabTags;
 }
 
 void PMAlgTrackMaker::produce(art::Event& evt)
@@ -478,9 +479,13 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				}
 				// Make the tag object. For now, let's say this is very likely a cosmic (3rd argument = 1).
 				// Set the type of cosmic to the value saved in pma::Track.
-				cosmicTags->emplace_back(trkEnd0, trkEnd1, 1, getCosmicTag(trk->GetTag()));
-				auto const cosmicPtr = make_ctptr(cosmicTags->size()-1);
-				trk2ct->addSingle(trkPtr,cosmicPtr);
+				auto tags = getCosmicTag(trk->GetTag());
+				for (const auto t : tags)
+				{
+					cosmicTags->emplace_back(trkEnd0, trkEnd1, 1, t);
+					auto const cosmicPtr = make_ctptr(cosmicTags->size()-1);
+					trk2ct->addSingle(trkPtr,cosmicPtr);
+				}
 			}
 
 			//gc: save associated hits in the same order as trajectory points
