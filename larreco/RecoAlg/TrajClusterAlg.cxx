@@ -310,13 +310,13 @@ namespace tca {
     // a gratuitous clearing of everything before we start
     ClearResults();
     ++tjs.EventsProcessed;
+    
+    tjs.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    tjs.geom = lar::providerFrom<geo::Geometry>();
 
     // Get the hits and associations
     GetHitCollection(evt);
     if(tjs.fHits.empty()) return;
- 
-    tjs.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    tjs.geom = lar::providerFrom<geo::Geometry>();
 
     // check for debugging mode triggered by Plane, Wire, Tick
     debug.Hit = UINT_MAX;
