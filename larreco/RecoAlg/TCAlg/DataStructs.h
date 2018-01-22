@@ -21,11 +21,9 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/PFParticle.h"
-#include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -220,13 +218,6 @@ namespace tca {
     unsigned short nPtsFit {2}; 
     bool IsValid {true};     // Is consistent with the position/angle of nearby space points
   };
-  
-  // struct used for recob::SpacePoints
-  struct SptStruct {
-    Point3_t Pos;
-    std::array<unsigned int, 3> Hits {UINT_MAX};
-    unsigned short TPC {USHRT_MAX};
-  }; 
 
   // Struct for 3D trajectory matching
   struct MatchStruct {
@@ -240,7 +231,6 @@ namespace tca {
   struct PFPStruct {
     std::vector<int> TjIDs;
     std::vector<TrajPoint3> Tp3s;    // TrajCluster 3D trajectory points
-    recob::Track Track;
     // Start is 0, End is 1
     std::array<Point3_t, 2> XYZ;        // XYZ position at both ends (cm)
     std::array<Vector3_t, 2> Dir;
@@ -472,7 +462,6 @@ namespace tca {
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<Tj2Pt> mallTraj;      ///< vector of trajectory points ordered by increasing X
     std::vector<TCHit> fHits;
-    std::vector<SptStruct> spts;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
