@@ -38,7 +38,7 @@
 // LArSoft libraries
 #include "larreco/RecoAlg/LinFitAlg.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
-#include "larreco/RecoAlg/TrackKalmanFitter.h"
+//#include "larreco/RecoAlg/TrackKalmanFitter.h"
 
 #include "TH1F.h"
 #include "TH2F.h"
@@ -201,9 +201,9 @@ namespace tca {
     
     std::vector<unsigned int> fAlgModCount;
 
-    bool fKalmanFilterFit;
-    trkf::TrackStatePropagator prop;
-    trkf::TrackKalmanFitter kalmanFitter;
+//    bool fKalmanFilterFit;
+//    trkf::TrackStatePropagator prop;
+//    trkf::TrackKalmanFitter kalmanFitter;
 
     static bool SortByMultiplet(TCHit const& a, TCHit const& b);
 
