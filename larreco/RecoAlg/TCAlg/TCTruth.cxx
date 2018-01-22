@@ -86,7 +86,10 @@ namespace tca {
       }
     } // ipart
     
-    if(sourcePtclTrackID == -1) return;
+    if(sourcePtclTrackID == -1) {
+      if(tjs.MatchTruth[1] > 0) std::cout<<"MatchTrueHits: SourcePtcl not found\n";
+      return;
+    }
       
     // flag MCParticles to select for measuring performance. 
     std::vector<bool> select(plist.size(), false);
@@ -99,13 +102,14 @@ namespace tca {
       select[indx] = true;
       ++indx;
     }
+
     // make a temp vector of hit -> geant trackID
     std::vector<int> gtid(tjs.fHits.size(), 0);
     // find hits that match to the source particle
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       std::vector<sim::TrackIDE> ides;
       auto& tcHit = tjs.fHits[iht];
-      raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel(cHit.ArtPtr->WireID());
+      raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel(tcHit.ArtPtr->WireID());
       geo::PlaneID planeID = geo::PlaneID(tcHit.ArtPtr->WireID().Cryostat, tcHit.ArtPtr->WireID().TPC, tcHit.ArtPtr->WireID().Plane);
       auto rhit = recob::Hit(channel,
                              tcHit.StartTick, tcHit.EndTick,
@@ -164,13 +168,14 @@ namespace tca {
     } // iht
 
     // save the selected MCParticles in tjs
-    indx = 0;
+    // BB: Jan 20 Save ALL MCParticles to be consistent with TrajClusterAlg::GetHitCollection
+//    indx = 0;
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-      if(select[indx]) {
+//      if(select[indx]) {
         simb::MCParticle* mcp = (*ipart).second;
         tjs.MCPartList.push_back(mcp);
-      }
-      ++indx;
+//      }
+//      ++indx;
     } // ipart
     
     if(tjs.MCPartList.size() > UINT_MAX) {
@@ -203,8 +208,8 @@ namespace tca {
     
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     // list of all true particles
-    sim::ParticleList const& plist = pi_serv->ParticleList();
-    if(plist.empty()) return;
+//    sim::ParticleList const& plist = pi_serv->ParticleList();
+//    if(plist.empty()) return;
 
     Point3_t PrimVtx;
     // these are only applicable to neutrinos
@@ -247,7 +252,10 @@ namespace tca {
         mcpSelect.push_back(part);
         // Determine which TPC this is in. Ignore this event if the primary start is
         // outside the fiducial volume
-        if(!InsideTPC(tjs, PrimVtx, inTPCID)) return;
+        if(!InsideTPC(tjs, PrimVtx, inTPCID)) {
+          if(tjs.MatchTruth[1] > 0) std::cout<<"Found a primary particle but it is not inside any TPC\n";
+          return;
+        }
         // print out?
         if(tjs.MatchTruth[1] > 0) {
           Vector3_t dir;
@@ -529,7 +537,7 @@ namespace tca {
     } // tj
 */
     for(auto& vx2 : tjs.vtx) if(vx2.ID > 0) ++RecoVx2Count;
-    
+/*
     if (fStudyMode) {
       // nomatch
       for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
@@ -662,7 +670,7 @@ namespace tca {
         } // matched PFP
       } // ipfp
     } //fStudyMode
-    
+*/
     
     // histogram reconstructed PDG code vs true PDG code
     std::array<int, 5> recoCodeList = {0, 11, 13, 211, 2212};
