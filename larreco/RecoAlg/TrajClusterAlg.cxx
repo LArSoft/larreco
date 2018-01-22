@@ -46,9 +46,7 @@ namespace tca {
   //------------------------------------------------------------------------------
 
   TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset)
- :fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg"))
- , prop(pset.get<fhicl::ParameterSet>("kfpropagator"))
- , kalmanFitter(&prop, pset.get<fhicl::ParameterSet>("kffitter"))
+    :fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg"))
   {
     reconfigure(pset);
     tjs.caloAlg = &fCaloAlg;
@@ -107,7 +105,7 @@ namespace tca {
     tjs.Vertex3DCuts      = pset.get< std::vector<float >>("Vertex3DCuts", {-1, -1});
     tjs.VertexScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
     tjs.Match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1, -1});
-    fKalmanFilterFit      = pset.get< bool >("KalmanFilterFit", false);
+//    fKalmanFilterFit      = pset.get< bool >("KalmanFilterFit", false);
     
     debug.Cryostat = 0;
     debug.TPC = 0;
@@ -309,13 +307,13 @@ namespace tca {
     // a gratuitous clearing of everything before we start
     ClearResults();
     ++tjs.EventsProcessed;
+    
+    tjs.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    tjs.geom = lar::providerFrom<geo::Geometry>();
 
     // Get the hits and associations
     GetHitCollection(evt);
     if(tjs.fHits.empty()) return;
- 
-    tjs.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    tjs.geom = lar::providerFrom<geo::Geometry>();
 
     // check for debugging mode triggered by Plane, Wire, Tick
     debug.Hit = UINT_MAX;
@@ -428,6 +426,7 @@ namespace tca {
 //          if(tjs.NeedsRebuild) std::cout<<"Match3D wants yet another rebuild...\n";
         }
         DefinePFPParents(tjs, tpcid, prt);
+/*
         //fit all pfps that are in pfps
         if(fKalmanFilterFit) {
           for(auto& pfp : tjs.pfps) {
@@ -436,6 +435,7 @@ namespace tca {
             KalmanFilterFit(pfp);
           } // pfp
         } // fKalmanFilterFit
+*/
         if (tjs.TagCosmics) {
           for(auto& pfp : tjs.pfps) {
             if(pfp.ID == 0) continue;
@@ -917,10 +917,12 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<" ReversePropagate StepCrawl failed";
       return;
     }
+    // check the new stopping point
+    ChkStopEndPts(tjWork, prt);
     // restore the original direction
     if(tjWork.StepDir != stepDir) ReverseTraj(tjs, tjWork);
     tj = tjWork;
-    // re-check for a stopping track
+    // re-check the ends
     ChkStop(tj);
     if(prt) {
       mf::LogVerbatim("TC")<<" ReversePropagate success. Outgoing StepDir "<<tj.StepDir;
@@ -1501,13 +1503,17 @@ namespace tca {
     // keep track of the best delta - even if it is used
     float bestDelta = maxDelta;
     unsigned short nAvailable = 0;
+    unsigned short nAvailBeforeUsedHit = 0;
     unsigned short imBadRecoHit = USHRT_MAX;
     for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
       tp.UseHit[ii] = false;
       unsigned int iht = tp.Hits[ii];
       delta = PointTrajDOCA(tjs, iht, tp);
       if(delta < bestDelta) bestDelta = delta;
-      if(tjs.fHits[iht].InTraj > 0) continue;
+      if(tjs.fHits[iht].InTraj > 0) {
+        nAvailBeforeUsedHit = nAvailable;
+        continue;
+      }
       if(tjs.fHits[iht].GoodnessOfFit < 0 || tjs.fHits[iht].GoodnessOfFit > 100) imBadRecoHit = ii;
       ++nAvailable;
       if(prt) {
@@ -1526,9 +1532,18 @@ namespace tca {
     
     float chgWght = 0.5;
     
-    if(prt) mf::LogVerbatim("TC")<<" nAvailable "<<nAvailable<<" imbest "<<imbest<<" single hit. tp.Delta "<<tp.Delta<<" bestDelta "<<bestDelta<<" path length "<<1 / pathInv<<" imBadRecoHit "<<imBadRecoHit;
+    if(prt) mf::LogVerbatim("TC")<<" nAvailable "<<nAvailable<<" nAvailBeforeUsedHit "<<nAvailBeforeUsedHit<<" imbest "<<imbest<<" single hit. tp.Delta "<<std::setprecision(2)<<tp.Delta<<" bestDelta "<<bestDelta<<" path length "<<1 / pathInv<<" imBadRecoHit "<<imBadRecoHit;
     if(imbest == USHRT_MAX || nAvailable == 0) return;
     unsigned int bestDeltaHit = tp.Hits[imbest];
+    
+    // Don't try to use a multiplet if a hit in the middle is in a different trajectory
+    if(tp.Hits.size() > 2 && (nAvailBeforeUsedHit != 0 || nAvailBeforeUsedHit != nAvailable)) {
+      if(prt) mf::LogVerbatim("TC")<<" A hit in the middle of the multiplet is used. Use only the best hit";
+      tp.UseHit[imbest] = true;
+      tjs.fHits[bestDeltaHit].InTraj = tj.ID;
+      return;
+    } // Used hit inside multiplet
+    
     if(tp.AngleCode == 1) {
       // Get the hits that are in the same multiplet as bestDeltaHit
       std::vector<unsigned int> hitsInMultiplet;
@@ -1734,8 +1749,6 @@ namespace tca {
     if(tj.AlgMod[kJunkTj]) return;
     
     unsigned short endPt = tj.EndPt[1];
-    // nothing to be done
-    if(endPt == tj.Pts.size() - 1) return;
     // ignore VLA Tjs
     if(tj.Pts[endPt].AngleCode > 1) return;
     // don't get too carried away with this
@@ -1749,11 +1762,26 @@ namespace tca {
     unsigned short lastPt = tj.Pts.size() - 1;
     for(lastPt = tj.Pts.size() - 1; lastPt >= tj.EndPt[1]; --lastPt) if(!tj.Pts[lastPt].Hits.empty()) break;
     auto& lastTP = tj.Pts[lastPt];
-    
+
     if(prt) {
       mf::LogVerbatim("TC")<<"ChkStopEndPts: checking "<<tj.ID<<" endPt "<<endPt<<" Pts size "<<tj.Pts.size()<<" lastPt Pos "<<PrintPos(tjs, lastTP.Pos);
     }
-    
+
+    // Check the charge and delta of the last point if there were many points fit
+    if(lastTP.NTPsFit > 10 && lastTP.DeltaRMS > 0 && (lastTP.Delta / lastTP.DeltaRMS) > 3 && lastTP.ChgPull > 3) {
+      if(prt) mf::LogVerbatim("TC")<<" Removing last TP with large Delta "<<lastTP.Delta<<" and large ChgPull "<<lastTP.ChgPull;
+      UnsetUsedHits(tjs, lastTP);
+      tj.AlgMod[kChkStopEP] = true;
+      SetEndPoints(tjs, tj);
+      // check again
+      auto& tp = tj.Pts[tj.EndPt[1]];
+      if(tp.DeltaRMS > 0 && (tp.Delta / tp.DeltaRMS) > 3 && tp.ChgPull > 3) {
+        UnsetUsedHits(tjs, tp);
+        SetEndPoints(tjs, tj);
+      }
+      return;
+    }
+
     TrajPoint ltp;
     ltp.CTP = tj.CTP;
     ltp.Pos = tj.Pts[endPt].Pos;
@@ -2343,7 +2371,7 @@ namespace tca {
     } // debug mode
 */
   } // EndMerge
-
+/*
   //////////////////////////////////////////
   void TrajClusterAlg::KalmanFilterFit(PFPStruct& pfp)
   {
@@ -2464,7 +2492,7 @@ namespace tca {
     // std::cout << "fit succeeded with npoints=" << sortedtksidx.size() << " rejected=" << rejectedhsidx.size() << " start=" << pfp.Track.Start() << " dir=" << pfp.Track.StartDirection() << " nchi2=" << pfp.Track.Chi2PerNdof() << std::endl;
     //
   } // KalmanFilterFit
-
+*/
   //////////////////////////////////////////
   void TrajClusterAlg::StepCrawl(Trajectory& tj)
   {
@@ -2880,7 +2908,7 @@ namespace tca {
     SetEndPoints(tjs, tj);
     tj.Pts.resize(tj.EndPt[1] + 1);
     tjs.allTraj[oldTjIndex].AlgMod[kUseGhostHits] = true;
-    TrimEndPts(tjs, tj, fQualityCuts, prt);
+    TrimEndPts("IG", tjs, tj, fQualityCuts, prt);
     if(tj.AlgMod[kKilled]) {
       fGoodTraj = false;
       if(prt)  mf::LogVerbatim("TC")<<" Failed quality cuts";
@@ -3067,7 +3095,7 @@ namespace tca {
     } // short trajectory
 
     // Trim the end points until the TJ meets the quality cuts
-    TrimEndPts(tjs, tj, fQualityCuts, prt);
+    TrimEndPts("CT", tjs, tj, fQualityCuts, prt);
     if(tj.AlgMod[kKilled]) {
       fGoodTraj = false;
       return;
@@ -3264,7 +3292,9 @@ namespace tca {
       }
     } // !needsRevProp
     
-    if(prt) mf::LogVerbatim("TC")<<"FTB: maxPtsFit "<<maxPtsFit<<" at point "<<atPt<<" firstPtFit "<<firstPtFit<<" Needs ReversePropagate? "<<needsRevProp;
+    if(prt) {
+      mf::LogVerbatim("TC")<<"FTB: maxPtsFit "<<maxPtsFit<<" at point "<<atPt<<" firstPtFit "<<firstPtFit<<" Needs ReversePropagate? "<<needsRevProp;
+    }
 
     if(tjs.UseAlg[kFTBRvProp] && needsRevProp) {
       // lop off the points before firstPtFit and reverse propagate
@@ -3272,33 +3302,14 @@ namespace tca {
       for(unsigned short ipt = 0; ipt < firstPtFit; ++ipt) UnsetUsedHits(tjs, tj.Pts[ipt]);
       SetEndPoints(tjs, tj);
       tj.AlgMod[kFTBRvProp] = true;
-/* This results in a slight loss of performance
-      // update the trajectory 
-      for(unsigned short ipt = tj.EndPt[0]; ipt < atPt; ++ipt) {
-        TrajPoint& tp = tj.Pts[ipt];
-        tp.Dir = tj.Pts[atPt].Dir;
-        tp.Ang = tj.Pts[atPt].Ang;
-        tp.AngErr = tj.Pts[atPt].AngErr;
-        tp.AngleCode = tj.Pts[atPt].AngleCode;
-        // Correct the projected time to the wire
-        float dw = tp.Pos[0] - tj.Pts[atPt].Pos[0];
-        if(tp.Dir[0] != 0) tp.Pos[1] = tj.Pts[atPt].Pos[1] + dw * tp.Dir[1] / tp.Dir[0];
-        tp.Delta = PointTrajDOCA(tjs, tp.HitPos[0], tp.HitPos[1], tp);
-        tp.DeltaRMS = tj.Pts[atPt].DeltaRMS;
-        tp.NTPsFit = tj.Pts[atPt].NTPsFit;
-        tp.FitChi = tj.Pts[atPt].FitChi;
-        tp.AveChg = tj.Pts[firstPtFit].AveChg;
-        tp.ChgPull = (tj.Pts[ipt].Chg / tj.AveChg - 1) / tj.ChgRMS;
-        if(prt) PrintTrajectory("ftbPrep", tjs, tj, ipt);
-      } // ii
-*/
-      // Check for quality and trim if necessary
-      TrimEndPts(tjs, tj, fQualityCuts, prt);
+      // Check for quality and trim if necessary before reverse propagation
+      TrimEndPts("RPi", tjs, tj, fQualityCuts, prt);
       if(tj.AlgMod[kKilled]) {
         fGoodTraj = false;
         return;
       }
       ReversePropagate(tj);
+      ChkStopEndPts(tj, prt);
     } else if(firstPtFit > 0) {
       FixTrajBegin(tj, firstPtFit);
     } else {
@@ -3556,7 +3567,7 @@ namespace tca {
     if(tj.StopFlag[1][kBragg]) return;
     // Only consider long high momentum.
     if(tj.MCSMom < 100) return;
-    if(tj.Pts.size() < 100) return;
+    if(tj.Pts.size() < 50) return;
 
     unsigned short ept = tj.EndPt[1];
 
@@ -5749,7 +5760,7 @@ namespace tca {
     // that is, sorted by wire ID number,
     // then by start of the region of interest in time, then by the multiplet
     std::sort(tjs.fHits.begin(), tjs.fHits.end(), &SortByMultiplet);
-    
+
     // check the hits for local index errors
     unsigned short nerr = 0;
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
