@@ -216,7 +216,6 @@ namespace tca {
     bool neutrinoVxInFiducialVolume = false;
     bool neutrinoVxReconstructable = false;
     bool neutrinoVxReconstructed = false;
-    bool neutrinoVxCorrect = false;
 
     // Look for the MC truth process that should be considered (beam neutrino,
     // single particle, cosmic rays), then form a list of selected MCParticles 
@@ -256,6 +255,7 @@ namespace tca {
           if(tjs.MatchTruth[1] > 0) std::cout<<"Found a primary particle but it is not inside any TPC\n";
           return;
         }
+        neutrinoVxInFiducialVolume = true;
         // print out?
         if(tjs.MatchTruth[1] > 0) {
           Vector3_t dir;
@@ -421,6 +421,25 @@ namespace tca {
     
     if(neutrinoVxReconstructable) {
       ++TruVxCounts[1];
+      if(!tjs.pfps.empty()) {
+        auto& pfp = tjs.pfps[0];
+        bool isNeutrinoPFP = pfp.PDGCode == 14 || pfp.PDGCode == 12;
+        if(isNeutrinoPFP && pfp.Vx3ID[0] > 0) {
+          // See if it is within 1 cm of the true vertex
+          auto& vx3 = tjs.vtx3[pfp.Vx3ID[0] - 1];
+          float dx = vx3.X - PrimVtx[0];
+          float dy = vx3.Y - PrimVtx[1];
+          float dz = vx3.Z - PrimVtx[2];
+          float sep = dx * dx + dy * dy + dz * dz;
+          if(sep < 1) neutrinoVxReconstructed = true;
+        } // first one is a neutrino PFP
+      } // pfps not empty
+      std::cout<<"Vx reconstructed? "<<neutrinoVxReconstructed<<"\n";
+    } // neutrinoVxReconstructable
+    if(neutrinoVxReconstructed) ++TruVxCounts[2];
+/*
+    if(neutrinoVxReconstructable) {
+      ++TruVxCounts[1];
       // Find the closest reconstructed vertex to the true vertex
       float closest = 1;
       unsigned short imTheOne = 0;
@@ -465,18 +484,14 @@ namespace tca {
         hist.fVxTopoMat->Fill(vx3Topo);
       }
     } // neutrinoVxInFiducialVolume
-    
-    if(neutrinoVxInFiducialVolume && neutrinoVxReconstructable && !neutrinoVxCorrect) {
-      // More than one reconstructable primaries so there must a reconstructable neutrino vertex
-      mf::LogVerbatim("TC")<<"BadVtx Reconstructed? "<<neutrinoVxReconstructed<<" and not correct. events processed "<<tjs.EventsProcessed;
-    }
+*/
 
     if(tjs.MatchTruth[1] > 0) {
       // print out
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx";
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<PrimVtx[ixyz];
-      myprt<<" Reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<" Correct? "<<neutrinoVxCorrect<<"\n";
+      myprt<<" Reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<"\n";
       myprt<<"mcpIndex   PDG  momIndex    KE _________Dir___________       Process         TrajectoryExtentInPlane_nTruHits \n";
       for(auto mcpIndex : mcpSelect) {
         auto& mcp = tjs.MCPartList[mcpIndex];
@@ -536,7 +551,7 @@ namespace tca {
       } // end
     } // tj
 */
-    for(auto& vx2 : tjs.vtx) if(vx2.ID > 0) ++RecoVx2Count;
+
 /*
     if (fStudyMode) {
       // nomatch
@@ -927,6 +942,11 @@ namespace tca {
     if(nLongMCP > 0) {
       float longGood = (float)nGoodLongMCP / (float)nLongMCP;
       myprt<<" longGood "<<std::fixed<<std::setprecision(2)<<longGood;
+    }
+    if(TruVxCounts[1] > 0) {
+      // True vertex is reconstructable
+      float frac = (float)TruVxCounts[2] / (float)TruVxCounts[1];
+      myprt<<" NuVx correct "<<std::fixed<<std::setprecision(2)<<frac;
     }
 
   } // PrintResults
