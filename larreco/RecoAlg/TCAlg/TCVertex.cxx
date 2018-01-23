@@ -972,6 +972,7 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<"SplitTrajCrossingVertices: Failed to split trajectory";
           continue;
         }
+        tj = tjs.allTraj[itj]; //redefine tj
         tj.AlgMod[kSplitTjCVx] = true;
         unsigned short newTjIndex = tjs.allTraj.size() - 1;
         tjs.allTraj[newTjIndex].AlgMod[kSplitTjCVx] = true;

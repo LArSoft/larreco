@@ -2022,6 +2022,7 @@ namespace tca {
     newTj.AlgMod[kSplit] = true;
     newTj.ParentID = -1;
     tjs.allTraj.push_back(newTj);
+    tj = tjs.allTraj[itj]; //redefine tj
     UpdateMatchStructs(tjs, tj.ID, newTj.ID);
 
     if(prt) {
