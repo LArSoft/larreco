@@ -2026,8 +2026,10 @@ namespace tca {
     if(ivx < tjs.vtx.size()) newTj.VtxID[0] = tjs.vtx[ivx].ID;
     newTj.AlgMod[kSplit] = true;
     newTj.ParentID = -1;
+    // save the ID before push_back in case the tj reference gets lost
+    int tjid = tj.ID;
     tjs.allTraj.push_back(newTj);
-    UpdateMatchStructs(tjs, tj.ID, newTj.ID);
+    UpdateMatchStructs(tjs, tjid, newTj.ID);
 
     if(prt) {
       mf::LogVerbatim("TC")<<"  newTj ID "<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
