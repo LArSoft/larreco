@@ -3114,7 +3114,9 @@ namespace tca {
           auto& tj = tjs.allTraj[tjid - 1];
           if(tj.AlgMod[kInShower]) ++ninsh;
         } // tjid
-        if(ninsh > 1) MakeVertexObsolete(tjs, vx2, true);
+        // Jan 22
+        if(ninsh > 1) MakeVertexObsolete(tjs, vx2, false);
+//        if(ninsh > 1) MakeVertexObsolete(tjs, vx2, true);
       } // vxid
     } // 
     
