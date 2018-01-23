@@ -86,9 +86,9 @@ namespace tca {
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       // don't match InShower Tjs
-      if(tj.AlgMod[kInShower]) continue;
+//      if(tj.AlgMod[kInShower]) continue;
       // or Shower Tjs
-      if(tj.AlgMod[kShowerTj]) continue;
+//      if(tj.AlgMod[kShowerTj]) continue;
       if(tj.ID <= 0) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
@@ -105,9 +105,9 @@ namespace tca {
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       // don't match shower-like Tjs
-      if(tj.AlgMod[kInShower]) continue;
+//      if(tj.AlgMod[kInShower]) continue;
       // or Shower Tjs
-      if(tj.AlgMod[kShowerTj]) continue;
+//      if(tj.AlgMod[kShowerTj]) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
       if((int)planeID.TPC != tpc) continue;
