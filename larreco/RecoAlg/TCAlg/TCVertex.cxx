@@ -915,7 +915,7 @@ namespace tca {
           doca = PointTrajDOCA(tjs, vx2.Pos[0], vx2.Pos[1], tj.Pts[closePt]);
         }
         if(doca > docaCut) continue;
-        if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<tj.ID<<" and tjs.vtx "<<tjs.vtx[iv].ID<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
+        if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<tj.ID<<" and 2V"<<tjs.vtx[iv].ID<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
         // compare the length of the Tjs used to make the vertex with the length of the
         // Tj that we want to split. Don't allow a vertex using very short Tjs to split a long
         // Tj in the 3rd plane
@@ -975,9 +975,12 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<"SplitTrajCrossingVertices: Failed to split trajectory";
           continue;
         }
-        tj.AlgMod[kSplitTjCVx] = true;
+        // Use the index to Tj now. The Tj reference may have been screwed up by SplitTraj
+        tjs.allTraj[itj].AlgMod[kSplitTjCVx] = true;
         unsigned short newTjIndex = tjs.allTraj.size() - 1;
         tjs.allTraj[newTjIndex].AlgMod[kSplitTjCVx] = true;
+        // re-fit the vertex position
+        FitVertex(tjs, vx2, prt);
       } // iv
     } // itj
     
@@ -1514,7 +1517,7 @@ namespace tca {
     }
 //    if(tpVxPull > tjs.Vertex2DCuts[3]) return false;
     if(tpVxPull > pullCut) return false;
-    if(dpt > tjs.Vertex2DCuts[2]) return true;
+    if(dpt > 2) return true;
     
     // remove the fixed position flag if there are more than 2 tjs
     bool fixedBit = vx.Stat[kFixed];
@@ -2404,7 +2407,9 @@ namespace tca {
           // and for the new trajectory
           SetPDGCode(tjs, tjs.allTraj.size()-1);
         } // closePt is not near an end, so split the trajectory
-        tj.AlgMod[kComp3DVx] = true;
+        // Caution: the tj reference variable may be invalid after SplitTraj
+        // but the index itj is still good
+        tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
         itj = tjs.allTraj.size() - 1;
         tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
       } // ii
