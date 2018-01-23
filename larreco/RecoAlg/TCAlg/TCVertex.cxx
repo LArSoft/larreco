@@ -630,7 +630,8 @@ namespace tca {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
       if(tjs.allTraj[it1].AlgMod[kHamVx]) continue;
       if(tjs.allTraj[it1].AlgMod[kHamVx2]) continue;
-      if(tjs.allTraj[it1].AlgMod[kInShower]) continue;
+      // Jan 22 Let tj1 be InShower but not tj2
+//      if(tjs.allTraj[it1].AlgMod[kInShower]) continue;
       if(tjs.allTraj[it1].AlgMod[kJunkTj]) continue;
       unsigned short numPtsWithCharge1 = NumPtsWithCharge(tjs, tjs.allTraj[it1], false);
       if(numPtsWithCharge1 < 6) continue;
@@ -650,13 +651,14 @@ namespace tca {
           if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
           if(tjs.allTraj[it2].AlgMod[kJunkTj]) continue;
           // Don't mess with muons
-          if(tjs.allTraj[it2].PDGCode == 13) continue;
+//          if(tjs.allTraj[it2].PDGCode == 13) continue;
           unsigned short numPtsWithCharge2 = NumPtsWithCharge(tjs, tjs.allTraj[it2], true);
           if(numPtsWithCharge2 < 6) continue;
           // ignore if tj1 is a lot shorter than tj2
           // ignore if ChgRMS isn't known
-          if(tjs.allTraj[it2].ChgRMS == 0) continue;
-          if(numPtsWithCharge1 < 0.2 * numPtsWithCharge2) continue;
+          // Jan 22. Try this
+//          if(tjs.allTraj[it2].ChgRMS == 0) continue;
+//          if(numPtsWithCharge1 < 0.2 * numPtsWithCharge2) continue;
           // Find the minimum separation between tj1 and tj2
           float minDOCA = 5;
           float doca = minDOCA;
@@ -758,7 +760,7 @@ namespace tca {
           SetPDGCode(tjs, it2);
           // and for the new trajectory
           SetPDGCode(tjs, newTjIndex);
-          if(prt) mf::LogVerbatim("TC")<<" New vtx 2V"<<tjs.vtx[ivx].ID;
+          if(prt) mf::LogVerbatim("TC")<<" FHV2: New vtx 2V"<<tjs.vtx[ivx].ID<<" Score "<<tjs.vtx[ivx].Score;
           didaSplit = true;
           break;
         } // it2
@@ -801,7 +803,8 @@ namespace tca {
           if(tjs.allTraj[it2].CTP != inCTP) continue;
           if(it1 == it2) continue;
           if(tjs.allTraj[it2].AlgMod[kKilled]) continue;
-          if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
+          // Let tj1 be InShower but not tj2
+//          if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
           if(tjs.allTraj[it2].AlgMod[kJunkTj]) continue;
           // length of tj2 cut
           unsigned short tj2len = tjs.allTraj[it2].EndPt[1] - tjs.allTraj[it2].EndPt[0];
@@ -1069,9 +1072,9 @@ namespace tca {
             if(y < tjs.YLo || y > tjs.YHi || z < tjs.ZLo || z > tjs.ZHi) continue;
             unsigned short kpl = 3 - ipl - jpl;
             float kX = 0.5 * (vX[ivx] + vX[jvx]);
-            float kWire = -1;
+            int kWire = -1;
             if(tjs.NumPlanes > 2) {
-              kWire = tjs.geom->WireCoordinate(y, z, kpl, tpc, cstat) + 0.5;
+              kWire = (int)(tjs.geom->WireCoordinate(y, z, kpl, tpc, cstat) + 0.5);
               if(kWire < 0 || (unsigned int)kWire > tjs.NumWires[kpl]) continue;
               if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, kpl, kWire))) continue;
               tp.Pos[0] = kWire;
@@ -1079,8 +1082,8 @@ namespace tca {
               tp.Pos[1] = tjs.detprop->ConvertXToTicks(kX, kpl, tpc, cstat) * tjs.UnitsPerTick;
               tp.CTP = EncodeCTP(cstat, tpc, kpl);
               bool sigOK = SignalAtTp(tjs, tp);
+              if(prt) mf::LogVerbatim("TC")<<" signal at "<<kpl<<":"<<PrintPos(tjs, tp)<<"? "<<sigOK;
               if(!sigOK) continue;
-              if(prt) mf::LogVerbatim("TC")<<" signal exists at "<<kpl<<":"<<PrintPos(tjs, tp);
             }
             kpl = 3 - ipl - jpl;
             // save this incomplete 3D vertex
@@ -1533,6 +1536,11 @@ namespace tca {
       return true;
     }
     
+    // test this again
+    tj.AlgMod[kNoFitToVx] = true;
+    if(prt) mf::LogVerbatim("TC")<<" Poor fit. Keep Tj "<<tj.ID<<" with kNoFitToVx";
+    return true;
+/*
     // fit failed so remove the tj -> vx assignment if it is long and
     // set noFitToVtx if it is short
     if(tjShort) {
@@ -1546,7 +1554,7 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<" Poor fit. Removed Tj "<<tj.ID;
       return false;
     }
-    
+*/
   } // AttachTrajToVertex
   
   /////////////////////////////////////////
@@ -2138,12 +2146,13 @@ namespace tca {
       // last call after vertices have been matched to the truth. Use to optimize VertexScoreWeights using
       // an ntuple
       mf::LogVerbatim myprt("TC");
-      myprt<<"SVx2W "<<vx2.ID;
+      myprt<<" SVx2W "<<vx2.ID;
       myprt<<" m3Dcnt"<<m3Dcnt;
       myprt<<" "<<std::fixed<<std::setprecision(2)<<(vx2.PosErr[0] + vx2.PosErr[1]);
       myprt<<" "<<std::fixed<<std::setprecision(3)<<vx2.TjChgFrac;
       myprt<<" "<<std::fixed<<std::setprecision(1)<<sum;
       myprt<<" "<<(int)cnt;
+      myprt<<" Score "<<vx2.Score;
     }
   } // SetVx2Score
   
