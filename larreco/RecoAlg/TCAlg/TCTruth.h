@@ -27,7 +27,6 @@ namespace tca {
       TSums.fill(0.0);
       EPTSums.fill(0.0);
       TruVxCounts.fill(0);
-      RecoVx2Count = 0;
       MCP_TSum = 0;
       MCP_EPTSum = 0;
       MCP_Cnt = 0;
@@ -72,10 +71,8 @@ namespace tca {
     // Counts of:
     // [0] = the number of true neutrino interaction vertices in the fiducial volume
     // [1] = the number of those [0] that are reconstructable by TrajCluster
-    // [2] = the number of those [1] in which a reconstructed vertex is within 1 cm of the true vertex
-    // [3] = the number of those [2] in which the reconstructed vertex is identified as the true vertex
-    std::array<unsigned short, 4> TruVxCounts;
-    unsigned int RecoVx2Count;
+    // [2] = the number of those [1] in which a neutrino PFP vtx is within 1 cm of the true vertex
+    std::array<unsigned short, 3> TruVxCounts;
   }; // TruthMatcher class
   
   class MCParticleListUtils
