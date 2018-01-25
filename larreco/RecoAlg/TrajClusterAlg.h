@@ -305,8 +305,7 @@ namespace tca {
     void SplitHiChgHits(Trajectory& tj);
 
     void GetHitCollection(const art::Event& evt);
-    
-    void KalmanFilterFit(PFPStruct& pfp);
+
   }; // class TrajClusterAlg
 
 } // namespace cluster
