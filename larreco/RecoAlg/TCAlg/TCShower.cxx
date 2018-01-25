@@ -1006,6 +1006,7 @@ namespace tca {
       for(unsigned short ci = 0; ci < ss3.CotIndices.size(); ++ci) {
         auto& ss = tjs.cots[ss3.CotIndices[ci]];
         ptjs[ci] = ss.ParentID;
+        if (ss.ParentID==0) continue;
         auto& ptj = tjs.allTraj[ss.ParentID - 1];
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"  ss.ID "<<ss.ID<<" ptj "<<ptj.ID<<" kMat3D? "<<ptj.AlgMod[kMat3D];
         if(!ptj.AlgMod[kMat3D]) continue;
