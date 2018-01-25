@@ -645,7 +645,7 @@ namespace tca {
     std::vector<MatchStruct> temp;
     
     // the minimum number of points for matching
-    unsigned short minPts = 3;
+    unsigned short minPts = 2;
     // override this with the user minimum for 2-plane matches
     if(numPlanes == 2) minPts = tjs.Match3DCuts[2];
     
