@@ -421,7 +421,10 @@ namespace tca {
           if(firstPFP > 0) tjs.pfps.resize(firstPFP - 1);
           ScoreVertices(tjs, tpcid, prt);
           DefineTjParents(tjs, tpcid, prt);
-          FillmAllTraj(tjs, tpcid);
+          // Jan 24, 2017: This appears not be be necessary. MuPiKP is the same
+          // with or without calling it. The fraction of bad Tjs (BadEP) is actually
+          // reduced significantly if it is NOT called and it runs a bit faster.
+//          FillmAllTraj(tjs, tpcid);
           FindPFParticles("RTCA1", tjs, tpcid, prt);
 //          if(tjs.NeedsRebuild) std::cout<<"Match3D wants yet another rebuild...\n";
         }
@@ -5847,5 +5850,56 @@ namespace tca {
     } // iht
     
   } // GetHitCollection
-
+/*
+  /////////////////////////////////////////
+  void TrajClusterAlg::FillSignalVector(const art::Event& evt)
+  {
+    // Sets bits in the WireSignal vector where there is a signal at a (Plane, Wire, Time) position
+    // in this tpcid
+    
+    // don't fill the SignalVector if fMinAmp < = 0. The function SignalAtTP will then
+    // use the hit collection instead of the wire signals
+    tjs.WireSignal.clear();
+    if(fMinAmp <= 0) return;
+    
+    std::string fCalDataModuleLabel = "caldata";
+    art::ValidHandle< std::vector<recob::Wire>> wireVecHandle = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
+    if(wireVecHandle->size() == 0) return;
+    
+    tjs.WireSignal.resize(tjs.NumPlanes);
+    // determine the size of the vectors. We will set a bit if there is a wire signal
+    // that corresponds to the time in WSE units
+    unsigned int vecSize = std::nearbyint(tjs.MaxPos1[0]);
+    std::vector<bool> sig(vecSize, false);
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      tjs.WireSignal[plane].resize(tjs.NumWires[plane]);
+      for(unsigned int wire = 0; wire < tjs.NumWires[plane]; ++wire) {
+        tjs.WireSignal[plane][wire] = sig;
+      }
+    } // plane
+    unsigned int cstat = tjs.TPCID.Cryostat;
+    unsigned int tpc = tjs.TPCID.TPC;
+    // iterate over the wires. This code is adapted from GausHitFinder_module
+    for(unsigned int witer = 0; witer < wireVecHandle->size(); ++witer) {
+      art::Ptr<recob::Wire> thisWire(wireVecHandle, witer);
+      const recob::Wire::RegionsOfInterest_t& signalROI = thisWire->SignalROI();
+      std::vector<geo::WireID> wids = tjs.geom->ChannelToWire(thisWire->Channel());
+      if(wids[0].Cryostat != cstat) continue;
+      if(wids[0].TPC != tpc) continue;
+      unsigned int plane = wids[0].Plane;
+      unsigned int wire = wids[0].Wire;
+      if(plane > tjs.NumPlanes || wire > tjs.NumWires[plane]) continue;
+      for(const auto& range : signalROI.get_ranges()) {
+        const std::vector<float>& signal = range.data();
+        raw::TDCtick_t roiFirstBinTick = range.begin_index();
+        for(unsigned int ii = 0; ii < signal.size(); ++ii) {
+          if(signal[ii] < fMinAmp) continue;
+          unsigned int time = std::nearbyint((roiFirstBinTick + ii) * tjs.UnitsPerTick);
+          if(time > vecSize - 1) continue;
+          tjs.WireSignal[plane][wire][time] = true;
+        } // ii
+      } // range
+    } // witer
+  } // FillSignalVector
+*/
 } // namespace cluster
