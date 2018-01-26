@@ -1065,6 +1065,7 @@ namespace tca {
       
       for(ii = 0; ii < tHits.size(); ++ii) {
         iht = tHits[ii];
+        if(tjs.fHits[iht].InTraj == INT_MAX) return false;
         tjs.fHits[iht].InTraj = work.ID;
         x[ii] = tjs.fHits[iht].ArtPtr->WireID().Wire;
         y[ii] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
@@ -1267,7 +1268,9 @@ namespace tca {
       unsigned short nAvailable = 0;
       unsigned int otherTjHit = INT_MAX;
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        if(tjs.fHits[tp.Hits[ii]].InTraj > 0) {
+        auto& hit = tjs.fHits[tp.Hits[ii]];
+        if(hit.InTraj == INT_MAX) continue;
+        if(hit.InTraj > 0) {
           otherTjHit = tp.Hits[ii];
           continue;
         }
@@ -1349,7 +1352,9 @@ namespace tca {
     deltaCut *= fProjectionErrFactor;
     if(prt) mf::LogVerbatim("TC")<<" AddHits: calculated deltaCut "<<deltaCut;
     
-    if(deltaCut < 2) deltaCut = 2;
+//    if(deltaCut < 2) deltaCut = 2;
+    // Jan 26 Cut is too loose
+    if(deltaCut < 0.5) deltaCut = 0.5;
     if(deltaCut > 3) deltaCut = 3;
 
     // TY: open it up for RevProp, since we might be following a stopping track
@@ -1385,6 +1390,7 @@ namespace tca {
     for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
       auto& hit = tjs.fHits[iht];
       if(hit.InTraj == tj.ID) continue;
+      if(hit.InTraj == INT_MAX) continue;
       if(rawProjTick > hit.StartTick && rawProjTick < hit.EndTick) sigOK = true;
       float ftime = tjs.UnitsPerTick * hit.PeakTime;
       float delta = PointTrajDOCA(tjs, fwire, ftime, tp);
@@ -2786,7 +2792,7 @@ namespace tca {
           continue;
         }
         unsigned int iht = tj.Pts[ipt].Hits[ii];
-        if(tjs.fHits[iht].InTraj > 0) {
+        if(tjs.fHits[iht].InTraj > 0 && (unsigned int)tjs.fHits[iht].InTraj <= tjs.allTraj.size()) {
           int tjid = tjs.fHits[iht].InTraj;
           unsigned short indx;
           for(indx = 0; indx < tID.size(); ++indx) if(tID[indx] == tjid) break;
@@ -4825,6 +4831,7 @@ namespace tca {
     hitsInMultiplet.clear();
     localIndex = 0;
     if(theHit > tjs.fHits.size() - 1) return;
+    if(tjs.fHits[theHit].InTraj == INT_MAX) return;
     hitsInMultiplet.resize(1);
     hitsInMultiplet[0] = theHit;
     
@@ -4877,6 +4884,7 @@ namespace tca {
     for(unsigned int iht = theHit + 1; iht < tjs.fHits.size(); ++iht) {
       if(tjs.fHits[iht].ArtPtr->WireID().Wire != theWire) break;
       if(tjs.fHits[iht].ArtPtr->WireID().Plane != ipl) break;
+      if(tjs.fHits[iht].InTraj == INT_MAX) continue;
       float hitSep = fMultHitSep * theRMS;
       if(tjs.fHits[iht].RMS > theRMS) {
         hitSep = fMultHitSep * tjs.fHits[iht].RMS;
@@ -5834,7 +5842,17 @@ namespace tca {
         break;
       } // ipart
     } // iht
-    
+
+    // Optionally set InTraj to a bogus ID for special studies, for instance to speed up
+    // reconstruction of events that have many background hits from processes that we aren't
+    // interested in, for instance cosmic hits that weren't properly removed.
+    if(tjs.MatchTruth.size() > 4 && tjs.MatchTruth[4] > 0) {
+      std::cout<<"MatchTrueHits: Ignoring hits not matched to MC particles\n";
+      for(auto& hit : tjs.fHits) {
+        if(hit.MCPartListIndex == UINT_MAX) hit.InTraj = INT_MAX;
+      } // hit
+    }
+
   } // GetHitCollection
 /*
   /////////////////////////////////////////
