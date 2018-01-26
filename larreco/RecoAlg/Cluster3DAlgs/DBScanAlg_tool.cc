@@ -17,7 +17,6 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/kdTree.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoObjects/Cluster3D.h"
 
 // std includes
 #include <string>

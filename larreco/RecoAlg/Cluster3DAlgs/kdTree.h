@@ -12,8 +12,8 @@
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
 
-// LArSoft includes
-#include "lardata/RecoObjects/Cluster3D.h"
+// Algorithm includes
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 // std includes
 #include <vector>

@@ -13,7 +13,6 @@
 // LArSoft includes
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoObjects/Cluster3D.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 

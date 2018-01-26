@@ -13,7 +13,6 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
 
 // LArSoft includes
-//#include "larreco/RecoAlg/Cluster3DAlgs/Hit3DBuilderAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/kdTree.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/ClusterParamsBuilder.h"

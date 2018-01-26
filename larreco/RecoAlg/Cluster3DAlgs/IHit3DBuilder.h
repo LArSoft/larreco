@@ -11,8 +11,11 @@
 
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
-#include "lardata/RecoObjects/Cluster3D.h"
 #include "art/Framework/Principal/Event.h"
+
+// Algorithm includes
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace lar_cluster3d

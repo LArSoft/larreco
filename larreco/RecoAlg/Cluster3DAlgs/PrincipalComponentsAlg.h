@@ -14,10 +14,12 @@
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/RecoObjects/Cluster3D.h"
 
-// Root
-#include "TVector3.h"
+// Algorithm includes
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
+
+// Eigen
+#include <Eigen/Dense>
 
 // std includes
 #include <string>
@@ -77,10 +79,10 @@ private:
     /**
      *  @brief This is used to get the poca, doca and arclen along cluster axis to 2D hit
      */
-    void getHit2DPocaToAxis(const TVector3&           axisPos,
-                            const TVector3&           axisDir,
+    void getHit2DPocaToAxis(const Eigen::Vector3f&    axisPos,
+                            const Eigen::Vector3f&    axisDir,
                             const reco::ClusterHit2D* hit2D,
-                            TVector3&                 poca,
+                            Eigen::Vector3f&          poca,
                             float&                    arcLenAxis,
                             float&                    arcLenWire,
                             float&                    doca);

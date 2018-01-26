@@ -64,11 +64,11 @@
 #include "lardataobj/RecoBase/PCAxis.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Seed.h"
-#include "lardata/RecoObjects/Cluster3D.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/HoughSeedFinderAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PCASeedFinderAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/ParallelHitsSeedFinderAlg.h"
@@ -134,13 +134,15 @@ private:
     class ArtOutputHandler
     {
     public:
-        ArtOutputHandler(const art::EDProducer& owner, art::Event& evt) :
-            artPCAxisVector( new std::vector<recob::PCAxis>         ),
-            artPFParticleVector( new std::vector<recob::PFParticle> ),
-            artClusterVector( new std::vector<recob::Cluster>       ),
-            artSpacePointVector( new std::vector<recob::SpacePoint> ),
-            artSeedVector( new std::vector<recob::Seed>             ),
-            artEdgeVector( new std::vector<recob::Edge>             ),
+        ArtOutputHandler(const art::EDProducer& owner, art::Event& evt, std::string instanceName) :
+            artPCAxisVector( new std::vector<recob::PCAxis>          ),
+            artPFParticleVector( new std::vector<recob::PFParticle>  ),
+            artClusterVector( new std::vector<recob::Cluster>        ),
+            artSpacePointVector( new std::vector<recob::SpacePoint>  ),
+            artVertexPointVector( new std::vector<recob::SpacePoint> ),
+            artSeedVector( new std::vector<recob::Seed>              ),
+            artEdgeVector( new std::vector<recob::Edge>              ),
+            artVertexEdgeVector( new std::vector<recob::Edge>        ),
             artClusterAssociations(    new art::Assns<recob::Cluster,    recob::Hit>          ),
             artPFPartAxisAssociations( new art::Assns<recob::PFParticle, recob::PCAxis>       ),
             artPFPartClusAssociations( new art::Assns<recob::PFParticle, recob::Cluster>      ),
@@ -151,7 +153,8 @@ private:
             artSPHitAssociations(      new art::Assns<recob::SpacePoint, recob::Hit>          ),
             artEdgeSPAssociations(     new art::Assns<recob::Edge,       recob::SpacePoint>   ),
             m_owner(owner),
-            m_evt(evt)
+            m_evt(evt),
+            m_instanceName(instanceName)
         {}
         
         void makeClusterHitAssns(RecobHitVector& recobHits)
@@ -195,8 +198,10 @@ private:
             m_evt.put(std::move(artPFParticleVector));
             m_evt.put(std::move(artClusterVector));
             m_evt.put(std::move(artSpacePointVector));
+            m_evt.put(std::move(artVertexPointVector), m_instanceName);
             m_evt.put(std::move(artSeedVector));
             m_evt.put(std::move(artEdgeVector));
+            m_evt.put(std::move(artVertexEdgeVector), m_instanceName);
             m_evt.put(std::move(artPFPartAxisAssociations));
             m_evt.put(std::move(artPFPartClusAssociations));
             m_evt.put(std::move(artClusterAssociations));
@@ -212,9 +217,11 @@ private:
         std::unique_ptr< std::vector<recob::PFParticle>>                    artPFParticleVector;
         std::unique_ptr< std::vector<recob::Cluster>>                       artClusterVector;
         std::unique_ptr< std::vector<recob::SpacePoint>>                    artSpacePointVector;
+        std::unique_ptr< std::vector<recob::SpacePoint>>                    artVertexPointVector;
         std::unique_ptr< std::vector<recob::Seed>>                          artSeedVector;
         std::unique_ptr< std::vector<recob::Edge>>                          artEdgeVector;
-        
+        std::unique_ptr< std::vector<recob::Edge>>                          artVertexEdgeVector;
+
         std::unique_ptr< art::Assns<recob::Cluster,    recob::Hit>>         artClusterAssociations;
         std::unique_ptr< art::Assns<recob::PFParticle, recob::PCAxis>>      artPFPartAxisAssociations;
         std::unique_ptr< art::Assns<recob::PFParticle, recob::Cluster>>     artPFPartClusAssociations;
@@ -227,6 +234,7 @@ private:
     private:
         const art::EDProducer& m_owner;
         art::Event&            m_evt;
+        std::string&           m_instanceName;
     };
 
     /**
@@ -301,6 +309,17 @@ private:
                                 RecobHitToPtrMap&     hitToPtrMap,
                                 Hit3DToSPPtrMap&      hit3DToSPPtrMap,
                                 int                   spacePointStart) const;
+    
+    /**
+     *  @brief Special routine to handle creating and saving space points & edges associated to voronoi diagrams
+     *
+     *  @param output                the object containting the art output
+     *  @param vertexList            list of vertices in the diagram
+     *  @param HalfEdgeList          list of half edges in the diagram
+     */
+    void MakeAndSaveVertexPoints(ArtOutputHandler&,
+                                 dcel2d::VertexList&,
+                                 dcel2d::HalfEdgeList&) const;
 
     /**
      *  @brief Top level output routine, allows checking cluster status
@@ -346,6 +365,7 @@ private:
     float                     m_dbscanTime;            ///< Keeps track of time to run DBScan
     float                     m_pathFindingTime;       ///< Keeps track of the path finding time
     float                     m_finishTime;            ///< Keeps track of time to run output module
+    std::string               m_spacePointInstance;    ///< Special instance name for vertex points
     
     /** 
      *   Other useful variables
@@ -384,13 +404,17 @@ Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
     m_parallelHitsAlg(pset.get<fhicl::ParameterSet>("ParallelHitsAlg"))
 {
     this->reconfigure(pset);
+    
+    m_spacePointInstance = "Voronoi";
 
     produces< std::vector<recob::PCAxis>>();
     produces< std::vector<recob::PFParticle>>();
     produces< std::vector<recob::Cluster>>();
     produces< std::vector<recob::SpacePoint>>();
+    produces< std::vector<recob::SpacePoint>>(m_spacePointInstance);
     produces< std::vector<recob::Seed>>();
     produces< std::vector<recob::Edge>>();
+    produces< std::vector<recob::Edge>>(m_spacePointInstance);
     produces< art::Assns<recob::PFParticle, recob::PCAxis>>();
     produces< art::Assns<recob::PFParticle, recob::Cluster>>();
     produces< art::Assns<recob::PFParticle, recob::SpacePoint>>();
@@ -494,7 +518,7 @@ void Cluster3D::produce(art::Event &evt)
     if(m_enableMonitoring) theClockFinish.start();
     
     // Get the art ouput object
-    ArtOutputHandler output(*this, evt);
+    ArtOutputHandler output(*this, evt, m_spacePointInstance);
     
     std::cout << "++> Outputting clusters" << std::endl;
 
@@ -1038,6 +1062,14 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
             
             // Keep track of current start for space points
             int spacePointStart(output.artSpacePointVector->size());
+            
+            // Do a special output of voronoi vertices here...
+            dcel2d::VertexList&   vertexList   = clusterParameters.getVertexList();
+            dcel2d::HalfEdgeList& halfEdgeList = clusterParameters.getHalfEdgeList();
+            
+            std::cout << "Preparing to save the vertex point list, size: " << vertexList.size() << ", half edges: " << halfEdgeList.size() << std::endl;
+            
+            MakeAndSaveVertexPoints(output, vertexList, halfEdgeList);
 
             // Special case handling... if no daughters then call standard conversion routine to make sure space points
             // created, etc.
@@ -1362,7 +1394,7 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
     size_t edgeStart(output.artEdgeVector->size());
     
     for(const auto& edge : clusterParameters.getBestEdgeList())
-        output.artEdgeVector->push_back(recob::Edge(std::get<2>(edge), hit3DToSPPtrMap[std::get<0>(edge)], hit3DToSPPtrMap[std::get<1>(edge)], output.artEdgeVector->size()));
+        output.artEdgeVector->emplace_back(std::get<2>(edge), hit3DToSPPtrMap[std::get<0>(edge)], hit3DToSPPtrMap[std::get<1>(edge)], output.artEdgeVector->size());
     
     // Empty daughter vector for now
     std::vector<size_t> nullVector;
@@ -1481,6 +1513,71 @@ void Cluster3D::MakeAndSaveSpacePoints(ArtOutputHandler&     output,
     }
     
     output.makePFPartSpacePointAssns(spacePointStart);
+
+    return;
+}
+    
+void Cluster3D::MakeAndSaveVertexPoints(ArtOutputHandler&     output,
+                                        dcel2d::VertexList&   vertexList,
+                                        dcel2d::HalfEdgeList& halfEdgeList) const
+{
+    // We actually do two things here:
+    // 1) Create space points to represent the vertex locations of the voronoi diagram
+    // 2) Create the edges that link the space points together
+    
+    // Set up the space point creation
+    // Right now error matrix is uniform...
+    double spError[] = {1., 0., 1., 0., 0., 1.};
+    double chisq     = 1.;
+    
+    // Keep track of the vertex to space point association
+    std::map<const dcel2d::Vertex*,size_t> vertexToSpacePointMap;
+    
+    // Copy these hits to the vector to be stored with the event
+    for (auto& vertex : vertexList)
+    {
+        const dcel2d::Coords& coords = vertex.getCoords();
+        
+        // Create and store the space point
+        double spacePointPos[] = {coords[0], coords[1], coords[2]};
+        
+        vertexToSpacePointMap[&vertex] = output.artVertexPointVector->size();
+
+        output.artVertexPointVector->emplace_back(spacePointPos, spError, chisq, output.artVertexPointVector->size());
+    }
+    
+    // Try to avoid double counting
+    std::set<const dcel2d::HalfEdge*> halfEdgeSet;
+
+    // Build the edges now
+    for(const auto& halfEdge : halfEdgeList)
+    {
+        // Recover twin
+        const dcel2d::HalfEdge* twin = halfEdge.getTwinHalfEdge();
+        
+        // It can happen that we have no twin... and also check that we've not been here before
+        if (twin && halfEdgeSet.find(twin) == halfEdgeSet.end())
+        {
+            // Recover the vertices
+            const dcel2d::Vertex* fromVertex = twin->getTargetVertex();
+            const dcel2d::Vertex* toVertex   = halfEdge.getTargetVertex();
+            
+            // It can happen for the open edges that there is no target vertex
+            if (!toVertex || !fromVertex) continue;
+            
+            if (vertexToSpacePointMap.find(fromVertex) == vertexToSpacePointMap.end() ||
+                vertexToSpacePointMap.find(toVertex)   == vertexToSpacePointMap.end()) continue;
+            
+            std::cout << "**** from Vertex: " << fromVertex << ", coords: " << fromVertex->getCoords() << ", to Vertex: " << toVertex << ", coords: " << toVertex->getCoords() << std::endl;
+            
+            // Need the distance between vertices
+            Eigen::Vector3f distVec = toVertex->getCoords() - fromVertex->getCoords();
+            
+            output.artVertexEdgeVector->emplace_back(distVec.norm(), vertexToSpacePointMap.at(fromVertex), vertexToSpacePointMap.at(toVertex), output.artEdgeVector->size());
+            
+            halfEdgeSet.insert(&halfEdge);
+        }
+    }
 
     return;
 }
