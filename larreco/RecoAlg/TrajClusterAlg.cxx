@@ -4213,22 +4213,6 @@ namespace tca {
     // Reduce the number of points fit if the trajectory is long and chisq is getting a bit larger
     if(lastPt > 20 && tj.Pts[prevPtWithHits].FitChi > 1.5 && lastTP.NTPsFit > minPtsFit) lastTP.NTPsFit -= 2;
 
-/* Jan 26. This produced spurious NTPSFit on a lariat event because a length check wasn't being made
-    // Tj has low MCSmom and chisq is creeping up
-    if(tj.MCSMom < 100 && tj.Pts[prevPtWithHits].FitChi > 0.5) {
-      float localMCSMom = tj.MCSMom;
-      unsigned short npwc = NumPtsWithCharge(tjs, tj, false);
-      if(npwc > 10) {
-        // long trajectory - only use the last 10 points
-        localMCSMom = MCSMom(tjs, tj, lastPt - 10, lastPt);
-        if(localMCSMom < 100) lastTP.NTPsFit = npwc;
-      } else {
-        // short trajectory
-        lastTP.NTPsFit = fMinPtsFit[tj.Pass];
-      }
-      if(prt) mf::LogVerbatim("TC")<<" localMCSMom "<<localMCSMom<<" NTPsFit "<<lastTP.NTPsFit;
-    } // tj.MCSMom < 100
-*/
     FitTraj(tjs, tj);
     
     // don't get too fancy when we are starting out
