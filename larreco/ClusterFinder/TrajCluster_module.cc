@@ -342,10 +342,14 @@ namespace cluster {
       shower.set_total_MIPenergy(ss3.MIPEnergy);
       shower.set_total_MIPenergy_err(ss3.MIPEnergyErr);
       shower.set_total_best_plane(ss3.BestPlane);
-      shower.set_direction(ss3.Dir);
-      shower.set_direction_err(ss3.DirErr);
-      shower.set_start_point(ss3.Pos);
-      shower.set_start_point_err(ss3.PosErr);
+      TVector3 dir = {ss3.Dir[0], ss3.Dir[1], ss3.Dir[2]};
+      shower.set_direction(dir);
+      TVector3 dirErr = {ss3.DirErr[0], ss3.DirErr[1], ss3.DirErr[2]};
+      shower.set_direction_err(dirErr);
+      TVector3 pos = {ss3.Pos[0], ss3.Pos[1], ss3.Pos[2]};
+      shower.set_start_point(pos);
+      TVector3 posErr = {ss3.PosErr[0], ss3.PosErr[1], ss3.PosErr[2]};
+      shower.set_start_point_err(posErr);
       shower.set_dedx(ss3.dEdx);
       shower.set_dedx_err(ss3.dEdxErr);
       shower.set_length(ss3.Len);

@@ -59,7 +59,7 @@ namespace tca {
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
-    void RunTrajClusterAlg(art::Event & evt);
+    void RunTrajClusterAlg(const art::Event & evt);
 
     void DefineShTree(TTree* t);
     
@@ -93,8 +93,6 @@ namespace tca {
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
     
-    static bool SortByMultiplet(TCHit const& a, TCHit const& b);
-    
     /// Deletes all the results
     void ClearResults();
     
@@ -105,9 +103,9 @@ namespace tca {
     private:
     
     art::InputTag fHitFinderModuleLabel; ///< label of module producing input hits
+    art::InputTag fHitTruthModuleLabel; ///< label of module producing MCParticle -> hit associations
     
     short fMode;            ///  StepCrawl mode (0 = turn off)
-    short fNPtsAve;         /// number of points to find AveChg
     std::vector<unsigned short> fMinPtsFit; ///< Reconstruct in two passes
     std::vector<unsigned short> fMinPts;    ///< min number of Pts required to make a trajectory
     std::vector<unsigned short> fMaxAngleCode;   ///< max allowed angle code for each pass
@@ -115,7 +113,6 @@ namespace tca {
     float fMultHitSep;      ///< preferentially "merge" hits with < this separation
     float fMaxChi;
     std::vector<float> fQualityCuts; ///< Min points/wire, min consecutive pts after a gap
-    std::vector<float> fChargeCuts;
     float fMaxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float fMaxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
     float fProjectionErrFactor;
@@ -182,7 +179,6 @@ namespace tca {
  
     bool prt;
     bool mrgPrt;
-    bool vtxPrt;
     bool didPrt;
     int TJPrt; // Set to the WorkID of a trajectory that is being debugged
     bool fDebugMode;
@@ -209,7 +205,9 @@ namespace tca {
     bool fKalmanFilterFit;
     trkf::TrackStatePropagator prop;
     trkf::TrackKalmanFitter kalmanFitter;
-    
+
+    static bool SortByMultiplet(TCHit const& a, TCHit const& b);
+
 //    short watchInTraj;
     // runs the TrajCluster algorithm on one plane specified by the calling routine
     void RunStepCrawl();
@@ -268,8 +266,6 @@ namespace tca {
     void CheckNearLA();
     // Updates the last added trajectory point fit, average hit rms, etc.
     void UpdateTraj(Trajectory& tj);
-    // Find the average charge using fNPtsAve values of TP Chg.
-    void UpdateAveChg(Trajectory& tj);
    // Estimate the Delta RMS of the TPs on the end of tj.
     void UpdateDeltaRMS(Trajectory& tj);
     void MaskBadTPs(Trajectory& tj, float const& maxChi);
@@ -308,13 +304,11 @@ namespace tca {
     // TY: Split high charge hits near the trajectory end
     void ChkHiChgHits(CTP_t inCTP);
     void SplitHiChgHits(Trajectory& tj);
-      // ****************************** 3D Tj matching code  ******************************
-    void Match3D(const geo::TPCID& tpcid);
 
+    void GetHitCollection(const art::Event& evt);
     
     void KalmanFilterFit(PFPStruct& pfp);
   }; // class TrajClusterAlg
-
 
 } // namespace cluster
 

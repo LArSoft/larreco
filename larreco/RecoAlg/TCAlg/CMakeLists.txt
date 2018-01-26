@@ -28,5 +28,7 @@ art_make(
 			${ROOT_GENVECTOR}
         )
 
+add_subdirectory(TCDebugTools)
+
 install_headers()
 install_source()

@@ -38,7 +38,11 @@ void showertree::Loop() {
     }
     
     // define histograms
-    TH2F* TPCview[nplanes][nstages];
+    //TH2F* TPCview[nplanes][nstages];
+    std::vector<std::vector<TH2F*>> TPCview(nplanes);
+    for (size_t i = 0; i<TPCview.size(); ++i){
+      TPCview[i].reserve(nstages);
+    }
     vector<vector<vector<TLine*>>> tjlines(nplanes);  
     for (int i = 0; i < nplanes; ++i) {
       for (int j = 0; j < nstages; ++j) {
@@ -83,7 +87,6 @@ void showertree::Loop() {
     
     // **** draw ****//
     TCanvas** bothViews = new TCanvas*[nstages];
-    
     // vars for making envelopes
     float xx[5], yy[5];
     vector<TPolyLine*> senv;

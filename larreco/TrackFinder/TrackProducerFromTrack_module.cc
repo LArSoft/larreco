@@ -26,7 +26,6 @@
    * The mandatory output are: the resulting recob::Track collection and the associated hits.
    * Optional outputs are recob::TrackFitHitInfo and recob::SpacePoint collections, plus the Assns of SpacePoints to Hits.
    * An option is provided to create SpacePoints from the TrajectoryPoints in the Track.
-   * Note: SpacePoints should not be used and will be soon deprecated as their functionality is covered by TrajectoryPoints.
    * The fit is performed by an user-defined tool, which must inherit from larreco/TrackFinder/TrackMaker.
    *
    * Parameters: trackMaker (fhicl::ParameterSet for the trkmkr::TrackMaker tool used to do the fit), inputCollection (art::InputTag of the input recob::Track collection),
@@ -130,7 +129,7 @@ void TrackProducerFromTrack::produce(art::Event & e)
     for (auto const& trhit: outHits) {
       outputHits->addSingle(aptr, trhit);
       //
-      if (spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
+      if (doSpacePoints_ && spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
 	auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
 	const double fXYZ[3] = {tp.X(),tp.Y(),tp.Z()};
 	const double fErrXYZ[6] = {0};

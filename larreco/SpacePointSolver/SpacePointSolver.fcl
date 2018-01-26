@@ -8,7 +8,13 @@ standard_spacepointsolver:
 
   Fit: true
 
-  Alpha: .05
+  # How close the intersections of three wire pairs need to be to form a
+  # triplet (cm)
+  WireIntersectThreshold: 0.35
+  # How close intersections need to be in the drift direction
+  WireIntersectThresholdDriftDir: 0.2
+
+  Alpha: .05 # Regularization strength
 }
 
 END_PROLOG

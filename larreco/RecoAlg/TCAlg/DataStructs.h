@@ -21,6 +21,7 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "canvas/Persistency/Common/Ptr.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/PFParticle.h"
@@ -28,11 +29,13 @@
 #include "lardataobj/RecoBase/Shower.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
-#include "TVector3.h"
-#include "TH1F.h"
 
 namespace tca {
   
+  using Point3_t = std::array<double, 3>;
+  using Vector3_t = std::array<double, 3>;
+  using Point2_t = std::array<float, 2>;
+
   // some functions to handle the CTP_t type
   typedef unsigned int CTP_t;
   constexpr unsigned int Tpad = 10; // alignment for CTP sub-items - TPC
@@ -77,13 +80,13 @@ namespace tca {
   
   /// struct of temporary 2D vertices (end points)
   struct VtxStore {
-    std::array<float, 2> Pos {{0,0}};
-    std::array<float, 2> PosErr {{2,1}};
+    Point2_t Pos {{0,0}};
+    Point2_t PosErr {{2,1}};
     unsigned short NTraj {0};  
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 
-    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk
+    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = 3D split
     short Topo {0}; 			
     CTP_t CTP {0};
     unsigned short ID {0};          ///< set to 0 if killed
@@ -122,7 +125,7 @@ namespace tca {
   
   // A temporary struct for matching trajectory points; 1 struct for each TP for
   // each trajectory. These are put into mallTraj which is then sorted by increasing xlo
-  struct TjPt{
+  struct Tj2Pt{
     std::array<double, 2> dir;
     unsigned int wire;
     // x range spanned by hits on the TP
@@ -135,19 +138,18 @@ namespace tca {
     // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
     unsigned short npts;
     short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
-    bool showerlike;
   };
 
   struct TrajPoint {
     CTP_t CTP {0};                   ///< Cryostat, TPC, Plane code
-    std::array<float, 2> HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
-    std::array<float, 2> Pos {{0,0}}; // Trajectory position in wire equivalent units
+    Point2_t HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
+    Point2_t Pos {{0,0}}; // Trajectory position in wire equivalent units
     std::array<double, 2> Dir {{0,0}}; // Direction cosines in the StepDir direction
     double HitPosErr2 {0};         // Uncertainty^2 of the hit position perpendiclar to the direction
     // HitPosErr2 < 0 = HitPos not defined because no hits used
     double Ang {0};                // Trajectory angle (-pi, +pi)
     double AngErr {0.1};             // Trajectory angle error
-    float Chg {0};                // Charge
+    float Chg {0};                // Chargetj2pt
     float AveChg {-1};             // Average charge of last ~20 TPs
     float ChgPull {0.1};          //  = (Chg - AveChg) / ChgRMS
     float Delta {0};              // Deviation between trajectory and hits (WSE)
@@ -166,22 +168,21 @@ namespace tca {
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
     std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     int WorkID {0};
-    int ParentID {-1};     ///< ID of the parent
+    int ParentID {-1};     ///< ID of the parent, or the ID of the Tj this one was merged with if it is killed
     float AveChg {0};                   ///< Calculated using ALL hits
+    float TotChg {0};                   ///< Total including an estimate for dead wires
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     float EffPur {0};                     ///< Efficiency * Purity
-    std::array<float, 2> dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
+    Point2_t dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     int ID;
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
     unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
-    short StepDir {0};                 ///< -1 = going US (CC proper order), 1 = going DS
-    short TjDir {0};                     ///< direction determined by dQ/ds, delta ray direction, etc
-                                        ///< 1 = in the StepDir direction, -1 in the opposite direction, 0 = don't know
-    unsigned short MCPartListIndex {USHRT_MAX};
+    short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
+    unsigned int MCPartListIndex {UINT_MAX};
     unsigned short NNeighbors {0};    /// number of neighbors within window defined by ShowerTag
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
   };
@@ -198,50 +199,73 @@ namespace tca {
     float SigmaIntegral {1};
     float RMS {1};
     float GoodnessOfFit {0};
+    art::Ptr<recob::Hit> ArtPtr;
     unsigned short NDOF {0};
     unsigned short Multiplicity {1};
     unsigned short LocalIndex {0};
-    geo::WireID WireID;
     int InTraj {0};
-    unsigned short MCPartListIndex {USHRT_MAX};
+    unsigned int MCPartListIndex {UINT_MAX};
   };
+  
+  // struct used for TrajCluster 3D trajectory points
+  struct TrajPoint3 {
+    Point3_t FitPos {0};
+    Vector3_t FitDir {0};
+    Point3_t Pos {0};
+    Vector3_t Dir {0};
+    std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
+    float dEdx {0};
+    float dEdxErr {1};
+    float ChiDOF {10};             // Chi/DOF of the fit < 0 = not valid
+    unsigned short nPtsFit {2}; 
+    bool IsValid {true};     // Is consistent with the position/angle of nearby space points
+  };
+  
+  // struct used for recob::SpacePoints
+  struct SptStruct {
+    Point3_t Pos;
+    std::array<unsigned int, 3> Hits {UINT_MAX};
+    unsigned short TPC {USHRT_MAX};
+  }; 
 
   // Struct for 3D trajectory matching
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
     std::vector<int> TjIDs;
-    // Count of the number of X-matched hits
-    int Count {0};                    // Set to 0 if matching failed
+    // Count of the number of X-matched hits and de-weight by angle
+    float Count {0};                    // Set to 0 if matching failed
     float MatchFrac {0};
-    unsigned short pfpID {0};
   };
   
   struct PFPStruct {
     std::vector<int> TjIDs;
+    std::vector<TrajPoint3> Tp3s;    // TrajCluster 3D trajectory points
     recob::Track Track;
     // Start is 0, End is 1
-    std::array<std::array<float, 3>, 2> XYZ;        // XYZ position at both ends (cm)
-    std::array<TVector3, 2> Dir;
-    std::array<TVector3, 2> DirErr;
+    std::array<Point3_t, 2> XYZ;        // XYZ position at both ends (cm)
+    std::array<Vector3_t, 2> Dir;
+    std::array<Vector3_t, 2> DirErr;
     std::array<std::vector<float>, 2> dEdx;
     std::array<std::vector<float>, 2> dEdxErr;
     std::array<unsigned short, 2> Vx3ID {0, 0};
     int BestPlane {-1};
     // stuff for constructing the PFParticle
-    int PDGCode {0};
+    int PDGCode {-1};
     std::vector<int> DtrIDs;
     size_t ParentID {0};       // Parent PFP ID (or ID of self if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
-    unsigned short MCPartListIndex {USHRT_MAX};
+    unsigned int MCPartListIndex {UINT_MAX};
     float CosmicScore{0};
     unsigned short ID {0};
+    std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
+    bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
   };
 
   struct ShowerPoint {
-    std::array<float, 2> Pos;       // Hit Position in the normal coordinate system
-    std::array<float, 2> RotPos;    // Position rotated into the shower coordinate system (0 = along, 1 = transverse)
+    Point2_t Pos;       // Hit Position in the normal coordinate system
+    Point2_t RotPos;    // Position rotated into the shower coordinate system (0 = along, 1 = transverse)
     float Chg {0};                      // Charge of this point
     unsigned int HitIndex;                       // the hit index
     unsigned short TID;             // The ID of the tj the point (hit) is in. TODO eliminate this redundant variable
@@ -258,7 +282,7 @@ namespace tca {
     float AngleErr {3};                 // Error
     float AspectRatio {1};              // The ratio of charge weighted transverse/longitudinal positions
     float DirectionFOM {1};
-    std::vector<std::array<float, 2>> Envelope; // Vertices of a polygon that encompasses the shower
+    std::vector<Point2_t> Envelope; // Vertices of a polygon that encompasses the shower
     float EnvelopeArea {0};
     float ChgDensity {0};                   // Charge density inside the Envelope
     float Energy {0};
@@ -272,10 +296,10 @@ namespace tca {
   
   // Shower variables filled in MakeShowers. These are in cm and radians
   struct ShowerStruct3D {
-    TVector3 Dir;
-    TVector3 DirErr;
-    TVector3 Pos;
-    TVector3 PosErr;
+    Vector3_t Dir;
+    Vector3_t DirErr;
+    Point3_t Pos;
+    Point3_t PosErr;
     double Len {1};
     double OpenAngle {0.2};
     std::vector<double> Energy;
@@ -339,6 +363,7 @@ namespace tca {
 
   // Algorithm modification bits
   typedef enum {
+    kHitsOrdered,
     kMaskHits,
     kMaskBadTPs,
     kMichel,
@@ -372,12 +397,14 @@ namespace tca {
     kVtxTj,
     kChkVxTj,
     kMisdVxTj,
-    kRefineVtx,
+    kPhoton,
+    kNoFitToVx,
     kVxMerge,
     kNoKinkChk,
     kSoftKink,
     kChkStop,
     kChkStopEP,
+    kChkChgAsym,
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
@@ -386,9 +413,11 @@ namespace tca {
     kVtxHitsSwap,
     kSplitHiChgHits,
     kInShower,
+    kKillInShowerVx,
     kShowerTj,
     kShwrParent,
     kChkShwrParEnd,
+    kKillShwrNuPFP,
     kMergeOverlap,
     kMergeSubShowers,
     kMergeNrShowers,
@@ -405,6 +434,7 @@ namespace tca {
     kAtVtx,
     kBragg,
     kAtTj,
+    kOutFV,
     kFlagBitSize     ///< don't mess with this line
   } StopFlag_t; 
   
@@ -428,6 +458,7 @@ namespace tca {
     float YHi;
     float ZLo;
     float ZHi;
+    float WirePitch;
     std::vector<float> AveHitRMS;      ///< average RMS of an isolated hit
     // The variables below do change in size from event to event
     ShowerTreeVars stv; // 
@@ -439,14 +470,14 @@ namespace tca {
     bool TagCosmics;
 
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
-    std::vector<TjPt> mallTraj;      ///< vector of trajectory points ordered by increasing X
+    std::vector<Tj2Pt> mallTraj;      ///< vector of trajectory points ordered by increasing X
     std::vector<TCHit> fHits;
+    std::vector<SptStruct> spts;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
     std::vector<float> AngleRanges; ///< list of max angles for each angle range
-//    std::vector<short> inClus;    ///< Hit -> cluster ID (0 = unused)
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
     std::vector< Vtx3Store > vtx3; ///< 3D vertices
@@ -463,6 +494,7 @@ namespace tca {
     std::vector<float> KinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
     std::vector<float> Match3DCuts;  ///< 3D matching cuts
     std::vector<float> MatchTruth;     ///< Match to MC truth
+    std::vector<float> ChargeCuts;
     std::vector<simb::MCParticle*> MCPartList;
     unsigned int EventsProcessed;
     unsigned int Run;
@@ -473,6 +505,9 @@ namespace tca {
     const detinfo::DetectorProperties* detprop;
     calo::CalorimetryAlg* caloAlg;
     short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
+    short NPtsAve;         /// number of points to find AveChg
+    bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
+    bool NeedsRebuild;  ///< Significant changes were made necessitating a complete re-do of the 3D matching and vertexing
    };
 
 } // namespace tca

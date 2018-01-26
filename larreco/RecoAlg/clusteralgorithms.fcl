@@ -30,9 +30,9 @@ standard_trajclusteralg:
    QualityCuts: [ 0.8, 3] # Min points/wire, min consecutive pts after a gap
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
-#                0   1   2   3   4  5    6   7  8  9 10 11 12
-   ShowerTag: [ -1, 50, 20, 0.5, 3, 2, 100, 10, 1, 1, 1, 0, 0]
-  # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
+#               0   1   2   3   4  5    6   7  8  9 10 11 12
+   ShowerTag: [ 1, 100, 10, 50, 2.5, 1, 15, 3, 5, 0.7, 1, 10, -13]
+# 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
   # 1 Max Tj MCSMom for a shower tag
   # 2 Max separation
   # 3 Min energy (MeV)
@@ -66,12 +66,13 @@ standard_trajclusteralg:
    # 8 Min charge fraction near a vertex or merge point
    # 9 max MCSmom asymmetry for a merge
    Vertex3DCuts: [0.8, 2]       # [ dX match cut, dY and dZ match cut]
-   Match3DCuts: [ 0.3, 0.25, 4, 0.5, 2000 ] 
+   Match3DCuts: [ 0.3, 0.25, 4, 0.5, 2000, 1] 
    # 0 dx (cm) matching cut
-   # 1 Angle cut (radians) Set <= 0 to turn off angle checking
+   # 1 delta angle cut (radians). Set <= 0 to turn off angle checking
    # 2 min length for 2-view match
    # 3 min match fraction
    # 4 max allowed number of 3D combinations
+   # 5 max charge asymmetry of Tj pairs (set to 1 to disable)
    KalmanFilterFit: false
    SkipAlgs: [  "VtxHitsSwap", "SplitHiChgHits", "CTKink", "HED" ]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
@@ -409,8 +410,14 @@ microboone_smallclustalg:	              @local::standard_smallclustalg
 microboone_clustercrawleralg:                 @local::standard_clustercrawleralg
 
 microboone_trajclusteralg:                    @local::standard_trajclusteralg
-microboone_trajclusteralg.MaxWireSkipNoSignal: 5
-microboone_trajclusteralg.MuonTag: [40, 500, 5, 3]
+microboone_trajclusteralg.MultHitSep: 3.2
+microboone_trajclusteralg.MaxWireSkipNoSignal: 2
+microboone_trajclusteralg.MuonTag: [40, 500, 10, 3]
+microboone_trajclusteralg.VLAStepSize: 1
+microboone_trajclusteralg.Vertex2DCuts: [ 6, 8, 45, 3, 3, 50, 0.6, 10, 0.8, 0.8]
+microboone_trajclusteralg.Vertex3DCuts: [1, 2]
+microboone_trajclusteralg.Match3DCuts: [ 0.3, 0.1, 4, 0.5, 2000, 0.99]
+microboone_trajclusteralg.SkipAlgs: [ "CTKink", "SplitHiChgHits" ]
 
 microboone_clustermatchalg:                   @local::standard_clustermatchalg
 microboone_clustermergealg:                   @local::standard_clustermergealg
