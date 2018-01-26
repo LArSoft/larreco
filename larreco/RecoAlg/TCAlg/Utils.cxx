@@ -2521,6 +2521,7 @@ namespace tca {
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[ipl][wire].second;
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
         if(tjs.fHits[iht].InTraj <= 0) continue;
+        if((unsigned int)tjs.fHits[iht].InTraj > tjs.allTraj.size()) continue;
         if(tjs.fHits[iht].PeakTime < minTick) continue;
         // Hits are sorted by increasing time so we can break when maxTick is reached
         if(tjs.fHits[iht].PeakTime > maxTick) break;
