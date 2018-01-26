@@ -3219,6 +3219,7 @@ namespace tca {
         unsigned int iht = tp.Hits[ii];
         // ignore if there is no hit -> Tj association
         if(tjs.fHits[iht].InTraj <= 0) continue;
+        if((unsigned int)tjs.fHits[iht].InTraj > tjs.allTraj.size()) continue;
         // check the momentum
         Trajectory& tj = tjs.allTraj[tjs.fHits[iht].InTraj - 1];
         if(tj.MCSMom > maxMom) continue;
