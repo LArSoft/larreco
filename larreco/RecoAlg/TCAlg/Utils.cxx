@@ -1859,6 +1859,7 @@ namespace tca {
       for(auto iht : tjhits) {
         auto& hit = tjs.fHits[iht];
         if(hit.InTraj <= 0) continue;
+        if((unsigned int)hit.InTraj > tjs.allTraj.size()) continue;
         if(hit.InTraj == shortTj.ID) continue;
         unsigned short indx = 0;
         for(indx = 0; indx < tids.size(); ++indx) if(hit.InTraj == tids[indx]) break;
@@ -2393,6 +2394,7 @@ namespace tca {
       unsigned int firstHit = (unsigned int)tjs.WireHitRange[plane][wire].first;
       unsigned int lastHit = (unsigned int)tjs.WireHitRange[plane][wire].second;
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+        if(tjs.fHits[iht].InTraj == INT_MAX) continue;
         if(usePeakTime) {
           if(tjs.fHits[iht].PeakTime < minTick) continue;
           if(tjs.fHits[iht].PeakTime > maxTick) break;
@@ -2444,6 +2446,7 @@ namespace tca {
 
     float fwire = wire;
     for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+      if(tjs.fHits[iht].InTraj == INT_MAX) continue;
       bool useit = (hitRequest == kAllHits);
       if(hitRequest == kUsedHits && tjs.fHits[iht].InTraj > 0) useit = true;
       if(hitRequest == kUnusedHits && tjs.fHits[iht].InTraj == 0) useit = true;
@@ -2563,6 +2566,7 @@ namespace tca {
     for(auto& iht : closeHits) {
       chg += tjs.fHits[iht].Integral;
       if(tjs.fHits[iht].InTraj <= 0) continue;
+      if((unsigned int)tjs.fHits[iht].InTraj > tjs.allTraj.size()) continue;
       if(std::find(tjIDs.begin(), tjIDs.end(), tjs.fHits[iht].InTraj) != tjIDs.end()) tchg += tjs.fHits[iht].Integral;
     } // iht
     if(chg == 0) return 0;
