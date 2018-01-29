@@ -266,7 +266,6 @@ namespace tca {
     
   } // MakePFPTp3s
 
-  
   /////////////////////////////////////////
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
@@ -295,10 +294,18 @@ namespace tca {
       } // ixyz
     } // tp3
     
+    std::cout<<"pfp "<<pfp.ID<<" Tjs ";
+    for(auto tjid : pfp.TjIDs) std::cout<<" "<<tjid;
+    std::cout<<" npts "<<pfp.Tp3s.size();
+    float dx = maxXYZ[0] - minXYZ[0];
+    std::cout<<" dx "<<dx<<"\n";
+    
     // check for a fully contained track
     bool insideX = minXYZ[0] > tjs.XLo && maxXYZ[0] < tjs.XHi;
     bool insideY = minXYZ[1] > tjs.YLo && maxXYZ[1] < tjs.YHi;
-    bool insideZ = minXYZ[2] > tjs.ZLo && maxXYZ[2] < tjs.ZHi;
+    bool entersUS = minXYZ[2] < tjs.ZLo;
+    bool leavesDS = maxXYZ[2] > tjs.ZHi;
+    bool insideZ = !entersUS && !leavesDS;
     bool fullyContained = insideX && insideY && insideZ;
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -312,12 +319,12 @@ namespace tca {
     unsigned short startSptIndex = 0;
     bool newStart = false;
 
-    if(fullyContained) {
+    if(fullyContained || tjs.TestBeam) {
       // default is that this is beam-related. Start at minZ
       startSptIndex = minXYZPt[2];
       newStart = true;
     }  else {
-      // not fully contained. Set the start to be the maximum Y position
+      // Don't know what. Call it a cosmic ray. Set the start to be the maximum Y position
       startSptIndex = maxXYZPt[1];
       newStart = true;
     } // not fully contained
@@ -340,11 +347,71 @@ namespace tca {
       tjs.vtx3.push_back(vx3);
       pfp.Vx3ID[0] = vx3.ID;
       pfp.XYZ[0] = pfp.Tp3s[startSptIndex].Pos;
-      if(prt) mf::LogVerbatim("TC")<<" Created Vx_"<<vx3.ID;
+      if(prt) mf::LogVerbatim("TC")<<" Created 3V"<<vx3.ID;
     }
     return newStart;
     
   } // SetNewStart
+
+  /////////////////////////////////////////
+  void SetEndVx(TjStuff& tjs, PFPStruct& pfp, unsigned short atEnd, bool prt)
+  {
+    // Analyzes the requested end of Tp3s to see if Tjs are attached to the same 3D vertex
+    // and if so, attach the PFParticle that vertex
+    if(atEnd > 1) return;
+    if(pfp.Tp3s.empty()) return;
+    //  already attached?
+    if(pfp.Vx3ID[atEnd] > 0) return;
+    
+    // make a list of 3D vertices at the end of Tp3s
+    std::vector<unsigned short> endVxList;
+    // and the Tjs to which they are attached
+    std::vector<int> endTjList;
+    // check a number of points near the end
+    for(unsigned short ii = 0; ii < 5; ++ii) {
+      short ipt = 0;
+      if(atEnd == 1) {
+        ipt = pfp.Tp3s.size() - ii - 1;
+        // don't get too close to the start if this is a short pfp
+        if(ipt < 3) break;
+      } else {
+        ipt = ii;
+        if(ipt > (short)pfp.Tp3s.size() - 3) break;
+      }
+      auto& tp3 = pfp.Tp3s[ipt];
+      for(auto& tj2pt : tp3.Tj2Pts) {
+        auto& tj = tjs.allTraj[tj2pt.id - 1];
+        unsigned short end = 0;
+        unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
+        if(ipt > midPt) end = 1;
+        // see if there is a 2D vertex at this end
+        if(tj.VtxID[end] == 0 || tj.VtxID[end] > tjs.vtx.size()) continue;
+        auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
+        // see if this is matched to a 3D vertex
+        if(vx2.Vx3ID == 0 || vx2.Vx3ID > tjs.vtx3.size()) continue;
+        // Ignore it if is already in the Tj list
+        if(std::find(endTjList.begin(), endTjList.end(), tj.ID) != endTjList.end()) continue;
+        // add it to the list
+        endVxList.push_back(vx2.Vx3ID);
+        endTjList.push_back(tj.ID);
+      } // tj2pt
+      // break out if we have them all. 
+      // TODO: Compare the endTjList with pfp.TjIDs here? And do what?...
+      if(endTjList.size() == pfp.TjIDs.size()) break;
+    } // ii
+    if(endVxList.empty()) return;
+    // Just take the first one
+    // TODO: This may need to be done more carefully if there is vertex confusion at this end
+    pfp.Vx3ID[atEnd] = endVxList[0];
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"SEV: pfp "<<pfp.ID<<" checking atEnd "<<atEnd<<" End Vx_Tj:";
+      for(unsigned short iev = 0; iev < endVxList.size(); ++iev) {
+        myprt<<" "<<endVxList[iev]<<"_"<<endTjList[iev];
+      }
+      myprt<<" Setting Vx3ID "<<pfp.Vx3ID[atEnd];
+    } // prt
+  } // SetEndVx
 
   /////////////////////////////////////////
   void SortByDistanceFromStart(TjStuff& tjs, PFPStruct& pfp)
@@ -370,6 +437,8 @@ namespace tca {
     std::vector<TrajPoint3> temp;
     for(unsigned short ii = 0; ii < sortVec.size(); ++ii) temp.push_back(pfp.Tp3s[sortVec[ii].index]);
     pfp.Tp3s = temp;
+    pfp.XYZ[0] = pfp.Tp3s[0].Pos;
+    pfp.XYZ[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].Pos;
     
   } // SortByDistanceFromStart
   
@@ -1016,6 +1085,10 @@ namespace tca {
     // Finds kinks in the PFParticle, splits Tjs, creates 2D vertices and forces a rebuild if any are found
     if(pfp.Tp3s.empty()) return false;
     
+    // Jan 26: Temporarily disable while working on LArIAT events
+    std::cout<<"SplitAtKink disabled\n";
+    return false;
+    
     auto kinkPts = FindKinks(tjs, pfp, sep, prt);
     if(kinkPts.empty()) return false;
     if(prt) mf::LogVerbatim("TC")<<"SplitAtKink found a kink at Tp3s point "<<kinkPts[0];
@@ -1306,12 +1379,13 @@ namespace tca {
     if(tjs.matchVec.empty()) return;
     
     // create the list of associations to matches that will be converted to PFParticles
-    // Start with Tjs attached to 3D vertices
-    Match3DVtxTjs(tjs, tpcid, prt);
-    // Re-do the Tj hierarchy and re-find PFParticles if Match3DVtxTjs merged/split Tjs or
-    // added/removed vertices
-    if(tjs.NeedsRebuild) return;
-    
+    // Start with Tjs attached to 3D vertices. This is only done when reconstructing neutrino events
+    if(!tjs.TestBeam) {
+      Match3DVtxTjs(tjs, tpcid, prt);
+      // Re-do the Tj hierarchy and re-find PFParticles if Match3DVtxTjs merged/split Tjs or
+      // added/removed vertices
+      if(tjs.NeedsRebuild) return;
+    }
     // Re-check matchVec with the user cut matchfrac cut to eliminate poor combinations
     for(unsigned int indx = 0; indx < tjs.matchVec.size(); ++indx) {
       auto& ms = tjs.matchVec[indx];
@@ -1348,6 +1422,7 @@ namespace tca {
         continue;
       }
       double sep = 1;
+      // Jan 26: Disable while working on LArIAT data
       SplitAtKink(tjs, pfp, sep, prt);
       AnalyzePFP(tjs, pfp, prt);
       pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
@@ -1378,14 +1453,14 @@ namespace tca {
     }
     
     if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
-//      std::cout<<"DPFP: pfp "<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
+      std::cout<<"DPFP: pfp "<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
       return false;
     }
     
     for(auto tjid : pfp.TjIDs) {
       auto& tj = tjs.allTraj[tjid - 1];
       if(tj.AlgMod[kMat3D]) {
-//        std::cout<<"DPFP: pfp "<<pfp.ID<<" uses tj "<<tj.ID<<" kMat3D is set true\n";
+        std::cout<<"DPFP: pfp "<<pfp.ID<<" uses tj "<<tj.ID<<" kMat3D is set true\n";
         return false;
       }
     } // tjid
@@ -1422,9 +1497,13 @@ namespace tca {
       SortByDistanceFromStart(tjs, pfp);
     }
     if(!CheckTp3Validity(tjs, pfp, prt)) return false;
+    // Attach vertices to the ends if none exist
+    SetEndVx(tjs, pfp, 0, prt);
+    SetEndVx(tjs, pfp, 1, prt);
     pfp.Dir[0] = pfp.Tp3s[0].FitDir;
     if(pfp.Vx3ID[1] == 0) pfp.XYZ[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].FitPos;
     pfp.Dir[1] = pfp.Tp3s[pfp.Tp3s.size() - 1].FitDir;
+    // maybe this belongs in SetNewEnd
     SetStopFlags(tjs, pfp, prt);
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -1573,6 +1652,11 @@ namespace tca {
      */    
     if(tjs.pfps.empty()) return;
     
+    if(tjs.TestBeam) {
+      DefinePFPParentsTestBeam(tjs, tpcid, prt);
+      return;
+    }
+    
     int neutrinoPFPID = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
@@ -1676,6 +1760,95 @@ namespace tca {
       } // pfp
     } // neutrino PFP exists    
   } // DefinePFPParents
+
+  /////////////////////////////////////////
+  void DefinePFPParentsTestBeam(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
+  {
+    // analog of the one above that was written for neutrino interactions. This differs in that
+    // the Tj parent - daughter relationship isn't known yet. If one exists, it is ignored...
+    // The assumption here is that all PFParticles that enter (end0) from upstream Z are parents and 
+    // any PFParticles attached to them at end1 are daughters. 
+
+    // create a list (stack) of parent ID <-> daughter IDs. The idea is similar to that
+    // used in DefineTjParents. A parent-daughter association is made for each entry. After
+    // it is made, 1) that entry is removed from the stack, 2) the daughter is checked to see
+    // if it a parent of a grand-daughter and if so that pair is added to the stack. 
+    std::vector<std::pair<unsigned short, unsigned short>> pardtr;
+
+    // Fill the stack with parents that enter the TPC and have daughters attached to
+    // 3D vertices at the other end
+    double fidZCut = tjs.ZLo + 2;
+    for(auto& parPFP : tjs.pfps) {
+      if(parPFP.ID == 0) continue;
+      parPFP.Primary = false;
+      if(parPFP.XYZ[0][2] > fidZCut) continue;
+      parPFP.Primary = true;
+      // we found a pfp that entered the TPC. Call it the parent and look for a daughter
+      if(prt) mf::LogVerbatim("TC")<<"DPFPTestBeam: parent "<<parPFP.ID<<" end1 vtx "<<parPFP.Vx3ID[1];
+      if(parPFP.Vx3ID[1] == 0) continue;
+      // There must be other Tjs attached to this vertex which are the daughters. Find them
+      // and add them to the pardtr stack
+      float score = 0;
+      auto& vx3 = tjs.vtx3[parPFP.Vx3ID[1] - 1];
+      // ensure that it is valid
+      if(vx3.ID == 0) continue;
+      // get a list of Tjs attached to this vertex. This will include the Tjs in the parent.
+      auto vx3TjList = GetVtxTjIDs(tjs, vx3, score);
+      if(vx3TjList.empty()) continue;
+      // filter out the parent Tjs
+      auto dtrTjlist = SetDifference(vx3TjList, parPFP.TjIDs);
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<" Dtrs:";
+        for(auto dtjID : dtrTjlist) myprt<<" "<<dtjID<<" "<<GetPFPIndex(tjs, dtjID);
+      }
+      // Add to the stack
+      for(auto dtjID : dtrTjlist) {
+        unsigned short pfpIndex = GetPFPIndex(tjs, dtjID);
+        if(pfpIndex > tjs.pfps.size() - 1) continue;
+        unsigned short dtrID = pfpIndex + 1;
+        // See if this is a duplicate
+        bool duplicate = false;
+        for(auto& pd : pardtr) if(parPFP.ID == pd.first && dtrID == pd.second) duplicate = true;
+        if(!duplicate) pardtr.push_back(std::make_pair(parPFP.ID, dtrID));
+      } // dtjID
+    } // parPFP
+    
+    // iterate through the parent - daughter stack, removing the last pair when a 
+    // ParentID is updated and adding pairs for new daughters
+    for(unsigned short nit = 0; nit < 100; ++nit) {
+      if(pardtr.empty()) break;
+      auto lastPair = pardtr[pardtr.size() - 1];
+      auto& dtr = tjs.pfps[lastPair.second - 1];
+      auto& par = tjs.pfps[lastPair.first - 1];
+      dtr.ParentID = par.ID;
+      par.DtrIDs.push_back(dtr.ID);
+      // remove the last pair
+      pardtr.pop_back();
+      // Now see if the daughter is a parent. First check for a vertex at the other end.
+      // To do that we need to know which end has the vertex between the parent and daughter
+      unsigned short dtrEnd = USHRT_MAX;
+      for(unsigned short ep = 0; ep < 2; ++ep) {
+        if(par.Vx3ID[ep] == 0) continue;
+        for(unsigned short ed = 0; ed < 2; ++ed) if(dtr.Vx3ID[ed] == par.Vx3ID[ep]) dtrEnd = ed;
+      } // ep
+      if(dtrEnd > 1) continue;
+      // look at the other end of the daughter
+      dtrEnd = 1 - dtrEnd;
+      // check for a vertex
+      if(dtr.Vx3ID[dtrEnd] == 0) continue;
+      // get the list of Tjs attached to it
+      auto& vx3 = tjs.vtx3[dtr.Vx3ID[dtrEnd] - 1];
+      float score = 0;
+      auto vx3TjList = GetVtxTjIDs(tjs, vx3, score);
+      if(vx3TjList.empty()) continue;
+      // filter out the new parent
+      auto dtrTjlist = SetDifference(vx3TjList, dtr.TjIDs);
+      // put these onto the stack
+      for(auto tjid : dtrTjlist) pardtr.push_back(std::make_pair(dtr.ID, tjid));
+    } // nit
+    
+  } // DefinePFPParentsTestBeam
 
   ////////////////////////////////////////////////
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp)
