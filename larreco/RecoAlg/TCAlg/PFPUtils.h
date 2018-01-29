@@ -34,6 +34,7 @@ namespace tca {
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
   void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  void SetEndVx(TjStuff& tjs, PFPStruct& pfp, unsigned short atEnd, bool prt);
   void SortByDistanceFromStart(TjStuff& tjs, PFPStruct& pfp);
   bool CheckTp3Validity(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void MoveTp3ToZ(TjStuff& tjs, TrajPoint3& tp3, double z);
@@ -56,6 +57,7 @@ namespace tca {
   bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void DefinePFPParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  void DefinePFPParentsTestBeam(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp);
   void SetStopFlags(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool InsideTPC(const TjStuff& tjs, Point3_t& pos, geo::TPCID& inTPCID);
