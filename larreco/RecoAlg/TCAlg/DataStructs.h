@@ -497,6 +497,7 @@ namespace tca {
     short NPtsAve;         /// number of points to find AveChg
     bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
     bool NeedsRebuild;  ///< Significant changes were made necessitating a complete re-do of the 3D matching and vertexing
+    bool TestBeam;      ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
    };
 
 } // namespace tca
