@@ -40,6 +40,9 @@ namespace tca {
      T8     -1          -1
 */
     
+    // don't do anything if this is test beam data
+    if(tjs.TestBeam) return;
+    
     // clear old information
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
@@ -3960,7 +3963,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______  ____sdEdx____ eVx  ________ePos_______ CS _______eDir______  ____edEdx____  Len nTp3  PDG mcpIndx Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx____   eVx  ________ePos_______ CS _______eDir______ ____edEdx____  Len nTp3  PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
     myprt<<std::setw(5)<<pfp.ID;
