@@ -100,12 +100,12 @@ namespace tca {
     fMaxTrajSep           = pset.get< float >("MaxTrajSep", 4);
     
     fStudyMode            = pset.get< bool  >("StudyMode", false);
+    tjs.TestBeam          = pset.get< bool  >("TestBeam", false);
     tjs.MatchTruth        = pset.get< std::vector<float> >("MatchTruth", {-1, -1, -1, -1});
     tjs.Vertex2DCuts      = pset.get< std::vector<float >>("Vertex2DCuts", {-1, -1, -1, -1, -1, -1, -1});
     tjs.Vertex3DCuts      = pset.get< std::vector<float >>("Vertex3DCuts", {-1, -1});
     tjs.VertexScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
     tjs.Match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1, -1});
-//    fKalmanFilterFit      = pset.get< bool >("KalmanFilterFit", false);
     
     debug.Cryostat = 0;
     debug.TPC = 0;
