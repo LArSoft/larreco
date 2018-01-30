@@ -29,7 +29,7 @@ art_make( BASENAME_ONLY
                         larreco_SpacePointSolver
         )
 
-# install_headers()
+install_headers()
 install_fhicl()
 install_source()
 
