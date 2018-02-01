@@ -1215,7 +1215,6 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	      // Get rid of redundantly Excised sppts before proceeding.
 	      std::stable_sort(spacepointss.begin(),spacepointss.end());
 	      std::stable_sort(spacepointssExcise.begin(),spacepointssExcise.end());
-	      art::PtrVector<recob::SpacePoint>::iterator uniqueSpptIt =
 	      std::set_union(spacepointssExcise.begin(),spacepointssExcise.end(),
 			     spacepointssExcise.begin(),spacepointssExcise.end(),
 			     spacepointssExcise.begin()
