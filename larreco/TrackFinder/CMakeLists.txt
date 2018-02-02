@@ -1,6 +1,9 @@
 
 include_directories ( $ENV{G4INCLUDE} )
 
+# FIXME: remove this line once the complaint in Track3DKalmanSPS_module.cc is resolved
+cet_add_compiler_flags(CXX -Wno-unused-but-set-variable)
+
 art_make(  
           EXCLUDE Track3DKalman_module.cc Track3DKalmanSPS_module.cc DumpTracks_module.cc KalmanFilterFitTrackMaker_tool.cc
           MODULE_LIBRARIES  larreco_RecoAlg
