@@ -429,11 +429,12 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
                                                             hit3D->getAvePeakTime(),
                                                             hit3D->getDeltaPeakTime(),
                                                             hit3D->getSigmaPeakTime(),
+                                                            hit3D->getHitChiSquare(),
                                                             hit3D->getDocaToAxis(),
                                                             hit3D->getArclenToPoca(),
+                                                            hit3D->getHits(),
                                                             hit3D->getHitDelTSigVec(),
-                                                            hit3D->getWireIDs(),
-                                                            hit3D->getHits()));
+                                                            hit3D->getWireIDs()));
             
             tempHitPairListPtr.push_back(&tempHitPairList.back());
             

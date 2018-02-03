@@ -6,9 +6,9 @@
  */
 
 // Framework Includes
-
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/Voronoi.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/DCEL.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/ConvexHull/ConvexHull.h"
 
 // LArSoft includes
 
@@ -21,6 +21,30 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+
+// Declare this here for boost
+namespace boost
+{
+    namespace polygon
+    {
+        template <>
+        struct geometry_concept<dcel2d::Point>
+        {
+            typedef point_concept type;
+        };
+        
+        template <>
+        struct point_traits<dcel2d::Point>
+        {
+            typedef int coordinate_type;
+            
+            static inline coordinate_type get(const dcel2d::Point& point, orientation_2d orient)
+            {
+                return (orient == HORIZONTAL) ? std::get<1>(point) : std::get<0>(point);
+            }
+        };
+    }
+}
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows
@@ -238,7 +262,159 @@ void VoronoiDiagram::buildVoronoiDiagram(const dcel2d::PointList& pointList)
     
     return;
 }
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void VoronoiDiagram::buildVoronoiDiagramBoost(const dcel2d::PointList& pointList)
+{
+    // Insure all the local data structures have been cleared
+    fHalfEdgeList.clear();
+    fVertexList.clear();
+    fFaceList.clear();
+    fPointList.clear();
+    fSiteEventList.clear();
+    fCircleEventList.clear();
+    fCircleNodeList.clear();
+    fNumBadCircles = 0;
     
+    std::cout << "******************************************************************************************************************" << std::endl;
+    std::cout << "******************************************************************************************************************" << std::endl;
+    std::cout << "******************************************************************************************************************" << std::endl;
+    std::cout << "==> # input points: " << pointList.size() << std::endl;
+
+    // Construct out voronoi diagram
+    boost::polygon::voronoi_diagram<double> vd;
+    boost::polygon::construct_voronoi(pointList.begin(),pointList.end(),&vd);
+    
+    // Make maps for translating from boost to me (or we can rewrite our code in boost... for now maps)
+    using BoostEdgeToEdgeMap     = std::map<const boost::polygon::voronoi_edge<double>*,   dcel2d::HalfEdge*>;
+    using BoostVertexToVertexMap = std::map<const boost::polygon::voronoi_vertex<double>*, dcel2d::Vertex*>;
+    using BoostCellToFaceMap     = std::map<const boost::polygon::voronoi_cell<double>*,   dcel2d::Face*>;
+    
+    BoostEdgeToEdgeMap     boostEdgeToEdgeMap;
+    BoostVertexToVertexMap boostVertexToVertexMap;
+    BoostCellToFaceMap     boostCellToFaceMap;
+    
+    // Loop over the edges
+    for(const auto& edge : vd.edges())
+    {
+        const boost::polygon::voronoi_edge<double>* twin = edge.twin();
+        
+        boostTranslation(pointList, &edge, twin, boostEdgeToEdgeMap, boostVertexToVertexMap, boostCellToFaceMap);
+        boostTranslation(pointList, twin, &edge, boostEdgeToEdgeMap, boostVertexToVertexMap, boostCellToFaceMap);
+    }
+    
+    //std::cout << "==> Found " << nOpenFaces << " open faces from total of " << fFaceList.size() << std::endl;
+    //for(const auto& edgeCount : edgeCountMap) std::cout << "    -> all edges,  # edges: " << edgeCount.first << ", count: " << edgeCount.second << std::endl;
+    //for(const auto& edgeCount : openCountMap) std::cout << "    -> open edges, # edges: " << edgeCount.first << ", count: " << edgeCount.second << std::endl;
+    std::cout << "==> Boost returns " << fHalfEdgeList.size() << " edges, " << fFaceList.size() << " faces, " << fVertexList.size() << " vertices " << std::endl;
+    std::cout << "                  " << vd.edges().size()    << " edges, " << vd.cells().size() << " faces, " << vd.vertices().size() << " vertices" << std::endl;
+    std::cout << "******************************************************************************************************************" << std::endl;
+    std::cout << "******************************************************************************************************************" << std::endl;
+    std::cout << "******************************************************************************************************************" << std::endl;
+    
+    // Clear internal containers that are no longer useful
+    fSiteEventList.clear();
+    fCircleEventList.clear();
+    fCircleNodeList.clear();
+    
+    return;
+}
+    
+void VoronoiDiagram::boostTranslation(const dcel2d::PointList&                    pointList,
+                                      const boost::polygon::voronoi_edge<double>* edge,
+                                      const boost::polygon::voronoi_edge<double>* twin,
+                                      BoostEdgeToEdgeMap&                         boostEdgeToEdgeMap,
+                                      BoostVertexToVertexMap&                     boostVertexToVertexMap,
+                                      BoostCellToFaceMap&                         boostCellToFaceMap)
+{
+    dcel2d::HalfEdge* halfEdge = NULL;
+    dcel2d::HalfEdge* twinEdge = NULL;
+   
+    if (boostEdgeToEdgeMap.find(edge) != boostEdgeToEdgeMap.end()) halfEdge = boostEdgeToEdgeMap.at(edge);
+    else
+    {
+        fHalfEdgeList.emplace_back();
+    
+        halfEdge = &fHalfEdgeList.back();
+    
+        boostEdgeToEdgeMap[edge] = halfEdge;
+    }
+    
+    if (boostEdgeToEdgeMap.find(twin) != boostEdgeToEdgeMap.end()) twinEdge = boostEdgeToEdgeMap.at(twin);
+    else
+    {
+        fHalfEdgeList.emplace_back();
+        
+        twinEdge = &fHalfEdgeList.back();
+        
+        boostEdgeToEdgeMap[twin] = twinEdge;
+    }
+    
+    // Do the primary half edge first
+    const boost::polygon::voronoi_vertex<double>* boostVertex = edge->vertex1();
+    dcel2d::Vertex*                               vertex      = NULL;
+    
+    // note we can have a null vertex (infinite edge)
+    if (boostVertex)
+    {
+        if (boostVertexToVertexMap.find(boostVertex) == boostVertexToVertexMap.end())
+        {
+            dcel2d::Coords coords(boostVertex->y(),boostVertex->x(),0.);
+        
+            fVertexList.emplace_back(coords, halfEdge);
+        
+            vertex = &fVertexList.back();
+        
+            boostVertexToVertexMap[boostVertex] = vertex;
+        }
+        else vertex = boostVertexToVertexMap.at(boostVertex);
+    }
+    
+    const boost::polygon::voronoi_cell<double>* boostCell = edge->cell();
+    dcel2d::Face*                               face      = NULL;
+    
+    if (boostCellToFaceMap.find(boostCell) == boostCellToFaceMap.end())
+    {
+        dcel2d::PointList::const_iterator pointItr = pointList.begin();
+        int                               pointIdx = boostCell->source_index();
+        
+        std::advance(pointItr, pointIdx);
+        
+        const dcel2d::Point& point = *pointItr;
+        dcel2d::Coords       coords(std::get<0>(point),std::get<1>(point),0.);
+        
+        fFaceList.emplace_back(halfEdge,coords,std::get<2>(point));
+        
+        face = &fFaceList.back();
+        
+        boostCellToFaceMap[boostCell] = face;
+    }
+    
+    halfEdge->setTargetVertex(vertex);
+    halfEdge->setFace(face);
+    halfEdge->setTwinHalfEdge(twinEdge);
+    
+    // For the prev/next half edges we can have two cases, so check:
+    if (boostEdgeToEdgeMap.find(edge->next()) != boostEdgeToEdgeMap.end())
+    {
+        dcel2d::HalfEdge* nextEdge = boostEdgeToEdgeMap.at(edge->next());
+        
+        halfEdge->setNextHalfEdge(nextEdge);
+        nextEdge->setLastHalfEdge(halfEdge);
+    }
+    
+    if (boostEdgeToEdgeMap.find(edge->prev()) != boostEdgeToEdgeMap.end())
+    {
+        dcel2d::HalfEdge* lastEdge = boostEdgeToEdgeMap.at(edge->prev());
+        
+        halfEdge->setLastHalfEdge(lastEdge);
+        lastEdge->setNextHalfEdge(halfEdge);
+    }
+    
+    return;
+}
+
 void VoronoiDiagram::handleSiteEvents(BeachLine&  beachLine,
                                       EventQueue& eventQueue,
                                       IEvent*     siteEvent)
@@ -533,21 +709,38 @@ bool VoronoiDiagram::computeCircleCenter(const dcel2d::Coords& p1,
     double x3     = p3[0] - xCoord;
     double y3     = p3[1] - yCoord;
     
-    double det    = 4. * (x2 * y3 - x3 * y2);
+    double det    = x2 * y3 - x3 * y2;
     
     // Points are colinear so cannot make a circle
-    //if (std::abs(det) < std::numeric_limits<double>::epsilon())
-    if (det < std::numeric_limits<double>::epsilon())
+    // Or, if negative then the midpoint is "left" of line between first and third points meaning the
+    // circle curvature is the "wrong" way for making a circle event
+    if (det < 1.e-4) // std::numeric_limits<double>::epsilon())
     {
-        if (det > -std::numeric_limits<double>::epsilon()) std::cout << "determinant is zero, x2: " << x2 << ", y3: " << y3 << ", x3: " << x3 << ", y2: " << y2 << std::endl;
-        return false;
+        if (det > -std::numeric_limits<double>::epsilon())
+        {
+            std::cout << "determinant small: " << det << ", x2: " << x2 << ", y3: " << y3 << ", x3: " << x3 << ", y2: " << y2 << std::endl;
+            
+            if (det > 0.) radius = 1/det;
+            else          radius = 1.e4;
+            
+            double p3Norm = std::sqrt(x3 * x3 + y3 * y3);
+            double cxpr   = x2 - radius * y3 / p3Norm;
+            double cypr   = y2 + radius * x3 / p3Norm;
+            
+            center[0] = cxpr + xCoord;
+            center[1] = cypr + yCoord;
+            center[2] = 0.;
+            
+            return true;
+        }
+        else return false; //computeCircleCenter2(p1,p2,p3,center,radius);
     }
     
     double p2sqr   = x2 * x2 + y2 * y2;
     double p3sqr   = x3 * x3 + y3 * y3;
     
-    double cxpr    = 2. * (y3 * p2sqr - y2 * p3sqr) / det;
-    double cypr    = 2. * (x2 * p3sqr - x3 * p2sqr) / det;
+    double cxpr    = 0.5 * (y3 * p2sqr - y2 * p3sqr) / det;
+    double cypr    = 0.5 * (x2 * p3sqr - x3 * p2sqr) / det;
     
     radius    = std::sqrt(cxpr * cxpr + cypr * cypr);
     center[0] = cxpr + xCoord;
@@ -573,7 +766,7 @@ bool VoronoiDiagram::computeCircleCenter2(const dcel2d::Coords& p1,
     double slope12 = (p2[1] - p1[1]) / (p2[0] - p1[0]);
     double slope32 = (p3[1] - p2[1]) / (p3[0] - p2[0]);
     
-    if (std::abs(slope12 - slope32) < 10. * std::numeric_limits<double>::epsilon())
+    if (std::abs(slope12 - slope32) <= std::numeric_limits<double>::epsilon())
     {
         std::cout << "       >>>> Matching slopes! points: (" << p1[0] << "," << p1[1] << "), ("<< p2[0] << "," << p2[1] << "), ("<< p3[0] << "," << p3[1] << ")" << std::endl;
         
@@ -583,7 +776,7 @@ bool VoronoiDiagram::computeCircleCenter2(const dcel2d::Coords& p1,
     center[0] = (slope12 * slope32 * (p3[1] - p1[1]) + slope12 * (p2[0] + p3[0]) - slope32 * (p1[0] + p2[0])) / (2. * (slope12 - slope32));
     center[1] = 0.5 * (p1[1] + p2[1]) - (center[0] - 0.5 * (p1[0] + p2[0])) / slope12;
     center[2] = 0.;
-    radius        = std::sqrt(std::pow((p2[0] - center[0]),2) + std::pow((p2[1] - center[1]),2));
+    radius    = std::sqrt(std::pow((p2[0] - center[0]),2) + std::pow((p2[1] - center[1]),2));
 
     if (radius > 100.)
     {
@@ -741,12 +934,12 @@ void VoronoiDiagram::terminateInfiniteEdges(BeachLine& beachLine, double beachLi
             bool outsideHull = !isInsideConvexHull(vertex);
 
             // Do we need to drop this vertex?
-//            if (outsideHull)
-//            {
-//                curVertexItr = fVertexList.erase(curVertexItr);
-//            }
-//            else curVertexItr++;
-            if (outsideHull || !outsideHull) curVertexItr++;
+            if (outsideHull)
+            {
+                curVertexItr = fVertexList.erase(curVertexItr);
+            }
+            else curVertexItr++;
+//            if (outsideHull || !outsideHull) curVertexItr++;
         }
 
         std::cout << "Loop over beachline done, saved " << fConvexHullList.size() << " arcs, encountered " << nBadBreaks << " bad break points" << std::endl;
@@ -792,11 +985,7 @@ void VoronoiDiagram::getConvexHull(const BSTNode* topNode)
                     if (!lastEdge->getTargetVertex() && !nextEdge->getTargetVertex()) isGoodPoint = false;
                 }
                 
-                if (isGoodPoint)
-                {
-                    fConvexHullList.emplace_back(node->getEvent()->getPoint());
-                    fConvexHullCenter += node->getEvent()->getCoords();
-                }
+                if (isGoodPoint) fConvexHullList.emplace_back(node->getEvent()->getPoint());
                 
                 dcel2d::Coords  nextPoint = node->getEvent()->getCoords();
                 Eigen::Vector3f curVec    = nextPoint - lastPoint;
@@ -814,14 +1003,25 @@ void VoronoiDiagram::getConvexHull(const BSTNode* topNode)
             node = node->getSuccessor();
         }
         
-        // Now get the mean
-        fConvexHullCenter /= double(fConvexHullList.size());
+        // Annoyingly, our algorithm does not contain only the convex hull points and so we need to skim out the renegades...
+        lar_cluster3d::ConvexHull::PointList localList;
         
-        // Attempt to make sure this is sorted in CCW fashion (so increasing angle)
-//        if (!fConvexHullList.empty())
-//        {
-//            fConvexHullList.sort([this](const auto& left, const auto& right){return std::atan2(std::get<1>(left)-fConvexHullCenter[1],std::get<0>(left)-fConvexHullCenter[0]) < std::atan2(std::get<1>(right)-fConvexHullCenter[1],std::get<0>(right)-fConvexHullCenter[0]);});
-//        }
+        for(const auto& edgePoint : fConvexHullList) localList.emplace_back(std::get<0>(edgePoint),std::get<1>(edgePoint),std::get<2>(edgePoint));
+        
+        // Sort the point vec by increasing x, then increase y
+        localList.sort([](const auto& left, const auto& right){return (std::abs(std::get<0>(left) - std::get<0>(right)) > std::numeric_limits<float>::epsilon()) ? std::get<0>(left) < std::get<0>(right) : std::get<1>(left) < std::get<1>(right);});
+        
+        // Why do I need to do this?
+        lar_cluster3d::ConvexHull convexHull(localList);
+        
+        // Clear the convex hull list...
+        fConvexHullList.clear();
+        
+        // Now rebuild it
+        for(const auto& hullPoint : convexHull.getConvexHull())
+        {
+            fConvexHullList.emplace_back(std::get<0>(hullPoint),std::get<1>(hullPoint),std::get<2>(hullPoint));
+        }
     }
     
     return;
@@ -845,7 +1045,7 @@ bool VoronoiDiagram::isInsideConvexHull(const dcel2d::Vertex& vertex) const
         std::cout << " first: " << std::get<0>(firstPoint) << "/" << std::get<1>(firstPoint) << ", tan: " << std::atan2(std::get<1>(firstPoint)-fConvexHullCenter[1],std::get<0>(firstPoint)-fConvexHullCenter[0]) << " 2nd: " << std::get<0>(secondPoint) << "/" << std::get<1>(secondPoint) << ", tan: " << std::atan2(std::get<1>(secondPoint)-fConvexHullCenter[1],std::get<0>(secondPoint)-fConvexHullCenter[0]) << ", vtx: " << std::get<0>(vertexPos) << "/" << std::get<1>(vertexPos) << ", cross: " << crossProduct(firstPoint,secondPoint,vertexPos) << ", isLeft: " << isLeft(firstPoint,secondPoint,vertexPos) << std::endl;
 
         // Check to see if this point is outside the convex hull
-        if (isLeft(firstPoint,secondPoint,vertexPos))
+        if (!isLeft(firstPoint,secondPoint,vertexPos))
         {
             insideHull = false;
             break;

@@ -12,7 +12,7 @@
 #include "cetlib/cpu_timer.h"
 
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterModAlg.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/ConvexHull.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/ConvexHull/ConvexHull.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/Voronoi.h"
 
 // LArSoft includes

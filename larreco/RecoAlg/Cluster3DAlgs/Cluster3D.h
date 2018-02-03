@@ -14,9 +14,7 @@
 #ifndef RECO_CLUSTER3D_H
 #define RECO_CLUSTER3D_H
 
-#ifndef __GCCXML__
 #include <iosfwd>
-#endif
 #include <vector>
 #include <list>
 #include <set>
@@ -49,7 +47,6 @@ private:
     float             m_timeTicks;    ///< The time (in ticks) for this hit
     const recob::Hit& m_hit;          ///< Hit we are augmenting
     
-#ifndef __GCCXML__
 public:
     
     enum StatusBits { SHAREDINPAIR    = 0x00080000,
@@ -83,32 +80,13 @@ public:
     friend std::ostream& operator << (std::ostream& o, const ClusterHit2D& c);
     friend bool          operator <  (const ClusterHit2D & a, const ClusterHit2D & b);
     
-#endif
 };
-    
+
+using ClusterHit2DVec = std::vector<const reco::ClusterHit2D*>;
+
 // Now define an object with the recob::Hit information that will comprise the 3D cluster
 class ClusterHit3D
 {
-public:
-    
-    ClusterHit3D();   // Default constructor
-    
-private:
-    
-    mutable size_t                         m_id;                 ///< "id" of this hit (useful for indexing)
-    mutable unsigned int                   m_statusBits;         ///< Volatile status information of this 3D hit
-    mutable float                          m_position[3];        ///< position of this hit combination in world coordinates
-    float                                  m_totalCharge;        ///< Sum of charges of all associated recob::Hits
-    float                                  m_avePeakTime;        ///< Average peak time of all associated recob::Hits
-    float                                  m_deltaPeakTime;      ///< Largest delta peak time of associated recob::Hits
-    float                                  m_sigmaPeakTime;      ///< Quad sum of peak time sigmas
-    mutable float                          m_docaToAxis;         ///< DOCA to the associated cluster axis
-    mutable float                          m_arclenToPoca;       ///< arc length along axis to DOCA point
-    mutable std::vector<float>             m_hitDelTSigVec;      ///< Delta t of hit to matching pair / sig
-    mutable std::vector<geo::WireID>       m_wireIDVector;       ///< Wire ID's for the planes making up hit
-    std::vector<const reco::ClusterHit2D*> m_hitVector;          ///< Hits comprising this 3D hit
-    
-#ifndef __GCCXML__
 public:
     
     enum StatusBits { REJECTEDHIT     = 0x80000000,           ///< Hit has been rejected for any reason
@@ -130,36 +108,56 @@ public:
                     };
         
     
-    ClusterHit3D(size_t                                        id,
-                 unsigned int                                  statusBits,
-                 const float*                                  position,
-                 float                                         totalCharge,
-                 float                                         avePeakTime,
-                 float                                         deltaPeakTime,
-                 float                                         sigmaPeakTime,
-                 float                                         docaToAxis,
-                 float                                         arclenToPoca,
-                 const std::vector<float>&                     hitDelTSigVec,
-                 const std::vector<geo::WireID>&               wireIDVec,
-                 const std::vector<const reco::ClusterHit2D*>& hitVec);
+    ClusterHit3D();   // Default constructor
+
+    ClusterHit3D(size_t                          id,
+                 unsigned int                    statusBits,
+                 const float*                    position,
+                 float                           totalCharge,
+                 float                           avePeakTime,
+                 float                           deltaPeakTime,
+                 float                           sigmaPeakTime,
+                 float                           hitChiSquare,
+                 float                           docaToAxis,
+                 float                           arclenToPoca,
+                 const ClusterHit2DVec&          hitVec,
+                 const std::vector<float>&       hitDelTSigVec,
+                 const std::vector<geo::WireID>& wireIDVec);
     
-    size_t                                        getID()                 const {return m_id;}
-    unsigned int                                  getStatusBits()         const {return m_statusBits;}
-    const float*                                  getPosition()           const {return m_position;}
-    float                                         getX()                  const {return m_position[0];}
-    float                                         getY()                  const {return m_position[1];}
-    float                                         getZ()                  const {return m_position[2];}
-    float                                         getTotalCharge()        const {return m_totalCharge;}
-    float                                         getAvePeakTime()        const {return m_avePeakTime;}
-    float                                         getDeltaPeakTime()      const {return m_deltaPeakTime;}
-    float                                         getSigmaPeakTime()      const {return m_sigmaPeakTime;}
-    float                                         getDocaToAxis()         const {return m_docaToAxis;}
-    float                                         getArclenToPoca()       const {return m_arclenToPoca;}
-    const std::vector<float>                      getHitDelTSigVec()      const {return m_hitDelTSigVec;}
-    const std::vector<geo::WireID>&               getWireIDs()            const {return m_wireIDVector;}
-    const std::vector<const reco::ClusterHit2D*>& getHits()               const {return m_hitVector;}
+    ClusterHit3D(const ClusterHit3D&);
+
+    void initialize(size_t                          id,
+                    unsigned int                    statusBits,
+                    const float*                    position,
+                    float                           totalCharge,
+                    float                           avePeakTime,
+                    float                           deltaPeakTime,
+                    float                           sigmaPeakTime,
+                    float                           hitChiSquare,
+                    float                           docaToAxis,
+                    float                           arclenToPoca,
+                    const ClusterHit2DVec&          hitVec,
+                    const std::vector<float>&       hitDelTSigVec,
+                    const std::vector<geo::WireID>& wireIDVec);
+
+    size_t                              getID()            const {return m_id;}
+    unsigned int                        getStatusBits()    const {return m_statusBits;}
+    const float*                        getPosition()      const {return m_position;}
+    float                               getX()             const {return m_position[0];}
+    float                               getY()             const {return m_position[1];}
+    float                               getZ()             const {return m_position[2];}
+    float                               getTotalCharge()   const {return m_totalCharge;}
+    float                               getAvePeakTime()   const {return m_avePeakTime;}
+    float                               getDeltaPeakTime() const {return m_deltaPeakTime;}
+    float                               getSigmaPeakTime() const {return m_sigmaPeakTime;}
+    float                               getHitChiSquare()  const {return m_hitChiSquare;}
+    float                               getDocaToAxis()    const {return m_docaToAxis;}
+    float                               getArclenToPoca()  const {return m_arclenToPoca;}
+    const ClusterHit2DVec&              getHits()          const {return m_hitVector;}
+    const std::vector<float>            getHitDelTSigVec() const {return m_hitDelTSigVec;}
+    const std::vector<geo::WireID>&     getWireIDs()       const {return m_wireIDVector;}
     
-    bool bitsAreSet(const unsigned int& bitsToCheck)                      const {return m_statusBits & bitsToCheck;}
+    bool bitsAreSet(const unsigned int& bitsToCheck)       const {return m_statusBits & bitsToCheck;}
 
     void setID(const size_t& id)           const {m_id            = id;}
     void setStatusBit(unsigned bits)       const {m_statusBits   |= bits;}
@@ -184,7 +182,21 @@ public:
     friend std::ostream& operator << (std::ostream& o, const ClusterHit3D& c);
     //friend bool          operator <  (const ClusterHit3D & a, const ClusterHit3D & b);
     
-#endif
+private:
+    
+    mutable size_t                   m_id;                 ///< "id" of this hit (useful for indexing)
+    mutable unsigned int             m_statusBits;         ///< Volatile status information of this 3D hit
+    mutable float                    m_position[3];        ///< position of this hit combination in world coordinates
+    float                            m_totalCharge;        ///< Sum of charges of all associated recob::Hits
+    float                            m_avePeakTime;        ///< Average peak time of all associated recob::Hits
+    float                            m_deltaPeakTime;      ///< Largest delta peak time of associated recob::Hits
+    float                            m_sigmaPeakTime;      ///< Quad sum of peak time sigmas
+    float                            m_hitChiSquare;       ///< Hit ChiSquare relative to the average time
+    mutable float                    m_docaToAxis;         ///< DOCA to the associated cluster axis
+    mutable float                    m_arclenToPoca;       ///< arc length along axis to DOCA point
+    ClusterHit2DVec                  m_hitVector;          ///< Hits comprising this 3D hit
+    mutable std::vector<float>       m_hitDelTSigVec;      ///< Delta t of hit to matching pair / sig
+    mutable std::vector<geo::WireID> m_wireIDVector;       ///< Wire ID's for the planes making up hit
 };
     
 // We also need to define a container for the output of the PCA Analysis
@@ -205,7 +217,6 @@ private:
     float          m_avePosition[3];     ///< Average position of hits fed to PCA
     mutable double m_aveHitDoca;         ///< Average doca of hits used in PCA
     
-#ifndef __GCCXML__
 public:
     
     PrincipalComponents(bool ok, int nHits, const float* eigenValues, const EigenVectors& eigenVecs, const float* avePos, const float aveHitDoca = 9999.);
@@ -223,7 +234,6 @@ public:
     friend std::ostream&  operator << (std::ostream & o, const PrincipalComponents& a);
     friend bool operator < (const PrincipalComponents& a, const PrincipalComponents& b);
     
-#endif
 };
 
 class Cluster3D
@@ -241,9 +251,6 @@ private:
     float               m_endPosition[3];   ///< "end" position for cluster
     int                 m_clusterIdx;       ///< ID for this cluster
     
-
-#ifndef __GCCXML__
-
 public:
     Cluster3D(unsigned                   statusBits,
               const PrincipalComponents& pcaResults,
@@ -265,11 +272,7 @@ public:
     Cluster3D            operator +  (Cluster3D);
     friend std::ostream& operator << (std::ostream& o, const Cluster3D& c);
     friend bool          operator <  (const Cluster3D & a, const Cluster3D & b);
-
-#endif
 };
-    
-typedef std::vector<const reco::ClusterHit2D*> HitVectorConst;
 
 /**
  *  @brief A utility class used in construction of 3D clusters
@@ -292,16 +295,16 @@ public:
     
     void UpdateParameters(const reco::ClusterHit2D* hit);
     
-    float          m_startTime;
-    float          m_sigmaStartTime;
-    float          m_endTime;
-    float          m_sigmaEndTime;
-    float          m_totalCharge;
-    unsigned int   m_startWire;
-    unsigned int   m_endWire;
-    unsigned int   m_plane;
-    geo::View_t    m_view;
-    HitVectorConst m_hitVector;
+    float           m_startTime;
+    float           m_sigmaStartTime;
+    float           m_endTime;
+    float           m_sigmaEndTime;
+    float           m_totalCharge;
+    unsigned int    m_startWire;
+    unsigned int    m_endWire;
+    unsigned int    m_plane;
+    geo::View_t     m_view;
+    ClusterHit2DVec m_hitVector;
 };
     
     
@@ -434,9 +437,5 @@ using Hit2DToHit3DSetMap      = std::unordered_map<const reco::ClusterHit2D*,Hit
 using Hit2DToClusterMap       = std::unordered_map<const reco::ClusterHit2D*,ClusterToHitPairSetMap>;
     
 }
-
-#ifndef __GCCXML__
-
-#endif
 
 #endif //RECO_CLUSTER3D_H

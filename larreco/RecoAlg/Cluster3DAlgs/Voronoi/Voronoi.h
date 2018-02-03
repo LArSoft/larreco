@@ -14,6 +14,8 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/BeachLine.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/EventUtilities.h"
 
+#include <boost/polygon/voronoi.hpp>
+
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
@@ -52,6 +54,8 @@ public:
      *  @param PointList The input list of 2D points
      */
     void buildVoronoiDiagram(const dcel2d::PointList&);
+    
+    void buildVoronoiDiagramBoost(const dcel2d::PointList&);
     
     /**
      *  @brief Recover the list of faces
@@ -135,6 +139,20 @@ private:
      *  @brief Find the min/max values in x-y to use as a bounding box
      */
     void findBoundingBox(const dcel2d::VertexList&);
+    
+    /**
+     * @brief Translate boost to dcel
+     */
+    using BoostEdgeToEdgeMap     = std::map<const boost::polygon::voronoi_edge<double>*,   dcel2d::HalfEdge*>;
+    using BoostVertexToVertexMap = std::map<const boost::polygon::voronoi_vertex<double>*, dcel2d::Vertex*>;
+    using BoostCellToFaceMap     = std::map<const boost::polygon::voronoi_cell<double>*,   dcel2d::Face*>;
+
+    void boostTranslation(const dcel2d::PointList&,
+                          const boost::polygon::voronoi_edge<double>*,
+                          const boost::polygon::voronoi_edge<double>*,
+                          BoostEdgeToEdgeMap&,
+                          BoostVertexToVertexMap&,
+                          BoostCellToFaceMap&);
 
     /**
      *  @brief Gets the cross product of line from p0 to p1 and p0 to p2

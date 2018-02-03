@@ -14,8 +14,6 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-//#include "TMath.h"
-
 namespace reco{
 
 ClusterHit2D::ClusterHit2D() : m_statusBits(0),
@@ -56,30 +54,35 @@ ClusterHit3D::ClusterHit3D() : m_id(std::numeric_limits<size_t>::max()),
                                m_statusBits(0),
                                m_position{0.,0.,0.},
                                m_totalCharge(0.),
-                               m_avePeakTime(0.),
-                               m_deltaPeakTime(99999.),
-                               m_sigmaPeakTime(99999.),
+                               m_avePeakTime(-1.),
+                               m_deltaPeakTime(0.),
+                               m_sigmaPeakTime(0.),
+                               m_hitChiSquare(0.),
                                m_docaToAxis(0.),
                                m_arclenToPoca(0.)
 {
+    m_hitDelTSigVec.clear();
     m_wireIDVector.clear();
     m_hitVector.clear();
     
+    m_hitDelTSigVec.resize(3, 0.);
     m_wireIDVector.resize(3, geo::WireID());
+    m_hitVector.resize(3, NULL);
 }
     
-ClusterHit3D::ClusterHit3D(size_t                                        id,
-                           unsigned int                                  statusBits,
-                           const float*                                  position,
-                           float                                         totalCharge,
-                           float                                         avePeakTime,
-                           float                                         deltaPeakTime,
-                           float                                         sigmaPeakTime,
-                           float                                         docaToAxis,
-                           float                                         arclenToPoca,
-                           const std::vector<float>&                     hitDelTSigVec,
-                           const std::vector<geo::WireID>&               wireIDs,
-                           const std::vector<const reco::ClusterHit2D*>& hitVec) :
+ClusterHit3D::ClusterHit3D(size_t                          id,
+                           unsigned int                    statusBits,
+                           const float*                    position,
+                           float                           totalCharge,
+                           float                           avePeakTime,
+                           float                           deltaPeakTime,
+                           float                           sigmaPeakTime,
+                           float                           hitChiSquare,
+                           float                           docaToAxis,
+                           float                           arclenToPoca,
+                           const ClusterHit2DVec&          hitVec,
+                           const std::vector<float>&       hitDelTSigVec,
+                           const std::vector<geo::WireID>& wireIDs) :
               m_id(id),
               m_statusBits(statusBits),
               m_position{position[0],position[1],position[2]},
@@ -87,14 +90,68 @@ ClusterHit3D::ClusterHit3D(size_t                                        id,
               m_avePeakTime(avePeakTime),
               m_deltaPeakTime(deltaPeakTime),
               m_sigmaPeakTime(sigmaPeakTime),
+              m_hitChiSquare(hitChiSquare),
               m_docaToAxis(docaToAxis),
               m_arclenToPoca(arclenToPoca),
               m_hitDelTSigVec(hitDelTSigVec),
-              m_wireIDVector(wireIDs),
-              m_hitVector(hitVec)
+              m_wireIDVector(wireIDs)
 {
+    m_hitVector.resize(3,NULL);
+    std::copy(hitVec.begin(),hitVec.end(),m_hitVector.begin());
 }
     
+ClusterHit3D::ClusterHit3D(const ClusterHit3D& toCopy)
+{
+    m_id             = toCopy.m_id;
+    m_statusBits     = toCopy.m_statusBits;
+    m_position[0]    = toCopy.m_position[0];
+    m_position[1]    = toCopy.m_position[1];
+    m_position[2]    = toCopy.m_position[2];
+    m_totalCharge    = toCopy.m_totalCharge;
+    m_avePeakTime    = toCopy.m_avePeakTime;
+    m_deltaPeakTime  = toCopy.m_deltaPeakTime;
+    m_sigmaPeakTime  = toCopy.m_sigmaPeakTime;
+    m_hitChiSquare   = toCopy.m_hitChiSquare;
+    m_docaToAxis     = toCopy.m_docaToAxis;
+    m_arclenToPoca   = toCopy.m_arclenToPoca;
+    m_hitVector      = toCopy.m_hitVector;
+    m_hitDelTSigVec  = toCopy.m_hitDelTSigVec;
+    m_wireIDVector   = toCopy.m_wireIDVector;
+}
+    
+void ClusterHit3D::initialize(size_t                          id,
+                              unsigned int                    statusBits,
+                              const float*                    position,
+                              float                           totalCharge,
+                              float                           avePeakTime,
+                              float                           deltaPeakTime,
+                              float                           sigmaPeakTime,
+                              float                           hitChiSquare,
+                              float                           docaToAxis,
+                              float                           arclenToPoca,
+                              const ClusterHit2DVec&          hitVec,
+                              const std::vector<float>&       hitDelTSigVec,
+                              const std::vector<geo::WireID>& wireIDs)
+{
+    m_id             = id;
+    m_statusBits     = statusBits;
+    m_position[0]    = position[0];
+    m_position[1]    = position[1];
+    m_position[2]    = position[2];
+    m_totalCharge    = totalCharge;
+    m_avePeakTime    = avePeakTime;
+    m_deltaPeakTime  = deltaPeakTime;
+    m_sigmaPeakTime  = sigmaPeakTime;
+    m_hitChiSquare   = hitChiSquare;
+    m_docaToAxis     = docaToAxis;
+    m_arclenToPoca   = arclenToPoca;
+    m_hitVector      = hitVec;
+    m_hitDelTSigVec  = hitDelTSigVec;
+    m_wireIDVector   = wireIDs;
+    
+    return;
+}
+
 void ClusterHit3D::setWireID(const geo::WireID& wid) const
 {
     m_wireIDVector[wid.Plane] = wid;

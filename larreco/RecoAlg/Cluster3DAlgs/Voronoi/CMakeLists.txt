@@ -5,6 +5,7 @@ art_make( LIB_LIBRARIES  lardataobj_RecoBase
                          larcore_Geometry_Geometry_service
                          lardata_RecoObjects
                          lardata_Utilities
+                         larreco_RecoAlg_Cluster3DAlgs_ConvexHull
                          ${ART_FRAMEWORK_CORE}
                          ${ART_FRAMEWORK_PRINCIPAL}
 			             ${ART_FRAMEWORK_SERVICES_REGISTRY}

@@ -1286,7 +1286,7 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
         // We love looping. In this case, our list of hits is comprised of "ClusterHits" and we need to get a RecobHitVector instead...
         RecobHitVector recobHits;
         
-        for(reco::HitVectorConst::const_iterator hitItr = clusParams.m_hitVector.begin(); hitItr != clusParams.m_hitVector.end(); hitItr++)
+        for(reco::ClusterHit2DVec::const_iterator hitItr = clusParams.m_hitVector.begin(); hitItr != clusParams.m_hitVector.end(); hitItr++)
         {
             art::Ptr<recob::Hit> hitPtr = hitToPtrMap[&(*hitItr)->getHit()];
             recobHits.push_back(hitPtr);
@@ -1356,15 +1356,15 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
         // Don't make space point if this hit was "rejected"
         if (hitPair->bitsAreSet(reco::ClusterHit3D::REJECTEDHIT)) continue;
         
-        double chisq = 1.;    // secret handshake...
+        double chisq = hitPair->getHitChiSquare();    // secret handshake...
         
-        if      ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) && !hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -1.;  // pure skeleton point
-        else if (!hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -2.;  // pure edge point
-        else if ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -3.;  // skeleton and edge point
-        
-        if      (hitPair->bitsAreSet(reco::ClusterHit3D::SEEDHIT)                                                          ) chisq = -4.;  // Seed point
-        
-        if ((hitPair->getStatusBits() & 0x7) != 0x7) chisq = -10.;
+//        if      ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) && !hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -1.;  // pure skeleton point
+//        else if (!hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -2.;  // pure edge point
+//        else if ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -3.;  // skeleton and edge point
+//
+//        if      (hitPair->bitsAreSet(reco::ClusterHit3D::SEEDHIT)                                                          ) chisq = -4.;  // Seed point
+//
+//        if ((hitPair->getStatusBits() & 0x7) != 0x7) chisq = -10.;
         
         // Mark this hit pair as in use
         hitPair->setStatusBit(reco::ClusterHit3D::MADESPACEPOINT);
@@ -1478,15 +1478,15 @@ void Cluster3D::MakeAndSaveSpacePoints(ArtOutputHandler&     output,
         // Don't make space point if this hit was "rejected"
         if (hitPair->bitsAreSet(reco::ClusterHit3D::REJECTEDHIT)) continue;
         
-        double chisq = 1.;    // secret handshake...
+        double chisq = hitPair->getHitChiSquare();    // secret handshake...
         
-        if      ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) && !hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -1.;  // pure skeleton point
-        else if (!hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -2.;  // pure edge point
-        else if ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -3.;  // skeleton and edge point
+//        if      ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) && !hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -1.;  // pure skeleton point
+//        else if (!hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -2.;  // pure edge point
+//        else if ( hitPair->bitsAreSet(reco::ClusterHit3D::SKELETONHIT) &&  hitPair->bitsAreSet(reco::ClusterHit3D::EDGEHIT)) chisq = -3.;  // skeleton and edge point
         
-        if      (hitPair->bitsAreSet(reco::ClusterHit3D::SEEDHIT)                                                          ) chisq = -4.;  // Seed point
+//        if      (hitPair->bitsAreSet(reco::ClusterHit3D::SEEDHIT)                                                          ) chisq = -4.;  // Seed point
         
-        if ((hitPair->getStatusBits() & 0x7) != 0x7) chisq = -10.;
+//        if ((hitPair->getStatusBits() & 0x7) != 0x7) chisq = -10.;
         
         // Mark this hit pair as in use
         hitPair->setStatusBit(reco::ClusterHit3D::MADESPACEPOINT);

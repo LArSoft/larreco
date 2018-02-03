@@ -145,9 +145,9 @@ void SpacePointHit3DBuilder::Hit3DBuilder(const art::Event& evt, reco::HitPairLi
     // (note this is already taken care of when converting to position)
     std::map<size_t, double> planeOffsetMap;
     
-    planeOffsetMap[0] = m_detector->GetXTicksOffset(0, 0, 0)-m_detector->TriggerOffset();
-    planeOffsetMap[1] = m_detector->GetXTicksOffset(1, 0, 0)-m_detector->TriggerOffset();
-    planeOffsetMap[2] = m_detector->GetXTicksOffset(2, 0, 0)-m_detector->TriggerOffset();
+    planeOffsetMap[0] = 0.;
+    planeOffsetMap[1] = m_detector->GetXTicksOffset(1, 0, 0)-m_detector->GetXTicksOffset(0, 0, 0);
+    planeOffsetMap[2] = m_detector->GetXTicksOffset(2, 0, 0)-m_detector->GetXTicksOffset(0, 0, 0);
     
     // We need temporary mapping from recob::Hit's to our 2D hits
     using RecobHitTo2DHitMap = std::map<const recob::Hit*,const reco::ClusterHit2D*>;
@@ -192,26 +192,46 @@ void SpacePointHit3DBuilder::Hit3DBuilder(const art::Event& evt, reco::HitPairLi
             hit2DVec[hit2D->getHit().WireID().Plane] = hit2D;
         }
         
-        // Weighted average, delta and sigmas
-        float hit0Sigma     = hit2DVec[0]->getHit().RMS();
-        float hit1Sigma     = hit2DVec[1]->getHit().RMS();
-        float hit2Sigma     = hit2DVec[2]->getHit().RMS();
-        float hit0WidWeight = 1. / (hit0Sigma * hit0Sigma);
-        float hit1WidWeight = 1. / (hit1Sigma * hit1Sigma);
-        float hit2WidWeight = 1. / (hit2Sigma * hit2Sigma);
-        float denominator   = 1. / (hit0WidWeight + hit1WidWeight + hit2WidWeight);
-        float avePeakTime   = (hit2DVec[0]->getTimeTicks() * hit0WidWeight + hit2DVec[1]->getTimeTicks() * hit1WidWeight + hit2DVec[2]->getTimeTicks() * hit2WidWeight) * denominator;
+        // Weighted average, delta, sigmas, chisquare, kitchen sink, refrigerator for beer, etc.
+        float avePeakTime(0.);
+        float weightSum(0.);
+        float sigmaPeakTime(0.);
+
+        for(const auto& hit2D : hit2DVec)
+        {
+            float hitSigma = hit2D->getHit().RMS();
+            float weight   = 1. / (hitSigma * hitSigma);
+
+            avePeakTime   += weight * hit2D->getTimeTicks();
+            weightSum     += weight;
+            sigmaPeakTime += hitSigma * hitSigma;
+        }
+        
+        avePeakTime   /= weightSum;
+        sigmaPeakTime  = std::sqrt(sigmaPeakTime);
+        
+        // Now form the hit chi square
+        float hitChiSquare(0.);
+        
+        for(const auto& hit2D : hit2DVec)
+        {
+            float hitSigma = hit2D->getHit().RMS();
             
-            // The x position is a weighted sum but the y-z position is simply the average
+            hitChiSquare += (hit2D->getTimeTicks() - avePeakTime) / (hitSigma * hitSigma);
+        }
+
+        // The x position is a weighted sum but the y-z position is simply the average
         float position[]  = { float(spacePoint->XYZ()[0]), float(spacePoint->XYZ()[1]), float(spacePoint->XYZ()[2])};
         float totalCharge = hit2DVec[0]->getHit().Integral() + hit2DVec[1]->getHit().Integral() + hit2DVec[2]->getHit().Integral();
             
-        std::vector<const reco::ClusterHit2D*> hitVector(3);
+        reco::ClusterHit2DVec hitVector;
+        
+        hitVector.resize(3,NULL);
             
         // Make sure we have the hits
-        hitVector[hit2DVec[0]->getHit().WireID().Plane] = hit2DVec[0];
-        hitVector[hit2DVec[1]->getHit().WireID().Plane] = hit2DVec[1];
-        hitVector[hit2DVec[2]->getHit().WireID().Plane] = hit2DVec[2];
+        hitVector.at(hit2DVec[0]->getHit().WireID().Plane) = hit2DVec[0];
+        hitVector.at(hit2DVec[1]->getHit().WireID().Plane) = hit2DVec[1];
+        hitVector.at(hit2DVec[2]->getHit().WireID().Plane) = hit2DVec[2];
             
         // And get the wire IDs
         std::vector<geo::WireID> wireIDVec = {geo::WireID(0,0,geo::kU,0), geo::WireID(0,0,geo::kV,0), geo::WireID(0,0,geo::kW,0)};
@@ -233,11 +253,9 @@ void SpacePointHit3DBuilder::Hit3DBuilder(const art::Event& evt, reco::HitPairLi
         hitDelTSigVec[0] = std::fabs(hitVector[0]->getTimeTicks() - 0.5 * (hitVector[1]->getTimeTicks() + hitVector[2]->getTimeTicks()));
         hitDelTSigVec[1] = std::fabs(hitVector[1]->getTimeTicks() - 0.5 * (hitVector[2]->getTimeTicks() + hitVector[0]->getTimeTicks()));
         hitDelTSigVec[2] = std::fabs(hitVector[2]->getTimeTicks() - 0.5 * (hitVector[0]->getTimeTicks() + hitVector[1]->getTimeTicks()));
-
-        // Want deltaPeakTime and sigmaPeakTime to be the worst of the lot...
-        float deltaPeakTime = *std::min_element(hitDelTSigVec.begin(),hitDelTSigVec.end());
-        float sigmaPeakTime = std::sqrt(hit0Sigma * hit0Sigma + hit1Sigma * hit1Sigma + hit2Sigma * hit2Sigma);
         
+        float deltaPeakTime = *std::min_element(hitDelTSigVec.begin(),hitDelTSigVec.end());
+
         // Create the 3D cluster hit
         hitPairList.emplace_back(new reco::ClusterHit3D(0,
                                                         statusBits,
@@ -246,11 +264,12 @@ void SpacePointHit3DBuilder::Hit3DBuilder(const art::Event& evt, reco::HitPairLi
                                                         avePeakTime,
                                                         deltaPeakTime,
                                                         sigmaPeakTime,
+                                                        hitChiSquare,
                                                         0.,
                                                         0.,
+                                                        hitVector,
                                                         hitDelTSigVec,
-                                                        wireIDVec,
-                                                        hitVector));
+                                                        wireIDVec));
     }
     
     if (m_enableMonitoring)

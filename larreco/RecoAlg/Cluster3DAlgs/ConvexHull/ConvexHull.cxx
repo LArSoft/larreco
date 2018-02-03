@@ -7,7 +7,7 @@
 
 // Framework Includes
 
-#include "larreco/RecoAlg/Cluster3DAlgs/ConvexHull.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/ConvexHull/ConvexHull.h"
 
 // LArSoft includes
 
