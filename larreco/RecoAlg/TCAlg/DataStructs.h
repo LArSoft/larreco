@@ -251,6 +251,7 @@ namespace tca {
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
+    bool DirectionFixed {false};  // Fix the direction of the pfp if it is small angle
   };
 
   struct ShowerPoint {
