@@ -438,6 +438,7 @@ namespace cluster {
       for(unsigned short ip3 = 0; ip3 < pfp.Tp3s.size(); ++ip3) {
         int id = ip3 + 1;
         auto& tp3 = pfp.Tp3s[ip3];
+        if(!tp3.IsValid) continue;
         double xyz[3];
         for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) xyz[ixyz] = tp3.Pos[ixyz];
         // add a space point
