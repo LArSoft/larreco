@@ -2752,7 +2752,27 @@ namespace tca {
   } // GetVtxTjIDs
 
   //////////////////////////////////////////
-  void PosInPlane(const TjStuff& tjs, const Vtx3Store& vx3, unsigned short plane, std::array<float, 2>& pos)
+  std::vector<unsigned short> GetPFPVertices(const TjStuff& tjs, const PFPStruct& pfp)
+  {
+    // returns a list of 3D vertices that are attached to Tjs in this pfp. No check is
+    // made of the actual vertex attachment of the pfp.
+    std::vector<unsigned short> tmp;
+    if(pfp.TjIDs.empty()) return tmp;
+    for(auto tjid : pfp.TjIDs) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] == 0) continue;
+        auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
+        if(vx2.Vx3ID == 0) continue;
+        if(std::find(tmp.begin(), tmp.end(), vx2.Vx3ID) != tmp.end()) continue;
+        tmp.push_back(vx2.Vx3ID);
+      } // end
+    } // tjid
+    return tmp;
+  } // GetPFPVertices
+
+  //////////////////////////////////////////
+  void PosInPlane(const TjStuff& tjs, const Vtx3Store& vx3, unsigned short plane, Point2_t& pos)
   {
     // returns the 2D position of the vertex in the plane
     pos[0] = tjs.geom->WireCoordinate(vx3.Y, vx3.Z, plane, vx3.TPCID.TPC, vx3.TPCID.Cryostat);
