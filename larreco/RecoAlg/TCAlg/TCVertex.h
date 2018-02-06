@@ -68,7 +68,8 @@ namespace tca {
   bool MakeVertexObsolete(TjStuff& tjs, Vtx3Store& vx3);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const VtxStore& vx2);
   std::vector<int> GetVtxTjIDs(const TjStuff& tjs, const Vtx3Store& vx3, float& score);
-  void PosInPlane(const TjStuff& tjs, const Vtx3Store& vx3, unsigned short plane, std::array<float, 2>& pos);
+  std::vector<unsigned short> GetPFPVertices(const TjStuff& tjs, const PFPStruct& pfp);
+  void PosInPlane(const TjStuff& tjs, const Vtx3Store& vx3, unsigned short plane, Point2_t& pos);
   unsigned short IsCloseToVertex(TjStuff& tjs, VtxStore& vx);
   unsigned short IsCloseToVertex(TjStuff& tjs, Vtx3Store& vx3);
   //    void Refine2DVertices();
