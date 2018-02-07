@@ -24,6 +24,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <Eigen/Dense>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -231,14 +232,37 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     float meanWeightSum(0.);
     int   numPairsInt(0);
     
-    const float minimumDeltaPeakSig(0.00001);
+//    const float minimumDeltaPeakSig(0.00001);
+    float minimumDeltaPeakSig(0.00001);
+
+    // Want to use the hit "chi square" to weight the hits but we need to put a lower limit on its value
+    // to prevent a few hits being over counted.
+    // This is a bit experimental until we can evaluate the cost (time to calculate) vs the benefit
+    // (better fits)..
+    std::vector<float> hitChiSquareVec;
+
+    hitChiSquareVec.resize(hitPairVector.size());
+
+    std::transform(hitPairVector.begin(),hitPairVector.end(),hitChiSquareVec.begin(),[](const auto& hit){return hit->getHitChiSquare();});
+    std::sort(hitChiSquareVec.begin(),hitChiSquareVec.end());
     
+    size_t numToKeep = 0.8 * hitChiSquareVec.size();
+    
+    hitChiSquareVec.resize(numToKeep);
+    
+    float aveValue = std::accumulate(hitChiSquareVec.begin(),hitChiSquareVec.end(),float(0.)) / float(hitChiSquareVec.size());
+    float rms      = std::sqrt(std::inner_product(hitChiSquareVec.begin(),hitChiSquareVec.end(), hitChiSquareVec.begin(), 0.,std::plus<>(),[aveValue](const auto& left,const auto& right){return (left - aveValue) * (right - aveValue);}) / float(hitChiSquareVec.size()));
+
+    minimumDeltaPeakSig = std::max(minimumDeltaPeakSig, aveValue - rms);
+    
+    std::cout << "===>> Calculating PCA, ave chiSquare: " << aveValue << ", rms: " << rms << ", cut: " << minimumDeltaPeakSig << std::endl;
+
     for (const auto& hit : hitPairVector)
     {
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
 
         // Weight the hit by the peak time difference significance
-        float weight = 1. / std::max(minimumDeltaPeakSig, hit->getDeltaPeakTime()/hit->getSigmaPeakTime());
+        float weight = std::max(minimumDeltaPeakSig, hit->getHitChiSquare()); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
         
         meanPos[0] += hit->getPosition()[0] * weight;
         meanPos[1] += hit->getPosition()[1] * weight;
@@ -266,7 +290,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     {
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
 
-        float weight = 1. / std::max(minimumDeltaPeakSig, hit->getDeltaPeakTime()/hit->getSigmaPeakTime());
+        float weight = 1. / std::max(minimumDeltaPeakSig, hit->getHitChiSquare()); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
         float x      = (hit->getPosition()[0] - meanPos[0]) * weight;
         float y      = (hit->getPosition()[1] - meanPos[1]) * weight;
         float z      = (hit->getPosition()[2] - meanPos[2]) * weight;
