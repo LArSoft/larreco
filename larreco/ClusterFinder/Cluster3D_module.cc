@@ -1568,8 +1568,6 @@ void Cluster3D::MakeAndSaveVertexPoints(ArtOutputHandler&     output,
             if (vertexToSpacePointMap.find(fromVertex) == vertexToSpacePointMap.end() ||
                 vertexToSpacePointMap.find(toVertex)   == vertexToSpacePointMap.end()) continue;
             
-            std::cout << "**** from Vertex: " << fromVertex << ", coords: " << fromVertex->getCoords() << ", to Vertex: " << toVertex << ", coords: " << toVertex->getCoords() << std::endl;
-            
             // Need the distance between vertices
             Eigen::Vector3f distVec = toVertex->getCoords() - fromVertex->getCoords();
             
