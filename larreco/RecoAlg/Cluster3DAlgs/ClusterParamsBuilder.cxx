@@ -250,9 +250,11 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
 
                     // From sorted list, determine a rejection value to eliminate bad hits
                     //float cutDeltaTSig = std::min(2.0,std::max(0.5, double((pair.second.front()->getHitDelTSigVec()[hitPlane]))));
-                    float cutDeltaTSig = std::min(1.5,std::max(0.25, double(pair.second.front()->getHitChiSquare())));
+                    float cutDeltaTSig = std::min(2.0,std::max(0.5, double(pair.second.front()->getHitChiSquare())));
 
                     std::cout << ", cutDeltaTSig: " << cutDeltaTSig;
+                    
+                    cutDeltaTSig = 10.;
    
                     // And here go through the process of eliminating it
                     //reco::HitPairListPtr::iterator firstBadHitItr = std::find_if(pair.second.begin(),pair.second.end(),[hitPlane,cutDeltaTSig](const auto& hitPtr){return hitPtr->getHitDelTSigVec()[hitPlane] > cutDeltaTSig;});
