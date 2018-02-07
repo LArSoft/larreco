@@ -396,24 +396,49 @@ void GausHitFinder::produce(art::Event& evt)
                 // ### Also do this if chi^2 is too large              ###
                 // #######################################################
                 if (mergedCands.size() > fMaxMultiHit || chi2PerNDF > fChi2NDF)
-                {                    
-                    peakParamsVec.clear();
-                    nGausForFit = mergedCands.size(); //nHitsThisPulse;
-                    chi2PerNDF  =  chi2PerNDF > fChi2NDF ? chi2PerNDF : -1.;
-
-                    for(auto& candidateHit : mergedCands)
+                {
+                    int longPulseWidth = fLongPulseWidthVec.at(plane);
+                    int nHitsThisPulse = (endT - startT) / longPulseWidth;
+                    
+                    if (nHitsThisPulse > fLongMaxHitsVec.at(plane))
                     {
+                        nHitsThisPulse = fLongMaxHitsVec.at(plane);
+                        longPulseWidth = (endT - startT) / nHitsThisPulse;
+                    }
+                    
+                    if (nHitsThisPulse * longPulseWidth < endT - startT) nHitsThisPulse++;
+                    
+                    int firstTick = startT;
+                    int lastTick  = firstTick + std::min(endT,longPulseWidth);
+                    
+                    peakParamsVec.clear();
+                    nGausForFit = nHitsThisPulse;
+                    NDF         = 1.;
+                    chi2PerNDF  =  chi2PerNDF > fChi2NDF ? chi2PerNDF : -1.;
+                    
+                    for(int hitIdx = 0; hitIdx < nHitsThisPulse; hitIdx++)
+                    {
+                        // This hit parameters
+                        double sumADC    = std::accumulate(signal.begin() + firstTick, signal.begin() + lastTick, 0.);
+                        double peakSigma = (lastTick - firstTick) / 3.;  // Set the width...
+                        double peakAmp   = 0.3989 * sumADC / peakSigma;  // Use gaussian formulation
+                        double peakMean  = (firstTick + lastTick) / 2.;
+                        
                         // Store hit params
                         reco_tool::IPeakFitter::PeakFitParams_t peakParams;
                         
-                        peakParams.peakCenter         = candidateHit.hitCenter;
-                        peakParams.peakCenterError    = 0.1 * candidateHit.hitCenter;
-                        peakParams.peakSigma          = candidateHit.hitSigma;
-                        peakParams.peakSigmaError     = 0.1 * candidateHit.hitSigma;
-                        peakParams.peakAmplitude      = candidateHit.hitHeight;
-                        peakParams.peakAmplitudeError = 0.1 * candidateHit.hitHeight;
+                        peakParams.peakCenter         = peakMean;
+                        peakParams.peakCenterError    = 0.1 * peakMean;
+                        peakParams.peakSigma          = peakSigma;
+                        peakParams.peakSigmaError     = 0.1 * peakSigma;
+                        peakParams.peakAmplitude      = peakAmp;
+                        peakParams.peakAmplitudeError = 0.1 * peakAmp;
                         
                         peakParamsVec.push_back(peakParams);
+                        
+                        // set for next loop
+                        firstTick = lastTick;
+                        lastTick  = std::min(lastTick  + longPulseWidth, endT);
                     }
                 }
 	    
