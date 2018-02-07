@@ -716,7 +716,7 @@ bool VoronoiDiagram::computeCircleCenter(const dcel2d::Coords& p1,
     // circle curvature is the "wrong" way for making a circle event
     if (det < 1.e-4) // std::numeric_limits<double>::epsilon())
     {
-        if (det > -std::numeric_limits<double>::epsilon())
+        if (det > 1.) //-std::numeric_limits<double>::epsilon())
         {
             std::cout << "determinant small: " << det << ", x2: " << x2 << ", y3: " << y3 << ", x3: " << x3 << ", y2: " << y2 << std::endl;
             
@@ -1036,13 +1036,13 @@ bool VoronoiDiagram::isInsideConvexHull(const dcel2d::Vertex& vertex) const
     dcel2d::PointList::const_iterator hullItr    = fConvexHullList.begin();
     dcel2d::Point                     firstPoint = *hullItr++;
     
-    std::cout << "_______________________________________________________________________________________" << std::endl;
+//    std::cout << "_______________________________________________________________________________________" << std::endl;
     
     while(hullItr != fConvexHullList.end())
     {
         dcel2d::Point secondPoint = *hullItr++;
         
-        std::cout << " first: " << std::get<0>(firstPoint) << "/" << std::get<1>(firstPoint) << ", tan: " << std::atan2(std::get<1>(firstPoint)-fConvexHullCenter[1],std::get<0>(firstPoint)-fConvexHullCenter[0]) << " 2nd: " << std::get<0>(secondPoint) << "/" << std::get<1>(secondPoint) << ", tan: " << std::atan2(std::get<1>(secondPoint)-fConvexHullCenter[1],std::get<0>(secondPoint)-fConvexHullCenter[0]) << ", vtx: " << std::get<0>(vertexPos) << "/" << std::get<1>(vertexPos) << ", cross: " << crossProduct(firstPoint,secondPoint,vertexPos) << ", isLeft: " << isLeft(firstPoint,secondPoint,vertexPos) << std::endl;
+//        std::cout << " first: " << std::get<0>(firstPoint) << "/" << std::get<1>(firstPoint) << ", tan: " << std::atan2(std::get<1>(firstPoint)-fConvexHullCenter[1],std::get<0>(firstPoint)-fConvexHullCenter[0]) << " 2nd: " << std::get<0>(secondPoint) << "/" << std::get<1>(secondPoint) << ", tan: " << std::atan2(std::get<1>(secondPoint)-fConvexHullCenter[1],std::get<0>(secondPoint)-fConvexHullCenter[0]) << ", vtx: " << std::get<0>(vertexPos) << "/" << std::get<1>(vertexPos) << ", cross: " << crossProduct(firstPoint,secondPoint,vertexPos) << ", isLeft: " << isLeft(firstPoint,secondPoint,vertexPos) << std::endl;
 
         // Check to see if this point is outside the convex hull
         if (!isLeft(firstPoint,secondPoint,vertexPos))

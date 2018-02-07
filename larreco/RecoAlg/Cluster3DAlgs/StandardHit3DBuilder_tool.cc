@@ -832,7 +832,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     // Assume failure
     bool result(false);
     
-    static const float rmsToSig(0.75); //0.57735027);
+    static const float rmsToSig(1.0); //0.75); //0.57735027);
     
     // Recover hit info
     float hitTimeTicks = hit->getTimeTicks();
@@ -931,9 +931,10 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     for(const auto& hit2D : hitVector)
                     {
                         float hitRMS    = rmsToSig * hit2D->getHit().RMS();
+                        float combRMS   = std::sqrt(hitRMS*hitRMS - sigmaPeakTime*sigmaPeakTime);
                         float peakTime  = hit2D->getTimeTicks();
                         float deltaTime = peakTime - avePeakTime;
-                        float hitSig    = deltaTime / hitRMS;
+                        float hitSig    = deltaTime / combRMS; //hitRMS;
                         
                         hitChiSquare += hitSig * hitSig;
                         
