@@ -2927,8 +2927,12 @@ namespace tca {
         if(PosSep(dTp.Pos, mtp1.Pos) < tjs.Vertex2DCuts[2]) continue;
        // make an angle cut at this point. A delta-ray should have a small angle
         float dang = DeltaAngle(muTj.Pts[mpt].Ang, dtj.Pts[dpt].Ang);
-        if(prt) mf::LogVerbatim("TC")<<" dRay? "<<dtj.ID<<" at "<<PrintPos(tjs, dtj.Pts[dpt].Pos)<<" dang "<<dang;
-        if(dang > tjs.KinkCuts[0]) continue;
+        if(prt) mf::LogVerbatim("TC")<<" dRay? "<<dtj.ID<<" at "<<PrintPos(tjs, dtj.Pts[dpt].Pos)<<" dang "<<dang<<" doca "<<doca;
+        // ignore the angle cut if the separation is small and the delta ray MCSMom is low
+        bool closeDeltaRay = (doca < 2 && dtj.MCSMom < 20);
+        if(!closeDeltaRay && dang > tjs.KinkCuts[0]) continue;
+        // Feb 7, 2018
+//        if(dang > tjs.KinkCuts[0]) continue;
         unsigned short oend = 0;
         // check the delta at the end of the delta-ray that is farthest away from the
         // closest point
@@ -2943,8 +2947,6 @@ namespace tca {
         dtj.AlgMod[kDeltaRay] = true;
         // Set the start of the delta-ray to be end 0
         if(oend != 1) ReverseTraj(tjs, dtj);
-        // allow it to be swapped later however
-//        dtj.AlgMod[kSetDir] = true;
       } // jtj
     } // itj
     
@@ -3963,7 +3965,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx____   eVx  ________ePos_______ CS _______eDir______ ____edEdx____  Len nTp3  PDG mcpIndx Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx____   eVx  ________ePos_______ CS _______eDir______ ____edEdx____    Len  nTp3   PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
     myprt<<std::setw(5)<<pfp.ID;
