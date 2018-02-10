@@ -461,6 +461,8 @@ namespace tca {
 
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
+    // Ensure that all PFParticles have a start vertex
+    PFPVertexCheck(tjs);
     if(fQuitAlg) {
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in MakeAllTrajClusters";
       ClearResults();
