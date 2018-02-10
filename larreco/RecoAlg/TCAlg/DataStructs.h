@@ -207,8 +207,6 @@ namespace tca {
   
   // struct used for TrajCluster 3D trajectory points
   struct TrajPoint3 {
-    Point3_t FitPos {0};
-    Vector3_t FitDir {0};
     Point3_t Pos {0};
     Vector3_t Dir {0};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
