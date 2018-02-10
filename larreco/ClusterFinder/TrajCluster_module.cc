@@ -127,6 +127,7 @@ namespace cluster {
     produces< std::vector<recob::PFParticle> >();
     produces< std::vector<recob::SpacePoint> >();
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
+    produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
     
     produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
@@ -191,6 +192,8 @@ namespace cluster {
 
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Cluster>>
         pfp_cls_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
+    std::unique_ptr<art::Assns<recob::PFParticle, recob::Shower>>
+        pfp_shwr_assn(new art::Assns<recob::PFParticle, recob::Shower>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
         pfp_vtx_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
     
@@ -341,7 +344,11 @@ namespace cluster {
       } // clstr.BeginVtx >= 0
     } // icl
     
+    // Get the list of PFParticles. These are a subset of the set of 3D matches of trajectory hits
+    std::vector<tca::PFPStruct> pfpList = fTCAlg->GetPFParticles();
+    
     // Make showers
+    std::vector<unsigned int> shwrIndices(pfpList.size(),UINT_MAX);
     unsigned short nshower = fTCAlg->GetShowerStructSize();
     for(unsigned short ish = 0; ish < nshower; ++ish) {
       tca::ShowerStruct3D const& ss3 = fTCAlg->GetShowerStruct(ish);
@@ -365,6 +372,7 @@ namespace cluster {
       shower.set_length(ss3.Len);
       shower.set_open_angle(ss3.OpenAngle);
       sscol.push_back(shower);
+      shwrIndices[ss3.PFPIndex] = ish;
       // make the shower - hit association
       if(!util::CreateAssn(*this, evt, *shwr_hit_assn, sscol.size()-1, ss3.Hits.begin(), ss3.Hits.end()))
       {
@@ -372,8 +380,6 @@ namespace cluster {
       } // exception
     } // ish
     
-    // Get the list of PFParticles. These are a subset of the set of 3D matches of trajectory hits
-    std::vector<tca::PFPStruct> pfpList = fTCAlg->GetPFParticles();
     // get each of the match vector elements and construct the PFParticle
     for(size_t ipfp = 0; ipfp < pfpList.size(); ++ipfp) {
       auto& pfp = pfpList[ipfp];
@@ -418,6 +424,13 @@ namespace cluster {
         }
         ++vtxIndex;
       } // iv
+      // PFParticle - Shower associations
+      if (shwrIndices[ipfp]<UINT_MAX) {
+        if(!util::CreateAssn(*this, evt, *pfp_shwr_assn, spcol.size()-1, shwrIndices.begin()+ipfp, shwrIndices.begin()+ipfp+1))
+        {
+          throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate showers with PFParticle";
+        } // exception
+      }
       // PFParticle - CosmicTag association
       if (fTCAlg->GetTJS().TagCosmics){
         std::vector<float> tempPt1, tempPt2;
@@ -491,6 +504,7 @@ namespace cluster {
     evt.put(std::move(cls_vtx_assn));
     evt.put(std::move(pcol));
     evt.put(std::move(pfp_cls_assn));
+    evt.put(std::move(pfp_shwr_assn));
     evt.put(std::move(pfp_vtx_assn));
     evt.put(std::move(sptcol));
     evt.put(std::move(pfp_spt_assn));
