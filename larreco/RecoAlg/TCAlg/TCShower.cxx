@@ -1277,7 +1277,7 @@ namespace tca {
     
     std::string fcnLabel = inFcnLabel + ".FP";
     
-    unsigned int cnt = 0;
+    float totChg = 0;
     for(unsigned short it = 0; it < ss.TjIDs.size(); ++it) {
       unsigned short itj = ss.TjIDs[it] - 1;
       if(itj > tjs.allTraj.size() - 1) {
@@ -1298,43 +1298,25 @@ namespace tca {
       }
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         TrajPoint& tp = tj.Pts[ipt];
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) if(tp.UseHit[ii]) ++cnt;
-      } // ipt
-    } // it
-    
-    // Add any loose hits (those not in trajectory points) that are stashed in shower Tj Pt[0]
-    TrajPoint& stp0 = tjs.allTraj[ss.ShowerTjID - 1].Pts[0];
-    cnt += stp0.Hits.size();
-    
-    ss.ShPts.resize(cnt);
-    
-    // Now populate the vectors with the information we currently have 
-    cnt = 0;
-    float totChg = 0;
-    for(unsigned short it = 0; it < ss.TjIDs.size(); ++it) {
-      Trajectory& tj = tjs.allTraj[ss.TjIDs[it] - 1];
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        TrajPoint& tp = tj.Pts[ipt];
-        if(tp.Chg <= 0) continue;
-        // create a point for every hit
         for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(tp.UseHit[ii]) {
-            unsigned int iht = tp.Hits[ii];
-            ss.ShPts[cnt].HitIndex = iht;
-            ss.ShPts[cnt].TID = tj.ID;
-            ss.ShPts[cnt].Chg = tjs.fHits[iht].Integral;
-            ss.ShPts[cnt].Pos[0] = tjs.fHits[iht].ArtPtr->WireID().Wire;
-            ss.ShPts[cnt].Pos[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
-            totChg += ss.ShPts[cnt].Chg;
-            ++cnt;
-          }
+          if(!tp.UseHit[ii]) continue;
+          unsigned int iht = tp.Hits[ii];
+          if(tjs.fHits[iht].Integral <= 0) continue;
+          ShowerPoint shpt;
+          shpt.HitIndex = iht;
+          shpt.TID = tj.ID;
+          shpt.Chg = tjs.fHits[iht].Integral;
+          shpt.Pos[0] = tjs.fHits[iht].ArtPtr->WireID().Wire;
+          shpt.Pos[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
+          ss.ShPts.push_back(shpt);
+          totChg += shpt.Chg;
         } // ii
       } // ipt
     } // it
 
     // Put the total charge into the shower Tj
     tjs.allTraj[ss.ShowerTjID - 1].AveChg = totChg;
-    if(prt) mf::LogVerbatim("TC'")<<fcnLabel<<" cotIndex "<<cotIndex<<" filled "<<cnt<<" points including "<<stp0.Hits.size()<<" loose hits. Total charge "<<(int)totChg;
+    if(prt) mf::LogVerbatim("TC'")<<fcnLabel<<" cotIndex "<<cotIndex<<" filled "<<ss.ShPts.size()<<" points. Total charge "<<(int)totChg;
     
   } // FillPts
 
@@ -1357,7 +1339,10 @@ namespace tca {
     
     FillPts(fcnLabel, tjs, cotIndex, prt);
     if(!FindChargeCenter(fcnLabel, tjs, cotIndex, prt)) {
-      mf::LogWarning("TC")<<"Failed to find shower charge center";
+      if(prt) {
+        mf::LogVerbatim("TC")<<"Failed to find shower charge center "<<cotIndex;
+        Print2DShowers("DS", tjs, ss.CTP, false);
+      }
       MakeShowerObsolete(fcnLabel, tjs, cotIndex, prt);
       return false;
     }
@@ -2529,11 +2514,6 @@ namespace tca {
     TrajPoint& stp1 = tjs.allTraj[stjIndex].Pts[1];
     
     for(unsigned short ii = 0; ii < ss.ShPts.size(); ++ii) {
-      if(ss.ShPts[ii].Chg <= 0) {
-        std::cout<<fcnLabel<<" Found point with no charge. This shouldn't happen\n";
-        ss.ID = 0;
-        return false;
-      }
       stp1.Chg += ss.ShPts[ii].Chg;
       stp1.HitPos[0] += ss.ShPts[ii].Chg * ss.ShPts[ii].Pos[0];
       stp1.HitPos[1] += ss.ShPts[ii].Chg * ss.ShPts[ii].Pos[1];
