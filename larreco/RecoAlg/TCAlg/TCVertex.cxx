@@ -1312,7 +1312,7 @@ namespace tca {
         if(!DefinePFP(tjs, pfp, prt)) continue;
         // separation distance (cm) for kink detection.
         double sep = 1;
-        bool didSplit = SplitAtKink(tjs, pfp, sep, prt);
+        bool didSplit = Split3DKink(tjs, pfp, sep, prt);
         if(prt) PrintPFP("M3D", tjs, pfp, true);
         if(!didSplit && shared.size() != ms.TjIDs.size()) {
           // Try to repair the PFParticle by merging the Tj that was in the match list but
