@@ -36,7 +36,8 @@ namespace tca {
 
   void UpdateMatchStructs(TjStuff& tjs, int oldTj, int newTj);
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
-  void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
+//  void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
+//  void NudgeIndex(TjStuff& tjs, const std::vector<TrajPoint3>& tp3Vec, const Tj2Pt& tj2pt, unsigned short& indx);
   void CheckXRange(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void AttachVertices(TjStuff& tjs, PFPStruct& pfpj, bool prt);
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
@@ -53,7 +54,7 @@ namespace tca {
   double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
   bool SetMag(Vector3_t& v1, double mag);
   void FilldEdx(TjStuff& tjs, TrajPoint3& tp3);
-  bool SplitAtKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
+  bool Split3DKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
   std::vector<unsigned short> FindKinks(const TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
   double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep);
   PFPStruct CreatePFP(const TjStuff& tjs, const geo::TPCID& tpcid);
