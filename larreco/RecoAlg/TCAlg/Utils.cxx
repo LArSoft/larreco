@@ -1423,6 +1423,20 @@ namespace tca {
       if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj == minPts) break;
     } // lastPt
     
+    // trim the last point if it just after a dead wire.
+    unsigned int prevWire = std::nearbyint(tj.Pts[lastPt].Pos[0]);
+    if(tj.StepDir > 0) {
+      --prevWire;
+    } else {
+      ++prevWire;
+    }
+    if(prt) {
+      mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: is prevWire "<<prevWire<<" dead? ";
+    }
+
+    unsigned short plane = DecodeCTP(tj.CTP).Plane;
+    if(prevWire < tjs.NumWires[plane] && tjs.WireHitRange[plane][prevWire].first == -1) --lastPt;
+    
     // Nothing needs to be done
     if(lastPt == tj.EndPt[1]) {
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"-TEPo: Tj is OK";
