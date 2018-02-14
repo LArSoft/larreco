@@ -747,6 +747,13 @@ namespace tca {
       auto& mcp = tjs.MCPartList[mcpIndex];
       unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
       if(pdgIndex > 4) continue;
+      std::string particleName = "Other";
+      if(mcp->PdgCode() == 11) particleName = "Electron";
+      if(mcp->PdgCode() == 22) particleName = "Photon";
+      if(mcp->PdgCode() == 13) particleName = "Muon";
+      if(mcp->PdgCode() == 211) particleName = "Pion";
+      if(mcp->PdgCode() == 321) particleName = "Kaon";
+      if(mcp->PdgCode() == 2212) particleName = "Proton";
       float TMeV = 1000 * (mcp->E() - mcp->Mass());
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
         // put the mcpHits (which are already in this TPCID) in this plane in a vector
@@ -792,7 +799,7 @@ namespace tca {
           if((float)mcpPlnHits.size() > tjs.MatchTruth[3]) {
             ++nBadEP;
             mf::LogVerbatim myprt("TC");
-            myprt<<"pdgIndex "<<pdgIndex<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to isel "<<isel;
+            myprt<<particleName<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to isel "<<isel;
             myprt<<" nTrue hits "<<mcpPlnHits.size();
             myprt<<" extent "<<PrintHit(tjs.fHits[mcpPlnHits[0]])<<"-"<<PrintHit(tjs.fHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
             myprt<<" events processed "<<tjs.EventsProcessed;
@@ -809,12 +816,15 @@ namespace tca {
         if(tj.EffPur < tjs.MatchTruth[2] && (float)mcpPlnHits.size() >= tjs.MatchTruth[3]) {
           ++nBadEP;
           mf::LogVerbatim myprt("TC");
-          myprt<<"pdgIndex "<<pdgIndex<<" BadEP "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
+          myprt<<particleName<<" BadEP: "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
           myprt<<" mcpIndex "<<mcpIndex;
           myprt<<" TMeV "<<(int)TMeV<<" MCP hits "<<mcpPlnHits.size();
           myprt<<" extent "<<PrintHit(tjs.fHits[mcpPlnHits[0]])<<"-"<<PrintHit(tjs.fHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
+          myprt<<" Tj "<<tj.ID;
+          myprt<<" Algs";
+          for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
           myprt<<" events processed "<<tjs.EventsProcessed;
-        }
+        } // print BadEP
         // badep
       } // plane
     } // isel
