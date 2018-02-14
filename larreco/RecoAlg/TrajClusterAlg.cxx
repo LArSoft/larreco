@@ -3256,9 +3256,14 @@ namespace tca {
 
     unsigned short atPt = tj.EndPt[1];
     unsigned short maxPtsFit = 0;
-    for(unsigned short ipt = 3; ipt < lastPtToChk; ++ipt) {
-      if(ipt == tj.Pts.size()) break;
+    float maxChg = 0;
+    unsigned short maxChgPt = 0;
+    for(unsigned short ipt = tj.EndPt[0]; ipt < lastPtToChk; ++ipt) {
       if(tj.Pts[ipt].Chg == 0) continue;
+      if(tj.Pts[ipt].Chg > maxChg) {
+        maxChg = tj.Pts[ipt].Chg;
+        maxChgPt = ipt;
+      }
       if(tj.Pts[ipt].NTPsFit >= maxPtsFit) {
         maxPtsFit = tj.Pts[ipt].NTPsFit;
         atPt = ipt;
@@ -3281,7 +3286,29 @@ namespace tca {
     } // ii
     
     bool needsRevProp = firstPtFit > 3;
+    if(prt) mf::LogVerbatim("TC")<<"FTB: firstPtFit "<<firstPtFit<<" atPt "<<atPt<<" maxChg "<<maxChg<<" at point "<<maxChgPt<<" AveChg "<<tj.Pts[atPt].AveChg;
     
+    // Check for large charge fluctuations near the beginning even if there is no deviation
+    if(!needsRevProp && tjs.UseAlg[kFTBChg] && maxChg > 2 * tj.Pts[atPt].AveChg) {
+      // Find the point where the charge > 3 * average
+      unsigned short newPt = USHRT_MAX;
+      float minChg = 2 * tj.Pts[atPt].AveChg;
+      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
+        if(ii > atPt) break;
+        unsigned short ipt = atPt - ii;
+        if(tj.Pts[ipt].Chg == 0) continue;
+        if(tj.Pts[ipt].Chg > minChg) {
+          newPt = ipt;
+          break;
+        }
+      } // ii
+      if(newPt != USHRT_MAX) {
+        atPt = newPt;
+        needsRevProp = true;
+        tj.AlgMod[kFTBChg] = true;
+      }
+    } // check for charge fluctuations
+
     if(!needsRevProp) {
       // check one wire on the other side of EndPt[0] to see if there are hits that are available which could
       // be picked up by reverse propagation
@@ -5803,6 +5830,8 @@ namespace tca {
       tjs.MCPartList.push_back((*ipart).second);
     } // ipart
     
+    bool prtMCInfo = (tjs.MatchTruth[1] > 0);
+    
     if(tjs.MCPartList.size() > USHRT_MAX) tjs.MCPartList.resize(USHRT_MAX);
     
     if(fUseOldBackTracker) {
@@ -5825,6 +5854,7 @@ namespace tca {
       tm.MatchTrueHits();
       return;
     }
+    unsigned int nMatHits = 0;
     // associate a hit with a MCParticle > 50% of the deposited energy is from it
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       particle_vec.clear(); match_vec.clear();
@@ -5841,9 +5871,12 @@ namespace tca {
         auto& mcp = tjs.MCPartList[ipart];
         if(mcp->TrackId() != trackID) continue;
         tjs.fHits[iht].MCPartListIndex = ipart;
+        ++nMatHits;
         break;
       } // ipart
     } // iht
+    
+    if(prtMCInfo) std::cout<<"GetHitCollection: Matched "<<nMatHits<<" to MCParticles out of "<<tjs.fHits.size()<<" total hits\n";
 
     // Optionally set InTraj to a bogus ID for special studies, for instance to speed up
     // reconstruction of events that have many background hits from processes that we aren't
