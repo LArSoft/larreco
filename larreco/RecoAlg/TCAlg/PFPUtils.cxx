@@ -290,11 +290,12 @@ namespace tca {
       } // end
     } // have different vertices (or no vertices) on each end
   } // AttachVertices
-
+/*
   /////////////////////////////////////////
   void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj)
   {
     // Creates a vector of 3D trajectory points
+    // TODO This code needs serious re-thinking...
     
     pfp.Tp3s.clear();
     if(pfp.ID == 0) return;
@@ -309,11 +310,11 @@ namespace tca {
     unsigned short cnt = 0;
     for(auto tjid : pfp.TjIDs) {
       auto& tj = tjs.allTraj[tjid - 1];
-      unsigned short npwc = NumPtsWithCharge(tjs, tj, false);
+      unsigned short tjlen = tj.EndPt[1] - tj.EndPt[0] + 1;
       sortVec[cnt].index = cnt;
-      sortVec[cnt].val = npwc;
+      sortVec[cnt].val = tjlen;
       ++cnt;
-      tp3Size += npwc;
+      tp3Size += tjlen;
     } // tjid
     // make a temp vector that is somewhat oversized to reduce the probability of
     // getting multiple Tj2Pts in a Tp3
@@ -327,7 +328,6 @@ namespace tca {
     for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
       int tjid = pfp.TjIDs[sortVec[ii].index];
       auto& tj = tjs.allTraj[tjid - 1];
-      unsigned short cnt = 0;
       // calculate an index scale factor
       float tjlen = sortVec[ii].val;
       // This is structured so that the first (longest) tj has it's first entry in tp3Vec[0],
@@ -342,26 +342,22 @@ namespace tca {
         tj2pt.ipt = ipt;
         geo::PlaneID planeID = DecodeCTP(tp.CTP);
         tj2pt.xlo = tjs.detprop->ConvertTicksToX(tp.Pos[1]/tjs.UnitsPerTick, planeID);
-        // calculate an index into tp3Vec so that the points are distributed uniformly
-        unsigned short indx = std::nearbyint(ii + scaleF * cnt);
-        if(indx > vecSize - 1) indx = vecSize - 1;
-        // try to put it in an adjacent slot if this is occupied
-        if(!tp3Vec[indx].Tj2Pts.empty()) {
-          if(indx > 0 && tp3Vec[indx-1].Tj2Pts.empty()) {
-            --indx;
-          } else if(indx < vecSize - 1 && tp3Vec[indx+1].Tj2Pts.empty()) {
-            ++indx;
-          } else if(indx == vecSize - 1) {
-            // at the last point. Just add another one
-            tp3Vec.resize(vecSize + 1);
-            ++indx;
-          }
-        } // not empty
+        // calculate an index into tp3Vec so that the points are distributed uniformly (not
+        // necessarily uniformly in path length)
+        unsigned short indx = std::nearbyint(ii + scaleF * (ipt - tj.EndPt[0]));
+        if(indx > vecSize) indx = vecSize;
+        // After the first tj points have been entered, refine the index for the second and third
+        // tjs so that the X positions are consistent
+        if(ii > 0) std::cout<<pfp.ID<<" indx in "<<indx;
+        if(ii > 0) NudgeIndex(tjs, tp3Vec, tj2pt, indx);
+        if(ii > 0) std::cout<<pfp.ID<<" out "<<indx<<"\n";
+        if(indx == USHRT_MAX) continue;
+        if(indx > tp3Vec.size() - 1) tp3Vec.resize(indx+1);
         tp3Vec[indx].Tj2Pts.push_back(tj2pt);
+        tp3Vec[indx].Pos[0] = tj2pt.xlo;
         ++cnt;
       } // ipt
     } // tj
-    std::cout<<"Sort me by X if the difference is significant\n";
     // Transfer the valid points into pfp.Tp3s
     for(auto& tp3 : tp3Vec) {
       if(!tp3.Tj2Pts.empty()) pfp.Tp3s.push_back(tp3);
@@ -378,42 +374,115 @@ namespace tca {
       // get a reference to the Tj point
       auto& itj2pt = itp3.Tj2Pts[0];
       itp2 = tjs.allTraj[itj2pt.id - 1].Pts[itj2pt.ipt];
-      if(itp3.Tj2Pts.size() > 1) {
-        // have a doublet. Get a reference to the other tj point
-        auto& jtj2pt = itp3.Tj2Pts[1];
-        jtp2 = tjs.allTraj[jtj2pt.id - 1].Pts[jtj2pt.ipt];
-        if(MakeTp3(tjs, itp2, jtp2, tmp)) {
-          itp3.Pos = tmp.Pos;
-          itp3.Dir = tmp.Dir;
-        }
-      } else {
-        // have a singlet. Check the next Tp3 for a Tj point
-        unsigned short jndx = indx + 1;
-        if(jndx == pfp.Tp3s.size() - 1) break;
-        // get a reference to the next Tp3
-        auto& jtp3 = pfp.Tp3s[jndx];
-        if(jtp3.Tj2Pts.empty()) continue;
-        // get a reference to the Tj point
+      // have a singlet. Check the next Tp3 for a Tj point
+      unsigned short jndx = indx + 1;
+      if(jndx == pfp.Tp3s.size() - 1) break;
+      // get a reference to the next Tp3
+      auto& jtp3 = pfp.Tp3s[jndx];
+      if(jtp3.Tj2Pts.empty()) continue;
+      // get a reference to the Tj point
+      auto& jtj2pt = jtp3.Tj2Pts[0];
+      // try an earlier point if the next one is in the same plane
+      if(jtj2pt.ctp == itj2pt.ctp) {
+        if(indx == 0) continue;
+        auto& jtp3 = pfp.Tp3s[indx - 1];
         auto& jtj2pt = jtp3.Tj2Pts[0];
-        // try an earlier point if the next one is in the same plane
-        if(jtj2pt.ctp == itj2pt.ctp) {
-          if(indx == 0) continue;
-          auto& jtp3 = pfp.Tp3s[indx - 1];
-          auto& jtj2pt = jtp3.Tj2Pts[0];
-          jtp2 = tjs.allTraj[jtj2pt.id - 1].Pts[jtj2pt.ipt];
-        } else {
-          jtp2 = tjs.allTraj[jtj2pt.id - 1].Pts[jtj2pt.ipt];
-        }
-        if(MakeTp3(tjs, itp2, jtp2, tmp)) {
-          itp3.Pos = tmp.Pos;
-          itp3.Dir = tmp.Dir;
-        }
-      } // Tp3 with one Tj2Pt
+        jtp2 = tjs.allTraj[jtj2pt.id - 1].Pts[jtj2pt.ipt];
+      } else {
+        jtp2 = tjs.allTraj[jtj2pt.id - 1].Pts[jtj2pt.ipt];
+      }
+      // Don't attempt if they are too far apart
+      if(std::abs(jtp3.Pos[0] - itp3.Pos[0]) > tjs.Match3DCuts[0]) continue;
+      if(MakeTp3(tjs, itp2, jtp2, tmp)) {
+        itp3.Pos = tmp.Pos;
+        itp3.Dir = tmp.Dir;
+      }
     } // indx
     FixDirection(tjs, pfp);
     PrintTp3s("MTp", tjs, pfp, -1);
   } // MakePFPTp3s
-
+  
+  /////////////////////////////////////////
+  void NudgeIndex(TjStuff& tjs, const std::vector<TrajPoint3>& tp3Vec, const Tj2Pt& tj2pt, unsigned short& indx)
+  {
+    // We want to put the tj2pt in tp3Vec at an appropriate point. The index into the vector was calculated
+    // using the assumption that all Tj points on all trajectories should be uniformly distributed in this
+    // vector but that is only an approximation. This function revises the indx such that 1) there is not
+    // already a point at that position and 2) that the X positions of nearby points are consistent
+    
+    // find the x range
+    float x0 = -1E6, x1 = 0;
+    for(unsigned short ipt = 0; ipt < tp3Vec.size(); ++ipt) {
+      auto& tp3 = tp3Vec[ipt];
+      if(tp3.Tj2Pts.empty()) continue;
+      if(x0 == -1) x0 = tp3.Pos[0];
+      x1 = tp3.Pos[0];
+    } // tp3
+    if(x0 == -1E6) return;
+    bool smallXRange = (std::abs(x1 - x0) < 2 * tjs.Match3DCuts[0]);
+    
+    if(smallXRange) {
+      // Nothing to be done if small X range and the slot is available
+      if(tp3Vec[indx].Tj2Pts.empty()) return;
+      // find an available slot
+      for(unsigned short ii = 0; ii < 5; ++ii) {
+        unsigned short next = indx + ii;
+        if(next < tp3Vec.size() && tp3Vec[next].Tj2Pts.empty()) {
+          indx = next;
+          return;
+        }
+      } // ii
+    } // small X range
+    
+    unsigned short closeXPt = USHRT_MAX;
+    for(unsigned short ii = 0; ii < tp3Vec.size(); ++ii) {
+      unsigned short ipt = indx + ii;
+      if(ipt < tp3Vec.size() && !tp3Vec[ipt].Tj2Pts.empty()) {
+        float dx = std::abs(tj2pt.xlo - tp3Vec[ipt].Pos[0]);
+        if(dx < tjs.Match3DCuts[0]) {
+          closeXPt = ipt;
+          break;
+        } // good dx
+      } // valid ipt
+      ipt = indx - ii;
+      if(ipt < tp3Vec.size() && !tp3Vec[ipt].Tj2Pts.empty()) {
+        float dx = std::abs(tj2pt.xlo - tp3Vec[ipt].Pos[0]);
+        if(dx < tjs.Match3DCuts[0]) {
+          closeXPt = ipt;
+          break;
+        } // good dx
+      } // valid ipt
+    } // ii
+    
+    if(closeXPt == USHRT_MAX) {
+      indx = USHRT_MAX;
+      return;
+    }
+    // now find an available slot near this point
+    for(unsigned short ii = 1; ii < tp3Vec.size(); ++ii) {
+      unsigned short ipt = closeXPt + ii;
+      if(ipt == tp3Vec.size()) break;
+      // look for a slot with a valid Tp3 and ensure that we haven't moved too far away
+      if(!tp3Vec[ipt].Tj2Pts.empty() && std::abs(tj2pt.xlo - tp3Vec[ipt].Pos[0]) > tjs.Match3DCuts[0]) break;
+      if(ipt < tp3Vec.size() && tp3Vec[ipt].Tj2Pts.empty()) {
+        indx = ipt;
+        return;
+      }
+    } // ii
+    // Try going in the other direction
+    for(unsigned short ii = 1; ii < tp3Vec.size(); ++ii) {
+      unsigned short ipt = closeXPt - ii;
+      if(ipt > tp3Vec.size() - 1) break;
+      // look for a slot with a valid Tp3 and ensure that we haven't moved too far away
+      if(!tp3Vec[ipt].Tj2Pts.empty() && std::abs(tj2pt.xlo - tp3Vec[ipt].Pos[0]) > tjs.Match3DCuts[0]) break;
+      if(ipt < tp3Vec.size() && tp3Vec[ipt].Tj2Pts.empty()) {
+        indx = ipt;
+        return;
+      }
+    } // ii
+        
+  } // NudgeIndex
+*/
   /////////////////////////////////////////
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
@@ -1152,16 +1221,16 @@ namespace tca {
   } // FilldEdx
   
   ////////////////////////////////////////////////
-  bool SplitAtKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt)
+  bool Split3DKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt)
   {
     // Finds kinks in the PFParticle, splits Tjs, creates 2D vertices and forces a rebuild if any are found
     if(pfp.Tp3s.empty()) return false;
-    
     if(pfp.DirectionFixed) return false;
+    if(!tjs.UseAlg[kSplit3DKink]) return false;
     
     auto kinkPts = FindKinks(tjs, pfp, sep, prt);
     if(kinkPts.empty()) return false;
-    if(prt) mf::LogVerbatim("TC")<<"SplitAtKink found a kink at Tp3s point "<<kinkPts[0];
+    if(prt) mf::LogVerbatim("TC")<<"Split3DKink found a kink at Tp3s point "<<kinkPts[0];
     
     // Only split the biggest angle kink
     double big = 0;
@@ -1195,7 +1264,7 @@ namespace tca {
           // No split is needed and there should be a vertex at this end of the Tj that
           // should be associated with a 3D vertex that we will construct
           if(tj.VtxID[closeEnd] == 0) {
-//            std::cout<<"SplitAtKink: TODO Tj "<<tj.ID<<" has no vertex attached on end "<<closeEnd<<". Write some code.\n";
+//            std::cout<<Split3DKink: TODO Tj "<<tj.ID<<" has no vertex attached on end "<<closeEnd<<". Write some code.\n";
             return false;
           }
           vx2ids.push_back(tj.VtxID[closeEnd]);
@@ -1218,7 +1287,7 @@ namespace tca {
     } // ipt
     
     if(vx2ids.size() != tjs.NumPlanes) {
-//      std::cout<<"SplitAtKink: TODO pfp "<<pfp.ID<<" only has "<<vx2ids.size()<<" 2D vertices. \n";
+//      std::cout<<"Split3DKink: TODO pfp "<<pfp.ID<<" only has "<<vx2ids.size()<<" 2D vertices. \n";
       return false;
     }
     Vtx3Store vx3;
@@ -1238,7 +1307,7 @@ namespace tca {
     // mark this as needing an update
     pfp.NeedsUpdate = true;
     return true;
-  } // SplitAtKink
+  } // Split3DKink
   
   ////////////////////////////////////////////////
   std::vector<unsigned short> FindKinks(const TjStuff& tjs, PFPStruct& pfp, double sep, bool prt)
@@ -1470,8 +1539,7 @@ namespace tca {
         continue;
       }
       double sep = 1;
-      // Jan 26: Disable while working on LArIAT data
-      SplitAtKink(tjs, pfp, sep, prt);
+      Split3DKink(tjs, pfp, sep, prt);
       AnalyzePFP(tjs, pfp, prt);
       pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
       if(!StorePFP(tjs, pfp)) {
@@ -1507,7 +1575,7 @@ namespace tca {
     for(auto tjid : pfp.TjIDs) {
       auto& tj = tjs.allTraj[tjid - 1];
       if(tj.AlgMod[kMat3D]) {
-        std::cout<<"DPFP: pfp "<<pfp.ID<<" uses tj "<<tj.ID<<" kMat3D is set true\n";
+        std::cout<<"DPFP: pfp "<<pfp.ID<<" uses tj "<<tj.ID<<" but kMat3D is set true\n";
         return false;
       }
     } // tjid
@@ -1517,7 +1585,7 @@ namespace tca {
     // The standard X-matching scheme doesn't work for this situation.
     // SetEndPoints will determine the start and end points (pfp.XYZ[end]) in this case.
     SetEndPoints(tjs, pfp, prt);
-    MakePFPTp3s(tjs, pfp, false);
+//    MakePFPTp3s(tjs, pfp, false);
     pfp.NeedsUpdate = false;
     return true;
   } // DefinePFP
