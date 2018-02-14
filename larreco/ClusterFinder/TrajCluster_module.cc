@@ -125,13 +125,13 @@ namespace cluster {
     produces< art::Assns<recob::Shower, recob::Hit> >();
     
     produces< std::vector<recob::PFParticle> >();
-    produces< std::vector<recob::SpacePoint> >();
+//    produces< std::vector<recob::SpacePoint> >();
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
     
-    produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
-    produces< art::Assns<recob::SpacePoint, recob::Hit> >();
+//    produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
+//    produces< art::Assns<recob::SpacePoint, recob::Hit> >();
 
     produces< std::vector<anab::CosmicTag>>();
     produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
@@ -177,7 +177,7 @@ namespace cluster {
 
     std::vector<recob::Cluster> sccol;
     std::vector<recob::PFParticle> spcol;
-    std::vector<recob::SpacePoint> ssptcol;
+//    std::vector<recob::SpacePoint> ssptcol;
     std::vector<recob::Vertex> sv3col;
     std::vector<recob::EndPoint2D> sv2col;
     std::vector<recob::Shower> sscol;
@@ -196,12 +196,12 @@ namespace cluster {
         pfp_shwr_assn(new art::Assns<recob::PFParticle, recob::Shower>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
         pfp_vtx_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
-    
+/*
     std::unique_ptr<art::Assns<recob::PFParticle, recob::SpacePoint>> 
         pfp_spt_assn(new art::Assns<recob::PFParticle, recob::SpacePoint>);
     std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>> 
         spt_hit_assn(new art::Assns<recob::SpacePoint, recob::Hit>);
-    
+*/
     std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
        pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
 
@@ -445,6 +445,7 @@ namespace cluster {
           throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate CosmicTag with PFParticle";
         }
       } // TagCosmics
+/* 
       // Make a SpacePoint from each Tp3
       double zeros[6] = {0};
       double chisq = 0;
@@ -478,12 +479,13 @@ namespace cluster {
       {
         throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate space point with PFParticle "<<pfp.ID;
       } // exception
+*/
     } // ipfp
 
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
     std::unique_ptr<std::vector<recob::PFParticle> > pcol(new std::vector<recob::PFParticle>(std::move(spcol)));
-    std::unique_ptr<std::vector<recob::SpacePoint> > sptcol(new std::vector<recob::SpacePoint>(std::move(ssptcol)));
+//    std::unique_ptr<std::vector<recob::SpacePoint> > sptcol(new std::vector<recob::SpacePoint>(std::move(ssptcol)));
     std::unique_ptr<std::vector<recob::Shower> > scol(new std::vector<recob::Shower>(std::move(sscol)));
     std::unique_ptr<std::vector<anab::CosmicTag>> ctgcol(new std::vector<anab::CosmicTag>(std::move(ctcol)));
 
@@ -506,9 +508,9 @@ namespace cluster {
     evt.put(std::move(pfp_cls_assn));
     evt.put(std::move(pfp_shwr_assn));
     evt.put(std::move(pfp_vtx_assn));
-    evt.put(std::move(sptcol));
-    evt.put(std::move(pfp_spt_assn));
-    evt.put(std::move(spt_hit_assn));
+//    evt.put(std::move(sptcol));
+//    evt.put(std::move(pfp_spt_assn));
+//    evt.put(std::move(spt_hit_assn));
     evt.put(std::move(ctgcol));
     evt.put(std::move(pfp_cos_assn));
   } // TrajCluster::produce()
