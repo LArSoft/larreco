@@ -11,7 +11,7 @@ namespace tca {
     "CTStepChk",
     "TryNextPass",
     "RvPrp",
-    "CHMH",
+    "CHMUH",
     "Split",
     "Comp3DVx",
     "Comp3DVxIG",
