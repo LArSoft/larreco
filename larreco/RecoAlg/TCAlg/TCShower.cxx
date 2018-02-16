@@ -2994,7 +2994,6 @@ namespace tca {
       if(tj.CTP != inCTP) continue;
       if(tj.AlgMod[kKilled]) continue;
       tj.AlgMod[kInShower] = false;
-      tj.NNeighbors = 0;
       if(tj.AlgMod[kShowerTj]) continue;
       if(tj.Pts.size() < 3) continue;
       if(tj.Pts.size() > 4 && tj.MCSMom > maxMCSMom) continue;
@@ -3068,6 +3067,39 @@ namespace tca {
       } // tjid
     } // tjl
     if(tjs.ShowerTag[12] >= 0) mf::LogVerbatim("TC")<<"TagInShowerTjs tagged "<<nsh<<" InShower Tjs in CTP "<<inCTP;
+    
+    // Set the NearInShower bit on all Tjs in this TPC
+    std::vector<unsigned int> closeHits;
+    // Set the 
+    std::array<int, 2> wireWindow;
+    Point2_t timeWindow;
+    // Define close to be 1/2 of the ShowerTag separation cut
+    float deltaCut = 0.5 * tjs.ShowerTag[2];
+    for(auto& tj : tjs.allTraj) {
+      if(tj.CTP != inCTP) continue;
+      if(tj.AlgMod[kKilled]) continue;
+      unsigned short plane = DecodeCTP(tj.CTP).Plane;
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        auto& tp = tj.Pts[ipt];
+        // Find all hits near this time on this wire
+        wireWindow[0] = std::nearbyint(tp.Pos[0]);
+        wireWindow[1] = wireWindow[0];
+        timeWindow[0] = tp.Pos[1] - deltaCut;
+        timeWindow[1] = tp.Pos[1] + deltaCut;
+        bool hitsNear = false;
+        closeHits = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
+        for(auto iht : closeHits) {
+          auto& hit = tjs.fHits[iht];
+          // ignore hits used in this TP
+          if(hit.InTraj == tj.ID) continue;
+          if(hit.InTraj > 0) {
+            // Nearby hit used in a nearby Tj
+            auto& ntj = tjs.allTraj[hit.InTraj - 1];
+            if(ntj.AlgMod[kInShower]) tp.NearInShower = true;
+          }
+        } // iht
+      } // ipt
+    } // tj
     
     if(tjs.UseAlg[kKillInShowerVx]) {
       // make a list of 2D vertices
