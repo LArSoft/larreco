@@ -227,7 +227,7 @@ namespace tca {
       auto& mcp = tjs.MCPartList[part];
       int trackID = mcp->TrackId();
       art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-      bool originNeutrino = theTruth->Origin() == simb::kBeamNeutrino;
+      bool originNeutrino = (theTruth->Origin() == simb::kBeamNeutrino);
       int pdg = abs(mcp->PdgCode());
       bool isNeutrino = (pdg == 12) || (pdg == 14) || (pdg == 16);
       // ignore neutrinos that aren't primary
@@ -434,7 +434,6 @@ namespace tca {
           if(sep < 1) neutrinoVxReconstructed = true;
         } // first one is a neutrino PFP
       } // pfps not empty
-      std::cout<<"Vx reconstructed? "<<neutrinoVxReconstructed<<"\n";
     } // neutrinoVxReconstructable
     if(neutrinoVxReconstructed) ++TruVxCounts[2];
 /*
@@ -748,12 +747,14 @@ namespace tca {
       unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
       if(pdgIndex > 4) continue;
       std::string particleName = "Other";
-      if(mcp->PdgCode() == 11) particleName = "Electron";
-      if(mcp->PdgCode() == 22) particleName = "Photon";
-      if(mcp->PdgCode() == 13) particleName = "Muon";
-      if(mcp->PdgCode() == 211) particleName = "Pion";
-      if(mcp->PdgCode() == 321) particleName = "Kaon";
-      if(mcp->PdgCode() == 2212) particleName = "Proton";
+      int pdg = abs(mcp->PdgCode());
+      if(pdg == 11) particleName = "Electron";
+      if(pdg == 22) particleName = "Photon";
+      if(pdg == 13) particleName = "Muon";
+      if(pdg == 211) particleName = "Pion";
+      if(pdg == 321) particleName = "Kaon";
+      if(pdg == 2212) particleName = "Proton";
+      if(particleName == "Other") particleName = "PDG_" + std::to_string(pdg);
       float TMeV = 1000 * (mcp->E() - mcp->Mass());
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
         // put the mcpHits (which are already in this TPCID) in this plane in a vector
