@@ -1360,7 +1360,7 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC")<<"CTBC: Split Tj "<<tj.ID<<" at "<<PrintPos(tjs, tj.Pts[breakPt].Pos)<<"\n";
     
   } // CheckTrajBeginChg
-  
+
   //////////////////////////////////////////
   void TrimEndPts(std::string fcnLabel, TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
   {
@@ -3738,7 +3738,8 @@ namespace tca {
     if(itj == USHRT_MAX) {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
-      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx    Chg chgRMS  Mom SDr __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
+//      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx Chg(k) chgRMS  Mom SDr __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ InSh     W:T      Ang CS AveQ InSh Chg(k) chgRMS  Mom SDr __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -3771,9 +3772,22 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp0.AveChg;
+        // Print the fraction of points in the first half that are NearInShower
+        float frac = 0;
+        float cnt = 0;
+        unsigned short midPt = 0.5 * (aTj.EndPt[0] + aTj.EndPt[1]);
+        for(unsigned short ipt = aTj.EndPt[0]; ipt < midPt; ++ipt) {
+          auto& tp = aTj.Pts[ipt];
+          if(tp.NearInShower) ++frac;
+          ++cnt;
+        } // ipt
+        if(cnt > 0) frac /= cnt;
+        myprt<<std::setw(5)<<std::setprecision(1)<<frac;
+/* print NearInShower fraction instead
         unsigned short prec = 1;
         if(aTj.dEdx[0] > 99) prec = 0;
         myprt<<std::setw(5)<<std::setprecision(prec)<<aTj.dEdx[0];
+*/
         unsigned short endPt1 = aTj.EndPt[1];
         auto& tp1 = aTj.Pts[endPt1];
         itick = tp1.Pos[1]/tjs.UnitsPerTick;
@@ -3791,10 +3805,22 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp1.AveChg;
+        // Print the fraction of points in the second half that are NearInShower
+        frac = 0;
+        cnt = 0;
+        for(unsigned short ipt = midPt; ipt <= aTj.EndPt[1]; ++ipt) {
+          auto& tp = aTj.Pts[ipt];
+          if(tp.NearInShower) ++frac;
+          ++cnt;
+        } // ipt
+        if(cnt > 0) frac /= cnt;
+        myprt<<std::setw(5)<<std::setprecision(1)<<frac;
+/*
         prec = 1;
         if(aTj.dEdx[1] > 99) prec = 0;
         myprt<<std::setw(5)<<std::setprecision(prec)<<aTj.dEdx[1];
-        myprt<<std::setw(7)<<(int)aTj.TotChg;
+*/
+        myprt<<std::setw(7)<<std::setprecision(1)<<aTj.TotChg/1000;
         myprt<<std::setw(7)<<std::setprecision(2)<<aTj.ChgRMS;
         myprt<<std::setw(5)<<aTj.MCSMom;
         myprt<<std::setw(4)<<aTj.StepDir;
@@ -3979,7 +4005,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx____   eVx  ________ePos_______ CS _______eDir______ ____edEdx____    Len  nTp3   PDG mcpIndx Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____    Len  nTp3   PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
     myprt<<std::setw(5)<<pfp.ID;
