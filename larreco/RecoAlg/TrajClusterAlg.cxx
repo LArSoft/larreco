@@ -718,11 +718,13 @@ namespace tca {
         } // iht
       } // iwire
 
-      // Ensure that all tjs are in the same order
+      // Ensure that all tjs are in the same order and do some clean up
       for(auto& tj : tjs.allTraj) {
         if(tj.AlgMod[kKilled]) continue;
         if(tj.CTP != inCTP) continue;
         if(tj.StepDir != tjs.StepDir && !tj.AlgMod[kSetDir]) ReverseTraj(tjs, tj);
+        // Feb 14
+        CheckHiMultUnusedHits(tj);
       } // tj
 
       // Tag delta rays before merging and making vertices
@@ -3169,8 +3171,8 @@ namespace tca {
     FindSoftKink(tj);
     
     HiEndDelta(tj);
-    
-    CheckHiMultUnusedHits(tj);
+    // Feb 14. use this after all tjs are reconstructed
+//    CheckHiMultUnusedHits(tj);
     if(!fGoodTraj || fQuitAlg) return;
     
     // lop off high multiplicity hits at the end
@@ -3563,11 +3565,6 @@ namespace tca {
           float delta = PointTrajDOCA(tjs, iht, tp);
           if(prt) mf::LogVerbatim("TC")<<" FG "<<PrintPos(tjs,tj.Pts[mpt])<<" hit "<<PrintHit(tjs.fHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<" Chg "<<tjs.fHits[iht].Integral<<" maxChg "<<maxChg;
           if(delta > maxDelta) continue;
-          if(tj.Pts[mpt].UseHit[ii]) {
-            mf::LogWarning("TC")<<"FillGaps: Found UseHit true on TP with no charge "<<tj.ID<<" mpt "<<mpt<<" hit "<<PrintHit(tjs.fHits[iht]);
-            fQuitAlg = true;
-            return;
-          }
           tj.Pts[mpt].UseHit[ii] = true;
           tjs.fHits[iht].InTraj = tj.ID;
           chg += tjs.fHits[iht].Integral;
@@ -3667,7 +3664,7 @@ namespace tca {
   {
     // Check for many unused hits in high multiplicity TPs in work and try to use them
     
-    if(!tjs.UseAlg[kChkHiMultHits]) return;
+    if(!tjs.UseAlg[kCHMUH]) return;
     
     // This code might do bad things to short trajectories
     if(NumPtsWithCharge(tjs, tj, true) < 6) return;
@@ -3807,7 +3804,7 @@ namespace tca {
     if(tj.StopFlag[1][kAtKink]) return;
     // trim the end points although this shouldn't happen
     if(tj.EndPt[1] != tj.Pts.size() - 1) tj.Pts.resize(tj.EndPt[1] + 1);
-    tj.AlgMod[kChkHiMultHits] = true;
+    tj.AlgMod[kCHMUH] = true;
   } // CheckHiMultUnusedHits
 
   
@@ -5821,15 +5818,81 @@ namespace tca {
     if(evt.isRealData()) return;
     // don't bother loading MC info if it won't be used.
     if(tjs.MatchTruth[0] <= 0) return;
-
+/*
+    // temp - copied from event display simulation drawer
+    std::vector<art::Handle<std::vector<simb::MCTruth>>> mctcol;
+    evt.getManyByType(mctcol);
+    std::vector<const simb::MCTruth*> mcvec;
+    for(size_t mctc = 0; mctc < mctcol.size(); ++mctc) {
+      art::Handle< std::vector<simb::MCTruth> > mclistHandle = mctcol[mctc];
+      for(size_t i = 0; i < mclistHandle->size(); ++i){
+        mcvec.push_back(&(mclistHandle->at(i)));
+      }
+    }
+    std::cout<<" MCTruth vec size "<<mcvec.size()<<"\n";
+    for(unsigned int i = 0; i < mcvec.size(); ++i) {
+      if(tjs.MatchTruth[0] == 1 && mcvec[i]->Origin() != simb::kBeamNeutrino) continue;
+      for(int ii = 0; ii < mcvec[i]->NParticles(); ++ii) {
+        auto& p = mcvec[i]->GetParticle(ii);
+        // ignore everything except Genie final state particles
+        if(p.StatusCode() != 1) continue;
+        int KE = 1000 * (p.E() - p.Mass());
+        std::cout<<i<<" "<<ii<<" status "<<p.StatusCode()
+        <<std::setw(8)<<p.TrackId()
+        <<" "<<p.PdgCode()
+        <<std::setw(7)<<KE<<" mom "<<p.Mother()
+        <<" "<<p.Process()
+        <<"\n";
+      } // ii
+    } // i
+*/
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     sim::ParticleList const& plist = pi_serv->ParticleList();
     if(plist.empty()) return;
+//    std::cout<<" ParticleInventoryService ParticleList size "<<plist.size()<<"\n";
     // save all MCParticles in TjStuff
+//    int cnt = 0;
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-      tjs.MCPartList.push_back((*ipart).second);
+      auto& p = (*ipart).second;
+/*
+      int trackID = p->TrackId();
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+      if(theTruth->Origin() != simb::kBeamNeutrino) continue;
+      int KE = 1000 * (p->E() - p->Mass());
+      if(KE < 10) continue;
+      std::cout<<cnt<<" Origin "<<theTruth->Origin()
+      <<std::setw(8)<<p->TrackId()
+      <<" "<<p->PdgCode()
+      <<std::setw(7)<<KE<<" "<<p->Mother()
+      <<" "<<p->Process()
+      <<"\n";
+      ++cnt;
+*/
+      tjs.MCPartList.push_back(p);
     } // ipart
-    
+/*
+    // do it the old way
+    art::ServiceHandle<cheat::BackTrackerService> bt;
+    std::string fG4ModuleLabel = "largeant";
+    const auto& pHandle = evt.template getValidHandle<std::vector<simb::MCParticle>>(fG4ModuleLabel);
+    if(pHandle.failedToGet()) {
+      std::cout<<"didn't get pHandle\n";
+    } else {
+      const auto& partVec = *pHandle;
+      std::cout<<" Old style partVec size "<<partVec.size()<<"\n";
+      for(const auto& part : partVec) {
+        int trackID = part.TrackId();
+        if(trackID < 1005000) continue;
+        int KE = 1000 * (part.E() - part.Mass());
+        if(KE < 10) continue;
+        std::cout<<"old "<<trackID
+        <<" "<<part.PdgCode()
+        <<" KE "<<KE<<" "<<part.Mother()
+        <<" "<<part.Process()
+        <<"\n";
+      }
+    }
+*/
     bool prtMCInfo = (tjs.MatchTruth[1] > 0);
     
     if(tjs.MCPartList.size() > USHRT_MAX) tjs.MCPartList.resize(USHRT_MAX);
@@ -5839,15 +5902,25 @@ namespace tca {
       return;
     }
     
+//    std::cout<<"Hit ProductID "<<tjs.fHits[0].ArtPtr.id()<<"\n";
+
     art::FindMany<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(hitVecHandle, evt, fHitTruthModuleLabel);
     std::vector<simb::MCParticle const*> particle_vec;
     std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
-    
+/* Try to get the correct BackTrackerHitMatchingData collection using the hit collection product ID
+    std::vector<art::Handle<art::Assns<recob::Hit,simb::MCParticle,anab::BackTrackerHitMatchingData>>> hitmcp_assns;
+    evt.getManyByType(hitmcp_assns);
+    std::cout<<"Found "<<hitmcp_assns.size()<<" hitmcp_assns\n";
+    for(auto& hitmcp_assn : hitmcp_assns) {
+       Not sure what to do here...
+    } // hitmcp_assn
+*/
     // check for the existence of BackTrackerHitMatchingData
     try{
       particles_per_hit.get(0, particle_vec, match_vec);
     }
     catch(...){
+      std::cout<<"BackTrackerHitMatchingData not found using "<<fHitTruthModuleLabel<<"\n";
       fUseOldBackTracker = true;
     }
     if(fUseOldBackTracker) {
@@ -5876,7 +5949,7 @@ namespace tca {
       } // ipart
     } // iht
     
-    if(prtMCInfo) std::cout<<"GetHitCollection: Matched "<<nMatHits<<" to MCParticles out of "<<tjs.fHits.size()<<" total hits\n";
+    if(prtMCInfo) std::cout<<"GetHitCollection: Matched "<<nMatHits<<" hits to MCParticles out of "<<tjs.fHits.size()<<" total hits\n";
 
     // Optionally set InTraj to a bogus ID for special studies, for instance to speed up
     // reconstruction of events that have many background hits from processes that we aren't
