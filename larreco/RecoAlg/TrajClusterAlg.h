@@ -38,7 +38,6 @@
 // LArSoft libraries
 #include "larreco/RecoAlg/LinFitAlg.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
-//#include "larreco/RecoAlg/TrackKalmanFitter.h"
 
 #include "TH1F.h"
 #include "TH2F.h"
