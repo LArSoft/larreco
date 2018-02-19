@@ -881,38 +881,38 @@ namespace tca {
 
     geo::PlaneID planeID = DecodeCTP(inCTP);        
 
-    // Splits trajectories in tjs.allTraj that cross a vertex
     unsigned short nTraj = tjs.allTraj.size();
     for(unsigned short itj = 0; itj < nTraj; ++itj) {
-      auto& tj = tjs.allTraj[itj];
-      if(tj.CTP != inCTP) continue;
+      // NOTE: Don't use a reference variable because it may get lost if the tj is split
+//      auto& tj = tjs.allTraj[itj];
+      if(tjs.allTraj[itj].CTP != inCTP) continue;
       // obsolete trajectory
-      if(tj.AlgMod[kKilled]) continue;
-      if(tj.AlgMod[kSplitTjCVx]) continue;
+      if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
+      if(tjs.allTraj[itj].AlgMod[kSplitTjCVx]) continue;
       // too short
-      if(tj.EndPt[1] < 6) continue;
+      if(tjs.allTraj[itj].EndPt[1] < 6) continue;
       for(unsigned short iv = 0; iv < tjs.vtx.size(); ++iv) {
         auto& vx2 = tjs.vtx[iv];
         // obsolete vertex
         if(vx2.NTraj == 0) continue;
         // trajectory already associated with vertex
-        if(tj.VtxID[0] == vx2.ID ||
-           tj.VtxID[1] == vx2.ID) continue;
+        if(tjs.allTraj[itj].VtxID[0] == vx2.ID ||
+           tjs.allTraj[itj].VtxID[1] == vx2.ID) continue;
         // not in the cryostat/tpc/plane
-        if(tj.CTP != vx2.CTP) continue;
+        if(tjs.allTraj[itj].CTP != vx2.CTP) continue;
         float doca = docaCut;
         // make the cut significantly larger if the vertex is in a dead
         // wire gap to get the first TP that is just outside the gap.
         if(vx2.Stat[kOnDeadWire]) doca = 100;
         unsigned short closePt = 0;
-        if(!TrajClosestApproach(tj, vx2.Pos[0], vx2.Pos[1], closePt, doca)) continue;
+        if(!TrajClosestApproach(tjs.allTraj[itj], vx2.Pos[0], vx2.Pos[1], closePt, doca)) continue;
         if(vx2.Stat[kOnDeadWire]) {
           // special handling for vertices in dead wire regions. Find the IP between
           // the closest point on the Tj and the vertex
-          doca = PointTrajDOCA(tjs, vx2.Pos[0], vx2.Pos[1], tj.Pts[closePt]);
+          doca = PointTrajDOCA(tjs, vx2.Pos[0], vx2.Pos[1], tjs.allTraj[itj].Pts[closePt]);
         }
         if(doca > docaCut) continue;
-        if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<tj.ID<<" and tjs.vtx "<<tjs.vtx[iv].ID<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
+        if(prt)  mf::LogVerbatim("TC")<<" doca "<<doca<<" btw traj "<<tjs.allTraj[itj].ID<<" and tjs.vtx "<<tjs.vtx[iv].ID<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
         // compare the length of the Tjs used to make the vertex with the length of the
         // Tj that we want to split. Don't allow a vertex using very short Tjs to split a long
         // Tj in the 3rd plane
@@ -922,7 +922,7 @@ namespace tca {
         // ensure that there is a large angle between a Tj already attached to the vertex and the
         // tj that we want to split. We might be considering a delta-ray here
         float maxdang = 0;
-        float tjAng = tj.Pts[closePt].Ang;
+        float tjAng = tjs.allTraj[itj].Pts[closePt].Ang;
         for(auto tjid : vxtjs) {
           auto& vtj = tjs.allTraj[tjid - 1];
           if(vtj.AlgMod[kDeltaRay]) continue;
@@ -937,7 +937,7 @@ namespace tca {
         // skip this operation if any of the Tjs in the split list are > 3 * maxPts
         maxPts *= 3;
         bool skipit = false;
-        if(NumPtsWithCharge(tjs,tj , false) > maxPts && maxPts < 100) skipit = true;
+        if(NumPtsWithCharge(tjs, tjs.allTraj[itj], false) > maxPts && maxPts < 100) skipit = true;
         if(!skipit && maxdang < tjs.KinkCuts[0]) skipit = true;
         if(prt) mf::LogVerbatim("TC")<<"  maxPts "<<maxPts<<" vxtjs[0] "<<vxtjs[0]<<" maxdang "<<maxdang<<" skipit? "<<skipit;
         if(skipit) continue;
@@ -946,34 +946,33 @@ namespace tca {
         if(vx2.Stat[kOnDeadWire]) {
           // ensure that the tj will be split at the gap. The closePt point may be
           // on the wrong side of it
-          auto& closeTP = tj.Pts[closePt];
-          if(tj.StepDir > 0 && closePt > tj.EndPt[0]) {
+          auto& closeTP = tjs.allTraj[itj].Pts[closePt];
+          if(tjs.allTraj[itj].StepDir > 0 && closePt > tjs.allTraj[itj].EndPt[0]) {
             if(closeTP.Pos[0] > vx2.Pos[0]) --closePt;
-          } else if(tj.StepDir < 0 && closePt < tj.EndPt[1]) {
+          } else if(tjs.allTraj[itj].StepDir < 0 && closePt < tjs.allTraj[itj].EndPt[1]) {
             if(closeTP.Pos[0] < vx2.Pos[0]) ++closePt;
           }
         } else {
           // improve closePt based on vertex position
           // check if closePt and EndPt[1] are the two sides of vertex
           // take dot product of closePt-vtx and EndPt[1]-vtx
-          if ((tj.Pts[closePt].Pos[0]-vx2.Pos[0])*(tj.Pts[tj.EndPt[1]].Pos[0]-vx2.Pos[0]) + (tj.Pts[closePt].Pos[1]-vx2.Pos[1])*(tj.Pts[tj.EndPt[1]].Pos[1]-vx2.Pos[1]) <0 && closePt < tj.EndPt[1] - 1) ++closePt;
-          else if ((tj.Pts[closePt].Pos[0]-vx2.Pos[0])*(tj.Pts[tj.EndPt[0]].Pos[0]-vx2.Pos[0]) + (tj.Pts[closePt].Pos[1]-vx2.Pos[1])*(tj.Pts[tj.EndPt[0]].Pos[1]-tjs.vtx[iv].Pos[1]) <0 && closePt > tj.EndPt[0] + 1) --closePt;
+          if ((tjs.allTraj[itj].Pts[closePt].Pos[0]-vx2.Pos[0])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[1]].Pos[0]-vx2.Pos[0]) + (tjs.allTraj[itj].Pts[closePt].Pos[1]-vx2.Pos[1])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[1]].Pos[1]-vx2.Pos[1]) <0 && closePt < tjs.allTraj[itj].EndPt[1] - 1) ++closePt;
+          else if ((tjs.allTraj[itj].Pts[closePt].Pos[0]-vx2.Pos[0])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]].Pos[0]-vx2.Pos[0]) + (tjs.allTraj[itj].Pts[closePt].Pos[1]-vx2.Pos[1])*(tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]].Pos[1]-tjs.vtx[iv].Pos[1]) <0 && closePt > tjs.allTraj[itj].EndPt[0] + 1) --closePt;
         }
 
         
         if(prt)  {
           mf::LogVerbatim("TC")<<"Good doca "<<doca<<" btw traj "<<itj<<" and tjs.vtx "<<iv<<" closePt "<<closePt<<" in plane "<<planeID.Plane<<" CTP "<<tjs.vtx[iv].CTP;
-          PrintTrajPoint("STCV", tjs, closePt, 1, tj.Pass, tj.Pts[closePt]);
+          PrintTrajPoint("STCV", tjs, closePt, 1, tjs.allTraj[itj].Pass, tjs.allTraj[itj].Pts[closePt]);
         }
         // ensure that the closest point is not near an end
-        if(closePt < tj.EndPt[0] + 3) continue;
-        if(closePt > tj.EndPt[1] - 3) continue;
+        if(closePt < tjs.allTraj[itj].EndPt[0] + 3) continue;
+        if(closePt > tjs.allTraj[itj].EndPt[1] - 3) continue;
         if(!SplitTraj(tjs, itj, closePt, iv, prt)) {
           if(prt) mf::LogVerbatim("TC")<<"SplitTrajCrossingVertices: Failed to split trajectory";
           continue;
         }
-        tj = tjs.allTraj[itj]; //redefine tj
-        tj.AlgMod[kSplitTjCVx] = true;
+        tjs.allTraj[itj].AlgMod[kSplitTjCVx] = true;
         unsigned short newTjIndex = tjs.allTraj.size() - 1;
         tjs.allTraj[newTjIndex].AlgMod[kSplitTjCVx] = true;
       } // iv
@@ -2361,24 +2360,25 @@ namespace tca {
       std::array<float, 2> vpos = aVtx.Pos;
       for(unsigned short ii = 0; ii < tjIDs.size(); ++ii) {
         unsigned short itj = tjIDs[ii] - 1;
-        auto& tj = tjs.allTraj[itj];
+        // Don't use a reference variable since it may get scrambled after SplitTraj
+//        auto& tj = tjs.allTraj[itj];
         unsigned short closePt = tjPts[ii];
         // determine which end is the closest
         unsigned short end = 1;
         // closest to the beginning?
-        if(fabs(closePt - tj.EndPt[0]) < fabs(closePt - tj.EndPt[1])) end = 0;
-        short dpt = fabs(closePt - tj.EndPt[end]);
+        if(fabs(closePt - tjs.allTraj[itj].EndPt[0]) < fabs(closePt - tjs.allTraj[itj].EndPt[1])) end = 0;
+        short dpt = fabs(closePt - tjs.allTraj[itj].EndPt[end]);
         if(dpt < 3) {
           // close to an end
-          if(tj.VtxID[end] > 0) {
-            if(prt) mf::LogVerbatim("TC")<<" Tj "<<tj.ID<<" has a vertex "<<tj.VtxID[end]<<" at end "<<end<<". Skip it";
+          if(tjs.allTraj[itj].VtxID[end] > 0) {
+            if(prt) mf::LogVerbatim("TC")<<" Tj "<<tjs.allTraj[itj].ID<<" has a vertex "<<tjs.allTraj[itj].VtxID[end]<<" at end "<<end<<". Skip it";
             continue;
           }
-          tj.VtxID[end] = tjs.vtx[newVtxIndx].ID;
+          tjs.allTraj[itj].VtxID[end] = tjs.vtx[newVtxIndx].ID;
           ++newVtx.NTraj;
-          if(prt) mf::LogVerbatim("TC")<<" attach Traj ID "<<tj.ID<<" to end "<<end;
-          tj.AlgMod[kComp3DVx] = true;
-          vpos = tj.Pts[tj.EndPt[end]].Pos;
+          if(prt) mf::LogVerbatim("TC")<<" attach Traj ID "<<tjs.allTraj[itj].ID<<" to end "<<end;
+          tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
+          vpos = tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[end]].Pos;
         } else {
           // closePt is not near an end, so split the trajectory
           if(SplitTraj(tjs, itj, closePt, newVtxIndx, prt)) {
@@ -2396,9 +2396,9 @@ namespace tca {
           // and for the new trajectory
           SetPDGCode(tjs, tjs.allTraj.size()-1);
         } // closePt is not near an end, so split the trajectory
-        tj.AlgMod[kComp3DVx] = true;
-        itj = tjs.allTraj.size() - 1;
         tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
+        unsigned short newtj = tjs.allTraj.size() - 1;
+        tjs.allTraj[newtj].AlgMod[kComp3DVx] = true;
       } // ii
       if(newVtx.NTraj == 0) {
         // A failure occurred. Recover
