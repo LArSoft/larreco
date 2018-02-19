@@ -5817,85 +5817,65 @@ namespace tca {
     
     if(evt.isRealData()) return;
     // don't bother loading MC info if it won't be used.
-    if(tjs.MatchTruth[0] <= 0) return;
-/*
-    // temp - copied from event display simulation drawer
-    std::vector<art::Handle<std::vector<simb::MCTruth>>> mctcol;
-    evt.getManyByType(mctcol);
-    std::vector<const simb::MCTruth*> mcvec;
-    for(size_t mctc = 0; mctc < mctcol.size(); ++mctc) {
-      art::Handle< std::vector<simb::MCTruth> > mclistHandle = mctcol[mctc];
-      for(size_t i = 0; i < mclistHandle->size(); ++i){
-        mcvec.push_back(&(mclistHandle->at(i)));
+    if(tjs.MatchTruth[0] < 0) return;
+
+    // save MCParticles in TjStuff that have the desired MCTruth origin using
+    // the Origin_t typedef enum: kUnknown, kBeamNeutrino, kCosmicRay, kSuperNovaNeutrino, kSingleParticle
+    simb::Origin_t origin = (simb::Origin_t)tjs.MatchTruth[0];
+    // or save them all
+    bool anySource = (origin == simb::kUnknown);
+
+    if(tjs.MatchTruth[1] > 0) {
+      // print MCTruth ala the event display
+      std::vector<art::Handle<std::vector<simb::MCTruth>>> mctcol;
+      evt.getManyByType(mctcol);
+      std::vector<const simb::MCTruth*> mcvec;
+      for(size_t mctc = 0; mctc < mctcol.size(); ++mctc) {
+        art::Handle< std::vector<simb::MCTruth> > mclistHandle = mctcol[mctc];
+        for(size_t i = 0; i < mclistHandle->size(); ++i){
+          mcvec.push_back(&(mclistHandle->at(i)));
+        }
       }
+      std::cout<<" MCTruth vec size "<<mcvec.size()<<". Looking for origin "<<origin<<" \n";
+      std::cout<<"MCtruth Part TrkID     PDGCode   KE   Mother Process\n";
+      for(unsigned int i = 0; i < mcvec.size(); ++i) {
+        std::cout<<"mcvec "<<i<<" Origin "<<mcvec[i]->Origin()<<" NParticles "<<mcvec[i]->NParticles()<<"\n";
+        if(!anySource && mcvec[i]->Origin() != origin) continue;
+        for(int ii = 0; ii < mcvec[i]->NParticles(); ++ii) {
+          auto& p = mcvec[i]->GetParticle(ii);
+          if(!(p.StatusCode() == 0 || p.StatusCode() == 1)) continue;
+          int KE = 1000 * (p.E() - p.Mass());
+          std::cout<<std::setw(6)<<i<<std::setw(6)<<ii;
+          std::cout<<std::setw(6)<<p.TrackId();
+          std::cout<<std::setw(12)<<p.PdgCode();
+          std::cout<<std::setw(7)<<KE;
+          std::cout<<std::setw(6)<<p.Mother();
+          std::cout<<" "<<p.Process()<<"\n";
+        } // ii
+      } // i
     }
-    std::cout<<" MCTruth vec size "<<mcvec.size()<<"\n";
-    for(unsigned int i = 0; i < mcvec.size(); ++i) {
-      if(tjs.MatchTruth[0] == 1 && mcvec[i]->Origin() != simb::kBeamNeutrino) continue;
-      for(int ii = 0; ii < mcvec[i]->NParticles(); ++ii) {
-        auto& p = mcvec[i]->GetParticle(ii);
-        // ignore everything except Genie final state particles
-        if(p.StatusCode() != 1) continue;
-        int KE = 1000 * (p.E() - p.Mass());
-        std::cout<<i<<" "<<ii<<" status "<<p.StatusCode()
-        <<std::setw(8)<<p.TrackId()
-        <<" "<<p.PdgCode()
-        <<std::setw(7)<<KE<<" mom "<<p.Mother()
-        <<" "<<p.Process()
-        <<"\n";
-      } // ii
-    } // i
-*/
+
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     sim::ParticleList const& plist = pi_serv->ParticleList();
     if(plist.empty()) return;
-//    std::cout<<" ParticleInventoryService ParticleList size "<<plist.size()<<"\n";
-    // save all MCParticles in TjStuff
-//    int cnt = 0;
+    std::cout<<" ParticleInventoryService ParticleList size "<<plist.size()<<"\n";
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       auto& p = (*ipart).second;
-/*
       int trackID = p->TrackId();
       art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-      if(theTruth->Origin() != simb::kBeamNeutrino) continue;
       int KE = 1000 * (p->E() - p->Mass());
-      if(KE < 10) continue;
-      std::cout<<cnt<<" Origin "<<theTruth->Origin()
-      <<std::setw(8)<<p->TrackId()
-      <<" "<<p->PdgCode()
-      <<std::setw(7)<<KE<<" "<<p->Mother()
-      <<" "<<p->Process()
-      <<"\n";
-      ++cnt;
-*/
-      tjs.MCPartList.push_back(p);
-    } // ipart
-/*
-    // do it the old way
-    art::ServiceHandle<cheat::BackTrackerService> bt;
-    std::string fG4ModuleLabel = "largeant";
-    const auto& pHandle = evt.template getValidHandle<std::vector<simb::MCParticle>>(fG4ModuleLabel);
-    if(pHandle.failedToGet()) {
-      std::cout<<"didn't get pHandle\n";
-    } else {
-      const auto& partVec = *pHandle;
-      std::cout<<" Old style partVec size "<<partVec.size()<<"\n";
-      for(const auto& part : partVec) {
-        int trackID = part.TrackId();
-        if(trackID < 1005000) continue;
-        int KE = 1000 * (part.E() - part.Mass());
-        if(KE < 10) continue;
-        std::cout<<"old "<<trackID
-        <<" "<<part.PdgCode()
-        <<" KE "<<KE<<" "<<part.Mother()
-        <<" "<<part.Process()
+      if(KE == 963 || KE == 212) std::cout<<"Prim KE "<<KE<<" trackID "<<trackID<<" Origin "<<theTruth->Origin()<<"\n";
+      if(!anySource && theTruth->Origin() != origin) continue;
+      if(tjs.MatchTruth[1] > 1 && KE > 10) {
+        std::cout<<"GHC: mcp Origin "<<theTruth->Origin()
+        <<std::setw(8)<<p->TrackId()
+        <<" pdg "<<p->PdgCode()
+        <<std::setw(7)<<KE<<" mom "<<p->Mother()
+        <<" "<<p->Process()
         <<"\n";
       }
-    }
-*/
-    bool prtMCInfo = (tjs.MatchTruth[1] > 0);
-    
-    if(tjs.MCPartList.size() > USHRT_MAX) tjs.MCPartList.resize(USHRT_MAX);
+      tjs.MCPartList.push_back(p);
+    } // ipart
     
     if(fUseOldBackTracker) {
       tm.MatchTrueHits();
@@ -5904,8 +5884,8 @@ namespace tca {
     
 //    std::cout<<"Hit ProductID "<<tjs.fHits[0].ArtPtr.id()<<"\n";
 
-    art::FindMany<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(hitVecHandle, evt, fHitTruthModuleLabel);
-    std::vector<simb::MCParticle const*> particle_vec;
+    art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(hitVecHandle, evt, fHitTruthModuleLabel);
+    std::vector<art::Ptr<simb::MCParticle>> particle_vec;
     std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
 /* Try to get the correct BackTrackerHitMatchingData collection using the hit collection product ID
     std::vector<art::Handle<art::Assns<recob::Hit,simb::MCParticle,anab::BackTrackerHitMatchingData>>> hitmcp_assns;
@@ -5915,30 +5895,37 @@ namespace tca {
        Not sure what to do here...
     } // hitmcp_assn
 */
-    // check for the existence of BackTrackerHitMatchingData
-    try{
-      particles_per_hit.get(0, particle_vec, match_vec);
-    }
-    catch(...){
-      std::cout<<"BackTrackerHitMatchingData not found using "<<fHitTruthModuleLabel<<"\n";
-      fUseOldBackTracker = true;
-    }
-    if(fUseOldBackTracker) {
-      tm.MatchTrueHits();
-      return;
-    }
     unsigned int nMatHits = 0;
+    bool prthit = false;
     // associate a hit with a MCParticle > 50% of the deposited energy is from it
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       particle_vec.clear(); match_vec.clear();
-      particles_per_hit.get(iht, particle_vec, match_vec);
+//      bool prthit = (tjs.fHits[iht].StartTick == 4293 && tjs.fHits[iht].ArtPtr->WireID().Wire == 2510);
+      if(prthit) {
+        std::cout<<"Hit "<<PrintHit(tjs.fHits[iht])<<" key "<<tjs.fHits[iht].ArtPtr.key()<<" StartTick "<<tjs.fHits[iht].StartTick<<"\n";
+      }
+      try{ particles_per_hit.get(tjs.fHits[iht].ArtPtr.key(), particle_vec, match_vec); }
+      catch(...) {
+        std::cout<<"BackTrackerHitMatchingData not found using "<<fHitTruthModuleLabel<<". Try to use the old backtracker\n";
+        fUseOldBackTracker = true;
+        tm.MatchTrueHits();
+        return;
+      }
+      if(particle_vec.empty()) continue;
       int trackID = 0;
       for(unsigned short im = 0; im < match_vec.size(); ++im) {
+        if(prthit) std::cout<<" im "<<im<<" trackID "<<particle_vec[im]->TrackId()<<" ideFraction "<<match_vec[im]->ideFraction<<"\n";
         if(match_vec[im]->ideFraction < 0.5) continue;
         trackID = particle_vec[im]->TrackId();
         break;
       } // im
       if(trackID == 0) continue;
+      for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+        auto& p = (*ipart).second;
+        if(p->TrackId() != trackID) continue;
+        art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+        if(prthit) std::cout<<"hit "<<PrintHit(tjs.fHits[iht])<<" -> trackID "<<trackID<<" Origin "<<theTruth->Origin()<<" pdg "<<p->PdgCode()<<" E "<<1000 * p->E()<<" Process "<<p->Process()<<"\n";
+      }
       // look for this in MCPartList
       for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         auto& mcp = tjs.MCPartList[ipart];
@@ -5948,8 +5935,6 @@ namespace tca {
         break;
       } // ipart
     } // iht
-    
-    if(prtMCInfo) std::cout<<"GetHitCollection: Matched "<<nMatHits<<" hits to MCParticles out of "<<tjs.fHits.size()<<" total hits\n";
 
     // Optionally set InTraj to a bogus ID for special studies, for instance to speed up
     // reconstruction of events that have many background hits from processes that we aren't
@@ -5959,6 +5944,12 @@ namespace tca {
       for(auto& hit : tjs.fHits) {
         if(hit.MCPartListIndex == UINT_MAX) hit.InTraj = INT_MAX;
       } // hit
+    }
+    
+    if(tjs.MatchTruth[1] > 0) {
+      std::cout<<"GetHitCollection loaded "<<tjs.MCPartList.size()<<" MCParticles using MCTruth Origin "<<origin;
+      std::cout<<". Matched "<<nMatHits<<" hits to MCParticles out of "<<tjs.fHits.size()<<" total hits";
+      std::cout<<"\n";
     }
 
   } // GetHitCollection
