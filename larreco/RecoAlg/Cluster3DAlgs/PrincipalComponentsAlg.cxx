@@ -255,7 +255,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
 
     minimumDeltaPeakSig = std::max(minimumDeltaPeakSig, aveValue - rms);
     
-    std::cout << "===>> Calculating PCA, ave chiSquare: " << aveValue << ", rms: " << rms << ", cut: " << minimumDeltaPeakSig << std::endl;
+//    std::cout << "===>> Calculating PCA, ave chiSquare: " << aveValue << ", rms: " << rms << ", cut: " << minimumDeltaPeakSig << std::endl;
 
     for (const auto& hit : hitPairVector)
     {
