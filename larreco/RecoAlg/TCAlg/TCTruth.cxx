@@ -206,86 +206,52 @@ namespace tca {
     if(tjs.MatchTruth[0] < 0) return;
     if(tjs.MCPartList.empty()) return;
     
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    // list of all true particles
-//    sim::ParticleList const& plist = pi_serv->ParticleList();
-//    if(plist.empty()) return;
-
-    Point3_t PrimVtx;
     // these are only applicable to neutrinos
-    bool neutrinoVxInFiducialVolume = false;
     bool neutrinoVxReconstructable = false;
-    bool neutrinoVxReconstructed = false;
+    bool vxReconstructedNearNuVx = false;
+    bool neutrinoPFPCorrect = false;
+    Point3_t primVx {-666};
+        
+//    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 
     // Look for the MC truth process that should be considered (beam neutrino,
     // single particle, cosmic rays), then form a list of selected MCParticles 
-    // that will be used to measure performance
+    // that will be used to measure performance. Feb 16: Changed GetHitCollection to only
+    // store the MCParticles for the desired MCTruth collection
     std::vector<unsigned int> mcpSelect;
-    int sourceParticleIndex = -1;
+    // vector of reconstructable primary particles
+    std::vector<unsigned int> primMCPs;
     geo::TPCID inTPCID = tjs.TPCID;
     for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
       auto& mcp = tjs.MCPartList[part];
-      int trackID = mcp->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-      bool originNeutrino = (theTruth->Origin() == simb::kBeamNeutrino);
+      // require it is charged
       int pdg = abs(mcp->PdgCode());
-      bool isNeutrino = (pdg == 12) || (pdg == 14) || (pdg == 16);
-      // ignore neutrinos that aren't primary
-      if(isNeutrino && sourceParticleIndex >= 0) continue;
-      if(isNeutrino && originNeutrino && sourceParticleIndex < 0) {
-        sourceParticleIndex = part;
-        continue;
-      } // primary neutrino
-      bool selectMCP = ((tjs.MatchTruth[0] == 1 && originNeutrino) || 
-                        (tjs.MatchTruth[0] == 1 && theTruth->Origin() == simb::kSingleParticle) ||
-                        (tjs.MatchTruth[0] == 2 && theTruth->Origin() == simb::kCosmicRay));
-      if(!selectMCP) continue;
-      // First occurrence of something the user wants to track other than neutrino origin handled above.
-      // Note that the sourceParticleIndex isn't useful if there are multiple single particles or cosmic rays.
-      if(sourceParticleIndex < 0) {
-        sourceParticleIndex = part;
-        PrimVtx[0] = mcp->Vx();
-        PrimVtx[1] = mcp->Vy();
-        PrimVtx[2] = mcp->Vz();
-        // select the primary whether it is charged or not
-        mcpSelect.push_back(part);
-        // Determine which TPC this is in. Ignore this event if the primary start is
-        // outside the fiducial volume
-        if(!InsideTPC(tjs, PrimVtx, inTPCID)) {
-          if(tjs.MatchTruth[1] > 0) std::cout<<"Found a primary particle but it is not inside any TPC\n";
-          return;
-        }
-        neutrinoVxInFiducialVolume = true;
-        // print out?
-        if(tjs.MatchTruth[1] > 0) {
-          Vector3_t dir;
-          dir[0] = mcp->Px(); dir[1] = mcp->Py(); dir[2] = mcp->Pz();
-          SetMag(dir, 1);
-          std::cout<<"Found primary MCParticle "<<trackID<<" PDG code "<<mcp->PdgCode();
-          std::cout<<" start";
-          for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) std::cout<<" "<<std::setprecision(1)<<PrimVtx[ixyz];
-          std::cout<<" dir";
-          for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) std::cout<<" "<<std::setprecision(1)<<dir[ixyz];
-          std::cout<<"\n";
-        } // prt
-        continue;
-      } // first useMCP
-      // only select charged particles
       bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
       if(!isCharged) continue;
-      // cut on kinetic energy
-      float TMeV = 1000 * (mcp->E() - mcp->Mass());
-      if(TMeV < 10) continue;
       // require that it can be reconstructed in 3D
       if(!CanReconstruct(part, 3, inTPCID)) continue;
       mcpSelect.push_back(part);
-    } // ipart
-    
+      // Now require MCParticle primaries
+      if(mcp->Mother() != 0) continue;
+      // add to the list of primaries
+      primMCPs.push_back(part);
+      // use the first primary mcp to find the interaction vertex
+      if(primVx[0] == -666) {
+        primVx[0] = mcp->Vx();
+        primVx[1] = mcp->Vy();
+        primVx[2] = mcp->Vz();
+        if(!InsideTPC(tjs, primVx, inTPCID)) {
+          if(tjs.MatchTruth[1] > 0) std::cout<<"Found a primary particle but it is not inside any TPC\n";
+          return;
+        }
+        neutrinoVxReconstructable = true;
+      } // first primary mcp
+    } // part
     if(mcpSelect.empty()) return;
     tjs.SelectEvent = true;
 //    mf::LogVerbatim("TC")<<"SelectEvent "<<tjs.Run<<" "<<tjs.SubRun<<" "<<tjs.Event;
 
-    if(neutrinoVxInFiducialVolume) ++TruVxCounts[0];
+    if(neutrinoVxReconstructable) ++TruVxCounts[0];
     
     // Form a list of mother-daughter pairs that should be considered as a single particle
     std::vector<std::pair<unsigned int, unsigned int>> moda;
@@ -408,8 +374,6 @@ namespace tca {
     
     // count the number of primary tracks that can be reconstructed
     unsigned short nTruPrimary = 0;
-    // vector of reconstructable primary particles
-    std::vector<unsigned int> primMCPs;
     for(auto mcpIndex : mcpSelect) {
       auto& mcp = tjs.MCPartList[mcpIndex];
       if(mcp->Mother() != 0) continue;
@@ -417,80 +381,40 @@ namespace tca {
       if(CanReconstruct(mcpIndex, 3, inTPCID)) primMCPs.push_back(mcpIndex);
     } // mcpIndex
     
-    neutrinoVxReconstructable = (neutrinoVxInFiducialVolume && primMCPs.size() > 1);
-    
     if(neutrinoVxReconstructable) {
-      ++TruVxCounts[1];
+      // find the vertex closest to the true primary vertex
+      float best = 1;
+      unsigned short vx3ID = 0;
       if(!tjs.pfps.empty()) {
         auto& pfp = tjs.pfps[0];
-        bool isNeutrinoPFP = pfp.PDGCode == 14 || pfp.PDGCode == 12;
-        if(isNeutrinoPFP && pfp.Vx3ID[0] > 0) {
-          // See if it is within 1 cm of the true vertex
+        if((pfp.PDGCode == 14 || pfp.PDGCode == 12) && pfp.Vx3ID[0] > 0) {
+          // Found a neutrino pfp with a start vertex
           auto& vx3 = tjs.vtx3[pfp.Vx3ID[0] - 1];
-          float dx = vx3.X - PrimVtx[0];
-          float dy = vx3.Y - PrimVtx[1];
-          float dz = vx3.Z - PrimVtx[2];
-          float sep = dx * dx + dy * dy + dz * dz;
-          if(sep < 1) neutrinoVxReconstructed = true;
-        } // first one is a neutrino PFP
-      } // pfps not empty
-    } // neutrinoVxReconstructable
-    if(neutrinoVxReconstructed) ++TruVxCounts[2];
-/*
-    if(neutrinoVxReconstructable) {
-      ++TruVxCounts[1];
-      // Find the closest reconstructed vertex to the true vertex
-      float closest = 1;
-      unsigned short imTheOne = 0;
-      for(auto& aVtx3 : tjs.vtx3) {
-        float dx = aVtx3.X - PrimVtx[0];
-        float dy = aVtx3.Y - PrimVtx[1];
-        float dz = aVtx3.Z - PrimVtx[2];
-        hist.fNuVtx_dx->Fill(dx);
-        hist.fNuVtx_dy->Fill(dy);
-        hist.fNuVtx_dz->Fill(dz);
-        float sep = dx * dx + dy * dy + dz * dz;
-        if(sep < closest) {
-          closest = sep;
-          imTheOne = aVtx3.ID;
+          // check the proximity to the true vertex
+          Point3_t vpos = {vx3.X, vx3.Y, vx3.Z};
+          if(PosSep(vpos, primVx) < 1) neutrinoPFPCorrect = true;
+        } // neutrino pfp 
+      } // PFParticles exist
+      for(auto& vx3 : tjs.vtx3) {
+        if(vx3.ID == 0) continue;
+        if(vx3.TPCID != inTPCID) continue;
+        Point3_t vpos = {vx3.X, vx3.Y, vx3.Z};
+        float sep = PosSep(vpos, primVx);
+        if(sep < best) {
+          best = sep;
+          vx3ID = vx3.ID;
         }
-      } // aVtx3
-      if(imTheOne > 0) {
-        neutrinoVxReconstructed = true;
-        ++TruVxCounts[2];
-        auto& vx3 = tjs.vtx3[imTheOne - 1];
-        hist.fNuVx3Score->Fill(vx3.Score);
-        // Histogram the score of 2D vertices
-        for(auto vx2id : vx3.Vx2ID) {
-          if(vx2id == 0) continue;
-          auto& vx2 = tjs.vtx[vx2id - 1];
-          hist.fNuVx2Score->Fill(vx2.Score);
-        } // vx2id
-        // histogram the relative score of other vertices
-        float maxScore = 0;
-        for(auto& ovx3 : tjs.vtx3) {
-          if(ovx3.ID == 0) continue;
-          if(ovx3.Score > maxScore) maxScore = ovx3.Score;
-          if(ovx3.ID == vx3.ID) continue;
-          float dScore = ovx3.Score - vx3.Score;
-          hist.fNuVx3ScoreDiff->Fill(dScore);
-        } // ovx3
-        neutrinoVxCorrect = (maxScore == vx3.Score);
-        if(neutrinoVxCorrect) ++TruVxCounts[3];
-        // find the most common Topo of the 2D vertices that were matched to the
-        // primary vertex. This might be a useful to tag neutrino interaction vertices
-        float vx3Topo = Vx3Topo(tjs, vx3);
-        hist.fVxTopoMat->Fill(vx3Topo);
-      }
-    } // neutrinoVxInFiducialVolume
-*/
+      } // vx3
+      if(vx3ID > 0) vxReconstructedNearNuVx = true;
+    } // neutrinoVxReconstructable
 
     if(tjs.MatchTruth[1] > 0) {
       // print out
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx";
-      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<PrimVtx[ixyz];
-      myprt<<" Reconstructable? "<<neutrinoVxReconstructable<<" Reconstructed? "<<neutrinoVxReconstructed<<"\n";
+      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<primVx[ixyz];
+      myprt<<" nuVx Reconstructable? "<<neutrinoVxReconstructable<<" vx near nuVx? "<<vxReconstructedNearNuVx;
+      myprt<<" neutrinoPFPCorrect? "<<neutrinoPFPCorrect<<"\n";
       myprt<<"mcpIndex   PDG  momIndex    KE _________Dir___________       Process         TrajectoryExtentInPlane_nTruHits \n";
       for(auto mcpIndex : mcpSelect) {
         auto& mcp = tjs.MCPartList[mcpIndex];
