@@ -320,6 +320,34 @@ private:
     void MakeAndSaveVertexPoints(ArtOutputHandler&,
                                  dcel2d::VertexList&,
                                  dcel2d::HalfEdgeList&) const;
+    
+    /**
+     *  @brief Special routine to handle creating and saving space points & edges PCA points
+     *
+     *  @param output                the object containting the art output
+     *  @param clusterParamsList     List of clusters to get PCA's from
+     */
+    using IdxToPCAMap = std::map<size_t,const reco::PrincipalComponents*>;
+    
+    void MakeAndSavePCAPoints(ArtOutputHandler&,
+                              const reco::PrincipalComponents&,
+                              IdxToPCAMap&) const;
+    
+    /**
+     *  @brief This will produce art output for daughters noting that it needs to be done recursively
+     *
+     *  @param output                the object containting the art output
+     *  @param clusterParameters     Cluster info to output (in internal format)
+     *  @param pfParticleParent      The parent ID reference for the output PFParticle
+     *  @param daughterList          List of PFParticle indices for stored daughters
+     *  @param hitToPtrMap           This maps our Cluster2D hits back to art Ptr's to reco Hits
+     */
+    size_t FindAndStoreDaughters(ArtOutputHandler&        output,
+                                 reco::ClusterParameters& clusterParameters,
+                                 size_t                   pfParticleParent,
+                                 IdxToPCAMap&             idxToPCAMap,
+                                 RecobHitToPtrMap&        hitToPtrMap,
+                                 Hit3DToSPPtrMap&         hit3DToSPPtrMap) const;
 
     /**
      *  @brief Top level output routine, allows checking cluster status
@@ -343,6 +371,13 @@ private:
     {
         return fabs(pca.getEigenVectors()[2][0]) > m_parallelHitsCosAng && 3. * sqrt(pca.getEigenValues()[1]) > m_parallelHitsTransWid;
     }
+    
+    /**
+     *  @brief Count number of end of line daughters
+     *
+     *  @param clusterParams input cluster parameters to look at
+     */
+    size_t countUltimateDaughters(reco::ClusterParameters& clusterParameters) const;
 
     /**
      *   Algorithm parameters
@@ -1069,7 +1104,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
             
             std::cout << "Preparing to save the vertex point list, size: " << vertexList.size() << ", half edges: " << halfEdgeList.size() << std::endl;
             
-            MakeAndSaveVertexPoints(output, vertexList, halfEdgeList);
+//            MakeAndSaveVertexPoints(output, vertexList, halfEdgeList);
 
             // Special case handling... if no daughters then call standard conversion routine to make sure space points
             // created, etc.
@@ -1081,15 +1116,19 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
             else
             {
                 // Set up to keep track of parent/daughters
+                IdxToPCAMap idxToPCAMap;
+                size_t      numTotalDaughters = countUltimateDaughters(clusterParameters);
+                size_t      pfParticleIdx(output.artPFParticleVector->size() + numTotalDaughters);
+                
+                FindAndStoreDaughters(output, clusterParameters, pfParticleIdx, idxToPCAMap, hitToPtrMap, hit3DToSPPtrMap);
+                
+                // Now make the piecewise curve
+                MakeAndSavePCAPoints(output, clusterParameters.getFullPCA(), idxToPCAMap);
+
+                // Need to make a daughter vec from our map
                 std::vector<size_t> daughterVec;
-                size_t              pfParticleIdx(output.artPFParticleVector->size() + clusterParameters.daughterList().size());
-            
-                for(auto& tinyCluster : clusterParameters.daughterList())
-                {
-                    size_t daughterIdx = ConvertToArtOutput(output, tinyCluster, pfParticleIdx, hitToPtrMap, hit3DToSPPtrMap);
-                    
-                    daughterVec.push_back(daughterIdx);
-                }
+                
+                for(auto& idxToPCA : idxToPCAMap) daughterVec.emplace_back(idxToPCA.first);
                 
                 // Now create/handle the parent PFParticle
                 recob::PFParticle pfParticle(13, pfParticleIdx, recob::PFParticle::kPFParticlePrimary, daughterVec);
@@ -1209,6 +1248,44 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
     return;
 }
     
+size_t Cluster3D::countUltimateDaughters(reco::ClusterParameters& clusterParameters) const
+{
+    size_t localCount(0);
+    
+    if (!clusterParameters.daughterList().empty())
+    {
+        for(auto& clusterParams : clusterParameters.daughterList())
+            localCount += countUltimateDaughters(clusterParams);
+    }
+    else localCount++;
+    
+    return localCount;
+}
+
+size_t Cluster3D::FindAndStoreDaughters(ArtOutputHandler&        output,
+                                        reco::ClusterParameters& clusterParameters,
+                                        size_t                   pfParticleParent,
+                                        IdxToPCAMap&             idxToPCAMap,
+                                        RecobHitToPtrMap&        hitToPtrMap,
+                                        Hit3DToSPPtrMap&         hit3DToSPPtrMap) const
+{
+    // This is a recursive routine, we keep calling ourself as long as the daughter list is non empty
+    if (!clusterParameters.daughterList().empty())
+    {
+        for(auto& clusterParams : clusterParameters.daughterList())
+            FindAndStoreDaughters(output, clusterParams, pfParticleParent, idxToPCAMap, hitToPtrMap, hit3DToSPPtrMap);
+    }
+    // Otherwise we want to store the information
+    else
+    {
+        size_t daughterIdx = ConvertToArtOutput(output, clusterParameters, pfParticleParent, hitToPtrMap, hit3DToSPPtrMap);
+        
+        idxToPCAMap[daughterIdx] = &clusterParameters.getFullPCA();
+    }
+        
+    return idxToPCAMap.size();
+}
+
 size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
                                      reco::ClusterParameters& clusterParameters,
                                      size_t                   pfParticleParent,
@@ -1577,6 +1654,80 @@ void Cluster3D::MakeAndSaveVertexPoints(ArtOutputHandler&     output,
         }
     }
 
+    return;
+}
+    
+void Cluster3D::MakeAndSavePCAPoints(ArtOutputHandler&                output,
+                                     const reco::PrincipalComponents& fullPCA,
+                                     IdxToPCAMap&                     idxToPCAMap) const
+{
+    // We actually do two things here:
+    // 1) Create space points from the centroids of the PCA for each cluster
+    // 2) Create the edges that link the space points together
+    
+    // The first task is to put the list of PCA's into some semblance of order... they may be
+    // preordered by likely they are piecewise ordered so fix that here
+    
+    // We'll need the current PCA axis to determine doca and arclen
+    Eigen::Vector3f avePosition(fullPCA.getAvePosition()[0], fullPCA.getAvePosition()[1], fullPCA.getAvePosition()[2]);
+    Eigen::Vector3f axisDirVec(fullPCA.getEigenVectors()[0][0], fullPCA.getEigenVectors()[0][1], fullPCA.getEigenVectors()[0][2]);
+    
+    using DocaToPCAPair = std::pair<float, const reco::PrincipalComponents*>;
+    using DocaToPCAVec  = std::vector<DocaToPCAPair>;
+    
+    DocaToPCAVec docaToPCAVec;
+    
+    // Outer loop over views
+    for (const auto& idxToPCA : idxToPCAMap)
+    {
+        const reco::PrincipalComponents* pca = idxToPCA.second;
+        
+        // Now we need to calculate the doca and poca...
+        // Start by getting this hits position
+        Eigen::Vector3f pcaPos(pca->getAvePosition()[0],pca->getAvePosition()[1],pca->getAvePosition()[2]);
+        
+        // Form a TVector from this to the cluster average position
+        Eigen::Vector3f pcaToAveVec = pcaPos - avePosition;
+        
+        // With this we can get the arclength to the doca point
+        float arclenToPoca = pcaToAveVec.dot(axisDirVec);
+        
+        docaToPCAVec.emplace_back(DocaToPCAPair(arclenToPoca,pca));
+    }
+
+    std::sort(docaToPCAVec.begin(),docaToPCAVec.end(),[](const auto& left, const auto& right){return left.first < right.first;});
+    
+    // Set up the space point creation
+    // Right now error matrix is uniform...
+    double spError[] = {1., 0., 1., 0., 0., 1.};
+    double chisq     = 1.;
+    
+    const reco::PrincipalComponents* lastPCA(NULL);
+    
+    // Set up to loop through the clusters
+    for(const auto& docaToPCAPair : docaToPCAVec)
+    {
+        // Recover the PCA for this cluster
+        const reco::PrincipalComponents* curPCA = docaToPCAPair.second;
+        
+        if(lastPCA)
+        {
+            double lastPointPos[] = {lastPCA->getAvePosition()[0],lastPCA->getAvePosition()[1],lastPCA->getAvePosition()[2]};
+            size_t lastPointBin   = output.artVertexPointVector->size();
+            double curPointPos[]  = {curPCA->getAvePosition()[0],curPCA->getAvePosition()[1],curPCA->getAvePosition()[2]};
+            size_t curPointBin    = lastPointBin + 1;
+        
+            output.artVertexPointVector->emplace_back(lastPointPos, spError, chisq, lastPointBin);
+            output.artVertexPointVector->emplace_back(curPointPos,  spError, chisq, curPointBin);
+        
+            Eigen::Vector3f distVec(curPointPos[0]-lastPointPos[0],curPointPos[1]-lastPointPos[1],curPointPos[2]-lastPointPos[2]);
+        
+            output.artVertexEdgeVector->emplace_back(distVec.norm(), lastPointBin, curPointBin, output.artEdgeVector->size());
+        }
+        
+        lastPCA = curPCA;
+    }
+    
     return;
 }
 
