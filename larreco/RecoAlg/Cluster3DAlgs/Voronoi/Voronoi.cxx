@@ -167,12 +167,16 @@ void VoronoiDiagram::buildVoronoiDiagram(const dcel2d::PointList& pointList)
     // Finally, we need a container for our circle event BSTNodes
     BSTNodeList circleNodeList;
     
+//    int eventNum(0);
+    
     // Now process the queue
     while(!eventQueue.empty())
     {
         IEvent* event = eventQueue.top();
         
         eventQueue.pop();
+        
+//        std::cout << "event #" << eventNum++ << " - x: " << event->xPos() << ", y: " << event->yPos() << ", site: " << event->isSite() << ", valid: " << event->isValid() <<  std::endl;
         
         // If a site or circle event then handle appropriately
         if      (event->isSite())  handleSiteEvents(beachLine, eventQueue, event);
@@ -421,7 +425,14 @@ void VoronoiDiagram::handleSiteEvents(BeachLine&  beachLine,
 {
     // Insert the new site event into the beach line and recover the leaf for the
     // new arc in the beach line
+    // NOTE: invalidation of any possible circle events occurs in the call to this routine
     BSTNode* newLeaf = beachLine.insertNewLeaf(siteEvent);
+    
+    std::cout << "--------> Site event, x: " << siteEvent->xPos() << ", y: " << siteEvent->yPos() << ", # leaves: " << beachLine.traverseBeach();
+    
+    if (newLeaf->getPredecessor() && newLeaf->getPredecessor()->getPredecessor()) std::cout << ", p " << newLeaf->getPredecessor()->getPredecessor() << ": " << newLeaf->getPredecessor()->getPredecessor()->getEvent()->xPos() << "/" << newLeaf->getPredecessor()->getPredecessor()->getEvent()->yPos();
+    if (newLeaf->getSuccessor() && newLeaf->getSuccessor()->getSuccessor()) std::cout << ", s " << newLeaf->getSuccessor()->getSuccessor() << ": " << newLeaf->getSuccessor()->getSuccessor()->getEvent()->xPos() << "/" << newLeaf->getSuccessor()->getSuccessor()->getEvent()->yPos();
+    std::cout << std::endl;
     
     // Create a new vertex for each site event
     fFaceList.emplace_back(dcel2d::Face(NULL,siteEvent->getCoords(),std::get<2>(siteEvent->getPoint())));
@@ -430,45 +441,43 @@ void VoronoiDiagram::handleSiteEvents(BeachLine&  beachLine,
     
     newLeaf->setFace(face);
     
+    // If we are the first site added to the BST then we are done
+    if (!(newLeaf->getPredecessor() || newLeaf->getSuccessor())) return;
+    
     // So, now we deal with creating the edges that will be mapped out by the two breakpoints as they
     // move with the beachline. Note that this is a single edge pair (edge and its twin) between the
     // two breakpoints that have been created.
-    // The below test on predecessor/successor is really for the first leaf creation where there are
-    // no breakpoints, after that the test is always true
-    if (newLeaf->getPredecessor() || newLeaf->getSuccessor())
-    {
-        fHalfEdgeList.push_back(dcel2d::HalfEdge());
+    fHalfEdgeList.push_back(dcel2d::HalfEdge());
     
-        dcel2d::HalfEdge* halfEdge = &fHalfEdgeList.back();
+    dcel2d::HalfEdge* halfEdge = &fHalfEdgeList.back();
     
-        fHalfEdgeList.push_back(dcel2d::HalfEdge());
+    fHalfEdgeList.push_back(dcel2d::HalfEdge());
     
-        dcel2d::HalfEdge* halfTwin = &fHalfEdgeList.back();
+    dcel2d::HalfEdge* halfTwin = &fHalfEdgeList.back();
     
-        // Each half edge is the twin of the other
-        halfEdge->setTwinHalfEdge(halfTwin);
-        halfTwin->setTwinHalfEdge(halfEdge);
+    // Each half edge is the twin of the other
+    halfEdge->setTwinHalfEdge(halfTwin);
+    halfTwin->setTwinHalfEdge(halfEdge);
 
-        // Point the breakpoint to the new edge
-        newLeaf->getPredecessor()->setHalfEdge(halfEdge);
-        newLeaf->getSuccessor()->setHalfEdge(halfTwin);
-        
-        // The second half edge corresponds to our face for the left breakpoint...
-        face->setHalfEdge(halfTwin);
-        halfTwin->setFace(face);
+    // Point the breakpoint to the new edge
+    newLeaf->getPredecessor()->setHalfEdge(halfEdge);
+    newLeaf->getSuccessor()->setHalfEdge(halfTwin);
+    
+    // The second half edge corresponds to our face for the left breakpoint...
+    face->setHalfEdge(halfTwin);
+    halfTwin->setFace(face);
 
-        // Update for the left leaf
-        BSTNode* leftLeaf = newLeaf->getPredecessor()->getPredecessor();
-        
-        // This needs to be checked since the first face will not have an edge set to it
-        if (!leftLeaf->getFace()->getHalfEdge()) leftLeaf->getFace()->setHalfEdge(halfEdge);
-            
-        halfEdge->setFace(leftLeaf->getFace());
-        
-        // Try to make circle events either side of this leaf
-        makeLeftCircleEvent(eventQueue, newLeaf, siteEvent->xPos());
-        makeRightCircleEvent(eventQueue, newLeaf, siteEvent->xPos());
-    }
+    // Update for the left leaf
+    BSTNode* leftLeaf = newLeaf->getPredecessor()->getPredecessor();
+    
+    // This needs to be checked since the first face will not have an edge set to it
+    if (!leftLeaf->getFace()->getHalfEdge()) leftLeaf->getFace()->setHalfEdge(halfEdge);
+    
+    halfEdge->setFace(leftLeaf->getFace());
+    
+    // Try to make circle events either side of this leaf
+    makeLeftCircleEvent( eventQueue, newLeaf, siteEvent->xPos());
+    makeRightCircleEvent(eventQueue, newLeaf, siteEvent->xPos());
 
     return;
 }
@@ -479,8 +488,9 @@ void VoronoiDiagram::handleCircleEvents(BeachLine&  beachLine,
 {
     BSTNode* circleNode = circleEvent->getBSTNode();
     BSTNode* arcNode    = circleNode->getAssociated();
-    IEvent*  arcEvent   = arcNode->getEvent();
     
+    std::cout << "oooooooo> Circle event, x: " << circleEvent->xPos() << ", y: " << circleEvent->yPos() << std::endl;
+
     // Recover the half edges for the breakpoints either side of the arc we're removing
     dcel2d::HalfEdge* leftHalfEdge  = arcNode->getPredecessor()->getHalfEdge();
     dcel2d::HalfEdge* rightHalfEdge = arcNode->getSuccessor()->getHalfEdge();
@@ -504,6 +514,7 @@ void VoronoiDiagram::handleCircleEvents(BeachLine&  beachLine,
     rightHalfEdge->getTwinHalfEdge()->setTargetVertex(vertex);
 
     // Remove the arc which will return the new breakpoint
+    // NOTE: invalidation of any possible circle events occurs in the call to this routine
     BSTNode* newBreakPoint = beachLine.removeLeaf(arcNode);
     
     // Now create edges associated with the new break point
@@ -549,15 +560,11 @@ void VoronoiDiagram::handleCircleEvents(BeachLine&  beachLine,
     BSTNode* leftArc  = newBreakPoint->getPredecessor();
     BSTNode* rightArc = newBreakPoint->getSuccessor();
     
-    // Look for a new right circle first, we'd like this to be with the new rightArc in the middle
-    // If the right arc has a successor (a breakpoint) then it has an arc to the right as well.
-    // We need to make sure this isn't the original arc since if it was we'd simply get the same
-    // circle again
-    if (rightArc->getSuccessor() && rightArc->getSuccessor()->getSuccessor()->getEvent() != arcEvent)
-        makeRightCircleEvent(eventQueue, leftArc, circleEvent->xPos());
-    
-    if (leftArc->getPredecessor() && leftArc->getPredecessor()->getPredecessor()->getEvent() != arcEvent)
-        makeLeftCircleEvent(eventQueue, rightArc, circleEvent->xPos());
+    // Look for a new circle candidates
+    // In this case, we'd like the right arc to be the middle of the right circle,
+    // the left arc to be the middle of the left circle, hence the logic below
+    makeRightCircleEvent(eventQueue, leftArc, circleEvent->xPos());
+    makeLeftCircleEvent(eventQueue, rightArc, circleEvent->xPos());
 
     return;
 }
@@ -576,9 +583,12 @@ void VoronoiDiagram::makeLeftCircleEvent(EventQueue&  eventQueue,
         {
             BSTNode* edgeLeaf = midLeaf->getPredecessor()->getPredecessor();
             
+            // edge leaves must be different
+            if (leaf->getEvent()->getPoint() == edgeLeaf->getEvent()->getPoint()) return;
+            
             if (edgeLeaf)
             {
-                IEvent* circleEvent = makeCircleEvent(midLeaf, beachLine);
+                IEvent* circleEvent = makeCircleEvent(edgeLeaf, midLeaf, leaf, beachLine);
                 
                 // Did we succeed in making a circle event?
                 if (circleEvent)
@@ -598,8 +608,17 @@ void VoronoiDiagram::makeLeftCircleEvent(EventQueue&  eventQueue,
                     // Now reset to point at the new one
                     midLeaf->setAssociated(circleNode);
                     circleNode->setAssociated(midLeaf);
+                    
+                    midLeaf->setChecked();
+//                    midLeaf->getPredecessor()->getPredecessor()->setChecked();
+//                    midLeaf->getSuccessor()->getSuccessor()->setChecked();
 
                     eventQueue.push(circleEvent);
+                    
+                    std::cout << "          Left  circle x: " << circleEvent->xPos() << ", y: " << circleEvent->yPos()
+                    << ", " << leaf << " x/y: " << leaf->getEvent()->xPos() << "/" << leaf->getEvent()->yPos()
+                    << ", " << midLeaf << " x/y: " << midLeaf->getEvent()->xPos() << "/" << midLeaf->getEvent()->yPos()
+                    << ", " << edgeLeaf << " x/y: " << edgeLeaf->getEvent()->xPos() << "/" << edgeLeaf->getEvent()->yPos() << std::endl;
                 }
             }
         }
@@ -621,9 +640,11 @@ void VoronoiDiagram::makeRightCircleEvent(EventQueue& eventQueue,
         {
             BSTNode* edgeLeaf = midLeaf->getSuccessor()->getSuccessor();
             
+            if (leaf->getEvent()->getPoint() == edgeLeaf->getEvent()->getPoint()) return;
+
             if (edgeLeaf)
             {
-                IEvent* circleEvent = makeCircleEvent(midLeaf, beachLine);
+                IEvent* circleEvent = makeCircleEvent(leaf, midLeaf, edgeLeaf, beachLine);
                 
                 // Did we succeed in making a circle event?
                 if (circleEvent)
@@ -643,8 +664,17 @@ void VoronoiDiagram::makeRightCircleEvent(EventQueue& eventQueue,
                     // Now reset to point at the new one
                     midLeaf->setAssociated(circleNode);
                     circleNode->setAssociated(midLeaf);
+                    
+                    midLeaf->setChecked();
+//                    midLeaf->getPredecessor()->getPredecessor()->setChecked();
+//                    midLeaf->getSuccessor()->getSuccessor()->setChecked();
 
                     eventQueue.push(circleEvent);
+                    
+                    std::cout << "          Right circle x: " << circleEvent->xPos() << ", y: " << circleEvent->yPos()
+                    << ", " << leaf << " x/y: " << leaf->getEvent()->xPos() << "/" << leaf->getEvent()->yPos()
+                    << ", " << midLeaf << " x/y: " << midLeaf->getEvent()->xPos() << "/" << midLeaf->getEvent()->yPos()
+                    << ", " << edgeLeaf << " x/y: " << edgeLeaf->getEvent()->xPos() << "/" << edgeLeaf->getEvent()->yPos() << std::endl;
                 }
             }
         }
@@ -653,7 +683,7 @@ void VoronoiDiagram::makeRightCircleEvent(EventQueue& eventQueue,
     return;
 }
 
-IEvent* VoronoiDiagram::makeCircleEvent(BSTNode* midArc, double beachLinePos)
+IEvent* VoronoiDiagram::makeCircleEvent(BSTNode* arc1, BSTNode* arc2, BSTNode* arc3, double beachLinePos)
 {
     // It might be that we don't create a new circle
     IEvent* circle = 0;
@@ -662,29 +692,27 @@ IEvent* VoronoiDiagram::makeCircleEvent(BSTNode* midArc, double beachLinePos)
     dcel2d::Coords center; //, center2, center3;
     double         radius; //, radius2, radius3;
     
-    IEvent* p1 = midArc->getPredecessor()->getPredecessor()->getEvent();
-    IEvent* p2 = midArc->getEvent();
-    IEvent* p3 = midArc->getSuccessor()->getSuccessor()->getEvent();
+    IEvent* p1 = arc1->getEvent();
+    IEvent* p2 = arc2->getEvent();
+    IEvent* p3 = arc3->getEvent();
 
     // Compute the center of the circle. Note that this will also automagically check that breakpoints are
     // converging so that this is a circle we want
     if (computeCircleCenter( p1->getCoords(), p2->getCoords(), p3->getCoords(), center,  radius))
     {
+        double circleBottomX = center[0] - radius;
+        
+        std::cout << "          ==> beachLinePos: " << beachLinePos << ", circleBottomX: " << circleBottomX << ", delta: " << beachLinePos - circleBottomX << std::endl;
+        
         // Now check if the bottom of this circle lies below the beach line
-        if (beachLinePos - (center[0] - radius) > 0.) //-std::numeric_limits<double>::epsilon())
+        if (beachLinePos >= circleBottomX - 1.e-5)
         {
-            // Check the x,y coordinates (remembering to reverse them) and if not within the area of the
-            // input points then reject
-//            if (center.first > fXMin - 2. * radius && center.first < fXMax + 2. * radius && center.second > fYMin && center.second < fYMax)
-            {
-                // Making a circle event!
-                dcel2d::Point circleBottom(center[0] - radius, center[1], NULL);
+            // Making a circle event!
+            dcel2d::Point circleBottom(circleBottomX, center[1], NULL);
         
-                fCircleEventList.emplace_back(circleBottom, center);
+            fCircleEventList.emplace_back(circleBottom, center);
         
-                circle = &fCircleEventList.back();
-            }
-//            else fNumBadCircles++;
+            circle = &fCircleEventList.back();
         }
     }
     
@@ -710,30 +738,23 @@ bool VoronoiDiagram::computeCircleCenter(const dcel2d::Coords& p1,
     double y3     = p3[1] - yCoord;
     
     double det    = x2 * y3 - x3 * y2;
+
+    std::cout << "          - circle, det: " << det << ", x/y's: " << p1[0] << "/" << p1[1] << ", " << p2[0] << "/" << p2[1] << ", " << p3[0] << "/" << p3[1];
     
     // Points are colinear so cannot make a circle
     // Or, if negative then the midpoint is "left" of line between first and third points meaning the
     // circle curvature is the "wrong" way for making a circle event
-    if (det < 1.e-4) // std::numeric_limits<double>::epsilon())
+    if (det <= 0.) // std::numeric_limits<double>::epsilon())
+    //if (!(std::abs(det) > 0.)) // std::numeric_limits<double>::epsilon())
     {
-        if (det > 1.) //-std::numeric_limits<double>::epsilon())
-        {
-            std::cout << "determinant small: " << det << ", x2: " << x2 << ", y3: " << y3 << ", x3: " << x3 << ", y2: " << y2 << std::endl;
-            
-            if (det > 0.) radius = 1/det;
-            else          radius = 1.e4;
-            
-            double p3Norm = std::sqrt(x3 * x3 + y3 * y3);
-            double cxpr   = x2 - radius * y3 / p3Norm;
-            double cypr   = y2 + radius * x3 / p3Norm;
-            
-            center[0] = cxpr + xCoord;
-            center[1] = cypr + yCoord;
-            center[2] = 0.;
-            
-            return true;
-        }
-        else return false; //computeCircleCenter2(p1,p2,p3,center,radius);
+        std::cout << std::endl;
+        
+        if (det > -std::numeric_limits<double>::epsilon())
+            std::cout << "      --->Circle failure, det: " << det << ", mid x: " << p2[0] << ", y: " << p2[1]
+                                                                  << ",   l x: " << p1[0] << ", y: " << p1[1]
+                                                                  << ",   r x: " << p3[0] << ", y: " << p3[1] << std::endl;
+        
+        return false;
     }
     
     double p2sqr   = x2 * x2 + y2 * y2;
@@ -747,9 +768,11 @@ bool VoronoiDiagram::computeCircleCenter(const dcel2d::Coords& p1,
     center[1] = cypr + yCoord;
     center[2] = 0.;
     
+    std::cout << ", x/y: " << center[0] << "/" << center[1] << ", r: " << radius << ", beach: " << center[0]-radius << std::endl;
+    
     if (radius > 1000.)
     {
-        std::cout << "       ***> Radius = " << radius << ", circ x,y: " << center[0] << ", " << center[1] << ", p1: " << xCoord << "," << yCoord << ", p2: " << p2[0] << "," << p2[1] << ", p3: " << p3[0] << "," << p3[1] << ", det: " << det << std::endl;
+//        std::cout << "       ***> Radius = " << radius << ", circ x,y: " << center[0] << ", " << center[1] << ", p1: " << xCoord << "," << yCoord << ", p2: " << p2[0] << "," << p2[1] << ", p3: " << p3[0] << "," << p3[1] << ", det: " << det << std::endl;
         fNumBadCircles++;
     }
     
@@ -850,7 +873,7 @@ void VoronoiDiagram::terminateInfiniteEdges(BeachLine& beachLine, double beachLi
             // Do we have a leaf?
             if (!node->getLeftChild() && !node->getRightChild())
             {
-                std::cout << "node " << nodeCount << " has leaf: " << node << ", face: " << node->getFace() << ", pos: " << node->getEvent()->getCoords()[0] << "/" << node->getEvent()->getCoords()[1] << std::endl;
+                std::cout << "node " << nodeCount << " has leaf: " << node << ", face: " << node->getFace() << ", pos: " << node->getEvent()->getCoords()[0] << "/" << node->getEvent()->getCoords()[1] << ", checked: " << node->isChecked() << std::endl;
             }
             // Otherwise it is a break point
             else
@@ -864,7 +887,7 @@ void VoronoiDiagram::terminateInfiniteEdges(BeachLine& beachLine, double beachLi
                 dcel2d::HalfEdge* halfTwin = halfEdge->getTwinHalfEdge();
                 dcel2d::Vertex*   vertex   = halfEdge->getTargetVertex();
 
-                std::cout << "node " << nodeCount << " has break: " << breakPoint << " (last: " << lastBreakPoint << "), leftArcVal: " << leftArcVal << ", rightArcVal: " << rightArcVal << std::endl;
+                std::cout << "node " << nodeCount << " has break: " << breakPoint << ", beachPos: " << beachLinePos << " (last: " << lastBreakPoint << "), leftArcVal: " << leftArcVal << ", rightArcVal: " << rightArcVal << std::endl;
                 if (lastBreakPoint > breakPoint) std::cout << "     ***** lastBreakPoint larger than current break point *****" << std::endl;
                 std::cout << "     left arc x/y: " << node->getPredecessor()->getEvent()->xPos() << "/" << node->getPredecessor()->getEvent()->yPos() << ", right arc x/y: "  << node->getSuccessor()->getEvent()->xPos() << "/" << node->getSuccessor()->getEvent()->yPos() << std::endl;
                 std::cout << "     halfEdge: " << halfEdge << ", target vtx: " << vertex << ", face: " << halfEdge->getFace() << ", twin: " << halfTwin << ", twin tgt: " << halfTwin->getTargetVertex() << ", twin face: " << halfTwin->getFace() << ", next: " << halfEdge->getNextHalfEdge() << ", last: " << halfEdge->getLastHalfEdge() << std::endl;
@@ -910,6 +933,14 @@ void VoronoiDiagram::terminateInfiniteEdges(BeachLine& beachLine, double beachLi
                 if (lastBreakPoint > breakPoint) nBadBreaks++;
 
                 lastBreakPoint = breakPoint;
+            }
+            
+            if (node->getAssociated())
+            {
+                BSTNode* associated = node->getAssociated();
+                IEvent*  iEvent     = associated->getEvent();
+                
+                std::cout << "     -> associated circle: " << iEvent->isCircle() << ", is valid: " << iEvent->isValid() << std::endl;
             }
             
             node = node->getSuccessor();
@@ -1002,7 +1033,7 @@ void VoronoiDiagram::getConvexHull(const BSTNode* topNode)
             
             node = node->getSuccessor();
         }
-        
+
         // Annoyingly, our algorithm does not contain only the convex hull points and so we need to skim out the renegades...
         lar_cluster3d::ConvexHull::PointList localList;
         
@@ -1017,10 +1048,14 @@ void VoronoiDiagram::getConvexHull(const BSTNode* topNode)
         // Clear the convex hull list...
         fConvexHullList.clear();
         
+        std::cout << "~~~>> there are " << convexHull.getConvexHull().size() << " convex hull points" << std::endl;
+        
         // Now rebuild it
         for(const auto& hullPoint : convexHull.getConvexHull())
         {
             fConvexHullList.emplace_back(std::get<0>(hullPoint),std::get<1>(hullPoint),std::get<2>(hullPoint));
+            
+            std::cout << "~~~ Convex hull Point: " << std::get<0>(hullPoint) << ", " << std::get<1>(hullPoint) << std::endl;
         }
     }
     

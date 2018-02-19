@@ -45,7 +45,8 @@ public:
         m_successor(NULL),
         m_associated(NULL),
         m_halfEdge(NULL),
-        m_face(NULL)
+        m_face(NULL),
+        m_checked(false)
     {}
     
     BSTNode(IEvent* event) :
@@ -58,7 +59,8 @@ public:
         m_successor(NULL),
         m_associated(NULL),
         m_halfEdge(NULL),
-        m_face(NULL)
+        m_face(NULL),
+        m_checked(false)
     {
         if (m_event) m_event->setBSTNode(this);
     }
@@ -85,6 +87,8 @@ public:
     dcel2d::HalfEdge* getHalfEdge()    const {return m_halfEdge;}
     dcel2d::Face*     getFace()        const {return m_face;}
     
+    bool              isChecked()      const {return m_checked;}
+    
     /**
      *  @brief Allow setting of the points
      */
@@ -100,6 +104,8 @@ public:
     
     void setDepth(int depth)                   {m_depth       = depth;}
     void setDepth();
+    
+    void setChecked()                          {m_checked     = true;}
     
     /**
      *  @brief Provide override definition for ordering
@@ -117,6 +123,7 @@ private:
     BSTNode*          m_associated;   // This allows handling of circle events
     dcel2d::HalfEdge* m_halfEdge;     // If a breakpoint then we associate halfedges
     dcel2d::Face*     m_face;         // If a leaf then we associated faces
+    bool              m_checked;      // temporary to debug circle checking
 };
     
 using BSTNodeList = std::list<BSTNode>;

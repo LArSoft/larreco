@@ -34,6 +34,8 @@ BSTNode::BSTNode(IEvent* event, BSTNode* parent, BSTNode* leftChild, BSTNode* ri
     
     m_event->setBSTNode(this);
     
+    m_checked = false;
+    
     // Reset depth
     setDepth();
 }
@@ -66,7 +68,7 @@ BSTNode* BeachLine::insertNewLeaf(IEvent* event)
     rebalance(node);
     
     // Check beach line integrity
-//    checkBeachLine(event->xPos() - 0.001);
+//    checkBeachLine(event->xPos() - 0.000001);
     
     return node;
 }
@@ -108,6 +110,15 @@ BSTNode* BeachLine::insertNewLeaf(IEvent* event, BSTNode* node)
         m_nodeVec.push_back(BSTNode(event));
         node = &m_nodeVec.back();
         return node;
+    }
+    
+    // Check if a circle event had been definied for the node we are splitting,
+    // if so then we need to invalidate that circle event
+    if (node->getAssociated())
+    {
+        node->getAssociated()->getEvent()->setInvalid();
+        node->getAssociated()->setAssociated(NULL);
+        node->setAssociated(NULL);
     }
     
     // Right now assume that the input node is the leaf at which we want to insert the new data
@@ -188,6 +199,9 @@ BSTNode* BeachLine::insertNewLeaf(IEvent* event, BSTNode* node)
     // By definition the break node will have depth of 1
     breakNode->setDepth();
     
+    // Check the beachline integrity
+    checkBeachLine(newLeaf->getEvent()->xPos()-0.00000001);
+
     return newLeaf;
 }
     
@@ -201,9 +215,6 @@ BSTNode* BeachLine::removeLeaf(BSTNode* node)
 
     // parent of the parent
     BSTNode* grandParent = nodeParent->getParent();
-    
-    // Temporary
-//    double beachLine = node->getAssociated()->getEvent()->xPos();
     
     // Parent is either left or right child, node is left or right child.... my brain is dizzy
     BSTNode* sibling = nodeParent->getRightChild();
@@ -271,11 +282,14 @@ BSTNode* BeachLine::removeLeaf(BSTNode* node)
     // Reset the depth
     grandParent->setDepth();
     
+    // Check beach line integrity
+//    checkBeachLine(node->getAssociated()->getEvent()->xPos()-0.000001);
+
     // Rebalance
     rebalance(grandParent);
     
     // Check beach line integrity
-//    checkBeachLine(beachLine);
+    checkBeachLine(node->getAssociated()->getEvent()->xPos()-0.00000001);
     
     // Return the new breakpoint
     return arcLeft->getSuccessor();
@@ -365,11 +379,12 @@ void BeachLine::checkBeachLine(double beachLine) const
     while(node->getLeftChild()) node = node->getLeftChild();
     
     // Keep track of breakpoints
-    double lastBreakPoint = -std::numeric_limits<double>::max();
-    int    nBadCompares(0);
-    int    nNodes(0);
-    int    nBreakPoints(0);
-    int    nLeaves(0);
+    double   lastBreakPointY = -std::numeric_limits<double>::max();
+    int      nBadCompares(0);
+    int      nNodes(0);
+    int      nBreakPoints(0);
+    int      nLeaves(0);
+    BSTNode* lastBreakPoint(NULL);
     
     // This is the start of the beach line, we now traverse across and and check status
     // of each breakpoint's position
@@ -381,20 +396,60 @@ void BeachLine::checkBeachLine(double beachLine) const
             RootsPair roots;
             double breakPoint = m_utilities.computeBreak(beachLine, node->getPredecessor()->getEvent(), node->getSuccessor()->getEvent(), roots);
             
-            if (breakPoint < lastBreakPoint)
+            if (breakPoint < lastBreakPointY)
             {
-                std::cout << "       ###>> Beach line check gets bad breakpoint, last: " << lastBreakPoint << ", new: " << breakPoint << std::endl;
-                std::cout << "             left arc x,y: " << node->getPredecessor()->getEvent()->xPos() << ", " << node->getPredecessor()->getEvent()->yPos() << ", right arc x,y: " << node->getSuccessor()->getEvent()->xPos() << ", " << node->getSuccessor()->getEvent()->yPos() << ", beachLine: " << beachLine;
+                std::cout << "  #####>> Beach line check gets bad breakpoint, last: " << lastBreakPointY << ", new: " << breakPoint << ", roots: " << roots.first << "/" << roots.second << std::endl;
+                std::cout << "          Current left arc x,y: " << node->getPredecessor()->getEvent()->xPos() << ", " << node->getPredecessor()->getEvent()->yPos() << ", right arc x,y: " << node->getSuccessor()->getEvent()->xPos() << ", " << node->getSuccessor()->getEvent()->yPos() << ", beachLine: " << beachLine;
                 if (node->getPredecessor()->getAssociated()) std::cout << ", left: "  << node->getPredecessor()->getAssociated()->getEvent()->isValid();
                 if (node->getSuccessor()->getAssociated())   std::cout << ", right: " << node->getSuccessor()->getAssociated()->getEvent()->isValid();
                 std::cout << std::endl;
+                if (lastBreakPoint)
+                {
+                    std::cout << "          Previous left arc x,y: " << lastBreakPoint->getPredecessor()->getEvent()->xPos() << ", " << lastBreakPoint->getPredecessor()->getEvent()->yPos() << ", right arc x,y: " << lastBreakPoint->getSuccessor()->getEvent()->xPos() << ", " << lastBreakPoint->getSuccessor()->getEvent()->yPos();
+                    if (lastBreakPoint->getPredecessor()->getAssociated()) std::cout << ", left: "  << lastBreakPoint->getPredecessor()->getAssociated()->getEvent()->isValid();
+                    if (lastBreakPoint->getSuccessor()->getAssociated())   std::cout << ", right: " << lastBreakPoint->getSuccessor()->getAssociated()->getEvent()->isValid();
+                    std::cout << std::endl;
+                }
                 nBadCompares++;
             }
             
-            lastBreakPoint = breakPoint;
+            lastBreakPointY = breakPoint;
+            lastBreakPoint  = node;
             nBreakPoints++;
         }
-        else nLeaves++;
+        else
+        {
+            // Confirm that the next leaf in the beachline is the next according to the tree
+            if (node->getSuccessor())
+            {
+                BSTNode* temp = node;
+                while(temp->getParent() && temp != temp->getParent()->getLeftChild()) temp = temp->getParent();
+                if (temp->getParent()) temp = temp->getParent()->getRightChild();
+                while(temp->getLeftChild()) temp = temp->getLeftChild();
+                
+                if (node->getSuccessor()->getSuccessor() != temp || node != temp->getPredecessor()->getPredecessor())
+                {
+                    std::cout << "          --> Successor tree/beach mismatch, leaf # " << nLeaves << ", node: " << node << ", " << node->getEvent()->xPos() << "/" << node->getEvent()->yPos() << ", s: " << node->getSuccessor() << ", ss: " << node->getSuccessor()->getSuccessor() << std::endl;
+                    std::cout << "              temp: " << temp << ", " << temp->getEvent()->xPos() << "/" << temp->getEvent()->yPos() << ", p: " << temp->getPredecessor() << ", pp: " << temp->getPredecessor()->getPredecessor() << std::endl;
+                }
+            }
+            
+            if (node->getPredecessor())
+            {
+                BSTNode* temp = node;
+                while(temp->getParent() && temp != temp->getParent()->getRightChild()) temp = temp->getParent();
+                if (temp->getParent()) temp = temp->getParent()->getLeftChild();
+                while(temp->getRightChild()) temp = temp->getRightChild();
+                
+                if (node->getPredecessor()->getPredecessor() != temp || node != temp->getSuccessor()->getSuccessor())
+                {
+                    std::cout << "          --> Predecessor tree/beach mismatch, leaf # " << nLeaves << ", node: " << node << ", " << node->getEvent()->xPos() << "/" << node->getEvent()->yPos() << ", p: " << node->getPredecessor() << ", pp: " << node->getPredecessor()->getPredecessor() << std::endl;
+                    std::cout << "              temp: " << temp << ", " << temp->getEvent()->xPos() << "/" << temp->getEvent()->yPos() << ", s: " << temp->getSuccessor() << ", ss: " << temp->getSuccessor()->getSuccessor() << std::endl;
+                }
+            }
+            
+            nLeaves++;
+        }
         
         nNodes++;
         

@@ -107,7 +107,7 @@ private:
     /**
      *  @brief There are two types of events in the queue, here we handle circle events
      */
-    IEvent* makeCircleEvent(BSTNode*, double);
+    IEvent* makeCircleEvent(BSTNode*, BSTNode*, BSTNode*, double);
     
     bool computeCircleCenter(const dcel2d::Coords&, const dcel2d::Coords&, const dcel2d::Coords&, dcel2d::Coords&, double&) const;
 
