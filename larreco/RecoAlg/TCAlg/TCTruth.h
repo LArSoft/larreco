@@ -69,9 +69,9 @@ namespace tca {
     unsigned short nGoodLongMCP;   // Number of MCParticles that have >= 2 * MatchTruth[3] hits with EP > 0.8
 
     // Counts of:
-    // [0] = the number of true neutrino interaction vertices in the fiducial volume
-    // [1] = the number of those [0] that are reconstructable by TrajCluster
-    // [2] = the number of those [1] in which a neutrino PFP vtx is within 1 cm of the true vertex
+    // [0] = the number of true vertices that are reconstructable (> 0 primary MCParticles)
+    // [1] = [0] + a vertex was reconstructed within 1 cm of the true vertex position
+    // [2] = [1] + the vertex is attached to a neutrino PFParticle
     std::array<unsigned short, 3> TruVxCounts;
   }; // TruthMatcher class
   
