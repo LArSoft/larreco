@@ -152,8 +152,6 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     
     // Map from 2D hits to associated 3D hits
     reco::Hit2DToHit3DListMap& hit2DToHit3DListMap = clusterParams.getHit2DToHit3DListMap();
-    
-    std::cout << "*** building cluster, starting with " << hitPairVector.size() << " 3D hits" << std::endl;
 
     // The map from 2D to 3D hits will contain unique entries for 2D hits so we can do some quick accounting here
     for(const auto& hitMapPair : hit2DToHit3DListMap)
@@ -194,11 +192,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
             minPlaneCnt = planeHit2DVec.at(idx);
             minPlane    = idx;
         }
-        
-        std::cout << ">>>>>>>>> plane " << idx << " has " << planeHit2DVec.at(idx) << " 2D hits" << std::endl;
     }
-    std::cout << " --------> plane " << minPlane << " is min with " << minPlaneCnt << " 2D hits" << std::endl;
-    std::cout << " --------> numUniqueHits: " << numUniqueHits << ", numTotalHits: " << numTotalHits << ", nPlanesWithHits: " << nPlanesWithHits << ", nPlanesWithUniqueHits: " << nPlanesWithUniqueHits << std::endl;
 
     // If we have something left then at this point we make one more check
     // This check is intended to weed out clusters made from isolated groups of ambiguous hits which
@@ -220,7 +214,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
             // Create a list to hold 3D hits which are already in use (criteria below)
             reco::HitPairListPtr usedHitPairList;
             
-            std::cout << "--------> Starting 3D hit removal, # 2D hits/plane: " << planeHit2DVec[0] << "/" << planeHit2DVec[1] << "/" << planeHit2DVec[2] << std::endl;
+//            std::cout << "--------> Starting 3D hit removal, # 2D hits/plane: " << planeHit2DVec[0] << "/" << planeHit2DVec[1] << "/" << planeHit2DVec[2] << std::endl;
             
             // Have survived laugh test, do final processing...
             // In this first loop go through all the 2D hits and identify the 3D hits that are candidates for deletion
@@ -245,14 +239,14 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                     //pair.second.sort([hitPlane](const auto& left, const auto& right){return left->getHitDelTSigVec()[hitPlane] < right->getHitDelTSigVec()[hitPlane];});
                     pair.second.sort([](const auto& left, const auto& right){return left->getHitChiSquare() < right->getHitChiSquare();});
 
-                    //std::cout << "~~~~> Checking hit removal, # matches: " << pair.second.size() << ", first params: " << pair.second.front()->getHitDelTSigVec()[hitPlane] << ", last params: "<< pair.second.back()->getHitDelTSigVec()[hitPlane];
-                    std::cout << "~~~~> Checking hit removal, # matches: " << pair.second.size() << ", first params: " << pair.second.front()->getHitChiSquare() << ", last params: "<< pair.second.back()->getHitChiSquare();
+                    ////std::cout << "~~~~> Checking hit removal, # matches: " << pair.second.size() << ", first params: " << pair.second.front()->getHitDelTSigVec()[hitPlane] << ", last params: "<< pair.second.back()->getHitDelTSigVec()[hitPlane];
+                    //std::cout << "~~~~> Checking hit removal, # matches: " << pair.second.size() << ", first params: " << pair.second.front()->getHitChiSquare() << ", last params: "<< pair.second.back()->getHitChiSquare();
 
                     // From sorted list, determine a rejection value to eliminate bad hits
                     //float cutDeltaTSig = std::min(2.0,std::max(0.5, double((pair.second.front()->getHitDelTSigVec()[hitPlane]))));
                     float cutDeltaTSig = std::min(2.0,std::max(0.5, double(pair.second.front()->getHitChiSquare())));
 
-                    std::cout << ", cutDeltaTSig: " << cutDeltaTSig;
+                    //std::cout << ", cutDeltaTSig: " << cutDeltaTSig;
                     
                     cutDeltaTSig = 10.;
    
@@ -275,7 +269,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                 
                     std::copy(firstBadHitItr,pair.second.end(),std::back_inserter(rejectCandList));
                 
-                    std::cout << ", bad hits: " << rejectCandList.size() << std::endl;
+                    //std::cout << ", bad hits: " << rejectCandList.size() << std::endl;
                 
                     // Remove the 3D hits from all the lists
                     for(const auto& hit3D : rejectCandList)
@@ -293,7 +287,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                             // Don't allow all the 3D hits associated to this 2D hit to be rejected?
                             if (removeHitList.size() < 2)
                             {
-                                std::cout << "   ---> remove list too small, size: " << removeHitList.size() << " for hit: " << hit2D << ", pair.first: " << pair.first << std::endl;
+                                //std::cout << "   ---> remove list too small, size: " << removeHitList.size() << " for hit: " << hit2D << ", pair.first: " << pair.first << std::endl;
                                 rejectThisHit = false;
                                 break;
                             }
@@ -301,7 +295,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                             reco::HitPairListPtr::iterator removeItr = std::find(removeHitList.begin(),removeHitList.end(),hit3D);
                         
                             if (removeItr != removeHitList.end()) deleteVec.emplace_back(removeHitList,removeItr);
-                            else std::cout << "======>> Did not find 3D hit to remove from list for 2D hit! <<+++++++++" << std::endl;
+                            //else std::cout << "======>> Did not find 3D hit to remove from list for 2D hit! <<+++++++++" << std::endl;
                         }
                     
                         if (rejectThisHit)
@@ -356,8 +350,6 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
             // Must have a valid pca
             if (clusterParams.getFullPCA().getSvdOK())
             {
-                std::cout << "      ******> Valid Full PCA calculated over " << clusterParams.getHitPairListPtr().size() << " hits" << std::endl;
-                
                 // Set the skeleton PCA to make sure it has some value
                 clusterParams.getSkeletonPCA() = clusterParams.getFullPCA();
                 

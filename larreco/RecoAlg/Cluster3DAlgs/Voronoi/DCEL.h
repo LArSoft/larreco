@@ -93,6 +93,7 @@ public:
     
     Face(HalfEdge* half, const Coords& coords, const reco::ClusterHit3D* clusterHit3D) :
         fHalfEdge(half),
+        fConvexHull(false),
         fCoords(coords),
         fClusterHit3D(clusterHit3D)
     {}
@@ -100,13 +101,16 @@ public:
     ~Face() {}
     
     const HalfEdge*           getHalfEdge()     const {return fHalfEdge;}
+    const bool                onConvexHull()    const {return fConvexHull;}
     const Coords&             getCoords()       const {return fCoords;}
     const reco::ClusterHit3D* getClusterHit3D() const {return fClusterHit3D;}
     
-    void setHalfEdge(HalfEdge* half)  {fHalfEdge = half;}
+    void setHalfEdge(HalfEdge* half)  {fHalfEdge   = half;}
+    void setOnConvexHull()            {fConvexHull = true;}
     
 private:
     HalfEdge*                 fHalfEdge;     // pointer to one of the half edges
+    mutable bool              fConvexHull;   // This face on convex hull
     Coords                    fCoords;       // projected coordinates of associated point
     const reco::ClusterHit3D* fClusterHit3D; // The physical 3D hit this corresponds to
 };
