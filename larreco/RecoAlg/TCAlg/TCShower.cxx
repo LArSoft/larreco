@@ -3067,7 +3067,6 @@ namespace tca {
       } // tjid
     } // tjl
     if(tjs.ShowerTag[12] >= 0) mf::LogVerbatim("TC")<<"TagInShowerTjs tagged "<<nsh<<" InShower Tjs in CTP "<<inCTP;
-    
     // Set the NearInShower bit on all Tjs in this TPC
     std::vector<unsigned int> closeHits;
     // Set the 
@@ -3095,7 +3094,7 @@ namespace tca {
           if(hit.InTraj > 0) {
             // Nearby hit used in a nearby Tj
             auto& ntj = tjs.allTraj[hit.InTraj - 1];
-            if(ntj.AlgMod[kInShower]) tp.NearInShower = true;
+            if(ntj.AlgMod[kInShower]) tp.Environment[kEnvNearShower] = true;
           }
         } // iht
       } // ipt
