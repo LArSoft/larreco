@@ -158,7 +158,7 @@ namespace tca {
     unsigned short AngleCode {0};          // 0 = small angle, 1 = large angle, 2 = very large angle
     std::vector<unsigned int> Hits; // vector of fHits indices
     std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
-    bool NearInShower {false};    // TP is near an InShowerTj on this wire that is not itself
+    std::bitset<4> Environment {0};    // TPEnvironment_t bitset that describes the environment, e.g. nearby showers or other Tjs
   };
   
   // Global information for the trajectory
@@ -183,6 +183,7 @@ namespace tca {
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     unsigned int MCPartListIndex {UINT_MAX};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
+    bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated (only for the TP Environment right now)
   };
   
   // Local version of recob::Hit
@@ -429,8 +430,15 @@ namespace tca {
     kFlagBitSize     ///< don't mess with this line
   } StopFlag_t; 
   
+  typedef enum {
+    kEnvNearShower,
+    kEnvNearTj,
+    kEnvUnusedHits
+  } TPEnvironment_t;
+  
   extern const std::vector<std::string> AlgBitNames;
   extern const std::vector<std::string> StopFlagNames;
+  extern const std::vector<std::string> TPEnvNames;
   extern const std::vector<std::string> VtxBitNames;
   
   struct TjStuff {
