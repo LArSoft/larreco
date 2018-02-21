@@ -67,6 +67,13 @@ namespace tca {
     "SetDir"
   };
 
+  // bit names that describe the environment near a TP
+  const std::vector<std::string> TPEnvNames {
+    "EnvNearShower",
+    "EnvNearTj",
+    "EnvUnusedHits"
+  };
+  
   const std::vector<std::string> StopFlagNames {
     "Signal",
     "AtKink",
