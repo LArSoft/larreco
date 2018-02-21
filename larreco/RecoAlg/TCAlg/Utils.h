@@ -59,6 +59,7 @@ namespace tca {
   unsigned short AngleRange(TjStuff& tjs, float angle);
   void FitTraj(TjStuff& tjs, Trajectory& tj);
   void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
+  float TjDirection(const TjStuff& tjs, const Trajectory& tj, bool prt);
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
   void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   unsigned short GetPFPIndex(const TjStuff& tjs, int tjID);
@@ -167,6 +168,7 @@ namespace tca {
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP);
   // Tag muon directions using delta proximity
   void TagMuonDirections(TjStuff& tjs, short debugWorkID);
+  void UpdateTjEnvironment(TjStuff& tjs, VtxStore& vx2);
   // Make a bare trajectory point that only has position and direction defined
   TrajPoint MakeBareTrajPoint(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP);
   bool MakeBareTrajPoint(const TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
