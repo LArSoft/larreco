@@ -773,7 +773,7 @@ namespace tca {
       if(vx2.ID == 0) continue;
       if(vx2.CTP != inCTP) continue;
       AttachAnyTrajToVertex(tjs, ivx, vprt);
-      UpdateTjEnvironment(tjs, vx2);
+//      UpdateTjEnvironment(tjs, vx2);
     } // ivx
     
     // Check the Tj <-> vtx associations and define the vertex quality
