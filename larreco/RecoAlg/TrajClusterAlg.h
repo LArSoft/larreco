@@ -193,10 +193,8 @@ namespace tca {
     // tracking flags
     bool fGoodTraj;         // the working trajectory is good and should be stored
     bool fTryWithNextPass;  // Try with next pass settings
-    bool fUpdateTrajOK;     // update
     bool fMaskedLastTP;
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
-    
     
     std::vector<unsigned int> fAlgModCount;
 
