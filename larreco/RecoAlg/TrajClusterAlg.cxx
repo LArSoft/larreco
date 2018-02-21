@@ -668,7 +668,7 @@ namespace tca {
             if(prt) mf::LogVerbatim("TC")<<" After first StepCrawl. fGoodTraj "<<fGoodTraj<<" fTryWithNextPass "<<fTryWithNextPass;
             if(!fGoodTraj && fTryWithNextPass) {
               StepCrawl(work);
-              if(!fGoodTraj || !fUpdateTrajOK) {
+              if(!fGoodTraj || work.NeedsUpdate) {
                 if(prt) mf::LogVerbatim("TC")<<" xxxxxxx StepCrawl failed AGAIN. fTryWithNextPass "<<fTryWithNextPass;
                 ReleaseHits(tjs, work);
                 continue;
@@ -773,6 +773,7 @@ namespace tca {
       if(vx2.ID == 0) continue;
       if(vx2.CTP != inCTP) continue;
       AttachAnyTrajToVertex(tjs, ivx, vprt);
+      UpdateTjEnvironment(tjs, vx2);
     } // ivx
     
     // Check the Tj <-> vtx associations and define the vertex quality
@@ -2640,7 +2641,7 @@ namespace tca {
       // Update the last point fit, etc using the just added hit(s)
       UpdateTraj(tj);
       // a failure occurred
-      if(!fUpdateTrajOK) return;
+      if(tj.NeedsUpdate) return;
       if(tj.Pts[lastPt].Chg == 0) {
         // There are points on the trajectory by none used in the last step. See
         // how long this has been going on
@@ -3772,7 +3773,7 @@ namespace tca {
       // This will be incremented by one in UpdateTraj
       if(sortaLargeAngle) tj.Pts[ipt].NTPsFit = 2;
       UpdateTraj(tj);
-      if(!fUpdateTrajOK) {
+      if(tj.NeedsUpdate) {
         if(prt) mf::LogVerbatim("TC")<<"UpdateTraj failed on point "<<ipt;
         // Clobber the used hits from the corrupted points in tj
         for(unsigned short jpt = stopPt + 1; jpt <= ipt; ++jpt) {
@@ -4163,7 +4164,7 @@ namespace tca {
   {
     // Updates the last added trajectory point fit, average hit rms, etc.
 
-    fUpdateTrajOK = false;
+    tj.NeedsUpdate = true;
     fMaskedLastTP = false;
     
     if(tj.EndPt[1] < 1) return;
@@ -4205,7 +4206,7 @@ namespace tca {
       UnsetUsedHits(tjs, lastTP);
       DefineHitPos(lastTP);
       SetEndPoints(tjs, tj);
-      fUpdateTrajOK = true;
+      tj.NeedsUpdate = false;
       return;
     }
     tj.MCSMom = newMCSMom;
@@ -4224,7 +4225,7 @@ namespace tca {
       lastTP.FitChi = 0.01;
       lastTP.AngErr = tj.Pts[0].AngErr;
       if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: Second traj point pos "<<lastTP.Pos[0]<<" "<<lastTP.Pos[1]<<"  dir "<<lastTP.Dir[0]<<" "<<lastTP.Dir[1];
-      fUpdateTrajOK = true;
+      tj.NeedsUpdate = false;
       SetAngleCode(tjs, lastTP);
       return;
     }
@@ -4233,7 +4234,7 @@ namespace tca {
       // Third trajectory point. Keep it simple
       lastTP.NTPsFit = 3;
       FitTraj(tjs, tj);
-      fUpdateTrajOK = true;
+      tj.NeedsUpdate = false;
       if(prt) mf::LogVerbatim("TC")<<"UpdateTraj: Third traj point fit "<<lastTP.FitChi;
       SetAngleCode(tjs, lastTP);
       return;
@@ -4249,7 +4250,7 @@ namespace tca {
     
     // don't get too fancy when we are starting out
     if(lastPt < 6) {
-      fUpdateTrajOK = true;
+      tj.NeedsUpdate = false;
       UpdateDeltaRMS(tj);
       SetAngleCode(tjs, lastTP);
       if(prt) mf::LogVerbatim("TC")<<" Return with lastTP.FitChi "<<lastTP.FitChi<<" Chg "<<lastTP.Chg;
@@ -4315,7 +4316,7 @@ namespace tca {
       lastPt = tj.EndPt[1];
       lastTP.NTPsFit -= 1;
       FitTraj(tjs, tj);
-      fUpdateTrajOK = true;
+      tj.NeedsUpdate = false;
       SetAngleCode(tjs, lastTP);
       return;
     }  else {
@@ -4357,13 +4358,13 @@ namespace tca {
       SetEndPoints(tjs, tj);
       lastPt = tj.EndPt[1];
       FitTraj(tjs, tj);
-      fUpdateTrajOK = true;
+      tj.NeedsUpdate = false;
       fMaskedLastTP = true;
     }
     if(prt) mf::LogVerbatim("TC")<<"  Fit done. Chi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit;
 
     if(tj.EndPt[0] == tj.EndPt[1]) {
-      fUpdateTrajOK = false;
+      tj.NeedsUpdate = true;
       return;
     }
     
@@ -4379,7 +4380,7 @@ namespace tca {
     UpdateDeltaRMS(tj);
     SetAngleCode(tjs, lastTP);
 
-    fUpdateTrajOK = true;
+    tj.NeedsUpdate = false;
     return;
 
   } // UpdateTraj
@@ -5858,13 +5859,13 @@ namespace tca {
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     sim::ParticleList const& plist = pi_serv->ParticleList();
     if(plist.empty()) return;
-    std::cout<<" ParticleInventoryService ParticleList size "<<plist.size()<<"\n";
+//    std::cout<<" ParticleInventoryService ParticleList size "<<plist.size()<<"\n";
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       auto& p = (*ipart).second;
       int trackID = p->TrackId();
       art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       int KE = 1000 * (p->E() - p->Mass());
-      if(KE == 963 || KE == 212) std::cout<<"Prim KE "<<KE<<" trackID "<<trackID<<" Origin "<<theTruth->Origin()<<"\n";
+//      if(KE == 963 || KE == 212) std::cout<<"Prim KE "<<KE<<" trackID "<<trackID<<" Origin "<<theTruth->Origin()<<"\n";
       if(!anySource && theTruth->Origin() != origin) continue;
       if(tjs.MatchTruth[1] > 1 && KE > 10) {
         std::cout<<"GHC: mcp Origin "<<theTruth->Origin()
@@ -5896,6 +5897,7 @@ namespace tca {
     } // hitmcp_assn
 */
     unsigned int nMatHits = 0;
+    // prthit is a temporary debugging variable
     bool prthit = false;
     // associate a hit with a MCParticle > 50% of the deposited energy is from it
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
@@ -5920,12 +5922,14 @@ namespace tca {
         break;
       } // im
       if(trackID == 0) continue;
-      for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-        auto& p = (*ipart).second;
-        if(p->TrackId() != trackID) continue;
-        art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-        if(prthit) std::cout<<"hit "<<PrintHit(tjs.fHits[iht])<<" -> trackID "<<trackID<<" Origin "<<theTruth->Origin()<<" pdg "<<p->PdgCode()<<" E "<<1000 * p->E()<<" Process "<<p->Process()<<"\n";
-      }
+      if(prthit) {
+        for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+          auto& p = (*ipart).second;
+          if(p->TrackId() != trackID) continue;
+          art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+          std::cout<<"hit "<<PrintHit(tjs.fHits[iht])<<" -> trackID "<<trackID<<" Origin "<<theTruth->Origin()<<" pdg "<<p->PdgCode()<<" E "<<1000 * p->E()<<" Process "<<p->Process()<<"\n";
+        }
+      } 
       // look for this in MCPartList
       for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         auto& mcp = tjs.MCPartList[ipart];
