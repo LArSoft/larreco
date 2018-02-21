@@ -489,7 +489,7 @@ namespace tca {
       // weighted by the presence of a Bragg peak at one end
       float protonLikeFOM = log(bw * aveChg / (thetaRMS * tj.ChgRMS));
       hist.fProtonLike[pdgIndex]->Fill(protonLikeFOM);
-//      mf::LogVerbatim("TC")<<"ntp "<<abs(mcp->PdgCode())<<" "<<std::fixed<<std::setprecision(1)<<TMeV<<" "<<lenth<<" "<<std::setprecision(2)<<tj.ChgRMS<<" "<<std::setprecision(1)<<aveChg<<" "<<std::setprecision(4)<<thetaRMS<<" "<<std::setprecision(2)<<nisfrac<<" "<<std::setprecision(2)<<protonLikeFOM;
+      hist.fProtonLike_T[pdgIndex]->Fill(TMeV, protonLikeFOM);
     } // tj
     
 /* This needs work...
