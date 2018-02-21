@@ -874,8 +874,74 @@ namespace tca {
     tpFit.FitChi = sum / ndof;
     
   } // FitTraj
+  
+  ////////////////////////////////////////////////
+  float TjDirection(const TjStuff& tjs, const Trajectory& tj, bool prt)
+  {
+    // Calculate a FOM for the tj to be going from EndPt[0] -> EndPt[1] (FOM = 1)
+    // or EndPt[1] -> EndPt[0] (FOM = -1) by finding the overall charge slope, weighted
+    // by the presence of nearby InShower Tjs
+    if(tj.AlgMod[kKilled]) return 0;
 
-   ////////////////////////////////////////////////
+    std::vector<double> x, y;
+    Point2_t origin = tj.Pts[tj.EndPt[0]].HitPos;
+    std::vector<double> w, q;
+    
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg <= 0) continue;
+      // only consider points that are not close to other Tjs
+      if(tp.Environment[kEnvNearTj]) continue;
+      double sep = PosSep(tp.Pos, origin);
+      x.push_back(sep);
+      y.push_back((double)tp.Chg);
+      double wght = 0.2 * tp.Chg;
+      w.push_back(wght * wght);
+    } // tp
+    if(w.size() < 3) return 0;
+    
+    double sum = 0.;
+    double sumx = 0.;
+    double sumy = 0.;
+    double sumxy = 0.;
+    double sumx2 = 0.;
+    double sumy2 = 0.;
+    
+    // weight by the charge ratio and accumulate sums
+    double wght;
+    for(unsigned short ipt = 0; ipt < x.size(); ++ipt) {
+      wght = 1 / w[ipt];
+      sum   += wght;
+      sumx  += wght * x[ipt];
+      sumy  += wght * y[ipt];
+      sumx2 += wght * x[ipt] * x[ipt];
+      sumy2 += wght * y[ipt] * y[ipt];
+      sumxy += wght * x[ipt] * y[ipt];
+    }
+    // calculate coefficients and std dev
+    double delta = sum * sumx2 - sumx * sumx;
+    if(delta == 0) return 0;
+    // A is the intercept
+    double A = (sumx2 * sumy - sumx * sumxy) / delta;
+    // B is the slope
+    double B = (sumxy * sum  - sumx * sumy) / delta;
+    
+    // Calculate chisq/DOF
+    double ndof = x.size() - 2;
+    double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
+    if(varnce <= 0) return 0;
+    double BErr = sqrt(varnce * sum / delta);
+    // scale the error so that the significance is +/-1 when the slope is 3 * error
+    float slopeSig = B / (3 * BErr);
+    if(slopeSig > 1) slopeSig = 1;
+    if(slopeSig < -1) slopeSig = -1;
+    
+    if(prt) mf::LogVerbatim("TC")<<"TjDirection slope "<<B<<" error "<<BErr<<" DirectionFOM "<<slopeSig;
+    return slopeSig;
+
+  } // TjDirection
+
+  ////////////////////////////////////////////////
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& wHit, short& wInTraj, const unsigned short& tjID)
   {
     // a temp routine to watch when inTraj changes for the supplied hit index, watchHit
@@ -2803,7 +2869,7 @@ namespace tca {
     // prevent confusion
     
     float tps = TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
-    if(tps == 0) return 1;
+    if(tps < 1) return 1;
     
     return MCSThetaRMS(tjs, tj, tj.EndPt[0], tj.EndPt[1]) / sqrt(tps);
     
@@ -2833,7 +2899,7 @@ namespace tca {
     // return the previously calculated value of MCSMom
     if(numPts > 5 && cnt < 0.7 * numPts) return tj.MCSMom;
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
-    if(tjLen == 0) return 1;
+    if(tjLen < 1) return 1;
     // Theta_o =  4 * sqrt(3) * sigmaS / path
     return (6.8 * sigmaS / tjLen);
     
@@ -3005,6 +3071,125 @@ namespace tca {
 //      muTj.AlgMod[kSetDir] = true;
     } // itj
   } // TagMuonDirections
+  
+  /////////////////////////////////////////
+  void UpdateTjEnvironment(TjStuff& tjs, VtxStore& vx2)
+  {
+    // Update the Environment near each TP on trajectories near the vertex. This is called when
+    // the Tj has been added to a vertex to identify nearby trajectories that contribute to
+    // the charge on TPs near the vertex. This might be an expensive operation so only do it
+    // if the tj NeedsUpdate flag has been set true. 
+    if(vx2.ID == 0) return;
+    
+//    if(vx2.ID != 4) return;
+//    std::cout<<"UTjEnv vtx 4\n";
+    
+    std::vector<int> tjlist;
+    std::vector<unsigned short> tjends;
+    unsigned int vxWire = std::nearbyint(vx2.Pos[0]);
+    unsigned int loWire = vxWire;
+    unsigned int hiWire = vxWire;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.CTP != vx2.CTP) continue;
+      // ignore photon Tjs
+      if(tj.AlgMod[kPhoton]) continue;
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] != vx2.ID) continue;
+        tjlist.push_back(tj.ID);
+        tjends.push_back(end);
+        unsigned int endWire = std::nearbyint(tj.Pts[tj.EndPt[end]].Pos[0]);
+        if(endWire < loWire) loWire = endWire;
+        if(endWire > hiWire) hiWire = endWire;
+      } // end
+    } // tj
+    if(tjlist.size() < 2) return;
+    if(hiWire < loWire + 1) return;
+//    std::cout<<"lo "<<loWire<<" "<<hiWire<<"\n";
+    
+    // create a vector of TPs between loWire and hiWire for every tj in the list
+    //   wire       tj
+    std::vector<std::vector<TrajPoint>> wire_tjpt;
+    // populate this vector with TPs on Tjs that are in this range
+    unsigned short nwires = hiWire - loWire + 1;
+    for(unsigned short itj = 0; itj < tjlist.size(); ++itj) {
+      auto& tj = tjs.allTraj[tjlist[itj] - 1];
+      unsigned short end = tjends[itj];
+      std::vector<TrajPoint> tjpt(nwires);
+      // first enter valid TPs in the range
+      for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+        unsigned short ipt;
+        if(end == 0) { ipt = tj.EndPt[0] + ii; } else { ipt = tj.EndPt[1] - ii; }
+        if(ipt > tj.Pts.size() - 1) break;
+        // Make a copy of the TP so we can alter it
+        auto tp = tj.Pts[ipt];
+        if(tp.Chg <= 0) continue;
+        tp.Chg = 1;
+        tp.Hits.clear();
+        unsigned int wire = std::nearbyint(tp.Pos[0]);
+        unsigned short indx = wire - loWire;
+        if(indx > nwires - 1) break;
+        tp.Step = ipt;
+        // We will use NTPsFit to count the number of neighboring TPs
+        tp.NTPsFit = 0;
+        tjpt[indx] = tp;
+      } // ii
+      // next make TPs on the wires that don't have real TPs
+      TrajPoint ltp;
+      // put ltp at the vertex position with direction towards the end point
+      MakeBareTrajPoint(vx2.Pos, tj.Pts[tj.EndPt[end]].Pos, ltp);
+      if(ltp.Dir[0] == 0) continue;
+      unsigned int wire = std::nearbyint(ltp.Pos[0]);
+      ltp.Chg = 0;
+      unsigned short indx = wire - loWire;
+      // Break if we found a real TP
+      if(tjpt[indx].Chg == 0) tjpt[indx] = ltp;
+      double stepSize = std::abs(1/ltp.Dir[0]);
+      for(unsigned short ii = 0; ii < nwires; ++ii) {
+        // move the local TP position by one step in the right direction
+        for(unsigned short iwt = 0; iwt < 2; ++iwt) ltp.Pos[iwt] += ltp.Dir[iwt] * stepSize;
+        wire = std::nearbyint(ltp.Pos[0]);
+        if(wire < loWire || wire > hiWire) break;
+        indx = wire - loWire;
+        if(tjpt[indx].Chg > 0) continue;
+        tjpt[indx]= ltp;
+      } // ii
+/*
+      std::cout<<"tj "<<tj.ID;
+      for(auto& tp : tjpt) std::cout<<" "<<PrintPos(tjs, tp.Pos)<<"_"<<tp.Step<<"_"<<(int)tp.Chg;
+      std::cout<<"\n";
+*/
+      wire_tjpt.push_back(tjpt);
+    } // itj
+    
+    // iterate over the wires in the range
+    for(unsigned short indx = 0; indx < nwires; ++indx) {
+      // count the number of valid points on this wire
+      unsigned short npts = 0;
+      // count the number of points on this wire that have charge
+      unsigned short npwc = 0;
+      for(unsigned short itj = 0; itj < tjlist.size(); ++itj) {
+        if(wire_tjpt[itj][indx].Pos[0] == 0) continue;
+        // found a valid point
+        ++npts;
+        if(wire_tjpt[itj][indx].Chg > 0) ++npwc;
+      } // itj
+      // no valid points
+      if(npts == 0) continue;
+      // all valid points have charge
+      if(npwc == npts) continue;
+      // re-find the valid points with charge and set the kEnvNearTj bit
+      for(unsigned short itj = 0; itj < tjlist.size(); ++itj) {
+        if(wire_tjpt[itj][indx].Pos[0] == 0) continue;
+        if(wire_tjpt[itj][indx].Chg == 0) continue;
+        auto& tj = tjs.allTraj[tjlist[itj] - 1];
+        unsigned short ipt = wire_tjpt[itj][indx].Step;
+        tj.Pts[ipt].Environment[kEnvNearTj] = true;
+//        std::cout<<"Set kEnvNearTj bit on Tj "<<tj.ID<<" ipt "<<ipt<<"\n";
+      }
+    } // ii
+    
+  } // UpdateTjEnvironment
   
   /////////////////////////////////////////
   TrajPoint MakeBareTrajPoint(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP)
@@ -3739,7 +3924,7 @@ namespace tca {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
 //      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx Chg(k) chgRMS  Mom SDr __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
-      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ InSh     W:T      Ang CS AveQ InSh Chg(k) chgRMS  Mom SDr __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ InSh     W:T      Ang CS AveQ InSh Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -3772,13 +3957,13 @@ namespace tca {
           myprt<<" ";
         }
         myprt<<std::setw(5)<<(int)tp0.AveChg;
-        // Print the fraction of points in the first half that are NearInShower
+        // Print the fraction of points in the first half that are in a shower
         float frac = 0;
         float cnt = 0;
         unsigned short midPt = 0.5 * (aTj.EndPt[0] + aTj.EndPt[1]);
         for(unsigned short ipt = aTj.EndPt[0]; ipt < midPt; ++ipt) {
           auto& tp = aTj.Pts[ipt];
-          if(tp.NearInShower) ++frac;
+          if(tp.Environment[kEnvNearShower]) ++frac;
           ++cnt;
         } // ipt
         if(cnt > 0) frac /= cnt;
@@ -3810,7 +3995,7 @@ namespace tca {
         cnt = 0;
         for(unsigned short ipt = midPt; ipt <= aTj.EndPt[1]; ++ipt) {
           auto& tp = aTj.Pts[ipt];
-          if(tp.NearInShower) ++frac;
+          if(tp.Environment[kEnvNearShower]) ++frac;
           ++cnt;
         } // ipt
         if(cnt > 0) frac /= cnt;
@@ -3827,6 +4012,7 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.VtxID[0];
         myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
+        myprt<<std::setw(7)<<std::setprecision(1)<<TjDirection(tjs, aTj, false);
         myprt<<std::setw(5)<<aTj.ParentID;
         myprt<<std::setw(5)<<PrimaryID(tjs, aTj);
         myprt<<std::setw(6)<<NeutrinoPrimaryTjID(tjs, aTj);
