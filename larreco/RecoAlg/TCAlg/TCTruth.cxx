@@ -298,6 +298,15 @@ namespace tca {
         for(auto& md : moda) if(md.second == hit.MCPartListIndex) hit.MCPartListIndex = md.first;
       } // hit
     } // !moda.empty
+    
+    // True histograms
+    for(unsigned int part = 0; part < mcpSelect.size(); ++part) {
+      auto& mcp = tjs.MCPartList[mcpSelect[part]];
+      unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
+      if(pdgIndex > 4) continue;
+      float TMeV = 1000 * (mcp->E() - mcp->Mass());
+      hist.fTruT[pdgIndex]->Fill(TMeV);
+    } // part
 
     // Match tjs to MC particles. Declare it a match to the MC particle that has the most
     // hits in the tj
@@ -454,6 +463,35 @@ namespace tca {
     
     // Match Tjs and PFParticles and accumulate statistics
     MatchAndSum(hist, mcpSelect, inTPCID);
+    
+    // Study PID using 2D information
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.EffPur < 0.6) continue;
+      if(tj.MCPartListIndex == UINT_MAX) continue;
+      auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
+      unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
+      if(pdgIndex > 4) continue;
+      float TMeV = 1000 * (mcp->E() - mcp->Mass());
+      if(TMeV < 50) continue;
+      unsigned short lenth = tj.EndPt[1] - tj.EndPt[0] + 1;
+      if(lenth < 4) continue;
+      unsigned short nbragg = 0;
+      if(tj.StopFlag[0][kBragg]) ++nbragg;
+      if(tj.StopFlag[1][kBragg]) ++nbragg;
+      float bw = 1;
+      if(nbragg == 1) bw = 2;
+      float aveChg = tj.TotChg / NumPtsWithCharge(tjs, tj, false);
+      // MCSThetaRMS is the rms scattering for one WSE of travel
+      float thetaRMS = MCSThetaRMS(tjs, tj, tj.EndPt[0], tj.EndPt[1]);
+      if(thetaRMS == 0) continue;
+      // Expect protons to have large average charge, small thetaRMS and small charge rms
+      // weighted by the presence of a Bragg peak at one end
+      float protonLikeFOM = log(bw * aveChg / (thetaRMS * tj.ChgRMS));
+      hist.fProtonLike[pdgIndex]->Fill(protonLikeFOM);
+//      mf::LogVerbatim("TC")<<"ntp "<<abs(mcp->PdgCode())<<" "<<std::fixed<<std::setprecision(1)<<TMeV<<" "<<lenth<<" "<<std::setprecision(2)<<tj.ChgRMS<<" "<<std::setprecision(1)<<aveChg<<" "<<std::setprecision(4)<<thetaRMS<<" "<<std::setprecision(2)<<nisfrac<<" "<<std::setprecision(2)<<protonLikeFOM;
+    } // tj
+    
 /* This needs work...
     // match 2D vertices (crudely)
     for(auto& tj : tjs.allTraj) {
@@ -475,141 +513,6 @@ namespace tca {
     } // tj
 */
 
-/*
-    if (fStudyMode) {
-      // nomatch
-      for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
-        auto& pfp = tjs.pfps[ipfp];
-        if(pfp.ID == 0) continue;
-        if(pfp.MCPartListIndex == UINT_MAX) {
-          // unmatched PFPs
-          hist.hasfit_nomatch->Fill(pfp.Track.ID()>=0);
-          if (pfp.Track.ID()<0) continue;
-          hist.nvalidpoints_nomatch->Fill(pfp.Track.CountValidPoints());
-          hist.nrejectpoints_nomatch->Fill(pfp.Track.NPoints()-pfp.Track.CountValidPoints());
-          hist.fracreject_nomatch->Fill( float(pfp.Track.NPoints()-pfp.Track.CountValidPoints())/float(pfp.Track.NPoints()) );
-          if (pfp.Track.CountValidPoints()>1) {
-            hist.nchi2_nomatch->Fill( pfp.Track.Chi2PerNdof() );
-            auto cv = pfp.Track.VertexCovarianceLocal5D();
-            hist.covtrace_nomatch->Fill( cv(0,0)+cv(1,1)+cv(2,2)+cv(3,3) );
-          }
-        } else {
-          // matched PFPs
-          auto& mcp = tjs.MCPartList[pfp.MCPartListIndex];
-          if (abs(mcp->PdgCode())==11) continue;
-          bool wrongid = ( std::abs(mcp->PdgCode())!=std::abs(pfp.Track.ParticleId()) );
-          //
-          hist.hasfit_match->Fill(pfp.Track.ID()>=0);
-          if (wrongid) {
-            hist.hasfit_wrongid->Fill(pfp.Track.ID()>=0);
-          } else {
-            hist.hasfit_okid->Fill(pfp.Track.ID()>=0);
-          }
-          //
-          if (pfp.Track.ID()<0) continue;
-          // std::cout << "pfp #" << ipfp << " pdg=" << pfp.PDGCode << " tj vtx=" << recob::tracking::Point_t(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]) << " dir=" << recob::tracking::Vector_t(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]) << " fit vtx=" << pfp.Track.Start() << " dir=" << pfp.Track.StartDirection() << " match part #" << ipart << " vtx=" << recob::tracking::Point_t(mcp->Vx(), mcp->Vy(), mcp->Vz()) << " dir=" << recob::tracking::Vector_t(mcp->Px()/mcp->P(), mcp->Py()/mcp->P(), mcp->Pz()/mcp->P()) << " mom=" << mcp->P() << std::endl;
-          hist.nvalidpoints_match->Fill(pfp.Track.CountValidPoints());
-          hist.nrejectpoints_match->Fill(pfp.Track.NPoints()-pfp.Track.CountValidPoints());
-          hist.fracreject_match->Fill( float(pfp.Track.NPoints()-pfp.Track.CountValidPoints())/float(pfp.Track.NPoints()) );
-          if (pfp.Track.CountValidPoints()>1) {
-            //
-            detinfo::DetectorClocks const* detClocks = lar::providerFrom<detinfo::DetectorClocksService>();
-            double g4Ticks = detClocks->TPCG4Time2Tick(mcp->T())+tjs.detprop->GetXTicksOffset(0,0,0)-tjs.detprop->TriggerOffset();
-            double xOffset = tjs.detprop->ConvertTicksToX(g4Ticks, 0, 0, 0);
-            //
-            trkf::TrackStatePropagator prop(1.0, 0.1, 10, 10., 0.01, false);
-            recob::tracking::Plane mcplane(recob::tracking::Point_t(mcp->Vx()+xOffset, mcp->Vy(), mcp->Vz()),
-                                           recob::tracking::Vector_t(mcp->Px()/mcp->P(), mcp->Py()/mcp->P(), mcp->Pz()/mcp->P()));
-            recob::tracking::Plane tkplane(pfp.Track.Start(), pfp.Track.StartDirection());
-            trkf::TrackState tkstart(pfp.Track.VertexParametersLocal5D(), pfp.Track.VertexCovarianceLocal5D(), tkplane, true, pfp.Track.ParticleId());
-            //
-            recob::tracking::Plane tjplane(recob::tracking::Point_t(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]),
-                                           recob::tracking::Vector_t(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]));
-            auto tjpar5 = tjplane.Global6DToLocal5DParameters({pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2],pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]});
-            trkf::TrackState tjstart(tjpar5, pfp.Track.VertexCovarianceLocal5D(), tjplane, true, pfp.Track.ParticleId());
-            //
-            bool propok = true;
-            trkf::TrackState tkatmc = prop.propagateToPlane(propok, tkstart, mcplane, true, true, trkf::TrackStatePropagator::UNKNOWN);
-            trkf::TrackState tjatmc = prop.propagateToPlane(propok, tjstart, mcplane, true, true, trkf::TrackStatePropagator::UNKNOWN);
-            //
-            if (!propok) continue;
-            //
-            auto recmom = tkatmc.momentum().R();
-            auto c = tkatmc.plane().Local5DToGlobal6DCovariance(tkatmc.covariance(),false,tkatmc.momentum());//consider direction not momentum
-            auto cv = pfp.Track.VertexCovarianceLocal5D();
-            //
-            hist.dXkf_match->Fill(tkatmc.position().X()-mcp->Vx()-xOffset);
-            hist.dXtc_match->Fill(tjatmc.position().X()-mcp->Vx()-xOffset);
-            hist.dYkf_match->Fill(tkatmc.position().Y()-mcp->Vy());
-            hist.dYtc_match->Fill(tjatmc.position().Y()-mcp->Vy());
-            hist.dZkf_match->Fill(tkatmc.position().Z()-mcp->Vz());
-            hist.dZtc_match->Fill(tjatmc.position().Z()-mcp->Vz());
-            hist.dUXkf_match->Fill(tkatmc.momentum().X()/recmom-mcp->Px()/mcp->P());
-            hist.dUXtc_match->Fill(tjatmc.momentum().Unit().X()-mcp->Px()/mcp->P());
-            hist.dUYkf_match->Fill(tkatmc.momentum().Y()/recmom-mcp->Py()/mcp->P());
-            hist.dUYtc_match->Fill(tjatmc.momentum().Unit().Y()-mcp->Py()/mcp->P());
-            hist.dUZkf_match->Fill(tkatmc.momentum().Z()/recmom-mcp->Pz()/mcp->P());
-            hist.dUZtc_match->Fill(tjatmc.momentum().Unit().Z()-mcp->Pz()/mcp->P());
-            hist.dXpull_match->Fill( (tkatmc.position().X()-mcp->Vx()-xOffset)/ sqrt(c(0,0)) );
-            hist.dYpull_match->Fill( (tkatmc.position().Y()-mcp->Vy())/ sqrt(c(1,1)) );
-            hist.dZpull_match->Fill( (tkatmc.position().Z()-mcp->Vz())/ sqrt(c(2,2)) );
-            hist.dUXpull_match->Fill( (tkatmc.momentum().X()/recmom-mcp->Px()/mcp->P())/ sqrt(c(3,3)) );
-            hist.dUYpull_match->Fill( (tkatmc.momentum().Y()/recmom-mcp->Py()/mcp->P())/ sqrt(c(4,4)) );
-            hist.dUZpull_match->Fill( (tkatmc.momentum().Z()/recmom-mcp->Pz()/mcp->P())/ sqrt(c(5,5)) );
-            hist.nchi2_match->Fill( pfp.Track.Chi2PerNdof() );
-            hist.covtrace_match->Fill( cv(0,0)+cv(1,1)+cv(2,2)+cv(3,3) );
-            if (wrongid) {
-              int wid = 0;
-              if (std::abs(mcp->PdgCode())==11) wid=1;
-              if (std::abs(mcp->PdgCode())==13) wid=2;
-              if (std::abs(mcp->PdgCode())==211) wid=3;
-              if (std::abs(mcp->PdgCode())==2212) wid=4;
-              hist.pdgid_wrongid->Fill( wid );
-              hist.nchi2_wrongid->Fill( pfp.Track.Chi2PerNdof() );
-              hist.dXkf_wrongid->Fill(tkatmc.position().X()-mcp->Vx()-xOffset);
-              hist.dXtc_wrongid->Fill(tjatmc.position().X()-mcp->Vx()-xOffset);
-              hist.dYkf_wrongid->Fill(tkatmc.position().Y()-mcp->Vy());
-              hist.dYtc_wrongid->Fill(tjatmc.position().Y()-mcp->Vy());
-              hist.dZkf_wrongid->Fill(tkatmc.position().Z()-mcp->Vz());
-              hist.dZtc_wrongid->Fill(tjatmc.position().Z()-mcp->Vz());
-              hist.dUXkf_wrongid->Fill(tkatmc.momentum().X()/recmom-mcp->Px()/mcp->P());
-              hist.dUXtc_wrongid->Fill(tjatmc.momentum().Unit().X()-mcp->Px()/mcp->P());
-              hist.dUYkf_wrongid->Fill(tkatmc.momentum().Y()/recmom-mcp->Py()/mcp->P());
-              hist.dUYtc_wrongid->Fill(tjatmc.momentum().Unit().Y()-mcp->Py()/mcp->P());
-              hist.dUZkf_wrongid->Fill(tkatmc.momentum().Z()/recmom-mcp->Pz()/mcp->P());
-              hist.dUZtc_wrongid->Fill(tjatmc.momentum().Unit().Z()-mcp->Pz()/mcp->P());
-            } else {
-              hist.dXkf_okid->Fill(tkatmc.position().X()-mcp->Vx()-xOffset);
-              hist.dXtc_okid->Fill(tjatmc.position().X()-mcp->Vx()-xOffset);
-              hist.dYkf_okid->Fill(tkatmc.position().Y()-mcp->Vy());
-              hist.dYtc_okid->Fill(tjatmc.position().Y()-mcp->Vy());
-              hist.dZkf_okid->Fill(tkatmc.position().Z()-mcp->Vz());
-              hist.dZtc_okid->Fill(tjatmc.position().Z()-mcp->Vz());
-              hist.dUXkf_okid->Fill(tkatmc.momentum().X()/recmom-mcp->Px()/mcp->P());
-              hist.dUXtc_okid->Fill(tjatmc.momentum().Unit().X()-mcp->Px()/mcp->P());
-              hist.dUYkf_okid->Fill(tkatmc.momentum().Y()/recmom-mcp->Py()/mcp->P());
-              hist.dUYtc_okid->Fill(tjatmc.momentum().Unit().Y()-mcp->Py()/mcp->P());
-              hist.dUZkf_okid->Fill(tkatmc.momentum().Z()/recmom-mcp->Pz()/mcp->P());
-              hist.dUZtc_okid->Fill(tjatmc.momentum().Unit().Z()-mcp->Pz()/mcp->P());
-              hist.dXpull_okid->Fill( (tkatmc.position().X()-mcp->Vx()-xOffset)/ sqrt(c(0,0)) );
-              hist.dYpull_okid->Fill( (tkatmc.position().Y()-mcp->Vy())/ sqrt(c(1,1)) );
-              hist.dZpull_okid->Fill( (tkatmc.position().Z()-mcp->Vz())/ sqrt(c(2,2)) );
-              hist.dUXpull_okid->Fill( (tkatmc.momentum().X()/recmom-mcp->Px()/mcp->P())/ sqrt(c(3,3)) );
-              hist.dUYpull_okid->Fill( (tkatmc.momentum().Y()/recmom-mcp->Py()/mcp->P())/ sqrt(c(4,4)) );
-              hist.dUZpull_okid->Fill( (tkatmc.momentum().Z()/recmom-mcp->Pz()/mcp->P())/ sqrt(c(5,5)) );
-              hist.nchi2_okid->Fill( pfp.Track.Chi2PerNdof() );
-            }
-            //
-            // if (std::abs(tkatmc.position().X()-mcp->Vx())>10. && std::abs(tjatmc.position().X()-mcp->Vx())<1.) {
-            //   std::cout << "DEBUG ME" << std::endl;
-            // }
-            //
-          }
-        } // matched PFP
-      } // ipfp
-    } //fStudyMode
-*/
-    
     // histogram reconstructed PDG code vs true PDG code
     std::array<int, 5> recoCodeList = {0, 11, 13, 211, 2212};
     for(auto& pfp : tjs.pfps) {
