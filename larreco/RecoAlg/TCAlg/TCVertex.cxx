@@ -216,7 +216,7 @@ namespace tca {
           if(tint < 0 || tint > tjs.MaxPos1[planeID.Plane]) continue;
           // Next cut on separation between the TPs and the intersection point
           if(tj1Short || tj2Short) { sepCut = tjs.Vertex2DCuts[1]; } else { sepCut = tjs.Vertex2DCuts[2]; }
-          std::array<float, 2> vPos {wint, tint};
+          Point2_t vPos {wint, tint};
           float vt1Sep = PosSep(vPos, tp1.Pos);
           float vt2Sep = PosSep(vPos, tp2.Pos);
           float dwc1 = DeadWireCount(tjs, wint, tp1.Pos[0], tp1.CTP);
