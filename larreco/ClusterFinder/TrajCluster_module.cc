@@ -22,7 +22,7 @@
 //LArSoft includes
 #include "larreco/RecoAlg/TrajClusterAlg.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-#include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/AnalysisBase/CosmicTag.h"
 
 //root includes
@@ -125,8 +125,13 @@ namespace cluster {
     produces< art::Assns<recob::Shower, recob::Hit> >();
     
     produces< std::vector<recob::PFParticle> >();
+//    produces< std::vector<recob::SpacePoint> >();
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
+    produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
+    
+//    produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
+//    produces< art::Assns<recob::SpacePoint, recob::Hit> >();
 
     produces< std::vector<anab::CosmicTag>>();
     produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
@@ -172,25 +177,33 @@ namespace cluster {
 
     std::vector<recob::Cluster> sccol;
     std::vector<recob::PFParticle> spcol;
+//    std::vector<recob::SpacePoint> ssptcol;
     std::vector<recob::Vertex> sv3col;
     std::vector<recob::EndPoint2D> sv2col;
     std::vector<recob::Shower> sscol;
     std::vector<anab::CosmicTag> ctcol;
 
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>>
-        hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
-        cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
+    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>> 
+    cls_hit_assn(new art::Assns<recob::Cluster, recob::Hit>);
+    std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>>  
+      cls_vtx_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
     std::unique_ptr<art::Assns<recob::Shower, recob::Hit>>
-        hs_assn(new art::Assns<recob::Shower, recob::Hit>);
+        shwr_hit_assn(new art::Assns<recob::Shower, recob::Hit>);
 
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Cluster>>
-        pc_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
+        pfp_cls_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
+    std::unique_ptr<art::Assns<recob::PFParticle, recob::Shower>>
+        pfp_shwr_assn(new art::Assns<recob::PFParticle, recob::Shower>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
-        pv_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
-    
+        pfp_vtx_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
+/*
+    std::unique_ptr<art::Assns<recob::PFParticle, recob::SpacePoint>> 
+        pfp_spt_assn(new art::Assns<recob::PFParticle, recob::SpacePoint>);
+    std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>> 
+        spt_hit_assn(new art::Assns<recob::SpacePoint, recob::Hit>);
+*/
     std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
-      pct_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
+       pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
 
     std::vector<tca::ClusterStore> const& Clusters = fTCAlg->GetClusters();
     
@@ -282,7 +295,7 @@ namespace cluster {
           recob::Cluster::Sentry  // sentry
           );
       // make the cluster - hit association
-      if(!util::CreateAssn(*this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end()))
+      if(!util::CreateAssn(*this, evt, *cls_hit_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end()))
       {
         throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with cluster ID "<<clstr.ID;
       } // exception
@@ -300,7 +313,7 @@ namespace cluster {
           if(vtx3.Wire > 0) continue;
           if(vtx3.Vx2ID[plane] == 0) continue;
           if(vtx3.Vx2ID[plane] == clstr.BeginVtx) {
-            if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
+            if(!util::CreateAssnD(*this, evt, *cls_vtx_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<icl<<" with vertex";
             } // exception
@@ -320,7 +333,7 @@ namespace cluster {
           if(vtx3.Wire >= 0) continue;
           if(vtx3.Vx2ID[plane] == 0) continue;
           if(vtx3.Vx2ID[plane] == clstr.EndVtx) {
-            if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
+            if(!util::CreateAssnD(*this, evt, *cls_vtx_assn, clsID - 1, vtxIndex, end))
             {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster ID "<<clsID<<" with endpoint";
             } // exception
@@ -331,7 +344,11 @@ namespace cluster {
       } // clstr.BeginVtx >= 0
     } // icl
     
+    // Get the list of PFParticles. These are a subset of the set of 3D matches of trajectory hits
+    std::vector<tca::PFPStruct> pfpList = fTCAlg->GetPFParticles();
+    
     // Make showers
+    std::vector<unsigned int> shwrIndices(pfpList.size(),UINT_MAX);
     unsigned short nshower = fTCAlg->GetShowerStructSize();
     for(unsigned short ish = 0; ish < nshower; ++ish) {
       tca::ShowerStruct3D const& ss3 = fTCAlg->GetShowerStruct(ish);
@@ -355,15 +372,14 @@ namespace cluster {
       shower.set_length(ss3.Len);
       shower.set_open_angle(ss3.OpenAngle);
       sscol.push_back(shower);
+      shwrIndices[ss3.PFPIndex] = ish;
       // make the shower - hit association
-      if(!util::CreateAssn(*this, evt, *hs_assn, sscol.size()-1, ss3.Hits.begin(), ss3.Hits.end()))
+      if(!util::CreateAssn(*this, evt, *shwr_hit_assn, sscol.size()-1, ss3.Hits.begin(), ss3.Hits.end()))
       {
         throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with Shower";
       } // exception
     } // ish
     
-    // Get the list of PFParticles. These are a subset of the set of 3D matches of trajectory hits
-    std::vector<tca::PFPStruct> pfpList = fTCAlg->GetPFParticles();
     // get each of the match vector elements and construct the PFParticle
     for(size_t ipfp = 0; ipfp < pfpList.size(); ++ipfp) {
       auto& pfp = pfpList[ipfp];
@@ -387,7 +403,7 @@ namespace cluster {
       if(pfp.Vx3ID[0] > Vertices.size()) std::cout<<"TC module: Bad Vtx3DIndex = "<<pfp.Vx3ID[0]<<" size "<<Vertices.size()<<"\n";
       
       // PFParticle - Cluster associations
-      if(!util::CreateAssn(*this, evt, *pc_assn, spcol.size()-1, clsIndices.begin(), clsIndices.end()))
+      if(!util::CreateAssn(*this, evt, *pfp_cls_assn, spcol.size()-1, clsIndices.begin(), clsIndices.end()))
       {
         throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate clusters with PFParticle";
       } // exception
@@ -400,7 +416,7 @@ namespace cluster {
         if(Vertices[iv].Wire >= 0) continue;
         if(pfp.Vx3ID[0] == Vertices[iv].ID) {
           vtmp[0] = vtxIndex;
-          if(!util::CreateAssn(*this, evt, *pv_assn, spcol.size()-1, vtmp.begin(), vtmp.end())) 
+          if(!util::CreateAssn(*this, evt, *pfp_vtx_assn, spcol.size()-1, vtmp.begin(), vtmp.end())) 
           {
             throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate vertex with PFParticle";
           }
@@ -408,6 +424,13 @@ namespace cluster {
         }
         ++vtxIndex;
       } // iv
+      // PFParticle - Shower associations
+      if (shwrIndices[ipfp]<UINT_MAX) {
+        if(!util::CreateAssn(*this, evt, *pfp_shwr_assn, spcol.size()-1, shwrIndices.begin()+ipfp, shwrIndices.begin()+ipfp+1))
+        {
+          throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate showers with PFParticle";
+        } // exception
+      }
       // PFParticle - CosmicTag association
       if (fTCAlg->GetTJS().TagCosmics){
         std::vector<float> tempPt1, tempPt2;
@@ -418,15 +441,51 @@ namespace cluster {
         tempPt2.push_back(-999);
         tempPt2.push_back(-999);
         ctcol.emplace_back(tempPt1, tempPt2, pfp.CosmicScore, anab::CosmicTagID_t::kNotTagged);
-        if (!util::CreateAssn(*this, evt, spcol, ctcol, *pct_assn, ctcol.size()-1, ctcol.size())){
+        if (!util::CreateAssn(*this, evt, spcol, ctcol, *pfp_cos_assn, ctcol.size()-1, ctcol.size())){
           throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate CosmicTag with PFParticle";
         }
-      }
-    } // ip
+      } // TagCosmics
+/* 
+      // Make a SpacePoint from each Tp3
+      double zeros[6] = {0};
+      double chisq = 0;
+      for(unsigned short ip3 = 0; ip3 < pfp.Tp3s.size(); ++ip3) {
+        int id = ip3 + 1;
+        auto& tp3 = pfp.Tp3s[ip3];
+        if(!tp3.IsValid) continue;
+        double xyz[3];
+        for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) xyz[ixyz] = tp3.Pos[ixyz];
+        // add a space point
+        ssptcol.emplace_back(xyz, zeros, chisq, id);
+        // make a list of the hits from the trajectory points
+        std::vector<unsigned int> spthits;
+        for(auto& tj2pt : tp3.Tj2Pts) {
+          auto& tj = fTCAlg->GetTJS().allTraj[tj2pt.id - 1];
+          auto& tp = tj.Pts[tj2pt.ipt];
+          for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+            if(tp.UseHit[ii]) spthits.push_back(tp.Hits[ii]);
+          }
+        } // tp2
+        // make the space point - hit association
+        if(!util::CreateAssn(*this, evt, *spt_hit_assn, ssptcol.size()-1, spthits.begin(), spthits.end()))
+        {
+          throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with space point in pfp "<<pfp.ID;
+        } // exception
+      } // ip3
+      // make the PFParticle - space point association
+      std::vector<unsigned int> stmp(1);
+      stmp[0] = ssptcol.size()-1;
+      if(!util::CreateAssn(*this, evt, *pfp_spt_assn, spcol.size()-1, stmp.begin(), stmp.end()))
+      {
+        throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate space point with PFParticle "<<pfp.ID;
+      } // exception
+*/
+    } // ipfp
 
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
     std::unique_ptr<std::vector<recob::PFParticle> > pcol(new std::vector<recob::PFParticle>(std::move(spcol)));
+//    std::unique_ptr<std::vector<recob::SpacePoint> > sptcol(new std::vector<recob::SpacePoint>(std::move(ssptcol)));
     std::unique_ptr<std::vector<recob::Shower> > scol(new std::vector<recob::Shower>(std::move(sscol)));
     std::unique_ptr<std::vector<anab::CosmicTag>> ctgcol(new std::vector<anab::CosmicTag>(std::move(ctcol)));
 
@@ -439,17 +498,21 @@ namespace cluster {
     shcol.use_hits(std::move(newHits));
     shcol.put_into(evt);
     evt.put(std::move(ccol));
-    evt.put(std::move(hc_assn));
+    evt.put(std::move(cls_hit_assn));
     evt.put(std::move(v2col));
     evt.put(std::move(v3col));
     evt.put(std::move(scol));
-    evt.put(std::move(hs_assn));
-    evt.put(std::move(cv_assn));
+    evt.put(std::move(shwr_hit_assn));
+    evt.put(std::move(cls_vtx_assn));
     evt.put(std::move(pcol));
-    evt.put(std::move(pc_assn));
-    evt.put(std::move(pv_assn));
+    evt.put(std::move(pfp_cls_assn));
+    evt.put(std::move(pfp_shwr_assn));
+    evt.put(std::move(pfp_vtx_assn));
+//    evt.put(std::move(sptcol));
+//    evt.put(std::move(pfp_spt_assn));
+//    evt.put(std::move(spt_hit_assn));
     evt.put(std::move(ctgcol));
-    evt.put(std::move(pct_assn));
+    evt.put(std::move(pfp_cos_assn));
   } // TrajCluster::produce()
   
   

@@ -11,7 +11,7 @@ namespace tca {
     "CTStepChk",
     "TryNextPass",
     "RvPrp",
-    "CHMH",
+    "CHMUH",
     "Split",
     "Comp3DVx",
     "Comp3DVxIG",
@@ -30,6 +30,7 @@ namespace tca {
     "ChkInTraj",
     "StopBadFits",
     "FixBegin",
+    "FTBChg",
     "BeginChg",
     "FixEnd",
     "UUH",
@@ -48,6 +49,7 @@ namespace tca {
     "StopAtTj",
     "Mat3D",
     "Mat3DMerge",
+    "Split3DKink",
     "TjHiVx3Score",
     "VtxHitsSwap",
     "SplitHiChgHits",
@@ -65,6 +67,13 @@ namespace tca {
     "SetDir"
   };
 
+  // bit names that describe the environment near a TP
+  const std::vector<std::string> TPEnvNames {
+    "EnvNearShower",
+    "EnvNearTj",
+    "EnvUnusedHits"
+  };
+  
   const std::vector<std::string> StopFlagNames {
     "Signal",
     "AtKink",

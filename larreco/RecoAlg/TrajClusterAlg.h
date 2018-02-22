@@ -38,7 +38,6 @@
 // LArSoft libraries
 #include "larreco/RecoAlg/LinFitAlg.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
-#include "larreco/RecoAlg/TrackKalmanFitter.h"
 
 #include "TH1F.h"
 #include "TH2F.h"
@@ -122,8 +121,7 @@ namespace tca {
     bool fTagAllTraj;              ///< tag clusters as shower-like or track-like
     float fMaxTrajSep;     ///< max trajectory point separation for making showers
     bool fStudyMode;       ///< study cuts
- 
-    std::vector<float> fMaxVertexTrajSep;
+    bool fUseOldBackTracker {false};
 
     float fHitErrFac;   ///< hit time error = fHitErrFac * hit RMS used for cluster fit
     float fMinAmp;      ///< min amplitude required for declaring a wire signal is present
@@ -195,16 +193,14 @@ namespace tca {
     // tracking flags
     bool fGoodTraj;         // the working trajectory is good and should be stored
     bool fTryWithNextPass;  // Try with next pass settings
-    bool fUpdateTrajOK;     // update
     bool fMaskedLastTP;
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
     
-    
     std::vector<unsigned int> fAlgModCount;
 
-    bool fKalmanFilterFit;
-    trkf::TrackStatePropagator prop;
-    trkf::TrackKalmanFitter kalmanFitter;
+//    bool fKalmanFilterFit;
+//    trkf::TrackStatePropagator prop;
+//    trkf::TrackKalmanFitter kalmanFitter;
 
     static bool SortByMultiplet(TCHit const& a, TCHit const& b);
 
@@ -306,8 +302,7 @@ namespace tca {
     void SplitHiChgHits(Trajectory& tj);
 
     void GetHitCollection(const art::Event& evt);
-    
-    void KalmanFilterFit(PFPStruct& pfp);
+
   }; // class TrajClusterAlg
 
 } // namespace cluster
