@@ -59,7 +59,7 @@ namespace tca {
   unsigned short AngleRange(TjStuff& tjs, float angle);
   void FitTraj(TjStuff& tjs, Trajectory& tj);
   void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
-  float TjDirection(const TjStuff& tjs, const Trajectory& tj, bool prt);
+  float TjDirFOM(const TjStuff& tjs, const Trajectory& tj, bool prt);
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
   void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   unsigned short GetPFPIndex(const TjStuff& tjs, int tjID);
@@ -67,9 +67,6 @@ namespace tca {
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   bool StoreTraj(TjStuff& tjs, Trajectory& tj);
-  void UpdateTotChg(TjStuff& tjs, Trajectory& tj);
-  void UpdateAveChg(TjStuff& tjs, Trajectory& tj);
-  void UpdateChgRMS(TjStuff& tjs, Trajectory& tj);
   bool InTrajOK(TjStuff& tjs, std::string someText);
   void CheckTrajBeginChg(TjStuff& tjs, unsigned short itj, bool prt);
   void TrimEndPts(std::string fcnLabel, TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
@@ -80,7 +77,6 @@ namespace tca {
   bool TrajHitsOK(TjStuff& tjs, const unsigned int iht, const unsigned int jht);
   float ExpectedHitsRMS(TjStuff& tjs, const TrajPoint& tp);
   bool SignalAtTp(TjStuff& tjs, TrajPoint const& tp);
-//  bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP);
   float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp);
 //  bool CheckHitClusterAssociations(TjStuff& tjs);
   unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires);
@@ -168,7 +164,8 @@ namespace tca {
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP);
   // Tag muon directions using delta proximity
   void TagMuonDirections(TjStuff& tjs, short debugWorkID);
-  void UpdateTjEnvironment(TjStuff& tjs, VtxStore& vx2);
+  void UpdateTjChgProperties(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, bool prt);
+  void UpdateVxEnvironment(std::string inFcnLabel, TjStuff& tjs, VtxStore& vx2, bool prt);
   // Make a bare trajectory point that only has position and direction defined
   TrajPoint MakeBareTrajPoint(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP);
   bool MakeBareTrajPoint(const TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
