@@ -1303,6 +1303,7 @@ namespace tca {
       vx3.Vx2ID[plane] = vx2id;
       vx2.Vx3ID = vx3.ID;
     } // vx2id
+    std::cout<<"Split3DKink add 3V"<<vx3.ID<<"\n";
     tjs.vtx3.push_back(vx3);
     // mark this as needing an update
     pfp.NeedsUpdate = true;
@@ -1460,7 +1461,7 @@ namespace tca {
         auto& ms = matVec[ii];
         if(ms.Count == 0) continue;
         myprt<<ii<<" Count "<<ms.Count<<" TjIDs:";
-        for(auto& tjID : ms.TjIDs) myprt<<" "<<tjID;
+        for(auto& tjID : ms.TjIDs) myprt<<" T"<<std::to_string(tjID);
         myprt<<" NumUsedHitsInTj ";
         for(auto& tjID : ms.TjIDs) myprt<<" "<<NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
         myprt<<" MatchFrac "<<std::fixed<<std::setprecision(2)<<ms.MatchFrac;
@@ -1468,7 +1469,7 @@ namespace tca {
         myprt<<" PDGCodeVote "<<PDGCodeVote(tjs, ms.TjIDs, false);
         myprt<<"\n";
         ++cnt;
-        if(cnt == 500) {
+        if(cnt == 1000) {
           myprt<<"...stopped printing after 500 entries.";
           break;
         }
@@ -1533,7 +1534,7 @@ namespace tca {
       if(nstj != 0 && nstj != ms.TjIDs.size()) continue;
       PFPStruct pfp = CreatePFP(tjs, tpcid);
       pfp.TjIDs = ms.TjIDs;
-      if(!DefinePFP(tjs, pfp, prt)) {
+      if(!DefinePFP("FPFP", tjs, pfp, prt)) {
         if(prt) mf::LogVerbatim("TC")<<" DefinePFP failed";
         pfp.ID = 0;
         continue;
@@ -1551,31 +1552,33 @@ namespace tca {
   } // FindPFParticles
   
   /////////////////////////////////////////
-  bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt)
+  bool DefinePFP(std::string inFcnLabel, TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // This function is called after the 3D matched TjIDs have been specified and optionally
     // a start or end vertex ID. It defines the PFParticle but doesn't store it
     
     if(pfp.PDGCode == 1111) return false;
     if(pfp.TjIDs.size() < 2) return false;
+    
+    std::string fcnLabel = inFcnLabel + ".DPFP";
 
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"DPFP: PFP "<<pfp.ID;
+      myprt<<fcnLabel<<" pfp P"<<pfp.ID;
       myprt<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
       myprt<<" Tjs";
       for(auto id : pfp.TjIDs) myprt<<" "<<id;
     }
 
     if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
-      std::cout<<"DPFP: pfp "<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
+      std::cout<<fcnLabel<<" pfp P"<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
       return false;
     }
     
     for(auto tjid : pfp.TjIDs) {
       auto& tj = tjs.allTraj[tjid - 1];
       if(tj.AlgMod[kMat3D]) {
-        std::cout<<"DPFP: pfp "<<pfp.ID<<" uses tj "<<tj.ID<<" but kMat3D is set true\n";
+        std::cout<<fcnLabel<<" pfp "<<pfp.ID<<" uses tj "<<tj.ID<<" but kMat3D is set true\n";
         return false;
       }
     } // tjid
@@ -1603,22 +1606,6 @@ namespace tca {
       return;
     }
     if(prt) mf::LogVerbatim("TC")<<"inside AnalyzePFP "<<pfp.ID<<" NeedsUpdate? "<<pfp.NeedsUpdate<<" NeedsRebuild? "<<tjs.NeedsRebuild;
-
-    // look for unmatched 2D vertices
-    for(auto tjid : pfp.TjIDs) {
-      auto& tj = tjs.allTraj[tjid - 1];
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] == 0) continue;
-        if(tj.VtxID[end] > tjs.vtx.size()) continue;
-        // ignore 3D matched vertices at the ends of the pfp
-        auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
-        if(vx2.Vx3ID > 0) {
-          if(vx2.Vx3ID == pfp.Vx3ID[0]) continue;
-          if(vx2.Vx3ID == pfp.Vx3ID[1]) continue;
-        }
-        if(prt) mf::LogVerbatim("TC")<<" found vagrant vertex 2V"<<vx2.ID;
-      } // end
-    } // tjid
     
     // compare the Tjs in Tp3s with those in TjIDs
     std::vector<int> tjIDs;
@@ -1684,6 +1671,7 @@ namespace tca {
       vx3.ID = tjs.vtx3.size() + 1;
       vx3.Primary = true;
       tjs.vtx3.push_back(vx3);
+      std::cout<<"PFPVertexCheck: add 3V"<<vx3.ID<<"\n";
       pfp.Vx3ID[0] = vx3.ID;
     } // pfp
   } // PFPVertexCheck
@@ -1745,7 +1733,7 @@ namespace tca {
       // TODO: we need to have PFP track position errors defined 
       unsigned short mergeToVx3ID = IsCloseToVertex(tjs, vx3);
       if(mergeToVx3ID > 0) {
-        if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex "<<vx3.ID<<" with existing vtx "<<mergeToVx3ID;
+        if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex "<<vx3.ID<<" with existing 3V"<<mergeToVx3ID;
         if(!AttachPFPToVertex(tjs, pfp, 0, mergeToVx3ID, prt)) {
           if(prt) mf::LogVerbatim("TC")<<" Failed to attach pfp "<<pfp.ID<<". Make new vertex \n";
           mergeToVx3ID = 0;
@@ -1753,9 +1741,10 @@ namespace tca {
       } // mergeMe > 0
       if(mergeToVx3ID == 0) {
         // Add the new vertex and attach the PFP to it
+        std::cout<<"DefinePFPParents: add 3V"<<vx3.ID<<"\n";
         tjs.vtx3.push_back(vx3);
         if(!AttachPFPToVertex(tjs, pfp, 0, vx3.ID, prt)) {
-          if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex "<<vx3.ID<<" with new vtx "<<mergeToVx3ID;
+          if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex 3V"<<vx3.ID<<" with new vtx 3V"<<mergeToVx3ID;
         }
       } // merge to new vertex
     } // pfp
