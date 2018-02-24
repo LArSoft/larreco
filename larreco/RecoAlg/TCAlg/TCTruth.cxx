@@ -380,16 +380,7 @@ namespace tca {
         ntht[plane][tmpIndex] = maxcnt;
       }
     } // tj
-    
-    // count the number of primary tracks that can be reconstructed
-    unsigned short nTruPrimary = 0;
-    for(auto mcpIndex : mcpSelect) {
-      auto& mcp = tjs.MCPartList[mcpIndex];
-      if(mcp->Mother() != 0) continue;
-      ++nTruPrimary;
-      if(CanReconstruct(mcpIndex, 3, inTPCID)) primMCPs.push_back(mcpIndex);
-    } // mcpIndex
-    
+
     if(neutrinoVxReconstructable) {
       // find the vertex closest to the true primary vertex
       float best = 1;
@@ -420,7 +411,7 @@ namespace tca {
     if(tjs.MatchTruth[1] > 0) {
       // print out
       mf::LogVerbatim myprt("TC");
-      myprt<<"Number of primary particles "<<nTruPrimary<<" Vtx";
+      myprt<<"Number of primary particles "<<primMCPs.size()<<" Vtx";
       for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<primVx[ixyz];
       myprt<<" nuVx Reconstructable? "<<neutrinoVxReconstructable<<" vx near nuVx? "<<vxReconstructedNearNuVx;
       myprt<<" neutrinoPFPCorrect? "<<neutrinoPFPCorrect<<"\n";
@@ -463,34 +454,6 @@ namespace tca {
     
     // Match Tjs and PFParticles and accumulate statistics
     MatchAndSum(hist, mcpSelect, inTPCID);
-    
-    // Study PID using 2D information
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      if(tj.EffPur < 0.6) continue;
-      if(tj.MCPartListIndex == UINT_MAX) continue;
-      auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
-      unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
-      if(pdgIndex > 4) continue;
-      float TMeV = 1000 * (mcp->E() - mcp->Mass());
-      if(TMeV < 50) continue;
-      unsigned short lenth = tj.EndPt[1] - tj.EndPt[0] + 1;
-      if(lenth < 4) continue;
-      unsigned short nbragg = 0;
-      if(tj.StopFlag[0][kBragg]) ++nbragg;
-      if(tj.StopFlag[1][kBragg]) ++nbragg;
-      float bw = 1;
-      if(nbragg == 1) bw = 2;
-      float aveChg = tj.TotChg / NumPtsWithCharge(tjs, tj, false);
-      // MCSThetaRMS is the rms scattering for one WSE of travel
-      float thetaRMS = MCSThetaRMS(tjs, tj, tj.EndPt[0], tj.EndPt[1]);
-      if(thetaRMS == 0) continue;
-      // Expect protons to have large average charge, small thetaRMS and small charge rms
-      // weighted by the presence of a Bragg peak at one end
-      float protonLikeFOM = log(bw * aveChg / (thetaRMS * tj.ChgRMS));
-      hist.fProtonLike[pdgIndex]->Fill(protonLikeFOM);
-      hist.fProtonLike_T[pdgIndex]->Fill(TMeV, protonLikeFOM);
-    } // tj
     
 /* This needs work...
     // match 2D vertices (crudely)
