@@ -171,6 +171,7 @@ namespace tca {
     float AveChg {0};                   ///< Calculated using ALL hits
     float TotChg {0};                   ///< Total including an estimate for dead wires
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
+    float DirFOM {0.5};         ///< confidence level that the Tj points are ordered correctly using  charge pattern
     short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     float EffPur {0};                     ///< Efficiency * Purity
     Point2_t dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
@@ -432,7 +433,7 @@ namespace tca {
   
   typedef enum {
     kEnvNearShower,
-    kEnvNearTj,
+    kEnvOverlap,
     kEnvUnusedHits
   } TPEnvironment_t;
   
