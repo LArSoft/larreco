@@ -59,7 +59,7 @@ namespace tca {
   double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep);
   PFPStruct CreatePFP(const TjStuff& tjs, const geo::TPCID& tpcid);
   void FindPFParticles(std::string fcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
-  bool DefinePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  bool DefinePFP(std::string inFcnLabel, TjStuff& tjs, PFPStruct& pfp, bool prt);
   void PFPVertexCheck(TjStuff& tjs);
   void AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void DefinePFPParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
