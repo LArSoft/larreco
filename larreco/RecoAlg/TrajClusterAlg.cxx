@@ -767,13 +767,13 @@ namespace tca {
     if(fQuitAlg) return;
 
     // last attempt to attach Tjs to vertices
-    bool vprt = (debug.Plane == (int)DecodeCTP(inCTP).Plane && debug.Tick < 0);
+    bool vprt = (debug.Plane == (int)DecodeCTP(inCTP).Plane && debug.Tick == -10101);
     for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
       auto& vx2 = tjs.vtx[ivx];
       if(vx2.ID == 0) continue;
       if(vx2.CTP != inCTP) continue;
       AttachAnyTrajToVertex(tjs, ivx, vprt);
-//      UpdateTjEnvironment(tjs, vx2);
+      UpdateVxEnvironment("RAT", tjs, vx2, vprt);
     } // ivx
     
     // Check the Tj <-> vtx associations and define the vertex quality
@@ -1312,7 +1312,7 @@ namespace tca {
     } // ii
     DefineHitPos(tp);
     SetEndPoints(tjs, tj);
-    UpdateAveChg(tjs, tj);
+    UpdateTjChgProperties("ALAH", tjs, tj, prt);
  
   } // AddLAHits
 
@@ -1778,7 +1778,7 @@ namespace tca {
     auto& lastTP = tj.Pts[lastPt];
 
     if(prt) {
-      mf::LogVerbatim("TC")<<"ChkStopEndPts: checking "<<tj.ID<<" endPt "<<endPt<<" Pts size "<<tj.Pts.size()<<" lastPt Pos "<<PrintPos(tjs, lastTP.Pos);
+      mf::LogVerbatim("TC")<<"CSEP: checking "<<tj.ID<<" endPt "<<endPt<<" Pts size "<<tj.Pts.size()<<" lastPt Pos "<<PrintPos(tjs, lastTP.Pos);
     }
 
     // Check the charge and delta of the last point if there were many points fit
@@ -1873,7 +1873,7 @@ namespace tca {
       SetEndPoints(tjs, tj);
     } // no Bragg Peak
     
-    UpdateAveChg(tjs, tj);
+    UpdateTjChgProperties("CSEP", tjs, tj, prt);
     
   } // ChkStopEndPts
     
@@ -3351,7 +3351,8 @@ namespace tca {
       }
       ReversePropagate(tj);
       ChkStopEndPts(tj, prt);
-    } else if(firstPtFit > 0) {
+    }
+/*else if(firstPtFit > 0) {
       FixTrajBegin(tj, firstPtFit);
     } else {
       // The first points were in the fit but the angle may not be well defined
@@ -3363,6 +3364,9 @@ namespace tca {
         tp.AngleCode = tj.Pts[atPt].AngleCode;
       } // ipt
     }
+*/
+    // Clean up the first points if no reverse propagation was done
+    if(!tj.AlgMod[kRvPrp]) FixTrajBegin(tj, atPt);
 
   } // FixTrajBegin
   
@@ -3976,7 +3980,7 @@ namespace tca {
     } // ipt
     
     tj.AlgMod[kMaskHits] = true;
-    UpdateAveChg(tjs, tj);
+    UpdateTjChgProperties("MHOK", tjs, tj, prt);
     return true;
     
   } // MaskedHitsOK
@@ -4215,7 +4219,7 @@ namespace tca {
       mf::LogVerbatim("TC")<<"UpdateTraj: lastPt "<<lastPt<<" lastTP.Delta "<<lastTP.Delta<<" previous point with hits "<<prevPtWithHits<<" tj.Pts size "<<tj.Pts.size()<<" AngleCode "<<lastTP.AngleCode<<" PDGCode "<<tj.PDGCode<<" maxChi "<<maxChi<<" minPtsFit "<<minPtsFit<<" MCSMom "<<tj.MCSMom;
     }
     
-    UpdateAveChg(tjs, tj);
+    UpdateTjChgProperties("UT", tjs, tj, prt);
 
     if(lastPt == 1) {
       // Handle the second trajectory point. No error calculation. Just update
@@ -4316,7 +4320,7 @@ namespace tca {
       lastPt = tj.EndPt[1];
       lastTP.NTPsFit -= 1;
       FitTraj(tjs, tj);
-      tj.NeedsUpdate = false;
+      UpdateTjChgProperties("UT", tjs, tj, prt);
       SetAngleCode(tjs, lastTP);
       return;
     }  else {
@@ -4339,6 +4343,7 @@ namespace tca {
         lastTP.NTPsFit = newNTPSFit;
         if(prt) mf::LogVerbatim("TC")<<"  Bad FitChi "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" Pass "<<tj.Pass;
         FitTraj(tjs, tj);
+        tj.NeedsUpdate = true;
         if(lastTP.FitChi > prevChi) {
           if(prt) mf::LogVerbatim("TC")<<"  Chisq is increasing "<<lastTP.FitChi<<"  Try to remove an earlier bad hit";
           MaskBadTPs(tj, 1.5);
@@ -4358,15 +4363,14 @@ namespace tca {
       SetEndPoints(tjs, tj);
       lastPt = tj.EndPt[1];
       FitTraj(tjs, tj);
-      tj.NeedsUpdate = false;
       fMaskedLastTP = true;
     }
+    
+    if(tj.NeedsUpdate) UpdateTjChgProperties("UT", tjs, tj, prt);
+    
     if(prt) mf::LogVerbatim("TC")<<"  Fit done. Chi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit;
 
-    if(tj.EndPt[0] == tj.EndPt[1]) {
-      tj.NeedsUpdate = true;
-      return;
-    }
+    if(tj.EndPt[0] == tj.EndPt[1]) return;
     
     // Don't let the angle error get too small too soon. Stepping would stop if the first
     // few hits on a low momentum wandering track happen to have a very good fit to a straight line.
