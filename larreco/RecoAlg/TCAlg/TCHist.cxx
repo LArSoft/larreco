@@ -55,18 +55,6 @@ namespace  tca {
     
     PDGCode_reco_true = tfs.make<TH2F>("PDGCode_reco_true", "PDGCode Reco vs True", 5, -0.5, 4.5, 5, -0.5, 4.5);
 
-    fProtonLike[0] = tfs.make<TH1F>("ProtonLike_elec","ProtonLike elec", 24, 6, 14);
-    fProtonLike[1] = tfs.make<TH1F>("ProtonLike_muon","ProtonLike muon", 24, 6, 14);
-    fProtonLike[2] = tfs.make<TH1F>("ProtonLike_pion","ProtonLike pion", 24, 6, 14);
-    fProtonLike[3] = tfs.make<TH1F>("ProtonLike_kaon","ProtonLike pion", 24, 6, 14);
-    fProtonLike[4] = tfs.make<TH1F>("ProtonLike_prot","ProtonLike prot", 24, 6, 14);
-
-    fProtonLike_T[0] = tfs.make<TProfile>("ProtonLike_T_elec","ProtonLike vs T(MeV) - elec", 20, 0, 1000);
-    fProtonLike_T[1] = tfs.make<TProfile>("ProtonLike_T_muon","ProtonLike vs T(MeV) - muon", 20, 0, 1000);
-    fProtonLike_T[2] = tfs.make<TProfile>("ProtonLike_T_pion","ProtonLike vs T(MeV) - pion", 20, 0, 1000);
-    fProtonLike_T[3] = tfs.make<TProfile>("ProtonLike_T_kaon","ProtonLike vs T(MeV) - pion", 20, 0, 1000);
-    fProtonLike_T[4] = tfs.make<TProfile>("ProtonLike_T_prot","ProtonLike vs T(MeV) - prot", 20, 0, 1000);
-
   }
   
   
