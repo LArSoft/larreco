@@ -1270,8 +1270,8 @@ namespace tca {
       if(score < tjs.Vertex2DCuts[7]) continue;
       if(prt) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"M3DVTj vx3 "<<vx3.ID<<" score "<<score<<" TjIDs";
-        for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
+        myprt<<"M3DVTj 3V"<<vx3.ID<<" score "<<score<<" TjIDs";
+        for(auto& tjID : v3TjIDs) myprt<<" T"<<std::to_string(tjID);
       }
       SortEntry se;
       se.index = iv3;
@@ -1287,7 +1287,7 @@ namespace tca {
       std::vector<int> v3TjIDs = GetVtxTjIDs(tjs, vx3, score);
       if(prt) {
         mf::LogVerbatim myprt("TC");
-        myprt<<"M3DVTj Vertex "<<vx3.ID<<" score "<<score<<" Tjs";
+        myprt<<"M3DVTj 3V"<<vx3.ID<<" score "<<score<<" Tjs";
         for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
       }
       for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
@@ -1307,9 +1307,9 @@ namespace tca {
         PFPStruct pfp = CreatePFP(tjs, tpcid);
         pfp.TjIDs = ms.TjIDs;
         pfp.Vx3ID[0] = vx3.ID;
-        if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp "<<pfp.ID<<" vx3 "<<vx3.ID;
+        if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp P"<<pfp.ID<<" 3V"<<vx3.ID;
         // Find Tp3s and end points
-        if(!DefinePFP(tjs, pfp, prt)) continue;
+        if(!DefinePFP("M3DVTj1", tjs, pfp, prt)) continue;
         // separation distance (cm) for kink detection.
         double sep = 1;
         bool didSplit = Split3DKink(tjs, pfp, sep, prt);
@@ -1337,7 +1337,7 @@ namespace tca {
         PFPStruct pfp = CreatePFP(tjs, tpcid);
         pfp.TjIDs = v3TjIDs;
         pfp.Vx3ID[0] = vx3.ID;
-        if(!DefinePFP(tjs, pfp, prt)) continue;
+        if(!DefinePFP("M3DVTj2", tjs, pfp, prt)) continue;
         if(prt) PrintPFP("left", tjs, pfp, true);
         if(!StorePFP(tjs, pfp)) continue;
       }
@@ -2051,6 +2051,7 @@ namespace tca {
   void SetVx2Score(TjStuff& tjs, VtxStore& vx2, bool prt)
   {
     // Calculate the 2D vertex score
+    if(vx2.ID == 0) return;
     
     // Don't score vertices from CheckTrajBeginChg or MakeJunkVertices. Set to the minimum
     if(vx2.Topo == 8 || vx2.Topo == 9) {
@@ -2069,8 +2070,8 @@ namespace tca {
     if(vx2.ID == 0) return;    
     if(tjs.VertexScoreWeights.size() < 4) return;
     
-    auto vtxTjID = GetVtxTjIDs(tjs, vx2);
-    if(vtxTjID.empty()) return;
+    auto vtxTjIDs = GetVtxTjIDs(tjs, vx2);
+    if(vtxTjIDs.empty()) return;
 
     // Vertex position error
     float vpeScore = -tjs.VertexScoreWeights[0] * (vx2.PosErr[0] + vx2.PosErr[1]);
@@ -2084,31 +2085,37 @@ namespace tca {
     }
     float m3DScore = tjs.VertexScoreWeights[1] * m3Dcnt;
     
-    vx2.TjChgFrac = ChgFracNearPos(tjs, vx2.Pos, vtxTjID);
+    vx2.TjChgFrac = ChgFracNearPos(tjs, vx2.Pos, vtxTjIDs);
     float cfScore = tjs.VertexScoreWeights[2] * vx2.TjChgFrac;
     
     // Define a weight for each Tj
-    std::vector<float> tjwts(vtxTjID.size());
-    for(unsigned short it1 = 0; it1 < vtxTjID.size(); ++it1) {
-      unsigned short itj1 = vtxTjID[it1] - 1;
-      Trajectory& tj1 = tjs.allTraj[itj1];
-      float wght1 = (float)tj1.MCSMom / momBin;
-      if(wght1 > 10) wght1 = 10;
+    std::vector<int> tjids;
+    std::vector<float> tjwts;
+    for(auto tjid : vtxTjIDs) {
+      Trajectory& tj = tjs.allTraj[tjid - 1];
+      // Feb 22 Ignore short Tjs and junk tjs
+      if(tj.AlgMod[kJunkTj]) continue;
+      unsigned short lenth = tj.EndPt[1] - tj.EndPt[0] + 1;
+      if(lenth < 3) continue;
+      float wght = (float)tj.MCSMom / momBin;
+      if(wght > 10) wght = 10;
       // weight by tagged muon
-      if(tj1.PDGCode == 13) wght1 *= 2;
+      if(tj.PDGCode == 13) wght *= 2;
       // weight by charge rms
-      if(tj1.ChgRMS < maxChgRMS) ++wght1;
+      if(tj.ChgRMS < maxChgRMS) ++wght;
       // Shower Tj
-      if(tj1.AlgMod[kShowerTj]) ++wght1;
-      tjwts[it1] = wght1;
+      if(tj.AlgMod[kShowerTj]) ++wght;
+      tjids.push_back(tjid);
+      tjwts.push_back(wght);
     } // tjid
+    
+    if(tjids.empty()) return;
     
     float tjScore = 0;
     float sum = 0;
     float cnt = 0;
-    for(unsigned short it1 = 0; it1 < vtxTjID.size() - 1; ++it1) {
-      unsigned short itj1 = vtxTjID[it1] - 1;
-      Trajectory& tj1 = tjs.allTraj[itj1];
+    for(unsigned short it1 = 0; it1 < tjids.size() - 1; ++it1) {
+      Trajectory& tj1 = tjs.allTraj[tjids[it1] - 1];
       float wght1 = tjwts[it1];
       // the end that has a vertex
       unsigned short end1 = 0;
@@ -2119,9 +2126,8 @@ namespace tca {
       if(tj1.StopFlag[oend1][kBragg]) ++wght1;
       float ang1 = tj1.Pts[endPt1].Ang;
       float ang1Err2 = tj1.Pts[endPt1].AngErr * tj1.Pts[endPt1].AngErr;
-      for(unsigned short it2 = it1 + 1; it2 < vtxTjID.size(); ++it2) {
-        unsigned short itj2 = vtxTjID[it2]  - 1;
-        Trajectory& tj2 = tjs.allTraj[itj2];
+      for(unsigned short it2 = it1 + 1; it2 < tjids.size(); ++it2) {
+        Trajectory& tj2 = tjs.allTraj[tjids[it2] - 1];
         float wght2 = tjwts[it2];
         unsigned end2 = 0;
         if(tj2.VtxID[1] == vx2.ID) end2 = 1;
@@ -2308,7 +2314,7 @@ namespace tca {
       TrajPoint vtp;
       vtp.Pos[0] = vx3.Wire;
       vtp.Pos[1] = tjs.detprop->ConvertXToTicks(vx3.X, mPlane, vx3.TPCID.TPC, vx3.TPCID.Cryostat) * tjs.UnitsPerTick;
-      if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" Pos "<<mPlane<<":"<<PrintPos(tjs, vtp.Pos);
+      if(prt) mf::LogVerbatim("TC")<<"CI3DV 3V"<<vx3.ID<<" Pos "<<mPlane<<":"<<PrintPos(tjs, vtp.Pos);
       std::vector<int> tjIDs;
       std::vector<unsigned short> tjPts;
       for(auto& tj : tjs.allTraj) {
@@ -2324,7 +2330,7 @@ namespace tca {
         // try to improve the location of the vertex by looking for a distinctive feature on the
         // trajectory, e.g. high multiplicity hits or larger than normal charge
         if(RefineVtxPosition(tjs, tj, closePt, 3, false)) vtp.Pos = tj.Pts[closePt].Pos;
-        if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tj.ID<<" vtx pos "<<PrintPos(tjs, vtp.Pos)<<" doca "<<doca;
+        if(prt) mf::LogVerbatim("TC")<<"CI3DV 3V"<<vx3.ID<<" candidate itj ID "<<tj.ID<<" vtx pos "<<PrintPos(tjs, vtp.Pos)<<" doca "<<doca;
         tjIDs.push_back(tj.ID);
         tjPts.push_back(closePt);
       } // itj
@@ -2382,18 +2388,18 @@ namespace tca {
         if(dpt < 3) {
           // close to an end
           if(tjs.allTraj[itj].VtxID[end] > 0) {
-            if(prt) mf::LogVerbatim("TC")<<" Tj "<<tjs.allTraj[itj].ID<<" has a vertex "<<tjs.allTraj[itj].VtxID[end]<<" at end "<<end<<". Skip it";
+            if(prt) mf::LogVerbatim("TC")<<" T"<<tjs.allTraj[itj].ID<<" has a vertex "<<tjs.allTraj[itj].VtxID[end]<<" at end "<<end<<". Skip it";
             continue;
           }
           tjs.allTraj[itj].VtxID[end] = tjs.vtx[newVtxIndx].ID;
           ++newVtx.NTraj;
-          if(prt) mf::LogVerbatim("TC")<<" attach Traj ID "<<tjs.allTraj[itj].ID<<" to end "<<end;
+          if(prt) mf::LogVerbatim("TC")<<" attach Traj T"<<tjs.allTraj[itj].ID<<" at end "<<end;
           tjs.allTraj[itj].AlgMod[kComp3DVx] = true;
           vpos = tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[end]].Pos;
         } else {
           // closePt is not near an end, so split the trajectory
           if(SplitTraj(tjs, itj, closePt, newVtxIndx, prt)) {
-            if(prt) mf::LogVerbatim("TC")<<" SplitTraj success "<<tjs.vtx[newVtxIndx].ID<<" at closePt "<<closePt;
+            if(prt) mf::LogVerbatim("TC")<<" SplitTraj success 2V"<<tjs.vtx[newVtxIndx].ID<<" at closePt "<<closePt;
             // successfully split the Tj
             newVtx.NTraj += 2;
           } else {
@@ -2432,7 +2438,7 @@ namespace tca {
           myprt<<" Success: new 2V"<<newVtx.ID<<" at "<<(int)newVtx.Pos[0]<<":"<<(int)newVtx.Pos[1]/tjs.UnitsPerTick;
           myprt<<" points to 3V"<<vx3.ID;
           myprt<<" TjIDs:";
-          for(auto& tjID : tjIDs) myprt<<" "<<tjID;
+          for(auto& tjID : tjIDs) myprt<<" T"<<std::to_string(tjID);
         } // prt
       } // success
       ++ivx3;
@@ -2640,6 +2646,20 @@ namespace tca {
         if(tj.VtxID[end] != vx2id) continue;
         tj.VtxID[end] = 0;
         tj.AlgMod[kPhoton] = false;
+        // clear the kEnvOverlap bits on the TPs
+        for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+          if(end == 0) { 
+            unsigned short ipt = tj.EndPt[0] + ii;
+            auto& tp = tj.Pts[ipt];
+            if(!tp.Environment[kEnvOverlap]) break;
+            if(ipt == tj.EndPt[1]) break;
+          } else {
+            unsigned short ipt = tj.EndPt[1] - ii;
+            auto& tp = tj.Pts[ipt];
+            if(!tp.Environment[kEnvOverlap]) break;
+            if(ipt == tj.EndPt[0]) break;
+          }
+        } // ii
         if(tj.AlgMod[kTjHiVx3Score]) {
           // see if the vertex at the other end is high-score and if so, preserve the state
           unsigned short oend = 1 - end;
