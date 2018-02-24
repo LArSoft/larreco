@@ -52,9 +52,6 @@ namespace tca {
     TH1F* fdWire[5];
     // EP vs KE for different MC Particles
     TProfile* fEP_T[5];
-    // Trajectory proton likelihood
-    TH1F* fProtonLike[5];
-    TProfile* fProtonLike_T[5];
     
     // PFParticle PDGCode vs true PDG code
     TH2F* PDGCode_reco_true;
