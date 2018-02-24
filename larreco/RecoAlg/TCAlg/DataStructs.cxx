@@ -70,7 +70,7 @@ namespace tca {
   // bit names that describe the environment near a TP
   const std::vector<std::string> TPEnvNames {
     "EnvNearShower",
-    "EnvNearTj",
+    "EnvOverlap",
     "EnvUnusedHits"
   };
   
