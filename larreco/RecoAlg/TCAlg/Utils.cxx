@@ -234,7 +234,8 @@ namespace tca {
     for(auto tjid : tjIDs) {
       if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) return 1;
       auto& tj = tjs.allTraj[tjid - 1];
-      unsigned plane = DecodeCTP(tj.CTP).Plane;
+      if(tj.TotChg == 0) UpdateTjChgProperties("MCA", tjs, tj, false);
+      unsigned short plane = DecodeCTP(tj.CTP).Plane;
       plnchg[plane] += tj.TotChg;
     } // tjid
     float aveChg = 0;
@@ -876,22 +877,27 @@ namespace tca {
   } // FitTraj
   
   ////////////////////////////////////////////////
-  float TjDirection(const TjStuff& tjs, const Trajectory& tj, bool prt)
+  float TjDirFOM(const TjStuff& tjs, const Trajectory& tj, bool prt)
   {
     // Calculate a FOM for the tj to be going from EndPt[0] -> EndPt[1] (FOM = 1)
     // or EndPt[1] -> EndPt[0] (FOM = -1) by finding the overall charge slope, weighted
     // by the presence of nearby InShower Tjs
     if(tj.AlgMod[kKilled]) return 0;
+    if(tj.EndPt[1] - tj.EndPt[0] < 8) return 0;
 
     std::vector<double> x, y;
     Point2_t origin = tj.Pts[tj.EndPt[0]].HitPos;
     std::vector<double> w, q;
     
-    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+    unsigned short firstPt = tj.EndPt[0] + 2;
+    unsigned short lastPt = tj.EndPt[1] - 2;
+    if(lastPt < firstPt + 3) return 0;
+    // don't include end points
+    for(unsigned short ipt = firstPt; ipt <= lastPt; ++ipt) {
       auto& tp = tj.Pts[ipt];
       if(tp.Chg <= 0) continue;
-      // only consider points that are not close to other Tjs
-      if(tp.Environment[kEnvNearTj]) continue;
+      // only consider points that don't overlap with other tjs
+      if(tp.Environment[kEnvOverlap]) continue;
       double sep = PosSep(tp.Pos, origin);
       x.push_back(sep);
       y.push_back((double)tp.Chg);
@@ -926,20 +932,27 @@ namespace tca {
     // B is the slope
     double B = (sumxy * sum  - sumx * sumy) / delta;
     
-    // Calculate chisq/DOF
+    // Calculate the FOM
     double ndof = x.size() - 2;
     double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
     if(varnce <= 0) return 0;
     double BErr = sqrt(varnce * sum / delta);
     // scale the error so that the significance is +/-1 when the slope is 3 * error
+    // Note that the error is correct only if the average Chi/DOF = 1 which is probably not the case
     float slopeSig = B / (3 * BErr);
     if(slopeSig > 1) slopeSig = 1;
     if(slopeSig < -1) slopeSig = -1;
+    // rescale it to be in the range of 0 - 1
+    slopeSig = (1 + slopeSig) / 2;
     
-    if(prt) mf::LogVerbatim("TC")<<"TjDirection slope "<<B<<" error "<<BErr<<" DirectionFOM "<<slopeSig;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"TjDir: T"<<tj.ID<<" slope "<<std::fixed<<std::setprecision(1)<<B<<" error "<<BErr<<" DirFOM "<<slopeSig;
+      myprt<<" using points from "<<PrintPos(tjs, tj.Pts[firstPt])<<" "<<PrintPos(tjs, tj.Pts[lastPt]);
+    } // prt
     return slopeSig;
 
-  } // TjDirection
+  } // TjDirFOM
 
   ////////////////////////////////////////////////
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& wHit, short& wInTraj, const unsigned short& tjID)
@@ -948,7 +961,7 @@ namespace tca {
     if(wHit > tjs.fHits.size() - 1) return;
     
     if(tjs.fHits[wHit].InTraj != wInTraj) {
-      std::cout<<someText<<" Hit "<<PrintHitShort(tjs.fHits[wHit])<<" was InTraj "<<wInTraj<<" now InTraj "<<tjs.fHits[wHit].InTraj<<" tjID = "<<tjID<<"\n";
+      std::cout<<someText<<" Hit "<<PrintHitShort(tjs.fHits[wHit])<<" was InTraj "<<wInTraj<<" now InTraj "<<tjs.fHits[wHit].InTraj<<" T"<<tjID<<"\n";
       wInTraj = tjs.fHits[wHit].InTraj;
     }
   } // WatchHit
@@ -971,7 +984,7 @@ namespace tca {
         // check the environment near this end
         tjlist[0] = tj.ID;
         float chgFrac = ChgFracNearPos(tjs, tj.Pts[tj.EndPt[end]].Pos, tjlist);
-        if(prt) mf::LogVerbatim("TC")<<"TagProtons: Tj "<<tj.ID<<" Charge fraction near end "<<end<<" "<<chgFrac;
+        if(prt) mf::LogVerbatim("TC")<<"TagProtons: T"<<tj.ID<<" Charge fraction near end "<<end<<" "<<chgFrac;
         if(chgFrac > 0.9) tj.PDGCode = 2212;
       } // end
     } // tj
@@ -1111,9 +1124,6 @@ namespace tca {
     
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tjs, tj);
-    UpdateAveChg(tjs, tj);
-    UpdateTotChg(tjs, tj);
-    UpdateChgRMS(tjs, tj);
     
     auto& endTp0 = tj.Pts[tj.EndPt[0]];
     auto& endTp1 = tj.Pts[tj.EndPt[1]];
@@ -1144,6 +1154,10 @@ namespace tca {
       } // ii
       tj.Pts[tj.EndPt[1]].AveChg = sum / (float)cnt;
     } // begin charge == end charge
+    
+    
+    tj.DirFOM = TjDirFOM(tjs, tj, false);
+    UpdateTjChgProperties("ST",  tjs, tj, false);
     
     int trID = tjs.allTraj.size() + 1;
 
@@ -1190,100 +1204,7 @@ namespace tca {
     return true;
     
   } // StoreTraj
-  
-  //////////////////////////////////////////
-  void UpdateTotChg(TjStuff& tjs, Trajectory& tj)
-  {
-    tj.TotChg = 0;
-    float npwc = 0;
-    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-      auto& tp = tj.Pts[ipt];
-      if(tp.Chg <= 0) continue;
-      ++npwc;
-      for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
-        if(!tp.UseHit[ii]) continue;
-        unsigned int iht = tp.Hits[ii];
-        tj.TotChg += tjs.fHits[iht].Integral;
-      } // ii
-    } // ipt
-    // correct the total charge for dead wires
-    tj.TotChg *= (float)(tj.EndPt[1] - tj.EndPt[0] + 1) / npwc;
-  } // UpdateTotChg
-  
-  //////////////////////////////////////////
-  void UpdateAveChg(TjStuff& tjs, Trajectory& tj)
-  {
-    
-    if(tj.EndPt[1] == 0) return;
-    unsigned short lastPt = tj.EndPt[1];
-    tj.AveChg = 0;
-    tj.Pts[lastPt].AveChg = 0;
-    
-    // calculate ave charge and charge RMS using hits in the trajectory
-    unsigned short ii, ipt, cnt = 0;
-    float fcnt, sum = 0;
-    float sum2 = 0;
-    // Don't include the first point in the average. It will be too
-    // low if this is a stopping/starting particle
-    for(ii = 0; ii < tj.Pts.size(); ++ii) {
-      ipt = tj.EndPt[1] - ii;
-      if(ipt == 0) break;
-      if(tj.Pts[ipt].Chg == 0) continue;
-      ++cnt;
-      sum += tj.Pts[ipt].Chg;
-      sum2 += tj.Pts[ipt].Chg * tj.Pts[ipt].Chg;
-      if(cnt == tjs.NPtsAve) break;
-    } // iii
-    if(cnt == 0) return;
-    fcnt = cnt;
-    sum /= fcnt;
-    tj.AveChg = sum;
-    tj.Pts[lastPt].AveChg = sum;
-    // define the first point average charge if necessary
-    if(tj.Pts[tj.EndPt[0]].AveChg <= 0) tj.Pts[tj.EndPt[0]].AveChg = sum;
-    if(cnt > 3) {
-      float arg = sum2 - fcnt * sum * sum;
-      if(arg < 0) arg = 0;
-      float rms = sqrt(arg / (fcnt - 1));
-      // convert this to a normalized RMS
-      rms /= sum;
-      // don't let the calculated charge RMS dominate the default
-      // RMS until it is well known. Start with 50% error on the
-      // charge RMS
-      float defFrac = 1 / (float)(tj.EndPt[1]);
-      tj.ChgRMS = defFrac * 0.5 + (1 - defFrac) * rms;
-      if(tj.EndPt[1] > 10) {
-        // don't let it get crazy small
-        if(tj.ChgRMS < tjs.ChargeCuts[1]) tj.ChgRMS = tjs.ChargeCuts[1];
-        // or crazy large
-        if(tj.ChgRMS > tjs.ChargeCuts[2]) tj.ChgRMS = tjs.ChargeCuts[2];
-      }
-      tj.Pts[lastPt].ChgPull = (tj.Pts[lastPt].Chg / tj.AveChg - 1) / tj.ChgRMS;
-    } // cnt > 3
-  } // UpdateAveChg
-  
-  ////////////////////////////////////////////////
-  void UpdateChgRMS(TjStuff& tjs, Trajectory& tj)
-  {
-    // Calculates the ChgRMS variable using all points on the trajectory except a few at the end
-    double ave = 0;
-    double sum2 = 0;
-    double cnt = 0;
-    for(short ipt = tj.EndPt[0] + 5; ipt < tj.EndPt[1] - 5; ++ipt) {
-      TrajPoint& tp = tj.Pts[ipt];
-      if(tp.Chg == 0) continue;
-      ave += tp.Chg;
-      sum2 += tp.Chg * tp.Chg;
-      ++cnt;
-    } // tp
-    if(cnt < 5) return;
-    ave /= cnt;
-    sum2 = sum2 - cnt * ave * ave;
-    if(sum2 < 0) return;
-    tj.ChgRMS = sqrt(sum2 / (cnt - 1));
-    tj.ChgRMS /= ave;
-  } // UpdateChgRMS
-  
+
   ////////////////////////////////////////////////
   bool InTrajOK(TjStuff& tjs, std::string someText)
   {
@@ -1322,7 +1243,7 @@ namespace tca {
       }
       if(!std::equal(tHits.begin(), tHits.end(), atHits.begin())) {
         mf::LogVerbatim myprt("TC");
-        myprt<<someText<<" ChkInTraj failed: inTraj - UseHit mis-match for tj ID "<<tID<<" tj.WorkID "<<tj.WorkID<<" atHits size "<<atHits.size()<<" tHits size "<<tHits.size()<<" in CTP "<<tj.CTP<<"\n";
+        myprt<<someText<<" ChkInTraj failed: inTraj - UseHit mis-match for T"<<tID<<" tj.WorkID "<<tj.WorkID<<" atHits size "<<atHits.size()<<" tHits size "<<tHits.size()<<" in CTP "<<tj.CTP<<"\n";
         myprt<<"AlgMods: ";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
         myprt<<"\n";
@@ -1423,7 +1344,7 @@ namespace tca {
     }
     SetVx2Score(tjs, prt);
     
-    if(prt) mf::LogVerbatim("TC")<<"CTBC: Split Tj "<<tj.ID<<" at "<<PrintPos(tjs, tj.Pts[breakPt].Pos)<<"\n";
+    if(prt) mf::LogVerbatim("TC")<<"CTBC: Split T"<<tj.ID<<" at "<<PrintPos(tjs, tj.Pts[breakPt].Pos)<<"\n";
     
   } // CheckTrajBeginChg
 
@@ -1485,7 +1406,7 @@ namespace tca {
       float ntpwc = NumPtsWithCharge(tjs, tj, true, tj.EndPt[0], lastPt);
       float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[lastPt].Pos[0]) + 1;
       float hitFrac = ntpwc / nwires;
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: ID "<<tj.ID<<" lastPt "<<lastPt<<" npwc "<<npwc<<" nadj "<<nadj<<" hitFrac "<<hitFrac;
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: T"<<tj.ID<<" lastPt "<<lastPt<<" npwc "<<npwc<<" nadj "<<nadj<<" hitFrac "<<hitFrac;
       if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj == minPts) break;
     } // lastPt
     
@@ -1529,7 +1450,7 @@ namespace tca {
     // near the high-charge point are removed as well as those from that point to the end
     if(!tjs.UseAlg[kChkChgAsym]) return;
     unsigned short npts = tj.EndPt[1] - tj.EndPt[0];
-    if(prt) mf::LogVerbatim("TC")<<" Inside ChkChgAsymmetry "<<tj.ID;
+    if(prt) mf::LogVerbatim("TC")<<" Inside ChkChgAsymmetry T"<<tj.ID;
     // ignore long tjs
     if(npts > 50) return;
     // ignore short tjs
@@ -1548,7 +1469,7 @@ namespace tca {
     if(atPt == 0) return;
     // require that this point be near the DS end
     if((atPt - tj.EndPt[0]) < 0.5 * npts) return;
-    if(prt) mf::LogVerbatim("TC")<<"CCA: ID "<<tj.ID<<" Large Chg point at "<<atPt<<". Check charge asymmetry around it.";
+    if(prt) mf::LogVerbatim("TC")<<"CCA: T"<<tj.ID<<" Large Chg point at "<<atPt<<". Check charge asymmetry around it.";
     unsigned short nchk = 0;
     unsigned short npos = 0;
     unsigned short nneg = 0;
@@ -2028,7 +1949,7 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"SplitTraj: Split Tj ID "<<tj.ID<<" at point "<<pos;
+      myprt<<"SplitTraj: Split T"<<tj.ID<<" at point "<<pos;
       if(ivx < tjs.vtx.size()) myprt<<" with Vtx 2V"<<tjs.vtx[ivx].ID;
     }
 
@@ -2073,11 +1994,7 @@ namespace tca {
       } // ii
     } // ipt
     SetEndPoints(tjs, tj);
-    UpdateAveChg(tjs, tj);
-    UpdateTotChg(tjs, tj);
-    UpdateChgRMS(tjs, tj);
-    // We shouldn't need to do this.
-//    UpdateMatchStructs(tjs, tj.ID, tj.ID);
+    UpdateTjChgProperties("ST", tjs, tj, prt);
     if(splittingMuon) SetPDGCode(tjs, tj);
     
     // Append 3 points from the end of tj onto the
@@ -2092,7 +2009,7 @@ namespace tca {
     if(ivx < tjs.vtx.size()) tj.VtxID[1] = tjs.vtx[ivx].ID;
     tj.AlgMod[kSplit] = true;
     if(prt) {
-      mf::LogVerbatim("TC")<<" Splitting trajectory ID "<<tj.ID<<" new EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
+      mf::LogVerbatim("TC")<<" Splitting T"<<tj.ID<<" new EndPts "<<tj.EndPt[0]<<" to "<<tj.EndPt[1];
     }
     
     // erase the TPs at the beginning of the new trajectory
@@ -2103,9 +2020,7 @@ namespace tca {
       newTj.Pts[ipt].Chg = 0;
     } // ipt
     SetEndPoints(tjs, newTj);
-    UpdateAveChg(tjs, newTj);
-    UpdateTotChg(tjs, newTj);
-    UpdateChgRMS(tjs, newTj);
+    UpdateTjChgProperties("ST", tjs, newTj, prt);
     if(splittingMuon) SetPDGCode(tjs, newTj);
     if(ivx < tjs.vtx.size()) newTj.VtxID[0] = tjs.vtx[ivx].ID;
     newTj.AlgMod[kSplit] = true;
@@ -2116,7 +2031,7 @@ namespace tca {
     UpdateMatchStructs(tjs, tjid, newTj.ID);
 
     if(prt) {
-      mf::LogVerbatim("TC")<<"  newTj ID "<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
+      mf::LogVerbatim("TC")<<"  newTj T"<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
     }
     return true;
     
@@ -2413,7 +2328,7 @@ namespace tca {
     } // tp
     // Set the junkTj bit if most of the hits are used in most of the tps
     if(nhm > 0.5 * npwc) tj.AlgMod[kJunkTj] = true;
-    if(prt) mf::LogVerbatim("TC")<<"TGT: "<<tj.ID<<" npwc "<<npwc<<" nhm "<<nhm<<" junk? "<<tj.AlgMod[kJunkTj];
+    if(prt) mf::LogVerbatim("TC")<<"TGT: T"<<tj.ID<<" npwc "<<npwc<<" nhm "<<nhm<<" junk? "<<tj.AlgMod[kJunkTj];
   } // TagJunkTj
 
   //////////////////////////////////////////
@@ -2968,7 +2883,7 @@ namespace tca {
       if(muTj.CTP != inCTP) continue;
       if(muTj.AlgMod[kKilled]) continue;
       if(muTj.PDGCode != 13) continue;
-      if(prt) mf::LogVerbatim("TC")<<"TagDeltaRays: Muon "<<muTj.ID<<" EndPts "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]]);
+      if(prt) mf::LogVerbatim("TC")<<"TagDeltaRays: Muon T"<<muTj.ID<<" EndPts "<<PrintPos(tjs, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(tjs, muTj.Pts[muTj.EndPt[1]]);
       // min length
       if(muTj.EndPt[1] - muTj.EndPt[0] < minMuonLength) continue;
       auto& mtp0 = muTj.Pts[muTj.EndPt[0]];
@@ -3007,7 +2922,7 @@ namespace tca {
         if(PosSep(dTp.Pos, mtp1.Pos) < tjs.Vertex2DCuts[2]) continue;
        // make an angle cut at this point. A delta-ray should have a small angle
         float dang = DeltaAngle(muTj.Pts[mpt].Ang, dtj.Pts[dpt].Ang);
-        if(prt) mf::LogVerbatim("TC")<<" dRay? "<<dtj.ID<<" at "<<PrintPos(tjs, dtj.Pts[dpt].Pos)<<" dang "<<dang<<" doca "<<doca;
+        if(prt) mf::LogVerbatim("TC")<<" dRay? T"<<dtj.ID<<" at "<<PrintPos(tjs, dtj.Pts[dpt].Pos)<<" dang "<<dang<<" doca "<<doca;
         // ignore the angle cut if the separation is small and the delta ray MCSMom is low
         bool closeDeltaRay = (doca < 2 && dtj.MCSMom < 20);
         if(!closeDeltaRay && dang > tjs.KinkCuts[0]) continue;
@@ -3073,16 +2988,191 @@ namespace tca {
   } // TagMuonDirections
   
   /////////////////////////////////////////
-  void UpdateTjEnvironment(TjStuff& tjs, VtxStore& vx2)
+  void UpdateTjChgProperties(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, bool prt)
   {
-    // Update the Environment near each TP on trajectories near the vertex. This is called when
-    // the Tj has been added to a vertex to identify nearby trajectories that contribute to
-    // the charge on TPs near the vertex. This might be an expensive operation so only do it
-    // if the tj NeedsUpdate flag has been set true. 
-    if(vx2.ID == 0) return;
+    // Updates properties of the tj that are affected when the TP environment
+    // is changed. The most likely reason for a change is when the tj is attached to a
+    // vertex in which case the Environment kEnvOverlap bit may be set by the UpdateVxEnvironment
+    // function in which case this function is called.
+    // The kEnvNearShower bit may be set by TagShowerTjs but this doesn't affect the
+    // calculation of the properties of this Tj. This function simply sets the kEnvUnusedHits bit
+    // for all TPs. 
+    if(tj.AlgMod[kKilled]) return;
+
+    std::string fcnLabel = inFcnLabel + ".UpTjProp";
+
+    // first (un)set the kEnvUnusedHits bit
+    for(auto& tp : tj.Pts) {
+      if(tp.Chg <= 0) continue;
+      tp.Environment[kEnvUnusedHits] = false;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        if(tp.UseHit[ii]) continue;
+        unsigned int iht = tp.Hits[ii];
+        if(tjs.fHits[iht].InTraj == 0) tp.Environment[kEnvUnusedHits] = true;
+      } // ii
+    } // tp
     
-//    if(vx2.ID != 4) return;
-//    std::cout<<"UTjEnv vtx 4\n";
+    // Update the tj charge variables. The concept is explained by this graphic where
+    // each column is a wire, Q = a TP with charge, q = a TP with charge that is an
+    // EnvOverlap region, x = a wire that has a TP with Chg = 0 or a wire that has no TP 
+    // because the wire is dead, o = an EnvOverlap region, V = vertex attached to end. You should
+    // imagine that all 3 tjs come from the same vertex
+    //   01234567890123456789   npwc  cnt range
+    //   VooooQQQQxxxQQQ          7    7   0 - 14
+    //   VqqqqQQQQxxxQQQQQQQQ    16   12   0 - 19
+    //   VooQQQ                   3    3   0 - 5
+    // The average is first calculated using Ave = sum(Q) / npwc
+    // TotChg is calculated using 
+    tj.TotChg = 0;
+    tj.AveChg = 0;
+    tj.ChgRMS = 0.5;
+    
+    // These variables are used to calculate the average and rms using valid points with charge
+    double vcnt = 0;
+    double vsum = 0;
+    double vsum2 = 0;
+    //  variables for calculating the backup quanties. These are only used if npwc < 3
+    double bcnt = 0;
+    double bsum = 0;
+    double bsum2 = 0;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg <= 0) continue;
+      // accumulate a backup sum in case most of the points are overlapped. Note that
+      // tp.Chg has an angle correction, which is why the hit integral is summed
+      // below. We don't care about this detail for the backup sum
+      bsum  += tp.Chg;
+      bsum2 += tp.Chg * tp.Chg;
+      ++bcnt;
+      // Skip TPs that overlap with TPs on other Tjs. A correction will be made below
+      if(tj.Pts[ipt].Environment[kEnvOverlap]) continue;
+      ++vcnt;
+      double tpchg = 0;
+      for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+        if(!tp.UseHit[ii]) continue;
+        unsigned int iht = tp.Hits[ii];
+        tpchg += tjs.fHits[iht].Integral;
+      } // ii
+      vsum  += tpchg;
+      vsum2 += tpchg * tpchg;
+    } // ipt
+    
+    if(bcnt == 0) return;
+    
+    if(vcnt < 3) {
+      // use the backup sum
+      tj.TotChg = bsum;
+      tj.AveChg = bsum / bcnt;
+      if(vcnt > 2) {
+        double arg = bsum2 - bcnt * tj.AveChg * tj.AveChg;
+        if(arg > 0) tj.ChgRMS = sqrt(arg / (bcnt - 1));
+      }
+      for(auto& tp : tj.Pts) tp.AveChg = tj.AveChg;
+      return;
+    } // low npwc
+    
+    double nWires = tj.EndPt[1] - tj.EndPt[0] + 1;
+    if(nWires < 2) return;
+    // correct for wires missing near vertices.
+    // Count the number of wires between vertices at the ends and the first wire
+    // that has charge. This code assumes that there should be one TP on each wire
+    if(!tj.AlgMod[kPhoton]) {
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] == 0) continue;
+        auto& tp = tj.Pts[tj.EndPt[end]];
+        auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
+        int dw = std::abs(tp.Pos[0] - vx2.Pos[0]);
+        // This assumes that the vertex is not inside the wire boundaries of the tj
+        nWires += dw;
+      } // end
+    } // not a photon Tj
+    
+    tj.AveChg = vsum / vcnt;
+    // calculate the total charge using the tj wire range
+    tj.TotChg = nWires * tj.AveChg;
+    // calculate the rms
+    double arg = vsum2 - vcnt * tj.AveChg * tj.AveChg;
+    double rms = 0.5;
+    if(arg > 0) rms = sqrt(arg / (vcnt - 1));
+    // don't let it be an unrealistically low value. It could be crazy large however.
+    if(rms < 0.1) rms = 0.1;
+    // Don't let the calculated charge RMS dominate until it is well known; after there are 5 - 10 valid TPs.
+    // Assume that the charge rms is 0.5 
+    if(vcnt < 10) {
+      double defFrac = 1 / vcnt;
+      rms = defFrac * 0.5 + (1 - defFrac) * rms;
+    }
+    tj.ChgRMS = rms;
+    
+    // Update the TP charge pulls.
+    // Don't let the calculated charge RMS dominate the default
+    // RMS until it is well known. Start with 50% error on the
+    // charge RMS
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg <= 0) continue;
+      tp.ChgPull = (tp.Chg / tj.AveChg - 1) / tj.ChgRMS;
+    } // ipt
+    
+    // update the local charge average using NPtsAve of the preceding points.
+    // Handle short Tjs first.
+    if(vcnt < tjs.NPtsAve) {
+      for(auto& tp : tj.Pts) tp.AveChg = tj.AveChg;
+      return;
+    }
+    
+    // Set the local average to 0 first
+    for(auto& tp : tj.Pts) tp.AveChg = 0;
+    // Enter the local average on the points where an average can be calculated
+    unsigned short nptsave = tjs.NPtsAve;
+    unsigned short minPt = tj.EndPt[0] + nptsave;
+    float lastAve = 0;
+    for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+      unsigned short ipt = tj.EndPt[1] - ii;
+      if(ipt < minPt) break;
+      float cnt = 0;
+      float sum = 0;
+      for(unsigned short iii = 0; iii < nptsave; ++iii) {
+        unsigned short iipt = ipt - iii;
+        // Don't include the charge of the first point
+        if(iipt == tj.EndPt[0]) break;
+        auto& tp = tj.Pts[iipt];
+        if(tp.Chg <= 0) continue;
+        sum += tp.Chg;
+        ++cnt;
+      } // iii
+      if(cnt > 2) {
+        tj.Pts[ipt].AveChg = sum / cnt;
+        lastAve = tj.Pts[ipt].AveChg;
+      }
+    } // ii
+    // Fill in the points where no average was calculated
+    for(unsigned short ii = tj.EndPt[0]; ii <= tj.EndPt[1]; ++ii) {
+      unsigned short ipt = tj.EndPt[1] - ii;
+      auto& tp = tj.Pts[ipt];
+      if(tp.AveChg == 0) {
+        tp.AveChg = lastAve;
+      } else {
+        lastAve = tp.AveChg;
+      }
+    } // ii
+    
+    tj.NeedsUpdate = false;
+    
+  } // UpdateTjChgProperties
+  
+  /////////////////////////////////////////
+  void UpdateVxEnvironment(std::string inFcnLabel, TjStuff& tjs, VtxStore& vx2, bool prt)
+  {
+    // Update the Environment each TP on trajectories near the vertex. This is called when
+    // the Tj has been added to a vertex to identify nearby trajectories that contribute to
+    // the charge on TPs near the vertex. 
+    if(vx2.ID == 0) return;
+    if(vx2.Stat[kOnDeadWire]) return;
+
+    std::string fcnLabel = inFcnLabel + ".UpVxProp";
+
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" UpdateTjEnvironment check Tjs attached to vx2 "<<vx2.ID;
     
     std::vector<int> tjlist;
     std::vector<unsigned short> tjends;
@@ -3105,11 +3195,13 @@ namespace tca {
     } // tj
     if(tjlist.size() < 2) return;
     if(hiWire < loWire + 1) return;
-//    std::cout<<"lo "<<loWire<<" "<<hiWire<<"\n";
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" check Tjs on wires in the range "<<loWire<<" to "<<hiWire;
     
     // create a vector of TPs between loWire and hiWire for every tj in the list
-    //   wire       tj
+    //   wire       TP
     std::vector<std::vector<TrajPoint>> wire_tjpt;
+    // companion vector of IDs
+    std::vector<int> tjids;
     // populate this vector with TPs on Tjs that are in this range
     unsigned short nwires = hiWire - loWire + 1;
     for(unsigned short itj = 0; itj < tjlist.size(); ++itj) {
@@ -3154,12 +3246,13 @@ namespace tca {
         if(tjpt[indx].Chg > 0) continue;
         tjpt[indx]= ltp;
       } // ii
-/*
-      std::cout<<"tj "<<tj.ID;
-      for(auto& tp : tjpt) std::cout<<" "<<PrintPos(tjs, tp.Pos)<<"_"<<tp.Step<<"_"<<(int)tp.Chg;
-      std::cout<<"\n";
-*/
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<fcnLabel<<" T"<<tj.ID;
+        for(auto& tp : tjpt) myprt<<" "<<PrintPos(tjs, tp.Pos)<<"_"<<tp.Step<<"_"<<(int)tp.Chg;
+      }
       wire_tjpt.push_back(tjpt);
+      tjids.push_back(tj.ID);
     } // itj
     
     // iterate over the wires in the range
@@ -3168,28 +3261,38 @@ namespace tca {
       unsigned short npts = 0;
       // count the number of points on this wire that have charge
       unsigned short npwc = 0;
-      for(unsigned short itj = 0; itj < tjlist.size(); ++itj) {
+      for(unsigned short itj = 0; itj < wire_tjpt.size(); ++itj) {
         if(wire_tjpt[itj][indx].Pos[0] == 0) continue;
         // found a valid point
         ++npts;
         if(wire_tjpt[itj][indx].Chg > 0) ++npwc;
       } // itj
       // no valid points
+//      if(prt) mf::LogVerbatim("TC")<<" wire "<<loWire + indx<<" npts "<<npts<<" npwc "<<npwc;
       if(npts == 0) continue;
       // all valid points have charge
       if(npwc == npts) continue;
-      // re-find the valid points with charge and set the kEnvNearTj bit
-      for(unsigned short itj = 0; itj < tjlist.size(); ++itj) {
+      // re-find the valid points with charge and set the kEnvOverlap bit
+      for(unsigned short itj = 0; itj < wire_tjpt.size(); ++itj) {
         if(wire_tjpt[itj][indx].Pos[0] == 0) continue;
         if(wire_tjpt[itj][indx].Chg == 0) continue;
-        auto& tj = tjs.allTraj[tjlist[itj] - 1];
+        auto& tj = tjs.allTraj[tjids[itj] - 1];
         unsigned short ipt = wire_tjpt[itj][indx].Step;
-        tj.Pts[ipt].Environment[kEnvNearTj] = true;
-//        std::cout<<"Set kEnvNearTj bit on Tj "<<tj.ID<<" ipt "<<ipt<<"\n";
-      }
-    } // ii
+        tj.Pts[ipt].Environment[kEnvOverlap] = true;
+        tj.NeedsUpdate = true;
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Set kEnvOverlap bit on T"<<tj.ID<<" ipt "<<ipt;
+      } // itj
+    } // indx
     
-  } // UpdateTjEnvironment
+    // update the charge rms for those tjs whose environment was changed above (or elsewhere)
+    for(auto tjid : tjids) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      if(!tj.NeedsUpdate) continue;
+      if(tj.CTP != vx2.CTP) continue;
+      UpdateTjChgProperties(fcnLabel, tjs, tj, prt);
+    } // tjid
+    
+  } // UpdateVxEnvironment
   
   /////////////////////////////////////////
   TrajPoint MakeBareTrajPoint(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP)
@@ -3658,7 +3761,7 @@ namespace tca {
     Point2_t tp2e1 = tj2.Pts[tj2.EndPt[1]].Pos;
     
     if(doPrt) {
-      mf::LogVerbatim("TC")<<"MergeAndStore: tj1.ID "<<tj1.ID<<" tj2.ID "<<tj2.ID<<" at merge points "<<PrintPos(tjs, tp1e1)<<" "<<PrintPos(tjs, tp2e0);
+      mf::LogVerbatim("TC")<<"MergeAndStore: tj1 T"<<tj1.ID<<" tj2 T"<<tj2.ID<<" at merge points "<<PrintPos(tjs, tp1e1)<<" "<<PrintPos(tjs, tp2e0);
     }
     
     // swap the order so that abs(tj1end1 - tj2end0) is less than abs(tj2end1 - tj1end0)
@@ -3701,7 +3804,7 @@ namespace tca {
     }
     
     if(tj1.StopFlag[1][kBragg]) {
-      if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: You are merging the end of a trajectory "<<tj1.ID<<" with a Bragg peak. Not merging\n";
+      if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: You are merging the end of trajectory T"<<tj1.ID<<" with a Bragg peak. Not merging\n";
       return false;
     }
     
@@ -3794,7 +3897,7 @@ namespace tca {
     // update match structs if they exist
     UpdateMatchStructs(tjs, tj1.ID, newTjID);
     UpdateMatchStructs(tjs, tj2.ID, newTjID);
-    if(doPrt) mf::LogVerbatim("TC")<<" MAS success. New TjID "<<newTjID;
+    if(doPrt) mf::LogVerbatim("TC")<<" MAS success. New Tj T"<<newTjID;
     // Transfer the ParentIDs of any other Tjs that refer to Tj1 and Tj2 to the new Tj
     for(auto& tj : tjs.allTraj) if(tj.ParentID == tj1ID || tj.ParentID == tj2ID) tj.ParentID = newTjID;
 
@@ -3813,13 +3916,15 @@ namespace tca {
       if(!tjs.vtx3.empty()) {
         // print out 3D vertices
         myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_ID__*******\n";
-        myprt<<someText<<"Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? Nu? nTru";
+        myprt<<someText<<"  Vtx  Cstat  TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? Nu? nTru";
         myprt<<" ___________2D_Pos____________ _____Tjs________\n";
         for(unsigned short iv = 0; iv < tjs.vtx3.size(); ++iv) {
           if(tjs.vtx3[iv].ID == 0) continue;
           const Vtx3Store& vx3 = tjs.vtx3[iv];
           myprt<<someText;
-          myprt<<std::right<<std::setw(3)<<std::fixed<<vx3.ID<<std::setprecision(1);
+          std::string vid = "3V" + std::to_string(vx3.ID);
+          myprt<<std::right<<std::setw(5)<<std::fixed<<vid;
+          myprt<<std::setprecision(1);
           myprt<<std::right<<std::setw(7)<<vx3.TPCID.Cryostat;
           myprt<<std::right<<std::setw(5)<<vx3.TPCID.TPC;
           myprt<<std::right<<std::setw(8)<<vx3.X;
@@ -3878,12 +3983,13 @@ namespace tca {
         if(foundOne) {
           // print out 2D vertices
           myprt<<someText<<"************ 2D vertices ************\n";
-          myprt<<someText<<"VtxID  CTP   wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D TjIDs\n";
+          myprt<<someText<<"  Vtx  CTP   wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D TjIDs\n";
           for(auto& vx2 : tjs.vtx) {
             if(vx2.ID == 0) continue;
             if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(vx2.CTP).Plane) continue;
             myprt<<someText;
-            myprt<<std::right<<std::setw(3)<<std::fixed<<vx2.ID;
+            std::string vid = "2V" + std::to_string(vx2.ID);
+            myprt<<std::right<<std::setw(5)<<std::fixed<<vid;
             myprt<<std::right<<std::setw(6)<<vx2.CTP;
             myprt<<std::right<<std::setw(8)<<std::setprecision(0)<<std::nearbyint(vx2.Pos[0]);
             myprt<<std::right<<std::setw(5)<<std::setprecision(1)<<vx2.PosErr[0];
@@ -3924,13 +4030,14 @@ namespace tca {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
 //      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx Chg(k) chgRMS  Mom SDr __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
-      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ InSh     W:T      Ang CS AveQ InSh Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<"   ID   CTP Pass  Pts     W:T      Ang CS AveQ InSh     W:T      Ang CS AveQ InSh Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
         myprt<<someText<<" ";
-        if(aTj.AlgMod[kKilled]) { myprt<<"xxx"; } else { myprt<<"TRJ"; }
-        myprt<<std::fixed<<std::setw(4)<<aTj.ID;
+        std::string tid;
+        if(aTj.AlgMod[kKilled]) { tid = "k" + std::to_string(aTj.ID); } else { tid = "T" + std::to_string(aTj.ID); }
+        myprt<<std::fixed<<std::setw(5)<<tid;
         myprt<<std::setw(6)<<aTj.CTP;
         myprt<<std::setw(5)<<aTj.Pass;
 //        myprt<<std::setw(5)<<aTj.Pts.size();
@@ -4012,7 +4119,7 @@ namespace tca {
         myprt<<std::setw(4)<<aTj.VtxID[0];
         myprt<<std::setw(4)<<aTj.VtxID[1];
         myprt<<std::setw(5)<<aTj.PDGCode;
-        myprt<<std::setw(7)<<std::setprecision(1)<<TjDirection(tjs, aTj, false);
+        myprt<<std::setw(7)<<std::setprecision(1)<<aTj.DirFOM;
         myprt<<std::setw(5)<<aTj.ParentID;
         myprt<<std::setw(5)<<PrimaryID(tjs, aTj);
         myprt<<std::setw(6)<<NeutrinoPrimaryTjID(tjs, aTj);
