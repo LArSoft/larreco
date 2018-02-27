@@ -1291,14 +1291,12 @@ namespace tca {
         for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
       }
       for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
-        // temp for debugging
-        if(ims == 9) break;
         auto& ms = tjs.matchVec[ims];
         bool skipit = false;
         for(auto tjid : ms.TjIDs) {
           auto& tj = tjs.allTraj[tjid - 1];
           if(tj.AlgMod[kMat3D]) skipit = true;
-          if(tj.AlgMod[kShowerTj]) skipit = true;
+          if(tj.AlgMod[kKilled]) skipit = true;
         }
         if(skipit) continue;
         std::vector<int> shared = SetIntersection(ms.TjIDs, v3TjIDs);
@@ -1308,6 +1306,19 @@ namespace tca {
         pfp.TjIDs = ms.TjIDs;
         pfp.Vx3ID[0] = vx3.ID;
         if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp P"<<pfp.ID<<" 3V"<<vx3.ID;
+        // re-purpose BestPlane so we can search nearby entries of tjs.matchVec
+        pfp.BestPlane = ims;
+        // do a first look for broken tjs in the lower-rank entries
+        for(unsigned int jj = ims + 1; jj < ims + 11; ++jj) {
+          if(jj == tjs.matchVec.size()) break;
+          auto& jms = tjs.matchVec[jj];
+          std::vector<int> shared = SetIntersection(jms.TjIDs, ms.TjIDs);
+          if(shared.size() < 2) continue;
+          for(auto tjid : jms.TjIDs) {
+            if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjid) != pfp.TjIDs.end()) continue;
+            pfp.TjIDs.push_back(tjid);
+          }
+        } // jj
         // Find Tp3s and end points
         if(!DefinePFP("M3DVTj1", tjs, pfp, prt)) continue;
         // separation distance (cm) for kink detection.
@@ -1341,7 +1352,7 @@ namespace tca {
         if(prt) PrintPFP("left", tjs, pfp, true);
         if(!StorePFP(tjs, pfp)) continue;
       }
-    } // ii
+    } // ims
   } // Match3DVtxTjs
 
   //////////////////////////////////////////
