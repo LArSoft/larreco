@@ -45,6 +45,8 @@ namespace tca {
   void SortByDistanceFromStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool FitTp3(TjStuff& tjs, TrajPoint3& tp3, const std::vector<Tj2Pt>& tj2pts);
   void MoveTp3ToZ(TjStuff& tjs, TrajPoint3& tp3, double z);
+  bool CheckAndMerge(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  bool MergePFPTjs(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, std::vector<MatchStruct>& matVec, bool prt);
   bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3);
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2);
