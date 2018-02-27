@@ -209,7 +209,9 @@ namespace tca {
     // set1 = {11 12 17 18} and set2 = {6 12 18}
     // There is no requirement that the elements be sorted, unlike std::set_intersection
     std::vector<T> shared;
-    if(set1.empty() || set2.empty()) return shared;
+    
+    if(set1.empty()) return shared;
+    if(set2.empty()) return shared;
     for(auto element1 : set1) {
       // check for a common element
       if(std::find(set2.begin(), set2.end(), element1) == set2.end()) continue;
