@@ -431,11 +431,11 @@ namespace tca {
     if(otjid == 0) return false;
     if(MergeAndStore(tjs, otjid - 1, mtjid - 1, prt)) {
       int newtjid = tjs.allTraj.size();
-      if(prt) mf::LogVerbatim("TC")<<"MergeTjIntoPFP: merged "<<otjid<<" with "<<mtjid<<" -> "<<newtjid;
+      if(prt) mf::LogVerbatim("TC")<<"MergeTjIntoPFP: merged T"<<otjid<<" with T"<<mtjid<<" -> T"<<newtjid;
       std::replace(pfp.TjIDs.begin(), pfp.TjIDs.begin(), otjid, newtjid);
       return true;
     } else {
-      if(prt) mf::LogVerbatim("TC")<<"MergeTjIntoPFP: "<<otjid<<" "<<mtjid<<" failed ";
+      if(prt) mf::LogVerbatim("TC")<<"MergeTjIntoPFP: merge T"<<otjid<<" with T"<<mtjid<<" failed ";
       return false;
     }
   } // MergeTjIntoPFP
@@ -1110,8 +1110,6 @@ namespace tca {
   bool StoreTraj(TjStuff& tjs, Trajectory& tj)
   {
     
-    if(tj.EndPt[1] <= tj.EndPt[0]) return false;
-    
     if(!(tj.StepDir == 1 || tj.StepDir == -1)) {
       mf::LogError("TC")<<"StoreTraj: Invalid StepDir "<<tj.StepDir;
       return false;
@@ -1167,7 +1165,7 @@ namespace tca {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
           if(tjs.fHits[iht].InTraj > 0) {
             mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
-            PrintTrajectory("SW", tjs, tj, USHRT_MAX);
+            PrintTrajectory("ST", tjs, tj, USHRT_MAX);
             ReleaseHits(tjs, tj);
             return false;
           } // error
@@ -1809,13 +1807,8 @@ namespace tca {
     // Note that this does not change the state of UseHit to allow
     // resurrecting the trajectory later (RestoreObsoleteTrajectory)
     if(itj > tjs.allTraj.size() - 1) return;
-    unsigned int iht;
-    for(auto& tp : tjs.allTraj[itj].Pts) {
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        iht = tp.Hits[ii];
-        if(tjs.fHits[iht].InTraj == tjs.allTraj[itj].ID) tjs.fHits[iht].InTraj = 0;
-      } // ii
-    } // tp
+    int killTjID = tjs.allTraj[itj].ID;
+    for(auto& hit : tjs.fHits) if(hit.InTraj == killTjID) hit.InTraj = 0;
     tjs.allTraj[itj].AlgMod[kKilled] = true;
   } // MakeTrajectoryObsolete
   
@@ -2605,6 +2598,7 @@ namespace tca {
 */
     // reverse the crawling direction flag
     tj.StepDir = -tj.StepDir;
+    tj.DirFOM = 1 - tj.DirFOM;
     // Vertices
     std::swap(tj.VtxID[0], tj.VtxID[1]);
     // trajectory points
@@ -2621,7 +2615,6 @@ namespace tca {
       } else {
         tj.Pts[ipt].Ang += M_PI;
       }
-//      tj.Pts[ipt].Ang = std::atan2(tj.Pts[ipt].Dir[1], tj.Pts[ipt].Dir[0]);
     } // ipt
     SetEndPoints(tjs, tj);
     UpdateMatchStructs(tjs, tj.ID, tj.ID);
@@ -3728,7 +3721,7 @@ namespace tca {
     // Ensure that the order of 3D-matched Tjs is consistent with the convention that 
     unsigned short pfp1 = GetPFPIndex(tjs, tjs.allTraj[itj1].ID);
     unsigned short pfp2 = GetPFPIndex(tjs, tjs.allTraj[itj2].ID);
-    if(pfp1 == USHRT_MAX || pfp2 == USHRT_MAX) {
+    if(pfp1 != USHRT_MAX || pfp2 != USHRT_MAX) {
       if(pfp1 != USHRT_MAX && pfp2 != USHRT_MAX) {
 //        std::cout<<"MAS: Both tjs are used in a PFParticle. Need PFParticle merging code to do this. pfps size "<<tjs.pfps.size()<<"\n";
         return false;
@@ -3742,18 +3735,7 @@ namespace tca {
     Trajectory tj2 = tjs.allTraj[itj2];
     
     // ensure that these are in the same step order
-    if(tj1.StepDir != tj2.StepDir) {
-      // See if the direction has been set elsewhere
-      if(tj1.AlgMod[kSetDir] || tj2.AlgMod[kSetDir]) {
-        if(tj1.AlgMod[kSetDir]) {
-          ReverseTraj(tjs, tj2);
-        } else {
-          ReverseTraj(tjs, tj1);
-        }
-      } else {
-        ReverseTraj(tjs, tj2);
-      }
-    } // inconsistent step direction
+    if(tj2.StepDir != tj1.StepDir) ReverseTraj(tjs, tj2);
     
     Point2_t tp1e0 = tj1.Pts[tj1.EndPt[0]].Pos;
     Point2_t tp1e1 = tj1.Pts[tj1.EndPt[1]].Pos;
