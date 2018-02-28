@@ -352,6 +352,7 @@ namespace cluster {
     unsigned short nshower = fTCAlg->GetShowerStructSize();
     for(unsigned short ish = 0; ish < nshower; ++ish) {
       tca::ShowerStruct3D const& ss3 = fTCAlg->GetShowerStruct(ish);
+      if(ss3.ID == 0) continue;
       recob::Shower shower;
       shower.set_id(ish + 1);
       shower.set_total_energy(ss3.Energy);
@@ -371,8 +372,13 @@ namespace cluster {
       shower.set_dedx_err(ss3.dEdxErr);
       shower.set_length(ss3.Len);
       shower.set_open_angle(ss3.OpenAngle);
+      std::cout<<" shower set\n";
       sscol.push_back(shower);
-      shwrIndices[ss3.PFPIndex] = ish;
+      if(ss3.PFPIndex < shwrIndices.size()) {
+        shwrIndices[ss3.PFPIndex] = ish;
+      } else {
+//        std::cout<<"Invalid PFPIndex "<<ss3.PFPIndex<<" "<<shwrIndices.size()<<"\n";
+      }
       // make the shower - hit association
       if(!util::CreateAssn(*this, evt, *shwr_hit_assn, sscol.size()-1, ss3.Hits.begin(), ss3.Hits.end()))
       {
