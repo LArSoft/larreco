@@ -1912,17 +1912,6 @@ namespace tca {
       pfp.TjIDs = ms.TjIDs;
       // re-purpose BestPlane so we can search nearby entries of tjs.matchVec
       pfp.BestPlane = indx;
-      // do a first look for broken tjs in the lower-rank entries
-      for(unsigned int jj = indx + 1; jj < indx + 11; ++indx) {
-        if(jj == tjs.matchVec.size()) break;
-        auto& jms = tjs.matchVec[jj];
-        auto shared = SetIntersection(jms.TjIDs, ms.TjIDs);
-        if(shared.size() < 2) continue;
-        for(auto tjid : jms.TjIDs) {
-          if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjid) != pfp.TjIDs.end()) continue;
-          pfp.TjIDs.push_back(tjid);
-        }
-      } // jj
       if(!DefinePFP("FPFP", tjs, pfp, prt)) {
         if(prt) mf::LogVerbatim("TC")<<" DefinePFP failed";
         continue;
@@ -1956,6 +1945,7 @@ namespace tca {
       myprt<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
       myprt<<" Tjs";
       for(auto id : pfp.TjIDs) myprt<<" T"<<id;
+      myprt<<" matchVeC index "<<pfp.BestPlane;
     }
 
     if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
@@ -1970,6 +1960,28 @@ namespace tca {
         return false;
       }
     } // tjid
+    
+    if(pfp.BestPlane > 0 && (unsigned int)pfp.BestPlane < tjs.matchVec.size()) {
+      // The index of tjs.matchVec has been specified for this pfp so we can look for evidence of
+      // broken Tjs in the vicinity
+      unsigned int loIndx = 0;
+      if(pfp.BestPlane > 9) loIndx = pfp.BestPlane - 10;
+      unsigned int hiIndx = pfp.BestPlane + 10;
+      if(hiIndx > tjs.matchVec.size()) hiIndx = tjs.matchVec.size();
+      for(unsigned int ims = loIndx; ims < hiIndx; ++ims) {
+        auto& ms = tjs.matchVec[ims];
+        std::vector<int> shared = SetIntersection(ms.TjIDs, pfp.TjIDs);
+        if(shared.size() < 2) continue;
+        for(auto tjid : shared) {
+          if(std::find(shared.begin(), shared.end(), tjid) == shared.end()) continue;
+          auto& tj = tjs.allTraj[tjid - 1];
+          if(tj.AlgMod[kKilled]) continue;
+          if(tj.AlgMod[kMat3D]) continue;
+          pfp.TjIDs.push_back(tjid);
+          if(prt) mf::LogVerbatim()<<fcnLabel<<" add broken T"<<tjid;
+        } // tjid
+      } // ims
+    } // matchVec index defined
     
     // check the completeness of matching points in this set of Tjs and possibly
     // merge Tjs
