@@ -843,6 +843,7 @@ namespace tca {
     // Look for missing Tjs that are matched in 3D to the known set and merge them
     // if appropriate
     
+    if(!tjs.UseAlg[kMat3DMerge]) return true;
     if(pfp.TjIDs.size() < 2) return false;
     if(tjs.Match3DCuts[0] <= 0) return false;
     // This function uses mallTraj but it isn't necessarily a failure if it doesn't exist
@@ -1961,7 +1962,7 @@ namespace tca {
       }
     } // tjid
     
-    if(pfp.BestPlane > 0 && (unsigned int)pfp.BestPlane < tjs.matchVec.size()) {
+    if(tjs.UseAlg[kMat3DMerge] && pfp.BestPlane > 0 && (unsigned int)pfp.BestPlane < tjs.matchVec.size()) {
       // The index of tjs.matchVec has been specified for this pfp so we can look for evidence of
       // broken Tjs in the vicinity
       unsigned int loIndx = 0;
