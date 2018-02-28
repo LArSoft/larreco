@@ -11,13 +11,21 @@
 // It is based on GausHitFinder.
 // -----------------------------------
 // 
-// The algorithm walks along the wire and looks for pulses above threshold.
-// The algorithm then attempts to fit n double exponentials to these 
-// pulses where n is set by the number of peaks found in the pulse.
-// If the Chi2/NDF returned is "bad" it attempts to fit n+1 double exponentials
-// to the pulse. If this is a better fit it then uses the parameters of this
-// fit to characterize the "hit" object. The parameters of the fit are saved
-// in a feature vector by using MVAWriter.
+// 1. The algorithm walks along the wire and looks for pulses above threshold.
+// 2. Depending on distance and minimum ADC count between peaks inside the same ROI,
+// peaks can be grouped. Grouped peaks are fitted together (see later).
+// 3. Inside each group of peaks, look for pairs of peaks that are very close, with
+// one peak being much smaller than the other one (in integral and amplitude).
+// If such a pair of peaks is found, merge the two peaks to one peak.
+// 4. Fit n double exponentials to each group of peaks, where n is the number
+// of peaks inside this group. 
+// 5. If the Chi2/NDF returned is "bad", attempt to fit n+1 double exponentials
+// to the group of peaks by adding a peak close to the maximum deviation between
+// fit and waveform. If this is a better fit it then uses the parameters of this
+// fit to characterize the "hit" object. If not, try n+2 exponentials and so on.
+// 
+// The parameters of the fit are saved in a feature vector by using MVAWriter to
+// draw the fitted function in the event display.
 //
 ////////////////////////////////////////////////////////////////////////
 
@@ -169,6 +177,7 @@ namespace hit{
     double	 fChargeNorm;         ///<factors for converting area to same units as peak height
     bool	 fTryNplus1Fits;      ///<whether we will (true) or won't (false) try n+1 fits
     double	 fChi2NDFRetry;       ///<Value at which a second n+1 Fit will be tried
+    double	 fChi2NDFRetryFactorMultiHits;       ///<Value at which a second n+1 Fit will be tried
     double	 fChi2NDF;            ///maximum Chisquared / NDF allowed for a hit to be saved
     size_t       fNumBinsToAverage;   ///< If bin averaging for peak finding, number bins to average
     double   fMinTau;                 
@@ -248,6 +257,7 @@ void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fMaxMultiHit      	   = p.get< int    >("MaxMultiHit");
     fTryNplus1Fits    	   = p.get< bool   >("TryNplus1Fits");
     fChi2NDFRetry     	   = p.get< double >("Chi2NDFRetry");
+    fChi2NDFRetryFactorMultiHits = p.get< double >("Chi2NDFRetryFactorMultiHits");
     fChi2NDF          	   = p.get< double >("Chi2NDF");
     fNumBinsToAverage 	   = p.get< size_t >("NumBinsToAverage");
     fMinSig           	   = p.get< float    >("MinSig");
@@ -343,11 +353,26 @@ void DPRawHitFinder::produce(art::Event& evt)
         // for now, just take the first option returned from ChannelToWire
         geo::WireID wid  = wids[0];
 
+	if(fLogLevel >= 1)
+	{
+	  std::cout << std::endl;
+	  std::cout << std::endl;
+	  std::cout << std::endl;
+	  std::cout << "-----------------------------------------------------------------------------------------------------------" << std::endl;
+	  std::cout << "Channel: " << channel << std::endl;
+	  std::cout << "Cryostat: " << wid.Cryostat << std::endl;
+	  std::cout << "TPC: " << wid.TPC << std::endl;
+	  std::cout << "Plane: " << wid.Plane << std::endl;
+	  std::cout << "Wire: " << wid.Wire << std::endl;
+	}
+
+
         // #################################################
         // ### Set up to loop over ROI's for this wire   ###
         // #################################################
         const recob::Wire::RegionsOfInterest_t& signalROI = wire->SignalROI();
        
+	int CountROI=0;
         for(const auto& range : signalROI.get_ranges())
         {
             // #################################################
@@ -363,7 +388,7 @@ void DPRawHitFinder::produce(art::Event& evt)
             // ROI start time
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
             MergedTimeWidVec mergedVec;
-            
+
             // ###########################################################
             // ### If option set do bin averaging before finding peaks ###
             // ###########################################################
@@ -401,6 +426,25 @@ void DPRawHitFinder::produce(art::Event& evt)
                 TimeValsVec timeValsVec;
                 findCandidatePeaks(signal.begin(),signal.end(),timeValsVec,fMinSig,0);
 
+	        if(fLogLevel >=1)
+	        {
+	          std::cout << std::endl;
+	          std::cout << std::endl;
+	          std::cout << "-------------------- ROI #" << CountROI << " -------------------- " << std::endl;
+	          if(timeValsVec.size() == 1) std::cout << "ROI #" << CountROI << " (" << timeValsVec.size() << " peak):   ROIStartTick: " << range.offset << "    ROIEndTick:" << range.offset+range.size() << std::endl;
+	          else std::cout << "ROI #" << CountROI << " (" << timeValsVec.size() << " peaks):   ROIStartTick: " << range.offset << "    ROIEndTick:" << range.offset+range.size() << std::endl;
+                  CountROI++;
+	        }
+
+ 		if(fLogLevel >=2)
+	    	{
+		  int CountPeak=0;
+            	  for( auto const& timeValsTmp : timeValsVec )
+		  {
+		    std::cout << "Peak #" << CountPeak << ":   PeakStartTick: " << range.offset + std::get<0>(timeValsTmp) << "    PeakMaxTick: " << range.offset + std::get<1>(timeValsTmp) << "    PeakEndTick: " << range.offset + std::get<2>(timeValsTmp) << std::endl;
+		    CountPeak++; 
+	    	  }
+		}
                 // ####################################################
                 // ### If no startTime hit was found skip this wire ###
                 // ####################################################
@@ -410,6 +454,7 @@ void DPRawHitFinder::produce(art::Event& evt)
                 // ### Merge potentially overlapping peaks and do multi fit  ###
                 // #############################################################
                 mergeCandidatePeaks(signal, timeValsVec, mergedVec);
+
             }
             
             // #######################################################
@@ -439,8 +484,29 @@ void DPRawHitFinder::produce(art::Event& evt)
 		int		width = endT + 1 - startT;
                 PeakTimeWidVec& peakVals = std::get<2>(mergedVec.at(j));
 
+ 		if(fLogLevel >=3)
+	    	{
+		  std::cout << std::endl;
+		  if(peakVals.size() == 1) std::cout << "- Group #" << j << " (" << peakVals.size() << " peak):  GroupStartTick: " << range.offset + startT << "    GroupEndTick: " << range.offset + endT << std::endl;
+		  else std::cout << "- Group #" << j << " (" << peakVals.size() << " peaks):  GroupStartTick: " << range.offset + startT << "    GroupEndTick: " << range.offset + endT << std::endl;
+
+	 	  int CountPeakInGroup=0;
+	          for( auto const& peakValsTmp : peakVals )
+		  {
+		      std::cout << "Peak #" << CountPeakInGroup << " in group #" << j << ":  PeakInGroupStartTick: " << range.offset + std::get<2>(peakValsTmp) << "    PeakInGroupMaxTick: " <<  range.offset + std::get<0>(peakValsTmp) << "    PeakInGroupEndTick: " << range.offset + std::get<3>(peakValsTmp) << std::endl;
+		      CountPeakInGroup++;
+		  }
+		}
+
                 // ### Getting rid of noise hits ###
-                if (width < fMinWidth || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0) < fMinADCSum || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0)/width < fMinADCSumOverWidth) continue;
+                if (width < fMinWidth || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0) < fMinADCSum || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0)/width < fMinADCSumOverWidth)
+		{
+		  if(fLogLevel >=3)
+	    	  {
+		    std::cout << "Delete this group of peaks because width, integral or width/intergral is too small." << std::endl;
+		  }
+		  continue;
+		}
 
 		    if(j>=1 && nExponentialsForFit>0)
 		    {
@@ -468,6 +534,23 @@ void DPRawHitFinder::produce(art::Event& evt)
                     FitExponentials(signal, peakVals, startT, endT, paramVec, chi2PerNDF, NDF, &SignalCorrection, DoSignalCorrection);
                     // If the chi2 is infinite then there is a real problem so we bail
 
+ 		    if(fLogLevel >=4)
+	    	    {
+		      std::cout << std::endl;
+		      std::cout << "--- First fit ---" << std::endl;
+		      if (nExponentialsForFit == 1) std::cout << "- Fitted " << nExponentialsForFit << " peak in group #"  << j << ":" << std::endl;
+		      else std::cout << "- Fitted " << nExponentialsForFit << " peaks in group #"  << j << ":" << std::endl;
+		      std::cout << "chi2/ndf = " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+		      std::cout << "tau1 [mus] = " << std::setprecision(3) << std::fixed << paramVec[0].first << std::endl;
+		      std::cout << "tau2 [mus] = " << std::setprecision(3) << std::fixed << paramVec[1].first << std::endl;
+
+                      for(unsigned int i = 0; i < nExponentialsForFit; i++)
+                      {
+		        std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << paramVec[2*(i+1)].first << std::endl;
+		        std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << range.offset + paramVec[2*(i+1)+1].first << std::endl;
+		      }
+		    }
+
                     if (!(chi2PerNDF < std::numeric_limits<double>::infinity())) continue;
                    
                     fFirstChi2->Fill(chi2PerNDF);
@@ -476,16 +559,18 @@ void DPRawHitFinder::produce(art::Event& evt)
                     // ### Trying extra Exponentials for an initial bad fit ###
                     // ########################################################
 
-		    if( (chi2PerNDF > fChi2NDFRetry && fTryNplus1Fits && nExponentialsForFit == 1)||
-                        (chi2PerNDF > fChi2NDFRetry && fTryNplus1Fits && nExponentialsForFit > 1) )
+		    if( (nExponentialsForFit == 1 && chi2PerNDF > fChi2NDFRetry && fTryNplus1Fits) ||
+                        (nExponentialsForFit > 1 && chi2PerNDF > fChi2NDFRetryFactorMultiHits*fChi2NDFRetry && fTryNplus1Fits) )
                     {
 		    unsigned int nExponentialsBeforeRefit=nExponentialsForFit;  
 		    unsigned int nExponentialsAfterRefit=nExponentialsForFit; 
+		    double oldChi2PerNDF = chi2PerNDF;
                     double chi2PerNDF2;
                     int    NDF2;
 		    bool   RefitSuccess;
 		    PeakTimeWidVec peakValsTemp;
-		    	while(nExponentialsAfterRefit < 3*nExponentialsBeforeRefit && chi2PerNDF > fChi2NDFRetry && nExponentialsAfterRefit < 2*fMaxMultiHit)
+		    	while( (nExponentialsForFit == 1 && nExponentialsAfterRefit < 3*nExponentialsBeforeRefit && chi2PerNDF > fChi2NDFRetry && nExponentialsAfterRefit < 2*fMaxMultiHit) ||
+			       (nExponentialsForFit > 1 && nExponentialsAfterRefit < 3*nExponentialsBeforeRefit && chi2PerNDF > fChi2NDFRetryFactorMultiHits*fChi2NDFRetry && nExponentialsAfterRefit < 2*fMaxMultiHit) )
 		    	{
 			RefitSuccess = false;
 			PeakDevVec PeakDev;
@@ -547,6 +632,35 @@ void DPRawHitFinder::produce(art::Event& evt)
 			    break;
 			    }	
 			}
+
+		      if(fLogLevel >=5)
+	    	      {
+		        std::cout << std::endl;
+		        std::cout << "--- Refit ---" << std::endl;
+			if( chi2PerNDF == oldChi2PerNDF) std::cout << "chi2/ndf didn't improve. Keep first fit." << std::endl;
+			else
+			{
+		          std::cout << "- Added peaks to group #" << j << ". This group now has " << nExponentialsForFit << " peaks:" << std::endl;
+		          std::cout << "- Group #" << j << " (" << peakVals.size() << " peaks):  GroupStartTick: " << range.offset + startT << "    GroupEndTick: " << range.offset + endT << std::endl;
+
+	 	          int CountPeakInGroup=0;
+	                  for( auto const& peakValsTmp : peakVals )
+		          {
+		            std::cout << "Peak #" << CountPeakInGroup << " in group #" << j << ":  PeakInGroupStartTick: " << range.offset + std::get<2>(peakValsTmp) << "    PeakInGroupMaxTick: " <<  range.offset + std::get<0>(peakValsTmp) << "    PeakInGroupEndTick: " << range.offset + std::get<3>(peakValsTmp) << std::endl;
+		            CountPeakInGroup++;
+		          }
+
+		          std::cout << "chi2/ndf = " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+		          std::cout << "tau1 [mus] = " << std::setprecision(3) << std::fixed << paramVec[0].first << std::endl;
+		          std::cout << "tau2 [mus] = " << std::setprecision(3) << std::fixed << paramVec[1].first << std::endl;
+
+                          for(unsigned int i = 0; i < nExponentialsForFit; i++)
+                          {
+		            std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << paramVec[2*(i+1)].first << std::endl;
+		            std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << range.offset + paramVec[2*(i+1)+1].first << std::endl;
+		          }
+		        }
+		      }
                     }
 	    
                 // #######################################################
@@ -596,23 +710,28 @@ void DPRawHitFinder::produce(art::Event& evt)
 
 
 		    //Check if fit returns reasonable values
-		    if(peakWidth <= 0 || charge <= 0. || charge != charge)
+		    if(chi2PerNDF > fChi2NDF || peakWidth <= 0 || charge <= 0. || charge != charge)
 		    {
-		      if(fLogLevel == 1)
+		      if(fLogLevel >= 1)
 		      {
-			std::cout << "Fit failed" << std::endl;
+		        std::cout << std::endl;
+			std::cout << "WARNING: For peak #" << i << " in this group:" << std::endl;
+			if (chi2PerNDF > fChi2NDF) std::cout << "chi2/ndf of this fit is higher than threshold (" << fChi2NDF << "): " << chi2PerNDF << std::endl;
+			else std::cout << "Fit function returned width < 0 or charge < 0 or charge = nan." << std::endl;
+			std::cout << "---> DO NOT create hit object from fit parameters but use peak values instead." << std::endl;
+			std::cout << "---> Set fit parameter so that a sharp peak with a width of 1 tick is shown in the event display. This indicates that the fit failed." << std::endl;
 		      }
 		      peakWidth = ( ( (double)endTthisHit - (double)startTthisHit )/4. ) / fWidthNormalization; //~4 is the factor between FWHM and full width of the hit (last bin - first bin). no drift: 4.4, 6m drift: 3.7
 		      peakWidth *= 2;	//double the peak width again (overestimating the width is safer than underestimating it)
 		      charge = sumADC;
 		      peakMeanTrue = std::get<0>(peakVals.at(i));
 		      //set the fit values to make it visible in the event display that this fit failed
-                      peakMean = -50000;
-                      peakTau1 = 1;
-                      peakTau2 = 1;
+                      peakMean = peakMeanTrue-2;
+                      peakTau1 = 0.008;
+                      peakTau2 = 0.0065;
 		    }
-
-		    if(fLogLevel == 1)
+/*
+		    if(fLogLevel >= 1)
 		    {
 		      std::cout << "channel: " << channel << std::endl;
 		      std::cout << "charge: " << charge << std::endl;
@@ -624,7 +743,7 @@ void DPRawHitFinder::produce(art::Event& evt)
 		      std::cout << "peakWidth: " << peakWidth << std::endl;
 		      std::cout << std::endl;
 		    }
-
+*/
                     // Create the hit
                     recob::HitCreator hitcreator(*wire,                            // wire reference
                                                  wid,                              // wire ID
@@ -643,6 +762,23 @@ void DPRawHitFinder::produce(art::Event& evt)
                                                  chi2PerNDF,                       // goodness_of_fit
                                                  NDF                               // dof
                                                  );
+
+		    if(fLogLevel >=6)
+	    	    {
+		      std::cout << std::endl;
+		      std::cout << "- Created hit object for peak #" << i << " in this group with the following parameters:" << std::endl;
+		      std::cout << "HitStartTick: " << startT+roiFirstBinTick << std::endl;
+		      std::cout << "HitEndTicks: " << endT+roiFirstBinTick << std::endl;
+		      std::cout << "HitWidthTicks: " << std::setprecision(2) << std::fixed << peakWidth << std::endl;
+		      std::cout << "HitMeanTick: " << std::setprecision(2) << std::fixed << peakMeanTrue+roiFirstBinTick << " +- " << peakMeanErr << std::endl;
+		      std::cout << "HitAmplitude [ADC]: " << std::setprecision(1) << std::fixed << peakAmp << " +- " << peakAmpErr << std::endl;
+		      std::cout << "HitIntegral [ADC*ticks]: " << std::setprecision(1) << std::fixed << charge << " +- " << chargeErr << std::endl;
+		      std::cout << "HitADCSum [ADC*ticks]: " << std::setprecision(1) << std::fixed << sumADC << std::endl;
+		      std::cout << "HitMultiplicity: " << nExponentialsForFit << std::endl;
+		      std::cout << "HitIndex in group: " << numHits << std::endl;
+		      std::cout << "Hitchi2/ndf: " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+		      std::cout << "HitNDF: " << NDF << std::endl;
+		    }
 
                     const recob::Hit hit(hitcreator.move());
 		    

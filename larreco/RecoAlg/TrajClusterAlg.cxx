@@ -166,7 +166,8 @@ namespace tca {
     if(validCTP) debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
     bool debugMerge = debug.Wire < 0;
     bool debugVtx = debug.Tick < 0;
-    fDebugMode = validCTP || debug.WorkID < 0 || debugMerge || debugVtx;
+    bool debugWorkID = debug.WorkID < 0;
+    fDebugMode = validCTP && (debugWorkID || debugMerge || debugVtx);
     if(fDebugMode) {
       std::cout<<"**************** Debug mode: debug.CTP "<<debug.CTP<<" ****************\n";
       std::cout<<"Cryostat "<<debug.Cryostat<<" TPC "<<debug.TPC<<" Plane "<<debug.Plane<<"\n";
