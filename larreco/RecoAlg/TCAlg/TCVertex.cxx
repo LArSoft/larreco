@@ -1308,17 +1308,6 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp P"<<pfp.ID<<" 3V"<<vx3.ID;
         // re-purpose BestPlane so we can search nearby entries of tjs.matchVec
         pfp.BestPlane = ims;
-        // do a first look for broken tjs in the lower-rank entries
-        for(unsigned int jj = ims + 1; jj < ims + 11; ++jj) {
-          if(jj == tjs.matchVec.size()) break;
-          auto& jms = tjs.matchVec[jj];
-          std::vector<int> shared = SetIntersection(jms.TjIDs, ms.TjIDs);
-          if(shared.size() < 2) continue;
-          for(auto tjid : jms.TjIDs) {
-            if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjid) != pfp.TjIDs.end()) continue;
-            pfp.TjIDs.push_back(tjid);
-          }
-        } // jj
         // Find Tp3s and end points
         if(!DefinePFP("M3DVTj1", tjs, pfp, prt)) continue;
         // separation distance (cm) for kink detection.
