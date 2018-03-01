@@ -21,11 +21,9 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "canvas/Persistency/Common/Ptr.h"
-#include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/PFParticle.h"
-#include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -160,6 +158,7 @@ namespace tca {
     unsigned short AngleCode {0};          // 0 = small angle, 1 = large angle, 2 = very large angle
     std::vector<unsigned int> Hits; // vector of fHits indices
     std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
+    std::bitset<4> Environment {0};    // TPEnvironment_t bitset that describes the environment, e.g. nearby showers or other Tjs
   };
   
   // Global information for the trajectory
@@ -183,8 +182,8 @@ namespace tca {
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     unsigned int MCPartListIndex {UINT_MAX};
-    unsigned short NNeighbors {0};    /// number of neighbors within window defined by ShowerTag
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
+    bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated (only for the TP Environment right now)
   };
   
   // Local version of recob::Hit
@@ -209,8 +208,6 @@ namespace tca {
   
   // struct used for TrajCluster 3D trajectory points
   struct TrajPoint3 {
-    Point3_t FitPos {0};
-    Vector3_t FitDir {0};
     Point3_t Pos {0};
     Vector3_t Dir {0};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
@@ -220,13 +217,6 @@ namespace tca {
     unsigned short nPtsFit {2}; 
     bool IsValid {true};     // Is consistent with the position/angle of nearby space points
   };
-  
-  // struct used for recob::SpacePoints
-  struct SptStruct {
-    Point3_t Pos;
-    std::array<unsigned int, 3> Hits {UINT_MAX};
-    unsigned short TPC {USHRT_MAX};
-  }; 
 
   // Struct for 3D trajectory matching
   struct MatchStruct {
@@ -240,7 +230,6 @@ namespace tca {
   struct PFPStruct {
     std::vector<int> TjIDs;
     std::vector<TrajPoint3> Tp3s;    // TrajCluster 3D trajectory points
-    recob::Track Track;
     // Start is 0, End is 1
     std::array<Point3_t, 2> XYZ;        // XYZ position at both ends (cm)
     std::array<Vector3_t, 2> Dir;
@@ -261,6 +250,7 @@ namespace tca {
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
+    bool DirectionFixed {false};  // Fix the direction of the pfp if it is small angle
   };
 
   struct ShowerPoint {
@@ -372,7 +362,7 @@ namespace tca {
     kCTStepChk,
     kTryWithNextPass,
     kRvPrp,
-    kChkHiMultHits,
+    kCHMUH,
     kSplit,
     kComp3DVx,
     kComp3DVxIG,
@@ -391,6 +381,7 @@ namespace tca {
     kChkInTraj,
     kStopBadFits,
     kFixBegin,
+    kFTBChg,
     kBeginChg,
     kFixEnd,
     kUUH,
@@ -409,6 +400,7 @@ namespace tca {
     kStopAtTj,
     kMat3D,
     kMat3DMerge,
+    kSplit3DKink,
     kTjHiVx3Score,
     kVtxHitsSwap,
     kSplitHiChgHits,
@@ -438,8 +430,15 @@ namespace tca {
     kFlagBitSize     ///< don't mess with this line
   } StopFlag_t; 
   
+  typedef enum {
+    kEnvNearShower,
+    kEnvNearTj,
+    kEnvUnusedHits
+  } TPEnvironment_t;
+  
   extern const std::vector<std::string> AlgBitNames;
   extern const std::vector<std::string> StopFlagNames;
+  extern const std::vector<std::string> TPEnvNames;
   extern const std::vector<std::string> VtxBitNames;
   
   struct TjStuff {
@@ -472,7 +471,6 @@ namespace tca {
     std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
     std::vector<Tj2Pt> mallTraj;      ///< vector of trajectory points ordered by increasing X
     std::vector<TCHit> fHits;
-    std::vector<SptStruct> spts;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
@@ -508,6 +506,7 @@ namespace tca {
     short NPtsAve;         /// number of points to find AveChg
     bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
     bool NeedsRebuild;  ///< Significant changes were made necessitating a complete re-do of the 3D matching and vertexing
+    bool TestBeam;      ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
    };
 
 } // namespace tca

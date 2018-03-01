@@ -13,12 +13,11 @@ standard_trajclusteralg:
    MinPtsFit: [3, 3, 3]     # Min number of points in the trajectory fit required on each pass
    MinPts:    [5, 5, 3]     # Min number of points in the trajectory required on each pass
    MaxAngleCode: [0, 1, 2]  # Max angle range code allowed on each pass
-   MinMCSMom: [100, 0, 0]   # Minimum MCSMom for each pass
-   MaxVertexTrajSep: [6, 6, 4] # Max separation for attaching trajectories to 3D vertices (WSE units)
+   MinMCSMom: [0, 0, 0]   # Minimum MCSMom for each pass
    MaxChi: 20               # Max Chi/DOF for accepting a trajectory fit (long muons)
    HitErrFac: 0.4          # hit time error for fitting = fHitErrFac * (hit RMS)
    MinAmp:  1               # Min amplitude for a wire signal being considered present (must be > 0)
-   AngleRanges: [40, 55, 75, 90]  # Max angle (degrees) for small, intermediate and large angle trajectories
+   AngleRanges: [40, 85, 90]  # Max angle (degrees) for small, intermediate and large angle trajectories
    MultHitSep: 2.5          # Hits separated by < MultHitSep * RMS may be combined in a trajectory point
    ChargeCuts: [4, 0.15, 0.25]  # [Max(min) chg pull, Min allowed chg RMS, Max allowed chg RMS]
    KinkCuts: [0.4, 1.5, 3] # kink angle, MCS kink significance, nPts fit
@@ -78,8 +77,8 @@ standard_trajclusteralg:
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    StudyMode: false         # Set true to generate histograms
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
-   DebugCryostat: 0
-   DebugTPC: 0
+   DebugCryostat: -1
+   DebugTPC: -1
    DebugPlane: -1           # Print debug output in a plane (3 = all planes, <0 = none)
    DebugWire: -1            # Print debug output for a trajectory that starts on DebugWire (<0 = print merging)
    DebugTick: -1            # Print debug output for a trajectory that starts at DebugTick +/- 5 ticks (<0 = print vtx finding)
