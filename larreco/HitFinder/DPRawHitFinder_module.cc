@@ -80,7 +80,7 @@ namespace hit{
     void produce(art::Event& evt) override;
     void beginJob() override;
     void endJob() override;
-    void reconfigure(fhicl::ParameterSet const& p) override;
+    void reconfigure(fhicl::ParameterSet const& p) ;
 
   private:
 

@@ -40,7 +40,7 @@ namespace trkf {
     explicit TCTrack(fhicl::ParameterSet const & pset);
     virtual ~TCTrack() = default;
     
-    void reconfigure(fhicl::ParameterSet const & pset) override;
+    void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
     void endJob();
     

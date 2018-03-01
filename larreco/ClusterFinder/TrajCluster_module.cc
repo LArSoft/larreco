@@ -49,7 +49,7 @@ namespace cluster {
     explicit TrajCluster(fhicl::ParameterSet const & pset);
     virtual ~TrajCluster() = default;
     
-    void reconfigure(fhicl::ParameterSet const & pset) override;
+    void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
     void beginJob();
     void endJob();
