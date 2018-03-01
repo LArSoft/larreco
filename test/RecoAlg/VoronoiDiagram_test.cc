@@ -22,7 +22,6 @@
 // utility libraries
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-
 //------------------------------------------------------------------------------
 //---  The test environment
 //---

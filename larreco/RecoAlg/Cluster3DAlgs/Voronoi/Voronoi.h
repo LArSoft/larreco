@@ -9,6 +9,11 @@
 #ifndef VoronoiDiagram_h
 #define VoronoiDiagram_h
 
+// std includes
+#include <list>
+#include <algorithm>
+#include <queue>
+
 // LArSoft includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/SweepEvent.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/Voronoi/BeachLine.h"
@@ -18,11 +23,6 @@
 
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
-
-// std includes
-#include <list>
-#include <algorithm>
-#include <queue>
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace voronoi2d
@@ -109,11 +109,11 @@ private:
      */
     IEvent* makeCircleEvent(BSTNode*, BSTNode*, BSTNode*, double);
     
-    bool computeCircleCenter(const dcel2d::Coords&, const dcel2d::Coords&, const dcel2d::Coords&, dcel2d::Coords&, double&) const;
+    bool computeCircleCenter(const dcel2d::Coords&, const dcel2d::Coords&, const dcel2d::Coords&, dcel2d::Coords&, double&, double&) const;
 
-    bool computeCircleCenter2(const dcel2d::Coords&, const dcel2d::Coords&, const dcel2d::Coords&, dcel2d::Coords&, double&) const;
+    bool computeCircleCenter2(const dcel2d::Coords&, const dcel2d::Coords&, const dcel2d::Coords&, dcel2d::Coords&, double&, double&) const;
     
-    bool computeCircleCenter3(const dcel2d::Coords&, const dcel2d::Coords&, const dcel2d::Coords&, dcel2d::Coords&, double&) const;
+    bool computeCircleCenter3(const dcel2d::Coords&, const dcel2d::Coords&, const dcel2d::Coords&, dcel2d::Coords&, double&, double&) const;
     
     /**
      *  @brief this function recovers the convex hull
@@ -154,6 +154,16 @@ private:
                           BoostVertexToVertexMap&,
                           BoostCellToFaceMap&);
 
+    /**
+     *  @brief merge degenerate vertices (found by zero length edges)
+     */
+    void mergeDegenerateVertices();
+    
+    /**
+     *  @brief Compute the area of the faces
+     */
+    double ComputeFaceArea();
+    
     /**
      *  @brief Gets the cross product of line from p0 to p1 and p0 to p2
      */

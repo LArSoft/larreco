@@ -10,13 +10,13 @@
 #ifndef DCEL2D_h
 #define DCEL2D_h
 
-// Eigen
-#include <Eigen/Dense>
-
 // std includes
 #include <vector>
 #include <list>
 #include <algorithm>
+
+// Eigen
+#include <Eigen/Dense>
 //------------------------------------------------------------------------------------------------------------------------------------------
 
 namespace reco
@@ -95,6 +95,7 @@ public:
         fHalfEdge(half),
         fConvexHull(false),
         fCoords(coords),
+        fFaceArea(0.),
         fClusterHit3D(clusterHit3D)
     {}
     
@@ -103,15 +104,18 @@ public:
     const HalfEdge*           getHalfEdge()     const {return fHalfEdge;}
     const bool                onConvexHull()    const {return fConvexHull;}
     const Coords&             getCoords()       const {return fCoords;}
+    const double              getFaceArea()     const {return fFaceArea;}
     const reco::ClusterHit3D* getClusterHit3D() const {return fClusterHit3D;}
     
     void setHalfEdge(HalfEdge* half)  {fHalfEdge   = half;}
     void setOnConvexHull()            {fConvexHull = true;}
+    void setFaceArea(double area)     {fFaceArea   = area;}
     
 private:
     HalfEdge*                 fHalfEdge;     // pointer to one of the half edges
     mutable bool              fConvexHull;   // This face on convex hull
     Coords                    fCoords;       // projected coordinates of associated point
+    double                    fFaceArea;     // The area of the face once constructed
     const reco::ClusterHit3D* fClusterHit3D; // The physical 3D hit this corresponds to
 };
 

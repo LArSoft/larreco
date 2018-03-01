@@ -1104,7 +1104,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
             
             std::cout << "Preparing to save the vertex point list, size: " << vertexList.size() << ", half edges: " << halfEdgeList.size() << std::endl;
             
-//            MakeAndSaveVertexPoints(output, vertexList, halfEdgeList);
+            MakeAndSaveVertexPoints(output, vertexList, halfEdgeList);
 
             // Special case handling... if no daughters then call standard conversion routine to make sure space points
             // created, etc.
@@ -1123,7 +1123,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
                 FindAndStoreDaughters(output, clusterParameters, pfParticleIdx, idxToPCAMap, hitToPtrMap, hit3DToSPPtrMap);
                 
                 // Now make the piecewise curve
-                MakeAndSavePCAPoints(output, clusterParameters.getFullPCA(), idxToPCAMap);
+//                MakeAndSavePCAPoints(output, clusterParameters.getFullPCA(), idxToPCAMap);
 
                 // Need to make a daughter vec from our map
                 std::vector<size_t> daughterVec;

@@ -34,8 +34,6 @@ BSTNode::BSTNode(IEvent* event, BSTNode* parent, BSTNode* leftChild, BSTNode* ri
     
     m_event->setBSTNode(this);
     
-    m_checked = false;
-    
     // Reset depth
     setDepth();
 }
@@ -386,6 +384,8 @@ void BeachLine::checkBeachLine(double beachLine) const
     int      nLeaves(0);
     BSTNode* lastBreakPoint(NULL);
     
+    const double tolerance(1.e-5);
+    
     // This is the start of the beach line, we now traverse across and and check status
     // of each breakpoint's position
     while(node->getSuccessor())
@@ -396,7 +396,7 @@ void BeachLine::checkBeachLine(double beachLine) const
             RootsPair roots;
             double breakPoint = m_utilities.computeBreak(beachLine, node->getPredecessor()->getEvent(), node->getSuccessor()->getEvent(), roots);
             
-            if (breakPoint < lastBreakPointY)
+            if (breakPoint + tolerance < lastBreakPointY)
             {
                 std::cout << "  #####>> Beach line check gets bad breakpoint, last: " << lastBreakPointY << ", new: " << breakPoint << ", roots: " << roots.first << "/" << roots.second << std::endl;
                 std::cout << "          Current left arc x,y: " << node->getPredecessor()->getEvent()->xPos() << ", " << node->getPredecessor()->getEvent()->yPos() << ", right arc x,y: " << node->getSuccessor()->getEvent()->xPos() << ", " << node->getSuccessor()->getEvent()->yPos() << ", beachLine: " << beachLine;
