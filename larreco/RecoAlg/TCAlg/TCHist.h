@@ -56,6 +56,8 @@ namespace tca {
     // PFParticle PDGCode vs true PDG code
     TH2F* PDGCode_reco_true;
     
+    TH1F* fEff;
+    TH1F* fPur;
     
   };
 } // namespace tca
