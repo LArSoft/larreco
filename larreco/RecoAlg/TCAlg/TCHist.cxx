@@ -54,6 +54,9 @@ namespace  tca {
     fMCSMomEP_TruMom_e = tfs.make<TH2F>("MCSMomEP_TruMom_e","MCSMom vs Tru Mom electrons", 50, 0, 100, 50, 0, 1000);
     
     PDGCode_reco_true = tfs.make<TH2F>("PDGCode_reco_true", "PDGCode Reco vs True", 5, -0.5, 4.5, 5, -0.5, 4.5);
+    
+    fEff = tfs.make<TH1F>("Eff","Efficiency", 50, 0, 1);
+    fPur = tfs.make<TH1F>("Pur","Purity", 50, 0, 1);
 
   }
   
