@@ -1293,12 +1293,17 @@ namespace tca {
       for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
         auto& ms = tjs.matchVec[ims];
         bool skipit = false;
+        // count inShower
+        unsigned short cnt = 0;
         for(auto tjid : ms.TjIDs) {
           auto& tj = tjs.allTraj[tjid - 1];
           if(tj.AlgMod[kMat3D]) skipit = true;
           if(tj.AlgMod[kKilled]) skipit = true;
+          if(tj.AlgMod[kInShower]) ++cnt;
         }
         if(skipit) continue;
+        // require all not-InShower or all InShower
+        if(cnt > 0 && cnt < ms.TjIDs.size()) continue;
         std::vector<int> shared = SetIntersection(ms.TjIDs, v3TjIDs);
         if(shared.size() < 2) continue;
         if(prt) mf::LogVerbatim("TC")<<" ims "<<ims<<" shared size "<<shared.size();
@@ -1335,7 +1340,14 @@ namespace tca {
       if(v3TjIDs.size() > 1 && v3TjIDs.size() <= tjs.NumPlanes) {
         // a last-ditch attempt
         PFPStruct pfp = CreatePFP(tjs, tpcid);
-        pfp.TjIDs = v3TjIDs;
+        // put the available leftovers in
+        for(auto& tjid : v3TjIDs) {
+          auto& tj = tjs.allTraj[tjid - 1];
+          if(tj.AlgMod[kMat3D]) continue;
+          if(tj.AlgMod[kKilled]) continue;
+          pfp.TjIDs.push_back(tjid);
+        } // tjid
+        if(pfp.TjIDs.size() < 2) continue;
         pfp.Vx3ID[0] = vx3.ID;
         if(!DefinePFP("M3DVTj2", tjs, pfp, prt)) continue;
         if(prt) PrintPFP("left", tjs, pfp, true);
