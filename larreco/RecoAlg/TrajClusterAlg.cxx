@@ -162,12 +162,12 @@ namespace tca {
     }
     
     // decide whether debug information should be printed
-    bool validCTP = debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0 && debug.Wire >= 0 && debug.Tick >= 0;
-    if(validCTP) debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
-    bool debugMerge = debug.Wire < 0;
-    bool debugVtx = debug.Tick < 0;
-    bool debugWorkID = debug.WorkID < 0;
-    fDebugMode = validCTP && (debugWorkID || debugMerge || debugVtx);
+    bool debugTj = debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0 && debug.Wire >= 0 && debug.Tick >= 0;
+    if(debugTj) debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
+    bool debugMerge = (debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane < 0);
+    bool debugVtx = (debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Tick < 0);
+    bool debugWorkID = (debug.Cryostat >= 0 && debug.TPC >= 0 && debug.WorkID < 0);
+    fDebugMode = (debugTj || debugMerge || debugVtx || debugWorkID);
     if(fDebugMode) {
       std::cout<<"**************** Debug mode: debug.CTP "<<debug.CTP<<" ****************\n";
       std::cout<<"Cryostat "<<debug.Cryostat<<" TPC "<<debug.TPC<<" Plane "<<debug.Plane<<"\n";
@@ -406,6 +406,7 @@ namespace tca {
         bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
         FillmAllTraj(tjs, tpcid);
         FindPFParticles("RTCA0", tjs, tpcid, prt);
+/* March 9
         // See if the Tj hierarchy needs to be re-built. Match3D 
         if(tjs.NeedsRebuild) {
           // Remove the 3D match flag
@@ -429,6 +430,7 @@ namespace tca {
           FindPFParticles("RTCA1", tjs, tpcid, prt);
 //          if(tjs.NeedsRebuild) std::cout<<"Match3D wants yet another rebuild...\n";
         }
+*/
         DefinePFPParents(tjs, tpcid, prt);
 /*
         //fit all pfps that are in pfps
@@ -1503,7 +1505,7 @@ namespace tca {
     if(tj.AlgMod[kRvPrp]) chgPullCut *= 2;
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"FUH:  maxDelta "<<maxDelta<<" useChg requested "<<useChg<<" Norm AveChg "<<(int)tp.AveChg<<" tj.ChgRMS "<<tj.ChgRMS<<" chgPullCut "<<chgPullCut<<" TPHitsRMS "<<(int)TPHitsRMSTick(tjs, tp, kUnusedHits)<<" ExpectedHitsRMS "<<(int)ExpectedHitsRMS(tjs, tp)<<" AngCode "<<tp.AngleCode;
+      mf::LogVerbatim("TC")<<"FUH:  maxDelta "<<maxDelta<<" useChg requested "<<useChg<<" Norm AveChg "<<(int)tp.AveChg<<" tj.ChgRMS "<<std::setprecision(2)<<tj.ChgRMS<<" chgPullCut "<<chgPullCut<<" TPHitsRMS "<<(int)TPHitsRMSTick(tjs, tp, kUnusedHits)<<" ExpectedHitsRMS "<<(int)ExpectedHitsRMS(tjs, tp)<<" AngCode "<<tp.AngleCode;
     }
 
     // inverse of the path length for normalizing hit charge to 1 WSE unit
@@ -5842,11 +5844,10 @@ namespace tca {
           mcvec.push_back(&(mclistHandle->at(i)));
         }
       }
-      std::cout<<" MCTruth vec size "<<mcvec.size()<<". Looking for origin "<<origin<<" \n";
       std::cout<<"MCtruth Part TrkID     PDGCode   KE   Mother Process\n";
       for(unsigned int i = 0; i < mcvec.size(); ++i) {
-        std::cout<<"mcvec "<<i<<" Origin "<<mcvec[i]->Origin()<<" NParticles "<<mcvec[i]->NParticles()<<"\n";
         if(!anySource && mcvec[i]->Origin() != origin) continue;
+        std::cout<<"mcvec "<<i<<" Origin "<<mcvec[i]->Origin()<<" NParticles "<<mcvec[i]->NParticles()<<"\n";
         for(int ii = 0; ii < mcvec[i]->NParticles(); ++ii) {
           auto& p = mcvec[i]->GetParticle(ii);
           if(!(p.StatusCode() == 0 || p.StatusCode() == 1)) continue;
