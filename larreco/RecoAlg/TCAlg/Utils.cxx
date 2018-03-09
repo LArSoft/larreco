@@ -279,12 +279,14 @@ namespace tca {
       if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) continue;
       auto& tj = tjs.allTraj[tjid - 1];
       for(unsigned short ii = 0; ii < 5; ++ii) if(tj.PDGCode == codeList[ii]) ++cnts[ii];
+      // count InShower Tjs with PDGCode not set (yet)
+      if(tj.PDGCode != 11 && tj.AlgMod[kInShower]) ++cnts[1];
       for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[end][kBragg]) ++stopCnt[end];
       float len = TrajLength(tj);
       if(len > maxLen) maxLen = len;
     } // tjid
     unsigned maxCnt = 0;
-    // ignore the first PDG code in the list which is the default
+    // ignore the first PDG code in the list (the default)
     for(unsigned short ii = 1; ii < 5; ++ii) {
       if(cnts[ii] > maxCnt) {
         maxCnt = cnts[ii];
@@ -439,6 +441,77 @@ namespace tca {
       return false;
     }
   } // MergeTjIntoPFP
+  
+  /////////////////////////////////////////
+  bool CompatibleMerge(TjStuff& tjs, std::vector<int>& tjIDs, bool prt)
+  {
+    // Returns true if the last Tj in tjIDs has a topology consistent with it being
+    // merged with other Tjs in the same plane in the list. This is done by requiring that
+    // the closest TP between the last Tj and any other Tj is EndPt[0] or EndPt[1]. This is
+    // shown graphically here where the numbers represent the ID of a Tj that has a TP on a wire.
+    // Assume that TjIDs = {1, 2, 3, 4, 7} where T1 and T3 are in plane 0, T2 is in plane 1 and
+    // T4 is in plane 2. T7, in plane 0, was added to TjIDs with the intent of merging it with
+    // T1 and T3 into a single trajectory. This is a compatible merge if Tj7 has the following
+    // topology:
+    //  111111 333333 7777777
+    // This is an incompatible topology
+    //  111111 333333
+    //      7777777777
+    if(tjIDs.size() < 2) return false;
+    unsigned short lasttj = tjIDs[tjIDs.size() - 1] - 1;
+    auto& mtj = tjs.allTraj[lasttj];
+    bool mtjIsShort = (mtj.Pts.size() < 5);
+    // minimum separation from each end of mtj
+    std::array<float, 2> minsep2 {1000, 1000};
+    // ID of the Tj with the minimum separation
+    std::array<int, 2> minsepTj {0, 0};
+    // and the index of the point on that Tj
+    std::array<unsigned short, 2> minsepPt;
+    // determine the end of the closest Tj point. Start by assuming
+    // the closest Tj point is not near an end (end = 0);
+    std::array<unsigned short, 2> minsepEnd;
+    for(auto tjid : tjIDs) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      if(tj.CTP != mtj.CTP) continue;
+      if(tj.ID == mtj.ID) continue;
+      for(unsigned short mend = 0; mend < 2; ++mend) {
+        Point2_t mendPos = mtj.Pts[mtj.EndPt[mend]].Pos;
+        float sep2 = minsep2[mend];
+        unsigned short closePt = 0;
+        if(!TrajClosestApproach(tj, mendPos[0], mendPos[1], closePt, sep2)) continue;
+        minsep2[mend] = sep2;
+        minsepTj[mend] = tjid;
+        minsepPt[mend] = closePt;
+        // set the end to a bogus value (not near an end)
+        minsepEnd[mend] = 2;
+        short dend0 = abs((short)closePt - tj.EndPt[0]);
+        short dend1 = abs((short)closePt - tj.EndPt[1]);
+        if(dend0 < dend1 && dend0 < 3) minsepEnd[mend] = 0;
+        if(dend1 < dend0 && dend1 < 3) minsepEnd[mend] = 1;
+      } // mend
+    } // tjid
+//    bool isCompatible = (minsepEnd[0] != 2 && minsepTj[0] == minsepTj[1] && minsepEnd[0] == minsepEnd[1]);
+    // don't require that the minsepTjs be the same. This would reject this topology
+    //  111111 333333 7777777
+    // if mtj.ID = 3
+    bool isCompatible = (minsepEnd[0] != 2 && minsepEnd[1] != 2);
+    // check for large separation between the closest points for short Tjs
+    if(isCompatible && mtjIsShort) {
+      float minminsep = minsep2[0];
+      if(minsep2[1] < minminsep) minminsep = minsep2[1];
+      // require that the separation be less than sqrt(5)
+      isCompatible = minminsep < 5;
+//      if(minminsep > 2) std::cout<<"CM: mtj T"<<mtj.ID<<" is short and the separation is large "<<minminsep<<". Check for signal between\n ";
+    }
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"CompatibleMerge: T"<<mtj.ID<<" end";
+      for(unsigned short end = 0; end < 2; ++end) myprt<<" T"<<minsepTj[end]<<"_I"<<minsepPt[end]<<"_E"<<minsepEnd[end]<<" minsep "<<sqrt(minsep2[end]);
+      myprt<<" Compatible? "<<isCompatible;
+    } // prt
+    return isCompatible;
+    
+  } // CompatibleMerge
   
   /////////////////////////////////////////
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt)
@@ -1164,7 +1237,7 @@ namespace tca {
         if(tj.Pts[ipt].UseHit[ii]) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
           if(tjs.fHits[iht].InTraj > 0) {
-            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj ID = "<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
+            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj T"<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
             PrintTrajectory("ST", tjs, tj, USHRT_MAX);
             ReleaseHits(tjs, tj);
             return false;
@@ -1177,7 +1250,7 @@ namespace tca {
     // ensure that inTraj is clean for the ID
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       if(tjs.fHits[iht].InTraj == tj.ID) {
-        mf::LogWarning("TC")<<"StoreTraj: Hit "<<PrintHit(tjs.fHits[iht])<<" thinks it belongs to traj ID "<<tj.ID<<" but it wasn't stored\n";
+        mf::LogWarning("TC")<<"StoreTraj: Hit "<<PrintHit(tjs.fHits[iht])<<" thinks it belongs to T"<<tj.ID<<" but it wasn't stored\n";
         PrintTrajectory("SW", tjs, tj, USHRT_MAX);
         return false;
       }
@@ -2994,14 +3067,18 @@ namespace tca {
 
     std::string fcnLabel = inFcnLabel + ".UpTjProp";
 
-    // first (un)set the kEnvUnusedHits bit
+    // first (un)set some bits
     for(auto& tp : tj.Pts) {
       if(tp.Chg <= 0) continue;
       tp.Environment[kEnvUnusedHits] = false;
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         if(tp.UseHit[ii]) continue;
         unsigned int iht = tp.Hits[ii];
-        if(tjs.fHits[iht].InTraj == 0) tp.Environment[kEnvUnusedHits] = true;
+        if(tjs.fHits[iht].InTraj == 0) {
+          tp.Environment[kEnvUnusedHits] = true;
+        } else {
+          tp.Environment[kEnvNearTj] = true;
+        }
       } // ii
     } // tp
     
@@ -3087,10 +3164,11 @@ namespace tca {
     double arg = vsum2 - vcnt * tj.AveChg * tj.AveChg;
     double rms = 0.5;
     if(arg > 0) rms = sqrt(arg / (vcnt - 1));
+    rms /= tj.AveChg;
     // don't let it be an unrealistically low value. It could be crazy large however.
     if(rms < 0.1) rms = 0.1;
     // Don't let the calculated charge RMS dominate until it is well known; after there are 5 - 10 valid TPs.
-    // Assume that the charge rms is 0.5 
+    // Set the starting charge rms = 0.5 
     if(vcnt < 10) {
       double defFrac = 1 / vcnt;
       rms = defFrac * 0.5 + (1 - defFrac) * rms;
@@ -3286,7 +3364,7 @@ namespace tca {
     } // tjid
     
   } // UpdateVxEnvironment
-  
+
   /////////////////////////////////////////
   TrajPoint MakeBareTrajPoint(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP)
   {
@@ -3936,20 +4014,18 @@ namespace tca {
           } // plane
           if(vx3.Wire == -2) {
             // find the Tjs that are attached to it
-            myprt<<" Tjs";
             for(auto& pfp : tjs.pfps) {
               if(pfp.Vx3ID[0] == tjs.vtx3[iv].ID) {
-                for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
+                for(auto& tjID : pfp.TjIDs) myprt<<" T"<<tjID;
               }
               if(pfp.Vx3ID[1] == tjs.vtx3[iv].ID) {
-                for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
+                for(auto& tjID : pfp.TjIDs) myprt<<" T"<<tjID;
               }
             } // ipfp
           } else {
             float score;
             auto vxtjs = GetVtxTjIDs(tjs, vx3, score);
-            myprt<<" Tjs";
-            for(auto tjid : vxtjs) myprt<<" "<<tjid;
+            for(auto tjid : vxtjs) myprt<<" T"<<tjid;
           }
           myprt<<"\n";
         }
@@ -4012,7 +4088,7 @@ namespace tca {
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
 //      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx Chg(k) chgRMS  Mom SDr __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
-      myprt<<someText<<"   ID   CTP Pass  Pts     W:T      Ang CS AveQ InSh     W:T      Ang CS AveQ InSh Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<"    ID   CTP Pass  Pts     W:T      Ang CS AveQ fnTj     W:T      Ang CS AveQ fnTj Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < tjs.allTraj.size(); ++ii) {
         auto& aTj = tjs.allTraj[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
@@ -4052,7 +4128,8 @@ namespace tca {
         unsigned short midPt = 0.5 * (aTj.EndPt[0] + aTj.EndPt[1]);
         for(unsigned short ipt = aTj.EndPt[0]; ipt < midPt; ++ipt) {
           auto& tp = aTj.Pts[ipt];
-          if(tp.Environment[kEnvNearShower]) ++frac;
+//          if(tp.Environment[kEnvNearShower]) ++frac;
+          if(tp.Environment[kEnvNearTj]) ++frac;
           ++cnt;
         } // ipt
         if(cnt > 0) frac /= cnt;
@@ -4084,7 +4161,8 @@ namespace tca {
         cnt = 0;
         for(unsigned short ipt = midPt; ipt <= aTj.EndPt[1]; ++ipt) {
           auto& tp = aTj.Pts[ipt];
-          if(tp.Environment[kEnvNearShower]) ++frac;
+//          if(tp.Environment[kEnvNearShower]) ++frac;
+          if(tp.Environment[kEnvNearTj]) ++frac;
           ++cnt;
         } // ipt
         if(cnt > 0) frac /= cnt;
@@ -4280,7 +4358,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____    Len  nTp3   PDG mcpIndx Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____   Len  nTp3  AspRat PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
     myprt<<std::setw(5)<<pfp.ID;
@@ -4322,7 +4400,8 @@ namespace tca {
     } else {
       myprt<<std::setw(5)<<std::setprecision(0)<<length;
     }
-    myprt<<std::setw(5)<<pfp.Tp3s.size();
+    myprt<<std::setw(5)<<std::setprecision(2)<<pfp.Tp3s.size();
+    myprt<<std::setw(8)<<pfp.AspectRatio;
     myprt<<std::setw(6)<<pfp.PDGCode;
     if(pfp.MCPartListIndex < tjs.MCPartList.size()) {
       myprt<<std::setw(8)<<pfp.MCPartListIndex;
@@ -4333,12 +4412,11 @@ namespace tca {
     myprt<<std::setw(5)<<PrimaryID(tjs, pfp);
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
     if(!pfp.TjIDs.empty()) {
-      myprt<<" tjs";
-      for(auto& tjID : pfp.TjIDs) myprt<<" "<<tjID;
+      for(auto& tjID : pfp.TjIDs) myprt<<" T"<<tjID;
     }
     if(!pfp.DtrIDs.empty()) {
       myprt<<" dtrs";
-      for(auto& dtrID : pfp.DtrIDs) myprt<<" "<<dtrID;
+      for(auto& dtrID : pfp.DtrIDs) myprt<<" T"<<dtrID;
     }
   } // PrintPFP
   
