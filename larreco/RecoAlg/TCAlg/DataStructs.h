@@ -136,6 +136,7 @@ namespace tca {
     // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
     unsigned short npts;
     short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
+    bool inShower;
   };
 
   struct TrajPoint {
@@ -223,13 +224,17 @@ namespace tca {
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
     std::vector<int> TjIDs;
+    std::vector<float> TjCompleteness;  // fraction of TP points that are 3D-matched
     // Count of the number of X-matched hits and de-weight by angle
     float Count {0};                    // Set to 0 if matching failed
-    float MatchFrac {0};
+    Point3_t Pos;               // Position center using 3D-matched points on the Tjs - 3D fit
+    Vector3_t Dir;              // Direction using 3D-matched points on the Tjs - 3D fit
+    float AspectRatio {-1};           // Aspect ratio calculated when doing a 3D fit
   };
   
   struct PFPStruct {
     std::vector<int> TjIDs;
+    std::vector<float> TjCompleteness;  // fraction of TP points that are 3D-matched
     std::vector<TrajPoint3> Tp3s;    // TrajCluster 3D trajectory points
     // Start is 0, End is 1
     std::array<Point3_t, 2> XYZ;        // XYZ position at both ends (cm)
@@ -247,6 +252,7 @@ namespace tca {
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned int MCPartListIndex {UINT_MAX};
     float CosmicScore{0};
+    float AspectRatio {0};
     unsigned short ID {0};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
@@ -432,6 +438,7 @@ namespace tca {
   } StopFlag_t; 
   
   typedef enum {
+    kEnvNearTj,
     kEnvNearShower,
     kEnvOverlap,
     kEnvUnusedHits
@@ -439,7 +446,6 @@ namespace tca {
   
   extern const std::vector<std::string> AlgBitNames;
   extern const std::vector<std::string> StopFlagNames;
-  extern const std::vector<std::string> TPEnvNames;
   extern const std::vector<std::string> VtxBitNames;
   
   struct TjStuff {
@@ -506,7 +512,7 @@ namespace tca {
     short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
     short NPtsAve;         /// number of points to find AveChg
     bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
-    bool NeedsRebuild;  ///< Significant changes were made necessitating a complete re-do of the 3D matching and vertexing
+//    bool NeedsRebuild;  ///< Significant changes were made necessitating a complete re-do of the 3D matching and vertexing
     bool TestBeam;      ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
    };
 
