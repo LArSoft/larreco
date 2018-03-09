@@ -210,7 +210,12 @@ public:
 
 	/// Adjust track tree position in the drift direction (when T0 is being corrected).
 	void ApplyDriftShiftInTree(double dx, bool skipFirst = false);
+  /// Function to convert dx into dT0
+  void SetT0FromDx(double dx);
 	double GetT0(void) const { return fT0; }
+  /// Check if the T0 has been set - enables us to distinguish between T0 set very
+  /// close to zero or not set.
+  bool HasT0(void) const {return fT0Flag; }
 
 	/// Cut out tails with no hits assigned.
 	void CleanupTails(void);
@@ -339,6 +344,7 @@ private:
 	float fHitsRadius;
 
 	double fT0;
+  bool fT0Flag;
 
 	ETag fTag;
 };
