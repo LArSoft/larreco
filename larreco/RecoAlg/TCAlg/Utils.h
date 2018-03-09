@@ -51,6 +51,7 @@ namespace tca {
   int PrimaryID(const TjStuff& tjs, const Trajectory& tj);
   int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp);
   bool MergeTjIntoPFP(TjStuff& tjs, int mtjid, PFPStruct& pfp, bool prt);
+  bool CompatibleMerge(TjStuff& tjs, std::vector<int>& tjIDs, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt);
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
   void FilldEdx(TjStuff& tjs, PFPStruct& pfp);
