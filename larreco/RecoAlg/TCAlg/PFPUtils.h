@@ -34,6 +34,7 @@
 
 namespace tca {
 
+
   void UpdateMatchStructs(TjStuff& tjs, int oldTj, int newTj);
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
 //  void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
@@ -43,9 +44,18 @@ namespace tca {
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void SetEndVx(TjStuff& tjs, PFPStruct& pfp, unsigned short atEnd, bool prt);
   void SortByDistanceFromStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  bool FitTp3s(TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, Point3_t& pos, Vector3_t& dir, float& rCorr);
+  bool FitTp3s(TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short fromPt, unsigned short toPt, Point3_t& pos, Vector3_t& dir, float& rCorr);
   bool FitTp3(TjStuff& tjs, TrajPoint3& tp3, const std::vector<Tj2Pt>& tj2pts);
   void MoveTp3ToZ(TjStuff& tjs, TrajPoint3& tp3, double z);
+  void FindCompleteness(TjStuff& tjs, PFPStruct& pfp, bool doFit, bool fillTp3s, bool prt);
+  void Fit3D(unsigned short mode, Point3_t point, Point3_t& fitPos, Vector3_t& fitDir, float& aspectRatio);
   bool CheckAndMerge(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  float AspectRatio(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
+  unsigned short WiresSkippedInCTP(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
+  float LengthInCTP(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
+  bool AddMissedTj(TjStuff& tjs, PFPStruct& pfp, unsigned short itj, bool looseCuts, bool prt);
+  void CleanTjs(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool MergePFPTjs(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, std::vector<MatchStruct>& matVec, bool prt);
   bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3);
