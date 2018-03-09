@@ -573,6 +573,11 @@ namespace tca {
           float eff = (float)shared.size() / (float)mcpPlnHits.size();
           float pur = (float)shared.size() / (float)tjHits[itj].size();
           float ep = eff * pur;
+          // temp for checking
+          if(pdg != 11) {
+            hist.fEff->Fill(eff);
+            hist.fPur->Fill(pur);
+          }
           // Replace a previously made poorer match with a better one?
           if(tj.MCPartListIndex != UINT_MAX && ep > tj.EffPur) {
             tj.EffPur = ep;
@@ -621,23 +626,24 @@ namespace tca {
     } // isel
 
     // Calculate PFParticle efficiency and purity
-    if(tjs.pfps.empty()) return;
-    
-    // get the hits in all pfparticles in this TPCID
-    std::vector<std::vector<unsigned int>> pfpHits(tjs.pfps.size());
-    for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
-      auto& pfp = tjs.pfps[ipfp];
-      if(pfp.ID == 0) continue;
-      // in the right TPCID?
-      if(pfp.TPCID != inTPCID) continue;
-      // ignore the neutrino PFParticle
-      if(pfp.PDGCode == 14 || pfp.PDGCode == 12) continue;
-      pfp.MCPartListIndex = UINT_MAX;
-      for(auto& tjid : pfp.TjIDs) {
-        unsigned short itj = tjid - 1;
-        pfpHits[ipfp].insert(pfpHits[ipfp].end(), tjHits[itj].begin(), tjHits[itj].end());
-      } // tj
-    } // ipfp
+    std::vector<std::vector<unsigned int>> pfpHits;
+    if(!tjs.pfps.empty()) {
+      pfpHits.resize(tjs.pfps.size());
+      // get the hits in all pfparticles in this TPCID
+      for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
+        auto& pfp = tjs.pfps[ipfp];
+        if(pfp.ID == 0) continue;
+        // in the right TPCID?
+        if(pfp.TPCID != inTPCID) continue;
+        // ignore the neutrino PFParticle
+        if(pfp.PDGCode == 14 || pfp.PDGCode == 12) continue;
+        pfp.MCPartListIndex = UINT_MAX;
+        for(auto& tjid : pfp.TjIDs) {
+          unsigned short itj = tjid - 1;
+          pfpHits[ipfp].insert(pfpHits[ipfp].end(), tjHits[itj].begin(), tjHits[itj].end());
+        } // tj
+      } // ipfp
+    } // pfps exist
     
     // match them up
     for(unsigned short isel = 0; isel < mcpSelect.size(); ++isel) {
