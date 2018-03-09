@@ -939,14 +939,27 @@ void pma::PMAlgTracker::mergeCoLinear(pma::tpc_track_map& tracks)
 				mf::LogVerbatim("PMAlgTracker") << "Merge track ("
 					<< tpc1 << ":" << tracks1.size() << ":" << trk1->size() << ") with track ("
 					<< best_tpc  << ":" << tracks[best_tpc].size() << ":" << best_trk2->size() << ")";
+        auto const* geom = lar::providerFrom<geo::Geometry>();
+        const geo::TPCGeo &tpc1 = geom->TPC(trk1->Nodes().front()->TPC(),trk1->Nodes().front()->Cryo());
+        const geo::TPCGeo &tpc2 = geom->TPC(best_trk2->Nodes().front()->TPC(),best_trk2->Nodes().front()->Cryo());
 				if (reverse)
 				{
 					fProjectionMatchingAlg.mergeTracks(*best_trk2, *trk1, true);
+          // This track will have a shift in x equal to zero. This will
+          // properly set the track T0
+          if(tpc1.DetectDriftDirection() * tpc2.DetectDriftDirection() < 0){
+            best_trk2->ApplyDriftShiftInTree(0.0);
+          }
 					tracks1[t].SetTrack(best_trk2);
 				}
 				else
 				{
 					fProjectionMatchingAlg.mergeTracks(*trk1, *best_trk2, true);
+          // This track will have a shift in x equal to zero. This will
+          // properly set the track T0
+          if(tpc1.DetectDriftDirection() * tpc2.DetectDriftDirection() < 0){
+            trk1->ApplyDriftShiftInTree(0.0);
+          }
 					tracks[best_tpc][best_idx].DeleteTrack();
 				}
 				tracks[best_tpc].erase_at(best_idx);
