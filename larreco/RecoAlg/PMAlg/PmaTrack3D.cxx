@@ -12,7 +12,8 @@
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-
+#include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "larcore/Geometry/Geometry.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TMath.h"
@@ -29,6 +30,7 @@ pma::Track3D::Track3D(void) :
 	fHitsRadius(1.0F),
 
 	fT0(0.0),
+  fT0Flag(false),
 
 	fTag(pma::Track3D::kNotTagged)
 {
@@ -48,6 +50,7 @@ pma::Track3D::Track3D(const Track3D& src) :
 	fHitsRadius(src.fHitsRadius),
 
 	fT0(src.fT0),
+  fT0Flag(src.fT0Flag),
 
 	fTag(src.fTag)
 {
@@ -1370,7 +1373,7 @@ pma::Track3D* pma::Track3D::Split(size_t idx, bool try_start_at_idx)
 
 	pma::Node3D* n = 0;
 	pma::Track3D* t0 = new pma::Track3D();
-	t0->fT0 = fT0; t0->fTag = fTag;
+	t0->fT0 = fT0; t0->fT0Flag = fT0Flag; t0->fTag = fTag;
 
 	for (size_t i = 0; i < idx; ++i)
 	{
@@ -2296,9 +2299,61 @@ void pma::Track3D::ApplyDriftShiftInTree(double dx, bool skipFirst)
 
     for (auto p : fAssignedPoints) { (*p)[0] += dx; }
 
-    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-	double tisk2time = 1.0; // what is the coefficient, offset?
-	fT0 = tisk2time * dx / detprop->GetXTicksCoefficient(fNodes.front()->TPC(), fNodes.front()->Cryo());
+  // For T0 we need to make sure we use the total shift, not just this current one in case of multiple shifts
+  double newdx = fNodes.front()->GetDriftShift();
+
+  // Now convert this newdx into T0 and store in fT0
+  SetT0FromDx(newdx); 
+}
+
+void pma::Track3D::SetT0FromDx(double dx){
+
+  // Get all of the services we need
+  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  auto const* detclock = lar::providerFrom<detinfo::DetectorClocksService>();
+  auto const* geom = lar::providerFrom<geo::Geometry>();
+  const geo::TPCGeo &tpcGeo = geom->TPC(fNodes.front()->TPC(), fNodes.front()->Cryo());
+  
+  // GetXTicksCoefficient has a sign that we don't care about. We need to decide
+  // the sign for ourselves based on the drift direction of the TPC
+  double correctedSign = 0;
+  if(tpcGeo.DetectDriftDirection() > 0){
+    if(dx > 0){
+      correctedSign = 1.0;
+    }
+    else{
+      correctedSign = -1.0;
+    }
+  }
+  else{
+    if(dx > 0){
+      correctedSign = -1.0;
+    }
+    else{
+      correctedSign = 1.0;
+    }
+  }
+
+  // The magnitude of x in ticks is fine
+  double dxInTicks = fabs(dx / detprop->GetXTicksCoefficient());
+  // Now correct the sign
+  dxInTicks = dxInTicks * correctedSign;
+  // At this stage, we have xInTicks relative to the trigger time
+  double dxInTime = dxInTicks * detclock->TPCClock().TickPeriod();
+  // Reconstructed times are relative to the trigger (t=0), so this is our T0
+	fT0 = dxInTime;
+
+  mf::LogDebug("pma::Track3D") << dx << ", " << dxInTicks << ", " << correctedSign 
+                                 << ", " << fT0 << ", " << tpcGeo.DetectDriftDirection() << " :: " 
+                                 << detclock->TriggerTime() << ", " << detclock->TriggerOffsetTPC() << std::endl;
+
+  // Leigh test
+//  mf::LogDebug("pma::Track3D") << " Check x position for T = Trigger Offset " << detprop->ConvertTicksToX(detprop->TriggerOffset(),2,tpcGeo.ID().TPC,tpcGeo.ID().Cryostat) << std::endl;
+//  float apaTime = detprop->GetXTicksOffset(2,tpcGeo.ID().TPC,tpcGeo.ID().Cryostat) - detprop->TriggerOffset();
+//  mf::LogDebug("pma::Track3D") << " Check x position for T = Trigger Offset + DriftTime " << detprop->ConvertTicksToX(detprop->TriggerOffset() + apaTime,2,tpcGeo.ID().TPC,tpcGeo.ID().Cryostat) << std::endl;
+
+  // Mark this track as having a measured T0
+  fT0Flag = true;
 }
 
 void pma::Track3D::DeleteSegments(void)

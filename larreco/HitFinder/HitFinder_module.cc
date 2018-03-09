@@ -33,7 +33,7 @@ namespace hit {
       explicit HitFinder(fhicl::ParameterSet const & pset);
       virtual ~HitFinder() = default;
   
-      virtual void reconfigure(fhicl::ParameterSet const & pset) override;
+      virtual void reconfigure(fhicl::ParameterSet const & pset) ;
       virtual void produce(art::Event & evt) override;
       
       virtual void endJob() override;

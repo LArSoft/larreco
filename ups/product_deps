@@ -1,15 +1,15 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v06_55_00
+parent	larreco	v06_56_01
 defaultqual	e15
 #
 fcldir product_dir job
 #
 product         version
-larsim		v06_41_00
+larsim		v06_42_01
 eigen		v3_3_3
-nutools         v2_18_02
-tensorflow      v1_3_0b
+nutools         v2_19_00
+tensorflow      v1_3_0c
 
 cetbuildtools	v7_00_03	-	only_for_build
 end_product_list
@@ -17,12 +17,12 @@ end_product_list
   
 # e15  - with gcc 6.4.0 and -std=c++14
 qualifier     larsim     nutools    tensorflow        eigen	notes
-e15:debug     e15:debug  e15:debug  e15:p2714:debug  -nq-
-e15:opt       e15:opt    e15:opt    e15:p2714:opt    -nq-
-e15:prof      e15:prof   e15:prof   e15:p2714:prof   -nq-
-e14:debug     e14:debug  e14:debug  e14:p2714:debug  -nq-
-e14:opt       e14:opt    e14:opt    e14:p2714:opt    -nq-
-e14:prof      e14:prof   e14:prof   e14:p2714:prof   -nq-
+e15:debug     e15:debug  e15:debug  e15:p2714b:debug  -nq-
+e15:opt       e15:opt    e15:opt    e15:p2714b:opt    -nq-
+e15:prof      e15:prof   e15:prof   e15:p2714b:prof   -nq-
+e14:debug     e14:debug  e14:debug  e14:p2714b:debug  -nq-
+e14:opt       e14:opt    e14:opt    e14:p2714b:opt    -nq-
+e14:prof      e14:prof   e14:prof   e14:p2714b:prof   -nq-
 end_qualifier_list
 
 # table fragment workaround for genie cling "error"

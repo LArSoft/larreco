@@ -73,7 +73,7 @@ namespace trkf {
       
       // Overrides.
       // Put override right next to each function
-      virtual void reconfigure(fhicl::ParameterSet const & pset) override;
+      virtual void reconfigure(fhicl::ParameterSet const & pset) ;
       virtual void produce(art::Event & e) override;
       virtual void beginJob() override;
       virtual void endJob() override;

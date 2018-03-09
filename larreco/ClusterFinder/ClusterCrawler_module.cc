@@ -56,7 +56,7 @@ class cluster::ClusterCrawler : public art::EDProducer {
     explicit ClusterCrawler(fhicl::ParameterSet const & pset);
     virtual ~ClusterCrawler();
 
-    void reconfigure(fhicl::ParameterSet const & pset) override;
+    void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
     void beginJob();
 
