@@ -3093,6 +3093,7 @@ namespace tca {
           if(hit.InTraj == tj.ID) continue;
           if(hit.InTraj > 0) {
             // Nearby hit used in a nearby Tj
+            tp.Environment[kEnvNearTj] = true;
             auto& ntj = tjs.allTraj[hit.InTraj - 1];
             if(ntj.AlgMod[kInShower]) tp.Environment[kEnvNearShower] = true;
           }
