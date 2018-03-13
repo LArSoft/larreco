@@ -2267,6 +2267,21 @@ namespace tca {
   } // TrajIntersection
   
   //////////////////////////////////////////
+  float MaxTjLen(TjStuff const& tjs, std::vector<int>& tjIDs)
+  {
+    // returns the length of the longest Tj in the supplied list
+    if(tjIDs.empty()) return 0;
+    float maxLen = 0;
+    for(auto tjid : tjIDs) {
+      if(tjid < 1 || tjid > (int)tjs.allTraj.size()) continue;
+      auto& tj = tjs.allTraj[tjid - 1];
+      float sep2 = PosSep2(tj.Pts[tj.EndPt[0]].Pos, tj.Pts[tj.EndPt[1]].Pos);
+      if(sep2 > maxLen) maxLen = sep2;
+    } // tj
+    return sqrt(maxLen);
+  } // MaxTjLen
+  
+  //////////////////////////////////////////
   float TrajLength(Trajectory& tj)
   {
     float len = 0, dx, dy;
@@ -3366,17 +3381,17 @@ namespace tca {
   } // UpdateVxEnvironment
 
   /////////////////////////////////////////
-  TrajPoint MakeBareTrajPoint(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP)
+  TrajPoint MakeBareTP(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP)
   {
     // Projects the space point defined by pos and dir into the CTP and returns it in the form of a trajectory point.
     // The TP Pos[0] is set to a negative number if the point has an invalid wire position but doesn't return an
-    // error if the position is on a dead wire
+    // error if the position is on a dead wire. The projection of the direction vector in CTP is stored in tp.Delta.
     TrajPoint tp;
     tp.CTP = inCTP;
     geo::PlaneID planeID = DecodeCTP(inCTP);
     
     tp.Pos[0] = tjs.geom->WireCoordinate(pos[1], pos[2], planeID);
-    if(tp.Pos[0] < 0 || tp.Pos[0] > tjs.MaxPos0[planeID.Plane]) {
+    if(tp.Pos[0] < 0 || (!tjs.MaxPos0.empty() && tp.Pos[0] > tjs.MaxPos0[planeID.Plane])) {
       tp.Pos[0] = -1;
       return tp;
     }
@@ -3403,6 +3418,17 @@ namespace tca {
     tp.Dir[0] = dir2[0] / norm;
     tp.Dir[1] = dir2[1] / norm;
     tp.Ang = atan2(dir2[1], dir2[0]);
+    tp.Delta = norm / 100;
+    
+    // The Orth vectors are not unit normalized so we need to correct for this
+    double w0 = tjs.geom->WireCoordinate(0, 0, planeID);
+    // cosine-like component
+    double cs = tjs.geom->WireCoordinate(1, 0, planeID) - w0;
+    // sine-like component
+    double sn = tjs.geom->WireCoordinate(0, 1, planeID) - w0;
+    norm = sqrt(cs * cs + sn * sn);
+    tp.Delta /= norm;
+    
     return tp;
   } // MakeBareTP
 
