@@ -49,6 +49,8 @@ namespace tca {
   bool FitTp3(TjStuff& tjs, TrajPoint3& tp3, const std::vector<Tj2Pt>& tj2pts);
   void MoveTp3ToZ(TjStuff& tjs, TrajPoint3& tp3, double z);
   void FindCompleteness(TjStuff& tjs, PFPStruct& pfp, bool doFit, bool fillTp3s, bool prt);
+  void FindMissedTjsInTp3s(TjStuff& tjs, PFPStruct& pfp, std::vector<int>& missTjs, std::vector<float>& missFrac);
+  bool SharesHighScoreVx(TjStuff& tjs, const PFPStruct& pfp, const Trajectory& tj);
   void Fit3D(unsigned short mode, Point3_t point, Point3_t& fitPos, Vector3_t& fitDir, float& aspectRatio);
   bool CheckAndMerge(TjStuff& tjs, PFPStruct& pfp, bool prt);
   float AspectRatio(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
@@ -58,7 +60,7 @@ namespace tca {
   void CleanTjs(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool MergePFPTjs(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void FindXMatches(TjStuff& tjs, unsigned short numPlanes, short maxScore, std::vector<MatchStruct>& matVec, bool prt);
-  bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3);
+  bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3, bool findDirection);
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2);
   inline double DotProd(const Vector3_t& v1, const Vector3_t& v2) {return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]; }
   Vector3_t PointDirection(const Point3_t p1, const Point3_t p2);
