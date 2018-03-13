@@ -65,14 +65,14 @@ standard_trajclusteralg:
    # 8 Min charge fraction near a vertex or merge point
    # 9 max MCSmom asymmetry for a merge
    Vertex3DCuts: [0.8, 2]       # [ dX match cut, dY and dZ match cut]
-   Match3DCuts: [ 0.3, 0.25, 4, 0.5, 2000, 1] 
+   Match3DCuts: [ 0.3, -0.3, 4, 0.9, 2000, 10, 0.2] 
    # 0 dx (cm) matching cut
    # 1 delta angle cut (radians). Set <= 0 to turn off angle checking
-   # 2 min length for 2-view match
-   # 3 min match fraction
+   # 2 min length for 2-view match 
+   # 3 min AspectRatio (if max Tj length > 10)
    # 4 max allowed number of 3D combinations
-   # 5 max charge asymmetry of Tj pairs (set to 1 to disable)
-   KalmanFilterFit: false
+   # 5 min 2D length for 3D merging
+   # 6 angle cut for 3D merging (radians)
    SkipAlgs: [  "VtxHitsSwap", "SplitHiChgHits", "CTKink", "HED" ]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
    StudyMode: false         # Set true to generate histograms
