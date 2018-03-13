@@ -33,6 +33,7 @@ namespace tca {
   using Point3_t = std::array<double, 3>;
   using Vector3_t = std::array<double, 3>;
   using Point2_t = std::array<float, 2>;
+  using Vector2_t = std::array<double, 2>;
 
   // some functions to handle the CTP_t type
   typedef unsigned int CTP_t;
@@ -251,6 +252,7 @@ namespace tca {
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned int MCPartListIndex {UINT_MAX};
+    unsigned short MatchVecIndex {USHRT_MAX};
     float CosmicScore{0};
     float AspectRatio {0};
     unsigned short ID {0};
@@ -512,7 +514,6 @@ namespace tca {
     short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
     short NPtsAve;         /// number of points to find AveChg
     bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
-//    bool NeedsRebuild;  ///< Significant changes were made necessitating a complete re-do of the 3D matching and vertexing
     bool TestBeam;      ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
    };
 
