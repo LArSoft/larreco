@@ -6,10 +6,10 @@ defaultqual	e15
 fcldir product_dir job
 #
 product         version
-larsim		v06_42_01
+larsim		v06_41_00
 eigen		v3_3_3
-nutools         v2_19_00
-tensorflow      v1_3_0c
+nutools         v2_18_02
+tensorflow      v1_3_0b
 
 cetbuildtools	v7_00_03	-	only_for_build
 end_product_list
@@ -17,7 +17,7 @@ end_product_list
   
 # e15  - with gcc 6.4.0 and -std=c++14
 qualifier     larsim     nutools    tensorflow        eigen	notes
-e15:debug     e15:debug  e15:debug  e15:p2714b:debug  -nq-
+e15:debug     e15:debug  e15:debug  e15:p2714:debug  -nq-
 e15:opt       e15:opt    e15:opt    e15:p2714b:opt    -nq-
 e15:prof      e15:prof   e15:prof   e15:p2714b:prof   -nq-
 e14:debug     e14:debug  e14:debug  e14:p2714b:debug  -nq-
