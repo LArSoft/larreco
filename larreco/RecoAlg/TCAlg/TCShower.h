@@ -37,7 +37,7 @@ namespace tca {
   void KillVerticesInShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void Finish3DShowers(TjStuff& tjs);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
-  bool FindPrimaryShower(std::string inFcnLabel, TjStuff& tjs, bool prt);
+//  bool FindPrimaryShower(std::string inFcnLabel, TjStuff& tjs, bool prt);
   bool MergeShowerTjsAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
   bool TransferTjHits(TjStuff& tjs, bool prt);
   unsigned short GetCotsIndex(TjStuff& tjs, unsigned short ShowerTjID);
