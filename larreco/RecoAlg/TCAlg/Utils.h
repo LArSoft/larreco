@@ -118,6 +118,7 @@ namespace tca {
   // returns the intersection position, intPos, of two trajectory points
   void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, Point2_t& pos);
   void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y);
+  float MaxTjLen(TjStuff const& tjs, std::vector<int>& tjIDs);
   // Returns the separation distance between two trajectory points
   float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
   float TrajLength(Trajectory& tj);
@@ -168,7 +169,7 @@ namespace tca {
   void UpdateTjChgProperties(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, bool prt);
   void UpdateVxEnvironment(std::string inFcnLabel, TjStuff& tjs, VtxStore& vx2, bool prt);
   // Make a bare trajectory point that only has position and direction defined
-  TrajPoint MakeBareTrajPoint(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP);
+  TrajPoint MakeBareTP(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP);
   bool MakeBareTrajPoint(const TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   bool MakeBareTrajPoint(const TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   bool MakeBareTrajPoint(const Point2_t& fromPos, const Point2_t& toPos, TrajPoint& tpOut);
@@ -180,9 +181,9 @@ namespace tca {
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   bool MergeAndStore(TjStuff& tjs, unsigned int itj1, unsigned int itj2, bool doPrt);
   template <typename T>
-  std::vector<T> SetIntersection(std::vector<T>& set1, std::vector<T>& set2);
+  std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2);
   template <typename T>
-  std::vector<T> SetDifference(std::vector<T>& set1, std::vector<T>& set2);
+  std::vector<T> SetDifference(const std::vector<T>& set1, const std::vector<T>& set2);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
   void PrintTrajectory(std::string someText, const TjStuff& tjs, const Trajectory& tj ,unsigned short tPoint);
@@ -203,7 +204,7 @@ namespace tca {
   
   ////////////////////////////////////////////////
   template <typename T>
-  std::vector<T> SetIntersection(std::vector<T>& set1, std::vector<T>& set2)
+  std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2)
   {
     // returns a vector containing the elements of set1 and set2 that are common. This function
     // is a replacement for std::set_intersection which fails in the following situation:
@@ -225,7 +226,7 @@ namespace tca {
   
   ////////////////////////////////////////////////
   template <typename T>
-  std::vector<T> SetDifference(std::vector<T>& set1, std::vector<T>& set2)
+  std::vector<T> SetDifference(const std::vector<T>& set1, const std::vector<T>& set2)
   {
     // returns the elements of set1 and set2 that are different
     std::vector<T> different;
