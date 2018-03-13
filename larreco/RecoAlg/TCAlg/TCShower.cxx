@@ -24,7 +24,7 @@ namespace tca {
       mf::LogVerbatim myprt("TC");
       myprt<<"Inside F3DSEP: ss3 "<<ss3.ID<<" tjIDs";
       for(auto tjID : pfp.TjIDs) myprt<<" "<<tjID;
-      myprt<<" start vtx ID "<<pfp.Vx3ID[0];
+      myprt<<" start vtx 3V"<<pfp.Vx3ID[0];
     }
     
     // See if the start end points are consistent
@@ -297,9 +297,10 @@ namespace tca {
     if(tjs.cots.empty()) return false;
     
     prt = (dbgPlane > 2);
+/*
     // See if any of the primary PFParticles associated with a neutrino PFParticle
     // match with the 2D showers. 
-    FindPrimaryShower("FS", tjs, prt);
+//    FindPrimaryShower("FS", tjs, prt);
     // Look for a 3D-matched parent in un-matched 2D showers
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       auto& ss = tjs.cots[cotIndex];
@@ -309,9 +310,9 @@ namespace tca {
       if(ss.ParentID == 0) FindStartChg(fcnLabel, tjs, cotIndex, prt);
     } // cotIndex
     CheckQuality(fcnLabel, tjs, tpcid, prt);
-    
     SaveAllCots(tjs, "CQ");
     if(prt) Print2DShowers("FEP", tjs, USHRT_MAX, false);
+*/
     Match2DShowers(fcnLabel, tjs, tpcid, prt);
     if(prt) Print2DShowers("M2DS", tjs, USHRT_MAX, false);
     // Kill vertices in 2D showers that weren't matched in 3D
@@ -340,7 +341,7 @@ namespace tca {
     return (nNewShowers > 0);
     
   } // FindShowers3D
-  
+/*
   ////////////////////////////////////////////////
   bool FindPrimaryShower(std::string inFcnLabel, TjStuff& tjs, bool prt)
   {
@@ -508,7 +509,7 @@ namespace tca {
     
     return true;
   } // FindPrimaryShower
-  
+*/
   ////////////////////////////////////////////////
   void KillVerticesInShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
@@ -608,12 +609,7 @@ namespace tca {
         if(jplaneID.TPC != tpcid.TPC) continue;
         Trajectory& jstj = tjs.allTraj[jss.ShowerTjID - 1];
         TrajPoint3 tp3;
-        MakeTp3(tjs, istj.Pts[0], jstj.Pts[0], tp3);
-/*
-        TVector3 posij, dirij;
-        // Use shower Tj point 0 which should yield the start point of the 3D shower
-        if(!TrajPoint3D(tjs, istj.Pts[0], jstj.Pts[0], posij, dirij, prt)) continue;
-*/
+        MakeTp3(tjs, istj.Pts[0], jstj.Pts[0], tp3, true);
         float fomij = Match3DFOM(fcnLabel, tjs, ci, cj, prt);
         if(fomij > fomCut) continue;
         if(tjs.NumPlanes == 2) {
@@ -634,7 +630,7 @@ namespace tca {
           tjs.showers.push_back(ss3);
           iss.SS3ID = ss3.ID;
           jss.SS3ID = ss3.ID;
-          if(prt) mf::LogVerbatim("TC")<<" new ss3 "<<ss3.ID<<" with fomij "<<fomij;
+          if(prt) mf::LogVerbatim("TC")<<" new 3S"<<ss3.ID<<" with fomij "<<fomij;
           continue;
         } // 2-plane TPC
         float bestFOM = fomCut;
@@ -650,12 +646,7 @@ namespace tca {
           if(kplaneID.TPC != tpcid.TPC) continue;
           Trajectory& kstj = tjs.allTraj[kss.ShowerTjID - 1];
           TrajPoint3 iktp3;
-          MakeTp3(tjs, istj.Pts[0], kstj.Pts[0], iktp3);
-/*
-          TVector3 posik, dirik;
-          // Use shower Tj point 0 which should yield the start point of the 3D shower
-          if(!TrajPoint3D(tjs, istj.Pts[0], kstj.Pts[0], posik, dirik, prt)) continue;
-*/
+          MakeTp3(tjs, istj.Pts[0], kstj.Pts[0], iktp3, true);
           float fomik = Match3DFOM(fcnLabel, tjs, ci, ck, prt);
           if(fomik > bestFOM) continue;
           float sep = PosSep(tp3.Pos, iktp3.Pos);
@@ -685,7 +676,7 @@ namespace tca {
           ss3.CotIndices[1] = cj;
           ss3.Energy[iplaneID.Plane] = tjs.cots[ci].Energy;
           ss3.Energy[jplaneID.Plane] = tjs.cots[cj].Energy;
-          if(prt) mf::LogVerbatim("TC")<<" new 2-plane ss3 "<<ss3.ID<<" ssIDs "<<iss.ID<<" "<<jss.ID<<" with FOM "<<ss3.FOM;
+          if(prt) mf::LogVerbatim("TC")<<" new 2-plane 3S"<<ss3.ID<<" using 2S"<<iss.ID<<" 2S"<<jss.ID<<" with FOM "<<ss3.FOM;
         } else {
           // showers match in 3 planes
           unsigned short ck = bestck;
@@ -699,7 +690,7 @@ namespace tca {
           ss3.Energy[jplaneID.Plane] = tjs.cots[cj].Energy;
           ss3.Energy[kplaneID.Plane] = tjs.cots[ck].Energy;
           tjs.cots[ck].SS3ID = ss3.ID;
-          if(prt) mf::LogVerbatim("TC")<<" new 3-plane ss3 "<<ss3.ID<<" ssIDs "<<iss.ID<<" "<<jss.ID<<" "<<tjs.cots[ck].ID<<" with FOM "<<ss3.FOM;
+          if(prt) mf::LogVerbatim("TC")<<" new 3-plane 3S"<<ss3.ID<<" using 2S"<<iss.ID<<" 2S"<<jss.ID<<" 2S"<<tjs.cots[ck].ID<<" with FOM "<<ss3.FOM;
         }
         ss3.FOM = 0.5 * (fomij + bestFOM);
         if(bestck == USHRT_MAX && tjs.NumPlanes == 3 && FindMissingShowers1(fcnLabel, tjs, ss3, prt)) {
@@ -712,48 +703,31 @@ namespace tca {
     } // ci
     if(tjs.showers.empty()) return;
     
-    // try to set Vx3ID
-    for(auto& ss3 : tjs.showers) {
-      if(ss3.ID == 0) continue;
-      if(ss3.Vx3ID != 0) continue;
-      unsigned short vid = USHRT_MAX;
-      unsigned short cnt = 0;
-      for(auto ci : ss3.CotIndices) {
-        auto& ss = tjs.cots[ci];
-        auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-        if(stj.VtxID[0] > 0) {
-          auto& vx2 = tjs.vtx[stj.VtxID[0] - 1];
-          if(vx2.Vx3ID > 0) {
-            if(vid == USHRT_MAX) {
-              vid = vx2.Vx3ID;
-              cnt = 1;
-            } else if(vx2.Vx3ID == vid) {
-              ++cnt;
-            }
-          }
-        } // stj Vtx0 exists
-      } // ci
-      if(cnt == ss3.CotIndices.size()) ss3.Vx3ID = vid;
-    } // ss3
-    
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<fcnLabel<<" 3D showers \n";
       for(auto& ss3 : tjs.showers) {
-        myprt<<fcnLabel<<" "<<ss3.ID<<" Vx3ID "<<ss3.Vx3ID<<" cots\n";
+        myprt<<fcnLabel<<" 3S"<<ss3.ID<<" 3V"<<ss3.Vx3ID<<" Pos"<<std::fixed;
+        for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<" "<<std::setprecision(0)<<ss3.Pos[xyz];
+        myprt<<" Dir";
+        for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<" "<<std::setprecision(2)<<ss3.Dir[xyz];
+        myprt<<" posInPlane";
+        std::vector<float> projInPlane(tjs.NumPlanes);
+        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+          CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
+          auto tp = MakeBareTP(tjs, ss3.Pos, ss3.Dir, inCTP);
+          myprt<<" "<<PrintPos(tjs, tp.Pos);
+          projInPlane[plane] = tp.Delta;
+        } // plane
+        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+          myprt<<" "<<std::fixed<<std::setprecision(2)<<projInPlane[plane];
+        } // plane
         for(auto ci : ss3.CotIndices) {
           auto& ss = tjs.cots[ci];
-          myprt<<fcnLabel<<"  "<<ss.ID;
+          myprt<<"\n  2S"<<ss.ID;
           auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-          myprt<<" "<<stj.ID;
-          myprt<<" "<<ss.ParentID;
-          if(ss.ParentID > 0) {
-            auto& ptj = tjs.allTraj[ss.ParentID - 1];
-            myprt<<" ptjVtxID "<<ptj.VtxID[0];
-          } else {
-            myprt<<" Shower has no parent.";
-          }
-          myprt<<"\n";
+          myprt<<" T"<<stj.ID;
+          myprt<<" "<<PrintPos(tjs, stj.Pts[stj.EndPt[0]].Pos)<<" - "<<PrintPos(tjs, stj.Pts[stj.EndPt[1]].Pos);
         } // ci
       } // sss3
     } // prt
@@ -871,7 +845,7 @@ namespace tca {
     if(missingPlane == tjs.NumPlanes) return false;
     CTP_t mCTP = EncodeCTP(cstat, tpc, missingPlane);
     // Find the start point in this plane
-    TrajPoint mtp = MakeBareTrajPoint(tjs, ss3.Pos, ss3.Dir, mCTP);
+    TrajPoint mtp = MakeBareTP(tjs, ss3.Pos, ss3.Dir, mCTP);
     if(mtp.Pos[0] < 0) {
       mf::LogVerbatim("TC")<<fcnLabel<<" MakeBareTrajPoint failed";
       return false;
@@ -3827,8 +3801,8 @@ namespace tca {
       if(!printAllCTP && ss.CTP != inCTP) continue;
       if(!printKilledShowers && ss.ID == 0) continue;
       myprt<<someText<<std::fixed;
-//      myprt<<std::setw(4)<<ict;
-      myprt<<std::setw(4)<<ss.ID;
+      std::string sid = "2S" + std::to_string(ss.ID);
+      myprt<<std::setw(4)<<sid;
       myprt<<std::setw(6)<<ss.CTP;
       myprt<<std::setw(7)<<ss.ParentID;
       myprt<<std::setw(9)<<ss.TruParentID;
@@ -3837,8 +3811,10 @@ namespace tca {
       myprt<<std::setw(6)<<std::setprecision(2)<<ss.DirectionFOM;
       myprt<<std::setw(7)<<std::setprecision(2)<<ss.AspectRatio;
       const auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      myprt<<std::setw(5)<<stj.ID;
-      myprt<<std::setw(5)<<stj.VtxID[0];
+      std::string tid = "T" + std::to_string(stj.ID);
+      myprt<<std::setw(5)<<tid;
+      std::string vid = "2V" + std::to_string(stj.VtxID[0]);
+      myprt<<std::setw(5)<<vid;
       for(auto& spt : stj.Pts) {
         myprt<<std::setw(10)<<PrintPos(tjs, spt.Pos);
         myprt<<std::setw(6)<<(int)spt.Chg;
@@ -3846,12 +3822,14 @@ namespace tca {
         myprt<<std::setw(5)<<std::setprecision(1)<<spt.DeltaRMS;
       } // spt
       myprt<<std::setw(6)<<std::setprecision(2)<<stj.Pts[1].Ang;
-      myprt<<std::setw(6)<<ss.SS3ID;
+      std::string sss = "3S" + std::to_string(ss.SS3ID);
+      myprt<<std::setw(6)<<sss;
       if(ss.SS3ID < tjs.showers.size()) {
         auto& ss3 = tjs.showers[ss.SS3ID - 1];
         if(ss3.PFPIndex < tjs.pfps.size()) {
           auto& pfp = tjs.pfps[ss3.PFPIndex];
-          myprt<<std::setw(6)<<pfp.ID;
+          std::string pid = "P" + std::to_string(pfp.ID);
+          myprt<<std::setw(6)<<pid;
         } else {
           myprt<<std::setw(6)<<"NA";
         }
@@ -3868,9 +3846,10 @@ namespace tca {
         if(!printAllCTP && ss.CTP != inCTP) continue;
         if(!printKilledShowers && ss.ID == 0) continue;
         myprt<<someText<<std::fixed;
-        myprt<<std::setw(4)<<ss.ID;
+        std::string sid = "2S" + std::to_string(ss.ID);
+        myprt<<std::setw(4)<<sid;
         myprt<<" Tjs";
-        for(auto id : ss.TjIDs) myprt<<" "<<id;
+        for(auto id : ss.TjIDs) myprt<<" T"<<id;
         myprt<<"\n";
       } // ict
       
@@ -3881,7 +3860,8 @@ namespace tca {
       if(!printAllCTP && ss.CTP != inCTP) continue;
       if(!printKilledShowers && ss.ID == 0) continue;
       myprt<<someText<<std::fixed;
-      myprt<<std::setw(4)<<ss.ID;
+      std::string sid = "2S" + std::to_string(ss.ID);
+      myprt<<std::setw(4)<<sid;
       myprt<<" Envelope";
       for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
       myprt<<"\n";
@@ -3892,9 +3872,10 @@ namespace tca {
       if(!printAllCTP && ss.CTP != inCTP) continue;
       if(!printKilledShowers && ss.ID == 0) continue;
       myprt<<someText<<std::fixed;
-      myprt<<std::setw(4)<<ss.ID;
+      std::string sid = "2S" + std::to_string(ss.ID);
+      myprt<<std::setw(4)<<sid;
       myprt<<" Nearby";
-      for(auto id : ss.NearTjIDs) myprt<<" "<<id;
+      for(auto id : ss.NearTjIDs) myprt<<" T"<<id;
       myprt<<"\n";
     } // ict
   } // Print2DShowers
