@@ -90,6 +90,37 @@ namespace tca {
       if(tjs.MatchTruth[1] > 0) std::cout<<"MatchTrueHits: SourcePtcl not found\n";
       return;
     }
+    
+    if(tjs.MatchTruth[1] > 2) {
+      // print out a whole bunch of information
+      mf::LogVerbatim myprt("TC");
+      myprt<<"Displaying all neutrino origin MCParticles with T > 50 MeV\n";
+      myprt<<" trackID PDGCode Mother T(MeV) __________dir_________             Process\n";
+      for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+        simb::MCParticle* mcp = (*ipart).second;
+        int trackID = mcp->TrackId();
+        art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+        if(theTruth->Origin() != simb::kBeamNeutrino) continue;
+        // Kinetic energy in MeV
+        int TMeV = 1000 * (mcp->E() - mcp->Mass());
+        if(TMeV < 50) continue;
+        myprt<<std::setw(8)<<trackID;
+        myprt<<std::setw(8)<<mcp->PdgCode();
+        myprt<<std::setw(8)<<mcp->Mother();
+        myprt<<std::setw(6)<<TMeV;
+        Point3_t pos;
+        pos[0] = mcp->Vx();
+        pos[1] = mcp->Vy();
+        pos[2] = mcp->Vz();
+        Vector3_t dir;
+        dir[0] = mcp->Px(); dir[1] = mcp->Py(); dir[2] = mcp->Pz();
+        SetMag(dir, 1);
+        myprt<<std::setprecision(2);
+        for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<std::setw(7)<<dir[xyz];
+        myprt<<std::setw(22)<<mcp->Process();
+        myprt<<"\n";
+      } // ipart
+    } // big print
       
     // flag MCParticles to select for measuring performance. 
     std::vector<bool> select(plist.size(), false);
@@ -412,7 +443,7 @@ namespace tca {
       // print out
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<primMCPs.size()<<" Vtx";
-      for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<primVx[ixyz];
+      for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<primVx[xyz];
       myprt<<" nuVx Reconstructable? "<<neutrinoVxReconstructable<<" vx near nuVx? "<<vxReconstructedNearNuVx;
       myprt<<" neutrinoPFPCorrect? "<<neutrinoPFPCorrect<<"\n";
       myprt<<"mcpIndex   PDG  momIndex    KE _________Dir___________       Process         TrajectoryExtentInPlane_nTruHits \n";
@@ -434,7 +465,7 @@ namespace tca {
         dir[0] = mcp->Px(); dir[1] = mcp->Py(); dir[2] = mcp->Pz();
         SetMag(dir, 1);
         myprt<<std::setprecision(3);
-        for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) myprt<<std::setw(8)<<std::setprecision(3)<<dir[ixyz];
+        for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<std::setw(8)<<std::setprecision(3)<<dir[xyz];
         myprt<<std::setw(22)<<mcp->Process();
         // print the extent of the particle in each TPC plane
         for(const geo::TPCID& tpcid : tjs.geom->IterateTPCIDs()) {
@@ -807,19 +838,16 @@ namespace tca {
     if(MCParticleListIndex > tjs.MCPartList.size() - 1) return;
     
     const simb::MCParticle* mcp = tjs.MCPartList[MCParticleListIndex];
-    geo::PlaneID planeID = DecodeCTP(tp.CTP);
     
-    tp.Pos[0] = tjs.geom->WireCoordinate(mcp->Vy(), mcp->Vz(), planeID);
-    tp.Pos[1] = tjs.detprop->ConvertXToTicks(mcp->Vx(), planeID) * tjs.UnitsPerTick;
-    
-    TVector3 dir;
+    Point3_t pos;
+    pos[0] = mcp->Vx();
+    pos[1] = mcp->Vy();
+    pos[2] = mcp->Vz();
+    Vector3_t dir;
     dir[0] = mcp->Px(); dir[1] = mcp->Py(); dir[2] = mcp->Pz();
-    if(dir.Mag() == 0) return;
-    dir.SetMag(1);
-    TVector3 pos;
-    pos[0] = mcp->Vx() + 100 * dir[0];
-    pos[1] = mcp->Vy() + 100 * dir[1];
-    pos[2] = mcp->Vz() + 100 * dir[2];
+    SetMag(dir, 1);
+    tp = MakeBareTP(tjs, pos, dir, tp.CTP);
+/* the following section was used for testing MakeBareTP
     // use HitPos as a work vector
     tp.HitPos[0] = tjs.geom->WireCoordinate(pos[1], pos[2], planeID);
     tp.HitPos[1] = tjs.detprop->ConvertXToTicks(pos[0], planeID) * tjs.UnitsPerTick;
@@ -841,6 +869,17 @@ namespace tca {
     norm = sqrt(cs * cs + sn * sn);
     tp.Delta /= norm;
     
+    std::cout<<"MTTP "<<MCParticleListIndex<<" CTP "<<tp.CTP<<"\n";
+    std::cout<<" Pos "<<std::fixed<<std::setprecision(1)<<tp.Pos[0]<<" "<<tp.Pos[1];
+    std::cout<<" Dir "<<std::fixed<<std::setprecision(3)<<tp.Dir[0]<<" "<<tp.Dir[1];
+    std::cout<<" proj "<<tp.Delta<<"\n";
+    
+    TrajPoint otp = MakeBareTP(tjs, pos, dir, tp.CTP);
+    std::cout<<"otp\n";
+    std::cout<<" Pos "<<std::fixed<<std::setprecision(1)<<otp.Pos[0]<<" "<<otp.Pos[1];
+    std::cout<<" Dir "<<std::fixed<<std::setprecision(3)<<otp.Dir[0]<<" "<<otp.Dir[1];
+    std::cout<<" proj "<<otp.Delta<<"\n";
+*/
   } // MakeTruTrajPoint
   
   /////////////////////////////////////////
