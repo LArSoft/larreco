@@ -1246,7 +1246,7 @@ namespace tca {
     } // vx3
 
   } // Find3DVertices
-
+/* This function doesn't seem to be of much use
   ////////////////////////////////////////////////
   void Match3DVtxTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
@@ -1292,6 +1292,7 @@ namespace tca {
       }
       for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
         auto& ms = tjs.matchVec[ims];
+        if(ms.Count == 0) continue;
         bool skipit = false;
         // count inShower
         unsigned short cnt = 0;
@@ -1311,9 +1312,9 @@ namespace tca {
         pfp.TjIDs = ms.TjIDs;
         pfp.Vx3ID[0] = vx3.ID;
         if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp P"<<pfp.ID<<" 3V"<<vx3.ID;
-        // re-purpose BestPlane so we can search nearby entries of tjs.matchVec
-        pfp.BestPlane = ims;
-        // Find Tp3s and end points
+        pfp.MatchVecIndex = ims;
+        // Set the PDGCode so DefinePFP can ignore incompatible matches
+        pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
         if(!DefinePFP("M3DVTj1", tjs, pfp, prt)) continue;
         // separation distance (cm) for kink detection.
         double sep = 1;
@@ -1324,7 +1325,14 @@ namespace tca {
           // wasn't attached to the vertex. Hopefully there aren't more than one...
           auto tjNotInVx = SetDifference(ms.TjIDs, shared);
         }
+        AnalyzePFP(tjs, pfp, prt);
         if(!StorePFP(tjs, pfp)) continue;
+        ms.Count = 0;
+        // clobber MatchStructs that use the Tjs in this pfp
+        for(auto& allms : tjs.matchVec) {
+          auto shared = SetIntersection(allms.TjIDs, pfp.TjIDs);
+          if(!shared.empty()) allms.Count = 0;
+        } // allms
         std::vector<int> leftover = SetDifference(v3TjIDs, shared);
         if(prt) {
           mf::LogVerbatim myprt("TC");
@@ -1355,7 +1363,7 @@ namespace tca {
       }
     } // ims
   } // Match3DVtxTjs
-
+*/
   //////////////////////////////////////////
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp)
   {
