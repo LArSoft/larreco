@@ -171,6 +171,11 @@ standard_fasthitfinder:
  MaxMultiHit:          3                # maximum hits for multi fit   
  AreaMethod:           0                # 0 = area by integral, 1 = area by gaussian area formula
  AreaNorms:            [ 13.25, 26.31 ] # normalizations that put signal area in
+ ColMinWindow: 100         # minimum integration window for charge, coll plane
+ IndCutoff: 1              # max distance between zero crossing and hit start
+                             #  in ticks, for induction planes only
+ SkipInd: false            # If true, do not make any hits for ind plane wires
+ UncompressWithPed: false
 }
 
 standard_clustercrawlerhit:
