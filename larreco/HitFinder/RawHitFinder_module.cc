@@ -275,7 +275,7 @@ namespace hit {
 		maxTimes.push_back(hittime);
 
               // step back more to find the hit start time
-	      uint stop;
+	      uint32_t stop;
 	      if (fIndCutoff<(int)bin) {stop=bin-fIndCutoff;} else {stop=0;}
 	      while (thisadc<threshold && bin>stop) {
 		//		std::cout << bin << " " << thisadc << std::endl;
