@@ -37,6 +37,8 @@ namespace tca {
   void KillVerticesInShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void Finish3DShowers(TjStuff& tjs);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
+  void FindInShowerPFPs(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, std::vector<std::vector<int>>& plists);
+  void MakePFPShowers(std::string inFcnLabel, TjStuff& tjs, std::vector<std::vector<int>>& plists, const geo::TPCID& tpcid);
 //  bool FindPrimaryShower(std::string inFcnLabel, TjStuff& tjs, bool prt);
   bool MergeShowerTjsAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
   bool TransferTjHits(TjStuff& tjs, bool prt);
@@ -52,6 +54,8 @@ namespace tca {
                    unsigned short icotIndex, unsigned short jcotIndex, unsigned short kcotIndex, bool prt);
   float Match3DFOM(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   void FillPts(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
+  bool DefinePFPShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
+  bool UpdatePFPShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   bool DefineShower(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void MakeShowerObsolete(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool AddTj(std::string inFcnLabel, TjStuff& tjs, int TjID, unsigned short cotIndex, bool doUpdate, bool prt);
@@ -65,6 +69,8 @@ namespace tca {
   void FindExternalParent(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool UpdateShowerWithParent(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool WrongSplitTj(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short tjEnd, ShowerStruct& ss, bool prt);
+  float InShowerLikelihood(std::string inFcnLabel, const TjStuff& tjs, const ShowerStruct3D& ss3, const Trajectory& tj);
+  float InShowerLikelihood(std::string inFcnLabel, const TjStuff& tjs, const ShowerStruct3D& ss3, const PFPStruct& pfp);
   float ParentFOM(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short& tjEnd, ShowerStruct& ss, float& tp1Sep, float& vx3Score, bool prt);
   void DefineEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool AddTjsInsideEnvelope(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
@@ -87,6 +93,7 @@ namespace tca {
   bool MergeShowersAndStore(std::string inFcnLabel, TjStuff& tjs, unsigned short icotIndex, unsigned short jcotIndex, bool prt);
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss);
   unsigned short FarEnd(TjStuff& tjs, const Trajectory& tj, ShowerStruct& ss);
+  PFPStruct CreateFakePFP(const TjStuff& tjs, const ShowerStruct3D& ss3);
   unsigned short Create2DShower(TjStuff& tjs, const std::vector<int>& tjl);
   void FindNearbyTjs(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   void Print2DShowers(std::string someText, const TjStuff& tjs, CTP_t inCTP, bool printKilledShowers);
