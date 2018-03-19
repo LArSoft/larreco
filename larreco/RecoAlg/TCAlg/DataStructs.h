@@ -214,7 +214,7 @@ namespace tca {
     Point3_t Pos {0};
     Vector3_t Dir {0};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
-    float dEdx {0};
+    float dEdx {0};             // The charge is stored here before dE/dx is calculated
     float dEdxErr {1};
     float ChiDOF {10};             // Chi/DOF of the fit < 0 = not valid
     unsigned short nPtsFit {2}; 
@@ -291,16 +291,19 @@ namespace tca {
     unsigned short TruParentID {0};
     unsigned short SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
     bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
+    bool Constraint3D {false};    // Some properties are defined by the 3D shower to which it is associated
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
   struct ShowerStruct3D {
-    Vector3_t Dir;
-    Vector3_t DirErr;
-    Point3_t Pos;
-    Point3_t PosErr;
+    Vector3_t Dir;              //
+    Vector3_t DirErr;           // DirErr is hijacked to store the shower rms at the start, center and end sections
+    Point3_t Pos;               //
+    Point3_t PosErr;            // PosErr is hijacked to temporarily store the charge in the three sections
+    Point3_t ChgPos;            // position of the center of charge
+    Point3_t EndPos;            // end position
     double Len {1};
-    double OpenAngle {0.2};
+    double OpenAngle {0.12};
     std::vector<double> Energy;
     std::vector<double> EnergyErr;
     std::vector<double> MIPEnergy;
@@ -308,12 +311,13 @@ namespace tca {
     std::vector<double> dEdx;
     std::vector<double> dEdxErr;
     geo::TPCID TPCID;
-    std::vector<unsigned short> CotIndices;  // vector of 2D shower IDs
+    std::vector<unsigned short> PFPIDs;  // list of indices of InShower PFParticles 
+    std::vector<unsigned short> CotIndices;  // list of indices of 2D showers in tjs.cots
     std::vector<unsigned int> Hits;
     int BestPlane;
     int ID;
     float FOM;
-    unsigned short PFPIndex {USHRT_MAX};
+    unsigned short PFPIndex {USHRT_MAX};    // The index of the PFParticle for this shower
     unsigned short Vx3ID {0};
   };
 
@@ -362,7 +366,6 @@ namespace tca {
 
   // Algorithm modification bits
   typedef enum {
-    kHitsOrdered,
     kMaskHits,
     kMaskBadTPs,
     kMichel,
@@ -484,6 +487,8 @@ namespace tca {
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
+    std::vector<std::pair<float, float>> srcHits;   ///< (lower,upper) time of each hit in the source collection
+    std::vector<std::vector< std::pair<int, int>>> srcWireHitRange;
     std::vector<float> AngleRanges; ///< list of max angles for each angle range
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
