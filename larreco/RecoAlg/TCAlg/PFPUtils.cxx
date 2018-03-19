@@ -940,7 +940,7 @@ namespace tca {
     
     // create a vector of bools for each tj for points that are matched in 3D 
     // cast the IDs into an unsigned short for faster comparing
-    std::vector<unsigned short> tjids;
+    std::vector<unsigned short> tjids(pfp.TjIDs.size());
     // This vector is for matches in 3 planes
     std::vector<std::vector<bool>> tjptMat3;
     // This vector is for matches in 2 planes
@@ -951,8 +951,11 @@ namespace tca {
     unsigned int maxTp3Size = 0;
     // Initialize the vectors
     for(unsigned short itj = 0; itj < pfp.TjIDs.size(); ++itj) {
-      if(pfp.TjIDs[itj] <= 0) return;
-      tjids.push_back((unsigned short)pfp.TjIDs[itj]);
+      if(pfp.TjIDs[itj] <= 0) {
+        std::cout<<"FindCompleteness: Bad tjid "<<pfp.TjIDs[itj]<<"\n";
+        return;
+      }
+      tjids[itj] = pfp.TjIDs[itj];
       auto& tj = tjs.allTraj[pfp.TjIDs[itj] - 1];
       // allow each point to be matched no more than N times
       maxTp3Size += 10 * (tj.EndPt[1] - tj.EndPt[0] + 1);
@@ -972,7 +975,7 @@ namespace tca {
       // require that the Tj ID of this point be in the list
       if(indx == tjids.size()) continue;
       auto& itj = tjs.allTraj[iTjPt.id - 1];
-      if(itj.AlgMod[kMat3D]) continue;
+//      if(itj.AlgMod[kMat3D]) continue;
       auto& itp = itj.Pts[iTjPt.ipt];
       unsigned short iplane = DecodeCTP(itp.CTP).Plane;
       unsigned short tpc = DecodeCTP(itp.CTP).TPC;
@@ -990,7 +993,7 @@ namespace tca {
         // break out if the x range difference becomes large (5 cm)
         if(jTjPt.xlo > iTjPt.xhi + 5) break;
         auto& jtj = tjs.allTraj[jTjPt.id - 1];
-        if(jtj.AlgMod[kMat3D]) continue;
+//        if(jtj.AlgMod[kMat3D]) continue;
         auto& jtp = jtj.Pts[jTjPt.ipt];
         TrajPoint3 ijtp3;
         if(!MakeTp3(tjs, itp, jtp, ijtp3, false)) continue;
@@ -1029,7 +1032,7 @@ namespace tca {
           // break out if the x range difference becomes large
           if(kTjPt.xlo > iTjPt.xhi + 5) break;
           auto& ktj = tjs.allTraj[kTjPt.id - 1];
-          if(ktj.AlgMod[kMat3D]) continue;
+//          if(ktj.AlgMod[kMat3D]) continue;
           auto& ktp = ktj.Pts[kTjPt.ipt];
           TrajPoint3 iktp3;
           if(!MakeTp3(tjs, itp, ktp, iktp3, false)) continue;
@@ -1042,7 +1045,11 @@ namespace tca {
           // accumulate the fit sums
           if(doFit) Fit3D(1, iktp3.Pos, pfp.XYZ[0], pfp.Dir[0], pfp.AspectRatio);
           // fill Tp3s?
-          if(fillTp3s && pfp.Tp3s.size() < maxTp3Size) pfp.Tp3s.push_back(ijktp3);
+          if(fillTp3s && pfp.Tp3s.size() < maxTp3Size) {
+            // update the charge
+            ijktp3.dEdx = (2 * ijktp3.dEdx + ktp.Chg) / 3;
+            pfp.Tp3s.push_back(ijktp3);
+          }
           // Set the 3-plane match bits
           if(kndx == tjids.size()) continue;
           tjptMat3[indx][iTjPt.ipt] = true;
@@ -1223,8 +1230,12 @@ namespace tca {
     fitDir[0] = Bx / norm;
     fitDir[1] = By / norm;
     fitDir[2] = 1 / norm;
-    double rx = std::abs(fSum*fSumxz - fSumx*fSumz) / sqrt(delta*(fSum*fSumx2 - fSumx*fSumx));
-    double ry = std::abs(fSum*fSumyz - fSumy*fSumz) / sqrt(delta*(fSum*fSumy2 - fSumy*fSumy));
+    double den = delta*(fSum*fSumx2 - fSumx*fSumx);
+    double rx = 1;
+    if(den > 0) rx = std::abs(fSum*fSumxz - fSumx*fSumz) / sqrt(den);
+    den = delta*(fSum*fSumy2 - fSumy*fSumy);
+    double ry = 1;
+    if(den > 0) ry = std::abs(fSum*fSumyz - fSumy*fSumz) / sqrt(den);
     aspectRatio = 0.5 * (rx + ry);
     
   } // Fit3D
@@ -1859,6 +1870,9 @@ namespace tca {
       return true;
     } // jtp.Dir[1] == 0
     
+    // stuff the average TP charge into dEdx
+    tp3.dEdx = 0.5 * (itp.Chg + jtp.Chg);
+    
     if(!findDirection) return true;
 
     // make a copy of itp and shift it by many wires to avoid precision problems
@@ -1981,7 +1995,34 @@ namespace tca {
       }
     } // cnt > 1
   } // FilldEdx
-  
+
+  ////////////////////////////////////////////////
+  float PFPDOCA(const PFPStruct& pfp1,  const PFPStruct& pfp2, float maxSep)
+  {
+    // returns the Distance of Closest Approach between two PFParticles. The separation is done
+    // using every 5th Tp3 if they exist, otherwise only the end points are used
+
+    std::vector<Point3_t> pts1(2);
+    std::vector<Point3_t> pts2(2);
+    // put the end points into the vectors
+    for(unsigned short end = 0; end < 2; ++end) {
+      pts1[end] = pfp1.XYZ[end];
+      pts2[end] = pfp2.XYZ[end];
+    } // end
+    // Tp3s if they exist
+    for(unsigned short ipt = 4; ipt < pfp1.Tp3s.size(); ipt +=5) pts1.push_back(pfp1.Tp3s[ipt].Pos);
+    for(unsigned short ipt = 4; ipt < pfp2.Tp3s.size(); ipt +=5) pts2.push_back(pfp2.Tp3s[ipt].Pos);
+    float minSep2 = maxSep * maxSep;
+    for(auto& pt1 : pts1) {
+      for(auto& pt2 : pts2) {
+        float sep2 = PosSep2(pt1, pt2);
+        if(sep2 < minSep2) minSep2 = sep2;
+      } // pt2
+    } // pt1
+    return sqrt(minSep2);
+    
+  } // PFPDOCA
+
   ////////////////////////////////////////////////
   bool Split3DKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt)
   {
@@ -2154,10 +2195,12 @@ namespace tca {
     pfp.ParentID = pfp.ID;
     pfp.TPCID = tpcid;
     // initialize arrays for both ends
-    pfp.dEdx[0].resize(tjs.NumPlanes, 0);
-    pfp.dEdx[1].resize(tjs.NumPlanes, 0);
-    pfp.dEdxErr[0].resize(tjs.NumPlanes, 0);
-    pfp.dEdxErr[1].resize(tjs.NumPlanes, 0);
+    if(tjs.NumPlanes < 4) {
+      pfp.dEdx[0].resize(tjs.NumPlanes, 0);
+      pfp.dEdx[1].resize(tjs.NumPlanes, 0);
+      pfp.dEdxErr[0].resize(tjs.NumPlanes, 0);
+      pfp.dEdxErr[1].resize(tjs.NumPlanes, 0);
+    }
     for(unsigned short startend = 0; startend < 2; ++startend) {
       pfp.Dir[startend] = {0, 0, 0};
       pfp.DirErr[startend] = {0, 0, 0};
@@ -2281,7 +2324,7 @@ namespace tca {
         }
       } // ii
     } // prt
-    /* March 12 :This isn't useful in increasing mupikp
+/*
     // create the list of associations to matches that will be converted to PFParticles
     // Start with Tjs attached to 3D vertices. This is only done when reconstructing neutrino events
     if(!tjs.TestBeam) {
@@ -2517,6 +2560,8 @@ namespace tca {
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       if(pfp.Vx3ID[0] > 0) continue;
+      // ignore truth photons
+      if(pfp.PDGCode == 22) continue;
       if(pfp.Vx3ID[1] == 0 && !pfp.Tp3s.empty()) {
         // See if the direction needs to be changed
         SetNewStart(tjs, pfp, false);
@@ -2580,6 +2625,8 @@ namespace tca {
       if(pfp.ID == 0) continue;
       if(pfp.TPCID != tpcid) continue;
       if(!tjs.TestBeam && neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) neutrinoPFPID = pfp.ID;
+      // ignore truth photon
+      if(pfp.PDGCode == 22) continue;
       if(pfp.Vx3ID[0] > 0) continue;
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
@@ -2642,7 +2689,7 @@ namespace tca {
       if(pfp.ID == 0) continue;
       if(pfp.TPCID != tpcid) continue;
       // skip a neutrino PFParticle
-      if(pfp.PDGCode == 12 || pfp.PDGCode == 14) continue;
+      if(pfp.PDGCode == 12 || pfp.PDGCode == 14 || pfp.PDGCode == 22) continue;
       pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
       // next look for a parent
       int pfpParentID = INT_MAX;
