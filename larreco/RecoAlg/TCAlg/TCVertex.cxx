@@ -1381,14 +1381,9 @@ namespace tca {
   //////////////////////////////////////////
   bool AttachPFPToVertex(TjStuff& tjs, PFPStruct& pfp, unsigned short end, unsigned short vx3ID, bool prt)
   {
-    if(vx3ID > tjs.vtx3.size()) {
-      mf::LogVerbatim("TC")<<"AttachPFPToVertex: vx3 "<<vx3ID<<" doesn't exist in tjs.vtx3";
-      return false;
-    }
-    if(pfp.ID > tjs.pfps.size()) {
-      mf::LogVerbatim("TC")<<"AttachPFPToVertex: pfp "<<pfp.ID<<" doesn't exist in tjs.pfps";
-      return false;
-    }
+    if(vx3ID > tjs.vtx3.size()) return false;
+    if(pfp.ID > tjs.pfps.size()) return false;
+    if(pfp.PDGCode == 22) return false;
     if(end > 1) return false;
     
     auto& vx3 = tjs.vtx3[vx3ID - 1];
