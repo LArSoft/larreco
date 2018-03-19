@@ -2,7 +2,6 @@
 
 namespace tca {
   const std::vector<std::string> AlgBitNames {
-    "HitsOrdered",
     "MaskHits",
     "MaskBadTPs",
     "Michel",
