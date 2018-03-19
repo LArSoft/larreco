@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
     return 0;
   }
   
-  TDirectory * dir = (TDirectory*)f->Get(Form("%s:/trajcluster", infile.c_str()));
+  TDirectory * dir = (TDirectory*)f->Get(Form("%s:/trajcluster2", infile.c_str()));
   dir->GetObject("showervarstree",shtree);
   
   showertree t(shtree);
