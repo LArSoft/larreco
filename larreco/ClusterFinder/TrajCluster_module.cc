@@ -390,6 +390,8 @@ namespace cluster {
     for(size_t ipfp = 0; ipfp < pfpList.size(); ++ipfp) {
       auto& pfp = pfpList[ipfp];
       if(pfp.ID == 0) continue;
+      // ignore special PFParticles (e.g. truth photons)
+      if(pfp.PDGCode == 22) continue;
       size_t parentIndex = pfp.ID - 1;
       std::vector<size_t> dtrIndices(pfp.DtrIDs.size());
       for(unsigned short idtr = 0; idtr < pfp.DtrIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrIDs[idtr] - 1;
