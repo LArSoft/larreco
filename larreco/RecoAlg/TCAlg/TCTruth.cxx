@@ -12,6 +12,7 @@
 
 #include "lardata/RecoObjects/TrackStatePropagator.h"
 #include "lardata/DetectorInfoServices/DetectorClocksService.h"
+#include "larevt/SpaceChargeServices/SpaceChargeService.h"
 
 namespace tca {
 
@@ -128,8 +129,8 @@ namespace tca {
     unsigned int indx = 0;
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
       simb::MCParticle* mcp = (*ipart).second;
-      // primaries come first
-      if(mcp->Process() != "primary") break;
+      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(mcp->TrackId());
+      if(theTruth->Origin() != sourceOrigin) continue;
       select[indx] = true;
       ++indx;
     }
@@ -199,14 +200,13 @@ namespace tca {
     } // iht
 
     // save the selected MCParticles in tjs
-    // BB: Jan 20 Save ALL MCParticles to be consistent with TrajClusterAlg::GetHitCollection
-//    indx = 0;
+    indx = 0;
     for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-//      if(select[indx]) {
+      if(select[indx]) {
         simb::MCParticle* mcp = (*ipart).second;
         tjs.MCPartList.push_back(mcp);
-//      }
-//      ++indx;
+      }
+      ++indx;
     } // ipart
     
     if(tjs.MCPartList.size() > UINT_MAX) {
@@ -216,6 +216,7 @@ namespace tca {
     }
     
     // define MCPartListIndex for the hits
+    unsigned int nMatch = 0;
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       if(gtid[iht] == 0) continue;
       auto& hit = tjs.fHits[iht];
@@ -223,8 +224,13 @@ namespace tca {
         auto& mcp = tjs.MCPartList[indx];
         if(mcp->TrackId() != gtid[iht]) continue;
         hit.MCPartListIndex = indx;
+        ++nMatch;
+        break;
       } // indx
     } // iht
+    
+    
+    std::cout<<"MatchTrueHits: MCPartList size "<<tjs.MCPartList.size()<<" nMatched hits "<<nMatch<<"\n";
 
   } // MatchTrueHits
 
@@ -236,14 +242,13 @@ namespace tca {
     
     if(tjs.MatchTruth[0] < 0) return;
     if(tjs.MCPartList.empty()) return;
+    for(auto& pfp : tjs.pfps) pfp.EffPur = 0;
     
     // these are only applicable to neutrinos
     bool neutrinoVxReconstructable = false;
     bool vxReconstructedNearNuVx = false;
     bool neutrinoPFPCorrect = false;
     Point3_t primVx {-666};
-        
-//    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 
     // Look for the MC truth process that should be considered (beam neutrino,
     // single particle, cosmic rays), then form a list of selected MCParticles 
@@ -446,12 +451,18 @@ namespace tca {
       for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<primVx[xyz];
       myprt<<" nuVx Reconstructable? "<<neutrinoVxReconstructable<<" vx near nuVx? "<<vxReconstructedNearNuVx;
       myprt<<" neutrinoPFPCorrect? "<<neutrinoPFPCorrect<<"\n";
-      myprt<<"mcpIndex   PDG  momIndex    KE _________Dir___________       Process         TrajectoryExtentInPlane_nTruHits \n";
-      for(auto mcpIndex : mcpSelect) {
-        auto& mcp = tjs.MCPartList[mcpIndex];
+      myprt<<"mcpIndex   PDG  momIndex    KE _________Dir___________       Process         TrajectoryExtentInPlane_nTruHits";
+      for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
+        bool doPrt = (std::find(mcpSelect.begin(), mcpSelect.end(), ipart) != mcpSelect.end());
+        auto& mcp = tjs.MCPartList[ipart];
+        // also print if this is a pizero or decay photon > 30 MeV
+        if(mcp->PdgCode() == 111) doPrt = true;
         // Kinetic energy in MeV
         int TMeV = 1000 * (mcp->E() - mcp->Mass());
-        myprt<<std::setw(8)<<mcpIndex;
+        if(mcp->PdgCode() == 22 && mcp->Process() == "Decay" && TMeV > 30) doPrt = true;
+        if(!doPrt) continue;
+        myprt<<"\n";
+        myprt<<std::setw(8)<<ipart;
         myprt<<std::setw(6)<<mcp->PdgCode();
         unsigned int momIndex = 0;
         if(mcp->Mother() > 0) {
@@ -472,14 +483,13 @@ namespace tca {
           geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
           for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
             CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
-            auto mcpHits = PutMCPHitsInVector(mcpIndex, inCTP);
+            auto mcpHits = PutMCPHitsInVector(ipart, inCTP);
             if(mcpHits.empty()) continue;
 //            if(mcpHits.size() < 3) continue;
             myprt<<" "<<PrintHitShort(tjs.fHits[mcpHits[0]])<<"-"<<PrintHitShort(tjs.fHits[mcpHits[mcpHits.size() - 1]]);
             myprt<<"_"<<mcpHits.size();
           } // plane
         } // tpcid
-        myprt<<"\n";
       } // ipart
     } // tjs.MatchTruth[1] > 0
     
@@ -513,6 +523,8 @@ namespace tca {
       if(pfp.ID == 0) continue;
       // ignore showers
       if(pfp.PDGCode == 1111) continue;
+      // ignore true photons
+      if(pfp.PDGCode == 22) continue;
       // require match to MC
       if(pfp.MCPartListIndex == UINT_MAX) continue;
       short truIndex = PDGCodeIndex(tjs, tjs.MCPartList[pfp.MCPartListIndex]->PdgCode());
@@ -666,8 +678,8 @@ namespace tca {
         if(pfp.ID == 0) continue;
         // in the right TPCID?
         if(pfp.TPCID != inTPCID) continue;
-        // ignore the neutrino PFParticle
-        if(pfp.PDGCode == 14 || pfp.PDGCode == 12) continue;
+        // ignore the neutrino PFParticle and true photons
+        if(pfp.PDGCode == 14 || pfp.PDGCode == 12 || pfp.PDGCode == 22) continue;
         pfp.MCPartListIndex = UINT_MAX;
         for(auto& tjid : pfp.TjIDs) {
           unsigned short itj = tjid - 1;
@@ -736,6 +748,37 @@ namespace tca {
     MCP_Cnt += mcpSelect.size();
 
   } // MatchAndSum
+  
+  ////////////////////////////////////////////////
+  void TruthMatcher::CreateTruthPFPs(const geo::TPCID& tpcid)
+  {
+    // create a truth PFParticle for each decay photon (for pizero reconstruction) > 30 MeV. This code
+    // assumes there is only one tpc
+    
+    if(tjs.MCPartList.empty()) return;
+
+    auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>(); 
+
+    for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
+      auto& mcp = tjs.MCPartList[ipart];
+      if(mcp->PdgCode() != 22) continue;
+      float TMeV = 1000 * (mcp->E() - mcp->Mass());
+      if(mcp->Process() != "Decay") continue;
+      if(TMeV < 30) continue;
+      auto photonPFP = CreatePFP(tjs, tpcid);
+      photonPFP.PDGCode = 22;
+      photonPFP.XYZ[0][0] = mcp->Vx() - sce->GetPosOffsets(geo::Point_t(mcp->Vx(),mcp->Vy(),mcp->Vz())).X();
+      photonPFP.XYZ[0][1] = mcp->Vy() + sce->GetPosOffsets(geo::Point_t(mcp->Vx(),mcp->Vy(),mcp->Vz())).Y();
+      photonPFP.XYZ[0][2] = mcp->Vz() + sce->GetPosOffsets(geo::Point_t(mcp->Vx(),mcp->Vy(),mcp->Vz())).Z();
+      photonPFP.XYZ[1][0] = mcp->EndPosition()[0] - sce->GetPosOffsets(geo::Point_t(mcp->EndPosition()[0],mcp->EndPosition()[1],mcp->EndPosition()[2])).X();
+      photonPFP.XYZ[1][1] = mcp->EndPosition()[1] + sce->GetPosOffsets(geo::Point_t(mcp->EndPosition()[0],mcp->EndPosition()[1],mcp->EndPosition()[2])).Y();
+      photonPFP.XYZ[1][2] = mcp->EndPosition()[2] + sce->GetPosOffsets(geo::Point_t(mcp->EndPosition()[0],mcp->EndPosition()[1],mcp->EndPosition()[2])).Z();
+      photonPFP.Dir[0] = PointDirection(photonPFP.XYZ[0], photonPFP.XYZ[1]);
+      photonPFP.Dir[1] = photonPFP.Dir[0];
+      photonPFP.MCPartListIndex = ipart;
+      tjs.pfps.push_back(photonPFP);
+    } // mcp
+  } // CreateTruthPFPs
   
   ////////////////////////////////////////////////
   void TruthMatcher::PrintResults(int eventNum) const
