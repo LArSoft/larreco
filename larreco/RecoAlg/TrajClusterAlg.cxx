@@ -366,6 +366,7 @@ namespace tca {
       // special debug mode for multi-TPC detectors like protoDUNE
       if(fMode == 4 && (int)tpcid.TPC != debug.TPC) continue;
       fQuitAlg = !FillWireHitRange(tjs, tpcid, fDebugMode);
+      if(tjs.MatchTruth[0] > 0) tm.CreateTruthPFPs(tpcid);
       if(fQuitAlg) return;
       for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
         // special mode for only reconstructing the collection plane
@@ -5727,13 +5728,6 @@ namespace tca {
     // check the hits for local index errors
     unsigned short nerr = 0;
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-      // See if the sort changed the order of the hits. This would create a difference
-      // between the fHits index and the ArtPtr key. We will rely on this correspondence
-      // later when associating space points with trajectories
-      if(iht != tjs.fHits[iht].ArtPtr.key()) {
-//        std::cout<<"Hit order was changed after sorting. Turned off matching using SpacePoints.\n";
-        tjs.UseAlg[kHitsOrdered] = false;
-      }
       if(tjs.fHits[iht].Multiplicity < 2) continue;
       auto& iHit = tjs.fHits[iht];
       bool badHit = false;
@@ -5754,11 +5748,11 @@ namespace tca {
         } // jht
       }
     } // iht
-    
+       
     if(evt.isRealData()) return;
     // don't bother loading MC info if it won't be used.
     if(tjs.MatchTruth[0] < 0) return;
-
+    
     // save MCParticles in TjStuff that have the desired MCTruth origin using
     // the Origin_t typedef enum: kUnknown, kBeamNeutrino, kCosmicRay, kSuperNovaNeutrino, kSingleParticle
     simb::Origin_t origin = (simb::Origin_t)tjs.MatchTruth[0];
@@ -5779,7 +5773,7 @@ namespace tca {
       std::cout<<"MCtruth Part TrkID     PDGCode   KE   Mother Process\n";
       for(unsigned int i = 0; i < mcvec.size(); ++i) {
         if(!anySource && mcvec[i]->Origin() != origin) continue;
-        std::cout<<"mcvec "<<i<<" Origin "<<mcvec[i]->Origin()<<" NParticles "<<mcvec[i]->NParticles()<<"\n";
+//        std::cout<<"mcvec "<<i<<" Origin "<<mcvec[i]->Origin()<<" NParticles "<<mcvec[i]->NParticles()<<"\n";
         for(int ii = 0; ii < mcvec[i]->NParticles(); ++ii) {
           auto& p = mcvec[i]->GetParticle(ii);
           if(!(p.StatusCode() == 0 || p.StatusCode() == 1)) continue;
@@ -5789,7 +5783,9 @@ namespace tca {
           std::cout<<std::setw(12)<<p.PdgCode();
           std::cout<<std::setw(7)<<KE;
           std::cout<<std::setw(6)<<p.Mother();
-          std::cout<<" "<<p.Process()<<"\n";
+          std::cout<<" "<<p.Process();
+//          std::cout<<" "<<p.StatusCode();
+          std::cout<<"\n";
         } // ii
       } // i
     }
@@ -5803,7 +5799,6 @@ namespace tca {
       int trackID = p->TrackId();
       art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       int KE = 1000 * (p->E() - p->Mass());
-//      if(KE == 963 || KE == 212) std::cout<<"Prim KE "<<KE<<" trackID "<<trackID<<" Origin "<<theTruth->Origin()<<"\n";
       if(!anySource && theTruth->Origin() != origin) continue;
       if(tjs.MatchTruth[1] > 1 && KE > 10) {
         std::cout<<"GHC: mcp Origin "<<theTruth->Origin()
@@ -5826,14 +5821,6 @@ namespace tca {
     art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(hitVecHandle, evt, fHitTruthModuleLabel);
     std::vector<art::Ptr<simb::MCParticle>> particle_vec;
     std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
-/* Try to get the correct BackTrackerHitMatchingData collection using the hit collection product ID
-    std::vector<art::Handle<art::Assns<recob::Hit,simb::MCParticle,anab::BackTrackerHitMatchingData>>> hitmcp_assns;
-    evt.getManyByType(hitmcp_assns);
-    std::cout<<"Found "<<hitmcp_assns.size()<<" hitmcp_assns\n";
-    for(auto& hitmcp_assn : hitmcp_assns) {
-       Not sure what to do here...
-    } // hitmcp_assn
-*/
     unsigned int nMatHits = 0;
     // prthit is a temporary debugging variable
     bool prthit = false;
@@ -5887,7 +5874,7 @@ namespace tca {
         if(hit.MCPartListIndex == UINT_MAX) hit.InTraj = INT_MAX;
       } // hit
     }
-    
+
     if(tjs.MatchTruth[1] > 0) {
       std::cout<<"GetHitCollection loaded "<<tjs.MCPartList.size()<<" MCParticles using MCTruth Origin "<<origin;
       std::cout<<". Matched "<<nMatHits<<" hits to MCParticles out of "<<tjs.fHits.size()<<" total hits";
@@ -5895,56 +5882,4 @@ namespace tca {
     }
 
   } // GetHitCollection
-/*
-  /////////////////////////////////////////
-  void TrajClusterAlg::FillSignalVector(const art::Event& evt)
-  {
-    // Sets bits in the WireSignal vector where there is a signal at a (Plane, Wire, Time) position
-    // in this tpcid
-    
-    // don't fill the SignalVector if fMinAmp < = 0. The function SignalAtTP will then
-    // use the hit collection instead of the wire signals
-    tjs.WireSignal.clear();
-    if(fMinAmp <= 0) return;
-    
-    std::string fCalDataModuleLabel = "caldata";
-    art::ValidHandle< std::vector<recob::Wire>> wireVecHandle = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
-    if(wireVecHandle->size() == 0) return;
-    
-    tjs.WireSignal.resize(tjs.NumPlanes);
-    // determine the size of the vectors. We will set a bit if there is a wire signal
-    // that corresponds to the time in WSE units
-    unsigned int vecSize = std::nearbyint(tjs.MaxPos1[0]);
-    std::vector<bool> sig(vecSize, false);
-    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-      tjs.WireSignal[plane].resize(tjs.NumWires[plane]);
-      for(unsigned int wire = 0; wire < tjs.NumWires[plane]; ++wire) {
-        tjs.WireSignal[plane][wire] = sig;
-      }
-    } // plane
-    unsigned int cstat = tjs.TPCID.Cryostat;
-    unsigned int tpc = tjs.TPCID.TPC;
-    // iterate over the wires. This code is adapted from GausHitFinder_module
-    for(unsigned int witer = 0; witer < wireVecHandle->size(); ++witer) {
-      art::Ptr<recob::Wire> thisWire(wireVecHandle, witer);
-      const recob::Wire::RegionsOfInterest_t& signalROI = thisWire->SignalROI();
-      std::vector<geo::WireID> wids = tjs.geom->ChannelToWire(thisWire->Channel());
-      if(wids[0].Cryostat != cstat) continue;
-      if(wids[0].TPC != tpc) continue;
-      unsigned int plane = wids[0].Plane;
-      unsigned int wire = wids[0].Wire;
-      if(plane > tjs.NumPlanes || wire > tjs.NumWires[plane]) continue;
-      for(const auto& range : signalROI.get_ranges()) {
-        const std::vector<float>& signal = range.data();
-        raw::TDCtick_t roiFirstBinTick = range.begin_index();
-        for(unsigned int ii = 0; ii < signal.size(); ++ii) {
-          if(signal[ii] < fMinAmp) continue;
-          unsigned int time = std::nearbyint((roiFirstBinTick + ii) * tjs.UnitsPerTick);
-          if(time > vecSize - 1) continue;
-          tjs.WireSignal[plane][wire][time] = true;
-        } // ii
-      } // range
-    } // witer
-  } // FillSignalVector
-*/
 } // namespace cluster
