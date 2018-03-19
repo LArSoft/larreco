@@ -68,6 +68,7 @@ namespace tca {
   double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
   bool SetMag(Vector3_t& v1, double mag);
   void FilldEdx(TjStuff& tjs, TrajPoint3& tp3);
+  float PFPDOCA(const PFPStruct& pfp1,  const PFPStruct& pfp2, float maxSep);
   bool Split3DKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
   std::vector<unsigned short> FindKinks(const TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
   double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep);
