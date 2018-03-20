@@ -8,7 +8,7 @@ fcldir product_dir job
 product         version
 larsim		v06_42_02
 eigen		v3_3_3
-nutools         v2_19_00
+nutools         v2_19_02
 tensorflow      v1_3_0c
 
 cetbuildtools	v7_02_01	-	only_for_build
@@ -24,11 +24,6 @@ e14:debug     e14:debug  e14:debug  e14:p2714b:debug  -nq-
 e14:opt       e14:opt    e14:opt    e14:p2714b:opt    -nq-
 e14:prof      e14:prof   e14:prof   e14:p2714b:prof   -nq-
 end_qualifier_list
-
-# table fragment workaround for genie cling "error"
-table_fragment_begin
-    pathPrepend(ROOT_INCLUDE_PATH, ${GENIE_INC}/GENIE)
-table_fragment_end
 
 # Preserve tabs and formatting in emacs and vi / vim:
 
