@@ -17,13 +17,19 @@
 // 3. Inside each group of peaks, look for pairs of peaks that are very close, with
 // one peak being much smaller than the other one (in integral and amplitude).
 // If such a pair of peaks is found, merge the two peaks to one peak.
+//
+// For pulse trains with #peaks <= MaxMultiHit and width < MaxGroupLength:
 // 4. Fit n double exponentials to each group of peaks, where n is the number
 // of peaks inside this group. 
-// 5. If the Chi2/NDF returned is "bad", attempt to fit n+1 double exponentials
+// 5. If the Chi2/NDF returned > Chi2NDFRetry, attempt to fit n+1 double exponentials
 // to the group of peaks by adding a peak close to the maximum deviation between
 // fit and waveform. If this is a better fit it then uses the parameters of this
 // fit to characterize the "hit" object. If not, try n+2 exponentials and so on.
-// 
+// Stop when Chi2/NDF is good or 3 times the number of inital exponentials is reached.
+//
+// If Chi2/NDF is still bad or if #peaks > MaxMultiHit or width > MaxGroupLength:
+// 6. Split pulse into equally long hits.
+//
 // The parameters of the fit are saved in a feature vector by using MVAWriter to
 // draw the fitted function in the event display.
 //
@@ -58,7 +64,6 @@
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
-#include "larreco/HitFinder/HitFilterAlg.h"
 #include "lardata/ArtDataHelper/MVAWriter.h"
 
 // ROOT Includes
@@ -107,9 +112,7 @@ namespace hit{
                          int                      fEndTime,
                          ParameterVec&            fparamVec,
                          double&                  fchi2PerNDF,
-                         int&                     fNDF,
-			 std::vector<float>*	  fSignalCorrection,
-			 bool			  fDoSignalCorrection);
+                         int&                     fNDF);
     
     void FindPeakWithMaxDeviation(const std::vector<float> fSignalVector,
 			  	  int			   fNPeaks,
@@ -166,31 +169,33 @@ namespace hit{
     
     std::string      fCalDataModuleLabel;
 
-    //FHiCL parameter
-    int  fLogLevel;                   ///<signal height threshold
-    float  fMinSig;                   ///<signal height threshold
-    int    fTicksToStopPeakFinder;    ///<Number of ticks with same or higher ADC count that the current tick is needed to be followed by to define start and end of peak 
-    int    fMinWidth;                 ///<Minimum hit width
-    double fMinADCSum;                 ///<Minimum hit ADC sum
-    double fMinADCSumOverWidth;        ///<Minimum hit width
-    unsigned int fMaxMultiHit;        ///<maximum hits for multi fit
-    double	 fChargeNorm;         ///<factors for converting area to same units as peak height
-    bool	 fTryNplus1Fits;      ///<whether we will (true) or won't (false) try n+1 fits
-    double	 fChi2NDFRetry;       ///<Value at which a second n+1 Fit will be tried
-    double	 fChi2NDFRetryFactorMultiHits;       ///<Value at which a second n+1 Fit will be tried
-    double	 fChi2NDF;            ///maximum Chisquared / NDF allowed for a hit to be saved
-    size_t       fNumBinsToAverage;   ///< If bin averaging for peak finding, number bins to average
-    double   fMinTau;                 
-    double   fMaxTau;      
-    double   fFitPeakMeanRange;           
-    int   fGroupMaxDistance;
-    double fGroupMinADC;           
-    bool  fDoMergePeaks;
+    //FHiCL parameter (see "hitfindermodules.fcl" for details)
+    int    fLogLevel;
+    float  fMinSig;
+    int    fTicksToStopPeakFinder;
+    int    fMinWidth;
+    double fMinADCSum;
+    double fMinADCSumOverWidth;
+    int    fMaxMultiHit;
+    int    fMaxGroupLength;
+    double fChargeNorm;
+    bool   fTryNplus1Fits;
+    double fChi2NDFRetry;
+    double fChi2NDFRetryFactorMultiHits;
+    double fChi2NDFMax;
+    double fChi2NDFMaxFactorMultiHits;
+    size_t fNumBinsToAverage;
+    double fMinTau;
+    double fMaxTau;      
+    double fFitPeakMeanRange;
+    int    fGroupMaxDistance;
+    double fGroupMinADC;
+    bool   fDoMergePeaks;
     double fMergeADCSumThreshold;
     double fMergeMaxADCThreshold;
     double fWidthNormalization;
-
-    std::unique_ptr<HitFilterAlg> fHitFilterAlg;   ///algorithm used to filter out noise hits
+    int    fLongMaxHits;
+    int    fLongPulseWidth;
 
     art::InputTag fNewHitsTag;              // tag of hits produced by this module, need to have it for fit parameter data products 
     anab::FVectorWriter<3> fHitParamWriter; // helper for saving hit fit parameters in data products
@@ -252,29 +257,33 @@ void DPRawHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
 void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
 {
     // Implementation of optional member function here.
-    fLogLevel              = p.get< int >("LogLevel");
-    fCalDataModuleLabel    = p.get< std::string  >("CalDataModuleLabel");
-    fMaxMultiHit      	   = p.get< int    >("MaxMultiHit");
-    fTryNplus1Fits    	   = p.get< bool   >("TryNplus1Fits");
-    fChi2NDFRetry     	   = p.get< double >("Chi2NDFRetry");
+    fLogLevel              	 = p.get< int >("LogLevel");
+    fCalDataModuleLabel    	 = p.get< std::string  >("CalDataModuleLabel");
+    fMaxMultiHit      	   	 = p.get< int    >("MaxMultiHit");
+    fMaxGroupLength	   	 = p.get< int    >("MaxGroupLength");
+    fTryNplus1Fits    	   	 = p.get< bool   >("TryNplus1Fits");
+    fChi2NDFRetry     	   	 = p.get< double >("Chi2NDFRetry");
     fChi2NDFRetryFactorMultiHits = p.get< double >("Chi2NDFRetryFactorMultiHits");
-    fChi2NDF          	   = p.get< double >("Chi2NDF");
-    fNumBinsToAverage 	   = p.get< size_t >("NumBinsToAverage");
-    fMinSig           	   = p.get< float    >("MinSig");
-    fMinWidth         	   = p.get< int >("MinWidth");
-    fMinADCSum		   = p.get< double >("MinADCSum");
-    fMinADCSumOverWidth    = p.get< double >("MinADCSumOverWidth");
-    fChargeNorm       	   = p.get< double >("ChargeNorm");
-    fTicksToStopPeakFinder = p.get< double >("TicksToStopPeakFinder");
-    fMinTau          	   = p.get< double >("MinTau");
-    fMaxTau           	   = p.get< double >("MaxTau");
-    fFitPeakMeanRange	   = p.get< double >("FitPeakMeanRange");
-    fGroupMaxDistance      = p.get< int >("GroupMaxDistance");
-    fGroupMinADC           = p.get< int >("GroupMinADC");
-    fDoMergePeaks	   = p.get< bool   >("DoMergePeaks");
-    fMergeADCSumThreshold  = p.get< double >("MergeADCSumThreshold");
-    fMergeMaxADCThreshold  = p.get< double >("MergeMaxADCThreshold");
-    fWidthNormalization    = p.get< double >("WidthNormalization");
+    fChi2NDFMax        	   	 = p.get< double >("Chi2NDFMax");
+    fChi2NDFMaxFactorMultiHits 	 = p.get< double >("Chi2NDFMaxFactorMultiHits");
+    fNumBinsToAverage 	   	 = p.get< size_t >("NumBinsToAverage");
+    fMinSig           	   	 = p.get< float    >("MinSig");
+    fMinWidth         	   	 = p.get< int >("MinWidth");
+    fMinADCSum		   	 = p.get< double >("MinADCSum");
+    fMinADCSumOverWidth    	 = p.get< double >("MinADCSumOverWidth");
+    fChargeNorm       	   	 = p.get< double >("ChargeNorm");
+    fTicksToStopPeakFinder 	 = p.get< double >("TicksToStopPeakFinder");
+    fMinTau          	   	 = p.get< double >("MinTau");
+    fMaxTau           	   	 = p.get< double >("MaxTau");
+    fFitPeakMeanRange	   	 = p.get< double >("FitPeakMeanRange");
+    fGroupMaxDistance      	 = p.get< int >("GroupMaxDistance");
+    fGroupMinADC           	 = p.get< int >("GroupMinADC");
+    fDoMergePeaks	   	 = p.get< bool   >("DoMergePeaks");
+    fMergeADCSumThreshold  	 = p.get< double >("MergeADCSumThreshold");
+    fMergeMaxADCThreshold  	 = p.get< double >("MergeMaxADCThreshold");
+    fWidthNormalization    	 = p.get< double >("WidthNormalization");
+    fLongMaxHits           	 = p.get< double >("LongMaxHits");
+    fLongPulseWidth        	 = p.get< double >("LongPulseWidth");
 }  
 
 //-------------------------------------------------
@@ -300,506 +309,602 @@ void DPRawHitFinder::endJob()
 //-------------------------------------------------
 void DPRawHitFinder::produce(art::Event& evt)
 {
-    //==================================================================================================
-    TH1::AddDirectory(kFALSE);
+  //==================================================================================================
+  TH1::AddDirectory(kFALSE);
    
-    //Instantiate and Reset a stop watch
-    //TStopwatch StopWatch;
-    //StopWatch.Reset();
+  //Instantiate and Reset a stop watch
+  //TStopwatch StopWatch;
+  //StopWatch.Reset();
    
-    // ################################
-    // ### Calling Geometry service ###
-    // ################################
-    art::ServiceHandle<geo::Geometry> geom;
+  // ################################
+  // ### Calling Geometry service ###
+  // ################################
+  art::ServiceHandle<geo::Geometry> geom;
 
-    // ###############################################
-    // ### Making a ptr vector to put on the event ###
-    // ###############################################
-    // this contains the hit collection
-    // and its associations to wires and raw digits
-    recob::HitCollectionCreator hcol(*this, evt);
+  // ###############################################
+  // ### Making a ptr vector to put on the event ###
+  // ###############################################
+  // this contains the hit collection
+  // and its associations to wires and raw digits
+  recob::HitCollectionCreator hcol(*this, evt);
     
-    // start collection of fit parameters, initialize metadata describing it
-    auto hitID = fHitParamWriter.initOutputs<recob::Hit>(fNewHitsTag, { "t0", "tau1", "tau2" });
+  // start collection of fit parameters, initialize metadata describing it
+  auto hitID = fHitParamWriter.initOutputs<recob::Hit>(fNewHitsTag, { "t0", "tau1", "tau2" });
    
-    // ##########################################
-    // ### Reading in the Wire List object(s) ###
-    // ##########################################
-    art::Handle< std::vector<recob::Wire> > wireVecHandle;
-    evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
+  // ##########################################
+  // ### Reading in the Wire List object(s) ###
+  // ##########################################
+  art::Handle< std::vector<recob::Wire> > wireVecHandle;
+  evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
    
-    // #################################################################
-    // ### Reading in the RawDigit associated with these wires, too  ###
-    // #################################################################
-    art::FindOneP<raw::RawDigit> RawDigits
-        (wireVecHandle, evt, fCalDataModuleLabel);
-    // Channel Number
-    raw::ChannelID_t channel = raw::InvalidChannelID;
+  // #################################################################
+  // ### Reading in the RawDigit associated with these wires, too  ###
+  // #################################################################
+  art::FindOneP<raw::RawDigit> RawDigits(wireVecHandle, evt, fCalDataModuleLabel);
+  // Channel Number
+  raw::ChannelID_t channel = raw::InvalidChannelID;
     
-    //##############################
-    //### Looping over the wires ###
-    //##############################
-    for(size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++)
-    {
-        // ####################################
-        // ### Getting this particular wire ###
-        // ####################################
-        art::Ptr<recob::Wire>   wire(wireVecHandle, wireIter);
-        art::Ptr<raw::RawDigit> rawdigits = RawDigits.at(wireIter);
-        // --- Setting Channel Number and Signal type ---
-        channel = wire->Channel();        
-        // get the WireID for this hit
-        std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
-        // for now, just take the first option returned from ChannelToWire
-        geo::WireID wid  = wids[0];
+  //##############################
+  //### Looping over the wires ###
+  //##############################
+  for(size_t wireIter = 0; wireIter < wireVecHandle->size(); wireIter++)
+  {
+    // ####################################
+    // ### Getting this particular wire ###
+    // ####################################
+    art::Ptr<recob::Wire>   wire(wireVecHandle, wireIter);
+    art::Ptr<raw::RawDigit> rawdigits = RawDigits.at(wireIter);
+    // --- Setting Channel Number and Signal type ---
+    channel = wire->Channel();        
+    // get the WireID for this hit
+    std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
+    // for now, just take the first option returned from ChannelToWire
+    geo::WireID wid  = wids[0];
 
-	if(fLogLevel >= 1)
-	{
-	  std::cout << std::endl;
-	  std::cout << std::endl;
-	  std::cout << std::endl;
-	  std::cout << "-----------------------------------------------------------------------------------------------------------" << std::endl;
-	  std::cout << "Channel: " << channel << std::endl;
-	  std::cout << "Cryostat: " << wid.Cryostat << std::endl;
-	  std::cout << "TPC: " << wid.TPC << std::endl;
-	  std::cout << "Plane: " << wid.Plane << std::endl;
-	  std::cout << "Wire: " << wid.Wire << std::endl;
-	}
+      if(fLogLevel >= 1)
+      {
+	std::cout << std::endl;
+	std::cout << std::endl;
+	std::cout << std::endl;
+	std::cout << "-----------------------------------------------------------------------------------------------------------" << std::endl;
+	std::cout << "Channel: " << channel << std::endl;
+	std::cout << "Cryostat: " << wid.Cryostat << std::endl;
+	std::cout << "TPC: " << wid.TPC << std::endl;
+	std::cout << "Plane: " << wid.Plane << std::endl;
+	std::cout << "Wire: " << wid.Wire << std::endl;
+      }
 
 
-        // #################################################
-        // ### Set up to loop over ROI's for this wire   ###
-        // #################################################
-        const recob::Wire::RegionsOfInterest_t& signalROI = wire->SignalROI();
+      // #################################################
+      // ### Set up to loop over ROI's for this wire   ###
+      // #################################################
+      const recob::Wire::RegionsOfInterest_t& signalROI = wire->SignalROI();
        
-	int CountROI=0;
-        for(const auto& range : signalROI.get_ranges())
-        {
-            // #################################################
-            // ### Getting a vector of signals for this wire ###
-            // #################################################
-            const std::vector<float>& signal = range.data();
+      int CountROI=0;
+      for(const auto& range : signalROI.get_ranges())
+      {
+        // #################################################
+        // ### Getting a vector of signals for this wire ###
+        // #################################################
+        const std::vector<float>& signal = range.data();
 
-            // ##########################################################
-            // ### Making an iterator for the time ticks of this wire ###
-            // ##########################################################
-            std::vector<float>::const_iterator timeIter;  	    // iterator for time bins
+        // ##########################################################
+        // ### Making an iterator for the time ticks of this wire ###
+        // ##########################################################
+        std::vector<float>::const_iterator timeIter;  	    // iterator for time bins
            
-            // ROI start time
-            raw::TDCtick_t roiFirstBinTick = range.begin_index();
-            MergedTimeWidVec mergedVec;
+        // ROI start time
+        raw::TDCtick_t roiFirstBinTick = range.begin_index();
+        MergedTimeWidVec mergedVec;
 
-            // ###########################################################
-            // ### If option set do bin averaging before finding peaks ###
-            // ###########################################################
+        // ###########################################################
+        // ### If option set do bin averaging before finding peaks ###
+        // ###########################################################
             
-            if (fNumBinsToAverage > 1)
-            {
-                std::vector<float> timeAve;
-                doBinAverage(signal, timeAve, fNumBinsToAverage);
+        if (fNumBinsToAverage > 1)
+        {
+          std::vector<float> timeAve;
+          doBinAverage(signal, timeAve, fNumBinsToAverage);
             
-                // ###################################################################
-                // ### Search current averaged ROI for candidate peaks and widths  ###
-                // ###################################################################
-                TimeValsVec timeValsVec;
-                findCandidatePeaks(timeAve.begin(),timeAve.end(),timeValsVec,fMinSig,0);
+          // ###################################################################
+          // ### Search current averaged ROI for candidate peaks and widths  ###
+          // ###################################################################
+          TimeValsVec timeValsVec;
+          findCandidatePeaks(timeAve.begin(),timeAve.end(),timeValsVec,fMinSig,0);
                 
-                // ####################################################
-                // ### If no startTime hit was found skip this wire ###
-                // ####################################################
-                if (timeValsVec.empty()) continue;
+          // ####################################################
+          // ### If no startTime hit was found skip this wire ###
+          // ####################################################
+          if (timeValsVec.empty()) continue;
                 
-                // #############################################################
-                // ### Merge potentially overlapping peaks and do multi fit  ###
-                // #############################################################
-                mergeCandidatePeaks(timeAve, timeValsVec, mergedVec);
-            }
+          // #############################################################
+          // ### Merge potentially overlapping peaks and do multi fit  ###
+          // #############################################################
+          mergeCandidatePeaks(timeAve, timeValsVec, mergedVec);
+        }
             
-            // ###########################################################
-            // ### Otherwise, operate directonly on signal vector      ###
-            // ###########################################################
-            else
-            {
-                // ##########################################################
-                // ### Search current ROI for candidate peaks and widths  ###
-                // ##########################################################
-                TimeValsVec timeValsVec;
-                findCandidatePeaks(signal.begin(),signal.end(),timeValsVec,fMinSig,0);
+        // ###########################################################
+        // ### Otherwise, operate directonly on signal vector      ###
+        // ###########################################################
+        else
+        {
+          // ##########################################################
+          // ### Search current ROI for candidate peaks and widths  ###
+          // ##########################################################
+          TimeValsVec timeValsVec;
+          findCandidatePeaks(signal.begin(),signal.end(),timeValsVec,fMinSig,0);
 
-	        if(fLogLevel >=1)
-	        {
-	          std::cout << std::endl;
-	          std::cout << std::endl;
-	          std::cout << "-------------------- ROI #" << CountROI << " -------------------- " << std::endl;
-	          if(timeValsVec.size() == 1) std::cout << "ROI #" << CountROI << " (" << timeValsVec.size() << " peak):   ROIStartTick: " << range.offset << "    ROIEndTick:" << range.offset+range.size() << std::endl;
-	          else std::cout << "ROI #" << CountROI << " (" << timeValsVec.size() << " peaks):   ROIStartTick: " << range.offset << "    ROIEndTick:" << range.offset+range.size() << std::endl;
-                  CountROI++;
-	        }
+	  if(fLogLevel >=1)
+	  {
+	    std::cout << std::endl;
+	    std::cout << std::endl;
+	    std::cout << "-------------------- ROI #" << CountROI << " -------------------- " << std::endl;
+	    if(timeValsVec.size() == 1) std::cout << "ROI #" << CountROI << " (" << timeValsVec.size() << " peak):   ROIStartTick: " << range.offset << "    ROIEndTick:" << range.offset+range.size() << std::endl;
+	    else std::cout << "ROI #" << CountROI << " (" << timeValsVec.size() << " peaks):   ROIStartTick: " << range.offset << "    ROIEndTick:" << range.offset+range.size() << std::endl;
+            CountROI++;
+	  }
 
- 		if(fLogLevel >=2)
-	    	{
-		  int CountPeak=0;
-            	  for( auto const& timeValsTmp : timeValsVec )
+ 	  if(fLogLevel >=2)
+	  {
+	    int CountPeak=0;
+            for( auto const& timeValsTmp : timeValsVec )
+	    {
+	      std::cout << "Peak #" << CountPeak << ":   PeakStartTick: " << range.offset + std::get<0>(timeValsTmp) << "    PeakMaxTick: " << range.offset + std::get<1>(timeValsTmp) << "    PeakEndTick: " << range.offset + std::get<2>(timeValsTmp) << std::endl;
+	      CountPeak++; 
+	    }
+	  }
+          // ####################################################
+          // ### If no startTime hit was found skip this wire ###
+          // ####################################################
+          if (timeValsVec.empty()) continue;
+            
+          // #############################################################
+          // ### Merge potentially overlapping peaks and do multi fit  ###
+          // #############################################################
+          mergeCandidatePeaks(signal, timeValsVec, mergedVec);
+
+        }
+            
+        // #######################################################
+        // ### Creating the parameter vector for the new pulse ###
+        // #######################################################
+        ParameterVec paramVec;
+
+        // === Number of Exponentials to try ===
+	int NumberOfPeaksBeforeFit=0;
+        unsigned int nExponentialsForFit=0;
+        double       chi2PerNDF=0.;
+        int          NDF=0;
+
+	unsigned int NumberOfMergedVecs = mergedVec.size();
+
+        // ################################################################
+        // ### Lets loop over the groups of peaks we found on this wire ###
+        // ################################################################
+
+        for(unsigned int j=0; j < NumberOfMergedVecs; j++)
+        {
+          int startT = std::get<0>(mergedVec.at(j));
+          int endT   = std::get<1>(mergedVec.at(j));
+	  int width  = endT + 1 - startT;
+          PeakTimeWidVec& peakVals = std::get<2>(mergedVec.at(j));
+
+ 	  if(fLogLevel >=3)
+	  {
+	    std::cout << std::endl;
+	    if(peakVals.size() == 1) std::cout << "- Group #" << j << " (" << peakVals.size() << " peak):  GroupStartTick: " << range.offset + startT << "    GroupEndTick: " << range.offset + endT << std::endl;
+	    else std::cout << "- Group #" << j << " (" << peakVals.size() << " peaks):  GroupStartTick: " << range.offset + startT << "    GroupEndTick: " << range.offset + endT << std::endl;
+
+	    int CountPeakInGroup=0;
+	    for( auto const& peakValsTmp : peakVals )
+	    {
+	      std::cout << "Peak #" << CountPeakInGroup << " in group #" << j << ":  PeakInGroupStartTick: " << range.offset + std::get<2>(peakValsTmp) << "    PeakInGroupMaxTick: " <<  range.offset + std::get<0>(peakValsTmp) << "    PeakInGroupEndTick: " << range.offset + std::get<3>(peakValsTmp) << std::endl;
+	      CountPeakInGroup++;
+	    }
+	  }
+
+          // ### Getting rid of noise hits ###
+          if (width < fMinWidth || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0) < fMinADCSum || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0)/width < fMinADCSumOverWidth)
+	  {
+	    if(fLogLevel >=3)
+	    {
+	      std::cout << "Delete this group of peaks because width, integral or width/intergral is too small." << std::endl;
+	    }
+	    continue;
+	  }
+
+
+          // #####################################################################################################
+          // ### Only attempt to fit if number of peaks <= fMaxMultiHit and if group length <= fMaxGroupLength ###
+          // #####################################################################################################
+	  NumberOfPeaksBeforeFit = peakVals.size();
+	  nExponentialsForFit = peakVals.size();
+	  chi2PerNDF = 0.;
+	  NDF = 0;
+	  if(NumberOfPeaksBeforeFit <= fMaxMultiHit && width <= fMaxGroupLength)
+	  {
+	    // #####################################################
+            // ### Calling the function for fitting Exponentials ###
+            // #####################################################
+	    paramVec.clear();
+	    FitExponentials(signal, peakVals, startT, endT, paramVec, chi2PerNDF, NDF);
+
+	    if(fLogLevel >=4)
+	    {
+	      std::cout << std::endl;
+	      std::cout << "--- First fit ---" << std::endl;
+	      if (nExponentialsForFit == 1) std::cout << "- Fitted " << nExponentialsForFit << " peak in group #"  << j << ":" << std::endl;
+	      else std::cout << "- Fitted " << nExponentialsForFit << " peaks in group #"  << j << ":" << std::endl;
+	      std::cout << "chi2/ndf = " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+	      std::cout << "tau1 [mus] = " << std::setprecision(3) << std::fixed << paramVec[0].first << std::endl;
+	      std::cout << "tau2 [mus] = " << std::setprecision(3) << std::fixed << paramVec[1].first << std::endl;
+
+	      for(unsigned int i = 0; i < nExponentialsForFit; i++)
+	      {
+		std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << paramVec[2*(i+1)].first << std::endl;
+		std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << range.offset + paramVec[2*(i+1)+1].first << std::endl;
+	      }
+	    }
+
+	    // If the chi2 is infinite then there is a real problem so we bail
+	    if (!(chi2PerNDF < std::numeric_limits<double>::infinity())) continue;
+                   
+	    fFirstChi2->Fill(chi2PerNDF);
+                
+	    // ########################################################
+	    // ### Trying extra Exponentials for an initial bad fit ###
+	    // ########################################################
+
+	    if( (fTryNplus1Fits && nExponentialsForFit == 1 && chi2PerNDF > fChi2NDFRetry) ||
+	        (fTryNplus1Fits && nExponentialsForFit > 1 && chi2PerNDF > fChi2NDFRetryFactorMultiHits*fChi2NDFRetry) )
+	    {
+	      unsigned int nExponentialsBeforeRefit=nExponentialsForFit;  
+	      unsigned int nExponentialsAfterRefit=nExponentialsForFit; 
+	      double oldChi2PerNDF = chi2PerNDF;
+	      double chi2PerNDF2;
+	      int    NDF2;
+	      bool   RefitSuccess;
+	      PeakTimeWidVec peakValsTemp;
+	      while( (nExponentialsForFit == 1 && nExponentialsAfterRefit < 3*nExponentialsBeforeRefit && chi2PerNDF > fChi2NDFRetry) ||
+		     (nExponentialsForFit > 1 && nExponentialsAfterRefit < 3*nExponentialsBeforeRefit && chi2PerNDF > fChi2NDFRetryFactorMultiHits*fChi2NDFRetry) )
+	      {
+		RefitSuccess = false;
+		PeakDevVec PeakDev;
+	 	FindPeakWithMaxDeviation(signal, nExponentialsForFit, startT, endT, paramVec, peakVals, PeakDev);
+
+		//Add peak and re-fit
+		for(auto& PeakDevCand : PeakDev)
+		{
+		  chi2PerNDF2=0.;
+		  NDF2=0.;
+		  ParameterVec paramVecRefit;
+		  peakValsTemp = peakVals;
+
+		  AddPeak(PeakDevCand, peakValsTemp);
+		  FitExponentials(signal, peakValsTemp, startT, endT, paramVecRefit, chi2PerNDF2, NDF2);
+
+		  if (chi2PerNDF2 < chi2PerNDF)
 		  {
-		    std::cout << "Peak #" << CountPeak << ":   PeakStartTick: " << range.offset + std::get<0>(timeValsTmp) << "    PeakMaxTick: " << range.offset + std::get<1>(timeValsTmp) << "    PeakEndTick: " << range.offset + std::get<2>(timeValsTmp) << std::endl;
-		    CountPeak++; 
-	    	  }
+		    paramVec 	    = paramVecRefit;
+		    peakVals	    = peakValsTemp;
+		    nExponentialsForFit = peakVals.size();
+		    chi2PerNDF  	    = chi2PerNDF2;
+		    NDF         	    = NDF2;
+		    nExponentialsAfterRefit++;
+		    RefitSuccess = true;
+		    break;
+		  }
 		}
-                // ####################################################
-                // ### If no startTime hit was found skip this wire ###
-                // ####################################################
-                if (timeValsVec.empty()) continue;
-            
-                // #############################################################
-                // ### Merge potentially overlapping peaks and do multi fit  ###
-                // #############################################################
-                mergeCandidatePeaks(signal, timeValsVec, mergedVec);
+			
+		//Split peak and re-fit
+		if(RefitSuccess == false)
+		{
+		  for(auto& PeakDevCand : PeakDev)
+		  {
+		    chi2PerNDF2=0.;
+		    NDF2=0.;
+		    ParameterVec paramVecRefit;
+		    peakValsTemp=peakVals;
 
-            }
-            
+		    SplitPeak(PeakDevCand, peakValsTemp);
+		    FitExponentials(signal, peakValsTemp, startT, endT, paramVecRefit, chi2PerNDF2, NDF2);
+
+		    if (chi2PerNDF2 < chi2PerNDF)
+		    {
+		      paramVec 	        = paramVecRefit;
+		      peakVals	        = peakValsTemp;
+		      nExponentialsForFit = peakVals.size();
+		      chi2PerNDF  	= chi2PerNDF2;
+		      NDF         	= NDF2;
+		      nExponentialsAfterRefit++;
+		      RefitSuccess = true;
+		      break;
+		    }
+		  }
+		}
+
+		if(RefitSuccess == false)
+		{
+		  break;
+		}	
+	      }
+
+	      if(fLogLevel >=5)
+	      {
+		std::cout << std::endl;
+		std::cout << "--- Refit ---" << std::endl;
+		if( chi2PerNDF == oldChi2PerNDF) std::cout << "chi2/ndf didn't improve. Keep first fit." << std::endl;
+		else
+		{
+		  std::cout << "- Added peaks to group #" << j << ". This group now has " << nExponentialsForFit << " peaks:" << std::endl;
+		  std::cout << "- Group #" << j << " (" << peakVals.size() << " peaks):  GroupStartTick: " << range.offset + startT << "    GroupEndTick: " << range.offset + endT << std::endl;
+
+		  int CountPeakInGroup=0;
+		  for( auto const& peakValsTmp : peakVals )
+		  {
+		    std::cout << "Peak #" << CountPeakInGroup << " in group #" << j << ":  PeakInGroupStartTick: " << range.offset + std::get<2>(peakValsTmp) << "    PeakInGroupMaxTick: " <<  range.offset + std::get<0>(peakValsTmp) << "    PeakInGroupEndTick: " << range.offset + std::get<3>(peakValsTmp) << std::endl;
+		    CountPeakInGroup++;
+		  }
+
+		  std::cout << "chi2/ndf = " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+		  std::cout << "tau1 [mus] = " << std::setprecision(3) << std::fixed << paramVec[0].first << std::endl;
+		  std::cout << "tau2 [mus] = " << std::setprecision(3) << std::fixed << paramVec[1].first << std::endl;
+
+		  for(unsigned int i = 0; i < nExponentialsForFit; i++)
+		  {
+		    std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << paramVec[2*(i+1)].first << std::endl;
+		    std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << range.offset + paramVec[2*(i+1)+1].first << std::endl;
+		  }
+		}
+	      }
+	    }
+
             // #######################################################
-            // ### Creating the parameter vector for the new pulse ###
+            // ### Loop through returned peaks and make recob hits ###
             // #######################################################
-            ParameterVec paramVec;
+                
+            int numHits(0);
+ 	    //Check chi2PerNDF
+	    if( ( nExponentialsForFit == 1 && chi2PerNDF <= fChi2NDFMax ) || ( nExponentialsForFit >= 2 && chi2PerNDF <= fChi2NDFMaxFactorMultiHits*fChi2NDFMax ) )
+	    {
+              for(unsigned int i = 0; i < nExponentialsForFit; i++)
+              {
+                //Extract fit parameters for this hit
+		double peakTau1 = paramVec[0].first;
+	        double peakTau2 = paramVec[1].first;
+                double peakAmp   = paramVec[2*(i+1)].first;
+                double peakMean  = paramVec[2*(i+1)+1].first;
 
-            // === Number of Exponentials to try ===
-            unsigned int nExponentialsForFit=0;
-            double       chi2PerNDF;
-            int          NDF;
+	 	//Calculate mean
+		TF1 Exponentials("Exponentials","( [0] * exp(0.4*(x-[1])/[2]) / ( 1 + exp(0.4*(x-[1])/[3]) ) )",startT,endT);
+        	Exponentials.SetParameter(0, peakAmp);
+        	Exponentials.SetParameter(1, peakMean);
+        	Exponentials.SetParameter(2, peakTau1);
+        	Exponentials.SetParameter(3, peakTau2);
+		double peakMeanTrue = Exponentials.GetMaximumX(startT,endT);
+		Exponentials.Delete();
 
-	    bool DoSignalCorrection = false;
-	    unsigned int NumberOfMergedVecs = mergedVec.size();
-	    int EndTOfLastMergedVec = std::get<1>(mergedVec.at(NumberOfMergedVecs-1));
-	    std::vector<float> SignalCorrection;
-	    SignalCorrection.resize(EndTOfLastMergedVec+1, 0.);
+		//Calculate width (=FWHM)
+		double peakWidth = WidthFunc(peakMean, peakAmp, peakTau1, peakTau2, startT, endT, peakMeanTrue);
+		peakWidth /= fWidthNormalization; //from FWHM to "standard deviation": standard deviation = FWHM/(2*sqrt(2*ln(2)))
 
-            // #######################################################
-            // ### Lets loop over the pulses we found on this wire ###
-            // #######################################################
+                // Extract fit parameters errors
+                double peakAmpErr   = paramVec[2*(i+1)].second;
+                double peakMeanErr  = paramVec[2*(i+1)+1].second;
+                double peakWidthErr = 0.1*peakWidth;
 
-            for(unsigned int j=0; j < NumberOfMergedVecs; j++)
-            {
-                int             startT   = std::get<0>(mergedVec.at(j));
-                int             endT     = std::get<1>(mergedVec.at(j));
-		int		width = endT + 1 - startT;
-                PeakTimeWidVec& peakVals = std::get<2>(mergedVec.at(j));
+                // ### Charge ###
+                double charge = ChargeFunc(peakMean, peakAmp, peakTau1, peakTau2, fChargeNorm, peakMeanTrue);
+                double chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);    
 
- 		if(fLogLevel >=3)
+                // ### limits for getting sum of ADC counts
+	        int startTthisHit = std::get<2>(peakVals.at(i));
+	        int endTthisHit = std::get<3>(peakVals.at(i));
+                std::vector<float>::const_iterator sumStartItr = signal.begin() + startTthisHit;
+                std::vector<float>::const_iterator sumEndItr   = signal.begin() + endTthisHit;
+
+                // ### Sum of ADC counts
+                double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
+
+
+		//Check if fit returns reasonable values
+		if(peakWidth <= 0 || charge <= 0. || charge != charge)
+		{
+		  if(fLogLevel >= 1)
+		  {
+		    std::cout << std::endl;
+		    std::cout << "WARNING: For peak #" << i << " in this group:" << std::endl;
+		    std::cout << "Fit function returned width < 0 or charge < 0 or charge = nan." << std::endl;
+		    std::cout << "---> DO NOT create hit object from fit parameters but use peak values instead." << std::endl;
+		    std::cout << "---> Set fit parameter so that a sharp peak with a width of 1 tick is shown in the event display. This indicates that the fit failed." << std::endl;
+		  }
+		  peakWidth = ( ( (double)endTthisHit - (double)startTthisHit )/4. ) / fWidthNormalization; //~4 is the factor between FWHM and full width of the hit (last bin - first bin). no drift: 4.4, 6m drift: 3.7
+                  peakAmp   = 0.3989 * sumADC / peakWidth;  // Use gaussian formulation
+		  peakAmpErr = 0.1*peakAmp;
+		  peakMeanErr=peakWidth/2;
+		  charge = sumADC;
+		  peakMeanTrue = std::get<0>(peakVals.at(i));
+		  peakWidth *= 2;	//double the peak width again (overestimating the width is safer than underestimating it)
+
+		  //set the fit values to make it visible in the event display that this fit failed
+                  peakMean = peakMeanTrue-2;
+                  peakTau1 = 0.008;
+                  peakTau2 = 0.0065;
+		}
+
+                // Create the hit
+		recob::HitCreator hitcreator(*wire,                            // wire reference
+                                             wid,                              // wire ID
+                                             startT+roiFirstBinTick,           // start_tick TODO check
+                                             endT+roiFirstBinTick,             // end_tick TODO check
+                                             peakWidth,                        // rms
+                                             peakMeanTrue+roiFirstBinTick,     // peak_time
+                                             peakMeanErr,                      // sigma_peak_time
+                                             peakAmp,                          // peak_amplitude
+                                             peakAmpErr,                       // sigma_peak_amplitude
+                                             charge,                           // hit_integral
+                                             chargeErr,                        // hit_sigma_integral
+                                             sumADC,                           // summedADC FIXME
+                                             nExponentialsForFit,              // multiplicity
+                                             numHits,                          // local_index TODO check that the order is correct
+                                             chi2PerNDF,                       // goodness_of_fit
+                                             NDF                               // dof
+                                             );
+
+		if(fLogLevel >=6)
 	    	{
 		  std::cout << std::endl;
-		  if(peakVals.size() == 1) std::cout << "- Group #" << j << " (" << peakVals.size() << " peak):  GroupStartTick: " << range.offset + startT << "    GroupEndTick: " << range.offset + endT << std::endl;
-		  else std::cout << "- Group #" << j << " (" << peakVals.size() << " peaks):  GroupStartTick: " << range.offset + startT << "    GroupEndTick: " << range.offset + endT << std::endl;
-
-	 	  int CountPeakInGroup=0;
-	          for( auto const& peakValsTmp : peakVals )
-		  {
-		      std::cout << "Peak #" << CountPeakInGroup << " in group #" << j << ":  PeakInGroupStartTick: " << range.offset + std::get<2>(peakValsTmp) << "    PeakInGroupMaxTick: " <<  range.offset + std::get<0>(peakValsTmp) << "    PeakInGroupEndTick: " << range.offset + std::get<3>(peakValsTmp) << std::endl;
-		      CountPeakInGroup++;
-		  }
+		  std::cout << "- Created hit object for peak #" << i << " in this group with the following parameters (obtained from fit):" << std::endl;
+		  std::cout << "HitStartTick: " << startT+roiFirstBinTick << std::endl;
+		  std::cout << "HitEndTick: " << endT+roiFirstBinTick << std::endl;
+		  std::cout << "HitWidthTicks: " << std::setprecision(2) << std::fixed << peakWidth << std::endl;
+		  std::cout << "HitMeanTick: " << std::setprecision(2) << std::fixed << peakMeanTrue+roiFirstBinTick << " +- " << peakMeanErr << std::endl;
+		  std::cout << "HitAmplitude [ADC]: " << std::setprecision(1) << std::fixed << peakAmp << " +- " << peakAmpErr << std::endl;
+		  std::cout << "HitIntegral [ADC*ticks]: " << std::setprecision(1) << std::fixed << charge << " +- " << chargeErr << std::endl;
+		  std::cout << "HitADCSum [ADC*ticks]: " << std::setprecision(1) << std::fixed << sumADC << std::endl;
+		  std::cout << "HitMultiplicity: " << nExponentialsForFit << std::endl;
+		  std::cout << "HitIndex in group: " << numHits << std::endl;
+		  std::cout << "Hitchi2/ndf: " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+		  std::cout << "HitNDF: " << NDF << std::endl;
 		}
 
-                // ### Getting rid of noise hits ###
-                if (width < fMinWidth || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0) < fMinADCSum || (double)std::accumulate(signal.begin()+startT, signal.begin()+endT+1, 0)/width < fMinADCSumOverWidth)
-		{
-		  if(fLogLevel >=3)
-	    	  {
-		    std::cout << "Delete this group of peaks because width, integral or width/intergral is too small." << std::endl;
-		  }
-		  continue;
-		}
-
-		    if(j>=1 && nExponentialsForFit>0)
-		    {
-			DoSignalCorrection = true;
-			std::string eqn = CreateFitFunction(nExponentialsForFit);
-    			TF1 Exponentials("Exponentials",eqn.c_str(),startT,EndTOfLastMergedVec+1);
- 			for(size_t i = 0; i < paramVec.size(); i++)
-    			{
-    			    Exponentials.SetParameter(i, paramVec[i].first);
-			}
-	
-			for(int i = startT; i < EndTOfLastMergedVec+1; i++)
-			{
-			    SignalCorrection.at(i)+=Exponentials(i+0.5);
-			}
-		    }
-
-		    // #####################################################
-                    // ### Calling the function for fitting Exponentials ###
-                    // #####################################################
-		    paramVec.clear();
-                    nExponentialsForFit = peakVals.size();
-                    chi2PerNDF=0.;
-                    NDF=0;
-                    FitExponentials(signal, peakVals, startT, endT, paramVec, chi2PerNDF, NDF, &SignalCorrection, DoSignalCorrection);
-                    // If the chi2 is infinite then there is a real problem so we bail
-
- 		    if(fLogLevel >=4)
-	    	    {
-		      std::cout << std::endl;
-		      std::cout << "--- First fit ---" << std::endl;
-		      if (nExponentialsForFit == 1) std::cout << "- Fitted " << nExponentialsForFit << " peak in group #"  << j << ":" << std::endl;
-		      else std::cout << "- Fitted " << nExponentialsForFit << " peaks in group #"  << j << ":" << std::endl;
-		      std::cout << "chi2/ndf = " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
-		      std::cout << "tau1 [mus] = " << std::setprecision(3) << std::fixed << paramVec[0].first << std::endl;
-		      std::cout << "tau2 [mus] = " << std::setprecision(3) << std::fixed << paramVec[1].first << std::endl;
-
-                      for(unsigned int i = 0; i < nExponentialsForFit; i++)
-                      {
-		        std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << paramVec[2*(i+1)].first << std::endl;
-		        std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << range.offset + paramVec[2*(i+1)+1].first << std::endl;
-		      }
-		    }
-
-                    if (!(chi2PerNDF < std::numeric_limits<double>::infinity())) continue;
-                   
-                    fFirstChi2->Fill(chi2PerNDF);
-                
-                    // ########################################################
-                    // ### Trying extra Exponentials for an initial bad fit ###
-                    // ########################################################
-
-		    if( (nExponentialsForFit == 1 && chi2PerNDF > fChi2NDFRetry && fTryNplus1Fits) ||
-                        (nExponentialsForFit > 1 && chi2PerNDF > fChi2NDFRetryFactorMultiHits*fChi2NDFRetry && fTryNplus1Fits) )
-                    {
-		    unsigned int nExponentialsBeforeRefit=nExponentialsForFit;  
-		    unsigned int nExponentialsAfterRefit=nExponentialsForFit; 
-		    double oldChi2PerNDF = chi2PerNDF;
-                    double chi2PerNDF2;
-                    int    NDF2;
-		    bool   RefitSuccess;
-		    PeakTimeWidVec peakValsTemp;
-		    	while( (nExponentialsForFit == 1 && nExponentialsAfterRefit < 3*nExponentialsBeforeRefit && chi2PerNDF > fChi2NDFRetry && nExponentialsAfterRefit < 2*fMaxMultiHit) ||
-			       (nExponentialsForFit > 1 && nExponentialsAfterRefit < 3*nExponentialsBeforeRefit && chi2PerNDF > fChi2NDFRetryFactorMultiHits*fChi2NDFRetry && nExponentialsAfterRefit < 2*fMaxMultiHit) )
-		    	{
-			RefitSuccess = false;
-			PeakDevVec PeakDev;
-			FindPeakWithMaxDeviation(signal, nExponentialsForFit, startT, endT, paramVec, peakVals, PeakDev);
-
-			    //Add peak and re-fit
-			    for(auto& PeakDevCand : PeakDev)
-			    {
-                            chi2PerNDF2=0.;
-                            NDF2=0.;
-                            ParameterVec paramVecRefit;
-		    	    peakValsTemp = peakVals;
-
-			    AddPeak(PeakDevCand, peakValsTemp);
-                            FitExponentials(signal, peakValsTemp, startT, endT, paramVecRefit, chi2PerNDF2, NDF2, &SignalCorrection, DoSignalCorrection);
-
-				if (chi2PerNDF2 < chi2PerNDF)
-                           	{
-			    	paramVec 	    = paramVecRefit;
-             		   	peakVals	    = peakValsTemp;
-                           	nExponentialsForFit = peakVals.size();
-                            	chi2PerNDF  	    = chi2PerNDF2;
-                            	NDF         	    = NDF2;
-			    	nExponentialsAfterRefit++;
-				RefitSuccess = true;
-				break;
-                            	}
-			    }
-			
-			    //Split peak and re-fit
-			    if(RefitSuccess == false)
-			    {
-			    	for(auto& PeakDevCand : PeakDev)
-			    	{
-                            	chi2PerNDF2=0.;
-                            	NDF2=0.;
-                            	ParameterVec paramVecRefit;
-		    	    	peakValsTemp=peakVals;
-
-				SplitPeak(PeakDevCand, peakValsTemp);
-                            	FitExponentials(signal, peakValsTemp, startT, endT, paramVecRefit, chi2PerNDF2, NDF2, &SignalCorrection, DoSignalCorrection);
-
-				    if (chi2PerNDF2 < chi2PerNDF)
-                           	    {
-			    	    paramVec 	        = paramVecRefit;
-             		   	    peakVals	        = peakValsTemp;
-                           	    nExponentialsForFit = peakVals.size();
-                            	    chi2PerNDF  	= chi2PerNDF2;
-                            	    NDF         	= NDF2;
-			    	    nExponentialsAfterRefit++;
-				    RefitSuccess = true;
-				    break;
-                            	    }
-			    	}
-			    }
-
-			    if(RefitSuccess == false)
-			    {
-			    break;
-			    }	
-			}
-
-		      if(fLogLevel >=5)
-	    	      {
-		        std::cout << std::endl;
-		        std::cout << "--- Refit ---" << std::endl;
-			if( chi2PerNDF == oldChi2PerNDF) std::cout << "chi2/ndf didn't improve. Keep first fit." << std::endl;
-			else
-			{
-		          std::cout << "- Added peaks to group #" << j << ". This group now has " << nExponentialsForFit << " peaks:" << std::endl;
-		          std::cout << "- Group #" << j << " (" << peakVals.size() << " peaks):  GroupStartTick: " << range.offset + startT << "    GroupEndTick: " << range.offset + endT << std::endl;
-
-	 	          int CountPeakInGroup=0;
-	                  for( auto const& peakValsTmp : peakVals )
-		          {
-		            std::cout << "Peak #" << CountPeakInGroup << " in group #" << j << ":  PeakInGroupStartTick: " << range.offset + std::get<2>(peakValsTmp) << "    PeakInGroupMaxTick: " <<  range.offset + std::get<0>(peakValsTmp) << "    PeakInGroupEndTick: " << range.offset + std::get<3>(peakValsTmp) << std::endl;
-		            CountPeakInGroup++;
-		          }
-
-		          std::cout << "chi2/ndf = " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
-		          std::cout << "tau1 [mus] = " << std::setprecision(3) << std::fixed << paramVec[0].first << std::endl;
-		          std::cout << "tau2 [mus] = " << std::setprecision(3) << std::fixed << paramVec[1].first << std::endl;
-
-                          for(unsigned int i = 0; i < nExponentialsForFit; i++)
-                          {
-		            std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << paramVec[2*(i+1)].first << std::endl;
-		            std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << range.offset + paramVec[2*(i+1)+1].first << std::endl;
-		          }
-		        }
-		      }
-                    }
-	    
-                // #######################################################
-                // ### Loop through returned peaks and make recob hits ###
-                // #######################################################
-                
-                int numHits(0);
-
-                for(unsigned int i = 0; i < nExponentialsForFit; i++)
-                {
-                    //Extract fit parameters for this hit
-		    double peakTau1 = paramVec[0].first;
-		    double peakTau2 = paramVec[1].first;
-                    double peakAmp   = paramVec[2*(i+1)].first;
-                    double peakMean  = paramVec[2*(i+1)+1].first;
-
-		    //Calculate mean
-		    TF1 Exponentials("Exponentials","( [0] * exp(0.4*(x-[1])/[2]) / ( 1 + exp(0.4*(x-[1])/[3]) ) )",startT,endT);
-        	    Exponentials.SetParameter(0, peakAmp);
-        	    Exponentials.SetParameter(1, peakMean);
-        	    Exponentials.SetParameter(2, peakTau1);
-        	    Exponentials.SetParameter(3, peakTau2);
-		    double peakMeanTrue = Exponentials.GetMaximumX(startT,endT);
-		    Exponentials.Delete();
-
-		    //Calculate width (=FWHM)
-		    double peakWidth = WidthFunc(peakMean, peakAmp, peakTau1, peakTau2, startT, endT, peakMeanTrue);
-		    peakWidth /= fWidthNormalization; //from FWHM to "standard deviation": standard deviation = FWHM/(2*sqrt(2*ln(2)))
-
-                    // Extract fit parameters errors
-                    double peakAmpErr   = paramVec[2*(i+1)].second;
-                    double peakMeanErr  = paramVec[2*(i+1)+1].second;
-                    double peakWidthErr = 0.1*peakWidth;
-
-                    // ### Charge ###
-                    double charge = ChargeFunc(peakMean, peakAmp, peakTau1, peakTau2, fChargeNorm, peakMeanTrue);
-                    double chargeErr = std::sqrt(TMath::Pi()) * (peakAmpErr*peakWidthErr + peakWidthErr*peakAmpErr);    
-
-                    // ### limits for getting sum of ADC counts
-	            int startTthisHit = std::get<2>(peakVals.at(i));
-	            int endTthisHit = std::get<3>(peakVals.at(i));
-                    std::vector<float>::const_iterator sumStartItr = signal.begin() + startTthisHit;
-                    std::vector<float>::const_iterator sumEndItr   = signal.begin() + endTthisHit;
-
-                    // ### Sum of ADC counts
-                    double sumADC = std::accumulate(sumStartItr, sumEndItr, 0.);
-
-
-		    //Check if fit returns reasonable values
-		    if(chi2PerNDF > fChi2NDF || peakWidth <= 0 || charge <= 0. || charge != charge)
-		    {
-		      if(fLogLevel >= 1)
-		      {
-		        std::cout << std::endl;
-			std::cout << "WARNING: For peak #" << i << " in this group:" << std::endl;
-			if (chi2PerNDF > fChi2NDF) std::cout << "chi2/ndf of this fit is higher than threshold (" << fChi2NDF << "): " << chi2PerNDF << std::endl;
-			else std::cout << "Fit function returned width < 0 or charge < 0 or charge = nan." << std::endl;
-			std::cout << "---> DO NOT create hit object from fit parameters but use peak values instead." << std::endl;
-			std::cout << "---> Set fit parameter so that a sharp peak with a width of 1 tick is shown in the event display. This indicates that the fit failed." << std::endl;
-		      }
-		      peakWidth = ( ( (double)endTthisHit - (double)startTthisHit )/4. ) / fWidthNormalization; //~4 is the factor between FWHM and full width of the hit (last bin - first bin). no drift: 4.4, 6m drift: 3.7
-		      peakWidth *= 2;	//double the peak width again (overestimating the width is safer than underestimating it)
-		      charge = sumADC;
-		      peakMeanTrue = std::get<0>(peakVals.at(i));
-		      //set the fit values to make it visible in the event display that this fit failed
-                      peakMean = peakMeanTrue-2;
-                      peakTau1 = 0.008;
-                      peakTau2 = 0.0065;
-		    }
-/*
-		    if(fLogLevel >= 1)
-		    {
-		      std::cout << "channel: " << channel << std::endl;
-		      std::cout << "charge: " << charge << std::endl;
-		      std::cout << "sumADC: " << sumADC << std::endl;
-		      std::cout << "peakAmp: " << peakAmp << std::endl;
-		      std::cout << "startT: " << startT+roiFirstBinTick << std::endl;
-		      std::cout << "peakMeanTrue: " << peakMeanTrue+roiFirstBinTick << std::endl;
-		      std::cout << "endT: " << endT+roiFirstBinTick << std::endl;
-		      std::cout << "peakWidth: " << peakWidth << std::endl;
-		      std::cout << std::endl;
-		    }
-*/
-                    // Create the hit
-                    recob::HitCreator hitcreator(*wire,                            // wire reference
-                                                 wid,                              // wire ID
-                                                 startT+roiFirstBinTick,           // start_tick TODO check
-                                                 endT+roiFirstBinTick,             // end_tick TODO check
-                                                 peakWidth,                        // rms
-                                                 peakMeanTrue+roiFirstBinTick,     // peak_time
-                                                 peakMeanErr,                      // sigma_peak_time
-                                                 peakAmp,                          // peak_amplitude
-                                                 peakAmpErr,                       // sigma_peak_amplitude
-                                                 charge,                           // hit_integral
-                                                 chargeErr,                        // hit_sigma_integral
-                                                 sumADC,                           // summedADC FIXME
-                                                 nExponentialsForFit,              // multiplicity
-                                                 numHits,                          // local_index TODO check that the order is correct
-                                                 chi2PerNDF,                       // goodness_of_fit
-                                                 NDF                               // dof
-                                                 );
-
-		    if(fLogLevel >=6)
-	    	    {
-		      std::cout << std::endl;
-		      std::cout << "- Created hit object for peak #" << i << " in this group with the following parameters:" << std::endl;
-		      std::cout << "HitStartTick: " << startT+roiFirstBinTick << std::endl;
-		      std::cout << "HitEndTicks: " << endT+roiFirstBinTick << std::endl;
-		      std::cout << "HitWidthTicks: " << std::setprecision(2) << std::fixed << peakWidth << std::endl;
-		      std::cout << "HitMeanTick: " << std::setprecision(2) << std::fixed << peakMeanTrue+roiFirstBinTick << " +- " << peakMeanErr << std::endl;
-		      std::cout << "HitAmplitude [ADC]: " << std::setprecision(1) << std::fixed << peakAmp << " +- " << peakAmpErr << std::endl;
-		      std::cout << "HitIntegral [ADC*ticks]: " << std::setprecision(1) << std::fixed << charge << " +- " << chargeErr << std::endl;
-		      std::cout << "HitADCSum [ADC*ticks]: " << std::setprecision(1) << std::fixed << sumADC << std::endl;
-		      std::cout << "HitMultiplicity: " << nExponentialsForFit << std::endl;
-		      std::cout << "HitIndex in group: " << numHits << std::endl;
-		      std::cout << "Hitchi2/ndf: " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
-		      std::cout << "HitNDF: " << NDF << std::endl;
-		    }
-
-                    const recob::Hit hit(hitcreator.move());
+                const recob::Hit hit(hitcreator.move());
 		    
-                    hcol.emplace_back(std::move(hit), wire, rawdigits);
-                    // add fit parameters associated to the hit just pushed to the collection
-                    std::array<float, 3> fitParams;
-                    fitParams[0] = peakMean+roiFirstBinTick;
-                    fitParams[1] = peakTau1;
-                    fitParams[2] = peakTau2;
-                    fHitParamWriter.addVector(hitID, fitParams);
-                    numHits++;
-                } // <---End loop over Exponentials
-                
-                fChi2->Fill(chi2PerNDF);
-	    
-           }//<---End loop over merged candidate hits
+                hcol.emplace_back(std::move(hit), wire, rawdigits);
+                // add fit parameters associated to the hit just pushed to the collection
+                std::array<float, 3> fitParams;
+                fitParams[0] = peakMean+roiFirstBinTick;
+                fitParams[1] = peakTau1;
+                fitParams[2] = peakTau2;
+                fHitParamWriter.addVector(hitID, fitParams);
+                numHits++;
+              } // <---End loop over Exponentials
+            } // <---End if chi2 <= chi2Max
+	  } // <---End if(NumberOfPeaksBeforeFit <= fMaxMultiHit && width <= fMaxGroupLength), then fit
 
+          // #######################################################
+          // ### If too large then force alternate solution      ###
+          // ### - Make n hits from pulse train where n will     ###
+          // ###   depend on the fhicl parameter fLongPulseWidth ###
+          // ### Also do this if chi^2 is too large              ###
+          // #######################################################
+          if( NumberOfPeaksBeforeFit > fMaxMultiHit || (width > fMaxGroupLength) || ( nExponentialsForFit == 1 && chi2PerNDF > fChi2NDFMax ) || ( nExponentialsForFit >= 2 && chi2PerNDF > fChi2NDFMaxFactorMultiHits*fChi2NDFMax ) )
+          {
+
+            int nHitsInThisGroup = (endT - startT) / fLongPulseWidth;
+                    
+            if (nHitsInThisGroup > fLongMaxHits)
+            {
+              nHitsInThisGroup = fLongMaxHits;
+              fLongPulseWidth = (endT - startT) / nHitsInThisGroup;
+            }
+                    
+            if (nHitsInThisGroup * fLongPulseWidth < endT - startT) nHitsInThisGroup++;
+                    
+            int firstTick = startT;
+            int lastTick  = firstTick + std::min(endT,fLongPulseWidth) -1;
+
+	    if(fLogLevel >= 1)
+	    {
+	      if( NumberOfPeaksBeforeFit > fMaxMultiHit)
+	      {
+		std::cout << std::endl;
+		std::cout << "WARNING: Number of peaks in this group (" << NumberOfPeaksBeforeFit << ") is higher than threshold (" <<  fMaxMultiHit << ")." << std::endl;
+		std::cout << "---> DO NOT fit. Split group of peaks into hits with equal length instead." << std::endl;
+	      }
+	      if( width > fMaxGroupLength)
+	      {
+		std::cout << std::endl;
+		std::cout << "WARNING: group of peak is longer (" << width << " ticks) than threshold (" <<  fMaxGroupLength << " ticks)." << std::endl;
+		std::cout << "---> DO NOT fit. Split group of peaks into hits with equal length instead." << std::endl;
+	      }
+
+	      if( ( nExponentialsForFit == 1 && chi2PerNDF > fChi2NDFMax ) || ( nExponentialsForFit >= 2 && chi2PerNDF > fChi2NDFMaxFactorMultiHits*fChi2NDFMax ) )
+	      {
+		std::cout << std::endl;
+	      	std::cout << "WARNING: For fit of this group (" <<  NumberOfPeaksBeforeFit << " peaks before refit, " << nExponentialsForFit << " peaks after refit): " << std::endl;
+	      	if ( nExponentialsForFit == 1 && chi2PerNDF > fChi2NDFMax ) std::cout << "chi2/ndf of this fit (" << chi2PerNDF << ") is higher than threshold (" << fChi2NDFMax << ")." << std::endl;
+	      	if ( nExponentialsForFit >= 2 && chi2PerNDF > fChi2NDFMaxFactorMultiHits*fChi2NDFMax ) std::cout << "chi2/ndf of this fit (" << chi2PerNDF << ") is higher than threshold (" << fChi2NDFMaxFactorMultiHits*fChi2NDFMax << ")." << std::endl;
+	        std::cout << "---> DO NOT create hit object but split group of peaks into hits with equal length instead." << std::endl;
+	      }
+	      std::cout << "---> Group goes from tick " << roiFirstBinTick+startT << " to " << roiFirstBinTick+endT << ". Split group into (" << roiFirstBinTick+endT << " - " << roiFirstBinTick+startT << ")/" << fLongPulseWidth << " = " <<  (endT - startT) << "/" << fLongPulseWidth << " = " << nHitsInThisGroup << " peaks (" << fLongPulseWidth << " = LongPulseWidth), or maximum LongMaxHits = " << fLongMaxHits << " peaks." << std::endl;
+	    }
+
+                   
+            for(int hitIdx = 0; hitIdx < nHitsInThisGroup; hitIdx++)
+            {
+              // This hit parameters
+              double peakWidth = (lastTick - firstTick) / 3.; 
+              double peakMeanTrue  = (firstTick + lastTick) / 2.;
+	      double peakMeanErr = (lastTick - firstTick) / 2.;
+              double sumADC    = std::accumulate(signal.begin() + firstTick, signal.begin() + lastTick, 0.);
+	      double charge = sumADC;
+	      double chargeErr = 0.1*sumADC;
+              double peakAmp   = 0.3989 * sumADC / peakWidth;  // Use gaussian formulation
+	      double peakAmpErr = 0.1*peakAmp;
+	      nExponentialsForFit = nHitsInThisGroup;
+              NDF         = 1;
+              chi2PerNDF  =  chi2PerNDF > fChi2NDFRetryFactorMultiHits*fChi2NDFRetry ? chi2PerNDF : -1.;
+              //chi2PerNDF  = -1.;
+
+	      //set the fit values to make it visible in the event display that this fit failed
+              double peakMean = peakMeanTrue-2;
+              double peakTau1 = 0.008;
+              double peakTau2 = 0.0065;
+                        
+              recob::HitCreator hitcreator(*wire,                            // wire reference
+                                           wid,                              // wire ID
+                                           firstTick+roiFirstBinTick,        // start_tick TODO check
+                                           lastTick+roiFirstBinTick,         // end_tick TODO check
+                                           peakWidth,                        // rms
+                                           peakMeanTrue+roiFirstBinTick,     // peak_time
+                                           peakMeanErr,                      // sigma_peak_time
+                                           peakAmp,                          // peak_amplitude
+                                           peakAmpErr,                       // sigma_peak_amplitude
+                                           charge,                           // hit_integral
+                                           chargeErr,                        // hit_sigma_integral
+                                           sumADC,                           // summedADC FIXME
+                                           nExponentialsForFit,              // multiplicity
+                                           hitIdx,                          // local_index TODO check that the order is correct
+                                           chi2PerNDF,                       // goodness_of_fit
+                                           NDF                               // dof
+                                           );
+
+
+	      if(fLogLevel >=6)
+	      {
+	        std::cout << std::endl;
+	        std::cout << "- Created hit object for peak #" << hitIdx << " in this group with the following parameters (obtained from waveform):" << std::endl;
+	        std::cout << "HitStartTick: " << firstTick+roiFirstBinTick << std::endl;
+	        std::cout << "HitEndTick: " << lastTick+roiFirstBinTick << std::endl;
+	        std::cout << "HitWidthTicks: " << std::setprecision(2) << std::fixed << peakWidth << std::endl;
+	        std::cout << "HitMeanTick: " << std::setprecision(2) << std::fixed << peakMeanTrue+roiFirstBinTick << " +- " << peakMeanErr << std::endl;
+	        std::cout << "HitAmplitude [ADC]: " << std::setprecision(1) << std::fixed << peakAmp << " +- " << peakAmpErr << std::endl;
+	        std::cout << "HitIntegral [ADC*ticks]: " << std::setprecision(1) << std::fixed << charge << " +- " << chargeErr << std::endl;
+	        std::cout << "HitADCSum [ADC*ticks]: " << std::setprecision(1) << std::fixed << sumADC << std::endl;
+	        std::cout << "HitMultiplicity: " << nExponentialsForFit << std::endl;
+	        std::cout << "HitIndex in group: " << hitIdx << std::endl;
+	        std::cout << "Hitchi2/ndf: " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+	        std::cout << "HitNDF: " << NDF << std::endl;
+	      }   
+              const recob::Hit hit(hitcreator.move());
+              hcol.emplace_back(std::move(hit), wire, rawdigits);
+
+              std::array<float, 3> fitParams;
+              fitParams[0] = peakMean+roiFirstBinTick;
+              fitParams[1] = peakTau1;
+              fitParams[2] = peakTau2;
+              fHitParamWriter.addVector(hitID, fitParams);
+    
+              // set for next loop
+              firstTick = lastTick+1;
+              lastTick  = std::min(lastTick + fLongPulseWidth, endT);
+            }//<---Hits in this group
+	  }//<---End if #peaks > MaxMultiHit
+          fChi2->Fill(chi2PerNDF);
+         }//<---End loop over merged candidate hits
        } //<---End looping over ROI's
-
-   }//<---End looping over all the wires
-
+     }//<---End looping over all the wires
 
     //==================================================================================================
     // End of the event
@@ -925,7 +1030,7 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
         // Loop until no more merged pulses (or candidates in this ROI)
         while(checkNextHit)
         {
-            // If: start time of the next pulse is < end time + fGroupMaxDistance of last ppulse or if: intermediate signal between two pulses doesn't go below fMinBinToGroup merge until fMaxMultiHit is reached.
+            // group hits if start time of the next pulse is < end time + fGroupMaxDistance of current pulse and if intermediate signal between two pulses doesn't go below fMinBinToGroup
             int NextStartT = std::get<0>(*timeValsVecItr);
 	    
 	    double MinADC = signalVec[endT];
@@ -938,7 +1043,7 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
 	    }
 	    
 	    // Group peaks (grouped peaks are fitted together and can be merged)
-            if( MinADC >= fGroupMinADC && NextStartT - endT <= fGroupMaxDistance && PeaksInThisMergedPeak < fMaxMultiHit-1 )
+            if( MinADC >= fGroupMinADC && NextStartT - endT <= fGroupMaxDistance )
             {
 	    	int PrevStartT=startT;
 	    	int PrevMaxT=maxT;
@@ -1011,12 +1116,10 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float>& signalVe
 		PeaksInThisMergedPeak = 0;
 	    }
             
-        }//<---End checking if there is more than one pulse on the wire
-        
+        }//<---End checking if there is more than one pulse on the wire   
         // Add these to our merged vector
         mergedVec.emplace_back(FinalStartT, FinalEndT, peakVals);
     }
-    
     return;
 }
 
@@ -1029,9 +1132,7 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  fSignalVecto
                                           int                       fEndTime,
                                           ParameterVec&             fparamVec,
                                           double&                   fchi2PerNDF,
-                                          int&                      fNDF,
-					  std::vector<float>*	    fSignalCorrection,
-					  bool			    fDoSignalCorrection)
+                                          int&                      fNDF)
 {
     int size = fEndTime - fStartTime + 1;
     int NPeaks = fPeakVals.size();
@@ -1050,8 +1151,7 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  fSignalVecto
     // #############################
     for(int i = fStartTime; i < fEndTime+1; i++)
     {
-	if(!fDoSignalCorrection){hitSignal.Fill(i,fSignalVector[i]);}
-	else{hitSignal.Fill(i,fSignalVector[i]-fSignalCorrection->at(i));}
+	hitSignal.Fill(i,fSignalVector[i]);
 	hitSignal.SetBinError(i,0.288675); //1/sqrt(12)
     }
 

@@ -75,8 +75,6 @@ dpraw_hitfinder:
  MinSig:               		10    		# peak threshold for peak finding (in ADC). Peaks with lower amplitudes are neither fitted nor stored.
  TicksToStopPeakFinder: 	4		# when walking along waveform to find start and end points of a peak, stop when current tick is followed by minimum "TicksToStopPeakFinder" ticks 							# with equal or higher ADC counts (=inflection point). Stop anyway if ADC count of a tick is <= 0.
 
- MaxMultiHit:          		10              # maximum number of peaks in a group. Peaks in groups are fitted together. Fitting too many peaks together takes a lot of time!
-						# When refitting, maximum number of peaks in group is: 1) not greater than 2xMaxMultiHit and 2) not greater than 3x number of peaks before re-fitting.
  GroupMaxDistance:		10		# maximum distance (in ticks) between two peaks to be grouped.
  GroupMinADC:			-5		# minimum ADC count between two peaks to be grouped.
  DoMergePeaks:			true		# true: enables peak merging for peaks in the same group.
@@ -87,11 +85,20 @@ dpraw_hitfinder:
  MinADCSum:    			10             	# threshold for ADC sum (in ADC*ticks). Groups of peaks with smaller values are neither fitted nor stored.
  MinADCSumOverWidth:    	2.4             # threshold for ADC sum over width (in ADC*ticks/ticks). Groups of peaks with smaller values are neither fitted nor stored.
 
- Chi2NDF:              		2000            # maximum chi square / NDF allowed for a fit to be stored as recob::Hit. Otherwise, calculate recob::Hit parameters from waveform.
- 
+ MaxMultiHit:          		6              # maximum number of peaks in a group for the group to be fitted. If more, split the group in equally spaced hits without fitting.
+						# When refitting, maximum number of peaks in group is: 1) not greater than 3x number of peaks before re-fitting.
+ MaxGroupLength:          	1000            # Maximum length of group of peaks for the group to be fitted, in ticks. If more, split the group in equally spaced hits without fitting.
+						# When refitting, maximum number of peaks in group is: 1) not greater than 3x number of peaks before re-fitting.
  TryNplus1Fits:        		true		# true: will try to re-fit poorly modeled groups of peaks (chi2PerNDF>Chi2NDFRetry) while adding (an) additional peak(s).
- Chi2NDFRetry:         		25.0            # for single peaks: if the first fit returns a Chi2/NDF greater than this, try to re-fit.
+ Chi2NDFRetry:         		25              # for single peaks: if the first fit returns a Chi2/NDF greater than this, try to re-fit.
  Chi2NDFRetryFactorMultiHits: 	2       	# for groups of peaks (2 or more): if the first fit returns a Chi2/NDF greater than Chi2NDFRetryFactorMultiHits*Chi2NDFRetry, try to re-fit.
+
+ Chi2NDFMax:          		2000            # for single peaks: maximum chi square / NDF allowed for a fit to be stored as recob::Hit. Otherwise, calculate recob::Hit parameters from waveform.
+ Chi2NDFMaxFactorMultiHits: 	2       	# for groups of peaks (2 or more): maximum chi square / NDF allowed for a fit to be stored as recob::Hit. Otherwise, calculate recob::Hit parameters from waveform.
+
+ LongPulseWidth:       		40      	# max widths for hits in long pulse trains 
+ LongMaxHits:         		20      	# max number hits in long pulse trains
+
 
  ChargeNorm:           		1		# Normalization for fit integral. Should be set to 1.
  NumBinsToAverage:     		0		# 0 or 1 = no averaging.
@@ -102,15 +109,6 @@ dpraw_hitfinder:
  WidthNormalization:    	2.335		# standard width of the fitted hit is the FWHM of the fitted function (full width at half maximum). 
 						# This width is divied by 'WidthNormalization' and saved to the recob::Hit.
 						# standard value is chosen to be 2.335 = 2*sqrt(2*ln(2)), which is the relation between FWHM and standard deviation for the Gaussian distribution.
-
- FilterHits:           		false           # true = do not keep undesired hits according to settings of HitFilterAlg object
- HitFilterAlg:
- {
-   AlgName: "HitFilterAlg"
-   MinPulseHeight: [5.0, 5.0, 5.0]      #minimum hit peak amplitude per plane
-   MinPulseSigma:  [1.0, 1.0, 1.0]      #minimum hit rms per plane
- }
-
 }
 
 standard_rffhitfinderalg:
