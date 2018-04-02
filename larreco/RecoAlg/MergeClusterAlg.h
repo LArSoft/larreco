@@ -80,7 +80,7 @@ private:
 
   // Create geometry and detector property handle
   art::ServiceHandle<geo::Geometry> fGeom;
-  const detinfo::DetectorProperties* fDetProp;
+//  const detinfo::DetectorProperties* fDetProp;
   art::ServiceHandle<art::TFileService> tfs;
 //  art::ServiceHandle<cheat::BackTracker> backtracker;
 
@@ -99,7 +99,7 @@ private:
   double fProjectedWidth;
   double fOverlap;
   bool fTrueMerge;
-  bool fMerge;
+//  bool fMerge;
 
 };
 

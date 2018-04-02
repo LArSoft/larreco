@@ -28,7 +28,8 @@ namespace trkf {
   //
   BezierTrack::BezierTrack(int id, const recob::Trajectory& traj)
     : fTraj(traj)
-    , fID(id)
+    // Clang: private field 'fID' is not used
+  //  , fID(id)
   {
     fBezierResolution=1000;
     CalculateSegments();
@@ -92,7 +93,8 @@ namespace trkf {
                            std::vector<std::vector<double> > const& dQdx,
                            int id)
     : fTraj(geo::vect::convertCollToPoint(Pos), geo::vect::convertCollToVector(Dir), false)
-    , fID(id)
+    // Clang: private field 'fID' is not used
+  //  , fID(id)
     , fdQdx(dQdx)
   {
     fBezierResolution=1000;

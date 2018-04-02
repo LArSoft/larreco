@@ -100,7 +100,7 @@ namespace trkf {
     std::string     fG4ModuleLabel;// label for input MC single particle generator
     bool fGenfPRINT;
       
-    TFile *fileGENFIT;
+  //  TFile *fileGENFIT;
     TTree *tree;
 
     TMatrixT<Double_t> *stMCT;

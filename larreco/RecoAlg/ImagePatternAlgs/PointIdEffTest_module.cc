@@ -134,7 +134,6 @@ private:
 
 	int fMcPid;
 	int fClSize;
-	int fPure;
 	float fPidValue; // P(track-like)
 	
 
