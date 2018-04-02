@@ -1,5 +1,8 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
+#include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
+
+
 struct SortEntry{
   unsigned int index;
   float val;
@@ -1701,7 +1704,7 @@ namespace tca {
     TCHit& jhit = tjs.fHits[jht];
     unsigned int iwire = ihit.ArtPtr->WireID().Wire;
     unsigned int jwire = jhit.ArtPtr->WireID().Wire;
-    if(abs(iwire - jwire) > 1) return false;
+    if(util::absDiff(iwire, jwire) > 1) return false;
     if(ihit.PeakTime > jhit.PeakTime) {
       float minISignal = ihit.PeakTime - 3 * ihit.RMS;
       float maxJSignal = jhit.PeakTime + 3 * ihit.RMS;
