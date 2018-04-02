@@ -5,10 +5,11 @@ if( DEFINED ENV{TENSORFLOW_DIR} )
   include_directories ( $ENV{TENSORFLOW_INC}/eigen )
 endif ()
 
-simple_plugin(PointIdTrainingData "module"
+simple_plugin(PointIdEffTest "module"
 			larcore_Geometry_Geometry_service
 			larcorealg_Geometry
 			lardataobj_RecoBase
+			lardata_ArtDataHelper
 			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
 			nusimdata_SimulationBase
@@ -27,11 +28,13 @@ simple_plugin(PointIdTrainingData "module"
 			${ROOT_BASIC_LIB_LIST}
 )
 
-simple_plugin(PointIdEffTest "module"
+# not ready for c2 yet
+if( DEFINED ENV{TENSORFLOW_DIR} )
+
+simple_plugin(PointIdTrainingData "module"
 			larcore_Geometry_Geometry_service
 			larcorealg_Geometry
 			lardataobj_RecoBase
-			lardata_ArtDataHelper
 			larreco_Calorimetry
 			larreco_RecoAlg_ImagePatternAlgs_PointIdAlg
 			nusimdata_SimulationBase
@@ -137,6 +140,8 @@ simple_plugin(ParticleDecayId "module"
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )
+
+endif ()
 
 # not ready for c2 yet
 if( DEFINED ENV{TENSORFLOW_DIR} )
