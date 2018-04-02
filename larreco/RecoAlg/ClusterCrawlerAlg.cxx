@@ -22,6 +22,7 @@
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h"
+#include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -4882,7 +4883,7 @@ namespace cluster {
     for(ii = 0; ii < nHitToChk - 1; ++ii) {
       indx = fcl2hits.size() - 1 - ii;
       // ignore if not on adjacent wires
-      if(std::abs(fHits[fcl2hits[indx]].WireID().Wire != fHits[fcl2hits[indx-1]].WireID().Wire) > 1) continue;
+      if(util::absDiff(fHits[fcl2hits[indx]].WireID().Wire, fHits[fcl2hits[indx-1]].WireID().Wire) > 1) continue;
       hiStartTick = std::max(fHits[fcl2hits[indx]].StartTick(), fHits[fcl2hits[indx-1]].StartTick());
       loEndTick = std::min(fHits[fcl2hits[indx]].EndTick(), fHits[fcl2hits[indx-1]].EndTick());
       if(posSlope) {
@@ -5085,7 +5086,7 @@ namespace cluster {
       float bigchgcut = 1.5 * fChgCut[pass];
       bool lasthitbig = false;
       bool lasthitlow = false;
-      if(lastClHit != UINT_MAX && std::abs(wire0 - kwire) == 1) {
+      if(lastClHit != UINT_MAX && util::absDiff(wire0, kwire) == 1) {
         float lastchgrat = (fHits[lastClHit].Integral() - fAveChg) / fAveChg;
         lasthitbig = ( lastchgrat > bigchgcut);
         lasthitlow = ( lastchgrat < -fChgCut[pass]);
@@ -5400,8 +5401,8 @@ namespace cluster {
           for(unsigned short icl = 0; icl < tcl.size(); ++icl) {
             if(tcl[icl].ID < 0) continue;
             if(tcl[icl].CTP != clCTP) continue;
-            dwb = std::abs(theWire - tcl[icl].BeginWir);
-            dwe = std::abs(theWire - tcl[icl].EndWir);
+            dwb = util::absDiff(theWire, tcl[icl].BeginWir);
+            dwe = util::absDiff(theWire, tcl[icl].EndWir);
             // rough cut to start
             if(dwb > 10 && dwe > 10) continue;
             if(dwb < dwe && dwb < 10 && tcl[icl].BeginVtx < 0) {

@@ -10,6 +10,7 @@
 
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -1364,7 +1365,7 @@ double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk, unsigned
 		{
 			hit = trk[ih];
 
-			if (abs(hit->Wire() - lastHit->Wire()) > 2)
+			if (util::absDiff(hit->Wire(), lastHit->Wire()) > 2)
 				break; // break on gap in wire direction
 
 			last_x = trk.HitDxByView(ih, view);
