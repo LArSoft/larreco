@@ -28,11 +28,6 @@
 #include "lardataobj/RecoBase/Hit.h"
 
 
-/* Since data for clustering are usually noisy,
- * so it is not very necessary to have EPSILON extremely small.
- */
-static constexpr double EPSILON = 1e-9;
-
 namespace {
   template <typename T>
   inline constexpr T sqr(T v) { return v*v; }
