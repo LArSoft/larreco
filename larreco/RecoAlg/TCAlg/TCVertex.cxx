@@ -40,7 +40,9 @@ namespace tca {
     // set an invalid ID
     junkVx.ID = USHRT_MAX;
     // put in generous errors
-    junkVx.PosErr = {2, 2};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    junkVx.PosErr = {{2.0, 2.0}};
     // define a minimal score so it won't get clobbered
     junkVx.Score = tjs.Vertex2DCuts[7] + 0.1;
 
@@ -216,7 +218,9 @@ namespace tca {
           if(tint < 0 || tint > tjs.MaxPos1[planeID.Plane]) continue;
           // Next cut on separation between the TPs and the intersection point
           if(tj1Short || tj2Short) { sepCut = tjs.Vertex2DCuts[1]; } else { sepCut = tjs.Vertex2DCuts[2]; }
-          Point2_t vPos {wint, tint};
+          // BUG the double brace syntax is required to work around clang bug 21629
+          // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+          Point2_t vPos {{wint, tint}};
           float vt1Sep = PosSep(vPos, tp1.Pos);
           float vt2Sep = PosSep(vPos, tp2.Pos);
           float dwc1 = DeadWireCount(tjs, wint, tp1.Pos[0], tp1.CTP);

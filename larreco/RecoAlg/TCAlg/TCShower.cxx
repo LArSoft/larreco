@@ -843,7 +843,9 @@ namespace tca {
     std::string fcnLabel = inFcnLabel + ".FMS1";
     
     // determine which plane has the missed shower(s)
-    std::array<bool, 3> hasShower {false};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    std::array<bool, 3> hasShower {{false, false, false}};
     unsigned int cstat = 0;
     unsigned int tpc = 0;
     // check for 3D-matched parent Tjs
@@ -2706,7 +2708,9 @@ namespace tca {
       tp.Chg = 0;
       tp.DeltaRMS = 0;
       tp.NTPsFit = 0;
-      tp.HitPos = {0, 0};
+      // BUG the double brace syntax is required to work around clang bug 21629
+      // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+      tp.HitPos = {{0.0, 0.0}};
     }
     
     float minAlong = ss.ShPts[0].RotPos[0];
