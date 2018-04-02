@@ -39,7 +39,7 @@ inline T sqr(T v) { return v*v; }
 
 
 double gaus(double x, double mean, double sigma, double amplitude) {
-  register double z = (x - mean) / sigma;
+  double const z = (x - mean) / sigma;
   return amplitude * std::exp(-0.5*sqr(z));
 } // gaus()
 

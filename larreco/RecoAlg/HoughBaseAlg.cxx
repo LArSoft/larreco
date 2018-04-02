@@ -180,7 +180,7 @@ cluster::HoughTransformCounters<K, C, S, A, SC>::unchecked_add_range_max(
     size_t n = std::min(left, Base_t::NCounters - key.counter);
     left -= n;
     while (n--) {
-      register SubCounter_t value = (block[key.counter] += delta);
+      SubCounter_t value = (block[key.counter] += delta);
       if (value > max.second) {
         max = { Base_t::make_const_iterator(iIP, key.counter), value };
       }
