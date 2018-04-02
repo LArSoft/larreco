@@ -198,7 +198,7 @@ double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<
   const double Etot = sqrt(p*p + m2);//Initial energy
   double Eij2 = 0.;
   //
-  constexpr double fixedterm = 0.5 * std::log( 2.0 * M_PI );
+  double const fixedterm = 0.5 * std::log( 2.0 * M_PI );
   double result = 0;
   for (int i = beg; i != end; i+=incr ) {
     if (dthetaij[i]<0) {
