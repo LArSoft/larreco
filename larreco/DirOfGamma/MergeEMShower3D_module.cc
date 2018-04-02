@@ -330,7 +330,7 @@ public:
   MergeEMShower3D & operator = (MergeEMShower3D const &) = delete;
   MergeEMShower3D & operator = (MergeEMShower3D &&) = delete;
 
-	void beginJob();
+	void beginJob() override;
 
 	void produce(art::Event & e) override;
 

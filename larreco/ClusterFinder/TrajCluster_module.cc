@@ -47,12 +47,11 @@ namespace cluster {
     
   public:
     explicit TrajCluster(fhicl::ParameterSet const & pset);
-    virtual ~TrajCluster() = default;
     
     void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
-    void beginJob();
-    void endJob();
+    void beginJob() override;
+    void endJob() override;
     
   private:
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
