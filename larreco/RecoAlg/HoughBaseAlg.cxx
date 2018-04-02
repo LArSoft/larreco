@@ -829,6 +829,9 @@ void cluster::HoughTransform::Init(unsigned int dx,
   m_rhoResolutionFactor = rhores;
   
   m_accum.clear();
+  //--- BEGIN issue #19494 -----------------------------------------------------
+  // BulkAllocator.h is currently broken; see issue #19494 and comment in header.
+#if 0
   // set the custom allocator for nodes to allocate large chunks of nodes;
   // one node is 40 bytes plus the size of the counters block.
   // The math over there sets a bit less than 10 MiB per chunk.
@@ -844,6 +847,8 @@ void cluster::HoughTransform::Init(unsigned int dx,
     >::SetChunkSize(
     10 * ((1048576 / (40 + sizeof(DistancesMap_t::CounterBlock_t))) & ~0x1FFU)
     );
+#endif // 0
+  //--- END issue #19494 -------------------------------------------------------
   
   //m_accum.resize(m_numAngleCells);
   m_numAccumulated = 0;   
