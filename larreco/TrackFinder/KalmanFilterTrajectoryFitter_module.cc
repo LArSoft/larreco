@@ -336,7 +336,7 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
       }
       ip++;
     }
-    outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
+    outputHitInfo->emplace_back(optionals.trackFitHitInfos());
     if (isTT) {
       outputTTjTAssn->addSingle(art::Ptr<recob::TrackTrajectory>(inputTrackTrajectoryH, iTraj),aptr);
     } else {

@@ -172,7 +172,7 @@ namespace cluster {
     // look for clusters in all planes
     fTCAlg->RunTrajClusterAlg(evt);
     
-    std::unique_ptr<std::vector<recob::Hit>> newHits = std::make_unique<std::vector<recob::Hit>>(std::move(fTCAlg->YieldHits()));
+    std::unique_ptr<std::vector<recob::Hit>> newHits = std::make_unique<std::vector<recob::Hit>>(fTCAlg->YieldHits());
 
     std::vector<recob::Cluster> sccol;
     std::vector<recob::PFParticle> spcol;
