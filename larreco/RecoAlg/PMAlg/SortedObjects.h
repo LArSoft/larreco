@@ -62,7 +62,7 @@ class pma::SortedBranchBase : public pma::SortedObjectBase
 public:
 	SortedBranchBase(void) : pma::SortedObjectBase() {}
 	SortedBranchBase(pma::SortedObjectBase* prevElement, pma::SortedObjectBase* nextElement = 0) :
-		pma::SortedObjectBase(prev, next)
+		pma::SortedObjectBase(prevElement, nextElement)
 	{
 		if (nextElement) next_vector.push_back(next);
 	}
