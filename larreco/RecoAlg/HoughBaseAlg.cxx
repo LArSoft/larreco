@@ -1785,10 +1785,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
         skip.at(hitTemp.at(lastHits.at(i)))=1;
       } 
       //protection against very steep uncorrelated hits
-      if(std::abs(slope)>fMaxSlope 
-         && std::abs((*clusterHits.begin())->Channel()-
-                     clusterHits.at(clusterHits.size()-1)->Channel())>=0
-         )
+      if(std::abs(slope)>fMaxSlope)
         continue;
       
       clusHitsOut.push_back(clusterHits);

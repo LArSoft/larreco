@@ -293,10 +293,10 @@ void keras::conv_single_depth_same(
         //const float * k_data = k[k1_size-k1-1].data();
         //const float * im_data = im[i-st_x+k1].data();
         for(unsigned int k2 = 0; k2 < k2_size; ++k2) {
-          if(i-st_x+k1 < 0) continue;
-          if(i-st_x+k1 > max_imc) continue;
-          if(j-st_y+k2 < 0) continue;
-          if(j-st_y+k2 > max_imr) continue;
+          if(i+k1 < st_x) continue;
+          if(i+k1 > max_imc+st_x) continue;
+          if(j+k2 < st_y) continue;
+          if(j+k2 > max_imr+st_y) continue;
 
           //sum += k_data[k2_size-k2-1] * im_data[j-st_y+k2];
           sum += k[k1_size-k1-1][k2_size-k2-1] * im[i-st_x+k1][j-st_y+k2];

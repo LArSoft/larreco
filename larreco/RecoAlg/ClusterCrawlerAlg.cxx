@@ -356,7 +356,7 @@ namespace cluster {
             // skip narrow hits
             if(fHits[ihit].PeakAmplitude() < fHitMinAmp) continue;
 //            prt = (fDebugPlane == (int)plane && (int)iwire == fDebugWire && std::abs((int)hit.PeakTime() - fDebugHit) < 20);
-            if((iwire - span + 1) < 0) continue;
+            if((iwire + 1) < span) continue;
             jwire = iwire - span + 1;
             if(prt) mf::LogVerbatim("CC")<<"Found debug hit "<<PrintHit(ihit)<<" on pass"<<pass;
             // skip if good wire and no hit
@@ -3224,7 +3224,7 @@ namespace cluster {
     if(pass2 < pass1) cpass = pass2;
     
     // ***** Check End of Cluster 2 matching with middle of cluster 1
-    if(wiron1 - ew1 < 0) return;
+    if((int) wiron1 - ew1 < 0) return;
     unsigned int hiton1 = cl1hits[wiron1 - ew1];
     if(hiton1 > fHits.size() - 1) {
 //      mf::LogError("CC")<<"ChkMerge12 bad hiton1 "<<hiton1;

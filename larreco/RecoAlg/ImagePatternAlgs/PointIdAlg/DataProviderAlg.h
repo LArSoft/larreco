@@ -137,8 +137,8 @@ public:
     {
         size_t didx = getDriftIndex(drift), widx = (size_t)wire;
 
-        if ((widx >= 0) && (widx < fWireDriftData.size()) &&
-            (didx >= 0) && (didx < fNCachedDrifts))
+        if ((widx < fWireDriftData.size()) &&
+            (didx < fNCachedDrifts))
         {
             return fWireDriftData[widx][didx];
         }
