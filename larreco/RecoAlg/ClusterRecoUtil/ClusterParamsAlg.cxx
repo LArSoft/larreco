@@ -1812,7 +1812,7 @@ namespace cluster{
   
   //------------------------------------------------------------------------------
   float ClusterParamsAlg::MultipleHitWires() {
-    if (fHitVector.size() < 2) return { 0.F };
+    if (fHitVector.size() < 2) return 0.0F;
     
     // compute all the averages
     GetAverages();
@@ -1825,7 +1825,7 @@ namespace cluster{
   
   //------------------------------------------------------------------------------
   float ClusterParamsAlg::MultipleHitDensity() {
-    if (fHitVector.size() < 2) return { 0.F };
+    if (fHitVector.size() < 2) return 0.0F;
     
     // compute all the averages
     GetAverages();
