@@ -272,7 +272,8 @@ namespace tca {
     unsigned short codeIndex = 0;
     if(tjIDs.empty()) return codeList[codeIndex];
     
-    std::array<unsigned short, 5> cnts = {0};
+    std::array<unsigned short, 5> cnts;
+    cnts.fill(0);
     // Count Bragg peaks. This assumes that the Tjs are in order...
     // BUG the double brace syntax is required to work around clang bug 21629
     // (https://bugs.llvm.org/show_bug.cgi?id=21629)

@@ -2171,7 +2171,8 @@ namespace tca {
     
     if(vx3.ID == 0) return USHRT_MAX;
     // Consider Topo values between 0 and 9
-    std::array<short, 10> cnts = {0};
+    std::array<short, 10> cnts;
+    cnts.fill(0);
     for(auto vx2id : vx3.Vx2ID) {
       if(vx2id == 0) continue;
       auto& vx2 = tjs.vtx[vx2id - 1];
