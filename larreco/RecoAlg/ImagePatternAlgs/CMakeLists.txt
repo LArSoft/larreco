@@ -1,6 +1,9 @@
 
-# tensorflow eigen headers
-include_directories ( $ENV{TENSORFLOW_INC}/eigen )
+# not ready for c2 yet
+if( DEFINED ENV{TENSORFLOW_DIR} )
+  # tensorflow eigen headers
+  include_directories ( $ENV{TENSORFLOW_INC}/eigen )
+endif ()
 
 simple_plugin(PointIdTrainingData "module"
 			larcore_Geometry_Geometry_service
@@ -135,7 +138,10 @@ simple_plugin(ParticleDecayId "module"
 			${ROOT_BASIC_LIB_LIST}
 )
 
-add_subdirectory(TF)
+# not ready for c2 yet
+if( DEFINED ENV{TENSORFLOW_DIR} )
+  add_subdirectory(TF)
+endif ()
 add_subdirectory(Keras)
 add_subdirectory(PointIdAlg)
 add_subdirectory(job)
