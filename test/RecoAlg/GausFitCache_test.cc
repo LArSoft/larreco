@@ -98,7 +98,9 @@ struct RootGausFuncWrapper {
   Double_t operator()
     (Double_t const x, Double_t mean, Double_t sigma, Double_t amplitude) const
     {
-      std::array<Double_t, 3> params = { amplitude, mean, sigma };
+      // BUG the double brace syntax is required to work around clang bug 21629
+      // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+      std::array<Double_t, 3> params = {{ amplitude, mean, sigma }};
       return func(&x, params.data());
     } // operator()
   

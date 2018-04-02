@@ -983,7 +983,9 @@ std::array<int, 3> cluster::HoughTransform::DoAddPointReturnMax
       if (max_counter.second > max_val) {
         // DEBUG
       //  std::cout << " <NEW MAX " << max_val << " => " << max_counter.second << " >" << std::endl;
-        max = { max_counter.second, max_counter.first.key(), (int) iAngleStep };
+        // BUG the double brace syntax is required to work around clang bug 21629
+        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+        max = {{ max_counter.second, max_counter.first.key(), (int) iAngleStep }};
         max_val = max_counter.second;
       }
     }

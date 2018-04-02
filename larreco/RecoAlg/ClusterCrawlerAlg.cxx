@@ -5918,8 +5918,10 @@ namespace cluster {
           iWire = vtx[ivx].Wire;
           float best = fVertex3DCut;
           // temp array of 2D vertex indices in each plane
-          std::array<short, 3> t2dIndex = {-1, -1, -1};
-          std::array<short, 3> tmpIndex = {-1, -1, -1};
+          // BUG the double brace syntax is required to work around clang bug 21629
+          // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+          std::array<short, 3> t2dIndex = {{-1, -1, -1}};
+          std::array<short, 3> tmpIndex = {{-1, -1, -1}};
           for(jpl = ipl + 1; jpl < 3; ++jpl) {
             for(jj = 0; jj < vIndex[jpl].size(); ++jj) {
               jvx = vIndex[jpl][jj];

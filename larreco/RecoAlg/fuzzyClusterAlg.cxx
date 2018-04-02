@@ -742,14 +742,16 @@ bool cluster::fuzzyClusterAlg::mergeShowerTrackClusters(showerCluster *showerClu
         y21 = trackClusterProtoTrackItr->pMin1; 
         x22 = trackClusterProtoTrackItr->pMax0; 
         y22 = trackClusterProtoTrackItr->pMax1; 
-        std::array<double, 4> distances = {
+        // BUG the double brace syntax is required to work around clang bug 21629
+        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+        std::array<double, 4> distances = {{
         // Compare toMergerItr min with clusIndexStart min, if this is the min distance, lines are not colinear, merge is vetoed
           ::norm(x11-x21, y11-y21),
           ::norm(x11-x22, y11-y22), // Compare toMergerItr min with clusIndexStart max
           ::norm(x12-x21, y12-y21), // Compare toMergerItr max with clusIndexStart min
         // Compare toMergerItr max with clusIndexStart max, if this is the min distance, lines are not colinear, merge is vetoed
           ::norm(x12-x22, y12-y22)
-        }; // distances
+        }}; // distances
 
         double minDistance = 999999; 
         int minDistanceIndex = -1;
@@ -1087,14 +1089,16 @@ bool cluster::fuzzyClusterAlg::mergeTrackClusters(unsigned int clusIndexStart,
         double y21 = trackClustersClusIndexStartProtoTrackItr->pMin1; 
         double x22 = trackClustersClusIndexStartProtoTrackItr->pMax0; 
         double y22 = trackClustersClusIndexStartProtoTrackItr->pMax1; 
-        std::array<double, 4> distances = {
+        // BUG the double brace syntax is required to work around clang bug 21629
+        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+        std::array<double, 4> distances = {{
         // Compare toMergerItr min with clusIndexStart min, if this is the min distance, lines are not colinear, merge is vetoed
           ::norm(x11-x21, y11-y21),
           ::norm(x11-x22, y11-y22), // Compare toMergerItr min with clusIndexStart max
           ::norm(x12-x21, y12-y21), // Compare toMergerItr max with clusIndexStart min
         // Compare toMergerItr max with clusIndexStart max, if this is the min distance, lines are not colinear, merge is vetoed
           ::norm(x12-x22, y12-y22)
-        }; // distances
+        }}; // distances
 
         double minDistance = 999999; 
         int minDistanceIndex = -1;
@@ -1322,14 +1326,16 @@ bool cluster::fuzzyClusterAlg::mergeShowerClusters(unsigned int clusIndexStart,
         double y21 = showerClustersClusIndexStartProtoTrackItr->pMin1; 
         double x22 = showerClustersClusIndexStartProtoTrackItr->pMax0; 
         double y22 = showerClustersClusIndexStartProtoTrackItr->pMax1; 
-        std::array<double, 4> distances = {
+        // BUG the double brace syntax is required to work around clang bug 21629
+        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+        std::array<double, 4> distances = {{
         // Compare toMergerItr min with clusIndexStart min, if this is the min distance, lines are not colinear, merge is vetoed
           ::norm(x11-x21, y11-y21),
           ::norm(x11-x22, y11-y22), // Compare toMergerItr min with clusIndexStart max
           ::norm(x12-x21, y12-y21), // Compare toMergerItr max with clusIndexStart min
         // Compare toMergerItr max with clusIndexStart max, if this is the min distance, lines are not colinear, merge is vetoed
           ::norm(x12-x22, y12-y22)
-        }; // distances
+        }}; // distances
 
         double minDistance = 999999; 
         int minDistanceIndex = -1;
