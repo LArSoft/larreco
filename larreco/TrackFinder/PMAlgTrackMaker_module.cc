@@ -448,11 +448,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 
 			auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
 
-			double t0time = trk->GetT0();
-			if (t0time != 0.0)
+			if (trk->HasT0())
 			{
 				// TriggBits=3 means from 3d reco (0,1,2 mean something else)
-				t0s->push_back(anab::T0(t0time, 0, 3, tracks->back().ID()));
+				t0s->push_back(anab::T0(trk->GetT0(), 0, 3, tracks->back().ID()));
 
 				auto const t0Ptr = make_t0ptr(t0s->size() - 1);  // PtrMaker Step #3
 				trk2t0->addSingle(trkPtr, t0Ptr);

@@ -1,5 +1,8 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
+#include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
+
+
 struct SortEntry{
   unsigned int index;
   float val;
@@ -266,13 +269,18 @@ namespace tca {
     // 13 = Tagged muon
     // 211 = pion-like. There exists a Bragg peak at an end with a vertex
     // 2212 = proton-like. There exists a Bragg peak at an end without a vertex
-    std::array<int, 5> codeList = {0, 11, 13, 211, 2212};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    std::array<int, 5> codeList = {{0, 11, 13, 211, 2212}};
     unsigned short codeIndex = 0;
     if(tjIDs.empty()) return codeList[codeIndex];
     
-    std::array<unsigned short, 5> cnts = {0};
+    std::array<unsigned short, 5> cnts;
+    cnts.fill(0);
     // Count Bragg peaks. This assumes that the Tjs are in order...
-    std::array<unsigned short, 2> stopCnt {0};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    std::array<unsigned short, 2> stopCnt {{0, 0}};
     float maxLen = 0;
     for(auto tjid : tjIDs) {
       if(tjid <= 0 || tjid > (int)tjs.allTraj.size()) continue;
@@ -1696,7 +1704,7 @@ namespace tca {
     TCHit& jhit = tjs.fHits[jht];
     unsigned int iwire = ihit.ArtPtr->WireID().Wire;
     unsigned int jwire = jhit.ArtPtr->WireID().Wire;
-    if(abs(iwire - jwire) > 1) return false;
+    if(util::absDiff(iwire, jwire) > 1) return false;
     if(ihit.PeakTime > jhit.PeakTime) {
       float minISignal = ihit.PeakTime - 3 * ihit.RMS;
       float maxJSignal = jhit.PeakTime + 3 * ihit.RMS;
@@ -3209,8 +3217,10 @@ namespace tca {
     tp.Pos[1] = tjs.detprop->ConvertXToTicks(pos[0], planeID) * tjs.UnitsPerTick;
     // now find the direction
     // Make a point at the origin and one 100 units away
-    Point3_t ori3 = {0, 0, 0};
-    Point3_t pos3 = {100 * dir[0], 100 * dir[1], 100 * dir[2]};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    Point3_t ori3 = {{0.0, 0.0, 0.0}};
+    Point3_t pos3 = {{100 * dir[0], 100 * dir[1], 100 * dir[2]}};
     // 2D position of ori3 and the pos3 projection
     std::array<double, 2> ori2;
     std::array<double, 2> pos2;

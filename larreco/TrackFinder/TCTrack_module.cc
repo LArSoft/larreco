@@ -42,7 +42,7 @@ namespace trkf {
     
     void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
-    void endJob();
+    void endJob() override;
     
   private:
 

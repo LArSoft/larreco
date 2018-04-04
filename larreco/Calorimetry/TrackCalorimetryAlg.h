@@ -74,7 +74,7 @@ class calo::TrackCalorimetryAlg{
     }
   };
   struct HitPropertySorter{
-    bool operator() (HitProperties const& i, HitProperties const& j) { return i.path_fraction < j.path_fraction; }
+    bool operator() (HitProperties const& i, HitProperties const& j) const { return i.path_fraction < j.path_fraction; }
   };
 
   typedef std::multiset<HitProperties,HitPropertySorter> HitPropertiesMultiset_t;

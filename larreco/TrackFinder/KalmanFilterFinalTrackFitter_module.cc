@@ -388,7 +388,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	    ip++;
 	  }
 	  outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
-	  outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
+	  outputHitInfo->emplace_back(optionals.trackFitHitInfos());
 	}
       }
 
@@ -453,7 +453,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	    ip++;
 	  }
 	  outputPFAssn->addSingle(art::Ptr<recob::PFParticle>(inputPFParticle, iPF), aptr);
-	  outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
+	  outputHitInfo->emplace_back(optionals.trackFitHitInfos());
 	}
       }
 
@@ -529,7 +529,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	}
 	ip++;
       }
-      outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
+      outputHitInfo->emplace_back(optionals.trackFitHitInfos());
     }
     e.put(std::move(outputTracks));
     e.put(std::move(outputHitsMeta));

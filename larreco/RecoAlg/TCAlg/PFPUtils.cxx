@@ -255,15 +255,19 @@ namespace tca {
     // try to attach a vertex on both ends of the pfp using the positions XYZ[end]. This function
     // doesn't need to have Tp3s associated with the pfp but probably doesn't work as well
     if(pfp.ID == 0) return;
-    std::array<unsigned short, 2> imbest {0};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    std::array<unsigned short, 2> imbest {{ 0, 0 }};
     // Ignore any separation larger than (10 cm)^2
-    std::array<float, 2> best {100};
+    std::array<float, 2> best {{ 100.0f, 100.0f }};
     for(unsigned short end = 0; end < 2; ++end) pfp.Vx3ID[end] = 0;
     auto vx3list = GetPFPVertices(tjs, pfp);
     for(unsigned short end = 0; end < 2; ++end) {
       for(auto vx3id : vx3list) {
         auto& vx3 = tjs.vtx3[vx3id - 1];
-        Point3_t vxpos = {vx3.X, vx3.Y, vx3.Z};
+        // BUG the double brace syntax is required to work around clang bug 21629
+        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+        Point3_t vxpos = {{ vx3.X, vx3.Y, vx3.Z}};
         float sep2 = PosSep2(pfp.XYZ[end], vxpos);
         if(sep2 > best[end]) continue;
         best[end] = sep2;
@@ -644,7 +648,9 @@ namespace tca {
         auto& otp3 = pfp.Tp3s[opt];
         // put the position into a Point3_t
         auto& vx3 = tjs.vtx3[vx2.Vx3ID - 1];
-        Point3_t vx3pos = {vx3.X, vx3.Y, vx3.Z};
+        // BUG the double brace syntax is required to work around clang bug 21629
+        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+        Point3_t vx3pos = {{vx3.X, vx3.Y, vx3.Z}};
         if(PosSep2(tp3.Pos, vx3pos) > PosSep2(otp3.Pos, vx3pos)) continue;
         // add it to the list
 //        std::cout<<"pfp_atEnd "<<pfp.ID<<"_"<<atEnd<<" tj_end "<<tj.ID<<"_"<<end<<" vx3 "<<vx2.Vx3ID<<"\n";
@@ -711,7 +717,9 @@ namespace tca {
     // Set the direction vectors of all points to be consistent with the general
     // start direction
     FixDirection(tjs, pfp);
-    Vector3_t startDir = {0};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    Vector3_t startDir = {{0.0, 0.0, 0.0}};
     // Find the average direction using the points in the first 10 cm
     for(auto& tp3 : pfp.Tp3s) {
       if(PosSep2(tp3.Pos, startPos) > 100) break;
@@ -721,7 +729,9 @@ namespace tca {
     pfp.Dir[0] = startDir;
     if(prt) mf::LogVerbatim("TC")<<"SBDFS: start direction "<<std::fixed<<std::setprecision(2)<<pfp.Dir[0][0]<<" "<<pfp.Dir[0][1]<<" "<<pfp.Dir[0][2];
     // do the same at the other end
-    Vector3_t endDir = {0};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    Vector3_t endDir = {{0.0, 0.0, 0.0}};
     for(unsigned short ii = 0; ii < pfp.Tp3s.size(); ++ii) {
       auto& tp3 = pfp.Tp3s[pfp.Tp3s.size() - 1 - ii];
       if(PosSep2(tp3.Pos, endPos) > 100) break;
@@ -1055,8 +1065,10 @@ namespace tca {
   bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3)
   {
     // Make a 3D trajectory point using two 2D trajectory points
-    tp3.Dir = {999};
-    tp3.Pos = {999};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    tp3.Dir = {{999.0,999.0}};
+    tp3.Pos = {{999.0,999.0}};
     geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
     geo::PlaneID jPlnID = DecodeCTP(jtp.CTP);
     double upt = tjs.UnitsPerTick;
@@ -1397,9 +1409,11 @@ namespace tca {
     pfp.dEdxErr[0].resize(tjs.NumPlanes, 0);
     pfp.dEdxErr[1].resize(tjs.NumPlanes, 0);
     for(unsigned short startend = 0; startend < 2; ++startend) {
-      pfp.Dir[startend] = {0, 0, 0};
-      pfp.DirErr[startend] = {0, 0, 0};
-      pfp.XYZ[startend] = {0, 0, 0};
+      // BUG the double brace syntax is required to work around clang bug 21629
+      // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+      pfp.Dir[startend] = {{0.0, 0.0, 0.0}};
+      pfp.DirErr[startend] = {{0.0, 0.0, 0.0}};
+      pfp.XYZ[startend] = {{0.0, 0.0, 0.0}};
     }
     return pfp;
   } // CreatePFP

@@ -72,25 +72,29 @@ namespace hit {
 
 
     private:
-      unsigned int  fDataSize;                  //SIZE OF RAW DATA ON ONE WIRE.
-      art::InputTag fDigitModuleLabel;          //MODULE THAT MADE DIGITS.
-      std::string   fSpillName;                 //NOMINAL SPILL IS AN EMPTY STRING.
-
-      //FFT COPIED VARIABLES.
-      std::string         fCalDataModuleLabel;
-      std::string         fHitLabelName;
-      double              fMinSigInd;           //INDUCTION SIGNAL HEIGHT THRESHOLD. 
-      double              fMinSigCol;           //COLLECTION SIGNAL HEIGHT THRESHOLD. 
-      double              fIndWidth;            //INITIAL WIDTH FOR INDUCTION FIT.
-      double              fColWidth;            //INITIAL WIDTH FOR COLLECTION FIT.
-      double              fIndMinWidth;         //MINIMUM INDUCTION HIT WIDTH.
-      double              fColMinWidth;         //MINIMUM COLLECTION HIT WIDTH.
-      double              fIncludeMoreTail;     //FRACTION OF THE HIT WIDTH INCLUDED BELOW THRESHOLD IN THE CALCULATION OF CHARGE.
-      int                 fMaxMultiHit;         //MAXIMUM HITS FOR MULTIFIT.
-      int                 fAreaMethod;          //TYPE OF AREA CALCULATION.  
-      std::vector<double> fAreaNorms;           //FACTORS FOR CONVERTING AREA TO SAME UNIT AS PEAK HEIGHT.
-      bool                fUncompressWithPed;   //OPTION TO UNCOMPRESS WITH PEDESTAL.
-
+    unsigned int  fDataSize;                  //SIZE OF RAW DATA ON ONE WIRE.
+    art::InputTag fDigitModuleLabel;          //MODULE THAT MADE DIGITS.
+    std::string   fSpillName;                 //NOMINAL SPILL IS AN EMPTY STRING.
+    
+    //FFT COPIED VARIABLES.
+    std::string         fCalDataModuleLabel;
+    std::string         fHitLabelName;
+    double              fMinSigInd;           //INDUCTION SIGNAL HEIGHT THRESHOLD. 
+    double              fMinSigCol;           //COLLECTION SIGNAL HEIGHT THRESHOLD. 
+    double              fIndWidth;            //INITIAL WIDTH FOR COLLECTION FIT.
+    double              fColWidth;            //INITIAL WIDTH FOR COLLECTION FIT.
+    double              fIndMinWidth;         //MINIMUM INDUCTION HIT WIDTH.
+    double              fColMinWidth;         //MINIMUM COLLECTION HIT WIDTH.
+    int                 fMaxMultiHit;         //MAXIMUM HITS FOR MULTIFIT.
+    int                 fAreaMethod;          //TYPE OF AREA CALCULATION.  
+    std::vector<double> fAreaNorms;           //FACTORS FOR CONVERTING AREA TO SAME UNIT AS PEAK HEIGHT.
+    bool                fUncompressWithPed;   //OPTION TO UNCOMPRESS WITH PEDESTAL.
+    bool fSkipInd;  //OPTION TO SKIP INDUCTION PLANES
+    double              fIncludeMoreTail;     //FRACTION OF THE HIT WIDTH INCLUDED BELOW THRESHOLD IN 
+                                              //    THE CALCULATION OF CHARGE.  COLLECTION PLANE ONLY
+    int              fColMinWindow;       // Minimum length of integration window for charge in ticks
+    int              fIndCutoff;          //MAX WIDTH FOR EARLY SIDE OF INDUCTION HIT IN TICKS
+    
     protected: 
 
   }; // class RawHitFinder
@@ -122,14 +126,17 @@ namespace hit {
     fMinSigInd          = p.get< double       >("MinSigInd");
     fMinSigCol          = p.get< double       >("MinSigCol"); 
     fIncludeMoreTail    = p.get< double       >("IncludeMoreTail", 0.);
-    fIndWidth           = p.get< double       >("IndWidth");  
+    fIndWidth           = p.get< int          >("IndWidth",20);  
     fColWidth           = p.get< double       >("ColWidth");
     fIndMinWidth        = p.get< double       >("IndMinWidth");
-    fColMinWidth        = p.get< double       >("ColMinWidth"); 	  	
+    fColMinWidth        = p.get< double       >("ColMinWidth",0.); 	  	
     fMaxMultiHit        = p.get< int          >("MaxMultiHit");
     fAreaMethod         = p.get< int          >("AreaMethod");
     fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
     fUncompressWithPed  = p.get< bool         >("UncompressWithPed", true);
+    fSkipInd = p.get< bool         >("SkipInd", false);
+    fColMinWindow        = p.get< int       >("ColMinWindow",0); 	  	
+    fIndCutoff        = p.get< int       >("IndCutoff",20); 	  	
     mf::LogInfo("RawHitFinder_module") << "fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
   }
 
@@ -240,7 +247,9 @@ namespace hit {
         // ###############################################
 
         //THE INDUCTION PLANE METHOD HAS NOT YET BEEN MODIFIED AND TESTED FOR REAL DATA.
-        if(sigType == geo::kInduction){
+	// Or for detectors without a grid plane
+	//
+        if(sigType == geo::kInduction && !fSkipInd){
           threshold = fMinSigInd;
           //	std::cout<< "Threshold is " << threshold << std::endl;
           // fitWidth = fIndWidth;
@@ -251,47 +260,46 @@ namespace hit {
           float minadc=0;
 
           // find the dips
-          while (bin<fDataSize) {  // loop over ticks
-            float thisadc = holder[bin];
-            if (thisadc<negthr) { // new region
-              //	    std::cout << "new region" << bin << " " << thisadc << std::endl;
+          while (bin<(fDataSize-1)) {  // loop over ticks
+            float thisadc = holder[bin]; float nextadc = holder[bin+1];
+            if (thisadc<negthr && nextadc < negthr) { // new region, require two ticks above threshold
+	      //              	    std::cout << "new region" << bin << " " << thisadc << std::endl;
               // step back to find zero crossing
-              unsigned int place = bin;
-              while (thisadc<=0 && bin>0) {
-                //	      std::cout << bin << " " << thisadc << std::endl;
-                bin--;
-                thisadc=holder[bin];
-              }
-              float hittime = bin+thisadc/(thisadc-holder[bin+1]);
-              maxTimes.push_back(hittime);
+		unsigned int place = bin;
+		while (thisadc<=0 && bin>0) {
+		  //		std::cout << bin << " " << thisadc << std::endl;
+		  bin--;
+		  thisadc=holder[bin];
+		}
+		float hittime = bin+thisadc/(thisadc-holder[bin+1]);
+		maxTimes.push_back(hittime);
 
               // step back more to find the hit start time
-              while (thisadc<threshold && bin>0) {
-                //	      std::cout << bin << " " << thisadc << std::endl;
+	      uint32_t stop;
+	      if (fIndCutoff<(int)bin) {stop=bin-fIndCutoff;} else {stop=0;}
+	      while (thisadc<threshold && bin>stop) {
+		//		std::cout << bin << " " << thisadc << std::endl;
                 bin--;
                 thisadc=holder[bin];
               }
               if (bin>=2) bin-=2;
-              while (thisadc>threshold && bin>0) {
-
-                //	        std::cout << bin << " " << thisadc << std::endl;
+	      while (thisadc>threshold && bin>stop) {
+		//		std::cout << bin << " " << thisadc << std::endl;
                 bin--;
                 thisadc=holder[bin];
               }
               startTimes.push_back(bin+1);
-              // now step forward from hit time to find end time
+              // now step forward from hit time to find end time, area of dip
               bin=place; 	      
               thisadc=holder[bin];
               minadc=thisadc;
-
-              totSig = 0;
+	      bin++;
+              totSig = fabs(thisadc);
               while (thisadc<negthr && bin<fDataSize) {
-                //	        std::cout << bin << " " << thisadc << std::endl;
                 totSig += fabs(thisadc); 
-                bin++;
                 thisadc=holder[bin];
-                //	          std::cout << "ADC VALUE INDUCTION" << thisadc << std::endl;
                 if (thisadc<minadc) minadc=thisadc;		
+                bin++;
               }
               endTimes.push_back(bin-1);
               peakHeight.push_back(-1.0*minadc);
@@ -367,6 +375,7 @@ namespace hit {
                 mynorm = 0;
 
                 int moreTail = std::ceil(fIncludeMoreTail*(end-start));
+		if (moreTail<fColMinWindow) moreTail=fColMinWindow;
 
                 for(int i = start-moreTail; i <= end+moreTail; i++)
                 {
@@ -438,6 +447,7 @@ namespace hit {
         goodnessOfFit = -1;
         chargeErr     = -1;
         totSig        = charge[i];
+
 
         std::vector<geo::WireID> wids = geom->ChannelToWire(channel);
         geo::WireID wid = wids[0];

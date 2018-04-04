@@ -112,7 +112,7 @@ bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob:
     double terr = (useRMS_ ? hit->RMS() : hit->SigmaPeakTime() );
     double x = detprop->ConvertTicksToX(t, hit->WireID().Plane, hit->WireID().TPC, hit->WireID().Cryostat);
     double xerr = terr * detprop->GetXTicksCoefficient();
-    hitstatev.push_back( std::move( HitState(x,hitErr2ScaleFact_*xerr*xerr,hit->WireID(),geom->WireIDToWireGeo(hit->WireID())) ) );
+    hitstatev.emplace_back( x,hitErr2ScaleFact_*xerr*xerr,hit->WireID(),geom->WireIDToWireGeo(hit->WireID()) );
     //
     if (fsize>0 && ihit<fsize) hitflagsv.push_back( flags[ihit].mask() );
     else hitflagsv.push_back(recob::TrajectoryPointFlags::DefaultFlagsMask());

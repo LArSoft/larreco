@@ -1,6 +1,13 @@
-art_make( 
+if (DEFINED ENV{TENSORFLOW_DIR})
+set (LARRECO_RECOALG_IMAGEPATTERNALGS_TF larreco_RecoAlg_ImagePatternAlgs_TF)
+else(DEFINED ENV{TENSORFLOW_DIR})
+set (EXCLUDE_TF PointIdAlg.cxx)
+endif (DEFINED ENV{TENSORFLOW_DIR})
+
+art_make(
+          EXCLUDE ${EXCLUDE_TF}
           LIB_LIBRARIES larreco_RecoAlg_ImagePatternAlgs_Keras
-                        larreco_RecoAlg_ImagePatternAlgs_TF
+                        ${LARRECO_RECOALG_IMAGEPATTERNALGS_TF}
                         larcore_Geometry_Geometry_service
                         larcorealg_Geometry
 			lardataobj_RecoBase

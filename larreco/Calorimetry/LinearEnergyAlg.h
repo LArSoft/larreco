@@ -353,7 +353,7 @@ namespace calo {
     // double fRecombk;
     // double fModBoxA;
     // double fModBoxB;
-    double fRecombFactor;
+    // double fRecombFactor;
     double fElectronLifetime;
     double fDeconNorm;
 

@@ -58,7 +58,7 @@ class cluster::ClusterCrawler : public art::EDProducer {
 
     void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
-    void beginJob();
+    void beginJob() override;
 
   private:
     hit::CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object

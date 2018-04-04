@@ -40,6 +40,7 @@ extern "C" {
 #include "lardata/ArtDataHelper/TrackUtils.h" // lar::util::TrackPitchInView()
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
+#include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 
 // ROOT includes
 #include <TROOT.h>
@@ -505,7 +506,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 					 << " Wire =" << iw;
 	  unsigned int closestwire = 0;
 	  unsigned int endwire = 0;
-	  int dwire = 100000;
+	  unsigned int dwire = 100000;
 	  double mindis = 100000;
 	  double goodresrange = 0;
 	  //hitCtr = 0;
@@ -529,9 +530,9 @@ void calo::Calorimetry::produce(art::Event& evt)
 	      endwire = allHits[hits[ipl][ihit]]->WireID().Wire;
 	      mindis = dis1;
 	    }
-	    if (std::abs(wire-iw) < dwire){
+	    if (util::absDiff(wire, iw) < dwire){
 	      closestwire = allHits[hits[ipl][ihit]]->WireID().Wire;
-	      dwire = abs(allHits[hits[ipl][ihit]]->WireID().Wire-iw);
+	      dwire = util::absDiff(allHits[hits[ipl][ihit]]->WireID().Wire, iw);
 	      goodresrange = dis1;
 	    }
 	  }

@@ -159,7 +159,7 @@ namespace cluster {
      * @brief Restores the class to post-configuration, pre-initialization state
      * @see Algo_t::Clear()
      */
-    virtual void Clear() { algo.Clear(); }
+    virtual void Clear() override { algo.Clear(); }
     
     
     /**
@@ -168,7 +168,7 @@ namespace cluster {
      * @throw undefined in case of error, this method can throw (anything)
      * @see Algo_t::SetHits().
      */
-    virtual void SetHits(std::vector<recob::Hit const*> const& hits)
+    virtual void SetHits(std::vector<recob::Hit const*> const& hits) override
       { algo.SetHits(hits); }
     
     /**
@@ -177,12 +177,12 @@ namespace cluster {
      * @throw undefined in case of error, this method can throw (anything)
      * @see Algo_t::SetHits().
      */
-    virtual void SetHits(std::vector<recob::Hit> const& hits)
+    virtual void SetHits(std::vector<recob::Hit> const& hits) override
       { algo.SetHits(hits); }
     
     
     /// Set the verbosity level; @see Algo_t::SetVerbose().
-    virtual void SetVerbose(int level = 1)
+    virtual void SetVerbose(int level = 1) override
       { ClusterParamsAlgBase::SetVerbose(level); algo.SetVerbose(level); }
     
     

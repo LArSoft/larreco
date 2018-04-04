@@ -77,13 +77,13 @@ namespace trkmkr {
     /// add one OptionalPointElement
     void addPoint(OptionalPointElement& ope) {
       if (isTrackFitInfosInit() && ope.isTrackFitInfoSet()) {
-	outTrackFitHitInfos->push_back( std::move(ope.getTrackFitHitInfo()) );
+	outTrackFitHitInfos->push_back( ope.getTrackFitHitInfo() );
       }
     }
     /// add one OptionalPointElement and the corresponding hit
     void addPoint(OptionalPointElement& ope, art::Ptr<recob::Hit> hptr) {
       if (isSpacePointsInit() && ope.isSpacePointSet()) {
-	outSpacePointHitPairs->push_back( std::move( SpHitPair(ope.getSpacePoint(), hptr) ) );
+	outSpacePointHitPairs->emplace_back(ope.getSpacePoint(), hptr);
       }
       addPoint(ope);
     }
@@ -163,13 +163,13 @@ namespace trkmkr {
 			   const int tkID, const std::vector<art::Ptr<recob::Hit> >& inHits,
 			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
     {
-      return makeTrack(recob::TrackTrajectory(traj,std::move(recob::TrackTrajectory::Flags_t(traj.NPoints()))), tkID, inHits, outTrack, outHits, optionals);
+      return makeTrack(recob::TrackTrajectory(traj,recob::TrackTrajectory::Flags_t(traj.NPoints())), tkID, inHits, outTrack, outHits, optionals);
     }
     virtual bool makeTrack(const art::Ptr<recob::Trajectory> traj, const std::vector<recob::TrajectoryPointFlags>& flags,
 			   const std::vector<art::Ptr<recob::Hit> >& inHits,
 			   recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, OptionalOutputs& optionals) const
     {
-      return makeTrack(recob::TrackTrajectory(*traj,std::move(recob::TrackTrajectory::Flags_t(traj->NPoints()))), traj.key(), inHits, outTrack, outHits, optionals);
+      return makeTrack(recob::TrackTrajectory(*traj,recob::TrackTrajectory::Flags_t(traj->NPoints())), traj.key(), inHits, outTrack, outHits, optionals);
     }
     //@}
 

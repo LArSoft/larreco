@@ -691,8 +691,8 @@ namespace  trkf{
         
         // Remember associated hits internally.
         
-        if(fSptHitMap.count(sptid) != 0);
-        throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): hit already present!\n";
+        if(fSptHitMap.count(sptid) != 0)
+          throw cet::exception("SpacePointAlg") << "fillComplexSpacePoint(): hit already present!\n";
         fSptHitMap[sptid] = hits;
         
         // Do a preliminary scan of hits.
