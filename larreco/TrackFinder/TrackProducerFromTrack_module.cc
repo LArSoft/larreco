@@ -149,7 +149,7 @@ void TrackProducerFromTrack::produce(art::Event & e)
       }
     }
     if (doTrackFitHitInfo_) {
-      outputHitInfo->emplace_back(std::move(optionals.trackFitHitInfos()));
+      outputHitInfo->emplace_back(optionals.trackFitHitInfos());
     }
   }
   //

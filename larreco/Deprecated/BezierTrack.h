@@ -103,7 +103,8 @@ namespace trkf {
     void FillSeedVector();
     
     recob::Trajectory fTraj;    ///< Internal trajectory representation.
-    int               fID = -1; ///< Track's ID.
+  // Clang: private field 'fID' is not used
+  //  int               fID = -1; ///< Track's ID.
     
     std::vector<std::vector<double>> fdQdx; ///< Charge deposition per unit length at points
                                             ///< along track outer vector index is, per plane.

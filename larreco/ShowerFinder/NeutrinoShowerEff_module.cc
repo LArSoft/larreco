@@ -82,7 +82,7 @@ namespace DUNE{
 
  
     TTree *fEventTree;
-    TTree *fHitsTree;
+  //  TTree *fHitsTree;
 
     TH1D *h_Ev_den;
     TH1D *h_Ev_num;

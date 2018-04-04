@@ -18,7 +18,7 @@ namespace recob {
 
 class TVector3;
 namespace trkmkr {
-  class OptionalOutputs;
+  struct OptionalOutputs;
 }
 
 namespace trkf {

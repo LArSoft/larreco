@@ -81,7 +81,7 @@ const std::string calo::LinearEnergyAlg::ModelName::Constant = "Constant";
 
 calo::LinearEnergyAlg::LinearEnergyAlg(Config const& config)
   : fUseArea( config.UseArea() )
-  , fRecombFactor( 1. )
+//  , fRecombFactor( 1. )
   , fElectronLifetime( 1e10 ) // needs to be read from service
   , fDeconNorm( 200 )
 {

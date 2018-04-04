@@ -47,12 +47,11 @@ namespace cluster {
     
   public:
     explicit TrajCluster(fhicl::ParameterSet const & pset);
-    virtual ~TrajCluster() = default;
     
     void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
-    void beginJob();
-    void endJob();
+    void beginJob() override;
+    void endJob() override;
     
   private:
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
@@ -173,7 +172,7 @@ namespace cluster {
     // look for clusters in all planes
     fTCAlg->RunTrajClusterAlg(evt);
     
-    std::unique_ptr<std::vector<recob::Hit>> newHits = std::make_unique<std::vector<recob::Hit>>(std::move(fTCAlg->YieldHits()));
+    std::unique_ptr<std::vector<recob::Hit>> newHits = std::make_unique<std::vector<recob::Hit>>(fTCAlg->YieldHits());
 
     std::vector<recob::Cluster> sccol;
     std::vector<recob::PFParticle> spcol;

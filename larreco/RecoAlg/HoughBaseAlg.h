@@ -68,7 +68,7 @@
 // 
 // The fastest data structure for the accumulator is a two-dimensional array.
 // The proper size of this array would be some gigabyte, that makes this
-// approach unfeasable. Since the dimension of angles has a very clear number
+// approach unfeasible. Since the dimension of angles has a very clear number
 // of "bins" (covering always a fixed 0-pi range), but for each given angle
 // the counters actually used are a few, a sparse structure (associative
 // container, or "map") is used to describe all the counters at a given angle,
@@ -89,7 +89,7 @@
 // The standard C++ implementation of it, std::map, dynamically a new node
 // each time a new counter is required, and in the end it frees them one by
 // one. Both operations are very time-demanding.
-// We use here a custom memory allocator (BulkAllocator) that prepares memory
+// We used a custom memory allocator (BulkAllocator) that prepares memory
 // for chunks of nodes and then returns a preallocated space at each request
 // for a new node. The allocator is designed to be fast, giving up features:
 // nodes are never really freed, that saves a lot of book-keeping.
@@ -136,7 +136,15 @@
 #include "canvas/Persistency/Common/Ptr.h" 
 
 #include "canvas/Persistency/Common/PtrVector.h" 
+//--- BEGIN issue #19494 -------------------------------------------------------
+// BulkAllocator.h is currently broken; see issue #19494.
+// When the issue is solved, this may or may not be restored, depending on the
+// solution.
+#if 0
 #include "lardata/Utilities/BulkAllocator.h"
+#endif // 0
+//--- END issue #19494 ---------------------------------------------------------
+
 #include "lardata/Utilities/CountersMap.h"
 
 namespace art { class Event; }
@@ -498,14 +506,20 @@ namespace cluster {
     /// rho -> # hits (for convenience)
     typedef HoughTransformCounters<int, signed char, 64> BaseMap_t;
     
+    //--- BEGIN issue #19494 ---------------------------------------------------
+    // BulkAllocator.h is currently broken; see issue #19494 and comment above.
+#if 0
     /// Special allocator for large chunks of pairs (turns out map won't use it)
     typedef lar::BulkAllocator<BaseMap_t::allocator_type::value_type>
       BulkPairAllocator_t;
-    
     /// Type of map distance (discretized) =># hits,
     /// #hits stored in counters allocated in blocks
     typedef HoughTransformCounters<int, signed char, 64, BulkPairAllocator_t>
       DistancesMap_t;
+#else // !0
+    typedef HoughTransformCounters<int, signed char, 64> DistancesMap_t;
+#endif // 0?
+    //--- END issue #19494 -----------------------------------------------------
     
     /// Type of the Hough transform (angle, distance) map with custom allocator
     typedef std::vector<DistancesMap_t> HoughImage_t;

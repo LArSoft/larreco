@@ -1672,7 +1672,7 @@ namespace trkf {
     // Histo it vs. particle KE.
     flattener flat(NtrkIdsAll);
     std::vector <unsigned int> &v = flat;
-    auto const it ( std::unique(v.begin(),v.end()) ); // never use this it, perhaps.
+  //  auto const it ( std::unique(v.begin(),v.end()) ); // never use this it, perhaps.
     for (auto const val :  v)
       {
 	if (val != (unsigned int)sim::NoParticleId)

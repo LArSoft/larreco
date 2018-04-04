@@ -1909,11 +1909,15 @@ namespace trkf {
     newtrk.ID = trk.size() + 1;
     newtrk.Proc = procCode;
     newtrk.TrkHits = trkHits;
-    newtrk.VtxIndex = {-1, -1};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    newtrk.VtxIndex = {{-1, -1}};
     newtrk.ChgOrder = 0;
     newtrk.MomID = -1;
-    newtrk.EndInTPC = {false};
-    newtrk.GoodEnd = {false};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    newtrk.EndInTPC = {{false, false}};
+    newtrk.GoodEnd = {{false, false}};
     newtrk.DtrID = {0};
     newtrk.PDGCode = -1;
     

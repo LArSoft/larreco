@@ -4818,7 +4818,6 @@ namespace tca {
       tp.UseHit[tp.Hits.size()-1] = false;
       if(prt) PrintTrajPoint("FVT", tjs, 0, tj.StepDir, tj.Pass, tp);
       // Step away and see what happens
-      prt = prt;
       StepCrawl(tj);
       // check for a major failure
       if(fQuitAlg) return;

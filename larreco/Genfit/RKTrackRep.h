@@ -151,8 +151,11 @@ class RKTrackRep : public GFAbsTrackRep {
     * the plane #pl is the same as the plane of the last extrapolation (i.e. #fCachePlane), where #fCacheSpu was calculated.
     * Hence, if the argument #pl is not equal to #fCachePlane, an error message is shown an an exception is thrown.
     */
-  //  void setData(const TMatrixT<Double_t>& st, const GFDetPlane& pl, const TMatrixT<Double_t>* cov=NULL);
   void setData(const TMatrixT<double>& st, const GFDetPlane& pl, const TMatrixT<double>* cov=NULL, const TMatrixT<double>* aux=NULL);
+  // the base class method is hidden by the one above; which does not make much
+  // sense since polymorphic access will still get to it.
+  // We make it official by explicitly importing the base class method as well.
+  using GFAbsTrackRep::setData;
 
   const TMatrixT<double>* getAuxInfo(const GFDetPlane& pl);
   
