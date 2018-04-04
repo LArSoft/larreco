@@ -44,7 +44,7 @@ namespace cluster {
       explicit LineCluster(fhicl::ParameterSet const & pset);
       virtual ~LineCluster() = default;
       
-      void reconfigure(fhicl::ParameterSet const & pset) override;
+      void reconfigure(fhicl::ParameterSet const & pset) ;
       void produce(art::Event & evt) override;
       
     private:
