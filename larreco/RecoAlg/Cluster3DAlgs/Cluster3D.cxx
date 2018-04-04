@@ -21,7 +21,7 @@ ClusterHit2D::ClusterHit2D() : m_statusBits(0),
                                m_arcLenToPoca(0.),
                                m_xPosition(0.),
                                m_timeTicks(0.),
-                               m_hit(recob::Hit()) {}
+                               m_hit(nullptr) {}
 
 ClusterHit2D::ClusterHit2D(unsigned           statusBits,
                            float              doca,
@@ -34,7 +34,7 @@ ClusterHit2D::ClusterHit2D(unsigned           statusBits,
                            m_arcLenToPoca(poca),
                            m_xPosition(xPosition),
                            m_timeTicks(timeTicks),
-                           m_hit(hit) {}
+                           m_hit(&hit) {}
 
     
 std::ostream& operator<< (std::ostream& o, const ClusterHit2D& c)

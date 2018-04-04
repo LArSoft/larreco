@@ -45,7 +45,7 @@ private:
     mutable float     m_arcLenToPoca; ///< arc length to POCA along cluster axis
     float             m_xPosition;    ///< The x coordinate for this hit
     float             m_timeTicks;    ///< The time (in ticks) for this hit
-    const recob::Hit& m_hit;          ///< Hit we are augmenting
+    const recob::Hit* m_hit;          ///< Hit we are augmenting
     
 public:
     
@@ -70,7 +70,7 @@ public:
     float             getArcLenToPoca() const {return m_arcLenToPoca;}
     float             getXPosition()    const {return m_xPosition;}
     float             getTimeTicks()    const {return m_timeTicks;}
-    const recob::Hit& getHit()          const {return m_hit;}
+    const recob::Hit& getHit()          const {return *m_hit;}
     
     void setStatusBit(unsigned bits)    const {m_statusBits   |= bits;}
     void clearStatusBits(unsigned bits) const {m_statusBits   &= ~bits;}

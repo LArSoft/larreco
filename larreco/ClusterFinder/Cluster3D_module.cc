@@ -134,7 +134,7 @@ private:
     class ArtOutputHandler
     {
     public:
-        ArtOutputHandler(const art::EDProducer& owner, art::Event& evt, std::string instanceName) :
+        ArtOutputHandler(const art::EDProducer& owner, art::Event& evt, std::string& instanceName) :
             artPCAxisVector( new std::vector<recob::PCAxis>          ),
             artPFParticleVector( new std::vector<recob::PFParticle>  ),
             artClusterVector( new std::vector<recob::Cluster>        ),
