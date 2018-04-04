@@ -148,7 +148,7 @@ void WaveformAlgs::getSmoothDerivativeVec(const std::vector<float>& roiSignalVec
     
     for(size_t idx = 1; idx < roiSignalVec.size()-1; idx++)
         tempVec.at(idx) = 0.5 * (roiSignalVec.at(idx+1) - roiSignalVec.at(idx-1));
-    
+
     // Now smooth the derivative vector
     derivativeVec.resize(roiSignalVec.size(),0.);
     
@@ -164,6 +164,11 @@ void WaveformAlgs::getSmoothDerivativeVec(const std::vector<float>& roiSignalVec
         derivativeVec.at(derivativeVec.size()-1) = tempVec.at(derivativeVec.size()-2);
     }
     
+//    for(size_t idx = 1; idx < roiSignalVec.size()-1; idx++)
+//    {
+//        std::cout << "-- idx: " << idx << ", roiSignalVec: " << roiSignalVec.at(idx) << ", tempVec: " << tempVec.at(idx) << ", deriv: " << derivativeVec.at(idx) << std::endl;
+//    }
+
     return;
 }
     

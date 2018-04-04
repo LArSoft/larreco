@@ -332,7 +332,6 @@ void GausHitFinder::produce(art::Event& evt)
            
             // ROI start time
             raw::TDCtick_t roiFirstBinTick = range.begin_index();
-            float          roiThreshold(fMinSigVec.at(plane));
             
             // ###########################################################
             // ### Scan the waveform and find candidate peaks + merge  ###
@@ -341,7 +340,7 @@ void GausHitFinder::produce(art::Event& evt)
             reco_tool::ICandidateHitFinder::HitCandidateVec      hitCandidateVec;
             reco_tool::ICandidateHitFinder::MergeHitCandidateVec mergedCandidateHitVec;
             
-            fHitFinderTool->findHitCandidates(signal, 0, roiThreshold, hitCandidateVec);
+            fHitFinderTool->findHitCandidates(signal, 0, plane, hitCandidateVec);
             fHitFinderTool->MergeHitCandidates(signal, hitCandidateVec, mergedCandidateHitVec);
             
             // #######################################################

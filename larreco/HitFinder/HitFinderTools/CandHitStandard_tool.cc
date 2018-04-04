@@ -29,13 +29,13 @@ public:
     
     void findHitCandidates(const std::vector<float>&,
                            size_t,
-                           double,
+                           size_t,
                            HitCandidateVec&) const override;
     
     void findHitCandidates(std::vector<float>::const_iterator,
                            std::vector<float>::const_iterator,
                            size_t,
-                           double,
+                           size_t,
                            HitCandidateVec&) const override;
     
     void MergeHitCandidates(const std::vector<float>&,
@@ -44,8 +44,9 @@ public:
     
 private:
     // Member variables from the fhicl file
-    float                     fMinROIAverageTickThreshold; ///< try to remove bad ROIs
-    
+    float                fMinROIAverageTickThreshold; ///< try to remove bad ROIs
+    std::vector<float>   fRoiThreshold;               ///< minimum maximum to minimum peak distance
+
     const geo::GeometryCore*  fGeometry = lar::providerFrom<geo::Geometry>();
 };
     
@@ -63,18 +64,19 @@ CandHitStandard::~CandHitStandard()
 void CandHitStandard::configure(const fhicl::ParameterSet& pset)
 {
     // Start by recovering the parameters
-    fMinROIAverageTickThreshold = pset.get<float>   ("MinROIAverageTickThreshold",-0.5);
-    
+    fMinROIAverageTickThreshold = pset.get<            float  >("MinROIAverageTickThreshold", -0.5);
+    fRoiThreshold               = pset.get<std::vector<float> >("RoiThreshold",               std::vector<float>() = { 5.,  5.,  5.});
+
     return;
 }
     
 void CandHitStandard::findHitCandidates(const std::vector<float>& waveform,
                                         size_t                    roiStartTick,
-                                        double                    roiThreshold,
+                                        size_t                    planeIdx,
                                         HitCandidateVec&          hitCandidateVec) const
 {
     // Use the recursive version to find the candidate hits
-    findHitCandidates(waveform.begin(),waveform.end(),roiStartTick,roiThreshold,hitCandidateVec);
+    findHitCandidates(waveform.begin(),waveform.end(),roiStartTick,planeIdx,hitCandidateVec);
     
     return;
 }
@@ -82,7 +84,7 @@ void CandHitStandard::findHitCandidates(const std::vector<float>& waveform,
 void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator startItr,
                                         std::vector<float>::const_iterator stopItr,
                                         size_t                             roiStartTick,
-                                        double                             roiThreshold,
+                                        size_t                             planeIdx,
                                         HitCandidateVec&                   hitCandidateVec) const
 {
     // Need a minimum number of ticks to do any work here
@@ -94,7 +96,7 @@ void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator start
         float maxValue = *maxItr;
         int   maxTime  = std::distance(startItr,maxItr);
         
-        if (maxValue > roiThreshold)
+        if (maxValue > fRoiThreshold.at(planeIdx))
         {
             // backwards to find first bin for this candidate hit
             auto firstItr = std::distance(startItr,maxItr) > 2 ? maxItr - 1 : startItr;
@@ -102,7 +104,7 @@ void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator start
             while(firstItr != startItr)
             {
                 // Check for pathology where waveform goes too negative
-                if (*firstItr < -roiThreshold) break;
+                if (*firstItr < -fRoiThreshold.at(planeIdx)) break;
                 
                 // Check both sides of firstItr and look for min/inflection point
                 if (*firstItr < *(firstItr+1) && *firstItr <= *(firstItr-1)) break;
@@ -113,7 +115,7 @@ void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator start
             int firstTime = std::distance(startItr,firstItr);
             
             // Recursive call to find all candidate hits earlier than this peak
-            findHitCandidates(startItr, firstItr + 1, roiStartTick, roiThreshold, hitCandidateVec);
+            findHitCandidates(startItr, firstItr + 1, roiStartTick, planeIdx, hitCandidateVec);
             
             // forwards to find last bin for this candidate hit
             auto lastItr = std::distance(maxItr,stopItr) > 2 ? maxItr + 1 : stopItr - 1;
@@ -121,7 +123,7 @@ void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator start
             while(lastItr != stopItr - 1)
             {
                 // Check for pathology where waveform goes too negative
-                if (*lastItr < -roiThreshold) break;
+                if (*lastItr < -fRoiThreshold.at(planeIdx)) break;
                 
                 // Check both sides of firstItr and look for min/inflection point
                 if (*lastItr <= *(lastItr+1) && *lastItr < *(lastItr-1)) break;
@@ -146,7 +148,7 @@ void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator start
             hitCandidateVec.push_back(hitCandidate);
             
             // Recursive call to find all candidate hits later than this peak
-            findHitCandidates(lastItr + 1, stopItr, roiStartTick + std::distance(startItr,lastItr + 1), roiThreshold, hitCandidateVec);
+            findHitCandidates(lastItr + 1, stopItr, roiStartTick + std::distance(startItr,lastItr + 1), planeIdx, hitCandidateVec);
         }
     }
     

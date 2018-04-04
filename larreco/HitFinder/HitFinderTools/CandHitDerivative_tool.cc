@@ -30,13 +30,13 @@ public:
     
     void findHitCandidates(const Waveform&,
                            size_t,
-                           double,
+                           size_t,
                            HitCandidateVec&) const override;
     
     void findHitCandidates(Waveform::const_iterator,
                            Waveform::const_iterator,
                            size_t,
-                           double,
+                           size_t,
                            HitCandidateVec&) const override;
     
     void MergeHitCandidates(const Waveform&,
@@ -54,10 +54,11 @@ private:
     Waveform::const_iterator findStopTick(Waveform::const_iterator, Waveform::const_iterator)  const;
     
     // some control variables
-    int     fMinDeltaTicks;       //< minimum ticks from max to min to consider
-    float   fMinDeltaPeaks;       //< minimum maximum to minimum peak distance
-    float   fMinHitHeight;        //< Drop candidate hits with height less than this
-    size_t  fNumInterveningTicks; //< Number ticks between candidate hits to merge
+    std::vector<int>     fMinDeltaTicks;       //< minimum ticks from max to min to consider
+    std::vector<int>     fMaxDeltaTicks;       //< maximum ticks from max to min to consider
+    std::vector<float>   fMinDeltaPeaks;       //< minimum maximum to minimum peak distance
+    float                fMinHitHeight;        //< Drop candidate hits with height less than this
+    size_t               fNumInterveningTicks; //< Number ticks between candidate hits to merge
     
     // Member variables from the fhicl file
     std::unique_ptr<reco_tool::IWaveformAlgs> fWaveformAlgs;
@@ -79,10 +80,11 @@ CandHitDerivative::~CandHitDerivative()
 void CandHitDerivative::configure(const fhicl::ParameterSet& pset)
 {
     // Recover our parameters
-    fMinDeltaTicks       = pset.get<int   >("MinDeltaTicks",       0);
-    fMinDeltaPeaks       = pset.get<float >("MinDeltaPeaks",       0.025);
-    fMinHitHeight        = pset.get<float >("MinHitHeight",        2.0);
-    fNumInterveningTicks = pset.get<size_t>("NumInterveningTicks", 6);
+    fMinDeltaTicks       = pset.get<std::vector<int>   >("MinDeltaTicks",       std::vector<int>()   = {    0,     0,     0});
+    fMaxDeltaTicks       = pset.get<std::vector<int>   >("MaxDeltaTicks",       std::vector<int>()   = {   30,    30,    30});
+    fMinDeltaPeaks       = pset.get<std::vector<float> >("MinDeltaPeaks",       std::vector<float>() = {0.025, 0.025, 0.025});
+    fMinHitHeight        = pset.get<            float  >("MinHitHeight",        2.0);
+    fNumInterveningTicks = pset.get<            size_t >("NumInterveningTicks", 6);
     
     // Recover the baseline tool
     fWaveformAlgs = art::make_tool<reco_tool::IWaveformAlgs> (pset.get<fhicl::ParameterSet>("WaveformAlgs"));
@@ -92,7 +94,7 @@ void CandHitDerivative::configure(const fhicl::ParameterSet& pset)
     
 void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
                                           size_t           roiStartTick,
-                                          double           roiThreshold,
+                                          size_t           planeIdx,
                                           HitCandidateVec& hitCandidateVec) const
 {
     // In this case we want to find hit candidates based on the derivative of of the input waveform
@@ -102,7 +104,7 @@ void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
     fWaveformAlgs->getSmoothDerivativeVec(waveform, derivativeVec);
     
     // Now find the hits
-    findHitCandidates(derivativeVec.begin(),derivativeVec.end(),roiStartTick,roiThreshold,hitCandidateVec);
+    findHitCandidates(derivativeVec.begin(),derivativeVec.end(),roiStartTick,planeIdx,hitCandidateVec);
     
     // Reset the hit height from the input waveform
     for(auto& hitCandidate : hitCandidateVec)
@@ -118,7 +120,7 @@ void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
 void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
                                           Waveform::const_iterator stopItr,
                                           size_t                   roiStartTick,
-                                          double                   roiThreshold,
+                                          size_t                   planeIdx,
                                           HitCandidateVec&         hitCandidateVec) const
 {
     // Search for candidate hits...
@@ -137,8 +139,10 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
     int   deltaTicks = std::distance(maxItr,minItr);
     float range      = *maxItr - *minItr;
     
+//    std::cout << "** max at tick: " << std::distance(startItr,maxItr) << ", val: " << *maxItr << ", min at tick: " << std::distance(startItr,minItr) << ", val: " << *minItr << ", delta: " << deltaTicks << ", range: " << range << std::endl;
+    
     // At some point small rolling oscillations on the waveform need to be ignored...
-    if (deltaTicks >= fMinDeltaTicks && range > fMinDeltaPeaks)
+    if (deltaTicks >= fMinDeltaTicks.at(planeIdx) && range > fMinDeltaPeaks.at(planeIdx))
     {
         // Need to back up to find zero crossing, this will be the starting point of our
         // candidate hit but also the endpoint of the pre sub-waveform we'll search next
@@ -153,7 +157,7 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
         int stopTick = std::distance(startItr,newStartItr);
         
         // Find hits in the section of the waveform leading up to this candidate hit
-        if (startTick > 2) findHitCandidates(startItr,newEndItr,roiStartTick,roiThreshold,hitCandidateVec);
+        if (startTick > 2) findHitCandidates(startItr,newEndItr,roiStartTick,planeIdx,hitCandidateVec);
         
         // Create a new hit candidate and store away
         HitCandidate_t hitCandidate;
@@ -177,7 +181,7 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
         hitCandidateVec.push_back(hitCandidate);
 
         // Finally, search the section of the waveform following this candidate for more hits
-        if (std::distance(newStartItr,stopItr) > 2) findHitCandidates(newStartItr,stopItr,roiStartTick + stopTick,roiThreshold,hitCandidateVec);
+        if (std::distance(newStartItr,stopItr) > 2) findHitCandidates(newStartItr,stopItr,roiStartTick + stopTick,planeIdx,hitCandidateVec);
     }
     
     return;
