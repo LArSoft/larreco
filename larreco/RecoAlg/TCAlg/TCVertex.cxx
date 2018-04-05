@@ -650,8 +650,6 @@ namespace tca {
           if(tjs.allTraj[it2].CTP != inCTP) continue;
           if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
           if(tjs.allTraj[it2].AlgMod[kJunkTj]) continue;
-          // Don't mess with muons
-//          if(tjs.allTraj[it2].PDGCode == 13) continue;
           unsigned short numPtsWithCharge2 = NumPtsWithCharge(tjs, tjs.allTraj[it2], true);
           if(numPtsWithCharge2 < 6) continue;
           // ignore if tj1 is a lot shorter than tj2
@@ -665,7 +663,16 @@ namespace tca {
           unsigned short closePt2 = 0;
           TrajPointTrajDOCA(tjs, tjs.allTraj[it1].Pts[endPt1], tjs.allTraj[it2], closePt2, doca);
           if(doca == minDOCA) continue;
-          if(prt) mf::LogVerbatim("TC")<<" FHV2 CTP "<<tjs.allTraj[it1].CTP<<" tj1 ID "<<tjs.allTraj[it1].ID<<"_"<<end1<<" tj2 ID "<<tjs.allTraj[it2].ID<<" doca "<<doca<<" tj2.EndPt[0] "<<tjs.allTraj[it2].EndPt[0]<<" closePt2 "<<closePt2<<" tj2.EndPt[1] "<<tjs.allTraj[it2].EndPt[1];
+          if(prt) {
+            mf::LogVerbatim myprt("TC");
+            auto& tj1 = tjs.allTraj[it1];
+            auto& tj2 = tjs.allTraj[it2];
+            myprt<<" FHV2 CTP"<<tj1.CTP;
+            myprt<<" T"<<tj1.ID<<"_"<<end1<<" MCSMom "<<tj1.MCSMom<<" ChgRMS "<<tj1.ChgRMS;
+            myprt<<" split T"<<tj2.ID<<"? MCSMom "<<tj2.MCSMom<<" ChgRMS "<<tj2.ChgRMS;
+            myprt<<" doca "<<doca<<" tj2.EndPt[0] "<<tj2.EndPt[0]<<" closePt2 "<<closePt2;
+            myprt<<" tj2.EndPt[1] "<<tj2.EndPt[1];
+          } // prt
           // ensure that the closest point is not near an end
           if(closePt2 < tjs.allTraj[it2].EndPt[0] + 3) continue;
           if(closePt2 > tjs.allTraj[it2].EndPt[1] - 3) continue;
@@ -688,6 +695,13 @@ namespace tca {
           TrajClosestApproach(tjs.allTraj[it2], wint, tint, intPt2, doca);
           if(prt) mf::LogVerbatim("TC")<<" intPt2 on tj2 "<<intPt2<<" at Pos "<<PrintPos(tjs, tjs.allTraj[it2].Pts[intPt2])<<" doca "<<doca;
           if(doca == minDOCA) continue;
+          // find the MCSMom for both sections of tj2
+          float mcsmom = tjs.allTraj[it2].MCSMom;
+          float mcsmom1 = MCSMom(tjs, tjs.allTraj[it2], tjs.allTraj[it2].EndPt[0], intPt2);
+          float mcsmom2 = MCSMom(tjs, tjs.allTraj[it2], intPt2, tjs.allTraj[it2].EndPt[1]);
+          // require that the both MCSMoms be greater than 
+          if(prt) mf::LogVerbatim("TC")<<" Check MCSMom after split: mcsmom1 "<<mcsmom1<<" mcsmom2 "<<mcsmom2;
+          if(mcsmom1 < mcsmom || mcsmom2 < mcsmom) continue;
           // start scanning for the point on tj2 that has the best IP with the end of tj1 in the direction
           // from closePt2 -> endPt2
           short dir = 1;
