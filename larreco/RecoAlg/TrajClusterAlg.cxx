@@ -129,6 +129,7 @@ namespace tca {
     if(tjs.Vertex2DCuts.size() < 10) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 10\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = min ChgFrac at a vtx or merge point\n 9 = max MCSMom asymmetry";
     if(tjs.Vertex3DCuts.size() < 2)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size 2\n 0 = Max dX (cm)\n 1 = Max pull";
     if(tjs.KinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
+    if(tjs.KinkCuts[2] < 2) throw art::Exception(art::errors::Configuration)<<"KinkCuts[2] must be > 1";
     if(tjs.ChargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
     
     if(tjs.MuonTag.size() != 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging";
@@ -302,10 +303,8 @@ namespace tca {
   void TrajClusterAlg::RunTrajClusterAlg(const art::Event& evt)
   {
 
-    if(fMode == 0) return;
-
     fIsRealData = evt.isRealData();
-    
+
     // a gratuitous clearing of everything before we start
     ClearResults();
     ++tjs.EventsProcessed;
@@ -316,6 +315,9 @@ namespace tca {
     // Get the hits and associations
     GetHitCollection(evt);
     if(tjs.fHits.empty()) return;
+    
+    if(fStudyMode) tm.StudyPiZeros(hist);
+    if(fMode == 0) return;
 
     // check for debugging mode triggered by Plane, Wire, Tick
     debug.Hit = UINT_MAX;
@@ -366,7 +368,6 @@ namespace tca {
       // special debug mode for multi-TPC detectors like protoDUNE
       if(fMode == 4 && (int)tpcid.TPC != debug.TPC) continue;
       fQuitAlg = !FillWireHitRange(tjs, tpcid, fDebugMode);
-      if(tjs.MatchTruth[0] > 0) tm.CreateTruthPFPs(tpcid);
       if(fQuitAlg) return;
       for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
         // special mode for only reconstructing the collection plane
@@ -5696,6 +5697,7 @@ namespace tca {
     // Puts the hits and MCParticles into TjStuff
     tjs.fHits.clear();
     tjs.MCPartList.clear();
+    
     art::ValidHandle< std::vector<recob::Hit>> hitVecHandle = evt.getValidHandle<std::vector<recob::Hit>>(fHitFinderModuleLabel);
     if(hitVecHandle->size() < 2) return;
     tjs.fHits.reserve(hitVecHandle->size());
@@ -5752,7 +5754,7 @@ namespace tca {
     if(evt.isRealData()) return;
     // don't bother loading MC info if it won't be used.
     if(tjs.MatchTruth[0] < 0) return;
-    
+
     // save MCParticles in TjStuff that have the desired MCTruth origin using
     // the Origin_t typedef enum: kUnknown, kBeamNeutrino, kCosmicRay, kSuperNovaNeutrino, kSingleParticle
     simb::Origin_t origin = (simb::Origin_t)tjs.MatchTruth[0];
@@ -5810,7 +5812,7 @@ namespace tca {
       }
       tjs.MCPartList.push_back(p);
     } // ipart
-    
+
     if(fUseOldBackTracker) {
       tm.MatchTrueHits();
       return;
