@@ -5,6 +5,41 @@ namespace  tca {
   void HistStuff::CreateHists(art::TFileService& tfs)
   {
     
+    // study electrons
+    fChgRMS[0] = tfs.make<TH1F>("ChgRMS0","ChgRMS - Electrons", 50, 0, 1);
+    fChgRMS[1] = tfs.make<TH1F>("ChgRMS1","ChgRMS - Muons", 50, 0, 1);
+    fChgRMS[2] = tfs.make<TH1F>("ChgRMS2","ChgRMS - Pions", 50, 0, 1);
+    fChgRMS[3] = tfs.make<TH1F>("ChgRMS3","ChgRMS - Kaons", 50, 0, 1);
+    fChgRMS[4] = tfs.make<TH1F>("ChgRMS4","ChgRMS - Protons", 50, 0, 1);
+    
+    fMomAsym[0] = tfs.make<TH1F>("MomAsym0","MomAsym - Electrons", 50, 0, 1);
+    fMomAsym[1] = tfs.make<TH1F>("MomAsym1","MomAsym - Muons", 50, 0, 1);
+    fMomAsym[2] = tfs.make<TH1F>("MomAsym2","MomAsym - Pions", 50, 0, 1);
+    fMomAsym[3] = tfs.make<TH1F>("MomAsym3","MomAsym - Kaons", 50, 0, 1);
+    fMomAsym[4] = tfs.make<TH1F>("MomAsym4","MomAsym - Protons", 50, 0, 1);
+    
+    fElectronLike[0] = tfs.make<TH1F>("ElectronLike0","ElectronLike - Electrons", 50, 0, 1);
+    fElectronLike[1] = tfs.make<TH1F>("ElectronLike1","ElectronLike - Muons", 50, 0, 1);
+    fElectronLike[2] = tfs.make<TH1F>("ElectronLike2","ElectronLike - Pions", 50, 0, 1);
+    fElectronLike[3] = tfs.make<TH1F>("ElectronLike3","ElectronLike - Kaons", 50, 0, 1);
+    fElectronLike[4] = tfs.make<TH1F>("ElectronLike4","ElectronLike - Protons", 50, 0, 1);
+    
+    fElectronLike_Len[0] = tfs.make<TH2F>("ElectronLike_Len0","ElectronLike vs length - Electrons", 100, 0, 100, 100, 0, 1);
+    fElectronLike_Len[1] = tfs.make<TH2F>("ElectronLike_Len1","ElectronLike vs length - Muons", 100, 0, 100, 100, 0, 1);
+    fElectronLike_Len[2] = tfs.make<TH2F>("ElectronLike_Len2","ElectronLike vs length - Pions", 100, 0, 100, 100, 0, 1);
+    fElectronLike_Len[3] = tfs.make<TH2F>("ElectronLike_Len3","ElectronLike vs length - Kaons", 100, 0, 100, 100, 0, 1);
+    fElectronLike_Len[4] = tfs.make<TH2F>("ElectronLike_Len4","ElectronLike vs length - Protons", 100, 0, 100, 100, 0, 1);
+    
+    // study showers
+    AlongTrans1 = tfs.make<TH2F>("AlongTrans1","Trans vs Along 100 MeV",400, -50, 150, 40, 0, 20);
+    AlongTrans5 = tfs.make<TH2F>("AlongTrans5","Trans vs Along 500 MeV",400, -50, 150, 40, 0, 20);
+    AlongTrans9 = tfs.make<TH2F>("AlongTrans9","Trans vs Along 900 MeV",400, -50, 150, 40, 0, 20);
+    
+    fChgToMeV[0] = tfs.make<TH1F>("ChgToMeV0","ChgToMeV Pln 0", 80, 0, 0.04);
+    fChgToMeV[1] = tfs.make<TH1F>("ChgToMeV1","ChgToMeV Pln 1", 80, 0, 0.04);
+    fChgToMeV[2] = tfs.make<TH1F>("ChgToMeV2","ChgToMeV Pln 2", 80, 0, 0.04);
+    fChgToMeV_Etru = tfs.make<TProfile>("ChgToMeV_Etru","ChgToMeV vs Etru Pln 0", 10, 0, 1000);
+    
     // True - Reco unmatched hit fraction
     fUnMatchedHitFrac = tfs.make<TH1F>("UnMatchedHitFrac","True-Reco Unmatched Hit Fraction", 200, 0, 0.2);
     
