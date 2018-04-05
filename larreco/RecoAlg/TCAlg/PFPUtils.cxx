@@ -1997,7 +1997,7 @@ namespace tca {
   } // FilldEdx
 
   ////////////////////////////////////////////////
-  float PFPDOCA(const PFPStruct& pfp1,  const PFPStruct& pfp2, float maxSep)
+  float PFPDOCA(const PFPStruct& pfp1,  const PFPStruct& pfp2, float maxSep, Point3_t& close1, Point3_t& close2)
   {
     // returns the Distance of Closest Approach between two PFParticles. The separation is done
     // using every 5th Tp3 if they exist, otherwise only the end points are used
@@ -2016,7 +2016,11 @@ namespace tca {
     for(auto& pt1 : pts1) {
       for(auto& pt2 : pts2) {
         float sep2 = PosSep2(pt1, pt2);
-        if(sep2 < minSep2) minSep2 = sep2;
+        if(sep2 < minSep2) {
+          minSep2 = sep2;
+          close1 = pt1;
+          close2 = pt2;
+        }
       } // pt2
     } // pt1
     return sqrt(minSep2);
@@ -2350,18 +2354,20 @@ namespace tca {
         if(tj.PDGCode == 11) has11 = true;
       } // tjID
       if(skipit) continue;
-      if(has13 && has11) continue; 
-      // min Aspect ratio cut
+      if(has13 && has11) continue;
+      // min Aspect ratio cut for not-shower-like PFPs
       float maxTjLen = MaxTjLen(tjs, ms.TjIDs);
-      if(maxTjLen > 10 && ms.AspectRatio < tjs.Match3DCuts[3]) continue;
+      int pdgCode = PDGCodeVote(tjs, ms.TjIDs, prt);
+      if(pdgCode != 11 && maxTjLen > 10 && ms.AspectRatio < tjs.Match3DCuts[3]) continue;
       PFPStruct pfp = CreatePFP(tjs, tpcid);
       pfp.TjIDs = ms.TjIDs;
-      // set the PDGCode to ensure that delta rays aren't merged with muons
-      if(has13) pfp.PDGCode = 13;
-      if(has11) pfp.PDGCode = 11;
       pfp.MatchVecIndex = indx;
       // Set the PDGCode so DefinePFP can ignore incompatible matches
-      pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
+      pfp.PDGCode = pdgCode;
+      // set the PDGCode to ensure that delta rays aren't merged with muons. PDGCodeVote
+      // returns 0 if the vote is mixed
+      if(has13) pfp.PDGCode = 13;
+      if(has11) pfp.PDGCode = 11;
       if(!DefinePFP("FPFP", tjs, pfp, prt)) {
         if(prt) mf::LogVerbatim("TC")<<" DefinePFP failed";
         continue;
