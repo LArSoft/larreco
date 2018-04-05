@@ -298,10 +298,10 @@ namespace tca {
   struct ShowerStruct3D {
     Vector3_t Dir;              //
     Vector3_t DirErr;           // DirErr is hijacked to store the shower rms at the start, center and end sections
-    Point3_t Pos;               //
-    Point3_t PosErr;            // PosErr is hijacked to temporarily store the charge in the three sections
+    Point3_t Start;               //
+    Point3_t StartErr;            // PosErr is hijacked to temporarily store the charge in the three sections
     Point3_t ChgPos;            // position of the center of charge
-    Point3_t EndPos;            // end position
+    Point3_t End;            // end position
     double Len {1};
     double OpenAngle {0.12};
     std::vector<double> Energy;
@@ -487,8 +487,6 @@ namespace tca {
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> WireHitRange;
-    std::vector<std::pair<float, float>> srcHits;   ///< (lower,upper) time of each hit in the source collection
-    std::vector<std::vector< std::pair<int, int>>> srcWireHitRange;
     std::vector<float> AngleRanges; ///< list of max angles for each angle range
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtx; ///< 2D vertices
