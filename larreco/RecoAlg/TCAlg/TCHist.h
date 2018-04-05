@@ -21,6 +21,18 @@ namespace tca {
   struct HistStuff {
     void CreateHists(art::TFileService& tfs);
     
+    // study electrons
+    TH1F *fChgRMS[5];
+    TH1F *fMomAsym[5];
+    TH1F *fElectronLike[5];
+    TH2F *fElectronLike_Len[5];
+    
+    TH1F *fChgToMeV[3];
+    TProfile *fChgToMeV_Etru;
+    TH2F *AlongTrans1;
+    TH2F *AlongTrans5;
+    TH2F *AlongTrans9;
+    
     TH1F *fUnMatchedHitFrac;
     
     // True kinetic energy (MeV)
