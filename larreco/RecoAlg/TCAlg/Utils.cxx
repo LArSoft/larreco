@@ -1864,7 +1864,6 @@ namespace tca {
   {
     unsigned short pdg = abs(PDGCode);
     if(pdg == 11) return 0; // electron
-    if(pdg == 22) return 0; // call photons electrons
     if(pdg == 13) return 1; // muon
     if(pdg == 211) return 2; // pion
     if(pdg == 321) return 3; // kaon
@@ -4067,7 +4066,7 @@ namespace tca {
         if(foundOne) {
           // print out 2D vertices
           myprt<<someText<<"************ 2D vertices ************\n";
-          myprt<<someText<<"  Vtx  CTP   wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D TjIDs\n";
+          myprt<<someText<<"  Vtx   CTP    wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D TjIDs\n";
           for(auto& vx2 : tjs.vtx) {
             if(vx2.ID == 0) continue;
             if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(vx2.CTP).Plane) continue;
@@ -4092,9 +4091,12 @@ namespace tca {
               auto const& aTj = tjs.allTraj[ii];
               if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
               if(aTj.AlgMod[kKilled]) continue;
-              for(unsigned short end = 0; end < 2; ++end)
-                if(aTj.VtxID[end] == (short)vx2.ID) myprt<<std::right<<std::setw(4)<<aTj.ID<<"_"<<end;
-            }
+              for(unsigned short end = 0; end < 2; ++end) {
+                if(aTj.VtxID[end] != (short)vx2.ID) continue;
+                std::string tid = "T" + std::to_string(aTj.ID) + "_" + std::to_string(end);
+                myprt<<std::right<<std::setw(6)<<tid;
+              } // end
+            } // ii
             // Special flags. Ignore the first flag bit (0 = kVtxTrjTried) which is done for every vertex
             for(unsigned short ib = 1; ib < VtxBitNames.size(); ++ib) if(vx2.Stat[ib]) myprt<<" "<<VtxBitNames[ib];
             myprt<<"\n";
