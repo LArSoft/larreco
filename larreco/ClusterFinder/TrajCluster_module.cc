@@ -364,9 +364,9 @@ namespace cluster {
       shower.set_direction(dir);
       TVector3 dirErr = {ss3.DirErr[0], ss3.DirErr[1], ss3.DirErr[2]};
       shower.set_direction_err(dirErr);
-      TVector3 pos = {ss3.Pos[0], ss3.Pos[1], ss3.Pos[2]};
+      TVector3 pos = {ss3.Start[0], ss3.Start[1], ss3.Start[2]};
       shower.set_start_point(pos);
-      TVector3 posErr = {ss3.PosErr[0], ss3.PosErr[1], ss3.PosErr[2]};
+      TVector3 posErr = {ss3.StartErr[0], ss3.StartErr[1], ss3.StartErr[2]};
       shower.set_start_point_err(posErr);
       shower.set_dedx(ss3.dEdx);
       shower.set_dedx_err(ss3.dEdxErr);
