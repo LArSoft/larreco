@@ -783,7 +783,7 @@ void pma::ProjectionMatchingAlg::ShortenSeg(pma::Track3D& trk, const geo::TPCGeo
 		RemoveNotEnabledHits(trk);
 
 		// trk.Optimize(0.0001, false); // BUG: first argument missing; tentatively:
-		trk.Optimize(-1, 0.0001, false);
+		trk.Optimize(0, 0.0001, false);
 		trk.SortHits();
 
 		mf::LogWarning("ProjectionMatchingAlg") << " mse: " << mse;
