@@ -57,8 +57,9 @@ namespace hit{
     unsigned int fMinMergeMultiplicity;
     float fFinalAmpThreshold;
 
-    float fGEAlgStepSize;
-    float fGEAlgMax;
+    // Clang: private field is not used (x2):
+  //  float fGEAlgStepSize;
+  //  float fGEAlgMax;
     util::GaussianEliminationAlg fGEAlg;
     
     std::vector<float> fMeanVector;

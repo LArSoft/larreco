@@ -179,7 +179,7 @@ size_t cluster::StandardClusterParamsAlg::NHits() {
 
 //------------------------------------------------------------------------------
 float cluster::StandardClusterParamsAlg::MultipleHitDensity() {
-  if (NInputHits() < 2) return { 0.F };
+  if (NInputHits() < 2) return 0.0F;
   
   // compute all the averages
   algo.GetAverages();
@@ -191,7 +191,7 @@ float cluster::StandardClusterParamsAlg::MultipleHitDensity() {
 
 //------------------------------------------------------------------------------
 float cluster::StandardClusterParamsAlg::Width() {
-  if (NInputHits() < 3) return { 0.F };
+  if (NInputHits() < 3) return 0.0F;
   
   // compute all the shower profile information
   algo.GetProfileInfo();

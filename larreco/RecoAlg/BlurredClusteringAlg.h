@@ -155,7 +155,7 @@ private:
   int          fMaxTickWidthBlur;         // maximum distance to blur a hit based on its natural width in time
   int          fClusterWireDistance;      // how far to cluster from seed in wire direction
   int          fClusterTickDistance;      // how far to cluster from seed in tick direction
-  unsigned int fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
+//  unsigned int fMinMergeClusterSize;      // minimum size of a cluster to consider merging it to another
   unsigned int fNeighboursThreshold;      // min. number of neighbors to add to cluster
   int          fMinNeighbours;            // minumum number of neighbors to keep in the cluster
   unsigned int fMinSize;                  // minimum size for cluster

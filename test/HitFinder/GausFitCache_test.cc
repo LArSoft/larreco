@@ -19,7 +19,7 @@
 
 
 double gaus(double x, double mean, double sigma, double amplitude) {
-  register double z = (x - mean) / sigma;
+  double z = (x - mean) / sigma;
   return amplitude * std::exp(-0.5*z*z);
 } // gaus()
 

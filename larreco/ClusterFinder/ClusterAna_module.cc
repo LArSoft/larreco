@@ -80,7 +80,7 @@ namespace cluster {
     TH1F* fNuKE_pion;
     TH1F* fNuKE_kaon;
     TH1F* fNuKE_prot;
-    TH1F* fNuEP2;
+  //  TH1F* fNuEP2;
     TH1F* fNuEP2_elec;
     TH1F* fNuEP2_muon;
     TH1F* fNuEP2_pion;
@@ -117,7 +117,7 @@ namespace cluster {
     std::vector<float> fProtKERange;
     short fTrackWeightOption;
     bool  fMergeDaughters;
-    float fMergeAngleCut;
+  //  float fMergeAngleCut;
     bool  fSkipCosmics;
     short fPrintLevel;
     short moduleID;

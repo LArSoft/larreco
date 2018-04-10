@@ -12,6 +12,7 @@ standard_celltree:
   saveTrigger     : true
   saveMC          : false
   saveJSON        : false
+  nRawSamples     : 9600
   RawDigitLabel   : "daq"
   CalibLabel      : "caldata"
   OpHitLabel      : "ophit"
