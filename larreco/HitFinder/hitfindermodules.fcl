@@ -77,24 +77,28 @@ dpraw_hitfinder:
 
  GroupMaxDistance:		10		# maximum distance (in ticks) between two peaks to be grouped.
  GroupMinADC:			-5		# minimum ADC count between two peaks to be grouped.
+ SameShape:			true		# if true: fits within same group are forced to have identical shape
+
  DoMergePeaks:			true		# true: enables peak merging for peaks in the same group.
  MergeADCSumThreshold:		0.2		# merge two peaks only if (ADC sum of the smaller peak) < MergeADCSumThreshold*(ADC sum of the bigger peak).
  MergeMaxADCThreshold:		0.2		# merge two peaks only if (height of the smaller peak) < MergeADCSumThreshold*(height of the bigger peak).
+ MinRelativePeakHeight:		0.1		# merge two peaks if (relative peak height of the smaller peak) < MinRelativePeakHeight*(peak height of the smaller peak)
 
  MinWidth:             		10              # threshold for width (in ticks). Groups of peaks with smaller values are neither fitted nor stored.
  MinADCSum:    			10             	# threshold for ADC sum (in ADC*ticks). Groups of peaks with smaller values are neither fitted nor stored.
  MinADCSumOverWidth:    	2.4             # threshold for ADC sum over width (in ADC*ticks/ticks). Groups of peaks with smaller values are neither fitted nor stored.
 
- MaxMultiHit:          		6              # maximum number of peaks in a group for the group to be fitted. If more, split the group in equally spaced hits without fitting.
+ MaxMultiHit:          		6               # maximum number of peaks in a group for the group to be fitted. If more, split the group in equally spaced hits without fitting.
 						# When refitting, maximum number of peaks in group is: 1) not greater than 3x number of peaks before re-fitting.
  MaxGroupLength:          	1000            # Maximum length of group of peaks for the group to be fitted, in ticks. If more, split the group in equally spaced hits without fitting.
-						# When refitting, maximum number of peaks in group is: 1) not greater than 3x number of peaks before re-fitting.
+ MaxFluctuations:		5		# If the sum of fluctuations in all peaks is > MaxFluctuations, split the group in equally spaced hits without fitting.
+
  TryNplus1Fits:        		true		# true: will try to re-fit poorly modeled groups of peaks (chi2PerNDF>Chi2NDFRetry) while adding (an) additional peak(s).
  Chi2NDFRetry:         		25              # for single peaks: if the first fit returns a Chi2/NDF greater than this, try to re-fit.
  Chi2NDFRetryFactorMultiHits: 	2       	# for groups of peaks (2 or more): if the first fit returns a Chi2/NDF greater than Chi2NDFRetryFactorMultiHits*Chi2NDFRetry, try to re-fit.
 
- Chi2NDFMax:          		2000            # for single peaks: maximum chi square / NDF allowed for a fit to be stored as recob::Hit. Otherwise, calculate recob::Hit parameters from waveform.
- Chi2NDFMaxFactorMultiHits: 	2       	# for groups of peaks (2 or more): maximum chi square / NDF allowed for a fit to be stored as recob::Hit. Otherwise, calculate recob::Hit parameters from waveform.
+ Chi2NDFMax:          		2000            # for single peaks: maximum chi square / NDF allowed for a fit to be stored as recob::Hits. Otherwise, handle peak as long pulse train.
+ Chi2NDFMaxFactorMultiHits: 	2       	# for groups of peaks (2 or more): maximum chi square / NDF allowed for a fit to be stored as recob::Hit. Otherwise, handle group as long pulse train.
 
  LongPulseWidth:       		40      	# max widths for hits in long pulse trains 
  LongMaxHits:         		20      	# max number hits in long pulse trains
