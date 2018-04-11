@@ -490,11 +490,11 @@ namespace tca {
         Point3_t close1, close2;
         float doca = PFPDOCA(p1, p2, tjs.ShowerTag[2], close1, close2);
         if(doca == tjs.ShowerTag[2]) continue;
-/*
+
         std::cout<<"P"<<p1.ID<<" P"<<p2.ID<<" doca "<<std::fixed<<std::setprecision(1)<<doca;
         std::cout<<" dang "<<DeltaAngle(p1.Dir[0], p2.Dir[0]);
         std::cout<<"\n";
-*/
+
         // add a new one
         ClosePair cp;
         cp.doca = doca;
@@ -526,7 +526,7 @@ namespace tca {
       int pid1 = pfpList[ii];
       auto& p1 = tjs.pfps[pid1 - 1];
       float p1Len = PosSep(p1.XYZ[0], p1.XYZ[1]);
-//      std::cout<<ii<<" P"<<pid1<<" len "<<p1Len<<"\n";
+      std::cout<<ii<<" P"<<pid1<<" len "<<p1Len<<"\n";
       std::vector<unsigned short> plist;
       plist.push_back(pid1);
       // try to add ids to the list
@@ -552,7 +552,7 @@ namespace tca {
             if(pcp.doca < cp.doca) isCloser = true;
           } // kk
           if(isCloser) continue;
-//          std::cout<<"  add P"<<pid2<<" doca "<<cp.doca<<" dang "<<dang<<"\n";
+          std::cout<<"  add P"<<pid2<<" doca "<<cp.doca<<" dang "<<dang<<"\n";
           plist.push_back(pid2);
           // call it used
           cp.used = true;
@@ -1562,13 +1562,14 @@ namespace tca {
     
     std::string fcnLabel = inFcnLabel + ".DPS";
     
-    // put all the tjs into a monster shower pfparticle so we can fit it to get the
+    // put all the tjs into a monster shower pfparticle so we can get the
     // direction and position. Sum the Tj charge and convert to energy while we are here
     PFPStruct shPFP = CreatePFP(tjs, ss3.TPCID);
     std::vector<float> chgSum(tjs.NumPlanes);
     for(auto pid : ss3.PFPIDs) {
       auto& pfp = tjs.pfps[pid - 1];
       shPFP.TjIDs.insert(shPFP.TjIDs.end(), pfp.TjIDs.begin(), pfp.TjIDs.end());
+      shPFP.Tp3s.insert(shPFP.Tp3s.end(), pfp.Tp3s.begin(), pfp.Tp3s.end());
       for(auto tjid : pfp.TjIDs) {
         auto& tj = tjs.allTraj[tjid - 1];
         unsigned short plane = DecodeCTP(tj.CTP).Plane;
@@ -1577,7 +1578,7 @@ namespace tca {
     } // pid
     for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) ss3.Energy[plane] = ChgToMeV(chgSum[plane]);
     // Fit all the points to a line and fill the TP3s vector
-    FindCompleteness(tjs, shPFP, true, true, false);
+//    FindCompleteness(tjs, shPFP, true, true, false);
     if(shPFP.Tp3s.empty()) return false;
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -1586,7 +1587,6 @@ namespace tca {
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) myprt<<" "<<(int)ss3.Energy[plane];
       myprt<<" chgCtr "<<std::fixed<<std::setprecision(1)<<shPFP.XYZ[0][0]<<" "<<shPFP.XYZ[0][1]<<" "<<shPFP.XYZ[0][2];
       myprt<<" dir "<<std::setprecision(1)<<shPFP.Dir[0][0]<<" "<<shPFP.Dir[0][1]<<" "<<shPFP.Dir[0][2];
-      myprt<<" AspectRatio "<<shPFP.AspectRatio;
     } // prt
     ss3.ChgPos = shPFP.XYZ[0];
     ss3.Dir = shPFP.Dir[0];
@@ -1602,7 +1602,7 @@ namespace tca {
       double trans = sinth * sep;
       // stuff this info into dEdxErr and ChiDOF. The Tp3 charge was stashed in dEdx in FindCompleteness
       tp3.dEdxErr = along;
-      tp3.ChiDOF = trans;
+      tp3.Trans = trans;
       if(along < minAlong) minAlong = along;
       if(along > maxAlong) maxAlong = along;
     } // tp3
@@ -1618,7 +1618,7 @@ namespace tca {
     std::vector<double> suml(3);
     for(auto& tp3 : shPFP.Tp3s) {
       double along = tp3.dEdxErr;
-      double trans = tp3.ChiDOF;
+      double trans = tp3.Trans;
       unsigned short section = 3 * (along - minAlong) / ss3.Len;
       if(section > 2) section = 2;
       chg[section] += tp3.dEdx;
@@ -1720,7 +1720,6 @@ namespace tca {
     if(shPFP.Tp3s.empty()) return false;
     // Sort Tp3s by distance from the start. Don't let the sort function
     // change the Tp3 direction vectors since we aren't using them.
-    shPFP.DirectionFixed = true;
     shPFP.Dir[0] = ss3.Dir;
     SortByDistanceFromStart(tjs, shPFP, prt);
     ss3.Start = shPFP.Tp3s[0].Pos;
