@@ -160,7 +160,7 @@ namespace tca {
     unsigned short AngleCode {0};          // 0 = small angle, 1 = large angle, 2 = very large angle
     std::vector<unsigned int> Hits; // vector of fHits indices
     std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
-    std::bitset<4> Environment {0};    // TPEnvironment_t bitset that describes the environment, e.g. nearby showers or other Tjs
+    std::bitset<8> Environment {0};    // TPEnvironment_t bitset that describes the environment, e.g. nearby showers or other Tjs
   };
   
   // Global information for the trajectory
@@ -215,10 +215,8 @@ namespace tca {
     Vector3_t Dir {0};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
     float dEdx {0};             // The charge is stored here before dE/dx is calculated
-    float dEdxErr {1};
-    float ChiDOF {10};             // Chi/DOF of the fit < 0 = not valid
-    unsigned short nPtsFit {2}; 
-    bool IsValid {true};     // Is consistent with the position/angle of nearby space points
+    float dEdxErr {1};          // The path length (along) is store here before dE/dx is calculated
+    float Trans {10};             // Transverse position relative to the trajectory
   };
 
   // Struct for 3D trajectory matching
@@ -259,7 +257,7 @@ namespace tca {
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
-    bool DirectionFixed {false};  // Fix the direction of the pfp if it is small angle
+//    bool DirectionFixed {false};  // Fix the direction of the pfp if it is small angle
   };
 
   struct ShowerPoint {
@@ -446,7 +444,8 @@ namespace tca {
     kEnvNearTj,
     kEnvNearShower,
     kEnvOverlap,
-    kEnvUnusedHits
+    kEnvUnusedHits,
+    kEnvFlag,       ///< a general purpose flag bit used in 3D matching
   } TPEnvironment_t;
   
   extern const std::vector<std::string> AlgBitNames;
