@@ -312,6 +312,8 @@ namespace tca {
     for(auto& pfp : tjs.pfps) pfp.EffPur = 0;
 
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    geo::Vector_t posOffsets;
+    auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
 
     // these are only applicable to neutrinos
     bool neutrinoVxReconstructable = false;
@@ -534,18 +536,19 @@ namespace tca {
         myprt<<std::setw(8)<<mcp->TrackId();
         myprt<<std::setw(6)<<mcp->PdgCode();
         myprt<<std::setw(6)<<pi_serv->ParticleList().EveId(mcp->TrackId());
-/*
-        unsigned int momIndex = 0;
-        if(mcp->Mother() > 0) {
-          for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
-            if(tjs.MCPartList[part]->TrackId() == mcp->Mother()) momIndex = part;
-          }
-        } // Mother() > 0
-        myprt<<std::setw(10)<<momIndex;
-*/
         myprt<<std::setw(6)<<TMeV;
         Point3_t start {mcp->Vx(), mcp->Vy(), mcp->Vz()};
+        posOffsets = SCE->GetPosOffsets({start[0], start[1], start[2]});
+        posOffsets.SetX(-posOffsets.X());
+        start[0] += posOffsets.X();
+        start[1] += posOffsets.Y();
+        start[2] += posOffsets.Z();
         Point3_t end {mcp->EndX(), mcp->EndY(), mcp->EndZ()};
+        posOffsets = SCE->GetPosOffsets({end[0], end[1], end[2]});
+        posOffsets.SetX(-posOffsets.X());
+        end[0] += posOffsets.X();
+        end[1] += posOffsets.Y();
+        end[2] += posOffsets.Z();
         myprt<<std::setw(7)<<std::setprecision(1)<<PosSep(start, end);
         Vector3_t dir {mcp->Px(), mcp->Py(), mcp->Pz()};
         SetMag(dir, 1);
@@ -627,7 +630,7 @@ namespace tca {
     StudyElectrons(hist);
 
   } // MatchTruth
-  
+
   ////////////////////////////////////////////////
   void TruthMatcher::MatchAndSum(const HistStuff& hist, const std::vector<unsigned int>& mcpSelect, const geo::TPCID& inTPCID)
   {
@@ -746,7 +749,7 @@ namespace tca {
           myprt<<" mcpIndex "<<mcpIndex;
           myprt<<" TMeV "<<(int)TMeV<<" MCP hits "<<mcpPlnHits.size();
           myprt<<" extent "<<PrintHit(tjs.fHits[mcpPlnHits[0]])<<"-"<<PrintHit(tjs.fHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
-          myprt<<" Tj "<<tj.ID;
+          myprt<<" T"<<tj.ID;
           myprt<<" Algs";
           for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
           myprt<<" events processed "<<tjs.EventsProcessed;
