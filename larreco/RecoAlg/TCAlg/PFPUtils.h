@@ -36,18 +36,17 @@ namespace tca {
 
 
   void UpdateMatchStructs(TjStuff& tjs, int oldTj, int newTj);
+  void UpdateTp3s(TjStuff& tjs, PFPStruct& pfp, int oldTj, int newTj);
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
-//  void MakePFPTp3s(TjStuff& tjs, PFPStruct& pfp, bool anyTj);
-//  void NudgeIndex(TjStuff& tjs, const std::vector<TrajPoint3>& tp3Vec, const Tj2Pt& tj2pt, unsigned short& indx);
   void CheckXRange(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void AttachVertices(TjStuff& tjs, PFPStruct& pfpj, bool prt);
   bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void SetEndVx(TjStuff& tjs, PFPStruct& pfp, unsigned short atEnd, bool prt);
+  void FollowTp3s(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void SortByDistanceFromStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool FitTp3s(TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, Point3_t& pos, Vector3_t& dir, float& rCorr);
   bool FitTp3s(TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short fromPt, unsigned short toPt, Point3_t& pos, Vector3_t& dir, float& rCorr);
   bool FitTp3(TjStuff& tjs, TrajPoint3& tp3, const std::vector<Tj2Pt>& tj2pts);
-  void MoveTp3ToZ(TjStuff& tjs, TrajPoint3& tp3, double z);
   void FindCompleteness(TjStuff& tjs, PFPStruct& pfp, bool doFit, bool fillTp3s, bool prt);
   void FindMissedTjsInTp3s(TjStuff& tjs, PFPStruct& pfp, std::vector<int>& missTjs, std::vector<float>& missFrac);
   bool SharesHighScoreVx(TjStuff& tjs, const PFPStruct& pfp, const Trajectory& tj);
@@ -82,8 +81,6 @@ namespace tca {
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp);
   bool InsideTPC(const TjStuff& tjs, Point3_t& pos, geo::TPCID& inTPCID);
   void ReversePFP(TjStuff& tjs, PFPStruct& pfp);
-  void FixDirection(TjStuff& tjs, PFPStruct& pfp);
-  void FixDirection(Vector3_t& ofDir, const Vector3_t& usingDir);
   void PrintTp3(std::string fcnLabel, const TjStuff& tjs, const TrajPoint3& tp3);
   void PrintTp3s(std::string someText, const TjStuff& tjs, const PFPStruct& pfp, short printPts);
   
