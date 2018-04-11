@@ -1063,6 +1063,7 @@ namespace tca {
     
     TrajPoint tp;
     float maxScore = 0;
+    constexpr float maxSep = 4;
     // i, j, k indicates 3 different wire planes
     // compare vertices in each view
     for(unsigned short ipl = 0; ipl < 2; ++ipl) {
@@ -1097,9 +1098,13 @@ namespace tca {
               // See if there is a wire signal nearby in kpl
               tp.Pos[1] = tjs.detprop->ConvertXToTicks(kX, kpl, tpc, cstat) * tjs.UnitsPerTick;
               tp.CTP = EncodeCTP(cstat, tpc, kpl);
-              bool sigOK = SignalAtTp(tjs, tp);
-              if(prt) mf::LogVerbatim("TC")<<" signal at "<<kpl<<":"<<PrintPos(tjs, tp)<<"? "<<sigOK;
-              if(!sigOK) continue;
+              auto tjlist = FindCloseTjs(tjs, tp, tp, maxSep);
+              if(prt) {
+                mf::LogVerbatim myprt("TC");
+                myprt<<" Tjs near "<<kpl<<":"<<PrintPos(tjs, tp);
+                for(auto tjid : tjlist) myprt<<" T"<<tjid;
+              }
+              if(tjlist.empty()) continue;
             }
             kpl = 3 - ipl - jpl;
             // save this incomplete 3D vertex
@@ -1260,7 +1265,7 @@ namespace tca {
     } // vx3
 
   } // Find3DVertices
-/* This function doesn't seem to be of much use
+
   ////////////////////////////////////////////////
   void Match3DVtxTjs(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
@@ -1372,12 +1377,14 @@ namespace tca {
         if(pfp.TjIDs.size() < 2) continue;
         pfp.Vx3ID[0] = vx3.ID;
         if(!DefinePFP("M3DVTj2", tjs, pfp, prt)) continue;
+        Split3DKink(tjs, pfp, 1, prt);
+        AnalyzePFP(tjs, pfp, prt);
         if(prt) PrintPFP("left", tjs, pfp, true);
         if(!StorePFP(tjs, pfp)) continue;
       }
     } // ims
   } // Match3DVtxTjs
-*/
+
   //////////////////////////////////////////
   unsigned short TPNearVertex(TjStuff& tjs, const TrajPoint& tp)
   {
