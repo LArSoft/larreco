@@ -1686,9 +1686,9 @@ namespace tca {
     // require that they be on adjacent wires
     TCHit& ihit = tjs.fHits[iht];
     TCHit& jhit = tjs.fHits[jht];
-    unsigned int iwire = ihit.ArtPtr->WireID().Wire;
-    unsigned int jwire = jhit.ArtPtr->WireID().Wire;
-    if(abs(iwire - jwire) > 1) return false;
+    int iwire = ihit.ArtPtr->WireID().Wire;
+    int jwire = jhit.ArtPtr->WireID().Wire;
+    if(std::abs(iwire - jwire) > 1) return false;
     if(ihit.PeakTime > jhit.PeakTime) {
       float minISignal = ihit.PeakTime - 3 * ihit.RMS;
       float maxJSignal = jhit.PeakTime + 3 * ihit.RMS;
@@ -3386,6 +3386,8 @@ namespace tca {
     // The TP Pos[0] is set to a negative number if the point has an invalid wire position but doesn't return an
     // error if the position is on a dead wire. The projection of the direction vector in CTP is stored in tp.Delta.
     TrajPoint tp;
+    tp.Pos = {0,0};
+    tp.Dir = {0,1};
     tp.CTP = inCTP;
     geo::PlaneID planeID = DecodeCTP(inCTP);
     
@@ -3395,7 +3397,9 @@ namespace tca {
       return tp;
     }
     tp.Pos[1] = tjs.detprop->ConvertXToTicks(pos[0], planeID) * tjs.UnitsPerTick;
-    // now find the direction
+    
+    // now find the direction if dir is defined
+    if(dir[0] == 0 && dir[1] == 0 && dir[2] == 0) return tp;
     // Make a point at the origin and one 100 units away
     Point3_t ori3 = {0, 0, 0};
     Point3_t pos3 = {100 * dir[0], 100 * dir[1], 100 * dir[2]};
@@ -4093,7 +4097,7 @@ namespace tca {
               if(aTj.AlgMod[kKilled]) continue;
               for(unsigned short end = 0; end < 2; ++end) {
                 if(aTj.VtxID[end] != (short)vx2.ID) continue;
-                std::string tid = "T" + std::to_string(aTj.ID) + "_" + std::to_string(end);
+                std::string tid = " T" + std::to_string(aTj.ID) + "_" + std::to_string(end);
                 myprt<<std::right<<std::setw(6)<<tid;
               } // end
             } // ii
