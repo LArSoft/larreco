@@ -35,7 +35,7 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
-#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/DataProviderAlg.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 
 #include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"

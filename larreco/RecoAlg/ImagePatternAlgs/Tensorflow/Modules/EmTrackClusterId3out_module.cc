@@ -1,15 +1,16 @@
 /////////////////////////////////////////////////////////////////////////////////
-// Class:       EmTrackClusterId2out
+// Class:       EmTrackClusterId
 // Module Type: producer
-// File:        EmTrackClusterId2out_module.cc
+// File:        EmTrackClusterId_module.cc
 // Authors:     dorota.stefan@cern.ch pplonski86@gmail.com robert.sulej@cern.ch
 //
 // Module applies CNN to 2D image made of deconvoluted wire waveforms in order
 // to distinguish EM-like activity from track-like objects. New clusters of
 // hits are produced to include also unclustered hits and tag everything in
 // a common way.
-// NOTE: This module uses 2-output CNN models, see EmTrackClusterId and
-// EmTrackMichelClusterId for usage of 3 and 4-output models.
+// NOTE: This module uses 3-output CNN models, see EmTrackMichelClusterId for
+// usage of 4-output models and EmTrackClusterId2out_module.cc for 2-output
+// models.
 //
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -31,14 +32,14 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
-#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/Tensorflow/PointIdAlg/PointIdAlg.h"
 #include "lardata/ArtDataHelper/MVAWriter.h"
 
 #include <memory>
 
 namespace nnet {
 
-class EmTrackClusterId2out : public art::EDProducer {
+class EmTrackClusterId : public art::EDProducer {
 public:
 
 	// these types to be replaced with use of feature proposed in redmine #12602
@@ -84,12 +85,12 @@ public:
 		};
 	};
 	using Parameters = art::EDProducer::Table<Config>;
-	explicit EmTrackClusterId2out(Parameters const & p);
+	explicit EmTrackClusterId(Parameters const & p);
 
-	EmTrackClusterId2out(EmTrackClusterId2out const &) = delete;
-	EmTrackClusterId2out(EmTrackClusterId2out &&) = delete;
-	EmTrackClusterId2out & operator = (EmTrackClusterId2out const &) = delete;
-	EmTrackClusterId2out & operator = (EmTrackClusterId2out &&) = delete;
+	EmTrackClusterId(EmTrackClusterId const &) = delete;
+	EmTrackClusterId(EmTrackClusterId &&) = delete;
+	EmTrackClusterId & operator = (EmTrackClusterId const &) = delete;
+	EmTrackClusterId & operator = (EmTrackClusterId &&) = delete;
 
 	void produce(art::Event & e) override;
 
@@ -98,7 +99,7 @@ private:
 
         size_t fBatchSize;
 	PointIdAlg fPointIdAlg;
-	anab::MVAWriter<2> fMVAWriter; // <-------------- using 2-output CNN model
+	anab::MVAWriter<3> fMVAWriter; // <-------------- using 3-output CNN model
 
 	art::InputTag fWireProducerLabel;
 	art::InputTag fHitModuleLabel;
@@ -112,7 +113,7 @@ private:
 };
 // ------------------------------------------------------
 
-EmTrackClusterId2out::EmTrackClusterId2out(EmTrackClusterId2out::Parameters const& config) :
+EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 	fBatchSize(config().BatchSize()),
 	fPointIdAlg(config().PointIdAlg()), fMVAWriter(this, "emtrack"),
 	fWireProducerLabel(config().WireLabel()),
@@ -146,9 +147,9 @@ EmTrackClusterId2out::EmTrackClusterId2out(EmTrackClusterId2out::Parameters cons
 }
 // ------------------------------------------------------
 
-void EmTrackClusterId2out::produce(art::Event & evt)
+void EmTrackClusterId::produce(art::Event & evt)
 {
-    mf::LogVerbatim("EmTrackClusterId2out") << "next event: " << evt.run() << " / " << evt.id().event();
+    mf::LogVerbatim("EmTrackClusterId") << "next event: " << evt.run() << " / " << evt.id().event();
 
 	auto wireHandle = evt.getValidHandle< std::vector<recob::Wire> >(fWireProducerLabel);
 
@@ -159,7 +160,7 @@ void EmTrackClusterId2out::produce(art::Event & evt)
 	std::vector< art::Ptr<recob::Hit> > hitPtrList;
 	art::fill_ptr_vector(hitPtrList, hitListHandle);
 
-    EmTrackClusterId2out::cryo_tpc_view_keymap hitMap;
+    EmTrackClusterId::cryo_tpc_view_keymap hitMap;
 	for (auto const& h : hitPtrList)
 	{
 		view = h->WireID().Plane;
@@ -233,7 +234,7 @@ void EmTrackClusterId2out::produce(art::Event & evt)
 	    std::vector< art::Ptr<recob::Cluster> > cluPtrList;
 	    art::fill_ptr_vector(cluPtrList, cluListHandle);
 
-        EmTrackClusterId2out::cryo_tpc_view_keymap cluMap;
+        EmTrackClusterId::cryo_tpc_view_keymap cluMap;
 	    for (auto const& c : cluPtrList)
 	    {
 	    	view = c->Plane().Plane;
@@ -268,15 +269,16 @@ void EmTrackClusterId2out::produce(art::Event & evt)
 
                         for (auto const & hit : v)
                         {
-                            if (hitUsed[hit.key()]) { mf::LogWarning("EmTrackClusterId2out") << "hit already used in another cluster"; }
+                            if (hitUsed[hit.key()]) { mf::LogWarning("EmTrackClusterId") << "hit already used in another cluster"; }
                             hitUsed[hit.key()] = true;
                         }
 
                         auto vout = fMVAWriter.getOutput<recob::Hit>(v,
                             [&](art::Ptr<recob::Hit> const & ptr) { return (float)hitInFA[ptr.key()]; });
 
-	    	            mf::LogVerbatim("EmTrackClusterId2out") << "cluster in tpc:" << tpc << " view:" << view
-                            << " size:" << v.size() << " p:" << vout[0];
+    		            float pvalue = vout[0] / (vout[0] + vout[1]);
+	    	            mf::LogVerbatim("EmTrackClusterId") << "cluster in tpc:" << tpc << " view:" << view
+                            << " size:" << v.size() << " p:" << pvalue;
 
                 		clusters->emplace_back(
 	    		            recob::Cluster(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F,
@@ -293,9 +295,10 @@ void EmTrackClusterId2out::produce(art::Event & evt)
                         if (hitUsed[h]) continue;
 
                         auto vout = fMVAWriter.getOutput<recob::Hit>(h);
+		                float pvalue = vout[0] / (vout[0] + vout[1]);
 
-		                mf::LogVerbatim("EmTrackClusterId2out") << "single hit in tpc:" << tpc << " view:" << view
-			                << " wire:" << hitPtrList[h]->WireID().Wire << " drift:" << hitPtrList[h]->PeakTime() << " p:" << vout[0];
+		                mf::LogVerbatim("EmTrackClusterId") << "single hit in tpc:" << tpc << " view:" << view
+			                << " wire:" << hitPtrList[h]->WireID().Wire << " drift:" << hitPtrList[h]->PeakTime() << " p:" << pvalue;
 
 		                art::PtrVector< recob::Hit > cluster_hits;
 		                cluster_hits.push_back(hitPtrList[h]);
@@ -307,7 +310,7 @@ void EmTrackClusterId2out::produce(art::Event & evt)
 
 		                fMVAWriter.addOutput(cluID, vout); // add single-hit cluster tagging unclutered hit
                     }
-                    mf::LogVerbatim("EmTrackClusterId2out") << "...produced " << cidx - pview.second.size() << " single-hit clusters.";
+                    mf::LogVerbatim("EmTrackClusterId") << "...produced " << cidx - pview.second.size() << " single-hit clusters.";
                 }
             }
         }
@@ -335,7 +338,7 @@ void EmTrackClusterId2out::produce(art::Event & evt)
             while (!isViewSelected(best_view))
             {
                 best_view = (best_view + 1) % 3;
-                if (++k > 3) { throw cet::exception("EmTrackClusterId2out") << "No views selected at all?" << std::endl; }
+                if (++k > 3) { throw cet::exception("EmTrackClusterId") << "No views selected at all?" << std::endl; }
             }
 
             for (auto const & hptr : v)
@@ -358,7 +361,7 @@ void EmTrackClusterId2out::produce(art::Event & evt)
 }
 // ------------------------------------------------------
 
-bool EmTrackClusterId2out::isViewSelected(int view) const
+bool EmTrackClusterId::isViewSelected(int view) const
 {
 	if (fViews.empty()) return true;
 	else
@@ -369,7 +372,7 @@ bool EmTrackClusterId2out::isViewSelected(int view) const
 }
 // ------------------------------------------------------
 
-DEFINE_ART_MODULE(EmTrackClusterId2out)
+DEFINE_ART_MODULE(EmTrackClusterId)
 
 }
 
