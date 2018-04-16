@@ -67,6 +67,11 @@ namespace tca {
     
     // PFParticle PDGCode vs true PDG code
     TH2F* PDGCode_reco_true;
+    TH1F* fPFPStartEnd;
+    TH1F* fPFPStartdX[5];
+    TH1F* fPFPStartdY[5];
+    TH1F* fPFPStartdZ[5];
+    TH1F* fPFPStartAngDiff[5];
     
     TH1F* fEff;
     TH1F* fPur;
