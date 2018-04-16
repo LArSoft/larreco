@@ -174,7 +174,7 @@ namespace tca {
     float TotChg {0};                   ///< Total including an estimate for dead wires
     float ChgRMS {0.5};                 /// Normalized RMS using ALL hits. Assume it is 50% to start
     float DirFOM {0.5};         ///< confidence level that the Tj points are ordered correctly using  charge pattern
-    short MCSMom {-1};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
+    short MCSMom {0};         //< Crude 2D estimate to use for shower-like vs track-like discrimination
     float EffPur {0};                     ///< Efficiency * Purity
     Point2_t dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
@@ -216,7 +216,7 @@ namespace tca {
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
     float dEdx {0};             // The charge is stored here before dE/dx is calculated
     float dEdxErr {1};          // The path length (along) is store here before dE/dx is calculated
-    float Trans {10};             // Transverse position relative to the trajectory
+    float Trans {10};             // Transverse position (cm) relative to the trajectory
   };
 
   // Struct for 3D trajectory matching
@@ -228,7 +228,6 @@ namespace tca {
     float Count {0};                    // Set to 0 if matching failed
     Point3_t Pos;               // Position center using 3D-matched points on the Tjs - 3D fit
     Vector3_t Dir;              // Direction using 3D-matched points on the Tjs - 3D fit
-    float AspectRatio {-1};           // Aspect ratio calculated when doing a 3D fit
   };
   
   struct PFPStruct {
@@ -252,12 +251,10 @@ namespace tca {
     unsigned int MCPartListIndex {UINT_MAX};
     unsigned short MatchVecIndex {USHRT_MAX};
     float CosmicScore{0};
-    float AspectRatio {0};
     unsigned short ID {0};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
-//    bool DirectionFixed {false};  // Fix the direction of the pfp if it is small angle
   };
 
   struct ShowerPoint {
