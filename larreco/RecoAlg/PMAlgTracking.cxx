@@ -310,6 +310,7 @@ pma::PMAlgTracker::PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allh
 
 	fFlipToBeam(pmalgTrackerConfig.FlipToBeam()),
 	fFlipDownward(pmalgTrackerConfig.FlipDownward()),
+	fFlipToX(pmalgTrackerConfig.FlipToX()),
 	fAutoFlip_dQdx(pmalgTrackerConfig.AutoFlip_dQdx()),
 
 	fMergeWithinTPC(pmalgTrackerConfig.MergeWithinTPC()),
@@ -1088,6 +1089,7 @@ int pma::PMAlgTracker::build(void)
 	//if (fFlipToBeam) dQdxFlipThr = 0.4;
 	if (fFlipToBeam) fResult.flipTreesToCoordinate(2);        // flip the tracks / trees to the beam direction (Z)
 	else if (fFlipDownward) fResult.flipTreesToCoordinate(1); // flip the tracks / trees to point downward (-Y)
+	else if (fFlipToX) fResult.flipTreesToCoordinate(0);      // flip the tracks / trees to point in -X direction (downwards for dual phase)
 
 	if (fAutoFlip_dQdx) fResult.flipTreesByDQdx();            // flip the tracks / trees to get best dQ/dx sequences
 
