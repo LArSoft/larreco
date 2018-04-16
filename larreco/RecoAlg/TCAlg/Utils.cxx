@@ -2805,11 +2805,26 @@ namespace tca {
   } // TrajIsClean
   
   ////////////////////////////////////////////////
+  short MCSMom(const TjStuff& tjs, const std::vector<int>& tjIDs)
+  {
+    // Find the average MCSMom of the trajectories
+    if(tjIDs.empty()) return 0;
+    float summ = 0;
+    float suml = 0;
+    for(auto tjid : tjIDs) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      float npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+      summ += npts * tj.MCSMom;
+      suml += npts;
+    } // tjid
+    return (short)(summ / suml);
+  } // MCSMom
+  
+  ////////////////////////////////////////////////
   short MCSMom(TjStuff& tjs, Trajectory& tj)
   {
     return MCSMom(tjs, tj, tj.EndPt[0], tj.EndPt[1]);
   } // MCSMom
-  
   
   ////////////////////////////////////////////////
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
@@ -4390,7 +4405,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____   Len  nTp3  AspRat PDG mcpIndx Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____   Len  nTp3  MCSMom PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
     myprt<<std::setw(5)<<pfp.ID;
@@ -4433,7 +4448,7 @@ namespace tca {
       myprt<<std::setw(5)<<std::setprecision(0)<<length;
     }
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.Tp3s.size();
-    myprt<<std::setw(8)<<pfp.AspectRatio;
+    myprt<<std::setw(8)<<MCSMom(tjs, pfp.TjIDs);
     myprt<<std::setw(6)<<pfp.PDGCode;
     if(pfp.MCPartListIndex < tjs.MCPartList.size()) {
       myprt<<std::setw(8)<<pfp.MCPartListIndex;
