@@ -606,25 +606,47 @@ namespace tca {
     } // tj
 */
 
-    // histogram reconstructed PDG code vs true PDG code
+    // PFParticle histograms
+    constexpr double twopi = 2 * M_PI;
     std::array<int, 5> recoCodeList = {0, 11, 13, 211, 2212};
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       // ignore showers
       if(pfp.PDGCode == 1111) continue;
-      // ignore true photons
-      if(pfp.PDGCode == 22) continue;
       // require match to MC
       if(pfp.MCPartListIndex == UINT_MAX) continue;
-      short truIndex = PDGCodeIndex(tjs, tjs.MCPartList[pfp.MCPartListIndex]->PdgCode());
+      auto& mcp = tjs.MCPartList[pfp.MCPartListIndex];
+      short truIndex = PDGCodeIndex(tjs, mcp->PdgCode());
       if(truIndex == SHRT_MAX) continue;
       short recIndex = 0;
       for(recIndex = 0; recIndex < 5; ++recIndex) if(pfp.PDGCode == recoCodeList[recIndex]) break;
-      if(recIndex == 5) {
-        std::cout<<"MatchTruth: Found an unknown PDGCode "<<pfp.PDGCode<<" in PFParticle "<<pfp.ID<<"\n";
-        continue;
-      }
+      if(recIndex > 4) continue;
       hist.PDGCode_reco_true->Fill((float)truIndex, (float)recIndex);
+      // get the true start position and shift it by the SCE offset
+      Point3_t truStart {mcp->Vx(), mcp->Vy(), mcp->Vz()};
+      Point3_t truEnd {mcp->EndX(), mcp->EndY(), mcp->EndZ()};
+      float truLen = PosSep(truStart, truEnd);
+      posOffsets = SCE->GetPosOffsets({truStart[0], truStart[1], truStart[2]});
+      posOffsets.SetX(-posOffsets.X());
+      truStart[0] += posOffsets.X();
+      truStart[1] += posOffsets.Y();
+      truStart[2] += posOffsets.Z();
+      auto recDir = pfp.Dir[0];
+      short startEnd = 0;
+      if(PosSep(pfp.XYZ[1], truStart) < PosSep(pfp.XYZ[0], truStart)) {
+        startEnd = 1;
+        for(unsigned short xyz = 0; xyz < 3; ++xyz) recDir[xyz] *= -1;
+      }
+      hist.fPFPStartEnd->Fill((float)startEnd);
+      hist.fPFPStartdX[truIndex]->Fill(pfp.XYZ[startEnd][0] - truStart[0]);
+      hist.fPFPStartdY[truIndex]->Fill(pfp.XYZ[startEnd][1] - truStart[1]);
+      hist.fPFPStartdZ[truIndex]->Fill(pfp.XYZ[startEnd][2] - truStart[2]);
+      Vector3_t truDir {mcp->Px(), mcp->Py(), mcp->Pz()};
+      SetMag(truDir, 1);
+      float dang = DeltaAngle(truDir, pfp.Dir[startEnd]);
+      while(dang >  M_PI) dang -= twopi;
+      while(dang < -M_PI) dang += twopi;
+      if(truLen > 2) hist.fPFPStartAngDiff[truIndex]->Fill(dang);
     } // pfp
 
     StudyElectrons(hist);
