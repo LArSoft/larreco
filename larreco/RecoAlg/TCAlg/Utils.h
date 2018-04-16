@@ -153,6 +153,7 @@ namespace tca {
   unsigned short NumUsedHitsInTj(const TjStuff& tjs, const Trajectory& tj);
   unsigned short NearestPtWithChg(TjStuff& tjs, Trajectory& tj, unsigned short thePt);
   // Calculate MCS momentum
+  short MCSMom(const TjStuff& tjs, const std::vector<int>& tjIDs);
   short MCSMom(TjStuff& tjs, Trajectory& tj);
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short FirstPt, unsigned short lastPt);
   // Calculate MCS theta RMS over the points specified. Returns MCS angle for the full length
