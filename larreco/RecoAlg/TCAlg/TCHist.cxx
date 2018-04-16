@@ -89,6 +89,29 @@ namespace  tca {
     fMCSMomEP_TruMom_e = tfs.make<TH2F>("MCSMomEP_TruMom_e","MCSMom vs Tru Mom electrons", 50, 0, 100, 50, 0, 1000);
     
     PDGCode_reco_true = tfs.make<TH2F>("PDGCode_reco_true", "PDGCode Reco vs True", 5, -0.5, 4.5, 5, -0.5, 4.5);
+    // PFParticle start position reco - true
+    fPFPStartdX[0] = tfs.make<TH1F>("PFPStartdX0","PFP Start dX Reco-MC - Electrons", 100, -10, 10);
+    fPFPStartdX[1] = tfs.make<TH1F>("PFPStartdX1","PFP Start dX Reco-MC - Muons", 100, -10, 10);
+    fPFPStartdX[2] = tfs.make<TH1F>("PFPStartdX2","PFP Start dX Reco-MC - Pions", 100, -10, 10);
+    fPFPStartdX[3] = tfs.make<TH1F>("PFPStartdX3","PFP Start dX Reco-MC - Kaons", 100, -10, 10);
+    fPFPStartdX[4] = tfs.make<TH1F>("PFPStartdX4","PFP Start dX Reco-MC - Protons", 100, -10, 10);
+    fPFPStartdY[0] = tfs.make<TH1F>("PFPStartdY0","PFP Start dY Reco-MC - Electrons", 100, -10, 10);
+    fPFPStartdY[1] = tfs.make<TH1F>("PFPStartdY1","PFP Start dY Reco-MC - Muons", 100, -10, 10);
+    fPFPStartdY[2] = tfs.make<TH1F>("PFPStartdY2","PFP Start dY Reco-MC - Pions", 100, -10, 10);
+    fPFPStartdY[3] = tfs.make<TH1F>("PFPStartdY3","PFP Start dY Reco-MC - Kaons", 100, -10, 10);
+    fPFPStartdY[4] = tfs.make<TH1F>("PFPStartdY4","PFP Start dY Reco-MC - Protons", 100, -10, 10);
+    fPFPStartdZ[0] = tfs.make<TH1F>("PFPStartdZ0","PFP Start dZ Reco-MC - Electrons", 100, -10, 10);
+    fPFPStartdZ[1] = tfs.make<TH1F>("PFPStartdZ1","PFP Start dZ Reco-MC - Muons", 100, -10, 10);
+    fPFPStartdZ[2] = tfs.make<TH1F>("PFPStartdZ2","PFP Start dZ Reco-MC - Pions", 100, -10, 10);
+    fPFPStartdZ[3] = tfs.make<TH1F>("PFPStartdZ3","PFP Start dZ Reco-MC - Kaons", 100, -10, 10);
+    fPFPStartdZ[4] = tfs.make<TH1F>("PFPStartdZ4","PFP Start dZ Reco-MC - Protons", 100, -10, 10);
+    fPFPStartEnd = tfs.make<TH1F>("PFPStartEnd","PFP Start End", 2, -0.001, 1.001);
+    // PFParticle start direction reco - true
+    fPFPStartAngDiff[0] = tfs.make<TH1F>("PFPStartAngDiff0","PFP Start Ang Reco-MC - Electrons", 100, 0, M_PI);
+    fPFPStartAngDiff[1] = tfs.make<TH1F>("PFPStartAngDiff1","PFP Start Ang Reco-MC - Muons", 100, 0, M_PI);
+    fPFPStartAngDiff[2] = tfs.make<TH1F>("PFPStartAngDiff2","PFP Start Ang Reco-MC - Pions", 100, 0, M_PI);
+    fPFPStartAngDiff[3] = tfs.make<TH1F>("PFPStartAngDiff3","PFP Start Ang Reco-MC - Kaons", 100, 0, M_PI);
+    fPFPStartAngDiff[4] = tfs.make<TH1F>("PFPStartAngDiff4","PFP Start Ang Reco-MC - Protons", 100, 0, M_PI);
     
     fEff = tfs.make<TH1F>("Eff","Efficiency", 50, 0, 1);
     fPur = tfs.make<TH1F>("Pur","Purity", 50, 0, 1);
