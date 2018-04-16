@@ -459,11 +459,11 @@ namespace tca {
     std::string fcnLabel = inFcnLabel + ".FISP";
     
     struct ClosePair {
-      double doca;
-      Point3_t close1;
-      Point3_t close2;
+      float doca;
       unsigned short id1;
+      unsigned short close1;
       unsigned short id2;
+      unsigned short close2;
       bool used;
     };
 
@@ -477,31 +477,29 @@ namespace tca {
       if(p1.TPCID != tpcid) continue;
       // ignore neutrinos
       if(p1.PDGCode == 14 || p1.PDGCode == 12) continue;
-      bool p1TrackLike = (p1.AspectRatio > tjs.Match3DCuts[3]);
+      bool p1TrackLike = (MCSMom(tjs, p1.TjIDs) > tjs.ShowerTag[1]);
       for(unsigned short jp = ip + 1; jp < tjs.pfps.size(); ++jp) {
         auto& p2 = tjs.pfps[jp];
         if(p2.ID == 0) continue;
         if(p2.TPCID != tpcid) continue;
         // ignore neutrinos
         if(p2.PDGCode == 14 || p2.PDGCode == 12) continue;
-        bool p2TrackLike = (p2.AspectRatio > tjs.Match3DCuts[3]);
+        bool p2TrackLike = (MCSMom(tjs, p2.TjIDs) > tjs.ShowerTag[1]);
         // require one of them to be not tracklike
         if(p1TrackLike && p2TrackLike) continue;
-        Point3_t close1, close2;
-        float doca = PFPDOCA(p1, p2, tjs.ShowerTag[2], close1, close2);
-        if(doca == tjs.ShowerTag[2]) continue;
-
-        std::cout<<"P"<<p1.ID<<" P"<<p2.ID<<" doca "<<std::fixed<<std::setprecision(1)<<doca;
+        unsigned short close1, close2;
+        float doca = PFPDOCA(p1, p2, close1, close2);
+        std::cout<<fcnLabel<<" P"<<p1.ID<<" P"<<p2.ID<<" doca "<<std::fixed<<std::setprecision(1)<<doca;
         std::cout<<" dang "<<DeltaAngle(p1.Dir[0], p2.Dir[0]);
         std::cout<<"\n";
-
+        if(doca > tjs.ShowerTag[2]) continue;
         // add a new one
         ClosePair cp;
         cp.doca = doca;
-        cp.close1 = close1;
-        cp.close2 = close2;
         cp.id1 = p1.ID;
+        cp.close1 = close1;
         cp.id2 = p2.ID;
+        cp.close2 = close2;
         cp.used = false;
         cps.push_back(cp);
         if(std::find(pfpList.begin(), pfpList.end(), p1.ID) == pfpList.end()) pfpList.push_back(p1.ID);
@@ -1703,6 +1701,9 @@ namespace tca {
     
     std::string fcnLabel = inFcnLabel + ".UPS";
 
+    std::cout<<"UpdatePFPShower needs revision\n";
+    return false;
+    
     // put all the tjs into a monster shower pfparticle so that
     // we can determine the start and end. This pfp is not stored
     PFPStruct shPFP = CreatePFP(tjs, ss3.TPCID);
@@ -1715,13 +1716,12 @@ namespace tca {
     std::cout<<"3S"<<ss3.ID<<" nTp3s "<<shPFP.Tp3s.size();
     std::cout<<" chgCtr "<<std::setprecision(1)<<shPFP.XYZ[0][0]<<" "<<shPFP.XYZ[0][1]<<" "<<shPFP.XYZ[0][2];
     std::cout<<" dir "<<std::setprecision(1)<<shPFP.Dir[0][0]<<" "<<shPFP.Dir[0][1]<<" "<<shPFP.Dir[0][2];
-    std::cout<<" AspectRatio "<<shPFP.AspectRatio;
     std::cout<<"\n";
     if(shPFP.Tp3s.empty()) return false;
     // Sort Tp3s by distance from the start. Don't let the sort function
     // change the Tp3 direction vectors since we aren't using them.
     shPFP.Dir[0] = ss3.Dir;
-    SortByDistanceFromStart(tjs, shPFP, prt);
+//    SortByDistanceFromStart(tjs, shPFP, prt);
     ss3.Start = shPFP.Tp3s[0].Pos;
     ss3.End = shPFP.Tp3s[shPFP.Tp3s.size() - 1].Pos;
     ss3.Len = PosSep(ss3.Start, ss3.End);
