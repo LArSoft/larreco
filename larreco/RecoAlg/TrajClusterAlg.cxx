@@ -166,7 +166,7 @@ namespace tca {
     // decide whether debug information should be printed
     bool debugTj = debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0 && debug.Wire >= 0 && debug.Tick >= 0;
     if(debugTj) debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
-    bool debugMerge = (debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane < 0);
+    bool debugMerge = (debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Wire < 0);
     bool debugVtx = (debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Tick < 0);
     bool debugWorkID = (debug.Cryostat >= 0 && debug.TPC >= 0 && debug.WorkID < 0);
     fDebugMode = (debugTj || debugMerge || debugVtx || debugWorkID);
@@ -457,7 +457,7 @@ namespace tca {
     }
     
     // print trajectory summary report?
-    if(tjs.ShowerTag[0] >= 1) debug.Plane = tjs.ShowerTag[11];
+    if(tjs.ShowerTag[0] > 1 && tjs.ShowerTag[12] < tjs.NumPlanes) debug.Plane = tjs.ShowerTag[12];
     if(fDebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       PrintPFPs("RTC", tjs);
@@ -1471,6 +1471,8 @@ namespace tca {
     if(useChg) chgPullCut = tjs.ChargeCuts[0];
     // open it up for RevProp, since we might be following a stopping track
     if(tj.AlgMod[kRvPrp]) chgPullCut *= 2;
+    // BB April 19, 2018: open it up for low MCSMom tjs
+    if(tj.MCSMom < 30) chgPullCut *= 2;
     
     if(prt) {
       mf::LogVerbatim("TC")<<"FUH:  maxDelta "<<maxDelta<<" useChg requested "<<useChg<<" Norm AveChg "<<(int)tp.AveChg<<" tj.ChgRMS "<<std::setprecision(2)<<tj.ChgRMS<<" chgPullCut "<<chgPullCut<<" TPHitsRMS "<<(int)TPHitsRMSTick(tjs, tp, kUnusedHits)<<" ExpectedHitsRMS "<<(int)ExpectedHitsRMS(tjs, tp)<<" AngCode "<<tp.AngleCode;
@@ -2006,6 +2008,10 @@ namespace tca {
             if(tj1.StepDir != tj2.StepDir) continue;
             if(tj2.AlgMod[kKilled]) continue;
             if(tj2.CTP != inCTP) continue;
+            // BB April 19, 2018: check for large fraction of overlapping wires
+            float olf = OverlapFraction(tjs, tjs.allTraj[it1], tjs.allTraj[it2]);
+            if(mrgPrt) mf::LogVerbatim("TC")<<"EM: T"<<tjs.allTraj[it1].ID<<"-T"<<tjs.allTraj[it2].ID<<" OverlapFraction "<<olf;
+            if(olf > 0.25) continue;
             unsigned short end2 = 1 - end1;
             // check for a vertex at this end
             if(tj2.VtxID[end2] > 0) continue;
@@ -2197,7 +2203,7 @@ namespace tca {
           
           if(mrgPrt) {
             mf::LogVerbatim myprt("TC");
-            myprt<<"EM2 "<<tjs.allTraj[it1].ID<<"_"<<end1<<"-"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2);
+            myprt<<"EM: T"<<tjs.allTraj[it1].ID<<"_"<<end1<<" - T"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2);
             myprt<<" bestFOM "<<std::fixed<<std::setprecision(2)<<bestFOM;
             myprt<<" bestDOCA "<<std::setprecision(1)<<bestDOCA;
             myprt<<" cut "<<docaCut<<" isVLA? "<<isVLA;
@@ -2362,128 +2368,7 @@ namespace tca {
     } // debug mode
 */
   } // EndMerge
-/*
-  //////////////////////////////////////////
-  void TrajClusterAlg::KalmanFilterFit(PFPStruct& pfp)
-  {
-    //try to run the KF fit on the pfp
-    using namespace trkf;
-    //prepare the inputs
-    const Point_t position(pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]);
-    Vector_t direction = Vector_t(pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]);
-    //just in case for some reason this is not set
-    if (direction.Mag2()<0.5) {
-      const Point_t end(pfp.XYZ[1][0],pfp.XYZ[1][1],pfp.XYZ[1][2]);
-      direction = (end-position).Unit();
-    }
-    SMatrixSym55 trackStateCov=SMatrixSym55();
-    trackStateCov(0, 0) = 1000.;
-    trackStateCov(1, 1) = 1000.;
-    trackStateCov(2, 2) = 0.25;
-    trackStateCov(3, 3) = 0.25;
-    trackStateCov(4, 4) = 10.;
-    //take momentum as average of trajectories mcs momentum, where each trajectory is weighted according to the number of points
-    float mom = 0;
-    float sumw = 0;
-    for (auto jtj : pfp.TjIDs) {
-      float w = tjs.allTraj[jtj-1].Pts.size();
-      mom+=(w*tjs.allTraj[jtj-1].MCSMom);
-      sumw += w;
-    }
-    mom/=sumw;
-    mom*=0.001;
-    const int pdgid = (pfp.PDGCode!=0 ? pfp.PDGCode : 2212);
-    SVector5 trackStatePar(0.,0.,0.,0.,1./mom);
-    KFTrackState trackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);
-    std::vector<HitState> hitstatev;
-    //fixme, can it happen that we need to reverse the order? for instance if the trajectory was reversed in Find3DEndPoints?
-    for (auto jtj : pfp.TjIDs) {
-      for (auto iTp : tjs.allTraj[jtj-1].Pts) {
-        auto planeid = DecodeCTP(iTp.CTP);
-        int wire = std::nearbyint(iTp.Pos[0]);
-        geo::WireID wid(planeid, wire);
-        float xpos = tjs.detprop->ConvertTicksToX(iTp.Pos[1]/tjs.UnitsPerTick, planeid.Plane, planeid.TPC, planeid.Cryostat);
-        float posPlusRMS = iTp.Pos[1]/tjs.UnitsPerTick + TPHitsRMSTick(tjs, iTp, kUsedHits);
-        float rms = tjs.detprop->ConvertTicksToX(posPlusRMS, planeid.Plane, planeid.TPC, planeid.Cryostat) - xpos;
-        //do we need to account for multiplicity as in HitTimeErr?
-        float xposerr = rms*fHitErrFac;
-        bool notused = true;
-        for (unsigned int ih=0;ih<iTp.Hits.size();++ih) {
-          if (iTp.UseHit[ih]) {
-            notused = false;
-            break;
-          }
-        }
-        // std::cout << std::setprecision(10);
-        // std::cout << "hit plane=" << planeid << " wire=" << wire << " xpos=" << xpos << " xposerr=" << xposerr << " nhits=" << iTp.Hits.size() << " wirepos=" << iTp.Pos[0] << " used=" << !notused << std::endl;
-        if (notused) continue;
-        hitstatev.push_back( std::move( HitState(xpos,xposerr*xposerr,wid,tjs.geom->WireIDToWireGeo(wid)) ) );
-      }
-    }
-    std::vector<recob::TrajectoryPointFlags::Mask_t> hitflagsv(hitstatev.size());
-    // printouts
-    // std::cout << std::setprecision(6) << std::endl;
-    // std::cout << "fitting pfp #" << pfp.ID << " with nhits=" << hitstatev.size() << " pos=" << position << " dir=" << direction << " mom=" << mom << " pid=" << pdgid << std::endl;
-    // now the outputs
-    std::vector<KFTrackState> fwdPrdTkState;
-    std::vector<KFTrackState> fwdUpdTkState;
-    std::vector<unsigned int> hitstateidx;
-    std::vector<unsigned int> rejectedhsidx;
-    std::vector<unsigned int> sortedtksidx;
-    // perform the fit
-    bool fitok = kalmanFitter.doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx);
-    if (!fitok) {
-      fitok = kalmanFitter.doFitWork(trackState, hitstatev, hitflagsv, fwdPrdTkState, fwdUpdTkState, hitstateidx, rejectedhsidx, sortedtksidx, false);
-    }
-    if (!fitok) {
-      // std::cout << "fit failed" << std::endl;
-      return;
-    }
-    // make the track
-    int ndof = -4;
-    float chi2 = 0;;
-    std::vector<Point_t>  positions;
-    std::vector<Vector_t> momenta;
-    std::vector<recob::TrajectoryPointFlags> flags;
-    for (unsigned int p : sortedtksidx) {
-      auto& trackstate = fwdUpdTkState[p];
-      const auto& hitflags   = hitflagsv[hitstateidx[p]];
-      const unsigned int originalPos = hitstateidx[p];//(reverseHits ? hitstatev.size()-hitstateidx[p]-1 : hitstateidx[p]);
-      //
-      positions.push_back(trackstate.position());
-      momenta.push_back(trackstate.momentum());
-      flags.push_back(recob::TrajectoryPointFlags(originalPos,hitflags));
-      chi2 += fwdUpdTkState[p].chi2(hitstatev[hitstateidx[p]]);
-      ndof++;
-      // std::cout << "ok hit original pos=" << originalPos << " wire=" << hitstatev[originalPos].wireId() << " pos=" << trackstate.position() << " mom=" << trackstate.momentum() << std::endl;
-    }
-    // fill also with rejected hits information
-    SMatrixSym55 fakeCov55;
-    for (int i=0;i<5;i++) for (int j=i;j<5;j++) fakeCov55(i,j) = util::kBogusD;
-    for (unsigned int rejidx = 0; rejidx<rejectedhsidx.size(); ++rejidx) {
-      const unsigned int originalPos = rejectedhsidx[rejidx];//(reverseHits ? hitstatev.size()-rejectedhsidx[rejidx]-1 : rejectedhsidx[rejidx]);
-      auto& mask = hitflagsv[rejectedhsidx[rejidx]];
-      mask.set(recob::TrajectoryPointFlagTraits::HitIgnored,recob::TrajectoryPointFlagTraits::NoPoint);
-      if (mask.isSet(recob::TrajectoryPointFlagTraits::Rejected)==0) mask.set(recob::TrajectoryPointFlagTraits::ExcludedFromFit);
-      //
-      positions.push_back(Point_t(util::kBogusD,util::kBogusD,util::kBogusD));
-      momenta.push_back(Vector_t(util::kBogusD,util::kBogusD,util::kBogusD));
-      flags.push_back(recob::TrajectoryPointFlags(originalPos,mask));
-      // std::cout << "rj hit original pos=" << originalPos << " wire=" << hitstatev[originalPos].wireId() << std::endl;
-    }
-    bool propok = true;
-    KFTrackState resultF = prop.rotateToPlane(propok, fwdUpdTkState[sortedtksidx.front()].trackState(),
-                                                     Plane(fwdUpdTkState[sortedtksidx.front()].position(),fwdUpdTkState[sortedtksidx.front()].momentum()));
-    KFTrackState resultB = prop.rotateToPlane(propok, fwdUpdTkState[sortedtksidx.back()].trackState(),
-                                                     Plane(fwdUpdTkState[sortedtksidx.back()].position(),fwdUpdTkState[sortedtksidx.back()].momentum()));
-    //
-    pfp.Track = recob::Track(std::move(positions), std::move(momenta), std::move(flags), true, pdgid, chi2, ndof,
-                             SMatrixSym55(resultF.covariance()), SMatrixSym55(resultB.covariance()), pfp.ID);
-    // printouts
-    // std::cout << "fit succeeded with npoints=" << sortedtksidx.size() << " rejected=" << rejectedhsidx.size() << " start=" << pfp.Track.Start() << " dir=" << pfp.Track.StartDirection() << " nchi2=" << pfp.Track.Chi2PerNdof() << std::endl;
-    //
-  } // KalmanFilterFit
-*/
+  
   //////////////////////////////////////////
   void TrajClusterAlg::StepCrawl(Trajectory& tj)
   {
@@ -3992,7 +3877,7 @@ namespace tca {
     // relax this a bit when doing RevProp
     if(tj.AlgMod[kRvPrp]) kinkAngCut *= 1.3;
     
-    // A simple check when there are few points being fit and the TJ is short. MCSMom isn't well known at this point so don't use it
+    // A simple check when there are few points being fit and the TJ is short.
     if(tj.Pts[lastPt].NTPsFit < 6 && tj.Pts.size() < 20) {
       unsigned short ii, prevPtWithHits = USHRT_MAX;
       unsigned short ipt;
@@ -4008,7 +3893,7 @@ namespace tca {
       float dang = DeltaAngle(tj.Pts[lastPt].Ang, tj.Pts[prevPtWithHits].Ang);
       kinkAngCut = 1.2 * tjs.KinkCuts[0];
       if(prt) mf::LogVerbatim("TC")<<"GottaKink Simple check lastPt "<<PrintPos(tjs,tj.Pts[lastPt])<<" dang "<<dang<<" cut "<<kinkAngCut;
-      if(dang > tjs.KinkCuts[0]) {
+      if(dang > kinkAngCut) {
         killPts = 1;
         tj.StopFlag[1][kAtKink] = true;
       }
@@ -4229,6 +4114,8 @@ namespace tca {
         if(prevPtWithHits != USHRT_MAX && tj.Pts[prevPtWithHits].FitChi > 0) chirat = lastTP.FitChi / tj.Pts[prevPtWithHits].FitChi;
         // Don't mask hits when doing RevProp. Reduce NTPSFit instead
         fMaskedLastTP = (chirat > 1.5 && lastTP.NTPsFit > 0.3 * NumPtsWithCharge(tjs, tj, false) && !tj.AlgMod[kRvPrp]);
+        // BB April 19, 2018: Don't mask TPs on low MCSMom Tjs
+        if(fMaskedLastTP && tj.MCSMom < 30) fMaskedLastTP = false;
         if(prt) {
           mf::LogVerbatim("TC")<<" First fit chisq too large "<<lastTP.FitChi<<" prevPtWithHits chisq "<<tj.Pts[prevPtWithHits].FitChi<<" chirat "<<chirat<<" NumPtsWithCharge "<<NumPtsWithCharge(tjs, tj, false)<<" fMaskedLastTP "<<fMaskedLastTP;
         }
@@ -4267,7 +4154,8 @@ namespace tca {
       // and also a minimum number of points fit requirement for long muons
       float prevChi = lastTP.FitChi;
       unsigned short ntry = 0;
-      while(lastTP.FitChi > 1.5 && lastTP.NTPsFit > minPtsFit) {
+      float chiCut = 1.5;
+      while(lastTP.FitChi > chiCut && lastTP.NTPsFit > minPtsFit) {
         if(lastTP.NTPsFit > 15) {
           newNTPSFit = 0.7 * newNTPSFit;
         } else if(lastTP.NTPsFit > 4) {
@@ -4278,12 +4166,14 @@ namespace tca {
         if(lastTP.NTPsFit < 3) newNTPSFit = 2;
         if(newNTPSFit < minPtsFit) newNTPSFit = minPtsFit;
         lastTP.NTPsFit = newNTPSFit;
-        if(prt) mf::LogVerbatim("TC")<<"  Bad FitChi "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" Pass "<<tj.Pass;
+        // BB April 19: try to add a last lonely hit on a low MCSMom tj on the last try
+        if(newNTPSFit == minPtsFit && tj.MCSMom < 30) chiCut = 2;
+        if(prt) mf::LogVerbatim("TC")<<"  Bad FitChi "<<lastTP.FitChi<<" Reduced NTPsFit to "<<lastTP.NTPsFit<<" Pass "<<tj.Pass<<" chiCut "<<chiCut;
         FitTraj(tjs, tj);
         tj.NeedsUpdate = true;
         if(lastTP.FitChi > prevChi) {
           if(prt) mf::LogVerbatim("TC")<<"  Chisq is increasing "<<lastTP.FitChi<<"  Try to remove an earlier bad hit";
-          MaskBadTPs(tj, 1.5);
+          MaskBadTPs(tj, chiCut);
           ++ntry;
           if(ntry == 2) break;
         }
