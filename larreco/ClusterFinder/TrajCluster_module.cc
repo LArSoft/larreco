@@ -210,10 +210,9 @@ namespace cluster {
     // make EndPoints (aka 2D vertices)
     std::vector<tca::VtxStore> const& EndPts = fTCAlg->GetEndPoints();
     art::ServiceHandle<geo::Geometry> geom;
-    unsigned int vtxID = 0;
     for(tca::VtxStore const& vtx2: EndPts) {
       if(vtx2.ID == 0) continue;
-      ++vtxID;
+      unsigned int vtxID = vtx2.ID;
       unsigned int wire = std::nearbyint(vtx2.Pos[0]);
       geo::PlaneID plID = tca::DecodeCTP(vtx2.CTP);
       geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
@@ -231,12 +230,11 @@ namespace cluster {
     // make 3D vertices
     std::vector<tca::Vtx3Store> const& Vertices = fTCAlg->GetVertices();
     double xyz[3] = {0, 0, 0};
-    vtxID = 0;
     for(tca::Vtx3Store const& vtx3: Vertices) {
       // ignore incomplete vertices or obsolete
       if(vtx3.Wire >= 0) continue;
       if(vtx3.ID == 0) continue;
-      ++vtxID;
+      unsigned int vtxID = vtx3.ID;
       xyz[0] = vtx3.X;
       xyz[1] = vtx3.Y;
       xyz[2] = vtx3.Z;
