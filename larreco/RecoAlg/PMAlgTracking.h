@@ -174,8 +174,12 @@ public:
 			Name("FlipDownward"), Comment("set the track direction to decreasing Y values (like cosmic rays)")
 		};
 
+		fhicl::Atom<bool> FlipToX {
+			Name("FlipToX"), Comment("set the track direction to decreasing X values (like cosmic rays in dual phase)")
+		};
+
 		fhicl::Atom<bool> AutoFlip_dQdx {
-			Name("AutoFlip_dQdx"), Comment("set the track direction to increasing dQ/dx (overrides FlipToBeam and FlipDownward if significant rise of dQ/dx at the track end)")
+			Name("AutoFlip_dQdx"), Comment("set the track direction to increasing dQ/dx (overrides FlipToBeam, FlipDownward and FlipToX if significant rise of dQ/dx at the track end)")
 		};
 
 		fhicl::Atom<bool> MergeWithinTPC {
@@ -330,6 +334,7 @@ private:
 
 	bool fFlipToBeam;            // set the track direction to increasing Z values
 	bool fFlipDownward;          // set the track direction to decreasing Y values
+	bool fFlipToX;               // set the track direction to decreasing X values
 	bool fAutoFlip_dQdx;         // set the track direction to increasing dQ/dx
 
 	bool fMergeWithinTPC;          // merge witnin single TPC; finds tracks best matching by angle, with limits:

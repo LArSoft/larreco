@@ -862,18 +862,18 @@ void DPRawHitFinder::produce(art::Event& evt)
           if( NumberOfPeaksBeforeFit > fMaxMultiHit || (width > fMaxGroupLength) || NFluctuations > fMaxFluctuations)
           {
 
-            int nHitsInThisGroup = (endT - startT) / fLongPulseWidth;
+            int nHitsInThisGroup = (endT - startT + 1) / fLongPulseWidth;
                     
             if (nHitsInThisGroup > fLongMaxHits)
             {
               nHitsInThisGroup = fLongMaxHits;
-              fLongPulseWidth = (endT - startT) / nHitsInThisGroup;
+              fLongPulseWidth = (endT - startT + 1) / nHitsInThisGroup;
             }
                     
-            if (nHitsInThisGroup * fLongPulseWidth < endT - startT) nHitsInThisGroup++;
+            if (nHitsInThisGroup * fLongPulseWidth < (endT - startT + 1) ) nHitsInThisGroup++;
                     
             int firstTick = startT;
-            int lastTick  = std::min(endT,fLongPulseWidth) -1;
+            int lastTick  = std::min(endT,firstTick+fLongPulseWidth-1);
 
 	    if(fLogLevel >= 1)
 	    {
@@ -913,29 +913,27 @@ void DPRawHitFinder::produce(art::Event& evt)
               // This hit parameters
               double peakWidth = ( (lastTick - firstTick) /4. ) / fWidthNormalization; //~4 is the factor between FWHM and full width of the hit (last bin - first bin). no drift: 4.4, 6m drift: 3.7
 	      double peakMeanTrue = (firstTick + lastTick) / 2.;
-              if(NumberOfPeaksBeforeFit==1) peakMeanTrue = std::get<0>(peakVals.at(hitIdx)); //if only one peak was found, we want the mean of this peak to be the tick with the max. ADC count
-              //double peakMeanTrue  = (firstTick + lastTick) / 2.;
+              if( NumberOfPeaksBeforeFit == 1 && nHitsInThisGroup == 1) peakMeanTrue = std::get<0>(peakVals.at(0)); //if only one peak was found, we want the mean of this peak to be the tick with the max. ADC count
 	      double peakMeanErr = (lastTick - firstTick) / 2.;
               double sumADC    = std::accumulate(signal.begin() + firstTick, signal.begin() + lastTick + 1, 0.);
 	      double charge = sumADC;
 	      double chargeErr = 0.1*sumADC;
-
 	      double peakAmp = 0;
+
               for(int tick = firstTick; tick <= lastTick; tick++)
 	      {
 		if(signal[tick] > peakAmp) peakAmp = signal[tick];
 	      }
-	      double peakAmpErr = 0.1*peakAmp;
 
+	      double peakAmpErr = 0.1*peakAmp;
 	      nExponentialsForFit = nHitsInThisGroup;
               NDF         = -1;
               chi2PerNDF  =   -1.;
-
 	      //set the fit values to make it visible in the event display that this fit failed
               double peakMean = peakMeanTrue-2;
               double peakTau1 = 0.008;
               double peakTau2 = 0.0065;
-                        
+
               recob::HitCreator hitcreator(*wire,                            // wire reference
                                            wid,                              // wire ID
                                            firstTick+roiFirstBinTick,        // start_tick TODO check
@@ -979,10 +977,11 @@ void DPRawHitFinder::produce(art::Event& evt)
               fitParams[1] = peakTau1;
               fitParams[2] = peakTau2;
               fHitParamWriter.addVector(hitID, fitParams);
-    
+
               // set for next loop
               firstTick = lastTick+1;
-              lastTick  = std::min(lastTick + fLongPulseWidth, endT);
+              lastTick  = std::min(firstTick + fLongPulseWidth - 1, endT);
+
             }//<---Hits in this group
 	  }//<---End if #peaks > MaxMultiHit
           fChi2->Fill(chi2PerNDF);

@@ -57,8 +57,9 @@ standard_pmalgtracker:
                                   #
   FlipToBeam:             false   # set the track direction to increasing Z values
   FlipDownward:           false   # set the track direction to decreasing Y values (like cosmic rays)
-  AutoFlip_dQdx:          false   # set the track direction to increasing dQ/dx (overrides FlipToBeam
-                                  # and FlipDownward if significant rise of dQ/dx at the track end)
+  FlipToX:             	  false   # set the track direction to decreasing X values (like cosmic rays in dual phase)
+  AutoFlip_dQdx:          false   # set the track direction to increasing dQ/dx (overrides FlipToBeam,
+                                  # FlipDownward and FlipToX if significant rise of dQ/dx at the track end)
                                   #
   MergeWithinTPC:         false   # merge witnin single TPC; finds tracks best matching by angle, with limits:
   MergeTransverseShift:   2.0     #    - max. transverse displacement [cm] between tracks
