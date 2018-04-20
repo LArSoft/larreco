@@ -65,6 +65,9 @@ namespace tca {
     // EP vs KE for different MC Particles
     TProfile* fEP_T[5];
     
+    // fraction of TPs that have the kEnvNearTj bit set
+    TProfile* fNearTj[5];
+    
     // PFParticle PDGCode vs true PDG code
     TH2F* PDGCode_reco_true;
     TH1F* fPFPStartEnd;
