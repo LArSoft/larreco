@@ -198,10 +198,6 @@ namespace tca {
     
     std::vector<unsigned int> fAlgModCount;
 
-//    bool fKalmanFilterFit;
-//    trkf::TrackStatePropagator prop;
-//    trkf::TrackKalmanFitter kalmanFitter;
-
     static bool SortByMultiplet(TCHit const& a, TCHit const& b);
 
 //    short watchInTraj;
