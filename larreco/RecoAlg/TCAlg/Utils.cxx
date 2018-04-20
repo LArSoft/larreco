@@ -2614,7 +2614,81 @@ namespace tca {
     return tmp;
     
   } // FindCloseTjs
-  
+/* this doesn't do anything but print out at this point. Needs further study
+  ////////////////////////////////////////////////
+  void PrimaryElectronLikelihood(TjStuff& tjs, Trajectory& tj, float& likelihood, bool& flipDirection, bool prt)
+  {
+    // returns the likelihood that the tj is a primary electron.
+    likelihood = 0;
+    flipDirection = false;
+    // Too short to consider?
+    unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+    if(npts < 10) return;
+    if(npts > 150) return;
+    unsigned short nPtsInSection = npts / 2;
+    if(npts > 30) nPtsInSection = npts / 3;
+    // Define a range of points at the beginning and the end
+    unsigned short endPt0 = tj.EndPt[0] + nPtsInSection; 
+    float mom0 = MCSMom(tjs, tj, tj.EndPt[0], endPt0);
+//    std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, Point2_t const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear)
+    float tChg0 = 0;
+    float oChg0 = 0;
+    std::array<int, 2> wireWindow;
+    Point2_t timeWindow;
+    unsigned short plane = DecodeCTP(tj.CTP).Plane;
+    bool hitsNear;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= endPt0; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      wireWindow[0] = std::nearbyint(tp.Pos[0]);
+      wireWindow[1] = wireWindow[0];
+      timeWindow[0] = tp.Pos[1] - 5;
+      timeWindow[1] = tp.Pos[1] + 5;
+      auto closeHits = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
+      for(auto iht : closeHits) {
+        auto& hit = tjs.fHits[iht];
+        if(hit.InTraj == tj.ID) {
+          tChg0 += hit.Integral;
+        } else {
+          oChg0 += hit.Integral;
+        }
+      } // iht
+    } // ipt
+    if(tChg0 == 0) return;
+    float chgFrac0 = tChg0 / (oChg0 + tChg0);
+    
+    unsigned short startPt1 = tj.EndPt[1] - nPtsInSection;
+    float mom1 = MCSMom(tjs, tj, startPt1, tj.EndPt[1]);
+    float tChg1 = 0;
+    float oChg1 = 0;
+    for(unsigned short ipt = startPt1; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      wireWindow[0] = std::nearbyint(tp.Pos[0]);
+      wireWindow[1] = wireWindow[0];
+      timeWindow[0] = tp.Pos[1] - 5;
+      timeWindow[1] = tp.Pos[1] + 5;
+      auto closeHits = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
+      for(auto iht : closeHits) {
+        auto& hit = tjs.fHits[iht];
+        if(hit.InTraj == tj.ID) {
+          tChg1 += hit.Integral;
+        } else {
+          oChg1 += hit.Integral;
+        }
+      } // iht
+    } // ipt
+    if(tChg1 == 0) return;
+    float chgFrac1 = tChg1 / (oChg1 + tChg1);
+
+    if(prt) {
+      std::cout<<"PEL: T"<<tj.ID;
+      std::cout<<" sec0 "<<" "<<PrintPos(tjs, tj.Pts[tj.EndPt[0]])<<"-"<<PrintPos(tjs, tj.Pts[startPt1]);
+      std::cout<<" mom "<<(int)mom0<<" oChg0 "<<(int)oChg0<<" chgFrac0 "<<std::fixed<<std::setprecision(2)<<chgFrac0;
+      std::cout<<" sec1 "<<PrintPos(tjs, tj.Pts[startPt1])<<"-"<<PrintPos(tjs, tj.Pts[tj.EndPt[1]]);
+      std::cout<<" mom "<<(int)mom1<<" oChg1 "<<(int)oChg1<<" chgFrac1 "<<std::fixed<<std::setprecision(2)<<chgFrac1<<"\n";
+    } // prt
+
+  } // PrimaryElectronLikelihood
+*/
   ////////////////////////////////////////////////
   float ChgFracNearPos(TjStuff& tjs, const Point2_t& pos, const std::vector<int>& tjIDs)
   {
@@ -2643,8 +2717,7 @@ namespace tca {
     // All hits in the box, and all hits associated with the Tjs
     for(auto& iht : closeHits) {
       chg += tjs.fHits[iht].Integral;
-      if(tjs.fHits[iht].InTraj <= 0) continue;
-      if((unsigned int)tjs.fHits[iht].InTraj > tjs.allTraj.size()) continue;
+      if(tjs.fHits[iht].InTraj == 0) continue;
       if(std::find(tjIDs.begin(), tjIDs.end(), tjs.fHits[iht].InTraj) != tjIDs.end()) tchg += tjs.fHits[iht].Integral;
     } // iht
     if(chg == 0) return 0;
@@ -4405,7 +4478,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____   Len  nTp3  MCSMom PDG mcpIndx Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____   Len nTp3 MCSMom InSh? PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
     myprt<<std::setw(5)<<pfp.ID;
@@ -4448,8 +4521,9 @@ namespace tca {
       myprt<<std::setw(5)<<std::setprecision(0)<<length;
     }
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.Tp3s.size();
-    myprt<<std::setw(8)<<MCSMom(tjs, pfp.TjIDs);
-    myprt<<std::setw(6)<<pfp.PDGCode;
+    myprt<<std::setw(7)<<MCSMom(tjs, pfp.TjIDs);
+    myprt<<std::setw(5)<<IsInShower(tjs, pfp.TjIDs);
+    myprt<<std::setw(5)<<pfp.PDGCode;
     if(pfp.MCPartListIndex < tjs.MCPartList.size()) {
       myprt<<std::setw(8)<<pfp.MCPartListIndex;
     } else {
