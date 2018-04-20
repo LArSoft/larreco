@@ -85,7 +85,7 @@ namespace tca {
     unsigned short Pass {0};   // Pass in which this vertex was created
     float ChiDOF {0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 
-    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = 3D split
+    //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = 3D split, 11 = neutral decay (pizero)
     short Topo {0}; 			
     CTP_t CTP {0};
     unsigned short ID {0};          ///< set to 0 if killed
@@ -398,6 +398,7 @@ namespace tca {
     kPhoton,
     kNoFitToVx,
     kVxMerge,
+    kVxNeutral,
     kNoKinkChk,
     kSoftKink,
     kChkStop,
@@ -442,6 +443,7 @@ namespace tca {
     kEnvNearShower,
     kEnvOverlap,
     kEnvUnusedHits,
+    kEnvClean,      ///< the charge fraction is small near this point
     kEnvFlag,       ///< a general purpose flag bit used in 3D matching
   } TPEnvironment_t;
   
