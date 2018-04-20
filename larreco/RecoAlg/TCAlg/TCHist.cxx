@@ -88,6 +88,13 @@ namespace  tca {
     // Same as above but with good Efficiency * Purity
     fMCSMomEP_TruMom_e = tfs.make<TH2F>("MCSMomEP_TruMom_e","MCSMom vs Tru Mom electrons", 50, 0, 100, 50, 0, 1000);
     
+    fNearTj[0] = tfs.make<TProfile>("fNearTj0","Frac Tps NearTj - Electrons", 5, 0, 500);
+    fNearTj[1] = tfs.make<TProfile>("fNearTj1","Frac Tps NearTj - Muons", 5, 0, 500);
+    fNearTj[2] = tfs.make<TProfile>("fNearTj2","Frac Tps NearTj - Pions", 5, 0, 500);
+    fNearTj[3] = tfs.make<TProfile>("fNearTj3","Frac Tps NearTj - Kaons", 5, 0, 500);
+    fNearTj[4] = tfs.make<TProfile>("fNearTj4","Frac Tps NearTj - Protons", 5, 0, 500);
+
+    
     PDGCode_reco_true = tfs.make<TH2F>("PDGCode_reco_true", "PDGCode Reco vs True", 5, -0.5, 4.5, 5, -0.5, 4.5);
     // PFParticle start position reco - true
     fPFPStartdX[0] = tfs.make<TH1F>("PFPStartdX0","PFP Start dX Reco-MC - Electrons", 100, -10, 10);
