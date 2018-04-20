@@ -515,9 +515,17 @@ namespace tca {
     
     if(lastPtAdded != endPt) ntp3.push_back(pfp.Tp3s[endPt]);
     
-    if(prt) mf::LogVerbatim("TC")<<"FollowTp3s: Tp3s size in "<<pfp.Tp3s.size()<<" size out "<<ntp3.size();
+    if(prt) {
+      float len = PosSep(ntp3[0].Pos, ntp3[ntp3.size()-1].Pos);
+      mf::LogVerbatim("TC")<<"FollowTp3s: Tp3s size in "<<pfp.Tp3s.size()<<" size out "<<ntp3.size()<<" len "<<std::fixed<<std::setprecision(2)<<len;
+    }
     
     pfp.Tp3s = ntp3;
+    // The directions wer set above. Set the start and end positions. Note that the start position
+    // may have been previously determined by a vertex but that is now superseded by the actual start
+    // of the pfp
+    pfp.XYZ[0] = ntp3[0].Pos;
+    pfp.XYZ[1] = ntp3[ntp3.size()-1].Pos;
 //    if(prt) PrintTp3s("FTp3o", tjs, pfp, -1);
 
   } // FollowTp3s
@@ -856,9 +864,9 @@ namespace tca {
     Fit3D(2, point, pfp.XYZ[0], pfp.Dir[0]);
     if(prt && doFit) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"FC: P"<<pfp.ID<<"fit pos "<<std::fixed<<std::setprecision(1)<<pfp.XYZ[0][0]<<" "<<pfp.XYZ[0][1]<<" "<<pfp.XYZ[0][2];
+      myprt<<"FC: P"<<pfp.ID<<" fit pos "<<std::fixed<<std::setprecision(1)<<pfp.XYZ[0][0]<<" "<<pfp.XYZ[0][1]<<" "<<pfp.XYZ[0][2];
       myprt<<" fit dir "<<std::setprecision(2)<<pfp.Dir[0][0]<<" "<<pfp.Dir[0][1]<<" "<<pfp.Dir[0][2];
-      myprt<<" Note: fit pos the average position of all Tp3s - not the start or end.";
+      myprt<<" Note: fit pos is the average position of all Tp3s - not the start or end.";
     }
     // now count the number of tj points were matched
     // total number of points with charge in all Tjs
@@ -1370,7 +1378,12 @@ namespace tca {
         unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
         if(firstPt[1] > midPt) ReverseTraj(tjs, tj);
         // insert the points at the end
-        mtj.Pts.insert(mtj.Pts.end(), tj.Pts.begin(), tj.Pts.end());
+//        mtj.Pts.insert(mtj.Pts.end(), tj.Pts.begin(), tj.Pts.end());
+        for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+          auto& tp = tj.Pts[ipt];
+          if(tp.Chg <= 0) continue;
+          mtj.Pts.push_back(tp);
+        }
       } // firstPt
       mtj.AlgMod[kMat3DMerge] = true;
       SetEndPoints(tjs, mtj);
@@ -1387,7 +1400,11 @@ namespace tca {
         myprt<<" MCSMom "<<mtj.MCSMom;
       }
       // kill the broken tjs and update the pfp TP3s
-      for(auto tjid : tjids) MakeTrajectoryObsolete(tjs, tjid - 1);
+      for(auto tjid : tjids) {
+        auto& tj = tjs.allTraj[tjid - 1];
+        if(tj.AlgMod[kInShower]) mtj.AlgMod[kInShower] = true;
+        MakeTrajectoryObsolete(tjs, tjid - 1);
+      }
       // save the new one
       if(!StoreTraj(tjs, mtj)) {
         std::cout<<"MergePFPTjs: StoreTraj failed P"<<pfp.ID<<" EventsProcessed "<<tjs.EventsProcessed<<"\n";
@@ -2202,7 +2219,7 @@ namespace tca {
       } // allms
     } // indx
     //    CheckNoMatchTjs(tjs, tpcid, prt);
-    
+/* This shouldn't be necessary if the InShower AlgMod bit is transferred in the merge
     // Re-tag InShower Tjs if merging was done
     if(tjs.ShowerTag[0] > 0) {
       bool needsRedo = false;
@@ -2225,7 +2242,7 @@ namespace tca {
         } // plane
       } // needsRedo
     } // ShowerTag check
-        
+*/
   } // FindPFParticles
   
   /////////////////////////////////////////
