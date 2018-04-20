@@ -236,11 +236,14 @@ namespace tca {
   {
     // study tjs matched to electrons to develop an electron tag
     
+//    float likely;
+//    bool flipDirection;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
       if(tj.MCPartListIndex == UINT_MAX) continue;
       unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
       if(npts < 10) continue;
+//      PrimaryElectronLikelihood(tjs, tj, likely, flipDirection, true);
       auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
       unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
       if(pdgIndex > 4) continue;
@@ -522,7 +525,7 @@ namespace tca {
       for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<primVx[xyz];
       myprt<<" nuVx Reconstructable? "<<neutrinoVxReconstructable<<" vx near nuVx? "<<vxReconstructedNearNuVx;
       myprt<<" neutrinoPFPCorrect? "<<neutrinoPFPCorrect<<"\n";
-      myprt<<"TrackId   PDG  eveID    KE    Len _______Dir_______  ____ProjInPln___               Process      StartHit-EndHit_nTruHits";
+      myprt<<"MCPIndx TrackId   PDG  eveID    KE    Len _______Dir_______  ____ProjInPln___               Process      StartHit-EndHit_nTruHits";
       for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         bool doPrt = (std::find(mcpSelect.begin(), mcpSelect.end(), ipart) != mcpSelect.end());
         auto& mcp = tjs.MCPartList[ipart];
@@ -533,6 +536,7 @@ namespace tca {
         if(mcp->PdgCode() == 22 && mcp->Process() == "Decay" && TMeV > 30) doPrt = true;
         if(!doPrt) continue;
         myprt<<"\n";
+        myprt<<std::setw(7)<<ipart;
         myprt<<std::setw(8)<<mcp->TrackId();
         myprt<<std::setw(6)<<mcp->PdgCode();
         myprt<<std::setw(6)<<pi_serv->ParticleList().EveId(mcp->TrackId());
@@ -605,6 +609,25 @@ namespace tca {
       } // end
     } // tj
 */
+    
+    // Tj histograms
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.MCPartListIndex == UINT_MAX) continue;
+      auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
+      short truIndex = PDGCodeIndex(tjs, mcp->PdgCode());
+      if(truIndex == SHRT_MAX) continue;
+      float frac = 0;
+      float cnt = 0;
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        auto& tp = tj.Pts[ipt];
+        if(tp.Environment[kEnvNearTj]) ++frac;
+        ++cnt;
+      } // ipt
+      if(cnt > 0) frac /= cnt;
+      float TMeV = 1000 * (mcp->E() - mcp->Mass());
+      hist.fNearTj[truIndex]->Fill(TMeV, frac);
+    } // tj
 
     // PFParticle histograms
     constexpr double twopi = 2 * M_PI;
@@ -626,6 +649,7 @@ namespace tca {
       Point3_t truStart {mcp->Vx(), mcp->Vy(), mcp->Vz()};
       Point3_t truEnd {mcp->EndX(), mcp->EndY(), mcp->EndZ()};
       float truLen = PosSep(truStart, truEnd);
+      if(truLen < 2) continue;
       posOffsets = SCE->GetPosOffsets({truStart[0], truStart[1], truStart[2]});
       posOffsets.SetX(-posOffsets.X());
       truStart[0] += posOffsets.X();
@@ -638,6 +662,8 @@ namespace tca {
         for(unsigned short xyz = 0; xyz < 3; ++xyz) recDir[xyz] *= -1;
       }
       hist.fPFPStartEnd->Fill((float)startEnd);
+//      float dx = std::abs(pfp.XYZ[startEnd][0] - truStart[0]);
+//      if(dx > 2) std::cout<<"BaddX P"<<pfp.ID<<" MCP "<<mcp->TrackId()<<" dx "<<dx<<"\n";
       hist.fPFPStartdX[truIndex]->Fill(pfp.XYZ[startEnd][0] - truStart[0]);
       hist.fPFPStartdY[truIndex]->Fill(pfp.XYZ[startEnd][1] - truStart[1]);
       hist.fPFPStartdZ[truIndex]->Fill(pfp.XYZ[startEnd][2] - truStart[2]);
@@ -646,7 +672,7 @@ namespace tca {
       float dang = DeltaAngle(truDir, pfp.Dir[startEnd]);
       while(dang >  M_PI) dang -= twopi;
       while(dang < -M_PI) dang += twopi;
-      if(truLen > 2) hist.fPFPStartAngDiff[truIndex]->Fill(dang);
+      hist.fPFPStartAngDiff[truIndex]->Fill(dang);
     } // pfp
 
     StudyElectrons(hist);
