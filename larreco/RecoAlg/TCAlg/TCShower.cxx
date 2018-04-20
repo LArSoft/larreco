@@ -489,7 +489,8 @@ namespace tca {
         if(p1TrackLike && p2TrackLike) continue;
         unsigned short close1, close2;
         float doca = PFPDOCA(p1, p2, close1, close2);
-        std::cout<<fcnLabel<<" P"<<p1.ID<<" P"<<p2.ID<<" doca "<<std::fixed<<std::setprecision(1)<<doca;
+        std::cout<<fcnLabel<<" P"<<p1.ID<<" TrackLike? "<<p1TrackLike<<" P"<<p2.ID<<" TrackLike? "<<p2TrackLike;
+        std::cout<<" doca "<<std::fixed<<std::setprecision(1)<<doca;
         std::cout<<" dang "<<DeltaAngle(p1.Dir[0], p2.Dir[0]);
         std::cout<<"\n";
         if(doca > tjs.ShowerTag[2]) continue;
@@ -524,7 +525,7 @@ namespace tca {
       int pid1 = pfpList[ii];
       auto& p1 = tjs.pfps[pid1 - 1];
       float p1Len = PosSep(p1.XYZ[0], p1.XYZ[1]);
-      std::cout<<ii<<" P"<<pid1<<" len "<<p1Len<<"\n";
+//      std::cout<<ii<<" P"<<pid1<<" len "<<p1Len<<"\n";
       std::vector<unsigned short> plist;
       plist.push_back(pid1);
       // try to add ids to the list
@@ -543,14 +544,21 @@ namespace tca {
           float dang = DeltaAngle(p1.Dir[0], p2.Dir[0]);
           // don't cluster two long pfparticles with a large angle difference
           if(p1Len > 5 && p2Len > 5 && cp.doca < 2 && dang > 0.3) continue;
-          // don't cluster if this pfparticle is closer to a different pfparticle
+          // don't cluster if this pfparticle is closer to a different long pfparticle
           bool isCloser = false;
           for(auto& pcp : cps) {
+            if(pid1 == pcp.id1 || pid1 == pcp.id2) continue;
             if(!(pid2 == pcp.id1 || pid2 == pcp.id2)) continue;
-            if(pcp.doca < cp.doca) isCloser = true;
+            unsigned short oid = pcp.id1;
+            if(oid == pid2) oid = pcp.id2;
+            auto opfp = tjs.pfps[oid - 1];
+            float pcpLen = PosSep(opfp.XYZ[0], opfp.XYZ[1]);
+//            std::cout<<"pid1 P"<<pid1<<" pid2 P"<<pid2<<" oid P"<<oid<<"\n";
+            if(pcp.doca < cp.doca && pcpLen > 5) isCloser = true;
           } // kk
           if(isCloser) continue;
-          std::cout<<"  add P"<<pid2<<" doca "<<cp.doca<<" dang "<<dang<<"\n";
+          if(std::find(plist.begin(), plist.end(), pid2) != plist.end()) continue;
+//          std::cout<<"  add P"<<pid2<<" doca "<<cp.doca<<" dang "<<dang<<"\n";
           plist.push_back(pid2);
           // call it used
           cp.used = true;
@@ -560,13 +568,16 @@ namespace tca {
       if(plist.size() > 1) plists.push_back(plist);
     } // ii
     
-    // Check for leftover pfps
+    // Check for leftover pfps and add them if they are shower-like (using the Tj InShower tag)
     std::vector<unsigned short> flat;
     for(auto& plist : plists) flat.insert(flat.end(), plist.begin(), plist.end());
     auto notClustered = SetDifference(pfpList, flat);
-    std::cout<<" not clustered";
-    for(auto nc : notClustered) std::cout<<" P"<<nc;
-    std::cout<<"\n";
+    for(auto nc : notClustered) {
+      auto& pfp = tjs.pfps[nc - 1];
+      if(!IsInShower(tjs, pfp.TjIDs)) continue;
+      std::vector<unsigned short> plist(1, nc);
+      plists.push_back(plist);
+    }
 
     mf::LogVerbatim myprt("TC");
     myprt<<fcnLabel<<" plists size "<<plists.size()<<"\n";
@@ -1535,8 +1546,11 @@ namespace tca {
 
     // Put the total charge into the shower Tj
     tjs.allTraj[ss.ShowerTjID - 1].AveChg = totChg;
-    if(prt) mf::LogVerbatim("TC'")<<fcnLabel<<" cotIndex "<<cotIndex<<" filled "<<ss.ShPts.size()<<" points. Total charge "<<(int)totChg;
-    
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<fcnLabel<<" 2S"<<ss.ID<<" filled "<<ss.ShPts.size()<<" points. Total charge "<<(int)totChg;
+      for(auto tid : ss.TjIDs) myprt<<" T"<<tid;
+    } // prt
   } // FillPts
 
   ////////////////////////////////////////////////
@@ -1574,10 +1588,16 @@ namespace tca {
         chgSum[plane] += tj.TotChg;
       } // tjid
     } // pid
-    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) ss3.Energy[plane] = ChgToMeV(chgSum[plane]);
-    // Fit all the points to a line and fill the TP3s vector
-//    FindCompleteness(tjs, shPFP, true, true, false);
     if(shPFP.Tp3s.empty()) return false;
+    // Initialize and pass dummy variables
+    Point3_t dump;
+    Fit3D(0, dump, shPFP.XYZ[0], shPFP.Dir[0]);
+    // Fill the fit sums
+    for(auto& tp3 : shPFP.Tp3s) {
+      Fit3D(1, tp3.Pos, shPFP.XYZ[0], shPFP.Dir[0]);
+    } // tp3
+    Fit3D(2, dump, shPFP.XYZ[0], shPFP.Dir[0]);
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) ss3.Energy[plane] = ChgToMeV(chgSum[plane]);
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<fcnLabel<<" 3S"<<ss3.ID<<" shPFP fit nTp3s "<<shPFP.Tp3s.size();
@@ -1598,7 +1618,6 @@ namespace tca {
       double along = costh * sep;
       double sinth = sqrt(1 - costh * costh);
       double trans = sinth * sep;
-      // stuff this info into dEdxErr and ChiDOF. The Tp3 charge was stashed in dEdx in FindCompleteness
       tp3.dEdxErr = along;
       tp3.Trans = trans;
       if(along < minAlong) minAlong = along;
@@ -2307,7 +2326,20 @@ namespace tca {
     } // ipt
     return pfp;
   } // CreateFakePFP
-  
+
+  ////////////////////////////////////////////////
+  bool IsInShower(const TjStuff& tjs, const std::vector<int> TjIDs)
+  {
+    // Vote for the list of Tjs (assumed associated with a PFParticle) being in a shower
+    if(TjIDs.empty()) return false;
+    unsigned short cnt = 0;
+    for(auto tjid : TjIDs) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      if(tj.AlgMod[kInShower]) ++cnt;
+    } // tjid
+    return (cnt > 1);
+  } // IsInShower
+
   ////////////////////////////////////////////////
   void ShowerParams(double showerEnergy, double& shMaxAlong, double& along95)
   {
@@ -3638,45 +3670,67 @@ namespace tca {
     
     if(tjs.ShowerTag[0] <= 0) return;
     
-    if(tjs.allTraj.size() > 20000) {
-//      std::cout<<"TagInShowerTjs: Crazy number of Tjs "<<tjs.allTraj.size()<<". No shower tagging. Events processed "<<tjs.EventsProcessed<<" \n";
-      return;
-    }
+    if(tjs.allTraj.size() > 20000) return;
+    
+    // evaluate different cuts
+    bool newCuts = (tjs.ShowerTag[0] == 3);
+    float typicalChgRMS = 0.5 * (tjs.ChargeCuts[1] + tjs.ChargeCuts[2]);
     
     // clear out old tags and make a list of Tjs to consider
     std::vector<int> tjids;
-    short maxMCSMom = tjs.ShowerTag[1];
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != inCTP) continue;
       if(tj.AlgMod[kKilled]) continue;
       tj.AlgMod[kInShower] = false;
       if(tj.AlgMod[kShowerTj]) continue;
-      if(tj.Pts.size() < 3) continue;
-      if(tj.Pts.size() > 4 && tj.MCSMom > maxMCSMom) continue;
+      short npwc = NumPtsWithCharge(tjs, tj, false);
+      if(newCuts) {
+        // evaluate different cuts
+        // Don't expect any (primary) electron to be reconstructed as a single trajectory for
+        // more than ~2 radiation lengths ~ 30 cm for uB ~ 100 wires 
+        if(npwc > 100) continue;
+        // allow short Tjs.
+        if(npwc > 5) {
+          // Increase the MCSMom cut if the Tj is long and the charge RMS is high to reduce sensitivity 
+          // to the fcl configuration. A primary electron may be reconstructed as one long Tj with large
+          // charge rms and possibly high MCSMom or as several nearby shorter Tjs with lower charge rms
+          float momCut = tjs.ShowerTag[1];
+          if(tj.ChgRMS > typicalChgRMS) momCut *= tj.ChgRMS / typicalChgRMS;
+          if(tj.MCSMom > momCut) continue;
+        }
+      } else {
+        if(npwc < 3) continue;
+        if(npwc > 4 && tj.MCSMom > tjs.ShowerTag[1]) continue;
+      }
       tjids.push_back(tj.ID);
     } // tj
     
     if(tjids.size() < 2) return;
-    
+/*
+    std::cout<<inCTP<<"TIST tjids";
+    for(auto tjid : tjids) std::cout<<" T"<<tjid;
+    std::cout<<"\n";
+*/
     for(unsigned short it1 = 0; it1 < tjids.size() - 1; ++it1) {
       Trajectory& tj1 = tjs.allTraj[tjids[it1] - 1];
-      if(tj1.CTP != inCTP) continue;
-      float len1 = TrajLength(tj1);
+      float len1 = PosSep(tj1.Pts[tj1.EndPt[1]].Pos, tj1.Pts[tj1.EndPt[0]].Pos);
       for(unsigned short it2 = it1 + 1; it2 < tjids.size(); ++it2) {
         Trajectory& tj2 = tjs.allTraj[tjids[it2] - 1];
-        if(tj2.CTP != inCTP) continue;
         unsigned short ipt1, ipt2;
         float doca = tjs.ShowerTag[2];
         // Find the separation between Tjs without considering dead wires
         TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, doca, false);
         if(doca == tjs.ShowerTag[2]) continue;
         // make tighter cuts for user-defined short Tjs
-        float len2 = TrajLength(tj2);
-        if(len1 < len2) {
-          if(len1 < doca) continue;
-        } else {
-          if(len2 < doca) continue;
-        }
+        float len2 = PosSep(tj2.Pts[tj2.EndPt[1]].Pos, tj2.Pts[tj2.EndPt[0]].Pos);
+//        if(doca < 20) std::cout<<inCTP<<" T"<<tj1.ID<<" len "<<(int)len1<<" T"<<tj2.ID<<" len "<<(int)len2<<" doca "<<doca<<"\n"; 
+        if(!newCuts) {
+          if(len1 < len2 && len1 < doca) {
+            if(len1 < doca) continue;
+          } else {
+            if(len2 < doca) continue;
+          }
+        } // !newCuts
         // found a close pair. See if one of these is in an existing cluster of Tjs
         bool inlist = false;
         for(unsigned short it = 0; it < tjList.size(); ++it) {
@@ -3701,14 +3755,38 @@ namespace tca {
       } // it2
     } // it1
     if(tjList.empty()) return;
-    
-    // eliminate entries that fail ShowerTag[7]
-    std::vector<std::vector<int>> newList;
-    for(auto& tjl : tjList) if(tjl.size() >= tjs.ShowerTag[7]) newList.push_back(tjl);
-    tjList = newList;
-
+/*
+    std::cout<<"tjLists\n";
+    for(auto& tjl : tjList) {
+      for(auto tjid : tjl) std::cout<<" T"<<tjid;
+      std::cout<<"\n";
+    } // tjl
+*/
     MergeTjList(tjList);
-
+    
+    // eliminate entries that fail ShowerTag[6]
+    std::vector<std::vector<int>> newList;
+    if(newCuts) {
+      for(auto& tjl : tjList) {
+        float npts = 0;
+        for(auto tjid : tjl) {
+          auto& tj = tjs.allTraj[tjid - 1];
+          npts += NumPtsWithCharge(tjs, tj, false);
+        } // tjid
+        if(npts >= tjs.ShowerTag[6]) newList.push_back(tjl);
+      } // tjl
+    } else {
+      // old cuts
+      for(auto& tjl : tjList) if(tjl.size() >= tjs.ShowerTag[7]) newList.push_back(tjl);
+    } // old cuts
+    tjList = newList;
+/*
+    std::cout<<"tjLists final\n";
+    for(auto& tjl : tjList) {
+      for(auto tjid : tjl) std::cout<<" T"<<tjid;
+      std::cout<<"\n";
+    } // tjl
+*/
     // mark them all as InShower Tjs
     unsigned short nsh = 0;
     for(auto& tjl : tjList) {
