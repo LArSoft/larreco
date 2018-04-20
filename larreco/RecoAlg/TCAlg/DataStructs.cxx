@@ -39,6 +39,7 @@ namespace tca {
     "Photon",
     "NoFitToVx",
     "VxMerge",
+    "VxNeutral",
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
