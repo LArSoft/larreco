@@ -70,6 +70,7 @@ namespace tca {
   void FindExternalParent(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool UpdateShowerWithParent(std::string inFcnLabel, TjStuff& tjs, unsigned short cotIndex, bool prt);
   bool WrongSplitTj(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short tjEnd, ShowerStruct& ss, bool prt);
+  bool IsInShower(const TjStuff& tjs, const std::vector<int> TjIDs);
   float InShowerProb(std::string inFcnLabel, const TjStuff& tjs, const ShowerStruct3D& ss3, const PFPStruct& pfp);
   void ShowerParams(double showerEnergy, double& shMaxAlong, double& shE95Along);
   double ShowerParamTransRMS(double showerEnergy, double along);
