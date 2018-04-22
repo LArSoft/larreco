@@ -1237,8 +1237,8 @@ namespace tca {
         if(tj.Pts[ipt].UseHit[ii]) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
           if(tjs.fHits[iht].InTraj > 0) {
-            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in new tjs.allTraj "<<trID<<" but it is used in traj T"<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
-            PrintTrajectory("ST", tjs, tj, USHRT_MAX);
+            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in T"<<trID<<" but it is used in T"<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
+//            PrintTrajectory("ST", tjs, tj, USHRT_MAX);
             ReleaseHits(tjs, tj);
             return false;
           } // error
@@ -1250,8 +1250,8 @@ namespace tca {
     // ensure that inTraj is clean for the ID
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       if(tjs.fHits[iht].InTraj == tj.ID) {
-        mf::LogWarning("TC")<<"StoreTraj: Hit "<<PrintHit(tjs.fHits[iht])<<" thinks it belongs to T"<<tj.ID<<" but it wasn't stored\n";
-        PrintTrajectory("SW", tjs, tj, USHRT_MAX);
+        mf::LogWarning("TC")<<"StoreTraj: Hit "<<PrintHit(tjs.fHits[iht])<<" thinks it belongs to T"<<tj.ID<<" but it isn't in the Tj\n";
+//        PrintTrajectory("ST", tjs, tj, USHRT_MAX);
         return false;
       }
     } // iht
