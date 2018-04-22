@@ -525,7 +525,7 @@ namespace tca {
       for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<" "<<std::fixed<<std::setprecision(1)<<primVx[xyz];
       myprt<<" nuVx Reconstructable? "<<neutrinoVxReconstructable<<" vx near nuVx? "<<vxReconstructedNearNuVx;
       myprt<<" neutrinoPFPCorrect? "<<neutrinoPFPCorrect<<"\n";
-      myprt<<"MCPIndx TrackId   PDG  eveID    KE    Len _______Dir_______  ____ProjInPln___               Process      StartHit-EndHit_nTruHits";
+      myprt<<"MCPIndx TrackId   PDG   eveID    KE    Len _______Dir_______  ____ProjInPln___               Process      StartHit-EndHit_nTruHits";
       for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         bool doPrt = (std::find(mcpSelect.begin(), mcpSelect.end(), ipart) != mcpSelect.end());
         auto& mcp = tjs.MCPartList[ipart];
@@ -539,7 +539,7 @@ namespace tca {
         myprt<<std::setw(7)<<ipart;
         myprt<<std::setw(8)<<mcp->TrackId();
         myprt<<std::setw(6)<<mcp->PdgCode();
-        myprt<<std::setw(6)<<pi_serv->ParticleList().EveId(mcp->TrackId());
+        myprt<<std::setw(8)<<pi_serv->ParticleList().EveId(mcp->TrackId());
         myprt<<std::setw(6)<<TMeV;
         Point3_t start {mcp->Vx(), mcp->Vy(), mcp->Vz()};
         posOffsets = SCE->GetPosOffsets({start[0], start[1], start[2]});
