@@ -3853,6 +3853,11 @@ namespace tca {
         auto& vx2 = tjs.vtx[vxid - 1];
         // already killed?
         if(vx2.ID == 0) continue;
+        // don't kill a primary vertex
+        if(vx2.Vx3ID > 0) {
+          auto& vx3 = tjs.vtx3[vx2.ID - 1];
+          if(vx3.Primary) continue;
+        }
         // get a list of Tjs attached to this vertex
         auto vxtjs = GetVtxTjIDs(tjs, vx2);
         // count the number that are InShower
@@ -3862,8 +3867,8 @@ namespace tca {
           if(tj.AlgMod[kInShower]) ++ninsh;
         } // tjid
         // Jan 22
-        if(ninsh > 1) MakeVertexObsolete(tjs, vx2, false);
-//        if(ninsh > 1) MakeVertexObsolete(tjs, vx2, true);
+//        if(ninsh > 1) MakeVertexObsolete(tjs, vx2, false);
+        if(ninsh > 1) MakeVertexObsolete(tjs, vx2, true);
       } // vxid
     } // 
     
