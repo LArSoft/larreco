@@ -560,7 +560,7 @@ namespace tca {
             // clear out any leftover work inTraj's that weren't cleaned up properly
             for(auto& hit : tjs.fHits) {
               if(hit.InTraj < 0) {
-                std::cout<<"Dirty hit "<<PrintHit(hit)<<" EventsProcessed "<<tjs.EventsProcessed<<"\n";
+                std::cout<<"Dirty hit "<<PrintHit(hit)<<" EventsProcessed "<<tjs.EventsProcessed<<" fWorkID "<<fWorkID<<"\n";
                 hit.InTraj = 0;
               }
             }
@@ -732,6 +732,7 @@ namespace tca {
     if(tjs.ShowerTag[0] > 0) TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
     
     Find2DVertices(tjs, inCTP);
+    SplitTrajCrossingVertices(tjs, inCTP);
     // Make vertices between long Tjs and junk Tjs.
     MakeJunkVertices(tjs, inCTP);
     // check for a major failure
@@ -1042,7 +1043,6 @@ namespace tca {
       for(ii = 0; ii < tHits.size(); ++ii) {
         iht = tHits[ii];
         if(tjs.fHits[iht].InTraj == INT_MAX) return false;
-        tjs.fHits[iht].InTraj = work.ID;
         x[ii] = tjs.fHits[iht].ArtPtr->WireID().Wire;
         y[ii] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
       } // ii
@@ -1050,10 +1050,7 @@ namespace tca {
 
       if(jtPrt) mf::LogVerbatim("TC")<<" tHits line fit chidof "<<chidof<<" Angle "<<atan(slope);
       // return without making a junk trajectory
-      if(chidof == 999.) {
-        for(auto iht : tHits) tjs.fHits[iht].InTraj = 0;
-        return false;
-      }
+      if(chidof == 999.) return false;
       // A rough estimate of the trajectory angle
       work.Pts[0].Ang = atan(slope);
       work.Pts[0].Dir[0] = cos(work.Pts[0].Ang);
@@ -1104,6 +1101,7 @@ namespace tca {
     // make the TPs
     // work.Pts[0] is already defined but it needs hits added
     work.Pts[0].Hits = tpHits[0];
+    for(auto iht : tpHits[0]) tjs.fHits[iht].InTraj = work.ID;
     // set all bits true
     work.Pts[0].UseHit.set();
     DefineHitPos(work.Pts[0]);
@@ -1119,12 +1117,16 @@ namespace tca {
       TrajPoint tp = work.Pts[lastPt];
       tp.Step = ipt;
       tp.Hits = tpHits[ipt];
+      for(auto iht : tpHits[ipt]) tjs.fHits[iht].InTraj = work.ID;
       // use all hits
       tp.UseHit.set();
       DefineHitPos(tp);
-      // Just use the hit position as the traj position
+      // Just use the hit position as the tj position
       tp.Pos = tp.HitPos;
-      if(TrajPointSeparation(work.Pts[ipt-1], tp) < 0.5) continue;
+      if(TrajPointSeparation(work.Pts[ipt-1], tp) < 0.5) {
+        for(auto iht : tpHits[ipt]) tjs.fHits[iht].InTraj = 0;
+        continue;
+      }
       work.Pts.push_back(tp);
       SetEndPoints(tjs, work);
     }
@@ -4292,9 +4294,10 @@ namespace tca {
     tp.AngErr = 0.1;
 //    prt = false;
     if(tj.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = DecodeCTP(tCTP).Plane; TJPrt = tj.ID; }
-    if(prt) mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tjs, tp);
+    if(prt) {
+      mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(tjs, tp);
+    }
     tj.Pts.push_back(tp);
-//    if(tj.ID == debug.WorkID) std::cout<<"ST: "<<tj.ID<<" "<<(int)fromWire<<":"<<(int)fromTick<<" "<<(int)toWire<<":"<<(int)toTick<<"\n";
     return true;
     
   } // StartTraj
@@ -4397,11 +4400,6 @@ namespace tca {
     
     ClusterStore cls;
     tjs.tcl.clear();
-/*
-    tjs.inClus.resize(tjs.fHits.size());
-    unsigned int iht;
-    for(iht = 0; iht < tjs.inClus.size(); ++iht) tjs.inClus[iht] = 0;
-*/
     if(prt) mf::LogVerbatim("TC")<<"MakeAllTrajClusters: tjs.allTraj size "<<tjs.allTraj.size();
     
     if(tjs.UseAlg[kChkInTraj]) {
@@ -4416,7 +4414,6 @@ namespace tca {
     
     // Make one cluster for each trajectory. The indexing of trajectory parents
     // should map directly to cluster parents
-    int clID = 0;
     for(itj = 0; itj < tjs.allTraj.size(); ++itj) {
       Trajectory& tj = tjs.allTraj[itj];
       if(tj.AlgMod[kKilled]) continue;
@@ -4450,8 +4447,6 @@ namespace tca {
       } // showerTj
       // count AlgMod bits
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) ++fAlgModCount[ib];
-      ++clID;
-//      cls.ID = clID;
       cls.ID = tj.ID;
       // assign shower clusters a negative ID
       if(tj.AlgMod[kShowerTj]) cls.ID = -cls.ID;
@@ -4473,7 +4468,7 @@ namespace tca {
       // Set the traj info
       tj.ClusterIndex = tjs.tcl.size();
       tjs.tcl.push_back(cls);
-  } // itj
+    } // itj
 
   } // MakeAllTrajClusters
   
