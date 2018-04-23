@@ -73,7 +73,6 @@ namespace tca {
   void PosInPlane(const TjStuff& tjs, const Vtx3Store& vx3, unsigned short plane, Point2_t& pos);
   unsigned short IsCloseToVertex(TjStuff& tjs, VtxStore& vx);
   unsigned short IsCloseToVertex(TjStuff& tjs, Vtx3Store& vx3);
-  //    void Refine2DVertices();
 } // namespace
 
 #endif // ifndef TRAJCLUSTERALGVERTEX_H
