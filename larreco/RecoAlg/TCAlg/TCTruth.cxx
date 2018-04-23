@@ -59,7 +59,7 @@ namespace tca {
           sourcePtclTrackID = trackID;
           sourceOrigin = simb::kBeamNeutrino;
           if(tjs.MatchTruth[1] > 0) {
-            Vector3_t dir {mcp->Px(), mcp->Py(), mcp->Pz()};
+            Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
             SetMag(dir, 1);
             std::cout<<"Found beam neutrino sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode();
             std::cout<<" Vx "<<std::fixed<<std::setprecision(1)<<mcp->Vx()<<" Vy "<<mcp->Vy()<<" Vz "<<mcp->Vz();
@@ -71,7 +71,7 @@ namespace tca {
           sourcePtclTrackID = trackID;
           sourceOrigin = simb::kSingleParticle;
           if(tjs.MatchTruth[1] > 0) {
-            Vector3_t dir {mcp->Px(), mcp->Py(), mcp->Pz()};
+            Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
             SetMag(dir, 1);
             std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode();
             std::cout<<" Vx "<<std::fixed<<std::setprecision(1)<<mcp->Vx()<<" Vy "<<mcp->Vy()<<" Vz "<<mcp->Vz();
@@ -111,7 +111,7 @@ namespace tca {
         pos[0] = mcp->Vx();
         pos[1] = mcp->Vy();
         pos[2] = mcp->Vz();
-        Vector3_t dir {mcp->Px(), mcp->Py(), mcp->Pz()};
+        Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
         SetMag(dir, 1);
         myprt<<std::setprecision(2);
         for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<std::setw(6)<<dir[xyz];
@@ -281,7 +281,7 @@ namespace tca {
       double photE = 1000 * p->E();
       if(photE < 50) continue;
 //      Point3_t photStart {p->Vx(), p->Vy(), p->Vz()};
-      Vector3_t photDir {p->Px(), p->Py(), p->Pz()};
+      Vector3_t photDir {{p->Px(), p->Py(), p->Pz()}};
       SetMag(photDir, 1);
       // sum up the charge for all hits that are daughters of this photon
       std::vector<float> chgSum(3);
@@ -545,20 +545,20 @@ namespace tca {
         myprt<<std::setw(6)<<mcp->PdgCode();
         myprt<<std::setw(8)<<pi_serv->ParticleList().EveId(mcp->TrackId());
         myprt<<std::setw(6)<<TMeV;
-        Point3_t start {mcp->Vx(), mcp->Vy(), mcp->Vz()};
+        Point3_t start {{mcp->Vx(), mcp->Vy(), mcp->Vz()}};
         posOffsets = SCE->GetPosOffsets({start[0], start[1], start[2]});
         posOffsets.SetX(-posOffsets.X());
         start[0] += posOffsets.X();
         start[1] += posOffsets.Y();
         start[2] += posOffsets.Z();
-        Point3_t end {mcp->EndX(), mcp->EndY(), mcp->EndZ()};
+        Point3_t end {{mcp->EndX(), mcp->EndY(), mcp->EndZ()}};
         posOffsets = SCE->GetPosOffsets({end[0], end[1], end[2]});
         posOffsets.SetX(-posOffsets.X());
         end[0] += posOffsets.X();
         end[1] += posOffsets.Y();
         end[2] += posOffsets.Z();
         myprt<<std::setw(7)<<std::setprecision(1)<<PosSep(start, end);
-        Vector3_t dir {mcp->Px(), mcp->Py(), mcp->Pz()};
+        Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
         SetMag(dir, 1);
         for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<std::setw(6)<<std::setprecision(2)<<dir[xyz];
         std::vector<float> startWire(tjs.NumPlanes);
@@ -650,8 +650,8 @@ namespace tca {
       if(recIndex > 4) continue;
       hist.PDGCode_reco_true->Fill((float)truIndex, (float)recIndex);
       // get the true start position and shift it by the SCE offset
-      Point3_t truStart {mcp->Vx(), mcp->Vy(), mcp->Vz()};
-      Point3_t truEnd {mcp->EndX(), mcp->EndY(), mcp->EndZ()};
+      Point3_t truStart {{mcp->Vx(), mcp->Vy(), mcp->Vz()}};
+      Point3_t truEnd {{mcp->EndX(), mcp->EndY(), mcp->EndZ()}};
       float truLen = PosSep(truStart, truEnd);
       if(truLen < 2) continue;
       posOffsets = SCE->GetPosOffsets({truStart[0], truStart[1], truStart[2]});
@@ -671,7 +671,7 @@ namespace tca {
       hist.fPFPStartdX[truIndex]->Fill(pfp.XYZ[startEnd][0] - truStart[0]);
       hist.fPFPStartdY[truIndex]->Fill(pfp.XYZ[startEnd][1] - truStart[1]);
       hist.fPFPStartdZ[truIndex]->Fill(pfp.XYZ[startEnd][2] - truStart[2]);
-      Vector3_t truDir {mcp->Px(), mcp->Py(), mcp->Pz()};
+        Vector3_t truDir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
       SetMag(truDir, 1);
       float dang = DeltaAngle(truDir, pfp.Dir[startEnd]);
       while(dang >  M_PI) dang -= twopi;
@@ -993,8 +993,8 @@ namespace tca {
     
     const simb::MCParticle* mcp = tjs.MCPartList[MCParticleListIndex];
     
-    Point3_t pos {mcp->Vx(), mcp->Vy(), mcp->Vz()};
-    Vector3_t dir {mcp->Px(), mcp->Py(), mcp->Pz()};
+    Point3_t pos {{mcp->Vx(), mcp->Vy(), mcp->Vz()}};
+    Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
     SetMag(dir, 1);
     tp = MakeBareTP(tjs, pos, dir, tp.CTP);
 /* the following section was used for testing MakeBareTP
