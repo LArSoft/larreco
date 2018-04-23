@@ -1164,6 +1164,7 @@ namespace tca {
               if(pfp.PDGCode == 11 && tj.PDGCode == 13) continue;
               if(prt) mf::LogVerbatim("TC")<<" add T"<<tjid;
               pfp.TjIDs.push_back(tjid);
+              PFPVxTjOK(tjs, pfp, prt);
             } // tjid
           } // ims
           tryThis = false;
@@ -1290,6 +1291,8 @@ namespace tca {
       for(auto tjid : ms.TjIDs) {
         if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjid) != pfp.TjIDs.end()) continue;
         pfp.TjIDs.push_back(tjid);
+        // check vertex - tj consistency
+        if(PFPVxTjOK(tjs, pfp, prt)) continue;
         pfp.TjCompleteness.push_back(0);
         if(prt) mf::LogVerbatim("TC")<<"AMT: P"<<pfp.ID<<" T"<<theTj<<" Add T"<<tjid;
       } // mtjid
@@ -1372,13 +1375,19 @@ namespace tca {
       mtj.ID = -6666;
       mtj.CTP = inCTP;
       mtj.StepDir = 1;
+      bool first = true;
       for(auto firstPt : firstPts) {
         // make a copy so we can reverse it and drop it if the merge fails
         auto tj = tjs.allTraj[firstPt[0] - 1];
         unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
         if(firstPt[1] > midPt) ReverseTraj(tjs, tj);
+        // Transfer vertices to mtj
+        if(first) {
+          first = false;
+          mtj.VtxID[0] = tj.VtxID[0];
+        }
+        mtj.VtxID[1] = tj.VtxID[1];
         // insert the points at the end
-//        mtj.Pts.insert(mtj.Pts.end(), tj.Pts.begin(), tj.Pts.end());
         for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
           auto& tp = tj.Pts[ipt];
           if(tp.Chg <= 0) continue;
@@ -2219,30 +2228,7 @@ namespace tca {
       } // allms
     } // indx
     //    CheckNoMatchTjs(tjs, tpcid, prt);
-/* This shouldn't be necessary if the InShower AlgMod bit is transferred in the merge
-    // Re-tag InShower Tjs if merging was done
-    if(tjs.ShowerTag[0] > 0) {
-      bool needsRedo = false;
-      for(auto& pfp : tjs.pfps) {
-        if(pfp.ID == 0) continue;
-        if(pfp.TPCID != tpcid) continue;
-        for(auto tjid : pfp.TjIDs) {
-          auto& tj = tjs.allTraj[tjid - 1];
-          if(tj.AlgMod[kMat3DMerge]) needsRedo = true;
-        } // tjid
-        if(needsRedo) break;
-      } // pfp
-      if(needsRedo) {
-        geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
-        std::vector<std::vector<int>> tjlist;
-        unsigned short nplanes = TPC.Nplanes();
-        for(unsigned short plane = 0; plane < nplanes; ++plane) {
-          CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
-          TagInShowerTjs("FPFP", tjs, inCTP, tjlist, true);
-        } // plane
-      } // needsRedo
-    } // ShowerTag check
-*/
+
   } // FindPFParticles
   
   /////////////////////////////////////////
@@ -2274,6 +2260,11 @@ namespace tca {
       std::cout<<fcnLabel<<" pfp P"<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
       return false;
     }
+    
+    // check for vertex consistency. There should only be one tj in each plane
+    // that is attached to a vertex. Remove the shorter tj from the list
+    // if that is not the case 
+    if(pfp.Vx3ID[0] > 0) PFPVxTjOK(tjs, pfp, prt);
     
     bool pfpTrackLike = (MaxTjLen(tjs, pfp.TjIDs) > tjs.Match3DCuts[5] && MCSMom(tjs, pfp.TjIDs) > tjs.Match3DCuts[3]);
 
@@ -2326,6 +2317,7 @@ namespace tca {
           if(skipit) continue;
           if(prt) mf::LogVerbatim("TC")<<" add T"<<tjid<<" MCSMom "<<tj.MCSMom<<" length "<<len;
           pfp.TjIDs.push_back(tjid);
+          PFPVxTjOK(tjs, pfp, prt);
         } // tjid
       } // ims
     } // matchVec index defined
@@ -2359,6 +2351,61 @@ namespace tca {
   } // DefinePFP
   
   /////////////////////////////////////////
+  bool PFPVxTjOK(TjStuff& tjs, PFPStruct& pfp, bool prt)
+  {
+    // Checks the PFP Vx3 -> Vx2 -> Tj assignment to see if there is more
+    // than one tj in a plane in the pfp.TjIDs list that is attached to the same 2D vertex. 
+    // This problem is fixed by removing the shorter tj from the TjIDs list. This function
+    // return true if nothing was done to TjIDs
+    if(pfp.ID == 0) return true;
+    if(pfp.TjIDs.empty()) return true;
+    if(pfp.Vx3ID[0] == 0) return true;
+    
+    auto& vx3 = tjs.vtx3[pfp.Vx3ID[0] - 1];
+    std::vector<int> killMe;
+    for(auto vx2id : vx3.Vx2ID) {
+      if(vx2id == 0) continue;
+      auto& vx2 = tjs.vtx[vx2id - 1];
+      auto tjlist = GetVtxTjIDs(tjs, vx2);
+      auto setInt = SetIntersection(pfp.TjIDs, tjlist);
+/*
+      std::cout<<"PVTC: P"<<pfp.ID<<" Tjs";
+      for(auto tid : pfp.TjIDs) std::cout<<" T"<<tid;
+      std::cout<<" set Intersection";
+      for(auto tid : setInt) std::cout<<" T"<<tid;
+      std::cout<<"\n";
+*/
+      if(setInt.size() < 2) continue;
+      // find the longest one
+      int imLong = 0;
+      unsigned short lenth = 0;
+      for(auto tid : setInt) {
+        auto& tj = tjs.allTraj[tid - 1];
+        unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+        if(npts < lenth) continue;
+        lenth = npts;
+        imLong = tj.ID;
+      } // tid
+      if(imLong == 0) continue;
+      // add the others to the killMe list
+      for(auto tid : setInt) if(tid != imLong) killMe.push_back(tid);
+    } // vx2id
+    if(killMe.empty()) return true;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"PVTC: P"<<pfp.ID<<" removing short tjs attached to a vertex with a longer tj:";
+      for(auto tid : killMe) myprt<<" T"<<tid;
+    }
+    // re-create the TjIDs vector
+    std::vector<int> tmp;
+    for(auto tid : pfp.TjIDs) {
+      if(std::find(killMe.begin(), killMe.end(), tid) == killMe.end()) tmp.push_back(tid);
+    } // tid
+    pfp.TjIDs = tmp;
+    return false;
+  } // PFPVxTjOK
+  
+  /////////////////////////////////////////
   void AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // Analyzes the PFP for oddities and tries to fix them
@@ -2367,10 +2414,10 @@ namespace tca {
     
     // don't bother analyzing this pfp has been altered
     if(pfp.NeedsUpdate) {
-      if(prt) mf::LogVerbatim("TC")<<"AnalyzePFP: "<<pfp.ID<<" needs to be updated. Skip analysis ";
+      if(prt) mf::LogVerbatim("TC")<<"AnalyzePFP: P"<<pfp.ID<<" needs to be updated. Skip analysis ";
       return;
     }
-    if(prt) mf::LogVerbatim("TC")<<"inside AnalyzePFP "<<pfp.ID<<" NeedsUpdate? "<<pfp.NeedsUpdate;
+    if(prt) mf::LogVerbatim("TC")<<"inside AnalyzePFP P"<<pfp.ID<<" NeedsUpdate? "<<pfp.NeedsUpdate;
     
     // compare the Tjs in Tp3s with those in TjIDs
     std::vector<int> tjIDs;
@@ -2400,7 +2447,7 @@ namespace tca {
       if(tjCnt[ii] < 0.5 * npwc) continue;
       // add the missed Tj to the pfp and flag it as needing an update
       pfp.TjIDs.push_back(missTj.ID);
-      pfp.NeedsUpdate = true;
+      if(PFPVxTjOK(tjs, pfp, prt)) pfp.NeedsUpdate = true;
     } // ii
     
     if(pfp.NeedsUpdate) DefinePFP("APFP", tjs, pfp, prt);
@@ -2446,7 +2493,7 @@ namespace tca {
       vx3.Y = pfp.XYZ[0][1];
       vx3.Z = pfp.XYZ[0][2];
       vx3.ID = tjs.vtx3.size() + 1;
-      vx3.Primary = true;
+      vx3.Primary = false;
       tjs.vtx3.push_back(vx3);
       std::cout<<"PFPVertexCheck: add 3V"<<vx3.ID<<"\n";
       pfp.Vx3ID[0] = vx3.ID;
@@ -2508,7 +2555,7 @@ namespace tca {
       vx3.Y = pfp.XYZ[0][1];
       vx3.Z = pfp.XYZ[0][2];
       vx3.ID = tjs.vtx3.size() + 1;
-      vx3.Primary = true;
+      vx3.Primary = false;
       // TODO: we need to have PFP track position errors defined 
       unsigned short mergeToVx3ID = IsCloseToVertex(tjs, vx3);
       if(mergeToVx3ID > 0) {
@@ -2552,8 +2599,10 @@ namespace tca {
       } // tjid
       if(cnt3 > 1) {
         pfp.Vx3ID[end1] = vx3id;
-        if(cnt3 != tjs.NumPlanes) mf::LogVerbatim("TC")<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code";
-      }
+        if(cnt3 != tjs.NumPlanes) {
+          mf::LogVerbatim("TC")<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code";
+        }
+      } // cnt3 > 1
     } // pfp
     
     // Assign a PDGCode to each PFParticle and look for a parent
