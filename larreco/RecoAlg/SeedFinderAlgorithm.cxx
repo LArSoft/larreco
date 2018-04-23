@@ -13,6 +13,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Utilities/Exception.h"
 
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "larcore/Geometry/Geometry.h"
@@ -955,9 +956,16 @@ namespace trkf {
             
             size_t ViewIndex;
             
-            if(     (*itHit)->View() == geo::kU) ViewIndex=0;
-            else if((*itHit)->View() == geo::kV) ViewIndex=1;
-            else if((*itHit)->View() == geo::kW) ViewIndex=2;
+            auto const hitView = (*itHit)->View();
+            if(     hitView == geo::kU) ViewIndex=0;
+            else if(hitView == geo::kV) ViewIndex=1;
+            else if(hitView == geo::kW) ViewIndex=2;
+            else {
+              throw art::Exception(art::errors::LogicError)
+                << "SpacePointAlg does not support view "
+                << geo::PlaneGeo::ViewName(hitView)
+                << " (#" << hitView << ")\n";
+            }
             double WireCoord = (*itHit)->WireID().Wire * fPitches.at(ViewIndex);
             double TimeCoord = det->ConvertTicksToX((*itHit)->PeakTime(),ViewIndex,0,0);
             double TimeUpper = det->ConvertTicksToX((*itHit)->PeakTimePlusRMS(), ViewIndex,0,0);

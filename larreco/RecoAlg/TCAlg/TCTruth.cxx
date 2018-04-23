@@ -322,7 +322,7 @@ namespace tca {
     bool neutrinoVxReconstructable = false;
     bool vxReconstructedNearNuVx = false;
     bool neutrinoPFPCorrect = false;
-    Point3_t primVx {-666};
+    Point3_t primVx {{-666.0, -666.0, -666.0}};
 
     // Look for the MC truth process that should be considered (beam neutrino,
     // single particle, cosmic rays), then form a list of selected MCParticles 
@@ -501,14 +501,18 @@ namespace tca {
           // Found a neutrino pfp with a start vertex
           auto& vx3 = tjs.vtx3[pfp.Vx3ID[0] - 1];
           // check the proximity to the true vertex
-          Point3_t vpos = {vx3.X, vx3.Y, vx3.Z};
+          // BUG the double brace syntax is required to work around clang bug 21629
+          // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+          Point3_t vpos = {{vx3.X, vx3.Y, vx3.Z}};
           if(PosSep(vpos, primVx) < 1) neutrinoPFPCorrect = true;
         } // neutrino pfp 
       } // PFParticles exist
       for(auto& vx3 : tjs.vtx3) {
         if(vx3.ID == 0) continue;
         if(vx3.TPCID != inTPCID) continue;
-        Point3_t vpos = {vx3.X, vx3.Y, vx3.Z};
+        // BUG the double brace syntax is required to work around clang bug 21629
+        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+        Point3_t vpos = {{vx3.X, vx3.Y, vx3.Z}};
         float sep = PosSep(vpos, primVx);
         if(sep < best) {
           best = sep;
@@ -631,7 +635,7 @@ namespace tca {
 
     // PFParticle histograms
     constexpr double twopi = 2 * M_PI;
-    std::array<int, 5> recoCodeList = {0, 11, 13, 211, 2212};
+    std::array<int, 5> recoCodeList = {{0, 11, 13, 211, 2212}};
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       // ignore showers

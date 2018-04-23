@@ -330,7 +330,7 @@ public:
   MergeEMShower3D & operator = (MergeEMShower3D const &) = delete;
   MergeEMShower3D & operator = (MergeEMShower3D &&) = delete;
 
-	void beginJob();
+	void beginJob() override;
 
 	void produce(art::Event & e) override;
 
@@ -357,18 +357,18 @@ public:
 private:
 
 	TTree* fEvTree;
-	TTree* fClTree;
+//	TTree* fClTree;
 
 	int fVtxIndex;
 
 	int fNParts[2];
 	int fNPMA; int fNConv; int fNTot;
-	int fHasConvPt;
+//	int fHasConvPt;
 	int fWhat, fEvWhat;
 	int fNMerged, fNCleanMerged;
 
 	double fDistvtxmcreco;
-	double fMcMom, fTrkLen, fAdcSum;
+	double fMcMom /*, fTrkLen *//*, fAdcSum */;
 	int fEvNumber;
 
 	TVector3 fPi0vtx;

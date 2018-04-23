@@ -94,17 +94,17 @@ private:
     std::string fTrackModuleLabel;
     int		fMuonPDGCode;
  
-    int    MC_isCC;
-    int    MC_incoming_PDG;
-    double MC_incoming_P[4];
+  //  int    MC_isCC;
+  //  int    MC_incoming_PDG;
+  //  double MC_incoming_P[4];
     double MCTruthMuonVertex[4];
-    double MCTruthMuonStartMomentum[4];
+  //  double MCTruthMuonStartMomentum[4];
 
     int    MCTruthMuonID;
     double MCTruthMuonMomentum;
 
-    double MCTruthMuonMomentumXZ=0;
-    double MCTruthMuonMomentumYZ=0;
+  //  double MCTruthMuonMomentumXZ=0;
+  //  double MCTruthMuonMomentumYZ=0;
     double MCTruthMuonThetaXZ=0;
     double MCTruthMuonThetaYZ=0;
  
@@ -138,7 +138,7 @@ private:
     int CountBadLeadingMuonTrackAndOnlyOneMuonTrackTrackTooLong=0;
 
     double Criteria;
-    int NMuonTracksTooShort=0;
+  //  int NMuonTracksTooShort=0;
 
     int GoodEvents1MuonTrack=0;
     int GoodEvents2MuonTrack=0;

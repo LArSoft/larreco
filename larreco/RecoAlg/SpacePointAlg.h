@@ -45,7 +45,11 @@
 /// producing space points with more hits than the number of planes).
 ///
 /// There should eventually be a better way to specify time offsets.
-///
+/// 
+/// @bug This algorithm makes specific assumptions about geometry and views,
+///      and it is *not portable*.
+/// 
+/// 
 ////////////////////////////////////////////////////////////////////////
 
 #ifndef SPACEPOINTALG_H
@@ -58,7 +62,7 @@
 
 class TH1F;
 namespace sim {
-  class IDE;
+  struct IDE;
 }
 namespace trkf{
   class KHitTrack;

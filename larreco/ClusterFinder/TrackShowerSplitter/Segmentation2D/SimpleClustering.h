@@ -8,7 +8,7 @@
  */
 
 #ifndef SimpleClustering_h
-#define SimpleCustering_h
+#define SimpleClustering_h
 
 #include "TssHit2D.h"
 #include "larreco/RecoAlg/PMAlg/Utilities.h"

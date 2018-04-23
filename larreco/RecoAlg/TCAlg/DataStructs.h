@@ -211,8 +211,10 @@ namespace tca {
   
   // struct used for TrajCluster 3D trajectory points
   struct TrajPoint3 {
-    Point3_t Pos {0};
-    Vector3_t Dir {0};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    Point3_t Pos {{ 0.0, 0.0, 0.0 }};
+    Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
     float dEdx {0};             // The charge is stored here before dE/dx is calculated
     float dEdxErr {1};          // The path length (along) is store here before dE/dx is calculated
@@ -240,7 +242,9 @@ namespace tca {
     std::array<Vector3_t, 2> DirErr;
     std::array<std::vector<float>, 2> dEdx;
     std::array<std::vector<float>, 2> dEdxErr;
-    std::array<unsigned short, 2> Vx3ID {0, 0};
+    // BUG the double brace syntax is required to work around clang bug 21629
+    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
+    std::array<unsigned short, 2> Vx3ID {{ 0, 0 }};
     int BestPlane {-1};
     // stuff for constructing the PFParticle
     int PDGCode {-1};

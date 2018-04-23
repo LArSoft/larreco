@@ -10,6 +10,7 @@
 
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
@@ -781,7 +782,8 @@ void pma::ProjectionMatchingAlg::ShortenSeg(pma::Track3D& trk, const geo::TPCGeo
 
 		RemoveNotEnabledHits(trk);
 
-		trk.Optimize(0.0001, false);
+		// trk.Optimize(0.0001, false); // BUG: first argument missing; tentatively:
+		trk.Optimize(0, 0.0001, false);
 		trk.SortHits();
 
 		mf::LogWarning("ProjectionMatchingAlg") << " mse: " << mse;
@@ -1364,7 +1366,7 @@ double pma::ProjectionMatchingAlg::selectInitialHits(pma::Track3D& trk, unsigned
 		{
 			hit = trk[ih];
 
-			if (abs(hit->Wire() - lastHit->Wire()) > 2)
+			if (util::absDiff(hit->Wire(), lastHit->Wire()) > 2)
 				break; // break on gap in wire direction
 
 			last_x = trk.HitDxByView(ih, view);

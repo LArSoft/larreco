@@ -106,7 +106,7 @@ namespace hit {
     unsigned short fMaxBumps; // make a crude hit if > MaxBumps are found in the RAT
     unsigned short fMaxXtraHits; // max num of hits in Region Above Threshold
     float fChiSplit;      ///<Estimated noise error on the Signal
-    float ChgNorm;     // Area norm for the wire we are working on
+  //  float ChgNorm;     // Area norm for the wire we are working on
 
     std::vector<float> fChiNorms;
     std::vector<float> fTimeOffsets;
@@ -117,7 +117,7 @@ namespace hit {
     unsigned short thePlane;
 
     float chinorm;
-    float timeoff;
+  //  float timeoff;
     static constexpr float Sqrt2Pi = 2.5066;
     static constexpr float SqrtPi  = 1.7725;
     
