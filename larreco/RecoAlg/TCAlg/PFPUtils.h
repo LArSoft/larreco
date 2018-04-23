@@ -72,6 +72,7 @@ namespace tca {
   PFPStruct CreatePFP(const TjStuff& tjs, const geo::TPCID& tpcid);
   void FindPFParticles(std::string fcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool DefinePFP(std::string inFcnLabel, TjStuff& tjs, PFPStruct& pfp, bool prt);
+  bool PFPVxTjOK(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void PFPVertexCheck(TjStuff& tjs);
   void AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void DefinePFPParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
