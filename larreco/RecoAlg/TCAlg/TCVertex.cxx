@@ -299,7 +299,7 @@ namespace tca {
             if(prt) mf::LogVerbatim("TC")<<" TrajTrajDOCA close? "<<isClose<<" minSep "<<maxSep;
             if(isClose) {
               // put the vertex at the TP that is closest to the intersection point
-              Point2_t vpos = {wint, tint};
+              Point2_t vpos = {{wint, tint}};
               if(PosSep2(tp1.Pos, vpos) < PosSep2(tp2.Pos, vpos)) {
                 wint = tp1.Pos[0];
                 tint = tp1.Pos[1];
@@ -428,7 +428,7 @@ namespace tca {
           if(end1 == 1) fitDir = -1;
           FitTraj(tjs, tj1, tj1.EndPt[end1], 6, fitDir, tp1);
           if(tp1.FitChi > 100) {
-            std::cout<<"FNV: fit failed T"<<tj1.ID<<"_"<<end1<<"\n";
+            if(prt) std::cout<<"FNV: fit failed T"<<tj1.ID<<"_"<<end1<<"\n";
             continue; 
           }
         } // needs refit
@@ -457,7 +457,7 @@ namespace tca {
               if(end2 == 1) fitDir = -1;
               FitTraj(tjs, tj2, tj2.EndPt[end2], 6, fitDir, tp2);
               if(tp2.FitChi > 100) {
-                std::cout<<"FNV: fit failed T"<<tj2.ID<<"_"<<end2<<"\n";
+                if(prt) std::cout<<"FNV: fit failed T"<<tj2.ID<<"_"<<end2<<"\n";
                 continue; 
               }
             } // needs refit
@@ -471,7 +471,7 @@ namespace tca {
             if(wint < 0 || wint > tjs.MaxPos0[plane]) continue;
             if(tint < 0 || tint > tjs.MaxPos1[plane]) continue;
             // ignore if this is closer to the other end
-            nvxs.vx2.Pos = {wint, tint};
+            nvxs.vx2.Pos = {{wint, tint}};
             float sep1 = PosSep(nvxs.vx2.Pos, tp1.Pos);
             float sep2 = PosSep(nvxs.vx2.Pos, tp2.Pos);
             if(sep1 > maxVx2Sep) continue;
@@ -586,17 +586,17 @@ namespace tca {
         nvxs.vx2.ID = tjs.vtx.size() + 1;
         nvxs.vx2.NTraj = nvxs.tps.size();
         nvxs.vx2.Vx3ID = nvx3Ds.vx3.ID;
-        std::cout<<"FNV: 3V"<<nvx3Ds.vx3.ID<<" 2V"<<nvxs.vx2.ID<<" inCTP "<<nvxs.vx2.CTP<<"\n";
+        if(prt) std::cout<<"FNV: 3V"<<nvx3Ds.vx3.ID<<" 2V"<<nvxs.vx2.ID<<" inCTP "<<nvxs.vx2.CTP<<"\n";
         // TODO: do this correctly
         nvxs.vx2.Score = 100;
         if(!StoreVertex(tjs, nvxs.vx2)) {
-          std::cout<<"FNV: StoreVertex failed\n";
+          if(prt) std::cout<<"FNV: StoreVertex failed\n";
           continue;
         }
         // associate it with the 3D vertex
         unsigned short plane = DecodeCTP(nvxs.vx2.CTP).Plane;
         if(nvx3Ds.vx3.Vx2ID[plane] > 0) {
-          std::cout<<"FNV: Error 3V"<<nvx3Ds.vx3.ID<<" is already attached to 2V"<<nvx3Ds.vx3.Vx2ID[plane]<<"\n";
+          if(prt) std::cout<<"FNV: Error 3V"<<nvx3Ds.vx3.ID<<" is already attached to 2V"<<nvx3Ds.vx3.Vx2ID[plane]<<"\n";
           continue;
         }
         nvx3Ds.vx3.Vx2ID[plane] = nvxs.vx2.ID;
@@ -605,11 +605,11 @@ namespace tca {
           auto& tj = tjs.allTraj[tp.Step - 1];
           unsigned short end = tp.AngleCode;
           if(tj.VtxID[end] > 0) {
-            std::cout<<"FNV: Error T"<<tj.ID<<"_"<<end<<" is already attached to 2V"<<tj.VtxID[end]<<"\n";
+            if(prt) std::cout<<"FNV: Error T"<<tj.ID<<"_"<<end<<" is already attached to 2V"<<tj.VtxID[end]<<"\n";
             continue;
           }
           tj.VtxID[end] = nvxs.vx2.ID;
-          std::cout<<"  2V"<<nvxs.vx2.ID<<" T"<<tj.ID<<"_"<<tp.AngleCode<<"\n";
+          if(prt) std::cout<<"  2V"<<nvxs.vx2.ID<<" T"<<tj.ID<<"_"<<tp.AngleCode<<"\n";
           tj.AlgMod[kPhoton] = true;
         } // tp
       } // nvxs
@@ -3168,241 +3168,5 @@ namespace tca {
     return imBest;
     
   } // IsCloseToVertex
-  
-/*
-   //////////////////////////////////////////
-   void Refine2DVertices()
-   {
-   // Improve trajectories near vertices in the current plane
-   if(tjs.vtx.empty()) return;
-   
-   if(!tjs.UseAlg[kRefineVtx]) return;
-   
-   geo::PlaneID planeID = DecodeCTP(inCTP);
-   unsigned short ipl = planeID.Plane;
-   if(ipl != 0) return;
-   
-   // store a copy of everything so that we can recover gracefully if there is a major failure
-   auto lHits = tjs.fHits;
-   auto lWireHitRange = tjs.WireHitRange;
-   auto lAllTraj = tjs.allTraj;
-   bool majorFailure = false;
-   
-   if(prt) PrintHeader("R2D");
-   
-   for(unsigned short ivx = 0; ivx < tjs.vtx.size(); ++ivx) {
-   VtxStore& rvx = tjs.vtx[ivx];
-   if(rvx.CTP != inCTP) continue;
-   if(rvx.NTraj < 2) continue;
-   // ensure that it is within the active volume of the TPC
-   if(rvx.Pos[0] < 0 || rvx.Pos[0] > tjs.MaxPos0[ipl]) continue;
-   if(rvx.Pos[1] < 0 || rvx.Pos[1] > tjs.MaxPos1[ipl]) continue;
-   // make a list of TJs attached at each end and find the Region Of Confusion
-   // wire and time ranges
-   std::array<float, 2> wROC = {rvx.Pos[0], rvx.Pos[0]};
-   std::array<float, 2> tROC = {rvx.Pos[1], rvx.Pos[1]};
-   std::array<std::vector<unsigned short>, 2> tjlist;
-   for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
-   if(tjs.allTraj[itj].AlgMod[kKilled]) continue;
-   if(tjs.allTraj[itj].CTP != rvx.CTP) continue;
-   Trajectory& tj = tjs.allTraj[itj];
-   // ensure that the ID is OK so the code below doesn't choke
-   if(tj.ID != itj + 1) {
-   std::cout<<"Refine2DVertices allTraj ID "<<tj.ID<<" != itj "<<itj<<" + 1\n";
-   fQuitAlg = true;
-   return;
-   }
-   for(unsigned short end = 0; end < 2; ++end) {
-   if(tj.VtxID[end] == rvx.ID) {
-   tjlist[end].push_back(itj);
-   unsigned short endPt = tj.EndPt[end];
-   if(prt) PrintTrajectory("R2D", tjs, tj, endPt);
-   // Find the lo/hi wire/time
-   float arg = tj.Pts[endPt].Pos[0];
-   if(arg < wROC[0]) wROC[0] = arg;
-   if(arg > wROC[1]) wROC[1] = arg;
-   arg = tj.Pts[endPt].Pos[1];
-   if(arg < tROC[0]) tROC[0] = arg;
-   if(arg > tROC[1]) tROC[1] = arg;
-   }
-   } // end
-   } // itj
-   // round to the nearest integer WSE unit
-   wROC[0] = std::floor(wROC[0]);
-   wROC[1] = std::ceil(wROC[1]);
-   tROC[0] = std::floor(tROC[0]);
-   tROC[1] = std::ceil(tROC[1]);
-   std::cout<<"vtx "<<rvx.ID<<" tjlist[0] ";
-   for(auto itj : tjlist[0]) std::cout<<" "<<itj+1;
-   std::cout<<" tjlist[1] ";
-   for(auto itj : tjlist[1]) std::cout<<" "<<itj+1;
-   std::cout<<"\n";
-   std::cout<<"wROC "<<wROC[0]<<" "<<wROC[1]<<" tROC "<<tROC[0]/tjs.UnitsPerTick<<" "<<tROC[1]/tjs.UnitsPerTick<<"\n";
-   // no sense continuing unless there are 2 or more Tjs at at least one end
-   if(tjlist[0].size() < 2 && tjlist[1].size() < 2) continue;
-   // create a list of temporary hits in this region
-   // Note that the ROC includes loWire AND hiWire
-   unsigned int loWire = std::nearbyint(wROC[0]);
-   unsigned int hiWire = std::nearbyint(wROC[1]);
-   unsigned short ROCsize = hiWire - loWire + 1;
-   // the wire that the vertex is on
-   std::vector<TCHit> wireHits;
-   std::cout<<"ROCsize "<<ROCsize<<"\n";
-   
-   // create hits on the ROC boundary for testing
-   TCHit boxHit;
-   boxHit.Integral = 100;
-   boxHit.RMS = 1;
-   boxHit.PeakAmplitude = 5;
-   boxHit.InTraj = 0;
-   for(unsigned int wire = loWire; wire <= hiWire; ++wire) {
-   for(unsigned short tb = 0; tb < 2; ++tb) {
-   DefineHit(boxHit, rvx.CTP, wire);
-   boxHit.PeakTime = tROC[tb] / tjs.UnitsPerTick;
-   CreateHit(boxHit);
-   } // tb
-   } // wire
-   
-   // Make a vector of ALL fHits that are inside the ROC so that we can erase them later
-   std::array<int, 2> iwROC {(int)loWire, (int)hiWire};
-   bool hitsNear;
-   std::vector<unsigned int> fHitsInROC = FindCloseHits(tjs, iwROC, tROC, ipl, kAllHits, true, hitsNear);
-   // sort by decreasing index so that hits that are later in fhits will be erased
-   // before the earlier hits, obviating the need to correct fHitsInROC
-   std::sort(fHitsInROC.begin(), fHitsInROC.end(), std::greater<unsigned int>());
-   std::cout<<"fHitsInROC";
-   for(auto& iht : fHitsInROC) std::cout<<" "<<iht<<"_"<<PrintHit(tjs.fHits[iht]);
-   std::cout<<"\n";
-   
-   // Look for a trajectory that has a hit in the ROC but is not in tjlist
-   bool skipVtx = false;
-   for(auto& iht : fHitsInROC) {
-   unsigned short inTj = tjs.fHits[iht].InTraj;
-   if(inTj == 0) continue;
-   unsigned short itj = inTj - 1;
-   if(std::find(tjlist[0].begin(), tjlist[0].end(), itj) == tjlist[0].end() &&
-   std::find(tjlist[1].begin(), tjlist[1].end(), itj) == tjlist[1].end()) {
-   std::cout<<"Traj ID "<<inTj<<" not found in tjlist . Kill or keep?\n";
-   std::array<float, 2> pos0 = tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[0]].Pos;
-   std::array<float, 2> pos1 = tjs.allTraj[itj].Pts[tjs.allTraj[itj].EndPt[1]].Pos;
-   if(pos0[0] > wROC[0] && pos0[0] < wROC[1] && pos1[0] > wROC[0] && pos1[0] < wROC[1] &&
-   pos0[1] > tROC[0] && pos0[1] < tROC[1] && pos1[1] > tROC[0] && pos1[1] < tROC[1]) {
-   // completely contained - kill it
-   std::cout<<"Traj ID "<<inTj<<" completely contained in the ROC. Killing it\n";
-   MakeTrajectoryObsolete(tjs, itj);
-   } else {
-   std::cout<<"Traj ID "<<inTj<<" is in the ROC but isn't attached to the vertex. Skip this vertex \n";
-   skipVtx = true;
-   break;
-   }
-   } // find
-   if(skipVtx) break;
-   } // iht
-   if(skipVtx) break;
-   
-   // matching vectors of points outside the boundary of the ROC
-   std::array<std::vector<unsigned short>, 2> edgePts;
-   for(unsigned short end = 0; end < 2; ++end) {
-   edgePts[end].resize(tjlist[end].size());
-   
-   // We now have a number of trajectories in VtxTraj that enter the ROC. The hits in fHits are still assigned to the
-   // original trajectories in allTraj. Now create a set of vtx TCHits associated with VtxTraj within the ROC
-   for(unsigned short iitj = 0; iitj < tjlist[end].size(); ++iitj) {
-   unsigned short itj = tjlist[end][iitj];
-   Trajectory& vtj = tjs.allTraj[itj];
-   // reverse the trajectory to make changes easier
-   if(end == 0)  ReverseTraj(tjs, vtj);
-   if(vtj.ID == 1) PrintTrajectory("chk1", tjs, vtj, USHRT_MAX);
-   // find the TP that is just outside the ROC. First assume that the end is inside.
-   unsigned short edgePt = vtj.EndPt[1];
-   // loWire   vtx      hiWire
-   //     |     V          |
-   // tj  |       E--------|-     end = 0, StepDir =  1 OR end = 1, StepDir = -1 (typical)
-   // tj  |  E-------------|----  end = 0, StepDir =  1 OR end = 1, StepDir = -1 (not typical but happens)
-   // tj  |       E------- |      end = 0, StepDir =  1 OR end = 1, StepDir = -1 (short tj inside the ROC)
-   // tj -|---E            |      end = 0, StepDir = -1 OR end = 1, StepDir =  1
-   for(unsigned short ii = 0; ii < ROCsize; ++ii) {
-   edgePt = vtj.EndPt[1] - 1 - ii;
-   if(edgePt == 0) break;
-   unsigned int tWire = std::nearbyint(vtj.Pts[edgePt].Pos[0]);
-   // keep going if there is a hit on this tp that is in fHitsInROC
-   bool hitInROC = false;
-   for(auto& iht : vtj.Pts[edgePt].Hits) {
-   if(std::find(fHitsInROC.begin(), fHitsInROC.end(), iht) != fHitsInROC.end()) {
-   hitInROC = true;
-   break;
-   }
-   } // iht
-   if(hitInROC) continue;
-   // hit the wire boundary
-   if(tWire < loWire || tWire > hiWire) break;
-   // hit the time boundary
-   if(vtj.Pts[edgePt].Pos[1] < tROC[0] || vtj.Pts[edgePt].Pos[1] > tROC[1]) break;
-   // don't allow the trajectory to have < 2 points
-   if(edgePt == 2) break;
-   } // ii
-   
-   if(edgePt < 2) {
-   std::cout<<"Not enough points left on vtxTraj "<<vtj.ID<<"\n";
-   majorFailure = true;
-   break;
-   }
-   
-   edgePts[end][itj] = edgePt;
-   // make a local TP that we can move around
-   TrajPoint ltp = vtj.Pts[edgePt];
-   
-   std::cout<<"end "<<end<<" vtj.ID "<<vtj.ID<<" edgePt "<<edgePt<<" pos "<<PrintPos(tjs, vtj.Pts[edgePt])<<"\n";
-   // find the first used hit in the tp and use it to characterize the
-   // Charge and RMS of VtxHits inside the ROC
-   float chg = vtj.Pts[edgePt].AveChg;
-   float rms = TPHitsRMSTick(tjs, vtj.Pts[edgePt], kUsedHits);
-   float amp = chg / (2.5066 * rms);
-   // Modify the existing hits inside the ROC.
-   // Form a list of hits that should be erased when we are done
-   std::vector<unsigned int> killMe;
-   for(unsigned short ipt = edgePt + 1; ipt < vtj.Pts.size(); ++ipt) {
-   MoveTPToWire(ltp, vtj.Pts[ipt].Pos[0]);
-   unsigned int nused = 0;
-   for(unsigned short ii = 0; ii < vtj.Pts[ipt].Hits.size(); ++ii) {
-   if(!vtj.Pts[ipt].UseHit[ii]) continue;
-   unsigned int iht = vtj.Pts[ipt].Hits[ii];
-   std::cout<<" tweak hit "<<PrintHit(tjs.fHits[iht]);
-   ++nused;
-   if(nused == 1) {
-   tjs.fHits[iht].PeakTime = ltp.Pos[1] / tjs.UnitsPerTick;
-   tjs.fHits[iht].PeakAmplitude = amp;
-   tjs.fHits[iht].Integral = chg;
-   tjs.fHits[iht].RMS = rms;
-   std::cout<<" to "<<PrintHit(tjs.fHits[iht])<<"\n";
-   } else {
-   std::cout<<" erase this hit\n";
-   killMe.push_back(iht);
-   }
-   } // ii
-   } // ipt
-   // erase hits?
-   if(!killMe.empty()) {
-   if(killMe.size() > 1) std::sort(killMe.begin(), killMe.end(), std::greater<unsigned int>());
-   for(auto& iht : killMe) {
-   tjs.fHits[iht].InTraj = 0;
-   EraseHit(iht);
-   }
-   } // killMe not empty
-   } // itj
-   } // end
-   if(majorFailure) break;
-   } // ivx
-   
-   if(majorFailure) {
-   // recover after a major failure
-   tjs.fHits = lHits;
-   tjs.WireHitRange = lWireHitRange;
-   tjs.allTraj = lAllTraj;
-   }
-   
-   } // Refine2DVertices
-   */
-
   
 } // namespace
