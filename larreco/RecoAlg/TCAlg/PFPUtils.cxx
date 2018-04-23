@@ -290,7 +290,7 @@ namespace tca {
       }
       if(tp3.dEdxErr > maxAlong) {
         maxAlong = tp3.dEdxErr;
-        maxPt = maxPt;
+        maxPt = ipt;
       }
     } // tp3
     
@@ -420,7 +420,7 @@ namespace tca {
     sectionPt.push_back(0);
     for(unsigned short section = 0; section < 100; ++section) {
       // a point to find the average position in this section
-      Point3_t avePos {0,0,0};
+      Point3_t avePos {{0,0,0}};
       unsigned short cnt = 0;
       for(unsigned short ipt = startPt; ipt < endPt; ++ipt) {
         auto& tp3 = pfp.Tp3s[ipt];
@@ -1399,7 +1399,7 @@ namespace tca {
           for(firstPtsIndx = 0; firstPtsIndx < firstPts.size(); ++firstPtsIndx) if(tj2pt.id == firstPts[firstPtsIndx][0]) break;
           if(firstPtsIndx == firstPts.size()) {
             // not found so add it
-            std::array<unsigned short, 2> firstPt {tj2pt.id, tj2pt.ipt};
+            std::array<unsigned short, 2> firstPt {{tj2pt.id, tj2pt.ipt}};
             firstPts.push_back(firstPt);
           }
         } // tj2pt
