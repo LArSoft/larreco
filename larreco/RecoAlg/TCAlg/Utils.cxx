@@ -470,9 +470,9 @@ namespace tca {
     auto& mtj = tjs.allTraj[lasttj];
     bool mtjIsShort = (mtj.Pts.size() < 5);
     // minimum separation from each end of mtj
-    std::array<float, 2> minsep2 {1000, 1000};
+    std::array<float, 2> minsep2 {{1000, 1000}};
     // ID of the Tj with the minimum separation
-    std::array<int, 2> minsepTj {0, 0};
+    std::array<int, 2> minsepTj {{0, 0}};
     // and the index of the point on that Tj
     std::array<unsigned short, 2> minsepPt;
     // determine the end of the closest Tj point. Start by assuming
@@ -3482,8 +3482,8 @@ namespace tca {
     // The TP Pos[0] is set to a negative number if the point has an invalid wire position but doesn't return an
     // error if the position is on a dead wire. The projection of the direction vector in CTP is stored in tp.Delta.
     TrajPoint tp;
-    tp.Pos = {0,0};
-    tp.Dir = {0,1};
+    tp.Pos = {{0,0}};
+    tp.Dir = {{0,1}};
     tp.CTP = inCTP;
     geo::PlaneID planeID = DecodeCTP(inCTP);
     
