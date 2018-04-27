@@ -316,7 +316,6 @@ namespace tca {
     GetHitCollection(evt);
     if(tjs.fHits.empty()) return;
     
-    if(fStudyMode) tm.StudyPiZeros(hist);
     if(fMode == 0) return;
 
     // check for debugging mode triggered by Plane, Wire, Tick
@@ -408,7 +407,7 @@ namespace tca {
         // Fill tjs.mallTraj and tjs.MatchVec
         bool prt = (debug.Plane >= 0) && (debug.Tick == 3333);
         FillmAllTraj(tjs, tpcid);
-        FindPFParticles("RTCA0", tjs, tpcid, prt);
+        FindPFParticles(tjs, tpcid, prt);
         DefinePFPParents(tjs, tpcid, prt);
         if(tjs.TagCosmics) {
           for(auto& pfp : tjs.pfps) {
@@ -460,7 +459,7 @@ namespace tca {
     if(tjs.ShowerTag[0] > 1 && tjs.ShowerTag[12] < tjs.NumPlanes) debug.Plane = tjs.ShowerTag[12];
     if(fDebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
-      PrintPFPs("RTC", tjs);
+      if(tjs.Match3DCuts[0] > 0) PrintPFPs("RTC", tjs);
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
     }
 
