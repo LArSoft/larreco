@@ -477,6 +477,7 @@ namespace tca {
       if(p1.TPCID != tpcid) continue;
       // ignore neutrinos
       if(p1.PDGCode == 14 || p1.PDGCode == 12) continue;
+      if(p1.TjIDs.empty()) continue;
       bool p1TrackLike = (MCSMom(tjs, p1.TjIDs) > tjs.ShowerTag[1]);
       for(unsigned short jp = ip + 1; jp < tjs.pfps.size(); ++jp) {
         auto& p2 = tjs.pfps[jp];
@@ -484,6 +485,7 @@ namespace tca {
         if(p2.TPCID != tpcid) continue;
         // ignore neutrinos
         if(p2.PDGCode == 14 || p2.PDGCode == 12) continue;
+        if(p2.TjIDs.empty()) continue;
         bool p2TrackLike = (MCSMom(tjs, p2.TjIDs) > tjs.ShowerTag[1]);
         // require one of them to be not tracklike
         if(p1TrackLike && p2TrackLike) continue;
@@ -525,7 +527,7 @@ namespace tca {
       int pid1 = pfpList[ii];
       auto& p1 = tjs.pfps[pid1 - 1];
       float p1Len = PosSep(p1.XYZ[0], p1.XYZ[1]);
-//      std::cout<<ii<<" P"<<pid1<<" len "<<p1Len<<"\n";
+      std::cout<<ii<<" P"<<pid1<<" len "<<p1Len<<"\n";
       std::vector<unsigned short> plist;
       plist.push_back(pid1);
       // try to add ids to the list
@@ -553,12 +555,12 @@ namespace tca {
             if(oid == pid2) oid = pcp.id2;
             auto opfp = tjs.pfps[oid - 1];
             float pcpLen = PosSep(opfp.XYZ[0], opfp.XYZ[1]);
-//            std::cout<<"pid1 P"<<pid1<<" pid2 P"<<pid2<<" oid P"<<oid<<"\n";
+            std::cout<<"pid1 P"<<pid1<<" pid2 P"<<pid2<<" oid P"<<oid<<"\n";
             if(pcp.doca < cp.doca && pcpLen > 5) isCloser = true;
           } // kk
           if(isCloser) continue;
           if(std::find(plist.begin(), plist.end(), pid2) != plist.end()) continue;
-//          std::cout<<"  add P"<<pid2<<" doca "<<cp.doca<<" dang "<<dang<<"\n";
+          std::cout<<"  add P"<<pid2<<" doca "<<cp.doca<<" dang "<<dang<<"\n";
           plist.push_back(pid2);
           // call it used
           cp.used = true;
@@ -1593,12 +1595,13 @@ namespace tca {
     if(shPFP.Tp3s.empty()) return false;
     // Initialize and pass dummy variables
     Point3_t dump;
-    Fit3D(0, dump, shPFP.XYZ[0], shPFP.Dir[0]);
+    Vector3_t dumd;
+    Fit3D(0, dump, dumd, dump, dumd);
     // Fill the fit sums
     for(auto& tp3 : shPFP.Tp3s) {
-      Fit3D(1, tp3.Pos, shPFP.XYZ[0], shPFP.Dir[0]);
+      Fit3D(1, tp3.Pos, tp3.Dir, dump, dumd);
     } // tp3
-    Fit3D(2, dump, shPFP.XYZ[0], shPFP.Dir[0]);
+    Fit3D(2, dump, dumd, shPFP.XYZ[0], shPFP.Dir[0]);
     for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) ss3.Energy[plane] = ChgToMeV(chgSum[plane]);
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -1614,16 +1617,9 @@ namespace tca {
     double minAlong = 1E6;
     double maxAlong = -1E6;
     for(auto& tp3 : shPFP.Tp3s) {
-      double sep = PosSep(ss3.ChgPos, tp3.Pos);
-      auto dir = PointDirection(ss3.ChgPos, tp3.Pos);
-      double costh = DotProd(ss3.Dir, dir);
-      double along = costh * sep;
-      double sinth = sqrt(1 - costh * costh);
-      double trans = sinth * sep;
-      tp3.dEdxErr = along;
-      tp3.Trans = trans;
-      if(along < minAlong) minAlong = along;
-      if(along > maxAlong) maxAlong = along;
+      FindAlongTrans(ss3.ChgPos, ss3.Dir, tp3.Pos, tp3.AlongTrans);
+      if(tp3.AlongTrans[0] < minAlong) minAlong = tp3.AlongTrans[0];
+      if(tp3.AlongTrans[0] > maxAlong) maxAlong = tp3.AlongTrans[0];
     } // tp3
     // set the start and end positions
     for(unsigned short xyz = 0; xyz < 3; ++xyz) {
@@ -1636,13 +1632,11 @@ namespace tca {
     std::vector<double> sumt(3);
     std::vector<double> suml(3);
     for(auto& tp3 : shPFP.Tp3s) {
-      double along = tp3.dEdxErr;
-      double trans = tp3.Trans;
-      unsigned short section = 3 * (along - minAlong) / ss3.Len;
+      unsigned short section = 3 * (tp3.AlongTrans[0] - minAlong) / ss3.Len;
       if(section > 2) section = 2;
       chg[section] += tp3.dEdx;
-      sumt[section] += tp3.dEdx * trans;
-      suml[section] += tp3.dEdx * along;
+      suml[section] += tp3.dEdx * tp3.AlongTrans[0];
+      sumt[section] += tp3.dEdx * tp3.AlongTrans[1];
     } // tp3
     // something is wrong if there is no charge in any section
     if(chg[0] == 0 || chg[1] == 0 || chg[2] == 0) return false;
@@ -1753,30 +1747,24 @@ namespace tca {
     // determine the separations that define the section boundaries
     double sec1 = ss3.Len / 3;
     double sec2 = 2 * ss3.Len / 3;
+    Point2_t alongTran;
     for(auto& tp3 : shPFP.Tp3s) {
       if(tp3.dEdx <= 0) {
         std::cout<<"Ooops. No charge in Tp3\n";
         return false;
       }
-      double sep = PosSep(ss3.Start, tp3.Pos);
-      // find the direction vector between this Tp3 and the shower start
-      Vector3_t dir = PointDirection(ss3.Start, tp3.Pos);
-      double costh = std::abs(DotProd(ss3.Dir, dir));
-      // the distance along the axis
-      double along = costh * sep;
-      double sinth = sqrt(1 - costh * costh);
-      // and transverse to the axis
-      double trans = sinth * sep;
+      // Find the longitudinal and transverse distance from the shower start to the tp3
+      FindAlongTrans(ss3.Start, ss3.Dir, tp3.Pos, alongTran);
       // determine which section this is in
       unsigned short section = 0;
-      if(along > sec2) {
+      if(alongTran[0] > sec2) {
         section = 2;
-      } else if(along > sec1) {
+      } else if(alongTran[0] > sec1) {
         section = 1;
       }
       chg[section] += tp3.dEdx;
-      sumt[section] += tp3.dEdx * trans;
-      suml[section] += tp3.dEdx * along;
+      suml[section] += tp3.dEdx * alongTran[0];
+      sumt[section] += tp3.dEdx * alongTran[1];
     } // tp3
     // something is wrong if there is no charge in the end sections
     if(chg[0] == 0 || chg[2] == 0) return false;
@@ -2447,14 +2435,10 @@ namespace tca {
     if(cnt == 0) return 0;
     energy /= cnt;
     mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" energy "<<energy;
+    Point2_t alongTrans;
     for(unsigned short end = 0; end < 2; ++end) {
-      Vector3_t dir = PointDirection(ss3.Start, pfp.XYZ[end]);
-      double sep = PosSep(ss3.Start, pfp.XYZ[end]);
-      double costh = DotProd(ss3.Dir, dir);
-      double along = costh * sep;
-      double sinth = sqrt(1 - costh * costh);
-      double trans = sinth * sep;
-      mf::LogVerbatim("TC")<<" P"<<pfp.ID<<" end "<<end<<" prob "<<InShowerProbParam(energy, along, trans);
+      FindAlongTrans(ss3.Start, ss3.Dir, pfp.XYZ[end], alongTrans);
+      mf::LogVerbatim("TC")<<" P"<<pfp.ID<<" end "<<end<<" prob "<<InShowerProbParam(energy, alongTrans[0], alongTrans[1]);
     } // end
     return 0;
 /*
