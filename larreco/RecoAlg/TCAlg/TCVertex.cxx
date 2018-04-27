@@ -372,7 +372,7 @@ namespace tca {
     
   } // Find2DVertices
 
-  
+/*
   //////////////////////////////////////////
   void FindNeutralVertices(TjStuff& tjs, const geo::TPCID& tpcid)
   {
@@ -404,7 +404,6 @@ namespace tca {
     neutVxStruct nvxs;
     nvxs.tps.resize(2);
     nvxs.used = false;
-    
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       auto& tj1 = tjs.allTraj[it1];
       if(tj1.AlgMod[kKilled]) continue;
@@ -489,7 +488,7 @@ namespace tca {
             nvxs.vx2.ID = 666;
             nvxs.tps[0] = tp1;
             nvxs.tps[1] = tp2;
-            if(!FitVertex(tjs, nvxs.vx2, nvxs.tps, prt)) continue;
+            if(!FitVertex(tjs, nvxs.vx2, nvxs.tps, false)) continue;
             nvxss[plane].push_back(nvxs);
           } // end2
         } // it2
@@ -502,10 +501,6 @@ namespace tca {
       std::vector<neutVxStruct> nvxss;
     };
     std::vector<neutVx3DStruct> nvx3Dss;
-    // make a template
-    neutVx3DStruct nvx3Ds;
-    nvx3Ds.vx3.TPCID = tpcid;
-    nvx3Ds.vx3.Wire = -1;
     
     for(unsigned short plane1 = 0; plane1 < tjs.NumPlanes - 1; ++plane1) {
       for(auto& nvxs1 : nvxss[plane1]) {
@@ -516,6 +511,7 @@ namespace tca {
         for(unsigned short plane2 = plane1 + 1; plane2 < tjs.NumPlanes; ++plane2) {
           for(auto& nvxs2 : nvxss[plane2]) {
             if(nvxs2.used) continue;
+            if(nvxs1.used) break;
             auto& vxpos2 = nvxs2.vx2.Pos;
             unsigned int wire2 = vxpos2[0];
             float x2 = tjs.detprop->ConvertTicksToX(vxpos2[1] / tjs.UnitsPerTick, plane2, (int)tpc, (int)cstat);
@@ -552,7 +548,9 @@ namespace tca {
             if(indx3 < nvxss[plane3].size()) {
               auto& nvxs3 = nvxss[plane3][indx3];
               // TODO: average the vertex position
-              // populate the template
+              neutVx3DStruct nvx3Ds;
+              nvx3Ds.vx3.TPCID = tpcid;
+              nvx3Ds.vx3.Wire = -1;
               nvx3Ds.vx3.X = x;
               nvx3Ds.vx3.Y = y;
               nvx3Ds.vx3.Z = z;
@@ -570,6 +568,7 @@ namespace tca {
                 myprt<<"FNV:    maxSep3 "<<(int)maxSep3;
                 for(auto& tp3 : nvxs3.tps) myprt<<" 2T"<<tp3.Step<<"_"<<tp3.AngleCode;
               } // prt
+              break;
             } // indx3 < nvxss[plane3].size()
           } // nvx2
         } // plane2
@@ -578,10 +577,29 @@ namespace tca {
     
     if(nvx3Dss.empty()) return;
     
+    for(unsigned short cnt = 0; cnt < nvx3Dss.size(); ++cnt) {
+      auto& nvx3Ds = nvx3Dss[cnt];
+      std::cout<<"cnt "<<cnt;
+      std::cout<<std::fixed<<std::setprecision(1);
+      std::cout<<" "<<nvx3Ds.vx3.X<<" "<<nvx3Ds.vx3.Y<<" "<<nvx3Ds.vx3.Z;
+      std::cout<<"\n";
+      for(unsigned short ii = 0; ii < nvx3Ds.nvxss.size(); ++ii) {
+        auto& nvxs = nvx3Ds.nvxss[ii];
+        std::cout<<" 2V ii"<<ii;
+        for(auto& tp : nvxs.tps) {
+          std::cout<<" T"<<tp.Step<<"_"<<tp.AngleCode;
+        } // tp
+        std::cout<<"\n";
+      } // nvxs
+    } // nvx3Ds
+    
+    std::cout<<"nvx3Dss size "<<nvx3Dss.size()<<"\n";
     // put the vertices into tjs
     for(auto& nvx3Ds : nvx3Dss) {
       nvx3Ds.vx3.ID = tjs.vtx3.size() + 1;
       // stash the 2D vertices
+      bool success = true;
+      std::vector<unsigned short> vx2Stored;
       for(auto& nvxs : nvx3Ds.nvxss) {
         nvxs.vx2.ID = tjs.vtx.size() + 1;
         nvxs.vx2.NTraj = nvxs.tps.size();
@@ -591,12 +609,15 @@ namespace tca {
         nvxs.vx2.Score = 100;
         if(!StoreVertex(tjs, nvxs.vx2)) {
           if(prt) std::cout<<"FNV: StoreVertex failed\n";
+          success = false;
           continue;
         }
+        vx2Stored.push_back(nvxs.vx2.ID);
         // associate it with the 3D vertex
         unsigned short plane = DecodeCTP(nvxs.vx2.CTP).Plane;
         if(nvx3Ds.vx3.Vx2ID[plane] > 0) {
           if(prt) std::cout<<"FNV: Error 3V"<<nvx3Ds.vx3.ID<<" is already attached to 2V"<<nvx3Ds.vx3.Vx2ID[plane]<<"\n";
+          success = false;
           continue;
         }
         nvx3Ds.vx3.Vx2ID[plane] = nvxs.vx2.ID;
@@ -606,6 +627,7 @@ namespace tca {
           unsigned short end = tp.AngleCode;
           if(tj.VtxID[end] > 0) {
             if(prt) std::cout<<"FNV: Error T"<<tj.ID<<"_"<<end<<" is already attached to 2V"<<tj.VtxID[end]<<"\n";
+            success = false;
             continue;
           }
           tj.VtxID[end] = nvxs.vx2.ID;
@@ -613,6 +635,14 @@ namespace tca {
           tj.AlgMod[kPhoton] = true;
         } // tp
       } // nvxs
+      if(!success) {
+        for(auto vx2id : vx2Stored) {
+          auto& vx2 = tjs.vtx[vx2id - 1];
+          if(prt) std::cout<<" store failed. Killing 2V"<<vx2.ID<<"\n";
+          MakeVertexObsolete(tjs, vx2, true);
+        } // vx2i
+        continue;
+      }
       nvx3Ds.vx3.Score = 100;
       mf::LogVerbatim("TC")<<"FNV: 3V"<<nvx3Ds.vx3.ID<<" events processed "<<tjs.EventsProcessed;
       tjs.vtx3.push_back(nvx3Ds.vx3);
@@ -621,7 +651,7 @@ namespace tca {
 //    PrintAllTraj("FNV", tjs, debug, USHRT_MAX, 0);
 
   } // FindNeutralVertices
-
+*/
   //////////////////////////////////////////
   bool MergeWithVertex(TjStuff& tjs, VtxStore& vx, unsigned short oVxID, bool prt)
   {
@@ -1560,7 +1590,8 @@ namespace tca {
       SetVx3Score(tjs, vx3, prt);
     } // vx3
     
-    FindNeutralVertices(tjs, tpcid);
+    // This should be done after 3D matching
+//    FindNeutralVertices(tjs, tpcid);
 
   } // Find3DVertices
 
@@ -1585,11 +1616,13 @@ namespace tca {
       auto v3TjIDs = GetVtxTjIDs(tjs, vx3, score);
       if(v3TjIDs.empty()) continue;
       if(score < tjs.Vertex2DCuts[7]) continue;
+/*
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"M3DVTj 3V"<<vx3.ID<<" score "<<score<<" TjIDs";
         for(auto& tjID : v3TjIDs) myprt<<" T"<<std::to_string(tjID);
       }
+*/
       SortEntry se;
       se.index = iv3;
       se.val = score;
@@ -1605,33 +1638,34 @@ namespace tca {
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"M3DVTj 3V"<<vx3.ID<<" score "<<score<<" Tjs";
-        for(auto& tjID : v3TjIDs) myprt<<" "<<tjID;
+        for(auto& tjID : v3TjIDs) myprt<<" T"<<tjID;
       }
       for(unsigned int ims = 0; ims < tjs.matchVec.size(); ++ims) {
         auto& ms = tjs.matchVec[ims];
         if(ms.Count == 0) continue;
         bool skipit = false;
-        // count inShower
-        unsigned short cnt = 0;
         for(auto tjid : ms.TjIDs) {
           auto& tj = tjs.allTraj[tjid - 1];
           if(tj.AlgMod[kMat3D]) skipit = true;
           if(tj.AlgMod[kKilled]) skipit = true;
-          if(tj.AlgMod[kInShower]) ++cnt;
         }
         if(skipit) continue;
-        // require all not-InShower or all InShower
-        if(cnt > 0 && cnt < ms.TjIDs.size()) continue;
         std::vector<int> shared = SetIntersection(ms.TjIDs, v3TjIDs);
         if(shared.size() < 2) continue;
         if(prt) mf::LogVerbatim("TC")<<" ims "<<ims<<" shared size "<<shared.size();
         PFPStruct pfp = CreatePFP(tjs, tpcid);
         pfp.TjIDs = ms.TjIDs;
         pfp.Vx3ID[0] = vx3.ID;
-        if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp P"<<pfp.ID<<" 3V"<<vx3.ID;
+        // note that the ms position is the average position of all 3D matched Tp3s at this point.
+        // It is not the start position. This will be determined in DefinePFP.
+        pfp.XYZ[0] = ms.Pos;
+        pfp.Dir[0] = ms.Dir;
         pfp.MatchVecIndex = ims;
+        if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp P"<<pfp.ID<<" 3V"<<vx3.ID<<" ims "<<ims;
         // Set the PDGCode so DefinePFP can ignore incompatible matches
         pfp.PDGCode = PDGCodeVote(tjs, pfp.TjIDs, prt);
+        // make a copy of the TjIDs to test for changes
+        auto saveTjIDs = pfp.TjIDs;
         if(!DefinePFP("M3DVTj1", tjs, pfp, prt)) continue;
         // separation distance (cm) for kink detection.
         double sep = 1;
@@ -1644,21 +1678,30 @@ namespace tca {
         }
         AnalyzePFP(tjs, pfp, prt);
         if(!StorePFP(tjs, pfp)) continue;
+        if(pfp.TjIDs != saveTjIDs) {
+          // v3TjIDs is wrong if Tjs were merged so re-make it.
+          auto tmp = GetVtxTjIDs(tjs, vx3, score);
+          v3TjIDs.clear();
+          // then re-build it
+          for(auto tjid : tmp) {
+            auto& tj = tjs.allTraj[tjid - 1];
+            if(!tj.AlgMod[kMat3D]) v3TjIDs.push_back(tjid);
+          } // tjid
+          if(v3TjIDs.size() < 2) break;
+        } // pfp.TjIDs != saveTjIDs
         ms.Count = 0;
         // clobber MatchStructs that use the Tjs in this pfp
         for(auto& allms : tjs.matchVec) {
-          auto shared = SetIntersection(allms.TjIDs, pfp.TjIDs);
-          if(!shared.empty()) allms.Count = 0;
+          auto mfpfp = SetIntersection(allms.TjIDs, pfp.TjIDs);
+          if(!mfpfp.empty()) allms.Count = 0;
         } // allms
-        std::vector<int> leftover = SetDifference(v3TjIDs, shared);
+        auto leftover = SetDifference(v3TjIDs, pfp.TjIDs);
         if(prt) {
           mf::LogVerbatim myprt("TC");
-          myprt<<" perfect match with ims "<<ims<<" TjIDs";
-          for(auto tjid : ms.TjIDs) myprt<<" "<<tjid;
           myprt<<" leftover";
-          for(auto tjid : leftover) myprt<<" "<<tjid;
+          for(auto tjid : leftover) myprt<<" T"<<tjid;
         }
-        if(leftover.empty()) break;
+        if(leftover.size() < 2) break;
         // keep looking using the leftovers
         v3TjIDs = leftover;
       } // ims
