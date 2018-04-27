@@ -4547,7 +4547,7 @@ namespace tca {
     }
     if(!pfp.DtrIDs.empty()) {
       myprt<<" dtrs";
-      for(auto& dtrID : pfp.DtrIDs) myprt<<" T"<<dtrID;
+      for(auto& dtrID : pfp.DtrIDs) myprt<<" P"<<dtrID;
     }
   } // PrintPFP
   
