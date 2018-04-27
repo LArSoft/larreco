@@ -137,10 +137,6 @@ namespace tca {
     unsigned int ntp = 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
-      // don't match InShower Tjs
-//      if(tj.AlgMod[kInShower]) continue;
-      // or Shower Tjs
-//      if(tj.AlgMod[kShowerTj]) continue;
       if(tj.ID <= 0) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
@@ -156,10 +152,6 @@ namespace tca {
     unsigned int icnt = 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.AlgMod[kKilled]) continue;
-      // don't match shower-like Tjs
-//      if(tj.AlgMod[kInShower]) continue;
-      // or Shower Tjs
-//      if(tj.AlgMod[kShowerTj]) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
       if((int)planeID.TPC != tpc) continue;
@@ -189,7 +181,6 @@ namespace tca {
         tjs.mallTraj[icnt].ipt = ipt;
         tjs.mallTraj[icnt].npts = tj.EndPt[1] - tj.EndPt[0] + 1;
         tjs.mallTraj[icnt].score = score;
-        tjs.mallTraj[icnt].inShower = tj.AlgMod[kInShower];
         ++icnt;
       } // tp
     } // tj
@@ -258,18 +249,19 @@ namespace tca {
   } // AttachVertices
 
   /////////////////////////////////////////
-  bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt)
+  bool SetStart(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // Analyzes the space point collection and the Tjs in the pfp to find a new start
     // position. The Tp3s found in FindCompleteness are ordered by increasing X. The general direction 
     // pfp.Dir[0] and the average position of all points in Tp3s was stored in pfp.XYZ[0]. This function
     // rotates each tp3 into this coordinate system to determine (along, trans) for each point. The min (max)
-    // value of along defines the start (end) of the trajectory. The along coordinate is stashed in the
-    // pfp dEdxErr variable for use later on.
+    // value of along defines the start (end) of the trajectory.
+    
     if(pfp.ID == 0 || pfp.TjIDs.empty()) return false;
     if(pfp.Tp3s.size() < 2) return false;
 
-    // find the projection along the general direction relative to the average position
+    // The projection along the general direction relative to the average position was found
+    // in FillCompleteness. Now 
     float minAlong = 1E6;
     unsigned short minPt = 0;
     float maxAlong = -1E6;
@@ -277,19 +269,15 @@ namespace tca {
     std::vector<SortEntry> sortVec(pfp.Tp3s.size());
     for(unsigned short ipt = 0; ipt < pfp.Tp3s.size(); ++ipt) {
       auto& tp3 = pfp.Tp3s[ipt];
-      auto ptDir = PointDirection(pfp.XYZ[0], tp3.Pos);
-      double along = DotProd(pfp.Dir[0], ptDir) * PosSep(pfp.XYZ[0], tp3.Pos);
-      // stash along in dEdxErr for later use
       sortVec[ipt].index = ipt;
-      sortVec[ipt].val = along;
-      tp3.dEdxErr = along;
+      sortVec[ipt].val = tp3.AlongTrans[0];
       // find the min (max) 
-      if(tp3.dEdxErr < minAlong) {
-        minAlong = tp3.dEdxErr;
+      if(tp3.AlongTrans[0] < minAlong) {
+        minAlong = tp3.AlongTrans[0];
         minPt = ipt;
       }
-      if(tp3.dEdxErr > maxAlong) {
-        maxAlong = tp3.dEdxErr;
+      if(tp3.AlongTrans[0] > maxAlong) {
+        maxAlong = tp3.AlongTrans[0];
         maxPt = ipt;
       }
     } // tp3
@@ -298,7 +286,7 @@ namespace tca {
     pfp.XYZ[1] = pfp.Tp3s[maxPt].Pos;
 
     if(prt) {
-      mf::LogVerbatim("TC")<<"SNS: P"<<pfp.ID<<" minPt "<<minPt<<" maxPt "<<maxPt;
+      mf::LogVerbatim("TC")<<"SNS: P"<<pfp.ID<<" minPt "<<minPt<<" maxPt "<<maxPt<<" dir "<<std::fixed<<std::setprecision(2)<<pfp.Dir[0][0]<<" "<<pfp.Dir[0][1]<<" "<<pfp.Dir[0][2];
       PrintTp3("minPt", tjs, pfp.Tp3s[minPt]);
       PrintTp3("maxPt", tjs, pfp.Tp3s[maxPt]);
     }
@@ -308,10 +296,11 @@ namespace tca {
     std::vector<TrajPoint3> temp;
     for(unsigned short ii = 0; ii < sortVec.size(); ++ii) temp.push_back(pfp.Tp3s[sortVec[ii].index]);
     pfp.Tp3s = temp;
+//    PrintTp3s("SNS", tjs, pfp, -1);
 
     return true;
     
-  } // SetNewStart
+  } // SetStart
 
   /////////////////////////////////////////
   void SetEndVx(TjStuff& tjs, PFPStruct& pfp, unsigned short atEnd, bool prt)
@@ -413,7 +402,7 @@ namespace tca {
     // divide the trajectory in 5 cm long sections. The average position of the Tp3s in
     // each section will be found. Tp3s 
     constexpr float sectionLen = 5;
-    float endPathLen = sectionLen;
+    float endAlong = pfp.Tp3s[0].AlongTrans[0] + sectionLen;
     std::vector<Vector3_t> sectionPos;
     sectionPos.push_back(pfp.Tp3s[0].Pos);
     std::vector<unsigned short> sectionPt;
@@ -421,14 +410,20 @@ namespace tca {
     for(unsigned short section = 0; section < 100; ++section) {
       // a point to find the average position in this section
       Point3_t avePos {{0,0,0}};
+      Vector3_t aveDir {{0,0,0}};
       unsigned short cnt = 0;
       for(unsigned short ipt = startPt; ipt < endPt; ++ipt) {
         auto& tp3 = pfp.Tp3s[ipt];
         // The path length along the direction vector from the start point to the end
         // point was stashed in dEdxErr 
-        if(tp3.dEdxErr < endPathLen) {
+        // remove outliers
+        if(tp3.AlongTrans[1] > 2) continue;
+        if(tp3.AlongTrans[0] < endAlong) {
           // still in the same section - sum and continue
-          for(unsigned short xyz = 0; xyz < 3; ++xyz) avePos[xyz] += tp3.Pos[xyz];
+          for(unsigned short xyz = 0; xyz < 3; ++xyz) {
+            avePos[xyz] += tp3.Pos[xyz];
+            aveDir[xyz] += tp3.Dir[xyz];
+          }
           ++cnt;
           continue;
         }
@@ -436,12 +431,16 @@ namespace tca {
         if(cnt == 0) continue;
         // calculate the average position
         for(unsigned short xyz = 0; xyz < 3; ++xyz) avePos[xyz] /= cnt;
-//        std::cout<<"Section "<<section<<" cnt "<<cnt<<" pos"<<std::fixed<<std::setprecision(1);
-//        std::cout<<" "<<avePos[0]<<" "<<avePos[1]<<" "<<avePos[2]<<"\n";
+        SetMag(aveDir, 1);
+/*
+        std::cout<<"Section "<<section<<" cnt "<<cnt<<" avePos"<<std::fixed<<std::setprecision(1);
+        std::cout<<" "<<avePos[0]<<" "<<avePos[1]<<" "<<avePos[2];
+        std::cout<<" aveDir "<<std::setprecision(2)<<aveDir[0]<<" "<<aveDir[1]<<" "<<aveDir[2]<<"\n";
+*/
         sectionPos.push_back(avePos);
         sectionPt.push_back(ipt);
         startPt = ipt;
-        endPathLen += sectionLen;
+        endAlong += sectionLen;
         break;
       } // ipt
     } // section
@@ -473,11 +472,12 @@ namespace tca {
     for(unsigned short section = 1; section < sectionPt.size(); ++section) {
       Point3_t startPos = sectionPos[section - 1];
       Point3_t endPos = sectionPos[section];
-      auto dir = PointDirection(startPos, endPos);
+      auto startDir = PointDirection(startPos, endPos);
       // define the pfp start direction
-      if(section == 1) pfp.Dir[0] = dir;
+      if(section == 1) pfp.Dir[0] = startDir;
       // and the end direction
-      pfp.Dir[1] = dir;
+      pfp.Dir[1] = startDir;
+//      std::cout<<"Section "<<section<<" startDir "<<std::fixed<<std::setprecision(2)<<startDir[0]<<" "<<startDir[1]<<" "<<startDir[2]<<"\n";
       // define the 2D positions for this point in each plane
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
         geo::PlaneID planeID = geo::PlaneID(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
@@ -497,21 +497,17 @@ namespace tca {
           if(sep2D > sectionLen) big2DSep = true;
         } // tj2pt
         if(big2DSep || nused > 1) continue;
-        double sep = PosSep(startPos, tp3.Pos);
-        auto ptDir = PointDirection(startPos, tp3.Pos);
-        double costh = DotProd(dir, ptDir);
-        if(costh < 0) continue;
-        double sinth = sqrt(1 - costh * costh);
-        double trans = sinth * sep;
-        // cut on the transverse separation (cm)
-        if(trans > 0.5) continue;
+        Point2_t alongTrans;
+        FindAlongTrans(startPos, startDir, tp3.Pos, alongTrans);
+        if(alongTrans[1] > 0.5) continue;
 /*
-        std::cout<<section<<" ipt "<<ipt<<" trans "<<trans<<" tj_ipt";
+        std::cout<<section<<" ipt "<<ipt<<" trans "<<alongTrans[1]<<" tj_ipt";
         for(auto tj2pt : tp3.Tj2Pts) std::cout<<" "<<tj2pt.id - 1<<"_"<<tj2pt.ipt;
         std::cout<<"\n";
 */
-        tp3.Trans = trans;
-        tp3.Dir = dir;
+        tp3.AlongTrans = alongTrans;
+        // don't clobber the original direction
+//        tp3.Dir = dir;
         ntp3.push_back(tp3);
         // set the flag
         for(auto tj2pt : tp3.Tj2Pts) tjs.allTraj[tj2pt.id - 1].Pts[tj2pt.ipt].Environment[kEnvFlag] = true;
@@ -526,8 +522,17 @@ namespace tca {
       mf::LogVerbatim("TC")<<"FollowTp3s: Tp3s size in "<<pfp.Tp3s.size()<<" size out "<<ntp3.size()<<" len "<<std::fixed<<std::setprecision(2)<<len;
     }
     
+    // reverse if necessary to be consistent with a vertex
+    if(pfp.Vx3ID[0] > 0) {
+      auto& vx3 = tjs.vtx3[pfp.Vx3ID[0] - 1];
+      Point3_t vpos = {{vx3.X, vx3.Y, vx3.Z}};
+      auto& firstTp3Pos = ntp3[0].Pos;
+      auto& lastTp3Pos = ntp3[ntp3.size() - 1].Pos;
+      if(PosSep2(lastTp3Pos, vpos) < PosSep2(firstTp3Pos, vpos)) std::reverse(ntp3.begin(), ntp3.end());
+    } // pfp.Vx3ID[0] > 0
+    
     pfp.Tp3s = ntp3;
-    // The directions wer set above. Set the start and end positions. Note that the start position
+    // The directions were set above. Set the start and end positions. Note that the start position
     // may have been previously determined by a vertex but that is now superseded by the actual start
     // of the pfp
     pfp.XYZ[0] = ntp3[0].Pos;
@@ -760,7 +765,6 @@ namespace tca {
     if(tjs.Match3DCuts[0] <= 0) return;
     // This function uses mallTraj but it isn't necessarily a failure if it doesn't exist
     if(tjs.mallTraj.size() < 6) return;
-    if(tjs.NumPlanes < 3) return;
 
     pfp.TjCompleteness.resize(pfp.TjIDs.size());
     std::fill(pfp.TjCompleteness.begin(), pfp.TjCompleteness.end(), 0);
@@ -768,11 +772,18 @@ namespace tca {
 
     bool twoPlanes = (tjs.NumPlanes == 2);
     bool twoTjs = (pfp.TjIDs.size() == 2);
+    // decide if special handling of small angle pfps is required when filling Tp3s
+    bool smallAngle = false;
+    if(fillTp3s) {
+      smallAngle = (pfp.Dir[0][0] != 0 && std::abs(pfp.Dir[0][0]) < 0.1);
+      if(pfp.Dir[0][0] == 0) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
+    }
     double yzcut = 1.5 * tjs.Match3DCuts[0];
     
     // initialize the fit sums
     Point3_t point;
-    if(doFit) Fit3D(0, point, pfp.XYZ[0], pfp.Dir[0]);
+    Vector3_t dir;
+    if(doFit) Fit3D(0, point, dir, point, dir);
     
     // create a vector of bools for each tj for points that are matched in 3D 
     // cast the IDs into an unsigned short for faster comparing
@@ -784,7 +795,7 @@ namespace tca {
     // and the plane index
     std::vector<unsigned short> tjplane;
     // Set a maximum size for the TP3s vector
-    unsigned int maxTp3Size = 0;
+    unsigned int maxTp3Size = 10000;
     // Initialize the vectors
     for(unsigned short itj = 0; itj < pfp.TjIDs.size(); ++itj) {
       if(pfp.TjIDs[itj] <= 0) {
@@ -793,16 +804,11 @@ namespace tca {
       }
       tjids[itj] = pfp.TjIDs[itj];
       auto& tj = tjs.allTraj[pfp.TjIDs[itj] - 1];
-      // allow each point to be matched no more than N times
-      maxTp3Size += 10 * (tj.EndPt[1] - tj.EndPt[0] + 1);
       std::vector<bool> tmp(tj.Pts.size(), false);
       tjptMat2.push_back(tmp);
       if(!twoPlanes) tjptMat3.push_back(tmp);
       tjplane.push_back(DecodeCTP(tj.CTP).Plane);
     } // tjid
-    if(maxTp3Size < 100) maxTp3Size = 100;
-    // count of triple matches on dead wires in the 3rd plane
-//    std::vector<unsigned short> deadCnt(pfp.TjIDs.size());
     
     for(unsigned int ipt = 0; ipt < tjs.mallTraj.size() - 1; ++ipt) {
       auto& iTjPt = tjs.mallTraj[ipt];
@@ -839,22 +845,31 @@ namespace tca {
         // Set the 2-plane match bits
         tjptMat2[indx][iTjPt.ipt] = true;
         tjptMat2[jndx][jTjPt.ipt] = true;
-        if(twoPlanes) continue;
+        if(twoPlanes) {
+          if(fillTp3s && pfp.Tp3s.size() < maxTp3Size) {
+            bool saveIt = true;
+            FindAlongTrans(pfp.XYZ[0], pfp.Dir[0], ijtp3.Pos, ijtp3.AlongTrans);
+            // cut on transverse distance
+            if(smallAngle) saveIt = ijtp3.AlongTrans[1] < 1;
+            if(saveIt) pfp.Tp3s.push_back(ijtp3);
+          }
+          if(doFit) Fit3D(1, ijtp3.Pos, ijtp3.Dir, point, dir);
+          continue;
+        }
         // count it as a triple if this point is in a dead region
         unsigned short jplane = DecodeCTP(jtp.CTP).Plane;
         unsigned short kplane = 3 - iplane - jplane;
         unsigned int kwire = std::nearbyint(tjs.geom->WireCoordinate(ijtp3.Pos[1], ijtp3.Pos[2], kplane, tpc, cstat));
         if(kwire < tjs.WireHitRange[kplane].size() && tjs.WireHitRange[kplane][kwire].first == -1) {
-/*
-          unsigned short kndx = 0;
-          for(kndx = 0; kndx < tjplane.size(); ++kndx) if(kplane == tjplane[kndx]) break;
-          if(kndx == deadCnt.size()) continue;
-          ++deadCnt[kndx];
-*/
-          // accumulate the fit sums?
-          if(doFit) Fit3D(1, ijtp3.Pos, pfp.XYZ[0], pfp.Dir[0]);
+          // accumulate the fit sums
+          if(doFit) Fit3D(1, ijtp3.Pos, ijtp3.Dir, point, dir);
           // fill Tp3s?
-          if(fillTp3s && pfp.Tp3s.size() < maxTp3Size) pfp.Tp3s.push_back(ijtp3);
+          if(fillTp3s && pfp.Tp3s.size() < maxTp3Size) {
+            bool saveIt = true;
+            FindAlongTrans(pfp.XYZ[0], pfp.Dir[0], ijtp3.Pos, ijtp3.AlongTrans);
+            if(smallAngle) saveIt = ijtp3.AlongTrans[1] < 1;
+            if(saveIt) pfp.Tp3s.push_back(ijtp3);
+          }
           continue;
         } // dead wire in kplane
         for(unsigned int kpt = jpt + 1; kpt < tjs.mallTraj.size(); ++kpt) {
@@ -881,12 +896,15 @@ namespace tca {
           // add the Tj2Pt to it
           ijktp3.Tj2Pts.push_back(kTjPt);
           // accumulate the fit sums
-          if(doFit) Fit3D(1, iktp3.Pos, pfp.XYZ[0], pfp.Dir[0]);
+          if(doFit) Fit3D(1, iktp3.Pos, iktp3.Dir, point, dir);
           // fill Tp3s?
           if(fillTp3s && pfp.Tp3s.size() < maxTp3Size) {
             // update the charge
             ijktp3.dEdx = (2 * ijktp3.dEdx + ktp.Chg) / 3;
-            pfp.Tp3s.push_back(ijktp3);
+            bool saveIt = true;
+            FindAlongTrans(pfp.XYZ[0], pfp.Dir[0], ijktp3.Pos, ijktp3.AlongTrans);
+            if(smallAngle) saveIt = ijktp3.AlongTrans[1] < 1;
+            if(saveIt) pfp.Tp3s.push_back(ijktp3);
           }
           // Set the 3-plane match bits
           if(kndx == tjids.size()) continue;
@@ -897,7 +915,7 @@ namespace tca {
       } // jpt
     } // ipt
     // do the fit and put the results into the pfp
-    Fit3D(2, point, pfp.XYZ[0], pfp.Dir[0]);
+    Fit3D(2, point, dir, pfp.XYZ[0], pfp.Dir[0]);
     if(prt && doFit) {
       mf::LogVerbatim myprt("TC");
       myprt<<"FC: P"<<pfp.ID<<" fit pos "<<std::fixed<<std::setprecision(1)<<pfp.XYZ[0][0]<<" "<<pfp.XYZ[0][1]<<" "<<pfp.XYZ[0][2];
@@ -921,7 +939,7 @@ namespace tca {
         if(tj.Pts[ipt].Chg <= 0) continue;
         ++npwc;
         if(tjptMat2[itj][ipt]) ++cnt2;
-        if(tjptMat3[itj][ipt]) ++cnt3;
+        if(!twoPlanes && tjptMat3[itj][ipt]) ++cnt3;
       } // ipt
       if(twoTjs) {
         pfp.TjCompleteness[itj] = cnt2 / npwc;
@@ -1039,15 +1057,20 @@ namespace tca {
   } // SharesHighScoreVx
   
   /////////////////////////////////////////
-  void Fit3D(unsigned short mode, Point3_t point, Point3_t& fitPos, Vector3_t& fitDir)
+  void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir)
   {
     // initialize, accumulate and fit the points
     
     // 3D fit sum variables
-    static double fSum, fSumx, fSumy, fSumz, fSumx2, fSumy2, fSumz2, fSumxz, fSumyz;
+    static double fSum, fSumx, fSumy, fSumz;
+//    static double fSumx2, fSumy2, fSumz2, fSumxz, fSumyz;
+    // average the direction vectors
+    static double fSumDir0, fSumDir1, fSumDir2;
 
     if(mode == 0) {
-      fSum = 0; fSumx = 0; fSumy = 0; fSumz = 0; fSumx2 = 0; fSumy2 = 0; fSumz2 = 0; fSumxz = 0; fSumyz = 0;
+      fSum = 0; fSumx = 0; fSumy = 0; fSumz = 0; 
+//      fSumx2 = 0; fSumy2 = 0; fSumz2 = 0; fSumxz = 0; fSumyz = 0;
+      fSumDir0 = 0; fSumDir1 = 0; fSumDir2 = 0;
       return;
     }
     // accumulate
@@ -1056,11 +1079,16 @@ namespace tca {
       fSumx += point[0];
       fSumy += point[1];
       fSumz += point[2];
+/*
       fSumx2 += point[0] * point[0];
       fSumy2 += point[1] * point[1];
       fSumz2 += point[2] * point[2];
       fSumxz += point[0] * point[2];
       fSumyz += point[1] * point[2];
+*/
+      fSumDir0 += dir[0];
+      fSumDir1 += dir[1];
+      fSumDir2 += dir[2];
       return;
     }
     
@@ -1069,24 +1097,26 @@ namespace tca {
     fitPos[0] = fSumx / fSum;
     fitPos[1] = fSumy / fSum;
     fitPos[2] = fSumz / fSum;
+    // and for the direction
+    fitDir = {{fSumDir0, fSumDir1, fSumDir2}};
+    SetMag(fitDir, 1);
+/*
+    std::cout<<"fitDir"<<std::fixed<<std::setprecision(2);
+    std::cout<<" "<<fitDir[0]<<" "<<fitDir[1]<<" "<<fitDir[2];
+    
     // calculate the direction
     double delta = fSum * fSumz2 - fSumz * fSumz;
     if(delta == 0) return;
     double Bx = (fSumxz * fSum - fSumz * fSumx) / delta;
     double By = (fSumyz * fSum - fSumz * fSumy) / delta;
     double norm = sqrt(1 + Bx * Bx + By * By);
-    fitDir[0] = Bx / norm;
-    fitDir[1] = By / norm;
-    fitDir[2] = 1 / norm;
-/* 
-    double den = delta*(fSum*fSumx2 - fSumx*fSumx);
-    double rx = 1;
-    if(den > 0) rx = std::abs(fSum*fSumxz - fSumx*fSumz) / sqrt(den);
-    den = delta*(fSum*fSumy2 - fSumy*fSumy);
-    double ry = 1;
-    if(den > 0) ry = std::abs(fSum*fSumyz - fSumy*fSumz) / sqrt(den);
-    aspectRatio = 0.5 * (rx + ry);
-*/    
+    Vector3_t tmpDir;
+    tmpDir[0] = Bx / norm;
+    tmpDir[1] = By / norm;
+    tmpDir[2] = 1 / norm;
+    std::cout<<" tmpDir"<<std::fixed<<std::setprecision(2);
+    std::cout<<" "<<tmpDir[0]<<" "<<tmpDir[1]<<" "<<tmpDir[2]<<"\n";
+*/
   } // Fit3D
 
   /////////////////////////////////////////
@@ -1533,8 +1563,6 @@ namespace tca {
         auto& jTjPt = tjs.mallTraj[jpt];
         // ensure that the planes are different
         if(jTjPt.ctp == iTjPt.ctp) continue;
-        // InShower compatibility
-        if(jTjPt.inShower != iTjPt.inShower) continue;
         // length cut
         if(jTjPt.npts < minPts) continue;
         // score cut
@@ -1555,8 +1583,6 @@ namespace tca {
             auto& kTjPt = tjs.mallTraj[kpt];
             // ensure that the planes are different
             if(kTjPt.ctp == iTjPt.ctp || kTjPt.ctp == jTjPt.ctp) continue;
-            // InShower compatibility - not in the third plane
-//            if(kTjPt.inShower != iTjPt.inShower) continue;
             if(kTjPt.score < 0 || kTjPt.score > maxScore) continue;
             if(kTjPt.xlo > iTjPt.xhi) continue;
             // break out if the x range difference becomes large
@@ -1599,7 +1625,6 @@ namespace tca {
               if(jTjPt.id != ms.TjIDs[jplane]) continue;
               if(kTjPt.id != ms.TjIDs[kplane]) continue;
               ms.Count += cntWght;
-//              ++ms.Count;
               break;
             } // indx
             if(indx == temp.size()) {
@@ -1612,7 +1637,6 @@ namespace tca {
               ms.TjIDs[jplane] = jTjPt.id;
               ms.TjIDs[kplane] = kTjPt.id;
               ms.Count = cntWght;
-//              ms.Count = 1;
               temp.push_back(ms);
               // give up if there are too many
               if(temp.size() > nAvailable) break;
@@ -1625,7 +1649,6 @@ namespace tca {
             // See if there is a signal at this point.
             unsigned short kplane = 3 - iplane - jplane;
             float fkwire = tjs.geom->WireCoordinate(tp3.Pos[1], tp3.Pos[2], kplane, tpc, cstat);
-//            float fkwire = tjs.geom->WireCoordinate(jyp, jzp, kpl, tpc, cstat);
             if(fkwire < 0 || fkwire > tjs.MaxPos0[kplane]) continue;
             TrajPoint tpk;
             tpk.CTP = EncodeCTP(cstat, tpc, kplane);
@@ -1674,19 +1697,7 @@ namespace tca {
     // temp
     
     if(temp.empty()) return;
-/*
-    // Fill MatchFrac = number of 3D matched points divided by the length of the
-    // longest trajectory. Note that this can be larger than 1.
-    for(auto& ms : temp) {
-      if(ms.Count == 0) continue;
-      float maxlen = 1;
-      for(auto& tjID : ms.TjIDs) {
-        float len = NumUsedHitsInTj(tjs, tjs.allTraj[tjID-1]);
-        if(len > maxlen) maxlen = len;
-      }
-      ms.MatchFrac = ms.Count / maxlen;
-    } // ms
-*/
+
     if(temp.size() == 1) {
       matVec.push_back(temp[0]);
     } else {
@@ -1843,7 +1854,6 @@ namespace tca {
   {
     // fills the dEdx variables in tp3 (MeV/cm)
     tp3.dEdx = 0;
-    tp3.dEdxErr = 0.5;
     if(tp3.Tj2Pts.empty()) return;
     double t0 = 0;
     float sum = 0;
@@ -1874,6 +1884,7 @@ namespace tca {
     } // tj2pt
     if(cnt == 0) return;
     tp3.dEdx = sum / cnt;
+/*
     if(cnt > 1) {
       float arg = sum2 - cnt * tp3.dEdx * tp3.dEdx;
       if(arg > 0) {
@@ -1882,6 +1893,7 @@ namespace tca {
         tp3.dEdxErr /= sqrt(cnt);
       }
     } // cnt > 1
+*/
   } // FilldEdx
 
   ////////////////////////////////////////////////
@@ -2092,13 +2104,13 @@ namespace tca {
   } // CreatePFP
   
   //////////////////////////////////////////
-  void FindPFParticles(std::string fcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
+  void FindPFParticles(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
     // Match Tjs in 3D and create PFParticles
     
     if(tjs.Match3DCuts[0] <= 0) return;
     
-    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" called FindPFParticles";
+    if(prt) mf::LogVerbatim("TC")<<" inside FindPFParticles";
     // clear matchVec
     tjs.matchVec.clear();
     // clear the kEnvFlag bits on all Tjs. The bit will be set true when a TP is
@@ -2124,7 +2136,8 @@ namespace tca {
         FindXMatches(tjs, 2, 3, matVec, prt);
       }
     } // can add more combinations
-//    if(matVec.size() >= tjs.Match3DCuts[4]) std::cout<<"FMV: Hit the max combo limit "<<matVec.size()<<" events processed "<<tjs.EventsProcessed<<"\n";
+    
+    if(matVec.empty()) return;
     
     // sort by decreasing number of matched points
     if(matVec.size() > 1) {
@@ -2172,9 +2185,16 @@ namespace tca {
     }
     if(tjs.matchVec.empty()) return;
     
+    std::cout<<"first";
+    auto& ms = tjs.matchVec[0];
+    std::cout<<" Count "<<std::setw(5)<<(int)ms.Count;
+    std::cout<<" TjIDs:";
+    for(auto& tjid : ms.TjIDs) std::cout<<" T"<<tjid;
+    std::cout<<"\n";
+    
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"FMV: tjs.matchVec\n";
+      myprt<<"FPFP: tjs.matchVec\n";
       unsigned short cnt = 0;
       PFPStruct pfp = CreatePFP(tjs, tpcid);
       std::vector<int> dum1;
@@ -2227,9 +2247,17 @@ namespace tca {
       bool has13 = false;
       bool has11 = false;
       for(unsigned short itj = 0; itj < ms.TjIDs.size(); ++itj) {
+        if(ms.TjIDs[itj] <= 0 || ms.TjIDs[itj] > tjs.allTraj.size()) {
+          std::cout<<"FindPFParticles: bogus ms TjID "<<ms.TjIDs[itj]<<"\n";
+          return;
+        }
         auto& tj = tjs.allTraj[ms.TjIDs[itj] - 1];
         if(tj.AlgMod[kMat3D] || tj.AlgMod[kKilled]) skipit = true;
         // skip low TjCompleteness
+        if(ms.TjCompleteness.empty()) {
+          std::cout<<"FindPFParticles: ms.TjCompleteness is empty\n";
+          return;
+        }
         if(ms.TjCompleteness[itj] < 0.1) skipit = true;
         if(tj.PDGCode == 13) has13 = true;
         if(tj.PDGCode == 11) has11 = true;
@@ -2237,9 +2265,12 @@ namespace tca {
       if(skipit) continue;
       if(has13 && has11) continue;
       int pdgCode = PDGCodeVote(tjs, ms.TjIDs, prt);
-//      if(pdgCode != 11 && maxTjLen > 10 && ms.AspectRatio < tjs.Match3DCuts[3]) continue;
       PFPStruct pfp = CreatePFP(tjs, tpcid);
       pfp.TjIDs = ms.TjIDs;
+      // note that the ms position is the average position of all 3D matched Tp3s at this point.
+      // It is not the start position. This will be determined in DefinePFP.
+      pfp.XYZ[0] = ms.Pos;
+      pfp.Dir[0] = ms.Dir;
       pfp.MatchVecIndex = indx;
       // Set the PDGCode so DefinePFP can ignore incompatible matches
       pfp.PDGCode = pdgCode;
@@ -2362,6 +2393,7 @@ namespace tca {
       } // ims
     } // matchVec index defined
     
+/* BB April 25. CheckAndMerge needs work. Shut it off for now.
     // check the completeness of matching points in this set of Tjs and possibly
     // merge Tjs
     if(tjs.UseAlg[kMat3DMerge] && pfpTrackLike) {
@@ -2370,9 +2402,12 @@ namespace tca {
       // not track-like. Find completeness and fill the TP3s
       FindCompleteness(tjs, pfp, true, true, prt);
     }
+*/
+    // Find completeness and fill the TP3s
+    FindCompleteness(tjs, pfp, true, true, prt);
 
     // Set the starting position in 3D if it isn't already defined by a 3D vertex
-    SetNewStart(tjs, pfp, prt);
+    SetStart(tjs, pfp, prt);
     FollowTp3s(tjs, pfp, prt);
     // Check the list of Tjs and merge those that are in the same plane
     MergePFPTjs(tjs, pfp, prt);
@@ -2433,7 +2468,7 @@ namespace tca {
     if(killMe.empty()) return true;
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"PVTC: P"<<pfp.ID<<" removing short tjs attached to a vertex with a longer tj:";
+      myprt<<"PVTC: P"<<pfp.ID<<" removing short tjs attached to a vertex:";
       for(auto tid : killMe) myprt<<" T"<<tid;
     }
     // re-create the TjIDs vector
@@ -2523,7 +2558,6 @@ namespace tca {
       if(pfp.Vx3ID[1] == 0 && !pfp.Tp3s.empty()) {
         // See if the direction needs to be changed
         std::cout<<"PFPVertexCheck needs revision\n";
-//        SetNewStart(tjs, pfp, false);
       }
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
@@ -2868,6 +2902,22 @@ namespace tca {
   } // InsideTPC
   
   ////////////////////////////////////////////////
+  void FindAlongTrans(Point3_t pos1, Vector3_t dir1, Point3_t pos2, Point2_t& alongTrans)
+  {
+    // Calculate the distance along and transvers to the direction vector from pos1 to pos2
+    if(pos1[0] == pos2[0] && pos1[1] == pos2[1] && pos1[2] == pos2[2]) {
+      alongTrans[0] = 0; alongTrans[1] = 0;
+      return;
+    }
+    auto ptDir = PointDirection(pos1, pos2);
+    double costh = DotProd(dir1, ptDir);
+    double sep = PosSep(pos1, pos2);
+    alongTrans[0] = costh * sep;
+    double sinth = sqrt(1 - costh * costh);
+    alongTrans[1] = sinth * sep;
+  } // FindAlongTrans
+  
+  ////////////////////////////////////////////////
   void ReversePFP(TjStuff& tjs, PFPStruct& pfp)
   {
     std::swap(pfp.XYZ[0], pfp.XYZ[1]);
@@ -2914,7 +2964,7 @@ namespace tca {
     if(printPts < 0) {
       // print the head if we are print all points
       myprt<<someText<<" pfp P"<<pfp.ID<<"\n";
-      myprt<<someText<<"  ipt ________Pos________ Path   _______Dir______ dE/dx dang  Kink  Tj_ipt \n";
+      myprt<<someText<<"  ipt ________Pos________ Path   ________Dir_______ along trans  dang  Kink  Tj_ipt \n";
     }
     // print the start
     myprt<<someText<<"    ";
@@ -2936,8 +2986,9 @@ namespace tca {
       myprt<<std::setw(7)<<tp3.Pos[0]<<std::setw(7)<<tp3.Pos[1]<<std::setw(7)<<tp3.Pos[2];
       myprt<<std::setprecision(1)<<std::setw(5)<<PosSep(tp3.Pos, pfp.XYZ[0]);
       myprt<<std::setprecision(2)<<std::setw(7)<<tp3.Dir[0]<<std::setw(7)<<tp3.Dir[1]<<std::setw(7)<<tp3.Dir[2];
-      myprt<<std::setprecision(1)<<std::setw(6)<<tp3.dEdx;
-      myprt<<std::setprecision(3)<<std::setw(7)<<DeltaAngle(prevDir, tp3.Dir);
+      myprt<<std::setprecision(1)<<std::setw(6)<<tp3.AlongTrans[0];
+      myprt<<std::setprecision(1)<<std::setw(6)<<tp3.AlongTrans[1];
+      myprt<<std::setprecision(2)<<std::setw(7)<<DeltaAngle(prevDir, tp3.Dir);
       prevDir = tp3.Dir;
       // Calculate the kink angle at point ipt, using the two points that are
       // +/- 1 cm on either side of that point
