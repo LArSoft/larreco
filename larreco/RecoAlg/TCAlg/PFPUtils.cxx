@@ -2247,7 +2247,7 @@ namespace tca {
       bool has13 = false;
       bool has11 = false;
       for(unsigned short itj = 0; itj < ms.TjIDs.size(); ++itj) {
-        if(ms.TjIDs[itj] <= 0 || ms.TjIDs[itj] > tjs.allTraj.size()) {
+        if(ms.TjIDs[itj] <= 0 || ms.TjIDs[itj] > (int)tjs.allTraj.size()) {
           std::cout<<"FindPFParticles: bogus ms TjID "<<ms.TjIDs[itj]<<"\n";
           return;
         }
