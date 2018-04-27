@@ -25,7 +25,7 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
-#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/Tensorflow/PointIdAlg/PointIdAlg.h"
 
 #include <memory>
 #include <TVector3.h>

@@ -208,7 +208,7 @@ namespace hit{
     int	   fMaxFluctuations;
 
     art::InputTag fNewHitsTag;              // tag of hits produced by this module, need to have it for fit parameter data products 
-    anab::FVectorWriter<3> fHitParamWriter; // helper for saving hit fit parameters in data products
+    anab::FVectorWriter<4> fHitParamWriter; // helper for saving hit fit parameters in data products
     
     TH1F* fFirstChi2;
     TH1F* fChi2;
@@ -342,7 +342,7 @@ void DPRawHitFinder::produce(art::Event& evt)
   recob::HitCollectionCreator hcol(*this, evt);
     
   // start collection of fit parameters, initialize metadata describing it
-  auto hitID = fHitParamWriter.initOutputs<recob::Hit>(fNewHitsTag, { "t0", "tau1", "tau2" });
+  auto hitID = fHitParamWriter.initOutputs<recob::Hit>(fNewHitsTag, { "t0", "tau1", "tau2", "ampl" });
    
   // ##########################################
   // ### Reading in the Wire List object(s) ###
@@ -729,7 +729,12 @@ void DPRawHitFinder::produce(art::Event& evt)
                   peakAmp  = paramVec[4*i+2].first;
                   peakMean = paramVec[4*i+3].first;
 		}
-	 	//Calculate mean
+
+	 	//Highest ADC count in peak = peakAmpTrue
+		double peakAmpTrue = signal[std::get<0>(peakVals.at(i))];
+		double peakAmpErr = 1.;
+
+	 	//Determine peak position of fitted function (= peakMeanTrue)
 		TF1 Exponentials("Exponentials","( [0] * exp(0.4*(x-[1])/[2]) / ( 1 + exp(0.4*(x-[1])/[3]) ) )",startT,endT);
         	Exponentials.SetParameter(0, peakAmp);
         	Exponentials.SetParameter(1, peakMean);
@@ -743,17 +748,14 @@ void DPRawHitFinder::produce(art::Event& evt)
 		peakWidth /= fWidthNormalization; //from FWHM to "standard deviation": standard deviation = FWHM/(2*sqrt(2*ln(2)))
 
                 // Extract fit parameter errors
-                double peakAmpErr;
                 double peakMeanErr;
 
 		if(fSameShape)
 		{
-                  peakAmpErr   = paramVec[2*(i+1)].second;
                   peakMeanErr  = paramVec[2*(i+1)+1].second;
 		}
 		else
 		{
-		  peakAmpErr   = paramVec[4*i+2].second;
                   peakMeanErr  = paramVec[4*i+3].second;
 		}
                 double peakWidthErr = 0.1*peakWidth;
@@ -794,13 +796,12 @@ void DPRawHitFinder::produce(art::Event& evt)
 		  peakMeanErr=peakWidth/2;
 		  charge = sumADC;
 		  peakMeanTrue = std::get<0>(peakVals.at(i));
-                  peakAmp   = signal[peakMeanTrue];  // Use gaussian formulation
-		  peakAmpErr = 0.1*peakAmp;
 
 		  //set the fit values to make it visible in the event display that this fit failed
                   peakMean = peakMeanTrue;
                   peakTau1 = 0.008;
                   peakTau2 = 0.0065;
+		  peakAmp = 20.;
 		}
 
                 // Create the hit
@@ -811,7 +812,7 @@ void DPRawHitFinder::produce(art::Event& evt)
                                              peakWidth,                        // rms
                                              peakMeanTrue+roiFirstBinTick,     // peak_time
                                              peakMeanErr,                      // sigma_peak_time
-                                             peakAmp,                          // peak_amplitude
+                                             peakAmpTrue,                          // peak_amplitude
                                              peakAmpErr,                       // sigma_peak_amplitude
                                              charge,                           // hit_integral
                                              chargeErr,                        // hit_sigma_integral
@@ -830,7 +831,7 @@ void DPRawHitFinder::produce(art::Event& evt)
 		  std::cout << "HitEndTick: " << endT+roiFirstBinTick << std::endl;
 		  std::cout << "HitWidthTicks: " << std::setprecision(2) << std::fixed << peakWidth << std::endl;
 		  std::cout << "HitMeanTick: " << std::setprecision(2) << std::fixed << peakMeanTrue+roiFirstBinTick << " +- " << peakMeanErr << std::endl;
-		  std::cout << "HitAmplitude [ADC]: " << std::setprecision(1) << std::fixed << peakAmp << " +- " << peakAmpErr << std::endl;
+		  std::cout << "HitAmplitude [ADC]: " << std::setprecision(1) << std::fixed << peakAmpTrue << " +- " << peakAmpErr << std::endl;
 		  std::cout << "HitIntegral [ADC*ticks]: " << std::setprecision(1) << std::fixed << charge << " +- " << chargeErr << std::endl;
 		  std::cout << "HitADCSum [ADC*ticks]: " << std::setprecision(1) << std::fixed << sumADC << std::endl;
 		  std::cout << "HitMultiplicity: " << nExponentialsForFit << std::endl;
@@ -843,10 +844,11 @@ void DPRawHitFinder::produce(art::Event& evt)
 		    
                 hcol.emplace_back(std::move(hit), wire, rawdigits);
                 // add fit parameters associated to the hit just pushed to the collection
-                std::array<float, 3> fitParams;
+                std::array<float, 4> fitParams;
                 fitParams[0] = peakMean+roiFirstBinTick;
                 fitParams[1] = peakTau1;
                 fitParams[2] = peakTau2;
+                fitParams[3] = peakAmp;
                 fHitParamWriter.addVector(hitID, fitParams);
                 numHits++;
               } // <---End loop over Exponentials
@@ -862,18 +864,18 @@ void DPRawHitFinder::produce(art::Event& evt)
           if( NumberOfPeaksBeforeFit > fMaxMultiHit || (width > fMaxGroupLength) || NFluctuations > fMaxFluctuations)
           {
 
-            int nHitsInThisGroup = (endT - startT) / fLongPulseWidth;
+            int nHitsInThisGroup = (endT - startT + 1) / fLongPulseWidth;
                     
             if (nHitsInThisGroup > fLongMaxHits)
             {
               nHitsInThisGroup = fLongMaxHits;
-              fLongPulseWidth = (endT - startT) / nHitsInThisGroup;
+              fLongPulseWidth = (endT - startT + 1) / nHitsInThisGroup;
             }
                     
-            if (nHitsInThisGroup * fLongPulseWidth < endT - startT) nHitsInThisGroup++;
+            if (nHitsInThisGroup * fLongPulseWidth < (endT - startT + 1) ) nHitsInThisGroup++;
                     
             int firstTick = startT;
-            int lastTick  = std::min(endT,fLongPulseWidth) -1;
+            int lastTick  = std::min(endT,firstTick+fLongPulseWidth-1);
 
 	    if(fLogLevel >= 1)
 	    {
@@ -913,29 +915,28 @@ void DPRawHitFinder::produce(art::Event& evt)
               // This hit parameters
               double peakWidth = ( (lastTick - firstTick) /4. ) / fWidthNormalization; //~4 is the factor between FWHM and full width of the hit (last bin - first bin). no drift: 4.4, 6m drift: 3.7
 	      double peakMeanTrue = (firstTick + lastTick) / 2.;
-              if(NumberOfPeaksBeforeFit==1) peakMeanTrue = std::get<0>(peakVals.at(hitIdx)); //if only one peak was found, we want the mean of this peak to be the tick with the max. ADC count
-              //double peakMeanTrue  = (firstTick + lastTick) / 2.;
+              if( NumberOfPeaksBeforeFit == 1 && nHitsInThisGroup == 1) peakMeanTrue = std::get<0>(peakVals.at(0)); //if only one peak was found, we want the mean of this peak to be the tick with the max. ADC count
 	      double peakMeanErr = (lastTick - firstTick) / 2.;
               double sumADC    = std::accumulate(signal.begin() + firstTick, signal.begin() + lastTick + 1, 0.);
 	      double charge = sumADC;
 	      double chargeErr = 0.1*sumADC;
+	      double peakAmpTrue = 0;
 
-	      double peakAmp = 0;
               for(int tick = firstTick; tick <= lastTick; tick++)
 	      {
-		if(signal[tick] > peakAmp) peakAmp = signal[tick];
+		if(signal[tick] > peakAmpTrue) peakAmpTrue = signal[tick];
 	      }
-	      double peakAmpErr = 0.1*peakAmp;
 
+	      double peakAmpErr = 1.;
 	      nExponentialsForFit = nHitsInThisGroup;
               NDF         = -1;
               chi2PerNDF  =   -1.;
-
 	      //set the fit values to make it visible in the event display that this fit failed
               double peakMean = peakMeanTrue-2;
               double peakTau1 = 0.008;
               double peakTau2 = 0.0065;
-                        
+	      double peakAmp = 20.;
+
               recob::HitCreator hitcreator(*wire,                            // wire reference
                                            wid,                              // wire ID
                                            firstTick+roiFirstBinTick,        // start_tick TODO check
@@ -943,7 +944,7 @@ void DPRawHitFinder::produce(art::Event& evt)
                                            peakWidth,                        // rms
                                            peakMeanTrue+roiFirstBinTick,     // peak_time
                                            peakMeanErr,                      // sigma_peak_time
-                                           peakAmp,                          // peak_amplitude
+                                           peakAmpTrue,                          // peak_amplitude
                                            peakAmpErr,                       // sigma_peak_amplitude
                                            charge,                           // hit_integral
                                            chargeErr,                        // hit_sigma_integral
@@ -963,7 +964,7 @@ void DPRawHitFinder::produce(art::Event& evt)
 	        std::cout << "HitEndTick: " << lastTick+roiFirstBinTick << std::endl;
 	        std::cout << "HitWidthTicks: " << std::setprecision(2) << std::fixed << peakWidth << std::endl;
 	        std::cout << "HitMeanTick: " << std::setprecision(2) << std::fixed << peakMeanTrue+roiFirstBinTick << " +- " << peakMeanErr << std::endl;
-	        std::cout << "HitAmplitude [ADC]: " << std::setprecision(1) << std::fixed << peakAmp << " +- " << peakAmpErr << std::endl;
+	        std::cout << "HitAmplitude [ADC]: " << std::setprecision(1) << std::fixed << peakAmpTrue << " +- " << peakAmpErr << std::endl;
 	        std::cout << "HitIntegral [ADC*ticks]: " << std::setprecision(1) << std::fixed << charge << " +- " << chargeErr << std::endl;
 	        std::cout << "HitADCSum [ADC*ticks]: " << std::setprecision(1) << std::fixed << sumADC << std::endl;
 	        std::cout << "HitMultiplicity: " << nExponentialsForFit << std::endl;
@@ -974,15 +975,17 @@ void DPRawHitFinder::produce(art::Event& evt)
               const recob::Hit hit(hitcreator.move());
               hcol.emplace_back(std::move(hit), wire, rawdigits);
 
-              std::array<float, 3> fitParams;
+              std::array<float, 4> fitParams;
               fitParams[0] = peakMean+roiFirstBinTick;
               fitParams[1] = peakTau1;
               fitParams[2] = peakTau2;
+              fitParams[3] = peakAmp;
               fHitParamWriter.addVector(hitID, fitParams);
-    
+
               // set for next loop
               firstTick = lastTick+1;
-              lastTick  = std::min(lastTick + fLongPulseWidth, endT);
+              lastTick  = std::min(firstTick + fLongPulseWidth - 1, endT);
+
             }//<---Hits in this group
 	  }//<---End if #peaks > MaxMultiHit
           fChi2->Fill(chi2PerNDF);

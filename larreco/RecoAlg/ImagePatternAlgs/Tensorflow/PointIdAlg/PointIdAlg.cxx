@@ -6,7 +6,7 @@
 //              D.Smith,                                   from LArIAT, BU, 2017: real data dump
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/Tensorflow/PointIdAlg/PointIdAlg.h"
 #include "tensorflow/core/public/session.h"
 
 #include "art/Framework/Principal/Event.h"

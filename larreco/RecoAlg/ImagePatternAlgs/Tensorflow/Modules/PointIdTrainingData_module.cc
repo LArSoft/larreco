@@ -15,7 +15,7 @@
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
-#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/PointIdAlg.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/Tensorflow/PointIdAlg/PointIdAlg.h"
 
 // Framework includes
 #include "canvas/Utilities/InputTag.h"

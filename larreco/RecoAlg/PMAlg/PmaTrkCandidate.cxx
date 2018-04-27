@@ -193,8 +193,8 @@ void pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
 		int tid = t.TreeId();
 		if (minVal.find(tid) == minVal.end()) minVal[tid] = 1.0e12;
 
-		TVector3 pFront(t.Track()->front()->Point3D()); pFront.SetY(-pFront.Y());
-		TVector3 pBack(t.Track()->back()->Point3D()); pBack.SetY(-pBack.Y());
+		TVector3 pFront(t.Track()->front()->Point3D()); pFront.SetX(-pFront.X()); pFront.SetY(-pFront.Y());
+		TVector3 pBack(t.Track()->back()->Point3D()); pBack.SetX(-pBack.X()); pBack.SetY(-pBack.Y());
 
 		bool pushed = false;
 		if (pFront[coordinate] < minVal[tid]) { minVal[tid] = pFront[coordinate]; toFlip[tid].push_back(t.Track()); pushed = true; }
@@ -210,8 +210,8 @@ void pma::TrkCandidateColl::flipTreesToCoordinate(size_t coordinate)
 			pma::Track3D* trk = tEntry.second.back();
 			tEntry.second.pop_back();
 
-			TVector3 pFront(trk->front()->Point3D()); pFront.SetY(-pFront.Y());
-			TVector3 pBack(trk->back()->Point3D()); pBack.SetY(-pBack.Y());
+			TVector3 pFront(trk->front()->Point3D()); pFront.SetX(-pFront.X()); pFront.SetY(-pFront.Y());
+			TVector3 pBack(trk->back()->Point3D()); pBack.SetX(-pBack.X()); pBack.SetY(-pBack.Y());
 
 			if (pFront[coordinate] > pBack[coordinate])
 			{
