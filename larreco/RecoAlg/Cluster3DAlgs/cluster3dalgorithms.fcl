@@ -72,6 +72,15 @@ standard_cluster3dPathAlg:
   ClusterAlg:             @local::standard_cluster3ddbscanalg
 }
 
+standard_voronoiPathAlg:
+{
+tool_type:              VoronoiPathFinder
+EnableMonitoring:       true    # enable monitoring of functions
+MinTinyClusterSize:     40      # minimum number of hits to consider splitting
+PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+ClusterAlg:             @local::standard_cluster3ddbscanalg
+}
+
 standard_cluster3dskeletonalg:
 {
   MinimumDeltaTicks:    0.05 # minimum delta time (in ticks) when matching hits
@@ -115,6 +124,7 @@ microboone_standardhit3dbuilder:               @local::standard_standardhit3dbui
 microboone_spacepointhit3dbuilder:             @local::standard_spacepointhit3dbuilder
 microboone_cluster3dMergeAlg:                  @local::standard_cluster3dMergeAlg
 microboone_cluster3dPathAlg:                   @local::standard_cluster3dPathAlg
+microboone_voronoiPathAlg:                     @local::standard_voronoiPathAlg
 microboone_cluster3ddbscanalg:                 @local::standard_cluster3ddbscanalg
 microboone_cluster3dminSpanTreeAlg:            @local::standard_cluster3dminSpanTreeAlg
 microboone_cluster3dprincipalcomponentsalg:    @local::standard_cluster3dprincipalcomponentsalg
