@@ -317,13 +317,32 @@ namespace tca {
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     geo::Vector_t posOffsets;
     auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
+//    if(!SCE->EnableSimSpatialSCE()) std::cout<<">>>> EnableSimSpatialSCE isn't active...\n";
 
     // these are only applicable to neutrinos
     bool neutrinoVxReconstructable = false;
     bool vxReconstructedNearNuVx = false;
     bool neutrinoPFPCorrect = false;
+    // Locate the primary vertex
     Point3_t primVx {{-666.0, -666.0, -666.0}};
-
+    // the primary should be the first one in the list as selected in GetHitCollection
+    auto& primMCP = tjs.MCPartList[0];
+    primVx[0] = primMCP->Vx();
+    primVx[1] = primMCP->Vy();
+    primVx[2] = primMCP->Vz();
+    geo::TPCID inTPCID = tjs.TPCID;
+    if(!InsideTPC(tjs, primVx, inTPCID)) {
+      if(tjs.MatchTruth[1] > 0) std::cout<<"Found a primary particle but it is not inside any TPC\n";
+      return;
+    }
+    posOffsets = SCE->GetPosOffsets({primVx[0], primVx[1], primVx[2]});
+    posOffsets.SetX(-posOffsets.X());
+    primVx[0] += posOffsets.X();
+    primVx[1] += posOffsets.Y();
+    primVx[2] += posOffsets.Z();
+    neutrinoVxReconstructable = true;
+    if(tjs.MatchTruth[1] > 1) std::cout<<"Prim PDG code  "<<primMCP->PdgCode()<<" "<<std::fixed<<std::setprecision(1)<<primVx[0]<<" "<<primVx[1]<<" "<<primVx[2]<<"\n";
+    
     // Look for the MC truth process that should be considered (beam neutrino,
     // single particle, cosmic rays), then form a list of selected MCParticles 
     // that will be used to measure performance. Feb 16: Changed GetHitCollection to only
@@ -331,7 +350,6 @@ namespace tca {
     std::vector<unsigned int> mcpSelect;
     // vector of reconstructable primary particles
     std::vector<unsigned int> primMCPs;
-    geo::TPCID inTPCID = tjs.TPCID;
     for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
       auto& mcp = tjs.MCPartList[part];
       // require it is charged
@@ -345,17 +363,6 @@ namespace tca {
       if(mcp->Mother() != 0) continue;
       // add to the list of primaries
       primMCPs.push_back(part);
-      // use the first primary mcp to find the interaction vertex
-      if(primVx[0] == -666) {
-        primVx[0] = mcp->Vx();
-        primVx[1] = mcp->Vy();
-        primVx[2] = mcp->Vz();
-        if(!InsideTPC(tjs, primVx, inTPCID)) {
-          if(tjs.MatchTruth[1] > 0) std::cout<<"Found a primary particle but it is not inside any TPC\n";
-          return;
-        }
-        neutrinoVxReconstructable = true;
-      } // first primary mcp
     } // part
     if(mcpSelect.empty()) return;
     tjs.SelectEvent = true;
@@ -632,7 +639,31 @@ namespace tca {
       float TMeV = 1000 * (mcp->E() - mcp->Mass());
       hist.fNearTj[truIndex]->Fill(TMeV, frac);
     } // tj
-
+    
+    // match a 3D vertex to the primary vertex
+    unsigned short vx3RecoPrmary = 0;
+    float close = 1E6;
+    for(auto& vx3 : tjs.vtx3) {
+      if(vx3.ID == 0) continue;
+      // ignore pfp start vertices
+      if(vx3.Wire == -2) continue;
+      Point3_t vxPos {{vx3.X, vx3.Y, vx3.Z}};
+      float sep = PosSep(vxPos, primVx);
+      if(sep < close) {
+        close = sep;
+        vx3RecoPrmary = vx3.ID;
+      }
+    } // vx3
+/*
+    if(vx3RecoPrmary > 0) {
+      auto& vx3 = tjs.vtx3[vx3RecoPrmary - 1];
+      std::cout<<"vx3RecoPrmary 3"<<vx3.ID<<" close "<<std::setprecision(1)<<close<<" deltas";
+      Point3_t vxPos {{vx3.X, vx3.Y, vx3.Z}};
+      for(unsigned short xyz = 0; xyz < 3; ++xyz) std::cout<<" "<<vxPos[xyz] - primVx[xyz];
+      std::cout<<"\n";
+    }
+*/
+    
     // PFParticle histograms
     constexpr double twopi = 2 * M_PI;
     std::array<int, 5> recoCodeList = {{0, 11, 13, 211, 2212}};
@@ -666,8 +697,13 @@ namespace tca {
         for(unsigned short xyz = 0; xyz < 3; ++xyz) recDir[xyz] *= -1;
       }
       hist.fPFPStartEnd->Fill((float)startEnd);
-//      float dx = std::abs(pfp.XYZ[startEnd][0] - truStart[0]);
-//      if(dx > 2) std::cout<<"BaddX P"<<pfp.ID<<" MCP "<<mcp->TrackId()<<" dx "<<dx<<"\n";
+/*
+      if(std::abs(pfp.XYZ[startEnd][1] - truStart[1]) < 2 && std::abs(pfp.XYZ[startEnd][2] - truStart[2]) < 2) {
+        std::cout<<"MatchTruth P"<<pfp.ID<<" MCP "<<mcp->TrackId();
+        for(unsigned short xyz = 0; xyz < 3; ++xyz) std::cout<<std::setprecision(1)<<" "<<pfp.XYZ[startEnd][xyz] - truStart[xyz];
+        std::cout<<"\n";
+      }
+*/
       hist.fPFPStartdX[truIndex]->Fill(pfp.XYZ[startEnd][0] - truStart[0]);
       hist.fPFPStartdY[truIndex]->Fill(pfp.XYZ[startEnd][1] - truStart[1]);
       hist.fPFPStartdZ[truIndex]->Fill(pfp.XYZ[startEnd][2] - truStart[2]);
