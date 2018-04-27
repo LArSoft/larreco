@@ -39,7 +39,7 @@ namespace tca {
   void UpdateTp3s(TjStuff& tjs, PFPStruct& pfp, int oldTj, int newTj);
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
   void AttachVertices(TjStuff& tjs, PFPStruct& pfpj, bool prt);
-  bool SetNewStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  bool SetStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void SetEndVx(TjStuff& tjs, PFPStruct& pfp, unsigned short atEnd, bool prt);
   void FollowTp3s(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool FitTp3s(TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, Point3_t& pos, Vector3_t& dir, float& rCorr);
@@ -48,7 +48,7 @@ namespace tca {
   void FindCompleteness(TjStuff& tjs, PFPStruct& pfp, bool doFit, bool fillTp3s, bool prt);
   void FindMissedTjsInTp3s(TjStuff& tjs, PFPStruct& pfp, std::vector<int>& missTjs, std::vector<float>& missFrac);
   bool SharesHighScoreVx(TjStuff& tjs, const PFPStruct& pfp, const Trajectory& tj);
-  void Fit3D(unsigned short mode, Point3_t point, Point3_t& fitPos, Vector3_t& fitDir);
+  void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir);
   bool CheckAndMerge(TjStuff& tjs, PFPStruct& pfp, bool prt);
   float AspectRatio(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
   unsigned short WiresSkippedInCTP(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
@@ -70,7 +70,7 @@ namespace tca {
   std::vector<unsigned short> FindKinks(const TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
   double KinkAngle(const TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep);
   PFPStruct CreatePFP(const TjStuff& tjs, const geo::TPCID& tpcid);
-  void FindPFParticles(std::string fcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  void FindPFParticles(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool DefinePFP(std::string inFcnLabel, TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool PFPVxTjOK(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void PFPVertexCheck(TjStuff& tjs);
@@ -79,6 +79,7 @@ namespace tca {
   void DefinePFPParentsTestBeam(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp);
   bool InsideTPC(const TjStuff& tjs, Point3_t& pos, geo::TPCID& inTPCID);
+  void FindAlongTrans(Point3_t pos1, Vector3_t dir1, Point3_t pos2, Point2_t& alongTrans);
   void ReversePFP(TjStuff& tjs, PFPStruct& pfp);
   void PrintTp3(std::string fcnLabel, const TjStuff& tjs, const TrajPoint3& tp3);
   void PrintTp3s(std::string someText, const TjStuff& tjs, const PFPStruct& pfp, short printPts);
