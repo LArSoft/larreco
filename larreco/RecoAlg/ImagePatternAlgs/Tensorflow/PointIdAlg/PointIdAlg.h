@@ -27,9 +27,9 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 
-#include "larreco/RecoAlg/ImagePatternAlgs/PointIdAlg/DataProviderAlg.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/DataProvider/DataProviderAlg.h"
 #include "larreco/RecoAlg/ImagePatternAlgs/Keras/keras_model.h"
-#include "larreco/RecoAlg/ImagePatternAlgs/TF/tf_graph.h"
+#include "larreco/RecoAlg/ImagePatternAlgs/Tensorflow/TF/tf_graph.h"
 
 // ROOT & C++
 #include <memory>
