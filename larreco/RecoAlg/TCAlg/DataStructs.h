@@ -137,7 +137,6 @@ namespace tca {
     // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
     unsigned short npts;
     short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
-    bool inShower;
   };
 
   struct TrajPoint {
@@ -217,8 +216,7 @@ namespace tca {
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
     float dEdx {0};             // The charge is stored here before dE/dx is calculated
-    float dEdxErr {1};          // The path length (along) is store here before dE/dx is calculated
-    float Trans {10};             // Transverse position (cm) relative to the trajectory
+    Point2_t AlongTrans;         // Longitudinal & transverse position (cm) relative to the trajectory
   };
 
   // Struct for 3D trajectory matching
