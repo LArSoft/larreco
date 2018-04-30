@@ -517,7 +517,11 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
            MC_michelP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
            MCmichel = particle;
          }
-
+         else if( TMath::Abs(particle->PdgCode() == 321) ){   //save primary Kaon
+           MC_kaonID = particle->TrackId();    
+           MC_kaonP = sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
+           MCkaon = particle;
+         }   
        }
     } 
     //===================================================================
