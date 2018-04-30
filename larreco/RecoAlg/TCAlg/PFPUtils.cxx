@@ -2185,13 +2185,6 @@ namespace tca {
     }
     if(tjs.matchVec.empty()) return;
     
-    std::cout<<"first";
-    auto& ms = tjs.matchVec[0];
-    std::cout<<" Count "<<std::setw(5)<<(int)ms.Count;
-    std::cout<<" TjIDs:";
-    for(auto& tjid : ms.TjIDs) std::cout<<" T"<<tjid;
-    std::cout<<"\n";
-    
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"FPFP: tjs.matchVec\n";
@@ -2557,7 +2550,7 @@ namespace tca {
       if(pfp.PDGCode == 22) continue;
       if(pfp.Vx3ID[1] == 0 && !pfp.Tp3s.empty()) {
         // See if the direction needs to be changed
-        std::cout<<"PFPVertexCheck needs revision\n";
+//        std::cout<<"PFPVertexCheck needs revision\n";
       }
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
@@ -2569,7 +2562,7 @@ namespace tca {
       vx3.ID = tjs.vtx3.size() + 1;
       vx3.Primary = false;
       tjs.vtx3.push_back(vx3);
-      std::cout<<"PFPVertexCheck: add 3V"<<vx3.ID<<"\n";
+//      std::cout<<"PFPVertexCheck: add 3V"<<vx3.ID<<"\n";
       pfp.Vx3ID[0] = vx3.ID;
     } // pfp
   } // PFPVertexCheck
