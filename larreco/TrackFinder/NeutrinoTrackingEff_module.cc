@@ -559,6 +559,10 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
          h_Ppion_minus_den->Fill( MC_leading_PionMinusP);
          h_pionm_length->Fill(pion_minus_length);
        }
+       if( MCkaon ){
+         h_Pkaon_den->Fill(MC_kaonP);
+         h_kaon_length->Fill(kaonLength);
+       }
     } 
   
     //save events for Nucleon decay and particle cannon
@@ -683,7 +687,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
          }
        }
        //kaon from nucleon decay
-       else if( (particle->PdgCode() == 321) && (particle->TrackId() == MC_kaonID) ){
+       else if( (TMath::Abs(particle->PdgCode()) == 321) && (particle->TrackId() == MC_kaonID) ){
          //save the best track ... based on completeness if there is more than one track 
          if( tmpEcomplet > Ecomplet_kaon ){
            Ecomplet_kaon = tmpEcomplet;
@@ -746,6 +750,15 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
         h_Ecomplet_pion_minus->Fill(Ecomplet_pionminus);
         h_trackRes_pion_minus->Fill(Reco_LengthResPionMinus);
 	h_pionmwtrk_length->Fill(pion_minus_length);
+      }
+    }
+    if( MCkaon_reco && MCkaon ){
+      if( MC_isCC && (fNeutrinoPDGcode == MC_incoming_PDG) && (MC_incoming_P[3] <= fMaxNeutrinoE) ) {
+        h_Pkaon_num->Fill(MC_kaonP);
+        h_Efrac_kaon->Fill(Efrac_kaon);
+        h_Ecomplet_kaon->Fill(Ecomplet_kaon);
+        h_trackRes_kaon->Fill(kaonLength-trackLength_kaon);
+	h_kaonwtrk_length->Fill(kaonLength);
       }
     }
     //Non neutrino events 
