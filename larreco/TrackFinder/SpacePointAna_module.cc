@@ -388,7 +388,9 @@ namespace trkf {
 
       // Report number of space points.
 
-      LOG_DEBUG("SpacePointAna") << "Found " << spts1.size() 
+// workaround for #19851
+//      LOG_DEBUG("SpacePointAna") << "Found " << spts1.size() 
+      mf::LogDebug("SpacePointAna") << "Found " << spts1.size() 
 				    << " space points using special time cut.";
     }
 
@@ -403,7 +405,9 @@ namespace trkf {
 
       // Report number of space points.
 
-      LOG_DEBUG("SpacePointAna") << "Found " << spts2.size() 
+// workaround for #19851
+//      LOG_DEBUG("SpacePointAna") << "Found " << spts2.size() 
+      mf::LogDebug("SpacePointAna") << "Found " << spts2.size() 
 				    << " space points using special seperation cut.";
     }
 
@@ -416,7 +420,9 @@ namespace trkf {
 
     // Report number of space points.
 
-    LOG_DEBUG("SpacePointAna") << "Found " << spts3.size() 
+// workaround for #19851
+//    LOG_DEBUG("SpacePointAna") << "Found " << spts3.size() 
+    mf::LogDebug("SpacePointAna") << "Found " << spts3.size() 
 				  << " space points using default cuts.";
 
     if(!fSptalgTime.merge()) {

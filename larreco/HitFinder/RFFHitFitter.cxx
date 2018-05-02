@@ -16,7 +16,7 @@
 #include <iostream>
 #include <cmath>
 #include <stdexcept>
-#include "cetlib/exception.h"
+#include "cetlib_except/exception.h"
 
 hit::RFFHitFitter::RFFHitFitter(float step, float max):
   fGEAlg(step,max)

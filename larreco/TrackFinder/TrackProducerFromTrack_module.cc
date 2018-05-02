@@ -9,7 +9,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Persistency/Common/PtrMaker.h"
 #include "lardata/Utilities/ForEachAssociatedGroup.h"
-#include "cetlib/exception.h"
+#include "cetlib_except/exception.h"
 //
 #include <memory>
 //

@@ -25,7 +25,7 @@ art_make(
 			    art_Utilities
 			    canvas
 			    ${MF_MESSAGELOGGER}
-			    ${MF_UTILITIES}
+			    
 			    ${FHICLCPP}
 			    cetlib cetlib_except
 			    ${CLHEP}
@@ -58,7 +58,7 @@ simple_plugin( Track3DKalman "module"
 			 art_Utilities
 			 canvas
 			 ${MF_MESSAGELOGGER}
-			 ${MF_UTILITIES}
+			 
 			 ${FHICLCPP}
 			 cetlib cetlib_except
 	   
@@ -88,7 +88,7 @@ simple_plugin( Track3DKalmanSPS "module"
 			 art_Utilities
 			 canvas
 			 ${MF_MESSAGELOGGER}
-			 ${MF_UTILITIES}
+			 
 			 ${FHICLCPP}
 			 cetlib cetlib_except
  	   

@@ -460,7 +460,9 @@ void Track3DKalman::produce(art::Event& evt)
 		fptsNo++;
 		
 		
-		LOG_DEBUG("Track3DKalman: ") << "ihit xyz..." << spt3[0]<<","<< spt3[1]<<","<< spt3[2];
+// workaround for #19851
+//		LOG_DEBUG("Track3DKalman: ") << "ihit xyz..." << spt3[0]<<","<< spt3[1]<<","<< spt3[2];
+		mf::LogDebug("Track3DKalman: ") << "ihit xyz..." << spt3[0]<<","<< spt3[1]<<","<< spt3[2];
 		fitTrack.addHit(new genf::PointHit(spt3,resolution),
 				1,//dummy detector id
 				ihit++
@@ -488,20 +490,30 @@ void Track3DKalman::produce(art::Event& evt)
 	  
 	  if(rep->getStatusFlag()==0) // 0 is successful completion
 	    {
-	      LOG_DEBUG("Track3DKalman: ") << __FILE__ << " " << __LINE__ ;
-	      LOG_DEBUG("Track3DKalman: ") << "Track3DKalman.cxx: Original plane:";
+// workaround for #19851
+//	      LOG_DEBUG("Track3DKalman: ") << __FILE__ << " " << __LINE__ ;
+	      mf::LogDebug("Track3DKalman: ") << __FILE__ << " " << __LINE__ ;
+// workaround for #19851
+//	      LOG_DEBUG("Track3DKalman: ") << "Track3DKalman.cxx: Original plane:";
+	      mf::LogDebug("Track3DKalman: ") << "Track3DKalman.cxx: Original plane:";
 	      
 	      if(fGenfPRINT) planeG.Print();
-	      LOG_DEBUG("Track3DKalman: ") << "Current (fit) reference Plane:";
+// workaround for #19851
+//	      LOG_DEBUG("Track3DKalman: ") << "Current (fit) reference Plane:";
+	      mf::LogDebug("Track3DKalman: ") << "Current (fit) reference Plane:";
 	      if(fGenfPRINT) rep->getReferencePlane().Print();
 	      
-	      LOG_DEBUG("Track3DKalman: ") << "Track3DKalman.cxx: Last reference Plane:";
+// workaround for #19851
+//	      LOG_DEBUG("Track3DKalman: ") << "Track3DKalman.cxx: Last reference Plane:";
+	      mf::LogDebug("Track3DKalman: ") << "Track3DKalman.cxx: Last reference Plane:";
 	      if(fGenfPRINT) rep->getLastPlane().Print();
 	      
 	      if(fGenfPRINT) 
 		{
 		  if(planeG!=rep->getReferencePlane()) 
-		    LOG_DEBUG("Track3DKalman: ") <<"Track3DKalman: Original hit plane (not surprisingly) not current reference Plane!"<<std::endl;
+// workaround for #19851
+//		    LOG_DEBUG("Track3DKalman: ") <<"Track3DKalman: Original hit plane (not surprisingly) not current reference Plane!"<<std::endl;
+		    mf::LogDebug("Track3DKalman: ") <<"Track3DKalman: Original hit plane (not surprisingly) not current reference Plane!"<<std::endl;
 		}
 	      
 	      stREC->ResizeTo(rep->getState());
@@ -510,7 +522,9 @@ void Track3DKalman::produce(art::Event& evt)
 	      *covREC = rep->getCov();
 	      if(fGenfPRINT)
 		{
-		  LOG_DEBUG("Track3DKalman: ") << " Final State and Cov:";
+// workaround for #19851
+//		  LOG_DEBUG("Track3DKalman: ") << " Final State and Cov:";
+		  mf::LogDebug("Track3DKalman: ") << " Final State and Cov:";
 		  stREC->Print();
 		  covREC->Print();
 		}

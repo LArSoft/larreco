@@ -629,7 +629,9 @@ void Track3DKalmanSPS::produce(art::Event& evt)
   // std::cout<<"Run "<<evt.run()<<" Event "<<evt.id().event()<<std::endl;
 
   // Put this back when Wes's reign of terror ends ...
-  //  LOG_DEBUG("Track3DKalmanSPS") << "There are " <<  spptListHandle->size() << " Spacepoint PtrVectors (spacepoint clumps) in this event.";
+// workaround for #19851
+//  //  LOG_DEBUG("Track3DKalmanSPS") << "There are " <<  spptListHandle->size() << " Spacepoint PtrVectors (spacepoint clumps) in this event.";
+  //  mf::LogDebug("Track3DKalmanSPS") << "There are " <<  spptListHandle->size() << " Spacepoint PtrVectors (spacepoint clumps) in this event.";
 
   std::vector < art::PtrVector<recob::SpacePoint> > spptIn(spptListHandle->begin(),spptListHandle->end());
   // Get the spptvectors that are largest to be first, and smallest last.
@@ -685,7 +687,9 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	  *stMCT = repMC->getState();
 	  covMCT-> ResizeTo(repMC->getCov());
 	  *covMCT = repMC->getCov();
-	  LOG_DEBUG("Track3DKalmanSPS_GenFit") << " repMC, covMC are ... \n"
+// workaround for #19851
+//	  LOG_DEBUG("Track3DKalmanSPS_GenFit") << " repMC, covMC are ... \n"
+	  mf::LogDebug("Track3DKalmanSPS_GenFit") << " repMC, covMC are ... \n"
 	    << genf::ROOTobjectToString(repMC->getState())
 	    << genf::ROOTobjectToString(repMC->getCov());
 
@@ -827,13 +831,17 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	      // track and give large angular deviations which
 	      // will kill the fit.
 	      mom.SetMag(2.0 * mom.Mag()); 
-	      LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Uncontained track ... ";
+// workaround for #19851
+//	      LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Uncontained track ... ";
+	      mf::LogDebug("Track3DKalmanSPS_GenFit")<<"Uncontained track ... ";
 	      fDecimateHere = fDecimateU;
 	      fMaxUpdateHere = fMaxUpdateU;
 	    }
 	  else
 	    {
-	      LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Contained track ... Run "<<evt.run()<<" Event "<<evt.id().event();
+// workaround for #19851
+//	      LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Contained track ... Run "<<evt.run()<<" Event "<<evt.id().event();
+	      mf::LogDebug("Track3DKalmanSPS_GenFit")<<"Contained track ... Run "<<evt.run()<<" Event "<<evt.id().event();
 	      // Don't decimate contained tracks as drastically, 
 	      // and omit only very large corrections ...
 	      // which hurt only high momentum tracks.
@@ -973,7 +981,9 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		    }
 	      
 	      
-		  LOG_DEBUG("Track3DKalmanSPS_GenFit") << "ihit xyz..." << spt3[0]<<","<< spt3[1]<<","<< spt3[2];
+// workaround for #19851
+//		  LOG_DEBUG("Track3DKalmanSPS_GenFit") << "ihit xyz..." << spt3[0]<<","<< spt3[1]<<","<< spt3[2];
+		  mf::LogDebug("Track3DKalmanSPS_GenFit") << "ihit xyz..." << spt3[0]<<","<< spt3[1]<<","<< spt3[2];
 
 		  fitTrack.addHit(new genf::PointHit(spt3,err3),
 				  1,//dummy detector id
@@ -985,11 +995,15 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	  
 	      if (fptsNo<=fMinNumSppts) // Cuz 1st 2 in each direction don't count. Should have, say, 3 more.
 		{ 
-		  LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Bailing cuz only " << fptsNo << " spacepoints.";
+// workaround for #19851
+//		  LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Bailing cuz only " << fptsNo << " spacepoints.";
+		  mf::LogDebug("Track3DKalmanSPS_GenFit") << "Bailing cuz only " << fptsNo << " spacepoints.";
 		  rePass++;
 		  continue;
 		} 
-	      LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Fitting on " << fptsNo << " spacepoints.";
+// workaround for #19851
+//	      LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Fitting on " << fptsNo << " spacepoints.";
+	      mf::LogDebug("Track3DKalmanSPS_GenFit") << "Fitting on " << fptsNo << " spacepoints.";
 	      //      std::cout<<"Track3DKalmanSPS about to do GFKalman."<<std::endl;
 	      genf::GFKalman k;
 	      k.setBlowUpFactor(5); // 500 out of box. EC, 6-Jan-2011.
@@ -1045,7 +1059,9 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		    if (planeG != rep->getReferencePlane())
 		      dbgmsg <<"  => original hit plane (not surprisingly) not current reference Plane!";
 		    
-		    LOG_DEBUG("Track3DKalmanSPS_GenFit") << dbgmsg.str();
+// workaround for #19851
+//		    LOG_DEBUG("Track3DKalmanSPS_GenFit") << dbgmsg.str();
+		    mf::LogDebug("Track3DKalmanSPS_GenFit") << dbgmsg.str();
 		  }
 		  if (!skipFill)
 		    {
@@ -1103,7 +1119,9 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		      chi2ndf = (Float_t)(chi2/ndf);
 		  
 		      nTrks++;
-		      LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Track3DKalmanSPS about to do tree->Fill(). Chi2/ndf is " << chi2/ndf << ".";
+// workaround for #19851
+//		      LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Track3DKalmanSPS about to do tree->Fill(). Chi2/ndf is " << chi2/ndf << ".";
+		      mf::LogDebug("Track3DKalmanSPS_GenFit") << "Track3DKalmanSPS about to do tree->Fill(). Chi2/ndf is " << chi2/ndf << ".";
 		      fpMCMom[3] = MCMomentum.Mag();
 		      for (int ii=0;ii<3;++ii)
 			{

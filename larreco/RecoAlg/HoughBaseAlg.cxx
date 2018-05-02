@@ -1077,7 +1077,9 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 
   for(auto view : geom->Views() ){
 
-    LOG_DEBUG("HoughBaseAlg") << "Analyzing view " << view;
+// workaround for #19851
+//    LOG_DEBUG("HoughBaseAlg") << "Analyzing view " << view;
+    mf::LogDebug("HoughBaseAlg") << "Analyzing view " << view;
 
     art::PtrVector<recob::Cluster>::const_iterator clusterIter = clusIn.begin();
     int clusterID = 0;//the unique ID of the cluster
@@ -1085,7 +1087,9 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
     size_t cinctr = 0;
     while(clusterIter != clusIn.end()) {
 
-      LOG_DEBUG("HoughBaseAlg") << "Analyzing cinctr=" << cinctr << " which is in view " << (*clusterIter)->View();
+// workaround for #19851
+//      LOG_DEBUG("HoughBaseAlg") << "Analyzing cinctr=" << cinctr << " which is in view " << (*clusterIter)->View();
+      mf::LogDebug("HoughBaseAlg") << "Analyzing cinctr=" << cinctr << " which is in view " << (*clusterIter)->View();
 
       hit.clear();
       if(fPerCluster){
@@ -1109,7 +1113,9 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 	continue;
       }
       
-      LOG_DEBUG("HoughBaseAlg") << "We have all the hits..." << hit.size();
+// workaround for #19851
+//      LOG_DEBUG("HoughBaseAlg") << "We have all the hits..." << hit.size();
+      mf::LogDebug("HoughBaseAlg") << "We have all the hits..." << hit.size();
       
       /*
       //factor to make x and y scale the same units
@@ -1370,7 +1376,9 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       std::vector< art::PtrVector<recob::Hit> >   planeClusHitsOut;
       this->FastTransform(hit,planeClusHitsOut,slopevec,totalQvec );
       
-      LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
+// workaround for #19851
+//      LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
+      mf::LogDebug("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
 
       for(size_t xx = 0; xx < planeClusHitsOut.size(); ++xx){
 	auto const& hits = planeClusHitsOut.at(xx);
@@ -1579,7 +1587,9 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
     // The random hit we are examining
     unsigned int randInd = (unsigned int)(flat.fire()*hit.size());
     
-    LOG_DEBUG("HoughBaseAlg") << "randInd=" << randInd << " and size is " << hit.size();
+// workaround for #19851
+//    LOG_DEBUG("HoughBaseAlg") << "randInd=" << randInd << " and size is " << hit.size();
+    mf::LogDebug("HoughBaseAlg") << "randInd=" << randInd << " and size is " << hit.size();
 
   // Skip if it's already in a line
     if(skip.at(randInd)==1)
@@ -1720,7 +1730,9 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       int lastHitsChannel = 0;//lastHits.at(0);
       int nHitsPerChannel = 1;
 
-      LOG_DEBUG("HoughBaseAlg") << "filling the pCorner arrays around here..."
+// workaround for #19851
+//      LOG_DEBUG("HoughBaseAlg") << "filling the pCorner arrays around here..."
+      mf::LogDebug("HoughBaseAlg") << "filling the pCorner arrays around here..."
                                 << "\n but first, lastHits size is " << lastHits.size() 
                                 << " and lastHitsChannel=" << lastHitsChannel;
 

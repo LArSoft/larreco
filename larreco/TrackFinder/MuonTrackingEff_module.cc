@@ -686,7 +686,9 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
     int NRecoTracks = TrackList.size();
     art::FindManyP<recob::Hit> track_hits(TrackListHandle, event, fTrackModuleLabel);
     if( NRecoTracks == 0 ){
-      LOG_DEBUG("MuonTrackingEff")<<"There are no reco tracks... bye";
+// workaround for #19851
+//      LOG_DEBUG("MuonTrackingEff")<<"There are no reco tracks... bye";
+      mf::LogDebug("MuonTrackingEff")<<"There are no reco tracks... bye";
       std::cout << "There are no reco tracks! MCTruthMuonThetaXZ: " << std::endl;
 
       Criteria=0.;
@@ -698,7 +700,9 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
       CountNoRecoTracks++;
       return;
     }
-    LOG_DEBUG("MuonTrackingEff")<<"Found this many reco tracks "<<NRecoTracks;
+// workaround for #19851
+//    LOG_DEBUG("MuonTrackingEff")<<"Found this many reco tracks "<<NRecoTracks;
+    mf::LogDebug("MuonTrackingEff")<<"Found this many reco tracks "<<NRecoTracks;
  
     //std::cout << "NRecoTracks: " << NRecoTracks << std::endl;
 

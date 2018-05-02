@@ -177,7 +177,9 @@ namespace hit{
 	int begin_tail_tick = std::floor(time_bin-half_width);
 	float totalCharge = getTotalCharge(&signal[begin_tail_tick],width,threshold_tail);
 	if(totalCharge==-999) {
-	  LOG_DEBUG("TTHitFinder") << "Rejecting would be hit at (plane,wire,time_bin,first_bin,last_bin)=(" 
+// workaround for #19851
+//	  LOG_DEBUG("TTHitFinder") << "Rejecting would be hit at (plane,wire,time_bin,first_bin,last_bin)=(" 
+	  mf::LogDebug("TTHitFinder") << "Rejecting would be hit at (plane,wire,time_bin,first_bin,last_bin)=(" 
 				   << wire_id.Plane << "," << wire_id.Wire << "," << time_bin << "," << begin_tail_tick << "," << begin_tail_tick+width-1 << "): " 
 				   << signal.at(time_bin-1) << " "
 				   << signal.at(time_bin) << " "
@@ -222,7 +224,9 @@ namespace hit{
 
       }//End loop over time ticks on wire
 
-      LOG_DEBUG("TTHitFinder") << "Finished wire " << wire_id.Wire << " (plane " << wire_id.Plane << ")"
+// workaround for #19851
+//      LOG_DEBUG("TTHitFinder") << "Finished wire " << wire_id.Wire << " (plane " << wire_id.Plane << ")"
+      mf::LogDebug("TTHitFinder") << "Finished wire " << wire_id.Wire << " (plane " << wire_id.Plane << ")"
 			       << "\tTotal hits (U,V,Y)= (" 
 			       << hitCollection_U.size() << ","
 			       << hitCollection_V.size() << ","

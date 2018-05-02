@@ -237,7 +237,9 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 	attach_feature_points(std::get<1>(WireData_trimmed_histos.at(histos)),
 			      WireData_IDs.at(plane),my_geometry.Cryostat(cstat).TPC(tpc).Plane(plane).View(),corner_vector,startx,starty);
 
-	LOG_DEBUG("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
+// workaround for #19851
+//	LOG_DEBUG("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
+	mf::LogDebug("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
       }
       
       //remove_duplicates(corner_vector);

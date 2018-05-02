@@ -604,10 +604,14 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
    
     art::FindManyP<recob::Hit> track_hits(trackListHandle, event, fTrackModuleLabel);
     if( n_recoTrack == 0 ){
-      LOG_DEBUG("NeutrinoTrackingEff")<<"There are no reco tracks... bye";
+// workaround for #19851
+//      LOG_DEBUG("NeutrinoTrackingEff")<<"There are no reco tracks... bye";
+      mf::LogDebug("NeutrinoTrackingEff")<<"There are no reco tracks... bye";
       return; 
     }
-    LOG_DEBUG("NeutrinoTrackingEff")<<"Found this many reco tracks "<<n_recoTrack;
+// workaround for #19851
+//    LOG_DEBUG("NeutrinoTrackingEff")<<"Found this many reco tracks "<<n_recoTrack;
+    mf::LogDebug("NeutrinoTrackingEff")<<"Found this many reco tracks "<<n_recoTrack;
    
  
     double Efrac_lepton =0.0;

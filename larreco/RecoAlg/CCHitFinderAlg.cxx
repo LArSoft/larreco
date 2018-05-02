@@ -306,7 +306,9 @@ namespace hit {
     // we might have found that we don't want the fast fit after all...
     if (!fitter.FillResults(params, paramerrors)) {
       // something went wrong...
-      LOG_DEBUG("CCHitFinderAlg") << "Fast Gaussian fit failed.";
+// workaround for #19851
+//      LOG_DEBUG("CCHitFinderAlg") << "Fast Gaussian fit failed.";
+      mf::LogDebug("CCHitFinderAlg") << "Fast Gaussian fit failed.";
       return false;
     }
     

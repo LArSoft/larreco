@@ -22,7 +22,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindOneP.h"
 #include "art/Framework/Principal/Event.h"
-#include "cetlib/exception.h"
+#include "cetlib_except/exception.h"
 
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larcoreobj/SimpleTypesAndConstants/RawTypes.h" // raw::ChannelID_t
@@ -141,7 +141,9 @@ void hit::HitCheater::produce(art::Event & e)
   }// end loop over SimChannels
 
   // put the cheated hits into the event
-  LOG_DEBUG("HitCheater") << "putting " << hits.size() << " hits into the event";
+// workaround for #19851
+//  LOG_DEBUG("HitCheater") << "putting " << hits.size() << " hits into the event";
+  mf::LogDebug("HitCheater") << "putting " << hits.size() << " hits into the event";
   hits.put_into(e);
 
   return;
@@ -257,7 +259,9 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
             widitr.first                      // wireID
             );
           
-          LOG_DEBUG("HitCheater") << "new hit is " << hits.back();
+// workaround for #19851
+//          LOG_DEBUG("HitCheater") << "new hit is " << hits.back();
+          mf::LogDebug("HitCheater") << "new hit is " << hits.back();
           
         }// end if charge is large enough
 
@@ -310,7 +314,9 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
         widitr.first                      // wireID
         );
       
-      LOG_DEBUG("HitCheater") << "last hit is " << hits.back();
+// workaround for #19851
+//      LOG_DEBUG("HitCheater") << "last hit is " << hits.back();
+      mf::LogDebug("HitCheater") << "last hit is " << hits.back();
       
     }// end if charge is large enough
     

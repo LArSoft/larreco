@@ -16,7 +16,7 @@ simple_plugin(PointIdEffTest "module"
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )
@@ -38,7 +38,7 @@ simple_plugin(PointIdTrainingData "module"
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )
@@ -60,7 +60,7 @@ simple_plugin(EmTrackClusterId2out "module"
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )
@@ -82,7 +82,7 @@ simple_plugin(EmTrackClusterId3out "module"
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )
@@ -104,7 +104,7 @@ simple_plugin(EmTrackMichelId "module"
 			art_Utilities
                         canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )
@@ -126,7 +126,7 @@ simple_plugin(ParticleDecayId "module"
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )
