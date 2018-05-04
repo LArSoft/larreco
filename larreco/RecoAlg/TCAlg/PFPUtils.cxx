@@ -1900,7 +1900,8 @@ namespace tca {
   float PFPDOCA(const PFPStruct& pfp1,  const PFPStruct& pfp2, unsigned short& close1, unsigned short& close2)
   {
     // returns the Distance of Closest Approach between two PFParticles. 
-    
+    close1 = USHRT_MAX;
+    close2 = USHRT_MAX;
     float minSep2 = 1E8;
     for(unsigned short ipt1 = 0; ipt1 < pfp1.Tp3s.size(); ++ipt1) {
       auto& tp1 = pfp1.Tp3s[ipt1];
@@ -2605,14 +2606,15 @@ namespace tca {
      
      */    
     if(tjs.pfps.empty()) return;
-    
     int neutrinoPFPID = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       if(pfp.TPCID != tpcid) continue;
-      if(!tjs.TestBeam && neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) neutrinoPFPID = pfp.ID;
-      // ignore truth photon
-      if(pfp.PDGCode == 22) continue;
+      if(!tjs.TestBeam && neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) {
+        neutrinoPFPID = pfp.ID;
+        break;
+      }
+/* This should be done later
       if(pfp.Vx3ID[0] > 0) continue;
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
@@ -2639,6 +2641,7 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex 3V"<<vx3.ID<<" with new vtx 3V"<<mergeToVx3ID;
         }
       } // merge to new vertex
+*/
     } // pfp
     
     // define the end vertex if the Tjs have end vertices
@@ -2911,6 +2914,74 @@ namespace tca {
   } // FindAlongTrans
   
   ////////////////////////////////////////////////
+  bool PointDirIntersect(Point3_t p1, Vector3_t p1Dir, Point3_t p2, Vector3_t p2Dir, Point3_t& intersect, float& doca)
+  {
+    // Point - vector version
+    Point3_t p1End, p2End;
+    for(unsigned short xyz = 0; xyz < 3; ++xyz) {
+      p1End[xyz] = p1[xyz] + 10 * p1Dir[xyz];
+      p2End[xyz] = p2[xyz] + 10 * p2Dir[xyz];
+    }
+    return LineLineIntersect(p1, p1End, p2, p2End, intersect, doca);
+  } // PointDirIntersect
+  
+  ////////////////////////////////////////////////
+  bool LineLineIntersect(Point3_t p1, Point3_t p2, Point3_t p3, Point3_t p4, Point3_t& intersect, float& doca)
+  {
+    /*
+     Calculate the line segment PaPb that is the shortest route between
+     two lines P1P2 and P3P4. Calculate also the values of mua and mub where
+     Pa = P1 + mua (P2 - P1)
+     Pb = P3 + mub (P4 - P3)
+     Return FALSE if no solution exists.
+     http://paulbourke.net/geometry/pointlineplane/
+     */
+
+    Point3_t p13, p43, p21;
+    double d1343,d4321,d1321,d4343,d2121;
+    double numer,denom;
+    constexpr double EPS = std::numeric_limits<double>::min();
+    
+    p13[0] = p1[0] - p3[0];
+    p13[1] = p1[1] - p3[1];
+    p13[2] = p1[2] - p3[2];
+    p43[0] = p4[0] - p3[0];
+    p43[1] = p4[1] - p3[1];
+    p43[2] = p4[2] - p3[2];
+    if (std::abs(p43[0]) < EPS && std::abs(p43[1]) < EPS && std::abs(p43[2]) < EPS) return(false);
+    p21[0] = p2[0] - p1[0];
+    p21[1] = p2[1] - p1[1];
+    p21[2] = p2[2] - p1[2];
+    if (std::abs(p21[0]) < EPS && std::abs(p21[1]) < EPS && std::abs(p21[2]) < EPS) return(false);
+    
+    d1343 = p13[0] * p43[0] + p13[1] * p43[1] + p13[2] * p43[2];
+    d4321 = p43[0] * p21[0] + p43[1] * p21[1] + p43[2] * p21[2];
+    d1321 = p13[0] * p21[0] + p13[1] * p21[1] + p13[2] * p21[2];
+    d4343 = p43[0] * p43[0] + p43[1] * p43[1] + p43[2] * p43[2];
+    d2121 = p21[0] * p21[0] + p21[1] * p21[1] + p21[2] * p21[2];
+    
+    denom = d2121 * d4343 - d4321 * d4321;
+    if (std::abs(denom) < EPS) return(false);
+    numer = d1343 * d4321 - d1321 * d4343;
+    
+    double mua = numer / denom;
+    double mub = (d1343 + d4321 * mua) / d4343;
+    
+    intersect[0] = p1[0] + mua * p21[0];
+    intersect[1] = p1[1] + mua * p21[1];
+    intersect[2] = p1[2] + mua * p21[2];
+    Point3_t pb;
+    pb[0] = p3[0] + mub * p43[0];
+    pb[1] = p3[1] + mub * p43[1];
+    pb[2] = p3[2] + mub * p43[2];
+    doca = PosSep(intersect, pb);
+    // average the closest points
+    for(unsigned short xyz = 0; xyz < 3; ++xyz) intersect[xyz] += pb[xyz];
+    for(unsigned short xyz = 0; xyz < 3; ++xyz) intersect[xyz] /= 2;
+    return true;
+  } // LineLineIntersect
+  
+  ////////////////////////////////////////////////
   void ReversePFP(TjStuff& tjs, PFPStruct& pfp)
   {
     std::swap(pfp.XYZ[0], pfp.XYZ[1]);
@@ -2932,6 +3003,82 @@ namespace tca {
       } // xyz
     } // tp3
   } // ReversePFP
+  
+  ////////////////////////////////////////////////
+  float ChgFracBetween(TjStuff& tjs, Point3_t pos1, Point3_t pos2, geo::TPCID tpcid)
+  {
+    // Step between pos1 and pos2 and find the fraction of the points that have nearby hits
+    // in each plane. This function returns -1 if something is fishy, but this doesn't mean
+    // that there is no charge. Note that there is no check for charge precisely at the pos1 and pos2
+    // positions 
+    if(tpcid != tjs.TPCID) return -1;
+    float sep = PosSep(pos1, pos2);
+    if(sep == 0) return -1;
+    unsigned short nstep = sep / tjs.WirePitch;
+    auto dir = PointDirection(pos1, pos2);
+    float sum = 0;
+    float cnt = 0;
+    TrajPoint tp;
+    for(unsigned short step = 0; step < nstep; ++step) {
+      for(unsigned short xyz = 0; xyz < 3; ++xyz) pos1[xyz] += tjs.WirePitch * dir[xyz];
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        tp.CTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
+        tp.Pos[0] = tjs.geom->WireCoordinate(pos1[1], pos1[2], plane, tpcid.TPC, tpcid.Cryostat);
+        tp.Pos[1] = tjs.detprop->ConvertXToTicks(pos1[0], plane, tpcid.TPC, tpcid.Cryostat) * tjs.UnitsPerTick;
+        ++cnt;
+        if(SignalAtTp(tjs, tp)) ++sum;
+      } // plane
+    } // step
+    if(cnt == 0) return -1;
+    return sum / cnt;
+    
+  } // ChgFracBetween
+  
+  ////////////////////////////////////////////////
+  float ChgFracNearEnd(TjStuff& tjs, PFPStruct& pfp, unsigned short end)
+  {
+    // returns the charge fraction near the end of the pfp. Note that this function
+    // assumes that there is only one Tj in a plane.
+    if(pfp.ID == 0) return 0;
+    if(pfp.TjIDs.empty()) return 0;
+    if(end < 0 || end > 1) return 0;
+    if(pfp.TPCID != tjs.TPCID) return 0;
+
+    float sum = 0;
+    float cnt = 0;
+    // keep track of the lowest value and maybe reject it
+    float lo = 1;
+    float hi = 0;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
+      std::vector<int> tjids(1);
+      for(auto tjid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tjid - 1];
+        if(tj.CTP != inCTP) continue;
+        tjids[0] = tjid;
+        Point2_t pos;
+        geo::PlaneID planeID = geo::PlaneID(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
+        pos[0] = tjs.geom->WireCoordinate(pfp.XYZ[end][1], pfp.XYZ[end][2], planeID);
+        if(pos[0] < 0) continue;
+        // check for dead wires
+        unsigned int wire = std::nearbyint(pos[0]);
+        if(wire > tjs.NumWires[plane]) continue;
+        if(tjs.WireHitRange[plane][wire].first == -1) continue;
+        pos[1] = tjs.detprop->ConvertXToTicks(pfp.XYZ[end][0], planeID) * tjs.UnitsPerTick;
+        float cf = ChgFracNearPos(tjs, pos, tjids);
+        if(cf < lo) lo = cf;
+        if(cf > hi) hi = cf;
+        sum += cf;
+        ++cnt;
+      } // tjid
+    } // plane
+    if(cnt == 0) return 0;
+    if(cnt > 1 && lo < 0.3 && hi > 0.8) {
+      sum -= lo;
+      --cnt;
+    }
+    return sum / cnt;
+  } // ChgFracNearEnd
 
   ////////////////////////////////////////////////
   void PrintTp3(std::string someText, const TjStuff& tjs, const TrajPoint3& tp3)
