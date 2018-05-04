@@ -32,7 +32,7 @@ namespace tca {
   
   void MakeJunkVertices(TjStuff& tjs, const CTP_t& inCTP);
   void Find2DVertices(TjStuff& tjs, const CTP_t& inCTP);
-//  void FindNeutralVertices(TjStuff& tjs, const geo::TPCID& tpcid);
+  void FindNeutralVertices(TjStuff& tjs, const geo::TPCID& tpcid);
   void MakeJunkTjVertices(TjStuff& tjs, const CTP_t& inCTP);
   void ChkVxTjs(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   bool MergeWithVertex(TjStuff& tjs, VtxStore& vx2, unsigned short existingVxID, bool prt);
