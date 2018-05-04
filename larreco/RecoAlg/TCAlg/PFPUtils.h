@@ -80,7 +80,11 @@ namespace tca {
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp);
   bool InsideTPC(const TjStuff& tjs, Point3_t& pos, geo::TPCID& inTPCID);
   void FindAlongTrans(Point3_t pos1, Vector3_t dir1, Point3_t pos2, Point2_t& alongTrans);
+  bool PointDirIntersect(Point3_t p1, Vector3_t p1Dir, Point3_t p2, Vector3_t p2Dir, Point3_t& intersect, float& doca);
+  bool LineLineIntersect(Point3_t p1, Point3_t p2, Point3_t p3, Point3_t p4, Point3_t& intersect, float& doca);
   void ReversePFP(TjStuff& tjs, PFPStruct& pfp);
+  float ChgFracBetween(TjStuff& tjs, Point3_t pos1, Point3_t pos2, geo::TPCID tpcid);
+  float ChgFracNearEnd(TjStuff& tjs, PFPStruct& pfp, unsigned short end);
   void PrintTp3(std::string fcnLabel, const TjStuff& tjs, const TrajPoint3& tp3);
   void PrintTp3s(std::string someText, const TjStuff& tjs, const PFPStruct& pfp, short printPts);
   
