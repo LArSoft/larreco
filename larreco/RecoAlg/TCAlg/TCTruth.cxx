@@ -641,6 +641,7 @@ namespace tca {
     } // tj
     
     // match a 3D vertex to the primary vertex
+/*
     unsigned short vx3RecoPrmary = 0;
     float close = 1E6;
     for(auto& vx3 : tjs.vtx3) {
@@ -654,7 +655,6 @@ namespace tca {
         vx3RecoPrmary = vx3.ID;
       }
     } // vx3
-/*
     if(vx3RecoPrmary > 0) {
       auto& vx3 = tjs.vtx3[vx3RecoPrmary - 1];
       std::cout<<"vx3RecoPrmary 3"<<vx3.ID<<" close "<<std::setprecision(1)<<close<<" deltas";

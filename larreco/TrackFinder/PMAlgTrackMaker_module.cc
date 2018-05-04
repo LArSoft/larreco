@@ -488,12 +488,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 			}
 
 			//gc: save associated hits in the same order as trajectory points
-                        for (size_t h = 0; h < trk->size(); h++)
+                        for (size_t h = 0, cnt = 0; h < trk->size(); h++)
 			{
                                 pma::Hit3D* h3d = (*trk)[h];
                                 if (!h3d->IsEnabled()) continue;
 
-                                recob::TrackHitMeta metadata(h, h3d->Dx());
+                                recob::TrackHitMeta metadata(cnt++, h3d->Dx());
                                 trk2hit->addSingle(trkPtr, h3d->Hit2DPtr(), metadata);
                                 trk2hit_oldway->addSingle(trkPtr, h3d->Hit2DPtr()); // ****** REMEMBER to remove when FindMany improved ******
 			}
