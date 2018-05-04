@@ -106,6 +106,7 @@ namespace tca {
     tjs.Vertex3DCuts      = pset.get< std::vector<float >>("Vertex3DCuts", {-1, -1});
     tjs.VertexScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
     tjs.Match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1, -1});
+    pset.get_if_present<std::vector<float>>("NeutralVxCuts", tjs.NeutralVxCuts);
     
     debug.Cryostat = 0;
     debug.TPC = 0;
@@ -418,6 +419,7 @@ namespace tca {
         } // TagCosmics
       } // 3D matching requested
       KillPoorVertices(tjs, tpcid);
+      FindNeutralVertices(tjs, tpcid);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
       // true if the algorithm was successful indicating that the matching needs to be redone
       if(tjs.ShowerTag[0] > 1) {
