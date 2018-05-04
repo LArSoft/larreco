@@ -103,25 +103,27 @@ namespace tca {
     auto vlist = temp;
     for(unsigned short indx = 0; indx < temp.size(); ++indx) vlist[indx] = temp[sortVec[indx].index];
     
-    // make a neutrino PFParticle to associate with the highest score vertex
+    // make a neutrino PFParticle to associate with the highest score vertex if it is high enough
     if(tjs.Match3DCuts[0] > 0) {
-      auto neutrinoPFP = CreatePFP(tjs, tpcid);
       auto& vx3 = tjs.vtx3[vlist[0] - 1];
-      // call it the neutrino vertex
-      vx3.Neutrino = true;
-      // put the vertex at the end of the neutrino
-      neutrinoPFP.XYZ[1][0] = vx3.X;
-      neutrinoPFP.XYZ[1][1] = vx3.Y;
-      neutrinoPFP.XYZ[1][2] = vx3.Z;
-      neutrinoPFP.XYZ[0] = neutrinoPFP.XYZ[1];
-      neutrinoPFP.Dir[1][2] = 1;
-      neutrinoPFP.Dir[0][2] = 1;
-      // This may be set to 12 later on if a primary shower is reconstructed 
-      neutrinoPFP.PDGCode = 14;
-      neutrinoPFP.Vx3ID[1] = vx3.ID;
-      neutrinoPFP.Vx3ID[0] = vx3.ID;
-      // the rest of this will be defined later
-      if(!StorePFP(tjs, neutrinoPFP)) return;
+      if(vx3.Score > tjs.Vertex2DCuts[7]) {
+        auto neutrinoPFP = CreatePFP(tjs, tpcid);
+        // call it the neutrino vertex
+        vx3.Neutrino = true;
+        // put the vertex at the end of the neutrino
+        neutrinoPFP.XYZ[1][0] = vx3.X;
+        neutrinoPFP.XYZ[1][1] = vx3.Y;
+        neutrinoPFP.XYZ[1][2] = vx3.Z;
+        neutrinoPFP.XYZ[0] = neutrinoPFP.XYZ[1];
+        neutrinoPFP.Dir[1][2] = 1;
+        neutrinoPFP.Dir[0][2] = 1;
+        // This may be set to 12 later on if a primary shower is reconstructed 
+        neutrinoPFP.PDGCode = 14;
+        neutrinoPFP.Vx3ID[1] = vx3.ID;
+        neutrinoPFP.Vx3ID[0] = vx3.ID;
+        // the rest of this will be defined later
+        if(!StorePFP(tjs, neutrinoPFP)) return;
+      }
     } // User wants to make PFParticles
     // a temp vector to ensure that we only consider a vertex once
     std::vector<bool> lookedAt3(tjs.vtx3.size() + 1, false);
