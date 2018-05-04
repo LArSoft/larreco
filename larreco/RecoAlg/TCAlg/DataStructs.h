@@ -498,6 +498,7 @@ namespace tca {
     std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
     std::vector<float> Vertex3DCuts;   ///< 2D vtx -> 3D vtx matching cuts 
     std::vector<float> VertexScoreWeights;
+    std::vector<float> NeutralVxCuts;
     std::vector<short> DeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
