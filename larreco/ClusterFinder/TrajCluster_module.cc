@@ -209,10 +209,9 @@ namespace cluster {
     // make EndPoints (aka 2D vertices)
     std::vector<tca::VtxStore> const& EndPts = fTCAlg->GetEndPoints();
     art::ServiceHandle<geo::Geometry> geom;
-    unsigned int vtxID = 0;
     for(tca::VtxStore const& vtx2: EndPts) {
       if(vtx2.ID == 0) continue;
-      ++vtxID;
+      unsigned int vtxID = vtx2.ID;
       unsigned int wire = std::nearbyint(vtx2.Pos[0]);
       geo::PlaneID plID = tca::DecodeCTP(vtx2.CTP);
       geo::WireID wID = geo::WireID(plID.Cryostat, plID.TPC, plID.Plane, wire);
@@ -230,12 +229,11 @@ namespace cluster {
     // make 3D vertices
     std::vector<tca::Vtx3Store> const& Vertices = fTCAlg->GetVertices();
     double xyz[3] = {0, 0, 0};
-    vtxID = 0;
     for(tca::Vtx3Store const& vtx3: Vertices) {
       // ignore incomplete vertices or obsolete
       if(vtx3.Wire >= 0) continue;
       if(vtx3.ID == 0) continue;
-      ++vtxID;
+      unsigned int vtxID = vtx3.ID;
       xyz[0] = vtx3.X;
       xyz[1] = vtx3.Y;
       xyz[2] = vtx3.Z;
@@ -363,9 +361,9 @@ namespace cluster {
       shower.set_direction(dir);
       TVector3 dirErr = {ss3.DirErr[0], ss3.DirErr[1], ss3.DirErr[2]};
       shower.set_direction_err(dirErr);
-      TVector3 pos = {ss3.Pos[0], ss3.Pos[1], ss3.Pos[2]};
+      TVector3 pos = {ss3.Start[0], ss3.Start[1], ss3.Start[2]};
       shower.set_start_point(pos);
-      TVector3 posErr = {ss3.PosErr[0], ss3.PosErr[1], ss3.PosErr[2]};
+      TVector3 posErr = {ss3.StartErr[0], ss3.StartErr[1], ss3.StartErr[2]};
       shower.set_start_point_err(posErr);
       shower.set_dedx(ss3.dEdx);
       shower.set_dedx_err(ss3.dEdxErr);
@@ -389,6 +387,8 @@ namespace cluster {
     for(size_t ipfp = 0; ipfp < pfpList.size(); ++ipfp) {
       auto& pfp = pfpList[ipfp];
       if(pfp.ID == 0) continue;
+      // ignore special PFParticles (e.g. truth photons)
+      if(pfp.PDGCode == 22) continue;
       size_t parentIndex = pfp.ID - 1;
       std::vector<size_t> dtrIndices(pfp.DtrIDs.size());
       for(unsigned short idtr = 0; idtr < pfp.DtrIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrIDs[idtr] - 1;

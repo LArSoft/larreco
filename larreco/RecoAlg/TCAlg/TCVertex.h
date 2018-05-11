@@ -32,10 +32,11 @@ namespace tca {
   
   void MakeJunkVertices(TjStuff& tjs, const CTP_t& inCTP);
   void Find2DVertices(TjStuff& tjs, const CTP_t& inCTP);
+//  void FindNeutralVertices(TjStuff& tjs, const geo::TPCID& tpcid);
   void MakeJunkTjVertices(TjStuff& tjs, const CTP_t& inCTP);
   void ChkVxTjs(TjStuff& tjs, const CTP_t& inCTP, bool prt);
   bool MergeWithVertex(TjStuff& tjs, VtxStore& vx2, unsigned short existingVxID, bool prt);
-  void SplitTrajCrossingVertices(TjStuff& tjs, const CTP_t& inCTP);
+  void SplitTrajCrossingVertices(TjStuff& tjs, CTP_t inCTP);
   void FindHammerVertices(TjStuff& tjs, const CTP_t& inCTP);
   void FindHammerVertices2(TjStuff& tjs, const CTP_t& inCTP);
   void Find3DVertices(TjStuff& tjs, const geo::TPCID& tpcid);
@@ -72,7 +73,6 @@ namespace tca {
   void PosInPlane(const TjStuff& tjs, const Vtx3Store& vx3, unsigned short plane, Point2_t& pos);
   unsigned short IsCloseToVertex(TjStuff& tjs, VtxStore& vx);
   unsigned short IsCloseToVertex(TjStuff& tjs, Vtx3Store& vx3);
-  //    void Refine2DVertices();
 } // namespace
 
 #endif // ifndef TRAJCLUSTERALGVERTEX_H

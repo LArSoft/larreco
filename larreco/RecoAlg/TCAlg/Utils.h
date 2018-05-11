@@ -51,6 +51,7 @@ namespace tca {
   int PrimaryID(const TjStuff& tjs, const Trajectory& tj);
   int PrimaryID(const TjStuff& tjs, const PFPStruct& pfp);
   bool MergeTjIntoPFP(TjStuff& tjs, int mtjid, PFPStruct& pfp, bool prt);
+  bool CompatibleMerge(TjStuff& tjs, std::vector<int>& tjIDs, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt);
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
   void FilldEdx(TjStuff& tjs, PFPStruct& pfp);
@@ -59,7 +60,7 @@ namespace tca {
   unsigned short AngleRange(TjStuff& tjs, float angle);
   void FitTraj(TjStuff& tjs, Trajectory& tj);
   void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
-  float TjDirection(const TjStuff& tjs, const Trajectory& tj, bool prt);
+  float TjDirFOM(const TjStuff& tjs, const Trajectory& tj, bool prt);
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
   void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   unsigned short GetPFPIndex(const TjStuff& tjs, int tjID);
@@ -67,9 +68,6 @@ namespace tca {
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
   void UnsetUsedHits(TjStuff& tjs, TrajPoint& tp);
   bool StoreTraj(TjStuff& tjs, Trajectory& tj);
-  void UpdateTotChg(TjStuff& tjs, Trajectory& tj);
-  void UpdateAveChg(TjStuff& tjs, Trajectory& tj);
-  void UpdateChgRMS(TjStuff& tjs, Trajectory& tj);
   bool InTrajOK(TjStuff& tjs, std::string someText);
   void CheckTrajBeginChg(TjStuff& tjs, unsigned short itj, bool prt);
   void TrimEndPts(std::string fcnLabel, TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
@@ -80,7 +78,6 @@ namespace tca {
   bool TrajHitsOK(TjStuff& tjs, const unsigned int iht, const unsigned int jht);
   float ExpectedHitsRMS(TjStuff& tjs, const TrajPoint& tp);
   bool SignalAtTp(TjStuff& tjs, TrajPoint const& tp);
-//  bool SignalAtPos(TjStuff& tjs, const float& pos0, const float& pos1, CTP_t tCTP);
   float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp);
 //  bool CheckHitClusterAssociations(TjStuff& tjs);
   unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires);
@@ -107,6 +104,7 @@ namespace tca {
   bool FindCloseHits(TjStuff const& tjs, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
   std::vector<unsigned int> FindCloseHits(TjStuff const& tjs, std::array<int, 2> const& wireWindow, Point2_t const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
   std::vector<int> FindCloseTjs(const TjStuff& tjs, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta);
+//  void PrimaryElectronLikelihood(TjStuff& tjs, Trajectory& tj, float& likelihood, bool& flipDirection, bool prt);
   float ChgFracNearPos(TjStuff& tjs, const Point2_t& pos, const std::vector<int>& tjIDs);
   float MaxHitDelta(TjStuff& tjs, Trajectory& tj);
   void ReverseTraj(TjStuff& tjs, Trajectory& tj);
@@ -121,6 +119,7 @@ namespace tca {
   // returns the intersection position, intPos, of two trajectory points
   void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, Point2_t& pos);
   void TrajIntersection(TrajPoint const& tp1, TrajPoint const& tp2, float& x, float& y);
+  float MaxTjLen(TjStuff const& tjs, std::vector<int>& tjIDs);
   // Returns the separation distance between two trajectory points
   float TrajPointSeparation(TrajPoint& tp1, TrajPoint& tp2);
   float TrajLength(Trajectory& tj);
@@ -155,6 +154,7 @@ namespace tca {
   unsigned short NumUsedHitsInTj(const TjStuff& tjs, const Trajectory& tj);
   unsigned short NearestPtWithChg(TjStuff& tjs, Trajectory& tj, unsigned short thePt);
   // Calculate MCS momentum
+  short MCSMom(const TjStuff& tjs, const std::vector<int>& tjIDs);
   short MCSMom(TjStuff& tjs, Trajectory& tj);
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short FirstPt, unsigned short lastPt);
   // Calculate MCS theta RMS over the points specified. Returns MCS angle for the full length
@@ -168,9 +168,10 @@ namespace tca {
   void TagDeltaRays(TjStuff& tjs, const CTP_t& inCTP);
   // Tag muon directions using delta proximity
   void TagMuonDirections(TjStuff& tjs, short debugWorkID);
-  void UpdateTjEnvironment(TjStuff& tjs, VtxStore& vx2);
+  void UpdateTjChgProperties(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, bool prt);
+  void UpdateVxEnvironment(std::string inFcnLabel, TjStuff& tjs, VtxStore& vx2, bool prt);
   // Make a bare trajectory point that only has position and direction defined
-  TrajPoint MakeBareTrajPoint(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP);
+  TrajPoint MakeBareTP(TjStuff& tjs, Point3_t& pos, Vector3_t& dir, CTP_t inCTP);
   bool MakeBareTrajPoint(const TjStuff& tjs, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
   bool MakeBareTrajPoint(const TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   bool MakeBareTrajPoint(const Point2_t& fromPos, const Point2_t& toPos, TrajPoint& tpOut);
@@ -182,9 +183,9 @@ namespace tca {
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   bool MergeAndStore(TjStuff& tjs, unsigned int itj1, unsigned int itj2, bool doPrt);
   template <typename T>
-  std::vector<T> SetIntersection(std::vector<T>& set1, std::vector<T>& set2);
+  std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2);
   template <typename T>
-  std::vector<T> SetDifference(std::vector<T>& set1, std::vector<T>& set2);
+  std::vector<T> SetDifference(const std::vector<T>& set1, const std::vector<T>& set2);
   // ****************************** Printing  ******************************
   // Print trajectories, TPs, etc to mf::LogVerbatim
   void PrintTrajectory(std::string someText, const TjStuff& tjs, const Trajectory& tj ,unsigned short tPoint);
@@ -205,14 +206,16 @@ namespace tca {
   
   ////////////////////////////////////////////////
   template <typename T>
-  std::vector<T> SetIntersection(std::vector<T>& set1, std::vector<T>& set2)
+  std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2)
   {
     // returns a vector containing the elements of set1 and set2 that are common. This function
     // is a replacement for std::set_intersection which fails in the following situation:
     // set1 = {11 12 17 18} and set2 = {6 12 18}
     // There is no requirement that the elements be sorted, unlike std::set_intersection
     std::vector<T> shared;
-    if(set1.empty() || set2.empty()) return shared;
+    
+    if(set1.empty()) return shared;
+    if(set2.empty()) return shared;
     for(auto element1 : set1) {
       // check for a common element
       if(std::find(set2.begin(), set2.end(), element1) == set2.end()) continue;
@@ -225,7 +228,7 @@ namespace tca {
   
   ////////////////////////////////////////////////
   template <typename T>
-  std::vector<T> SetDifference(std::vector<T>& set1, std::vector<T>& set2)
+  std::vector<T> SetDifference(const std::vector<T>& set1, const std::vector<T>& set2)
   {
     // returns the elements of set1 and set2 that are different
     std::vector<T> different;

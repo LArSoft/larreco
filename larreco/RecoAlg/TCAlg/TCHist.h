@@ -21,6 +21,18 @@ namespace tca {
   struct HistStuff {
     void CreateHists(art::TFileService& tfs);
     
+    // study electrons
+    TH1F *fChgRMS[5];
+    TH1F *fMomAsym[5];
+    TH1F *fElectronLike[5];
+    TH2F *fElectronLike_Len[5];
+    
+    TH1F *fChgToMeV[3];
+    TProfile *fChgToMeV_Etru;
+    TH2F *AlongTrans1;
+    TH2F *AlongTrans5;
+    TH2F *AlongTrans9;
+    
     TH1F *fUnMatchedHitFrac;
     
     // True kinetic energy (MeV)
@@ -52,13 +64,20 @@ namespace tca {
     TH1F* fdWire[5];
     // EP vs KE for different MC Particles
     TProfile* fEP_T[5];
-    // Trajectory proton likelihood
-    TH1F* fProtonLike[5];
-    TProfile* fProtonLike_T[5];
+    
+    // fraction of TPs that have the kEnvNearTj bit set
+    TProfile* fNearTj[5];
     
     // PFParticle PDGCode vs true PDG code
     TH2F* PDGCode_reco_true;
+    TH1F* fPFPStartEnd;
+    TH1F* fPFPStartdX[5];
+    TH1F* fPFPStartdY[5];
+    TH1F* fPFPStartdZ[5];
+    TH1F* fPFPStartAngDiff[5];
     
+    TH1F* fEff;
+    TH1F* fPur;
     
   };
 } // namespace tca

@@ -198,10 +198,6 @@ namespace tca {
     
     std::vector<unsigned int> fAlgModCount;
 
-//    bool fKalmanFilterFit;
-//    trkf::TrackStatePropagator prop;
-//    trkf::TrackKalmanFitter kalmanFitter;
-
     static bool SortByMultiplet(TCHit const& a, TCHit const& b);
 
 //    short watchInTraj;
@@ -294,7 +290,6 @@ namespace tca {
     void MaskTrajEndPoints(Trajectory& tj, unsigned short nPts);
     // Sets the StopsAtEnd bits for the trajectory
     void ChkStop(Trajectory& tj);
-    void SplitTrajCrossingVertices();
     // Check the Michel electron topology, lastGoodPt is the last point of muon
     bool ChkMichel(Trajectory& tj, unsigned short& lastGoodPt);
     // TY: Split high charge hits near the trajectory end

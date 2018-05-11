@@ -2,7 +2,6 @@
 
 namespace tca {
   const std::vector<std::string> AlgBitNames {
-    "HitsOrdered",
     "MaskHits",
     "MaskBadTPs",
     "Michel",
@@ -40,6 +39,7 @@ namespace tca {
     "Photon",
     "NoFitToVx",
     "VxMerge",
+    "VxNeutral",
     "NoKinkChk",
     "SoftKink",
     "ChkStop",
@@ -67,13 +67,6 @@ namespace tca {
     "SetDir"
   };
 
-  // bit names that describe the environment near a TP
-  const std::vector<std::string> TPEnvNames {
-    "EnvNearShower",
-    "EnvNearTj",
-    "EnvUnusedHits"
-  };
-  
   const std::vector<std::string> StopFlagNames {
     "Signal",
     "AtKink",
