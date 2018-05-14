@@ -15,7 +15,7 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "cetlib/exception.h"
+#include "cetlib_except/exception.h"
 
 #include <utility> // std::forward()
 #include <cassert>

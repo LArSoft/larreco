@@ -29,7 +29,7 @@
 #include "larreco/Genfit/GFAbsTrackRep.h"
 #include "larreco/Genfit/GFException.h"
 
-#include "cetlib/exception.h"
+#include "cetlib_except/exception.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
