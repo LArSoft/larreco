@@ -22,7 +22,7 @@ art_make(
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 	                ${FHICLCPP}
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
@@ -51,7 +51,7 @@ simple_plugin ( FeatureVertexFinder "module"
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 	                ${FHICLCPP}
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
@@ -72,7 +72,7 @@ simple_plugin ( CornerFinder "module"
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 	                ${FHICLCPP}
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}

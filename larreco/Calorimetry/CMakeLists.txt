@@ -14,7 +14,7 @@ art_make( LIB_LIBRARIES	larevt_Filters
                         art_Persistency_Provenance
 			canvas
                         ${MF_MESSAGELOGGER}
-		        ${MF_UTILITIES}
+		        
 		        ${FHICLCPP}
 		        cetlib cetlib_except
 		        ${CLHEP}
@@ -42,7 +42,7 @@ art_make( LIB_LIBRARIES	larevt_Filters
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 	                ${FHICLCPP}
 			cetlib cetlib_except
                         ${ROOT_BASIC_LIB_LIST}

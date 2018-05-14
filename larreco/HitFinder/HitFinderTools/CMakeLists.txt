@@ -19,7 +19,7 @@ set( hitfinder_tool_lib_list
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 			${FHICLCPP}
 			${CETLIB}
 			${Boost_FILESYSTEM_LIBRARY}
