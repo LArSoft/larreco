@@ -121,6 +121,7 @@ namespace tca {
         neutrinoPFP.PDGCode = 14;
         neutrinoPFP.Vx3ID[1] = vx3.ID;
         neutrinoPFP.Vx3ID[0] = vx3.ID;
+        neutrinoPFP.NeedsUpdate = false;
         // the rest of this will be defined later
         if(!StorePFP(tjs, neutrinoPFP)) return;
       }
@@ -628,66 +629,6 @@ namespace tca {
     }
     
   } // OverlapFraction
-  
-  /////////////////////////////////////////
-  void FilldEdx(TjStuff& tjs, PFPStruct& pfp)
-  {
-    // Fills the dEdX vector in the match struct. This function should be called after the
-    // matched trajectory points are ordered so that dE/dx is calculated at the start of the PFParticle
-    if(pfp.ID == 0) return;
-    // error check
-    bool notgood = false;
-    for(unsigned short startend = 0; startend < 2; ++startend) {
-      if(pfp.dEdx[startend].size() != tjs.NumPlanes) notgood = true;
-      if(pfp.dEdxErr[startend].size() != tjs.NumPlanes) notgood = true;
-    }
-    if(notgood) {
-//      if(prt) mf::LogVerbatim("TC")<<"FilldEdx found inconsistent sizes for dEdx\n";
-      return;
-    }
-
-    double t0 = 0;
-    
-    unsigned short numEnds = 2;
-    // don't attempt to find dE/dx at the end of a shower
-    if(pfp.PDGCode == 1111) numEnds = 1;
-    
-    unsigned short maxlen = 0;
-    for(auto tjID : pfp.TjIDs) {
-
-      Trajectory& tj = tjs.allTraj[tjID - 1];
-      geo::PlaneID planeID = DecodeCTP(tj.CTP);
-      double angleToVert = tjs.geom->Plane(planeID).ThetaZ() - 0.5 * ::util::pi<>();
-      for(unsigned short startend = 0; startend < numEnds; ++startend) {
-        pfp.dEdx[startend][planeID.Plane] = 0;
-        tj.dEdx[startend] = 0;
-        double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[startend][1] + std::cos(angleToVert) * pfp.Dir[startend][2]);
-        if(cosgamma == 0) continue;
-        double dx = tjs.geom->WirePitch(planeID) / cosgamma;
-        if(dx == 0) continue;
-        double dQ = tj.Pts[tj.EndPt[startend]].AveChg;
-        if(dQ == 0) continue;
-        // convert to dQ/dx
-        dQ /= dx;
-        double time = tj.Pts[tj.EndPt[startend]].Pos[1] / tjs.UnitsPerTick;
-        float dedx = tjs.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
-        if(dedx > 999) dedx = 999;
-        pfp.dEdx[startend][planeID.Plane] = dedx;
-        tj.dEdx[startend] = dedx;
-        // ChgRMS is the fractional error
-        pfp.dEdxErr[startend][planeID.Plane] = dedx * tj.ChgRMS;
-	
-      } // startend
-      // Grab the best plane iusing the start f 1 < dE/dx < 50 MeV/cm
-      if(pfp.dEdx[0][planeID.Plane] > 1 && pfp.dEdx[0][planeID.Plane] < 50) {
-        if(tj.Pts.size() > maxlen) {
-          maxlen = tj.Pts.size();
-          pfp.BestPlane = planeID.Plane;
-        }
-      } // valid dE/dx
-
-    } // tj
-  } // FilldEdX
 
   /////////////////////////////////////////
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp)
@@ -1602,14 +1543,20 @@ namespace tca {
     if(!MakeBareTrajPoint(tjs, tp1, tp2, tp)) return true;
     return SignalBetween(tjs, tp, toWire, MinWireSignalFraction, prt);
   } // SignalBetween
+  
+  
 
   /////////////////////////////////////////
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt)
   {
+    return ChgFracBetween(tjs, tp, toPos0, prt) >= MinWireSignalFraction;
+  } // SignalBetween
+
+  /////////////////////////////////////////
+  float ChgFracBetween(TjStuff& tjs, TrajPoint tp, float toPos0, bool prt)
+  {
     // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp and toPos0.
     // Note that this uses the direction vector of the tp
-    
-    if(MinWireSignalFraction == 0) return true;
     
     int fromWire = std::nearbyint(tp.Pos[0]);
     int toWire = std::nearbyint(toPos0);
@@ -1621,31 +1568,24 @@ namespace tca {
     
     int nWires = abs(toWire - fromWire) + 1;
     
-    unsigned short maxWiresNoSignal = (1 - MinWireSignalFraction) * nWires;
     if(std::abs(tp.Dir[0]) < 0.001) tp.Dir[0] = 0.001;
     float stepSize = std::abs(1/tp.Dir[0]);
     // ensure that we step in the right direction
     if(toWire > fromWire && tp.Dir[0] < 0) stepSize = -stepSize;
     if(toWire < fromWire && tp.Dir[0] > 0) stepSize = -stepSize;
-    unsigned short nsig = 0;
-    unsigned short num = 0;
-    unsigned short nmissed = 0;
+    float nsig = 0;
+    float num = 0;
     for(unsigned short cnt = 0; cnt < nWires; ++cnt) {
       ++num;
-      if(SignalAtTp(tjs, tp)) {
-        ++nsig;
-      } else {
-        ++nmissed;
-        if(nmissed == maxWiresNoSignal) return false;
-      }
+      if(SignalAtTp(tjs, tp)) ++nsig;
       tp.Pos[0] += tp.Dir[0] * stepSize;
       tp.Pos[1] += tp.Dir[1] * stepSize;
     } // cnt
-    float sigFrac = (float)nsig / (float)nWires;
-    if(prt) mf::LogVerbatim("TC")<<"  SignalBetween fromWire "<<fromWire<<" toWire "<<toWire<<" nWires "<<nWires<<" nsig "<<nsig<<" "<<sigFrac;
-    return (sigFrac >= MinWireSignalFraction);
+    float sigFrac = nsig / num;
+    if(prt) mf::LogVerbatim("TC")<<"  ChgFracBetween fromWire "<<fromWire<<" toWire "<<toWire<<" nWires "<<num<<" nsig "<<nsig<<" "<<sigFrac;
+    return sigFrac;
     
-  } // SignalBetween
+  } // ChgFracBetween
   
   ////////////////////////////////////////////////
   bool TrajHitsOK(TjStuff& tjs, const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet)
@@ -1737,8 +1677,6 @@ namespace tca {
     // Assume dead wires have a signal
     if(tjs.WireHitRange[ipl][wire].first == -1) return true;
     float projTick = (float)(tp.Pos[1] / tjs.UnitsPerTick);
-    // estimate the tick range for non-zero angle
-//    float tickRange = ExpectedHitsRMS(tjs, tp);
     float tickRange = 0;
     if(std::abs(tp.Dir[1]) != 0) {
       tickRange = std::abs(0.5 / tp.Dir[1]) / tjs.UnitsPerTick;
@@ -2812,6 +2750,27 @@ namespace tca {
     return true;
       
   } // InsideEnvelope
+
+  
+  ////////////////////////////////////////////////
+  void FindAlongTrans(Point2_t pos1, Vector2_t dir1, Point2_t pos2, Point2_t& alongTrans)
+  {
+    // Calculate the distance along and transverse to the direction vector dir1 from pos1 to pos2
+    if(pos1[0] == pos2[0] && pos1[1] == pos2[1]) {
+      alongTrans[0] = 0; alongTrans[1] = 0;
+      return;
+    }
+    pos1[0] = pos2[0] - pos1[0];
+    pos1[1] = pos2[1] - pos1[1];
+    double sep = sqrt(pos1[0] * pos1[0] + pos1[1] * pos1[1]);
+    Vector2_t ptDir;
+    ptDir[0] = pos1[0] / sep;
+    ptDir[1] = pos1[1] / sep;
+    double costh = DotProd(dir1, ptDir);
+    alongTrans[0] = costh * sep;
+    double sinth = sqrt(1 - costh * costh);
+    alongTrans[1] = sinth * sep;
+  } // FindAlongTrans
 
   //////////////////////////////////////////
   double DeltaAngle(const Point2_t& p1, const Point2_t& p2)
@@ -4486,7 +4445,7 @@ namespace tca {
   /////////////////////////////////////////
   void PrintPFP(std::string someText, const TjStuff& tjs, const PFPStruct& pfp, bool printHeader)
   {
-    if(pfp.ID == 0) return;
+//    if(pfp.ID == 0) return;
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
@@ -4563,7 +4522,7 @@ namespace tca {
     myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG TruPDG Par Prim E*P\n";
     bool printHeader = true;
     for(auto& pfp : tjs.pfps) {
-      if(pfp.ID == 0) continue;
+//      if(pfp.ID == 0) continue;
       PrintPFP(someText, tjs, pfp, printHeader);
       printHeader = false;
     } // im
