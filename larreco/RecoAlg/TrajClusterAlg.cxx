@@ -461,6 +461,10 @@ namespace tca {
     if(tjs.ShowerTag[0] > 1 && tjs.ShowerTag[12] < tjs.NumPlanes) debug.Plane = tjs.ShowerTag[12];
     if(fDebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
+      if(tjs.ShowerTag[1] > 1) {
+        Print2DShowers("RTC", tjs, USHRT_MAX, false);
+        PrintShowers("RTC", tjs);
+      }
       if(tjs.Match3DCuts[0] > 0) PrintPFPs("RTC", tjs);
       PrintAllTraj("RTC", tjs, debug, USHRT_MAX, 0);
     }
@@ -730,7 +734,7 @@ namespace tca {
     
     // Tag InShower Tjs. The list of inshower Tjs within each shower isn't used here.
     std::vector<std::vector<int>> tjlist;
-    if(tjs.ShowerTag[0] > 0) TagInShowerTjs("RTC", tjs, inCTP, tjlist, true);
+    if(tjs.ShowerTag[0] > 0) TagInShowerTjs("RAT", tjs, inCTP, tjlist, true);
     
     Find2DVertices(tjs, inCTP);
     SplitTrajCrossingVertices(tjs, inCTP);
