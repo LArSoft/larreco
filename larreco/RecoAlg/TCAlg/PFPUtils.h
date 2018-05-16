@@ -64,6 +64,7 @@ namespace tca {
   double PosSep(const Point3_t& pos1, const Point3_t& pos2);
   double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
   bool SetMag(Vector3_t& v1, double mag);
+  void FilldEdx(TjStuff& tjs, PFPStruct& pfp);
   void FilldEdx(TjStuff& tjs, TrajPoint3& tp3);
   float PFPDOCA(const PFPStruct& pfp1,  const PFPStruct& pfp2, unsigned short& close1, unsigned short& close2);
   bool Split3DKink(TjStuff& tjs, PFPStruct& pfp, double sep, bool prt);
