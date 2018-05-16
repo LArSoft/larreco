@@ -54,7 +54,6 @@ namespace tca {
   bool CompatibleMerge(TjStuff& tjs, std::vector<int>& tjIDs, bool prt);
   bool CompatibleMerge(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, bool prt);
   float OverlapFraction(TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2);
-  void FilldEdx(TjStuff& tjs, PFPStruct& pfp);
   unsigned short AngleRange(TjStuff& tjs, TrajPoint const& tp);
   void SetAngleCode(TjStuff& tjs, TrajPoint& tp);
   unsigned short AngleRange(TjStuff& tjs, float angle);
@@ -74,6 +73,7 @@ namespace tca {
   void ChkChgAsymmetry(TjStuff& tjs, Trajectory& tj, bool prt);
   bool SignalBetween(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt);
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
+  float ChgFracBetween(TjStuff& tjs, TrajPoint tp, float toPos0, bool prt);
   bool TrajHitsOK(TjStuff& tjs, const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet);
   bool TrajHitsOK(TjStuff& tjs, const unsigned int iht, const unsigned int jht);
   float ExpectedHitsRMS(TjStuff& tjs, const TrajPoint& tp);
@@ -138,6 +138,8 @@ namespace tca {
   // Project TP to a "wire position" Pos[0] and update Pos[1]
   void MoveTPToWire(TrajPoint& tp, float wire);
   bool PointInsideEnvelope(const Point2_t& Point, const std::vector<Point2_t>& Envelope);
+  void FindAlongTrans(Point2_t pos1, Vector2_t dir1, Point2_t pos2, Point2_t& alongTrans);
+  inline double DotProd(const Vector2_t& v1, const Vector2_t& v2) {return v1[0]*v2[0] + v1[1]*v2[1]; }
   double DeltaAngle(double Ang1, double Ang2);
   double DeltaAngle2(double Ang1, double Ang2);
   double DeltaAngle(const Point2_t& p1, const Point2_t& p2);
