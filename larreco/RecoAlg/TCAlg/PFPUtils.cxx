@@ -1723,8 +1723,6 @@ namespace tca {
   bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3, bool findDirection)
   {
     // Make a 3D trajectory point using two 2D trajectory points
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
     tp3.Dir = {{999.0, 999.0, 999.0}};
     tp3.Pos = {{999.0, 999.0, 999.0}};
     geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
@@ -1734,7 +1732,7 @@ namespace tca {
     double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / upt, jPlnID);
     
     // don't continue if the points are wildly far apart in X
-    if(std::abs(ix - jx) > 10) return false;
+    if(std::abs(ix - jx) > 20) return false;
     tp3.Pos[0] = 0.5 * (ix + jx);
     // determine the wire orientation and offsets using WireCoordinate
     // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
@@ -1848,6 +1846,66 @@ namespace tca {
     v1[2] *= mag / den;
     return true;
   } // SetMag
+  
+  /////////////////////////////////////////
+  void FilldEdx(TjStuff& tjs, PFPStruct& pfp)
+  {
+    // Fills the dEdX vector in the match struct. This function should be called after the
+    // matched trajectory points are ordered so that dE/dx is calculated at the start of the PFParticle
+    if(pfp.ID == 0) return;
+    // error check
+    bool notgood = false;
+    for(unsigned short startend = 0; startend < 2; ++startend) {
+      if(pfp.dEdx[startend].size() != tjs.NumPlanes) notgood = true;
+      if(pfp.dEdxErr[startend].size() != tjs.NumPlanes) notgood = true;
+    }
+    if(notgood) {
+      //      if(prt) mf::LogVerbatim("TC")<<"FilldEdx found inconsistent sizes for dEdx\n";
+      return;
+    }
+    
+    double t0 = 0;
+    
+    unsigned short numEnds = 2;
+    // don't attempt to find dE/dx at the end of a shower
+    if(pfp.PDGCode == 1111) numEnds = 1;
+    
+    unsigned short maxlen = 0;
+    for(auto tjID : pfp.TjIDs) {
+      
+      Trajectory& tj = tjs.allTraj[tjID - 1];
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      double angleToVert = tjs.geom->Plane(planeID).ThetaZ() - 0.5 * ::util::pi<>();
+      for(unsigned short startend = 0; startend < numEnds; ++startend) {
+        pfp.dEdx[startend][planeID.Plane] = 0;
+        tj.dEdx[startend] = 0;
+        double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[startend][1] + std::cos(angleToVert) * pfp.Dir[startend][2]);
+        if(cosgamma == 0) continue;
+        double dx = tjs.geom->WirePitch(planeID) / cosgamma;
+        if(dx == 0) continue;
+        double dQ = tj.Pts[tj.EndPt[startend]].AveChg;
+        if(dQ == 0) continue;
+        // convert to dQ/dx
+        dQ /= dx;
+        double time = tj.Pts[tj.EndPt[startend]].Pos[1] / tjs.UnitsPerTick;
+        float dedx = tjs.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
+        if(dedx > 999) dedx = 999;
+        pfp.dEdx[startend][planeID.Plane] = dedx;
+        tj.dEdx[startend] = dedx;
+        // ChgRMS is the fractional error
+        pfp.dEdxErr[startend][planeID.Plane] = dedx * tj.ChgRMS;
+        
+      } // startend
+      // Grab the best plane iusing the start f 1 < dE/dx < 50 MeV/cm
+      if(pfp.dEdx[0][planeID.Plane] > 1 && pfp.dEdx[0][planeID.Plane] < 50) {
+        if(tj.Pts.size() > maxlen) {
+          maxlen = tj.Pts.size();
+          pfp.BestPlane = planeID.Plane;
+        }
+      } // valid dE/dx
+      
+    } // tj
+  } // FilldEdX
 
   ////////////////////////////////////////////////
   void FilldEdx(TjStuff& tjs, TrajPoint3& tp3)
@@ -2084,8 +2142,7 @@ namespace tca {
     // The calling function should define the size of pfp.TjIDs
     PFPStruct pfp;
     pfp.ID = tjs.pfps.size() + 1;
-    // assume it is it's own parent
-    pfp.ParentID = pfp.ID;
+    pfp.ParentID = 0;
     pfp.TPCID = tpcid;
     // initialize arrays for both ends
     if(tjs.NumPlanes < 4) {
@@ -2547,8 +2604,6 @@ namespace tca {
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       if(pfp.Vx3ID[0] > 0) continue;
-      // ignore truth photons
-      if(pfp.PDGCode == 22) continue;
       if(pfp.Vx3ID[1] == 0 && !pfp.Tp3s.empty()) {
         // See if the direction needs to be changed
 //        std::cout<<"PFPVertexCheck needs revision\n";
@@ -2563,7 +2618,7 @@ namespace tca {
       vx3.ID = tjs.vtx3.size() + 1;
       vx3.Primary = false;
       tjs.vtx3.push_back(vx3);
-//      std::cout<<"PFPVertexCheck: add 3V"<<vx3.ID<<"\n";
+      std::cout<<"PFPVertexCheck: P"<<pfp.ID<<" create 3V"<<vx3.ID<<"\n";
       pfp.Vx3ID[0] = vx3.ID;
     } // pfp
   } // PFPVertexCheck
@@ -2614,34 +2669,6 @@ namespace tca {
         neutrinoPFPID = pfp.ID;
         break;
       }
-/* This should be done later
-      if(pfp.Vx3ID[0] > 0) continue;
-      Vtx3Store vx3;
-      vx3.TPCID = pfp.TPCID;
-      // Flag it as a PFP vertex that isn't required to have matched 2D vertices
-      vx3.Wire = -2;
-      vx3.X = pfp.XYZ[0][0];
-      vx3.Y = pfp.XYZ[0][1];
-      vx3.Z = pfp.XYZ[0][2];
-      vx3.ID = tjs.vtx3.size() + 1;
-      vx3.Primary = false;
-      // TODO: we need to have PFP track position errors defined 
-      unsigned short mergeToVx3ID = IsCloseToVertex(tjs, vx3);
-      if(mergeToVx3ID > 0) {
-        if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex "<<vx3.ID<<" with existing 3V"<<mergeToVx3ID;
-        if(!AttachPFPToVertex(tjs, pfp, 0, mergeToVx3ID, prt)) {
-          if(prt) mf::LogVerbatim("TC")<<" Failed to attach pfp "<<pfp.ID<<". Make new vertex \n";
-          mergeToVx3ID = 0;
-        }
-      } // mergeMe > 0
-      if(mergeToVx3ID == 0) {
-        // Add the new vertex and attach the PFP to it
-        tjs.vtx3.push_back(vx3);
-        if(!AttachPFPToVertex(tjs, pfp, 0, vx3.ID, prt)) {
-          if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex 3V"<<vx3.ID<<" with new vtx 3V"<<mergeToVx3ID;
-        }
-      } // merge to new vertex
-*/
     } // pfp
     
     // define the end vertex if the Tjs have end vertices
@@ -2687,7 +2714,7 @@ namespace tca {
       unsigned short nParent = 0;
       for(auto tjid : pfp.TjIDs) {
         auto& tj = tjs.allTraj[tjid - 1];
-        if(tj.ParentID == tj.ID) continue;
+        if(tj.ParentID == 0) continue;
         unsigned short ppindex = GetPFPIndex(tjs, tj.ParentID);
         if(ppindex == USHRT_MAX) continue;
         int ppid = ppindex + 1;
@@ -2819,7 +2846,7 @@ namespace tca {
     bool neutrinoPFP = pfp.PDGCode == 12 || pfp.PDGCode == 14;
     if(!neutrinoPFP) {
       if(pfp.TjIDs.empty()) return false;
-      if(pfp.Tp3s.size() < 2) return false;
+      if(pfp.PDGCode != 1111 && pfp.Tp3s.size() < 2) return false;
     }
     // check the ID and correct it if it is wrong
     if(pfp.ID != (int)tjs.pfps.size() + 1) pfp.ID = tjs.pfps.size() + 1;
@@ -2868,6 +2895,10 @@ namespace tca {
       } // ii
     } // Tp3s exist    
     
+    if(pfp.BestPlane < 0) FilldEdx(tjs, pfp);
+    
+    if(pfp.NeedsUpdate) std::cout<<"StorePFP: stored P"<<pfp.ID<<" but NeedsUpdate is true...\n";
+    
     tjs.pfps.push_back(pfp);
     return true;
   } // StorePFP
@@ -2877,6 +2908,7 @@ namespace tca {
   {
     // determine which TPC this point is in. This function returns false
     // if the point is not inside any TPC
+    double abit = -2;
     for (const geo::TPCID& tpcid: tjs.geom->IterateTPCIDs()) {
       const geo::TPCGeo& TPC = tjs.geom->TPC(tpcid);
       double local[3] = {0.,0.,0.};
@@ -2885,12 +2917,12 @@ namespace tca {
       unsigned int cstat = tpcid.Cryostat;
       unsigned int tpc = tpcid.TPC;
       // reduce the active area of the TPC by 1 cm to be consistent with FillWireHitRange
-      if(pos[0] < world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + 1) continue;
-      if(pos[0] > world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - 1) continue;
-      if(pos[1] < world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + 1) continue;
-      if(pos[1] > world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - 1) continue;
-      if(pos[2] < world[2]-tjs.geom->DetLength(tpc,cstat)/2 + 1) continue;
-      if(pos[2] > world[2]+tjs.geom->DetLength(tpc,cstat)/2 - 1) continue;
+      if(pos[0] < world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + abit) continue;
+      if(pos[0] > world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - abit) continue;
+      if(pos[1] < world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + abit) continue;
+      if(pos[1] > world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - abit) continue;
+      if(pos[2] < world[2]-tjs.geom->DetLength(tpc,cstat)/2 + abit) continue;
+      if(pos[2] > world[2]+tjs.geom->DetLength(tpc,cstat)/2 - abit) continue;
       inTPCID = tpcid;
       return true;
     } // tpcid
