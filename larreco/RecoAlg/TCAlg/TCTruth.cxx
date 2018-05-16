@@ -330,18 +330,18 @@ namespace tca {
     primVx[0] = primMCP->Vx();
     primVx[1] = primMCP->Vy();
     primVx[2] = primMCP->Vz();
-    geo::TPCID inTPCID = tjs.TPCID;
-    if(!InsideTPC(tjs, primVx, inTPCID)) {
-      if(tjs.MatchTruth[1] > 0) std::cout<<"Found a primary particle but it is not inside any TPC\n";
-      return;
-    }
     posOffsets = SCE->GetPosOffsets({primVx[0], primVx[1], primVx[2]});
     posOffsets.SetX(-posOffsets.X());
     primVx[0] += posOffsets.X();
     primVx[1] += posOffsets.Y();
     primVx[2] += posOffsets.Z();
+    if(tjs.MatchTruth[1] > 1) std::cout<<"Prim PDG code  "<<primMCP->PdgCode()<<" primVx "<<std::fixed<<std::setprecision(1)<<primVx[0]<<" "<<primVx[1]<<" "<<primVx[2]<<"\n";
+    geo::TPCID inTPCID = tjs.TPCID;
+    if(!InsideTPC(tjs, primVx, inTPCID)) {
+      if(tjs.MatchTruth[1] > 0) std::cout<<"Found a primary particle but it is not inside any TPC\n";
+      return;
+    }
     neutrinoVxReconstructable = true;
-    if(tjs.MatchTruth[1] > 1) std::cout<<"Prim PDG code  "<<primMCP->PdgCode()<<" "<<std::fixed<<std::setprecision(1)<<primVx[0]<<" "<<primVx[1]<<" "<<primVx[2]<<"\n";
     
     // Look for the MC truth process that should be considered (beam neutrino,
     // single particle, cosmic rays), then form a list of selected MCParticles 
@@ -830,7 +830,8 @@ namespace tca {
         tj.MCPartListIndex = mcpIndex;
         EPTSums[pdgIndex] += TMeV * tj.EffPur;
         hist.fEP_T[pdgIndex]->Fill(TMeV, tj.EffPur);
-        if(tj.EffPur < tjs.MatchTruth[2] && (float)mcpPlnHits.size() >= tjs.MatchTruth[3]) {
+        // ignore electrons
+        if(tj.EffPur < tjs.MatchTruth[2] && (float)mcpPlnHits.size() >= tjs.MatchTruth[3] && pdgIndex > 0) {
           ++nBadEP;
           mf::LogVerbatim myprt("TC");
           myprt<<particleName<<" BadEP: "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
