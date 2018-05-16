@@ -240,14 +240,12 @@ namespace tca {
     std::array<Vector3_t, 2> DirErr;
     std::array<std::vector<float>, 2> dEdx;
     std::array<std::vector<float>, 2> dEdxErr;
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
     std::array<unsigned short, 2> Vx3ID {{ 0, 0 }};
     int BestPlane {-1};
     // stuff for constructing the PFParticle
     int PDGCode {-1};
     std::vector<int> DtrIDs;
-    size_t ParentID {0};       // Parent PFP ID (or ID of self if no parent exists)
+    size_t ParentID {0};       // Parent PFP ID (or 0 if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned int MCPartListIndex {UINT_MAX};
@@ -284,7 +282,7 @@ namespace tca {
     float Energy {0};
     float ParentFOM {10};
     int ID {0}; 
-    int ParentID {0};  // The ID of an external parent Tj that was added to the shower
+    int ParentID {0};  // The ID of a parent Tj - the one at the start of the shower
     unsigned short TruParentID {0};
     unsigned short SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
     bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
@@ -313,9 +311,11 @@ namespace tca {
     std::vector<unsigned int> Hits;
     int BestPlane;
     int ID;
+    int ParentID {0};       // The ID of a track-like pfp at the start of the shower, e.g. an electron
     float FOM;
-    unsigned short PFPIndex {USHRT_MAX};    // The index of the PFParticle for this shower
+    unsigned short PFPIndex {USHRT_MAX};    // The index of the pfp for this shower
     unsigned short Vx3ID {0};
+    bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
   };
 
   struct ShowerTreeVars {
