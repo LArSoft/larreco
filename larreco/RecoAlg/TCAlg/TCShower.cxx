@@ -273,7 +273,7 @@ namespace tca {
     }
     
     // rebuild the hit range references if necessary
-    if(tpcid != tjs.TPCID && !FillWireHitRange(tjs, tpcid, false)) return false;
+    if(tpcid != tjs.TPCID && !FillWireHitRange(tjs, tpcid)) return false;
 
     if(prt) {
       PrintPFPs("FSi", tjs);
