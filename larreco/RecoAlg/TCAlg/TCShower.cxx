@@ -2631,7 +2631,6 @@ namespace tca {
       if(sortVec.size() < 2) return;
       std::sort(sortVec.begin(), sortVec.end(), greaterThan);
       for(unsigned short ii = 0; ii < sortVec.size() - 1; ++ii) {
-        if(inCTP == 0) std::cout<<"MSS ii "<<ii<<" "<<sortVec[ii].index<<" E "<<(int)sortVec[ii].length<<"\n";
         ShowerStruct& iss = tjs.cots[sortVec[ii].index];
         if(iss.ID == 0) continue;
         // this shouldn't be done to showers that are ~round
@@ -2644,7 +2643,6 @@ namespace tca {
         // convert to WSE
         along95 /= tjs.WirePitch;
         for(unsigned short jj = ii + 1; jj < sortVec.size(); ++jj) {
-          if(inCTP == 0) std::cout<<"   jj "<<jj<<" "<<sortVec[jj].index<<" E "<<(int)sortVec[jj].length<<"\n";
           ShowerStruct& jss = tjs.cots[sortVec[jj].index];
           if(jss.ID == 0) continue;
           TrajPoint& jstp1 = tjs.allTraj[jss.ShowerTjID - 1].Pts[1];
