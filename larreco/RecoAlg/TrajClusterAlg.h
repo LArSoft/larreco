@@ -179,7 +179,6 @@ namespace tca {
     bool mrgPrt;
     bool didPrt;
     int TJPrt; // Set to the WorkID of a trajectory that is being debugged
-    bool fDebugMode;
     
     trkf::LinFitAlg fLinFitAlg;
     calo::CalorimetryAlg fCaloAlg;
