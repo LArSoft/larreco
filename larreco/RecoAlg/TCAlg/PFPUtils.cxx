@@ -24,8 +24,8 @@ namespace tca {
     if(tjs.mallTraj.empty() && tjs.pfps.empty()) return;
     
     // convert from int to unsigned short
-    unsigned short oldtjid = oldTj;
-    unsigned short newtjid = newTj;
+    int oldtjid = oldTj;
+    int newtjid = newTj;
     auto& ntj = tjs.allTraj[newTj - 1];
     unsigned short npts = ntj.EndPt[1] - ntj.EndPt[0] + 1;
     // put the X positions of the new Tj into a vector for matching
@@ -164,6 +164,7 @@ namespace tca {
         auto& tp = tj.Pts[ipt];
         if(tp.Chg == 0) continue;
         if(icnt > tjs.mallTraj.size() - 1) break;
+        if(tp.Pos[0] < -0.4) continue;
         tjs.mallTraj[icnt].wire = std::nearbyint(tp.Pos[0]);
         bool hasWire = tjs.geom->HasWire(geo::WireID(cstat, tpc, plane, tjs.mallTraj[icnt].wire));
         // don't try matching if the wire doesn't exist
@@ -257,7 +258,7 @@ namespace tca {
     // rotates each tp3 into this coordinate system to determine (along, trans) for each point. The min (max)
     // value of along defines the start (end) of the trajectory.
     
-    if(pfp.ID == 0 || pfp.TjIDs.empty()) return false;
+    if(pfp.ID <= 0 || pfp.TjIDs.empty()) return false;
     if(pfp.Tp3s.size() < 2) return false;
 
     // The projection along the general direction relative to the average position was found
@@ -776,7 +777,7 @@ namespace tca {
     bool smallAngle = false;
     if(fillTp3s) {
       smallAngle = (pfp.Dir[0][0] != 0 && std::abs(pfp.Dir[0][0]) < 0.1);
-      if(pfp.Dir[0][0] == 0) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
+//      if(pfp.Dir[0][0] == 0) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
     }
     double yzcut = 1.5 * tjs.Match3DCuts[0];
     
@@ -859,7 +860,9 @@ namespace tca {
         // count it as a triple if this point is in a dead region
         unsigned short jplane = DecodeCTP(jtp.CTP).Plane;
         unsigned short kplane = 3 - iplane - jplane;
-        unsigned int kwire = std::nearbyint(tjs.geom->WireCoordinate(ijtp3.Pos[1], ijtp3.Pos[2], kplane, tpc, cstat));
+        float fwire = tjs.geom->WireCoordinate(ijtp3.Pos[1], ijtp3.Pos[2], kplane, tpc, cstat);
+        if(fwire < -0.4) continue;
+        unsigned int kwire = std::nearbyint(fwire);
         if(kwire < tjs.WireHitRange[kplane].size() && tjs.WireHitRange[kplane][kwire].first == -1) {
           // accumulate the fit sums
           if(doFit) Fit3D(1, ijtp3.Pos, ijtp3.Dir, point, dir);
@@ -1270,6 +1273,7 @@ namespace tca {
       if(tj.CTP != inCTP) continue;
       for(unsigned short end = 0; end < 2; ++end) {
         float endWire = tj.Pts[tj.EndPt[end]].Pos[0];
+        if(endWire < -0.4) continue;
         if(endWire < fLoWire) fLoWire = endWire;
         if(endWire > fHiWire) fHiWire = endWire;
       } // end
@@ -1287,6 +1291,7 @@ namespace tca {
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         auto& tp = tj.Pts[ipt];
         if(tp.Chg <= 0) continue;
+        if(tp.Pos[0] < -0.4) continue;
         ++npwc;
         unsigned short indx = std::nearbyint(tp.Pos[0]) - loWire;
         if(indx < nWires) ptOnWire[indx] = true;
@@ -2604,10 +2609,6 @@ namespace tca {
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       if(pfp.Vx3ID[0] > 0) continue;
-      if(pfp.Vx3ID[1] == 0 && !pfp.Tp3s.empty()) {
-        // See if the direction needs to be changed
-//        std::cout<<"PFPVertexCheck needs revision\n";
-      }
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
       // Flag it as a PFP vertex that isn't required to have matched 2D vertices
@@ -2618,7 +2619,7 @@ namespace tca {
       vx3.ID = tjs.vtx3.size() + 1;
       vx3.Primary = false;
       tjs.vtx3.push_back(vx3);
-      std::cout<<"PFPVertexCheck: P"<<pfp.ID<<" create 3V"<<vx3.ID<<"\n";
+//      std::cout<<"PFPVertexCheck: P"<<pfp.ID<<" create 3V"<<vx3.ID<<"\n";
       pfp.Vx3ID[0] = vx3.ID;
     } // pfp
   } // PFPVertexCheck
@@ -3091,7 +3092,7 @@ namespace tca {
         Point2_t pos;
         geo::PlaneID planeID = geo::PlaneID(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
         pos[0] = tjs.geom->WireCoordinate(pfp.XYZ[end][1], pfp.XYZ[end][2], planeID);
-        if(pos[0] < 0) continue;
+        if(pos[0] < -0.4) continue;
         // check for dead wires
         unsigned int wire = std::nearbyint(pos[0]);
         if(wire > tjs.NumWires[plane]) continue;
