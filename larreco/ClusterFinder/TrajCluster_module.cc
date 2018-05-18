@@ -396,7 +396,11 @@ namespace cluster {
       // make a list of clusters that are associated with this PFParticle. Trace the association
       // through the trajectories that 
       std::vector<unsigned int> clsIndices;
-      for(auto& tjid : pfp.TjIDs) {
+      for(auto tjid : pfp.TjIDs) {
+        if(tjid == 0) {
+          std::cout<<"TC: Found an invalid tj ID "<<tjid<<" in P"<<pfp.ID;
+          continue;
+        }
         unsigned int clsIndex = fTCAlg->GetTjClusterIndex(tjid);
         if(clsIndex > Clusters.size() - 1) {
           std::cout<<"Retrieved an invalid cluster index for PFParticle "<<pfp.ID<<" TjID "<<tjid<<". Ignoring it...\n";
