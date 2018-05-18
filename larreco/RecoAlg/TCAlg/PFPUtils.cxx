@@ -777,7 +777,7 @@ namespace tca {
     bool smallAngle = false;
     if(fillTp3s) {
       smallAngle = (pfp.Dir[0][0] != 0 && std::abs(pfp.Dir[0][0]) < 0.1);
-//      if(pfp.Dir[0][0] == 0) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
+      if(pfp.Dir[0][0] == 0 && tjs.DebugMode) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
     }
     double yzcut = 1.5 * tjs.Match3DCuts[0];
     
@@ -2697,8 +2697,8 @@ namespace tca {
       } // tjid
       if(cnt3 > 1) {
         pfp.Vx3ID[end1] = vx3id;
-        if(cnt3 != tjs.NumPlanes) {
-          mf::LogVerbatim("TC")<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code";
+        if(cnt3 != tjs.NumPlanes && tjs.DebugMode) {
+          std::cout<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code\n";
         }
       } // cnt3 > 1
     } // pfp
