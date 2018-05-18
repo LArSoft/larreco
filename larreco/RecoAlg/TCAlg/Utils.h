@@ -184,6 +184,7 @@ namespace tca {
   bool CheckWireHitRange(const TjStuff& tjs);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   bool MergeAndStore(TjStuff& tjs, unsigned int itj1, unsigned int itj2, bool doPrt);
+  std::vector<int> GetAssns(const TjStuff& tjs, std::string type1Name, int id, std::string type2Name);
   template <typename T>
   std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2);
   template <typename T>
