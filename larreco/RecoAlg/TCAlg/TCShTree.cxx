@@ -41,12 +41,12 @@ namespace tca {
 
   } // SaveTjInfo (tjlist) 
 
-  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotIndex,
+  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotID,
                   std::string stageName) {
     if(!tjs.SaveShowerTree) return;
     int stageNum = GetStageNum(tjs.stv, stageName);
 
-    ShowerStruct& ss = tjs.cots[cotIndex];
+    ShowerStruct& ss = tjs.cots[cotID - 1];
     // killed shower?
     if(ss.ID == 0) return;
 
@@ -83,8 +83,8 @@ namespace tca {
       for (size_t i = 0; i < ss.TjIDs.size(); ++i) {
         if (trajID == ss.TjIDs[i]) {
           noMatch = false;
-          if (tjIndex == -1) tjs.stv.ShowerID.back() = cotIndex;
-          else tjs.stv.ShowerID.at(tjIndex) = cotIndex;
+          if (tjIndex == -1) tjs.stv.ShowerID.back() = cotID;
+          else tjs.stv.ShowerID.at(tjIndex) = cotID;
         }
         
         if (it1 == (ss.ShowerTjID - 1)) tjs.stv.IsShowerTj.back() = 1;
@@ -93,11 +93,11 @@ namespace tca {
         // and mark parent flag	
         if (trajID == ss.ParentID) {
           if (tjIndex == -1) {
-            tjs.stv.ShowerID.back() = cotIndex;
+            tjs.stv.ShowerID.back() = cotID;
             tjs.stv.IsShowerParent.back() = 1;
           }
           else {
-            tjs.stv.ShowerID.at(tjIndex) = cotIndex;
+            tjs.stv.ShowerID.at(tjIndex) = cotID;
             tjs.stv.IsShowerParent.at(tjIndex) = 1;
           }
           break;
@@ -114,7 +114,7 @@ namespace tca {
     for (int i = 0; i < 8; i++) {
       tjs.stv.EnvStage.push_back(stageNum);
       tjs.stv.EnvPlane.push_back(iPlnID.Plane);
-      tjs.stv.EnvShowerID.push_back(cotIndex);
+      tjs.stv.EnvShowerID.push_back(cotID);
     }
 
     tjs.stv.Envelope.push_back(ss.Envelope[0][0]);
@@ -168,7 +168,7 @@ namespace tca {
       auto& ss = tjs.cots[cotIndex];
       if (ss.CTP != inCTP) continue;
       if(ss.ID == 0) continue;
-      SaveTjInfo(tjs, ss.CTP, cotIndex, someText);
+      SaveTjInfo(tjs, ss.CTP, ss.ID, someText);
     } // cotIndex
   } // SaveAllCots
 
@@ -178,7 +178,7 @@ namespace tca {
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       auto& ss = tjs.cots[cotIndex];
       if(ss.ID == 0) continue;
-      SaveTjInfo(tjs, ss.CTP, cotIndex, someText);
+      SaveTjInfo(tjs, ss.CTP, ss.ID, someText);
     } // cotIndex
   }
 
