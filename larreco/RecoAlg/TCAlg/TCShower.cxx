@@ -3359,7 +3359,7 @@ namespace tca {
     if(tjs.allTraj.size() > 20000) return;
     
     // evaluate different cuts
-    bool newCuts = (tjs.ShowerTag[0] == 3);
+    bool newCuts = (tjs.ShowerTag[0] > 2);
     float typicalChgRMS = 0.5 * (tjs.ChargeCuts[1] + tjs.ChargeCuts[2]);
     
     // clear out old tags and make a list of Tjs to consider
