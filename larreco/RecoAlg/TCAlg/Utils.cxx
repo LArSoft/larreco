@@ -55,7 +55,7 @@ namespace tca {
       if(tj.AlgMod[kDeltaRay]) continue;
       // ignore pion-like
 //      if(tj.PDGCode == 211) continue;
-      tj.ParentID = -1;
+      tj.ParentID = 0;
     } // tj
     
     // sort vertice by decreasing score
@@ -78,9 +78,9 @@ namespace tca {
       for(auto tjid : tjlist) {
         // Temp? Check for an existing parentID
         auto& tj = tjs.allTraj[tjid - 1];
-        if(tj.ParentID != -1) {
+        if(tj.ParentID != 0) {
 //          std::cout<<"**** Tj "<<tj.ID<<" Existing parent "<<tj.ParentID<<" PDGCode "<<tj.PDGCode<<". with a vertex... \n";
-          tj.ParentID = -1;
+          tj.ParentID = 0;
         }
         if(std::find(masterlist.begin(), masterlist.end(), tjid) == masterlist.end()) masterlist.push_back(tjid);
       } // tjid
@@ -282,8 +282,6 @@ namespace tca {
     std::array<unsigned short, 5> cnts;
     cnts.fill(0);
     // Count Bragg peaks. This assumes that the Tjs are in order...
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
     std::array<unsigned short, 2> stopCnt {{0, 0}};
     float maxLen = 0;
     for(auto tjid : tjIDs) {
@@ -291,7 +289,7 @@ namespace tca {
       auto& tj = tjs.allTraj[tjid - 1];
       for(unsigned short ii = 0; ii < 5; ++ii) if(tj.PDGCode == codeList[ii]) ++cnts[ii];
       // count InShower Tjs with PDGCode not set (yet)
-      if(tj.PDGCode != 11 && tj.AlgMod[kInShower]) ++cnts[1];
+      if(tj.PDGCode != 11 && tj.AlgMod[kShowerLike]) ++cnts[1];
       for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[end][kBragg]) ++stopCnt[end];
       float len = TrajLength(tj);
       if(len > maxLen) maxLen = len;
@@ -592,6 +590,7 @@ namespace tca {
     float cnt1 = 0;
     for(auto& tp : tj1.Pts) {
       if(tp.Chg == 0) continue;
+      if(tp.Pos[0] < 0) continue;
       if(tp.Pos[0] < minWire) minWire = tp.Pos[0];
       if(tp.Pos[0] > maxWire) maxWire = tp.Pos[0];
       ++cnt1;
@@ -600,6 +599,7 @@ namespace tca {
     float cnt2 = 0;
     for(auto& tp : tj2.Pts) {
       if(tp.Chg == 0) continue;
+      if(tp.Pos[0] < 0) continue;
       if(tp.Pos[0] < minWire) minWire = tp.Pos[0];
       if(tp.Pos[0] > maxWire) maxWire = tp.Pos[0];
       ++cnt2;
@@ -610,12 +610,14 @@ namespace tca {
     std::vector<unsigned short> wcnt(span);
     for(auto& tp : tj1.Pts) {
       if(tp.Chg == 0) continue;
+      if(tp.Pos[0] < -0.4) continue;
       int indx = std::nearbyint(tp.Pos[0] - minWire);
       if(indx < 0 || indx > span - 1) continue;
       ++wcnt[indx];
     }
     for(auto& tp : tj2.Pts) {
       if(tp.Chg == 0) continue;
+      if(tp.Pos[0] < -0.4) continue;
       int indx = std::nearbyint(tp.Pos[0] - minWire);
       if(indx < 0 || indx > span - 1) continue;
       ++wcnt[indx];
@@ -1433,18 +1435,19 @@ namespace tca {
     } // lastPt
     
     // trim the last point if it just after a dead wire.
-    unsigned int prevWire = std::nearbyint(tj.Pts[lastPt].Pos[0]);
-    if(tj.StepDir > 0) {
-      --prevWire;
-    } else {
-      ++prevWire;
-    }
-    if(prt) {
-      mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: is prevWire "<<prevWire<<" dead? ";
-    }
-
-    unsigned short plane = DecodeCTP(tj.CTP).Plane;
-    if(prevWire < tjs.NumWires[plane] && tjs.WireHitRange[plane][prevWire].first == -1) --lastPt;
+    if(tj.Pts[lastPt].Pos[0] > -0.4) {
+      unsigned int prevWire = std::nearbyint(tj.Pts[lastPt].Pos[0]);
+      if(tj.StepDir > 0) {
+        --prevWire;
+      } else {
+        ++prevWire;
+      }
+      if(prt) {
+        mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: is prevWire "<<prevWire<<" dead? ";
+      }
+      unsigned short plane = DecodeCTP(tj.CTP).Plane;
+      if(prevWire < tjs.NumWires[plane] && tjs.WireHitRange[plane][prevWire].first == -1) --lastPt;
+    } // valid Pos[0]
     
     // Nothing needs to be done
     if(lastPt == tj.EndPt[1]) {
@@ -1528,6 +1531,7 @@ namespace tca {
     // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp1 and tp2.
     if(MinWireSignalFraction == 0) return true;
     
+    if(tp1.Pos[0] < -0.4 || tp2.Pos[0] < -0.4) return false;
     int fromWire = std::nearbyint(tp1.Pos[0]);
     int toWire = std::nearbyint(tp2.Pos[0]);
     
@@ -1558,6 +1562,7 @@ namespace tca {
     // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp and toPos0.
     // Note that this uses the direction vector of the tp
     
+    if(tp.Pos[0] < -0.4 || toPos0 < -0.4) return 0;
     int fromWire = std::nearbyint(tp.Pos[0]);
     int toWire = std::nearbyint(toPos0);
     
@@ -1668,7 +1673,7 @@ namespace tca {
   {
     // returns true if there is a hit near tp.Pos
     
-    if(tp.Pos[0] < 0) return false;
+    if(tp.Pos[0] < -0.4) return false;
     unsigned int wire = std::nearbyint(tp.Pos[0]);
     geo::PlaneID planeID = DecodeCTP(tp.CTP);
     unsigned int ipl = planeID.Plane;
@@ -2037,7 +2042,7 @@ namespace tca {
     if(splittingMuon) SetPDGCode(tjs, newTj);
     if(ivx < tjs.vtx.size()) newTj.VtxID[0] = tjs.vtx[ivx].ID;
     newTj.AlgMod[kSplit] = true;
-    newTj.ParentID = -1;
+    newTj.ParentID = 0;
     // save the ID before push_back in case the tj reference gets lost
     int tjid = tj.ID;
     tjs.allTraj.push_back(newTj);
@@ -2457,7 +2462,7 @@ namespace tca {
     
     geo::PlaneID planeID = DecodeCTP(tp.CTP);
     unsigned short ipl = planeID.Plane;
-    
+    if(tp.Pos[0] < -0.4) return false;
     unsigned int wire = std::nearbyint(tp.Pos[0]);
     if(wire < tjs.FirstWire[ipl]) return false;
     if(wire > tjs.LastWire[ipl]-1) return false;
@@ -2510,6 +2515,7 @@ namespace tca {
     //     -----------
     
     std::vector<int> tmp;
+    if(fromTp.Pos[0] < -0.4 || toTp.Pos[0] < -0.4) return tmp;
     
     TrajPoint tp;
     // Make the tp so that stepping is positive
@@ -3318,6 +3324,7 @@ namespace tca {
     
     std::vector<int> tjlist;
     std::vector<unsigned short> tjends;
+    if(vx2.Pos[0] < -0.4) return;
     unsigned int vxWire = std::nearbyint(vx2.Pos[0]);
     unsigned int loWire = vxWire;
     unsigned int hiWire = vxWire;
@@ -3330,6 +3337,7 @@ namespace tca {
         if(tj.VtxID[end] != vx2.ID) continue;
         tjlist.push_back(tj.ID);
         tjends.push_back(end);
+        if(tj.Pts[tj.EndPt[end]].Pos[0] < -0.4) return;
         unsigned int endWire = std::nearbyint(tj.Pts[tj.EndPt[end]].Pos[0]);
         if(endWire < loWire) loWire = endWire;
         if(endWire > hiWire) hiWire = endWire;
@@ -3360,6 +3368,7 @@ namespace tca {
         if(tp.Chg <= 0) continue;
         tp.Chg = 1;
         tp.Hits.clear();
+        if(tp.Pos[0] < -0.4) continue;
         unsigned int wire = std::nearbyint(tp.Pos[0]);
         unsigned short indx = wire - loWire;
         if(indx > nwires - 1) break;
@@ -3373,6 +3382,7 @@ namespace tca {
       // put ltp at the vertex position with direction towards the end point
       MakeBareTrajPoint(vx2.Pos, tj.Pts[tj.EndPt[end]].Pos, ltp);
       if(ltp.Dir[0] == 0) continue;
+      if(ltp.Pos[0] < -0.4) continue;
       unsigned int wire = std::nearbyint(ltp.Pos[0]);
       ltp.Chg = 0;
       unsigned short indx = wire - loWire;
@@ -3382,6 +3392,7 @@ namespace tca {
       for(unsigned short ii = 0; ii < nwires; ++ii) {
         // move the local TP position by one step in the right direction
         for(unsigned short iwt = 0; iwt < 2; ++iwt) ltp.Pos[iwt] += ltp.Dir[iwt] * stepSize;
+        if(ltp.Pos[0] < -0.4) break;
         wire = std::nearbyint(ltp.Pos[0]);
         if(wire < loWire || wire > hiWire) break;
         indx = wire - loWire;
@@ -4052,6 +4063,74 @@ namespace tca {
     return true;
   } // MergeAndStore
   
+  ////////////////////////////////////////////////
+  std::vector<int> GetAssns(const TjStuff& tjs, std::string type1Name, int id, std::string type2Name)
+  {
+    // returns a list of IDs of objects (tjs, vertices, pfps, etc) with type1Name that are in TJStuff with
+    // type2Name. This is intended to be a general purpose replacement for specific functions like GetVtxTjIDs, etc
+    
+    std::vector<int> tmp;
+    if(id <= 0) return tmp;
+    
+    if(type1Name == "T" && id <= tjs.allTraj.size() && type2Name == "P") {
+      // return a list of PFPs that have the tj in TjIDs, P -> T<ID>
+      for(auto& pfp : tjs.pfps) {
+        if(pfp.ID <= 0) continue;
+        if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), id) != pfp.TjIDs.end()) tmp.push_back(pfp.ID);
+      } // pf
+      return tmp;
+    } // P -> T
+    
+    if(type1Name == "P" && id <= tjs.pfps.size() && (type2Name == "2S" || type2Name == "3S")) {
+      // return a list of 3D or 2D showers with the assn 3S -> 2S -> T -> P<ID> or 2S -> T -> P.
+      auto& pfp = tjs.pfps[id - 1];
+      // First form a list of 2S -> T -> P<ID>
+      std::vector<int> ssid;
+      for(auto& ss : tjs.cots) {
+        if(ss.ID <= 0) continue;
+        auto shared = SetIntersection(ss.TjIDs, pfp.TjIDs);
+        if(!shared.empty() && std::find(ssid.begin(), ssid.end(), ss.ID) == ssid.end()) ssid.push_back(ss.ID);
+      } // ss
+      if(ssid.empty()) return tmp;
+      if(type2Name == "2S") return ssid;
+      for(auto& ss3 : tjs.showers) {
+        if(ss3.ID <= 0) continue;
+        auto shared = SetIntersection(ss3.CotIDs, ssid);
+        if(!shared.empty() && std::find(tmp.begin(), tmp.end(), ss3.ID) == tmp.end()) tmp.push_back(ss3.ID);
+      } // ss3
+      return tmp;
+    } // 3S -> 2S -> T -> P
+    
+    if(type1Name == "2V" && id <= tjs.vtx.size() && type2Name == "T" ) {
+      // 2V -> T
+      for(auto& tj : tjs.allTraj) {
+        if(tj.ID == 0) continue;
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(tj.VtxID[end] != id) continue;
+          if(std::find(tmp.begin(), tmp.end(), tj.ID) == tmp.end()) tmp.push_back(tj.ID);
+        } // end
+      } // tj
+      return tmp;
+    } // 2V -> T
+
+    if(type1Name == "3V" && id <= tjs.vtx3.size() && type2Name == "T" ) {
+      // 3V -> T
+      for(auto& tj : tjs.allTraj) {
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(tj.VtxID[end] > 0 && tj.VtxID[end] <= tjs.vtx.size()) {
+            auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
+            if(vx2.Vx3ID != id) continue;
+            if(std::find(tmp.begin(), tmp.end(), tj.ID) == tmp.end()) tmp.push_back(tj.ID);
+          }
+        } // end
+      } // tj
+      return tmp;
+    } // 3V -> T
+
+    return tmp;
+    
+  } // GetAssns
+  
   // ****************************** Printing  ******************************
   
   ////////////////////////////////////////////////
@@ -4569,7 +4648,8 @@ namespace tca {
   /////////////////////////////////////////
   std::string PrintPos(const TjStuff& tjs, const Point2_t& pos)
   {
-    unsigned int wire = std::nearbyint(pos[0]);
+    unsigned int wire = 0;
+    if(pos[0] > -0.4) std::nearbyint(pos[0]);
     int time = std::nearbyint(pos[1]/tjs.UnitsPerTick);
     return std::to_string(wire) + ":" + std::to_string(time);
   } // PrintPos
