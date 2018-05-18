@@ -50,7 +50,7 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       auto& tj1 = tjs.allTraj[it1];
       if(tj1.AlgMod[kKilled]) continue;
-      if(tj1.AlgMod[kInShower]) continue;
+      if(tj1.AlgMod[kInShower] || tj1.AlgMod[kShowerLike]) continue;
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kJunkTj]) continue;
       if(TrajLength(tj1) < 10) continue;
@@ -68,9 +68,7 @@ namespace tca {
           auto& tj2 = tjs.allTraj[tj2id - 1];
           if(tj2.CTP != inCTP) continue;
           if(tj2id == tj1.ID) continue;
-//          if(tj2.MCSMom > 50) continue;
-          if(tj2.AlgMod[kInShower]) continue;
-//          if(tj2.Pts.size() > 20) continue;
+          if(tj2.AlgMod[kInShower] || tj2.AlgMod[kShowerLike]) continue;
           float close = maxSep;
           unsigned short closeEnd = USHRT_MAX;
           for(unsigned short end2 = 0; end2 < 2; ++end2) {
@@ -148,7 +146,7 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       auto& tj1 = tjs.allTraj[it1];
       if(tj1.AlgMod[kKilled]) continue;
-      if(tj1.AlgMod[kInShower]) continue;
+      if(tj1.AlgMod[kInShower] || tj1.AlgMod[kShowerLike]) continue;
       if(tj1.CTP != inCTP) continue;
       bool tj1Short = (TrajLength(tj1) < maxShortTjLen);
       for(unsigned short end1 = 0; end1 < 2; ++end1) {
@@ -180,7 +178,7 @@ namespace tca {
         for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
           auto& tj2 = tjs.allTraj[it2];
           if(tj2.AlgMod[kKilled]) continue;
-          if(tj2.AlgMod[kInShower]) continue;
+          if(tj2.AlgMod[kInShower] || tj2.AlgMod[kShowerLike]) continue;
           if(tj2.CTP != inCTP) continue;
           if(tj1.VtxID[end1] > 0) continue;
           if(tj1.MCSMom < tjs.Vertex2DCuts[5] && tj2.MCSMom < tjs.Vertex2DCuts[5]) continue;
@@ -774,8 +772,6 @@ namespace tca {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
       if(tjs.allTraj[it1].AlgMod[kHamVx]) continue;
       if(tjs.allTraj[it1].AlgMod[kHamVx2]) continue;
-      // Jan 22 Let tj1 be InShower but not tj2
-//      if(tjs.allTraj[it1].AlgMod[kInShower]) continue;
       if(tjs.allTraj[it1].AlgMod[kJunkTj]) continue;
       unsigned short numPtsWithCharge1 = NumPtsWithCharge(tjs, tjs.allTraj[it1], false);
       if(numPtsWithCharge1 < 6) continue;
@@ -792,7 +788,7 @@ namespace tca {
           if(tjs.allTraj[it2].AlgMod[kHamVx2]) continue;
           // require that both be in the same CTP
           if(tjs.allTraj[it2].CTP != inCTP) continue;
-          if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
+          if(tjs.allTraj[it2].AlgMod[kShowerLike]) continue;
           if(tjs.allTraj[it2].AlgMod[kJunkTj]) continue;
           unsigned short numPtsWithCharge2 = NumPtsWithCharge(tjs, tjs.allTraj[it2], true);
           if(numPtsWithCharge2 < 6) continue;
@@ -873,7 +869,9 @@ namespace tca {
           if(chgPull < 10) continue;
           // require a signal on every wire between it1 and intPt2
           TrajPoint ltp = tjs.allTraj[it1].Pts[endPt1];
+          if(tjs.allTraj[it1].Pts[endPt1].Pos[0] < -0.4) continue;
           unsigned int fromWire = std::nearbyint(tjs.allTraj[it1].Pts[endPt1].Pos[0]);
+          if(tjs.allTraj[it2].Pts[intPt2].Pos[0] < -0.4) continue;
           unsigned int toWire =   std::nearbyint(tjs.allTraj[it2].Pts[intPt2].Pos[0]);
           if(fromWire > toWire) {
             unsigned int tmp = fromWire;
@@ -946,7 +944,7 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       if(tjs.allTraj[it1].CTP != inCTP) continue;
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
-      if(tjs.allTraj[it1].AlgMod[kInShower]) continue;
+      if(tjs.allTraj[it1].AlgMod[kShowerLike]) continue;
       if(tjs.allTraj[it1].AlgMod[kJunkTj]) continue;
       // minimum length requirements
       unsigned short tj1len = tjs.allTraj[it1].EndPt[1] - tjs.allTraj[it1].EndPt[0];
@@ -961,8 +959,6 @@ namespace tca {
           if(tjs.allTraj[it2].CTP != inCTP) continue;
           if(it1 == it2) continue;
           if(tjs.allTraj[it2].AlgMod[kKilled]) continue;
-          // Let tj1 be InShower but not tj2
-//          if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
           if(tjs.allTraj[it2].AlgMod[kJunkTj]) continue;
           // length of tj2 cut
           unsigned short tj2len = tjs.allTraj[it2].EndPt[1] - tjs.allTraj[it2].EndPt[0];
@@ -1201,6 +1197,7 @@ namespace tca {
       geo::PlaneID planeID = DecodeCTP(tjs.vtx[ivx].CTP);
       if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
       int plane = planeID.Plane;
+      if(tjs.vtx[ivx].Pos[0] < -0.4) continue;
       unsigned int wire = std::nearbyint(tjs.vtx[ivx].Pos[0]);
       if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, plane, wire))) continue;
       // Convert 2D vertex time error to X error
@@ -1221,12 +1218,14 @@ namespace tca {
         unsigned short ivx = vIndex[ipl][ii];
         if(vX[ivx] < 0) continue;
         auto& ivx2 = tjs.vtx[ivx];
+        if(ivx2.Pos[0] < -0.4) continue;
         unsigned int iWire = std::nearbyint(ivx2.Pos[0]);
         for(unsigned short jpl = ipl + 1; jpl < 3; ++jpl) {
           for(unsigned short jj = 0; jj < vIndex[jpl].size(); ++jj) {
             unsigned short jvx = vIndex[jpl][jj];
             if(vX[jvx] < 0) continue;
             auto& jvx2 = tjs.vtx[jvx];
+            if(jvx2.Pos[0] < -0.4) continue;
             unsigned int jWire = std::nearbyint(jvx2.Pos[0]);
             float dX = std::abs(vX[ivx] - vX[jvx]);
             if(dX > tjs.Vertex3DCuts[0]) continue;
@@ -2320,8 +2319,8 @@ namespace tca {
       if(tj.ChgRMS < maxChgRMS) ++wght;
       // Shower Tj
       if(tj.AlgMod[kShowerTj]) ++wght;
-      // InShower
-      if(tj.AlgMod[kInShower]) --wght;
+      // ShowerLike
+      if(tj.AlgMod[kShowerLike]) --wght;
       tjids.push_back(tjid);
       tjwts.push_back(wght);
     } // tjid
