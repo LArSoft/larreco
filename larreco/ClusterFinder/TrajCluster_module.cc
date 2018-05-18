@@ -409,7 +409,7 @@ namespace cluster {
         }
         clsIndices.push_back(clsIndex);
       } // tjid
-      if(pfp.Vx3ID[0] > Vertices.size()) std::cout<<"TC module: Bad Vtx3DIndex = "<<pfp.Vx3ID[0]<<" size "<<Vertices.size()<<"\n";
+      if(pfp.Vx3ID[0] > (int)Vertices.size()) std::cout<<"TC module: Bad Vtx3DIndex = "<<pfp.Vx3ID[0]<<" size "<<Vertices.size()<<"\n";
       
       // PFParticle - Cluster associations
       if(!util::CreateAssn(*this, evt, *pfp_cls_assn, spcol.size()-1, clsIndices.begin(), clsIndices.end()))
