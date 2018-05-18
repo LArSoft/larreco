@@ -53,6 +53,7 @@ namespace tca {
     "TjHiVx3Score",
     "VtxHitsSwap",
     "SplitHiChgHits",
+    "ShowerLike",
     "InShower",
     "KillInShowerVx",
     "ShowerTj",
