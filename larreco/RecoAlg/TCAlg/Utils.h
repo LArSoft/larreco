@@ -180,7 +180,7 @@ namespace tca {
   bool MakeBareTrajPoint(const TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
   void SetPDGCode(TjStuff& tjs, Trajectory& tj);
   void SetPDGCode(TjStuff& tjs, unsigned short itj);
-  bool FillWireHitRange(TjStuff& tjs, const geo::TPCID& tpcid, bool debugMode);
+  bool FillWireHitRange(TjStuff& tjs, const geo::TPCID& tpcid);
   bool CheckWireHitRange(const TjStuff& tjs);
   bool WireHitRangeOK(const TjStuff& tjs, const CTP_t& inCTP);
   bool MergeAndStore(TjStuff& tjs, unsigned int itj1, unsigned int itj2, bool doPrt);
