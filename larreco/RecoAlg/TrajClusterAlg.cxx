@@ -170,8 +170,8 @@ namespace tca {
     bool debugMerge = (debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Wire < 0);
     bool debugVtx = (debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Tick < 0);
     bool debugWorkID = (debug.Cryostat >= 0 && debug.TPC >= 0 && debug.WorkID < 0);
-    fDebugMode = (debugTj || debugMerge || debugVtx || debugWorkID);
-    if(fDebugMode) {
+    tjs.DebugMode = (debugTj || debugMerge || debugVtx || debugWorkID);
+    if(tjs.DebugMode) {
       std::cout<<"**************** Debug mode: debug.CTP "<<debug.CTP<<" ****************\n";
       std::cout<<"Cryostat "<<debug.Cryostat<<" TPC "<<debug.TPC<<" Plane "<<debug.Plane<<"\n";
       std::cout<<"Pass MinPts  MinPtsFit Max Angle\n";
@@ -264,7 +264,7 @@ namespace tca {
       throw art::Exception(art::errors::Configuration)<< "Invalid SkipAlgs specification";
     }
     
-    if(fDebugMode) {
+    if(tjs.DebugMode) {
       std::cout<<"Using algs:";
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
         if(ib % 10 == 0) std::cout<<"\n";
@@ -321,7 +321,7 @@ namespace tca {
 
     // check for debugging mode triggered by Plane, Wire, Tick
     debug.Hit = UINT_MAX;
-    if(fDebugMode) {
+    if(tjs.DebugMode) {
       std::cout<<"Look for hit near Cryo:TPC:Pln:Wire:Tick "<<debug.Cryostat;
       std::cout<<":"<<debug.TPC<<":"<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
       for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
@@ -341,8 +341,6 @@ namespace tca {
       } // iht
       if(debug.Hit == UINT_MAX) std::cout<<" not found\n";
     } // debugging mode
-    
-//    if(fDebugMode && nerr > 0) std::cout<<"Found "<<nerr<<" hits with indexing errors. Set Multiplicity = 1 for these hits.\n";
     
     tjs.Run = evt.run();
     tjs.SubRun  = evt.subRun();
@@ -367,7 +365,7 @@ namespace tca {
       geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
       // special debug mode for multi-TPC detectors like protoDUNE
       if(fMode == 4 && (int)tpcid.TPC != debug.TPC) continue;
-      fQuitAlg = !FillWireHitRange(tjs, tpcid, fDebugMode);
+      fQuitAlg = !FillWireHitRange(tjs, tpcid);
       if(fQuitAlg) return;
       for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
         // special mode for only reconstructing the collection plane
@@ -422,7 +420,7 @@ namespace tca {
       FindNeutralVertices(tjs, tpcid);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
       // true if the algorithm was successful indicating that the matching needs to be redone
-      if(tjs.ShowerTag[0] > 1) {
+      if(tjs.ShowerTag[0] == 2 || tjs.ShowerTag[0] == 4) {
         FindShowers3D(tjs, tpcid);
         if(tjs.SaveShowerTree) {
           std::cout << "SHOWER TREE STAGE NUM SIZE: "  << tjs.stv.StageNum.size() << std::endl;
@@ -459,7 +457,7 @@ namespace tca {
     
     // print trajectory summary report?
     if(tjs.ShowerTag[0] > 1 && tjs.ShowerTag[12] < tjs.NumPlanes) debug.Plane = tjs.ShowerTag[12];
-    if(fDebugMode) {
+    if(tjs.DebugMode) {
       mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
       if(tjs.ShowerTag[1] > 1) {
         Print2DShowers("RTC", tjs, USHRT_MAX, false);
@@ -476,14 +474,14 @@ namespace tca {
       ++ntj;
       if(tj.AlgMod[kShowerTj]) ++nsh;
     } // tj
-    if(fDebugMode) std::cout<<"RTC done ntjs "<<ntj<<" nshowers "<<nsh<<" events processed "<<tjs.EventsProcessed<<"\n";
+    if(tjs.DebugMode) std::cout<<"RTC done ntjs "<<ntj<<" nshowers "<<nsh<<" events processed "<<tjs.EventsProcessed<<"\n";
     
     if(tjs.MatchTruth[0] >= 0) tm.PrintResults(tjs.Event);
     
     // convert vertex time from WSE to ticks
     for(auto& avtx : tjs.vtx) avtx.Pos[1] /= tjs.UnitsPerTick;
     
-    if(fDebugMode) mf::LogVerbatim("TC")<<"RunTrajCluster success run "<<tjs.Run<<" event "<<tjs.Event<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<tjs.EventsProcessed;
+    if(tjs.DebugMode) mf::LogVerbatim("TC")<<"RunTrajCluster success run "<<tjs.Run<<" event "<<tjs.Event<<" allTraj size "<<tjs.allTraj.size()<<" events processed "<<tjs.EventsProcessed;
     
   } // RunTrajClusterAlg
 
@@ -2346,7 +2344,7 @@ namespace tca {
     ChkVxTjs(tjs, inCTP, mrgPrt);
 /*
     // Do some checking in debug mode
-    if(fDebugMode && lastPass) {
+    if(tjs.DebugMode && lastPass) {
       for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
         auto& tj1 = tjs.allTraj[it1];
         if(tj1.CTP != inCTP) continue;
