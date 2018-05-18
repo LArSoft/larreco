@@ -520,6 +520,7 @@ namespace tca {
     short NPtsAve;         /// number of points to find AveChg
     bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
     bool TestBeam;      ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
+    bool DebugMode;     ///< print additional info when in debug mode
    };
 
 } // namespace tca
