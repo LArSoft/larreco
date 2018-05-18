@@ -732,9 +732,9 @@ namespace tca {
     }
     TagDeltaRays(tjs, inCTP);
     
-    // Tag InShower Tjs. The list of inshower Tjs within each shower isn't used here.
+    // Tag ShowerLike Tjs. The list of inshower Tjs within each shower isn't used here.
     std::vector<std::vector<int>> tjlist;
-    if(tjs.ShowerTag[0] > 0) TagInShowerTjs("RAT", tjs, inCTP, tjlist, true);
+    if(tjs.ShowerTag[0] > 0) TagShowerLike("RAT", tjs, inCTP, tjlist, true);
     
     Find2DVertices(tjs, inCTP);
     SplitTrajCrossingVertices(tjs, inCTP);
