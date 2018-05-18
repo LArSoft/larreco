@@ -3707,7 +3707,7 @@ namespace tca {
   
   
   ////////////////////////////////////////////////
-  bool FillWireHitRange(TjStuff& tjs, const geo::TPCID& tpcid, bool debugMode)
+  bool FillWireHitRange(TjStuff& tjs, const geo::TPCID& tpcid)
   {
     // fills the WireHitRange vector. Slightly modified version of the one in ClusterCrawlerAlg.
     // Returns false if there was a serious error
@@ -3803,7 +3803,7 @@ namespace tca {
     if(!CheckWireHitRange(tjs)) return false;
     
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
-    if(debugMode && (int)tpc == debug.TPC) {
+    if(tjs.DebugMode && (int)tpc == debug.TPC) {
       std::cout<<"tpc "<<tpc<<" tjs.UnitsPerTick "<<std::setprecision(3)<<tjs.UnitsPerTick<<"\n";
       std::cout<<"Fiducial volume (";
       std::cout<<std::fixed<<std::setprecision(1)<<tjs.XLo<<" < X < "<<tjs.XHi<<") (";
@@ -3833,7 +3833,7 @@ namespace tca {
       if(cnt < 4) continue;
       tjs.AveHitRMS[ipl] = sumRMS/(float)cnt;
       sumAmp  /= (float)cnt;
-      if(debugMode) std::cout<<"Pln "<<ipl<<" tjs.AveHitRMS "<<tjs.AveHitRMS[ipl]<<" Ave PeakAmplitude "<<sumAmp<<"\n";
+      if(tjs.DebugMode) std::cout<<"Pln "<<ipl<<" tjs.AveHitRMS "<<tjs.AveHitRMS[ipl]<<" Ave PeakAmplitude "<<sumAmp<<"\n";
     } // ipl
     return true;
     
