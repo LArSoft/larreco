@@ -924,9 +924,9 @@ namespace tca {
   float Match3DFOM(std::string inFcnLabel, TjStuff& tjs,
                    int icid, int jcid, int kcid, bool prt)
   {
-    if(icid == 0 || icid > tjs.cots.size()) return 100;
-    if(jcid == 0 || jcid > tjs.cots.size()) return 100;
-    if(kcid == 0 || kcid > tjs.cots.size()) return 100;
+    if(icid == 0 || icid > int(tjs.cots.size())) return 100;
+    if(jcid == 0 || jcid > int(tjs.cots.size())) return 100;
+    if(kcid == 0 || kcid > int(tjs.cots.size())) return 100;
     
     float ijfom = Match3DFOM(inFcnLabel, tjs, icid, jcid, prt);
     float jkfom = Match3DFOM(inFcnLabel, tjs, jcid, kcid, prt);
@@ -939,8 +939,8 @@ namespace tca {
   float Match3DFOM(std::string inFcnLabel, TjStuff& tjs, int icid, int jcid, bool prt)
   {
     // returns a Figure of Merit for a 3D match of two showers
-    if(icid == 0 || icid > tjs.cots.size()) return 100;
-    if(jcid == 0 || jcid > tjs.cots.size()) return 100;
+    if(icid == 0 || icid > int(tjs.cots.size())) return 100;
+    if(jcid == 0 || jcid > int(tjs.cots.size())) return 100;
     
     auto& iss = tjs.cots[icid - 1];
     auto& istj = tjs.allTraj[iss.ShowerTjID - 1];    
@@ -1035,7 +1035,7 @@ namespace tca {
   void FillPts(std::string inFcnLabel, TjStuff& tjs, int cotID, bool prt)
   {
     
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
@@ -1343,7 +1343,7 @@ namespace tca {
     // Defines the properties of a 2D shower using the trajectory points within the trajectories listed
     // in TjIDs. This wipes out any other information that may exist
     
-    if(cotID > tjs.cots.size()) return false;
+    if(cotID > int(tjs.cots.size())) return false;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return false;
@@ -1395,7 +1395,7 @@ namespace tca {
     // Adds the Tj to the shower and optionally updates the shower variables
     
     if(tjID <= 0 || tjID > (int)tjs.allTraj.size()) return false;
-    if(cotID > tjs.cots.size()) return false;
+    if(cotID > int(tjs.cots.size())) return false;
     
     std::string fcnLabel = inFcnLabel + ".ATj";
     
@@ -1464,7 +1464,7 @@ namespace tca {
     // Removes the Tj from a shower
     
     if(TjID > (int)tjs.allTraj.size()) return false;
-    if(cotID > tjs.cots.size()) return false;
+    if(cotID > int(tjs.cots.size())) return false;
     
     std::string fcnLabel = inFcnLabel + ".RTj";
     
@@ -1650,7 +1650,7 @@ namespace tca {
      # 11 Debug in CTP (>10 debug cotID + 10)
      */
 
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     ShowerStruct& ss = tjs.cots[cotID - 1];
     // Ensure that it is valid
     if(ss.ID == 0) return;
@@ -1686,7 +1686,7 @@ namespace tca {
     
     float bestFOM = tjs.ShowerTag[8];
     int imTheBest = 0;
-    unsigned short imTheBestEnd = 0;
+    //unsigned short imTheBestEnd = 0;
     float bestTp1Sep = 0;
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != ss.CTP) continue;
@@ -1763,7 +1763,7 @@ namespace tca {
       if(!attachedToNeutrino && bestTp1Sep > 0 && tp1Sep < bestTp1Sep) continue;
       bestFOM = fom;
       imTheBest = tj.ID;
-      imTheBestEnd = useEnd;
+      //imTheBestEnd = useEnd;
       bestTp1Sep = tp1Sep;
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" current best T"<<imTheBest<<" useEnd "<<useEnd<<" bestTp1Sep "<<bestTp1Sep;
     } // tj
@@ -1780,7 +1780,7 @@ namespace tca {
     // This updates all shower and shower Tj parameters when a new shower parent Tj is specified. This function also
     // removes an existing parent if newParent = 0. This function returns NeedsUpdate false if it is successful 
     
-    if(cotID > tjs.cots.size()) return false;
+    if(cotID > int(tjs.cots.size())) return false;
     ShowerStruct& ss = tjs.cots[cotID - 1];
     // Ensure that everything is valid
     if(ss.ID == 0) return false;
@@ -2754,13 +2754,13 @@ namespace tca {
     // The jcotID shower is declared obsolete. This function also re-defines the shower and
     // sets the Parent ID to 0.
     
-    if(icotID <= 0 || icotID > tjs.cots.size()) return false;
+    if(icotID <= 0 || icotID > int(tjs.cots.size())) return false;
     ShowerStruct& iss = tjs.cots[icotID - 1];
     if(iss.ID == 0) return false;
     if(iss.TjIDs.empty()) return false;
     if(iss.ShowerTjID <= 0) return false;
     
-    if(jcotID <= 0 || jcotID > tjs.cots.size()) return false;
+    if(jcotID <= 0 || jcotID > int(tjs.cots.size())) return false;
     ShowerStruct& jss = tjs.cots[jcotID - 1];
     if(jss.TjIDs.empty()) return false;
     if(jss.ID == 0) return false;
@@ -2857,7 +2857,7 @@ namespace tca {
     // The charge will later be distributed between TP0 - TP2.
     // The total charge is stored in  shower Tj AveChg.
     
-    if(cotID > tjs.cots.size()) return false;
+    if(cotID > int(tjs.cots.size())) return false;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return false;
@@ -2906,7 +2906,7 @@ namespace tca {
   {
     // Find the angle of the shower using the position of all of the TPs
     
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
@@ -2990,7 +2990,7 @@ namespace tca {
     // same if there is no parent. The Pos position may be shifted slightly in FindExternalParent so that
     // the parent trajectory lies on the central axis of the shower. This is done so that the charge at the
     // start of the shower is calculated correctly using the parent trajectory points
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
@@ -3062,7 +3062,7 @@ namespace tca {
     // points closest to each TrajPoint. It make some crude quality cuts and returns false if the shower
     // fails these cuts
     
-    if(cotID > tjs.cots.size()) return false;
+    if(cotID > int(tjs.cots.size())) return false;
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return false;
     if(ss.TjIDs.empty()) return false;
@@ -3151,7 +3151,7 @@ namespace tca {
     // Defines the Shower Tj, calculates the shower aspect ratio, etc. This function
     // doesn't change the state of Parent
     
-    if(cotID > tjs.cots.size()) return false;
+    if(cotID > int(tjs.cots.size())) return false;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return false;
@@ -3212,7 +3212,7 @@ namespace tca {
   {
     // Reverses the shower and the shower tj
     
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
     if(ss.TjIDs.empty()) return;
@@ -3243,7 +3243,7 @@ namespace tca {
     // Checks the properties of Shower Tj and revises them if necessary. Returns true if the
     // shower needs to be updated
     
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
@@ -3302,7 +3302,7 @@ namespace tca {
   {
     // Gracefully kills the shower and the associated shower Tj
     
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
@@ -3563,7 +3563,7 @@ namespace tca {
   void FindNearbyTjs(std::string inFcnLabel, TjStuff& tjs, int cotID, bool prt)
   {
     // Find Tjs that are near the shower but are not included in it
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     ShowerStruct& ss = tjs.cots[cotID - 1];
     ss.NearTjIDs.clear();
     
@@ -3671,7 +3671,7 @@ namespace tca {
   void DefineEnvelope(std::string inFcnLabel, TjStuff& tjs, int cotID, bool prt)
   {
     
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
@@ -3733,7 +3733,7 @@ namespace tca {
    {
     // This function adds Tjs to the shower. It updates the shower parameters.
     
-     if(cotID > tjs.cots.size()) return false;
+     if(cotID > int(tjs.cots.size())) return false;
     
      ShowerStruct& ss = tjs.cots[cotID - 1];
      if(ss.Envelope.empty()) return false;
@@ -3878,7 +3878,7 @@ namespace tca {
   {
     // Finds the charge at the start of a shower and puts it in AveChg of the first
     // point of the shower Tj. This is only done when there is no parent.
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
@@ -4040,7 +4040,7 @@ namespace tca {
     // then grep this file for the character string PTS which is piped to a text file which can then be
     // imported into Excel, etc
     // Finds the charge at the start of a shower
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > int(tjs.cots.size())) return;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;

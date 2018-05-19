@@ -352,7 +352,7 @@ namespace tca {
         if(tj.VtxID[end] == 0 || tj.VtxID[end] > tjs.vtx.size()) continue;
         auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
         // see if this is matched to a 3D vertex
-        if(vx2.Vx3ID == 0 || vx2.Vx3ID > tjs.vtx3.size()) continue;
+        if(vx2.Vx3ID == 0 || vx2.Vx3ID > int(tjs.vtx3.size())) continue;
         // Ignore it if it is already in the Tj list
         if(std::find(endTjList.begin(), endTjList.end(), tj.ID) != endTjList.end()) continue;
         // Ignore it if it is attached to the other end
@@ -2843,7 +2843,7 @@ namespace tca {
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp)
   {
     // stores the PFParticle in TJStuff
-    if(pfp.ID < tjs.pfps.size()) return false;
+    if(pfp.ID < int(tjs.pfps.size())) return false;
     bool neutrinoPFP = pfp.PDGCode == 12 || pfp.PDGCode == 14;
     if(!neutrinoPFP) {
       if(pfp.TjIDs.empty()) return false;

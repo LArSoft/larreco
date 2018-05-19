@@ -405,7 +405,7 @@ namespace tca {
   {
     // returns the ID of the most upstream PFParticle (that is not a neutrino)
     
-    if(pfp.ParentID == pfp.ID || pfp.ParentID <= 0) return pfp.ID;
+    if(int(pfp.ParentID) == pfp.ID || pfp.ParentID <= 0) return pfp.ID;
     int parid = pfp.ParentID;
     int dtrid = pfp.ID;
     unsigned short nit = 0;
@@ -415,7 +415,7 @@ namespace tca {
       if(parent.PDGCode == 14 || parent.PDGCode == 12) return dtrid;
       // found a primary PFParticle?
       if(parent.ParentID == 0) return parent.ID;
-      if(parent.ParentID == parent.ID) return parent.ID;
+      if(int(parent.ParentID) == parent.ID) return parent.ID;
       dtrid = parent.ID;
       parid = parent.ParentID;
       if(parid < 0) return 0;
@@ -4072,7 +4072,7 @@ namespace tca {
     std::vector<int> tmp;
     if(id <= 0) return tmp;
     
-    if(type1Name == "T" && id <= tjs.allTraj.size() && type2Name == "P") {
+    if(type1Name == "T" && id <= int(tjs.allTraj.size()) && type2Name == "P") {
       // return a list of PFPs that have the tj in TjIDs, P -> T<ID>
       for(auto& pfp : tjs.pfps) {
         if(pfp.ID <= 0) continue;
@@ -4081,7 +4081,7 @@ namespace tca {
       return tmp;
     } // P -> T
     
-    if(type1Name == "P" && id <= tjs.pfps.size() && (type2Name == "2S" || type2Name == "3S")) {
+    if(type1Name == "P" && id <= int(tjs.pfps.size()) && (type2Name == "2S" || type2Name == "3S")) {
       // return a list of 3D or 2D showers with the assn 3S -> 2S -> T -> P<ID> or 2S -> T -> P.
       auto& pfp = tjs.pfps[id - 1];
       // First form a list of 2S -> T -> P<ID>
@@ -4101,7 +4101,7 @@ namespace tca {
       return tmp;
     } // 3S -> 2S -> T -> P
     
-    if(type1Name == "2V" && id <= tjs.vtx.size() && type2Name == "T" ) {
+    if(type1Name == "2V" && id <= int(tjs.vtx.size()) && type2Name == "T" ) {
       // 2V -> T
       for(auto& tj : tjs.allTraj) {
         if(tj.ID == 0) continue;
@@ -4113,7 +4113,7 @@ namespace tca {
       return tmp;
     } // 2V -> T
 
-    if(type1Name == "3V" && id <= tjs.vtx3.size() && type2Name == "T" ) {
+    if(type1Name == "3V" && id <= int(tjs.vtx3.size()) && type2Name == "T" ) {
       // 3V -> T
       for(auto& tj : tjs.allTraj) {
         for(unsigned short end = 0; end < 2; ++end) {
