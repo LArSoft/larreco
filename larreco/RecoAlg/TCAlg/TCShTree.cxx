@@ -2,17 +2,20 @@
 
 namespace tca {
 
-  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, std::vector<std::vector<int>>& tjList,
+  void SaveTjInfo(TjStuff& tjs, std::vector<std::vector<int>>& tjList,
                   std::string stageName) {
     if(!tjs.SaveShowerTree) return;
+    if(tjList.empty()) return;
     int stageNum = GetStageNum(tjs.stv, stageName);
 
+    // get the CTP from the first tj
+    CTP_t inCTP = tjs.allTraj[tjList[0][0] - 1].CTP;
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       Trajectory& tj1 = tjs.allTraj[it1];
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kKilled]) continue;
 
-      SaveTjInfoStuff(tjs, inCTP, tj1,  stageNum, stageName);
+      SaveTjInfoStuff(tjs, tj1,  stageNum, stageName);
 
       int trajID = tj1.ID;
       bool inShower = false;
@@ -41,12 +44,10 @@ namespace tca {
 
   } // SaveTjInfo (tjlist) 
 
-  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotID,
-                  std::string stageName) {
+  void SaveTjInfo(TjStuff& tjs, const ShowerStruct& ss, std::string stageName) {
     if(!tjs.SaveShowerTree) return;
     int stageNum = GetStageNum(tjs.stv, stageName);
 
-    ShowerStruct& ss = tjs.cots[cotID - 1];
     // killed shower?
     if(ss.ID == 0) return;
 
@@ -56,7 +57,6 @@ namespace tca {
 
       Trajectory& tj1 = tjs.allTraj[it1];
 
-      if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kKilled]) continue;
 
       int trajID = tj1.ID;
@@ -78,13 +78,13 @@ namespace tca {
       }
 
       if (isShowerTj) continue;
-      if (tjIndex == -1) SaveTjInfoStuff(tjs, inCTP, tj1, stageNum, stageName);
+      if (tjIndex == -1) SaveTjInfoStuff(tjs, tj1, stageNum, stageName);
 
       for (size_t i = 0; i < ss.TjIDs.size(); ++i) {
         if (trajID == ss.TjIDs[i]) {
           noMatch = false;
-          if (tjIndex == -1) tjs.stv.ShowerID.back() = cotID;
-          else tjs.stv.ShowerID.at(tjIndex) = cotID;
+          if (tjIndex == -1) tjs.stv.ShowerID.back() = ss.ID;
+          else tjs.stv.ShowerID.at(tjIndex) = ss.ID;
         }
         
         if (it1 == (ss.ShowerTjID - 1)) tjs.stv.IsShowerTj.back() = 1;
@@ -93,11 +93,11 @@ namespace tca {
         // and mark parent flag	
         if (trajID == ss.ParentID) {
           if (tjIndex == -1) {
-            tjs.stv.ShowerID.back() = cotID;
+            tjs.stv.ShowerID.back() = ss.ID;
             tjs.stv.IsShowerParent.back() = 1;
           }
           else {
-            tjs.stv.ShowerID.at(tjIndex) = cotID;
+            tjs.stv.ShowerID.at(tjIndex) = ss.ID;
             tjs.stv.IsShowerParent.at(tjIndex) = 1;
           }
           break;
@@ -114,7 +114,7 @@ namespace tca {
     for (int i = 0; i < 8; i++) {
       tjs.stv.EnvStage.push_back(stageNum);
       tjs.stv.EnvPlane.push_back(iPlnID.Plane);
-      tjs.stv.EnvShowerID.push_back(cotID);
+      tjs.stv.EnvShowerID.push_back(ss.ID);
     }
 
     tjs.stv.Envelope.push_back(ss.Envelope[0][0]);
@@ -128,7 +128,7 @@ namespace tca {
 
   } // SaveTjInfo (cots)
 
-  void SaveTjInfoStuff(TjStuff& tjs,  const CTP_t& inCTP, Trajectory& tj, int stageNum, std::string stageName) {
+  void SaveTjInfoStuff(TjStuff& tjs, Trajectory& tj, int stageNum, std::string stageName) {
     if(!tjs.SaveShowerTree) return;
 
     TrajPoint& beginPoint = tj.Pts[tj.EndPt[0]];
@@ -168,7 +168,7 @@ namespace tca {
       auto& ss = tjs.cots[cotIndex];
       if (ss.CTP != inCTP) continue;
       if(ss.ID == 0) continue;
-      SaveTjInfo(tjs, ss.CTP, ss.ID, someText);
+      SaveTjInfo(tjs, ss, someText);
     } // cotIndex
   } // SaveAllCots
 
@@ -178,7 +178,7 @@ namespace tca {
     for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
       auto& ss = tjs.cots[cotIndex];
       if(ss.ID == 0) continue;
-      SaveTjInfo(tjs, ss.CTP, ss.ID, someText);
+      SaveTjInfo(tjs, ss, someText);
     } // cotIndex
   }
 
