@@ -1062,7 +1062,8 @@ namespace tca {
   /////////////////////////////////////////
   void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir)
   {
-    // initialize, accumulate and fit the points
+    // initialize, accumulate and fit the points. The code to fit the direction using the positions
+    // of the points is commented out and replaced with a simple average of the directions of the points
     
     // 3D fit sum variables
     static double fSum, fSumx, fSumy, fSumz;
