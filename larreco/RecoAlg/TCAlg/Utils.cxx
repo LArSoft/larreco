@@ -3534,12 +3534,15 @@ namespace tca {
   bool MakeBareTrajPoint(const Point2_t& fromPos, const Point2_t& toPos, TrajPoint& tpOut)
   {
     tpOut.Pos = fromPos;
+    tpOut.Dir = PointDirection(fromPos, toPos);
+/*
     tpOut.Dir[0] = toPos[0] - fromPos[0];
     tpOut.Dir[1] = toPos[1] - fromPos[1];
     double norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
     if(norm == 0) return false;
     tpOut.Dir[0] /= norm;
     tpOut.Dir[1] /= norm;
+*/
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
     return true;
     
@@ -3550,16 +3553,32 @@ namespace tca {
   {
     tpOut.CTP = tpIn1.CTP;
     tpOut.Pos = tpIn1.Pos;
+    tpOut.Dir = PointDirection(tpIn1.Pos, tpIn2.Pos);
+/*
     tpOut.Dir[0] = tpIn2.Pos[0] - tpIn1.Pos[0];
     tpOut.Dir[1] = tpIn2.Pos[1] - tpIn1.Pos[1];
     double norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
     if(norm == 0) return false;
     tpOut.Dir[0] /= norm;
     tpOut.Dir[1] /= norm;
+*/
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
     return true;
   } // MakeBareTrajPoint
-  
+
+  ////////////////////////////////////////////////
+  Vector2_t PointDirection(const Point2_t p1, const Point2_t p2)
+  {
+    // Finds the direction vector between the two points from p1 to p2
+    Vector2_t dir;
+    for(unsigned short xyz = 0; xyz < 2; ++xyz) dir[xyz] = p2[xyz] - p1[xyz];
+    if(dir[0] == 0 && dir[1] == 0) return dir;
+    double norm = sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
+    dir[0] /= norm;
+    dir[1] /= norm;
+    return dir;
+  } // PointDirection
+
   ////////////////////////////////////////////////
   float TPHitsRMSTime(TjStuff& tjs, TrajPoint& tp, HitStatus_t hitRequest)
   {
@@ -4649,7 +4668,7 @@ namespace tca {
   std::string PrintPos(const TjStuff& tjs, const Point2_t& pos)
   {
     unsigned int wire = 0;
-    if(pos[0] > -0.4) std::nearbyint(pos[0]);
+    if(pos[0] > -0.4) wire = std::nearbyint(pos[0]);
     int time = std::nearbyint(pos[1]/tjs.UnitsPerTick);
     return std::to_string(wire) + ":" + std::to_string(time);
   } // PrintPos
