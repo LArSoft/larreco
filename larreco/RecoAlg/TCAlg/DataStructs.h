@@ -285,8 +285,7 @@ namespace tca {
     int ParentID {0};  // The ID of a parent Tj - the one at the start of the shower
     unsigned short TruParentID {0};
     unsigned short SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
-    bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
-    bool Constraint3D {false};    // Some properties are defined by the 3D shower to which it is associated
+    bool NeedsUpdate {true};       // Needs to be updated (e.g. after adding a tj, defining a parent, etc)
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
