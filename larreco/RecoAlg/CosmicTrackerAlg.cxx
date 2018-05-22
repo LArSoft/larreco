@@ -360,7 +360,7 @@ namespace trkf{
       double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
       double timepitch = driftvelocity*timetick;         
 
-      double wire_pitch = geom->WirePitch(0,1,
+      double wire_pitch = geom->WirePitch(
 					  vhitmap[0].begin()->second->WireID().Plane,
 					  vhitmap[0].begin()->second->WireID().TPC,
 					  vhitmap[0].begin()->second->WireID().Cryostat);    //wire pitch in cm
@@ -503,7 +503,7 @@ namespace trkf{
       unsigned int plane = wireid.Plane;
       unsigned int tpc = wireid.TPC;
       unsigned int cstat = wireid.Cryostat;
-      double wire_pitch = geom->WirePitch(0,1,plane,tpc,cstat);    //wire pitch in cm
+      double wire_pitch = geom->WirePitch(plane,tpc,cstat);    //wire pitch in cm
       //find the two trajectory points that enclose the hit
       //find the nearest trajectory point first
       for (size_t j = 0; j<vw[cstat][tpc][plane].size(); ++j){

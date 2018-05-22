@@ -340,7 +340,7 @@ void calo::Calorimetry::produce(art::Event& evt)
               const TVector3& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
               double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
               if (cosgamma){
-                pitch = geom->WirePitch(0,1,0)/cosgamma;
+                pitch = geom->WirePitch(0)/cosgamma;
               }
               else{
                 pitch = 0;
@@ -585,7 +585,7 @@ void calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit, std::vector<double> t
   //save the sign of distance
   std::map<size_t, int> sptsignmap;
 
-  double wire_pitch = geom->WirePitch(0,1,0);
+  double wire_pitch = geom->WirePitch(0);
 
   double t0 = hit->PeakTime() - TickT0;
   double x0 = dp->ConvertTicksToX(t0, hit->WireID().Plane, hit->WireID().TPC, hit->WireID().Cryostat);
@@ -723,7 +723,7 @@ void calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit, std::vector<double> t
     ky /= tot;
     kz /= tot;
     //get pitch
-    double wirePitch = geom->WirePitch(0,1,hit->WireID().Plane,hit->WireID().TPC,hit->WireID().Cryostat);
+    double wirePitch = geom->WirePitch(hit->WireID().Plane,hit->WireID().TPC,hit->WireID().Cryostat);
     double angleToVert = geom->Plane(hit->WireID().Plane,hit->WireID().TPC,hit->WireID().Cryostat).Wire(0).ThetaZ(false) - 0.5*TMath::Pi();
     double cosgamma = TMath::Abs(TMath::Sin(angleToVert)*ky+TMath::Cos(angleToVert)*kz);
     if (cosgamma>0) pitch = wirePitch/cosgamma;   

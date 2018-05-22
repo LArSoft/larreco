@@ -1184,7 +1184,7 @@ namespace tca {
     }
     
     // wire spacing in cm
-    float wirePitch = tjs.geom->WirePitch(0, 1, 0, tpcid.TPC, tpcid.Cryostat);
+    float wirePitch = tjs.geom->WirePitch(0, tpcid.TPC, tpcid.Cryostat);
     
     size_t vsize = tjs.vtx.size();
     // vector of 2D vertices -> 3D vertices.
