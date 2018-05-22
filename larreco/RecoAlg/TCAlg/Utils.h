@@ -178,6 +178,7 @@ namespace tca {
   bool MakeBareTrajPoint(const TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   bool MakeBareTrajPoint(const Point2_t& fromPos, const Point2_t& toPos, TrajPoint& tpOut);
   bool MakeBareTrajPoint(const TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+  Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
   void SetPDGCode(TjStuff& tjs, Trajectory& tj);
   void SetPDGCode(TjStuff& tjs, unsigned short itj);
   bool FillWireHitRange(TjStuff& tjs, const geo::TPCID& tpcid);
