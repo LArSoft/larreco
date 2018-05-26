@@ -50,7 +50,7 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       auto& tj1 = tjs.allTraj[it1];
       if(tj1.AlgMod[kKilled]) continue;
-      if(tj1.AlgMod[kInShower]) continue;
+      if(tj1.AlgMod[kInShower] || tj1.AlgMod[kShowerLike]) continue;
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kJunkTj]) continue;
       if(TrajLength(tj1) < 10) continue;
@@ -68,9 +68,7 @@ namespace tca {
           auto& tj2 = tjs.allTraj[tj2id - 1];
           if(tj2.CTP != inCTP) continue;
           if(tj2id == tj1.ID) continue;
-//          if(tj2.MCSMom > 50) continue;
-          if(tj2.AlgMod[kInShower]) continue;
-//          if(tj2.Pts.size() > 20) continue;
+          if(tj2.AlgMod[kInShower] || tj2.AlgMod[kShowerLike]) continue;
           float close = maxSep;
           unsigned short closeEnd = USHRT_MAX;
           for(unsigned short end2 = 0; end2 < 2; ++end2) {
@@ -148,7 +146,7 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       auto& tj1 = tjs.allTraj[it1];
       if(tj1.AlgMod[kKilled]) continue;
-      if(tj1.AlgMod[kInShower]) continue;
+      if(tj1.AlgMod[kInShower] || tj1.AlgMod[kShowerLike]) continue;
       if(tj1.CTP != inCTP) continue;
       bool tj1Short = (TrajLength(tj1) < maxShortTjLen);
       for(unsigned short end1 = 0; end1 < 2; ++end1) {
@@ -180,7 +178,7 @@ namespace tca {
         for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
           auto& tj2 = tjs.allTraj[it2];
           if(tj2.AlgMod[kKilled]) continue;
-          if(tj2.AlgMod[kInShower]) continue;
+          if(tj2.AlgMod[kInShower] || tj2.AlgMod[kShowerLike]) continue;
           if(tj2.CTP != inCTP) continue;
           if(tj1.VtxID[end1] > 0) continue;
           if(tj1.MCSMom < tjs.Vertex2DCuts[5] && tj2.MCSMom < tjs.Vertex2DCuts[5]) continue;
@@ -372,286 +370,131 @@ namespace tca {
     
   } // Find2DVertices
 
-/*
   //////////////////////////////////////////
   void FindNeutralVertices(TjStuff& tjs, const geo::TPCID& tpcid)
   {
     // Look for 2D neutral vertices between Tjs 
     if(!tjs.UseAlg[kVxNeutral]) return;
+    if(tjs.NeutralVxCuts.size() < 4) return;
     if(tjs.NumPlanes < 3) return;
-    
-    const unsigned int cstat = tpcid.Cryostat;
-    const unsigned int tpc = tpcid.TPC;
-    std::vector<int> tjlist(1);
+    if(tjs.pfps.size() < 2) return;
     
     bool prt = (debug.Plane >= 0 && debug.Tick == 88888);
     
-    // Max separation btw a 2D vertex and the end of the Tj (WSE units)
-    constexpr float maxVx2Sep = 100;
-    // Max separation btw 2D vertices in different planes (cm)
-    constexpr float maxVx3Sep = 5;
-    
-    // temp struct containing a 2D vertex and the TPs that were used to define it
-    struct neutVxStruct {
-      VtxStore vx2;
-      std::vector<TrajPoint> tps;
-      bool used;
-    }; 
-    
-    // vector of neutral 2D vertices in each plane
-    std::vector<std::vector<neutVxStruct>> nvxss(tjs.NumPlanes);
-    // make a template to populate in the loop
-    neutVxStruct nvxs;
-    nvxs.tps.resize(2);
-    nvxs.used = false;
-    for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
-      auto& tj1 = tjs.allTraj[it1];
-      if(tj1.AlgMod[kKilled]) continue;
-      unsigned short npwc = NumPtsWithCharge(tjs, tj1, false);
-      // length cuts
-      if(npwc < 6 || npwc > 100) continue;
-      geo::PlaneID planeID = DecodeCTP(tj1.CTP);
-      if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
-      unsigned short plane = planeID.Plane;
-      for(unsigned short end1 = 0; end1 < 2; ++end1) {
-        // ignore if a vertex exists
-        if(tj1.VtxID[end1] > 0) continue;
-        // make a local copy of the end TP
-        auto tp1 = tj1.Pts[tj1.EndPt[end1]];
-        // require a clean environment at this end
-        tjlist[0] = tj1.ID;
-        float chgFrac = ChgFracNearPos(tjs, tp1.Pos, tjlist);
-        if(chgFrac < 0.9) continue;
-        if(tp1.NTPsFit < 6) {
-          short fitDir = 1;
-          if(end1 == 1) fitDir = -1;
-          FitTraj(tjs, tj1, tj1.EndPt[end1], 6, fitDir, tp1);
-          if(tp1.FitChi > 100) {
-            if(prt) std::cout<<"FNV: fit failed T"<<tj1.ID<<"_"<<end1<<"\n";
-            continue; 
-          }
-        } // needs refit
-        // stash the ID and end
-        tp1.Step = tj1.ID;
-        tp1.AngleCode = end1;
-        auto& otp1 = tj1.Pts[tj1.EndPt[1 - end1]];
-        // Re-fit the end points if there are few points in the fit
-        for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
-          auto& tj2 = tjs.allTraj[it2];
-          if(tj2.AlgMod[kKilled]) continue;
-          if(tj2.CTP != tj1.CTP) continue;
-          npwc = NumPtsWithCharge(tjs, tj2, false);
-          // length cuts
-          if(npwc < 6 || npwc > 100) continue;
-          for(unsigned short end2 = 0; end2 < 2; ++end2) {
-            // ignore if a vertex exists
-            if(tj2.VtxID[end2] > 0) continue;
-            auto tp2 = tj2.Pts[tj2.EndPt[end2]];
-            // require a clean environment at this end
-            tjlist[0] = tj2.ID;
-            chgFrac = ChgFracNearPos(tjs, tp2.Pos, tjlist);
-            if(chgFrac < 0.9) continue;
-            if(tp2.NTPsFit < 6) {
-              short fitDir = 1;
-              if(end2 == 1) fitDir = -1;
-              FitTraj(tjs, tj2, tj2.EndPt[end2], 6, fitDir, tp2);
-              if(tp2.FitChi > 100) {
-                if(prt) std::cout<<"FNV: fit failed T"<<tj2.ID<<"_"<<end2<<"\n";
-                continue; 
-              }
-            } // needs refit
-            // stash the ID and end
-            tp2.Step = tj2.ID;
-            tp2.AngleCode = end2;
-            auto& otp2 = tj2.Pts[tj2.EndPt[1 - end2]];
-            float wint = 0, tint = 0;
-            TrajIntersection(tp1, tp2, wint, tint);
-            // make sure this is inside the TPC
-            if(wint < 0 || wint > tjs.MaxPos0[plane]) continue;
-            if(tint < 0 || tint > tjs.MaxPos1[plane]) continue;
-            // ignore if this is closer to the other end
-            nvxs.vx2.Pos = {{wint, tint}};
-            float sep1 = PosSep(nvxs.vx2.Pos, tp1.Pos);
-            float sep2 = PosSep(nvxs.vx2.Pos, tp2.Pos);
-            if(sep1 > maxVx2Sep) continue;
-            if(sep2 > maxVx2Sep) continue;
-            if(sep1 > PosSep(nvxs.vx2.Pos, otp1.Pos)) continue;
-            if(sep2 > PosSep(nvxs.vx2.Pos, otp2.Pos)) continue;
-            if(prt) {
-              mf::LogVerbatim myprt("TC");
-              myprt<<"FNV: T"<<tj1.ID<<"_"<<end1<<" T"<<tj2.ID<<"_"<<end2;
-              myprt<<" intersection W:T "<<(int)wint<<":"<<(int)(tint/tjs.UnitsPerTick);
-              myprt<<" sep1 "<<sep1<<" sep2 "<<sep2;
-            } // prt
-            nvxs.vx2.CTP = tj1.CTP;
-            nvxs.vx2.Topo = 11;
-            nvxs.vx2.ID = 666;
-            nvxs.tps[0] = tp1;
-            nvxs.tps[1] = tp2;
-            if(!FitVertex(tjs, nvxs.vx2, nvxs.tps, false)) continue;
-            nvxss[plane].push_back(nvxs);
-          } // end2
-        } // it2
-      } // end1
-    } // it1
-    
-    // temp struct for 3D vertices
-    struct neutVx3DStruct {
-      Vtx3Store vx3;
-      std::vector<neutVxStruct> nvxss;
+    struct CandVx {
+      unsigned short ip1;
+      unsigned short end1;
+      unsigned short ip2;
+      unsigned short end2;
+      Point3_t intersect;
+      float sepSum;
+      bool isValid;
     };
-    std::vector<neutVx3DStruct> nvx3Dss;
-    
-    for(unsigned short plane1 = 0; plane1 < tjs.NumPlanes - 1; ++plane1) {
-      for(auto& nvxs1 : nvxss[plane1]) {
-        if(nvxs1.used) continue;
-        auto& vxpos1 = nvxs1.vx2.Pos;
-        unsigned int wire1 = vxpos1[0];
-        float x1 = tjs.detprop->ConvertTicksToX(vxpos1[1] / tjs.UnitsPerTick, plane1, (int)tpc, (int)cstat);
-        for(unsigned short plane2 = plane1 + 1; plane2 < tjs.NumPlanes; ++plane2) {
-          for(auto& nvxs2 : nvxss[plane2]) {
-            if(nvxs2.used) continue;
-            if(nvxs1.used) break;
-            auto& vxpos2 = nvxs2.vx2.Pos;
-            unsigned int wire2 = vxpos2[0];
-            float x2 = tjs.detprop->ConvertTicksToX(vxpos2[1] / tjs.UnitsPerTick, plane2, (int)tpc, (int)cstat);
-            if(std::abs(x1 - x2) > maxVx3Sep) continue;
-            double y = -1000, z = -1000;
-            tjs.geom->IntersectionPoint(wire1, wire2, plane1, plane2, cstat, tpc, y, z);
-            if(y < tjs.YLo || y > tjs.YHi || z < tjs.ZLo || z > tjs.ZHi) continue;
-            unsigned short plane3 = 3 - plane1 - plane2;
-            float x = 0.5 * (x1 + x2);
-            Point2_t pos3;
-            pos3[0] = tjs.geom->WireCoordinate(y, z, plane3, tpc, cstat);
-            if(pos3[0] < 0 || (unsigned int)pos3[0] > tjs.NumWires[plane3]) continue;
-            if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, plane3, (unsigned int)pos3[0]))) continue;
-            pos3[1] = tjs.detprop->ConvertXToTicks(x, plane3, tpc, cstat) * tjs.UnitsPerTick;
+    std::vector<CandVx> candVxs;
+
+    for(unsigned short ip1 = 0; ip1 < tjs.pfps.size() - 1; ++ip1) {
+      auto& p1 = tjs.pfps[ip1];
+      if(p1.ID == 0) continue;
+      if(p1.Tp3s.empty()) continue;
+      if(p1.TPCID != tpcid) continue;
+      float len1 = PosSep(p1.XYZ[0], p1.XYZ[1]);
+      if(len1 < tjs.NeutralVxCuts[3]) continue;
+      for(unsigned short end1 = 0; end1 < 2; ++end1) {
+        float cfne1 = ChgFracNearEnd(tjs, p1, end1);
+        if(cfne1 < tjs.NeutralVxCuts[0]) continue;
+        for(unsigned short ip2 = ip1 + 1; ip2 < tjs.pfps.size(); ++ip2) {
+          auto& p2 = tjs.pfps[ip2];
+          if(p2.ID == 0) continue;
+          if(p2.Tp3s.empty()) continue;
+          if(p2.TPCID != tpcid) continue;
+          float len2 = PosSep(p2.XYZ[0], p2.XYZ[1]);
+          if(len2 < tjs.NeutralVxCuts[3]) continue;
+          for(unsigned short end2 = 0; end2 < 2; ++end2) {
+            float cfne2 = ChgFracNearEnd(tjs, p2, end2);
+            if(cfne2 < tjs.NeutralVxCuts[0]) continue;
+            float vxDOCA = 1E6;
+            Point3_t intersect;
+            if(!PointDirIntersect(p1.XYZ[end1], p1.Dir[end1], p2.XYZ[end2], p2.Dir[end2], intersect, vxDOCA)) continue;
+            if(intersect[0] < tjs.XLo || intersect[0] > tjs.XHi) continue;
+            if(intersect[1] < tjs.YLo || intersect[1] > tjs.YHi) continue;
+            if(intersect[2] < tjs.ZLo || intersect[2] > tjs.ZHi) continue;
+            // ensure that the pfp end and the vertex are consistent
+            float sep1 = PosSep(intersect, p1.XYZ[end1]);
+            if(PosSep(intersect, p1.XYZ[1-end1]) < sep1) continue;
+            float sep2 = PosSep(intersect, p2.XYZ[end2]);
+            if(PosSep(intersect, p2.XYZ[1-end2]) < sep2) continue;
+            if(vxDOCA > tjs.NeutralVxCuts[1]) continue;
+            // find the DOCA between these two
+            unsigned short closePt1, closePt2;
+            float pfpDOCA = PFPDOCA(p1, p2, closePt1, closePt2);
+            if(closePt1 == USHRT_MAX) continue;
+            // ensure that there isn't a lot of charge between the end of each pfp and the intersection point
+            float cfb1 = ChgFracBetween(tjs, p1.XYZ[end1], intersect, p1.TPCID);
+            if(cfb1 > tjs.NeutralVxCuts[2]) continue;
+            float cfb2 = ChgFracBetween(tjs, p2.XYZ[end2], intersect, p2.TPCID);
+            if(cfb2 > tjs.NeutralVxCuts[2]) continue;
+            // check existing candidates
+            float sepSum = sep1 + sep2;
+            bool skipit = false;
+            for(auto& candVx : candVxs) {
+              if(!candVx.isValid) continue;
+              if(candVx.ip1 != ip1 && candVx.ip2 != ip2) continue;
+              // see if the separation sum is smaller
+              if(sepSum < candVx.sepSum) {
+                // flag the saved one as not valid
+                candVx.isValid = false;
+              } else {
+                skipit = true;
+                break;
+              }
+            } // candVx
+            if(skipit) continue;
+            CandVx candVx;
+            candVx.ip1 = ip1;
+            candVx.end1 = end1;
+            candVx.ip2 = ip2;
+            candVx.end2 = end2;
+            candVx.intersect = intersect;
+            candVx.sepSum = sep1 + sep2;
+            candVx.isValid = true;
+            candVxs.push_back(candVx);
             if(prt) {
               mf::LogVerbatim myprt("TC");
-              myprt<<"FNV: plane3 search ("<<(int)x<<","<<(int)y<<","<<(int)z<<")";
-              myprt<<" near "<<plane3<<":"<<PrintPos(tjs, pos3);
-              for(auto& tp1 : nvxs1.tps) myprt<<" 0T"<<tp1.Step<<"_"<<tp1.AngleCode;
-              for(auto& tp2 : nvxs2.tps) myprt<<" 1T"<<tp2.Step<<"_"<<tp2.AngleCode;
+              myprt<<"FNV: P"<<p1.ID<<"_"<<end1<<" sep1 "<<std::fixed<<std::setprecision(2)<<sep1;
+              myprt<<" cfne1 "<<cfne1<<" cfb1 "<<cfb1;
+              myprt<<" P"<<p2.ID<<"_"<<end2<<" sep2 "<<sep2<<" cfne2 "<<cfne2<<" cfb2 "<<cfb2;
+              myprt<<" intersect "<<intersect[0]<<" "<<intersect[1]<<" "<<intersect[2];
+              myprt<<" vxDOCA "<<vxDOCA<<" pfpDOCA "<<pfpDOCA;
             } // prt
-            // Look for the closest match in the 3rd plane
-            float maxSep3 = 5;
-            unsigned short indx3 = USHRT_MAX;
-            for(unsigned short indx = 0; indx < nvxss[plane3].size(); ++indx) {
-              auto& nvxs3 = nvxss[plane3][indx];
-              if(nvxs3.used) continue;
-              auto& vxpos3 = nvxs3.vx2.Pos;
-              float sep3 = PosSep(vxpos3, pos3);
-              if(sep3 > maxSep3) continue;
-              maxSep3 = sep3;
-              indx3 = indx;
-            } // nvxs3
-            if(indx3 < nvxss[plane3].size()) {
-              auto& nvxs3 = nvxss[plane3][indx3];
-              // TODO: average the vertex position
-              neutVx3DStruct nvx3Ds;
-              nvx3Ds.vx3.TPCID = tpcid;
-              nvx3Ds.vx3.Wire = -1;
-              nvx3Ds.vx3.X = x;
-              nvx3Ds.vx3.Y = y;
-              nvx3Ds.vx3.Z = z;
-              // stash the 2D vertex structs
-              nvx3Ds.nvxss.push_back(nvxs1);
-              nvx3Ds.nvxss.push_back(nvxs2);
-              nvx3Ds.nvxss.push_back(nvxs3);
-              nvx3Dss.push_back(nvx3Ds);
-              // mark them used
-              nvxs1.used = true;
-              nvxs2.used = true;
-              nvxs3.used = true;
-              if(prt) {
-                mf::LogVerbatim myprt("TC");
-                myprt<<"FNV:    maxSep3 "<<(int)maxSep3;
-                for(auto& tp3 : nvxs3.tps) myprt<<" 2T"<<tp3.Step<<"_"<<tp3.AngleCode;
-              } // prt
-              break;
-            } // indx3 < nvxss[plane3].size()
-          } // nvx2
-        } // plane2
-      } // nvx1
-    } // plane1
+          } // end2
+        } // ip2
+      } // end1
+    } // ip1
     
-    if(nvx3Dss.empty()) return;
+    if(candVxs.empty()) return;
     
-    for(unsigned short cnt = 0; cnt < nvx3Dss.size(); ++cnt) {
-      auto& nvx3Ds = nvx3Dss[cnt];
-      std::cout<<"cnt "<<cnt;
-      std::cout<<std::fixed<<std::setprecision(1);
-      std::cout<<" "<<nvx3Ds.vx3.X<<" "<<nvx3Ds.vx3.Y<<" "<<nvx3Ds.vx3.Z;
-      std::cout<<"\n";
-      for(unsigned short ii = 0; ii < nvx3Ds.nvxss.size(); ++ii) {
-        auto& nvxs = nvx3Ds.nvxss[ii];
-        std::cout<<" 2V ii"<<ii;
-        for(auto& tp : nvxs.tps) {
-          std::cout<<" T"<<tp.Step<<"_"<<tp.AngleCode;
-        } // tp
-        std::cout<<"\n";
-      } // nvxs
-    } // nvx3Ds
+    // Make vertices with the valid candidates
+    for(auto& candVx : candVxs) {
+      if(!candVx.isValid) continue;
+      Vtx3Store vx3;
+      auto& p1 = tjs.pfps[candVx.ip1];
+      auto& p2 = tjs.pfps[candVx.ip2];
+      vx3.TPCID = p1.TPCID;
+      // Flag it as a PFP vertex that isn't required to have matched 2D vertices
+      vx3.Wire = -2;
+      vx3.X = candVx.intersect[0];
+      vx3.Y = candVx.intersect[1];
+      vx3.Z = candVx.intersect[2];
+      vx3.ID = tjs.vtx3.size() + 1;
+      vx3.Primary = true;
+      tjs.vtx3.push_back(vx3);
+      p1.Vx3ID[candVx.end1] = vx3.ID;
+      p2.Vx3ID[candVx.end2] = vx3.ID;
+      if(prt) mf::LogVerbatim("TC")<<"FNV: P"<<p1.ID<<"_"<<candVx.end1<<" P"<<p2.ID<<"_"<<candVx.end2<<" 3V"<<vx3.ID;
+    } // candVx
     
-    std::cout<<"nvx3Dss size "<<nvx3Dss.size()<<"\n";
-    // put the vertices into tjs
-    for(auto& nvx3Ds : nvx3Dss) {
-      nvx3Ds.vx3.ID = tjs.vtx3.size() + 1;
-      // stash the 2D vertices
-      bool success = true;
-      std::vector<unsigned short> vx2Stored;
-      for(auto& nvxs : nvx3Ds.nvxss) {
-        nvxs.vx2.ID = tjs.vtx.size() + 1;
-        nvxs.vx2.NTraj = nvxs.tps.size();
-        nvxs.vx2.Vx3ID = nvx3Ds.vx3.ID;
-        if(prt) std::cout<<"FNV: 3V"<<nvx3Ds.vx3.ID<<" 2V"<<nvxs.vx2.ID<<" inCTP "<<nvxs.vx2.CTP<<"\n";
-        // TODO: do this correctly
-        nvxs.vx2.Score = 100;
-        if(!StoreVertex(tjs, nvxs.vx2)) {
-          if(prt) std::cout<<"FNV: StoreVertex failed\n";
-          success = false;
-          continue;
-        }
-        vx2Stored.push_back(nvxs.vx2.ID);
-        // associate it with the 3D vertex
-        unsigned short plane = DecodeCTP(nvxs.vx2.CTP).Plane;
-        if(nvx3Ds.vx3.Vx2ID[plane] > 0) {
-          if(prt) std::cout<<"FNV: Error 3V"<<nvx3Ds.vx3.ID<<" is already attached to 2V"<<nvx3Ds.vx3.Vx2ID[plane]<<"\n";
-          success = false;
-          continue;
-        }
-        nvx3Ds.vx3.Vx2ID[plane] = nvxs.vx2.ID;
-        // associate it with the Tjs
-        for(auto& tp : nvxs.tps) {
-          auto& tj = tjs.allTraj[tp.Step - 1];
-          unsigned short end = tp.AngleCode;
-          if(tj.VtxID[end] > 0) {
-            if(prt) std::cout<<"FNV: Error T"<<tj.ID<<"_"<<end<<" is already attached to 2V"<<tj.VtxID[end]<<"\n";
-            success = false;
-            continue;
-          }
-          tj.VtxID[end] = nvxs.vx2.ID;
-          if(prt) std::cout<<"  2V"<<nvxs.vx2.ID<<" T"<<tj.ID<<"_"<<tp.AngleCode<<"\n";
-          tj.AlgMod[kPhoton] = true;
-        } // tp
-      } // nvxs
-      if(!success) {
-        for(auto vx2id : vx2Stored) {
-          auto& vx2 = tjs.vtx[vx2id - 1];
-          if(prt) std::cout<<" store failed. Killing 2V"<<vx2.ID<<"\n";
-          MakeVertexObsolete(tjs, vx2, true);
-        } // vx2i
-        continue;
-      }
-      nvx3Ds.vx3.Score = 100;
-      mf::LogVerbatim("TC")<<"FNV: 3V"<<nvx3Ds.vx3.ID<<" events processed "<<tjs.EventsProcessed;
-      tjs.vtx3.push_back(nvx3Ds.vx3);
-    } // nvx3Ds
-
-//    PrintAllTraj("FNV", tjs, debug, USHRT_MAX, 0);
-
   } // FindNeutralVertices
-*/
+
   //////////////////////////////////////////
   bool MergeWithVertex(TjStuff& tjs, VtxStore& vx, unsigned short oVxID, bool prt)
   {
@@ -929,8 +772,6 @@ namespace tca {
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
       if(tjs.allTraj[it1].AlgMod[kHamVx]) continue;
       if(tjs.allTraj[it1].AlgMod[kHamVx2]) continue;
-      // Jan 22 Let tj1 be InShower but not tj2
-//      if(tjs.allTraj[it1].AlgMod[kInShower]) continue;
       if(tjs.allTraj[it1].AlgMod[kJunkTj]) continue;
       unsigned short numPtsWithCharge1 = NumPtsWithCharge(tjs, tjs.allTraj[it1], false);
       if(numPtsWithCharge1 < 6) continue;
@@ -947,7 +788,7 @@ namespace tca {
           if(tjs.allTraj[it2].AlgMod[kHamVx2]) continue;
           // require that both be in the same CTP
           if(tjs.allTraj[it2].CTP != inCTP) continue;
-          if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
+          if(tjs.allTraj[it2].AlgMod[kShowerLike]) continue;
           if(tjs.allTraj[it2].AlgMod[kJunkTj]) continue;
           unsigned short numPtsWithCharge2 = NumPtsWithCharge(tjs, tjs.allTraj[it2], true);
           if(numPtsWithCharge2 < 6) continue;
@@ -1028,7 +869,9 @@ namespace tca {
           if(chgPull < 10) continue;
           // require a signal on every wire between it1 and intPt2
           TrajPoint ltp = tjs.allTraj[it1].Pts[endPt1];
+          if(tjs.allTraj[it1].Pts[endPt1].Pos[0] < -0.4) continue;
           unsigned int fromWire = std::nearbyint(tjs.allTraj[it1].Pts[endPt1].Pos[0]);
+          if(tjs.allTraj[it2].Pts[intPt2].Pos[0] < -0.4) continue;
           unsigned int toWire =   std::nearbyint(tjs.allTraj[it2].Pts[intPt2].Pos[0]);
           if(fromWire > toWire) {
             unsigned int tmp = fromWire;
@@ -1101,7 +944,7 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
       if(tjs.allTraj[it1].CTP != inCTP) continue;
       if(tjs.allTraj[it1].AlgMod[kKilled]) continue;
-      if(tjs.allTraj[it1].AlgMod[kInShower]) continue;
+      if(tjs.allTraj[it1].AlgMod[kShowerLike]) continue;
       if(tjs.allTraj[it1].AlgMod[kJunkTj]) continue;
       // minimum length requirements
       unsigned short tj1len = tjs.allTraj[it1].EndPt[1] - tjs.allTraj[it1].EndPt[0];
@@ -1116,8 +959,6 @@ namespace tca {
           if(tjs.allTraj[it2].CTP != inCTP) continue;
           if(it1 == it2) continue;
           if(tjs.allTraj[it2].AlgMod[kKilled]) continue;
-          // Let tj1 be InShower but not tj2
-//          if(tjs.allTraj[it2].AlgMod[kInShower]) continue;
           if(tjs.allTraj[it2].AlgMod[kJunkTj]) continue;
           // length of tj2 cut
           unsigned short tj2len = tjs.allTraj[it2].EndPt[1] - tjs.allTraj[it2].EndPt[0];
@@ -1356,6 +1197,7 @@ namespace tca {
       geo::PlaneID planeID = DecodeCTP(tjs.vtx[ivx].CTP);
       if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
       int plane = planeID.Plane;
+      if(tjs.vtx[ivx].Pos[0] < -0.4) continue;
       unsigned int wire = std::nearbyint(tjs.vtx[ivx].Pos[0]);
       if(!tjs.geom->HasWire(geo::WireID(cstat, tpc, plane, wire))) continue;
       // Convert 2D vertex time error to X error
@@ -1376,12 +1218,14 @@ namespace tca {
         unsigned short ivx = vIndex[ipl][ii];
         if(vX[ivx] < 0) continue;
         auto& ivx2 = tjs.vtx[ivx];
+        if(ivx2.Pos[0] < -0.4) continue;
         unsigned int iWire = std::nearbyint(ivx2.Pos[0]);
         for(unsigned short jpl = ipl + 1; jpl < 3; ++jpl) {
           for(unsigned short jj = 0; jj < vIndex[jpl].size(); ++jj) {
             unsigned short jvx = vIndex[jpl][jj];
             if(vX[jvx] < 0) continue;
             auto& jvx2 = tjs.vtx[jvx];
+            if(jvx2.Pos[0] < -0.4) continue;
             unsigned int jWire = std::nearbyint(jvx2.Pos[0]);
             float dX = std::abs(vX[ivx] - vX[jvx]);
             if(dX > tjs.Vertex3DCuts[0]) continue;
@@ -1589,9 +1433,6 @@ namespace tca {
       if(vx3.TPCID != tpcid) continue;
       SetVx3Score(tjs, vx3, prt);
     } // vx3
-    
-    // This should be done after 3D matching
-//    FindNeutralVertices(tjs, tpcid);
 
   } // Find3DVertices
 
@@ -1743,8 +1584,8 @@ namespace tca {
   //////////////////////////////////////////
   bool AttachPFPToVertex(TjStuff& tjs, PFPStruct& pfp, unsigned short end, unsigned short vx3ID, bool prt)
   {
-    if(vx3ID > tjs.vtx3.size()) return false;
-    if(pfp.ID > tjs.pfps.size()) return false;
+    if(vx3ID > int(tjs.vtx3.size())) return false;
+    if(pfp.ID > int(tjs.pfps.size())) return false;
     if(pfp.PDGCode == 22) return false;
     if(end > 1) return false;
     
@@ -2006,7 +1847,7 @@ namespace tca {
     // jacket around the push to ensure that the Tj and vtx CTP is consistent.
     // The calling function should score the vertex after the trajectories are attached
     
-    if(vx.ID != tjs.vtx.size() + 1) {
+    if(vx.ID != int(tjs.vtx.size() + 1)) {
       mf::LogVerbatim("TC")<<"StoreVertex: Invalid ID "<<vx.ID<<" It should be "<<tjs.vtx.size() + 1;
       return false;
     }
@@ -2229,7 +2070,7 @@ namespace tca {
       if(vx2.CTP != inCTP) continue;
       if(vx2.ID == 0) continue;
       if(vx2.Vx3ID == 0) continue;
-      if(vx2.Vx3ID > tjs.vtx3.size()) {
+      if(vx2.Vx3ID > int(tjs.vtx3.size())) {
         mf::LogVerbatim("TC")<<"ChkVtxAssociations: Invalid vx2.Vx3ID "<<vx2.Vx3ID<<" in 2D vtx "<<vx2.ID;
         return false;
       }
@@ -2478,8 +2319,8 @@ namespace tca {
       if(tj.ChgRMS < maxChgRMS) ++wght;
       // Shower Tj
       if(tj.AlgMod[kShowerTj]) ++wght;
-      // InShower
-      if(tj.AlgMod[kInShower]) --wght;
+      // ShowerLike
+      if(tj.AlgMod[kShowerLike]) --wght;
       tjids.push_back(tjid);
       tjwts.push_back(wght);
     } // tjid
@@ -3091,7 +2932,7 @@ namespace tca {
     // The 2D and 3D vertices are NOT killed if forceKill is false and the 3D vertex
     // has a high score
     if(vx3.ID == 0) return true;
-    if(vx3.ID > tjs.vtx3.size()) return false;
+    if(vx3.ID > int(tjs.vtx3.size())) return false;
     
     // set the score to 0
     vx3.Score = 0;

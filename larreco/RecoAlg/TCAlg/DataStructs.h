@@ -88,8 +88,8 @@ namespace tca {
     //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = 3D split, 11 = neutral decay (pizero)
     short Topo {0}; 			
     CTP_t CTP {0};
-    unsigned short ID {0};          ///< set to 0 if killed
-    unsigned short Vx3ID {0};
+    int ID {0};          ///< set to 0 if killed
+    int Vx3ID {0};
     float Score {0};
     float TjChgFrac {0};            ///< Fraction of charge near the vertex that is from hits on the vertex Tjs
     std::bitset<16> Stat {0};        ///< Vertex status bits using kVtxBit_t
@@ -117,7 +117,7 @@ namespace tca {
     short Wire {-1};                 // wire number for an incomplete 3D vertex
     geo::TPCID TPCID;
     std::array<unsigned short, 3> Vx2ID {{0}}; // List of 2D vertex IDs in each plane
-    unsigned short ID {0};          // 0 = obsolete vertex
+    int ID {0};          // 0 = obsolete vertex
     bool Primary {false};
     bool Neutrino {false};
   };
@@ -240,20 +240,18 @@ namespace tca {
     std::array<Vector3_t, 2> DirErr;
     std::array<std::vector<float>, 2> dEdx;
     std::array<std::vector<float>, 2> dEdxErr;
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-    std::array<unsigned short, 2> Vx3ID {{ 0, 0 }};
+    std::array<int, 2> Vx3ID {{ 0, 0 }};
     int BestPlane {-1};
     // stuff for constructing the PFParticle
     int PDGCode {-1};
     std::vector<int> DtrIDs;
-    size_t ParentID {0};       // Parent PFP ID (or ID of self if no parent exists)
+    size_t ParentID {0};       // Parent PFP ID (or 0 if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned int MCPartListIndex {UINT_MAX};
     unsigned short MatchVecIndex {USHRT_MAX};
     float CosmicScore{0};
-    unsigned short ID {0};
+    int ID {0};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
@@ -284,7 +282,7 @@ namespace tca {
     float Energy {0};
     float ParentFOM {10};
     int ID {0}; 
-    int ParentID {0};  // The ID of an external parent Tj that was added to the shower
+    int ParentID {0};  // The ID of a parent Tj - the one at the start of the shower
     unsigned short TruParentID {0};
     unsigned short SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
     bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
@@ -308,14 +306,16 @@ namespace tca {
     std::vector<double> dEdx;
     std::vector<double> dEdxErr;
     geo::TPCID TPCID;
-    std::vector<unsigned short> PFPIDs;  // list of indices of InShower PFParticles 
-    std::vector<unsigned short> CotIndices;  // list of indices of 2D showers in tjs.cots
+    std::vector<int> PFPIDs;  // list of indices of InShower PFParticles 
+    std::vector<int> CotIDs;  // list of indices of 2D showers in tjs.cots
     std::vector<unsigned int> Hits;
     int BestPlane;
     int ID;
+    int ParentID {0};       // The ID of a track-like pfp at the start of the shower, e.g. an electron
     float FOM;
-    unsigned short PFPIndex {USHRT_MAX};    // The index of the PFParticle for this shower
-    unsigned short Vx3ID {0};
+    unsigned short PFPIndex {USHRT_MAX};    // The index of the pfp for this shower
+    int Vx3ID {0};
+    bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
   };
 
   struct ShowerTreeVars {
@@ -414,6 +414,7 @@ namespace tca {
     kTjHiVx3Score,
     kVtxHitsSwap,
     kSplitHiChgHits,
+    kShowerLike,
     kInShower,
     kKillInShowerVx,
     kShowerTj,
@@ -498,6 +499,7 @@ namespace tca {
     std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
     std::vector<float> Vertex3DCuts;   ///< 2D vtx -> 3D vtx matching cuts 
     std::vector<float> VertexScoreWeights;
+    std::vector<float> NeutralVxCuts;
     std::vector<short> DeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
     std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
@@ -518,6 +520,7 @@ namespace tca {
     short NPtsAve;         /// number of points to find AveChg
     bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
     bool TestBeam;      ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
+    bool DebugMode;     ///< print additional info when in debug mode
    };
 
 } // namespace tca

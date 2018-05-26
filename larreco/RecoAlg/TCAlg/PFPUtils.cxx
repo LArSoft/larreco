@@ -24,8 +24,8 @@ namespace tca {
     if(tjs.mallTraj.empty() && tjs.pfps.empty()) return;
     
     // convert from int to unsigned short
-    unsigned short oldtjid = oldTj;
-    unsigned short newtjid = newTj;
+    int oldtjid = oldTj;
+    int newtjid = newTj;
     auto& ntj = tjs.allTraj[newTj - 1];
     unsigned short npts = ntj.EndPt[1] - ntj.EndPt[0] + 1;
     // put the X positions of the new Tj into a vector for matching
@@ -164,6 +164,7 @@ namespace tca {
         auto& tp = tj.Pts[ipt];
         if(tp.Chg == 0) continue;
         if(icnt > tjs.mallTraj.size() - 1) break;
+        if(tp.Pos[0] < -0.4) continue;
         tjs.mallTraj[icnt].wire = std::nearbyint(tp.Pos[0]);
         bool hasWire = tjs.geom->HasWire(geo::WireID(cstat, tpc, plane, tjs.mallTraj[icnt].wire));
         // don't try matching if the wire doesn't exist
@@ -257,7 +258,7 @@ namespace tca {
     // rotates each tp3 into this coordinate system to determine (along, trans) for each point. The min (max)
     // value of along defines the start (end) of the trajectory.
     
-    if(pfp.ID == 0 || pfp.TjIDs.empty()) return false;
+    if(pfp.ID <= 0 || pfp.TjIDs.empty()) return false;
     if(pfp.Tp3s.size() < 2) return false;
 
     // The projection along the general direction relative to the average position was found
@@ -351,7 +352,7 @@ namespace tca {
         if(tj.VtxID[end] == 0 || tj.VtxID[end] > tjs.vtx.size()) continue;
         auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
         // see if this is matched to a 3D vertex
-        if(vx2.Vx3ID == 0 || vx2.Vx3ID > tjs.vtx3.size()) continue;
+        if(vx2.Vx3ID == 0 || vx2.Vx3ID > int(tjs.vtx3.size())) continue;
         // Ignore it if it is already in the Tj list
         if(std::find(endTjList.begin(), endTjList.end(), tj.ID) != endTjList.end()) continue;
         // Ignore it if it is attached to the other end
@@ -776,7 +777,7 @@ namespace tca {
     bool smallAngle = false;
     if(fillTp3s) {
       smallAngle = (pfp.Dir[0][0] != 0 && std::abs(pfp.Dir[0][0]) < 0.1);
-      if(pfp.Dir[0][0] == 0) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
+      if(pfp.Dir[0][0] == 0 && tjs.DebugMode) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
     }
     double yzcut = 1.5 * tjs.Match3DCuts[0];
     
@@ -859,7 +860,9 @@ namespace tca {
         // count it as a triple if this point is in a dead region
         unsigned short jplane = DecodeCTP(jtp.CTP).Plane;
         unsigned short kplane = 3 - iplane - jplane;
-        unsigned int kwire = std::nearbyint(tjs.geom->WireCoordinate(ijtp3.Pos[1], ijtp3.Pos[2], kplane, tpc, cstat));
+        float fwire = tjs.geom->WireCoordinate(ijtp3.Pos[1], ijtp3.Pos[2], kplane, tpc, cstat);
+        if(fwire < -0.4) continue;
+        unsigned int kwire = std::nearbyint(fwire);
         if(kwire < tjs.WireHitRange[kplane].size() && tjs.WireHitRange[kplane][kwire].first == -1) {
           // accumulate the fit sums
           if(doFit) Fit3D(1, ijtp3.Pos, ijtp3.Dir, point, dir);
@@ -1270,6 +1273,7 @@ namespace tca {
       if(tj.CTP != inCTP) continue;
       for(unsigned short end = 0; end < 2; ++end) {
         float endWire = tj.Pts[tj.EndPt[end]].Pos[0];
+        if(endWire < -0.4) continue;
         if(endWire < fLoWire) fLoWire = endWire;
         if(endWire > fHiWire) fHiWire = endWire;
       } // end
@@ -1287,6 +1291,7 @@ namespace tca {
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         auto& tp = tj.Pts[ipt];
         if(tp.Chg <= 0) continue;
+        if(tp.Pos[0] < -0.4) continue;
         ++npwc;
         unsigned short indx = std::nearbyint(tp.Pos[0]) - loWire;
         if(indx < nWires) ptOnWire[indx] = true;
@@ -1723,8 +1728,6 @@ namespace tca {
   bool MakeTp3(TjStuff& tjs, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3, bool findDirection)
   {
     // Make a 3D trajectory point using two 2D trajectory points
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
     tp3.Dir = {{999.0, 999.0, 999.0}};
     tp3.Pos = {{999.0, 999.0, 999.0}};
     geo::PlaneID iPlnID = DecodeCTP(itp.CTP);
@@ -1734,7 +1737,7 @@ namespace tca {
     double jx = tjs.detprop->ConvertTicksToX(jtp.Pos[1] / upt, jPlnID);
     
     // don't continue if the points are wildly far apart in X
-    if(std::abs(ix - jx) > 10) return false;
+    if(std::abs(ix - jx) > 20) return false;
     tp3.Pos[0] = 0.5 * (ix + jx);
     // determine the wire orientation and offsets using WireCoordinate
     // wire = yp * OrthY + zp * OrthZ - Wire0 = cs * yp + sn * zp - wire0
@@ -1848,6 +1851,66 @@ namespace tca {
     v1[2] *= mag / den;
     return true;
   } // SetMag
+  
+  /////////////////////////////////////////
+  void FilldEdx(TjStuff& tjs, PFPStruct& pfp)
+  {
+    // Fills the dEdX vector in the match struct. This function should be called after the
+    // matched trajectory points are ordered so that dE/dx is calculated at the start of the PFParticle
+    if(pfp.ID == 0) return;
+    // error check
+    bool notgood = false;
+    for(unsigned short startend = 0; startend < 2; ++startend) {
+      if(pfp.dEdx[startend].size() != tjs.NumPlanes) notgood = true;
+      if(pfp.dEdxErr[startend].size() != tjs.NumPlanes) notgood = true;
+    }
+    if(notgood) {
+      //      if(prt) mf::LogVerbatim("TC")<<"FilldEdx found inconsistent sizes for dEdx\n";
+      return;
+    }
+    
+    double t0 = 0;
+    
+    unsigned short numEnds = 2;
+    // don't attempt to find dE/dx at the end of a shower
+    if(pfp.PDGCode == 1111) numEnds = 1;
+    
+    unsigned short maxlen = 0;
+    for(auto tjID : pfp.TjIDs) {
+      
+      Trajectory& tj = tjs.allTraj[tjID - 1];
+      geo::PlaneID planeID = DecodeCTP(tj.CTP);
+      double angleToVert = tjs.geom->Plane(planeID).ThetaZ() - 0.5 * ::util::pi<>();
+      for(unsigned short startend = 0; startend < numEnds; ++startend) {
+        pfp.dEdx[startend][planeID.Plane] = 0;
+        tj.dEdx[startend] = 0;
+        double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[startend][1] + std::cos(angleToVert) * pfp.Dir[startend][2]);
+        if(cosgamma == 0) continue;
+        double dx = tjs.geom->WirePitch(planeID) / cosgamma;
+        if(dx == 0) continue;
+        double dQ = tj.Pts[tj.EndPt[startend]].AveChg;
+        if(dQ == 0) continue;
+        // convert to dQ/dx
+        dQ /= dx;
+        double time = tj.Pts[tj.EndPt[startend]].Pos[1] / tjs.UnitsPerTick;
+        float dedx = tjs.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
+        if(dedx > 999) dedx = 999;
+        pfp.dEdx[startend][planeID.Plane] = dedx;
+        tj.dEdx[startend] = dedx;
+        // ChgRMS is the fractional error
+        pfp.dEdxErr[startend][planeID.Plane] = dedx * tj.ChgRMS;
+        
+      } // startend
+      // Grab the best plane iusing the start f 1 < dE/dx < 50 MeV/cm
+      if(pfp.dEdx[0][planeID.Plane] > 1 && pfp.dEdx[0][planeID.Plane] < 50) {
+        if(tj.Pts.size() > maxlen) {
+          maxlen = tj.Pts.size();
+          pfp.BestPlane = planeID.Plane;
+        }
+      } // valid dE/dx
+      
+    } // tj
+  } // FilldEdX
 
   ////////////////////////////////////////////////
   void FilldEdx(TjStuff& tjs, TrajPoint3& tp3)
@@ -1900,7 +1963,8 @@ namespace tca {
   float PFPDOCA(const PFPStruct& pfp1,  const PFPStruct& pfp2, unsigned short& close1, unsigned short& close2)
   {
     // returns the Distance of Closest Approach between two PFParticles. 
-    
+    close1 = USHRT_MAX;
+    close2 = USHRT_MAX;
     float minSep2 = 1E8;
     for(unsigned short ipt1 = 0; ipt1 < pfp1.Tp3s.size(); ++ipt1) {
       auto& tp1 = pfp1.Tp3s[ipt1];
@@ -2083,8 +2147,7 @@ namespace tca {
     // The calling function should define the size of pfp.TjIDs
     PFPStruct pfp;
     pfp.ID = tjs.pfps.size() + 1;
-    // assume it is it's own parent
-    pfp.ParentID = pfp.ID;
+    pfp.ParentID = 0;
     pfp.TPCID = tpcid;
     // initialize arrays for both ends
     if(tjs.NumPlanes < 4) {
@@ -2546,12 +2609,6 @@ namespace tca {
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       if(pfp.Vx3ID[0] > 0) continue;
-      // ignore truth photons
-      if(pfp.PDGCode == 22) continue;
-      if(pfp.Vx3ID[1] == 0 && !pfp.Tp3s.empty()) {
-        // See if the direction needs to be changed
-//        std::cout<<"PFPVertexCheck needs revision\n";
-      }
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
       // Flag it as a PFP vertex that isn't required to have matched 2D vertices
@@ -2562,7 +2619,7 @@ namespace tca {
       vx3.ID = tjs.vtx3.size() + 1;
       vx3.Primary = false;
       tjs.vtx3.push_back(vx3);
-//      std::cout<<"PFPVertexCheck: add 3V"<<vx3.ID<<"\n";
+//      std::cout<<"PFPVertexCheck: P"<<pfp.ID<<" create 3V"<<vx3.ID<<"\n";
       pfp.Vx3ID[0] = vx3.ID;
     } // pfp
   } // PFPVertexCheck
@@ -2605,40 +2662,14 @@ namespace tca {
      
      */    
     if(tjs.pfps.empty()) return;
-    
     int neutrinoPFPID = 0;
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
       if(pfp.TPCID != tpcid) continue;
-      if(!tjs.TestBeam && neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) neutrinoPFPID = pfp.ID;
-      // ignore truth photon
-      if(pfp.PDGCode == 22) continue;
-      if(pfp.Vx3ID[0] > 0) continue;
-      Vtx3Store vx3;
-      vx3.TPCID = pfp.TPCID;
-      // Flag it as a PFP vertex that isn't required to have matched 2D vertices
-      vx3.Wire = -2;
-      vx3.X = pfp.XYZ[0][0];
-      vx3.Y = pfp.XYZ[0][1];
-      vx3.Z = pfp.XYZ[0][2];
-      vx3.ID = tjs.vtx3.size() + 1;
-      vx3.Primary = false;
-      // TODO: we need to have PFP track position errors defined 
-      unsigned short mergeToVx3ID = IsCloseToVertex(tjs, vx3);
-      if(mergeToVx3ID > 0) {
-        if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex "<<vx3.ID<<" with existing 3V"<<mergeToVx3ID;
-        if(!AttachPFPToVertex(tjs, pfp, 0, mergeToVx3ID, prt)) {
-          if(prt) mf::LogVerbatim("TC")<<" Failed to attach pfp "<<pfp.ID<<". Make new vertex \n";
-          mergeToVx3ID = 0;
-        }
-      } // mergeMe > 0
-      if(mergeToVx3ID == 0) {
-        // Add the new vertex and attach the PFP to it
-        tjs.vtx3.push_back(vx3);
-        if(!AttachPFPToVertex(tjs, pfp, 0, vx3.ID, prt)) {
-          if(prt) mf::LogVerbatim("TC")<<"Merge PFP vertex 3V"<<vx3.ID<<" with new vtx 3V"<<mergeToVx3ID;
-        }
-      } // merge to new vertex
+      if(!tjs.TestBeam && neutrinoPFPID == 0 && (pfp.PDGCode == 12 || pfp.PDGCode == 14)) {
+        neutrinoPFPID = pfp.ID;
+        break;
+      }
     } // pfp
     
     // define the end vertex if the Tjs have end vertices
@@ -2666,8 +2697,8 @@ namespace tca {
       } // tjid
       if(cnt3 > 1) {
         pfp.Vx3ID[end1] = vx3id;
-        if(cnt3 != tjs.NumPlanes) {
-          mf::LogVerbatim("TC")<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code";
+        if(cnt3 != tjs.NumPlanes && tjs.DebugMode) {
+          std::cout<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code\n";
         }
       } // cnt3 > 1
     } // pfp
@@ -2684,7 +2715,7 @@ namespace tca {
       unsigned short nParent = 0;
       for(auto tjid : pfp.TjIDs) {
         auto& tj = tjs.allTraj[tjid - 1];
-        if(tj.ParentID == tj.ID) continue;
+        if(tj.ParentID == 0) continue;
         unsigned short ppindex = GetPFPIndex(tjs, tj.ParentID);
         if(ppindex == USHRT_MAX) continue;
         int ppid = ppindex + 1;
@@ -2812,11 +2843,11 @@ namespace tca {
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp)
   {
     // stores the PFParticle in TJStuff
-    if(pfp.ID < tjs.pfps.size()) return false;
+    if(pfp.ID < int(tjs.pfps.size())) return false;
     bool neutrinoPFP = pfp.PDGCode == 12 || pfp.PDGCode == 14;
     if(!neutrinoPFP) {
       if(pfp.TjIDs.empty()) return false;
-      if(pfp.Tp3s.size() < 2) return false;
+      if(pfp.PDGCode != 1111 && pfp.Tp3s.size() < 2) return false;
     }
     // check the ID and correct it if it is wrong
     if(pfp.ID != (int)tjs.pfps.size() + 1) pfp.ID = tjs.pfps.size() + 1;
@@ -2865,6 +2896,10 @@ namespace tca {
       } // ii
     } // Tp3s exist    
     
+    if(pfp.BestPlane < 0) FilldEdx(tjs, pfp);
+    
+    if(pfp.NeedsUpdate) std::cout<<"StorePFP: stored P"<<pfp.ID<<" but NeedsUpdate is true...\n";
+    
     tjs.pfps.push_back(pfp);
     return true;
   } // StorePFP
@@ -2874,6 +2909,7 @@ namespace tca {
   {
     // determine which TPC this point is in. This function returns false
     // if the point is not inside any TPC
+    double abit = -2;
     for (const geo::TPCID& tpcid: tjs.geom->IterateTPCIDs()) {
       const geo::TPCGeo& TPC = tjs.geom->TPC(tpcid);
       double local[3] = {0.,0.,0.};
@@ -2882,12 +2918,12 @@ namespace tca {
       unsigned int cstat = tpcid.Cryostat;
       unsigned int tpc = tpcid.TPC;
       // reduce the active area of the TPC by 1 cm to be consistent with FillWireHitRange
-      if(pos[0] < world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + 1) continue;
-      if(pos[0] > world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - 1) continue;
-      if(pos[1] < world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + 1) continue;
-      if(pos[1] > world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - 1) continue;
-      if(pos[2] < world[2]-tjs.geom->DetLength(tpc,cstat)/2 + 1) continue;
-      if(pos[2] > world[2]+tjs.geom->DetLength(tpc,cstat)/2 - 1) continue;
+      if(pos[0] < world[0]-tjs.geom->DetHalfWidth(tpc,cstat) + abit) continue;
+      if(pos[0] > world[0]+tjs.geom->DetHalfWidth(tpc,cstat) - abit) continue;
+      if(pos[1] < world[1]-tjs.geom->DetHalfHeight(tpc,cstat) + abit) continue;
+      if(pos[1] > world[1]+tjs.geom->DetHalfHeight(tpc,cstat) - abit) continue;
+      if(pos[2] < world[2]-tjs.geom->DetLength(tpc,cstat)/2 + abit) continue;
+      if(pos[2] > world[2]+tjs.geom->DetLength(tpc,cstat)/2 - abit) continue;
       inTPCID = tpcid;
       return true;
     } // tpcid
@@ -2911,6 +2947,74 @@ namespace tca {
   } // FindAlongTrans
   
   ////////////////////////////////////////////////
+  bool PointDirIntersect(Point3_t p1, Vector3_t p1Dir, Point3_t p2, Vector3_t p2Dir, Point3_t& intersect, float& doca)
+  {
+    // Point - vector version
+    Point3_t p1End, p2End;
+    for(unsigned short xyz = 0; xyz < 3; ++xyz) {
+      p1End[xyz] = p1[xyz] + 10 * p1Dir[xyz];
+      p2End[xyz] = p2[xyz] + 10 * p2Dir[xyz];
+    }
+    return LineLineIntersect(p1, p1End, p2, p2End, intersect, doca);
+  } // PointDirIntersect
+  
+  ////////////////////////////////////////////////
+  bool LineLineIntersect(Point3_t p1, Point3_t p2, Point3_t p3, Point3_t p4, Point3_t& intersect, float& doca)
+  {
+    /*
+     Calculate the line segment PaPb that is the shortest route between
+     two lines P1P2 and P3P4. Calculate also the values of mua and mub where
+     Pa = P1 + mua (P2 - P1)
+     Pb = P3 + mub (P4 - P3)
+     Return FALSE if no solution exists.
+     http://paulbourke.net/geometry/pointlineplane/
+     */
+
+    Point3_t p13, p43, p21;
+    double d1343,d4321,d1321,d4343,d2121;
+    double numer,denom;
+    constexpr double EPS = std::numeric_limits<double>::min();
+    
+    p13[0] = p1[0] - p3[0];
+    p13[1] = p1[1] - p3[1];
+    p13[2] = p1[2] - p3[2];
+    p43[0] = p4[0] - p3[0];
+    p43[1] = p4[1] - p3[1];
+    p43[2] = p4[2] - p3[2];
+    if (std::abs(p43[0]) < EPS && std::abs(p43[1]) < EPS && std::abs(p43[2]) < EPS) return(false);
+    p21[0] = p2[0] - p1[0];
+    p21[1] = p2[1] - p1[1];
+    p21[2] = p2[2] - p1[2];
+    if (std::abs(p21[0]) < EPS && std::abs(p21[1]) < EPS && std::abs(p21[2]) < EPS) return(false);
+    
+    d1343 = p13[0] * p43[0] + p13[1] * p43[1] + p13[2] * p43[2];
+    d4321 = p43[0] * p21[0] + p43[1] * p21[1] + p43[2] * p21[2];
+    d1321 = p13[0] * p21[0] + p13[1] * p21[1] + p13[2] * p21[2];
+    d4343 = p43[0] * p43[0] + p43[1] * p43[1] + p43[2] * p43[2];
+    d2121 = p21[0] * p21[0] + p21[1] * p21[1] + p21[2] * p21[2];
+    
+    denom = d2121 * d4343 - d4321 * d4321;
+    if (std::abs(denom) < EPS) return(false);
+    numer = d1343 * d4321 - d1321 * d4343;
+    
+    double mua = numer / denom;
+    double mub = (d1343 + d4321 * mua) / d4343;
+    
+    intersect[0] = p1[0] + mua * p21[0];
+    intersect[1] = p1[1] + mua * p21[1];
+    intersect[2] = p1[2] + mua * p21[2];
+    Point3_t pb;
+    pb[0] = p3[0] + mub * p43[0];
+    pb[1] = p3[1] + mub * p43[1];
+    pb[2] = p3[2] + mub * p43[2];
+    doca = PosSep(intersect, pb);
+    // average the closest points
+    for(unsigned short xyz = 0; xyz < 3; ++xyz) intersect[xyz] += pb[xyz];
+    for(unsigned short xyz = 0; xyz < 3; ++xyz) intersect[xyz] /= 2;
+    return true;
+  } // LineLineIntersect
+  
+  ////////////////////////////////////////////////
   void ReversePFP(TjStuff& tjs, PFPStruct& pfp)
   {
     std::swap(pfp.XYZ[0], pfp.XYZ[1]);
@@ -2932,6 +3036,82 @@ namespace tca {
       } // xyz
     } // tp3
   } // ReversePFP
+  
+  ////////////////////////////////////////////////
+  float ChgFracBetween(TjStuff& tjs, Point3_t pos1, Point3_t pos2, geo::TPCID tpcid)
+  {
+    // Step between pos1 and pos2 and find the fraction of the points that have nearby hits
+    // in each plane. This function returns -1 if something is fishy, but this doesn't mean
+    // that there is no charge. Note that there is no check for charge precisely at the pos1 and pos2
+    // positions 
+    if(tpcid != tjs.TPCID) return -1;
+    float sep = PosSep(pos1, pos2);
+    if(sep == 0) return -1;
+    unsigned short nstep = sep / tjs.WirePitch;
+    auto dir = PointDirection(pos1, pos2);
+    float sum = 0;
+    float cnt = 0;
+    TrajPoint tp;
+    for(unsigned short step = 0; step < nstep; ++step) {
+      for(unsigned short xyz = 0; xyz < 3; ++xyz) pos1[xyz] += tjs.WirePitch * dir[xyz];
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        tp.CTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
+        tp.Pos[0] = tjs.geom->WireCoordinate(pos1[1], pos1[2], plane, tpcid.TPC, tpcid.Cryostat);
+        tp.Pos[1] = tjs.detprop->ConvertXToTicks(pos1[0], plane, tpcid.TPC, tpcid.Cryostat) * tjs.UnitsPerTick;
+        ++cnt;
+        if(SignalAtTp(tjs, tp)) ++sum;
+      } // plane
+    } // step
+    if(cnt == 0) return -1;
+    return sum / cnt;
+    
+  } // ChgFracBetween
+  
+  ////////////////////////////////////////////////
+  float ChgFracNearEnd(TjStuff& tjs, PFPStruct& pfp, unsigned short end)
+  {
+    // returns the charge fraction near the end of the pfp. Note that this function
+    // assumes that there is only one Tj in a plane.
+    if(pfp.ID == 0) return 0;
+    if(pfp.TjIDs.empty()) return 0;
+    if(end < 0 || end > 1) return 0;
+    if(pfp.TPCID != tjs.TPCID) return 0;
+
+    float sum = 0;
+    float cnt = 0;
+    // keep track of the lowest value and maybe reject it
+    float lo = 1;
+    float hi = 0;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
+      std::vector<int> tjids(1);
+      for(auto tjid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tjid - 1];
+        if(tj.CTP != inCTP) continue;
+        tjids[0] = tjid;
+        Point2_t pos;
+        geo::PlaneID planeID = geo::PlaneID(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
+        pos[0] = tjs.geom->WireCoordinate(pfp.XYZ[end][1], pfp.XYZ[end][2], planeID);
+        if(pos[0] < -0.4) continue;
+        // check for dead wires
+        unsigned int wire = std::nearbyint(pos[0]);
+        if(wire > tjs.NumWires[plane]) continue;
+        if(tjs.WireHitRange[plane][wire].first == -1) continue;
+        pos[1] = tjs.detprop->ConvertXToTicks(pfp.XYZ[end][0], planeID) * tjs.UnitsPerTick;
+        float cf = ChgFracNearPos(tjs, pos, tjids);
+        if(cf < lo) lo = cf;
+        if(cf > hi) hi = cf;
+        sum += cf;
+        ++cnt;
+      } // tjid
+    } // plane
+    if(cnt == 0) return 0;
+    if(cnt > 1 && lo < 0.3 && hi > 0.8) {
+      sum -= lo;
+      --cnt;
+    }
+    return sum / cnt;
+  } // ChgFracNearEnd
 
   ////////////////////////////////////////////////
   void PrintTp3(std::string someText, const TjStuff& tjs, const TrajPoint3& tp3)
