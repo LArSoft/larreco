@@ -176,8 +176,9 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   unsigned int t=allhits[0]->WireID().TPC;
 
   fWirePitch.resize(geom->Nplanes(t, cs), 0.);
-  for(size_t p = 0; p < fWirePitch.size(); ++p) 
-    fWirePitch[p] = geom->WirePitch(0,1,p);
+  for (size_t p = 0; p < fWirePitch.size(); ++p) {
+    fWirePitch[p] = geom->WirePitch(p);
+  }
 
 
 

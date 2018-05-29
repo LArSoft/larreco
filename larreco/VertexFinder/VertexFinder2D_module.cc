@@ -146,7 +146,7 @@ namespace vertex{
     double timetick = detprop->SamplingRate()*1.e-3; //time sample in us
     double presamplings = detprop->TriggerOffset(); //trigger offset
 
-    double wire_pitch   = geom->WirePitch(0,1,0); //wire pitch in cm
+    double wire_pitch   = geom->WirePitch(); //wire pitch in cm
     double Efield_drift = detprop->Efield();      // Electric Field in the drift region in kV/cm
     double Temperature  = detprop->Temperature(); // LAr Temperature in K
     
