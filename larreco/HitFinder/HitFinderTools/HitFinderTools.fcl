@@ -8,13 +8,21 @@ hitfinderwaveformalgs:
 
 candhitfinder_derivative:
 {
-    tool_type:    CandHitDerivative
-    WaveformAlgs: @local::hitfinderwaveformalgs
+    tool_type:           CandHitDerivative
+    Plane:               0
+    MinDeltaTicks:       1
+    MaxDeltaTicks:       40
+    MinDeltaPeaks:       0.25
+    MinHitHeight:        2
+    NumInterveningTicks: 6
+    OutputHistograms:    false
+    WaveformAlgs:        @local::hitfinderwaveformalgs
 }
 
 candhitfinder_standard:
 {
     tool_type: CandHitStandard
+    Plane:     0
 }
 
 peakfitter_gaussian:

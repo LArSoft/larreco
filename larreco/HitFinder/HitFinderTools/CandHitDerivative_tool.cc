@@ -8,10 +8,14 @@
 
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib/exception.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
+
+#include "TH1F.h"
+#include "TProfile.h"
 
 #include <cmath>
 #include <fstream>
@@ -29,6 +33,7 @@ public:
     void configure(const fhicl::ParameterSet& pset) override;
     
     void findHitCandidates(const Waveform&,
+                           size_t,
                            size_t,
                            size_t,
                            HitCandidateVec&) const override;
@@ -54,12 +59,23 @@ private:
     Waveform::const_iterator findStopTick(Waveform::const_iterator, Waveform::const_iterator)  const;
     
     // some control variables
-    std::vector<int>     fMinDeltaTicks;       //< minimum ticks from max to min to consider
-    std::vector<int>     fMaxDeltaTicks;       //< maximum ticks from max to min to consider
-    std::vector<float>   fMinDeltaPeaks;       //< minimum maximum to minimum peak distance
+    size_t               fPlane;               //< Identifies the plane this tool is meant to operate on
+    int                  fMinDeltaTicks;       //< minimum ticks from max to min to consider
+    int                  fMaxDeltaTicks;       //< maximum ticks from max to min to consider
+    float                fMinDeltaPeaks;       //< minimum maximum to minimum peak distance
     float                fMinHitHeight;        //< Drop candidate hits with height less than this
     size_t               fNumInterveningTicks; //< Number ticks between candidate hits to merge
+    bool                 fOutputHistograms;    //< If true will generate a very large file of hists!
+
+    art::TFileDirectory* fHistDirectory;
     
+    // Global histograms
+    TH1F*                fDStopStartHist;
+    TH1F*                fDMaxTickMinTickHist;
+    TH1F*                fDMaxDerivMinDerivHist;
+    
+    mutable std::map<size_t,int> fChannelCntMap;
+
     // Member variables from the fhicl file
     std::unique_ptr<reco_tool::IWaveformAlgs> fWaveformAlgs;
     
@@ -80,23 +96,47 @@ CandHitDerivative::~CandHitDerivative()
 void CandHitDerivative::configure(const fhicl::ParameterSet& pset)
 {
     // Recover our parameters
-    fMinDeltaTicks       = pset.get<std::vector<int>   >("MinDeltaTicks",       std::vector<int>()   = {    0,     0,     0});
-    fMaxDeltaTicks       = pset.get<std::vector<int>   >("MaxDeltaTicks",       std::vector<int>()   = {   30,    30,    30});
-    fMinDeltaPeaks       = pset.get<std::vector<float> >("MinDeltaPeaks",       std::vector<float>() = {0.025, 0.025, 0.025});
-    fMinHitHeight        = pset.get<            float  >("MinHitHeight",        2.0);
-    fNumInterveningTicks = pset.get<            size_t >("NumInterveningTicks", 6);
-    
+    fPlane               = pset.get< size_t >("Plane",               0);
+    fMinDeltaTicks       = pset.get< int    >("MinDeltaTicks",       0);
+    fMaxDeltaTicks       = pset.get< int    >("MaxDeltaTicks",       30);
+    fMinDeltaPeaks       = pset.get< float  >("MinDeltaPeaks",       0.025);
+    fMinHitHeight        = pset.get< float  >("MinHitHeight",        2.0);
+    fNumInterveningTicks = pset.get< size_t >("NumInterveningTicks", 6);
+    fOutputHistograms    = pset.get< bool   >("OutputHistograms",    false);
+
     // Recover the baseline tool
     fWaveformAlgs = art::make_tool<reco_tool::IWaveformAlgs> (pset.get<fhicl::ParameterSet>("WaveformAlgs"));
     
+    // If asked, define the global histograms
+    if (fOutputHistograms)
+    {
+        // Access ART's TFileService, which will handle creating and writing
+        // histograms and n-tuples for us.
+        art::ServiceHandle<art::TFileService> tfs;
+        
+        fHistDirectory = tfs.get();
+
+        // Make a directory for these histograms
+        art::TFileDirectory dir = fHistDirectory->mkdir(Form("HitPlane_%1zu",fPlane));
+        
+        fDStopStartHist        = dir.make<TH1F>(Form("DStopStart_%1zu", fPlane), ";Delta Stop/Start;",    200, 0., 200.);
+        fDMaxTickMinTickHist   = dir.make<TH1F>(Form("DMaxTMinT_%1zu",  fPlane), ";Delta Max/Min Tick;",  200, 0., 200.);
+        fDMaxDerivMinDerivHist = dir.make<TH1F>(Form("DMaxDMinD_%1zu",  fPlane), ";Delta Max/Min Deriv;", 200, 0., 200.);
+    }
+
     return;
 }
     
 void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
                                           size_t           roiStartTick,
-                                          size_t           planeIdx,
+                                          size_t           channel,
+                                          size_t           eventCount,
                                           HitCandidateVec& hitCandidateVec) const
 {
+    // Recover the plane index for this method
+    std::vector<geo::WireID> wids  = fGeometry->ChannelToWire(channel);
+    size_t                   plane = wids[0].Plane;
+    
     // In this case we want to find hit candidates based on the derivative of of the input waveform
     // We get this from our waveform algs too...
     Waveform derivativeVec;
@@ -104,7 +144,7 @@ void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
     fWaveformAlgs->getSmoothDerivativeVec(waveform, derivativeVec);
     
     // Now find the hits
-    findHitCandidates(derivativeVec.begin(),derivativeVec.end(),roiStartTick,planeIdx,hitCandidateVec);
+    findHitCandidates(derivativeVec.begin(),derivativeVec.end(),roiStartTick,plane,hitCandidateVec);
     
     // Reset the hit height from the input waveform
     for(auto& hitCandidate : hitCandidateVec)
@@ -112,6 +152,48 @@ void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
         size_t centerIdx = hitCandidate.hitCenter;
         
         hitCandidate.hitHeight = waveform.at(centerIdx);
+    }
+    
+    // Keep track of histograms if requested
+    if (fOutputHistograms)
+    {
+        // Try to limit to the wire number (since we are already segregated by plane)
+        size_t cryo  = wids[0].Cryostat;
+        size_t tpc   = wids[0].TPC;
+        size_t wire  = wids[0].Wire;
+        
+        size_t channelCnt = fChannelCntMap[channel]++;
+        
+        // Make a directory for these histograms
+        art::TFileDirectory dir = fHistDirectory->mkdir(Form("HitPlane_%1zu/ev%04zu/c%1zut%1zuwire_%05zu",plane,eventCount,cryo,tpc,wire));
+        
+        size_t waveformSize = waveform.size();
+        int    waveStart    = roiStartTick;
+        int    waveStop     = waveStart + waveformSize;
+        
+        TProfile* waveHist     = dir.make<TProfile>(Form("HWfm_%03zu_ctw%01zu-%01zu-%01zu-%05zu",channelCnt,cryo,tpc,plane,wire), "Waveform",   waveformSize, waveStart, waveStop, -500., 500.);
+        TProfile* derivHist    = dir.make<TProfile>(Form("HDer_%03zu_ctw%01zu-%01zu-%01zu-%05zu",channelCnt,cryo,tpc,plane,wire), "Derivative", waveformSize, waveStart, waveStop, -500., 500.);
+        TProfile* candHitHist  = dir.make<TProfile>(Form("HCan_%03zu_ctw%01zu-%01zu-%01zu-%05zu",channelCnt,cryo,tpc,plane,wire), "Cand Hits",  waveformSize, waveStart, waveStop, -500., 500.);
+        TProfile* maxDerivHist = dir.make<TProfile>(Form("HMax_%03zu_ctw%01zu-%01zu-%01zu-%05zu",channelCnt,cryo,tpc,plane,wire), "Maxima",     waveformSize, waveStart, waveStop, -500., 500.);
+        
+        // Fill wave/derivative
+        for(size_t idx = 0; idx < waveform.size(); idx++)
+        {
+            waveHist->Fill(roiStartTick + idx, waveform.at(idx));
+            derivHist->Fill(roiStartTick + idx, derivativeVec.at(idx));
+        }
+        
+        // Fill hits
+        for(const auto& hitCandidate : hitCandidateVec)
+        {
+            candHitHist->Fill(hitCandidate.hitCenter, hitCandidate.hitHeight);
+            maxDerivHist->Fill(hitCandidate.maxTick, hitCandidate.maxDerivative);
+            maxDerivHist->Fill(hitCandidate.minTick, hitCandidate.minDerivative);
+            
+            fDStopStartHist->Fill(hitCandidate.stopTick - hitCandidate.startTick, 1.);
+            fDMaxTickMinTickHist->Fill(hitCandidate.minTick - hitCandidate.maxTick, 1.);
+            fDMaxDerivMinDerivHist->Fill(hitCandidate.maxDerivative - hitCandidate.minDerivative, 1.);
+        }
     }
     
     return;
@@ -142,7 +224,7 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
 //    std::cout << "** max at tick: " << std::distance(startItr,maxItr) << ", val: " << *maxItr << ", min at tick: " << std::distance(startItr,minItr) << ", val: " << *minItr << ", delta: " << deltaTicks << ", range: " << range << std::endl;
     
     // At some point small rolling oscillations on the waveform need to be ignored...
-    if (deltaTicks >= fMinDeltaTicks.at(planeIdx) && range > fMinDeltaPeaks.at(planeIdx))
+    if (deltaTicks >= fMinDeltaTicks && range > fMinDeltaPeaks)
     {
         // Need to back up to find zero crossing, this will be the starting point of our
         // candidate hit but also the endpoint of the pre sub-waveform we'll search next

@@ -30,6 +30,7 @@ public:
     void findHitCandidates(const std::vector<float>&,
                            size_t,
                            size_t,
+                           size_t,
                            HitCandidateVec&) const override;
     
     void findHitCandidates(std::vector<float>::const_iterator,
@@ -44,10 +45,11 @@ public:
     
 private:
     // Member variables from the fhicl file
-    float                fMinROIAverageTickThreshold; ///< try to remove bad ROIs
-    std::vector<float>   fRoiThreshold;               ///< minimum maximum to minimum peak distance
+    int                      fPlane;                      ///< Plane we are meant to work with
+    float                    fMinROIAverageTickThreshold; ///< try to remove bad ROIs
+    float                    fRoiThreshold;               ///< minimum maximum to minimum peak distance
 
-    const geo::GeometryCore*  fGeometry = lar::providerFrom<geo::Geometry>();
+    const geo::GeometryCore* fGeometry = lar::providerFrom<geo::Geometry>();
 };
     
 //----------------------------------------------------------------------
@@ -64,19 +66,25 @@ CandHitStandard::~CandHitStandard()
 void CandHitStandard::configure(const fhicl::ParameterSet& pset)
 {
     // Start by recovering the parameters
-    fMinROIAverageTickThreshold = pset.get<            float  >("MinROIAverageTickThreshold", -0.5);
-    fRoiThreshold               = pset.get<std::vector<float> >("RoiThreshold",               std::vector<float>() = { 5.,  5.,  5.});
+    fPlane                      = pset.get< int   >("Plane",                       0);
+    fMinROIAverageTickThreshold = pset.get< float >("MinROIAverageTickThreshold", -0.5);
+    fRoiThreshold               = pset.get< float >("RoiThreshold",                5.);
 
     return;
 }
     
 void CandHitStandard::findHitCandidates(const std::vector<float>& waveform,
                                         size_t                    roiStartTick,
-                                        size_t                    planeIdx,
+                                        size_t                    channel,
+                                        size_t                    eventCount,
                                         HitCandidateVec&          hitCandidateVec) const
 {
+    // Recover the plane index for this method
+    std::vector<geo::WireID> wids  = fGeometry->ChannelToWire(channel);
+    size_t                   plane = wids[0].Plane;
+    
     // Use the recursive version to find the candidate hits
-    findHitCandidates(waveform.begin(),waveform.end(),roiStartTick,planeIdx,hitCandidateVec);
+    findHitCandidates(waveform.begin(),waveform.end(),roiStartTick,plane,hitCandidateVec);
     
     return;
 }
@@ -96,7 +104,7 @@ void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator start
         float maxValue = *maxItr;
         int   maxTime  = std::distance(startItr,maxItr);
         
-        if (maxValue > fRoiThreshold.at(planeIdx))
+        if (maxValue > fRoiThreshold)
         {
             // backwards to find first bin for this candidate hit
             auto firstItr = std::distance(startItr,maxItr) > 2 ? maxItr - 1 : startItr;
@@ -104,7 +112,7 @@ void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator start
             while(firstItr != startItr)
             {
                 // Check for pathology where waveform goes too negative
-                if (*firstItr < -fRoiThreshold.at(planeIdx)) break;
+                if (*firstItr < -fRoiThreshold) break;
                 
                 // Check both sides of firstItr and look for min/inflection point
                 if (*firstItr < *(firstItr+1) && *firstItr <= *(firstItr-1)) break;
@@ -123,7 +131,7 @@ void CandHitStandard::findHitCandidates(std::vector<float>::const_iterator start
             while(lastItr != stopItr - 1)
             {
                 // Check for pathology where waveform goes too negative
-                if (*lastItr < -fRoiThreshold.at(planeIdx)) break;
+                if (*lastItr < -fRoiThreshold) break;
                 
                 // Check both sides of firstItr and look for min/inflection point
                 if (*lastItr <= *(lastItr+1) && *lastItr < *(lastItr-1)) break;

@@ -89,7 +89,6 @@ private:
     std::string         fAllHitsInstanceName;
 
     std::vector<double> fMinSigVec;                ///<signal height threshold
-//    std::vector<double> fMinWidthVec;              ///<Minimum hit width <-- NO LONGER USED (?)
     std::vector<int>    fLongMaxHitsVec;           ///<Maximum number hits on a really long pulse train
     std::vector<int>    fLongPulseWidthVec;        ///<Sets width of hits used to describe long pulses
   
@@ -103,9 +102,11 @@ private:
     std::vector<float>  fPulseWidthCuts;   
     std::vector<float>  fPulseRatioCuts;
     
-    std::unique_ptr<reco_tool::ICandidateHitFinder> fHitFinderTool;  ///< For finding candidate hits
-    std::unique_ptr<reco_tool::IPeakFitter>         fPeakFitterTool; ///< Perform fit to candidate peaks
-    std::unique_ptr<HitFilterAlg>                   fHitFilterAlg;   ///< algorithm used to filter out noise hits
+    size_t              fEventCount;
+    
+    std::vector<std::unique_ptr<reco_tool::ICandidateHitFinder>> fHitFinderToolVec;  ///< For finding candidate hits
+    std::unique_ptr<reco_tool::IPeakFitter>                      fPeakFitterTool;    ///< Perform fit to candidate peaks
+    std::unique_ptr<HitFilterAlg>                                fHitFilterAlg;      ///< algorithm used to filter out noise hits
   
     TH1F* fFirstChi2;
     TH1F* fChi2;
@@ -175,9 +176,8 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
       }
     }
 
-    FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),         fMinSigVec);
-//    FillOutHitParameterVector(p.get< std::vector<double> >("MinWidth"),       fMinWidthVec);
-    FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"),      fAreaNormsVec);
+    FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),    fMinSigVec);
+    FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"), fAreaNormsVec);
 
     fLongMaxHitsVec    = p.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
     fLongPulseWidthVec = p.get< std::vector<int>>("LongPulseWidth", std::vector<int>() = {16,16,16});
@@ -191,8 +191,20 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fPulseRatioCuts    = p.get< std::vector<float>>("PulseRatioCuts",  std::vector<float>() = {0.35, 0.40, 0.20});
     
     // recover the tool to do the candidate hit finding
-    // Recover the baseline tool
-    fHitFinderTool  = art::make_tool<reco_tool::ICandidateHitFinder>(p.get<fhicl::ParameterSet>("CandidateHits"));
+    // Recover the vector of fhicl parameters for the ROI tools
+    const fhicl::ParameterSet& hitFinderTools = p.get<fhicl::ParameterSet>("HitFinderToolVec");
+    
+    fHitFinderToolVec.resize(hitFinderTools.get_pset_names().size());
+    
+    for(const std::string& hitFinderTool : hitFinderTools.get_pset_names())
+    {
+        const fhicl::ParameterSet& hitFinderToolParamSet = hitFinderTools.get<fhicl::ParameterSet>(hitFinderTool);
+        size_t                     planeIdx              = hitFinderToolParamSet.get<size_t>("Plane");
+        
+        fHitFinderToolVec.at(planeIdx) = art::make_tool<reco_tool::ICandidateHitFinder>(hitFinderToolParamSet);
+    }
+    
+    // Recover the peak fitting tool
     fPeakFitterTool = art::make_tool<reco_tool::IPeakFitter>(p.get<fhicl::ParameterSet>("PeakFitter"));
 
     return;
@@ -340,8 +352,8 @@ void GausHitFinder::produce(art::Event& evt)
             reco_tool::ICandidateHitFinder::HitCandidateVec      hitCandidateVec;
             reco_tool::ICandidateHitFinder::MergeHitCandidateVec mergedCandidateHitVec;
             
-            fHitFinderTool->findHitCandidates(signal, 0, plane, hitCandidateVec);
-            fHitFinderTool->MergeHitCandidates(signal, hitCandidateVec, mergedCandidateHitVec);
+            fHitFinderToolVec.at(plane)->findHitCandidates(signal, 0, channel, fEventCount, hitCandidateVec);
+            fHitFinderToolVec.at(plane)->MergeHitCandidates(signal, hitCandidateVec, mergedCandidateHitVec);
             
             // #######################################################
             // ### Lets loop over the pulses we found on this wire ###
@@ -576,6 +588,9 @@ void GausHitFinder::produce(art::Event& evt)
     } else {
       allHitCol.put_into(evt);
     }
+    
+    // Keep track of events processed
+    fEventCount++;
 
 } // End of produce() 
 

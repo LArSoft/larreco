@@ -46,14 +46,15 @@ namespace reco_tool
         // Search for candidate hits on the input waveform
         virtual void findHitCandidates(const Waveform&,                     // Waveform to analyze
                                        size_t,                              // waveform start tick
-                                       size_t,                              // plane #
+                                       size_t,                              // channel #
+                                       size_t,                              // Event count (for histograms)
                                        HitCandidateVec&) const = 0;         // output candidate hits
         
         // Search for candidate hits on the input waveform
         virtual void findHitCandidates(Waveform::const_iterator,            // Start of waveform
                                        Waveform::const_iterator,            // end of waveform
                                        size_t,                              // waveform start tick
-                                       size_t,                              // plane #
+                                       size_t,                              // channel #
                                        HitCandidateVec&) const = 0;         // output candidate hits
         
         virtual void MergeHitCandidates(const Waveform&,

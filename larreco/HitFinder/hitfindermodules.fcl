@@ -52,7 +52,6 @@ gaus_hitfinder:
  AllHitsInstanceName:  ""                 # If non-null then this will be the instance name of all hits output to event
                                           # in this case there will be two hit collections, one filtered and one containing all hits
  FilterHits:           false              # true = do not keep undesired hits according to settings of HitFilterAlg object
- CandidateHits:        @local::candhitfinder_standard
  PeakFitter:           @local::peakfitter_gaussian
  HitFilterAlg:
  {
@@ -60,11 +59,21 @@ gaus_hitfinder:
    MinPulseHeight: [5.0, 5.0, 5.0]        #minimum hit peak amplitude per plane
    MinPulseSigma:  [1.0, 1.0, 1.0]        #minimum hit rms per plane
  }
+ HitFinderToolVec:
+ {
+   CandidateHitsPlane0:  @local::candhitfinder_standard
+   CandidateHitsPlane1:  @local::candhitfinder_standard
+   CandidateHitsPlane2:  @local::candhitfinder_standard
+ }
                                           # In addition to the filter alg we can also filter hits on the same pulse train
  PulseHeightCuts:      [3.0,  3.0,  3.0 ] # Minimum pulse height
  PulseWidthCuts:       [2.0,  1.5,  1.0 ] # Minimum pulse width
  PulseRatioCuts:       [0.35, 0.40, 0.20] # Ratio of pulse height to width
 }
+
+gaus_hitfinder.HitFinderToolVec.CandidateHitsPlane0.Plane: 0
+gaus_hitfinder.HitFinderToolVec.CandidateHitsPlane1.Plane: 1
+gaus_hitfinder.HitFinderToolVec.CandidateHitsPlane2.Plane: 2
 
 dpraw_hitfinder:
 {
