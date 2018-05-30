@@ -80,10 +80,10 @@ namespace tca {
   bool SignalAtTp(TjStuff& tjs, TrajPoint const& tp);
   float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp);
 //  bool CheckHitClusterAssociations(TjStuff& tjs);
-  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires);
-  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
-  float DeadWireCount(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2);
-  float DeadWireCount(TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP);
+  unsigned short NumPtsWithCharge(const TjStuff& tjs, const Trajectory& tj, bool includeDeadWires);
+  unsigned short NumPtsWithCharge(const TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
+  float DeadWireCount(const TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2);
+  float DeadWireCount(const TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP);
   unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode);
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned int itj);
   void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned int itj);
@@ -126,8 +126,8 @@ namespace tca {
   // returns the separation^2 between two hits in WSE units
   float HitSep2(TjStuff& tjs, unsigned int iht, unsigned int jht);
   // Find the Distance Of Closest Approach between two trajectories, exceeding minSep
-  bool TrajTrajDOCA(TjStuff& tjs, Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
-  bool TrajTrajDOCA(TjStuff& tjs, Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires);
+  bool TrajTrajDOCA(const TjStuff& tjs, const Trajectory& tp1, const Trajectory& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
+  bool TrajTrajDOCA(const TjStuff& tjs, const Trajectory& tp1, const Trajectory& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires);
   // Calculates the angle between two TPs
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
   void TagJunkTj(TjStuff const& tjs, Trajectory& tj, bool prt);
