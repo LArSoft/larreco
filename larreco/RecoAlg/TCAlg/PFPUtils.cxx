@@ -955,7 +955,7 @@ namespace tca {
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"FC: P"<<pfp.ID<<" T"<<tj.ID<<" npwc "<<npwc<<" cnt2 "<<cnt2<<" cnt3 "<<cnt3<<" PDGCode "<<tj.PDGCode;
-        myprt<<" MCSMom "<<tj.MCSMom<<" InShower? "<<tj.AlgMod[kInShower];
+        myprt<<" MCSMom "<<tj.MCSMom<<" InShower? "<<tj.SSID;
         myprt<<" TjCompleteness "<<std::setprecision(2)<<pfp.TjCompleteness[itj];
       } // prt
     } // itj
@@ -1122,7 +1122,7 @@ namespace tca {
     std::cout<<" "<<tmpDir[0]<<" "<<tmpDir[1]<<" "<<tmpDir[2]<<"\n";
 */
   } // Fit3D
-
+/* This needs re-thinking
   /////////////////////////////////////////
   bool CheckAndMerge(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
@@ -1156,45 +1156,6 @@ namespace tca {
         } // missTjs exist
       } // prt
       if(pfp.Tp3s.empty()) return false;
-/* This doesn't seem to do anything
-      if(!missTjs.empty() && pfp.MatchVecIndex < tjs.matchVec.size()) {
-        // look for the set intersection of the missed Tjs with the matchVec list
-        for(unsigned short ims = 0; ims < pfp.MatchVecIndex + 10; ++ims) {
-          if(ims >= tjs.matchVec.size()) break;
-          auto& ms = tjs.matchVec[ims];
-          if(ms.Count == 0) continue;
-          std::vector<int> shared = SetIntersection(ms.TjIDs, missTjs);
-          if(shared.size() < 2) continue;
-          // check the max length Tj and cut on the minimum aspect ratio
-          float mtjl = MaxTjLen(tjs, ms.TjIDs);
-          float mcsmom = MCSMom(tjs, ms.TjIDs);
-          if(prt) mf::LogVerbatim("TC")<<" chk ims "<<ims<<" mtjl "<<mtjl<<" MCSMom "<<mcsmom;
-          bool tryMerge = (MaxTjLen(tjs, ms.TjIDs) > 10 && MCSMom(tjs, ms.TjIDs) > tjs.Match3DCuts[3]);
-          if(!tryMerge) continue;
-          for(auto tjid : ms.TjIDs) {
-            if(std::find(shared.begin(), shared.end(), tjid) != shared.end()) continue;
-            auto& tj = tjs.allTraj[tjid - 1];
-            if(tj.AlgMod[kKilled]) continue;
-            if(tj.AlgMod[kMat3D]) continue;
-            // check for PDGCode compatibility - muons and delta rays
-            if(pfp.PDGCode == 13 && tj.PDGCode == 11) continue;
-            if(pfp.PDGCode == 11 && tj.PDGCode == 13) continue;
-            float dotProd = DotProd(ms.Dir, pfp.Dir[0]);
-            if(prt) mf::LogVerbatim("TC")<<" add T"<<tjid<<" DotProd "<<std::setprecision(3)<<dotProd;
-            if(dotProd < tjs.Match3DCuts[6]) continue;
-            // make a trial pfp with this tj added
-            auto trial = pfp;
-            trial.Tp3s.clear();
-            trial.TjIDs.push_back(tjid);
-            // find the completeness, do the fit, don't fill Tp3s
-            FindCompleteness(tjs, trial, true, false, true);
-            if(prt) mf::LogVerbatim("TC")<<" do something with Trial "<<trial.EffPur;
-            std::cout<<" do something with Trial "<<trial.EffPur<<"\n";
-            break;
-          } // tjid
-        } // ims
-      } // try to add missed tjs
-*/
       // Check TjCompleteness if nothing was added
       if(tryThis && pfp.TjIDs.size() == oldSize) {
         // look for the situation where the Tj with the worst completeness is also
@@ -1258,7 +1219,7 @@ namespace tca {
     return true;
 
   } // CheckAndMerge
-
+*/
   /////////////////////////////////////////
   unsigned short WiresSkippedInCTP(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP)
   {
@@ -1483,7 +1444,7 @@ namespace tca {
       // kill the broken tjs and update the pfp TP3s
       for(auto tjid : tjids) {
         auto& tj = tjs.allTraj[tjid - 1];
-        if(tj.AlgMod[kInShower]) mtj.AlgMod[kInShower] = true;
+        if(tj.SSID > 0) mtj.SSID = tj.SSID;
         MakeTrajectoryObsolete(tjs, tjid - 1);
       }
       // save the new one
