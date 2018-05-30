@@ -341,7 +341,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
 	      
 	      double drifttick  = detp->DriftVelocity(detp->Efield(),detp->Temperature());
 	      drifttick *= detp->SamplingRate()*1.e-3;
-	      double wirepitch  = geom->WirePitch(0,1,0);
+	      double wirepitch  = geom->WirePitch();
 	      double corrfactor = drifttick/wirepitch;
 	      
 	      for(int wireout=(int)wire-(int)((fWindow*(numbertimesamples/fTimeBins)*corrfactor)+.5);

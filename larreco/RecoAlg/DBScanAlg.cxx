@@ -312,7 +312,7 @@ void cluster::DBScanAlg::InitScan(const std::vector< art::Ptr<recob::Hit> >& all
   art::ServiceHandle<geo::Geometry> geom;
 
   for(size_t p = 0; p < geom->Nplanes(); ++p)
-    fWirePitch.push_back(geom->WirePitch(0,1,p));
+    fWirePitch.push_back(geom->WirePitch(p));
 
   
   // Collect the bad wire list into a useful form

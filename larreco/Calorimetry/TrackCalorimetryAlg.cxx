@@ -89,8 +89,8 @@ public:
     hit(h), geom(g){}
   bool operator() (std::pair<geo::WireID,float> i, std::pair<geo::WireID,float> j)
   {
-    float dw_i = ((int)(i.first.Wire) - (int)(hit.WireID().Wire))*geom.WirePitch(0,1,i.first.Plane);
-    float dw_j = ((int)(j.first.Wire) - (int)(hit.WireID().Wire))*geom.WirePitch(0,1,j.first.Plane);
+    float dw_i = ((int)(i.first.Wire) - (int)(hit.WireID().Wire))*geom.WirePitch(i.first.Plane);
+    float dw_j = ((int)(j.first.Wire) - (int)(hit.WireID().Wire))*geom.WirePitch(j.first.Plane);
     float dt_i = i.second - hit.PeakTime();
     float dt_j = j.second - hit.PeakTime();
 
