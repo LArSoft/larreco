@@ -179,6 +179,7 @@ namespace tca {
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     int ID;
+    int SSID {0};          ///< ID of a 2D shower struct that this tj is in
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
     unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
@@ -305,7 +306,6 @@ namespace tca {
     std::vector<double> dEdx;
     std::vector<double> dEdxErr;
     geo::TPCID TPCID;
-    std::vector<int> PFPIDs;  // list of indices of InShower PFParticles 
     std::vector<int> CotIDs;  // list of indices of 2D showers in tjs.cots
     std::vector<unsigned int> Hits;
     int BestPlane;
@@ -414,7 +414,6 @@ namespace tca {
     kVtxHitsSwap,
     kSplitHiChgHits,
     kShowerLike,
-    kInShower,
     kKillInShowerVx,
     kShowerTj,
     kShwrParent,
@@ -422,8 +421,10 @@ namespace tca {
     kKillShwrNuPFP,
     kMergeOverlap,
     kMergeSubShowers,
+    kMergeSubShowersTj,
     kMergeNrShowers,
     kMergeShChain,
+    kCompleteShower,
     kSplitTjCVx,
     kSetDir,
     kAlgBitSize     ///< don't mess with this line
@@ -494,6 +495,7 @@ namespace tca {
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
     std::vector<PFPStruct> pfps;
     std::vector<ShowerStruct> cots;       // Clusters of Trajectories that define 2D showers
+    std::vector<std::array<int, 2>> dontCluster; // pairs of Tjs that shouldn't clustered in one shower
     std::vector<ShowerStruct3D> showers;  // 3D showers
     std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
     std::vector<float> Vertex3DCuts;   ///< 2D vtx -> 3D vtx matching cuts 
