@@ -49,7 +49,7 @@ namespace tca {
   void FindMissedTjsInTp3s(TjStuff& tjs, PFPStruct& pfp, std::vector<int>& missTjs, std::vector<float>& missFrac);
   bool SharesHighScoreVx(TjStuff& tjs, const PFPStruct& pfp, const Trajectory& tj);
   void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir);
-  bool CheckAndMerge(TjStuff& tjs, PFPStruct& pfp, bool prt);
+//  bool CheckAndMerge(TjStuff& tjs, PFPStruct& pfp, bool prt);
   float AspectRatio(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
   unsigned short WiresSkippedInCTP(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
   float LengthInCTP(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
