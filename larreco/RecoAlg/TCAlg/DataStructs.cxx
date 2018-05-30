@@ -54,7 +54,6 @@ namespace tca {
     "VtxHitsSwap",
     "SplitHiChgHits",
     "ShowerLike",
-    "InShower",
     "KillInShowerVx",
     "ShowerTj",
     "ShwrParent",
@@ -62,8 +61,10 @@ namespace tca {
     "KillShwrNuPFP",  // Kill neutrino PFP particles with a vertex inside a shower
     "MergeOverlap",
     "MergeSubShowers",
+    "MergeSubShowersTj",
     "MergeNrShowers",
     "MergeShChain",
+    "CompleteShower",
     "SplitTjCVx",
     "SetDir"
   };
