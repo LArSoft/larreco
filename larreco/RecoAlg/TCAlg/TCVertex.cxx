@@ -50,7 +50,7 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       auto& tj1 = tjs.allTraj[it1];
       if(tj1.AlgMod[kKilled]) continue;
-      if(tj1.AlgMod[kInShower] || tj1.AlgMod[kShowerLike]) continue;
+      if(tj1.SSID > 0 || tj1.AlgMod[kShowerLike]) continue;
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kJunkTj]) continue;
       if(TrajLength(tj1) < 10) continue;
@@ -68,7 +68,7 @@ namespace tca {
           auto& tj2 = tjs.allTraj[tj2id - 1];
           if(tj2.CTP != inCTP) continue;
           if(tj2id == tj1.ID) continue;
-          if(tj2.AlgMod[kInShower] || tj2.AlgMod[kShowerLike]) continue;
+          if(tj2.SSID > 0 || tj2.AlgMod[kShowerLike]) continue;
           float close = maxSep;
           unsigned short closeEnd = USHRT_MAX;
           for(unsigned short end2 = 0; end2 < 2; ++end2) {
@@ -146,7 +146,7 @@ namespace tca {
     for(unsigned short it1 = 0; it1 < tjs.allTraj.size() - 1; ++it1) {
       auto& tj1 = tjs.allTraj[it1];
       if(tj1.AlgMod[kKilled]) continue;
-      if(tj1.AlgMod[kInShower] || tj1.AlgMod[kShowerLike]) continue;
+      if(tj1.SSID > 0 || tj1.AlgMod[kShowerLike]) continue;
       if(tj1.CTP != inCTP) continue;
       bool tj1Short = (TrajLength(tj1) < maxShortTjLen);
       for(unsigned short end1 = 0; end1 < 2; ++end1) {
@@ -178,7 +178,7 @@ namespace tca {
         for(unsigned short it2 = it1 + 1; it2 < tjs.allTraj.size(); ++it2) {
           auto& tj2 = tjs.allTraj[it2];
           if(tj2.AlgMod[kKilled]) continue;
-          if(tj2.AlgMod[kInShower] || tj2.AlgMod[kShowerLike]) continue;
+          if(tj2.SSID > 0 || tj2.AlgMod[kShowerLike]) continue;
           if(tj2.CTP != inCTP) continue;
           if(tj1.VtxID[end1] > 0) continue;
           if(tj1.MCSMom < tjs.Vertex2DCuts[5] && tj2.MCSMom < tjs.Vertex2DCuts[5]) continue;
@@ -511,9 +511,11 @@ namespace tca {
     if(vx.CTP != oVx.CTP) return false;
     
     // get a list of tjs attached to both vertices
-    std::vector<int> tjlist = GetVtxTjIDs(tjs, vx);
+//    std::vector<int> tjlist = GetVtxTjIDs(tjs, vx);
+    auto tjlist = GetAssns(tjs, "2V", vx.ID, "T");
     if(tjlist.empty()) return false;
-    std::vector<int> tmp = GetVtxTjIDs(tjs, oVx);
+//    std::vector<int> tmp = GetVtxTjIDs(tjs, oVx);
+    auto tmp = GetAssns(tjs, "2V", oVx.ID, "T");
     if(tmp.empty()) return false;
     for(auto tjid : tmp) {
       if(std::find(tjlist.begin(), tjlist.end(), tjid) == tjlist.end()) tjlist.push_back(tjid);
