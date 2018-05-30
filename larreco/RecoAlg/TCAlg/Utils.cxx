@@ -1768,7 +1768,7 @@ namespace tca {
   } // CheckHitClusterAssociations()
 */
   //////////////////////////////////////////
-  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires)
+  unsigned short NumPtsWithCharge(const TjStuff& tjs, const Trajectory& tj, bool includeDeadWires)
   {
     unsigned short firstPt = tj.EndPt[0];
     unsigned short lastPt = tj.EndPt[1];
@@ -1776,7 +1776,7 @@ namespace tca {
   }
   
   //////////////////////////////////////////
-  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt)
+  unsigned short NumPtsWithCharge(const TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt)
   {
     unsigned short ntp = 0;
     for(unsigned short ipt = firstPt; ipt <= lastPt; ++ipt) if(tj.Pts[ipt].Chg > 0) ++ntp;
@@ -1786,13 +1786,13 @@ namespace tca {
   } // NumPtsWithCharge
   
   //////////////////////////////////////////
-  float DeadWireCount(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2)
+  float DeadWireCount(const TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2)
   {
     return DeadWireCount(tjs, tp1.Pos[0], tp2.Pos[0], tp1.CTP);
   } // DeadWireCount
   
   //////////////////////////////////////////
-  float DeadWireCount(TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP)
+  float DeadWireCount(const TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP)
   {
     if(inWirePos1 < -0.4 || inWirePos2 < -0.4) return 0;
     unsigned int inWire1 = std::nearbyint(inWirePos1);
@@ -1873,7 +1873,7 @@ namespace tca {
       // ignore delta rays
       if(shortTj.PDGCode == 11) continue;
       // ignore InShower Tjs
-      if(shortTj.AlgMod[kInShower]) continue;
+      if(shortTj.SSID > 0) continue;
       auto tjhits = PutTrajHitsInVector(shortTj, kAllHits);
       if(tjhits.empty()) continue;
       std::vector<int> tids;
@@ -2076,13 +2076,13 @@ namespace tca {
   } // TrajPointTrajDOCA
   
   //////////////////////////////////////////
-  bool TrajTrajDOCA(TjStuff& tjs, Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep)
+  bool TrajTrajDOCA(const TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep)
   {
     return TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, minSep, false);
   } // TrajTrajDOCA
   
   //////////////////////////////////////////
-  bool TrajTrajDOCA(TjStuff& tjs, Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires)
+  bool TrajTrajDOCA(const TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires)
   {
     // Find the Distance Of Closest Approach between two trajectories less than minSep
     // start with some rough cuts to minimize the use of the more expensive checking. This
@@ -2878,6 +2878,9 @@ namespace tca {
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
   {
     // Estimate the trajectory momentum using Multiple Coulomb Scattering ala PDG RPP
+    
+    if(firstPt == lastPt) return 0;
+    if(firstPt > lastPt) std::swap(firstPt, lastPt);
     
     firstPt = NearestPtWithChg(tjs, tj, firstPt);
     lastPt = NearestPtWithChg(tjs, tj, lastPt);
@@ -4110,7 +4113,6 @@ namespace tca {
         auto shared = SetIntersection(ss.TjIDs, pfp.TjIDs);
         if(!shared.empty() && std::find(ssid.begin(), ssid.end(), ss.ID) == ssid.end()) ssid.push_back(ss.ID);
       } // ss
-      if(ssid.empty()) return tmp;
       if(type2Name == "2S") return ssid;
       for(auto& ss3 : tjs.showers) {
         if(ss3.ID <= 0) continue;
@@ -4132,9 +4134,10 @@ namespace tca {
       return tmp;
     } // 2V -> T
 
-    if(type1Name == "3V" && id <= tjs.vtx3.size() && type2Name == "T" ) {
+    if(type1Name == "3V" && id <= tjs.vtx3.size() && type2Name == "T") {
       // 3V -> T
       for(auto& tj : tjs.allTraj) {
+        if(tj.AlgMod[kKilled]) continue;
         for(unsigned short end = 0; end < 2; ++end) {
           if(tj.VtxID[end] > 0 && tj.VtxID[end] <= tjs.vtx.size()) {
             auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
@@ -4145,6 +4148,60 @@ namespace tca {
       } // tj
       return tmp;
     } // 3V -> T
+    
+    if(type1Name == "3V" && id <= tjs.vtx3.size() && type2Name == "2V") {
+      // 3V -> 2V
+      for(auto& vx2 : tjs.vtx) {
+        if(vx2.ID == 0) continue;
+        if(vx2.Vx3ID == id) tmp.push_back(vx2.ID);
+      } // vx2
+      return tmp;
+    } // 3V -> 2V
+
+    if(type1Name == "3S" && id <= tjs.showers.size() && type2Name == "T") {
+      // 3S -> T
+      auto& ss3 = tjs.showers[id - 1];
+      if(ss3.ID == 0) return tmp;
+      for(auto cid : ss3.CotIDs) {
+        auto& ss = tjs.cots[cid - 1];
+        if(ss.ID == 0) continue;
+        tmp.insert(tmp.end(), ss.TjIDs.begin(), ss.TjIDs.end());
+      } // cid
+      return tmp;
+    }  // 3S -> T
+
+    
+    if(type1Name == "3S" && id <= tjs.showers.size() && type2Name == "P") {
+      // 3S -> P
+      auto& ss3 = tjs.showers[id - 1];
+      if(ss3.ID == 0) return tmp;
+      for(auto cid : ss3.CotIDs) {
+        auto& ss = tjs.cots[cid - 1];
+        if(ss.ID == 0) continue;
+        for(auto tid : ss.TjIDs) {
+          auto& tj = tjs.allTraj[tid - 1];
+          if(tj.AlgMod[kKilled]) continue;
+          if(!tj.AlgMod[kMat3D]) continue;
+          for(auto& pfp : tjs.pfps) {
+            if(pfp.ID <= 0) continue;
+            if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tj.ID) == pfp.TjIDs.end()) continue;
+            if(std::find(tmp.begin(), tmp.end(), pfp.ID) == tmp.end()) tmp.push_back(pfp.ID);
+          } // pf
+        } // tid
+      } // cid
+      return tmp;
+    } // 3S -> P
+
+    if(type1Name == "T" && id <= tjs.allTraj.size() && type2Name == "2S") {
+      // T -> 2S
+      for(auto& ss : tjs.cots) {
+        if(ss.ID == 0) continue;
+        if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), id) != ss.TjIDs.end()) tmp.push_back(ss.ID);
+      } // ss
+      return tmp;
+    } // T -> 2S
+    
+    std::cout<<"GetAssns doesn't know about "<<type1Name<<" -> "<<type2Name<<" assns\n";
 
     return tmp;
     
@@ -4209,8 +4266,7 @@ namespace tca {
               }
             } // ipfp
           } else {
-            float score;
-            auto vxtjs = GetVtxTjIDs(tjs, vx3, score);
+            auto vxtjs = GetAssns(tjs, "3V", vx3.ID, "T");
             for(auto tjid : vxtjs) myprt<<" T"<<tjid;
           }
           myprt<<"\n";
