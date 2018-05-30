@@ -1088,7 +1088,7 @@ namespace tca {
     unsigned short length = 5;
     unsigned short nTruHits;
     for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled] && !tj.AlgMod[kInShower]) continue;
+      if(tj.AlgMod[kKilled] && tj.SSID > 0) continue;
       if(tj.CTP != inCTP) continue;
       if(tj.Pts.size() < length) continue;
       for(unsigned short end = 0; end < 2; ++end) {
