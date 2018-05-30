@@ -212,7 +212,9 @@ namespace tca {
         } // tjid
         if(ndead == 0) continue;
         if(foundNeutrino && pfp.ParentID == 1) {
-          std::cout<<"Finish3DShowers wants to kill neutrino primary P"<<pfp.ID<<". Not doing it.\n";
+          std::cout<<"Finish3DShowers wants to kill neutrino primary P"<<pfp.ID<<" ->";
+          for(auto tid : pfp.TjIDs) std::cout<<" T"<<tid<<" dead? "<<tjs.allTraj[tid - 1].AlgMod[kKilled];
+          std::cout<<". Not doing it\n";
           continue;
         }
         pfp.ID = 0;
@@ -222,15 +224,17 @@ namespace tca {
     // kill orphan 2D vertices
     for(auto& vx2 : tjs.vtx) {
       if(vx2.ID == 0) continue;
-      auto vxtjs = GetVtxTjIDs(tjs, vx2);
+//      auto vxtjs = GetVtxTjIDs(tjs, vx2);
+      auto vxtjs = GetAssns(tjs, "2V", vx2.ID, "T");
       if(vxtjs.empty()) vx2.ID = 0;
     } // vx2
     
     // kill orphan vertices
     for(auto& vx3 : tjs.vtx3) {
       if(vx3.ID == 0) continue;
-      float score;
-      auto vxtjs = GetVtxTjIDs(tjs, vx3, score);
+//      float score;
+//      auto vxtjs = GetVtxTjIDs(tjs, vx3, score);
+      auto vxtjs = GetAssns(tjs, "3V", vx3.ID, "T");
       if(vxtjs.empty()) {
         vx3.ID = 0;
         continue;
@@ -279,13 +283,18 @@ namespace tca {
       PrintPFPs("FSi", tjs);
       PrintAllTraj("FSi", tjs, debug, USHRT_MAX, 0);
     }
+    
+    // define a list of tjs that shouldn't be clustered in the same shower because
+    // they are matched to pfp particles that are likely parents of 3D showers
+    DefineDontCluster(tjs, tpcid);
 
     // lists of Tj IDs in plane, (list1, list2, list3, ...)
     std::vector<std::vector<std::vector<int>>> bigList(tjs.NumPlanes);
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
       CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
       std::vector<std::vector<int>> tjList;
-      TagShowerLike(fcnLabel, tjs, inCTP, tjList, false);
+      // Make lists of lists of ShowerLike tjs that will become showers
+      FindCots(fcnLabel, tjs, inCTP, tjList, prt);
       SaveTjInfo(tjs, tjList, "TJL");
       if(tjList.empty()) continue;
       bigList[plane] = tjList;
@@ -311,7 +320,7 @@ namespace tca {
         SaveTjInfo(tjs, ss, "DS");
         // Find nearby Tjs that were not included because they had too-high
         // MCSMom, etc. This will be used to decide if showers should be merged
-        AddTjsInsideEnvelope(fcnLabel, tjs, ss, prt);
+//        AddTjsInsideEnvelope(fcnLabel, tjs, ss, prt);
         FindNearbyTjs(fcnLabel, tjs, ss, prt);
         if(!StoreShower(fcnLabel, tjs, ss)) {
           std::cout<<fcnLabel<<" StoreShower failed 2S"<<ss.ID<<"\n";
@@ -329,9 +338,12 @@ namespace tca {
       MergeOverlap(fcnLabel, tjs, inCTP, prt);
       SaveAllCots(tjs, inCTP, "MO");
       if(prt) Print2DShowers("MO", tjs, inCTP, false);
-      SaveAllCots(tjs, inCTP, "MSS");
       MergeNearby2DShowers(fcnLabel, tjs, inCTP, prt);
+      SaveAllCots(tjs, inCTP, "MSS");
+      // merge sub-showers with other showers
       MergeSubShowers(fcnLabel, tjs, inCTP, prt);
+      // merge sub-showers with shower-like tjs
+      MergeSubShowersTj(fcnLabel, tjs, inCTP, prt);
       SaveAllCots(tjs, inCTP, "MNrby");
       if(prt) Print2DShowers("Nrby", tjs, inCTP, false);
       bool tryMerge = false;
@@ -339,7 +351,7 @@ namespace tca {
         auto& ss = tjs.cots[ii];
         if(ss.ID == 0) continue;
         if(ss.CTP != inCTP) continue;
-        if(AddTjsInsideEnvelope(fcnLabel, tjs, ss, prt)) tryMerge = true;
+//        if(AddTjsInsideEnvelope(fcnLabel, tjs, ss, prt)) tryMerge = true;
         if (tjs.SaveShowerTree) SaveAllCots(tjs, inCTP, "Merge");
       }
       if(tryMerge) MergeNearby2DShowers(fcnLabel, tjs, inCTP, prt);
@@ -351,6 +363,13 @@ namespace tca {
     if(prt) Print2DShowers("B4", tjs, USHRT_MAX, false);
     // Match in 3D, make 3D showers and define them
     Match2DShowers(fcnLabel, tjs, tpcid, prt);
+    // Reconcile pfp and shower assns
+    Reconcile3D(fcnLabel, tjs, tpcid, prt);
+    for(auto& ss3 : tjs.showers) {
+      if(ss3.ID == 0) continue;
+      if(ss3.TPCID != tpcid) continue;
+      FindParent(fcnLabel, tjs, ss3, prt);
+    } // ss3
     if(prt) Print2DShowers("M2DS", tjs, USHRT_MAX, false);
     // Kill vertices in 2D showers that weren't matched in 3D
 //    KillVerticesInShowers(fcnLabel, tjs, tpcid, prt);
@@ -372,24 +391,180 @@ namespace tca {
     return (nNewShowers > 0);
     
   } // FindShowers3D
-
-  ////////////////////////////////////////////////
-  void CheckInShowerProb(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
-  {
-    // Checks the InShower likelihood for all PFParticles in the shower
-    if(ss3.PFPIDs.empty()) return;
-
-    std::string fcnLabel = inFcnLabel + ".CISP";
-
-    for(auto id : ss3.PFPIDs) {
-      auto& pfp = tjs.pfps[id - 1];
-      double inShowerProb = InShowerProb(fcnLabel, tjs, ss3, pfp);
-      if(prt) mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<" P"<<pfp.ID<<" prob "<<inShowerProb;
-    } // id
-  } // CheckInShowerProb
   
   ////////////////////////////////////////////////
-  void FindInShowerPFPs(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, std::vector<std::vector<unsigned short>>& plists)
+  bool Reconcile3D(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
+  {
+    // Reconcile pfp and shower assns
+    
+    if(tjs.showers.size() < 2) return true;
+    std::string fcnLabel = inFcnLabel + ".R3D2";
+    
+    if(prt) Print2DShowers("R3D2i", tjs, USHRT_MAX, false);
+    ChkAssns(fcnLabel, tjs);
+    
+    for(unsigned short ii = 0; ii < tjs.showers.size() - 1; ++ii) {
+      auto iss3 = tjs.showers[ii];
+      if(iss3.ID == 0) continue;
+      if(iss3.TPCID != tpcid) continue;
+      auto iPInSS3 = GetAssns(tjs, "3S", iss3.ID, "P");
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<fcnLabel<<" 3S"<<iss3.ID<<" ->";
+        for(auto pid : iPInSS3) myprt<<" P"<<pid;
+      } // prt
+      for(unsigned short jj = ii + 1; jj < tjs.showers.size(); ++jj) {
+        auto jss3 = tjs.showers[jj];
+        if(jss3.ID == 0) continue;
+        auto jPInSS3 = GetAssns(tjs, "3S", jss3.ID, "P");
+        auto shared = SetIntersection(iPInSS3, jPInSS3);
+        if(shared.empty()) continue;
+        if(prt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<fcnLabel<<" Conflict i3S"<<iss3.ID<<" and j3S"<<jss3.ID<<" share";
+          for(auto pid : shared) myprt<<" P"<<pid;
+        } // prt
+        // Compare the InShower likelihoods
+        for(auto pid : shared) {
+          auto& pfp = tjs.pfps[pid - 1];
+          float iProb = InShowerProb(tjs, iss3, pfp);
+          float jProb = InShowerProb(tjs, jss3, pfp);
+          mf::LogVerbatim("TC")<<fcnLabel<<" i3S"<<iss3.ID<<" prob "<<std::setprecision(3)<<iProb<<"  j3S"<<jss3.ID<<" prob "<<jProb;
+          if(iProb > jProb) {
+            // remove the remnants of pfp from jss3
+            RemovePFP(fcnLabel, tjs, pfp, jss3, true, prt);
+            // and add them to iss3
+            AddPFP(fcnLabel, tjs, pfp.ID, iss3, true, prt);
+          } else {
+            RemovePFP(fcnLabel, tjs, pfp, iss3, true, prt);
+            AddPFP(fcnLabel, tjs, pfp.ID, jss3, true, prt);
+          }
+        } // pid
+      } // jj
+    } // ii
+    
+    if(prt) Print2DShowers("R3D2o", tjs, USHRT_MAX, false);
+    ChkAssns(fcnLabel, tjs);
+    
+    return true;
+  } // Reconcile3D
+  
+  ////////////////////////////////////////////////
+  bool Reconcile3D(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
+  {
+    // checks consistency between pfparticles, showers and tjs associated with ss3
+    if(ss3.ID == 0) return false;
+    // it isn't a failure if there is a 3D shower in two planes
+    if(ss3.CotIDs.size() < 3) return true;
+    std::string fcnLabel = inFcnLabel + ".R3D";
+    
+    // make local copies so we can recover from a failure
+    auto oldSS3 = ss3;
+    std::vector<ShowerStruct> oldSS(ss3.CotIDs.size());
+    for(unsigned short ii = 0; ii < ss3.CotIDs.size(); ++ii) {
+      oldSS[ii] = tjs.cots[ss3.CotIDs[ii] - 1];
+    }
+    
+    std::vector<std::vector<int>> plist(ss3.CotIDs.size());
+    for(unsigned short ci = 0; ci < ss3.CotIDs.size(); ++ci) {
+      auto& ss = tjs.cots[ss3.CotIDs[ci] - 1];
+      for(auto tid : ss.TjIDs) {
+        auto tToP = GetAssns(tjs, "T", tid, "P");
+        if(tToP.empty()) continue;
+        // there should only be one pfp for a tj
+        int pid = tToP[0];
+        if(std::find(plist[ci].begin(), plist[ci].end(), pid) == plist[ci].end()) plist[ci].push_back(pid);
+      } // tid
+    } // ci
+    // count the occurrence of each pfp
+    std::vector<std::array<int, 2>> p_cnt;
+    for(auto& pl : plist) {
+      for(auto pid : pl) {
+        unsigned short indx = 0;
+        for(indx = 0; indx < p_cnt.size(); ++indx) if(p_cnt[indx][0] == pid) break;
+        if(indx == p_cnt.size()) {
+          // not found so add it
+          p_cnt.push_back(std::array<int,2> {{pid, 1}});
+        } else {
+          ++p_cnt[indx][1];
+        }
+      } // pid
+    } // pl
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<fcnLabel<<" 3S"<<ss3.ID<<"\n";
+      for(unsigned short ci = 0; ci < ss3.CotIDs.size(); ++ci) {
+        myprt<<" -> 2S"<<ss3.CotIDs[ci]<<" ->";
+        for(auto pid : plist[ci]) myprt<<" P"<<pid;
+        myprt<<"\n";
+      } // ci
+      myprt<<" P<ID>_count:";
+      for(auto& pc : p_cnt) myprt<<" P"<<pc[0]<<"_"<<pc[1];
+    } // prt
+    
+    for(auto& pc : p_cnt) {
+      // matched in all planes?
+      if(pc[1] == ss3.CotIDs.size()) continue;
+      if(pc[1] == 2) {
+        // missing a tj in a plane or is this a two-plane pfp?
+        auto& pfp = tjs.pfps[pc[0] - 1];
+        if(pfp.TjIDs.size() > 2) {
+          // ensure that none of the tjs in this pfp are included in a different shower
+          auto PIn2S = GetAssns(tjs, "P", pfp.ID, "2S");
+          auto sDiff = SetDifference(PIn2S, ss3.CotIDs);
+          // Not sure if this can happen
+          if(sDiff.size() > 1) {std::cout<<fcnLabel<<" sDiff size > 2. Is this possible?\n";}
+          if(!sDiff.empty() && std::find(ss3.CotIDs.begin(), ss3.CotIDs.end(), sDiff[0]) == ss3.CotIDs.end()) continue;
+          if(prt) {
+            mf::LogVerbatim myprt("TC");
+            myprt<<fcnLabel<<" 3S"<<ss3.ID<<" P"<<pfp.ID<<" ->";
+            for(auto sid : PIn2S) myprt<<" 2S"<<sid;
+            myprt<<" sDiff";
+            for(auto sid : sDiff) myprt<<" 2S"<<sid;
+          } // prt
+          // missed a tj in a 2D shower so "add the PFP to the shower" and update it
+          if(AddPFP(fcnLabel, tjs, pfp.ID, ss3, true, prt)) {
+            // Update the local copies
+            oldSS3 = ss3;
+            if(ss3.CotIDs.size() != oldSS.size()) {
+              std::cout<<fcnLabel<<" Major failure...";
+              return false;
+            }
+            for(unsigned short ii = 0; ii < ss3.CotIDs.size(); ++ii) oldSS[ii] = tjs.cots[ss3.CotIDs[ii] - 1];
+          } else {
+            // restore the previous state
+            ss3 = oldSS3;
+            for(unsigned short ii = 0; ii < oldSS.size(); ++ii) {
+              auto& ss = oldSS[ii];
+              tjs.cots[ss.ID - 1] = ss;
+            } // ii
+          } // AddPFP failed
+        } // pfp.TjIDs.size() > 2
+      } else {
+        // only one occurrence. check proximity to ss3
+        auto& pfp = tjs.pfps[pc[0] - 1];
+        unsigned short nearEnd = 1 - FarEnd(tjs, pfp, ss3.ChgPos);
+        float prob = InShowerProb(tjs, ss3, pfp);
+        float sep = PosSep(pfp.XYZ[nearEnd], ss3.ChgPos);
+        if(prt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<fcnLabel<<" one occurrence: P"<<pfp.ID<<"_"<<nearEnd<<" closest to ChgPos";
+          myprt<<" ChgPos "<<std::fixed<<std::setprecision(1)<<ss3.ChgPos[0]<<" "<<ss3.ChgPos[1]<<" "<<ss3.ChgPos[2];
+          myprt<<" sep "<<sep;
+          myprt<<" InShowerProb "<<prob;
+        } // prt 
+        if(sep > 30 && !RemovePFP(fcnLabel, tjs, pfp, ss3, true, prt)) {
+          std::cout<<"RemovePFP failed \n";
+        }
+      } // only one occurrence.
+    } // pc
+    
+    return UpdateShower(fcnLabel, tjs, ss3, prt);
+    
+  } // Reconcile3D
+  
+  ////////////////////////////////////////////////
+  void FindInShowerPFPs(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, std::vector<std::vector<int>>& plists)
   {
     // 
     
@@ -410,7 +585,7 @@ namespace tca {
     // min separation between pfps
     std::vector<ClosePair> cps;
     // list of pfps that are close
-    std::vector<unsigned short> pfpList;
+    std::vector<int> pfpList;
     for(unsigned short ip = 0; ip < tjs.pfps.size() - 1; ++ip) {
       auto& p1 = tjs.pfps[ip];
       if(p1.ID == 0) continue;
@@ -468,7 +643,7 @@ namespace tca {
       auto& p1 = tjs.pfps[pid1 - 1];
       float p1Len = PosSep(p1.XYZ[0], p1.XYZ[1]);
       std::cout<<ii<<" P"<<pid1<<" len "<<p1Len<<"\n";
-      std::vector<unsigned short> plist;
+      std::vector<int> plist;
       plist.push_back(pid1);
       // try to add ids to the list
       bool added = true;
@@ -479,7 +654,7 @@ namespace tca {
           bool isID1 = (std::find(plist.begin(), plist.end(), cp.id1) != plist.end());
           bool isID2 = (std::find(plist.begin(), plist.end(), cp.id2) != plist.end());
           if(!(isID1 || isID2)) continue;
-          unsigned short pid2 = cp.id1;
+          int pid2 = cp.id1;
           if(isID1) pid2 = cp.id2;
           auto& p2 = tjs.pfps[pid2 - 1];
           float p2Len = PosSep(p2.XYZ[0], p2.XYZ[1]);
@@ -491,7 +666,7 @@ namespace tca {
           for(auto& pcp : cps) {
             if(pid1 == pcp.id1 || pid1 == pcp.id2) continue;
             if(!(pid2 == pcp.id1 || pid2 == pcp.id2)) continue;
-            unsigned short oid = pcp.id1;
+            int oid = pcp.id1;
             if(oid == pid2) oid = pcp.id2;
             auto opfp = tjs.pfps[oid - 1];
             float pcpLen = PosSep(opfp.XYZ[0], opfp.XYZ[1]);
@@ -511,13 +686,13 @@ namespace tca {
     } // ii
     
     // Check for leftover pfps and add them if they are shower-like (using the Tj InShower tag)
-    std::vector<unsigned short> flat;
+    std::vector<int> flat;
     for(auto& plist : plists) flat.insert(flat.end(), plist.begin(), plist.end());
     auto notClustered = SetDifference(pfpList, flat);
     for(auto nc : notClustered) {
       auto& pfp = tjs.pfps[nc - 1];
       if(!IsInShower(tjs, pfp.TjIDs)) continue;
-      std::vector<unsigned short> plist(1, nc);
+      std::vector<int> plist(1, nc);
       plists.push_back(plist);
     }
 
@@ -568,12 +743,118 @@ namespace tca {
   } // KillVerticesInShowers
   
   ////////////////////////////////////////////////
+  void CompleteIncompleteShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
+  {
+    // Find low-energy two-plane showers and try to complete it by making a 2D shower in the third
+    // plane using 3D matched tjs
+    
+    if(tjs.NumPlanes != 3) return;
+    if(ss3.CotIDs.size() != 2) return;
+    
+    if(!tjs.UseAlg[kCompleteShower]) return;
+    
+    std::string fcnLabel = inFcnLabel + ".CIS";
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel;
+    
+    auto& iss = tjs.cots[ss3.CotIDs[0] - 1];
+    auto& jss = tjs.cots[ss3.CotIDs[1] - 1];
+    // make a list of pfps for each SS
+    std::vector<int> iplist;
+    for(auto tid : iss.TjIDs) {
+      auto plist = GetAssns(tjs, "T", tid, "P");
+      if(!plist.empty()) iplist.insert(iplist.end(), plist.begin(), plist.end());
+    } // tid
+    std::vector<int> jplist;
+    for(auto tid : jss.TjIDs) {
+      auto plist = GetAssns(tjs, "T", tid, "P");
+      if(!plist.empty()) jplist.insert(jplist.end(), plist.begin(), plist.end());
+    } // tid
+    // look for pfps that have tjs in both showers
+    auto shared = SetIntersection(iplist, jplist);
+    if(shared.empty()) return;
+    // put the list of tjs for both SS into a flat vector to simplify searching
+    std::vector<int> flat = iss.TjIDs;
+    flat.insert(flat.end(), jss.TjIDs.begin(), jss.TjIDs.end());
+    // make a list of tjs in the k plane that maybe should made into a shower if they
+    // aren't already in a shower that failed the 3D match
+    std::vector<int> ktlist;
+    std::vector<int> ssList;
+    for(auto pid : shared) {
+      auto& pfp = tjs.pfps[pid - 1];
+      for(auto tid : pfp.TjIDs) {
+//        if(std::find(flat.begin(), flat.end(), tid) == flat.end()) ktlist.push_back(tid);
+        if(std::find(flat.begin(), flat.end(), tid) != flat.end()) continue;
+        ktlist.push_back(tid);
+        auto ssl = GetAssns(tjs, "T", tid, "2S");
+        ssList.insert(ssList.end(), ssl.begin(), ssl.end());
+      } // tid
+    } // pid
+    if(ktlist.empty()) return;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<fcnLabel<<" 3S\n";
+      myprt<<" -> i2S"<<iss.ID<<" ->";
+      for(auto pid : iplist) myprt<<" P"<<pid;
+      myprt<<"\n";
+      myprt<<" -> j2S"<<jss.ID<<" ->";
+      for(auto pid : jplist) myprt<<" P"<<pid;
+      myprt<<"\n";
+      geo::PlaneID iPlaneID = DecodeCTP(iss.CTP);
+      geo::PlaneID jPlaneID = DecodeCTP(jss.CTP);
+      unsigned short kplane = 3 - iPlaneID.Plane - jPlaneID.Plane;
+      myprt<<" kplane "<<kplane<<" candidate 2S Tjs:";
+      for(auto tid : ktlist) myprt<<" T"<<tid;
+      if(ssList.empty()) {
+        myprt<<" No matching showers in kplane";
+      }  else {
+        myprt<<"\n";
+        myprt<<" Candidate showers:";
+        for(auto ssid : ssList) myprt<<" 2S"<<ssid;
+      }
+    } // prt
+    // don't do anthing if there are too many shower matches
+    if(ssList.size() > 1) return;
+    if(!ssList.empty()) {
+      // found a 2D shower matched by pfps
+      auto& ss = tjs.cots[ssList[0] - 1];
+      ss.SS3ID = ss3.ID;
+      ss3.CotIDs.push_back(ss.ID);
+      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+      stj.AlgMod[kCompleteShower] = true;
+      ss3.NeedsUpdate = true;
+    } else {
+      // No 2D shower found. Make one with ktlist
+      auto kss = CreateSS(tjs, ktlist);
+      if(kss.ID == 0) return;
+      kss.SS3ID = ss3.ID;
+      if(!UpdateShower(fcnLabel, tjs, kss, prt)) {
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" UpdateShower failed 2S"<<kss.ID;
+        MakeShowerObsolete(fcnLabel, tjs, kss, prt);
+        return;
+      } // UpdateShower failed
+      // TODO: Check for a bad 3D match using energy asymmetry, etc
+      if(!StoreShower(fcnLabel, tjs, kss)) {
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" StoreShower failed";
+        MakeShowerObsolete(fcnLabel, tjs, kss, prt);
+        return;
+      } // StoreShower failed
+      ss3.CotIDs.push_back(kss.ID);
+      auto& stj = tjs.allTraj[kss.ShowerTjID - 1];
+      stj.AlgMod[kCompleteShower] = true;
+      ss3.NeedsUpdate = true;
+    } // No 2D shower found. Make one with ktlist
+    
+    if(ss3.NeedsUpdate) UpdateShower(fcnLabel, tjs, ss3, prt);
+
+ } // CompleteIncompleteShower
+  
+  ////////////////////////////////////////////////
   void Match2DShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
-    if(prt) mf::LogVerbatim("TC")<<"Inside M2DS";
     // Match 2D showers using position and direction to create 3D showers
     
     std::string fcnLabel = inFcnLabel + ".M2DS";
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel;
     
     float fomCut = 2;
     
@@ -613,10 +894,7 @@ namespace tca {
         if(jss.CTP == iss.CTP) continue;
         Trajectory& jstj = tjs.allTraj[jss.ShowerTjID - 1];
         TrajPoint3 tp3;
-        if(!MakeTp3(tjs, istj.Pts[1], jstj.Pts[1], tp3, true)) {
-//          if(prt) mf::LogVerbatim("TC")<<" MakeTp3s failed";
-          continue;
-        }
+        if(!MakeTp3(tjs, istj.Pts[1], jstj.Pts[1], tp3, true)) continue;
         float fomij = Match3DFOM(fcnLabel, tjs, iss.ID, jss.ID, prt);
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" i2S"<<iss.ID<<" j2S"<<jss.ID<<" fomij "<<fomij<<" fomCut "<<fomCut;
         if(fomij > fomCut) continue;
@@ -680,7 +958,8 @@ namespace tca {
           ss3.CotIDs[1] = jss.ID;
           ss3.Energy[iplaneID.Plane] = iss.Energy;
           ss3.Energy[jplaneID.Plane] = jss.Energy;
-          if(prt) mf::LogVerbatim("TC")<<" new 2-plane 3S"<<ss3.ID<<" using 2S"<<iss.ID<<" 2S"<<jss.ID<<" with FOM "<<ss3.FOM;
+          if(prt) mf::LogVerbatim("TC")<<" new 2-plane 3S"<<ss3.ID<<" using 2S"<<iss.ID<<" 2S"<<jss.ID<<" with FOM "<<ss3.FOM<<" try to complete it";
+          CompleteIncompleteShower(fcnLabel, tjs, ss3, prt);
         } else {
           // showers match in 3 planes
           unsigned short ck = bestck;
@@ -699,10 +978,11 @@ namespace tca {
         ss3.FOM = 0.5 * (fomij + bestFOM);
         // sort the IDs
         std::sort(ss3.CotIDs.begin(), ss3.CotIDs.end());
-        // look for a 3D shower parent
-        FindParent(fcnLabel, tjs, ss3, prt);
-        // check for a failure
-        if(ss3.ID == 0) continue;
+        // reconcile tj -> 2S -> 3S and tj -> pfps
+        if(!Reconcile3D(fcnLabel, tjs, ss3, prt)) {
+          MakeShowerObsolete(fcnLabel, tjs, ss3, prt);
+          continue;
+        }
         if(ss3.NeedsUpdate) UpdateShower(fcnLabel, tjs, ss3, prt);
         if(ss3.ID == 0) continue;
         tjs.showers.push_back(ss3);
@@ -915,6 +1195,7 @@ namespace tca {
   bool UpdateShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
   {
     // Updates the 3D shower presumably because the 2D showers were changed or need to be updated. 
+    // This function returns false if there was a failure.
     
     if(ss3.ID == 0) return false;
     if(ss3.CotIDs.size() < 2) return false;
@@ -924,7 +1205,7 @@ namespace tca {
     // see if the 2D showers need an update
     for(auto cid : ss3.CotIDs) {
       auto& ss = tjs.cots[cid - 1];
-      if(ss.NeedsUpdate) std::cout<<fcnLabel<<" ********* 3S"<<ss3.ID<<" 2S"<<ss.ID<<" needs an update...\n";
+      if(ss.NeedsUpdate && prt) std::cout<<fcnLabel<<" ********* 3S"<<ss3.ID<<" 2S"<<ss.ID<<" needs an update...\n";
     } // ci
     
     // check consistency 
@@ -932,7 +1213,7 @@ namespace tca {
       auto& pfp = tjs.pfps[ss3.ParentID - 1];
       unsigned short pend = FarEnd(tjs, pfp, ss3.ChgPos);
       if(pfp.Vx3ID[pend] != ss3.Vx3ID) {
-        std::cout<<fcnLabel<<" ********* 3S"<<ss3.ID<<" has parent P"<<ss3.ParentID<<" with a vertex that is not attached the shower\n";
+        if(prt) std::cout<<fcnLabel<<" ********* 3S"<<ss3.ID<<" has parent P"<<ss3.ParentID<<" with a vertex that is not attached the shower\n";
       }
     } // ss3.ParentID > 0
     
@@ -962,11 +1243,7 @@ namespace tca {
         for(auto& tp : jstj.Pts) tp.Pos = tp.HitPos;
         TrajPoint3 tp3;
         for(unsigned short ipt = 0; ipt < 3; ++ipt) {
-          if(!MakeTp3(tjs, istj.Pts[ipt], jstj.Pts[ipt], tp3, true)) {
-            if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" MakeTp3s failure for 3S"<<ss3.ID;
-            MakeShowerObsolete(fcnLabel, tjs, ss3, prt);
-            return false;
-          }
+          if(!MakeTp3(tjs, istj.Pts[ipt], jstj.Pts[ipt], tp3, true)) continue;
           double ptchg = 0.5 * (istj.Pts[ipt].Chg + jstj.Pts[ipt].Chg);
           chg[ipt] += ptchg;
           for(unsigned short xyz = 0; xyz < 3; ++xyz) {
@@ -977,11 +1254,18 @@ namespace tca {
       } // jj
     } // ii
     
+    unsigned short nok = 0;
     for(unsigned short ipt = 0; ipt < 3; ++ipt) {
       if(chg[ipt] == 0) continue;
       for(unsigned short xyz = 0; xyz < 3; ++xyz) pos[ipt][xyz] /= chg[ipt];
       SetMag(dir, 1);
+      ++nok;
     } // ipt
+    
+    if(nok != 3) {
+      if(prt) std::cout<<fcnLabel<<" ********* 3S"<<ss3.ID<<" Can't find 3 points that match in 3D. \n";
+      return false;
+    }
     ss3.ChgPos = pos[1];
     
     if(ss3.ParentID > 0) {
@@ -1020,53 +1304,7 @@ namespace tca {
     return true;
 
   } // UpdateShower
-/*
-  ////////////////////////////////////////////////
-  void ReconcileParents(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
-  {
-    // Ensures that a TJ is only used as a Parent in one shower
-    
-    std::string fcnLabel = inFcnLabel + ".RP";
 
-    std::vector<int> parent;
-    std::vector<std::vector<int>> inss;
-    for(auto& ss : tjs.cots) {
-      if(ss.ID == 0) continue;
-      if(ss.ParentID == 0) continue;
-      geo::PlaneID planeID = DecodeCTP(ss.CTP);
-      if(planeID.Cryostat != tpcid.Cryostat) continue;
-      if(planeID.TPC != tpcid.TPC) continue;
-      unsigned short indx = 0;
-      for(indx = 0; indx < parent.size(); ++indx) if(ss.ParentID == parent[indx]) break;
-      if(indx == parent.size()) {
-        // not found add it
-        parent.push_back(ss.ParentID);
-        std::vector<int> tmp(1);
-        tmp[0] = ss.ID;
-        inss.push_back(tmp);
-      } else {
-        inss[indx].push_back(ss.ID);
-      }
-    } // ss
-    if(parent.empty()) return;
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      for(unsigned short pid = 0; pid < parent.size(); ++pid) {
-        myprt<<fcnLabel<<" parent "<<parent[pid]<<" ssids";
-        for(auto ssid : inss[pid]) myprt<<" "<<ssid;
-        myprt<<"\n";
-      }  // pid
-    } // prt
-
-    for(unsigned short pid = 0; pid < parent.size(); ++pid) {
-      if(inss[pid].size() < 2) continue;
-      std::cout<<fcnLabel<<" Tj "<<parent[pid]<<" is a parent in more than one shower";
-      for(auto ssid : inss[pid]) std::cout<<" "<<ssid;
-      std::cout<<". Do something about this.\n";
-    } // pid
-
-  } // ReconcileParents
-*/
   ////////////////////////////////////////////////
   float Match3DFOM(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
   {
@@ -1117,7 +1355,8 @@ namespace tca {
     
     float energyAsym = std::abs(iss.Energy - jss.Energy) / (iss.Energy + jss.Energy);
     
-    if(energyAsym > 0.5) return 50;
+    // don't apply the asymmetry cut on low energy showers
+    if((iss.Energy > 200 || jss.Energy > 200) && energyAsym > 0.5) return 50;
     
     geo::PlaneID iPlnID = DecodeCTP(iss.CTP);
     geo::PlaneID jPlnID = DecodeCTP(jss.CTP);
@@ -1194,371 +1433,89 @@ namespace tca {
     } // tjl
     
   } // MergeTjList
-/*
-  ////////////////////////////////////////////////
-  void FillPts(std::string inFcnLabel, TjStuff& tjs, int cotID, bool prt)
-  {
-    
-    if(cotID > tjs.cots.size()) return;
-    
-    ShowerStruct& ss = tjs.cots[cotID - 1];
-    if(ss.ID == 0) return;
-    if(ss.TjIDs.empty()) return;
-    if(ss.ShowerTjID == 0) return;
-    ss.ShPts.clear();
-    
-    std::string fcnLabel = inFcnLabel + ".FPts";
-    
-    float totChg = 0;
-    for(unsigned short it = 0; it < ss.TjIDs.size(); ++it) {
-      unsigned short itj = ss.TjIDs[it] - 1;
-      if(itj > tjs.allTraj.size() - 1) {
-        mf::LogWarning("TC")<<"Bad TjID "<<ss.TjIDs[it];
-        MakeShowerObsolete(fcnLabel, tjs, ss, prt);
-        return;
-      }
-      Trajectory& tj = tjs.allTraj[itj];
-      if(tj.CTP != ss.CTP) {
-        mf::LogWarning("TC")<<"Tj "<<tj.ID<<" is in the wrong CTP "<<tj.CTP<<" "<<ss.CTP;
-        MakeShowerObsolete(fcnLabel, tjs, ss, prt);
-        return;
-      }
-      if(tj.AlgMod[kShowerTj]) {
-        mf::LogWarning("TC")<<fcnLabel<<" Tj "<<tj.ID<<" is in TjIDs in 2S"<<cotID<<" but is a ShowerTj! Killing it";
-        MakeShowerObsolete(fcnLabel, tjs, ss, prt);
-        return;
-      }
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        TrajPoint& tp = tj.Pts[ipt];
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(!tp.UseHit[ii]) continue;
-          unsigned int iht = tp.Hits[ii];
-          if(tjs.fHits[iht].Integral <= 0) continue;
-          ShowerPoint shpt;
-          shpt.HitIndex = iht;
-          shpt.TID = tj.ID;
-          shpt.Chg = tjs.fHits[iht].Integral;
-          shpt.Pos[0] = tjs.fHits[iht].ArtPtr->WireID().Wire;
-          shpt.Pos[1] = tjs.fHits[iht].PeakTime * tjs.UnitsPerTick;
-          ss.ShPts.push_back(shpt);
-          totChg += shpt.Chg;
-        } // ii
-      } // ipt
-    } // it
 
-    // Put the total charge into the shower Tj
-    tjs.allTraj[ss.ShowerTjID - 1].AveChg = totChg;
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<fcnLabel<<" 2S"<<ss.ID<<" filled "<<ss.ShPts.size()<<" points. Total charge "<<(int)totChg;
-      for(auto tid : ss.TjIDs) myprt<<" T"<<tid;
-    } // prt
-  } // FillPts
 
   ////////////////////////////////////////////////
-  bool DefinePFPShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
+  bool RemovePFP(std::string inFcnLabel, TjStuff& tjs, PFPStruct& pfp, ShowerStruct3D& ss3, bool doUpdate, bool prt)
   {
-    // defines the 3D shower position, direction, length and opening angle. The PFParticles referenced
-    // in plist were fit to a 3D line in PFPUtils/FindCompleteness. The origin of the fit is at the
-    // center of matching points of the trajectories. The idea here is to first find the charge weighted position
-    // of all these points to find the charge center and the direction. The next step is to find the longitudinal
-    // extent and then the transverse width at each end. The end that has the smallest transverse width is declared
-    // to be the start
-    if(ss3.PFPIDs.empty()) return false;
-    
-    // Find the charge center of all pfps
-    ss3.Energy.resize(tjs.NumPlanes);
-    ss3.EnergyErr.resize(tjs.NumPlanes);
-    ss3.MIPEnergy.resize(tjs.NumPlanes);
-    ss3.MIPEnergyErr.resize(tjs.NumPlanes);
-    ss3.dEdx.resize(tjs.NumPlanes);
-    ss3.dEdxErr.resize(tjs.NumPlanes);
-    
-    std::string fcnLabel = inFcnLabel + ".DPS";
-    
-    // put all the tjs into a monster shower pfparticle so we can get the
-    // direction and position. Sum the Tj charge and convert to energy while we are here
-    PFPStruct shPFP = CreatePFP(tjs, ss3.TPCID);
-    std::vector<float> chgSum(tjs.NumPlanes);
-    for(auto pid : ss3.PFPIDs) {
-      auto& pfp = tjs.pfps[pid - 1];
-      shPFP.TjIDs.insert(shPFP.TjIDs.end(), pfp.TjIDs.begin(), pfp.TjIDs.end());
-      shPFP.Tp3s.insert(shPFP.Tp3s.end(), pfp.Tp3s.begin(), pfp.Tp3s.end());
-      for(auto tjid : pfp.TjIDs) {
-        auto& tj = tjs.allTraj[tjid - 1];
-        unsigned short plane = DecodeCTP(tj.CTP).Plane;
-        chgSum[plane] += tj.TotChg;
-      } // tjid
-    } // pid
-    if(shPFP.Tp3s.empty()) return false;
-    // Initialize and pass dummy variables
-    Point3_t dump;
-    Vector3_t dumd;
-    Fit3D(0, dump, dumd, dump, dumd);
-    // Fill the fit sums
-    for(auto& tp3 : shPFP.Tp3s) {
-      Fit3D(1, tp3.Pos, tp3.Dir, dump, dumd);
-    } // tp3
-    Fit3D(2, dump, dumd, shPFP.XYZ[0], shPFP.Dir[0]);
-    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) ss3.Energy[plane] = ChgToMeV(chgSum[plane]);
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<fcnLabel<<" 3S"<<ss3.ID<<" shPFP fit nTp3s "<<shPFP.Tp3s.size();
-      myprt<<" Energy[plane]";
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) myprt<<" "<<(int)ss3.Energy[plane];
-      myprt<<" chgCtr "<<std::fixed<<std::setprecision(1)<<shPFP.XYZ[0][0]<<" "<<shPFP.XYZ[0][1]<<" "<<shPFP.XYZ[0][2];
-      myprt<<" dir "<<std::setprecision(1)<<shPFP.Dir[0][0]<<" "<<shPFP.Dir[0][1]<<" "<<shPFP.Dir[0][2];
-    } // prt
-    ss3.ChgPos = shPFP.XYZ[0];
-    ss3.Dir = shPFP.Dir[0];
-    // find the points that are farthest away from the charge center on the shower axis
-    double minAlong = 1E6;
-    double maxAlong = -1E6;
-    for(auto& tp3 : shPFP.Tp3s) {
-      FindAlongTrans(ss3.ChgPos, ss3.Dir, tp3.Pos, tp3.AlongTrans);
-      if(tp3.AlongTrans[0] < minAlong) minAlong = tp3.AlongTrans[0];
-      if(tp3.AlongTrans[0] > maxAlong) maxAlong = tp3.AlongTrans[0];
-    } // tp3
-    // set the start and end positions
-    for(unsigned short xyz = 0; xyz < 3; ++xyz) {
-      ss3.Start[xyz] = ss3.ChgPos[xyz] + minAlong * ss3.Dir[xyz];
-      ss3.End[xyz] = ss3.ChgPos[xyz] + maxAlong * ss3.Dir[xyz];
-    }
-    ss3.Len = maxAlong - minAlong;
-    if(prt) mf::LogVerbatim("TC")<<" minAlong "<<minAlong<<" maxAlong "<<maxAlong<<" Len "<<ss3.Len;
-    std::vector<double> chg(3);
-    std::vector<double> sumt(3);
-    std::vector<double> suml(3);
-    for(auto& tp3 : shPFP.Tp3s) {
-      unsigned short section = 3 * (tp3.AlongTrans[0] - minAlong) / ss3.Len;
-      if(section > 2) section = 2;
-      chg[section] += tp3.dEdx;
-      suml[section] += tp3.dEdx * tp3.AlongTrans[0];
-      sumt[section] += tp3.dEdx * tp3.AlongTrans[1];
-    } // tp3
-    // something is wrong if there is no charge in any section
-    if(chg[0] == 0 || chg[1] == 0 || chg[2] == 0) return false;
-    for(unsigned short section = 0; section < 3; ++section) {
-      if(chg[section] <= 0) continue;
-      sumt[section] /= chg[section];
-      suml[section] /= chg[section];
-      if(prt) mf::LogVerbatim("TC")<<" section "<<section<<" long "<<suml[section]<<" trans "<<sumt[section]<<" chg "<<(int)chg[section];
-    } // section
-    // reverse the direction?
-    if(sumt[2] < sumt[0]) {
-      std::swap(ss3.Start, ss3.End);
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) ss3.Dir[xyz] *= -1;
-      // we don't need the Tp3s anymore so don't reverse them
-      std::swap(sumt[0], sumt[2]);
-      std::swap(suml[0], suml[2]);
-      std::swap(chg[0], chg[2]);
-    }
-    // calculate the opening angle - Note that this is 1/2 the tangent of 
-    // the opening angle...
-    ss3.OpenAngle = std::abs((sumt[2] - sumt[0]) / (suml[2] - suml[0]));
-    if(ss3.OpenAngle < 0.1) {
-      std::cout<<"DefinePFPShower: Too small opening angle "<<ss3.OpenAngle<<". Setting it to 0.1\n";
-      ss3.OpenAngle = 0.1;
-    }
-    if(ss3.OpenAngle > 0.3) {
-      std::cout<<"DefinePFPShower: Too large opening angle "<<ss3.OpenAngle<<". Setting it to 0.3\n";
-      ss3.OpenAngle = 0.3;
-    }
-    // check the direction vector using a largish component
-    unsigned short useComp = 0;
-    if(std::abs(ss3.Dir[2]) > std::abs(ss3.Dir[0])) useComp = 2;
-    if(ss3.Dir[useComp] > 0 && ss3.Start[useComp] > ss3.End[useComp]) {
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) ss3.Dir[xyz] *= -1;
-    } // reverse direction?
-    // stash the charge in each section into PosErr. It will be transferred into
-    // the shower Tj TP charge in MakePFPShowers. Put the "rms" into DirErr. Note that
-    // the "rms" is really the average of the abs(transverse) positions. This is close
-    // enough to the actual rms for this purpose.
-    for(unsigned short section = 0; section < 3; ++section) {
-      ss3.StartErr[section] = chg[section];
-      ss3.DirErr[section] = sumt[section];
-    }
+    // removes the tjs in the pfp from the ss3 2D showers and optionally update. This function only returns
+    // false if there was a failure. The absence of any pfp Tjs in ss3 is not considered a failure
 
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<fcnLabel<<" 3S"<<ss3.ID<<" OpenAngle "<<std::setprecision(2)<<ss3.OpenAngle;
-      myprt<<" Dir "<<std::setprecision(2)<<ss3.Dir[0]<<" "<<ss3.Dir[1]<<" "<<ss3.Dir[2];
-      float aveE = 0;
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) aveE += ss3.Energy[plane];
-      aveE /= tjs.NumPlanes;
-      myprt<<" Length "<<PosSep(ss3.Start, ss3.End)<<" aveE "<<(int)aveE<<" MeV";
-      double shMaxAlong, along95;
-      ShowerParams(aveE, shMaxAlong, along95);
-      myprt<<" shMaxAlong "<<std::fixed<<std::setprecision(1)<<shMaxAlong<<" along95 "<<along95<<"\n";
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        CTP_t inCTP = plane;
-        auto tp = MakeBareTP(tjs, ss3.Start, ss3.Dir, inCTP);
-        myprt<<" Start "<<plane<<":"<<PrintPos(tjs, tp.Pos);
-        tp = MakeBareTP(tjs, ss3.ChgPos, ss3.Dir, inCTP);
-        myprt<<" ChgPos "<<PrintPos(tjs, tp.Pos);
-        tp = MakeBareTP(tjs, ss3.End, ss3.Dir, inCTP);
-        myprt<<" End "<<PrintPos(tjs, tp.Pos);
-        myprt<<" Ang "<<std::setprecision(2)<<tp.Ang<<" projInPlane "<<tp.Delta;
-        myprt<<" E "<<(int)ss3.Energy[plane];
-        myprt<<"\n";
-      } // plane
-    } // prt
+    if(pfp.ID == 0 || ss3.ID == 0) return false;
+
+    std::string fcnLabel = inFcnLabel + ".RemP";
+    for(auto tid : pfp.TjIDs) {
+      for(auto cid : ss3.CotIDs) {
+        auto& ss = tjs.cots[cid - 1];
+        if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tid) == ss.TjIDs.end()) continue;
+        if(!RemoveTj(fcnLabel, tjs, tid, ss, doUpdate, prt)) return false;
+        ss3.NeedsUpdate = true;
+      } // cid
+    } // ptid
+    
+    if(doUpdate && ss3.NeedsUpdate) UpdateShower(fcnLabel, tjs, ss3, prt);
     return true;
-  } // DefinePFPShower
+    
+  } // Remove PFP
   
   ////////////////////////////////////////////////
-  bool UpdatePFPShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
+  bool AddPFP(std::string inFcnLabel, TjStuff& tjs, int pID, ShowerStruct3D& ss3, bool doUpdate, bool prt)
   {
-    // updates the properties of ss3 when the list of pfparticles in this shower is changed
-    if(ss3.PFPIDs.empty()) return false;
+    // Add the tjs in the pfp with id = pID to the 2D showers in ss3 and optionally update everything. This
+    // function returns true if the addition was successful or if the Tjs in the pfp are already in ss3.
+    // This function returns false if there was a failure. There isn't any error recovery.
     
-    std::string fcnLabel = inFcnLabel + ".UPS";
+    std::string fcnLabel = inFcnLabel + ".AddP";
 
-    std::cout<<"UpdatePFPShower needs revision\n";
-    return false;
+    if(pID <= 0 || pID > (int)tjs.pfps.size()) return false;
+    auto& pfp = tjs.pfps[pID - 1];
     
-    // put all the tjs into a monster shower pfparticle so that
-    // we can determine the start and end. This pfp is not stored
-    PFPStruct shPFP = CreatePFP(tjs, ss3.TPCID);
-    for(auto pid : ss3.PFPIDs) {
-      auto& pfp = tjs.pfps[pid - 1];
-      shPFP.TjIDs.insert(shPFP.TjIDs.end(), pfp.TjIDs.begin(), pfp.TjIDs.end());
-    } // pid
-    // Fit all the points to a line and fill the TP3s vector
-    FindCompleteness(tjs, shPFP, true, true, false);
-    if(shPFP.Tp3s.empty()) return false;
-    // Sort Tp3s by distance from the start. Don't let the sort function
-    // change the Tp3 direction vectors since we aren't using them.
-    shPFP.Dir[0] = ss3.Dir;
-//    SortByDistanceFromStart(tjs, shPFP, prt);
-    ss3.Start = shPFP.Tp3s[0].Pos;
-    ss3.End = shPFP.Tp3s[shPFP.Tp3s.size() - 1].Pos;
-    ss3.Len = PosSep(ss3.Start, ss3.End);
-    // Find the charge and accumulate the transverse position in three sections
-    std::vector<double> chg(3);
-    std::vector<double> sumt(3);
-    std::vector<double> suml(3);
-    // determine the separations that define the section boundaries
-    double sec1 = ss3.Len / 3;
-    double sec2 = 2 * ss3.Len / 3;
-    Point2_t alongTran;
-    for(auto& tp3 : shPFP.Tp3s) {
-      if(tp3.dEdx <= 0) {
-        std::cout<<"Ooops. No charge in Tp3\n";
-        return false;
-      }
-      // Find the longitudinal and transverse distance from the shower start to the tp3
-      FindAlongTrans(ss3.Start, ss3.Dir, tp3.Pos, alongTran);
-      // determine which section this is in
-      unsigned short section = 0;
-      if(alongTran[0] > sec2) {
-        section = 2;
-      } else if(alongTran[0] > sec1) {
-        section = 1;
-      }
-      chg[section] += tp3.dEdx;
-      suml[section] += tp3.dEdx * alongTran[0];
-      sumt[section] += tp3.dEdx * alongTran[1];
-    } // tp3
-    // something is wrong if there is no charge in the end sections
-    if(chg[0] == 0 || chg[2] == 0) return false;
-    for(unsigned short section = 0; section < 3; ++section) {
-      if(chg[section] <= 0) continue;
-      sumt[section] /= chg[section];
-      suml[section] /= chg[section];
-      std::cout<<"section "<<section<<" long "<<suml[section]<<" trans "<<sumt[section]<<"\n";
-    } // section
-    // reverse the direction?
-    if(sumt[2] < sumt[0]) {
-      std::swap(ss3.Start, ss3.End);
-      // we don't need the Tp3s anymore so don't reverse them
-      std::swap(sumt[0], sumt[2]);
-      std::swap(suml[0], suml[2]);
-      std::swap(chg[0], chg[2]);
-    }
-    // calculate the opening angle - Note that this is 1/2 the tangent of 
-    // the opening angle...
-    ss3.OpenAngle = std::abs((sumt[2] - sumt[0]) / (suml[2] - suml[0]));
-    if(ss3.OpenAngle < 0.05 || ss3.OpenAngle > 0.2) {
-      std::cout<<"UpdatePFPShower: Crazy openining angle "<<ss3.OpenAngle<<". Setting it to 0.15\n";
-      ss3.OpenAngle = 0.15;
-    }
-    // check the direction vector using a largish component
-    unsigned short useComp = 0;
-    if(std::abs(ss3.Dir[2]) > std::abs(ss3.Dir[0])) useComp = 2;
-    if(ss3.Dir[useComp] > 0 && ss3.Start[useComp] > ss3.End[useComp]) {
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) ss3.Dir[xyz] *= -1;
-    } // reverse direction?
-    // stash the charge in each section into PosErr. It will be transferred into
-    // the shower Tj TP charge in MakePFPShowers. Put the "rms" into DirErr. Note that
-    // the "rms" is really the average of the abs(transverse) positions. This is close
-    // enough to the actual rms for this purpose.
-    for(unsigned short section = 0; section < 3; ++section) {
-      ss3.StartErr[section] = chg[section];
-      ss3.DirErr[section] = sumt[section];
-    }
-
-    return true;
-  } // UpdatePFPShower
-
-  ////////////////////////////////////////////////
-  bool DefineShower(std::string inFcnLabel, TjStuff& tjs, int cotID, bool prt)
-  {
-    // Defines the properties of a 2D shower using the trajectory points within the trajectories listed
-    // in TjIDs. This wipes out any other information that may exist
-    
-    if(cotID > tjs.cots.size()) return false;
-    
-    ShowerStruct& ss = tjs.cots[cotID - 1];
-    if(ss.ID == 0) return false;
-    if(ss.TjIDs.empty()) return false;
-    if(ss.ShowerTjID == 0) return false;
-
-    std::string fcnLabel = inFcnLabel + ".DS";
-    
-    if(ss.ParentID > 0) {
-      std::cout<<fcnLabel<<" shouldn't be used for showers with a parent tj\n";
+    if(pfp.TPCID != ss3.TPCID) {
+      mf::LogVerbatim("TC")<<fcnLabel<<" P"<<pID<<" is in the wrong TPC for 3S"<<ss3.ID;
       return false;
     }
     
-    FillPts(fcnLabel, tjs, cotID, prt);
-    if(!FindChargeCenter(fcnLabel, tjs, cotID, prt)) {
+    for(auto tid : pfp.TjIDs) {
+      auto& tj = tjs.allTraj[tid - 1];
+      // is this tj in a 2D shower that is in a 3D shower that is not this shower?
+      if(tj.SSID > 0) {
+        auto& ss = tjs.cots[tj.SSID - 1];
+        if(ss.SS3ID > 0 && ss.SS3ID != ss3.ID) {
+          if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Conflict: 3S"<<ss3.ID<<" adding P"<<pfp.ID<<" -> T"<<tid<<" is in 2S"<<tj.SSID<<" that is in 3S"<<ss.SS3ID<<" that is not this shower";
+          return false;
+        } // conflict
+        // tj is in the correct 2D shower so nothing needs to be done
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" adding P"<<pfp.ID<<" -> T"<<tid<<" is in the correct 2S"<<tj.SSID;
+        continue;
+      } // pfp tj is in a shower
       if(prt) {
-        mf::LogVerbatim("TC")<<"Failed to find shower charge center 2S"<<cotID;
-        Print2DShowers("DS", tjs, ss.CTP, false);
-      }
-      MakeShowerObsolete(fcnLabel, tjs, ss, prt);
-      return false;
-    }
-    FindAngle(fcnLabel, tjs, cotID, prt);
-    FillRotPos(fcnLabel, tjs, cotID, prt);
-    if(!DefineShowerTj(fcnLabel, tjs, cotID, prt)) {
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Failed to define Shower Tj. Killed the shower";
-      MakeShowerObsolete(fcnLabel, tjs, ss, prt);
-      return false;
-    }
-    FindNearbyTjs(fcnLabel, tjs, ss, prt);
-    DefineEnvelope(fcnLabel, tjs, ss, prt);
-    
-    if(!tjs.MCPartList.empty()) {
-      // Find the MC particle that matches with these InShower Tjs
-      MCParticleListUtils tm{tjs};
-      unsigned short nTruHits;
-      unsigned int mcpIndex = tm.GetMCPartListIndex(ss, nTruHits);
-      // Find the Tj that is closest to the start of this MC Particle
-      if(mcpIndex != UINT_MAX) ss.TruParentID = tm.MCParticleStartTjID(mcpIndex, ss.CTP);
-    }
-
+        mf::LogVerbatim myprt("TC");
+        myprt<<fcnLabel<<" 3S"<<ss3.ID<<" adding P"<<pfp.ID<<" -> T"<<tid;
+        for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
+          if(pfp.TjIDs[ii] == tid) myprt<<" pfp TjCompleteness "<<std::fixed<<std::setprecision(2)<<pfp.TjCompleteness[ii];
+          myprt<<" tj.SSID "<<tj.SSID;
+        } // itj
+      } // prt
+      // add it to the shower in the correct CTP
+      for(auto& cid : ss3.CotIDs) {
+        auto& ss = tjs.cots[cid - 1];
+        if(ss.CTP != tj.CTP) continue;
+        // Add it to the shower.
+        AddTj(fcnLabel, tjs, tid, ss, doUpdate, prt);
+        break;
+      } // cid
+    } // tid
     return true;
+  } // AddPFP
 
-  } // DefineShower
-*/
   ////////////////////////////////////////////////
   bool AddTj(std::string inFcnLabel, TjStuff& tjs, int tjID, ShowerStruct& ss, bool doUpdate, bool prt)
   {
     // Adds the Tj to the shower and optionally updates the shower variables
     
-    std::string fcnLabel = inFcnLabel + ".ATj";
+    if(tjID <= 0 || tjID > (int)tjs.allTraj.size()) return false;
+    
+    std::string fcnLabel = inFcnLabel + ".AddT";
     
     Trajectory& tj = tjs.allTraj[tjID - 1];
     
@@ -1567,18 +1524,18 @@ namespace tca {
       return false;
     }
     
-    if(tj.AlgMod[kInShower]) {
-      // see if it is in this shower
-      if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tjID) != ss.TjIDs.end()) {
-        mf::LogVerbatim("TC")<<fcnLabel<<" T"<<tjID<<" is already in 2S"<<ss.ID;
+    if(tj.SSID > 0) {
+      if(tj.SSID == ss.ID) {
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" T"<<tjID<<" is already in 2S"<<ss.ID;
         return true;
       } else {
-        mf::LogVerbatim("TC")<<fcnLabel<<" T"<<tjID<<" is already in a different shower ";
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Can't add T"<<tjID<<" to 2S"<<ss.ID<<". it is already used in 2S"<<tj.SSID;
         return false;
       }
-    }
+    } // tj.SSID > 0
 
     ss.TjIDs.push_back(tjID);
+    tj.SSID = ss.ID;
     std::sort(ss.TjIDs.begin(), ss.TjIDs.end());
     // remove this ID from the NearTjIDs list
     for(unsigned short ii = 0; ii < ss.NearTjIDs.size(); ++ii) {
@@ -1610,8 +1567,8 @@ namespace tca {
         }
       }
     } // ipt
-    tj.AlgMod[kInShower] = true;
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Added T"<<tj.ID<<" to 2S"<<ss.ID;
+    ss.NeedsUpdate = true;
     
     if(doUpdate) return UpdateShower(fcnLabel, tjs, ss, prt);
     return true;
@@ -1619,21 +1576,24 @@ namespace tca {
   } // AddTj
   
   ////////////////////////////////////////////////
-  bool RemoveTj(std::string inFcnLabel, TjStuff& tjs, int TjID, int cotID, bool doUpdate, bool prt)
+  bool RemoveTj(std::string inFcnLabel, TjStuff& tjs, int TjID, ShowerStruct& ss, bool doUpdate, bool prt)
   {
     // Removes the Tj from a shower
     
     if(TjID > (int)tjs.allTraj.size()) return false;
-    if(cotID > tjs.cots.size()) return false;
     
     std::string fcnLabel = inFcnLabel + ".RTj";
     
     // make sure it isn't already in a shower
     Trajectory& tj = tjs.allTraj[TjID - 1];
-    if(!tj.AlgMod[kInShower]) return false;
-    tj.AlgMod[kInShower] = false;
+
+    if(tj.SSID != ss.ID) {
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Can't Remove T"<<TjID<<" from 2S"<<ss.ID<<" because it's not in this shower";
+      // This isn't a failure
+      return true;
+    }
     tj.AlgMod[kShwrParent] = false;
-    ShowerStruct& ss = tjs.cots[cotID - 1];
+    
     bool gotit = false;
     for(unsigned short ii = 0; ii < ss.TjIDs.size(); ++ii) {
       if(TjID == ss.TjIDs[ii]) {
@@ -1643,13 +1603,15 @@ namespace tca {
       }
     } // ii
     if(!gotit) return false;
+    tj.SSID = 0;
     // Removing a parent Tj?
     if(TjID == ss.ParentID) ss.ParentID = 0;
     // re-build everything?
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Remove T"<<TjID<<" from 2S"<<ss.ID;
+    // clear out the shower points to force a complete update when UpdateShower is next called
+    ss.ShPts.clear();
     if(doUpdate) {
-      // clear out the shower points to force a complete update
-      ss.ShPts.clear();
+      ss.NeedsUpdate = true;
       return UpdateShower(fcnLabel, tjs, ss, prt);
     }
     return true;
@@ -1671,13 +1633,7 @@ namespace tca {
     
     std::string fcnLabel = inFcnLabel + ".FPar";
     
-    double energy = 0;
-    for(auto cid : ss3.CotIDs) {
-      auto& ss = tjs.cots[cid - 1];
-      if(ss.Energy <= 0) std::cout<<"3S"<<ss3.ID<<" energy not defined\n";
-      energy += ss.Energy;
-    } // ci
-    energy /= (double)ss3.CotIDs.size();
+    double energy = ShowerEnergy(ss3);
     // the energy is probably under-estimated since there isn't a parent yet.
     energy *= 1.2;
     double shMaxAlong, along95;
@@ -1703,21 +1659,29 @@ namespace tca {
     // |<----shMaxAlong--->|                                     |<----shMaxAlong--->|
     //
     // Any pfp that starts between -alongCut and +alongCut is not a candidate
-    float alongCut = 0.5 * shMaxAlong;
+    float alongCut = shMaxAlong;
+    if(energy > 500) alongCut *= 0.5;
     // min cos angle btw the shower direction and the pfp direction (0.1 radians)
     float maxCosth = 0.995;
+    if(energy < 100) maxCosth = 0.7;
     // Candidate parent ID for each end and the FOM 
     std::array<int, 2> parID {{0, 0}};
-    std::array<float, 2> parFOM {{10., 10.}};
+    std::array<float, 2> parFOM {{tjs.ShowerTag[8], tjs.ShowerTag[8]}};
+/*
     std::cout<<"3S"<<ss3.ID<<" ->";
     for(auto ssid : ss3.CotIDs) std::cout<<" 2S"<<ssid;
     std::cout<<"\n";
+*/
     // temp vector to flag pfps that are already parents - indexed by ID
     std::vector<bool> isParent(tjs.pfps.size() + 1, false);
     for(auto& oldSS3 : tjs.showers) {
       if(oldSS3.ID == 0) continue;
       isParent[oldSS3.ParentID] = true;
     } // pfp
+    
+    // put the tjs associated with this shower in a flat vector
+    auto TjsInSS3 = GetAssns(tjs, "3S", ss3.ID, "T");
+    if(TjsInSS3.empty()) return false;
     
     for(auto& pfp : tjs.pfps) {
       if(pfp.ID == 0) continue;
@@ -1728,56 +1692,35 @@ namespace tca {
       if(pfp.PDGCode == 1111) continue;
       // ignore existing parents
       if(isParent[pfp.ID]) continue;
-/*
-      // get a list of 2D showers that are associated with this pfp
-      auto pfp_ss = GetAssns(tjs, "P", pfp.ID, "2S");
-      if(!pfp_ss.empty()) {
-        // There are 2D showers associated with this pfp. See which ones are
-        // associated with this shower and which are different
-        auto shared = SetIntersection(pfp_ss, ss3.CotIDs);
-        // this pfp is associated with 2D showers that aren't associated with this 3D shower
-        if(shared.empty()) continue;
-        auto setDiff = SetDifference(pfp_ss, ss3.CotIDs);
-        if(!setDiff.empty()) {
-          std::cout<<" P"<<pfp.ID<<" ->";
-          for(auto tjid : pfp.TjIDs) std::cout<<" T"<<tjid;
-          std::cout<<" -> sslist:";
-          for(auto ssid : pfp_ss) std::cout<<" 2S"<<ssid;
-          std::cout<<" shared:";
-          for(auto id : shared) std::cout<<" 2S"<<id;
-          std::cout<<" setDiff:";
-          for(auto id : setDiff) std::cout<<" 2S"<<id;
-          std::cout<<"\n";
-        } // !setDiff.empty()
-      } // !sslist.empty()
-*/
+      // check for inconsistent pfp - shower tjs 
+      if(DontCluster(tjs, pfp.TjIDs, TjsInSS3)) continue;
       // find the end that is farthest away
       unsigned short pEnd = FarEnd(tjs, pfp, ss3.ChgPos);
       auto pToS = PointDirection(pfp.XYZ[pEnd], ss3.ChgPos);
       double costh = DotProd(pToS, ss3.Dir);
-//      std::cout<<fcnLabel<<" 3S"<<ss3.ID<<" P"<<pfp.ID<<"_"<<pEnd<<" costh "<<costh<<"\n";
       if(std::abs(costh) < 0.5) continue;
-      unsigned short shEnd = 0;
-      if(costh > 0) shEnd = 1;
+      unsigned short shEnd = 1;
+      if(PosSep2(pfp.XYZ[pEnd], ss3.Start) < PosSep2(pfp.XYZ[pEnd], ss3.ChgPos)) shEnd = 0;
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<"_"<<shEnd<<" P"<<pfp.ID<<"_"<<pEnd<<" costh "<<costh;
       Point2_t alongTrans;
       // find the longitudinal and transverse components of the pfp start point relative to the
       // shower center
       FindAlongTrans(ss3.ChgPos, ss3.Dir, pfp.XYZ[pEnd], alongTrans);
-//      std::cout<<fcnLabel<<"   alongTrans[0] "<<alongTrans[0]<<" alongCut "<<alongCut<<"\n";
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"   alongTrans[0] "<<alongTrans[0]<<" alongCut "<<alongCut;
       if(std::abs(alongTrans[0]) > alongCut) continue;
       // find the probability this point is inside the shower. Offset by the expected
       // shower max distance. distToShowerMax will be > 0 if the pfp end is closer to
       // ChgPos than expected from the parameterization
       float distToShowerMax = shMaxAlong - std::abs(alongTrans[0]);
       float prob = InShowerProbLong(energy, distToShowerMax);
-//      std::cout<<fcnLabel<<"        prob "<<prob<<"\n";
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"        prob "<<prob;
       if(prob < 0.1) continue;
       // use the overall pfp direction instead of the starting direction. It may not be so
       // good if the shower develops quickly
       auto pfpDir = PointDirection(pfp.XYZ[pEnd], pfp.XYZ[1 - pEnd]);
       costh = DotProd(pfpDir, ss3.Dir);
-//      std::cout<<fcnLabel<<"           costh "<<costh<<"\n";
-      if(std::abs(costh) > maxCosth) continue;
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"           costh "<<costh;
+      if(std::abs(costh) < 0.6) continue;
       // find the parentFOM
       float candParFOM = ParentFOM(fcnLabel, tjs, pfp, pEnd, ss3, prt);
       if(prt) {
@@ -1796,13 +1739,37 @@ namespace tca {
       } 
     } // pfp
     
-    int bestPFP = parID[0];
-    if(bestPFP == 0 && parID[1] > 0 && parID[1] < 1) {
-      // TODO: see if this makes sense before doing it?
+    if(parID[0] == 0 && parID[1] == 0) return true;
+
+
+    // decide which to use
+    int bestPFP = 0;
+    // find the average DirectionFOM to help decide
+    float aveDirFOM = 0;
+    float fom3D = 0;
+    for(auto cid : ss3.CotIDs) aveDirFOM += tjs.cots[cid - 1].DirectionFOM;
+    aveDirFOM /= (float)ss3.CotIDs.size();
+    if(prt) {
+      mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" parID[0] "<<parID[0]<<" fom "<<parFOM[0]<<" parID[1] "<<parID[1]<<" fom "<<parFOM[1]<<" aveDirFOM "<<aveDirFOM;
+    }
+    if(parID[0] > 0 && parID[1] > 0 && aveDirFOM > 0.3) {
+      // candidates at both ends and the direction is not well known. Take
+      // the one with the best FOM
+      bestPFP = parID[0];
+      fom3D = parFOM[0];
+      if(parFOM[1] < parFOM[0]) {
+        bestPFP = parID[1];
+        fom3D = parFOM[1];
+      }
+    } else if(parID[0] > 0) {
+      bestPFP = parID[0];
+      fom3D = parFOM[0];
+    } else {
       bestPFP = parID[1];
+      fom3D = parFOM[1];
     }
     if(bestPFP == 0) return true;
-    mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" best P"<<bestPFP;
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" setting P"<<bestPFP<<" as the parent";
     
     // make local copies so we can recover from a failure
     auto oldSS3 = ss3;
@@ -1821,6 +1788,8 @@ namespace tca {
     bool failed = false;
     for(auto cid : ss3.CotIDs) {
       auto& ss = tjs.cots[cid - 1];
+      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+      stj.VtxID[0] = 0;
       if(ss.ParentID > 0) {
         auto& oldParent = tjs.allTraj[ss.ParentID - 1];
         oldParent.AlgMod[kShwrParent] = false;
@@ -1839,6 +1808,16 @@ namespace tca {
         } // parent not in ss
         // now define it as the parent
         ss.ParentID = tjid;
+        ss.NeedsUpdate = true;
+        // set the ss start vertex
+        if(ss3.Vx3ID > 0) {
+          auto& vx3 = tjs.vtx3[ss3.Vx3ID - 1];
+          auto v2list = GetAssns(tjs, "3V", vx3.ID, "2V");
+          for(unsigned short end = 0; end < 2; ++end) {
+            if(tj.VtxID[end] <= 0) continue;
+            if(std::find(v2list.begin(), v2list.end(), tj.VtxID[end]) != v2list.end()) stj.VtxID[0] = tj.VtxID[end];
+          } // end
+        } // ss3.Vx3ID > 0
         // and update
         if(!UpdateShower(fcnLabel, tjs, ss, prt)) {
           failed = true;
@@ -1858,16 +1837,30 @@ namespace tca {
         tjs.cots[ss.ID - 1] = ss;
       } // ii
       return false;
-    }
+    } // failure
     
-    ss3.NeedsUpdate = false;
+    if(!UpdateShower(fcnLabel, tjs, ss3, prt)) {
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" UpdateShower 3D failed. Recovering...";
+      ss3 = oldSS3;
+      for(unsigned short ii = 0; ii < oldSS.size(); ++ii) {
+        auto& ss = oldSS[ii];
+        tjs.cots[ss.ID - 1] = ss;
+      } // ii
+      return false;
+    } // UpdateShower failed
+    
+    // set the 2D FOMs
+    for(auto cid : ss3.CotIDs) {
+      auto& ss = tjs.cots[cid - 1];
+      ss.ParentFOM = fom3D;
+    }
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" successful update";
     return true;
     
   } // FindParent
   
   ////////////////////////////////////////////////
-  unsigned short FarEnd(TjStuff& tjs, const Trajectory& tj, Point2_t& pos)
+  unsigned short FarEnd(const TjStuff& tjs, const Trajectory& tj, const Point2_t& pos)
   {
     // Returns the end (0 or 1) of the Tj that is furthest away from the position pos
     if(tj.ID == 0) return 0;
@@ -1876,7 +1869,7 @@ namespace tca {
   } // FarEnd
 
   ////////////////////////////////////////////////
-  unsigned short FarEnd(TjStuff& tjs, const PFPStruct& pfp, Point3_t& pos)
+  unsigned short FarEnd(const TjStuff& tjs, const PFPStruct& pfp, const Point3_t& pos)
   {
     // Returns the end (0 or 1) of the pfp that is furthest away from the position pos
     if(pfp.ID == 0) return 0;
@@ -1913,7 +1906,7 @@ namespace tca {
     unsigned short cnt = 0;
     for(auto tjid : TjIDs) {
       auto& tj = tjs.allTraj[tjid - 1];
-      if(tj.AlgMod[kInShower]) ++cnt;
+      if(tj.SSID > 0) ++cnt;
     } // tjid
     return (cnt > 1);
   } // IsInShower
@@ -1925,7 +1918,7 @@ namespace tca {
     // shMaxAlong = the longitudinal distance (cm) between the start of the shower and the center of charge
     // along95 = the longitudinal distance (cm) between the start of the shower and 95% energy containment
     // all units are in cm
-    if(showerEnergy < 50) {
+    if(showerEnergy < 10) {
       shMaxAlong = 0;
       along95 = 0;
       return;
@@ -1959,7 +1952,7 @@ namespace tca {
     // Returns the likelihood that the point at position along (cm) is inside an EM shower
     // having showerEnergy (MeV). The variable along is relative to shower start.
     
-    if(showerEnergy < 50) return 0;
+    if(showerEnergy < 10) return 0;
     
     double shMaxAlong, shE95Along;
     ShowerParams(showerEnergy, shMaxAlong, shE95Along);
@@ -1993,7 +1986,7 @@ namespace tca {
     // Returns the likelihood that the point, (along, trans) (cm), is inside an EM shower having energy showerEnergy (MeV)
     // where along is relative to the shower start position and trans is the radial distance. 
 
-    if(showerEnergy < 50) return 0;
+    if(showerEnergy < 10) return 0;
     double rms = ShowerParamTransRMS(showerEnergy, along);
     trans = std::abs(trans);
     double prob = exp(-0.5 * trans / rms);
@@ -2008,68 +2001,69 @@ namespace tca {
   } // InShowerProbParam
 
   ////////////////////////////////////////////////
-  float InShowerProb(std::string inFcnLabel, const TjStuff& tjs, const ShowerStruct3D& ss3, const PFPStruct& pfp)
+  float InShowerProb(const TjStuff& tjs, const ShowerStruct3D& ss3, const PFPStruct& pfp)
   {
     // returns a likelihood (0 - 1) that the pfp particle belongs in shower ss3
     
-    std::string fcnLabel = inFcnLabel + ".ISP";
-    
-    // Find the average energy
-    double energy = 0;
-    double cnt = 0;
-    for(auto nrg : ss3.Energy) {
-      if(nrg <= 0) continue;
-      energy += nrg;
-      ++cnt;
-    } // nrg
+    if(ss3.ID == 0 | pfp.ID == 0) return 0;
+    float sum = 0;
+    float cnt = 0;
+    for(auto cid : ss3.CotIDs) {
+      auto& ss = tjs.cots[cid - 1];
+      if(ss.ID == 0) continue;
+      for(auto tid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tid - 1];
+        if(tj.CTP != ss.CTP) continue;
+//        std::cout<<"3S"<<ss3.ID<<" P"<<pfp.ID<<" ";
+        sum += InShowerProb(tjs, ss, tj);
+        ++cnt;
+      } // tid
+    } //cid
     if(cnt == 0) return 0;
-    energy /= cnt;
-    mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" energy "<<energy;
+    return sum / cnt;
+
+  } // InShowerProb
+  
+  ////////////////////////////////////////////////
+  float InShowerProb(const TjStuff& tjs, const ShowerStruct& ss, const Trajectory& tj)
+  {
+    // returns a likelihood (0 - 1) that the tj particle belongs in shower ss
+    // Keep it simple: construct a FOM, take the inverse and limit it to the range 0 - 1
+    if(ss.ID == 0 || tj.ID == 0) return 0;
+    if(ss.CTP != tj.CTP) return 0;
+    
+    auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+    if(stj.Pts.size() != 3) return 0;
+    unsigned short closePt1, closePt2;
+    float doca = 1E6;
+    TrajTrajDOCA(tjs, stj, tj, closePt1, closePt2, doca);
+    if(doca == 1E6) return 0;
+    float showerLen = PosSep(stj.Pts[0].Pos, stj.Pts[2].Pos);
+    // make a rough separation cut. Return a small but non-zero value
+    if(doca > 5 * showerLen) return 0.01;
+    auto& stp = stj.Pts[closePt1];
+    if(stp.DeltaRMS == 0) return 0;
+    auto& ttp = tj.Pts[closePt2];
     Point2_t alongTrans;
-    for(unsigned short end = 0; end < 2; ++end) {
-      FindAlongTrans(ss3.Start, ss3.Dir, pfp.XYZ[end], alongTrans);
-      mf::LogVerbatim("TC")<<" P"<<pfp.ID<<" end "<<end<<" prob "<<InShowerProbParam(energy, alongTrans[0], alongTrans[1]);
-    } // end
-    return 0;
-/*
-    // pull on the angle difference
-    double dangPull = 0;
-    double pfpLen = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
-    // calculate the angle pull if it is long enough
-    if(pfpLen > 5) {
-      double costh = std::abs(DotProd(ss3.Dir, pfp.Dir[0]));
-      // assume the shower opening angle should be 0.15 for 90% containment which is about
-      // 2+ sigma
-      double dangErr = 0.07;
-      dangPull = acos(costh) / dangErr;
-      if(dangPull) return 0;
-    } // pfpLen > 5 cm
-    // find the closest approach
-    // Create a temp pfp with Tp3s populated along the shower axis
-    auto shPFP = CreateFakePFP(tjs, ss3);
-    double minSep2 = 1E6;
-    unsigned short minSepPt = 0;
-    double maxSep2 = 0;
-    unsigned short maxSepPt = 0;
-    for(unsigned short end = 0; end < 2; ++end) {
-      for(unsigned short ipt = 0; ipt < shPFP.Tp3s.size(); ++ipt) {
-        auto& tp3 = shPFP.Tp3s[ipt];
-        // find separation^2 btw each point on the fake PFP and the end points of the pfp that
-        // we are evaluating
-        double sep2 = PosSep2(tp3.Pos, pfp.XYZ[end]); 
-        if(sep2 < minSep2) {
-          minSep2 = sep2;
-          minSepPt = ipt;
-        } // minSep2 test
-        if(sep2 > maxSep2) {
-          maxSep2 = sep2;
-          maxSepPt = ipt;
-        } // maxSep2 test
-      } // tp3
-    } // end
-    std::cout<<"minSepPt "<<minSepPt<<" maxSepPt "<<maxSepPt<<"\n";
-    return 0;
-*/
+    FindAlongTrans(stp.Pos, stp.Dir, ttp.Pos, alongTrans);
+//    std::cout<<"ISP: 2S"<<ss.ID<<" T"<<tj.ID<<" showerLen "<<(int)showerLen<<" closePt "<<closePt1;
+//    std::cout<<" closePt "<<closePt2<<" along "<<std::fixed<<std::setprecision(1)<<alongTrans[0]<<" "<<alongTrans[1];
+    float rms = stp.DeltaRMS;
+    if(rms < 1) rms = 1;
+    float arg = alongTrans[1] / rms;
+    float radProb = exp(-0.5 * arg * arg);
+//    std::cout<<" rms "<<rms<<" radProb "<<std::setprecision(3)<<radProb;
+    // This is a fake but may be OK if this function is called before the shower is well-defined
+    rms = showerLen;
+    arg = alongTrans[0] / rms;
+    float longProb = exp(-0.5 * arg * arg);
+//    std::cout<<" longProb "<<std::setprecision(3)<<longProb;
+    float costh = std::abs(DotProd(stp.Dir, ttp.Dir));
+//    std::cout<<" costh "<<std::setprecision(3)<<costh;
+    float prob = radProb * longProb * costh;
+//    std::cout<<" InShowerProb "<<std::setprecision(3)<<prob<<"\n";
+    return prob;
+
   } // InShowerProb
   
   ////////////////////////////////////////////////
@@ -2178,7 +2172,8 @@ namespace tca {
       VtxStore& vx2 = tjs.vtx[tj.VtxID[tjEnd] - 1];
       vx2Sep = PosSep(vx2.Pos, stp1.Pos);
       vx2Score = vx2.Score;
-      tjlist = GetVtxTjIDs(tjs, vx2);
+      tjlist = GetAssns(tjs, "2V", vx2.ID, "T");
+//      tjlist = GetVtxTjIDs(tjs, vx2);
       vxFOM = std::abs(shMaxAlong - vx2Sep) / 20;
     } // 2D vertex exists
     fom += vxFOM;
@@ -2287,6 +2282,7 @@ namespace tca {
           if(ss2.CTP != inCTP) continue;
           if(ss2.ID == 0) continue;
           if(ss2.TjIDs.empty()) continue;
+          if(DontCluster(tjs, ss1.TjIDs, ss2.TjIDs)) continue;
           std::vector<int> ss2list = ss2.TjIDs;
           ss2list.insert(ss2list.end(), ss2.NearTjIDs.begin(), ss2.NearTjIDs.end());
           std::vector<int> shared = SetIntersection(ss1list, ss2list);
@@ -2373,6 +2369,7 @@ namespace tca {
           if(jss.ID == 0) continue;
           if(jss.TjIDs.empty()) continue;
           if(jss.CTP != iss.CTP) continue;
+          if(DontCluster(tjs, iss.TjIDs, jss.TjIDs)) continue;
           bool doMerge = false;
           for(auto& ivx : iss.Envelope) {
             doMerge = PointInsideEnvelope(ivx, jss.Envelope);
@@ -2389,7 +2386,7 @@ namespace tca {
             for(auto& ivx : iss.Envelope) {
               for(auto& jvx : jss.Envelope) {
                 if(PosSep2(ivx, jvx) < sepCut2) {
-                  if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Envelopes "<<ict<<" "<<jct<<" are close "<<PosSep(ivx, jvx)<<" cut "<<tjs.ShowerTag[2];
+                  if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Envelopes 2S"<<iss.ID<<" 2S"<<jss.ID<<" are close "<<PosSep(ivx, jvx)<<" cut "<<tjs.ShowerTag[2];
                   doMerge = true;
                   break;
                 }
@@ -2398,6 +2395,29 @@ namespace tca {
             } // ivx
           } // !domerge
           if(!doMerge) continue;
+          // check the relative positions and angle differences. Determine which tps are the
+          // closest. Don't merge if the closest points are at the shower start and the angle
+          // difference is large
+          unsigned short iClosePt = 0;
+          unsigned short jClosePt = 0;
+          float close = 1E6;
+          auto& istj = tjs.allTraj[iss.ShowerTjID - 1];
+          auto& jstj = tjs.allTraj[jss.ShowerTjID - 1];
+          for(unsigned short ipt = 0; ipt < 3; ++ipt) {
+            for(unsigned short jpt = 0; jpt < 3; ++jpt) {
+              float sep = PosSep2(istj.Pts[ipt].Pos, jstj.Pts[jpt].Pos);
+              if(sep < close) {
+                close = sep;
+                iClosePt = ipt;
+                jClosePt = jpt;
+              }
+            } // jpt
+          } // ipt
+          float costh = DotProd(istj.Pts[0].Dir, jstj.Pts[0].Dir);
+          if(iClosePt == 0 && jClosePt == 0 && costh < 0.955) {
+            if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" showers are close at the start points with costh "<<costh<<". Don't merge";
+            continue;
+          }
           if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Merge "<<iss.ID<<" and "<<jss.ID;
           if(MergeShowersAndStore(fcnLabel, tjs, iss.ID, jss.ID, prt)) {
             Trajectory& stj = tjs.allTraj[iss.ShowerTjID - 1];
@@ -2465,7 +2485,9 @@ namespace tca {
       std::vector<int> chain;
       float sepij = PosSep(tpList[ii].Pos, tpList[jj].Pos);
       if(sepij > minSep) continue;
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" i2S"<<iss.ID<<" "<<PrintPos(tjs, tpList[ii].Pos)<<" j2S"<<jss.ID<<" "<<PrintPos(tjs, tpList[jj].Pos)<<" sepij "<<sepij;
+      bool skipit = DontCluster(tjs, iss.TjIDs, jss.TjIDs);
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" i2S"<<iss.ID<<" "<<PrintPos(tjs, tpList[ii].Pos)<<" j2S"<<jss.ID<<" "<<PrintPos(tjs, tpList[jj].Pos)<<" sepij "<<sepij<<" skipit? "<<skipit;
+      if(skipit) continue;
       // draw a line between these points
       TrajPoint tp;
       MakeBareTrajPoint(tjs, tpList[ii], tpList[jj], tp);
@@ -2492,8 +2514,8 @@ namespace tca {
             if(prt) {
               mf::LogVerbatim myprt("TC");
               myprt<<fcnLabel<<" merged chain";
-              for(auto ssID : chain) myprt<<" "<<ssID;
-              myprt<<" -> new ssID "<<newID;
+              for(auto ssID : chain) myprt<<" 2S"<<ssID;
+              myprt<<" -> 2S"<<newID;
             } // prt
           } // long chain
           chain.clear();
@@ -2514,10 +2536,12 @@ namespace tca {
       // push the last one
       if(chain.size() > 2) {
         int newID = MergeShowers(fcnLabel, tjs, chain, prt);
+/*
         if(newID > 0) {
           auto& newss = tjs.cots[newID - 1];
           if(AddTjsInsideEnvelope(fcnLabel, tjs, newss, prt)) UpdateShower(fcnLabel, tjs, newss, prt);
         }
+*/
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<fcnLabel<<" merged chain";
@@ -2530,6 +2554,113 @@ namespace tca {
   } // MergeShowerChain
   
   ////////////////////////////////////////////////
+  void MergeSubShowersTj(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, bool prt)
+  {
+    // merge small showers that are downstream of shower-like tjs. This algorithm is written 
+    // for low-energy showers with are likely to be sparse and poorly defined.
+    
+    if(!tjs.UseAlg[kMergeSubShowersTj]) return;
+    
+    std::string fcnLabel = inFcnLabel + ".MSSTj";
+    
+    struct TjSS {
+      int ssID;
+      int tjID;
+      float dang;
+    };
+    std::vector<TjSS> tjss;
+    
+    // temp vector for DontCluster
+    std::vector<int> tjid(1);
+    for(auto& ss : tjs.cots) {
+      if(ss.ID == 0) continue;
+      if(ss.CTP != inCTP) continue;
+      // TODO: Evaluate this cut
+      if(ss.Energy > 300) continue;
+      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+      auto stp0 = stj.Pts[0];
+      float bestDang = 0.3;
+      int bestTj = 0;
+      // look for a Tj that has higher energy than the shower
+      for(auto& tj : tjs.allTraj) {
+        if(tj.AlgMod[kKilled]) continue;
+        if(tj.CTP != ss.CTP) continue;
+        // require that it isn't in any shower
+        if(tj.SSID > 0) continue;
+        // require it to be not short
+        if(NumPtsWithCharge(tjs, tj, false) < 10) continue;
+        // and satisfy the ShowerLike MCSMom cut. It is unlikely to be tagged shower-like
+        if(tj.MCSMom > tjs.ShowerTag[1]) continue;
+        // check consistency
+        tjid[0] = tj.ID;
+        if(DontCluster(tjs, tjid, ss.TjIDs)) continue;
+        float tjEnergy = ChgToMeV(tj.TotChg);
+        // find the end that is furthest away from the shower center
+        unsigned short farEnd = FarEnd(tjs, tj, stj.Pts[1].Pos);
+        // compare MCSMom at the far end and the near end
+        unsigned short midpt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
+        float mom1 = MCSMom(tjs, tj, tj.EndPt[farEnd], midpt);
+        float mom2 = MCSMom(tjs, tj, tj.EndPt[1 - farEnd], midpt);
+        float asym = (mom1 - mom2) / (mom1 + mom2);
+        auto& farTP = tj.Pts[tj.EndPt[farEnd]];
+        // IP btw the far end TP and the shower center
+        float doca = PointTrajDOCA(tjs, stp0.Pos[0], stp0.Pos[1], farTP);
+        float sep = PosSep(farTP.Pos, stp0.Pos);
+        float dang = doca / sep;
+        if(prt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<fcnLabel<<" Candidate 2S"<<ss.ID<<" T"<<tj.ID<<"_"<<farEnd;
+          myprt<<" ShEnergy "<<(int)ss.Energy<<" tjEnergy "<<(int)tjEnergy;
+          myprt<<" doca "<<doca<<" sep "<<sep<<" dang "<<dang<<" asym "<<asym;
+        }
+        if(tjEnergy < ss.Energy) continue;
+        if(asym < 0.5) continue;
+        // TODO: This should be done more carefully
+        // separation cut 100 WSE ~ 30 cm in uB
+        if(sep > 100) continue;
+        if(dang > bestDang) continue;
+        bestDang = dang;
+        bestTj = tj.ID;
+      } // tj
+      if(bestTj == 0) continue;
+      TjSS match;
+      match.ssID = ss.ID;
+      match.tjID = bestTj;
+      match.dang = bestDang;
+      tjss.push_back(match);
+    } // ss
+    
+    if(tjss.empty()) return;
+    
+    // ensure that a tj is only put in one shower
+    bool keepGoing = true;
+    while(keepGoing) {
+      keepGoing = false;
+      float bestDang = 0.3;
+      int bestMatch = USHRT_MAX;
+      for(unsigned short mat = 0; mat < tjss.size(); ++mat) {
+        auto& match = tjss[mat];
+        // already used
+        if(match.dang < 0) continue;
+        if(match.dang < bestDang) bestMatch = mat;
+      } // mat
+      if(bestMatch < tjss.size()) {
+        auto& match = tjss[bestMatch];
+        auto& ss = tjs.cots[match.ssID - 1];
+        if(!AddTj(fcnLabel, tjs, match.tjID, ss, true, prt)) {
+          if(prt) mf::LogVerbatim("TC")<<" Failed";
+          continue;
+        }
+        match.dang = -1;
+        // set the AlgMod bit
+        auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+        stj.AlgMod[kMergeSubShowersTj] = true;
+        keepGoing = true;
+      } // found bestMatch
+    } // keepGoing
+  } // MergeSubShowersTj
+  
+  ////////////////////////////////////////////////
   void MergeSubShowers(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, bool prt)
   {
     // Merge small showers that are downstream of larger showers
@@ -2537,9 +2668,8 @@ namespace tca {
     if(!tjs.UseAlg[kMergeSubShowers]) return;
     
     std::string fcnLabel = inFcnLabel + ".MSS";
-    
-
     bool newCuts = (tjs.ShowerTag[0] == 4);
+    constexpr float radLen = 14 / 0.3;
     
     if(prt) {
       if(newCuts) {
@@ -2548,8 +2678,6 @@ namespace tca {
         mf::LogVerbatim("TC")<<fcnLabel<<" MergeSubShowers checking using radiation length cut ";
       }
     } // prt
-
-    constexpr float radLen = 14 / 0.3;
     
     bool keepMerging = true;
     while(keepMerging) {
@@ -2581,6 +2709,7 @@ namespace tca {
         for(unsigned short jj = ii + 1; jj < sortVec.size(); ++jj) {
           ShowerStruct& jss = tjs.cots[sortVec[jj].index];
           if(jss.ID == 0) continue;
+          if(DontCluster(tjs, iss.TjIDs, jss.TjIDs)) continue;
           TrajPoint& jstp1 = tjs.allTraj[jss.ShowerTjID - 1].Pts[1];
           if(newCuts) {
             // find the longitudinal and transverse separation using the higher energy
@@ -2653,7 +2782,7 @@ namespace tca {
     // ensure the InShower Tjs are valid
     for(auto tjID : tjl) {
       auto& tj = tjs.allTraj[tjID - 1];
-      if(tj.CTP != ss0.CTP || tj.AlgMod[kKilled] || !tj.AlgMod[kInShower]) {
+      if(tj.CTP != ss0.CTP || tj.AlgMod[kKilled]) {
         std::cout<<fcnLabel<<" bad InShower Tj "<<tjID<<"\n";
         return 0;
       }
@@ -2671,6 +2800,11 @@ namespace tca {
     // in with the new
     auto newss = CreateSS(tjs, tjl);
     if(newss.ID == 0) return 0;
+    
+    for(auto tid : tjl) {
+      auto& tj = tjs.allTraj[tid - 1];
+      tj.SSID = newss.ID;
+    } // tid
     
     // define the new shower
     if(!UpdateShower(fcnLabel, tjs, newss, prt)) {
@@ -2735,13 +2869,17 @@ namespace tca {
     // transfer the list of Tj IDs
     iss.TjIDs.insert(iss.TjIDs.end(), jss.TjIDs.begin(), jss.TjIDs.begin());
     std::sort(iss.TjIDs.begin(), iss.TjIDs.end());
-    // clear the list of nearby Tjs
-    iss.NearTjIDs.clear();
+    // correct the assn
+    for(auto tid : iss.TjIDs) {
+      auto& tj = tjs.allTraj[tid - 1];
+      tj.SSID = iss.ID;
+    } // tid
+    // merge the list of nearby Tjs
+    iss.NearTjIDs.insert(iss.NearTjIDs.end(), jss.NearTjIDs.begin(), jss.NearTjIDs.end());
     // append the list of matched Tjs
     iss.ParentID = 0;
     iss.NeedsUpdate = true;
     jss.ID = 0;
-//    bool success = DefineShower(fcnLabel, tjs, icotID, prt);
     bool success = UpdateShower(fcnLabel, tjs, iss, prt);
  
     return success;
@@ -3029,7 +3167,7 @@ namespace tca {
       Trajectory& tj = tjs.allTraj[tjID - 1];
       tj.AlgMod[kKilled] = false;
       // clear all of the shower-related bits
-      tj.AlgMod[kInShower] = false;
+      tj.SSID = 0;
       tj.AlgMod[kShwrParent] = false;
       tj.AlgMod[kMergeOverlap] = false;
       tj.AlgMod[kMergeSubShowers] = false;
@@ -3048,15 +3186,313 @@ namespace tca {
   } // MakeShowerObsolete
   
   ////////////////////////////////////////////////
-  void TagShowerLike(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList, bool applyMinTjCuts)
+  bool DontCluster(TjStuff& tjs, std::vector<int>& tjlist1, std::vector<int>& tjlist2)
+  {
+    // returns true if a pair of tjs in the two lists are in the dontCluster vector
+    if(tjlist1.empty() || tjlist2.empty()) return false;
+    if(tjs.dontCluster.empty()) return false;
+    for(auto tid1 : tjlist1) {
+      for(auto tid2 : tjlist2) {
+        if(tid1 > tid2) std::swap(tid1, tid2);
+        for(auto& dc : tjs.dontCluster) if(dc[0] == tid1 && dc[1] == tid2) return true;
+      } // dc
+    } // tid1
+    return false;
+  } // DontCluster
+  
+  ////////////////////////////////////////////////
+  void DefineDontCluster(TjStuff& tjs, const geo::TPCID& tpcid)
+  {
+    // make a list of tj pairs that pass the cuts, but shouldn't be clustered for
+    // different reasons, e.g. are likely parent tjs in different showers, are both attached
+    // to the same high-score vertex, etc
+    
+    tjs.dontCluster.clear();
+    unsigned int tpc = tpcid.TPC;
+    unsigned int cstat = tpcid.Cryostat;
+    std::array<int, 2> dc;
+    for(unsigned int ii = 0; ii < tjs.allTraj.size() - 1; ++ii) {
+      auto& t1 = tjs.allTraj[ii];
+      if(t1.AlgMod[kKilled]) continue;
+      if(!t1.AlgMod[kMat3D]) continue;
+      if(DecodeCTP(t1.CTP).TPC != tpc) continue;
+      if(DecodeCTP(t1.CTP).Cryostat != cstat) continue;
+      // skip short tjs
+      if(t1.EndPt[1] - t1.EndPt[0] < 5) continue;
+      auto t1InP = GetAssns(tjs, "T", t1.ID, "P");
+      if(t1InP.empty()) continue;
+      auto& p1 = tjs.pfps[t1InP[0] - 1];
+      for(unsigned int jj = ii + 1; jj < tjs.allTraj.size(); ++jj) {
+        auto& t2 = tjs.allTraj[jj];
+        if(t2.AlgMod[kKilled]) continue;
+        if(!t2.AlgMod[kMat3D]) continue;
+        if(t2.CTP != t1.CTP) continue;
+        // skip short tjs
+        if(t2.EndPt[1] - t2.EndPt[0] < 5) continue;
+        auto t2InP = GetAssns(tjs, "T", t2.ID, "P");
+        if(t2InP.empty()) continue;
+        auto& p2 = tjs.pfps[t2InP[0] - 1];
+        unsigned short closePt1, closePt2;
+        float doca = PFPDOCA(p1, p2, closePt1, closePt2);
+        if(doca > 6) continue;
+        unsigned short end1 = 0;
+        if(PosSep2(p1.Tp3s[closePt1].Pos, p1.XYZ[1]) < PosSep2(p1.Tp3s[closePt1].Pos, p1.XYZ[0])) end1 = 1;
+        unsigned short end2 = 0;
+        if(PosSep2(p2.Tp3s[closePt2].Pos, p2.XYZ[1]) < PosSep2(p2.Tp3s[closePt2].Pos, p2.XYZ[0])) end2 = 1;
+        if(p1.Vx3ID[end1] > 0 && p1.Vx3ID[end1] == p2.Vx3ID[end2]) {
+          dc[0] = t1.ID;
+          dc[1] = t2.ID;
+          tjs.dontCluster.push_back(dc);
+          std::cout<<"DontCluster T"<<t1.ID<<"-T"<<t2.ID<<" -> 3V"<<p1.Vx3ID[end1]<<"\n";
+          continue;
+        }
+        float costh = DotProd(p1.Dir[end1], p2.Dir[end2]);
+        if(costh < 0.955) continue;
+        dc[0] = t1.ID;
+        dc[1] = t2.ID;
+        tjs.dontCluster.push_back(dc);
+        std::cout<<"DontCluster T"<<t1.ID<<"-T"<<t2.ID<<" costh "<<costh<<"\n";
+      } // jj
+    } // ii
+    
+    // put the IDs in increasing order
+    for(auto& dc : tjs.dontCluster) if(dc[0] > dc[1]) std::swap(dc[0], dc[1]);
+    
+  } // DefineDontCluster
+  
+  ////////////////////////////////////////////////
+  void FindCots(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjLists, bool prt)
+  {
+    // Version 2 of TagShowerLike to try to improve the separation between close showers, e.g. from pi-zeros
+    tjLists.clear();    
+    if(tjs.ShowerTag[0] <= 0) return;
+
+    // take the average of the low and high charge RMS range to use as a cut
+    float typicalChgRMS = 0.5 * (tjs.ChargeCuts[1] + tjs.ChargeCuts[2]);
+
+    // clear out old tags and make a list of Tjs to consider
+    std::vector<int> tjids;
+    for(auto& tj : tjs.allTraj) {
+      if(tj.CTP != inCTP) continue;
+      if(tj.AlgMod[kKilled]) continue;
+      tj.AlgMod[kShowerLike] = false;
+      if(tj.AlgMod[kShowerTj]) continue;
+      short npwc = NumPtsWithCharge(tjs, tj, false);
+      // Don't expect any (primary) electron to be reconstructed as a single trajectory for
+      // more than ~2 radiation lengths ~ 30 cm for uB ~ 100 wires 
+      if(npwc > 100) continue;
+      // check MCSMom for longish Tjs
+      if(npwc > 5) {
+        // Increase the MCSMom cut if the Tj is long and the charge RMS is high to reduce sensitivity 
+        // to the fcl configuration. A primary electron may be reconstructed as one long Tj with large
+        // charge rms and possibly high MCSMom or as several nearby shorter Tjs with lower charge rms
+        float momCut = tjs.ShowerTag[1];
+        if(tj.ChgRMS > typicalChgRMS) momCut *= tj.ChgRMS / typicalChgRMS;
+        if(tj.MCSMom > momCut) continue;
+      }
+      tjids.push_back(tj.ID);
+    } // tj
+    
+    if(tjids.size() < 2) return;
+    
+    struct ClosePair {
+      float doca;               // distance of closest approach between the tj pair
+      int id1;       // id of the first tj
+      int id2;       // id of the second tj
+      unsigned short closePt1;  // index of the closest point on tj1
+      unsigned short closePt2;  // index of the closest point on tj2
+      bool used;                // set true when this pair is used
+    };
+    // min separation between tjs
+    std::vector<ClosePair> cps;    
+    // list of tjs that are close
+    std::vector<int> closeTjs;
+    for(unsigned short it1 = 0; it1 < tjids.size() - 1; ++it1) {
+      Trajectory& t1 = tjs.allTraj[tjids[it1] - 1];
+      bool t1TrackLike = (t1.MCSMom > tjs.ShowerTag[1]);
+      auto T1InP = GetAssns(tjs, "T", t1.ID, "P");
+      for(unsigned short it2 = it1 + 1; it2 < tjids.size(); ++it2) {
+        Trajectory& t2 = tjs.allTraj[tjids[it2] - 1];
+        // require one of them to be not tracklike
+        bool t2TrackLike = (t2.MCSMom > tjs.ShowerTag[1]);
+        if(t1TrackLike && t2TrackLike) continue;
+        unsigned short ipt1, ipt2;
+        float doca = tjs.ShowerTag[2];
+        // Find the separation between Tjs without considering dead wires
+        TrajTrajDOCA(tjs, t1, t2, ipt1, ipt2, doca, false);
+        if(doca == tjs.ShowerTag[2]) continue;
+        // see if they are close in 3D if that information exists
+        if(!T1InP.empty()) {
+          auto T2InP = GetAssns(tjs, "T", t2.ID, "P");
+          if(!T2InP.empty()) {
+            auto& p1 = tjs.pfps[T1InP[0] - 1];
+            auto& p2 = tjs.pfps[T2InP[0] - 1];
+            unsigned short closePt1, closePt2;
+            float doca = PFPDOCA(p1, p2, closePt1, closePt2);
+//            float costh = DotProd(p1.Dir[0], p2.Dir[0]);
+//            std::cout<<"chk T"<<t1.ID<<" T"<<t2.ID<<" doca "<<doca<<" costh "<<costh<<"\n";
+            if(doca > tjs.ShowerTag[2] * tjs.WirePitch) continue;
+          } // !T2InP.empty()
+        } // !T1InP.empty()
+
+        // add a new one
+        ClosePair cp;
+        cp.doca = doca;
+        cp.id1 = t1.ID;
+        cp.closePt1 = ipt1;
+        cp.id2 = t2.ID;
+        cp.closePt2 = ipt2;
+        cp.used = false;
+        cps.push_back(cp);
+        if(std::find(closeTjs.begin(), closeTjs.end(), t1.ID) == closeTjs.end()) closeTjs.push_back(t1.ID);
+        if(std::find(closeTjs.begin(), closeTjs.end(), t2.ID) == closeTjs.end()) closeTjs.push_back(t2.ID);
+      } // it2 (t2)
+    } // it1 (t1)
+    
+    if(cps.empty()) return;
+
+    // sort tjList by decreasing length
+    std::vector<SortEntry> sortVec(closeTjs.size());
+    for(unsigned short ii = 0; ii < closeTjs.size(); ++ii) {
+      sortVec[ii].index = ii;
+      auto& tj = tjs.allTraj[closeTjs[ii] - 1];
+      sortVec[ii].length = PosSep(tj.Pts[tj.EndPt[0]].Pos, tj.Pts[tj.EndPt[1]].Pos);
+    } // ii
+    std::sort(sortVec.begin(), sortVec.end(), greaterThan);
+
+
+    // cluster them starting with the longest
+    for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
+      unsigned short indx = sortVec[ii].index;
+      auto& t1 = tjs.allTraj[closeTjs[indx] - 1];
+      // already tagged?
+      if(t1.AlgMod[kShowerLike]) continue;
+//      float t1Len = sortVec[ii].length;
+      // get the general direction
+//      auto t1Dir = PointDirection(t1.Pts[t1.EndPt[0]].Pos, t1.Pts[t1.EndPt[1]].Pos);
+      // start a list of clustered tjs
+      std::vector<int> tlist;
+      tlist.push_back(t1.ID);
+      // try to add other close tjs
+      bool added = true;
+      while(added) {
+        added = false;
+        for(auto& cp : cps) {
+          if(cp.used) continue;
+          // is any ID in tlist equal to cp.id1 or cp.id2?
+          bool isID1 = (std::find(tlist.begin(), tlist.end(), cp.id1) != tlist.end());
+          bool isID2 = (std::find(tlist.begin(), tlist.end(), cp.id2) != tlist.end());
+          if(!(isID1 || isID2)) continue;
+          // determine which one is not in tlist and call it t2
+          unsigned short t2id = cp.id1;
+          if(isID1) t2id = cp.id2;
+          auto& t2 = tjs.allTraj[t2id - 1];
+          // already tagged?
+          if(t2.AlgMod[kShowerLike]) continue;
+          bool skipit = false;
+          for(auto dc : tjs.dontCluster) {
+            if(t1.ID == dc[0] && t2.ID == dc[1]) skipit = true;
+            if(t2.ID == dc[0] && t1.ID == dc[1]) skipit = true;
+          }
+          if(skipit) continue;
+/*
+          float t2Len = PosSep(t2.Pts[t2.EndPt[0]].Pos, t2.Pts[t2.EndPt[1]].Pos);
+          // find the cosine of the angle btw the start of t1 and the start of t2
+          auto t2Dir = PointDirection(t2.Pts[t2.EndPt[0]].Pos, t2.Pts[t2.EndPt[1]].Pos);
+          float costh = std::abs(DotProd(t1Dir, t2Dir));
+*/
+          //          std::cout<<" T"<<t1.ID<<" len "<<t1Len<<" T"<<t2.ID<<" len "<<t2Len<<" costh "<<costh<<" doca "<<cp.doca<<"\n";
+          // don't cluster if this tj is closer to another long tj
+          bool isCloser = false;
+          for(auto& pcp : cps) {
+            if(t1.ID == pcp.id1 || t1.ID == pcp.id2) continue;
+            if(!(t2.ID == pcp.id1 || t2.ID == pcp.id2)) continue;
+            unsigned short oid = pcp.id1;
+            if(oid == t2.ID) oid = pcp.id2;
+            auto otj = tjs.allTraj[oid - 1];
+            float otjLen = PosSep(otj.Pts[otj.EndPt[0]].Pos, otj.Pts[otj.EndPt[1]].Pos);
+//            std::cout<<"tid1 T"<<t1.ID<<" tid2 T"<<t2.ID<<" oid T"<<oid<<"\n";
+            if(pcp.doca < cp.doca && otjLen > 10) isCloser = true;
+          } // pcp
+          if(isCloser) continue;
+          if(std::find(tlist.begin(), tlist.end(), t2.ID) != tlist.end()) continue;
+//          std::cout<<"  add T"<<t2.ID<<" doca "<<cp.doca<<" costh "<<costh<<"\n";
+          tlist.push_back(t2.ID);
+          // call it used
+          cp.used = true;
+          added = true;
+        } // cp
+      } // added
+      if(tlist.size() > 1) {
+        // tag them
+        for(auto tjid : tlist) {
+          auto& tj = tjs.allTraj[tjid - 1];
+          tj.AlgMod[kShowerLike] = true;
+        } // tjid
+        tjLists.push_back(tlist);
+      } // tlist.size() > 1
+    } // ii
+    
+    // Check for leftover tjs and add them if they are shower-like
+    for(auto tjid : closeTjs) {
+      auto& tj = tjs.allTraj[tjid - 1];
+      if(tj.AlgMod[kShowerLike]) continue;
+      // add to an existing list if the doca is small
+      float minDOCA = tjs.ShowerTag[2];
+      // ID of the tj that is closest to tj
+      int cid = 0;
+      for(auto cp : cps) {
+        if(cp.doca > minDOCA) continue;
+        if(cp.id1 != tj.ID && cp.id2 != tj.ID) continue;
+        // check dontCluster
+        bool skipit = false;
+        for(auto dc : tjs.dontCluster) {
+          if(dc[0] == cp.id1 && dc[1] == cp.id2) skipit = true;
+          if(dc[0] == cp.id2 && dc[1] == cp.id1) skipit = true;
+        } // dc
+        if(skipit) continue;
+        minDOCA = cp.doca;
+        cid = cp.id1;
+        if(tj.ID == cp.id1) cid = cp.id2;
+      } // cp
+//      std::cout<<"orphan T"<<tj.ID<<" is close to T"<<cid<<"\n";
+      if(cid > 0) {
+        // determine which tjlist cid is in
+        bool didit = false;
+        for(auto& tjl : tjLists) {
+          if(std::find(tjl.begin(), tjl.end(), cid) != tjl.end()) {
+            tjl.push_back(tjid);
+            didit = true;
+            break;
+          }
+        } // tjl
+        if(didit) continue;
+      } // cid > 0
+      std::vector<int> tlist(1, tjid);
+      tjLists.push_back(tlist);
+      tj.AlgMod[kShowerLike] = true;
+    } // tjid
+
+    std::cout<<"FindCots inCTP "<<inCTP<<" tjLists size "<<tjLists.size()<<"\n";
+    for(unsigned short ip = 0; ip < tjLists.size(); ++ip) {
+      auto& tlist = tjLists[ip];
+      std::cout<<"ip "<<ip;
+      for(auto tid : tlist) {
+        std::cout<<" T"<<tid;
+        auto plist = GetAssns(tjs, "T", tid, "P");
+        if(!plist.empty()) std::cout<<"_P"<<plist[0];
+      }
+      std::cout<<"\n";
+    } // ip
+
+
+  } // FindCots
+
+  ////////////////////////////////////////////////
+  void TagShowerLike(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP)
   {
     // Tag Tjs as InShower if they have MCSMom < ShowerTag[0] and there are more than
-    // ShowerTag[6] other Tjs with a separation < ShowerTag[1]. Returns a list of Tjs that meet this criteria.
-    // The shower cuts that are applicable are done here if applyMinTjCuts is true, for example when this function is called
-    // from RunTrajClusterAlg before 3D vertex and tj matching is done. This reduces the number of spurious vertices and 3D matches.
-    // When called from FindShowers3D, applyMinTjCuts is set false and the cuts are applied after 2D showers are reconstructed.
-    
-    tjList.clear();
+    // ShowerTag[6] other Tjs with a separation < ShowerTag[1].     
     
     if(tjs.ShowerTag[0] <= 0) return;
     
@@ -3067,6 +3503,7 @@ namespace tca {
     float typicalChgRMS = 0.5 * (tjs.ChargeCuts[1] + tjs.ChargeCuts[2]);
     
     // clear out old tags and make a list of Tjs to consider
+    std::vector<std::vector<int>> tjLists;
     std::vector<int> tjids;
     for(auto& tj : tjs.allTraj) {
       if(tj.CTP != inCTP) continue;
@@ -3096,11 +3533,7 @@ namespace tca {
     } // tj
     
     if(tjids.size() < 2) return;
-/*
-    std::cout<<inCTP<<"TIST tjids";
-    for(auto tjid : tjids) std::cout<<" T"<<tjid;
-    std::cout<<"\n";
-*/
+
     for(unsigned short it1 = 0; it1 < tjids.size() - 1; ++it1) {
       Trajectory& tj1 = tjs.allTraj[tjids[it1] - 1];
       float len1 = PosSep(tj1.Pts[tj1.EndPt[1]].Pos, tj1.Pts[tj1.EndPt[0]].Pos);
@@ -3113,7 +3546,6 @@ namespace tca {
         if(doca == tjs.ShowerTag[2]) continue;
         // make tighter cuts for user-defined short Tjs
         float len2 = PosSep(tj2.Pts[tj2.EndPt[1]].Pos, tj2.Pts[tj2.EndPt[0]].Pos);
-//        if(doca < 20) std::cout<<inCTP<<" T"<<tj1.ID<<" len "<<(int)len1<<" T"<<tj2.ID<<" len "<<(int)len2<<" doca "<<doca<<"\n"; 
         if(!newCuts) {
           if(len1 < len2 && len1 < doca) {
             if(len1 < doca) continue;
@@ -3123,13 +3555,13 @@ namespace tca {
         } // !newCuts
         // found a close pair. See if one of these is in an existing cluster of Tjs
         bool inlist = false;
-        for(unsigned short it = 0; it < tjList.size(); ++it) {
-          bool tj1InList = (std::find(tjList[it].begin(), tjList[it].end(), tj1.ID) != tjList[it].end());
-          bool tj2InList = (std::find(tjList[it].begin(), tjList[it].end(), tj2.ID) != tjList[it].end());
+        for(unsigned short it = 0; it < tjLists.size(); ++it) {
+          bool tj1InList = (std::find(tjLists[it].begin(), tjLists[it].end(), tj1.ID) != tjLists[it].end());
+          bool tj2InList = (std::find(tjLists[it].begin(), tjLists[it].end(), tj2.ID) != tjLists[it].end());
           if(tj1InList || tj2InList) {
             // add the one that is not in the list
-            if(!tj1InList) tjList[it].push_back(tj1.ID);
-            if(!tj2InList) tjList[it].push_back(tj2.ID);
+            if(!tj1InList) tjLists[it].push_back(tj1.ID);
+            if(!tj2InList) tjLists[it].push_back(tj2.ID);
             inlist = true;
             break;
           }
@@ -3140,47 +3572,15 @@ namespace tca {
           std::vector<int> newlist(2);
           newlist[0] = tj1.ID;
           newlist[1] = tj2.ID;
-          tjList.push_back(newlist);
+          tjLists.push_back(newlist);
         }
       } // it2
     } // it1
-    if(tjList.empty()) return;
-/*
-    std::cout<<"tjLists\n";
-    for(auto& tjl : tjList) {
-      for(auto tjid : tjl) std::cout<<" T"<<tjid;
-      std::cout<<"\n";
-    } // tjl
-*/
-    MergeTjList(tjList);
-    
-    // eliminate entries that fail ShowerTag[6]
-    std::vector<std::vector<int>> newList;
-    if(newCuts) {
-      for(auto& tjl : tjList) {
-        float npts = 0;
-        for(auto tjid : tjl) {
-          auto& tj = tjs.allTraj[tjid - 1];
-          npts += NumPtsWithCharge(tjs, tj, false);
-        } // tjid
-        if(npts >= tjs.ShowerTag[6]) newList.push_back(tjl);
-      } // tjl
-    } else {
-      // old cuts
-      for(auto& tjl : tjList) if(tjl.size() >= tjs.ShowerTag[7]) newList.push_back(tjl);
-    } // old cuts
-    tjList = newList;
-/*
-    std::cout<<"tjLists final\n";
-    for(auto& tjl : tjList) {
-      for(auto tjid : tjl) std::cout<<" T"<<tjid;
-      std::cout<<"\n";
-    } // tjl
-*/
+    if(tjLists.empty()) return;
+
     // mark them all as ShowerLike Tjs
     unsigned short nsh = 0;
-    for(auto& tjl : tjList) {
-      if(applyMinTjCuts && tjl.size() < tjs.ShowerTag[7]) continue;
+    for(auto& tjl : tjLists) {
       nsh += tjl.size();
       for(auto& tjID : tjl) {
         auto& tj = tjs.allTraj[tjID - 1];
@@ -3191,78 +3591,7 @@ namespace tca {
       } // tjid
     } // tjl
     if(tjs.ShowerTag[12] >= 0) mf::LogVerbatim("TC")<<"TagShowerLike tagged "<<nsh<<" Tjs in CTP "<<inCTP;
-    // Set the NearInShower bit on all Tjs in this TPC
-    std::vector<unsigned int> closeHits;
-    // Set the 
-    std::array<int, 2> wireWindow;
-    Point2_t timeWindow;
-    // Define close to be 1/2 of the ShowerTag separation cut
-    float deltaCut = 0.5 * tjs.ShowerTag[2];
-    for(auto& tj : tjs.allTraj) {
-      if(tj.CTP != inCTP) continue;
-      if(tj.AlgMod[kKilled]) continue;
-      unsigned short plane = DecodeCTP(tj.CTP).Plane;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        auto& tp = tj.Pts[ipt];
-        if(tp.Pos[0] < -0.4) continue;
-        // Find all hits near this time on this wire
-        wireWindow[0] = std::nearbyint(tp.Pos[0]);
-        wireWindow[1] = wireWindow[0];
-        timeWindow[0] = tp.Pos[1] - deltaCut;
-        timeWindow[1] = tp.Pos[1] + deltaCut;
-        bool hitsNear = false;
-        closeHits = FindCloseHits(tjs, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
-        for(auto iht : closeHits) {
-          auto& hit = tjs.fHits[iht];
-          // ignore hits used in this TP
-          if(hit.InTraj == tj.ID) continue;
-          if(hit.InTraj > 0) {
-            // Nearby hit used in a nearby Tj
-            tp.Environment[kEnvNearTj] = true;
-            auto& ntj = tjs.allTraj[hit.InTraj - 1];
-            if(ntj.AlgMod[kInShower]) tp.Environment[kEnvNearShower] = true;
-          }
-        } // iht
-      } // ipt
-    } // tj
-    
-    if(tjs.UseAlg[kKillInShowerVx]) {
-      // make a list of 2D vertices
-      std::vector<unsigned short> vxids;
-      for(auto& tjl : tjList) {
-        for(auto& tjID : tjl) {
-          auto& tj = tjs.allTraj[tjID - 1];
-          for(unsigned short end = 0; end < 2; ++end) {
-            if(!tj.AlgMod[kShowerLike]) continue;
-            if(tj.VtxID[end] == 0) continue;
-            if(std::find(vxids.begin(), vxids.end(), tj.VtxID[end]) == vxids.end()) vxids.push_back(tj.VtxID[end]);
-          }
-        } // tjid
-      } // tjl
-      if(vxids.empty()) return;
-      for(auto vxid : vxids) {
-        auto& vx2 = tjs.vtx[vxid - 1];
-        // already killed?
-        if(vx2.ID == 0) continue;
-        // don't kill a primary vertex
-        if(vx2.Vx3ID > 0) {
-          auto& vx3 = tjs.vtx3[vx2.ID - 1];
-          if(vx3.Primary) continue;
-        }
-        // get a list of Tjs attached to this vertex
-        auto vxtjs = GetVtxTjIDs(tjs, vx2);
-        // count the number that are InShower
-        unsigned short ninsh = 0;
-        for(auto tjid : vxtjs) {
-          auto& tj = tjs.allTraj[tjid - 1];
-          if(tj.AlgMod[kShowerLike]) ++ninsh;
-        } // tjid
-        // Jan 22
-//        if(ninsh > 1) MakeVertexObsolete(tjs, vx2, false);
-        if(ninsh > 1) MakeVertexObsolete(tjs, vx2, true);
-      } // vxid
-    } // 
-    
+
   } // TagShowerLike
   
   ////////////////////////////////////////////////
@@ -3287,7 +3616,8 @@ namespace tca {
       if(vx.CTP != ss.CTP) continue;
       if(vx.ID == 0) continue;
       if(!PointInsideEnvelope(vx.Pos, ss.Envelope)) continue;
-      auto vxTjIDs = GetVtxTjIDs(tjs, vx);
+//      auto vxTjIDs = GetVtxTjIDs(tjs, vx);
+      auto vxTjIDs = GetAssns(tjs, "2V", vx.ID, "T");
       for(auto tjID : vxTjIDs) {
         // ignore those that are in the shower
         if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tjID) != ss.TjIDs.end()) continue;
@@ -3448,7 +3778,7 @@ namespace tca {
      for(auto& tj : tjs.allTraj) {
        if(tj.CTP != ss.CTP) continue;
        if(tj.AlgMod[kKilled]) continue;
-       if(tj.AlgMod[kInShower]) continue;
+       if(tj.SSID > 0) continue;
        if(tj.AlgMod[kShowerTj]) continue;
        // See if this Tjs is attached to a neutrino vertex. 
        if(tj.ParentID == 0) continue;
@@ -3805,8 +4135,8 @@ namespace tca {
         std::cout<<fcnLabel<<" Found duplicate Tjs "<<allIDs[ii]<<"\n";
       }
       auto& tj = tjs.allTraj[allIDs[ii] - 1];
-      if(!tj.AlgMod[kInShower] || tj.AlgMod[kKilled]) {
-        std::cout<<fcnLabel<<" Tj "<<tj.ID<<" isn't an inShower "<<tj.AlgMod[kInShower]<<" or is Killed "<<tj.AlgMod[kKilled]<<"\n";
+      if(tj.SSID <= 0 || tj.AlgMod[kKilled]) {
+        std::cout<<fcnLabel<<" Tj "<<tj.ID<<" isn't an inShower tj or is Killed "<<tj.AlgMod[kKilled]<<"\n";
       }
     } // ii
     
@@ -3836,7 +4166,7 @@ namespace tca {
           std::cout<<"TTjH: Coding error. T"<<tjID<<" is a ShowerTj but is in TjIDs\n";
           continue;
         }
-        if(!tjs.allTraj[itj].AlgMod[kInShower]) {
+        if(tjs.allTraj[itj].SSID <= 0) {
           std::cout<<"TTjH: Coding error. Trying to transfer T"<<tjID<<" hits but it isn't an InShower Tj\n";
           continue;
         }
@@ -3864,6 +4194,19 @@ namespace tca {
     return 0;
     
   } // GetCotID
+  
+  ////////////////////////////////////////////////
+  double ShowerEnergy(const ShowerStruct3D& ss3)
+  {
+    if(ss3.ID == 0) return 0;
+    if(ss3.Energy.empty()) return 0;
+    double ave = 0;
+    for(auto e : ss3.Energy) {
+      ave += e;
+    } // e
+    ave /= ss3.Energy.size();
+    return ave;
+  } // ShowerEnergy
 
   ////////////////////////////////////////////////
   float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss)
@@ -3921,7 +4264,7 @@ namespace tca {
     // set the tj shower bits
     for(auto& tjID : ss.TjIDs) {
       Trajectory& tj = tjs.allTraj[tjID - 1];
-      tj.AlgMod[kInShower] = true;
+      tj.SSID = ss.ID;
       tj.AlgMod[kShwrParent] = false;
       if(tj.ID == ss.ParentID) tj.AlgMod[kShwrParent] = true;
     } // tjID
@@ -3984,13 +4327,46 @@ namespace tca {
     // declare them to be InShower
     for(auto tjid : tjl) {
       auto& tj = tjs.allTraj[tjid - 1];
-      tj.AlgMod[kInShower] = true;
+      if(tj.CTP != stj.CTP) {
+        ss.ID = 0;
+        return ss;
+      }
+      tj.SSID = ss.ID;
     } // tjid
     ss.ShowerTjID = stj.ID;
     ss.Envelope.resize(4);
     return ss;
     
   } // CreateSS
+  
+  ////////////////////////////////////////////////
+  void ChkAssns(std::string inFcnLabel, TjStuff& tjs)
+  {
+    // check tj - ss assns
+    
+    std::string fcnLabel = inFcnLabel + "ChkAssns";
+    for(auto& ss : tjs.cots) {
+      if(ss.ID == 0) continue;
+      for(auto tid : ss.TjIDs) {
+        auto& tj = tjs.allTraj[tid - 1];
+        if(tj.SSID != ss.ID) {
+          std::cout<<fcnLabel<<" Error: 2S"<<ss.ID<<" -> TjIDs T"<<tid<<" != tj.SSID 2S"<<tj.SSID<<"\n";
+        }
+      } // tid
+    } // ss
+    for(auto& tj : tjs.allTraj) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.SSID < 0) {
+        std::cout<<fcnLabel<<" Error: T"<<tj.ID<<" tj.SSID is fubar\n";
+        tj.SSID = 0;
+        continue;
+      }
+      if(tj.SSID == 0) continue;
+      auto& ss = tjs.cots[tj.SSID - 1];
+      if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), tj.ID) != ss.TjIDs.end()) continue;
+      std::cout<<fcnLabel<<" Error: T"<<tj.ID<<" tj.SSID = 2S"<<tj.SSID<<" but the shower says no\n";
+    } // tj
+  } // CheckTjAssns
   
   ////////////////////////////////////////////////
   void PrintShowers(std::string fcnLabel, TjStuff& tjs)
@@ -4069,7 +4445,7 @@ namespace tca {
         if(!printKilledShowers && ss.ID == 0) continue;
         myprt<<someText<<std::fixed;
         std::string sid = "2S" + std::to_string(ss.ID);
-        myprt<<std::setw(4)<<sid;
+        myprt<<std::setw(5)<<sid;
         myprt<<" Tjs";
         for(auto id : ss.TjIDs) myprt<<" T"<<id;
         myprt<<"\n";
@@ -4083,7 +4459,7 @@ namespace tca {
       if(!printKilledShowers && ss.ID == 0) continue;
       myprt<<someText<<std::fixed;
       std::string sid = "2S" + std::to_string(ss.ID);
-      myprt<<std::setw(4)<<sid;
+      myprt<<std::setw(5)<<sid;
       myprt<<" Envelope";
       for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
       myprt<<"\n";
@@ -4095,7 +4471,7 @@ namespace tca {
       if(!printKilledShowers && ss.ID == 0) continue;
       myprt<<someText<<std::fixed;
       std::string sid = "2S" + std::to_string(ss.ID);
-      myprt<<std::setw(4)<<sid;
+      myprt<<std::setw(5)<<sid;
       myprt<<" Nearby";
       for(auto id : ss.NearTjIDs) myprt<<" T"<<id;
       myprt<<"\n";
@@ -4109,12 +4485,12 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     
     if(printHeader) {
-      myprt<<someText<<"  ID   CTP  ParID ParFOM TruParID Energy nTjs  dFOM AspRat  stj  vx0 __Pos0___ Chg(k) dRMS __Pos1___ Chg(k) dRMS __Pos2___ Chg(k) dRMS Angle SS3ID PFPID\n";
+      myprt<<someText<<"   ID   CTP  ParID ParFOM TruParID Energy nTjs  dFOM AspRat  stj  vx0 __Pos0___ Chg(k) dRMS __Pos1___ Chg(k) dRMS __Pos2___ Chg(k) dRMS Angle SS3ID PFPID\n";
     } // printHeader
 
     myprt<<someText<<std::fixed;
     std::string sid = "2S" + std::to_string(ss.ID);
-    myprt<<std::setw(4)<<sid;
+    myprt<<std::setw(5)<<sid;
     myprt<<std::setw(6)<<ss.CTP;
     sid = "NA";
     if(ss.ParentID > 0) sid = "T" + std::to_string(ss.ParentID);
@@ -4128,7 +4504,8 @@ namespace tca {
     const auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
     std::string tid = "T" + std::to_string(stj.ID);
     myprt<<std::setw(5)<<tid;
-    std::string vid = "2V" + std::to_string(stj.VtxID[0]);
+    std::string vid = "NA";
+    if(stj.VtxID[0] > 0) vid = "2V" + std::to_string(stj.VtxID[0]);
     myprt<<std::setw(5)<<vid;
     for(auto& spt : stj.Pts) {
       myprt<<std::setw(10)<<PrintPos(tjs, spt.Pos);
@@ -4140,11 +4517,10 @@ namespace tca {
     std::string sss = "NA";
     if(ss.SS3ID > 0) sss = "3S" + std::to_string(ss.SS3ID);
     myprt<<std::setw(6)<<sss;
-    if(ss.SS3ID > 0) {
+    if(ss.SS3ID > 0 && ss.SS3ID < (int)tjs.showers.size()) {
       auto& ss3 = tjs.showers[ss.SS3ID - 1];
-      if(ss3.PFPIndex < tjs.pfps.size()) {
-        auto& pfp = tjs.pfps[ss3.PFPIndex];
-        std::string pid = "P" + std::to_string(pfp.ID);
+      if(ss3.PFPIndex >= 0 && ss3.PFPIndex < tjs.pfps.size()) {
+        std::string pid = "P" + std::to_string(ss3.PFPIndex + 1);
         myprt<<std::setw(6)<<pid;
       } else {
         myprt<<std::setw(6)<<"NA";
@@ -4159,19 +4535,19 @@ namespace tca {
     
     myprt<<someText<<std::fixed;
     sid = "2S" + std::to_string(ss.ID);
-    myprt<<std::setw(4)<<sid;
+    myprt<<std::setw(5)<<sid;
     myprt<<" Tjs";
     for(auto id : ss.TjIDs) myprt<<" T"<<id;
     myprt<<"\n";
     myprt<<someText<<std::fixed;
     sid = "2S" + std::to_string(ss.ID);
-    myprt<<std::setw(4)<<sid;
+    myprt<<std::setw(5)<<sid;
     myprt<<" Envelope";
     for(auto& vtx : ss.Envelope) myprt<<" "<<(int)vtx[0]<<":"<<(int)(vtx[1]/tjs.UnitsPerTick);
     myprt<<"\n";
     myprt<<someText<<std::fixed;
     sid = "2S" + std::to_string(ss.ID);
-    myprt<<std::setw(4)<<sid;
+    myprt<<std::setw(5)<<sid;
     myprt<<" Nearby";
     for(auto id : ss.NearTjIDs) myprt<<" T"<<id;
 
