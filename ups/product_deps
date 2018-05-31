@@ -7,8 +7,8 @@ fcldir product_dir job
 #
 product         version
 larsim		v06_49_00
-eigen		v3_3_3
-nutools         v2_21_04
+eigen		v3_3_4a
+nutools         v2_23_01
 tensorflow      v1_3_0c		-	optional
 
 cetbuildtools	v7_03_02	-	only_for_build

@@ -17,7 +17,7 @@ art_make( EXCLUDE        MinSpanTreeAlg_tool.cc DBScanAlg_tool.cc ClusterMergeAl
 			             art_Utilities
 			             canvas
 			             ${MF_MESSAGELOGGER}
-			             ${MF_UTILITIES}
+			             
 	                     ${FHICLCPP}
                          ${CETLIB}
                          cetlib_except
