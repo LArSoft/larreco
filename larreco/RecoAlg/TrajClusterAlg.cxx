@@ -2015,7 +2015,7 @@ namespace tca {
             if(tj2.CTP != inCTP) continue;
             // BB April 19, 2018: check for large fraction of overlapping wires
             float olf = OverlapFraction(tjs, tjs.allTraj[it1], tjs.allTraj[it2]);
-            if(mrgPrt) mf::LogVerbatim("TC")<<"EM: T"<<tjs.allTraj[it1].ID<<"-T"<<tjs.allTraj[it2].ID<<" OverlapFraction "<<olf;
+//            if(mrgPrt) mf::LogVerbatim("TC")<<"EM: T"<<tjs.allTraj[it1].ID<<"-T"<<tjs.allTraj[it2].ID<<" OverlapFraction "<<olf;
             if(olf > 0.25) continue;
             unsigned short end2 = 1 - end1;
             // check for a vertex at this end
@@ -2209,6 +2209,7 @@ namespace tca {
           if(mrgPrt) {
             mf::LogVerbatim myprt("TC");
             myprt<<"EM: T"<<tjs.allTraj[it1].ID<<"_"<<end1<<" - T"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2);
+            myprt<<" ShowerLike? "<<tjs.allTraj[it1].AlgMod[kShowerLike]<<" "<<tjs.allTraj[it2].AlgMod[kShowerLike];
             myprt<<" bestFOM "<<std::fixed<<std::setprecision(2)<<bestFOM;
             myprt<<" bestDOCA "<<std::setprecision(1)<<bestDOCA;
             myprt<<" cut "<<docaCut<<" isVLA? "<<isVLA;
@@ -2220,7 +2221,6 @@ namespace tca {
             myprt<<" doMerge? "<<doMerge;
           }
           
-          // Sep 20
           if(bestDOCA > docaCut) continue;
           
           if(doMerge) {
@@ -5283,7 +5283,7 @@ namespace tca {
     if(fChkStopCuts[0] < 0) return;
     
     // don't attempt with low momentum trajectories
-    if(tj.MCSMom < 50) return;
+    if(tj.MCSMom < 30) return;
     
     // ignore trajectories that are very large angle at both ends
     if(tj.Pts[tj.EndPt[0]].AngleCode == 2 || tj.Pts[tj.EndPt[1]].AngleCode == 2) return;
