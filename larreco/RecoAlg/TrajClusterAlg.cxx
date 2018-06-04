@@ -394,7 +394,8 @@ namespace tca {
       FindMissedVxTjs(tpcid);
       prt = (debug.Plane >= tjs.NumPlanes && debug.Tick == 6666);
       ScoreVertices(tjs, tpcid, prt);
-      TagProtons(tjs, tpcid, prt);
+      // This is done in ChkStop
+//      TagProtons(tjs, tpcid, prt);
       // Define the ParentID of trajectories using the vertex score
       DefineTjParents(tjs, tpcid, prt);
       for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
@@ -3039,8 +3040,13 @@ namespace tca {
     FindSoftKink(tj);
     
     HiEndDelta(tj);
-    // Feb 14. use this after all tjs are reconstructed
-//    CheckHiMultUnusedHits(tj);
+    
+    // final quality check
+    float npwc = NumPtsWithCharge(tjs, tj, true);
+    float npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+    float frac = npwc / npts;
+    fGoodTraj = (frac >= fQualityCuts[0]);
+    if(prt) mf::LogVerbatim("TC")<<"CTStepChk: fraction of points with charge "<<frac<<" good traj? "<<fGoodTraj;
     if(!fGoodTraj || fQuitAlg) return;
     
     // lop off high multiplicity hits at the end
@@ -4479,8 +4485,7 @@ namespace tca {
   //////////////////////////////////////////
   void TrajClusterAlg::FindMissedVxTjs(const geo::TPCID& tpcid)
   {
-    // Use an approach similar to CompleteIncompleteVertices to find missing 2D
-    // vertices in a plane due to a mis-reconstructed Tj in the missing plane
+    // Find missing 2D vertices in a plane due to a mis-reconstructed Tj
     
     if(!tjs.UseAlg[kMisdVxTj]) return;
 
@@ -4529,14 +4534,14 @@ namespace tca {
         unsigned short closePt = 0;
         TrajPointTrajDOCA(tjs, tp, tjs.allTraj[itj], closePt, doca);
         if(closePt > tjs.allTraj[itj].EndPt[1]) continue;
-        if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
+        if(prt) mf::LogVerbatim("TC")<<"FMVTjs 3V"<<vx3.ID<<" candidate T"<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
         tjIDs.push_back(tjs.allTraj[itj].ID);
         tj2Pts.push_back(closePt);
       } // itj
       // handle the case where there are one or more TJs with TPs near the ends
       // that make a vertex (a failure by Find2DVertices)
       if(tjIDs.empty()) continue;
-      if(prt) mf::LogVerbatim("TC")<<"vx3 "<<vx3.ID<<" mPlane "<<mPlane<<" ntj_1stPlane "<<ntj_1stPlane<<" ntj_2ndPlane "<<ntj_2ndPlane; 
+      if(prt) mf::LogVerbatim("TC")<<" 3V"<<vx3.ID<<" mPlane "<<mPlane<<" ntj_1stPlane "<<ntj_1stPlane<<" ntj_2ndPlane "<<ntj_2ndPlane; 
     } // iv3
   } // FindMissedVxTjs
   
@@ -5348,12 +5353,16 @@ namespace tca {
         tj.AlgMod[kChkStop] = true;
         // Put the charge at the end into tp.AveChg
         tj.Pts[endPt].AveChg = intcpt;
-        if(prt) mf::LogVerbatim("TC")<<" end "<<end<<" fit chidof "<<chidof<<" slope "<<slope<<" +/- "<<slopeerr<<" Stopping ";
+        // see if we can tag it as a proton
+        std::vector<int> tjlist(1, tj.ID);
+        float chgFrac = ChgFracNearPos(tjs, tj.Pts[endPt].Pos, tjlist);
+        if(chgFrac > 0.9) tj.PDGCode = 2212;
+        if(prt) mf::LogVerbatim("TC")<<" end "<<end<<" fit chidof "<<chidof<<" slope "<<slope<<" +/- "<<slopeerr<<" proton tag "<<tj.PDGCode;
       } else {
         if(prt) mf::LogVerbatim("TC")<<" end "<<end<<" fit chidof "<<chidof<<" slope "<<slope<<" +/- "<<slopeerr<<" Not stopping";
       }
-   } // end
-
+    } // end
+    
   } // ChkStop
 
   //////////////////////TY://////////////////////////
