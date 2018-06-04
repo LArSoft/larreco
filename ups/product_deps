@@ -6,9 +6,9 @@ defaultqual	e15
 fcldir product_dir job
 #
 product         version
-larsim		v06_50_00
-eigen		v3_3_4a
-nutools         v2_23_02
+larsim		v06_49_00
+eigen		v3_3_3
+nutools         v2_21_04
 tensorflow      v1_3_0c		-	optional
 
 cetbuildtools	v7_03_03	-	only_for_build
