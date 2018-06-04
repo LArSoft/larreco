@@ -1346,7 +1346,7 @@ namespace tca {
     if(!tjs.UseAlg[kTEP]) return;
     
     unsigned short npwc = NumPtsWithCharge(tjs, tj, false);
-    unsigned short minPts = fQualityCuts[1];
+    short minPts = fQualityCuts[1];
     if(minPts < 1) return;
     if(npwc < minPts) return;
     
@@ -1367,7 +1367,7 @@ namespace tca {
     } // short tj
     
     // find the separation between adjacent points, starting at the end
-    unsigned short lastPt = 0;
+    short lastPt = 0;
     for(lastPt = tj.EndPt[1]; lastPt >= minPts; --lastPt) {
       // check for an error
       if(lastPt == 1) break;
@@ -1375,8 +1375,8 @@ namespace tca {
       // number of adjacent points on adjacent wires
       unsigned short nadj = 0;
       unsigned short npwc = 0;
-      for(unsigned short ipt = lastPt - minPts; ipt < lastPt; ++ipt) {
-        if(ipt == 1) break;
+      for(short ipt = lastPt - minPts; ipt < lastPt; ++ipt) {
+        if(ipt < 2) break;
         // the current point
         auto& tp = tj.Pts[ipt];
         // the previous point
@@ -4092,7 +4092,7 @@ namespace tca {
       return tmp;
     } // 3S -> 2S -> T -> P
     
-    if(type1Name == "2V" && uid <= tjs.vtx.size) && type2Name == "T" ) {
+    if(type1Name == "2V" && uid <= tjs.vtx.size() && type2Name == "T" ) {
       // 2V -> T
       for(auto& tj : tjs.allTraj) {
         if(tj.AlgMod[kKilled]) continue;
