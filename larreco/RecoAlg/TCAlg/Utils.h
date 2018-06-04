@@ -61,7 +61,6 @@ namespace tca {
   void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
   float TjDirFOM(const TjStuff& tjs, const Trajectory& tj, bool prt);
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
-  void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   unsigned short GetPFPIndex(const TjStuff& tjs, int tjID);
   unsigned short MatchVecIndex(const TjStuff& tjs, int tjID);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
@@ -178,6 +177,7 @@ namespace tca {
   bool MakeBareTrajPoint(const TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   bool MakeBareTrajPoint(const Point2_t& fromPos, const Point2_t& toPos, TrajPoint& tpOut);
   bool MakeBareTrajPoint(const TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+  unsigned short FarEnd(const TjStuff& tjs, const Trajectory& tj, const Point2_t& pos);
   Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
   void SetPDGCode(TjStuff& tjs, Trajectory& tj);
   void SetPDGCode(TjStuff& tjs, unsigned short itj);
