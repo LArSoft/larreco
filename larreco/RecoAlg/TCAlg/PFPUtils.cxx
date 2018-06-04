@@ -2134,15 +2134,14 @@ namespace tca {
       if(has11) pfp.PDGCode = 11;
       if(!DefinePFP("FPFP", tjs, pfp, prt)) {
         if(prt) mf::LogVerbatim("TC")<<" DefinePFP failed";
-        if(prt) std::cout<<" DefinePFP P"<<pfp.ID<<" failed\n";
         continue;
       }
       double sep = 1;
       Split3DKink(tjs, pfp, sep, prt);
-      AnalyzePFP(tjs, pfp, prt);
+      if(!AnalyzePFP(tjs, pfp, prt)) continue;
       if(!StorePFP(tjs, pfp)) {
-        if(prt) mf::LogVerbatim("TC")<<" StorePFP failed "<<pfp.ID;
-        if(prt) std::cout<<" StorePFP failed "<<pfp.ID<<"\n";
+        if(prt) mf::LogVerbatim("TC")<<" StorePFP failed P"<<pfp.ID;
+        if(prt) std::cout<<" StorePFP failed P"<<pfp.ID<<"\n";
         continue;
       }
       ms.Count = 0;
@@ -2259,6 +2258,7 @@ namespace tca {
 */
     // Find completeness and fill the TP3s
     FindCompleteness(tjs, pfp, true, true, prt);
+    if(pfp.Tp3s.empty()) return false;
 
     // Set the starting position in 3D if it isn't already defined by a 3D vertex
     SetStart(tjs, pfp, prt);
@@ -2335,18 +2335,24 @@ namespace tca {
   } // PFPVxTjOK
   
   /////////////////////////////////////////
-  void AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt)
+  bool AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // Analyzes the PFP for oddities and tries to fix them
-    if(pfp.ID == 0) return;
-    if(pfp.TjIDs.empty()) return;
+    if(pfp.ID == 0) return false;
+    if(pfp.TjIDs.empty()) return false;
+    if(pfp.Tp3s.empty()) return false;
     
     // don't bother analyzing this pfp has been altered
     if(pfp.NeedsUpdate) {
       if(prt) mf::LogVerbatim("TC")<<"AnalyzePFP: P"<<pfp.ID<<" needs to be updated. Skip analysis ";
-      return;
+      return true;
     }
-    if(prt) mf::LogVerbatim("TC")<<"inside AnalyzePFP P"<<pfp.ID<<" NeedsUpdate? "<<pfp.NeedsUpdate;
+    
+    // check the tj completeness
+    float minCompleteness = 0.95;
+    for(auto tjc : pfp.TjCompleteness) if(tjc < minCompleteness) minCompleteness = tjc;
+    if(prt) mf::LogVerbatim("TC")<<"inside AnalyzePFP P"<<pfp.ID<<" minCompleteness "<<minCompleteness;
+    if(minCompleteness == 0.95) return true;
     
     // compare the Tjs in Tp3s with those in TjIDs
     std::vector<int> tjIDs;
@@ -2374,6 +2380,14 @@ namespace tca {
       unsigned short npwc = NumPtsWithCharge(tjs, missTj, false);
       if(prt) mf::LogVerbatim("TC")<<" missed T"<<missTj.ID<<" npwc "<<npwc<<" tjCnt "<<tjCnt[ii];
       if(tjCnt[ii] < 0.5 * npwc) continue;
+      // June 4, 2018. 3D merging is turned off so require the missed tj to be in
+      // a missing plane
+      bool skipit = false;
+      for(auto tid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tid - 1];
+        if(tj.CTP == missTj.CTP) skipit = true;
+      } // tid
+      if(skipit) continue;
       // add the missed Tj to the pfp and flag it as needing an update
       pfp.TjIDs.push_back(missTj.ID);
       if(PFPVxTjOK(tjs, pfp, prt)) pfp.NeedsUpdate = true;
@@ -2396,7 +2410,7 @@ namespace tca {
         myprt<<" nTp3 "<<tjCnt[indx]<<"\n";
       } // tjid
     } // prt
-    
+    return true;
   } // AnalyzePFP
   
   /////////////////////////////////////////
