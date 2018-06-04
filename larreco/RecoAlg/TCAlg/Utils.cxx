@@ -993,47 +993,6 @@ namespace tca {
   } // WatchHit
   
   ////////////////////////////////////////////////
-  void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
-  {
-    const unsigned int cstat = tpcid.Cryostat;
-    const unsigned int tpc = tpcid.TPC;
-    std::vector<int> tjlist(1);
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      geo::PlaneID planeID = DecodeCTP(tj.CTP);
-      if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
-      // ignore tagged muons
-      if(tj.PDGCode == 13) continue;
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] != 0) continue;
-        if(!tj.StopFlag[end][kBragg]) continue;
-        // check the environment near this end
-        tjlist[0] = tj.ID;
-        float chgFrac = ChgFracNearPos(tjs, tj.Pts[tj.EndPt[end]].Pos, tjlist);
-        if(prt) mf::LogVerbatim("TC")<<"TagProtons: T"<<tj.ID<<" Charge fraction near end "<<end<<" "<<chgFrac;
-        if(chgFrac > 0.9) tj.PDGCode = 2212;
-      } // end
-    } // tj
-  } // TagProtons
-/*
-  ////////////////////////////////////////////////
-  void TagBragg(TjStuff& tjs, PFPStruct& pfp, bool prt)
-  {
-    // sets the PDG code to 2212 if there are Bragg peaks on the Tjs
-    if(pfp.PDGCode == 11 || pfp.PDGCode == 1111) return;
-    
-    unsigned short braggCnt0 = 0;
-    unsigned short braggCnt1 = 0;
-    for(auto& tjID : pfp.TjIDs) {
-      auto& tj = tjs.allTraj[tjID - 1];
-      if(tj.StopFlag[0][kBragg]) ++braggCnt0;
-      if(tj.StopFlag[1][kBragg]) ++braggCnt1;
-    }
-    if(braggCnt0 > 1 || braggCnt1 > 1) pfp.PDGCode = 2212;
-    
-  } // TagBragg
-*/
-  ////////////////////////////////////////////////
   void Reverse3DMatchTjs(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // Return true if the 3D matched hits in the trajectories in tjs.pfps are in the wrong order in terms of the
@@ -1375,7 +1334,7 @@ namespace tca {
   //////////////////////////////////////////
   void TrimEndPts(std::string fcnLabel, TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
   {
-    // Trim the hits off the end until there are at least fMinPts consecutive hits at the end
+    // Trim the hits off the end until there are at least MinPts consecutive hits at the end
     // and the fraction of hits on the trajectory exceeds fQualityCuts[0]
     // Minimum length requirement accounting for dead wires where - denotes a wire with a point
     // and D is a dead wire. Here is an example with minPts = 3
@@ -1409,7 +1368,7 @@ namespace tca {
     
     // find the separation between adjacent points, starting at the end
     unsigned short lastPt = 0;
-    for(lastPt = tj.EndPt[1]; lastPt > minPts; --lastPt) {
+    for(lastPt = tj.EndPt[1]; lastPt >= minPts; --lastPt) {
       // check for an error
       if(lastPt == 1) break;
       if(tj.Pts[lastPt].Chg == 0) continue;
@@ -1553,14 +1512,15 @@ namespace tca {
   /////////////////////////////////////////
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt)
   {
+    // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp and toPos0.
     return ChgFracBetween(tjs, tp, toPos0, prt) >= MinWireSignalFraction;
   } // SignalBetween
 
   /////////////////////////////////////////
   float ChgFracBetween(TjStuff& tjs, TrajPoint tp, float toPos0, bool prt)
   {
-    // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp and toPos0.
-    // Note that this uses the direction vector of the tp
+    // Returns the fraction of wires between tp.Pos[0] and toPos0 that have a hit 
+    // on the line defined by tp.Pos and tp.Dir
     
     if(tp.Pos[0] < -0.4 || toPos0 < -0.4) return 0;
     int fromWire = std::nearbyint(tp.Pos[0]);
@@ -3568,6 +3528,15 @@ namespace tca {
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
     return true;
   } // MakeBareTrajPoint
+  
+  ////////////////////////////////////////////////
+  unsigned short FarEnd(const TjStuff& tjs, const Trajectory& tj, const Point2_t& pos)
+  {
+    // Returns the end (0 or 1) of the Tj that is furthest away from the position pos
+    if(tj.ID == 0) return 0;
+    if(PosSep2(tj.Pts[tj.EndPt[1]].Pos, pos) > PosSep2(tj.Pts[tj.EndPt[0]].Pos, pos)) return 1;
+    return 0;
+  } // FarEnd
 
   ////////////////////////////////////////////////
   Vector2_t PointDirection(const Point2_t p1, const Point2_t p2)
@@ -4125,7 +4094,7 @@ namespace tca {
     if(type1Name == "2V" && id <= tjs.vtx.size() && type2Name == "T" ) {
       // 2V -> T
       for(auto& tj : tjs.allTraj) {
-        if(tj.ID == 0) continue;
+        if(tj.AlgMod[kKilled]) continue;
         for(unsigned short end = 0; end < 2; ++end) {
           if(tj.VtxID[end] != id) continue;
           if(std::find(tmp.begin(), tmp.end(), tj.ID) == tmp.end()) tmp.push_back(tj.ID);
@@ -4201,7 +4170,7 @@ namespace tca {
       return tmp;
     } // T -> 2S
     
-    std::cout<<"GetAssns doesn't know about "<<type1Name<<" -> "<<type2Name<<" assns\n";
+    std::cout<<"GetAssns doesn't know about "<<type1Name<<" -> "<<type2Name<<" assns, or id "<<id<<" is not valid.\n";
 
     return tmp;
     
