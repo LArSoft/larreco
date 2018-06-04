@@ -34,7 +34,7 @@
 namespace tca {
 
   bool FindShowerStart(TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
-  void KillVerticesInShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  void KillVerticesInShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss, bool prt);
   void Finish3DShowers(TjStuff& tjs);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
   bool Reconcile3D(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
@@ -53,8 +53,8 @@ namespace tca {
   float Match3DFOM(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   void MakeShowerObsolete(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   void MakeShowerObsolete(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss, bool prt);
-  bool DontCluster(TjStuff& tjs, std::vector<int>& tjlist1, std::vector<int>& tjlist2);
-  void DefineDontCluster(TjStuff& tjs, const geo::TPCID& tpcid);
+  bool DontCluster(const TjStuff& tjs, const std::vector<int>& tjlist1, const std::vector<int>& tjlist2);
+  void DefineDontCluster(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool RemovePFP(std::string inFcnLabel, TjStuff& tjs, PFPStruct& pfp, ShowerStruct3D& ss3, bool doUpdate, bool prt);
   bool AddPFP(std::string inFcnLabel, TjStuff& tjs, int pID, ShowerStruct3D& ss3, bool doUpdate, bool prt);
   bool RemovePFP(std::string inFcnLabel, TjStuff& tjs, int pID, ShowerStruct3D& ss3, bool doUpdate, bool prt);
@@ -98,10 +98,8 @@ namespace tca {
   int MergeShowers(std::string inFcnLabel, TjStuff& tjs, std::vector<int> showerIDs, bool prt);
   bool MergeShowersAndStore(std::string inFcnLabel, TjStuff& tjs, int icotID, int jcotID, bool prt);
   double ShowerEnergy(const ShowerStruct3D& ss3);
-  float ShowerEnergy(const TjStuff& tjs, const ShowerStruct& ss);
+  float ShowerEnergy(const TjStuff& tjs, const std::vector<int> tjIDs);
   float ChgToMeV(float chg);
-  unsigned short FarEnd(const TjStuff& tjs, const Trajectory& tj, const Point2_t& pos);
-  unsigned short FarEnd(const TjStuff& tjs, const PFPStruct& pfp, const Point3_t& pos);
   PFPStruct CreateFakePFP(const TjStuff& tjs, const ShowerStruct3D& ss3);
   bool StoreShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss);
   ShowerStruct3D CreateSS3(TjStuff& tjs, const geo::TPCID& tpcid);
