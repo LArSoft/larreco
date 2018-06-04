@@ -204,52 +204,6 @@ namespace tca {
   } // FillmAllTraj
 
   /////////////////////////////////////////
-  void AttachVertices(TjStuff& tjs, PFPStruct& pfp, bool prt)
-  {
-    // try to attach a vertex on both ends of the pfp using the positions XYZ[end]. This function
-    // doesn't need to have Tp3s associated with the pfp but probably doesn't work as well
-    if(pfp.ID == 0) return;
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-    std::array<unsigned short, 2> imbest {{ 0, 0 }};
-    // Ignore any separation larger than (10 cm)^2
-    std::array<float, 2> best {{ 100.0f, 100.0f }};
-    for(unsigned short end = 0; end < 2; ++end) pfp.Vx3ID[end] = 0;
-    auto vx3list = GetPFPVertices(tjs, pfp);
-    for(unsigned short end = 0; end < 2; ++end) {
-      for(auto vx3id : vx3list) {
-        auto& vx3 = tjs.vtx3[vx3id - 1];
-        // BUG the double brace syntax is required to work around clang bug 21629
-        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-        Point3_t vxpos = {{ vx3.X, vx3.Y, vx3.Z}};
-        float sep2 = PosSep2(pfp.XYZ[end], vxpos);
-        if(sep2 > best[end]) continue;
-        best[end] = sep2;
-        imbest[end] = vx3id;
-      } // vx3id
-    } // end
-    if(imbest[0] == 0 && imbest[1] == 0) return;
-    if(imbest[0] == imbest[1]) {
-      // The same vertex meets the cuts for both ends. Take the best one.
-      if(best[0] < best[1]) {
-        pfp.Vx3ID[0] = imbest[0];
-        if(prt) mf::LogVerbatim("TC")<<"AV0: attach 3V"<<imbest[0]<<" to P"<<pfp.ID<<" to end 0";
-      } else {
-        pfp.Vx3ID[1] = imbest[0];
-        if(prt) mf::LogVerbatim("TC")<<"AV1: attach 3V"<<imbest[0]<<" to P"<<pfp.ID<<" to end 1";
-      }
-      return;
-    } else {
-      // have different vertices on each end
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(imbest[end] == 0) continue;
-        pfp.Vx3ID[end] = imbest[end];
-        if(prt) mf::LogVerbatim("TC")<<"AV: attach 3V"<<imbest[end]<<" to P"<<pfp.ID<<" end "<<end;
-      } // end
-    } // have different vertices (or no vertices) on each end
-  } // AttachVertices
-
-  /////////////////////////////////////////
   bool SetStart(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // Analyzes the space point collection and the Tjs in the pfp to find a new start
@@ -302,93 +256,6 @@ namespace tca {
     return true;
     
   } // SetStart
-
-  /////////////////////////////////////////
-  void SetEndVx(TjStuff& tjs, PFPStruct& pfp, unsigned short atEnd, bool prt)
-  {
-    // Analyzes the requested end of Tp3s to see if Tjs are attached to the same 3D vertex
-    // and if so, attach the PFParticle that vertex
-    if(atEnd > 1) return;
-    if(pfp.Tp3s.empty()) return;
-    //  already attached to a valid?
-    if(pfp.Vx3ID[atEnd] > 0 && tjs.vtx3[pfp.Vx3ID[atEnd] - 1].Wire != -2) {
-      if(prt) mf::LogVerbatim("TC")<<"SEV: pfp "<<pfp.ID<<" Vx3ID["<<atEnd<<"] = "<<pfp.Vx3ID[atEnd];
-      return;
-    }
-    
-    // clobber the PFP-only vertex that was used to define the start position
-    if(pfp.Vx3ID[atEnd] > 0 && tjs.vtx3[pfp.Vx3ID[atEnd] - 1].Wire == -2) {
-      auto& vx3 = tjs.vtx3[pfp.Vx3ID[atEnd] - 1];
-      for(auto& opfp : tjs.pfps) {
-        for(unsigned short end = 0; end < 2; ++end) {
-          if(opfp.Vx3ID[end] == vx3.ID) opfp.Vx3ID[end] = 0;
-        } // end
-      } // opfp
-      vx3.ID = 0;
-    } // PFP-only vertex exists
-    
-    // make a list of 3D vertices at the end of Tp3s
-    std::vector<unsigned short> endVxList;
-    // and the Tjs to which they are attached
-    std::vector<int> endTjList;
-    // check a number of points near the end
-    for(unsigned short ii = 0; ii < 5; ++ii) {
-      short ipt = 0;
-      if(atEnd == 1) {
-        ipt = pfp.Tp3s.size() - ii - 1;
-        // don't get too close to the start if this is a short pfp
-        if(ipt < 3) break;
-      } else {
-        ipt = ii;
-        if(ipt > (short)pfp.Tp3s.size() - 3) break;
-      }
-      auto& tp3 = pfp.Tp3s[ipt];
-      for(auto& tj2pt : tp3.Tj2Pts) {
-        auto& tj = tjs.allTraj[tj2pt.id - 1];
-        unsigned short end = 0;
-        unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
-        if(ipt > midPt) end = 1;
-        // see if there is a 2D vertex at this end
-        if(tj.VtxID[end] == 0 || tj.VtxID[end] > tjs.vtx.size()) continue;
-        auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
-        // see if this is matched to a 3D vertex
-        if(vx2.Vx3ID == 0 || vx2.Vx3ID > tjs.vtx3.size()) continue;
-        // Ignore it if it is already in the Tj list
-        if(std::find(endTjList.begin(), endTjList.end(), tj.ID) != endTjList.end()) continue;
-        // Ignore it if it is attached to the other end
-        if(vx2.Vx3ID == pfp.Vx3ID[1 - atEnd]) continue;
-        // Ignore it if it is closer to the other end
-        unsigned short opt = 0;
-        if(atEnd == 1) opt = pfp.Tp3s.size() - 1;
-        auto& otp3 = pfp.Tp3s[opt];
-        // put the position into a Point3_t
-        auto& vx3 = tjs.vtx3[vx2.Vx3ID - 1];
-        // BUG the double brace syntax is required to work around clang bug 21629
-        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-        Point3_t vx3pos = {{vx3.X, vx3.Y, vx3.Z}};
-        if(PosSep2(tp3.Pos, vx3pos) > PosSep2(otp3.Pos, vx3pos)) continue;
-        // add it to the list
-//        std::cout<<"pfp_atEnd "<<pfp.ID<<"_"<<atEnd<<" tj_end "<<tj.ID<<"_"<<end<<" vx3 "<<vx2.Vx3ID<<"\n";
-        endVxList.push_back(vx2.Vx3ID);
-        endTjList.push_back(tj.ID);
-      } // tj2pt
-      // break out if we have them all. 
-      // TODO: Compare the endTjList with pfp.TjIDs here? And do what?...
-      if(endTjList.size() == pfp.TjIDs.size()) break;
-    } // ii
-    if(endVxList.empty()) return;
-    // Just take the first one
-    // TODO: This may need to be done more carefully if there is vertex confusion at this end
-    pfp.Vx3ID[atEnd] = endVxList[0];
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"SEV: pfp "<<pfp.ID<<" checking atEnd "<<atEnd<<" End Vx_Tj:";
-      for(unsigned short iev = 0; iev < endVxList.size(); ++iev) {
-        myprt<<" "<<endVxList[iev]<<"_"<<endTjList[iev];
-      }
-      myprt<<" Setting Vx3ID "<<pfp.Vx3ID[atEnd];
-    } // prt
-  } // SetEndVx
 
   /////////////////////////////////////////
   void FollowTp3s(TjStuff& tjs, PFPStruct& pfp, bool prt)
@@ -2337,7 +2204,7 @@ namespace tca {
       auto& tj = tjs.allTraj[tjid - 1];
       ++nInPln[DecodeCTP(tj.CTP).Plane];
       if(tj.AlgMod[kMat3D] || tj.AlgMod[kKilled]) {
-        std::cout<<fcnLabel<<" pfp "<<pfp.ID<<" uses tj T"<<tj.ID<<" but kMat3D is set true\n";
+        std::cout<<fcnLabel<<" P"<<pfp.ID<<" uses T"<<tj.ID<<" but kMat3D is set true\n";
         return false;
       }
     } // tjid
@@ -2346,7 +2213,7 @@ namespace tca {
     if(npl < 2) return false;
 
     if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
-      std::cout<<fcnLabel<<" pfp P"<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
+      std::cout<<fcnLabel<<" P"<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
       return false;
     }
     
@@ -2360,7 +2227,7 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<fcnLabel<<" pfp P"<<pfp.ID;
-      myprt<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
+      myprt<<" Vx3ID 3V"<<pfp.Vx3ID[0]<<" 3V"<<pfp.Vx3ID[1];
       myprt<<" Tjs";
       for(auto id : pfp.TjIDs) myprt<<" T"<<id;
       myprt<<" matchVec index "<<pfp.MatchVecIndex;
@@ -2433,7 +2300,7 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<fcnLabel<<" pfp P"<<pfp.ID;
-      myprt<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
+      myprt<<" Vx3ID 3V"<<pfp.Vx3ID[0]<<" 3V"<<pfp.Vx3ID[1];
       myprt<<" Tjs";
       for(auto id : pfp.TjIDs) myprt<<" T"<<id;
       myprt<<" Tp3s size "<<pfp.Tp3s.size();
@@ -3074,6 +2941,15 @@ namespace tca {
     }
     return sum / cnt;
   } // ChgFracNearEnd
+  
+  ////////////////////////////////////////////////
+  unsigned short FarEnd(const TjStuff& tjs, const PFPStruct& pfp, const Point3_t& pos)
+  {
+    // Returns the end (0 or 1) of the pfp that is furthest away from the position pos
+    if(pfp.ID == 0) return 0;
+    if(PosSep2(pfp.XYZ[1], pos) > PosSep2(pfp.XYZ[0], pos)) return 1;
+    return 0;
+  } // FarEnd
 
   ////////////////////////////////////////////////
   void PrintTp3(std::string someText, const TjStuff& tjs, const TrajPoint3& tp3)
