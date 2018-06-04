@@ -276,8 +276,9 @@ size_t cluster::HoughBaseAlg::Transform(
   std::vector<int> skip;  
   
   std::vector<double> wire_pitch(geom->Nplanes(t, cs), 0.);
-  for(size_t p = 0; p < wire_pitch.size(); ++p) 
-    wire_pitch[p] = geom->WirePitch(0,1,p);
+  for (size_t p = 0; p < wire_pitch.size(); ++p) {
+    wire_pitch[p] = geom->WirePitch(p);
+  }
 
   //factor to make x and y scale the same units
   std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);
@@ -1114,7 +1115,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       /*
       //factor to make x and y scale the same units
       double xyScale  = .001*detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
-      xyScale        *= detprop->SamplingRate()/geom->WirePitch(0,1,p,t,cs);
+      xyScale        *= detprop->SamplingRate()/geom->WirePitch(p,t,cs);
       
       int x, y;
       int dx = geom->Cryostat(cs).TPC(t).Plane(p).Nwires();//number of wires 
@@ -1521,8 +1522,9 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   }
   
   std::vector<double> wire_pitch(geom->Nplanes(t, cs), 0.);
-  for(size_t p = 0; p < wire_pitch.size(); ++p) 
-    wire_pitch[p] = geom->WirePitch(0,1,p);
+  for (size_t p = 0; p < wire_pitch.size(); ++p) {
+    wire_pitch[p] = geom->WirePitch(p);
+  }
 
   //factor to make x and y scale the same units
   std::vector<double> xyScale(geom->Nplanes(t, cs), 0.);

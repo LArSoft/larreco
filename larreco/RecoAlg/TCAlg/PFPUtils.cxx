@@ -461,7 +461,6 @@ namespace tca {
     }
     x0 /= (double)useID.size();
 
-//<<<<<<< HEAD
     double wght = 1;
     for(unsigned short ipt = 0; ipt < useID.size(); ++ipt) {
       auto& tp = tjs.allTraj[useID[ipt] - 1].Pts[useIpt[ipt]];
@@ -495,36 +494,6 @@ namespace tca {
     pos[2] = tVec[1];
     rCorr = 1;
     std::cout<<"FTP3s: "<<useID.size()<<" cntInPln "<<cntInPln[0]<<" "<<cntInPln[1]<<" "<<cntInPln[2]<<"\n";
-/*
-    =======
-    // Set the direction vectors of all points to be consistent with the general
-    // start direction
-    FixDirection(tjs, pfp);
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-    Vector3_t startDir = {{0.0, 0.0, 0.0}};
-    // Find the average direction using the points in the first 10 cm
-    for(auto& tp3 : pfp.Tp3s) {
-      if(PosSep2(tp3.Pos, startPos) > 100) break;
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) startDir[xyz] += tp3.Dir[xyz];
-    } //  tp3
-    SetMag(startDir, 1);
-    pfp.Dir[0] = startDir;
-    if(prt) mf::LogVerbatim("TC")<<"SBDFS: start direction "<<std::fixed<<std::setprecision(2)<<pfp.Dir[0][0]<<" "<<pfp.Dir[0][1]<<" "<<pfp.Dir[0][2];
-    // do the same at the other end
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-    Vector3_t endDir = {{0.0, 0.0, 0.0}};
-    for(unsigned short ii = 0; ii < pfp.Tp3s.size(); ++ii) {
-      auto& tp3 = pfp.Tp3s[pfp.Tp3s.size() - 1 - ii];
-      if(PosSep2(tp3.Pos, endPos) > 100) break;
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) endDir[xyz] += tp3.Dir[xyz];
-    } // ii
-    SetMag(endDir, 1);
-    pfp.Dir[1] = endDir;
-    if(prt) mf::LogVerbatim("TC")<<"SBDFS: end direction "<<std::fixed<<std::setprecision(2)<<pfp.Dir[1][0]<<" "<<pfp.Dir[1][1]<<" "<<pfp.Dir[1][2];
->>>>>>> develop
-*/    
     return true;
 
   } // FitTp3s
@@ -2672,7 +2641,7 @@ namespace tca {
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp)
   {
     // stores the PFParticle in TJStuff
-    if(pfp.ID < tjs.pfps.size()) return false;
+    if(pfp.ID < int(tjs.pfps.size())) return false;
     bool neutrinoPFP = pfp.PDGCode == 12 || pfp.PDGCode == 14;
     if(!neutrinoPFP) {
       if(pfp.TjIDs.empty()) return false;

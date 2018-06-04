@@ -278,7 +278,7 @@ namespace trkf {
     //double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
     //double presamplings = detprop->TriggerOffset(); // presamplings in ticks  
     //double plane_pitch = geom->PlanePitch(0,1);   //wire plane pitch in cm 
-    //double wire_pitch = geom->WirePitch(0,1,0);    //wire pitch in cm
+    //double wire_pitch = geom->WirePitch();    //wire pitch in cm
     //double Efield_drift = larprop->Efield(0);  // Electric Field in the drift region in kV/cm
     //double Temperature = detprop->Temperature();  // LAr Temperature in K
 

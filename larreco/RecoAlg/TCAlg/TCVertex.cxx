@@ -1250,7 +1250,7 @@ namespace tca {
     }
     
     // wire spacing in cm
-    float wirePitch = tjs.geom->WirePitch(0, 1, 0, tpcid.TPC, tpcid.Cryostat);
+    float wirePitch = tjs.geom->WirePitch(0, tpcid.TPC, tpcid.Cryostat);
     
     size_t vsize = tjs.vtx.size();
     // vector of 2D vertices -> 3D vertices.
@@ -1650,8 +1650,8 @@ namespace tca {
   //////////////////////////////////////////
   bool AttachPFPToVertex(TjStuff& tjs, PFPStruct& pfp, unsigned short end, unsigned short vx3ID, bool prt)
   {
-    if(vx3ID > tjs.vtx3.size()) return false;
-    if(pfp.ID > tjs.pfps.size()) return false;
+    if(vx3ID > int(tjs.vtx3.size())) return false;
+    if(pfp.ID > int(tjs.pfps.size())) return false;
     if(pfp.PDGCode == 22) return false;
     if(end > 1) return false;
     
@@ -1913,7 +1913,7 @@ namespace tca {
     // jacket around the push to ensure that the Tj and vtx CTP is consistent.
     // The calling function should score the vertex after the trajectories are attached
     
-    if(vx.ID != tjs.vtx.size() + 1) {
+    if(vx.ID != int(tjs.vtx.size() + 1)) {
       mf::LogVerbatim("TC")<<"StoreVertex: Invalid ID "<<vx.ID<<" It should be "<<tjs.vtx.size() + 1;
       return false;
     }
@@ -2136,7 +2136,7 @@ namespace tca {
       if(vx2.CTP != inCTP) continue;
       if(vx2.ID == 0) continue;
       if(vx2.Vx3ID == 0) continue;
-      if(vx2.Vx3ID > tjs.vtx3.size()) {
+      if(vx2.Vx3ID > int(tjs.vtx3.size())) {
         mf::LogVerbatim("TC")<<"ChkVtxAssociations: Invalid vx2.Vx3ID "<<vx2.Vx3ID<<" in 2D vtx "<<vx2.ID;
         return false;
       }
@@ -3003,7 +3003,7 @@ namespace tca {
     // The 2D and 3D vertices are NOT killed if forceKill is false and the 3D vertex
     // has a high score
     if(vx3.ID == 0) return true;
-    if(vx3.ID > tjs.vtx3.size()) return false;
+    if(vx3.ID > int(tjs.vtx3.size())) return false;
     
     // set the score to 0
 //    vx3.Score = 0;

@@ -139,7 +139,7 @@ void Track3Dreco::produce(art::Event& evt)
    double presamplings = 60.;
    const double wireShift=50.; // half the number of wires from the Induction(Collection) plane intersecting with a wire from the Collection(Induction) plane.
    double plane_pitch = geom->PlanePitch(0,1);   //wire plane pitch in cm 
-   double wire_pitch = geom->WirePitch(0,1,0);    //wire pitch in cm
+   double wire_pitch = geom->WirePitch();    //wire pitch in cm
    double Efield_drift = 0.5;  // Electric Field in the drift region in kV/cm
    double Efield_SI = 0.7;     // Electric Field between Shield and Induction planes in kV/cm
    double Efield_IC = 0.9;     // Electric Field between Induction and Collection planes in kV/cm

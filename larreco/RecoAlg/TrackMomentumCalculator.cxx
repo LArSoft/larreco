@@ -141,7 +141,7 @@ namespace trkf{
    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
    
    /*Proton range-momentum tables from CSDA (Argon density = 1.4 g/cm^3):
-   website: http://projects-docdb.fnal.gov:8080/cgi-bin/RetrieveFile?docid=1696;filename=Stopping%20Protons%20-%20July.pdf;version=2
+   website: https://physics.nist.gov/PhysRefData/Star/Text/PSTAR.html
    
    CSDA values:
    Double_t KE_MeV_P_Nist[31]={10, 15, 20, 30, 40, 80, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000,
