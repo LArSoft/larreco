@@ -137,6 +137,7 @@ namespace tca {
   // Project TP to a "wire position" Pos[0] and update Pos[1]
   void MoveTPToWire(TrajPoint& tp, float wire);
   bool PointInsideEnvelope(const Point2_t& Point, const std::vector<Point2_t>& Envelope);
+  bool SetMag(Vector2_t& v1, double mag);
   void FindAlongTrans(Point2_t pos1, Vector2_t dir1, Point2_t pos2, Point2_t& alongTrans);
   inline double DotProd(const Vector2_t& v1, const Vector2_t& v2) {return v1[0]*v2[0] + v1[1]*v2[1]; }
   double DeltaAngle(double Ang1, double Ang2);
