@@ -2746,13 +2746,15 @@ namespace tca {
   void FindAlongTrans(Point3_t pos1, Vector3_t dir1, Point3_t pos2, Point2_t& alongTrans)
   {
     // Calculate the distance along and transvers to the direction vector from pos1 to pos2
-    if(pos1[0] == pos2[0] && pos1[1] == pos2[1] && pos1[2] == pos2[2]) {
-      alongTrans[0] = 0; alongTrans[1] = 0;
-      return;
-    }
+    alongTrans[0] = 0; 
+    alongTrans[1] = 0;
+    if(pos1[0] == pos2[0] && pos1[1] == pos2[1] && pos1[2] == pos2[2]) return;
     auto ptDir = PointDirection(pos1, pos2);
+    SetMag(dir1, 1.0);
     double costh = DotProd(dir1, ptDir);
+    if(costh > 1) return;
     double sep = PosSep(pos1, pos2);
+    if(sep < 1E-6) return;
     alongTrans[0] = costh * sep;
     double sinth = sqrt(1 - costh * costh);
     alongTrans[1] = sinth * sep;
