@@ -2718,21 +2718,35 @@ namespace tca {
   } // InsideEnvelope
 
   
+  //////////////////////////////////////////
+  bool SetMag(Vector2_t& v1, double mag)
+  {
+    double den = v1[0] * v1[0] + v1[1] * v1[1];
+    if(den == 0) return false;
+    den = sqrt(den);
+    
+    v1[0] *= mag / den;
+    v1[1] *= mag / den;
+    return true;
+  } // SetMag
+
   ////////////////////////////////////////////////
   void FindAlongTrans(Point2_t pos1, Vector2_t dir1, Point2_t pos2, Point2_t& alongTrans)
   {
     // Calculate the distance along and transverse to the direction vector dir1 from pos1 to pos2
-    if(pos1[0] == pos2[0] && pos1[1] == pos2[1]) {
-      alongTrans[0] = 0; alongTrans[1] = 0;
-      return;
-    }
+    alongTrans[0] = 0;
+    alongTrans[1] = 0;
+    if(pos1[0] == pos2[0] && pos1[1] == pos2[1]) return;
     pos1[0] = pos2[0] - pos1[0];
     pos1[1] = pos2[1] - pos1[1];
     double sep = sqrt(pos1[0] * pos1[0] + pos1[1] * pos1[1]);
+    if(sep < 1E-6) return;
     Vector2_t ptDir;
     ptDir[0] = pos1[0] / sep;
     ptDir[1] = pos1[1] / sep;
+    SetMag(dir1, 1.0);
     double costh = DotProd(dir1, ptDir);
+    if(costh > 1.0 || costh < -1.0) return;
     alongTrans[0] = costh * sep;
     double sinth = sqrt(1 - costh * costh);
     alongTrans[1] = sinth * sep;
