@@ -64,7 +64,9 @@ namespace tca {
   bool DefineShowerTj(std::string inFcnLabel, TjStuff& tjs, int cotID, bool prt);
   void ReverseShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss, bool prt);
   void ReverseShower(std::string inFcnLabel, TjStuff& tjs, int cotID, bool prt);
+  bool FindNeutrinoParent(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   bool FindParent(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
+  bool SetParent(std::string inFcnLabel, TjStuff& tjs, PFPStruct& pfp, ShowerStruct3D& ss3, bool prt);
   bool WrongSplitTj(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short tjEnd, ShowerStruct& ss, bool prt);
   bool IsInShower(const TjStuff& tjs, const std::vector<int> TjIDs);
   float InShowerProb(const TjStuff& tjs, const ShowerStruct3D& ss3, const PFPStruct& pfp);
@@ -101,10 +103,11 @@ namespace tca {
   float ShowerEnergy(const TjStuff& tjs, const std::vector<int> tjIDs);
   float ChgToMeV(float chg);
   PFPStruct CreateFakePFP(const TjStuff& tjs, const ShowerStruct3D& ss3);
+  bool StoreShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3);
   bool StoreShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss);
   ShowerStruct3D CreateSS3(TjStuff& tjs, const geo::TPCID& tpcid);
   ShowerStruct CreateSS(TjStuff& tjs, const std::vector<int>& tjl);
-  void ChkAssns(std::string inFcnLabel, TjStuff& tjs);
+  bool ChkAssns(std::string inFcnLabel, TjStuff& tjs);
   void PrintShowers(std::string someText, TjStuff& tjs);
   void Print2DShowers(std::string someText, const TjStuff& tjs, CTP_t inCTP, bool printKilledShowers);
   void PrintShower(std::string someText, const TjStuff& tjs, const ShowerStruct& ss, bool printHeader, bool printExtras);
