@@ -311,7 +311,7 @@ namespace tca {
     int BestPlane;
     int ID;
     int ParentID {0};       // The ID of a track-like pfp at the start of the shower, e.g. an electron
-    float FOM;
+    float MatchFOM;
     unsigned short PFPIndex {USHRT_MAX};    // The index of the pfp for this shower
     int Vx3ID {0};
     bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
