@@ -2154,7 +2154,7 @@ namespace tca {
     for(auto& vx3 : tjs.vtx3) {
       if(vx3.ID == 0) continue;
       if(vx3.Vx2ID[plane] == 0) continue;
-      if(vx3.Vx2ID[plane] > tjs.vtx.size()) {
+      if(vx3.Vx2ID[plane] > (int)tjs.vtx.size()) {
         mf::LogVerbatim("TC")<<"ChkVtxAssociations: Invalid vx3.Vx2ID "<<vx3.Vx2ID[plane]<<" in CTP "<<inCTP;
         return false;
       }
@@ -3009,7 +3009,7 @@ namespace tca {
 //    vx3.Score = 0;
     
     for(auto vx2id : vx3.Vx2ID) {
-      if(vx2id == 0 || vx2id > tjs.vtx.size()) continue;
+      if(vx2id == 0 || vx2id > (int)tjs.vtx.size()) continue;
       auto& vx2 = tjs.vtx[vx2id - 1];
       MakeVertexObsolete(tjs, vx2, true);
     }
