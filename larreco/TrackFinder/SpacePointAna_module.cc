@@ -172,7 +172,7 @@ namespace trkf {
       art::ServiceHandle<art::TFileService> tfs;
       art::TFileDirectory dir = tfs->mkdir("sptana", "SpacePointAna histograms");
 
-      if(mc) {
+      if(mc && fUseMC) {
 	fHDTUE = dir.make<TH1F>("MCDTUE", "U-Drift Electrons Time Difference", 100, -5., 5.);
 	fHDTVE = dir.make<TH1F>("MCDTVE", "V-Drift Electrons Time Difference", 100, -5., 5.);
 	fHDTWE = dir.make<TH1F>("MCDTWE", "W-Drift Electrons Time Difference", 100, -5., 5.);
@@ -194,7 +194,7 @@ namespace trkf {
 			   100, -geom->DetHalfHeight(), geom->DetHalfHeight());
       fHz = dir.make<TH1F>("zpos", "Z Position",
 			   100, 0., geom->DetLength());
-      if(mc) {
+      if(mc && fUseMC) {
 	fHMCdx = dir.make<TH1F>("MCdx", "X MC Residual", 100, -1., 1.);
 	fHMCdy = dir.make<TH1F>("MCdy", "Y MC Residual", 100, -1., 1.);
 	fHMCdz = dir.make<TH1F>("MCdz", "Z MC Residual", 100, -1., 1.);
@@ -212,8 +212,6 @@ namespace trkf {
   // Arguments: event - Art event.
   //
   {
-    art::ServiceHandle<cheat::BackTracker> bt;
-
     ++fNumEvent;
 
     // Make sure histograms are booked.
@@ -272,7 +270,9 @@ namespace trkf {
 
     // Fill histograms that don't depend on space points.
 
-    if(mc) {
+    if(mc && fUseMC) {
+
+      art::ServiceHandle<cheat::BackTracker> bt;
 
       // Loop over hits and fill hit-electron time difference histogram.
 
@@ -483,7 +483,10 @@ namespace trkf {
       fHx->Fill(spt.XYZ()[0]);
       fHy->Fill(spt.XYZ()[1]);
       fHz->Fill(spt.XYZ()[2]);
-      if(mc) {
+      if(mc && fUseMC) {
+
+	art::ServiceHandle<cheat::BackTracker> bt;
+
 	try {
 	  std::vector<double> mcxyz = bt->SpacePointHitsToXYZ(fSptalgDefault.getAssociatedHits(spt));
 	  fHMCdx->Fill(spt.XYZ()[0] - mcxyz[0]);
