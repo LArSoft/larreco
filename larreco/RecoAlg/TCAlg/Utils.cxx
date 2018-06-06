@@ -4185,6 +4185,16 @@ namespace tca {
       return tmp;
     } // T -> 2S
     
+    if(type1Name == "T" && uid <= tjs.allTraj.size() && type2Name == "3S") {
+      // T -> 3S
+      for(auto& ss : tjs.cots) {
+        if(ss.ID == 0) continue;
+        if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), id) == ss.TjIDs.end()) continue;
+        if(ss.SS3ID > 0) tmp.push_back(ss.SS3ID);
+      } // ss
+      return tmp;
+    } // T -> 3S
+    
     std::cout<<"GetAssns doesn't know about "<<type1Name<<" -> "<<type2Name<<" assns, or id "<<id<<" is not valid.\n";
 
     return tmp;
