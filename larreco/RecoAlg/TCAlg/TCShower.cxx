@@ -326,6 +326,7 @@ namespace tca {
           MakeShowerObsolete(fcnLabel, tjs, ss, prt);
         }
       } // tjl
+      ChkAssns(fcnLabel, tjs);
       // try to merge showers in this plane using the lists of nearby Tjs
       if(inCTP == UINT_MAX) continue;
       if(tjs.cots.empty()) continue;
@@ -441,7 +442,6 @@ namespace tca {
     std::string fcnLabel = inFcnLabel + ".R3D2";
     
     if(prt) Print2DShowers("R3D2i", tjs, USHRT_MAX, false);
-    ChkAssns(fcnLabel, tjs);
     
     for(unsigned short ii = 0; ii < tjs.showers.size() - 1; ++ii) {
       auto iss3 = tjs.showers[ii];
@@ -484,7 +484,7 @@ namespace tca {
     } // ii
     
     if(prt) Print2DShowers("R3D2o", tjs, USHRT_MAX, false);
-    fcnLabel += "o";
+    
     ChkAssns(fcnLabel, tjs);
     
     return true;
@@ -545,7 +545,7 @@ namespace tca {
     
     for(auto& pc : p_cnt) {
       // matched in all planes?
-      if(pc[1] == ss3.CotIDs.size()) continue;
+      if(pc[1] == (int)ss3.CotIDs.size()) continue;
       if(pc[1] == 2) {
         // missing a tj in a plane or is this a two-plane pfp?
         auto& pfp = tjs.pfps[pc[0] - 1];
@@ -601,6 +601,8 @@ namespace tca {
     } // pc
     
     return UpdateShower(fcnLabel, tjs, ss3, prt);
+    
+    ChkAssns(fcnLabel, tjs);
     
   } // Reconcile3D
   
@@ -864,6 +866,14 @@ namespace tca {
         if(std::find(flat.begin(), flat.end(), tid) != flat.end()) continue;
         ktlist.push_back(tid);
         auto ssl = GetAssns(tjs, "T", tid, "2S");
+        // ignore if the shower is 3D-matched
+        bool skipit = false;
+        for(auto cid : ssList) {
+          auto& ss = tjs.cots[cid - 1];
+          if(ss.SS3ID > 0) skipit = true;
+        } // cid
+        if(skipit) continue;
+        ktlist.push_back(tid);
         for(auto cid : ssl) if(std::find(ssList.begin(), ssList.end(), cid) == ssList.end()) ssList.push_back(cid);
       } // tid
     } // pid
@@ -936,6 +946,8 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC")<<fcnLabel;
     
     float fomCut = 2;
+    
+    ChkAssns(fcnLabel, tjs);
     
     // sort the showers by decreasing energy and increasing AspectRatio so that the 3D direction is defined
     // by the first matching pair
@@ -1069,6 +1081,8 @@ namespace tca {
       } // cj
     } // ci
     if(tjs.showers.empty()) return;
+    
+    ChkAssns(fcnLabel, tjs);
     
     if(prt) PrintShowers("M2DS", tjs);
 
@@ -1405,9 +1419,9 @@ namespace tca {
   float Match3DFOM(std::string inFcnLabel, TjStuff& tjs,
                    int icid, int jcid, int kcid, bool prt)
   {
-    if(icid == 0 || icid > tjs.cots.size()) return 100;
-    if(jcid == 0 || jcid > tjs.cots.size()) return 100;
-    if(kcid == 0 || kcid > tjs.cots.size()) return 100;
+    if(icid == 0 || icid > (int)tjs.cots.size()) return 100;
+    if(jcid == 0 || jcid > (int)tjs.cots.size()) return 100;
+    if(kcid == 0 || kcid > (int)tjs.cots.size()) return 100;
     
     float ijfom = Match3DFOM(inFcnLabel, tjs, icid, jcid, prt);
     float jkfom = Match3DFOM(inFcnLabel, tjs, jcid, kcid, prt);
@@ -1420,8 +1434,8 @@ namespace tca {
   float Match3DFOM(std::string inFcnLabel, TjStuff& tjs, int icid, int jcid, bool prt)
   {
     // returns a Figure of Merit for a 3D match of two showers
-    if(icid == 0 || icid > tjs.cots.size()) return 100;
-    if(jcid == 0 || jcid > tjs.cots.size()) return 100;
+    if(icid == 0 || icid > (int)tjs.cots.size()) return 100;
+    if(jcid == 0 || jcid > (int)tjs.cots.size()) return 100;
     
     auto& iss = tjs.cots[icid - 1];
     auto& istj = tjs.allTraj[iss.ShowerTjID - 1];    
@@ -1817,9 +1831,6 @@ namespace tca {
     //       |<----D------>|                                     |<----D------>|
     // |<----shMaxAlong--->|                                     |<----shMaxAlong--->|
     //
-    // min cos angle btw the shower direction and the pfp direction (0.1 radians)
-    float maxCosth = 0.995;
-    if(energy < 100) maxCosth = 0.7;
     // Candidate parent ID for each end and the FOM 
     std::array<int, 2> parID {{0, 0}};
     std::array<float, 2> parFOM {{tjs.ShowerTag[8], tjs.ShowerTag[8]}};
@@ -1944,7 +1955,7 @@ namespace tca {
       fom3D = parFOM[1];
     }
     if(bestPFP == 0) return true;
-    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" setting P"<<bestPFP<<" as the parent";
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" setting P"<<bestPFP<<" as the parent "<<fom3D;
     
     // make local copies so we can recover from a failure
     auto oldSS3 = ss3;
@@ -2161,7 +2172,7 @@ namespace tca {
   {
     // returns a likelihood (0 - 1) that the pfp particle belongs in shower ss3
     
-    if(ss3.ID == 0 | pfp.ID == 0) return 0;
+    if(ss3.ID == 0 || pfp.ID == 0) return 0;
     float sum = 0;
     float cnt = 0;
     for(auto cid : ss3.CotIDs) {
@@ -2501,7 +2512,9 @@ namespace tca {
         } // ci2
       } // ci1
     } // keepMerging
-    return;
+    
+    ChkAssns(fcnLabel, tjs);
+    
   } //MergeNearby2DShowers
 
   ////////////////////////////////////////////////
@@ -2611,6 +2624,8 @@ namespace tca {
         } // jct
       } // ict
     } // didMerge
+    
+    ChkAssns(fcnLabel, tjs);
 
   } // MergeOverlap
   
@@ -2732,6 +2747,8 @@ namespace tca {
       } // long chain
     } // ii
     
+    ChkAssns(fcnLabel, tjs);
+    
   } // MergeShowerChain
   
   ////////////////////////////////////////////////
@@ -2818,14 +2835,14 @@ namespace tca {
     while(keepGoing) {
       keepGoing = false;
       float bestDang = 0.3;
-      int bestMatch = USHRT_MAX;
+      int bestMatch = 0;
       for(unsigned short mat = 0; mat < tjss.size(); ++mat) {
         auto& match = tjss[mat];
         // already used
         if(match.dang < 0) continue;
         if(match.dang < bestDang) bestMatch = mat;
       } // mat
-      if(bestMatch < tjss.size()) {
+      if(bestMatch > 0) {
         auto& match = tjss[bestMatch];
         auto& ss = tjs.cots[match.ssID - 1];
         if(!AddTj(fcnLabel, tjs, match.tjID, ss, true, prt)) {
@@ -2839,6 +2856,9 @@ namespace tca {
         keepGoing = true;
       } // found bestMatch
     } // keepGoing
+    
+    ChkAssns(fcnLabel, tjs);
+    
   } // MergeSubShowersTj
   
   ////////////////////////////////////////////////
@@ -2944,37 +2964,45 @@ namespace tca {
       } // ii
     } // keepMerging
     
+    ChkAssns(fcnLabel, tjs);
+    
   } // MergeSubShowers
   
   ////////////////////////////////////////////////
-  int MergeShowers(std::string inFcnLabel, TjStuff& tjs, std::vector<int> showerIDs, bool prt)
+  int MergeShowers(std::string inFcnLabel, TjStuff& tjs, std::vector<int> ssIDs, bool prt)
   {
     // merge a list of showers and return the ID of the merged shower.
     // Returns 0 if there was a failure. 
     
     std::string fcnLabel = inFcnLabel + ".MS";
-    if(showerIDs.size() < 2) return 0;
+    if(ssIDs.size() < 2) return 0;
     // check for a valid ID
-    for(auto ssID : showerIDs) if(ssID <= 0 || ssID > (int)tjs.cots.size()) return 0;
-    // check for the same CTP
-    auto& ss0 = tjs.cots[showerIDs[0] - 1];
+    for(auto ssID : ssIDs) if(ssID <= 0 || ssID > (int)tjs.cots.size()) return 0;
+    // check for the same CTP and consistent assns
+    int ss3Assn = 0;
+    auto& ss0 = tjs.cots[ssIDs[0] - 1];
     std::vector<int> tjl;
-    for(auto ssID : showerIDs) {
+    for(auto ssID : ssIDs) {
       auto& ss = tjs.cots[ssID - 1];
       if(ss.CTP != ss0.CTP) return 0;
       tjl.insert(tjl.end(), ss.TjIDs.begin(), ss.TjIDs.end());
-    }
+      if(ss.SS3ID > 0 && ss3Assn == 0) ss3Assn = ss.SS3ID;
+      if(ss.SS3ID > 0 && ss.SS3ID != ss3Assn) {
+        std::cout<<fcnLabel<<" Assn conflict \n";
+        return 0;
+      }
+    } // ssID
     // ensure the InShower Tjs are valid
     for(auto tjID : tjl) {
       auto& tj = tjs.allTraj[tjID - 1];
       if(tj.CTP != ss0.CTP || tj.AlgMod[kKilled]) {
-        std::cout<<fcnLabel<<" bad InShower Tj "<<tjID<<"\n";
+        std::cout<<fcnLabel<<" bad InShower T"<<tjID<<"\n";
         return 0;
       }
     } // tjID
     
     // mark the old showers killed
-    for(auto ssID : showerIDs) {
+    for(auto ssID : ssIDs) {
       auto& ss = tjs.cots[ssID - 1];
       ss.ID = 0;
       // kill the shower Tj
@@ -2990,6 +3018,7 @@ namespace tca {
       auto& tj = tjs.allTraj[tid - 1];
       tj.SSID = newss.ID;
     } // tid
+    newss.SS3ID = ss3Assn;
     
     // define the new shower
     if(!UpdateShower(fcnLabel, tjs, newss, prt)) {
@@ -3014,13 +3043,13 @@ namespace tca {
     // The jcotID shower is declared obsolete. This function also re-defines the shower and
     // sets the Parent ID to 0.
     
-    if(icotID <= 0 || icotID > tjs.cots.size()) return false;
+    if(icotID <= 0 || icotID > (int)tjs.cots.size()) return false;
     ShowerStruct& iss = tjs.cots[icotID - 1];
     if(iss.ID == 0) return false;
     if(iss.TjIDs.empty()) return false;
     if(iss.ShowerTjID <= 0) return false;
     
-    if(jcotID <= 0 || jcotID > tjs.cots.size()) return false;
+    if(jcotID <= 0 || jcotID > (int)tjs.cots.size()) return false;
     ShowerStruct& jss = tjs.cots[jcotID - 1];
     if(jss.TjIDs.empty()) return false;
     if(jss.ID == 0) return false;
@@ -3030,10 +3059,15 @@ namespace tca {
     
     std::string fcnLabel = inFcnLabel + ".MSAS";
     
+    if(iss.SS3ID > 0 && jss.SS3ID > 0 && iss.SS3ID != jss.SS3ID) {
+      std::cout<<fcnLabel<<" Error: 2S"<<iss.ID<<" and S"<<jss.ID<<" have different 2S -> 3S assns\n";
+      return false;
+    }
+    
     Trajectory& itj = tjs.allTraj[iss.ShowerTjID - 1];
     Trajectory& jtj = tjs.allTraj[jss.ShowerTjID - 1];
     if(!itj.Pts[1].Hits.empty() || !jtj.Pts[1].Hits.empty()) {
-      std::cout<<fcnLabel<<" Warning: These shower Tjs have hits! "<<itj.ID<<" "<<jtj.ID<<"\n";
+      std::cout<<fcnLabel<<" Error: These shower Tjs have hits! T"<<itj.ID<<" T"<<jtj.ID<<"\n";
       return false;
     }
     
@@ -3059,6 +3093,8 @@ namespace tca {
       auto& tj = tjs.allTraj[tid - 1];
       tj.SSID = iss.ID;
     } // tid
+    // transfer a 2S -> 3S assn
+    if(iss.SS3ID == 0 && jss.SS3ID > 0) iss.SS3ID = jss.SS3ID;
     // merge the list of nearby Tjs
     iss.NearTjIDs.insert(iss.NearTjIDs.end(), jss.NearTjIDs.begin(), jss.NearTjIDs.end());
     // transfer the TruParentID if it is in jss
@@ -3213,7 +3249,7 @@ namespace tca {
     // Defines the Shower Tj, calculates the shower aspect ratio, etc. This function
     // doesn't change the state of Parent
     
-    if(cotID > tjs.cots.size()) return false;
+    if(cotID > (int)tjs.cots.size()) return false;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return false;
@@ -3303,7 +3339,7 @@ namespace tca {
   {
     // Reverses the shower and the shower tj
     
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > (int)tjs.cots.size()) return;
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
     ReverseShower(inFcnLabel, tjs, ss, prt);
@@ -4077,7 +4113,7 @@ namespace tca {
   {
     // Finds the charge at the start of a shower and puts it in AveChg of the first
     // point of the shower Tj. This is only done when there is no parent.
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > (int)tjs.cots.size()) return;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
@@ -4239,7 +4275,7 @@ namespace tca {
     // then grep this file for the character string PTS which is piped to a text file which can then be
     // imported into Excel, etc
     // Finds the charge at the start of a shower
-    if(cotID > tjs.cots.size()) return;
+    if(cotID > (int)tjs.cots.size()) return;
     
     ShowerStruct& ss = tjs.cots[cotID - 1];
     if(ss.ID == 0) return;
