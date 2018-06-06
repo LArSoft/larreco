@@ -786,43 +786,7 @@ namespace tca {
     } // vx2
     
   } // KillVerticesInShower
-/*
-  ////////////////////////////////////////////////
-  void KillVerticesInShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
-  {
-    // Kill vertices inside showers 
-    
-    std::string fcnLabel = inFcnLabel + ".KVIS";
-    
-    // first kill the vertices
-    for(auto& ss : tjs.cots) {
-      if(ss.ID == 0) continue;
-      geo::PlaneID planeID = DecodeCTP(ss.CTP);
-      if(planeID.Cryostat != tpcid.Cryostat) continue;
-      if(planeID.TPC != tpcid.TPC) continue;
-      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      unsigned short parentTjVxID = stj.VtxID[0];
-      // look for vertices inside the envelope
-      for(auto& vx2 : tjs.vtx) {
-        if(vx2.CTP != ss.CTP) continue;
-        if(vx2.ID == 0) continue;
-        if(vx2.ID == parentTjVxID) continue;
-        // make sure it isn't associated with the neutrino vertex
-        if(vx2.Vx3ID > 0) {
-          auto& vx3 = tjs.vtx3[vx2.Vx3ID - 1];
-          if(vx3.Neutrino) continue;
-        }
-        bool insideEnvelope = PointInsideEnvelope(vx2.Pos, ss.Envelope);
-//        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ss "<<ss.ID<<" vx2 "<<vx2.ID<<" Score "<<std::fixed<<std::setprecision(1)<<vx2.Score<<" insideEnvelope? "<<insideEnvelope;
-        if(!insideEnvelope) continue;
-        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Clobber 2V"<<vx2.ID;
-        MakeVertexObsolete(tjs, vx2, true);
-        // This shouldn't be necessary
-//        ss.NeedsUpdate = true;
-      } // vx2
-    } // ss
-  } // KillVerticesInShowers
-*/
+
   ////////////////////////////////////////////////
   void CompleteIncompleteShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
   {
@@ -915,8 +879,7 @@ namespace tca {
       // No 2D shower found. Make one with ktlist
       auto kss = CreateSS(tjs, ktlist);
       if(kss.ID == 0) return;
-      // don't set the 2S -> 3S assn here. This will be done when/if 3S is stored.
-//      kss.SS3ID = ss3.ID;
+      kss.SS3ID = ss3.ID;
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" create new 2S"<<kss.ID<<" from ktlist";
       if(!UpdateShower(fcnLabel, tjs, kss, prt)) {
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" UpdateShower failed 2S"<<kss.ID;
@@ -934,6 +897,8 @@ namespace tca {
       stj.AlgMod[kCompleteShower] = true;
       ss3.NeedsUpdate = true;
     } // No 2D shower found. Make one with ktlist
+    
+    ChkAssns(fcnLabel, tjs);
 
  } // CompleteIncompleteShower
   
@@ -4601,7 +4566,7 @@ namespace tca {
         }
       } // tid
       // check 2S -> 3S
-      if(ss.SS3ID > 0) {
+      if(ss.SS3ID > 0 && ss.SS3ID <= (int)tjs.showers.size()) {
         auto& ss3 = tjs.showers[ss.SS3ID - 1];
         if(std::find(ss3.CotIDs.begin(), ss3.CotIDs.end(), ss.ID) == ss3.CotIDs.end()) {
           std::cout<<fcnLabel<<" ***** Error: 2S"<<ss.ID<<" -> 3S"<<ss.SS3ID<<" but the shower says no\n";
