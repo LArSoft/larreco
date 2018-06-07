@@ -4089,7 +4089,7 @@ namespace tca {
     
     if(type1Name == "P" && uid <= tjs.pfps.size() && (type2Name == "2S" || type2Name == "3S")) {
       // return a list of 3D or 2D showers with the assn 3S -> 2S -> T -> P<ID> or 2S -> T -> P.
-      auto& pfp = tjs.pfps[id - 1];
+      auto& pfp = tjs.pfps[uid - 1];
       // First form a list of 2S -> T -> P<ID>
       std::vector<int> ssid;
       for(auto& ss : tjs.cots) {
@@ -4118,6 +4118,18 @@ namespace tca {
       return tmp;
     } // 2V -> T
 
+    if(type1Name == "3V" && uid <= tjs.vtx3.size() && type2Name == "P") {
+      for(auto& pfp : tjs.pfps) {
+        if(pfp.ID == 0) continue;
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(pfp.Vx3ID[end] != id) continue;
+          // encode the end with the ID
+          if(std::find(tmp.begin(), tmp.end(), pfp.ID) == tmp.end()) tmp.push_back(pfp.ID);
+        } // end
+      } // pfp
+      return tmp;
+    } // 3V -> P
+    
     if(type1Name == "3V" && uid <= tjs.vtx3.size() && type2Name == "T") {
       // 3V -> T
       for(auto& tj : tjs.allTraj) {
@@ -4144,7 +4156,7 @@ namespace tca {
 
     if(type1Name == "3S" && uid <= tjs.showers.size() && type2Name == "T") {
       // 3S -> T
-      auto& ss3 = tjs.showers[id - 1];
+      auto& ss3 = tjs.showers[uid - 1];
       if(ss3.ID == 0) return tmp;
       for(auto cid : ss3.CotIDs) {
         auto& ss = tjs.cots[cid - 1];
@@ -4153,11 +4165,17 @@ namespace tca {
       } // cid
       return tmp;
     }  // 3S -> T
-
+    
+    // This isn't strictly necessary but do it for consistency
+    if(type1Name == "2S" && uid <= tjs.cots.size() && type2Name == "T") {
+      // 2S -> T
+      auto& ss = tjs.cots[uid - 1];
+      return ss.TjIDs;
+    }  // 2S -> T
     
     if(type1Name == "3S" && uid <= tjs.showers.size() && type2Name == "P") {
       // 3S -> P
-      auto& ss3 = tjs.showers[id - 1];
+      auto& ss3 = tjs.showers[uid - 1];
       if(ss3.ID == 0) return tmp;
       for(auto cid : ss3.CotIDs) {
         auto& ss = tjs.cots[cid - 1];
@@ -4597,7 +4615,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____   Len nTp3 MCSMom InSh? PDG mcpIndx Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____   Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
     myprt<<std::setw(5)<<pfp.ID;
@@ -4641,7 +4659,7 @@ namespace tca {
     }
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.Tp3s.size();
     myprt<<std::setw(7)<<MCSMom(tjs, pfp.TjIDs);
-    myprt<<std::setw(5)<<IsInShower(tjs, pfp.TjIDs);
+    myprt<<std::setw(5)<<IsShowerLike(tjs, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
     if(pfp.MCPartListIndex < tjs.MCPartList.size()) {
       myprt<<std::setw(8)<<pfp.MCPartListIndex;
