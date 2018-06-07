@@ -37,9 +37,9 @@ namespace tca {
   void KillVerticesInShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss, bool prt);
   void Finish3DShowers(TjStuff& tjs);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
-  bool Reconcile3D(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+  bool Reconcile3D(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool parentSearchDone, bool prt);
   bool Reconcile3D(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
-  void FindInShowerPFPs(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, std::vector<std::vector<int>>& plists);
+//  void FindInShowerPFPs(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, std::vector<std::vector<int>>& plists);
   bool MergeShowerTjsAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
   bool TransferTjHits(TjStuff& tjs, bool prt);
   int GetCotID(TjStuff& tjs, int ShowerTjID);
@@ -68,7 +68,7 @@ namespace tca {
   bool FindParent(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   bool SetParent(std::string inFcnLabel, TjStuff& tjs, PFPStruct& pfp, ShowerStruct3D& ss3, bool prt);
   bool WrongSplitTj(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short tjEnd, ShowerStruct& ss, bool prt);
-  bool IsInShower(const TjStuff& tjs, const std::vector<int> TjIDs);
+  bool IsShowerLike(const TjStuff& tjs, const std::vector<int> TjIDs);
   float InShowerProb(const TjStuff& tjs, const ShowerStruct3D& ss3, const PFPStruct& pfp);
   float InShowerProb(const TjStuff& tjs, const ShowerStruct& ss, const Trajectory& tj);
   void ShowerParams(double showerEnergy, double& shMaxAlong, double& shE95Along);
