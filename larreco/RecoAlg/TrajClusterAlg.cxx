@@ -4459,6 +4459,7 @@ namespace tca {
       cls.ID = tj.ID;
       // assign shower clusters a negative ID
       if(tj.AlgMod[kShowerTj]) cls.ID = -cls.ID;
+      if( ((tjs.ShowerTag[0] == 1) || (tjs.ShowerTag[0] == 3)) && tj.AlgMod[kShowerLike]) cls.ID = -cls.ID;
       cls.CTP = tj.CTP;
       cls.PDGCode = tj.PDGCode;
       endPt0 = tj.EndPt[0];
