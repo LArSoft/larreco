@@ -113,6 +113,8 @@ namespace tca {
     }
     if(noShowers) return;
     
+    ChkAssns("Fin3D", tjs);
+    
     // create a pfp and define the mother-daughter relationship. At this point, the shower parent PFP (if
     // one exists) is a track-like pfp that might be the daughter of another pfp, e.g. the neutrino. This
     // association is changed from shower ParentID -> parent pfp, to shower PFP -> parent pfp
@@ -373,12 +375,20 @@ namespace tca {
     if(prt) Print2DShowers("M2DS", tjs, USHRT_MAX, false);
     SaveAllCots(tjs, "FP");
     
-    // kill single Tj showers that aren't matched in 3D
+    // kill low energy 3D showers
+    for(auto& ss3 : tjs.showers) {
+      if(ss3.ID == 0) continue;
+      if(ss3.TPCID != tpcid) continue;
+      bool killMe = (ShowerEnergy(ss3) < tjs.ShowerTag[3]);
+      if(killMe) MakeShowerObsolete(fcnLabel, tjs, ss3, prt);
+    } // ss3
+    
+    // kill 2D showers that are either below threshold or have only one tj
     for(auto& ss : tjs.cots) {
       if(ss.ID == 0) continue;
-      if(ss.TjIDs.size() != 1) continue;
       if(ss.SS3ID > 0) continue;
-      MakeShowerObsolete(fcnLabel, tjs, ss, prt);
+      bool killMe = (ss.TjIDs.size() == 1 || ss.Energy < tjs.ShowerTag[3]);
+      if(killMe) MakeShowerObsolete(fcnLabel, tjs, ss, prt);
     } // ss
      
     unsigned short nNewShowers = 0;
@@ -657,7 +667,9 @@ namespace tca {
           myprt<<" sep "<<sep;
           myprt<<" InShowerProb "<<prob;
         } // prt 
-        if(sep > 30 && !RemovePFP(fcnLabel, tjs, pfp, ss3, true, prt)) {
+        if(sep < 30 && prob > 0.3 && AddPFP(fcnLabel, tjs, pfp.ID, ss3, true, prt)) {
+          if(prt) mf::LogVerbatim("TC")<<" AddPFP success";
+        } else if(!RemovePFP(fcnLabel, tjs, pfp, ss3, true, prt)) {
           std::cout<<"RemovePFP failed \n";
         }
       } // only one occurrence.
@@ -853,15 +865,15 @@ namespace tca {
   } // KillVerticesInShower
 
   ////////////////////////////////////////////////
-  void CompleteIncompleteShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
+  bool CompleteIncompleteShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt)
   {
     // Find low-energy two-plane showers and try to complete it by making a 2D shower in the third
     // plane using 3D matched tjs
     
-    if(tjs.NumPlanes != 3) return;
-    if(ss3.CotIDs.size() != 2) return;
+    if(tjs.NumPlanes != 3) return false;
+    if(ss3.CotIDs.size() != 2) return false;
     
-    if(!tjs.UseAlg[kCompleteShower]) return;
+    if(!tjs.UseAlg[kCompleteShower]) return false;
     
     std::string fcnLabel = inFcnLabel + ".CIS";
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID;
@@ -881,7 +893,7 @@ namespace tca {
     } // tid
     // look for pfps that have tjs in both showers
     auto shared = SetIntersection(iplist, jplist);
-    if(shared.empty()) return;
+    if(shared.empty()) return false;
     // put the list of tjs for both SS into a flat vector to simplify searching
     std::vector<int> flat = iss.TjIDs;
     flat.insert(flat.end(), jss.TjIDs.begin(), jss.TjIDs.end());
@@ -906,7 +918,7 @@ namespace tca {
         } // end
       } // tid
     } // pid
-    if(ktlist.empty()) return;
+    if(ktlist.empty()) return false;
     // list of 2D showers that include tjs in ktlist
     std::vector<int> ksslist;
     for(auto tid : ktlist) {
@@ -916,7 +928,7 @@ namespace tca {
       auto& ss = tjs.cots[tj.SSID - 1];
       if(ss.SS3ID > 0) {
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Found existing T"<<tid<<" -> 2S"<<ss.ID<<" -> 3S"<<ss.SS3ID<<" assn. Give up";
-        return;
+        return false;
       }
       if(std::find(ksslist.begin(), ksslist.end(), ss.ID) == ksslist.end()) ksslist.push_back(ss.ID);
     } // tid
@@ -951,34 +963,34 @@ namespace tca {
     } // prt
     if(ksslist.size() > 1) {
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Found more than 1 shower. Need some better code here";
-      return;
+      return false;
     }
     if(ktlistEnergy > 2 * ShowerEnergy(ss3)) {
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ktlistEnergy exceeds 2 * ss3 energy. Need some better code here";
-      return;
+      return false;
     } // ktlistEnergy too high
     
     if(ksslist.empty()) {
       // no 2D shower so make one using ktlist
       auto kss = CreateSS(tjs, ktlist);
-      if(kss.ID == 0) return;
+      if(kss.ID == 0) return false;
       kss.SS3ID = ss3.ID;
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" create new 2S"<<kss.ID<<" from ktlist";
       if(!UpdateShower(fcnLabel, tjs, kss, prt)) {
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" UpdateShower failed 2S"<<kss.ID;
         MakeShowerObsolete(fcnLabel, tjs, kss, prt);
-        return;
+        return false;
       } // UpdateShower failed
       if(!StoreShower(fcnLabel, tjs, kss)) {
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" StoreShower failed";
         MakeShowerObsolete(fcnLabel, tjs, kss, prt);
-        return;
+        return false;
       } // StoreShower failed
       ss3.CotIDs.push_back(kss.ID);
       auto& stj = tjs.allTraj[kss.ShowerTjID - 1];
       stj.AlgMod[kCompleteShower] = true;
       ss3.NeedsUpdate = true;
-      return;
+      return true;
     } // ksslist empty
     
     // associate ksslist[0] with 3S
@@ -991,6 +1003,7 @@ namespace tca {
     ss3.NeedsUpdate = true;
     
     ChkAssns(fcnLabel, tjs);
+    return true;
 
  } // CompleteIncompleteShower
   
@@ -1084,7 +1097,7 @@ namespace tca {
           if(fomik > bestFOM) continue;
           float sep = PosSep(tp3.Pos, iktp3.Pos);
           if(sep > 50) {
-            if(prt) mf::LogVerbatim("TC")<<" Large stp[1] point separation "<<sep;
+            if(prt) mf::LogVerbatim("TC")<<" 2S"<<iss.ID<<" 2S"<<jss.ID<<" 2S"<<kss.ID<<" Large stp[1] point separation "<<(int)sep;
             continue;
           }
           bestFOM = fomik;
@@ -1095,8 +1108,6 @@ namespace tca {
         // Define ss3 using the tp3 found with the first pair
         ss3.ChgPos = tp3.Pos;
         ss3.Dir = tp3.Dir;
-        iss.SS3ID = ss3.ID;
-        jss.SS3ID = ss3.ID;
         ss3.MatchFOM = bestFOM;
         if(bestck == USHRT_MAX) {
           // showers match in 2 planes
@@ -1106,7 +1117,10 @@ namespace tca {
           ss3.Energy[iplaneID.Plane] = iss.Energy;
           ss3.Energy[jplaneID.Plane] = jss.Energy;
           if(prt) mf::LogVerbatim("TC")<<" new 2-plane 3S"<<ss3.ID<<" using 2S"<<iss.ID<<" 2S"<<jss.ID<<" with FOM "<<ss3.MatchFOM<<" try to complete it";
-          CompleteIncompleteShower(fcnLabel, tjs, ss3, prt);
+          // ignore this 3D match if the shower can't be completed
+          if(!CompleteIncompleteShower(fcnLabel, tjs, ss3, prt)) continue;
+          iss.SS3ID = ss3.ID;
+          jss.SS3ID = ss3.ID;
         } else {
           // showers match in 3 planes
           unsigned short ck = bestck;
@@ -4422,7 +4436,7 @@ namespace tca {
     }
     
   } // DumpShowerPts
-  
+/*
   ////////////////////////////////////////////////
   void CheckQuality(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
   {
@@ -4482,7 +4496,7 @@ namespace tca {
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Quality checks complete";
     
   } // CheckQuality
-
+*/
   ////////////////////////////////////////////////
   bool TransferTjHits(TjStuff& tjs, bool prt)
   {
