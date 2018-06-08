@@ -12,6 +12,13 @@ standard_shower:
  calodEdxlength:	   30   # cutoff distance for hits saved to the calo object.
 }
 
+standard_tcshower:
+{
+ module_type: "TCShower"
+ ClusterModuleLabel: "trajcluster2"
+ TrackModuleLabel:   "pmtrack"
+}
+
 
 #standard_showerana:
 #{
