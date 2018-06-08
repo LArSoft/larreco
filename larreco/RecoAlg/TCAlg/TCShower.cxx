@@ -419,7 +419,6 @@ namespace tca {
         } // ss
         std::cout<<"\n";
       } // plane
-      std::cout<<"Primary P"<<mcpu.PrimaryElectronPFPID(tpcid)<<"\n";
       Point3_t truStart;
       Vector3_t truDir;
       float truE;
@@ -438,7 +437,11 @@ namespace tca {
           float shMaxSep = PosSep(truStart, ss3.ChgPos);
           float dang = acos(DotProd(truDir, ss3.Dir));
           float energy = ShowerEnergy(ss3);
-          std::cout<<"Big 3S"<<ss3.ID<<" E "<<(int)energy<<" truE "<<(int)truE<<" shMax "<<(int)shMaxSep<<" cm.";
+          std::cout<<"Big 3S"<<ss3.ID<<" E "<<(int)energy<<" truE "<<(int)truE;
+          std::cout<<" truStart "<<std::fixed<<std::setprecision(1)<<truStart[0]<<" "<<truStart[1]<<" "<<truStart[2];
+          std::cout<<" tru P"<<mcpu.PrimaryElectronPFPID(tpcid);
+          std::cout<<" rec P"<<ss3.ParentID;
+          std::cout<<" shMax "<<(int)shMaxSep<<" cm.";
           std::cout<<" dang "<<std::fixed<<std::setprecision(2)<<dang<<"\n";
         } // imBig > 0
       } // PrimaryElectronStart success
@@ -1843,11 +1846,7 @@ namespace tca {
     } // did
     if(dtrID == 0) return false;
     
-    auto& dtrPFP = tjs.pfps[dtrID - 1];
-    unsigned short pEnd = FarEnd(tjs, dtrPFP, ss3.ChgPos);
-    float fom = ParentFOM(fcnLabel, tjs, dtrPFP, pEnd, ss3, prt);
-    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" -> nu P"<<npid<<" -> dtr P"<<dtrID<<" fom "<<fom;
-    
+    auto& dtrPFP = tjs.pfps[dtrID - 1];    
     
     // make local copies so we can recover from a failure
     auto oldSS3 = ss3;
@@ -2098,13 +2097,14 @@ namespace tca {
           // Add the tj but don't update yet
           if(!AddTj(fcnLabel, tjs, tjid, ss, false, prt)) return false;
         } // parent not in ss
-        // Don't define it to be the parent if the pfp projection in this plane is low
+        // Don't define it to be the parent if it is short and the pfp projection in this plane is low 
         unsigned short pEnd = FarEnd(tjs, pfp, ss3.ChgPos);
         auto tp = MakeBareTP(tjs, pfp.XYZ[0], pfp.Dir[pEnd], tj.CTP);
-        if(tp.Delta > 0.5) {
+        unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+        if(tp.Delta > 0.5 || npts > 20) {
           if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" parent P"<<pfp.ID<<" -> T"<<tjid<<" -> 2S"<<ss.ID<<" parent";
         } else {
-          if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" parent P"<<pfp.ID<<" -> T"<<tjid<<" low projection in plane. Not a parent";
+          if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" parent P"<<pfp.ID<<" -> T"<<tjid<<" low projection in plane "<<tp.Delta<<". Not a parent";
           continue;
         }
         ss.ParentID = tjid;
