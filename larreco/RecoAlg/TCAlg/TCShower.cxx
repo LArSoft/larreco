@@ -3553,21 +3553,20 @@ namespace tca {
         auto& p1 = tjs.pfps[PIn3V[ip1]];
         // ignore the neutrino pfp
         if(p1.TjIDs.empty()) continue;
-        unsigned short p1End = 0;
-        if(p1.Vx3ID[1] == vx3.ID) p1End = 1;
+	//        unsigned short p1End = 0;
+	//        if(p1.Vx3ID[1] == vx3.ID) p1End = 1;
         bool p1ShowerLike = IsShowerLike(tjs, p1.TjIDs);
 //        float p1Sep = PosSep(p1.XYZ[p1End], v3pos);
         for(unsigned short ip2 = ip1 + 1; ip2 < PIn3V.size(); ++ip2) {
           auto& p2 = tjs.pfps[PIn3V[ip2]];
           if(p2.TjIDs.empty()) continue;
-          unsigned short p2End = 0;
-          if(p2.Vx3ID[1] == vx3.ID) p2End = 1;
+	  //          unsigned short p2End = 0;
+	  //          if(p2.Vx3ID[1] == vx3.ID) p2End = 1;
           // Look for the case where an electron starts to shower close to the
           // vertex, creating a daughter that is also attached to the vertex. This
           // pair is OK to include in a shower. The signature is that the PFP doca between them is less
           // than the pfp - vx3 separation and both are shower like - something like this
           // where 3V is a 3D vertex
-          //   \
           //    \ P3 (not shower-like) -> 3V
           //     3V ----------- P1 -> 3V (shower-like or NOT shower-like)
           //            ----------- P2 (shower-like doca closer to P1 than the vertex) -> 3V
