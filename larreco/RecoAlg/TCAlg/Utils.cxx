@@ -4618,7 +4618,8 @@ namespace tca {
       myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____   Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
-    myprt<<std::setw(5)<<pfp.ID;
+    std::string pid = "P" + std::to_string(pfp.ID);
+    myprt<<std::setw(5)<<pid;
     // start and end stuff
     for(unsigned short startend = 0; startend < 2; ++startend) {
       myprt<<std::setw(4)<<pfp.Vx3ID[startend];
