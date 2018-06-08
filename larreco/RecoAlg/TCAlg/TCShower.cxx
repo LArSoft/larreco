@@ -201,6 +201,7 @@ namespace tca {
     if(!tjs.pfps.empty()) {
       for(auto& pfp : tjs.pfps) {
         if(pfp.ID == 0) continue;
+        if(pfp.TjIDs.empty()) continue;
         unsigned short ndead = 0;
         for(auto tjid : pfp.TjIDs) {
           auto& tj = tjs.allTraj[tjid - 1];
@@ -208,8 +209,13 @@ namespace tca {
         } // tjid
         if(ndead == 0) continue;
         if(ndead != pfp.TjIDs.size()) {
-          std::cout<<"Finish3DShowers: Not all Tjs in P"<<pfp.ID<<" are killed\n";
-        }
+          std::cout<<"Finish3DShowers: Not all Tjs in P"<<pfp.ID<<" are killed";
+          for(auto tid : pfp.TjIDs) {
+            auto& tj = tjs.allTraj[tid - 1];
+            std::cout<<" T"<<tid<<" dead? "<<tj.AlgMod[kKilled];
+          }
+          std::cout<<"\n";
+        } // ndead
         pfp.ID = 0;
       } // pfp
     } // pfps not empty
@@ -882,24 +888,30 @@ namespace tca {
     // make a list of tjs in the k plane that maybe should made into a shower if they
     // aren't already in a shower that failed the 3D match
     std::vector<int> ktlist;
-    std::vector<int> ssList;
+    // list of 2D showers that include tjs in ktlist
+    std::vector<int> kssList;
     for(auto pid : shared) {
       auto& pfp = tjs.pfps[pid - 1];
       for(auto tid : pfp.TjIDs) {
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" T"<<tid;
         if(std::find(flat.begin(), flat.end(), tid) != flat.end()) continue;
         auto ssl = GetAssns(tjs, "T", tid, "2S");
-        // ignore it if the shower is 3D-matched
-        bool skipit = false;
-        for(auto cid : ssList) {
-          auto& ss = tjs.cots[cid - 1];
-          if(ss.SS3ID > 0) skipit = true;
-        } // cid
-        if(skipit) continue;
-        if(std::find(ktlist.begin(), ktlist.end(), tid) != ktlist.end()) ktlist.push_back(tid);
-        for(auto cid : ssl) if(std::find(ssList.begin(), ssList.end(), cid) == ssList.end()) ssList.push_back(cid);
+        if(std::find(ktlist.begin(), ktlist.end(), tid) == ktlist.end()) ktlist.push_back(tid);
+        for(auto cid : ssl) if(std::find(kssList.begin(), kssList.end(), cid) == kssList.end()) ssList.push_back(cid);
+        // look for 2D vertices attached to this tj and add all attached tjs to ktlist
+        auto& tj = tjs.allTraj[tid - 1];
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(tj.VtxID[end] <= 0) continue;
+          auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
+          auto TIn2V = GetAssns(tjs, "2V", vx2.ID, "T");
+          for(auto vtid : TIn2V) {
+            if(std::find(ktlist.begin(), ktlist.end(), vtid) == ktlist.end()) ktlist.push_back(vtid);
+          }
+        } // end
       } // tid
     } // pid
-    if(ktlist.empty()) return;
+    // find the shower energy for this list
+    float ktlistEnergy = ShowerEnergy(tjs, ktlist);
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<fcnLabel<<" 3S"<<ss3.ID<<"\n";
@@ -912,21 +924,34 @@ namespace tca {
       geo::PlaneID iPlaneID = DecodeCTP(iss.CTP);
       geo::PlaneID jPlaneID = DecodeCTP(jss.CTP);
       unsigned short kplane = 3 - iPlaneID.Plane - jPlaneID.Plane;
-      myprt<<" kplane "<<kplane<<" candidate 2S Tjs:";
+      myprt<<" kplane "<<kplane<<" ktlist:";
       for(auto tid : ktlist) myprt<<" T"<<tid;
+      myprt<<" ktlistEnergy "<<ktlistEnergy;
       if(ssList.empty()) {
-        myprt<<" No matching showers in kplane";
+        myprt<<"\n No matching showers in kplane";
       }  else {
         myprt<<"\n";
         myprt<<" Candidate showers:";
-        for(auto ssid : ssList) {
+        for(auto ssid : kssList) {
           myprt<<" 2S"<<ssid;
           auto& sst = tjs.cots[ssid - 1];
           if(sst.SS3ID > 0) myprt<<"_3S"<<sst.SS3ID;
         } // ssid
       } // ssList not empty
     } // prt
+    if(ktlist.empty()) return;
+    if(kssList.size() > 1) {
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Found more than 1 shower. Need some better code here";
+      return;
+    }
+    if(ktlistEnergy > 2 * ShowerEnergy(ss3)) {
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ktlistEnergy exceeds 2 * ss3 energy. Need some better code here";
+      return;
+    } // ktlistEnergy too high
+    // see if this list of tjs is in a 2D shower (that failed the 3D shower match)
+    // or if the tjs
     // don't do anthing if there are too many shower matches
+/*
     if(ssList.size() > 1) return;
     if(!ssList.empty()) {
       // found a 2D shower matched by pfps
@@ -959,7 +984,7 @@ namespace tca {
       stj.AlgMod[kCompleteShower] = true;
       ss3.NeedsUpdate = true;
     } // No 2D shower found. Make one with ktlist
-    
+*/
     ChkAssns(fcnLabel, tjs);
 
  } // CompleteIncompleteShower
@@ -2542,6 +2567,14 @@ namespace tca {
               if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" T"<<tj.ID<<" looks like a muon. Don't add it";
               continue;
             }
+            // see if it looks like a muon in 3D
+            if(tj.AlgMod[kMat3D]) {
+              auto TInP = GetAssns(tjs, "T", tj.ID, "P");
+              if(!TInP.empty()) {
+                auto& pfp = tjs.pfps[TInP[0] - 1];
+                if(pfp.PDGCode == 13 && MCSMom(tjs, pfp.TjIDs) > 500) continue;
+              } // TInP not empty
+            } // 3D matched
             if(AddTj(fcnLabel, tjs, tjID, ss1, false, prt)) doMerge = true;
           } // tjID
           if(!doMerge) continue;
@@ -3578,6 +3611,14 @@ namespace tca {
         if(tj.ChgRMS > typicalChgRMS) momCut *= tj.ChgRMS / typicalChgRMS;
         if(tj.MCSMom > momCut) continue;
       }
+      // see if this tj is in a muon pfparticle that looks shower-like in this view
+      if(tj.AlgMod[kMat3D]) {
+        auto TInP = GetAssns(tjs, "T", tj.ID, "P");
+        if(!TInP.empty()) {
+          auto& pfp = tjs.pfps[TInP[0] - 1];
+          if(pfp.PDGCode == 13 && MCSMom(tjs, pfp.TjIDs) > 500) continue;
+        } // TInP not empty
+      } // 3D-matched
       tjids.push_back(tj.ID);
     } // tj
     
