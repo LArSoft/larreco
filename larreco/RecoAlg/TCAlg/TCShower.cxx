@@ -888,16 +888,12 @@ namespace tca {
     // make a list of tjs in the k plane that maybe should made into a shower if they
     // aren't already in a shower that failed the 3D match
     std::vector<int> ktlist;
-    // list of 2D showers that include tjs in ktlist
-    std::vector<int> kssList;
     for(auto pid : shared) {
       auto& pfp = tjs.pfps[pid - 1];
       for(auto tid : pfp.TjIDs) {
-        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" T"<<tid;
+        // ignore the tjs that are already in the shower in the other planes
         if(std::find(flat.begin(), flat.end(), tid) != flat.end()) continue;
-        auto ssl = GetAssns(tjs, "T", tid, "2S");
         if(std::find(ktlist.begin(), ktlist.end(), tid) == ktlist.end()) ktlist.push_back(tid);
-        for(auto cid : ssl) if(std::find(kssList.begin(), kssList.end(), cid) == kssList.end()) ssList.push_back(cid);
         // look for 2D vertices attached to this tj and add all attached tjs to ktlist
         auto& tj = tjs.allTraj[tid - 1];
         for(unsigned short end = 0; end < 2; ++end) {
@@ -910,6 +906,20 @@ namespace tca {
         } // end
       } // tid
     } // pid
+    if(ktlist.empty()) return;
+    // list of 2D showers that include tjs in ktlist
+    std::vector<int> ksslist;
+    for(auto tid : ktlist) {
+      auto& tj = tjs.allTraj[tid - 1];
+      if(tj.SSID == 0) continue;
+      // ignore showers that are 3D-matched. This case should be handled elsewhere by a merging function
+      auto& ss = tjs.cots[tj.SSID - 1];
+      if(ss.SS3ID > 0) {
+        if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Found existing T"<<tid<<" -> 2S"<<ss.ID<<" -> 3S"<<ss.SS3ID<<" assn. Give up";
+        return;
+      }
+      if(std::find(ksslist.begin(), ksslist.end(), ss.ID) == ksslist.end()) ksslist.push_back(ss.ID);
+    } // tid
     // find the shower energy for this list
     float ktlistEnergy = ShowerEnergy(tjs, ktlist);
     if(prt) {
@@ -927,20 +937,19 @@ namespace tca {
       myprt<<" kplane "<<kplane<<" ktlist:";
       for(auto tid : ktlist) myprt<<" T"<<tid;
       myprt<<" ktlistEnergy "<<ktlistEnergy;
-      if(ssList.empty()) {
+      if(ksslist.empty()) {
         myprt<<"\n No matching showers in kplane";
       }  else {
         myprt<<"\n";
         myprt<<" Candidate showers:";
-        for(auto ssid : kssList) {
+        for(auto ssid : ksslist) {
           myprt<<" 2S"<<ssid;
           auto& sst = tjs.cots[ssid - 1];
           if(sst.SS3ID > 0) myprt<<"_3S"<<sst.SS3ID;
         } // ssid
       } // ssList not empty
     } // prt
-    if(ktlist.empty()) return;
-    if(kssList.size() > 1) {
+    if(ksslist.size() > 1) {
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" Found more than 1 shower. Need some better code here";
       return;
     }
@@ -948,22 +957,9 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" ktlistEnergy exceeds 2 * ss3 energy. Need some better code here";
       return;
     } // ktlistEnergy too high
-    // see if this list of tjs is in a 2D shower (that failed the 3D shower match)
-    // or if the tjs
-    // don't do anthing if there are too many shower matches
-/*
-    if(ssList.size() > 1) return;
-    if(!ssList.empty()) {
-      // found a 2D shower matched by pfps
-      auto& ss = tjs.cots[ssList[0] - 1];
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" found pfp-matched 2S"<<ss.ID;
-      ss.SS3ID = ss3.ID;
-      ss3.CotIDs.push_back(ss.ID);
-      auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
-      stj.AlgMod[kCompleteShower] = true;
-      ss3.NeedsUpdate = true;
-    } else {
-      // No 2D shower found. Make one with ktlist
+    
+    if(ksslist.empty()) {
+      // no 2D shower so make one using ktlist
       auto kss = CreateSS(tjs, ktlist);
       if(kss.ID == 0) return;
       kss.SS3ID = ss3.ID;
@@ -973,7 +969,6 @@ namespace tca {
         MakeShowerObsolete(fcnLabel, tjs, kss, prt);
         return;
       } // UpdateShower failed
-      // TODO: Check for a bad 3D match using energy asymmetry, etc
       if(!StoreShower(fcnLabel, tjs, kss)) {
         if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" StoreShower failed";
         MakeShowerObsolete(fcnLabel, tjs, kss, prt);
@@ -983,8 +978,18 @@ namespace tca {
       auto& stj = tjs.allTraj[kss.ShowerTjID - 1];
       stj.AlgMod[kCompleteShower] = true;
       ss3.NeedsUpdate = true;
-    } // No 2D shower found. Make one with ktlist
-*/
+      return;
+    } // ksslist empty
+    
+    // associate ksslist[0] with 3S
+    auto& ss = tjs.cots[ksslist[0] - 1];
+    if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" found pfp-matched 2S"<<ss.ID;
+    ss.SS3ID = ss3.ID;
+    ss3.CotIDs.push_back(ss.ID);
+    auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+    stj.AlgMod[kCompleteShower] = true;
+    ss3.NeedsUpdate = true;
+    
     ChkAssns(fcnLabel, tjs);
 
  } // CompleteIncompleteShower
