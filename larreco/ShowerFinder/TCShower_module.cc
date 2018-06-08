@@ -5,6 +5,12 @@
 //
 // Generated at Fri Jun  8 14:55:04 2018 by Rory Fitzpatrick using cetskelgen
 // from cetlib version v3_03_01.
+// 
+// Contact: roryfitz@umich.edu
+// 
+// module produces showers by selecting tracks surround by many 
+// showerLike trajectories as defined by trajcluster with negative
+// cluster IDs 
 ////////////////////////////////////////////////////////////////////////
 
 #include "art/Framework/Core/EDProducer.h"
