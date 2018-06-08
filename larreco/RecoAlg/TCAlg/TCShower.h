@@ -44,7 +44,7 @@ namespace tca {
   bool TransferTjHits(TjStuff& tjs, bool prt);
   int GetCotID(TjStuff& tjs, int ShowerTjID);
   
-  void CompleteIncompleteShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
+  bool CompleteIncompleteShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   void Match2DShowers(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool UpdateShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss, bool prt);
   bool UpdateShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
@@ -84,7 +84,7 @@ namespace tca {
   void FindStartChg(std::string inFcnLabel, TjStuff& tjs, int cotID, bool prt);
   std::vector<float> StartChgVec(TjStuff& tjs, int cotID, bool prt);
   void DumpShowerPts(std::string inFcnLabel, TjStuff& tjs, int cotID);
-  void CheckQuality(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
+//  void CheckQuality(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   
   void FindCots(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjLists, bool prt);
   void TagShowerLike(std::string inFcnLabel, TjStuff& tjs, const CTP_t& inCTP);
