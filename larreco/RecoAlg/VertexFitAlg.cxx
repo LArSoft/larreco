@@ -121,7 +121,7 @@ namespace trkf{
     fVtxFitMinStr.Cstat = cstat;
     fVtxFitMinStr.TPC = tpc;
     fVtxFitMinStr.NPlanes = nplanes;
-    fVtxFitMinStr.WirePitch = geom->WirePitch(hitWID[0][0]);
+    fVtxFitMinStr.WirePitch = geom->WirePitch(hitWID[0][0].Plane, tpc, cstat);
 
     // Put geometry conversion factors into the struct
     for(ipl = 0; ipl < nplanes; ++ipl) {

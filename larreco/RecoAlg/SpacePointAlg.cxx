@@ -14,7 +14,7 @@
 #include <cmath>
 #include <map>
 #include <algorithm>
-#include "cetlib/exception.h"
+#include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "larreco/RecoAlg/SpacePointAlg.h"
 #include "larcore/Geometry/Geometry.h"
@@ -557,7 +557,7 @@ namespace  trkf{
                 double s  = (cen1[1] - cen[1]) / hl;
                 double c = (cen1[2] - cen[2]) / hl;
                 double u = cen[2] * s - cen[1] * c;
-                double eu = geom->WirePitch(0, 1, hitWireID.Plane, hitWireID.TPC) / std::sqrt(12.);
+                double eu = geom->WirePitch(hitWireID.Plane, hitWireID.TPC) / std::sqrt(12.);
                 double w = 1. / (eu * eu);
                 
                 // Summations
@@ -807,7 +807,7 @@ namespace  trkf{
                 double s  = (cen1[1] - cen[1]) / hl;
                 double c = (cen1[2] - cen[2]) / hl;
                 double u = cen[2] * s - cen[1] * c;
-                double eu = geom->WirePitch(0, 1, hitWireID.Plane, hitWireID.TPC) / std::sqrt(12.);
+                double eu = geom->WirePitch(hitWireID.Plane, hitWireID.TPC) / std::sqrt(12.);
                 double w = weight[hitWireID.Plane] / (eu * eu);
                 
                 // Summations
@@ -1113,7 +1113,7 @@ namespace  trkf{
                             double s2 = (xyz22[1] - xyz21[1]) / (2.*hl2);
                             double c2 = (xyz22[2] - xyz21[2]) / (2.*hl2);
                             double dist2 = -xyz21[1] * c2 + xyz21[2] * s2;
-                            double pitch2 = geom->WirePitch(0, 1, plane2, tpc, cstat);
+                            double pitch2 = geom->WirePitch(plane2, tpc, cstat);
                             
                             if(!fPreferColl && hitmap[cstat][tpc][plane1].size() > hitmap[cstat][tpc][plane2].size())
                                 throw cet::exception("SpacePointAlg") << "makeSpacePoints(): hitmaps with incompatible size\n";
@@ -1217,7 +1217,7 @@ namespace  trkf{
                     double s1 = (xyz12[1] - xyz11[1]) / (2.*hl1);
                     double c1 = (xyz12[2] - xyz11[2]) / (2.*hl1);
                     double dist1 = -xyz11[1] * c1 + xyz11[2] * s1;
-                    double pitch1 = geom->WirePitch(0, 1, plane1, tpc, cstat);
+                    double pitch1 = geom->WirePitch(plane1, tpc, cstat);
                     const double TicksOffset1 = detprop->GetXTicksOffset(plane1,tpc,cstat);
                     
                     // Get angle, pitch, and offset of plane2 wires.
@@ -1231,7 +1231,7 @@ namespace  trkf{
                     double s2 = (xyz22[1] - xyz21[1]) / (2.*hl2);
                     double c2 = (xyz22[2] - xyz21[2]) / (2.*hl2);
                     double dist2 = -xyz21[1] * c2 + xyz21[2] * s2;
-                    double pitch2 = geom->WirePitch(0, 1, plane2, tpc, cstat);
+                    double pitch2 = geom->WirePitch(plane2, tpc, cstat);
                     const double TicksOffset2 = detprop->GetXTicksOffset(plane2,tpc,cstat);
                     
                     // Get angle, pitch, and offset of plane3 wires.
@@ -1245,7 +1245,7 @@ namespace  trkf{
                     double s3 = (xyz32[1] - xyz31[1]) / (2.*hl3);
                     double c3 = (xyz32[2] - xyz31[2]) / (2.*hl3);
                     double dist3 = -xyz31[1] * c3 + xyz31[2] * s3;
-                    double pitch3 = geom->WirePitch(0, 1, plane3, tpc, cstat);
+                    double pitch3 = geom->WirePitch(plane3, tpc, cstat);
                     const double TicksOffset3 = detprop->GetXTicksOffset(plane3,tpc,cstat);
                     
                     // Get sine of angle differences.

@@ -9,7 +9,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "larreco/RecoAlg/KalmanFilterAlg.h"
-#include "cetlib/exception.h"
+#include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "boost/numeric/ublas/vector_proxy.hpp"
 #include "boost/numeric/ublas/matrix_proxy.hpp"

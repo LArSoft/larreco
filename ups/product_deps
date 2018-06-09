@@ -1,17 +1,17 @@
 # The parent line must be the first non-comment line in the file
 # This line defines the product name and version
-parent	larreco	v06_60_04
+parent	larreco	v06_61_00
 defaultqual	e15
 #
 fcldir product_dir job
 #
 product         version
-larsim		v06_48_00
-eigen		v3_3_3
-nutools         v2_21_04
+larsim		v06_50_00
+eigen		v3_3_4a
+nutools         v2_23_02
 tensorflow      v1_3_0c		-	optional
 
-cetbuildtools	v7_03_02	-	only_for_build
+cetbuildtools	v7_03_03	-	only_for_build
 end_product_list
 
   

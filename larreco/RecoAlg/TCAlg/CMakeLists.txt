@@ -20,7 +20,7 @@ art_make(
       ${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
 			canvas
 			${MF_MESSAGELOGGER}
-			${MF_UTILITIES}
+			
 			cetlib cetlib_except
       ${ROOT_BASIC_LIB_LIST}
       ${ROOT_GEOM}

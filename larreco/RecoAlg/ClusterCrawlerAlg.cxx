@@ -5859,7 +5859,7 @@ namespace cluster {
       }
       
       // wire spacing in cm
-      float wirePitch = geom->WirePitch(0, 1, 0, tpcid.TPC, tpcid.Cryostat);
+      float wirePitch = geom->WirePitch(0, tpcid.TPC, tpcid.Cryostat);
       
       // fill temp vectors of 2D vertex X and X errors
       std::vector<float> vX(vtx.size());
