@@ -61,7 +61,6 @@ namespace tca {
   void FitTraj(TjStuff& tjs, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
   float TjDirFOM(const TjStuff& tjs, const Trajectory& tj, bool prt);
   void WatchHit(std::string someText, TjStuff& tjs, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
-  void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   unsigned short GetPFPIndex(const TjStuff& tjs, int tjID);
   unsigned short MatchVecIndex(const TjStuff& tjs, int tjID);
   void ReleaseHits(TjStuff& tjs, Trajectory& tj);
@@ -80,10 +79,10 @@ namespace tca {
   bool SignalAtTp(TjStuff& tjs, TrajPoint const& tp);
   float TpSumHitChg(TjStuff& tjs, TrajPoint const& tp);
 //  bool CheckHitClusterAssociations(TjStuff& tjs);
-  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires);
-  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
-  float DeadWireCount(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2);
-  float DeadWireCount(TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP);
+  unsigned short NumPtsWithCharge(const TjStuff& tjs, const Trajectory& tj, bool includeDeadWires);
+  unsigned short NumPtsWithCharge(const TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
+  float DeadWireCount(const TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2);
+  float DeadWireCount(const TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP);
   unsigned short PDGCodeIndex(TjStuff& tjs, int PDGCode);
   void MakeTrajectoryObsolete(TjStuff& tjs, unsigned int itj);
   void RestoreObsoleteTrajectory(TjStuff& tjs, unsigned int itj);
@@ -126,8 +125,8 @@ namespace tca {
   // returns the separation^2 between two hits in WSE units
   float HitSep2(TjStuff& tjs, unsigned int iht, unsigned int jht);
   // Find the Distance Of Closest Approach between two trajectories, exceeding minSep
-  bool TrajTrajDOCA(TjStuff& tjs, Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
-  bool TrajTrajDOCA(TjStuff& tjs, Trajectory const& tp1, Trajectory const& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires);
+  bool TrajTrajDOCA(const TjStuff& tjs, const Trajectory& tp1, const Trajectory& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep);
+  bool TrajTrajDOCA(const TjStuff& tjs, const Trajectory& tp1, const Trajectory& tp2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires);
   // Calculates the angle between two TPs
   float TwoTPAngle(TrajPoint& tp1, TrajPoint& tp2);
   void TagJunkTj(TjStuff const& tjs, Trajectory& tj, bool prt);
@@ -138,6 +137,7 @@ namespace tca {
   // Project TP to a "wire position" Pos[0] and update Pos[1]
   void MoveTPToWire(TrajPoint& tp, float wire);
   bool PointInsideEnvelope(const Point2_t& Point, const std::vector<Point2_t>& Envelope);
+  bool SetMag(Vector2_t& v1, double mag);
   void FindAlongTrans(Point2_t pos1, Vector2_t dir1, Point2_t pos2, Point2_t& alongTrans);
   inline double DotProd(const Vector2_t& v1, const Vector2_t& v2) {return v1[0]*v2[0] + v1[1]*v2[1]; }
   double DeltaAngle(double Ang1, double Ang2);
@@ -178,6 +178,8 @@ namespace tca {
   bool MakeBareTrajPoint(const TjStuff& tjs, float fromWire, float fromTick, float toWire, float toTick, CTP_t tCTP, TrajPoint& tp);
   bool MakeBareTrajPoint(const Point2_t& fromPos, const Point2_t& toPos, TrajPoint& tpOut);
   bool MakeBareTrajPoint(const TjStuff& tjs, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
+  unsigned short FarEnd(const TjStuff& tjs, const Trajectory& tj, const Point2_t& pos);
+  Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
   void SetPDGCode(TjStuff& tjs, Trajectory& tj);
   void SetPDGCode(TjStuff& tjs, unsigned short itj);
   bool FillWireHitRange(TjStuff& tjs, const geo::TPCID& tpcid);

@@ -116,7 +116,7 @@ namespace tca {
     float Score {0};
     short Wire {-1};                 // wire number for an incomplete 3D vertex
     geo::TPCID TPCID;
-    std::array<unsigned short, 3> Vx2ID {{0}}; // List of 2D vertex IDs in each plane
+    std::array<int, 3> Vx2ID {{0}}; // List of 2D vertex IDs in each plane
     int ID {0};          // 0 = obsolete vertex
     bool Primary {false};
     bool Neutrino {false};
@@ -179,6 +179,7 @@ namespace tca {
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
     int ID;
+    int SSID {0};          ///< ID of a 2D shower struct that this tj is in
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
     unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
@@ -283,10 +284,9 @@ namespace tca {
     float ParentFOM {10};
     int ID {0}; 
     int ParentID {0};  // The ID of a parent Tj - the one at the start of the shower
-    unsigned short TruParentID {0};
-    unsigned short SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
-    bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
-    bool Constraint3D {false};    // Some properties are defined by the 3D shower to which it is associated
+    int TruParentID {0};
+    int SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
+    bool NeedsUpdate {true};       // Needs to be updated (e.g. after adding a tj, defining a parent, etc)
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -306,16 +306,21 @@ namespace tca {
     std::vector<double> dEdx;
     std::vector<double> dEdxErr;
     geo::TPCID TPCID;
-    std::vector<int> PFPIDs;  // list of indices of InShower PFParticles 
     std::vector<int> CotIDs;  // list of indices of 2D showers in tjs.cots
     std::vector<unsigned int> Hits;
     int BestPlane;
     int ID;
     int ParentID {0};       // The ID of a track-like pfp at the start of the shower, e.g. an electron
-    float FOM;
+    float MatchFOM;
     unsigned short PFPIndex {USHRT_MAX};    // The index of the pfp for this shower
     int Vx3ID {0};
     bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
+  };
+  
+  struct DontClusterStruct {
+    std::array<int, 2> TjIDs;     // pairs of Tjs that shouldn't be clustered in shower reconstruction because...
+    int Vx2ID;                    // they share a 2D vertex that may be matched to...
+    int Vx3ID;                    // a high-score 3D vertex
   };
 
   struct ShowerTreeVars {
@@ -415,16 +420,15 @@ namespace tca {
     kVtxHitsSwap,
     kSplitHiChgHits,
     kShowerLike,
-    kInShower,
     kKillInShowerVx,
     kShowerTj,
     kShwrParent,
-    kChkShwrParEnd,
-    kKillShwrNuPFP,
     kMergeOverlap,
     kMergeSubShowers,
+    kMergeSubShowersTj,
     kMergeNrShowers,
     kMergeShChain,
+    kCompleteShower,
     kSplitTjCVx,
     kSetDir,
     kAlgBitSize     ///< don't mess with this line
@@ -495,6 +499,7 @@ namespace tca {
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
     std::vector<PFPStruct> pfps;
     std::vector<ShowerStruct> cots;       // Clusters of Trajectories that define 2D showers
+    std::vector<DontClusterStruct> dontCluster; // pairs of Tjs that shouldn't clustered in one shower
     std::vector<ShowerStruct3D> showers;  // 3D showers
     std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
     std::vector<float> Vertex3DCuts;   ///< 2D vtx -> 3D vtx matching cuts 

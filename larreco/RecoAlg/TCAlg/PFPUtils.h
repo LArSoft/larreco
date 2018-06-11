@@ -38,9 +38,7 @@ namespace tca {
   void UpdateMatchStructs(TjStuff& tjs, int oldTj, int newTj);
   void UpdateTp3s(TjStuff& tjs, PFPStruct& pfp, int oldTj, int newTj);
   void FillmAllTraj(TjStuff& tjs, const geo::TPCID& tpcid);
-  void AttachVertices(TjStuff& tjs, PFPStruct& pfpj, bool prt);
   bool SetStart(TjStuff& tjs, PFPStruct& pfp, bool prt);
-  void SetEndVx(TjStuff& tjs, PFPStruct& pfp, unsigned short atEnd, bool prt);
   void FollowTp3s(TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool FitTp3s(TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, Point3_t& pos, Vector3_t& dir, float& rCorr);
   bool FitTp3s(TjStuff& tjs, const std::vector<TrajPoint3>& tp3s, unsigned short fromPt, unsigned short toPt, Point3_t& pos, Vector3_t& dir, float& rCorr);
@@ -49,7 +47,7 @@ namespace tca {
   void FindMissedTjsInTp3s(TjStuff& tjs, PFPStruct& pfp, std::vector<int>& missTjs, std::vector<float>& missFrac);
   bool SharesHighScoreVx(TjStuff& tjs, const PFPStruct& pfp, const Trajectory& tj);
   void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir);
-  bool CheckAndMerge(TjStuff& tjs, PFPStruct& pfp, bool prt);
+//  bool CheckAndMerge(TjStuff& tjs, PFPStruct& pfp, bool prt);
   float AspectRatio(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
   unsigned short WiresSkippedInCTP(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
   float LengthInCTP(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP);
@@ -75,7 +73,7 @@ namespace tca {
   bool DefinePFP(std::string inFcnLabel, TjStuff& tjs, PFPStruct& pfp, bool prt);
   bool PFPVxTjOK(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void PFPVertexCheck(TjStuff& tjs);
-  void AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
+  bool AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt);
   void DefinePFPParents(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   void DefinePFPParentsTestBeam(TjStuff& tjs, const geo::TPCID& tpcid, bool prt);
   bool StorePFP(TjStuff& tjs, PFPStruct& pfp);
@@ -86,6 +84,7 @@ namespace tca {
   void ReversePFP(TjStuff& tjs, PFPStruct& pfp);
   float ChgFracBetween(TjStuff& tjs, Point3_t pos1, Point3_t pos2, geo::TPCID tpcid);
   float ChgFracNearEnd(TjStuff& tjs, PFPStruct& pfp, unsigned short end);
+  unsigned short FarEnd(const TjStuff& tjs, const PFPStruct& pfp, const Point3_t& pos);
   void PrintTp3(std::string fcnLabel, const TjStuff& tjs, const TrajPoint3& tp3);
   void PrintTp3s(std::string someText, const TjStuff& tjs, const PFPStruct& pfp, short printPts);
   
