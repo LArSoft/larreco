@@ -97,15 +97,23 @@ void shower::TCShower::produce(art::Event & evt)
   if (evt.getByLabel(fTrackModuleLabel,trackListHandle))
     art::fill_ptr_vector(tracklist, trackListHandle);
 
+  // hits
+  art::Handle< std::vector<recob::Hit> > hitListHandle;
+  std::vector<art::Ptr<recob::Hit> > hitlist;
+  if (evt.getByLabel(fClusterModuleLabel,hitListHandle))
+    art::fill_ptr_vector(hitlist, hitListHandle);
+
   // detector properties
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry> geom;
 
   art::FindManyP<recob::Hit> cls_fm(clusterListHandle, evt, fClusterModuleLabel);
   art::FindManyP<recob::Hit> trk_fm(trackListHandle, evt, fTrackModuleLabel);
+  //  art::FindManyP<recob::Track> hit_fm(hitListHandle, evt, fClusterModuleLabel);
 
   int tolerance = 100; // how many shower like cluster you need to define a shower
   double maxDist = 10; // how far a shower like cluster can be from the track
+  double minDistVert = 4;
 
   for (size_t i = 0; i < tracklist.size(); ++i) {
 
@@ -118,9 +126,9 @@ void shower::TCShower::produce(art::Event & evt)
     std::vector< art::Ptr<recob::Hit> > trk_hitlist = trk_fm.at(i);
     std::vector< art::Ptr<recob::Hit> > showerHits;
     
+
     for (size_t ii = 0; ii < trk_hitlist.size(); ++ii) {
       showerHits.push_back(trk_hitlist[ii]);
-      //      std::cout<<trk_hitlist[ii]->WireID().Plane<<" "<<trk_hitlist[ii]->WireID().Wire<<" "<<trk_hitlist[ii]->PeakTime()<<std::endl;
     } // loop over track hits
 
     int nShowerHits = 0;
@@ -163,6 +171,10 @@ void shower::TCShower::produce(art::Event & evt)
       bool isClose = false;
       
       for (size_t k = 0; k < cls_hitlist.size(); ++k) {
+
+	//	std::vector< art::Ptr<recob::Track> > trklist = hit_fm.at(k);
+	//	std::cout << trklist.size() << std::endl;
+
 	int planeNum = cls_hitlist[k]->WireID().Plane;
 
 	double wirePitch = geom->WirePitch(planeNum);         
@@ -184,6 +196,13 @@ void shower::TCShower::produce(art::Event & evt)
 	if (dist<maxDist) {
 	  isClose = true;
 	  break;
+	}
+
+	double distToVert = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
+
+	if (distToVert < minDistVert) {
+	  //	  isClose = false;
+	  //	  break;
 	}
 
       } // loop over hits in cluster
