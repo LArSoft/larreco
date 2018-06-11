@@ -104,7 +104,7 @@ void shower::TCShower::produce(art::Event & evt)
   art::FindManyP<recob::Hit> cls_fm(clusterListHandle, evt, fClusterModuleLabel);
   art::FindManyP<recob::Hit> trk_fm(trackListHandle, evt, fTrackModuleLabel);
 
-  int tolerance = 20; // how many shower like cluster you need to define a shower
+  int tolerance = 100; // how many shower like cluster you need to define a shower
   double maxDist = 10; // how far a shower like cluster can be from the track
 
   for (size_t i = 0; i < tracklist.size(); ++i) {
@@ -113,7 +113,7 @@ void shower::TCShower::produce(art::Event & evt)
 
     // adjust cuts based on track length
     //    maxDist = maxDist * 0.05 * tracklist[i]->Length();
-    tolerance = tolerance * 0.1 * tracklist[i]->Length();
+    //    tolerance = tolerance * 0.1 * tracklist[i]->Length();
 
     std::vector< art::Ptr<recob::Hit> > trk_hitlist = trk_fm.at(i);
     std::vector< art::Ptr<recob::Hit> > showerHits;
@@ -159,6 +159,8 @@ void shower::TCShower::produce(art::Event & evt)
       if (clusterlist[j]->ID() > 0) continue;
 
       std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(j); 
+
+      bool isClose = false;
       
       for (size_t k = 0; k < cls_hitlist.size(); ++k) {
 	int planeNum = cls_hitlist[k]->WireID().Plane;
@@ -180,22 +182,45 @@ void shower::TCShower::produce(art::Event & evt)
 	double dist = std::abs((y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1)/std::sqrt( pow((y2-y1), 2) + pow((x2-x1), 2) );
 	
 	if (dist<maxDist) {
+	  isClose = true;
+	  break;
+	}
+
+      } // loop over hits in cluster
+
+      // add hits to shower
+      if (isClose) {
+	for (size_t k = 0; k < cls_hitlist.size(); ++k) {
 	  nShowerHits++;
 	  
+	  int planeNum = cls_hitlist[k]->WireID().Plane;
+
+	  double wirePitch = geom->WirePitch(planeNum);
+	  double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
+	  tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns                              
+	  double UnitsPerTick = tickToDist / wirePitch;
+
+	  double x0 = cls_hitlist[k]->WireID().Wire;
+	  double y0 = cls_hitlist[k]->PeakTime() * UnitsPerTick;
+
+	  double x1 = trk_wire1[planeNum];
+	  double y1 = trk_tick1[planeNum] * UnitsPerTick;
+
+	  double x2 = trk_wire2[planeNum];
+	  double y2 = trk_tick2[planeNum] * UnitsPerTick;
+
 	  if ( ( (y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1) > 0) showerHitPull++;
 	  else showerHitPull--;
 	  
 	  showerHits.push_back(cls_hitlist[k]);
-	}
-
-
-      } // loop over hits in cluster
-
+	} // loop over hits in cluster
+      } // cluster contains hit close to track
+      
     } // loop over clusters
 
     showerHitPull /= nShowerHits;
-
-    if (nShowerHits > tolerance) showerCandidate = true;
+    if (nShowerHits > tolerance && std::abs(showerHitPull) < 0.6) showerCandidate = true;
+    //    if (nShowerHits > tolerance) showerCandidate = true;
 
     TVector3 dcosVtxErr;
     TVector3 xyzErr;
@@ -208,7 +233,7 @@ void shower::TCShower::produce(art::Event & evt)
 
     if (showerCandidate) {
 
-      std::cout << "track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull << std::endl;
+      std::cout << "track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull<< " " << nShowerHits << std::endl;
       showers->push_back(recob::Shower(trkPt2-trkStart, dcosVtxErr, trkStart, xyzErr, totalEnergy, totalEnergyErr, dEdx, dEdx, 0, 0));
 
       showers->back().set_id(showers->size()-1);
