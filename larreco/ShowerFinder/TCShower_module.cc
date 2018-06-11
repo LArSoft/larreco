@@ -104,30 +104,38 @@ void shower::TCShower::produce(art::Event & evt)
   art::FindManyP<recob::Hit> cls_fm(clusterListHandle, evt, fClusterModuleLabel);
   art::FindManyP<recob::Hit> trk_fm(trackListHandle, evt, fTrackModuleLabel);
 
-  int tolerance = 20;
-
-  double maxDist = 10;
+  int tolerance = 20; // how many shower like cluster you need to define a shower
+  double maxDist = 10; // how far a shower like cluster can be from the track
 
   for (size_t i = 0; i < tracklist.size(); ++i) {
+
+    if (tracklist[i]->Length() < 20) continue;
+
+    // adjust cuts based on track length
+    //    maxDist = maxDist * 0.05 * tracklist[i]->Length();
+    tolerance = tolerance * 0.1 * tracklist[i]->Length();
 
     std::vector< art::Ptr<recob::Hit> > trk_hitlist = trk_fm.at(i);
     std::vector< art::Ptr<recob::Hit> > showerHits;
     
     for (size_t ii = 0; ii < trk_hitlist.size(); ++ii) {
       showerHits.push_back(trk_hitlist[ii]);
-      std::cout<<trk_hitlist[ii]->WireID().Plane<<" "<<trk_hitlist[ii]->WireID().Wire<<" "<<trk_hitlist[ii]->PeakTime()<<std::endl;
+      //      std::cout<<trk_hitlist[ii]->WireID().Plane<<" "<<trk_hitlist[ii]->WireID().Wire<<" "<<trk_hitlist[ii]->PeakTime()<<std::endl;
     } // loop over track hits
 
-
-    //TrajectoryPoint(size_t i)
-
     int nShowerHits = 0;
+    double showerHitPull = 0;
     bool showerCandidate = false;
 
     TVector3 trkStart = tracklist[i]->Vertex();
     TVector3 trkDir = tracklist[i]->VertexDirection();
 
-    TVector3 trkPt2 = trkStart + trkDir;
+    recob::Track::Point_t trkPt2temp  = tracklist[i]->TrajectoryPoint(10).position;
+
+    TVector3 trkPt2;
+    trkPt2[0] = trkPt2temp.X();
+    trkPt2[1] = trkPt2temp.Y();
+    trkPt2[2] = trkPt2temp.Z();
 
     std::vector<double> trk_tick1(2); 
     std::vector<double> trk_wire1(2);
@@ -173,6 +181,10 @@ void shower::TCShower::produce(art::Event & evt)
 	
 	if (dist<maxDist) {
 	  nShowerHits++;
+	  
+	  if ( ( (y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1) > 0) showerHitPull++;
+	  else showerHitPull--;
+	  
 	  showerHits.push_back(cls_hitlist[k]);
 	}
 
@@ -180,6 +192,8 @@ void shower::TCShower::produce(art::Event & evt)
       } // loop over hits in cluster
 
     } // loop over clusters
+
+    showerHitPull /= nShowerHits;
 
     if (nShowerHits > tolerance) showerCandidate = true;
 
@@ -194,8 +208,8 @@ void shower::TCShower::produce(art::Event & evt)
 
     if (showerCandidate) {
 
-      std::cout << "track ID " << tracklist[i]->ID() << std::endl;
-      showers->push_back(recob::Shower(trkDir, dcosVtxErr, trkStart, xyzErr, totalEnergy, totalEnergyErr, dEdx, dEdx, 0, 0));
+      std::cout << "track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull << std::endl;
+      showers->push_back(recob::Shower(trkPt2-trkStart, dcosVtxErr, trkStart, xyzErr, totalEnergy, totalEnergyErr, dEdx, dEdx, 0, 0));
 
       showers->back().set_id(showers->size()-1);
       
