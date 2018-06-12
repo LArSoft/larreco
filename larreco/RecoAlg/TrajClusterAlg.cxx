@@ -5726,7 +5726,6 @@ namespace tca {
     // associate a hit with a MCParticle > 50% of the deposited energy is from it
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       particle_vec.clear(); match_vec.clear();
-//      bool prthit = (tjs.fHits[iht].StartTick == 4293 && tjs.fHits[iht].ArtPtr->WireID().Wire == 2510);
       if(prthit) {
         std::cout<<"Hit "<<PrintHit(tjs.fHits[iht])<<" key "<<tjs.fHits[iht].ArtPtr.key()<<" StartTick "<<tjs.fHits[iht].StartTick<<"\n";
       }
@@ -5758,6 +5757,16 @@ namespace tca {
       for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         auto& mcp = tjs.MCPartList[ipart];
         if(mcp->TrackId() != trackID) continue;
+        // re-direct electrons to the eve particle
+        if(abs(mcp->PdgCode()) == 11) {
+          int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+          // look for the eve ID
+          for(unsigned int jpart = 0; jpart < tjs.MCPartList.size(); ++jpart) {
+            if(tjs.MCPartList[jpart]->TrackId() != eveID) continue;
+            ipart = jpart;
+            break;
+          } // jpart
+        } // found electron
         tjs.fHits[iht].MCPartListIndex = ipart;
         ++nMatHits;
         break;
