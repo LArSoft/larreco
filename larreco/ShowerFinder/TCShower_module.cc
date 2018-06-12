@@ -201,22 +201,19 @@ void shower::TCShower::produce(art::Event & evt) {
       
     } // loop over clusters
 
-    // loop over hits to find those that aren't associated with any clusters
-    for (size_t k = 0; k < hitlist.size(); ++k) {
-      std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(k);
-      if (hit_clslist.size()) continue;
-
-      int showerHitPullAdd = 0;
-      int isGood = goodHit(hitlist[k], maxDist*2, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2, showerHitPullAdd);
-      if (isGood == 1) {
-	nShowerHits++;
-	showerHitPull += showerHitPullAdd;
-	showerHits.push_back(hitlist[k]);
-      }
-    } // loop over hits
-
     showerHitPull /= nShowerHits;
-    if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) showerCandidate = true;
+    if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) {
+      showerCandidate = true;
+      
+      // loop over hits to find those that aren't associated with any clusters
+      for (size_t k = 0; k < hitlist.size(); ++k) {
+	std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(k);
+	if (hit_clslist.size()) continue;
+	int isGood = goodHit(hitlist[k], maxDist*2, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+	if (isGood == 1) showerHits.push_back(hitlist[k]);
+      } // loop over hits
+      
+    } // decide if shower
 
     TVector3 dcosVtxErr;
     TVector3 xyzErr;
@@ -258,6 +255,7 @@ int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double m
 // -----------------------------------------------------
 
 int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::vector<double> trk_wire1, std::vector<double> trk_tick1, std::vector<double> trk_wire2, std::vector<double> trk_tick2, int& pull){
+
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry> geom;
 
