@@ -58,13 +58,15 @@ public:
 private:
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
+  std::string fHitModuleLabel;
 
 };
 
 
 shower::TCShower::TCShower(fhicl::ParameterSet const & pset) : 
   fClusterModuleLabel       (pset.get< std::string >("ClusterModuleLabel", "trajcluster" ) ),
-  fTrackModuleLabel         (pset.get< std::string >("TrackModuleLabel", "pmtrack" ) )
+  fTrackModuleLabel         (pset.get< std::string >("TrackModuleLabel", "pmtrack" ) ),
+  fHitModuleLabel         (pset.get< std::string >("HitModuleLabel", "trajcluster" ) )
 {
 
   produces<std::vector<recob::Shower> >();
@@ -105,7 +107,7 @@ void shower::TCShower::produce(art::Event & evt)
   art::FindManyP<recob::Hit> cls_fm(clusterListHandle, evt, fClusterModuleLabel);
   art::FindManyP<recob::Hit> trk_fm(trackListHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::Track> hit_fm(hitListHandle, evt, fTrackModuleLabel);
-
+  art::FindManyP<recob::Cluster> hitcls_fm(hitListHandle, evt, fHitModuleLabel);
 
   for (size_t i = 0; i < tracklist.size(); ++i) {
 
@@ -158,28 +160,29 @@ void shower::TCShower::produce(art::Event & evt)
     trk_wire2[1] = geom->WireCoordinate(trkPt2[1], trkPt2[2], geo::PlaneID(0, 0, 1)); // last argument is plane
     
     for (size_t j = 0; j < clusterlist.size(); ++j) {
-      if (clusterlist[j]->ID() > 0) continue;
 
       std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(j); 
 
+      if (clusterlist[j]->ID() > 0 && cls_hitlist.size() > 10) continue;
+
       bool isClose = false; // true if the hit belongs to a cluster that should be added to the shower
       
-      for (size_t k = 0; k < cls_hitlist.size(); ++k) {
+      for (size_t jj = 0; jj < cls_hitlist.size(); ++jj) {
 	// don't count hits associated with the track
-	std::vector< art::Ptr<recob::Track> > hit_trklist = hit_fm.at(cls_hitlist[k].key());
+	std::vector< art::Ptr<recob::Track> > hit_trklist = hit_fm.at(cls_hitlist[jj].key());
 	if (hit_trklist.size()) {
 	  if (hit_trklist[0]->ID() == tracklist[i]->ID()) continue;
 	}
 
-	int planeNum = cls_hitlist[k]->WireID().Plane;
+	int planeNum = cls_hitlist[jj]->WireID().Plane;
 	double wirePitch = geom->WirePitch(planeNum);         
 	double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());                    
 	tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns 
 	double UnitsPerTick = tickToDist / wirePitch; 
 
 	// hit location
-	double x0 = cls_hitlist[k]->WireID().Wire; 
-	double y0 = cls_hitlist[k]->PeakTime() * UnitsPerTick;
+	double x0 = cls_hitlist[jj]->WireID().Wire; 
+	double y0 = cls_hitlist[jj]->PeakTime() * UnitsPerTick;
 
 	// track start
 	double x1 = trk_wire1[planeNum];	
@@ -218,18 +221,18 @@ void shower::TCShower::produce(art::Event & evt)
 
       // add hits to shower
       if (isClose) {
-	for (size_t k = 0; k < cls_hitlist.size(); ++k) {
+	for (size_t jj = 0; jj < cls_hitlist.size(); ++jj) {
 	  nShowerHits++;
 	  
-	  int planeNum = cls_hitlist[k]->WireID().Plane;
+	  int planeNum = cls_hitlist[jj]->WireID().Plane;
 
 	  double wirePitch = geom->WirePitch(planeNum);
 	  double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
 	  tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns                              
 	  double UnitsPerTick = tickToDist / wirePitch;
 
-	  double x0 = cls_hitlist[k]->WireID().Wire;
-	  double y0 = cls_hitlist[k]->PeakTime() * UnitsPerTick;
+	  double x0 = cls_hitlist[jj]->WireID().Wire;
+	  double y0 = cls_hitlist[jj]->PeakTime() * UnitsPerTick;
 
 	  double x1 = trk_wire1[planeNum];
 	  double y1 = trk_tick1[planeNum] * UnitsPerTick;
@@ -240,11 +243,14 @@ void shower::TCShower::produce(art::Event & evt)
 	  if ( ( (y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1) > 0) showerHitPull++;
 	  else showerHitPull--;
 	  
-	  showerHits.push_back(cls_hitlist[k]);
+	  showerHits.push_back(cls_hitlist[jj]);
 	} // loop over hits in cluster
       } // cluster contains hit close to track
       
     } // loop over clusters
+
+    // loop over hits to find those that aren't associated with any clusters
+    //for 
 
     showerHitPull /= nShowerHits;
     if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) showerCandidate = true;
