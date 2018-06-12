@@ -43,10 +43,7 @@ namespace shower {
 class shower::TCShower : public art::EDProducer {
 public:
   explicit TCShower(fhicl::ParameterSet const & p);
-  // The compiler-generated destructor is fine for non-base
-  // classes without bare pointers or other resource use.
 
-  // Plugins should not be copied or assigned.
   TCShower(TCShower const &) = delete;
   TCShower(TCShower &&) = delete;
   TCShower & operator = (TCShower const &) = delete;
@@ -61,9 +58,6 @@ public:
 private:
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
-  //  std::string fHitModuleLabel;
-
-  // Declare member data here.
 
 };
 
@@ -71,7 +65,6 @@ private:
 shower::TCShower::TCShower(fhicl::ParameterSet const & pset) : 
   fClusterModuleLabel       (pset.get< std::string >("ClusterModuleLabel", "trajcluster" ) ),
   fTrackModuleLabel         (pset.get< std::string >("TrackModuleLabel", "pmtrack" ) )
-  //  fHitModuleLabel           (pset.get< std::string >("HitModuleLabel", "pmtrack" ) )
 {
 
   produces<std::vector<recob::Shower> >();
@@ -105,7 +98,6 @@ void shower::TCShower::produce(art::Event & evt)
   if (evt.getByLabel(fTrackModuleLabel,trackListHandle))
     art::fill_ptr_vector(tracklist, trackListHandle);
 
-
   // detector properties
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry> geom;
@@ -118,9 +110,9 @@ void shower::TCShower::produce(art::Event & evt)
   for (size_t i = 0; i < tracklist.size(); ++i) {
 
     int tolerance = 100; // how many shower like cluster you need to define a shower
-    double pullTolerance = 0.6;
+    double pullTolerance = 0.6; // hits should be evenly distributed around the track
     double maxDist = 10; // how far a shower like cluster can be from the track
-    double minDistVert = 15;
+    double minDistVert = 15; // exclude tracks near the vertex
     
     if (tracklist[i]->Length() < 20) continue;
 
@@ -133,6 +125,7 @@ void shower::TCShower::produce(art::Event & evt)
     std::vector< art::Ptr<recob::Hit> > trk_hitlist = trk_fm.at(i);
     std::vector< art::Ptr<recob::Hit> > showerHits;
 
+    // add track hits to shower
     for (size_t ii = 0; ii < trk_hitlist.size(); ++ii) {
       showerHits.push_back(trk_hitlist[ii]);
     } // loop over track hits
@@ -142,30 +135,25 @@ void shower::TCShower::produce(art::Event & evt)
     bool showerCandidate = false;
 
     TVector3 trkStart = tracklist[i]->Vertex();
-    TVector3 trkDir = tracklist[i]->VertexDirection();
-
+    TVector3 trkPt2; // a second point along the track
     recob::Track::Point_t trkPt2temp  = tracklist[i]->TrajectoryPoint(10).position;
-
-    TVector3 trkPt2;
     trkPt2[0] = trkPt2temp.X();
     trkPt2[1] = trkPt2temp.Y();
     trkPt2[2] = trkPt2temp.Z();
 
+    // track vertex
     std::vector<double> trk_tick1(2); 
     std::vector<double> trk_wire1(2);
-
-    std::vector<double> trk_tick2(2); 
-    std::vector<double> trk_wire2(2);
-
     trk_tick1[0] = detprop->ConvertXToTicks(trkStart[0], 0, 0, 0);
     trk_tick1[1] = detprop->ConvertXToTicks(trkStart[0], 1, 0, 0); // second argument is plane
-
     trk_wire1[0] = geom->WireCoordinate(trkStart[1], trkStart[2], geo::PlaneID(0, 0, 0));
     trk_wire1[1] = geom->WireCoordinate(trkStart[1], trkStart[2], geo::PlaneID(0, 0, 1)); // last argument is plane
 
+    // second track point
+    std::vector<double> trk_tick2(2); 
+    std::vector<double> trk_wire2(2);
     trk_tick2[0] = detprop->ConvertXToTicks(trkPt2[0], 0, 0, 0);
     trk_tick2[1] = detprop->ConvertXToTicks(trkPt2[0], 1, 0, 0); // second argument is plane
-
     trk_wire2[0] = geom->WireCoordinate(trkPt2[1], trkPt2[2], geo::PlaneID(0, 0, 0));
     trk_wire2[1] = geom->WireCoordinate(trkPt2[1], trkPt2[2], geo::PlaneID(0, 0, 1)); // last argument is plane
     
@@ -174,10 +162,9 @@ void shower::TCShower::produce(art::Event & evt)
 
       std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(j); 
 
-      bool isClose = false;
+      bool isClose = false; // true if the hit belongs to a cluster that should be added to the shower
       
       for (size_t k = 0; k < cls_hitlist.size(); ++k) {
-
 	// don't count hits associated with the track
 	std::vector< art::Ptr<recob::Track> > hit_trklist = hit_fm.at(cls_hitlist[k].key());
 	if (hit_trklist.size()) {
@@ -185,18 +172,20 @@ void shower::TCShower::produce(art::Event & evt)
 	}
 
 	int planeNum = cls_hitlist[k]->WireID().Plane;
-
 	double wirePitch = geom->WirePitch(planeNum);         
 	double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());                    
 	tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns 
 	double UnitsPerTick = tickToDist / wirePitch; 
 
+	// hit location
 	double x0 = cls_hitlist[k]->WireID().Wire; 
 	double y0 = cls_hitlist[k]->PeakTime() * UnitsPerTick;
 
+	// track start
 	double x1 = trk_wire1[planeNum];	
 	double y1 = trk_tick1[planeNum] * UnitsPerTick;
-
+ 
+	// second track point
 	double x2 = trk_wire2[planeNum];	
 	double y2 = trk_tick2[planeNum] * UnitsPerTick;
 
@@ -205,14 +194,15 @@ void shower::TCShower::produce(art::Event & evt)
 	if (dist<maxDist) {
 	  isClose = true;
 	}
-
+	
+	// exclude cluster if it's too close to the vertex
 	double distToVert = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
-
 	if (distToVert < minDistVert) {
 	  isClose = false;
 	  break;
 	}
 
+	// exclude cluster if it's "behind" the vertex
 	double a = std::sqrt( pow(x2 - x1, 2) + pow(y2 - y1, 2) );
 	double b = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
 	double c = std::sqrt( pow(x0 - x2, 2) + pow(y0 - y2, 2) );
@@ -223,7 +213,6 @@ void shower::TCShower::produce(art::Event & evt)
 	  isClose = false;
 	  break;
 	}
-	//	std::cout << costheta << std::endl;
 
       } // loop over hits in cluster
 
@@ -273,7 +262,6 @@ void shower::TCShower::produce(art::Event & evt)
 
       std::cout << "track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull<< " " << nShowerHits << std::endl;
       showers->push_back(recob::Shower(trkPt2-trkStart, dcosVtxErr, trkStart, xyzErr, totalEnergy, totalEnergyErr, dEdx, dEdx, 0, 0));
-
       showers->back().set_id(showers->size()-1);
       
       util::CreateAssn(*this, evt, *(showers.get()), showerHits, *(hitShowerAssociations.get()) );
