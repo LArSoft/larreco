@@ -39,7 +39,6 @@ namespace shower {
   class TCShower;
 }
 
-
 class shower::TCShower : public art::EDProducer {
 public:
   explicit TCShower(fhicl::ParameterSet const & p);
@@ -56,36 +55,36 @@ public:
   void beginJob() override;
 
 private:
+  int goodHit(art::Ptr<recob::Hit>, double maxDist, double minDistVert, std::vector<double> trk_wire1, std::vector<double> trk_tick1, std::vector<double> trk_wire2, std::vector<double> trk_tick2);
+  int goodHit(art::Ptr<recob::Hit>, double maxDist, double minDistVert, std::vector<double> trk_wire1, std::vector<double> trk_tick1, std::vector<double> trk_wire2, std::vector<double> trk_tick2, int& pull);
+
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
   std::string fHitModuleLabel;
 
 };
 
+// -----------------------------------------------------
 
 shower::TCShower::TCShower(fhicl::ParameterSet const & pset) : 
   fClusterModuleLabel       (pset.get< std::string >("ClusterModuleLabel", "trajcluster" ) ),
   fTrackModuleLabel         (pset.get< std::string >("TrackModuleLabel", "pmtrack" ) ),
-  fHitModuleLabel         (pset.get< std::string >("HitModuleLabel", "trajcluster" ) )
-{
+  fHitModuleLabel           (pset.get< std::string >("HitModuleLabel", "trajcluster" ) ) {
 
   produces<std::vector<recob::Shower> >();
   produces<art::Assns<recob::Shower, recob::Hit> >();
-  //  produces<art::Assns<recob::Shower, recob::Cluster> >();
-  //  produces<art::Assns<recob::Shower, recob::Track> >();
 }
 
-void shower::TCShower::produce(art::Event & evt)
-{
+// -----------------------------------------------------
+
+void shower::TCShower::produce(art::Event & evt) {
   std::unique_ptr<std::vector<recob::Shower> > showers(new std::vector<recob::Shower>);
-  //  std::unique_ptr<art::Assns<recob::Shower, recob::Cluster> > clusterAssociations(new art::Assns<recob::Shower, recob::Cluster>);
   std::unique_ptr<art::Assns<recob::Shower, recob::Hit> > hitShowerAssociations(new art::Assns<recob::Shower, recob::Hit>);
-  //  std::unique_ptr<art::Assns<recob::Shower, recob::Track> > trackAssociations(new art::Assns<recob::Shower, recob::Track>);
 
   // hits
   art::Handle< std::vector<recob::Hit> > hitListHandle;
   std::vector<art::Ptr<recob::Hit> > hitlist;
-  if (evt.getByLabel(fClusterModuleLabel,hitListHandle))
+  if (evt.getByLabel(fHitModuleLabel,hitListHandle))
     art::fill_ptr_vector(hitlist, hitListHandle);
 
   // clusters
@@ -104,10 +103,11 @@ void shower::TCShower::produce(art::Event & evt)
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry> geom;
 
+  // get associations
   art::FindManyP<recob::Hit> cls_fm(clusterListHandle, evt, fClusterModuleLabel);
   art::FindManyP<recob::Hit> trk_fm(trackListHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::Track> hit_fm(hitListHandle, evt, fTrackModuleLabel);
-  art::FindManyP<recob::Cluster> hitcls_fm(hitListHandle, evt, fHitModuleLabel);
+  art::FindManyP<recob::Cluster> hitcls_fm(hitListHandle, evt, fClusterModuleLabel);
 
   for (size_t i = 0; i < tracklist.size(); ++i) {
 
@@ -165,7 +165,7 @@ void shower::TCShower::produce(art::Event & evt)
 
       if (clusterlist[j]->ID() > 0 && cls_hitlist.size() > 10) continue;
 
-      bool isClose = false; // true if the hit belongs to a cluster that should be added to the shower
+      bool isGoodCluster = false; // true if the hit belongs to a cluster that should be added to the shower
       
       for (size_t jj = 0; jj < cls_hitlist.size(); ++jj) {
 	// don't count hits associated with the track
@@ -174,74 +174,26 @@ void shower::TCShower::produce(art::Event & evt)
 	  if (hit_trklist[0]->ID() == tracklist[i]->ID()) continue;
 	}
 
-	int planeNum = cls_hitlist[jj]->WireID().Plane;
-	double wirePitch = geom->WirePitch(planeNum);         
-	double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());                    
-	tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns 
-	double UnitsPerTick = tickToDist / wirePitch; 
+	int isGoodHit = goodHit(cls_hitlist[jj], maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
 
-	// hit location
-	double x0 = cls_hitlist[jj]->WireID().Wire; 
-	double y0 = cls_hitlist[jj]->PeakTime() * UnitsPerTick;
-
-	// track start
-	double x1 = trk_wire1[planeNum];	
-	double y1 = trk_tick1[planeNum] * UnitsPerTick;
- 
-	// second track point
-	double x2 = trk_wire2[planeNum];	
-	double y2 = trk_tick2[planeNum] * UnitsPerTick;
-
-	double dist = std::abs((y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1)/std::sqrt( pow((y2-y1), 2) + pow((x2-x1), 2) );
-
-	if (dist<maxDist) {
-	  isClose = true;
-	}
-	
-	// exclude cluster if it's too close to the vertex
-	double distToVert = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
-	if (distToVert < minDistVert) {
-	  isClose = false;
+	if (isGoodHit == -1) {
+	  isGoodCluster = false;
 	  break;
 	}
-
-	// exclude cluster if it's "behind" the vertex
-	double a = std::sqrt( pow(x2 - x1, 2) + pow(y2 - y1, 2) );
-	double b = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
-	double c = std::sqrt( pow(x0 - x2, 2) + pow(y0 - y2, 2) );
-
-	double costheta = -( pow(c,2) - pow(a,2) - pow(b,2) ) / (2 * a * b);
-
-	if (costheta < 0) {
-	  isClose = false;
-	  break;
+	else if (isGoodHit == 1) {
+	  isGoodCluster = true;
 	}
 
       } // loop over hits in cluster
 
       // add hits to shower
-      if (isClose) {
+      if (isGoodCluster) {
 	for (size_t jj = 0; jj < cls_hitlist.size(); ++jj) {
 	  nShowerHits++;
-	  
-	  int planeNum = cls_hitlist[jj]->WireID().Plane;
 
-	  double wirePitch = geom->WirePitch(planeNum);
-	  double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
-	  tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns                              
-	  double UnitsPerTick = tickToDist / wirePitch;
-
-	  double x0 = cls_hitlist[jj]->WireID().Wire;
-	  double y0 = cls_hitlist[jj]->PeakTime() * UnitsPerTick;
-
-	  double x1 = trk_wire1[planeNum];
-	  double y1 = trk_tick1[planeNum] * UnitsPerTick;
-
-	  double x2 = trk_wire2[planeNum];
-	  double y2 = trk_tick2[planeNum] * UnitsPerTick;
-
-	  if ( ( (y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1) > 0) showerHitPull++;
-	  else showerHitPull--;
+	  int showerHitPullAdd = 0;
+	  goodHit(cls_hitlist[jj], maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2, showerHitPullAdd);
+	  showerHitPull += showerHitPullAdd;
 	  
 	  showerHits.push_back(cls_hitlist[jj]);
 	} // loop over hits in cluster
@@ -250,7 +202,18 @@ void shower::TCShower::produce(art::Event & evt)
     } // loop over clusters
 
     // loop over hits to find those that aren't associated with any clusters
-    //for 
+    for (size_t k = 0; k < hitlist.size(); ++k) {
+      std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(k);
+      if (hit_clslist.size()) continue;
+
+      int showerHitPullAdd = 0;
+      int isGood = goodHit(hitlist[k], maxDist*2, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2, showerHitPullAdd);
+      if (isGood == 1) {
+	nShowerHits++;
+	showerHitPull += showerHitPullAdd;
+	showerHits.push_back(hitlist[k]);
+      }
+    } // loop over hits
 
     showerHitPull /= nShowerHits;
     if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) showerCandidate = true;
@@ -283,8 +246,62 @@ void shower::TCShower::produce(art::Event & evt)
 
 } // produce
 
-void shower::TCShower::beginJob()
-{
+// -----------------------------------------------------
+
+int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::vector<double> trk_wire1, std::vector<double> trk_tick1, std::vector<double> trk_wire2, std::vector<double> trk_tick2){
+
+  int pull = 0;
+  return goodHit(hit, maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2, pull);
+
+} // goodHit
+
+// -----------------------------------------------------
+
+int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::vector<double> trk_wire1, std::vector<double> trk_tick1, std::vector<double> trk_wire2, std::vector<double> trk_tick2, int& pull){
+  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  art::ServiceHandle<geo::Geometry> geom;
+
+  int planeNum = hit->WireID().Plane;
+
+  double wirePitch = geom->WirePitch(planeNum);
+  double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
+  tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns                                
+  double UnitsPerTick = tickToDist / wirePitch;
+
+  double x0 = hit->WireID().Wire;
+  double y0 = hit->PeakTime() * UnitsPerTick;
+
+  double x1 = trk_wire1[planeNum];
+  double y1 = trk_tick1[planeNum] * UnitsPerTick;
+
+  double x2 = trk_wire2[planeNum];
+  double y2 = trk_tick2[planeNum] * UnitsPerTick;
+
+  double distToVert = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
+  if (distToVert < minDistVert) return -1;
+
+  // exclude cluster if it's "behind" the vertex                                                                      
+  double a = std::sqrt( pow(x2 - x1, 2) + pow(y2 - y1, 2) );
+  double b = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
+  double c = std::sqrt( pow(x0 - x2, 2) + pow(y0 - y2, 2) );
+  double costheta = -( pow(c,2) - pow(a,2) - pow(b,2) ) / (2 * a * b);
+  if (costheta < 0) return -1;
+
+  double dist = std::abs((y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1)/std::sqrt( pow((y2-y1), 2) + pow((x2-x1), 2) );
+
+  if (dist < maxDist) {
+    if ( ( (y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1) > 0) pull = 1;
+    else pull = -1; 
+    return 1;
+  }
+
+  return 0;
+
+} // goodHit
+
+// -----------------------------------------------------
+
+void shower::TCShower::beginJob() {
 
   // Implementation of optional member function here.
 }
