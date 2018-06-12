@@ -55,8 +55,8 @@ public:
   void beginJob() override;
 
 private:
-  int goodHit(art::Ptr<recob::Hit>, double maxDist, double minDistVert, std::vector<double> trk_wire1, std::vector<double> trk_tick1, std::vector<double> trk_wire2, std::vector<double> trk_tick2);
-  int goodHit(art::Ptr<recob::Hit>, double maxDist, double minDistVert, std::vector<double> trk_wire1, std::vector<double> trk_tick1, std::vector<double> trk_wire2, std::vector<double> trk_tick2, int& pull);
+  int goodHit(art::Ptr<recob::Hit>, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2);
+  int goodHit(art::Ptr<recob::Hit>, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2, int& pull);
 
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
@@ -144,20 +144,19 @@ void shower::TCShower::produce(art::Event & evt) {
     trkPt2[2] = trkPt2temp.Z();
 
     // track vertex
-    std::vector<double> trk_tick1(2); 
-    std::vector<double> trk_wire1(2);
-    trk_tick1[0] = detprop->ConvertXToTicks(trkStart[0], 0, 0, 0);
-    trk_tick1[1] = detprop->ConvertXToTicks(trkStart[0], 1, 0, 0); // second argument is plane
-    trk_wire1[0] = geom->WireCoordinate(trkStart[1], trkStart[2], geo::PlaneID(0, 0, 0));
-    trk_wire1[1] = geom->WireCoordinate(trkStart[1], trkStart[2], geo::PlaneID(0, 0, 1)); // last argument is plane
+    std::map<geo::PlaneID, double> trk_tick1;
+    std::map<geo::PlaneID, double> trk_wire1;
 
     // second track point
-    std::vector<double> trk_tick2(2); 
-    std::vector<double> trk_wire2(2);
-    trk_tick2[0] = detprop->ConvertXToTicks(trkPt2[0], 0, 0, 0);
-    trk_tick2[1] = detprop->ConvertXToTicks(trkPt2[0], 1, 0, 0); // second argument is plane
-    trk_wire2[0] = geom->WireCoordinate(trkPt2[1], trkPt2[2], geo::PlaneID(0, 0, 0));
-    trk_wire2[1] = geom->WireCoordinate(trkPt2[1], trkPt2[2], geo::PlaneID(0, 0, 1)); // last argument is plane
+    std::map<geo::PlaneID, double> trk_tick2;
+    std::map<geo::PlaneID, double> trk_wire2;
+
+    for (auto iPlane = geom->begin_plane_id(); iPlane != geom->end_plane_id(); ++iPlane){
+      trk_tick1[*iPlane] = detprop->ConvertXToTicks(trkStart[0], *iPlane);
+      trk_wire1[*iPlane] = geom->WireCoordinate(trkStart[1], trkStart[2], *iPlane);
+      trk_tick2[*iPlane] = detprop->ConvertXToTicks(trkPt2[0], *iPlane);
+      trk_wire2[*iPlane] = geom->WireCoordinate(trkPt2[1], trkPt2[2], *iPlane);
+    }
     
     for (size_t j = 0; j < clusterlist.size(); ++j) {
 
@@ -249,7 +248,7 @@ void shower::TCShower::produce(art::Event & evt) {
 // return 1 if hit is close to the shower axis
 // return 0 otherwise
 
-int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::vector<double> trk_wire1, std::vector<double> trk_tick1, std::vector<double> trk_wire2, std::vector<double> trk_tick2){
+int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2){
 
   int pull = 0;
   return goodHit(hit, maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2, pull);
@@ -258,14 +257,12 @@ int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double m
 
 // -----------------------------------------------------
 
-int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::vector<double> trk_wire1, std::vector<double> trk_tick1, std::vector<double> trk_wire2, std::vector<double> trk_tick2, int& pull){
+int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2, int& pull){
 
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry> geom;
 
-  int planeNum = hit->WireID().Plane;
-
-  double wirePitch = geom->WirePitch(planeNum);
+  double wirePitch = geom->WirePitch(hit->WireID());
   double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
   tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns                                
   double UnitsPerTick = tickToDist / wirePitch;
@@ -273,11 +270,11 @@ int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double m
   double x0 = hit->WireID().Wire;
   double y0 = hit->PeakTime() * UnitsPerTick;
 
-  double x1 = trk_wire1[planeNum];
-  double y1 = trk_tick1[planeNum] * UnitsPerTick;
+  double x1 = trk_wire1[hit->WireID()];
+  double y1 = trk_tick1[hit->WireID()] * UnitsPerTick;
 
-  double x2 = trk_wire2[planeNum];
-  double y2 = trk_tick2[planeNum] * UnitsPerTick;
+  double x2 = trk_wire2[hit->WireID()];
+  double y2 = trk_tick2[hit->WireID()] * UnitsPerTick;
 
   double distToVert = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
   if (distToVert < minDistVert) return -1;
