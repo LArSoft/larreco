@@ -213,6 +213,18 @@ void shower::TCShower::produce(art::Event & evt)
 	  break;
 	}
 
+	double a = std::sqrt( pow(x2 - x1, 2) + pow(y2 - y1, 2) );
+	double b = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
+	double c = std::sqrt( pow(x0 - x2, 2) + pow(y0 - y2, 2) );
+
+	double costheta = -( pow(c,2) - pow(a,2) - pow(b,2) ) / (2 * a * b);
+
+	if (costheta < 0) {
+	  isClose = false;
+	  break;
+	}
+	//	std::cout << costheta << std::endl;
+
       } // loop over hits in cluster
 
       // add hits to shower
@@ -247,7 +259,6 @@ void shower::TCShower::produce(art::Event & evt)
 
     showerHitPull /= nShowerHits;
     if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) showerCandidate = true;
-    //    if (nShowerHits > tolerance) showerCandidate = true;
 
     TVector3 dcosVtxErr;
     TVector3 xyzErr;
@@ -269,9 +280,6 @@ void shower::TCShower::produce(art::Event & evt)
 
       break;
 
-    }
-    else {
-      std::cout << "NOT A SHOWER: track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull<< " " << nShowerHits << std::endl;
     }
 
   } // loop over tracks
