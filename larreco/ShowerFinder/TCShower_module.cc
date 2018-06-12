@@ -114,21 +114,24 @@ void shower::TCShower::produce(art::Event & evt)
   art::FindManyP<recob::Hit> trk_fm(trackListHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::Track> hit_fm(hitListHandle, evt, fTrackModuleLabel);
 
-  int tolerance = 100; // how many shower like cluster you need to define a shower
-  double maxDist = 10; // how far a shower like cluster can be from the track
-  double minDistVert = 10;
 
   for (size_t i = 0; i < tracklist.size(); ++i) {
 
+    int tolerance = 100; // how many shower like cluster you need to define a shower
+    double pullTolerance = 0.6;
+    double maxDist = 10; // how far a shower like cluster can be from the track
+    double minDistVert = 15;
+    
     if (tracklist[i]->Length() < 20) continue;
 
-    // adjust cuts based on track length
-    //    maxDist = maxDist * 0.05 * tracklist[i]->Length();
-    //    tolerance = tolerance * 0.1 * tracklist[i]->Length();
+    // adjust tolerances for short tracks
+    if (tracklist[i]->Length() < 50) {
+      tolerance = 50;
+      pullTolerance = 0.9;
+    }
 
     std::vector< art::Ptr<recob::Hit> > trk_hitlist = trk_fm.at(i);
     std::vector< art::Ptr<recob::Hit> > showerHits;
-    
 
     for (size_t ii = 0; ii < trk_hitlist.size(); ++ii) {
       showerHits.push_back(trk_hitlist[ii]);
@@ -178,7 +181,6 @@ void shower::TCShower::produce(art::Event & evt)
 	// don't count hits associated with the track
 	std::vector< art::Ptr<recob::Track> > hit_trklist = hit_fm.at(cls_hitlist[k].key());
 	if (hit_trklist.size()) {
-	  //	  std::cout << tracklist[i]->ID() << " " << hit_trklist[0]->ID() << std::endl;
 	  if (hit_trklist[0]->ID() == tracklist[i]->ID()) continue;
 	}
 
@@ -202,7 +204,6 @@ void shower::TCShower::produce(art::Event & evt)
 
 	if (dist<maxDist) {
 	  isClose = true;
-	  //	  break;
 	}
 
 	double distToVert = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
@@ -211,8 +212,6 @@ void shower::TCShower::produce(art::Event & evt)
 	  isClose = false;
 	  break;
 	}
-
-	//	std::cout << distToVert << std::endl;
 
       } // loop over hits in cluster
 
@@ -247,7 +246,7 @@ void shower::TCShower::produce(art::Event & evt)
     } // loop over clusters
 
     showerHitPull /= nShowerHits;
-    if (nShowerHits > tolerance && std::abs(showerHitPull) < 0.6) showerCandidate = true;
+    if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) showerCandidate = true;
     //    if (nShowerHits > tolerance) showerCandidate = true;
 
     TVector3 dcosVtxErr;
@@ -271,7 +270,9 @@ void shower::TCShower::produce(art::Event & evt)
       break;
 
     }
-
+    else {
+      std::cout << "NOT A SHOWER: track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull<< " " << nShowerHits << std::endl;
+    }
 
   } // loop over tracks
 
