@@ -15,7 +15,7 @@ standard_shower:
 standard_tcshower:
 {
  module_type: "TCShower"
- ClusterModuleLabel: "trajcluster2"
+ ClusterModuleLabel: "trajcluster"
  TrackModuleLabel:   "pmtrack"
 }
 

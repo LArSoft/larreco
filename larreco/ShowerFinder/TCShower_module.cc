@@ -24,10 +24,10 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 
+#include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Shower.h"
-#include "lardataobj/RecoBase/Hit.h"
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
@@ -61,6 +61,7 @@ public:
 private:
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
+  //  std::string fHitModuleLabel;
 
   // Declare member data here.
 
@@ -68,8 +69,9 @@ private:
 
 
 shower::TCShower::TCShower(fhicl::ParameterSet const & pset) : 
-  fClusterModuleLabel       (pset.get< std::string >("ClusterModuleLabel", "trajcluster2" ) ),
+  fClusterModuleLabel       (pset.get< std::string >("ClusterModuleLabel", "trajcluster" ) ),
   fTrackModuleLabel         (pset.get< std::string >("TrackModuleLabel", "pmtrack" ) )
+  //  fHitModuleLabel           (pset.get< std::string >("HitModuleLabel", "pmtrack" ) )
 {
 
   produces<std::vector<recob::Shower> >();
@@ -85,6 +87,12 @@ void shower::TCShower::produce(art::Event & evt)
   std::unique_ptr<art::Assns<recob::Shower, recob::Hit> > hitShowerAssociations(new art::Assns<recob::Shower, recob::Hit>);
   //  std::unique_ptr<art::Assns<recob::Shower, recob::Track> > trackAssociations(new art::Assns<recob::Shower, recob::Track>);
 
+  // hits
+  art::Handle< std::vector<recob::Hit> > hitListHandle;
+  std::vector<art::Ptr<recob::Hit> > hitlist;
+  if (evt.getByLabel(fClusterModuleLabel,hitListHandle))
+    art::fill_ptr_vector(hitlist, hitListHandle);
+
   // clusters
   art::Handle< std::vector<recob::Cluster> > clusterListHandle;
   std::vector<art::Ptr<recob::Cluster> > clusterlist;
@@ -97,11 +105,6 @@ void shower::TCShower::produce(art::Event & evt)
   if (evt.getByLabel(fTrackModuleLabel,trackListHandle))
     art::fill_ptr_vector(tracklist, trackListHandle);
 
-  // hits
-  art::Handle< std::vector<recob::Hit> > hitListHandle;
-  std::vector<art::Ptr<recob::Hit> > hitlist;
-  if (evt.getByLabel(fClusterModuleLabel,hitListHandle))
-    art::fill_ptr_vector(hitlist, hitListHandle);
 
   // detector properties
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -109,11 +112,11 @@ void shower::TCShower::produce(art::Event & evt)
 
   art::FindManyP<recob::Hit> cls_fm(clusterListHandle, evt, fClusterModuleLabel);
   art::FindManyP<recob::Hit> trk_fm(trackListHandle, evt, fTrackModuleLabel);
-  //  art::FindManyP<recob::Track> hit_fm(hitListHandle, evt, fClusterModuleLabel);
+  art::FindManyP<recob::Track> hit_fm(hitListHandle, evt, fTrackModuleLabel);
 
   int tolerance = 100; // how many shower like cluster you need to define a shower
   double maxDist = 10; // how far a shower like cluster can be from the track
-  double minDistVert = 4;
+  double minDistVert = 10;
 
   for (size_t i = 0; i < tracklist.size(); ++i) {
 
@@ -172,8 +175,12 @@ void shower::TCShower::produce(art::Event & evt)
       
       for (size_t k = 0; k < cls_hitlist.size(); ++k) {
 
-	//	std::vector< art::Ptr<recob::Track> > trklist = hit_fm.at(k);
-	//	std::cout << trklist.size() << std::endl;
+	// don't count hits associated with the track
+	std::vector< art::Ptr<recob::Track> > hit_trklist = hit_fm.at(cls_hitlist[k].key());
+	if (hit_trklist.size()) {
+	  //	  std::cout << tracklist[i]->ID() << " " << hit_trklist[0]->ID() << std::endl;
+	  if (hit_trklist[0]->ID() == tracklist[i]->ID()) continue;
+	}
 
 	int planeNum = cls_hitlist[k]->WireID().Plane;
 
@@ -192,18 +199,20 @@ void shower::TCShower::produce(art::Event & evt)
 	double y2 = trk_tick2[planeNum] * UnitsPerTick;
 
 	double dist = std::abs((y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1)/std::sqrt( pow((y2-y1), 2) + pow((x2-x1), 2) );
-	
+
 	if (dist<maxDist) {
 	  isClose = true;
-	  break;
+	  //	  break;
 	}
 
 	double distToVert = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
 
 	if (distToVert < minDistVert) {
-	  //	  isClose = false;
-	  //	  break;
+	  isClose = false;
+	  break;
 	}
+
+	//	std::cout << distToVert << std::endl;
 
       } // loop over hits in cluster
 
