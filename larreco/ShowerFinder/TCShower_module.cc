@@ -244,6 +244,10 @@ void shower::TCShower::produce(art::Event & evt) {
 } // produce
 
 // -----------------------------------------------------
+// return -1 if hit is too close to track vertex or has
+// a wide opening angle
+// return 1 if hit is close to the shower axis
+// return 0 otherwise
 
 int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::vector<double> trk_wire1, std::vector<double> trk_tick1, std::vector<double> trk_wire2, std::vector<double> trk_tick2){
 
