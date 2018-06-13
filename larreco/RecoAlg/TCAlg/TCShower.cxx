@@ -388,6 +388,8 @@ namespace tca {
       if(ss.ID == 0) continue;
       if(ss.SS3ID > 0) continue;
       bool killMe = (ss.TjIDs.size() == 1 || ss.Energy < tjs.ShowerTag[3]);
+      // too small aspect ratio -> something track-like with some shower-like fuzz
+      if(ss.AspectRatio < tjs.ShowerTag[10]) killMe = true;
       if(killMe) MakeShowerObsolete(fcnLabel, tjs, ss, prt);
     } // ss
      
@@ -3545,23 +3547,28 @@ namespace tca {
     for(auto& vx3 : tjs.vtx3) {
       if(vx3.ID == 0) continue;
       if(vx3.TPCID != tpcid) continue;
-      if(vx3.Score < tjs.Vertex2DCuts[7]) continue;
+      if(!vx3.Neutrino) continue;
+//      if(vx3.Score < tjs.Vertex2DCuts[7]) continue;
       auto PIn3V = GetAssns(tjs, "3V", vx3.ID, "P");
       if(PIn3V.size() < 2) continue;
-//      Point3_t v3pos = {{vx3.X, vx3.Y, vx3.Z}};
+      Point3_t v3pos = {{vx3.X, vx3.Y, vx3.Z}};
       for(unsigned short ip1 = 0; ip1 < PIn3V.size() - 1; ++ip1) {
-        auto& p1 = tjs.pfps[PIn3V[ip1]];
+        auto& p1 = tjs.pfps[PIn3V[ip1] - 1];
         // ignore the neutrino pfp
         if(p1.TjIDs.empty()) continue;
         unsigned short p1End = 0;
         if(p1.Vx3ID[1] == vx3.ID) p1End = 1;
         bool p1ShowerLike = IsShowerLike(tjs, p1.TjIDs);
+        // find the direction using the vertex position and the end that is
+        // farthest away from the vertex
+        auto p1Dir = PointDirection(v3pos, p1.XYZ[1 - p1End]);
 //        float p1Sep = PosSep(p1.XYZ[p1End], v3pos);
         for(unsigned short ip2 = ip1 + 1; ip2 < PIn3V.size(); ++ip2) {
-          auto& p2 = tjs.pfps[PIn3V[ip2]];
+          auto& p2 = tjs.pfps[PIn3V[ip2] - 1];
           if(p2.TjIDs.empty()) continue;
           unsigned short p2End = 0;
           if(p2.Vx3ID[1] == vx3.ID) p2End = 1;
+          auto p2Dir = PointDirection(v3pos, p2.XYZ[1 - p2End]);
           // Look for the case where an electron starts to shower close to the
           // vertex, creating a daughter that is also attached to the vertex. This
           // pair is OK to include in a shower. The signature is that the PFP doca between them is less
@@ -3575,11 +3582,19 @@ namespace tca {
           // The tjs in the P2 - P3 pair shouldn't be clustered
           // The tjs in the P1 - P2 pair can be clustered
           bool p2ShowerLike = IsShowerLike(tjs, p2.TjIDs);
-/*
-          std::cout<<"DDC: P"<<p1.ID<<" p1ShowerLike "<<p1ShowerLike;
-          std::cout<<" P"<<p2.ID<<" p2ShowerLike "<<p2ShowerLike<<"\n";
-*/
           if(p1ShowerLike && p2ShowerLike) continue;
+          
+          float costh = DotProd(p1Dir, p2Dir);
+          if(costh < 0.92) continue;
+          unsigned short closePt1, closePt2;
+          float doca = PFPDOCA(p1, p2, closePt1, closePt2);
+
+          std::cout<<"DDC: P"<<p1.ID<<" p1ShowerLike "<<p1ShowerLike;
+          std::cout<<" P"<<p2.ID<<" p2ShowerLike "<<p2ShowerLike;
+          std::cout<<" costh "<<costh;
+          std::cout<<" doca "<<doca;
+          std::cout<<"\n";
+          
           // now enter the Tj pairs
           for(auto tid1 : p1.TjIDs) {
             auto& t1 = tjs.allTraj[tid1 - 1];
