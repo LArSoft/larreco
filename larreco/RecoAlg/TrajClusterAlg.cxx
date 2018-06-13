@@ -5757,6 +5757,7 @@ namespace tca {
       for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         auto& mcp = tjs.MCPartList[ipart];
         if(mcp->TrackId() != trackID) continue;
+/*
         // re-direct electrons to the eve particle
         if(abs(mcp->PdgCode()) == 11) {
           int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
@@ -5767,6 +5768,7 @@ namespace tca {
             break;
           } // jpart
         } // found electron
+*/
         tjs.fHits[iht].MCPartListIndex = ipart;
         ++nMatHits;
         break;
