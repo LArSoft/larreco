@@ -56,7 +56,10 @@ public:
 
 private:
   int goodHit(art::Ptr<recob::Hit>, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2);
+  
   int goodHit(art::Ptr<recob::Hit>, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2, int& pull);
+
+  std::vector<TVector3> getSecondPoint(art::Ptr<recob::Track> thistrack);
 
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
@@ -143,6 +146,10 @@ void shower::TCShower::produce(art::Event & evt) {
     trkPt2[1] = trkPt2temp.Y();
     trkPt2[2] = trkPt2temp.Z();
 
+    std::vector<TVector3> trkPts = getSecondPoint(tracklist[i]);
+    //    trkStart = trkPts[0];
+    //trkPt2 = trkPts[1];
+
     // track vertex
     std::map<geo::PlaneID, double> trk_tick1;
     std::map<geo::PlaneID, double> trk_wire1;
@@ -208,8 +215,8 @@ void shower::TCShower::produce(art::Event & evt) {
       for (size_t k = 0; k < hitlist.size(); ++k) {
 	std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(k);
 	if (hit_clslist.size()) continue;
-	int isGood = goodHit(hitlist[k], maxDist*2, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
-	if (isGood == 1) showerHits.push_back(hitlist[k]);
+	int isGoodHit = goodHit(hitlist[k], maxDist*2, minDistVert*2, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+	if (isGoodHit == 1) showerHits.push_back(hitlist[k]);
       } // loop over hits
       
     } // decide if shower
@@ -243,8 +250,7 @@ void shower::TCShower::produce(art::Event & evt) {
 } // produce
 
 // -----------------------------------------------------
-// return -1 if hit is too close to track vertex or has
-// a wide opening angle
+// return -1 if hit is too close to track vertex or has a wide opening angle
 // return 1 if hit is close to the shower axis
 // return 0 otherwise
 
@@ -256,6 +262,9 @@ int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double m
 } // goodHit
 
 // -----------------------------------------------------
+// return -1 if hit is too close to track vertex or has a wide opening angle
+// return 1 if hit is close to the shower axis
+// return 0 otherwise
 
 int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2, int& pull){
 
@@ -297,6 +306,54 @@ int shower::TCShower::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double m
   return 0;
 
 } // goodHit
+
+// -----------------------------------------------------
+// Performs a linear regression on the first n trajectory points
+// of a track and a point along the line.
+
+std::vector<TVector3> shower::TCShower::getSecondPoint(art::Ptr<recob::Track> thistrack) {
+
+  size_t starttrajpoint = 0;
+  size_t ntrajpoints = 10 + starttrajpoint;
+
+  TMatrix Y = TMatrix((int) ntrajpoints, 1);
+  TMatrix X = TMatrix((int) ntrajpoints, 3);
+
+  for (size_t i = starttrajpoint; i < ntrajpoints; ++i) {
+
+    Y(i, 0) = thistrack->TrajectoryPoint(i).position.Z();
+    X(i, 0) = 1;
+    X(i, 1) = thistrack->TrajectoryPoint(i).position.X();
+    X(i, 2) = thistrack->TrajectoryPoint(i).position.Y();
+
+  } // loop over trajectory points
+
+  TMatrix XT = X;
+  XT.T();
+
+  TMatrix XTY = XT * Y;
+  TMatrix XTX = XT * X;
+  TMatrix Z = XTX.Invert() * XTY;
+
+  TVector3 trkPt1;
+  TVector3 trkPt2;
+
+  double x = thistrack->TrajectoryPoint(10).position.X();
+  double y = thistrack->TrajectoryPoint(10).position.Y();
+  double z = Z(0,0) + x * Z(1,0) + y * Z(2,0); 
+
+  trkPt2[0] = x;
+  trkPt2[1] = y;
+  trkPt2[2] = z;
+
+  std::vector<TVector3> trkPts;
+
+  trkPts.push_back(trkPt1);
+  trkPts.push_back(trkPt2);
+
+  return trkPts;
+
+} // getSecondPoint
 
 // -----------------------------------------------------
 
