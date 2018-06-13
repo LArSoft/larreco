@@ -3574,7 +3574,6 @@ namespace tca {
           // pair is OK to include in a shower. The signature is that the PFP doca between them is less
           // than the pfp - vx3 separation and both are shower like - something like this
           // where 3V is a 3D vertex
-          //   \
           //    \ P3 (not shower-like) -> 3V
           //     3V ----------- P1 -> 3V (shower-like or NOT shower-like)
           //            ----------- P2 (shower-like doca closer to P1 than the vertex) -> 3V
