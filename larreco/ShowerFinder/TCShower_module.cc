@@ -35,6 +35,11 @@
 
 #include <memory>
 
+bool compare(const art::Ptr<recob::Track>& l, const art::Ptr<recob::Track>& r) //(2)
+{
+  return l->Vertex().Z() > r->Vertex().Z();
+}
+
 namespace shower {
   class TCShower;
 }
@@ -112,6 +117,53 @@ void shower::TCShower::produce(art::Event & evt) {
   art::FindManyP<recob::Track> hit_fm(hitListHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::Cluster> hitcls_fm(hitListHandle, evt, fClusterModuleLabel);
 
+  // sort tracks
+  std::vector<art::Ptr<recob::Track> > tracklistL20;
+  //  std::vector<art::Ptr<recob::Track> > tracklistL40;
+  std::vector<art::Ptr<recob::Track> > tracklistTheRest;
+
+  std::vector<art::Ptr<recob::Track> > tracklistSorted;
+  std::vector<size_t> trackIndicesSorted;
+
+  for (size_t i = 0; i < tracklist.size(); ++i) {
+    double length = tracklist[i]->Length();
+
+    if (length < 20) tracklistL20.push_back(tracklist[i]);
+    //    else if (length < 40) tracklistL40.push_back(tracklist[i]);
+    else tracklistTheRest.push_back(tracklist[i]);
+  }
+
+  std::sort(tracklistL20.begin(), tracklistL20.end(), compare);
+  //  std::sort(tracklistL40.begin(), tracklistL40.end(), compare);
+  std::sort(tracklistTheRest.begin(), tracklistTheRest.end(), compare);
+  
+  // add all points to tracklistSorted
+  for (size_t i = 0; i < tracklistL20.size(); ++i) {
+    tracklistSorted.push_back(tracklistL20[i]);
+  }
+  /*
+  for (size_t i = 0; i < tracklistL40.size(); ++i) {
+    tracklistSorted.push_back(tracklistL40[i]);
+  }
+  */
+  for (size_t i = 0; i < tracklistTheRest.size(); ++i) {
+    tracklistSorted.push_back(tracklistTheRest[i]);
+  }
+
+  std::reverse(tracklistSorted.begin(), tracklistSorted.end());
+
+  for (size_t i = 0; i < tracklistSorted.size(); ++i) {
+    for (size_t j = 0; j < tracklist.size(); ++j) {
+      if (tracklistSorted[i]->ID() == tracklist[j]->ID()) trackIndicesSorted.push_back(j);
+    } // loop through tracks
+  } // loop through sorted tracks
+
+  for (size_t i = 0; i < tracklistSorted.size(); ++i) {
+    std::cout << tracklistSorted[i]->ID() << " " << tracklistSorted[i]->Length() << " " << tracklistSorted[i]->Vertex().Z() << std::endl; 
+  }
+
+  tracklist = tracklistSorted;
+
   for (size_t i = 0; i < tracklist.size(); ++i) {
 
     int tolerance = 100; // how many shower like cluster you need to define a shower
@@ -127,7 +179,7 @@ void shower::TCShower::produce(art::Event & evt) {
       pullTolerance = 0.9;
     }
 
-    std::vector< art::Ptr<recob::Hit> > trk_hitlist = trk_fm.at(i);
+    std::vector< art::Ptr<recob::Hit> > trk_hitlist = trk_fm.at(trackIndicesSorted[i]);
     std::vector< art::Ptr<recob::Hit> > showerHits;
 
     // add track hits to shower
@@ -141,14 +193,15 @@ void shower::TCShower::produce(art::Event & evt) {
 
     TVector3 trkStart = tracklist[i]->Vertex();
     TVector3 trkPt2; // a second point along the track
-    recob::Track::Point_t trkPt2temp  = tracklist[i]->TrajectoryPoint(10).position;
+    recob::Track::Point_t trkPt2temp  = tracklist[i]->TrajectoryPoint(20).position;
     trkPt2[0] = trkPt2temp.X();
     trkPt2[1] = trkPt2temp.Y();
     trkPt2[2] = trkPt2temp.Z();
 
-    std::vector<TVector3> trkPts = getSecondPoint(tracklist[i]);
-    //    trkStart = trkPts[0];
-    //trkPt2 = trkPts[1];
+    recob::Track::Point_t trkStarttemp  = tracklist[i]->TrajectoryPoint(5).position;
+    trkStart[0] = trkStarttemp.X();
+    trkStart[1] = trkStarttemp.Y();
+    trkStart[2] = trkStarttemp.Z();
 
     // track vertex
     std::map<geo::PlaneID, double> trk_tick1;
@@ -218,7 +271,80 @@ void shower::TCShower::produce(art::Event & evt) {
 	int isGoodHit = goodHit(hitlist[k], maxDist*2, minDistVert*2, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
 	if (isGoodHit == 1) showerHits.push_back(hitlist[k]);
       } // loop over hits
-      
+
+
+      // TODO: Add missing tracks to shower
+      /*
+      TVector3 parentDir = trkPt2 - trkStart;
+
+      // loop over tracks to see if any fall within the shower
+      for (size_t k = 0; k < tracklist.size(); ++k) {
+	if (k == i) continue; // don't check current track
+
+	TVector3 trkStartOther = tracklist[k]->Vertex();
+	TVector3 trkPt2Other; // a second point along the track                                                            
+	recob::Track::Point_t trkPt2temp  = tracklist[k]->TrajectoryPoint(5).position;
+	trkPt2Other[0] = trkPt2temp.X();
+	trkPt2Other[1] = trkPt2temp.Y();
+	trkPt2Other[2] = trkPt2temp.Z();
+	
+	TVector3 otherDir = trkPt2Other - trkStartOther;
+
+	double ang = parentDir.Angle(otherDir);
+
+	std::vector< art::Ptr<recob::Hit> > trk_hitlistOther = trk_fm.at(k);
+
+	int nhits = 0;
+	int ngoodhits = 0;
+
+	maxDist = 10;
+	if (tracklist[k]->Length() > 30) maxDist /= 2;
+
+	// are the track hits close?
+	for (size_t kk = 0; kk < trk_hitlistOther.size(); ++kk) {
+	  nhits++;
+	  int isGoodHit = goodHit(trk_hitlist[kk], maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+
+	  if (isGoodHit == -1){
+	    ngoodhits = 0;
+	    break;
+	  }
+	  else if (isGoodHit == 1) {
+	    ngoodhits++;
+	  }
+	} // loop over track hits   
+	
+	double fracGood = (double)ngoodhits/nhits;
+
+	double x1 = tracklist[i]->End().X();
+	double y1 = tracklist[i]->End().Y();
+	double z1 = tracklist[i]->End().Z();
+
+	double x2 = tracklist[k]->End().X();
+	double y2 = tracklist[k]->End().Y();
+	double z2 = tracklist[k]->End().Z();
+
+	double dist = sqrt( pow(x1-x2,2) + pow(y1-y2,2) + pow(z1-z2,2) );
+
+	if (dist > 20) 
+	  if (z2 - z1 < 0) continue;
+
+	bool isGoodTrack = (ang < 0.5 && fracGood > 0.4 && nhits > 50) || (ang < 1 && fracGood > 0.6 && nhits < 20);
+
+	if (tracklist[k]->Length() > 30) isGoodTrack = (ang < 0.5 && fracGood > 0.7);
+
+	//	  std::cout << isGoodTrack << " " << tracklist[k]->ID() << " " << tracklist[k]->Length() << " " << ang  << " " << fracGood << " " << nhits << " " << dist << std::endl;
+
+	if (isGoodTrack) {
+
+	  for (size_t kk = 0; kk < trk_hitlistOther.size(); ++kk) {
+	    //	    showerHits.push_back(trk_hitlistOther[kk]); 
+	  } // loop over hits to add them to shower
+	} // good track
+	
+      } // loop over tracks
+      */
+  
     } // decide if shower
 
     TVector3 dcosVtxErr;
@@ -233,7 +359,7 @@ void shower::TCShower::produce(art::Event & evt) {
     if (showerCandidate) {
 
       std::cout << "track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull<< " " << nShowerHits << std::endl;
-      showers->push_back(recob::Shower(trkPt2-trkStart, dcosVtxErr, trkStart, xyzErr, totalEnergy, totalEnergyErr, dEdx, dEdx, 0, 0));
+      showers->push_back(recob::Shower(trkPt2-trkStart, dcosVtxErr, tracklist[i]->Vertex(), xyzErr, totalEnergy, totalEnergyErr, dEdx, dEdx, 0, 0));
       showers->back().set_id(showers->size()-1);
       
       util::CreateAssn(*this, evt, *(showers.get()), showerHits, *(hitShowerAssociations.get()) );
