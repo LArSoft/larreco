@@ -185,7 +185,7 @@ void shower::TCShower::produce(art::Event & evt) {
 
     TVector3 trkStart = tracklist[i]->Vertex();
     TVector3 trkPt2; // a second point along the track
-    recob::Track::Point_t trkPt2temp  = tracklist[i]->TrajectoryPoint(20).position;
+    recob::Track::Point_t trkPt2temp  = tracklist[i]->TrajectoryPoint(15).position;
     trkPt2[0] = trkPt2temp.X();
     trkPt2[1] = trkPt2temp.Y();
     trkPt2[2] = trkPt2temp.Z();
