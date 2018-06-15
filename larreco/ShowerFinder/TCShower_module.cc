@@ -119,8 +119,7 @@ void shower::TCShower::produce(art::Event & evt) {
 
   // sort tracks
   std::vector<art::Ptr<recob::Track> > tracklistL20;
-  //  std::vector<art::Ptr<recob::Track> > tracklistL40;
-  std::vector<art::Ptr<recob::Track> > tracklistTheRest;
+  std::vector<art::Ptr<recob::Track> > tracklistG20;
 
   std::vector<art::Ptr<recob::Track> > tracklistSorted;
   std::vector<size_t> trackIndicesSorted;
@@ -129,25 +128,18 @@ void shower::TCShower::produce(art::Event & evt) {
     double length = tracklist[i]->Length();
 
     if (length < 20) tracklistL20.push_back(tracklist[i]);
-    //    else if (length < 40) tracklistL40.push_back(tracklist[i]);
-    else tracklistTheRest.push_back(tracklist[i]);
+    else tracklistG20.push_back(tracklist[i]);
   }
 
   std::sort(tracklistL20.begin(), tracklistL20.end(), compare);
-  //  std::sort(tracklistL40.begin(), tracklistL40.end(), compare);
-  std::sort(tracklistTheRest.begin(), tracklistTheRest.end(), compare);
+  std::sort(tracklistG20.begin(), tracklistG20.end(), compare);
   
   // add all points to tracklistSorted
   for (size_t i = 0; i < tracklistL20.size(); ++i) {
     tracklistSorted.push_back(tracklistL20[i]);
   }
-  /*
-  for (size_t i = 0; i < tracklistL40.size(); ++i) {
-    tracklistSorted.push_back(tracklistL40[i]);
-  }
-  */
-  for (size_t i = 0; i < tracklistTheRest.size(); ++i) {
-    tracklistSorted.push_back(tracklistTheRest[i]);
+  for (size_t i = 0; i < tracklistG20.size(); ++i) {
+    tracklistSorted.push_back(tracklistG20[i]);
   }
 
   std::reverse(tracklistSorted.begin(), tracklistSorted.end());
