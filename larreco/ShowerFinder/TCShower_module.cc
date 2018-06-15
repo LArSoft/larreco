@@ -150,10 +150,6 @@ void shower::TCShower::produce(art::Event & evt) {
     } // loop through tracks
   } // loop through sorted tracks
 
-  for (size_t i = 0; i < tracklistSorted.size(); ++i) {
-    std::cout << tracklistSorted[i]->ID() << " " << tracklistSorted[i]->Length() << " " << tracklistSorted[i]->Vertex().Z() << std::endl; 
-  }
-
   tracklist = tracklistSorted;
 
   for (size_t i = 0; i < tracklist.size(); ++i) {
@@ -257,6 +253,7 @@ void shower::TCShower::produce(art::Event & evt) {
       showerCandidate = true;
       
       // loop over hits to find those that aren't associated with any clusters
+      if (nShowerHits > 400) maxDist *= 2; // TODO: optimize this threshold
       for (size_t k = 0; k < hitlist.size(); ++k) {
 	std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(k);
 	if (hit_clslist.size()) continue;
@@ -264,9 +261,6 @@ void shower::TCShower::produce(art::Event & evt) {
 	if (isGoodHit == 1) showerHits.push_back(hitlist[k]);
       } // loop over hits
 
-
-      // TODO: Add missing tracks to shower
-      /*
       TVector3 parentDir = trkPt2 - trkStart;
 
       // loop over tracks to see if any fall within the shower
@@ -284,7 +278,7 @@ void shower::TCShower::produce(art::Event & evt) {
 
 	double ang = parentDir.Angle(otherDir);
 
-	std::vector< art::Ptr<recob::Hit> > trk_hitlistOther = trk_fm.at(k);
+	std::vector< art::Ptr<recob::Hit> > trk_hitlistOther = trk_fm.at(trackIndicesSorted[k]);
 
 	int nhits = 0;
 	int ngoodhits = 0;
@@ -321,21 +315,23 @@ void shower::TCShower::produce(art::Event & evt) {
 	if (dist > 20) 
 	  if (z2 - z1 < 0) continue;
 
-	bool isGoodTrack = (ang < 0.5 && fracGood > 0.4 && nhits > 50) || (ang < 1 && fracGood > 0.6 && nhits < 20);
-
+	bool isGoodTrack = (ang < 0.5 && fracGood > 0.4 && nhits >= 50);
+	if (ang < 1 && fracGood > 0.5 && nhits < 50 && nhits > 20 ) isGoodTrack = true;
+	if (ang < 1 && fracGood > 0.6 && nhits <= 20) isGoodTrack = true;
 	if (tracklist[k]->Length() > 30) isGoodTrack = (ang < 0.5 && fracGood > 0.7);
 
-	//	  std::cout << isGoodTrack << " " << tracklist[k]->ID() << " " << tracklist[k]->Length() << " " << ang  << " " << fracGood << " " << nhits << " " << dist << std::endl;
+	if (nhits > 80 && ang > 0.2) isGoodTrack = false;
+
+	std::cout << isGoodTrack << " " << tracklist[k]->ID() << " " << tracklist[k]->Length() << " " << ang  << " " << fracGood << " " << nhits << " " << dist << std::endl;
 
 	if (isGoodTrack) {
 
 	  for (size_t kk = 0; kk < trk_hitlistOther.size(); ++kk) {
-	    //	    showerHits.push_back(trk_hitlistOther[kk]); 
+	    showerHits.push_back(trk_hitlistOther[kk]); 
 	  } // loop over hits to add them to shower
 	} // good track
 	
       } // loop over tracks
-      */
   
     } // decide if shower
 
