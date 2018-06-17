@@ -1211,7 +1211,6 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
     }
     
     // Right now error matrix is uniform...
-    double spError[] = {1., 0., 1., 0., 0., 1.};
     int    nFreePoints(0);
     
     // Run through the HitPairVector and add any unused hit pairs to the list
@@ -1220,6 +1219,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
         if (hitPair->bitsAreSet(reco::ClusterHit3D::MADESPACEPOINT)) continue;
 
         double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
+        double spacePointErr[] = {1., 0., 0., 1., 0., 1.};
         double chisq(-100.);
         
         RecobHitVector recobHits;
@@ -1238,7 +1238,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
         
         nFreePoints++;
         
-        output.artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, output.artSpacePointVector->size()));
+        output.artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spacePointErr, chisq, output.artSpacePointVector->size()));
         
         if (!recobHits.empty()) output.makeSpacePointHitAssns(recobHits);
     }
@@ -1421,9 +1421,6 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
     reco::HitPairListPtr& clusHitPairVector = clusterParameters.getHitPairListPtr();
     //            reco::HitPairListPtr& clusHitPairVector = clusterParameters.getBestHitPairListPtr();
     
-    // Right now error matrix is uniform...
-    double spError[] = {1., 0., 1., 0., 0., 1.};
-    
     // Keep track of current start for space points
     int spacePointStart(output.artSpacePointVector->size());
     
@@ -1445,11 +1442,12 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
         
         // Mark this hit pair as in use
         hitPair->setStatusBit(reco::ClusterHit3D::MADESPACEPOINT);
-        
+
         // Create and store the space point
         size_t spacePointID    = output.artSpacePointVector->size();
         double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
-        output.artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, output.artSpacePointVector->size()));
+        double spacePointErr[] = {m_detector->GetXTicksCoefficient() * hitPair->getSigmaPeakTime(), 0., 0., 0.15, 0., 0.15};
+        output.artSpacePointVector->push_back(recob::SpacePoint(spacePointPos, spacePointErr, chisq, output.artSpacePointVector->size()));
         
         // Update mapping
         hit3DToSPPtrMap[hitPair] = spacePointID;

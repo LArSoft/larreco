@@ -33,17 +33,18 @@ public:
                            size_t,
                            HitCandidateVec&) const override;
     
-    void findHitCandidates(std::vector<float>::const_iterator,
-                           std::vector<float>::const_iterator,
-                           size_t,
-                           size_t,
-                           HitCandidateVec&) const override;
-    
     void MergeHitCandidates(const std::vector<float>&,
                             const HitCandidateVec&,
                             MergeHitCandidateVec&) const override;
     
 private:
+    
+    void findHitCandidates(std::vector<float>::const_iterator,
+                           std::vector<float>::const_iterator,
+                           size_t,
+                           size_t,
+                           HitCandidateVec&) const;
+    
     // Member variables from the fhicl file
     int                      fPlane;                      ///< Plane we are meant to work with
     float                    fMinROIAverageTickThreshold; ///< try to remove bad ROIs

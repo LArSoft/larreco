@@ -406,7 +406,7 @@ void GausHitFinder::produce(art::Event& evt)
                 // ###   depend on the fhicl parameter fLongPulseWidth ###
                 // ### Also do this if chi^2 is too large              ###
                 // #######################################################
-                if (mergedCands.size() > fMaxMultiHit || chi2PerNDF > fChi2NDF)
+                if (mergedCands.size() > fMaxMultiHit || nGausForFit * chi2PerNDF > fChi2NDF)
                 {
                     int longPulseWidth = fLongPulseWidthVec.at(plane);
                     int nHitsThisPulse = (endT - startT) / longPulseWidth;

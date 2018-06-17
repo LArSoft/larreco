@@ -1135,98 +1135,105 @@ namespace tca {
   ////////////////////////////////////////////////
   bool StoreTraj(TjStuff& tjs, Trajectory& tj)
   {
-    
-    if(!(tj.StepDir == 1 || tj.StepDir == -1)) {
-      mf::LogError("TC")<<"StoreTraj: Invalid StepDir "<<tj.StepDir;
-      return false;
-    }
-    
-    if(tjs.allTraj.size() >= USHRT_MAX) {
-      mf::LogError("TC")<<"StoreTraj: Too many trajectories "<<tjs.allTraj.size();
-      return false;
-    }
-    
-    // This shouldn't be necessary but do it anyway
-    SetEndPoints(tjs, tj);
-    
-    auto& endTp0 = tj.Pts[tj.EndPt[0]];
-    auto& endTp1 = tj.Pts[tj.EndPt[1]];
-    
-    // Calculate the charge near the end and beginning if necessary. This must be a short
-    // trajectory. Find the average using 4 points
-    if(endTp0.AveChg <= 0) {
-      unsigned short cnt = 0;
-      float sum = 0;
-      for(unsigned short ipt = tj.EndPt[0] + 1; ipt <= tj.EndPt[1]; ++ipt) {
-        if(tj.Pts[ipt].Chg == 0) continue;
-        sum += tj.Pts[ipt].Chg;
-        ++cnt;
-        if(cnt == 4) break;
+      
+      if(!(tj.StepDir == 1 || tj.StepDir == -1)) {
+          mf::LogError("TC")<<"StoreTraj: Invalid StepDir "<<tj.StepDir;
+          return false;
       }
-      tj.Pts[tj.EndPt[0]].AveChg = sum / (float)cnt;
-    }
-    if(endTp1.AveChg <= 0) {
-      float sum = 0;
-      unsigned short cnt = 0;
-      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
-        unsigned short ipt = tj.EndPt[1] - ii;
-        if(tj.Pts[ipt].Chg == 0) continue;
-        sum += tj.Pts[ipt].Chg;
-        ++cnt;
-        if(cnt == 4) break;
-        if(ipt == 0) break;
-      } // ii
-      tj.Pts[tj.EndPt[1]].AveChg = sum / (float)cnt;
-    } // begin charge == end charge
-    
-    
-    tj.DirFOM = TjDirFOM(tjs, tj, false);
-    UpdateTjChgProperties("ST",  tjs, tj, false);
-    
-    int trID = tjs.allTraj.size() + 1;
-
-    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-      for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
-        if(tj.Pts[ipt].UseHit[ii]) {
-          unsigned int iht = tj.Pts[ipt].Hits[ii];
-          if(tjs.fHits[iht].InTraj > 0) {
-            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in T"<<trID<<" but it is used in T"<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
-//            PrintTrajectory("ST", tjs, tj, USHRT_MAX);
-            ReleaseHits(tjs, tj);
-            return false;
-          } // error
-          tjs.fHits[iht].InTraj = trID;
-        }
-      } // ii
-    } // ipt
-    
-    // ensure that inTraj is clean for the ID
-    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-      if(tjs.fHits[iht].InTraj == tj.ID) {
-        mf::LogWarning("TC")<<"StoreTraj: Hit "<<PrintHit(tjs.fHits[iht])<<" thinks it belongs to T"<<tj.ID<<" but it isn't in the Tj\n";
-//        PrintTrajectory("ST", tjs, tj, USHRT_MAX);
-        return false;
+      
+      if(tjs.allTraj.size() >= USHRT_MAX) {
+          mf::LogError("TC")<<"StoreTraj: Too many trajectories "<<tjs.allTraj.size();
+          return false;
       }
-    } // iht
-    
-    tj.WorkID = tj.ID;
-    tj.ID = trID;
-    // Don't clobber the ParentID if it was defined by the calling function
-    if(tj.ParentID == 0) tj.ParentID = trID;
-    tjs.allTraj.push_back(tj);
-//    if(prt) mf::LogVerbatim("TC")<<"StoreTraj trID "<<trID<<" CTP "<<tj.CTP<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
-    if(debug.Hit != UINT_MAX) {
-      // print out some debug info
-      for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
-        for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
-          unsigned int iht = tj.Pts[ipt].Hits[ii];
-          if(iht == debug.Hit) std::cout<<"Debug hit appears in trajectory w WorkID "<<tj.WorkID<<" UseHit "<<tj.Pts[ipt].UseHit[ii]<<"\n";
-        } // ii
+      
+      // This shouldn't be necessary but do it anyway
+      SetEndPoints(tjs, tj);
+      
+      if(tj.EndPt[1] <= tj.EndPt[0]) return false;
+      if(tj.EndPt[1] > tj.Pts.size()) return false;
+      unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+      if(npts < 2) return false;
+      
+      auto& endTp0 = tj.Pts[tj.EndPt[0]];
+      auto& endTp1 = tj.Pts[tj.EndPt[1]];
+      
+      // Calculate the charge near the end and beginning if necessary. This must be a short
+      // trajectory. Find the average using 4 points
+      if(endTp0.AveChg <= 0) {
+          unsigned short cnt = 0;
+          float sum = 0;
+          for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+              if(tj.Pts[ipt].Chg == 0) continue;
+              sum += tj.Pts[ipt].Chg;
+              ++cnt;
+              if(cnt == 4) break;
+          }
+          tj.Pts[tj.EndPt[0]].AveChg = sum / (float)cnt;
+      }
+      if(endTp1.AveChg <= 0 && npts < 5) endTp1.AveChg = endTp0.AveChg;
+      if(endTp1.AveChg <= 0) {
+          float sum = 0;
+          unsigned short cnt = 0;
+          for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+              short ipt = tj.EndPt[1] - ii;
+              if(ipt < 0) break;
+              if(tj.Pts[ipt].Chg == 0) continue;
+              sum += tj.Pts[ipt].Chg;
+              ++cnt;
+              if(cnt == 4) break;
+              if(ipt == 0) break;
+          } // ii
+          tj.Pts[tj.EndPt[1]].AveChg = sum / (float)cnt;
+      } // begin charge == end charge
+      
+      
+      tj.DirFOM = TjDirFOM(tjs, tj, false);
+      UpdateTjChgProperties("ST",  tjs, tj, false);
+      
+      int trID = tjs.allTraj.size() + 1;
+      
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+          for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+              if(tj.Pts[ipt].UseHit[ii]) {
+                  unsigned int iht = tj.Pts[ipt].Hits[ii];
+                  if(tjs.fHits[iht].InTraj > 0) {
+                      mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(tjs.fHits[iht])<<" in T"<<trID<<" but it is used in T"<<tjs.fHits[iht].InTraj<<" with WorkID "<<tjs.allTraj[tjs.fHits[iht].InTraj-1].WorkID<<" Print and quit";
+                      //            PrintTrajectory("ST", tjs, tj, USHRT_MAX);
+                      ReleaseHits(tjs, tj);
+                      return false;
+                  } // error
+                  tjs.fHits[iht].InTraj = trID;
+              }
+          } // ii
       } // ipt
-    } // debug.Hit ...
-    
-    return true;
-    
+      
+      // ensure that inTraj is clean for the ID
+      for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+          if(tjs.fHits[iht].InTraj == tj.ID) {
+              mf::LogWarning("TC")<<"StoreTraj: Hit "<<PrintHit(tjs.fHits[iht])<<" thinks it belongs to T"<<tj.ID<<" but it isn't in the Tj\n";
+              //        PrintTrajectory("ST", tjs, tj, USHRT_MAX);
+              return false;
+          }
+      } // iht
+      
+      tj.WorkID = tj.ID;
+      tj.ID = trID;
+      // Don't clobber the ParentID if it was defined by the calling function
+      if(tj.ParentID == 0) tj.ParentID = trID;
+      tjs.allTraj.push_back(tj);
+      //    if(prt) mf::LogVerbatim("TC")<<"StoreTraj trID "<<trID<<" CTP "<<tj.CTP<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+      if(debug.Hit != UINT_MAX) {
+          // print out some debug info
+          for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
+              for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
+                  unsigned int iht = tj.Pts[ipt].Hits[ii];
+                  if(iht == debug.Hit) std::cout<<"Debug hit appears in trajectory w WorkID "<<tj.WorkID<<" UseHit "<<tj.Pts[ipt].UseHit[ii]<<"\n";
+              } // ii
+          } // ipt
+      } // debug.Hit ...
+      
+      return true;
+      
   } // StoreTraj
 
   ////////////////////////////////////////////////
