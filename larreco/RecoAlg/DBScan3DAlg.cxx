@@ -24,6 +24,7 @@ void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& 
   for (auto& spt : sps){
     point_t point;
     point.sp = spt;
+    point.cluster_id = UNCLASSIFIED;
     points.push_back(point);
   }
 }

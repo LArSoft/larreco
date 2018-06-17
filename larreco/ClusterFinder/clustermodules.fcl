@@ -41,6 +41,14 @@ standard_dbcluster:
  DBScanAlg:       @local::standard_dbscanalg
 }
 
+standard_dbcluster3d:
+{
+ module_type:                 "DBCluster3D"
+ HitModuleLabel:              "hitpdune"
+ SpacePointModuleLabel:       "reco3d"
+ DBScan3DAlg:                 @local::standard_dbscan3dalg
+}
+
 standard_clustercrawler:
 {
  module_type:         "ClusterCrawler"
