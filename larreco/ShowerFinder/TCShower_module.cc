@@ -35,8 +35,12 @@
 
 #include <memory>
 
-bool compare(const art::Ptr<recob::Track>& l, const art::Ptr<recob::Track>& r) //(2)
-{
+bool compare(const art::Ptr<recob::Track>& l, const art::Ptr<recob::Track>& r) {
+  double lz = l->Length();
+  double rz = r->Length();
+
+  if (lz > 20 && rz <= 20) return false;
+  else if (lz <= 20 && rz > 20) return true;
   return l->Vertex().Z() > r->Vertex().Z();
 }
 
@@ -65,6 +69,8 @@ private:
   int goodHit(art::Ptr<recob::Hit>, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2, int& pull);
 
   std::vector<TVector3> getSecondPoint(art::Ptr<recob::Track> thistrack);
+
+  bool hitInShower(art::Ptr<recob::Hit> hit, std::vector< art::Ptr<recob::Hit> > showerhits);
 
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
@@ -118,30 +124,14 @@ void shower::TCShower::produce(art::Event & evt) {
   art::FindManyP<recob::Cluster> hitcls_fm(hitListHandle, evt, fClusterModuleLabel);
 
   // sort tracks
-  std::vector<art::Ptr<recob::Track> > tracklistL20;
-  std::vector<art::Ptr<recob::Track> > tracklistG20;
-
   std::vector<art::Ptr<recob::Track> > tracklistSorted;
   std::vector<size_t> trackIndicesSorted;
 
   for (size_t i = 0; i < tracklist.size(); ++i) {
-    double length = tracklist[i]->Length();
-
-    if (length < 20) tracklistL20.push_back(tracklist[i]);
-    else tracklistG20.push_back(tracklist[i]);
+    tracklistSorted.push_back(tracklist[i]);
   }
 
-  std::sort(tracklistL20.begin(), tracklistL20.end(), compare);
-  std::sort(tracklistG20.begin(), tracklistG20.end(), compare);
-  
-  // add all points to tracklistSorted
-  for (size_t i = 0; i < tracklistL20.size(); ++i) {
-    tracklistSorted.push_back(tracklistL20[i]);
-  }
-  for (size_t i = 0; i < tracklistG20.size(); ++i) {
-    tracklistSorted.push_back(tracklistG20[i]);
-  }
-
+  std::sort(tracklistSorted.begin(), tracklistSorted.end(), compare);
   std::reverse(tracklistSorted.begin(), tracklistSorted.end());
 
   for (size_t i = 0; i < tracklistSorted.size(); ++i) {
@@ -322,12 +312,10 @@ void shower::TCShower::produce(art::Event & evt) {
 
 	if (nhits > 80 && ang > 0.2) isGoodTrack = false;
 
-	std::cout << isGoodTrack << " " << tracklist[k]->ID() << " " << tracklist[k]->Length() << " " << ang  << " " << fracGood << " " << nhits << " " << dist << std::endl;
-
 	if (isGoodTrack) {
 
 	  for (size_t kk = 0; kk < trk_hitlistOther.size(); ++kk) {
-	    showerHits.push_back(trk_hitlistOther[kk]); 
+	    if (!hitInShower(trk_hitlistOther[kk], showerHits) ) showerHits.push_back(trk_hitlistOther[kk]); 
 	  } // loop over hits to add them to shower
 	} // good track
 	
@@ -468,6 +456,18 @@ std::vector<TVector3> shower::TCShower::getSecondPoint(art::Ptr<recob::Track> th
   return trkPts;
 
 } // getSecondPoint
+
+// -----------------------------------------------------
+
+bool shower::TCShower::hitInShower(art::Ptr<recob::Hit> hit, std::vector< art::Ptr<recob::Hit> > showerhits) {
+  
+  for (size_t i = 0; i < showerhits.size(); ++i) {
+    if ( hit.key() == showerhits[i].key() ) return true;
+  }
+
+  return false;
+
+} // hitInShower
 
 // -----------------------------------------------------
 
