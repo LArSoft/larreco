@@ -70,7 +70,7 @@ private:
 
   std::vector<TVector3> getSecondPoint(art::Ptr<recob::Track> thistrack);
 
-  bool hitInShower(art::Ptr<recob::Hit> hit, std::vector< art::Ptr<recob::Hit> > showerhits);
+  bool addShowerHit(art::Ptr<recob::Hit> hit, std::vector< art::Ptr<recob::Hit> > showerhits);
 
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
@@ -162,7 +162,7 @@ void shower::TCShower::produce(art::Event & evt) {
 
     // add track hits to shower
     for (size_t ii = 0; ii < trk_hitlist.size(); ++ii) {
-      showerHits.push_back(trk_hitlist[ii]);
+      if ( addShowerHit(trk_hitlist[ii], showerHits) ) showerHits.push_back(trk_hitlist[ii]);
     } // loop over track hits
 
     int nShowerHits = 0;
@@ -232,7 +232,7 @@ void shower::TCShower::produce(art::Event & evt) {
 	  goodHit(cls_hitlist[jj], maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2, showerHitPullAdd);
 	  showerHitPull += showerHitPullAdd;
 
-	  if (!hitInShower(cls_hitlist[jj], showerHits) ) showerHits.push_back(cls_hitlist[jj]); 
+	  if ( addShowerHit(cls_hitlist[jj], showerHits) ) showerHits.push_back(cls_hitlist[jj]); 
 
 	} // loop over hits in cluster
       } // cluster contains hit close to track
@@ -249,7 +249,7 @@ void shower::TCShower::produce(art::Event & evt) {
 	std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(k);
 	if (hit_clslist.size()) continue;
 	int isGoodHit = goodHit(hitlist[k], maxDist*2, minDistVert*2, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
-	if (isGoodHit == 1 && !hitInShower(hitlist[k], showerHits)) showerHits.push_back(hitlist[k]);
+	if (isGoodHit == 1 && addShowerHit(hitlist[k], showerHits) ) showerHits.push_back(hitlist[k]);
       } // loop over hits
 
       TVector3 parentDir = trkPt2 - trkStart;
@@ -316,7 +316,7 @@ void shower::TCShower::produce(art::Event & evt) {
 	if (isGoodTrack) {
 
 	  for (size_t kk = 0; kk < trk_hitlistOther.size(); ++kk) {
-	    if (!hitInShower(trk_hitlistOther[kk], showerHits) ) showerHits.push_back(trk_hitlistOther[kk]); 
+	    if ( addShowerHit(trk_hitlistOther[kk], showerHits) ) showerHits.push_back(trk_hitlistOther[kk]); 
 	  } // loop over hits to add them to shower
 	} // good track
 	
@@ -460,15 +460,15 @@ std::vector<TVector3> shower::TCShower::getSecondPoint(art::Ptr<recob::Track> th
 
 // -----------------------------------------------------
 
-bool shower::TCShower::hitInShower(art::Ptr<recob::Hit> hit, std::vector< art::Ptr<recob::Hit> > showerhits) {
+bool shower::TCShower::addShowerHit(art::Ptr<recob::Hit> hit, std::vector< art::Ptr<recob::Hit> > showerhits) {
   
   for (size_t i = 0; i < showerhits.size(); ++i) {
-    if ( hit.key() == showerhits[i].key() ) return true;
+    if ( hit.key() == showerhits[i].key() ) return false;
   }
 
-  return false;
+  return true;
 
-} // hitInShower
+} // addShowerHit
 
 // -----------------------------------------------------
 
