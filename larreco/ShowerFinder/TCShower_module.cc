@@ -231,8 +231,9 @@ void shower::TCShower::produce(art::Event & evt) {
 	  int showerHitPullAdd = 0;
 	  goodHit(cls_hitlist[jj], maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2, showerHitPullAdd);
 	  showerHitPull += showerHitPullAdd;
-	  
-	  showerHits.push_back(cls_hitlist[jj]);
+
+	  if (!hitInShower(cls_hitlist[jj], showerHits) ) showerHits.push_back(cls_hitlist[jj]); 
+
 	} // loop over hits in cluster
       } // cluster contains hit close to track
       
@@ -248,7 +249,7 @@ void shower::TCShower::produce(art::Event & evt) {
 	std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(k);
 	if (hit_clslist.size()) continue;
 	int isGoodHit = goodHit(hitlist[k], maxDist*2, minDistVert*2, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
-	if (isGoodHit == 1) showerHits.push_back(hitlist[k]);
+	if (isGoodHit == 1 && !hitInShower(hitlist[k], showerHits)) showerHits.push_back(hitlist[k]);
       } // loop over hits
 
       TVector3 parentDir = trkPt2 - trkStart;
