@@ -613,7 +613,7 @@ namespace tca {
     bool smallAngle = false;
     if(fillTp3s) {
       smallAngle = (pfp.Dir[0][0] != 0 && std::abs(pfp.Dir[0][0]) < 0.1);
-      if(pfp.Dir[0][0] == 0 && tjs.DebugMode) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
+//      if(pfp.Dir[0][0] == 0 && tjs.DebugMode) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
     }
     double yzcut = 1.5 * tjs.Match3DCuts[0];
     
