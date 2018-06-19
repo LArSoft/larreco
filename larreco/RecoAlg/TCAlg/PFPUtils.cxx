@@ -2491,11 +2491,13 @@ namespace tca {
       if(pfp.TPCID != tpcid) continue;
       // already done?
       if(pfp.Vx3ID[end1] > 0) continue;
+      // ignore shower-like pfps
+      if(IsShowerLike(tjs, pfp.TjIDs)) continue;
       // count 2D -> 3D matched vertices
       unsigned short cnt3 = 0;
       unsigned short vx3id = 0;
       // list of unmatched 2D vertices that should be merged
-      std::vector<unsigned short> vx2ids;
+      std::vector<int> vx2ids;
       for(auto tjid : pfp.TjIDs) {
         auto& tj = tjs.allTraj[tjid - 1];
         if(tj.VtxID[end1] == 0) continue;
@@ -2508,6 +2510,8 @@ namespace tca {
         if(vx2.Vx3ID == vx3id) ++cnt3;
       } // tjid
       if(cnt3 > 1) {
+        // ensure it isn't attached at the other end
+        if(pfp.Vx3ID[1 - end1] == vx3id) continue;
         pfp.Vx3ID[end1] = vx3id;
         if(cnt3 != tjs.NumPlanes && tjs.DebugMode) {
           std::cout<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code\n";
