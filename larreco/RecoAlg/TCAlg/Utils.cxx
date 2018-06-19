@@ -1108,6 +1108,11 @@ namespace tca {
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tjs, tj);
     
+    if(tj.EndPt[1] <= tj.EndPt[0]) return false;
+    if(tj.EndPt[1] > tj.Pts.size()) return false;
+    unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+    if(npts < 2) return false;
+    
     auto& endTp0 = tj.Pts[tj.EndPt[0]];
     auto& endTp1 = tj.Pts[tj.EndPt[1]];
     
@@ -1116,7 +1121,7 @@ namespace tca {
     if(endTp0.AveChg <= 0) {
       unsigned short cnt = 0;
       float sum = 0;
-      for(unsigned short ipt = tj.EndPt[0] + 1; ipt <= tj.EndPt[1]; ++ipt) {
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         if(tj.Pts[ipt].Chg == 0) continue;
         sum += tj.Pts[ipt].Chg;
         ++cnt;
@@ -1124,11 +1129,13 @@ namespace tca {
       }
       tj.Pts[tj.EndPt[0]].AveChg = sum / (float)cnt;
     }
+    if(endTp1.AveChg <= 0 && npts < 5) endTp1.AveChg = endTp0.AveChg;
     if(endTp1.AveChg <= 0) {
       float sum = 0;
       unsigned short cnt = 0;
-      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
-        unsigned short ipt = tj.EndPt[1] - ii;
+      for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+        short ipt = tj.EndPt[1] - ii;
+        if(ipt < 0) break;
         if(tj.Pts[ipt].Chg == 0) continue;
         sum += tj.Pts[ipt].Chg;
         ++cnt;
