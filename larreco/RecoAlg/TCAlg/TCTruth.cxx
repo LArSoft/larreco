@@ -1034,75 +1034,143 @@ namespace tca {
     Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
     SetMag(dir, 1);
     tp = MakeBareTP(tjs, pos, dir, tp.CTP);
-/* the following section was used for testing MakeBareTP
-    // use HitPos as a work vector
-    tp.HitPos[0] = tjs.geom->WireCoordinate(pos[1], pos[2], planeID);
-    tp.HitPos[1] = tjs.detprop->ConvertXToTicks(pos[0], planeID) * tjs.UnitsPerTick;
-    
-    tp.Dir[0] = tp.HitPos[0] - tp.Pos[0];
-    tp.Dir[1] = tp.HitPos[1] - tp.Pos[1];
-    double norm = sqrt(tp.Dir[0] * tp.Dir[0] + tp.Dir[1] * tp.Dir[1]);
-    tp.Dir[0] /= norm;
-    tp.Dir[1] /= norm;
-    tp.Ang = atan2(tp.Dir[1], tp.Dir[0]);
-    tp.Delta = norm / 100;
-    
-    // The Orth vectors are not unit normalized so we need to correct for this
-    double w0 = tjs.geom->WireCoordinate(0, 0, planeID);
-    // cosine-like component
-    double cs = tjs.geom->WireCoordinate(1, 0, planeID) - w0;
-    // sine-like component
-    double sn = tjs.geom->WireCoordinate(0, 1, planeID) - w0;
-    norm = sqrt(cs * cs + sn * sn);
-    tp.Delta /= norm;
-    
-    std::cout<<"MTTP "<<MCParticleListIndex<<" CTP "<<tp.CTP<<"\n";
-    std::cout<<" Pos "<<std::fixed<<std::setprecision(1)<<tp.Pos[0]<<" "<<tp.Pos[1];
-    std::cout<<" Dir "<<std::fixed<<std::setprecision(3)<<tp.Dir[0]<<" "<<tp.Dir[1];
-    std::cout<<" proj "<<tp.Delta<<"\n";
-    
-    TrajPoint otp = MakeBareTP(tjs, pos, dir, tp.CTP);
-    std::cout<<"otp\n";
-    std::cout<<" Pos "<<std::fixed<<std::setprecision(1)<<otp.Pos[0]<<" "<<otp.Pos[1];
-    std::cout<<" Dir "<<std::fixed<<std::setprecision(3)<<otp.Dir[0]<<" "<<otp.Dir[1];
-    std::cout<<" proj "<<otp.Delta<<"\n";
-*/
   } // MakeTruTrajPoint
   
   /////////////////////////////////////////
-  unsigned short MCParticleListUtils::MCParticleStartTjID(unsigned int MCParticleListIndex, CTP_t inCTP)
+  bool MCParticleListUtils::PrimaryElectronStart(Point3_t& start, Vector3_t& dir, float& energy)
+  {
+    // returns the SCE corrected start position of a primary electron
+    if(tjs.MCPartList.empty()) return false;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
+      auto& mcp = tjs.MCPartList[part];
+      // require electron
+      if(abs(mcp->PdgCode()) != 11) continue;
+      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+      if(mcp->TrackId() != eveID) continue;
+      start = {{mcp->Vx(), mcp->Vy(), mcp->Vz()}};
+      auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
+      geo::Vector_t posOffsets = SCE->GetPosOffsets({start[0], start[1], start[2]});
+      posOffsets.SetX(-posOffsets.X());
+      start[0] += posOffsets.X();
+      start[1] += posOffsets.Y();
+      start[2] += posOffsets.Z();
+      dir = {{mcp->Px(), mcp->Py(), mcp->Pz()}};
+      SetMag(dir, 1);
+      energy = 1000 * (mcp->E() - mcp->Mass());
+      return true;
+    } // part
+    return false;
+  } // PrimaryElectronStart
+  
+  
+  /////////////////////////////////////////
+  int MCParticleListUtils::PrimaryElectronPFPID(const geo::TPCID& tpcid)
+  {
+    // pretty self-explanatory and pretty crude
+    if(tjs.MCPartList.empty()) return 0;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    std::vector<int> tmp(1);
+    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
+      auto& mcp = tjs.MCPartList[part];
+      // require electron
+      if(abs(mcp->PdgCode()) != 11) continue;
+      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+      if(mcp->TrackId() != eveID) continue;
+      // list of pfp IDs and occurrence count
+      std::vector<std::array<int, 2>> pidcs;
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
+        int tid = MCParticleStartTjID(part, inCTP);
+        if(tid > 0) {
+          tmp[0] = tid;
+          auto TInP = GetAssns(tjs, "T", tid, "P");
+          if(!TInP.empty()) {
+            unsigned short indx = 0;
+            for(indx = 0; indx < pidcs.size(); ++indx) if(pidcs[indx][0] == TInP[0]) break;
+            if(indx == pidcs.size()) {
+              // not found so add it
+              std::array<int, 2> pidc;
+              pidc[0] = TInP[0];
+              pidc[1] = 1;
+              pidcs.push_back(pidc);
+            } else {
+              ++pidcs[indx][1];
+            }
+          } // !PInT empty
+        } // tid > 0
+      } // plane
+      int pfpid = 0;
+      int maxcnt = 0;
+      for(auto& pidc : pidcs) {
+        if(pidc[1] < maxcnt) continue;
+        maxcnt = pidc[1];
+        pfpid = pidc[0];
+      } // pidc
+      return pfpid;
+    } // part
+    return 0;
+  } // PrimaryElectronPFPID
+  
+  /////////////////////////////////////////
+  int MCParticleListUtils::PrimaryElectronTjID(CTP_t inCTP)
+  {
+    // returns the ID of a tj in inCTP that is closest to the start of a primary electron
+    if(tjs.MCPartList.empty()) return 0;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
+      auto& mcp = tjs.MCPartList[part];
+      // require electron
+      if(abs(mcp->PdgCode()) != 11) continue;
+      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+      if(mcp->TrackId() != eveID) continue;
+      return MCParticleStartTjID(part, inCTP);
+    } // part
+    return 0;
+  } // PrimaryElectronTjID
+
+  /////////////////////////////////////////
+  int MCParticleListUtils::MCParticleStartTjID(unsigned int mcpIndex, CTP_t inCTP)
   {
     // Finds the trajectory that has hits matched to the MC Particle and is the closest to the
     // MCParticle start vertex
     
-    if(MCParticleListIndex > tjs.MCPartList.size() - 1) return 0;
+    if(mcpIndex > tjs.MCPartList.size() - 1) return 0;
     
-    const simb::MCParticle* mcp = tjs.MCPartList[MCParticleListIndex];
     geo::PlaneID planeID = DecodeCTP(inCTP);
     
-    TrajPoint truTp;
-    truTp.Pos[0] = tjs.geom->WireCoordinate(mcp->Vy(), mcp->Vz(), planeID);
-    truTp.Pos[1] = tjs.detprop->ConvertXToTicks(mcp->Vx(), planeID) * tjs.UnitsPerTick;
+    // tj ID and occurrence count
+    std::vector<std::array<int, 2>> t_cnt;
+    for(auto hit : tjs.fHits) {
+      if(hit.InTraj <= 0) continue;
+      if(hit.MCPartListIndex != mcpIndex) continue;
+      if(hit.ArtPtr->WireID().TPC != planeID.TPC) continue;
+      if(hit.ArtPtr->WireID().Plane != planeID.Plane) continue;
+      if(hit.ArtPtr->WireID().Cryostat != planeID.Cryostat) continue;
+      unsigned short indx = 0;
+      for(indx = 0; indx < t_cnt.size(); ++indx) if(t_cnt[indx][0] == hit.InTraj) break;
+      if(indx == t_cnt.size()) {
+        // didn't find the traj ID in t_cnt so add it
+        std::array<int, 2> tmp;
+        tmp[0] = hit.InTraj;
+        tmp[1] = 1;
+        t_cnt.push_back(tmp);
+      } else {
+        // count occurrences of this tj ID
+        ++t_cnt[indx][1];
+      }
+    } // hit
     
-    unsigned short imTheOne = 0;
-    unsigned short length = 5;
-    unsigned short nTruHits;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled] && !tj.AlgMod[kInShower]) continue;
-      if(tj.CTP != inCTP) continue;
-      if(tj.Pts.size() < length) continue;
-      for(unsigned short end = 0; end < 2; ++end) {
-        unsigned short ept = tj.EndPt[end];
-        float sep2 = PosSep2(tj.Pts[ept].Pos, truTp.Pos);
-        if(sep2 > 20) continue;
-        // found a close trajectory point. See if this is the right one
-        if(GetMCPartListIndex(tj, nTruHits) != MCParticleListIndex) continue;
-        imTheOne = tj.ID;
-        length = tj.Pts.size();
-      } // end
-    } // tj
-    
-    return imTheOne;
+    if(t_cnt.empty()) return 0;
+    unsigned short occMax = 0;
+    unsigned short occIndx = 0;
+    for(unsigned short ii = 0; ii < t_cnt.size(); ++ii) {
+      auto& tcnt = t_cnt[ii];
+      if(tcnt[1] < occMax) continue;
+      occMax = tcnt[1];
+      occIndx = ii;
+    } // tcnt
+    return t_cnt[occIndx][0];
     
   } // MCParticleStartTj
   

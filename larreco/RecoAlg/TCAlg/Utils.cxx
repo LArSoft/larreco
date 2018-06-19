@@ -993,47 +993,6 @@ namespace tca {
   } // WatchHit
   
   ////////////////////////////////////////////////
-  void TagProtons(TjStuff& tjs, const geo::TPCID& tpcid, bool prt)
-  {
-    const unsigned int cstat = tpcid.Cryostat;
-    const unsigned int tpc = tpcid.TPC;
-    std::vector<int> tjlist(1);
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      geo::PlaneID planeID = DecodeCTP(tj.CTP);
-      if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
-      // ignore tagged muons
-      if(tj.PDGCode == 13) continue;
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] != 0) continue;
-        if(!tj.StopFlag[end][kBragg]) continue;
-        // check the environment near this end
-        tjlist[0] = tj.ID;
-        float chgFrac = ChgFracNearPos(tjs, tj.Pts[tj.EndPt[end]].Pos, tjlist);
-        if(prt) mf::LogVerbatim("TC")<<"TagProtons: T"<<tj.ID<<" Charge fraction near end "<<end<<" "<<chgFrac;
-        if(chgFrac > 0.9) tj.PDGCode = 2212;
-      } // end
-    } // tj
-  } // TagProtons
-/*
-  ////////////////////////////////////////////////
-  void TagBragg(TjStuff& tjs, PFPStruct& pfp, bool prt)
-  {
-    // sets the PDG code to 2212 if there are Bragg peaks on the Tjs
-    if(pfp.PDGCode == 11 || pfp.PDGCode == 1111) return;
-    
-    unsigned short braggCnt0 = 0;
-    unsigned short braggCnt1 = 0;
-    for(auto& tjID : pfp.TjIDs) {
-      auto& tj = tjs.allTraj[tjID - 1];
-      if(tj.StopFlag[0][kBragg]) ++braggCnt0;
-      if(tj.StopFlag[1][kBragg]) ++braggCnt1;
-    }
-    if(braggCnt0 > 1 || braggCnt1 > 1) pfp.PDGCode = 2212;
-    
-  } // TagBragg
-*/
-  ////////////////////////////////////////////////
   void Reverse3DMatchTjs(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // Return true if the 3D matched hits in the trajectories in tjs.pfps are in the wrong order in terms of the
@@ -1149,6 +1108,11 @@ namespace tca {
     // This shouldn't be necessary but do it anyway
     SetEndPoints(tjs, tj);
     
+    if(tj.EndPt[1] <= tj.EndPt[0]) return false;
+    if(tj.EndPt[1] > tj.Pts.size()) return false;
+    unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+    if(npts < 2) return false;
+    
     auto& endTp0 = tj.Pts[tj.EndPt[0]];
     auto& endTp1 = tj.Pts[tj.EndPt[1]];
     
@@ -1157,7 +1121,7 @@ namespace tca {
     if(endTp0.AveChg <= 0) {
       unsigned short cnt = 0;
       float sum = 0;
-      for(unsigned short ipt = tj.EndPt[0] + 1; ipt <= tj.EndPt[1]; ++ipt) {
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         if(tj.Pts[ipt].Chg == 0) continue;
         sum += tj.Pts[ipt].Chg;
         ++cnt;
@@ -1165,11 +1129,13 @@ namespace tca {
       }
       tj.Pts[tj.EndPt[0]].AveChg = sum / (float)cnt;
     }
+    if(endTp1.AveChg <= 0 && npts < 5) endTp1.AveChg = endTp0.AveChg;
     if(endTp1.AveChg <= 0) {
       float sum = 0;
       unsigned short cnt = 0;
-      for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
-        unsigned short ipt = tj.EndPt[1] - ii;
+      for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+        short ipt = tj.EndPt[1] - ii;
+        if(ipt < 0) break;
         if(tj.Pts[ipt].Chg == 0) continue;
         sum += tj.Pts[ipt].Chg;
         ++cnt;
@@ -1375,7 +1341,7 @@ namespace tca {
   //////////////////////////////////////////
   void TrimEndPts(std::string fcnLabel, TjStuff& tjs, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
   {
-    // Trim the hits off the end until there are at least fMinPts consecutive hits at the end
+    // Trim the hits off the end until there are at least MinPts consecutive hits at the end
     // and the fraction of hits on the trajectory exceeds fQualityCuts[0]
     // Minimum length requirement accounting for dead wires where - denotes a wire with a point
     // and D is a dead wire. Here is an example with minPts = 3
@@ -1387,7 +1353,7 @@ namespace tca {
     if(!tjs.UseAlg[kTEP]) return;
     
     unsigned short npwc = NumPtsWithCharge(tjs, tj, false);
-    unsigned short minPts = fQualityCuts[1];
+    short minPts = fQualityCuts[1];
     if(minPts < 1) return;
     if(npwc < minPts) return;
     
@@ -1408,16 +1374,16 @@ namespace tca {
     } // short tj
     
     // find the separation between adjacent points, starting at the end
-    unsigned short lastPt = 0;
-    for(lastPt = tj.EndPt[1]; lastPt > minPts; --lastPt) {
+    short lastPt = 0;
+    for(lastPt = tj.EndPt[1]; lastPt >= minPts; --lastPt) {
       // check for an error
       if(lastPt == 1) break;
       if(tj.Pts[lastPt].Chg == 0) continue;
       // number of adjacent points on adjacent wires
       unsigned short nadj = 0;
       unsigned short npwc = 0;
-      for(unsigned short ipt = lastPt - minPts; ipt < lastPt; ++ipt) {
-        if(ipt == 1) break;
+      for(short ipt = lastPt - minPts; ipt < lastPt; ++ipt) {
+        if(ipt < 2) break;
         // the current point
         auto& tp = tj.Pts[ipt];
         // the previous point
@@ -1553,14 +1519,15 @@ namespace tca {
   /////////////////////////////////////////
   bool SignalBetween(TjStuff& tjs, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt)
   {
+    // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp and toPos0.
     return ChgFracBetween(tjs, tp, toPos0, prt) >= MinWireSignalFraction;
   } // SignalBetween
 
   /////////////////////////////////////////
   float ChgFracBetween(TjStuff& tjs, TrajPoint tp, float toPos0, bool prt)
   {
-    // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp and toPos0.
-    // Note that this uses the direction vector of the tp
+    // Returns the fraction of wires between tp.Pos[0] and toPos0 that have a hit 
+    // on the line defined by tp.Pos and tp.Dir
     
     if(tp.Pos[0] < -0.4 || toPos0 < -0.4) return 0;
     int fromWire = std::nearbyint(tp.Pos[0]);
@@ -1768,7 +1735,7 @@ namespace tca {
   } // CheckHitClusterAssociations()
 */
   //////////////////////////////////////////
-  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires)
+  unsigned short NumPtsWithCharge(const TjStuff& tjs, const Trajectory& tj, bool includeDeadWires)
   {
     unsigned short firstPt = tj.EndPt[0];
     unsigned short lastPt = tj.EndPt[1];
@@ -1776,7 +1743,7 @@ namespace tca {
   }
   
   //////////////////////////////////////////
-  unsigned short NumPtsWithCharge(TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt)
+  unsigned short NumPtsWithCharge(const TjStuff& tjs, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt)
   {
     unsigned short ntp = 0;
     for(unsigned short ipt = firstPt; ipt <= lastPt; ++ipt) if(tj.Pts[ipt].Chg > 0) ++ntp;
@@ -1786,13 +1753,13 @@ namespace tca {
   } // NumPtsWithCharge
   
   //////////////////////////////////////////
-  float DeadWireCount(TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2)
+  float DeadWireCount(const TjStuff& tjs, const TrajPoint& tp1, const TrajPoint& tp2)
   {
     return DeadWireCount(tjs, tp1.Pos[0], tp2.Pos[0], tp1.CTP);
   } // DeadWireCount
   
   //////////////////////////////////////////
-  float DeadWireCount(TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP)
+  float DeadWireCount(const TjStuff& tjs, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP)
   {
     if(inWirePos1 < -0.4 || inWirePos2 < -0.4) return 0;
     unsigned int inWire1 = std::nearbyint(inWirePos1);
@@ -1873,7 +1840,7 @@ namespace tca {
       // ignore delta rays
       if(shortTj.PDGCode == 11) continue;
       // ignore InShower Tjs
-      if(shortTj.AlgMod[kInShower]) continue;
+      if(shortTj.SSID > 0) continue;
       auto tjhits = PutTrajHitsInVector(shortTj, kAllHits);
       if(tjhits.empty()) continue;
       std::vector<int> tids;
@@ -2076,13 +2043,13 @@ namespace tca {
   } // TrajPointTrajDOCA
   
   //////////////////////////////////////////
-  bool TrajTrajDOCA(TjStuff& tjs, Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep)
+  bool TrajTrajDOCA(const TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep)
   {
     return TrajTrajDOCA(tjs, tj1, tj2, ipt1, ipt2, minSep, false);
   } // TrajTrajDOCA
   
   //////////////////////////////////////////
-  bool TrajTrajDOCA(TjStuff& tjs, Trajectory const& tj1, Trajectory const& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires)
+  bool TrajTrajDOCA(const TjStuff& tjs, const Trajectory& tj1, const Trajectory& tj2, unsigned short& ipt1, unsigned short& ipt2, float& minSep, bool considerDeadWires)
   {
     // Find the Distance Of Closest Approach between two trajectories less than minSep
     // start with some rough cuts to minimize the use of the more expensive checking. This
@@ -2758,21 +2725,35 @@ namespace tca {
   } // InsideEnvelope
 
   
+  //////////////////////////////////////////
+  bool SetMag(Vector2_t& v1, double mag)
+  {
+    double den = v1[0] * v1[0] + v1[1] * v1[1];
+    if(den == 0) return false;
+    den = sqrt(den);
+    
+    v1[0] *= mag / den;
+    v1[1] *= mag / den;
+    return true;
+  } // SetMag
+
   ////////////////////////////////////////////////
   void FindAlongTrans(Point2_t pos1, Vector2_t dir1, Point2_t pos2, Point2_t& alongTrans)
   {
     // Calculate the distance along and transverse to the direction vector dir1 from pos1 to pos2
-    if(pos1[0] == pos2[0] && pos1[1] == pos2[1]) {
-      alongTrans[0] = 0; alongTrans[1] = 0;
-      return;
-    }
+    alongTrans[0] = 0;
+    alongTrans[1] = 0;
+    if(pos1[0] == pos2[0] && pos1[1] == pos2[1]) return;
     pos1[0] = pos2[0] - pos1[0];
     pos1[1] = pos2[1] - pos1[1];
     double sep = sqrt(pos1[0] * pos1[0] + pos1[1] * pos1[1]);
+    if(sep < 1E-6) return;
     Vector2_t ptDir;
     ptDir[0] = pos1[0] / sep;
     ptDir[1] = pos1[1] / sep;
+    SetMag(dir1, 1.0);
     double costh = DotProd(dir1, ptDir);
+    if(costh > 1.0 || costh < -1.0) return;
     alongTrans[0] = costh * sep;
     double sinth = sqrt(1 - costh * costh);
     alongTrans[1] = sinth * sep;
@@ -2878,6 +2859,9 @@ namespace tca {
   short MCSMom(TjStuff& tjs, Trajectory& tj, unsigned short firstPt, unsigned short lastPt)
   {
     // Estimate the trajectory momentum using Multiple Coulomb Scattering ala PDG RPP
+    
+    if(firstPt == lastPt) return 0;
+    if(firstPt > lastPt) std::swap(firstPt, lastPt);
     
     firstPt = NearestPtWithChg(tjs, tj, firstPt);
     lastPt = NearestPtWithChg(tjs, tj, lastPt);
@@ -3534,12 +3518,15 @@ namespace tca {
   bool MakeBareTrajPoint(const Point2_t& fromPos, const Point2_t& toPos, TrajPoint& tpOut)
   {
     tpOut.Pos = fromPos;
+    tpOut.Dir = PointDirection(fromPos, toPos);
+/*
     tpOut.Dir[0] = toPos[0] - fromPos[0];
     tpOut.Dir[1] = toPos[1] - fromPos[1];
     double norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
     if(norm == 0) return false;
     tpOut.Dir[0] /= norm;
     tpOut.Dir[1] /= norm;
+*/
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
     return true;
     
@@ -3550,16 +3537,41 @@ namespace tca {
   {
     tpOut.CTP = tpIn1.CTP;
     tpOut.Pos = tpIn1.Pos;
+    tpOut.Dir = PointDirection(tpIn1.Pos, tpIn2.Pos);
+/*
     tpOut.Dir[0] = tpIn2.Pos[0] - tpIn1.Pos[0];
     tpOut.Dir[1] = tpIn2.Pos[1] - tpIn1.Pos[1];
     double norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
     if(norm == 0) return false;
     tpOut.Dir[0] /= norm;
     tpOut.Dir[1] /= norm;
+*/
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
     return true;
   } // MakeBareTrajPoint
   
+  ////////////////////////////////////////////////
+  unsigned short FarEnd(const TjStuff& tjs, const Trajectory& tj, const Point2_t& pos)
+  {
+    // Returns the end (0 or 1) of the Tj that is furthest away from the position pos
+    if(tj.ID == 0) return 0;
+    if(PosSep2(tj.Pts[tj.EndPt[1]].Pos, pos) > PosSep2(tj.Pts[tj.EndPt[0]].Pos, pos)) return 1;
+    return 0;
+  } // FarEnd
+
+  ////////////////////////////////////////////////
+  Vector2_t PointDirection(const Point2_t p1, const Point2_t p2)
+  {
+    // Finds the direction vector between the two points from p1 to p2
+    Vector2_t dir;
+    for(unsigned short xyz = 0; xyz < 2; ++xyz) dir[xyz] = p2[xyz] - p1[xyz];
+    if(dir[0] == 0 && dir[1] == 0) return dir;
+    double norm = sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
+    dir[0] /= norm;
+    dir[1] /= norm;
+    return dir;
+  } // PointDirection
+
   ////////////////////////////////////////////////
   float TPHitsRMSTime(TjStuff& tjs, TrajPoint& tp, HitStatus_t hitRequest)
   {
@@ -4071,8 +4083,9 @@ namespace tca {
     
     std::vector<int> tmp;
     if(id <= 0) return tmp;
+    unsigned int uid = id;
     
-    if(type1Name == "T" && id <= int(tjs.allTraj.size()) && type2Name == "P") {
+    if(type1Name == "T" && uid <= tjs.allTraj.size() && type2Name == "P") {
       // return a list of PFPs that have the tj in TjIDs, P -> T<ID>
       for(auto& pfp : tjs.pfps) {
         if(pfp.ID <= 0) continue;
@@ -4081,9 +4094,9 @@ namespace tca {
       return tmp;
     } // P -> T
     
-    if(type1Name == "P" && id <= int(tjs.pfps.size()) && (type2Name == "2S" || type2Name == "3S")) {
+    if(type1Name == "P" && uid <= tjs.pfps.size() && (type2Name == "2S" || type2Name == "3S")) {
       // return a list of 3D or 2D showers with the assn 3S -> 2S -> T -> P<ID> or 2S -> T -> P.
-      auto& pfp = tjs.pfps[id - 1];
+      auto& pfp = tjs.pfps[uid - 1];
       // First form a list of 2S -> T -> P<ID>
       std::vector<int> ssid;
       for(auto& ss : tjs.cots) {
@@ -4091,7 +4104,6 @@ namespace tca {
         auto shared = SetIntersection(ss.TjIDs, pfp.TjIDs);
         if(!shared.empty() && std::find(ssid.begin(), ssid.end(), ss.ID) == ssid.end()) ssid.push_back(ss.ID);
       } // ss
-      if(ssid.empty()) return tmp;
       if(type2Name == "2S") return ssid;
       for(auto& ss3 : tjs.showers) {
         if(ss3.ID <= 0) continue;
@@ -4101,10 +4113,10 @@ namespace tca {
       return tmp;
     } // 3S -> 2S -> T -> P
     
-    if(type1Name == "2V" && id <= int(tjs.vtx.size()) && type2Name == "T" ) {
+    if(type1Name == "2V" && uid <= tjs.vtx.size() && type2Name == "T" ) {
       // 2V -> T
       for(auto& tj : tjs.allTraj) {
-        if(tj.ID == 0) continue;
+        if(tj.AlgMod[kKilled]) continue;
         for(unsigned short end = 0; end < 2; ++end) {
           if(tj.VtxID[end] != id) continue;
           if(std::find(tmp.begin(), tmp.end(), tj.ID) == tmp.end()) tmp.push_back(tj.ID);
@@ -4113,9 +4125,22 @@ namespace tca {
       return tmp;
     } // 2V -> T
 
-    if(type1Name == "3V" && id <= int(tjs.vtx3.size()) && type2Name == "T" ) {
+    if(type1Name == "3V" && uid <= tjs.vtx3.size() && type2Name == "P") {
+      for(auto& pfp : tjs.pfps) {
+        if(pfp.ID == 0) continue;
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(pfp.Vx3ID[end] != id) continue;
+          // encode the end with the ID
+          if(std::find(tmp.begin(), tmp.end(), pfp.ID) == tmp.end()) tmp.push_back(pfp.ID);
+        } // end
+      } // pfp
+      return tmp;
+    } // 3V -> P
+    
+    if(type1Name == "3V" && uid <= tjs.vtx3.size() && type2Name == "T") {
       // 3V -> T
       for(auto& tj : tjs.allTraj) {
+        if(tj.AlgMod[kKilled]) continue;
         for(unsigned short end = 0; end < 2; ++end) {
           if(tj.VtxID[end] > 0 && tj.VtxID[end] <= tjs.vtx.size()) {
             auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
@@ -4126,6 +4151,76 @@ namespace tca {
       } // tj
       return tmp;
     } // 3V -> T
+    
+    if(type1Name == "3V" && uid <= tjs.vtx3.size() && type2Name == "2V") {
+      // 3V -> 2V
+      for(auto& vx2 : tjs.vtx) {
+        if(vx2.ID == 0) continue;
+        if(vx2.Vx3ID == id) tmp.push_back(vx2.ID);
+      } // vx2
+      return tmp;
+    } // 3V -> 2V
+
+    if(type1Name == "3S" && uid <= tjs.showers.size() && type2Name == "T") {
+      // 3S -> T
+      auto& ss3 = tjs.showers[uid - 1];
+      if(ss3.ID == 0) return tmp;
+      for(auto cid : ss3.CotIDs) {
+        auto& ss = tjs.cots[cid - 1];
+        if(ss.ID == 0) continue;
+        tmp.insert(tmp.end(), ss.TjIDs.begin(), ss.TjIDs.end());
+      } // cid
+      return tmp;
+    }  // 3S -> T
+    
+    // This isn't strictly necessary but do it for consistency
+    if(type1Name == "2S" && uid <= tjs.cots.size() && type2Name == "T") {
+      // 2S -> T
+      auto& ss = tjs.cots[uid - 1];
+      return ss.TjIDs;
+    }  // 2S -> T
+    
+    if(type1Name == "3S" && uid <= tjs.showers.size() && type2Name == "P") {
+      // 3S -> P
+      auto& ss3 = tjs.showers[uid - 1];
+      if(ss3.ID == 0) return tmp;
+      for(auto cid : ss3.CotIDs) {
+        auto& ss = tjs.cots[cid - 1];
+        if(ss.ID == 0) continue;
+        for(auto tid : ss.TjIDs) {
+          auto& tj = tjs.allTraj[tid - 1];
+          if(tj.AlgMod[kKilled]) continue;
+          if(!tj.AlgMod[kMat3D]) continue;
+          for(auto& pfp : tjs.pfps) {
+            if(pfp.ID <= 0) continue;
+            if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tj.ID) == pfp.TjIDs.end()) continue;
+            if(std::find(tmp.begin(), tmp.end(), pfp.ID) == tmp.end()) tmp.push_back(pfp.ID);
+          } // pf
+        } // tid
+      } // cid
+      return tmp;
+    } // 3S -> P
+
+    if(type1Name == "T" && uid <= tjs.allTraj.size() && type2Name == "2S") {
+      // T -> 2S
+      for(auto& ss : tjs.cots) {
+        if(ss.ID == 0) continue;
+        if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), id) != ss.TjIDs.end()) tmp.push_back(ss.ID);
+      } // ss
+      return tmp;
+    } // T -> 2S
+    
+    if(type1Name == "T" && uid <= tjs.allTraj.size() && type2Name == "3S") {
+      // T -> 3S
+      for(auto& ss : tjs.cots) {
+        if(ss.ID == 0) continue;
+        if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), id) == ss.TjIDs.end()) continue;
+        if(ss.SS3ID > 0) tmp.push_back(ss.SS3ID);
+      } // ss
+      return tmp;
+    } // T -> 3S
+    
+    std::cout<<"GetAssns doesn't know about "<<type1Name<<" -> "<<type2Name<<" assns, or id "<<id<<" is not valid.\n";
 
     return tmp;
     
@@ -4190,8 +4285,7 @@ namespace tca {
               }
             } // ipfp
           } else {
-            float score;
-            auto vxtjs = GetVtxTjIDs(tjs, vx3, score);
+            auto vxtjs = GetAssns(tjs, "3V", vx3.ID, "T");
             for(auto tjid : vxtjs) myprt<<" T"<<tjid;
           }
           myprt<<"\n";
@@ -4528,10 +4622,11 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
-      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____   Len nTp3 MCSMom InSh? PDG mcpIndx Par Prim E*P\n";
+      myprt<<"  PFP sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____edEdx____   Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
     }
     myprt<<someText;
-    myprt<<std::setw(5)<<pfp.ID;
+    std::string pid = "P" + std::to_string(pfp.ID);
+    myprt<<std::setw(5)<<pid;
     // start and end stuff
     for(unsigned short startend = 0; startend < 2; ++startend) {
       myprt<<std::setw(4)<<pfp.Vx3ID[startend];
@@ -4572,7 +4667,7 @@ namespace tca {
     }
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.Tp3s.size();
     myprt<<std::setw(7)<<MCSMom(tjs, pfp.TjIDs);
-    myprt<<std::setw(5)<<IsInShower(tjs, pfp.TjIDs);
+    myprt<<std::setw(5)<<IsShowerLike(tjs, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
     if(pfp.MCPartListIndex < tjs.MCPartList.size()) {
       myprt<<std::setw(8)<<pfp.MCPartListIndex;
@@ -4649,7 +4744,7 @@ namespace tca {
   std::string PrintPos(const TjStuff& tjs, const Point2_t& pos)
   {
     unsigned int wire = 0;
-    if(pos[0] > -0.4) std::nearbyint(pos[0]);
+    if(pos[0] > -0.4) wire = std::nearbyint(pos[0]);
     int time = std::nearbyint(pos[1]/tjs.UnitsPerTick);
     return std::to_string(wire) + ":" + std::to_string(time);
   } // PrintPos
