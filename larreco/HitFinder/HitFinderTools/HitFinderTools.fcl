@@ -6,6 +6,7 @@ hitfinderwaveformalgs:
     tool_type: WaveformAlgs
 }
 
+# Define the differential tool for finding candidate hits
 candhitfinder_derivative:
 {
     tool_type:           CandHitDerivative
@@ -19,10 +20,12 @@ candhitfinder_derivative:
     WaveformAlgs:        @local::hitfinderwaveformalgs
 }
 
+# Define the standard "threshold over baseline" method for finding candidate hits
 candhitfinder_standard:
 {
-    tool_type: CandHitStandard
-    Plane:     0
+    tool_type:                   CandHitStandard
+    Plane:                       0                # The plane this tool is operating on
+    RoiThreshold:                5.               # The threshold to apply to find hits
 }
 
 peakfitter_gaussian:

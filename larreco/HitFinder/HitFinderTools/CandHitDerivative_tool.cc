@@ -146,15 +146,6 @@ void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
     size_t                   tpc   = wids[0].TPC;
     size_t                   wire  = wids[0].Wire;
     
-    if (cryo == 0 && tpc == 1 && plane == 0)
-    {
-        if (wire == 494 || wire == 530 || wire == 531 || wire == 540)
-        {
-            std::cout << "Captured a live one! " << std::endl;
-        }
-    }
-
-    
     // Now find the hits
     findHitCandidates(derivativeVec.begin(),derivativeVec.end(),roiStartTick,fMinDeltaTicks,fMinDeltaPeaks,hitCandidateVec);
     
@@ -235,8 +226,6 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
 
     int   deltaTicks = std::distance(maxItr,minItr);
     float range      = *maxItr - *minItr;
-    
-//    std::cout << "** max at tick: " << std::distance(startItr,maxItr) << ", val: " << *maxItr << ", min at tick: " << std::distance(startItr,minItr) << ", val: " << *minItr << ", delta: " << deltaTicks << ", range: " << range << std::endl;
     
     // At some point small rolling oscillations on the waveform need to be ignored...
     if (deltaTicks >= dTicksThreshold && range > dPeakThreshold)

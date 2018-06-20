@@ -37,8 +37,6 @@ gaus_hitfinder:
 {
  module_type:          "GausHitFinder"
  CalDataModuleLabel:   "caldata"
- MinSig:               [ 6.0, 11.0 ]      # signal height threshold, per plane
- MinWidth:             [ 4.0, 6.0 ]       # hit width threshold, per plane
  MaxMultiHit:          10                 # maximum hits for multi fit
  AreaMethod:           0                  # 0 = area by integral, 1 = area by gaussian area formula
  AreaNorms:            [ 13.25, 26.31 ]   # normalizations that put signal area in
@@ -59,11 +57,12 @@ gaus_hitfinder:
    MinPulseHeight: [5.0, 5.0, 5.0]        #minimum hit peak amplitude per plane
    MinPulseSigma:  [1.0, 1.0, 1.0]        #minimum hit rms per plane
  }
+ # Candididate peak finding done by tool, one tool instantiated per plane (but could be other divisions too)
  HitFinderToolVec:
  {
-   CandidateHitsPlane0:  @local::candhitfinder_standard
-   CandidateHitsPlane1:  @local::candhitfinder_standard
-   CandidateHitsPlane2:  @local::candhitfinder_standard
+   CandidateHitsPlane0:  @local::candhitfinder_standard  # plane 0
+   CandidateHitsPlane1:  @local::candhitfinder_standard  # plane 1
+   CandidateHitsPlane2:  @local::candhitfinder_standard  # plane 2
  }
                                           # In addition to the filter alg we can also filter hits on the same pulse train
  PulseHeightCuts:      [3.0,  3.0,  3.0 ] # Minimum pulse height
@@ -71,6 +70,8 @@ gaus_hitfinder:
  PulseRatioCuts:       [0.35, 0.40, 0.20] # Ratio of pulse height to width
 }
 
+# Currently have to tell each tool which plane it is operating on... this is really
+# for the histogramming option which enables hist naming without conflict
 gaus_hitfinder.HitFinderToolVec.CandidateHitsPlane0.Plane: 0
 gaus_hitfinder.HitFinderToolVec.CandidateHitsPlane1.Plane: 1
 gaus_hitfinder.HitFinderToolVec.CandidateHitsPlane2.Plane: 2

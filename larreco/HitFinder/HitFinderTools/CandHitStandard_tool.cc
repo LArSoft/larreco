@@ -47,7 +47,6 @@ private:
     
     // Member variables from the fhicl file
     int                      fPlane;                      ///< Plane we are meant to work with
-    float                    fMinROIAverageTickThreshold; ///< try to remove bad ROIs
     float                    fRoiThreshold;               ///< minimum maximum to minimum peak distance
 
     const geo::GeometryCore* fGeometry = lar::providerFrom<geo::Geometry>();
@@ -67,9 +66,8 @@ CandHitStandard::~CandHitStandard()
 void CandHitStandard::configure(const fhicl::ParameterSet& pset)
 {
     // Start by recovering the parameters
-    fPlane                      = pset.get< int   >("Plane",                       0);
-    fMinROIAverageTickThreshold = pset.get< float >("MinROIAverageTickThreshold", -0.5);
-    fRoiThreshold               = pset.get< float >("RoiThreshold",                5.);
+    fPlane        = pset.get< int   >("Plane",        0);
+    fRoiThreshold = pset.get< float >("RoiThreshold", 5.);
 
     return;
 }

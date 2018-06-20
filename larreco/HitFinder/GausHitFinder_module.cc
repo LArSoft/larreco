@@ -88,7 +88,6 @@ private:
     
     std::string         fAllHitsInstanceName;
 
-    std::vector<double> fMinSigVec;                ///<signal height threshold
     std::vector<int>    fLongMaxHitsVec;           ///<Maximum number hits on a really long pulse train
     std::vector<int>    fLongPulseWidthVec;        ///<Sets width of hits used to describe long pulses
   
@@ -176,7 +175,6 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
       }
     }
 
-    FillOutHitParameterVector(p.get< std::vector<double> >("MinSig"),    fMinSigVec);
     FillOutHitParameterVector(p.get< std::vector<double> >("AreaNorms"), fAreaNormsVec);
 
     fLongMaxHitsVec    = p.get< std::vector<int>>("LongMaxHits",    std::vector<int>() = {25,25,25});
