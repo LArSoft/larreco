@@ -32,9 +32,9 @@
 
 namespace tca {
 
-  void SaveTjInfo(TjStuff& tjs, const CTP_t& inCTP, std::vector<std::vector<int>>& tjList, std::string stageName);
-  void SaveTjInfo(TjStuff& tjs,  const CTP_t& inCTP, const unsigned short& cotIndex, std::string stageName);
-  void SaveTjInfoStuff(TjStuff& tjs,  const CTP_t& inCTP, Trajectory& tj, int stageNum, std::string stageName);
+  void SaveTjInfo(TjStuff& tjs, std::vector<std::vector<int>>& tjList, std::string stageName);
+  void SaveTjInfo(TjStuff& tjs, const ShowerStruct& ss, std::string stageName);
+  void SaveTjInfoStuff(TjStuff& tjs, Trajectory& tj, int stageNum, std::string stageName);
   void SaveAllCots(TjStuff& tjs, const CTP_t& inCTP, std::string someText);
   void SaveAllCots(TjStuff& tjs, std::string someText);
   int GetStageNum(ShowerTreeVars& stv, std::string stageName);

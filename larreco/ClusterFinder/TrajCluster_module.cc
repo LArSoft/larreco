@@ -369,7 +369,6 @@ namespace cluster {
       shower.set_dedx_err(ss3.dEdxErr);
       shower.set_length(ss3.Len);
       shower.set_open_angle(ss3.OpenAngle);
-      std::cout<<" shower set\n";
       sscol.push_back(shower);
       if(ss3.PFPIndex < shwrIndices.size()) {
         shwrIndices[ss3.PFPIndex] = ish;
