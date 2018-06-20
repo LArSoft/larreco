@@ -680,11 +680,11 @@ namespace tca {
       } // only one occurrence.
     } // pc
     
-    return UpdateShower(fcnLabel, tjs, ss3, prt);
-    
+    if(!UpdateShower(fcnLabel, tjs, ss3, prt)) return false;
     ChkAssns(fcnLabel, tjs);
-    
     if(prt) Print2DShowers("R3Do", tjs, USHRT_MAX, false);
+    
+    return true;
     
   } // Reconcile3D
 /*
