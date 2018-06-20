@@ -232,6 +232,141 @@ namespace tca {
   } // MatchTrueHits
   
   //////////////////////////////////////////
+  void TruthMatcher::StudyShowerParents(HistStuff& hist)
+  {
+    // study characteristics of shower parent pfps. This code is adapted from TCShower FindParent
+    if(tjs.pfps.empty()) return;
+    if(tjs.showers.empty()) return;
+    if(tjs.MCPartList.empty()) return;
+    
+    // Look for truth pfp primary electron
+    Point3_t primVx {{-666.0, -666.0, -666.0}};
+    // the primary should be the first one in the list as selected in GetHitCollection
+    auto& primMCP = tjs.MCPartList[0];
+    primVx[0] = primMCP->Vx();
+    primVx[1] = primMCP->Vy();
+    primVx[2] = primMCP->Vz();
+    geo::Vector_t posOffsets;
+    auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
+    posOffsets = SCE->GetPosOffsets({primVx[0], primVx[1], primVx[2]});
+    posOffsets.SetX(-posOffsets.X());
+    primVx[0] += posOffsets.X();
+    primVx[1] += posOffsets.Y();
+    primVx[2] += posOffsets.Z();
+    geo::TPCID inTPCID = tjs.TPCID;
+    if(!InsideTPC(tjs, primVx, inTPCID)) return;
+    
+    // find the largest shower
+    int imbig = 0;
+    float ss3Energy = 0;
+    for(auto& ss3 : tjs.showers) {
+      if(ss3.ID == 0) continue;
+      float energy = ShowerEnergy(ss3);
+      if(energy < ss3Energy) continue;
+      ss3Energy = energy;
+      imbig = ss3.ID;
+    } // ss3
+    if(imbig == 0) return;
+    
+    auto& ss3 = tjs.showers[imbig - 1];
+    MCParticleListUtils mcpu{tjs};
+    int truPFP = mcpu.PrimaryElectronPFPID(ss3.TPCID);
+    if(truPFP == 0) return;
+    
+    for(auto& pfp : tjs.pfps) {
+      if(pfp.ID == 0) continue;
+//      bool dprt = (pfp.ID == truPFP);
+      if(pfp.TPCID != ss3.TPCID) continue;
+      // ignore neutrinos
+      if(pfp.PDGCode == 14 || pfp.PDGCode == 14) continue;
+      // ignore shower pfps
+      if(pfp.PDGCode == 1111) continue;
+      float pfpEnergy = 0;
+      float minEnergy = 1E6;
+      for(auto tid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tid - 1];
+        float energy = ChgToMeV(tj.TotChg);
+        pfpEnergy += energy;
+        if(energy < minEnergy) minEnergy = energy;
+      }
+      pfpEnergy -= minEnergy;
+      pfpEnergy /= (float)(pfp.TjIDs.size() - 1);
+      // find the end that is farthest away
+      unsigned short pEnd = FarEnd(tjs, pfp, ss3.ChgPos);
+      auto pToS = PointDirection(pfp.XYZ[pEnd], ss3.ChgPos);
+      // take the absolute value in case the shower direction isn't well known
+      float costh1 = std::abs(DotProd(pToS, ss3.Dir));
+      float costh2 = DotProd(pToS, pfp.Dir[pEnd]);
+      // distance^2 between the pfp end and the shower start, charge center, and shower end
+      float distToStart2 = PosSep2(pfp.XYZ[pEnd], ss3.Start);
+      float distToChgPos2 = PosSep2(pfp.XYZ[pEnd], ss3.ChgPos);
+      float distToEnd2 = PosSep2(pfp.XYZ[pEnd], ss3.End);
+//      mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<" P"<<pfp.ID<<"_"<<pEnd<<" distToStart "<<sqrt(distToStart2)<<" distToChgPos "<<sqrt(distToChgPos2)<<" distToEnd "<<sqrt(distToEnd2);
+      // find the end of the shower closest to the pfp
+      unsigned short shEnd = 0;
+      if(distToEnd2 < distToStart2) shEnd = 1;
+      if(shEnd == 0 && distToChgPos2 < distToStart2) continue;
+      if(shEnd == 1 && distToChgPos2 < distToEnd2) continue;
+//      mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<"_"<<shEnd<<" P"<<pfp.ID<<"_"<<pEnd<<" costh1 "<<costh1;
+      Point2_t alongTrans;
+      // find the longitudinal and transverse components of the pfp start point relative to the
+      // shower center
+      FindAlongTrans(ss3.ChgPos, ss3.Dir, pfp.XYZ[pEnd], alongTrans);
+//      mf::LogVerbatim("TC")<<"   alongTrans "<<alongTrans[0]<<" "<<alongTrans[1];
+      hist.fSep = sqrt(distToChgPos2);
+      hist.fShEnergy = ss3Energy;
+      hist.fPfpEnergy = pfpEnergy;
+      hist.fPfpLen = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+      hist.fMCSMom = MCSMom(tjs, pfp.TjIDs);
+      hist.fDang1 = acos(costh1);
+      hist.fDang2 = acos(costh2);
+      hist.fChgFrac = 0;
+      float chgFrac = 0;
+      float totSep = 0;
+      // find the charge fraction btw the pfp start and the point that is 
+      // half the distance to the charge center in each plane
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
+        int ssid = 0;
+        for(auto cid : ss3.CotIDs) {
+          auto& ss = tjs.cots[cid - 1];
+          if(ss.CTP != inCTP) continue;
+          ssid = ss.ID;
+          break;
+        } // cid
+        if(ssid == 0) continue;
+        auto tpFrom = MakeBareTP(tjs, pfp.XYZ[pEnd], pToS, inCTP);
+        auto& ss = tjs.cots[ssid - 1];
+        auto& stp1 = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
+        float sep = PosSep(tpFrom.Pos, stp1.Pos);
+        float toPos = tpFrom.Pos[0] + 0.5 * tpFrom.Dir[0] * sep;
+        float cf = ChgFracBetween(tjs, tpFrom, toPos, false);
+        // weight by the separation in the plane
+        totSep += sep;
+        chgFrac += sep * cf;
+      } // plane
+      if(totSep > 0) hist.fChgFrac = chgFrac / totSep;
+      hist.fAlong = alongTrans[0];
+      hist.fTrans = alongTrans[1];
+      bool isBad = (hist.fDang1 > 2 || hist.fChgFrac < 0.5 || hist.fAlong > 0);
+      if(pfp.ID == truPFP && isBad) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"SSP: 3S"<<ss3.ID<<" shEnergy "<<(int)ss3Energy<<" P"<<pfp.ID<<" pfpEnergy "<<(int)pfpEnergy;
+        myprt<<" MCSMom "<<hist.fMCSMom<<" len "<<hist.fPfpLen;
+        myprt<<" Dang1 "<<hist.fDang1<<" Dang2 "<<hist.fDang2<<" chgFrac "<<hist.fChgFrac;
+        myprt<<" along "<<(int)hist.fAlong<<" trans "<<(int)hist.fTrans;
+        myprt<<" EventsProcessed "<<tjs.EventsProcessed;
+      }
+      if(pfp.ID == truPFP) {
+        hist.fShowerParentSig->Fill();
+      } else {
+        hist.fShowerParentBkg->Fill();
+      }
+    } // pfp
+    
+  } // StudyShowerParents
+  
+  //////////////////////////////////////////
   void TruthMatcher::StudyElectrons(const HistStuff& hist)
   {
     // study tjs matched to electrons to develop an electron tag
@@ -1067,46 +1202,57 @@ namespace tca {
   /////////////////////////////////////////
   int MCParticleListUtils::PrimaryElectronPFPID(const geo::TPCID& tpcid)
   {
-    // pretty self-explanatory and pretty crude
+    // Returns the ID of a pfp that has hits whose eve ID is a primary electron
+    // and is the closest (< 5 WSE units) to the primary electron start
     if(tjs.MCPartList.empty()) return 0;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    std::vector<int> tmp(1);
+    TruthMatcher tm{tjs};
     for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
       auto& mcp = tjs.MCPartList[part];
       // require electron
       if(abs(mcp->PdgCode()) != 11) continue;
       int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
       if(mcp->TrackId() != eveID) continue;
-      // list of pfp IDs and occurrence count
-      std::vector<std::array<int, 2>> pidcs;
+      Point3_t start = {{mcp->Vx(), mcp->Vy(), mcp->Vz()}};
+      auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
+      geo::Vector_t posOffsets = SCE->GetPosOffsets({start[0], start[1], start[2]});
+      posOffsets.SetX(-posOffsets.X());
+      start[0] += posOffsets.X();
+      start[1] += posOffsets.Y();
+      start[2] += posOffsets.Z();
+      // make a list of pfps that use tjs that use these hits
+      std::vector<int> pfplist;
       for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
         CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
-        int tid = MCParticleStartTjID(part, inCTP);
-        if(tid > 0) {
-          tmp[0] = tid;
-          auto TInP = GetAssns(tjs, "T", tid, "P");
-          if(!TInP.empty()) {
-            unsigned short indx = 0;
-            for(indx = 0; indx < pidcs.size(); ++indx) if(pidcs[indx][0] == TInP[0]) break;
-            if(indx == pidcs.size()) {
-              // not found so add it
-              std::array<int, 2> pidc;
-              pidc[0] = TInP[0];
-              pidc[1] = 1;
-              pidcs.push_back(pidc);
-            } else {
-              ++pidcs[indx][1];
-            }
-          } // !PInT empty
-        } // tid > 0
+        std::vector<unsigned int> mcphits = tm.PutMCPHitsInVector(part, inCTP);
+        if(mcphits.empty()) continue;
+        for(auto iht : mcphits) {
+          auto& hit = tjs.fHits[iht];
+          if(hit.InTraj <= 0) continue;
+          // require that the tj is 3D-matched
+          auto& tj = tjs.allTraj[hit.InTraj - 1];
+          if(!tj.AlgMod[kMat3D]) continue;
+          // find out what pfp it is used in.
+          auto TInP = GetAssns(tjs, "T", tj.ID, "P");
+          if(TInP.size() != 1) continue;
+          int pid = TInP[0];
+          if(std::find(pfplist.begin(), pfplist.end(), pid) == pfplist.end()) pfplist.push_back(pid);
+        } // iht
       } // plane
+      if(pfplist.empty()) return 0;
+      // Use the one that is closest to the true start position, not the
+      // one that has the most matching hits. Electrons are likely to be
+      // poorly reconstructed
       int pfpid = 0;
-      int maxcnt = 0;
-      for(auto& pidc : pidcs) {
-        if(pidc[1] < maxcnt) continue;
-        maxcnt = pidc[1];
-        pfpid = pidc[0];
-      } // pidc
+      float close = 1E6;
+      for(auto pid : pfplist) {
+        auto& pfp = tjs.pfps[pid - 1];
+        unsigned short nearEnd = 1 - FarEnd(tjs, pfp, start);
+        float sep = PosSep2(pfp.XYZ[nearEnd], start);
+        if(sep > close) continue;
+        close = sep;
+        pfpid = pid;
+      }
       return pfpid;
     } // part
     return 0;
