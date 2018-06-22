@@ -52,18 +52,18 @@ namespace cluster {
 
 class cluster::ClusterCrawler : public art::EDProducer {
 
-  public:
-    explicit ClusterCrawler(fhicl::ParameterSet const & pset);
-    virtual ~ClusterCrawler();
+public:
+  explicit ClusterCrawler(fhicl::ParameterSet const & pset);
+  virtual ~ClusterCrawler();
 
-    void reconfigure(fhicl::ParameterSet const & pset) ;
-    void produce(art::Event & evt) override;
-    void beginJob() override;
+  void reconfigure(fhicl::ParameterSet const & pset) ;
+  void produce(art::Event & evt) override;
+  void beginJob() override;
 
-  private:
-    hit::CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
-    ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
-    std::string fCalDataModuleLabel; ///< label of module producing input wires
+private:
+  hit::CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
+  ClusterCrawlerAlg fCCAlg; // define ClusterCrawlerAlg object
+  std::string fCalDataModuleLabel; ///< label of module producing input wires
 };
 
 
@@ -111,7 +111,7 @@ namespace cluster {
 
     // make this accessible to ClusterCrawler_module
     art::ValidHandle< std::vector<recob::Wire>> wireVecHandle
-     = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
+      = evt.getValidHandle<std::vector<recob::Wire>>(fCalDataModuleLabel);
 
     // find hits in all planes
     fCCHFAlg.RunCCHitFinder(*wireVecHandle);
@@ -135,36 +135,36 @@ namespace cluster {
     std::vector<recob::Vertex> sv3col;
 
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > 
-        hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
+      hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
     std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
-        cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
+      cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
 
     
     std::vector<ClusterCrawlerAlg::ClusterStore> const& tcl = fCCAlg.GetClusters();
     
     std::vector<short> const& inClus = fCCAlg.GetinClus();
 
-// Consistency check
-  for(unsigned int icl = 0; icl < tcl.size(); ++icl) {
-    ClusterCrawlerAlg::ClusterStore const& clstr = tcl[icl];
-    if(clstr.ID < 0) continue;
-    geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
-    unsigned short plane = planeID.Plane;
-    for(unsigned short ii = 0; ii < clstr.tclhits.size(); ++ii) {
-      unsigned int iht = clstr.tclhits[ii];
-      recob::Hit const& theHit = FinalHits->at(iht);
-      if(theHit.WireID().Plane != plane) {
-        std::cout<<"CC: cluster-hit plane mis-match "<<theHit.WireID().Plane<<" "<<plane
-        <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<"\n";
-        return;
-      }
-      if(inClus[iht] != clstr.ID) {
-        std::cout << "CC: InClus mis-match " << inClus[iht]
-          << " ID " << clstr.ID << " in cluster " << icl << "\n";
-        return;
-      }
-    } // ii
-  } // icl
+    // Consistency check
+    for(unsigned int icl = 0; icl < tcl.size(); ++icl) {
+      ClusterCrawlerAlg::ClusterStore const& clstr = tcl[icl];
+      if(clstr.ID < 0) continue;
+      geo::PlaneID planeID = ClusterCrawlerAlg::DecodeCTP(clstr.CTP);
+      unsigned short plane = planeID.Plane;
+      for(unsigned short ii = 0; ii < clstr.tclhits.size(); ++ii) {
+        unsigned int iht = clstr.tclhits[ii];
+        recob::Hit const& theHit = FinalHits->at(iht);
+        if(theHit.WireID().Plane != plane) {
+          std::cout<<"CC: cluster-hit plane mis-match "<<theHit.WireID().Plane<<" "<<plane
+                   <<" in cluster "<<clstr.ID<<" WT "<<clstr.BeginWir<<":"<<(int)clstr.BeginTim<<"\n";
+          return;
+        }
+        if(inClus[iht] != clstr.ID) {
+          std::cout << "CC: InClus mis-match " << inClus[iht]
+                    << " ID " << clstr.ID << " in cluster " << icl << "\n";
+          return;
+        }
+      } // ii
+    } // icl
 
     // make 3D vertices
     std::vector<ClusterCrawlerAlg::Vtx3Store> const& Vertices
@@ -211,40 +211,40 @@ namespace cluster {
       
       geo::View_t view = FinalHits->at(iht).View();
       sccol.emplace_back(
-          (float)clstr.BeginWir,  // Start wire
-          0,                      // sigma start wire
-          clstr.BeginTim,         // start tick
-          0,                      // sigma start tick
-          clstr.BeginChg,         // start charge
-          clstr.BeginAng,         // start angle
-          0,                      // start opening angle (0 for line-like clusters)
-          (float)clstr.EndWir,    // end wire
-          0,                      // sigma end wire
-          clstr.EndTim,           // end tick
-          0,                      // sigma end tick
-          clstr.EndChg,           // end charge
-          clstr.EndAng,           // end angle
-          0,                      // end opening angle (0 for line-like clusters)
-          sumChg,                 // integral
-          0,                      // sigma integral
-          sumADC,                 // summed ADC
-          0,                      // sigma summed ADC
-          nclhits,                // n hits
-          0,                      // wires over hits
-          0,                      // width (0 for line-like clusters)
-          clsID,                  // ID
-          view,                   // view
-          planeID,                // plane
-          recob::Cluster::Sentry  // sentry
-          );
+                         (float)clstr.BeginWir,  // Start wire
+                         0,                      // sigma start wire
+                         clstr.BeginTim,         // start tick
+                         0,                      // sigma start tick
+                         clstr.BeginChg,         // start charge
+                         clstr.BeginAng,         // start angle
+                         0,                      // start opening angle (0 for line-like clusters)
+                         (float)clstr.EndWir,    // end wire
+                         0,                      // sigma end wire
+                         clstr.EndTim,           // end tick
+                         0,                      // sigma end tick
+                         clstr.EndChg,           // end charge
+                         clstr.EndAng,           // end angle
+                         0,                      // end opening angle (0 for line-like clusters)
+                         sumChg,                 // integral
+                         0,                      // sigma integral
+                         sumADC,                 // summed ADC
+                         0,                      // sigma summed ADC
+                         nclhits,                // n hits
+                         0,                      // wires over hits
+                         0,                      // width (0 for line-like clusters)
+                         clsID,                  // ID
+                         view,                   // view
+                         planeID,                // plane
+                         recob::Cluster::Sentry  // sentry
+                         );
       // make the cluster - hit association
       if(!util::CreateAssn(
-        *this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end())
-        )
-      {
-        throw art::Exception(art::errors::ProductRegistrationFailure)
-          <<"Failed to associate hit "<<iht<<" with cluster "<<icl;
-      } // exception
+                           *this, evt, *hc_assn, sccol.size()-1, clstr.tclhits.begin(), clstr.tclhits.end())
+         )
+        {
+          throw art::Exception(art::errors::ProductRegistrationFailure)
+            <<"Failed to associate hit "<<iht<<" with cluster "<<icl;
+        } // exception
       // make the cluster - endpoint associations
       if(clstr.BeginVtx >= 0) {
         end = 0;
@@ -257,10 +257,10 @@ namespace cluster {
           if(vtx3.Ptr2D[2] < 0) continue;
           if(vtx3.Ptr2D[plane] == clstr.BeginVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
-            {
-              throw art::Exception(art::errors::ProductRegistrationFailure)
-                <<"Failed to associate cluster "<<icl<<" with vertex";
-            } // exception
+              {
+                throw art::Exception(art::errors::ProductRegistrationFailure)
+                  <<"Failed to associate cluster "<<icl<<" with vertex";
+              } // exception
             break;
           } // vertex match
           ++vtxIndex;
@@ -277,10 +277,10 @@ namespace cluster {
           if(vtx3.Ptr2D[2] < 0) continue;
           if(vtx3.Ptr2D[plane] == clstr.EndVtx) {
             if(!util::CreateAssnD(*this, evt, *cv_assn, clsID - 1, vtxIndex, end))
-            {
-              throw art::Exception(art::errors::ProductRegistrationFailure)
-                <<"Failed to associate cluster "<<icl<<" with endpoint";
-            } // exception
+              {
+                throw art::Exception(art::errors::ProductRegistrationFailure)
+                  <<"Failed to associate cluster "<<icl<<" with endpoint";
+              } // exception
             break;
           } // vertex match
           ++vtxIndex;
