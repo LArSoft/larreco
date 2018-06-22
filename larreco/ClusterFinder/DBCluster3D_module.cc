@@ -23,6 +23,8 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/DBScan3DAlg.h"
+#include "larcore/Geometry/Geometry.h"
+#include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 #include <memory>
 
@@ -53,6 +55,12 @@ private:
 
   DBScan3DAlg fDBScan;
 
+  geo::GeometryCore const* fGeom;
+  detinfo::DetectorProperties const* fDetProp;
+
+  double tickToDist;
+  double fMinHitDis;
+
 };
 
 
@@ -60,12 +68,19 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
   : fHitModuleLabel(p.get< art::InputTag >("HitModuleLabel"))
   , fSpacePointModuleLabel(p.get< art::InputTag >("SpacePointModuleLabel"))
   , fDBScan(p.get< fhicl::ParameterSet >("DBScan3DAlg"))
+  , fMinHitDis(p.get< double >("MinHitDis"))
 {
   produces< std::vector<recob::Cluster> >();
   produces< std::vector<recob::PFParticle> >();
   produces< art::Assns<recob::Cluster, recob::Hit> >();
   produces< art::Assns<recob::PFParticle, recob::Cluster> >();
   produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
+
+  fGeom = &*(art::ServiceHandle<geo::Geometry>());
+  fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
+
+  tickToDist = fDetProp->DriftVelocity(fDetProp->Efield(),fDetProp->Temperature());
+  tickToDist *= 1.e-3 * fDetProp->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns     
 }
 
 void cluster::DBCluster3D::produce(art::Event & evt)
@@ -109,13 +124,47 @@ void cluster::DBCluster3D::produce(art::Event & evt)
   size_t npfp = 0;
   if (maxid>=0) npfp = maxid + 1;
 
-  //Save hits for each pfparticle
+  //Save hits associated with each pfparticle
   std::vector<std::vector<art::Ptr<recob::Hit>>> cluhits(npfp);
+  //Save hits on each PlaneID with pfparticle index
+  std::map<geo::PlaneID, std::vector<std::pair<art::Ptr<recob::Hit>, unsigned int>>> hitmap;
   for (auto &hit : hits){
     auto &sps = spFromHit.at(hit.key());
     if (sps.size()){//found associated space point
       if (fDBScan.points[sps[0].key()].cluster_id>=0){
         cluhits[fDBScan.points[sps[0].key()].cluster_id].push_back(hit);
+        hitmap[geo::PlaneID(hit->WireID())].push_back(std::make_pair(hit, fDBScan.points[sps[0].key()].cluster_id));
+      }
+    }
+  }
+
+  //Save hits not associated with any spacepoints
+  for (auto &hit : hits){
+    bool found = false;
+    for (size_t i = 0; i<cluhits.size(); ++i){
+      if (std::find(cluhits[i].begin(), cluhits[i].end(), hit) != cluhits[i].end()){
+        found = true;
+        break;
+      }
+    }
+    if (!found){
+      double wirePitch = fGeom->WirePitch(hit->WireID());
+      double UnitsPerTick = tickToDist / wirePitch;
+      double x0 = hit->WireID().Wire;
+      double y0 = hit->PeakTime() * UnitsPerTick;
+      double mindis = DBL_MAX;
+      unsigned pfpindex = UINT_MAX;
+      for (auto &hit2 : hitmap[geo::PlaneID(hit->WireID())]){
+        double x1 = hit2.first->WireID().Wire;
+        double y1 = hit2.first->PeakTime() * UnitsPerTick;
+        double dis = sqrt(pow(x1-x0,2)+pow(y1-y0,2));
+        if (dis<mindis){
+          mindis = dis;
+          pfpindex = hit2.second;
+        }
+      }
+      if (pfpindex != UINT_MAX && mindis < fMinHitDis){
+        cluhits[pfpindex].push_back(hit);
       }
     }
   }
