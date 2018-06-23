@@ -431,6 +431,7 @@ namespace tca {
       } // 3D shower code
     } // tpcid
 
+    if(fStudyMode) tm.StudyShowerParents(hist);
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     // Ensure that all PFParticles have a start vertex
@@ -5738,11 +5739,28 @@ namespace tca {
       }
       if(particle_vec.empty()) continue;
       int trackID = 0;
+      // special handling for electrons
+      int eveID = 0;
+      float eFrac = 0;
       for(unsigned short im = 0; im < match_vec.size(); ++im) {
         if(prthit) std::cout<<" im "<<im<<" trackID "<<particle_vec[im]->TrackId()<<" ideFraction "<<match_vec[im]->ideFraction<<"\n";
-        if(match_vec[im]->ideFraction < 0.5) continue;
-        trackID = particle_vec[im]->TrackId();
-        break;
+        // special handling for electrons
+        if(abs(particle_vec[im]->PdgCode()) == 11) {
+          int eid = pi_serv->ParticleList().EveId(particle_vec[im]->TrackId());
+          if(eveID == 0) eveID = eid;
+          if(eid == eveID) {
+            eFrac += match_vec[im]->ideFraction;
+            if(eFrac > 0.5) {
+              trackID = eveID;
+              break;
+            } // eFrac > 0.5
+          } // eid == eveID
+        } else {
+          if(match_vec[im]->ideFraction > 0.5) {
+            trackID = particle_vec[im]->TrackId();
+            break;
+          } // ideFraction > 0.5
+        } // not an electreon
       } // im
       if(trackID == 0) continue;
       if(prthit) {
@@ -5757,18 +5775,6 @@ namespace tca {
       for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
         auto& mcp = tjs.MCPartList[ipart];
         if(mcp->TrackId() != trackID) continue;
-/*
-        // re-direct electrons to the eve particle
-        if(abs(mcp->PdgCode()) == 11) {
-          int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
-          // look for the eve ID
-          for(unsigned int jpart = 0; jpart < tjs.MCPartList.size(); ++jpart) {
-            if(tjs.MCPartList[jpart]->TrackId() != eveID) continue;
-            ipart = jpart;
-            break;
-          } // jpart
-        } // found electron
-*/
         tjs.fHits[iht].MCPartListIndex = ipart;
         ++nMatHits;
         break;
