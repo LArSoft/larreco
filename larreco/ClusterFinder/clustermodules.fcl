@@ -67,6 +67,16 @@ standard_linecluster:
   ClusterCrawlerAlg:    @local::standard_clustercrawleralg
 } # standard_linecluster
 
+
+standard_simplelinecluster:
+{
+# this is the cluster finding component of former ClusterCrawler
+  module_type:          "SimpleLineCluster"
+  HitFinderModuleLabel: "hitpdune"
+  PFParticleModuleLabel: "dbcluster"
+  ClusterCrawlerAlg:    @local::standard_clustercrawleralg
+} # standard_linecluster
+
 standard_fuzzycluster:
 {
  module_type:     "fuzzyCluster"
