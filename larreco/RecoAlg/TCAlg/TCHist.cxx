@@ -134,6 +134,7 @@ namespace  tca {
     fShowerParentSig->Branch("fChgFrac", &fChgFrac, "fChgFrac/F");
     fShowerParentSig->Branch("fAlong", &fAlong, "fAlong/F");
     fShowerParentSig->Branch("fTrans", &fTrans, "fTrans/F");
+    fShowerParentSig->Branch("fInShwrProb", &fInShwrProb, "fInShwrProb/F");
     
     fShowerParentBkg = tfs.make<TTree>("shwr_parent_tree_bkg", "shwr_parent_tree_bkg");
     fShowerParentBkg->Branch("fShEnergy", &fShEnergy, "fShEnergy/F");
@@ -146,6 +147,7 @@ namespace  tca {
     fShowerParentBkg->Branch("fChgFrac", &fChgFrac, "fChgFrac/F");
     fShowerParentBkg->Branch("fAlong", &fAlong, "fAlong/F");
     fShowerParentBkg->Branch("fTrans", &fTrans, "fTrans/F");
+    fShowerParentBkg->Branch("fInShwrProb", &fInShwrProb, "fInShwrProb/F");
 
   }
   
