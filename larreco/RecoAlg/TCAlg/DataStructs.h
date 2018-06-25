@@ -28,6 +28,8 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 
+#include "TMVA/Reader.h"
+
 namespace tca {
   
   using Point3_t = std::array<double, 3>;
@@ -287,6 +289,7 @@ namespace tca {
     int TruParentID {0};
     int SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
     bool NeedsUpdate {true};       // Needs to be updated (e.g. after adding a tj, defining a parent, etc)
+    bool Cheat {false};         // This is a cheated MC shower. TjIDs is empty but ShPts is filled
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -315,6 +318,7 @@ namespace tca {
     unsigned short PFPIndex {USHRT_MAX};    // The index of the pfp for this shower
     int Vx3ID {0};
     bool NeedsUpdate {true};       // This is set true whenever the shower needs to be updated
+    bool Cheat {false};
   };
   
   struct DontClusterStruct {
@@ -431,6 +435,7 @@ namespace tca {
     kCompleteShower,
     kSplitTjCVx,
     kSetDir,
+    kCheat,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -521,6 +526,8 @@ namespace tca {
     const geo::GeometryCore* geom;
     const detinfo::DetectorProperties* detprop;
     calo::CalorimetryAlg* caloAlg;
+    TMVA::Reader* shwrParReader;
+    std::vector<float> ShowerParentVars;
     short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
     short NPtsAve;         /// number of points to find AveChg
     bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
