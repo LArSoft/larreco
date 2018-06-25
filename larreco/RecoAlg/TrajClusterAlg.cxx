@@ -46,8 +46,9 @@ namespace tca {
   //------------------------------------------------------------------------------
 
   TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset)
-    :fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg"))
+  :fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg")), fMVAReader("V")
   {
+    tjs.shwrParReader = &fMVAReader;
     reconfigure(pset);
     tjs.caloAlg = &fCaloAlg;
     art::ServiceHandle<art::TFileService> tfs;
@@ -92,6 +93,8 @@ namespace tca {
     tjs.DeltaRayTag       = pset.get< std::vector<short>>("DeltaRayTag", {-1, -1, -1});
     tjs.MuonTag           = pset.get< std::vector<short>>("MuonTag", {-1, -1, -1, - 1});
     tjs.ShowerTag         = pset.get< std::vector<float>>("ShowerTag", {-1, -1, -1, -1, -1, -1});
+    std::string fMVAShowerParentWeights = "NA";
+    pset.get_if_present<std::string>("MVAShowerParentWeights", fMVAShowerParentWeights);
     
     tjs.SaveShowerTree    = pset.get< bool >("SaveShowerTree", false);
     tjs.SaveCRTree        = pset.get< bool >("SaveCRTree", false);
@@ -264,6 +267,9 @@ namespace tca {
       throw art::Exception(art::errors::Configuration)<< "Invalid SkipAlgs specification";
     }
     
+    // Configure the TMVA reader for the shower parent BDT
+    if(fMVAShowerParentWeights != "NA" && tjs.ShowerTag[0] > 0) ConfigureMVA(tjs, fMVAShowerParentWeights);
+
     if(tjs.DebugMode) {
       std::cout<<"Using algs:";
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
@@ -5739,28 +5745,12 @@ namespace tca {
       }
       if(particle_vec.empty()) continue;
       int trackID = 0;
-      // special handling for electrons
-      int eveID = 0;
-      float eFrac = 0;
       for(unsigned short im = 0; im < match_vec.size(); ++im) {
         if(prthit) std::cout<<" im "<<im<<" trackID "<<particle_vec[im]->TrackId()<<" ideFraction "<<match_vec[im]->ideFraction<<"\n";
-        // special handling for electrons
-        if(abs(particle_vec[im]->PdgCode()) == 11) {
-          int eid = pi_serv->ParticleList().EveId(particle_vec[im]->TrackId());
-          if(eveID == 0) eveID = eid;
-          if(eid == eveID) {
-            eFrac += match_vec[im]->ideFraction;
-            if(eFrac > 0.5) {
-              trackID = eveID;
-              break;
-            } // eFrac > 0.5
-          } // eid == eveID
-        } else {
-          if(match_vec[im]->ideFraction > 0.5) {
-            trackID = particle_vec[im]->TrackId();
-            break;
-          } // ideFraction > 0.5
-        } // not an electreon
+        if(match_vec[im]->ideFraction > 0.5) {
+          trackID = particle_vec[im]->TrackId();
+          break;
+        } // ideFraction > 0.5
       } // im
       if(trackID == 0) continue;
       if(prthit) {
