@@ -46,9 +46,9 @@ namespace tca {
   //------------------------------------------------------------------------------
 
   TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset)
-  :fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg")), fMVAReader("V")
+  :fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg")), fMVAReader("Silent")
   {
-    tjs.shwrParReader = &fMVAReader;
+    tjs.ShowerParentReader = &fMVAReader;
     reconfigure(pset);
     tjs.caloAlg = &fCaloAlg;
     art::ServiceHandle<art::TFileService> tfs;
