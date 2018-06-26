@@ -1,15 +1,11 @@
 cet_enable_asserts()
 
-add_subdirectory(ConvexHull)
-add_subdirectory(Voronoi)
-
 art_make( LIB_LIBRARIES  lardataobj_RecoBase
                          larcorealg_Geometry
                          larcore_Geometry_Geometry_service
                          lardata_RecoObjects
                          lardata_Utilities
                          larreco_RecoAlg_Cluster3DAlgs_ConvexHull
-                         larreco_RecoAlg_Cluster3DAlgs_Voronoi
                          ${ART_FRAMEWORK_CORE}
                          ${ART_FRAMEWORK_PRINCIPAL}
 			             ${ART_FRAMEWORK_SERVICES_REGISTRY}
@@ -22,7 +18,7 @@ art_make( LIB_LIBRARIES  lardataobj_RecoBase
 			             art_Utilities
 			             canvas
 			             ${MF_MESSAGELOGGER}
-			             
+			             ${MF_UTILITIES}
 	                     ${FHICLCPP}
                          ${CETLIB}
                          cetlib_except
@@ -32,7 +28,6 @@ art_make( LIB_LIBRARIES  lardataobj_RecoBase
 			             ${ROOT_BASIC_LIB_LIST}
                          ${ROOT_GEOM}
                          ${ROOT_MINUIT}
-	      TOOL_LIBRARIES larreco_RecoAlg_Cluster3DAlgs
         )
 
 install_headers()

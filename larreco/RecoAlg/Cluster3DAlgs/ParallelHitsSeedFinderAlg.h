@@ -16,7 +16,6 @@
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Seed.h"
-#include "lardata/RecoObjects/Cluster3D.h"
 
 // ROOT includes
 #include "TCanvas.h"

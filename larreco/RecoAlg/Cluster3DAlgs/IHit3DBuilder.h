@@ -1,16 +1,17 @@
 /**
- *  @file   IClusterAlg.h
+ *  @file   IHit3DBuilder.h
  * 
- *  @brief  This provides an art tool interface definition for 3D Cluster algorithms
+ *  @brief  This provides an art tool interface definition for tools which construct 3D hits used in 3D clustering
  *
  *  @author usher@slac.stanford.edu
  * 
  */
-#ifndef IClusterAlg_h
-#define IClusterAlg_h
+#ifndef IHit3DBuilder_h
+#define IHit3DBuilder_h
 
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
+#include "art/Framework/Principal/Event.h"
 
 // Algorithm includes
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
@@ -20,15 +21,15 @@
 namespace lar_cluster3d
 {
 /**
- *  @brief  IClusterAlg interface class definiton
+ *  @brief  IHit3DBuilder interface class definiton
  */
-class IClusterAlg
+class IHit3DBuilder
 {
 public:
     /**
      *  @brief  Virtual Destructor
      */
-    virtual ~IClusterAlg() noexcept = default;
+    virtual ~IHit3DBuilder() noexcept = default;
     
     /**
      *  @brief Interface for configuring the particular algorithm tool
@@ -38,31 +39,23 @@ public:
     virtual void configure(const fhicl::ParameterSet&) = 0;
     
     /**
+     *  @brief Defines a structure mapping art representation to internal
+     */
+    using RecobHitToPtrMap = std::map<const recob::Hit*, art::Ptr<recob::Hit>>;
+
+    /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
      *
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    virtual void Cluster3DHits(reco::HitPairList&           hitPairList,
-                       reco::ClusterParametersList& clusterParametersList) const = 0;
-    
-    /**
-     *  @brief Given a set of recob hits, run DBscan to form 3D clusters
-     *
-     *  @param hitPairListPtr        The input list of 3D hits to run clustering on
-     *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
-     */
-    virtual void Cluster3DHits(reco::HitPairListPtr&        hitPairList,
-                               reco::ClusterParametersList& clusterParametersList) const = 0;
+    virtual void Hit3DBuilder(const art::Event&, reco::HitPairList&, RecobHitToPtrMap&) const = 0;
 
     /**
      *  @brief enumerate the possible values for time checking if monitoring timing
      */
-    enum TimeValues {BUILDTHREEDHITS  = 0,
-                     BUILDHITTOHITMAP = 1,
-                     RUNDBSCAN        = 2,
-                     BUILDCLUSTERINFO = 3,
-                     PATHFINDING      = 4,
+    enum TimeValues {COLLECTARTHITS   = 0,
+                     BUILDTHREEDHITS  = 1,
                      NUMTIMEVALUES
     };
     

@@ -15,19 +15,16 @@
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "larsim/MCCheater/BackTracker.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoObjects/Cluster3D.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
-
-// ROOT includes
-#include "TVector3.h"
 
 // std includes
 #include <string>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <Eigen/Dense>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -55,10 +52,10 @@ void PrincipalComponentsAlg::reconfigure(fhicl::ParameterSet const &pset)
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 }
     
-void PrincipalComponentsAlg::getHit2DPocaToAxis(const TVector3&           axisPos,
-                                                const TVector3&           axisDir,
+void PrincipalComponentsAlg::getHit2DPocaToAxis(const Eigen::Vector3f&    axisPos,
+                                                const Eigen::Vector3f&    axisDir,
                                                 const reco::ClusterHit2D* hit2D,
-                                                TVector3&                 poca,
+                                                Eigen::Vector3f&          poca,
                                                 float&                    arcLenAxis,
                                                 float&                    arcLenWire,
                                                 float&                    doca)
@@ -70,8 +67,8 @@ void PrincipalComponentsAlg::getHit2DPocaToAxis(const TVector3&           axisPo
     const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
         
     // From this, get the parameters of the line for the wire
-    double   wirePos[3] = {0.,0.,0.};
-    TVector3 wireDir(wire_geom.Direction());
+    double          wirePos[3] = {0.,0.,0.};
+    Eigen::Vector3f wireDir(wire_geom.Direction().X(),wire_geom.Direction().Y(),wire_geom.Direction().Z());
         
     wire_geom.GetCenter(wirePos);
         
@@ -81,14 +78,14 @@ void PrincipalComponentsAlg::getHit2DPocaToAxis(const TVector3&           axisPo
     wirePos[0] = m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat);
         
     // Get a vector from the wire position to our cluster's current average position
-    TVector3 wVec(axisPos.X()-wirePos[0], axisPos.Y()-wirePos[1], axisPos.Z()-wirePos[2]);
+    Eigen::Vector3f wVec(axisPos(0)-wirePos[0], axisPos(1)-wirePos[1], axisPos(2)-wirePos[2]);
         
     // Get the products we need to compute the arc lengths to the distance of closest approach
-    float a(axisDir.Dot(axisDir));
-    float b(axisDir.Dot(wireDir));
-    float c(wireDir.Dot(wireDir));
-    float d(axisDir.Dot(wVec));
-    float e(wireDir.Dot(wVec));
+    float a(axisDir.dot(axisDir));
+    float b(axisDir.dot(wireDir));
+    float c(wireDir.dot(wireDir));
+    float d(axisDir.dot(wVec));
+    float e(wireDir.dot(wVec));
         
     float den(a*c - b*b);
     
@@ -106,16 +103,16 @@ void PrincipalComponentsAlg::getHit2DPocaToAxis(const TVector3&           axisPo
     }
         
     // Now get the hit position we'll use for the pca analysis
-    poca =      TVector3(wirePos[0] + arcLenWire * wireDir[0],
-                         wirePos[1] + arcLenWire * wireDir[1],
-                         wirePos[2] + arcLenWire * wireDir[2]);
-    TVector3 axisPocaPos(axisPos[0] + arcLenAxis  * axisDir[0],
-                         axisPos[1] + arcLenAxis  * axisDir[1],
-                         axisPos[2] + arcLenAxis  * axisDir[2]);
+    poca =      Eigen::Vector3f(wirePos[0] + arcLenWire * wireDir(0),
+                                wirePos[1] + arcLenWire * wireDir(1),
+                                wirePos[2] + arcLenWire * wireDir(2));
+    Eigen::Vector3f axisPocaPos(axisPos[0] + arcLenAxis  * axisDir(0),
+                                axisPos[1] + arcLenAxis  * axisDir(1),
+                                axisPos[2] + arcLenAxis  * axisDir(2));
     
-    float deltaX(poca.X() - axisPocaPos.X());
-    float deltaY(poca.Y() - axisPocaPos.Y());
-    float deltaZ(poca.Z() - axisPocaPos.Z());
+    float deltaX(poca(0) - axisPocaPos(0));
+    float deltaY(poca(1) - axisPocaPos(1));
+    float deltaZ(poca(2) - axisPocaPos(2));
     float doca2(deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ);
     
     doca = sqrt(doca2);
@@ -232,24 +229,53 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     
     // Run through the HitPairList and get the mean position of all the hits
     float meanPos[] = {0.,0.,0.};
+    float meanWeightSum(0.);
     int   numPairsInt(0);
     
+//    const float minimumDeltaPeakSig(0.00001);
+    float minimumDeltaPeakSig(0.00001);
+
+    // Want to use the hit "chi square" to weight the hits but we need to put a lower limit on its value
+    // to prevent a few hits being over counted.
+    // This is a bit experimental until we can evaluate the cost (time to calculate) vs the benefit
+    // (better fits)..
+    std::vector<float> hitChiSquareVec;
+
+    hitChiSquareVec.resize(hitPairVector.size());
+
+    std::transform(hitPairVector.begin(),hitPairVector.end(),hitChiSquareVec.begin(),[](const auto& hit){return hit->getHitChiSquare();});
+    std::sort(hitChiSquareVec.begin(),hitChiSquareVec.end());
+    
+    size_t numToKeep = 0.8 * hitChiSquareVec.size();
+    
+    hitChiSquareVec.resize(numToKeep);
+    
+    float aveValue = std::accumulate(hitChiSquareVec.begin(),hitChiSquareVec.end(),float(0.)) / float(hitChiSquareVec.size());
+    float rms      = std::sqrt(std::inner_product(hitChiSquareVec.begin(),hitChiSquareVec.end(), hitChiSquareVec.begin(), 0.,std::plus<>(),[aveValue](const auto& left,const auto& right){return (left - aveValue) * (right - aveValue);}) / float(hitChiSquareVec.size()));
+
+    minimumDeltaPeakSig = std::max(minimumDeltaPeakSig, aveValue - rms);
+    
+//    std::cout << "===>> Calculating PCA, ave chiSquare: " << aveValue << ", rms: " << rms << ", cut: " << minimumDeltaPeakSig << std::endl;
+
     for (const auto& hit : hitPairVector)
     {
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
+
+        // Weight the hit by the peak time difference significance
+        float weight = std::max(minimumDeltaPeakSig, hit->getHitChiSquare()); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
         
-        meanPos[0] += hit->getPosition()[0];
-        meanPos[1] += hit->getPosition()[1];
-        meanPos[2] += hit->getPosition()[2];
+        meanPos[0] += hit->getPosition()[0] * weight;
+        meanPos[1] += hit->getPosition()[1] * weight;
+        meanPos[2] += hit->getPosition()[2] * weight;
         numPairsInt++;
+        
+        meanWeightSum += weight;
     }
     
-    float numPairs = float(numPairsInt);
-    
-    meanPos[0] /= numPairs;
-    meanPos[1] /= numPairs;
-    meanPos[2] /= numPairs;
-    
+    meanPos[0] /= meanWeightSum;
+    meanPos[1] /= meanWeightSum;
+    meanPos[2] /= meanWeightSum;
+
     // Define elements of our covariance matrix
     float xi2(0.);
     float xiyi(0.);
@@ -262,14 +288,12 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     // Back through the hits to build the matrix
     for (const auto& hit : hitPairVector)
     {
-        float weight(1.);
-        
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
-        if (hit->getHits()[2]) weight = hit->getHits()[2]->getHit().PeakAmplitude();
-        
-        float x = (hit->getPosition()[0] - meanPos[0]) * weight;
-        float y = (hit->getPosition()[1] - meanPos[1]) * weight;
-        float z = (hit->getPosition()[2] - meanPos[2]) * weight;
+
+        float weight = 1. / std::max(minimumDeltaPeakSig, hit->getHitChiSquare()); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
+        float x      = (hit->getPosition()[0] - meanPos[0]) * weight;
+        float y      = (hit->getPosition()[1] - meanPos[1]) * weight;
+        float z      = (hit->getPosition()[2] - meanPos[2]) * weight;
         
         weightSum += weight*weight;
         
@@ -322,7 +346,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     }
     else
     {
-        mf::LogDebug("Cluster3D") << "PCA decompose failure, numPairs = " << numPairs << std::endl;
+        mf::LogDebug("Cluster3D") << "PCA decompose failure, numPairs = " << numPairsInt << std::endl;
         pca = reco::PrincipalComponents();
     }
     
@@ -343,19 +367,19 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
     float yizi(0.);
     float zi2(0.);
     
-    float    aveHitDoca(0.);
-    TVector3 avePosUpdate(0.,0.,0.);
-    int      nHits(0);
+    float           aveHitDoca(0.);
+    Eigen::Vector3f avePosUpdate(0.,0.,0.);
+    int             nHits(0);
     
     // Recover existing line parameters for current cluster
-    const reco::PrincipalComponents& inputPca      = pca;
-    TVector3                         avePosition(inputPca.getAvePosition()[0], inputPca.getAvePosition()[1], inputPca.getAvePosition()[2]);
-    TVector3                         axisDirVec(inputPca.getEigenVectors()[0][0], inputPca.getEigenVectors()[0][1], inputPca.getEigenVectors()[0][2]);
+    const reco::PrincipalComponents& inputPca = pca;
+    Eigen::Vector3f                  avePosition(inputPca.getAvePosition()[0], inputPca.getAvePosition()[1], inputPca.getAvePosition()[2]);
+    Eigen::Vector3f                  axisDirVec(inputPca.getEigenVectors()[0][0], inputPca.getEigenVectors()[0][1], inputPca.getEigenVectors()[0][2]);
     
     // We float loop here so we can use this method for both the first time through
     // and a second time through where we re-calculate the mean position
     // So, we need to keep track of the poca which we do with a float vector
-    std::vector<TVector3> hitPosVec;
+    std::vector<Eigen::Vector3f> hitPosVec;
     
     // Outer loop over 3D hits
     for (const auto& hit3D : hitPairVector)
@@ -373,48 +397,48 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
             double wirePosArr[3] = {0.,0.,0.};
             wire_geom.GetCenter(wirePosArr);
 
-            TVector3 wireCenter(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
-            TVector3 wireDirVec(wire_geom.Direction());
+            Eigen::Vector3f wireCenter(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
+            Eigen::Vector3f wireDirVec(wire_geom.Direction().X(),wire_geom.Direction().Y(),wire_geom.Direction().Z());
             
             // Correct the wire position in x to set to correspond to the drift time
             float hitPeak(hit->getHit().PeakTime());
             
-            TVector3 wirePos(m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat), wireCenter[1], wireCenter[2]);
+            Eigen::Vector3f wirePos(m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat), wireCenter[1], wireCenter[2]);
             
             // Compute the wire plane normal for this view
-            TVector3 xAxis(1.,0.,0.);
-            TVector3 planeNormal = xAxis.Cross(wireDirVec);   // This gives a normal vector in +z for a Y wire
+            Eigen::Vector3f xAxis(1.,0.,0.);
+            Eigen::Vector3f planeNormal = xAxis.cross(wireDirVec);   // This gives a normal vector in +z for a Y wire
 
             float docaInPlane(wirePos[0] - avePosition[0]);
             float arcLenToPlane(0.);
-            float cosAxisToPlaneNormal = axisDirVec.Dot(planeNormal);
+            float cosAxisToPlaneNormal = axisDirVec.dot(planeNormal);
             
-            TVector3 axisPlaneIntersection = wirePos;
-            TVector3 hitPosTVec            = wirePos;
+            Eigen::Vector3f axisPlaneIntersection = wirePos;
+            Eigen::Vector3f hitPosTVec            = wirePos;
             
             if (fabs(cosAxisToPlaneNormal) > 0.)
             {
-                TVector3 deltaPos = wirePos - avePosition;
+                Eigen::Vector3f deltaPos = wirePos - avePosition;
                 
-                arcLenToPlane         = deltaPos.Dot(planeNormal) / cosAxisToPlaneNormal;
+                arcLenToPlane         = deltaPos.dot(planeNormal) / cosAxisToPlaneNormal;
                 axisPlaneIntersection = avePosition + arcLenToPlane * axisDirVec;
                 docaInPlane           = wirePos[0] - axisPlaneIntersection[0];
                 
-                TVector3 axisToInter  = axisPlaneIntersection - wirePos;
-                float    arcLenToDoca = axisToInter.Dot(wireDirVec);
+                Eigen::Vector3f axisToInter  = axisPlaneIntersection - wirePos;
+                float           arcLenToDoca = axisToInter.dot(wireDirVec);
                 
                 hitPosTVec += arcLenToDoca * wireDirVec;
             }
 
             // Get a vector from the wire position to our cluster's current average position
-            TVector3 wVec = avePosition - wirePos;
+            Eigen::Vector3f wVec = avePosition - wirePos;
             
             // Get the products we need to compute the arc lengths to the distance of closest approach
-            float a(axisDirVec.Dot(axisDirVec));
-            float b(axisDirVec.Dot(wireDirVec));
-            float c(wireDirVec.Dot(wireDirVec));
-            float d(axisDirVec.Dot(wVec));
-            float e(wireDirVec.Dot(wVec));
+            float a(axisDirVec.dot(axisDirVec));
+            float b(axisDirVec.dot(wireDirVec));
+            float c(wireDirVec.dot(wireDirVec));
+            float d(axisDirVec.dot(wVec));
+            float e(wireDirVec.dot(wVec));
             
             float den(a*c - b*b);
             float arcLen1(0.);
@@ -439,19 +463,19 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
             //float axisPos[] = {avePosition[0] + arcLen1 * axisDirVec[0],
             //                    avePosition[1] + arcLen1 * axisDirVec[1],
             //                    avePosition[2] + arcLen1 * axisDirVec[2]};
-            TVector3 hitPos  = wirePos + arcLen2 * wireDirVec;
-            TVector3 axisPos = avePosition + arcLen1 * axisDirVec;
-            float    deltaX  = hitPos[0] - axisPos[0];
-            float    deltaY  = hitPos[1] - axisPos[1];
-            float    deltaZ  = hitPos[2] - axisPos[2];
-            float    doca2   = deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ;
-            float    doca    = sqrt(doca2);
+            Eigen::Vector3f hitPos  = wirePos + arcLen2 * wireDirVec;
+            Eigen::Vector3f axisPos = avePosition + arcLen1 * axisDirVec;
+            float           deltaX  = hitPos(0) - axisPos(0);
+            float           deltaY  = hitPos(1) - axisPos(1);
+            float           deltaZ  = hitPos(2) - axisPos(2);
+            float           doca2   = deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ;
+            float           doca    = sqrt(doca2);
             
             docaInPlane = doca;
 
             aveHitDoca += fabs(docaInPlane);
 
-            //TVector3 deltaPos  = hitPos - hitPosTVec;
+            //Eigen::Vector3f deltaPos  = hitPos - hitPosTVec;
             //float   deltaDoca = doca - docaInPlane;
             
             //if (fabs(deltaPos[0]) > 1. || fabs(deltaPos[1]) > 1. || fabs(deltaPos[2]) > 1. || fabs(deltaDoca) > 2.)
@@ -566,7 +590,7 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
     return;
 }
     
-void PrincipalComponentsAlg::PCAAnalysis_calc3DDocas(const reco::HitPairListPtr& hitPairVector,
+void PrincipalComponentsAlg::PCAAnalysis_calc3DDocas(const reco::HitPairListPtr&      hitPairVector,
                                                      const reco::PrincipalComponents& pca) const
 {
     // Our mission, should we choose to accept it, is to scan through the 2D hits and reject
@@ -574,8 +598,8 @@ void PrincipalComponentsAlg::PCAAnalysis_calc3DDocas(const reco::HitPairListPtr&
     // first pass is marked by setting the bit in the status word.
     
     // We'll need the current PCA axis to determine doca and arclen
-    TVector3 avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    TVector3 axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
+    Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
     
     // We want to keep track of the average
     float aveDoca3D(0.);
@@ -588,20 +612,20 @@ void PrincipalComponentsAlg::PCAAnalysis_calc3DDocas(const reco::HitPairListPtr&
         
         // Now we need to calculate the doca and poca...
         // Start by getting this hits position
-        TVector3 clusPos(clusterHit3D->getPosition()[0],clusterHit3D->getPosition()[1],clusterHit3D->getPosition()[2]);
+        Eigen::Vector3f clusPos(clusterHit3D->getPosition()[0],clusterHit3D->getPosition()[1],clusterHit3D->getPosition()[2]);
         
         // Form a TVector from this to the cluster average position
-        TVector3 clusToHitVec = clusPos - avePosition;
+        Eigen::Vector3f clusToHitVec = clusPos - avePosition;
         
         // With this we can get the arclength to the doca point
-        float arclenToPoca = clusToHitVec.Dot(axisDirVec);
+        float arclenToPoca = clusToHitVec.dot(axisDirVec);
         
         // Get the coordinates along the axis for this point
-        TVector3 docaPos = avePosition + arclenToPoca * axisDirVec;
+        Eigen::Vector3f docaPos = avePosition + arclenToPoca * axisDirVec;
         
         // Now get doca and poca
-        TVector3 docaPosToClusPos = clusPos - docaPos;
-        float   docaToAxis       = docaPosToClusPos.Mag();
+        Eigen::Vector3f docaPosToClusPos = clusPos - docaPos;
+        float           docaToAxis       = docaPosToClusPos.norm();
         
         aveDoca3D += docaToAxis;
         
@@ -626,8 +650,8 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
     // first pass is marked by setting the bit in the status word.
     
     // We'll need the current PCA axis to determine doca and arclen
-    TVector3 avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    TVector3 axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
+    Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
     
     // Recover the principle eigen value for range constraints
     float maxArcLen = 4.*sqrt(pca.getEigenValues()[0]);
@@ -649,31 +673,32 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
         double wirePosArr[3] = {0.,0.,0.};
         wire_geom.GetCenter(wirePosArr);
         
-        TVector3 wireCenter(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
-        TVector3 wireDirVec(wire_geom.Direction());
+        Eigen::Vector3f wireCenter(wirePosArr[0], wirePosArr[1], wirePosArr[2]);
+        Eigen::Vector3f wireDirVec(wire_geom.Direction().X(),wire_geom.Direction().Y(),wire_geom.Direction().Z());
         
         // Correct the wire position in x to set to correspond to the drift time
-        TVector3 wirePos(hit->getXPosition(), wireCenter[1], wireCenter[2]);
+        Eigen::Vector3f wirePos(hit->getXPosition(), wireCenter[1], wireCenter[2]);
 
         // Compute the wire plane normal for this view
-        TVector3 xAxis(1.,0.,0.);
-        TVector3 planeNormal = xAxis.Cross(wireDirVec);   // This gives a normal vector in +z for a Y wire
+        Eigen::Vector3f xAxis(1.,0.,0.);
+        Eigen::Vector3f planeNormal = xAxis.cross(wireDirVec);   // This gives a normal vector in +z for a Y wire
         
         float arcLenToPlane(0.);
         float docaInPlane(wirePos[0] - avePosition[0]);
-        float cosAxisToPlaneNormal = axisDirVec.Dot(planeNormal);
+        float cosAxisToPlaneNormal = axisDirVec.dot(planeNormal);
         
-        TVector3 axisPlaneIntersection = wirePos;
+        Eigen::Vector3f axisPlaneIntersection = wirePos;
 
         // If current cluster axis is not parallel to wire plane then find intersection point
         if (fabs(cosAxisToPlaneNormal) > 0.)
         {
-            TVector3 deltaPos = wirePos - avePosition;
+            Eigen::Vector3f deltaPos = wirePos - avePosition;
             
-            arcLenToPlane         = std::min(float(deltaPos.Dot(planeNormal) / cosAxisToPlaneNormal), maxArcLen);
+            arcLenToPlane         = std::min(float(deltaPos.dot(planeNormal) / cosAxisToPlaneNormal), maxArcLen);
             axisPlaneIntersection = avePosition + arcLenToPlane * axisDirVec;
-            TVector3 axisToInter  = axisPlaneIntersection - wirePos;
-            float    arcLenToDoca = axisToInter.Dot(wireDirVec);
+            
+            Eigen::Vector3f axisToInter  = axisPlaneIntersection - wirePos;
+            float           arcLenToDoca = axisToInter.dot(wireDirVec);
 
             // If the arc length along the wire to the poca is outside the TPC then reset
             if (fabs(arcLenToDoca) > wire_geom.HalfL()) arcLenToDoca = wire_geom.HalfL();
@@ -681,8 +706,8 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
             // If we were successful in getting to the wire plane then the doca is simply the
             // difference in x coordinates... but we hvae to worry about the special cases so
             // we calculate a 3D doca based on arclengths above...
-            TVector3 docaVec = axisPlaneIntersection - (wirePos + arcLenToDoca * wireDirVec);
-            docaInPlane = docaVec.Mag();
+            Eigen::Vector3f docaVec = axisPlaneIntersection - (wirePos + arcLenToDoca * wireDirVec);
+            docaInPlane = docaVec.norm();
         }
         
         aveHitDoca += fabs(docaInPlane);
@@ -743,8 +768,8 @@ int PrincipalComponentsAlg::PCAAnalysis_reject3DOutliers(const reco::HitPairList
     int    numRejHits(0);
     
     // We'll need the current PCA axis to determine doca and arclen
-    TVector3 avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    TVector3 axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
+    Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
     
     // Outer loop over views
     for (const auto* clusterHit3D : hitPairVector)
@@ -754,20 +779,20 @@ int PrincipalComponentsAlg::PCAAnalysis_reject3DOutliers(const reco::HitPairList
         
         // Now we need to calculate the doca and poca...
         // Start by getting this hits position
-        TVector3 clusPos(clusterHit3D->getPosition()[0],clusterHit3D->getPosition()[1],clusterHit3D->getPosition()[2]);
+        Eigen::Vector3f clusPos(clusterHit3D->getPosition()[0],clusterHit3D->getPosition()[1],clusterHit3D->getPosition()[2]);
         
         // Form a TVector from this to the cluster average position
-        TVector3 clusToHitVec = clusPos - avePosition;
+        Eigen::Vector3f clusToHitVec = clusPos - avePosition;
         
         // With this we can get the arclength to the doca point
-        float arclenToPoca = clusToHitVec.Dot(axisDirVec);
+        float arclenToPoca = clusToHitVec.dot(axisDirVec);
         
         // Get the coordinates along the axis for this point
-        TVector3 docaPos = avePosition + arclenToPoca * axisDirVec;
+        Eigen::Vector3f docaPos = avePosition + arclenToPoca * axisDirVec;
         
         // Now get doca and poca
-        TVector3 docaPosToClusPos = clusPos - docaPos;
-        float   docaToAxis       = docaPosToClusPos.Mag();
+        Eigen::Vector3f docaPosToClusPos = clusPos - docaPos;
+        float   docaToAxis       = docaPosToClusPos.norm();
         
         // Ok, set the values in the hit
         clusterHit3D->setDocaToAxis(docaToAxis);

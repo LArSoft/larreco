@@ -11,7 +11,9 @@
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
 #include "lardataobj/RecoBase/Seed.h"
-#include "lardata/RecoObjects/Cluster3D.h"
+
+// Algorithm includes
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
