@@ -18,6 +18,10 @@ cmake_minimum_required (VERSION 2.8)
 
 project(larreco)
 
+set( CMAKE_BUILD_WITH_INSTALL_RPATH ON )
+set( CMAKE_INSTALL_NAME_DIR "@executable_path" )
+#set( CMAKE_PLATFORM_HAS_INSTALLNAME OFF )
+
 # cetbuildtools contains our cmake modules
 SET ( CETBUILDTOOLS_VERSION $ENV{CETBUILDTOOLS_VERSION} )
 IF (NOT CETBUILDTOOLS_VERSION)
