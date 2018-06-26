@@ -526,7 +526,7 @@ namespace tca {
     const geo::GeometryCore* geom;
     const detinfo::DetectorProperties* detprop;
     calo::CalorimetryAlg* caloAlg;
-    TMVA::Reader* shwrParReader;
+    TMVA::Reader* ShowerParentReader;
     std::vector<float> ShowerParentVars;
     short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
     short NPtsAve;         /// number of points to find AveChg
