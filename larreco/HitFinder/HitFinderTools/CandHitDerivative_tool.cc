@@ -4,7 +4,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
-#include "larreco/HitFinder/HitFinderTools/IWaveformAlgs.h"
+#include "larreco/HitFinder/HitFinderTools/IWaveformTool.h"
 
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
@@ -47,7 +47,7 @@ private:
     void findHitCandidates(Waveform::const_iterator,
                            Waveform::const_iterator,
                            size_t,
-                           float,
+                           int,
                            float,
                            HitCandidateVec&) const;
     
@@ -78,7 +78,7 @@ private:
     mutable std::map<size_t,int> fChannelCntMap;
 
     // Member variables from the fhicl file
-    std::unique_ptr<reco_tool::IWaveformAlgs> fWaveformAlgs;
+    std::unique_ptr<reco_tool::IWaveformTool> fWaveformTool;
     
     const geo::GeometryCore*  fGeometry = lar::providerFrom<geo::Geometry>();
 };
@@ -106,7 +106,7 @@ void CandHitDerivative::configure(const fhicl::ParameterSet& pset)
     fOutputHistograms    = pset.get< bool   >("OutputHistograms",    false);
 
     // Recover the baseline tool
-    fWaveformAlgs = art::make_tool<reco_tool::IWaveformAlgs> (pset.get<fhicl::ParameterSet>("WaveformAlgs"));
+    fWaveformTool = art::make_tool<reco_tool::IWaveformTool> (pset.get<fhicl::ParameterSet>("WaveformAlgs"));
     
     // If asked, define the global histograms
     if (fOutputHistograms)
@@ -136,9 +136,11 @@ void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
 {
     // In this case we want to find hit candidates based on the derivative of of the input waveform
     // We get this from our waveform algs too...
+    Waveform rawDerivativeVec;
     Waveform derivativeVec;
-    
-    fWaveformAlgs->getSmoothDerivativeVec(waveform, derivativeVec);
+
+    fWaveformTool->firstDerivative(waveform, rawDerivativeVec);
+    fWaveformTool->triangleSmooth(rawDerivativeVec, derivativeVec);
     
     std::vector<geo::WireID> wids  = fGeometry->ChannelToWire(channel);
     size_t                   plane = wids[0].Plane;
@@ -146,8 +148,19 @@ void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
     size_t                   tpc   = wids[0].TPC;
     size_t                   wire  = wids[0].Wire;
     
+    // Just make sure the input candidate hit vector has been cleared
+    hitCandidateVec.clear();
+    
     // Now find the hits
     findHitCandidates(derivativeVec.begin(),derivativeVec.end(),roiStartTick,fMinDeltaTicks,fMinDeltaPeaks,hitCandidateVec);
+    
+    if (hitCandidateVec.empty())
+    {
+        if (plane == 0)
+        {
+            std::cout << "** C/T/P: " << cryo << "/" << tpc << "/" << plane << ", wire: " << wire << " has not hits with input size: " << waveform.size() << std::endl;
+        }
+    }
     
     // Reset the hit height from the input waveform
     for(auto& hitCandidate : hitCandidateVec)
@@ -207,7 +220,7 @@ void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
 void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
                                           Waveform::const_iterator stopItr,
                                           size_t                   roiStartTick,
-                                          float                    dTicksThreshold,
+                                          int                      dTicksThreshold,
                                           float                    dPeakThreshold,
                                           HitCandidateVec&         hitCandidateVec) const
 {
@@ -243,7 +256,7 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
         int stopTick = std::distance(startItr,newStartItr);
         
         // Find hits in the section of the waveform leading up to this candidate hit
-        if (startTick > 2)
+        if (startTick > dTicksThreshold)
         {
             // Special handling for merged hits
             if (*(newEndItr-1) > 0.) {dTicksThreshold = 2;              dPeakThreshold = 0.;            }
@@ -274,7 +287,7 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
         hitCandidateVec.push_back(hitCandidate);
         
         // Finally, search the section of the waveform following this candidate for more hits
-        if (std::distance(newStartItr,stopItr) > 2)
+        if (std::distance(newStartItr,stopItr) > dTicksThreshold)
         {
             // Special handling for merged hits
             if (*(newStartItr+1) < 0.) {dTicksThreshold = 2;              dPeakThreshold = 0.;            }
