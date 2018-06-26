@@ -3,7 +3,7 @@ BEGIN_PROLOG
 
 hitfinderwaveformalgs:
 {
-    tool_type: WaveformAlgs
+    tool_type: WaveformTools
 }
 
 # Define the differential tool for finding candidate hits
@@ -16,6 +16,23 @@ candhitfinder_derivative:
     MinDeltaPeaks:       0.25
     MinHitHeight:        2
     NumInterveningTicks: 6
+    OutputHistograms:    false
+    WaveformAlgs:        @local::hitfinderwaveformalgs
+}
+
+# Define the morphological filter tool for finding candidate hits
+candhitfinder_morphological:
+{
+    tool_type:           CandHitMorphological
+    Plane:               0
+    DilationThreshold:   4.
+    DilationFraction:    0.75
+    ErosionFraction:     0.2
+    MinDeltaTicks:       1
+    MinDeltaPeaks:       0.01
+    MinHitHeight:        1
+    NumInterveningTicks: 6
+    StructuringElement:  20
     OutputHistograms:    false
     WaveformAlgs:        @local::hitfinderwaveformalgs
 }
