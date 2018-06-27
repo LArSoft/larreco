@@ -111,6 +111,11 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     std::string equation = "gaus(0)";
     
     for(size_t idx = 1; idx < hitCandidateVec.size(); idx++) equation += "+gaus(" + std::to_string(3*idx) + ")";
+    
+    // Set the baseline
+    float baseline = roiSignalVec.at(startTime);
+    
+    equation += "+" + std::to_string(baseline);
 
     // Now define the complete function to fit
     TF1 Gaus("Gaus",equation.c_str(),0,roiSize);
@@ -121,7 +126,7 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     {
         double peakMean   = candidateHit.hitCenter - float(startTime);
         double peakWidth  = candidateHit.hitSigma;
-        double amplitude  = candidateHit.hitHeight;
+        double amplitude  = candidateHit.hitHeight - baseline;
         double meanLowLim = std::max(peakMean - fPeakRange * peakWidth,              0.);
         double meanHiLim  = std::min(peakMean + fPeakRange * peakWidth, double(roiSize));
         
