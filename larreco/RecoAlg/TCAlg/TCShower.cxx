@@ -16,8 +16,7 @@ namespace tca {
   {
     // Define the reference in TJStuff to the MVA reader used to determine the best
     // shower parent PFParticle
-//    cet::search_path sp("FW_SEARCH_PATH");
-    cet::search_path sp("PATH");
+    cet::search_path sp("FW_SEARCH_PATH");
     if(!tjs.ShowerParentReader) {
       std::cout<<"its not defined\n";
       return;
