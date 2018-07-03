@@ -22,7 +22,7 @@ namespace tca {
     
     public:
     
-    TruthMatcher(TjStuff& my_tjs) : tjs(my_tjs) {
+    TruthMatcher() {
       EPCnts.fill(0); 
       TSums.fill(0.0);
       EPTSums.fill(0.0);
@@ -41,18 +41,17 @@ namespace tca {
    }
     
     void Initialize();
-    void MatchTrueHits();
-    void MatchTruth(const HistStuff& hist, bool fStudyMode);
-    void MatchAndSum(const HistStuff& hist, const std::vector<unsigned int>& mcpSelect, const geo::TPCID& inTPCID);
+    void MatchTrueHits(TCSlice& slc);
+    void MatchTruth(TCSlice& slc, const HistStuff& hist, bool fStudyMode);
+    void MatchAndSum(TCSlice& slc, const HistStuff& hist, const std::vector<unsigned int>& mcpSelect);
     void PrintResults(int eventNum) const;
     bool CanReconstruct(unsigned int mcpIndex, unsigned short nDimensions, const geo::TPCID& tpcid);
     // Put hits matched to a MCParticle in CTP into a vector
     std::vector<unsigned int> PutMCPHitsInVector(unsigned int mcpIndex, CTP_t inCTP);
-    void StudyShowerParents(HistStuff& hist);
-    void StudyElectrons(const HistStuff& hist);
-    void StudyPiZeros(const HistStuff& hist);
+    void StudyShowerParents(TCSlice& slc, HistStuff& hist);
+    void StudyElectrons(TCSlice& slc, const HistStuff& hist);
+    void StudyPiZeros(TCSlice& slc, const HistStuff& hist);
     
-    TjStuff& tjs;
     // Variables for summing Eff*Pur for electrons, muons, pions, kaons and protons for Trajectories
     std::array<short, 5> EPCnts {{0}};
     std::array<float, 5> TSums;    // sum of kinetic energy
@@ -82,17 +81,16 @@ namespace tca {
   {
   public:
 
-    MCParticleListUtils(TjStuff& my_tjs) : tjs(my_tjs) {}
-    TjStuff& tjs;
-    void MakeTruTrajPoint(unsigned int MCParticleListIndex, TrajPoint& tp);
-    ShowerStruct3D MakeCheatShower(unsigned int mcpIndex, Point3_t primVx, int& truParentPFP);
+    MCParticleListUtils(TCSlice& my_slc);
+    void MakeTruTrajPoint(TCSlice& slc, unsigned int MCParticleListIndex, TrajPoint& tp);
+    ShowerStruct3D MakeCheatShower(TCSlice& slc, unsigned int mcpIndex, Point3_t primVx, int& truParentPFP);
     bool PrimaryElectronStart(Point3_t& start, Vector3_t& dir, float& energy);
-    int PrimaryElectronPFPID(const geo::TPCID& tpcid);
-    int PrimaryElectronTjID(CTP_t inCTP);
-    int MCParticleStartTjID(unsigned int MCParticleListIndex, CTP_t inCTP);
-    unsigned int GetMCPartListIndex(const TrajPoint& tp);
-    unsigned int GetMCPartListIndex(const Trajectory& tj, unsigned short& nTruHits);
-    unsigned int GetMCPartListIndex(const ShowerStruct& ss, unsigned short& nTruHits);
+    int PrimaryElectronPFPID(TCSlice& slc);
+    int PrimaryElectronTjID(TCSlice& slc, CTP_t inCTP);
+    int MCParticleStartTjID(TCSlice& slc, unsigned int MCParticleListIndex, CTP_t inCTP);
+    unsigned int GetMCPListIndex(TCSlice& slc, const TrajPoint& tp);
+    unsigned int GetMCPListIndex(TCSlice& slc, const Trajectory& tj, unsigned short& nTruHits);
+    unsigned int GetMCPListIndex(TCSlice& slc, const ShowerStruct& ss, unsigned short& nTruHits);
 
   }; // MCParticleListUtils class
 
