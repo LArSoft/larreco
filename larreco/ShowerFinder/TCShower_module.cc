@@ -136,24 +136,8 @@ void shower::TCShower::produce(art::Event & evt) {
   art::FindManyP<anab::Calorimetry> fmcal(trackListHandle, evt, fCalorimetryModuleLabel);
   art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm(trackListHandle, evt, fTrackModuleLabel);
 
-  // sort tracks
-  std::vector<art::Ptr<recob::Track> > tracklistSorted;
-  std::vector<size_t> trackIndicesSorted;
-
-  for (size_t i = 0; i < tracklist.size(); ++i) {
-    tracklistSorted.push_back(tracklist[i]);
-  }
-
-  std::sort(tracklistSorted.begin(), tracklistSorted.end(), compare);
-  std::reverse(tracklistSorted.begin(), tracklistSorted.end());
-
-  for (size_t i = 0; i < tracklistSorted.size(); ++i) {
-    for (size_t j = 0; j < tracklist.size(); ++j) {
-      if (tracklistSorted[i]->ID() == tracklist[j]->ID()) trackIndicesSorted.push_back(j);
-    } // loop through tracks
-  } // loop through sorted tracks
-
-  tracklist = tracklistSorted;
+  std::sort(tracklist.begin(), tracklist.end(), compare);
+  std::reverse(tracklist.begin(), tracklist.end());
 
   for (size_t i = 0; i < tracklist.size(); ++i) {
 
@@ -170,7 +154,7 @@ void shower::TCShower::produce(art::Event & evt) {
       pullTolerance = 0.9;
     }
 
-    std::vector< art::Ptr<recob::Hit> > trk_hitlist = trk_fm.at(trackIndicesSorted[i]);
+    std::vector< art::Ptr<recob::Hit> > trk_hitlist = trk_fm.at(tracklist[i].key());
     std::vector< art::Ptr<recob::Hit> > showerHits;
 
     // add track hits to shower
@@ -282,7 +266,7 @@ void shower::TCShower::produce(art::Event & evt) {
 
 	double ang = parentDir.Angle(otherDir);
 
-	std::vector< art::Ptr<recob::Hit> > trk_hitlistOther = trk_fm.at(trackIndicesSorted[k]);
+	std::vector< art::Ptr<recob::Hit> > trk_hitlistOther = trk_fm.at(tracklist[k].key());
 
 	int nhits = 0;
 	int ngoodhits = 0;
@@ -347,12 +331,13 @@ void shower::TCShower::produce(art::Event & evt) {
     std::vector<double> dEdxErr(2);
 
     // GET DEDX
-    auto vhit = fmthm.at(trackIndicesSorted[i]);
-    auto vmeta = fmthm.data(trackIndicesSorted[i]);
+    auto vhit = fmthm.at(tracklist[i].key());
+    auto vmeta = fmthm.data(tracklist[i].key());
 
     art::ServiceHandle<geo::Geometry> geom;    
     TVector3 dir = trkPt2-trkStart; 
-
+    
+    dir = dir.Unit();
 
     for (unsigned int plane = 0; plane < geom->MaxPlanes(); ++plane) {
       std::vector<float> vQ;
@@ -368,14 +353,17 @@ void shower::TCShower::produce(art::Event & evt) {
 
 	if (!pitch) { // find pitch if it hasn't been calculated
 	  double wirePitch = geom->WirePitch(vhit[h]->WireID().planeID());
-	  double angleToVert = geom->WireAngleToVertical(geom->Plane(vhit[h]->WireID().planeID()).View()) - 0.5 * ::util::pi<>();
+	  double angleToVert = geom->WireAngleToVertical(geom->Plane(vhit[h]->WireID().planeID()).View(), vhit[h]->WireID().planeID()) - 0.5 * ::util::pi<>();
+	  
 	  double cosgamma = std::abs(std::sin(angleToVert) * dir[1] + std::cos(angleToVert) * dir[2] );
+	  //	  std::cout << wirePitch << " " << angleToVert << " " << cosgamma << std::endl; 
+
 	  if (cosgamma > 0) pitch = wirePitch/cosgamma;
 	}
 
-	double x = tracklist[i]->LocationAtPoint(vmeta[h]->Index()).X();
-	double y = tracklist[i]->LocationAtPoint(vmeta[h]->Index()).Y();
-	double z = tracklist[i]->LocationAtPoint(vmeta[h]->Index()).Z();
+	double x = tracklist[i]->TrajectoryPoint(vmeta[h]->Index()).position.X();
+	double y = tracklist[i]->TrajectoryPoint(vmeta[h]->Index()).position.Y();
+	double z = tracklist[i]->TrajectoryPoint(vmeta[h]->Index()).position.Z();
 	
 	double x0 = tracklist[i]->Vertex().X();
 	double y0 = tracklist[i]->Vertex().Y();
@@ -383,12 +371,14 @@ void shower::TCShower::produce(art::Event & evt) {
 	
 	double dist = sqrt( pow(x-x0,2) + pow(y-y0,2) + pow(z-z0,2) );
 	
-	if (dist > 10) continue;
+	if (dist > 5) continue;
+	// TODO calculate hit dE/dx
 
 	vQ.push_back(vhit[h]->Integral());
 	totQ += vhit[h]->Integral();
 	avgT += vhit[h]->PeakTime();
 	++nhits;
+	//	std::cout<<"Plane = "<<plane<<" x,y,z = "<<x<<" "<<y<<" "<<z<<" "<<vhit[h]->WireID().Wire<<" "<<vhit[h]->PeakTime()<<" "<<vhit[h]->Integral()<<std::endl;
 
       } // loop through hits
 
@@ -396,7 +386,7 @@ void shower::TCShower::produce(art::Event & evt) {
 	double dQdx = TMath::Median(vQ.size(), &vQ[0])/pitch;
 	dEdx[plane] = fCalorimetryAlg.dEdx_AREA(dQdx, avgT/nhits, plane);
 
-	std::cout <<  plane << " " << dEdx[plane] << std::endl;
+	//	std::cout <<  plane << " " << dEdx[plane] << " " <<  TMath::Median(vQ.size(), &vQ[0]) << " " << pitch << " " << avgT << std::endl;
 
       }
 
@@ -404,6 +394,8 @@ void shower::TCShower::produce(art::Event & evt) {
     
 
     if (showerCandidate) {
+
+      //      if (dEdx[0] < 0.5) std::cout << "THIS EVENT " << evt.id().event() << std::endl;
 
       std::cout << "track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull<< " " << nShowerHits << " " << dEdx[0] << std::endl;
       showers->push_back(recob::Shower(trkPt2-trkStart, dcosVtxErr, tracklist[i]->Vertex(), xyzErr, totalEnergy, totalEnergyErr, dEdx, dEdxErr, 0, 0));

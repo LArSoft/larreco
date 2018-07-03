@@ -19,7 +19,7 @@ standard_tcshower:
  ClusterModuleLabel: "trajcluster"
  TrackModuleLabel:   "pmtrack"
  CalorimetryModuleLabel:  "calo"
- CalorimetryAlg:           @local::argoneut_calorimetryalgdata
+ CalorimetryAlg:           @local::argoneut_calorimetryalgmc
 }
 
 
