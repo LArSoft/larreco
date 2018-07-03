@@ -50,17 +50,6 @@ namespace tca {
   /// @{
   /// @name Data structures for the reconstruction results
   
-/*
-    Associations
-    Hit.InTraj <-> tj.Pts.Hits
-    Tj.ParentID -> ID of parent tj
-    PFParticle.TjIDs -> IDs of tjs in each plane that define the PFParticle
-    PFParticle.ParentID -> PFParticle ID of parent
-    Shower.TjIDs -> IDs of InShower tjs, (tj.AlgMod[kInShower] set true)
-    Shower.ShowerTjID -> ID of the shower tj (3 pts for start, chg center, end) (tj.AlgMod[kShowerTj] set true)
-    Shower.ParentID -> ID of the tj identified as the shower parent (tj.AlgMod[kShwrParent] set true)
-*/ 
-  
   /// struct of temporary clusters
   struct ClusterStore {
     int ID {0};         // Cluster ID. ID < 0 = abandoned cluster
@@ -186,35 +175,13 @@ namespace tca {
     unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
-    unsigned int MCPartListIndex {UINT_MAX};
+    unsigned int mcpListIndex {UINT_MAX};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated (only for the TP Environment right now)
   };
   
-  // Local version of recob::Hit
-  struct TCHit {
-    raw::TDCtick_t StartTick {0};
-    raw::TDCtick_t EndTick {0};
-    float PeakTime {0};
-    float SigmaPeakTime {1};
-    float PeakAmplitude {1};
-    float SigmaPeakAmp {1};
-    float Integral {1};
-    float SigmaIntegral {1};
-    float RMS {1};
-    float GoodnessOfFit {0};
-    art::Ptr<recob::Hit> ArtPtr;
-    unsigned short NDOF {0};
-    unsigned short Multiplicity {1};
-    unsigned short LocalIndex {0};
-    int InTraj {0};
-    unsigned int MCPartListIndex {UINT_MAX};
-  };
-  
   // struct used for TrajCluster 3D trajectory points
   struct TrajPoint3 {
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
     Point3_t Pos {{ 0.0, 0.0, 0.0 }};
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
@@ -251,7 +218,7 @@ namespace tca {
     size_t ParentID {0};       // Parent PFP ID (or 0 if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
-    unsigned int MCPartListIndex {UINT_MAX};
+    unsigned int mcpListIndex {UINT_MAX};
     unsigned short MatchVecIndex {USHRT_MAX};
     float CosmicScore{0};
     int ID {0};
@@ -450,6 +417,7 @@ namespace tca {
     kFlagBitSize     ///< don't mess with this line
   } StopFlag_t; 
   
+  // Environment near a trajectory point
   typedef enum {
     kEnvNearTj,
     kEnvNearShower,
@@ -459,81 +427,128 @@ namespace tca {
     kEnvFlag,       ///< a general purpose flag bit used in 3D matching
   } TPEnvironment_t;
   
+  // TrajClusterAlg configuration bits
+  typedef enum {
+    kStepDir,         ///< step from US -> DS (true) or DS -> US (false)
+    kMakeNewHits,
+    kTestBeam,        ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
+    kDebug,           ///< print additional info when in debug mode
+    kStudy1,           ///< call study functions to develop cuts, etc (see TCTruth.cxx)
+    kStudy2,           ///< call study functions to develop cuts, etc
+    kStudy3,           ///< call study functions to develop cuts, etc
+    kStudy4,           ///< call study functions to develop cuts, etc
+    kSaveCRTree,      ///< save cosmic ray tree
+    kTagCosmics,      ///< tag cosmic rays
+    kSaveShowerTree,  ///< save shower tree
+  } TCModes_t;
+  
   extern const std::vector<std::string> AlgBitNames;
   extern const std::vector<std::string> StopFlagNames;
   extern const std::vector<std::string> VtxBitNames;
-  
-  struct TjStuff {
-    // These variables don't change in size from event to event
-    float UnitsPerTick;     ///< scale factor from Tick to WSE equivalent units
+
+  // struct for configuration - used in all slices
+  struct TCConfig {
+    std::vector<float> vtx2DCuts; ///< Max position pull, max Position error rms
+    std::vector<float> vtx3DCuts;   ///< 2D vtx -> 3D vtx matching cuts 
+    std::vector<float> vtxScoreWeights;
+    std::vector<float> neutralVxCuts;
+    std::vector<short> deltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
+    std::vector<short> muonTag; ///< min length and min MCSMom for a muon tag
+    std::vector<float> chkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
+    std::vector<float> showerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
+    std::vector<float> kinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
+    std::vector<float> match3DCuts;  ///< 3D matching cuts
+    std::vector<float> matchTruth;     ///< Match to MC truth
+    std::vector<float> chargeCuts;
+    std::vector<float> qualityCuts; ///< Min points/wire, min consecutive pts after a gap
+    std::vector<unsigned short> minPtsFit; ///< Reconstruct in several passes
+    std::vector<unsigned short> minPts;    ///< min number of Pts required to make a trajectory
+    std::vector<unsigned short> maxAngleCode;   ///< max allowed angle code for each pass
+    std::vector<short> minMCSMom;   ///< Min MCSMom for each pass
+    std::vector<float> angleRanges; ///< list of max angles for each angle range
+    float wirePitch;
+    float unitsPerTick;     ///< scale factor from Tick to WSE equivalent units
+    std::vector<float> maxPos0;
+    std::vector<float> maxPos1;
+    float multHitSep;      ///< preferentially "merge" hits with < this separation
+    float maxChi;
+    const geo::GeometryCore* geom;
+    const detinfo::DetectorProperties* detprop;
+    calo::CalorimetryAlg* caloAlg;
+    TMVA::Reader* showerParentReader;
+    std::vector<float> showerParentVars;
+    std::vector<simb::MCParticle*> mcpList;
+    bool makeNewHits;
+    float hitErrFac;
+    float maxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
+    float maxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
+    float projectionErrFactor;
+    float VLAStepSize;
+    float JTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
+    std::bitset<128> useAlg;  ///< Allow user to mask off specific algorithms
+    short nPtsAve;         /// number of points to find AveChg
+    std::bitset<16> modes;   /// See TCMode_t above
+  };
+
+  struct TCHit {
+    unsigned int allHitsIndex; // index into fHits
+    short InTraj {SHRT_MAX};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
+  };
+
+  // hit collection for all slices, TPCs and cryostats + event information
+  // Note: Ideally this hit collection would be the FULL hit collection before cosmic removal
+  struct TCEvent {
+//    std::vector<recob::Hit const*> allHits;
+    std::vector<recob::Hit> const* allHits = nullptr;
+    unsigned int event;
+    unsigned int run;
+    unsigned int subRun;
+    unsigned int eventsProcessed;
+  };
+
+  struct TCSlice {
+    std::vector<unsigned int> nWires;
+    std::vector<unsigned int> firstWire;    ///< the first wire with a hit
+    std::vector<unsigned int> lastWire;      ///< the last wire with a hit
+    unsigned short nPlanes;
+    float xLo; // fiducial volume of the current tpc
+    float xHi;
+    float yLo;
+    float yHi;
+    float zLo;
+    float zHi;
     geo::TPCID TPCID;
-    std::vector<unsigned int> NumWires;
-    std::vector<float> MaxPos0;
-    std::vector<float> MaxPos1;
-    std::vector<unsigned int> FirstWire;    ///< the first wire with a hit
-    std::vector<unsigned int> LastWire;      ///< the last wire with a hit
-    unsigned short NumPlanes;
-    float XLo; // fiducial volume of the current tpc
-    float XHi;
-    float YLo;
-    float YHi;
-    float ZLo;
-    float ZHi;
-    float WirePitch;
-    std::vector<float> AveHitRMS;      ///< average RMS of an isolated hit
+    std::vector<float> aveHitRMS;      ///< average RMS of an isolated hit
     // The variables below do change in size from event to event
-    ShowerTreeVars stv; // 
-    bool SaveShowerTree;
 
     // Save histograms to develop cosmic removal tools
     CRTreeVars crt;
-    bool SaveCRTree;
-    bool TagCosmics;
-
-    std::vector<Trajectory> allTraj; ///< vector of all trajectories in each plane
+    std::vector<TCHit> slHits;
+    std::vector<unsigned short> mcpListIndex; // size is matched to slHits
+    std::vector<Trajectory> tjs; ///< vector of all trajectories in each plane
     std::vector<Tj2Pt> mallTraj;      ///< vector of trajectory points ordered by increasing X
-    std::vector<TCHit> fHits;
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
-    std::vector<std::vector< std::pair<int, int>>> WireHitRange;
-    std::vector<float> AngleRanges; ///< list of max angles for each angle range
+    std::vector<std::vector< std::pair<int, int>>> wireHitRange;
     std::vector< ClusterStore > tcl; ///< the clusters we are creating
-    std::vector< VtxStore > vtx; ///< 2D vertices
-    std::vector< Vtx3Store > vtx3; ///< 3D vertices
+    std::vector< VtxStore > vtxs; ///< 2D vertices
+    std::vector< Vtx3Store > vtx3s; ///< 3D vertices
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
     std::vector<PFPStruct> pfps;
     std::vector<ShowerStruct> cots;       // Clusters of Trajectories that define 2D showers
     std::vector<DontClusterStruct> dontCluster; // pairs of Tjs that shouldn't clustered in one shower
     std::vector<ShowerStruct3D> showers;  // 3D showers
-    std::vector<float> Vertex2DCuts; ///< Max position pull, max Position error rms
-    std::vector<float> Vertex3DCuts;   ///< 2D vtx -> 3D vtx matching cuts 
-    std::vector<float> VertexScoreWeights;
-    std::vector<float> NeutralVxCuts;
-    std::vector<short> DeltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
-    std::vector<short> MuonTag; ///< min length and min MCSMom for a muon tag
-    std::vector<float> ShowerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
-    std::vector<float> KinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
-    std::vector<float> Match3DCuts;  ///< 3D matching cuts
-    std::vector<float> MatchTruth;     ///< Match to MC truth
-    std::vector<float> ChargeCuts;
-    std::vector<simb::MCParticle*> MCPartList;
-    unsigned int EventsProcessed;
-    unsigned int Run;
-    unsigned int SubRun;
-    unsigned int Event;
-    std::bitset<64> UseAlg;  ///< Allow user to mask off specific algorithms
-    const geo::GeometryCore* geom;
-    const detinfo::DetectorProperties* detprop;
-    calo::CalorimetryAlg* caloAlg;
-    TMVA::Reader* ShowerParentReader;
-    std::vector<float> ShowerParentVars;
-    short StepDir;        ///< the normal user-defined stepping direction = 1 (US -> DS) or -1 (DS -> US)
-    short NPtsAve;         /// number of points to find AveChg
-    bool SelectEvent;     ///< select this event for use in the performance metric, writing out, etc
-    bool TestBeam;      ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
-    bool DebugMode;     ///< print additional info when in debug mode
+    bool isValid {false};                 // set false if this slice failed reconstruction
    };
+
+  extern TCEvent evt;
+  extern TCConfig tcc;
+  extern ShowerTreeVars stv;
+
+  // vector of hits, tjs, etc in each slice
+  extern std::vector<TCSlice> slices;
+  //    TruthMatcher tm{tjs};
 
 } // namespace tca
 
