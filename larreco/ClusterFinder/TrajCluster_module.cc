@@ -56,8 +56,11 @@ namespace cluster {
   private:
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
     TTree* showertree;
-    TTree* crtree;
+//    TTree* crtree;
 
+    art::InputTag fHitModuleLabel;
+    art::InputTag fPFParticleModuleLabel;
+    
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
     
@@ -100,6 +103,11 @@ namespace cluster {
       fTCAlg.reset(new tca::TrajClusterAlg(pset.get< fhicl::ParameterSet >("TrajClusterAlg")));
     }
 
+    fHitModuleLabel = pset.get<art::InputTag>("HitModuleLabel");
+    fPFParticleModuleLabel = "NA";
+    // when PFParticleModuleLabel is defined, separate slices of hits will be created in each
+    // TPC and reconstructed separately
+    if(pset.has_key("PFParticleModuleLabel")) pset.get<art::InputTag>("PFParticleModuleLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
 
@@ -124,19 +132,14 @@ namespace cluster {
     produces< art::Assns<recob::Shower, recob::Hit> >();
     
     produces< std::vector<recob::PFParticle> >();
-//    produces< std::vector<recob::SpacePoint> >();
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
-    
-//    produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
-//    produces< art::Assns<recob::SpacePoint, recob::Hit> >();
 
     produces< std::vector<anab::CosmicTag>>();
     produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
   } // TrajCluster::TrajCluster()
 
-  // NEW FUNCTION
   //----------------------------------------------------------------------------
   void TrajCluster::beginJob()
   {
@@ -144,8 +147,8 @@ namespace cluster {
 
     showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
     fTCAlg->DefineShTree(showertree);
-    crtree = tfs->make<TTree>("crtree", "Cosmic removal variables");
-    fTCAlg->DefineCRTree(crtree);
+//    crtree = tfs->make<TTree>("crtree", "Cosmic removal variables");
+//    fTCAlg->DefineCRTree(crtree);
   }
   
   //----------------------------------------------------------------------------
@@ -169,8 +172,23 @@ namespace cluster {
   void TrajCluster::produce(art::Event & evt)
   {
 
+//    auto clusHandle = evt.getValidHandle< std::vector<recob::Cluster> >(fPFParticleModuleLabel);
+//    auto pfpsHandle = evt.getValidHandle< std::vector<recob::PFParticle> >(fPFParticleModuleLabel);
+    
+    // pass the hits to TrajClusterAlg
+/*
+    auto hitsHandle = evt.getValidHandle< std::vector<recob::Hit> >(fHitModuleLabel);
+    std::vector<recob::Hit const*> fAllHits(hitsHandle->size());
+    for(unsigned int iht = 0; iht < hitsHandle->size(); ++iht) {
+      art::Ptr<recob::Hit> hit(hitsHandle, iht);
+      fAllHits[iht] = *hit(hitsHandle, iht);
+    } // iht
+*/
+    auto inputHits = evt.getValidHandle< std::vector<recob::Hit> >(fHitModuleLabel);
+    fTCAlg->SetInputHits(*inputHits);
+
     // look for clusters in all planes
-    fTCAlg->RunTrajClusterAlg(evt);
+//    fTCAlg->RunTrajClusterAlg(evt);
     
     std::unique_ptr<std::vector<recob::Hit>> newHits = std::make_unique<std::vector<recob::Hit>>(fTCAlg->YieldHits());
 
@@ -195,19 +213,13 @@ namespace cluster {
         pfp_shwr_assn(new art::Assns<recob::PFParticle, recob::Shower>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
         pfp_vtx_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
-/*
-    std::unique_ptr<art::Assns<recob::PFParticle, recob::SpacePoint>> 
-        pfp_spt_assn(new art::Assns<recob::PFParticle, recob::SpacePoint>);
-    std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>> 
-        spt_hit_assn(new art::Assns<recob::SpacePoint, recob::Hit>);
-*/
     std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
        pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
 
-    std::vector<tca::ClusterStore> const& Clusters = fTCAlg->GetClusters();
+    std::vector<tca::ClusterStore> const& Clusters = fTCAlg->GetClusters(0);
     
     // make EndPoints (aka 2D vertices)
-    std::vector<tca::VtxStore> const& EndPts = fTCAlg->GetEndPoints();
+    std::vector<tca::VtxStore> const& EndPts = fTCAlg->GetEndPoints(0);
     art::ServiceHandle<geo::Geometry> geom;
     for(tca::VtxStore const& vtx2: EndPts) {
       if(vtx2.ID == 0) continue;
@@ -227,7 +239,7 @@ namespace cluster {
     std::unique_ptr<std::vector<recob::EndPoint2D> > v2col(new std::vector<recob::EndPoint2D>(std::move(sv2col)));
 
     // make 3D vertices
-    std::vector<tca::Vtx3Store> const& Vertices = fTCAlg->GetVertices();
+    std::vector<tca::Vtx3Store> const& Vertices = fTCAlg->GetVertices(0);
     double xyz[3] = {0, 0, 0};
     for(tca::Vtx3Store const& vtx3: Vertices) {
       // ignore incomplete vertices or obsolete
@@ -342,13 +354,14 @@ namespace cluster {
     } // icl
     
     // Get the list of PFParticles. These are a subset of the set of 3D matches of trajectory hits
-    std::vector<tca::PFPStruct> pfpList = fTCAlg->GetPFParticles();
-    
+    std::vector<tca::PFPStruct> pfpList = fTCAlg->GetPFParticles(0);
     // Make showers
     std::vector<unsigned int> shwrIndices(pfpList.size(),UINT_MAX);
-    unsigned short nshower = fTCAlg->GetShowerStructSize();
+/*
+//    unsigned short nshower = fTCAlg->GetShowerStructSize();
+    unsigned short nshower = 0;
     for(unsigned short ish = 0; ish < nshower; ++ish) {
-      tca::ShowerStruct3D const& ss3 = fTCAlg->GetShowerStruct(ish);
+//      tca::ShowerStruct3D const& ss3 = fTCAlg->GetShowerStruct(ish);
       if(ss3.ID == 0) continue;
       recob::Shower shower;
       shower.set_id(ish + 1);
@@ -381,7 +394,7 @@ namespace cluster {
         throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with Shower";
       } // exception
     } // ish
-    
+*/
     // get each of the match vector elements and construct the PFParticle
     for(size_t ipfp = 0; ipfp < pfpList.size(); ++ipfp) {
       auto& pfp = pfpList[ipfp];
@@ -400,7 +413,8 @@ namespace cluster {
           std::cout<<"TC: Found an invalid tj ID "<<tjid<<" in P"<<pfp.ID;
           continue;
         }
-        unsigned int clsIndex = fTCAlg->GetTjClusterIndex(tjid);
+//        unsigned int clsIndex = fTCAlg->GetTjClusterIndex(tjid);
+        unsigned int clsIndex = 0;
         if(clsIndex > Clusters.size() - 1) {
           std::cout<<"Retrieved an invalid cluster index for PFParticle "<<pfp.ID<<" TjID "<<tjid<<". Ignoring it...\n";
           clsIndices.clear();
@@ -440,6 +454,7 @@ namespace cluster {
         } // exception
       }
       // PFParticle - CosmicTag association
+/*
       if (fTCAlg->GetTJS().TagCosmics){
         std::vector<float> tempPt1, tempPt2;
         tempPt1.push_back(-999);
@@ -453,40 +468,6 @@ namespace cluster {
           throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate CosmicTag with PFParticle";
         }
       } // TagCosmics
-/* 
-      // Make a SpacePoint from each Tp3
-      double zeros[6] = {0};
-      double chisq = 0;
-      for(unsigned short ip3 = 0; ip3 < pfp.Tp3s.size(); ++ip3) {
-        int id = ip3 + 1;
-        auto& tp3 = pfp.Tp3s[ip3];
-        if(!tp3.IsValid) continue;
-        double xyz[3];
-        for(unsigned short ixyz = 0; ixyz < 3; ++ixyz) xyz[ixyz] = tp3.Pos[ixyz];
-        // add a space point
-        ssptcol.emplace_back(xyz, zeros, chisq, id);
-        // make a list of the hits from the trajectory points
-        std::vector<unsigned int> spthits;
-        for(auto& tj2pt : tp3.Tj2Pts) {
-          auto& tj = fTCAlg->GetTJS().allTraj[tj2pt.id - 1];
-          auto& tp = tj.Pts[tj2pt.ipt];
-          for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-            if(tp.UseHit[ii]) spthits.push_back(tp.Hits[ii]);
-          }
-        } // tp2
-        // make the space point - hit association
-        if(!util::CreateAssn(*this, evt, *spt_hit_assn, ssptcol.size()-1, spthits.begin(), spthits.end()))
-        {
-          throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with space point in pfp "<<pfp.ID;
-        } // exception
-      } // ip3
-      // make the PFParticle - space point association
-      std::vector<unsigned int> stmp(1);
-      stmp[0] = ssptcol.size()-1;
-      if(!util::CreateAssn(*this, evt, *pfp_spt_assn, spcol.size()-1, stmp.begin(), stmp.end()))
-      {
-        throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate space point with PFParticle "<<pfp.ID;
-      } // exception
 */
     } // ipfp
 
@@ -501,8 +482,7 @@ namespace cluster {
     fTCAlg->ClearResults();
 
     // move the cluster collection and the associations into the event:
-    art::InputTag hitModuleLabel = fTCAlg->GetHitFinderModuleLabel();
-    recob::HitRefinerAssociator shcol(*this, evt, hitModuleLabel, fDoWireAssns, fDoRawDigitAssns);
+    recob::HitRefinerAssociator shcol(*this, evt, fHitModuleLabel, fDoWireAssns, fDoRawDigitAssns);
     shcol.use_hits(std::move(newHits));
     shcol.put_into(evt);
     evt.put(std::move(ccol));
