@@ -9,17 +9,9 @@
 #ifndef TRAJCLUSTERALGDEBUGSTRUCT_H
 #define TRAJCLUSTERALGDEBUGSTRUCT_H
 
-
-// C/C++ standard libraries
-#include <array>
-#include <vector>
-#include <bitset>
-
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "canvas/Persistency/Common/Ptr.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-#include "lardataobj/RecoBase/Hit.h"
 
 namespace tca {
   
