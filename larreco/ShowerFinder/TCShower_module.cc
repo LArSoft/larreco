@@ -28,10 +28,15 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Shower.h"
+#include "lardataobj/RecoBase/TrackHitMeta.h"
+
+#include "lardataobj/AnalysisBase/Calorimetry.h"
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larcore/Geometry/Geometry.h"
+
+#include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include <memory>
 
@@ -75,6 +80,9 @@ private:
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
   std::string fHitModuleLabel;
+  std::string fCalorimetryModuleLabel;
+
+  calo::CalorimetryAlg fCalorimetryAlg;
 
 };
 
@@ -83,7 +91,9 @@ private:
 shower::TCShower::TCShower(fhicl::ParameterSet const & pset) : 
   fClusterModuleLabel       (pset.get< std::string >("ClusterModuleLabel", "trajcluster" ) ),
   fTrackModuleLabel         (pset.get< std::string >("TrackModuleLabel", "pmtrack" ) ),
-  fHitModuleLabel           (pset.get< std::string >("HitModuleLabel", "trajcluster" ) ) {
+  fHitModuleLabel           (pset.get< std::string >("HitModuleLabel", "trajcluster" ) ),
+  fCalorimetryModuleLabel   (pset.get< std::string >("CalorimetryModuleLabel")  ),
+  fCalorimetryAlg           (pset.get<fhicl::ParameterSet>("CalorimetryAlg") ) {
 
   produces<std::vector<recob::Shower> >();
   produces<art::Assns<recob::Shower, recob::Hit> >();
@@ -122,6 +132,9 @@ void shower::TCShower::produce(art::Event & evt) {
   art::FindManyP<recob::Hit> trk_fm(trackListHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::Track> hit_fm(hitListHandle, evt, fTrackModuleLabel);
   art::FindManyP<recob::Cluster> hitcls_fm(hitListHandle, evt, fClusterModuleLabel);
+
+  art::FindManyP<anab::Calorimetry> fmcal(trackListHandle, evt, fCalorimetryModuleLabel);
+  art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm(trackListHandle, evt, fTrackModuleLabel);
 
   // sort tracks
   std::vector<art::Ptr<recob::Track> > tracklistSorted;
@@ -333,10 +346,67 @@ void shower::TCShower::produce(art::Event & evt) {
     std::vector<double> dEdx(2);
     std::vector<double> dEdxErr(2);
 
+    // GET DEDX
+    auto vhit = fmthm.at(trackIndicesSorted[i]);
+    auto vmeta = fmthm.data(trackIndicesSorted[i]);
+
+    art::ServiceHandle<geo::Geometry> geom;    
+    TVector3 dir = trkPt2-trkStart; 
+
+
+    for (unsigned int plane = 0; plane < geom->MaxPlanes(); ++plane) {
+      std::vector<float> vQ;
+      double pitch = 0; 
+      double totQ = 0;
+      double avgT = 0;
+      int nhits = 0;
+    
+      for (size_t h = 0; h < vhit.size(); ++h) {
+      
+	unsigned int thisplane = vhit[h]->WireID().planeID().Plane;
+	if (thisplane != plane) continue;
+
+	if (!pitch) { // find pitch if it hasn't been calculated
+	  double wirePitch = geom->WirePitch(vhit[h]->WireID().planeID());
+	  double angleToVert = geom->WireAngleToVertical(geom->Plane(vhit[h]->WireID().planeID()).View()) - 0.5 * ::util::pi<>();
+	  double cosgamma = std::abs(std::sin(angleToVert) * dir[1] + std::cos(angleToVert) * dir[2] );
+	  if (cosgamma > 0) pitch = wirePitch/cosgamma;
+	}
+
+	double x = tracklist[i]->LocationAtPoint(vmeta[h]->Index()).X();
+	double y = tracklist[i]->LocationAtPoint(vmeta[h]->Index()).Y();
+	double z = tracklist[i]->LocationAtPoint(vmeta[h]->Index()).Z();
+	
+	double x0 = tracklist[i]->Vertex().X();
+	double y0 = tracklist[i]->Vertex().Y();
+	double z0 = tracklist[i]->Vertex().Z();
+	
+	double dist = sqrt( pow(x-x0,2) + pow(y-y0,2) + pow(z-z0,2) );
+	
+	if (dist > 10) continue;
+
+	vQ.push_back(vhit[h]->Integral());
+	totQ += vhit[h]->Integral();
+	avgT += vhit[h]->PeakTime();
+	++nhits;
+
+      } // loop through hits
+
+      if (totQ) {
+	double dQdx = TMath::Median(vQ.size(), &vQ[0])/pitch;
+	dEdx[plane] = fCalorimetryAlg.dEdx_AREA(dQdx, avgT/nhits, plane);
+
+	std::cout <<  plane << " " << dEdx[plane] << std::endl;
+
+      }
+
+    } // loop through planes
+    
+
     if (showerCandidate) {
 
-      std::cout << "track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull<< " " << nShowerHits << std::endl;
-      showers->push_back(recob::Shower(trkPt2-trkStart, dcosVtxErr, tracklist[i]->Vertex(), xyzErr, totalEnergy, totalEnergyErr, dEdx, dEdx, 0, 0));
+      std::cout << "track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull<< " " << nShowerHits << " " << dEdx[0] << std::endl;
+      showers->push_back(recob::Shower(trkPt2-trkStart, dcosVtxErr, tracklist[i]->Vertex(), xyzErr, totalEnergy, totalEnergyErr, dEdx, dEdxErr, 0, 0));
       showers->back().set_id(showers->size()-1);
       
       util::CreateAssn(*this, evt, *(showers.get()), showerHits, *(hitShowerAssociations.get()) );
