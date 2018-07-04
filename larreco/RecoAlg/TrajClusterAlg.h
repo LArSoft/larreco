@@ -182,6 +182,7 @@ namespace tca {
     
     trkf::LinFitAlg fLinFitAlg;
     calo::CalorimetryAlg fCaloAlg;
+    TMVA::Reader fMVAReader;
 
     int fWorkID;
 

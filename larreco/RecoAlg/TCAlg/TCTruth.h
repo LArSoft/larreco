@@ -85,6 +85,7 @@ namespace tca {
     MCParticleListUtils(TjStuff& my_tjs) : tjs(my_tjs) {}
     TjStuff& tjs;
     void MakeTruTrajPoint(unsigned int MCParticleListIndex, TrajPoint& tp);
+    ShowerStruct3D MakeCheatShower(unsigned int mcpIndex, Point3_t primVx, int& truParentPFP);
     bool PrimaryElectronStart(Point3_t& start, Vector3_t& dir, float& energy);
     int PrimaryElectronPFPID(const geo::TPCID& tpcid);
     int PrimaryElectronTjID(CTP_t inCTP);

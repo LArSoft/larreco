@@ -4,6 +4,7 @@ parent	larreco	v06_63_00
 defaultqual	e15
 #
 fcldir product_dir job
+fwdir  product_dir config_data
 #
 product         version
 larsim		v06_50_03

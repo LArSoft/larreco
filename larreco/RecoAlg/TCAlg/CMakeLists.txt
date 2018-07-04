@@ -26,6 +26,7 @@ art_make(
       ${ROOT_GEOM}
 			${Boost_SYSTEM_LIBRARY}
 			${ROOT_GENVECTOR}
+      ${ROOT_TMVA}
         )
 
 add_subdirectory(TCDebugTools)
