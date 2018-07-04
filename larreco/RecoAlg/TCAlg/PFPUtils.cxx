@@ -2294,6 +2294,7 @@ namespace tca {
     std::vector<int> killMe;
     for(auto vx2id : vx3.Vx2ID) {
       if(vx2id == 0) continue;
+      if(vx2id == 666) continue;
       auto& vx2 = tjs.vtx[vx2id - 1];
       auto tjlist = GetVtxTjIDs(tjs, vx2);
       auto setInt = SetIntersection(pfp.TjIDs, tjlist);
