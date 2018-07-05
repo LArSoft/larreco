@@ -478,6 +478,7 @@ namespace tca {
       auto& p1 = slc.pfps[candVx.ip1];
       auto& p2 = slc.pfps[candVx.ip2];
       vx3.TPCID = p1.TPCID;
+      vx3.Vx2ID.resize(slc.nPlanes);
       vx3.ID = slc.vtx3s.size() + 1;
       // try to improve the vertex position by fitting the Tjs in 2D
       std::vector<TrajPoint> vxTps;
@@ -1339,6 +1340,7 @@ namespace tca {
 */
             // save this incomplete 3D vertex
             Vtx3Store v3d;
+            v3d.Vx2ID.resize(slc.nPlanes);
             v3d.Vx2ID[ipl] = ivx + 1;
             v3d.Vx2ID[jpl] = jvx + 1;
             v3d.Vx2ID[kpl] = 0;
