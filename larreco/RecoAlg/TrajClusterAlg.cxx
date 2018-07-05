@@ -28,18 +28,6 @@ bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 
 namespace tca {
 
-  /*
-  bool TrajClusterAlg::SortByMultiplet(TCHit const& a, TCHit const& b)
-  {
-    // compare the wire IDs first:
-    int cmp_res = a.ArtPtr.WireID().cmp(b.ArtPtr.WireID());
-    if (cmp_res != 0) return cmp_res < 0; // order is decided, unless equal
-    // decide by start time
-    if (a.StartTick != b.StartTick) return a.StartTick < b.StartTick;
-    // if still undecided, resolve by local index
-    return a.LocalIndex < b.LocalIndex; // if still unresolved, it's a bug!
-  } // SortByMultiplet
-*/
   //------------------------------------------------------------------------------
 
   TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset)
@@ -420,6 +408,7 @@ namespace tca {
       for(auto& vx3 : slc.vtx3s) if(vx3.ID > 0 && vx3.Score > 0) hist.fVx3Score->Fill(vx3.Score);
     }
 */
+    
     // print trajectory summary report?
     if(tcc.showerTag[0] > 1 && tcc.showerTag[12] < slc.nPlanes) debug.Plane = tcc.showerTag[12];
     if(tcc.modes[kDebug]) {
@@ -442,7 +431,9 @@ namespace tca {
     if(tcc.modes[kDebug]) std::cout<<"RTC done ntjs "<<ntj<<" nshowers "<<nsh<<" events processed "<<evt.eventsProcessed<<"\n";
     
 //    if(tcc.matchTruth[0] >= 0) tm.PrintResults(xxx.Event);
-    
+
+    Finish3DShowers(slc);
+
     // convert vertex time from WSE to ticks
     for(auto& avtx : slc.vtxs) avtx.Pos[1] /= tcc.unitsPerTick;
     
@@ -5131,6 +5122,72 @@ namespace tca {
 
   } // MergeTPHits
 */
+
+  //////////////////////////////////////////
+  recob::Hit TrajClusterAlg::MergeTPHits(std::vector<unsigned int>& tpHits)
+  {
+    // merge the hits indexed by tpHits into one hit
+    
+    if(tpHits.empty()) return recob::Hit();
+    
+    // no merge required. Just return a copy of the single hit
+    if(tpHits.size() == 1) {
+      if(tpHits[0] > (*evt.allHits).size() - 1) return recob::Hit();
+      return (*evt.allHits)[tpHits[0]];
+    }
+    
+    float integral = 0;
+    float sIntegral = 0;
+    float rms = 0;
+    float peakTime = 0;
+    float sPeakTime = 0;
+    float peakAmp = 0;
+    float sPeakAmp = 0;
+    float sumADC = 0;
+    raw::TDCtick_t startTick = INT_MAX;
+    raw::TDCtick_t endTick = 0;
+    for(auto allHitsIndex : tpHits) {
+      if(allHitsIndex > (*evt.allHits).size() - 1) return recob::Hit();
+      auto& hit = (*evt.allHits)[allHitsIndex];
+      if(hit.StartTick() < startTick) startTick = hit.StartTick();
+      if(hit.EndTick() > endTick) endTick = hit.EndTick();
+      float intgrl = hit.Integral();
+      peakTime += intgrl * hit.PeakTime();
+      sPeakTime += intgrl * hit.SigmaPeakTime();
+      // TODO: this isn't correct but probably good enough
+      peakAmp += intgrl * hit.PeakAmplitude();
+      sPeakAmp += intgrl * hit.SigmaPeakAmplitude();
+      rms += intgrl * hit.RMS();
+      sumADC += hit.SummedADC();
+      integral += intgrl;
+      sIntegral += intgrl * hit.SigmaIntegral();
+    } // tpHit
+    
+    if(integral == 0) return recob::Hit();
+    peakTime /= integral;
+    sPeakTime /= integral;
+    peakAmp /= integral;
+    sPeakAmp /= integral;
+    rms /= integral;
+    
+    // get a reference to the first hit to copy the channel, view, etc
+    auto& firstHit = (*evt.allHits)[tpHits[0]];
+    // construct the hit
+    return recob::Hit(firstHit.Channel(), 
+                      startTick, endTick, 
+                      peakTime, sPeakTime, 
+                      rms, 
+                      peakAmp, sPeakAmp, 
+                      sumADC, integral, sIntegral, 
+                      1, 0, // Multiplicity, LocalIndex
+                      1, 0, // GoodnessOfFit, DOF
+                      firstHit.View(), 
+                      firstHit.SignalType(),
+                      firstHit.WireID()
+      );
+
+  } // MergeTPHits
+  
   //////////////////////////////////////////
   void TrajClusterAlg::MaskBadTPs(TCSlice& slc, Trajectory& tj, float const& maxChi)
   {
