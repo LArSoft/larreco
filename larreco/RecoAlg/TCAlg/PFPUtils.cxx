@@ -1734,6 +1734,7 @@ namespace tca {
     }
     Vtx3Store vx3;
     vx3.TPCID = pfp.TPCID;
+    vx3.Vx2ID.resize(slc.nPlanes);
     vx3.ID = slc.vtx3s.size() + 1;
     vx3.X = pfp.Tp3s[kpt].Pos[0];
     vx3.Y = pfp.Tp3s[kpt].Pos[1];
@@ -2308,6 +2309,7 @@ namespace tca {
       if(pfp.Vx3ID[0] > 0) continue;
       Vtx3Store vx3;
       vx3.TPCID = pfp.TPCID;
+      vx3.Vx2ID.resize(slc.nPlanes);
       // Flag it as a PFP vertex that isn't required to have matched 2D vertices
       vx3.Wire = -2;
       vx3.X = pfp.XYZ[0][0];
