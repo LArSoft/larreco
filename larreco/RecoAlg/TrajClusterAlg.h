@@ -66,33 +66,15 @@ namespace tca {
     
 //    void DefineCRTree(TTree* t);
 
-    TCSlice const& GetTCS(unsigned short sliceIndex) const {return slices[sliceIndex]; }
-    
-    /// Returns (and loses) the art::Ptr collection of previously reconstructed hits (e.g. gaushit)
-    std::vector<recob::Hit> YieldHits();
-    
-    /// Returns a constant reference to the clusters found
-    std::vector<ClusterStore> const& GetClusters(unsigned short isl) const { return slices[isl].tcl; }
-    
-    /// Returns a constant reference to the 2D end points found
-    std::vector<VtxStore> const& GetEndPoints(unsigned short isl) const { return slices[isl].vtxs; }
-    
-    /// Returns a constant reference to the 3D vertices found
-    std::vector<Vtx3Store> const& GetVertices(unsigned short isl) const { return slices[isl].vtx3s; }
-    
-    // Get the index list of matchVec entries that have PFParticle info defined
-    std::vector<PFPStruct> const& GetPFParticles(unsigned short isl) const { return slices[isl].pfps; }
-    // Get the cluster index of a trajectory ID
-//    unsigned int GetTjClusterIndex(unsigned int TjID) { return tjs.allTraj[TjID - 1].ClusterIndex; }
-    // Get a ShowerStuct3D entry
-//    unsigned short GetShowerStructSize() { return tjs.showers.size(); };
-//    ShowerStruct3D const& GetShowerStruct(unsigned short ish) { return tjs.showers[ish]; };
+    unsigned short GetSlicesSize() { return slices.size(); }
+    TCSlice const& GetSlice(unsigned short sliceIndex) const {return slices[sliceIndex]; }
+    recob::Hit MergeTPHits(std::vector<unsigned int>& tpHits);
     
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
     
     /// Deletes all the results
-    void ClearResults() { slices.clear(); };
+    void ClearResults() { slices.resize(0); }
     
     private:
     
@@ -123,8 +105,6 @@ namespace tca {
     bool fQuitAlg;          // A significant error occurred. Delete everything and return
     
     std::vector<unsigned int> fAlgModCount;
-
-    static bool SortByMultiplet(TCHit const& a, TCHit const& b);
 
 //    short watchInTraj;
     void ReconstructAllTraj(TCSlice& slc, CTP_t inCTP);
