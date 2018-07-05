@@ -107,7 +107,7 @@ namespace tca {
     float Score {0};
     short Wire {-1};                 // wire number for an incomplete 3D vertex
     geo::TPCID TPCID;
-    std::array<int, 3> Vx2ID {{0}}; // List of 2D vertex IDs in each plane
+    std::vector<int> Vx2ID; // List of 2D vertex IDs in each plane
     int ID {0};          // 0 = obsolete vertex
     bool Primary {false};
     bool Neutrino {false};
@@ -498,7 +498,6 @@ namespace tca {
   // hit collection for all slices, TPCs and cryostats + event information
   // Note: Ideally this hit collection would be the FULL hit collection before cosmic removal
   struct TCEvent {
-//    std::vector<recob::Hit const*> allHits;
     std::vector<recob::Hit> const* allHits = nullptr;
     unsigned int event;
     unsigned int run;
