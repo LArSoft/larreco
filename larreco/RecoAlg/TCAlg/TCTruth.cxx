@@ -236,7 +236,6 @@ namespace tca {
   {
     // study characteristics of shower parent pfps. This code is adapted from TCShower FindParent
     if(tjs.pfps.empty()) return;
-    if(tjs.showers.empty()) return;
     if(tjs.MCPartList.empty()) return;
     
     // Look for truth pfp primary electron
@@ -255,115 +254,132 @@ namespace tca {
     primVx[2] += posOffsets.Z();
     geo::TPCID inTPCID = tjs.TPCID;
     if(!InsideTPC(tjs, primVx, inTPCID)) return;
-    
-    // find the largest shower
-    int imbig = 0;
-    float ss3Energy = 0;
+
+    std::string fcnLabel = "SSP";
+    // Create a truth shower for each primary electron
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    MCParticleListUtils mcpu{tjs};
+    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
+      auto& mcp = tjs.MCPartList[part];
+      // require electron or photon
+      if(abs(mcp->PdgCode()) != 11 && abs(mcp->PdgCode()) != 111) continue;
+      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+      // require that it is primary
+      if(mcp->TrackId() != eveID) continue;
+      int truPFP = 0;
+      auto ss3 = mcpu.MakeCheatShower(part, primVx, truPFP);
+      if(ss3.ID == 0) continue;
+      if(truPFP == 0) continue;
+      if(!StoreShower(fcnLabel, tjs, ss3)) {
+        std::cout<<"Failed to store 3S"<<ss3.ID<<"\n";
+        break;
+      } // store failed
+      // now fill the TTree
+      float ss3Energy = ShowerEnergy(ss3);
+      for(auto& pfp : tjs.pfps) {
+        if(pfp.TPCID != ss3.TPCID) continue;
+        // ignore neutrinos
+        if(pfp.PDGCode == 12 || pfp.PDGCode == 14) continue;
+        // ignore shower pfps
+        if(pfp.PDGCode == 1111) continue;
+        float pfpEnergy = 0;
+        float minEnergy = 1E6;
+        for(auto tid : pfp.TjIDs) {
+          auto& tj = tjs.allTraj[tid - 1];
+          float energy = ChgToMeV(tj.TotChg);
+          pfpEnergy += energy;
+          if(energy < minEnergy) minEnergy = energy;
+        }
+        pfpEnergy -= minEnergy;
+        pfpEnergy /= (float)(pfp.TjIDs.size() - 1);
+        // find the end that is farthest away
+        unsigned short pEnd = FarEnd(tjs, pfp, ss3.ChgPos);
+        auto pToS = PointDirection(pfp.XYZ[pEnd], ss3.ChgPos);
+        // take the absolute value in case the shower direction isn't well known
+        float costh1 = std::abs(DotProd(pToS, ss3.Dir));
+        float costh2 = DotProd(pToS, pfp.Dir[pEnd]);
+        // distance^2 between the pfp end and the shower start, charge center, and shower end
+        float distToStart2 = PosSep2(pfp.XYZ[pEnd], ss3.Start);
+        float distToChgPos2 = PosSep2(pfp.XYZ[pEnd], ss3.ChgPos);
+        float distToEnd2 = PosSep2(pfp.XYZ[pEnd], ss3.End);
+//        mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<" P"<<pfp.ID<<"_"<<pEnd<<" distToStart "<<sqrt(distToStart2)<<" distToChgPos "<<sqrt(distToChgPos2)<<" distToEnd "<<sqrt(distToEnd2);
+        // find the end of the shower closest to the pfp
+        unsigned short shEnd = 0;
+        if(distToEnd2 < distToStart2) shEnd = 1;
+        if(shEnd == 0 && distToChgPos2 < distToStart2) continue;
+        if(shEnd == 1 && distToChgPos2 < distToEnd2) continue;
+//      mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<"_"<<shEnd<<" P"<<pfp.ID<<"_"<<pEnd<<" costh1 "<<costh1;
+        Point2_t alongTrans;
+        // find the longitudinal and transverse components of the pfp start point relative to the
+        // shower center
+        FindAlongTrans(ss3.ChgPos, ss3.Dir, pfp.XYZ[pEnd], alongTrans);
+//      mf::LogVerbatim("TC")<<"   alongTrans "<<alongTrans[0]<<" "<<alongTrans[1];
+        hist.fSep = sqrt(distToChgPos2);
+        hist.fShEnergy = ss3Energy;
+        hist.fPfpEnergy = pfpEnergy;
+        hist.fPfpLen = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+        hist.fMCSMom = MCSMom(tjs, pfp.TjIDs);
+        hist.fDang1 = acos(costh1);
+        hist.fDang2 = acos(costh2);
+        hist.fChgFrac = 0;
+        float chgFrac = 0;
+        float totSep = 0;
+        // find the charge fraction btw the pfp start and the point that is 
+        // half the distance to the charge center in each plane
+        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+          CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
+          int ssid = 0;
+          for(auto cid : ss3.CotIDs) {
+            auto& ss = tjs.cots[cid - 1];
+            if(ss.CTP != inCTP) continue;
+            ssid = ss.ID;
+            break;
+          } // cid
+          if(ssid == 0) continue;
+          auto tpFrom = MakeBareTP(tjs, pfp.XYZ[pEnd], pToS, inCTP);
+          auto& ss = tjs.cots[ssid - 1];
+          auto& stp1 = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
+          float sep = PosSep(tpFrom.Pos, stp1.Pos);
+          float toPos = tpFrom.Pos[0] + 0.5 * tpFrom.Dir[0] * sep;
+          float cf = ChgFracBetween(tjs, tpFrom, toPos, false);
+          // weight by the separation in the plane
+          totSep += sep;
+          chgFrac += sep * cf;
+        } // plane
+        if(totSep > 0) hist.fChgFrac = chgFrac / totSep;
+        hist.fAlong = alongTrans[0];
+        hist.fTrans = alongTrans[1];
+        hist.fInShwrProb = InShowerProbLong(ss3Energy, -hist.fSep);
+        bool isBad = (hist.fDang1 > 2 || hist.fChgFrac < 0.5 || hist.fInShwrProb < 0.05);
+        if(pfp.ID == truPFP && isBad) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<"SSP: 3S"<<ss3.ID<<" shEnergy "<<(int)ss3Energy<<" P"<<pfp.ID<<" pfpEnergy "<<(int)pfpEnergy;
+          myprt<<" MCSMom "<<hist.fMCSMom<<" len "<<hist.fPfpLen;
+          myprt<<" Dang1 "<<hist.fDang1<<" Dang2 "<<hist.fDang2<<" chgFrac "<<hist.fChgFrac;
+          myprt<<" fInShwrProb "<<hist.fInShwrProb;
+          myprt<<" EventsProcessed "<<tjs.EventsProcessed;
+        }
+        if(pfp.ID == truPFP) {
+          hist.fShowerParentSig->Fill();
+        } else {
+          hist.fShowerParentBkg->Fill();
+        }
+      } // pfp
+    } // part
+//    PrintShowers(fcnLabel, tjs);
+//    Print2DShowers(fcnLabel, tjs, USHRT_MAX, false);
+    // kill the cheat showers
     for(auto& ss3 : tjs.showers) {
       if(ss3.ID == 0) continue;
-      float energy = ShowerEnergy(ss3);
-      if(energy < ss3Energy) continue;
-      ss3Energy = energy;
-      imbig = ss3.ID;
+      if(!ss3.Cheat) continue;
+      for(auto cid : ss3.CotIDs) {
+        auto& ss = tjs.cots[cid - 1];
+        ss.ID = 0;
+        auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+        stj.AlgMod[kKilled] = true;
+      } // cid
+      ss3.ID = 0;
     } // ss3
-    if(imbig == 0) return;
-    
-    auto& ss3 = tjs.showers[imbig - 1];
-    MCParticleListUtils mcpu{tjs};
-    int truPFP = mcpu.PrimaryElectronPFPID(ss3.TPCID);
-    if(truPFP == 0) return;
-    
-    for(auto& pfp : tjs.pfps) {
-      if(pfp.ID == 0) continue;
-//      bool dprt = (pfp.ID == truPFP);
-      if(pfp.TPCID != ss3.TPCID) continue;
-      // ignore neutrinos
-      if(pfp.PDGCode == 14 || pfp.PDGCode == 14) continue;
-      // ignore shower pfps
-      if(pfp.PDGCode == 1111) continue;
-      float pfpEnergy = 0;
-      float minEnergy = 1E6;
-      for(auto tid : pfp.TjIDs) {
-        auto& tj = tjs.allTraj[tid - 1];
-        float energy = ChgToMeV(tj.TotChg);
-        pfpEnergy += energy;
-        if(energy < minEnergy) minEnergy = energy;
-      }
-      pfpEnergy -= minEnergy;
-      pfpEnergy /= (float)(pfp.TjIDs.size() - 1);
-      // find the end that is farthest away
-      unsigned short pEnd = FarEnd(tjs, pfp, ss3.ChgPos);
-      auto pToS = PointDirection(pfp.XYZ[pEnd], ss3.ChgPos);
-      // take the absolute value in case the shower direction isn't well known
-      float costh1 = std::abs(DotProd(pToS, ss3.Dir));
-      float costh2 = DotProd(pToS, pfp.Dir[pEnd]);
-      // distance^2 between the pfp end and the shower start, charge center, and shower end
-      float distToStart2 = PosSep2(pfp.XYZ[pEnd], ss3.Start);
-      float distToChgPos2 = PosSep2(pfp.XYZ[pEnd], ss3.ChgPos);
-      float distToEnd2 = PosSep2(pfp.XYZ[pEnd], ss3.End);
-//      mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<" P"<<pfp.ID<<"_"<<pEnd<<" distToStart "<<sqrt(distToStart2)<<" distToChgPos "<<sqrt(distToChgPos2)<<" distToEnd "<<sqrt(distToEnd2);
-      // find the end of the shower closest to the pfp
-      unsigned short shEnd = 0;
-      if(distToEnd2 < distToStart2) shEnd = 1;
-      if(shEnd == 0 && distToChgPos2 < distToStart2) continue;
-      if(shEnd == 1 && distToChgPos2 < distToEnd2) continue;
-//      mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<"_"<<shEnd<<" P"<<pfp.ID<<"_"<<pEnd<<" costh1 "<<costh1;
-      Point2_t alongTrans;
-      // find the longitudinal and transverse components of the pfp start point relative to the
-      // shower center
-      FindAlongTrans(ss3.ChgPos, ss3.Dir, pfp.XYZ[pEnd], alongTrans);
-//      mf::LogVerbatim("TC")<<"   alongTrans "<<alongTrans[0]<<" "<<alongTrans[1];
-      hist.fSep = sqrt(distToChgPos2);
-      hist.fShEnergy = ss3Energy;
-      hist.fPfpEnergy = pfpEnergy;
-      hist.fPfpLen = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
-      hist.fMCSMom = MCSMom(tjs, pfp.TjIDs);
-      hist.fDang1 = acos(costh1);
-      hist.fDang2 = acos(costh2);
-      hist.fChgFrac = 0;
-      float chgFrac = 0;
-      float totSep = 0;
-      // find the charge fraction btw the pfp start and the point that is 
-      // half the distance to the charge center in each plane
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
-        int ssid = 0;
-        for(auto cid : ss3.CotIDs) {
-          auto& ss = tjs.cots[cid - 1];
-          if(ss.CTP != inCTP) continue;
-          ssid = ss.ID;
-          break;
-        } // cid
-        if(ssid == 0) continue;
-        auto tpFrom = MakeBareTP(tjs, pfp.XYZ[pEnd], pToS, inCTP);
-        auto& ss = tjs.cots[ssid - 1];
-        auto& stp1 = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
-        float sep = PosSep(tpFrom.Pos, stp1.Pos);
-        float toPos = tpFrom.Pos[0] + 0.5 * tpFrom.Dir[0] * sep;
-        float cf = ChgFracBetween(tjs, tpFrom, toPos, false);
-        // weight by the separation in the plane
-        totSep += sep;
-        chgFrac += sep * cf;
-      } // plane
-      if(totSep > 0) hist.fChgFrac = chgFrac / totSep;
-      hist.fAlong = alongTrans[0];
-      hist.fTrans = alongTrans[1];
-      bool isBad = (hist.fDang1 > 2 || hist.fChgFrac < 0.5 || hist.fAlong > 0);
-      if(pfp.ID == truPFP && isBad) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"SSP: 3S"<<ss3.ID<<" shEnergy "<<(int)ss3Energy<<" P"<<pfp.ID<<" pfpEnergy "<<(int)pfpEnergy;
-        myprt<<" MCSMom "<<hist.fMCSMom<<" len "<<hist.fPfpLen;
-        myprt<<" Dang1 "<<hist.fDang1<<" Dang2 "<<hist.fDang2<<" chgFrac "<<hist.fChgFrac;
-        myprt<<" along "<<(int)hist.fAlong<<" trans "<<(int)hist.fTrans;
-        myprt<<" EventsProcessed "<<tjs.EventsProcessed;
-      }
-      if(pfp.ID == truPFP) {
-        hist.fShowerParentSig->Fill();
-      } else {
-        hist.fShowerParentBkg->Fill();
-      }
-    } // pfp
-    
   } // StudyShowerParents
   
   //////////////////////////////////////////
@@ -1170,6 +1186,161 @@ namespace tca {
     SetMag(dir, 1);
     tp = MakeBareTP(tjs, pos, dir, tp.CTP);
   } // MakeTruTrajPoint
+
+  ////////////////////////////////////////////////
+  ShowerStruct3D MCParticleListUtils::MakeCheatShower(unsigned int mcpIndex, Point3_t primVx, int& truParentPFP)
+  {
+    // Make a 3D shower for an electron or photon MCParticle in the current TPC. 
+    // The shower ID is set to 0 if there is a failure. The ID of the most likely parent pfp is returned
+    // as well - the one that is closest to the primary vertex position
+    auto ss3 = CreateSS3(tjs, tjs.TPCID);
+    truParentPFP = 0;
+    // save the ID 
+    int goodID = ss3.ID;
+    // set it to the failure state
+    ss3.ID = 0;
+    ss3.Cheat = true;
+    if(mcpIndex > tjs.MCPartList.size() - 1) return ss3;
+    auto& mcp = tjs.MCPartList[mcpIndex];
+    int pdg = abs(mcp->PdgCode());
+    if(!(pdg == 11 || pdg == 111)) return ss3;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    int eveID = mcp->TrackId();
+    float showerEnergy = 1000 * mcp->E();
+    float shMaxAlong = 7.0 * log(showerEnergy / 15);
+    std::cout<<"MCS: showerEnergy "<<(int)showerEnergy<<" MeV. shMaxAlong "<<shMaxAlong<<" cm\n";
+    
+    // put the shower hits in two vectors. One for the InShower hits
+    // and one for the shower parent
+    std::vector<std::vector<unsigned int>> showerHits(tjs.NumPlanes);
+    std::vector<std::vector<unsigned int>> parentHits(tjs.NumPlanes);
+    unsigned short nsh = 0;
+    unsigned short npar = 0;
+    unsigned int cstat = tjs.TPCID.Cryostat;
+    unsigned int tpc = tjs.TPCID.TPC;
+    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+      auto& hit = tjs.fHits[iht];
+      if(hit.MCPartListIndex > tjs.MCPartList.size()-1) continue;
+      if(hit.ArtPtr->WireID().TPC != tpc) continue;
+      if(hit.ArtPtr->WireID().Cryostat != cstat) continue;
+      if(hit.Integral <= 0) continue;
+      // require that it be used in a tj to ignore hits that are far
+      // from the shower
+      if(hit.InTraj <= 0) continue;
+      auto& shmcp = tjs.MCPartList[hit.MCPartListIndex];
+      // look for an electron
+      if(abs(shmcp->PdgCode()) != 11) continue;
+      // with eve ID = the primary electron being considered
+      int eid = pi_serv->ParticleList().EveId(shmcp->TrackId());
+      if(eid != eveID) continue;
+      if(shmcp->TrackId() == eid) {
+        // store the shower parent hit
+        parentHits[hit.ArtPtr->WireID().Plane].push_back(iht);
+        ++npar;
+      } else {
+        // store the InShower hit
+        showerHits[hit.ArtPtr->WireID().Plane].push_back(iht);
+        ++nsh;
+      }
+    } // iht
+    // require more hits in the shower than in the parent
+    if(npar > nsh) return ss3;
+/*
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      std::cout<<" plane "<<plane<<" shower hits "<<showerHits[plane].size();
+      std::cout<<" parentHits "<<parentHits[plane].size()<<"\n";
+    } // plane
+*/
+    // create 2D cheat showers in each plane
+    std::vector<int> dummy_tjlist;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      CTP_t inCTP = EncodeCTP(cstat, tpc, plane);
+      auto ss = CreateSS(tjs, inCTP, dummy_tjlist);
+      // fill the ShPts
+      ss.ShPts.resize(showerHits[plane].size());
+      for(unsigned short iht = 0; iht < showerHits[plane].size(); ++iht) {
+        auto& hit = tjs.fHits[showerHits[plane][iht]];
+        ss.ShPts[iht].HitIndex = showerHits[plane][iht];
+        ss.ShPts[iht].TID = 0;
+        ss.ShPts[iht].Chg = hit.Integral;
+        ss.ShPts[iht].Pos[0] = hit.ArtPtr->WireID().Wire;
+        ss.ShPts[iht].Pos[1] = hit.PeakTime * tjs.UnitsPerTick;
+      } // iht
+      ss.SS3ID = goodID;
+      if(!UpdateShower("MCS", tjs, ss, true)) {
+        std::cout<<"Failed to update 2S"<<ss.ID<<"\n";
+        return ss3;
+      } // UpdateShower failed
+      // remove shower points that are far away
+      std::vector<ShowerPoint> spts;
+      for(auto& spt : ss.ShPts) {
+        // don't make a tight cut right now. The shower parameterization isn't great
+        double along = tjs.WirePitch * spt.RotPos[0];
+        float tau = along / shMaxAlong;
+//        auto& hit = tjs.fHits[spt.HitIndex];
+//        if(ss.ID == 2) std::cout<<"chk "<<PrintHit(hit)<<" along "<<(int)along<<" tau "<<std::fixed<<std::setprecision(1)<<tau<<"\n";
+        if(tau > -1 && tau < 2) {
+          spts.push_back(spt);
+        } else {
+//          std::cout<<"Skip "<<PrintHit(hit)<<" along "<<(int)along<<"\n";
+        }
+      } // spt
+      std::cout<<" 2S"<<ss.ID<<" shpts "<<ss.ShPts.size()<<" new "<<spts.size()<<"\n";
+      ss.ShPts = spts;
+      ss.NeedsUpdate = true;
+      if(!UpdateShower("MCS", tjs, ss, true)) {
+        std::cout<<"Failed to update 2S"<<ss.ID<<"\n";
+        return ss3;
+      } // UpdateShower failed
+      if(!StoreShower("MCS", tjs, ss)) {
+        std::cout<<"Failed to store 2S"<<ss.ID<<"\n";
+        return ss3;
+      } // UpdateShower failed
+      ss3.CotIDs.push_back(ss.ID);
+    } // plane
+    ss3.ID = goodID;
+    if(!UpdateShower("MCS", tjs, ss3, true)) {
+      std::cout<<"SS3 Failed...\n";
+      ss3.ID = 0;
+      return ss3;
+    }
+    // success
+    
+    // now look for a parent pfp
+    std::vector<std::pair<int, int>> pcnt;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      for(auto iht : parentHits[plane]) {
+        auto& hit = tjs.fHits[iht];
+        if(hit.InTraj <= 0) continue;
+        auto& tj = tjs.allTraj[hit.InTraj - 1];
+        if(!tj.AlgMod[kMat3D]) continue;
+        auto TInP = GetAssns(tjs, "T", tj.ID, "P");
+        if(TInP.empty()) continue;
+        auto& pfp = tjs.pfps[TInP[0] - 1];
+        unsigned short indx = 0;
+        for(indx = 0; indx < pcnt.size(); ++indx) if(pfp.ID == pcnt[indx].first) break;
+        if(indx == pcnt.size()) {
+          pcnt.push_back(std::make_pair(pfp.ID, 1));
+        } else {
+          ++pcnt[indx].second;
+        }
+      } // iht
+    } // plane
+    float close = 5;
+    for(auto pcn : pcnt) {
+      if(pcn.second < 6) continue;
+      auto& pfp = tjs.pfps[pcn.first - 1];
+      for(unsigned short end = 0; end < 2; ++end) {
+        float sep = PosSep(pfp.XYZ[end], primVx);
+        if(sep > close) continue;
+        close = sep;
+        truParentPFP = pfp.ID;
+      }
+    } // pcn
+    std::cout<<"truParent P"<<truParentPFP<<" close "<<std::fixed<<std::setprecision(2)<<close<<"\n";
+    
+    return ss3;
+  } // MakeCheatShower
   
   /////////////////////////////////////////
   bool MCParticleListUtils::PrimaryElectronStart(Point3_t& start, Vector3_t& dir, float& energy)
@@ -1232,6 +1403,10 @@ namespace tca {
           // require that the tj is 3D-matched
           auto& tj = tjs.allTraj[hit.InTraj - 1];
           if(!tj.AlgMod[kMat3D]) continue;
+          // find the number of hits that are in mcphits
+          auto tjhits = PutTrajHitsInVector(tj, kUsedHits);
+          auto shared = SetIntersection(tjhits, mcphits);
+          if(shared.size() < 10) continue;
           // find out what pfp it is used in.
           auto TInP = GetAssns(tjs, "T", tj.ID, "P");
           if(TInP.size() != 1) continue;

@@ -83,7 +83,7 @@ namespace tca {
     TTree* fShowerParentSig;
     TTree* fShowerParentBkg;
     
-    float fShEnergy, fPfpEnergy, fMCSMom, fPfpLen, fSep, fDang1, fDang2, fChgFrac, fAlong, fTrans;
+    float fShEnergy, fPfpEnergy, fMCSMom, fPfpLen, fSep, fDang1, fDang2, fChgFrac, fAlong, fTrans, fInShwrProb;
   
   };
 } // namespace tca

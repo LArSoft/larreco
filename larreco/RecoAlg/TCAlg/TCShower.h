@@ -32,14 +32,14 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 namespace tca {
-
+  
+  void ConfigureMVA(TjStuff& tjs, std::string fMVAShowerParentWeights);
   bool FindShowerStart(TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   void KillVerticesInShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss, bool prt);
   void Finish3DShowers(TjStuff& tjs);
   bool FindShowers3D(TjStuff& tjs, const geo::TPCID& tpcid);
   bool Reconcile3D(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, bool parentSearchDone, bool prt);
   bool Reconcile3D(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
-//  void FindInShowerPFPs(std::string inFcnLabel, TjStuff& tjs, const geo::TPCID& tpcid, std::vector<std::vector<int>>& plists);
   bool MergeShowerTjsAndStore(TjStuff& tjs, unsigned short istj, unsigned short jstj, bool prt);
   bool TransferTjHits(TjStuff& tjs, bool prt);
   int GetCotID(TjStuff& tjs, int ShowerTjID);
@@ -61,10 +61,8 @@ namespace tca {
   bool AddTj(std::string inFcnLabel, TjStuff& tjs, int TjID, ShowerStruct& ss, bool doUpdate, bool prt);
   bool RemoveTj(std::string inFcnLabel, TjStuff& tjs, int TjID, ShowerStruct& ss, bool doUpdate, bool prt);
   bool AnalyzeRotPos(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss, bool prt);
-  bool DefineShowerTj(std::string inFcnLabel, TjStuff& tjs, int cotID, bool prt);
   void ReverseShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss, bool prt);
   void ReverseShower(std::string inFcnLabel, TjStuff& tjs, int cotID, bool prt);
-  bool FindNeutrinoParent(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   bool FindParent(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3, bool prt);
   bool SetParent(std::string inFcnLabel, TjStuff& tjs, PFPStruct& pfp, ShowerStruct3D& ss3, bool prt);
   bool WrongSplitTj(std::string inFcnLabel, TjStuff& tjs, Trajectory& tj, unsigned short tjEnd, ShowerStruct& ss, bool prt);
@@ -106,7 +104,7 @@ namespace tca {
   bool StoreShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct3D& ss3);
   bool StoreShower(std::string inFcnLabel, TjStuff& tjs, ShowerStruct& ss);
   ShowerStruct3D CreateSS3(TjStuff& tjs, const geo::TPCID& tpcid);
-  ShowerStruct CreateSS(TjStuff& tjs, const std::vector<int>& tjl);
+  ShowerStruct CreateSS(TjStuff& tjs, CTP_t inCTP, const std::vector<int>& tjl);
   bool ChkAssns(std::string inFcnLabel, TjStuff& tjs);
   void PrintShowers(std::string someText, TjStuff& tjs);
   void Print2DShowers(std::string someText, const TjStuff& tjs, CTP_t inCTP, bool printKilledShowers);

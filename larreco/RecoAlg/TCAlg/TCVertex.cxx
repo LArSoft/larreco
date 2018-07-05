@@ -2479,6 +2479,7 @@ namespace tca {
   {
     
     if(!tjs.UseAlg[kComp3DVxIG]) return;
+    if(tjs.NumPlanes != 3) return;
 
     bool prt = (debug.Plane >= 0 && debug.Tick == 44444);
     if(prt) mf::LogVerbatim("TC")<<"Inside CI3DVIG:";
