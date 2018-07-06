@@ -1183,7 +1183,8 @@ double VoronoiDiagram::ComputeFaceArea()
         
         while(doNext)
         {
-            faceCenter += halfEdge->getTargetVertex()->getCoords();
+            if (halfEdge->getTargetVertex())
+                faceCenter += halfEdge->getTargetVertex()->getCoords();
 
             numEdges++;
             
@@ -1206,6 +1207,12 @@ double VoronoiDiagram::ComputeFaceArea()
         while(doNext)
         {
             const dcel2d::HalfEdge* twinEdge = halfEdge->getTwinHalfEdge();
+            
+            if (!halfEdge->getTargetVertex() || !twinEdge->getTargetVertex())
+            {
+                faceArea = std::numeric_limits<double>::max();
+                break;
+            }
             
             // Recover the two vertex points
             const dcel2d::Coords& p1 = halfEdge->getTargetVertex()->getCoords();
@@ -1235,7 +1242,7 @@ double VoronoiDiagram::ComputeFaceArea()
             if (!halfEdge)
             {
                 faceArea = std::numeric_limits<double>::max();
-                doNext   = false;
+                break;
             }
             
             if (halfEdge == face.getHalfEdge()) doNext = false;

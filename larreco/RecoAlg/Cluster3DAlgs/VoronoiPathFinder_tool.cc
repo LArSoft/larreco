@@ -288,6 +288,19 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
         const reco::ClusterHit3D* furthestHit(NULL);
         float                     furthestDistance(0.);
         
+        // Recover the list of 3D hits associated to this cluster
+        reco::HitPairListPtr& clusHitPairVector = clusterToBreak.getHitPairListPtr();
+        
+        // Calculate the doca to the PCA primary axis for each 3D hit
+        // Importantly, this also gives us the arclength along that axis to the hit
+        m_pcaAlg.PCAAnalysis_calc3DDocas(clusHitPairVector, fullPCA);
+        
+        // Sort the hits along the PCA
+        clusHitPairVector.sort([](const auto& left, const auto& right){return left->getArclenToPoca() < right->getArclenToPoca();});
+        
+        // Now find the hit identified above as furthest away
+        reco::HitPairListPtr::iterator vertexItr = clusHitPairVector.end(); // = std::find(clusHitPairVector.begin(),clusHitPairVector.end(),furthestHit);
+
         // Now loop through all the edges and search for the furthers point
         for(const auto& edge : bestEdgeList)
         {
@@ -309,27 +322,43 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
                 
                 if (distToHit > furthestDistance)
                 {
-                    furthestDistance = distToHit;
-                    furthestHit      = nextEdgeHit;
+                    // Now find the hit identified above as furthest away
+                    reco::HitPairListPtr::iterator checkItr = std::find(clusHitPairVector.begin(),clusHitPairVector.end(),nextEdgeHit);
+
+                    // Make sure enough hits either side, otherwise we just keep the current cluster
+                    if (std::distance(clusHitPairVector.begin(),checkItr) > minimumClusterSize && std::distance(checkItr,clusHitPairVector.end()) > minimumClusterSize)
+                    {
+                        furthestDistance = distToHit;
+                        furthestHit      = nextEdgeHit;
+                        vertexItr        = checkItr;
+                    }
                 }
+            }
+            
+            // It can be that we have a large number of hits but don't have a good breakpoint from the edges
+            // Fall back to splitting in half?
+            if (vertexItr == clusHitPairVector.end() && clusHitPairVector.size() > 4 * minimumClusterSize)
+            {
+                vertexItr = clusHitPairVector.begin();
+                std::advance(vertexItr,clusHitPairVector.size()/2);
             }
         }
         
         // Make sure we have a hit
-        if (furthestHit)
+        if (vertexItr != clusHitPairVector.end())
         {
             // Recover the list of 3D hits associated to this cluster
-            reco::HitPairListPtr& clusHitPairVector = clusterToBreak.getHitPairListPtr();
+//            reco::HitPairListPtr& clusHitPairVector = clusterToBreak.getHitPairListPtr();
         
             // Calculate the doca to the PCA primary axis for each 3D hit
             // Importantly, this also gives us the arclength along that axis to the hit
-            m_pcaAlg.PCAAnalysis_calc3DDocas(clusHitPairVector, fullPCA);
+//            m_pcaAlg.PCAAnalysis_calc3DDocas(clusHitPairVector, fullPCA);
         
             // Sort the hits along the PCA
-            clusHitPairVector.sort([](const auto& left, const auto& right){return left->getArclenToPoca() < right->getArclenToPoca();});
+//            clusHitPairVector.sort([](const auto& left, const auto& right){return left->getArclenToPoca() < right->getArclenToPoca();});
             
             // Now find the hit identified above as furthest away
-            reco::HitPairListPtr::iterator vertexItr = std::find(clusHitPairVector.begin(),clusHitPairVector.end(),furthestHit);
+//            reco::HitPairListPtr::iterator vertexItr = std::find(clusHitPairVector.begin(),clusHitPairVector.end(),furthestHit);
             
             // Now we create a list of pairs of iterators to the start and end of each subcluster
             using Hit3DItrPair   = std::pair<reco::HitPairListPtr::iterator,reco::HitPairListPtr::iterator>;
@@ -337,72 +366,72 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
             
             VertexPairList vertexPairList;
 
-            // Make sure enough hits either side
+            // Make sure enough hits either side, otherwise we just keep the current cluster
             if (std::distance(clusHitPairVector.begin(),vertexItr) > minimumClusterSize && std::distance(vertexItr,clusHitPairVector.end()) > minimumClusterSize)
             {
                 vertexPairList.emplace_back(Hit3DItrPair(clusHitPairVector.begin(),vertexItr));
                 vertexPairList.emplace_back(Hit3DItrPair(vertexItr,clusHitPairVector.end()));
-            }
 
-            storeCurrentCluster = false;
+                storeCurrentCluster = false;
             
-            // Ok, now loop through our pairs
-            for(auto& hit3DItrPair : vertexPairList)
-            {
-                reco::ClusterParameters clusterParams;
-                reco::HitPairListPtr&   hitPairListPtr = clusterParams.getHitPairListPtr();
-            
-                std::cout << indent << "+>    -- building new cluster, size: " << std::distance(hit3DItrPair.first,hit3DItrPair.second) << std::endl;
-
-                // size the container...
-                hitPairListPtr.resize(std::distance(hit3DItrPair.first,hit3DItrPair.second));
-
-                // and copy the hits into the container
-                std::copy(hit3DItrPair.first,hit3DItrPair.second,hitPairListPtr.begin());
-            
-                // First stage of feature extraction runs here
-                m_pcaAlg.PCAAnalysis_3D(hitPairListPtr, clusterParams.getFullPCA());
-                
-                // Recover the new fullPCA
-                reco::PrincipalComponents& newFullPCA = clusterParams.getFullPCA();
-
-                // Must have a valid pca
-                if (newFullPCA.getSvdOK())
+                // Ok, now loop through our pairs
+                for(auto& hit3DItrPair : vertexPairList)
                 {
-                    std::cout << indent << "+>    -- >> cluster has a valid Full PCA" << std::endl;
+                    reco::ClusterParameters clusterParams;
+                    reco::HitPairListPtr&   hitPairListPtr = clusterParams.getHitPairListPtr();
+            
+                    std::cout << indent << "+>    -- building new cluster, size: " << std::distance(hit3DItrPair.first,hit3DItrPair.second) << std::endl;
 
-                    // Need to check if the PCA direction has been reversed
-                    Eigen::Vector3f fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
-                    Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
-                    
-                    // If the PCA's are opposite the flip the axes
-                    if (fullPrimaryVec.dot(newPrimaryVec) < 0.)
-                    {
-                        reco::PrincipalComponents::EigenVectors eigenVectors;
-                        
-                        eigenVectors.resize(3);
-                        
-                        for(size_t vecIdx = 0; vecIdx < 3; vecIdx++)
-                        {
-                            eigenVectors[vecIdx].resize(3,0.);
-                            
-                            eigenVectors[vecIdx][0] = -newFullPCA.getEigenVectors()[vecIdx][0];
-                            eigenVectors[vecIdx][1] = -newFullPCA.getEigenVectors()[vecIdx][1];
-                            eigenVectors[vecIdx][2] = -newFullPCA.getEigenVectors()[vecIdx][2];
-                        }
-                        
-                        newFullPCA = reco::PrincipalComponents(true,
-                                                               newFullPCA.getNumHitsUsed(),
-                                                               newFullPCA.getEigenValues(),
-                                                               eigenVectors,
-                                                               newFullPCA.getAvePosition(),
-                                                               newFullPCA.getAveHitDoca());
-                    }
+                    // size the container...
+                    hitPairListPtr.resize(std::distance(hit3DItrPair.first,hit3DItrPair.second));
 
-                    // Set the skeleton PCA to make sure it has some value
-                    clusterParams.getSkeletonPCA() = clusterParams.getFullPCA();
+                    // and copy the hits into the container
+                    std::copy(hit3DItrPair.first,hit3DItrPair.second,hitPairListPtr.begin());
+            
+                    // First stage of feature extraction runs here
+                    m_pcaAlg.PCAAnalysis_3D(hitPairListPtr, clusterParams.getFullPCA());
                 
-                    positionItr = breakIntoTinyBits(clusterParams, positionItr, outputClusterList, level+4);
+                    // Recover the new fullPCA
+                    reco::PrincipalComponents& newFullPCA = clusterParams.getFullPCA();
+
+                    // Must have a valid pca
+                    if (newFullPCA.getSvdOK())
+                    {
+                        std::cout << indent << "+>    -- >> cluster has a valid Full PCA" << std::endl;
+
+                        // Need to check if the PCA direction has been reversed
+                        Eigen::Vector3f fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+                        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
+                    
+                        // If the PCA's are opposite the flip the axes
+                        if (fullPrimaryVec.dot(newPrimaryVec) < 0.)
+                        {
+                            reco::PrincipalComponents::EigenVectors eigenVectors;
+                        
+                            eigenVectors.resize(3);
+                        
+                            for(size_t vecIdx = 0; vecIdx < 3; vecIdx++)
+                            {
+                                eigenVectors[vecIdx].resize(3,0.);
+                            
+                                eigenVectors[vecIdx][0] = -newFullPCA.getEigenVectors()[vecIdx][0];
+                                eigenVectors[vecIdx][1] = -newFullPCA.getEigenVectors()[vecIdx][1];
+                                eigenVectors[vecIdx][2] = -newFullPCA.getEigenVectors()[vecIdx][2];
+                            }
+                        
+                            newFullPCA = reco::PrincipalComponents(true,
+                                                                   newFullPCA.getNumHitsUsed(),
+                                                                   newFullPCA.getEigenValues(),
+                                                                   eigenVectors,
+                                                                   newFullPCA.getAvePosition(),
+                                                                   newFullPCA.getAveHitDoca());
+                        }
+
+                        // Set the skeleton PCA to make sure it has some value
+                        clusterParams.getSkeletonPCA() = clusterParams.getFullPCA();
+                
+                        positionItr = breakIntoTinyBits(clusterParams, positionItr, outputClusterList, level+4);
+                    }
                 }
             }
         }
@@ -552,7 +581,7 @@ void VoronoiPathFinder::buildConvexHull(reco::ClusterParameters& clusterParamete
                     hitPairListPtr.remove(std::get<2>(rejectedPoint));
             }
         }
-        
+
         std::cout << indent << "-> Removed " << nRejectedTotal << " leaving " << pointList.size() << "/" << hitPairListPtr.size() << " points" << std::endl;
         
         // Now add "edges" to the cluster to describe the convex hull (for the display)
