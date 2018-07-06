@@ -256,6 +256,11 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStart
     // This function aims to use the erosion/dilation vectors to find candidate hit regions
     // Once armed with a region then the "standard" differential approach is used to return the candidate peaks
     
+    // Don't do anything if not enough ticks
+    int ticksInInputWaveform = std::distance(derivStartItr, derivStopItr);
+    
+    if (ticksInInputWaveform < fMinDeltaTicks) return;
+    
     // This function is recursive, we start by finding the largest element of the dilation vector
     Waveform::const_iterator maxItr = std::max_element(dilationStartItr,dilationStopItr);
     float                    maxVal = *maxItr;
@@ -264,47 +269,57 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStart
     if (maxVal < dilationThreshold) return;
     
     int maxBin = std::distance(dilationStartItr,maxItr);
-    
+
     // The candidate hit region we want lies between the two nearest minima to the maximum we just found
     // subject to the condition that the erosion vector has return to less than zero
-    Waveform::const_iterator firstDilItr = maxItr;
+    Waveform::const_iterator firstDerItr = derivStartItr   + maxBin;
     Waveform::const_iterator erosionItr  = erosionStartItr + maxBin;
 
-    float firstDilationValue = *firstDilItr;
-    float dilationCutValue   = fDilationFraction * maxVal;
-    float erosionCutValue    = fErosionFraction * maxVal;
+    float firstDerivValue = -1.;
+    float erosionCutValue = fErosionFraction * maxVal;
     
     // Search for starting point
-    while(firstDilItr != dilationStartItr)
+    while(firstDerItr != derivStartItr)
     {
         // Look for the turnover point
-        if (*erosionItr-- < erosionCutValue && *firstDilItr < dilationCutValue && *firstDilItr >= firstDilationValue) break;
+        if (*erosionItr-- < erosionCutValue)
+        {
+            // We are looking for the zero crossing signifying a minimum value in the waveform
+            // (so the previous derivative < 0 while current is > 0)
+            // We are moving "backwards" so the current value <= 0, the previous value > 0
+            if (*firstDerItr * firstDerivValue <= 0. && firstDerivValue > 0.) break;
+        }
         
-        firstDilationValue = *firstDilItr--;
+        firstDerivValue = *firstDerItr--;
     }
     
     // Set the start bin
-    int hitRegionStart = std::distance(dilationStartItr,firstDilItr);
+    int hitRegionStart = std::distance(derivStartItr,firstDerItr);
 
     // Now go the other way
-    Waveform::const_iterator lastDilItr = maxItr;
+    Waveform::const_iterator lastDerItr = derivStartItr + maxBin;
 
     // Reset the local variables
-    float lastDilationValue = *lastDilItr;
+    float lastDerivValue = 1.;
     
     erosionItr = erosionStartItr + maxBin;
 
     // Search for starting point
-    while(++lastDilItr != dilationStopItr)
+    while(lastDerItr != derivStopItr)
     {
-        if (*++erosionItr <= erosionCutValue && *lastDilItr < dilationCutValue && *lastDilItr >= lastDilationValue) break;
+        if (*erosionItr++ <= erosionCutValue)
+        {
+            // We are again looking for the zero crossing signifying a minimum value in the waveform
+            // This time we are moving forward, so test is that previous value < 0, new value >= 0
+            if (*lastDerItr * lastDerivValue <= 0. && lastDerivValue < 0.) break;
+        }
         
-        lastDilationValue = *lastDilItr;
+        lastDerivValue = *lastDerItr++;
     }
     
     // Set the stop bin
-    int hitRegionStop = std::distance(dilationStartItr,lastDilItr);
-    
+    int hitRegionStop = std::distance(derivStartItr,lastDerItr);
+
     // Recursive call to find any hits in front of where we are now
     if (hitRegionStart > fMinDeltaTicks)
         findHitCandidates(derivStartItr,    derivStartItr    + hitRegionStart,
@@ -315,19 +330,19 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStart
                           hitCandidateVec);
     
     // Call the differential hit finding to get the actual hits within the region
-    findHitCandidates(derivStartItr + hitRegionStart,
-                      derivStartItr + hitRegionStop,
-                      roiStartTick + hitRegionStart,
+    findHitCandidates(derivStartItr + hitRegionStart, derivStartItr + hitRegionStop,
+                      roiStartTick  + hitRegionStart,
                       fMinDeltaTicks,
                       fMinDeltaPeaks,
                       hitCandidateVec);
     
     // Now call ourselves again to find any hits trailing the region we just identified
-    if (std::distance(lastDilItr,dilationStopItr) > fMinDeltaTicks)
+    if (std::distance(lastDerItr,derivStopItr) > fMinDeltaTicks)
+//    if (std::distance(lastDilItr,dilationStopItr) > fMinDeltaTicks)
         findHitCandidates(derivStartItr    + hitRegionStop,    derivStopItr,
                           erosionStartItr  + hitRegionStop,    erosionStopItr,
                           dilationStartItr + hitRegionStop,    dilationStopItr,
-                          roiStartTick + hitRegionStop,
+                          roiStartTick     + hitRegionStop,
                           2. * fDilationThreshold,
                           hitCandidateVec);
 
