@@ -37,10 +37,11 @@ public:
     
 private:
     // Member variables from the fhicl file
-    double                   fMinWidth;     ///< minimum initial width for gaussian fit
-    double                   fMaxWidthMult; ///< multiplier for max width for gaussian fit
-    double                   fPeakRange;    ///< set range limits for peak center
-    double                   fAmpRange;     ///< set range limit for peak amplitude
+    double                   fMinWidth;      ///< minimum initial width for gaussian fit
+    double                   fMaxWidthMult;  ///< multiplier for max width for gaussian fit
+    double                   fPeakRange;     ///< set range limits for peak center
+    double                   fAmpRange;      ///< set range limit for peak amplitude
+    bool                     fFloatBaseline; ///< Allow baseline to "float" away from zero
     
     mutable TH1F             fHistogram;
     
@@ -61,10 +62,11 @@ PeakFitterGaussian::~PeakFitterGaussian()
 void PeakFitterGaussian::configure(const fhicl::ParameterSet& pset)
 {
     // Start by recovering the parameters
-    fMinWidth     = pset.get<double>("MinWidth",      0.5);
-    fMaxWidthMult = pset.get<double>("MaxWidthMult",  3.);
-    fPeakRange    = pset.get<double>("PeakRangeFact", 2.);
-    fAmpRange     = pset.get<double>("PeakAmpRange",  2.);
+    fMinWidth      = pset.get<double>("MinWidth",      0.5);
+    fMaxWidthMult  = pset.get<double>("MaxWidthMult",  3.);
+    fPeakRange     = pset.get<double>("PeakRangeFact", 2.);
+    fAmpRange      = pset.get<double>("PeakAmpRange",  2.);
+    fFloatBaseline = pset.get< bool >("FloatBaseline", false);
     
     fHistogram    = TH1F("PeakFitterHitSignal","",500,0.,500.);
     
@@ -112,10 +114,15 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     
     for(size_t idx = 1; idx < hitCandidateVec.size(); idx++) equation += "+gaus(" + std::to_string(3*idx) + ")";
     
-    // Set the baseline
-    float baseline = roiSignalVec.at(startTime);
+    // Set the baseline if so desired
+    float baseline(0.);
     
-    equation += "+" + std::to_string(baseline);
+    if (fFloatBaseline)
+    {
+        baseline = roiSignalVec.at(startTime);
+    
+        equation += "+" + std::to_string(baseline);
+    }
 
     // Now define the complete function to fit
     TF1 Gaus("Gaus",equation.c_str(),0,roiSize);
