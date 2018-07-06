@@ -1186,6 +1186,9 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
     {
         art::Ptr<recob::Hit> recobHit(recobHitHandle, cIdx);
         
+        // Skip junk hits
+        if (recobHit->DegreesOfFreedom() > 1 && recobHit->Multiplicity() > 1 && recobHit->RMS() < 3.6) continue;
+        
         const geo::WireID& hitWireID(recobHit->WireID());
         
         double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[recobHit->WireID().planeID()]);
