@@ -64,7 +64,8 @@ namespace tca {
     "MergeShChain",
     "CompleteShower",
     "SplitTjCVx",
-    "SetDir"
+    "SetDir",
+    "Cheat"
   };
 
   const std::vector<std::string> StopFlagNames {
