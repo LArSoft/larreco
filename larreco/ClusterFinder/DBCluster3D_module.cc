@@ -52,6 +52,7 @@ private:
 
   const art::InputTag fHitModuleLabel;
   const art::InputTag fSpacePointModuleLabel;
+  const art::InputTag fSPHitAssnLabel;
 
   DBScan3DAlg fDBScan;
 
@@ -67,6 +68,7 @@ private:
 cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
   : fHitModuleLabel(p.get< art::InputTag >("HitModuleLabel"))
   , fSpacePointModuleLabel(p.get< art::InputTag >("SpacePointModuleLabel"))
+  , fSPHitAssnLabel(p.get< art::InputTag >("fSPHitAssnLabel"))
   , fDBScan(p.get< fhicl::ParameterSet >("DBScan3DAlg"))
   , fMinHitDis(p.get< double >("MinHitDis"))
 {
@@ -110,7 +112,7 @@ void cluster::DBCluster3D::produce(art::Event & evt)
   std::vector< art::Ptr<recob::SpacePoint> > sps;
   art::fill_ptr_vector(sps, spsHandle);
 
-  art::FindManyP< recob::SpacePoint > spFromHit(hitsHandle, evt, fHitModuleLabel);
+  art::FindManyP< recob::SpacePoint > spFromHit(hitsHandle, evt, fSPHitAssnLabel);
 
   fDBScan.init(sps);
   fDBScan.dbscan();
