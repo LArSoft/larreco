@@ -46,8 +46,9 @@ namespace tca {
   //------------------------------------------------------------------------------
 
   TrajClusterAlg::TrajClusterAlg(fhicl::ParameterSet const& pset)
-    :fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg"))
+  :fCaloAlg(pset.get<fhicl::ParameterSet>("CaloAlg")), fMVAReader("Silent")
   {
+    tjs.ShowerParentReader = &fMVAReader;
     reconfigure(pset);
     tjs.caloAlg = &fCaloAlg;
     art::ServiceHandle<art::TFileService> tfs;
@@ -92,6 +93,8 @@ namespace tca {
     tjs.DeltaRayTag       = pset.get< std::vector<short>>("DeltaRayTag", {-1, -1, -1});
     tjs.MuonTag           = pset.get< std::vector<short>>("MuonTag", {-1, -1, -1, - 1});
     tjs.ShowerTag         = pset.get< std::vector<float>>("ShowerTag", {-1, -1, -1, -1, -1, -1});
+    std::string fMVAShowerParentWeights = "NA";
+    pset.get_if_present<std::string>("MVAShowerParentWeights", fMVAShowerParentWeights);
     
     tjs.SaveShowerTree    = pset.get< bool >("SaveShowerTree", false);
     tjs.SaveCRTree        = pset.get< bool >("SaveCRTree", false);
@@ -264,6 +267,9 @@ namespace tca {
       throw art::Exception(art::errors::Configuration)<< "Invalid SkipAlgs specification";
     }
     
+    // Configure the TMVA reader for the shower parent BDT
+    if(fMVAShowerParentWeights != "NA" && tjs.ShowerTag[0] > 0) ConfigureMVA(tjs, fMVAShowerParentWeights);
+
     if(tjs.DebugMode) {
       std::cout<<"Using algs:";
       for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) {
@@ -292,6 +298,7 @@ namespace tca {
     tjs.allTraj = {};
     tjs.mallTraj = {};
     tjs.cots = {};
+    tjs.dontCluster = {};
     tjs.showers = {};
     tjs.MCPartList = {};
 
@@ -393,7 +400,8 @@ namespace tca {
       FindMissedVxTjs(tpcid);
       prt = (debug.Plane >= tjs.NumPlanes && debug.Tick == 6666);
       ScoreVertices(tjs, tpcid, prt);
-      TagProtons(tjs, tpcid, prt);
+      // This is done in ChkStop
+//      TagProtons(tjs, tpcid, prt);
       // Define the ParentID of trajectories using the vertex score
       DefineTjParents(tjs, tpcid, prt);
       for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
@@ -429,6 +437,7 @@ namespace tca {
       } // 3D shower code
     } // tpcid
 
+    if(fStudyMode) tm.StudyShowerParents(hist);
     // Convert trajectories in allTraj into clusters
     MakeAllTrajClusters();
     // Ensure that all PFParticles have a start vertex
@@ -730,9 +739,8 @@ namespace tca {
     }
     TagDeltaRays(tjs, inCTP);
     
-    // Tag ShowerLike Tjs. The list of inshower Tjs within each shower isn't used here.
-    std::vector<std::vector<int>> tjlist;
-    if(tjs.ShowerTag[0] > 0) TagShowerLike("RAT", tjs, inCTP, tjlist, true);
+    // Tag ShowerLike Tjs
+    if(tjs.ShowerTag[0] > 0) TagShowerLike("RAT", tjs, inCTP);
     
     Find2DVertices(tjs, inCTP);
     SplitTrajCrossingVertices(tjs, inCTP);
@@ -2015,7 +2023,7 @@ namespace tca {
             if(tj2.CTP != inCTP) continue;
             // BB April 19, 2018: check for large fraction of overlapping wires
             float olf = OverlapFraction(tjs, tjs.allTraj[it1], tjs.allTraj[it2]);
-            if(mrgPrt) mf::LogVerbatim("TC")<<"EM: T"<<tjs.allTraj[it1].ID<<"-T"<<tjs.allTraj[it2].ID<<" OverlapFraction "<<olf;
+//            if(mrgPrt) mf::LogVerbatim("TC")<<"EM: T"<<tjs.allTraj[it1].ID<<"-T"<<tjs.allTraj[it2].ID<<" OverlapFraction "<<olf;
             if(olf > 0.25) continue;
             unsigned short end2 = 1 - end1;
             // check for a vertex at this end
@@ -2209,6 +2217,7 @@ namespace tca {
           if(mrgPrt) {
             mf::LogVerbatim myprt("TC");
             myprt<<"EM: T"<<tjs.allTraj[it1].ID<<"_"<<end1<<" - T"<<tjs.allTraj[it2].ID<<"_"<<end2<<" tp1-tp2 "<<PrintPos(tjs, tp1)<<"-"<<PrintPos(tjs, tp2);
+            myprt<<" ShowerLike? "<<tjs.allTraj[it1].AlgMod[kShowerLike]<<" "<<tjs.allTraj[it2].AlgMod[kShowerLike];
             myprt<<" bestFOM "<<std::fixed<<std::setprecision(2)<<bestFOM;
             myprt<<" bestDOCA "<<std::setprecision(1)<<bestDOCA;
             myprt<<" cut "<<docaCut<<" isVLA? "<<isVLA;
@@ -2220,7 +2229,6 @@ namespace tca {
             myprt<<" doMerge? "<<doMerge;
           }
           
-          // Sep 20
           if(bestDOCA > docaCut) continue;
           
           if(doMerge) {
@@ -3039,8 +3047,13 @@ namespace tca {
     FindSoftKink(tj);
     
     HiEndDelta(tj);
-    // Feb 14. use this after all tjs are reconstructed
-//    CheckHiMultUnusedHits(tj);
+    
+    // final quality check
+    float npwc = NumPtsWithCharge(tjs, tj, true);
+    float npts = tj.EndPt[1] - tj.EndPt[0] + 1;
+    float frac = npwc / npts;
+    fGoodTraj = (frac >= fQualityCuts[0]);
+    if(prt) mf::LogVerbatim("TC")<<"CTStepChk: fraction of points with charge "<<frac<<" good traj? "<<fGoodTraj;
     if(!fGoodTraj || fQuitAlg) return;
     
     // lop off high multiplicity hits at the end
@@ -4453,6 +4466,7 @@ namespace tca {
       cls.ID = tj.ID;
       // assign shower clusters a negative ID
       if(tj.AlgMod[kShowerTj]) cls.ID = -cls.ID;
+      if( ((tjs.ShowerTag[0] == 1) || (tjs.ShowerTag[0] == 3)) && tj.AlgMod[kShowerLike]) cls.ID = -cls.ID;
       cls.CTP = tj.CTP;
       cls.PDGCode = tj.PDGCode;
       endPt0 = tj.EndPt[0];
@@ -4479,8 +4493,7 @@ namespace tca {
   //////////////////////////////////////////
   void TrajClusterAlg::FindMissedVxTjs(const geo::TPCID& tpcid)
   {
-    // Use an approach similar to CompleteIncompleteVertices to find missing 2D
-    // vertices in a plane due to a mis-reconstructed Tj in the missing plane
+    // Find missing 2D vertices in a plane due to a mis-reconstructed Tj
     
     if(!tjs.UseAlg[kMisdVxTj]) return;
 
@@ -4529,14 +4542,14 @@ namespace tca {
         unsigned short closePt = 0;
         TrajPointTrajDOCA(tjs, tp, tjs.allTraj[itj], closePt, doca);
         if(closePt > tjs.allTraj[itj].EndPt[1]) continue;
-        if(prt) mf::LogVerbatim("TC")<<"CI3DV vx3.ID "<<vx3.ID<<" candidate itj ID "<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
+        if(prt) mf::LogVerbatim("TC")<<"FMVTjs 3V"<<vx3.ID<<" candidate T"<<tjs.allTraj[itj].ID<<" closePT "<<closePt<<" doca "<<doca;
         tjIDs.push_back(tjs.allTraj[itj].ID);
         tj2Pts.push_back(closePt);
       } // itj
       // handle the case where there are one or more TJs with TPs near the ends
       // that make a vertex (a failure by Find2DVertices)
       if(tjIDs.empty()) continue;
-      if(prt) mf::LogVerbatim("TC")<<"vx3 "<<vx3.ID<<" mPlane "<<mPlane<<" ntj_1stPlane "<<ntj_1stPlane<<" ntj_2ndPlane "<<ntj_2ndPlane; 
+      if(prt) mf::LogVerbatim("TC")<<" 3V"<<vx3.ID<<" mPlane "<<mPlane<<" ntj_1stPlane "<<ntj_1stPlane<<" ntj_2ndPlane "<<ntj_2ndPlane; 
     } // iv3
   } // FindMissedVxTjs
   
@@ -5283,7 +5296,7 @@ namespace tca {
     if(fChkStopCuts[0] < 0) return;
     
     // don't attempt with low momentum trajectories
-    if(tj.MCSMom < 50) return;
+    if(tj.MCSMom < 30) return;
     
     // ignore trajectories that are very large angle at both ends
     if(tj.Pts[tj.EndPt[0]].AngleCode == 2 || tj.Pts[tj.EndPt[1]].AngleCode == 2) return;
@@ -5348,12 +5361,16 @@ namespace tca {
         tj.AlgMod[kChkStop] = true;
         // Put the charge at the end into tp.AveChg
         tj.Pts[endPt].AveChg = intcpt;
-        if(prt) mf::LogVerbatim("TC")<<" end "<<end<<" fit chidof "<<chidof<<" slope "<<slope<<" +/- "<<slopeerr<<" Stopping ";
+        // see if we can tag it as a proton
+        std::vector<int> tjlist(1, tj.ID);
+        float chgFrac = ChgFracNearPos(tjs, tj.Pts[endPt].Pos, tjlist);
+        if(chgFrac > 0.9) tj.PDGCode = 2212;
+        if(prt) mf::LogVerbatim("TC")<<" end "<<end<<" fit chidof "<<chidof<<" slope "<<slope<<" +/- "<<slopeerr<<" proton tag "<<tj.PDGCode;
       } else {
         if(prt) mf::LogVerbatim("TC")<<" end "<<end<<" fit chidof "<<chidof<<" slope "<<slope<<" +/- "<<slopeerr<<" Not stopping";
       }
-   } // end
-
+    } // end
+    
   } // ChkStop
 
   //////////////////////TY://////////////////////////
@@ -5716,7 +5733,6 @@ namespace tca {
     // associate a hit with a MCParticle > 50% of the deposited energy is from it
     for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
       particle_vec.clear(); match_vec.clear();
-//      bool prthit = (tjs.fHits[iht].StartTick == 4293 && tjs.fHits[iht].ArtPtr->WireID().Wire == 2510);
       if(prthit) {
         std::cout<<"Hit "<<PrintHit(tjs.fHits[iht])<<" key "<<tjs.fHits[iht].ArtPtr.key()<<" StartTick "<<tjs.fHits[iht].StartTick<<"\n";
       }
@@ -5731,9 +5747,10 @@ namespace tca {
       int trackID = 0;
       for(unsigned short im = 0; im < match_vec.size(); ++im) {
         if(prthit) std::cout<<" im "<<im<<" trackID "<<particle_vec[im]->TrackId()<<" ideFraction "<<match_vec[im]->ideFraction<<"\n";
-        if(match_vec[im]->ideFraction < 0.5) continue;
-        trackID = particle_vec[im]->TrackId();
-        break;
+        if(match_vec[im]->ideFraction > 0.5) {
+          trackID = particle_vec[im]->TrackId();
+          break;
+        } // ideFraction > 0.5
       } // im
       if(trackID == 0) continue;
       if(prthit) {

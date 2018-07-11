@@ -13,7 +13,6 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
 
 // LArSoft includes
-#include "larreco/RecoAlg/Cluster3DAlgs/Hit3DBuilderAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/kdTree.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/ClusterParamsBuilder.h"
@@ -67,6 +66,9 @@ public:
     void Cluster3DHits(reco::HitPairList&           hitPairList,
                        reco::ClusterParametersList& clusterParametersList) const override;
     
+    void Cluster3DHits(reco::HitPairListPtr&        hitPairList,
+                       reco::ClusterParametersList& clusterParametersList) const override {return;}
+
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
@@ -488,7 +490,7 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParam
                     float deltaPos[] = {secondPos[0]-firstPos[0],secondPos[1]-firstPos[1],secondPos[2]-firstPos[2]};
                     float projection = std::fabs(deltaPos[0]*pcaAxis[0]+deltaPos[1]*pcaAxis[1]+deltaPos[2]*pcaAxis[2]);
                 
-                    edgeList.emplace_back(reco::EdgeTuple(firstHit,*secondItr,projection));
+                    edgeList.emplace_back(firstHit,*secondItr,projection);
                     //edgeList.emplace_back(reco::EdgeTuple(firstHit,*secondItr,DistanceBetweenNodes(firstHit,*secondItr)));
                 }
             }

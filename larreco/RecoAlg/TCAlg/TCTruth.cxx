@@ -232,6 +232,157 @@ namespace tca {
   } // MatchTrueHits
   
   //////////////////////////////////////////
+  void TruthMatcher::StudyShowerParents(HistStuff& hist)
+  {
+    // study characteristics of shower parent pfps. This code is adapted from TCShower FindParent
+    if(tjs.pfps.empty()) return;
+    if(tjs.MCPartList.empty()) return;
+    
+    // Look for truth pfp primary electron
+    Point3_t primVx {{-666.0, -666.0, -666.0}};
+    // the primary should be the first one in the list as selected in GetHitCollection
+    auto& primMCP = tjs.MCPartList[0];
+    primVx[0] = primMCP->Vx();
+    primVx[1] = primMCP->Vy();
+    primVx[2] = primMCP->Vz();
+    geo::Vector_t posOffsets;
+    auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
+    posOffsets = SCE->GetPosOffsets({primVx[0], primVx[1], primVx[2]});
+    posOffsets.SetX(-posOffsets.X());
+    primVx[0] += posOffsets.X();
+    primVx[1] += posOffsets.Y();
+    primVx[2] += posOffsets.Z();
+    geo::TPCID inTPCID = tjs.TPCID;
+    if(!InsideTPC(tjs, primVx, inTPCID)) return;
+
+    std::string fcnLabel = "SSP";
+    // Create a truth shower for each primary electron
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    MCParticleListUtils mcpu{tjs};
+    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
+      auto& mcp = tjs.MCPartList[part];
+      // require electron or photon
+      if(abs(mcp->PdgCode()) != 11 && abs(mcp->PdgCode()) != 111) continue;
+      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+      // require that it is primary
+      if(mcp->TrackId() != eveID) continue;
+      int truPFP = 0;
+      auto ss3 = mcpu.MakeCheatShower(part, primVx, truPFP);
+      if(ss3.ID == 0) continue;
+      if(truPFP == 0) continue;
+      if(!StoreShower(fcnLabel, tjs, ss3)) {
+        std::cout<<"Failed to store 3S"<<ss3.ID<<"\n";
+        break;
+      } // store failed
+      // now fill the TTree
+      float ss3Energy = ShowerEnergy(ss3);
+      for(auto& pfp : tjs.pfps) {
+        if(pfp.TPCID != ss3.TPCID) continue;
+        // ignore neutrinos
+        if(pfp.PDGCode == 12 || pfp.PDGCode == 14) continue;
+        // ignore shower pfps
+        if(pfp.PDGCode == 1111) continue;
+        float pfpEnergy = 0;
+        float minEnergy = 1E6;
+        for(auto tid : pfp.TjIDs) {
+          auto& tj = tjs.allTraj[tid - 1];
+          float energy = ChgToMeV(tj.TotChg);
+          pfpEnergy += energy;
+          if(energy < minEnergy) minEnergy = energy;
+        }
+        pfpEnergy -= minEnergy;
+        pfpEnergy /= (float)(pfp.TjIDs.size() - 1);
+        // find the end that is farthest away
+        unsigned short pEnd = FarEnd(tjs, pfp, ss3.ChgPos);
+        auto pToS = PointDirection(pfp.XYZ[pEnd], ss3.ChgPos);
+        // take the absolute value in case the shower direction isn't well known
+        float costh1 = std::abs(DotProd(pToS, ss3.Dir));
+        float costh2 = DotProd(pToS, pfp.Dir[pEnd]);
+        // distance^2 between the pfp end and the shower start, charge center, and shower end
+        float distToStart2 = PosSep2(pfp.XYZ[pEnd], ss3.Start);
+        float distToChgPos2 = PosSep2(pfp.XYZ[pEnd], ss3.ChgPos);
+        float distToEnd2 = PosSep2(pfp.XYZ[pEnd], ss3.End);
+//        mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<" P"<<pfp.ID<<"_"<<pEnd<<" distToStart "<<sqrt(distToStart2)<<" distToChgPos "<<sqrt(distToChgPos2)<<" distToEnd "<<sqrt(distToEnd2);
+        // find the end of the shower closest to the pfp
+        unsigned short shEnd = 0;
+        if(distToEnd2 < distToStart2) shEnd = 1;
+        if(shEnd == 0 && distToChgPos2 < distToStart2) continue;
+        if(shEnd == 1 && distToChgPos2 < distToEnd2) continue;
+//      mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<"_"<<shEnd<<" P"<<pfp.ID<<"_"<<pEnd<<" costh1 "<<costh1;
+        Point2_t alongTrans;
+        // find the longitudinal and transverse components of the pfp start point relative to the
+        // shower center
+        FindAlongTrans(ss3.ChgPos, ss3.Dir, pfp.XYZ[pEnd], alongTrans);
+//      mf::LogVerbatim("TC")<<"   alongTrans "<<alongTrans[0]<<" "<<alongTrans[1];
+        hist.fSep = sqrt(distToChgPos2);
+        hist.fShEnergy = ss3Energy;
+        hist.fPfpEnergy = pfpEnergy;
+        hist.fPfpLen = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+        hist.fMCSMom = MCSMom(tjs, pfp.TjIDs);
+        hist.fDang1 = acos(costh1);
+        hist.fDang2 = acos(costh2);
+        hist.fChgFrac = 0;
+        float chgFrac = 0;
+        float totSep = 0;
+        // find the charge fraction btw the pfp start and the point that is 
+        // half the distance to the charge center in each plane
+        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+          CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
+          int ssid = 0;
+          for(auto cid : ss3.CotIDs) {
+            auto& ss = tjs.cots[cid - 1];
+            if(ss.CTP != inCTP) continue;
+            ssid = ss.ID;
+            break;
+          } // cid
+          if(ssid == 0) continue;
+          auto tpFrom = MakeBareTP(tjs, pfp.XYZ[pEnd], pToS, inCTP);
+          auto& ss = tjs.cots[ssid - 1];
+          auto& stp1 = tjs.allTraj[ss.ShowerTjID - 1].Pts[1];
+          float sep = PosSep(tpFrom.Pos, stp1.Pos);
+          float toPos = tpFrom.Pos[0] + 0.5 * tpFrom.Dir[0] * sep;
+          float cf = ChgFracBetween(tjs, tpFrom, toPos, false);
+          // weight by the separation in the plane
+          totSep += sep;
+          chgFrac += sep * cf;
+        } // plane
+        if(totSep > 0) hist.fChgFrac = chgFrac / totSep;
+        hist.fAlong = alongTrans[0];
+        hist.fTrans = alongTrans[1];
+        hist.fInShwrProb = InShowerProbLong(ss3Energy, -hist.fSep);
+        bool isBad = (hist.fDang1 > 2 || hist.fChgFrac < 0.5 || hist.fInShwrProb < 0.05);
+        if(pfp.ID == truPFP && isBad) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<"SSP: 3S"<<ss3.ID<<" shEnergy "<<(int)ss3Energy<<" P"<<pfp.ID<<" pfpEnergy "<<(int)pfpEnergy;
+          myprt<<" MCSMom "<<hist.fMCSMom<<" len "<<hist.fPfpLen;
+          myprt<<" Dang1 "<<hist.fDang1<<" Dang2 "<<hist.fDang2<<" chgFrac "<<hist.fChgFrac;
+          myprt<<" fInShwrProb "<<hist.fInShwrProb;
+          myprt<<" EventsProcessed "<<tjs.EventsProcessed;
+        }
+        if(pfp.ID == truPFP) {
+          hist.fShowerParentSig->Fill();
+        } else {
+          hist.fShowerParentBkg->Fill();
+        }
+      } // pfp
+    } // part
+//    PrintShowers(fcnLabel, tjs);
+//    Print2DShowers(fcnLabel, tjs, USHRT_MAX, false);
+    // kill the cheat showers
+    for(auto& ss3 : tjs.showers) {
+      if(ss3.ID == 0) continue;
+      if(!ss3.Cheat) continue;
+      for(auto cid : ss3.CotIDs) {
+        auto& ss = tjs.cots[cid - 1];
+        ss.ID = 0;
+        auto& stj = tjs.allTraj[ss.ShowerTjID - 1];
+        stj.AlgMod[kKilled] = true;
+      } // cid
+      ss3.ID = 0;
+    } // ss3
+  } // StudyShowerParents
+  
+  //////////////////////////////////////////
   void TruthMatcher::StudyElectrons(const HistStuff& hist)
   {
     // study tjs matched to electrons to develop an electron tag
@@ -1034,75 +1185,313 @@ namespace tca {
     Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
     SetMag(dir, 1);
     tp = MakeBareTP(tjs, pos, dir, tp.CTP);
-/* the following section was used for testing MakeBareTP
-    // use HitPos as a work vector
-    tp.HitPos[0] = tjs.geom->WireCoordinate(pos[1], pos[2], planeID);
-    tp.HitPos[1] = tjs.detprop->ConvertXToTicks(pos[0], planeID) * tjs.UnitsPerTick;
-    
-    tp.Dir[0] = tp.HitPos[0] - tp.Pos[0];
-    tp.Dir[1] = tp.HitPos[1] - tp.Pos[1];
-    double norm = sqrt(tp.Dir[0] * tp.Dir[0] + tp.Dir[1] * tp.Dir[1]);
-    tp.Dir[0] /= norm;
-    tp.Dir[1] /= norm;
-    tp.Ang = atan2(tp.Dir[1], tp.Dir[0]);
-    tp.Delta = norm / 100;
-    
-    // The Orth vectors are not unit normalized so we need to correct for this
-    double w0 = tjs.geom->WireCoordinate(0, 0, planeID);
-    // cosine-like component
-    double cs = tjs.geom->WireCoordinate(1, 0, planeID) - w0;
-    // sine-like component
-    double sn = tjs.geom->WireCoordinate(0, 1, planeID) - w0;
-    norm = sqrt(cs * cs + sn * sn);
-    tp.Delta /= norm;
-    
-    std::cout<<"MTTP "<<MCParticleListIndex<<" CTP "<<tp.CTP<<"\n";
-    std::cout<<" Pos "<<std::fixed<<std::setprecision(1)<<tp.Pos[0]<<" "<<tp.Pos[1];
-    std::cout<<" Dir "<<std::fixed<<std::setprecision(3)<<tp.Dir[0]<<" "<<tp.Dir[1];
-    std::cout<<" proj "<<tp.Delta<<"\n";
-    
-    TrajPoint otp = MakeBareTP(tjs, pos, dir, tp.CTP);
-    std::cout<<"otp\n";
-    std::cout<<" Pos "<<std::fixed<<std::setprecision(1)<<otp.Pos[0]<<" "<<otp.Pos[1];
-    std::cout<<" Dir "<<std::fixed<<std::setprecision(3)<<otp.Dir[0]<<" "<<otp.Dir[1];
-    std::cout<<" proj "<<otp.Delta<<"\n";
-*/
   } // MakeTruTrajPoint
+
+  ////////////////////////////////////////////////
+  ShowerStruct3D MCParticleListUtils::MakeCheatShower(unsigned int mcpIndex, Point3_t primVx, int& truParentPFP)
+  {
+    // Make a 3D shower for an electron or photon MCParticle in the current TPC. 
+    // The shower ID is set to 0 if there is a failure. The ID of the most likely parent pfp is returned
+    // as well - the one that is closest to the primary vertex position
+    auto ss3 = CreateSS3(tjs, tjs.TPCID);
+    truParentPFP = 0;
+    // save the ID 
+    int goodID = ss3.ID;
+    // set it to the failure state
+    ss3.ID = 0;
+    ss3.Cheat = true;
+    if(mcpIndex > tjs.MCPartList.size() - 1) return ss3;
+    auto& mcp = tjs.MCPartList[mcpIndex];
+    int pdg = abs(mcp->PdgCode());
+    if(!(pdg == 11 || pdg == 111)) return ss3;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    int eveID = mcp->TrackId();
+    float showerEnergy = 1000 * mcp->E();
+    float shMaxAlong = 7.0 * log(showerEnergy / 15);
+    std::cout<<"MCS: showerEnergy "<<(int)showerEnergy<<" MeV. shMaxAlong "<<shMaxAlong<<" cm\n";
+    
+    // put the shower hits in two vectors. One for the InShower hits
+    // and one for the shower parent
+    std::vector<std::vector<unsigned int>> showerHits(tjs.NumPlanes);
+    std::vector<std::vector<unsigned int>> parentHits(tjs.NumPlanes);
+    unsigned short nsh = 0;
+    unsigned short npar = 0;
+    unsigned int cstat = tjs.TPCID.Cryostat;
+    unsigned int tpc = tjs.TPCID.TPC;
+    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
+      auto& hit = tjs.fHits[iht];
+      if(hit.MCPartListIndex > tjs.MCPartList.size()-1) continue;
+      if(hit.ArtPtr->WireID().TPC != tpc) continue;
+      if(hit.ArtPtr->WireID().Cryostat != cstat) continue;
+      if(hit.Integral <= 0) continue;
+      // require that it be used in a tj to ignore hits that are far
+      // from the shower
+      if(hit.InTraj <= 0) continue;
+      auto& shmcp = tjs.MCPartList[hit.MCPartListIndex];
+      // look for an electron
+      if(abs(shmcp->PdgCode()) != 11) continue;
+      // with eve ID = the primary electron being considered
+      int eid = pi_serv->ParticleList().EveId(shmcp->TrackId());
+      if(eid != eveID) continue;
+      if(shmcp->TrackId() == eid) {
+        // store the shower parent hit
+        parentHits[hit.ArtPtr->WireID().Plane].push_back(iht);
+        ++npar;
+      } else {
+        // store the InShower hit
+        showerHits[hit.ArtPtr->WireID().Plane].push_back(iht);
+        ++nsh;
+      }
+    } // iht
+    // require more hits in the shower than in the parent
+    if(npar > nsh) return ss3;
+/*
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      std::cout<<" plane "<<plane<<" shower hits "<<showerHits[plane].size();
+      std::cout<<" parentHits "<<parentHits[plane].size()<<"\n";
+    } // plane
+*/
+    // create 2D cheat showers in each plane
+    std::vector<int> dummy_tjlist;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      CTP_t inCTP = EncodeCTP(cstat, tpc, plane);
+      auto ss = CreateSS(tjs, inCTP, dummy_tjlist);
+      // fill the ShPts
+      ss.ShPts.resize(showerHits[plane].size());
+      for(unsigned short iht = 0; iht < showerHits[plane].size(); ++iht) {
+        auto& hit = tjs.fHits[showerHits[plane][iht]];
+        ss.ShPts[iht].HitIndex = showerHits[plane][iht];
+        ss.ShPts[iht].TID = 0;
+        ss.ShPts[iht].Chg = hit.Integral;
+        ss.ShPts[iht].Pos[0] = hit.ArtPtr->WireID().Wire;
+        ss.ShPts[iht].Pos[1] = hit.PeakTime * tjs.UnitsPerTick;
+      } // iht
+      ss.SS3ID = goodID;
+      if(!UpdateShower("MCS", tjs, ss, true)) {
+        std::cout<<"Failed to update 2S"<<ss.ID<<"\n";
+        return ss3;
+      } // UpdateShower failed
+      // remove shower points that are far away
+      std::vector<ShowerPoint> spts;
+      for(auto& spt : ss.ShPts) {
+        // don't make a tight cut right now. The shower parameterization isn't great
+        double along = tjs.WirePitch * spt.RotPos[0];
+        float tau = along / shMaxAlong;
+//        auto& hit = tjs.fHits[spt.HitIndex];
+//        if(ss.ID == 2) std::cout<<"chk "<<PrintHit(hit)<<" along "<<(int)along<<" tau "<<std::fixed<<std::setprecision(1)<<tau<<"\n";
+        if(tau > -1 && tau < 2) {
+          spts.push_back(spt);
+        } else {
+//          std::cout<<"Skip "<<PrintHit(hit)<<" along "<<(int)along<<"\n";
+        }
+      } // spt
+      std::cout<<" 2S"<<ss.ID<<" shpts "<<ss.ShPts.size()<<" new "<<spts.size()<<"\n";
+      ss.ShPts = spts;
+      ss.NeedsUpdate = true;
+      if(!UpdateShower("MCS", tjs, ss, true)) {
+        std::cout<<"Failed to update 2S"<<ss.ID<<"\n";
+        return ss3;
+      } // UpdateShower failed
+      if(!StoreShower("MCS", tjs, ss)) {
+        std::cout<<"Failed to store 2S"<<ss.ID<<"\n";
+        return ss3;
+      } // UpdateShower failed
+      ss3.CotIDs.push_back(ss.ID);
+    } // plane
+    ss3.ID = goodID;
+    if(!UpdateShower("MCS", tjs, ss3, true)) {
+      std::cout<<"SS3 Failed...\n";
+      ss3.ID = 0;
+      return ss3;
+    }
+    // success
+    
+    // now look for a parent pfp
+    std::vector<std::pair<int, int>> pcnt;
+    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+      for(auto iht : parentHits[plane]) {
+        auto& hit = tjs.fHits[iht];
+        if(hit.InTraj <= 0) continue;
+        auto& tj = tjs.allTraj[hit.InTraj - 1];
+        if(!tj.AlgMod[kMat3D]) continue;
+        auto TInP = GetAssns(tjs, "T", tj.ID, "P");
+        if(TInP.empty()) continue;
+        auto& pfp = tjs.pfps[TInP[0] - 1];
+        unsigned short indx = 0;
+        for(indx = 0; indx < pcnt.size(); ++indx) if(pfp.ID == pcnt[indx].first) break;
+        if(indx == pcnt.size()) {
+          pcnt.push_back(std::make_pair(pfp.ID, 1));
+        } else {
+          ++pcnt[indx].second;
+        }
+      } // iht
+    } // plane
+    float close = 5;
+    for(auto pcn : pcnt) {
+      if(pcn.second < 6) continue;
+      auto& pfp = tjs.pfps[pcn.first - 1];
+      for(unsigned short end = 0; end < 2; ++end) {
+        float sep = PosSep(pfp.XYZ[end], primVx);
+        if(sep > close) continue;
+        close = sep;
+        truParentPFP = pfp.ID;
+      }
+    } // pcn
+    std::cout<<"truParent P"<<truParentPFP<<" close "<<std::fixed<<std::setprecision(2)<<close<<"\n";
+    
+    return ss3;
+  } // MakeCheatShower
   
   /////////////////////////////////////////
-  unsigned short MCParticleListUtils::MCParticleStartTjID(unsigned int MCParticleListIndex, CTP_t inCTP)
+  bool MCParticleListUtils::PrimaryElectronStart(Point3_t& start, Vector3_t& dir, float& energy)
+  {
+    // returns the SCE corrected start position of a primary electron
+    if(tjs.MCPartList.empty()) return false;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
+      auto& mcp = tjs.MCPartList[part];
+      // require electron
+      if(abs(mcp->PdgCode()) != 11) continue;
+      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+      if(mcp->TrackId() != eveID) continue;
+      start = {{mcp->Vx(), mcp->Vy(), mcp->Vz()}};
+      auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
+      geo::Vector_t posOffsets = SCE->GetPosOffsets({start[0], start[1], start[2]});
+      posOffsets.SetX(-posOffsets.X());
+      start[0] += posOffsets.X();
+      start[1] += posOffsets.Y();
+      start[2] += posOffsets.Z();
+      dir = {{mcp->Px(), mcp->Py(), mcp->Pz()}};
+      SetMag(dir, 1);
+      energy = 1000 * (mcp->E() - mcp->Mass());
+      return true;
+    } // part
+    return false;
+  } // PrimaryElectronStart
+  
+  
+  /////////////////////////////////////////
+  int MCParticleListUtils::PrimaryElectronPFPID(const geo::TPCID& tpcid)
+  {
+    // Returns the ID of a pfp that has hits whose eve ID is a primary electron
+    // and is the closest (< 5 WSE units) to the primary electron start
+    if(tjs.MCPartList.empty()) return 0;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    TruthMatcher tm{tjs};
+    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
+      auto& mcp = tjs.MCPartList[part];
+      // require electron
+      if(abs(mcp->PdgCode()) != 11) continue;
+      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+      if(mcp->TrackId() != eveID) continue;
+      Point3_t start = {{mcp->Vx(), mcp->Vy(), mcp->Vz()}};
+      auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
+      geo::Vector_t posOffsets = SCE->GetPosOffsets({start[0], start[1], start[2]});
+      posOffsets.SetX(-posOffsets.X());
+      start[0] += posOffsets.X();
+      start[1] += posOffsets.Y();
+      start[2] += posOffsets.Z();
+      // make a list of pfps that use tjs that use these hits
+      std::vector<int> pfplist;
+      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
+        std::vector<unsigned int> mcphits = tm.PutMCPHitsInVector(part, inCTP);
+        if(mcphits.empty()) continue;
+        for(auto iht : mcphits) {
+          auto& hit = tjs.fHits[iht];
+          if(hit.InTraj <= 0) continue;
+          // require that the tj is 3D-matched
+          auto& tj = tjs.allTraj[hit.InTraj - 1];
+          if(!tj.AlgMod[kMat3D]) continue;
+          // find the number of hits that are in mcphits
+          auto tjhits = PutTrajHitsInVector(tj, kUsedHits);
+          auto shared = SetIntersection(tjhits, mcphits);
+          if(shared.size() < 10) continue;
+          // find out what pfp it is used in.
+          auto TInP = GetAssns(tjs, "T", tj.ID, "P");
+          if(TInP.size() != 1) continue;
+          int pid = TInP[0];
+          if(std::find(pfplist.begin(), pfplist.end(), pid) == pfplist.end()) pfplist.push_back(pid);
+        } // iht
+      } // plane
+      if(pfplist.empty()) return 0;
+      // Use the one that is closest to the true start position, not the
+      // one that has the most matching hits. Electrons are likely to be
+      // poorly reconstructed
+      int pfpid = 0;
+      float close = 1E6;
+      for(auto pid : pfplist) {
+        auto& pfp = tjs.pfps[pid - 1];
+        unsigned short nearEnd = 1 - FarEnd(tjs, pfp, start);
+        float sep = PosSep2(pfp.XYZ[nearEnd], start);
+        if(sep > close) continue;
+        close = sep;
+        pfpid = pid;
+      }
+      return pfpid;
+    } // part
+    return 0;
+  } // PrimaryElectronPFPID
+  
+  /////////////////////////////////////////
+  int MCParticleListUtils::PrimaryElectronTjID(CTP_t inCTP)
+  {
+    // returns the ID of a tj in inCTP that is closest to the start of a primary electron
+    if(tjs.MCPartList.empty()) return 0;
+    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
+      auto& mcp = tjs.MCPartList[part];
+      // require electron
+      if(abs(mcp->PdgCode()) != 11) continue;
+      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+      if(mcp->TrackId() != eveID) continue;
+      return MCParticleStartTjID(part, inCTP);
+    } // part
+    return 0;
+  } // PrimaryElectronTjID
+
+  /////////////////////////////////////////
+  int MCParticleListUtils::MCParticleStartTjID(unsigned int mcpIndex, CTP_t inCTP)
   {
     // Finds the trajectory that has hits matched to the MC Particle and is the closest to the
     // MCParticle start vertex
     
-    if(MCParticleListIndex > tjs.MCPartList.size() - 1) return 0;
+    if(mcpIndex > tjs.MCPartList.size() - 1) return 0;
     
-    const simb::MCParticle* mcp = tjs.MCPartList[MCParticleListIndex];
     geo::PlaneID planeID = DecodeCTP(inCTP);
     
-    TrajPoint truTp;
-    truTp.Pos[0] = tjs.geom->WireCoordinate(mcp->Vy(), mcp->Vz(), planeID);
-    truTp.Pos[1] = tjs.detprop->ConvertXToTicks(mcp->Vx(), planeID) * tjs.UnitsPerTick;
+    // tj ID and occurrence count
+    std::vector<std::array<int, 2>> t_cnt;
+    for(auto hit : tjs.fHits) {
+      if(hit.InTraj <= 0) continue;
+      if(hit.MCPartListIndex != mcpIndex) continue;
+      if(hit.ArtPtr->WireID().TPC != planeID.TPC) continue;
+      if(hit.ArtPtr->WireID().Plane != planeID.Plane) continue;
+      if(hit.ArtPtr->WireID().Cryostat != planeID.Cryostat) continue;
+      unsigned short indx = 0;
+      for(indx = 0; indx < t_cnt.size(); ++indx) if(t_cnt[indx][0] == hit.InTraj) break;
+      if(indx == t_cnt.size()) {
+        // didn't find the traj ID in t_cnt so add it
+        std::array<int, 2> tmp;
+        tmp[0] = hit.InTraj;
+        tmp[1] = 1;
+        t_cnt.push_back(tmp);
+      } else {
+        // count occurrences of this tj ID
+        ++t_cnt[indx][1];
+      }
+    } // hit
     
-    unsigned short imTheOne = 0;
-    unsigned short length = 5;
-    unsigned short nTruHits;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled] && !tj.AlgMod[kInShower]) continue;
-      if(tj.CTP != inCTP) continue;
-      if(tj.Pts.size() < length) continue;
-      for(unsigned short end = 0; end < 2; ++end) {
-        unsigned short ept = tj.EndPt[end];
-        float sep2 = PosSep2(tj.Pts[ept].Pos, truTp.Pos);
-        if(sep2 > 20) continue;
-        // found a close trajectory point. See if this is the right one
-        if(GetMCPartListIndex(tj, nTruHits) != MCParticleListIndex) continue;
-        imTheOne = tj.ID;
-        length = tj.Pts.size();
-      } // end
-    } // tj
-    
-    return imTheOne;
+    if(t_cnt.empty()) return 0;
+    unsigned short occMax = 0;
+    unsigned short occIndx = 0;
+    for(unsigned short ii = 0; ii < t_cnt.size(); ++ii) {
+      auto& tcnt = t_cnt[ii];
+      if(tcnt[1] < occMax) continue;
+      occMax = tcnt[1];
+      occIndx = ii;
+    } // tcnt
+    return t_cnt[occIndx][0];
     
   } // MCParticleStartTj
   

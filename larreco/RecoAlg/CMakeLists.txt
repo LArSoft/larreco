@@ -53,6 +53,7 @@ add_subdirectory(Cluster3DAlgs)
 add_subdirectory(ImagePatternAlgs)
 add_subdirectory(PMAlg)
 add_subdirectory(TCAlg)
+add_subdirectory(xml)
 
 install_headers()
 install_fhicl()

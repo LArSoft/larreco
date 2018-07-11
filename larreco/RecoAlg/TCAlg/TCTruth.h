@@ -48,6 +48,7 @@ namespace tca {
     bool CanReconstruct(unsigned int mcpIndex, unsigned short nDimensions, const geo::TPCID& tpcid);
     // Put hits matched to a MCParticle in CTP into a vector
     std::vector<unsigned int> PutMCPHitsInVector(unsigned int mcpIndex, CTP_t inCTP);
+    void StudyShowerParents(HistStuff& hist);
     void StudyElectrons(const HistStuff& hist);
     void StudyPiZeros(const HistStuff& hist);
     
@@ -84,7 +85,11 @@ namespace tca {
     MCParticleListUtils(TjStuff& my_tjs) : tjs(my_tjs) {}
     TjStuff& tjs;
     void MakeTruTrajPoint(unsigned int MCParticleListIndex, TrajPoint& tp);
-    unsigned short MCParticleStartTjID(unsigned int MCParticleListIndex, CTP_t inCTP);
+    ShowerStruct3D MakeCheatShower(unsigned int mcpIndex, Point3_t primVx, int& truParentPFP);
+    bool PrimaryElectronStart(Point3_t& start, Vector3_t& dir, float& energy);
+    int PrimaryElectronPFPID(const geo::TPCID& tpcid);
+    int PrimaryElectronTjID(CTP_t inCTP);
+    int MCParticleStartTjID(unsigned int MCParticleListIndex, CTP_t inCTP);
     unsigned int GetMCPartListIndex(const TrajPoint& tp);
     unsigned int GetMCPartListIndex(const Trajectory& tj, unsigned short& nTruHits);
     unsigned int GetMCPartListIndex(const ShowerStruct& ss, unsigned short& nTruHits);

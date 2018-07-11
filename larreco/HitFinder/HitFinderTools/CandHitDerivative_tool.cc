@@ -4,14 +4,18 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "larreco/HitFinder/HitFinderTools/ICandidateHitFinder.h"
-#include "larreco/HitFinder/HitFinderTools/IWaveformAlgs.h"
+#include "larreco/HitFinder/HitFinderTools/IWaveformTool.h"
 
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib_except/exception.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
+
+#include "TH1F.h"
+#include "TProfile.h"
 
 #include <cmath>
 #include <fstream>
@@ -30,13 +34,8 @@ public:
     
     void findHitCandidates(const Waveform&,
                            size_t,
-                           double,
-                           HitCandidateVec&) const override;
-    
-    void findHitCandidates(Waveform::const_iterator,
-                           Waveform::const_iterator,
                            size_t,
-                           double,
+                           size_t,
                            HitCandidateVec&) const override;
     
     void MergeHitCandidates(const Waveform&,
@@ -45,6 +44,13 @@ public:
     
 private:
     // Internal functions
+    void findHitCandidates(Waveform::const_iterator,
+                           Waveform::const_iterator,
+                           size_t,
+                           int,
+                           float,
+                           HitCandidateVec&) const;
+    
     // Finding the nearest maximum/minimum from current point
     Waveform::const_iterator findNearestMax(Waveform::const_iterator, Waveform::const_iterator) const;
     Waveform::const_iterator findNearestMin(Waveform::const_iterator, Waveform::const_iterator) const;
@@ -54,13 +60,25 @@ private:
     Waveform::const_iterator findStopTick(Waveform::const_iterator, Waveform::const_iterator)  const;
     
     // some control variables
-    int     fMinDeltaTicks;       //< minimum ticks from max to min to consider
-    float   fMinDeltaPeaks;       //< minimum maximum to minimum peak distance
-    float   fMinHitHeight;        //< Drop candidate hits with height less than this
-    size_t  fNumInterveningTicks; //< Number ticks between candidate hits to merge
+    size_t               fPlane;               //< Identifies the plane this tool is meant to operate on
+    int                  fMinDeltaTicks;       //< minimum ticks from max to min to consider
+    int                  fMaxDeltaTicks;       //< maximum ticks from max to min to consider
+    float                fMinDeltaPeaks;       //< minimum maximum to minimum peak distance
+    float                fMinHitHeight;        //< Drop candidate hits with height less than this
+    size_t               fNumInterveningTicks; //< Number ticks between candidate hits to merge
+    bool                 fOutputHistograms;    //< If true will generate a very large file of hists!
+
+    art::TFileDirectory* fHistDirectory;
     
+    // Global histograms
+    TH1F*                fDStopStartHist;
+    TH1F*                fDMaxTickMinTickHist;
+    TH1F*                fDMaxDerivMinDerivHist;
+    
+    mutable std::map<size_t,int> fChannelCntMap;
+
     // Member variables from the fhicl file
-    std::unique_ptr<reco_tool::IWaveformAlgs> fWaveformAlgs;
+    std::unique_ptr<reco_tool::IWaveformTool> fWaveformTool;
     
     const geo::GeometryCore*  fGeometry = lar::providerFrom<geo::Geometry>();
 };
@@ -79,30 +97,70 @@ CandHitDerivative::~CandHitDerivative()
 void CandHitDerivative::configure(const fhicl::ParameterSet& pset)
 {
     // Recover our parameters
-    fMinDeltaTicks       = pset.get<int   >("MinDeltaTicks",       0);
-    fMinDeltaPeaks       = pset.get<float >("MinDeltaPeaks",       0.025);
-    fMinHitHeight        = pset.get<float >("MinHitHeight",        2.0);
-    fNumInterveningTicks = pset.get<size_t>("NumInterveningTicks", 6);
-    
+    fPlane               = pset.get< size_t >("Plane",               0);
+    fMinDeltaTicks       = pset.get< int    >("MinDeltaTicks",       0);
+    fMaxDeltaTicks       = pset.get< int    >("MaxDeltaTicks",       30);
+    fMinDeltaPeaks       = pset.get< float  >("MinDeltaPeaks",       0.025);
+    fMinHitHeight        = pset.get< float  >("MinHitHeight",        2.0);
+    fNumInterveningTicks = pset.get< size_t >("NumInterveningTicks", 6);
+    fOutputHistograms    = pset.get< bool   >("OutputHistograms",    false);
+
     // Recover the baseline tool
-    fWaveformAlgs = art::make_tool<reco_tool::IWaveformAlgs> (pset.get<fhicl::ParameterSet>("WaveformAlgs"));
+    fWaveformTool = art::make_tool<reco_tool::IWaveformTool> (pset.get<fhicl::ParameterSet>("WaveformAlgs"));
     
+    // If asked, define the global histograms
+    if (fOutputHistograms)
+    {
+        // Access ART's TFileService, which will handle creating and writing
+        // histograms and n-tuples for us.
+        art::ServiceHandle<art::TFileService> tfs;
+        
+        fHistDirectory = tfs.get();
+
+        // Make a directory for these histograms
+        art::TFileDirectory dir = fHistDirectory->mkdir(Form("HitPlane_%1zu",fPlane));
+        
+        fDStopStartHist        = dir.make<TH1F>(Form("DStopStart_%1zu", fPlane), ";Delta Stop/Start;",    200, 0., 200.);
+        fDMaxTickMinTickHist   = dir.make<TH1F>(Form("DMaxTMinT_%1zu",  fPlane), ";Delta Max/Min Tick;",  200, 0., 200.);
+        fDMaxDerivMinDerivHist = dir.make<TH1F>(Form("DMaxDMinD_%1zu",  fPlane), ";Delta Max/Min Deriv;", 200, 0., 200.);
+    }
+
     return;
 }
     
 void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
                                           size_t           roiStartTick,
-                                          double           roiThreshold,
+                                          size_t           channel,
+                                          size_t           eventCount,
                                           HitCandidateVec& hitCandidateVec) const
 {
     // In this case we want to find hit candidates based on the derivative of of the input waveform
     // We get this from our waveform algs too...
+    Waveform rawDerivativeVec;
     Waveform derivativeVec;
+
+    fWaveformTool->firstDerivative(waveform, rawDerivativeVec);
+    fWaveformTool->triangleSmooth(rawDerivativeVec, derivativeVec);
     
-    fWaveformAlgs->getSmoothDerivativeVec(waveform, derivativeVec);
+    std::vector<geo::WireID> wids  = fGeometry->ChannelToWire(channel);
+    size_t                   plane = wids[0].Plane;
+    size_t                   cryo  = wids[0].Cryostat;
+    size_t                   tpc   = wids[0].TPC;
+    size_t                   wire  = wids[0].Wire;
+    
+    // Just make sure the input candidate hit vector has been cleared
+    hitCandidateVec.clear();
     
     // Now find the hits
-    findHitCandidates(derivativeVec.begin(),derivativeVec.end(),roiStartTick,roiThreshold,hitCandidateVec);
+    findHitCandidates(derivativeVec.begin(),derivativeVec.end(),roiStartTick,fMinDeltaTicks,fMinDeltaPeaks,hitCandidateVec);
+    
+    if (hitCandidateVec.empty())
+    {
+        if (plane == 0)
+        {
+            std::cout << "** C/T/P: " << cryo << "/" << tpc << "/" << plane << ", wire: " << wire << " has not hits with input size: " << waveform.size() << std::endl;
+        }
+    }
     
     // Reset the hit height from the input waveform
     for(auto& hitCandidate : hitCandidateVec)
@@ -112,13 +170,58 @@ void CandHitDerivative::findHitCandidates(const Waveform&  waveform,
         hitCandidate.hitHeight = waveform.at(centerIdx);
     }
     
+    // Keep track of histograms if requested
+    if (fOutputHistograms)
+    {
+        // Recover the details...
+//        std::vector<geo::WireID> wids  = fGeometry->ChannelToWire(channel);
+//        size_t                   plane = wids[0].Plane;
+//        size_t                   cryo  = wids[0].Cryostat;
+//        size_t                   tpc   = wids[0].TPC;
+//        size_t                   wire  = wids[0].Wire;
+        
+        size_t channelCnt = fChannelCntMap[channel]++;
+        
+        // Make a directory for these histograms
+        art::TFileDirectory dir = fHistDirectory->mkdir(Form("HitPlane_%1zu/ev%04zu/c%1zut%1zuwire_%05zu",plane,eventCount,cryo,tpc,wire));
+        
+        size_t waveformSize = waveform.size();
+        int    waveStart    = roiStartTick;
+        int    waveStop     = waveStart + waveformSize;
+        
+        TProfile* waveHist     = dir.make<TProfile>(Form("HWfm_%03zu_ctw%01zu-%01zu-%01zu-%05zu",channelCnt,cryo,tpc,plane,wire), "Waveform",   waveformSize, waveStart, waveStop, -500., 500.);
+        TProfile* derivHist    = dir.make<TProfile>(Form("HDer_%03zu_ctw%01zu-%01zu-%01zu-%05zu",channelCnt,cryo,tpc,plane,wire), "Derivative", waveformSize, waveStart, waveStop, -500., 500.);
+        TProfile* candHitHist  = dir.make<TProfile>(Form("HCan_%03zu_ctw%01zu-%01zu-%01zu-%05zu",channelCnt,cryo,tpc,plane,wire), "Cand Hits",  waveformSize, waveStart, waveStop, -500., 500.);
+        TProfile* maxDerivHist = dir.make<TProfile>(Form("HMax_%03zu_ctw%01zu-%01zu-%01zu-%05zu",channelCnt,cryo,tpc,plane,wire), "Maxima",     waveformSize, waveStart, waveStop, -500., 500.);
+        
+        // Fill wave/derivative
+        for(size_t idx = 0; idx < waveform.size(); idx++)
+        {
+            waveHist->Fill(roiStartTick + idx, waveform.at(idx));
+            derivHist->Fill(roiStartTick + idx, derivativeVec.at(idx));
+        }
+        
+        // Fill hits
+        for(const auto& hitCandidate : hitCandidateVec)
+        {
+            candHitHist->Fill(hitCandidate.hitCenter, hitCandidate.hitHeight);
+            maxDerivHist->Fill(hitCandidate.maxTick, hitCandidate.maxDerivative);
+            maxDerivHist->Fill(hitCandidate.minTick, hitCandidate.minDerivative);
+            
+            fDStopStartHist->Fill(hitCandidate.stopTick - hitCandidate.startTick, 1.);
+            fDMaxTickMinTickHist->Fill(hitCandidate.minTick - hitCandidate.maxTick, 1.);
+            fDMaxDerivMinDerivHist->Fill(hitCandidate.maxDerivative - hitCandidate.minDerivative, 1.);
+        }
+    }
+    
     return;
 }
     
 void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
                                           Waveform::const_iterator stopItr,
                                           size_t                   roiStartTick,
-                                          double                   roiThreshold,
+                                          int                      dTicksThreshold,
+                                          float                    dPeakThreshold,
                                           HitCandidateVec&         hitCandidateVec) const
 {
     // Search for candidate hits...
@@ -138,7 +241,7 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
     float range      = *maxItr - *minItr;
     
     // At some point small rolling oscillations on the waveform need to be ignored...
-    if (deltaTicks >= fMinDeltaTicks && range > fMinDeltaPeaks)
+    if (deltaTicks >= dTicksThreshold && range > dPeakThreshold)
     {
         // Need to back up to find zero crossing, this will be the starting point of our
         // candidate hit but also the endpoint of the pre sub-waveform we'll search next
@@ -153,7 +256,14 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
         int stopTick = std::distance(startItr,newStartItr);
         
         // Find hits in the section of the waveform leading up to this candidate hit
-        if (startTick > 2) findHitCandidates(startItr,newEndItr,roiStartTick,roiThreshold,hitCandidateVec);
+        if (startTick > dTicksThreshold)
+        {
+            // Special handling for merged hits
+            if (*(newEndItr-1) > 0.) {dTicksThreshold = 2;              dPeakThreshold = 0.;            }
+            else                     {dTicksThreshold = fMinDeltaTicks; dPeakThreshold = fMinDeltaPeaks;}
+            
+            findHitCandidates(startItr,newEndItr+1,roiStartTick,dTicksThreshold,dPeakThreshold,hitCandidateVec);
+        }
         
         // Create a new hit candidate and store away
         HitCandidate_t hitCandidate;
@@ -175,9 +285,16 @@ void CandHitDerivative::findHitCandidates(Waveform::const_iterator startItr,
         hitCandidate.hitHeight     = hitCandidate.hitSigma * (hitCandidate.maxDerivative - hitCandidate.minDerivative) / 1.2130;
         
         hitCandidateVec.push_back(hitCandidate);
-
+        
         // Finally, search the section of the waveform following this candidate for more hits
-        if (std::distance(newStartItr,stopItr) > 2) findHitCandidates(newStartItr,stopItr,roiStartTick + stopTick,roiThreshold,hitCandidateVec);
+        if (std::distance(newStartItr,stopItr) > dTicksThreshold)
+        {
+            // Special handling for merged hits
+            if (*(newStartItr+1) < 0.) {dTicksThreshold = 2;              dPeakThreshold = 0.;            }
+            else                       {dTicksThreshold = fMinDeltaTicks; dPeakThreshold = fMinDeltaPeaks;}
+            
+            findHitCandidates(newStartItr,stopItr,roiStartTick + stopTick,dTicksThreshold,dPeakThreshold,hitCandidateVec);
+        }
     }
     
     return;
@@ -230,7 +347,8 @@ ICandidateHitFinder::Waveform::const_iterator CandHitDerivative::findNearestMin(
     // reset the min iterator and search forward to find the nearest minimum
     Waveform::const_iterator lastItr = maxItr;
 
-    // The strategy is simple, loop forward over ticks until we find the point where the waveform is increasing again
+    // The strategy is simple...
+    // We are at a maximum so we search forward until we find the lowest negative point
     while((lastItr + 1) != stopItr)
     {
         if (*(lastItr + 1) > *lastItr) break;

@@ -54,18 +54,18 @@ namespace tca {
     "VtxHitsSwap",
     "SplitHiChgHits",
     "ShowerLike",
-    "InShower",
     "KillInShowerVx",
     "ShowerTj",
     "ShwrParent",
-    "ChkShwrParEnd",  // Ensure that the end of a shower parent already inside a shower has an end near a shower end
-    "KillShwrNuPFP",  // Kill neutrino PFP particles with a vertex inside a shower
     "MergeOverlap",
     "MergeSubShowers",
+    "MergeSubShowersTj",
     "MergeNrShowers",
     "MergeShChain",
+    "CompleteShower",
     "SplitTjCVx",
-    "SetDir"
+    "SetDir",
+    "Cheat"
   };
 
   const std::vector<std::string> StopFlagNames {

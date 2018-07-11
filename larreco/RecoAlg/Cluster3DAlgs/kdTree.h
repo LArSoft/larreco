@@ -12,8 +12,8 @@
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
 
-// LArSoft includes
-#include "lardata/RecoObjects/Cluster3D.h"
+// Algorithm includes
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 // std includes
 #include <vector>
@@ -78,6 +78,11 @@ public:
      */
     KdTreeNode BuildKdTree(const reco::HitPairList&, KdTreeNodeList&) const;
     
+    /**
+     *  @brief Given an input HitPairListPtr, build out the map of nearest neighbors
+     */
+    KdTreeNode BuildKdTree(const reco::HitPairListPtr&, KdTreeNodeList&) const;
+
     float getTimeToExecute() const {return m_timeToBuild;}
     
 private:

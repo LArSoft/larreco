@@ -204,52 +204,6 @@ namespace tca {
   } // FillmAllTraj
 
   /////////////////////////////////////////
-  void AttachVertices(TjStuff& tjs, PFPStruct& pfp, bool prt)
-  {
-    // try to attach a vertex on both ends of the pfp using the positions XYZ[end]. This function
-    // doesn't need to have Tp3s associated with the pfp but probably doesn't work as well
-    if(pfp.ID == 0) return;
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-    std::array<unsigned short, 2> imbest {{ 0, 0 }};
-    // Ignore any separation larger than (10 cm)^2
-    std::array<float, 2> best {{ 100.0f, 100.0f }};
-    for(unsigned short end = 0; end < 2; ++end) pfp.Vx3ID[end] = 0;
-    auto vx3list = GetPFPVertices(tjs, pfp);
-    for(unsigned short end = 0; end < 2; ++end) {
-      for(auto vx3id : vx3list) {
-        auto& vx3 = tjs.vtx3[vx3id - 1];
-        // BUG the double brace syntax is required to work around clang bug 21629
-        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-        Point3_t vxpos = {{ vx3.X, vx3.Y, vx3.Z}};
-        float sep2 = PosSep2(pfp.XYZ[end], vxpos);
-        if(sep2 > best[end]) continue;
-        best[end] = sep2;
-        imbest[end] = vx3id;
-      } // vx3id
-    } // end
-    if(imbest[0] == 0 && imbest[1] == 0) return;
-    if(imbest[0] == imbest[1]) {
-      // The same vertex meets the cuts for both ends. Take the best one.
-      if(best[0] < best[1]) {
-        pfp.Vx3ID[0] = imbest[0];
-        if(prt) mf::LogVerbatim("TC")<<"AV0: attach 3V"<<imbest[0]<<" to P"<<pfp.ID<<" to end 0";
-      } else {
-        pfp.Vx3ID[1] = imbest[0];
-        if(prt) mf::LogVerbatim("TC")<<"AV1: attach 3V"<<imbest[0]<<" to P"<<pfp.ID<<" to end 1";
-      }
-      return;
-    } else {
-      // have different vertices on each end
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(imbest[end] == 0) continue;
-        pfp.Vx3ID[end] = imbest[end];
-        if(prt) mf::LogVerbatim("TC")<<"AV: attach 3V"<<imbest[end]<<" to P"<<pfp.ID<<" end "<<end;
-      } // end
-    } // have different vertices (or no vertices) on each end
-  } // AttachVertices
-
-  /////////////////////////////////////////
   bool SetStart(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // Analyzes the space point collection and the Tjs in the pfp to find a new start
@@ -302,93 +256,6 @@ namespace tca {
     return true;
     
   } // SetStart
-
-  /////////////////////////////////////////
-  void SetEndVx(TjStuff& tjs, PFPStruct& pfp, unsigned short atEnd, bool prt)
-  {
-    // Analyzes the requested end of Tp3s to see if Tjs are attached to the same 3D vertex
-    // and if so, attach the PFParticle that vertex
-    if(atEnd > 1) return;
-    if(pfp.Tp3s.empty()) return;
-    //  already attached to a valid?
-    if(pfp.Vx3ID[atEnd] > 0 && tjs.vtx3[pfp.Vx3ID[atEnd] - 1].Wire != -2) {
-      if(prt) mf::LogVerbatim("TC")<<"SEV: pfp "<<pfp.ID<<" Vx3ID["<<atEnd<<"] = "<<pfp.Vx3ID[atEnd];
-      return;
-    }
-    
-    // clobber the PFP-only vertex that was used to define the start position
-    if(pfp.Vx3ID[atEnd] > 0 && tjs.vtx3[pfp.Vx3ID[atEnd] - 1].Wire == -2) {
-      auto& vx3 = tjs.vtx3[pfp.Vx3ID[atEnd] - 1];
-      for(auto& opfp : tjs.pfps) {
-        for(unsigned short end = 0; end < 2; ++end) {
-          if(opfp.Vx3ID[end] == vx3.ID) opfp.Vx3ID[end] = 0;
-        } // end
-      } // opfp
-      vx3.ID = 0;
-    } // PFP-only vertex exists
-    
-    // make a list of 3D vertices at the end of Tp3s
-    std::vector<unsigned short> endVxList;
-    // and the Tjs to which they are attached
-    std::vector<int> endTjList;
-    // check a number of points near the end
-    for(unsigned short ii = 0; ii < 5; ++ii) {
-      short ipt = 0;
-      if(atEnd == 1) {
-        ipt = pfp.Tp3s.size() - ii - 1;
-        // don't get too close to the start if this is a short pfp
-        if(ipt < 3) break;
-      } else {
-        ipt = ii;
-        if(ipt > (short)pfp.Tp3s.size() - 3) break;
-      }
-      auto& tp3 = pfp.Tp3s[ipt];
-      for(auto& tj2pt : tp3.Tj2Pts) {
-        auto& tj = tjs.allTraj[tj2pt.id - 1];
-        unsigned short end = 0;
-        unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
-        if(ipt > midPt) end = 1;
-        // see if there is a 2D vertex at this end
-        if(tj.VtxID[end] == 0 || tj.VtxID[end] > tjs.vtx.size()) continue;
-        auto& vx2 = tjs.vtx[tj.VtxID[end] - 1];
-        // see if this is matched to a 3D vertex
-        if(vx2.Vx3ID == 0 || vx2.Vx3ID > int(tjs.vtx3.size())) continue;
-        // Ignore it if it is already in the Tj list
-        if(std::find(endTjList.begin(), endTjList.end(), tj.ID) != endTjList.end()) continue;
-        // Ignore it if it is attached to the other end
-        if(vx2.Vx3ID == pfp.Vx3ID[1 - atEnd]) continue;
-        // Ignore it if it is closer to the other end
-        unsigned short opt = 0;
-        if(atEnd == 1) opt = pfp.Tp3s.size() - 1;
-        auto& otp3 = pfp.Tp3s[opt];
-        // put the position into a Point3_t
-        auto& vx3 = tjs.vtx3[vx2.Vx3ID - 1];
-        // BUG the double brace syntax is required to work around clang bug 21629
-        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-        Point3_t vx3pos = {{vx3.X, vx3.Y, vx3.Z}};
-        if(PosSep2(tp3.Pos, vx3pos) > PosSep2(otp3.Pos, vx3pos)) continue;
-        // add it to the list
-//        std::cout<<"pfp_atEnd "<<pfp.ID<<"_"<<atEnd<<" tj_end "<<tj.ID<<"_"<<end<<" vx3 "<<vx2.Vx3ID<<"\n";
-        endVxList.push_back(vx2.Vx3ID);
-        endTjList.push_back(tj.ID);
-      } // tj2pt
-      // break out if we have them all. 
-      // TODO: Compare the endTjList with pfp.TjIDs here? And do what?...
-      if(endTjList.size() == pfp.TjIDs.size()) break;
-    } // ii
-    if(endVxList.empty()) return;
-    // Just take the first one
-    // TODO: This may need to be done more carefully if there is vertex confusion at this end
-    pfp.Vx3ID[atEnd] = endVxList[0];
-    if(prt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<"SEV: pfp "<<pfp.ID<<" checking atEnd "<<atEnd<<" End Vx_Tj:";
-      for(unsigned short iev = 0; iev < endVxList.size(); ++iev) {
-        myprt<<" "<<endVxList[iev]<<"_"<<endTjList[iev];
-      }
-      myprt<<" Setting Vx3ID "<<pfp.Vx3ID[atEnd];
-    } // prt
-  } // SetEndVx
 
   /////////////////////////////////////////
   void FollowTp3s(TjStuff& tjs, PFPStruct& pfp, bool prt)
@@ -594,7 +461,6 @@ namespace tca {
     }
     x0 /= (double)useID.size();
 
-//<<<<<<< HEAD
     double wght = 1;
     for(unsigned short ipt = 0; ipt < useID.size(); ++ipt) {
       auto& tp = tjs.allTraj[useID[ipt] - 1].Pts[useIpt[ipt]];
@@ -628,36 +494,6 @@ namespace tca {
     pos[2] = tVec[1];
     rCorr = 1;
     std::cout<<"FTP3s: "<<useID.size()<<" cntInPln "<<cntInPln[0]<<" "<<cntInPln[1]<<" "<<cntInPln[2]<<"\n";
-/*
-    =======
-    // Set the direction vectors of all points to be consistent with the general
-    // start direction
-    FixDirection(tjs, pfp);
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-    Vector3_t startDir = {{0.0, 0.0, 0.0}};
-    // Find the average direction using the points in the first 10 cm
-    for(auto& tp3 : pfp.Tp3s) {
-      if(PosSep2(tp3.Pos, startPos) > 100) break;
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) startDir[xyz] += tp3.Dir[xyz];
-    } //  tp3
-    SetMag(startDir, 1);
-    pfp.Dir[0] = startDir;
-    if(prt) mf::LogVerbatim("TC")<<"SBDFS: start direction "<<std::fixed<<std::setprecision(2)<<pfp.Dir[0][0]<<" "<<pfp.Dir[0][1]<<" "<<pfp.Dir[0][2];
-    // do the same at the other end
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-    Vector3_t endDir = {{0.0, 0.0, 0.0}};
-    for(unsigned short ii = 0; ii < pfp.Tp3s.size(); ++ii) {
-      auto& tp3 = pfp.Tp3s[pfp.Tp3s.size() - 1 - ii];
-      if(PosSep2(tp3.Pos, endPos) > 100) break;
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) endDir[xyz] += tp3.Dir[xyz];
-    } // ii
-    SetMag(endDir, 1);
-    pfp.Dir[1] = endDir;
-    if(prt) mf::LogVerbatim("TC")<<"SBDFS: end direction "<<std::fixed<<std::setprecision(2)<<pfp.Dir[1][0]<<" "<<pfp.Dir[1][1]<<" "<<pfp.Dir[1][2];
->>>>>>> develop
-*/    
     return true;
 
   } // FitTp3s
@@ -777,7 +613,7 @@ namespace tca {
     bool smallAngle = false;
     if(fillTp3s) {
       smallAngle = (pfp.Dir[0][0] != 0 && std::abs(pfp.Dir[0][0]) < 0.1);
-      if(pfp.Dir[0][0] == 0 && tjs.DebugMode) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
+//      if(pfp.Dir[0][0] == 0 && tjs.DebugMode) std::cout<<"P"<<pfp.ID<<" Dir[0] isn't defined\n";
     }
     double yzcut = 1.5 * tjs.Match3DCuts[0];
     
@@ -955,7 +791,7 @@ namespace tca {
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"FC: P"<<pfp.ID<<" T"<<tj.ID<<" npwc "<<npwc<<" cnt2 "<<cnt2<<" cnt3 "<<cnt3<<" PDGCode "<<tj.PDGCode;
-        myprt<<" MCSMom "<<tj.MCSMom<<" InShower? "<<tj.AlgMod[kInShower];
+        myprt<<" MCSMom "<<tj.MCSMom<<" InShower? "<<tj.SSID;
         myprt<<" TjCompleteness "<<std::setprecision(2)<<pfp.TjCompleteness[itj];
       } // prt
     } // itj
@@ -1062,7 +898,8 @@ namespace tca {
   /////////////////////////////////////////
   void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir)
   {
-    // initialize, accumulate and fit the points
+    // initialize, accumulate and fit the points. The code to fit the direction using the positions
+    // of the points is commented out and replaced with a simple average of the directions of the points
     
     // 3D fit sum variables
     static double fSum, fSumx, fSumy, fSumz;
@@ -1121,7 +958,7 @@ namespace tca {
     std::cout<<" "<<tmpDir[0]<<" "<<tmpDir[1]<<" "<<tmpDir[2]<<"\n";
 */
   } // Fit3D
-
+/* This needs re-thinking
   /////////////////////////////////////////
   bool CheckAndMerge(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
@@ -1155,45 +992,6 @@ namespace tca {
         } // missTjs exist
       } // prt
       if(pfp.Tp3s.empty()) return false;
-/* This doesn't seem to do anything
-      if(!missTjs.empty() && pfp.MatchVecIndex < tjs.matchVec.size()) {
-        // look for the set intersection of the missed Tjs with the matchVec list
-        for(unsigned short ims = 0; ims < pfp.MatchVecIndex + 10; ++ims) {
-          if(ims >= tjs.matchVec.size()) break;
-          auto& ms = tjs.matchVec[ims];
-          if(ms.Count == 0) continue;
-          std::vector<int> shared = SetIntersection(ms.TjIDs, missTjs);
-          if(shared.size() < 2) continue;
-          // check the max length Tj and cut on the minimum aspect ratio
-          float mtjl = MaxTjLen(tjs, ms.TjIDs);
-          float mcsmom = MCSMom(tjs, ms.TjIDs);
-          if(prt) mf::LogVerbatim("TC")<<" chk ims "<<ims<<" mtjl "<<mtjl<<" MCSMom "<<mcsmom;
-          bool tryMerge = (MaxTjLen(tjs, ms.TjIDs) > 10 && MCSMom(tjs, ms.TjIDs) > tjs.Match3DCuts[3]);
-          if(!tryMerge) continue;
-          for(auto tjid : ms.TjIDs) {
-            if(std::find(shared.begin(), shared.end(), tjid) != shared.end()) continue;
-            auto& tj = tjs.allTraj[tjid - 1];
-            if(tj.AlgMod[kKilled]) continue;
-            if(tj.AlgMod[kMat3D]) continue;
-            // check for PDGCode compatibility - muons and delta rays
-            if(pfp.PDGCode == 13 && tj.PDGCode == 11) continue;
-            if(pfp.PDGCode == 11 && tj.PDGCode == 13) continue;
-            float dotProd = DotProd(ms.Dir, pfp.Dir[0]);
-            if(prt) mf::LogVerbatim("TC")<<" add T"<<tjid<<" DotProd "<<std::setprecision(3)<<dotProd;
-            if(dotProd < tjs.Match3DCuts[6]) continue;
-            // make a trial pfp with this tj added
-            auto trial = pfp;
-            trial.Tp3s.clear();
-            trial.TjIDs.push_back(tjid);
-            // find the completeness, do the fit, don't fill Tp3s
-            FindCompleteness(tjs, trial, true, false, true);
-            if(prt) mf::LogVerbatim("TC")<<" do something with Trial "<<trial.EffPur;
-            std::cout<<" do something with Trial "<<trial.EffPur<<"\n";
-            break;
-          } // tjid
-        } // ims
-      } // try to add missed tjs
-*/
       // Check TjCompleteness if nothing was added
       if(tryThis && pfp.TjIDs.size() == oldSize) {
         // look for the situation where the Tj with the worst completeness is also
@@ -1257,7 +1055,7 @@ namespace tca {
     return true;
 
   } // CheckAndMerge
-
+*/
   /////////////////////////////////////////
   unsigned short WiresSkippedInCTP(TjStuff& tjs, std::vector<int>& tjids, CTP_t inCTP)
   {
@@ -1482,7 +1280,7 @@ namespace tca {
       // kill the broken tjs and update the pfp TP3s
       for(auto tjid : tjids) {
         auto& tj = tjs.allTraj[tjid - 1];
-        if(tj.AlgMod[kInShower]) mtj.AlgMod[kInShower] = true;
+        if(tj.SSID > 0) mtj.SSID = tj.SSID;
         MakeTrajectoryObsolete(tjs, tjid - 1);
       }
       // save the new one
@@ -2336,15 +2134,14 @@ namespace tca {
       if(has11) pfp.PDGCode = 11;
       if(!DefinePFP("FPFP", tjs, pfp, prt)) {
         if(prt) mf::LogVerbatim("TC")<<" DefinePFP failed";
-        if(prt) std::cout<<" DefinePFP P"<<pfp.ID<<" failed\n";
         continue;
       }
       double sep = 1;
       Split3DKink(tjs, pfp, sep, prt);
-      AnalyzePFP(tjs, pfp, prt);
+      if(!AnalyzePFP(tjs, pfp, prt)) continue;
       if(!StorePFP(tjs, pfp)) {
-        if(prt) mf::LogVerbatim("TC")<<" StorePFP failed "<<pfp.ID;
-        if(prt) std::cout<<" StorePFP failed "<<pfp.ID<<"\n";
+        if(prt) mf::LogVerbatim("TC")<<" StorePFP failed P"<<pfp.ID;
+        if(prt) std::cout<<" StorePFP failed P"<<pfp.ID<<"\n";
         continue;
       }
       ms.Count = 0;
@@ -2375,7 +2172,7 @@ namespace tca {
       auto& tj = tjs.allTraj[tjid - 1];
       ++nInPln[DecodeCTP(tj.CTP).Plane];
       if(tj.AlgMod[kMat3D] || tj.AlgMod[kKilled]) {
-        std::cout<<fcnLabel<<" pfp "<<pfp.ID<<" uses tj T"<<tj.ID<<" but kMat3D is set true\n";
+        std::cout<<fcnLabel<<" P"<<pfp.ID<<" uses T"<<tj.ID<<" but kMat3D is set true\n";
         return false;
       }
     } // tjid
@@ -2384,7 +2181,7 @@ namespace tca {
     if(npl < 2) return false;
 
     if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
-      std::cout<<fcnLabel<<" pfp P"<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
+      std::cout<<fcnLabel<<" P"<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
       return false;
     }
     
@@ -2398,7 +2195,7 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<fcnLabel<<" pfp P"<<pfp.ID;
-      myprt<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
+      myprt<<" Vx3ID 3V"<<pfp.Vx3ID[0]<<" 3V"<<pfp.Vx3ID[1];
       myprt<<" Tjs";
       for(auto id : pfp.TjIDs) myprt<<" T"<<id;
       myprt<<" matchVec index "<<pfp.MatchVecIndex;
@@ -2461,6 +2258,7 @@ namespace tca {
 */
     // Find completeness and fill the TP3s
     FindCompleteness(tjs, pfp, true, true, prt);
+    if(pfp.Tp3s.empty()) return false;
 
     // Set the starting position in 3D if it isn't already defined by a 3D vertex
     SetStart(tjs, pfp, prt);
@@ -2471,7 +2269,7 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<fcnLabel<<" pfp P"<<pfp.ID;
-      myprt<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
+      myprt<<" Vx3ID 3V"<<pfp.Vx3ID[0]<<" 3V"<<pfp.Vx3ID[1];
       myprt<<" Tjs";
       for(auto id : pfp.TjIDs) myprt<<" T"<<id;
       myprt<<" Tp3s size "<<pfp.Tp3s.size();
@@ -2496,6 +2294,7 @@ namespace tca {
     std::vector<int> killMe;
     for(auto vx2id : vx3.Vx2ID) {
       if(vx2id == 0) continue;
+      if(vx2id == 666) continue;
       auto& vx2 = tjs.vtx[vx2id - 1];
       auto tjlist = GetVtxTjIDs(tjs, vx2);
       auto setInt = SetIntersection(pfp.TjIDs, tjlist);
@@ -2537,18 +2336,24 @@ namespace tca {
   } // PFPVxTjOK
   
   /////////////////////////////////////////
-  void AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt)
+  bool AnalyzePFP(TjStuff& tjs, PFPStruct& pfp, bool prt)
   {
     // Analyzes the PFP for oddities and tries to fix them
-    if(pfp.ID == 0) return;
-    if(pfp.TjIDs.empty()) return;
+    if(pfp.ID == 0) return false;
+    if(pfp.TjIDs.empty()) return false;
+    if(pfp.Tp3s.empty()) return false;
     
     // don't bother analyzing this pfp has been altered
     if(pfp.NeedsUpdate) {
       if(prt) mf::LogVerbatim("TC")<<"AnalyzePFP: P"<<pfp.ID<<" needs to be updated. Skip analysis ";
-      return;
+      return true;
     }
-    if(prt) mf::LogVerbatim("TC")<<"inside AnalyzePFP P"<<pfp.ID<<" NeedsUpdate? "<<pfp.NeedsUpdate;
+    
+    // check the tj completeness
+    float minCompleteness = 0.95;
+    for(auto tjc : pfp.TjCompleteness) if(tjc < minCompleteness) minCompleteness = tjc;
+    if(prt) mf::LogVerbatim("TC")<<"inside AnalyzePFP P"<<pfp.ID<<" minCompleteness "<<minCompleteness;
+    if(minCompleteness == 0.95) return true;
     
     // compare the Tjs in Tp3s with those in TjIDs
     std::vector<int> tjIDs;
@@ -2576,6 +2381,14 @@ namespace tca {
       unsigned short npwc = NumPtsWithCharge(tjs, missTj, false);
       if(prt) mf::LogVerbatim("TC")<<" missed T"<<missTj.ID<<" npwc "<<npwc<<" tjCnt "<<tjCnt[ii];
       if(tjCnt[ii] < 0.5 * npwc) continue;
+      // June 4, 2018. 3D merging is turned off so require the missed tj to be in
+      // a missing plane
+      bool skipit = false;
+      for(auto tid : pfp.TjIDs) {
+        auto& tj = tjs.allTraj[tid - 1];
+        if(tj.CTP == missTj.CTP) skipit = true;
+      } // tid
+      if(skipit) continue;
       // add the missed Tj to the pfp and flag it as needing an update
       pfp.TjIDs.push_back(missTj.ID);
       if(PFPVxTjOK(tjs, pfp, prt)) pfp.NeedsUpdate = true;
@@ -2598,7 +2411,7 @@ namespace tca {
         myprt<<" nTp3 "<<tjCnt[indx]<<"\n";
       } // tjid
     } // prt
-    
+    return true;
   } // AnalyzePFP
   
   /////////////////////////////////////////
@@ -2679,11 +2492,13 @@ namespace tca {
       if(pfp.TPCID != tpcid) continue;
       // already done?
       if(pfp.Vx3ID[end1] > 0) continue;
+      // ignore shower-like pfps
+      if(IsShowerLike(tjs, pfp.TjIDs)) continue;
       // count 2D -> 3D matched vertices
       unsigned short cnt3 = 0;
       unsigned short vx3id = 0;
       // list of unmatched 2D vertices that should be merged
-      std::vector<unsigned short> vx2ids;
+      std::vector<int> vx2ids;
       for(auto tjid : pfp.TjIDs) {
         auto& tj = tjs.allTraj[tjid - 1];
         if(tj.VtxID[end1] == 0) continue;
@@ -2696,6 +2511,8 @@ namespace tca {
         if(vx2.Vx3ID == vx3id) ++cnt3;
       } // tjid
       if(cnt3 > 1) {
+        // ensure it isn't attached at the other end
+        if(pfp.Vx3ID[1 - end1] == vx3id) continue;
         pfp.Vx3ID[end1] = vx3id;
         if(cnt3 != tjs.NumPlanes && tjs.DebugMode) {
           std::cout<<"DPFPR: Missed an end vertex for PFP "<<pfp.ID<<" Write some code\n";
@@ -2934,13 +2751,15 @@ namespace tca {
   void FindAlongTrans(Point3_t pos1, Vector3_t dir1, Point3_t pos2, Point2_t& alongTrans)
   {
     // Calculate the distance along and transvers to the direction vector from pos1 to pos2
-    if(pos1[0] == pos2[0] && pos1[1] == pos2[1] && pos1[2] == pos2[2]) {
-      alongTrans[0] = 0; alongTrans[1] = 0;
-      return;
-    }
+    alongTrans[0] = 0; 
+    alongTrans[1] = 0;
+    if(pos1[0] == pos2[0] && pos1[1] == pos2[1] && pos1[2] == pos2[2]) return;
     auto ptDir = PointDirection(pos1, pos2);
+    SetMag(dir1, 1.0);
     double costh = DotProd(dir1, ptDir);
+    if(costh > 1) return;
     double sep = PosSep(pos1, pos2);
+    if(sep < 1E-6) return;
     alongTrans[0] = costh * sep;
     double sinth = sqrt(1 - costh * costh);
     alongTrans[1] = sinth * sep;
@@ -3112,6 +2931,15 @@ namespace tca {
     }
     return sum / cnt;
   } // ChgFracNearEnd
+  
+  ////////////////////////////////////////////////
+  unsigned short FarEnd(const TjStuff& tjs, const PFPStruct& pfp, const Point3_t& pos)
+  {
+    // Returns the end (0 or 1) of the pfp that is furthest away from the position pos
+    if(pfp.ID == 0) return 0;
+    if(PosSep2(pfp.XYZ[1], pos) > PosSep2(pfp.XYZ[0], pos)) return 1;
+    return 0;
+  } // FarEnd
 
   ////////////////////////////////////////////////
   void PrintTp3(std::string someText, const TjStuff& tjs, const TrajPoint3& tp3)

@@ -14,8 +14,10 @@
 
 // LArSoft includes
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoObjects/Cluster3D.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
+
+// Algorithm includes
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 // std includes
 #include <vector>
