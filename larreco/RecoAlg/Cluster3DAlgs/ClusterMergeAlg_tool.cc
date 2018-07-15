@@ -7,6 +7,7 @@
 
 // Framework Includes
 #include "art/Utilities/ToolMacros.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 #include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
 
@@ -51,6 +52,14 @@ public:
     
     void configure(fhicl::ParameterSet const &pset) override;
     
+    /**
+     *  @brief Interface for initializing histograms if they are desired
+     *         Note that the idea is to put hisgtograms in a subfolder
+     *
+     *  @param TFileDirectory - the folder to store the hists in
+     */
+    void initializeHistograms(art::TFileDirectory&) override;
+
     /**
      *  @brief Scan an input collection of clusters and modify those according
      *         to the specific implementing algorithm
@@ -114,6 +123,11 @@ void ClusterMergeAlg::configure(fhicl::ParameterSet const &pset)
     return;
 }
     
+void ClusterMergeAlg::initializeHistograms(art::TFileDirectory&)
+{
+    return;
+}
+
 void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParametersList) const
 {
     /**

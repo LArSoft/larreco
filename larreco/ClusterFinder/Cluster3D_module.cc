@@ -608,6 +608,10 @@ void Cluster3D::InitializeMonitoring()
     m_pRecoTree->Branch("dbscanTime",           &m_dbscanTime,            "time/F");
     m_pRecoTree->Branch("pathfindingtime",      &m_pathFindingTime,       "time/F");
     m_pRecoTree->Branch("finishTime",           &m_finishTime,            "time/F");
+    
+    m_clusterPathAlg->initializeHistograms(*tfs.get());
+
+    return;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

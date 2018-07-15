@@ -74,17 +74,17 @@ standard_cluster3dPathAlg:
 
 standard_voronoiPathAlg:
 {
-tool_type:              VoronoiPathFinder
-EnableMonitoring:       true    # enable monitoring of functions
-MinTinyClusterSize:     40      # minimum number of hits to consider splitting
-PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
-ClusterAlg:             @local::standard_cluster3ddbscanalg
+  tool_type:              VoronoiPathFinder
+  EnableMonitoring:       true    # enable monitoring of functions
+  MinTinyClusterSize:     40      # minimum number of hits to consider splitting
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  ClusterAlg:             @local::standard_cluster3ddbscanalg
 }
 
 standard_cluster3dskeletonalg:
 {
-  MinimumDeltaTicks:    0.05 # minimum delta time (in ticks) when matching hits
-  MaximumDeltaTicks:   10.0  # maximum delta time (in ticks) when matching hits
+  MinimumDeltaTicks:      0.05  # minimum delta time (in ticks) when matching hits
+  MaximumDeltaTicks:      10.0  # maximum delta time (in ticks) when matching hits
 }
 
 standard_cluster3dhoughseedfinderalg:

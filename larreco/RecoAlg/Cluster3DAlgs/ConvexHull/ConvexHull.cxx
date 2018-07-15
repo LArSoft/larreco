@@ -14,6 +14,9 @@
 // boost includes
 #include <boost/range/adaptor/reversed.hpp>
 
+// Eigen
+#include <Eigen/Dense>
+
 // std includes
 #include <string>
 #include <functional>
@@ -190,6 +193,64 @@ void ConvexHull::getConvexHull(const PointList& pointList)
     
     return;
 }
+    
+ConvexHull::PointPair ConvexHull::getExtremePoints() const
+{
+    PointList::const_iterator endPointItr   = fConvexHull.begin();
+    PointList::const_iterator firstPointItr = endPointItr++;
+    PointList::const_iterator nextPointItr  = endPointItr;
+    
+    // Get a vector representing this edge
+    Point           firstPoint  = *firstPointItr;
+    Point           nextPoint   = *nextPointItr;
+    Eigen::Vector2f firstEdge(std::get<0>(nextPoint) - std::get<0>(firstPoint), std::get<1>(nextPoint) - std::get<1>(firstPoint));
+    float           maxEdgeLen  = firstEdge.norm();
+    
+    PointPair extremePoints(firstPoint,nextPoint);
+    
+    // normalize it
+    firstEdge.normalize();
+    
+    while(firstPointItr != fConvexHull.end())
+    {
+        while(++endPointItr != fConvexHull.end())
+        {
+            Point           endPoint = *endPointItr;
+            Eigen::Vector2f nextEdge(std::get<0>(endPoint) - std::get<0>(nextPoint), std::get<1>(endPoint) - std::get<1>(nextPoint));
+            
+            // normalize it
+            nextEdge.normalize();
+            
+            // Have we found the turnaround point?
+            if (firstEdge.dot(nextEdge) < 0.)
+            {
+                Eigen::Vector2f firstEdge(std::get<0>(nextPoint) - std::get<0>(firstPoint), std::get<1>(nextPoint) - std::get<1>(firstPoint));
+                float           curEdgeLen  = firstEdge.norm();
+                
+                if (curEdgeLen > maxEdgeLen)
+                {
+                    extremePoints.first  = firstPoint;
+                    extremePoints.second = nextPoint;
+                    maxEdgeLen           = curEdgeLen;
+
+                    break;
+                }
+            }
+            
+            nextPointItr = endPointItr;
+            nextPoint    = endPoint;
+        }
+        
+        endPointItr  = ++firstPointItr;
+        nextPointItr = ++endPointItr;
+        
+        firstPoint = *firstPointItr;
+        nextPoint  = *nextPointItr;
+    }
+    
+    return extremePoints;
+}
+
     
 ConvexHull::PointPair ConvexHull::findNearestEdge(const Point& point, float& closestDistance) const
 {

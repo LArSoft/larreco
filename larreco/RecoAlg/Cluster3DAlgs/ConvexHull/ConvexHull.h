@@ -61,6 +61,11 @@ public:
     const MinMaxPointPair& getMinMaxPointPair() const {return fMinMaxPointPair;}
     
     /**
+     *  @brief Given an input Point, find the nearest edge
+     */
+    PointPair getExtremePoints() const;
+
+    /**
      *  @brief recover the area of the convex hull
      */
     float getConvexHullArea() const {return fConvexHullArea;}
