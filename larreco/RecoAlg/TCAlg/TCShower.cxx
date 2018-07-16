@@ -4490,6 +4490,9 @@ namespace tca {
     // set the 2S -> 3S assns
     for(auto cid : ss3.CotIDs) slc.cots[cid - 1].SS3ID = ss3.ID;
     
+    ++evt.globalS3ID;
+    ss3.UID = evt.globalS3ID;
+    
     slc.showers.push_back(ss3);
     return true;
     
@@ -4532,6 +4535,10 @@ namespace tca {
       tj.AlgMod[kShwrParent] = false;
       if(tj.ID == ss.ParentID) tj.AlgMod[kShwrParent] = true;
     } // tjID
+    
+    ++evt.globalS2ID;
+    ss.UID = evt.globalS2ID;
+    
     slc.cots.push_back(ss);
     return true;
     
