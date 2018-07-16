@@ -22,6 +22,16 @@ standard_tcshower:
  CalorimetryAlg:           @local::argoneut_calorimetryalgmc
 }
 
+standard_tcshoweranalysis:
+{
+ module_type: "TCShowerAnalysis"
+# ClusterModuleLabel: "trajcluster"
+# TrackModuleLabel:   "pmtrack"
+ ShowerModuleLabel:  "tcshower"
+ CalorimetryModuleLabel:  "calo"
+ CalorimetryAlg:           @local::argoneut_calorimetryalgmc
+}
+
 
 #standard_showerana:
 #{
