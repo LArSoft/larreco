@@ -83,7 +83,7 @@ shower::TCShowerAnalysis::TCShowerAnalysis(fhicl::ParameterSet const& pset) :
   fShowerModuleLabel        (pset.get< std::string >("ShowerModuleLabel", "tcshower" ) ),
   fCalorimetryModuleLabel   (pset.get< std::string >("CalorimetryModuleLabel", "calo")  ), 
   fGenieGenModuleLabel      (pset.get< std::string >("GenieGenModuleLabel", "generator")  ),
-  fCalorimetryAlg           (pset.get< fhicl::ParameterSet >("fCalorimetryAlg") ) {
+  fCalorimetryAlg           (pset.get< fhicl::ParameterSet >("CalorimetryAlg") ) {
   this->reconfigure(pset);
 } // TCShowerAnalysis
 

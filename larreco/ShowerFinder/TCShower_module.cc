@@ -80,16 +80,12 @@ private:
 
   bool addShowerHit(art::Ptr<recob::Hit> hit, std::vector< art::Ptr<recob::Hit> > showerhits);
 
-  void showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir);
-
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
   std::string fHitModuleLabel;
   std::string fCalorimetryModuleLabel;
 
   calo::CalorimetryAlg fCalorimetryAlg;
-
-  TH1F* fShowerProfile;
 
 };
 
@@ -404,8 +400,6 @@ void shower::TCShower::produce(art::Event & evt) {
     if (showerCandidate) {
       TVector3 shwDir = (trkPt2-trkStart).Unit(); 
       
-      showerProfile(showerHits, tracklist[i]->Vertex(), shwDir); // measure dQ/dx along transverse shower direction.
-
       std::cout << "track ID " << tracklist[i]->ID() << " " << tracklist[i]->Length() << " " << showerHitPull<< " " << nShowerHits << " " << dEdx[bestplane] << " " << (int)bestplane << std::endl;
       showers->push_back(recob::Shower(shwDir, dcosVtxErr, tracklist[i]->Vertex(), xyzErr, totalEnergy, totalEnergyErr, dEdx, dEdxErr, (int)bestplane, 0));
       showers->back().set_id(showers->size()-1);
@@ -543,56 +537,8 @@ bool shower::TCShower::addShowerHit(art::Ptr<recob::Hit> hit, std::vector< art::
 
 // -----------------------------------------------------
 
-void shower::TCShower::showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir) {
-
-  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  art::ServiceHandle<geo::Geometry> geom;
-
-  auto collectionPlane = geo::PlaneID(0, 0, 1);
-
-  double shwVtxTime = detprop->ConvertXToTicks(shwvtx[0], collectionPlane);
-  double shwVtxWire = geom->WireCoordinate(shwvtx[1], shwvtx[2], collectionPlane);
-
-  TVector3 shwort = shwdir.Orthogonal().Unit();
-  double shwTwoTime = detprop->ConvertXToTicks(shwvtx[0]+shwort[0], collectionPlane);
-  double shwTwoWire = geom->WireCoordinate(shwvtx[1]+shwort[1], shwvtx[2]+shwort[2], collectionPlane);
-
-  for (size_t i = 0; i < showerhits.size(); ++i) {
-    if (showerhits[i]->WireID().Plane != collectionPlane.Plane) continue;
-
-    double wirePitch = geom->WirePitch(showerhits[i]->WireID());
-    double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature()); 
-    tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
-
-    double xvtx = shwVtxTime * tickToDist;
-    double yvtx = shwVtxWire * wirePitch;
-
-    double xtwo = shwTwoTime * tickToDist;
-    double ytwo = shwTwoWire * wirePitch;
-
-    double xhit = showerhits[i]->PeakTime() * tickToDist;
-    double yhit = showerhits[i]->WireID().Wire * wirePitch;
-
-    double dist = std::abs((ytwo-yvtx)*xhit - (xtwo-xvtx)*yhit + xtwo*yvtx - ytwo*xvtx)/std::sqrt( pow((ytwo-yvtx), 2) + pow((xtwo-xvtx), 2) );
-
-    double to3D = 1. / sqrt( pow(xvtx-xtwo,2) + pow(yvtx-ytwo,2) ) ; // distance between two points in 3D space is one.
-    dist *= to3D;
-    double Q = showerhits[i]->Integral() * fCalorimetryAlg.LifetimeCorrection(showerhits[i]->PeakTime());
-    double t = dist / 14; // convert to radiation lengths
-
-    int bin = floor(t*3);
-
-    fShowerProfile->SetBinContent(bin, fShowerProfile->GetBinContent(bin) + Q);
-    
-  } // loop through showerhits
-
-} // showerProfile
-
-// -----------------------------------------------------
-
 void shower::TCShower::beginJob() {
   art::ServiceHandle<art::TFileService> tfs;
-  fShowerProfile = tfs->make<TH1F>("fShowerProfile", "fShowerProfile", 15, 0, 5);
 
 }
 
