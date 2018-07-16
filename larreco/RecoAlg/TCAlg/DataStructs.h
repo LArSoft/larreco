@@ -49,25 +49,7 @@ namespace tca {
 
   /// @{
   /// @name Data structures for the reconstruction results
-  
-  /// struct of temporary clusters
-  struct ClusterStore {
-    int ID {0};         // Cluster ID. ID < 0 = abandoned cluster
-    CTP_t CTP {0};        // Cryostat/TPC/Plane code
-    unsigned short PDGCode {0}; // PDG-like code shower-like or line-like
-    float BeginWir {0};   // begin wire
-    float BeginTim {0};   // begin tick
-    float BeginAng {0};   // begin angle
-    float BeginChg {0};   // beginning average charge
-    short BeginVtx {-1}; 	// ID of the Begin vertex
-    float EndWir {0};     // end wire
-    float EndTim {0};     // end tick
-    float EndAng {0};     // end angle
-    float EndChg {0};     // ending average charge
-    short EndVtx {-1};     // ID of the end vertex
-    std::vector<unsigned int> tclhits; // hits on the cluster
-  }; // ClusterStore
-  
+
   /// struct of temporary 2D vertices (end points)
   struct VtxStore {
     Point2_t Pos {{0,0}};
@@ -80,6 +62,7 @@ namespace tca {
     short Topo {0}; 			
     CTP_t CTP {0};
     int ID {0};          ///< set to 0 if killed
+    int UID {0};          ///< unique global ID
     int Vx3ID {0};
     float Score {0};
     float TjChgFrac {0};            ///< Fraction of charge near the vertex that is from hits on the vertex Tjs
@@ -109,6 +92,7 @@ namespace tca {
     geo::TPCID TPCID;
     std::vector<int> Vx2ID; // List of 2D vertex IDs in each plane
     int ID {0};          // 0 = obsolete vertex
+    int UID {0};          ///< unique global ID
     bool Primary {false};
     bool Neutrino {false};
   };
@@ -169,10 +153,11 @@ namespace tca {
     Point2_t dEdx {{0,0}};      ///< dE/dx for 3D matched trajectories
     std::array<unsigned short, 2> VtxID {{0,0}};      ///< ID of 2D vertex
     std::array<unsigned short, 2> EndPt {{0,0}}; ///< First and last point in the trajectory that has charge
-    int ID;
+    int ID;                 ///< ID that is local to one slice
+    int UID;                ///< a unique ID for all slices
     int SSID {0};          ///< ID of a 2D shower struct that this tj is in
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
-    unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
+//    unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     unsigned int mcpListIndex {UINT_MAX};
@@ -222,6 +207,7 @@ namespace tca {
     unsigned short MatchVecIndex {USHRT_MAX};
     float CosmicScore{0};
     int ID {0};
+    int UID {0};              // unique global ID
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
@@ -252,6 +238,7 @@ namespace tca {
     float Energy {0};
     float ParentFOM {10};
     int ID {0}; 
+    int UID {0};          ///< unique global ID
     int ParentID {0};  // The ID of a parent Tj - the one at the start of the shower
     int TruParentID {0};
     int SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
@@ -280,6 +267,7 @@ namespace tca {
     std::vector<unsigned int> Hits;
     int BestPlane;
     int ID;
+    int UID {0};          ///< unique global ID
     int ParentID {0};       // The ID of a track-like pfp at the start of the shower, e.g. an electron
     float MatchFOM;
     unsigned short PFPIndex {USHRT_MAX};    // The index of the pfp for this shower
@@ -430,7 +418,6 @@ namespace tca {
   // TrajClusterAlg configuration bits
   typedef enum {
     kStepDir,         ///< step from US -> DS (true) or DS -> US (false)
-    kMakeNewHits,
     kTestBeam,        ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
     kDebug,           ///< print additional info when in debug mode
     kStudy1,           ///< call study functions to develop cuts, etc (see TCTruth.cxx)
@@ -478,7 +465,6 @@ namespace tca {
     TMVA::Reader* showerParentReader;
     std::vector<float> showerParentVars;
     std::vector<simb::MCParticle*> mcpList;
-    bool makeNewHits;
     float hitErrFac;
     float maxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float maxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
@@ -492,7 +478,7 @@ namespace tca {
 
   struct TCHit {
     unsigned int allHitsIndex; // index into fHits
-    short InTraj {SHRT_MAX};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
+    short InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
   };
 
   // hit collection for all slices, TPCs and cryostats + event information
@@ -503,6 +489,14 @@ namespace tca {
     unsigned int run;
     unsigned int subRun;
     unsigned int eventsProcessed;
+    std::vector<float> aveHitRMS;      ///< average RMS of an isolated hit
+    bool aveHitRMSValid {false};          ///< set true when the average hit RMS is well-known
+    int globalTjID;
+    int globalPFPID;
+    int globalVx2ID;
+    int globalVx3ID;
+    int globalS2ID;
+    int globalS3ID;
   };
 
   struct TCSlice {
@@ -517,7 +511,6 @@ namespace tca {
     float zLo;
     float zHi;
     geo::TPCID TPCID;
-    std::vector<float> aveHitRMS;      ///< average RMS of an isolated hit
     // The variables below do change in size from event to event
 
     // Save histograms to develop cosmic removal tools
@@ -530,7 +523,6 @@ namespace tca {
     // in the range fFirstWire to fLastWire. A value of -2 indicates that there
     // are no hits on the wire. A value of -1 indicates that the wire is dead
     std::vector<std::vector< std::pair<int, int>>> wireHitRange;
-    std::vector< ClusterStore > tcl; ///< the clusters we are creating
     std::vector< VtxStore > vtxs; ///< 2D vertices
     std::vector< Vtx3Store > vtx3s; ///< 3D vertices
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
