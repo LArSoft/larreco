@@ -181,6 +181,7 @@ namespace tca {
   Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
   void SetPDGCode(TCSlice& slc, Trajectory& tj);
   void SetPDGCode(TCSlice& slc, unsigned short itj);
+  bool AnalyzeHits();
   bool FillWireHitRange(TCSlice& slc);
 //  bool CheckWireHitRange(TCSlice& slc);
   bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP);
