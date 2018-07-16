@@ -1153,6 +1153,7 @@ namespace tca {
         if(tj.Pts[ipt].UseHit[ii]) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
           if(slc.slHits[iht].InTraj > 0) {
+            std::cout<<"fail "<<iht<<" "<<slc.slHits[iht].InTraj<<" trID "<<trID<<" trID "<<trID<<"\n";
             mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(slc.slHits[iht])<<" in T"<<trID<<" but it is used in T"<<slc.slHits[iht].InTraj<<" with WorkID "<<slc.tjs[slc.slHits[iht].InTraj-1].WorkID<<" Print and quit";
 //            PrintTrajectory("ST", tjs, tj, USHRT_MAX);
             ReleaseHits(slc, tj);
@@ -1174,6 +1175,9 @@ namespace tca {
     
     tj.WorkID = tj.ID;
     tj.ID = trID;
+    // increment the global ID
+    ++evt.globalTjID;
+    tj.UID = evt.globalTjID;
     // Don't clobber the ParentID if it was defined by the calling function
     if(tj.ParentID == 0) tj.ParentID = trID;
     slc.tjs.push_back(tj);
@@ -1628,7 +1632,7 @@ namespace tca {
     // returns the expected RMS of hits for the trajectory point in ticks
     if(std::abs(tp.Dir[0]) > 0.001) {
       geo::PlaneID planeID = DecodeCTP(tp.CTP);
-      return 1.5 * slc.aveHitRMS[planeID.Plane] + 2 * std::abs(tp.Dir[1]/tp.Dir[0])/tcc.unitsPerTick;
+      return 1.5 * evt.aveHitRMS[planeID.Plane] + 2 * std::abs(tp.Dir[1]/tp.Dir[0])/tcc.unitsPerTick;
     } else {
       return 500;
     }
@@ -3731,6 +3735,56 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     
   } // SetPDGCode
   
+  ////////////////////////////////////////////////
+  bool AnalyzeHits()
+  {
+    // Find the average hit rms by analyzing the full hit collection. This
+    // only needs to be done once per job.
+    
+    if((*evt.allHits).empty()) return false;
+    // no sense re-calculating it if it's been done
+    if(evt.aveHitRMSValid) return true;
+    
+    unsigned short cstat = (*evt.allHits)[0].WireID().Cryostat;
+    unsigned short tpc = (*evt.allHits)[0].WireID().TPC;
+
+    unsigned short nplanes = tcc.geom->Nplanes(tpc, cstat);
+    evt.aveHitRMS.resize(nplanes);
+    std::vector<float> cnt(nplanes, 0);
+    for(unsigned short iht = 0; iht < (*evt.allHits).size(); ++iht) {
+      auto& hit = (*evt.allHits)[iht];
+      if(hit.WireID().Cryostat != cstat || hit.WireID().TPC != tpc) {
+        std::cout<<"AnalyzeHits found a hit in different cryostat/tpc\n";
+        return false;
+      } // cstat/tpc check
+      unsigned short plane = hit.WireID().Plane;
+      if(plane > nplanes - 1) {
+        std::cout<<"AnalyzeHits found bad plane\n";
+        return false;
+      } // plane check
+      // require multiplicity one
+      if(hit.Multiplicity() != 1) continue;
+      // not-crazy Chisq/DOF
+      if(hit.GoodnessOfFit() < 0 || hit.GoodnessOfFit() > 100) continue;
+      // don't let a lot of runt hits screw up the calculation
+      if(hit.PeakAmplitude() < 1) continue;
+      evt.aveHitRMS[plane] += hit.RMS();
+      ++cnt[plane];
+    } // iht
+    
+    // assume there are enough hits in each plane
+    evt.aveHitRMSValid = true;
+    for(unsigned short plane = 0; plane < nplanes; ++plane) {
+      if(cnt[plane] > 4) {
+        evt.aveHitRMS[plane] /= cnt[plane];
+      } else {
+        evt.aveHitRMS[plane] = 10;
+        evt.aveHitRMSValid = false;
+      } // cnt too low
+    } // plane
+
+    return true;
+  } // Analyze hits
   
   ////////////////////////////////////////////////
   bool FillWireHitRange(TCSlice& slc)
@@ -3741,8 +3795,12 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     // determine the number of planes
     unsigned int cstat = slc.TPCID.Cryostat;
     unsigned int tpc = slc.TPCID.TPC;
-    unsigned short nplanes = tcc.geom->Nplanes();
+    unsigned short nplanes = tcc.geom->Nplanes(tpc, cstat);
     slc.nPlanes = nplanes;
+    if(nplanes > 3) {
+      std::cout<<"FillWireHitRange: crazy nPlanes "<<nplanes<<"\n";
+      return false;
+    }
     
     // Y,Z limits of the detector
     double local[3] = {0.,0.,0.};
@@ -3759,8 +3817,6 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     
     lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
     
-//    if(!slc.wireHitRange.empty()) slc.wireHitRange.clear();
-    
     // initialize everything
     slc.wireHitRange.resize(nplanes);
     slc.firstWire.resize(nplanes);
@@ -3768,7 +3824,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     slc.nWires.resize(nplanes);
     tcc.maxPos0.resize(nplanes);
     tcc.maxPos1.resize(nplanes);
-    slc.aveHitRMS.resize(nplanes, nplanes);
+    evt.aveHitRMS.resize(nplanes, nplanes);
     
     std::pair<int, int> flag;
     flag.first = -2; flag.second = -2;
@@ -3828,39 +3884,14 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
 //    if(!CheckWireHitRange(tcs)) return false;
     
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
-    if(tcc.modes[kDebug] && (int)tpc == debug.TPC) {
+    if(tcc.modes[kDebug] && (int)tpc == debug.TPC && slices.size() == 1) {
       std::cout<<"tpc "<<tpc<<" tcc.unitsPerTick "<<std::setprecision(3)<<tcc.unitsPerTick<<"\n";
       std::cout<<"Fiducial volume (";
       std::cout<<std::fixed<<std::setprecision(1)<<slc.xLo<<" < X < "<<slc.xHi<<") (";
       std::cout<<std::fixed<<std::setprecision(1)<<slc.yLo<<" < Y < "<<slc.yHi<<") (";
       std::cout<<std::fixed<<std::setprecision(1)<<slc.zLo<<" < Z < "<<slc.zHi<<")\n";
     }
-    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-      float sumRMS = 0;
-      float sumAmp = 0;
-      unsigned int cnt = 0;
-      for(unsigned int wire = 0; wire < slc.nWires[plane]; ++wire) {
-        if(slc.wireHitRange[plane][wire].first < 0) continue;
-        unsigned int firstHit = slc.wireHitRange[plane][wire].first;
-        unsigned int lastHit = slc.wireHitRange[plane][wire].second;
-        // don't let noisy wires screw up the calculation
-        if(lastHit - firstHit > 100) continue;
-        for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-          auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
-          if(hit.Multiplicity() != 1) continue;
-          if(hit.GoodnessOfFit() < 0 || hit.GoodnessOfFit() > 100) continue;
-          // don't let a lot of runt hits screw up the calculation
-          if(hit.PeakAmplitude() < 1) continue;
-          ++cnt;
-          sumRMS += hit.RMS();
-          sumAmp += hit.PeakAmplitude();
-        } // iht
-      } // wire
-      if(cnt < 4) continue;
-      slc.aveHitRMS[plane] = sumRMS/(float)cnt;
-      sumAmp  /= (float)cnt;
-      if(tcc.modes[kDebug]) std::cout<<"Pln "<<plane<<" slc.aveHitRMS "<<slc.aveHitRMS[plane]<<" Ave PeakAmplitude "<<sumAmp<<"\n";
-    } // ipl
+
     return true;
     
   } // FillWireHitRange
@@ -4366,13 +4397,13 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       // Print summary trajectory information
       std::vector<unsigned int> tmp;
 //      myprt<<someText<<" TRJ  ID   CTP Pass  Pts     W:T      Ang CS AveQ dEdx     W:T      Ang CS AveQ dEdx Chg(k) chgRMS  Mom SDr __Vtx__  PDG  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
-      myprt<<someText<<"    ID   CTP Pass  Pts     W:T      Ang CS AveQ fnTj     W:T      Ang CS AveQ fnTj Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
+      myprt<<someText<<"   UID   CTP Pass  Pts     W:T      Ang CS AveQ fnTj     W:T      Ang CS AveQ fnTj Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar TRuPDG  E*P TruKE  WorkID \n";
       for(unsigned short ii = 0; ii < slc.tjs.size(); ++ii) {
         auto& aTj = slc.tjs[ii];
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
         myprt<<someText<<" ";
         std::string tid;
-        if(aTj.AlgMod[kKilled]) { tid = "k" + std::to_string(aTj.ID); } else { tid = "T" + std::to_string(aTj.ID); }
+        if(aTj.AlgMod[kKilled]) { tid = "k" + std::to_string(aTj.UID); } else { tid = "T" + std::to_string(aTj.UID); }
         myprt<<std::fixed<<std::setw(5)<<tid;
         myprt<<std::setw(6)<<aTj.CTP;
         myprt<<std::setw(5)<<aTj.Pass;
@@ -4482,7 +4513,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     
     auto const& aTj = slc.tjs[itj];
     
-    mf::LogVerbatim("TC")<<"Print slc.tjs["<<itj<<"]: ClusterIndex "<<aTj.ClusterIndex<<" Vtx[0] "<<aTj.VtxID[0]<<" Vtx[1] "<<aTj.VtxID[1];
+    mf::LogVerbatim("TC")<<"Print slc.tjs["<<itj<<"] Vtx[0] "<<aTj.VtxID[0]<<" Vtx[1] "<<aTj.VtxID[1];
     myprt<<"AlgBits";
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(aTj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
     myprt<<"\n";
@@ -4510,7 +4541,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       if(tj.ID < 0) {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"Work:    ID "<<tj.ID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<"Work:   UID "<<tj.UID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" StopFlags "<<PrintStopFlag(tj, 0)<<" "<<PrintStopFlag(tj, 1);
         myprt<<" AlgMod names:";
@@ -4518,7 +4549,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       } else {
         mf::LogVerbatim myprt("TC");
         myprt<<someText<<" ";
-        myprt<<"slc.tjs: ID "<<tj.ID<<" WorkID "<<tj.WorkID<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
+        myprt<<"slc.tjs: UID "<<tj.UID<<" WorkID "<<tj.WorkID<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
         myprt<<" StopFlags "<<PrintStopFlag(tj, 0)<<" "<<PrintStopFlag(tj, 1);
         myprt<<" AlgMod names:";
@@ -4633,7 +4664,6 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
   /////////////////////////////////////////
   void PrintPFP(std::string someText, TCSlice& slc, const PFPStruct& pfp, bool printHeader)
   {
-//    if(pfp.ID == 0) return;
     mf::LogVerbatim myprt("TC");
     if(printHeader) {
       myprt<<someText;
@@ -4711,7 +4741,6 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     myprt<<"  PFP sVx  ________sPos_______  ______sDir______  ______sdEdx_____ eVx  ________ePos_______  ______eDir______  ______edEdx_____ BstPln PDG TruPDG Par Prim E*P\n";
     bool printHeader = true;
     for(auto& pfp : slc.pfps) {
-//      if(pfp.ID == 0) continue;
       PrintPFP(someText, slc, pfp, printHeader);
       printHeader = false;
     } // im
