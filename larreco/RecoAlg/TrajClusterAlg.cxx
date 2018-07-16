@@ -49,7 +49,6 @@ namespace tca {
     // set all configurable modes false
     tcc.modes.reset();
     
-    if(pset.has_key("MakeNewHits")) tcc.modes[kMakeNewHits] = true;
     // default mode is stepping US -> DS
     tcc.modes[kStepDir] = true;
     short userMode = 1;
@@ -112,10 +111,10 @@ namespace tca {
     debug.WorkID = 0;
     if(pset.has_key("DebugCryostat")) debug.Cryostat = pset.get< int >("DebugCryostat");
     if(pset.has_key("DebugTPC"))      debug.TPC = pset.get< int >("DebugTPC");
-    if(pset.has_key("DebugPlane"))      debug.TPC = pset.get< int >("DebugPlane");
-    if(pset.has_key("DebugWire"))      debug.TPC = pset.get< int >("DebugWire");
-    if(pset.has_key("DebugTick"))      debug.TPC = pset.get< int >("DebugTick");
-    if(pset.has_key("DebugWorkID"))      debug.TPC = pset.get< int >("DebugWorkID");
+    if(pset.has_key("DebugPlane"))    debug.Plane = pset.get< int >("DebugPlane");
+    if(pset.has_key("DebugWire"))     debug.Wire = pset.get< int >("DebugWire");
+    if(pset.has_key("DebugTick"))     debug.Tick = pset.get< int >("DebugTick");
+    if(pset.has_key("DebugWorkID"))   debug.WorkID = pset.get< int >("DebugWorkID");
 
     if(tcc.JTMaxHitSep2 > 0) tcc.JTMaxHitSep2 *= tcc.JTMaxHitSep2;
     
@@ -293,25 +292,32 @@ namespace tca {
   {
     // Reconstruct everything using the hits in a slice
     
-    // no hits specified
-    ++evt.eventsProcessed;
+    if(slices.empty()) ++evt.eventsProcessed;
     if(hitsInSlice.size() < 2) return;
-    // no hits exist - StoreInputHits not called
-//    if((*evt.allHits)->size() < 2) return;
+    
+    if(slices.empty()) {
+      // refresh service references
+      tcc.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+      tcc.geom = lar::providerFrom<geo::Geometry>();
+      // find the average hit RMS using the full hit collection and define the
+      // configuration for the current TPC
+      if(!AnalyzeHits()) return;
+      fWorkID = 0;
+      evt.globalTjID = 0;
+      evt.globalVx2ID = 0;
+      evt.globalVx3ID = 0;
+      evt.globalPFPID = 0;
+      evt.globalS2ID = 0;
+      evt.globalS3ID = 0;
+    } // no slices yet
     
     if(!CreateSlice(hitsInSlice)) return;
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
-    
-    // refresh service references
-    tcc.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    tcc.geom = lar::providerFrom<geo::Geometry>();
 
     // check for debugging mode triggered by Plane, Wire, Tick
     debug.Hit = UINT_MAX;
     if(tcc.modes[kDebug] && (int)slc.TPCID.Cryostat == debug.Cryostat && (int)slc.TPCID.TPC == debug.TPC) {
-      std::cout<<"Look for hit near Cryo:TPC:Pln:Wire:Tick "<<debug.Cryostat;
-      std::cout<<":"<<debug.TPC<<":"<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
       for(unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
         auto& slHit = slc.slHits[iht];
         auto& hit = (*evt.allHits)[slHit.allHitsIndex];
@@ -320,7 +326,9 @@ namespace tca {
         if(hit.PeakTime() < debug.Tick - 5) continue;
         if(hit.PeakTime() > debug.Tick + 5) continue;
         debug.Hit = iht;
-        std::cout<<" Found iht "<<iht<<" "<<debug.Plane<<":"<<PrintHit(slHit);
+        std::cout<<"Found hit near Cryo:TPC:Pln:Wire:Tick "<<debug.Cryostat;
+        std::cout<<":"<<debug.TPC<<":"<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
+        std::cout<<" iht "<<iht<<" "<<debug.Plane<<":"<<PrintHit(slHit);
         std::cout<<" Amp "<<(int)hit.PeakAmplitude();
         std::cout<<" RMS "<<std::fixed<<std::setprecision(1)<<hit.RMS();
         std::cout<<" Chisq "<<std::fixed<<std::setprecision(1)<<hit.GoodnessOfFit();
@@ -328,10 +336,7 @@ namespace tca {
         std::cout<<"\n";
         break;
       } // iht
-      if(debug.Hit == UINT_MAX) std::cout<<" not found\n";
     } // debugging mode
-    
-    fWorkID = 0;
     
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
@@ -412,7 +417,7 @@ namespace tca {
     // print trajectory summary report?
     if(tcc.showerTag[0] > 1 && tcc.showerTag[12] < slc.nPlanes) debug.Plane = tcc.showerTag[12];
     if(tcc.modes[kDebug]) {
-      mf::LogVerbatim("TC")<<"Done in RunTrajClusterAlg";
+      mf::LogVerbatim("TC")<<"Slice "<<slices.size()<<" done in RunTrajClusterAlg";
       if(tcc.showerTag[1] > 1) {
         Print2DShowers("RTC", slc, USHRT_MAX, false);
         PrintShowers("RTC", slc);
@@ -428,7 +433,7 @@ namespace tca {
       ++ntj;
       if(tj.AlgMod[kShowerTj]) ++nsh;
     } // tj
-    if(tcc.modes[kDebug]) std::cout<<"RTC done ntjs "<<ntj<<" nshowers "<<nsh<<" events processed "<<evt.eventsProcessed<<"\n";
+    if(tcc.modes[kDebug]) std::cout<<"RTC slice "<<slices.size()<<" done ntjs "<<ntj<<" nshowers "<<nsh<<" events processed "<<evt.eventsProcessed<<"\n";
     
 //    if(tcc.matchTruth[0] >= 0) tm.PrintResults(xxx.Event);
 
@@ -452,16 +457,18 @@ namespace tca {
     // Reconstruct clusters in inCTP and put them in allTraj
 
     unsigned short plane = DecodeCTP(inCTP).Plane;
+    if(slc.firstWire[plane] > slc.nWires[plane]) return;
     unsigned int nwires = slc.lastWire[plane] - slc.firstWire[plane] - 1;
+    if(nwires > slc.nWires[plane]) return;
     
-    // turn of trajectory printing
+    // turn off trajectory printing
     TJPrt = 0;
     didPrt = false;
     
     // Make several passes through the hits with user-specified cuts for each
     // pass. In general these are to not reconstruct large angle trajectories on
     // the first pass
-    float maxHitsRMS = 4 * slc.aveHitRMS[plane];
+    float maxHitsRMS = 4 * evt.aveHitRMS[plane];
     for(unsigned short pass = 0; pass < tcc.minPtsFit.size(); ++pass) {
       for(unsigned int ii = 0; ii < nwires; ++ii) {
         // decide which way to step given the sign of StepDir
@@ -516,7 +523,7 @@ namespace tca {
           }
           if(hitsRMSTick == 0) continue;
           bool fatIHit = (hitsRMSTick > maxHitsRMS);
-          if(prt) mf::LogVerbatim("TC")<<" hit RMS "<<iHit.RMS()<<" BB Multiplicity "<<iHitsInMultiplet.size()<<" AveHitRMS["<<plane<<"] "<<slc.aveHitRMS[plane]<<" HitsRMSTick "<<hitsRMSTick<<" fatIHit "<<fatIHit;
+          if(prt) mf::LogVerbatim("TC")<<" hit RMS "<<iHit.RMS()<<" BB Multiplicity "<<iHitsInMultiplet.size()<<" AveHitRMS["<<plane<<"] "<<evt.aveHitRMS[plane]<<" HitsRMSTick "<<hitsRMSTick<<" fatIHit "<<fatIHit;
           for(unsigned int jht = jfirsthit; jht < jlasthit; ++jht) {
             // Only consider hits that are available
             if(slc.slHits[iht].InTraj != 0) break;
@@ -4275,7 +4282,7 @@ namespace tca {
 //    prt = false;
     if(tj.ID == debug.WorkID) { prt = true; didPrt = true; debug.Plane = DecodeCTP(tCTP).Plane; TJPrt = tj.ID; }
     if(prt) {
-      mf::LogVerbatim("TC")<<"StartTraj "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(slc, tp);
+      mf::LogVerbatim("TC")<<"StartTraj T"<<tj.ID<<" from "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(slc, tp);
     }
     tj.Pts.push_back(tp);
     return true;
@@ -4673,7 +4680,7 @@ namespace tca {
     unsigned short ipl = hit.WireID().Plane;
     float theTime = hit.PeakTime();
     float theRMS = hit.RMS();
-    float narrowHitCut = 1.5 * slc.aveHitRMS[ipl];
+    float narrowHitCut = 1.5 * evt.aveHitRMS[ipl];
     bool theHitIsNarrow = (theRMS < narrowHitCut);
     float maxPeak = hit.PeakAmplitude();
     unsigned short imTall = theHit;
@@ -4682,7 +4689,7 @@ namespace tca {
 /*
     bool mprt = (theHit == 425);
     if(mprt) {
-      mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(slc.slHits[theHit])<<" RMS "<<slc.slHits[theHit].RMS<<" aveRMS "<<slc.aveHitRMS[ipl]<<" Amp "<<(int)slc.slHits[theHit].PeakAmplitude;
+      mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(slc.slHits[theHit])<<" RMS "<<slc.slHits[theHit].RMS<<" aveRMS "<<evt.aveHitRMS[ipl]<<" Amp "<<(int)slc.slHits[theHit].PeakAmplitude;
     }
 */
     // look for hits < theTime but within hitSep
@@ -5135,14 +5142,14 @@ namespace tca {
       if(tpHits[0] > (*evt.allHits).size() - 1) return recob::Hit();
       return (*evt.allHits)[tpHits[0]];
     }
-    
-    float integral = 0;
-    float sIntegral = 0;
-    float rms = 0;
-    float peakTime = 0;
-    float sPeakTime = 0;
-    float peakAmp = 0;
-    float sPeakAmp = 0;
+
+
+    double integral = 0;
+    double sIntegral = 0;
+    double peakTime = 0;
+    double sPeakTime = 0;
+    double peakAmp = 0;
+    double sPeakAmp = 0;
     float sumADC = 0;
     raw::TDCtick_t startTick = INT_MAX;
     raw::TDCtick_t endTick = 0;
@@ -5151,27 +5158,59 @@ namespace tca {
       auto& hit = (*evt.allHits)[allHitsIndex];
       if(hit.StartTick() < startTick) startTick = hit.StartTick();
       if(hit.EndTick() > endTick) endTick = hit.EndTick();
-      float intgrl = hit.Integral();
-      peakTime += intgrl * hit.PeakTime();
+      double intgrl = hit.Integral();
       sPeakTime += intgrl * hit.SigmaPeakTime();
-      // TODO: this isn't correct but probably good enough
-      peakAmp += intgrl * hit.PeakAmplitude();
       sPeakAmp += intgrl * hit.SigmaPeakAmplitude();
-      rms += intgrl * hit.RMS();
       sumADC += hit.SummedADC();
       integral += intgrl;
       sIntegral += intgrl * hit.SigmaIntegral();
+      // Get the charge normalization from an input hit
     } // tpHit
-    
     if(integral == 0) return recob::Hit();
-    peakTime /= integral;
-    sPeakTime /= integral;
-    peakAmp /= integral;
-    sPeakAmp /= integral;
-    rms /= integral;
     
-    // get a reference to the first hit to copy the channel, view, etc
+    // Create a signal shape vector to find the rms and peak tick
+    std::vector<double> shape(endTick - startTick + 1, 0.);
+    for(auto allHitsIndex : tpHits) {
+      auto& hit = (*evt.allHits)[allHitsIndex];
+      double peakTick = hit.PeakTime();
+      double rms = hit.RMS();
+      double peakAmp = hit.PeakAmplitude();
+      for(raw::TDCtick_t tick = startTick; tick <= endTick; ++tick) {
+        double arg = ((double)tick - peakTick) / rms;
+        unsigned short indx = tick - startTick;
+        shape[indx] +=  peakAmp * exp(-0.5 * arg * arg);
+      } // tick
+    } // allHitsIndex
+    
+    // find the peak tick
+    double sigsum = 0;
+    double sigsumt = 0;
+    for(raw::TDCtick_t tick = startTick; tick <= endTick; ++tick) {
+      unsigned short indx = tick - startTick;
+      sigsum += shape[indx];
+      sigsumt += shape[indx] * tick;
+    } // tick
+    
+    peakTime = sigsumt / sigsum;
+    // Use the sigma peak time calculated in the first loop
+    sPeakTime /= integral;
+    
+    // find the RMS
+    sigsumt = 0.;
+    for(raw::TDCtick_t tick = startTick; tick <= endTick; ++tick) {
+      double dTick = tick - peakTime;
+      unsigned short indx = tick - startTick;
+      sigsumt += shape[indx] * dTick * dTick;
+    }
+    double rms = std::sqrt(sigsumt / sigsum);
+    // get a reference to the first hit to get the charge normalization, channel, view, etc
     auto& firstHit = (*evt.allHits)[tpHits[0]];
+    double chgNorm = 2.507 * firstHit.PeakAmplitude() * firstHit.RMS() / firstHit.Integral();
+    // find the amplitude from the integrated charge and the RMS
+    peakAmp = (float)(integral * chgNorm / (2.507 * rms));
+    // Use the sigma integral calculated in the first loop
+    sPeakAmp /= integral;
+    
     // construct the hit
     return recob::Hit(firstHit.Channel(), 
                       startTick, endTick, 
