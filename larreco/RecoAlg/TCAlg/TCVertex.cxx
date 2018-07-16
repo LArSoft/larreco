@@ -535,6 +535,8 @@ namespace tca {
       vx3.Z = candVx.intersect[2];
       vx3.Primary = true;
       SetVx3Score(slc, vx3, prt);
+      ++evt.globalS3ID;
+      vx3.UID = evt.globalS3ID;
       slc.vtx3s.push_back(vx3);
       if(prt) mf::LogVerbatim("TC")<<"FNV: P"<<p1.ID<<"_"<<candVx.end1<<" P"<<p2.ID<<"_"<<candVx.end2<<" -> 3V"<<vx3.ID;
     } // candVx
@@ -1457,6 +1459,8 @@ namespace tca {
         if(vx3.Wire >= 0) ++ninc;
       }
       vx3.ID = slc.vtx3s.size() + 1;
+      ++evt.globalS3ID;
+      vx3.UID = evt.globalS3ID;
       if(prt) mf::LogVerbatim("TC")<<" 3V"<<vx3.ID<<"  2V"<<vx3.Vx2ID[0]<<" 2V"<<vx3.Vx2ID[1]<<" 2V"<<vx3.Vx2ID[2]
         <<" wire "<<vx3.Wire;
       slc.vtx3s.push_back(vx3);
@@ -1911,6 +1915,9 @@ namespace tca {
       mf::LogVerbatim("TC")<<"StoreVertex: Invalid ID "<<vx.ID<<" It should be "<<slc.vtxs.size() + 1;
       return false;
     }
+    
+    ++evt.globalS2ID;
+    vx.UID = evt.globalS2ID;
     
     unsigned short nvxtj = 0;
     unsigned short nok = 0;
