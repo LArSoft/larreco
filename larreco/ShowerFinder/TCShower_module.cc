@@ -575,12 +575,10 @@ void shower::TCShower::showerProfile(std::vector< art::Ptr<recob::Hit> > showerh
 
     double dist = std::abs((ytwo-yvtx)*xhit - (xtwo-xvtx)*yhit + xtwo*yvtx - ytwo*xvtx)/std::sqrt( pow((ytwo-yvtx), 2) + pow((xtwo-xvtx), 2) );
 
-    double costheta = cos(atan(shwdir[1]/shwdir[0]));
-    double dist3D = dist/costheta;
-
+    double to3D = 1. / sqrt( pow(xvtx-xtwo,2) + pow(yvtx-ytwo,2) ) ; // distance between two points in 3D space is one.
+    dist *= to3D;
     double Q = showerhits[i]->Integral() * fCalorimetryAlg.LifetimeCorrection(showerhits[i]->PeakTime());
-
-    double t = dist3D / 14; // convert to radiation lengths
+    double t = dist / 14; // convert to radiation lengths
 
     int bin = floor(t*3);
 
