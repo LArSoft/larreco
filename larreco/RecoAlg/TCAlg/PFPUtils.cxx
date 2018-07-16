@@ -1746,7 +1746,8 @@ namespace tca {
       vx3.Vx2ID[plane] = vx2id;
       vx2.Vx3ID = vx3.ID;
     } // vx2id
-    std::cout<<"Split3DKink add 3V"<<vx3.ID<<"\n";
+    ++evt.globalS3ID;
+    vx3.UID = evt.globalS3ID;
     slc.vtx3s.push_back(vx3);
     // mark this as needing an update
     pfp.NeedsUpdate = true;
@@ -2317,6 +2318,8 @@ namespace tca {
       vx3.Z = pfp.XYZ[0][2];
       vx3.ID = slc.vtx3s.size() + 1;
       vx3.Primary = false;
+      ++evt.globalS3ID;
+      vx3.UID = evt.globalS3ID;
       slc.vtx3s.push_back(vx3);
 //      std::cout<<"PFPVertexCheck: P"<<pfp.ID<<" create 3V"<<vx3.ID<<"\n";
       pfp.Vx3ID[0] = vx3.ID;
@@ -2550,6 +2553,8 @@ namespace tca {
     }
     // check the ID and correct it if it is wrong
     if(pfp.ID != (int)slc.pfps.size() + 1) pfp.ID = slc.pfps.size() + 1;
+    ++evt.globalPFPID;
+    pfp.UID = evt.globalPFPID;
     // check the Tjs and set the 3D match flag
     for(auto tjid : pfp.TjIDs) {
       auto& tj = slc.tjs[tjid - 1];
