@@ -34,6 +34,7 @@
 #include "TTree.h"
 #include "TFile.h"
 #include "TH1.h"
+#include "TProfile.h"
 
 namespace shower {
 
@@ -58,7 +59,7 @@ namespace shower {
 
     TTree* fTree;
 
-    TH1F* fShowerProfile;
+    TProfile* fShowerProfile;
 
     std::string fClusterModuleLabel;
     std::string fTrackModuleLabel;
@@ -102,7 +103,7 @@ void shower::TCShowerAnalysis::reconfigure(fhicl::ParameterSet const& pset) {
 void shower::TCShowerAnalysis::beginJob() {
   art::ServiceHandle<art::TFileService> tfs;
   fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
-  fShowerProfile = tfs->make<TH1F>("fShowerProfile", "fShowerProfile", 15, 0, 5);
+  fShowerProfile = tfs->make<TProfile>("fShowerProfile", "fShowerProfile", 15, 0, 5);
 
 } // beginJob
 
@@ -140,9 +141,23 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
 
   art::FindManyP<recob::Hit> shwfm(showerListHandle, evt, fShowerModuleLabel);
 
-  std::vector< art::Ptr<recob::Hit> > showerhits = shwfm.at(0);
+  if (showerlist.size()) {
+    std::vector< art::Ptr<recob::Hit> > showerhits = shwfm.at(0);
 
-  showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
+    // TODO: shower profile for E = 4-5 GeV
+    if (mclist.size()) {
+      art::Ptr<simb::MCTruth> mctruth = mclist[0];
+      if (mctruth->NeutrinoSet()) {
+	if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) {
+	  double elep =  mctruth->GetNeutrino().Lepton().E();
+	  std::cout << "ELECTRON ENERGY: " << elep << std::endl;
+	  if (elep > 1 && elep < 2) {
+	    showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
+	  }
+	}
+      }
+    }
+  }
 
   fTree->Fill();
 
@@ -170,6 +185,8 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
   double shwTwoTime = detprop->ConvertXToTicks(shwvtx[0]+shwort[0], collectionPlane);
   double shwTwoWire = geom->WireCoordinate(shwvtx[1]+shwort[1], shwvtx[2]+shwort[2], collectionPlane);
 
+  TH1F* temp = new TH1F("tempz", "temp", 15, 0, 5);
+
   for (size_t i = 0; i < showerhits.size(); ++i) {
     if (showerhits[i]->WireID().Plane != collectionPlane.Plane) continue;
 
@@ -194,9 +211,15 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
     double t = dist / 14; // convert to radiation lengths    
     int bin = floor(t*3);
 
-    fShowerProfile->SetBinContent(bin, fShowerProfile->GetBinContent(bin) + Q);
+    //    fShowerProfile->Fill(t, Q);
+
+    temp->SetBinContent(bin, temp->GetBinContent(bin) + Q);
 
   } // loop through showerhits
+
+  for (int i = 0; i < 15; ++i) {
+    fShowerProfile->Fill(temp->GetBinCenter(i), temp->GetBinContent(i));
+  }
 
 } // showerProfile
 
