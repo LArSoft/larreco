@@ -356,11 +356,6 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
     double eigen2To0Ratio   = eigenValVec[2] / eigenValVec[0];
     double eigen2And1Ave    = 0.5 * (eigenValVec[1] + eigenValVec[2]);
     double eigenAveTo0Ratio = eigen2And1Ave / eigenValVec[0];
-    
-    // It turns out that computing the convex hull surrounding the points in the 2D projection onto the
-    // plane of largest spread in the PCA is a good way to break up the cluster... and we do it here since
-    // we (currently) want this to be part of the standard output
-//    buildConvexHull(clusterToBreak, level+2);
 
     bool storeCurrentCluster(true);
     int  minimumClusterSize(fMinTinyClusterSize);
@@ -372,27 +367,24 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
     if (clusterToBreak.getBestEdgeList().size()   > 5 && cosNewToLast > 0.25 && eigen2To1Ratio < 0.9 && eigen2To0Ratio > 0.001 &&
         clusterToBreak.getHitPairListPtr().size() > size_t(2 * minimumClusterSize))
     {
-        // The plan we think we need here:
-        // 1) recover the list of edges
-        // 2) sort by length
-        // 3) then find the defect point with the furthest distance perpendicular to this edge
-        // 4) Use this as the breakpoint, sort points according to their position along the PCA and
-        //    side of the perpendicular edge...
-        reco::EdgeList& bestEdgeList = clusterToBreak.getBestEdgeList();
+        // We want to find the convex hull vertices that lie furthest from the line to/from the extreme points
+        // To find these we:
+        // 1) recover the extreme points
+        // 2) form the vector between them
+        // 3) loop through the vertices and keep track of distance to this vector
+        // 4) Sort the resulting list by furthest points and select the one we want
+        reco::HitPairListPtr::const_iterator extremePointListItr = clusterToBreak.getConvexExtremePoints().begin();
         
-        const reco::EdgeTuple& longEdge = *std::max_element(bestEdgeList.begin(),bestEdgeList.end(),[](const auto& first, const auto& second){return std::get<2>(first) < std::get<2>(second);});
-        
-        // Get a vector representing this edge
-        const reco::ClusterHit3D* firstEdgeHit  = std::get<0>(longEdge);
-        const reco::ClusterHit3D* secondEdgeHit = std::get<1>(longEdge);
-        double                    edgeLen       = std::get<2>(longEdge);
+        const reco::ClusterHit3D* firstEdgeHit  = *extremePointListItr++;
+        const reco::ClusterHit3D* secondEdgeHit = *extremePointListItr;
         Eigen::Vector3f           edgeVec(secondEdgeHit->getPosition()[0] - firstEdgeHit->getPosition()[0],
                                           secondEdgeHit->getPosition()[1] - firstEdgeHit->getPosition()[1],
                                           secondEdgeHit->getPosition()[2] - firstEdgeHit->getPosition()[2]);
-        
+        double                    edgeLen       = edgeVec.norm();
+
         // normalize it
         edgeVec.normalize();
-        
+
         // Recover the list of 3D hits associated to this cluster
         reco::HitPairListPtr& clusHitPairVector = clusterToBreak.getHitPairListPtr();
         
@@ -410,7 +402,7 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
         DistEdgeTupleVec distEdgeTupleVec;
         
         // Now loop through all the edges and search for the furthers point
-        for(const auto& edge : bestEdgeList)
+        for(const auto& edge : clusterToBreak.getBestEdgeList())
         {
             const reco::ClusterHit3D* nextEdgeHit = std::get<0>(edge);  // recover the first point
             
@@ -638,12 +630,9 @@ void VoronoiPathFinder::buildConvexHull(reco::ClusterParameters& clusterParamete
         convexHullVec.push_back(ConvexHull(pointList));
         rejectedListVec.push_back(PointList());
 
-        const ConvexHull&     convexHull       = convexHullVec.back();
-        PointList&            rejectedList     = rejectedListVec.back();
-        const PointList&      convexHullPoints = convexHull.getConvexHull();
-        ConvexHull::PointPair extremePoints    = convexHull.getExtremePoints();
-        
-        std::cout << "hmmmm " << std::get<0>(extremePoints.first) << std::endl;
+        const ConvexHull& convexHull       = convexHullVec.back();
+        PointList&        rejectedList     = rejectedListVec.back();
+        const PointList&  convexHullPoints = convexHull.getConvexHull();
         
         increaseDepth = false;
         
@@ -723,6 +712,13 @@ void VoronoiPathFinder::buildConvexHull(reco::ClusterParameters& clusterParamete
         
             lastPoint = curPoint;
         }
+        
+        // Store the "extreme" points
+        ConvexHull::PointPair extremePoints    = convexHullVec.back().getExtremePoints();
+        reco::HitPairListPtr& extremePointList = clusterParameters.getConvexExtremePoints();
+        
+        extremePointList.push_back(std::get<2>(extremePoints.first));
+        extremePointList.push_back(std::get<2>(extremePoints.second));
     }
 
     return;

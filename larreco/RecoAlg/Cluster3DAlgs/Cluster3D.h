@@ -94,6 +94,8 @@ public:
                       EDGEHIT         = 0x20000000,           ///< Hit is an "edge" hit
                       SEEDHIT         = 0x40000000,           ///< Hit is part of Seed for track fits
                       MADESPACEPOINT  = 0x08000000,           ///< Hit has been made into Space Point
+                      CONVEXHULLVTX   = 0x04000000,           ///< Point is on primary cluster convex hull
+                      EXTREMEPOINT    = 0x02000000,           ///< Is a convex hull extreme point
                       SKELETONPOSAVE  = 0x00100000,           ///< Skeleton hit position averaged
                       CLUSTERVISITED  = 0x00008000,           ///< "visited" by a clustering algorithm
                       CLUSTERNOISE    = 0x00004000,           ///< Labelled "noise" by a clustering algorithm

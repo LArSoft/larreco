@@ -1202,7 +1202,7 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
         art::Ptr<recob::Hit> recobHit(recobHitHandle, cIdx);
         
         // Skip junk hits
-        if (recobHit->DegreesOfFreedom() > 1 && recobHit->Multiplicity() > 1 && (recobHit->RMS() < 3.8 || recobHit->PeakAmplitude() < 10)) continue;
+//        if (recobHit->DegreesOfFreedom() > 1 && recobHit->Multiplicity() > 1 && (recobHit->RMS() < 3.8 || recobHit->PeakAmplitude() < 10)) continue;
         
         const geo::WireID& hitWireID(recobHit->WireID());
         

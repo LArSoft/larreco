@@ -398,6 +398,7 @@ private:
     float                     m_makeHitsTime;          ///< Keeps track of time to build 3D hits
     float                     m_buildNeighborhoodTime; ///< Keeps track of time to build epsilon neighborhood
     float                     m_dbscanTime;            ///< Keeps track of time to run DBScan
+    float                     m_clusterMergeTime;      ///< Keeps track of the time to merge clusters
     float                     m_pathFindingTime;       ///< Keeps track of the path finding time
     float                     m_finishTime;            ///< Keeps track of time to run output module
     std::string               m_spacePointInstance;    ///< Special instance name for vertex points
@@ -579,13 +580,14 @@ void Cluster3D::produce(art::Event &evt)
         m_buildNeighborhoodTime = m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDHITTOHITMAP);
         m_dbscanTime            = m_clusterAlg->getTimeToExecute(IClusterAlg::RUNDBSCAN) +
                                   m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDCLUSTERINFO);
-        m_pathFindingTime       = m_clusterAlg->getTimeToExecute(IClusterAlg::PATHFINDING);
+        m_clusterMergeTime      = m_clusterMergeAlg->getTimeToExecute();
+        m_pathFindingTime       = m_clusterPathAlg->getTimeToExecute();
         m_finishTime            = theClockFinish.accumulated_real_time();
         m_hits                  = static_cast<int>(clusterHitToArtPtrMap.size());
         m_pRecoTree->Fill();
         
         mf::LogDebug("Cluster3D") << "*** Cluster3D total time: " << m_totalTime << ", art: " << m_artHitsTime << ", make: " << m_makeHitsTime
-        << ", build: " << m_buildNeighborhoodTime << ", clustering: " << m_dbscanTime << ", path: " << m_pathFindingTime << ", finish: " << m_finishTime << std::endl;
+        << ", build: " << m_buildNeighborhoodTime << ", clustering: " << m_dbscanTime << ", merge: " << m_clusterMergeTime << ", path: " << m_pathFindingTime << ", finish: " << m_finishTime << std::endl;
     }
     
     // Will we ever get here? ;-)
@@ -606,6 +608,7 @@ void Cluster3D::InitializeMonitoring()
     m_pRecoTree->Branch("makeHitsTime",         &m_makeHitsTime,          "time/F");
     m_pRecoTree->Branch("buildneigborhoodTime", &m_buildNeighborhoodTime, "time/F");
     m_pRecoTree->Branch("dbscanTime",           &m_dbscanTime,            "time/F");
+    m_pRecoTree->Branch("clusterMergeTime",     &m_clusterMergeTime,      "time/F");
     m_pRecoTree->Branch("pathfindingtime",      &m_pathFindingTime,       "time/F");
     m_pRecoTree->Branch("finishTime",           &m_finishTime,            "time/F");
     

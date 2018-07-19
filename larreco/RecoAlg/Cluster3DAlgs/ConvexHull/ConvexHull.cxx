@@ -196,23 +196,25 @@ void ConvexHull::getConvexHull(const PointList& pointList)
     
 ConvexHull::PointPair ConvexHull::getExtremePoints() const
 {
-    PointList::const_iterator endPointItr   = fConvexHull.begin();
-    PointList::const_iterator firstPointItr = endPointItr++;
-    PointList::const_iterator nextPointItr  = endPointItr;
+    PointList::const_iterator nextPointItr  = fConvexHull.begin();
+    PointList::const_iterator firstPointItr = nextPointItr++;
+
+    float  maxSeparation(0.);
     
-    // Get a vector representing this edge
-    Point           firstPoint  = *firstPointItr;
-    Point           nextPoint   = *nextPointItr;
-    Eigen::Vector2f firstEdge(std::get<0>(nextPoint) - std::get<0>(firstPoint), std::get<1>(nextPoint) - std::get<1>(firstPoint));
-    float           maxEdgeLen  = firstEdge.norm();
+    PointPair extremePoints(Point(0,0,NULL),Point(0,0,NULL));
     
-    PointPair extremePoints(firstPoint,nextPoint);
-    
-    // normalize it
-    firstEdge.normalize();
-    
-    while(firstPointItr != fConvexHull.end())
+    while(nextPointItr != fConvexHull.end())
     {
+        // Get a vector representing the edge from the first to the current next point
+        Point           firstPoint  = *firstPointItr++;
+        Point           nextPoint   = *nextPointItr;
+        Eigen::Vector2f firstEdge(std::get<0>(*firstPointItr) - std::get<0>(firstPoint), std::get<1>(*firstPointItr) - std::get<1>(firstPoint));
+        
+        // normalize it
+        firstEdge.normalize();
+
+        PointList::const_iterator endPointItr = nextPointItr;
+        
         while(++endPointItr != fConvexHull.end())
         {
             Point           endPoint = *endPointItr;
@@ -224,28 +226,31 @@ ConvexHull::PointPair ConvexHull::getExtremePoints() const
             // Have we found the turnaround point?
             if (firstEdge.dot(nextEdge) < 0.)
             {
-                Eigen::Vector2f firstEdge(std::get<0>(nextPoint) - std::get<0>(firstPoint), std::get<1>(nextPoint) - std::get<1>(firstPoint));
-                float           curEdgeLen  = firstEdge.norm();
+                Eigen::Vector2f separation(std::get<0>(nextPoint) - std::get<0>(firstPoint), std::get<1>(nextPoint) - std::get<1>(firstPoint));
+                float           separationDistance = separation.norm();
                 
-                if (curEdgeLen > maxEdgeLen)
+                if (separationDistance > maxSeparation)
                 {
                     extremePoints.first  = firstPoint;
                     extremePoints.second = nextPoint;
-                    maxEdgeLen           = curEdgeLen;
-
-                    break;
+                    maxSeparation        = separationDistance;
                 }
+
+                // Regardless of thise being the maximum distance we have hit a turnaround point so
+                // we need to break out of this loop
+                break;
             }
             
             nextPointItr = endPointItr;
             nextPoint    = endPoint;
         }
+
+        // If we have hit the end of the convex hull without finding a turnaround point then we are not
+        // going to find one so break out of the main loop
+        if (endPointItr == fConvexHull.end()) break;
         
-        endPointItr  = ++firstPointItr;
-        nextPointItr = ++endPointItr;
-        
-        firstPoint = *firstPointItr;
-        nextPoint  = *nextPointItr;
+        // Need to make sure we don't overrun the next point
+        if (firstPointItr == nextPointItr) nextPointItr++;
     }
     
     return extremePoints;
