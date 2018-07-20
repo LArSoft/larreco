@@ -103,7 +103,7 @@ namespace tca {
   bool StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3);
   bool StoreShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss);
   ShowerStruct3D CreateSS3(TCSlice& slc);
-  ShowerStruct CreateSS(TCSlice& slc, CTP_t inCTP, const std::vector<int>& tjl);
+  ShowerStruct CreateSS(TCSlice& slc, const std::vector<int>& tjl);
   bool ChkAssns(std::string inFcnLabel, TCSlice& slc);
   void PrintShowers(std::string someText, TCSlice& slc);
   void Print2DShowers(std::string someText, TCSlice& slc, CTP_t inCTP, bool printKilledShowers);
