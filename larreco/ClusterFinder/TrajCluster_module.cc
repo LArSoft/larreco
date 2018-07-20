@@ -24,6 +24,9 @@
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/AnalysisBase/CosmicTag.h"
+#include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
+#include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
 
 //root includes
 #include "TTree.h"
@@ -62,6 +65,7 @@ namespace cluster {
 
     art::InputTag fHitModuleLabel;
     art::InputTag fSlicerModuleLabel;
+    art::InputTag fHitTruthModuleLabel;
     
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
@@ -82,6 +86,7 @@ namespace cluster {
 #include "canvas/Utilities/Exception.h"
 #include "art/Framework/Principal/Handle.h"
 #include "canvas/Persistency/Common/Assns.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 
 //LArSoft includes
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -129,7 +134,9 @@ namespace cluster {
     if(pset.has_key("HitModuleLabel")) fHitModuleLabel = pset.get<art::InputTag>("HitModuleLabel");
     fSlicerModuleLabel = "NA";
     if(pset.has_key("SlicerModuleLabel")) fSlicerModuleLabel = pset.get<art::InputTag>("SlicerModuleLabel");
-    
+    fHitTruthModuleLabel = "NA";
+    if(pset.has_key("HitTruthModuleLabel")) fHitTruthModuleLabel = pset.get<art::InputTag>("HitTruthModuleLabel");
+
     if(fHitModuleLabel != "NA" && fSlicerModuleLabel != "NA") {
       throw art::Exception(art::errors::Configuration)<<"Error: you specified both sliced hits '"<<fSlicerModuleLabel.label()<<"' and un-sliced hits '"<<fHitModuleLabel.label()<<"' for input. ";
     }
@@ -272,7 +279,7 @@ namespace cluster {
           ++nHitsInSlices;
         } // indx
       } // slhits
-      std::cout<<"Found "<<slHitsVec.size()<<" slices, "<<nInputHits<<" input hits and "<<nHitsInSlices<<" hits in slices\n";
+      if(tca::tcc.modes[tca::kDebug]) std::cout<<"Found "<<slHitsVec.size()<<" slices, "<<nInputHits<<" input hits and "<<nHitsInSlices<<" hits in slices\n";
     } // > 1 slice
 
     // First sort the hits in each slice and then reconstruct
@@ -308,7 +315,75 @@ namespace cluster {
       // TrajCluster data structs.
       fTCAlg->RunTrajClusterAlg(slhits);
     } // slhit
+
+    if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
+      // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC
+      // when checking neutrino reconstruction performance.
+      // create a list of MCParticles of interest
+      std::vector<simb::MCParticle*> mcpList;
+      // and a vector of MC-matched hits
+      std::vector<unsigned int> mcpListIndex((*inputHits).size(), UINT_MAX);
+      // save MCParticles that have the desired MCTruth origin using
+      // the Origin_t typedef enum: kUnknown, kBeamNeutrino, kCosmicRay, kSuperNovaNeutrino, kSingleParticle
+      simb::Origin_t origin = (simb::Origin_t)tca::tcc.matchTruth[0];
+      // or save them all
+      bool anySource = (origin == simb::kUnknown);
+      // get the assns
+      art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
+      art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+      sim::ParticleList const& plist = pi_serv->ParticleList();
+      for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+        auto& p = (*ipart).second;
+        int trackID = p->TrackId();
+        art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+        int KE = 1000 * (p->E() - p->Mass());
+        if(!anySource && theTruth->Origin() != origin) continue;
+        if(tca::tcc.matchTruth[1] > 1 && KE > 10) {
+          std::cout<<"TCM: mcp Origin "<<theTruth->Origin()
+          <<std::setw(8)<<p->TrackId()
+          <<" pdg "<<p->PdgCode()
+          <<std::setw(7)<<KE<<" mom "<<p->Mother()
+          <<" "<<p->Process()
+          <<"\n";
+        }
+        mcpList.push_back(p);
+      } // ipart
+      if(!mcpList.empty()) {
+        std::vector<art::Ptr<simb::MCParticle>> particle_vec;
+        std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
+        unsigned int nMatHits = 0;
+        for(unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
+          particle_vec.clear(); match_vec.clear();
+          try{ particles_per_hit.get(iht, particle_vec, match_vec); }
+          catch(...) {
+            std::cout<<"BackTrackerHitMatchingData not found\n";
+            break;
+          }
+          if(particle_vec.empty()) continue;
+          int trackID = 0;
+          for(unsigned short im = 0; im < match_vec.size(); ++im) {
+            if(match_vec[im]->ideFraction < 0.5) continue;
+            trackID = particle_vec[im]->TrackId();
+            break;
+          } // im
+          if(trackID == 0) continue;
+          // look for this in MCPartList
+          for(unsigned int ipart = 0; ipart < mcpList.size(); ++ipart) {
+            auto& mcp = mcpList[ipart];
+            if(mcp->TrackId() != trackID) continue;
+            mcpListIndex[iht] = ipart;
+            ++nMatHits;
+            break;
+          } // ipart
+        } // iht
+        if(tca::tcc.matchTruth[1] > 1) std::cout<<"Loaded "<<mcpList.size()<<" MCParticles. "<<nMatHits<<"/"<<(*inputHits).size()<<" hits are matched to MCParticles\n";
+        fTCAlg->fTM.MatchTruth(mcpList, mcpListIndex);
+        if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event());
+      } // mcpList not empty
+    } // match truth
     
+    if(tca::tcc.dbgSummary) tca::PrintAll("TCM");
+
     // Vectors to hold all data products that will go into the event
     std::vector<recob::Hit> hitCol;       // output hit collection
     std::vector<recob::Cluster> clsCol;
@@ -364,13 +439,11 @@ namespace cluster {
           for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
             if(!tp.UseHit[ii]) continue;
             if(tp.Hits[ii] > slc.slHits.size() - 1) {
-              std::cout<<"bad slice\n";
               badSlice = true;
               break;
             } // bad slHits index
             unsigned int allHitsIndex = slc.slHits[tp.Hits[ii]].allHitsIndex;
             if(allHitsIndex > nInputHits - 1) {
-              std::cout<<"TrajCluster module invalid slHits index\n";
               badSlice = true;
               break;
             } // bad allHitsIndex
@@ -384,6 +457,8 @@ namespace cluster {
               std::cout<<" new "<<newhit.WireID().Plane<<":"<<newhit.WireID().Wire<<":"<<(int)newhit.PeakTime();
               std::cout<<" hitCol size "<<hitCol.size();
               std::cout<<"\n";
+              badSlice = true;
+              break;
             }
             newIndex[allHitsIndex] = hitCol.size();
           } // ii
@@ -595,7 +670,6 @@ namespace cluster {
     fTCAlg->ClearResults();
 
     // convert vectors to unique_ptrs
-    std::cout<<"hitCol size "<<hitCol.size()<<"\n";
     std::unique_ptr<std::vector<recob::Hit> > hcol(new std::vector<recob::Hit>(std::move(hitCol)));
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(clsCol)));
     std::unique_ptr<std::vector<recob::EndPoint2D> > v2col(new std::vector<recob::EndPoint2D>(std::move(vx2Col)));
