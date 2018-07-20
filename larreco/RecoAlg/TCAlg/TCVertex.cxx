@@ -25,7 +25,7 @@ namespace tca {
     constexpr float maxSep = 4;
     
     geo::PlaneID planeID = DecodeCTP(inCTP);
-    bool prt = (debug.Plane == (int)planeID.Plane && debug.Tick == 99999);
+    bool prt = (tcc.dbgVxJunk && tcc.dbgSlc);
     if(prt) {
       mf::LogVerbatim("TC")<<"MakeJunkVertices: prt set for plane "<<planeID.Plane<<" maxSep btw tjs "<<maxSep;
 //      PrintAllTraj("MJTi", slc, debug, USHRT_MAX, slc.tjs.size());
@@ -81,7 +81,7 @@ namespace tca {
           } // end2
           if(closeEnd > 1) continue;
           auto& tp2 = tj2.Pts[tj2.EndPt[closeEnd]];
-          bool signalBetween = SignalBetween(slc, tp1, tp2, 0.8, prt);
+          bool signalBetween = SignalBetween(slc, tp1, tp2, 0.8);
           if(!signalBetween) continue;
           if(junkVx.ID == USHRT_MAX) {
             // define the new vertex
@@ -136,10 +136,10 @@ namespace tca {
     
     geo::PlaneID planeID = DecodeCTP(inCTP);
     
-    bool prt = (debug.Plane == (int)planeID.Plane && debug.Tick < 0);
+    bool prt = (tcc.dbg2V && tcc.dbgSlc && debug.Plane == (int)planeID.Plane);
     if(prt) {
       mf::LogVerbatim("TC")<<"prt set for plane "<<planeID.Plane<<" in Find2DVertices";
-      PrintAllTraj("F2DVi", slc, debug, USHRT_MAX, slc.tjs.size());
+      PrintAllTraj("F2DVi", slc, USHRT_MAX, slc.tjs.size());
     }
     
     unsigned short maxShortTjLen = tcc.vtx2DCuts[0];
@@ -279,12 +279,12 @@ namespace tca {
           bool signalBetween = true;
           bool fixVxPos = false;
           short dpt = abs(wint - tp1.Pos[0]);
-          if(dpt > 2 && !SignalBetween(slc, tp1, wint, tcc.vtx2DCuts[6], prt)) {
+          if(dpt > 2 && !SignalBetween(slc, tp1, wint, tcc.vtx2DCuts[6])) {
             if(prt) mf::LogVerbatim("TC")<<" Fails SignalBetween for tp1 "<<dpt;
             signalBetween = false;
           }
           dpt = abs(wint - tp2.Pos[0]);
-          if(dpt > 2 && !SignalBetween(slc, tp2, wint, tcc.vtx2DCuts[6], prt)) {
+          if(dpt > 2 && !SignalBetween(slc, tp2, wint, tcc.vtx2DCuts[6])) {
             if(prt) mf::LogVerbatim("TC")<<" Fails SignalBetween for tp2 "<<dpt;
             signalBetween = false;
           }
@@ -339,7 +339,7 @@ namespace tca {
           }
           // check proximity to nearby vertices
           unsigned short mergeMeWithVx = IsCloseToVertex(slc, aVtx);
-          if(mergeMeWithVx > 0 && MergeWithVertex(slc, aVtx, mergeMeWithVx, prt)) {
+          if(mergeMeWithVx > 0 && MergeWithVertex(slc, aVtx, mergeMeWithVx)) {
             if(prt) mf::LogVerbatim("TC")<<" Merged with close vertex "<<mergeMeWithVx;
             continue;
           }
@@ -352,7 +352,7 @@ namespace tca {
             myprt<<" at "<<std::fixed<<std::setprecision(1)<<aVtx.Pos[0]<<":"<<aVtx.Pos[1]/tcc.unitsPerTick;
           }
           AttachAnyTrajToVertex(slc, slc.vtxs.size() - 1, prt);
-          SetVx2Score(slc, prt);
+          SetVx2Score(slc);
         } // it2
       } // end1
     } // it1
@@ -363,7 +363,7 @@ namespace tca {
     FindHammerVertices(slc, inCTP);
     FindHammerVertices2(slc, inCTP);
     
-    if(prt) PrintAllTraj("F2DVo", slc, debug, USHRT_MAX, USHRT_MAX);
+    if(prt) PrintAllTraj("F2DVo", slc, USHRT_MAX, USHRT_MAX);
     
   } // Find2DVertices
 
@@ -376,7 +376,7 @@ namespace tca {
     if(slc.nPlanes < 3) return;
     if(slc.pfps.size() < 2) return;
     
-    bool prt = (debug.Plane >= 0 && debug.Tick == 88888);
+    bool prt = tcc.dbgVxNeutral && tcc.dbgSlc;
     
     struct CandVx {
       unsigned short ip1;
@@ -524,7 +524,7 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<"FNV: 2V fit inCTP "<<inCTP<<" pos "<<PrintPos(slc, vx2.Pos);
         vx2.Vx3ID = vx3.ID;
         vx3.Vx2ID[plane] = vx2.ID;
-        SetVx2Score(slc, vx2, prt);
+        SetVx2Score(slc, vx2);
         if(!StoreVertex(slc, vx2)) {
           if(prt) mf::LogVerbatim("TC")<<"FNV: store vertex failed";
           continue;
@@ -534,7 +534,7 @@ namespace tca {
       vx3.Y = candVx.intersect[1];
       vx3.Z = candVx.intersect[2];
       vx3.Primary = true;
-      SetVx3Score(slc, vx3, prt);
+      SetVx3Score(slc, vx3);
       ++evt.globalS3ID;
       vx3.UID = evt.globalS3ID;
       slc.vtx3s.push_back(vx3);
@@ -544,7 +544,7 @@ namespace tca {
   } // FindNeutralVertices
 
   //////////////////////////////////////////
-  bool MergeWithVertex(TCSlice& slc, VtxStore& vx, unsigned short oVxID, bool prt)
+  bool MergeWithVertex(TCSlice& slc, VtxStore& vx, unsigned short oVxID)
   {
     // Attempts to merge the trajectories attached to vx with an existing 2D vertex
     // referenced by existingVxID. This function doesn't use the existing end0/end1 vertex association.
@@ -553,6 +553,8 @@ namespace tca {
     // to vx. It assumed that vx hasn't yet been pushed onto slc.vtxs
     
     if(!tcc.useAlg[kVxMerge]) return false;
+    
+    bool prt = tcc.dbgVxMerge && tcc.dbgSlc;
     
     if(oVxID > slc.vtxs.size()) return false;
     auto& oVx = slc.vtxs[oVxID - 1];
@@ -698,7 +700,7 @@ namespace tca {
     oVx.ChiDOF = aVx.ChiDOF;
     oVx.NTraj = fitpts.size();
     // Update the score and the charge fraction
-    SetVx2Score(slc, oVx, prt);
+    SetVx2Score(slc, oVx);
     oVx.Stat[kVtxMerged] = true;
     oVx.Stat[kFixed] = false;
     if(prt) {
@@ -833,7 +835,7 @@ namespace tca {
     
     if(!tcc.useAlg[kHamVx2]) return;
     
-    bool prt = (debug.Plane >= 0 && debug.Tick == 66666);
+    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kHamVx2]);
     if(prt) mf::LogVerbatim("TC")<<"Inside FindHammerVertices2";
     
     for(unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
@@ -980,7 +982,7 @@ namespace tca {
           unsigned short newTjIndex = slc.tjs.size() - 1;
           slc.tjs[newTjIndex].AlgMod[kHamVx2] = true;
           AttachAnyTrajToVertex(slc, ivx, prt);
-          SetVx2Score(slc, prt);
+          SetVx2Score(slc);
           // Update the PDGCode for the chopped trajectory
           SetPDGCode(slc, it2);
           // and for the new trajectory
@@ -1008,7 +1010,7 @@ namespace tca {
     
     if(!tcc.useAlg[kHamVx]) return;
     
-    bool prt = (debug.Plane >= 0 && debug.Tick == 55555);
+    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kHamVx]);
 
     for(unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
       if(slc.tjs[it1].CTP != inCTP) continue;
@@ -1076,7 +1078,7 @@ namespace tca {
           unsigned short newTjIndex = slc.tjs.size() - 1;
           slc.tjs[newTjIndex].AlgMod[kHamVx] = true;
           AttachAnyTrajToVertex(slc, ivx, prt);
-          SetVx2Score(slc, prt);
+          SetVx2Score(slc);
           // Update the PDGCode for the chopped trajectory
           SetPDGCode(slc, it2);
           // and for the new trajectory
@@ -1102,7 +1104,7 @@ namespace tca {
     
     constexpr float docaCut = 4;
 
-    bool prt = (debug.Plane >= 0 && debug.Tick == 77777);
+    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kSplitTjCVx]);
     if(prt) mf::LogVerbatim("TC")<<"Inside SplitTrajCrossingVertices inCTP "<<inCTP;
 
     geo::PlaneID planeID = DecodeCTP(inCTP);        
@@ -1239,13 +1241,11 @@ namespace tca {
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) if(vIndex[plane].size() > 0) ++vtxInPln;
     if(vtxInPln < 2) return;
     
-    bool prt = (debug.Plane >= 0) && (debug.Tick == 2222);
-    
     float thirdPlanedXCut = 2 * tcc.vtx3DCuts[0];
-    
+    bool prt = (tcc.dbg3V && tcc.dbgSlc);
     if(prt) {
       mf::LogVerbatim("TC")<<"Inside Find3DVertices. dX cut "<<tcc.vtx3DCuts[0]<<" thirdPlanedXCut "<<thirdPlanedXCut;
-      PrintAllTraj("F3DV", slc, debug, USHRT_MAX, slc.tjs.size());
+//      PrintAllTraj("F3DV", slc, USHRT_MAX, slc.tjs.size());
     }
     
     size_t vsize = slc.vtxs.size();
@@ -1322,24 +1322,6 @@ namespace tca {
               }
               if(!hitsNear) continue;
             } // 3-plane TPC
-/* Don't require a Tj near this position. Look for hits instead
-            if(slc.nPlanes > 2) {
-              kWire = (int)(tcc.geom->WireCoordinate(y, z, kpl, tpc, cstat) + 0.5);
-              if(kWire < 0 || (unsigned int)kWire > slc.nWires[kpl]) continue;
-              if(!tcc.geom->HasWire(geo::WireID(cstat, tpc, kpl, kWire))) continue;
-              tp.Pos[0] = kWire;
-              // See if there is a wire signal nearby in kpl
-              tp.Pos[1] = tcc.detprop->ConvertXToTicks(kX, kpl, tpc, cstat) * tcc.unitsPerTick;
-              tp.CTP = EncodeCTP(cstat, tpc, kpl);
-              auto tjlist = FindCloseTjs(slc, tp, tp, maxSep);
-              if(prt) {
-                mf::LogVerbatim myprt("TC");
-                myprt<<" Tjs near "<<kpl<<":"<<PrintPos(slc, tp);
-                for(auto tjid : tjlist) myprt<<" T"<<tjid;
-              }
-              if(tjlist.empty()) continue;
-            }
-*/
             // save this incomplete 3D vertex
             Vtx3Store v3d;
             v3d.Vx2ID.resize(slc.nPlanes);
@@ -1491,12 +1473,12 @@ namespace tca {
       if(vx2.ID == 0) continue;
       geo::PlaneID planeID = DecodeCTP(vx2.CTP);
       if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
-      SetVx2Score(slc, vx2, prt);
+      SetVx2Score(slc, vx2);
     } // vx2
     // and the 3D vertices
     for(auto& vx3 : slc.vtx3s) {
       if(vx3.ID == 0) continue;
-      SetVx3Score(slc, vx3, prt);
+      SetVx3Score(slc, vx3);
     } // vx3
 
   } // Find3DVertices
@@ -1521,13 +1503,6 @@ namespace tca {
       auto v3TjIDs = GetVtxTjIDs(slc, vx3, score);
       if(v3TjIDs.empty()) continue;
       if(score < tcc.vtx2DCuts[7]) continue;
-/*
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"M3DVTj 3V"<<vx3.ID<<" score "<<score<<" TjIDs";
-        for(auto& tjID : v3TjIDs) myprt<<" T"<<std::to_string(tjID);
-      }
-*/
       SortEntry se;
       se.index = iv3;
       se.val = score;
@@ -1757,7 +1732,7 @@ namespace tca {
     // Calculate the pull on the vertex
     TrajPoint& tp = tj.Pts[tj.EndPt[end]];
     float tpVxPull = TrajPointVertexPull(slc, tp, vx);
-    bool signalBetween = SignalBetween(slc, tp, vx.Pos[0], 0.8, prt);
+    bool signalBetween = SignalBetween(slc, tp, vx.Pos[0], 0.8);
     
     // See if the vertex position is close to an end
     unsigned short closePt;
@@ -1814,7 +1789,7 @@ namespace tca {
     // make a copy of the vertex and fit it
     auto vxTmp = vx;
     if(FitVertex(slc, vxTmp, prt)) {
-      SetVx2Score(slc, vxTmp, prt);
+      SetVx2Score(slc, vxTmp);
       if(prt) mf::LogVerbatim("TC")<<" Success";
       vx = vxTmp;
       return true;
@@ -2191,7 +2166,7 @@ namespace tca {
   } // ChkVtxAssociations
   
   //////////////////////////////////////////
-  void ScoreVertices(TCSlice& slc, bool prt)
+  void ScoreVertices(TCSlice& slc)
   {
     // reset all 3D vertex, 2D vertex and Tj high-score vertex bits in tpcid 
     
@@ -2208,12 +2183,12 @@ namespace tca {
     // Score the 2D vertices
     for(auto& vx : slc.vtxs) {
       if(vx.ID == 0) continue;
-      SetVx2Score(slc, vx, prt);
+      SetVx2Score(slc, vx);
     } // vx
     // Score the 3D vertices
     for(auto& vx3 : slc.vtx3s) {
       if(vx3.ID == 0) continue;
-      SetVx3Score(slc, vx3, prt);
+      SetVx3Score(slc, vx3);
     } // vx3
   } // ScoreVertices
   
@@ -2283,7 +2258,7 @@ namespace tca {
   } // SetHighScoreBits
   
   //////////////////////////////////////////
-  void SetVx3Score(TCSlice& slc, Vtx3Store& vx3, bool prt)
+  void SetVx3Score(TCSlice& slc, Vtx3Store& vx3)
   {
     // Calculate the 3D vertex score and flag Tjs that are attached to high score vertices as defined 
     // by Vertex2DCuts 
@@ -2302,16 +2277,16 @@ namespace tca {
   } // SetVx3Score
   
   //////////////////////////////////////////
-  void SetVx2Score(TCSlice& slc, bool prt)
+  void SetVx2Score(TCSlice& slc)
   {
     // A version that sets the score of the last added vertex
     if(slc.vtxs.empty()) return;
     auto& vx2 = slc.vtxs[slc.vtxs.size() - 1];
-    SetVx2Score(slc, vx2, prt);
+    SetVx2Score(slc, vx2);
   } // SetVx2Score
   
   //////////////////////////////////////////
-  void SetVx2Score(TCSlice& slc, VtxStore& vx2, bool prt)
+  void SetVx2Score(TCSlice& slc, VtxStore& vx2)
   {
     // Calculate the 2D vertex score
     if(vx2.ID == 0) return;
@@ -2415,7 +2390,7 @@ namespace tca {
       tjScore = tcc.vtxScoreWeights[3] * sum;
     }
     vx2.Score = vpeScore + m3DScore + cfScore + tjScore;
-    if(prt) {
+    if(tcc.dbg2V && tcc.dbgSlc && (int)DecodeCTP(vx2.CTP).Plane == debug.Plane) {
       // last call after vertices have been matched to the truth. Use to optimize vtxScoreWeights using
       // an ntuple
       mf::LogVerbatim myprt("TC");
@@ -2463,7 +2438,7 @@ namespace tca {
     
     if(!tcc.useAlg[kComp3DVxIG]) return;
 
-    bool prt = (debug.Plane >= 0 && debug.Tick == 44444);
+    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kComp3DVxIG]);
     if(prt) mf::LogVerbatim("TC")<<"Inside CI3DVIG:";
 
     for(unsigned short iv3 = 0; iv3 < slc.vtx3s.size(); ++iv3) {
@@ -2537,7 +2512,7 @@ namespace tca {
           slc.tjs[itj].VtxID[tjEnds[ii]] = aVtx.ID;
           slc.tjs[itj].AlgMod[kComp3DVxIG] = true;
         } // ii
-        SetVx2Score(slc, prt);
+        SetVx2Score(slc);
         vx3.Vx2ID[mPlane] = aVtx.ID;
         vx3.Wire = -1;
         if(prt) mf::LogVerbatim("TC")<<"CI3DVIG: new vtx 2V"<<aVtx.ID<<" points to 3V"<<vx3.ID;
@@ -2556,7 +2531,7 @@ namespace tca {
     if(!tcc.useAlg[kComp3DVx]) return;
     if(slc.nPlanes != 3) return;
     
-    bool prt = (debug.Plane >= 0 && debug.Tick == 33333);
+    bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kComp3DVx]);
     
     float maxdoca = 3;
     if(prt) mf::LogVerbatim("TC")<<"Inside CI3DV with maxdoca set to "<<maxdoca;
@@ -2697,7 +2672,7 @@ namespace tca {
           newVtx.Stat[kFixed] = true;
         }
         AttachAnyTrajToVertex(slc, newVtx.ID - 1, prt);
-        SetVx2Score(slc, prt);
+        SetVx2Score(slc);
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<" Success: new 2V"<<newVtx.ID<<" at "<<(int)newVtx.Pos[0]<<":"<<(int)newVtx.Pos[1]/tcc.unitsPerTick;
@@ -2741,14 +2716,13 @@ namespace tca {
     
     geo::PlaneID planeID = DecodeCTP(inCTP);
     
-    bool vtxPrt = ((debug.Plane == (int)planeID.Plane || debug.Plane == 3) && debug.Tick < 0);
-    if(vtxPrt) mf::LogVerbatim("TC")<<"inside VtxHitsSwap on plane "<<planeID.Plane;
+    bool prt = ((tcc.dbg2V &&  debug.Plane == (int)planeID.Plane) || tcc.dbgAlg[kVtxHitsSwap]);
     for (unsigned short iv = 0; iv < slc.vtxs.size(); ++iv){
       VtxStore& rvx = slc.vtxs[iv];
       if(rvx.CTP != inCTP) continue;
       // Only consider vertex with two trajectories
       if(rvx.NTraj != 2) continue;
-      if (vtxPrt) mf::LogVerbatim("TC")<<"Vertex "<<iv<<" Pos[0]: "<<rvx.Pos[0]<<" "<<rvx.Pos[1];
+      if (prt) mf::LogVerbatim("TC")<<"VtxHitsSwap: 2V"<<rvx.ID<<" Pos[0]: "<<rvx.Pos[0]<<" "<<rvx.Pos[1];
       std::array<unsigned short, 2> tjlist{{0,0}};
       for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
         if(slc.tjs[itj].AlgMod[kKilled]) continue;
@@ -2804,9 +2778,9 @@ namespace tca {
         //        if (vtxPrt) mf::LogVerbatim("TC")<<PrintPos(slc, tj1.Pts[endPt1]);
         //if (vtxPrt) mf::LogVerbatim("TC")<<chg0<<" "<<chg1<<" "<<chg2<<" "<<delta;
         if (chg0>0&&std::abs((chg0-chg1)/chg0)-std::abs((chg0-chg2)/chg0)>0.2&&delta<1.5&&std::abs(w2-w1)<1.5){
-          if (vtxPrt) {
-            mf::LogVerbatim("TC")<<"chg0 = "<<chg0<<" chg1 = "<<chg1<<" chg2 = "<<chg2<<" delta = "<<delta<<" w0 = "<<w0<<" w1 = "<<w1<<" w2 = "<<w2;
-            mf::LogVerbatim("TC")<<"VHS Moving TP "<<PrintPos(slc, tj0.Pts[endPt0])<<" from TJ "<<tj0.ID<<" to TJ "<<tj1.ID;
+          if (prt) {
+            mf::LogVerbatim("TC")<<" chg0 = "<<chg0<<" chg1 = "<<chg1<<" chg2 = "<<chg2<<" delta = "<<delta<<" w0 = "<<w0<<" w1 = "<<w1<<" w2 = "<<w2;
+            mf::LogVerbatim("TC")<<"  Moving TP "<<PrintPos(slc, tj0.Pts[endPt0])<<" from TJ "<<tj0.ID<<" to TJ "<<tj1.ID;
           }
           //Add first TP of first trajectory to the second trajectory
           TrajPoint tp = tj0.Pts[endPt0];
@@ -2858,7 +2832,7 @@ namespace tca {
         //if (vtxPrt) mf::LogVerbatim("TC")<<tplist.size();
         //Need at least two TPs to make this change
         if (tplist.size()>1){
-          if (vtxPrt) mf::LogVerbatim("TC")<<"VHS Moving "<<tplist.size()<<" TPs from TJ "<<tj0.ID<<" to TJ "<<tj1.ID;
+          if (prt) mf::LogVerbatim("TC")<<"  Moving "<<tplist.size()<<" TPs from TJ "<<tj0.ID<<" to TJ "<<tj1.ID;
           //Append TPs to the second TJ
           for (unsigned short j = 0; j<tplist.size(); ++j){
             TrajPoint tp = tj0.Pts[tplist[j]];
@@ -2959,7 +2933,7 @@ namespace tca {
     if(n2D > 1) {
       // 3D vertex is incomplete
       // correct the score
-      SetVx3Score(slc, vx3, false);
+      SetVx3Score(slc, vx3);
       return true;
     }
     
