@@ -41,7 +41,7 @@ namespace tca {
   void FindNeutralVertices(TCSlice& slc);
   void MakeJunkTjVertices(TCSlice& slc, const CTP_t& inCTP);
   void ChkVxTjs(TCSlice& slc, const CTP_t& inCTP, bool prt);
-  bool MergeWithVertex(TCSlice& slc, VtxStore& vx2, unsigned short existingVxID, bool prt);
+  bool MergeWithVertex(TCSlice& slc, VtxStore& vx2, unsigned short existingVxID);
   void SplitTrajCrossingVertices(TCSlice& slc, CTP_t inCTP);
   void FindHammerVertices(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP);
@@ -64,11 +64,11 @@ namespace tca {
   bool FitVertex(TCSlice& slc, VtxStore& vx, std::vector<TrajPoint> vxTp, bool prt);
   bool StoreVertex(TCSlice& slc, VtxStore& vx);
   bool ChkVtxAssociations(TCSlice& slc, const CTP_t& inCTP);
-  void ScoreVertices(TCSlice& slc, bool prt);
+  void ScoreVertices(TCSlice& slc);
   void KillPoorVertices(TCSlice& slc);
-  void SetVx2Score(TCSlice& slc, bool prt);
-  void SetVx2Score(TCSlice& slc, VtxStore& vx2, bool prt);
-  void SetVx3Score(TCSlice& slc, Vtx3Store& vx3, bool prt);
+  void SetVx2Score(TCSlice& slc);
+  void SetVx2Score(TCSlice& slc, VtxStore& vx2);
+  void SetVx3Score(TCSlice& slc, Vtx3Store& vx3);
   unsigned short Vx3Topo(TCSlice& slc, Vtx3Store& vx3);
   void SetHighScoreBits(TCSlice& slc, Vtx3Store& vx3);
   bool MakeVertexObsolete(TCSlice& slc, VtxStore& vx2, bool forceKill);
