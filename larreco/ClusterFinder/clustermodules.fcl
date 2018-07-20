@@ -9,6 +9,14 @@ standard_trajcluster:
   TrajClusterAlg:       @local::standard_trajclusteralg
   DoWireAssns: true
   DoRawDigitAssns: false
+  # configuration for non-sliced hit collection
+  HitModuleLabel: "gaushit"
+  HitTruthModuleLabel: "gaushit"
+  SlicerModuleLabel: "NA"
+  # configuration for sliced hit collection
+#  HitModuleLabel: "NA"
+#  SlicerModuleLabel: "slicermodule"
+#  HitTruthModuleLabel: "slicermodule"
 } # standard_trajcluster
 
 standard_blurredcluster:
