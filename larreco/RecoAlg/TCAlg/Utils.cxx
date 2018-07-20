@@ -1,6 +1,8 @@
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
+#include <boost/algorithm/string/classification.hpp> // Include boost::for is_any_of
+#include <boost/algorithm/string/split.hpp> // Include for boost::split
 
 
 struct SortEntry{
@@ -1181,13 +1183,12 @@ namespace tca {
     // Don't clobber the ParentID if it was defined by the calling function
     if(tj.ParentID == 0) tj.ParentID = trID;
     slc.tjs.push_back(tj);
-//    if(prt) mf::LogVerbatim("TC")<<"StoreTraj trID "<<trID<<" CTP "<<tj.CTP<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
-    if(debug.Hit != UINT_MAX) {
-      // print out some debug info
+    if(tcc.modes[kDebug] && tcc.dbgSlc && debug.Hit != UINT_MAX) {
+      // print some debug info
       for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
         for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
-          if(iht == debug.Hit) std::cout<<"Debug hit appears in trajectory w WorkID "<<tj.WorkID<<" UseHit "<<tj.Pts[ipt].UseHit[ii]<<"\n";
+          if(slc.slHits[iht].allHitsIndex == debug.Hit) std::cout<<"Debug hit appears in trajectory w WorkID "<<tj.WorkID<<" UseHit "<<tj.Pts[ipt].UseHit[ii]<<"\n";
         } // ii
       } // ipt
     } // debug.Hit ...
@@ -1270,7 +1271,7 @@ namespace tca {
   } // InTrajOK
   
   //////////////////////////////////////////
-  void CheckTrajBeginChg(TCSlice& slc, unsigned short itj, bool prt)
+  void CheckTrajBeginChg(TCSlice& slc, unsigned short itj)
   {
     // This function is called after the beginning of the tj has been inspected to see if
     // reverse propagation was warranted. Trajectory points at the beginning were removed by
@@ -1290,6 +1291,8 @@ namespace tca {
     if(tj.AlgMod[kFTBRvProp]) return;
     if(tj.AlgMod[kKilled]) return;
     if(tj.Pts.size() < 20) return;
+    
+    bool prt = (tcc.dbgSlc && (tcc.dbgStp || tcc.dbgAlg[kBeginChg]));
     
     // look for a large drop between the average charge near the beginning
     float chg2 = tj.Pts[tj.EndPt[0] + 2].AveChg;
@@ -1333,7 +1336,7 @@ namespace tca {
       MakeVertexObsolete(slc, slc.vtxs[ivx], false);
       return;
     }
-    SetVx2Score(slc, prt);
+    SetVx2Score(slc);
     
     if(prt) mf::LogVerbatim("TC")<<"CTBC: Split T"<<tj.ID<<" at "<<PrintPos(slc, tj.Pts[breakPt].Pos)<<"\n";
     
@@ -1493,7 +1496,7 @@ namespace tca {
   } // ChkChgAsymmetry
 
   /////////////////////////////////////////
-  bool SignalBetween(TCSlice& slc, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt)
+  bool SignalBetween(TCSlice& slc, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction)
   {
     // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp1 and tp2.
     if(MinWireSignalFraction == 0) return true;
@@ -1506,26 +1509,25 @@ namespace tca {
       TrajPoint tp = tp1;
       // check for a signal midway between
       tp.Pos[1] = 0.5 * (tp1.Pos[1] + tp2.Pos[1]);
-      if(prt) mf::LogVerbatim("TC")<<" SignalBetween fromWire = toWire = "<<fromWire<<" SignalAtTp? "<<SignalAtTp(slc, tp);
       return SignalAtTp(slc, tp);
     }
     // define a trajectory point located at tp1 that has a direction towards tp2
     TrajPoint tp;
     if(!MakeBareTrajPoint(slc, tp1, tp2, tp)) return true;
-    return SignalBetween(slc, tp, toWire, MinWireSignalFraction, prt);
+    return SignalBetween(slc, tp, toWire, MinWireSignalFraction);
   } // SignalBetween
   
   
 
   /////////////////////////////////////////
-  bool SignalBetween(TCSlice& slc, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt)
+  bool SignalBetween(TCSlice& slc, TrajPoint tp, float toPos0, const float& MinWireSignalFraction)
   {
     // Returns true if there is a signal on > MinWireSignalFraction of the wires between tp and toPos0.
-    return ChgFracBetween(slc, tp, toPos0, prt) >= MinWireSignalFraction;
+    return ChgFracBetween(slc, tp, toPos0) >= MinWireSignalFraction;
   } // SignalBetween
 
   /////////////////////////////////////////
-  float ChgFracBetween(TCSlice& slc, TrajPoint tp, float toPos0, bool prt)
+  float ChgFracBetween(TCSlice& slc, TrajPoint tp, float toPos0)
   {
     // Returns the fraction of wires between tp.Pos[0] and toPos0 that have a hit 
     // on the line defined by tp.Pos and tp.Dir
@@ -1535,7 +1537,6 @@ namespace tca {
     int toWire = std::nearbyint(toPos0);
     
     if(fromWire == toWire) {
-      if(prt) mf::LogVerbatim("TC")<<" SignalBetween fromWire = toWire = "<<fromWire<<" SignalAtTp? "<<SignalAtTp(slc, tp);
       return SignalAtTp(slc, tp);
     }
     
@@ -1555,7 +1556,6 @@ namespace tca {
       tp.Pos[1] += tp.Dir[1] * stepSize;
     } // cnt
     float sigFrac = nsig / num;
-    if(prt) mf::LogVerbatim("TC")<<"  ChgFracBetween fromWire "<<fromWire<<" toWire "<<toWire<<" nWires "<<num<<" nsig "<<nsig<<" "<<sigFrac;
     return sigFrac;
     
   } // ChgFracBetween
@@ -1686,57 +1686,7 @@ namespace tca {
     }
     return totchg;
   } // TpSumHitChg
-/*
-  //////////////////////////////////////////
-  bool CheckHitClusterAssociations(TCSlice& slc)
-  {
-    // check hit - cluster associations
-    
-    if(slc.slHits.size() != xxx.inClus.size()) {
-      mf::LogWarning("TC")<<"CHCA: Sizes wrong "<<slc.slHits.size()<<" "<<xxx.inClus.size();
-      return false;
-    }
-    
-    // check cluster -> hit association
-    for(unsigned short icl = 0; icl < xxx.tcl.size(); ++icl) {
-      if(xxx.tcl[icl].ID <= 0) continue;
-      int clID = xx.tcl[icl].ID;
-      for(unsigned short ii = 0; ii < xxx.tcl[icl].tclhits.size(); ++ii) {
-        unsigned int iht = xxx.tcl[icl].tclhits[ii];
-        if(iht > slc.slHits.size() - 1) {
-          mf::LogWarning("CC")<<"CHCA: Bad tclhits index "<<iht<<" slc.slHits size "<<slc.slHits.size();
-          return false;
-        } // iht > slc.slHits.size() - 1
-        if(xxx.inClus[iht] != clID) {
-          mf::LogError("TC")<<"CHCA: Bad cluster -> hit association. clID "<<clID<<" hit "<<PrintHit(slc.slHits[iht])<<" xxx.inClus "<<xxx.inClus[iht]<<" CTP "<<xxx.tcl[icl].CTP;
-          return false;
-        }
-      } // ii
-    } // icl
-    
-    // check hit -> cluster association
-    for(unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
-      if(xxx.inClus[iht] <= 0) continue;
-      unsigned int icl = xxx.inClus[iht] - 1;
-      // see if the cluster is obsolete
-      if(xxx.tcl[icl].ID == 0) {
-        mf::LogError("TC")<<"CHCA: Hit "<<PrintHit(slc.slHits[iht])<<" associated with an obsolete cluster xxx.tcl[icl].ID "<<xxx.tcl[icl].ID;
-        return false;
-      }
-      if (std::find(xxx.tcl[icl].tclhits.begin(), xxx.tcl[icl].tclhits.end(), iht) == xxx.tcl[icl].tclhits.end()) {
-        mf::LogError("TC")<<"CHCA: Hit "<<":"<<PrintHit(slc.slHits[iht])<<" -> xxx.inClus "<<xxx.inClus[iht]<<" but isn't in xxx.tcl[icl].ID "<<xxx.tcl[icl].ID<<" list of hits. icl "<<icl<<" iht "<<iht;
-        for(unsigned short itj = 0; itj < slc.xxx.size(); ++itj) {
-          if(slc.tjs[itj].ClusterIndex == icl) mf::LogError("TC")<<"CHCA: Cluster index "<<icl<<" found in traj ID "<<slc.tjs[itj].ID;
-        } // itj
-        PrintAllTraj("CHCA", tjs, debug, USHRT_MAX, USHRT_MAX);
-        return false;
-      }
-    } // iht
-    
-    return true;
-    
-  } // CheckHitClusterAssociations()
-*/
+
   //////////////////////////////////////////
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires)
   {
@@ -1783,7 +1733,7 @@ namespace tca {
   } // DeadWireCount
 
   ////////////////////////////////////////////////
-  unsigned short PDGCodeIndex(TCSlice& slc, int PDGCode)
+  unsigned short PDGCodeIndex(int PDGCode)
   {
     unsigned short pdg = abs(PDGCode);
     if(pdg == 11) return 0; // electron
@@ -3003,7 +2953,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(tcc.deltaRayTag[0] < 0) return;
     if(tcc.deltaRayTag.size() < 3) return;
     
-    bool prt = (debug.CTP == inCTP) && (debug.Tick == 31313);
+    bool prt = (tcc.dbgDeltaRayTag && tcc.dbgSlc);
 
     // double the user-defined separation cut. We will require that at least one of the ends of 
     // a delta ray be within the user-defined cut and allow
@@ -3082,6 +3032,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     
   } // TagDeltaRays
   
+/* The value of using this function should be considered
   /////////////////////////////////////////
   void TagMuonDirections(TCSlice& slc, short debugWorkID)
   {
@@ -3090,11 +3041,10 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(tcc.muonTag[0] < 0) return;
     
     unsigned short minLen = tcc.muonTag[3];
-    
+
     for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
       Trajectory& muTj = slc.tjs[itj];
       if(muTj.AlgMod[kKilled]) continue;
-      bool prt = (debugWorkID < 0 && muTj.WorkID == debugWorkID);
       if(prt) {
         mf::LogVerbatim("TC")<<"TagMuonDirection: Muon "<<muTj.CTP<<" "<<PrintPos(slc, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(slc, muTj.Pts[muTj.EndPt[1]]);
       }
@@ -3121,7 +3071,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
 //      muTj.AlgMod[kSetDir] = true;
     } // itj
   } // TagMuonDirections
-  
+*/
   /////////////////////////////////////////
   void UpdateTjChgProperties(std::string inFcnLabel, TCSlice& slc, Trajectory& tj, bool prt)
   {
@@ -3762,6 +3712,24 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         std::cout<<"AnalyzeHits found bad plane\n";
         return false;
       } // plane check
+      // try to define debug.Hit
+      if(tcc.modes[kDebug] && debug.Hit == UINT_MAX && 
+         (int)hit.WireID().Cryostat == debug.Cryostat &&
+         (int)hit.WireID().TPC == debug.TPC &&
+         (int)hit.WireID().Plane == debug.Plane &&
+         (int)hit.WireID().Wire == debug.Wire &&
+         hit.PeakTime() > debug.Tick - 5 &&
+         hit.PeakTime() < debug.Tick + 5) {
+        debug.Hit = iht;
+        std::cout<<"DebugMode: Found hit near Cryo:TPC:Pln:Wire:Tick "<<debug.Cryostat;
+        std::cout<<":"<<debug.TPC<<":"<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
+        std::cout<<" debug.Hit "<<iht;
+        std::cout<<" Amp "<<(int)hit.PeakAmplitude();
+        std::cout<<" RMS "<<std::fixed<<std::setprecision(1)<<hit.RMS();
+        std::cout<<" Chisq "<<std::fixed<<std::setprecision(1)<<hit.GoodnessOfFit();
+        std::cout<<" Mult "<<hit.Multiplicity();
+        std::cout<<"\n";
+      } // check for debug hit
       // require multiplicity one
       if(hit.Multiplicity() != 1) continue;
       // not-crazy Chisq/DOF
@@ -3771,6 +3739,12 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       evt.aveHitRMS[plane] += hit.RMS();
       ++cnt[plane];
     } // iht
+    
+    if(tcc.modes[kDebug] && debug.Hit == UINT_MAX && debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Wire >= 0) {
+      std::cout<<"Failed to find debug hit C:T:P:W"<<debug.Cryostat<<":"<<debug.TPC<<":"<<debug.Wire<<":"<<debug.Plane;
+      std::cout<<" near tick "<<debug.Tick<<" turning off debug mode\n" ;
+      tcc.modes[kDebug] = false;
+    }
     
     // assume there are enough hits in each plane
     evt.aveHitRMSValid = true;
@@ -4113,7 +4087,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     // update match structs if they exist
     UpdateMatchStructs(slc, tj1.ID, newTjID);
     UpdateMatchStructs(slc, tj2.ID, newTjID);
-    if(doPrt) mf::LogVerbatim("TC")<<" MAS success. New Tj T"<<newTjID;
+    if(doPrt) mf::LogVerbatim("TC")<<" MAS success. Created T"<<newTjID;
     // Transfer the ParentIDs of any other Tjs that refer to Tj1 and Tj2 to the new Tj
     for(auto& tj : slc.tjs) if(tj.ParentID == tj1ID || tj.ParentID == tj2ID) tj.ParentID = newTjID;
 
@@ -4271,10 +4245,531 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     
   } // GetAssns
   
-  // ****************************** Printing  ******************************
+  ////////////////////////////////////////////////
+  unsigned short GetSliceIndex(std::string typeName, int uID)
+  {
+    // returns the slice index of a data product having typeName and unique ID uID
+    for(unsigned short isl = 0; isl < slices.size(); ++isl) {
+      auto& slc = slices[isl];
+      if(typeName == "T") for(auto& tj : slc.tjs) if(tj.UID == uID) return isl;
+      if(typeName == "P") for(auto& pfp : slc.pfps) if(pfp.UID == uID) return isl;
+      if(typeName == "2V") for(auto& vx2 : slc.vtxs) if(vx2.UID == uID) return isl;
+      if(typeName == "3V") for(auto& vx3 : slc.vtx3s) if(vx3.UID == uID) return isl;
+      if(typeName == "2S") for(auto& ss2 : slc.cots) if(ss2.UID == uID) return isl;
+      if(typeName == "3S") for(auto& ss3 : slc.showers) if(ss3.UID == uID) return isl;
+    } // isl
+    return USHRT_MAX;
+  } // GetSliceIndex
   
   ////////////////////////////////////////////////
-  void PrintAllTraj(std::string someText, TCSlice& slc, const DebugStuff& debug, unsigned short itj, unsigned short ipt, bool prtVtx)
+  bool DecodeDebugString(std::string strng)
+  {
+    // try to unpack the string as Cryostat:TPC:Plane:Wire:Tick or something
+    // like Slice:<slice index>
+    
+    if(strng == "instruct") {
+      std::cout<<"****** Unrecognized debug configuration. Configure using the following keywords";
+      std::cout<<" using colon separators\n";
+      std::cout<<" C:T:P:W:Tick where C = cryostat, T = TPC, W = wire, Tick (+/-5) to debug stepping (DUNE)\n";
+      std::cout<<" P:W:Tick for single cryostat/TPC detectors (uB, LArIAT, etc)\n";
+      std::cout<<" WorkID <id> <slice index> where <id> is a tj work ID (< 0) in slice <slice index>\n";
+      std::cout<<" Merge <plane> to debug trajectory merging\n";
+      std::cout<<" 2V <plane> to debug 2D vertex finding in plane <plane>\n";
+      std::cout<<" 3V to debug 3D vertex finding\n";
+      std::cout<<" VxMerge to debug 2D vertex merging\n";
+      std::cout<<" JunkVx to debug 2D junk vertex finder\n";
+      std::cout<<" PFP to debug 3D matching and PFParticles\n";
+      std::cout<<" DeltaRay to debug delta ray tagging\n";
+      std::cout<<" Muon to debug muon tagging\n";
+      std::cout<<" 2S <plane> to debug a 2D shower in plane <plane>\n";
+      std::cout<<" Slice <slice index> where <slice index> restricts output to the specified slice\n";
+      std::cout<<" Sum or Summary to print a debug summary report\n";
+      std::cout<<" Note: Ensure that the algorithm name is correct. Set SkipAlgs: [\"bogus\"] to print a list\n";
+      std::cout<<" Note that the configuration is defined by the order of the keywords\n";
+      std::cout<<" Algs with debug printing include HamVx, HamVx2, SplitTjCVx, Comp3DVx, Comp3DVxIG, VtxHitsSwap\n";
+      std::cout<<"******  debug mode is OFF\n";
+      return false;
+    } // instruct
+    
+    // handle the simple cases that don't need decoding
+    if(strng.find("3V") != std::string::npos) { tcc.dbg3V = true; tcc.modes[kDebug] = true; return true; }
+    if(strng.find("3S") != std::string::npos) { tcc.dbg3S = true; tcc.modes[kDebug] = true; return true; }
+    if(strng.find("VxMerge") != std::string::npos) { tcc.dbgVxMerge = true; tcc.modes[kDebug] = true; return true; }
+    if(strng.find("JunkVx") != std::string::npos) { tcc.dbgVxJunk = true; tcc.modes[kDebug] = true; return true; }
+    if(strng.find("PFP")  != std::string::npos) { tcc.dbgPFP = true; tcc.modes[kDebug] = true; return true; }
+    if(strng.find("DeltaRay") != std::string::npos) { tcc.dbgDeltaRayTag = true; tcc.modes[kDebug] = true; return true; }
+    if(strng.find("Muon") != std::string::npos) { tcc.dbgMuonTag = true; tcc.modes[kDebug] = true; return true; }
+    if(strng.find("Sum") != std::string::npos) { tcc.dbgSummary = true; tcc.modes[kDebug] = true; return true; }
+
+    std::vector<std::string> words;
+    boost::split(words, strng, boost::is_any_of(" :"), boost::token_compress_on);
+    if(words.size() == 5) {
+      // configure for DUNE
+      debug.Cryostat = std::stoi(words[0]);
+      debug.TPC = std::stoi(words[1]);
+      debug.Plane = std::stoi(words[2]);
+      debug.Wire = std::stoi(words[3]);
+      debug.Tick = std::stoi(words[4]);
+      tcc.modes[kDebug] = true;
+      tcc.dbgStp = true;
+      return true;
+    } // nums.size() == 5
+    if(words.size() == 3 && words[0] == "WorkID") {
+      debug.WorkID = std::stoi(words[1]);
+      if(debug.WorkID >= 0) return false;
+      debug.Slice = std::stoi(words[2]);
+      tcc.modes[kDebug] = true;
+      tcc.dbgStp = true;
+      return true;
+    } // words.size() == 3 && words[0] == "WorkID"
+    if(words.size() == 3) {
+      // configure for uB, LArIAT, etc
+      debug.Cryostat = 0;
+      debug.TPC = 0;
+      debug.Plane = std::stoi(words[0]);
+      debug.Wire = std::stoi(words[1]);
+      debug.Tick = std::stoi(words[2]);
+      tcc.modes[kDebug] = true;
+      tcc.dbgStp = true;
+      return true;
+    }
+    if(words.size() == 2 && words[0] == "Merge") {
+      debug.Plane = std::stoi(words[1]);
+      tcc.dbgMrg = true;
+      tcc.modes[kDebug] = true;
+      return true;
+    }
+    if(words.size() == 2 && words[0] == "2V") {
+      debug.Plane = std::stoi(words[1]);
+      tcc.dbg2V = true;
+      tcc.modes[kDebug] = true;
+      return true;
+    }
+    if(words.size() == 2 && words[0] == "2S") {
+      debug.Plane = std::stoi(words[1]);
+      tcc.dbg2S = true;
+      tcc.modes[kDebug] = true;
+      return true;
+    }
+    // Slice could apply to several debug options.
+    if(words.size() == 2 && words[0] == "Slice") {
+      debug.Slice = std::stoi(words[1]);
+      return true;
+    }
+    return false;
+  } // DecodeDebugString
+  
+  // ****************************** Printing  ******************************
+  
+  void PrintAll(std::string someText)
+  {
+    // print everything in all slices
+    bool prt3V = false;
+    bool prt2V = false;
+    bool prtT = false;
+    bool prtP = false;
+    bool prtS3 = false;
+    bool prtS2 = false;
+    for(int isl = 0; isl < slices.size(); ++isl) {
+      if(debug.Slice >= 0 && isl != debug.Slice) continue;
+      auto& slc = slices[isl];
+      if(!slc.vtx3s.empty()) prt3V = true;
+      if(!slc.vtxs.empty()) prt2V = true;
+      if(!slc.tjs.empty()) prtT = true;
+      if(!slc.pfps.empty()) prtP = true;
+      if(!slc.showers.empty()) prtS3 = true;
+      if(!slc.cots.empty()) prtS2 = true;
+    } // slc
+    mf::LogVerbatim myprt("TC");
+    if(prtS3) {
+      myprt<<someText<<"************ Showers ************\n";
+      myprt<<someText<<"  Slc:UID   Vtx  parUID  ___ChgPos____ ______Dir_____ ____posInPln____ ___projInPln____ 2D shower UIDs\n";
+      for(int isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && isl != debug.Slice) continue;
+        auto& slc = slices[isl];
+        if(slc.showers.empty()) continue;
+//        myprt<<".... Slice "<<isl<<"\n";
+        for(auto& ss3 : slc.showers) Print3S(someText, myprt, ss3);
+      } // slc
+    } // prtS3
+    if(prtP) {
+      myprt<<someText<<"************ PFParticles ************\n";
+      myprt<<someText;
+      myprt<<"  Slc:UID sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____dEdx____   Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
+      for(int isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && isl != debug.Slice) continue;
+        auto& slc = slices[isl];
+        if(slc.pfps.empty()) continue;
+//        myprt<<".... Slice "<<isl<<"\n";
+        for(auto& pfp : slc.pfps) PrintP(someText, myprt, pfp);
+      } // slc
+    } // prtS3
+    if(prt3V) {
+      // print out 3D vertices
+      myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_UID__*******\n";
+      myprt<<someText<<"  Slc:UID Cstat TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? Nu? nTru";
+      myprt<<" ___________2D_Pos____________ _____Tj UIDs________\n";
+      for(int isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && isl != debug.Slice) continue;
+        auto& slc = slices[isl];
+        if(slc.vtx3s.empty()) continue;
+//        myprt<<".... Slice "<<isl<<"\n";
+        ++isl;
+        for(auto& vx3 : slc.vtx3s) Print3V(someText, myprt, vx3);
+      } // slc
+    } // prt3V
+    if(prt2V) {
+      // print out 2D vertices
+      myprt<<someText<<"************ 2D vertices ************\n";
+      myprt<<someText<<"  Slc:UID   CTP    wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D Tj UIDs\n";
+      for(int isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && isl != debug.Slice) continue;
+        auto& slc = slices[isl];
+        if(slc.vtxs.empty()) continue;
+//        myprt<<".... Slice "<<isl<<"\n";
+        ++isl;
+        for(auto& vx2 : slc.vtxs) Print2V(someText, myprt, vx2);
+      } // slc
+    } // prt2V
+    if(prtT) {
+      myprt<<someText<<"************ Trajectories ************\n";
+      myprt<<someText<<"  Slc:UID CTP Pass  Pts     W:T      Ang CS AveQ fnTj     W:T      Ang CS AveQ fnTj Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar  E*P mcpIndex  WorkID \n";
+      for(int isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && isl != debug.Slice) continue;
+        auto& slc = slices[isl];
+        if(slc.tjs.empty()) continue;
+//        myprt<<".... Slice "<<isl<<"\n";
+        ++isl;
+        for(auto& tj : slc.tjs) PrintT(someText, myprt, tj);
+      } // slc
+    } // prtT
+  } // PrintAll
+  
+  ////////////////////////////////////////////////
+  void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp)
+  {
+    if(pfp.ID <= 0) return;
+    unsigned short isl = GetSliceIndex("P", pfp.UID);
+    if(isl == USHRT_MAX) return;
+    auto& slc = slices[isl];
+    myprt<<someText;
+    std::string str = std::to_string(isl) + ":" + std::to_string(pfp.UID);
+    myprt<<std::setw(7)<<str;
+    // start and end stuff
+    for(unsigned short startend = 0; startend < 2; ++startend) {
+      str = "--";
+      if(pfp.Vx3ID[startend] > 0) str = "3V" + std::to_string(slc.vtx3s[pfp.Vx3ID[startend]-1].UID);
+      myprt<<std::setw(5)<<str;
+      myprt<<std::fixed<<std::right<<std::setprecision(1);
+      myprt<<std::setw(7)<<pfp.XYZ[startend][0];
+      myprt<<std::setw(7)<<pfp.XYZ[startend][1];
+      myprt<<std::setw(7)<<pfp.XYZ[startend][2];
+      // print character for Outside or Inside the FV
+      if(pfp.StopFlag[startend][kOutFV]) {
+        myprt<<"  O";
+      } else {
+        myprt<<"  I";
+      }
+      myprt<<std::fixed<<std::right<<std::setprecision(2);
+      myprt<<std::setw(6)<<pfp.Dir[startend][0];
+      myprt<<std::setw(6)<<pfp.Dir[startend][1];
+      myprt<<std::setw(6)<<pfp.Dir[startend][2];
+      for(auto& dedx : pfp.dEdx[startend]) {
+        if(dedx < 50) {
+          myprt<<std::setw(5)<<std::setprecision(1)<<dedx;
+        } else {
+          myprt<<std::setw(5)<<std::setprecision(0)<<dedx;
+        }
+      } // dedx
+      if (pfp.dEdx[startend].size()<3){
+        for(size_t i = 0; i<3-pfp.dEdx[startend].size(); ++i){
+          myprt<<std::setw(6)<<' ';
+        }
+      }
+    } // startend
+    // global stuff
+    //    myprt<<std::setw(5)<<pfp.BestPlane;
+    float length = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+    if(length < 100) {
+      myprt<<std::setw(5)<<std::setprecision(1)<<length;
+    } else {
+      myprt<<std::setw(5)<<std::setprecision(0)<<length;
+    }
+    myprt<<std::setw(5)<<std::setprecision(2)<<pfp.Tp3s.size();
+    myprt<<std::setw(7)<<MCSMom(slc, pfp.TjIDs);
+    myprt<<std::setw(5)<<IsShowerLike(slc, pfp.TjIDs);
+    myprt<<std::setw(5)<<pfp.PDGCode;
+    if(pfp.mcpListIndex == UINT_MAX) {
+      myprt<<"      --";
+    } else {
+      myprt<<std::setw(8)<<pfp.mcpListIndex;
+    }
+    myprt<<std::setw(4)<<pfp.ParentID;
+    myprt<<std::setw(5)<<PrimaryID(slc, pfp);
+    myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
+    if(!pfp.TjIDs.empty()) {
+      for(auto tjid : pfp.TjIDs) myprt<<" T"<<slc.tjs[tjid - 1].UID;
+    } // TjIDs exist
+    if(!pfp.DtrIDs.empty()) {
+      myprt<<" dtrs";
+      for(auto dtrid : pfp.DtrIDs) myprt<<" P"<<slc.pfps[dtrid - 1].UID;
+    } // dtr ids exist
+    myprt<<"\n";
+  } // PrintP
+  
+  ////////////////////////////////////////////////
+  void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3)
+  {
+    // print a 3D vertex on one line
+    if(vx3.ID <= 0) return;
+    unsigned short isl = GetSliceIndex("3V", vx3.UID);
+    if(isl == USHRT_MAX) return;
+    auto& slc = slices[isl];
+    myprt<<someText;
+    std::string str = std::to_string(isl) + ":" + std::to_string(vx3.UID);
+    myprt<<std::right<<std::setw(7)<<std::fixed<<str;
+    myprt<<std::setprecision(1);
+    myprt<<std::right<<std::setw(7)<<vx3.TPCID.Cryostat;
+    myprt<<std::right<<std::setw(5)<<vx3.TPCID.TPC;
+    myprt<<std::right<<std::setw(8)<<vx3.X;
+    myprt<<std::right<<std::setw(8)<<vx3.Y;
+    myprt<<std::right<<std::setw(8)<<vx3.Z;
+    myprt<<std::right<<std::setw(5)<<vx3.XErr;
+    myprt<<std::right<<std::setw(5)<<vx3.YErr;
+    myprt<<std::right<<std::setw(5)<<vx3.ZErr;
+    for(auto vx2id : vx3.Vx2ID) {
+      if(vx2id > 0) {
+        str = "2V" + std::to_string(slc.vtxs[vx2id - 1].UID);
+        myprt<<std::right<<std::setw(5)<<str;
+      } else {
+        myprt<<"   --";
+      }
+    } // vx2id
+    myprt<<std::right<<std::setw(5)<<vx3.Wire;
+    unsigned short nTruMatch = 0;
+    for(unsigned short ipl = 0; ipl < slc.nPlanes; ++ipl) {
+      if(vx3.Vx2ID[ipl] == 0) continue;
+      unsigned short iv2 = vx3.Vx2ID[ipl] - 1;
+      if(slc.vtxs[iv2].Stat[kVtxTruMatch]) ++nTruMatch;
+    } // ipl
+    myprt<<std::right<<std::setw(6)<<std::setprecision(1)<<vx3.Score;
+    myprt<<std::setw(6)<<vx3.Primary;
+    myprt<<std::setw(4)<<vx3.Neutrino;
+    myprt<<std::right<<std::setw(5)<<nTruMatch;
+    Point2_t pos;
+    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+      PosInPlane(slc, vx3, plane, pos);
+      myprt<<" "<<PrintPos(slc, pos);
+    } // plane
+    if(vx3.Wire == -2) {
+      // find the Tjs that are attached to it
+      for(unsigned short end = 0; end < 2; ++end) {
+        for(auto& pfp : slc.pfps) {
+          if(pfp.Vx3ID[end] == vx3.ID) {
+            for(auto tjID : pfp.TjIDs) {
+              auto& tj = slc.tjs[tjID - 1];
+              myprt<<" T"<<tj.UID;
+            } // tjID
+          } // pfp.Vx3ID[0] == vx3.ID
+        } // pfp
+      } // end
+    } else {
+      auto vxtjs = GetAssns(slc, "3V", vx3.ID, "T");
+      for(auto tjid : vxtjs) {
+        auto& tj = slc.tjs[tjid - 1];
+        myprt<<" T"<<tj.UID;
+      }
+    } // vx3.Wire != -2
+    myprt<<"\n";
+  } // Print3V
+  
+  ////////////////////////////////////////////////
+  void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2)
+  {
+    // print a 2D vertex on one line
+    if(vx2.ID <= 0) return;
+    if(debug.Plane >= 0 && debug.Plane != (int)DecodeCTP(vx2.CTP).Plane) return;
+    unsigned short isl = GetSliceIndex("2V", vx2.UID);
+    if(isl == USHRT_MAX) return;
+    auto& slc = slices[isl];
+    myprt<<someText;
+    std::string str = std::to_string(isl) + ":" + std::to_string(vx2.UID);
+    myprt<<std::right<<std::setw(7)<<std::fixed<<str;
+    myprt<<std::right<<std::setw(6)<<vx2.CTP;
+    myprt<<std::right<<std::setw(8)<<std::setprecision(0)<<std::nearbyint(vx2.Pos[0]);
+    myprt<<std::right<<std::setw(5)<<std::setprecision(1)<<vx2.PosErr[0];
+    myprt<<std::right<<std::setw(8)<<std::setprecision(0)<<std::nearbyint(vx2.Pos[1]/tcc.unitsPerTick);
+    myprt<<std::right<<std::setw(5)<<std::setprecision(1)<<vx2.PosErr[1]/tcc.unitsPerTick;
+    myprt<<std::right<<std::setw(7)<<vx2.ChiDOF;
+    myprt<<std::right<<std::setw(5)<<vx2.NTraj;
+    myprt<<std::right<<std::setw(5)<<vx2.Pass;
+    myprt<<std::right<<std::setw(6)<<vx2.Topo;
+    myprt<<std::right<<std::setw(9)<<std::setprecision(2)<<vx2.TjChgFrac;
+    myprt<<std::right<<std::setw(6)<<std::setprecision(1)<<vx2.Score;
+    int v3id = 0;
+    if(vx2.Vx3ID > 0) v3id = slc.vtx3s[vx2.Vx3ID - 1].UID;
+    myprt<<std::right<<std::setw(5)<<v3id;
+    myprt<<"    ";
+    // display the traj IDs
+    for(unsigned short ii = 0; ii < slc.tjs.size(); ++ii) {
+      auto const& tj = slc.tjs[ii];
+      if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(tj.CTP).Plane) continue;
+      if(tj.AlgMod[kKilled]) continue;
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(tj.VtxID[end] != (short)vx2.ID) continue;
+        std::string tid = " T" + std::to_string(tj.UID) + "_" + std::to_string(end);
+        myprt<<std::right<<std::setw(6)<<tid;
+      } // end
+    } // ii
+    // Special flags. Ignore the first flag bit (0 = kVtxTrjTried) which is done for every vertex
+    for(unsigned short ib = 1; ib < VtxBitNames.size(); ++ib) if(vx2.Stat[ib]) myprt<<" "<<VtxBitNames[ib];
+    myprt<<"\n";
+  } // Print2V
+  
+  ////////////////////////////////////////////////
+  void Print3S(std::string someText, mf::LogVerbatim& myprt, ShowerStruct3D& ss3)
+  {
+    if(ss3.ID <= 0) return;
+    unsigned short isl = GetSliceIndex("3S", ss3.UID);
+    if(isl == USHRT_MAX) return;
+    auto& slc = slices[isl];
+    myprt<<someText;
+    std::string str = std::to_string(isl) + ":" + std::to_string(ss3.UID);
+    myprt<<std::fixed<<std::setw(7)<<str;
+    str = "--"; 
+    if(ss3.Vx3ID > 0) str = "3V" + std::to_string(slc.vtx3s[ss3.Vx3ID-1].UID);
+    myprt<<std::setw(6)<<str;
+    for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<std::setprecision(0)<<std::setw(5)<<ss3.ChgPos[xyz];
+    for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<std::setprecision(2)<<std::setw(5)<<ss3.Dir[xyz];
+    std::vector<float> projInPlane(slc.nPlanes);
+    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+      CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
+      auto tp = MakeBareTP(slc, ss3.ChgPos, ss3.Dir, inCTP);
+      myprt<<" "<<PrintPos(slc, tp.Pos);
+      projInPlane[plane] = tp.Delta;
+    } // plane
+    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+      myprt<<std::setprecision(2)<<std::setw(5)<<projInPlane[plane];
+    } // plane
+    for(auto cid : ss3.CotIDs) {
+      auto& ss = slc.cots[cid - 1];
+      str = "2S" + std::to_string(ss.UID);
+      myprt<<std::setw(5)<<str;
+/*
+      auto& stj = slc.tjs[ss.ShowerTjID - 1];
+      myprt<<" ST"<<stj.ID;
+      myprt<<" "<<PrintPos(slc, stj.Pts[stj.EndPt[0]].Pos)<<" - "<<PrintPos(slc, stj.Pts[stj.EndPt[1]].Pos);
+*/
+    } // ci
+    if(ss3.NeedsUpdate) myprt<<" *** Needs update";
+    myprt<<"\n";
+  } // Print3S
+
+  ////////////////////////////////////////////////
+  void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj)
+  {
+    // print a 2D vertex on one line
+    if(tj.ID <= 0) return;
+    if(tj.AlgMod[kKilled]) return;
+    unsigned short isl = GetSliceIndex("T", tj.UID);
+    if(isl == USHRT_MAX) return;
+    auto& slc = slices[isl];
+    myprt<<someText;
+    std::string str = std::to_string(isl) + ":" + std::to_string(tj.UID);
+    myprt<<std::fixed<<std::setw(7)<<str;
+    myprt<<std::setw(6)<<tj.CTP;
+    myprt<<std::setw(5)<<tj.Pass;
+    //        myprt<<std::setw(5)<<tj.Pts.size();
+    myprt<<std::setw(5)<<tj.EndPt[1] - tj.EndPt[0] + 1;
+    unsigned short endPt0 = tj.EndPt[0];
+    auto& tp0 = tj.Pts[endPt0];
+    int itick = tp0.Pos[1]/tcc.unitsPerTick;
+    if(itick < 0) itick = 0;
+    myprt<<std::setw(6)<<(int)(tp0.Pos[0]+0.5)<<":"<<itick; // W:T
+    if(itick < 10) { myprt<<" "; }
+    if(itick < 100) { myprt<<" "; }
+    if(itick < 1000) { myprt<<" "; }
+    myprt<<std::setw(6)<<std::setprecision(2)<<tp0.Ang;
+    myprt<<std::setw(2)<<tp0.AngleCode;
+    if(tj.StopFlag[0][kBragg]) {
+      myprt<<"B";
+    } else if(tj.StopFlag[0][kAtVtx]) {
+      myprt<<"V";
+    } else if(tj.StopFlag[0][kAtKink]) {
+      myprt<<"K";
+    } else if(tj.StopFlag[0][kAtTj]) {
+      myprt<<"T";
+    } else {
+      myprt<<" ";
+    }
+    myprt<<std::setw(5)<<(int)tp0.AveChg;
+    // Print the fraction of points in the first half that are in a shower
+    float frac = 0;
+    float cnt = 0;
+    unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
+    for(unsigned short ipt = tj.EndPt[0]; ipt < midPt; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      //          if(tp.Environment[kEnvNearShower]) ++frac;
+      if(tp.Environment[kEnvNearTj]) ++frac;
+      ++cnt;
+    } // ipt
+    if(cnt > 0) frac /= cnt;
+    myprt<<std::setw(5)<<std::setprecision(1)<<frac;
+    unsigned short endPt1 = tj.EndPt[1];
+    auto& tp1 = tj.Pts[endPt1];
+    itick = tp1.Pos[1]/tcc.unitsPerTick;
+    myprt<<std::setw(6)<<(int)(tp1.Pos[0]+0.5)<<":"<<itick; // W:T
+    if(itick < 10) { myprt<<" "; }
+    if(itick < 100) { myprt<<" "; }
+    if(itick < 1000) { myprt<<" "; }
+    myprt<<std::setw(6)<<std::setprecision(2)<<tp1.Ang;
+    myprt<<std::setw(2)<<tp1.AngleCode;
+    if(tj.StopFlag[1][kBragg]) {
+      myprt<<"B";
+    } else if(tj.StopFlag[1][kAtVtx]) {
+      myprt<<"V";
+    } else {
+      myprt<<" ";
+    }
+    myprt<<std::setw(5)<<(int)tp1.AveChg;
+    // Print the fraction of points in the second half that are NearInShower
+    frac = 0;
+    cnt = 0;
+    for(unsigned short ipt = midPt; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Environment[kEnvNearTj]) ++frac;
+      ++cnt;
+    } // ipt
+    if(cnt > 0) frac /= cnt;
+    myprt<<std::setw(5)<<std::setprecision(1)<<frac;
+    myprt<<std::setw(7)<<std::setprecision(1)<<tj.TotChg/1000;
+    myprt<<std::setw(7)<<std::setprecision(2)<<tj.ChgRMS;
+    myprt<<std::setw(5)<<tj.MCSMom;
+    myprt<<std::setw(4)<<tj.StepDir;
+    int vxid = 0;
+    if(tj.VtxID[0] > 0) vxid = slc.vtxs[tj.VtxID[0]-1].UID;
+    myprt<<std::setw(4)<<vxid;
+    vxid = 0;
+    if(tj.VtxID[1] > 0) vxid = slc.vtxs[tj.VtxID[1]-1].UID;
+    myprt<<std::setw(4)<<vxid;
+    myprt<<std::setw(5)<<tj.PDGCode;
+    myprt<<std::setw(7)<<std::setprecision(1)<<tj.DirFOM;
+    myprt<<std::setw(5)<<tj.ParentID;
+    myprt<<std::setw(5)<<PrimaryID(slc, tj);
+    myprt<<std::setw(6)<<NeutrinoPrimaryTjID(slc, tj);
+    myprt<<std::setw(6)<<std::setprecision(2)<<tj.EffPur;
+    if(tj.mcpListIndex == UINT_MAX) {
+      myprt<<"    --";
+    } else {
+      myprt<<std::setw(6)<<tj.mcpListIndex;
+    }
+    myprt<<std::setw(7)<<tj.WorkID;
+    for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
+    myprt<<"\n";
+  } // PrintT
+
+  ////////////////////////////////////////////////
+  void PrintAllTraj(std::string someText, TCSlice& slc, unsigned short itj, unsigned short ipt, bool prtVtx)
   {
     
     mf::LogVerbatim myprt("TC");
@@ -4494,11 +4989,13 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         myprt<<std::setw(6)<<NeutrinoPrimaryTjID(slc, aTj);
         int truKE = 0;
         int pdg = 0;
-        if(aTj.mcpListIndex < tcc.mcpList.size()) {
-          auto& mcp = tcc.mcpList[aTj.mcpListIndex];
+/*
+        if(aTj.mcpListIndex < evt.mcpList.size()) {
+          auto& mcp = evt.mcpList[aTj.mcpListIndex];
           truKE = 1000 * (mcp->E() - mcp->Mass());
           pdg = mcp->PdgCode();
         }
+*/
         myprt<<std::setw(6)<<pdg;
         myprt<<std::setw(6)<<std::setprecision(2)<<aTj.EffPur;
         myprt<<std::setw(5)<<truKE;
@@ -4535,7 +5032,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     // prints one or all trajectory points on tj
     
     int trupdg = 0;
-    if(tj.mcpListIndex < tcc.mcpList.size()) trupdg = tcc.mcpList[tj.mcpListIndex]->PdgCode();
+//    if(tj.mcpListIndex < evt.mcpList.size()) trupdg = evt.mcpList[tj.mcpListIndex]->PdgCode();
     
     if(tPoint == USHRT_MAX) {
       if(tj.ID < 0) {
@@ -4714,11 +5211,14 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     myprt<<std::setw(7)<<MCSMom(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<IsShowerLike(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
-    if(pfp.mcpListIndex < tcc.mcpList.size()) {
+/*
+    if(pfp.mcpListIndex < evt.mcpList.size()) {
       myprt<<std::setw(8)<<pfp.mcpListIndex;
     } else {
       myprt<<"      NA";
     }
+*/
+    myprt<<"      NA";
     myprt<<std::setw(4)<<pfp.ParentID;
     myprt<<std::setw(5)<<PrimaryID(slc, pfp);
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
