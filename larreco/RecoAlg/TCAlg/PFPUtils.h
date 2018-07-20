@@ -68,7 +68,7 @@ namespace tca {
   std::vector<unsigned short> FindKinks(TCSlice& slc, PFPStruct& pfp, double sep, bool prt);
   double KinkAngle(TCSlice& slc, const std::vector<TrajPoint3>& tp3s, unsigned short atPt, double sep);
   PFPStruct CreatePFP(TCSlice& slc);
-  void FindPFParticles(TCSlice& slc, bool prt);
+  void FindPFParticles(TCSlice& slc);
   bool DefinePFP(std::string inFcnLabel, TCSlice& slc, PFPStruct& pfp, bool prt);
   bool PFPVxTjOK(TCSlice& slc, PFPStruct& pfp, bool prt);
   void PFPVertexCheck(TCSlice& tcs);
