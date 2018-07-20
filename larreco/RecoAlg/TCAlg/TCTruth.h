@@ -9,6 +9,8 @@
 #ifndef TRAJCLUSTERALGTRUTH_H
 #define TRAJCLUSTERALGTRUTH_H
 
+#include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
+#include "canvas/Persistency/Common/FindManyP.h"
 
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
@@ -41,11 +43,10 @@ namespace tca {
    }
     
     void Initialize();
-    void MatchTrueHits(TCSlice& slc);
-    void MatchTruth(TCSlice& slc, const HistStuff& hist, bool fStudyMode);
-    void MatchAndSum(TCSlice& slc, const HistStuff& hist, const std::vector<unsigned int>& mcpSelect);
+    void MatchTruth(std::vector<simb::MCParticle*> const& mcpList, std::vector<unsigned int> const& mcpListIndex);
+    void MatchAndSum(std::vector<simb::MCParticle*> const& mcpList, std::vector<unsigned int> const& mcpListIndex);
     void PrintResults(int eventNum) const;
-    bool CanReconstruct(unsigned int mcpIndex, unsigned short nDimensions, const geo::TPCID& tpcid);
+    bool CanReconstruct(std::vector<unsigned int> mcpHits, unsigned short nDimensions, const geo::TPCID& inTPCID);
     // Put hits matched to a MCParticle in CTP into a vector
     std::vector<unsigned int> PutMCPHitsInVector(unsigned int mcpIndex, CTP_t inCTP);
     void StudyShowerParents(TCSlice& slc, HistStuff& hist);
