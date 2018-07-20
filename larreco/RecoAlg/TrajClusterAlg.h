@@ -61,6 +61,7 @@ namespace tca {
 //    void SetMCParticles(std::vector<simb::MCParticle> const& mcps) { fmcpList = &mcps;}
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice);
     bool CreateSlice(std::vector<unsigned int>& hitsInSlice);
+    
 
     void DefineShTree(TTree* t);
     
@@ -75,6 +76,7 @@ namespace tca {
     
     /// Deletes all the results
     void ClearResults() { slices.resize(0); }
+    TruthMatcher fTM;
     
     private:
     
@@ -85,11 +87,6 @@ namespace tca {
 
     // Cosmic Removal Variable Tree
     TTree* crtree;
- 
-    bool prt;
-    bool mrgPrt;
-    bool didPrt;
-    int TJPrt; // Set to the WorkID of a trajectory that is being debugged
     
     trkf::LinFitAlg fLinFitAlg;
     calo::CalorimetryAlg fCaloAlg;
@@ -105,7 +102,6 @@ namespace tca {
     
     std::vector<unsigned int> fAlgModCount;
 
-//    short watchInTraj;
     void ReconstructAllTraj(TCSlice& slc, CTP_t inCTP);
     // Main stepping/crawling routine
     void StepCrawl(TCSlice& slc, Trajectory& tj);
@@ -118,7 +114,7 @@ namespace tca {
     // Finds junk trajectories using unassigned hits
     void FindJunkTraj(TCSlice& slc, CTP_t inCTP);
     // Finds junk trajectories using unassigned hits
-    bool MakeJunkTraj(TCSlice& slc, std::vector<unsigned int> tHits, bool prt);
+    bool MakeJunkTraj(TCSlice& slc, std::vector<unsigned int> tHits);
     // Step through TPs starting at the end and moving to the beginning
     void ReversePropagate(TCSlice& slc, Trajectory& tj);
     // Start a trajectory going from fromHit to (toWire, toTick)
@@ -141,8 +137,6 @@ namespace tca {
     void FindHit(TCSlice& slc, std::string someText, unsigned int iht);
     // Check allTraj -> inTraj associations
     void ChkInTraj(std::string someText, TCSlice& slc);
-     // Make clusters from all trajectories in allTraj
-//    void MakeAllTrajClusters();
     void FindMissedVxTjs(TCSlice& slc);
     void FindVtxTjs(TCSlice& slc, CTP_t inCTP);
     void FindVtxTraj(TCSlice& slc, VtxStore& theVtx);
