@@ -151,7 +151,6 @@ namespace tca {
     // association is changed from shower ParentID -> parent pfp, to shower PFP -> parent pfp
     for(auto& ss3 : slc.showers) {
       if(ss3.ID == 0) continue;
-      if(ss3.Cheat) continue;
       if(ss3.PFPIndex != USHRT_MAX) {
         std::cout<<"Finish3DShowers 3S"<<ss3.ID<<" already has a pfp associated with it...\n";
         continue;
@@ -291,11 +290,8 @@ namespace tca {
     bool reconstruct = (tcc.showerTag[0] == 2) || (tcc.showerTag[0] == 4);
     if(!reconstruct) return false;
     
-    bool prt = tcc.showerTag[12] >= 0;
-    // Add 10 for more detailed printing 
-    short dbgPlane = ((int)tcc.showerTag[12] % 10);
-    CTP_t dbgCTP = UINT_MAX;
-    if(dbgPlane >= 0 && dbgPlane <= slc.nPlanes) dbgCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, dbgPlane);
+    bool prt2S = (tcc.dbgSlc && tcc.dbg2S);
+    bool prt3S = (tcc.dbgSlc && tcc.dbg3S);
     
     std::string fcnLabel = "FS";
 
@@ -306,17 +302,14 @@ namespace tca {
       for(auto& ss : slc.cots) if(ss.CTP == inCTP) return false;
     }
     
-    // rebuild the hit range references if necessary
-//    if(tpcid != xxx.TPCID && !FillWireHitRange(xxx, tpcid)) return false;
-
-    if(prt) {
+    if(prt2S) {
       PrintPFPs("FSi", slc);
-      PrintAllTraj("FSi", slc, debug, USHRT_MAX, 0);
+      PrintAllTraj("FSi", slc, USHRT_MAX, 0);
     }
     
     // define a list of tjs that shouldn't be clustered in the same shower because
     // they are matched to pfp particles that are likely parents of 3D showers
-    DefineDontCluster(slc, prt);
+    DefineDontCluster(slc, prt2S);
 
     // lists of Tj IDs in plane, (list1, list2, list3, ...)
     std::vector<std::vector<std::vector<int>>> bigList(slc.nPlanes);
@@ -324,7 +317,7 @@ namespace tca {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
       std::vector<std::vector<int>> tjList;
       // Make lists of lists of ShowerLike tjs that will become showers
-      FindCots(fcnLabel, slc, inCTP, tjList, prt);
+      FindCots(fcnLabel, slc, inCTP, tjList, prt2S);
       SaveTjInfo(slc, tjList, "TJL");
       if(tjList.empty()) continue;
       bigList[plane] = tjList;
@@ -335,82 +328,80 @@ namespace tca {
     for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
       // print detailed debug info for one plane
-      prt = (inCTP == dbgCTP);
+      bool prtCTP = (prt2S && inCTP == debug.CTP);
       // Create a shower for each one
       for(auto& tjl : bigList[plane]) {
         if(tjl.empty()) continue;
-        if(prt) {
+        if(prtCTP) {
           mf::LogVerbatim myprt("TC");
           myprt<<"Plane "<<plane<<" tjList";
           for(auto& tjID : tjl) myprt<<" "<<tjID;
         }
-        auto ss = CreateSS(slc, 0, tjl);
+        auto ss = CreateSS(slc, tjl);
         if(ss.ID == 0) continue;
-        if(!UpdateShower(fcnLabel, slc, ss, prt)) continue;
+        if(!UpdateShower(fcnLabel, slc, ss, prtCTP)) continue;
         SaveTjInfo(slc, ss, "DS");
-        FindNearbyTjs(fcnLabel, slc, ss, prt);
+        FindNearbyTjs(fcnLabel, slc, ss, prtCTP);
         // don't try to do anything else here until all of the showers are defined
         if(!StoreShower(fcnLabel, slc, ss)) {
           std::cout<<fcnLabel<<" StoreShower failed 2S"<<ss.ID<<"\n";
-          MakeShowerObsolete(fcnLabel, slc, ss, prt);
+          MakeShowerObsolete(fcnLabel, slc, ss, prtCTP);
         }
       } // tjl
       ChkAssns(fcnLabel, slc);
       // try to merge showers in this plane using the lists of nearby Tjs
       if(inCTP == UINT_MAX) continue;
       if(slc.cots.empty()) continue;
-      prt = (inCTP == dbgCTP || dbgPlane == 3);
-      if(prt) Print2DShowers("tjl", slc, inCTP, false);
-      MergeShowerChain(fcnLabel, slc, inCTP, prt);
+      if(prtCTP) Print2DShowers("tjl", slc, inCTP, false);
+      MergeShowerChain(fcnLabel, slc, inCTP, prtCTP);
       SaveAllCots(slc, inCTP, "MSC");
-      if(prt) Print2DShowers("MSCo", slc, inCTP, false);
-      MergeOverlap(fcnLabel, slc, inCTP, prt);
+      if(prtCTP) Print2DShowers("MSCo", slc, inCTP, false);
+      MergeOverlap(fcnLabel, slc, inCTP, prtCTP);
       SaveAllCots(slc, inCTP, "MO");
-      if(prt) Print2DShowers("MO", slc, inCTP, false);
-      MergeNearby2DShowers(fcnLabel, slc, inCTP, prt);
+      if(prtCTP) Print2DShowers("MO", slc, inCTP, false);
+      MergeNearby2DShowers(fcnLabel, slc, inCTP, prtCTP);
       SaveAllCots(slc, inCTP, "MSS");
       // merge sub-showers with other showers
-      MergeSubShowers(fcnLabel, slc, inCTP, prt);
+      MergeSubShowers(fcnLabel, slc, inCTP, prtCTP);
       // merge sub-showers with shower-like tjs
-      MergeSubShowersTj(fcnLabel, slc, inCTP, prt);
+      MergeSubShowersTj(fcnLabel, slc, inCTP, prtCTP);
       SaveAllCots(slc, inCTP, "MNrby");
-      if(prt) Print2DShowers("Nrby", slc, inCTP, false);
+      if(prtCTP) Print2DShowers("Nrby", slc, inCTP, false);
       bool tryMerge = false;
       for(unsigned short ii = 0; ii < slc.cots.size(); ++ii) {
         auto& ss = slc.cots[ii];
         if(ss.ID == 0) continue;
         if(ss.CTP != inCTP) continue;
-        if(AddTjsInsideEnvelope(fcnLabel, slc, ss, prt)) tryMerge = true;
+        if(AddTjsInsideEnvelope(fcnLabel, slc, ss, prtCTP)) tryMerge = true;
         if (tcc.modes[kSaveShowerTree]) SaveAllCots(slc, inCTP, "Merge");
       }
-      if(tryMerge) MergeNearby2DShowers(fcnLabel, slc, inCTP, prt);
+      if(tryMerge) MergeNearby2DShowers(fcnLabel, slc, inCTP, prtCTP);
       SaveAllCots(slc, inCTP, "ATj2");
-      if(prt) Print2DShowers("ATIE", slc, inCTP, false);
+      if(prtCTP) Print2DShowers("ATIE", slc, inCTP, false);
     } // plane
     if(slc.cots.empty()) return false;
-    prt = (dbgPlane > 2);
-    if(prt) Print2DShowers("B4", slc, USHRT_MAX, false);
+    if(prt3S) Print2DShowers("B4", slc, USHRT_MAX, false);
     // Match in 3D, make 3D showers and define them
-    Match2DShowers(fcnLabel, slc, prt);
+    Match2DShowers(fcnLabel, slc, prt3S);
     SaveAllCots(slc, "M2DS");
     // Reconcile pfp and shower assns before the Parent search
-    Reconcile3D(fcnLabel, slc, false, prt);
+    Reconcile3D(fcnLabel, slc, false, prt3S);
     SaveAllCots(slc, "R3D");
 //    std::cout<<"Add function to check for neutrino vertex inside showers\n";
     for(auto& ss3 : slc.showers) {
       if(ss3.ID == 0) continue;
-      FindParent(fcnLabel, slc, ss3, prt);
+      FindParent(fcnLabel, slc, ss3, prt3S);
     } // ss3
     // Reconcile pfp and shower assns again
-    Reconcile3D(fcnLabel, slc, true, prt);
-    if(prt) Print2DShowers("M2DS", slc, USHRT_MAX, false);
+    Reconcile3D(fcnLabel, slc, true, prt3S);
+    if(prt3S) Print2DShowers("M2DS", slc, USHRT_MAX, false);
     SaveAllCots(slc, "FP");
     
     // kill low energy 3D showers
     for(auto& ss3 : slc.showers) {
       if(ss3.ID == 0) continue;
       bool killMe = (ShowerEnergy(ss3) < tcc.showerTag[3]);
-      if(killMe) MakeShowerObsolete(fcnLabel, slc, ss3, prt);
+      if(killMe) MakeShowerObsolete(fcnLabel, slc, ss3, prt3S);
     } // ss3
     
     // kill 2D showers that are either below threshold or have only one tj
@@ -420,7 +411,7 @@ namespace tca {
       bool killMe = (ss.TjIDs.size() == 1 || ss.Energy < tcc.showerTag[3]);
       // too small aspect ratio -> something track-like with some shower-like fuzz
       if(ss.AspectRatio < tcc.showerTag[10]) killMe = true;
-      if(killMe) MakeShowerObsolete(fcnLabel, slc, ss, prt);
+      if(killMe) MakeShowerObsolete(fcnLabel, slc, ss, prt3S);
     } // ss
      
     unsigned short nNewShowers = 0;
@@ -430,53 +421,6 @@ namespace tca {
       SaveTjInfo(slc, ss, "Done");
      ++nNewShowers;
     } // ss
-/*
-    // temp for testing with MC
-    if(!tcc.mcpList.empty()) {
-      // get some truth information
-      MCParticleListUtils mcpu{tcc};
-      for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
-        CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
-        int truElectronTID = mcpu.PrimaryElectronTjID(slc, inCTP);
-        std::cout<<"Plane "<<plane<<" trueElectron T"<<truElectronTID;
-        for(auto& ss : slc.cots) {
-          if(ss.ID == 0) continue;
-          if(ss.CTP != inCTP) continue;
-          if(std::find(ss.TjIDs.begin(), ss.TjIDs.end(), truElectronTID) == ss.TjIDs.end()) continue;
-          std::cout<<" in 2S"<<ss.ID<<" with Parent T"<<ss.ParentID;
-          if(ss.SS3ID > 0) std::cout<<" -> 3S"<<ss.SS3ID;
-        } // ss
-        std::cout<<"\n";
-      } // plane
-      Point3_t truStart;
-      Vector3_t truDir;
-      float truE;
-      if(mcpu.PrimaryElectronStart(truStart, truDir, truE)) {
-        // assume that the highest energy shower is from the primary electron
-        float big = 0;
-        int imBig = 0;
-        for(auto& ss3 : slc.showers) {
-          float energy = ShowerEnergy(ss3);
-          if(energy < big) continue;
-          big = energy;
-          imBig = ss3.ID;
-        } // ss3
-        if(imBig > 0) {
-          auto& ss3 = slc.showers[imBig - 1];
-          float shMaxSep = PosSep(truStart, ss3.ChgPos);
-          float dang = acos(DotProd(truDir, ss3.Dir));
-          float energy = ShowerEnergy(ss3);
-          std::cout<<"Big 3S"<<ss3.ID<<" E "<<(int)energy<<" truE "<<(int)truE;
-          std::cout<<" truStart "<<std::fixed<<std::setprecision(1)<<truStart[0]<<" "<<truStart[1]<<" "<<truStart[2];
-          std::cout<<" tru P"<<mcpu.PrimaryElectronPFPID(slc);
-          std::cout<<" rec P"<<ss3.ParentID;
-          std::cout<<" shMax "<<(int)shMaxSep<<" cm.";
-          std::cout<<" dang "<<std::fixed<<std::setprecision(2)<<dang<<"\n";
-        } // imBig > 0
-      } // PrimaryElectronStart success
-    } // !slc.MCPartList.empty()
-*/
-//    if(prt) Print2DShowers("FSo", slc, USHRT_MAX, false);
     
     return (nNewShowers > 0);
     
@@ -897,7 +841,7 @@ namespace tca {
     
     if(ksslist.empty()) {
       // no 2D shower so make one using ktlist
-      auto kss = CreateSS(slc, 0, ktlist);
+      auto kss = CreateSS(slc, ktlist);
       if(kss.ID == 0) return false;
       kss.SS3ID = ss3.ID;
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" create new 2S"<<kss.ID<<" from ktlist";
@@ -1094,7 +1038,7 @@ namespace tca {
     // This function doesn't alter or check associations btw showers and tjs.
     
     if(ss.ID == 0) return false;
-    if(!ss.Cheat && ss.TjIDs.empty()) return false;
+    if(ss.TjIDs.empty()) return false;
     if(ss.ShowerTjID <= 0 || ss.ShowerTjID > (int)slc.tjs.size()) return false;
     if(ss.ParentID > 0 && ss.ParentID > (int)slc.tjs.size()) return false;
     auto& stj = slc.tjs[ss.ShowerTjID - 1];
@@ -1130,31 +1074,29 @@ namespace tca {
       stp.NTPsFit = 0;
     } // stp
     
-    if(!ss.Cheat) {
-      ss.ShPts.clear();
-      for(auto tjid : ss.TjIDs) {
-        if(tjid <= 0 || tjid > (int)slc.tjs.size()) return false;
-        auto& tj = slc.tjs[tjid - 1];
-        if(tj.CTP != ss.CTP) return false;
-        if(tj.AlgMod[kShowerTj]) return false;
-        for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-          TrajPoint& tp = tj.Pts[ipt];
-          for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-            if(!tp.UseHit[ii]) continue;
-            unsigned int iht = tp.Hits[ii];
-            auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
-            if(hit.Integral() <= 0) continue;
-            ShowerPoint shpt;
-            shpt.HitIndex = iht;
-            shpt.TID = tj.ID;
-            shpt.Chg = hit.Integral();
-            shpt.Pos[0] = hit.WireID().Wire;
-            shpt.Pos[1] = hit.PeakTime() * tcc.unitsPerTick;
-            ss.ShPts.push_back(shpt);
-          } // ii
-        } // ipt
-      } // tjid
-    }
+    ss.ShPts.clear();
+    for(auto tjid : ss.TjIDs) {
+      if(tjid <= 0 || tjid > (int)slc.tjs.size()) return false;
+      auto& tj = slc.tjs[tjid - 1];
+      if(tj.CTP != ss.CTP) return false;
+      if(tj.AlgMod[kShowerTj]) return false;
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        TrajPoint& tp = tj.Pts[ipt];
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(!tp.UseHit[ii]) continue;
+          unsigned int iht = tp.Hits[ii];
+          auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
+          if(hit.Integral() <= 0) continue;
+          ShowerPoint shpt;
+          shpt.HitIndex = iht;
+          shpt.TID = tj.ID;
+          shpt.Chg = hit.Integral();
+          shpt.Pos[0] = hit.WireID().Wire;
+          shpt.Pos[1] = hit.PeakTime() * tcc.unitsPerTick;
+          ss.ShPts.push_back(shpt);
+        } // ii
+      } // ipt
+    } // tjid
     if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 2S"<<ss.ID<<" nShPts "<<ss.ShPts.size();
     
     if(ss.ShPts.size() < 3) return false;
@@ -1859,7 +1801,7 @@ namespace tca {
         auto& stp1 = slc.tjs[ss.ShowerTjID - 1].Pts[1];
         float sep = PosSep(tpFrom.Pos, stp1.Pos);
         float toPos = tpFrom.Pos[0] + 0.5 * tpFrom.Dir[0] * sep;
-        float cf = ChgFracBetween(slc, tpFrom, toPos, false);
+        float cf = ChgFracBetween(slc, tpFrom, toPos);
         // weight by the separation in the plane
         totSep += sep;
         chgFrac += sep * cf;
@@ -2362,7 +2304,7 @@ namespace tca {
     fom += chgFracFOM;
     ++cnt;
     // Fraction of wires that have a signal between the parent start and the shower center
-    float chgFracBtw = ChgFracBetween(slc, ptp, stp1.Pos[0], false);
+    float chgFracBtw = ChgFracBetween(slc, ptp, stp1.Pos[0]);
     float chgFrcBtwFOM = (1 - chgFrac) / 0.05;
     fom += chgFrcBtwFOM;
     ++cnt;
@@ -3011,7 +2953,7 @@ namespace tca {
     } // tjID
 
     // in with the new
-    auto newss = CreateSS(slc, 0, tjl);
+    auto newss = CreateSS(slc, tjl);
     if(newss.ID == 0) return 0;
     
     for(auto tid : tjl) {
@@ -3689,12 +3631,12 @@ namespace tca {
     // ShowerTag[6] other Tjs with a separation < ShowerTag[1].     
     
     if(tcc.showerTag[0] <= 0) return;
-    
     if(slc.tjs.size() > 20000) return;
-    
     // evaluate different cuts
     bool newCuts = (tcc.showerTag[0] > 2);
     float typicalChgRMS = 0.5 * (tcc.chargeCuts[1] + tcc.chargeCuts[2]);
+    
+    bool prt = (tcc.dbgSlc && tcc.dbg2S && inCTP == debug.CTP);
     
     // clear out old tags and make a list of Tjs to consider
     std::vector<std::vector<int>> tjLists;
@@ -3807,7 +3749,7 @@ namespace tca {
       MakeVertexObsolete(slc, vx2, true);
       ++nkill;
     } // vx2
-    if(tcc.showerTag[12] >= 0) mf::LogVerbatim("TC")<<"TagShowerLike tagged "<<nsh<<" Tjs and killed "<<nkill<<" vertices in CTP "<<inCTP;
+    if(prt) mf::LogVerbatim("TC")<<"TagShowerLike tagged "<<nsh<<" Tjs and killed "<<nkill<<" vertices in CTP "<<inCTP;
 
   } // TagShowerLike
   
@@ -4507,7 +4449,7 @@ namespace tca {
       std::cout<<fcnLabel<<" Invalid ID";
       return false;
     }
-    if(!ss.Cheat && ss.TjIDs.empty()) {
+    if(ss.TjIDs.empty()) {
       std::cout<<fcnLabel<<" Fail: No TjIDs in 2S"<<ss.ID<<"\n";
       return false;
     }
@@ -4564,22 +4506,17 @@ namespace tca {
   } // CreateSS3
   
   ////////////////////////////////////////////////
-  ShowerStruct CreateSS(TCSlice& slc, CTP_t inCTP, const std::vector<int>& tjl)
+  ShowerStruct CreateSS(TCSlice& slc, const std::vector<int>& tjl)
   {
     // Create a shower and shower Tj using Tjs in the list. If tjl is empty a
     // MC cheat shower is created inCTP. Note that inCTP is only used if tjl is empty.
     // A companion shower tj is created and stored but the ShowerStruct is not.
     ShowerStruct ss;
     
-    if(tjl.empty()) ss.Cheat = true;
-    
     // Create the shower tj
     Trajectory stj;
-    if(ss.Cheat) {
-      stj.CTP = inCTP;
-    } else {
-      stj.CTP = slc.tjs[tjl[0]-1].CTP;
-    }
+    stj.CTP = slc.tjs[tjl[0]-1].CTP;
+
     // with three points
     stj.Pts.resize(3);
     for(auto& stp : stj.Pts) {
@@ -4592,8 +4529,6 @@ namespace tca {
     stj.ID = slc.tjs.size() + 1;
     // Declare that stj is a shower Tj
     stj.AlgMod[kShowerTj] = true;
-    // and maybe a cheat trajectory
-    if(ss.Cheat) stj.AlgMod[kCheat] = true;
     stj.PDGCode = 1111;
     slc.tjs.push_back(stj);
     // define the ss
@@ -4736,21 +4671,18 @@ namespace tca {
       PrintShower(someText, slc, ss, printHeader, printExtras);
       printHeader = false;
     } // ss
-    if(tcc.showerTag[12] > 9) {
-      // List of Tjs
-      for(unsigned short ict = 0; ict < slc.cots.size(); ++ict) {
-        const auto& ss = slc.cots[ict];
-        if(!printAllCTP && ss.CTP != inCTP) continue;
-        if(!printKilledShowers && ss.ID == 0) continue;
-        myprt<<someText<<std::fixed;
-        std::string sid = "2S" + std::to_string(ss.ID);
-        myprt<<std::setw(5)<<sid;
-        myprt<<" Tjs";
-        for(auto id : ss.TjIDs) myprt<<" T"<<id;
-        myprt<<"\n";
-      } // ict
-      
-    }
+    // List of Tjs
+    for(unsigned short ict = 0; ict < slc.cots.size(); ++ict) {
+      const auto& ss = slc.cots[ict];
+      if(!printAllCTP && ss.CTP != inCTP) continue;
+      if(!printKilledShowers && ss.ID == 0) continue;
+      myprt<<someText<<std::fixed;
+      std::string sid = "2S" + std::to_string(ss.ID);
+      myprt<<std::setw(5)<<sid;
+      myprt<<" Tjs";
+      for(auto id : ss.TjIDs) myprt<<" T"<<id;
+      myprt<<"\n";
+    } // ict
     // Print the envelopes
     for(unsigned short ict = 0; ict < slc.cots.size(); ++ict) {
       const auto& ss = slc.cots[ict];
