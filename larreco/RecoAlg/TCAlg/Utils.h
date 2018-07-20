@@ -66,23 +66,22 @@ namespace tca {
   void UnsetUsedHits(TCSlice& slc, TrajPoint& tp);
   bool StoreTraj(TCSlice& slc, Trajectory& tj);
   bool InTrajOK(TCSlice& slc, std::string someText);
-  void CheckTrajBeginChg(TCSlice& slc, unsigned short itj, bool prt);
+  void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
   void TrimEndPts(std::string fcnLabel, TCSlice& slc, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
   void ChkChgAsymmetry(TCSlice& slc, Trajectory& tj, bool prt);
-  bool SignalBetween(TCSlice& slc, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction, bool prt);
-  bool SignalBetween(TCSlice& slc, TrajPoint tp, float toPos0, const float& MinWireSignalFraction, bool prt);
-  float ChgFracBetween(TCSlice& slc, TrajPoint tp, float toPos0, bool prt);
+  bool SignalBetween(TCSlice& slc, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction);
+  bool SignalBetween(TCSlice& slc, TrajPoint tp, float toPos0, const float& MinWireSignalFraction);
+  float ChgFracBetween(TCSlice& slc, TrajPoint tp, float toPos0);
   bool TrajHitsOK(TCSlice& slc, const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet);
   bool TrajHitsOK(TCSlice& slc, const unsigned int iht, const unsigned int jht);
   float ExpectedHitsRMS(TCSlice& slc, const TrajPoint& tp);
   bool SignalAtTp(TCSlice& slc, TrajPoint const& tp);
   float TpSumHitChg(TCSlice& slc, TrajPoint const& tp);
-//  bool CheckHitClusterAssociations(TCSlice& slc);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
   float DeadWireCount(TCSlice& slc, const TrajPoint& tp1, const TrajPoint& tp2);
   float DeadWireCount(TCSlice& slc, const float& inWirePos1, const float& inWirePos2, CTP_t tCTP);
-  unsigned short PDGCodeIndex(TCSlice& slc, int PDGCode);
+  unsigned short PDGCodeIndex(int PDGCode);
   void MakeTrajectoryObsolete(TCSlice& slc, unsigned int itj);
   void RestoreObsoleteTrajectory(TCSlice& slc, unsigned int itj);
   void MergeGhostTjs(TCSlice& slc, CTP_t inCTP);
@@ -168,7 +167,7 @@ namespace tca {
   // Flag delta ray trajectories in allTraj
   void TagDeltaRays(TCSlice& slc, const CTP_t& inCTP);
   // Tag muon directions using delta proximity
-  void TagMuonDirections(TCSlice& slc, short debugWorkID);
+//  void TagMuonDirections(TCSlice& slc, short debugWorkID);
   void UpdateTjChgProperties(std::string inFcnLabel, TCSlice& slc, Trajectory& tj, bool prt);
   void UpdateVxEnvironment(std::string inFcnLabel, TCSlice& slc, VtxStore& vx2, bool prt);
   // Make a bare trajectory point that only has position and direction defined
@@ -191,10 +190,16 @@ namespace tca {
   std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2);
   template <typename T>
   std::vector<T> SetDifference(const std::vector<T>& set1, const std::vector<T>& set2);
+  bool DecodeDebugString(std::string ctpwt);
   // ****************************** Printing  ******************************
-  // Print trajectories, TPs, etc to mf::LogVerbatim
+  void PrintAll(std::string someText);
+  void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp);
+  void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
+  void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2);
+  void Print3S(std::string someText, mf::LogVerbatim& myprt, ShowerStruct3D& ss3);
+  void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj);
   void PrintTrajectory(std::string someText, TCSlice& slc, const Trajectory& tj ,unsigned short tPoint);
-  void PrintAllTraj(std::string someText, TCSlice& slc, const DebugStuff& Debug, unsigned short itj, unsigned short ipt, bool printVtx = true);
+  void PrintAllTraj(std::string someText, TCSlice& slc, unsigned short itj, unsigned short ipt, bool printVtx = true);
   void PrintHeader(std::string someText);
   void PrintTrajPoint(std::string someText, TCSlice& slc, unsigned short ipt, short dir, unsigned short pass, TrajPoint const& tp);
   void PrintPFP(std::string someText, TCSlice& slc, const PFPStruct& pfp, bool printHeader);
