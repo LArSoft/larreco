@@ -243,7 +243,6 @@ namespace tca {
     int TruParentID {0};
     int SS3ID {0};     // ID of a ShowerStruct3D to which this 2D shower is matched
     bool NeedsUpdate {true};       // Needs to be updated (e.g. after adding a tj, defining a parent, etc)
-    bool Cheat {false};         // This is a cheated MC shower. TjIDs is empty but ShPts is filled
   };
   
   // Shower variables filled in MakeShowers. These are in cm and radians
@@ -390,7 +389,6 @@ namespace tca {
     kCompleteShower,
     kSplitTjCVx,
     kSetDir,
-    kCheat,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -412,21 +410,21 @@ namespace tca {
     kEnvOverlap,
     kEnvUnusedHits,
     kEnvClean,      ///< the charge fraction is small near this point
-    kEnvFlag,       ///< a general purpose flag bit used in 3D matching
+    kEnvFlag       ///< a general purpose flag bit used in 3D matching
   } TPEnvironment_t;
   
   // TrajClusterAlg configuration bits
   typedef enum {
     kStepDir,         ///< step from US -> DS (true) or DS -> US (false)
     kTestBeam,        ///< Expect tracks entering from the front face. Don't create neutrino PFParticles
-    kDebug,           ///< print additional info when in debug mode
+    kDebug,           ///< master switch for turning on debug mode
     kStudy1,           ///< call study functions to develop cuts, etc (see TCTruth.cxx)
     kStudy2,           ///< call study functions to develop cuts, etc
     kStudy3,           ///< call study functions to develop cuts, etc
     kStudy4,           ///< call study functions to develop cuts, etc
     kSaveCRTree,      ///< save cosmic ray tree
     kTagCosmics,      ///< tag cosmic rays
-    kSaveShowerTree,  ///< save shower tree
+    kSaveShowerTree  ///< save shower tree
   } TCModes_t;
   
   extern const std::vector<std::string> AlgBitNames;
@@ -464,7 +462,6 @@ namespace tca {
     calo::CalorimetryAlg* caloAlg;
     TMVA::Reader* showerParentReader;
     std::vector<float> showerParentVars;
-    std::vector<simb::MCParticle*> mcpList;
     float hitErrFac;
     float maxWireSkipNoSignal;    ///< max number of wires to skip w/o a signal on them
     float maxWireSkipWithSignal;  ///< max number of wires to skip with a signal on them
@@ -472,6 +469,21 @@ namespace tca {
     float VLAStepSize;
     float JTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
     std::bitset<128> useAlg;  ///< Allow user to mask off specific algorithms
+    std::bitset<128> dbgAlg;  ///< Allow user to turn on debug printing in algorithms (that print...)
+    bool dbgSlc {true};          ///< debug only in the user-defined slice? default is all slices
+    bool dbgStp {false};          ///< debug stepping using debug.Cryostat, debug.TPC, etc
+    bool dbgMrg {false};
+    bool dbg2V {false};           ///< debug 2D vertex finding
+    bool dbgVxNeutral {false};
+    bool dbgVxMerge {false};
+    bool dbgVxJunk {false};
+    bool dbg3V {false};           ///< debug 3D vertex finding
+    bool dbgPFP {false};
+    bool dbgDeltaRayTag {false};
+    bool dbgMuonTag {false};
+    bool dbg2S {false};
+    bool dbg3S {false};
+    bool dbgSummary {false};    ///< print a summary report
     short nPtsAve;         /// number of points to find AveChg
     std::bitset<16> modes;   /// See TCMode_t above
   };
@@ -516,7 +528,6 @@ namespace tca {
     // Save histograms to develop cosmic removal tools
     CRTreeVars crt;
     std::vector<TCHit> slHits;
-    std::vector<unsigned short> mcpListIndex; // size is matched to slHits
     std::vector<Trajectory> tjs; ///< vector of all trajectories in each plane
     std::vector<Tj2Pt> mallTraj;      ///< vector of trajectory points ordered by increasing X
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
