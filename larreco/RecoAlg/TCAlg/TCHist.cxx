@@ -122,7 +122,7 @@ namespace  tca {
     
     fEff = tfs.make<TH1F>("Eff","Efficiency", 50, 0, 1);
     fPur = tfs.make<TH1F>("Pur","Purity", 50, 0, 1);
-    
+/* TTree used to develop the TMVA showerParentReader
     fShowerParentSig = tfs.make<TTree>("shwr_parent_tree_sig", "shwr_parent_tree_sig");
     fShowerParentSig->Branch("fShEnergy", &fShEnergy, "fShEnergy/F");
     fShowerParentSig->Branch("fPfpEnergy", &fPfpEnergy, "fPfpEnergy/F");
@@ -148,7 +148,7 @@ namespace  tca {
     fShowerParentBkg->Branch("fAlong", &fAlong, "fAlong/F");
     fShowerParentBkg->Branch("fTrans", &fTrans, "fTrans/F");
     fShowerParentBkg->Branch("fInShwrProb", &fInShwrProb, "fInShwrProb/F");
-
+*/
   }
   
   
