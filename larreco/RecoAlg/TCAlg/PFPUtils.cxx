@@ -1852,11 +1852,13 @@ namespace tca {
   } // CreatePFP
   
   //////////////////////////////////////////
-  void FindPFParticles(TCSlice& slc, bool prt)
+  void FindPFParticles(TCSlice& slc)
   {
     // Match Tjs in 3D and create PFParticles
     
     if(tcc.match3DCuts[0] <= 0) return;
+    
+    bool prt = (tcc.dbgPFP && tcc.dbgSlc);
     
     if(prt) mf::LogVerbatim("TC")<<" inside FindPFParticles";
     // clear matchVec
