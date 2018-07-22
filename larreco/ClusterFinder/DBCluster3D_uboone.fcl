@@ -1,8 +1,9 @@
 #include "services_microboone.fcl"
+#include "SpacePointSolver.fcl"
 #include "cluster_microboone.fcl"
 #include "time_memory_tracker_microboone.fcl"
 
-process_name: Reco1
+process_name: RecoDB
 
 
 microboone_reco_mcc8_services:
@@ -43,12 +44,13 @@ physics:
 
  producers:
  {
+  reco3d:           @local::standard_spacepointsolver
   dbcluster:        @local::standard_dbcluster3d
  }
 
 #define the producer and filter modules for this path, order matters,
  #filters reject all following items.  see lines starting physics.producers below
- reco: [ dbcluster ]
+ reco: [ reco3d, dbcluster ]
 
  #define the output stream, there could be more than one if using filters
  stream1:  [ out1 ]
@@ -75,10 +77,10 @@ outputs:
    compressionLevel: 1
  }
 }
-
+physics.producers.reco3d.Plots: false
+physics.producers.reco3d.PlotsTrue: false
 physics.producers.dbcluster.DBScan3DAlg.epsilon: 10
 physics.producers.dbcluster.DBScan3DAlg.minpts: 2
 physics.producers.dbcluster.HitModuleLabel: "gaushit"
 physics.producers.dbcluster.SPHitAssnLabel: "reco3d"
-#physics.producers.dbcluster.DBScan3DAlg.wei_dis_y: 0.1
-#physics.producers.dbcluster.DBScan3DAlg.wei_dis_z: 0.1
+

@@ -21,6 +21,7 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
+#include "lardataobj/RecoBase/Event.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/DBScan3DAlg.h"
 #include "larcore/Geometry/Geometry.h"
@@ -74,9 +75,11 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
 {
   produces< std::vector<recob::Cluster> >();
   produces< std::vector<recob::PFParticle> >();
+  produces< std::vector<recob::Event> >();
   produces< art::Assns<recob::Cluster, recob::Hit> >();
   produces< art::Assns<recob::PFParticle, recob::Cluster> >();
   produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
+  produces< art::Assns<recob::Event, recob::Hit> >();
 
   fGeom = &*(art::ServiceHandle<geo::Geometry>());
   fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -91,6 +94,8 @@ void cluster::DBCluster3D::produce(art::Event & evt)
     clucol(new std::vector<recob::Cluster>);
   std::unique_ptr<std::vector<recob::PFParticle>> 
     pfpcol(new std::vector<recob::PFParticle>);
+  std::unique_ptr<std::vector<recob::Event>> 
+    evtcol(new std::vector<recob::Event>);
 
   std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>> 
     cls_hit_assn(new art::Assns<recob::Cluster, recob::Hit>);
@@ -100,6 +105,9 @@ void cluster::DBCluster3D::produce(art::Event & evt)
 
   std::unique_ptr<art::Assns<recob::PFParticle, recob::SpacePoint>>
     pfp_sps_assn(new art::Assns<recob::PFParticle, recob::SpacePoint>);
+
+  std::unique_ptr<art::Assns<recob::Event, recob::Hit>> 
+    evt_hit_assn(new art::Assns<recob::Event, recob::Hit>);
 
   auto hitsHandle = evt.getValidHandle< std::vector<recob::Hit> >(fHitModuleLabel);
   auto spsHandle = evt.getValidHandle< std::vector<recob::SpacePoint> >(fSpacePointModuleLabel);
@@ -186,6 +194,9 @@ void cluster::DBCluster3D::produce(art::Event & evt)
     size_t parent = 0;
     std::vector<size_t> daughters;
     pfpcol->push_back(recob::PFParticle(pdgCode, self, parent, daughters));
+    evtcol->push_back(recob::Event(self));
+    //Save hit-event association
+    util::CreateAssn(*this, evt, *evtcol, cluhits[i], *evt_hit_assn);
     size_t cluStart = clucol->size();
     //Find hits in each planeid
     std::map<geo::PlaneID, std::vector<art::Ptr<recob::Hit>>> hitsview;
@@ -210,9 +221,11 @@ void cluster::DBCluster3D::produce(art::Event & evt)
     
   evt.put(std::move(pfpcol));
   evt.put(std::move(clucol));
+  evt.put(std::move(evtcol));
   evt.put(std::move(cls_hit_assn));
   evt.put(std::move(pfp_cls_assn));
   evt.put(std::move(pfp_sps_assn));
+  evt.put(std::move(evt_hit_assn));
 }
 
 DEFINE_ART_MODULE(cluster::DBCluster3D)
