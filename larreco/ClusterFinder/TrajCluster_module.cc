@@ -244,7 +244,6 @@ namespace cluster {
         for(auto& clu : clus_in_pfp) {
           auto& hits_in_clu = hitFromClu.at(clu.key());
           for(auto& hit : hits_in_clu) slhits.push_back(hit.key());
-//          std::cout<<"slice "<<slhits.size()<<" hits\n";
         } // clu
         if(slhits.size() > 2) slHitsVec.push_back(slhits);
       } // ii
@@ -264,8 +263,6 @@ namespace cluster {
       slHitsVec[0].resize(nInputHits);
       for(unsigned int iht = 0; iht < nInputHits; ++iht) slHitsVec[0][iht] = iht;
     } // no input PFParticles
-    
-    if(nInputHits == 0) throw cet::exception("TrajClusterModule")<<"No input hits found";
     
     // do an exhaustive check to ensure that a hit only appears in one slice
     if(slHitsVec.size() > 1) {
