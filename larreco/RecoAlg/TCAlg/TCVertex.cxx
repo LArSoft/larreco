@@ -1292,6 +1292,17 @@ namespace tca {
             unsigned int jWire = std::nearbyint(jvx2.Pos[0]);
             float dX = std::abs(vX[ivx] - vX[jvx]);
             if(dX > tcc.vtx3DCuts[0]) continue;
+            // see if this pair is already in the list
+            bool gotit = false;
+            for(auto& v3t : v3temp) {
+              unsigned short cnt = 0;
+              if(std::find(v3t.Vx2ID.begin(), v3t.Vx2ID.end(), ivx2.ID) != v3t.Vx2ID.end()) ++cnt;
+              if(std::find(v3t.Vx2ID.begin(), v3t.Vx2ID.end(), jvx2.ID) != v3t.Vx2ID.end()) ++cnt;
+              if(cnt == slc.nPlane) {
+                gotit = true;
+                break;
+              } // cnt == slc.nPlanes
+            } // v3t
             if(prt) {
               mf::LogVerbatim("TC")<<"F3DV: ipl "<<ipl<<" i2V"<<ivx2.ID<<" iX "<<vX[ivx]
               <<" jpl "<<jpl<<" j2V"<<jvx2.ID<<" jvX "<<vX[jvx]<<" W:T "<<(int)jvx2.Pos[0]<<":"<<(int)jvx2.Pos[1]<<" dX "<<dX;
@@ -1325,18 +1336,8 @@ namespace tca {
             // save this incomplete 3D vertex
             Vtx3Store v3d;
             v3d.Vx2ID.resize(slc.nPlanes);
-            v3d.Vx2ID[ipl] = ivx + 1;
-            v3d.Vx2ID[jpl] = jvx + 1;
-            v3d.Vx2ID[kpl] = 0;
-            // see if this is already in the list
-            bool gotit = false;
-            for(unsigned short i3t = 0; i3t < v3temp.size(); ++i3t) {
-              if(v3temp[i3t].Vx2ID[0] == v3d.Vx2ID[0] && v3temp[i3t].Vx2ID[1] == v3d.Vx2ID[1] && v3temp[i3t].Vx2ID[2] == v3d.Vx2ID[2]) {
-                gotit = true;
-                break;
-              }
-            } // i3t
-            if(gotit) continue;
+            v3d.Vx2ID[ipl] = ivx2.ID;
+            v3d.Vx2ID[jpl] = jvx2.ID;
             v3d.X = kX;
             // Use XErr to store dX
             v3d.XErr = dX;
@@ -1367,7 +1368,7 @@ namespace tca {
               tcc.geom->IntersectionPoint(iWire, kWire, ipl, kpl, cstat, tpc, y, z);
               v3d.YErr = y - v3d.Y;
               v3d.ZErr = z - v3d.Z;
-              v3d.Vx2ID[kpl] = kvx + 1;
+              v3d.Vx2ID[kpl] = slc.vtxs[kvx].ID;
               v3d.Wire = -1;
               // hijack the Score variable to hold the separation^2, weighted by the
               // vertex3DCuts
@@ -1426,25 +1427,27 @@ namespace tca {
     v3temp.clear();
     
     if(prt) {
-      mf::LogVerbatim("TC")<<"v3sel list";
+      mf::LogVerbatim myprt("TC");
+      myprt<<"v3sel list";
       for(auto& v3d : v3sel) {
-        mf::LogVerbatim("TC")<<v3d.Vx2ID[0]<<" "<<v3d.Vx2ID[1]<<" "<<v3d.Vx2ID[2]<<" wire "<<v3d.Wire<<" "<<v3d.Score;
+        for(auto vx2id : v3d.Vx2ID) myprt<<" "<<vx2id;
+        myprt<<" wire "<<v3d.Wire<<" "<<v3d.Score;
       } // v3d
-    }
+    } // prt
     
     // Count the number of incomplete vertices and store
     unsigned short ninc = 0;
     for(auto& vx3 : v3sel) {
-      if(slc.nPlanes == 2) {
-        vx3.Vx2ID[2] = 666;
-      } else {
-        if(vx3.Wire >= 0) ++ninc;
-      }
+      if(slc.nPlanes == 3 && vx3.Wire >= 0) ++ninc;
       vx3.ID = slc.vtx3s.size() + 1;
       ++evt.globalS3ID;
       vx3.UID = evt.globalS3ID;
-      if(prt) mf::LogVerbatim("TC")<<" 3V"<<vx3.ID<<"  2V"<<vx3.Vx2ID[0]<<" 2V"<<vx3.Vx2ID[1]<<" 2V"<<vx3.Vx2ID[2]
-        <<" wire "<<vx3.Wire;
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<" 3V"<<vx3.ID;
+        for(auto vx2id : vx3.Vx2ID) myprt<<" 2V"<<v2id;
+        myprt<<" wire "<<vx3.Wire;
+      } // prt
       slc.vtx3s.push_back(vx3);
       // make the 2D -> 3D associations
       for(unsigned short ipl = 0; ipl < slc.nPlanes; ++ipl) {
@@ -2436,7 +2439,8 @@ namespace tca {
   void CompleteIncomplete3DVerticesInGaps(TCSlice& slc)
   {
     
-    if(!tcc.useAlg[kComp3DVxIG]) return;
+    if(!slc.UseAlg[kComp3DVxIG]) return;
+    if(slc.NumPlanes != 3) return;
 
     bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kComp3DVxIG]);
     if(prt) mf::LogVerbatim("TC")<<"Inside CI3DVIG:";

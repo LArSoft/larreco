@@ -14,7 +14,6 @@
 
 // LArSoft includes
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardata/RecoObjects/Cluster3D.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 
@@ -48,9 +47,6 @@ void kdTree::configure(fhicl::ParameterSet const &pset)
     m_enableMonitoring  = pset.get<bool> ("EnableMonitoring",  true);
     m_pairSigmaPeakTime = pset.get<float>("PairSigmaPeakTime", 3.  );
     m_refLeafBestDist   = pset.get<float>("RefLeafBestDist",   0.5 );
-    
-    
-    std::cout << "kdTree setting PairSigmaPeakTime to " << m_pairSigmaPeakTime << ", RefLeafBestDist: " << m_refLeafBestDist << std::endl;
 
     m_timeToBuild = 0;
     
@@ -85,15 +81,51 @@ kdTree::KdTreeNode kdTree::BuildKdTree(const reco::HitPairList& hitPairList,
     return topNode;
 }
     
+//------------------------------------------------------------------------------------------------------------------------------------------
+kdTree::KdTreeNode kdTree::BuildKdTree(const reco::HitPairListPtr& hitPairList,
+                                       KdTreeNodeList&             kdTreeNodeContainer) const
+{
+    
+    // The first task is to build the kd tree
+    cet::cpu_timer theClockBuildNeighborhood;
+    
+    if (m_enableMonitoring) theClockBuildNeighborhood.start();
+    
+    // The input is a list and we need to copy to a vector so we can sort ranges
+    //Hit3DVec hit3DVec{std::begin(hitPairList),std::end(hitPairList)};
+    Hit3DVec hit3DVec;
+    
+    hit3DVec.reserve(hitPairList.size());
+    
+    for(const auto& hit3D : hitPairList)
+    {
+        // Make sure all the bits used by the clustering stage have been cleared
+        hit3D->clearStatusBits(~(reco::ClusterHit3D::HITINVIEW0 | reco::ClusterHit3D::HITINVIEW1 | reco::ClusterHit3D::HITINVIEW2));
+        for(const auto& hit2D : hit3D->getHits())
+            if (hit2D) hit2D->clearStatusBits(0xFFFFFFFF);
+        hit3DVec.emplace_back(hit3D);
+    }
+
+    KdTreeNode topNode = BuildKdTree(hit3DVec.begin(), hit3DVec.end(), kdTreeNodeContainer);
+    
+    if (m_enableMonitoring)
+    {
+        theClockBuildNeighborhood.stop();
+        m_timeToBuild = theClockBuildNeighborhood.accumulated_real_time();
+    }
+    
+    return topNode;
+}
+
 kdTree::KdTreeNode& kdTree::BuildKdTree(Hit3DVec::iterator first,
-                                                        Hit3DVec::iterator last,
-                                                        KdTreeNodeList&    kdTreeNodeContainer,
-                                                        int                depth) const
+                                        Hit3DVec::iterator last,
+                                        KdTreeNodeList&    kdTreeNodeContainer,
+                                        int                depth) const
 {
     // Ok, so if the input list is more than one element then we have work to do... but if less then handle end condition
     if (std::distance(first,last) < 2)
     {
-        if (first != last) kdTreeNodeContainer.emplace_back(KdTreeNode(*first));
+        if (first != last) kdTreeNodeContainer.emplace_back(*first);
         else               kdTreeNodeContainer.emplace_back(KdTreeNode());
     }
     // Otherwise we need to keep splitting...
@@ -133,7 +165,7 @@ kdTree::KdTreeNode& kdTree::BuildKdTree(Hit3DVec::iterator first,
         }
         
         KdTreeNode::SplitAxis axis[]    = {KdTreeNode::xPlane,KdTreeNode::yPlane,KdTreeNode::zPlane};
-        float                axisVal   = 0.5*((*middleItr)->getPosition()[maxRangeIdx] + (*(middleItr-1))->getPosition()[maxRangeIdx]);
+        float                 axisVal   = 0.5*((*middleItr)->getPosition()[maxRangeIdx] + (*(middleItr-1))->getPosition()[maxRangeIdx]);
         KdTreeNode&           leftNode  = BuildKdTree(first,     middleItr, kdTreeNodeContainer, depth+1);
         KdTreeNode&           rightNode = BuildKdTree(middleItr, last,      kdTreeNodeContainer, depth+1);
     
@@ -153,7 +185,7 @@ size_t kdTree::FindNearestNeighbors(const reco::ClusterHit3D* refHit, const KdTr
         // This is the tight constraint on the hits
         else if (consistentPairs(refHit, node.getClusterHit3D(), bestDist))
         {
-            CandPairList.emplace_back(CandPair(bestDist,node.getClusterHit3D()));
+            CandPairList.emplace_back(bestDist,node.getClusterHit3D());
             
             bestDist = std::max(m_refLeafBestDist, bestDist);  // This insures we will always consider neighbors with wire # changing in 2 planes
         }
@@ -195,7 +227,7 @@ bool kdTree::FindEntry(const reco::ClusterHit3D* refHit, const KdTreeNode& node,
         // This is the tight constraint on the hits
         if (consistentPairs(refHit, node.getClusterHit3D(), hitSeparation))
         {
-            CandPairList.emplace_back(CandPair(hitSeparation,node.getClusterHit3D()));
+            CandPairList.emplace_back(hitSeparation,node.getClusterHit3D());
             
             if (bestDist < std::numeric_limits<float>::max()) bestDist = std::max(bestDist,hitSeparation);
             else                                              bestDist = std::max(float(0.5),hitSeparation);
@@ -255,7 +287,7 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
     
     bool consistent(false);
     
-    if (bestDist < std::numeric_limits<float>::max())
+    if (bestDist < std::numeric_limits<float>::max() && pair1->getWireIDs()[0].Cryostat == pair2->getWireIDs()[0].Cryostat && pair1->getWireIDs()[0].TPC == pair2->getWireIDs()[0].TPC)
     {
         // Loose constraint to weed out the obviously bad combinations
         // So this is not strictly correct but is close enough and should save computation time...
@@ -271,7 +303,8 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
             std::sort(wireDeltas, wireDeltas + 3);
         
             // Requirement to be considered a nearest neighbor
-            if (wireDeltas[0] < 2 && wireDeltas[1] < 2 && wireDeltas[2] < 3)
+            //if (wireDeltas[0] < 2 && wireDeltas[1] < 2 && wireDeltas[2] < 3)
+            if (wireDeltas[2] < 3) //2)
             {
                 float hitSeparation = std::max(float(0.0001),DistanceBetweenNodes(pair1,pair2));
             

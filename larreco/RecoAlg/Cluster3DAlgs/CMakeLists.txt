@@ -1,12 +1,17 @@
+cet_enable_asserts()
 
-art_make( EXCLUDE        MinSpanTreeAlg_tool.cc DBScanAlg_tool.cc ClusterMergeAlg_tool.cc
-          LIB_LIBRARIES  lardataobj_RecoBase
+add_subdirectory(ConvexHull)
+add_subdirectory(Voronoi)
+
+art_make( LIB_LIBRARIES  lardataobj_RecoBase
                          larcorealg_Geometry
                          larcore_Geometry_Geometry_service
                          lardata_RecoObjects
                          lardata_Utilities
+                         larreco_RecoAlg_Cluster3DAlgs_ConvexHull
+                         larreco_RecoAlg_Cluster3DAlgs_Voronoi
                          ${ART_FRAMEWORK_CORE}
-			             ${ART_FRAMEWORK_PRINCIPAL}
+                         ${ART_FRAMEWORK_PRINCIPAL}
 			             ${ART_FRAMEWORK_SERVICES_REGISTRY}
 			             ${ART_FRAMEWORK_SERVICES_BASIC}
 			             ${ART_FRAMEWORK_SERVICES_OPTIONAL}
@@ -27,19 +32,8 @@ art_make( EXCLUDE        MinSpanTreeAlg_tool.cc DBScanAlg_tool.cc ClusterMergeAl
 			             ${ROOT_BASIC_LIB_LIST}
                          ${ROOT_GEOM}
                          ${ROOT_MINUIT}
+	      TOOL_LIBRARIES larreco_RecoAlg_Cluster3DAlgs
         )
-
-simple_plugin( MinSpanTreeAlg  "tool"
-                         larreco_RecoAlg_Cluster3DAlgs
-             )
-
-simple_plugin( DBScanAlg  "tool"
-                         larreco_RecoAlg_Cluster3DAlgs
-             )
-
-simple_plugin( ClusterMergeAlg  "tool"
-                         larreco_RecoAlg_Cluster3DAlgs
-             )
 
 install_headers()
 install_fhicl()
