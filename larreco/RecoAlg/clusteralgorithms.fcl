@@ -224,6 +224,12 @@ standard_dbscanalg:
               #                           channel aware (not working)    
 }
 
+standard_dbscan3dalg:
+{
+    epsilon:    5.0
+    minpts:     2
+}
+
 standard_fuzzyclusteralg:
 {
   RunHough:       true    # Turns on and off the Hough line finder, useful for diagnostics 
