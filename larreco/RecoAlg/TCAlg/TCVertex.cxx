@@ -1298,7 +1298,7 @@ namespace tca {
               unsigned short cnt = 0;
               if(std::find(v3t.Vx2ID.begin(), v3t.Vx2ID.end(), ivx2.ID) != v3t.Vx2ID.end()) ++cnt;
               if(std::find(v3t.Vx2ID.begin(), v3t.Vx2ID.end(), jvx2.ID) != v3t.Vx2ID.end()) ++cnt;
-              if(cnt == slc.nPlane) {
+              if(cnt == slc.nPlanes) {
                 gotit = true;
                 break;
               } // cnt == slc.nPlanes
@@ -1445,7 +1445,7 @@ namespace tca {
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<" 3V"<<vx3.ID;
-        for(auto vx2id : vx3.Vx2ID) myprt<<" 2V"<<v2id;
+        for(auto v2id : vx3.Vx2ID) myprt<<" 2V"<<v2id;
         myprt<<" wire "<<vx3.Wire;
       } // prt
       slc.vtx3s.push_back(vx3);
@@ -2439,8 +2439,8 @@ namespace tca {
   void CompleteIncomplete3DVerticesInGaps(TCSlice& slc)
   {
     
-    if(!slc.UseAlg[kComp3DVxIG]) return;
-    if(slc.NumPlanes != 3) return;
+    if(!tcc.useAlg[kComp3DVxIG]) return;
+    if(slc.nPlanes != 3) return;
 
     bool prt = (tcc.modes[kDebug] && tcc.dbgSlc && tcc.dbgAlg[kComp3DVxIG]);
     if(prt) mf::LogVerbatim("TC")<<"Inside CI3DVIG:";
