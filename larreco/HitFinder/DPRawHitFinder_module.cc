@@ -201,7 +201,9 @@ namespace hit{
     bool   fDoMergePeaks;
     double fMergeADCSumThreshold;
     double fMergeMaxADCThreshold;
-    double fMinRelativePeakHeight;
+    double fMinRelativePeakHeightLeft;
+    double fMinRelativePeakHeightRight;
+    double fMergeMaxADCLimit;
     double fWidthNormalization;
     int    fLongMaxHits;
     int    fLongPulseWidth;
@@ -292,7 +294,9 @@ void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
     fDoMergePeaks	   	 = p.get< bool   >("DoMergePeaks");
     fMergeADCSumThreshold  	 = p.get< double >("MergeADCSumThreshold");
     fMergeMaxADCThreshold  	 = p.get< double >("MergeMaxADCThreshold");
-    fMinRelativePeakHeight	 = p.get< double >("MinRelativePeakHeight");
+    fMinRelativePeakHeightLeft	 = p.get< double >("MinRelativePeakHeightLeft");
+    fMinRelativePeakHeightRight	 = p.get< double >("MinRelativePeakHeightRight");
+    fMergeMaxADCLimit      	 = p.get< double >("MergeMaxADCLimit");
     fWidthNormalization    	 = p.get< double >("WidthNormalization");
     fLongMaxHits           	 = p.get< double >("LongMaxHits");
     fLongPulseWidth        	 = p.get< double >("LongPulseWidth");
@@ -1119,7 +1123,7 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float> signalVec
         // Loop until no more merged pulses (or candidates in this ROI)
         while(checkNextHit)
         {
-            // group hits if start time of the next pulse is < end time + fGroupMaxDistance of current pulse and if intermediate signal between two pulses doesn't go below fMinBinToGroup
+            // group hits if start time of the next pulse is < end time + fGroupMaxDistance of current pulse and if intermediate signal between two pulses doesn't go below fMinBinToGroup and if the hits are not all above the merge max adc limit
             int NextStartT = std::get<0>(*timeValsVecItr);
 	    
 	    double MinADC = signalVec[endT];
@@ -1162,7 +1166,7 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float> signalVec
 		//Merge peaks within a group
 		if(fDoMergePeaks)
 		{
-		    if( signalVec[NextMaxT] <= signalVec[CurrentMaxT] && ( ( signalVec[NextMaxT] < fMergeMaxADCThreshold*signalVec[CurrentMaxT] &&  NextSumADC < fMergeADCSumThreshold*CurrentSumADC ) || (signalVec[NextMaxT]-signalVec[NextStartT]) < fMinRelativePeakHeight*signalVec[CurrentMaxT]  ) )
+		    if( signalVec[NextMaxT] <= signalVec[CurrentMaxT] && ( ( signalVec[NextMaxT] < fMergeMaxADCThreshold*signalVec[CurrentMaxT] &&  NextSumADC < fMergeADCSumThreshold*CurrentSumADC ) || (signalVec[NextMaxT]-signalVec[NextStartT]) < fMinRelativePeakHeightRight*signalVec[CurrentMaxT]  ) && ( signalVec[NextMaxT] <= fMergeMaxADCLimit ) )
 		    {
 		    	maxT=CurrentMaxT;
 		    	startT=CurrentStartT;
@@ -1171,7 +1175,7 @@ void hit::DPRawHitFinder::mergeCandidatePeaks(const std::vector<float> signalVec
 		    	peakVals.pop_back();
                     	peakVals.emplace_back(maxT,widT,startT,endT);
 		    }
-		    else if( signalVec[NextMaxT] > signalVec[CurrentMaxT] && ( ( signalVec[CurrentMaxT] < fMergeMaxADCThreshold*signalVec[NextMaxT] &&  CurrentSumADC < fMergeADCSumThreshold*NextSumADC ) || (signalVec[CurrentMaxT]-signalVec[CurrentEndT]) < fMinRelativePeakHeight*signalVec[NextMaxT]  ) )
+		    else if( signalVec[NextMaxT] > signalVec[CurrentMaxT] && ( ( signalVec[CurrentMaxT] < fMergeMaxADCThreshold*signalVec[NextMaxT] &&  CurrentSumADC < fMergeADCSumThreshold*NextSumADC ) || (signalVec[CurrentMaxT]-signalVec[CurrentEndT]) < fMinRelativePeakHeightLeft*signalVec[NextMaxT]  ) && ( signalVec[CurrentMaxT] <= fMergeMaxADCLimit ) )
 		    {
 		    	maxT=NextMaxT;
 		    	startT=CurrentStartT;
