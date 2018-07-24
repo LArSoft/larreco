@@ -4383,7 +4383,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     mf::LogVerbatim myprt("TC");
     if(prtS3) {
       myprt<<someText<<"************ Showers ************\n";
-      myprt<<someText<<"  Slc:UID   Vtx  parUID  ___ChgPos____ ______Dir_____ ____posInPln____ ___projInPln____ 2D shower UIDs\n";
+      myprt<<someText<<"   Slc:UID   Vtx  parUID  ___ChgPos____ ______Dir_____ ____posInPln____ ___projInPln____ 2D shower UIDs\n";
       for(int isl = 0; isl < slices.size(); ++isl) {
         if(debug.Slice >= 0 && isl != debug.Slice) continue;
         auto& slc = slices[isl];
@@ -4395,7 +4395,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(prtP) {
       myprt<<someText<<"************ PFParticles ************\n";
       myprt<<someText;
-      myprt<<"  Slc:UID sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____dEdx____   Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
+      myprt<<"   Slc:UID sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____dEdx____   Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
       for(int isl = 0; isl < slices.size(); ++isl) {
         if(debug.Slice >= 0 && isl != debug.Slice) continue;
         auto& slc = slices[isl];
@@ -4407,7 +4407,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(prt3V) {
       // print out 3D vertices
       myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_UID__*******\n";
-      myprt<<someText<<"  Slc:UID Cstat TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? Nu? nTru";
+      myprt<<someText<<"   Slc:UID Cstat TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? Nu? nTru";
       myprt<<" ___________2D_Pos____________ _____Tj UIDs________\n";
       for(int isl = 0; isl < slices.size(); ++isl) {
         if(debug.Slice >= 0 && isl != debug.Slice) continue;
@@ -4421,7 +4421,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(prt2V) {
       // print out 2D vertices
       myprt<<someText<<"************ 2D vertices ************\n";
-      myprt<<someText<<"  Slc:UID   CTP    wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D Tj UIDs\n";
+      myprt<<someText<<"   Slc:UID   CTP  wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D Tj UIDs\n";
       for(int isl = 0; isl < slices.size(); ++isl) {
         if(debug.Slice >= 0 && isl != debug.Slice) continue;
         auto& slc = slices[isl];
@@ -4433,7 +4433,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     } // prt2V
     if(prtT) {
       myprt<<someText<<"************ Trajectories ************\n";
-      myprt<<someText<<"  Slc:UID CTP Pass  Pts     W:T      Ang CS AveQ fnTj     W:T      Ang CS AveQ fnTj Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar  E*P mcpIndex  WorkID \n";
+      myprt<<someText<<"   Slc:UID CTP Pass  Pts     W:T      Ang CS AveQ fnTj     W:T      Ang CS AveQ fnTj Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar  E*P mcpIndex  WorkID \n";
       for(int isl = 0; isl < slices.size(); ++isl) {
         if(debug.Slice >= 0 && isl != debug.Slice) continue;
         auto& slc = slices[isl];
@@ -4454,12 +4454,12 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     auto& slc = slices[isl];
     myprt<<someText;
     std::string str = std::to_string(isl) + ":" + std::to_string(pfp.UID);
-    myprt<<std::setw(7)<<str;
+    myprt<<std::setw(8)<<str;
     // start and end stuff
     for(unsigned short startend = 0; startend < 2; ++startend) {
       str = "--";
       if(pfp.Vx3ID[startend] > 0) str = "3V" + std::to_string(slc.vtx3s[pfp.Vx3ID[startend]-1].UID);
-      myprt<<std::setw(5)<<str;
+      myprt<<std::setw(6)<<str;
       myprt<<std::fixed<<std::right<<std::setprecision(1);
       myprt<<std::setw(7)<<pfp.XYZ[startend][0];
       myprt<<std::setw(7)<<pfp.XYZ[startend][1];
@@ -4527,7 +4527,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     auto& slc = slices[isl];
     myprt<<someText;
     std::string str = std::to_string(isl) + ":" + std::to_string(vx3.UID);
-    myprt<<std::right<<std::setw(7)<<std::fixed<<str;
+    myprt<<std::right<<std::setw(8)<<std::fixed<<str;
     myprt<<std::setprecision(1);
     myprt<<std::right<<std::setw(7)<<vx3.TPCID.Cryostat;
     myprt<<std::right<<std::setw(5)<<vx3.TPCID.TPC;
@@ -4594,7 +4594,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     auto& slc = slices[isl];
     myprt<<someText;
     std::string str = std::to_string(isl) + ":" + std::to_string(vx2.UID);
-    myprt<<std::right<<std::setw(7)<<std::fixed<<str;
+    myprt<<std::right<<std::setw(8)<<std::fixed<<str;
     myprt<<std::right<<std::setw(6)<<vx2.CTP;
     myprt<<std::right<<std::setw(8)<<std::setprecision(0)<<std::nearbyint(vx2.Pos[0]);
     myprt<<std::right<<std::setw(5)<<std::setprecision(1)<<vx2.PosErr[0];
@@ -4635,7 +4635,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     auto& slc = slices[isl];
     myprt<<someText;
     std::string str = std::to_string(isl) + ":" + std::to_string(ss3.UID);
-    myprt<<std::fixed<<std::setw(7)<<str;
+    myprt<<std::fixed<<std::setw(8)<<str;
     str = "--"; 
     if(ss3.Vx3ID > 0) str = "3V" + std::to_string(slc.vtx3s[ss3.Vx3ID-1].UID);
     myprt<<std::setw(6)<<str;
@@ -4676,7 +4676,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     auto& slc = slices[isl];
     myprt<<someText;
     std::string str = std::to_string(isl) + ":" + std::to_string(tj.UID);
-    myprt<<std::fixed<<std::setw(7)<<str;
+    myprt<<std::fixed<<std::setw(8)<<str;
     myprt<<std::setw(6)<<tj.CTP;
     myprt<<std::setw(5)<<tj.Pass;
     //        myprt<<std::setw(5)<<tj.Pts.size();
