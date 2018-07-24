@@ -68,8 +68,7 @@ namespace cluster{
     int spread(unsigned int index,
                epsilon_neighbours_t *seeds,
                unsigned int cluster_id);
-    double dist(point_t *a, point_t *b);
-    double adjacent_intensity_dist(point_t *a, point_t *b);
+    float dist(point_t *a, point_t *b);
 
 
   }; // class DBScan3DAlg
