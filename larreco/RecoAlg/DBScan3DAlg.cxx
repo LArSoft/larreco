@@ -7,9 +7,11 @@
 #include <stdlib.h>
 
 cluster::DBScan3DAlg::DBScan3DAlg(fhicl::ParameterSet const& pset)
-  : epsilon(pset.get< double >("epsilon"))
+  : epsilon(pset.get< float >("epsilon"))
   , minpts(pset.get<unsigned int>("minpts"))
 {
+  // square epsilon to eliminate the use of sqrt later on
+  epsilon *= epsilon;
 }
 
 //----------------------------------------------------------
@@ -171,9 +173,10 @@ int cluster::DBScan3DAlg::spread(unsigned int index,
   return SUCCESS;
 }
 
-double cluster::DBScan3DAlg::dist(point_t *a, point_t *b)
+float cluster::DBScan3DAlg::dist(point_t *a, point_t *b)
 {
-  return sqrt(pow(a->sp->XYZ()[0] - b->sp->XYZ()[0], 2) +
-              pow(a->sp->XYZ()[1] - b->sp->XYZ()[1], 2) +
-              pow(a->sp->XYZ()[2] - b->sp->XYZ()[2], 2));
+  float dx = a->sp->XYZ()[0] - b->sp->XYZ()[0];
+  float dy = a->sp->XYZ()[1] - b->sp->XYZ()[1];
+  float dz = a->sp->XYZ()[2] - b->sp->XYZ()[2];
+  return dx*dx + dy*dy + dz*dz;
 }
