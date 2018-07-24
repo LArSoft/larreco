@@ -161,8 +161,23 @@ namespace {
     trkf::KMatrix<2, 2>::type temp1 = prod(inverr, errn);
     trkf::KMatrix<2, 2>::type temp2 = prod(temp1, temp1);
 
+    // KJK-FIXME: Ideally, the explicit type specification below
+    // ('trk::KVector<T>::type') should be replaced with the 'auto'
+    // keyword.  However, Boost 1.66.0a runs into a static-assert
+    // failure with the 'complexity' of vtemp2 not being 0.  I am not
+    // sure what the complexity means.
+    //
+    // If 'trkf::KVector<2>::type vtemp2 = prod(temp1, vtemp1)' is
+    // used below, then the GCC 7.3 compiler thinks there may be an
+    // uninitialized variable in vtemp2.  A workaround is to use the
+    // Boost interface that fills a default-constructed vector.  Note
+    // that this workaround may hide an actual problem.  It is the
+    // responsibility of the maintainer of this code to determine if
+    // an actual problem exists.
+
     trkf::KVector<2>::type vtemp1 = prod(inverr, defl);
-    trkf::KVector<2>::type vtemp2 = prod(temp1, vtemp1);
+    trkf::KVector<2>::type vtemp2;
+    prod(temp1, vtemp1, vtemp2);
     trkf::KVector<2>::type vtemp3 = prod(temp1, vtemp2);
     double derivk1 = -0.5 * trkf::trace(temp1) + 0.5 * inner_prod(defl, vtemp2);
     double derivk2 = 0.5 * trkf::trace(temp2) - inner_prod(defl, vtemp3);
