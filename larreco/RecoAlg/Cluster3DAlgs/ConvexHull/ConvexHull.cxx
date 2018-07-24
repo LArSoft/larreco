@@ -76,10 +76,21 @@ float ConvexHull::Area() const
     // Compute the area by taking advantage of
     // 1) the ability to decompose a convex hull into triangles,
     // 2) the ability to use the cross product to calculate the area
-    // So, the technique is to pick a point (for technical reasons we use 0,0)
+    // So, the technique is to pick a point which we take as the center of the polygon
     // and then sum the signed area of triangles formed from this point to two adjecent
     // vertices on the convex hull.
-    Point center(0.,0.,0);
+    float x = 0.;
+    float y = 0.;
+    float n = float(fConvexHull.size());
+    
+    for(const auto& point : fConvexHull)
+    {
+        x += std::get<0>(point);
+        y += std::get<1>(point);
+    }
+    
+    Point center(x/n,y/n,0);
+    
     Point lastPoint = fConvexHull.front();
     
     for(const auto& point : fConvexHull)
