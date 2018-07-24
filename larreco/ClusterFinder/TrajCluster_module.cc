@@ -92,6 +92,7 @@ namespace cluster {
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/ArtDataHelper/HitCreator.h" // recob::HitCollectionAssociator
+#include "lardataobj/RecoBase/Event.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
@@ -136,11 +137,6 @@ namespace cluster {
     if(pset.has_key("SlicerModuleLabel")) fSlicerModuleLabel = pset.get<art::InputTag>("SlicerModuleLabel");
     fHitTruthModuleLabel = "NA";
     if(pset.has_key("HitTruthModuleLabel")) fHitTruthModuleLabel = pset.get<art::InputTag>("HitTruthModuleLabel");
-
-    if(fHitModuleLabel != "NA" && fSlicerModuleLabel != "NA") {
-      throw art::Exception(art::errors::Configuration)<<"Error: you specified both sliced hits '"<<fSlicerModuleLabel.label()<<"' and un-sliced hits '"<<fHitModuleLabel.label()<<"' for input. ";
-    }
-
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
 
@@ -215,54 +211,46 @@ namespace cluster {
     // one TPC
     
     // Define a vector of indices into inputHits (= evt.allHits in TrajClusterAlg) 
-    // for each slice for hits associated with 3D-matched PFParticles that were found 
-    // with simple 3D clustering (else just the full collection)
+    // for each slice for hits associated with 3D-clustered SpacePoints
     std::vector<std::vector<unsigned int>> slHitsVec;
     unsigned int nInputHits = 0;
     // get a handle for the hit collection
     auto inputHits = art::Handle<std::vector<recob::Hit>>();
+    if(!evt.getByLabel(fHitModuleLabel, inputHits)) {
+      std::cout<<"Failed to get a hits handle\n";
+      return;
+    }
+    // This is a pointer to a vector of recob::Hits that exist in the event. The hits
+    // are not copied.
+    fTCAlg->SetInputHits(*inputHits);
+    nInputHits = (*inputHits).size();
     if(fSlicerModuleLabel != "NA") {
-      // Expecting to find sliced hits from PFParticles -> Clusters -> Hits
-      auto pfpsHandle = evt.getValidHandle<std::vector<recob::PFParticle>>(fSlicerModuleLabel);
-      std::vector<art::Ptr<recob::PFParticle>> pfps;
-      art::fill_ptr_vector(pfps, pfpsHandle);
-      art::FindManyP <recob::Cluster> cluFromPfp(pfpsHandle, evt, fSlicerModuleLabel);
-      auto clusHandle = evt.getValidHandle<std::vector<recob::Cluster>>(fSlicerModuleLabel);
-      art::FindManyP <recob::Hit> hitFromClu(clusHandle, evt, fSlicerModuleLabel);
-      if(evt.getByLabel(fSlicerModuleLabel, inputHits)) {
-        // TODO: Ensure that all hits are in the same TPC. Create separate slices for
-        // each TPC if that is not the case
-        fTCAlg->SetInputHits(*inputHits);
-        nInputHits = (*inputHits).size();
-      } else {
-        std::cout<<"Failed to get a hits handle for "<<fSlicerModuleLabel<<"\n";
-        return;
-      }
-      for(size_t ii = 0; ii < pfps.size(); ++ii) {
-        std::vector<unsigned int> slhits;
-        auto& clus_in_pfp = cluFromPfp.at(ii);
-        for(auto& clu : clus_in_pfp) {
-          auto& hits_in_clu = hitFromClu.at(clu.key());
-          for(auto& hit : hits_in_clu) slhits.push_back(hit.key());
-        } // clu
+      // Expecting to find sliced hits from Event -> Hits
+      auto evtHandle = evt.getValidHandle<std::vector<recob::Event>>(fSlicerModuleLabel);
+      std::vector<art::Ptr<recob::Event>> evts;
+      art::fill_ptr_vector(evts, evtHandle);
+      art::FindManyP<recob::Hit> hitFromEvt(evtHandle, evt, fSlicerModuleLabel);
+      for(size_t iev = 0; iev < evts.size(); ++iev) {
+        auto& hit_in_evt = hitFromEvt.at(iev);
+        if(hit_in_evt.size() < 3) continue;
+        std::vector<unsigned int> slhits(hit_in_evt.size());
+        unsigned int indx = 0;
+        if(hit_in_evt[0].id() != inputHits.id()) throw cet::exception("TrajClusterModule")<<"Input hits from '"<<fHitModuleLabel.label()<<"' have a different product id than hits referenced in '"<<fSlicerModuleLabel.label()<<"'\n";
+        for(auto& hit : hit_in_evt) {
+          if(hit.key() > nInputHits - 1) throw cet::exception("TrajClusterModule")<<"Found an invalid slice index "<<hit.key()<<" to the input hit collection of size "<<nInputHits<<"\n";
+          slhits[indx] = hit.key();
+          ++indx;
+        } // hit
+        std::cout<<"evt "<<iev<<" hit_in_evt size "<<hit_in_evt.size()<<"\n";
         if(slhits.size() > 2) slHitsVec.push_back(slhits);
-      } // ii
+      } // iev
     } else {
       // There was no pre-processing of the hits to define logical slices
       // so just consider all hits as one slice
-      // pass a pointer to the full hit collection to TrajClusterAlg
-      if(!evt.getByLabel(fHitModuleLabel, inputHits)) {
-        std::cout<<"Failed to get a hits handle\n";
-        return;
-      }
-      // This is a pointer to a vector of recob::Hits that exist in the event. The hits
-      // are not copied.
-      fTCAlg->SetInputHits(*inputHits);
-      nInputHits = (*inputHits).size();
       slHitsVec.resize(1);
       slHitsVec[0].resize(nInputHits);
       for(unsigned int iht = 0; iht < nInputHits; ++iht) slHitsVec[0][iht] = iht;
-    } // no input PFParticles
+    } // no input slices
     
     // do an exhaustive check to ensure that a hit only appears in one slice
     if(slHitsVec.size() > 1) {
@@ -270,7 +258,7 @@ namespace cluster {
       unsigned short nHitsInSlices = 0;
       for(auto& slhits : slHitsVec) {
         for(unsigned short indx = 0; indx < slhits.size(); ++indx) {
-          if(slhits[indx] > nInputHits - 1) throw cet::exception("TrajClusterModule")<<"Found an invalid slice reference to the input hit collection";
+          if(slhits[indx] > nInputHits - 1) throw cet::exception("TrajClusterModule")<<"Found an invalid slice index AGAIN "<<slhits[indx]<<" to the input hit collection of size "<<nInputHits;
           if(inSlice[slhits[indx]]) throw cet::exception("TrajClusterModule")<<"Found a hit in two different slices";
           inSlice[slhits[indx]] = true;
           ++nHitsInSlices;
