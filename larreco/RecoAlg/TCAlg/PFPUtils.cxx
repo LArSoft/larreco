@@ -493,7 +493,7 @@ namespace tca {
     pos[1] = tVec[0];
     pos[2] = tVec[1];
     rCorr = 1;
-    std::cout<<"FTP3s: "<<useID.size()<<" cntInPln "<<cntInPln[0]<<" "<<cntInPln[1]<<" "<<cntInPln[2]<<"\n";
+//    std::cout<<"FTP3s: "<<useID.size()<<" cntInPln "<<cntInPln[0]<<" "<<cntInPln[1]<<" "<<cntInPln[2]<<"\n";
     return true;
 
   } // FitTp3s
@@ -595,8 +595,7 @@ namespace tca {
     // Calculate the 3D-matching completeness of the set of Tjs in pfp.TjIDs and store in pfp.EffPur.
     // The completeness for each Tj is put in pfp.TjCompleteness. The TP-weighted average completeness
     // is put in pfp.EffPur. This function also fits the matching points to a 3D line and puts the
-    // position and direction in pfp.XYZ[0] and pfp.Dir[0]. The absolute value of the linear correlation
-    // coefficients are averaged and stored in pfp.AspecRatio. The pfp.TP3s vector is optionally filled.
+    // position and direction in pfp.XYZ[0] and pfp.Dir[0]. The pfp.TP3s vector is optionally filled.
     
     if(pfp.TjIDs.size() < 2) return;
     if(tcc.match3DCuts[0] <= 0) return;
