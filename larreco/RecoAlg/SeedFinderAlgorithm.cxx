@@ -535,7 +535,7 @@ namespace trkf {
         // Check seed occupancy
         
         uint32_t LowestChanInSeed[3], HighestChanInSeed[3];
-        double Occupancy[3];
+        double Occupancy[] = {0., 0., 0.};
         int    nHitsPerView[] = {0,0,0};
         
         for(auto itP = HitsInThisSeed.begin(); itP!=HitsInThisSeed.end(); ++itP)
