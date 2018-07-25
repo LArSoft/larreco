@@ -246,12 +246,13 @@ namespace cluster {
       } // iev
     } else {
       // There was no pre-processing of the hits to define logical slices
-      // so just consider all hits as one slice
+      // so put all hits in one slice
       slHitsVec.resize(1);
       slHitsVec[0].resize(nInputHits);
       for(unsigned int iht = 0; iht < nInputHits; ++iht) slHitsVec[0][iht] = iht;
     } // no input slices
     
+/*
     // do an exhaustive check to ensure that a hit only appears in one slice
     if(slHitsVec.size() > 1) {
       std::vector<bool> inSlice(nInputHits, false);
@@ -266,7 +267,7 @@ namespace cluster {
       } // slhits
       if(tca::tcc.modes[tca::kDebug]) std::cout<<"Found "<<slHitsVec.size()<<" slices, "<<nInputHits<<" input hits and "<<nHitsInSlices<<" hits in slices\n";
     } // > 1 slice
-
+*/
     // First sort the hits in each slice and then reconstruct
     for(auto& slhits : slHitsVec) {
       // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
