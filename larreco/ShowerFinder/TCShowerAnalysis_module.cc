@@ -20,6 +20,7 @@
 #include "larcore/Geometry/Geometry.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
+#include "larsim/MCCheater/BackTrackerService.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "nusimdata/SimulationBase/MCFlux.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
@@ -50,6 +51,7 @@ namespace shower {
     void analyze(const art::Event& evt);
    
     void showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir);
+    void showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits);
  
   protected:
 
@@ -151,7 +153,7 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
 	if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) {
 	  double elep =  mctruth->GetNeutrino().Lepton().E();
 	  std::cout << "ELECTRON ENERGY: " << elep << std::endl;
-	  if (elep > 1 && elep < 2) {
+	  if (elep > 4 && elep < 5) {
 	    showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
 	  }
 	}
@@ -185,7 +187,7 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
   double shwTwoTime = detprop->ConvertXToTicks(shwvtx[0]+shwort[0], collectionPlane);
   double shwTwoWire = geom->WireCoordinate(shwvtx[1]+shwort[1], shwvtx[2]+shwort[2], collectionPlane);
 
-  TH1F* temp = new TH1F("tempz", "temp", 15, 0, 5);
+  TH1F* temp = new TH1F("temp", "temp", 15, 0, 5);
 
   for (size_t i = 0; i < showerhits.size(); ++i) {
     if (showerhits[i]->WireID().Plane != collectionPlane.Plane) continue;
@@ -222,6 +224,29 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
   }
 
 } // showerProfile
+
+// -------------------------------------------------
+
+void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits) {
+
+  art::ServiceHandle<cheat::BackTrackerService> btserv;
+  std::map<int,double> trkID_E;  
+
+  for (size_t i = 0; i < allhits.size(); ++i) {
+
+    art::Ptr<recob::Hit> hit = allhits[i];
+    std::vector<sim::TrackIDE> trackIDs = btserv->HitToEveTrackIDEs(hit);
+
+    for (size_t j = 0; j < trackIDs.size(); ++j) {
+      trkID_E[std::abs(trackIDs[j].trackID)] += trackIDs[j].energy;
+    } // loop through track IDE
+
+  } // loop through all hits
+
+  return;
+} // showerProfileTrue
+
+// -------------------------------------------------
 
 DEFINE_ART_MODULE(shower::TCShowerAnalysis)
 
