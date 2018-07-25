@@ -21,7 +21,7 @@
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "lardataobj/RecoBase/Event.h"
+#include "lardataobj/RecoBase/Slice.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/DBScan3DAlg.h"
 #include "larcore/Geometry/Geometry.h"
@@ -73,13 +73,8 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
   , fDBScan(p.get< fhicl::ParameterSet >("DBScan3DAlg"))
   , fMinHitDis(p.get< double >("MinHitDis"))
 {
-  produces< std::vector<recob::Cluster> >();
-  produces< std::vector<recob::PFParticle> >();
-  produces< std::vector<recob::Event> >();
-  produces< art::Assns<recob::Cluster, recob::Hit> >();
-  produces< art::Assns<recob::PFParticle, recob::Cluster> >();
-  produces< art::Assns<recob::PFParticle, recob::SpacePoint> >();
-  produces< art::Assns<recob::Event, recob::Hit> >();
+  produces< std::vector<recob::Slice> >();
+  produces< art::Assns<recob::Slice, recob::Hit> >();
 
   fGeom = &*(art::ServiceHandle<geo::Geometry>());
   fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -90,24 +85,12 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
 
 void cluster::DBCluster3D::produce(art::Event & evt)
 {
-  std::unique_ptr<std::vector<recob::Cluster>> 
-    clucol(new std::vector<recob::Cluster>);
-  std::unique_ptr<std::vector<recob::PFParticle>> 
-    pfpcol(new std::vector<recob::PFParticle>);
-  std::unique_ptr<std::vector<recob::Event>> 
-    evtcol(new std::vector<recob::Event>);
 
-  std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>> 
-    cls_hit_assn(new art::Assns<recob::Cluster, recob::Hit>);
+  std::unique_ptr<std::vector<recob::Slice>> 
+    slcCol(new std::vector<recob::Slice>);
 
-  std::unique_ptr<art::Assns<recob::PFParticle, recob::Cluster>>
-    pfp_cls_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
-
-  std::unique_ptr<art::Assns<recob::PFParticle, recob::SpacePoint>>
-    pfp_sps_assn(new art::Assns<recob::PFParticle, recob::SpacePoint>);
-
-  std::unique_ptr<art::Assns<recob::Event, recob::Hit>> 
-    evt_hit_assn(new art::Assns<recob::Event, recob::Hit>);
+  std::unique_ptr<art::Assns<recob::Slice, recob::Hit>> 
+    slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
 
   auto hitsHandle = evt.getValidHandle< std::vector<recob::Hit> >(fHitModuleLabel);
   auto spsHandle = evt.getValidHandle< std::vector<recob::SpacePoint> >(fSpacePointModuleLabel);
@@ -125,24 +108,24 @@ void cluster::DBCluster3D::produce(art::Event & evt)
   fDBScan.init(sps);
   fDBScan.dbscan();
 
-  //Find number of pfparticles
+  //Find number of slices
   int maxid = INT_MIN;
   for (size_t i = 0; i<fDBScan.points.size(); ++i){
 //    std::cout<<"Space point index "<<i<<" "<<fDBScan.points[i].sp.key()<<" "<<fDBScan.points[i].cluster_id<<std::endl;
     if (fDBScan.points[i].cluster_id > maxid) maxid = fDBScan.points[i].cluster_id;
   }
-  size_t npfp = 0;
-  if (maxid>=0) npfp = maxid + 1;
+  size_t nslc = 0;
+  if (maxid>=0) nslc = maxid + 1;
 
-  //Save hits associated with each pfparticle
-  std::vector<std::vector<art::Ptr<recob::Hit>>> cluhits(npfp);
+  //Save hits associated with each slice
+  std::vector<std::vector<art::Ptr<recob::Hit>>> slcHits(nslc);
   //Save hits on each PlaneID with pfparticle index
   std::map<geo::PlaneID, std::vector<std::pair<art::Ptr<recob::Hit>, unsigned int>>> hitmap;
   for (auto &hit : hits){
     auto &sps = spFromHit.at(hit.key());
     if (sps.size()){//found associated space point
       if (fDBScan.points[sps[0].key()].cluster_id>=0){
-        cluhits[fDBScan.points[sps[0].key()].cluster_id].push_back(hit);
+        slcHits[fDBScan.points[sps[0].key()].cluster_id].push_back(hit);
         hitmap[geo::PlaneID(hit->WireID())].push_back(std::make_pair(hit, fDBScan.points[sps[0].key()].cluster_id));
       }
     }
@@ -151,8 +134,8 @@ void cluster::DBCluster3D::produce(art::Event & evt)
   //Save hits not associated with any spacepoints
   for (auto &hit : hits){
     bool found = false;
-    for (size_t i = 0; i<cluhits.size(); ++i){
-      if (std::find(cluhits[i].begin(), cluhits[i].end(), hit) != cluhits[i].end()){
+    for (size_t i = 0; i<slcHits.size(); ++i){
+      if (std::find(slcHits[i].begin(), slcHits[i].end(), hit) != slcHits[i].end()){
         found = true;
         break;
       }
@@ -163,36 +146,36 @@ void cluster::DBCluster3D::produce(art::Event & evt)
       double x0 = hit->WireID().Wire;
       double y0 = hit->PeakTime() * UnitsPerTick;
       double mindis = DBL_MAX;
-      unsigned pfpindex = UINT_MAX;
-      for (auto &hit2 : hitmap[geo::PlaneID(hit->WireID())]){
-        double x1 = hit2.first->WireID().Wire;
-        double y1 = hit2.first->PeakTime() * UnitsPerTick;
-        double dis = sqrt(pow(x1-x0,2)+pow(y1-y0,2));
+      unsigned slcIndex = UINT_MAX;
+      for (auto &hit2 : hitmap[geo::PlaneID(hit->WireID())]) {
+        double dx = hit2.first->WireID().Wire - x0;
+        double dy = hit2.first->PeakTime() * UnitsPerTick - y0;
+        double dis = dx*dx + dy*dy;
         if (dis<mindis){
           mindis = dis;
-          pfpindex = hit2.second;
+          slcIndex = hit2.second;
         }
       }
-      if (pfpindex != UINT_MAX && mindis < fMinHitDis){
-        cluhits[pfpindex].push_back(hit);
+      if (slcIndex != UINT_MAX && mindis < fMinHitDis){
+        slcHits[slcIndex].push_back(hit);
       }
     }
   }
 
-  //Save spacepoints for each pfparticle
-  std::vector<std::vector<art::Ptr<recob::SpacePoint>>> sps_in_pfp(npfp);
+  //Save spacepoints for each slice
+  std::vector<std::vector<art::Ptr<recob::SpacePoint>>> sps_in_slc(nslc);
   for (size_t i = 0; i<fDBScan.points.size(); ++i){
     if (fDBScan.points[i].cluster_id>=0){
-      sps_in_pfp[fDBScan.points[i].cluster_id].push_back(sps[i]);
+      sps_in_slc[fDBScan.points[i].cluster_id].push_back(sps[i]);
     }
   } // i
 
   // calculate the slice aspect ratios
-  std::vector<float> aspectRatio(fDBScan.points.size(), 0);
-  for(size_t isl = 0; isl < sps_in_pfp.size(); ++isl) {
+  std::vector<float> aspectRatio(nslc, 0);
+  for(size_t isl = 0; isl < nslc; ++isl) {
     double sumx = 0, sumy = 0., sumz = 0., sumx2 = 0, sumy2 = 0, sumz2 = 0;
     double sumxy = 0, sumxz = 0;
-    for(auto& spt : sps_in_pfp[isl]) {
+    for(auto& spt : sps_in_slc[isl]) {
       double xx = spt->XYZ()[0];
       double yy = spt->XYZ()[1];
       double zz = spt->XYZ()[2];
@@ -205,7 +188,7 @@ void cluster::DBCluster3D::produce(art::Event & evt)
       sumxy += xx * yy;
       sumxz += xx * zz;
     } // spt
-    double sum = sps_in_pfp[isl].size();
+    double sum = sps_in_slc[isl].size();
     double delta = sum * sumx2 - sumx * sumx;
     if(delta <= 0) continue;
     float cnt = 0.;
@@ -221,46 +204,14 @@ void cluster::DBCluster3D::produce(art::Event & evt)
     }
     if(cnt > 1) aspectRatio[isl] /= cnt;
   } // isl
-
-  for (size_t i = 0; i < npfp; ++i){
-    //Save pfparticle
-    int pdgCode = 0;
-    size_t self = pfpcol->size();
-    size_t parent = 0;
-    std::vector<size_t> daughters;
-    pfpcol->push_back(recob::PFParticle(pdgCode, self, parent, daughters));
-    evtcol->push_back(recob::Event(self));
-    //Save hit-event association
-    util::CreateAssn(*this, evt, *evtcol, cluhits[i], *evt_hit_assn);
-    size_t cluStart = clucol->size();
-    //Find hits in each planeid
-    std::map<geo::PlaneID, std::vector<art::Ptr<recob::Hit>>> hitsview;
-    for (auto &hit: cluhits[i]){
-      hitsview[geo::PlaneID(hit->WireID())].push_back(hit);
-    }
-    for (auto & vhits : hitsview){
-      if (vhits.second.size()){
-        //Save cluster
-        float start_wire = 0; float sigma_start_wire = 0; float start_tick = 0; float sigma_start_tick = 0; float start_charge = 0; float start_angle = 0; float start_opening = 0; float end_wire = 0; float sigma_end_wire = 0; float end_tick = 0; float sigma_end_tick = 0; float end_charge = 0; float end_angle = 0; float end_opening = 0; float integral = 0; float integral_stddev = 0; float summedADC = 0; float summedADC_stddev = 0; unsigned int n_hits = vhits.second.size(); float multiple_hit_density = 0; float width = 0; size_t ID = clucol->size(); geo::View_t view = vhits.second[0]->View(); geo::PlaneID plane = vhits.first;
-        clucol->push_back(recob::Cluster(start_wire, sigma_start_wire, start_tick, sigma_start_tick, start_charge, start_angle, start_opening, end_wire, sigma_end_wire, end_tick, sigma_end_tick, end_charge, end_angle, end_opening, integral, integral_stddev, summedADC, summedADC_stddev, n_hits, multiple_hit_density, width, ID, view, plane));
-        //Save hit-cluster association
-        util::CreateAssn(*this, evt, *clucol, vhits.second, *cls_hit_assn);
-      }
-    }
-    size_t cluEnd = clucol->size();
-    //Save cluster-pfparticle association
-    util::CreateAssn(*this, evt, *pfpcol, *clucol, *pfp_cls_assn, cluStart, cluEnd);
-    //Save sps-pfparticle association
-    util::CreateAssn(*this, evt, *pfpcol, sps_in_pfp[i], *pfp_sps_assn);
-  }
-    
-  evt.put(std::move(pfpcol));
-  evt.put(std::move(clucol));
-  evt.put(std::move(evtcol));
-  evt.put(std::move(cls_hit_assn));
-  evt.put(std::move(pfp_cls_assn));
-  evt.put(std::move(pfp_sps_assn));
-  evt.put(std::move(evt_hit_assn));
+  
+  for(size_t isl = 0; isl < nslc; ++isl) {
+    int id = isl + 1;
+    slcCol->push_back(recob::Slice(id, aspectRatio[isl]));
+    util::CreateAssn(*this, evt, *slcCol, slcHits[isl], *slc_hit_assn);
+  } // i
+  evt.put(std::move(slcCol));
+  evt.put(std::move(slc_hit_assn));
 }
 
 DEFINE_ART_MODULE(cluster::DBCluster3D)
