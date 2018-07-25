@@ -185,7 +185,42 @@ void cluster::DBCluster3D::produce(art::Event & evt)
     if (fDBScan.points[i].cluster_id>=0){
       sps_in_pfp[fDBScan.points[i].cluster_id].push_back(sps[i]);
     }
-  }
+  } // i
+
+  // calculate the slice aspect ratios
+  std::vector<float> aspectRatio(fDBScan.points.size(), 0);
+  for(size_t isl = 0; isl < sps_in_pfp.size(); ++isl) {
+    double sumx = 0, sumy = 0., sumz = 0., sumx2 = 0, sumy2 = 0, sumz2 = 0;
+    double sumxy = 0, sumxz = 0;
+    for(auto& spt : sps_in_pfp[isl]) {
+      double xx = spt->XYZ()[0];
+      double yy = spt->XYZ()[1];
+      double zz = spt->XYZ()[2];
+      sumx += xx;
+      sumy += yy;
+      sumz += zz;
+      sumx2 += xx * xx;
+      sumy2 += yy * yy;
+      sumz2 += zz * zz;
+      sumxy += xx * yy;
+      sumxz += xx * zz;
+    } // spt
+    double sum = sps_in_pfp[isl].size();
+    double delta = sum * sumx2 - sumx * sumx;
+    if(delta <= 0) continue;
+    float cnt = 0.;
+    double arg = sum * sumy2 - sumy * sumy;
+    if(arg > 0) {
+      aspectRatio[isl] += std::abs(sum * sumxy - sumx * sumy) / sqrt(delta * arg);
+      ++cnt;
+    }
+    arg = sum * sumz2 - sumz * sumz;
+    if(arg > 0) {
+      aspectRatio[isl] += std::abs(sum * sumxz - sumx * sumz) / sqrt(delta * arg);
+      ++cnt;
+    }
+    if(cnt > 1) aspectRatio[isl] /= cnt;
+  } // isl
 
   for (size_t i = 0; i < npfp; ++i){
     //Save pfparticle
