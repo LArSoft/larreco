@@ -64,7 +64,7 @@ namespace cluster {
 //    TTree* crtree;
 
     art::InputTag fHitModuleLabel;
-    art::InputTag fSlicerModuleLabel;
+    art::InputTag fSliceModuleLabel;
     art::InputTag fHitTruthModuleLabel;
     
     bool fDoWireAssns;
@@ -92,7 +92,7 @@ namespace cluster {
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/ArtDataHelper/HitCreator.h" // recob::HitCollectionAssociator
-#include "lardataobj/RecoBase/Event.h"
+#include "lardataobj/RecoBase/Slice.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/EndPoint2D.h"
@@ -133,8 +133,8 @@ namespace cluster {
 
     fHitModuleLabel = "NA";
     if(pset.has_key("HitModuleLabel")) fHitModuleLabel = pset.get<art::InputTag>("HitModuleLabel");
-    fSlicerModuleLabel = "NA";
-    if(pset.has_key("SlicerModuleLabel")) fSlicerModuleLabel = pset.get<art::InputTag>("SlicerModuleLabel");
+    fSliceModuleLabel = "NA";
+    if(pset.has_key("SliceModuleLabel")) fSliceModuleLabel = pset.get<art::InputTag>("SliceModuleLabel");
     fHitTruthModuleLabel = "NA";
     if(pset.has_key("HitTruthModuleLabel")) fHitTruthModuleLabel = pset.get<art::InputTag>("HitTruthModuleLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
@@ -202,7 +202,7 @@ namespace cluster {
   void TrajCluster::produce(art::Event & evt)
   {
     // Get a single hit collection from a HitsModuleLabel or multiple sets of "sliced" hits
-    // (aka clusters of hits that are close to each other in 3D) from a SlicerModuleLabel. 
+    // (aka clusters of hits that are close to each other in 3D) from a SliceModuleLabel. 
     // A pointer to the full hit collection is passed to TrajClusterAlg. The hits that are 
     // in each slice are tracked to find 2D trajectories (that become clusters), 
     // 2D vertices (EndPoint2D), 3D vertices, PFParticles and Showers. These data products
@@ -224,26 +224,26 @@ namespace cluster {
     // are not copied.
     fTCAlg->SetInputHits(*inputHits);
     nInputHits = (*inputHits).size();
-    if(fSlicerModuleLabel != "NA") {
+    if(fSliceModuleLabel != "NA") {
       // Expecting to find sliced hits from Event -> Hits
-      auto evtHandle = evt.getValidHandle<std::vector<recob::Event>>(fSlicerModuleLabel);
-      std::vector<art::Ptr<recob::Event>> evts;
-      art::fill_ptr_vector(evts, evtHandle);
-      art::FindManyP<recob::Hit> hitFromEvt(evtHandle, evt, fSlicerModuleLabel);
-      for(size_t iev = 0; iev < evts.size(); ++iev) {
-        auto& hit_in_evt = hitFromEvt.at(iev);
-        if(hit_in_evt.size() < 3) continue;
-        std::vector<unsigned int> slhits(hit_in_evt.size());
+      auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
+      std::vector<art::Ptr<recob::Slice>> slices;
+      art::fill_ptr_vector(slices, slcHandle);
+      art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
+      for(size_t isl = 0; isl < slices.size(); ++isl) {
+        auto& hit_in_slc = hitFromSlc.at(isl);
+        if(hit_in_slc.size() < 3) continue;
+        std::vector<unsigned int> slhits(hit_in_slc.size());
         unsigned int indx = 0;
-        if(hit_in_evt[0].id() != inputHits.id()) throw cet::exception("TrajClusterModule")<<"Input hits from '"<<fHitModuleLabel.label()<<"' have a different product id than hits referenced in '"<<fSlicerModuleLabel.label()<<"'\n";
-        for(auto& hit : hit_in_evt) {
+        if(hit_in_slc[0].id() != inputHits.id()) throw cet::exception("TrajClusterModule")<<"Input hits from '"<<fHitModuleLabel.label()<<"' have a different product id than hits referenced in '"<<fSliceModuleLabel.label()<<"'\n";
+        for(auto& hit : hit_in_slc) {
           if(hit.key() > nInputHits - 1) throw cet::exception("TrajClusterModule")<<"Found an invalid slice index "<<hit.key()<<" to the input hit collection of size "<<nInputHits<<"\n";
           slhits[indx] = hit.key();
           ++indx;
         } // hit
-        std::cout<<"evt "<<iev<<" hit_in_evt size "<<hit_in_evt.size()<<"\n";
+        std::cout<<"slc "<<isl<<" hit_in_slc size "<<hit_in_slc.size()<<"\n";
         if(slhits.size() > 2) slHitsVec.push_back(slhits);
-      } // iev
+      } // isl
     } else {
       // There was no pre-processing of the hits to define logical slices
       // so put all hits in one slice
@@ -671,7 +671,7 @@ namespace cluster {
       shcol.use_hits(std::move(hcol));
       shcol.put_into(evt);
     } else {
-      recob::HitRefinerAssociator shcol(*this, evt, fSlicerModuleLabel, fDoWireAssns, fDoRawDigitAssns);
+      recob::HitRefinerAssociator shcol(*this, evt, fSliceModuleLabel, fDoWireAssns, fDoRawDigitAssns);
       shcol.use_hits(std::move(hcol));
       shcol.put_into(evt);
     }
