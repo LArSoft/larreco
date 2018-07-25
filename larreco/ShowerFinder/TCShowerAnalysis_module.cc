@@ -21,6 +21,7 @@
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larsim/MCCheater/BackTrackerService.h"
+#include "larsim/MCCheater/ParticleInventoryService.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
 #include "nusimdata/SimulationBase/MCFlux.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
@@ -141,6 +142,9 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
   if (evt.getByLabel(fGenieGenModuleLabel,mctruthListHandle))
     art::fill_ptr_vector(mclist, mctruthListHandle);
 
+  showerProfileTrue(hitlist);
+
+  /*
   art::FindManyP<recob::Hit> shwfm(showerListHandle, evt, fShowerModuleLabel);
 
   if (showerlist.size()) {
@@ -160,7 +164,7 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
       }
     }
   }
-
+  */
   fTree->Fill();
 
 } // analyze
@@ -230,6 +234,7 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
 void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits) {
 
   art::ServiceHandle<cheat::BackTrackerService> btserv;
+  art::ServiceHandle<cheat::ParticleInventoryService> piserv;
   std::map<int,double> trkID_E;  
 
   for (size_t i = 0; i < allhits.size(); ++i) {
@@ -238,10 +243,23 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
     std::vector<sim::TrackIDE> trackIDs = btserv->HitToEveTrackIDEs(hit);
 
     for (size_t j = 0; j < trackIDs.size(); ++j) {
+      // only want energy associated with the electron and electron must have neutrino mother
+      if ( std::abs((piserv->TrackIdToParticle_P(trackIDs[j].trackID))->PdgCode()) != 11) continue;
+      if ( std::abs((piserv->TrackIdToParticle_P(trackIDs[j].trackID))->Mother()) != 0) continue;
+
       trkID_E[std::abs(trackIDs[j].trackID)] += trackIDs[j].energy;
     } // loop through track IDE
 
   } // loop through all hits
+
+  if (!trkID_E.size()) return; 
+
+  for (std::map<int,double>::iterator ii = trkID_E.begin(); ii != trkID_E.end(); ++ii) {
+    const simb::MCParticle* mcpart = piserv->TrackIdToParticle_P(ii->first);
+
+    std::cout << "PARTICLE ID " << mcpart->PdgCode() << " " << mcpart->Vx() << " " << mcpart->Vy() << " " << mcpart->Vz() << " " << mcpart->Mother() << std::endl;
+
+  } // loop through trkID_E
 
   return;
 } // showerProfileTrue
