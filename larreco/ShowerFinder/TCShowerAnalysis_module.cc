@@ -36,6 +36,7 @@
 #include "TTree.h"
 #include "TFile.h"
 #include "TH1.h"
+#include "TF1.h"
 #include "TProfile.h"
 
 namespace shower {
@@ -143,28 +144,39 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
   if (evt.getByLabel(fGenieGenModuleLabel,mctruthListHandle))
     art::fill_ptr_vector(mclist, mctruthListHandle);
 
-  //  showerProfileTrue(hitlist);
-
+  /*
   art::FindManyP<recob::Hit> shwfm(showerListHandle, evt, fShowerModuleLabel);
 
   if (showerlist.size()) {
     std::vector< art::Ptr<recob::Hit> > showerhits = shwfm.at(0);
-
-    // TODO: shower profile for E = 4-5 GeV
     if (mclist.size()) {
       art::Ptr<simb::MCTruth> mctruth = mclist[0];
       if (mctruth->NeutrinoSet()) {
 	if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) {
 	  double elep =  mctruth->GetNeutrino().Lepton().E();
 	  std::cout << "ELECTRON ENERGY: " << elep << std::endl;
-	  //	  if (elep > 6 && elep < 7) {
-	  if (true) {
+	  if (elep > 4 && elep < 5) {
 	    showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
 	  }
 	}
       }
     }
   }
+  */
+
+  if (mclist.size()) {
+    art::Ptr<simb::MCTruth> mctruth = mclist[0];
+    if (mctruth->NeutrinoSet()) {
+      if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) {
+	double elep =  mctruth->GetNeutrino().Lepton().E();
+	std::cout << "ELECTRON ENERGY: " << elep << std::endl;
+	if (elep > 4 && elep < 5) {
+	  showerProfileTrue(hitlist);
+	}
+      }
+    }
+  }
+
 
   fTree->Fill();
 
@@ -235,11 +247,16 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
 
 void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits) {
 
+  auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+  art::ServiceHandle<geo::Geometry> geom;
+  auto collectionPlane = geo::PlaneID(0, 0, 1);
   art::ServiceHandle<cheat::BackTrackerService> btserv;
   art::ServiceHandle<cheat::ParticleInventoryService> piserv;
   std::map<int,double> trkID_E;  
 
-  std::vector< art::Ptr<recob::Hit> > showerhits;
+  TH1F* temp = new TH1F("temp", "temp", 15, 0, 5);
+
+  //  std::vector< art::Ptr<recob::Hit> > showerhits;
 
   double xvtx = -999;
   double yvtx = -999;
@@ -247,9 +264,25 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
   double xtwo = -999;
   double ytwo = -999;
   double ztwo = -999;
+  double shwvtxT = -999;
+  double shwvtxW = -999;
+  double shwtwoT = -999;
+  double shwtwoW = -999;
+
+  double shwvtxx = -999;
+  double shwvtxy = -999;
+  double shwtwox = -999;
+  double shwtwoy = -999;
+  double xtwoorth = -999;
+  double ytwoorth = -999;
+
+  double wirePitch = -999;
+  double tickToDist = -999;
+
   bool foundParent = false;
 
   for (size_t i = 0; i < allhits.size(); ++i) {
+    if (allhits[i]->WireID().Plane != collectionPlane.Plane) continue;
 
     art::Ptr<recob::Hit> hit = allhits[i];
     std::vector<sim::TrackIDE> trackIDs = btserv->HitToEveTrackIDEs(hit);
@@ -268,15 +301,52 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
 	ytwo = (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->EndY();
 	ztwo = (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->EndZ();
 
+	shwvtxT = detprop->ConvertXToTicks(xvtx, collectionPlane);
+	shwvtxW = geom->WireCoordinate(yvtx, zvtx, collectionPlane);
+
+	shwtwoT = detprop->ConvertXToTicks(xtwo, collectionPlane);
+	shwtwoW = geom->WireCoordinate(ytwo, ztwo, collectionPlane);
+
+	wirePitch = geom->WirePitch(allhits[i]->WireID());
+	tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
+	tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+
+	shwvtxx = shwvtxT * tickToDist;
+	shwvtxy = shwvtxW * wirePitch;
+
+	shwtwox = shwtwoT * tickToDist;
+	shwtwoy = shwtwoW * wirePitch;
+
+	xtwoorth = (shwtwoy - shwvtxy) + shwvtxx;
+	ytwoorth = -(shwtwox - shwvtxx) + shwvtxy;
+
 	foundParent = true;
       }
+      double xhit = allhits[i]->PeakTime() * tickToDist;
+      double yhit = allhits[i]->WireID().Wire * wirePitch;
 
-      trkID_E[std::abs(trackIDs[j].trackID)] += trackIDs[j].energy;
+      double dist = std::abs((ytwoorth-shwvtxy)*xhit - (xtwoorth-shwvtxx)*yhit + xtwoorth*shwvtxy - ytwoorth*shwvtxx)/std::sqrt( pow((ytwoorth-shwvtxy), 2) + pow((xtwoorth-shwvtxx), 2) );
+
+      double to3D = sqrt( pow(xvtx-xtwo , 2) + pow(yvtx-ytwo , 2) + pow(zvtx-ztwo , 2) ) / sqrt( pow(shwvtxx-shwtwox,2) + pow(shwvtxy-shwtwoy,2) ) ; // distance between two points in 3D space is one 
+      dist *= to3D;
+      double E = trackIDs[j].energy;
+      double t = dist / 14; // convert to radiation lengths
+      std::cout << t << " " << E << std::endl;
+      int bin = floor(t*3);
+
+      temp->SetBinContent(bin, temp->GetBinContent(bin) + E);
+
+      break;
+      //      trkID_E[std::abs(trackIDs[j].trackID)] += trackIDs[j].energy;
     } // loop through track IDE
 
   } // loop through all hits
 
-  std::cout << xvtx << " " << yvtx << " " << zvtx << " " << xtwo << " " << ytwo << " " << ztwo << std::endl;
+  for (int i = 0; i < 15; ++i) {
+    fShowerProfile->Fill(temp->GetBinCenter(i), temp->GetBinContent(i));
+  }
+
+  //  std::cout << xvtx << " " << yvtx << " " << zvtx << " " << xtwo << " " << ytwo << " " << ztwo << std::endl;
 
   /*
   if (!trkID_E.size()) return; 
