@@ -241,7 +241,6 @@ namespace cluster {
           slhits[indx] = hit.key();
           ++indx;
         } // hit
-        std::cout<<"slc "<<isl<<" hit_in_slc size "<<hit_in_slc.size()<<"\n";
         if(slhits.size() > 2) slHitsVec.push_back(slhits);
       } // isl
     } else {
