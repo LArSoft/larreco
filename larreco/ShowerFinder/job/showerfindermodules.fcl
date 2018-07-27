@@ -29,6 +29,7 @@ standard_tcshoweranalysis:
 # TrackModuleLabel:   "pmtrack"
  ShowerModuleLabel:  "tcshower"
  CalorimetryModuleLabel:  "calo"
+ DigitModuleLabel:        "largeant"
  CalorimetryAlg:           @local::argoneut_calorimetryalgmc
 }
 

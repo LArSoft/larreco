@@ -26,11 +26,13 @@
 #include "nusimdata/SimulationBase/MCFlux.h"
 #include "lardataobj/AnalysisBase/Calorimetry.h"
 #include "lardataobj/AnalysisBase/ParticleID.h"
+#include "lardataobj/MCBase/MCDataHolder.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Vertex.h"
+#include "lardataobj/Simulation/SimChannel.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 #include "TTree.h"
@@ -54,6 +56,7 @@ namespace shower {
    
     void showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir);
     void showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits);
+    void showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan);
  
   protected:
 
@@ -71,6 +74,7 @@ namespace shower {
     std::string fShowerModuleLabel;
     std::string fCalorimetryModuleLabel;
     std::string fGenieGenModuleLabel;
+    std::string fDigitModuleLabel;
 
     calo::CalorimetryAlg fCalorimetryAlg;
 
@@ -88,6 +92,7 @@ shower::TCShowerAnalysis::TCShowerAnalysis(fhicl::ParameterSet const& pset) :
   fShowerModuleLabel        (pset.get< std::string >("ShowerModuleLabel", "tcshower" ) ),
   fCalorimetryModuleLabel   (pset.get< std::string >("CalorimetryModuleLabel", "calo")  ), 
   fGenieGenModuleLabel      (pset.get< std::string >("GenieGenModuleLabel", "generator")  ),
+  fDigitModuleLabel         (pset.get< std::string >("DigitModuleLabel", "largeant")  ),
   fCalorimetryAlg           (pset.get< fhicl::ParameterSet >("CalorimetryAlg") ) {
   this->reconfigure(pset);
 } // TCShowerAnalysis
@@ -133,6 +138,11 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
   if (evt.getByLabel(fClusterModuleLabel,clusterListHandle))
     art::fill_ptr_vector(clusterlist, clusterListHandle);
 
+  art::Handle< std::vector<sim::SimChannel> > scListHandle;
+  std::vector<art::Ptr<sim::SimChannel> > simchanlist;
+  if (evt.getByLabel(fDigitModuleLabel,scListHandle))
+    art::fill_ptr_vector(simchanlist, scListHandle);
+
   art::Handle< std::vector<recob::Shower> > showerListHandle;
   std::vector<art::Ptr<recob::Shower> > showerlist;
   if (evt.getByLabel(fShowerModuleLabel,showerListHandle))
@@ -164,6 +174,7 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
   }
   */
 
+  /*
   if (mclist.size()) {
     art::Ptr<simb::MCTruth> mctruth = mclist[0];
     if (mctruth->NeutrinoSet()) {
@@ -176,7 +187,9 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
       }
     }
   }
+  */
 
+  showerProfileTrue(simchanlist);
 
   fTree->Fill();
 
@@ -307,7 +320,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
 	shwtwoT = detprop->ConvertXToTicks(xtwo, collectionPlane);
 	shwtwoW = geom->WireCoordinate(ytwo, ztwo, collectionPlane);
 
-	wirePitch = geom->WirePitch(allhits[i]->WireID());
+	wirePitch = geom->WirePitch(hit->WireID());
 	tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
 	tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
 
@@ -322,16 +335,16 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
 
 	foundParent = true;
       }
-      double xhit = allhits[i]->PeakTime() * tickToDist;
-      double yhit = allhits[i]->WireID().Wire * wirePitch;
+      double xhit = hit->PeakTime() * tickToDist;
+      double yhit = hit->WireID().Wire * wirePitch;
 
-      double dist = std::abs((ytwoorth-shwvtxy)*xhit - (xtwoorth-shwvtxx)*yhit + xtwoorth*shwvtxy - ytwoorth*shwvtxx)/std::sqrt( pow((ytwoorth-shwvtxy), 2) + pow((xtwoorth-shwvtxx), 2) );
+      double dist = abs((ytwoorth-shwvtxy)*xhit - (xtwoorth-shwvtxx)*yhit + xtwoorth*shwvtxy - ytwoorth*shwvtxx)/sqrt( pow((ytwoorth-shwvtxy), 2) + pow((xtwoorth-shwvtxx), 2) );
 
       double to3D = sqrt( pow(xvtx-xtwo , 2) + pow(yvtx-ytwo , 2) + pow(zvtx-ztwo , 2) ) / sqrt( pow(shwvtxx-shwtwox,2) + pow(shwvtxy-shwtwoy,2) ) ; // distance between two points in 3D space is one 
       dist *= to3D;
       double E = trackIDs[j].energy;
       double t = dist / 14; // convert to radiation lengths
-      std::cout << t << " " << E << std::endl;
+      //      std::cout << t << " " << E << std::endl;
       int bin = floor(t*3);
 
       temp->SetBinContent(bin, temp->GetBinContent(bin) + E);
@@ -360,6 +373,33 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
   */
   return;
 } // showerProfileTrue
+
+// -------------------------------------------------
+
+void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan) {
+  art::ServiceHandle<cheat::ParticleInventoryService> piserv;
+  for (size_t i = 0; i < allchan.size(); ++i) {
+    art::Ptr<sim::SimChannel> simchan = allchan[i];
+    auto tdc_ide_map = simchan->TDCIDEMap();
+
+    for(auto const& tdc_ide_pair : tdc_ide_map) {
+      for (auto const& ide : tdc_ide_pair.second) {
+	sim::MCEnDep edep;
+	edep.SetVertex(ide.x,ide.y,ide.z);
+	edep.SetEnergy(ide.energy);
+	edep.SetTrackId(ide.trackID);
+
+	if ( std::abs(piserv->TrackIdToMotherParticle_P(edep.TrackId())->PdgCode()) != 11 ) continue;
+	
+	std::cout << edep.Energy() << std::endl;
+      } // loop through ide
+    } // loop through tdc_ide
+
+  } // loop through channels
+
+  return;
+
+} // showerProfileTrue 
 
 // -------------------------------------------------
 
