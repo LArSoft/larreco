@@ -35,6 +35,10 @@ namespace cluster {
 
 
 class cluster::DBCluster3D : public art::EDProducer {
+  
+  using Point_t = recob::tracking::Point_t;
+  using Vector_t  = recob::tracking::Vector_t;
+  
 public:
   explicit DBCluster3D(fhicl::ParameterSet const & p);
   // The compiler-generated destructor is fine for non-base
@@ -86,8 +90,7 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
 void cluster::DBCluster3D::produce(art::Event & evt)
 {
 
-  std::unique_ptr<std::vector<recob::Slice>> 
-    slcCol(new std::vector<recob::Slice>);
+  std::vector<recob::Slice> slcCol;
 
   std::unique_ptr<art::Assns<recob::Slice, recob::Hit>> 
     slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
@@ -170,15 +173,24 @@ void cluster::DBCluster3D::produce(art::Event & evt)
     }
   } // i
 
-  // calculate the slice aspect ratios
-  std::vector<float> aspectRatio(nslc, 0);
+  // calculate the properties of the slice
   for(size_t isl = 0; isl < nslc; ++isl) {
+    double sum = sps_in_slc[isl].size();
+    // find the center
+    double center[3] = {0.};
+    // TODO: calculate the charge using recob::PointCharge instead of just counting hits
+    float charge = slcHits[isl].size();
+    for(auto& spt : sps_in_slc[isl]) {
+      for(unsigned short xyz = 0; xyz < 3; ++xyz) center[xyz] += spt->XYZ()[xyz];
+    } // spt
+    for(unsigned short xyz = 0; xyz < 3; ++xyz) center[xyz] /= sum;
+    // do a linear fit
     double sumx = 0, sumy = 0., sumz = 0., sumx2 = 0, sumy2 = 0, sumz2 = 0;
     double sumxy = 0, sumxz = 0;
     for(auto& spt : sps_in_slc[isl]) {
-      double xx = spt->XYZ()[0];
-      double yy = spt->XYZ()[1];
-      double zz = spt->XYZ()[2];
+      double xx = spt->XYZ()[0] - center[0];
+      double yy = spt->XYZ()[1] - center[1];
+      double zz = spt->XYZ()[2] - center[2];
       sumx += xx;
       sumy += yy;
       sumz += zz;
@@ -188,29 +200,56 @@ void cluster::DBCluster3D::produce(art::Event & evt)
       sumxy += xx * yy;
       sumxz += xx * zz;
     } // spt
-    double sum = sps_in_slc[isl].size();
     double delta = sum * sumx2 - sumx * sumx;
     if(delta <= 0) continue;
+    // calculate the slopes
+    double dydx = (sumxy * sum  - sumx * sumy) / delta;
+    double dzdx = (sumxz * sum  - sumx * sumz) / delta;
+    // and convert to direction vector
+    double direction[3];
+    double norm = std::sqrt(1 + dydx * dydx + dzdx * dzdx);
+    direction[0] = 1 / norm;
+    direction[1] = dydx / norm;
+    direction[2] = dzdx / norm;
+    // Find the points that are farthest away from the center along the slice axis
+    unsigned int imax = 0, imin = 0;
+    float minAlong = 1E6, maxAlong = -1E6;
+    double tmpVec[3];
+    for(unsigned int ipt = 0; ipt < sps_in_slc[isl].size(); ++ipt) {
+      auto& spt = sps_in_slc[isl][ipt];
+      for(unsigned short xyz = 0; xyz < 3; ++xyz) tmpVec[xyz] = spt->XYZ()[xyz] - center[xyz];
+      double dotp = 0;
+      for(unsigned short xyz = 0; xyz < 3; ++xyz) dotp += tmpVec[xyz] * direction[xyz];
+      if(dotp < minAlong) { minAlong = dotp; imin = ipt; }
+      if(dotp > maxAlong) { maxAlong = dotp; imax = ipt; }
+    } // spt
+    // Find the aspect ratio
     float cnt = 0.;
+    float aspectRatio = 0;
     double arg = sum * sumy2 - sumy * sumy;
     if(arg > 0) {
-      aspectRatio[isl] += std::abs(sum * sumxy - sumx * sumy) / sqrt(delta * arg);
+      aspectRatio += std::abs(sum * sumxy - sumx * sumy) / sqrt(delta * arg);
       ++cnt;
     }
     arg = sum * sumz2 - sumz * sumz;
     if(arg > 0) {
-      aspectRatio[isl] += std::abs(sum * sumxz - sumx * sumz) / sqrt(delta * arg);
+      aspectRatio += std::abs(sum * sumxz - sumx * sumz) / sqrt(delta * arg);
       ++cnt;
     }
-    if(cnt > 1) aspectRatio[isl] /= cnt;
+    if(cnt > 1) aspectRatio /= cnt;
+    int id = isl + 1;
+    Point_t ctr(center[0], center[1], center[2]);
+    Vector_t dir(direction[0], direction[1], direction[2]);
+    auto pos0 = sps_in_slc[isl][imin]->XYZ();
+    Point_t ep0(pos0[0], pos0[1], pos0[2]);
+    auto pos1 = sps_in_slc[isl][imax]->XYZ();
+    Point_t ep1(pos1[0], pos1[1], pos1[2]);
+    slcCol.emplace_back(id, ctr, dir, ep0, ep1, aspectRatio, charge);
+    util::CreateAssn(*this, evt, slcCol, slcHits[isl], *slc_hit_assn);
   } // isl
   
-  for(size_t isl = 0; isl < nslc; ++isl) {
-    int id = isl + 1;
-    slcCol->push_back(recob::Slice(id, aspectRatio[isl]));
-    util::CreateAssn(*this, evt, *slcCol, slcHits[isl], *slc_hit_assn);
-  } // i
-  evt.put(std::move(slcCol));
+  std::unique_ptr<std::vector<recob::Slice> > scol(new std::vector<recob::Slice>(std::move(slcCol)));
+  evt.put(std::move(scol));
   evt.put(std::move(slc_hit_assn));
 }
 
