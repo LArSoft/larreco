@@ -31,6 +31,9 @@
 #include "lardataobj/RecoBase/PointCharge.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+
 #include "larsim/MCCheater/BackTracker.h"
 
 #include "TGraph.h"
@@ -92,6 +95,8 @@ protected:
   void BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
                       const std::vector<art::Ptr<recob::Hit>>& uhits,
                       const std::vector<art::Ptr<recob::Hit>>& vhits,
+                      const std::vector<raw::ChannelID_t>& ubadchans,
+                      const std::vector<raw::ChannelID_t>& vbadchans,
                       std::vector<CollectionWireHit*>& cwires,
                       std::vector<InductionWireHit*>& iwires,
                       bool incNei,
@@ -120,6 +125,7 @@ protected:
   std::string fHitLabel;
 
   bool fFit;
+  bool fAllowBadInductionHit;
 
   double fAlpha;
 
@@ -135,6 +141,7 @@ DEFINE_ART_MODULE(SpacePointSolver)
 SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset)
   : fHitLabel(pset.get<std::string>("HitLabel")),
     fFit(pset.get<bool>("Fit")),
+    fAllowBadInductionHit(pset.get<bool>("AllowBadInductionHit")),
     fAlpha(pset.get<double>("Alpha"))
 {
   recob::ChargedSpacePointCollectionCreator::produces(*this, "pre");
@@ -368,6 +375,8 @@ void SpacePointSolver::
 BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
                const std::vector<art::Ptr<recob::Hit>>& uhits,
                const std::vector<art::Ptr<recob::Hit>>& vhits,
+               const std::vector<raw::ChannelID_t>& ubadchans,
+               const std::vector<raw::ChannelID_t>& vbadchans,
                std::vector<CollectionWireHit*>& cwires,
                std::vector<InductionWireHit*>& iwires,
                bool incNei,
@@ -381,12 +390,24 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
     xhits_by_tpc[tpc].push_back(xhit);
   }
 
+  std::map<geo::TPCID, std::vector<raw::ChannelID_t>> ubad_by_tpc, vbad_by_tpc;
+  for(raw::ChannelID_t chan: ubadchans){
+    for(geo::TPCID tpc: geom->ROPtoTPCs(geom->ChannelToROP(chan))){
+      ubad_by_tpc[tpc].push_back(chan);
+    }
+  }
+  for(raw::ChannelID_t chan: vbadchans){
+    for(geo::TPCID tpc: geom->ROPtoTPCs(geom->ChannelToROP(chan))){
+      vbad_by_tpc[tpc].push_back(chan);
+    }
+  }
+
   // Maps from TPC to the induction wires. Normally want to access them this
   // way.
   std::map<geo::TPCID, std::vector<InductionWireWithXPos>> uwires, vwires;
 
   for(auto& ihits: {uhits, vhits}){
-      for(auto& hit: ihits){
+    for(auto& hit: ihits){
       const std::vector<geo::TPCID> tpcs = geom->ROPtoTPCs(geom->ChannelToROP(hit->Channel()));
 
       // TODO: Empirically, total collection charge is about 5% high of total
@@ -427,11 +448,12 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
   struct UVCrossing
   {
     geo::TPCID tpc;
-    InductionWireHit *u, *v;
+    //    raw::ChannelID_t uchan, vchan;
+    int uchan, vchan;
 
     bool operator<(const UVCrossing& x) const
     {
-      return std::make_tuple(tpc, u, v) < std::make_tuple(x.tpc, x.u, x.v);
+      return std::make_tuple(tpc, uchan, vchan) < std::make_tuple(x.tpc, x.uchan, x.vchan);
     }
   };
 
@@ -457,11 +479,16 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
         if(vwire.xpos > uwire.xpos &&
            !CloseDrift(uwire.xpos, vwire.xpos)) break;
 
-        const UVCrossing key = {tpc, uwire.iwire, vwire.iwire};
+        const UVCrossing key = {tpc, uwire.iwire->fChannel, vwire.iwire->fChannel};
 
         isectUV[key] = ISect(uwire.iwire->fChannel, vwire.iwire->fChannel, tpc,
                              ptsUV[key]);
       } // end for vwire
+
+      for(raw::ChannelID_t vbad: vbad_by_tpc[tpc]){
+        const UVCrossing key = {tpc, uwire.iwire->fChannel, int(vbad)};
+        isectUV[key] = ISect(uwire.iwire->fChannel, vbad, tpc, ptsUV[key]);
+      }
     } // end for uwire
   } // end for tpc
 
@@ -483,16 +510,23 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
       // Figure out which vwires intersect this xwire here so we don't do N^2
       // nesting inside the uwire loop below.
       std::vector<InductionWireWithXPos> vwires_cross;
-      std::unordered_map<InductionWireHit*, geo::WireIDIntersection> ptsXV;
+      std::unordered_map</*raw::ChannelID_t*/int, geo::WireIDIntersection> ptsXV;
       vwires_cross.reserve(vwires[tpc].size()); // avoid reallocations
       for(auto vit = vwires_begin; vit != vwires[tpc].end(); ++vit){
         InductionWireWithXPos vwire = *vit;
 
         if(vwire.xpos > xpos && !CloseDrift(vwire.xpos, xpos)) break;
 
-        if(ISect(hit->Channel(), vwire.iwire->fChannel, tpc, ptsXV[vwire.iwire]))
+        if(ISect(hit->Channel(), vwire.iwire->fChannel, tpc, ptsXV[vwire.iwire->fChannel]))
           vwires_cross.push_back(vwire);
       } // end for vwire
+
+      // Figure out which bad V channels cross this X wire.
+      std::vector<raw::ChannelID_t> vbad_cross;
+      for(raw::ChannelID_t vbad: vbad_by_tpc[tpc]){
+        if(ISect(hit->Channel(), vbad, tpc, ptsXV[vbad]))
+          vbad_cross.push_back(vbad);
+      }
 
       std::vector<SpaceCharge*> crossers;
       for(auto uit = uwires_begin; uit != uwires[tpc].end(); ++uit){
@@ -505,12 +539,13 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
 
         for(const InductionWireWithXPos& vwire: vwires_cross){
 
-          const geo::WireIDIntersection ptXV = ptsXV[vwire.iwire];
+          const geo::WireIDIntersection ptXV = ptsXV[vwire.iwire->fChannel];
           if(!CloseSpace(ptXU, ptXV)) continue;
 
-          if(!isectUV[{tpc, uwire.iwire, vwire.iwire}]) continue;
+          const UVCrossing key = {tpc, uwire.iwire->fChannel, vwire.iwire->fChannel};
+          if(!isectUV[key]) continue;
 
-          const geo::WireIDIntersection ptUV = ptsUV[{tpc, uwire.iwire, vwire.iwire}];
+          const geo::WireIDIntersection ptUV = ptsUV[key];
 
           if(!CloseSpace(ptXU, ptUV) ||
              !CloseSpace(ptXV, ptUV)) continue;
@@ -525,11 +560,26 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
 
           // Don't have a cwire object yet, set it later
           SpaceCharge* sc = new SpaceCharge((xpos+uwire.xpos+vwire.xpos)/3,
-                                            ptXU.y, ptXU.z,
+                                            (ptXU.y+ptXV.y+ptUV.y)/3,
+                                            (ptXU.z+ptXV.z+ptUV.z)/3,
                                             0, uwire.iwire, vwire.iwire);
           spaceCharges.push_back(sc);
           crossers.push_back(sc);
         } // end for vwire
+
+        for(raw::ChannelID_t vbad: vbad_cross){
+          const UVCrossing key = {tpc, uwire.iwire->fChannel, int(vbad)};
+          if(!isectUV[key]) continue;
+          const geo::WireIDIntersection ptUV = ptsUV[key];
+          if(!CloseSpace(ptXU, ptUV)) continue;
+
+          SpaceCharge* sc = new SpaceCharge((xpos+uwire.xpos)/2,
+                                            (ptXU.y+ptUV.y)/2,
+                                            (ptXU.z+ptUV.z)/2,
+                                            0, uwire.iwire, 0);
+          spaceCharges.push_back(sc);
+          crossers.push_back(sc);
+        }
       } // end for uwire
 
       CollectionWireHit* cwire = new CollectionWireHit(hit->Channel(), hit->Integral(), crossers);
@@ -755,6 +805,20 @@ void SpacePointSolver::produce(art::Event& evt)
     }
   } // end for hit
 
+  std::vector<raw::ChannelID_t> ubadchans, vbadchans;
+  if(fAllowBadInductionHit){
+    // NB - current implementation only allows intersection of vbadchan with
+    // good hits from X and U. Would like to refactor before adding the
+    // complexity of XV+U.
+    for(raw::ChannelID_t cid: art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider().BadChannels()){
+      if(geom->SignalType(cid) != geo::kCollection){
+        if(geom->View(cid) == geo::kU) ubadchans.push_back(cid);
+        if(geom->View(cid) == geo::kV) vbadchans.push_back(cid);
+      }
+    }
+  }
+
+
   std::vector<CollectionWireHit*> cwires;
   // So we can find them all to free the memory
   std::vector<InductionWireHit*> iwires;
@@ -763,7 +827,8 @@ void SpacePointSolver::produce(art::Event& evt)
   if(is2view)
     BuildSystemXU(xhits, uhits, cwires, iwires, fAlpha != 0, hitmap);
   else
-    BuildSystemXUV(xhits, uhits, vhits, cwires, iwires, fAlpha != 0, hitmap);
+    BuildSystemXUV(xhits, uhits, vhits, ubadchans, vbadchans,
+                   cwires, iwires, fAlpha != 0, hitmap);
 
   FillSystemToSpacePoints(cwires, spcol_pre);
   spcol_pre.put();
