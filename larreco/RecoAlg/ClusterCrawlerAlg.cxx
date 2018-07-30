@@ -1412,7 +1412,7 @@ namespace cluster {
     
     // See if we can move the vertex within errors to reconcile the differences
     // without altering the clusters
-    if(std::abs(mindW) < vWireErr && std::abs(maxdW) < vWireErr && std::abs(maxdW - mindW) < 2) {
+    if( ((unsigned int)std::abs(mindW) < vWireErr) && ((unsigned int)std::abs(maxdW) < vWireErr) && std::abs(maxdW - mindW) < 2) {
       if(vtxprt) mf::LogVerbatim("CC")<<" Move vtx wire "<<vtx[iv].Wire;
       vtx[iv].Wire -= (float)(maxdW + mindW)/2;
       if(vtxprt) mf::LogVerbatim("CC")<<" to "<<vtx[iv].Wire;
