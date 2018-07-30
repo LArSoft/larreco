@@ -56,7 +56,7 @@ namespace shower {
    
     void showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir);
     void showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits);
-    void showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan);
+    void showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan, simb::MCParticle electron);
  
   protected:
 
@@ -112,8 +112,8 @@ void shower::TCShowerAnalysis::reconfigure(fhicl::ParameterSet const& pset) {
 void shower::TCShowerAnalysis::beginJob() {
   art::ServiceHandle<art::TFileService> tfs;
   fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
-  fShowerProfile = tfs->make<TProfile>("fShowerProfile", "fShowerProfile", 15, 0, 5);
-  //fShowerProf = tfs->make<TH2F>("fShowerProf", "fShowerProf", 50, 0, 5, 50, 0, 100000);
+  fShowerProfile = tfs->make<TProfile>("fShowerProfile", "fShowerProfile", 20, 0, 5);
+  //  fShowerProf = tfs->make<TH2F>("fShowerProf", "fShowerProf", 50, 0, 5, 50, 0, 100000);
 
 } // beginJob
 
@@ -189,7 +189,18 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
   }
   */
 
-  showerProfileTrue(simchanlist);
+  if (mclist.size()) {
+    art::Ptr<simb::MCTruth> mctruth = mclist[0];
+    if (mctruth->NeutrinoSet()) { 
+      if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) { 
+	double elep =  mctruth->GetNeutrino().Lepton().E();
+	std::cout << "ELECTRON ENERGY: " << elep << std::endl;
+        if (elep > 4 && elep < 5) {
+	  showerProfileTrue(simchanlist, mclist[0]->GetNeutrino().Lepton());
+	}
+      }
+    }
+  }
 
   fTree->Fill();
 
@@ -246,12 +257,12 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
     std::cout << t << std::endl;
     int bin = floor(t*3);
 
-    temp->SetBinContent(bin, temp->GetBinContent(bin) + Q);
+    temp->SetBinContent(bin+1, temp->GetBinContent(bin+1) + Q);
 
   } // loop through showerhits
 
   for (int i = 0; i < 15; ++i) {
-    fShowerProfile->Fill(temp->GetBinCenter(i), temp->GetBinContent(i));
+    fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
 
 } // showerProfile
@@ -347,7 +358,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
       //      std::cout << t << " " << E << std::endl;
       int bin = floor(t*3);
 
-      temp->SetBinContent(bin, temp->GetBinContent(bin) + E);
+      temp->SetBinContent(bin+1, temp->GetBinContent(bin+1) + E);
 
       break;
       //      trkID_E[std::abs(trackIDs[j].trackID)] += trackIDs[j].energy;
@@ -356,7 +367,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
   } // loop through all hits
 
   for (int i = 0; i < 15; ++i) {
-    fShowerProfile->Fill(temp->GetBinCenter(i), temp->GetBinContent(i));
+    fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
 
   //  std::cout << xvtx << " " << yvtx << " " << zvtx << " " << xtwo << " " << ytwo << " " << ztwo << std::endl;
@@ -376,26 +387,65 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
 
 // -------------------------------------------------
 
-void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan) {
+void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan, simb::MCParticle electron) {
   art::ServiceHandle<cheat::ParticleInventoryService> piserv;
+  art::ServiceHandle<geo::Geometry> geom;
+
+  std::vector<sim::MCEnDep> alledep;
+
+  TH1D* temp = new TH1D("temp", "temp", 20, 0, 5);
+
   for (size_t i = 0; i < allchan.size(); ++i) {
     art::Ptr<sim::SimChannel> simchan = allchan[i];
+    if ( geom->View(simchan->Channel()) != geo::kV ) continue;
     auto tdc_ide_map = simchan->TDCIDEMap();
 
     for(auto const& tdc_ide_pair : tdc_ide_map) {
       for (auto const& ide : tdc_ide_pair.second) {
+	if (piserv->TrackIdToMotherParticle_P(ide.trackID) == NULL) continue;
+	if ( std::abs(piserv->TrackIdToMotherParticle_P(ide.trackID)->PdgCode()) != 11 ) continue;
+
 	sim::MCEnDep edep;
 	edep.SetVertex(ide.x,ide.y,ide.z);
 	edep.SetEnergy(ide.energy);
 	edep.SetTrackId(ide.trackID);
-
-	if ( std::abs(piserv->TrackIdToMotherParticle_P(edep.TrackId())->PdgCode()) != 11 ) continue;
 	
-	std::cout << edep.Energy() << std::endl;
+	alledep.push_back(edep);
+	
       } // loop through ide
     } // loop through tdc_ide
 
   } // loop through channels
+
+  double x0 = electron.Vx();
+  double y0 = electron.Vy();
+  double z0 = electron.Vz();
+
+  double charge4cm = 0;
+ 
+  for (size_t i = 0; i < alledep.size(); ++i) {
+    double x = (double)alledep[i].Vertex()[0];
+    double y = (double)alledep[i].Vertex()[1];
+    double z = (double)alledep[i].Vertex()[2];
+
+    double dist = std::sqrt( std::pow(x0-x, 2) + std::pow(y0-y, 2) + std::pow(z0-z, 2) );
+
+    if (dist < 3.5) charge4cm += alledep[i].Energy();
+
+    double E = alledep[i].Energy();
+    double t = dist / 14; // convert to radiation lengths                                                               
+
+    int bin = floor(t*4);
+    
+    temp->SetBinContent(bin+1, temp->GetBinContent(bin+1) + E);
+
+  }
+  
+  for (int i = 0; i < 20; ++i) {
+    if (temp->GetBinContent(i+1) == 0) continue;
+    if (temp->GetBinContent(i+2) == 0) continue;
+    fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
+  }
 
   return;
 
