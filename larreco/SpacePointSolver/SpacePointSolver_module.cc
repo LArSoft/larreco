@@ -110,6 +110,8 @@ protected:
                      bool incNei,
                      HitMap_t& hitmap) const;
 
+  void Minimize(std::vector<CollectionWireHit*>& cwires, double alpha);
+
   /// return whether the point was inserted (only happens when it has charge)
   bool AddSpacePoint(const SpaceCharge& sc,
                      int id,
@@ -132,8 +134,6 @@ protected:
 
   double fDistThresh;
   double fDistThreshDrift;
-
-  TH1* fDeltaX;
 
   const detinfo::DetectorProperties* detprop;
   const geo::GeometryCore* geom;
@@ -168,9 +168,6 @@ void SpacePointSolver::beginJob()
 {
   detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
   geom = art::ServiceHandle<geo::Geometry>()->provider();
-
-  art::ServiceHandle<art::TFileService> tfs;
-  fDeltaX = tfs->make<TH1F>("deltax", ";#Deltax (cm)", 100, -2, +2);
 }
 
 // ---------------------------------------------------------------------------
@@ -388,13 +385,12 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
     }
   }
 
-  std::vector<SpaceCharge*> spaceCharges;
-
   TripletFinder tf(xhits, uhits, vhits,
                    ubadchans, vbadchans,
                    fDistThresh, fDistThreshDrift);
 
   std::map<const recob::Hit*, std::vector<SpaceCharge*>> collectionMap;
+  std::map<const recob::Hit*, std::vector<SpaceCharge*>> collectionMapBad;
 
   std::cout << "Finding XUV coincidences..." << std::endl;
   for(const ChannelTriplet& trip: tf.Triplets()){
@@ -405,22 +401,40 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
                                       0,
                                       inductionMap[trip.u.hit],
                                       inductionMap[trip.v.hit]);
-    spaceCharges.push_back(sc);
-    collectionMap[trip.x.hit].push_back(sc);
+
+    if(trip.u.hit && trip.v.hit)
+      collectionMap[trip.x.hit].push_back(sc);
+    else
+      collectionMapBad[trip.x.hit].push_back(sc);
   }
 
+  std::vector<SpaceCharge*> spaceCharges;
+
   for(const art::Ptr<recob::Hit>& hit: xhits){
-    const std::vector<SpaceCharge*>& scs = collectionMap[hit.get()];
+    // Find the space charges associated with this hit
+    std::vector<SpaceCharge*>& scs = collectionMap[hit.get()];
+    if(scs.empty()){
+      // If there are no full triplets try the triplets with one bad channel
+      scs = collectionMapBad[hit.get()];
+    }
+    else{
+      // If there were good triplets, delete the bad hit ones
+      for(SpaceCharge* sc: collectionMapBad[hit.get()]) delete sc;
+    }
+    // Still no space points, don't bother making a wire
     if(scs.empty()) continue;
+
     CollectionWireHit* cwire = new CollectionWireHit(hit->Channel(),
                                                      hit->Integral(),
                                                      scs);
     hitmap[cwire] = hit;
     cwires.push_back(cwire);
+    spaceCharges.insert(spaceCharges.end(), scs.begin(), scs.end());
     for(SpaceCharge* sc: scs) sc->fCWire = cwire;
   } // end for hit
 
   std::cout << cwires.size() << " collection wire objects" << std::endl;
+  std::cout << spaceCharges.size() << " potential space points" << std::endl;
 
   if(incNei) AddNeighbours(spaceCharges);
 }
@@ -579,6 +593,24 @@ FillSystemToSpacePointsAndAssns(const std::vector<CollectionWireHit*>& cwires,
   } // for cwire
 }
 
+// ---------------------------------------------------------------------------
+void SpacePointSolver::Minimize(std::vector<CollectionWireHit*>& cwires,
+                                double alpha)
+{
+  double prevMetric = Metric(cwires, alpha);
+  std::cout << "Begin: " << prevMetric << std::endl;
+  for(int i = 0; i < 100; ++i){
+    Iterate(cwires, alpha);
+    const double metric = Metric(cwires, alpha);
+    std::cout << i << " " << metric << std::endl;
+    if(metric > prevMetric){
+      std::cout << "Warning: metric increased" << std::endl;
+      return;
+    }
+    if(fabs(metric-prevMetric) < 1e-3*fabs(prevMetric)) return;
+    prevMetric = metric;
+  }
+}
 
 // ---------------------------------------------------------------------------
 void SpacePointSolver::produce(art::Event& evt)
@@ -667,33 +699,14 @@ void SpacePointSolver::produce(art::Event& evt)
   spcol_pre.put();
 
   if(fFit){
-    std::cout << "Iterating..." << std::endl;
-    double prevMetric = Metric(cwires, 0);//fAlpha);
-    std::cout << "Begin: " << prevMetric << std::endl;
-    for(int i = 0;; ++i){
-      Iterate(cwires, 0);//fAlpha);
-      const double metric = Metric(cwires, 0);//fAlpha);
-      std::cout << i << " " << metric << std::endl;
-      if(fabs(metric-prevMetric) < 1e-3*fabs(prevMetric)) break;
-      if(i > 100) break;
-      //    if(metric/prevMetric > .9999) break;
-      prevMetric = metric;
-    }
+    std::cout << "Iterating with no regularization..." << std::endl;
+    Minimize(cwires, 0);
 
     FillSystemToSpacePoints(cwires, spcol_noreg);
     spcol_noreg.put();
 
-    prevMetric = Metric(cwires, fAlpha);
-    std::cout << "Begin: " << prevMetric << std::endl;
-    for(int i = 0;; ++i){
-      Iterate(cwires, fAlpha);
-      const double metric = Metric(cwires, fAlpha);
-      std::cout << i << " " << metric << std::endl;
-      if(fabs(metric-prevMetric) < 1e-3*fabs(prevMetric)) break;
-      if(i > 100) break;
-      //    if(metric/prevMetric > .9999) break;
-      prevMetric = metric;
-    }
+    std::cout << "Now with regularization..." << std::endl;
+    Minimize(cwires, fAlpha);
 
     FillSystemToSpacePointsAndAssns(cwires, hitmap, spcol, *assns);
     spcol.put();
