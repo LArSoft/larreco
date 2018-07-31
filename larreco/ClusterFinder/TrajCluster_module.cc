@@ -469,7 +469,7 @@ namespace cluster {
         auto& firstTP = tj.Pts[tj.EndPt[0]];
         auto& lastTP = tj.Pts[tj.EndPt[1]];
         int clsID = tj.UID;
-        if(tj.AlgMod[tca::kShowerTj]) clsID = -clsID;
+        if(tj.AlgMod[tca::kShowerLike]) clsID = -clsID;
         unsigned short nclhits = hitCol.size() - hitColBeginIndex + 1;
         clsCol.emplace_back(
                             firstTP.Pos[0],         // Start wire
