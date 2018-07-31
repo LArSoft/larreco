@@ -157,9 +157,9 @@ namespace reco3d
   }
 
   // -------------------------------------------------------------------------
-  std::vector<ChannelTriplet> TripletFinder::Triplets()
+  std::vector<HitTriplet> TripletFinder::Triplets()
   {
-    std::vector<ChannelTriplet> ret;
+    std::vector<HitTriplet> ret;
 
     for(const auto& it: fX_by_tpc){
       const geo::TPCID& tpc = it.first;
@@ -214,7 +214,7 @@ namespace reco3d
               (xu.pt.y + xvit->pt.y + ptUV.y)/3,
               (xu.pt.z + xvit->pt.z + ptUV.z)/3};
 
-          ret.emplace_back(x, u, v, pt);
+          ret.emplace_back(HitTriplet{x.hit, u.hit, v.hit, pt});
           ++nxuv;
         } // end for xv
       } // end for xu
@@ -229,9 +229,9 @@ namespace reco3d
   }
 
   // -------------------------------------------------------------------------
-  std::vector<ChannelTriplet> TripletFinder::TripletsTwoView()
+  std::vector<HitTriplet> TripletFinder::TripletsTwoView()
   {
-    std::vector<ChannelTriplet> ret;
+    std::vector<HitTriplet> ret;
 
     for(const auto& it: fX_by_tpc){
       const geo::TPCID& tpc = it.first;
@@ -249,7 +249,7 @@ namespace reco3d
 
         const XYZ pt{xavg, xu.pt.y, xu.pt.z};
 
-        ret.emplace_back(x, u, HitOrChan{0, 0}, pt);
+        ret.emplace_back(HitTriplet{x.hit, u.hit, 0, pt});
       } // end for xu
     } // end for tpc
 

@@ -77,7 +77,7 @@ protected:
 
   typedef std::map<const WireHit*, const recob::Hit*> HitMap_t;
 
-  void BuildSystem(const std::vector<ChannelTriplet>& triplets,
+  void BuildSystem(const std::vector<HitTriplet>& triplets,
                    std::vector<CollectionWireHit*>& cwires,
                    std::vector<InductionWireHit*>& iwires,
                    bool incNei,
@@ -249,7 +249,7 @@ AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const
 
 // ---------------------------------------------------------------------------
 void SpacePointSolver::
-BuildSystem(const std::vector<ChannelTriplet>& triplets,
+BuildSystem(const std::vector<HitTriplet>& triplets,
             std::vector<CollectionWireHit*>& cwires,
             std::vector<InductionWireHit*>& iwires,
             bool incNei,
@@ -257,10 +257,10 @@ BuildSystem(const std::vector<ChannelTriplet>& triplets,
 {
   std::set<const recob::Hit*> ihits;
   std::set<const recob::Hit*> chits;
-  for(const ChannelTriplet& trip: triplets){
-    chits.insert(trip.x.hit);
-    if(trip.u.hit) ihits.insert(trip.u.hit);
-    if(trip.v.hit) ihits.insert(trip.v.hit);
+  for(const HitTriplet& trip: triplets){
+    chits.insert(trip.x);
+    if(trip.u) ihits.insert(trip.u);
+    if(trip.v) ihits.insert(trip.v);
   }
 
   std::map<const recob::Hit*, InductionWireHit*> inductionMap;
@@ -275,19 +275,19 @@ BuildSystem(const std::vector<ChannelTriplet>& triplets,
   std::map<const recob::Hit*, std::vector<SpaceCharge*>> collectionMap;
   std::map<const recob::Hit*, std::vector<SpaceCharge*>> collectionMapBad;
 
-  for(const ChannelTriplet& trip: triplets){
+  for(const HitTriplet& trip: triplets){
     // Don't have a cwire object yet, set it later
     SpaceCharge* sc = new SpaceCharge(trip.pt.x,
                                       trip.pt.y,
                                       trip.pt.z,
                                       0,
-                                      inductionMap[trip.u.hit],
-                                      inductionMap[trip.v.hit]);
+                                      inductionMap[trip.u],
+                                      inductionMap[trip.v]);
 
-    if(trip.u.hit && trip.v.hit)
-      collectionMap[trip.x.hit].push_back(sc);
+    if(trip.u && trip.v)
+      collectionMap[trip.x].push_back(sc);
     else
-      collectionMapBad[trip.x.hit].push_back(sc);
+      collectionMapBad[trip.x].push_back(sc);
   }
 
   std::vector<SpaceCharge*> spaceCharges;

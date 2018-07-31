@@ -40,14 +40,9 @@ namespace reco3d
     double x, y, z;
   };
 
-  struct ChannelTriplet
+  struct HitTriplet
   {
-    ChannelTriplet(HitOrChan _x, HitOrChan _u, HitOrChan _v, XYZ p)
-      : x(_x), u(_u), v(_v), pt(p)
-    {
-    }
-
-    HitOrChan x, u, v;
+    const recob::Hit *x, *u, *v;
     XYZ pt;
   };
 
@@ -61,9 +56,9 @@ namespace reco3d
                   const std::vector<raw::ChannelID_t>& vbad,
                   double distThresh, double distThreshDrift);
 
-    std::vector<ChannelTriplet> Triplets();
+    std::vector<HitTriplet> Triplets();
     /// Only search for XU intersections
-    std::vector<ChannelTriplet> TripletsTwoView();
+    std::vector<HitTriplet> TripletsTwoView();
 
   protected:
     const geo::GeometryCore* geom;
