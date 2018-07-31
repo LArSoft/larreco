@@ -2,8 +2,6 @@
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 
-#include "lardataobj/RecoBase/Hit.h"
-
 namespace reco3d
 {
   // -------------------------------------------------------------------------
@@ -18,36 +16,34 @@ namespace reco3d
       fDistThresh(distThresh),
       fDistThreshDrift(distThreshDrift)
   {
-    std::vector<HitOrChan> xs, us, vs;
-    for(const auto& x: xhits) xs.emplace_back(x->Channel(), x.get());
-    for(const auto& u: uhits) us.emplace_back(u->Channel(), u.get());
-    for(const auto& v: vhits) vs.emplace_back(v->Channel(), v.get());
-
-    FillHitMap(xs, fX_by_tpc);
-    FillHitMap(us, fU_by_tpc);
-    FillHitMap(vs, fV_by_tpc);
+    FillHitMap(xhits, fX_by_tpc);
+    FillHitMap(uhits, fU_by_tpc);
+    FillHitMap(vhits, fV_by_tpc);
 
     FillBadMap(ubad, fUbad_by_tpc);
     FillBadMap(vbad, fVbad_by_tpc);
   }
 
   // -------------------------------------------------------------------------
-  bool sortByHitTime(const HitOrChan& a, const HitOrChan& b)
-  {
-    return a.hit->PeakTime() < b.hit->PeakTime();
-  }
-
-  // -------------------------------------------------------------------------
   void TripletFinder::
-  FillHitMap(const std::vector<HitOrChan>& hits,
+  FillHitMap(const std::vector<art::Ptr<recob::Hit>>& hits,
              std::map<geo::TPCID, std::vector<HitOrChan>>& out)
   {
-    for(const HitOrChan& hit: hits){
-      for(geo::TPCID tpc: geom->ROPtoTPCs(geom->ChannelToROP(hit.chan))){
-        out[tpc].push_back(hit);
+    for(const art::Ptr<recob::Hit>& hit: hits){
+      for(geo::TPCID tpc: geom->ROPtoTPCs(geom->ChannelToROP(hit->Channel()))){
+        double xpos = 0;
+        for(geo::WireID wire: geom->ChannelToWire(hit->Channel())){
+          if(geo::TPCID(wire) == tpc){
+            xpos = detprop->ConvertTicksToX(hit->PeakTime(), wire);
+          }
+        }
+
+        out[tpc].emplace_back(hit.get(), xpos);
       }
     }
-    for(auto& it: out) std::sort(it.second.begin(), it.second.end(), sortByHitTime);
+    for(auto& it: out)
+      std::sort(it.second.begin(), it.second.end(),
+                [](auto a, auto b){return a.xpos < b.xpos;});
   }
 
   // -------------------------------------------------------------------------
@@ -60,12 +56,6 @@ namespace reco3d
         out[tpc].push_back(chan);
       }
     }
-  }
-
-  // -------------------------------------------------------------------------
-  bool sortByXHit(const ChannelDoublet& a, const ChannelDoublet& b)
-  {
-    return a.a.hit < b.a.hit;
   }
 
   // -------------------------------------------------------------------------
@@ -120,30 +110,9 @@ namespace reco3d
   };
 
   // -------------------------------------------------------------------------
-  double TripletFinder::HitToXPos(raw::ChannelID_t chan,
-                                  double t,
-                                  geo::TPCID tpc) const
-  {
-    for(geo::WireID w: geom->ChannelToWire(chan))
-      if(geo::TPCID(w) == tpc)
-        return detprop->ConvertTicksToX(t, w);
-    // Not reached
-    abort();
-  }
-
-  // -------------------------------------------------------------------------
   bool TripletFinder::CloseDrift(double xa, double xb) const
   {
     return fabs(xa-xb) < fDistThreshDrift;
-  }
-
-  // -------------------------------------------------------------------------
-  bool TripletFinder::CloseTime(geo::TPCID tpc,
-                                raw::ChannelID_t c1, raw::ChannelID_t c2,
-                                double t1, double t2) const
-  {
-    return CloseDrift(HitToXPos(c1, t1, tpc),
-                      HitToXPos(c2, t2, tpc));
   }
 
   // -------------------------------------------------------------------------
@@ -172,8 +141,10 @@ namespace reco3d
 
       // For the efficient looping below to work we need to sort the doublet
       // lists so the X hits occur in the same order.
-      std::sort(xus.begin(), xus.end(), sortByXHit);
-      std::sort(xvs.begin(), xvs.end(), sortByXHit);
+      std::sort(xus.begin(), xus.end(),
+                [](auto a, auto b){return a.a.hit < b.a.hit;});
+      std::sort(xvs.begin(), xvs.end(),
+                [](auto a, auto b){return a.a.hit < b.a.hit;});
 
       auto xvit_begin = xvs.begin();
 
@@ -192,10 +163,7 @@ namespace reco3d
           // Only allow one bad channel per triplet
           if(!u.hit && !v.hit) continue;
 
-          if(u.hit && v.hit && !CloseTime(tpc,
-                                          u.chan, v.chan,
-                                          u.hit->PeakTime(),
-                                          v.hit->PeakTime())) continue;
+          if(u.hit && v.hit && !CloseDrift(u.xpos, v.xpos)) continue;
 
           geo::WireIDIntersection ptUV;
           if(!isectUV(u.chan, v.chan, ptUV)) continue;
@@ -204,10 +172,10 @@ namespace reco3d
              !CloseSpace(xu.pt, ptUV) ||
              !CloseSpace(xvit->pt, ptUV)) continue;
 
-          double xavg = HitToXPos(x.chan, x.hit->PeakTime(), tpc);
+          double xavg = x.xpos;
           int nx = 1;
-          if(u.hit){xavg += HitToXPos(u.chan, u.hit->PeakTime(), tpc); ++nx;}
-          if(v.hit){xavg += HitToXPos(v.chan, v.hit->PeakTime(), tpc); ++nx;}
+          if(u.hit){xavg += u.xpos; ++nx;}
+          if(v.hit){xavg += v.xpos; ++nx;}
           xavg /= nx;
 
           const XYZ pt{xavg,
@@ -242,9 +210,9 @@ namespace reco3d
         const HitOrChan& x = xu.a;
         const HitOrChan& u = xu.b;
 
-        double xavg = HitToXPos(x.chan, x.hit->PeakTime(), tpc);
+        double xavg = x.xpos;
         int nx = 1;
-        if(u.hit){xavg += HitToXPos(u.chan, u.hit->PeakTime(), tpc); ++nx;}
+        if(u.hit){xavg += u.xpos; ++nx;}
         xavg /= nx;
 
         const XYZ pt{xavg, xu.pt.y, xu.pt.z};
@@ -281,29 +249,25 @@ namespace reco3d
 
     IntersectionCache isect(tpc);
 
+    auto b_begin = bhits.begin();
+
     for(const HitOrChan& a: ahits){
       // Bad channels are easy because there's no timing constraint
       for(raw::ChannelID_t b: bbads){
         geo::WireIDIntersection pt;
         if(isect(a.chan, b, pt)){
-          ret.emplace_back(a, HitOrChan{b, 0}, pt);
+          ret.emplace_back(a, b, pt);
         }
       }
 
-      auto b_begin = bhits.begin();
       while(b_begin != bhits.end() &&
-            b_begin->hit->PeakTime() < a.hit->PeakTime() &&
-            !CloseTime(tpc, b_begin->chan, a.chan,
-                       b_begin->hit->PeakTime(),
-                       a.hit->PeakTime())) ++b_begin;
+            b_begin->xpos < a.xpos &&
+            !CloseDrift(b_begin->xpos, a.xpos)) ++b_begin;
 
       for(auto bit = b_begin; bit != bhits.end(); ++bit){
         const HitOrChan& b = *bit;
 
-        if(b.hit->PeakTime() > a.hit->PeakTime() &&
-           !CloseTime(tpc, b.chan, a.chan,
-                      b.hit->PeakTime(),
-                      a.hit->PeakTime())) break;
+        if(b.xpos > a.xpos && !CloseDrift(b.xpos, a.xpos)) break;
 
         geo::WireIDIntersection pt;
         if(!isect(a.chan, b.chan, pt)) continue;

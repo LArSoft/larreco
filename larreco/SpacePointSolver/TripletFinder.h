@@ -9,6 +9,8 @@
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
+#include "lardataobj/RecoBase/Hit.h"
+
 #include <map>
 #include <vector>
 
@@ -18,10 +20,12 @@ namespace reco3d
 {
   struct HitOrChan
   {
-    HitOrChan(raw::ChannelID_t c, const recob::Hit* h) : chan(c), hit(h) {}
+    HitOrChan(raw::ChannelID_t c) : chan(c), hit(0), xpos(0) {}
+    HitOrChan(const recob::Hit* h, double x) : chan(h->Channel()), hit(h), xpos(x) {}
 
     raw::ChannelID_t chan;
     const recob::Hit* hit; // null for bad channel
+    double xpos; // Only set if hit is set
   };
 
   struct ChannelDoublet
@@ -65,20 +69,13 @@ namespace reco3d
     const detinfo::DetectorProperties* detprop;
 
     /// Helper for constructor
-    void FillHitMap(const std::vector<HitOrChan>& hits,
+    void FillHitMap(const std::vector<art::Ptr<recob::Hit>>& hits,
                     std::map<geo::TPCID, std::vector<HitOrChan>>& out);
     /// Helper for constructor
     void FillBadMap(const std::vector<raw::ChannelID_t>& bads,
                     std::map<geo::TPCID, std::vector<raw::ChannelID_t>>& out);
 
-    double HitToXPos(raw::ChannelID_t chan,
-                     double t,
-                     geo::TPCID tpc) const;
-
     bool CloseDrift(double xa, double xb) const;
-    bool CloseTime(geo::TPCID tpc,
-                   raw::ChannelID_t c1, raw::ChannelID_t c2,
-                   double t1, double t2) const;
     bool CloseSpace(geo::WireIDIntersection ra,
                     geo::WireIDIntersection rb) const;
 
