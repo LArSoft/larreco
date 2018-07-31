@@ -250,7 +250,8 @@ void Iterate(CollectionWireHit* cwire, double alpha)
       InductionWireHit* jwire2 = scj->fWire2;
 
       // There can't be any cross-overs of U and V views like this
-      if(iwire1 == jwire2 || iwire2 == jwire1) abort();
+      if(iwire1 && iwire1 == jwire2) abort();
+      if(iwire2 && iwire2 == jwire1) abort();
 
       // Driving all the same wires, no move can have any effect
       if(iwire1 == jwire1 && iwire2 == jwire2) continue;

@@ -41,6 +41,7 @@
 #include "TPad.h"
 
 #include "Solver.h"
+#include "TripletFinder.h"
 #include "HashTuple.h"
 
 template<class T> T sqr(T x){return x*x;}
@@ -312,7 +313,7 @@ AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const
   }
 
   std::cout << "Neighbour search..." << std::endl;
-  std::cout << spaceCharges.size() << std::endl;
+
   // Now that we know all the space charges, can go through and assign neighbours
 
   int Ntests = 0;
@@ -361,7 +362,7 @@ AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const
     }
   }
 
-  std::cout << Ntests << " tests to find " << Nnei << std::endl;
+  std::cout << Ntests << " tests to find " << Nnei << " neighbours" << std::endl;
 }
 
 // ---------------------------------------------------------------------------
@@ -376,212 +377,50 @@ BuildSystemXUV(const std::vector<art::Ptr<recob::Hit>>& xhits,
                bool incNei,
                HitMap_t& hitmap) const
 {
-  std::map<geo::TPCID, std::vector<art::Ptr<recob::Hit>>> xhits_by_tpc;
-  for(auto& xhit: xhits){
-    const std::vector<geo::TPCID> tpcs = geom->ROPtoTPCs(geom->ChannelToROP(xhit->Channel()));
-    assert(tpcs.size() == 1);
-    const geo::TPCID tpc = tpcs[0];
-    xhits_by_tpc[tpc].push_back(xhit);
-  }
-
-  std::map<geo::TPCID, std::vector<raw::ChannelID_t>> ubad_by_tpc, vbad_by_tpc;
-  for(raw::ChannelID_t chan: ubadchans){
-    for(geo::TPCID tpc: geom->ROPtoTPCs(geom->ChannelToROP(chan))){
-      ubad_by_tpc[tpc].push_back(chan);
-    }
-  }
-  for(raw::ChannelID_t chan: vbadchans){
-    for(geo::TPCID tpc: geom->ROPtoTPCs(geom->ChannelToROP(chan))){
-      vbad_by_tpc[tpc].push_back(chan);
-    }
-  }
-
-  // Maps from TPC to the induction wires. Normally want to access them this
-  // way.
-  std::map<geo::TPCID, std::vector<InductionWireWithXPos>> uwires, vwires;
-
+  std::map<const recob::Hit*, InductionWireHit*> inductionMap;
   for(auto& ihits: {uhits, vhits}){
-    for(auto& hit: ihits){
-      const std::vector<geo::TPCID> tpcs = geom->ROPtoTPCs(geom->ChannelToROP(hit->Channel()));
-
-      // TODO: Empirically, total collection charge is about 5% high of total
-      // induction charge, which might cause "spare" charge to go where it's
-      // not wanted.
-      InductionWireHit* iwire = new InductionWireHit(hit->Channel(), hit->Integral() * .95);
+    for(const art::Ptr<recob::Hit>& hit: ihits){
+      InductionWireHit* iwire = new InductionWireHit(hit->Channel(),
+                                                     hit->Integral());
+      inductionMap[hit.get()] = iwire;
       iwires.emplace_back(iwire);
       hitmap[iwire] = hit;
-
-      for(geo::TPCID tpc: tpcs){
-        if(xhits_by_tpc.count(tpc) == 0) continue;
-
-        const double xpos = HitToXPos(*hit, tpc);
-
-        if(hit->View() == geo::kU) uwires[tpc].emplace_back(iwire, xpos);
-        if(hit->View() == geo::kV) vwires[tpc].emplace_back(iwire, xpos);
-      } // end for tpc
-    } // end for hit
-  } // end for U/V
-
-  for(auto it = uwires.begin(); it != uwires.end(); ++it){
-    std::sort(it->second.begin(), it->second.end());
-  }
-  for(auto it = vwires.begin(); it != vwires.end(); ++it){
-    std::sort(it->second.begin(), it->second.end());
-  }
-
-  for(auto it = xhits_by_tpc.begin(); it != xhits_by_tpc.end(); ++it){
-    const geo::TPCID tpc = it->first;
-    std::sort(it->second.begin(), it->second.end(),
-              [this, tpc](art::Ptr<recob::Hit>& a, art::Ptr<recob::Hit>& b)
-              {
-                return HitToXPos(*a, tpc) < HitToXPos(*b, tpc);
-              });
-  }
-
-
-  struct UVCrossing
-  {
-    geo::TPCID tpc;
-    //    raw::ChannelID_t uchan, vchan;
-    int uchan, vchan;
-
-    bool operator<(const UVCrossing& x) const
-    {
-      return std::make_tuple(tpc, uchan, vchan) < std::make_tuple(x.tpc, x.uchan, x.vchan);
     }
-  };
+  }
 
-  // Build a table of UV crossers up front
-  std::cout << "Building UV table..." << std::endl;
-  std::map<UVCrossing, bool> isectUV;
-  std::map<UVCrossing, geo::WireIDIntersection> ptsUV;
-
-  for(auto it: uwires){
-    const geo::TPCID tpc = it.first;
-
-    auto vwires_begin = vwires[tpc].begin();
-
-    for(InductionWireWithXPos uwire: uwires[tpc]){
-
-      // Fast-forward up to the first vwire that could be relevant
-      FastForward(vwires_begin, uwire.xpos, vwires[tpc].end());
-
-      for(auto vit = vwires_begin; vit != vwires[tpc].end(); ++vit){
-        const InductionWireWithXPos vwire = *vit;
-
-        // No more vwires can be relevant, bail out
-        if(vwire.xpos > uwire.xpos &&
-           !CloseDrift(uwire.xpos, vwire.xpos)) break;
-
-        const UVCrossing key = {tpc, uwire.iwire->fChannel, vwire.iwire->fChannel};
-
-        isectUV[key] = ISect(uwire.iwire->fChannel, vwire.iwire->fChannel, tpc,
-                             ptsUV[key]);
-      } // end for vwire
-
-      for(raw::ChannelID_t vbad: vbad_by_tpc[tpc]){
-        const UVCrossing key = {tpc, uwire.iwire->fChannel, int(vbad)};
-        isectUV[key] = ISect(uwire.iwire->fChannel, vbad, tpc, ptsUV[key]);
-      }
-    } // end for uwire
-  } // end for tpc
-
-  std::cout << "Finding XUV coincidences..." << std::endl;
   std::vector<SpaceCharge*> spaceCharges;
 
-  for(auto it: xhits_by_tpc){
-    const geo::TPCID tpc = it.first;
+  TripletFinder tf(xhits, uhits, vhits,
+                   ubadchans, vbadchans,
+                   fDistThresh, fDistThreshDrift);
 
-    auto uwires_begin = uwires[tpc].begin();
-    auto vwires_begin = vwires[tpc].begin();
+  std::map<const recob::Hit*, std::vector<SpaceCharge*>> collectionMap;
 
-    for(auto& hit: it.second){
-      const double xpos = HitToXPos(*hit, tpc);
+  std::cout << "Finding XUV coincidences..." << std::endl;
+  for(const ChannelTriplet& trip: tf.Triplets()){
+    // Don't have a cwire object yet, set it later
+    SpaceCharge* sc = new SpaceCharge(trip.pt.x,
+                                      trip.pt.y,
+                                      trip.pt.z,
+                                      0,
+                                      inductionMap[trip.u.hit],
+                                      inductionMap[trip.v.hit]);
+    spaceCharges.push_back(sc);
+    collectionMap[trip.x.hit].push_back(sc);
+  }
 
-      FastForward(uwires_begin, xpos, uwires[tpc].end());
-      FastForward(vwires_begin, xpos, vwires[tpc].end());
+  for(const art::Ptr<recob::Hit>& hit: xhits){
+    const std::vector<SpaceCharge*>& scs = collectionMap[hit.get()];
+    if(scs.empty()) continue;
+    CollectionWireHit* cwire = new CollectionWireHit(hit->Channel(),
+                                                     hit->Integral(),
+                                                     scs);
+    hitmap[cwire] = hit;
+    cwires.push_back(cwire);
+    for(SpaceCharge* sc: scs) sc->fCWire = cwire;
+  } // end for hit
 
-      // Figure out which vwires intersect this xwire here so we don't do N^2
-      // nesting inside the uwire loop below.
-      std::vector<InductionWireWithXPos> vwires_cross;
-      std::unordered_map</*raw::ChannelID_t*/int, geo::WireIDIntersection> ptsXV;
-      vwires_cross.reserve(vwires[tpc].size()); // avoid reallocations
-      for(auto vit = vwires_begin; vit != vwires[tpc].end(); ++vit){
-        InductionWireWithXPos vwire = *vit;
-
-        if(vwire.xpos > xpos && !CloseDrift(vwire.xpos, xpos)) break;
-
-        if(ISect(hit->Channel(), vwire.iwire->fChannel, tpc, ptsXV[vwire.iwire->fChannel]))
-          vwires_cross.push_back(vwire);
-      } // end for vwire
-
-      // Figure out which bad V channels cross this X wire.
-      std::vector<raw::ChannelID_t> vbad_cross;
-      for(raw::ChannelID_t vbad: vbad_by_tpc[tpc]){
-        if(ISect(hit->Channel(), vbad, tpc, ptsXV[vbad]))
-          vbad_cross.push_back(vbad);
-      }
-
-      std::vector<SpaceCharge*> crossers;
-      for(auto uit = uwires_begin; uit != uwires[tpc].end(); ++uit){
-        const InductionWireWithXPos uwire = *uit;
-
-        if(uwire.xpos > xpos && !CloseDrift(uwire.xpos, xpos)) break;
-
-        geo::WireIDIntersection ptXU;
-        if(!ISect(hit->Channel(), uwire.iwire->fChannel, tpc, ptXU)) continue;
-
-        for(const InductionWireWithXPos& vwire: vwires_cross){
-
-          const geo::WireIDIntersection ptXV = ptsXV[vwire.iwire->fChannel];
-          if(!CloseSpace(ptXU, ptXV)) continue;
-
-          const UVCrossing key = {tpc, uwire.iwire->fChannel, vwire.iwire->fChannel};
-          if(!isectUV[key]) continue;
-
-          const geo::WireIDIntersection ptUV = ptsUV[key];
-
-          if(!CloseSpace(ptXU, ptUV) ||
-             !CloseSpace(ptXV, ptUV)) continue;
-
-          fDeltaX->Fill(xpos-uwire.xpos);
-          fDeltaX->Fill(xpos-vwire.xpos);
-          fDeltaX->Fill(uwire.xpos-vwire.xpos);
-
-          // TODO exactly which 3D position to set for this point? This average
-          // aleviates the problem with a single collection wire matching
-          // multiple hits on an induction wire at different times.
-
-          // Don't have a cwire object yet, set it later
-          SpaceCharge* sc = new SpaceCharge((xpos+uwire.xpos+vwire.xpos)/3,
-                                            (ptXU.y+ptXV.y+ptUV.y)/3,
-                                            (ptXU.z+ptXV.z+ptUV.z)/3,
-                                            0, uwire.iwire, vwire.iwire);
-          spaceCharges.push_back(sc);
-          crossers.push_back(sc);
-        } // end for vwire
-
-        for(raw::ChannelID_t vbad: vbad_cross){
-          const UVCrossing key = {tpc, uwire.iwire->fChannel, int(vbad)};
-          if(!isectUV[key]) continue;
-          const geo::WireIDIntersection ptUV = ptsUV[key];
-          if(!CloseSpace(ptXU, ptUV)) continue;
-
-          SpaceCharge* sc = new SpaceCharge((xpos+uwire.xpos)/2,
-                                            (ptXU.y+ptUV.y)/2,
-                                            (ptXU.z+ptUV.z)/2,
-                                            0, uwire.iwire, 0);
-          spaceCharges.push_back(sc);
-          crossers.push_back(sc);
-        }
-      } // end for uwire
-
-      CollectionWireHit* cwire = new CollectionWireHit(hit->Channel(), hit->Integral(), crossers);
-      hitmap[cwire] = hit;
-      cwires.push_back(cwire);
-      for(SpaceCharge* sc: crossers) sc->fCWire = cwire;
-    } // end for hit
-  } // end for it (tpc)
+  std::cout << cwires.size() << " collection wire objects" << std::endl;
 
   if(incNei) AddNeighbours(spaceCharges);
 }
