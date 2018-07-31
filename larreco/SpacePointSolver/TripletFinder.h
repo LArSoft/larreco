@@ -62,6 +62,8 @@ namespace reco3d
                   double distThresh, double distThreshDrift);
 
     std::vector<ChannelTriplet> Triplets();
+    /// Only search for XU intersections
+    std::vector<ChannelTriplet> TripletsTwoView();
 
   protected:
     const geo::GeometryCore* geom;

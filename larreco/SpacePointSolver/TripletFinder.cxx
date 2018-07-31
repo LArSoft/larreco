@@ -229,6 +229,36 @@ namespace reco3d
   }
 
   // -------------------------------------------------------------------------
+  std::vector<ChannelTriplet> TripletFinder::TripletsTwoView()
+  {
+    std::vector<ChannelTriplet> ret;
+
+    for(const auto& it: fX_by_tpc){
+      const geo::TPCID& tpc = it.first;
+
+      std::vector<ChannelDoublet> xus = DoubletsXU(tpc);
+
+      for(const ChannelDoublet& xu: xus){
+        const HitOrChan& x = xu.a;
+        const HitOrChan& u = xu.b;
+
+        double xavg = HitToXPos(x.chan, x.hit->PeakTime(), tpc);
+        int nx = 1;
+        if(u.hit){xavg += HitToXPos(u.chan, u.hit->PeakTime(), tpc); ++nx;}
+        xavg /= nx;
+
+        const XYZ pt{xavg, xu.pt.y, xu.pt.z};
+
+        ret.emplace_back(x, u, HitOrChan{0, 0}, pt);
+      } // end for xu
+    } // end for tpc
+
+    std::cout << ret.size() << " XUs total" << std::endl;
+
+    return ret;
+  }
+
+  // -------------------------------------------------------------------------
   std::vector<ChannelDoublet> TripletFinder::DoubletsXU(geo::TPCID tpc)
   {
     return DoubletHelper(tpc, fX_by_tpc[tpc], fU_by_tpc[tpc], fUbad_by_tpc[tpc]);
