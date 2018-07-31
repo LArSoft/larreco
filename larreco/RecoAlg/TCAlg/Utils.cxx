@@ -4369,23 +4369,23 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     bool prtT = false;
     bool prtP = false;
     bool prtS3 = false;
-    bool prtS2 = false;
-    for(int isl = 0; isl < slices.size(); ++isl) {
-      if(debug.Slice >= 0 && isl != debug.Slice) continue;
+    //bool prtS2 = false;
+    for(size_t isl = 0; isl < slices.size(); ++isl) {
+      if(debug.Slice >= 0 && int(isl) != debug.Slice) continue;
       auto& slc = slices[isl];
       if(!slc.vtx3s.empty()) prt3V = true;
       if(!slc.vtxs.empty()) prt2V = true;
       if(!slc.tjs.empty()) prtT = true;
       if(!slc.pfps.empty()) prtP = true;
       if(!slc.showers.empty()) prtS3 = true;
-      if(!slc.cots.empty()) prtS2 = true;
+      //if(!slc.cots.empty()) prtS2 = true;
     } // slc
     mf::LogVerbatim myprt("TC");
     if(prtS3) {
       myprt<<someText<<"************ Showers ************\n";
       myprt<<someText<<"   Slc:UID   Vtx  parUID  ___ChgPos____ ______Dir_____ ____posInPln____ ___projInPln____ 2D shower UIDs\n";
-      for(int isl = 0; isl < slices.size(); ++isl) {
-        if(debug.Slice >= 0 && isl != debug.Slice) continue;
+      for(size_t isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && int(isl) != debug.Slice) continue;
         auto& slc = slices[isl];
         if(slc.showers.empty()) continue;
 //        myprt<<".... Slice "<<isl<<"\n";
@@ -4396,8 +4396,8 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       myprt<<someText<<"************ PFParticles ************\n";
       myprt<<someText;
       myprt<<"   Slc:UID sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____ eVx  ________ePos_______ CS _______eDir______ ____dEdx____   Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
-      for(int isl = 0; isl < slices.size(); ++isl) {
-        if(debug.Slice >= 0 && isl != debug.Slice) continue;
+      for(size_t isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && int(isl) != debug.Slice) continue;
         auto& slc = slices[isl];
         if(slc.pfps.empty()) continue;
 //        myprt<<".... Slice "<<isl<<"\n";
@@ -4409,8 +4409,8 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       myprt<<someText<<"****** 3D vertices ******************************************__2DVtx_UID__*******\n";
       myprt<<someText<<"   Slc:UID Cstat TPC     X       Y       Z    XEr  YEr  ZEr pln0 pln1 pln2 Wire score Prim? Nu? nTru";
       myprt<<" ___________2D_Pos____________ _____Tj UIDs________\n";
-      for(int isl = 0; isl < slices.size(); ++isl) {
-        if(debug.Slice >= 0 && isl != debug.Slice) continue;
+      for(size_t isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && int(isl) != debug.Slice) continue;
         auto& slc = slices[isl];
         if(slc.vtx3s.empty()) continue;
 //        myprt<<".... Slice "<<isl<<"\n";
@@ -4422,8 +4422,8 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       // print out 2D vertices
       myprt<<someText<<"************ 2D vertices ************\n";
       myprt<<someText<<"   Slc:UID   CTP  wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D Tj UIDs\n";
-      for(int isl = 0; isl < slices.size(); ++isl) {
-        if(debug.Slice >= 0 && isl != debug.Slice) continue;
+      for(size_t isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && int(isl) != debug.Slice) continue;
         auto& slc = slices[isl];
         if(slc.vtxs.empty()) continue;
 //        myprt<<".... Slice "<<isl<<"\n";
@@ -4434,8 +4434,8 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(prtT) {
       myprt<<someText<<"************ Trajectories ************\n";
       myprt<<someText<<"   Slc:UID CTP Pass  Pts     W:T      Ang CS AveQ fnTj     W:T      Ang CS AveQ fnTj Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar  E*P mcpIndex  WorkID \n";
-      for(int isl = 0; isl < slices.size(); ++isl) {
-        if(debug.Slice >= 0 && isl != debug.Slice) continue;
+      for(size_t isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && int(isl) != debug.Slice) continue;
         auto& slc = slices[isl];
         if(slc.tjs.empty()) continue;
 //        myprt<<".... Slice "<<isl<<"\n";

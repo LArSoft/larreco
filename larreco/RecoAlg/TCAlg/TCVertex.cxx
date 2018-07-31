@@ -1293,13 +1293,13 @@ namespace tca {
             float dX = std::abs(vX[ivx] - vX[jvx]);
             if(dX > tcc.vtx3DCuts[0]) continue;
             // see if this pair is already in the list
-            bool gotit = false;
+            //bool gotit = false;
             for(auto& v3t : v3temp) {
               unsigned short cnt = 0;
               if(std::find(v3t.Vx2ID.begin(), v3t.Vx2ID.end(), ivx2.ID) != v3t.Vx2ID.end()) ++cnt;
               if(std::find(v3t.Vx2ID.begin(), v3t.Vx2ID.end(), jvx2.ID) != v3t.Vx2ID.end()) ++cnt;
               if(cnt == slc.nPlanes) {
-                gotit = true;
+                //gotit = true;
                 break;
               } // cnt == slc.nPlanes
             } // v3t
