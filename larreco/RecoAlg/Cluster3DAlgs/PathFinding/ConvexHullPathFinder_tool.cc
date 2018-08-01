@@ -318,7 +318,7 @@ void ConvexHullPathFinder::ModifyClusters(reco::ClusterParametersList& clusterPa
     
     return;
 }
-    
+
 reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(reco::ClusterParameters&              clusterToBreak,
                                                                              reco::PrincipalComponents&            lastPCA,
                                                                              reco::ClusterParametersList::iterator positionItr,
