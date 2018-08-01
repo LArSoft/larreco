@@ -164,8 +164,8 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
 	if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) {
 	  double elep =  mctruth->GetNeutrino().Lepton().E();
 	  std::cout << "ELECTRON ENERGY: " << elep << std::endl;
-	  if (elep > 4 && elep < 5) {
-	    //	    showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
+	  if (elep > 3.5 && elep < 4.5) {
+	    //showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
 	    //	    showerProfileTrue(hitlist);
 	    showerProfileTrue(simchanlist, mctruth->GetNeutrino().Lepton());
 	  }
@@ -234,6 +234,8 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
   } // loop through showerhits
 
   for (int i = 0; i < 20; ++i) {
+    if (temp->GetBinContent(i+1) == 0) continue;
+    if (temp->GetBinContent(i+2) == 0) continue;
     fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
 
@@ -339,6 +341,8 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
   } // loop through all hits
 
   for (int i = 0; i < 20; ++i) {
+    if (temp->GetBinContent(i+1) == 0) continue;
+    if (temp->GetBinContent(i+2) == 0) continue;
     fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
 
@@ -416,6 +420,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimC
   for (int i = 0; i < 20; ++i) {
     if (temp->GetBinContent(i+1) == 0) continue;
     if (temp->GetBinContent(i+2) == 0) continue;
+    //    if (temp->GetBinContent(i+3) == 0) continue;
     fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
 
