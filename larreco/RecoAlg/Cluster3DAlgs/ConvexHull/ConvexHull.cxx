@@ -28,7 +28,8 @@
 
 namespace lar_cluster3d {
 
-ConvexHull::ConvexHull(const PointList& pointListIn) : fPoints(pointListIn), fConvexHullArea(0.)
+ConvexHull::ConvexHull(const PointList& pointListIn, float kinkAngle, float minEdgeDistance) :
+    fKinkAngle(kinkAngle), fMinEdgeDistance(minEdgeDistance), fPoints(pointListIn), fConvexHullArea(0.)
 {
     fConvexHull.clear();
     
@@ -276,6 +277,10 @@ const ConvexHull::PointList& ConvexHull::getExtremePoints()
 
 const ConvexHull::PointList& ConvexHull::getKinkPoints()
 {
+    // Goal here is to isolate the points where we see a large deviation in the contour defined by the
+    // convex hull. The complications are numerous, chief is that some deviations can be artificially
+    // "rounded" by a series of very small steps around a large corner. So we need to protect against that.
+    
     // Make sure the current list has been cleared
     fKinkPoints.clear();
     
@@ -284,10 +289,20 @@ const ConvexHull::PointList& ConvexHull::getKinkPoints()
     {
         // Idea will be to traverse the convex hull and keep track of all points where there is a
         // "kink" which will be defined as a "large" angle between adjacent edges.
-        // We need to handle the special case of the first point
+        // Recall that construxtion of the convex hull results in the same point at the start and
+        // end of the list
+        // Getting the initial point requires some contortions because the convex hull point list will
+        // contain the same point at both ends of the list (why?)
         PointList::iterator pointItr = fConvexHull.begin();
         
-        Point           lastPoint = fConvexHull.back();
+        // Advance to the second to last element
+        std::advance(pointItr, fConvexHull.size() - 2);
+        
+        Point lastPoint = *pointItr++;
+        
+        // Reset pointer to the first element
+        pointItr = fConvexHull.begin();
+        
         Point           curPoint  = *pointItr++;
         Eigen::Vector2f lastEdge(std::get<0>(curPoint) - std::get<0>(lastPoint), std::get<1>(curPoint) - std::get<1>(lastPoint));
         
@@ -295,18 +310,20 @@ const ConvexHull::PointList& ConvexHull::getKinkPoints()
     
         while(pointItr != fConvexHull.end())
         {
-            Point& nextPoint = *pointItr;
+            Point& nextPoint = *pointItr++;
         
             Eigen::Vector2f nextEdge(std::get<0>(nextPoint) - std::get<0>(curPoint), std::get<1>(nextPoint) - std::get<1>(curPoint));
+            
+            if (nextEdge.norm() > fMinEdgeDistance)
+            {
+                nextEdge.normalize();
         
-            nextEdge.normalize();
+                if (lastEdge.dot(nextEdge) < fKinkAngle) fKinkPoints.push_back(curPoint);
         
-            if (lastEdge.dot(nextEdge) < 0.7) fKinkPoints.push_back(curPoint);
-        
-            lastEdge = nextEdge;
+                lastEdge = nextEdge;
+            }
+            
             curPoint = nextPoint;
-    
-            pointItr++;
         }
     }
         

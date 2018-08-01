@@ -38,7 +38,7 @@ public:
      * 
      *  @param  pset
      */
-    ConvexHull(const PointList&);
+    ConvexHull(const PointList&, float = 0.85, float = 0.35);
 
     /**
      *  @brief  Destructor
@@ -108,6 +108,9 @@ private:
      *  @brief Determines whether a point is to the left, right or on line specifiec by p0 and p1
      */
     bool isLeft(const Point& p0, const Point& p1, const Point& pCheck) const;
+    
+    float            fKinkAngle;
+    float            fMinEdgeDistance;
 
     const PointList& fPoints;
     PointList        fConvexHull;

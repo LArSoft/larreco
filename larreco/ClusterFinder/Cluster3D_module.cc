@@ -1134,6 +1134,9 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
             if (clusterParameters.daughterList().empty())
             {
                 ConvertToArtOutput(output, clusterParameters, recob::PFParticle::kPFParticlePrimary, hitToPtrMap, hit3DToSPPtrMap);
+                
+                // Get the extreme points
+                MakeAndSaveExtremePoints(output, clusterParameters.getConvexKinkPoints()); //getConvexExtremePoints());
             }
             // Otherwise, the cluster has daughters so we handle specially
             else
@@ -1213,7 +1216,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
                 MakeAndSaveSpacePoints(output, clusterParameters.getHitPairListPtr(), hitToPtrMap, hit3DToSPPtrMap, spacePointStart);
                 
                 // Get the extreme points
-                MakeAndSaveExtremePoints(output, clusterParameters.getConvexExtremePoints());
+                MakeAndSaveExtremePoints(output, clusterParameters.getConvexKinkPoints()); //getConvexExtremePoints());
 
                 // Build the edges now
                 size_t edgeStart(output.artEdgeVector->size());

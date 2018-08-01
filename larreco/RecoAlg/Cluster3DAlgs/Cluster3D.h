@@ -348,6 +348,7 @@ public:
         m_bestHitPairListPtr.clear();
         m_bestEdgeList.clear();
         m_convexExtremePoints.clear();
+        m_convexKinkPoints.clear();
         m_faceList.clear();
         m_vertexList.clear();
         m_halfEdgeList.clear();
@@ -362,6 +363,7 @@ public:
         m_bestHitPairListPtr.clear();
         m_bestEdgeList.clear();
         m_convexExtremePoints.clear();
+        m_convexKinkPoints.clear();
         m_faceList.clear();
         m_vertexList.clear();
         m_halfEdgeList.clear();
@@ -375,6 +377,7 @@ public:
         m_bestHitPairListPtr.clear();
         m_bestEdgeList.clear();
         m_convexExtremePoints.clear();
+        m_convexKinkPoints.clear();
         m_faceList.clear();
         m_vertexList.clear();
         m_halfEdgeList.clear();
@@ -413,6 +416,7 @@ public:
     reco::HitPairListPtr&          getBestHitPairListPtr()  {return m_bestHitPairListPtr;}
     reco::EdgeList&                getBestEdgeList()        {return m_bestEdgeList;}
     reco::HitPairListPtr&          getConvexExtremePoints() {return m_convexExtremePoints;}
+    reco::HitPairListPtr&          getConvexKinkPoints()    {return m_convexKinkPoints;}
     dcel2d::FaceList&              getFaceList()            {return m_faceList;}
     dcel2d::VertexList&            getVertexList()          {return m_vertexList;}
     dcel2d::HalfEdgeList&          getHalfEdgeList()        {return m_halfEdgeList;}
@@ -432,6 +436,7 @@ private:
     reco::HitPairListPtr      m_bestHitPairListPtr;
     reco::EdgeList            m_bestEdgeList;        // This has become multiuse... really need to split it up
     reco::HitPairListPtr      m_convexExtremePoints; // The points furthest from each other on hull
+    reco::HitPairListPtr      m_convexKinkPoints;    // The points with large kinks on the hull
     dcel2d::FaceList          m_faceList;            // Keeps track of "faces" from Voronoi Diagram
     dcel2d::VertexList        m_vertexList;          // Keeps track of "vertices" from Voronoi Diagram
     dcel2d::HalfEdgeList      m_halfEdgeList;        // Keeps track of "halfedges" from Voronoi Diagram
