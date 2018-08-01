@@ -61,9 +61,14 @@ public:
     const MinMaxPointPair& getMinMaxPointPair() const {return fMinMaxPointPair;}
     
     /**
-     *  @brief Given an input Point, find the nearest edge
+     *  @brief Find the two points on the hull which are furthest apart
      */
-    PointPair getExtremePoints() const;
+    const PointList& getExtremePoints();
+    
+    /**
+     *  @brief Find the points with the largest angles
+     */
+    const PointList& getKinkPoints();
 
     /**
      *  @brief recover the area of the convex hull
@@ -108,7 +113,8 @@ private:
     PointList        fConvexHull;
     MinMaxPointPair  fMinMaxPointPair;
     float            fConvexHullArea;
-
+    PointList        fExtremePoints;
+    PointList        fKinkPoints;
 };
     
 } // namespace lar_cluster3d

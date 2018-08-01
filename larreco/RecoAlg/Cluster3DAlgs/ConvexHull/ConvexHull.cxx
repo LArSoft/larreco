@@ -205,13 +205,17 @@ void ConvexHull::getConvexHull(const PointList& pointList)
     return;
 }
     
-ConvexHull::PointPair ConvexHull::getExtremePoints() const
+const ConvexHull::PointList& ConvexHull::getExtremePoints()
 {
     PointList::const_iterator nextPointItr  = fConvexHull.begin();
     PointList::const_iterator firstPointItr = nextPointItr++;
 
     float  maxSeparation(0.);
     
+    // Make sure the current list has been cleared
+    fExtremePoints.clear();
+    
+    // For finding the two farthest points
     PointPair extremePoints(Point(0,0,NULL),Point(0,0,NULL));
     
     while(nextPointItr != fConvexHull.end())
@@ -264,10 +268,51 @@ ConvexHull::PointPair ConvexHull::getExtremePoints() const
         if (firstPointItr == nextPointItr) nextPointItr++;
     }
     
-    return extremePoints;
+    fExtremePoints.push_back(extremePoints.first);
+    fExtremePoints.push_back(extremePoints.second);
+    
+    return fExtremePoints;
 }
 
+const ConvexHull::PointList& ConvexHull::getKinkPoints()
+{
+    // Make sure the current list has been cleared
+    fKinkPoints.clear();
     
+    // Need a mininum number of points/edges
+    if (fConvexHull.size() > 3)
+    {
+        // Idea will be to traverse the convex hull and keep track of all points where there is a
+        // "kink" which will be defined as a "large" angle between adjacent edges.
+        // We need to handle the special case of the first point
+        PointList::iterator pointItr = fConvexHull.begin();
+        
+        Point           lastPoint = fConvexHull.back();
+        Point           curPoint  = *pointItr++;
+        Eigen::Vector2f lastEdge(std::get<0>(curPoint) - std::get<0>(lastPoint), std::get<1>(curPoint) - std::get<1>(lastPoint));
+        
+        lastEdge.normalize();
+    
+        while(pointItr != fConvexHull.end())
+        {
+            Point& nextPoint = *pointItr;
+        
+            Eigen::Vector2f nextEdge(std::get<0>(nextPoint) - std::get<0>(curPoint), std::get<1>(nextPoint) - std::get<1>(curPoint));
+        
+            nextEdge.normalize();
+        
+            if (lastEdge.dot(nextEdge) < 0.7) fKinkPoints.push_back(curPoint);
+        
+            lastEdge = nextEdge;
+            curPoint = nextPoint;
+    
+            pointItr++;
+        }
+    }
+        
+    return fKinkPoints;
+}
+
 ConvexHull::PointPair ConvexHull::findNearestEdge(const Point& point, float& closestDistance) const
 {
     // The idea is to find the nearest edge of the convex hull, defined by
