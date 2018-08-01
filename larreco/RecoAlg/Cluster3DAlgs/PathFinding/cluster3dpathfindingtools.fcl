@@ -1,0 +1,30 @@
+BEGIN_PROLOG
+
+standard_cluster3dPathAlg:
+{
+  tool_type:              ClusterPathFinder
+  EnableMonitoring:       true    # enable monitoring of functions
+  MinTinyClusterSize:     40      # minimum number of hits to consider splitting
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  ClusterAlg:             @local::standard_cluster3ddbscanalg
+}
+
+standard_voronoiPathAlg:
+{
+  tool_type:              VoronoiPathFinder
+  EnableMonitoring:       true    # enable monitoring of functions
+  MinTinyClusterSize:     40      # minimum number of hits to consider splitting
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  ClusterAlg:             @local::standard_cluster3ddbscanalg
+}
+
+standard_convexhullPathAlg:
+{
+  tool_type:              ConvexHullPathFinder
+  EnableMonitoring:       true    # enable monitoring of functions
+  MinTinyClusterSize:     40      # minimum number of hits to consider splitting
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  ClusterAlg:             @local::standard_cluster3ddbscanalg
+}
+
+END_PROLOG
