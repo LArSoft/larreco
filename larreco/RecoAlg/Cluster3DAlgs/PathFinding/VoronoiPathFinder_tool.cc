@@ -700,7 +700,7 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::subDivideCluster(reco::
             reco::HitPairListPtr::iterator vertexItr = std::find(clusHitPairVector.begin(),clusHitPairVector.end(),edgeHit);
             
             // Make sure enough hits either side, otherwise we just keep the current cluster
-            if (vertexItr == clusHitPairVector.end() || std::distance(clusHitPairVector.begin(),vertexItr) < fMinTinyClusterSize || std::distance(vertexItr,clusHitPairVector.end()) < fMinTinyClusterSize) continue;
+            if (vertexItr == clusHitPairVector.end() || std::distance(clusHitPairVector.begin(),vertexItr) < int(fMinTinyClusterSize) || std::distance(vertexItr,clusHitPairVector.end()) < int(fMinTinyClusterSize)) continue;
             
             tempClusterParametersList.push_back(reco::ClusterParameters());
             
