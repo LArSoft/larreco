@@ -150,39 +150,64 @@ QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha)
 
   const InductionWireHit* iwire1 = sci->fWire1;
   const InductionWireHit* jwire1 = scj->fWire1;
-  if(iwire1 && jwire1){
-    const double qi1 = iwire1->fCharge;
-    const double pi1 = iwire1->fPred;
 
-    const double qj1 = jwire1->fCharge;
-    const double pj1 = jwire1->fPred;
+  const double qi1 = iwire1 ? iwire1->fCharge : 0;
+  const double pi1 = iwire1 ? iwire1->fPred : 0;
 
-    if(iwire1 == jwire1){
-      ret += Metric(qi1, pi1);
-    }
-    else{
-      ret += Metric(qi1, pi1 + x);
-      ret += Metric(qj1, pj1 - x);
-    }
+  const double qj1 = jwire1 ? jwire1->fCharge : 0;
+  const double pj1 = jwire1 ? jwire1->fPred : 0;
+
+  if(iwire1 == jwire1){
+    // Same wire means movement of charge cancels itself out
+    if(iwire1) ret += Metric(qi1, pi1);
+  }
+  else{
+    if(iwire1) ret += Metric(qi1, pi1 + x);
+    if(jwire1) ret += Metric(qj1, pj1 - x);
   }
 
   const InductionWireHit* iwire2 = sci->fWire2;
   const InductionWireHit* jwire2 = scj->fWire2;
-  if(iwire2 && jwire2){
-    const double qi2 = iwire2->fCharge;
-    const double pi2 = iwire2->fPred;
 
-    const double qj2 = jwire2->fCharge;
-    const double pj2 = jwire2->fPred;
+  const double qi2 = iwire2 ? iwire2->fCharge : 0;
+  const double pi2 = iwire2 ? iwire2->fPred : 0;
 
-    if(iwire2 == jwire2){
-      ret += Metric(qi2, pi2);
-    }
-    else{
-      ret += Metric(qi2, pi2 + x);
-      ret += Metric(qj2, pj2 - x);
-    }
+  const double qj2 = jwire2 ? jwire2->fCharge : 0;
+  const double pj2 = jwire2 ? jwire2->fPred : 0;
+
+  if(iwire2 == jwire2){
+    if(iwire2) ret += Metric(qi2, pi2);
   }
+  else{
+    if(iwire2) ret += Metric(qi2, pi2 + x);
+    if(jwire2) ret += Metric(qj2, pj2 - x);
+  }
+
+  return ret;
+}
+
+// ---------------------------------------------------------------------------
+QuadExpr Metric(const SpaceCharge* sc, double alpha)
+{
+  QuadExpr ret = 0;
+
+  // How much charge is added to sc
+  QuadExpr x = QuadExpr::X();
+
+  if(alpha != 0){
+    const double scp = sc->fPred;
+
+    // Self energy
+    ret -= alpha*sqr(scp + x);
+
+    // Interaction. We're only seeing one end of the double-ended connection
+    // here, so multiply by two.
+    ret -= 2 * alpha * (scp + x) * sc->fNeiPotential;
+  }
+
+  // Prediction of the induction wires
+  ret += Metric(sc->fWire1->fCharge, sc->fWire1->fPred + x);
+  ret += Metric(sc->fWire2->fCharge, sc->fWire2->fPred + x);
 
   return ret;
 }
@@ -253,9 +278,6 @@ void Iterate(CollectionWireHit* cwire, double alpha)
       if(iwire1 && iwire1 == jwire2) abort();
       if(iwire2 && iwire2 == jwire1) abort();
 
-      // Driving all the same wires, no move can have any effect
-      if(iwire1 == jwire1 && iwire2 == jwire2) continue;
-
       const double x = SolvePair(cwire, sci, scj, alpha);
 
       if(x == 0) continue;
@@ -268,8 +290,37 @@ void Iterate(CollectionWireHit* cwire, double alpha)
 }
 
 // ---------------------------------------------------------------------------
+void Iterate(SpaceCharge* sc, double alpha)
+{
+  const QuadExpr chisq = Metric(sc, alpha);
+
+  // Find the minimum of a quadratic expression
+  double x = -chisq.Linear()/(2*chisq.Quadratic());
+
+  // Don't allow the SpaceCharge to go negative
+  const double xmin = -sc->fPred;
+
+  // Clamp to allowed range
+  x = std::max(xmin, x);
+
+  const double chisq_new = chisq.Eval(x);
+
+  // Should try here too, because the function might be convex not concave, so
+  // d/dx=0 gives the max not the min, and the true min is at one extreme of
+  // the range.
+  const double chisq_n = chisq.Eval(xmin);
+
+  if(chisq_n < chisq_new)
+    sc->AddCharge(xmin);
+  else
+    sc->AddCharge(x);
+}
+
+// ---------------------------------------------------------------------------
 void Iterate(const std::vector<CollectionWireHit*>& cwires,
+             const std::vector<SpaceCharge*>& orphanSCs,
              double alpha)
 {
   for(CollectionWireHit* cwire: cwires) Iterate(cwire, alpha);
+  for(SpaceCharge* sc: orphanSCs) Iterate(sc, alpha);
 }

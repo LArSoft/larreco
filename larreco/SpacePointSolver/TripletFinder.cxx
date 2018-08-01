@@ -8,6 +8,7 @@ namespace reco3d
   TripletFinder::TripletFinder(const std::vector<art::Ptr<recob::Hit>>& xhits,
                                const std::vector<art::Ptr<recob::Hit>>& uhits,
                                const std::vector<art::Ptr<recob::Hit>>& vhits,
+                               const std::vector<raw::ChannelID_t>& xbad,
                                const std::vector<raw::ChannelID_t>& ubad,
                                const std::vector<raw::ChannelID_t>& vbad,
                                double distThresh, double distThreshDrift)
@@ -20,6 +21,7 @@ namespace reco3d
     FillHitMap(uhits, fU_by_tpc);
     FillHitMap(vhits, fV_by_tpc);
 
+    FillBadMap(xbad, fXbad_by_tpc);
     FillBadMap(ubad, fUbad_by_tpc);
     FillBadMap(vbad, fVbad_by_tpc);
   }
@@ -125,6 +127,20 @@ namespace reco3d
     return (pa-pb).Mag() < fDistThresh;
   }
 
+  bool LessThanXHit(const ChannelDoublet& a, const ChannelDoublet& b)
+  {
+    // Make sure the bad hits get sorted too
+    if(a.a.hit == 0 && b.a.hit == 0) return a.a.chan < b.a.chan;
+    // But mostly just order the real hits (in some arbitrary order)
+    return a.a.hit < b.a.hit;
+  }
+
+  bool SameXHit(const ChannelDoublet& a, const ChannelDoublet& b)
+  {
+    if(a.a.hit == 0 && b.a.hit == 0) return a.a.chan == b.a.chan;
+    return a.a.hit == b.a.hit;
+  }
+
   // -------------------------------------------------------------------------
   std::vector<HitTriplet> TripletFinder::Triplets()
   {
@@ -141,10 +157,8 @@ namespace reco3d
 
       // For the efficient looping below to work we need to sort the doublet
       // lists so the X hits occur in the same order.
-      std::sort(xus.begin(), xus.end(),
-                [](auto a, auto b){return a.a.hit < b.a.hit;});
-      std::sort(xvs.begin(), xvs.end(),
-                [](auto a, auto b){return a.a.hit < b.a.hit;});
+      std::sort(xus.begin(), xus.end(), LessThanXHit);
+      std::sort(xvs.begin(), xvs.end(), LessThanXHit);
 
       auto xvit_begin = xvs.begin();
 
@@ -154,13 +168,15 @@ namespace reco3d
         const HitOrChan& u = xu.b;
 
         // Catch up until we're looking at the same X hit in XV
-        while(xvit_begin != xvs.end() && xvit_begin->a.hit < x.hit) ++xvit_begin;
+        while(xvit_begin != xvs.end() && LessThanXHit(*xvit_begin, xu)) ++xvit_begin;
 
         // Loop through all those matching hits
-        for(auto xvit = xvit_begin; xvit != xvs.end() && xvit->a.hit == x.hit; ++xvit){
+        for(auto xvit = xvit_begin; xvit != xvs.end() && SameXHit(*xvit, xu); ++xvit){
           const HitOrChan& v = xvit->b;
 
           // Only allow one bad channel per triplet
+          if(!x.hit && !u.hit) continue;
+          if(!x.hit && !v.hit) continue;
           if(!u.hit && !v.hit) continue;
 
           if(u.hit && v.hit && !CloseDrift(u.xpos, v.xpos)) continue;
@@ -172,8 +188,9 @@ namespace reco3d
              !CloseSpace(xu.pt, ptUV) ||
              !CloseSpace(xvit->pt, ptUV)) continue;
 
-          double xavg = x.xpos;
-          int nx = 1;
+          double xavg = 0;
+          int nx = 0;
+          if(x.hit){xavg += x.xpos; ++nx;}
           if(u.hit){xavg += u.xpos; ++nx;}
           if(v.hit){xavg += v.xpos; ++nx;}
           xavg /= nx;
@@ -229,13 +246,27 @@ namespace reco3d
   // -------------------------------------------------------------------------
   std::vector<ChannelDoublet> TripletFinder::DoubletsXU(geo::TPCID tpc)
   {
-    return DoubletHelper(tpc, fX_by_tpc[tpc], fU_by_tpc[tpc], fUbad_by_tpc[tpc]);
+    std::vector<ChannelDoublet> ret = DoubletHelper(tpc, fX_by_tpc[tpc], fU_by_tpc[tpc], fUbad_by_tpc[tpc]);
+
+    // Find X(bad)+U(good) doublets, have to flip them for the final result
+    for(auto it: DoubletHelper(tpc, fU_by_tpc[tpc], {}, fXbad_by_tpc[tpc])){
+      ret.push_back({it.b, it.a, it.pt});
+    }
+
+    return ret;
   }
 
   // -------------------------------------------------------------------------
   std::vector<ChannelDoublet> TripletFinder::DoubletsXV(geo::TPCID tpc)
   {
-    return DoubletHelper(tpc, fX_by_tpc[tpc], fV_by_tpc[tpc], fVbad_by_tpc[tpc]);
+    std::vector<ChannelDoublet> ret = DoubletHelper(tpc, fX_by_tpc[tpc], fV_by_tpc[tpc], fVbad_by_tpc[tpc]);
+
+    // Find X(bad)+V(good) doublets, have to flip them for the final result
+    for(auto it: DoubletHelper(tpc, fV_by_tpc[tpc], {}, fXbad_by_tpc[tpc])){
+      ret.push_back({it.b, it.a, it.pt});
+    }
+
+    return ret;
   }
 
   // -------------------------------------------------------------------------

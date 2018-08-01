@@ -42,7 +42,6 @@
 
 #include "Solver.h"
 #include "TripletFinder.h"
-#include "HashTuple.h"
 
 template<class T> T sqr(T x){return x*x;}
 
@@ -80,10 +79,13 @@ protected:
   void BuildSystem(const std::vector<HitTriplet>& triplets,
                    std::vector<CollectionWireHit*>& cwires,
                    std::vector<InductionWireHit*>& iwires,
+                   std::vector<SpaceCharge*>& orphanSCs,
                    bool incNei,
                    HitMap_t& hitmap) const;
 
-  void Minimize(std::vector<CollectionWireHit*>& cwires, double alpha);
+  void Minimize(const std::vector<CollectionWireHit*>& cwires,
+                const std::vector<SpaceCharge*>& orphanSCs,
+                double alpha);
 
   /// return whether the point was inserted (only happens when it has charge)
   bool AddSpacePoint(const SpaceCharge& sc,
@@ -91,10 +93,12 @@ protected:
                      recob::ChargedSpacePointCollectionCreator& points) const;
 
   void FillSystemToSpacePoints(const std::vector<CollectionWireHit*>& cwires,
+                               const std::vector<SpaceCharge*>& orphanSCs,
                                recob::ChargedSpacePointCollectionCreator& pts) const;
 
   void FillSystemToSpacePointsAndAssns(const std::vector<art::Ptr<recob::Hit>>& hitlist,
                                        const std::vector<CollectionWireHit*>& cwires,
+                                       const std::vector<SpaceCharge*>& orphanSCs,
                                        const HitMap_t& hitmap,
                                        recob::ChargedSpacePointCollectionCreator& points,
                                        art::Assns<recob::SpacePoint, recob::Hit>& assn) const;
@@ -102,7 +106,7 @@ protected:
   std::string fHitLabel;
 
   bool fFit;
-  bool fAllowBadInductionHit;
+  bool fAllowBadInductionHit, fAllowBadCollectionHit;
 
   double fAlpha;
 
@@ -120,6 +124,7 @@ SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset)
   : fHitLabel(pset.get<std::string>("HitLabel")),
     fFit(pset.get<bool>("Fit")),
     fAllowBadInductionHit(pset.get<bool>("AllowBadInductionHit")),
+    fAllowBadCollectionHit(pset.get<bool>("AllowBadCollectionHit")),
     fAlpha(pset.get<double>("Alpha")),
     fDistThresh(pset.get<double>("WireIntersectThreshold")),
     fDistThreshDrift(pset.get<double>("WireIntersectThresholdDriftDir"))
@@ -252,13 +257,14 @@ void SpacePointSolver::
 BuildSystem(const std::vector<HitTriplet>& triplets,
             std::vector<CollectionWireHit*>& cwires,
             std::vector<InductionWireHit*>& iwires,
+            std::vector<SpaceCharge*>& orphanSCs,
             bool incNei,
             HitMap_t& hitmap) const
 {
   std::set<const recob::Hit*> ihits;
   std::set<const recob::Hit*> chits;
   for(const HitTriplet& trip: triplets){
-    chits.insert(trip.x);
+    if(trip.x) chits.insert(trip.x);
     if(trip.u) ihits.insert(trip.u);
     if(trip.v) ihits.insert(trip.v);
   }
@@ -275,6 +281,8 @@ BuildSystem(const std::vector<HitTriplet>& triplets,
   std::map<const recob::Hit*, std::vector<SpaceCharge*>> collectionMap;
   std::map<const recob::Hit*, std::vector<SpaceCharge*>> collectionMapBad;
 
+  std::set<std::pair<InductionWireHit*, InductionWireHit*>> satisfiedInductionPairs;
+
   for(const HitTriplet& trip: triplets){
     // Don't have a cwire object yet, set it later
     SpaceCharge* sc = new SpaceCharge(trip.pt.x,
@@ -284,10 +292,16 @@ BuildSystem(const std::vector<HitTriplet>& triplets,
                                       inductionMap[trip.u],
                                       inductionMap[trip.v]);
 
-    if(trip.u && trip.v)
+    if(trip.u && trip.v){
       collectionMap[trip.x].push_back(sc);
-    else
+      if(trip.x){
+        satisfiedInductionPairs.emplace(inductionMap[trip.u],
+                                        inductionMap[trip.v]);
+      }
+    }
+    else{
       collectionMapBad[trip.x].push_back(sc);
+    }
   }
 
   std::vector<SpaceCharge*> spaceCharges;
@@ -315,6 +329,16 @@ BuildSystem(const std::vector<HitTriplet>& triplets,
     for(SpaceCharge* sc: scs) sc->fCWire = cwire;
   } // end for hit
 
+  // Space charges whose collection wire is bad, which we have no other way of
+  // addressing.
+  for(SpaceCharge* sc: collectionMap[0]){
+    // Only count orphans where the induction wires have no other explanation
+    if(satisfiedInductionPairs.count({sc->fWire1, sc->fWire2}) == 0){
+      orphanSCs.push_back(sc);
+    }
+  }
+  spaceCharges.insert(spaceCharges.end(), orphanSCs.begin(), orphanSCs.end());
+
   std::cout << cwires.size() << " collection wire objects" << std::endl;
   std::cout << spaceCharges.size() << " potential space points" << std::endl;
 
@@ -341,6 +365,7 @@ AddSpacePoint(const SpaceCharge& sc,
 // ---------------------------------------------------------------------------
 void SpacePointSolver::
 FillSystemToSpacePoints(const std::vector<CollectionWireHit*>& cwires,
+                        const std::vector<SpaceCharge*>& orphanSCs,
                         recob::ChargedSpacePointCollectionCreator& points) const
 {
   int iPoint = 0;
@@ -349,6 +374,8 @@ FillSystemToSpacePoints(const std::vector<CollectionWireHit*>& cwires,
       AddSpacePoint(*sc, iPoint++, points);
     } // for sc
   } // for cwire
+
+  for(const SpaceCharge* sc: orphanSCs) AddSpacePoint(*sc, iPoint++, points);
 }
 
 
@@ -356,6 +383,7 @@ FillSystemToSpacePoints(const std::vector<CollectionWireHit*>& cwires,
 void SpacePointSolver::
 FillSystemToSpacePointsAndAssns(const std::vector<art::Ptr<recob::Hit>>& hitlist,
                                 const std::vector<CollectionWireHit*>& cwires,
+                                const std::vector<SpaceCharge*>& orphanSCs,
                                 const HitMap_t& hitmap,
                                 recob::ChargedSpacePointCollectionCreator& points,
                                 art::Assns<recob::SpacePoint, recob::Hit>& assn) const
@@ -363,37 +391,39 @@ FillSystemToSpacePointsAndAssns(const std::vector<art::Ptr<recob::Hit>>& hitlist
   std::map<const recob::Hit*, art::Ptr<recob::Hit>> ptrmap;
   for(art::Ptr<recob::Hit> hit: hitlist) ptrmap[hit.get()] = hit;
 
+  std::vector<const SpaceCharge*> scs;
+  for(const SpaceCharge* sc: orphanSCs) scs.push_back(sc);
+  for(const CollectionWireHit* cwire: cwires)
+    for(const SpaceCharge* sc: cwire->fCrossings)
+      scs.push_back(sc);
+
   int iPoint = 0;
-  for(const CollectionWireHit* cwire: cwires){
-    for(const SpaceCharge* sc: cwire->fCrossings){
-      // fill the space point and reconstructed charge information;
-      // if the point is filtered out, it's not inserted (no association either)
-      if(!AddSpacePoint(*sc, iPoint++, points)) continue;
 
-      // now fill the associations to the last added space point
-      const auto& spsPtr = points.lastSpacePointPtr();
+  for(const SpaceCharge* sc: scs){
+    if(!AddSpacePoint(*sc, iPoint++, points)) continue;
+    const auto& spsPtr = points.lastSpacePointPtr();
 
-      const auto& hit = ptrmap[hitmap.at(cwire)];
-      assn.addSingle(spsPtr, hit);
-
-      if(sc->fWire1){
-        assn.addSingle(spsPtr, ptrmap[hitmap.at(sc->fWire1)]);
-      }
-      if(sc->fWire2){
-        assn.addSingle(spsPtr, ptrmap[hitmap.at(sc->fWire2)]);
-      }
-    } // for sc
-  } // for cwire
+    if(sc->fCWire){
+      assn.addSingle(spsPtr, ptrmap[hitmap.at(sc->fCWire)]);
+    }
+    if(sc->fWire1){
+      assn.addSingle(spsPtr, ptrmap[hitmap.at(sc->fWire1)]);
+    }
+    if(sc->fWire2){
+      assn.addSingle(spsPtr, ptrmap[hitmap.at(sc->fWire2)]);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
-void SpacePointSolver::Minimize(std::vector<CollectionWireHit*>& cwires,
+void SpacePointSolver::Minimize(const std::vector<CollectionWireHit*>& cwires,
+                                const std::vector<SpaceCharge*>& orphanSCs,
                                 double alpha)
 {
   double prevMetric = Metric(cwires, alpha);
   std::cout << "Begin: " << prevMetric << std::endl;
   for(int i = 0; i < 100; ++i){
-    Iterate(cwires, alpha);
+    Iterate(cwires, orphanSCs, alpha);
     const double metric = Metric(cwires, alpha);
     std::cout << i << " " << metric << std::endl;
     if(metric > prevMetric){
@@ -463,61 +493,74 @@ void SpacePointSolver::produce(art::Event& evt)
     }
   } // end for hit
 
-  std::vector<raw::ChannelID_t> ubadchans, vbadchans;
-  if(fAllowBadInductionHit){
-    // NB - current implementation only allows intersection of vbadchan with
-    // good hits from X and U. Would like to refactor before adding the
-    // complexity of XV+U.
+  std::vector<raw::ChannelID_t> xbadchans, ubadchans, vbadchans;
+  if(fAllowBadInductionHit || fAllowBadCollectionHit){
     for(raw::ChannelID_t cid: art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider().BadChannels()){
-      if(geom->SignalType(cid) != geo::kCollection){
-        if(geom->View(cid) == geo::kU) ubadchans.push_back(cid);
-        if(geom->View(cid) == geo::kV) vbadchans.push_back(cid);
+      if(geom->SignalType(cid) == geo::kCollection){
+        if(fAllowBadCollectionHit && geom->View(cid) == geo::kZ){
+          xbadchans.push_back(cid);
+        }
+      }
+      else{
+        if(fAllowBadInductionHit){
+          if(geom->View(cid) == geo::kU) ubadchans.push_back(cid);
+          if(geom->View(cid) == geo::kV) vbadchans.push_back(cid);
+        }
       }
     }
   }
+  std::cout << xbadchans.size() << " X, "
+            << ubadchans.size() << " U, "
+            << vbadchans.size() << " V bad channels" << std::endl;
 
 
   std::vector<CollectionWireHit*> cwires;
   // So we can find them all to free the memory
   std::vector<InductionWireHit*> iwires;
+  // Nodes with a bad collection wire that we otherwise can't address
+  std::vector<SpaceCharge*> orphanSCs;
 
   HitMap_t hitmap;
   if(is2view){
     std::cout << "Finding 2-view coincidences..." << std::endl;
     TripletFinder tf(xhits, uhits, {},
-                     ubadchans, {},
+                     xbadchans, ubadchans, {},
                      fDistThresh, fDistThreshDrift);
-    BuildSystem(tf.TripletsTwoView(), cwires, iwires, fAlpha != 0, hitmap);
+    BuildSystem(tf.TripletsTwoView(),
+                cwires, iwires, orphanSCs,
+                fAlpha != 0, hitmap);
   }
   else{
     std::cout << "Finding XUV coincidences..." << std::endl;
     TripletFinder tf(xhits, uhits, vhits,
-                     ubadchans, vbadchans,
+                     xbadchans, ubadchans, vbadchans,
                      fDistThresh, fDistThreshDrift);
     BuildSystem(tf.Triplets(),
-                cwires, iwires, fAlpha != 0, hitmap);
+                cwires, iwires, orphanSCs,
+                fAlpha != 0, hitmap);
   }
 
-  FillSystemToSpacePoints(cwires, spcol_pre);
+  FillSystemToSpacePoints(cwires, orphanSCs, spcol_pre);
   spcol_pre.put();
 
   if(fFit){
     std::cout << "Iterating with no regularization..." << std::endl;
-    Minimize(cwires, 0);
+    Minimize(cwires, orphanSCs, 0);
 
-    FillSystemToSpacePoints(cwires, spcol_noreg);
+    FillSystemToSpacePoints(cwires, orphanSCs, spcol_noreg);
     spcol_noreg.put();
 
     std::cout << "Now with regularization..." << std::endl;
-    Minimize(cwires, fAlpha);
+    Minimize(cwires, orphanSCs, fAlpha);
 
-    FillSystemToSpacePointsAndAssns(hitlist, cwires, hitmap, spcol, *assns);
+    FillSystemToSpacePointsAndAssns(hitlist, cwires, orphanSCs, hitmap, spcol, *assns);
     spcol.put();
     evt.put(std::move(assns));
   } // end if fFit
 
   for(InductionWireHit* i: iwires) delete i;
   for(CollectionWireHit* c: cwires) delete c;
+  for(SpaceCharge* s: orphanSCs) delete s;
 }
 
 } // end namespace reco3d
