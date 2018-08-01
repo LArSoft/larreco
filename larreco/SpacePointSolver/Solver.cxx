@@ -150,38 +150,37 @@ QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha)
 
   const InductionWireHit* iwire1 = sci->fWire1;
   const InductionWireHit* jwire1 = scj->fWire1;
-  if(iwire1 && jwire1){
-    const double qi1 = iwire1->fCharge;
-    const double pi1 = iwire1->fPred;
 
-    const double qj1 = jwire1->fCharge;
-    const double pj1 = jwire1->fPred;
+  const double qi1 = iwire1 ? iwire1->fCharge : 0;
+  const double pi1 = iwire1 ? iwire1->fPred : 0;
 
-    if(iwire1 == jwire1){
-      ret += Metric(qi1, pi1);
-    }
-    else{
-      ret += Metric(qi1, pi1 + x);
-      ret += Metric(qj1, pj1 - x);
-    }
+  const double qj1 = jwire1 ? jwire1->fCharge : 0;
+  const double pj1 = jwire1 ? jwire1->fPred : 0;
+
+  if(iwire1 == jwire1){
+    // Same wire means movement of charge cancels itself out
+    if(iwire1) ret += Metric(qi1, pi1);
+  }
+  else{
+    if(iwire1) ret += Metric(qi1, pi1 + x);
+    if(jwire1) ret += Metric(qj1, pj1 - x);
   }
 
   const InductionWireHit* iwire2 = sci->fWire2;
   const InductionWireHit* jwire2 = scj->fWire2;
-  if(iwire2 && jwire2){
-    const double qi2 = iwire2->fCharge;
-    const double pi2 = iwire2->fPred;
 
-    const double qj2 = jwire2->fCharge;
-    const double pj2 = jwire2->fPred;
+  const double qi2 = iwire2 ? iwire2->fCharge : 0;
+  const double pi2 = iwire2 ? iwire2->fPred : 0;
 
-    if(iwire2 == jwire2){
-      ret += Metric(qi2, pi2);
-    }
-    else{
-      ret += Metric(qi2, pi2 + x);
-      ret += Metric(qj2, pj2 - x);
-    }
+  const double qj2 = jwire2 ? jwire2->fCharge : 0;
+  const double pj2 = jwire2 ? jwire2->fPred : 0;
+
+  if(iwire2 == jwire2){
+    if(iwire2) ret += Metric(qi2, pi2);
+  }
+  else{
+    if(iwire2) ret += Metric(qi2, pi2 + x);
+    if(jwire2) ret += Metric(qj2, pj2 - x);
   }
 
   return ret;
@@ -278,9 +277,6 @@ void Iterate(CollectionWireHit* cwire, double alpha)
       // There can't be any cross-overs of U and V views like this
       if(iwire1 && iwire1 == jwire2) abort();
       if(iwire2 && iwire2 == jwire1) abort();
-
-      // Driving all the same wires, no move can have any effect
-      if(iwire1 == jwire1 && iwire2 == jwire2) continue;
 
       const double x = SolvePair(cwire, sci, scj, alpha);
 
