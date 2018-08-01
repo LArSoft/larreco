@@ -40,6 +40,8 @@
 #include "TH1.h"
 #include "TF1.h"
 #include "TProfile.h"
+#include <TROOT.h>
+#include <TStyle.h>
 
 namespace shower {
 
@@ -67,6 +69,7 @@ namespace shower {
     TTree* fTree;
 
     TProfile* fShowerProfile;
+    TProfile* fShowerProfileReco;
     const int NBINS = 20;
     const int TMAX = 5;
 
@@ -110,8 +113,8 @@ void shower::TCShowerAnalysis::reconfigure(fhicl::ParameterSet const& pset) {
 void shower::TCShowerAnalysis::beginJob() {
   art::ServiceHandle<art::TFileService> tfs;
   fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
-  fShowerProfile = tfs->make<TProfile>("fShowerProfile", "fShowerProfile", NBINS, 0, TMAX);
-  //  fShowerProf = tfs->make<TH2F>("fShowerProf", "fShowerProf", 50, 0, 5, 50, 0, 100000);
+  fShowerProfile = tfs->make<TProfile>("fShowerProfile", "longitudinal nue profile (true);t;E (MeV)", NBINS, 0, TMAX);
+  fShowerProfileReco = tfs->make<TProfile>("fShowerProfileReco", "longitudinal nue profile (reco);t;E (MeV)", NBINS, 0, TMAX);
 
 } // beginJob
 
@@ -152,8 +155,9 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
 	if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) {
 	  double elep =  mctruth->GetNeutrino().Lepton().E();
 	  std::cout << "ELECTRON ENERGY: " << elep << std::endl;
-	  if (elep > 3.5 && elep < 4.5) {
-	    //showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
+	  //	  if (elep > 3.5 && elep < 4.5) {
+	  if (true) {
+	    showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
 	    //	    showerProfileTrue(hitlist);
 	    showerProfileTrue(simchanlist, mctruth->GetNeutrino().Lepton());
 	  }
@@ -221,8 +225,8 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
 
   for (int i = 0; i < NBINS; ++i) {
     if (temp->GetBinContent(i+1) == 0) continue;
-    if (temp->GetBinContent(i+2) == 0) continue;
-    fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
+    //    if (temp->GetBinContent(i+2) == 0) continue;
+    fShowerProfileReco->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
 
 } // showerProfile
@@ -323,7 +327,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
 
   for (int i = 0; i < NBINS; ++i) {
     if (temp->GetBinContent(i+1) == 0) continue;
-    if (temp->GetBinContent(i+2) == 0) continue;
+    //    if (temp->GetBinContent(i+2) == 0) continue;
     fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
 
@@ -392,7 +396,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimC
   
   for (int i = 0; i < NBINS; ++i) {
     if (temp->GetBinContent(i+1) == 0) continue;
-    if (temp->GetBinContent(i+2) == 0) continue;
+    //    if (temp->GetBinContent(i+2) == 0) continue;
     //    if (temp->GetBinContent(i+3) == 0) continue;
     fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
