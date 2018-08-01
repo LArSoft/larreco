@@ -81,6 +81,10 @@ namespace shower {
     TProfile* fShowerProfileHitTrans;
     TProfile* fShowerProfileRecoTrans;
 
+    TProfile2D* fShowerProfileSimTrans2D;
+    TProfile2D* fShowerProfileHitTrans2D;
+    TProfile2D* fShowerProfileRecoTrans2D;
+
     const int NBINS = 20;
     const int TMAX = 5;
 
@@ -133,7 +137,12 @@ void shower::TCShowerAnalysis::beginJob() {
   fShowerProfileReco2D = tfs->make<TProfile2D>("fShowerProfileReco2D", "longitudinal e- profile (reco);t;electron energy (MeV);Q", NBINS, 0, TMAX, 10, 0.5, 10.5);
 
   fShowerProfileSimTrans = tfs->make<TProfile>("fShowerProfileSimTrans", "transverse e- profile (true, simchannel);dist (cm);E (MeV)", NBINS, -5, 5);
+  fShowerProfileHitTrans = tfs->make<TProfile>("fShowerProfileHitTrans", "transverse e- profile (true, hit);dist (cm);E (MeV)", NBINS, -5, 5);
+  fShowerProfileRecoTrans = tfs->make<TProfile>("fShowerProfileRecoTrans", "transverse e- profile (reco);dist (cm);Q", NBINS, -5, 5);
   
+  fShowerProfileSimTrans2D = tfs->make<TProfile2D>("fShowerProfileSimTrans2D", "longitudinal e- profile (true, simchannel);t;electron energy (MeV);E (MeV)", NBINS, -5, 5, 10, 0.5, 10.5);
+  fShowerProfileHitTrans2D = tfs->make<TProfile2D>("fShowerProfileHitTrans2D", "longitudinal e- profile (true, hit);t;electron energy (MeV);E (MeV)", NBINS, -5, 5, 10, 0.5, 10.5);
+  fShowerProfileRecoTrans2D = tfs->make<TProfile2D>("fShowerProfileRecoTrans2D", "longitudinal e- profile (reco);t;electron energy (MeV);Q", NBINS, -5, 5, 10, 0.5, 10.5);
 
 } // beginJob
 
@@ -208,6 +217,7 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
   double shwTwoWire = geom->WireCoordinate(shwvtx[1]+shwdir[1], shwvtx[2]+shwdir[2], collectionPlane);
 
   TH1F* temp = new TH1F("temp", "temp", NBINS, 0, TMAX);
+  TH1D* temp2 = new TH1D("temp2", "temp2", NBINS, -5, 5);
 
   for (size_t i = 0; i < showerhits.size(); ++i) {
     if (showerhits[i]->WireID().Plane != collectionPlane.Plane) continue;
@@ -230,14 +240,18 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
 
     double dist = std::abs((ytwoorth-yvtx)*xhit - (xtwoorth-xvtx)*yhit + xtwoorth*yvtx - ytwoorth*xvtx)/std::sqrt( pow((ytwoorth-yvtx), 2) + pow((xtwoorth-xvtx), 2) );
 
+    double tdist = ((ytwo-yvtx)*xhit - (xtwo-xvtx)*yhit + xtwo*yvtx - ytwo*xvtx)/std::sqrt( pow((ytwo-yvtx), 2) + pow((xtwo-xvtx), 2) );
+
     //    double dist = sqrt(pow(xhit-xvtx, 2) + pow(yhit-yvtx, 2));
     
     double to3D = 1. / sqrt( pow(xvtx-xtwo,2) + pow(yvtx-ytwo,2) ) ; // distance between two points in 3D space is one 
     dist *= to3D;
+    tdist *= to3D;
     double Q = showerhits[i]->Integral() * fCalorimetryAlg.LifetimeCorrection(showerhits[i]->PeakTime());
     double t = dist / 14; // convert to radiation lengths    
 
     temp->Fill(t, Q);
+    temp2->Fill(tdist, Q);
 
   } // loop through showerhits
 
@@ -246,6 +260,12 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
     //    if (temp->GetBinContent(i+2) == 0) continue;
     fShowerProfileReco->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
     fShowerProfileReco2D->Fill(temp->GetBinCenter(i+1), elep, temp->GetBinContent(i+1));
+  }
+
+  for (int i = 0; i < NBINS; ++i) {
+    if (temp2->GetBinContent(i+1) == 0) continue;
+    fShowerProfileRecoTrans->Fill(temp2->GetBinCenter(i+1), temp2->GetBinContent(i+1));
+    fShowerProfileRecoTrans2D->Fill(temp2->GetBinCenter(i+1), elep, temp2->GetBinContent(i+1));
   }
 
 } // showerProfile
@@ -262,6 +282,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
   std::map<int,double> trkID_E;  
 
   TH1F* temp = new TH1F("temp", "temp", NBINS, 0, TMAX);
+  TH1D* temp2 = new TH1D("temp2", "temp2", NBINS, -5, 5);
 
   double xvtx = -999;
   double yvtx = -999;
@@ -302,9 +323,9 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
 	yvtx = (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->Vy();
 	zvtx = (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->Vz();
 
-	xtwo = (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->EndX();
-	ytwo = (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->EndY();
-	ztwo = (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->EndZ();
+	xtwo = xvtx + (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->Px();
+	ytwo = yvtx + (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->Py();
+	ztwo = zvtx + (piserv->TrackIdToParticle_P(trackIDs[j].trackID))->Pz();
 
 	shwvtxT = detprop->ConvertXToTicks(xvtx, collectionPlane);
 	shwvtxW = geom->WireCoordinate(yvtx, zvtx, collectionPlane);
@@ -332,12 +353,16 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
 
       double dist = abs((ytwoorth-shwvtxy)*xhit - (xtwoorth-shwvtxx)*yhit + xtwoorth*shwvtxy - ytwoorth*shwvtxx)/sqrt( pow((ytwoorth-shwvtxy), 2) + pow((xtwoorth-shwvtxx), 2) );
 
+      double tdist = ((shwtwoy-shwvtxy)*xhit - (shwtwox-shwvtxx)*yhit + shwtwox*shwvtxy - shwtwoy*shwvtxx)/sqrt( pow((shwtwoy-shwvtxy), 2) + pow((shwtwox-shwvtxx), 2) );
+
       double to3D = sqrt( pow(xvtx-xtwo , 2) + pow(yvtx-ytwo , 2) + pow(zvtx-ztwo , 2) ) / sqrt( pow(shwvtxx-shwtwox,2) + pow(shwvtxy-shwtwoy,2) ) ; // distance between two points in 3D space is one 
       dist *= to3D;
+      tdist *= to3D;
       double E = trackIDs[j].energy;
       double t = dist / 14; // convert to radiation lengths
 
       temp->Fill(t, E);
+      temp2->Fill(tdist, E);
 
       break;
     } // loop through track IDE
@@ -346,9 +371,14 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
 
   for (int i = 0; i < NBINS; ++i) {
     if (temp->GetBinContent(i+1) == 0) continue;
-    //    if (temp->GetBinContent(i+2) == 0) continue;
     fShowerProfileHit->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
     fShowerProfileHit2D->Fill(temp->GetBinCenter(i+1), elep, temp->GetBinContent(i+1));
+  }
+
+  for (int i = 0; i < NBINS; ++i) {
+    if (temp2->GetBinContent(i+1) == 0) continue;
+    fShowerProfileHitTrans->Fill(temp2->GetBinCenter(i+1), temp2->GetBinContent(i+1));
+    fShowerProfileHitTrans2D->Fill(temp2->GetBinCenter(i+1), elep, temp2->GetBinContent(i+1));
   }
 
   return;
@@ -420,14 +450,14 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimC
   
   for (int i = 0; i < NBINS; ++i) {
     if (temp->GetBinContent(i+1) == 0) continue;
-    //    if (temp->GetBinContent(i+2) == 0) continue;
-    //    if (temp->GetBinContent(i+3) == 0) continue;
     fShowerProfileSim->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
     fShowerProfileSim2D->Fill(temp->GetBinCenter(i+1), electron.E(), temp->GetBinContent(i+1));
   }
 
   for (int i = 0; i < NBINS; ++i) {
+    if (temp2->GetBinContent(i+1) == 0) continue;
     fShowerProfileSimTrans->Fill(temp2->GetBinCenter(i+1), temp2->GetBinContent(i+1));
+    fShowerProfileSimTrans2D->Fill(temp2->GetBinCenter(i+1), electron.E(), temp2->GetBinContent(i+1));
   }
 
   return;
