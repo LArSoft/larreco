@@ -15,7 +15,7 @@
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TProfile.h"
-#include "TTree.h"
+//#include "TTree.h"
 
 namespace tca {
   
@@ -80,8 +80,8 @@ namespace tca {
     TH1F* fEff;
     TH1F* fPur;
     
-    TTree* fShowerParentSig;
-    TTree* fShowerParentBkg;
+//    TTree* fShowerParentSig;
+//    TTree* fShowerParentBkg;
     
     float fShEnergy, fPfpEnergy, fMCSMom, fPfpLen, fSep, fDang1, fDang2, fChgFrac, fAlong, fTrans, fInShwrProb;
   

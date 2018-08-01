@@ -9,6 +9,14 @@ standard_trajcluster:
   TrajClusterAlg:       @local::standard_trajclusteralg
   DoWireAssns: true
   DoRawDigitAssns: false
+  # configuration for non-sliced hit collection
+  HitModuleLabel: "gaushit"
+  HitTruthModuleLabel: "gaushit"
+  SlicerModuleLabel: "NA"
+  # configuration for sliced hit collection
+#  HitModuleLabel: "NA"
+#  SlicerModuleLabel: "slicermodule"
+#  HitTruthModuleLabel: "slicermodule"
 } # standard_trajcluster
 
 standard_blurredcluster:
@@ -41,6 +49,16 @@ standard_dbcluster:
  DBScanAlg:       @local::standard_dbscanalg
 }
 
+standard_dbcluster3d:
+{
+ module_type:                 "DBCluster3D"
+ HitModuleLabel:              "hitpdune"
+ SpacePointModuleLabel:       "reco3d"
+ SPHitAssnLabel:              "hitpdune"
+ DBScan3DAlg:                 @local::standard_dbscan3dalg
+ MinHitDis:                   10
+}
+
 standard_clustercrawler:
 {
  module_type:         "ClusterCrawler"
@@ -55,6 +73,16 @@ standard_linecluster:
   HitFinderModuleLabel: "gaushit"
   DoWireAssns: true
   DoRawDigitAssns: false
+  ClusterCrawlerAlg:    @local::standard_clustercrawleralg
+} # standard_linecluster
+
+
+standard_simplelinecluster:
+{
+# this is the cluster finding component of former ClusterCrawler
+  module_type:          "SimpleLineCluster"
+  HitFinderModuleLabel: "hitpdune"
+  PFParticleModuleLabel: "dbcluster"
   ClusterCrawlerAlg:    @local::standard_clustercrawleralg
 } # standard_linecluster
 

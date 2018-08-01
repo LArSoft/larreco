@@ -6,8 +6,6 @@ BEGIN_PROLOG
 
 standard_trajclusteralg:
 {
-   HitFinderModuleLabel: "gaushit"
-   MakeNewHits:   true      # Merge hits in trajectory points and write them out
    Mode: 1                  # 1(-1) step from US(DS) to DS(US), 2 = don't use
    NPtsAve: 10              # Number of points to find average charge, Ave chg rms
    MinPtsFit: [3, 3, 3]     # Min number of points in the trajectory fit required on each pass
@@ -75,14 +73,8 @@ standard_trajclusteralg:
    # 6 angle cut for 3D merging (radians)
    SkipAlgs: [ "Mat3DMerge", "Split3DKink", "VtxHitsSwap", "SplitHiChgHits", "CTKink"]   # List of algs that should not be called
    SpecialAlgs: []          # list of special purpose algs, e.g. "StopAtTj", "ChkInTraj" 
-   StudyMode: false         # Set true to generate histograms
    MatchTruth: [-1, 0, 0.5, 10] # [1(nu), 2(cosmics), printLevel, Max EP, Min TruHits]
-   DebugCryostat: -1
-   DebugTPC: -1
-   DebugPlane: -1           # Print debug output in a plane (3 = all planes, <0 = none)
-   DebugWire: -1            # Print debug output for a trajectory that starts on DebugWire (<0 = print merging)
-   DebugTick: -1            # Print debug output for a trajectory that starts at DebugTick +/- 5 ticks (<0 = print vtx finding)
-   DebugWorkID:     0       # Print debug output for a trajectory with this WorkID (Note WorkID < 0)
+   DebugConfig: []
 }
 standard_trajclusteralg.CaloAlg: @local::standard_calorimetryalgmc
 
@@ -230,6 +222,12 @@ standard_dbscanalg:
 	      # 2 -- Eliptical (no bad channels) **not implemented**     
 	      # 3 -- findNeighbors-alike: Elliptical and bad             
               #                           channel aware (not working)    
+}
+
+standard_dbscan3dalg:
+{
+    epsilon:    5.0
+    minpts:     2
 }
 
 standard_fuzzyclusteralg:
