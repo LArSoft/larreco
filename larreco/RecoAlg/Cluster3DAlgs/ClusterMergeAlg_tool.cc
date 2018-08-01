@@ -411,7 +411,7 @@ bool ClusterMergeAlg::mergeClusters(reco::ClusterParameters& firstClusterParams,
     std::cout << "           new eigen:   " << newEigen[0] << "/" << newEigen[1] << "/" << newEigen[2] << ", cos orig to new: " << origAxis0.Dot(newAxis0) << std::endl;
     
 
-    if (newEigen[0] > 0.8 * origEigen[0] && newEigen[1] * origEigen[0] < 5. * newEigen[0] * origEigen[1])
+//    if (newEigen[0] > 0.8 * origEigen[0] && newEigen[1] * origEigen[0] < 5. * newEigen[0] * origEigen[1])
     {
         // Must have a valid pca
         if (clusterParams.getFullPCA().getSvdOK())
