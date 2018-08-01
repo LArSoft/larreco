@@ -67,9 +67,9 @@ namespace shower {
     TTree* fTree;
 
     TProfile* fShowerProfile;
+    const int NBINS = 20;
+    const int TMAX = 5;
 
-    std::string fClusterModuleLabel;
-    std::string fTrackModuleLabel;
     std::string fHitModuleLabel;
     std::string fShowerModuleLabel;
     std::string fCalorimetryModuleLabel;
@@ -86,8 +86,6 @@ namespace shower {
 
 shower::TCShowerAnalysis::TCShowerAnalysis(fhicl::ParameterSet const& pset) :
   EDAnalyzer(pset),
-  fClusterModuleLabel       (pset.get< std::string >("ClusterModuleLabel", "trajcluster" ) ),
-  fTrackModuleLabel         (pset.get< std::string >("TrackModuleLabel", "pmtrack" ) ),
   fHitModuleLabel           (pset.get< std::string >("HitModuleLabel", "trajcluster" ) ),
   fShowerModuleLabel        (pset.get< std::string >("ShowerModuleLabel", "tcshower" ) ),
   fCalorimetryModuleLabel   (pset.get< std::string >("CalorimetryModuleLabel", "calo")  ), 
@@ -112,7 +110,7 @@ void shower::TCShowerAnalysis::reconfigure(fhicl::ParameterSet const& pset) {
 void shower::TCShowerAnalysis::beginJob() {
   art::ServiceHandle<art::TFileService> tfs;
   fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
-  fShowerProfile = tfs->make<TProfile>("fShowerProfile", "fShowerProfile", 20, 0, 5);
+  fShowerProfile = tfs->make<TProfile>("fShowerProfile", "fShowerProfile", NBINS, 0, TMAX);
   //  fShowerProf = tfs->make<TH2F>("fShowerProf", "fShowerProf", 50, 0, 5, 50, 0, 100000);
 
 } // beginJob
@@ -127,16 +125,6 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
   std::vector<art::Ptr<recob::Hit> > hitlist;
   if (evt.getByLabel(fHitModuleLabel,hitListHandle))
     art::fill_ptr_vector(hitlist, hitListHandle);
-
-  art::Handle< std::vector<recob::Track> > trackListHandle;
-  std::vector<art::Ptr<recob::Track> > tracklist;
-  if (evt.getByLabel(fTrackModuleLabel,trackListHandle))
-    art::fill_ptr_vector(tracklist, trackListHandle);
-  
-  art::Handle< std::vector<recob::Cluster> > clusterListHandle;
-  std::vector<art::Ptr<recob::Cluster> > clusterlist;
-  if (evt.getByLabel(fClusterModuleLabel,clusterListHandle))
-    art::fill_ptr_vector(clusterlist, clusterListHandle);
 
   art::Handle< std::vector<sim::SimChannel> > scListHandle;
   std::vector<art::Ptr<sim::SimChannel> > simchanlist;
@@ -199,7 +187,7 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
   double shwTwoTime = detprop->ConvertXToTicks(shwvtx[0]+shwdir[0], collectionPlane);
   double shwTwoWire = geom->WireCoordinate(shwvtx[1]+shwdir[1], shwvtx[2]+shwdir[2], collectionPlane);
 
-  TH1F* temp = new TH1F("temp", "temp", 20, 0, 5);
+  TH1F* temp = new TH1F("temp", "temp", NBINS, 0, TMAX);
 
   for (size_t i = 0; i < showerhits.size(); ++i) {
     if (showerhits[i]->WireID().Plane != collectionPlane.Plane) continue;
@@ -226,14 +214,12 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
     dist *= to3D;
     double Q = showerhits[i]->Integral() * fCalorimetryAlg.LifetimeCorrection(showerhits[i]->PeakTime());
     double t = dist / 14; // convert to radiation lengths    
-    std::cout << t << std::endl;
-    int bin = floor(t*4);
 
-    temp->SetBinContent(bin+1, temp->GetBinContent(bin+1) + Q);
+    temp->Fill(t, Q);
 
   } // loop through showerhits
 
-  for (int i = 0; i < 20; ++i) {
+  for (int i = 0; i < NBINS; ++i) {
     if (temp->GetBinContent(i+1) == 0) continue;
     if (temp->GetBinContent(i+2) == 0) continue;
     fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
@@ -252,9 +238,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
   art::ServiceHandle<cheat::ParticleInventoryService> piserv;
   std::map<int,double> trkID_E;  
 
-  TH1F* temp = new TH1F("temp", "temp", 20, 0, 5);
-
-  //  std::vector< art::Ptr<recob::Hit> > showerhits;
+  TH1F* temp = new TH1F("temp", "temp", NBINS, 0, TMAX);
 
   double xvtx = -999;
   double yvtx = -999;
@@ -329,35 +313,20 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
       dist *= to3D;
       double E = trackIDs[j].energy;
       double t = dist / 14; // convert to radiation lengths
-      //      std::cout << t << " " << E << std::endl;
-      int bin = floor(t*4);
 
-      temp->SetBinContent(bin+1, temp->GetBinContent(bin+1) + E);
+      temp->Fill(t, E);
 
       break;
-      //      trkID_E[std::abs(trackIDs[j].trackID)] += trackIDs[j].energy;
     } // loop through track IDE
 
   } // loop through all hits
 
-  for (int i = 0; i < 20; ++i) {
+  for (int i = 0; i < NBINS; ++i) {
     if (temp->GetBinContent(i+1) == 0) continue;
     if (temp->GetBinContent(i+2) == 0) continue;
     fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
 
-  //  std::cout << xvtx << " " << yvtx << " " << zvtx << " " << xtwo << " " << ytwo << " " << ztwo << std::endl;
-
-  /*
-  if (!trkID_E.size()) return; 
-
-  for (std::map<int,double>::iterator ii = trkID_E.begin(); ii != trkID_E.end(); ++ii) {
-    const simb::MCParticle* mcpart = piserv->TrackIdToParticle_P(ii->first);
-
-    std::cout << "PARTICLE ID " << mcpart->PdgCode() << " " << mcpart->Vx() << " " << mcpart->Vy() << " " << mcpart->Vz() << " " << mcpart->Mother() << std::endl;
-
-  } // loop through trkID_E
-  */
   return;
 } // showerProfileTrue
 
@@ -369,7 +338,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimC
 
   std::vector<sim::MCEnDep> alledep;
 
-  TH1D* temp = new TH1D("temp", "temp", 20, 0, 5);
+  TH1D* temp = new TH1D("temp", "temp", NBINS, 0, TMAX);
 
   for (size_t i = 0; i < allchan.size(); ++i) {
     art::Ptr<sim::SimChannel> simchan = allchan[i];
@@ -397,27 +366,31 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimC
   double y0 = electron.Vy();
   double z0 = electron.Vz();
 
-  double charge4cm = 0;
- 
+  double x2 = electron.Px();
+  double y2 = electron.Py();
+  double z2 = electron.Pz();
+
+  TVector3 v0(x2, y2, z2);
+
+  v0 = v0.Unit();
+
   for (size_t i = 0; i < alledep.size(); ++i) {
     double x = (double)alledep[i].Vertex()[0];
     double y = (double)alledep[i].Vertex()[1];
     double z = (double)alledep[i].Vertex()[2];
 
-    double dist = std::sqrt( std::pow(x0-x, 2) + std::pow(y0-y, 2) + std::pow(z0-z, 2) );
+    TVector3 v1(x-x0, y-y0, z-z0);
 
-    if (dist < 3.5) charge4cm += alledep[i].Energy();
+    double dist = v0.Dot(v1);
 
     double E = alledep[i].Energy();
     double t = dist / 14; // convert to radiation lengths                                                               
 
-    int bin = floor(t*4);
-    
-    temp->SetBinContent(bin+1, temp->GetBinContent(bin+1) + E);
+    temp->Fill(t, E);
 
   }
   
-  for (int i = 0; i < 20; ++i) {
+  for (int i = 0; i < NBINS; ++i) {
     if (temp->GetBinContent(i+1) == 0) continue;
     if (temp->GetBinContent(i+2) == 0) continue;
     //    if (temp->GetBinContent(i+3) == 0) continue;
@@ -431,4 +404,3 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimC
 // -------------------------------------------------
 
 DEFINE_ART_MODULE(shower::TCShowerAnalysis)
-
