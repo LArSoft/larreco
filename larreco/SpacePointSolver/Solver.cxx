@@ -188,6 +188,32 @@ QuadExpr Metric(const SpaceCharge* sci, const SpaceCharge* scj, double alpha)
 }
 
 // ---------------------------------------------------------------------------
+QuadExpr Metric(const SpaceCharge* sc, double alpha)
+{
+  QuadExpr ret = 0;
+
+  // How much charge is added to sc
+  QuadExpr x = QuadExpr::X();
+
+  if(alpha != 0){
+    const double scp = sc->fPred;
+
+    // Self energy
+    ret -= alpha*sqr(scp + x);
+
+    // Interaction. We're only seeing one end of the double-ended connection
+    // here, so multiply by two.
+    ret -= 2 * alpha * (scp + x) * sc->fNeiPotential;
+  }
+
+  // Prediction of the induction wires
+  ret += Metric(sc->fWire1->fCharge, sc->fWire1->fPred + x);
+  ret += Metric(sc->fWire2->fCharge, sc->fWire2->fPred + x);
+
+  return ret;
+}
+
+// ---------------------------------------------------------------------------
 double SolvePair(CollectionWireHit* cwire,
                  SpaceCharge* sci, SpaceCharge* scj,
                  double alpha)
@@ -268,8 +294,37 @@ void Iterate(CollectionWireHit* cwire, double alpha)
 }
 
 // ---------------------------------------------------------------------------
+void Iterate(SpaceCharge* sc, double alpha)
+{
+  const QuadExpr chisq = Metric(sc, alpha);
+
+  // Find the minimum of a quadratic expression
+  double x = -chisq.Linear()/(2*chisq.Quadratic());
+
+  // Don't allow the SpaceCharge to go negative
+  const double xmin = -sc->fPred;
+
+  // Clamp to allowed range
+  x = std::max(xmin, x);
+
+  const double chisq_new = chisq.Eval(x);
+
+  // Should try here too, because the function might be convex not concave, so
+  // d/dx=0 gives the max not the min, and the true min is at one extreme of
+  // the range.
+  const double chisq_n = chisq.Eval(xmin);
+
+  if(chisq_n < chisq_new)
+    sc->AddCharge(xmin);
+  else
+    sc->AddCharge(x);
+}
+
+// ---------------------------------------------------------------------------
 void Iterate(const std::vector<CollectionWireHit*>& cwires,
+             const std::vector<SpaceCharge*>& orphanSCs,
              double alpha)
 {
   for(CollectionWireHit* cwire: cwires) Iterate(cwire, alpha);
+  for(SpaceCharge* sc: orphanSCs) Iterate(sc, alpha);
 }

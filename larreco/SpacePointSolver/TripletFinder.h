@@ -56,6 +56,7 @@ namespace reco3d
     TripletFinder(const std::vector<art::Ptr<recob::Hit>>& xhits,
                   const std::vector<art::Ptr<recob::Hit>>& uhits,
                   const std::vector<art::Ptr<recob::Hit>>& vhits,
+                  const std::vector<raw::ChannelID_t>& xbad,
                   const std::vector<raw::ChannelID_t>& ubad,
                   const std::vector<raw::ChannelID_t>& vbad,
                   double distThresh, double distThreshDrift);
@@ -95,6 +96,8 @@ namespace reco3d
     std::map<geo::TPCID, std::vector<HitOrChan>> fU_by_tpc;
     std::map<geo::TPCID, std::vector<HitOrChan>> fV_by_tpc;
 
+    // TODO initialize
+    std::map<geo::TPCID, std::vector<raw::ChannelID_t>> fXbad_by_tpc;
     std::map<geo::TPCID, std::vector<raw::ChannelID_t>> fUbad_by_tpc;
     std::map<geo::TPCID, std::vector<raw::ChannelID_t>> fVbad_by_tpc;
   };

@@ -17,7 +17,9 @@ standard_spacepointsolver:
   Alpha: .05 # Regularization strength
 
   # Form triplets out of two hits and one bad induction wire
-  AllowBadInductionHit: false
+  AllowBadInductionHit: true
+  # Form triplets out of two induction hits and a bad collection wire
+  AllowBadCollectionHit: true
 }
 
 END_PROLOG
