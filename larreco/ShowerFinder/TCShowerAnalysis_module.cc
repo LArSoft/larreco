@@ -154,7 +154,6 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
   if (evt.getByLabel(fGenieGenModuleLabel,mctruthListHandle))
     art::fill_ptr_vector(mclist, mctruthListHandle);
 
-  /*
   art::FindManyP<recob::Hit> shwfm(showerListHandle, evt, fShowerModuleLabel);
 
   if (showerlist.size()) {
@@ -166,37 +165,10 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
 	  double elep =  mctruth->GetNeutrino().Lepton().E();
 	  std::cout << "ELECTRON ENERGY: " << elep << std::endl;
 	  if (elep > 4 && elep < 5) {
-	    showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
+	    //	    showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
+	    //	    showerProfileTrue(hitlist);
+	    showerProfileTrue(simchanlist, mctruth->GetNeutrino().Lepton());
 	  }
-	}
-      }
-    }
-  }
-  */
-
-  /*
-  if (mclist.size()) {
-    art::Ptr<simb::MCTruth> mctruth = mclist[0];
-    if (mctruth->NeutrinoSet()) {
-      if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) {
-	double elep =  mctruth->GetNeutrino().Lepton().E();
-	std::cout << "ELECTRON ENERGY: " << elep << std::endl;
-	if (elep > 4 && elep < 5) {
-	  showerProfileTrue(hitlist);
-	}
-      }
-    }
-  }
-  */
-
-  if (mclist.size()) {
-    art::Ptr<simb::MCTruth> mctruth = mclist[0];
-    if (mctruth->NeutrinoSet()) { 
-      if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) { 
-	double elep =  mctruth->GetNeutrino().Lepton().E();
-	std::cout << "ELECTRON ENERGY: " << elep << std::endl;
-        if (elep > 4 && elep < 5) {
-	  showerProfileTrue(simchanlist, mclist[0]->GetNeutrino().Lepton());
 	}
       }
     }
@@ -227,7 +199,7 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
   double shwTwoTime = detprop->ConvertXToTicks(shwvtx[0]+shwdir[0], collectionPlane);
   double shwTwoWire = geom->WireCoordinate(shwvtx[1]+shwdir[1], shwvtx[2]+shwdir[2], collectionPlane);
 
-  TH1F* temp = new TH1F("temp", "temp", 15, 0, 5);
+  TH1F* temp = new TH1F("temp", "temp", 20, 0, 5);
 
   for (size_t i = 0; i < showerhits.size(); ++i) {
     if (showerhits[i]->WireID().Plane != collectionPlane.Plane) continue;
@@ -255,13 +227,13 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
     double Q = showerhits[i]->Integral() * fCalorimetryAlg.LifetimeCorrection(showerhits[i]->PeakTime());
     double t = dist / 14; // convert to radiation lengths    
     std::cout << t << std::endl;
-    int bin = floor(t*3);
+    int bin = floor(t*4);
 
     temp->SetBinContent(bin+1, temp->GetBinContent(bin+1) + Q);
 
   } // loop through showerhits
 
-  for (int i = 0; i < 15; ++i) {
+  for (int i = 0; i < 20; ++i) {
     fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
 
@@ -278,7 +250,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
   art::ServiceHandle<cheat::ParticleInventoryService> piserv;
   std::map<int,double> trkID_E;  
 
-  TH1F* temp = new TH1F("temp", "temp", 15, 0, 5);
+  TH1F* temp = new TH1F("temp", "temp", 20, 0, 5);
 
   //  std::vector< art::Ptr<recob::Hit> > showerhits;
 
@@ -356,7 +328,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
       double E = trackIDs[j].energy;
       double t = dist / 14; // convert to radiation lengths
       //      std::cout << t << " " << E << std::endl;
-      int bin = floor(t*3);
+      int bin = floor(t*4);
 
       temp->SetBinContent(bin+1, temp->GetBinContent(bin+1) + E);
 
@@ -366,7 +338,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
 
   } // loop through all hits
 
-  for (int i = 0; i < 15; ++i) {
+  for (int i = 0; i < 20; ++i) {
     fShowerProfile->Fill(temp->GetBinCenter(i+1), temp->GetBinContent(i+1));
   }
 
