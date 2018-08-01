@@ -80,6 +80,11 @@ public:
     /**
      *  @brief Given an input Point, find the nearest edge
      */
+    PointPair getExtremePoints() const;
+
+    /**
+     *  @brief Given an input Point, find the nearest edge
+     */
     PointPair findNearestEdge(const dcel2d::Point&, double&) const;
     
     /**

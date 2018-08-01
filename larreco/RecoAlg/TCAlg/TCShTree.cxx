@@ -2,20 +2,20 @@
 
 namespace tca {
 
-  void SaveTjInfo(TjStuff& tjs, std::vector<std::vector<int>>& tjList,
+  void SaveTjInfo(TCSlice& slc, std::vector<std::vector<int>>& tjList,
                   std::string stageName) {
-    if(!tjs.SaveShowerTree) return;
+    if(!tcc.modes[kSaveShowerTree]) return;
     if(tjList.empty()) return;
-    int stageNum = GetStageNum(tjs.stv, stageName);
+    int stageNum = GetStageNum(stv, stageName);
 
     // get the CTP from the first tj
-    CTP_t inCTP = tjs.allTraj[tjList[0][0] - 1].CTP;
-    for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
-      Trajectory& tj1 = tjs.allTraj[it1];
+    CTP_t inCTP = slc.tjs[tjList[0][0] - 1].CTP;
+    for(unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
+      Trajectory& tj1 = slc.tjs[it1];
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kKilled]) continue;
 
-      SaveTjInfoStuff(tjs, tj1,  stageNum, stageName);
+      SaveTjInfoStuff(slc, tj1,  stageNum, stageName);
 
       int trajID = tj1.ID;
       bool inShower = false;
@@ -25,7 +25,7 @@ namespace tca {
         for (size_t l2 = 0; l2 < tjList[l1].size(); ++l2) {
 
           if (trajID == tjList[l1][l2]) {
-            tjs.stv.ShowerID.back() = l1;
+            stv.ShowerID.back() = l1;
             inShower = true;
             break;
           }
@@ -36,26 +36,26 @@ namespace tca {
     // envelopes are defined once DefineShower is called
     // fill four times, one for each side of polygon
     for (int i = 0; i < 8; i++) {
-      tjs.stv.Envelope.push_back(-999);
-      tjs.stv.EnvStage.push_back(stageNum);
-      tjs.stv.EnvPlane.push_back(-1);
-      tjs.stv.EnvShowerID.push_back(-1);
+      stv.Envelope.push_back(-999);
+      stv.EnvStage.push_back(stageNum);
+      stv.EnvPlane.push_back(-1);
+      stv.EnvShowerID.push_back(-1);
     }
 
   } // SaveTjInfo (tjlist) 
 
-  void SaveTjInfo(TjStuff& tjs, const ShowerStruct& ss, std::string stageName) {
-    if(!tjs.SaveShowerTree) return;
-    int stageNum = GetStageNum(tjs.stv, stageName);
+  void SaveTjInfo(TCSlice& slc, const ShowerStruct& ss, std::string stageName) {
+    if(!tcc.modes[kSaveShowerTree]) return;
+    int stageNum = GetStageNum(stv, stageName);
 
     // killed shower?
     if(ss.ID == 0) return;
 
     bool noMatch = true;
 
-    for(unsigned short it1 = 0; it1 < tjs.allTraj.size(); ++it1) {
+    for(unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
 
-      Trajectory& tj1 = tjs.allTraj[it1];
+      Trajectory& tj1 = slc.tjs[it1];
 
       if(tj1.AlgMod[kKilled]) continue;
 
@@ -65,40 +65,40 @@ namespace tca {
       // for this particular stage and plane
       int tjIndex = -1;
       bool isShowerTj = false;
-      for (size_t i = 0; i < tjs.stv.TjID.size(); ++i) {
-        if (tjs.stv.StageNum.at(i) != (int)stageNum) continue;
-        if (tjs.stv.PlaneNum.at(i) != (short)DecodeCTP(ss.CTP).Plane) continue;
+      for (size_t i = 0; i < stv.TjID.size(); ++i) {
+        if (stv.StageNum.at(i) != (int)stageNum) continue;
+        if (stv.PlaneNum.at(i) != (short)DecodeCTP(ss.CTP).Plane) continue;
         
-        if (tjs.stv.TjID.at(i) == trajID) {
+        if (stv.TjID.at(i) == trajID) {
           tjIndex = i;
-          if (tjs.stv.IsShowerTj.at(tjIndex) == 1) isShowerTj = true;
+          if (stv.IsShowerTj.at(tjIndex) == 1) isShowerTj = true;
           //beenDoneBefore = true;
           break;
         }
       }
 
       if (isShowerTj) continue;
-      if (tjIndex == -1) SaveTjInfoStuff(tjs, tj1, stageNum, stageName);
+      if (tjIndex == -1) SaveTjInfoStuff(slc, tj1, stageNum, stageName);
 
       for (size_t i = 0; i < ss.TjIDs.size(); ++i) {
         if (trajID == ss.TjIDs[i]) {
           noMatch = false;
-          if (tjIndex == -1) tjs.stv.ShowerID.back() = ss.ID;
-          else tjs.stv.ShowerID.at(tjIndex) = ss.ID;
+          if (tjIndex == -1) stv.ShowerID.back() = ss.ID;
+          else stv.ShowerID.at(tjIndex) = ss.ID;
         }
         
-        if (it1 == (ss.ShowerTjID - 1)) tjs.stv.IsShowerTj.back() = 1;
-        else if (tj1.AlgMod[kShowerTj]) tjs.stv.IsShowerTj.back() = 1; // this is a better check
+        if (it1 == (ss.ShowerTjID - 1)) stv.IsShowerTj.back() = 1;
+        else if (tj1.AlgMod[kShowerTj]) stv.IsShowerTj.back() = 1; // this is a better check
         // check if tj is shower parent. if so, add to ttree
         // and mark parent flag	
         if (trajID == ss.ParentID) {
           if (tjIndex == -1) {
-            tjs.stv.ShowerID.back() = ss.ID;
-            tjs.stv.IsShowerParent.back() = 1;
+            stv.ShowerID.back() = ss.ID;
+            stv.IsShowerParent.back() = 1;
           }
           else {
-            tjs.stv.ShowerID.at(tjIndex) = ss.ID;
-            tjs.stv.IsShowerParent.at(tjIndex) = 1;
+            stv.ShowerID.at(tjIndex) = ss.ID;
+            stv.IsShowerParent.at(tjIndex) = 1;
           }
           break;
           
@@ -112,73 +112,73 @@ namespace tca {
     geo::PlaneID iPlnID = DecodeCTP(ss.CTP);
 
     for (int i = 0; i < 8; i++) {
-      tjs.stv.EnvStage.push_back(stageNum);
-      tjs.stv.EnvPlane.push_back(iPlnID.Plane);
-      tjs.stv.EnvShowerID.push_back(ss.ID);
+      stv.EnvStage.push_back(stageNum);
+      stv.EnvPlane.push_back(iPlnID.Plane);
+      stv.EnvShowerID.push_back(ss.ID);
     }
 
-    tjs.stv.Envelope.push_back(ss.Envelope[0][0]);
-    tjs.stv.Envelope.push_back(ss.Envelope[0][1]/tjs.UnitsPerTick);
-    tjs.stv.Envelope.push_back(ss.Envelope[1][0]);
-    tjs.stv.Envelope.push_back(ss.Envelope[1][1]/tjs.UnitsPerTick);
-    tjs.stv.Envelope.push_back(ss.Envelope[2][0]);
-    tjs.stv.Envelope.push_back(ss.Envelope[2][1]/tjs.UnitsPerTick);
-    tjs.stv.Envelope.push_back(ss.Envelope[3][0]);
-    tjs.stv.Envelope.push_back(ss.Envelope[3][1]/tjs.UnitsPerTick);
+    stv.Envelope.push_back(ss.Envelope[0][0]);
+    stv.Envelope.push_back(ss.Envelope[0][1]/tcc.unitsPerTick);
+    stv.Envelope.push_back(ss.Envelope[1][0]);
+    stv.Envelope.push_back(ss.Envelope[1][1]/tcc.unitsPerTick);
+    stv.Envelope.push_back(ss.Envelope[2][0]);
+    stv.Envelope.push_back(ss.Envelope[2][1]/tcc.unitsPerTick);
+    stv.Envelope.push_back(ss.Envelope[3][0]);
+    stv.Envelope.push_back(ss.Envelope[3][1]/tcc.unitsPerTick);
 
   } // SaveTjInfo (cots)
 
-  void SaveTjInfoStuff(TjStuff& tjs, Trajectory& tj, int stageNum, std::string stageName) {
-    if(!tjs.SaveShowerTree) return;
+  void SaveTjInfoStuff(TCSlice& slc, Trajectory& tj, int stageNum, std::string stageName) {
+    if(!tcc.modes[kSaveShowerTree]) return;
 
     TrajPoint& beginPoint = tj.Pts[tj.EndPt[0]];
     TrajPoint& endPoint = tj.Pts[tj.EndPt[1]];
 
-    tjs.stv.BeginWir.push_back(std::nearbyint(beginPoint.Pos[0]));
-    tjs.stv.BeginTim.push_back(std::nearbyint(beginPoint.Pos[1]/tjs.UnitsPerTick));
-    tjs.stv.BeginAng.push_back(beginPoint.Ang);
-    tjs.stv.BeginChg.push_back(beginPoint.Chg);
-    tjs.stv.BeginVtx.push_back(tj.VtxID[0]);
+    stv.BeginWir.push_back(std::nearbyint(beginPoint.Pos[0]));
+    stv.BeginTim.push_back(std::nearbyint(beginPoint.Pos[1]/tcc.unitsPerTick));
+    stv.BeginAng.push_back(beginPoint.Ang);
+    stv.BeginChg.push_back(beginPoint.Chg);
+    stv.BeginVtx.push_back(tj.VtxID[0]);
 
-    tjs.stv.EndWir.push_back(std::nearbyint(endPoint.Pos[0]));
-    tjs.stv.EndTim.push_back(std::nearbyint(endPoint.Pos[1]/tjs.UnitsPerTick));
-    tjs.stv.EndAng.push_back(endPoint.Ang);
-    tjs.stv.EndChg.push_back(endPoint.Chg);
-    tjs.stv.EndVtx.push_back(tj.VtxID[1]);
+    stv.EndWir.push_back(std::nearbyint(endPoint.Pos[0]));
+    stv.EndTim.push_back(std::nearbyint(endPoint.Pos[1]/tcc.unitsPerTick));
+    stv.EndAng.push_back(endPoint.Ang);
+    stv.EndChg.push_back(endPoint.Chg);
+    stv.EndVtx.push_back(tj.VtxID[1]);
 
-    tjs.stv.MCSMom.push_back(tj.MCSMom);
-    tjs.stv.TjID.push_back(tj.ID);
-    tjs.stv.IsShowerTj.push_back(-1);
+    stv.MCSMom.push_back(tj.MCSMom);
+    stv.TjID.push_back(tj.ID);
+    stv.IsShowerTj.push_back(-1);
 
-    tjs.stv.ShowerID.push_back(-1);
-    tjs.stv.IsShowerParent.push_back(-1);
-    tjs.stv.StageNum.push_back(stageNum);
-    tjs.stv.nStages = stageNum;
+    stv.ShowerID.push_back(-1);
+    stv.IsShowerParent.push_back(-1);
+    stv.StageNum.push_back(stageNum);
+    stv.nStages = stageNum;
     geo::PlaneID iPlnID = DecodeCTP(tj.CTP);
-    tjs.stv.PlaneNum.push_back(iPlnID.Plane);
+    stv.PlaneNum.push_back(iPlnID.Plane);
 
-    tjs.stv.nPlanes = tjs.NumPlanes;
+    stv.nPlanes = slc.nPlanes;
 
   } // SaveTjInfoStuff  
 
   ////////////////////////////////////////////////
-  void SaveAllCots(TjStuff& tjs, const CTP_t& inCTP, std::string someText) {
-    if(!tjs.SaveShowerTree) return;
-    for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
-      auto& ss = tjs.cots[cotIndex];
+  void SaveAllCots(TCSlice& slc, const CTP_t& inCTP, std::string someText) {
+    if(!tcc.modes[kSaveShowerTree]) return;
+    for(unsigned short cotIndex = 0; cotIndex < slc.cots.size(); ++cotIndex) {
+      auto& ss = slc.cots[cotIndex];
       if (ss.CTP != inCTP) continue;
       if(ss.ID == 0) continue;
-      SaveTjInfo(tjs, ss, someText);
+      SaveTjInfo(slc, ss, someText);
     } // cotIndex
   } // SaveAllCots
 
 
-  void SaveAllCots(TjStuff& tjs, std::string someText) {
-    if(!tjs.SaveShowerTree) return;
-    for(unsigned short cotIndex = 0; cotIndex < tjs.cots.size(); ++cotIndex) {
-      auto& ss = tjs.cots[cotIndex];
+  void SaveAllCots(TCSlice& slc, std::string someText) {
+    if(!tcc.modes[kSaveShowerTree]) return;
+    for(unsigned short cotIndex = 0; cotIndex < slc.cots.size(); ++cotIndex) {
+      auto& ss = slc.cots[cotIndex];
       if(ss.ID == 0) continue;
-      SaveTjInfo(tjs, ss, someText);
+      SaveTjInfo(slc, ss, someText);
     } // cotIndex
   }
 

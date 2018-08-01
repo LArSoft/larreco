@@ -94,6 +94,8 @@ public:
                       EDGEHIT         = 0x20000000,           ///< Hit is an "edge" hit
                       SEEDHIT         = 0x40000000,           ///< Hit is part of Seed for track fits
                       MADESPACEPOINT  = 0x08000000,           ///< Hit has been made into Space Point
+                      CONVEXHULLVTX   = 0x04000000,           ///< Point is on primary cluster convex hull
+                      EXTREMEPOINT    = 0x02000000,           ///< Is a convex hull extreme point
                       SKELETONPOSAVE  = 0x00100000,           ///< Skeleton hit position averaged
                       CLUSTERVISITED  = 0x00008000,           ///< "visited" by a clustering algorithm
                       CLUSTERNOISE    = 0x00004000,           ///< Labelled "noise" by a clustering algorithm
@@ -345,6 +347,8 @@ public:
         m_hit3DToEdgeMap.clear();
         m_bestHitPairListPtr.clear();
         m_bestEdgeList.clear();
+        m_convexExtremePoints.clear();
+        m_convexKinkPoints.clear();
         m_faceList.clear();
         m_vertexList.clear();
         m_halfEdgeList.clear();
@@ -358,6 +362,8 @@ public:
         m_hit3DToEdgeMap.clear();
         m_bestHitPairListPtr.clear();
         m_bestEdgeList.clear();
+        m_convexExtremePoints.clear();
+        m_convexKinkPoints.clear();
         m_faceList.clear();
         m_vertexList.clear();
         m_halfEdgeList.clear();
@@ -370,6 +376,8 @@ public:
         m_hit3DToEdgeMap.clear();
         m_bestHitPairListPtr.clear();
         m_bestEdgeList.clear();
+        m_convexExtremePoints.clear();
+        m_convexKinkPoints.clear();
         m_faceList.clear();
         m_vertexList.clear();
         m_halfEdgeList.clear();
@@ -407,6 +415,8 @@ public:
     reco::Hit3DToEdgeMap&          getHit3DToEdgeMap()      {return m_hit3DToEdgeMap;}
     reco::HitPairListPtr&          getBestHitPairListPtr()  {return m_bestHitPairListPtr;}
     reco::EdgeList&                getBestEdgeList()        {return m_bestEdgeList;}
+    reco::HitPairListPtr&          getConvexExtremePoints() {return m_convexExtremePoints;}
+    reco::HitPairListPtr&          getConvexKinkPoints()    {return m_convexKinkPoints;}
     dcel2d::FaceList&              getFaceList()            {return m_faceList;}
     dcel2d::VertexList&            getVertexList()          {return m_vertexList;}
     dcel2d::HalfEdgeList&          getHalfEdgeList()        {return m_halfEdgeList;}
@@ -424,7 +434,9 @@ private:
     reco::PrincipalComponents m_skeletonPCA;         // PCA run over just the "skeleton" 3D hits
     reco::Hit3DToEdgeMap      m_hit3DToEdgeMap;
     reco::HitPairListPtr      m_bestHitPairListPtr;
-    reco::EdgeList            m_bestEdgeList;
+    reco::EdgeList            m_bestEdgeList;        // This has become multiuse... really need to split it up
+    reco::HitPairListPtr      m_convexExtremePoints; // The points furthest from each other on hull
+    reco::HitPairListPtr      m_convexKinkPoints;    // The points with large kinks on the hull
     dcel2d::FaceList          m_faceList;            // Keeps track of "faces" from Voronoi Diagram
     dcel2d::VertexList        m_vertexList;          // Keeps track of "vertices" from Voronoi Diagram
     dcel2d::HalfEdgeList      m_halfEdgeList;        // Keeps track of "halfedges" from Voronoi Diagram

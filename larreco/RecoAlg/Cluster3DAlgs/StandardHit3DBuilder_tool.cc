@@ -362,11 +362,26 @@ void StandardHit3DBuilder::BuildHit3D(reco::HitPairList& hitPairList) const
     
 //------------------------------------------------------------------------------------------------------------------------------------------
 namespace {
-bool SetHitStartTimeOrder(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right)
+//bool SetHitStartTimeOrder(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right)
+//{
+//    // Sort by "modified start time" of pulse
+//    return left->getHit().PeakTime() - left->getHit().RMS() < right->getHit().PeakTime() - right->getHit().RMS();
+//}
+    
+class SetHitEarliestTimeOrder
 {
-    // Sort by "modified start time" of pulse
-    return left->getHit().PeakTime() - left->getHit().RMS() < right->getHit().PeakTime() - right->getHit().RMS();
-}
+public:
+    SetHitEarliestTimeOrder()             : m_numRMS(1.)     {}
+    SetHitEarliestTimeOrder(float numRMS) : m_numRMS(numRMS) {}
+    
+    bool operator()(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right) const
+    {
+        return left->getTimeTicks() - m_numRMS * left->getHit().RMS() < right->getTimeTicks() - m_numRMS * right->getHit().RMS();
+    }
+    
+public:
+    float m_numRMS;
+};
 
 using  HitVectorItrPair = std::pair<HitVector::iterator,HitVector::iterator>;
 
@@ -438,9 +453,9 @@ size_t StandardHit3DBuilder::BuildHitPairMap(PlaneToHitVectorMap& planeToHitVect
             HitVector& hitVector2 = mapItr2->second;
             
             // We are going to resort the hits into "start time" order...
-            std::sort(hitVector0.begin(), hitVector0.end(), SetHitStartTimeOrder);
-            std::sort(hitVector1.begin(), hitVector1.end(), SetHitStartTimeOrder);
-            std::sort(hitVector2.begin(), hitVector2.end(), SetHitStartTimeOrder);
+            std::sort(hitVector0.begin(), hitVector0.end(), SetHitEarliestTimeOrder(m_numSigmaPeakTime)); //SetHitStartTimeOrder);
+            std::sort(hitVector1.begin(), hitVector1.end(), SetHitEarliestTimeOrder(m_numSigmaPeakTime)); //SetHitStartTimeOrder);
+            std::sort(hitVector2.begin(), hitVector2.end(), SetHitEarliestTimeOrder(m_numSigmaPeakTime)); //SetHitStartTimeOrder);
             
             PlaneHitVectorItrPairVec hitItrVec = {HitVectorItrPair(hitVector0.begin(),hitVector0.end()),
                                                   HitVectorItrPair(hitVector1.begin(),hitVector1.end()),
@@ -510,8 +525,8 @@ size_t StandardHit3DBuilder::BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& hitI
         const reco::ClusterHit2D* goldenHit = *hitItrVec[0].first;
         
         // The range of history... (for this hit)
-        float goldenTimeStart = goldenHit->getTimeTicks() - m_numSigmaPeakTime * goldenHit->getHit().RMS() - 0.1;
-        float goldenTimeEnd   = goldenHit->getTimeTicks() + m_numSigmaPeakTime * goldenHit->getHit().RMS() + 0.1;
+        float goldenTimeStart = goldenHit->getTimeTicks() - m_numSigmaPeakTime * goldenHit->getHit().RMS() - std::numeric_limits<float>::epsilon();
+        float goldenTimeEnd   = goldenHit->getTimeTicks() + m_numSigmaPeakTime * goldenHit->getHit().RMS() + std::numeric_limits<float>::epsilon();
         
         // Set iterators to insure we'll be in the overlap ranges
         HitVector::iterator hitItr1Start = SetStartIterator(hitItrVec[1].first, hitItrVec[1].second, m_numSigmaPeakTime, goldenTimeStart);
@@ -1185,6 +1200,9 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
     for (size_t cIdx = 0; cIdx < recobHitHandle->size(); cIdx++)
     {
         art::Ptr<recob::Hit> recobHit(recobHitHandle, cIdx);
+        
+        // Skip junk hits
+//        if (recobHit->DegreesOfFreedom() > 1 && recobHit->Multiplicity() > 1 && (recobHit->RMS() < 3.8 || recobHit->PeakAmplitude() < 10)) continue;
         
         const geo::WireID& hitWireID(recobHit->WireID());
         

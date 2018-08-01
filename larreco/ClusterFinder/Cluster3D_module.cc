@@ -134,15 +134,16 @@ private:
     class ArtOutputHandler
     {
     public:
-        ArtOutputHandler(const art::EDProducer& owner, art::Event& evt, std::string& instanceName) :
-            artPCAxisVector( new std::vector<recob::PCAxis>          ),
-            artPFParticleVector( new std::vector<recob::PFParticle>  ),
-            artClusterVector( new std::vector<recob::Cluster>        ),
-            artSpacePointVector( new std::vector<recob::SpacePoint>  ),
-            artVertexPointVector( new std::vector<recob::SpacePoint> ),
-            artSeedVector( new std::vector<recob::Seed>              ),
-            artEdgeVector( new std::vector<recob::Edge>              ),
-            artVertexEdgeVector( new std::vector<recob::Edge>        ),
+        ArtOutputHandler(const art::EDProducer& owner, art::Event& evt, std::string& instanceName, std::string& extremeName) :
+            artPCAxisVector(           new std::vector<recob::PCAxis>                         ),
+            artPFParticleVector(       new std::vector<recob::PFParticle>                     ),
+            artClusterVector(          new std::vector<recob::Cluster>                        ),
+            artSpacePointVector(       new std::vector<recob::SpacePoint>                     ),
+            artVertexPointVector(      new std::vector<recob::SpacePoint>                     ),
+            artExtremePointVector(     new std::vector<recob::SpacePoint>                     ),
+            artSeedVector(             new std::vector<recob::Seed>                           ),
+            artEdgeVector(             new std::vector<recob::Edge>                           ),
+            artVertexEdgeVector(       new std::vector<recob::Edge>                           ),
             artClusterAssociations(    new art::Assns<recob::Cluster,    recob::Hit>          ),
             artPFPartAxisAssociations( new art::Assns<recob::PFParticle, recob::PCAxis>       ),
             artPFPartClusAssociations( new art::Assns<recob::PFParticle, recob::Cluster>      ),
@@ -152,65 +153,67 @@ private:
             artSeedHitAssociations(    new art::Assns<recob::Seed,       recob::Hit>          ),
             artSPHitAssociations(      new art::Assns<recob::SpacePoint, recob::Hit>          ),
             artEdgeSPAssociations(     new art::Assns<recob::Edge,       recob::SpacePoint>   ),
-            m_owner(owner),
-            m_evt(evt),
-            m_instanceName(instanceName)
+            fOwner(owner),
+            fEvt(evt),
+            fInstanceName(instanceName),
+            fExtremeName(extremeName)
         {}
         
         void makeClusterHitAssns(RecobHitVector& recobHits)
         {
-            util::CreateAssn(m_owner, m_evt, *artClusterVector, recobHits, *artClusterAssociations);
+            util::CreateAssn(fOwner, fEvt, *artClusterVector, recobHits, *artClusterAssociations);
         }
         
         void makeSpacePointHitAssns(RecobHitVector& recobHits)
         {
-            util::CreateAssn(m_owner, m_evt, *artSpacePointVector, recobHits, *artSPHitAssociations);
+            util::CreateAssn(fOwner, fEvt, *artSpacePointVector, recobHits, *artSPHitAssociations);
         }
         
         void makePFPartPCAAssns()
         {
-            util::CreateAssn(m_owner, m_evt, *artPFParticleVector, *artPCAxisVector, *artPFPartAxisAssociations, artPCAxisVector->size()-2, artPCAxisVector->size());
+            util::CreateAssn(fOwner, fEvt, *artPFParticleVector, *artPCAxisVector, *artPFPartAxisAssociations, artPCAxisVector->size()-2, artPCAxisVector->size());
         }
         
         void makePFPartSeedAssns(size_t numSeedsStart)
         {
-            util::CreateAssn(m_owner, m_evt, *artPFParticleVector, *artSeedVector, *artPFPartSeedAssociations, numSeedsStart, artSeedVector->size());
+            util::CreateAssn(fOwner, fEvt, *artPFParticleVector, *artSeedVector, *artPFPartSeedAssociations, numSeedsStart, artSeedVector->size());
         }
         
         void makePFPartClusterAssns(size_t clusterStart)
         {
-            util::CreateAssn(m_owner, m_evt, *artPFParticleVector, *artClusterVector, *artPFPartClusAssociations, clusterStart, artClusterVector->size());
+            util::CreateAssn(fOwner, fEvt, *artPFParticleVector, *artClusterVector, *artPFPartClusAssociations, clusterStart, artClusterVector->size());
         }
         
         void makePFPartSpacePointAssns(size_t spacePointStart)
         {
-            util::CreateAssn(m_owner, m_evt, *artPFParticleVector, *artSpacePointVector, *artPFPartSPAssociations, spacePointStart, artSpacePointVector->size());
+            util::CreateAssn(fOwner, fEvt, *artPFParticleVector, *artSpacePointVector, *artPFPartSPAssociations, spacePointStart, artSpacePointVector->size());
         }
         
         void makePFPartEdgeAssns(size_t edgeStart)
         {
-            util::CreateAssn(m_owner, m_evt, *artPFParticleVector, *artEdgeVector, *artPFPartEdgeAssociations, edgeStart, artEdgeVector->size());
+            util::CreateAssn(fOwner, fEvt, *artPFParticleVector, *artEdgeVector, *artPFPartEdgeAssociations, edgeStart, artEdgeVector->size());
         }
         
         void outputObjects()
         {
-            m_evt.put(std::move(artPCAxisVector));
-            m_evt.put(std::move(artPFParticleVector));
-            m_evt.put(std::move(artClusterVector));
-            m_evt.put(std::move(artSpacePointVector));
-            m_evt.put(std::move(artVertexPointVector), m_instanceName);
-            m_evt.put(std::move(artSeedVector));
-            m_evt.put(std::move(artEdgeVector));
-            m_evt.put(std::move(artVertexEdgeVector), m_instanceName);
-            m_evt.put(std::move(artPFPartAxisAssociations));
-            m_evt.put(std::move(artPFPartClusAssociations));
-            m_evt.put(std::move(artClusterAssociations));
-            m_evt.put(std::move(artPFPartSPAssociations));
-            m_evt.put(std::move(artPFPartSeedAssociations));
-            m_evt.put(std::move(artPFPartEdgeAssociations));
-            m_evt.put(std::move(artSeedHitAssociations));
-            m_evt.put(std::move(artSPHitAssociations));
-            m_evt.put(std::move(artEdgeSPAssociations));
+            fEvt.put(std::move(artPCAxisVector));
+            fEvt.put(std::move(artPFParticleVector));
+            fEvt.put(std::move(artClusterVector));
+            fEvt.put(std::move(artSpacePointVector));
+            fEvt.put(std::move(artVertexPointVector), fInstanceName);
+            fEvt.put(std::move(artExtremePointVector), fExtremeName);
+            fEvt.put(std::move(artSeedVector));
+            fEvt.put(std::move(artEdgeVector));
+            fEvt.put(std::move(artVertexEdgeVector), fInstanceName);
+            fEvt.put(std::move(artPFPartAxisAssociations));
+            fEvt.put(std::move(artPFPartClusAssociations));
+            fEvt.put(std::move(artClusterAssociations));
+            fEvt.put(std::move(artPFPartSPAssociations));
+            fEvt.put(std::move(artPFPartSeedAssociations));
+            fEvt.put(std::move(artPFPartEdgeAssociations));
+            fEvt.put(std::move(artSeedHitAssociations));
+            fEvt.put(std::move(artSPHitAssociations));
+            fEvt.put(std::move(artEdgeSPAssociations));
         }
         
         std::unique_ptr< std::vector<recob::PCAxis>>                        artPCAxisVector;
@@ -218,6 +221,7 @@ private:
         std::unique_ptr< std::vector<recob::Cluster>>                       artClusterVector;
         std::unique_ptr< std::vector<recob::SpacePoint>>                    artSpacePointVector;
         std::unique_ptr< std::vector<recob::SpacePoint>>                    artVertexPointVector;
+        std::unique_ptr< std::vector<recob::SpacePoint>>                    artExtremePointVector;
         std::unique_ptr< std::vector<recob::Seed>>                          artSeedVector;
         std::unique_ptr< std::vector<recob::Edge>>                          artEdgeVector;
         std::unique_ptr< std::vector<recob::Edge>>                          artVertexEdgeVector;
@@ -232,9 +236,10 @@ private:
         std::unique_ptr< art::Assns<recob::SpacePoint, recob::Hit>>         artSPHitAssociations;
         std::unique_ptr< art::Assns<recob::Edge,       recob::SpacePoint>>  artEdgeSPAssociations;
     private:
-        const art::EDProducer& m_owner;
-        art::Event&            m_evt;
-        std::string&           m_instanceName;
+        const art::EDProducer& fOwner;
+        art::Event&            fEvt;
+        std::string&           fInstanceName;
+        std::string&           fExtremeName;
     };
 
     /**
@@ -311,6 +316,14 @@ private:
                                 int                   spacePointStart) const;
     
     /**
+     *  @brief Special routine to handle creating and saving space points
+     *
+     *  @param output                the object containting the art output
+     *  @param clusHitPairVector     List of 3D hits to output as "extreme" space points
+     */
+    void MakeAndSaveExtremePoints(ArtOutputHandler& output, reco::HitPairListPtr& clusHitPairVector) const;
+
+    /**
      *  @brief Special routine to handle creating and saving space points & edges associated to voronoi diagrams
      *
      *  @param output                the object containting the art output
@@ -382,43 +395,45 @@ private:
     /**
      *   Algorithm parameters
      */
-    bool                      m_enableMonitoring;      ///< Turn on monitoring of this algorithm
-    float                     m_parallelHitsCosAng;    ///< Cut for PCA 3rd axis angle to X axis
-    float                     m_parallelHitsTransWid;  ///< Cut on transverse width of cluster (PCA 2nd eigenvalue)
+    bool                                           m_enableMonitoring;      ///< Turn on monitoring of this algorithm
+    float                                          m_parallelHitsCosAng;    ///< Cut for PCA 3rd axis angle to X axis
+    float                                          m_parallelHitsTransWid;  ///< Cut on transverse width of cluster (PCA 2nd eigenvalue)
 
     /**
      *   Tree variables for output
      */
-    TTree*                    m_pRecoTree;             ///<
-    int                       m_run;                   ///<
-    int                       m_event;                 ///<
-    int                       m_hits;                  ///< Keeps track of the number of hits seen
-    float                     m_totalTime;             ///< Keeps track of total execution time
-    float                     m_artHitsTime;           ///< Keeps track of time to recover hits
-    float                     m_makeHitsTime;          ///< Keeps track of time to build 3D hits
-    float                     m_buildNeighborhoodTime; ///< Keeps track of time to build epsilon neighborhood
-    float                     m_dbscanTime;            ///< Keeps track of time to run DBScan
-    float                     m_pathFindingTime;       ///< Keeps track of the path finding time
-    float                     m_finishTime;            ///< Keeps track of time to run output module
-    std::string               m_spacePointInstance;    ///< Special instance name for vertex points
+    TTree*                                         m_pRecoTree;             ///<
+    int                                            m_run;                   ///<
+    int                                            m_event;                 ///<
+    int                                            m_hits;                  ///< Keeps track of the number of hits seen
+    float                                          m_totalTime;             ///< Keeps track of total execution time
+    float                                          m_artHitsTime;           ///< Keeps track of time to recover hits
+    float                                          m_makeHitsTime;          ///< Keeps track of time to build 3D hits
+    float                                          m_buildNeighborhoodTime; ///< Keeps track of time to build epsilon neighborhood
+    float                                          m_dbscanTime;            ///< Keeps track of time to run DBScan
+    float                                          m_clusterMergeTime;      ///< Keeps track of the time to merge clusters
+    float                                          m_pathFindingTime;       ///< Keeps track of the path finding time
+    float                                          m_finishTime;            ///< Keeps track of time to run output module
+    std::string                                    m_spacePointInstance;    ///< Special instance name for vertex points
+    std::string                                    m_extremeInstance;       ///< Instance name for the extreme points
     
     /** 
      *   Other useful variables
      */
-    geo::Geometry*                     m_geometry;              ///<  pointer to the Geometry service
-    const detinfo::DetectorProperties* m_detector;              ///<  Pointer to the detector properties
+    geo::Geometry*                                 m_geometry;              ///<  pointer to the Geometry service
+    const detinfo::DetectorProperties*             m_detector;              ///<  Pointer to the detector properties
 
     // Algorithms
-    std::unique_ptr<lar_cluster3d::IHit3DBuilder>  m_hit3DBuilderAlg;   ///<  Builds the 3D hits to operate on
-    std::unique_ptr<lar_cluster3d::IClusterAlg>    m_clusterAlg;        ///<  Algorithm to do 3D space point clustering
-    std::unique_ptr<lar_cluster3d::IClusterModAlg> m_clusterMergeAlg;   ///<  Algorithm to do cluster merging
-    std::unique_ptr<lar_cluster3d::IClusterModAlg> m_clusterPathAlg;    ///<  Algorithm to do cluster path finding
-    ClusterParamsBuilder                           m_clusterBuilder;    ///<  Common cluster builder tool
-    PrincipalComponentsAlg                         m_pcaAlg;            ///<  Principal Components algorithm
-    SkeletonAlg                                    m_skeletonAlg;       ///<  Skeleton point finder
-    HoughSeedFinderAlg                             m_seedFinderAlg;     ///<  Seed finder
-    PCASeedFinderAlg                               m_pcaSeedFinderAlg;  ///<  Use PCA axis to find seeds
-    ParallelHitsSeedFinderAlg                      m_parallelHitsAlg;   ///<  Deal with parallel hits clusters
+    std::unique_ptr<lar_cluster3d::IHit3DBuilder>  m_hit3DBuilderAlg;       ///<  Builds the 3D hits to operate on
+    std::unique_ptr<lar_cluster3d::IClusterAlg>    m_clusterAlg;            ///<  Algorithm to do 3D space point clustering
+    std::unique_ptr<lar_cluster3d::IClusterModAlg> m_clusterMergeAlg;       ///<  Algorithm to do cluster merging
+    std::unique_ptr<lar_cluster3d::IClusterModAlg> m_clusterPathAlg;        ///<  Algorithm to do cluster path finding
+    ClusterParamsBuilder                           m_clusterBuilder;        ///<  Common cluster builder tool
+    PrincipalComponentsAlg                         m_pcaAlg;                ///<  Principal Components algorithm
+    SkeletonAlg                                    m_skeletonAlg;           ///<  Skeleton point finder
+    HoughSeedFinderAlg                             m_seedFinderAlg;         ///<  Seed finder
+    PCASeedFinderAlg                               m_pcaSeedFinderAlg;      ///<  Use PCA axis to find seeds
+    ParallelHitsSeedFinderAlg                      m_parallelHitsAlg;       ///<  Deal with parallel hits clusters
 };
 
 DEFINE_ART_MODULE(Cluster3D)
@@ -441,12 +456,14 @@ Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
     this->reconfigure(pset);
     
     m_spacePointInstance = "Voronoi";
+    m_extremeInstance    = "Extreme";
 
     produces< std::vector<recob::PCAxis>>();
     produces< std::vector<recob::PFParticle>>();
     produces< std::vector<recob::Cluster>>();
     produces< std::vector<recob::SpacePoint>>();
     produces< std::vector<recob::SpacePoint>>(m_spacePointInstance);
+    produces< std::vector<recob::SpacePoint>>(m_extremeInstance);
     produces< std::vector<recob::Seed>>();
     produces< std::vector<recob::Edge>>();
     produces< std::vector<recob::Edge>>(m_spacePointInstance);
@@ -471,9 +488,9 @@ Cluster3D::~Cluster3D()
 
 void Cluster3D::reconfigure(fhicl::ParameterSet const &pset)
 {
-    m_enableMonitoring     = pset.get<bool>       ("EnableMonitoring",         false);
-    m_parallelHitsCosAng   = pset.get<float>      ("ParallelHitsCosAng",       0.999);
-    m_parallelHitsTransWid = pset.get<float>      ("ParallelHitsTransWid",      25.0);
+    m_enableMonitoring     = pset.get<bool> ("EnableMonitoring",         false);
+    m_parallelHitsCosAng   = pset.get<float>("ParallelHitsCosAng",       0.999);
+    m_parallelHitsTransWid = pset.get<float>("ParallelHitsTransWid",      25.0);
     
     m_hit3DBuilderAlg = art::make_tool<lar_cluster3d::IHit3DBuilder>(pset.get<fhicl::ParameterSet>("Hit3DBuilderAlg"));
     m_clusterAlg      = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
@@ -553,7 +570,7 @@ void Cluster3D::produce(art::Event &evt)
     if(m_enableMonitoring) theClockFinish.start();
     
     // Get the art ouput object
-    ArtOutputHandler output(*this, evt, m_spacePointInstance);
+    ArtOutputHandler output(*this, evt, m_spacePointInstance, m_extremeInstance);
     
     std::cout << "++> Outputting clusters" << std::endl;
 
@@ -579,13 +596,14 @@ void Cluster3D::produce(art::Event &evt)
         m_buildNeighborhoodTime = m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDHITTOHITMAP);
         m_dbscanTime            = m_clusterAlg->getTimeToExecute(IClusterAlg::RUNDBSCAN) +
                                   m_clusterAlg->getTimeToExecute(IClusterAlg::BUILDCLUSTERINFO);
-        m_pathFindingTime       = m_clusterAlg->getTimeToExecute(IClusterAlg::PATHFINDING);
+        m_clusterMergeTime      = m_clusterMergeAlg->getTimeToExecute();
+        m_pathFindingTime       = m_clusterPathAlg->getTimeToExecute();
         m_finishTime            = theClockFinish.accumulated_real_time();
         m_hits                  = static_cast<int>(clusterHitToArtPtrMap.size());
         m_pRecoTree->Fill();
         
         mf::LogDebug("Cluster3D") << "*** Cluster3D total time: " << m_totalTime << ", art: " << m_artHitsTime << ", make: " << m_makeHitsTime
-        << ", build: " << m_buildNeighborhoodTime << ", clustering: " << m_dbscanTime << ", path: " << m_pathFindingTime << ", finish: " << m_finishTime << std::endl;
+        << ", build: " << m_buildNeighborhoodTime << ", clustering: " << m_dbscanTime << ", merge: " << m_clusterMergeTime << ", path: " << m_pathFindingTime << ", finish: " << m_finishTime << std::endl;
     }
     
     // Will we ever get here? ;-)
@@ -606,8 +624,13 @@ void Cluster3D::InitializeMonitoring()
     m_pRecoTree->Branch("makeHitsTime",         &m_makeHitsTime,          "time/F");
     m_pRecoTree->Branch("buildneigborhoodTime", &m_buildNeighborhoodTime, "time/F");
     m_pRecoTree->Branch("dbscanTime",           &m_dbscanTime,            "time/F");
+    m_pRecoTree->Branch("clusterMergeTime",     &m_clusterMergeTime,      "time/F");
     m_pRecoTree->Branch("pathfindingtime",      &m_pathFindingTime,       "time/F");
     m_pRecoTree->Branch("finishTime",           &m_finishTime,            "time/F");
+    
+    m_clusterPathAlg->initializeHistograms(*tfs.get());
+
+    return;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -1111,6 +1134,9 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
             if (clusterParameters.daughterList().empty())
             {
                 ConvertToArtOutput(output, clusterParameters, recob::PFParticle::kPFParticlePrimary, hitToPtrMap, hit3DToSPPtrMap);
+                
+                // Get the extreme points
+                MakeAndSaveExtremePoints(output, clusterParameters.getConvexKinkPoints()); //getConvexExtremePoints());
             }
             // Otherwise, the cluster has daughters so we handle specially
             else
@@ -1188,6 +1214,9 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
                 
                 // Make associations to all space points for this cluster
                 MakeAndSaveSpacePoints(output, clusterParameters.getHitPairListPtr(), hitToPtrMap, hit3DToSPPtrMap, spacePointStart);
+                
+                // Get the extreme points
+                MakeAndSaveExtremePoints(output, clusterParameters.getConvexKinkPoints()); //getConvexExtremePoints());
 
                 // Build the edges now
                 size_t edgeStart(output.artEdgeVector->size());
@@ -1592,6 +1621,25 @@ void Cluster3D::MakeAndSaveSpacePoints(ArtOutputHandler&     output,
     return;
 }
     
+void Cluster3D::MakeAndSaveExtremePoints(ArtOutputHandler& output, reco::HitPairListPtr& extremeHitsVec) const
+{
+    // Right now error matrix is uniform...
+    double spError[] = {1., 0., 1., 0., 0., 1.};
+    
+    // Copy these hits to the vector to be stored with the event
+    for (auto& hitPair : extremeHitsVec)
+    {
+        double chisq = hitPair->getHitChiSquare();    // secret handshake...
+        
+        // Create and store the space point
+        double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
+        
+        output.artExtremePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, output.artExtremePointVector->size()));
+    }
+    
+    return;
+}
+
 void Cluster3D::MakeAndSaveVertexPoints(ArtOutputHandler&     output,
                                         dcel2d::VertexList&   vertexList,
                                         dcel2d::HalfEdgeList& halfEdgeList) const

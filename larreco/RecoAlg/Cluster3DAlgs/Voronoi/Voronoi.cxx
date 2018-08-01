@@ -1039,6 +1039,68 @@ void VoronoiDiagram::getConvexHull(const BSTNode* topNode)
     return;
 }
     
+VoronoiDiagram::PointPair VoronoiDiagram::getExtremePoints() const
+{
+    dcel2d::PointList::const_iterator nextPointItr  = fConvexHullList.begin();
+    dcel2d::PointList::const_iterator firstPointItr = nextPointItr++;
+    
+    float  maxSeparation(0.);
+    
+    PointPair extremePoints(dcel2d::Point(0,0,NULL),dcel2d::Point(0,0,NULL));
+    
+    while(nextPointItr != fConvexHullList.end())
+    {
+        // Get a vector representing the edge from the first to the current next point
+        dcel2d::Point   firstPoint  = *firstPointItr++;
+        dcel2d::Point   nextPoint   = *nextPointItr;
+        Eigen::Vector2f firstEdge(std::get<0>(*firstPointItr) - std::get<0>(firstPoint), std::get<1>(*firstPointItr) - std::get<1>(firstPoint));
+        
+        // normalize it
+        firstEdge.normalize();
+        
+        dcel2d::PointList::const_iterator endPointItr = nextPointItr;
+        
+        while(++endPointItr != fConvexHullList.end())
+        {
+            dcel2d::Point   endPoint = *endPointItr;
+            Eigen::Vector2f nextEdge(std::get<0>(endPoint) - std::get<0>(nextPoint), std::get<1>(endPoint) - std::get<1>(nextPoint));
+            
+            // normalize it
+            nextEdge.normalize();
+            
+            // Have we found the turnaround point?
+            if (firstEdge.dot(nextEdge) < 0.)
+            {
+                Eigen::Vector2f separation(std::get<0>(nextPoint) - std::get<0>(firstPoint), std::get<1>(nextPoint) - std::get<1>(firstPoint));
+                float           separationDistance = separation.norm();
+                
+                if (separationDistance > maxSeparation)
+                {
+                    extremePoints.first  = firstPoint;
+                    extremePoints.second = nextPoint;
+                    maxSeparation        = separationDistance;
+                }
+                
+                // Regardless of thise being the maximum distance we have hit a turnaround point so
+                // we need to break out of this loop
+                break;
+            }
+            
+            nextPointItr = endPointItr;
+            nextPoint    = endPoint;
+        }
+        
+        // If we have hit the end of the convex hull without finding a turnaround point then we are not
+        // going to find one so break out of the main loop
+        if (endPointItr == fConvexHullList.end()) break;
+        
+        // Need to make sure we don't overrun the next point
+        if (firstPointItr == nextPointItr) nextPointItr++;
+    }
+    
+    return extremePoints;
+}
+
 bool VoronoiDiagram::isInsideConvexHull(const dcel2d::Vertex& vertex) const
 {
     bool          insideHull(true);
@@ -1183,7 +1245,8 @@ double VoronoiDiagram::ComputeFaceArea()
         
         while(doNext)
         {
-            faceCenter += halfEdge->getTargetVertex()->getCoords();
+            if (halfEdge->getTargetVertex())
+                faceCenter += halfEdge->getTargetVertex()->getCoords();
 
             numEdges++;
             
@@ -1206,6 +1269,12 @@ double VoronoiDiagram::ComputeFaceArea()
         while(doNext)
         {
             const dcel2d::HalfEdge* twinEdge = halfEdge->getTwinHalfEdge();
+            
+            if (!halfEdge->getTargetVertex() || !twinEdge->getTargetVertex())
+            {
+                faceArea = std::numeric_limits<double>::max();
+                break;
+            }
             
             // Recover the two vertex points
             const dcel2d::Coords& p1 = halfEdge->getTargetVertex()->getCoords();
@@ -1235,7 +1304,7 @@ double VoronoiDiagram::ComputeFaceArea()
             if (!halfEdge)
             {
                 faceArea = std::numeric_limits<double>::max();
-                doNext   = false;
+                break;
             }
             
             if (halfEdge == face.getHalfEdge()) doNext = false;
