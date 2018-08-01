@@ -52,6 +52,7 @@ peakfitter_gaussian:
     MaxWidthMult:  3.
     PeakRangeFact: 2.
     PeakAmpRange:  2.
+    FloatBaseline: false
 }
 
 

@@ -7,6 +7,7 @@
 
 // Framework Includes
 #include "art/Utilities/ToolMacros.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 #include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
 
@@ -51,6 +52,14 @@ public:
     
     void configure(fhicl::ParameterSet const &pset) override;
     
+    /**
+     *  @brief Interface for initializing histograms if they are desired
+     *         Note that the idea is to put hisgtograms in a subfolder
+     *
+     *  @param TFileDirectory - the folder to store the hists in
+     */
+    void initializeHistograms(art::TFileDirectory&) override;
+
     /**
      *  @brief Scan an input collection of clusters and modify those according
      *         to the specific implementing algorithm
@@ -114,6 +123,11 @@ void ClusterMergeAlg::configure(fhicl::ParameterSet const &pset)
     return;
 }
     
+void ClusterMergeAlg::initializeHistograms(art::TFileDirectory&)
+{
+    return;
+}
+
 void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParametersList) const
 {
     /**
@@ -134,7 +148,7 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
     
     reco::ClusterParametersList::iterator firstClusterItr = clusterParametersList.begin();
     
-    int clusCntr(0);
+//    int clusCntr(0);
     
     while(firstClusterItr != clusterParametersList.end())
     {
@@ -144,8 +158,8 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
         // Once you get down to the smallest clusters if they haven't already been absorbed there is no need to check them
         if (firstClusterParams.getFullPCA().getEigenValues()[0] < m_minEigenToProcess) break;
         
-        std::cout << "+++++++++++++++++++++++++++++++ Checking PCA for cluster # " << clusCntr++ << " +++++++++++++++++++++++++++" << std::endl;
-        std::cout << "+++++++ eigen values: " << firstClusterParams.getFullPCA().getEigenValues()[0] << "/" << firstClusterParams.getFullPCA().getEigenValues()[1] << "/" << firstClusterParams.getFullPCA().getEigenValues()[2] << " +++++++++" << std::endl;
+//        std::cout << "+++++++++++++++++++++++++++++++ Checking PCA for cluster # " << clusCntr++ << " +++++++++++++++++++++++++++" << std::endl;
+//        std::cout << "+++++++ eigen values: " << firstClusterParams.getFullPCA().getEigenValues()[0] << "/" << firstClusterParams.getFullPCA().getEigenValues()[1] << "/" << firstClusterParams.getFullPCA().getEigenValues()[2] << " +++++++++" << std::endl;
         
         // want the next one...
         nextClusterItr++;
@@ -241,7 +255,7 @@ bool ClusterMergeAlg::consistentClusters(const reco::PrincipalComponents& firstP
     double docaVecProj1Cut  = std::max( 1., (1. + 2. * cosAngFTNtoAxis0) * firstEigenVals[1]);
     double docaVecProj2Cut  = std::max(0.5, (1. + 2. * cosAngFTNtoAxis0) * firstEigenVals[2]);
     
-    std::cout << "   ==> Check in tube, doca: " << nextDocaVec.Mag() << ", proj: " << docaVecProj1 << "/" << docaVecProj2 << ", cut: " << docaVecProj1Cut << "/" << docaVecProj2Cut << ", eigen: " << firstEigenVals[0] << "/" << firstEigenVals[1] << "/" << firstEigenVals[2] << ", arcLenToNextDoca: " << arcLenToNextDoca << ", cos(ang): " << cosAngFTNtoAxis0 << std::endl;
+//    std::cout << "   ==> Check in tube, doca: " << nextDocaVec.Mag() << ", proj: " << docaVecProj1 << "/" << docaVecProj2 << ", cut: " << docaVecProj1Cut << "/" << docaVecProj2Cut << ", eigen: " << firstEigenVals[0] << "/" << firstEigenVals[1] << "/" << firstEigenVals[2] << ", arcLenToNextDoca: " << arcLenToNextDoca << ", cos(ang): " << cosAngFTNtoAxis0 << std::endl;
 
     // Ok, the first selection is that the cluster to merge lies within an (elliptical) tube of the first cluster's axis
     if (docaVecProj1 < docaVecProj1Cut && docaVecProj2 < docaVecProj2Cut) consistent = true;
@@ -267,7 +281,7 @@ bool ClusterMergeAlg::consistentClusters(const reco::PrincipalComponents& firstP
         double arcLenToFirstPoca = (firstPoca - firstCenter).Dot(firstAxis0);  // is this faster than "Mag"?
         double arcLenToNextPoca  = (nextPoca  - nextCenter ).Dot(nextAxis0);
         
-        std::cout << "       - arcLenToFirstPoca: " << arcLenToFirstPoca << ", arcLenToNextPoca: " << arcLenToNextPoca << ", first/Next dist: " << firstToNextDist << std::endl;
+ //       std::cout << "       - arcLenToFirstPoca: " << arcLenToFirstPoca << ", arcLenToNextPoca: " << arcLenToNextPoca << ", first/Next dist: " << firstToNextDist << std::endl;
         
         // Require both of these to be less than length from first to next and to have the "right" sign where for the arc length
         // to the first axis poca this will be positive and for the next poca it will be negative
@@ -279,7 +293,7 @@ bool ClusterMergeAlg::consistentClusters(const reco::PrincipalComponents& firstP
             double nextEigenVal0     = std::max(1.,3. * sqrt(nextPCA.getEigenValues()[0]));
             double nextArcLenCut     = (1. + 5. * cosAngFTNtoAxis0) * nextEigenVal0;
             
-            std::cout << "       - linedoca: " << lineDoca << ", cosAngFTNtoAxis0: " << cosAngFTNtoAxis0 << ", nextEigenVal0: " << nextEigenVal0 << ", nextArcLenCut: " << nextArcLenCut << std::endl;
+//            std::cout << "       - linedoca: " << lineDoca << ", cosAngFTNtoAxis0: " << cosAngFTNtoAxis0 << ", nextEigenVal0: " << nextEigenVal0 << ", nextArcLenCut: " << nextArcLenCut << std::endl;
             
             // Check the actual doca with a simple cut on the first eigen value, make sure "in range"
             if (lineDoca < firstEigenVals[1] && -arcLenToNextPoca < nextArcLenCut) consistent = true;
@@ -379,10 +393,10 @@ bool ClusterMergeAlg::mergeClusters(reco::ClusterParameters& firstClusterParams,
     TVector3 origAxis0(clusterParams.getFullPCA().getEigenVectors()[0][0],clusterParams.getFullPCA().getEigenVectors()[0][1],clusterParams.getFullPCA().getEigenVectors()[0][2]);
     TVector3 origEigen(clusterParams.getFullPCA().getEigenValues()[0],clusterParams.getFullPCA().getEigenValues()[1],clusterParams.getFullPCA().getEigenValues()[2]);
 
-    std::cout << "      **>> orig center: " << origCenter[0] << "/" << origCenter[1] << "/" << origCenter[2] << std::endl;
-    std::cout << "           orig vector: " << origAxis0[0] << "/" << origAxis0[1] << "/" << origAxis0[2] << std::endl;
-    std::cout << "           orig eigen:  " << origEigen[0] << "/" << origEigen[1] << "/" << origEigen[2] << std::endl;
-    
+//    std::cout << "      **>> orig center: " << origCenter[0] << "/" << origCenter[1] << "/" << origCenter[2] << std::endl;
+//    std::cout << "           orig vector: " << origAxis0[0] << "/" << origAxis0[1] << "/" << origAxis0[2] << std::endl;
+//    std::cout << "           orig eigen:  " << origEigen[0] << "/" << origEigen[1] << "/" << origEigen[2] << std::endl;
+
     
     // Recalculate the PCA
     m_pcaAlg.PCAAnalysis_3D(clusterParams.getHitPairListPtr(), clusterParams.getFullPCA());
@@ -392,12 +406,12 @@ bool ClusterMergeAlg::mergeClusters(reco::ClusterParameters& firstClusterParams,
     TVector3 newAxis0(clusterParams.getFullPCA().getEigenVectors()[0][0],clusterParams.getFullPCA().getEigenVectors()[0][1],clusterParams.getFullPCA().getEigenVectors()[0][2]);
     TVector3 newEigen(clusterParams.getFullPCA().getEigenValues()[0],clusterParams.getFullPCA().getEigenValues()[1],clusterParams.getFullPCA().getEigenValues()[2]);
     
-    std::cout << "      >>>> new center:  " << newCenter[0] << "/" << newCenter[1] << "/" << newCenter[2] << std::endl;
-    std::cout << "           new vector:  " << newAxis0[0] << "/" << newAxis0[1] << "/" << newAxis0[2] << std::endl;
-    std::cout << "           new eigen:   " << newEigen[0] << "/" << newEigen[1] << "/" << newEigen[2] << ", cos orig to new: " << origAxis0.Dot(newAxis0) << std::endl;
+//    std::cout << "      >>>> new center:  " << newCenter[0] << "/" << newCenter[1] << "/" << newCenter[2] << std::endl;
+//    std::cout << "           new vector:  " << newAxis0[0] << "/" << newAxis0[1] << "/" << newAxis0[2] << std::endl;
+//    std::cout << "           new eigen:   " << newEigen[0] << "/" << newEigen[1] << "/" << newEigen[2] << ", cos orig to new: " << origAxis0.Dot(newAxis0) << std::endl;
     
 
-    if (newEigen[0] > 0.8 * origEigen[0] && newEigen[1] * origEigen[0] < 5. * newEigen[0] * origEigen[1])
+//    if (newEigen[0] > 0.8 * origEigen[0] && newEigen[1] * origEigen[0] < 5. * newEigen[0] * origEigen[1])
     {
         // Must have a valid pca
         if (clusterParams.getFullPCA().getSvdOK())
