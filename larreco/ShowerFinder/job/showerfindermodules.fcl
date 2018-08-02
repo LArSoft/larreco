@@ -22,13 +22,10 @@ standard_tcshower:
  CalorimetryAlg:           @local::argoneut_calorimetryalgmc
 }
 
-standard_tcshoweranalysis:
+standard_tcshowertemplatemaker:
 {
- module_type: "TCShowerAnalysis"
-# ClusterModuleLabel: "trajcluster"
-# TrackModuleLabel:   "pmtrack"
+ module_type: "TCShowerTemplateMaker"
  ShowerModuleLabel:  "tcshower"
- CalorimetryModuleLabel:  "calo"
  DigitModuleLabel:        "largeant"
  CalorimetryAlg:           @local::argoneut_calorimetryalgmc
 }

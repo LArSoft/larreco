@@ -1,5 +1,5 @@
 // -------------------------------------------------
-// shower analysis module
+// makes shower profile templates
 //
 // Author: Rory Fitzpatrick (roryfitz@umich.edu)
 // Created: 7/16/18
@@ -46,12 +46,12 @@
 
 namespace shower {
 
-  class TCShowerAnalysis : public art::EDAnalyzer {
+  class TCShowerTemplateMaker : public art::EDAnalyzer {
 
   public:
 
-    explicit TCShowerAnalysis(fhicl::ParameterSet const& pset);
-    virtual ~TCShowerAnalysis();
+    explicit TCShowerTemplateMaker(fhicl::ParameterSet const& pset);
+    virtual ~TCShowerTemplateMaker();
 
     void reconfigure(fhicl::ParameterSet const& pset);
     void beginJob();
@@ -110,7 +110,7 @@ namespace shower {
 
 // -------------------------------------------------
 
-shower::TCShowerAnalysis::TCShowerAnalysis(fhicl::ParameterSet const& pset) :
+shower::TCShowerTemplateMaker::TCShowerTemplateMaker(fhicl::ParameterSet const& pset) :
   EDAnalyzer(pset),
   fHitModuleLabel           (pset.get< std::string >("HitModuleLabel", "trajcluster" ) ),
   fShowerModuleLabel        (pset.get< std::string >("ShowerModuleLabel", "tcshower" ) ),
@@ -118,21 +118,21 @@ shower::TCShowerAnalysis::TCShowerAnalysis(fhicl::ParameterSet const& pset) :
   fDigitModuleLabel         (pset.get< std::string >("DigitModuleLabel", "largeant")  ),
   fCalorimetryAlg           (pset.get< fhicl::ParameterSet >("CalorimetryAlg") ) {
   this->reconfigure(pset);
-} // TCShowerAnalysis
+} // TCShowerTemplateMaker
 
 // -------------------------------------------------
 
-shower::TCShowerAnalysis::~TCShowerAnalysis() {
-} // ~TCShowerAnalysis
+shower::TCShowerTemplateMaker::~TCShowerTemplateMaker() {
+} // ~TCShowerTemplateMaker
 
 // -------------------------------------------------
 
-void shower::TCShowerAnalysis::reconfigure(fhicl::ParameterSet const& pset) {
+void shower::TCShowerTemplateMaker::reconfigure(fhicl::ParameterSet const& pset) {
 } // reconfigure
 
 // -------------------------------------------------
 
-void shower::TCShowerAnalysis::beginJob() {
+void shower::TCShowerTemplateMaker::beginJob() {
 
   art::ServiceHandle<art::TFileService> tfs;
   //fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
@@ -157,7 +157,7 @@ void shower::TCShowerAnalysis::beginJob() {
 
 // -------------------------------------------------
 
-void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
+void shower::TCShowerTemplateMaker::analyze(const art::Event& evt) {
 
   art::Handle< std::vector<recob::Hit> > hitListHandle;
   std::vector<art::Ptr<recob::Hit> > hitlist;
@@ -202,7 +202,7 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
 
 // -------------------------------------------------
 
-void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir, double elep) {
+void shower::TCShowerTemplateMaker::showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir, double elep) {
 
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry> geom;
@@ -263,11 +263,13 @@ void shower::TCShowerAnalysis::showerProfile(std::vector< art::Ptr<recob::Hit> >
     fShowerProfileRecoTrans2D->Fill(ttemp->GetBinCenter(i+1), elep, ttemp->GetBinContent(i+1));
   }
 
+  return;
+
 } // showerProfile
 
 // -------------------------------------------------
 
-void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits, double elep) {
+void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits, double elep) {
 
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   art::ServiceHandle<geo::Geometry> geom;
@@ -380,7 +382,7 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<recob::Hi
 
 // -------------------------------------------------
 
-void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan, simb::MCParticle electron) {
+void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan, simb::MCParticle electron) {
   art::ServiceHandle<cheat::ParticleInventoryService> piserv;
   art::ServiceHandle<geo::Geometry> geom;
 
@@ -421,7 +423,6 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimC
   double z2 = electron.Pz();
 
   TVector3 v0(x2, y2, z2);
-
   v0 = v0.Unit();
 
   for (size_t i = 0; i < alledep.size(); ++i) {
@@ -459,4 +460,4 @@ void shower::TCShowerAnalysis::showerProfileTrue(std::vector< art::Ptr<sim::SimC
 
 // -------------------------------------------------
 
-DEFINE_ART_MODULE(shower::TCShowerAnalysis)
+DEFINE_ART_MODULE(shower::TCShowerTemplateMaker)
