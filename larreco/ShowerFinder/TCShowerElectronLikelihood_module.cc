@@ -59,22 +59,28 @@ namespace shower {
     void analyze(const art::Event& evt);
    
     void getShowerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir);
-    int findEnergyBin();
+    void findEnergyBin();
  
   protected:
 
   private: 
+    void resetProfiles();
 
     std::string fTemplateFile;
     std::string fROOTfile;
 
     TH3F* longTemplate;
     TH3F* tranTemplate;
+    TProfile2D* longTemplateProf2D;
+    TProfile2D* tranTemplateProf2D;
 
     //TTree* fTree;
+    TH1F* energyDist;
 
     TH1F* longProfile;
     TH1F* tranProfile;
+    int bestE;
+    double bestchi2;
 
     const int LBINS = 20;
     const int LMIN = 0;
@@ -133,6 +139,12 @@ void shower::TCShowerElectronLikelihood::reconfigure(fhicl::ParameterSet const& 
   longTemplate = (TH3F*)file->Get("tcshowertemplate/fLongitudinal");
   tranTemplate = (TH3F*)file->Get("tcshowertemplate/fTransverse");
 
+  longTemplateProf2D = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoLong2D");
+  tranTemplateProf2D = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D");
+
+  longProfile = new TH1F("longProfile", "longitudinal shower profile;t;Q", LBINS, LMIN, LMAX);
+  tranProfile = new TH1F("tranProfile", "transverse shower profile;dist (cm);Q", TBINS, TMIN, TMAX);;
+
 } // reconfigure
 
 // -------------------------------------------------
@@ -142,14 +154,15 @@ void shower::TCShowerElectronLikelihood::beginJob() {
   art::ServiceHandle<art::TFileService> tfs;
   //fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
 
-  longProfile = tfs->make<TH1F>("longProfile", "longitudinal shower profile;t;Q", LBINS, LMIN, LMAX);
-  tranProfile = tfs->make<TH1F>("tranProfile", "transverse shower profile;dist (cm);Q", TBINS, TMIN, TMAX);
+  energyDist = tfs->make<TH1F>("energyDist", "true energy - guess energy", 20, -10, 10);
 
 } // beginJob
 
 // -------------------------------------------------
 
 void shower::TCShowerElectronLikelihood::analyze(const art::Event& evt) {
+
+  resetProfiles();
 
   art::Handle< std::vector<recob::Hit> > hitListHandle;
   std::vector<art::Ptr<recob::Hit> > hitlist;
@@ -180,6 +193,8 @@ void shower::TCShowerElectronLikelihood::analyze(const art::Event& evt) {
 	if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) {
 	  double elep =  mctruth->GetNeutrino().Lepton().E();
 	  std::cout << "true shower energy: " << elep << std::endl;
+	  std::cout << "energy guess:       " << bestE << " (" << bestchi2 << ")" << std::endl;
+	  energyDist->Fill(elep - bestE);
 	}
       }
     }
@@ -188,6 +203,20 @@ void shower::TCShowerElectronLikelihood::analyze(const art::Event& evt) {
   //fTree->Fill();
 
 } // analyze
+
+// -------------------------------------------------
+
+void shower::TCShowerElectronLikelihood::resetProfiles() {
+
+  longProfile->Reset();
+  tranProfile->Reset();
+  
+  bestE = -9999;
+  bestchi2 = -9999;
+
+  return;
+
+} // resetProfiles
 
 // -------------------------------------------------
 
@@ -243,19 +272,55 @@ void shower::TCShowerElectronLikelihood::getShowerProfile(std::vector< art::Ptr<
 
 // -------------------------------------------------
 
-int shower::TCShowerElectronLikelihood::findEnergyBin() {
+void shower::TCShowerElectronLikelihood::findEnergyBin() {
 
-  // confirm equal number of distance bins in templates and candidates
+  if (longProfile->GetNbinsX() != longTemplate->GetNbinsX())
+    throw cet::exception("TCShowerElectronLikelihood") << "Bin mismatch in longitudinal profile template \n";
 
-  // make TProfile for each energy bin from fTemplate histograms
+  if (tranProfile->GetNbinsX() != tranTemplate->GetNbinsX())
+    throw cet::exception("TCShowerElectronLikelihood") << "Bin mismatch in transverse profile template \n";
 
-  // calculate chi2 between fProfile and fTemplate for each energy bin (add longitudinal + transverse, normalize by dof)
+  double chi2min = 9999999;
+  double bestbin = -1;
 
-  // pick energy bin with lowest chi2
+  int ebins = longTemplate->GetNbinsY();
+  int lbins = longTemplate->GetNbinsX();
+  int tbins = tranTemplate->GetNbinsX();
 
-  // return bin number
+  TProfile* ltemp;
+  TProfile* ttemp;
 
-  return -1;
+  for (int i = 0; i < ebins; ++i) {
+    ltemp = (TProfile*)longTemplateProf2D->ProfileX("_x", i+1, i+1);
+    ttemp = (TProfile*)tranTemplateProf2D->ProfileX("_x", i+1, i+1);
+
+    double thischi2 = 0;
+
+    for (int j = 0; j < lbins; ++j) {
+      double obs = longProfile->GetBinContent(j+1);
+      double exp = ltemp->GetBinContent(j+1);
+      //      std::cout << i+1 << " " << pow(obs - exp, 2) / exp << std::endl;
+      thischi2 += pow(obs - exp, 2) / exp;
+
+      if (j > 10) break;
+    } // loop through longitudinal bins
+
+    for (int j = 0; j < tbins; ++j) {
+      double obs = tranProfile->GetBinContent(j+1);
+      double exp = ttemp->GetBinContent(j+1);
+      //      std::cout << i+1 << " " << pow(obs - exp, 2) / exp << std::endl;
+      thischi2 += pow(obs - exp, 2) / exp;
+    } // loop through longitudinal bins
+
+    if (thischi2 < chi2min) {
+      chi2min = thischi2;
+      bestbin = i;
+    }
+
+  } // loop through energy bins
+
+  bestchi2 = chi2min;
+  bestE = bestbin+1;
 
 } // findEnergyBin
 
