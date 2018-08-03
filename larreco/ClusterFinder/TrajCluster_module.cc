@@ -165,7 +165,7 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
-    produces< art::Assns<recob::PFParticle, recob::Slice> >();
+//    produces< art::Assns<recob::PFParticle, recob::Slice> >();
 
     produces< std::vector<anab::CosmicTag>>();
     produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
@@ -384,8 +384,8 @@ namespace cluster {
       pfp_shwr_assn(new art::Assns<recob::PFParticle, recob::Shower>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
       pfp_vtx_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
-    std::unique_ptr<art::Assns<recob::PFParticle, recob::Slice>>
-      pfp_slc_assn(new art::Assns<recob::PFParticle, recob::Slice>);
+//    std::unique_ptr<art::Assns<recob::PFParticle, recob::Slice>>
+//      pfp_slc_assn(new art::Assns<recob::PFParticle, recob::Slice>);
     std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
       pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
 
@@ -598,12 +598,14 @@ namespace cluster {
         {
           throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate clusters with PFParticle";
         } // exception
+/*
         // PFParticle -> Slice
         std::vector<unsigned short> slcIndex(1, isl);
         if(!util::CreateAssn(*this, evt, *pfp_slc_assn, pfpCol.size()-1, slcIndex.begin(), slcIndex.end()))
         {
           throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate slice with PFParticle";
         } // exception
+*/
         // PFParticle -> Shower
         if(pfp.PDGCode == 1111) {
           std::vector<unsigned short> shwIndex(1, 0);
@@ -674,7 +676,7 @@ namespace cluster {
     evt.put(std::move(pcol));
     evt.put(std::move(pfp_cls_assn));
     evt.put(std::move(pfp_shwr_assn));
-    evt.put(std::move(pfp_slc_assn));
+//    evt.put(std::move(pfp_slc_assn));
     evt.put(std::move(pfp_vtx_assn));
     evt.put(std::move(ctgcol));
     evt.put(std::move(pfp_cos_assn));
