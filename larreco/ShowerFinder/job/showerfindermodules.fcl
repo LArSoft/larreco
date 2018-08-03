@@ -30,6 +30,12 @@ standard_tcshowertemplatemaker:
  CalorimetryAlg:           @local::argoneut_calorimetryalgmc
 }
 
+standard_tcshowerelectronlikelihood:
+{
+ module_type: "TCShowerElectronLikelihood"
+ ShowerModuleLabel:  "tcshower"
+ CalorimetryAlg:           @local::argoneut_calorimetryalgmc
+}
 
 #standard_showerana:
 #{

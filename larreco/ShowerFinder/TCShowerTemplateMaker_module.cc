@@ -38,7 +38,7 @@
 #include "TTree.h"
 #include "TFile.h"
 #include "TH1.h"
-#include "TF1.h"
+#include "TH3.h"
 #include "TProfile.h"
 #include "TProfile2D.h"
 #include <TROOT.h>
@@ -82,6 +82,9 @@ namespace shower {
     TProfile2D* fShowerProfileSimTrans2D;
     TProfile2D* fShowerProfileHitTrans2D;
     TProfile2D* fShowerProfileRecoTrans2D;
+
+    TH3F* fLongitudinal;
+    TH3F* fTransverse;
 
     const int LBINS = 20;
     const int LMIN = 0;
@@ -153,6 +156,10 @@ void shower::TCShowerTemplateMaker::beginJob() {
   fShowerProfileHitTrans2D = tfs->make<TProfile2D>("fShowerProfileHitTrans2D", "transverse e- profile (true, hit);t;electron energy (MeV);E (MeV)", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX);
   fShowerProfileRecoTrans2D = tfs->make<TProfile2D>("fShowerProfileRecoTrans2D", "transverse e- profile (reco);t;electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX);
 
+  fLongitudinal = tfs->make<TH3F>("fLongitudinal", "longitudinal e- profile;t;electron energy (MeV);Q", LBINS, LMIN, LMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
+  fTransverse = tfs->make<TH3F>("fTransverse", "transverse e- profile;dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
+
+  
 } // beginJob
 
 // -------------------------------------------------
@@ -255,12 +262,14 @@ void shower::TCShowerTemplateMaker::showerProfile(std::vector< art::Ptr<recob::H
     if (ltemp->GetBinContent(i+1) == 0) continue;
     fShowerProfileRecoLong->Fill(ltemp->GetBinCenter(i+1), ltemp->GetBinContent(i+1));
     fShowerProfileRecoLong2D->Fill(ltemp->GetBinCenter(i+1), elep, ltemp->GetBinContent(i+1));
+    fLongitudinal->Fill(ltemp->GetBinCenter(i+1), elep, ltemp->GetBinContent(i+1));
   }
 
   for (int i = 0; i < TBINS; ++i) {
     if (ttemp->GetBinContent(i+1) == 0) continue;
     fShowerProfileRecoTrans->Fill(ttemp->GetBinCenter(i+1), ttemp->GetBinContent(i+1));
     fShowerProfileRecoTrans2D->Fill(ttemp->GetBinCenter(i+1), elep, ttemp->GetBinContent(i+1));
+    fTransverse->Fill(ttemp->GetBinCenter(i+1), elep, ttemp->GetBinContent(i+1));
   }
 
   return;
