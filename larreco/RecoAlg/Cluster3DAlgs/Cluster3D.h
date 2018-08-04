@@ -329,6 +329,50 @@ using Hit3DToEdgeMap           = std::unordered_map<const reco::ClusterHit3D*, r
 using Hit2DToHit3DListMap      = std::unordered_map<const reco::ClusterHit2D*, reco::HitPairListPtr>;
 //using VertexPoint              = Eigen::Vector3f;
 //using VertexPointList          = std::list<Eigen::Vector3f>;
+    
+using ProjectedPoint           = std::tuple<float, float, const reco::ClusterHit3D*>;          ///< Projected coordinates and pointer to hit
+using ProjectedPointList       = std::list<ProjectedPoint>;
+using ConvexHullKinkTuple      = std::tuple<ProjectedPoint, Eigen::Vector2f, Eigen::Vector2f>; ///< Point plus edges that point to it
+using ConvexHullKinkTupleList  = std::list<ConvexHullKinkTuple>;
+    
+/**
+ *  @brief Define a container for working with the convex hull
+ */
+class ConvexHull
+{
+public:
+    ConvexHull()
+    {
+        fProjectedPointList.clear(),
+        fConvexHullEdgeMap.clear(),
+        fConvexHullEdgeList.clear(),
+        fConvexHullExtremePoints.clear(),
+        fConvexHullKinkPoints.clear();
+    }
+    
+    void clear()
+    {
+        fProjectedPointList.clear(),
+        fConvexHullEdgeMap.clear(),
+        fConvexHullEdgeList.clear(),
+        fConvexHullExtremePoints.clear(),
+        fConvexHullKinkPoints.clear();
+    }
+    
+    reco::ProjectedPointList&      getProjectedPointList()      {return fProjectedPointList;}
+    reco::Hit3DToEdgeMap&          getConvexHullEdgeMap()       {return fConvexHullEdgeMap;}
+    reco::EdgeList&                getConvexHullEdgeList()      {return fConvexHullEdgeList;}
+    reco::ProjectedPointList&      getConvexHullExtremePoints() {return fConvexHullExtremePoints;}
+    reco::ConvexHullKinkTupleList& getConvexHullKinkPoints()    {return fConvexHullKinkPoints;}
+    
+    
+private:
+    reco::ProjectedPointList      fProjectedPointList;      ///< The input set of points projected onto plane encompassed by the hull
+    reco::Hit3DToEdgeMap          fConvexHullEdgeMap;       ///< Map from 3D hit to associated edge
+    reco::EdgeList                fConvexHullEdgeList;      ///< This has become multiuse... really need to split it up
+    reco::ProjectedPointList      fConvexHullExtremePoints; ///< The points furthest from each other on hull
+    reco::ConvexHullKinkTupleList fConvexHullKinkPoints;    ///< The points with large kinks along the convex hull
+};
 
 /**
  *  @brief Class wrapping the above and containing volatile information to characterize the cluster
@@ -341,106 +385,101 @@ class ClusterParameters
 public:
     ClusterParameters()
     {
-        m_clusterParams.clear();
-        m_hitPairListPtr.clear();
-        m_hit2DToHit3DListMap.clear();
-        m_hit3DToEdgeMap.clear();
-        m_bestHitPairListPtr.clear();
-        m_bestEdgeList.clear();
-        m_convexExtremePoints.clear();
-        m_convexKinkPoints.clear();
-        m_faceList.clear();
-        m_vertexList.clear();
-        m_halfEdgeList.clear();
-        m_clusterParameters.clear();
+        fClusterParams.clear();
+        fHitPairListPtr.clear();
+        fHit2DToHit3DListMap.clear();
+        fHit3DToEdgeMap.clear();
+        fBestHitPairListPtr.clear();
+        fBestEdgeList.clear();
+        fConvexHull.clear();
+        fFaceList.clear();
+        fVertexList.clear();
+        fHalfEdgeList.clear();
+        fClusterParameters.clear();
     }
     
-    ClusterParameters(reco::HitPairClusterMap::iterator& mapItr) : m_hitPairListPtr(mapItr->second)
+    ClusterParameters(reco::HitPairClusterMap::iterator& mapItr) : fHitPairListPtr(mapItr->second)
     {
-        m_clusterParams.clear();
-        m_hit2DToHit3DListMap.clear();
-        m_hit3DToEdgeMap.clear();
-        m_bestHitPairListPtr.clear();
-        m_bestEdgeList.clear();
-        m_convexExtremePoints.clear();
-        m_convexKinkPoints.clear();
-        m_faceList.clear();
-        m_vertexList.clear();
-        m_halfEdgeList.clear();
+        fClusterParams.clear();
+        fHit2DToHit3DListMap.clear();
+        fHit3DToEdgeMap.clear();
+        fBestHitPairListPtr.clear();
+        fBestEdgeList.clear();
+        fConvexHull.clear();
+        fFaceList.clear();
+        fVertexList.clear();
+        fHalfEdgeList.clear();
     }
     
-    ClusterParameters(reco::HitPairListPtr& hitList) : m_hitPairListPtr(hitList)
+    ClusterParameters(reco::HitPairListPtr& hitList) : fHitPairListPtr(hitList)
     {
-        m_clusterParams.clear();
-        m_hit2DToHit3DListMap.clear();
-        m_hit3DToEdgeMap.clear();
-        m_bestHitPairListPtr.clear();
-        m_bestEdgeList.clear();
-        m_convexExtremePoints.clear();
-        m_convexKinkPoints.clear();
-        m_faceList.clear();
-        m_vertexList.clear();
-        m_halfEdgeList.clear();
+        fClusterParams.clear();
+        fHit2DToHit3DListMap.clear();
+        fHit3DToEdgeMap.clear();
+        fBestHitPairListPtr.clear();
+        fBestEdgeList.clear();
+        fConvexHull.clear();
+        fFaceList.clear();
+        fVertexList.clear();
+        fHalfEdgeList.clear();
     }
     
-    ClusterParametersList& daughterList() {return m_clusterParameters;}
+    ClusterParametersList& daughterList() {return fClusterParameters;}
     
     void UpdateParameters(const reco::ClusterHit2D* hit)
     {
-        m_clusterParams[hit->getHit().WireID().Plane].UpdateParameters(hit);
+        fClusterParams[hit->getHit().WireID().Plane].UpdateParameters(hit);
     }
     
     void addHit3D(const reco::ClusterHit3D* hit3D)
     {
-        m_hitPairListPtr.emplace_back(hit3D);
+        fHitPairListPtr.emplace_back(hit3D);
         
         for(const auto& hit2D : hit3D->getHits())
-            if (hit2D) m_hit2DToHit3DListMap[hit2D].emplace_back(hit3D);
+            if (hit2D) fHit2DToHit3DListMap[hit2D].emplace_back(hit3D);
     }
     
     void fillHit2DToHit3DListMap()
     {
-        for(const auto& hit3D : m_hitPairListPtr)
+        for(const auto& hit3D : fHitPairListPtr)
         {
             for(const auto& hit2D : hit3D->getHits())
-                if (hit2D) m_hit2DToHit3DListMap[hit2D].emplace_back(hit3D);
+                if (hit2D) fHit2DToHit3DListMap[hit2D].emplace_back(hit3D);
         }
     }
     
-    reco::PlaneToClusterParamsMap& getClusterParams()       {return m_clusterParams;}
-    reco::Hit2DToHit3DListMap&     getHit2DToHit3DListMap() {return m_hit2DToHit3DListMap;}
-    reco::HitPairListPtr&          getHitPairListPtr()      {return m_hitPairListPtr;}
-    reco::PrincipalComponents&     getFullPCA()             {return m_fullPCA;}
-    reco::PrincipalComponents&     getSkeletonPCA()         {return m_skeletonPCA;}
-    reco::Hit3DToEdgeMap&          getHit3DToEdgeMap()      {return m_hit3DToEdgeMap;}
-    reco::HitPairListPtr&          getBestHitPairListPtr()  {return m_bestHitPairListPtr;}
-    reco::EdgeList&                getBestEdgeList()        {return m_bestEdgeList;}
-    reco::HitPairListPtr&          getConvexExtremePoints() {return m_convexExtremePoints;}
-    reco::HitPairListPtr&          getConvexKinkPoints()    {return m_convexKinkPoints;}
-    dcel2d::FaceList&              getFaceList()            {return m_faceList;}
-    dcel2d::VertexList&            getVertexList()          {return m_vertexList;}
-    dcel2d::HalfEdgeList&          getHalfEdgeList()        {return m_halfEdgeList;}
+    reco::PlaneToClusterParamsMap& getClusterParams()       {return fClusterParams;}
+    reco::Hit2DToHit3DListMap&     getHit2DToHit3DListMap() {return fHit2DToHit3DListMap;}
+    reco::HitPairListPtr&          getHitPairListPtr()      {return fHitPairListPtr;}
+    reco::PrincipalComponents&     getFullPCA()             {return fFullPCA;}
+    reco::PrincipalComponents&     getSkeletonPCA()         {return fSkeletonPCA;}
+    reco::Hit3DToEdgeMap&          getHit3DToEdgeMap()      {return fHit3DToEdgeMap;}
+    reco::HitPairListPtr&          getBestHitPairListPtr()  {return fBestHitPairListPtr;}
+    reco::EdgeList&                getBestEdgeList()        {return fBestEdgeList;}
+    reco::ConvexHull&              getConvexHull()          {return fConvexHull;}
+    dcel2d::FaceList&              getFaceList()            {return fFaceList;}
+    dcel2d::VertexList&            getVertexList()          {return fVertexList;}
+    dcel2d::HalfEdgeList&          getHalfEdgeList()        {return fHalfEdgeList;}
 
     friend bool operator < (const ClusterParameters &a, const ClusterParameters& b)
     {
-        return a.m_hitPairListPtr.size() > b.m_hitPairListPtr.size();
+        return a.fHitPairListPtr.size() > b.fHitPairListPtr.size();
     }
 
 private:
-    PlaneToClusterParamsMap   m_clusterParams;
-    reco::HitPairListPtr      m_hitPairListPtr;      // This contains the list of 3D hits in the cluster
-    reco::Hit2DToHit3DListMap m_hit2DToHit3DListMap; // Provides a mapping between 2D hits and 3D hits they make
-    reco::PrincipalComponents m_fullPCA;             // PCA run over full set of 3D hits
-    reco::PrincipalComponents m_skeletonPCA;         // PCA run over just the "skeleton" 3D hits
-    reco::Hit3DToEdgeMap      m_hit3DToEdgeMap;
-    reco::HitPairListPtr      m_bestHitPairListPtr;
-    reco::EdgeList            m_bestEdgeList;        // This has become multiuse... really need to split it up
-    reco::HitPairListPtr      m_convexExtremePoints; // The points furthest from each other on hull
-    reco::HitPairListPtr      m_convexKinkPoints;    // The points with large kinks on the hull
-    dcel2d::FaceList          m_faceList;            // Keeps track of "faces" from Voronoi Diagram
-    dcel2d::VertexList        m_vertexList;          // Keeps track of "vertices" from Voronoi Diagram
-    dcel2d::HalfEdgeList      m_halfEdgeList;        // Keeps track of "halfedges" from Voronoi Diagram
-    ClusterParametersList     m_clusterParameters;   // For possible daughter clusters
+    PlaneToClusterParamsMap       fClusterParams;
+    reco::HitPairListPtr          fHitPairListPtr;      // This contains the list of 3D hits in the cluster
+    reco::Hit2DToHit3DListMap     fHit2DToHit3DListMap; // Provides a mapping between 2D hits and 3D hits they make
+    reco::PrincipalComponents     fFullPCA;             // PCA run over full set of 3D hits
+    reco::PrincipalComponents     fSkeletonPCA;         // PCA run over just the "skeleton" 3D hits
+    reco::Hit3DToEdgeMap          fHit3DToEdgeMap;
+    reco::HitPairListPtr          fBestHitPairListPtr;
+    reco::EdgeList                fBestEdgeList;        // This has become multiuse... really need to split it up
+    reco::ConvexHull              fConvexHull;          // Convex hull object
+    dcel2d::FaceList              fFaceList;            // Keeps track of "faces" from Voronoi Diagram
+    dcel2d::VertexList            fVertexList;          // Keeps track of "vertices" from Voronoi Diagram
+    dcel2d::HalfEdgeList          fHalfEdgeList;        // Keeps track of "halfedges" from Voronoi Diagram
+    ClusterParametersList         fClusterParameters;   // For possible daughter clusters
 };
 
 using ClusterToHitPairSetPair = std::pair<reco::ClusterParameters*,HitPairSetPtr>;

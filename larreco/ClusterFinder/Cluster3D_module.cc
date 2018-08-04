@@ -321,7 +321,7 @@ private:
      *  @param output                the object containting the art output
      *  @param clusHitPairVector     List of 3D hits to output as "extreme" space points
      */
-    void MakeAndSaveExtremePoints(ArtOutputHandler& output, reco::HitPairListPtr& clusHitPairVector) const;
+    void MakeAndSaveKinkPoints(ArtOutputHandler& output, reco::ConvexHullKinkTupleList& clusHitPairVector) const;
 
     /**
      *  @brief Special routine to handle creating and saving space points & edges associated to voronoi diagrams
@@ -1136,7 +1136,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
                 ConvertToArtOutput(output, clusterParameters, recob::PFParticle::kPFParticlePrimary, hitToPtrMap, hit3DToSPPtrMap);
                 
                 // Get the extreme points
-                MakeAndSaveExtremePoints(output, clusterParameters.getConvexKinkPoints()); //getConvexExtremePoints());
+                MakeAndSaveKinkPoints(output, clusterParameters.getConvexHull().getConvexHullKinkPoints()); //getConvexExtremePoints());
             }
             // Otherwise, the cluster has daughters so we handle specially
             else
@@ -1216,12 +1216,12 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&            output,
                 MakeAndSaveSpacePoints(output, clusterParameters.getHitPairListPtr(), hitToPtrMap, hit3DToSPPtrMap, spacePointStart);
                 
                 // Get the extreme points
-                MakeAndSaveExtremePoints(output, clusterParameters.getConvexKinkPoints()); //getConvexExtremePoints());
+                MakeAndSaveKinkPoints(output, clusterParameters.getConvexHull().getConvexHullKinkPoints()); //getConvexExtremePoints());
 
                 // Build the edges now
                 size_t edgeStart(output.artEdgeVector->size());
                 
-                for(const auto& edge : clusterParameters.getBestEdgeList())
+                for(const auto& edge : clusterParameters.getConvexHull().getConvexHullEdgeList())
                 {
                     Hit3DToSPPtrMap::iterator hit0Itr = hit3DToSPPtrMap.find(std::get<0>(edge));
                     Hit3DToSPPtrMap::iterator hit1Itr = hit3DToSPPtrMap.find(std::get<1>(edge));
@@ -1497,7 +1497,7 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&        output,
     // Build the edges now
     size_t edgeStart(output.artEdgeVector->size());
     
-    for(const auto& edge : clusterParameters.getBestEdgeList())
+    for(const auto& edge : clusterParameters.getConvexHull().getConvexHullEdgeList())
         output.artEdgeVector->emplace_back(std::get<2>(edge), hit3DToSPPtrMap[std::get<0>(edge)], hit3DToSPPtrMap[std::get<1>(edge)], output.artEdgeVector->size());
     
     // Empty daughter vector for now
@@ -1621,18 +1621,20 @@ void Cluster3D::MakeAndSaveSpacePoints(ArtOutputHandler&     output,
     return;
 }
     
-void Cluster3D::MakeAndSaveExtremePoints(ArtOutputHandler& output, reco::HitPairListPtr& extremeHitsVec) const
+void Cluster3D::MakeAndSaveKinkPoints(ArtOutputHandler& output, reco::ConvexHullKinkTupleList& kinkTupleVec) const
 {
     // Right now error matrix is uniform...
     double spError[] = {1., 0., 1., 0., 0., 1.};
     
     // Copy these hits to the vector to be stored with the event
-    for (auto& hitPair : extremeHitsVec)
+    for (auto& kinkTuple : kinkTupleVec)
     {
-        double chisq = hitPair->getHitChiSquare();    // secret handshake...
+        const reco::ClusterHit3D* hit = std::get<2>(std::get<0>(kinkTuple));
+        
+        double chisq = hit->getHitChiSquare();    // secret handshake...
         
         // Create and store the space point
-        double spacePointPos[] = {hitPair->getPosition()[0],hitPair->getPosition()[1],hitPair->getPosition()[2]};
+        double spacePointPos[] = {hit->getPosition()[0],hit->getPosition()[1],hit->getPosition()[2]};
         
         output.artExtremePointVector->push_back(recob::SpacePoint(spacePointPos, spError, chisq, output.artExtremePointVector->size()));
     }
