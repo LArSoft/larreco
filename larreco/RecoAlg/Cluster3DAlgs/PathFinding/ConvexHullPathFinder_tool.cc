@@ -711,13 +711,13 @@ bool ConvexHullPathFinder::breakClusterByKinksTrial(reco::ClusterParameters& clu
         
         orderHitsAlongEdge(pointList, std::get<0>(kink), firstEdge, firstList);
         
-        if (firstList.size() > int(fMinTinyClusterSize))
+        if (firstList.size() > fMinTinyClusterSize)
         {
             Eigen::Vector2f secondEdge = std::get<2>(kink);
         
             orderHitsAlongEdge(pointList, std::get<0>(kink), secondEdge, secondList);
         
-            if (secondList.size() > int(fMinTinyClusterSize))
+            if (secondList.size() > fMinTinyClusterSize)
                 std::get<0>(kinkTuple) = std::min(firstList.size(),secondList.size());
         }
         
@@ -730,7 +730,7 @@ bool ConvexHullPathFinder::breakClusterByKinksTrial(reco::ClusterParameters& clu
             std::get<0>(kinkTuple) = std::min(firstList.size(),secondList.size());
         }
         
-        if (std::get<0>(kinkTuple) < fMinTinyClusterSize) kinkTupleVec.pop_back();
+        if (std::get<0>(kinkTuple) < int(fMinTinyClusterSize)) kinkTupleVec.pop_back();
     }
     
     // No work if the list is empty
