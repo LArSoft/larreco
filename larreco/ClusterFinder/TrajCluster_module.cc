@@ -165,6 +165,7 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
+//    produces< art::Assns<recob::PFParticle, recob::Slice> >();
 
     produces< std::vector<anab::CosmicTag>>();
     produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
@@ -192,7 +193,7 @@ namespace cluster {
     unsigned short icol = 0;
     for(unsigned short ib = 0; ib < fAlgModCount.size(); ++ib) {
       if(ib == tca::kKilled) continue;
-      myprt<<std::left<<std::setw(16)<<fAlgBitNames[ib]<<std::right<<std::setw(10)<<fAlgModCount[ib]<<" ";
+      myprt<<std::left<<std::setw(18)<<fAlgBitNames[ib]<<std::right<<std::setw(10)<<fAlgModCount[ib]<<" ";
       ++icol;
       if(icol == 4) { myprt<<"\n"; icol = 0; }
     } // ib
@@ -225,7 +226,7 @@ namespace cluster {
     fTCAlg->SetInputHits(*inputHits);
     nInputHits = (*inputHits).size();
     if(fSliceModuleLabel != "NA") {
-      // Expecting to find sliced hits from Event -> Hits
+      // Expecting to find sliced hits from Slice -> Hits assns
       auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
       std::vector<art::Ptr<recob::Slice>> slices;
       art::fill_ptr_vector(slices, slcHandle);
@@ -251,22 +252,6 @@ namespace cluster {
       for(unsigned int iht = 0; iht < nInputHits; ++iht) slHitsVec[0][iht] = iht;
     } // no input slices
     
-/*
-    // do an exhaustive check to ensure that a hit only appears in one slice
-    if(slHitsVec.size() > 1) {
-      std::vector<bool> inSlice(nInputHits, false);
-      unsigned short nHitsInSlices = 0;
-      for(auto& slhits : slHitsVec) {
-        for(unsigned short indx = 0; indx < slhits.size(); ++indx) {
-          if(slhits[indx] > nInputHits - 1) throw cet::exception("TrajClusterModule")<<"Found an invalid slice index AGAIN "<<slhits[indx]<<" to the input hit collection of size "<<nInputHits;
-          if(inSlice[slhits[indx]]) throw cet::exception("TrajClusterModule")<<"Found a hit in two different slices";
-          inSlice[slhits[indx]] = true;
-          ++nHitsInSlices;
-        } // indx
-      } // slhits
-      if(tca::tcc.modes[tca::kDebug]) std::cout<<"Found "<<slHitsVec.size()<<" slices, "<<nInputHits<<" input hits and "<<nHitsInSlices<<" hits in slices\n";
-    } // > 1 slice
-*/
     // First sort the hits in each slice and then reconstruct
     for(auto& slhits : slHitsVec) {
       // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
@@ -399,6 +384,8 @@ namespace cluster {
       pfp_shwr_assn(new art::Assns<recob::PFParticle, recob::Shower>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
       pfp_vtx_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
+//    std::unique_ptr<art::Assns<recob::PFParticle, recob::Slice>>
+//      pfp_slc_assn(new art::Assns<recob::PFParticle, recob::Slice>);
     std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
       pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
 
@@ -416,7 +403,6 @@ namespace cluster {
         float sumChg = 0;
         float sumADC = 0;
         hitColBeginIndex = hitCol.size();
-//        std::cout<<"Slice "<<isl<<" T"<<tj.UID<<" hitColBeginIndex "<<hitColBeginIndex<<"\n";
         for(auto& tp : tj.Pts) {
           if(tp.Chg <= 0) continue;
           // index of inputHits indices  of hits used in one TP
@@ -600,11 +586,8 @@ namespace cluster {
         std::vector<unsigned int> clsIndices;
         for(auto tjid : pfp.TjIDs) {
           unsigned int clsIndex = 0;
-          for(auto& tj : slc.tjs) {
-            if(tj.AlgMod[tca::kKilled]) continue;
-            if(tj.ID == tjid) break;
-            ++clsIndex;
-          } // tj
+          int tjUID = slc.tjs[tjid - 1].UID;
+          for(clsIndex = 0; clsIndex < clsCol.size(); ++clsIndex) if(abs(clsCol[clsIndex].ID()) == tjUID) break;
           if(clsIndex == clsCol.size()) {
             std::cout<<"TrajCluster module invalid pfp -> tj -> cluster index\n";
             continue;
@@ -615,6 +598,14 @@ namespace cluster {
         {
           throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate clusters with PFParticle";
         } // exception
+/*
+        // PFParticle -> Slice
+        std::vector<unsigned short> slcIndex(1, isl);
+        if(!util::CreateAssn(*this, evt, *pfp_slc_assn, pfpCol.size()-1, slcIndex.begin(), slcIndex.end()))
+        {
+          throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate slice with PFParticle";
+        } // exception
+*/
         // PFParticle -> Shower
         if(pfp.PDGCode == 1111) {
           std::vector<unsigned short> shwIndex(1, 0);
@@ -685,6 +676,7 @@ namespace cluster {
     evt.put(std::move(pcol));
     evt.put(std::move(pfp_cls_assn));
     evt.put(std::move(pfp_shwr_assn));
+//    evt.put(std::move(pfp_slc_assn));
     evt.put(std::move(pfp_vtx_assn));
     evt.put(std::move(ctgcol));
     evt.put(std::move(pfp_cos_assn));

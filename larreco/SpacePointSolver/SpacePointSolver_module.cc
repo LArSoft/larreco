@@ -288,7 +288,7 @@ BuildSystem(const std::vector<HitTriplet>& triplets,
   std::map<const recob::Hit*, std::vector<SpaceCharge*>> collectionMap;
   std::map<const recob::Hit*, std::vector<SpaceCharge*>> collectionMapBad;
 
-  std::set<std::pair<InductionWireHit*, InductionWireHit*>> satisfiedInductionPairs;
+  std::set<InductionWireHit*> satisfiedInduction;
 
   for(const HitTriplet& trip: triplets){
     // Don't have a cwire object yet, set it later
@@ -302,8 +302,8 @@ BuildSystem(const std::vector<HitTriplet>& triplets,
     if(trip.u && trip.v){
       collectionMap[trip.x].push_back(sc);
       if(trip.x){
-        satisfiedInductionPairs.emplace(inductionMap[trip.u],
-                                        inductionMap[trip.v]);
+        satisfiedInduction.insert(inductionMap[trip.u]);
+        satisfiedInduction.insert(inductionMap[trip.v]);
       }
     }
     else{
@@ -339,8 +339,9 @@ BuildSystem(const std::vector<HitTriplet>& triplets,
   // Space charges whose collection wire is bad, which we have no other way of
   // addressing.
   for(SpaceCharge* sc: collectionMap[0]){
-    // Only count orphans where the induction wires have no other explanation
-    if(satisfiedInductionPairs.count({sc->fWire1, sc->fWire2}) == 0){
+    // Only count orphans where an induction wire has no other explanation
+    if(satisfiedInduction.count(sc->fWire1) == 0 ||
+       satisfiedInduction.count(sc->fWire2) == 0){
       orphanSCs.push_back(sc);
     }
   }
