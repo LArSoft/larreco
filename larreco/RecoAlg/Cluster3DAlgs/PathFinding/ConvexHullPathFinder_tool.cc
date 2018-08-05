@@ -138,6 +138,8 @@ private:
     
     void pruneHitOrderTupleLists(HitOrderTupleList&, HitOrderTupleList&) const;
     
+    void fillConvexHullHists(reco::ClusterParameters&, bool) const;
+
     /**
      *  @brief FHICL parameters
      */
@@ -158,6 +160,8 @@ private:
     TH1F*                                       fTopEigen20Ratio;
     TH1F*                                       fTopEigen10Ratio;
     TH1F*                                       fTopPrimaryLength;
+    TH1F*                                       fTopConvexCosEdge;
+    TH1F*                                       fTopConvexEdgeLen;
     
     TH1F*                                       fSubNum3DHits;
     TH1F*                                       fSubNumEdges;
@@ -167,6 +171,8 @@ private:
     TH1F*                                       fSubPrimaryLength;
     TH1F*                                       fSubCosToPrevPCA;
     TH1F*                                       fSubCosExtToPCA;
+    TH1F*                                       fSubConvexCosEdge;
+    TH1F*                                       fSubConvexEdgeLen;
     TH1F*                                       fSubMaxDefect;
     TH1F*                                       fSubUsedDefect;
 
@@ -197,7 +203,7 @@ void ConvexHullPathFinder::configure(fhicl::ParameterSet const &pset)
 {
     fEnableMonitoring     = pset.get<bool>  ("EnableMonitoring",   true );
     fMinTinyClusterSize   = pset.get<size_t>("MinTinyClusterSize", 40   );
-    fConvexHullKinkAngle  = pset.get<float >("ConvexHullKinkAgle",  0.92);
+    fConvexHullKinkAngle  = pset.get<float >("ConvexHullKinkAgle",  0.95);
     fConvexHullMinSep     = pset.get<float >("ConvexHullMinSep",    0.65);
     fClusterAlg         = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
 
@@ -229,7 +235,9 @@ void ConvexHullPathFinder::initializeHistograms(art::TFileDirectory& histDir)
     fTopEigen20Ratio  = dir.make<TH1F>("TopEigen20Rat", "Eigen 2/0 Ratio", 100,    0.,     1.);
     fTopEigen10Ratio  = dir.make<TH1F>("TopEigen10Rat", "Eigen 1/0 Ratio", 100,    0.,     1.);
     fTopPrimaryLength = dir.make<TH1F>("TopPrimaryLen", "Primary Length",  200,    0.,   200.);
-    
+    fTopConvexCosEdge = dir.make<TH1F>("TopConvexCos",  "CH Edge Cos",     100,   -1.,     1.);
+    fTopConvexEdgeLen = dir.make<TH1F>("TopConvexEdge", "CH Edge Len",     200,    0.,    50.);
+
     fSubNum3DHits     = dir.make<TH1F>("SubNum3DHits",  "Number 3D Hits",  200,    0.,   200.);
     fSubNumEdges      = dir.make<TH1F>("SubNumEdges",   "Number Edges",    200,    0.,   200.);
     fSubEigen21Ratio  = dir.make<TH1F>("SubEigen21Rat", "Eigen 2/1 Ratio", 100,    0.,     1.);
@@ -238,6 +246,8 @@ void ConvexHullPathFinder::initializeHistograms(art::TFileDirectory& histDir)
     fSubPrimaryLength = dir.make<TH1F>("SubPrimaryLen", "Primary Length",  200,    0.,   200.);
     fSubCosToPrevPCA  = dir.make<TH1F>("SubCosToPrev",  "Cos(theta)",      101,    0.,     1.01);
     fSubCosExtToPCA   = dir.make<TH1F>("SubCosExtPCA",  "Cos(theta)",      102,   -1.01,   1.01);
+    fSubConvexCosEdge = dir.make<TH1F>("SubConvexCos",  "CH Edge Cos",     100,   -1.,     1.);
+    fSubConvexEdgeLen = dir.make<TH1F>("SubConvexEdge", "CH Edge Len",     200,    0.,    50.);
     fSubMaxDefect     = dir.make<TH1F>("SubMaxDefect",  "Max Defect",      100,    0.,    50.);
     fSubUsedDefect    = dir.make<TH1F>("SubUsedDefect", "Used Defect",     100,    0.,    50.);
 
@@ -313,7 +323,7 @@ void ConvexHullPathFinder::ModifyClusters(reco::ClusterParametersList& clusterPa
                         double                     eigen1To0Ratio = eigenValVec[1] / eigenValVec[0];
                         double                     eigen2To0Ratio = eigenValVec[2] / eigenValVec[0];
                         int                        num3DHits      = cluster.getHitPairListPtr().size();
-                        int                        numEdges       = cluster.getBestEdgeList().size();
+                        int                        numEdges       = cluster.getConvexHull().getConvexHullEdgeList().size();
                         
                         fTopNum3DHits->Fill(std::min(num3DHits,199), 1.);
                         fTopNumEdges->Fill(std::min(numEdges,199),   1.);
@@ -321,6 +331,7 @@ void ConvexHullPathFinder::ModifyClusters(reco::ClusterParametersList& clusterPa
                         fTopEigen20Ratio->Fill(eigen2To0Ratio, 1.);
                         fTopEigen10Ratio->Fill(eigen1To0Ratio, 1.);
                         fTopPrimaryLength->Fill(std::min(eigenValVec[0],199.), 1.);
+                        fillConvexHullHists(clusterParameters, true);
                     }
                 }
             }
@@ -462,7 +473,7 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
                 Eigen::Vector3f lastPrimaryVec(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
                 
                 int             num3DHits      = clusterParams.getHitPairListPtr().size();
-                int             numEdges       = clusterParams.getBestEdgeList().size();
+                int             numEdges       = clusterParams.getConvexHull().getConvexHullEdgeList().size();
                 float           cosToLast      = newPrimaryVec.dot(lastPrimaryVec);
                 double          eigen2To1Ratio = eigenValVec[2] / eigenValVec[1];
                 double          eigen1To0Ratio = eigenValVec[1] / eigenValVec[0];
@@ -677,6 +688,12 @@ bool ConvexHullPathFinder::breakClusterByKinks(reco::ClusterParameters& clusterT
             reco::ClusterParameters& clusterParams2  = outputClusterList.back();
             
             makeCandidateCluster(fullPrimaryVec, clusterParams2, kinkItr, hitList.end(), level);
+            
+            if (fFillHistograms)
+            {
+                fillConvexHullHists(clusterParams1, false);
+                fillConvexHullHists(clusterParams2, false);
+            }
         }
         
         // If we did not make 2 clusters then be sure to clear the output list
@@ -757,6 +774,12 @@ bool ConvexHullPathFinder::breakClusterByKinksTrial(reco::ClusterParameters& clu
             reco::ClusterParameters& clusterParams2  = outputClusterList.back();
             
             makeCandidateCluster(fullPrimaryVec, clusterParams2, std::get<3>(kinkTuple), level);
+            
+            if (fFillHistograms)
+            {
+                fillConvexHullHists(clusterParams1, false);
+                fillConvexHullHists(clusterParams2, false);
+            }
         }
         
         // If we did not make 2 clusters then be sure to clear the output list
@@ -1112,8 +1135,9 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
         }
         
         // Now add "edges" to the cluster to describe the convex hull (for the display)
-        reco::Hit3DToEdgeMap& edgeMap  = convexHull.getConvexHullEdgeMap();
-        reco::EdgeList&       edgeList = convexHull.getConvexHullEdgeList();
+        reco::ProjectedPointList& convexHullPointList = convexHull.getConvexHullPointList();
+        reco::Hit3DToEdgeMap&     edgeMap             = convexHull.getConvexHullEdgeMap();
+        reco::EdgeList&           edgeList            = convexHull.getConvexHullEdgeList();
 
         reco::ProjectedPoint lastPoint = convexHullVec.back().getConvexHull().front();
     
@@ -1132,6 +1156,7 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
         
             reco::EdgeTuple edge(lastPoint3D,curPoint3D,distBetweenPoints);
         
+            convexHullPointList.push_back(curPoint);
             edgeMap[lastPoint3D].push_back(edge);
             edgeMap[curPoint3D].push_back(edge);
             edgeList.emplace_back(edge);
@@ -1152,6 +1177,58 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
         for(const auto& kink : kinkPoints) kinkPointList.push_back(kink);
     }
 
+    return;
+}
+    
+void ConvexHullPathFinder::fillConvexHullHists(reco::ClusterParameters& clusterParameters, bool top) const
+{
+    reco::ProjectedPointList& convexHullPoints = clusterParameters.getConvexHull().getConvexHullPointList();
+    
+    if (convexHullPoints.size() > 2)
+    {
+        reco::ProjectedPointList::iterator pointItr = convexHullPoints.begin();
+        
+        // Advance to the second to last element
+        std::advance(pointItr, convexHullPoints.size() - 2);
+        
+        reco::ProjectedPoint lastPoint = *pointItr++;
+        
+        // Reset pointer to the first element
+        pointItr = convexHullPoints.begin();
+        
+        reco::ProjectedPoint curPoint = *pointItr++;
+        Eigen::Vector2f      lastEdge(std::get<0>(curPoint) - std::get<0>(lastPoint), std::get<1>(curPoint) - std::get<1>(lastPoint));
+        
+        lastEdge.normalize();
+        
+        while(pointItr != convexHullPoints.end())
+        {
+            reco::ProjectedPoint& nextPoint = *pointItr++;
+            
+            Eigen::Vector2f nextEdge(std::get<0>(nextPoint) - std::get<0>(curPoint), std::get<1>(nextPoint) - std::get<1>(curPoint));
+            float           nextEdgeLen = nextEdge.norm();
+            
+            nextEdge.normalize();
+            
+            float cosLastNextEdge = lastEdge.dot(nextEdge);
+            
+            if (top)
+            {
+                fTopConvexCosEdge->Fill(cosLastNextEdge, 1.);
+                fTopConvexEdgeLen->Fill(std::min(nextEdgeLen,float(49.9)), 1.);
+            }
+            else
+            {
+                fSubConvexCosEdge->Fill(cosLastNextEdge, 1.);
+                fSubConvexEdgeLen->Fill(std::min(nextEdgeLen,float(49.9)), 1.);
+            }
+
+            if (nextEdgeLen > fConvexHullMinSep) lastEdge = nextEdge;
+            
+            curPoint = nextPoint;
+        }
+    }
+    
     return;
 }
     

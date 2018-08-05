@@ -406,6 +406,7 @@ private:
     int                                            m_run;                   ///<
     int                                            m_event;                 ///<
     int                                            m_hits;                  ///< Keeps track of the number of hits seen
+    int                                            m_hits3D;                ///< Keeps track of the number of 3D hits made
     float                                          m_totalTime;             ///< Keeps track of total execution time
     float                                          m_artHitsTime;           ///< Keeps track of time to recover hits
     float                                          m_makeHitsTime;          ///< Keeps track of time to build 3D hits
@@ -600,6 +601,7 @@ void Cluster3D::produce(art::Event &evt)
         m_pathFindingTime       = m_clusterPathAlg->getTimeToExecute();
         m_finishTime            = theClockFinish.accumulated_real_time();
         m_hits                  = static_cast<int>(clusterHitToArtPtrMap.size());
+        m_hits3D                = static_cast<int>(hitPairList->size());
         m_pRecoTree->Fill();
         
         mf::LogDebug("Cluster3D") << "*** Cluster3D total time: " << m_totalTime << ", art: " << m_artHitsTime << ", make: " << m_makeHitsTime
@@ -619,6 +621,7 @@ void Cluster3D::InitializeMonitoring()
     m_pRecoTree->Branch("run",                  &m_run,                   "run/I");
     m_pRecoTree->Branch("event",                &m_event,                 "event/I");
     m_pRecoTree->Branch("hits",                 &m_hits,                  "hits/I");
+    m_pRecoTree->Branch("hits3D",               &m_hits3D,                "hits3D/I");
     m_pRecoTree->Branch("totalTime",            &m_totalTime,             "time/F");
     m_pRecoTree->Branch("artHitsTime",          &m_artHitsTime,           "time/F");
     m_pRecoTree->Branch("makeHitsTime",         &m_makeHitsTime,          "time/F");
@@ -640,6 +643,7 @@ void Cluster3D::PrepareEvent(const art::Event &evt)
     m_run                   = evt.run();
     m_event                 = evt.id().event();
     m_hits                  = 0;
+    m_hits3D                = 0;
     m_totalTime             = 0.f;
     m_artHitsTime           = 0.f;
     m_makeHitsTime          = 0.f;

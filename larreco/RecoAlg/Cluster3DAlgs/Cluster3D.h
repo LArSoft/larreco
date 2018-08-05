@@ -344,6 +344,7 @@ public:
     ConvexHull()
     {
         fProjectedPointList.clear(),
+        fConvexHullPointList.clear(),
         fConvexHullEdgeMap.clear(),
         fConvexHullEdgeList.clear(),
         fConvexHullExtremePoints.clear(),
@@ -353,6 +354,7 @@ public:
     void clear()
     {
         fProjectedPointList.clear(),
+        fConvexHullPointList.clear(),
         fConvexHullEdgeMap.clear(),
         fConvexHullEdgeList.clear(),
         fConvexHullExtremePoints.clear(),
@@ -360,6 +362,7 @@ public:
     }
     
     reco::ProjectedPointList&      getProjectedPointList()      {return fProjectedPointList;}
+    reco::ProjectedPointList&      getConvexHullPointList()     {return fConvexHullPointList;}
     reco::Hit3DToEdgeMap&          getConvexHullEdgeMap()       {return fConvexHullEdgeMap;}
     reco::EdgeList&                getConvexHullEdgeList()      {return fConvexHullEdgeList;}
     reco::ProjectedPointList&      getConvexHullExtremePoints() {return fConvexHullExtremePoints;}
@@ -368,8 +371,9 @@ public:
     
 private:
     reco::ProjectedPointList      fProjectedPointList;      ///< The input set of points projected onto plane encompassed by the hull
+    reco::ProjectedPointList      fConvexHullPointList;     ///< The points on the convex hull
     reco::Hit3DToEdgeMap          fConvexHullEdgeMap;       ///< Map from 3D hit to associated edge
-    reco::EdgeList                fConvexHullEdgeList;      ///< This has become multiuse... really need to split it up
+    reco::EdgeList                fConvexHullEdgeList;      ///< An edge list translated back to 3D hits
     reco::ProjectedPointList      fConvexHullExtremePoints; ///< The points furthest from each other on hull
     reco::ConvexHullKinkTupleList fConvexHullKinkPoints;    ///< The points with large kinks along the convex hull
 };
