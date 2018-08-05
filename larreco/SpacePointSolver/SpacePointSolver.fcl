@@ -1,3 +1,5 @@
+#include "spacepointsolverhitreadingtools.fcl"
+
 BEGIN_PROLOG
 
 standard_spacepointsolver:
@@ -20,6 +22,9 @@ standard_spacepointsolver:
   AllowBadInductionHit: true
   # Form triplets out of two induction hits and a bad collection wire
   AllowBadCollectionHit: true
+
+  # Experiment specific tool for reading hits
+  HitReaderTool: @local::standard_Hits
 }
 
 END_PROLOG
