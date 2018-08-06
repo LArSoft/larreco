@@ -3703,10 +3703,6 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     std::vector<float> cnt(nplanes, 0);
     for(unsigned short iht = 0; iht < (*evt.allHits).size(); ++iht) {
       auto& hit = (*evt.allHits)[iht];
-      if(hit.WireID().Cryostat != cstat || hit.WireID().TPC != tpc) {
-        std::cout<<"AnalyzeHits found a hit in different cryostat/tpc\n";
-        return false;
-      } // cstat/tpc check
       unsigned short plane = hit.WireID().Plane;
       if(plane > nplanes - 1) {
         std::cout<<"AnalyzeHits found bad plane\n";
