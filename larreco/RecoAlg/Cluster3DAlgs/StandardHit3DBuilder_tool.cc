@@ -21,6 +21,9 @@
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
+// Eigen
+#include <Eigen/Dense>
+
 // std includes
 #include <string>
 #include <functional>
@@ -635,38 +638,38 @@ void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMa
                 // populate the map with initial value
                 usedPairMap[&pair1] = false;
                 
-                // Now look up the hit pairs on the wire which matches the current hit pair
-                HitMatchPairVecMap::iterator thirdPlaneHitMapItr = pair13Map.find(wireID);
-                
-                // It may be that the "nearest" wire is actually the next wire (which can happen
-                // because we are right between two wires in this plane and may have some round off
-                // error pointing us a the wrong wire)
-                if (thirdPlaneHitMapItr == pair13Map.end())
+                // For TPC's with 60 degree wire pitch the position returned for the the pair will
+                // lie between two wires in the missing plane. The call to nearestWireID should return
+                // the lower of the pair.
+                // So we really want to do a loop here so we can consider both wire combinations
+                for(int loopIdx = 0; loopIdx < 2; loopIdx++)
                 {
-                    wireID.Wire += 1;
-
-                    thirdPlaneHitMapItr = pair13Map.find(wireID);
-                }
-                
-                // Loop over third plane hits and try to form a triplet
-                if (thirdPlaneHitMapItr != pair13Map.end())
-                {
-                    for(const auto& thirdPlaneHitItr : thirdPlaneHitMapItr->second)
+                    // Now look up the hit pairs on the wire which matches the current hit pair
+                    HitMatchPairVecMap::iterator thirdPlaneHitMapItr = pair13Map.find(wireID);
+               
+                    // Loop over third plane hits and try to form a triplet
+                    if (thirdPlaneHitMapItr != pair13Map.end())
                     {
-                        const reco::ClusterHit2D* hit2  = thirdPlaneHitItr.first;
-                        const reco::ClusterHit3D& pair2 = thirdPlaneHitItr.second;
-                        
-                        // If success try for the triplet
-                        reco::ClusterHit3D triplet;
-                        
-                        if (makeHitTriplet(triplet, pair1, hit2))
+                        for(const auto& thirdPlaneHitItr : thirdPlaneHitMapItr->second)
                         {
-                            triplet.setID(hitPairList.size());
-                            hitPairList.emplace_back(new reco::ClusterHit3D(triplet));
-                            usedPairMap[&pair1] = true;
-                            usedPairMap[&pair2] = true;
+                            const reco::ClusterHit2D* hit2  = thirdPlaneHitItr.first;
+                            const reco::ClusterHit3D& pair2 = thirdPlaneHitItr.second;
+                            
+                            // If success try for the triplet
+                            reco::ClusterHit3D triplet;
+                            
+                            if (makeHitTriplet(triplet, pair1, hit2))
+                            {
+                                triplet.setID(hitPairList.size());
+                                hitPairList.emplace_back(new reco::ClusterHit3D(triplet));
+                                usedPairMap[&pair1] = true;
+                                usedPairMap[&pair2] = true;
+                            }
                         }
                     }
+                    
+                    // Now bump the wire id to the next wire and do this again
+                    wireID.Wire += 1;
                 }
             }
         }
@@ -849,6 +852,9 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     
     static const float rmsToSig(1.0); //0.75); //0.57735027);
     
+    // We are going to force the wire pitch here, some time in the future we need to fix
+    static const double wirePitch(0.3);
+
     // Recover hit info
     float hitTimeTicks = hit->getTimeTicks();
     float hitSigma     = hit->getHit().RMS();
@@ -881,18 +887,19 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
             // If good pairs made here then we can try to make a triplet
             if (makeHitPair(pair0h, hit0, hit, m_hitWidthSclFctr) && makeHitPair(pair1h, hit1, hit, m_hitWidthSclFctr))
             {
-                // We want to make sure the 3 sets of pair are really consistent - ie the difference in position in the Y-Z
-                // plane (the wire plane) is less than the wire pitch. Note that we are forming an equalateral triangle so we
-                // really only need compute one side of it to get the answer we're looking for...
-                float deltaPairY = pair1h.getPosition()[1] - pair0h.getPosition()[1];
-                float deltaPairZ = pair1h.getPosition()[2] - pair0h.getPosition()[2];
-                float yzdistance = std::sqrt(deltaPairY * deltaPairY + deltaPairZ * deltaPairZ);
+                // We want to make sure the 3 sets of pair are really consistent
+                // For TPC's with a 60 degree pitch the wire "intersection" will be an equilateral triangle
+                // with equal sides of length  wire pitch / sin(60 degrees) / 2
+                // So we make sure all three achieve this
+                Eigen::Vector2f pair0hYZVec(pair0h.getPosition()[1],pair0h.getPosition()[2]);
+                Eigen::Vector2f pair1hYZVec(pair1h.getPosition()[1],pair1h.getPosition()[2]);
+                Eigen::Vector2f pairYZVec(pair.getPosition()[1],pair.getPosition()[2]);
                 
-                // The intersection of wires on 3 planes is actually an equilateral triangle... Each pair will have its position at one of the
-                // corners, the difference in distance along the z axis will be 1/2 wire spacing, the difference along the y axis is
-                // 1/2 wire space / cos(pitch)
-//                if (std::fabs(std::fabs(deltaZ_w) - 0.5 * m_wirePitch[2]) < .05 && std::fabs(std::fabs(deltaY_uv) - 0.5774 * m_wirePitch[2]) < 0.05)
-                if (yzdistance < 0.3)
+                std::vector<float> sideVec = {(pair0hYZVec - pair1hYZVec).norm(),(pair1hYZVec - pairYZVec).norm(),(pairYZVec   - pair0hYZVec).norm()};
+
+                // The three sides will not be identically equal because of numeric issues. It is really sufficient to simply
+                // check that the longest side is less than the wire pitch
+                if (*std::max_element(sideVec.begin(),sideVec.end()) < wirePitch)
                 {
                     // Get a copy of the input hit vector (note the order is by plane - by definition)
                     reco::ClusterHit2DVec hitVector = pair.getHits();
@@ -935,8 +942,8 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     xPosition   /= weightSum;
                     
                     float position[]  = { xPosition,
-                                          float((pair.getPosition()[1] + pair0h.getPosition()[1] + pair1h.getPosition()[1]) / 3.),
-                                          float((pair.getPosition()[2] + pair0h.getPosition()[2] + pair1h.getPosition()[2]) / 3.)};
+                                          float((pairYZVec[0] + pair0hYZVec[0] + pair1hYZVec[0]) / 3.),
+                                          float((pairYZVec[1] + pair0hYZVec[1] + pair1hYZVec[1]) / 3.)};
 
                     // Armed with the average peak time, now get hitChiSquare and the sig vec
                     float              hitChiSquare(0.);

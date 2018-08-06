@@ -28,8 +28,8 @@ public:
     /**
      *  @brief Definitions used by the ConvexHull algorithm
      */
-    using Point           = std::tuple<float,float,const reco::ClusterHit3D*>;
-    using PointList       = std::list<Point>;
+    using Point           = std::tuple<float,float,const reco::ClusterHit3D*>;   ///< projected x,y position and 3D hit
+    using PointList       = std::list<Point>;                                    ///< The list of the projected points
     using PointPair       = std::pair<Point,Point>;
     using MinMaxPointPair = std::pair<PointPair,PointPair>;
     
@@ -68,7 +68,7 @@ public:
     /**
      *  @brief Find the points with the largest angles
      */
-    const PointList& getKinkPoints();
+    const reco::ConvexHullKinkTupleList& getKinkPoints();
 
     /**
      *  @brief recover the area of the convex hull
@@ -109,15 +109,15 @@ private:
      */
     bool isLeft(const Point& p0, const Point& p1, const Point& pCheck) const;
     
-    float            fKinkAngle;
-    float            fMinEdgeDistance;
-
-    const PointList& fPoints;
-    PointList        fConvexHull;
-    MinMaxPointPair  fMinMaxPointPair;
-    float            fConvexHullArea;
-    PointList        fExtremePoints;
-    PointList        fKinkPoints;
+    float                         fKinkAngle;
+    float                         fMinEdgeDistance;
+    
+    const PointList&              fPoints;
+    PointList                     fConvexHull;
+    MinMaxPointPair               fMinMaxPointPair;
+    float                         fConvexHullArea;
+    PointList                     fExtremePoints;
+    reco::ConvexHullKinkTupleList fKinkPoints;
 };
     
 } // namespace lar_cluster3d

@@ -81,6 +81,7 @@ private:
     // Get instances of the primary data structures needed
     mutable Hit2DVector                  m_clusterHit2DMasterVec;
     
+    geo::Geometry*                       m_geometry;              //< pointer to the Geometry service
     const detinfo::DetectorProperties*   m_detector;              //< Pointer to the detector properties
 };
 
@@ -101,9 +102,13 @@ void SpacePointHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 {
     m_spacePointTag    = pset.get<art::InputTag>("SpacePointTag");
     m_enableMonitoring = pset.get<bool>         ("EnableMonitoring",    true);
-
+    
+    art::ServiceHandle<geo::Geometry> geometry;
+    
+    m_geometry = &*geometry;
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 }
+    
 
 void SpacePointHit3DBuilder::Hit3DBuilder(const art::Event& evt, reco::HitPairList& hitPairList, RecobHitToPtrMap& recobHitToArtPtrMap) const
 {
@@ -143,12 +148,26 @@ void SpacePointHit3DBuilder::Hit3DBuilder(const art::Event& evt, reco::HitPairLi
     
     // We'll want to correct the hit times for the plane offsets
     // (note this is already taken care of when converting to position)
-    std::map<size_t, double> planeOffsetMap;
+    std::map<geo::PlaneID, double> planeOffsetMap;
     
-    planeOffsetMap[0] = 0.;
-    planeOffsetMap[1] = m_detector->GetXTicksOffset(1, 0, 0)-m_detector->GetXTicksOffset(0, 0, 0);
-    planeOffsetMap[2] = m_detector->GetXTicksOffset(2, 0, 0)-m_detector->GetXTicksOffset(0, 0, 0);
-    
+    // Initialize the plane to hit vector map
+    for(size_t cryoIdx = 0; cryoIdx < m_geometry->Ncryostats(); cryoIdx++)
+    {
+        for(size_t tpcIdx = 0; tpcIdx < m_geometry->NTPC(); tpcIdx++)
+        {
+            // What we want here are the relative offsets between the planes
+            // Note that plane 0 is assumed the "first" plane and is the reference
+            planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,0)] = 0.;
+            planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,1)] = m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,1))
+                                                           - m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0));
+            planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] = m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2))
+                                                           - m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0));
+            
+            std::cout << "***> plane 0 offset: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,0)] << ", plane 1: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,1)] << ", plane 2: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] << std::endl;
+            std::cout << "     Det prop plane 0: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0)) << ", plane 1: "  << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,1)) << ", plane 2: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2)) << ", Trig: " << m_detector->TriggerOffset() << std::endl;
+        }
+    }
+
     // We need temporary mapping from recob::Hit's to our 2D hits
     using RecobHitTo2DHitMap = std::map<const recob::Hit*,const reco::ClusterHit2D*>;
     
@@ -163,7 +182,7 @@ void SpacePointHit3DBuilder::Hit3DBuilder(const art::Event& evt, reco::HitPairLi
     {
         const geo::WireID& hitWireID(recobHit->WireID());
         
-        double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[hitWireID.Plane]);
+        double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[hitWireID.planeID()]);
         double xPosition(m_detector->ConvertTicksToX(recobHit->PeakTime(), hitWireID.Plane, hitWireID.TPC, hitWireID.Cryostat));
         
         m_clusterHit2DMasterVec.emplace_back(0, 0., 0., xPosition, hitPeakTime, *recobHit);
@@ -195,7 +214,6 @@ void SpacePointHit3DBuilder::Hit3DBuilder(const art::Event& evt, reco::HitPairLi
         // Weighted average, delta, sigmas, chisquare, kitchen sink, refrigerator for beer, etc.
         float avePeakTime(0.);
         float weightSum(0.);
-        float sigmaPeakTime(0.);
 
         for(const auto& hit2D : hit2DVec)
         {
@@ -204,20 +222,23 @@ void SpacePointHit3DBuilder::Hit3DBuilder(const art::Event& evt, reco::HitPairLi
 
             avePeakTime   += weight * hit2D->getTimeTicks();
             weightSum     += weight;
-            sigmaPeakTime += hitSigma * hitSigma;
         }
         
         avePeakTime   /= weightSum;
-        sigmaPeakTime  = std::sqrt(sigmaPeakTime);
-        
-        // Now form the hit chi square
-        float hitChiSquare(0.);
+
+        // Armed with the average peak time, now get hitChiSquare and the sig vec
+        float              hitChiSquare(0.);
+        float              sigmaPeakTime(std::sqrt(1./weightSum));
         
         for(const auto& hit2D : hit2DVec)
         {
-            float hitSigma = hit2D->getHit().RMS();
+            float hitRMS    = hit2D->getHit().RMS();
+            float combRMS   = std::sqrt(hitRMS*hitRMS - sigmaPeakTime*sigmaPeakTime);
+            float peakTime  = hit2D->getTimeTicks();
+            float deltaTime = peakTime - avePeakTime;
+            float hitSig    = deltaTime / combRMS;
             
-            hitChiSquare += (hit2D->getTimeTicks() - avePeakTime) / (hitSigma * hitSigma);
+            hitChiSquare += hitSig * hitSig;
         }
 
         // The x position is a weighted sum but the y-z position is simply the average
