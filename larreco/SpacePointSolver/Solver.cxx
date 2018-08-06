@@ -50,11 +50,7 @@ CollectionWireHit::CollectionWireHit(int chan, double q,
 {
   const double p = q/cross.size();
 
-  for(SpaceCharge* iwires: cross){
-    iwires->fPred += p;
-    if(iwires->fWire1) iwires->fWire1->fPred += p;
-    if(iwires->fWire2) iwires->fWire2->fPred += p;
-  }
+  for(SpaceCharge* sc: cross) sc->AddCharge(p);
 }
 
 // ---------------------------------------------------------------------------
