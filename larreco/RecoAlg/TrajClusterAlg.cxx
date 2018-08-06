@@ -265,7 +265,7 @@ namespace tca {
   } // reconfigure
   
   ////////////////////////////////////////////////
-  void TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits)
+  bool TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits)
   {
     // defines the pointer to the input hit collection, analyzes them,
     // initializes global counters and refreshes service references
@@ -274,9 +274,6 @@ namespace tca {
     // refresh service references
     tcc.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tcc.geom = lar::providerFrom<geo::Geometry>();
-    // find the average hit RMS using the full hit collection and define the
-    // configuration for the current TPC
-    if(!AnalyzeHits()) return;
     fWorkID = 0;
     evt.globalTjID = 0;
     evt.globalVx2ID = 0;
@@ -284,6 +281,9 @@ namespace tca {
     evt.globalPFPID = 0;
     evt.globalS2ID = 0;
     evt.globalS3ID = 0;
+    // find the average hit RMS using the full hit collection and define the
+    // configuration for the current TPC
+    return AnalyzeHits();
   } // SetInputHits
   
   ////////////////////////////////////////////////
