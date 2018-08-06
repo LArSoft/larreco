@@ -122,7 +122,7 @@ shower::TCShowerElectronLikelihood::TCShowerElectronLikelihood(fhicl::ParameterS
 // -------------------------------------------------
 
 shower::TCShowerElectronLikelihood::~TCShowerElectronLikelihood() {
-} // ~TCShowerTemplateMaker
+} // ~TCShowerElectronLikelihood
 
 // -------------------------------------------------
 
@@ -152,9 +152,9 @@ void shower::TCShowerElectronLikelihood::reconfigure(fhicl::ParameterSet const& 
 void shower::TCShowerElectronLikelihood::beginJob() {
 
   art::ServiceHandle<art::TFileService> tfs;
-  //fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
+  //fTree = tfs->make<TTree>("elikelihood", "elikelihood");
 
-  energyDist = tfs->make<TH1F>("energyDist", "true energy - guess energy", 20, -10, 10);
+  energyDist = tfs->make<TH1F>("energyDist", "true energy - guess energy", 21, -10.5, 10.5);
 
 } // beginJob
 
