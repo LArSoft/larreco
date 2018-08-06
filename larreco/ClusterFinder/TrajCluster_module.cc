@@ -223,7 +223,7 @@ namespace cluster {
     }
     // This is a pointer to a vector of recob::Hits that exist in the event. The hits
     // are not copied.
-    fTCAlg->SetInputHits(*inputHits);
+    if(!fTCAlg->SetInputHits(*inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
     nInputHits = (*inputHits).size();
     if(fSliceModuleLabel != "NA") {
       // Expecting to find sliced hits from Slice -> Hits assns
