@@ -978,19 +978,21 @@ namespace tca {
     return slopeSig;
 
   } // TjDirFOM
-
+/*
   ////////////////////////////////////////////////
-  void WatchHit(std::string someText, TCSlice& slc, const unsigned int& wHit, short& wInTraj, const unsigned short& tjID)
+  void WatchHit(std::string someText, TCSlice& slc)
   {
     // a temp routine to watch when inTraj changes for the supplied hit index, watchHit
-    if(wHit > slc.slHits.size() - 1) return;
     
-    if(slc.slHits[wHit].InTraj != wInTraj) {
-      std::cout<<someText<<" Hit "<<PrintHitShort(slc.slHits[wHit])<<" was InTraj "<<wInTraj<<" now InTraj "<<slc.slHits[wHit].InTraj<<" T"<<tjID<<"\n";
+    unsigned int wHit = 2001;
+    static int wInTraj = 0;
+    
+    if(wHit < slc.slHits.size() && slc.slHits[wHit].InTraj != wInTraj) {
+      std::cout<<someText<<" Hit "<<PrintHitShort(slc.slHits[wHit])<<" was InTraj T"<<wInTraj<<" now InTraj T"<<slc.slHits[wHit].InTraj<<" ntjs "<<slc.tjs.size()<<"\n";
       wInTraj = slc.slHits[wHit].InTraj;
     }
   } // WatchHit
-  
+*/
   ////////////////////////////////////////////////
   void Reverse3DMatchTjs(TCSlice& slc, PFPStruct& pfp, bool prt)
   {
@@ -1154,10 +1156,16 @@ namespace tca {
       for(unsigned short ii = 0; ii < tj.Pts[ipt].Hits.size(); ++ii) {
         if(tj.Pts[ipt].UseHit[ii]) {
           unsigned int iht = tj.Pts[ipt].Hits[ii];
+          if(iht > slc.slHits.size() - 1) {
+            std::cout<<"StoreTraj bad iht "<<iht<<" slHits size "<<slc.slHits.size()<<" tj.ID "<<tj.ID<<"\n";
+            ReleaseHits(slc, tj);
+            return false;
+          }
           if(slc.slHits[iht].InTraj > 0) {
-            std::cout<<"fail "<<iht<<" "<<slc.slHits[iht].InTraj<<" trID "<<trID<<" trID "<<trID<<"\n";
-            mf::LogWarning("TC")<<"StoreTraj: Failed trying to store hit "<<PrintHit(slc.slHits[iht])<<" in T"<<trID<<" but it is used in T"<<slc.slHits[iht].InTraj<<" with WorkID "<<slc.tjs[slc.slHits[iht].InTraj-1].WorkID<<" Print and quit";
-//            PrintTrajectory("ST", tjs, tj, USHRT_MAX);
+            std::cout<<"StoreTraj fail "<<iht<<" "<<slc.slHits[iht].InTraj<<" WorkID "<<tj.WorkID<<" InTraj "<<slc.slHits[iht].InTraj;
+            std::cout<<" algs ";
+            for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) std::cout<<" "<<AlgBitNames[ib];
+            std::cout<<"\n";
             ReleaseHits(slc, tj);
             return false;
           } // error
@@ -3726,6 +3734,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         std::cout<<" Mult "<<hit.Multiplicity();
         std::cout<<"\n";
       } // check for debug hit
+      if(cnt[plane] > 200) continue;
       // require multiplicity one
       if(hit.Multiplicity() != 1) continue;
       // not-crazy Chisq/DOF
@@ -3734,6 +3743,10 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       if(hit.PeakAmplitude() < 1) continue;
       evt.aveHitRMS[plane] += hit.RMS();
       ++cnt[plane];
+      // quit if enough hits are found
+      bool allDone = true;
+      for(unsigned short plane = 0; plane < nplanes; ++plane) if(cnt[plane] > 200) allDone = false;
+      if(allDone) break;
     } // iht
     
     if(tcc.modes[kDebug] && debug.Hit == UINT_MAX && debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Wire >= 0) {
