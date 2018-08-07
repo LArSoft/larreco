@@ -490,7 +490,7 @@ namespace tca {
 
   struct TCHit {
     unsigned int allHitsIndex; // index into fHits
-    short InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
+    int InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
   };
 
   // hit collection for all slices, TPCs and cryostats + event information
