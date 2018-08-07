@@ -294,7 +294,10 @@ namespace tca {
     if(slices.empty()) ++evt.eventsProcessed;
     if(hitsInSlice.size() < 2) return;
     
-    if(!CreateSlice(hitsInSlice)) return;
+    if(!CreateSlice(hitsInSlice)) {
+      std::cout<<"CreateSlice failed\n";
+      return;
+    }
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
@@ -884,11 +887,7 @@ namespace tca {
             myprt<<"\n";
           } // prt
           // See if this is a ghost trajectory
-          unsigned short ofTraj = USHRT_MAX;
-          if(IsGhost(slc, tHits, ofTraj)) {
-            if(prt) mf::LogVerbatim()<<"FJT: Is a ghost of "<<ofTraj;
-            break;
-          }
+          if(IsGhost(slc, tHits)) break;
           if(!MakeJunkTraj(slc, tHits)) {
             if(prt) mf::LogVerbatim()<<"FJT: MakeJunkTraj failed";
             break;
@@ -2276,7 +2275,6 @@ namespace tca {
     fTryWithNextPass = false;
     if(tj.Pts.empty()) return;
     
-//    geo::PlaneID planeID = DecodeCTP(tj.CTP);
     unsigned short plane = DecodeCTP(tj.CTP).Plane;
  
     unsigned short lastPtWithUsedHits = tj.EndPt[1];
@@ -2690,16 +2688,17 @@ namespace tca {
   } // IsGhost
   
   ////////////////////////////////////////////////
-  bool TrajClusterAlg::IsGhost(TCSlice& slc, std::vector<unsigned int>& tHits, unsigned short& ofTraj)
+  bool TrajClusterAlg::IsGhost(TCSlice& slc, std::vector<unsigned int>& tHits)
   {
     // Called by FindJunkTraj to see if the passed hits are close to an existing
     // trajectory and if so, they will be used in that other trajectory
     
-    ofTraj = USHRT_MAX;
-    
     if(!tcc.useAlg[kUseGhostHits]) return false;
     
     if(tHits.size() < 2) return false;
+    
+    bool prt = (tcc.dbgStp || tcc.dbgAlg[kUseGhostHits]);
+    
     // find all nearby hits
     std::vector<unsigned int> hitsInMuliplet, nearbyHits;
     for(auto iht : tHits) {
@@ -2713,14 +2712,14 @@ namespace tca {
     } // iht
     
     // vectors of traj IDs, and the occurrence count
-    std::vector<unsigned short> tID, tCnt;
-    unsigned short itj, indx;
+    std::vector<unsigned int> tID, tCnt;
     for(auto iht : nearbyHits) {
       if(slc.slHits[iht].InTraj <= 0) continue;
-      itj = slc.slHits[iht].InTraj;
-      for(indx = 0; indx < tID.size(); ++indx) if(tID[indx] == itj) break;
+      unsigned int tid = slc.slHits[iht].InTraj;
+      unsigned short indx = 0;
+      for(indx = 0; indx < tID.size(); ++indx) if(tID[indx] == tid) break;
       if(indx == tID.size()) {
-        tID.push_back(itj);
+        tID.push_back(tid);
         tCnt.push_back(1);
       }  else {
         ++tCnt[indx];
@@ -2730,42 +2729,39 @@ namespace tca {
     
     // Call it a ghost if > 50% of the hits are used by another trajectory
     unsigned short tCut = 0.5 * tHits.size();
-    unsigned short ii, jj;
-    itj = USHRT_MAX;
+    int tid = INT_MAX;
     
-    if(tcc.dbgStp) {
+    if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"IsGhost tHits size "<<tHits.size()<<" cut fraction "<<tCut<<" tID_tCnt";
-      for(ii = 0; ii < tCnt.size(); ++ii) myprt<<" "<<tID[ii]<<"_"<<tCnt[ii];
+      for(unsigned short ii = 0; ii < tCnt.size(); ++ii) myprt<<" "<<tID[ii]<<"_"<<tCnt[ii];
     } // prt
     
-    for(ii = 0; ii < tCnt.size(); ++ii) {
+    for(unsigned short ii = 0; ii < tCnt.size(); ++ii) {
       if(tCnt[ii] > tCut) {
-        itj = tID[ii] - 1;
+        tid = tID[ii];
         break;
       }
     } // ii
-    if(itj > slc.tjs.size() - 1) return false;
+    if(tid > (int)slc.tjs.size()) return false;
     
-    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"is ghost of trajectory "<<slc.tjs[itj].ID;
+    if(prt) mf::LogVerbatim("TC")<<" is ghost of trajectory "<<tid;
 
     // Use all hits in tHits that are found in itj
-    unsigned int iht, tht;
-    for(auto& tp : slc.tjs[itj].Pts) {
-      for(ii = 0; ii < tp.Hits.size(); ++ii) {
-        iht = tp.Hits[ii];
+    for(auto& tp : slc.tjs[tid - 1].Pts) {
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        unsigned int iht = tp.Hits[ii];
         if(slc.slHits[iht].InTraj != 0) continue;
-        for(jj = 0; jj < tHits.size(); ++jj) {
-          tht = tHits[jj];
+        for(unsigned short jj = 0; jj < tHits.size(); ++jj) {
+          unsigned int tht = tHits[jj];
           if(tht != iht) continue;
           tp.UseHit[ii] = true;
-          slc.slHits[iht].InTraj = slc.tjs[itj].ID;
+          slc.slHits[iht].InTraj = tid;
           break;
         } // jj
       } // ii
     } // tp
-    slc.tjs[itj].AlgMod[kUseGhostHits] = true;
-    ofTraj = itj;
+    slc.tjs[tid - 1].AlgMod[kUseGhostHits] = true;
     return true;
     
   } // IsGhost
