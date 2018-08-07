@@ -252,7 +252,35 @@ namespace cluster {
       for(unsigned int iht = 0; iht < nInputHits; ++iht) slHitsVec[0][iht] = iht;
     } // no input slices
     
+    // split slHitsVec so that all hits in a sub-slice are in the same TPC
+    std::vector<std::vector<unsigned int>> tpcSlcHitsVec;
+    unsigned short cnt = 0;
+    for(auto& slhits : slHitsVec) {
+      ++cnt;
+      if(slhits.size() < 2) continue;
+      // list of hits in this slice in each TPC
+      std::vector<std::vector<unsigned int>> tpcHits;
+      // list of TPCs in this slice
+      std::vector<unsigned short> tpcNum;
+      for(auto iht : slhits) {
+        auto& hit = (*inputHits)[iht];
+        unsigned short tpc = hit.WireID().TPC;
+        unsigned short tpcIndex = 0;
+        for(tpcIndex = 0; tpcIndex < tpcNum.size(); ++tpcIndex) if(tpcNum[tpcIndex] == tpc) break;
+        if(tpcIndex == tpcNum.size()) {
+          // not in tpcNum so make a new entry
+          tpcHits.resize(tpcIndex + 1);
+          tpcNum.push_back(tpc);
+        }
+        tpcHits[tpcIndex].push_back(iht);
+      } // iht
+      for(auto& tHits : tpcHits) tpcSlcHitsVec.push_back(tHits);
+    } // slhits
+    // over-write slHitsVec
+    slHitsVec = tpcSlcHitsVec;
+    
     // First sort the hits in each slice and then reconstruct
+//    unsigned short subSlice = 0;
     for(auto& slhits : slHitsVec) {
       // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
       // This assumes that hits with larger LocalIndex are at larger Tick.
@@ -283,7 +311,9 @@ namespace cluster {
       tmp.resize(0);
       // reconstruct using the hits in this slice. The data products are stored internally in
       // TrajCluster data structs.
+//      std::cout<<"subSlice "<<subSlice<<" nhits "<<slhits.size()<<"\n";
       fTCAlg->RunTrajClusterAlg(slhits);
+//      ++subSlice;
     } // slhit
 
     if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
