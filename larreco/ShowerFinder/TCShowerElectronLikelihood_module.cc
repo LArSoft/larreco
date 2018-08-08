@@ -71,14 +71,30 @@ namespace shower {
 
     TH3F* longTemplate;
     TH3F* tranTemplate;
+    TH3F* tranTemplate_1;
+    TH3F* tranTemplate_2;
+    TH3F* tranTemplate_3;
+    TH3F* tranTemplate_4;
+    TH3F* tranTemplate_5;
     TProfile2D* longTemplateProf2D;
     TProfile2D* tranTemplateProf2D;
+    TProfile2D* tranTemplateProf2D_1;
+    TProfile2D* tranTemplateProf2D_2;
+    TProfile2D* tranTemplateProf2D_3;
+    TProfile2D* tranTemplateProf2D_4;
+    TProfile2D* tranTemplateProf2D_5;
 
     //TTree* fTree;
     TH1F* energyDist;
 
     TH1F* longProfile;
     TH1F* tranProfile;
+    TH1F* tranProfile_1;
+    TH1F* tranProfile_2;
+    TH1F* tranProfile_3;
+    TH1F* tranProfile_4;
+    TH1F* tranProfile_5;
+
     int bestE;
     double bestchi2;
 
@@ -138,12 +154,28 @@ void shower::TCShowerElectronLikelihood::reconfigure(fhicl::ParameterSet const& 
 
   longTemplate = (TH3F*)file->Get("tcshowertemplate/fLongitudinal");
   tranTemplate = (TH3F*)file->Get("tcshowertemplate/fTransverse");
+  tranTemplate_1 = (TH3F*)file->Get("tcshowertemplate/fTransverse_1");
+  tranTemplate_2 = (TH3F*)file->Get("tcshowertemplate/fTransverse_2");
+  tranTemplate_3 = (TH3F*)file->Get("tcshowertemplate/fTransverse_3");
+  tranTemplate_4 = (TH3F*)file->Get("tcshowertemplate/fTransverse_4");
+  tranTemplate_5 = (TH3F*)file->Get("tcshowertemplate/fTransverse_5");
 
   longTemplateProf2D = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoLong2D");
   tranTemplateProf2D = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D");
+  tranTemplateProf2D_1 = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D_1");
+  tranTemplateProf2D_2 = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D_2");
+  tranTemplateProf2D_3 = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D_3");
+  tranTemplateProf2D_4 = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D_4");
+  tranTemplateProf2D_5 = (TProfile2D*)file->Get("tcshowertemplate/fShowerProfileRecoTrans2D_5");
 
   longProfile = new TH1F("longProfile", "longitudinal shower profile;t;Q", LBINS, LMIN, LMAX);
   tranProfile = new TH1F("tranProfile", "transverse shower profile;dist (cm);Q", TBINS, TMIN, TMAX);;
+
+  tranProfile_1 = new TH1F("tranProfile_1", "transverse shower profile [0 <= t < 1];dist (cm);Q", TBINS, TMIN, TMAX);;
+  tranProfile_2 = new TH1F("tranProfile_2", "transverse shower profile [1 <= t < 2];dist (cm);Q", TBINS, TMIN, TMAX);;
+  tranProfile_3 = new TH1F("tranProfile_3", "transverse shower profile [2 <= t < 3];dist (cm);Q", TBINS, TMIN, TMAX);;
+  tranProfile_4 = new TH1F("tranProfile_4", "transverse shower profile [3 <= t < 4];dist (cm);Q", TBINS, TMIN, TMAX);;
+  tranProfile_5 = new TH1F("tranProfile_5", "transverse shower profile [4 <= t < 5];dist (cm);Q", TBINS, TMIN, TMAX);;
 
 } // reconfigure
 
@@ -195,6 +227,8 @@ void shower::TCShowerElectronLikelihood::analyze(const art::Event& evt) {
 	  std::cout << "true shower energy: " << elep << std::endl;
 	  std::cout << "energy guess:       " << bestE << " (" << bestchi2 << ")" << std::endl;
 	  energyDist->Fill(elep - bestE);
+
+	  if (-5 < (elep - bestE) && -3 > (elep - bestE) ) std::cout << evt.id().event() << std::endl;
 	}
       }
     }
@@ -210,6 +244,11 @@ void shower::TCShowerElectronLikelihood::resetProfiles() {
 
   longProfile->Reset();
   tranProfile->Reset();
+  tranProfile_1->Reset();
+  tranProfile_2->Reset();
+  tranProfile_3->Reset();
+  tranProfile_4->Reset();
+  tranProfile_5->Reset();
   
   bestE = -9999;
   bestchi2 = -9999;
@@ -258,13 +297,18 @@ void shower::TCShowerElectronLikelihood::getShowerProfile(std::vector< art::Ptr<
     double to3D = 1. / sqrt( pow(xvtx-xtwo,2) + pow(yvtx-ytwo,2) ) ; // distance between two points in 3D space is one 
     ldist *= to3D;
     tdist *= to3D;
+    double t = ldist/X0;
 
     double Q = showerhits[i]->Integral() * fCalorimetryAlg.LifetimeCorrection(showerhits[i]->PeakTime());
 
-    longProfile->Fill(ldist/X0, Q);
+    longProfile->Fill(t, Q);
     tranProfile->Fill(tdist, Q);
 
-    // UPDATE THIS TO DO TRANSVERSE PROFILE BY BINS IN RADIATION LENGTH
+    if (t < 1) tranProfile_1->Fill(tdist, Q);
+    else if (t < 2) tranProfile_2->Fill(tdist, Q);
+    else if (t < 3) tranProfile_3->Fill(tdist, Q);
+    else if (t < 4) tranProfile_4->Fill(tdist, Q);
+    else if (t < 5) tranProfile_5->Fill(tdist, Q);
 
   } // loop through showerhits
 
@@ -282,37 +326,61 @@ void shower::TCShowerElectronLikelihood::findEnergyBin() {
   if (tranProfile->GetNbinsX() != tranTemplate->GetNbinsX())
     throw cet::exception("TCShowerElectronLikelihood") << "Bin mismatch in transverse profile template \n";
 
-  double chi2min = 9999999;
+  double chi2min = 999999;
   double bestbin = -1;
 
   int ebins = longTemplate->GetNbinsY();
   int lbins = longTemplate->GetNbinsX();
   int tbins = tranTemplate->GetNbinsX();
 
+  //  lbins = floor(lbins/2); // only use the first half of the bins
+
   TProfile* ltemp;
-  TProfile* ttemp;
+  TProfile* ttemp_1;
+  TProfile* ttemp_2;
+  TProfile* ttemp_3;
+  TProfile* ttemp_4;
+  TProfile* ttemp_5;
 
   for (int i = 0; i < ebins; ++i) {
-    ltemp = (TProfile*)longTemplateProf2D->ProfileX("_x", i+1, i+1);
-    ttemp = (TProfile*)tranTemplateProf2D->ProfileX("_x", i+1, i+1);
-
     double thischi2 = 0;
+
+    ltemp = (TProfile*)longTemplateProf2D->ProfileX("_x", i+1, i+1);
+    ttemp_1 = (TProfile*)tranTemplateProf2D_1->ProfileX("_x_1", i+1, i+1);
+    ttemp_2 = (TProfile*)tranTemplateProf2D_2->ProfileX("_x_2", i+1, i+1);
+    ttemp_3 = (TProfile*)tranTemplateProf2D_3->ProfileX("_x_3", i+1, i+1);
+    ttemp_4 = (TProfile*)tranTemplateProf2D_4->ProfileX("_x_4", i+1, i+1);
+    ttemp_5 = (TProfile*)tranTemplateProf2D_5->ProfileX("_x_5", i+1, i+1);
 
     for (int j = 0; j < lbins; ++j) {
       double obs = longProfile->GetBinContent(j+1);
       double exp = ltemp->GetBinContent(j+1);
-      //      std::cout << i+1 << " " << pow(obs - exp, 2) / exp << std::endl;
       thischi2 += pow(obs - exp, 2) / exp;
-
-      if (j > 10) break;
     } // loop through longitudinal bins
 
     for (int j = 0; j < tbins; ++j) {
-      double obs = tranProfile->GetBinContent(j+1);
-      double exp = ttemp->GetBinContent(j+1);
-      //      std::cout << i+1 << " " << pow(obs - exp, 2) / exp << std::endl;
+      double obs = tranProfile_1->GetBinContent(j+1);
+      double exp = ttemp_1->GetBinContent(j+1);
+      thischi2 += pow(obs - exp, 2) / exp;
+
+      obs = tranProfile_2->GetBinContent(j+1);
+      exp = ttemp_2->GetBinContent(j+1);
+      thischi2 += pow(obs - exp, 2) / exp;
+
+      obs = tranProfile_3->GetBinContent(j+1);
+      exp = ttemp_3->GetBinContent(j+1);
+      thischi2 += pow(obs - exp, 2) / exp;
+
+      obs = tranProfile_4->GetBinContent(j+1);
+      exp = ttemp_4->GetBinContent(j+1);
+      thischi2 += pow(obs - exp, 2) / exp;
+
+      obs = tranProfile_5->GetBinContent(j+1);
+      exp = ttemp_5->GetBinContent(j+1);
       thischi2 += pow(obs - exp, 2) / exp;
     } // loop through longitudinal bins
+
+    thischi2 /= (lbins + 5*tbins);
 
     if (thischi2 < chi2min) {
       chi2min = thischi2;
