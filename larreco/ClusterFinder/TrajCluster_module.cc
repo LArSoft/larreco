@@ -57,7 +57,6 @@ namespace cluster {
     void endJob() override;
     
   private:
-//    bool SortHits(HitLoc const& h1, HitLoc const& h2);
 
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
     TTree* showertree;
@@ -321,7 +320,6 @@ namespace cluster {
       tmp.resize(0);
       // reconstruct using the hits in this slice. The data products are stored internally in
       // TrajCluster data structs.
-//      std::cout<<"Slice "<<slcIDs[isl]<<" subSlice "<<subSlice<<" nhits "<<slhits.size()<<"\n";
       fTCAlg->RunTrajClusterAlg(slhits);
       ++subSlice;
     } // slhit
@@ -518,7 +516,7 @@ namespace cluster {
           std::cout<<"Bad slice. Need some error recovery code here\n";
           break;
         }
-        geo::View_t view = hitCol[0].View();
+        geo::View_t view = hitCol[hitColBeginIndex].View();
         auto& firstTP = tj.Pts[tj.EndPt[0]];
         auto& lastTP = tj.Pts[tj.EndPt[1]];
         int clsID = tj.UID;
@@ -659,13 +657,25 @@ namespace cluster {
             } // exception
           } // vx3Index
         } // start vertex exists
-/*
         // PFParticle -> Slice
-        std::vector<unsigned short> slcIndex(1, isl);
-        if(!util::CreateAssn(*this, evt, *pfp_slc_assn, pfpCol.size()-1, slcIndex.begin(), slcIndex.end()))
-        {
-          throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate slice with PFParticle";
-        } // exception
+/*
+        if(fSliceModuleLabel != "NA") {
+          auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
+          std::vector<art::Ptr<recob::Slice>> slices;
+          art::fill_ptr_vector(slices, slcHandle);
+          art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
+          unsigned short indx;
+          for(indx = 0; indx < slices.size(); ++indx) {
+            if(slices[isl]->ID() == slcIDs[isl]) break;
+          }
+          std::cout<<"isl "<<isl<<" P"<<pfp.UID<<" indx "<<indx<<"\n";
+          std::vector<unsigned short> slcIndex(1, indx);
+          if(!util::CreateAssn(*this, evt, *pfp_slc_assn, pfpCol.size()-1, slcIndex.begin(), slcIndex.end()))
+          {
+            throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate slice with PFParticle";
+          } // exception
+
+        } // slices exist
 */
         // PFParticle -> Shower
         if(pfp.PDGCode == 1111) {
