@@ -106,9 +106,15 @@ namespace shower {
     const int TMIN = -5;
     const int TMAX = 5;
 
+    /*
     const int EBINS = 10;
     const double EMIN = 0.5;
     const double EMAX = 10.5;
+    */
+
+    const int EBINS = 20;
+    const double EMIN = 0.5;
+    const double EMAX = 20.5;
 
     const double X0 = 14;
 
@@ -186,7 +192,7 @@ void shower::TCShowerElectronLikelihood::beginJob() {
   art::ServiceHandle<art::TFileService> tfs;
   //fTree = tfs->make<TTree>("elikelihood", "elikelihood");
 
-  energyDist = tfs->make<TH1F>("energyDist", "true energy - guess energy", 21, -10.5, 10.5);
+  energyDist = tfs->make<TH1F>("energyDist", "true energy - guess energy", 41, -20.5, 20.5);
 
 } // beginJob
 
