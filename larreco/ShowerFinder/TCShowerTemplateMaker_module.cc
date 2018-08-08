@@ -105,6 +105,11 @@ namespace shower {
 
     TH3F* fLongitudinal;
     TH3F* fTransverse;
+    TH3F* fTransverse_1;
+    TH3F* fTransverse_2;
+    TH3F* fTransverse_3;    
+    TH3F* fTransverse_4;
+    TH3F* fTransverse_5;
 
     const int LBINS = 20;
     const int LMIN = 0;
@@ -198,6 +203,11 @@ void shower::TCShowerTemplateMaker::beginJob() {
 
   fLongitudinal = tfs->make<TH3F>("fLongitudinal", "longitudinal e- profile;t;electron energy (MeV);Q", LBINS, LMIN, LMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
   fTransverse = tfs->make<TH3F>("fTransverse", "transverse e- profile;dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
+  fTransverse_1 = tfs->make<TH3F>("fTransverse_1", "transverse e- profile [0 <= t < 1];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
+  fTransverse_2 = tfs->make<TH3F>("fTransverse_2", "transverse e- profile [1 <= t < 2];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
+  fTransverse_3 = tfs->make<TH3F>("fTransverse_3", "transverse e- profile [2 <= t < 3];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
+  fTransverse_4 = tfs->make<TH3F>("fTransverse_4", "transverse e- profile [3 <= t < 4];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
+  fTransverse_5 = tfs->make<TH3F>("fTransverse_5", "transverse e- profile [4 <= t < 5];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
 
   
 } // beginJob
@@ -329,6 +339,13 @@ void shower::TCShowerTemplateMaker::showerProfile(std::vector< art::Ptr<recob::H
     fShowerProfileRecoTrans2D_3->Fill(ttemp_3->GetBinCenter(i+1), elep, ttemp_3->GetBinContent(i+1));
     fShowerProfileRecoTrans2D_4->Fill(ttemp_4->GetBinCenter(i+1), elep, ttemp_4->GetBinContent(i+1));
     fShowerProfileRecoTrans2D_5->Fill(ttemp_5->GetBinCenter(i+1), elep, ttemp_5->GetBinContent(i+1));
+
+    fTransverse_1->Fill(ttemp_1->GetBinCenter(i+1), elep, ttemp_1->GetBinContent(i+1));
+    fTransverse_2->Fill(ttemp_2->GetBinCenter(i+1), elep, ttemp_2->GetBinContent(i+1));
+    fTransverse_3->Fill(ttemp_3->GetBinCenter(i+1), elep, ttemp_3->GetBinContent(i+1));
+    fTransverse_4->Fill(ttemp_4->GetBinCenter(i+1), elep, ttemp_4->GetBinContent(i+1));
+    fTransverse_5->Fill(ttemp_5->GetBinCenter(i+1), elep, ttemp_5->GetBinContent(i+1));
+
   }
 
   return;

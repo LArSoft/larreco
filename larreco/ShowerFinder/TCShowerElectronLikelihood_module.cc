@@ -264,6 +264,8 @@ void shower::TCShowerElectronLikelihood::getShowerProfile(std::vector< art::Ptr<
     longProfile->Fill(ldist/X0, Q);
     tranProfile->Fill(tdist, Q);
 
+    // UPDATE THIS TO DO TRANSVERSE PROFILE BY BINS IN RADIATION LENGTH
+
   } // loop through showerhits
 
   return;
