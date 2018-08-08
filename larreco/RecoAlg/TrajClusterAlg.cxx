@@ -57,10 +57,10 @@ namespace tca {
       if(userMode == 3) tcc.modes[kStudy3] = true;
       if(userMode == 4) tcc.modes[kStudy4] = true;
     } // new Study mode
-    if(pset.has_key("TestBeam")) tcc.modes[kTestBeam] = true;
-    if(pset.has_key("SaveShowerTree")) tcc.modes[kSaveShowerTree] = true;
-    if(pset.has_key("SaveCRTree")) tcc.modes[kSaveCRTree] = true;
-    if(pset.has_key("TagCosmics")) tcc.modes[kTagCosmics] = true;
+    if(pset.has_key("TestBeam")) tcc.modes[kTestBeam] = pset.get<bool>("TestBeam");
+    if(pset.has_key("SaveShowerTree")) tcc.modes[kSaveShowerTree] = pset.get<bool>("SaveShowerTree");
+    if(pset.has_key("SaveCRTree")) tcc.modes[kSaveCRTree] = pset.get<bool>("SaveCRTree");
+    if(pset.has_key("TagCosmics")) tcc.modes[kTagCosmics] = pset.get<bool>("TagCosmics");
     std::vector<std::string> skipAlgsVec;
     if(pset.has_key("SkipAlgs")) skipAlgsVec = pset.get<std::vector<std::string>>("SkipAlgs");
     std::vector<std::string> debugConfigVec;
