@@ -164,7 +164,7 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
-//    produces< art::Assns<recob::PFParticle, recob::Slice> >();
+    produces< art::Assns<recob::Slice, recob::PFParticle> >();
 
     produces< std::vector<anab::CosmicTag>>();
     produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
@@ -215,6 +215,8 @@ namespace cluster {
     std::vector<std::vector<unsigned int>> slHitsVec;
     // Slice IDs that will be correlated with sub-slices
     std::vector<unsigned short> slcIDs;
+    // pointers to the slices in the event
+    std::vector<art::Ptr<recob::Slice>> slices;
     unsigned int nInputHits = 0;
     // get a handle for the hit collection
     auto inputHits = art::Handle<std::vector<recob::Hit>>();
@@ -229,7 +231,6 @@ namespace cluster {
     if(fSliceModuleLabel != "NA") {
       // Expecting to find sliced hits from Slice -> Hits assns
       auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
-      std::vector<art::Ptr<recob::Slice>> slices;
       art::fill_ptr_vector(slices, slcHandle);
       art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
       for(size_t isl = 0; isl < slices.size(); ++isl) {
@@ -288,7 +289,6 @@ namespace cluster {
     slcIDs = tpcSlcIDs;
     
     // First sort the hits in each slice and then reconstruct
-    unsigned short subSlice = 0;
     for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
       auto& slhits = slHitsVec[isl];
       // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
@@ -321,8 +321,7 @@ namespace cluster {
       // reconstruct using the hits in this slice. The data products are stored internally in
       // TrajCluster data structs.
       fTCAlg->RunTrajClusterAlg(slhits);
-      ++subSlice;
-    } // slhit
+    } // isl
 
     if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
       // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC
@@ -422,8 +421,8 @@ namespace cluster {
       pfp_shwr_assn(new art::Assns<recob::PFParticle, recob::Shower>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
       pfp_vx3_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
-//    std::unique_ptr<art::Assns<recob::PFParticle, recob::Slice>>
-//      pfp_slc_assn(new art::Assns<recob::PFParticle, recob::Slice>);
+    std::unique_ptr<art::Assns<recob::Slice, recob::PFParticle>>
+      slc_pfp_assn(new art::Assns<recob::Slice, recob::PFParticle>);
     std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
       pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
 
@@ -658,25 +657,19 @@ namespace cluster {
           } // vx3Index
         } // start vertex exists
         // PFParticle -> Slice
-/*
-        if(fSliceModuleLabel != "NA") {
-          auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
-          std::vector<art::Ptr<recob::Slice>> slices;
-          art::fill_ptr_vector(slices, slcHandle);
-          art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
+        if(!slices.empty()) {
           unsigned short indx;
           for(indx = 0; indx < slices.size(); ++indx) {
-            if(slices[isl]->ID() == slcIDs[isl]) break;
-          }
-          std::cout<<"isl "<<isl<<" P"<<pfp.UID<<" indx "<<indx<<"\n";
-          std::vector<unsigned short> slcIndex(1, indx);
-          if(!util::CreateAssn(*this, evt, *pfp_slc_assn, pfpCol.size()-1, slcIndex.begin(), slcIndex.end()))
-          {
-            throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate slice with PFParticle";
-          } // exception
+            if(slices[indx]->ID() != slcIDs[isl]) continue;
+            if(!util::CreateAssn(*this, evt, pfpCol, slices[indx], *slc_pfp_assn))
+            {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate slice with PFParticle";
+            } // exception
+            break;
+          } // indx
 
         } // slices exist
-*/
+
         // PFParticle -> Shower
         if(pfp.PDGCode == 1111) {
           std::vector<unsigned short> shwIndex(1, 0);
@@ -747,7 +740,7 @@ namespace cluster {
     evt.put(std::move(pcol));
     evt.put(std::move(pfp_cls_assn));
     evt.put(std::move(pfp_shwr_assn));
-//    evt.put(std::move(pfp_slc_assn));
+    evt.put(std::move(slc_pfp_assn));
     evt.put(std::move(pfp_vx3_assn));
     evt.put(std::move(ctgcol));
     evt.put(std::move(pfp_cos_assn));
