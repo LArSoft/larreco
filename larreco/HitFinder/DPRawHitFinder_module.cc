@@ -554,27 +554,27 @@ void DPRawHitFinder::produce(art::Event& evt)
 	      std::cout << "--- First fit ---" << std::endl;
 	      if (nExponentialsForFit == 1) std::cout << "- Fitted " << nExponentialsForFit << " peak in group #"  << j << ":" << std::endl;
 	      else std::cout << "- Fitted " << nExponentialsForFit << " peaks in group #"  << j << ":" << std::endl;
-	      std::cout << "chi2/ndf = " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+	      std::cout << "chi2/ndf = " << chi2PerNDF << std::endl;
 	
 	      if(fSameShape)
 	      {
-	        std::cout << "tau1 [mus] = " << std::setprecision(3) << std::fixed << paramVec[0].first << std::endl;
-	        std::cout << "tau2 [mus] = " << std::setprecision(3) << std::fixed << paramVec[1].first << std::endl;
+	        std::cout << "tau1 [mus] = " << paramVec[0].first << std::endl;
+	        std::cout << "tau2 [mus] = " << paramVec[1].first << std::endl;
 
 	        for(unsigned int i = 0; i < nExponentialsForFit; i++)
 	        {
-		  std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << paramVec[2*(i+1)].first << std::endl;
-		  std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << range.offset + paramVec[2*(i+1)+1].first << std::endl;
+		  std::cout << "Peak #" << i << ": A [ADC] = " << paramVec[2*(i+1)].first << std::endl;
+		  std::cout << "Peak #" << i << ": t0 [ticks] = " << range.offset + paramVec[2*(i+1)+1].first << std::endl;
 	        }
 	      }
 	      else
 	      {
 	        for(unsigned int i = 0; i < nExponentialsForFit; i++)
 	        {
-		  std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << paramVec[4*i+2].first << std::endl;
-		  std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << range.offset + paramVec[4*i+3].first << std::endl;
-	          std::cout << "Peak #" << i << ": tau1 [mus] = " << std::setprecision(3) << std::fixed << paramVec[4*i].first << std::endl;
-	          std::cout << "Peak #" << i << ": tau2 [mus] = " << std::setprecision(3) << std::fixed << paramVec[4*i+1].first << std::endl;
+		  std::cout << "Peak #" << i << ": A [ADC] = " << paramVec[4*i+2].first << std::endl;
+		  std::cout << "Peak #" << i << ": t0 [ticks] = " << range.offset + paramVec[4*i+3].first << std::endl;
+	          std::cout << "Peak #" << i << ": tau1 [mus] = " << paramVec[4*i].first << std::endl;
+	          std::cout << "Peak #" << i << ": tau2 [mus] = " << paramVec[4*i+1].first << std::endl;
 	        }
 	      }
 	    }
@@ -679,27 +679,27 @@ void DPRawHitFinder::produce(art::Event& evt)
 		    CountPeakInGroup++;
 		  }
 
-		  std::cout << "chi2/ndf = " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+		  std::cout << "chi2/ndf = " << chi2PerNDF << std::endl;
 
 	          if(fSameShape)
 	          {
-	            std::cout << "tau1 [mus] = " << std::setprecision(3) << std::fixed << paramVec[0].first << std::endl;
-	            std::cout << "tau2 [mus] = " << std::setprecision(3) << std::fixed << paramVec[1].first << std::endl;
+	            std::cout << "tau1 [mus] = " << paramVec[0].first << std::endl;
+	            std::cout << "tau2 [mus] = " << paramVec[1].first << std::endl;
 
 	            for(unsigned int i = 0; i < nExponentialsForFit; i++)
 	            {
-		      std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << paramVec[2*(i+1)].first << std::endl;
-		      std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << range.offset + paramVec[2*(i+1)+1].first << std::endl;
+		      std::cout << "Peak #" << i << ": A [ADC] = " << paramVec[2*(i+1)].first << std::endl;
+		      std::cout << "Peak #" << i << ": t0 [ticks] = " << range.offset + paramVec[2*(i+1)+1].first << std::endl;
 	            }
 	          }
 	          else
 	          {
 	            for(unsigned int i = 0; i < nExponentialsForFit; i++)
 	            {
-		      std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << paramVec[4*i+2].first << std::endl;
-		      std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << range.offset + paramVec[4*i+3].first << std::endl;
-	              std::cout << "Peak #" << i << ": tau1 [mus] = " << std::setprecision(3) << std::fixed << paramVec[4*i].first << std::endl;
-	              std::cout << "Peak #" << i << ": tau2 [mus] = " << std::setprecision(3) << std::fixed << paramVec[4*i+1].first << std::endl;
+		      std::cout << "Peak #" << i << ": A [ADC] = " << paramVec[4*i+2].first << std::endl;
+		      std::cout << "Peak #" << i << ": t0 [ticks] = " << range.offset + paramVec[4*i+3].first << std::endl;
+	              std::cout << "Peak #" << i << ": tau1 [mus] = " << paramVec[4*i].first << std::endl;
+	              std::cout << "Peak #" << i << ": tau2 [mus] = " << paramVec[4*i+1].first << std::endl;
 	            }
 	          }
 		}
@@ -750,6 +750,7 @@ void DPRawHitFinder::produce(art::Event& evt)
 		//Calculate width (=FWHM)
 		double peakWidth = WidthFunc(peakMean, peakAmp, peakTau1, peakTau2, startT, endT, peakMeanTrue);
 		peakWidth /= fWidthNormalization; //from FWHM to "standard deviation": standard deviation = FWHM/(2*sqrt(2*ln(2)))
+
 
                 // Extract fit parameter errors
                 double peakMeanErr;
@@ -811,12 +812,12 @@ void DPRawHitFinder::produce(art::Event& evt)
                 // Create the hit
 		recob::HitCreator hitcreator(*wire,                            // wire reference
                                              wid,                              // wire ID
-                                             startT+roiFirstBinTick,           // start_tick TODO check
-                                             endT+roiFirstBinTick,             // end_tick TODO check
+                                             startTthisHit+roiFirstBinTick,    // start_tick TODO check
+                                             endTthisHit+roiFirstBinTick,  // end_tick TODO check
                                              peakWidth,                        // rms
                                              peakMeanTrue+roiFirstBinTick,     // peak_time
                                              peakMeanErr,                      // sigma_peak_time
-                                             peakAmpTrue,                          // peak_amplitude
+                                             peakAmpTrue,                      // peak_amplitude
                                              peakAmpErr,                       // sigma_peak_amplitude
                                              charge,                           // hit_integral
                                              chargeErr,                        // hit_sigma_integral
@@ -831,16 +832,16 @@ void DPRawHitFinder::produce(art::Event& evt)
 	    	{
 		  std::cout << std::endl;
 		  std::cout << "- Created hit object for peak #" << i << " in this group with the following parameters (obtained from fit):" << std::endl;
-		  std::cout << "HitStartTick: " << startT+roiFirstBinTick << std::endl;
-		  std::cout << "HitEndTick: " << endT+roiFirstBinTick << std::endl;
-		  std::cout << "HitWidthTicks: " << std::setprecision(2) << std::fixed << peakWidth << std::endl;
-		  std::cout << "HitMeanTick: " << std::setprecision(2) << std::fixed << peakMeanTrue+roiFirstBinTick << " +- " << peakMeanErr << std::endl;
-		  std::cout << "HitAmplitude [ADC]: " << std::setprecision(1) << std::fixed << peakAmpTrue << " +- " << peakAmpErr << std::endl;
-		  std::cout << "HitIntegral [ADC*ticks]: " << std::setprecision(1) << std::fixed << charge << " +- " << chargeErr << std::endl;
-		  std::cout << "HitADCSum [ADC*ticks]: " << std::setprecision(1) << std::fixed << sumADC << std::endl;
+		  std::cout << "HitStartTick: " << startTthisHit+roiFirstBinTick << std::endl;
+		  std::cout << "HitEndTick: " << endTthisHit+roiFirstBinTick << std::endl;
+		  std::cout << "HitWidthTicks: " << peakWidth << std::endl;
+		  std::cout << "HitMeanTick: " << peakMeanTrue+roiFirstBinTick << " +- " << peakMeanErr << std::endl;
+		  std::cout << "HitAmplitude [ADC]: " << peakAmpTrue << " +- " << peakAmpErr << std::endl;
+		  std::cout << "HitIntegral [ADC*ticks]: " << charge << " +- " << chargeErr << std::endl;
+		  std::cout << "HitADCSum [ADC*ticks]: " << sumADC << std::endl;
 		  std::cout << "HitMultiplicity: " << nExponentialsForFit << std::endl;
 		  std::cout << "HitIndex in group: " << numHits << std::endl;
-		  std::cout << "Hitchi2/ndf: " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+		  std::cout << "Hitchi2/ndf: " << chi2PerNDF << std::endl;
 		  std::cout << "HitNDF: " << NDF << std::endl;
 		}
 
@@ -966,14 +967,14 @@ void DPRawHitFinder::produce(art::Event& evt)
 	        std::cout << "- Created hit object for peak #" << hitIdx << " in this group with the following parameters (obtained from waveform):" << std::endl;
 	        std::cout << "HitStartTick: " << firstTick+roiFirstBinTick << std::endl;
 	        std::cout << "HitEndTick: " << lastTick+roiFirstBinTick << std::endl;
-	        std::cout << "HitWidthTicks: " << std::setprecision(2) << std::fixed << peakWidth << std::endl;
-	        std::cout << "HitMeanTick: " << std::setprecision(2) << std::fixed << peakMeanTrue+roiFirstBinTick << " +- " << peakMeanErr << std::endl;
-	        std::cout << "HitAmplitude [ADC]: " << std::setprecision(1) << std::fixed << peakAmpTrue << " +- " << peakAmpErr << std::endl;
-	        std::cout << "HitIntegral [ADC*ticks]: " << std::setprecision(1) << std::fixed << charge << " +- " << chargeErr << std::endl;
-	        std::cout << "HitADCSum [ADC*ticks]: " << std::setprecision(1) << std::fixed << sumADC << std::endl;
+	        std::cout << "HitWidthTicks: " << peakWidth << std::endl;
+	        std::cout << "HitMeanTick: " << peakMeanTrue+roiFirstBinTick << " +- " << peakMeanErr << std::endl;
+	        std::cout << "HitAmplitude [ADC]: " << peakAmpTrue << " +- " << peakAmpErr << std::endl;
+	        std::cout << "HitIntegral [ADC*ticks]: " << charge << " +- " << chargeErr << std::endl;
+	        std::cout << "HitADCSum [ADC*ticks]: " << sumADC << std::endl;
 	        std::cout << "HitMultiplicity: " << nExponentialsForFit << std::endl;
 	        std::cout << "HitIndex in group: " << hitIdx << std::endl;
-	        std::cout << "Hitchi2/ndf: " << std::setprecision(2) << std::fixed << chi2PerNDF << std::endl;
+	        std::cout << "Hitchi2/ndf: " << chi2PerNDF << std::endl;
 	        std::cout << "HitNDF: " << NDF << std::endl;
 	      }   
               const recob::Hit hit(hitcreator.move());
@@ -1357,8 +1358,8 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  fSignalVecto
         {
 	  double t0low, t0high;
 	  Exponentials.GetParLimits(2*(i+1)+1, t0low, t0high);
-          std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << 0.3*1.65*amplitude << "  ,  " << 1.65*amplitude << "  ,  " << 2*1.65*amplitude << std::endl;
-          std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << t0low << "  ,  " << peakMeanSeed << "  ,  " << t0high << std::endl;
+          std::cout << "Peak #" << i << ": A [ADC] = " << 0.3*1.65*amplitude << "  ,  " << 1.65*amplitude << "  ,  " << 2*1.65*amplitude << std::endl;
+          std::cout << "Peak #" << i << ": t0 [ticks] = " << t0low << "  ,  " << peakMeanSeed << "  ,  " << t0high << std::endl;
         }
       }
     }
@@ -1419,8 +1420,8 @@ void hit::DPRawHitFinder::FitExponentials(const std::vector<float>  fSignalVecto
         {
 	  double t0low, t0high;
 	  Exponentials.GetParLimits(4*i+3, t0low, t0high);
-          std::cout << "Peak #" << i << ": A [ADC] = " << std::setprecision(1) << std::fixed << 0.3*1.65*amplitude << "  ,  " << 1.65*amplitude << "  ,  " << 2*1.65*amplitude << std::endl;
-          std::cout << "Peak #" << i << ": t0 [ticks] = " << std::setprecision(1) << std::fixed << t0low << "  ,  " << peakMeanSeed << "  ,  " << t0high << std::endl;
+          std::cout << "Peak #" << i << ": A [ADC] = " << 0.3*1.65*amplitude << "  ,  " << 1.65*amplitude << "  ,  " << 2*1.65*amplitude << std::endl;
+          std::cout << "Peak #" << i << ": t0 [ticks] = " << t0low << "  ,  " << peakMeanSeed << "  ,  " << t0high << std::endl;
         }
       }
     }

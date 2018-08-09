@@ -79,6 +79,7 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
 {
   produces< std::vector<recob::Slice> >();
   produces< art::Assns<recob::Slice, recob::Hit> >();
+  produces< art::Assns<recob::Slice, recob::SpacePoint> >();
 
   fGeom = &*(art::ServiceHandle<geo::Geometry>());
   fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -94,6 +95,9 @@ void cluster::DBCluster3D::produce(art::Event & evt)
 
   std::unique_ptr<art::Assns<recob::Slice, recob::Hit>> 
     slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
+
+  std::unique_ptr<art::Assns<recob::Slice, recob::SpacePoint>> 
+    slc_sps_assn(new art::Assns<recob::Slice, recob::SpacePoint>);
 
   auto hitsHandle = evt.getValidHandle< std::vector<recob::Hit> >(fHitModuleLabel);
   auto spsHandle = evt.getValidHandle< std::vector<recob::SpacePoint> >(fSpacePointModuleLabel);
@@ -246,11 +250,13 @@ void cluster::DBCluster3D::produce(art::Event & evt)
     Point_t ep1(pos1[0], pos1[1], pos1[2]);
     slcCol.emplace_back(id, ctr, dir, ep0, ep1, aspectRatio, charge);
     util::CreateAssn(*this, evt, slcCol, slcHits[isl], *slc_hit_assn);
+    util::CreateAssn(*this, evt, slcCol, sps_in_slc[isl], *slc_sps_assn);
   } // isl
   
   std::unique_ptr<std::vector<recob::Slice> > scol(new std::vector<recob::Slice>(std::move(slcCol)));
   evt.put(std::move(scol));
   evt.put(std::move(slc_hit_assn));
+  evt.put(std::move(slc_sps_assn));
 }
 
 DEFINE_ART_MODULE(cluster::DBCluster3D)

@@ -275,7 +275,7 @@ const ConvexHull::PointList& ConvexHull::getExtremePoints()
     return fExtremePoints;
 }
 
-const ConvexHull::PointList& ConvexHull::getKinkPoints()
+const reco::ConvexHullKinkTupleList& ConvexHull::getKinkPoints()
 {
     // Goal here is to isolate the points where we see a large deviation in the contour defined by the
     // convex hull. The complications are numerous, chief is that some deviations can be artificially
@@ -318,7 +318,7 @@ const ConvexHull::PointList& ConvexHull::getKinkPoints()
             {
                 nextEdge.normalize();
         
-                if (lastEdge.dot(nextEdge) < fKinkAngle) fKinkPoints.push_back(curPoint);
+                if (lastEdge.dot(nextEdge) < fKinkAngle) fKinkPoints.emplace_back(curPoint,lastEdge,nextEdge);
         
                 lastEdge = nextEdge;
             }

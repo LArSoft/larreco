@@ -24,9 +24,6 @@
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 
-// boost includes
-#include <boost/range/adaptor/reversed.hpp>
-
 // Eigen
 #include <Eigen/Dense>
 
@@ -98,11 +95,27 @@ private:
                                                            reco::ClusterParametersList&          outputClusterList,
                                                            int                                   level = 0) const;
     
+    using HitOrderTuple     = std::tuple<float,float,reco::ProjectedPoint>;
+    using HitOrderTupleList = std::list<HitOrderTuple>;
+
     bool makeCandidateCluster(Eigen::Vector3f&,
                               reco::ClusterParameters&,
                               reco::HitPairListPtr::iterator,
                               reco::HitPairListPtr::iterator,
                               int) const;
+ 
+    bool makeCandidateCluster(Eigen::Vector3f&,
+                              reco::ClusterParameters&,
+                              HitOrderTupleList&,
+                              int) const;
+
+    bool completeCandidateCluster(Eigen::Vector3f&, reco::ClusterParameters&, int) const;
+
+    bool breakClusterByKinks(     reco::ClusterParameters&, reco::HitPairListPtr&, reco::ClusterParametersList&, int level) const;
+    bool breakClusterByKinksTrial(reco::ClusterParameters&, reco::HitPairListPtr&, reco::ClusterParametersList&, int level) const;
+    bool breakClusterByMaxDefect( reco::ClusterParameters&, reco::HitPairListPtr&, reco::ClusterParametersList&, int level) const;
+    bool breakClusterInHalf(      reco::ClusterParameters&, reco::HitPairListPtr&, reco::ClusterParametersList&, int level) const;
+    bool breakClusterAtBigGap(    reco::ClusterParameters&, reco::HitPairListPtr&, reco::ClusterParametersList&, int level) const;
 
     float closestApproach(const Eigen::Vector3f&,
                           const Eigen::Vector3f&,
@@ -111,19 +124,27 @@ private:
                           Eigen::Vector3f&,
                           Eigen::Vector3f&) const;
     
-    using Point           = std::tuple<float,float,const reco::ClusterHit3D*>;
-    using PointList       = std::list<Point>;
-    using MinMaxPoints    = std::pair<Point,Point>;
+    using MinMaxPoints    = std::pair<reco::ProjectedPoint,reco::ProjectedPoint>;
     using MinMaxPointPair = std::pair<MinMaxPoints,MinMaxPoints>;
 
     void buildConvexHull(reco::ClusterParameters& clusterParameters, int level = 0)     const;
     
     float findConvexHullEndPoints(const reco::EdgeList&, const reco::ClusterHit3D*, const reco::ClusterHit3D*) const;
+    
+    using KinkTuple    = std::tuple<int, reco::ConvexHullKinkTuple, HitOrderTupleList, HitOrderTupleList>;
+    using KinkTupleVec = std::vector<KinkTuple>;
+    
+    void orderHitsAlongEdge(const reco::ProjectedPointList&, const reco::ProjectedPoint&, const Eigen::Vector2f&, HitOrderTupleList&) const;
+    
+    void pruneHitOrderTupleLists(HitOrderTupleList&, HitOrderTupleList&) const;
+    
     /**
      *  @brief FHICL parameters
      */
     bool                                        fEnableMonitoring;      ///<
     size_t                                      fMinTinyClusterSize;    ///< Minimum size for a "tiny" cluster
+    float                                       fConvexHullKinkAngle;   ///< Angle to declare a kink in convex hull calc
+    float                                       fConvexHullMinSep;      ///< Min hit separation to conisder in convex hull
     mutable float                               fTimeToProcess;         ///<
     
     /**
@@ -174,8 +195,10 @@ ConvexHullPathFinder::~ConvexHullPathFinder()
 
 void ConvexHullPathFinder::configure(fhicl::ParameterSet const &pset)
 {
-    fEnableMonitoring   = pset.get<bool>  ("EnableMonitoring",  true  );
-    fMinTinyClusterSize = pset.get<size_t>("MinTinyClusterSize",40);
+    fEnableMonitoring     = pset.get<bool>  ("EnableMonitoring",   true );
+    fMinTinyClusterSize   = pset.get<size_t>("MinTinyClusterSize", 40   );
+    fConvexHullKinkAngle  = pset.get<float >("ConvexHullKinkAgle",  0.92);
+    fConvexHullMinSep     = pset.get<float >("ConvexHullMinSep",    0.65);
     fClusterAlg         = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
 
     art::ServiceHandle<geo::Geometry> geometry;
@@ -334,18 +357,10 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
     if (clusterToBreak.getHitPairListPtr().size() > size_t(2 * fMinTinyClusterSize))
     {
         // set an indention string
-        std::string pluses(level/2, '+');
-        std::string indent(level/2, ' ');
-    
-        indent += pluses;
-
-        // To make best use of this we'll also want the PCA for this cluster... so...
-        // Recover the prime ingredients
-        reco::PrincipalComponents& fullPCA     = clusterToBreak.getFullPCA();
-        std::vector<double>        eigenValVec = {3. * std::sqrt(fullPCA.getEigenValues()[0]),
-                                                  3. * std::sqrt(fullPCA.getEigenValues()[1]),
-                                                  3. * std::sqrt(fullPCA.getEigenValues()[2])};
-        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+//        std::string pluses(level/2, '+');
+//        std::string indent(level/2, ' ');
+//
+//        indent += pluses;
 
         // We want to find the convex hull vertices that lie furthest from the line to/from the extreme points
         // To find these we:
@@ -353,10 +368,12 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
         // 2) form the vector between them
         // 3) loop through the vertices and keep track of distance to this vector
         // 4) Sort the resulting list by furthest points and select the one we want
-        reco::HitPairListPtr::const_iterator extremePointListItr = clusterToBreak.getConvexExtremePoints().begin();
+        reco::ConvexHull& convexHull = clusterToBreak.getConvexHull();
+        
+        reco::ProjectedPointList::const_iterator extremePointListItr = convexHull.getConvexHullExtremePoints().begin();
 
-        const reco::ClusterHit3D*  firstEdgeHit  = *extremePointListItr++;
-        const reco::ClusterHit3D*  secondEdgeHit = *extremePointListItr;
+        const reco::ClusterHit3D*  firstEdgeHit  = std::get<2>(*extremePointListItr++);
+        const reco::ClusterHit3D*  secondEdgeHit = std::get<2>(*extremePointListItr);
         Eigen::Vector3f            edgeVec(secondEdgeHit->getPosition()[0] - firstEdgeHit->getPosition()[0],
                                            secondEdgeHit->getPosition()[1] - firstEdgeHit->getPosition()[1],
                                            secondEdgeHit->getPosition()[2] - firstEdgeHit->getPosition()[2]);
@@ -367,103 +384,33 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
         
         // Recover the list of 3D hits associated to this cluster
         reco::HitPairListPtr& clusHitPairVector = clusterToBreak.getHitPairListPtr();
-        
+
+        // Recover the PCA for the input cluster
+        reco::PrincipalComponents& fullPCA     = clusterToBreak.getFullPCA();
+        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+
         // Calculate the doca to the PCA primary axis for each 3D hit
         // Importantly, this also gives us the arclength along that axis to the hit
         fPCAAlg.PCAAnalysis_calc3DDocas(clusHitPairVector, fullPCA);
         
         // Sort the hits along the PCA
         clusHitPairVector.sort([](const auto& left, const auto& right){return left->getArclenToPoca() < right->getArclenToPoca();});
-        
-        // Set up container to keep track of edges
-        using DistEdgeTuple    = std::tuple<float, const reco::EdgeTuple*>;
-        using DistEdgeTupleVec = std::vector<DistEdgeTuple>;
-        
-        DistEdgeTupleVec distEdgeTupleVec;
-        
-        // Now loop through all the edges and search for the furthers point
-        for(const auto& edge : clusterToBreak.getBestEdgeList())
-        {
-            const reco::ClusterHit3D* nextEdgeHit = std::get<0>(edge);  // recover the first point
-            
-            // Create vector to this point from the longest edge
-            Eigen::Vector3f hitToEdgeVec(nextEdgeHit->getPosition()[0] - firstEdgeHit->getPosition()[0],
-                                         nextEdgeHit->getPosition()[1] - firstEdgeHit->getPosition()[1],
-                                         nextEdgeHit->getPosition()[2] - firstEdgeHit->getPosition()[2]);
-            
-            // Get projection
-            float hitProjection = hitToEdgeVec.dot(edgeVec);
-            
-            // Require that the point is really "opposite" the longest edge
-            if (hitProjection > 0. && hitProjection < edgeLen)
-            {
-                Eigen::Vector3f distToHitVec = hitToEdgeVec - hitProjection * edgeVec;
-                float           distToHit    = distToHitVec.norm();
-                
-                distEdgeTupleVec.emplace_back(distToHit,&edge);
-            }
-        }
-        
-        std::sort(distEdgeTupleVec.begin(),distEdgeTupleVec.end(),[](const auto& left,const auto& right){return std::get<0>(left) > std::get<0>(right);});
 
         // Get a temporary  container to hol
         reco::ClusterParametersList tempClusterParametersList;
-        float                       usedDefectDist(0.);
         
-        for(const auto& distEdgeTuple : distEdgeTupleVec)
+        // Try breaking clusters by finding the "maximum defect" point.
+        // If this fails the fallback in the event of still large clusters is to split in half
+//        if (!breakClusterByMaxDefect(clusterToBreak, clusHitPairVector, tempClusterParametersList, level))
+        if (!breakClusterByKinks(clusterToBreak, clusHitPairVector, tempClusterParametersList, level))
         {
-            const reco::EdgeTuple&    edgeTuple = *std::get<1>(distEdgeTuple);
-            const reco::ClusterHit3D* edgeHit   = std::get<0>(edgeTuple);
-            
-            usedDefectDist = std::get<0>(distEdgeTuple);
-            
-            // Now find the hit identified above as furthest away
-            reco::HitPairListPtr::iterator vertexItr = std::find(clusHitPairVector.begin(),clusHitPairVector.end(),edgeHit);
-            
-            // Make sure enough hits either side, otherwise we just keep the current cluster
-            if (vertexItr == clusHitPairVector.end() || std::distance(clusHitPairVector.begin(),vertexItr) < int(fMinTinyClusterSize) || std::distance(vertexItr,clusHitPairVector.end()) < int(fMinTinyClusterSize)) continue;
-            
-            tempClusterParametersList.push_back(reco::ClusterParameters());
-            
-            reco::ClusterParameters& clusterParams1  = tempClusterParametersList.back();
-
-            if (makeCandidateCluster(fullPrimaryVec, clusterParams1, clusHitPairVector.begin(), vertexItr, level))
+            // Look to see if we can break at a gap
+            if (!breakClusterAtBigGap(clusterToBreak, clusHitPairVector, tempClusterParametersList, level))
             {
-                tempClusterParametersList.push_back(reco::ClusterParameters());
-                
-                reco::ClusterParameters& clusterParams2  = tempClusterParametersList.back();
-                
-                if (makeCandidateCluster(fullPrimaryVec, clusterParams2, vertexItr, clusHitPairVector.end(), level)) break;
-            }
-            
-            // If here then we could not make two valid clusters and so we try again
-            tempClusterParametersList.clear();
-        }
-        
-        // Fallback in the event of still large clusters but not defect points
-        if (tempClusterParametersList.empty())
-        {
-            usedDefectDist = 0.;
-            
-            if (edgeLen > 20.)
-            {
-                reco::HitPairListPtr::iterator vertexItr = clusHitPairVector.begin();
-                
-                std::advance(vertexItr, clusHitPairVector.size()/2);
-                
-                tempClusterParametersList.push_back(reco::ClusterParameters());
-                
-                reco::ClusterParameters& clusterParams1  = tempClusterParametersList.back();
-                
-                if (makeCandidateCluster(fullPrimaryVec, clusterParams1, clusHitPairVector.begin(), vertexItr, level))
-                {
-                    tempClusterParametersList.push_back(reco::ClusterParameters());
-                    
-                    reco::ClusterParameters& clusterParams2  = tempClusterParametersList.back();
-                    
-                    if (!makeCandidateCluster(fullPrimaryVec, clusterParams2, vertexItr, clusHitPairVector.end(), level))
-                        tempClusterParametersList.clear();
-                }
+                // It might be that we have a large deviation in the convex hull...
+                if (!breakClusterByMaxDefect(clusterToBreak, clusHitPairVector, tempClusterParametersList, level))
+                    // Well, we don't want "flippers" so make sure the edge has some teeth to it
+                    if (edgeLen > 10.) breakClusterInHalf(clusterToBreak, clusHitPairVector, tempClusterParametersList, level);
             }
         }
 
@@ -504,6 +451,10 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
             // Are we filling histograms
             if (fFillHistograms)
             {
+                std::vector<double> eigenValVec = {3. * std::sqrt(fullPCA.getEigenValues()[0]),
+                                                   3. * std::sqrt(fullPCA.getEigenValues()[1]),
+                                                   3. * std::sqrt(fullPCA.getEigenValues()[2])};
+                
                 // Recover the new fullPCA
                 reco::PrincipalComponents& newFullPCA = clusterParams.getFullPCA();
                 
@@ -525,8 +476,6 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
                 fSubCosToPrevPCA->Fill(cosToLast, 1.);
                 fSubPrimaryLength->Fill(std::min(eigenValVec[0],199.), 1.);
                 fSubCosExtToPCA->Fill(fullPrimaryVec.dot(edgeVec), 1.);
-                fSubMaxDefect->Fill(std::get<0>(distEdgeTupleVec.front()), 1.);
-                fSubUsedDefect->Fill(usedDefectDist, 1.);
             }
             
             // The above points to the element, want the next element
@@ -552,9 +501,83 @@ bool ConvexHullPathFinder::makeCandidateCluster(Eigen::Vector3f&               p
     
     // and copy the hits into the container
     std::copy(firstHitItr,lastHitItr,hitPairListPtr.begin());
+   
+    // Will we want to store this cluster?
+    bool keepThisCluster(false);
     
+    // Must have a valid pca
+    if (completeCandidateCluster(primaryPCA, candCluster, level))
+    {
+        // Recover the new fullPCA
+        reco::PrincipalComponents& newFullPCA = candCluster.getFullPCA();
+        
+        // Need to check if the PCA direction has been reversed
+        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
+
+        std::vector<double> eigenValVec      = {3. * std::sqrt(newFullPCA.getEigenValues()[0]),
+                                                3. * std::sqrt(newFullPCA.getEigenValues()[1]),
+                                                3. * std::sqrt(newFullPCA.getEigenValues()[2])};
+        double              cosNewToLast     = std::abs(primaryPCA.dot(newPrimaryVec));
+        double              eigen2To1Ratio   = eigenValVec[2] / eigenValVec[1];
+        double              eigen1To0Ratio   = eigenValVec[1] / eigenValVec[0];
+        
+        // Create a rough cut intended to tell us when we've reached the land of diminishing returns
+//        if (candCluster.getBestEdgeList().size() > 4 && cosNewToLast > 0.25 && eigen2To1Ratio < 0.9 && eigen2To0Ratio > 0.001)
+        if (candCluster.getConvexHull().getConvexHullEdgeList().size() > 4 && cosNewToLast > 0.25 && eigen2To1Ratio > 0.01 && eigen2To1Ratio < 0.99 && eigen1To0Ratio < 0.5)
+        {
+            keepThisCluster = true;
+        }
+    }
+    
+    return keepThisCluster;
+}
+
+bool ConvexHullPathFinder::makeCandidateCluster(Eigen::Vector3f&         primaryPCA,
+                                                reco::ClusterParameters& candCluster,
+                                                HitOrderTupleList&       orderedList,
+                                                int                      level) const
+{
+    std::string indent(level/2, ' ');
+    
+    reco::HitPairListPtr& hitPairListPtr = candCluster.getHitPairListPtr();
+    
+    // Fill the list the old fashioned way...
+    for(const auto& tupleVal : orderedList) hitPairListPtr.emplace_back(std::get<2>(std::get<2>(tupleVal)));
+    
+    // Will we want to store this cluster?
+    bool keepThisCluster(false);
+    
+    // Must have a valid pca
+    if (completeCandidateCluster(primaryPCA, candCluster, level))
+    {
+        // Recover the new fullPCA
+        reco::PrincipalComponents& newFullPCA = candCluster.getFullPCA();
+        
+        // Need to check if the PCA direction has been reversed
+        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
+        
+        std::vector<double> eigenValVec      = {3. * std::sqrt(newFullPCA.getEigenValues()[0]),
+            3. * std::sqrt(newFullPCA.getEigenValues()[1]),
+            3. * std::sqrt(newFullPCA.getEigenValues()[2])};
+        double              cosNewToLast     = std::abs(primaryPCA.dot(newPrimaryVec));
+        double              eigen2To1Ratio   = eigenValVec[2] / eigenValVec[1];
+        double              eigen1To0Ratio   = eigenValVec[1] / eigenValVec[0];
+        
+        // Create a rough cut intended to tell us when we've reached the land of diminishing returns
+        //        if (candCluster.getBestEdgeList().size() > 4 && cosNewToLast > 0.25 && eigen2To1Ratio < 0.9 && eigen2To0Ratio > 0.001)
+        if (candCluster.getBestEdgeList().size() > 4 && cosNewToLast > 0.25 && eigen2To1Ratio > 0.01 && eigen2To1Ratio < 0.99 && eigen1To0Ratio < 0.5)
+        {
+            keepThisCluster = true;
+        }
+    }
+    
+    return keepThisCluster;
+}
+
+bool ConvexHullPathFinder::completeCandidateCluster(Eigen::Vector3f& primaryPCA, reco::ClusterParameters& candCluster, int level) const
+{
     // First stage of feature extraction runs here
-    fPCAAlg.PCAAnalysis_3D(hitPairListPtr, candCluster.getFullPCA());
+    fPCAAlg.PCAAnalysis_3D(candCluster.getHitPairListPtr(), candCluster.getFullPCA());
     
     // Recover the new fullPCA
     reco::PrincipalComponents& newFullPCA = candCluster.getFullPCA();
@@ -590,8 +613,6 @@ bool ConvexHullPathFinder::makeCandidateCluster(Eigen::Vector3f&               p
                                                    eigenVectors,
                                                    newFullPCA.getAvePosition(),
                                                    newFullPCA.getAveHitDoca());
-            
-            newPrimaryVec = Eigen::Vector3f(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
         }
         
         // Set the skeleton PCA to make sure it has some value
@@ -599,26 +620,398 @@ bool ConvexHullPathFinder::makeCandidateCluster(Eigen::Vector3f&               p
         
         // Be sure to compute the oonvex hull surrounding the now broken cluster
         buildConvexHull(candCluster, level+2);
-
-        std::vector<double> eigenValVec      = {3. * std::sqrt(newFullPCA.getEigenValues()[0]),
-                                                3. * std::sqrt(newFullPCA.getEigenValues()[1]),
-                                                3. * std::sqrt(newFullPCA.getEigenValues()[2])};
-        double              cosNewToLast     = std::abs(primaryPCA.dot(newPrimaryVec));
-        double              eigen2To1Ratio   = eigenValVec[2] / eigenValVec[1];
-        double              eigen1To0Ratio   = eigenValVec[1] / eigenValVec[0];
         
-        // Create a rough cut intended to tell us when we've reached the land of diminishing returns
-//        if (candCluster.getBestEdgeList().size() > 4 && cosNewToLast > 0.25 && eigen2To1Ratio < 0.9 && eigen2To0Ratio > 0.001)
-        if (candCluster.getBestEdgeList().size() > 4 && cosNewToLast > 0.25 && eigen2To1Ratio > 0.01 && eigen2To1Ratio < 0.99 && eigen1To0Ratio < 0.5)
-        {
-            keepThisCluster = true;
-        }
+        keepThisCluster = true;
     }
     
     return keepThisCluster;
 }
 
+bool ConvexHullPathFinder::breakClusterByKinks(reco::ClusterParameters& clusterToBreak, reco::HitPairListPtr& hitList, reco::ClusterParametersList& outputClusterList, int level) const
+{
+    // Set up container to keep track of edges
+    using HitKinkTuple    = std::tuple<int, reco::HitPairListPtr::iterator>;
+    using HitKinkTupleVec = std::vector<HitKinkTuple>;
+    
+    // Set up container to keep track of edges
+    HitKinkTupleVec kinkTupleVec;
+    
+    reco::ConvexHull&              convexHull    = clusterToBreak.getConvexHull();
+    reco::ConvexHullKinkTupleList& kinkPointList = convexHull.getConvexHullKinkPoints();
+    
+    for(auto& kink : kinkPointList)
+    {
+        const reco::ClusterHit3D* hit3D = std::get<2>(std::get<0>(kink));
+        
+        reco::HitPairListPtr::iterator kinkItr = std::find(hitList.begin(),hitList.end(),hit3D);
+        
+        if (kinkItr == hitList.end()) continue;
+        
+        int numStartToKink = std::distance(hitList.begin(),kinkItr);
+        int numKinkToEnd   = std::distance(kinkItr, hitList.end());
+        int minNumHits     = std::min(numStartToKink,numKinkToEnd);
+        
+        if (minNumHits > int(fMinTinyClusterSize)) kinkTupleVec.emplace_back(minNumHits,kinkItr);
+    }
+    
+    // No work if the list is empty
+    if (!kinkTupleVec.empty())
+    {
+        std::sort(kinkTupleVec.begin(),kinkTupleVec.end(),[](const auto& left,const auto& right){return std::get<0>(left) > std::get<0>(right);});
+        
+        // Recover the kink point
+        reco::HitPairListPtr::iterator kinkItr = std::get<1>(kinkTupleVec.front());
+        
+        // Set up to split the input cluster
+        outputClusterList.push_back(reco::ClusterParameters());
+        
+        reco::ClusterParameters& clusterParams1  = outputClusterList.back();
+        
+        reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
+        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+        
+        if (makeCandidateCluster(fullPrimaryVec, clusterParams1, hitList.begin(), kinkItr, level))
+        {
+            outputClusterList.push_back(reco::ClusterParameters());
+            
+            reco::ClusterParameters& clusterParams2  = outputClusterList.back();
+            
+            makeCandidateCluster(fullPrimaryVec, clusterParams2, kinkItr, hitList.end(), level);
+        }
+        
+        // If we did not make 2 clusters then be sure to clear the output list
+        if (outputClusterList.size() != 2) outputClusterList.clear();
+    }
+    
+    return !outputClusterList.empty();
+}
 
+bool ConvexHullPathFinder::breakClusterByKinksTrial(reco::ClusterParameters& clusterToBreak, reco::HitPairListPtr& hitList, reco::ClusterParametersList& outputClusterList, int level) const
+{
+    // Set up container to keep track of edges
+    KinkTupleVec kinkTupleVec;
+    
+    reco::ConvexHull&              convexHull    = clusterToBreak.getConvexHull();
+    reco::ProjectedPointList&      pointList     = convexHull.getProjectedPointList();
+    reco::ConvexHullKinkTupleList& kinkPointList = convexHull.getConvexHullKinkPoints();
+    
+    for(auto& kink : kinkPointList)
+    {
+        // Make an instance of the vec value to avoid copying if we can...
+        kinkTupleVec.push_back(KinkTuple());
+        
+        KinkTuple& kinkTuple = kinkTupleVec.back();
+        
+        std::get<1>(kinkTuple) = kink;
+        
+        // Recover vectors, want them pointing away from intersection point
+        Eigen::Vector2f    firstEdge  = -std::get<1>(kink);
+        HitOrderTupleList& firstList  = std::get<2>(kinkTuple);
+        HitOrderTupleList& secondList = std::get<3>(kinkTuple);
+        
+        orderHitsAlongEdge(pointList, std::get<0>(kink), firstEdge, firstList);
+        
+        if (firstList.size() > fMinTinyClusterSize)
+        {
+            Eigen::Vector2f secondEdge = std::get<2>(kink);
+        
+            orderHitsAlongEdge(pointList, std::get<0>(kink), secondEdge, secondList);
+        
+            if (secondList.size() > fMinTinyClusterSize)
+                std::get<0>(kinkTuple) = std::min(firstList.size(),secondList.size());
+        }
+        
+        // Special handling...
+        if (firstList.size() + secondList.size() > pointList.size())
+        {
+            if (firstList.size() > secondList.size()) pruneHitOrderTupleLists(firstList,secondList);
+            else                                      pruneHitOrderTupleLists(secondList,firstList);
+            
+            std::get<0>(kinkTuple) = std::min(firstList.size(),secondList.size());
+        }
+        
+        if (std::get<0>(kinkTuple) < int(fMinTinyClusterSize)) kinkTupleVec.pop_back();
+    }
+    
+    // No work if the list is empty
+    if (!kinkTupleVec.empty())
+    {
+        // If more than one then want the kink with the most elements both sizes
+        std::sort(kinkTupleVec.begin(),kinkTupleVec.end(),[](const auto& left,const auto& right){return std::get<0>(left) > std::get<0>(right);});
+        
+        // Recover the kink point
+        KinkTuple& kinkTuple = kinkTupleVec.front();
+        
+        // Set up to split the input cluster
+        outputClusterList.push_back(reco::ClusterParameters());
+        
+        reco::ClusterParameters& clusterParams1  = outputClusterList.back();
+        
+        reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
+        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+
+        if (makeCandidateCluster(fullPrimaryVec, clusterParams1, std::get<2>(kinkTuple), level))
+        {
+            outputClusterList.push_back(reco::ClusterParameters());
+            
+            reco::ClusterParameters& clusterParams2  = outputClusterList.back();
+            
+            makeCandidateCluster(fullPrimaryVec, clusterParams2, std::get<3>(kinkTuple), level);
+        }
+        
+        // If we did not make 2 clusters then be sure to clear the output list
+        if (outputClusterList.size() != 2) outputClusterList.clear();
+    }
+
+    return !outputClusterList.empty();
+}
+    
+void ConvexHullPathFinder::orderHitsAlongEdge(const reco::ProjectedPointList& hitList,
+                                              const reco::ProjectedPoint& point,
+                                              const Eigen::Vector2f& edge,
+                                              HitOrderTupleList& orderedList) const
+{
+    // Use the input kink point as the start point of the edge
+    Eigen::Vector2f kinkPos(std::get<0>(point),std::get<1>(point));
+    
+    // Loop over the input hits
+    for (const auto& hit : hitList)
+    {
+        // Now we need to calculate the doca and poca...
+        // Start by getting this hits position
+        Eigen::Vector2f hitPos(std::get<0>(hit),std::get<1>(hit));
+        
+        // Form a TVector from this to the cluster average position
+        Eigen::Vector2f hitToKinkVec = hitPos - kinkPos;
+        
+        // With this we can get the arclength to the doca point
+        float arcLenToPoca = hitToKinkVec.dot(edge);
+        
+        // Require the hit to not be past the kink point
+        if (arcLenToPoca < 0.) continue;
+        
+        // Get the coordinates along the axis for this point
+        Eigen::Vector2f pocaPos = kinkPos + arcLenToPoca * edge;
+        
+        // Now get doca and poca
+        Eigen::Vector2f pocaPosToHitPos = hitPos - pocaPos;
+        float           pocaToAxis      = pocaPosToHitPos.norm();
+        
+        std::cout << "-- arcLenToPoca: " << arcLenToPoca << ", doca: " << pocaToAxis << std::endl;
+        
+        orderedList.emplace_back(arcLenToPoca,pocaToAxis,hit);
+    }
+
+    // Sort the list in order of ascending distance from the kink point
+    orderedList.sort([](const auto& left,const auto& right){return std::get<0>(left) < std::get<0>(right);});
+
+    return;
+}
+    
+void ConvexHullPathFinder::pruneHitOrderTupleLists(HitOrderTupleList& shortList, HitOrderTupleList& longList) const
+{
+    // Assume the first list is the short one, so we loop through the elements of that list..
+    HitOrderTupleList::iterator shortItr = shortList.begin();
+    
+    while(shortItr != shortList.end())
+    {
+        // Recover the search key
+        const reco::ClusterHit3D* hit3D = std::get<2>(std::get<2>(*shortItr));
+        
+        // Ok, find the corresponding point in the other list...
+        HitOrderTupleList::iterator longItr = std::find_if(longList.begin(),longList.end(),[&hit3D](const auto& elem){return hit3D == std::get<2>(std::get<2>(elem));});
+        
+        if (longItr != longList.end())
+        {
+            if (std::get<1>(*longItr) < std::get<1>(*shortItr))
+            {
+                shortItr = shortList.erase(shortItr);
+            }
+            else
+            {
+                longItr = longList.erase(longItr);
+                shortItr++;
+            }
+        }
+        else shortItr++;
+    }
+    
+    
+    return;
+}
+
+bool ConvexHullPathFinder::breakClusterByMaxDefect(reco::ClusterParameters& clusterToBreak, reco::HitPairListPtr& hitList, reco::ClusterParametersList& outputClusterList, int level) const
+{
+    // Set up container to keep track of edges
+    using DistEdgeTuple    = std::tuple<float, const reco::EdgeTuple*>;
+    using DistEdgeTupleVec = std::vector<DistEdgeTuple>;
+    
+    DistEdgeTupleVec distEdgeTupleVec;
+    
+    reco::ProjectedPointList::const_iterator extremePointListItr = clusterToBreak.getConvexHull().getConvexHullExtremePoints().begin();
+    
+    const reco::ClusterHit3D*  firstEdgeHit  = std::get<2>(*extremePointListItr++);
+    const reco::ClusterHit3D*  secondEdgeHit = std::get<2>(*extremePointListItr);
+    Eigen::Vector3f            edgeVec(secondEdgeHit->getPosition()[0] - firstEdgeHit->getPosition()[0],
+                                       secondEdgeHit->getPosition()[1] - firstEdgeHit->getPosition()[1],
+                                       secondEdgeHit->getPosition()[2] - firstEdgeHit->getPosition()[2]);
+    double                     edgeLen       = edgeVec.norm();
+    
+    // normalize it
+    edgeVec.normalize();
+    
+
+    // Now loop through all the edges and search for the furthers point
+    for(const auto& edge : clusterToBreak.getBestEdgeList())
+    {
+        const reco::ClusterHit3D* nextEdgeHit = std::get<0>(edge);  // recover the first point
+        
+        // Create vector to this point from the longest edge
+        Eigen::Vector3f hitToEdgeVec(nextEdgeHit->getPosition()[0] - firstEdgeHit->getPosition()[0],
+                                     nextEdgeHit->getPosition()[1] - firstEdgeHit->getPosition()[1],
+                                     nextEdgeHit->getPosition()[2] - firstEdgeHit->getPosition()[2]);
+        
+        // Get projection
+        float hitProjection = hitToEdgeVec.dot(edgeVec);
+        
+        // Require that the point is really "opposite" the longest edge
+        if (hitProjection > 0. && hitProjection < edgeLen)
+        {
+            Eigen::Vector3f distToHitVec = hitToEdgeVec - hitProjection * edgeVec;
+            float           distToHit    = distToHitVec.norm();
+            
+            distEdgeTupleVec.emplace_back(distToHit,&edge);
+        }
+    }
+    
+    std::sort(distEdgeTupleVec.begin(),distEdgeTupleVec.end(),[](const auto& left,const auto& right){return std::get<0>(left) > std::get<0>(right);});
+    
+    reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
+    Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+
+    // Get a temporary  container to hol
+    float usedDefectDist(0.);
+    
+    for(const auto& distEdgeTuple : distEdgeTupleVec)
+    {
+        const reco::EdgeTuple&    edgeTuple = *std::get<1>(distEdgeTuple);
+        const reco::ClusterHit3D* edgeHit   = std::get<0>(edgeTuple);
+        
+        usedDefectDist = std::get<0>(distEdgeTuple);
+        
+        // Now find the hit identified above as furthest away
+        reco::HitPairListPtr::iterator vertexItr = std::find(hitList.begin(),hitList.end(),edgeHit);
+        
+        // Make sure enough hits either side, otherwise we just keep the current cluster
+        if (vertexItr == hitList.end() || std::distance(hitList.begin(),vertexItr) < int(fMinTinyClusterSize) || std::distance(vertexItr,hitList.end()) < int(fMinTinyClusterSize)) continue;
+        
+        outputClusterList.push_back(reco::ClusterParameters());
+        
+        reco::ClusterParameters& clusterParams1  = outputClusterList.back();
+        
+        if (makeCandidateCluster(fullPrimaryVec, clusterParams1, hitList.begin(), vertexItr, level))
+        {
+            outputClusterList.push_back(reco::ClusterParameters());
+            
+            reco::ClusterParameters& clusterParams2  = outputClusterList.back();
+            
+            if (makeCandidateCluster(fullPrimaryVec, clusterParams2, vertexItr, hitList.end(), level))
+            {
+                if (fFillHistograms)
+                {
+                    fSubMaxDefect->Fill(std::get<0>(distEdgeTupleVec.front()), 1.);
+                    fSubUsedDefect->Fill(usedDefectDist, 1.);
+                }
+                break;
+            }
+        }
+        
+        // If here then we could not make two valid clusters and so we try again
+        outputClusterList.clear();
+    }
+    
+   return !outputClusterList.empty();
+}
+    
+bool ConvexHullPathFinder::breakClusterInHalf(reco::ClusterParameters& clusterToBreak, reco::HitPairListPtr& hitList, reco::ClusterParametersList& outputClusterList, int level) const
+{
+    reco::HitPairListPtr::iterator vertexItr = hitList.begin();
+    
+    std::advance(vertexItr, hitList.size()/2);
+    
+    outputClusterList.push_back(reco::ClusterParameters());
+    
+    reco::ClusterParameters& clusterParams1  = outputClusterList.back();
+    
+    reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
+    Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+
+    if (makeCandidateCluster(fullPrimaryVec, clusterParams1, hitList.begin(), vertexItr, level))
+    {
+        outputClusterList.push_back(reco::ClusterParameters());
+        
+        reco::ClusterParameters& clusterParams2  = outputClusterList.back();
+        
+        makeCandidateCluster(fullPrimaryVec, clusterParams2, vertexItr, hitList.end(), level);
+    }
+    
+    if (outputClusterList.size() != 2) outputClusterList.clear();
+    
+    return !outputClusterList.empty();
+}
+    
+bool ConvexHullPathFinder::breakClusterAtBigGap(reco::ClusterParameters& clusterToBreak, reco::HitPairListPtr& hitList, reco::ClusterParametersList& outputClusterList, int level) const
+{
+    // Idea here is to scan the input hit list (assumed ordered along the current PCA) and look for "large" gaps
+    // Here a gap is determined when the hits were ordered by their distance along the primary PCA to their doca to it.
+    
+    // Loop through the input hit list and keep track of first hit of largest gap
+    reco::HitPairListPtr::iterator bigGapHitItr = hitList.begin();
+    float                                biggestGap   = 0.;
+    
+    const reco::ClusterHit3D* lastHit = *hitList.begin();
+    
+    for(reco::HitPairListPtr::iterator hitItr = hitList.begin(); hitItr != hitList.end(); hitItr++)
+    {
+        const reco::ClusterHit3D* currentHit = *hitItr;
+        
+        float currentGap = std::abs(currentHit->getArclenToPoca() - lastHit->getArclenToPoca());
+        
+        if (currentGap > biggestGap)
+        {
+            bigGapHitItr = hitItr;
+            biggestGap   = currentGap;
+        }
+        
+        lastHit = currentHit;
+    }
+    
+    // Require some minimum gap size...
+    if (biggestGap > 2.)
+    {
+        outputClusterList.push_back(reco::ClusterParameters());
+        
+        reco::ClusterParameters& clusterParams1  = outputClusterList.back();
+        
+        reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
+        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+        
+        if (makeCandidateCluster(fullPrimaryVec, clusterParams1, hitList.begin(), bigGapHitItr, level))
+        {
+            outputClusterList.push_back(reco::ClusterParameters());
+            
+            reco::ClusterParameters& clusterParams2  = outputClusterList.back();
+            
+            makeCandidateCluster(fullPrimaryVec, clusterParams2, bigGapHitItr, hitList.end(), level);
+        }
+        
+        if (outputClusterList.size() != 2) outputClusterList.clear();
+    }
+    
+    return !outputClusterList.empty();
+}
+
+    
 void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParameters, int level) const
 {
     // set an indention string
@@ -643,12 +1036,9 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
     rotationMatrix << planeVec0(0),    planeVec0(1),    planeVec0(2),
                       planeVec1(0),    planeVec1(1),    planeVec1(2),
                       pcaPlaneNrml(0), pcaPlaneNrml(1), pcaPlaneNrml(2);
-
-    //dcel2d::PointList pointList;
-    using Point     = std::tuple<float,float,const reco::ClusterHit3D*>;
-    using PointList = std::list<Point>;
     
-    PointList pointList;
+    reco::ConvexHull&         convexHull = clusterParameters.getConvexHull();
+    reco::ProjectedPointList& pointList  = convexHull.getProjectedPointList();
 
     // Loop through hits and do projection to plane
     for(const auto& hit3D : clusterParameters.getHitPairListPtr())
@@ -665,20 +1055,20 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
     pointList.sort([](const auto& left, const auto& right){return (std::abs(std::get<0>(left) - std::get<0>(right)) > std::numeric_limits<float>::epsilon()) ? std::get<0>(left) < std::get<0>(right) : std::get<1>(left) < std::get<1>(right);});
     
     // containers for finding the "best" hull...
-    std::vector<ConvexHull> convexHullVec;
-    std::vector<PointList>  rejectedListVec;
-    bool                    increaseDepth(pointList.size() > 5);
-    float                   lastArea(std::numeric_limits<float>::max());
+    std::vector<ConvexHull>               convexHullVec;
+    std::vector<reco::ProjectedPointList> rejectedListVec;
+    bool                                  increaseDepth(pointList.size() > 3);
+    float                                 lastArea(std::numeric_limits<float>::max());
 
     while(increaseDepth)
     {
         // Get another convexHull container
-        convexHullVec.push_back(ConvexHull(pointList));
-        rejectedListVec.push_back(PointList());
+        convexHullVec.push_back(ConvexHull(pointList, fConvexHullKinkAngle, fConvexHullMinSep));
+        rejectedListVec.push_back(reco::ProjectedPointList());
 
-        const ConvexHull& convexHull       = convexHullVec.back();
-        PointList&        rejectedList     = rejectedListVec.back();
-        const PointList&  convexHullPoints = convexHull.getConvexHull();
+        const ConvexHull&               convexHull       = convexHullVec.back();
+        reco::ProjectedPointList&       rejectedList     = rejectedListVec.back();
+        const reco::ProjectedPointList& convexHullPoints = convexHull.getConvexHull();
         
         increaseDepth = false;
         
@@ -722,10 +1112,10 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
         }
         
         // Now add "edges" to the cluster to describe the convex hull (for the display)
-        reco::Hit3DToEdgeMap& edgeMap      = clusterParameters.getHit3DToEdgeMap();
-        reco::EdgeList&       bestEdgeList = clusterParameters.getBestEdgeList();
+        reco::Hit3DToEdgeMap& edgeMap  = convexHull.getConvexHullEdgeMap();
+        reco::EdgeList&       edgeList = convexHull.getConvexHullEdgeList();
 
-        Point lastPoint = convexHullVec.back().getConvexHull().front();
+        reco::ProjectedPoint lastPoint = convexHullVec.back().getConvexHull().front();
     
         for(auto& curPoint : convexHullVec.back().getConvexHull())
         {
@@ -744,21 +1134,22 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
         
             edgeMap[lastPoint3D].push_back(edge);
             edgeMap[curPoint3D].push_back(edge);
-            bestEdgeList.emplace_back(edge);
+            edgeList.emplace_back(edge);
         
             lastPoint = curPoint;
         }
         
         // Store the "extreme" points
         const ConvexHull::PointList& extremePoints    = convexHullVec.back().getExtremePoints();
-        reco::HitPairListPtr&        extremePointList = clusterParameters.getConvexExtremePoints();
+        reco::ProjectedPointList&    extremePointList = convexHull.getConvexHullExtremePoints();
         
-        for(const auto& point : extremePoints) extremePointList.push_back(std::get<2>(point));
+        for(const auto& point : extremePoints) extremePointList.push_back(point);
+        
         // Store the "kink" points
-        const ConvexHull::PointList& kinkPoints    = convexHullVec.back().getKinkPoints();
-        reco::HitPairListPtr&        kinkPointList = clusterParameters.getConvexKinkPoints();
+        const reco::ConvexHullKinkTupleList& kinkPoints    = convexHullVec.back().getKinkPoints();
+        reco::ConvexHullKinkTupleList&       kinkPointList = convexHull.getConvexHullKinkPoints();
         
-        for(const auto& point : kinkPoints) kinkPointList.push_back(std::get<2>(point));
+        for(const auto& kink : kinkPoints) kinkPointList.push_back(kink);
     }
 
     return;

@@ -398,10 +398,10 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
         // 2) form the vector between them
         // 3) loop through the vertices and keep track of distance to this vector
         // 4) Sort the resulting list by furthest points and select the one we want
-        reco::HitPairListPtr::const_iterator extremePointListItr = clusterToBreak.getConvexExtremePoints().begin();
+        reco::ProjectedPointList::const_iterator extremePointListItr = clusterToBreak.getConvexHull().getConvexHullExtremePoints().begin();
         
-        const reco::ClusterHit3D* firstEdgeHit  = *extremePointListItr++;
-        const reco::ClusterHit3D* secondEdgeHit = *extremePointListItr;
+        const reco::ClusterHit3D* firstEdgeHit  = std::get<2>(*extremePointListItr++);
+        const reco::ClusterHit3D* secondEdgeHit = std::get<2>(*extremePointListItr);
         Eigen::Vector3f           edgeVec(secondEdgeHit->getPosition()[0] - firstEdgeHit->getPosition()[0],
                                           secondEdgeHit->getPosition()[1] - firstEdgeHit->getPosition()[1],
                                           secondEdgeHit->getPosition()[2] - firstEdgeHit->getPosition()[2]);
@@ -632,10 +632,10 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::subDivideCluster(reco::
         // 2) form the vector between them
         // 3) loop through the vertices and keep track of distance to this vector
         // 4) Sort the resulting list by furthest points and select the one we want
-        reco::HitPairListPtr::const_iterator extremePointListItr = clusterToBreak.getConvexExtremePoints().begin();
+        reco::ProjectedPointList::const_iterator extremePointListItr = clusterToBreak.getConvexHull().getConvexHullExtremePoints().begin();
 
-        const reco::ClusterHit3D*  firstEdgeHit  = *extremePointListItr++;
-        const reco::ClusterHit3D*  secondEdgeHit = *extremePointListItr;
+        const reco::ClusterHit3D*  firstEdgeHit  = std::get<2>(*extremePointListItr++);
+        const reco::ClusterHit3D*  secondEdgeHit = std::get<2>(*extremePointListItr);
         Eigen::Vector3f            edgeVec(secondEdgeHit->getPosition()[0] - firstEdgeHit->getPosition()[0],
                                            secondEdgeHit->getPosition()[1] - firstEdgeHit->getPosition()[1],
                                            secondEdgeHit->getPosition()[2] - firstEdgeHit->getPosition()[2]);
@@ -943,7 +943,8 @@ void VoronoiPathFinder::buildConvexHull(reco::ClusterParameters& clusterParamete
     using Point     = std::tuple<float,float,const reco::ClusterHit3D*>;
     using PointList = std::list<Point>;
     
-    PointList pointList;
+    reco::ConvexHull& convexHull = clusterParameters.getConvexHull();
+    PointList         pointList  = convexHull.getProjectedPointList();
 
     // Loop through hits and do projection to plane
     for(const auto& hit3D : clusterParameters.getHitPairListPtr())
@@ -1027,8 +1028,8 @@ void VoronoiPathFinder::buildConvexHull(reco::ClusterParameters& clusterParamete
         std::cout << indent << "-> Removed " << nRejectedTotal << " leaving " << pointList.size() << "/" << hitPairListPtr.size() << " points" << std::endl;
         
         // Now add "edges" to the cluster to describe the convex hull (for the display)
-        reco::Hit3DToEdgeMap& edgeMap      = clusterParameters.getHit3DToEdgeMap();
-        reco::EdgeList&       bestEdgeList = clusterParameters.getBestEdgeList();
+        reco::Hit3DToEdgeMap& edgeMap      = convexHull.getConvexHullEdgeMap();
+        reco::EdgeList&       bestEdgeList = convexHull.getConvexHullEdgeList();
 
         Point lastPoint = convexHullVec.back().getConvexHull().front();
     
@@ -1056,9 +1057,9 @@ void VoronoiPathFinder::buildConvexHull(reco::ClusterParameters& clusterParamete
         
         // Store the "extreme" points
         const ConvexHull::PointList& extremePoints    = convexHullVec.back().getExtremePoints();
-        reco::HitPairListPtr&        extremePointList = clusterParameters.getConvexExtremePoints();
+        reco::ProjectedPointList&    extremePointList = convexHull.getConvexHullExtremePoints();
         
-        for(const auto& point : extremePoints) extremePointList.push_back(std::get<2>(point));
+        for(const auto& point : extremePoints) extremePointList.push_back(point);
     }
 
     return;

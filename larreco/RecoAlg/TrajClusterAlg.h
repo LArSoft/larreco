@@ -57,7 +57,7 @@ namespace tca {
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
-    void SetInputHits(std::vector<recob::Hit> const& inputHits);
+    bool SetInputHits(std::vector<recob::Hit> const& inputHits);
 //    void SetMCParticles(std::vector<simb::MCParticle> const& mcps) { fmcpList = &mcps;}
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice);
     bool CreateSlice(std::vector<unsigned int>& hitsInSlice);
@@ -170,7 +170,7 @@ namespace tca {
     void FixTrajBegin(TCSlice& slc, Trajectory& tj);
     void FixTrajBegin(TCSlice& slc, Trajectory& tj, unsigned short atPt);
     void FixTrajEnd(TCSlice& slc, Trajectory& tj, unsigned short atPt);
-    bool IsGhost(TCSlice& slc, std::vector<unsigned int>& tHits, unsigned short& ofTraj);
+    bool IsGhost(TCSlice& slc, std::vector<unsigned int>& tHits);
     bool IsGhost(TCSlice& slc, Trajectory& tj);
     void CheckTrajEnd(TCSlice& slc);
     void EndMerge(TCSlice& slc, CTP_t inCTP, bool lastPass);

@@ -100,7 +100,7 @@ namespace tca {
   // A temporary struct for matching trajectory points; 1 struct for each TP for
   // each trajectory. These are put into mallTraj which is then sorted by increasing xlo
   struct Tj2Pt{
-    std::array<double, 2> dir;
+    Vector2_t dir;
     unsigned int wire;
     // x range spanned by hits on the TP
     float xlo;
@@ -118,7 +118,7 @@ namespace tca {
     CTP_t CTP {0};                   ///< Cryostat, TPC, Plane code
     Point2_t HitPos {{0,0}}; // Charge weighted position of hits in wire equivalent units
     Point2_t Pos {{0,0}}; // Trajectory position in wire equivalent units
-    std::array<double, 2> Dir {{0,0}}; // Direction cosines in the StepDir direction
+    Vector2_t Dir {{0,0}}; // Direction cosines in the StepDir direction
     double HitPosErr2 {0};         // Uncertainty^2 of the hit position perpendiclar to the direction
     // HitPosErr2 < 0 = HitPos not defined because no hits used
     double Ang {0};                // Trajectory angle (-pi, +pi)
@@ -490,7 +490,7 @@ namespace tca {
 
   struct TCHit {
     unsigned int allHitsIndex; // index into fHits
-    short InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
+    int InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
   };
 
   // hit collection for all slices, TPCs and cryostats + event information
