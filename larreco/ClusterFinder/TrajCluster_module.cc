@@ -164,7 +164,9 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
+    
     produces< art::Assns<recob::Slice, recob::PFParticle> >();
+    produces< art::Assns<recob::Slice, recob::Hit> >();
 
     produces< std::vector<anab::CosmicTag>>();
     produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
@@ -421,15 +423,23 @@ namespace cluster {
       pfp_shwr_assn(new art::Assns<recob::PFParticle, recob::Shower>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
       pfp_vx3_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
-    std::unique_ptr<art::Assns<recob::Slice, recob::PFParticle>>
-      slc_pfp_assn(new art::Assns<recob::Slice, recob::PFParticle>);
     std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
       pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
+    // Slice -> ...
+    std::unique_ptr<art::Assns<recob::Slice, recob::PFParticle>>
+      slc_pfp_assn(new art::Assns<recob::Slice, recob::PFParticle>);
+    std::unique_ptr<art::Assns<recob::Slice, recob::Hit>>
+      slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
 
     unsigned short nSlices = fTCAlg->GetSlicesSize();
     // define a hit collection begin index to pass to CreateAssn for each cluster
     unsigned int hitColBeginIndex = 0;
     for(unsigned short isl = 0; isl < nSlices; ++isl) {
+      unsigned short slcIndex = 0;
+      if(!slices.empty()) {
+        for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() != slcIDs[isl]) break;
+        if(slcIndex == slices.size()) continue;
+      }
       auto& slc = fTCAlg->GetSlice(isl);
       // See if there was a serious reconstruction failure that made the slice invalid
       if(!slc.isValid) continue;
@@ -510,6 +520,11 @@ namespace cluster {
           sumADC += newHit.SummedADC();
           // add it to the new hits collection
           hitCol.push_back(newHit);
+          // Slice -> Hit assn
+          if(!util::CreateAssn(*this, evt, hitCol, slices[slcIndex], *slc_hit_assn))
+          {
+            throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate new Hit with Slice";
+          } // exception
         } // tp
         if(badSlice) {
           std::cout<<"Bad slice. Need some error recovery code here\n";
@@ -658,16 +673,10 @@ namespace cluster {
         } // start vertex exists
         // PFParticle -> Slice
         if(!slices.empty()) {
-          unsigned short indx;
-          for(indx = 0; indx < slices.size(); ++indx) {
-            if(slices[indx]->ID() != slcIDs[isl]) continue;
-            if(!util::CreateAssn(*this, evt, pfpCol, slices[indx], *slc_pfp_assn))
-            {
-              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate slice with PFParticle";
-            } // exception
-            break;
-          } // indx
-
+          if(!util::CreateAssn(*this, evt, pfpCol, slices[slcIndex], *slc_pfp_assn))
+          {
+            throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate slice with PFParticle";
+          } // exception
         } // slices exist
 
         // PFParticle -> Shower
@@ -702,10 +711,28 @@ namespace cluster {
       } // ipfp
     } // slice isl
     // add the hits that weren't used in any slice to hitCol
-    for(unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
-      if(newIndex[allHitsIndex] == UINT_MAX) hitCol.push_back((*inputHits)[allHitsIndex]);
-    } // allHitsIndex
-
+    if(!slices.empty()) {
+      auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
+      art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
+      for(unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
+        if(newIndex[allHitsIndex] != UINT_MAX) continue;
+        hitCol.push_back((*inputHits)[allHitsIndex]);
+        // find out which slice it is in
+        for(size_t isl = 0; isl < slices.size(); ++isl) {
+          auto& hit_in_slc = hitFromSlc.at(isl);
+          for(auto& hit : hit_in_slc) {
+            if(hit.key() != allHitsIndex) continue;
+            // Slice -> Hit assn
+            if(!util::CreateAssn(*this, evt, hitCol, slices[isl], *slc_hit_assn, allHitsIndex))
+            {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate old Hit with Slice";
+            } // exception
+            break;
+          } // hit
+        } // isl
+      } // allHitsIndex
+    } // slices exist
+    
     // clear the slices vector
     fTCAlg->ClearResults();
 
@@ -740,8 +767,9 @@ namespace cluster {
     evt.put(std::move(pcol));
     evt.put(std::move(pfp_cls_assn));
     evt.put(std::move(pfp_shwr_assn));
-    evt.put(std::move(slc_pfp_assn));
     evt.put(std::move(pfp_vx3_assn));
+    evt.put(std::move(slc_pfp_assn));
+    evt.put(std::move(slc_hit_assn));
     evt.put(std::move(ctgcol));
     evt.put(std::move(pfp_cos_assn));
   } // TrajCluster::produce()
