@@ -111,11 +111,11 @@ private:
 
     bool completeCandidateCluster(Eigen::Vector3f&, reco::ClusterParameters&, int) const;
 
-    bool breakClusterByKinks(     reco::ClusterParameters&, reco::HitPairListPtr&, reco::ClusterParametersList&, int level) const;
-    bool breakClusterByKinksTrial(reco::ClusterParameters&, reco::HitPairListPtr&, reco::ClusterParametersList&, int level) const;
-    bool breakClusterByMaxDefect( reco::ClusterParameters&, reco::HitPairListPtr&, reco::ClusterParametersList&, int level) const;
-    bool breakClusterInHalf(      reco::ClusterParameters&, reco::HitPairListPtr&, reco::ClusterParametersList&, int level) const;
-    bool breakClusterAtBigGap(    reco::ClusterParameters&, reco::HitPairListPtr&, reco::ClusterParametersList&, int level) const;
+    bool breakClusterByKinks(     reco::ClusterParameters&, reco::ClusterParametersList&, int level) const;
+    bool breakClusterByKinksTrial(reco::ClusterParameters&, reco::ClusterParametersList&, int level) const;
+    bool breakClusterByMaxDefect( reco::ClusterParameters&, reco::ClusterParametersList&, int level) const;
+    bool breakClusterInHalf(      reco::ClusterParameters&, reco::ClusterParametersList&, int level) const;
+    bool breakClusterAtBigGap(    reco::ClusterParameters&, reco::ClusterParametersList&, int level) const;
 
     float closestApproach(const Eigen::Vector3f&,
                           const Eigen::Vector3f&,
@@ -145,6 +145,8 @@ private:
      */
     bool                                        fEnableMonitoring;      ///<
     size_t                                      fMinTinyClusterSize;    ///< Minimum size for a "tiny" cluster
+    float                                       fMinGapSize;            ///< Minimum gap size to break at gaps
+    float                                       fMinEigen0To1Ratio;     ///< Minimum ratio of eigen 0 to 1 to continue breaking
     float                                       fConvexHullKinkAngle;   ///< Angle to declare a kink in convex hull calc
     float                                       fConvexHullMinSep;      ///< Min hit separation to conisder in convex hull
     mutable float                               fTimeToProcess;         ///<
@@ -160,6 +162,7 @@ private:
     TH1F*                                       fTopEigen20Ratio;
     TH1F*                                       fTopEigen10Ratio;
     TH1F*                                       fTopPrimaryLength;
+    TH1F*                                       fTopExtremeSep;
     TH1F*                                       fTopConvexCosEdge;
     TH1F*                                       fTopConvexEdgeLen;
     
@@ -203,9 +206,11 @@ void ConvexHullPathFinder::configure(fhicl::ParameterSet const &pset)
 {
     fEnableMonitoring     = pset.get<bool>  ("EnableMonitoring",   true );
     fMinTinyClusterSize   = pset.get<size_t>("MinTinyClusterSize", 40   );
+    fMinGapSize           = pset.get<float >("MinClusterGapSize",   2.0 );
+    fMinEigen0To1Ratio    = pset.get<float >("MinEigen0To1Ratio",  10.0 );
     fConvexHullKinkAngle  = pset.get<float >("ConvexHullKinkAgle",  0.95);
     fConvexHullMinSep     = pset.get<float >("ConvexHullMinSep",    0.65);
-    fClusterAlg         = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
+    fClusterAlg           = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
 
     art::ServiceHandle<geo::Geometry> geometry;
     
@@ -235,6 +240,7 @@ void ConvexHullPathFinder::initializeHistograms(art::TFileDirectory& histDir)
     fTopEigen20Ratio  = dir.make<TH1F>("TopEigen20Rat", "Eigen 2/0 Ratio", 100,    0.,     1.);
     fTopEigen10Ratio  = dir.make<TH1F>("TopEigen10Rat", "Eigen 1/0 Ratio", 100,    0.,     1.);
     fTopPrimaryLength = dir.make<TH1F>("TopPrimaryLen", "Primary Length",  200,    0.,   200.);
+    fTopExtremeSep    = dir.make<TH1F>("TopExtremeSep", "Extreme Dist",    200,    0.,   200.);
     fTopConvexCosEdge = dir.make<TH1F>("TopConvexCos",  "CH Edge Cos",     100,   -1.,     1.);
     fTopConvexEdgeLen = dir.make<TH1F>("TopConvexEdge", "CH Edge Len",     200,    0.,    50.);
 
@@ -307,7 +313,7 @@ void ConvexHullPathFinder::ModifyClusters(reco::ClusterParametersList& clusterPa
                     buildConvexHull(cluster, 2);
 
                     // Break our cluster into smaller elements...
-                    subDivideCluster(cluster, cluster.getFullPCA(), cluster.daughterList().end(), cluster.daughterList(), 4);
+                    subDivideCluster(cluster, cluster.getFullPCA(), cluster.daughterList().end(), cluster.daughterList(), 0);
             
                     // Add the daughters to the cluster
                     clusterParameters.daughterList().insert(clusterParameters.daughterList().end(),cluster); 
@@ -331,6 +337,7 @@ void ConvexHullPathFinder::ModifyClusters(reco::ClusterParametersList& clusterPa
                         fTopEigen20Ratio->Fill(eigen2To0Ratio, 1.);
                         fTopEigen10Ratio->Fill(eigen1To0Ratio, 1.);
                         fTopPrimaryLength->Fill(std::min(eigenValVec[0],199.), 1.);
+//                        fTopExtremeSep->Fill(std::min(edgeLen,199.), 1.);
                         fillConvexHullHists(clusterParameters, true);
                     }
                 }
@@ -388,13 +395,10 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
         Eigen::Vector3f            edgeVec(secondEdgeHit->getPosition()[0] - firstEdgeHit->getPosition()[0],
                                            secondEdgeHit->getPosition()[1] - firstEdgeHit->getPosition()[1],
                                            secondEdgeHit->getPosition()[2] - firstEdgeHit->getPosition()[2]);
-        double                     edgeLen       = edgeVec.norm();
+//        double                     edgeLen       = edgeVec.norm();
         
         // normalize it
         edgeVec.normalize();
-        
-        // Recover the list of 3D hits associated to this cluster
-        reco::HitPairListPtr& clusHitPairVector = clusterToBreak.getHitPairListPtr();
 
         // Recover the PCA for the input cluster
         reco::PrincipalComponents& fullPCA     = clusterToBreak.getFullPCA();
@@ -402,27 +406,63 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
 
         // Calculate the doca to the PCA primary axis for each 3D hit
         // Importantly, this also gives us the arclength along that axis to the hit
-        fPCAAlg.PCAAnalysis_calc3DDocas(clusHitPairVector, fullPCA);
+//        fPCAAlg.PCAAnalysis_calc3DDocas(clusHitPairVector, fullPCA);
         
         // Sort the hits along the PCA
-        clusHitPairVector.sort([](const auto& left, const auto& right){return left->getArclenToPoca() < right->getArclenToPoca();});
+//        clusHitPairVector.sort([](const auto& left, const auto& right){return left->getArclenToPoca() < right->getArclenToPoca();});
 
         // Get a temporary  container to hol
         reco::ClusterParametersList tempClusterParametersList;
         
         // Try breaking clusters by finding the "maximum defect" point.
         // If this fails the fallback in the event of still large clusters is to split in half
-//        if (!breakClusterByMaxDefect(clusterToBreak, clusHitPairVector, tempClusterParametersList, level))
-        if (!breakClusterByKinks(clusterToBreak, clusHitPairVector, tempClusterParametersList, level))
+        // If starting with the top level cluster then we first try to break at the kinks
+        if (level == 0)
         {
-            // Look to see if we can break at a gap
-            if (!breakClusterAtBigGap(clusterToBreak, clusHitPairVector, tempClusterParametersList, level))
+            //        if (!breakClusterByMaxDefect(clusterToBreak, clusHitPairVector, tempClusterParametersList, level))
+            if (!breakClusterByKinks(clusterToBreak, tempClusterParametersList, level))
             {
-                // It might be that we have a large deviation in the convex hull...
-                if (!breakClusterByMaxDefect(clusterToBreak, clusHitPairVector, tempClusterParametersList, level))
-                    // Well, we don't want "flippers" so make sure the edge has some teeth to it
-                    if (edgeLen > 10.) breakClusterInHalf(clusterToBreak, clusHitPairVector, tempClusterParametersList, level);
+                // Look to see if we can break at a gap
+                if (!breakClusterAtBigGap(clusterToBreak, tempClusterParametersList, level))
+                {
+                    // It might be that we have a large deviation in the convex hull...
+                    if (!breakClusterByMaxDefect(clusterToBreak, tempClusterParametersList, level))
+                    {
+                        std::vector<double> eigenValVec = {3. * std::sqrt(fullPCA.getEigenValues()[0]),
+                                                           3. * std::sqrt(fullPCA.getEigenValues()[1]),
+                                                           3. * std::sqrt(fullPCA.getEigenValues()[2])};
+                        
+                        // Well, we don't want "flippers" so make sure the edge has some teeth to it
+                        //if (edgeLen > 10.) breakClusterInHalf(clusterToBreak, clusHitPairVector, tempClusterParametersList, level);
+                        if (eigenValVec[0] > fMinEigen0To1Ratio * eigenValVec[1]) breakClusterInHalf(clusterToBreak, tempClusterParametersList, level);
+                    }
+                }
             }
+
+        }
+        // Otherwise, change the order
+        else
+        {
+            //        if (!breakClusterByMaxDefect(clusterToBreak, clusHitPairVector, tempClusterParametersList, level))
+            if (!breakClusterAtBigGap(clusterToBreak, tempClusterParametersList, level))
+            {
+                // Look to see if we can break at a gap
+                if (!breakClusterByKinks(clusterToBreak, tempClusterParametersList, level))
+                {
+                    // It might be that we have a large deviation in the convex hull...
+                    if (!breakClusterByMaxDefect(clusterToBreak, tempClusterParametersList, level))
+                    {
+                        std::vector<double> eigenValVec = {3. * std::sqrt(fullPCA.getEigenValues()[0]),
+                                                           3. * std::sqrt(fullPCA.getEigenValues()[1]),
+                                                           3. * std::sqrt(fullPCA.getEigenValues()[2])};
+                        
+                        // Well, we don't want "flippers" so make sure the edge has some teeth to it
+                        //if (edgeLen > 10.) breakClusterInHalf(clusterToBreak, clusHitPairVector, tempClusterParametersList, level);
+                        if (eigenValVec[0] > fMinEigen0To1Ratio * eigenValVec[1]) breakClusterInHalf(clusterToBreak, tempClusterParametersList, level);
+                    }
+                }
+            }
+
         }
 
         // Can only end with no candidate clusters or two so don't
@@ -436,6 +476,7 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
             // This means we don't want to restore the current cluster here
             if (curOutputClusterListSize < outputClusterList.size()) continue;
             
+            // The current cluster was not further subdivided so we store its info here
             // I think this is where we fill out the rest of the parameters?
             // Start by adding the 2D hits...
             // See if we can avoid duplicates by temporarily transferring to a set
@@ -638,11 +679,14 @@ bool ConvexHullPathFinder::completeCandidateCluster(Eigen::Vector3f& primaryPCA,
     return keepThisCluster;
 }
 
-bool ConvexHullPathFinder::breakClusterByKinks(reco::ClusterParameters& clusterToBreak, reco::HitPairListPtr& hitList, reco::ClusterParametersList& outputClusterList, int level) const
+bool ConvexHullPathFinder::breakClusterByKinks(reco::ClusterParameters& clusterToBreak, reco::ClusterParametersList& outputClusterList, int level) const
 {
     // Set up container to keep track of edges
     using HitKinkTuple    = std::tuple<int, reco::HitPairListPtr::iterator>;
     using HitKinkTupleVec = std::vector<HitKinkTuple>;
+    
+    // Recover our hits
+    reco::HitPairListPtr& hitList = clusterToBreak.getHitPairListPtr();
     
     // Set up container to keep track of edges
     HitKinkTupleVec kinkTupleVec;
@@ -703,7 +747,7 @@ bool ConvexHullPathFinder::breakClusterByKinks(reco::ClusterParameters& clusterT
     return !outputClusterList.empty();
 }
 
-bool ConvexHullPathFinder::breakClusterByKinksTrial(reco::ClusterParameters& clusterToBreak, reco::HitPairListPtr& hitList, reco::ClusterParametersList& outputClusterList, int level) const
+bool ConvexHullPathFinder::breakClusterByKinksTrial(reco::ClusterParameters& clusterToBreak, reco::ClusterParametersList& outputClusterList, int level) const
 {
     // Set up container to keep track of edges
     KinkTupleVec kinkTupleVec;
@@ -728,13 +772,13 @@ bool ConvexHullPathFinder::breakClusterByKinksTrial(reco::ClusterParameters& clu
         
         orderHitsAlongEdge(pointList, std::get<0>(kink), firstEdge, firstList);
         
-        if (firstList.size() > int(fMinTinyClusterSize))
+        if (firstList.size() > fMinTinyClusterSize)
         {
             Eigen::Vector2f secondEdge = std::get<2>(kink);
         
             orderHitsAlongEdge(pointList, std::get<0>(kink), secondEdge, secondList);
         
-            if (secondList.size() > int(fMinTinyClusterSize))
+            if (secondList.size() > fMinTinyClusterSize)
                 std::get<0>(kinkTuple) = std::min(firstList.size(),secondList.size());
         }
         
@@ -863,7 +907,7 @@ void ConvexHullPathFinder::pruneHitOrderTupleLists(HitOrderTupleList& shortList,
     return;
 }
 
-bool ConvexHullPathFinder::breakClusterByMaxDefect(reco::ClusterParameters& clusterToBreak, reco::HitPairListPtr& hitList, reco::ClusterParametersList& outputClusterList, int level) const
+bool ConvexHullPathFinder::breakClusterByMaxDefect(reco::ClusterParameters& clusterToBreak, reco::ClusterParametersList& outputClusterList, int level) const
 {
     // Set up container to keep track of edges
     using DistEdgeTuple    = std::tuple<float, const reco::EdgeTuple*>;
@@ -882,7 +926,6 @@ bool ConvexHullPathFinder::breakClusterByMaxDefect(reco::ClusterParameters& clus
     
     // normalize it
     edgeVec.normalize();
-    
 
     // Now loop through all the edges and search for the furthers point
     for(const auto& edge : clusterToBreak.getBestEdgeList())
@@ -911,6 +954,16 @@ bool ConvexHullPathFinder::breakClusterByMaxDefect(reco::ClusterParameters& clus
     
     reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
     Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+    
+    // Recover our hits
+    reco::HitPairListPtr& hitList = clusterToBreak.getHitPairListPtr();
+
+    // Calculate the doca to the PCA primary axis for each 3D hit
+    // Importantly, this also gives us the arclength along that axis to the hit
+    fPCAAlg.PCAAnalysis_calc3DDocas(hitList, fullPCA);
+    
+    // Sort the hits along the PCA
+    hitList.sort([](const auto& left, const auto& right){return left->getArclenToPoca() < right->getArclenToPoca();});
 
     // Get a temporary  container to hol
     float usedDefectDist(0.);
@@ -956,8 +1009,21 @@ bool ConvexHullPathFinder::breakClusterByMaxDefect(reco::ClusterParameters& clus
    return !outputClusterList.empty();
 }
     
-bool ConvexHullPathFinder::breakClusterInHalf(reco::ClusterParameters& clusterToBreak, reco::HitPairListPtr& hitList, reco::ClusterParametersList& outputClusterList, int level) const
+bool ConvexHullPathFinder::breakClusterInHalf(reco::ClusterParameters& clusterToBreak, reco::ClusterParametersList& outputClusterList, int level) const
 {
+    reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
+    Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+    
+    // Recover our hits
+    reco::HitPairListPtr& hitList = clusterToBreak.getHitPairListPtr();
+
+    // Calculate the doca to the PCA primary axis for each 3D hit
+    // Importantly, this also gives us the arclength along that axis to the hit
+    fPCAAlg.PCAAnalysis_calc3DDocas(hitList, fullPCA);
+    
+    // Sort the hits along the PCA
+    hitList.sort([](const auto& left, const auto& right){return left->getArclenToPoca() < right->getArclenToPoca();});
+
     reco::HitPairListPtr::iterator vertexItr = hitList.begin();
     
     std::advance(vertexItr, hitList.size()/2);
@@ -966,9 +1032,6 @@ bool ConvexHullPathFinder::breakClusterInHalf(reco::ClusterParameters& clusterTo
     
     reco::ClusterParameters& clusterParams1  = outputClusterList.back();
     
-    reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
-    Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
-
     if (makeCandidateCluster(fullPrimaryVec, clusterParams1, hitList.begin(), vertexItr, level))
     {
         outputClusterList.push_back(reco::ClusterParameters());
@@ -983,34 +1046,43 @@ bool ConvexHullPathFinder::breakClusterInHalf(reco::ClusterParameters& clusterTo
     return !outputClusterList.empty();
 }
     
-bool ConvexHullPathFinder::breakClusterAtBigGap(reco::ClusterParameters& clusterToBreak, reco::HitPairListPtr& hitList, reco::ClusterParametersList& outputClusterList, int level) const
+bool ConvexHullPathFinder::breakClusterAtBigGap(reco::ClusterParameters& clusterToBreak, reco::ClusterParametersList& outputClusterList, int level) const
 {
     // Idea here is to scan the input hit list (assumed ordered along the current PCA) and look for "large" gaps
     // Here a gap is determined when the hits were ordered by their distance along the primary PCA to their doca to it.
+    reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
+    
+    // Recover our hits
+    reco::HitPairListPtr& hitList = clusterToBreak.getHitPairListPtr();
+
+    // Calculate the doca to the PCA primary axis for each 3D hit
+    // Importantly, this also gives us the arclength along that axis to the hit
+    fPCAAlg.PCAAnalysis_calc3DDocas(hitList, fullPCA);
+    
+    // Sort the hits along the PCA
+    hitList.sort([](const auto& left, const auto& right){return left->getArclenToPoca() < right->getArclenToPoca();});
     
     // Loop through the input hit list and keep track of first hit of largest gap
     reco::HitPairListPtr::iterator bigGapHitItr = hitList.begin();
     float                                biggestGap   = 0.;
     
-    const reco::ClusterHit3D* lastHit = *hitList.begin();
+    reco::HitPairListPtr::iterator lastHitItr = hitList.begin();
     
     for(reco::HitPairListPtr::iterator hitItr = hitList.begin(); hitItr != hitList.end(); hitItr++)
     {
-        const reco::ClusterHit3D* currentHit = *hitItr;
-        
-        float currentGap = std::abs(currentHit->getArclenToPoca() - lastHit->getArclenToPoca());
+        float currentGap = std::abs((*hitItr)->getArclenToPoca() - (*lastHitItr)->getArclenToPoca());
         
         if (currentGap > biggestGap)
         {
-            bigGapHitItr = hitItr;
+            bigGapHitItr = hitItr;      // Note that this is an iterator and will be the "end" going from begin, and "begin" for second half
             biggestGap   = currentGap;
         }
         
-        lastHit = currentHit;
+        lastHitItr = hitItr;
     }
     
     // Require some minimum gap size...
-    if (biggestGap > 2.)
+    if (biggestGap > fMinGapSize)
     {
         outputClusterList.push_back(reco::ClusterParameters());
         
