@@ -791,7 +791,7 @@ bool ConvexHullPathFinder::breakClusterByKinksTrial(reco::ClusterParameters& clu
             std::get<0>(kinkTuple) = std::min(firstList.size(),secondList.size());
         }
         
-        if (std::get<0>(kinkTuple) < fMinTinyClusterSize) kinkTupleVec.pop_back();
+        if (std::get<0>(kinkTuple) < int(fMinTinyClusterSize)) kinkTupleVec.pop_back();
     }
     
     // No work if the list is empty

@@ -59,7 +59,7 @@ namespace tca {
   void FitTraj(TCSlice& slc, Trajectory& tj);
   void FitTraj(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, TrajPoint& tpFit);
   float TjDirFOM(TCSlice& slc, const Trajectory& tj, bool prt);
-  void WatchHit(std::string someText, TCSlice& slc, const unsigned int& watchHit, short& watchInTraj, const unsigned short& tjID);
+//  void WatchHit(std::string someText, TCSlice& slc);
   unsigned short GetPFPIndex(TCSlice& slc, int tjID);
   unsigned short MatchVecIndex(TCSlice& slc, int tjID);
   void ReleaseHits(TCSlice& slc, Trajectory& tj);

@@ -57,10 +57,10 @@ namespace tca {
       if(userMode == 3) tcc.modes[kStudy3] = true;
       if(userMode == 4) tcc.modes[kStudy4] = true;
     } // new Study mode
-    if(pset.has_key("TestBeam")) tcc.modes[kTestBeam] = true;
-    if(pset.has_key("SaveShowerTree")) tcc.modes[kSaveShowerTree] = true;
-    if(pset.has_key("SaveCRTree")) tcc.modes[kSaveCRTree] = true;
-    if(pset.has_key("TagCosmics")) tcc.modes[kTagCosmics] = true;
+    if(pset.has_key("TestBeam")) tcc.modes[kTestBeam] = pset.get<bool>("TestBeam");
+    if(pset.has_key("SaveShowerTree")) tcc.modes[kSaveShowerTree] = pset.get<bool>("SaveShowerTree");
+    if(pset.has_key("SaveCRTree")) tcc.modes[kSaveCRTree] = pset.get<bool>("SaveCRTree");
+    if(pset.has_key("TagCosmics")) tcc.modes[kTagCosmics] = pset.get<bool>("TagCosmics");
     std::vector<std::string> skipAlgsVec;
     if(pset.has_key("SkipAlgs")) skipAlgsVec = pset.get<std::vector<std::string>>("SkipAlgs");
     std::vector<std::string> debugConfigVec;
@@ -265,7 +265,7 @@ namespace tca {
   } // reconfigure
   
   ////////////////////////////////////////////////
-  void TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits)
+  bool TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits)
   {
     // defines the pointer to the input hit collection, analyzes them,
     // initializes global counters and refreshes service references
@@ -274,9 +274,6 @@ namespace tca {
     // refresh service references
     tcc.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tcc.geom = lar::providerFrom<geo::Geometry>();
-    // find the average hit RMS using the full hit collection and define the
-    // configuration for the current TPC
-    if(!AnalyzeHits()) return;
     fWorkID = 0;
     evt.globalTjID = 0;
     evt.globalVx2ID = 0;
@@ -284,6 +281,9 @@ namespace tca {
     evt.globalPFPID = 0;
     evt.globalS2ID = 0;
     evt.globalS3ID = 0;
+    // find the average hit RMS using the full hit collection and define the
+    // configuration for the current TPC
+    return AnalyzeHits();
   } // SetInputHits
   
   ////////////////////////////////////////////////
@@ -294,7 +294,10 @@ namespace tca {
     if(slices.empty()) ++evt.eventsProcessed;
     if(hitsInSlice.size() < 2) return;
     
-    if(!CreateSlice(hitsInSlice)) return;
+    if(!CreateSlice(hitsInSlice)) {
+      std::cout<<"CreateSlice failed\n";
+      return;
+    }
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
@@ -884,11 +887,7 @@ namespace tca {
             myprt<<"\n";
           } // prt
           // See if this is a ghost trajectory
-          unsigned short ofTraj = USHRT_MAX;
-          if(IsGhost(slc, tHits, ofTraj)) {
-            if(prt) mf::LogVerbatim()<<"FJT: Is a ghost of "<<ofTraj;
-            break;
-          }
+          if(IsGhost(slc, tHits)) break;
           if(!MakeJunkTraj(slc, tHits)) {
             if(prt) mf::LogVerbatim()<<"FJT: MakeJunkTraj failed";
             break;
@@ -2276,7 +2275,6 @@ namespace tca {
     fTryWithNextPass = false;
     if(tj.Pts.empty()) return;
     
-//    geo::PlaneID planeID = DecodeCTP(tj.CTP);
     unsigned short plane = DecodeCTP(tj.CTP).Plane;
  
     unsigned short lastPtWithUsedHits = tj.EndPt[1];
@@ -2690,16 +2688,17 @@ namespace tca {
   } // IsGhost
   
   ////////////////////////////////////////////////
-  bool TrajClusterAlg::IsGhost(TCSlice& slc, std::vector<unsigned int>& tHits, unsigned short& ofTraj)
+  bool TrajClusterAlg::IsGhost(TCSlice& slc, std::vector<unsigned int>& tHits)
   {
     // Called by FindJunkTraj to see if the passed hits are close to an existing
     // trajectory and if so, they will be used in that other trajectory
     
-    ofTraj = USHRT_MAX;
-    
     if(!tcc.useAlg[kUseGhostHits]) return false;
     
     if(tHits.size() < 2) return false;
+    
+    bool prt = (tcc.dbgStp || tcc.dbgAlg[kUseGhostHits]);
+    
     // find all nearby hits
     std::vector<unsigned int> hitsInMuliplet, nearbyHits;
     for(auto iht : tHits) {
@@ -2713,14 +2712,14 @@ namespace tca {
     } // iht
     
     // vectors of traj IDs, and the occurrence count
-    std::vector<unsigned short> tID, tCnt;
-    unsigned short itj, indx;
+    std::vector<unsigned int> tID, tCnt;
     for(auto iht : nearbyHits) {
       if(slc.slHits[iht].InTraj <= 0) continue;
-      itj = slc.slHits[iht].InTraj;
-      for(indx = 0; indx < tID.size(); ++indx) if(tID[indx] == itj) break;
+      unsigned int tid = slc.slHits[iht].InTraj;
+      unsigned short indx = 0;
+      for(indx = 0; indx < tID.size(); ++indx) if(tID[indx] == tid) break;
       if(indx == tID.size()) {
-        tID.push_back(itj);
+        tID.push_back(tid);
         tCnt.push_back(1);
       }  else {
         ++tCnt[indx];
@@ -2730,42 +2729,39 @@ namespace tca {
     
     // Call it a ghost if > 50% of the hits are used by another trajectory
     unsigned short tCut = 0.5 * tHits.size();
-    unsigned short ii, jj;
-    itj = USHRT_MAX;
+    int tid = INT_MAX;
     
-    if(tcc.dbgStp) {
+    if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"IsGhost tHits size "<<tHits.size()<<" cut fraction "<<tCut<<" tID_tCnt";
-      for(ii = 0; ii < tCnt.size(); ++ii) myprt<<" "<<tID[ii]<<"_"<<tCnt[ii];
+      for(unsigned short ii = 0; ii < tCnt.size(); ++ii) myprt<<" "<<tID[ii]<<"_"<<tCnt[ii];
     } // prt
     
-    for(ii = 0; ii < tCnt.size(); ++ii) {
+    for(unsigned short ii = 0; ii < tCnt.size(); ++ii) {
       if(tCnt[ii] > tCut) {
-        itj = tID[ii] - 1;
+        tid = tID[ii];
         break;
       }
     } // ii
-    if(itj > slc.tjs.size() - 1) return false;
+    if(tid > (int)slc.tjs.size()) return false;
     
-    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"is ghost of trajectory "<<slc.tjs[itj].ID;
+    if(prt) mf::LogVerbatim("TC")<<" is ghost of trajectory "<<tid;
 
     // Use all hits in tHits that are found in itj
-    unsigned int iht, tht;
-    for(auto& tp : slc.tjs[itj].Pts) {
-      for(ii = 0; ii < tp.Hits.size(); ++ii) {
-        iht = tp.Hits[ii];
+    for(auto& tp : slc.tjs[tid - 1].Pts) {
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        unsigned int iht = tp.Hits[ii];
         if(slc.slHits[iht].InTraj != 0) continue;
-        for(jj = 0; jj < tHits.size(); ++jj) {
-          tht = tHits[jj];
+        for(unsigned short jj = 0; jj < tHits.size(); ++jj) {
+          unsigned int tht = tHits[jj];
           if(tht != iht) continue;
           tp.UseHit[ii] = true;
-          slc.slHits[iht].InTraj = slc.tjs[itj].ID;
+          slc.slHits[iht].InTraj = tid;
           break;
         } // jj
       } // ii
     } // tp
-    slc.tjs[itj].AlgMod[kUseGhostHits] = true;
-    ofTraj = itj;
+    slc.tjs[tid - 1].AlgMod[kUseGhostHits] = true;
     return true;
     
   } // IsGhost
@@ -4622,342 +4618,6 @@ namespace tca {
     } // narrow / tall test
 
   } // GetHitMultiplet
-/*
-  ////////////////////////////////////////////////
-  std::vector<recob::Hit> TrajClusterAlg::YieldHits()
-  {
-    // Create the final recob::hits and return them
-    std::vector<recob::Hit> tmp;
-    tmp.reserve(slc.slHits.size());
-    for(auto& tcHit : slc.slHits) {
-      geo::PlaneID planeID = geo::PlaneID(tcHit.ArtPtr.WireID().Cryostat, tcHit.ArtPtr.WireID().TPC, tcHit.ArtPtr.WireID().Plane);
-      raw::ChannelID_t channel = tcc.geom->PlaneWireToChannel((int)tcHit.ArtPtr.WireID().Plane, (int)tcHit.ArtPtr.WireID().Wire, (int)tcHit.ArtPtr.WireID().TPC, (int)tcHit.ArtPtr.WireID().Cryostat);
-      tmp.emplace_back(channel,
-                       tcHit.StartTick, tcHit.EndTick,
-                       tcHit.PeakTime, tcHit.SigmaPeakTime,
-                       tcHit.RMS,
-                       tcHit.PeakAmplitude, tcHit.SigmaPeakAmp,
-                       tcHit.Integral, tcHit.Integral, tcHit.SigmaIntegral,
-                       tcHit.Multiplicity, tcHit.LocalIndex,
-                       tcHit.GoodnessOfFit, tcHit.NDOF,
-                       tcc.geom->View(channel),
-                       tcc.geom->SignalType(planeID),
-                       tcHit.ArtPtr.WireID()
-                       );
-    } // tcHit
-     return tmp;
-  } // YieldHits
-  
-  ////////////////////////////////////////////////
-  bool TrajClusterAlg::EraseHit(const unsigned int& delHit)
-  {
-    // Erases delHit and makes corrections to allTraj and WireHitRange
-    if(delHit > slc.slHits.size() - 1) {
-      mf::LogWarning("TC")<<"Trying to erase an invalid hit";
-      return false;
-    }
-    // erase the hit
-    slc.slHits.erase(slc.slHits.begin()+delHit);
-    // Correct WireHitRange
-    int idelHit = delHit;
-    for(unsigned short ipl = 0; ipl < slc.nPlanes; ++ipl) {
-      for(unsigned int wire = slc.firstWire[ipl]; wire < slc.lastWire[ipl];  ++wire) {
-        // ignore wires with no hits or dead
-        if(slc.wireHitRange[ipl][wire].first < 0) continue;
-        if(idelHit > 0 && slc.wireHitRange[ipl][wire].first > idelHit) --slc.wireHitRange[ipl][wire].first;
-        if(slc.wireHitRange[ipl][wire].second > idelHit) --slc.wireHitRange[ipl][wire].second;
-        // Deal with the situation where this is the only hit on a wire
-        int firstHit = slc.wireHitRange[ipl][wire].first;
-        int lastHit = slc.wireHitRange[ipl][wire].second - 1;
-        if(lastHit <= firstHit) {
-          // erasing the only hit on this wire
-          slc.wireHitRange[ipl][wire].first = -2;
-          slc.wireHitRange[ipl][wire].second = -2;
-          // skip checking
-          continue;
-        }
-      } // wire
-    } // ipl
-    
-    // do another sanity check
-    if(!CheckWireHitRange(tjs)) return false;
-    
-    // now fix the Trajectory point hit -> slc.slHits.InTraj association. The first step is to
-    // remove any use of delHit in all trajectory points. The second is to remove any trajectory point that
-    // uses only delHit to define the hit position and is therefore no longer valid
-    for(auto& tj : slc.tjs) {
-      unsigned short killPt = USHRT_MAX;
-      for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
-        TrajPoint& tp = tj.Pts[ipt];
-        unsigned short killii = USHRT_MAX;
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(tp.Hits[ii] == delHit) {
-            // delHit is used in this TP so we need to remove it
-            killii = ii;
-          } else if(tp.Hits[ii] > delHit) {
-            // delHit comes later in the hit collection so we need to simply correct it
-            --tp.Hits[ii];
-          }
-        } // ii
-        if(killii != USHRT_MAX) {
-          // We need to erase the reference to this hit in the TP
-          tp.Hits.erase(tp.Hits.begin() + killii);
-          // shift UseHit being careful not to go outside the bounds
-          unsigned short maxSize = tp.Hits.size();
-          if(maxSize == 16) maxSize = 15;
-          for(unsigned short ii = killii; ii < maxSize; ++ii) tp.UseHit[ii] = tp.UseHit[ii + 1];
-          // Flag this TP for deletion if there are no other hits
-          if(tp.Hits.empty()) killPt = ipt;
-        } // killii != USHRT_MAX
-      } // ipt
-      // delHit was the only hit used in this TP and it was erased so delete the TP
-      if(killPt != USHRT_MAX) {
-        tj.Pts.erase(tj.Pts.begin() + killPt);
-        SetEndPoints(slc, tj);
-      }
-    } // tj
-
-    return true;
-  } // EraseHit
-  
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::DefineHit(TCHit& tcHit, CTP_t& hitCTP, unsigned int& hitWire)
-  {
-    // Defines the hit WireID, channel, etc using hitCTP and hitWire
-    geo::PlaneID planeID = DecodeCTP(hitCTP);
-    tcHit.ArtPtr.WireID() = geo::WireID(planeID, hitWire);
-//    hitCTP.Channel = tcc.geom->PlaneWireToChannel((int)planeID.Plane,(int)hitWire,(int)planeID.TPC,(int)planeID.Cryostat);
-  } // DefineHit
-  
-  ////////////////////////////////////////////////
-  unsigned int TrajClusterAlg::CreateHit(TCHit tcHit)
-  {
-    // Creates a hit in slc.slHits using the supplied information. Returns UINT_MAX if there is failure.
-    // Returns the index of the newly created hit.
-    unsigned short newHitPlane = tcHit.ArtPtr.WireID().Plane;
-    unsigned int newHitWire = tcHit.ArtPtr.WireID().Wire;
-    // don't try to create a hit on a dead wire
-    if(slc.wireHitRange[newHitPlane][newHitWire].first == -1) return UINT_MAX;
-    
-    // Figure out where to put it
-    unsigned int newHitIndex = UINT_MAX;
-    if(slc.wireHitRange[newHitPlane][newHitWire].first == -2) {
-      // We want to put this hit on a wire that currently has none. Find the next wire that has a hit.
-      // First look in the plane in which we want to put it
-      for(unsigned int wire = newHitWire + 1; wire < slc.nWires[newHitPlane]; ++wire) {
-        if(slc.wireHitRange[newHitPlane][wire].first >= 0) {
-          newHitIndex = slc.wireHitRange[newHitPlane][wire].first;
-          break;
-        }
-      } // wire
-      // if not found in this plane look in the rest of the planes
-      if(newHitIndex == UINT_MAX) {
-        for(unsigned short ipl = newHitPlane + 1; ipl < slc.nPlanes; ++ipl) {
-          for(unsigned int wire = slc.firstWire[ipl]; wire < slc.lastWire[ipl]; ++wire) {
-            if(slc.wireHitRange[ipl][wire].first >= 0) {
-              newHitIndex = slc.wireHitRange[ipl][wire].first;
-              break;
-            }
-          } // wire
-          if(newHitIndex != UINT_MAX) break;
-        } // ipl
-      } // newHitIndex == UINT_MAX
-    } else {
-      // Hits exist on this wire
-      unsigned int firstHit = slc.wireHitRange[newHitPlane][newHitWire].first;
-      unsigned int lastHit = slc.wireHitRange[newHitPlane][newHitWire].second - 1;
-      if(tcHit.PeakTime <= slc.slHits[firstHit].PeakTime) {
-        // new hit is earlier in time so it should be inserted before firstHit
-        newHitIndex = firstHit;
-      } else if(tcHit.PeakTime > slc.slHits[lastHit].PeakTime) {
-        // new hit is later so it should inserted after lastHit
-        newHitIndex = lastHit + 1;
-      } else {
-        // new hit is somewhere in the middle
-        for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-          if(tcHit.PeakTime > slc.slHits[iht].PeakTime && tcHit.PeakTime <= slc.slHits[iht+1].PeakTime) {
-            // found it
-            newHitIndex = iht + 1;
-            break;
-          }
-        } // iht
-      } // new hit in the middle
-    } // Hits exist on this wire
-    
-    // this shouldn't be possible
-    if(newHitIndex == UINT_MAX) {
-//      std::cout<<"CreateHit: Failed to find newHitIndex for new hit "<<PrintHit(tcHit)<<"\n";
-      return newHitIndex;
-    }
-    
-    // insert the hit
-    slc.slHits.insert(slc.slHits.begin() + newHitIndex, tcHit);
-    
-    // Correct WireHitRange
-    
-    // Put the hit on a wire with no existing hits
-    if(slc.wireHitRange[newHitPlane][newHitWire].first == -2) {
-      slc.wireHitRange[newHitPlane][newHitWire].first = newHitIndex;
-      slc.wireHitRange[newHitPlane][newHitWire].second = newHitIndex + 1;
-    } else {
-      // This wire has hits, one of which is the new hits, so only correct the last hit
-      ++slc.wireHitRange[newHitPlane][newHitWire].second;
-    }
-    
-    // correct the hit ranges in newHitPlane on wires after newHitWire
-    for(unsigned int wire = newHitWire + 1; wire <  slc.lastWire[newHitPlane]; ++wire) {
-      // dead wire
-      if(slc.wireHitRange[newHitPlane][wire].first < 0) continue;
-      ++slc.wireHitRange[newHitPlane][wire].first;
-      ++slc.wireHitRange[newHitPlane][wire].second;
-    } // wire
-    
-    // correct the hit ranges for the later planes
-    for(unsigned short ipl = newHitPlane + 1; ipl < slc.nPlanes; ++ipl) {
-      for(unsigned int wire = slc.firstWire[ipl]; wire < slc.lastWire[ipl]; ++wire) {
-        if(slc.wireHitRange[ipl][wire].first < 0) continue;
-        ++slc.wireHitRange[ipl][wire].first;
-        ++slc.wireHitRange[ipl][wire].second;
-        // check the hits
-        int firstHit = slc.wireHitRange[ipl][wire].first;
-        int lastHit = slc.wireHitRange[ipl][wire].second - 1;
-        if(slc.slHits[firstHit].ArtPtr.WireID().Plane != ipl || slc.slHits[firstHit].ArtPtr.WireID().Wire != wire) {
-          std::cout<<"WireHitRange2 screwup on firstHit "<<slc.slHits[firstHit].ArtPtr.WireID().Plane<<":"<<slc.slHits[firstHit].ArtPtr.WireID().Wire;
-          std::cout<<" != "<<ipl<<":"<<wire<<"\n";
-          exit(1);
-        } // error checking
-        if(slc.slHits[lastHit].ArtPtr.WireID().Plane != ipl || slc.slHits[lastHit].ArtPtr.WireID().Wire != wire) {
-          std::cout<<"WireHitRange2 screwup on lastHit "<<slc.slHits[lastHit].ArtPtr.WireID().Plane<<":"<<slc.slHits[lastHit].ArtPtr.WireID().Wire;
-          std::cout<<" != "<<ipl<<":"<<wire<<"\n";
-          exit(1);
-        } // error checking
-      } // wire
-    } // ipl
-    
-    
-    if(!CheckWireHitRange(tjs)) return UINT_MAX;
-    
-    // now correct the hit indices in the trajectories
-    for(auto& tj : slc.tjs) {
-      for(auto& tp : tj.Pts) {
-        for(unsigned short iht = 0; iht < tp.Hits.size(); ++iht) {
-          if(tp.Hits[iht] >= newHitIndex) ++tp.Hits[iht];
-        } // iht
-      } // tp
-    }
-
-    return newHitIndex;
-    
-  } // CreateHit
-  
-  ////////////////////////////////////////////////
-  void TrajClusterAlg::MergeTPHits()
-  {
-    
-    // Merge all hits that are used in one TP into a single hit
-    // Make a list of hits that are slated for deletion
-    std::vector<unsigned int> delHits;
-    for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
-      if(slc.tjs[itj].AlgMod[kKilled]) continue;
-      Trajectory& tj = slc.tjs[itj];
-      // ignore shower Tj hits
-      if(tj.AlgMod[kShowerTj]) continue;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        TrajPoint& tp = tj.Pts[ipt];
-        if(NumHitsInTP(tp, kUsedHits) < 2) continue;
-        // Make a list of the old hits on this TP before doing anything invasive
-        std::vector<unsigned int> oldHits;
-        // get some info so we can calculate the RMS
-        raw::TDCtick_t loTick = INT_MAX;
-        raw::TDCtick_t hiTick = 0;
-        float mChg = 0;
-        float mTick = 0;
-        // estimate the uncertainties
-        float mSigmaPeakAmp = 0;
-        float mSigmaPeakTime = 0;
-        float mSigmaIntegral = 0;
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(!tp.UseHit[ii]) continue;
-          unsigned int iht = tp.Hits[ii];
-          oldHits.push_back(iht);
-          if(slc.slHits[iht].StartTick < loTick) loTick = slc.slHits[iht].StartTick;
-          if(slc.slHits[iht].EndTick > hiTick) hiTick = slc.slHits[iht].EndTick;
-          mChg += slc.slHits[iht].Integral;
-          mTick += slc.slHits[iht].Integral * slc.slHits[iht].PeakTime;
-          mSigmaPeakAmp += slc.slHits[iht].Integral * slc.slHits[iht].SigmaPeakAmp;
-          mSigmaPeakTime += slc.slHits[iht].Integral * slc.slHits[iht].SigmaPeakTime;
-          mSigmaIntegral += slc.slHits[iht].Integral * slc.slHits[iht].SigmaIntegral;
-        } // ii
-        mTick /= mChg;
-        if(mTick < 0) mTick = 0;
-        mSigmaPeakAmp /= mChg;
-        mSigmaPeakTime /= mChg;
-        mSigmaIntegral /= mChg;
-        // make a temporary signal waveform vector
-        std::vector<float> signal(hiTick - loTick, 0);
-        // fill it with the hit shapes
-        for(auto& iht : oldHits) {
-          float& peakTime = slc.slHits[iht].PeakTime;
-          float& amp = slc.slHits[iht].PeakAmplitude;
-          float& rms = slc.slHits[iht].RMS;
-          // add charge in the range +/- 3 sigma
-          short loTime = (short)(peakTime - 3 * rms);
-          if(loTime < loTick) loTime = loTick;
-          short hiTime = (short)(peakTime + 3 * rms);
-          if(hiTime > hiTick) hiTime = hiTick;
-          for(short time = loTime; time < hiTime; ++time) {
-            unsigned short indx = time - loTick;
-            if(indx > signal.size() - 1) continue;
-            float arg = (time - peakTime) / rms;
-            signal[indx] += amp * exp(-0.5 * arg * arg);
-          } // time
-        } // iht
-        // aveIndx is the index of the charge-weighted average in the signal vector
-        float aveIndx = (mTick - loTick);
-        // find the merged hit RMS
-        float mRMS = 0;
-        for(unsigned short indx = 0; indx < signal.size(); ++indx) {
-          float dindx = indx - aveIndx;
-          mRMS += signal[indx] * dindx * dindx;
-        } // indx
-        mRMS = std::sqrt(mRMS / mChg);
-        // Modify the first hit in the list
-        unsigned int mht = oldHits[0];
-        slc.slHits[mht].PeakTime = mTick;
-        slc.slHits[mht].SigmaPeakTime = mSigmaPeakTime;
-        slc.slHits[mht].PeakAmplitude = mChg / (2.5066 * mRMS);
-        slc.slHits[mht].SigmaPeakAmp = mSigmaPeakAmp;
-        slc.slHits[mht].Integral = mChg;
-        slc.slHits[mht].SigmaIntegral = mSigmaIntegral;
-        slc.slHits[mht].RMS = mRMS;
-        slc.slHits[mht].Multiplicity = 1;
-        slc.slHits[mht].LocalIndex = 0;
-        slc.slHits[mht].GoodnessOfFit = 1; // flag?
-        slc.slHits[mht].NDOF = 0;
-        // then flag the other hits for erasing
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          for(unsigned short jj = 1; jj < oldHits.size(); ++jj) {
-            if (tp.Hits[ii]==oldHits[jj]){
-              tp.UseHit[ii] = false;
-              // put it in the removal list
-              delHits.push_back(tp.Hits[ii]);
-              // Flag this hit
-              slc.slHits[tp.Hits[ii]].InTraj = SHRT_MAX;
-              tp.Hits[ii] = INT_MAX;
-            }
-          }
-        } // ii
-      } // ipt
-    } // itj
-    
-    // Erase the hits. Start by sorting them in decreasing order so that
-    // the local delHits vector doesn't need to be modified when a hit is deleted
-    if(delHits.size() > 1) std::sort(delHits.begin(), delHits.end(), std::greater<unsigned int>());
-
-    for(auto& delHit : delHits) EraseHit(delHit);
-
-  } // MergeTPHits
-*/
 
   //////////////////////////////////////////
   recob::Hit TrajClusterAlg::MergeTPHits(std::vector<unsigned int>& tpHits)

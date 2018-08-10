@@ -92,13 +92,13 @@ dpraw_hitfinder:
  DoMergePeaks:			false		# true: enables peak merging for peaks in the same group.
  MergeADCSumThreshold:		0.2		# merge two peaks only if (ADC sum of the smaller peak) < MergeADCSumThreshold*(ADC sum of the bigger peak).
  MergeMaxADCThreshold:		0.2		# merge two peaks only if (height of the smaller peak) < MergeADCSumThreshold*(height of the bigger peak).
- MinRelativePeakHeightLeft:		0.1		# merge two peaks if (relative peak height of the smaller peak) < MinRelativePeakHeight*(peak height of the smaller peak)
- MinRelativePeakHeightRight:		0.1		# merge two peaks if (relative peak height of the smaller peak) < MinRelativePeakHeight*(peak height of the smaller peak)
- MergeMaxADCLimit:		25		# merge two peaks only if (peak height of either peak) <= MergeMaxADCLimit
+ MinRelativePeakHeightLeft:	0.1		# if smaller peak is on the left: merge two peaks if (relative peak height of the smaller peak) < MinRelativePeakHeightLeft*(peak height of the smaller peak)
+ MinRelativePeakHeightRight:	0.1		# if smaller peak is on the right: merge two peaks if (relative peak height of the smaller peak) < MinRelativePeakHeightRight*(peak height of the smaller peak)
+ MergeMaxADCLimit:		25		# merge two peaks only if smaller peak <= MergeMaxADCLimit
 
- MinWidth:             		5              # threshold for width (in ticks). Groups of peaks with smaller values are neither fitted nor stored.
+ MinWidth:             		5              	# threshold for width (in ticks). Groups of peaks with smaller values are neither fitted nor stored.
  MinADCSum:    			10             	# threshold for ADC sum (in ADC*ticks). Groups of peaks with smaller values are neither fitted nor stored.
- MinADCSumOverWidth:    	0             # threshold for ADC sum over width (in ADC*ticks/ticks). Groups of peaks with smaller values are neither fitted nor stored.
+ MinADCSumOverWidth:    	0             	# threshold for ADC sum over width (in ADC*ticks/ticks). Groups of peaks with smaller values are neither fitted nor stored.
 
  MaxMultiHit:          		6               # maximum number of peaks in a group for the group to be fitted. If more, split the group in equally spaced hits without fitting.
 						# When refitting, maximum number of peaks in group is: 1) not greater than 3x number of peaks before re-fitting.
