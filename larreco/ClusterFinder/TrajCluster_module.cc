@@ -260,35 +260,38 @@ namespace cluster {
     } // no input slices
     
     // split slHitsVec so that all hits in a sub-slice are in the same TPC
-    std::vector<std::vector<unsigned int>> tpcSlcHitsVec;
-    std::vector<unsigned short> tpcSlcIDs;
-    for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
-      auto& slhits = slHitsVec[isl];
-      if(slhits.size() < 2) continue;
-      // list of hits in this slice in each TPC
-      std::vector<std::vector<unsigned int>> tpcHits;
-      // list of TPCs in this slice
-      std::vector<unsigned short> tpcNum;
-      for(auto iht : slhits) {
-        auto& hit = (*inputHits)[iht];
-        unsigned short tpc = hit.WireID().TPC;
-        unsigned short tpcIndex = 0;
-        for(tpcIndex = 0; tpcIndex < tpcNum.size(); ++tpcIndex) if(tpcNum[tpcIndex] == tpc) break;
-        if(tpcIndex == tpcNum.size()) {
-          // not in tpcNum so make a new entry
-          tpcHits.resize(tpcIndex + 1);
-          tpcNum.push_back(tpc);
+    const geo::GeometryCore* geom = lar::providerFrom<geo::Geometry>();
+    if(geom->NTPC() > 1) {
+      std::vector<std::vector<unsigned int>> tpcSlcHitsVec;
+      std::vector<unsigned short> tpcSlcIDs;
+      for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
+        auto& slhits = slHitsVec[isl];
+        if(slhits.size() < 2) continue;
+        // list of hits in this slice in each TPC
+        std::vector<std::vector<unsigned int>> tpcHits;
+        // list of TPCs in this slice
+        std::vector<unsigned short> tpcNum;
+        for(auto iht : slhits) {
+          auto& hit = (*inputHits)[iht];
+          unsigned short tpc = hit.WireID().TPC;
+          unsigned short tpcIndex = 0;
+          for(tpcIndex = 0; tpcIndex < tpcNum.size(); ++tpcIndex) if(tpcNum[tpcIndex] == tpc) break;
+          if(tpcIndex == tpcNum.size()) {
+            // not in tpcNum so make a new entry
+            tpcHits.resize(tpcIndex + 1);
+            tpcNum.push_back(tpc);
+          }
+          tpcHits[tpcIndex].push_back(iht);
+        } // iht
+        for(auto& tHits : tpcHits) {
+          tpcSlcHitsVec.push_back(tHits);
+          tpcSlcIDs.push_back(slcIDs[isl]);
         }
-        tpcHits[tpcIndex].push_back(iht);
-      } // iht
-      for(auto& tHits : tpcHits) {
-        tpcSlcHitsVec.push_back(tHits);
-        tpcSlcIDs.push_back(slcIDs[isl]);
-      }
-    } // slhits
-    // over-write slHitsVec
-    slHitsVec = tpcSlcHitsVec;
-    slcIDs = tpcSlcIDs;
+      } // slhits
+      // over-write slHitsVec
+      slHitsVec = tpcSlcHitsVec;
+      slcIDs = tpcSlcIDs;
+    } // > 1 TPC
     
     // First sort the hits in each slice and then reconstruct
     for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
