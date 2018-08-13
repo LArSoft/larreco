@@ -515,7 +515,6 @@ namespace tca {
     std::vector<unsigned int> nWires;
     std::vector<unsigned int> firstWire;    ///< the first wire with a hit
     std::vector<unsigned int> lastWire;      ///< the last wire with a hit
-    unsigned short nPlanes;
     float xLo; // fiducial volume of the current tpc
     float xHi;
     float yLo;
@@ -523,6 +522,8 @@ namespace tca {
     float zLo;
     float zHi;
     geo::TPCID TPCID;
+    unsigned short nPlanes;
+    int ID;           ///< ID of the recob::Slice (not the sub-slice)
     // The variables below do change in size from event to event
 
     // Save histograms to develop cosmic removal tools
