@@ -325,7 +325,7 @@ namespace cluster {
       tmp.resize(0);
       // reconstruct using the hits in this slice. The data products are stored internally in
       // TrajCluster data structs.
-      fTCAlg->RunTrajClusterAlg(slhits);
+      fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
     } // isl
 
     if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
