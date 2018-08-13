@@ -620,7 +620,7 @@ namespace cluster {
         shwCol.push_back(shower);
         // make the shower - hit association
         std::vector<unsigned int> shwHits(ss3.Hits.size());
-        for(unsigned int iht = 0; iht < ss3.Hits.size(); ++iht) shwHits[iht] = newIndex[iht];
+        for(unsigned int iht = 0; iht < ss3.Hits.size(); ++iht) shwHits[iht] = newIndex[ss3.Hits[iht]];
         if(!util::CreateAssn(*this, evt, *shwr_hit_assn, shwCol.size()-1, shwHits.begin(), shwHits.end()))
         {
           throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with Shower";
