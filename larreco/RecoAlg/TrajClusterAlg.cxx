@@ -287,7 +287,7 @@ namespace tca {
   } // SetInputHits
   
   ////////////////////////////////////////////////
-  void TrajClusterAlg::RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice)
+  void TrajClusterAlg::RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID)
   {
     // Reconstruct everything using the hits in a slice
     
@@ -300,6 +300,7 @@ namespace tca {
     }
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
+    slc.ID = sliceID;
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
       ReconstructAllTraj(slc, inCTP);
