@@ -327,6 +327,9 @@ namespace cluster {
       // TrajCluster data structs.
       fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
     } // isl
+    
+    // stitch PFParticles between TPCs, create PFP start vertices, etc
+    fTCAlg->FinishEvent();
 
     if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
       // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC
@@ -626,6 +629,16 @@ namespace cluster {
           throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with Shower";
         } // exception
       } // ss3
+    } // slice isl
+    
+    // Add PFParticles now that clsCol is filled
+    for(unsigned short isl = 0; isl < nSlices; ++isl) {
+      unsigned short slcIndex = 0;
+      for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() != slcIDs[isl]) break;
+      if(slcIndex == slices.size()) continue;
+      auto& slc = fTCAlg->GetSlice(isl);
+      // See if there was a serious reconstruction failure that made the slice invalid
+      if(!slc.isValid) continue;
       // make PFParticles
       for(size_t ipfp = 0; ipfp < slc.pfps.size(); ++ipfp) {
         auto& pfp = slc.pfps[ipfp];
@@ -637,23 +650,14 @@ namespace cluster {
         if(pfp.ParentID > 0) parentIndex = pfp.ParentID + offset - 1;
         std::vector<size_t> dtrIndices(pfp.DtrIDs.size());
         for(unsigned short idtr = 0; idtr < pfp.DtrIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrIDs[idtr] + offset - 1;
-/* check the assns
-        if(pfp.ParentID > 0 || !pfp.DtrIDs.empty()) {
-          std::cout<<isl<<" UID "<<pfp.UID<<" ID "<<pfp.ID<<" ParentID "<<pfp.ParentID<<" self "<<self<<" parentIndex "<<parentIndex<<"\n";
-          for(unsigned short idtr = 0; idtr < pfp.DtrIDs.size(); ++idtr) {
-            std::cout<<" dtr "<<pfp.DtrIDs[idtr]<<" index "<<dtrIndices[idtr]<<"\n";
-          } // idtr
-        } // check
-*/
         pfpCol.emplace_back(pfp.PDGCode, self, parentIndex, dtrIndices);
         // PFParticle -> clusters
         std::vector<unsigned int> clsIndices;
-        for(auto tjid : pfp.TjIDs) {
+        for(auto tuid : pfp.TjUIDs) {
           unsigned int clsIndex = 0;
-          int tjUID = slc.tjs[tjid - 1].UID;
-          for(clsIndex = 0; clsIndex < clsCol.size(); ++clsIndex) if(abs(clsCol[clsIndex].ID()) == tjUID) break;
+          for(clsIndex = 0; clsIndex < clsCol.size(); ++clsIndex) if(abs(clsCol[clsIndex].ID()) == tuid) break;
           if(clsIndex == clsCol.size()) {
-            std::cout<<"TrajCluster module invalid pfp -> tj -> cluster index\n";
+            std::cout<<"TrajCluster module invalid P"<<pfp.UID<<" -> T"<<tuid<<" -> cluster index \n";
             continue;
           }
           clsIndices.push_back(clsIndex);
@@ -681,7 +685,7 @@ namespace cluster {
             throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate slice with PFParticle";
           } // exception
         } // slices exist
-
+        
         // PFParticle -> Shower
         if(pfp.PDGCode == 1111) {
           std::vector<unsigned short> shwIndex(1, 0);
@@ -712,9 +716,11 @@ namespace cluster {
           }
         } // cosmic tag
       } // ipfp
-    } // slice isl
-    // add the hits that weren't used in any slice to hitCol
-    if(!slices.empty()) {
+    } // isl
+    
+    // add the hits that weren't used in any slice to hitCol unless this is a 
+    // special debugging mode and would be a waste of time
+    if(!slices.empty() && tca::tcc.recoSlice == 0) {
       auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
       art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
       for(unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
