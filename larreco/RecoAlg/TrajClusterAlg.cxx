@@ -164,10 +164,11 @@ namespace tca {
         }
       } // DecodeDebugString failed
     } // strng
+/*
     if(tcc.modes[kDebug] && debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0) {
       debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
     }
-
+*/
     for(auto& range : tcc.angleRanges) {
       if(range < 0 || range > 90) throw art::Exception(art::errors::Configuration)<< "Invalid angle range "<<range<<" Must be 0 - 90 degrees";
       range *= M_PI / 180;
@@ -256,7 +257,7 @@ namespace tca {
       if(debug.Slice < 0) {
         std::cout<<"Debugging in all slices\n";
       } else {
-        std::cout<<"Debugging in slice "<<debug.Slice<<"\n";
+        std::cout<<"Debugging in sub-slice "<<debug.Slice<<"\n";
       }
     } // debug mode
     
@@ -293,6 +294,9 @@ namespace tca {
     
     if(slices.empty()) ++evt.eventsProcessed;
     if(hitsInSlice.size() < 2) return;
+    if(tcc.recoSlice > 0) {
+      if(sliceID != tcc.recoSlice) return;
+    }
     
     if(!CreateSlice(hitsInSlice)) {
       std::cout<<"CreateSlice failed\n";
@@ -301,6 +305,7 @@ namespace tca {
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
     slc.ID = sliceID;
+    if(tcc.recoSlice) std::cout<<"Reconstruct Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
       ReconstructAllTraj(slc, inCTP);
@@ -352,8 +357,6 @@ namespace tca {
 
 //    if(tcc.studyMode) tm.StudyShowerParents(hist);
 
-    // Ensure that all PFParticles have a start vertex
-    PFPVertexCheck(slc);
     if(!slc.isValid) {
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in MakeAllTrajClusters";
       return;
@@ -5181,9 +5184,43 @@ namespace tca {
     slices.push_back(slc);
     if(tcc.modes[kDebug] && debug.Slice >= 0 && !tcc.dbgSlc) {
       tcc.dbgSlc = ((int)(slices.size() - 1) == debug.Slice);
-      if(tcc.dbgSlc) std::cout<<"Enabled debugging in slice "<<slices.size() - 1<<"\n";
+      if(tcc.dbgSlc) std::cout<<"Enabled debugging in sub-slice "<<slices.size() - 1<<"\n";
+      if(tcc.modes[kDebug] && debug.Cryostat == cstat && debug.TPC == tpc && debug.Plane >= 0) {
+        debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
+      }
     }
     return true;
   } // CreateSlice
+  
+  /////////////////////////////////////////
+  void TrajClusterAlg::FinishEvent()
+  {
+    // final steps that involve correlations between slices
+    // Stitch PFParticles between TPCs
+    
+    // define the PFP TjUIDs vector before calling StitchPFPs
+    for(auto& slc : slices) {
+      if(!slc.isValid) continue;
+      for(auto& pfp : slc.pfps) {
+        if(pfp.ID <= 0) continue;
+        pfp.TjUIDs.resize(pfp.TjIDs.size());
+        for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
+          // do a sanity check while we are here
+          if(pfp.TjIDs[ii] <=0 || pfp.TjIDs[ii] > (int)slc.tjs.size()) {
+            std::cout<<"FinishEvent found an invalid T"<<pfp.TjIDs[ii]<<" in P"<<pfp.UID<<"\n";
+            slc.isValid = false;
+            continue;
+          } // sanity check
+          auto& tj = slc.tjs[pfp.TjIDs[ii] - 1];
+          pfp.TjUIDs[ii] = tj.UID;
+        } // ii
+      } // pfp
+    } // slc
+
+    if(tcc.geom->NTPC() > 1 && slices.size() > 1) StitchPFPs();
+    // TODO: Try to make a neutrino PFParticle here
+    // Ensure that all PFParticles have a start vertex
+    for(auto& slc : slices) PFPVertexCheck(slc);
+  } // FinishEvent
 
 } // namespace cluster
