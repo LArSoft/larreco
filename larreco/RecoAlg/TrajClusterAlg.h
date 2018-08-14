@@ -60,6 +60,7 @@ namespace tca {
     bool SetInputHits(std::vector<recob::Hit> const& inputHits);
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID);
     bool CreateSlice(std::vector<unsigned int>& hitsInSlice);
+    void FinishEvent();
     
 
     void DefineShTree(TTree* t);
