@@ -186,7 +186,8 @@ namespace tca {
   };
   
   struct PFPStruct {
-    std::vector<int> TjIDs;
+    std::vector<int> TjIDs;             // used to reference Tjs within a slice
+    std::vector<int> TjUIDs;             // used to reference Tjs in any slice
     std::vector<float> TjCompleteness;  // fraction of TP points that are 3D-matched
     std::vector<TrajPoint3> Tp3s;    // TrajCluster 3D trajectory points
     // Start is 0, End is 1
@@ -208,7 +209,6 @@ namespace tca {
     float CosmicScore{0};
     int ID {0};
     int UID {0};              // unique global ID
-    std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
   };
@@ -470,6 +470,7 @@ namespace tca {
     float JTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
     std::bitset<128> useAlg;  ///< Allow user to mask off specific algorithms
     std::bitset<128> dbgAlg;  ///< Allow user to turn on debug printing in algorithms (that print...)
+    short recoSlice {0};     ///< only reconstruct the slice with ID (0 = all)
     bool dbgSlc {true};          ///< debug only in the user-defined slice? default is all slices
     bool dbgStp {false};          ///< debug stepping using debug.Cryostat, debug.TPC, etc
     bool dbgMrg {false};
