@@ -186,6 +186,7 @@ namespace tca {
   bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP);
   bool MergeAndStore(TCSlice& slc, unsigned int itj1, unsigned int itj2, bool doPrt);
   std::vector<int> GetAssns(TCSlice& slc, std::string type1Name, int id, std::string type2Name);
+  std::pair<unsigned short, unsigned short> GetSliceIndex(std::string typeName, int uID);
   template <typename T>
   std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2);
   template <typename T>

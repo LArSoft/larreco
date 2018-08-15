@@ -13,6 +13,122 @@ namespace tca {
   bool valIncreasings (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
   
   /////////////////////////////////////////
+  void StitchPFPs()
+  {
+    // Stitch PFParticles in different TPCs. This does serious damage to PFPStruct and should
+    // only be called from TrajCluster module just before making PFParticles to put in the event
+    
+    // lists of pfp UIDs to stitch
+    std::vector<std::vector<int>> stLists;
+    for(unsigned short sl1 = 0; sl1 < slices.size() - 1; ++sl1) {
+      auto& slc1 = slices[sl1];
+      for(unsigned short sl2 = sl1 + 1; sl2 < slices.size(); ++sl2) {
+        auto& slc2 = slices[sl2];
+        // look for PFParticles in the same recob::Slice
+        if(slc1.ID != slc2.ID) continue;
+        for(auto& p1 : slc1.pfps) {
+          if(p1.ID <= 0) continue;
+          // Can't stitch shower PFPs
+          if(p1.PDGCode == 1111) continue;
+          for(auto& p2 : slc2.pfps) {
+            if(p2.ID <= 0) continue;
+            // Can't stitch shower PFPs
+            if(p2.PDGCode == 1111) continue;
+            float maxSep2 = 25;
+            float maxCth = 0.99;
+            unsigned short end1 = 2, end2 = 0;
+            for(unsigned short e1 = 0; e1 < 2; ++e1) {
+              auto& pos1 = p1.XYZ[e1];
+              // require the end to be close to a TPC boundary
+              if(InsideFV(slc1, p1, e1)) continue;
+              auto& dir1 = p1.Dir[e1];
+              for(unsigned short e2 = 0; e2 < 2; ++e2) {
+                auto& pos2 = p2.XYZ[e2];
+                // require the end to be close to a TPC boundary
+                if(InsideFV(slc2, p2, e2)) continue;
+                auto& dir2 = p2.Dir[e2];
+                float sep = PosSep2(pos1, pos2);
+                if(sep > maxSep2) continue;
+                float cth = std::abs(DotProd(dir1, dir2));
+                if(cth < maxCth) continue;
+                maxSep2 = sep;
+                maxCth = cth;
+                end1 = e1; end2 = e2;
+                geo::TPCID tpcid;
+                std::cout<<"chk P"<<p1.UID<<"_"<<end1;
+                std::cout<<" P"<<p2.UID<<"_"<<end2<<"\n";
+              } // e2
+            } // e1
+            if(end1 > 1) continue;
+            std::cout<<"Stitch slice "<<slc1.ID<<" P"<<p1.UID;
+            std::cout<<" and P"<<p2.UID;
+            std::cout<<" sep "<<sqrt(maxSep2)<<" maxCth "<<maxCth;
+            std::cout<<"\n";
+            // see if either of these are in a list
+            bool added = false;
+            for(auto& pm : stLists) {
+              bool p1InList = (std::find(pm.begin(), pm.end(), p1.UID) != pm.end());
+              bool p2InList = (std::find(pm.begin(), pm.end(), p2.UID) != pm.end());
+              if(p1InList || p2InList) {
+                if(p1InList) pm.push_back(p2.UID);
+                if(p2InList) pm.push_back(p1.UID);
+                added = true;
+              }
+            } // pm
+            if(added) continue;
+            // start a new list
+            std::vector<int> tmp(2);
+            tmp[0] = p1.UID;
+            tmp[1] = p2.UID;
+            stLists.push_back(tmp);
+            break;
+          } // p2
+        } // p1
+      } // sl2
+    } // sl1
+    if(stLists.empty()) return;
+    
+    std::cout<<"Stitch Lists\n";
+    for(auto& stl : stLists) {
+      for(auto pid : stl) std::cout<<" "<<pid;
+      std::cout<<"\n";
+      // Find the endpoints of the stitched pfp
+      float minZ = 1E6;
+      std::pair<unsigned short, unsigned short> minZIndx;
+      unsigned short minZEnd = 2;
+      for(auto puid : stl) {
+        auto slcIndex = GetSliceIndex("P", puid);
+        if(slcIndex.first == USHRT_MAX) continue;
+        auto& pfp = slices[slcIndex.first].pfps[slcIndex.second];
+        for(unsigned short end = 0; end < 2; ++end) {
+          if(pfp.XYZ[end][2] < minZ) { minZ = pfp.XYZ[end][2]; minZIndx = slcIndex;  minZEnd = end; }
+        } // end
+      } // puid
+      if(minZEnd > 1) continue;
+      // preserve the pfp with the min Z position
+      auto& pfp = slices[minZIndx.first].pfps[minZIndx.second];
+      // reverse it if necessary
+      if(minZEnd != 0) ReversePFP(slices[minZIndx.first], pfp);
+      // add the Tjs in the other slices to it
+      std::cout<<"StitchPFPs P"<<pfp.UID<<"\n";
+      for(auto puid : stl) {
+        if(puid == pfp.UID) continue;
+        auto sIndx = GetSliceIndex("P", puid);
+        if(sIndx.first == USHRT_MAX) continue;
+        auto& opfp = slices[sIndx.first].pfps[sIndx.second];
+        std::cout<<" oP"<<opfp.UID;
+        for(auto tid : opfp.TjUIDs) std::cout<<" UT"<<tid;
+        std::cout<<"\n";
+        pfp.TjUIDs.insert(pfp.TjUIDs.end(), opfp.TjUIDs.begin(), opfp.TjUIDs.end());
+        // declare it obsolete
+        opfp.ID = 0;
+        // TODO: Check for parents and daughters
+      } // puid
+    } // stl
+
+  } // StitchPFPs
+  
+  /////////////////////////////////////////
   void UpdateMatchStructs(TCSlice& slc, int oldTj, int newTj)
   {
     // Replaces tjid and ipt references in slc.matchVec and slc.pfps from
@@ -2306,6 +2422,8 @@ namespace tca {
   {
     // Ensure that all PFParticles have a start vertex. It is possible for
     // PFParticles to be attached to a 3D vertex that is later killed.
+    if(!slc.isValid) return;
+    
     for(auto& pfp : slc.pfps) {
       if(pfp.ID == 0) continue;
       if(pfp.Vx3ID[0] > 0) continue;
@@ -2365,6 +2483,8 @@ namespace tca {
      
      */    
     if(slc.pfps.empty()) return;
+    if(tcc.modes[kTestBeam]) return;
+    
     int neutrinoPFPID = 0;
     for(auto& pfp : slc.pfps) {
       if(pfp.ID == 0) continue;
@@ -2434,12 +2554,12 @@ namespace tca {
       } // nParent > 1
     } // ipfp
 
-    
+/* TODO: This needs work
     if(tcc.modes[kTestBeam]) {
       DefinePFPParentsTestBeam(slc, prt);
       return;
     }
-
+*/
     // associate primary PFParticles with a neutrino PFParticle
     if(neutrinoPFPID > 0) {
       auto& neutrinoPFP = slc.pfps[neutrinoPFPID - 1];
@@ -2608,27 +2728,40 @@ namespace tca {
     slc.pfps.push_back(pfp);
     return true;
   } // StorePFP
+
+  ////////////////////////////////////////////////
+  bool InsideFV(TCSlice& slc, PFPStruct& pfp, unsigned short end)
+  {
+    // returns true if the end of the pfp is inside the fiducial volume of the TPC
+    if(pfp.ID <= 0) return false;
+    if(end > 1) return false;
+    
+    float abit = 5;
+    auto& pos1 = pfp.XYZ[end];
+    return (pos1[0] > slc.xLo + abit && pos1[0] < slc.xHi - abit && 
+            pos1[1] > slc.yLo + abit && pos1[1] < slc.yHi - abit &&
+            pos1[2] > slc.zLo + abit && pos1[2] < slc.zHi - abit);
+    
+  } // InsideFV
   
   ////////////////////////////////////////////////
-  bool InsideTPC(Point3_t& pos, geo::TPCID& inTPCID)
+  bool InsideTPC(const Point3_t& pos, geo::TPCID& inTPCID)
   {
     // determine which TPC this point is in. This function returns false
     // if the point is not inside any TPC
-    double abit = -2;
+    float abit = 5;
     for (const geo::TPCID& tpcid: tcc.geom->IterateTPCIDs()) {
       const geo::TPCGeo& TPC = tcc.geom->TPC(tpcid);
       double local[3] = {0.,0.,0.};
       double world[3] = {0.,0.,0.};
       TPC.LocalToWorld(local,world);
-      unsigned int cstat = tpcid.Cryostat;
-      unsigned int tpc = tpcid.TPC;
-      // reduce the active area of the TPC by 1 cm to be consistent with FillWireHitRange
-      if(pos[0] < world[0]-tcc.geom->DetHalfWidth(tpc,cstat) + abit) continue;
-      if(pos[0] > world[0]+tcc.geom->DetHalfWidth(tpc,cstat) - abit) continue;
-      if(pos[1] < world[1]-tcc.geom->DetHalfHeight(tpc,cstat) + abit) continue;
-      if(pos[1] > world[1]+tcc.geom->DetHalfHeight(tpc,cstat) - abit) continue;
-      if(pos[2] < world[2]-tcc.geom->DetLength(tpc,cstat)/2 + abit) continue;
-      if(pos[2] > world[2]+tcc.geom->DetLength(tpc,cstat)/2 - abit) continue;
+      // reduce the active area of the TPC by a bit to be consistent with FillWireHitRange
+      if(pos[0] < world[0]-tcc.geom->DetHalfWidth(tpcid) + abit) continue;
+      if(pos[0] > world[0]+tcc.geom->DetHalfWidth(tpcid) - abit) continue;
+      if(pos[1] < world[1]-tcc.geom->DetHalfHeight(tpcid) + abit) continue;
+      if(pos[1] > world[1]+tcc.geom->DetHalfHeight(tpcid) - abit) continue;
+      if(pos[2] < world[2]-tcc.geom->DetLength(tpcid)/2 + abit) continue;
+      if(pos[2] > world[2]+tcc.geom->DetLength(tpcid)/2 - abit) continue;
       inTPCID = tpcid;
       return true;
     } // tpcid
@@ -2734,7 +2867,6 @@ namespace tca {
     std::swap(pfp.dEdx[0], pfp.dEdx[1]);
     std::swap(pfp.dEdxErr[0], pfp.dEdxErr[1]);
     std::swap(pfp.Vx3ID[0], pfp.Vx3ID[1]);
-    std::swap(pfp.StopFlag[0], pfp.StopFlag[1]);
     std::reverse(pfp.Tp3s.begin(), pfp.Tp3s.end());
     for(auto& tp3 : pfp.Tp3s) {
       for(unsigned short xyz = 0; xyz < 3; ++xyz) {
