@@ -49,7 +49,10 @@ namespace  trkf{
     fEnableW(false),
     fFilter(false),
     fMerge(false),
-    fPreferColl(false)
+    fPreferColl(false),
+    fTickOffsetU(0.),
+    fTickOffsetV(0.),
+    fTickOffsetW(0.)
     {
         reconfigure(pset);
     }
@@ -79,6 +82,9 @@ namespace  trkf{
         fFilter = pset.get<bool>("Filter");
         fMerge = pset.get<bool>("Merge");
         fPreferColl = pset.get<bool>("PreferColl");
+        fTickOffsetU = pset.get<double>("TickOffsetU", 0.);
+        fTickOffsetV = pset.get<double>("TickOffsetV", 0.);
+        fTickOffsetW = pset.get<double>("TickOffsetW", 0.);
         
         // Only allow one of fFilter and fMerge to be true.
         
@@ -87,16 +93,19 @@ namespace  trkf{
         
         // Report.
         
-        mf::LogInfo("SpacePointAlg")
-        << "SpacePointAlg configured with the following parameters:\n"
-        << "  MaxDT = " << fMaxDT << "\n"
-        << "  MaxS = " << fMaxS << "\n"
-        << "  MinViews = " << fMinViews << "\n"
-        << "  EnableU = " << fEnableU << "\n"
-        << "  EnableV = " << fEnableV << "\n"
-        << "  EnableW = " << fEnableW << "\n"
-        << "  Filter = " << fFilter << "\n"
-        << "  Merge = " << fMerge;
+	std::cout << "SpacePointAlg configured with the following parameters:\n"
+		  << "  MaxDT = " << fMaxDT << "\n"
+		  << "  MaxS = " << fMaxS << "\n"
+		  << "  MinViews = " << fMinViews << "\n"
+		  << "  EnableU = " << fEnableU << "\n"
+		  << "  EnableV = " << fEnableV << "\n"
+		  << "  EnableW = " << fEnableW << "\n"
+		  << "  Filter = " << fFilter << "\n"
+		  << "  Merge = " << fMerge << "\n"
+		  << "  PreferColl = " << fPreferColl << "\n"
+		  << "  TickOffsetU = " << fTickOffsetU << "\n"
+		  << "  TickOffsetV = " << fTickOffsetV << "\n"
+		  << "  TickOffsetW = " << fTickOffsetW << std::endl;
     }
     
     //----------------------------------------------------------------------
@@ -216,6 +225,12 @@ namespace  trkf{
         // Correct time for trigger offset and plane-dependent time offsets.
         
         double t = hit.PeakTime() - detprop->GetXTicksOffset(hit.WireID().Plane,hit.WireID().TPC,hit.WireID().Cryostat);
+	if(hit.View() == geo::kU)
+	  t -= fTickOffsetU;
+	else if(hit.View() == geo::kV)
+	  t -= fTickOffsetV;
+	else if(hit.View() == geo::kW)
+	  t -= fTickOffsetW;
         
         return t;
     }
