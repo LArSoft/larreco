@@ -5185,7 +5185,7 @@ namespace tca {
     if(tcc.modes[kDebug] && debug.Slice >= 0 && !tcc.dbgSlc) {
       tcc.dbgSlc = ((int)(slices.size() - 1) == debug.Slice);
       if(tcc.dbgSlc) std::cout<<"Enabled debugging in sub-slice "<<slices.size() - 1<<"\n";
-      if(tcc.modes[kDebug] && debug.Cryostat == cstat && debug.TPC == tpc && debug.Plane >= 0) {
+      if(tcc.modes[kDebug] && (unsigned int)debug.Cryostat == cstat && (unsigned int)debug.TPC == tpc && debug.Plane >= 0) {
         debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
       }
     }
