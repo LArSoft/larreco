@@ -230,12 +230,28 @@ namespace cluster {
     // are not copied.
     if(!fTCAlg->SetInputHits(*inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
     nInputHits = (*inputHits).size();
+    if(tca::tcc.dbgStp) std::cout<<"DebugMode: Looking for hit near "<<tca::debug.Cryostat<<":"<<tca::debug.TPC<<":"<<tca::debug.Wire<<":"<<tca::debug.Plane<<":"<<tca::debug.Tick<<"\n";
     if(fSliceModuleLabel != "NA") {
       // Expecting to find sliced hits from Slice -> Hits assns
       auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
       art::fill_ptr_vector(slices, slcHandle);
       art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
       for(size_t isl = 0; isl < slices.size(); ++isl) {
+        if(tca::tcc.modes[tca::kTestBeam] && tca::tcc.testBeamCuts.size() > 1) {
+          float zlo = slices[isl]->End0Pos().Z();
+          if(slices[isl]->End1Pos().Z() < zlo) zlo = slices[isl]->End1Pos().Z();
+          auto sepVec = slices[isl]->End0Pos() - slices[isl]->End1Pos();
+          float len = sqrt(sepVec.Mag2());
+          bool isBeam = (zlo < tca::tcc.testBeamCuts[0] && len > tca::tcc.testBeamCuts[1]);
+          if(isBeam) {
+            std::cout<<"Beam slice "<<slices[isl]->ID();
+            std::cout<<" Direction "<<slices[isl]->Direction().X()<<" "<<slices[isl]->Direction().Y()<<" "<<slices[isl]->Direction().Z();
+            std::cout<<" AspectRatio "<<std::setprecision(2)<<slices[isl]->AspectRatio();
+            std::cout<<" Length "<<(int)len;
+            std::cout<<"\n";
+          } // zlo < 10
+          if(!isBeam) continue;
+        } // TestBeam mode
         auto& hit_in_slc = hitFromSlc.at(isl);
         if(hit_in_slc.size() < 3) continue;
         std::vector<unsigned int> slhits(hit_in_slc.size());
@@ -245,6 +261,18 @@ namespace cluster {
           if(hit.key() > nInputHits - 1) throw cet::exception("TrajClusterModule")<<"Found an invalid slice index "<<hit.key()<<" to the input hit collection of size "<<nInputHits<<"\n";
           slhits[indx] = hit.key();
           ++indx;
+          if(tca::tcc.dbgStp && 
+             hit->WireID().TPC == tca::debug.TPC && 
+             hit->WireID().Plane == tca::debug.Plane &&
+             hit->WireID().Wire == tca::debug.Wire &&
+             hit->PeakTime() > tca::debug.Tick - 10  && hit->PeakTime() < tca::debug.Tick + 10) {
+            std::cout<<" Debug hit is in slice "<<slices[isl]->ID();
+            std::cout<<std::setprecision(3);
+            std::cout<<" Direction "<<slices[isl]->Direction().X()<<" "<<slices[isl]->Direction().Y()<<" "<<slices[isl]->Direction().Z();
+            std::cout<<" AspectRatio "<<std::setprecision(2)<<slices[isl]->AspectRatio();
+            std::cout<<"\n";
+            tca::debug.Hit = hit.key();
+          } // Look for debug hit
         } // hit
         if(slhits.size() < 3) continue;
         slHitsVec.push_back(slhits);
@@ -527,7 +555,7 @@ namespace cluster {
           // add it to the new hits collection
           hitCol.push_back(newHit);
           // Slice -> Hit assn
-          if(!util::CreateAssn(*this, evt, hitCol, slices[slcIndex], *slc_hit_assn))
+          if(!slices.empty() && !util::CreateAssn(*this, evt, hitCol, slices[slcIndex], *slc_hit_assn))
           {
             throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate new Hit with Slice";
           } // exception
@@ -634,8 +662,10 @@ namespace cluster {
     // Add PFParticles now that clsCol is filled
     for(unsigned short isl = 0; isl < nSlices; ++isl) {
       unsigned short slcIndex = 0;
-      for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() != slcIDs[isl]) break;
-      if(slcIndex == slices.size()) continue;
+      if(!slices.empty()) {
+        for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() != slcIDs[isl]) break;
+        if(slcIndex == slices.size()) continue;
+      }
       auto& slc = fTCAlg->GetSlice(isl);
       // See if there was a serious reconstruction failure that made the slice invalid
       if(!slc.isValid) continue;
@@ -647,9 +677,9 @@ namespace cluster {
         size_t self = pfpCol.size();
         size_t offset = self - ipfp;
         size_t parentIndex = UINT_MAX;
-        if(pfp.ParentID > 0) parentIndex = pfp.ParentID + offset - 1;
-        std::vector<size_t> dtrIndices(pfp.DtrIDs.size());
-        for(unsigned short idtr = 0; idtr < pfp.DtrIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrIDs[idtr] + offset - 1;
+        if(pfp.ParentUID > 0) parentIndex = pfp.ParentUID + offset - 1;
+        std::vector<size_t> dtrIndices(pfp.DtrUIDs.size());
+        for(unsigned short idtr = 0; idtr < pfp.DtrUIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrUIDs[idtr] + offset - 1;
         pfpCol.emplace_back(pfp.PDGCode, self, parentIndex, dtrIndices);
         // PFParticle -> clusters
         std::vector<unsigned int> clsIndices;
