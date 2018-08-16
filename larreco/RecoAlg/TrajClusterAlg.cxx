@@ -57,7 +57,6 @@ namespace tca {
       if(userMode == 3) tcc.modes[kStudy3] = true;
       if(userMode == 4) tcc.modes[kStudy4] = true;
     } // new Study mode
-    if(pset.has_key("TestBeam")) tcc.modes[kTestBeam] = pset.get<bool>("TestBeam");
     if(pset.has_key("SaveShowerTree")) tcc.modes[kSaveShowerTree] = pset.get<bool>("SaveShowerTree");
     if(pset.has_key("SaveCRTree")) tcc.modes[kSaveCRTree] = pset.get<bool>("SaveCRTree");
     if(pset.has_key("TagCosmics")) tcc.modes[kTagCosmics] = pset.get<bool>("TagCosmics");
@@ -96,6 +95,8 @@ namespace tca {
     tcc.vtx3DCuts      = pset.get< std::vector<float >>("Vertex3DCuts", {-1, -1});
     tcc.vtxScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
     tcc.match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1, -1});
+    tcc.pfpStitchCuts     = pset.get< std::vector<float >>("PFPStitchCuts", {-1});
+    pset.get_if_present<std::vector<float>>("TestBeamCuts", tcc.testBeamCuts);
     pset.get_if_present<std::vector<float>>("NeutralVxCuts", tcc.neutralVxCuts);
     if(tcc.JTMaxHitSep2 > 0) tcc.JTMaxHitSep2 *= tcc.JTMaxHitSep2;
     
@@ -141,6 +142,17 @@ namespace tca {
       mf::LogVerbatim("TC")<<"Last element of AngleRange != 90 degrees. Fixing it\n";
       tcc.angleRanges.back() = 90;
     }
+    
+    // convert PFP stitch cuts
+    if(tcc.pfpStitchCuts.size() > 1 && tcc.pfpStitchCuts[0] > 0) {
+      // square the separation cut
+      tcc.pfpStitchCuts[0] *= tcc.pfpStitchCuts[0];
+      // convert angle to cos
+      tcc.pfpStitchCuts[1] = cos(tcc.pfpStitchCuts[1]);
+    }
+    // turn on TestBeam mode?
+    tcc.modes[kTestBeam] = (!tcc.testBeamCuts.empty());
+
     
     // configure algorithm debugging. Configuration for debugging standard stepping
     // is done in Utils/AnalyzeHits when the input hit collection is passed to SetInputHits
@@ -5217,7 +5229,7 @@ namespace tca {
       } // pfp
     } // slc
 
-    if(tcc.geom->NTPC() > 1 && slices.size() > 1) StitchPFPs();
+    StitchPFPs();
     // TODO: Try to make a neutrino PFParticle here
     // Ensure that all PFParticles have a start vertex
     for(auto& slc : slices) PFPVertexCheck(slc);
