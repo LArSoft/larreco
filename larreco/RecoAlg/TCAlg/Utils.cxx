@@ -19,9 +19,9 @@ namespace tca {
   void DefineTjParents(TCSlice& slc, bool prt)
   {
 /*
-    This function sets the ParentID of Tjs in this tpcid to create a hierarchy. The highest Score
+    This function sets the ParentUID of Tjs in this tpcid to create a hierarchy. The highest Score
     3D vertex in a chain of Tjs and vertices is declared the primary vertex; vx3.Primary = true. Tjs directly attached
-    to that vertex are declared Primary trajectories with ParentID = 0. All other Tjs in the chain have ParentID
+    to that vertex are declared Primary trajectories with ParentUID = 0. All other Tjs in the chain have ParentUID
     set to the next upstream Tj to which it is attached by a vertex. In the graphical description below, V1 and V4 are 
     2D vertices that are matched to a high-score 3D vertex. The V1 Score is greater than the V2 Score and V3 Score. 
     V1 and V4 are declared to be primary vertices. T1, T2, T6 and T7 are declared to be primary Tjs
@@ -33,7 +33,7 @@ namespace tca {
                      T5
  
     This is represented as follows. The NeutrinoPrimaryTjID is defined by a function.
-     Tj   ParentID   NeutrinoPrimaryTjID
+     Tj   ParentUID   NeutrinoPrimaryTjID
      -----------------------------------
      T1      0          T1
      T2      0          T2
@@ -53,8 +53,6 @@ namespace tca {
       if(tj.AlgMod[kKilled]) continue;
       // ignore delta rays
       if(tj.AlgMod[kDeltaRay]) continue;
-      // ignore pion-like
-//      if(tj.PDGCode == 211) continue;
       tj.ParentID = 0;
     } // tj
     
@@ -378,7 +376,7 @@ namespace tca {
       if(vx3.Neutrino) return primID;
     } // end
     return -1;
-  } // NeutrinoPrimaryTjID
+  } // NeutrinoPrimaryTjUID
   
   /////////////////////////////////////////
   int PrimaryID(TCSlice& slc, const Trajectory& tj)
@@ -400,28 +398,29 @@ namespace tca {
   } // PrimaryID
   
   /////////////////////////////////////////
-  int PrimaryID(TCSlice& slc, const PFPStruct& pfp)
+  int PrimaryUID(TCSlice& slc, const PFPStruct& pfp)
   {
-    // returns the ID of the most upstream PFParticle (that is not a neutrino)
+    // returns the UID of the most upstream PFParticle (that is not a neutrino)
     
-    if(int(pfp.ParentID) == pfp.ID || pfp.ParentID <= 0) return pfp.ID;
-    int parid = pfp.ParentID;
-    int dtrid = pfp.ID;
+    if(int(pfp.ParentUID) == pfp.UID || pfp.ParentUID <= 0) return pfp.ID;
+    int paruid = pfp.ParentUID;
+    int dtruid = pfp.UID;
     unsigned short nit = 0;
     while(true) {
-      auto& parent = slc.pfps[parid - 1];
+      auto slcIndx = GetSliceIndex("P", paruid);
+      auto& parent = slices[slcIndx.first].pfps[slcIndx.second];
       // found a neutrino
-      if(parent.PDGCode == 14 || parent.PDGCode == 12) return dtrid;
+      if(parent.PDGCode == 14 || parent.PDGCode == 12) return dtruid;
       // found a primary PFParticle?
-      if(parent.ParentID == 0) return parent.ID;
-      if(int(parent.ParentID) == parent.ID) return parent.ID;
-      dtrid = parent.ID;
-      parid = parent.ParentID;
-      if(parid < 0) return 0;
+      if(parent.ParentUID == 0) return parent.UID;
+      if(int(parent.ParentUID) == parent.UID) return parent.UID;
+      dtruid = parent.UID;
+      paruid = parent.ParentUID;
+      if(paruid < 0) return 0;
       ++nit;
       if(nit == 10) return 0;
     }
-  } // PrimaryID
+  } // PrimaryUID
   
   /////////////////////////////////////////
   bool MergeTjIntoPFP(TCSlice& slc, int mtjid, PFPStruct& pfp, bool prt)
@@ -1045,8 +1044,6 @@ namespace tca {
   ////////////////////////////////////////////////
   unsigned short GetPFPIndex(TCSlice& slc, int tjID)
   {
-    // returns the index into the tjs.matchVec vector of the first 3D match that
-    // includes tjID
     if(slc.pfps.empty()) return USHRT_MAX;
     for(unsigned int ipfp = 0; ipfp < slc.pfps.size(); ++ipfp) {
       const auto& pfp = slc.pfps[ipfp];
@@ -3718,24 +3715,6 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         std::cout<<"AnalyzeHits found bad plane\n";
         return false;
       } // plane check
-      // try to define debug.Hit
-      if(tcc.modes[kDebug] && debug.Hit == UINT_MAX && 
-         (int)hit.WireID().Cryostat == debug.Cryostat &&
-         (int)hit.WireID().TPC == debug.TPC &&
-         (int)hit.WireID().Plane == debug.Plane &&
-         (int)hit.WireID().Wire == debug.Wire &&
-         hit.PeakTime() > debug.Tick - 5 &&
-         hit.PeakTime() < debug.Tick + 5) {
-        debug.Hit = iht;
-        std::cout<<"DebugMode: Found hit near Cryo:TPC:Pln:Wire:Tick "<<debug.Cryostat;
-        std::cout<<":"<<debug.TPC<<":"<<debug.Plane<<":"<<debug.Wire<<":"<<debug.Tick;
-        std::cout<<" debug.Hit "<<iht;
-        std::cout<<" Amp "<<(int)hit.PeakAmplitude();
-        std::cout<<" RMS "<<std::fixed<<std::setprecision(1)<<hit.RMS();
-        std::cout<<" Chisq "<<std::fixed<<std::setprecision(1)<<hit.GoodnessOfFit();
-        std::cout<<" Mult "<<hit.Multiplicity();
-        std::cout<<"\n";
-      } // check for debug hit
       if(cnt[plane] > 200) continue;
       // require multiplicity one
       if(hit.Multiplicity() != 1) continue;
@@ -3750,12 +3729,6 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       for(unsigned short plane = 0; plane < nplanes; ++plane) if(cnt[plane] > 200) allDone = false;
       if(allDone) break;
     } // iht
-    
-    if(tcc.modes[kDebug] && debug.Hit == UINT_MAX && debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Wire >= 0) {
-      std::cout<<"Failed to find debug hit C:T:P:W"<<debug.Cryostat<<":"<<debug.TPC<<":"<<debug.Wire<<":"<<debug.Plane;
-      std::cout<<" near tick "<<debug.Tick<<" turning off debug mode\n" ;
-      tcc.modes[kDebug] = false;
-    }
     
     // assume there are enough hits in each plane
     evt.aveHitRMSValid = true;
@@ -4108,7 +4081,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
   ////////////////////////////////////////////////
   std::vector<int> GetAssns(TCSlice& slc, std::string type1Name, int id, std::string type2Name)
   {
-    // returns a list of IDs of objects (slc, vertices, pfps, etc) with type1Name that are in TJStuff with
+    // returns a list of IDs of objects (slc, vertices, pfps, etc) with type1Name that are in slc with
     // type2Name. This is intended to be a general purpose replacement for specific functions like GetVtxTjIDs, etc
     
     std::vector<int> tmp;
@@ -4540,15 +4513,15 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     } else {
       myprt<<std::setw(8)<<pfp.mcpListIndex;
     }
-    myprt<<std::setw(4)<<pfp.ParentID;
-    myprt<<std::setw(5)<<PrimaryID(slc, pfp);
+    myprt<<std::setw(4)<<pfp.ParentUID;
+    myprt<<std::setw(5)<<PrimaryUID(slc, pfp);
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
     if(!pfp.TjIDs.empty()) {
       for(auto tjid : pfp.TjIDs) myprt<<" T"<<slc.tjs[tjid - 1].UID;
     } // TjIDs exist
-    if(!pfp.DtrIDs.empty()) {
+    if(!pfp.DtrUIDs.empty()) {
       myprt<<" dtrs";
-      for(auto dtrid : pfp.DtrIDs) myprt<<" P"<<slc.pfps[dtrid - 1].UID;
+      for(auto dtruid : pfp.DtrUIDs) myprt<<" P"<<dtruid;
     } // dtr ids exist
     myprt<<"\n";
   } // PrintP
@@ -5255,15 +5228,15 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     }
 */
     myprt<<"      NA";
-    myprt<<std::setw(4)<<pfp.ParentID;
-    myprt<<std::setw(5)<<PrimaryID(slc, pfp);
+    myprt<<std::setw(4)<<pfp.ParentUID;
+    myprt<<std::setw(5)<<PrimaryUID(slc, pfp);
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
     if(!pfp.TjIDs.empty()) {
       for(auto& tjID : pfp.TjIDs) myprt<<" T"<<tjID;
     }
-    if(!pfp.DtrIDs.empty()) {
+    if(!pfp.DtrUIDs.empty()) {
       myprt<<" dtrs";
-      for(auto& dtrID : pfp.DtrIDs) myprt<<" P"<<dtrID;
+      for(auto& dtrUID : pfp.DtrUIDs) myprt<<" P"<<dtrUID;
     }
   } // PrintPFP
   
