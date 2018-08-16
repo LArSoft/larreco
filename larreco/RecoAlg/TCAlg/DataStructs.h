@@ -200,8 +200,8 @@ namespace tca {
     int BestPlane {-1};
     // stuff for constructing the PFParticle
     int PDGCode {-1};
-    std::vector<int> DtrIDs;
-    size_t ParentID {0};       // Parent PFP ID (or 0 if no parent exists)
+    std::vector<int> DtrUIDs;
+    size_t ParentUID {0};       // Parent PFP UID (or 0 if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned int mcpListIndex {UINT_MAX};
@@ -446,6 +446,8 @@ namespace tca {
     std::vector<float> matchTruth;     ///< Match to MC truth
     std::vector<float> chargeCuts;
     std::vector<float> qualityCuts; ///< Min points/wire, min consecutive pts after a gap
+    std::vector<float> pfpStitchCuts;      ///< cuts for stitching between TPCs
+    std::vector<float> testBeamCuts;
     std::vector<unsigned short> minPtsFit; ///< Reconstruct in several passes
     std::vector<unsigned short> minPts;    ///< min number of Pts required to make a trajectory
     std::vector<unsigned short> maxAngleCode;   ///< max allowed angle code for each pass
