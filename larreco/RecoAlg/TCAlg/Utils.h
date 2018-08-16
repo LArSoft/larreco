@@ -48,7 +48,7 @@ namespace tca {
   unsigned short NumDeltaRays(TCSlice& slc, std::vector<int>& tjIDs);
   int NeutrinoPrimaryTjID(TCSlice& slc, const Trajectory& tj);
   int PrimaryID(TCSlice& slc, const Trajectory& tj);
-  int PrimaryID(TCSlice& slc, const PFPStruct& pfp);
+  int PrimaryUID(TCSlice& slc, const PFPStruct& pfp);
   bool MergeTjIntoPFP(TCSlice& slc, int mtjid, PFPStruct& pfp, bool prt);
   bool CompatibleMerge(TCSlice& slc, std::vector<int>& tjIDs, bool prt);
   bool CompatibleMerge(TCSlice& slc, const Trajectory& tj1, const Trajectory& tj2, bool prt);
