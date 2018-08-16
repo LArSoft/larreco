@@ -17,6 +17,14 @@ namespace tca {
   {
     // Stitch PFParticles in different TPCs. This does serious damage to PFPStruct and should
     // only be called from TrajCluster module just before making PFParticles to put in the event
+    if(slices.size() < 2) return;
+    if(tcc.geom->NTPC() == 1) return;
+    if(tcc.pfpStitchCuts.size() < 2) return;
+    if(tcc.pfpStitchCuts[0] <= 0) return;
+    
+    bool prt = (tcc.pfpStitchCuts.size() > 2 && tcc.pfpStitchCuts[2] > 0);
+    
+    if(prt) mf::LogVerbatim("TC")<<"StitchPFP cuts "<<sqrt(tcc.pfpStitchCuts[0])<<" "<<tcc.pfpStitchCuts[1];
     
     // lists of pfp UIDs to stitch
     std::vector<std::vector<int>> stLists;
@@ -34,8 +42,8 @@ namespace tca {
             if(p2.ID <= 0) continue;
             // Can't stitch shower PFPs
             if(p2.PDGCode == 1111) continue;
-            float maxSep2 = 25;
-            float maxCth = 0.99;
+            float maxSep2 = tcc.pfpStitchCuts[0];
+            float maxCth = tcc.pfpStitchCuts[1];
             unsigned short end1 = 2, end2 = 0;
             for(unsigned short e1 = 0; e1 < 2; ++e1) {
               auto& pos1 = p1.XYZ[e1];
@@ -54,16 +62,15 @@ namespace tca {
                 maxSep2 = sep;
                 maxCth = cth;
                 end1 = e1; end2 = e2;
-                geo::TPCID tpcid;
-                std::cout<<"chk P"<<p1.UID<<"_"<<end1;
-                std::cout<<" P"<<p2.UID<<"_"<<end2<<"\n";
               } // e2
             } // e1
             if(end1 > 1) continue;
-            std::cout<<"Stitch slice "<<slc1.ID<<" P"<<p1.UID;
-            std::cout<<" and P"<<p2.UID;
-            std::cout<<" sep "<<sqrt(maxSep2)<<" maxCth "<<maxCth;
-            std::cout<<"\n";
+            if(prt) {
+              mf::LogVerbatim myprt("TC");
+              myprt<<"Stitch slice "<<slc1.ID<<" P"<<p1.UID;
+              myprt<<" and P"<<p2.UID;
+              myprt<<" sep "<<sqrt(maxSep2)<<" maxCth "<<maxCth;
+            }
             // see if either of these are in a list
             bool added = false;
             for(auto& pm : stLists) {
@@ -88,10 +95,7 @@ namespace tca {
     } // sl1
     if(stLists.empty()) return;
     
-    std::cout<<"Stitch Lists\n";
     for(auto& stl : stLists) {
-      for(auto pid : stl) std::cout<<" "<<pid;
-      std::cout<<"\n";
       // Find the endpoints of the stitched pfp
       float minZ = 1E6;
       std::pair<unsigned short, unsigned short> minZIndx;
@@ -110,19 +114,29 @@ namespace tca {
       // reverse it if necessary
       if(minZEnd != 0) ReversePFP(slices[minZIndx.first], pfp);
       // add the Tjs in the other slices to it
-      std::cout<<"StitchPFPs P"<<pfp.UID<<"\n";
       for(auto puid : stl) {
         if(puid == pfp.UID) continue;
         auto sIndx = GetSliceIndex("P", puid);
         if(sIndx.first == USHRT_MAX) continue;
         auto& opfp = slices[sIndx.first].pfps[sIndx.second];
-        std::cout<<" oP"<<opfp.UID;
-        for(auto tid : opfp.TjUIDs) std::cout<<" UT"<<tid;
-        std::cout<<"\n";
         pfp.TjUIDs.insert(pfp.TjUIDs.end(), opfp.TjUIDs.begin(), opfp.TjUIDs.end());
+        // Check for parents and daughters
+        if(opfp.ParentUID > 0) {
+          auto pSlcIndx = GetSliceIndex("P", opfp.ParentUID);
+          if(pSlcIndx.first < slices.size()) {
+            auto& parpfp = slices[pSlcIndx.first].pfps[pSlcIndx.second];
+            std::replace(parpfp.DtrUIDs.begin(), parpfp.DtrUIDs.begin(), opfp.UID, pfp.UID);
+          } // valid pSlcIndx
+        } // has a parent
+        for(auto dtruid : opfp.DtrUIDs) {
+          auto dSlcIndx = GetSliceIndex("P", dtruid);
+          if(dSlcIndx.first < slices.size()) {
+            auto& dtrpfp = slices[dSlcIndx.first].pfps[dSlcIndx.second];
+            dtrpfp.ParentUID = pfp.UID;
+          } // valid dSlcIndx
+        } // dtruid
         // declare it obsolete
         opfp.ID = 0;
-        // TODO: Check for parents and daughters
       } // puid
     } // stl
 
@@ -1947,7 +1961,7 @@ namespace tca {
     // The calling function should define the size of pfp.TjIDs
     PFPStruct pfp;
     pfp.ID = slc.pfps.size() + 1;
-    pfp.ParentID = 0;
+    pfp.ParentUID = 0;
     pfp.TPCID = slc.TPCID;
     // initialize arrays for both ends
     if(slc.nPlanes < 4) {
@@ -2534,23 +2548,24 @@ namespace tca {
       // skip a neutrino PFParticle
       if(pfp.PDGCode == 12 || pfp.PDGCode == 14 || pfp.PDGCode == 22) continue;
       pfp.PDGCode = PDGCodeVote(slc, pfp.TjIDs, prt);
-      // next look for a parent
+      // Define a PFP parent if there are two or more Tjs that are daughters of
+      // Tjs that are used by the same PFParticle
       int pfpParentID = INT_MAX;
       unsigned short nParent = 0;
       for(auto tjid : pfp.TjIDs) {
         auto& tj = slc.tjs[tjid - 1];
-        if(tj.ParentID == 0) continue;
-        unsigned short ppindex = GetPFPIndex(slc, tj.ParentID);
-        if(ppindex == USHRT_MAX) continue;
-        int ppid = ppindex + 1;
-        if(pfpParentID == INT_MAX) pfpParentID = ppid;
-        if(ppid == pfpParentID) ++nParent;
+        if(tj.ParentID <= 0) continue;
+        auto parPFP = GetAssns(slc, "T", tj.ParentID, "P");
+        if(parPFP.empty()) continue;
+        if(pfpParentID == INT_MAX) pfpParentID = parPFP[0];
+        if(parPFP[0] == pfpParentID) ++nParent;
       } // ii
-      // look for a parent
       if(nParent > 1) {
-        pfp.ParentID = (size_t)pfpParentID;
-        auto& parpfp = slc.pfps[pfpParentID - 1];
-        parpfp.DtrIDs.push_back(pfp.ID);
+        auto& ppfp = slc.pfps[pfpParentID - 1];
+        // set the parent UID
+        pfp.ParentUID = ppfp.UID;
+        // add to the parent daughters list
+        ppfp.DtrUIDs.push_back(pfp.UID);
       } // nParent > 1
     } // ipfp
 
@@ -2567,9 +2582,9 @@ namespace tca {
       for(auto& pfp : slc.pfps) {
         if(pfp.ID == 0 || pfp.ID == neutrinoPFPID) continue;
         if(pfp.Vx3ID[0] != vx3id) continue;
-        pfp.ParentID = (size_t)neutrinoPFPID;
+        pfp.ParentUID = (size_t)neutrinoPFPID;
         pfp.Primary = true;
-        neutrinoPFP.DtrIDs.push_back(pfp.ID);
+        neutrinoPFP.DtrUIDs.push_back(pfp.ID);
       } // pfp
     } // neutrino PFP exists    
   } // DefinePFPParents
@@ -2634,8 +2649,8 @@ namespace tca {
       auto lastPair = pardtr[pardtr.size() - 1];
       auto& dtr = slc.pfps[lastPair.second - 1];
       auto& par = slc.pfps[lastPair.first - 1];
-      dtr.ParentID = par.ID;
-      par.DtrIDs.push_back(dtr.ID);
+      dtr.ParentUID = par.UID;
+      par.DtrUIDs.push_back(dtr.UID);
       // remove the last pair
       pardtr.pop_back();
       // Now see if the daughter is a parent. First check for a vertex at the other end.
