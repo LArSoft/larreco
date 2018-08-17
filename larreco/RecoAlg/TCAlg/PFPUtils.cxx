@@ -55,7 +55,7 @@ namespace tca {
             if(p2.PDGCode == 1111) continue;
             float maxSep2 = tcc.pfpStitchCuts[0];
             float maxCth = tcc.pfpStitchCuts[1];
-            unsigned short end1 = 2, end2 = 0;
+            bool gotit = false;
             for(unsigned short e1 = 0; e1 < 2; ++e1) {
               auto& pos1 = p1.XYZ[e1];
               // require the end to be close to a TPC boundary
@@ -72,10 +72,10 @@ namespace tca {
                 if(cth < maxCth) continue;
                 maxSep2 = sep;
                 maxCth = cth;
-                end1 = e1; end2 = e2;
+                gotit = true;
               } // e2
             } // e1
-            if(end1 > 1) continue;
+            if(!gotit) continue;
             if(prt) {
               mf::LogVerbatim myprt("TC");
               myprt<<"Stitch slice "<<slc1.ID<<" P"<<p1.UID<<" TPC "<<p1.TPCID.TPC;
