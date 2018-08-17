@@ -243,7 +243,7 @@ namespace cluster {
           auto sepVec = slices[isl]->End0Pos() - slices[isl]->End1Pos();
           float len = sqrt(sepVec.Mag2());
           bool isBeam = (zlo < tca::tcc.testBeamCuts[0] && len > tca::tcc.testBeamCuts[1]);
-          if(isBeam) {
+          if(isBeam && tca::tcc.modes[tca::kDebug]) {
             std::cout<<"Beam slice "<<slices[isl]->ID();
             std::cout<<" Direction "<<slices[isl]->Direction().X()<<" "<<slices[isl]->Direction().Y()<<" "<<slices[isl]->Direction().Z();
             std::cout<<" AspectRatio "<<std::setprecision(2)<<slices[isl]->AspectRatio();
@@ -262,9 +262,9 @@ namespace cluster {
           slhits[indx] = hit.key();
           ++indx;
           if(tca::tcc.dbgStp && 
-             hit->WireID().TPC == tca::debug.TPC && 
-             hit->WireID().Plane == tca::debug.Plane &&
-             hit->WireID().Wire == tca::debug.Wire &&
+             (int)hit->WireID().TPC == tca::debug.TPC && 
+             (int)hit->WireID().Plane == tca::debug.Plane &&
+             (int)hit->WireID().Wire == tca::debug.Wire &&
              hit->PeakTime() > tca::debug.Tick - 10  && hit->PeakTime() < tca::debug.Tick + 10) {
             std::cout<<" Debug hit is in slice "<<slices[isl]->ID();
             std::cout<<std::setprecision(3);
@@ -698,14 +698,16 @@ namespace cluster {
         } // exception
         // PFParticle -> Vertex
         if(pfp.Vx3ID[0] > 0) {
-          for(unsigned short vx3Index = 0; vx3Index < slc.vtx3s.size(); ++vx3Index) {
-            auto& vx3 = slc.vtx3s[vx3Index];
-            if(vx3.ID != pfp.Vx3ID[0]) continue;
+          // get the vertex UID
+          int vx3uid = slc.vtx3s[pfp.Vx3ID[0] - 1].UID;
+          for(unsigned short vx3Index = 0; vx3Index < vx3Col.size(); ++vx3Index) {
+            if(vx3Col[vx3Index].ID() != vx3uid) continue;
             std::vector<unsigned short> indx(1, vx3Index);
             if(!util::CreateAssn(*this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end()))
             {
               throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle "<<pfp.UID<<" with Vertex";
             } // exception
+            break;
           } // vx3Index
         } // start vertex exists
         // PFParticle -> Slice
