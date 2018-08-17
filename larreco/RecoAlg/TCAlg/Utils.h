@@ -194,7 +194,7 @@ namespace tca {
   bool DecodeDebugString(std::string ctpwt);
   // ****************************** Printing  ******************************
   void PrintAll(std::string someText);
-  void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp);
+  void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
   void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2);
   void Print3S(std::string someText, mf::LogVerbatim& myprt, ShowerStruct3D& ss3);
