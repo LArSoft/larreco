@@ -4292,6 +4292,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       std::cout<<" 2S <plane> to debug a 2D shower in plane <plane>\n";
       std::cout<<" Reco <ID> to reconstruct all sub-slices in the recob::Slice with the specified ID\n";
       std::cout<<" SubSlice <sub-slice index> where <slice index> restricts output to the specified sub-slice index\n";
+      std::cout<<" Stitch to debug PFParticle stitching between TPCs\n";
       std::cout<<" Sum or Summary to print a debug summary report\n";
       std::cout<<" Note: Ensure that the algorithm name is correct. Set SkipAlgs: [\"bogus\"] to print a list\n";
       std::cout<<" Note that the configuration is defined by the order of the keywords\n";
@@ -4308,6 +4309,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(strng.find("PFP")  != std::string::npos) { tcc.dbgPFP = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("DeltaRay") != std::string::npos) { tcc.dbgDeltaRayTag = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("Muon") != std::string::npos) { tcc.dbgMuonTag = true; tcc.modes[kDebug] = true; return true; }
+    if(strng.find("Stitch") != std::string::npos) { tcc.dbgStitch = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("Sum") != std::string::npos) { tcc.dbgSummary = true; tcc.modes[kDebug] = true; return true; }
 
     std::vector<std::string> words;
@@ -4403,20 +4405,16 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         if(debug.Slice >= 0 && int(isl) != debug.Slice) continue;
         auto& slc = slices[isl];
         if(slc.showers.empty()) continue;
-//        myprt<<".... Slice "<<isl<<"\n";
         for(auto& ss3 : slc.showers) Print3S(someText, myprt, ss3);
       } // slc
     } // prtS3
     if(prtP) {
-      myprt<<someText<<"************ PFParticles ************\n";
-      myprt<<someText;
-      myprt<<"  prodID   sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____   eVx  ________ePos_______ CS _______eDir______ ____edEdx_____   MCS  Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
+      bool printHeader = true;
       for(size_t isl = 0; isl < slices.size(); ++isl) {
         if(debug.Slice >= 0 && int(isl) != debug.Slice) continue;
         auto& slc = slices[isl];
         if(slc.pfps.empty()) continue;
-//        myprt<<".... Slice "<<isl<<"\n";
-        for(auto& pfp : slc.pfps) PrintP(someText, myprt, pfp);
+        for(auto& pfp : slc.pfps) PrintP(someText, myprt, pfp, printHeader);
       } // slc
     } // prtS3
     if(prt3V) {
@@ -4455,9 +4453,14 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
   } // PrintAll
   
   ////////////////////////////////////////////////
-  void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp)
+  void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader)
   {
     if(pfp.ID <= 0) return;
+    if(printHeader) {
+      myprt<<someText<<"************ PFParticles ************\n";
+      myprt<<someText<<"  prodID   sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____   eVx  ________ePos_______ CS _______eDir______ ____edEdx_____   MCS  Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
+      printHeader = false;
+    } // printHeader
     auto sIndx = GetSliceIndex("P", pfp.UID);
     if(sIndx.first == USHRT_MAX) return;
     auto& slc = slices[sIndx.first];
@@ -4497,7 +4500,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       }
     } // startend
     // global stuff
-    //    myprt<<std::setw(5)<<pfp.BestPlane;
+    myprt<<std::setw(7)<<MCSMom(slc, pfp.TjIDs);
     float length = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
     if(length < 100) {
       myprt<<std::setw(5)<<std::setprecision(1)<<length;
@@ -4505,7 +4508,6 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       myprt<<std::setw(5)<<std::setprecision(0)<<length;
     }
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.Tp3s.size();
-    myprt<<std::setw(7)<<MCSMom(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<IsShowerLike(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
     if(pfp.mcpListIndex == UINT_MAX) {
@@ -4517,7 +4519,13 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     myprt<<std::setw(5)<<PrimaryUID(slc, pfp);
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.EffPur;
     if(!pfp.TjIDs.empty()) {
-      for(auto tjid : pfp.TjIDs) myprt<<" T"<<slc.tjs[tjid - 1].UID;
+      if(pfp.TjUIDs.empty()) {
+        // print Tjs in one TPC
+        for(auto tjid : pfp.TjIDs) myprt<<" T"<<slc.tjs[tjid - 1].UID;
+      } else {
+        // print Tjs in all TPCs (if this is called after FinishEvent)
+        for(auto tjuid : pfp.TjUIDs) myprt<<" T"<<tjuid;
+      }
     } // TjIDs exist
     if(!pfp.DtrUIDs.empty()) {
       myprt<<" dtrs";
