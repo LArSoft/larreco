@@ -486,6 +486,7 @@ namespace tca {
     bool dbgMuonTag {false};
     bool dbg2S {false};
     bool dbg3S {false};
+    bool dbgStitch {false};    ///< debug PFParticle stitching
     bool dbgSummary {false};    ///< print a summary report
     short nPtsAve;         /// number of points to find AveChg
     std::bitset<16> modes;   /// See TCMode_t above
