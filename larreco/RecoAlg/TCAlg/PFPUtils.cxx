@@ -22,9 +22,20 @@ namespace tca {
     if(tcc.pfpStitchCuts.size() < 2) return;
     if(tcc.pfpStitchCuts[0] <= 0) return;
     
-    bool prt = (tcc.pfpStitchCuts.size() > 2 && tcc.pfpStitchCuts[2] > 0);
+    bool prt = tcc.dbgStitch;
     
-    if(prt) mf::LogVerbatim("TC")<<"StitchPFP cuts "<<sqrt(tcc.pfpStitchCuts[0])<<" "<<tcc.pfpStitchCuts[1];
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      std::string fcnLabel = "SP";
+      myprt<<fcnLabel<<" cuts "<<sqrt(tcc.pfpStitchCuts[0])<<" "<<tcc.pfpStitchCuts[1]<<"\n";
+      bool printHeader = true;
+      for(size_t isl = 0; isl < slices.size(); ++isl) {
+        if(debug.Slice >= 0 && int(isl) != debug.Slice) continue;
+        auto& slc = slices[isl];
+        if(slc.pfps.empty()) continue;
+        for(auto& pfp : slc.pfps) PrintP(fcnLabel, myprt, pfp, printHeader);
+      } // slc
+    } // prt
     
     // lists of pfp UIDs to stitch
     std::vector<std::vector<int>> stLists;
@@ -67,8 +78,8 @@ namespace tca {
             if(end1 > 1) continue;
             if(prt) {
               mf::LogVerbatim myprt("TC");
-              myprt<<"Stitch slice "<<slc1.ID<<" P"<<p1.UID;
-              myprt<<" and P"<<p2.UID;
+              myprt<<"Stitch slice "<<slc1.ID<<" P"<<p1.UID<<" TPC "<<p1.TPCID.TPC;
+              myprt<<" and P"<<p2.UID<<" TPC "<<p2.TPCID.TPC;
               myprt<<" sep "<<sqrt(maxSep2)<<" maxCth "<<maxCth;
             }
             // see if either of these are in a list
@@ -111,6 +122,7 @@ namespace tca {
       if(minZEnd > 1) continue;
       // preserve the pfp with the min Z position
       auto& pfp = slices[minZIndx.first].pfps[minZIndx.second];
+      if(prt) mf::LogVerbatim("TC")<<"SP: P"<<pfp.UID;
       // reverse it if necessary
       if(minZEnd != 0) ReversePFP(slices[minZIndx.first], pfp);
       // add the Tjs in the other slices to it
@@ -119,7 +131,9 @@ namespace tca {
         auto sIndx = GetSliceIndex("P", puid);
         if(sIndx.first == USHRT_MAX) continue;
         auto& opfp = slices[sIndx.first].pfps[sIndx.second];
+        if(prt) mf::LogVerbatim("TC")<<" +P"<<opfp.UID;
         pfp.TjUIDs.insert(pfp.TjUIDs.end(), opfp.TjUIDs.begin(), opfp.TjUIDs.end());
+        if(prt) mf::LogVerbatim();
         // Check for parents and daughters
         if(opfp.ParentUID > 0) {
           auto pSlcIndx = GetSliceIndex("P", opfp.ParentUID);
@@ -1673,9 +1687,9 @@ namespace tca {
     if(pfp.ID == 0) return;
     // error check
     bool notgood = false;
-    for(unsigned short startend = 0; startend < 2; ++startend) {
-      if(pfp.dEdx[startend].size() != slc.nPlanes) notgood = true;
-      if(pfp.dEdxErr[startend].size() != slc.nPlanes) notgood = true;
+    for(unsigned short end = 0; end < 2; ++end) {
+      if(pfp.dEdx[end].size() != slc.nPlanes) notgood = true;
+      if(pfp.dEdxErr[end].size() != slc.nPlanes) notgood = true;
     }
     if(notgood) {
       //      if(prt) mf::LogVerbatim("TC")<<"FilldEdx found inconsistent sizes for dEdx\n";
@@ -1684,8 +1698,8 @@ namespace tca {
     
     double t0 = 0;
     
-    unsigned short numEnds = 2;
     // don't attempt to find dE/dx at the end of a shower
+    unsigned short numEnds = 2;
     if(pfp.PDGCode == 1111) numEnds = 1;
     
     unsigned short maxlen = 0;
@@ -1694,26 +1708,26 @@ namespace tca {
       Trajectory& tj = slc.tjs[tjID - 1];
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       double angleToVert = tcc.geom->Plane(planeID).ThetaZ() - 0.5 * ::util::pi<>();
-      for(unsigned short startend = 0; startend < numEnds; ++startend) {
-        pfp.dEdx[startend][planeID.Plane] = 0;
-        tj.dEdx[startend] = 0;
-        double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[startend][1] + std::cos(angleToVert) * pfp.Dir[startend][2]);
+      for(unsigned short end = 0; end < numEnds; ++end) {
+        pfp.dEdx[end][planeID.Plane] = 0;
+        tj.dEdx[end] = 0;
+        double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[end][1] + std::cos(angleToVert) * pfp.Dir[end][2]);
         if(cosgamma == 0) continue;
         double dx = tcc.geom->WirePitch(planeID) / cosgamma;
         if(dx == 0) continue;
-        double dQ = tj.Pts[tj.EndPt[startend]].AveChg;
+        double dQ = tj.Pts[tj.EndPt[end]].AveChg;
         if(dQ == 0) continue;
         // convert to dQ/dx
         dQ /= dx;
-        double time = tj.Pts[tj.EndPt[startend]].Pos[1] / tcc.unitsPerTick;
+        double time = tj.Pts[tj.EndPt[end]].Pos[1] / tcc.unitsPerTick;
         float dedx = tcc.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
-        if(dedx > 999) dedx = 999;
-        pfp.dEdx[startend][planeID.Plane] = dedx;
-        tj.dEdx[startend] = dedx;
+        if(dedx > 999) dedx = -1;
+        pfp.dEdx[end][planeID.Plane] = dedx;
+        tj.dEdx[end] = dedx;
         // ChgRMS is the fractional error
-        pfp.dEdxErr[startend][planeID.Plane] = dedx * tj.ChgRMS;
+        pfp.dEdxErr[end][planeID.Plane] = dedx * tj.ChgRMS;
         
-      } // startend
+      } // end
       // Grab the best plane iusing the start f 1 < dE/dx < 50 MeV/cm
       if(pfp.dEdx[0][planeID.Plane] > 1 && pfp.dEdx[0][planeID.Plane] < 50) {
         if(tj.Pts.size() > maxlen) {
@@ -1970,12 +1984,12 @@ namespace tca {
       pfp.dEdxErr[0].resize(slc.nPlanes, 0);
       pfp.dEdxErr[1].resize(slc.nPlanes, 0);
     }
-    for(unsigned short startend = 0; startend < 2; ++startend) {
+    for(unsigned short end = 0; end < 2; ++end) {
       // BUG the double brace syntax is required to work around clang bug 21629
       // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-      pfp.Dir[startend] = {{0.0, 0.0, 0.0}};
-      pfp.DirErr[startend] = {{0.0, 0.0, 0.0}};
-      pfp.XYZ[startend] = {{0.0, 0.0, 0.0}};
+      pfp.Dir[end] = {{0.0, 0.0, 0.0}};
+      pfp.DirErr[end] = {{0.0, 0.0, 0.0}};
+      pfp.XYZ[end] = {{0.0, 0.0, 0.0}};
     }
     return pfp;
   } // CreatePFP
