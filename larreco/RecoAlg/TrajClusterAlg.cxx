@@ -317,7 +317,7 @@ namespace tca {
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
     slc.ID = sliceID;
-    if(tcc.recoSlice) std::cout<<"Reconstruct Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
+    if(tcc.recoSlice) std::cout<<"Reconstruct "<<hitsInSlice.size()<<" hits in Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
       ReconstructAllTraj(slc, inCTP);
