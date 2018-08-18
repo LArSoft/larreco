@@ -1,0 +1,16 @@
+BEGIN_PROLOG
+
+#
+# Applies a fixed scale to all hits
+# on all channels.
+#
+standard_photoncalibrator:
+{
+   service_provider: PhotonCalibratorStandard
+   SPESize:          1330
+   SPEShift:         0
+   UseArea:          false
+}
+
+
+END_PROLOG
