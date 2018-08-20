@@ -2089,8 +2089,10 @@ namespace tca {
         auto& ms = slc.matchVec[ii];
         if(ms.Count == 0) continue;
         myprt<<std::setw(4)<<ii<<" Count "<<std::setw(5)<<(int)ms.Count;
-        myprt<<" TjIDs:";
-        for(auto& tjid : ms.TjIDs) myprt<<" T"<<tjid;
+        myprt<<" Tj ID-UID:";
+        for(auto& tjid : ms.TjIDs) {
+          myprt<<" t"<<tjid<<"-T"<<slc.tjs[tjid-1].UID;
+        }
         myprt<<" Comp ";
         for(unsigned short itj = 0; itj < ms.TjCompleteness.size(); ++itj) {
           myprt<<std::setprecision(2)<<std::setw(6)<<ms.TjCompleteness[itj];
@@ -2183,7 +2185,8 @@ namespace tca {
         if(!shared.empty()) allms.Count = 0;
       } // allms
     } // indx
-    //    CheckNoMatchTjs(slc, tpcid, prt);
+    
+//    MatchMissedTjs(slc);
 
   } // FindPFParticles
   
