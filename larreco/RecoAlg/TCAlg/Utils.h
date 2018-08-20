@@ -180,6 +180,7 @@ namespace tca {
   Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
   void SetPDGCode(TCSlice& slc, Trajectory& tj);
   void SetPDGCode(TCSlice& slc, unsigned short itj);
+//  void AnalyzeHits(TCSlice& slc);
   bool AnalyzeHits();
   bool FillWireHitRange(TCSlice& slc);
 //  bool CheckWireHitRange(TCSlice& slc);
@@ -198,7 +199,7 @@ namespace tca {
   void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2);
   void Print3S(std::string someText, mf::LogVerbatim& myprt, ShowerStruct3D& ss3);
-  void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj);
+  void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj, bool& printHeader);
   void PrintTrajectory(std::string someText, TCSlice& slc, const Trajectory& tj ,unsigned short tPoint);
   void PrintAllTraj(std::string someText, TCSlice& slc, unsigned short itj, unsigned short ipt, bool printVtx = true);
   void PrintHeader(std::string someText);
