@@ -317,6 +317,8 @@ namespace tca {
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
     slc.ID = sliceID;
+    // flag high-multiplicity hits
+//    AnalyzeHits(slc);    
     if(tcc.recoSlice) std::cout<<"Reconstruct "<<hitsInSlice.size()<<" hits in Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
@@ -4527,12 +4529,6 @@ namespace tca {
     unsigned short imTall = theHit;
     unsigned short nNarrow = 0;
     if(theHitIsNarrow) nNarrow = 1;
-/*
-    bool mprt = (theHit == 425);
-    if(mprt) {
-      mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(slc.slHits[theHit])<<" RMS "<<slc.slHits[theHit].RMS<<" aveRMS "<<evt.aveHitRMS[ipl]<<" Amp "<<(int)slc.slHits[theHit].PeakAmplitude;
-    }
-*/
     // look for hits < theTime but within hitSep
     if(theHit > 0) {
       for(unsigned int iht = theHit - 1; iht != 0; --iht) {
@@ -4547,7 +4543,6 @@ namespace tca {
         }
         float dTick = std::abs(hit.PeakTime() - theTime);
         if(dTick > hitSep) break;
-//        if(mprt) mf::LogVerbatim("TC")<<" iht- "<<iht<<" "<<slc.slHits[iht].WireID.Plane<<":"<<PrintHit(slc.slHits[iht])<<" RMS "<<slc.slHits[iht].RMS<<" dTick "<<dTick<<" hitSep "<<hitSep<<" Amp "<<(int)slc.slHits[iht].PeakAmplitude;
          hitsInMultiplet.push_back(iht);
         if(rms < narrowHitCut) ++nNarrow;
         float peakAmp = hit.PeakAmplitude();
@@ -4579,7 +4574,6 @@ namespace tca {
       }
       float dTick = std::abs(hit.PeakTime() - theTime);
       if(dTick > hitSep) break;
-//      if(mprt) mf::LogVerbatim("TC")<<" iht+ "<<iht<<" "<<PrintHit(slc.slHits[iht])<<" dTick "<<dTick<<" RMS "<<slc.slHits[iht].RMS<<" "<<hitSep<<" Amp "<<(int)slc.slHits[iht].PeakAmplitude;
       hitsInMultiplet.push_back(iht);
       if(rms < narrowHitCut) ++nNarrow;
       float peakAmp = hit.PeakAmplitude();
@@ -4589,13 +4583,6 @@ namespace tca {
       }
       theTime = hit.PeakTime();
     } // iht
-/*
-    if(mprt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<" return ";
-      for(auto iht : hitsInMultiplet) myprt<<" "<<PrintHit(slc.slHits[iht]);
-    }
-*/
     if(hitsInMultiplet.size() == 1) return;
     
     if(hitsInMultiplet.size() > 16) {
@@ -4609,7 +4596,6 @@ namespace tca {
     if(nNarrow == 0) return;
     
     if(theHitIsNarrow && theHit == imTall) {
-//      if(mprt) mf::LogVerbatim("TC")<<" theHit is narrow and tall. Use only it";
       // theHit is narrow and it is the highest amplitude hit in the multiplet. Ignore any
       // others that are short and fat
       auto tmp = hitsInMultiplet;
@@ -4619,7 +4605,6 @@ namespace tca {
     } else {
       // theHit is not narrow and it is not the tallest. Ignore a single hit if it is
       // the tallest and narrow
-//      if(mprt) mf::LogVerbatim("TC")<<" theHit  is not narrow or tall";
       auto& hit = (*evt.allHits)[slc.slHits[imTall].allHitsIndex];
       if(hit.RMS() < narrowHitCut) {
         unsigned short killMe = 0;
