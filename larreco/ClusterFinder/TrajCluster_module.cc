@@ -466,6 +466,11 @@ namespace cluster {
     std::unique_ptr<art::Assns<recob::Slice, recob::Hit>>
       slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
 
+    // vector to map 2V UID -> ID
+    std::vector<int> vx2IDs;
+    // vector to map 3V UID -> ID
+    std::vector<int> vx3IDs;
+
     if(nInputHits > 0) {
       unsigned short nSlices = fTCAlg->GetSlicesSize();
       // define a hit collection begin index to pass to CreateAssn for each cluster
@@ -493,6 +498,7 @@ namespace cluster {
                               vtxID,                // ID
                               view,                 // View
                               0);                   // total charge - not relevant
+          vx2IDs.push_back(vx2.ID);
         } // vx2
         // make Vertices
         for(auto& vx3 : slc.vtx3s) {
@@ -505,6 +511,7 @@ namespace cluster {
           xyz[1] = vx3.Y;
           xyz[2] = vx3.Z;
           vx3Col.emplace_back(xyz, vtxID);
+          vx3IDs.push_back(vx3.ID);
         } // vx3
         // Convert the tjs to clusters
         bool badSlice = false;
@@ -606,17 +613,16 @@ namespace cluster {
           // Make cluster -> 2V and cluster -> 3V assns
           for(unsigned short end = 0; end < 2; ++end) {
             if(tj.VtxID[end] <= 0) continue;
-            for(unsigned short vx2Index = 0; vx2Index < slc.vtxs.size(); ++vx2Index) {
-              auto& vx2 = slc.vtxs[vx2Index];
-              if(vx2.ID != tj.VtxID[end]) continue;
+            for(unsigned short vx2Index = 0; vx2Index < vx2IDs.size(); ++vx2Index) {
+              if(vx2IDs[vx2Index] != tj.VtxID[end]) continue;
               if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2Index, end))
               {
                 throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with EndPoint2D";
               } // exception
+              auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
               if(vx2.Vx3ID > 0) {
-                for(unsigned short vx3Index = 0; vx3Index < slc.vtx3s.size(); ++vx3Index) {
-                  auto& vx3 = slc.vtx3s[vx3Index];
-                  if(vx3.ID != vx2.Vx3ID) continue;
+                for(unsigned short vx3Index = 0; vx3Index < vx3IDs.size(); ++vx3Index) {
+                  if(vx3IDs[vx3Index] != vx2.Vx3ID) continue;
                   if(!util::CreateAssnD(*this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3Index, end))
                   {
                     throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with Vertex";
@@ -700,10 +706,8 @@ namespace cluster {
           } // exception
           // PFParticle -> Vertex
           if(pfp.Vx3ID[0] > 0) {
-            // get the vertex UID
-            int vx3uid = slc.vtx3s[pfp.Vx3ID[0] - 1].UID;
-            for(unsigned short vx3Index = 0; vx3Index < vx3Col.size(); ++vx3Index) {
-              if(vx3Col[vx3Index].ID() != vx3uid) continue;
+            for(unsigned short vx3Index = 0; vx3Index < vx3IDs.size(); ++vx3Index) {
+              if(vx3IDs[vx3Index] != pfp.Vx3ID[0]) continue;
               std::vector<unsigned short> indx(1, vx3Index);
               if(!util::CreateAssn(*this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end()))
               {
