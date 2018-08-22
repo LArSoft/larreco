@@ -519,7 +519,7 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
     if (qval > 0) {
       ++nbins;
       double prob = (double)binentries/totentries * 100;
-      if (binentries > 0) tranLikelihood_1 += log(prob);
+      if (binentries > 0) tranLikelihood_2 += log(prob);
     }
 
     qval = tranProfile_3->GetBinContent(i+1); 
@@ -529,7 +529,7 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
     if (qval > 0) {
       ++nbins;
       double prob = (double)binentries/totentries * 100;
-      if (binentries > 0) tranLikelihood_1 += log(prob);
+      if (binentries > 0) tranLikelihood_3 += log(prob);
     }
 
     qval = tranProfile_4->GetBinContent(i+1); 
@@ -539,7 +539,7 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
     if (qval > 0) {
       ++nbins;
       double prob = (double)binentries/totentries * 100;
-      if (binentries > 0) tranLikelihood_1 += log(prob);
+      if (binentries > 0) tranLikelihood_4 += log(prob);
     }
 
     qval = tranProfile_5->GetBinContent(i+1); 
@@ -549,7 +549,7 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
     if (qval > 0) {
       ++nbins;
       double prob = (double)binentries/totentries * 100;
-      if (binentries > 0) tranLikelihood_1 += log(prob);
+      if (binentries > 0) tranLikelihood_5 += log(prob);
     }
 
   } // loop through 
