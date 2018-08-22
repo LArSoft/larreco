@@ -207,13 +207,13 @@ void shower::TCShowerTemplateMaker::beginJob() {
   fShowerProfileHitTrans2D_5 = tfs->make<TProfile2D>("fShowerProfileHitTrans2D_5", "transverse e- profile [4 <= t < 5] (true, hit);t;electron energy (MeV);E (MeV)", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX);
   fShowerProfileRecoTrans2D_5 = tfs->make<TProfile2D>("fShowerProfileRecoTrans2D_5", "transverse e- profile [4 <= t < 5] (reco);t;electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX);
 
-  fLongitudinal = tfs->make<TH3F>("fLongitudinal", "longitudinal e- profile;t;electron energy (MeV);Q", LBINS, LMIN, LMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
-  fTransverse = tfs->make<TH3F>("fTransverse", "transverse e- profile;dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
-  fTransverse_1 = tfs->make<TH3F>("fTransverse_1", "transverse e- profile [0 <= t < 1];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
-  fTransverse_2 = tfs->make<TH3F>("fTransverse_2", "transverse e- profile [1 <= t < 2];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
-  fTransverse_3 = tfs->make<TH3F>("fTransverse_3", "transverse e- profile [2 <= t < 3];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
-  fTransverse_4 = tfs->make<TH3F>("fTransverse_4", "transverse e- profile [3 <= t < 4];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
-  fTransverse_5 = tfs->make<TH3F>("fTransverse_5", "transverse e- profile [4 <= t < 5];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 50, 0, 150000);
+  fLongitudinal = tfs->make<TH3F>("fLongitudinal", "longitudinal e- profile;t;electron energy (MeV);Q", LBINS, LMIN, LMAX, EBINS, EMIN, EMAX, 100, 0, 150000);
+  fTransverse = tfs->make<TH3F>("fTransverse", "transverse e- profile;dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 100, 0, 150000);
+  fTransverse_1 = tfs->make<TH3F>("fTransverse_1", "transverse e- profile [0 <= t < 1];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 100, 0, 100000);
+  fTransverse_2 = tfs->make<TH3F>("fTransverse_2", "transverse e- profile [1 <= t < 2];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 100, 0, 100000);
+  fTransverse_3 = tfs->make<TH3F>("fTransverse_3", "transverse e- profile [2 <= t < 3];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 100, 0, 100000);
+  fTransverse_4 = tfs->make<TH3F>("fTransverse_4", "transverse e- profile [3 <= t < 4];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 100, 0, 100000);
+  fTransverse_5 = tfs->make<TH3F>("fTransverse_5", "transverse e- profile [4 <= t < 5];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 100, 0, 100000);
 
   
 } // beginJob
