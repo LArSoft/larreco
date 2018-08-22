@@ -60,6 +60,8 @@ namespace shower {
    
     void getShowerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir);
     void findEnergyBin();
+    void getLongLikelihood();
+    void getTranLikelihood();
  
   protected:
 
@@ -86,6 +88,8 @@ namespace shower {
 
     //TTree* fTree;
     TH1F* energyDist;
+    TH1F* longLikelihoodHist;
+    TH1F* tranLikelihoodHist;
 
     TH1F* longProfile;
     TH1F* tranProfile;
@@ -95,8 +99,16 @@ namespace shower {
     TH1F* tranProfile_4;
     TH1F* tranProfile_5;
 
-    int bestE;
-    double bestchi2;
+    int energyGuess;
+    double energyChi2;
+
+    double longLikelihood;
+    double tranLikelihood;
+    double tranLikelihood_1;
+    double tranLikelihood_2;
+    double tranLikelihood_3;
+    double tranLikelihood_4;
+    double tranLikelihood_5;
 
     const int LBINS = 20;
     const int LMIN = 0;
@@ -193,6 +205,8 @@ void shower::TCShowerElectronLikelihood::beginJob() {
   //fTree = tfs->make<TTree>("elikelihood", "elikelihood");
 
   energyDist = tfs->make<TH1F>("energyDist", "true energy - guess energy", 41, -20.5, 20.5);
+  longLikelihoodHist = tfs->make<TH1F>("longLikelihoodHist", "longitudinal likelihood", 20, 0, 10);
+  tranLikelihoodHist = tfs->make<TH1F>("tranLikelihoodHist", "transverse likelihood", 20, 0, 20);
 
 } // beginJob
 
@@ -223,6 +237,11 @@ void shower::TCShowerElectronLikelihood::analyze(const art::Event& evt) {
     std::vector< art::Ptr<recob::Hit> > showerhits = shwfm.at(0);
     getShowerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction());
     findEnergyBin();
+    getLongLikelihood();
+    getTranLikelihood();
+
+    longLikelihoodHist->Fill(longLikelihood);
+    tranLikelihoodHist->Fill(tranLikelihood);
 
     // check true shower energy
     if (mclist.size()) {
@@ -230,15 +249,13 @@ void shower::TCShowerElectronLikelihood::analyze(const art::Event& evt) {
       if (mctruth->NeutrinoSet()) {
 	if (std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0) {
 	  double elep =  mctruth->GetNeutrino().Lepton().E();
-	  std::cout << "true shower energy: " << elep << std::endl;
-	  std::cout << "energy guess:       " << bestE << " (" << bestchi2 << ")" << std::endl;
-	  energyDist->Fill(elep - bestE);
-
-	  if (-5 < (elep - bestE) && -3 > (elep - bestE) ) std::cout << evt.id().event() << std::endl;
-	}
-      }
-    }
-  }
+	  //	  std::cout << "true shower energy: " << elep << std::endl;
+	  //	  std::cout << "energy guess:       " << bestE << " (" << bestchi2 << ")" << std::endl;
+	  energyDist->Fill(elep - energyGuess);
+	} // cc nue
+      } // neutrinoset
+    } // mclist
+  } // showerlist
 
   //fTree->Fill();
 
@@ -256,8 +273,16 @@ void shower::TCShowerElectronLikelihood::resetProfiles() {
   tranProfile_4->Reset();
   tranProfile_5->Reset();
   
-  bestE = -9999;
-  bestchi2 = -9999;
+  energyGuess = -9999;
+  energyChi2 = -9999;
+
+  longLikelihood = -9999;
+  tranLikelihood = -9999;
+  tranLikelihood_1 = -9999;
+  tranLikelihood_2 = -9999;
+  tranLikelihood_3 = -9999;
+  tranLikelihood_4 = -9999;
+  tranLikelihood_5 = -9999;
 
   return;
 
@@ -395,10 +420,100 @@ void shower::TCShowerElectronLikelihood::findEnergyBin() {
 
   } // loop through energy bins
 
-  bestchi2 = chi2min;
-  bestE = bestbin+1;
+  energyChi2 = chi2min;
+  energyGuess = bestbin+1;
+
+  return;
 
 } // findEnergyBin
+
+// -------------------------------------------------
+
+void shower::TCShowerElectronLikelihood::getLongLikelihood() {
+
+  if (energyGuess < 0) return;
+  int energyBin = energyGuess;
+
+  longLikelihood = 0;
+
+  for (int i = 0; i < LBINS; ++i) {
+    double qval = longProfile->GetBinContent(i+1); 
+    int qbin = longTemplate->GetZaxis()->FindBin(qval);
+    int binentries = longTemplate->GetBinContent(i+1, energyBin, qbin);
+    int totentries = longTemplate->Integral(i+1, i+1, energyBin, energyBin, 0, 50);
+
+    longLikelihood += (double)binentries/totentries;
+  } // loop through 
+
+  std::cout << longLikelihood << std::endl;
+
+  return;
+
+} // getLongLikelihood
+
+// -------------------------------------------------
+
+void shower::TCShowerElectronLikelihood::getTranLikelihood() {
+
+  if (energyGuess < 0) return;
+  int energyBin = energyGuess;
+
+  tranLikelihood_1 = 0;
+  tranLikelihood_2 = 0;
+  tranLikelihood_3 = 0;
+  tranLikelihood_4 = 0;
+  tranLikelihood_5 = 0;
+
+  double qval;
+  int qbin, binentries, totentries;
+
+  for (int i = 0; i < TBINS; ++i) {
+    qval = tranProfile_1->GetBinContent(i+1); 
+    qbin = tranTemplate_1->GetZaxis()->FindBin(qval);
+    binentries = tranTemplate_1->GetBinContent(i+1, energyBin, qbin);
+    totentries = tranTemplate_1->Integral(i+1, i+1, energyBin, energyBin, 0, 50);
+    tranLikelihood_1 += (double)binentries/totentries;
+
+    qval = tranProfile_2->GetBinContent(i+1); 
+    qbin = tranTemplate_2->GetZaxis()->FindBin(qval);
+    binentries = tranTemplate_2->GetBinContent(i+1, energyBin, qbin);
+    totentries = tranTemplate_2->Integral(i+1, i+1, energyBin, energyBin, 0, 50);
+    tranLikelihood_2 += (double)binentries/totentries;
+
+    qval = tranProfile_3->GetBinContent(i+1); 
+    qbin = tranTemplate_3->GetZaxis()->FindBin(qval);
+    binentries = tranTemplate_3->GetBinContent(i+1, energyBin, qbin);
+    totentries = tranTemplate_3->Integral(i+1, i+1, energyBin, energyBin, 0, 50);
+    tranLikelihood_3 += (double)binentries/totentries;
+
+    qval = tranProfile_4->GetBinContent(i+1); 
+    qbin = tranTemplate_4->GetZaxis()->FindBin(qval);
+    binentries = tranTemplate_4->GetBinContent(i+1, energyBin, qbin);
+    totentries = tranTemplate_4->Integral(i+1, i+1, energyBin, energyBin, 0, 50);
+    tranLikelihood_4 += (double)binentries/totentries;
+
+    qval = tranProfile_5->GetBinContent(i+1); 
+    qbin = tranTemplate_5->GetZaxis()->FindBin(qval);
+    binentries = tranTemplate_5->GetBinContent(i+1, energyBin, qbin);
+    totentries = tranTemplate_5->Integral(i+1, i+1, energyBin, energyBin, 0, 50);
+    tranLikelihood_5 += (double)binentries/totentries;
+  } // loop through 
+
+  /*
+  std::cout << tranLikelihood_1 << std::endl;
+  std::cout << tranLikelihood_2 << std::endl;
+  std::cout << tranLikelihood_3 << std::endl;
+  std::cout << tranLikelihood_4 << std::endl;
+  std::cout << tranLikelihood_5 << std::endl;
+  */
+
+  tranLikelihood = (tranLikelihood_1 + tranLikelihood_2 + tranLikelihood_3 + tranLikelihood_4 + tranLikelihood_5)/5;
+
+  std::cout << tranLikelihood << std::endl;
+
+  return;
+
+} // getTranLikelihood
 
 // -------------------------------------------------
 
