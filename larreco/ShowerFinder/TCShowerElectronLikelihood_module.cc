@@ -206,8 +206,8 @@ void shower::TCShowerElectronLikelihood::beginJob() {
   //fTree = tfs->make<TTree>("elikelihood", "elikelihood");
 
   energyDist = tfs->make<TH1F>("energyDist", "true energy - guess energy", 41, -20.5, 20.5);
-  longLikelihoodHist = tfs->make<TH1F>("longLikelihoodHist", "longitudinal likelihood", 20, 0, 1);
-  tranLikelihoodHist = tfs->make<TH1F>("tranLikelihoodHist", "transverse likelihood", 20, 0, 1);
+  longLikelihoodHist = tfs->make<TH1F>("longLikelihoodHist", "longitudinal likelihood", 20, 0, 2);
+  tranLikelihoodHist = tfs->make<TH1F>("tranLikelihoodHist", "transverse likelihood", 20, 0, 3);
 
 } // beginJob
 
@@ -469,8 +469,9 @@ void shower::TCShowerElectronLikelihood::getLongLikelihood() {
     int binentries = longTemplate->GetBinContent(i+1, energyBin, qbin);
     int totentries = longTemplate->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
     if (qval > 0) {
-      longLikelihood += (double)binentries/totentries;
       ++nbins;
+      double prob = (double)binentries/totentries * 100;
+      if (binentries > 0) longLikelihood += log(prob);
     }
   } // loop through 
 
@@ -506,8 +507,9 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
     binentries = tranTemplate_1->GetBinContent(i+1, energyBin, qbin);
     totentries = tranTemplate_1->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
     if (qval > 0) {
-      tranLikelihood_1 += (double)binentries/totentries;
       ++nbins;
+      double prob = (double)binentries/totentries * 100;
+      if (binentries > 0) tranLikelihood_1 += log(prob);
     }
 
     qval = tranProfile_2->GetBinContent(i+1); 
@@ -515,8 +517,9 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
     binentries = tranTemplate_2->GetBinContent(i+1, energyBin, qbin);
     totentries = tranTemplate_2->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
     if (qval > 0) {
-      tranLikelihood_1 += (double)binentries/totentries;
       ++nbins;
+      double prob = (double)binentries/totentries * 100;
+      if (binentries > 0) tranLikelihood_1 += log(prob);
     }
 
     qval = tranProfile_3->GetBinContent(i+1); 
@@ -524,8 +527,9 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
     binentries = tranTemplate_3->GetBinContent(i+1, energyBin, qbin);
     totentries = tranTemplate_3->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
     if (qval > 0) {
-      tranLikelihood_1 += (double)binentries/totentries;
       ++nbins;
+      double prob = (double)binentries/totentries * 100;
+      if (binentries > 0) tranLikelihood_1 += log(prob);
     }
 
     qval = tranProfile_4->GetBinContent(i+1); 
@@ -533,8 +537,9 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
     binentries = tranTemplate_4->GetBinContent(i+1, energyBin, qbin);
     totentries = tranTemplate_4->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
     if (qval > 0) {
-      tranLikelihood_1 += (double)binentries/totentries;
       ++nbins;
+      double prob = (double)binentries/totentries * 100;
+      if (binentries > 0) tranLikelihood_1 += log(prob);
     }
 
     qval = tranProfile_5->GetBinContent(i+1); 
@@ -542,9 +547,11 @@ void shower::TCShowerElectronLikelihood::getTranLikelihood() {
     binentries = tranTemplate_5->GetBinContent(i+1, energyBin, qbin);
     totentries = tranTemplate_5->Integral(i+1, i+1, energyBin, energyBin, 0, 100);
     if (qval > 0) {
-      tranLikelihood_1 += (double)binentries/totentries;
       ++nbins;
+      double prob = (double)binentries/totentries * 100;
+      if (binentries > 0) tranLikelihood_1 += log(prob);
     }
+
   } // loop through 
 
   /*
