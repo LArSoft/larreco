@@ -57,7 +57,6 @@ namespace tca {
       if(userMode == 3) tcc.modes[kStudy3] = true;
       if(userMode == 4) tcc.modes[kStudy4] = true;
     } // new Study mode
-    if(pset.has_key("TestBeam")) tcc.modes[kTestBeam] = pset.get<bool>("TestBeam");
     if(pset.has_key("SaveShowerTree")) tcc.modes[kSaveShowerTree] = pset.get<bool>("SaveShowerTree");
     if(pset.has_key("SaveCRTree")) tcc.modes[kSaveCRTree] = pset.get<bool>("SaveCRTree");
     if(pset.has_key("TagCosmics")) tcc.modes[kTagCosmics] = pset.get<bool>("TagCosmics");
@@ -96,6 +95,8 @@ namespace tca {
     tcc.vtx3DCuts      = pset.get< std::vector<float >>("Vertex3DCuts", {-1, -1});
     tcc.vtxScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
     tcc.match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1, -1});
+    tcc.pfpStitchCuts     = pset.get< std::vector<float >>("PFPStitchCuts", {-1});
+    pset.get_if_present<std::vector<float>>("TestBeamCuts", tcc.testBeamCuts);
     pset.get_if_present<std::vector<float>>("NeutralVxCuts", tcc.neutralVxCuts);
     if(tcc.JTMaxHitSep2 > 0) tcc.JTMaxHitSep2 *= tcc.JTMaxHitSep2;
     
@@ -142,6 +143,17 @@ namespace tca {
       tcc.angleRanges.back() = 90;
     }
     
+    // convert PFP stitch cuts
+    if(tcc.pfpStitchCuts.size() > 1 && tcc.pfpStitchCuts[0] > 0) {
+      // square the separation cut
+      tcc.pfpStitchCuts[0] *= tcc.pfpStitchCuts[0];
+      // convert angle to cos
+      tcc.pfpStitchCuts[1] = cos(tcc.pfpStitchCuts[1]);
+    }
+    // turn on TestBeam mode?
+    tcc.modes[kTestBeam] = (!tcc.testBeamCuts.empty());
+
+    
     // configure algorithm debugging. Configuration for debugging standard stepping
     // is done in Utils/AnalyzeHits when the input hit collection is passed to SetInputHits
     tcc.modes[kDebug] = false;
@@ -164,10 +176,11 @@ namespace tca {
         }
       } // DecodeDebugString failed
     } // strng
+/*
     if(tcc.modes[kDebug] && debug.Cryostat >= 0 && debug.TPC >= 0 && debug.Plane >= 0) {
       debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
     }
-
+*/
     for(auto& range : tcc.angleRanges) {
       if(range < 0 || range > 90) throw art::Exception(art::errors::Configuration)<< "Invalid angle range "<<range<<" Must be 0 - 90 degrees";
       range *= M_PI / 180;
@@ -256,7 +269,7 @@ namespace tca {
       if(debug.Slice < 0) {
         std::cout<<"Debugging in all slices\n";
       } else {
-        std::cout<<"Debugging in slice "<<debug.Slice<<"\n";
+        std::cout<<"Debugging in sub-slice "<<debug.Slice<<"\n";
       }
     } // debug mode
     
@@ -287,12 +300,15 @@ namespace tca {
   } // SetInputHits
   
   ////////////////////////////////////////////////
-  void TrajClusterAlg::RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice)
+  void TrajClusterAlg::RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID)
   {
     // Reconstruct everything using the hits in a slice
     
     if(slices.empty()) ++evt.eventsProcessed;
     if(hitsInSlice.size() < 2) return;
+    if(tcc.recoSlice > 0) {
+      if(sliceID != tcc.recoSlice) return;
+    }
     
     if(!CreateSlice(hitsInSlice)) {
       std::cout<<"CreateSlice failed\n";
@@ -300,6 +316,10 @@ namespace tca {
     }
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
+    slc.ID = sliceID;
+    // flag high-multiplicity hits
+//    AnalyzeHits(slc);    
+    if(tcc.recoSlice) std::cout<<"Reconstruct "<<hitsInSlice.size()<<" hits in Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
       ReconstructAllTraj(slc, inCTP);
@@ -351,8 +371,6 @@ namespace tca {
 
 //    if(tcc.studyMode) tm.StudyShowerParents(hist);
 
-    // Ensure that all PFParticles have a start vertex
-    PFPVertexCheck(slc);
     if(!slc.isValid) {
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in MakeAllTrajClusters";
       return;
@@ -4511,12 +4529,6 @@ namespace tca {
     unsigned short imTall = theHit;
     unsigned short nNarrow = 0;
     if(theHitIsNarrow) nNarrow = 1;
-/*
-    bool mprt = (theHit == 425);
-    if(mprt) {
-      mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(slc.slHits[theHit])<<" RMS "<<slc.slHits[theHit].RMS<<" aveRMS "<<evt.aveHitRMS[ipl]<<" Amp "<<(int)slc.slHits[theHit].PeakAmplitude;
-    }
-*/
     // look for hits < theTime but within hitSep
     if(theHit > 0) {
       for(unsigned int iht = theHit - 1; iht != 0; --iht) {
@@ -4531,7 +4543,6 @@ namespace tca {
         }
         float dTick = std::abs(hit.PeakTime() - theTime);
         if(dTick > hitSep) break;
-//        if(mprt) mf::LogVerbatim("TC")<<" iht- "<<iht<<" "<<slc.slHits[iht].WireID.Plane<<":"<<PrintHit(slc.slHits[iht])<<" RMS "<<slc.slHits[iht].RMS<<" dTick "<<dTick<<" hitSep "<<hitSep<<" Amp "<<(int)slc.slHits[iht].PeakAmplitude;
          hitsInMultiplet.push_back(iht);
         if(rms < narrowHitCut) ++nNarrow;
         float peakAmp = hit.PeakAmplitude();
@@ -4563,7 +4574,6 @@ namespace tca {
       }
       float dTick = std::abs(hit.PeakTime() - theTime);
       if(dTick > hitSep) break;
-//      if(mprt) mf::LogVerbatim("TC")<<" iht+ "<<iht<<" "<<PrintHit(slc.slHits[iht])<<" dTick "<<dTick<<" RMS "<<slc.slHits[iht].RMS<<" "<<hitSep<<" Amp "<<(int)slc.slHits[iht].PeakAmplitude;
       hitsInMultiplet.push_back(iht);
       if(rms < narrowHitCut) ++nNarrow;
       float peakAmp = hit.PeakAmplitude();
@@ -4573,13 +4583,6 @@ namespace tca {
       }
       theTime = hit.PeakTime();
     } // iht
-/*
-    if(mprt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<" return ";
-      for(auto iht : hitsInMultiplet) myprt<<" "<<PrintHit(slc.slHits[iht]);
-    }
-*/
     if(hitsInMultiplet.size() == 1) return;
     
     if(hitsInMultiplet.size() > 16) {
@@ -4593,7 +4596,6 @@ namespace tca {
     if(nNarrow == 0) return;
     
     if(theHitIsNarrow && theHit == imTall) {
-//      if(mprt) mf::LogVerbatim("TC")<<" theHit is narrow and tall. Use only it";
       // theHit is narrow and it is the highest amplitude hit in the multiplet. Ignore any
       // others that are short and fat
       auto tmp = hitsInMultiplet;
@@ -4603,7 +4605,6 @@ namespace tca {
     } else {
       // theHit is not narrow and it is not the tallest. Ignore a single hit if it is
       // the tallest and narrow
-//      if(mprt) mf::LogVerbatim("TC")<<" theHit  is not narrow or tall";
       auto& hit = (*evt.allHits)[slc.slHits[imTall].allHitsIndex];
       if(hit.RMS() < narrowHitCut) {
         unsigned short killMe = 0;
@@ -5180,9 +5181,43 @@ namespace tca {
     slices.push_back(slc);
     if(tcc.modes[kDebug] && debug.Slice >= 0 && !tcc.dbgSlc) {
       tcc.dbgSlc = ((int)(slices.size() - 1) == debug.Slice);
-      if(tcc.dbgSlc) std::cout<<"Enabled debugging in slice "<<slices.size() - 1<<"\n";
+      if(tcc.dbgSlc) std::cout<<"Enabled debugging in sub-slice "<<slices.size() - 1<<"\n";
+      if(tcc.modes[kDebug] && (unsigned int)debug.Cryostat == cstat && (unsigned int)debug.TPC == tpc && debug.Plane >= 0) {
+        debug.CTP = EncodeCTP((unsigned int)debug.Cryostat, (unsigned int)debug.TPC, (unsigned int)debug.Plane);
+      }
     }
     return true;
   } // CreateSlice
+  
+  /////////////////////////////////////////
+  void TrajClusterAlg::FinishEvent()
+  {
+    // final steps that involve correlations between slices
+    // Stitch PFParticles between TPCs
+    
+    // define the PFP TjUIDs vector before calling StitchPFPs
+    for(auto& slc : slices) {
+      if(!slc.isValid) continue;
+      for(auto& pfp : slc.pfps) {
+        if(pfp.ID <= 0) continue;
+        pfp.TjUIDs.resize(pfp.TjIDs.size());
+        for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
+          // do a sanity check while we are here
+          if(pfp.TjIDs[ii] <=0 || pfp.TjIDs[ii] > (int)slc.tjs.size()) {
+            std::cout<<"FinishEvent found an invalid T"<<pfp.TjIDs[ii]<<" in P"<<pfp.UID<<"\n";
+            slc.isValid = false;
+            continue;
+          } // sanity check
+          auto& tj = slc.tjs[pfp.TjIDs[ii] - 1];
+          pfp.TjUIDs[ii] = tj.UID;
+        } // ii
+      } // pfp
+    } // slc
+
+    StitchPFPs();
+    // TODO: Try to make a neutrino PFParticle here
+    // Ensure that all PFParticles have a start vertex
+    for(auto& slc : slices) PFPVertexCheck(slc);
+  } // FinishEvent
 
 } // namespace cluster
