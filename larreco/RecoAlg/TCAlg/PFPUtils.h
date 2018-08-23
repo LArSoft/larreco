@@ -34,6 +34,7 @@
 
 namespace tca {
 
+  void StitchPFPs();
   void UpdateMatchStructs(TCSlice& slc, int oldTj, int newTj);
   void UpdateTp3s(TCSlice& slc, PFPStruct& pfp, int oldTj, int newTj);
   void FillmAllTraj(TCSlice& slc);
@@ -46,7 +47,6 @@ namespace tca {
   void FindMissedTjsInTp3s(TCSlice& slc, PFPStruct& pfp, std::vector<int>& missTjs, std::vector<float>& missFrac);
   bool SharesHighScoreVx(TCSlice& slc, const PFPStruct& pfp, const Trajectory& tj);
   void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir);
-//  bool CheckAndMerge(TCSlice& slc, PFPStruct& pfp, bool prt);
   float AspectRatio(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
   unsigned short WiresSkippedInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
   float LengthInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
@@ -76,7 +76,8 @@ namespace tca {
   void DefinePFPParents(TCSlice& slc, bool prt);
   void DefinePFPParentsTestBeam(TCSlice& slc, bool prt);
   bool StorePFP(TCSlice& slc, PFPStruct& pfp);
-  bool InsideTPC(Point3_t& pos, geo::TPCID& inTPCID);
+  bool InsideFV(TCSlice& slc, PFPStruct& pfp, unsigned short end);
+  bool InsideTPC(const Point3_t& pos, geo::TPCID& inTPCID);
   void FindAlongTrans(Point3_t pos1, Vector3_t dir1, Point3_t pos2, Point2_t& alongTrans);
   bool PointDirIntersect(Point3_t p1, Vector3_t p1Dir, Point3_t p2, Vector3_t p2Dir, Point3_t& intersect, float& doca);
   bool LineLineIntersect(Point3_t p1, Point3_t p2, Point3_t p3, Point3_t p4, Point3_t& intersect, float& doca);

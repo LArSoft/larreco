@@ -186,7 +186,8 @@ namespace tca {
   };
   
   struct PFPStruct {
-    std::vector<int> TjIDs;
+    std::vector<int> TjIDs;             // used to reference Tjs within a slice
+    std::vector<int> TjUIDs;             // used to reference Tjs in any slice
     std::vector<float> TjCompleteness;  // fraction of TP points that are 3D-matched
     std::vector<TrajPoint3> Tp3s;    // TrajCluster 3D trajectory points
     // Start is 0, End is 1
@@ -199,8 +200,8 @@ namespace tca {
     int BestPlane {-1};
     // stuff for constructing the PFParticle
     int PDGCode {-1};
-    std::vector<int> DtrIDs;
-    size_t ParentID {0};       // Parent PFP ID (or 0 if no parent exists)
+    std::vector<int> DtrUIDs;
+    size_t ParentUID {0};       // Parent PFP UID (or 0 if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned int mcpListIndex {UINT_MAX};
@@ -208,7 +209,6 @@ namespace tca {
     float CosmicScore{0};
     int ID {0};
     int UID {0};              // unique global ID
-    std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
   };
@@ -446,6 +446,8 @@ namespace tca {
     std::vector<float> matchTruth;     ///< Match to MC truth
     std::vector<float> chargeCuts;
     std::vector<float> qualityCuts; ///< Min points/wire, min consecutive pts after a gap
+    std::vector<float> pfpStitchCuts;      ///< cuts for stitching between TPCs
+    std::vector<float> testBeamCuts;
     std::vector<unsigned short> minPtsFit; ///< Reconstruct in several passes
     std::vector<unsigned short> minPts;    ///< min number of Pts required to make a trajectory
     std::vector<unsigned short> maxAngleCode;   ///< max allowed angle code for each pass
@@ -470,6 +472,7 @@ namespace tca {
     float JTMaxHitSep2;  /// Max hit separation for making junk trajectories. < 0 to turn off
     std::bitset<128> useAlg;  ///< Allow user to mask off specific algorithms
     std::bitset<128> dbgAlg;  ///< Allow user to turn on debug printing in algorithms (that print...)
+    short recoSlice {0};     ///< only reconstruct the slice with ID (0 = all)
     bool dbgSlc {true};          ///< debug only in the user-defined slice? default is all slices
     bool dbgStp {false};          ///< debug stepping using debug.Cryostat, debug.TPC, etc
     bool dbgMrg {false};
@@ -483,6 +486,7 @@ namespace tca {
     bool dbgMuonTag {false};
     bool dbg2S {false};
     bool dbg3S {false};
+    bool dbgStitch {false};    ///< debug PFParticle stitching
     bool dbgSummary {false};    ///< print a summary report
     short nPtsAve;         /// number of points to find AveChg
     std::bitset<16> modes;   /// See TCMode_t above
@@ -515,7 +519,6 @@ namespace tca {
     std::vector<unsigned int> nWires;
     std::vector<unsigned int> firstWire;    ///< the first wire with a hit
     std::vector<unsigned int> lastWire;      ///< the last wire with a hit
-    unsigned short nPlanes;
     float xLo; // fiducial volume of the current tpc
     float xHi;
     float yLo;
@@ -523,6 +526,8 @@ namespace tca {
     float zLo;
     float zHi;
     geo::TPCID TPCID;
+    unsigned short nPlanes;
+    int ID;           ///< ID of the recob::Slice (not the sub-slice)
     // The variables below do change in size from event to event
 
     // Save histograms to develop cosmic removal tools
