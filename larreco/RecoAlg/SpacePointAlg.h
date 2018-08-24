@@ -166,6 +166,9 @@ namespace trkf {
     bool fFilter;           ///< Filter flag.
     bool fMerge;            ///< Merge flag.
     bool fPreferColl;       ///< Sort by collection wire.
+    double fTickOffsetU;    ///< Tick offset for plane U.
+    double fTickOffsetV;    ///< Tick offset for plane V.
+    double fTickOffsetW;    ///< Tick offset for plane W.
 
     // Temporary variables.
 

@@ -12,7 +12,9 @@
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
-#include "lardata/RecoObjects/Cluster3D.h"
+
+// Algorithm includes
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 // std includes
 #include <string>

@@ -9,17 +9,9 @@
 #ifndef TRAJCLUSTERALGDEBUGSTRUCT_H
 #define TRAJCLUSTERALGDEBUGSTRUCT_H
 
-
-// C/C++ standard libraries
-#include <array>
-#include <vector>
-#include <bitset>
-
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
-#include "canvas/Persistency/Common/Ptr.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
-#include "lardataobj/RecoBase/Hit.h"
 
 namespace tca {
   
@@ -30,8 +22,9 @@ namespace tca {
     CTP_t CTP {UINT_MAX}; ///< set to an invalid CTP
     int Wire {-1};  ///< Select hit Wire for debugging
     int Tick {-1};   ///< Select hit PeakTime for debugging (< 0 for vertex finding)
-    unsigned int Hit {UINT_MAX};    ///< set to the hit index in fHits if a Plane:Wire:Tick match is found
+    unsigned int Hit {UINT_MAX};    ///< set to the hit index in evt.allHits if a Plane:Wire:Tick match is found
     int WorkID {0}; ///< Select the StartWorkID for debugging
+    int Slice {-1};
   };
   extern DebugStuff debug;
 } // namespace tca

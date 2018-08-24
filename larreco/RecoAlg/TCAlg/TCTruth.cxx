@@ -26,293 +26,231 @@ namespace tca {
     TruVxCounts.fill(0);
     nBadEP = 0;
   } // Initialize
-
+  
+/* This code was used to develop the TMVA showerParentReader. The MakeCheatShower function needs
+   to be re-written if this function is used in the future
   //////////////////////////////////////////
-  void TruthMatcher::MatchTrueHits()
+  void TruthMatcher::StudyShowerParents(TCSlice& slc, HistStuff& hist)
   {
-    // Matches reco hits to MC true tracks and puts the association into
-    // TCHit TruTrkID. This code is almost identical to the first part of MatchTruth.
+    // study characteristics of shower parent pfps. This code is adapted from TCShower FindParent
+    if(slc.pfps.empty()) return;
+    if(slc.mcpList.empty()) return;
     
-    tjs.MCPartList.clear();
+    // Look for truth pfp primary electron
+    Point3_t primVx {{-666.0, -666.0, -666.0}};
+    // the primary should be the first one in the list as selected in GetHitCollection
+    auto& primMCP = slc.mcpList[0];
+    primVx[0] = primMCP->Vx();
+    primVx[1] = primMCP->Vy();
+    primVx[2] = primMCP->Vz();
+    geo::Vector_t posOffsets;
+    auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
+    posOffsets = SCE->GetPosOffsets({primVx[0], primVx[1], primVx[2]});
+    posOffsets.SetX(-posOffsets.X());
+    primVx[0] += posOffsets.X();
+    primVx[1] += posOffsets.Y();
+    primVx[2] += posOffsets.Z();
+    geo::TPCID inTPCID;
+    // ignore if the primary isn't inside a TPC
+    if(!InsideTPC(primVx, inTPCID)) return;
+    // or if it is inside the wrong tpc
+    if(inTPCID != slc.TPCID) return;
 
-    if(tjs.MatchTruth[0] < 0) return;
-    if(tjs.fHits.empty()) return;
-    
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    std::string fcnLabel = "SSP";
+    // Create a truth shower for each primary electron
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    // list of all true particles
-    sim::ParticleList const& plist = pi_serv->ParticleList();
-    if(plist.empty()) return;
-    
-    // MC Particles for the desired true particles
-    int sourcePtclTrackID = -1;
-
-    // first find the source particle 
-    simb::Origin_t sourceOrigin = simb::kUnknown;
-    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-      simb::MCParticle* mcp = (*ipart).second;
-      int trackID = mcp->TrackId();
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-      if(tjs.MatchTruth[0] == 1) {
-        // Look for beam neutrino or single particle
-        if(theTruth->Origin() == simb::kBeamNeutrino) {
-          sourcePtclTrackID = trackID;
-          sourceOrigin = simb::kBeamNeutrino;
-          if(tjs.MatchTruth[1] > 0) {
-            Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
-            SetMag(dir, 1);
-            std::cout<<"Found beam neutrino sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode();
-            std::cout<<" Vx "<<std::fixed<<std::setprecision(1)<<mcp->Vx()<<" Vy "<<mcp->Vy()<<" Vz "<<mcp->Vz();
-            std::cout<<" dir "<<std::setprecision(3)<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<"\n";
-          }
-          break;
-        } // beam neutrino
-        if(theTruth->Origin() == simb::kSingleParticle) {
-          sourcePtclTrackID = trackID;
-          sourceOrigin = simb::kSingleParticle;
-          if(tjs.MatchTruth[1] > 0) {
-            Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
-            SetMag(dir, 1);
-            std::cout<<"Found single particle sourcePtclTrackID "<<trackID<<" PDG code "<<mcp->PdgCode();
-            std::cout<<" Vx "<<std::fixed<<std::setprecision(1)<<mcp->Vx()<<" Vy "<<mcp->Vy()<<" Vz "<<mcp->Vz();
-            std::cout<<" dir "<<std::setprecision(3)<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<"\n";
-            break;
-          }
-        } // single particle
-      } else if(tjs.MatchTruth[0] == 2 && theTruth->Origin() == simb::kCosmicRay) {
-        sourcePtclTrackID = trackID;
-        sourceOrigin = simb::kCosmicRay;
-      }
-    } // ipart
-    
-    if(sourcePtclTrackID == -1) {
-      if(tjs.MatchTruth[1] > 0) std::cout<<"MatchTrueHits: SourcePtcl not found\n";
-      return;
-    }
-    
-    if(tjs.MatchTruth[1] > 2) {
-      // print out a whole bunch of information
-      mf::LogVerbatim myprt("TC");
-      myprt<<"Displaying all neutrino origin MCParticles with T > 50 MeV\n";
-      myprt<<" trackID PDGCode Mother T(MeV) ________dir_______            Process\n";
-      for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-        simb::MCParticle* mcp = (*ipart).second;
-        int trackID = mcp->TrackId();
-        art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-        if(theTruth->Origin() != simb::kBeamNeutrino) continue;
-        // Kinetic energy in MeV
-        int TMeV = 1000 * (mcp->E() - mcp->Mass());
-        if(TMeV < 50) continue;
-        myprt<<std::setw(8)<<trackID;
-        myprt<<std::setw(8)<<mcp->PdgCode();
-        myprt<<std::setw(8)<<mcp->Mother();
-        myprt<<std::setw(6)<<TMeV;
-        Point3_t pos;
-        pos[0] = mcp->Vx();
-        pos[1] = mcp->Vy();
-        pos[2] = mcp->Vz();
-        Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
-        SetMag(dir, 1);
-        myprt<<std::setprecision(2);
-        for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<std::setw(6)<<dir[xyz];
-        myprt<<std::setw(22)<<mcp->Process();
-        myprt<<"\n";
-      } // ipart
-    } // big print
-      
-    // flag MCParticles to select for measuring performance. 
-    std::vector<bool> select(plist.size(), false);
-    // ensure that we get all of the primary particles
-    unsigned int indx = 0;
-    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-      simb::MCParticle* mcp = (*ipart).second;
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(mcp->TrackId());
-      if(theTruth->Origin() != sourceOrigin) continue;
-      select[indx] = true;
-      ++indx;
-    }
-
-    // make a temp vector of hit -> geant trackID
-    std::vector<int> gtid(tjs.fHits.size(), 0);
-    // find hits that match to the source particle
-    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-      std::vector<sim::TrackIDE> ides;
-      auto& tcHit = tjs.fHits[iht];
-      raw::ChannelID_t channel = tjs.geom->PlaneWireToChannel(tcHit.ArtPtr->WireID());
-      geo::PlaneID planeID = geo::PlaneID(tcHit.ArtPtr->WireID().Cryostat, tcHit.ArtPtr->WireID().TPC, tcHit.ArtPtr->WireID().Plane);
-      auto rhit = recob::Hit(channel,
-                             tcHit.StartTick, tcHit.EndTick,
-                             tcHit.PeakTime, tcHit.SigmaPeakTime,
-                             tcHit.RMS,
-                             tcHit.PeakAmplitude, tcHit.SigmaPeakAmp,
-                             tcHit.Integral, tcHit.Integral, tcHit.SigmaIntegral,
-                             tcHit.Multiplicity, tcHit.LocalIndex,
-                             tcHit.GoodnessOfFit, tcHit.NDOF,
-                             tjs.geom->View(channel),
-                             tjs.geom->SignalType(planeID),
-                             tcHit.ArtPtr->WireID());
-      try {
-        ides = bt_serv->HitToTrackIDEs(rhit);
-      }
-      catch(...) {}
-      if(ides.empty()) continue;
-      float energy = 0;
-      for(auto ide : ides) energy += ide.energy;
-      if(energy == 0) continue;
-      // require 1/2 of the energy be due to one MC particle
-      energy /= 2;
-      int hitTruTrkID = 0;
-      for(auto ide : ides) {
-        if(ide.energy > energy) {
-          hitTruTrkID = ide.trackID;
-          break;
+    MCParticleListUtils mcpu{slc};
+    for(unsigned int part = 0; part < slc.mcpList.size(); ++part) {
+      auto& mcp = slc.mcpList[part];
+      // require electron or photon
+      if(abs(mcp->PdgCode()) != 11 && abs(mcp->PdgCode()) != 111) continue;
+      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+      // require that it is primary
+      if(mcp->TrackId() != eveID) continue;
+      int truPFP = 0;
+      auto ss3 = mcpu.MakeCheatShower(slc, part, primVx, truPFP);
+      if(ss3.ID == 0) continue;
+      if(truPFP == 0) continue;
+      if(!StoreShower(fcnLabel, slc, ss3)) {
+        std::cout<<"Failed to store 3S"<<ss3.ID<<"\n";
+        break;
+      } // store failed
+      // now fill the TTree
+      float ss3Energy = ShowerEnergy(ss3);
+      for(auto& pfp : slc.pfps) {
+        if(pfp.TPCID != ss3.TPCID) continue;
+        // ignore neutrinos
+        if(pfp.PDGCode == 12 || pfp.PDGCode == 14) continue;
+        // ignore shower pfps
+        if(pfp.PDGCode == 1111) continue;
+        float pfpEnergy = 0;
+        float minEnergy = 1E6;
+        for(auto tid : pfp.TjIDs) {
+          auto& tj = slc.tjs[tid - 1];
+          float energy = ChgToMeV(tj.TotChg);
+          pfpEnergy += energy;
+          if(energy < minEnergy) minEnergy = energy;
         }
-      } // ide
-      if(hitTruTrkID == 0) continue;
-      // ensure it has the correct source
-      art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(hitTruTrkID);
-      if(theTruth->Origin() != sourceOrigin) continue;
-      unsigned int indx = 0;
-      for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-        ++indx;
-        simb::MCParticle* mcp = (*ipart).second;
-        if(mcp->TrackId() != hitTruTrkID) continue;
-        select[indx - 1] = true;
-        gtid[iht] = mcp->TrackId();
-        // find the eve particle and select it as well
-        const simb::MCParticle* momMCP = pi_serv->TrackIdToMotherParticle_P(mcp->TrackId());
-        if(!momMCP) continue;
-        if(momMCP->TrackId() == mcp->TrackId()) break;
-        unsigned int mindx = 0;
-        for(sim::ParticleList::const_iterator mpart = plist.begin(); mpart != plist.end(); ++mpart) {
-          simb::MCParticle* mmcp = (*mpart).second;
-          if(mmcp->TrackId() == momMCP->TrackId()) {
-            select[mindx] = true;
+        pfpEnergy -= minEnergy;
+        pfpEnergy /= (float)(pfp.TjIDs.size() - 1);
+        // find the end that is farthest away
+        unsigned short pEnd = FarEnd(slc, pfp, ss3.ChgPos);
+        auto pToS = PointDirection(pfp.XYZ[pEnd], ss3.ChgPos);
+        // take the absolute value in case the shower direction isn't well known
+        float costh1 = std::abs(DotProd(pToS, ss3.Dir));
+        float costh2 = DotProd(pToS, pfp.Dir[pEnd]);
+        // distance^2 between the pfp end and the shower start, charge center, and shower end
+        float distToStart2 = PosSep2(pfp.XYZ[pEnd], ss3.Start);
+        float distToChgPos2 = PosSep2(pfp.XYZ[pEnd], ss3.ChgPos);
+        float distToEnd2 = PosSep2(pfp.XYZ[pEnd], ss3.End);
+//        mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<" P"<<pfp.ID<<"_"<<pEnd<<" distToStart "<<sqrt(distToStart2)<<" distToChgPos "<<sqrt(distToChgPos2)<<" distToEnd "<<sqrt(distToEnd2);
+        // find the end of the shower closest to the pfp
+        unsigned short shEnd = 0;
+        if(distToEnd2 < distToStart2) shEnd = 1;
+        if(shEnd == 0 && distToChgPos2 < distToStart2) continue;
+        if(shEnd == 1 && distToChgPos2 < distToEnd2) continue;
+//      mf::LogVerbatim("TC")<<" 3S"<<ss3.ID<<"_"<<shEnd<<" P"<<pfp.ID<<"_"<<pEnd<<" costh1 "<<costh1;
+        Point2_t alongTrans;
+        // find the longitudinal and transverse components of the pfp start point relative to the
+        // shower center
+        FindAlongTrans(ss3.ChgPos, ss3.Dir, pfp.XYZ[pEnd], alongTrans);
+//      mf::LogVerbatim("TC")<<"   alongTrans "<<alongTrans[0]<<" "<<alongTrans[1];
+        hist.fSep = sqrt(distToChgPos2);
+        hist.fShEnergy = ss3Energy;
+        hist.fPfpEnergy = pfpEnergy;
+        hist.fPfpLen = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+        hist.fMCSMom = MCSMom(slc, pfp.TjIDs);
+        hist.fDang1 = acos(costh1);
+        hist.fDang2 = acos(costh2);
+        hist.fChgFrac = 0;
+        float chgFrac = 0;
+        float totSep = 0;
+        // find the charge fraction btw the pfp start and the point that is 
+        // half the distance to the charge center in each plane
+        for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+          CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);
+          int ssid = 0;
+          for(auto cid : ss3.CotIDs) {
+            auto& ss = slc.cots[cid - 1];
+            if(ss.CTP != inCTP) continue;
+            ssid = ss.ID;
             break;
+          } // cid
+          if(ssid == 0) continue;
+          auto tpFrom = MakeBareTP(slc, pfp.XYZ[pEnd], pToS, inCTP);
+          auto& ss = slc.cots[ssid - 1];
+          auto& stp1 = slc.tjs[ss.ShowerTjID - 1].Pts[1];
+          float sep = PosSep(tpFrom.Pos, stp1.Pos);
+          float toPos = tpFrom.Pos[0] + 0.5 * tpFrom.Dir[0] * sep;
+          float cf = ChgFracBetween(slc, tpFrom, toPos, false);
+          // weight by the separation in the plane
+          totSep += sep;
+          chgFrac += sep * cf;
+        } // plane
+        if(totSep > 0) hist.fChgFrac = chgFrac / totSep;
+        hist.fAlong = alongTrans[0];
+        hist.fTrans = alongTrans[1];
+        hist.fInShwrProb = InShowerProbLong(ss3Energy, -hist.fSep);
+        bool isBad = (hist.fDang1 > 2 || hist.fChgFrac < 0.5 || hist.fInShwrProb < 0.05);
+        if(pfp.ID == truPFP && isBad) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<"SSP: 3S"<<ss3.ID<<" shEnergy "<<(int)ss3Energy<<" P"<<pfp.ID<<" pfpEnergy "<<(int)pfpEnergy;
+          myprt<<" MCSMom "<<hist.fMCSMom<<" len "<<hist.fPfpLen;
+          myprt<<" Dang1 "<<hist.fDang1<<" Dang2 "<<hist.fDang2<<" chgFrac "<<hist.fChgFrac;
+          myprt<<" fInShwrProb "<<hist.fInShwrProb;
+          myprt<<" EventsProcessed "<<evt.eventsProcessed;
+        }
+        if(pfp.ID == truPFP) {
+          hist.fShowerParentSig->Fill();
+        } else {
+          hist.fShowerParentBkg->Fill();
+        }
+      } // pfp
+    } // part
+//    PrintShowers(fcnLabel, tjs);
+//    Print2DShowers(fcnLabel, slc, USHRT_MAX, false);
+    // kill the cheat showers
+    for(auto& ss3 : slc.showers) {
+      if(ss3.ID == 0) continue;
+      if(!ss3.Cheat) continue;
+      for(auto cid : ss3.CotIDs) {
+        auto& ss = slc.cots[cid - 1];
+        ss.ID = 0;
+        auto& stj = slc.tjs[ss.ShowerTjID - 1];
+        stj.AlgMod[kKilled] = true;
+      } // cid
+      ss3.ID = 0;
+    } // ss3
+  } // StudyShowerParents
+*/
+  //////////////////////////////////////////
+  void TruthMatcher::MatchTruth(std::vector<simb::MCParticle*> const& mcpList, std::vector<unsigned int> const& mcpListIndex)
+  {
+    // Match trajectories, PFParticles, etc to the MC truth matched hits then
+    // calculate reconstruction efficiency and purity. This function should only be
+    // called once per event after reconstruction has been done in all slices
+    
+    // mcpList is a vector of all MCParticles that have been selected in the module
+    if(mcpList.empty()) return;
+    // mcpListIndex points to the MCParticle to which each hit is matched
+    if(mcpListIndex.size() != (*evt.allHits).size()) return;
+/* TODO: fix this later
+    // Form a list of mother-daughter pairs that should be considered as a single particle
+    std::vector<std::pair<unsigned int, unsigned int>> moda;
+    for(unsigned int part = 0; part < mcpList.size(); ++part) {
+      auto& mcp = mcpList[part];
+      if(mcp->NumberDaughters() == 0) continue;
+      unsigned int ndtr = 0;
+      unsigned int dtrSelIndex = 0;
+      for(int idtr = 0; idtr < mcp->NumberDaughters(); ++idtr) {
+        int dtrTrackId = mcp->Daughter(idtr);
+        // ignore it if it's not in the list
+        bool ignore = true;
+        for(unsigned short dpart = part + 1; dpart < mcpList.size(); ++dpart) {
+          auto& dmcp = mcpList[dpart];
+          if(dmcp->TrackId() == dtrTrackId) {
+            dtrSelIndex = dpart;
+            ignore = false;
           }
-          ++mindx;
-        } // mpart
-        break;
-      } // ipart
-    } // iht
-
-    // save the selected MCParticles in tjs
-    indx = 0;
-    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-      if(select[indx]) {
-        simb::MCParticle* mcp = (*ipart).second;
-        tjs.MCPartList.push_back(mcp);
-      }
-      ++indx;
-    } // ipart
-    
-    if(tjs.MCPartList.size() > UINT_MAX) {
-      std::cout<<"MatchTrueHits: Crazy large number of MCParticles "<<tjs.MCPartList.size()<<". Ignoring this event\n";
-      tjs.MCPartList.clear();
-      return;
-    }
-    
-    // define MCPartListIndex for the hits
-    unsigned int nMatch = 0;
-    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-      if(gtid[iht] == 0) continue;
-      auto& hit = tjs.fHits[iht];
-      for(unsigned int indx = 0; indx < tjs.MCPartList.size(); ++indx) {
-        auto& mcp = tjs.MCPartList[indx];
-        if(mcp->TrackId() != gtid[iht]) continue;
-        hit.MCPartListIndex = indx;
-        ++nMatch;
-        break;
-      } // indx
-    } // iht
-    
-    
-    std::cout<<"MatchTrueHits: MCPartList size "<<tjs.MCPartList.size()<<" nMatched hits "<<nMatch<<"\n";
-
-  } // MatchTrueHits
-  
-  //////////////////////////////////////////
-  void TruthMatcher::StudyElectrons(const HistStuff& hist)
-  {
-    // study tjs matched to electrons to develop an electron tag
-    
-//    float likely;
-//    bool flipDirection;
-    for(auto& tj : tjs.allTraj) {
-      if(tj.AlgMod[kKilled]) continue;
-      if(tj.MCPartListIndex == UINT_MAX) continue;
-      unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
-      if(npts < 10) continue;
-//      PrimaryElectronLikelihood(tjs, tj, likely, flipDirection, true);
-      auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
-      unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
-      if(pdgIndex > 4) continue;
-      unsigned short midpt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
-      float mom1 = MCSMom(tjs, tj, tj.EndPt[0], midpt);
-      float mom2 = MCSMom(tjs, tj, midpt, tj.EndPt[1]);
-      float asym = std::abs(mom1 - mom2) / (mom1 + mom2);
-      hist.fChgRMS[pdgIndex]->Fill(tj.ChgRMS);
-      hist.fMomAsym[pdgIndex]->Fill(asym);
-      float elike = asym * tj.ChgRMS;
-      hist.fElectronLike[pdgIndex]->Fill(elike);
-      float len = PosSep(tj.Pts[tj.EndPt[0]].Pos, tj.Pts[tj.EndPt[1]].Pos);
-      hist.fElectronLike_Len[pdgIndex]->Fill(len, elike);
-    } // tj
-  } // StudyElectrons
-  
-  //////////////////////////////////////////
-  void TruthMatcher::StudyPiZeros(const HistStuff& hist)
-  {
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    sim::ParticleList const& plist = pi_serv->ParticleList();
-
-    unsigned short cnt = 0;
-    for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-      ++cnt;
-      const simb::MCParticle* p = (*ipart).second;
-      int pdg = abs(p->PdgCode());
-      if(cnt == 1 && pdg != 111) {
-        std::cout<<"First MC particle isn't a pizero\n";
-        return;
-      }
-      if(cnt == 1) continue;
-      if(pdg != 22) break;
-      double photE = 1000 * p->E();
-      if(photE < 50) continue;
-//      Point3_t photStart {p->Vx(), p->Vy(), p->Vz()};
-      Vector3_t photDir {{p->Px(), p->Py(), p->Pz()}};
-      SetMag(photDir, 1);
-      // sum up the charge for all hits that are daughters of this photon
-      std::vector<float> chgSum(3);
-      for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-        auto mcpIndex = tjs.fHits[iht].MCPartListIndex;
-        if(mcpIndex ==  UINT_MAX) continue;
-        auto& mcp = tjs.MCPartList[mcpIndex];
-        int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
-        if(eveID != p->TrackId()) continue;
-        unsigned short plane = tjs.fHits[iht].ArtPtr->WireID().Plane;
-        chgSum[plane] += tjs.fHits[iht].Integral;
+        } // dpart
+        if(ignore) continue;
+        ++ndtr;
+      } // idtr
+      // require only one daughter
+      if(ndtr != 1) continue;
+      // require that the daughter have the same PDG code
+      auto& dtr = mcpList[dtrSelIndex];
+      if(dtr->PdgCode() != mcp->PdgCode()) continue;
+      if(tcc.matchTruth[1] > 1) mf::LogVerbatim("TC")<<"Daughter MCP "<<dtrSelIndex<<" -> Mother MCP "<<part;
+      moda.push_back(std::make_pair(mcpListIndex[part], mcpListIndex[dtrSelIndex]));
+    } // part
+    if(!moda.empty()) {
+      // over-write the hit -> daughter MCParticle association to the mother MCParticle.
+      // Note that mother-daughter pairs are ordered by increasing generation. Reverse
+      // moda so that the grand-daughters come first. Grand-daughters will then be
+      // over-written by daughters in the previous generation
+      if(moda.size() > 1) std::reverse(moda.begin(), moda.end());
+      for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
+        for(auto& md : moda) if(md.second == mcpListIndex[iht]) mcpListIndex[iht] = md.first;
       } // iht
-      for(unsigned short plane = 0; plane < 3; ++plane) {
-        if(chgSum[plane] == 0) continue;
-        float chgCal = photE / chgSum[plane];
-        hist.fChgToMeV[plane]->Fill(chgCal);
-        hist.fChgToMeV_Etru->Fill(photE, chgCal);
-      } // plane
-    } // ipart
+    } // moda not empty
+*/
+    // decide if electrons inside showers should be associated with the eve electron
+//    bool showerRecoMode = (tcc.showerTag[0] == 2) || (tcc.showerTag[0] == 4);
+    
+    MatchAndSum(mcpList, mcpListIndex);
 
-  } // StudyPiZeros
-
+  } // MatchTruth
+/*
   //////////////////////////////////////////
-  void TruthMatcher::MatchTruth(const HistStuff& hist, bool fStudyMode)
+  void TruthMatcher::MatchTruth(TCSlice& slc, const HistStuff& hist, bool fStudyMode)
   {
     // The hits have already been matched to the truth in MatchTrueHits. Here we match reconstructed objects
     // to the truth-matched hits to measure performance    
     
-    if(tjs.MatchTruth[0] < 0) return;
-    if(tjs.MCPartList.empty()) return;
-    for(auto& pfp : tjs.pfps) pfp.EffPur = 0;
+    if(tcc.matchTruth[0] < 0) return;
+    if(slc.mcpList.empty()) return;
+    for(auto& pfp : slc.pfps) pfp.EffPur = 0;
 
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     geo::Vector_t posOffsets;
@@ -326,7 +264,7 @@ namespace tca {
     // Locate the primary vertex
     Point3_t primVx {{-666.0, -666.0, -666.0}};
     // the primary should be the first one in the list as selected in GetHitCollection
-    auto& primMCP = tjs.MCPartList[0];
+    auto& primMCP = slc.mcpList[0];
     primVx[0] = primMCP->Vx();
     primVx[1] = primMCP->Vy();
     primVx[2] = primMCP->Vz();
@@ -335,10 +273,10 @@ namespace tca {
     primVx[0] += posOffsets.X();
     primVx[1] += posOffsets.Y();
     primVx[2] += posOffsets.Z();
-    if(tjs.MatchTruth[1] > 1) std::cout<<"Prim PDG code  "<<primMCP->PdgCode()<<" primVx "<<std::fixed<<std::setprecision(1)<<primVx[0]<<" "<<primVx[1]<<" "<<primVx[2]<<"\n";
-    geo::TPCID inTPCID = tjs.TPCID;
-    if(!InsideTPC(tjs, primVx, inTPCID)) {
-      if(tjs.MatchTruth[1] > 0) std::cout<<"Found a primary particle but it is not inside any TPC\n";
+    if(tcc.matchTruth[1] > 1) std::cout<<"Prim PDG code  "<<primMCP->PdgCode()<<" primVx "<<std::fixed<<std::setprecision(1)<<primVx[0]<<" "<<primVx[1]<<" "<<primVx[2]<<"\n";
+    geo::TPCID inTPCID = slc.TPCID;
+    if(!InsideTPC(primVx, inTPCID)) {
+      if(tcc.matchTruth[1] > 0) std::cout<<"Found a primary particle but it is not inside any TPC\n";
       return;
     }
     neutrinoVxReconstructable = true;
@@ -350,8 +288,8 @@ namespace tca {
     std::vector<unsigned int> mcpSelect;
     // vector of reconstructable primary particles
     std::vector<unsigned int> primMCPs;
-    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
-      auto& mcp = tjs.MCPartList[part];
+    for(unsigned int part = 0; part < slc.mcpList.size(); ++part) {
+      auto& mcp = slc.mcpList[part];
       // require it is charged
       int pdg = abs(mcp->PdgCode());
       bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211) || (pdg == 321) || (pdg == 2212);
@@ -365,15 +303,13 @@ namespace tca {
       primMCPs.push_back(part);
     } // part
     if(mcpSelect.empty()) return;
-    tjs.SelectEvent = true;
-//    mf::LogVerbatim("TC")<<"SelectEvent "<<tjs.Run<<" "<<tjs.SubRun<<" "<<tjs.Event;
 
     if(neutrinoVxReconstructable) ++TruVxCounts[0];
     
     // Form a list of mother-daughter pairs that should be considered as a single particle
     std::vector<std::pair<unsigned int, unsigned int>> moda;
     for(unsigned int part = 0; part < mcpSelect.size(); ++part) {
-      auto& mcp = tjs.MCPartList[mcpSelect[part]];
+      auto& mcp = slc.mcpList[mcpSelect[part]];
       if(mcp->NumberDaughters() == 0) continue;
       unsigned int ndtr = 0;
       unsigned int dtrSelIndex = 0;
@@ -382,7 +318,7 @@ namespace tca {
         // ignore it if it's not in the list
         bool ignore = true;
         for(unsigned short dpart = part + 1; dpart < mcpSelect.size(); ++dpart) {
-          auto& dmcp = tjs.MCPartList[mcpSelect[dpart]];
+          auto& dmcp = slc.mcpList[mcpSelect[dpart]];
           if(dmcp->TrackId() == dtrTrackId) {
             dtrSelIndex = dpart;
             ignore = false;
@@ -394,9 +330,9 @@ namespace tca {
       // require only one daughter
       if(ndtr != 1) continue;
       // require that the daughter have the same PDG code
-      auto& dtr = tjs.MCPartList[mcpSelect[dtrSelIndex]];
+      auto& dtr = slc.mcpList[mcpSelect[dtrSelIndex]];
       if(dtr->PdgCode() != mcp->PdgCode()) continue;
-      if(tjs.MatchTruth[1] > 1) mf::LogVerbatim("TC")<<"Daughter MCP "<<dtrSelIndex<<" -> Mother MCP "<<part;
+      if(tcc.matchTruth[1] > 1) mf::LogVerbatim("TC")<<"Daughter MCP "<<dtrSelIndex<<" -> Mother MCP "<<part;
       moda.push_back(std::make_pair(mcpSelect[part], mcpSelect[dtrSelIndex]));
       // delete the daughter entry
       mcpSelect.erase(mcpSelect.begin() + dtrSelIndex);
@@ -410,16 +346,16 @@ namespace tca {
       // moda so that the grand-daughters come first. Grand-daughters will then be
       // over-written by daughters in the previous generation
       if(moda.size() > 1) std::reverse(moda.begin(), moda.end());
-      for(auto& hit : tjs.fHits) {
+      for(auto& mcpi : slc.mcpListIndex) {
         // see if this is a daughter
-        for(auto& md : moda) if(md.second == hit.MCPartListIndex) hit.MCPartListIndex = md.first;
+        for(auto& md : moda) if(md.second == mcpi) mcpi = md.first;
       } // hit
     } // !moda.empty
     
     // True histograms
     for(unsigned int part = 0; part < mcpSelect.size(); ++part) {
-      auto& mcp = tjs.MCPartList[mcpSelect[part]];
-      unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
+      auto& mcp = slc.mcpList[mcpSelect[part]];
+      unsigned short pdgIndex = PDGCodeIndex(slc, mcp->PdgCode());
       if(pdgIndex > 4) continue;
       float TMeV = 1000 * (mcp->E() - mcp->Mass());
       hist.fTruT[pdgIndex]->Fill(TMeV);
@@ -427,30 +363,30 @@ namespace tca {
 
     // Match tjs to MC particles. Declare it a match to the MC particle that has the most
     // hits in the tj
-    std::vector<std::vector<int>> tjid(tjs.NumPlanes);
-    std::vector<std::vector<unsigned short>> ntht(tjs.NumPlanes);
-    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-      tjid[plane].resize(tjs.MCPartList.size());
-      ntht[plane].resize(tjs.MCPartList.size());
+    std::vector<std::vector<int>> tjid(slc.nPlanes);
+    std::vector<std::vector<unsigned short>> ntht(slc.nPlanes);
+    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+      tjid[plane].resize(slc.mcpList.size());
+      ntht[plane].resize(slc.mcpList.size());
     }
     
-    for(auto& tj : tjs.allTraj) {
+    for(auto& tj : slc.tjs) {
       if(tj.AlgMod[kKilled]) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if(planeID.Cryostat != inTPCID.Cryostat) continue;
       if(planeID.TPC != inTPCID.TPC) continue;
-      tj.MCPartListIndex = UINT_MAX;
+      tj.mcpListIndex = UINT_MAX;
       std::vector<unsigned int> mcpIndex, cnt;
       auto tjhits = PutTrajHitsInVector(tj, kUsedHits);
       for(auto iht : tjhits) {
-        auto& hit = tjs.fHits[iht];
-        if(hit.MCPartListIndex > tjs.MCPartList.size() - 1) continue;
+        unsigned short mcpli = slc.mcpListIndex[iht];
+        if(mcpli > slc.mcpList.size() - 1) continue;
         // ignore Tj hits that aren't in mcpSelect
-        if(std::find(mcpSelect.begin(), mcpSelect.end(), hit.MCPartListIndex) == mcpSelect.end()) continue;
+        if(std::find(mcpSelect.begin(), mcpSelect.end(), mcpli) == mcpSelect.end()) continue;
         unsigned int indx = 0;
-        for(indx = 0; indx < mcpIndex.size(); ++indx) if(hit.MCPartListIndex == mcpIndex[indx]) break;
-        if(indx == mcpIndex.size()) {
-          mcpIndex.push_back(hit.MCPartListIndex);
+        for(indx = 0; indx < slc.mcpListIndex.size(); ++indx) if(mcpli == mcpListIndex[indx]) break;
+        if(indx == slc.mcpListIndex.size()) {
+          mcpIndex.push_back(mcpli);
           cnt.push_back(1);
         } else {
           ++cnt[indx];
@@ -477,12 +413,12 @@ namespace tca {
       if(tjid[plane][tmpIndex] > 0) {
         if(maxcnt > ntht[plane][tmpIndex]) {
           // clear the old one
-          auto& mtj = tjs.allTraj[tjid[plane][tmpIndex] - 1];
+          auto& mtj = slc.tjs[tjid[plane][tmpIndex] - 1];
           mtj.EffPur = 0;
-          mtj.MCPartListIndex = UINT_MAX;
+          mtj.mcpListIndex = UINT_MAX;
           // use the new one
           tj.EffPur = ep;
-          tj.MCPartListIndex = tmpIndex;
+          tj.mcpListIndex = tmpIndex;
           tjid[plane][tmpIndex] = tj.ID;
           ntht[plane][tmpIndex] = maxcnt;
         } else {
@@ -492,7 +428,7 @@ namespace tca {
       } else {
         // no previous match
         tj.EffPur = eff * pur;
-        tj.MCPartListIndex = tmpIndex;
+        tj.mcpListIndex = tmpIndex;
         tjid[plane][tmpIndex] = tj.ID;
         ntht[plane][tmpIndex] = maxcnt;
       }
@@ -502,23 +438,19 @@ namespace tca {
       // find the vertex closest to the true primary vertex
       float best = 1;
       unsigned short vx3ID = 0;
-      if(!tjs.pfps.empty()) {
-        auto& pfp = tjs.pfps[0];
+      if(!slc.pfps.empty()) {
+        auto& pfp = slc.pfps[0];
         if((pfp.PDGCode == 14 || pfp.PDGCode == 12) && pfp.Vx3ID[0] > 0) {
           // Found a neutrino pfp with a start vertex
-          auto& vx3 = tjs.vtx3[pfp.Vx3ID[0] - 1];
+          auto& vx3 = slc.vtx3s[pfp.Vx3ID[0] - 1];
           // check the proximity to the true vertex
-          // BUG the double brace syntax is required to work around clang bug 21629
-          // (https://bugs.llvm.org/show_bug.cgi?id=21629)
           Point3_t vpos = {{vx3.X, vx3.Y, vx3.Z}};
           if(PosSep(vpos, primVx) < 1) neutrinoPFPCorrect = true;
         } // neutrino pfp 
       } // PFParticles exist
-      for(auto& vx3 : tjs.vtx3) {
+      for(auto& vx3 : slc.vtx3s) {
         if(vx3.ID == 0) continue;
         if(vx3.TPCID != inTPCID) continue;
-        // BUG the double brace syntax is required to work around clang bug 21629
-        // (https://bugs.llvm.org/show_bug.cgi?id=21629)
         Point3_t vpos = {{vx3.X, vx3.Y, vx3.Z}};
         float sep = PosSep(vpos, primVx);
         if(sep < best) {
@@ -529,7 +461,7 @@ namespace tca {
       if(vx3ID > 0) vxReconstructedNearNuVx = true;
     } // neutrinoVxReconstructable
 
-    if(tjs.MatchTruth[1] > 0) {
+    if(tcc.matchTruth[1] > 0) {
       // print out
       mf::LogVerbatim myprt("TC");
       myprt<<"Number of primary particles "<<primMCPs.size()<<" Vtx";
@@ -537,9 +469,9 @@ namespace tca {
       myprt<<" nuVx Reconstructable? "<<neutrinoVxReconstructable<<" vx near nuVx? "<<vxReconstructedNearNuVx;
       myprt<<" neutrinoPFPCorrect? "<<neutrinoPFPCorrect<<"\n";
       myprt<<"MCPIndx TrackId   PDG   eveID    KE    Len _______Dir_______  ____ProjInPln___               Process      StartHit-EndHit_nTruHits";
-      for(unsigned int ipart = 0; ipart < tjs.MCPartList.size(); ++ipart) {
+      for(unsigned int ipart = 0; ipart < slc.mcpList.size(); ++ipart) {
         bool doPrt = (std::find(mcpSelect.begin(), mcpSelect.end(), ipart) != mcpSelect.end());
-        auto& mcp = tjs.MCPartList[ipart];
+        auto& mcp = slc.mcpList[ipart];
         // also print if this is a pizero or decay photon > 30 MeV
         if(mcp->PdgCode() == 111) doPrt = true;
         // Kinetic energy in MeV
@@ -568,65 +500,46 @@ namespace tca {
         Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
         SetMag(dir, 1);
         for(unsigned short xyz = 0; xyz < 3; ++xyz) myprt<<std::setw(6)<<std::setprecision(2)<<dir[xyz];
-        std::vector<float> startWire(tjs.NumPlanes);
-        for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
+        std::vector<float> startWire(slc.nPlanes);
+        for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
           CTP_t inCTP = plane;
-          auto tp = MakeBareTP(tjs, start, dir, inCTP);
+          auto tp = MakeBareTP(slc, start, dir, inCTP);
           myprt<<std::setw(6)<<tp.Delta;
           startWire[plane] = tp.Pos[0];
         } // plane
         myprt<<std::setw(22)<<mcp->Process();
         // print the extent of the particle in each TPC plane
-        for(const geo::TPCID& tpcid : tjs.geom->IterateTPCIDs()) {
-          geo::TPCGeo const& TPC = tjs.geom->TPC(tpcid);
+        for(const geo::TPCID& tpcid : tcc.geom->IterateTPCIDs()) {
+          geo::TPCGeo const& TPC = tcc.geom->TPC(tpcid);
           for(unsigned short plane = 0; plane < TPC.Nplanes(); ++plane) {
             CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
             auto mcpHits = PutMCPHitsInVector(ipart, inCTP);
             if(mcpHits.empty()) continue;
             // get the direction correct
-            float fwire = tjs.fHits[mcpHits[0]].ArtPtr->WireID().Wire;
-            float lwire = tjs.fHits[mcpHits[mcpHits.size() - 1]].ArtPtr->WireID().Wire;
+            auto& fhit = evt.allHits[slc.slHits[mcpHits[0]]];
+            float fwire = fhit->WireID().Wire;
+            auto& lhit = evt.allHits[slc.slHits[mcpHits.size() - 1]];
+            float lwire = lhit->WireID().Wire;
             if(std::abs(fwire - startWire[plane]) < std::abs(lwire - startWire[plane])) {
-              myprt<<" "<<PrintHitShort(tjs.fHits[mcpHits[0]])<<"-"<<PrintHitShort(tjs.fHits[mcpHits[mcpHits.size() - 1]]);
+              myprt<<" "<<PrintHitShort(slc.slHits[mcpHits[0]])<<"-"<<PrintHitShort(slc.slHits[mcpHits[mcpHits.size() - 1]]);
             } else {
-              myprt<<" "<<PrintHitShort(tjs.fHits[mcpHits[mcpHits.size() - 1]])<<"-"<<PrintHitShort(tjs.fHits[mcpHits[0]]);
+              myprt<<" "<<PrintHitShort(slc.slHits[mcpHits[mcpHits.size() - 1]])<<"-"<<PrintHitShort(slc.slHits[mcpHits[0]]);
             }
             myprt<<"_"<<mcpHits.size();
           } // plane
         } // tpcid
       } // ipart
-    } // tjs.MatchTruth[1] > 0
+    } // tcc.matchTruth[1] > 0
     
     // Match Tjs and PFParticles and accumulate statistics
-    MatchAndSum(hist, mcpSelect, inTPCID);
-    
-/* This needs work...
-    // match 2D vertices (crudely)
-    for(auto& tj : tjs.allTraj) {
-      // obsolete vertex
-      if(tj.AlgMod[kKilled]) continue;
-      // require a truth match
-      if(tj.MCPartListIndex == UINT_MAX) continue;
-      if (tj.MCPartListIndex < tjs.MCPartList.size()) { 
-        // ignore electrons unless it is a primary electron    
-        auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
-        int pdg = abs(mcp->PdgCode());
-        if(pdg == 11 && mcp->Mother() != 0) continue;
-      }
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] == 0) continue;
-        VtxStore& vx2 = tjs.vtx[tj.VtxID[end]-1];
-        vx2.Stat[kVtxTruMatch] = true;
-      } // end
-    } // tj
-*/
-    
+    MatchAndSum(slc, hist, mcpSelect);
+        
     // Tj histograms
-    for(auto& tj : tjs.allTraj) {
+    for(auto& tj : slc.tjs) {
       if(tj.AlgMod[kKilled]) continue;
-      if(tj.MCPartListIndex == UINT_MAX) continue;
-      auto& mcp = tjs.MCPartList[tj.MCPartListIndex];
-      short truIndex = PDGCodeIndex(tjs, mcp->PdgCode());
+      if(tj.mcpListIndex == UINT_MAX) continue;
+      auto& mcp = slc.mcpList[tj.mcpListIndex];
+      short truIndex = PDGCodeIndex(slc, mcp->PdgCode());
       if(truIndex == SHRT_MAX) continue;
       float frac = 0;
       float cnt = 0;
@@ -640,41 +553,18 @@ namespace tca {
       hist.fNearTj[truIndex]->Fill(TMeV, frac);
     } // tj
     
-    // match a 3D vertex to the primary vertex
-/*
-    unsigned short vx3RecoPrmary = 0;
-    float close = 1E6;
-    for(auto& vx3 : tjs.vtx3) {
-      if(vx3.ID == 0) continue;
-      // ignore pfp start vertices
-      if(vx3.Wire == -2) continue;
-      Point3_t vxPos {{vx3.X, vx3.Y, vx3.Z}};
-      float sep = PosSep(vxPos, primVx);
-      if(sep < close) {
-        close = sep;
-        vx3RecoPrmary = vx3.ID;
-      }
-    } // vx3
-    if(vx3RecoPrmary > 0) {
-      auto& vx3 = tjs.vtx3[vx3RecoPrmary - 1];
-      std::cout<<"vx3RecoPrmary 3"<<vx3.ID<<" close "<<std::setprecision(1)<<close<<" deltas";
-      Point3_t vxPos {{vx3.X, vx3.Y, vx3.Z}};
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) std::cout<<" "<<vxPos[xyz] - primVx[xyz];
-      std::cout<<"\n";
-    }
-*/
     
     // PFParticle histograms
     constexpr double twopi = 2 * M_PI;
     std::array<int, 5> recoCodeList = {{0, 11, 13, 211, 2212}};
-    for(auto& pfp : tjs.pfps) {
+    for(auto& pfp : slc.pfps) {
       if(pfp.ID == 0) continue;
       // ignore showers
       if(pfp.PDGCode == 1111) continue;
       // require match to MC
-      if(pfp.MCPartListIndex == UINT_MAX) continue;
-      auto& mcp = tjs.MCPartList[pfp.MCPartListIndex];
-      short truIndex = PDGCodeIndex(tjs, mcp->PdgCode());
+      if(pfp.mcpListIndex == UINT_MAX) continue;
+      auto& mcp = slc.mcpList[pfp.mcpListIndex];
+      short truIndex = PDGCodeIndex(slc, mcp->PdgCode());
       if(truIndex == SHRT_MAX) continue;
       short recIndex = 0;
       for(recIndex = 0; recIndex < 5; ++recIndex) if(pfp.PDGCode == recoCodeList[recIndex]) break;
@@ -697,13 +587,6 @@ namespace tca {
         for(unsigned short xyz = 0; xyz < 3; ++xyz) recDir[xyz] *= -1;
       }
       hist.fPFPStartEnd->Fill((float)startEnd);
-/*
-      if(std::abs(pfp.XYZ[startEnd][1] - truStart[1]) < 2 && std::abs(pfp.XYZ[startEnd][2] - truStart[2]) < 2) {
-        std::cout<<"MatchTruth P"<<pfp.ID<<" MCP "<<mcp->TrackId();
-        for(unsigned short xyz = 0; xyz < 3; ++xyz) std::cout<<std::setprecision(1)<<" "<<pfp.XYZ[startEnd][xyz] - truStart[xyz];
-        std::cout<<"\n";
-      }
-*/
       hist.fPFPStartdX[truIndex]->Fill(pfp.XYZ[startEnd][0] - truStart[0]);
       hist.fPFPStartdY[truIndex]->Fill(pfp.XYZ[startEnd][1] - truStart[1]);
       hist.fPFPStartdZ[truIndex]->Fill(pfp.XYZ[startEnd][2] - truStart[2]);
@@ -715,224 +598,196 @@ namespace tca {
       hist.fPFPStartAngDiff[truIndex]->Fill(dang);
     } // pfp
 
-    StudyElectrons(hist);
+    StudyElectrons(slc, hist);
 
   } // MatchTruth
-
+*/
   ////////////////////////////////////////////////
-  void TruthMatcher::MatchAndSum(const HistStuff& hist, const std::vector<unsigned int>& mcpSelect, const geo::TPCID& inTPCID)
+  void TruthMatcher::MatchAndSum(std::vector<simb::MCParticle*> const& mcpList, std::vector<unsigned int> const& mcpListIndex)
   {
     // Match Tjs and PFParticles and accumulate performance statistics
-    if(mcpSelect.empty()) return;
     
-    unsigned int tpc = inTPCID.TPC;
-    unsigned int cstat = inTPCID.Cryostat;
-    
-    // get the hits associated with all MCParticles in mcpSelect
-    std::vector<std::vector<unsigned int>> mcpHits(mcpSelect.size());
-    for(unsigned short isel = 0; isel < mcpSelect.size(); ++isel) {
-      unsigned int mcpIndex = mcpSelect[isel];
-      for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-        if(tjs.fHits[iht].MCPartListIndex != mcpIndex) continue;
-        if(tjs.fHits[iht].ArtPtr->WireID().TPC != tpc) continue;
-        if(tjs.fHits[iht].ArtPtr->WireID().Cryostat != cstat) continue;
-        mcpHits[isel].push_back(iht);
+    // A MCParticle may span more than one TPC but trajectories and PFParticles are
+    // reconstructed in only one TPC so we need to consider them separately
+    for(const geo::TPCID& tpcid : tcc.geom->IterateTPCIDs()) {
+      unsigned int tpc = tpcid.TPC;
+      unsigned int cstat = tpcid.Cryostat;
+      // select the MCParticles with matched hits in this TPC
+      // mcpList   list of hits in this TPC
+      std::vector<std::vector<unsigned int>> mcpHits(mcpList.size());
+      bool hitsInTPC = false;
+      for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
+        if(mcpListIndex[iht] > mcpList.size() - 1) continue;
+        auto& hit = (*evt.allHits)[iht];
+        if(hit.WireID().Cryostat != cstat) continue;
+        if(hit.WireID().TPC != tpc) continue;
+        mcpHits[mcpListIndex[iht]].push_back(iht);
+        hitsInTPC = true;
       } // iht
-    } // mcpIndex
-    
-    // get the hits in all Tjs in this TPCID
-    std::vector<std::vector<unsigned int>> tjHits(tjs.allTraj.size());
-    for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
-      auto& tj = tjs.allTraj[itj];
-      if(tj.AlgMod[kKilled]) continue;
-      if(DecodeCTP(tj.CTP).TPC != tpc) continue;
-      tjHits[itj] = PutTrajHitsInVector(tj, kUsedHits);
-      tj.MCPartListIndex = UINT_MAX;
-    } // itj
-    
-    // match them up
-    for(unsigned short isel = 0; isel < mcpSelect.size(); ++isel) {
-      if(mcpHits[isel].empty()) continue;
-      unsigned int mcpIndex = mcpSelect[isel];
-      auto& mcp = tjs.MCPartList[mcpIndex];
-      unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
-      if(pdgIndex > 4) continue;
-      std::string particleName = "Other";
-      int pdg = abs(mcp->PdgCode());
-      if(pdg == 11) particleName = "Electron";
-      if(pdg == 22) particleName = "Photon";
-      if(pdg == 13) particleName = "Muon";
-      if(pdg == 211) particleName = "Pion";
-      if(pdg == 321) particleName = "Kaon";
-      if(pdg == 2212) particleName = "Proton";
-      if(particleName == "Other") particleName = "PDG_" + std::to_string(pdg);
-      float TMeV = 1000 * (mcp->E() - mcp->Mass());
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        // put the mcpHits (which are already in this TPCID) in this plane in a vector
-        std::vector<unsigned int> mcpPlnHits;
-        for(auto iht : mcpHits[isel]) {
-          auto& hit = tjs.fHits[iht];
-          if(hit.ArtPtr->WireID().Plane == plane) mcpPlnHits.push_back(iht);
-        } // iht
-        // require 2 truth-matched hits
-        if(mcpPlnHits.size() < 2) continue;
-        if((float)mcpPlnHits.size() >= tjs.MatchTruth[3]) ++nLongInPln;
-        TSums[pdgIndex] += TMeV;
-        ++EPCnts[pdgIndex];
-        CTP_t inCTP = EncodeCTP(cstat, tpc, plane);
-        unsigned short mtj = USHRT_MAX;
+      // no sense continuing if there are no selected MCParticles that have hits
+      // in this TPC
+      if(!hitsInTPC) continue;
+      // get the location of a tj in terms of (slice index, tj index) 
+      std::vector<std::pair<unsigned short, unsigned short>> tjLocs;
+      // and the hits
+      std::vector<std::vector<unsigned int>> tjHits;
+      // do the same for pfps
+      std::vector<std::pair<unsigned short, unsigned short>> pfpLocs;
+      std::vector<std::vector<unsigned int>> pfpHits;
+      for(unsigned short isl = 0; isl < slices.size(); ++isl) {
+        auto& slc = slices[isl];
+        for(auto& tj : slc.tjs) {
+          if(tj.AlgMod[kKilled]) continue;
+          if(DecodeCTP(tj.CTP).TPC != tpc) continue;
+          tj.mcpListIndex = UINT_MAX;
+          tj.EffPur = 0;
+          tjLocs.push_back(std::make_pair(isl, (unsigned short)(tj.ID-1)));
+          tjHits.push_back(PutTrajHitsInVector(tj, kUsedHits));
+        } // tj
+        for(auto& pfp : slc.pfps) {
+          if(pfp.ID <= 0) continue;
+          if(pfp.TPCID != tpcid) continue;
+          // ignore neutrino PFParticles
+          if(pfp.PDGCode == 14 || pfp.PDGCode == 12) continue;
+          pfp.mcpListIndex = UINT_MAX;
+          pfp.EffPur = 0;
+          pfpLocs.push_back(std::make_pair(isl, (unsigned short)(pfp.ID-1)));
+          std::vector<unsigned int> tmp;
+          for(auto tjid : pfp.TjIDs) {
+            auto& tj = slc.tjs[tjid - 1];
+            auto thits = PutTrajHitsInVector(tj, kUsedHits);
+            tmp.insert(tmp.end(), thits.begin(), thits.end());
+          } // tjid
+          pfpHits.push_back(tmp);
+        } // pfp
+      } // slc
+      unsigned short nplanes = tcc.geom->Nplanes(tpc, cstat);
+      // match them
+      for(unsigned int imcp = 0; imcp < mcpList.size(); ++imcp) {
+        if(mcpHits[imcp].empty()) continue;
+        // ignore if it isn't reconstructable in 3D
+        if(!CanReconstruct(mcpHits[imcp], 3, tpcid)) continue;
+        auto& mcp = mcpList[imcp];
+        unsigned short pdgIndex = PDGCodeIndex(mcp->PdgCode());
+        if(pdgIndex > 4) continue;
+        std::string particleName = "Other";
+        int pdg = abs(mcp->PdgCode());
+        if(pdg == 11) particleName = "Electron";
+        if(pdg == 22) particleName = "Photon";
+        if(pdg == 13) particleName = "Muon";
+        if(pdg == 211) particleName = "Pion";
+        if(pdg == 321) particleName = "Kaon";
+        if(pdg == 2212) particleName = "Proton";
+        if(particleName == "Other") particleName = "PDG_" + std::to_string(pdg);
+        float TMeV = 1000 * (mcp->E() - mcp->Mass());
+        ++MCP_Cnt;
+        MCP_TSum += TMeV;
+        for(unsigned short plane = 0; plane < nplanes; ++plane) {
+          // get the MCP hits in this plane 
+          std::vector<unsigned int> mcpPlnHits;
+          for(auto iht : mcpHits[imcp]) {
+            auto& hit = (*evt.allHits)[iht];
+            if(hit.WireID().Plane == plane) mcpPlnHits.push_back(iht);
+          } // iht
+          // require 2 truth-matched hits
+          if(mcpPlnHits.size() < 2) continue;
+          if((float)mcpPlnHits.size() >= tcc.matchTruth[3]) ++nLongInPln;
+          TSums[pdgIndex] += TMeV;
+          ++EPCnts[pdgIndex];
+          // the tjSlIDs index of the tj that has the highest EP
+          unsigned short mtjLoc = USHRT_MAX;
+          float maxEP = 0;
+          for(unsigned short iit = 0; iit < tjLocs.size(); ++iit) {
+            // check for hits in this TPC and plane
+            if(tjHits[iit].empty()) continue;
+            // find hits that are common
+            auto shared = SetIntersection(mcpPlnHits, tjHits[iit]);
+            if(shared.empty()) continue;
+            float eff = (float)shared.size() / (float)mcpPlnHits.size();
+            float pur = (float)shared.size() / (float)tjHits[iit].size();
+            float ep = eff * pur;
+            if(ep > maxEP) {
+              maxEP = ep;
+              mtjLoc = iit;
+            } // ep > tj.EffPur
+          } // iit
+          if(mtjLoc == USHRT_MAX) {
+            if((float)mcpPlnHits.size() > tcc.matchTruth[3]) {
+              ++nBadEP;
+              mf::LogVerbatim myprt("TC");
+              myprt<<particleName<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to imcp "<<imcp;
+              myprt<<" nTrue hits "<<mcpPlnHits.size();
+//              myprt<<" extent "<<PrintHit(slc.slHits[mcpPlnHits[0]])<<"-"<<PrintHit(slc.slHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
+              myprt<<" events processed "<<evt.eventsProcessed;
+            } // BadEP
+          } else {
+            // set EffPur for the best matching tj
+            auto& tj = slices[tjLocs[mtjLoc].first].tjs[tjLocs[mtjLoc].second];
+            if(maxEP > tj.EffPur) {
+              tj.EffPur = maxEP;
+              tj.mcpListIndex = imcp;
+              EPTSums[pdgIndex] += TMeV * tj.EffPur;
+            }
+            // print BadEP ignoring electrons
+            if(tj.EffPur < tcc.matchTruth[2] && (float)mcpPlnHits.size() >= tcc.matchTruth[3] && pdgIndex > 0) {
+              ++nBadEP;
+              mf::LogVerbatim myprt("TC");
+              myprt<<particleName<<" BadEP: "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
+              myprt<<" imcp "<<imcp;
+              myprt<<" TMeV "<<(int)TMeV<<" MCP hits "<<mcpPlnHits.size();
+              //            myprt<<" extent "<<PrintHit(slc.slHits[mcpPlnHits[0]])<<"-"<<PrintHit(slc.slHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
+              myprt<<" T"<<tj.ID;
+              myprt<<" Algs";
+              for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
+              myprt<<" events processed "<<evt.eventsProcessed;
+            } // print BadEP
+          } // matched tj in this plane
+        } // plane
+        // pfp matching
+        bool longMCP = (pdgIndex > 0 && pdgIndex < 5 && (float)mcpHits[imcp].size() >= 2 * tcc.matchTruth[3]);
         float maxEP = 0;
-        for(unsigned short itj = 0; itj < tjs.allTraj.size(); ++itj) {
-          // No hits in this TPC and plane
-          if(tjHits[itj].empty()) continue;
-          auto& tj = tjs.allTraj[itj];
-          // wrong CTP?
-          if(tj.CTP != inCTP) continue;
-          // make a list of hits that are common
-          auto shared = SetIntersection(mcpPlnHits, tjHits[itj]);
+        unsigned short mpfpLoc = USHRT_MAX;
+        for(unsigned short iit = 0; iit < pfpLocs.size(); ++iit) {
+          // check for hits in this TPC and plane
+          if(pfpHits[iit].empty()) continue;
+          // find hits that are common
+          auto shared = SetIntersection(mcpHits[imcp], pfpHits[iit]);
           if(shared.empty()) continue;
-          float eff = (float)shared.size() / (float)mcpPlnHits.size();
-          float pur = (float)shared.size() / (float)tjHits[itj].size();
+          float eff = (float)shared.size() / (float)mcpHits[imcp].size();
+          float pur = (float)shared.size() / (float)pfpHits[iit].size();
           float ep = eff * pur;
-          // temp for checking
-          if(pdg != 11) {
-            hist.fEff->Fill(eff);
-            hist.fPur->Fill(pur);
-          }
-          // Replace a previously made poorer match with a better one?
-          if(tj.MCPartListIndex != UINT_MAX && ep > tj.EffPur) {
-            tj.EffPur = ep;
-            tj.MCPartListIndex = mcpIndex;
-          }
           if(ep > maxEP) {
             maxEP = ep;
-            mtj = itj;
-          }
-        } // itj
-        if(mtj == USHRT_MAX) {
-          // failed to match MCParticle to a trajectory
-          // Enter 0 in the profile histogram
-          hist.fEP_T[pdgIndex]->Fill(TMeV, 0);
-          if((float)mcpPlnHits.size() > tjs.MatchTruth[3]) {
-            ++nBadEP;
+            mpfpLoc = iit;
+          } // ep > tj.EffPur
+        } // iit
+        if(mpfpLoc == USHRT_MAX) {
+          // no matching pfp
+          if(TMeV > 30) {
             mf::LogVerbatim myprt("TC");
-            myprt<<particleName<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to isel "<<isel;
-            myprt<<" nTrue hits "<<mcpPlnHits.size();
-            myprt<<" extent "<<PrintHit(tjs.fHits[mcpPlnHits[0]])<<"-"<<PrintHit(tjs.fHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
-            myprt<<" events processed "<<tjs.EventsProcessed;
-          }
-          continue;
-        } // match failed
-        auto& tj = tjs.allTraj[mtj];
-        // don't clobber a better match
-        if(maxEP < tj.EffPur) continue;
-        tj.EffPur = maxEP;
-        tj.MCPartListIndex = mcpIndex;
-        EPTSums[pdgIndex] += TMeV * tj.EffPur;
-        hist.fEP_T[pdgIndex]->Fill(TMeV, tj.EffPur);
-        // ignore electrons
-        if(tj.EffPur < tjs.MatchTruth[2] && (float)mcpPlnHits.size() >= tjs.MatchTruth[3] && pdgIndex > 0) {
-          ++nBadEP;
-          mf::LogVerbatim myprt("TC");
-          myprt<<particleName<<" BadEP: "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
-          myprt<<" mcpIndex "<<mcpIndex;
-          myprt<<" TMeV "<<(int)TMeV<<" MCP hits "<<mcpPlnHits.size();
-          myprt<<" extent "<<PrintHit(tjs.fHits[mcpPlnHits[0]])<<"-"<<PrintHit(tjs.fHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
-          myprt<<" T"<<tj.ID;
-          myprt<<" Algs";
-          for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
-          myprt<<" events processed "<<tjs.EventsProcessed;
-        } // print BadEP
-        // badep
-      } // plane
-    } // isel
-
-    // Calculate PFParticle efficiency and purity
-    std::vector<std::vector<unsigned int>> pfpHits;
-    if(!tjs.pfps.empty()) {
-      pfpHits.resize(tjs.pfps.size());
-      // get the hits in all pfparticles in this TPCID
-      for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
-        auto& pfp = tjs.pfps[ipfp];
-        if(pfp.ID == 0) continue;
-        // in the right TPCID?
-        if(pfp.TPCID != inTPCID) continue;
-        // ignore the neutrino PFParticle and true photons
-        if(pfp.PDGCode == 14 || pfp.PDGCode == 12 || pfp.PDGCode == 22) continue;
-        pfp.MCPartListIndex = UINT_MAX;
-        for(auto& tjid : pfp.TjIDs) {
-          unsigned short itj = tjid - 1;
-          pfpHits[ipfp].insert(pfpHits[ipfp].end(), tjHits[itj].begin(), tjHits[itj].end());
-        } // tj
-      } // ipfp
-    } // pfps exist
+            myprt<<"BadPFP: MCParticle "<<imcp<<" w PDGCode "<<mcp->PdgCode()<<" T "<<(int)TMeV<<" not reconstructed.";
+            myprt<<" events processed "<<evt.eventsProcessed;
+          } // TMeV > 30
+        } else {
+          // matched pfp
+          auto& pfp = slices[pfpLocs[mpfpLoc].first].pfps[pfpLocs[mpfpLoc].second];
+          if(maxEP > pfp.EffPur) {
+            pfp.EffPur = maxEP;
+            pfp.mcpListIndex = imcp;
+            MCP_EPTSum += TMeV * maxEP;
+            ++MCP_PFP_Cnt;
+            if(longMCP && maxEP > 0.8) ++nGoodLongMCP;
+          } // maxEP > pfp.EffPur
+        } // matched pfp
+      } // imcp
+    } // tpcid
     
-    // match them up
-    for(unsigned short isel = 0; isel < mcpSelect.size(); ++isel) {
-      unsigned short mpfp = USHRT_MAX;
-      float maxEP = 0;
-      unsigned int mcpIndex = mcpSelect[isel];
-      if(mcpHits[isel].empty()) continue;
-      auto& mcp = tjs.MCPartList[mcpIndex];
-      float TMeV = 1000 * (mcp->E() - mcp->Mass());
-      MCP_TSum += TMeV;
-      // Performance reconstructing long muons, pions, kaons and protons
-      unsigned short pdgIndex = PDGCodeIndex(tjs, mcp->PdgCode());
-      bool longMCP = (pdgIndex > 0 && pdgIndex < 5 && (float)mcpHits[isel].size() >= 2 * tjs.MatchTruth[3]);
-      if(longMCP) ++nLongMCP;
-      for(unsigned short ipfp = 0; ipfp < tjs.pfps.size(); ++ipfp) {
-        auto& pfp = tjs.pfps[ipfp];
-        if(pfp.ID == 0) continue;
-        // in the right TPCID?
-        if(pfp.TPCID != inTPCID) continue;
-        // not enough hits?
-        if(pfpHits[ipfp].empty()) continue;
-        auto shared = SetIntersection(mcpHits[isel], pfpHits[ipfp]);
-        if(shared.empty()) continue;
-        float eff = (float)shared.size() / (float)mcpHits[isel].size();
-        float pur = (float)shared.size() / (float)pfpHits[ipfp].size();
-        float ep = eff * pur;
-        // Replace a previously made poorer match with a better one?
-        if(pfp.MCPartListIndex != UINT_MAX && ep > pfp.EffPur) {
-          pfp.EffPur = ep;
-          pfp.MCPartListIndex = mcpIndex;
-        }
-        if(ep > maxEP) {
-          maxEP = ep;
-          mpfp = ipfp;
-        }
-      } // ipfp
-      if(mpfp == USHRT_MAX) {
-        if(TMeV > 30) {
-          mf::LogVerbatim myprt("TC");
-          myprt<<"BadPFP: MCParticle "<<mcpSelect[isel]<<" w PDGCode "<<mcp->PdgCode()<<" T "<<(int)TMeV<<" not reconstructed.";
-          myprt<<" matched Tjs:";
-          for(auto& tj : tjs.allTraj) {
-            if(tj.AlgMod[kKilled]) continue;
-            if(tj.MCPartListIndex == mcpIndex) myprt<<" "<<tj.ID<<" EP "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
-          } // tj
-          myprt<<" events processed "<<tjs.EventsProcessed;
-        } // TMeV > 30
-        continue;
-      }
-      auto& pfp = tjs.pfps[mpfp];
-      if(maxEP < pfp.EffPur) continue;
-      pfp.EffPur = maxEP;
-      pfp.MCPartListIndex = mcpIndex;
-      MCP_EPTSum += TMeV * maxEP;
-      ++MCP_PFP_Cnt;
-      if(longMCP && maxEP > 0.8) ++nGoodLongMCP;
-    } // isel
-    
-    MCP_Cnt += mcpSelect.size();
-
   } // MatchAndSum
-    
+
   ////////////////////////////////////////////////
   void TruthMatcher::PrintResults(int eventNum) const
   {
     // Print performance metrics for each selected event
-    if(!tjs.SelectEvent) return;
     
     mf::LogVerbatim myprt("TC");
     myprt<<"Evt "<<eventNum;
@@ -979,305 +834,28 @@ namespace tca {
     }
 
   } // PrintResults
-  
+
   ////////////////////////////////////////////////
-  bool TruthMatcher::CanReconstruct(unsigned int mcpIndex, unsigned short nDimensions, const geo::TPCID& inTPCID)
+  bool TruthMatcher::CanReconstruct(std::vector<unsigned int> mcpHits, unsigned short nDimensions, const geo::TPCID& inTPCID)
   {
-    // returns true if the MCParticle can be reconstructed in nDimensions
-    if(mcpIndex > tjs.MCPartList.size() - 1) return false;
+    // returns true if the MCParticle that is matched to the hits in mcpHits can be reconstructed
+    // in nDimensions in inTPCID
+    if(mcpHits.empty()) return false;
     if(nDimensions < 2 || nDimensions > 3) return false;
-    
-    std::vector<unsigned short> cntInPln(tjs.NumPlanes);
-    for(auto& hit : tjs.fHits) {
-      if(hit.ArtPtr->WireID().TPC != inTPCID.TPC) continue;
-      if(hit.ArtPtr->WireID().Cryostat != inTPCID.Cryostat) continue;
-      if(hit.MCPartListIndex == mcpIndex) ++cntInPln[hit.ArtPtr->WireID().Plane];
+    unsigned short tpc = inTPCID.TPC;
+    unsigned short cstat = inTPCID.Cryostat;
+    unsigned short nplanes = tcc.geom->Nplanes(tpc, cstat);
+    std::vector<unsigned short> cntInPln(nplanes);
+    for(auto iht : mcpHits) {
+      if(iht > (*evt.allHits).size()) return false;
+      auto& hit = (*evt.allHits)[iht];
+      if(hit.WireID().TPC != tpc) continue;
+      if(hit.WireID().Cryostat != cstat) continue;
+      ++cntInPln[hit.WireID().Plane];
     } // hit
     unsigned short nPlnOK = 0;
     // Require at least 2 truth-matched hits in a plane
-    for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) if(cntInPln[plane] > 1) ++nPlnOK;
-    if(nPlnOK < nDimensions - 1) return false;
-    return true;
+    for(unsigned short plane = 0; plane < nplanes; ++plane) if(cntInPln[plane] > 1) ++nPlnOK;
+    return (nPlnOK >= nDimensions);
   } // CanReconstruct
-  
-  
-  ////////////////////////////////////////////////
-  std::vector<unsigned int> TruthMatcher::PutMCPHitsInVector(unsigned int mcpIndex, CTP_t inCTP)
-  {
-    // put the hits matched to the MCParticle into a vector in the requested CTP
-    std::vector<unsigned int> hitVec;
-    if(mcpIndex > tjs.MCPartList.size() - 1) return hitVec;
-    geo::PlaneID planeID = DecodeCTP(inCTP);
-    for(unsigned int iht = 0; iht < tjs.fHits.size(); ++iht) {
-      auto& hit = tjs.fHits[iht];
-      if(hit.MCPartListIndex != mcpIndex) continue;
-      if(hit.ArtPtr->WireID().Plane != planeID.Plane) continue;
-      if(hit.ArtPtr->WireID().TPC != planeID.TPC) continue;
-      if(hit.ArtPtr->WireID().Cryostat != planeID.Cryostat) continue;
-      hitVec.push_back(iht);
-    } // iht
-    return hitVec;
-  } // PutMCPHitsInVector
-
-  ////////////////////////////////////////////////
-  void MCParticleListUtils::MakeTruTrajPoint(unsigned int MCParticleListIndex, TrajPoint& tp)
-  {
-    // Creates a trajectory point at the start of the MCParticle with index MCParticleListIndex. The
-    // projected length of the MCParticle in the plane coordinate system is stored in TruTp.Delta.
-    // The calling function should specify the CTP in which this TP resides.
-    
-    if(MCParticleListIndex > tjs.MCPartList.size() - 1) return;
-    
-    const simb::MCParticle* mcp = tjs.MCPartList[MCParticleListIndex];
-    
-    Point3_t pos {{mcp->Vx(), mcp->Vy(), mcp->Vz()}};
-    Vector3_t dir {{mcp->Px(), mcp->Py(), mcp->Pz()}};
-    SetMag(dir, 1);
-    tp = MakeBareTP(tjs, pos, dir, tp.CTP);
-  } // MakeTruTrajPoint
-  
-  /////////////////////////////////////////
-  bool MCParticleListUtils::PrimaryElectronStart(Point3_t& start, Vector3_t& dir, float& energy)
-  {
-    // returns the SCE corrected start position of a primary electron
-    if(tjs.MCPartList.empty()) return false;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
-      auto& mcp = tjs.MCPartList[part];
-      // require electron
-      if(abs(mcp->PdgCode()) != 11) continue;
-      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
-      if(mcp->TrackId() != eveID) continue;
-      start = {{mcp->Vx(), mcp->Vy(), mcp->Vz()}};
-      auto const* SCE = lar::providerFrom<spacecharge::SpaceChargeService>();
-      geo::Vector_t posOffsets = SCE->GetPosOffsets({start[0], start[1], start[2]});
-      posOffsets.SetX(-posOffsets.X());
-      start[0] += posOffsets.X();
-      start[1] += posOffsets.Y();
-      start[2] += posOffsets.Z();
-      dir = {{mcp->Px(), mcp->Py(), mcp->Pz()}};
-      SetMag(dir, 1);
-      energy = 1000 * (mcp->E() - mcp->Mass());
-      return true;
-    } // part
-    return false;
-  } // PrimaryElectronStart
-  
-  
-  /////////////////////////////////////////
-  int MCParticleListUtils::PrimaryElectronPFPID(const geo::TPCID& tpcid)
-  {
-    // pretty self-explanatory and pretty crude
-    if(tjs.MCPartList.empty()) return 0;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    std::vector<int> tmp(1);
-    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
-      auto& mcp = tjs.MCPartList[part];
-      // require electron
-      if(abs(mcp->PdgCode()) != 11) continue;
-      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
-      if(mcp->TrackId() != eveID) continue;
-      // list of pfp IDs and occurrence count
-      std::vector<std::array<int, 2>> pidcs;
-      for(unsigned short plane = 0; plane < tjs.NumPlanes; ++plane) {
-        CTP_t inCTP = EncodeCTP(tpcid.Cryostat, tpcid.TPC, plane);
-        int tid = MCParticleStartTjID(part, inCTP);
-        if(tid > 0) {
-          tmp[0] = tid;
-          auto TInP = GetAssns(tjs, "T", tid, "P");
-          if(!TInP.empty()) {
-            unsigned short indx = 0;
-            for(indx = 0; indx < pidcs.size(); ++indx) if(pidcs[indx][0] == TInP[0]) break;
-            if(indx == pidcs.size()) {
-              // not found so add it
-              std::array<int, 2> pidc;
-              pidc[0] = TInP[0];
-              pidc[1] = 1;
-              pidcs.push_back(pidc);
-            } else {
-              ++pidcs[indx][1];
-            }
-          } // !PInT empty
-        } // tid > 0
-      } // plane
-      int pfpid = 0;
-      int maxcnt = 0;
-      for(auto& pidc : pidcs) {
-        if(pidc[1] < maxcnt) continue;
-        maxcnt = pidc[1];
-        pfpid = pidc[0];
-      } // pidc
-      return pfpid;
-    } // part
-    return 0;
-  } // PrimaryElectronPFPID
-  
-  /////////////////////////////////////////
-  int MCParticleListUtils::PrimaryElectronTjID(CTP_t inCTP)
-  {
-    // returns the ID of a tj in inCTP that is closest to the start of a primary electron
-    if(tjs.MCPartList.empty()) return 0;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    for(unsigned int part = 0; part < tjs.MCPartList.size(); ++part) {
-      auto& mcp = tjs.MCPartList[part];
-      // require electron
-      if(abs(mcp->PdgCode()) != 11) continue;
-      int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
-      if(mcp->TrackId() != eveID) continue;
-      return MCParticleStartTjID(part, inCTP);
-    } // part
-    return 0;
-  } // PrimaryElectronTjID
-
-  /////////////////////////////////////////
-  int MCParticleListUtils::MCParticleStartTjID(unsigned int mcpIndex, CTP_t inCTP)
-  {
-    // Finds the trajectory that has hits matched to the MC Particle and is the closest to the
-    // MCParticle start vertex
-    
-    if(mcpIndex > tjs.MCPartList.size() - 1) return 0;
-    
-    geo::PlaneID planeID = DecodeCTP(inCTP);
-    
-    // tj ID and occurrence count
-    std::vector<std::array<int, 2>> t_cnt;
-    for(auto hit : tjs.fHits) {
-      if(hit.InTraj <= 0) continue;
-      if(hit.MCPartListIndex != mcpIndex) continue;
-      if(hit.ArtPtr->WireID().TPC != planeID.TPC) continue;
-      if(hit.ArtPtr->WireID().Plane != planeID.Plane) continue;
-      if(hit.ArtPtr->WireID().Cryostat != planeID.Cryostat) continue;
-      unsigned short indx = 0;
-      for(indx = 0; indx < t_cnt.size(); ++indx) if(t_cnt[indx][0] == hit.InTraj) break;
-      if(indx == t_cnt.size()) {
-        // didn't find the traj ID in t_cnt so add it
-        std::array<int, 2> tmp;
-        tmp[0] = hit.InTraj;
-        tmp[1] = 1;
-        t_cnt.push_back(tmp);
-      } else {
-        // count occurrences of this tj ID
-        ++t_cnt[indx][1];
-      }
-    } // hit
-    
-    if(t_cnt.empty()) return 0;
-    unsigned short occMax = 0;
-    unsigned short occIndx = 0;
-    for(unsigned short ii = 0; ii < t_cnt.size(); ++ii) {
-      auto& tcnt = t_cnt[ii];
-      if(tcnt[1] < occMax) continue;
-      occMax = tcnt[1];
-      occIndx = ii;
-    } // tcnt
-    return t_cnt[occIndx][0];
-    
-  } // MCParticleStartTj
-  
-  /////////////////////////////////////////
-  unsigned int MCParticleListUtils::GetMCPartListIndex(const TrajPoint& tp)
-  {
-    // Returns the MCParticle index that best matches the hits used in the Tp
-    if(tjs.MCPartList.empty()) return UINT_MAX;
-    if(tp.Chg <= 0) return UINT_MAX;
-    std::vector<unsigned int> mcpIndex;
-    std::vector<unsigned short> mcpCnt;
-    for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-      if(!tp.UseHit[ii]) continue;
-      unsigned int mcpi = tjs.fHits[tp.Hits[ii]].MCPartListIndex;
-      if(mcpi == UINT_MAX) continue;
-      unsigned short indx = 0;
-      for(indx = 0; indx < mcpIndex.size(); ++indx) if(mcpi == mcpIndex[indx]) break;
-      if(indx == mcpIndex.size()) {
-        // not in the list so add it
-        mcpIndex.push_back(mcpi);
-        mcpCnt.push_back(1);
-      } else {
-        ++mcpCnt[indx];
-      }
-    } // ii
-    if(mcpIndex.empty()) return UINT_MAX;
-    if(mcpIndex.size() == 1) return mcpIndex[0];
-    unsigned int indx = 0;
-    unsigned short maxCnt = 0;
-    for(unsigned short ii = 0; ii < mcpIndex.size(); ++ii) {
-      if(mcpCnt[ii] > maxCnt) {
-        maxCnt = mcpCnt[ii];
-        indx = mcpIndex[ii];
-      }
-    } // ii
-    return indx;
-  } // GetMCPartListIndex
-  
-  /////////////////////////////////////////
-  unsigned int MCParticleListUtils::GetMCPartListIndex(const ShowerStruct& ss, unsigned short& nTruHits)
-  {
-    // Returns the index of the MCParticle that has the most number of matches
-    // to the hits in this shower
-    
-    if(tjs.MCPartList.empty()) return UINT_MAX;
-    if(ss.TjIDs.empty()) return UINT_MAX;
-    
-    std::vector<unsigned int> pListCnt(tjs.MCPartList.size());
-    
-    for(auto& tjid : ss.TjIDs) {
-      Trajectory& tj = tjs.allTraj[tjid - 1];
-      for(auto& tp : tj.Pts) {
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(!tp.UseHit[ii]) continue;
-          unsigned int iht = tp.Hits[ii];
-          // ignore unmatched hits
-          if(tjs.fHits[iht].MCPartListIndex > tjs.MCPartList.size() - 1) continue;
-          ++pListCnt[tjs.fHits[iht].MCPartListIndex];
-        } // ii
-      } // pt
-    } // tjid
-    
-    unsigned int pIndex = UINT_MAX;
-    nTruHits = 0;
-    for(unsigned short ii = 0; ii < pListCnt.size(); ++ii) {
-      if(pListCnt[ii] > nTruHits) {
-        nTruHits = pListCnt[ii];
-        pIndex = ii;
-      }
-    } // ii
-    
-    return pIndex;
-    
-  } // GetMCPartListIndex
-  
-  /////////////////////////////////////////
-  unsigned int MCParticleListUtils::GetMCPartListIndex(const Trajectory& tj, unsigned short& nTruHits)
-  {
-    // Returns the index of the MCParticle that has the most number of matches
-    // to the hits in this trajectory
-    
-    if(tjs.MCPartList.empty()) return UINT_MAX;
-    
-    // Check all hits associated with this Tj
-    std::vector<unsigned int> pListCnt(tjs.MCPartList.size());
-    
-    for(auto& tp : tj.Pts) {
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        if(!tp.UseHit[ii]) continue;
-        unsigned int iht = tp.Hits[ii];
-        // ignore unmatched hits
-        if(tjs.fHits[iht].MCPartListIndex > tjs.MCPartList.size() - 1) continue;
-        ++pListCnt[tjs.fHits[iht].MCPartListIndex];
-      } // ii
-    } // pt
-    
-    unsigned int pIndex = UINT_MAX;
-    nTruHits = 0;
-    for(unsigned short ii = 0; ii < pListCnt.size(); ++ii) {
-      if(pListCnt[ii] > nTruHits) {
-        nTruHits = pListCnt[ii];
-        pIndex = ii;
-      }
-    } // ii
-    
-    return pIndex;
-    
-  } // GetMCPartListIndex
-
 } // namespace tca

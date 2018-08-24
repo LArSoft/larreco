@@ -51,6 +51,8 @@ pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bo
 	auto const *detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 	fMinX = detprop->ConvertTicksToX(0, lastPlane, tpc, cryo);
 	fMaxX = detprop->ConvertTicksToX(detprop->NumberTimeSamples() - 1, lastPlane, tpc, cryo);
+//    fMinX = fTpcGeo.MinX();
+//    fMaxX = fTpcGeo.MaxX();
 	if (fMaxX < fMinX) { double tmp = fMaxX; fMaxX = fMinX; fMinX = tmp; }
 
 	fMinY = fTpcGeo.MinY(); fMaxY = fTpcGeo.MaxY();

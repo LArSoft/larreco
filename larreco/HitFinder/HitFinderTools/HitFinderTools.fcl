@@ -3,18 +3,46 @@ BEGIN_PROLOG
 
 hitfinderwaveformalgs:
 {
-    tool_type: WaveformAlgs
+    tool_type: WaveformTools
 }
 
+# Define the differential tool for finding candidate hits
 candhitfinder_derivative:
 {
-    tool_type:    CandHitDerivative
-    WaveformAlgs: @local::hitfinderwaveformalgs
+    tool_type:           CandHitDerivative
+    Plane:               0
+    MinDeltaTicks:       1
+    MaxDeltaTicks:       40
+    MinDeltaPeaks:       0.25
+    MinHitHeight:        2
+    NumInterveningTicks: 6
+    OutputHistograms:    false
+    WaveformAlgs:        @local::hitfinderwaveformalgs
 }
 
+# Define the morphological filter tool for finding candidate hits
+candhitfinder_morphological:
+{
+    tool_type:           CandHitMorphological
+    Plane:               0
+    DilationThreshold:   4.
+    DilationFraction:    0.75
+    ErosionFraction:     0.2
+    MinDeltaTicks:       1
+    MinDeltaPeaks:       0.01
+    MinHitHeight:        1
+    NumInterveningTicks: 6
+    StructuringElement:  20
+    OutputHistograms:    false
+    WaveformAlgs:        @local::hitfinderwaveformalgs
+}
+
+# Define the standard "threshold over baseline" method for finding candidate hits
 candhitfinder_standard:
 {
-    tool_type: CandHitStandard
+    tool_type:                   CandHitStandard
+    Plane:                       0                # The plane this tool is operating on
+    RoiThreshold:                5.               # The threshold to apply to find hits
 }
 
 peakfitter_gaussian:
@@ -24,6 +52,7 @@ peakfitter_gaussian:
     MaxWidthMult:  3.
     PeakRangeFact: 2.
     PeakAmpRange:  2.
+    FloatBaseline: false
 }
 
 

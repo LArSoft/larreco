@@ -117,7 +117,10 @@ namespace cluster {
     
     /// Returns (and loses) the collection of reconstructed hits
     std::vector<recob::Hit>&& YieldHits() { return std::move(fHits); }
-    
+
+    /// Returns the collection of reconstructed hits
+    std::vector<recob::Hit>   GetHits() { return fHits; }
+
     /// Returns a constant reference to the clusters found
     std::vector<ClusterStore> const& GetClusters() const { return tcl; }
     

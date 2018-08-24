@@ -11,8 +11,15 @@
 
 // Framework Includes
 #include "fhiclcpp/ParameterSet.h"
-#include "lardata/RecoObjects/Cluster3D.h"
+
+// Algorithm includes
+#include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
+
 //------------------------------------------------------------------------------------------------------------------------------------------
+namespace art
+{
+    class TFileDirectory;
+}
 
 namespace lar_cluster3d
 {
@@ -34,6 +41,14 @@ public:
      */
     virtual void configure(const fhicl::ParameterSet&) = 0;
     
+    /**
+     *  @brief Interface for initializing histograms if they are desired
+     *         Note that the idea is to put hisgtograms in a subfolder
+     *
+     *  @param TFileDirectory - the folder to store the hists in
+     */
+    virtual void initializeHistograms(art::TFileDirectory&) = 0;
+
     /**
      *  @brief Scan an input collection of clusters and modify those according
      *         to the specific implementing algorithm

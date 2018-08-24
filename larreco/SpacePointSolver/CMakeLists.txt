@@ -1,6 +1,17 @@
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
 
 art_make( BASENAME_ONLY
+          LIB_LIBRARIES larcorealg_Geometry
+                        ${ART_FRAMEWORK_CORE}
+			${ART_FRAMEWORK_PRINCIPAL}
+			${ART_FRAMEWORK_SERVICES_REGISTRY}
+			${ART_FRAMEWORK_SERVICES_OPTIONAL}
+                        canvas
+			cetlib
+                        cetlib_except
+                        ${Boost_SYSTEM_LIBRARY}
+			${ROOT_BASIC_LIB_LIST}
+
           MODULE_LIBRARIES larcorealg_Geometry
 			larcore_Geometry_Geometry_service
 	                lardata_Utilities

@@ -13,8 +13,8 @@
 # ======================================================================
 
 
-# use cmake 2.8 or later
-cmake_minimum_required (VERSION 2.8)
+# use cmake 3.10 or later
+cmake_minimum_required (VERSION 3.10)
 
 project(larreco)
 
@@ -44,6 +44,7 @@ cet_report_compiler_flags()
 find_ups_product( larcoreobj )
 find_ups_product( larcore v1_00_00 )
 find_ups_product( lardataobj )
+find_ups_product( lardataalg )
 find_ups_product( lardata v1_00_00 )
 find_ups_product( larevt v1_00_00 )
 find_ups_product( larsim v1_00_00 )

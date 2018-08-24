@@ -1,3 +1,5 @@
+##include "cluster3dpathfindingtools.fcl"
+
 BEGIN_PROLOG
 
 standard_cluster3dkdTree:
@@ -7,11 +9,21 @@ standard_cluster3dkdTree:
   RefLeafBestDist:   0.5     # Initial distance once reference leaf found
 }
 
-standard_cluster3dhit3dbuilderalg:
+standard_standardhit3dbuilder:
 {
+  tool_type:            StandardHit3DBuilder
+  HitFinderTag:         "gaushit"
   EnableMonitoring:     true  # enable monitoring of functions
   NumSigmaPeakTime:     1.5   # Number "sigma" for peak times when building hits
+  HitWidthScaleFactor:  6.    #
   DeltaPeakTimeSig:     1.7   # "Significance" of agreement between 2 hit peak times
+}
+
+standard_spacepointhit3dbuilder:
+{
+  tool_type:            SpacePointHit3DBuilder
+  SpacePointTag:        "SpacePointSolver"
+  EnableMonitoring:     true  # enable monitoring of functions
 }
 
 standard_cluster3dprincipalcomponentsalg:
@@ -55,8 +67,8 @@ standard_cluster3dminSpanTreeAlg:
 
 standard_cluster3dskeletonalg:
 {
-  MinimumDeltaTicks:    0.05 # minimum delta time (in ticks) when matching hits
-  MaximumDeltaTicks:   10.0  # maximum delta time (in ticks) when matching hits
+  MinimumDeltaTicks:      0.05  # minimum delta time (in ticks) when matching hits
+  MaximumDeltaTicks:      10.0  # maximum delta time (in ticks) when matching hits
 }
 
 standard_cluster3dhoughseedfinderalg:
@@ -92,7 +104,38 @@ standard_cluster3dparallelhitsseedfinderalg:
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
 }
 
-microboone_cluster3dhit3dbuilderalg:           @local::standard_cluster3dhit3dbuilderalg
+standard_cluster3dPathAlg:
+{
+  tool_type:              ClusterPathFinder
+  EnableMonitoring:       true    # enable monitoring of functions
+  MinTinyClusterSize:     40      # minimum number of hits to consider splitting
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  ClusterAlg:             @local::standard_cluster3ddbscanalg
+}
+
+standard_voronoiPathAlg:
+{
+  tool_type:              VoronoiPathFinder
+  EnableMonitoring:       true    # enable monitoring of functions
+  MinTinyClusterSize:     40      # minimum number of hits to consider splitting
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  ClusterAlg:             @local::standard_cluster3ddbscanalg
+}
+
+standard_convexhullPathAlg:
+{
+  tool_type:              ConvexHullPathFinder
+  EnableMonitoring:       true    # enable monitoring of functions
+  MinTinyClusterSize:     40      # minimum number of hits to consider splitting
+  PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
+  ClusterAlg:             @local::standard_cluster3ddbscanalg
+}
+
+microboone_standardhit3dbuilder:               @local::standard_standardhit3dbuilder
+microboone_spacepointhit3dbuilder:             @local::standard_spacepointhit3dbuilder
+microboone_cluster3dMergeAlg:                  @local::standard_cluster3dMergeAlg
+microboone_cluster3dPathAlg:                   @local::standard_cluster3dPathAlg
+microboone_voronoiPathAlg:                     @local::standard_voronoiPathAlg
 microboone_cluster3ddbscanalg:                 @local::standard_cluster3ddbscanalg
 microboone_cluster3dminSpanTreeAlg:            @local::standard_cluster3dminSpanTreeAlg
 microboone_cluster3dprincipalcomponentsalg:    @local::standard_cluster3dprincipalcomponentsalg

@@ -1,6 +1,14 @@
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 
 namespace tca {
+  
+  TCEvent evt;
+  TCConfig tcc;
+  ShowerTreeVars stv;
+  // vector of hits, tjs, etc in each slice
+  std::vector<TCSlice> slices;
+  //    TruthMatcher tm{tjs};
+
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
     "MaskBadTPs",

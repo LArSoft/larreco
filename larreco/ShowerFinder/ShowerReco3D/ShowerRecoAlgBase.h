@@ -31,9 +31,6 @@ namespace showerreco {
     unsigned short     plane_id;
     std::vector< ::util::PxHit> hit_vector;
 
-    ShowerCluster_t() : hit_vector()
-    {}
-
   };
   
   /**

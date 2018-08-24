@@ -10,11 +10,16 @@ standard_spacepointsolver:
 
   # How close the intersections of three wire pairs need to be to form a
   # triplet (cm)
-  WireIntersectThreshold: 0.35
+  WireIntersectThreshold: 0.7
   # How close intersections need to be in the drift direction
-  WireIntersectThresholdDriftDir: 0.2
+  WireIntersectThresholdDriftDir: 0.4
 
   Alpha: .05 # Regularization strength
+
+  # Form triplets out of two hits and one bad induction wire
+  AllowBadInductionHit: true
+  # Form triplets out of two induction hits and a bad collection wire
+  AllowBadCollectionHit: true
 }
 
 END_PROLOG
