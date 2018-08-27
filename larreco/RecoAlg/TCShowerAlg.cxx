@@ -13,7 +13,6 @@ namespace shower {
 
   TCShowerAlg::TCShowerAlg(fhicl::ParameterSet const& pset) :
     fCalorimetryAlg   (pset.get<fhicl::ParameterSet>("CalorimetryAlg") ){
-    //    this->reconfigure(pset);
   }
 
   int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::Track> > tracklist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Hit> trk_fm, art::FindManyP<recob::Track> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<anab::Calorimetry> fmcal, art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm) {

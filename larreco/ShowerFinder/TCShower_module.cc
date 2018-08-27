@@ -29,6 +29,7 @@
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Shower.h"
+#include "lardataobj/RecoBase/Slice.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 
 #include "lardataobj/AnalysisBase/Calorimetry.h"
@@ -64,11 +65,15 @@ public:
   void beginJob() override;
 
 private:
+  int getShowersWithSlices(art::Event & evt, art::Ptr<recob::Slice> thisslice);
+  int getShowersWithoutSlices(art::Event & evt);
+
   shower::TCShowerAlg fTCAlg;
 
   std::string fClusterModuleLabel;
   std::string fTrackModuleLabel;
   std::string fHitModuleLabel;
+  std::string fSliceModuleLabel;
   std::string fCalorimetryModuleLabel;
 };
 
@@ -79,6 +84,7 @@ shower::TCShower::TCShower(fhicl::ParameterSet const & pset) :
   fClusterModuleLabel       (pset.get< std::string >("ClusterModuleLabel", "trajcluster" ) ),
   fTrackModuleLabel         (pset.get< std::string >("TrackModuleLabel", "pmtrack" ) ),
   fHitModuleLabel           (pset.get< std::string >("HitModuleLabel", "trajcluster" ) ),
+  fSliceModuleLabel         (pset.get< std::string >("SliceModuleLabel", "dbcluster3d" ) ),
   fCalorimetryModuleLabel   (pset.get< std::string >("CalorimetryModuleLabel")  ) {
 
   produces<std::vector<recob::Shower> >();
@@ -90,6 +96,52 @@ shower::TCShower::TCShower(fhicl::ParameterSet const & pset) :
 void shower::TCShower::produce(art::Event & evt) {
   std::unique_ptr<std::vector<recob::Shower> > showers(new std::vector<recob::Shower>);
   std::unique_ptr<art::Assns<recob::Shower, recob::Hit> > hitShowerAssociations(new art::Assns<recob::Shower, recob::Hit>);
+
+  // slices
+  art::Handle< std::vector<recob::Slice> > sliceListHandle;
+  std::vector<art::Ptr<recob::Slice> > slicelist;
+  if (evt.getByLabel(fSliceModuleLabel,sliceListHandle))
+    art::fill_ptr_vector(slicelist, sliceListHandle);
+
+  int foundShower = -1;
+
+  if (slicelist.size()) { // use slices
+    for (size_t i = 0; i < slicelist.size(); ++i) {
+      foundShower = getShowersWithSlices(evt, slicelist[i]);
+
+      if (foundShower) {
+	showers->push_back(recob::Shower(fTCAlg.shwDir, fTCAlg.dcosVtxErr, fTCAlg.shwvtx, fTCAlg.xyzErr, fTCAlg.totalEnergy, fTCAlg.totalEnergyErr, fTCAlg.dEdx, fTCAlg.dEdxErr, fTCAlg.bestplane, 0));
+	showers->back().set_id(showers->size()-1);
+
+	util::CreateAssn(*this, evt, *(showers.get()), fTCAlg.showerHits, *(hitShowerAssociations.get()) );
+      }
+
+    } // loop through slices
+  } // with slices
+  else {
+    foundShower = getShowersWithoutSlices(evt);
+
+    if (foundShower) {
+      showers->push_back(recob::Shower(fTCAlg.shwDir, fTCAlg.dcosVtxErr, fTCAlg.shwvtx, fTCAlg.xyzErr, fTCAlg.totalEnergy, fTCAlg.totalEnergyErr, fTCAlg.dEdx, fTCAlg.dEdxErr, fTCAlg.bestplane, 0));
+      showers->back().set_id(showers->size()-1);
+    
+      util::CreateAssn(*this, evt, *(showers.get()), fTCAlg.showerHits, *(hitShowerAssociations.get()) );
+    }
+
+  } // no slices
+
+  evt.put(std::move(showers));
+  evt.put(std::move(hitShowerAssociations));
+
+} // produce
+
+// -----------------------------------------------------
+int shower::TCShower::getShowersWithSlices(art::Event & evt, art::Ptr<recob::Slice> thisslice) {
+  return 0;
+}
+
+// -----------------------------------------------------
+int shower::TCShower::getShowersWithoutSlices(art::Event & evt) {
 
   // hits
   art::Handle< std::vector<recob::Hit> > hitListHandle;
@@ -118,20 +170,8 @@ void shower::TCShower::produce(art::Event & evt) {
   art::FindManyP<anab::Calorimetry> fmcal(trackListHandle, evt, fCalorimetryModuleLabel);
   art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm(trackListHandle, evt, fTrackModuleLabel);
 
-  int foundShower = fTCAlg.makeShowers(tracklist, clusterlist, hitlist, cls_fm, trk_fm, hit_fm, hitcls_fm, fmcal, fmthm);
-
-  if (foundShower) {
-    showers->push_back(recob::Shower(fTCAlg.shwDir, fTCAlg.dcosVtxErr, fTCAlg.shwvtx, fTCAlg.xyzErr, fTCAlg.totalEnergy, fTCAlg.totalEnergyErr, fTCAlg.dEdx, fTCAlg.dEdxErr, fTCAlg.bestplane, 0));
-    showers->back().set_id(showers->size()-1);
-    
-    util::CreateAssn(*this, evt, *(showers.get()), fTCAlg.showerHits, *(hitShowerAssociations.get()) );
-  
-  }
-
-  evt.put(std::move(showers));
-  evt.put(std::move(hitShowerAssociations));
-
-} // produce
+  return fTCAlg.makeShowers(tracklist, clusterlist, hitlist, cls_fm, trk_fm, hit_fm, hitcls_fm, fmcal, fmthm);
+}
 
 // -----------------------------------------------------
 void shower::TCShower::beginJob() {
