@@ -256,6 +256,16 @@ void shower::TCShowerTemplateMaker::analyze(const art::Event& evt) {
 	showerProfileTrue(hitlist, elep);
 	showerProfileTrue(simchanlist, mctruth->GetNeutrino().Lepton());
       }
+      // use this to look at background
+      /*
+      if (!(std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0)) { 
+	if (showerlist.size()) {
+	  std::vector< art::Ptr<recob::Hit> > showerhits = shwfm.at(0);
+          showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction(), 0);
+        }
+      }
+      */
+
     }
   }
 

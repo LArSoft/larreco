@@ -230,6 +230,11 @@ standard_dbscan3dalg:
     minpts:     2
 }
 
+standard_tcshoweralg:
+{
+    fCalorimetryAlg: @local::standard_calorimetryalgmc
+}
+
 standard_fuzzyclusteralg:
 {
   RunHough:       true    # Turns on and off the Hough line finder, useful for diagnostics 
