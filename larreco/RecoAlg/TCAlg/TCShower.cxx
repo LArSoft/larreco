@@ -186,12 +186,13 @@ namespace tca {
       if(ss3.ParentID > 0) {
         // see if this is a daughter
         auto& dtrPFP = slc.pfps[ss3.ParentID - 1];
-        if(dtrPFP.ParentID > 0) {
+        if(dtrPFP.ParentUID > 0) {
           // Transfer the daughter <-> parent assn
-          auto& parPFP = slc.pfps[dtrPFP.ParentID - 1];
-          showerPFP.ParentID = parPFP.ID;
-          std::replace(parPFP.DtrIDs.begin(), parPFP.DtrIDs.end(), dtrPFP.ID, showerPFP.ID);
-          dtrPFP.ParentID = 0;
+          auto slcIndx = GetSliceIndex("P", dtrPFP.ParentUID);
+          auto& parPFP = slices[slcIndx.first].pfps[slcIndx.second];
+          showerPFP.ParentUID = parPFP.UID;
+          std::replace(parPFP.DtrUIDs.begin(), parPFP.DtrUIDs.end(), dtrPFP.UID, showerPFP.UID);
+          dtrPFP.ParentUID = 0;
         } // dtrPFP.ParentID > 0
       } // ss3.ParentID > 0
       slc.pfps.push_back(showerPFP);
@@ -491,15 +492,16 @@ namespace tca {
             if(prt) {
               mf::LogVerbatim myprt("TC");
               myprt<<fcnLabel<<" Detach 3S"<<ss3.ID<<" -> P"<<pfp.ID<<"_"<<end<<" -> 3V"<<pfp.Vx3ID[end];
-              if(pfp.ParentID > 0) myprt<<" ->Parent P"<<pfp.ParentID;
+              if(pfp.ParentUID > 0) myprt<<" ->Parent P"<<pfp.ParentUID;
             }
             // remove P -> P parent-daughter assn
             pfp.Vx3ID[end] = 0;
-            if(pfp.ParentID > 0) {
-              auto& parentPFP = slc.pfps[pfp.ParentID - 1];
-              std::vector<int> newDtrIDs;
-              for(auto did : parentPFP.DtrIDs) if(did != pfp.ID) newDtrIDs.push_back(did);
-              parentPFP.DtrIDs = newDtrIDs;
+            if(pfp.ParentUID > 0) {
+              auto slcIndx = GetSliceIndex("P", pfp.ParentUID);
+              auto& parentPFP = slices[slcIndx.first].pfps[slcIndx.second];
+              std::vector<int> newDtrUIDs;
+              for(auto did : parentPFP.DtrUIDs) if(did != pfp.UID) newDtrUIDs.push_back(did);
+              parentPFP.DtrUIDs = newDtrUIDs;
             } // pfp Parent exists
           } // end
         } // pid
