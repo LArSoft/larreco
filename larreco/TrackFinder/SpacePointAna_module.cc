@@ -43,6 +43,7 @@
 #include "larsim/MCCheater/ParticleInventoryService.h"
 
 #include "TH1F.h"
+#include "TH2F.h"
 
 
 namespace trkf {
@@ -75,6 +76,12 @@ namespace trkf {
     bool fUseClusterHits;
     std::string fClusterModuleLabel;
     bool fUseMC;
+    double fMinX;    // Minimum x.
+    double fMaxX;    // Maximum x.
+    double fMinY;    // Minimum y.
+    double fMaxY;    // Maximum y.
+    double fMinZ;    // Minimum z.
+    double fMaxZ;    // Maximum z.
 
     // Histograms.
 
@@ -88,6 +95,12 @@ namespace trkf {
     TH1F* fHDTUV;    // U-V time difference.
     TH1F* fHDTVW;    // V-W time difference.
     TH1F* fHDTWU;    // W-U time difference.
+    TH2F* fHDTUVU;   // U-V time difference vs. U.
+    TH2F* fHDTUVV;   // U-V time difference vs. V.
+    TH2F* fHDTVWV;   // V-W time difference vs. V.
+    TH2F* fHDTVWW;   // V-W time difference vs. W.
+    TH2F* fHDTWUW;   // W-U time difference vs. W.
+    TH2F* fHDTWUU;   // W-U time difference vs. U.
     TH1F* fHS;       // Spatial separation.
     TH1F* fHchisq;   // Space point chisquare.
     TH1F* fHx;       // X position.
@@ -130,6 +143,12 @@ namespace trkf {
    , fUseClusterHits(pset.get<bool>("UseClusterHits"))
    , fClusterModuleLabel(pset.get<std::string>("ClusterModuleLabel"))
    , fUseMC(pset.get<bool>("UseMC"))
+   , fMinX(pset.get<double>("MinX", -1.e10))
+   , fMaxX(pset.get<double>("MaxX", 1.e10))
+   , fMinY(pset.get<double>("MinY", -1.e10))
+   , fMaxY(pset.get<double>("MaxY", 1.e10))
+   , fMinZ(pset.get<double>("MinZ", -1.e10))
+   , fMaxZ(pset.get<double>("MaxZ", 1.e10))
    , fBooked(false)
    , fHDTUE(0)
    , fHDTVE(0)
@@ -140,6 +159,12 @@ namespace trkf {
    , fHDTUV(0)
    , fHDTVW(0)
    , fHDTWU(0)
+   , fHDTUVU(0)
+   , fHDTUVV(0)
+   , fHDTVWV(0)
+   , fHDTVWW(0)
+   , fHDTWUW(0)
+   , fHDTWUU(0)
    , fHS(0)
    , fHchisq(0)
    , fHx(0)
@@ -191,6 +216,40 @@ namespace trkf {
       art::ServiceHandle<art::TFileService> tfs;
       art::TFileDirectory dir = tfs->mkdir("sptana", "SpacePointAna histograms");
 
+      unsigned int nwiresU=0, nwiresV=0, nwiresW=0;
+
+      // Figure out the number of wires in U, V, and W planes.
+
+      // Loop over cryostats, tpcs, and planes.
+
+      for(unsigned int cstat = 0; cstat < geom->Ncryostats(); ++cstat){
+
+	const geo::CryostatGeo& cryogeom = geom->Cryostat(cstat);
+	unsigned int const ntpc = cryogeom.NTPC();
+
+	for(unsigned int tpc = 0; tpc < ntpc; ++tpc) {
+
+	  const geo::TPCGeo& tpcgeom = cryogeom.TPC(tpc);
+	  unsigned int const nplane = tpcgeom.Nplanes();
+                
+	  for(unsigned int plane = 0; plane < nplane; ++plane) {
+
+	    const geo::PlaneGeo& pgeom = tpcgeom.Plane(plane);
+	    unsigned int nwires = pgeom.Nwires();
+	    geo::View_t view = pgeom.View();
+	    if(view == geo::kU)
+	      nwiresU = nwires;
+	    else if(view == geo::kV)
+	      nwiresV = nwires;
+	    else if(view == geo::kZ)
+	      nwiresW = nwires;
+	  }
+	}
+      }
+ 
+
+
+
       if(mc && fUseMC) {
 	fHDTUE = dir.make<TH1F>("MCDTUE", "U-Drift Electrons Time Difference", 100, -5., 5.);
 	fHDTVE = dir.make<TH1F>("MCDTVE", "V-Drift Electrons Time Difference", 100, -5., 5.);
@@ -203,6 +262,18 @@ namespace trkf {
 	fHDTUV = dir.make<TH1F>("DTUV", "U-V time difference", 100, -20., 20.);
 	fHDTVW = dir.make<TH1F>("DTVW", "V-W time difference", 100, -20., 20.);
 	fHDTWU = dir.make<TH1F>("DTWU", "W-U time difference", 100, -20., 20.);
+	fHDTUVU = dir.make<TH2F>("DTUVU", "U-V time difference vs. U",
+				 100, 0., double(nwiresU), 100, -20., 20.);
+	fHDTUVV = dir.make<TH2F>("DTUVV", "U-V time difference vs. V",
+				 100, 0., double(nwiresV), 100, -20., 20.);
+	fHDTVWV = dir.make<TH2F>("DTVWV", "V-W time difference vs. V",
+				 100, 0., double(nwiresV), 100, -20., 20.);
+	fHDTVWW = dir.make<TH2F>("DTVWW", "V-W time difference vs. W",
+				 100, 0., double(nwiresW), 100, -20., 20.);
+	fHDTWUW = dir.make<TH2F>("DTWUW", "W-U time difference vs. W",
+				 100, 0., double(nwiresW), 100, -20., 20.);
+	fHDTWUU = dir.make<TH2F>("DTWUU", "W-U time difference vs. U",
+				 100, 0., double(nwiresU), 100, -20., 20.);
 	fHS = dir.make<TH1F>("DS", "Spatial Separation", 100, -2., 2.);
       }
       fHchisq = dir.make<TH1F>("chisq", "Chisquare", 100, 0., 20.);
@@ -426,6 +497,10 @@ namespace trkf {
       for(std::vector<recob::SpacePoint>::const_iterator i = spts1.begin(); 
 	  i != spts1.end(); ++i) {
 	const recob::SpacePoint& spt = *i;
+	if(spt.XYZ()[0] < fMinX || spt.XYZ()[0] > fMaxX ||
+	   spt.XYZ()[1] < fMinY || spt.XYZ()[1] > fMaxY ||
+	   spt.XYZ()[2] < fMinZ || spt.XYZ()[2] > fMaxZ)
+	  continue;
 
 	// Get hits associated with this SpacePoint.
 
@@ -438,9 +513,10 @@ namespace trkf {
 	  const recob::Hit& hit1 = **ihit;
 
 	  geo::WireID hit1WireID = hit1.WireID();
-	  unsigned int tpc1, plane1;
+	  unsigned int tpc1, plane1, wire1;
 	  tpc1 = hit1WireID.TPC;
 	  plane1 = hit1WireID.Plane;
+	  wire1 = hit1WireID.Wire;
 		
 	  geo::View_t view1 = hit1.View();
 	  double t1 = fSptalgTime.correctedTime(hit1);
@@ -450,9 +526,10 @@ namespace trkf {
 	    const recob::Hit& hit2 = **jhit;
 
 	    geo::WireID hit2WireID = hit2.WireID();
-	    unsigned int tpc2, plane2;
+	    unsigned int tpc2, plane2, wire2;
 	    tpc2 = hit2WireID.TPC;
 	    plane2 = hit2WireID.Plane;
+	    wire2 = hit2WireID.Wire;
 
 	    // Require same tpc, different view.
 
@@ -462,22 +539,40 @@ namespace trkf {
 	      double t2 = fSptalgTime.correctedTime(hit2);
 
 	      if(view1 == geo::kU) {
-		if(view2 == geo::kV)
+		if(view2 == geo::kV) {
 		  fHDTUV->Fill(t1-t2);
-		if(view2 == geo::kZ)
+		  fHDTUVU->Fill(double(wire1), t1-t2);
+		  fHDTUVV->Fill(double(wire2), t1-t2);
+		}
+		if(view2 == geo::kZ) {
 		  fHDTWU->Fill(t2-t1);
+		  fHDTWUW->Fill(double(wire2), t2-t1);
+		  fHDTWUU->Fill(double(wire1), t2-t1);
+		}
 	      }
 	      if(view1 == geo::kV) {
-		if(view2 == geo::kZ)
+		if(view2 == geo::kZ) {
 		  fHDTVW->Fill(t1-t2);
-		if(view2 == geo::kU)
+		  fHDTVWV->Fill(double(wire1), t1-t2);
+		  fHDTVWW->Fill(double(wire2), t1-t2);
+		}
+		if(view2 == geo::kU) {
 		  fHDTUV->Fill(t2-t1);
+		  fHDTUVU->Fill(double(wire2), t2-t1);
+		  fHDTUVV->Fill(double(wire1), t2-t1);
+		}
 	      }
 	      if(view1 == geo::kZ) {
-		if(view2 == geo::kU)
+		if(view2 == geo::kU) {
 		  fHDTWU->Fill(t1-t2);
-		if(view2 == geo::kV)
+		  fHDTWUW->Fill(double(wire1), t1-t2);
+		  fHDTWUU->Fill(double(wire2), t1-t2);
+		}
+		if(view2 == geo::kV) {
 		  fHDTVW->Fill(t2-t1);
+		  fHDTVWV->Fill(double(wire2), t2-t1);
+		  fHDTVWW->Fill(double(wire1), t2-t1);
+		}
 	      }
 	    }
 	  }
@@ -489,6 +584,10 @@ namespace trkf {
       for(std::vector<recob::SpacePoint>::const_iterator i = spts2.begin(); 
 	  i != spts2.end(); ++i) {
 	const recob::SpacePoint& spt = *i;
+	if(spt.XYZ()[0] < fMinX || spt.XYZ()[0] > fMaxX ||
+	   spt.XYZ()[1] < fMinY || spt.XYZ()[1] > fMaxY ||
+	   spt.XYZ()[2] < fMinZ || spt.XYZ()[2] > fMaxZ)
+	  continue;
 
 	// Get hits associated with this SpacePoint.
 
@@ -506,6 +605,10 @@ namespace trkf {
     for(std::vector<recob::SpacePoint>::const_iterator i = spts3.begin();
 	i != spts3.end(); ++i) {
       const recob::SpacePoint& spt = *i;
+      if(spt.XYZ()[0] < fMinX || spt.XYZ()[0] > fMaxX ||
+	 spt.XYZ()[1] < fMinY || spt.XYZ()[1] > fMaxY ||
+	 spt.XYZ()[2] < fMinZ || spt.XYZ()[2] > fMaxZ)
+	continue;
 
       fHchisq->Fill(spt.Chisq());
       fHx->Fill(spt.XYZ()[0]);
