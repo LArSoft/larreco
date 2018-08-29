@@ -30,6 +30,7 @@
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/Slice.h"
+#include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 
 #include "lardataobj/AnalysisBase/Calorimetry.h"
@@ -137,7 +138,63 @@ void shower::TCShower::produce(art::Event & evt) {
 
 // -----------------------------------------------------
 int shower::TCShower::getShowersWithSlices(art::Event & evt, art::Ptr<recob::Slice> thisslice) {
-  return 0;
+  art::Handle< std::vector<recob::Hit> > hitListHandle;
+  evt.getByLabel(fHitModuleLabel,hitListHandle);
+
+  art::Handle< std::vector<recob::Cluster> > clusterListHandle;
+  evt.getByLabel(fClusterModuleLabel,clusterListHandle);
+
+  art::Handle< std::vector<recob::Track> > trackListHandle;
+  evt.getByLabel(fTrackModuleLabel,trackListHandle);
+
+  art::Handle< std::vector<recob::Slice> > sliceListHandle;
+  evt.getByLabel(fSliceModuleLabel,sliceListHandle);
+
+  art::Handle< std::vector<recob::PFParticle> > pfpListHandle;
+  evt.getByLabel(fHitModuleLabel,pfpListHandle);
+
+  art::FindManyP<recob::Hit> hitslice_fm(sliceListHandle, evt, fHitModuleLabel);
+  art::FindManyP<recob::PFParticle> pfpslice_fm(sliceListHandle, evt, fHitModuleLabel);
+  art::FindManyP<recob::Cluster> clspfp_fm(pfpListHandle, evt, fHitModuleLabel);
+  art::FindManyP<recob::Track> trkpfp_fm(pfpListHandle, evt, fTrackModuleLabel);
+
+  std::vector<art::Ptr<recob::Hit> > hitlist;
+  std::vector<art::Ptr<recob::Cluster> > clusterlist;
+  std::vector<art::Ptr<recob::Track> > tracklist;
+
+  // get all hits with hit-slice association
+  hitlist = hitslice_fm.at(thisslice.key());
+
+  std::vector<art::Ptr<recob::PFParticle> > pfplist = pfpslice_fm.at(thisslice.key());
+
+  for (size_t i = 0; i < pfplist.size(); ++i) {
+    std::vector<art::Ptr<recob::Cluster> > thisclusterlist = clspfp_fm.at(pfplist[i].key());
+    std::vector<art::Ptr<recob::Track> > thistracklist = trkpfp_fm.at(pfplist[i].key());
+    
+    // get all clusters with slice-pfparticle, pfparticle-cluster
+    for (size_t j = 0; j < thisclusterlist.size(); ++j) {
+      clusterlist.push_back(thisclusterlist[j]);
+    } // loop through clusters
+
+    // get all tracks with slice-pfparticle, pfparticle-track
+    for (size_t j = 0; j < thistracklist.size(); ++j) {
+      tracklist.push_back(thistracklist[j]);
+    } // loop through tracks
+
+  } // loop through pfparticles
+
+
+  // get associations
+  art::FindManyP<recob::Hit> cls_fm(clusterListHandle, evt, fClusterModuleLabel);
+  art::FindManyP<recob::Hit> trk_fm(trackListHandle, evt, fTrackModuleLabel);
+  art::FindManyP<recob::Track> hit_fm(hitListHandle, evt, fTrackModuleLabel);
+  art::FindManyP<recob::Cluster> hitcls_fm(hitListHandle, evt, fClusterModuleLabel);
+
+  art::FindManyP<anab::Calorimetry> fmcal(trackListHandle, evt, fCalorimetryModuleLabel);
+  art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm(trackListHandle, evt, fTrackModuleLabel);
+
+  return fTCAlg.makeShowers(tracklist, clusterlist, hitlist, cls_fm, trk_fm, hit_fm, hitcls_fm, fmcal, fmthm);
+
 }
 
 // -----------------------------------------------------

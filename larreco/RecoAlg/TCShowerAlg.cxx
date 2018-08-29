@@ -83,7 +83,7 @@ namespace shower {
       }
 
       for (size_t j = 0; j < clusterlist.size(); ++j) {
-	std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(j);
+	std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(clusterlist[j].key());
 
 	if (clusterlist[j]->ID() > 0 && cls_hitlist.size() > 10) continue;
 
@@ -131,7 +131,7 @@ namespace shower {
 	// loop over hits to find those that aren't associated with any clusters
 	if (nShowerHits > 400) maxDist *= 2; // TODO: optimize this threshold              
 	for (size_t k = 0; k < hitlist.size(); ++k) {
-	  std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(k);
+	  std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(hitlist[k].key());
 	  if (hit_clslist.size()) continue;
 	  int isGoodHit = goodHit(hitlist[k], maxDist*2, minDistVert*2, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
 	  if (isGoodHit == 1 && addShowerHit(hitlist[k], showerHits) ) showerHits.push_back(hitlist[k]);
