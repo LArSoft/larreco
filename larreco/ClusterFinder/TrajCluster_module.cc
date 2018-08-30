@@ -478,7 +478,7 @@ namespace cluster {
       for(unsigned short isl = 0; isl < nSlices; ++isl) {
         unsigned short slcIndex = 0;
         if(!slices.empty()) {
-          for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() != slcIDs[isl]) break;
+          for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() == slcIDs[isl]) break;
           if(slcIndex == slices.size()) continue;
         }
         auto& slc = fTCAlg->GetSlice(isl);
@@ -671,7 +671,7 @@ namespace cluster {
       for(unsigned short isl = 0; isl < nSlices; ++isl) {
         unsigned short slcIndex = 0;
         if(!slices.empty()) {
-          for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() != slcIDs[isl]) break;
+          for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() == slcIDs[isl]) break;
           if(slcIndex == slices.size()) continue;
         }
         auto& slc = fTCAlg->GetSlice(isl);
