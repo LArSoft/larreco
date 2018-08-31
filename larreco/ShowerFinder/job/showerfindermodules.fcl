@@ -1,6 +1,6 @@
 #include "showeralgorithms.fcl"
 #include "clusteralgorithms.fcl"
-#include "calorimetry_argoneut.fcl" 
+#include "calorimetry.fcl" 
 
 BEGIN_PROLOG
 
@@ -20,7 +20,7 @@ standard_tcshower:
  ClusterModuleLabel: "trajcluster"
  TrackModuleLabel:   "pmtrack"
  CalorimetryModuleLabel:  "calo"
- CalorimetryAlg:           @local::argoneut_calorimetryalgmc
+ CalorimetryAlg:           @local::standard_calorimetryalgmc
  TCAlg:                    @local::standard_tcshoweralg
 }
 
@@ -29,14 +29,14 @@ standard_tcshowertemplatemaker:
  module_type: "TCShowerTemplateMaker"
  ShowerModuleLabel:  "tcshower"
  DigitModuleLabel:        "largeant"
- CalorimetryAlg:           @local::argoneut_calorimetryalgmc
+ CalorimetryAlg:           @local::standard_calorimetryalgmc
 }
 
 standard_tcshowerelectronlikelihood:
 {
  module_type: "TCShowerElectronLikelihood"
  ShowerModuleLabel:  "tcshower"
- CalorimetryAlg:           @local::argoneut_calorimetryalgmc
+ CalorimetryAlg:           @local::standard_calorimetryalgmc
 }
 
 #standard_showerana:

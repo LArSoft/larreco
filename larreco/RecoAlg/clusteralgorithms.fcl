@@ -232,7 +232,7 @@ standard_dbscan3dalg:
 
 standard_tcshoweralg:
 {
-    fCalorimetryAlg: @local::standard_calorimetryalgmc
+    CalorimetryAlg: @local::standard_calorimetryalgmc
 }
 
 standard_fuzzyclusteralg:
