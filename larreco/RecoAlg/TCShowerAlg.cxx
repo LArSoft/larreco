@@ -38,7 +38,7 @@ namespace shower {
       double minDistVert = 15; // exclude tracks near the vertex
 
       if (tracklist[i]->Length() < 20) continue; // ignore very short tracks
-
+      if (tracklist[i]->Length() > 100) continue; // ignore very long tracks (usually cosmics)
       // adjust tolerances for short tracks
       if (tracklist[i]->Length() < 50) {
 	tolerance = 50;
@@ -267,6 +267,7 @@ namespace shower {
       } // loop through planes
 
       if (showerCandidate) {
+	std::cout << tracklist[i]->Length() << std::endl;
 	shwDir = (trkPt2-trkStart).Unit();
 	shwvtx = tracklist[i]->Vertex();
 	bestplane = int(bestplanetemp);

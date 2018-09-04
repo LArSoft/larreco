@@ -53,8 +53,6 @@ namespace shower {
     std::vector<double> dEdx;
     std::vector<double> dEdxErr;
     int bestplane;
-    
-    // vector of shower hits
     std::vector< art::Ptr<recob::Hit> > showerHits;
 
     TCShowerAlg(fhicl::ParameterSet const& pset);
