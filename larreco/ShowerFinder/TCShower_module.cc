@@ -155,7 +155,7 @@ int shower::TCShower::getShowersWithSlices(art::Event & evt, art::Ptr<recob::Sli
 
   art::FindManyP<recob::Hit> hitslice_fm(sliceListHandle, evt, fHitModuleLabel);
   art::FindManyP<recob::PFParticle> pfpslice_fm(sliceListHandle, evt, fHitModuleLabel);
-  art::FindManyP<recob::Cluster> clspfp_fm(pfpListHandle, evt, fHitModuleLabel);
+  art::FindManyP<recob::Cluster> clsslice_fm(sliceListHandle, evt, fHitModuleLabel);
   art::FindManyP<recob::Track> trkpfp_fm(pfpListHandle, evt, fTrackModuleLabel);
 
   std::vector<art::Ptr<recob::Hit> > hitlist;
@@ -165,17 +165,13 @@ int shower::TCShower::getShowersWithSlices(art::Event & evt, art::Ptr<recob::Sli
   // get all hits with hit-slice association
   hitlist = hitslice_fm.at(thisslice.key());
 
+  // get all clusters with cluster-slice association
+  clusterlist = clsslice_fm.at(thisslice.key());
+
   std::vector<art::Ptr<recob::PFParticle> > pfplist = pfpslice_fm.at(thisslice.key());
 
   for (size_t i = 0; i < pfplist.size(); ++i) {
-    std::vector<art::Ptr<recob::Cluster> > thisclusterlist = clspfp_fm.at(pfplist[i].key());
-    std::vector<art::Ptr<recob::Track> > thistracklist = trkpfp_fm.at(pfplist[i].key());
-    
-    // get all clusters with slice-pfparticle, pfparticle-cluster
-    for (size_t j = 0; j < thisclusterlist.size(); ++j) {
-      clusterlist.push_back(thisclusterlist[j]);
-    } // loop through clusters
-
+    std::vector<art::Ptr<recob::Track> > thistracklist = trkpfp_fm.at(pfplist[i].key());    
     // get all tracks with slice-pfparticle, pfparticle-track
     for (size_t j = 0; j < thistracklist.size(); ++j) {
       tracklist.push_back(thistracklist[j]);
