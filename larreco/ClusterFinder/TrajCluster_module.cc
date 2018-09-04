@@ -165,6 +165,7 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
     
+    produces< art::Assns<recob::Slice, recob::Cluster> >();
     produces< art::Assns<recob::Slice, recob::PFParticle> >();
     produces< art::Assns<recob::Slice, recob::Hit> >();
 
@@ -462,6 +463,8 @@ namespace cluster {
     std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
       pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
     // Slice -> ...
+    std::unique_ptr<art::Assns<recob::Slice, recob::Cluster>>
+      slc_cls_assn(new art::Assns<recob::Slice, recob::Cluster>);
     std::unique_ptr<art::Assns<recob::Slice, recob::PFParticle>>
       slc_pfp_assn(new art::Assns<recob::Slice, recob::PFParticle>);
     std::unique_ptr<art::Assns<recob::Slice, recob::Hit>>
@@ -611,6 +614,13 @@ namespace cluster {
           {
             throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with cluster ID "<<tj.UID;
           } // exception
+          // make Slice -> cluster assn
+          if(!slices.empty()) {
+            if(!util::CreateAssn(*this, evt, clsCol, slices[slcIndex], *slc_cls_assn))
+            {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate slice with PFParticle";
+            } // exception
+          } // slices exist
           // Make cluster -> 2V and cluster -> 3V assns
           for(unsigned short end = 0; end < 2; ++end) {
             if(tj.VtxID[end] <= 0) continue;
@@ -816,6 +826,7 @@ namespace cluster {
     evt.put(std::move(pfp_cls_assn));
     evt.put(std::move(pfp_shwr_assn));
     evt.put(std::move(pfp_vx3_assn));
+    evt.put(std::move(slc_cls_assn));
     evt.put(std::move(slc_pfp_assn));
     evt.put(std::move(slc_hit_assn));
     evt.put(std::move(ctgcol));
