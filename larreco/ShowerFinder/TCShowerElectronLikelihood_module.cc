@@ -90,6 +90,13 @@ namespace shower {
     TH1F* energyDist;
     TH1F* longLikelihoodHist;
     TH1F* tranLikelihoodHist;
+    // just for printing purposes
+    TH1F* longProfHist;
+    TH1F* tranProfHist_1;
+    TH1F* tranProfHist_2;
+    TH1F* tranProfHist_3;
+    TH1F* tranProfHist_4;
+    TH1F* tranProfHist_5;
 
     TH1F* longProfile;
     TH1F* tranProfile;
@@ -209,6 +216,14 @@ void shower::TCShowerElectronLikelihood::beginJob() {
   longLikelihoodHist = tfs->make<TH1F>("longLikelihoodHist", "longitudinal likelihood", 20, 0, 2);
   tranLikelihoodHist = tfs->make<TH1F>("tranLikelihoodHist", "transverse likelihood", 20, 0, 3);
 
+  // just for printing purposes
+  longProfHist = tfs->make<TH1F>("longProfHist", "longitudinal e- profile (reco);t;Q", LBINS, LMIN, LMAX);
+  tranProfHist_1 = tfs->make<TH1F>("tranProfHist", "transverse e- profile (reco) [0 <= t < 1];dist (cm);Q", TBINS, TMIN, TMAX);
+  tranProfHist_2 = tfs->make<TH1F>("tranProfHist", "transverse e- profile (reco) [1 <= t < 2];dist (cm);Q", TBINS, TMIN, TMAX);
+  tranProfHist_3 = tfs->make<TH1F>("tranProfHist", "transverse e- profile (reco) [2 <= t < 3];dist (cm);Q", TBINS, TMIN, TMAX);
+  tranProfHist_4 = tfs->make<TH1F>("tranProfHist", "transverse e- profile (reco) [3 <= t < 4];dist (cm);Q", TBINS, TMIN, TMAX);
+  tranProfHist_5 = tfs->make<TH1F>("tranProfHist", "transverse e- profile (reco) [4 <= t < 5];dist (cm);Q", TBINS, TMIN, TMAX);
+
 } // beginJob
 
 // -------------------------------------------------
@@ -260,6 +275,13 @@ void shower::TCShowerElectronLikelihood::analyze(const art::Event& evt) {
       } // neutrinoset
     } // mclist
   } // showerlist
+
+  longProfHist = longProfile;
+  tranProfHist_1 = tranProfile_1;
+  tranProfHist_2 = tranProfile_2;
+  tranProfHist_3 = tranProfile_3;
+  tranProfHist_4 = tranProfile_4;
+  tranProfHist_5 = tranProfile_5;
 
   //fTree->Fill();
 

@@ -24,6 +24,15 @@ standard_tcshower:
  TCAlg:                    @local::standard_tcshoweralg
 }
 
+standard_tcshoweranalysis:
+{
+ module_type: "TCShowerAnalysis"
+ ShowerModuleLabel:  "tcshower"
+ DigitModuleLabel:   "largeant"
+ HitModuleLabel:     "trajcluster"
+ CalorimetryAlg:      @local::standard_calorimetryalgmc
+}
+
 standard_tcshowertemplatemaker:
 {
  module_type: "TCShowerTemplateMaker"

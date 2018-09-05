@@ -60,12 +60,10 @@ namespace shower {
     void showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir, double elep);
     void showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits, double elep);
     void showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan, simb::MCParticle electron);
- 
+
   protected:
 
-  private: 
-
-    //TTree* fTree;
+    //    TTree* fTree;
 
     TProfile* fShowerProfileSimLong;
     TProfile* fShowerProfileHitLong;
@@ -169,7 +167,8 @@ void shower::TCShowerTemplateMaker::reconfigure(fhicl::ParameterSet const& pset)
 void shower::TCShowerTemplateMaker::beginJob() {
 
   art::ServiceHandle<art::TFileService> tfs;
-  //fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
+
+  //  fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
 
   fShowerProfileSimLong = tfs->make<TProfile>("fShowerProfileSimLong", "longitudinal e- profile (true, simchannel);t;E (MeV)", LBINS, LMIN, LMAX);
   fShowerProfileHitLong = tfs->make<TProfile>("fShowerProfileHitLong", "longitudinal e- profile (true, hit);t;E (MeV)", LBINS, LMIN, LMAX);
