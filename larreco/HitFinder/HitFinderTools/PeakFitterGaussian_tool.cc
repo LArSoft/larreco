@@ -4,6 +4,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "larreco/HitFinder/HitFinderTools/IPeakFitter.h"
+#include "larreco/RecoAlg/GausFitCache.h" // hit::GausFitCache
 
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
@@ -13,12 +14,47 @@
 #include "larcore/Geometry/Geometry.h"
 
 #include <cmath>
+#include <cassert>
 #include <fstream>
 #include "TH1F.h"
 #include "TF1.h"
 
 namespace reco_tool
 {
+
+/// Customized function cache for Gaussians with a baseline.
+///
+/// The baseline parameter is always the last one.
+class BaselinedGausFitCache: public hit::GausFitCache {
+    
+        public:
+    /// Constructor (see base class constructor).
+    BaselinedGausFitCache(std::string const& new_name="BaselinedGausFitCache")
+      : hit::GausFitCache(new_name)
+      {}
+    
+        protected:
+    
+    /// Creates and returns the function with specified number of Gaussians.
+    ///
+    /// The formula is `gaus(0) + gaus(3) + ... + gaus(3*(nFunc-1)) + [nFunc*3]`.
+    virtual TF1* CreateFunction(size_t nFunc) const
+        {
+             // add the Gaussians first
+             std::string formula;
+             std::size_t iGaus = 0;
+             while (iGaus < nFunc)
+                 formula += "gaus(" + std::to_string(3 * (iGaus++)) + ") + ";
+             formula += "[" + std::to_string(3 * iGaus) + "]";
+             
+             std::string const func_name = FunctionName(nFunc);
+             auto* pF = new TF1(func_name.c_str(), formula.c_str());
+             pF->SetParName(iGaus * 3, "baseline");
+             return pF;
+        } // CreateFunction()
+    
+}; // BaselinedGausFitCache
+
 
 class PeakFitterGaussian : IPeakFitter
 {
@@ -42,6 +78,8 @@ private:
     double                   fPeakRange;     ///< set range limits for peak center
     double                   fAmpRange;      ///< set range limit for peak amplitude
     bool                     fFloatBaseline; ///< Allow baseline to "float" away from zero
+    
+    mutable BaselinedGausFitCache fFitCache; ///< Preallocated ROOT functions for the fits.
     
     mutable TH1F             fHistogram;
     
@@ -110,6 +148,7 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     for(int idx = 0; idx < roiSize; idx++) fHistogram.SetBinContent(idx+1,roiSignalVec.at(startTime+idx));
     
     // Build the string to describe the fit formula
+#if 0
     std::string equation = "gaus(0)";
     
     for(size_t idx = 1; idx < hitCandidateVec.size(); idx++) equation += "+gaus(" + std::to_string(3*idx) + ")";
@@ -125,8 +164,23 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     }
 
     // Now define the complete function to fit
-    TF1 Gaus("Gaus",equation.c_str(),0,roiSize);
+    TF1 Gaus("Gaus",equation.c_str(),0,roiSize,TF1::EAddToList::kNo);
+#else
+    unsigned int const nGaus = hitCandidateVec.size();
+    assert(fFitCache.Get(nGaus));
+    TF1& Gaus = *(fFitCache.Get(nGaus));
+
+    // Set the baseline if so desired
+    float baseline = 0.0;
     
+    if (fFloatBaseline)
+    {
+        baseline = roiSignalVec.at(startTime);
+    }
+    Gaus.FixParameter(nGaus * 3, baseline); // last parameter is the baseline
+
+#endif // 0
+
     // ### Setting the parameters for the Gaussian Fit ###
     int parIdx(0);
     for(auto& candidateHit : hitCandidateVec)
@@ -180,9 +234,9 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
             parIdx += 3;
         }
     }
-    
-    Gaus.Delete();
-    
+#if 0
+    Gaus.Delete();    
+#endif // 0
     return;
 }
 
