@@ -171,25 +171,21 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     TF1& Gaus = *(fFitCache.Get(nGaus));
 
     // Set the baseline if so desired
-    float baseline = 0.0;
+    float const baseline = fFloatBaseline? roiSignalVec.at(startTime): 0.0;
     
-    if (fFloatBaseline)
-    {
-        baseline = roiSignalVec.at(startTime);
-    }
     Gaus.FixParameter(nGaus * 3, baseline); // last parameter is the baseline
 
 #endif // 0
 
     // ### Setting the parameters for the Gaussian Fit ###
-    int parIdx(0);
-    for(auto& candidateHit : hitCandidateVec)
+    int parIdx{0};
+    for(auto const& candidateHit : hitCandidateVec)
     {
-        double peakMean   = candidateHit.hitCenter - float(startTime);
-        double peakWidth  = candidateHit.hitSigma;
-        double amplitude  = candidateHit.hitHeight - baseline;
-        double meanLowLim = std::max(peakMean - fPeakRange * peakWidth,              0.);
-        double meanHiLim  = std::min(peakMean + fPeakRange * peakWidth, double(roiSize));
+        double const peakMean   = candidateHit.hitCenter - float(startTime);
+        double const peakWidth  = candidateHit.hitSigma;
+        double const amplitude  = candidateHit.hitHeight - baseline;
+        double const meanLowLim = std::max(peakMean - fPeakRange * peakWidth,              0.);
+        double const meanHiLim  = std::min(peakMean + fPeakRange * peakWidth, double(roiSize));
         
         Gaus.SetParameter(  parIdx, amplitude);
         Gaus.SetParameter(1+parIdx, peakMean);
@@ -201,7 +197,7 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
         parIdx += 3;
     }
     
-    int fitResult(-1);
+    int fitResult{-1};
     
     try
     { fitResult = fHistogram.Fit(&Gaus,"QNRWB","", 0., roiSize);}
@@ -217,7 +213,7 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
         chi2PerNDF = (Gaus.GetChisquare() / Gaus.GetNDF());
         NDF        = Gaus.GetNDF();
     
-        parIdx = 0;
+        int parIdx { 0 };
         for(size_t idx = 0; idx < hitCandidateVec.size(); idx++)
         {
             PeakFitParams_t peakParams;
