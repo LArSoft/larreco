@@ -200,7 +200,7 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     int fitResult{-1};
     
     try
-    { fitResult = fHistogram.Fit(&Gaus,"QNRWB","", 0., roiSize);}
+    { fitResult = fHistogram.Fit(&Gaus,"QNWB","", 0., roiSize);}
     catch(...)
     {mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";}
     
