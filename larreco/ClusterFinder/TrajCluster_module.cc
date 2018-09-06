@@ -216,7 +216,7 @@ namespace cluster {
     // for each slice for hits associated with 3D-clustered SpacePoints
     std::vector<std::vector<unsigned int>> slHitsVec;
     // Slice IDs that will be correlated with sub-slices
-    std::vector<unsigned short> slcIDs;
+    std::vector<int> slcIDs;
     // pointers to the slices in the event
     std::vector<art::Ptr<recob::Slice>> slices;
     unsigned int nInputHits = 0;
@@ -238,6 +238,7 @@ namespace cluster {
         art::fill_ptr_vector(slices, slcHandle);
         art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
         for(size_t isl = 0; isl < slices.size(); ++isl) {
+          // select slices with user-defined cuts in test beam mode
           if(tca::tcc.modes[tca::kTestBeam] && tca::tcc.testBeamCuts.size() > 1) {
             float zlo = slices[isl]->End0Pos().Z();
             if(slices[isl]->End1Pos().Z() < zlo) zlo = slices[isl]->End1Pos().Z();
@@ -280,8 +281,8 @@ namespace cluster {
           slcIDs.push_back(slices[isl]->ID());
         } // isl
       } else {
-        // There was no pre-processing of the hits to define logical slices
-        // so put all hits in one slice
+        // There was no pre-processing of the hits to define slices
+        // so put all hits into one slice
         slHitsVec.resize(1);
         slHitsVec[0].resize(nInputHits);
         for(unsigned int iht = 0; iht < nInputHits; ++iht) slHitsVec[0][iht] = iht;
@@ -292,7 +293,7 @@ namespace cluster {
       const geo::GeometryCore* geom = lar::providerFrom<geo::Geometry>();
       if(geom->NTPC() > 1) {
         std::vector<std::vector<unsigned int>> tpcSlcHitsVec;
-        std::vector<unsigned short> tpcSlcIDs;
+        std::vector<int> tpcSlcIDs;
         for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
           auto& slhits = slHitsVec[isl];
           if(slhits.size() < 2) continue;
@@ -322,7 +323,7 @@ namespace cluster {
         slcIDs = tpcSlcIDs;
       } // > 1 TPC
       
-      // First sort the hits in each slice and then reconstruct
+      // First sort the hits in each sub-slice and then reconstruct
       for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
         auto& slhits = slHitsVec[isl];
         // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
@@ -352,7 +353,7 @@ namespace cluster {
         for(unsigned short ii = 0; ii < slhits.size(); ++ii) slhits[ii] = tmp[sortVec[ii].index];
         // clear the temp vector
         tmp.resize(0);
-        // reconstruct using the hits in this slice. The data products are stored internally in
+        // reconstruct using the hits in this sub-slice. The data products are stored internally in
         // TrajCluster data structs.
         fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
       } // isl
@@ -478,11 +479,11 @@ namespace cluster {
       for(unsigned short isl = 0; isl < nSlices; ++isl) {
         unsigned short slcIndex = 0;
         if(!slices.empty()) {
-          for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() != slcIDs[isl]) break;
+          for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() == slcIDs[isl]) break;
           if(slcIndex == slices.size()) continue;
         }
         auto& slc = fTCAlg->GetSlice(isl);
-        // See if there was a serious reconstruction failure that made the slice invalid
+        // See if there was a serious reconstruction failure that made the sub-slice invalid
         if(!slc.isValid) continue;
         // make EndPoint2Ds
         for(auto& vx2 : slc.vtxs) {
@@ -671,7 +672,7 @@ namespace cluster {
       for(unsigned short isl = 0; isl < nSlices; ++isl) {
         unsigned short slcIndex = 0;
         if(!slices.empty()) {
-          for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() != slcIDs[isl]) break;
+          for(slcIndex = 0; slcIndex < slices.size(); ++slcIndex) if(slices[slcIndex]->ID() == slcIDs[isl]) break;
           if(slcIndex == slices.size()) continue;
         }
         auto& slc = fTCAlg->GetSlice(isl);
@@ -780,7 +781,7 @@ namespace cluster {
       } // slices exist
     } // input hits exist
     
-    // clear the slices vector
+    // clear the alg data structures
     fTCAlg->ClearResults();
 
     // convert vectors to unique_ptrs
