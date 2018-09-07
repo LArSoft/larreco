@@ -1,6 +1,7 @@
 cet_enable_asserts()
 
 set( hitfinder_tool_lib_list
+                        larreco_RecoAlg
 			larcorealg_Geometry
 			lardataobj_RecoBase
 			larcore_Geometry_Geometry_service
