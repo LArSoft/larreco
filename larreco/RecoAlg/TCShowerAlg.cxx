@@ -17,7 +17,6 @@ namespace shower {
 
   int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::Track> > tracklist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Hit> trk_fm, art::FindManyP<recob::Track> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<anab::Calorimetry> fmcal, art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm) {
 
-    showerHits.clear();
     totalEnergy.resize(2);
     totalEnergyErr.resize(2);
     dEdx.resize(2);
@@ -32,6 +31,9 @@ namespace shower {
     art::ServiceHandle<geo::Geometry> geom;
 
     for (size_t i = 0; i < tracklist.size(); ++i) {
+
+      showerHits.clear();
+
       int tolerance = 100; // how many shower like cluster you need to define a shower              
       double pullTolerance = 0.6; // hits should be evenly distributed around the track
       double maxDist = 10; // how far a shower like cluster can be from the track
