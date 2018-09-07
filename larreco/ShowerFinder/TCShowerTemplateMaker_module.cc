@@ -64,7 +64,6 @@ namespace shower {
   protected:
 
     //    TTree* fTree;
-
     TProfile* fShowerProfileSimLong;
     TProfile* fShowerProfileHitLong;
     TProfile* fShowerProfileRecoLong;
@@ -108,6 +107,28 @@ namespace shower {
     TH3F* fTransverse_3;    
     TH3F* fTransverse_4;
     TH3F* fTransverse_5;
+
+    // electrons
+    TProfile* fLongitudinal_electron;
+    TProfile* fTransverse1_electron;
+    TProfile* fTransverse2_electron;
+    TProfile* fTransverse3_electron;
+    TProfile* fTransverse4_electron;
+    TProfile* fTransverse5_electron;
+    // photons
+    TProfile* fLongitudinal_photon;
+    TProfile* fTransverse1_photon;
+    TProfile* fTransverse2_photon;
+    TProfile* fTransverse3_photon;
+    TProfile* fTransverse4_photon;
+    TProfile* fTransverse5_photon;
+    // other
+    TProfile* fLongitudinal_other;
+    TProfile* fTransverse1_other;
+    TProfile* fTransverse2_other;
+    TProfile* fTransverse3_other;
+    TProfile* fTransverse4_other;
+    TProfile* fTransverse5_other;
 
     const int LBINS = 20;
     const int LMIN = 0;
@@ -214,7 +235,31 @@ void shower::TCShowerTemplateMaker::beginJob() {
   fTransverse_4 = tfs->make<TH3F>("fTransverse_4", "transverse e- profile [3 <= t < 4];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 100, 0, 100000);
   fTransverse_5 = tfs->make<TH3F>("fTransverse_5", "transverse e- profile [4 <= t < 5];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 100, 0, 100000);
 
-  
+  // electrons
+  fLongitudinal_electron = tfs->make<TProfile>("fLongitudinal_electron", "longitudinal e- profile (reco);t;Q", LBINS, LMIN, LMAX);  
+  fTransverse1_electron = tfs->make<TProfile>("fTransverse1_electron", "transverse e- profile [0 <= t < 1] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse2_electron = tfs->make<TProfile>("fTransverse2_electron", "transverse e- profile [1 <= t < 2] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse3_electron = tfs->make<TProfile>("fTransverse3_electron", "transverse e- profile [2 <= t < 3] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse4_electron = tfs->make<TProfile>("fTransverse4_electron", "transverse e- profile [3 <= t < 4] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse5_electron = tfs->make<TProfile>("fTransverse5_electron", "transverse e- profile [4 <= t < 5] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+
+  // photons
+  fLongitudinal_photon = tfs->make<TProfile>("fLongitudinal_photon", "longitudinal photon profile (reco);t;Q", LBINS, LMIN, LMAX);  
+  fTransverse1_photon = tfs->make<TProfile>("fTransverse1_photon", "transverse photon profile [0 <= t < 1] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse2_photon = tfs->make<TProfile>("fTransverse2_photon", "transverse photon profile [1 <= t < 2] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse3_photon = tfs->make<TProfile>("fTransverse3_photon", "transverse photon profile [2 <= t < 3] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse4_photon = tfs->make<TProfile>("fTransverse4_photon", "transverse photon profile [3 <= t < 4] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse5_photon = tfs->make<TProfile>("fTransverse5_photon", "transverse photon profile [4 <= t < 5] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+
+  // other
+  fLongitudinal_other = tfs->make<TProfile>("fLongitudinal_other", "longitudinal other profile (reco);t;Q", LBINS, LMIN, LMAX);  
+  fTransverse1_other = tfs->make<TProfile>("fTransverse1_other", "transverse other profile [0 <= t < 1] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse2_other = tfs->make<TProfile>("fTransverse2_other", "transverse other profile [1 <= t < 2] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse3_other = tfs->make<TProfile>("fTransverse3_other", "transverse other profile [2 <= t < 3] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse4_other = tfs->make<TProfile>("fTransverse4_other", "transverse other profile [3 <= t < 4] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fTransverse5_other = tfs->make<TProfile>("fTransverse5_other", "transverse other profile [4 <= t < 5] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+
+
 } // beginJob
 
 // -------------------------------------------------
@@ -224,7 +269,7 @@ void shower::TCShowerTemplateMaker::analyze(const art::Event& evt) {
   art::Handle< std::vector<recob::Hit> > hitListHandle;
   std::vector<art::Ptr<recob::Hit> > hitlist;
   if (evt.getByLabel(fHitModuleLabel,hitListHandle))
-    art::fill_ptr_vector(hitlist, hitListHandle);
+    art::fill_ptr_vector(hitlist, hitListHandle); 
 
   art::Handle< std::vector<sim::SimChannel> > scListHandle;
   std::vector<art::Ptr<sim::SimChannel> > simchanlist;

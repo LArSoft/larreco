@@ -267,7 +267,6 @@ namespace shower {
       } // loop through planes
 
       if (showerCandidate) {
-	std::cout << tracklist[i]->Length() << std::endl;
 	shwDir = (trkPt2-trkStart).Unit();
 	shwvtx = tracklist[i]->Vertex();
 	bestplane = int(bestplanetemp);
