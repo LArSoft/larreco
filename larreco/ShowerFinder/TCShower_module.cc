@@ -90,6 +90,7 @@ shower::TCShower::TCShower(fhicl::ParameterSet const & pset) :
 
   produces<std::vector<recob::Shower> >();
   produces<art::Assns<recob::Shower, recob::Hit> >();
+  produces<art::Assns<recob::Shower, recob::Slice> >();
 }
 
 // -----------------------------------------------------
@@ -97,6 +98,7 @@ shower::TCShower::TCShower(fhicl::ParameterSet const & pset) :
 void shower::TCShower::produce(art::Event & evt) {
   std::unique_ptr<std::vector<recob::Shower> > showers(new std::vector<recob::Shower>);
   std::unique_ptr<art::Assns<recob::Shower, recob::Hit> > hitShowerAssociations(new art::Assns<recob::Shower, recob::Hit>);
+  std::unique_ptr<art::Assns<recob::Shower, recob::Slice> > sliceShowerAssociations(new art::Assns<recob::Shower, recob::Slice>);
 
   // slices
   art::Handle< std::vector<recob::Slice> > sliceListHandle;
@@ -115,6 +117,7 @@ void shower::TCShower::produce(art::Event & evt) {
 	showers->back().set_id(showers->size()-1);
 
 	util::CreateAssn(*this, evt, *(showers.get()), fTCAlg.showerHits, *(hitShowerAssociations.get()) );
+	util::CreateAssn(*this, evt, *(showers.get()), *(slicelist[i]), *(sliceShowerAssociations.get()) );
       }
 
     } // loop through slices

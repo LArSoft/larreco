@@ -3629,8 +3629,8 @@ namespace tca {
   ////////////////////////////////////////////////
   void TagShowerLike(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP)
   {
-    // Tag Tjs as InShower if they have MCSMom < ShowerTag[0] and there are more than
-    // ShowerTag[6] other Tjs with a separation < ShowerTag[1].     
+    // Tag Tjs as InShower if they have MCSMom < ShowerTag[1] and there are more than
+    // ShowerTag[6] other Tjs with a separation < ShowerTag[2].     
     
     if(tcc.showerTag[0] <= 0) return;
     if(slc.tjs.size() > 20000) return;
