@@ -226,8 +226,10 @@ standard_dbscanalg:
 
 standard_dbscan3dalg:
 {
-    epsilon:    5.0
-    minpts:     2
+    epsilon:          5.0
+    minpts:           2
+    neighbors:        100
+    badchannelweight: 0.
 }
 
 standard_tcshoweralg:

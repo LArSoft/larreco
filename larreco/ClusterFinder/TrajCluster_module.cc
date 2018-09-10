@@ -780,7 +780,7 @@ namespace cluster {
             for(auto& hit : hit_in_slc) {
               if(hit.key() != allHitsIndex) continue;
               // Slice -> Hit assn
-              if(!util::CreateAssn(*this, evt, hitCol, slices[isl], *slc_hit_assn, allHitsIndex))
+              if(!util::CreateAssn(*this, evt, hitCol, slices[isl], *slc_hit_assn))
               {
                 throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate old Hit with Slice";
               } // exception
