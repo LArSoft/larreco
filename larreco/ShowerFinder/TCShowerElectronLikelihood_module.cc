@@ -132,9 +132,9 @@ namespace shower {
     const double EMAX = 10.5;
     */
 
-    const int EBINS = 20;
-    const double EMIN = 0.5;
-    const double EMAX = 20.5;
+    // unused const int EBINS = 20;
+    // unused const double EMIN = 0.5;
+    // unused const double EMAX = 20.5;
 
     const double X0 = 14;
 
