@@ -41,12 +41,19 @@
 
 #include "fhiclcpp/ParameterSet.h"
 #include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/FindManyP.h"
+#include "larcore/Geometry/Geometry.h"
+#include <map>
 
-namespace recob { class SpacePoint; }
+namespace recob { 
+  class SpacePoint; 
+  class Hit;
+}
 
 typedef struct point_s point_t;
 struct point_s {
   art::Ptr<recob::SpacePoint> sp;
+  unsigned int nbadchannels;
   int cluster_id;
 };
 
@@ -64,8 +71,8 @@ struct epsilon_neighbours_s {
 
 namespace cluster{
 
-  //--------------------------------------------------------------- 
-  class DBScan3DAlg {
+//--------------------------------------------------------------- 
+class DBScan3DAlg {
   public:
     
     
@@ -74,13 +81,17 @@ namespace cluster{
 
     std::vector<point_t> points;
 
-    void init(const std::vector<art::Ptr<recob::SpacePoint>>& sps);
+    void init(const std::vector<art::Ptr<recob::SpacePoint>>& sps,
+              art::FindManyP<recob::Hit>& hitFromSp);
     void dbscan();    
     
   private:
 
     double epsilon;
     unsigned int minpts;
+    double badchannelweight;
+    unsigned int neighbors;
+    std::map<geo::WireID, int> badchannelmap;
 
     node_t *create_node(unsigned int index);
     int append_at_end(unsigned int index,

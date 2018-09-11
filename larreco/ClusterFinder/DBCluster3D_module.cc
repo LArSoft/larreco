@@ -129,7 +129,12 @@ void cluster::DBCluster3D::produce(art::Event & evt)
     first = false;
   } // first
 
-  fDBScan.init(sps);
+  art::FindManyP< recob::Hit > hitFromSp(spsHandle, evt, fSPHitAssnLabel);
+  if(!hitFromSp.isValid()) {
+    std::cout<<"hitFromSp is invalid\n";
+    return;
+  }
+  fDBScan.init(sps, hitFromSp);
   fDBScan.dbscan();
 
   //Find number of slices
