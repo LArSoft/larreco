@@ -47,7 +47,6 @@ namespace tca {
   void FindMissedTjsInTp3s(TCSlice& slc, PFPStruct& pfp, std::vector<int>& missTjs, std::vector<float>& missFrac);
   bool SharesHighScoreVx(TCSlice& slc, const PFPStruct& pfp, const Trajectory& tj);
   void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir);
-//  bool CheckAndMerge(TCSlice& slc, PFPStruct& pfp, bool prt);
   float AspectRatio(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
   unsigned short WiresSkippedInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
   float LengthInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);

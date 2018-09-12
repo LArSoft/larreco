@@ -57,7 +57,6 @@ namespace tca {
       if(userMode == 3) tcc.modes[kStudy3] = true;
       if(userMode == 4) tcc.modes[kStudy4] = true;
     } // new Study mode
-    if(pset.has_key("TestBeam")) tcc.modes[kTestBeam] = pset.get<bool>("TestBeam");
     if(pset.has_key("SaveShowerTree")) tcc.modes[kSaveShowerTree] = pset.get<bool>("SaveShowerTree");
     if(pset.has_key("SaveCRTree")) tcc.modes[kSaveCRTree] = pset.get<bool>("SaveCRTree");
     if(pset.has_key("TagCosmics")) tcc.modes[kTagCosmics] = pset.get<bool>("TagCosmics");
@@ -96,6 +95,8 @@ namespace tca {
     tcc.vtx3DCuts      = pset.get< std::vector<float >>("Vertex3DCuts", {-1, -1});
     tcc.vtxScoreWeights = pset.get< std::vector<float> >("VertexScoreWeights");
     tcc.match3DCuts       = pset.get< std::vector<float >>("Match3DCuts", {-1, -1, -1, -1, -1});
+    tcc.pfpStitchCuts     = pset.get< std::vector<float >>("PFPStitchCuts", {-1});
+    pset.get_if_present<std::vector<float>>("TestBeamCuts", tcc.testBeamCuts);
     pset.get_if_present<std::vector<float>>("NeutralVxCuts", tcc.neutralVxCuts);
     if(tcc.JTMaxHitSep2 > 0) tcc.JTMaxHitSep2 *= tcc.JTMaxHitSep2;
     
@@ -141,6 +142,17 @@ namespace tca {
       mf::LogVerbatim("TC")<<"Last element of AngleRange != 90 degrees. Fixing it\n";
       tcc.angleRanges.back() = 90;
     }
+    
+    // convert PFP stitch cuts
+    if(tcc.pfpStitchCuts.size() > 1 && tcc.pfpStitchCuts[0] > 0) {
+      // square the separation cut
+      tcc.pfpStitchCuts[0] *= tcc.pfpStitchCuts[0];
+      // convert angle to cos
+      tcc.pfpStitchCuts[1] = cos(tcc.pfpStitchCuts[1]);
+    }
+    // turn on TestBeam mode?
+    tcc.modes[kTestBeam] = (!tcc.testBeamCuts.empty());
+
     
     // configure algorithm debugging. Configuration for debugging standard stepping
     // is done in Utils/AnalyzeHits when the input hit collection is passed to SetInputHits
@@ -305,7 +317,9 @@ namespace tca {
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
     slc.ID = sliceID;
-    if(tcc.recoSlice) std::cout<<"Reconstruct Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
+    // flag high-multiplicity hits
+//    AnalyzeHits(slc);    
+    if(tcc.recoSlice) std::cout<<"Reconstruct "<<hitsInSlice.size()<<" hits in Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
       ReconstructAllTraj(slc, inCTP);
@@ -4515,12 +4529,6 @@ namespace tca {
     unsigned short imTall = theHit;
     unsigned short nNarrow = 0;
     if(theHitIsNarrow) nNarrow = 1;
-/*
-    bool mprt = (theHit == 425);
-    if(mprt) {
-      mf::LogVerbatim("TC")<<"GetHitMultiplet theHit "<<theHit<<" "<<PrintHit(slc.slHits[theHit])<<" RMS "<<slc.slHits[theHit].RMS<<" aveRMS "<<evt.aveHitRMS[ipl]<<" Amp "<<(int)slc.slHits[theHit].PeakAmplitude;
-    }
-*/
     // look for hits < theTime but within hitSep
     if(theHit > 0) {
       for(unsigned int iht = theHit - 1; iht != 0; --iht) {
@@ -4535,7 +4543,6 @@ namespace tca {
         }
         float dTick = std::abs(hit.PeakTime() - theTime);
         if(dTick > hitSep) break;
-//        if(mprt) mf::LogVerbatim("TC")<<" iht- "<<iht<<" "<<slc.slHits[iht].WireID.Plane<<":"<<PrintHit(slc.slHits[iht])<<" RMS "<<slc.slHits[iht].RMS<<" dTick "<<dTick<<" hitSep "<<hitSep<<" Amp "<<(int)slc.slHits[iht].PeakAmplitude;
          hitsInMultiplet.push_back(iht);
         if(rms < narrowHitCut) ++nNarrow;
         float peakAmp = hit.PeakAmplitude();
@@ -4567,7 +4574,6 @@ namespace tca {
       }
       float dTick = std::abs(hit.PeakTime() - theTime);
       if(dTick > hitSep) break;
-//      if(mprt) mf::LogVerbatim("TC")<<" iht+ "<<iht<<" "<<PrintHit(slc.slHits[iht])<<" dTick "<<dTick<<" RMS "<<slc.slHits[iht].RMS<<" "<<hitSep<<" Amp "<<(int)slc.slHits[iht].PeakAmplitude;
       hitsInMultiplet.push_back(iht);
       if(rms < narrowHitCut) ++nNarrow;
       float peakAmp = hit.PeakAmplitude();
@@ -4577,13 +4583,6 @@ namespace tca {
       }
       theTime = hit.PeakTime();
     } // iht
-/*
-    if(mprt) {
-      mf::LogVerbatim myprt("TC");
-      myprt<<" return ";
-      for(auto iht : hitsInMultiplet) myprt<<" "<<PrintHit(slc.slHits[iht]);
-    }
-*/
     if(hitsInMultiplet.size() == 1) return;
     
     if(hitsInMultiplet.size() > 16) {
@@ -4597,7 +4596,6 @@ namespace tca {
     if(nNarrow == 0) return;
     
     if(theHitIsNarrow && theHit == imTall) {
-//      if(mprt) mf::LogVerbatim("TC")<<" theHit is narrow and tall. Use only it";
       // theHit is narrow and it is the highest amplitude hit in the multiplet. Ignore any
       // others that are short and fat
       auto tmp = hitsInMultiplet;
@@ -4607,7 +4605,6 @@ namespace tca {
     } else {
       // theHit is not narrow and it is not the tallest. Ignore a single hit if it is
       // the tallest and narrow
-//      if(mprt) mf::LogVerbatim("TC")<<" theHit  is not narrow or tall";
       auto& hit = (*evt.allHits)[slc.slHits[imTall].allHitsIndex];
       if(hit.RMS() < narrowHitCut) {
         unsigned short killMe = 0;
@@ -5217,7 +5214,7 @@ namespace tca {
       } // pfp
     } // slc
 
-    if(tcc.geom->NTPC() > 1 && slices.size() > 1) StitchPFPs();
+    StitchPFPs();
     // TODO: Try to make a neutrino PFParticle here
     // Ensure that all PFParticles have a start vertex
     for(auto& slc : slices) PFPVertexCheck(slc);

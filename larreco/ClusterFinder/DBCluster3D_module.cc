@@ -111,6 +111,23 @@ void cluster::DBCluster3D::produce(art::Event & evt)
   art::fill_ptr_vector(sps, spsHandle);
 
   art::FindManyP< recob::SpacePoint > spFromHit(hitsHandle, evt, fSPHitAssnLabel);
+  if(!spFromHit.isValid()) {
+    std::cout<<"spFromHit is invalid\n";
+    return;
+  }
+  // Find the first Hit - SpacePoint assn and check consistency on the first event
+  static bool first = true;
+  if(first) {
+    bool success = false;
+    for(auto &hit : hits) {
+      auto &sps = spFromHit.at(hit.key());
+      if(sps.empty()) continue;
+      success = (sps[0].id() == spsHandle.id());
+      break;
+    } // hit
+    if(!success) throw cet::exception("DBCluster3D")<<"HitModuleLabel, SpacePointModuleLabel and SPHitAssnLabel are inconsistent\n";
+    first = false;
+  } // first
 
   fDBScan.init(sps);
   fDBScan.dbscan();
@@ -135,8 +152,8 @@ void cluster::DBCluster3D::produce(art::Event & evt)
         slcHits[fDBScan.points[sps[0].key()].cluster_id].push_back(hit);
         hitmap[geo::PlaneID(hit->WireID())].push_back(std::make_pair(hit, fDBScan.points[sps[0].key()].cluster_id));
       }
-    }
-  }
+    } // sps.size()
+  } // hit
 
   //Save hits not associated with any spacepoints
   for (auto &hit : hits){

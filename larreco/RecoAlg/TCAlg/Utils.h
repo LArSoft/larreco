@@ -48,7 +48,7 @@ namespace tca {
   unsigned short NumDeltaRays(TCSlice& slc, std::vector<int>& tjIDs);
   int NeutrinoPrimaryTjID(TCSlice& slc, const Trajectory& tj);
   int PrimaryID(TCSlice& slc, const Trajectory& tj);
-  int PrimaryID(TCSlice& slc, const PFPStruct& pfp);
+  int PrimaryUID(TCSlice& slc, const PFPStruct& pfp);
   bool MergeTjIntoPFP(TCSlice& slc, int mtjid, PFPStruct& pfp, bool prt);
   bool CompatibleMerge(TCSlice& slc, std::vector<int>& tjIDs, bool prt);
   bool CompatibleMerge(TCSlice& slc, const Trajectory& tj1, const Trajectory& tj2, bool prt);
@@ -180,6 +180,7 @@ namespace tca {
   Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
   void SetPDGCode(TCSlice& slc, Trajectory& tj);
   void SetPDGCode(TCSlice& slc, unsigned short itj);
+//  void AnalyzeHits(TCSlice& slc);
   bool AnalyzeHits();
   bool FillWireHitRange(TCSlice& slc);
 //  bool CheckWireHitRange(TCSlice& slc);
@@ -194,11 +195,11 @@ namespace tca {
   bool DecodeDebugString(std::string ctpwt);
   // ****************************** Printing  ******************************
   void PrintAll(std::string someText);
-  void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp);
+  void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
   void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2);
   void Print3S(std::string someText, mf::LogVerbatim& myprt, ShowerStruct3D& ss3);
-  void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj);
+  void PrintT(std::string someText, mf::LogVerbatim& myprt, Trajectory& tj, bool& printHeader);
   void PrintTrajectory(std::string someText, TCSlice& slc, const Trajectory& tj ,unsigned short tPoint);
   void PrintAllTraj(std::string someText, TCSlice& slc, unsigned short itj, unsigned short ipt, bool printVtx = true);
   void PrintHeader(std::string someText);

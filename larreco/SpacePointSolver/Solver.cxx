@@ -48,6 +48,11 @@ CollectionWireHit::CollectionWireHit(int chan, double q,
                                      const std::vector<SpaceCharge*>& cross)
   : fChannel(chan), fCharge(q), fCrossings(cross)
 {
+  if(q < 0){
+    std::cout << "Trying to construct collection wire with negative charge " << q << " this should never happen." << std::endl;
+    abort();
+  }
+
   const double p = q/cross.size();
 
   for(SpaceCharge* sc: cross) sc->AddCharge(p);
@@ -236,10 +241,12 @@ double SolvePair(CollectionWireHit* cwire,
   const double chisq_n = chisq.Eval(xmin);
 
   if(std::min(std::min(chisq_p, chisq_n), chisq_new) > chisq0+1){
+    std::cout << "Solution at " << x << " is worse than current state! Scan from " << xmin << " to " << xmax << std::endl;
     for(double x = xmin; x < xmax; x += .01*(xmax-xmin)){
       std::cout << x << " " << chisq.Eval(x) << std::endl;
     }
 
+    std::cout << "Soln, original, up edge, low edge:" << std::endl;
     std::cout << chisq_new << " " << chisq0 << " " << chisq_p << " " << chisq_n << std::endl;
     abort();
   }

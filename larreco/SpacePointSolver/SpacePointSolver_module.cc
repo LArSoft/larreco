@@ -465,7 +465,7 @@ void SpacePointSolver::produce(art::Event& evt)
   bool is2view = false;
   std::vector<art::Ptr<recob::Hit>> xhits, uhits, vhits;
   for(auto& hit: hitlist){
-    if(isnan(hit->Integral()) || isinf(hit->Integral())){
+    if(hit->Integral() < 0 || isnan(hit->Integral()) || isinf(hit->Integral())){
       std::cout << "WARNING: bad recob::Hit::Integral() = "
                 << hit->Integral()
                 << ". Skipping." << std::endl;
