@@ -39,9 +39,7 @@ namespace shower {
     for (size_t i = 0; i < pfplist.size(); ++i) {
       pfpStuff thispfp;
       thispfp.hits.clear();
-
       thispfp.pfp = pfplist[i];
-
       //      std::cout << "vertices " << ( vtxpfp_fm.at(pfplist[i].key()) ).size() << std::endl;      
       //      std::cout << "clusters " << ( clspfp_fm.at(pfplist[i].key()) ).size() << std::endl;
       
@@ -58,7 +56,6 @@ namespace shower {
       } // loop through clusters
 
       //      std::cout << "hits " <<  thispfp.hits.size() << std::endl;
-
       allpfps.push_back(thispfp);
 
     } // loop through pfparticles
@@ -66,26 +63,29 @@ namespace shower {
     std::sort(allpfps.begin(), allpfps.end(), compare);
     std::reverse(allpfps.begin(), allpfps.end());
 
+    // refill pfplist
+    pfplist.clear();
     for (size_t i = 0; i < allpfps.size(); ++i) {
       std::cout << allpfps[i].pfp->Self() << " " << allpfps[i].vtx[0]->position().Z() << " " <<  allpfps[i].hits.size() << std::endl;
+
+      pfplist.push_back(allpfps[i].pfp);
     } // loop through pfparticles
 
-    /*
+
     bool showerCandidate = false;
 
-    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    art::ServiceHandle<geo::Geometry> geom;
-    */
-    /*
-    for (size_t i = 0; i < tracklist.size(); ++i) {
+    //    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    //    art::ServiceHandle<geo::Geometry> geom;
+
+    for (size_t i = 0; i < pfplist.size(); ++i) {
 
       showerHits.clear();
 
-      int tolerance = 100; // how many shower like cluster you need to define a shower              
-      double pullTolerance = 0.6; // hits should be evenly distributed around the track
-      double maxDist = 10; // how far a shower like cluster can be from the track
-      double minDistVert = 15; // exclude tracks near the vertex
-
+      //      int tolerance = 100; // how many shower like cluster you need to define a shower              
+      //      double pullTolerance = 0.6; // hits should be evenly distributed around the track
+      //      double maxDist = 10; // how far a shower like cluster can be from the track
+      //      double minDistVert = 15; // exclude tracks near the vertex
+      /*
       if (tracklist[i]->Length() < 20) continue; // ignore very short tracks
       if (tracklist[i]->Length() > 100) continue; // ignore very long tracks (usually cosmics)
       // adjust tolerances for short tracks
@@ -322,10 +322,10 @@ namespace shower {
 	bestplane = int(bestplanetemp);
 	break;
       }
-
+      */
     } // loop through tracklist
-    */
-    //    if (showerCandidate) return 1;
+
+    if (showerCandidate) return 1;
 
     return 0;
   } // makeShowers
