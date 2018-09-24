@@ -1,12 +1,24 @@
 #include "TCShowerAlg.h"
 
-bool compare(const art::Ptr<recob::Track>& l, const art::Ptr<recob::Track>& r) {
-  double lz = l->Length();
-  double rz = r->Length();
-  
-  if (lz > 20 && rz <= 20) return false;
-  else if (lz <= 20 && rz > 20) return true;
-  return l->Vertex().Z() > r->Vertex().Z();
+struct pfpStuff {
+  art::Ptr<recob::PFParticle> pfp;
+  std::vector<art::Ptr<recob::Vertex> > vtx;
+  std::vector<art::Ptr<recob::Hit> > hits;
+};
+
+bool compare(const pfpStuff& l, const pfpStuff& r) {
+
+  art::Ptr<recob::Vertex> lvtx = l.vtx[0];
+  art::Ptr<recob::Vertex> rvtx = r.vtx[0];
+
+  double lz = l.hits.size();
+  double rz = r.hits.size();
+   
+  int hitthres = 100;
+
+  if (lz > hitthres && rz <= hitthres) return false;
+  else if (lz <= hitthres && rz > hitthres) return true;
+  return lvtx->position().Z() > rvtx->position().Z();
 }
 
 namespace shower {
@@ -15,21 +27,56 @@ namespace shower {
     fCalorimetryAlg   (pset.get<fhicl::ParameterSet>("CalorimetryAlg") ){
   }
 
-  int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::Track> > tracklist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Hit> trk_fm, art::FindManyP<recob::Track> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<anab::Calorimetry> fmcal, art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm) {
+  int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::PFParticle> > pfplist, std::vector<art::Ptr<recob::Vertex> > vertexlist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Cluster> clspfp_fm, art::FindManyP<recob::Vertex> vtxpfp_fm, art::FindManyP<recob::PFParticle> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<anab::Calorimetry> fmcal) {
 
     totalEnergy.resize(2);
     totalEnergyErr.resize(2);
     dEdx.resize(2);
     dEdxErr.resize(2);   
- 
-    std::sort(tracklist.begin(), tracklist.end(), compare);
-    std::reverse(tracklist.begin(), tracklist.end());
 
+    std::vector<pfpStuff> allpfps;
+
+    for (size_t i = 0; i < pfplist.size(); ++i) {
+      pfpStuff thispfp;
+      thispfp.hits.clear();
+
+      thispfp.pfp = pfplist[i];
+
+      //      std::cout << "vertices " << ( vtxpfp_fm.at(pfplist[i].key()) ).size() << std::endl;      
+      //      std::cout << "clusters " << ( clspfp_fm.at(pfplist[i].key()) ).size() << std::endl;
+      
+      thispfp.vtx = vtxpfp_fm.at(pfplist[i].key());
+      std::vector<art::Ptr<recob::Cluster> > thisclusterlist = clspfp_fm.at(pfplist[i].key());
+
+      for (size_t j = 0; j < thisclusterlist.size(); ++j) {
+	std::vector<art::Ptr<recob::Hit> > thishitlist = cls_fm.at(thisclusterlist[j].key());
+	
+	for (size_t k = 0; k < thishitlist.size(); ++k) {
+	  thispfp.hits.push_back(thishitlist[k]);
+	} // loop through hits
+
+      } // loop through clusters
+
+      //      std::cout << "hits " <<  thispfp.hits.size() << std::endl;
+
+      allpfps.push_back(thispfp);
+
+    } // loop through pfparticles
+
+    std::sort(allpfps.begin(), allpfps.end(), compare);
+    std::reverse(allpfps.begin(), allpfps.end());
+
+    for (size_t i = 0; i < allpfps.size(); ++i) {
+      std::cout << allpfps[i].pfp->Self() << " " << allpfps[i].vtx[0]->position().Z() << " " <<  allpfps[i].hits.size() << std::endl;
+    } // loop through pfparticles
+
+    /*
     bool showerCandidate = false;
 
     auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     art::ServiceHandle<geo::Geometry> geom;
-
+    */
+    /*
     for (size_t i = 0; i < tracklist.size(); ++i) {
 
       showerHits.clear();
@@ -212,14 +259,15 @@ namespace shower {
       } // decide if shower
 
       // get dE/dx
-      auto vhit = fmthm.at(tracklist[i].key());
-      auto vmeta = fmthm.data(tracklist[i].key());
+
+      //      auto vhit = fmthm.at(tracklist[i].key());
+      //      auto vmeta = fmthm.data(tracklist[i].key());
 
       TVector3 dir = trkPt2-trkStart;
       dir = dir.Unit();
 
       unsigned int bestplanetemp = 0;
-      double minpitch = 999;
+      //      double minpitch = 999;
 
       for (unsigned int plane = 0; plane < geom->MaxPlanes(); ++plane) {
 	std::vector<float> vQ;
@@ -276,8 +324,8 @@ namespace shower {
       }
 
     } // loop through tracklist
-
-    if (showerCandidate) return 1;
+    */
+    //    if (showerCandidate) return 1;
 
     return 0;
   } // makeShowers
