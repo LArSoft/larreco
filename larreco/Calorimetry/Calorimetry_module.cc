@@ -329,6 +329,8 @@ void calo::Calorimetry::produce(art::Event& evt)
           auto vmeta = fmthm.data(trkIter);
           for (size_t ii = 0; ii<vhit.size(); ++ii){
             if (vhit[ii].key() == allHits[hits[ipl][ihit]].key()){
+              if (vmeta[ii]->Index() == std::numeric_limits<int>::max())
+                continue;
               if (vmeta[ii]->Index()>=tracklist[trkIter]->NumberTrajectoryPoints()){
                 throw cet::exception("Calorimetry_module.cc") << "Requested track trajectory index "<<vmeta[ii]->Index()<<" exceeds the total number of trajectory points "<<tracklist[trkIter]->NumberTrajectoryPoints()<<" for track index "<<trkIter<<". Something is wrong with the track reconstruction. Please contact tjyang@fnal.gov";
               }
