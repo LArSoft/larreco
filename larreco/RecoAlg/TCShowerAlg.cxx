@@ -49,6 +49,8 @@ namespace shower {
       for (size_t j = 0; j < thisclusterlist.size(); ++j) {
 	std::vector<art::Ptr<recob::Hit> > thishitlist = cls_fm.at(thisclusterlist[j].key());
 	
+	std::cout << pfplist[i]->Self() << " cluster angles " << thisclusterlist[j]->StartAngle() << " " << thisclusterlist[j]->EndAngle() << std::endl;
+
 	for (size_t k = 0; k < thishitlist.size(); ++k) {
 	  thispfp.hits.push_back(thishitlist[k]);
 	} // loop through hits
@@ -63,58 +65,59 @@ namespace shower {
     std::sort(allpfps.begin(), allpfps.end(), compare);
     std::reverse(allpfps.begin(), allpfps.end());
 
-    // refill pfplist
-    pfplist.clear();
+    //    pfplist.clear();
     for (size_t i = 0; i < allpfps.size(); ++i) {
       std::cout << allpfps[i].pfp->Self() << " " << allpfps[i].vtx[0]->position().Z() << " " <<  allpfps[i].hits.size() << std::endl;
 
-      pfplist.push_back(allpfps[i].pfp);
+      //      pfplist.push_back(allpfps[i].pfp);
     } // loop through pfparticles
-
 
     bool showerCandidate = false;
 
     //    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     //    art::ServiceHandle<geo::Geometry> geom;
 
-    for (size_t i = 0; i < pfplist.size(); ++i) {
+    for (size_t i = 0; i < allpfps.size(); ++i) {
 
       showerHits.clear();
 
-      //      int tolerance = 100; // how many shower like cluster you need to define a shower              
-      //      double pullTolerance = 0.6; // hits should be evenly distributed around the track
-      //      double maxDist = 10; // how far a shower like cluster can be from the track
-      //      double minDistVert = 15; // exclude tracks near the vertex
-      /*
-      if (tracklist[i]->Length() < 20) continue; // ignore very short tracks
-      if (tracklist[i]->Length() > 100) continue; // ignore very long tracks (usually cosmics)
+      std::vector<art::Ptr<recob::Vertex> > pfpvtx = allpfps[i].vtx;
+      std::vector<art::Ptr<recob::Hit> > pfphits = allpfps[i].hits;
+
+      int tolerance = 100; // how many shower like cluster you need to define a shower              
+      double pullTolerance = 0.6; // hits should be evenly distributed around the track
+      double maxDist = 10; // how far a shower like cluster can be from the track
+      double minDistVert = 15; // exclude tracks near the vertex
+
+      if (pfphits.size() < 30) continue;
+      if (pfphits.size() > 500) continue;  
       // adjust tolerances for short tracks
-      if (tracklist[i]->Length() < 50) {
+      if (pfphits.size() < 90) {
 	tolerance = 50;
 	pullTolerance = 0.9;
       }
 
-      std::vector< art::Ptr<recob::Hit> > trk_hitlist = trk_fm.at(tracklist[i].key());
-
-      // add track hits to shower
-      for (size_t ii = 0; ii < trk_hitlist.size(); ++ii) {
-	if ( addShowerHit(trk_hitlist[ii], showerHits) ) showerHits.push_back(trk_hitlist[ii]);
-      } // loop over track hits
+      // add pfp hits to shower
+      for (size_t ii = 0; ii < pfphits.size(); ++ii) {
+	if ( addShowerHit(pfphits[ii], showerHits) ) showerHits.push_back(pfphits[ii]);
+      } // loop over pfphits
 
       int nShowerHits = 0;
       double showerHitPull = 0;
 
-      TVector3 trkStart = tracklist[i]->Vertex();
-      TVector3 trkPt2; // a second point along the track                                                                      
+      TVector3 pfpStart;
+      TVector3 pfpPt2; // a second point along the track
+
+      pfpStart[0] = pfpvtx[0]->position().X();
+      pfpStart[1] = pfpvtx[0]->position().Y();
+      pfpStart[2] = pfpvtx[0]->position().Z();
+
+      std::cout << tolerance << " " << pullTolerance << " " << maxDist << " " << minDistVert << " " << nShowerHits << " " << showerHitPull << std::endl;
+      /*   
       recob::Track::Point_t trkPt2temp  = tracklist[i]->TrajectoryPoint(15).position;
       trkPt2[0] = trkPt2temp.X();
       trkPt2[1] = trkPt2temp.Y();
       trkPt2[2] = trkPt2temp.Z();
-
-      recob::Track::Point_t trkStarttemp  = tracklist[i]->TrajectoryPoint(5).position;
-      trkStart[0] = trkStarttemp.X();
-      trkStart[1] = trkStarttemp.Y();
-      trkStart[2] = trkStarttemp.Z();
 
       // track vertex
       std::map<geo::PlaneID, double> trk_tick1;
