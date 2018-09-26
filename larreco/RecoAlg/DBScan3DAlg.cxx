@@ -1,5 +1,9 @@
 #include "larreco/RecoAlg/DBScan3DAlg.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/Hit.h"
+#include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
+#include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
+#include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 #include <limits.h>
 #include <math.h>
@@ -9,6 +13,8 @@
 cluster::DBScan3DAlg::DBScan3DAlg(fhicl::ParameterSet const& pset)
   : epsilon(pset.get< float >("epsilon"))
   , minpts(pset.get<unsigned int>("minpts"))
+  , badchannelweight(pset.get<double>("badchannelweight"))
+  , neighbors(pset.get<unsigned int>("neighbors"))
 {
   // square epsilon to eliminate the use of sqrt later on
   epsilon *= epsilon;
@@ -20,13 +26,38 @@ cluster::DBScan3DAlg::~DBScan3DAlg()
 }
 
 //----------------------------------------------------------
-void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& sps)
+void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& sps, art::FindManyP<recob::Hit>& hitFromSp)
 {
+
+  if (badchannelmap.empty()){
+    lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+    geo::GeometryCore const* geom = &*(art::ServiceHandle<geo::Geometry>());
+    // build a map to count bad channels around each wire ID
+    for (auto &pid : geom->IteratePlaneIDs()){
+      for (auto& wid1: geom->IterateWireIDs(pid)) {
+        unsigned int nbadchs = 0;
+        for (auto& wid2: geom->IterateWireIDs(pid)) {
+          if (wid1==wid2) continue;
+          if (util::absDiff(wid1.Wire,wid2.Wire)<neighbors &&
+              !channelStatus.IsGood(geom->PlaneWireToChannel(wid2))) ++nbadchs;
+        }
+        badchannelmap[wid1] = nbadchs;
+      }
+    }     
+    std::cout<<"Done building bad channel map."<<std::endl;
+  }
+
   points.clear();
   for (auto& spt : sps){
     point_t point;
     point.sp = spt;
     point.cluster_id = UNCLASSIFIED;
+    // count bad channels
+    point.nbadchannels = 0;
+    auto &hits = hitFromSp.at(spt.key());
+    for (auto & hit : hits){
+      point.nbadchannels += badchannelmap[hit->WireID()];
+    }
     points.push_back(point);
   }
 }
@@ -178,5 +209,8 @@ float cluster::DBScan3DAlg::dist(point_t *a, point_t *b)
   float dx = a->sp->XYZ()[0] - b->sp->XYZ()[0];
   float dy = a->sp->XYZ()[1] - b->sp->XYZ()[1];
   float dz = a->sp->XYZ()[2] - b->sp->XYZ()[2];
-  return dx*dx + dy*dy + dz*dz;
+  float dist = dx*dx + dy*dy + dz*dz - (a->nbadchannels + b->nbadchannels)*(a->nbadchannels + b->nbadchannels)*badchannelweight*badchannelweight;
+  //std::cout<<dx*dx + dy*dy + dz*dz<<" "<<(a->nbadchannels + b->nbadchannels)*(a->nbadchannels + b->nbadchannels)*badchannelweight*badchannelweight<<std::endl;
+  if ( dist < 0 ) dist = 0;
+  return dist;
 }

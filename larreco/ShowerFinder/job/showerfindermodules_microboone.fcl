@@ -10,4 +10,11 @@ microboone_shower.UseArea:   false
 
 microboone_neutrinoshowereff: @local::standard_neutrinoshowereff
 
+microboone_tcshower: @local::standard_tcshower
+microboone_tcshower.ClusterModuleLabel:     "trajcluster2"
+microboone_tcshower.TrackModuleLabel:       "pmtrack2"
+microboone_tcshower.HitModuleLabel:         "trajcluster2"
+microboone_tcshower.SliceModuleLabel:       "dbcluster3d"
+microboone_tcshower.CalorimetryModuleLabel: "pmtrackcalo2"
+microboone_tcshower.TCAlg.CalorimetryAlg:   @local::microboone_calorimetryalgmc
 END_PROLOG

@@ -180,7 +180,7 @@ void pma::PMAlgFitter::buildTracks(void)
 			int pfPartIdx = pfpCluEntry.first;
 			int pdg = fPfpPdgCodes[pfPartIdx];
 
-			if (pdg == 11) continue;
+			//if (pdg == 11) continue;
 			if (skipPdg && has(fTrackingSkipPdg, pdg)) continue;
 			if (selectPdg && !has(fTrackingOnlyPdg, pdg)) continue;
 
