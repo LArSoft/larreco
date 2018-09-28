@@ -67,7 +67,15 @@ namespace tca {
     std::vector<std::string> specialAlgsVec;
     if(pset.has_key("SpecialAlgs")) specialAlgsVec = pset.get<std::vector<std::string>>("SpecialAlgs");
     
-    tcc.hitErrFac           = pset.get< float >("HitErrFac", 0.4);
+    tcc.hitErrFac = pset.get< float >("HitErrFac", 0.4);
+    // Allow the user to specify the typical hit rms for small-angle tracks
+    std::vector<float> aveHitRMS;
+    if(pset.has_key("AveHitRMS")) aveHitRMS = pset.get<std::vector<float>>("AveHitRMS");
+    // Turn off the call to AnalyzeHits
+    if(!aveHitRMS.empty()) {
+      evt.aveHitRMSValid = true;
+      evt.aveHitRMS = aveHitRMS;
+    }
     tcc.angleRanges         = pset.get< std::vector<float>>("AngleRanges");
     tcc.nPtsAve             = pset.get< short >("NPtsAve", 20);
     tcc.minPtsFit            = pset.get< std::vector<unsigned short >>("MinPtsFit");
@@ -269,8 +277,9 @@ namespace tca {
       if(debug.Slice < 0) {
         std::cout<<"Debugging in all slices\n";
       } else {
-        std::cout<<"Debugging in sub-slice "<<debug.Slice<<"\n";
+        std::cout<<"Debug sub-slice index "<<debug.Slice<<"\n";
       }
+      if(debug.WorkID < 0) std::cout<<"Debug WorkID "<<debug.WorkID<<"\n";
     } // debug mode
     
     evt.eventsProcessed = 0;
@@ -317,6 +326,7 @@ namespace tca {
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
     slc.ID = sliceID;
+    if(evt.aveHitRMS.size() != slc.nPlanes) throw art::Exception(art::errors::Configuration)<<" AveHitRMS vector size != the number of planes ";
     // flag high-multiplicity hits
 //    AnalyzeHits(slc);    
     if(tcc.recoSlice) std::cout<<"Reconstruct "<<hitsInSlice.size()<<" hits in Slice "<<sliceID<<" in TPC "<<slc.TPCID.TPC<<"\n";
@@ -1467,6 +1477,7 @@ namespace tca {
       for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
         unsigned int iht = tp.Hits[ii];
         if(slc.slHits[iht].InTraj > 0) continue;
+        if(std::find(hitsInMultiplet.begin(), hitsInMultiplet.end(), iht) == hitsInMultiplet.end()) continue;
         tp.UseHit[ii] = true;
         slc.slHits[iht].InTraj = tj.ID;
       } // ii
@@ -2947,6 +2958,7 @@ namespace tca {
     float npts = tj.EndPt[1] - tj.EndPt[0] + 1;
     float frac = npwc / npts;
     fGoodTraj = (frac >= tcc.qualityCuts[0]);
+    if(fGoodTraj && tj.Pass < tcc.minMCSMom.size()) fGoodTraj = (tj.MCSMom >= tcc.minMCSMom[tj.Pass]);
     if(tcc.dbgStp) mf::LogVerbatim("TC")<<"CTStepChk: fraction of points with charge "<<frac<<" good traj? "<<fGoodTraj;
     if(!fGoodTraj || !slc.isValid) return;
     
@@ -3124,13 +3136,13 @@ namespace tca {
     
     
     unsigned short firstPt = tj.EndPt[0];
-    if(tcc.dbgStp) {
-      mf::LogVerbatim("TC")<<"FixTrajBegin: atPt "<<atPt<<" firstPt "<<firstPt<<" Stops at end 0? "<<PrintStopFlag(tj, 0);
-    }
     
     if(atPt == tj.EndPt[0]) return;
     
     float maxDelta = 4 * tj.Pts[tj.EndPt[1]].DeltaRMS;
+    if(tcc.dbgStp) {
+      mf::LogVerbatim("TC")<<"FixTrajBegin: atPt "<<atPt<<" firstPt "<<firstPt<<" Stops at end 0? "<<PrintStopFlag(tj, 0)<<" start vertex "<<tj.VtxID[0]<<" maxDelta "<<maxDelta;
+    }
     
     // update the trajectory for all the points up to atPt
     // assume that we will use all of these points
@@ -3154,6 +3166,9 @@ namespace tca {
       tj.Pts[ipt].AveChg = tj.Pts[atPt].AveChg;
       tj.Pts[ipt].ChgPull = (tj.Pts[ipt].Chg / tj.AveChg - 1) / tj.ChgRMS;
       if(tj.Pts[ipt].Delta > maxDelta) maskPts = true;
+      if(tcc.dbgStp && maskPts) {
+        mf::LogVerbatim("TC")<<" mask off "<<PrintPos(slc, tj.Pts[ipt].Pos)<<" "<<tj.Pts[ipt].Delta;
+      } // debug print
       if(maskPts) UnsetUsedHits(slc, tp);
       if(tcc.dbgStp) {
         if(newHits) {
@@ -4213,6 +4228,12 @@ namespace tca {
     SetAngleCode(tp);
     tp.AngErr = 0.1;
     tj.Pts.push_back(tp);
+    // turn on debugging using the WorkID?
+    if(tcc.modes[kDebug] && !tcc.dbgStp && tcc.dbgSlc && tj.ID == debug.WorkID) tcc.dbgStp = true;
+    if(tcc.dbgStp) {
+      auto& tp = tj.Pts[0];
+      mf::LogVerbatim("TC")<<"StartTraj T"<<tj.ID<<" from "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(slc, tp);      
+    } // tcc.dbgStp
     return true;
     
   } // StartTraj
