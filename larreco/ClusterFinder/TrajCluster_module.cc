@@ -232,7 +232,7 @@ namespace cluster {
       // This is a pointer to a vector of recob::Hits that exist in the event. The hits
       // are not copied.
       if(!fTCAlg->SetInputHits(*inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
-      if(tca::tcc.dbgStp) std::cout<<"DebugMode: Looking for hit near "<<tca::debug.Cryostat<<":"<<tca::debug.TPC<<":"<<tca::debug.Wire<<":"<<tca::debug.Plane<<":"<<tca::debug.Tick<<"\n";
+      if(tca::tcc.dbgStp) std::cout<<"DebugMode: Looking for hit near "<<tca::debug.Cryostat<<":"<<tca::debug.TPC<<":"<<tca::debug.Plane<<":"<<tca::debug.Wire<<":"<<tca::debug.Tick<<"\n";
       if(fSliceModuleLabel != "NA") {
         // Expecting to find sliced hits from Slice -> Hits assns
         auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
@@ -264,18 +264,6 @@ namespace cluster {
             if(hit.key() > nInputHits - 1) throw cet::exception("TrajClusterModule")<<"Found an invalid slice index "<<hit.key()<<" to the input hit collection of size "<<nInputHits<<"\n";
             slhits[indx] = hit.key();
             ++indx;
-            if(tca::tcc.dbgStp && 
-               (int)hit->WireID().TPC == tca::debug.TPC && 
-               (int)hit->WireID().Plane == tca::debug.Plane &&
-               (int)hit->WireID().Wire == tca::debug.Wire &&
-               hit->PeakTime() > tca::debug.Tick - 10  && hit->PeakTime() < tca::debug.Tick + 10) {
-              std::cout<<" Debug hit is in slice "<<slices[isl]->ID();
-              std::cout<<std::setprecision(3);
-              std::cout<<" Direction "<<slices[isl]->Direction().X()<<" "<<slices[isl]->Direction().Y()<<" "<<slices[isl]->Direction().Z();
-              std::cout<<" AspectRatio "<<std::setprecision(2)<<slices[isl]->AspectRatio();
-              std::cout<<"\n";
-              tca::debug.Hit = hit.key();
-            } // Look for debug hit
           } // hit
           if(slhits.size() < 3) continue;
           slHitsVec.push_back(slhits);
@@ -354,6 +342,22 @@ namespace cluster {
         for(unsigned short ii = 0; ii < slhits.size(); ++ii) slhits[ii] = tmp[sortVec[ii].index];
         // clear the temp vector
         tmp.resize(0);
+        // try to find a hit in debug step mode
+        if(tca::tcc.modes[tca::kDebug]) {
+          for(unsigned short indx = 0; indx < slhits.size(); ++indx) {
+            auto& hit = (*inputHits)[slhits[indx]];
+            if((int)hit.WireID().TPC == tca::debug.TPC && 
+               (int)hit.WireID().Plane == tca::debug.Plane &&
+               (int)hit.WireID().Wire == tca::debug.Wire &&
+               hit.PeakTime() > tca::debug.Tick - 10  && hit.PeakTime() < tca::debug.Tick + 10) {
+              std::cout<<"Debug hit "<<slhits[indx]<<" found in sub-slice index "<<isl;
+              std::cout<<"\n";
+              tca::debug.Hit = slhits[indx];
+              tca::tcc.dbgStp = true;
+              break;
+            } // Look for debug hit
+          } // iht
+        } // Debug mode
         // reconstruct using the hits in this sub-slice. The data products are stored internally in
         // TrajCluster data structs.
         fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
@@ -577,6 +581,7 @@ namespace cluster {
             std::cout<<"Bad slice. Need some error recovery code here\n";
             break;
           }
+          if(hitCol.empty()) continue;
           geo::View_t view = hitCol[hitColBeginIndex].View();
           auto& firstTP = tj.Pts[tj.EndPt[0]];
           auto& lastTP = tj.Pts[tj.EndPt[1]];
