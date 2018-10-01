@@ -372,6 +372,7 @@ namespace tca {
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
+    kM3DVxTj,
     kMat3DMerge,
     kSplit3DKink,
     kTjHiVx3Score,
