@@ -3760,14 +3760,14 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       // require multiplicity one
       if(hit.Multiplicity() != 1) continue;
       // not-crazy Chisq/DOF
-      if(hit.GoodnessOfFit() < 0 || hit.GoodnessOfFit() > 100) continue;
+      if(hit.GoodnessOfFit() < 0 || hit.GoodnessOfFit() > 500) continue;
       // don't let a lot of runt hits screw up the calculation
       if(hit.PeakAmplitude() < 1) continue;
       evt.aveHitRMS[plane] += hit.RMS();
       ++cnt[plane];
       // quit if enough hits are found
       bool allDone = true;
-      for(unsigned short plane = 0; plane < nplanes; ++plane) if(cnt[plane] > 200) allDone = false;
+      for(unsigned short plane = 0; plane < nplanes; ++plane) if(cnt[plane] < 200) allDone = false;
       if(allDone) break;
     } // iht
     
@@ -3781,6 +3781,13 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         evt.aveHitRMSValid = false;
       } // cnt too low
     } // plane
+    
+    if(tcc.modes[kDebug]) {
+      std::cout<<"Analyze hits aveHitRMS";
+      std::cout<<std::fixed<<std::setprecision(1);
+      for(auto rms : evt.aveHitRMS) std::cout<<" "<<rms;
+      std::cout<<" aveHitRMSValid? "<<evt.aveHitRMSValid<<"\n";
+    }
 
     return true;
   } // Analyze hits
@@ -4371,7 +4378,8 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       if(debug.WorkID >= 0) return false;
       debug.Slice = std::stoi(words[2]);
       tcc.modes[kDebug] = true;
-      tcc.dbgStp = true;
+      // dbgStp is set true after debug.WorkID is found
+      tcc.dbgStp = false;
       return true;
     } // words.size() == 3 && words[0] == "WorkID"
     if(words.size() == 3) {
