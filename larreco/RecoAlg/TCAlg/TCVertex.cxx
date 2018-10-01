@@ -1490,9 +1490,9 @@ namespace tca {
   void Match3DVtxTjs(TCSlice& slc, bool prt)
   {
     // Matches Tjs that are attached to 2D vertices that are matched in 3D. This function does not attempt
-    // to determine the appropriate ends of matched Tjs when there is a 3D vertex at both ends. This is done
-    // in Find3DEndPoints
+    // to determine the appropriate ends of matched Tjs when there is a 3D vertex at both ends. 
     
+    if(!tcc.useAlg[kM3DVxTj]) return;
     if(slc.vtx3s.empty()) return;
     if(slc.matchVec.empty()) return;
 
