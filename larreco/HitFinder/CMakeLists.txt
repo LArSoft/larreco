@@ -33,6 +33,7 @@ art_make(
 			${ART_FRAMEWORK_SERVICES_BASIC}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+                        art_Framework_Services_System_TriggerNamesService_service
 			art_Persistency_Common
 			art_Utilities
 			canvas

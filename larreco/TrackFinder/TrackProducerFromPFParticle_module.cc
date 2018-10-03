@@ -106,9 +106,9 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
   auto outputHitSpacePointAssn = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint> >();
   //
   // PtrMakers for Assns
-  art::PtrMaker<recob::Track> trackPtrMaker(e, *this);
+  art::PtrMaker<recob::Track> trackPtrMaker(e);
   art::PtrMaker<recob::SpacePoint>* spacePointPtrMaker = nullptr;
-  if (doSpacePoints_) spacePointPtrMaker = new art::PtrMaker<recob::SpacePoint>(e, *this);
+  if (doSpacePoints_) spacePointPtrMaker = new art::PtrMaker<recob::SpacePoint>(e);
   //
   // Input from event
   art::ValidHandle<std::vector<recob::PFParticle> > inputPfps = e.getValidHandle<std::vector<recob::PFParticle> >(pfpInputTag);

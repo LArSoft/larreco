@@ -414,12 +414,12 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		for (size_t i = 0; i < 3; ++i) sp_pos[i] = 0.0;
 		for (size_t i = 0; i < 6; ++i) sp_err[i] = 1.0;
 
-        auto const make_pfpptr = art::PtrMaker<recob::PFParticle>(evt, *this);
-		auto const make_trkptr = art::PtrMaker<recob::Track>(evt, *this); // PtrMaker Step #1
-		auto const make_vtxptr = art::PtrMaker<recob::Vertex>(evt, *this);
-		auto const make_kinkptr = art::PtrMaker<recob::Vertex>(evt, *this, kKinksName);
-		auto const make_t0ptr = art::PtrMaker<anab::T0>(evt, *this);
-		auto const make_ctptr = art::PtrMaker<anab::CosmicTag>(evt, *this);
+        auto const make_pfpptr = art::PtrMaker<recob::PFParticle>(evt);
+                auto const make_trkptr = art::PtrMaker<recob::Track>(evt); // PtrMaker Step #1
+                auto const make_vtxptr = art::PtrMaker<recob::Vertex>(evt);
+                auto const make_kinkptr = art::PtrMaker<recob::Vertex>(evt, kKinksName);
+                auto const make_t0ptr = art::PtrMaker<anab::T0>(evt);
+                auto const make_ctptr = art::PtrMaker<anab::CosmicTag>(evt);
 
 		tracks->reserve(result.size());
 		for (size_t trkIndex = 0; trkIndex < result.size(); ++trkIndex)
@@ -679,4 +679,3 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 DEFINE_ART_MODULE(PMAlgTrackMaker)
 
 } // namespace trkf
-
