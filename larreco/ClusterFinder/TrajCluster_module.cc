@@ -577,6 +577,7 @@ namespace cluster {
             std::cout<<"Bad slice. Need some error recovery code here\n";
             break;
           }
+          if(hitCol.empty()) continue;
           geo::View_t view = hitCol[hitColBeginIndex].View();
           auto& firstTP = tj.Pts[tj.EndPt[0]];
           auto& lastTP = tj.Pts[tj.EndPt[1]];
