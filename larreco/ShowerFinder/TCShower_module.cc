@@ -119,6 +119,7 @@ void shower::TCShower::produce(art::Event & evt) {
       foundShower = getShowersWithSlices(evt, slicelist[i]);
 
       if (foundShower) {
+	std::cout << "FOUND SHOWER " << foundShower << std::endl;
 	showers->push_back(recob::Shower(fTCAlg.shwDir, fTCAlg.dcosVtxErr, fTCAlg.shwvtx, fTCAlg.xyzErr, fTCAlg.totalEnergy, fTCAlg.totalEnergyErr, fTCAlg.dEdx, fTCAlg.dEdxErr, fTCAlg.bestplane, 0));
 	showers->back().set_id(showers->size()-1);
 
@@ -135,7 +136,10 @@ void shower::TCShower::produce(art::Event & evt) {
       showers->push_back(recob::Shower(fTCAlg.shwDir, fTCAlg.dcosVtxErr, fTCAlg.shwvtx, fTCAlg.xyzErr, fTCAlg.totalEnergy, fTCAlg.totalEnergyErr, fTCAlg.dEdx, fTCAlg.dEdxErr, fTCAlg.bestplane, 0));
       showers->back().set_id(showers->size()-1);
     
+      //      art::Ptr<recob::Slice> temp;
+
       util::CreateAssn(*this, evt, *(showers.get()), fTCAlg.showerHits, *(hitShowerAssociations.get()) );
+      //      util::CreateAssn(*this, evt, *showers, temp, *sliceShowerAssociations );
     }
 
   } // no slices

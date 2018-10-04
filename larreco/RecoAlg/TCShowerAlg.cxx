@@ -49,7 +49,7 @@ namespace shower {
       for (size_t j = 0; j < thisclusterlist.size(); ++j) {
 	std::vector<art::Ptr<recob::Hit> > thishitlist = cls_fm.at(thisclusterlist[j].key());
 	
-	std::cout << pfplist[i]->Self() << " cluster angles " << thisclusterlist[j]->StartAngle() << " " << thisclusterlist[j]->EndAngle() << std::endl;
+	//	std::cout << pfplist[i]->Self() << " cluster angles " << thisclusterlist[j]->StartAngle() << " " << thisclusterlist[j]->EndAngle() << std::endl;
 
 	for (size_t k = 0; k < thishitlist.size(); ++k) {
 	  thispfp.hits.push_back(thishitlist[k]);
@@ -75,7 +75,7 @@ namespace shower {
     bool showerCandidate = false;
 
     //    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    //    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry> geom;
 
     for (size_t i = 0; i < allpfps.size(); ++i) {
 
@@ -83,6 +83,7 @@ namespace shower {
 
       std::vector<art::Ptr<recob::Vertex> > pfpvtx = allpfps[i].vtx;
       std::vector<art::Ptr<recob::Hit> > pfphits = allpfps[i].hits;
+      std::vector<art::Ptr<recob::Cluster> > pfpcls = clspfp_fm.at(allpfps[i].pfp.key());
 
       int tolerance = 100; // how many shower like cluster you need to define a shower              
       double pullTolerance = 0.6; // hits should be evenly distributed around the track
@@ -100,6 +101,7 @@ namespace shower {
       // add pfp hits to shower
       for (size_t ii = 0; ii < pfphits.size(); ++ii) {
 	if ( addShowerHit(pfphits[ii], showerHits) ) showerHits.push_back(pfphits[ii]);
+	//	std::cout << pfphits[ii]->PeakTime() << ":" << pfphits[ii]->WireID().asWireID() << std::endl;
       } // loop over pfphits
 
       int nShowerHits = 0;
@@ -113,11 +115,12 @@ namespace shower {
       pfpStart[2] = pfpvtx[0]->position().Z();
 
       std::cout << tolerance << " " << pullTolerance << " " << maxDist << " " << minDistVert << " " << nShowerHits << " " << showerHitPull << std::endl;
-      /*   
+      /*
       recob::Track::Point_t trkPt2temp  = tracklist[i]->TrajectoryPoint(15).position;
       trkPt2[0] = trkPt2temp.X();
       trkPt2[1] = trkPt2temp.Y();
       trkPt2[2] = trkPt2temp.Z();
+      */
 
       // track vertex
       std::map<geo::PlaneID, double> trk_tick1;
@@ -127,12 +130,48 @@ namespace shower {
       std::map<geo::PlaneID, double> trk_tick2;
       std::map<geo::PlaneID, double> trk_wire2;
 
+
+      bool clusterTooSmall = false;
+
+      for (size_t ii = 0; ii < pfpcls.size(); ++ii) {
+	std::vector<art::Ptr<recob::Hit> > clshitlist = cls_fm.at(pfpcls[ii].key() );
+
+	if (clshitlist.size() < 11) {
+	  clusterTooSmall = true;
+	  break;
+	}
+
+	// sort hit list by wire or by time -- sorting doesn't make much sense right now
+	/*
+	for (size_t jj = 0; jj < clshitlist.size(); ++jj) {
+	  std::cout << "plane " << pfpcls[ii]->Plane().asPlaneID() << " wire:time " << clshitlist[jj]->WireID().asWireID().Wire << ":" << clshitlist[jj]->PeakTime() << std::endl;  
+	  
+	}
+	*/
+	auto iPlane = pfpcls[ii]->Plane();
+	//	std::cout << clshitlist.size() << " " << iPlane << std::endl;
+
+	trk_tick1[iPlane] = clshitlist[2]->PeakTime();
+	trk_wire1[iPlane] = clshitlist[2]->WireID().asWireID().Wire;
+	trk_tick2[iPlane] = clshitlist[9]->PeakTime();
+	trk_wire2[iPlane] = clshitlist[9]->WireID().asWireID().Wire;
+
+      }
+
+      if (clusterTooSmall) continue;
+      /*
+      for (auto iPlane = geom->begin_plane_id(); iPlane != geom->end_plane_id(); ++iPlane){   
+	std::cout << "first hit " << trk_tick1[*iPlane] << ":" << trk_wire1[*iPlane] << " second hit " << trk_tick2[*iPlane] << ":" << trk_wire2[*iPlane] << std::endl;
+      }
+      */
+      /*
       for (auto iPlane = geom->begin_plane_id(); iPlane != geom->end_plane_id(); ++iPlane){
 	trk_tick1[*iPlane] = detprop->ConvertXToTicks(trkStart[0], *iPlane);
 	trk_wire1[*iPlane] = geom->WireCoordinate(trkStart[1], trkStart[2], *iPlane);
 	trk_tick2[*iPlane] = detprop->ConvertXToTicks(trkPt2[0], *iPlane);
 	trk_wire2[*iPlane] = geom->WireCoordinate(trkPt2[1], trkPt2[2], *iPlane);
       }
+      */
 
       for (size_t j = 0; j < clusterlist.size(); ++j) {
 	std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(clusterlist[j].key());
@@ -142,12 +181,14 @@ namespace shower {
 	bool isGoodCluster = false; // true if the hit belongs to a cluster that should be added to the shower
 
 	for (size_t jj = 0; jj < cls_hitlist.size(); ++jj) {
-	  // don't count hits associated with the track             
+	  // don't count hits associated with the track
+	  // TODO: get PFParticle from hit and check if ID matches parent
+	  /*
 	  std::vector< art::Ptr<recob::Track> > hit_trklist = hit_fm.at(cls_hitlist[jj].key());
 	  if (hit_trklist.size()) {
 	    if (hit_trklist[0]->ID() == tracklist[i]->ID()) continue;
 	  }
-
+	  */
 	  int isGoodHit = goodHit(cls_hitlist[jj], maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
 
 	  if (isGoodHit == -1) {
@@ -176,7 +217,8 @@ namespace shower {
 
       } // loop through cluserlist
 
-      showerHitPull /= nShowerHits;
+      showerHitPull /= nShowerHits; 
+      /*
       if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) {
 	showerCandidate = true;
 
@@ -260,7 +302,8 @@ namespace shower {
 	} // loop over tracks  
 
       } // decide if shower
-
+      */
+      /*
       // get dE/dx
 
       //      auto vhit = fmthm.at(tracklist[i].key());
