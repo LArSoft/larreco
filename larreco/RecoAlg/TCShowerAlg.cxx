@@ -51,16 +51,12 @@ namespace shower {
       pfpStuff thispfp;
       thispfp.hits.clear();
       thispfp.pfp = pfplist[i];
-      //      std::cout << "vertices " << ( vtxpfp_fm.at(pfplist[i].key()) ).size() << std::endl;      
-      //      std::cout << "clusters " << ( clspfp_fm.at(pfplist[i].key()) ).size() << std::endl;
       
       thispfp.vtx = vtxpfp_fm.at(pfplist[i].key());
       std::vector<art::Ptr<recob::Cluster> > thisclusterlist = clspfp_fm.at(pfplist[i].key());
 
       for (size_t j = 0; j < thisclusterlist.size(); ++j) {
 	std::vector<art::Ptr<recob::Hit> > thishitlist = cls_fm.at(thisclusterlist[j].key());
-	
-	//	std::cout << pfplist[i]->Self() << " cluster angles " << thisclusterlist[j]->StartAngle() << " " << thisclusterlist[j]->EndAngle() << std::endl;
 
 	for (size_t k = 0; k < thishitlist.size(); ++k) {
 	  thispfp.hits.push_back(thishitlist[k]);
@@ -68,20 +64,12 @@ namespace shower {
 
       } // loop through clusters
 
-      //      std::cout << "hits " <<  thispfp.hits.size() << std::endl;
       allpfps.push_back(thispfp);
 
     } // loop through pfparticles
 
     std::sort(allpfps.begin(), allpfps.end(), compare);
     std::reverse(allpfps.begin(), allpfps.end());
-
-    //    pfplist.clear();
-    for (size_t i = 0; i < allpfps.size(); ++i) {
-      //      std::cout << allpfps[i].pfp->Self() << " " << allpfps[i].vtx[0]->position().Z() << " " <<  allpfps[i].hits.size() << std::endl;
-
-      //      pfplist.push_back(allpfps[i].pfp);
-    } // loop through pfparticles
 
     bool showerCandidate = false;
 
@@ -112,7 +100,6 @@ namespace shower {
       // add pfp hits to shower
       for (size_t ii = 0; ii < pfphits.size(); ++ii) {
 	if ( addShowerHit(pfphits[ii], showerHits) ) showerHits.push_back(pfphits[ii]);
-	//	std::cout << pfphits[ii]->PeakTime() << ":" << pfphits[ii]->WireID().asWireID() << std::endl;
       } // loop over pfphits
 
       int nShowerHits = 0;
@@ -125,14 +112,6 @@ namespace shower {
       pfpStart[1] = pfpvtx[0]->position().Y();
       pfpStart[2] = pfpvtx[0]->position().Z();
 
-      //      std::cout << tolerance << " " << pullTolerance << " " << maxDist << " " << minDistVert << " " << nShowerHits << " " << showerHitPull << std::endl;
-      /*
-      recob::Track::Point_t trkPt2temp  = tracklist[i]->TrajectoryPoint(15).position;
-      trkPt2[0] = trkPt2temp.X();
-      trkPt2[1] = trkPt2temp.Y();
-      trkPt2[2] = trkPt2temp.Z();
-      */
-
       // track vertex
       std::map<geo::PlaneID, double> trk_tick1;
       std::map<geo::PlaneID, double> trk_wire1;
@@ -140,7 +119,6 @@ namespace shower {
       // second track point       
       std::map<geo::PlaneID, double> trk_tick2;
       std::map<geo::PlaneID, double> trk_wire2;
-
 
       bool clusterTooSmall = false;
 
@@ -152,18 +130,10 @@ namespace shower {
 	  break;
 	}
 
-	// sort hit list by wire or by time -- sorting doesn't make much sense right now
-	/*
-	for (size_t jj = 0; jj < clshitlist.size(); ++jj) {
-	  std::cout << "plane " << pfpcls[ii]->Plane().asPlaneID() << " wire:time " << clshitlist[jj]->WireID().asWireID().Wire << ":" << clshitlist[jj]->PeakTime() << std::endl;  
-	  
-	}
-	*/
 	std::sort(clshitlist.begin(), clshitlist.end(), compareHit);
 	std::reverse(clshitlist.begin(), clshitlist.end());
 
 	auto iPlane = pfpcls[ii]->Plane();
-	//	std::cout << clshitlist.size() << " " << iPlane << std::endl;
 
 	trk_tick1[iPlane] = clshitlist[2]->PeakTime();
 	trk_wire1[iPlane] = clshitlist[2]->WireID().asWireID().Wire;
@@ -173,19 +143,6 @@ namespace shower {
       }
 
       if (clusterTooSmall) continue;
-      /*
-      for (auto iPlane = geom->begin_plane_id(); iPlane != geom->end_plane_id(); ++iPlane){   
-	std::cout << "first hit " << trk_tick1[*iPlane] << ":" << trk_wire1[*iPlane] << " second hit " << trk_tick2[*iPlane] << ":" << trk_wire2[*iPlane] << std::endl;
-      }
-      */
-      /*
-      for (auto iPlane = geom->begin_plane_id(); iPlane != geom->end_plane_id(); ++iPlane){
-	trk_tick1[*iPlane] = detprop->ConvertXToTicks(trkStart[0], *iPlane);
-	trk_wire1[*iPlane] = geom->WireCoordinate(trkStart[1], trkStart[2], *iPlane);
-	trk_tick2[*iPlane] = detprop->ConvertXToTicks(trkPt2[0], *iPlane);
-	trk_wire2[*iPlane] = geom->WireCoordinate(trkPt2[1], trkPt2[2], *iPlane);
-      }
-      */
 
       for (size_t j = 0; j < clusterlist.size(); ++j) {
 	std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(clusterlist[j].key());
