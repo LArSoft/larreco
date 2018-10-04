@@ -21,6 +21,17 @@ bool compare(const pfpStuff& l, const pfpStuff& r) {
   return lvtx->position().Z() > rvtx->position().Z();
 }
 
+bool compareHit(const art::Ptr<recob::Hit>& l, const art::Ptr<recob::Hit>& r) {
+
+  int lwire = l->WireID().asWireID().Wire;
+  int rwire = r->WireID().asWireID().Wire;
+  /*
+  double ltick = l->PeakTime();
+  double rtick = r->PeakTime();
+  */
+  return lwire > rwire;
+}
+
 namespace shower {
 
   TCShowerAlg::TCShowerAlg(fhicl::ParameterSet const& pset) :
@@ -67,7 +78,7 @@ namespace shower {
 
     //    pfplist.clear();
     for (size_t i = 0; i < allpfps.size(); ++i) {
-      std::cout << allpfps[i].pfp->Self() << " " << allpfps[i].vtx[0]->position().Z() << " " <<  allpfps[i].hits.size() << std::endl;
+      //      std::cout << allpfps[i].pfp->Self() << " " << allpfps[i].vtx[0]->position().Z() << " " <<  allpfps[i].hits.size() << std::endl;
 
       //      pfplist.push_back(allpfps[i].pfp);
     } // loop through pfparticles
@@ -114,7 +125,7 @@ namespace shower {
       pfpStart[1] = pfpvtx[0]->position().Y();
       pfpStart[2] = pfpvtx[0]->position().Z();
 
-      std::cout << tolerance << " " << pullTolerance << " " << maxDist << " " << minDistVert << " " << nShowerHits << " " << showerHitPull << std::endl;
+      //      std::cout << tolerance << " " << pullTolerance << " " << maxDist << " " << minDistVert << " " << nShowerHits << " " << showerHitPull << std::endl;
       /*
       recob::Track::Point_t trkPt2temp  = tracklist[i]->TrajectoryPoint(15).position;
       trkPt2[0] = trkPt2temp.X();
@@ -148,6 +159,9 @@ namespace shower {
 	  
 	}
 	*/
+	std::sort(clshitlist.begin(), clshitlist.end(), compareHit);
+	std::reverse(clshitlist.begin(), clshitlist.end());
+
 	auto iPlane = pfpcls[ii]->Plane();
 	//	std::cout << clshitlist.size() << " " << iPlane << std::endl;
 
@@ -218,7 +232,7 @@ namespace shower {
       } // loop through cluserlist
 
       showerHitPull /= nShowerHits; 
-      /*
+
       if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) {
 	showerCandidate = true;
 
@@ -231,6 +245,7 @@ namespace shower {
 	  if (isGoodHit == 1 && addShowerHit(hitlist[k], showerHits) ) showerHits.push_back(hitlist[k]);
 	} // loop over hits
 
+	/*
 	TVector3 parentDir = trkPt2 - trkStart;
 
 	// loop over tracks to see if any fall within the shower
@@ -300,9 +315,9 @@ namespace shower {
 	    } // loop over hits to add them to shower
 	  } // good track
 	} // loop over tracks  
-
+	*/
       } // decide if shower
-      */
+
       /*
       // get dE/dx
 
@@ -369,6 +384,8 @@ namespace shower {
 	break;
       }
       */
+      if (showerCandidate) break;
+
     } // loop through tracklist
 
     if (showerCandidate) return 1;

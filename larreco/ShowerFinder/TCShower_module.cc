@@ -120,6 +120,8 @@ void shower::TCShower::produce(art::Event & evt) {
 
       if (foundShower) {
 	std::cout << "FOUND SHOWER " << foundShower << std::endl;
+	std::cout << "shower hits " << fTCAlg.showerHits.size() << std::endl;
+
 	showers->push_back(recob::Shower(fTCAlg.shwDir, fTCAlg.dcosVtxErr, fTCAlg.shwvtx, fTCAlg.xyzErr, fTCAlg.totalEnergy, fTCAlg.totalEnergyErr, fTCAlg.dEdx, fTCAlg.dEdxErr, fTCAlg.bestplane, 0));
 	showers->back().set_id(showers->size()-1);
 
