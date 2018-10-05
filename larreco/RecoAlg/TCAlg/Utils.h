@@ -194,6 +194,7 @@ namespace tca {
   std::vector<T> SetDifference(const std::vector<T>& set1, const std::vector<T>& set2);
   bool DecodeDebugString(std::string ctpwt);
   // ****************************** Printing  ******************************
+  void DumpTj();
   void PrintAll(std::string someText);
   void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
   void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
