@@ -1225,6 +1225,7 @@ namespace tca {
     
     if(tcc.vtx3DCuts[0] < 0) return;
     if(slc.vtxs.size() < 2) return;
+    bool newCuts = (tcc.vtx3DCuts.size() > 2);
     
     // create a array/vector of 2D vertex indices in each plane
     std::vector<std::vector<unsigned short>> vIndex(3);
@@ -1255,7 +1256,8 @@ namespace tca {
     std::vector<float> vX(vsize, -100);
     
     for(unsigned short ivx = 0; ivx < vsize; ++ivx) {
-      if(slc.vtxs[ivx].ID == 0) continue;
+      if(slc.vtxs[ivx].ID <= 0) continue;
+      if(tcc.useAlg[kNewVtxCuts] && slc.vtxs[ivx].Score < tcc.vtx2DCuts[7]) continue;
       geo::PlaneID planeID = DecodeCTP(slc.vtxs[ivx].CTP);
       if(slc.vtxs[ivx].Pos[0] < -0.4) continue;
       unsigned int wire = std::nearbyint(slc.vtxs[ivx].Pos[0]);
@@ -1335,21 +1337,38 @@ namespace tca {
             } // 3-plane TPC
             // save this incomplete 3D vertex
             Vtx3Store v3d;
+            // give it a non-zero ID so that SetVx3Score returns a valid score
+            v3d.ID = 666;
             v3d.Vx2ID.resize(slc.nPlanes);
             v3d.Vx2ID[ipl] = ivx2.ID;
             v3d.Vx2ID[jpl] = jvx2.ID;
+            if(slc.nPlanes == 2) v3d.Vx2ID[2] = -1;
             v3d.X = kX;
             // Use XErr to store dX
             v3d.XErr = dX;
             v3d.Y = y;
             v3d.Z = z;
             v3d.Wire = kWire;
-            v3d.Score = dX / tcc.vtx3DCuts[0];
+            float posError = dX / tcc.vtx3DCuts[0];
+            float vxScoreWght = 0;
+            if(newCuts) {
+              SetVx3Score(slc, v3d);
+              vxScoreWght = tcc.vtx3DCuts[2] / v3d.Score;
+              if(posError < 0.5) posError = 0;
+            }
+            v3d.Score = posError + vxScoreWght;
             v3d.TPCID = slc.TPCID;
             // push the incomplete vertex onto the list
             v3temp.push_back(v3d);
             
-            if(prt) mf::LogVerbatim("TC")<<"F3DV: 2 Plane match i2V"<<slc.vtxs[ivx].ID<<" P:W:T "<<ipl<<":"<<(int)slc.vtxs[ivx].Pos[0]<<":"<<(int)slc.vtxs[ivx].Pos[1]<<" j2V"<<slc.vtxs[jvx].ID<<" P:W:T "<<jpl<<":"<<(int)slc.vtxs[jvx].Pos[0]<<":"<<(int)slc.vtxs[jvx].Pos[1]<<" dX "<<dX;
+            if(prt) {
+              mf::LogVerbatim myprt("TC");
+              myprt<<"F3DV: 2 Plane match i2V";
+              myprt<<slc.vtxs[ivx].ID<<" P:W:T "<<ipl<<":"<<(int)slc.vtxs[ivx].Pos[0]<<":"<<(int)slc.vtxs[ivx].Pos[1];
+              myprt<<" j2V"<<slc.vtxs[jvx].ID<<" P:W:T "<<jpl<<":"<<(int)slc.vtxs[jvx].Pos[0]<<":"<<(int)slc.vtxs[jvx].Pos[1];
+              myprt<<std::fixed<<std::setprecision(3);
+              myprt<<" dX "<<dX<<" posError "<<posError<<" vxScoreWght "<<vxScoreWght<<" Score "<<v3d.Score;
+            }
             
             if(slc.nPlanes == 2) continue;
             
@@ -1375,7 +1394,14 @@ namespace tca {
               dX = (vX[kvx] - v3d.X) / tcc.vtx3DCuts[0];
               float dY = v3d.YErr / tcc.vtx3DCuts[1];
               float dZ = v3d.ZErr / tcc.vtx3DCuts[1];
-              v3d.Score = dX * dX + dY * dY + dZ * dZ;
+              posError = dX * dX + dY * dY + dZ * dZ;
+              vxScoreWght = 0;
+              if(newCuts) {
+                SetVx3Score(slc, v3d);
+                vxScoreWght = tcc.vtx3DCuts[2] / v3d.Score;
+                if(posError < 0.5) posError = 0;
+              } // newCuts
+              v3d.Score = posError + vxScoreWght;
               if(v3d.Score > maxScore) maxScore = v3d.Score;
               v3temp.push_back(v3d);
             } // kk
@@ -1394,7 +1420,11 @@ namespace tca {
     if(prt) {
       mf::LogVerbatim("TC")<<"v3temp list";
       for(auto& v3 : v3temp) {
-        mf::LogVerbatim("TC")<<v3.Vx2ID[0]<<" "<<v3.Vx2ID[1]<<" "<<v3.Vx2ID[2]<<" wire "<<v3.Wire<<" "<<v3.Score;
+        if(slc.nPlanes == 2) {
+          mf::LogVerbatim("TC")<<"2V"<<v3.Vx2ID[0]<<" 2V"<<v3.Vx2ID[1]<<" wire "<<v3.Wire<<" Score "<<v3.Score;
+        } else {
+          mf::LogVerbatim("TC")<<"2V"<<v3.Vx2ID[0]<<" 2V"<<v3.Vx2ID[1]<<" 2V"<<v3.Vx2ID[2]<<" wire "<<v3.Wire<<" Score "<<v3.Score;
+        }
       } // v3
     }
     SortEntry sEntry;
@@ -1428,10 +1458,11 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"v3sel list";
+      myprt<<"v3sel list\n";
       for(auto& v3d : v3sel) {
-        for(auto vx2id : v3d.Vx2ID) myprt<<" "<<vx2id;
-        myprt<<" wire "<<v3d.Wire<<" "<<v3d.Score;
+        for(auto vx2id : v3d.Vx2ID) if(vx2id > 0) myprt<<" 2V"<<vx2id;
+        myprt<<" wire "<<v3d.Wire<<" Score "<<v3d.Score;
+        myprt<<"\n";
       } // v3d
     } // prt
     
@@ -1722,6 +1753,8 @@ namespace tca {
     
     // is the trajectory short?
     bool tjShort = (tj.EndPt[1] - tj.EndPt[0] < maxShortTjLen);
+    // use the short Tj cut if the trajectory looks like an electron
+    if(tcc.useAlg[kNewVtxCuts] && !tjShort && tj.ChgRMS > 0.5) tjShort = true;
     float closestApproach;
     // ignore bad separation between the closest tj end and the vertex
     if(tjShort) {
@@ -2275,6 +2308,8 @@ namespace tca {
       vx3.Score += vx2.Score;
     } // ipl
     vx3.Score /= (float)slc.nPlanes;
+    // don't allow it to get too small or negative
+    if(vx3.Score < 0.001) vx3.Score = 0.001;
     if(vx3.Score > tcc.vtx2DCuts[7]) SetHighScoreBits(slc, vx3);
     
   } // SetVx3Score
@@ -2963,9 +2998,6 @@ namespace tca {
     // has a high score
     if(vx3.ID == 0) return true;
     if(vx3.ID > int(slc.vtx3s.size())) return false;
-    
-    // set the score to 0
-//    vx3.Score = 0;
     
     for(auto vx2id : vx3.Vx2ID) {
       if(vx2id == 0 || vx2id > (int)slc.vtxs.size()) continue;
