@@ -2,19 +2,19 @@
 
 struct pfpStuff {
   art::Ptr<recob::PFParticle> pfp;
-  std::vector<art::Ptr<recob::Vertex> > vtx;
+  art::Ptr<recob::Vertex> vtx;
   std::vector<art::Ptr<recob::Hit> > hits;
 };
 
-bool compare(const pfpStuff& l, const pfpStuff& r) {
+bool comparePFP(const pfpStuff& l, const pfpStuff& r) {
 
-  art::Ptr<recob::Vertex> lvtx = l.vtx[0];
-  art::Ptr<recob::Vertex> rvtx = r.vtx[0];
+  art::Ptr<recob::Vertex> lvtx = l.vtx;
+  art::Ptr<recob::Vertex> rvtx = r.vtx;
 
   double lz = l.hits.size();
   double rz = r.hits.size();
    
-  int hitthres = 100;
+  int hitthres = 50; // TODO: ADJUST THIS THRESHOLD 
 
   if (lz > hitthres && rz <= hitthres) return false;
   else if (lz <= hitthres && rz > hitthres) return true;
@@ -22,6 +22,8 @@ bool compare(const pfpStuff& l, const pfpStuff& r) {
 }
 
 bool compareHit(const art::Ptr<recob::Hit>& l, const art::Ptr<recob::Hit>& r) {
+
+  // TODO: TRY FLIPPING HIT SORTING
 
   int lwire = l->WireID().asWireID().Wire;
   int rwire = r->WireID().asWireID().Wire;
@@ -52,11 +54,15 @@ namespace shower {
       thispfp.hits.clear();
       thispfp.pfp = pfplist[i];
       
-      thispfp.vtx = vtxpfp_fm.at(pfplist[i].key());
+      thispfp.vtx = vtxpfp_fm.at(pfplist[i].key())[0];
       std::vector<art::Ptr<recob::Cluster> > thisclusterlist = clspfp_fm.at(pfplist[i].key());
+
+      std::vector<int> clustersize;
 
       for (size_t j = 0; j < thisclusterlist.size(); ++j) {
 	std::vector<art::Ptr<recob::Hit> > thishitlist = cls_fm.at(thisclusterlist[j].key());
+
+	clustersize.push_back((int)thishitlist.size());
 
 	for (size_t k = 0; k < thishitlist.size(); ++k) {
 	  thispfp.hits.push_back(thishitlist[k]);
@@ -64,12 +70,19 @@ namespace shower {
 
       } // loop through clusters
 
-      allpfps.push_back(thispfp);
+      if (clustersize.size() == 3) allpfps.push_back(thispfp);
+
+      if (clustersize.size() == 3) std::cout << "pfp " << thispfp.pfp->Self() << " cluster sizes " << clustersize[0] << ":" << clustersize[1] << ":" << clustersize[2] << " vertex " << thispfp.vtx->ID() << " z " << thispfp.vtx->position().Z() << std::endl; 
 
     } // loop through pfparticles
 
-    std::sort(allpfps.begin(), allpfps.end(), compare);
+    std::sort(allpfps.begin(), allpfps.end(), comparePFP);
     std::reverse(allpfps.begin(), allpfps.end());
+
+    std::cout << "sorted pfps: ";
+    for (size_t i = 0; i < allpfps.size(); ++i)
+      std::cout << allpfps[i].pfp->Self() << " ";
+    std::cout << std::endl;
 
     bool showerCandidate = false;
 
@@ -80,9 +93,11 @@ namespace shower {
 
       showerHits.clear();
 
-      std::vector<art::Ptr<recob::Vertex> > pfpvtx = allpfps[i].vtx;
+      art::Ptr<recob::Vertex> pfpvtx = allpfps[i].vtx;
       std::vector<art::Ptr<recob::Hit> > pfphits = allpfps[i].hits;
       std::vector<art::Ptr<recob::Cluster> > pfpcls = clspfp_fm.at(allpfps[i].pfp.key());
+
+      std::cout << "pfp " << allpfps[i].pfp->Self() << " hits " << pfphits.size() << std::endl;
 
       int tolerance = 100; // how many shower like cluster you need to define a shower              
       double pullTolerance = 0.6; // hits should be evenly distributed around the track
@@ -90,6 +105,7 @@ namespace shower {
       double minDistVert = 15; // exclude tracks near the vertex
 
       if (pfphits.size() < 30) continue;
+      //      if (pfphits.size() < 15) continue;
       if (pfphits.size() > 500) continue;  
       // adjust tolerances for short tracks
       if (pfphits.size() < 90) {
@@ -108,9 +124,9 @@ namespace shower {
       TVector3 pfpStart;
       TVector3 pfpPt2; // a second point along the track
 
-      pfpStart[0] = pfpvtx[0]->position().X();
-      pfpStart[1] = pfpvtx[0]->position().Y();
-      pfpStart[2] = pfpvtx[0]->position().Z();
+      pfpStart[0] = pfpvtx->position().X();
+      pfpStart[1] = pfpvtx->position().Y();
+      pfpStart[2] = pfpvtx->position().Z();
 
       // track vertex
       std::map<geo::PlaneID, double> trk_tick1;
@@ -125,9 +141,17 @@ namespace shower {
       for (size_t ii = 0; ii < pfpcls.size(); ++ii) {
 	std::vector<art::Ptr<recob::Hit> > clshitlist = cls_fm.at(pfpcls[ii].key() );
 
+	int firstIndex = 2;
+	int secondIndex = 9;
+
 	if (clshitlist.size() < 11) {
-	  clusterTooSmall = true;
-	  break;
+	  //	  clusterTooSmall = true;
+	  //	  break;
+	  secondIndex = clshitlist.size() - 1;
+	}
+	if (clshitlist.size() < 4) {
+	  firstIndex = 0;
+	  secondIndex = clshitlist.size() - 1;
 	}
 
 	std::sort(clshitlist.begin(), clshitlist.end(), compareHit);
@@ -135,10 +159,10 @@ namespace shower {
 
 	auto iPlane = pfpcls[ii]->Plane();
 
-	trk_tick1[iPlane] = clshitlist[2]->PeakTime();
-	trk_wire1[iPlane] = clshitlist[2]->WireID().asWireID().Wire;
-	trk_tick2[iPlane] = clshitlist[9]->PeakTime();
-	trk_wire2[iPlane] = clshitlist[9]->WireID().asWireID().Wire;
+	trk_tick1[iPlane] = clshitlist[firstIndex]->PeakTime();
+	trk_wire1[iPlane] = clshitlist[firstIndex]->WireID().asWireID().Wire;
+	trk_tick2[iPlane] = clshitlist[secondIndex]->PeakTime();
+	trk_wire2[iPlane] = clshitlist[secondIndex]->WireID().asWireID().Wire;
 
       }
 
@@ -189,6 +213,8 @@ namespace shower {
       } // loop through cluserlist
 
       showerHitPull /= nShowerHits; 
+
+      std::cout << "shower hits " << showerHits.size() << " shower pull " << showerHitPull << std::endl; 
 
       if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) {
 	showerCandidate = true;
@@ -341,9 +367,12 @@ namespace shower {
 	break;
       }
       */
-      if (showerCandidate) break;
+      if (showerCandidate) {
+	std::cout << "THIS IS THE SHOWER PFP: " << allpfps[i].pfp->Self() << std::endl;
+	break;
+      }
 
-    } // loop through tracklist
+    } // loop through allpfps
 
     if (showerCandidate) return 1;
 

@@ -212,35 +212,43 @@ int shower::TCShower::getShowersWithSlices(art::Event & evt, art::Ptr<recob::Sli
 // -----------------------------------------------------
 int shower::TCShower::getShowersWithoutSlices(art::Event & evt) {
 
-  // hits
+  // pfparticles
+  art::Handle< std::vector<recob::PFParticle> > pfpListHandle;
+  std::vector<art::Ptr<recob::PFParticle> > pfplist;
+  if (evt.getByLabel(fHitModuleLabel,pfpListHandle))
+    art::fill_ptr_vector(pfplist, pfpListHandle);
+
   art::Handle< std::vector<recob::Hit> > hitListHandle;
   std::vector<art::Ptr<recob::Hit> > hitlist;
   if (evt.getByLabel(fHitModuleLabel,hitListHandle))
     art::fill_ptr_vector(hitlist, hitListHandle);
 
-  // clusters
   art::Handle< std::vector<recob::Cluster> > clusterListHandle;
   std::vector<art::Ptr<recob::Cluster> > clusterlist;
   if (evt.getByLabel(fClusterModuleLabel,clusterListHandle))
     art::fill_ptr_vector(clusterlist, clusterListHandle);
 
-  // tracks
-  art::Handle< std::vector<recob::Track> > trackListHandle;
-  std::vector<art::Ptr<recob::Track> > tracklist;
-  if (evt.getByLabel(fTrackModuleLabel,trackListHandle))
-    art::fill_ptr_vector(tracklist, trackListHandle);
+  art::Handle< std::vector<recob::Vertex> > vtxListHandle;
+  std::vector<art::Ptr<recob::Vertex> > vertexlist;
+  if (evt.getByLabel(fVertexModuleLabel,vtxListHandle))
+    art::fill_ptr_vector(vertexlist, vtxListHandle);
 
-  // get associations
+  art::Handle< std::vector<recob::Track> > trackListHandle;
+  evt.getByLabel(fTrackModuleLabel,trackListHandle);
+
+  // get associations                                                                                                      
+  art::FindManyP<recob::Cluster> clspfp_fm(pfpListHandle, evt, fHitModuleLabel);
+  art::FindManyP<recob::Vertex> vtxpfp_fm(pfpListHandle, evt, fVertexModuleLabel);
   art::FindManyP<recob::Hit> cls_fm(clusterListHandle, evt, fClusterModuleLabel);
-  art::FindManyP<recob::Hit> trk_fm(trackListHandle, evt, fTrackModuleLabel);
-  art::FindManyP<recob::Track> hit_fm(hitListHandle, evt, fTrackModuleLabel);
+  art::FindManyP<recob::PFParticle> hit_fm(hitListHandle, evt, fHitModuleLabel);
   art::FindManyP<recob::Cluster> hitcls_fm(hitListHandle, evt, fClusterModuleLabel);
 
   art::FindManyP<anab::Calorimetry> fmcal(trackListHandle, evt, fCalorimetryModuleLabel);
-  art::FindManyP<recob::Hit, recob::TrackHitMeta> fmthm(trackListHandle, evt, fTrackModuleLabel);
 
-  //  return fTCAlg.makeShowers(tracklist, clusterlist, hitlist, cls_fm, trk_fm, hit_fm, hitcls_fm, fmcal, fmthm);
+  return fTCAlg.makeShowers(pfplist, vertexlist, clusterlist, hitlist, cls_fm, clspfp_fm, vtxpfp_fm, hit_fm, hitcls_fm, fmcal);
+
   return 0;
+
 }
 
 // -----------------------------------------------------
