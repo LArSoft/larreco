@@ -177,10 +177,10 @@ namespace tca {
             break;
           }
         } // ib
-        // print some instructions if there was a failure
+        // print some instructions and quit if there was a failure
         if(!tcc.modes[kDebug]) {
           DecodeDebugString("instruct");
-          break;
+          exit(1);
         }
       } // DecodeDebugString failed
     } // strng
@@ -385,6 +385,9 @@ namespace tca {
       mf::LogVerbatim("TC")<<"RunTrajCluster failed in MakeAllTrajClusters";
       return;
     }
+    
+    // dump a trajectory?
+    if(tcc.modes[kDebug] && tcc.dbgDump) DumpTj();
 
 //    if (tcc.modes[kSaveCRTree]) crtree->Fill();
     
@@ -1387,8 +1390,9 @@ namespace tca {
     // BB April 19, 2018: open it up for low MCSMom tjs
     if(tj.MCSMom < 30) chgPullCut *= 2;
     
+    float expectedHitsRMS = ExpectedHitsRMS(slc, tp);
     if(tcc.dbgStp) {
-      mf::LogVerbatim("TC")<<"FUH:  maxDelta "<<maxDelta<<" useChg requested "<<useChg<<" Norm AveChg "<<(int)tp.AveChg<<" tj.ChgRMS "<<std::setprecision(2)<<tj.ChgRMS<<" chgPullCut "<<chgPullCut<<" TPHitsRMS "<<(int)TPHitsRMSTick(slc, tp, kUnusedHits)<<" ExpectedHitsRMS "<<(int)ExpectedHitsRMS(slc, tp)<<" AngCode "<<tp.AngleCode;
+      mf::LogVerbatim("TC")<<"FUH:  maxDelta "<<maxDelta<<" useChg requested "<<useChg<<" Norm AveChg "<<(int)tp.AveChg<<" tj.ChgRMS "<<std::setprecision(2)<<tj.ChgRMS<<" chgPullCut "<<chgPullCut<<" TPHitsRMS "<<(int)TPHitsRMSTick(slc, tp, kUnusedHits)<<" ExpectedHitsRMS "<<(int)expectedHitsRMS<<" AngCode "<<tp.AngleCode;
     }
 
     // inverse of the path length for normalizing hit charge to 1 WSE unit
@@ -1442,7 +1446,6 @@ namespace tca {
     unsigned int bestDeltaHit = tp.Hits[imbest];
     
     // Don't try to use a multiplet if a hit in the middle is in a different trajectory
-    // March 11: Fix the logic
     if(tp.Hits.size() > 2 && nAvailable > 1 && firstUsed != USHRT_MAX && firstAvailable < firstUsed && lastAvailable > firstUsed) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<" A hit in the middle of the multiplet is used. Use only the best hit";
       tp.UseHit[imbest] = true;
@@ -3039,13 +3042,13 @@ namespace tca {
     
     // don't bother with really short tjs
     if(tj.Pts.size() < 3) return;
-    
+/*
     unsigned short lastPtToChk = 10;
     if(tcc.useAlg[kFTBRvProp]) lastPtToChk = tj.EndPt[1];
-
+*/
     unsigned short atPt = tj.EndPt[1];
     unsigned short maxPtsFit = 0;
-    for(unsigned short ipt = tj.EndPt[0]; ipt < lastPtToChk; ++ipt) {
+    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ++ipt) {
       if(tj.Pts[ipt].Chg == 0) continue;
       if(tj.Pts[ipt].NTPsFit >= maxPtsFit) {
         maxPtsFit = tj.Pts[ipt].NTPsFit;
@@ -3082,14 +3085,24 @@ namespace tca {
       if(tp.AngleCode < 2) stepSize = std::abs(1/tp.Dir[0]);
       tp.Pos[0] -= tp.Dir[0] * stepSize * tj.StepDir;
       tp.Pos[1] -= tp.Dir[1] * stepSize * tj.StepDir;
-      float maxDelta = 3 * tp.DeltaRMS;
-      if(FindCloseHits(slc, tp, maxDelta, kUnusedHits) && !tp.Hits.empty()) {
-        needsRevProp = true;
-        if(tcc.dbgStp) {
-          mf::LogVerbatim("TC")<<"FTB: Close unused hits found near EndPt[0] "<<tp.Hits.size()<<" or dead wire. Call ReversePropagate";
-          PrintTrajPoint("FTB", slc, 0, tj.StepDir, tj.Pass, tp);
+      if(tcc.useAlg[kNewStpCuts]) {
+        // launch RevProp if this wire is dead
+        unsigned int wire = std::nearbyint(tp.Pos[0]);
+        unsigned short plane = DecodeCTP(tp.CTP).Plane;
+        needsRevProp = (wire < slc.nWires[plane] && slc.wireHitRange[plane][wire].first == -1);
+        if(tcc.dbgStp && needsRevProp) mf::LogVerbatim("TC")<<"FTB: Previous wire "<<wire<<" is dead. Call ReversePropagate";
+      } // NewStpCuts
+      if(!needsRevProp) {
+        // check for hits on a not-dead wire
+        float maxDelta = 3 * tp.DeltaRMS;
+        if(FindCloseHits(slc, tp, maxDelta, kUnusedHits) && !tp.Hits.empty()) {
+          needsRevProp = true;
+          if(tcc.dbgStp) {
+            mf::LogVerbatim("TC")<<"FTB: Close unused hits found near EndPt[0] "<<tp.Hits.size()<<". Call ReversePropagate";
+            PrintTrajPoint("FTB", slc, 0, tj.StepDir, tj.Pass, tp);
+          }
         }
-      }
+      } // !needsRevProp
     } // !needsRevProp
     
     if(tcc.dbgStp) {
@@ -3139,14 +3152,25 @@ namespace tca {
     
     if(atPt == tj.EndPt[0]) return;
     
+    // Default is to use DeltaRMS of the last point on the Tj
     float maxDelta = 4 * tj.Pts[tj.EndPt[1]].DeltaRMS;
+    if(tcc.useAlg[kNewStpCuts]) {
+      // 10/2/2018 BB Change requirement
+      // Find the max DeltaRMS of points from atPt to EndPt[1]
+      float maxDeltaRMS = 0;
+      for(unsigned short ipt = atPt; ipt <= tj.EndPt[1]; ++ipt) {
+        if(tj.Pts[ipt].DeltaRMS > maxDeltaRMS) maxDeltaRMS = tj.Pts[ipt].DeltaRMS;
+      } // ipt
+      maxDelta = 3 * maxDeltaRMS;
+    } // kNewStpCuts
+    
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"FixTrajBegin: atPt "<<atPt<<" firstPt "<<firstPt<<" Stops at end 0? "<<PrintStopFlag(tj, 0)<<" start vertex "<<tj.VtxID[0]<<" maxDelta "<<maxDelta;
     }
     
     // update the trajectory for all the points up to atPt
     // assume that we will use all of these points
-    bool maskPts = false;
+    bool maskedPts = false;
     for(unsigned short ii = 1; ii < tj.Pts.size(); ++ii) {
       if(ii > atPt) break;
       unsigned int ipt = atPt - ii;
@@ -3158,28 +3182,30 @@ namespace tca {
       // Correct the projected time to the wire
       float dw = tp.Pos[0] - tj.Pts[atPt].Pos[0];
       if(tp.Dir[0] != 0) tp.Pos[1] = tj.Pts[atPt].Pos[1] + dw * tp.Dir[1] / tp.Dir[0];
-      bool newHits = false;
       tj.Pts[ipt].Delta = PointTrajDOCA(slc, tj.Pts[ipt].HitPos[0], tj.Pts[ipt].HitPos[1], tj.Pts[ipt]);
       tj.Pts[ipt].DeltaRMS = tj.Pts[atPt].DeltaRMS;
       tj.Pts[ipt].NTPsFit = tj.Pts[atPt].NTPsFit;
       tj.Pts[ipt].FitChi = tj.Pts[atPt].FitChi;
       tj.Pts[ipt].AveChg = tj.Pts[atPt].AveChg;
       tj.Pts[ipt].ChgPull = (tj.Pts[ipt].Chg / tj.AveChg - 1) / tj.ChgRMS;
-      if(tj.Pts[ipt].Delta > maxDelta) maskPts = true;
-      if(tcc.dbgStp && maskPts) {
-        mf::LogVerbatim("TC")<<" mask off "<<PrintPos(slc, tj.Pts[ipt].Pos)<<" "<<tj.Pts[ipt].Delta;
-      } // debug print
-      if(maskPts) UnsetUsedHits(slc, tp);
-      if(tcc.dbgStp) {
-        if(newHits) {
-          PrintTrajectory("FTB", slc, tj, ipt);
-        } else {
-          PrintTrajectory("ftb", slc, tj, ipt);
-        }
-      }
+      bool maskThisPt = (tj.Pts[ipt].Delta > maxDelta);
+      if(maskThisPt) maskedPts = true;
+      if(tcc.useAlg[kNewStpCuts]) {
+        // 10/1/18 BB only mask off the bad point. Not all of them to the end
+        if(maskThisPt) {
+          UnsetUsedHits(slc, tp);
+          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" mask off "<<PrintPos(slc, tj.Pts[ipt].Pos)<<" "<<tj.Pts[ipt].Delta;
+        } // maskThisPt
+      } else {
+        // old cuts - mask off all points to the beginning
+        if(maskedPts) {
+          UnsetUsedHits(slc, tp);
+          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" mask off "<<PrintPos(slc, tj.Pts[ipt].Pos)<<" "<<tj.Pts[ipt].Delta;
+        } // maskedPts
+      } // old cuts
       if(ipt == 0) break;
     } // ii
-    if(maskPts) SetEndPoints(tj);
+    if(maskedPts) SetEndPoints(tj);
     tj.AlgMod[kFixBegin] = true;
     
   } // FixTrajBegin
@@ -3265,15 +3291,16 @@ namespace tca {
         firstPtWithChg = nextPtWithChg;
         continue;
       }
+// 10/1/2018 BB This shouldn't be a requirement
       // Compare the charge before and after
-      if(tj.Pts[firstPtWithChg].Chg > 0) {
+      if(!tcc.useAlg[kNewStpCuts] && tj.Pts[firstPtWithChg].Chg > 0) {
         float chgrat = tj.Pts[nextPtWithChg].Chg / tj.Pts[firstPtWithChg].Chg;
         if(chgrat < 0.7 || chgrat > 1.4) {
           firstPtWithChg = nextPtWithChg;
           continue;
         }
       }
-      
+
       // Make a bare trajectory point at firstPtWithChg that points to nextPtWithChg
       TrajPoint tp;
       if(!MakeBareTrajPoint(slc, tj.Pts[firstPtWithChg], tj.Pts[nextPtWithChg], tp)) {
@@ -3318,7 +3345,7 @@ namespace tca {
           if(slc.slHits[iht].InTraj > 0) continue;
           auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
           float delta = PointTrajDOCA(slc, iht, tp);
-          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" FG "<<PrintPos(slc,tj.Pts[mpt])<<" hit "<<PrintHit(slc.slHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<" Chg "<<hit.Integral()<<" maxChg "<<maxChg;
+          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" FG: "<<PrintPos(slc,tj.Pts[mpt])<<" hit "<<PrintHit(slc.slHits[iht])<<" delta "<<delta<<" maxDelta "<<maxDelta<<" Chg "<<hit.Integral()<<" maxChg "<<maxChg;
           if(delta > maxDelta) continue;
           tj.Pts[mpt].UseHit[ii] = true;
           slc.slHits[iht].InTraj = tj.ID;
@@ -4190,7 +4217,7 @@ namespace tca {
     bool success = StartTraj(slc, tj, fromWire, fromTick, toWire, toTick, tCTP, pass);
     if(!success) return false;
     // turn on debugging using the WorkID?
-    if(tcc.modes[kDebug] && !tcc.dbgStp && tcc.dbgSlc && tj.ID == debug.WorkID) tcc.dbgStp = true;
+    if(tcc.modes[kDebug] && !tcc.dbgStp && !tcc.dbgDump && tcc.dbgSlc && tj.ID == debug.WorkID) tcc.dbgStp = true;
     if(tcc.dbgStp) {
       auto& tp = tj.Pts[0];
       mf::LogVerbatim("TC")<<"StartTraj T"<<tj.ID<<" from "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(slc, tp);      
@@ -4229,7 +4256,7 @@ namespace tca {
     tp.AngErr = 0.1;
     tj.Pts.push_back(tp);
     // turn on debugging using the WorkID?
-    if(tcc.modes[kDebug] && !tcc.dbgStp && tcc.dbgSlc && tj.ID == debug.WorkID) tcc.dbgStp = true;
+    if(tcc.modes[kDebug] && !tcc.dbgStp && !tcc.dbgDump && tcc.dbgSlc && tj.ID == debug.WorkID) tcc.dbgStp = true;
     if(tcc.dbgStp) {
       auto& tp = tj.Pts[0];
       mf::LogVerbatim("TC")<<"StartTraj T"<<tj.ID<<" from "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(slc, tp);      
