@@ -390,6 +390,8 @@ namespace tca {
     kCompleteShower,
     kSplitTjCVx,
     kSetDir,
+    kNewStpCuts,
+    kNewVtxCuts,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -489,6 +491,7 @@ namespace tca {
     bool dbg3S {false};
     bool dbgStitch {false};    ///< debug PFParticle stitching
     bool dbgSummary {false};    ///< print a summary report
+    bool dbgDump {false};   /// dump trajectory points
     short nPtsAve;         /// number of points to find AveChg
     std::bitset<16> modes;   /// See TCMode_t above
   };
