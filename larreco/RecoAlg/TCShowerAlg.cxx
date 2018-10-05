@@ -40,7 +40,7 @@ namespace shower {
     fCalorimetryAlg   (pset.get<fhicl::ParameterSet>("CalorimetryAlg") ){
   }
 
-  int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::PFParticle> > pfplist, std::vector<art::Ptr<recob::Vertex> > vertexlist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Cluster> clspfp_fm, art::FindManyP<recob::Vertex> vtxpfp_fm, art::FindManyP<recob::PFParticle> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<anab::Calorimetry> fmcal) {
+  int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::PFParticle> > pfplist, std::vector<art::Ptr<recob::Vertex> > vertexlist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, std::vector<art::Ptr<recob::EndPoint2D> > vx2list, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Cluster> clspfp_fm, art::FindManyP<recob::Vertex> vtxpfp_fm, art::FindManyP<recob::PFParticle> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<anab::Calorimetry> fmcal) {
 
     totalEnergy.resize(2);
     totalEnergyErr.resize(2);
@@ -48,6 +48,10 @@ namespace shower {
     dEdxErr.resize(2);   
 
     std::vector<pfpStuff> allpfps;
+
+    for (size_t i = 0; i < vx2list.size(); ++i) {
+      std::cout << "vx2 " << vx2list[i]->ID() << " strength " << vx2list[i]->Strength() << "\t" << vx2list[i]->View() << " " << vx2list[i]->WireID().asWireID().Wire << ":" << vx2list[i]->DriftTime() << std::endl;
+    } // loop through 2d vertices
 
     for (size_t i = 0; i < pfplist.size(); ++i) {
       pfpStuff thispfp;

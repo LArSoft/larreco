@@ -32,6 +32,7 @@
 #include "lardataobj/RecoBase/Slice.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/PFParticle.h"
+#include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 
 #include "lardataobj/AnalysisBase/Calorimetry.h"
@@ -114,7 +115,7 @@ void shower::TCShower::produce(art::Event & evt) {
 
   if (slicelist.size()) { // use slices
     for (size_t i = 0; i < slicelist.size(); ++i) {
-      std::cout << "---------- slice " << i<< " ----------" << std::endl;
+      std::cout << "---------- slice " << i << " ----------" << std::endl;
 
       foundShower = getShowersWithSlices(evt, slicelist[i]);
 
@@ -167,6 +168,9 @@ int shower::TCShower::getShowersWithSlices(art::Event & evt, art::Ptr<recob::Sli
   art::Handle< std::vector<recob::Vertex> > vtxListHandle;
   evt.getByLabel(fVertexModuleLabel,vtxListHandle);
 
+  art::Handle< std::vector<recob::EndPoint2D> > vx2ListHandle;
+  evt.getByLabel(fVertexModuleLabel, vx2ListHandle);
+
   art::Handle< std::vector<recob::PFParticle> > pfpListHandle;
   evt.getByLabel(fHitModuleLabel,pfpListHandle);
 
@@ -175,16 +179,35 @@ int shower::TCShower::getShowersWithSlices(art::Event & evt, art::Ptr<recob::Sli
   art::FindManyP<recob::Cluster> clsslice_fm(sliceListHandle, evt, fHitModuleLabel);
   art::FindManyP<recob::Cluster> clspfp_fm(pfpListHandle, evt, fHitModuleLabel);
   art::FindManyP<recob::Vertex> vtxpfp_fm(pfpListHandle, evt, fVertexModuleLabel);
+  art::FindManyP<recob::EndPoint2D> vx2cls_fm(clusterListHandle, evt, fClusterModuleLabel);
 
   std::vector<art::Ptr<recob::Hit> > hitlist;
   std::vector<art::Ptr<recob::Cluster> > clusterlist;
   std::vector<art::Ptr<recob::Vertex> > vertexlist;
+  std::vector<art::Ptr<recob::EndPoint2D> > vx2list;
   
   // get all hits with hit-slice association
   hitlist = hitslice_fm.at(thisslice.key());
 
   // get all clusters with cluster-slice association
   clusterlist = clsslice_fm.at(thisslice.key());
+
+  for (size_t i = 0; i < clusterlist.size(); ++i) {
+    std::vector<art::Ptr<recob::EndPoint2D> > eplist = vx2cls_fm.at(clusterlist[i].key());
+    
+    for (size_t j = 0; j < eplist.size(); ++j) {
+      bool addToList = true;
+      for (size_t k = 0; k < vx2list.size(); ++k) {
+	if (eplist[j]->ID() == vx2list[k]->ID() ) {
+	  addToList = false;
+	  break;
+	}
+      }  
+
+      if (addToList) vx2list.push_back(eplist[j]);
+
+    }
+  } // loop through clusterlist
 
   std::vector<art::Ptr<recob::PFParticle> > pfplist = pfpslice_fm.at(thisslice.key());
 
@@ -205,7 +228,7 @@ int shower::TCShower::getShowersWithSlices(art::Event & evt, art::Ptr<recob::Sli
 
   art::FindManyP<anab::Calorimetry> fmcal(trackListHandle, evt, fCalorimetryModuleLabel);
 
-  return fTCAlg.makeShowers(pfplist, vertexlist, clusterlist, hitlist, cls_fm, clspfp_fm, vtxpfp_fm, hit_fm, hitcls_fm, fmcal);
+  return fTCAlg.makeShowers(pfplist, vertexlist, clusterlist, hitlist, vx2list,  cls_fm, clspfp_fm, vtxpfp_fm, hit_fm, hitcls_fm, fmcal);
 
 }
 
@@ -245,7 +268,7 @@ int shower::TCShower::getShowersWithoutSlices(art::Event & evt) {
 
   art::FindManyP<anab::Calorimetry> fmcal(trackListHandle, evt, fCalorimetryModuleLabel);
 
-  return fTCAlg.makeShowers(pfplist, vertexlist, clusterlist, hitlist, cls_fm, clspfp_fm, vtxpfp_fm, hit_fm, hitcls_fm, fmcal);
+  //  return fTCAlg.makeShowers(pfplist, vertexlist, clusterlist, hitlist, cls_fm, clspfp_fm, vtxpfp_fm, hit_fm, hitcls_fm, fmcal);
 
   return 0;
 
