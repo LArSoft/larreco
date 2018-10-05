@@ -1324,6 +1324,39 @@ namespace tca {
       }
     } // breakPt
     if(breakPt == USHRT_MAX) return;
+    if(tcc.useAlg[kNewStpCuts]) {
+      // check the charge and rms before and after the split
+      std::array<double, 2> cnt, sum, sum2;
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        auto& tp = tj.Pts[ipt];
+        if(tp.Chg <= 0) continue;
+        unsigned short end = 0;
+        if(ipt > breakPt) end = 1;
+        ++cnt[end];
+        sum[end] += tp.Chg;
+        sum2[end] += tp.Chg * tp.Chg;
+      } // ipt
+      for(unsigned short end = 0; end < 2; ++end) {
+        if(cnt[end] < 3) return;
+        double ave = sum[end] / cnt[end];
+        double arg = sum2[end] - cnt[end] * ave * ave;
+        if(arg <= 0) return;
+        sum2[end] = sqrt(arg / (cnt[end] - 1));
+        sum2[end] /= ave;
+        sum[end] = ave;
+      } // region
+      bool doSplit = true;
+      // don't split if this looks like an electron - no significant improvement
+      // in the charge rms before and after
+      if(tj.ChgRMS > 0.5 && sum2[0] > 0.3 && sum2[1] > 0.3) doSplit = false;
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"CTBC: T"<<tj.ID<<" chgRMS "<<tj.ChgRMS;
+        myprt<<" AveChg before split point "<<(int)sum[0]<<" rms "<<sum2[0];
+        myprt<<" after "<<(int)sum[1]<<" rms "<<sum2[1]<<" doSplit? "<<doSplit;
+      } // prt
+      if(!doSplit) return;
+    } // NewStpCuts
     // Create a vertex at the break point
     VtxStore aVtx;
     aVtx.Pos = tj.Pts[breakPt].Pos;
@@ -1405,8 +1438,13 @@ namespace tca {
       float ntpwc = NumPtsWithCharge(slc, tj, true, tj.EndPt[0], lastPt);
       float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[lastPt].Pos[0]) + 1;
       float hitFrac = ntpwc / nwires;
-      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: T"<<tj.ID<<" lastPt "<<lastPt<<" npwc "<<npwc<<" nadj "<<nadj<<" hitFrac "<<hitFrac;
-      if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj == minPts) break;
+      if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: T"<<tj.ID<<" lastPt "<<lastPt<<" npwc "<<npwc<<" ntpwc "<<ntpwc<<" nadj "<<nadj<<" hitFrac "<<hitFrac;
+      if(tcc.useAlg[kNewStpCuts]) {
+        // use new cuts
+        if(hitFrac > fQualityCuts[0] && ntpwc > minPts) break;
+      } else {
+        if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj == minPts) break;
+      }
     } // lastPt
     
     // trim the last point if it just after a dead wire.
@@ -3890,7 +3928,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
 //    if(!CheckWireHitRange(tcs)) return false;
     
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
-    if(tcc.modes[kDebug] && (int)tpc == debug.TPC && slices.size() == 1) {
+    if(tcc.modes[kDebug] && (int)tpc == debug.TPC) {
       std::cout<<"tpc "<<tpc<<" tcc.unitsPerTick "<<std::setprecision(3)<<tcc.unitsPerTick<<"\n";
       std::cout<<"Fiducial volume (";
       std::cout<<std::fixed<<std::setprecision(1)<<slc.xLo<<" < X < "<<slc.xHi<<") (";
@@ -4324,28 +4362,26 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     // like Slice:<slice index>
     
     if(strng == "instruct") {
-      std::cout<<"****** Unrecognized debug configuration. Configure using the following keywords";
-      std::cout<<" using colon separators\n";
-      std::cout<<" C:T:P:W:Tick where C = cryostat, T = TPC, W = wire, Tick (+/-5) to debug stepping (DUNE)\n";
-      std::cout<<" P:W:Tick for single cryostat/TPC detectors (uB, LArIAT, etc)\n";
-      std::cout<<" WorkID <id> <slice index> where <id> is a tj work ID (< 0) in slice <slice index>\n";
-      std::cout<<" Merge <CTP> to debug trajectory merging\n";
-      std::cout<<" 2V <plane> to debug 2D vertex finding in plane <plane>\n";
-      std::cout<<" 3V to debug 3D vertex finding\n";
-      std::cout<<" VxMerge to debug 2D vertex merging\n";
-      std::cout<<" JunkVx to debug 2D junk vertex finder\n";
-      std::cout<<" PFP to debug 3D matching and PFParticles\n";
-      std::cout<<" DeltaRay to debug delta ray tagging\n";
-      std::cout<<" Muon to debug muon tagging\n";
-      std::cout<<" 2S <plane> to debug a 2D shower in plane <plane>\n";
-      std::cout<<" Reco <ID> to reconstruct all sub-slices in the recob::Slice with the specified ID\n";
-      std::cout<<" SubSlice <sub-slice index> where <slice index> restricts output to the specified sub-slice index\n";
-      std::cout<<" Stitch to debug PFParticle stitching between TPCs\n";
-      std::cout<<" Sum or Summary to print a debug summary report\n";
-      std::cout<<" Note: Ensure that the algorithm name is correct. Set SkipAlgs: [\"bogus\"] to print a list\n";
-      std::cout<<" Note that the configuration is defined by the order of the keywords\n";
-      std::cout<<" Algs with debug printing include HamVx, HamVx2, SplitTjCVx, Comp3DVx, Comp3DVxIG, VtxHitsSwap\n";
-      std::cout<<"******  debug mode is OFF\n";
+      std::cout<<"****** Unrecognized DebugConfig. Here are your options\n";
+      std::cout<<" 'C:T:P:W:Tick' where C = cryostat, T = TPC, W = wire, Tick (+/-5) to debug stepping (DUNE)\n";
+      std::cout<<" 'P:W:Tick' for single cryostat/TPC detectors (uB, LArIAT, etc)\n";
+      std::cout<<" 'WorkID <id> <slice index>' where <id> is a tj work ID (< 0) in slice <slice index> (default = 0)\n";
+      std::cout<<" 'Merge <CTP>' to debug trajectory merging\n";
+      std::cout<<" '2V <plane>' to debug 2D vertex finding in plane <plane>\n";
+      std::cout<<" '3V' to debug 3D vertex finding\n";
+      std::cout<<" 'VxMerge' to debug 2D vertex merging\n";
+      std::cout<<" 'JunkVx' to debug 2D junk vertex finder\n";
+      std::cout<<" 'PFP' to debug 3D matching and PFParticles\n";
+      std::cout<<" 'DeltaRay' to debug delta ray tagging\n";
+      std::cout<<" 'Muon' to debug muon tagging\n";
+      std::cout<<" '2S <plane>' to debug a 2D shower in plane <plane>\n";
+      std::cout<<" 'Reco <ID>' to reconstruct all sub-slices in the recob::Slice with the specified ID\n";
+      std::cout<<" 'SubSlice <sub-slice index>' where <slice index> restricts output to the specified sub-slice index\n";
+      std::cout<<" 'Stitch' to debug PFParticle stitching between TPCs\n";
+      std::cout<<" 'Sum' or 'Summary' to print a debug summary report\n";
+      std::cout<<" 'Dump <WorkID>' or 'Dump <UniqueID>' to print all TPs in the trajectory\n";
+      std::cout<<" Note: Algs with debug printing include HamVx, HamVx2, SplitTjCVx, Comp3DVx, Comp3DVxIG, VtxHitsSwap\n";
+      std::cout<<" Set SkipAlgs: [\"bogusText\"] to print a list of algorithm names\n";
       return false;
     } // instruct
     
@@ -4373,10 +4409,19 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       tcc.dbgStp = true;
       return true;
     } // nums.size() == 5
-    if(words.size() == 3 && words[0] == "WorkID") {
+    if(words.size() == 2 && words[0] == "Dump") {
+      debug.WorkID = std::stoi(words[1]);
+      debug.Slice = 0;
+      tcc.modes[kDebug] = true;
+      tcc.dbgDump = true;
+      return true;
+    }
+    if(words.size() > 1 && words[0] == "WorkID") {
       debug.WorkID = std::stoi(words[1]);
       if(debug.WorkID >= 0) return false;
-      debug.Slice = std::stoi(words[2]);
+      // default to sub-slice index 0
+      debug.Slice = 0;
+      if(words.size() > 2) debug.Slice = std::stoi(words[2]);
       tcc.modes[kDebug] = true;
       // dbgStp is set true after debug.WorkID is found
       tcc.dbgStp = false;
@@ -4426,6 +4471,39 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
   
   // ****************************** Printing  ******************************
   
+  void DumpTj()
+  {
+    // Dump all of the points in a trajectory to the output in a form that can
+    // be imported by another application, e.g. Excel
+    // Search for the trajectory with the specified WorkID or Unique ID
+    
+    for(auto& slc : slices) {
+      for(auto& tj : slc.tjs) {
+        if(tj.AlgMod[kKilled]) continue;
+        if(tj.WorkID != debug.WorkID && tj.UID !=debug.WorkID) continue;
+        // print a header
+        std::ofstream outfile;
+        outfile.open("tcdump.csv",std::ios::out | std::ios::trunc);
+        outfile<<"Dump trajectory T"<<tj.UID<<" WorkID "<<tj.WorkID<<"\n";
+        outfile<<"Wire, Tick, Delta, Chg_T"<<tj.ID<<"\n";
+        for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+          auto& tp = tj.Pts[ipt];
+          outfile<<std::fixed;
+          outfile<<std::setprecision(0)<<std::nearbyint(tp.Pos[0])<<",";
+          outfile<<std::setprecision(0)<<std::nearbyint(tp.Pos[1]/tcc.unitsPerTick)<<",";
+          outfile<<std::setprecision(2)<<tp.Delta<<",";
+          outfile<<(int)tp.Chg;
+          outfile<<"\n";
+        } // ipt
+        outfile.close();
+        std::cout<<"Points on T"<<tj.UID<<" dumped to tcdump.csv\n";
+        return;
+      } // tj
+    } // slc
+
+  } // DumpTj
+  
+  ////////////////////////////////////////////////
   void PrintAll(std::string someText)
   {
     // print everything in all slices
