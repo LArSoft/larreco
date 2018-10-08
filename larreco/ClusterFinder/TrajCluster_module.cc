@@ -512,7 +512,7 @@ namespace cluster {
           slcVxStruct tmp;
           tmp.slIndx = isl;
           tmp.ID = vx2.ID;
-          tmp.vxColIndx = vx2Col.size();
+          tmp.vxColIndx = vx2Col.size() - 1;
           vx2StrList.push_back(tmp);
         } // vx2
         // make Vertices
@@ -530,7 +530,7 @@ namespace cluster {
           slcVxStruct tmp;
           tmp.slIndx = isl;
           tmp.ID = vx3.ID;
-          tmp.vxColIndx = vx3Col.size();
+          tmp.vxColIndx = vx3Col.size() - 1;
           vx3StrList.push_back(tmp);
         } // vx3
         // Convert the tjs to clusters
@@ -659,10 +659,10 @@ namespace cluster {
                     throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with Vertex";
                   } // exception
                   break;
-                } // vx3Index
+                } // vx3str
               } // vx2.Vx3ID > 0
               break;
-            } // vx2
+            } // vx2str
           } // end
         } // tj (aka cluster)
         // make Showers
