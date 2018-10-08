@@ -3,11 +3,14 @@
 struct pfpStuff {
   art::Ptr<recob::PFParticle> pfp;
   art::Ptr<recob::Vertex> vtx;
+  std::vector<art::Ptr<recob::EndPoint2D> > vx2;
   std::vector<art::Ptr<recob::Hit> > hits;
+  double score;
 };
 
 bool comparePFP(const pfpStuff& l, const pfpStuff& r) {
 
+  /*
   art::Ptr<recob::Vertex> lvtx = l.vtx;
   art::Ptr<recob::Vertex> rvtx = r.vtx;
 
@@ -19,6 +22,8 @@ bool comparePFP(const pfpStuff& l, const pfpStuff& r) {
   if (lz > hitthres && rz <= hitthres) return false;
   else if (lz <= hitthres && rz > hitthres) return true;
   return lvtx->position().Z() > rvtx->position().Z();
+  */
+  return l.score > r.score;
 }
 
 bool compareHit(const art::Ptr<recob::Hit>& l, const art::Ptr<recob::Hit>& r) {
@@ -47,12 +52,20 @@ namespace shower {
     dEdx.resize(2);
     dEdxErr.resize(2);   
 
+    for (size_t i = 0; i < vertexlist.size(); ++i) {
+      std::cout << vertexlist[i]->ID() << std::endl;
+    }
+
+    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
+    art::ServiceHandle<geo::Geometry> geom;
+
     std::vector<pfpStuff> allpfps;
 
     for (size_t i = 0; i < vx2list.size(); ++i) {
       std::cout << "vx2 " << vx2list[i]->ID() << " strength " << vx2list[i]->Strength() << "\t" << vx2list[i]->View() << " " << vx2list[i]->WireID().asWireID().Wire << ":" << vx2list[i]->DriftTime() << std::endl;
     } // loop through 2d vertices
 
+    // put together pfparticle information
     for (size_t i = 0; i < pfplist.size(); ++i) {
       pfpStuff thispfp;
       thispfp.hits.clear();
@@ -62,21 +75,65 @@ namespace shower {
       std::vector<art::Ptr<recob::Cluster> > thisclusterlist = clspfp_fm.at(pfplist[i].key());
 
       std::vector<int> clustersize;
+      std::vector<double> clusterscore;
 
       for (size_t j = 0; j < thisclusterlist.size(); ++j) {
+	double thisclusterscore = 999;
+	int vx2Index = -1;
+	
 	std::vector<art::Ptr<recob::Hit> > thishitlist = cls_fm.at(thisclusterlist[j].key());
 
 	clustersize.push_back((int)thishitlist.size());
 
 	for (size_t k = 0; k < thishitlist.size(); ++k) {
 	  thispfp.hits.push_back(thishitlist[k]);
+
+	  // loop through vx2s to see which one is closest to the hit
+	  // see if doca is smaller than the current best
+
+	  for (size_t l = 0; l < vx2list.size(); ++l) {
+	    if (thishitlist[k]->View() != vx2list[l]->View() ) continue;
+
+	    double wirePitch = geom->WirePitch(thishitlist[k]->WireID());
+	    double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
+	    tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
+	    double UnitsPerTick = tickToDist / wirePitch;
+	    
+	    double x1 = thishitlist[k]->WireID().Wire;
+	    double y1 = thishitlist[k]->PeakTime() * UnitsPerTick;
+
+	    double x2 = vx2list[l]->WireID().Wire;
+	    double y2 = vx2list[l]->DriftTime() * UnitsPerTick;
+
+	    double dist = std::sqrt(pow(x1-x2, 2) + pow(y1-y2, 2) );
+
+	    if (dist < thisclusterscore) {
+	      thisclusterscore = dist;
+	      vx2Index = l;
+	      // std::cout << "dist " << dist << " vtx " << vx2list[l]->ID() << " pfp " << pfplist[i]->Self()+1 << std::endl;
+	    }
+
+	  }
+
 	} // loop through hits
+
+	clusterscore.push_back(thisclusterscore);
+	if (vx2Index != -1) thispfp.vx2.push_back(vx2list[vx2Index]);
 
       } // loop through clusters
 
-      if (clustersize.size() == 3) allpfps.push_back(thispfp);
+      if (clustersize.size() == 3 && thispfp.vx2.size() == 3) {
+	
+	thispfp.score = clusterscore[0] + clusterscore[1] + clusterscore[2];
 
-      if (clustersize.size() == 3) std::cout << "pfp " << thispfp.pfp->Self() << " cluster sizes " << clustersize[0] << ":" << clustersize[1] << ":" << clustersize[2] << " vertex " << thispfp.vtx->ID() << " z " << thispfp.vtx->position().Z() << std::endl; 
+	allpfps.push_back(thispfp);
+	
+	double tick = detprop->ConvertXToTicks(thispfp.vtx->position().X(), geo::PlaneID(0,0,2) );
+        int wire = geom->WireCoordinate(thispfp.vtx->position().Y(), thispfp.vtx->position().Z(), geo::PlaneID(0,0,2));
+
+	std::cout << "pfp " << thispfp.pfp->Self() + 1 << " cluster sizes " << clustersize[0] << ":" << clustersize[1] << ":" << clustersize[2] << " pfp score " << thispfp.score << " vertex " << thispfp.vtx->ID() << " " << tick << ":" << wire << " z " << thispfp.vtx->position().Z() << " vx2 " << thispfp.vx2[0]->ID() << ":" << thispfp.vx2[1]->ID() << ":" << thispfp.vx2[2]->ID() << std::endl; 
+
+      } // add pfp to list
 
     } // loop through pfparticles
 
@@ -85,13 +142,13 @@ namespace shower {
 
     std::cout << "sorted pfps: ";
     for (size_t i = 0; i < allpfps.size(); ++i)
-      std::cout << allpfps[i].pfp->Self() << " ";
+      std::cout << allpfps[i].pfp->Self() + 1 << " ";
     std::cout << std::endl;
 
     bool showerCandidate = false;
 
     //    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    art::ServiceHandle<geo::Geometry> geom;
+    //    art::ServiceHandle<geo::Geometry> geom;
 
     for (size_t i = 0; i < allpfps.size(); ++i) {
 
@@ -101,7 +158,7 @@ namespace shower {
       std::vector<art::Ptr<recob::Hit> > pfphits = allpfps[i].hits;
       std::vector<art::Ptr<recob::Cluster> > pfpcls = clspfp_fm.at(allpfps[i].pfp.key());
 
-      std::cout << "pfp " << allpfps[i].pfp->Self() << " hits " << pfphits.size() << std::endl;
+      std::cout << "pfp " << allpfps[i].pfp->Self() + 1 << " hits " << pfphits.size() << std::endl;
 
       int tolerance = 100; // how many shower like cluster you need to define a shower              
       double pullTolerance = 0.6; // hits should be evenly distributed around the track
@@ -161,6 +218,29 @@ namespace shower {
 	std::sort(clshitlist.begin(), clshitlist.end(), compareHit);
 	std::reverse(clshitlist.begin(), clshitlist.end());
 
+	bool flipHits = false;
+	for (size_t jj = 0; jj < allpfps[i].vx2.size(); ++jj) {
+	  art::Ptr<recob::EndPoint2D> thisvx2 = allpfps[i].vx2[jj];
+
+	  if (thisvx2->View() != pfpcls[ii]->View() ) continue;
+
+	  int w1 = thisvx2->WireID().Wire;
+	  int w2 = clshitlist[0]->WireID().Wire;
+	  int w3 = clshitlist[clshitlist.size()-2]->WireID().Wire;
+
+	  std::cout << thisvx2->View() << " "  << w1 << " " << w2 << " " << w3 << std::endl;
+
+	  int d1 = abs(w1-w2);
+	  int d2 = abs(w1-w3);
+	  
+	  std::cout << "d1 " << d1 << " d2 " << d2 << std::endl;
+
+	  if (d2 < d1) flipHits = true;
+	} // pfp.vx2
+
+	if (flipHits) std::reverse(clshitlist.begin(), clshitlist.end());
+
+	// check if need to reverse shower!
 	auto iPlane = pfpcls[ii]->Plane();
 
 	trk_tick1[iPlane] = clshitlist[firstIndex]->PeakTime();
@@ -168,7 +248,7 @@ namespace shower {
 	trk_tick2[iPlane] = clshitlist[secondIndex]->PeakTime();
 	trk_wire2[iPlane] = clshitlist[secondIndex]->WireID().asWireID().Wire;
 
-      }
+      } // pfpcls
 
       if (clusterTooSmall) continue;
 
@@ -372,7 +452,7 @@ namespace shower {
       }
       */
       if (showerCandidate) {
-	std::cout << "THIS IS THE SHOWER PFP: " << allpfps[i].pfp->Self() << std::endl;
+	std::cout << "THIS IS THE SHOWER PFP: " << allpfps[i].pfp->Self() + 1 << std::endl;
 	break;
       }
 
