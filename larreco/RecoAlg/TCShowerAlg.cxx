@@ -10,7 +10,6 @@ struct pfpStuff {
 
 bool comparePFP(const pfpStuff& l, const pfpStuff& r) {
 
-  /*
   art::Ptr<recob::Vertex> lvtx = l.vtx;
   art::Ptr<recob::Vertex> rvtx = r.vtx;
 
@@ -22,8 +21,8 @@ bool comparePFP(const pfpStuff& l, const pfpStuff& r) {
   if (lz > hitthres && rz <= hitthres) return false;
   else if (lz <= hitthres && rz > hitthres) return true;
   return lvtx->position().Z() > rvtx->position().Z();
-  */
-  return l.score > r.score;
+
+  //  return l.score > r.score;
 }
 
 bool compareHit(const art::Ptr<recob::Hit>& l, const art::Ptr<recob::Hit>& r) {
@@ -217,7 +216,8 @@ namespace shower {
 
 	std::sort(clshitlist.begin(), clshitlist.end(), compareHit);
 	std::reverse(clshitlist.begin(), clshitlist.end());
-
+	/*
+	// need to decide a scheme for flipping hits on a plane
 	bool flipHits = false;
 	for (size_t jj = 0; jj < allpfps[i].vx2.size(); ++jj) {
 	  art::Ptr<recob::EndPoint2D> thisvx2 = allpfps[i].vx2[jj];
@@ -233,13 +233,13 @@ namespace shower {
 	  int d1 = abs(w1-w2);
 	  int d2 = abs(w1-w3);
 	  
-	  std::cout << "d1 " << d1 << " d2 " << d2 << std::endl;
+	  //	  std::cout << "d1 " << d1 << " d2 " << d2 << std::endl;
 
 	  if (d2 < d1) flipHits = true;
 	} // pfp.vx2
 
 	if (flipHits) std::reverse(clshitlist.begin(), clshitlist.end());
-
+	*/
 	// check if need to reverse shower!
 	auto iPlane = pfpcls[ii]->Plane();
 

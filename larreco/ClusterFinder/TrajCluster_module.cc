@@ -470,10 +470,16 @@ namespace cluster {
     std::unique_ptr<art::Assns<recob::Slice, recob::Hit>>
       slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
 
-    // vector to map 2V UID -> ID
-    std::vector<int> vx2IDs;
-    // vector to map 3V UID -> ID
-    std::vector<int> vx3IDs;
+    // temp struct to get the index of a 2D (or 3D vertex) into vx2Col (or vx3Col)
+    // given a slice index and a vertex ID (not UID)
+    struct slcVxStruct {
+      unsigned short slIndx;
+      int ID;
+      unsigned short vxColIndx;
+    };
+    std::vector<slcVxStruct> vx2StrList;
+    // vector to map 3V UID -> ID in each sub-slice
+    std::vector<slcVxStruct> vx3StrList;
 
     if(nInputHits > 0) {
       unsigned short nSlices = fTCAlg->GetSlicesSize();
@@ -502,7 +508,14 @@ namespace cluster {
                               vtxID,                // ID
                               view,                 // View
                               0);                   // total charge - not relevant
-          vx2IDs.push_back(vx2.ID);
+
+	  // fill the mapping struct
+          slcVxStruct tmp;
+          tmp.slIndx = isl;
+          tmp.ID = vx2.ID;
+          tmp.vxColIndx = vx2Col.size() - 1;
+          vx2StrList.push_back(tmp);
+
         } // vx2
         // make Vertices
         for(auto& vx3 : slc.vtx3s) {
@@ -515,7 +528,14 @@ namespace cluster {
           xyz[1] = vx3.Y;
           xyz[2] = vx3.Z;
           vx3Col.emplace_back(xyz, vtxID);
-          vx3IDs.push_back(vx3.ID);
+
+	  // fill the mapping struct
+          slcVxStruct tmp;
+          tmp.slIndx = isl;
+          tmp.ID = vx3.ID;
+          tmp.vxColIndx = vx3Col.size() - 1;
+          vx3StrList.push_back(tmp);
+
         } // vx3
         // Convert the tjs to clusters
         bool badSlice = false;
@@ -624,25 +644,28 @@ namespace cluster {
           // Make cluster -> 2V and cluster -> 3V assns
           for(unsigned short end = 0; end < 2; ++end) {
             if(tj.VtxID[end] <= 0) continue;
-            for(unsigned short vx2Index = 0; vx2Index < vx2IDs.size(); ++vx2Index) {
-              if(vx2IDs[vx2Index] != tj.VtxID[end]) continue;
-              if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2Index, end))
+
+	    for(auto& vx2str : vx2StrList) {
+	      if(vx2str.slIndx != isl) continue;
+	      if(vx2str.ID != tj.VtxID[end]) continue;
+	      if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2str.vxColIndx, end))
               {
                 throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with EndPoint2D";
               } // exception
               auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
               if(vx2.Vx3ID > 0) {
-                for(unsigned short vx3Index = 0; vx3Index < vx3IDs.size(); ++vx3Index) {
-                  if(vx3IDs[vx3Index] != vx2.Vx3ID) continue;
-                  if(!util::CreateAssnD(*this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3Index, end))
+		for(auto vx3str : vx3StrList) {
+                  if(vx3str.slIndx != isl) continue;
+                  if(vx3str.ID != vx2.Vx3ID) continue;
+                  if(!util::CreateAssnD(*this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3str.vxColIndx, end))
                   {
                     throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with Vertex";
                   } // exception
                   break;
-                } // vx3Index
+                } // vx3str
               } // vx2.Vx3ID > 0
               break;
-            } // vx2
+            } // vx2str
           } // end
         } // tj (aka cluster)
         // make Showers
@@ -717,10 +740,13 @@ namespace cluster {
           } // exception
           // PFParticle -> Vertex
           if(pfp.Vx3ID[0] > 0) {
-            for(unsigned short vx3Index = 0; vx3Index < vx3IDs.size(); ++vx3Index) {
-              if(vx3IDs[vx3Index] != pfp.Vx3ID[0]) continue;
-              std::vector<unsigned short> indx(1, vx3Index);
-              if(!util::CreateAssn(*this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end()))
+	    for(auto vx3str : vx3StrList) {
+              if(vx3str.slIndx != isl) continue;
+              if(vx3str.ID != pfp.Vx3ID[0]) continue;
+	      std::vector<unsigned short> indx(1, vx3str.vxColIndx);
+        
+	      if(!util::CreateAssn(*this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end()))
+
               {
                 throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle "<<pfp.UID<<" with Vertex";
               } // exception
