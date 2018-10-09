@@ -3125,7 +3125,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     // vertex in which case the Environment kEnvOverlap bit may be set by the UpdateVxEnvironment
     // function in which case this function is called.
     // The kEnvNearShower bit may be set by TagShowerTjs but this doesn't affect the
-    // calculation of the properties of this Tj. This function simply sets the kEnvUnusedHits bit
+    // calculation of the properties of this Tj.tcc.maxPos0 This function simply sets the kEnvUnusedHits bit
     // for all TPs. 
     if(tj.AlgMod[kKilled]) return;
 
@@ -3165,18 +3165,28 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     double vcnt = 0;
     double vsum = 0;
     double vsum2 = 0;
+    // Reject a single large charge TP
+    float bigChg = 0;
+    for(unsigned short ipt = tj.EndPt[0] + 1; ipt < tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg > bigChg) bigChg = tp.Chg;
+    } // ipt
     //  variables for calculating the backup quanties. These are only used if npwc < 3
     double bcnt = 0;
     double bsum = 0;
     double bsum2 = 0;
-    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+    // don't include the end points
+    for(unsigned short ipt = tj.EndPt[0] + 1; ipt < tj.EndPt[1]; ++ipt) {
       auto& tp = tj.Pts[ipt];
       if(tp.Chg <= 0) continue;
+      // ignore the single large charge TP
+      if(tp.Chg == bigChg) continue;
       // accumulate a backup sum in case most of the points are overlapped. Note that
       // tp.Chg has an angle correction, which is why the hit integral is summed
       // below. We don't care about this detail for the backup sum
       bsum  += tp.Chg;
       bsum2 += tp.Chg * tp.Chg;
+      if(tp.Chg > bigChg) bigChg = tp.Chg;
       ++bcnt;
       // Skip TPs that overlap with TPs on other Tjs. A correction will be made below
       if(tj.Pts[ipt].Environment[kEnvOverlap]) continue;
@@ -4483,20 +4493,39 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         if(tj.WorkID != debug.WorkID && tj.UID !=debug.WorkID) continue;
         // print a header
         std::ofstream outfile;
-        outfile.open("tcdump.csv",std::ios::out | std::ios::trunc);
-        outfile<<"Dump trajectory T"<<tj.UID<<" WorkID "<<tj.WorkID<<"\n";
-        outfile<<"Wire, Tick, Delta, Chg_T"<<tj.ID<<"\n";
+        std::string fname = "tcdump" + std::to_string(tj.UID) + ".csv";
+        outfile.open(fname,std::ios::out | std::ios::trunc);
+        outfile<<"Dump trajectory T"<<tj.UID<<" WorkID "<<tj.WorkID;
+        outfile<<" ChgRMS "<<std::setprecision(2)<<tj.ChgRMS;
+        outfile<<"\n";
+        outfile<<"Wire, Tick, Delta, Chg_T"<<tj.ID<<", ChgNear, Overlap?\n";
+        std::array<int, 2> wireWindow;
+        std::array<float, 2> timeWindow;
+        std::vector<int> closeHits;
+        bool hitsNear;
+        unsigned short plane = DecodeCTP(tj.CTP).Plane;
         for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
           auto& tp = tj.Pts[ipt];
           outfile<<std::fixed;
           outfile<<std::setprecision(0)<<std::nearbyint(tp.Pos[0])<<",";
           outfile<<std::setprecision(0)<<std::nearbyint(tp.Pos[1]/tcc.unitsPerTick)<<",";
           outfile<<std::setprecision(2)<<tp.Delta<<",";
-          outfile<<(int)tp.Chg;
+          outfile<<(int)tp.Chg<<",";
+          wireWindow[0] = std::nearbyint(tp.Pos[0]);
+          wireWindow[1] = wireWindow[0];
+          timeWindow[0] = tp.Pos[1] - 5;
+          timeWindow[1] = tp.Pos[1] + 5;
+          auto tmp = FindCloseHits(slc, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
+          float chgNear = 0;
+          for(auto iht : tmp) {
+            auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
+            chgNear += hit.Integral();
+          } // iht
+          outfile<<(int)chgNear;
           outfile<<"\n";
         } // ipt
         outfile.close();
-        std::cout<<"Points on T"<<tj.UID<<" dumped to tcdump.csv\n";
+        std::cout<<"Points on T"<<tj.UID<<" dumped to "<<fname<<"\n";
         return;
       } // tj
     } // slc
