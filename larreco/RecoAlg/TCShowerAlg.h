@@ -37,6 +37,9 @@
 #include "larcore/Geometry/Geometry.h"
 
 #include "larreco/Calorimetry/CalorimetryAlg.h"
+#include "larreco/RecoAlg/ProjectionMatchingAlg.h"
+#include "larreco/RecoAlg/PMAlg/PmaTrack3D.h"
+#include "larreco/RecoAlg/PMAlg/Utilities.h"
 
 #include "TH1F.h"
 
@@ -65,6 +68,7 @@ namespace shower {
   private: 
 
     calo::CalorimetryAlg fCalorimetryAlg;
+    pma::ProjectionMatchingAlg fProjectionMatchingAlg;
 
     int goodHit(art::Ptr<recob::Hit>, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2);
 

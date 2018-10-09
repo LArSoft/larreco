@@ -235,6 +235,7 @@ standard_dbscan3dalg:
 standard_tcshoweralg:
 {
     CalorimetryAlg: @local::standard_calorimetryalgmc
+    ProjectionMatchingAlg:    @local::standard_projectionmatchingalg 
 }
 
 standard_fuzzyclusteralg:

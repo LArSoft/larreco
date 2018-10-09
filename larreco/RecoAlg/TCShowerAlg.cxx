@@ -41,7 +41,8 @@ bool compareHit(const art::Ptr<recob::Hit>& l, const art::Ptr<recob::Hit>& r) {
 namespace shower {
 
   TCShowerAlg::TCShowerAlg(fhicl::ParameterSet const& pset) :
-    fCalorimetryAlg   (pset.get<fhicl::ParameterSet>("CalorimetryAlg") ){
+    fCalorimetryAlg(pset.get<fhicl::ParameterSet>("CalorimetryAlg") ),
+    fProjectionMatchingAlg(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg")){
   }
 
   int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::PFParticle> > pfplist, std::vector<art::Ptr<recob::Vertex> > vertexlist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, std::vector<art::Ptr<recob::EndPoint2D> > vx2list, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Cluster> clspfp_fm, art::FindManyP<recob::Vertex> vtxpfp_fm, art::FindManyP<recob::PFParticle> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<anab::Calorimetry> fmcal) {
@@ -51,19 +52,16 @@ namespace shower {
     dEdx.resize(2);
     dEdxErr.resize(2);   
 
-    for (size_t i = 0; i < vertexlist.size(); ++i) {
-      std::cout << vertexlist[i]->ID() << std::endl;
-    }
-
     auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     art::ServiceHandle<geo::Geometry> geom;
 
     std::vector<pfpStuff> allpfps;
 
+    /*
     for (size_t i = 0; i < vx2list.size(); ++i) {
       std::cout << "vx2 " << vx2list[i]->ID() << " strength " << vx2list[i]->Strength() << "\t" << vx2list[i]->View() << " " << vx2list[i]->WireID().asWireID().Wire << ":" << vx2list[i]->DriftTime() << std::endl;
     } // loop through 2d vertices
-
+    */
     // put together pfparticle information
     for (size_t i = 0; i < pfplist.size(); ++i) {
       pfpStuff thispfp;
@@ -86,6 +84,7 @@ namespace shower {
 
 	for (size_t k = 0; k < thishitlist.size(); ++k) {
 	  thispfp.hits.push_back(thishitlist[k]);
+	  //	  if (thishitlist.size() > 10) thispfp.hits.push_back(thishitlist[k]); // NEED TO TEST
 
 	  // loop through vx2s to see which one is closest to the hit
 	  // see if doca is smaller than the current best
@@ -121,7 +120,10 @@ namespace shower {
 
       } // loop through clusters
 
-      if (clustersize.size() == 3 && thispfp.vx2.size() == 3) {
+      //      std::cout << "pfp " << thispfp.pfp->Self() + 1 << " nclusters " << clustersize.size() << " nvx2 " << thispfp.vx2.size() << std::endl;  
+
+      //      if (clustersize.size() == 3 && thispfp.vx2.size() == 3) {
+      if (clustersize.size() == 3) {
 	
 	thispfp.score = clusterscore[0] + clusterscore[1] + clusterscore[2];
 
@@ -130,7 +132,7 @@ namespace shower {
 	double tick = detprop->ConvertXToTicks(thispfp.vtx->position().X(), geo::PlaneID(0,0,2) );
         int wire = geom->WireCoordinate(thispfp.vtx->position().Y(), thispfp.vtx->position().Z(), geo::PlaneID(0,0,2));
 
-	std::cout << "pfp " << thispfp.pfp->Self() + 1 << " cluster sizes " << clustersize[0] << ":" << clustersize[1] << ":" << clustersize[2] << " pfp score " << thispfp.score << " vertex " << thispfp.vtx->ID() << " " << tick << ":" << wire << " z " << thispfp.vtx->position().Z() << " vx2 " << thispfp.vx2[0]->ID() << ":" << thispfp.vx2[1]->ID() << ":" << thispfp.vx2[2]->ID() << std::endl; 
+	std::cout << "pfp " << thispfp.pfp->Self() + 1 << " cluster sizes " << clustersize[0] << ":" << clustersize[1] << ":" << clustersize[2] << " pfp score " << thispfp.score << " vertex " << thispfp.vtx->ID() << " " << tick << ":" << wire << " z " << thispfp.vtx->position().Z() << std::endl;
 
       } // add pfp to list
 
@@ -146,9 +148,6 @@ namespace shower {
 
     bool showerCandidate = false;
 
-    //    auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    //    art::ServiceHandle<geo::Geometry> geom;
-
     for (size_t i = 0; i < allpfps.size(); ++i) {
 
       showerHits.clear();
@@ -157,10 +156,45 @@ namespace shower {
       std::vector<art::Ptr<recob::Hit> > pfphits = allpfps[i].hits;
       std::vector<art::Ptr<recob::Cluster> > pfpcls = clspfp_fm.at(allpfps[i].pfp.key());
 
+      //      if (pfphits.size() == 0) continue;
+
       std::cout << "pfp " << allpfps[i].pfp->Self() + 1 << " hits " << pfphits.size() << std::endl;
 
-      int tolerance = 100; // how many shower like cluster you need to define a shower              
-      double pullTolerance = 0.6; // hits should be evenly distributed around the track
+      pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(pfphits);
+      std::vector<TVector3> spts;
+      for (size_t j = 0; j < pmatrack->size(); ++j) {
+	if ( (*pmatrack)[j]->IsEnabled() ) {
+	  TVector3 p3d = (*pmatrack)[j]->Point3D();
+	  spts.push_back(p3d);
+	  //	  std::cout << "track point " << p3d[0] << " " << p3d[1] << " " << p3d[2] << std::endl;
+	}
+      } // pmatrack points
+
+      TVector3 vtx;
+      vtx[0] = pfpvtx->position().X();
+      vtx[1] = pfpvtx->position().Y();
+      vtx[2] = pfpvtx->position().Z();
+
+      if (spts.size() >= 2) {
+	if ( (spts[0]-vtx).Mag() < (spts.back()-vtx).Mag() ) {
+	  shwvtx = spts[0];
+	  size_t sp = 5;
+	  if (spts.size() - 1 < sp) sp = spts.size() - 1;
+	  shwDir = spts[sp] - spts[0];
+	  shwDir = shwDir.Unit();
+	}
+	else {
+	  shwvtx = spts.back();
+	  size_t sp = 0;
+	  if (spts.size() > 6) sp = spts.size() - 6;
+	  shwDir = spts[sp] - spts[spts.size() - 1];
+	  shwDir = shwDir.Unit();
+	}
+      }
+
+      //      int tolerance = 100; // how many shower like cluster you need to define a shower              
+      int tolerance = 60; // how many shower like cluster you need to define a shower              
+      double pullTolerance = 0.7; // hits should be evenly distributed around the track
       double maxDist = 10; // how far a shower like cluster can be from the track
       double minDistVert = 15; // exclude tracks near the vertex
 
@@ -181,12 +215,14 @@ namespace shower {
       int nShowerHits = 0;
       double showerHitPull = 0;
 
-      TVector3 pfpStart;
-      TVector3 pfpPt2; // a second point along the track
+      TVector3 pfpStart = shwvtx;
+      TVector3 pfpPt2 = shwvtx+shwDir; // a second point along the track
 
+      /*
       pfpStart[0] = pfpvtx->position().X();
       pfpStart[1] = pfpvtx->position().Y();
       pfpStart[2] = pfpvtx->position().Z();
+      */
 
       // track vertex
       std::map<geo::PlaneID, double> trk_tick1;
@@ -196,6 +232,13 @@ namespace shower {
       std::map<geo::PlaneID, double> trk_tick2;
       std::map<geo::PlaneID, double> trk_wire2;
 
+      for (auto iPlane = geom->begin_plane_id(); iPlane != geom->end_plane_id(); ++iPlane){
+        trk_tick1[*iPlane] = detprop->ConvertXToTicks(pfpStart[0], *iPlane);
+        trk_wire1[*iPlane] = geom->WireCoordinate(pfpStart[1], pfpStart[2], *iPlane);
+        trk_tick2[*iPlane] = detprop->ConvertXToTicks(pfpPt2[0], *iPlane);
+        trk_wire2[*iPlane] = geom->WireCoordinate(pfpPt2[1], pfpPt2[2], *iPlane);
+      }
+      /*
       bool clusterTooSmall = false;
 
       for (size_t ii = 0; ii < pfpcls.size(); ++ii) {
@@ -216,10 +259,13 @@ namespace shower {
 
 	std::sort(clshitlist.begin(), clshitlist.end(), compareHit);
 	std::reverse(clshitlist.begin(), clshitlist.end());
-	/*
+
 	// need to decide a scheme for flipping hits on a plane
-	bool flipHits = false;
+	//	bool flipHits = false;
+
+	// flip according to 2D vertices
 	for (size_t jj = 0; jj < allpfps[i].vx2.size(); ++jj) {
+
 	  art::Ptr<recob::EndPoint2D> thisvx2 = allpfps[i].vx2[jj];
 
 	  if (thisvx2->View() != pfpcls[ii]->View() ) continue;
@@ -232,14 +278,43 @@ namespace shower {
 
 	  int d1 = abs(w1-w2);
 	  int d2 = abs(w1-w3);
-	  
-	  //	  std::cout << "d1 " << d1 << " d2 " << d2 << std::endl;
-
 	  if (d2 < d1) flipHits = true;
+
 	} // pfp.vx2
 
-	if (flipHits) std::reverse(clshitlist.begin(), clshitlist.end());
-	*/
+	for (auto iPlane = geom->begin_plane_id(); iPlane != geom->end_plane_id(); ++iPlane) {
+	  if (pfpcls[ii]->Plane() != *iPlane) continue;
+
+	  double wirePitch = geom->WirePitch(clshitlist[0]->WireID());
+	  double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
+	  tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns                            
+	  double UnitsPerTick = tickToDist / wirePitch;
+
+	  //	  double vtxtick = detprop->ConvertXToTicks(allpfps[i].vtx->position().X(), *iPlane );
+	  //	  int vtxwire = geom->WireCoordinate(allpfps[i].vtx->position().Y(), allpfps[i].vtx->position().Z(), *iPlane);
+	  double vtxtick = detprop->ConvertXToTicks(shwvtx[0], *iPlane );
+	  int vtxwire = geom->WireCoordinate(shwvtx[1], shwvtx[2], *iPlane);
+
+	  double x0 = (double) vtxwire;
+	  double y0 = vtxtick * UnitsPerTick;
+
+          double x1 = clshitlist[0]->WireID().Wire;
+	  double y1 = clshitlist[0]->PeakTime() * UnitsPerTick;
+
+          double x2 = clshitlist[clshitlist.size()-1]->WireID().Wire;
+	  double y2 = clshitlist[clshitlist.size()-1]->PeakTime() * UnitsPerTick;
+
+	  double d1 =  sqrt( pow(x0-x1,2) + pow(y0-y1, 2) );
+	  double d2 =  sqrt( pow(x0-x2,2) + pow(y0-y2, 2) );
+
+	  std::cout << "d1 " << d1 << " d2 " << d2 << std::endl;
+
+	  if (d1 > d2) flipHits = true;
+
+	}
+	std::cout << "FLIP HITS " << flipHits << std::endl; 
+	//	if (flipHits) std::reverse(clshitlist.begin(), clshitlist.end());
+
 	// check if need to reverse shower!
 	auto iPlane = pfpcls[ii]->Plane();
 
@@ -248,9 +323,11 @@ namespace shower {
 	trk_tick2[iPlane] = clshitlist[secondIndex]->PeakTime();
 	trk_wire2[iPlane] = clshitlist[secondIndex]->WireID().asWireID().Wire;
 
+
       } // pfpcls
 
       if (clusterTooSmall) continue;
+      */
 
       for (size_t j = 0; j < clusterlist.size(); ++j) {
 	std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(clusterlist[j].key());
@@ -298,7 +375,7 @@ namespace shower {
 
       showerHitPull /= nShowerHits; 
 
-      std::cout << "shower hits " << showerHits.size() << " shower pull " << showerHitPull << std::endl; 
+      std::cout << "shower hits " << showerHits.size() << " " << nShowerHits << " shower pull " << showerHitPull << std::endl; 
 
       if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) {
 	showerCandidate = true;
