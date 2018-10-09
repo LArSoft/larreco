@@ -176,7 +176,8 @@ namespace shower {
       vtx[2] = pfpvtx->position().Z();
 
       if (spts.size() >= 2) {
-	if ( (spts[0]-vtx).Mag() < (spts.back()-vtx).Mag() ) {
+	//	if ( (spts[0]-vtx).Mag() < (spts.back()-vtx).Mag() ) { // choose direction based on pfparticle vertex
+	if ( (spts[0])[2] < spts.back()[2] ) { // choose direction based on z
 	  shwvtx = spts[0];
 	  size_t sp = 5;
 	  if (spts.size() - 1 < sp) sp = spts.size() - 1;
