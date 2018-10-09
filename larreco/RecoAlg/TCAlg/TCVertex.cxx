@@ -214,8 +214,8 @@ namespace tca {
           if(std::abs(tp1.Pos[1] - tp2.Pos[1]) > sepCut) continue;
           float wint, tint;
           TrajIntersection(tp1, tp2, wint, tint);
-          // make sure this is inside the TPC
-          if(wint < 0 || wint > tcc.maxPos0[planeID.Plane]) continue;
+          // make sure this is inside the TPC. 
+          if(wint < 0 || wint > tcc.maxPos0[planeID.Plane] - 3) continue;
           if(tint < 0 || tint > tcc.maxPos1[planeID.Plane]) continue;
           // Next cut on separation between the TPs and the intersection point
           if(tj1Short || tj2Short) { sepCut = tcc.vtx2DCuts[1]; } else { sepCut = tcc.vtx2DCuts[2]; }
@@ -294,8 +294,10 @@ namespace tca {
             unsigned short ipt1, ipt2;
             float maxSep = 3;
             bool isClose = TrajTrajDOCA(slc, tj1, tj2, ipt1, ipt2, maxSep, false);
-            if(prt) mf::LogVerbatim("TC")<<" TrajTrajDOCA close? "<<isClose<<" minSep "<<maxSep;
+            // require that they are close at the correct end
+            if(isClose) isClose = (abs(ipt1 - endPt1) < 4 && abs(ipt2 - endPt2) < 4);
             if(isClose) {
+              if(prt) mf::LogVerbatim("TC")<<" TrajTrajDOCA are close with minSep "<<maxSep<<" near "<<PrintPos(slc, tj1.Pts[ipt1].Pos)<<" "<<PrintPos(slc, tj2.Pts[ipt2].Pos);
               // put the vertex at the TP that is closest to the intersection point
               Point2_t vpos = {{wint, tint}};
               if(PosSep2(tp1.Pos, vpos) < PosSep2(tp2.Pos, vpos)) {
@@ -1790,8 +1792,12 @@ namespace tca {
     float pullCut = tcc.vtx2DCuts[3];
     // Dec 21, 2017 Loosen up the pull cut for short close slc. These are likely to
     // be poorly reconstructed. It is better to have them associated with the vertex
-    // than not.
-    if(tjShort) pullCut = 10;
+    // than not. Oct 5, 2018 This was too loose.
+    if(tcc.useAlg[kNewVtxCuts]) {
+      if(tjShort) pullCut *= 2;
+    } else {
+      if(tjShort) pullCut = 10;
+    }
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -1802,10 +1808,10 @@ namespace tca {
         Trajectory& tj = slc.tjs[itj];
         if(tj.AlgMod[kKilled]) continue;
         if(tj.CTP != vx.CTP) continue;
-        if(tj.VtxID[0] == vx.ID) myprt<<" "<<tj.ID<<"_0";
-        if(tj.VtxID[1] == vx.ID) myprt<<" "<<tj.ID<<"_1";
+        if(tj.VtxID[0] == vx.ID) myprt<<" T"<<tj.ID<<"_0";
+        if(tj.VtxID[1] == vx.ID) myprt<<" T"<<tj.ID<<"_1";
       }
-      myprt<<" +tjID "<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull<<" pullCut "<<pullCut<<" dpt "<<dpt;
+      myprt<<" +  T"<<tj.ID<<"_"<<end<<" vtxTjSep "<<sqrt(vtxTjSep2)<<" tpVxPull "<<tpVxPull<<" pullCut "<<pullCut<<" dpt "<<dpt;
     }
 //    if(tpVxPull > tcc.vtx2DCuts[3]) return false;
     if(tpVxPull > pullCut) return false;
@@ -1830,12 +1836,7 @@ namespace tca {
       vx = vxTmp;
       return true;
     }
-    
-    // test this again
-    tj.AlgMod[kNoFitToVx] = true;
-    if(prt) mf::LogVerbatim("TC")<<" Poor fit. Keep Tj "<<tj.ID<<" with kNoFitToVx";
-    return true;
-/*
+
     // fit failed so remove the tj -> vx assignment if it is long and
     // set noFitToVtx if it is short
     if(tjShort) {
@@ -1849,7 +1850,7 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<" Poor fit. Removed Tj "<<tj.ID;
       return false;
     }
-*/
+
   } // AttachTrajToVertex
   
   /////////////////////////////////////////
