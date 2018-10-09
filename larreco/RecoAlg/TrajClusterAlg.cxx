@@ -662,7 +662,7 @@ namespace tca {
       auto& vx2 = slc.vtxs[ivx];
       if(vx2.ID == 0) continue;
       if(vx2.CTP != inCTP) continue;
-      AttachAnyTrajToVertex(slc, ivx, false);
+      AttachAnyTrajToVertex(slc, ivx, tcc.dbgStp || tcc.dbg2V);
       UpdateVxEnvironment("RAT", slc, vx2, false);
     } // ivx
     
@@ -2340,8 +2340,7 @@ namespace tca {
       unsigned short ivx = TPNearVertex(slc, ltp);
       if(ivx != USHRT_MAX) {
         // Trajectory stops near a vertex so make the assignment
-        AttachTrajToVertex(slc, tj, slc.vtxs[ivx], tcc.dbgStp);
-        tj.StopFlag[1][kAtVtx] = true;
+        if(AttachTrajToVertex(slc, tj, slc.vtxs[ivx], tcc.dbgStp || tcc.dbg2V)) tj.StopFlag[1][kAtVtx] = true;
         break;
       }
 
