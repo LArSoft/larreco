@@ -2214,6 +2214,13 @@ namespace tca {
     unsigned short npl = 0;
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) if(nInPln[plane] > 0) ++npl;
     if(npl < 2) return false;
+    
+    for(unsigned short end = 0; end < 2; ++end) {
+      if(pfp.Vx3ID[end] < 0 || pfp.Vx3ID[end] > (int)slc.vtxs.size()) {
+        std::cout<<fcnLabel<<" P"<<pfp.ID<<" end "<<end<<" is invalid\n";
+        return false;
+      } 
+    } // end
 
     if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
       std::cout<<fcnLabel<<" P"<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
@@ -2323,7 +2330,7 @@ namespace tca {
     // return true if nothing was done to TjIDs
     if(pfp.ID == 0) return true;
     if(pfp.TjIDs.empty()) return true;
-    if(pfp.Vx3ID[0] == 0) return true;
+    if(pfp.Vx3ID[0] <= 0 || pfp.Vx3ID[0] > (int)slc.vtx3s.size()) return true;
     
     auto& vx3 = slc.vtx3s[pfp.Vx3ID[0] - 1];
     std::vector<int> killMe;

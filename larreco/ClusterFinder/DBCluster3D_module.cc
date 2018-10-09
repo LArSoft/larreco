@@ -86,6 +86,7 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
 
   tickToDist = fDetProp->DriftVelocity(fDetProp->Efield(),fDetProp->Temperature());
   tickToDist *= 1.e-3 * fDetProp->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns     
+  fMinHitDis *= fMinHitDis;
 }
 
 void cluster::DBCluster3D::produce(art::Event & evt)
