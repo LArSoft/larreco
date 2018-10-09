@@ -160,7 +160,13 @@ namespace shower {
 
       std::cout << "pfp " << allpfps[i].pfp->Self() + 1 << " hits " << pfphits.size() << std::endl;
 
-      pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(pfphits);
+      TVector3 vtx;
+      vtx[0] = pfpvtx->position().X();
+      vtx[1] = pfpvtx->position().Y();
+      vtx[2] = pfpvtx->position().Z();
+
+      //      pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(pfphits);
+      pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(pfphits, vtx);
       std::vector<TVector3> spts;
       for (size_t j = 0; j < pmatrack->size(); ++j) {
 	if ( (*pmatrack)[j]->IsEnabled() ) {
@@ -169,11 +175,6 @@ namespace shower {
 	  //	  std::cout << "track point " << p3d[0] << " " << p3d[1] << " " << p3d[2] << std::endl;
 	}
       } // pmatrack points
-
-      TVector3 vtx;
-      vtx[0] = pfpvtx->position().X();
-      vtx[1] = pfpvtx->position().Y();
-      vtx[2] = pfpvtx->position().Z();
 
       if (spts.size() >= 2) {
 	//	if ( (spts[0]-vtx).Mag() < (spts.back()-vtx).Mag() ) { // choose direction based on pfparticle vertex
