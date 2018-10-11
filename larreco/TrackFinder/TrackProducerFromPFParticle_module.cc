@@ -239,7 +239,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	if (doSpacePoints_ && !spacePointsFromTrajP_) optionals.initSpacePoints();
 	//
 	// Invoke tool to fit track and fill output objects
-	bool fitok = trackMaker_->makeTrack(traj, iShower, inHits, outTrack, outHits, optionals);
+	bool fitok = trackMaker_->makeTrack(traj, iPfp, inHits, outTrack, outHits, optionals);
 	if (!fitok) continue;
 	//
 	// Check that the requirement Nhits == Npoints is satisfied
@@ -324,7 +324,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	if (doSpacePoints_ && !spacePointsFromTrajP_) optionals.initSpacePoints();
 	//
 	// Invoke tool to fit track and fill output objects
-	bool fitok = trackMaker_->makeTrack(traj, iS, inHits, outTrack, outHits, optionals);
+	bool fitok = trackMaker_->makeTrack(traj, iPfp, inHits, outTrack, outHits, optionals);
 	if (!fitok) continue;
 	//
 	// Check that the requirement Nhits == Npoints is satisfied
