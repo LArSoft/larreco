@@ -2,8 +2,8 @@
 
 struct pfpStuff {
   art::Ptr<recob::PFParticle> pfp;
+  art::Ptr<recob::Track> trk;
   art::Ptr<recob::Vertex> vtx;
-  std::vector<art::Ptr<recob::EndPoint2D> > vx2;
   std::vector<art::Ptr<recob::Hit> > hits;
   double score;
 };
@@ -27,8 +27,6 @@ bool comparePFP(const pfpStuff& l, const pfpStuff& r) {
 
 bool compareHit(const art::Ptr<recob::Hit>& l, const art::Ptr<recob::Hit>& r) {
 
-  // TODO: TRY FLIPPING HIT SORTING
-
   int lwire = l->WireID().asWireID().Wire;
   int rwire = r->WireID().asWireID().Wire;
   /*
@@ -45,7 +43,9 @@ namespace shower {
     fProjectionMatchingAlg(pset.get<fhicl::ParameterSet>("ProjectionMatchingAlg")){
   }
 
-  int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::PFParticle> > pfplist, std::vector<art::Ptr<recob::Vertex> > vertexlist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, std::vector<art::Ptr<recob::EndPoint2D> > vx2list, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Cluster> clspfp_fm, art::FindManyP<recob::Vertex> vtxpfp_fm, art::FindManyP<recob::PFParticle> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<anab::Calorimetry> fmcal) {
+  int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::PFParticle> > pfplist, std::vector<art::Ptr<recob::Vertex> > vertexlist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Cluster> clspfp_fm, art::FindManyP<recob::Vertex> vtxpfp_fm, art::FindManyP<recob::PFParticle> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<recob::Track> trkpfp_fm, art::FindManyP<anab::Calorimetry> fmcal) {
+
+    bool useKalman = false;
 
     totalEnergy.resize(2);
     totalEnergyErr.resize(2);
@@ -64,57 +64,30 @@ namespace shower {
       thispfp.pfp = pfplist[i];
       
       std::vector<art::Ptr<recob::Vertex> > thisvtxlist =  vtxpfp_fm.at(pfplist[i].key());
-
       if (thisvtxlist.size()) thispfp.vtx = thisvtxlist[0];
-      std::vector<art::Ptr<recob::Cluster> > thisclusterlist = clspfp_fm.at(pfplist[i].key());
 
+      std::vector<art::Ptr<recob::Track> > thistrklist = trkpfp_fm.at(pfplist[i].key());
+      if (thistrklist.size()) thispfp.trk = thistrklist[0];
+
+      std::vector<art::Ptr<recob::Cluster> > thisclusterlist = clspfp_fm.at(pfplist[i].key());
       std::vector<int> clustersize;
-      std::vector<double> clusterscore;
 
       for (size_t j = 0; j < thisclusterlist.size(); ++j) {
-	double thisclusterscore = 999;
-	int vx2Index = -1;
 
 	std::vector<art::Ptr<recob::Hit> > thishitlist = cls_fm.at(thisclusterlist[j].key());
-
 	clustersize.push_back((int)thishitlist.size());
 
 	for (size_t k = 0; k < thishitlist.size(); ++k) {
 	  thispfp.hits.push_back(thishitlist[k]);
-
-	  for (size_t l = 0; l < vx2list.size(); ++l) {
-	    if (thishitlist[k]->View() != vx2list[l]->View() ) continue;
-
-	    double wirePitch = geom->WirePitch(thishitlist[k]->WireID());
-	    double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());
-	    tickToDist *= 1.e-3 * detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
-	    double UnitsPerTick = tickToDist / wirePitch;
-	    
-	    double x1 = thishitlist[k]->WireID().Wire;
-	    double y1 = thishitlist[k]->PeakTime() * UnitsPerTick;
-
-	    double x2 = vx2list[l]->WireID().Wire;
-	    double y2 = vx2list[l]->DriftTime() * UnitsPerTick;
-
-	    double dist = std::sqrt(pow(x1-x2, 2) + pow(y1-y2, 2) );
-
-	    if (dist < thisclusterscore) {
-	      thisclusterscore = dist;
-	      vx2Index = l;
-	      // std::cout << "dist " << dist << " vtx " << vx2list[l]->ID() << " pfp " << pfplist[i]->Self()+1 << std::endl;
-	    }
-
-	  }
-
 	} // loop through hits
-
-	clusterscore.push_back(thisclusterscore);
-	if (vx2Index != -1) thispfp.vx2.push_back(vx2list[vx2Index]);
 
       } // loop through clusters
 
       if (clustersize.size() == 3) {	
 	if (!thispfp.vtx) continue;
+
+	if (useKalman)
+	  if (!thispfp.trk) continue; // NEED THIS IF USING KALMAN FILTER
 
 	allpfps.push_back(thispfp);
 	
@@ -142,6 +115,7 @@ namespace shower {
       showerHits.clear();
 
       art::Ptr<recob::Vertex> pfpvtx = allpfps[i].vtx;
+      art::Ptr<recob::Track> pfptrk = allpfps[i].trk;
       std::vector<art::Ptr<recob::Hit> > pfphits = allpfps[i].hits;
       std::vector<art::Ptr<recob::Cluster> > pfpcls = clspfp_fm.at(allpfps[i].pfp.key());
 
@@ -183,10 +157,30 @@ namespace shower {
 	}
       }
 
+      // USE KALMAN FILTER
+      /*
+      if (useKalman) {
+	shwvtx = pfptrk->Vertex();
+	shwDir = pfptrk->VertexDirection();
+      }
+      */
+      if (useKalman) {
+	if (pfptrk->Vertex()[2] < pfptrk->End()[2]) {
+	  shwvtx = pfptrk->Vertex();
+	  shwDir = pfptrk->VertexDirection();
+	}
+	else {
+	  shwvtx = pfptrk->End();
+	  shwDir = -pfptrk->EndDirection();
+	}
+      }
+
+      //      std::cout << "x " << shwvtx[0] << " " << pfptrk->Vertex()[0] << " y " << shwvtx[1] << " " << pfptrk->Vertex()[1] << " z " << shwvtx[2] << " " << pfptrk->Vertex()[2] << std::endl;
+
       //      int tolerance = 100; // how many shower like cluster you need to define a shower              
       int tolerance = 60; // how many shower like cluster you need to define a shower              
       double pullTolerance = 0.7; // hits should be evenly distributed around the track
-      double maxDist = 10; // how far a shower like cluster can be from the track
+      double maxDist = 20; // how far a shower like cluster can be from the track
       double minDistVert = 15; // exclude tracks near the vertex
 
       if (pfphits.size() < 30) continue;
@@ -280,81 +274,45 @@ namespace shower {
 	for (size_t k = 0; k < hitlist.size(); ++k) {
 	  std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(hitlist[k].key());
 	  if (hit_clslist.size()) continue;
-	  int isGoodHit = goodHit(hitlist[k], maxDist*2, minDistVert*2, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+
+	  int isGoodHit = goodHit(hitlist[k], maxDist*3, minDistVert*2, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
 	  if (isGoodHit == 1 && addShowerHit(hitlist[k], showerHits) ) showerHits.push_back(hitlist[k]);
 	} // loop over hits
 
-	/*
-	TVector3 parentDir = trkPt2 - trkStart;
-
-	// loop over tracks to see if any fall within the shower
-	for (size_t k = 0; k < tracklist.size(); ++k) {
-	  if (k == i) continue; // don't check current track  
-
-	  TVector3 trkStartOther = tracklist[k]->Vertex();
-	  TVector3 trkPt2Other; // a second point along the track
-
-	  recob::Track::Point_t trkPt2temp  = tracklist[k]->TrajectoryPoint(5).position;
-	  trkPt2Other[0] = trkPt2temp.X();
-	  trkPt2Other[1] = trkPt2temp.Y();
-	  trkPt2Other[2] = trkPt2temp.Z();
-
-	  TVector3 otherDir = trkPt2Other - trkStartOther;
-
-	  double ang = parentDir.Angle(otherDir);
-
-	  std::vector< art::Ptr<recob::Hit> > trk_hitlistOther = trk_fm.at(tracklist[k].key());
-
+	// loop over clusters to see if any fall within the shower
+	for (size_t k = 0; k < clusterlist.size(); ++k) {
+	  std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(clusterlist[k].key());
+	  if (clusterlist[k]->ID() < 0) continue;
+	  if (cls_hitlist.size() > 50) continue;
+	  
 	  int nhits = 0;
-	  int ngoodhits = 0;
+          int ngoodhits = 0;
 
-	  maxDist = 10;
-	  if (tracklist[k]->Length() > 30) maxDist /= 2;
+	  // are the cluster hits close?
+          for (size_t kk = 0; kk < cls_hitlist.size(); ++kk) {
+            nhits++;
+            int isGoodHit = goodHit(cls_hitlist[kk], maxDist*2, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+            if (isGoodHit == -1){
+              ngoodhits = 0;
+              break;
+            }
+            else if (isGoodHit == 1) {
+              ngoodhits++;
+            }
+          } // loop over cluster hits 
 
-	  // are the track hits close?
-	  for (size_t kk = 0; kk < trk_hitlistOther.size(); ++kk) {
-	    nhits++;
-	    int isGoodHit = goodHit(trk_hitlist[kk], maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+	  double fracGood = (double)ngoodhits/nhits;  
 
-	    if (isGoodHit == -1){
-	      ngoodhits = 0;
-	      break;
-	    }
-	    else if (isGoodHit == 1) {
-	      ngoodhits++;
-	    }
-	  } // loop over track hits  
+	  bool isGoodTrack = fracGood > 0.4;
 
-	  double fracGood = (double)ngoodhits/nhits;
+          if (isGoodTrack) {
+            for (size_t kk = 0; kk < cls_hitlist.size(); ++kk) {
+              if ( addShowerHit(cls_hitlist[kk], showerHits) ) showerHits.push_back(cls_hitlist[kk]);
+            } // loop over hits to add them to showe
+	  }
 
-	  double x1 = tracklist[i]->End().X();
-	  double y1 = tracklist[i]->End().Y();
-	  double z1 = tracklist[i]->End().Z();
+	} // loop through clusterlist
 
-	  double x2 = tracklist[k]->End().X();
-	  double y2 = tracklist[k]->End().Y();
-	  double z2 = tracklist[k]->End().Z();
-
-	  double dist = sqrt( pow(x1-x2,2) + pow(y1-y2,2) + pow(z1-z2,2) );
-
-	  if (dist > 20)
-	    if (z2 - z1 < 0) continue;
-
-	  bool isGoodTrack = (ang < 0.5 && fracGood > 0.4 && nhits >= 50);
-	  if (ang < 1 && fracGood > 0.5 && nhits < 50 && nhits > 20 ) isGoodTrack = true;
-	  if (ang < 1 && fracGood > 0.6 && nhits <= 20) isGoodTrack = true;
-	  if (tracklist[k]->Length() > 30) isGoodTrack = (ang < 0.5 && fracGood > 0.7);
-
-	  if (nhits > 80 && ang > 0.2) isGoodTrack = false;
-
-	  if (isGoodTrack) {
-
-	    for (size_t kk = 0; kk < trk_hitlistOther.size(); ++kk) {
-	      if ( addShowerHit(trk_hitlistOther[kk], showerHits) ) showerHits.push_back(trk_hitlistOther[kk]);
-	    } // loop over hits to add them to shower
-	  } // good track
-	} // loop over tracks  
-	*/
       } // decide if shower
 
       /*
