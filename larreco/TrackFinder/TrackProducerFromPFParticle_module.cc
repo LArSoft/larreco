@@ -19,6 +19,7 @@
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/Cluster.h"
+#include "lardataobj/RecoBase/Seed.h"
 //
   /**
    * @file  larreco/TrackFinder/TrackProducerFromPFParticle_module.cc
@@ -39,6 +40,7 @@
    * spacePointsFromTrajP (bool to decide whether the produced recob::SpacePoint's are taken from the recob::tracking::TrajectoryPoint_t's of the fitted recob::Track),
    * trackFromPF (bool to decide whether to fit the recob::Track associated to the recob::PFParticle), and
    * showerFromPF (bool to decide whether to fit the recob::Shower associated to the recob::PFParticle - this option is intended to mitigate possible problems due to tracks being mis-identified as showers)
+   * seedFromPF (bool to decide whether to fit the recob::PFParticle using the associated seed)
    *
    * @author  G. Cerati (FNAL, MicroBooNE)
    * @date    2017
@@ -69,6 +71,7 @@ private:
   bool spacePointsFromTrajP_;
   bool trackFromPF_;
   bool showerFromPF_;
+  bool seedFromPF_;
 };
 //
 TrackProducerFromPFParticle::TrackProducerFromPFParticle(fhicl::ParameterSet const & p)
@@ -79,6 +82,7 @@ TrackProducerFromPFParticle::TrackProducerFromPFParticle(fhicl::ParameterSet con
   , spacePointsFromTrajP_{p.get<bool>("spacePointsFromTrajP")}
   , trackFromPF_{p.get<bool>("trackFromPF")}
   , showerFromPF_{p.get<bool>("showerFromPF")}
+  , seedFromPF_{p.get<bool>("seedFromPF")}
 {
   //
   if (p.has_key("trackInputTag")) trkInputTag = p.get<art::InputTag>("trackInputTag");
@@ -112,9 +116,16 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
   //
   // Input from event
   art::ValidHandle<std::vector<recob::PFParticle> > inputPfps = e.getValidHandle<std::vector<recob::PFParticle> >(pfpInputTag);
-  const auto assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPfps, e, pfpInputTag));
-  const auto assocShowers = std::unique_ptr<art::FindManyP<recob::Shower> >(new art::FindManyP<recob::Shower>(inputPfps, e, pfpInputTag));
-  auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(trkInputTag);
+  std::unique_ptr<art::FindManyP<recob::Track> > assocTracks;
+  art::Assns<recob::Track, recob::Hit> tkHitsAssn;
+  std::unique_ptr<art::FindManyP<recob::Shower> > assocShowers;
+  std::unique_ptr<art::FindManyP<recob::Seed> > assocSeeds;
+  if (trackFromPF_) {
+    assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPfps, e, pfpInputTag));
+    tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(trkInputTag);
+  }
+  if (showerFromPF_) assocShowers = std::unique_ptr<art::FindManyP<recob::Shower> >(new art::FindManyP<recob::Shower>(inputPfps, e, pfpInputTag));
+  if (seedFromPF_) assocSeeds = std::unique_ptr<art::FindManyP<recob::Seed> >(new art::FindManyP<recob::Seed>(inputPfps, e, pfpInputTag));
   const auto& trackHitsGroups = util::associated_groups(tkHitsAssn);
   //
   auto const& pfClustersAssn = *e.getValidHandle<art::Assns<recob::PFParticle, recob::Cluster> >(pfpInputTag);
@@ -229,6 +240,91 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	//
 	// Invoke tool to fit track and fill output objects
 	bool fitok = trackMaker_->makeTrack(traj, iShower, inHits, outTrack, outHits, optionals);
+	if (!fitok) continue;
+	//
+	// Check that the requirement Nhits == Npoints is satisfied
+	// We also require the hits to the in the same order as the points (this cannot be enforced, can it?)
+	if (outTrack.NumberTrajectoryPoints()!=outHits.size()) {
+	  throw cet::exception("TrackProducerFromPFParticle") << "Produced recob::Track required to have 1-1 correspondance between hits and points.\n";
+	}
+	//
+	// Fill output collections, including Assns
+	outputTracks->emplace_back(std::move(outTrack));
+	const art::Ptr<recob::Track> aptr = trackPtrMaker(outputTracks->size()-1);
+	outputPfpTAssn->addSingle(pfp, aptr);
+	unsigned int ip = 0;
+	for (auto const& trhit: outHits) {
+	  outputHits->addSingle(aptr, trhit);
+	  //
+	  if (doSpacePoints_ && spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
+	    auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
+	    const double fXYZ[3] = {tp.X(),tp.Y(),tp.Z()};
+	    const double fErrXYZ[6] = {0};
+	    recob::SpacePoint sp(fXYZ, fErrXYZ, -1.);
+	    outputSpacePoints->emplace_back(std::move(sp));
+	    const art::Ptr<recob::SpacePoint> apsp = (*spacePointPtrMaker)(outputSpacePoints->size()-1);
+	    outputHitSpacePointAssn->addSingle(trhit, apsp);
+	  }
+	  ip++;
+	}
+	if (doSpacePoints_ && !spacePointsFromTrajP_) {
+	  auto osp = optionals.spacePointHitPairs();
+	  for (auto it = osp.begin(); it!=osp.end(); ++it ) {
+	    outputSpacePoints->emplace_back(std::move(it->first));
+	    const art::Ptr<recob::SpacePoint> apsp = (*spacePointPtrMaker)(outputSpacePoints->size()-1);
+	    outputHitSpacePointAssn->addSingle(it->second,apsp);
+	  }
+	}
+	if (doTrackFitHitInfo_) {
+	  outputHitInfo->emplace_back(optionals.trackFitHitInfos());
+	}
+      }
+    }
+    //
+    //
+    if (seedFromPF_) {
+      //
+      // Seeds associated to PFParticles
+      const std::vector<art::Ptr<recob::Seed> >& seeds = assocSeeds->at(iPfp);
+      // if there is more than one seed the logic below to get the hits does not work! this works, at least for uboone
+      if (seeds.size()!=1) continue;
+      //
+      // Get hits for pfp (through the chain pfp->clusters->hits)
+      std::vector<art::Ptr<recob::Hit> > inHits;
+      decltype(auto) clustersRange = util::groupByIndex(pfpClusterGroups, pfp.key());
+      for (art::Ptr<recob::Cluster> const& cluster: clustersRange) {
+	decltype(auto) hitsRange = util::groupByIndex(clusterHitsGroups, cluster.key());
+	for (art::Ptr<recob::Hit> const& hit: hitsRange) inHits.push_back(hit);
+      }
+      if (inHits.size()<4) continue;
+      // Loop over seeds should be only one)
+      for (unsigned int iS = 0; iS < seeds.size(); ++iS) {
+	//
+	// Get the seed and convert/hack it into a trajectory so that the fit is initialized
+	art::Ptr<recob::Seed> seed = seeds[iS++];
+	double p0[3], pe[3];
+	seed->GetPoint(p0,pe);
+	double d0[3], de[3];
+	seed->GetDirection(d0,de);
+	recob::tracking::Point_t pos(p0[0],p0[1],p0[2]);
+	recob::tracking::Vector_t dir(d0[0],d0[1],d0[2]);
+	std::vector<recob::tracking::Point_t> p;
+	std::vector<recob::tracking::Vector_t> d;
+	for (unsigned int i=0; i<inHits.size(); ++i) {
+	  p.push_back(pos);
+	  d.push_back(dir);
+	}
+	recob::TrackTrajectory traj(std::move(p), std::move(d), recob::TrackTrajectory::Flags_t(p.size()), false);
+	//
+	// Declare output objects
+	recob::Track outTrack;
+	std::vector<art::Ptr<recob::Hit> > outHits;
+	trkmkr::OptionalOutputs optionals;
+	if (doTrackFitHitInfo_) optionals.initTrackFitInfos();
+	if (doSpacePoints_ && !spacePointsFromTrajP_) optionals.initSpacePoints();
+	//
+	// Invoke tool to fit track and fill output objects
+	bool fitok = trackMaker_->makeTrack(traj, iS, inHits, outTrack, outHits, optionals);
 	if (!fitok) continue;
 	//
 	// Check that the requirement Nhits == Npoints is satisfied
