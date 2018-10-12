@@ -15,8 +15,9 @@ bool comparePFP(const pfpStuff& l, const pfpStuff& r) {
 
   double lz = l.hits.size();
   double rz = r.hits.size();
-   
-  int hitthres = 50; // TODO: ADJUST THIS THRESHOLD 
+  
+  // RSF: USED TO BE 50
+  int hitthres = 80; // TODO: ADJUST THIS THRESHOLD 
 
   if (lz > hitthres && rz <= hitthres) return false;
   else if (lz <= hitthres && rz > hitthres) return true;
@@ -153,7 +154,9 @@ namespace shower {
 	tolerance = 50;
 	pullTolerance = 0.9;
       }
-
+      if (pfphits.size() > 400) tolerance = 200;
+      else if (pfphits.size() > 100) tolerance = 100; // RSF added
+ 
       // add pfp hits to shower
       for (size_t ii = 0; ii < pfphits.size(); ++ii) {
 	if ( addShowerHit(pfphits[ii], showerHits) ) showerHits.push_back(pfphits[ii]);
@@ -230,7 +233,7 @@ namespace shower {
 
       if (nShowerHits > tolerance && std::abs(showerHitPull) < pullTolerance) {
 	showerCandidate = true;
-
+	std::cout << "SHOWER CANDIDATE" << std::endl;
 	// loop over hits to find those that aren't associated with any clusters
 	if (nShowerHits > 400) maxDist *= 2; // TODO: optimize this threshold              
 	for (size_t k = 0; k < hitlist.size(); ++k) {
