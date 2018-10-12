@@ -128,8 +128,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
   if (seedFromPF_) assocSeeds = std::unique_ptr<art::FindManyP<recob::Seed> >(new art::FindManyP<recob::Seed>(inputPfps, e, pfpInputTag));
   const auto& trackHitsGroups = util::associated_groups(tkHitsAssn);
   //
-  auto const& pfClustersAssn = *e.getValidHandle<art::Assns<recob::PFParticle, recob::Cluster> >(pfpInputTag);
-  const auto& pfpClusterGroups = util::associated_groups(pfClustersAssn);
+  std::unique_ptr<art::FindManyP<recob::Cluster> > assocClusters = std::unique_ptr<art::FindManyP<recob::Cluster> >(new art::FindManyP<recob::Cluster>(inputPfps, e, pfpInputTag));
   auto const& clHitsAssn = *e.getValidHandle<art::Assns<recob::Cluster, recob::Hit> >(shwInputTag);
   const auto& clusterHitsGroups = util::associated_groups(clHitsAssn);
   //
@@ -211,8 +210,9 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
       //
       // Get hits for shower (through the chain pfp->clusters->hits)
       std::vector<art::Ptr<recob::Hit> > inHits;
-      decltype(auto) clustersRange = util::groupByIndex(pfpClusterGroups, pfp.key());
+      const std::vector<art::Ptr<recob::Cluster> > clustersRange = assocClusters->at(iPfp);
       for (art::Ptr<recob::Cluster> const& cluster: clustersRange) {
+	// for hits we use groupByIndex since it preserves the order (and we can use it since each cluster must have associated hits)
 	decltype(auto) hitsRange = util::groupByIndex(clusterHitsGroups, cluster.key());
 	for (art::Ptr<recob::Hit> const& hit: hitsRange) inHits.push_back(hit);
       }
@@ -220,7 +220,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
       for (unsigned int iShower = 0; iShower < showers.size(); ++iShower) {
 	//
 	// Get the shower and convert/hack it into a trajectory so that the fit is initialized
-	art::Ptr<recob::Shower> shower = showers[iShower++];
+	art::Ptr<recob::Shower> shower = showers[iShower];
 	recob::tracking::Point_t pos(shower->ShowerStart().X(),shower->ShowerStart().Y(),shower->ShowerStart().Z());
 	recob::tracking::Vector_t dir(shower->Direction().X(),shower->Direction().Y(),shower->Direction().Z());
 	std::vector<recob::tracking::Point_t> p;
@@ -291,8 +291,9 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
       //
       // Get hits for pfp (through the chain pfp->clusters->hits)
       std::vector<art::Ptr<recob::Hit> > inHits;
-      decltype(auto) clustersRange = util::groupByIndex(pfpClusterGroups, pfp.key());
+      const std::vector<art::Ptr<recob::Cluster> > clustersRange = assocClusters->at(iPfp);
       for (art::Ptr<recob::Cluster> const& cluster: clustersRange) {
+	// for hits we use groupByIndex since it preserves the order (and we can use it since each cluster must have associated hits)
 	decltype(auto) hitsRange = util::groupByIndex(clusterHitsGroups, cluster.key());
 	for (art::Ptr<recob::Hit> const& hit: hitsRange) inHits.push_back(hit);
       }
@@ -301,7 +302,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
       for (unsigned int iS = 0; iS < seeds.size(); ++iS) {
 	//
 	// Get the seed and convert/hack it into a trajectory so that the fit is initialized
-	art::Ptr<recob::Seed> seed = seeds[iS++];
+	art::Ptr<recob::Seed> seed = seeds[iS];
 	double p0[3], pe[3];
 	seed->GetPoint(p0,pe);
 	double d0[3], de[3];
