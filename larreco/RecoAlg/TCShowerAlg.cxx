@@ -45,7 +45,7 @@ namespace shower {
 
   int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::PFParticle> > pfplist, std::vector<art::Ptr<recob::Vertex> > vertexlist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Cluster> clspfp_fm, art::FindManyP<recob::Vertex> vtxpfp_fm, art::FindManyP<recob::PFParticle> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<recob::Track> trkpfp_fm, art::FindManyP<anab::Calorimetry> fmcal) {
 
-    bool useKalman = false;
+    bool useKalman = true;
 
     totalEnergy.resize(2);
     totalEnergyErr.resize(2);
@@ -128,42 +128,6 @@ namespace shower {
       vtx[1] = pfpvtx->position().Y();
       vtx[2] = pfpvtx->position().Z();
 
-      //      pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(pfphits);
-      pma::Track3D* pmatrack = fProjectionMatchingAlg.buildSegment(pfphits, vtx);
-      std::vector<TVector3> spts;
-      for (size_t j = 0; j < pmatrack->size(); ++j) {
-	if ( (*pmatrack)[j]->IsEnabled() ) {
-	  TVector3 p3d = (*pmatrack)[j]->Point3D();
-	  spts.push_back(p3d);
-	  //	  std::cout << "track point " << p3d[0] << " " << p3d[1] << " " << p3d[2] << std::endl;
-	}
-      } // pmatrack points
-
-      if (spts.size() >= 2) {
-	//	if ( (spts[0]-vtx).Mag() < (spts.back()-vtx).Mag() ) { // choose direction based on pfparticle vertex
-	if ( (spts[0])[2] < spts.back()[2] ) { // choose direction based on z
-	  shwvtx = spts[0];
-	  size_t sp = 5;
-	  if (spts.size() - 1 < sp) sp = spts.size() - 1;
-	  shwDir = spts[sp] - spts[0];
-	  shwDir = shwDir.Unit();
-	}
-	else {
-	  shwvtx = spts.back();
-	  size_t sp = 0;
-	  if (spts.size() > 6) sp = spts.size() - 6;
-	  shwDir = spts[sp] - spts[spts.size() - 1];
-	  shwDir = shwDir.Unit();
-	}
-      }
-
-      // USE KALMAN FILTER
-      /*
-      if (useKalman) {
-	shwvtx = pfptrk->Vertex();
-	shwDir = pfptrk->VertexDirection();
-      }
-      */
       if (useKalman) {
 	if (pfptrk->Vertex()[2] < pfptrk->End()[2]) {
 	  shwvtx = pfptrk->Vertex();
@@ -174,8 +138,6 @@ namespace shower {
 	  shwDir = -pfptrk->EndDirection();
 	}
       }
-
-      //      std::cout << "x " << shwvtx[0] << " " << pfptrk->Vertex()[0] << " y " << shwvtx[1] << " " << pfptrk->Vertex()[1] << " z " << shwvtx[2] << " " << pfptrk->Vertex()[2] << std::endl;
 
       //      int tolerance = 100; // how many shower like cluster you need to define a shower              
       int tolerance = 60; // how many shower like cluster you need to define a shower              
@@ -275,7 +237,7 @@ namespace shower {
 	  std::vector< art::Ptr<recob::Cluster> > hit_clslist = hitcls_fm.at(hitlist[k].key());
 	  if (hit_clslist.size()) continue;
 
-	  int isGoodHit = goodHit(hitlist[k], maxDist*3, minDistVert*2, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+	  int isGoodHit = goodHit(hitlist[k], maxDist*2, minDistVert*2, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
 	  if (isGoodHit == 1 && addShowerHit(hitlist[k], showerHits) ) showerHits.push_back(hitlist[k]);
 	} // loop over hits
 
@@ -284,6 +246,15 @@ namespace shower {
 	  std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(clusterlist[k].key());
 	  if (clusterlist[k]->ID() < 0) continue;
 	  if (cls_hitlist.size() > 50) continue;
+
+	  double thisDist = maxDist;
+	  double thisMin = minDistVert;
+
+	  if (cls_hitlist.size() < 10) {
+	    thisDist *= 4;
+	    thisMin *= 4;
+	  }
+	  else if (cls_hitlist.size() < 30) thisDist *= 2;
 	  
 	  int nhits = 0;
           int ngoodhits = 0;
@@ -291,7 +262,7 @@ namespace shower {
 	  // are the cluster hits close?
           for (size_t kk = 0; kk < cls_hitlist.size(); ++kk) {
             nhits++;
-            int isGoodHit = goodHit(cls_hitlist[kk], maxDist*2, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
+            int isGoodHit = goodHit(cls_hitlist[kk], thisDist, thisMin, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
             if (isGoodHit == -1){
               ngoodhits = 0;
               break;
@@ -307,7 +278,7 @@ namespace shower {
 
           if (isGoodTrack) {
             for (size_t kk = 0; kk < cls_hitlist.size(); ++kk) {
-              if ( addShowerHit(cls_hitlist[kk], showerHits) ) showerHits.push_back(cls_hitlist[kk]);
+	      if ( addShowerHit(cls_hitlist[kk], showerHits) ) showerHits.push_back(cls_hitlist[kk]);
             } // loop over hits to add them to showe
 	  }
 
@@ -431,6 +402,11 @@ namespace shower {
 
     double distToVert = std::sqrt( pow(x0 - x1, 2) + pow(y0 - y1, 2) );
     if (distToVert < minDistVert) return -1;
+
+    if (x2 > x1) {
+      if (distToVert < 50) maxDist /= 4;
+      else if (distToVert < 100) maxDist /= 2; // trying to exclude photon showers
+    }
 
     // exclude cluster if it's "behind" the vertex
     double a = std::sqrt( pow(x2 - x1, 2) + pow(y2 - y1, 2) );
