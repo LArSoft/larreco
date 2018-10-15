@@ -46,8 +46,6 @@ namespace shower {
 
   int TCShowerAlg::makeShowers(std::vector<art::Ptr<recob::PFParticle> > pfplist, std::vector<art::Ptr<recob::Vertex> > vertexlist, std::vector<art::Ptr<recob::Cluster> > clusterlist, std::vector<art::Ptr<recob::Hit> > hitlist, art::FindManyP<recob::Hit> cls_fm, art::FindManyP<recob::Cluster> clspfp_fm, art::FindManyP<recob::Vertex> vtxpfp_fm, art::FindManyP<recob::PFParticle> hit_fm, art::FindManyP<recob::Cluster> hitcls_fm, art::FindManyP<recob::Track> trkpfp_fm, art::FindManyP<anab::Calorimetry> fmcal) {
 
-    bool useKalman = true;
-
     totalEnergy.resize(2);
     totalEnergyErr.resize(2);
     dEdx.resize(2);
@@ -86,9 +84,7 @@ namespace shower {
 
       if (clustersize.size() == 3) {	
 	if (!thispfp.vtx) continue;
-
-	if (useKalman)
-	  if (!thispfp.trk) continue; // NEED THIS IF USING KALMAN FILTER
+	if (!thispfp.trk) continue;
 
 	allpfps.push_back(thispfp);
 	
@@ -129,15 +125,13 @@ namespace shower {
       vtx[1] = pfpvtx->position().Y();
       vtx[2] = pfpvtx->position().Z();
 
-      if (useKalman) {
-	if (pfptrk->Vertex()[2] < pfptrk->End()[2]) {
-	  shwvtx = pfptrk->Vertex();
-	  shwDir = pfptrk->VertexDirection();
-	}
-	else {
-	  shwvtx = pfptrk->End();
-	  shwDir = -pfptrk->EndDirection();
-	}
+      if (pfptrk->Vertex()[2] < pfptrk->End()[2]) {
+	shwvtx = pfptrk->Vertex();
+	shwDir = pfptrk->VertexDirection();
+      }
+      else {
+	shwvtx = pfptrk->End();
+	shwDir = -pfptrk->EndDirection();
       }
 
       //      int tolerance = 100; // how many shower like cluster you need to define a shower              
