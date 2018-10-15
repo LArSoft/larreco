@@ -528,7 +528,8 @@ namespace cluster {
           float sumChg = 0;
           float sumADC = 0;
           hitColBeginIndex = hitCol.size();
-          for(auto& tp : tj.Pts) {
+          for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+            auto& tp = tj.Pts[ipt];
             if(tp.Chg <= 0) continue;
             // index of inputHits indices  of hits used in one TP
             std::vector<unsigned int> tpHits;
