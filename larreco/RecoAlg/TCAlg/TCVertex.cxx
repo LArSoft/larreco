@@ -2433,12 +2433,17 @@ namespace tca {
       // last call after vertices have been matched to the truth. Use to optimize vtxScoreWeights using
       // an ntuple
       mf::LogVerbatim myprt("TC");
-      myprt<<" SVx2W 2V"<<vx2.ID;
+      myprt<<" SVx2W 2v"<<vx2.ID;
+/*
       myprt<<" m3Dcnt "<<m3Dcnt;
       myprt<<" PosErr "<<std::fixed<<std::setprecision(2)<<(vx2.PosErr[0] + vx2.PosErr[1]);
       myprt<<" TjChgFrac "<<std::fixed<<std::setprecision(3)<<vx2.TjChgFrac;
       myprt<<" sum "<<std::fixed<<std::setprecision(1)<<sum;
       myprt<<" cnt "<<(int)cnt;
+*/
+      myprt<<std::fixed<<std::setprecision(1);
+      myprt<<" vpeScore "<<vpeScore<<" m3DScore "<<m3DScore;
+      myprt<<" cfScore "<<cfScore<<" tjScore "<<tjScore;
       myprt<<" Score "<<vx2.Score;
     }
   } // SetVx2Score
