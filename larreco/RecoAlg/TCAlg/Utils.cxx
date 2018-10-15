@@ -4498,30 +4498,14 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         outfile<<"Dump trajectory T"<<tj.UID<<" WorkID "<<tj.WorkID;
         outfile<<" ChgRMS "<<std::setprecision(2)<<tj.ChgRMS;
         outfile<<"\n";
-        outfile<<"Wire, Tick, Delta, Chg_T"<<tj.ID<<", ChgNear, Overlap?\n";
-        std::array<int, 2> wireWindow;
-        std::array<float, 2> timeWindow;
-        std::vector<int> closeHits;
-        bool hitsNear;
-        unsigned short plane = DecodeCTP(tj.CTP).Plane;
+        outfile<<"Wire, Tick, Delta, Chg_T"<<tj.ID<<"\n";
         for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
           auto& tp = tj.Pts[ipt];
           outfile<<std::fixed;
           outfile<<std::setprecision(0)<<std::nearbyint(tp.Pos[0])<<",";
           outfile<<std::setprecision(0)<<std::nearbyint(tp.Pos[1]/tcc.unitsPerTick)<<",";
           outfile<<std::setprecision(2)<<tp.Delta<<",";
-          outfile<<(int)tp.Chg<<",";
-          wireWindow[0] = std::nearbyint(tp.Pos[0]);
-          wireWindow[1] = wireWindow[0];
-          timeWindow[0] = tp.Pos[1] - 5;
-          timeWindow[1] = tp.Pos[1] + 5;
-          auto tmp = FindCloseHits(slc, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
-          float chgNear = 0;
-          for(auto iht : tmp) {
-            auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
-            chgNear += hit.Integral();
-          } // iht
-          outfile<<(int)chgNear;
+          outfile<<(int)tp.Chg;
           outfile<<"\n";
         } // ipt
         outfile.close();
@@ -4944,7 +4928,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
           if(slc.vtx3s[iv].ID == 0) continue;
           const Vtx3Store& vx3 = slc.vtx3s[iv];
           myprt<<someText;
-          std::string vid = "3V" + std::to_string(vx3.ID);
+          std::string vid = "3v" + std::to_string(vx3.ID);
           myprt<<std::right<<std::setw(5)<<std::fixed<<vid;
           myprt<<std::setprecision(1);
           myprt<<std::right<<std::setw(7)<<vx3.TPCID.Cryostat;
@@ -4978,15 +4962,15 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
             // find the Tjs that are attached to it
             for(auto& pfp : slc.pfps) {
               if(pfp.Vx3ID[0] == slc.vtx3s[iv].ID) {
-                for(auto& tjID : pfp.TjIDs) myprt<<" T"<<tjID;
+                for(auto& tjID : pfp.TjIDs) myprt<<" t"<<tjID;
               }
               if(pfp.Vx3ID[1] == slc.vtx3s[iv].ID) {
-                for(auto& tjID : pfp.TjIDs) myprt<<" T"<<tjID;
+                for(auto& tjID : pfp.TjIDs) myprt<<" t"<<tjID;
               }
             } // ipfp
           } else {
             auto vxtjs = GetAssns(slc, "3V", vx3.ID, "T");
-            for(auto tjid : vxtjs) myprt<<" T"<<tjid;
+            for(auto tjid : vxtjs) myprt<<" t"<<tjid;
           }
           myprt<<"\n";
         }
@@ -5002,12 +4986,12 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         if(foundOne) {
           // print out 2D vertices
           myprt<<someText<<"************ 2D vertices ************\n";
-          myprt<<someText<<"  Vtx   CTP    wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D TjIDs\n";
+          myprt<<someText<<" ID   CTP    wire  err   tick   err  ChiDOF  NTj Pass  Topo ChgFrac Score  v3D TjIDs\n";
           for(auto& vx2 : slc.vtxs) {
             if(vx2.ID == 0) continue;
             if(debug.Plane < 3 && debug.Plane != (int)DecodeCTP(vx2.CTP).Plane) continue;
             myprt<<someText;
-            std::string vid = "2V" + std::to_string(vx2.ID);
+            std::string vid = "2v" + std::to_string(vx2.ID);
             myprt<<std::right<<std::setw(5)<<std::fixed<<vid;
             myprt<<std::right<<std::setw(6)<<vx2.CTP;
             myprt<<std::right<<std::setw(8)<<std::setprecision(0)<<std::nearbyint(vx2.Pos[0]);
@@ -5029,7 +5013,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
               if(aTj.AlgMod[kKilled]) continue;
               for(unsigned short end = 0; end < 2; ++end) {
                 if(aTj.VtxID[end] != (short)vx2.ID) continue;
-                std::string tid = " T" + std::to_string(aTj.ID) + "_" + std::to_string(end);
+                std::string tid = " t" + std::to_string(aTj.ID) + "_" + std::to_string(end);
                 myprt<<std::right<<std::setw(6)<<tid;
               } // end
             } // ii
@@ -5058,7 +5042,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         if(debug.Plane >=0 && debug.Plane < 3 && debug.Plane != (int)DecodeCTP(aTj.CTP).Plane) continue;
         myprt<<someText<<" ";
         std::string tid;
-        if(aTj.AlgMod[kKilled]) { tid = "k" + std::to_string(aTj.UID); } else { tid = "T" + std::to_string(aTj.UID); }
+        if(aTj.AlgMod[kKilled]) { tid = "k" + std::to_string(aTj.UID); } else { tid = "t" + std::to_string(aTj.UID); }
         myprt<<std::fixed<<std::setw(5)<<tid;
         myprt<<std::setw(6)<<aTj.CTP;
         myprt<<std::setw(5)<<aTj.Pass;
