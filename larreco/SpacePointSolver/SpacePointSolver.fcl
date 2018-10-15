@@ -20,7 +20,19 @@ standard_spacepointsolver:
   AllowBadInductionHit: true
   # Form triplets out of two induction hits and a bad collection wire
   AllowBadCollectionHit: true
+
+  MaxIterationsNoReg: 100
+  MaxIterationsReg:   100
+
 }
+
+microboone_spacepointsolver: @local::standard_spacepointsolver
+microboone_spacepointsolver.WireIntersectThreshold:         0.2
+microboone_spacepointsolver.WireIntersectThresholdDriftDir: 0.25
+microboone_spacepointsolver.MaxIterationsNoReg:             20
+microboone_spacepointsolver.MaxIterationsReg:               20
+microboone_spacepointsolver.AllowBadCollectionHit:          false
+microboone_spacepointsolver.AllowBadInductionHit:           false
 
 END_PROLOG
 
