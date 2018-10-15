@@ -1243,7 +1243,7 @@ namespace tca {
     float deltaCut = 3 * (projErr + tp.DeltaRMS);
     
     deltaCut *= tcc.projectionErrFactor;
-    if(tcc.dbgStp) mf::LogVerbatim("TC")<<" AddHits: calculated deltaCut "<<deltaCut;
+    if(tcc.dbgStp) mf::LogVerbatim("TC")<<" AddHits: calculated deltaCut "<<deltaCut<<" dw "<<dw<<" dpos "<<dpos;
     
 //    if(deltaCut < 2) deltaCut = 2;
     // Jan 26 Cut is too loose
@@ -1254,7 +1254,8 @@ namespace tca {
     if(tj.AlgMod[kRvPrp]) deltaCut *= 2;
     
     // loosen up a bit if we just passed a block of dead wires
-    if(abs(dw) > 20 && DeadWireCount(slc, tp.Pos[0], tj.Pts[lastPtWithUsedHits].Pos[0], tj.CTP) > 10) deltaCut *= 2;
+    bool passedDeadWires = (abs(dw) > 20 && DeadWireCount(slc, tp.Pos[0], tj.Pts[lastPtWithUsedHits].Pos[0], tj.CTP) > 10);
+    if(passedDeadWires) deltaCut *= 2;
     
     // Create a larger cut to use in case there is nothing close
     float bigDelta = 2 * deltaCut;
@@ -1262,6 +1263,11 @@ namespace tca {
     tp.Delta = deltaCut;
     // ignore all hits with delta larger than maxDeltaCut
     float maxDeltaCut = 2 * bigDelta;
+    // apply some limits
+    if(tcc.useAlg[kNewStpCuts] && !passedDeadWires && maxDeltaCut > 3) {
+      maxDeltaCut = 3;
+      bigDelta = 1.5;
+    }
     
     // projected time in ticks for testing the existence of a hit signal
     raw::TDCtick_t rawProjTick = (float)(tp.Pos[1] / tcc.unitsPerTick);
@@ -2514,6 +2520,11 @@ namespace tca {
       // as much as possible for this pass, so this trajectory is in trouble.
       if(killPts == 0 &&  tj.Pts[lastPt].FitChi > tcc.maxChi && tj.PDGCode != 13) {
         if(tcc.dbgStp) mf::LogVerbatim("TC")<<"   bad FitChi "<<tj.Pts[lastPt].FitChi<<" cut "<<tcc.maxChi;
+        if(tcc.useAlg[kNewStpCuts]) {
+          // remove the last point before quitting
+          UnsetUsedHits(slc, tj.Pts[lastPt]);
+          SetEndPoints(tj);
+        }
         fGoodTraj = (NumPtsWithCharge(slc, tj, true) > tcc.minPtsFit[tj.Pass]);
         return;
       }
