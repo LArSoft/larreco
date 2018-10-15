@@ -59,7 +59,8 @@ namespace reco3d
                   const std::vector<raw::ChannelID_t>& xbad,
                   const std::vector<raw::ChannelID_t>& ubad,
                   const std::vector<raw::ChannelID_t>& vbad,
-                  double distThresh, double distThreshDrift);
+                  double distThresh, double distThreshDrift,
+                  double xhitOffset);
 
     std::vector<HitTriplet> Triplets();
     /// Only search for XU intersections
@@ -91,6 +92,7 @@ namespace reco3d
 
     double fDistThresh;
     double fDistThreshDrift;
+    double fXHitOffset;
 
     std::map<geo::TPCID, std::vector<HitOrChan>> fX_by_tpc;
     std::map<geo::TPCID, std::vector<HitOrChan>> fU_by_tpc;

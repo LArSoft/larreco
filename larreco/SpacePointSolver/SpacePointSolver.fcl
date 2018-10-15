@@ -24,6 +24,8 @@ standard_spacepointsolver:
   MaxIterationsNoReg: 100
   MaxIterationsReg:   100
 
+  XHitOffset:         0
+
 }
 
 microboone_spacepointsolver: @local::standard_spacepointsolver

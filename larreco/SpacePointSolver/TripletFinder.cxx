@@ -11,11 +11,13 @@ namespace reco3d
                                const std::vector<raw::ChannelID_t>& xbad,
                                const std::vector<raw::ChannelID_t>& ubad,
                                const std::vector<raw::ChannelID_t>& vbad,
-                               double distThresh, double distThreshDrift)
+                               double distThresh, double distThreshDrift,
+                               double xhitOffset)
     : geom(art::ServiceHandle<geo::Geometry>()->provider()),
       detprop(art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider()),
       fDistThresh(distThresh),
-      fDistThreshDrift(distThreshDrift)
+      fDistThreshDrift(distThreshDrift),
+      fXHitOffset(xhitOffset)
   {
     FillHitMap(xhits, fX_by_tpc);
     FillHitMap(uhits, fU_by_tpc);
@@ -37,6 +39,7 @@ namespace reco3d
         for(geo::WireID wire: geom->ChannelToWire(hit->Channel())){
           if(geo::TPCID(wire) == tpc){
             xpos = detprop->ConvertTicksToX(hit->PeakTime(), wire);
+            if (geom->SignalType(wire) == geo::kCollection) xpos += fXHitOffset;
           }
         }
 
