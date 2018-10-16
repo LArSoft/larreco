@@ -5,6 +5,9 @@ struct pfpStuff {
   art::Ptr<recob::Track> trk;
   art::Ptr<recob::Vertex> vtx;
   std::vector<art::Ptr<recob::Hit> > hits;
+
+  std::vector<int> clsIDs;
+
   double score;
 };
 
@@ -60,6 +63,7 @@ namespace shower {
     for (size_t i = 0; i < pfplist.size(); ++i) {
       pfpStuff thispfp;
       thispfp.hits.clear();
+      thispfp.clsIDs.clear();
       thispfp.pfp = pfplist[i];
       
       std::vector<art::Ptr<recob::Vertex> > thisvtxlist =  vtxpfp_fm.at(pfplist[i].key());
@@ -72,6 +76,8 @@ namespace shower {
       std::vector<int> clustersize;
 
       for (size_t j = 0; j < thisclusterlist.size(); ++j) {
+
+	thispfp.clsIDs.push_back(thisclusterlist[j]->ID());
 
 	std::vector<art::Ptr<recob::Hit> > thishitlist = cls_fm.at(thisclusterlist[j].key());
 	clustersize.push_back((int)thishitlist.size());
@@ -181,18 +187,18 @@ namespace shower {
 	std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(clusterlist[j].key());
 
 	if (clusterlist[j]->ID() > 0 && cls_hitlist.size() > 10) continue;
+	if (cls_hitlist.size() > 50) continue;
 
 	bool isGoodCluster = false; // true if the hit belongs to a cluster that should be added to the shower
 
+	bool skipit = false; // skip clusters already in the pfp
+	for (size_t k = 0; k < allpfps[i].clsIDs.size(); ++k) {
+	  if (allpfps[i].clsIDs[k] == clusterlist[j]->ID()) skipit = true;
+	}
+	
+	if (skipit) continue;
+
 	for (size_t jj = 0; jj < cls_hitlist.size(); ++jj) {
-	  // don't count hits associated with the track
-	  // TODO: get PFParticle from hit and check if ID matches parent
-	  /*
-	  std::vector< art::Ptr<recob::Track> > hit_trklist = hit_fm.at(cls_hitlist[jj].key());
-	  if (hit_trklist.size()) {
-	    if (hit_trklist[0]->ID() == tracklist[i]->ID()) continue;
-	  }
-	  */
 	  int isGoodHit = goodHit(cls_hitlist[jj], maxDist, minDistVert, trk_wire1, trk_tick1, trk_wire2, trk_tick2);
 
 	  if (isGoodHit == -1) {
