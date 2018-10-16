@@ -155,7 +155,7 @@ namespace shower {
 	pullTolerance = 0.9;
       }
       if (pfphits.size() > 400) tolerance = 200;
-      else if (pfphits.size() > 100) tolerance = 100; // RSF added
+      else if (pfphits.size() > 100) tolerance = 100; // RSF added used to be 100, 100
  
       // add pfp hits to shower
       for (size_t ii = 0; ii < pfphits.size(); ++ii) {
@@ -195,7 +195,6 @@ namespace shower {
 	for (size_t k = 0; k < allpfps[i].clsIDs.size(); ++k) {
 	  if (allpfps[i].clsIDs[k] == clusterlist[j]->ID()) skipit = true;
 	}
-	
 	if (skipit) continue;
 
 	for (size_t jj = 0; jj < cls_hitlist.size(); ++jj) {
