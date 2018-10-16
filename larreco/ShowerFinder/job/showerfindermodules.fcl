@@ -22,6 +22,7 @@ standard_tcshower:
  CalorimetryModuleLabel:  "calo"
  CalorimetryAlg:           @local::standard_calorimetryalgmc
  TCAlg:                    @local::standard_tcshoweralg
+# ProjectionMatchingAlg:    @local::standard_projectionmatchingalg
 }
 
 standard_tcshoweranalysis:

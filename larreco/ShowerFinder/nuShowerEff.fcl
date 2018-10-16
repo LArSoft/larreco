@@ -1,0 +1,77 @@
+#include "services_microboone.fcl"
+#include "particleinventoryservice.fcl"
+#include "backtrackerservice.fcl"
+
+#include "cluster_microboone.fcl"
+#include "time_memory_tracker_microboone.fcl"
+#include "trackfindermodules_microboone.fcl"
+
+
+process_name   : NuShowerEff
+
+services: {
+  TimeTracker:      @local::microboone_time_tracker
+  
+  TFileService: { fileName: "service_nuShowerEff.root"} 
+  BackTrackerService:                   @local::standard_backtrackerservice
+  ParticleInventoryService:      @local::standard_particleinventoryservice
+	message:                       @local::standard_debug
+				                         @table::microboone_basic_services
+}
+
+
+source: {
+	module_type : RootInput
+	maxEvents: -1
+}
+
+physics: {
+
+	producers:{
+	
+	}
+
+	analyzers:{
+		NuShowerEff:{
+			module_type:         "NuShowerEff"
+      MCTruthModuleLabel:  "generator"
+      HitModuleLabel:      "trajcluster2" # "pandoraCosmicHitRemoval" 
+      ShowerModuleLabel:   "tcshower" # "pandoraNu"
+      TruthMatchDataModuleLabel: "trajclusterTruthMatch" # "crHitRemovalTruthMatch"
+      NeutrinoPDGcode:     12  
+      LeptonPDGcode:       11
+      SaveMCTree:          true # false for test
+      HitShowerThroughPFParticle: false # an option for pandora MCC8 here, false for tcshower
+      MinPurity:           0.7
+      MinCompleteness:     0.7
+      FidVolCutX:          10.0
+      FidVolCutY:          10.0
+      FidVolCutZ:          10.0
+		}
+	}
+  
+  #define the output stream, there could be more than one if using filters
+#  stream1:  [ out1 ]
+	
+  unpackerPath   : []
+	paths          : [NuShowerEff]
+	trigger_paths  : [ ]
+#	end_paths      : [paths, stream1]
+	end_paths      : [paths]
+
+}
+
+#outputs: {
+#	out1:{
+#		module_type: RootOutput
+#		fileName: "nuShowerEff.root"
+#	}
+#}
+
+services.DetectorPropertiesService.NumberTimeSamples:                  6400
+services.DetectorPropertiesService.ReadOutWindowSize:                  6400
+services.DetectorClocksService.InheritClockConfig:                    false
+services.DetectorClocksService.TriggerOffsetTPC:                       -400 # MC bnb neutrinos
+services.DatabaseUtil.PassFileName: "uboonedb_passwd"
+services.SpaceCharge.EnableSimSpatialSCE: true
+

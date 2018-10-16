@@ -9,5 +9,6 @@ trackproducerfrompfparticle: {
    spacePointsFromTrajP: true
    trackFromPF: true
    showerFromPF: false
+   seedFromPF: false
 }
 END_PROLOG
