@@ -117,6 +117,8 @@ protected:
   int fMaxIterationsNoReg;
   int fMaxIterationsReg;
 
+  double fXHitOffset;
+
   const detinfo::DetectorProperties* detprop;
   const geo::GeometryCore* geom;
 };
@@ -133,7 +135,8 @@ SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset)
     fDistThresh(pset.get<double>("WireIntersectThreshold")),
     fDistThreshDrift(pset.get<double>("WireIntersectThresholdDriftDir")),
     fMaxIterationsNoReg(pset.get<int>("MaxIterationsNoReg")),
-    fMaxIterationsReg(pset.get<int>("MaxIterationsReg"))
+    fMaxIterationsReg(pset.get<int>("MaxIterationsReg")),
+    fXHitOffset(pset.get<double>("XHitOffset"))
 {
   recob::ChargedSpacePointCollectionCreator::produces(*this, "pre");
   if(fFit){
@@ -533,7 +536,7 @@ void SpacePointSolver::produce(art::Event& evt)
     std::cout << "Finding 2-view coincidences..." << std::endl;
     TripletFinder tf(xhits, uhits, {},
                      xbadchans, ubadchans, {},
-                     fDistThresh, fDistThreshDrift);
+                     fDistThresh, fDistThreshDrift, fXHitOffset);
     BuildSystem(tf.TripletsTwoView(),
                 cwires, iwires, orphanSCs,
                 fAlpha != 0, hitmap);
@@ -542,7 +545,7 @@ void SpacePointSolver::produce(art::Event& evt)
     std::cout << "Finding XUV coincidences..." << std::endl;
     TripletFinder tf(xhits, uhits, vhits,
                      xbadchans, ubadchans, vbadchans,
-                     fDistThresh, fDistThreshDrift);
+                     fDistThresh, fDistThreshDrift, fXHitOffset);
     BuildSystem(tf.Triplets(),
                 cwires, iwires, orphanSCs,
                 fAlpha != 0, hitmap);
