@@ -78,8 +78,8 @@ public:
   void analyze(art::Event const & e) override;
 
   // user's defined functions
-  void beginJob();
-  void endJob();
+  void beginJob() override;
+  void endJob() override;
   void beginRun(art::Run const& run) override;
   void doEfficiencies();
   bool insideFV(double vertex[4]);
