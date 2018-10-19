@@ -187,6 +187,10 @@ namespace tca {
   bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP);
   bool MergeAndStore(TCSlice& slc, unsigned int itj1, unsigned int itj2, bool doPrt);
   std::vector<int> GetAssns(TCSlice& slc, std::string type1Name, int id, std::string type2Name);
+  // Start a trajectory going from fromHit to (toWire, toTick)
+  bool StartTraj(TCSlice& slc, Trajectory& tj, unsigned int fromhit, unsigned int tohit, unsigned short pass);
+  bool StartTraj(TCSlice& slc, Trajectory& tj, float fromWire, float fromTick, float toWire, float toTick, CTP_t& tCTP, unsigned short pass);
+  bool Fit2D(unsigned short mode, Point2_t inPt, float& inPtErr, Vector2_t& outVec, Vector2_t& outVecErr, float& chiDOF);
   std::pair<unsigned short, unsigned short> GetSliceIndex(std::string typeName, int uID);
   template <typename T>
   std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2);
