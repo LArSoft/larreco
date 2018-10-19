@@ -354,6 +354,24 @@ namespace tca {
             myprt<<" at "<<std::fixed<<std::setprecision(1)<<aVtx.Pos[0]<<":"<<aVtx.Pos[1]/tcc.unitsPerTick;
           }
           AttachAnyTrajToVertex(slc, slc.vtxs.size() - 1, prt);
+/*
+          if(tcc.useAlg[kNewVtxCuts]) {
+            // try stepping away from the vertex
+            auto& newVx2 = slc.vtxs[slc.vtxs.size() - 1];
+            auto tjlist = GetAssns(slc, "2V", newVx2.ID, "T");
+            // count the number of long straight Tjs
+            unsigned short nlong = 0;
+            for(auto tjid : tjlist) {
+              auto& vtj = slc.tjs[tjid - 1];
+              unsigned short npts = vtj.EndPt[1] - vtj.EndPt[0] + 1;
+              if(npts > 20 && vtj.MCSMom > 100) ++nlong;
+            } // tjid
+            if(nlong > 1) {
+              std::cout<<"Try 2V"<<newVx2.ID<<" nlong "<<nlong<<"\n";
+              FindVtxTjs(slc, newVx2);
+            }
+          } // new cuts
+*/
           SetVx2Score(slc);
         } // it2
       } // end1
@@ -368,6 +386,127 @@ namespace tca {
     if(prt) PrintAllTraj("F2DVo", slc, USHRT_MAX, USHRT_MAX);
     
   } // Find2DVertices
+
+  
+  //////////////////////////////////////////
+  void FindVtxTjs(TCSlice& slc, VtxStore& vx2)
+  {
+    // Look for available hits in the vicinity of this vertex and try to make
+    // a vertex trajectory from them
+    
+    if(!tcc.useAlg[kVtxTj]) return;
+    
+    if(vx2.Stat[kVtxTrjTried]) return;
+    // ignore low score
+    if(vx2.Score < tcc.vtx2DCuts[7]) return;
+    
+    bool prt = (tcc.dbg2V || tcc.dbgAlg[kVtxTj]);
+    
+    std::array<int, 2> wireWindow;
+    std::array<float, 2> timeWindow;
+    
+    // on the first try we look for small angle trajectories which will have hits
+    // with a large wire window and a small time window
+    // Vertex2DCuts fcl input usage
+    // 0 User definition of a short Tj => max number of Tj points
+    // 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
+    // 2 max separation for a user-defined long Tj
+    // 3 max position pull when attaching a Tj to a vertex
+    // 4 max position error for creating a Tj or attaching Tjs to an existing vertex
+    // 5 Min MCSMom of Tjs that can be used to create a vertex
+    // 6 min frac of Points/Wire between a vtx and a Tj. Ideally one if the efficiency is good
+    // 7 min Score
+    // 8 ID of a vertex for printing special debugging information
+    wireWindow[0] = std::nearbyint(vx2.Pos[0] - tcc.vtx2DCuts[1]);
+    wireWindow[1] = std::nearbyint(vx2.Pos[0] + tcc.vtx2DCuts[1]);
+    timeWindow[0] = vx2.Pos[1] - tcc.vtx2DCuts[1];
+    timeWindow[1] = vx2.Pos[1] + tcc.vtx2DCuts[1];
+    
+    geo::PlaneID planeID = DecodeCTP(vx2.CTP);
+    unsigned short ipl = planeID.Plane;
+    
+    if(prt) mf::LogVerbatim("TC")<<"inside FindVtxTjs 2v"<<vx2.ID<<" Window "<<wireWindow[0]<<" "<<wireWindow[1]<<" "<<timeWindow[0]/tcc.unitsPerTick<<" "<<timeWindow[1]/tcc.unitsPerTick<<" in plane "<<ipl;
+    
+    // find nearby available hits
+    bool hitsNear;
+    std::vector<unsigned int> closeHits = FindCloseHits(slc, wireWindow, timeWindow, ipl, kUnusedHits, true, hitsNear);
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"closeHits";
+      for(auto& iht : closeHits) myprt<<" "<<PrintHit(slc.slHits[iht]);
+    }
+    if(closeHits.empty()) return;
+    // sort by distance from the vertex
+    std::vector<SortEntry> sortVec(closeHits.size());
+    SortEntry sortEntry;
+    for(unsigned short ii = 0; ii < closeHits.size(); ++ii) {
+      unsigned int iht = closeHits[ii];
+      auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
+      float dw = hit.WireID().Wire - vx2.Pos[0];
+      float dt = tcc.unitsPerTick * hit.PeakTime() - vx2.Pos[1];
+      float d2 = dw * dw + dt * dt;
+      sortEntry.index = ii;
+      sortEntry.val = d2;
+      sortVec[ii] = sortEntry;
+    } // ii
+    std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
+    unsigned int vWire = std::nearbyint(vx2.Pos[0]);
+    int vTick = vx2.Pos[1]/tcc.unitsPerTick;
+    if(prt) PrintHeader("FVT");
+    for(unsigned short ii = 0; ii < closeHits.size(); ++ii) {
+      unsigned int iht = closeHits[sortVec[ii].index];
+      if(slc.slHits[iht].InTraj > 0) continue;
+      auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
+      // the direction will be poorly defined if a hit is very close to the vertex and it is in this list.
+      // Ignore these hits
+      if(hit.WireID().Wire == vWire) {
+        // on the vertex wire. Check for a close time
+        if(abs(hit.PeakTime() - vTick) < 10) continue;
+      } // hit on vtx wire
+      float toWire = hit.WireID().Wire;
+      float toTick = hit.PeakTime();
+      // assume the last pass and fix it later after the angle is calculated
+      unsigned short pass = tcc.minPts.size() - 1;
+      Trajectory tj;
+      if(!StartTraj(slc, tj, vx2.Pos[0], vx2.Pos[1]/tcc.unitsPerTick, toWire, toTick, vx2.CTP, pass)) continue;
+      // ensure that the first TP is good
+      if(tj.Pts[0].Pos[0] < 0) continue;
+      tj.VtxID[0] = vx2.ID;
+      TrajPoint tp = tj.Pts[0];
+      // Move the Pt to the hit
+      MoveTPToWire(tp, toWire);
+      // attach the hit
+      tp.Hits.push_back(iht);
+      tp.UseHit[tp.Hits.size()-1] = true;
+      slc.slHits[iht].InTraj = tj.ID;
+      tp.UseHit[tp.Hits.size()-1] = false;
+      if(prt) PrintTrajPoint("FVT", slc, 0, tj.StepDir, tj.Pass, tp);
+      // Step away and see what happens
+      StepAway(slc, tj);
+      // check for a major failure
+      if(!slc.isValid) return;
+      // Check the quality of the trajectory
+      CheckTraj(slc, tj);
+      if(!tj.IsGood || NumPtsWithCharge(slc, tj, true) < 2) {
+        if(prt) mf::LogVerbatim("TC")<<" xxxxxxx Not enough points "<<NumPtsWithCharge(slc, tj, true)<<" minimum "<<tcc.minPts[tj.Pass]<<" or !IsGood";
+        ReleaseHits(slc, tj);
+        continue;
+      }
+      tj.AlgMod[kVtxTj] = true;
+      slc.isValid = StoreTraj(slc, tj);
+      if(tcc.useAlg[kChkInTraj]) {
+        slc.isValid = InTrajOK(slc, "FVT");
+        if(!slc.isValid) {
+          mf::LogVerbatim("TC")<<"InTrajOK failed in FindVtxTjs";
+          return;
+        }
+      }
+      if(prt) mf::LogVerbatim("TC")<<"FindVtxTjs: calling StoreTraj with npts "<<tj.EndPt[1];
+    } // ii
+    
+    // Flag this as tried so we don't try again
+    vx2.Stat[kVtxTrjTried] = true;
+  } // FindVtxTjs
 
   //////////////////////////////////////////
   void FindNeutralVertices(TCSlice& slc)
@@ -3093,6 +3232,8 @@ namespace tca {
     float minPull = tcc.vtx2DCuts[3];
     unsigned short imBest = 0;
     for(auto& vx2 : slc.vtxs) {
+      if(vx2.CTP != inVx2.CTP) continue;
+      if(vx2.ID <= 0) continue;
       float pull = VertexVertexPull(slc, inVx2, vx2);
       if(pull < minPull) {
         minPull = pull;
