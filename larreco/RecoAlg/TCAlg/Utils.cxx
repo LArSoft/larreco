@@ -2394,7 +2394,6 @@ namespace tca {
       unsigned int firstHit = (unsigned int)slc.wireHitRange[plane][wire].first;
       unsigned int lastHit = (unsigned int)slc.wireHitRange[plane][wire].second;
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-        if(slc.slHits[iht].InTraj == 0) continue;
         auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
         if(usePeakTime) {
           if(hit.PeakTime() < minTick) continue;
@@ -4324,6 +4323,70 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     return tmp;
     
   } // GetAssns
+
+
+  ////////////////////////////////////////////////
+  bool StartTraj(TCSlice& slc, Trajectory& tj, unsigned int fromhit, unsigned int tohit, unsigned short pass)
+  {
+    // Start a trajectory located at fromHit with direction pointing to toHit
+    
+    auto& fromHit = (*evt.allHits)[slc.slHits[fromhit].allHitsIndex];
+    auto& toHit = (*evt.allHits)[slc.slHits[tohit].allHitsIndex];
+    float fromWire = fromHit.WireID().Wire;
+    float fromTick = fromHit.PeakTime();
+    float toWire = toHit.WireID().Wire;
+    float toTick = toHit.PeakTime();
+    CTP_t tCTP = EncodeCTP(fromHit.WireID());
+    bool success = StartTraj(slc, tj, fromWire, fromTick, toWire, toTick, tCTP, pass);
+    if(!success) return false;
+    // turn on debugging using the WorkID?
+    if(tcc.modes[kDebug] && !tcc.dbgStp && !tcc.dbgDump && tcc.dbgSlc && tj.ID == debug.WorkID) tcc.dbgStp = true;
+    if(tcc.dbgStp) {
+      auto& tp = tj.Pts[0];
+      mf::LogVerbatim("TC")<<"StartTraj T"<<tj.ID<<" from "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(slc, tp);      
+    } // tcc.dbgStp
+    return true;
+  } // StartTraj
+  
+  ////////////////////////////////////////////////
+  bool StartTraj(TCSlice& slc, Trajectory& tj, float fromWire, float fromTick, float toWire, float toTick, CTP_t& tCTP, unsigned short pass)
+  {
+    // Start a simple (seed) trajectory going from (fromWire, toTick) to (toWire, toTick).
+    
+    // decrement the work ID so we can use it for debugging problems
+    --evt.WorkID;
+    if(evt.WorkID == INT_MIN) evt.WorkID = -1;
+    tj.ID = evt.WorkID;
+    tj.Pass = pass;
+    // Assume we are stepping in the positive WSE units direction
+    short stepdir = 1;
+    int fWire = std::nearbyint(fromWire);
+    int tWire = std::nearbyint(toWire);
+    if(tWire < fWire) {
+      stepdir = -1;
+    } else if(tWire == fWire) {
+      // on the same wire
+      if(toTick < fromTick) stepdir = -1;
+    }
+    tj.StepDir = stepdir;
+    tj.CTP = tCTP;
+    tj.ParentID = -1;
+    
+    // create a trajectory point
+    TrajPoint tp;
+    if(!MakeBareTrajPoint(slc, fromWire, fromTick, toWire, toTick, tCTP, tp)) return false;
+    SetAngleCode(tp);
+    tp.AngErr = 0.1;
+    tj.Pts.push_back(tp);
+    // turn on debugging using the WorkID?
+    if(tcc.modes[kDebug] && !tcc.dbgStp && !tcc.dbgDump && tcc.dbgSlc && tj.ID == debug.WorkID) tcc.dbgStp = true;
+    if(tcc.dbgStp) {
+      auto& tp = tj.Pts[0];
+      mf::LogVerbatim("TC")<<"StartTraj T"<<tj.ID<<" from "<<(int)fromWire<<":"<<(int)fromTick<<" -> "<<(int)toWire<<":"<<(int)toTick<<" StepDir "<<tj.StepDir<<" dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" ang "<<tp.Ang<<" AngleCode "<<tp.AngleCode<<" angErr "<<tp.AngErr<<" ExpectedHitsRMS "<<ExpectedHitsRMS(slc, tp);      
+    } // tcc.dbgStp
+    return true;
+    
+  } // StartTraj
   
   ////////////////////////////////////////////////
   std::pair<unsigned short, unsigned short> GetSliceIndex(std::string typeName, int uID)
@@ -4364,6 +4427,81 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     } // isl
     return std::make_pair(USHRT_MAX, USHRT_MAX);
   } // GetSliceIndex
+  
+  ////////////////////////////////////////////////
+  bool Fit2D(unsigned short mode, Point2_t inPt, float& inPtErr, Vector2_t& outVec, Vector2_t& outVecErr, float& chiDOF)
+  {
+    // Fit points to a 2D line.
+    // Mode = 0: Initialize
+    // Mode = 1: Accumulate
+    // Mode = 2: Accumulate and store to calculate chiDOF
+    // Mode = -1: Fit and put results in outVec and chiDOF
+    
+    static double sum, sumx, sumy, sumx2, sumy2, sumxy;
+    static unsigned short cnt;
+    static std::vector<Point2_t> fitPts;
+    static std::vector<double> fitWghts;
+
+    if(mode == 0) {
+      // initialize
+      cnt = 0;
+      sum = 0.; sumx = 0.; sumy = 0.;
+      sumx2 = 0.; sumy2 = 0.; sumxy = 0;
+      fitPts.resize(0);
+      fitWghts.resize(0);
+      return true;
+    } // mode == 0
+    
+    if(mode > 0) {
+      if(inPtErr <= 0.) return false;
+      ++cnt;
+      double wght = 1 / (inPtErr * inPtErr);
+      sum += wght;
+      sumx += wght * inPt[0];
+      sumx2 += wght * inPt[0] * inPt[0];
+      sumy += wght * inPt[1];
+      sumy2 += wght * inPt[1] * inPt[1];
+      sumxy += wght * inPt[0] * inPt[1];
+      if(mode == 1) return true;
+      fitPts.push_back(inPt);
+      fitWghts.push_back(wght);
+      return true;
+    } // Accumulate
+    
+    if(cnt < 2) return false;
+    // do the fit
+    double delta = sum * sumx2 - sumx * sumx;
+    if(delta == 0.) return false;
+    double A = (sumx2 * sumy - sumx * sumxy) / delta;
+    double B = (sumxy * sum  - sumx * sumy) / delta;
+    outVec[0] = A;
+    outVec[1] = B;
+    chiDOF = 0;
+    if(cnt == 2 || fitPts.empty()) return true;
+    
+    // calculate errors and chiDOF
+    if(fitPts.size() != cnt) return false;
+    double ndof = cnt - 2;
+    double varnce = (sumy2 + A*A*sum + B*B*sumx2 - 2 * (A*sumy + B*sumxy - A*B*sumx)) / ndof;
+    if(varnce > 0.) {
+      outVecErr[0] = sqrt(varnce * sumx2 / delta);
+      outVecErr[1] = sqrt(varnce * sum / delta);
+    } else {
+      outVecErr[0] = 0.;
+      outVecErr[1] = 0.;
+    }
+    sum = 0.;
+    // calculate chisq
+    for(unsigned short ii = 0; ii < fitPts.size(); ++ii) {
+      double arg = fitPts[ii][1] - A - B * fitPts[ii][0];
+      sum += fitWghts[ii] * arg * arg;
+    }
+    chiDOF = sum / ndof;
+    fitPts.resize(0);
+    fitWghts.resize(0);
+    return true;
+    
+  } // Fit2D
   
   ////////////////////////////////////////////////
   bool DecodeDebugString(std::string strng)
@@ -4597,7 +4735,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(pfp.ID <= 0) return;
     if(printHeader) {
       myprt<<someText<<"************ PFParticles ************\n";
-      myprt<<someText<<"     prodID    sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____   eVx  ________ePos_______ CS _______eDir______ ____edEdx_____   MCS  Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
+      myprt<<someText<<"     prodID    sVx  ________sPos_______ CS _______sDir______ ____sdEdx_____    eVx  ________ePos_______ CS _______eDir______ ____edEdx_____     MCS  Len nTp3 MCSMom ShLike? PDG mcpIndx Par Prim E*P\n";
       printHeader = false;
     } // printHeader
     auto sIndx = GetSliceIndex("P", pfp.UID);
