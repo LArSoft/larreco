@@ -162,7 +162,9 @@ namespace tca {
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     unsigned int mcpListIndex {UINT_MAX};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
-    bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated (only for the TP Environment right now)
+    bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
+    bool IsGood {true};           ///< set false if there is a failure or the Tj fails quality cuts
+    bool MaskedLastTP {false};
   };
   
   // struct used for TrajCluster 3D trajectory points
@@ -510,13 +512,14 @@ namespace tca {
     unsigned int subRun;
     unsigned int eventsProcessed;
     std::vector<float> aveHitRMS;      ///< average RMS of an isolated hit
-    bool aveHitRMSValid {false};          ///< set true when the average hit RMS is well-known
+    int WorkID;
     int globalTjID;
     int globalPFPID;
     int globalVx2ID;
     int globalVx3ID;
     int globalS2ID;
     int globalS3ID;
+    bool aveHitRMSValid {false};          ///< set true when the average hit RMS is well-known
   };
 
   struct TCSlice {
