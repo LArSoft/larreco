@@ -194,6 +194,8 @@ namespace tca {
     if(mcpList.empty()) return;
     // mcpListIndex points to the MCParticle to which each hit is matched
     if(mcpListIndex.size() != (*evt.allHits).size()) return;
+    
+    
 /* TODO: fix this later
     // Form a list of mother-daughter pairs that should be considered as a single particle
     std::vector<std::pair<unsigned int, unsigned int>> moda;
@@ -856,6 +858,6 @@ namespace tca {
     unsigned short nPlnOK = 0;
     // Require at least 2 truth-matched hits in a plane
     for(unsigned short plane = 0; plane < nplanes; ++plane) if(cntInPln[plane] > 1) ++nPlnOK;
-    return (nPlnOK >= nDimensions);
+    return (nPlnOK >= 2);
   } // CanReconstruct
 } // namespace tca
