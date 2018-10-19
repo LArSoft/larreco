@@ -26,6 +26,7 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 #include "larreco/RecoAlg/TCAlg/DebugStruct.h"
+#include "larreco/RecoAlg/TCAlg/StepUtils.h"
 #include "larreco/RecoAlg/TCAlg/Utils.h"
 
 namespace tca {
@@ -38,6 +39,7 @@ namespace tca {
 
   void MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP);
   void Find2DVertices(TCSlice& slc, const CTP_t& inCTP);
+  void FindVtxTjs(TCSlice& slc, VtxStore& theVtx);
   void FindNeutralVertices(TCSlice& slc);
   void MakeJunkTjVertices(TCSlice& slc, const CTP_t& inCTP);
   void ChkVxTjs(TCSlice& slc, const CTP_t& inCTP, bool prt);
