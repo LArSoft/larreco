@@ -4429,7 +4429,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
   } // GetSliceIndex
   
   ////////////////////////////////////////////////
-  bool Fit2D(unsigned short mode, Point2_t inPt, float& inPtErr, Vector2_t& outVec, Vector2_t& outVecErr, float& chiDOF)
+  bool Fit2D(short mode, Point2_t inPt, float& inPtErr, Vector2_t& outVec, Vector2_t& outVecErr, float& chiDOF)
   {
     // Fit points to a 2D line.
     // Mode = 0: Initialize
