@@ -97,6 +97,7 @@ namespace cluster {
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/Shower.h"
+#include "lardataobj/RecoBase/Seed.h"
 
 
 namespace cluster {
@@ -154,6 +155,7 @@ namespace cluster {
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
     produces< std::vector<recob::EndPoint2D> >();
+    produces< std::vector<recob::Seed> >();
     produces< std::vector<recob::Shower> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
@@ -164,6 +166,7 @@ namespace cluster {
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
+    produces< art::Assns<recob::PFParticle, recob::Seed> >();
     
     produces< art::Assns<recob::Slice, recob::Cluster> >();
     produces< art::Assns<recob::Slice, recob::PFParticle> >();
@@ -440,6 +443,7 @@ namespace cluster {
     std::vector<recob::PFParticle> pfpCol;
     std::vector<recob::Vertex> vx3Col;
     std::vector<recob::EndPoint2D> vx2Col;
+    std::vector<recob::Seed> sedCol;
     std::vector<recob::Shower> shwCol;
     std::vector<anab::CosmicTag> ctCol;
     // a vector to correlate inputHits with hitCol
@@ -466,6 +470,8 @@ namespace cluster {
       pfp_vx3_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
     std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
       pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
+    std::unique_ptr<art::Assns<recob::PFParticle, recob::Seed>>
+      pfp_sed_assn(new art::Assns<recob::PFParticle, recob::Seed>);
     // Slice -> ...
     std::unique_ptr<art::Assns<recob::Slice, recob::Cluster>>
       slc_cls_assn(new art::Assns<recob::Slice, recob::Cluster>);
@@ -474,10 +480,16 @@ namespace cluster {
     std::unique_ptr<art::Assns<recob::Slice, recob::Hit>>
       slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
 
-    // vector to map 2V UID -> ID
-    std::vector<int> vx2IDs;
-    // vector to map 3V UID -> ID
-    std::vector<int> vx3IDs;
+    // temp struct to get the index of a 2D (or 3D vertex) into vx2Col (or vx3Col)
+    // given a slice index and a vertex ID (not UID)
+    struct slcVxStruct {
+      unsigned short slIndx;
+      int ID;
+      unsigned short vxColIndx;
+    };
+    std::vector<slcVxStruct> vx2StrList;
+    // vector to map 3V UID -> ID in each sub-slice
+    std::vector<slcVxStruct> vx3StrList;
 
     if(nInputHits > 0) {
       unsigned short nSlices = fTCAlg->GetSlicesSize();
@@ -506,7 +518,14 @@ namespace cluster {
                               vtxID,                // ID
                               view,                 // View
                               0);                   // total charge - not relevant
-          vx2IDs.push_back(vx2.ID);
+
+	  // fill the mapping struct
+          slcVxStruct tmp;
+          tmp.slIndx = isl;
+          tmp.ID = vx2.ID;
+          tmp.vxColIndx = vx2Col.size() - 1;
+          vx2StrList.push_back(tmp);
+
         } // vx2
         // make Vertices
         for(auto& vx3 : slc.vtx3s) {
@@ -519,7 +538,14 @@ namespace cluster {
           xyz[1] = vx3.Y;
           xyz[2] = vx3.Z;
           vx3Col.emplace_back(xyz, vtxID);
-          vx3IDs.push_back(vx3.ID);
+
+	  // fill the mapping struct
+          slcVxStruct tmp;
+          tmp.slIndx = isl;
+          tmp.ID = vx3.ID;
+          tmp.vxColIndx = vx3Col.size() - 1;
+          vx3StrList.push_back(tmp);
+
         } // vx3
         // Convert the tjs to clusters
         bool badSlice = false;
@@ -630,25 +656,28 @@ namespace cluster {
           // Make cluster -> 2V and cluster -> 3V assns
           for(unsigned short end = 0; end < 2; ++end) {
             if(tj.VtxID[end] <= 0) continue;
-            for(unsigned short vx2Index = 0; vx2Index < vx2IDs.size(); ++vx2Index) {
-              if(vx2IDs[vx2Index] != tj.VtxID[end]) continue;
-              if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2Index, end))
+
+	    for(auto& vx2str : vx2StrList) {
+	      if(vx2str.slIndx != isl) continue;
+	      if(vx2str.ID != tj.VtxID[end]) continue;
+	      if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2str.vxColIndx, end))
               {
                 throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with EndPoint2D";
               } // exception
               auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
               if(vx2.Vx3ID > 0) {
-                for(unsigned short vx3Index = 0; vx3Index < vx3IDs.size(); ++vx3Index) {
-                  if(vx3IDs[vx3Index] != vx2.Vx3ID) continue;
-                  if(!util::CreateAssnD(*this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3Index, end))
+		for(auto vx3str : vx3StrList) {
+                  if(vx3str.slIndx != isl) continue;
+                  if(vx3str.ID != vx2.Vx3ID) continue;
+                  if(!util::CreateAssnD(*this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3str.vxColIndx, end))
                   {
                     throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with Vertex";
                   } // exception
                   break;
-                } // vx3Index
+                } // vx3str
               } // vx2.Vx3ID > 0
               break;
-            } // vx2
+            } // vx2str
           } // end
         } // tj (aka cluster)
         // make Showers
@@ -706,6 +735,11 @@ namespace cluster {
           std::vector<size_t> dtrIndices(pfp.DtrUIDs.size());
           for(unsigned short idtr = 0; idtr < pfp.DtrUIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrUIDs[idtr] + offset - 1;
           pfpCol.emplace_back(pfp.PDGCode, self, parentIndex, dtrIndices);
+	  double sp[] = {pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]};
+	  double sd[] = {pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]};
+	  double spe[] = {0.,0.,0.};
+	  double sde[] = {0.,0.,0.};
+          sedCol.emplace_back(sp,sd,spe,sde);
           // PFParticle -> clusters
           std::vector<unsigned int> clsIndices;
           for(auto tuid : pfp.TjUIDs) {
@@ -723,16 +757,26 @@ namespace cluster {
           } // exception
           // PFParticle -> Vertex
           if(pfp.Vx3ID[0] > 0) {
-            for(unsigned short vx3Index = 0; vx3Index < vx3IDs.size(); ++vx3Index) {
-              if(vx3IDs[vx3Index] != pfp.Vx3ID[0]) continue;
-              std::vector<unsigned short> indx(1, vx3Index);
-              if(!util::CreateAssn(*this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end()))
+	    for(auto vx3str : vx3StrList) {
+              if(vx3str.slIndx != isl) continue;
+              if(vx3str.ID != pfp.Vx3ID[0]) continue;
+	      std::vector<unsigned short> indx(1, vx3str.vxColIndx);
+        
+	      if(!util::CreateAssn(*this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end()))
+
               {
                 throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle "<<pfp.UID<<" with Vertex";
               } // exception
               break;
             } // vx3Index
           } // start vertex exists
+          // PFParticle -> Seed
+          if(!sedCol.empty()) {
+            if(!util::CreateAssn(*this, evt, pfpCol, sedCol, *pfp_sed_assn, sedCol.size()-1, sedCol.size(), pfpCol.size()-1))
+            {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate seed with PFParticle";
+            } // exception
+          } // seeds exist
           // PFParticle -> Slice
           if(!slices.empty()) {
             if(!util::CreateAssn(*this, evt, pfpCol, slices[slcIndex], *slc_pfp_assn))
@@ -806,6 +850,7 @@ namespace cluster {
     std::unique_ptr<std::vector<recob::EndPoint2D> > v2col(new std::vector<recob::EndPoint2D>(std::move(vx2Col)));
     std::unique_ptr<std::vector<recob::Vertex> > v3col(new std::vector<recob::Vertex>(std::move(vx3Col)));
     std::unique_ptr<std::vector<recob::PFParticle> > pcol(new std::vector<recob::PFParticle>(std::move(pfpCol)));
+    std::unique_ptr<std::vector<recob::Seed> > sdcol(new std::vector<recob::Seed>(std::move(sedCol)));
     std::unique_ptr<std::vector<recob::Shower> > scol(new std::vector<recob::Shower>(std::move(shwCol)));
     std::unique_ptr<std::vector<anab::CosmicTag>> ctgcol(new std::vector<anab::CosmicTag>(std::move(ctCol)));
 
@@ -825,6 +870,7 @@ namespace cluster {
     evt.put(std::move(v2col));
     evt.put(std::move(v3col));
     evt.put(std::move(scol));
+    evt.put(std::move(sdcol));
     evt.put(std::move(shwr_hit_assn));
     evt.put(std::move(cls_vx2_assn));
     evt.put(std::move(cls_vx3_assn));
@@ -832,6 +878,7 @@ namespace cluster {
     evt.put(std::move(pfp_cls_assn));
     evt.put(std::move(pfp_shwr_assn));
     evt.put(std::move(pfp_vx3_assn));
+    evt.put(std::move(pfp_sed_assn));
     evt.put(std::move(slc_cls_assn));
     evt.put(std::move(slc_pfp_assn));
     evt.put(std::move(slc_hit_assn));
