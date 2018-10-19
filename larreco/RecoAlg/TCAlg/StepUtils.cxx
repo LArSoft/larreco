@@ -3785,7 +3785,7 @@ namespace tca {
         auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
         inPt[0] = hit.WireID().Wire;
         inPt[1] = hit.PeakTime() * tcc.unitsPerTick;
-        fitPts.push_back(inPt);
+        fitPts[ii] = inPt;
         // accumulate. Don't store the points since we don't care about chisq
         Fit2D(1, inPt, inPtErr, outVec, outVecErr, chiDOF);
       } // ii
