@@ -51,7 +51,7 @@ standard_trajclusteralg:
     # 1 = 3D match weight
     # 2 = Charge fraction of vertex Tjs near the vertex weight
     # 3 = Tj MCSMom, ChgRMS, Angle difference significance between Tjs weight
-   Vertex2DCuts:  [6, 8, 45, 3, 3, 50, 0.6, 0, 0.8, 0.8]
+   Vertex2DCuts:  [6, 8, 45, 3, 3, 50, 0.6, 50, 0.8, 0.8]
    # 0 User definition of a short Tj => max number of Tj points
    # 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
    # 2 max separation for a user-defined long Tj

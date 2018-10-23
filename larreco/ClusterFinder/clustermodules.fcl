@@ -301,15 +301,6 @@ standard_clustercheater:
  HoughBaseAlg:   	@local::standard_houghbasealg
 }
 
-microboone_dbcluster3d:           @local::standard_dbcluster3d
-microboone_dbcluster3d.HitModuleLabel: "gaushit"
-microboone_dbcluster3d.SpacePointModuleLabel: "sps3d"
-microboone_dbcluster3d.SPHitAssnLabel: "sps3d"
-microboone_dbcluster3d.MinHitDis: 1000000
-microboone_dbcluster3d.DBScan3DAlg.epsilon: 30
-microboone_dbcluster3d.DBScan3DAlg.minpts: 2
-microboone_dbcluster3d.DBScan3DAlg.badchannelweight: 0.
-
 jp250L_dbcluster:                    @local::standard_dbcluster      
 jp250L_fuzzycluster:                 @local::standard_fuzzycluster      
 jp250L_fuzzycluster.HoughBaseAlg:    @local::standard_houghbasealg      
