@@ -735,10 +735,10 @@ namespace cluster {
           std::vector<size_t> dtrIndices(pfp.DtrUIDs.size());
           for(unsigned short idtr = 0; idtr < pfp.DtrUIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrUIDs[idtr] + offset - 1;
           pfpCol.emplace_back(pfp.PDGCode, self, parentIndex, dtrIndices);
-	  double sp[] = {pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]};
-	  double sd[] = {pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]};
-	  double spe[] = {0.,0.,0.};
-	  double sde[] = {0.,0.,0.};
+          double sp[] = {pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]};
+          double sd[] = {pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]};
+          double spe[] = {0.,0.,0.};
+          double sde[] = {0.,0.,0.};
           sedCol.emplace_back(sp,sd,spe,sde);
           // PFParticle -> clusters
           std::vector<unsigned int> clsIndices;
@@ -757,13 +757,11 @@ namespace cluster {
           } // exception
           // PFParticle -> Vertex
           if(pfp.Vx3ID[0] > 0) {
-	    for(auto vx3str : vx3StrList) {
+            for(auto vx3str : vx3StrList) {
               if(vx3str.slIndx != isl) continue;
               if(vx3str.ID != pfp.Vx3ID[0]) continue;
-	      std::vector<unsigned short> indx(1, vx3str.vxColIndx);
-        
-	      if(!util::CreateAssn(*this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end()))
-
+              std::vector<unsigned short> indx(1, vx3str.vxColIndx);
+              if(!util::CreateAssn(*this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end()))
               {
                 throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle "<<pfp.UID<<" with Vertex";
               } // exception
