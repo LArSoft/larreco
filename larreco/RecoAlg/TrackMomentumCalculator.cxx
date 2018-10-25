@@ -590,7 +590,8 @@ namespace trkf {
 
     auto const narrowed_size =
       static_cast<int>(n); // ROOT requires a signed integral type
-    gr_reco_xyz = TPolyLine3D{narrowed_size, zs, xs, ys};
+    delete gr_reco_xyz;
+    gr_reco_xyz = new TPolyLine3D{narrowed_size, zs, xs, ys};
     gr_reco_yz = TGraph{narrowed_size, zzz.data(), yyy.data()};
     gr_reco_xz = TGraph{narrowed_size, zzz.data(), xxx.data()};
     gr_reco_xy = TGraph{narrowed_size, xxx.data(), yyy.data()};
@@ -996,7 +997,8 @@ namespace trkf {
         break;
     }
 
-    gr_seg_xyz = TPolyLine3D{n_seg, z_seg, x_seg, y_seg};
+    delete gr_seg_xyz;
+    gr_seg_xyz = new TPolyLine3D{n_seg, z_seg, x_seg, y_seg};
     gr_seg_yz = TGraph{n_seg, z_seg, y_seg};
     gr_seg_xz = TGraph{n_seg, z_seg, x_seg};
     gr_seg_xy = TGraph{n_seg, x_seg, y_seg};

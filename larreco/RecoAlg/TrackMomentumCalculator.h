@@ -103,17 +103,17 @@ namespace trkf {
     // parameter where if it is specified, then the graphs will be
     // created; otherwise, their creation is unnecessary and impedes
     // efficiency.
-    TPolyLine3D gr_xyz{};
-    TGraph gr_xy{};
-    TGraph gr_yz{};
-    TGraph gr_xz{};
-
-    TPolyLine3D gr_reco_xyz{};
+    //
+    // N.B. TPolyLine3D objects are owned by ROOT, and we thus refer
+    // to them by pointer.  It is important that 'delete' is not
+    // called on the TPolyLine3D pointers during destruction of a
+    // TrackMomentumCalculator object.
+    TPolyLine3D* gr_reco_xyz{nullptr};
     TGraph gr_reco_xy{};
     TGraph gr_reco_yz{};
     TGraph gr_reco_xz{};
 
-    TPolyLine3D gr_seg_xyz{};
+    TPolyLine3D* gr_seg_xyz{nullptr};
     TGraph gr_seg_xy{};
     TGraph gr_seg_yz{};
     TGraph gr_seg_xz{};
