@@ -68,7 +68,7 @@ namespace {
         double const yy = ymeas_[i];
         double const ey = eymeas_[i];
 
-        if (ey == 0) {
+        if (std::abs(ey) < std::numeric_limits<double>::epsilon()) {
           std::cout << " Zero denominator in my_mcs_chi2 ! " << std::endl;
           return -1;
         }
@@ -513,7 +513,19 @@ namespace trkf {
     for (int j = 0; j < n_steps; j++) {
       double const trial = steps.at(j);
       auto const [mean, rms, rmse] = getDeltaThetaRMS_(*segments, trial);
-      (void)mean;
+
+      if (std::isnan(mean) || std::isinf(mean)) {
+        mf::LogDebug("TrackMomentumCalculator") << "Returned mean is either nan or infinity.";
+        continue;
+      }
+      if (std::isnan(rms) || std::isinf(rms)) {
+        mf::LogDebug("TrackMomentumCalculator") << "Returned rms is either nan or infinity.";
+        continue;
+      }
+      if (std::isnan(rmse) || std::isinf(rmse)) {
+        mf::LogDebug("TrackMomentumCalculator") << "Returned rmse is either nan or infinity.";
+        continue;
+      }
 
       xmeas.push_back(trial); // Is this what is intended?
       ymeas.push_back(rms);
@@ -523,6 +535,12 @@ namespace trkf {
         ymin = rms;
       if (ymax < rms)
         ymax = rms;
+    }
+
+    assert(xmeas.size() == ymeas.size());
+    assert(xmeas.size() == eymeas.size());
+    if (xmeas.empty()) {
+      return -1.0;
     }
 
     TGraphErrors gr_meas{n_steps, xmeas.data(), ymeas.data(), nullptr, eymeas.data()};
