@@ -88,7 +88,8 @@ protected:
 
   void Minimize(const std::vector<CollectionWireHit*>& cwires,
                 const std::vector<SpaceCharge*>& orphanSCs,
-                double alpha);
+                double alpha,
+                int maxiterations);
 
   /// return whether the point was inserted (only happens when it has charge)
   bool AddSpacePoint(const SpaceCharge& sc,
@@ -116,6 +117,11 @@ protected:
   double fDistThresh;
   double fDistThreshDrift;
 
+  int fMaxIterationsNoReg;
+  int fMaxIterationsReg;
+
+  double fXHitOffset;
+
   const detinfo::DetectorProperties* detprop;
   const geo::GeometryCore* geom;
 private:
@@ -132,7 +138,10 @@ SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset)
     fAllowBadCollectionHit(pset.get<bool>("AllowBadCollectionHit")),
     fAlpha(pset.get<double>("Alpha")),
     fDistThresh(pset.get<double>("WireIntersectThreshold")),
-    fDistThreshDrift(pset.get<double>("WireIntersectThresholdDriftDir"))
+    fDistThreshDrift(pset.get<double>("WireIntersectThresholdDriftDir")),
+    fMaxIterationsNoReg(pset.get<int>("MaxIterationsNoReg")),
+    fMaxIterationsReg(pset.get<int>("MaxIterationsReg")),
+    fXHitOffset(pset.get<double>("XHitOffset"))
 {
   recob::ChargedSpacePointCollectionCreator::produces(*this, "pre");
   if(fFit){
@@ -426,11 +435,12 @@ FillSystemToSpacePointsAndAssns(const std::vector<art::Ptr<recob::Hit>>& hitlist
 // ---------------------------------------------------------------------------
 void SpacePointSolver::Minimize(const std::vector<CollectionWireHit*>& cwires,
                                 const std::vector<SpaceCharge*>& orphanSCs,
-                                double alpha)
+                                double alpha,
+                                int maxiterations)
 {
   double prevMetric = Metric(cwires, alpha);
   std::cout << "Begin: " << prevMetric << std::endl;
-  for(int i = 0; i < 100; ++i){
+  for(int i = 0; i < maxiterations; ++i){
     Iterate(cwires, orphanSCs, alpha);
     const double metric = Metric(cwires, alpha);
     std::cout << i << " " << metric << std::endl;
@@ -504,7 +514,7 @@ void SpacePointSolver::produce(art::Event& evt)
     std::cout << "Finding 2-view coincidences..." << std::endl;
     TripletFinder tf(xhits, uhits, {},
                      xbadchans, ubadchans, {},
-                     fDistThresh, fDistThreshDrift);
+                     fDistThresh, fDistThreshDrift, fXHitOffset);
     BuildSystem(tf.TripletsTwoView(),
                 cwires, iwires, orphanSCs,
                 fAlpha != 0, hitmap);
@@ -513,7 +523,7 @@ void SpacePointSolver::produce(art::Event& evt)
     std::cout << "Finding XUV coincidences..." << std::endl;
     TripletFinder tf(xhits, uhits, vhits,
                      xbadchans, ubadchans, vbadchans,
-                     fDistThresh, fDistThreshDrift);
+                     fDistThresh, fDistThreshDrift, fXHitOffset);
     BuildSystem(tf.Triplets(),
                 cwires, iwires, orphanSCs,
                 fAlpha != 0, hitmap);
@@ -524,13 +534,13 @@ void SpacePointSolver::produce(art::Event& evt)
 
   if(fFit){
     std::cout << "Iterating with no regularization..." << std::endl;
-    Minimize(cwires, orphanSCs, 0);
+    Minimize(cwires, orphanSCs, 0, fMaxIterationsNoReg);
 
     FillSystemToSpacePoints(cwires, orphanSCs, spcol_noreg);
     spcol_noreg.put();
 
     std::cout << "Now with regularization..." << std::endl;
-    Minimize(cwires, orphanSCs, fAlpha);
+    Minimize(cwires, orphanSCs, fAlpha, fMaxIterationsReg);
 
     FillSystemToSpacePointsAndAssns(hitlist, cwires, orphanSCs, hitmap, spcol, *assns);
     spcol.put();

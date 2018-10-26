@@ -1,5 +1,3 @@
-#include "spacepointsolverhitreadingtools.fcl"
-
 BEGIN_PROLOG
 
 standard_spacepointsolver:
@@ -23,9 +21,20 @@ standard_spacepointsolver:
   # Form triplets out of two induction hits and a bad collection wire
   AllowBadCollectionHit: true
 
-  # Experiment specific tool for reading hits
-  HitReaderTool: @local::standard_Hits
+  MaxIterationsNoReg: 100
+  MaxIterationsReg:   100
+
+  XHitOffset:         0
+
 }
+
+microboone_spacepointsolver: @local::standard_spacepointsolver
+microboone_spacepointsolver.WireIntersectThreshold:         0.2
+microboone_spacepointsolver.WireIntersectThresholdDriftDir: 0.25
+microboone_spacepointsolver.MaxIterationsNoReg:             20
+microboone_spacepointsolver.MaxIterationsReg:               20
+microboone_spacepointsolver.AllowBadCollectionHit:          false
+microboone_spacepointsolver.AllowBadInductionHit:           false
 
 END_PROLOG
 
