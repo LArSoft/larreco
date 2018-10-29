@@ -38,7 +38,7 @@ namespace tca {
   extern std::vector<TCSlice> slices;
 
   void MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP);
-  void Find2DVertices(TCSlice& slc, const CTP_t& inCTP);
+  void Find2DVertices(TCSlice& slc, const CTP_t& inCTP, unsigned short pass = USHRT_MAX);
   void FindVtxTjs(TCSlice& slc, VtxStore& theVtx);
   void FindNeutralVertices(TCSlice& slc);
   void MakeJunkTjVertices(TCSlice& slc, const CTP_t& inCTP);
