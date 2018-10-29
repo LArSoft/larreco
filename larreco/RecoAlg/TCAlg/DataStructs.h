@@ -76,6 +76,7 @@ namespace tca {
     kHiVx3Score,      ///< matched to a high-score 3D vertex
     kVtxTruMatch,      ///< tagged as a vertex between Tjs that are matched to MC truth neutrino interaction particles
     kVtxMerged,
+    kVtxIndPlnNoChg,  ///< vertex quality is suspect - No requirement made on chg btw it and the Tj
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
@@ -160,6 +161,7 @@ namespace tca {
 //    unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
+    short StartEnd {-1};               ///< The starting end (-1 = don't know)
     unsigned int mcpListIndex {UINT_MAX};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
@@ -391,7 +393,6 @@ namespace tca {
     kMergeShChain,
     kCompleteShower,
     kSplitTjCVx,
-    kSetDir,
     kNewStpCuts,
     kNewVtxCuts,
     kAlgBitSize     ///< don't mess with this line
@@ -410,6 +411,7 @@ namespace tca {
   
   // Environment near a trajectory point
   typedef enum {
+    kEnvDeadWire,
     kEnvNearTj,
     kEnvNearShower,
     kEnvOverlap,
@@ -444,6 +446,7 @@ namespace tca {
     std::vector<float> neutralVxCuts;
     std::vector<short> deltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> muonTag; ///< min length and min MCSMom for a muon tag
+    std::vector<float> electronTag;
     std::vector<float> chkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
     std::vector<float> showerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> kinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
