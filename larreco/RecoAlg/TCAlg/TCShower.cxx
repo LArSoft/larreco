@@ -3727,8 +3727,6 @@ namespace tca {
       for(auto& tjID : tjl) {
         auto& tj = slc.tjs[tjID - 1];
         tj.AlgMod[kShowerLike] = true;
-        // unset flags
-        tj.AlgMod[kSetDir] = false;
       } // tjid
     } // tjl
     
