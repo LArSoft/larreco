@@ -226,10 +226,7 @@ namespace cluster {
     unsigned int nInputHits = 0;
     // get a handle for the hit collection
     auto inputHits = art::Handle<std::vector<recob::Hit>>();
-    if(!evt.getByLabel(fHitModuleLabel, inputHits)) {
-      std::cout<<"Failed to get a hits handle\n";
-      return;
-    }
+    if(!evt.getByLabel(fHitModuleLabel, inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
     nInputHits = (*inputHits).size();
     if(nInputHits > 0) {
       // This is a pointer to a vector of recob::Hits that exist in the event. The hits
@@ -315,6 +312,70 @@ namespace cluster {
         slcIDs = tpcSlcIDs;
       } // > 1 TPC
       
+      // Get truth info before reconstructing
+      // list of selected MCParticles
+      std::vector<simb::MCParticle*> mcpList;
+      // and a vector of MC-matched hits
+      std::vector<unsigned int> mcpListIndex((*inputHits).size(), UINT_MAX);
+      if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
+        // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC
+        // when checking neutrino reconstruction performance.
+        // create a list of MCParticles of interest
+        // save MCParticles that have the desired MCTruth origin using
+        // the Origin_t typedef enum: kUnknown, kBeamNeutrino, kCosmicRay, kSuperNovaNeutrino, kSingleParticle
+        simb::Origin_t origin = (simb::Origin_t)tca::tcc.matchTruth[0];
+        // or save them all
+        bool anySource = (origin == simb::kUnknown);
+        // get the assns
+        art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
+        art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+        sim::ParticleList const& plist = pi_serv->ParticleList();
+        for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+          auto& p = (*ipart).second;
+          int trackID = p->TrackId();
+          art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+          int KE = 1000 * (p->E() - p->Mass());
+          if(!anySource && theTruth->Origin() != origin) continue;
+          if(tca::tcc.matchTruth[1] > 1 && KE > 10) {
+            std::cout<<"TCM: mcp Origin "<<theTruth->Origin()
+            <<std::setw(8)<<p->TrackId()
+            <<" pdg "<<p->PdgCode()
+            <<std::setw(7)<<KE<<" mom "<<p->Mother()
+            <<" "<<p->Process()
+            <<"\n";
+          }
+          mcpList.push_back(p);
+        } // ipart
+        std::vector<art::Ptr<simb::MCParticle>> particle_vec;
+        std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
+        unsigned int nMatHits = 0;
+        for(unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
+          particle_vec.clear(); match_vec.clear();
+          try{ particles_per_hit.get(iht, particle_vec, match_vec); }
+          catch(...) {
+            std::cout<<"BackTrackerHitMatchingData not found\n";
+            break;
+          }
+          if(particle_vec.empty()) continue;
+          int trackID = 0;
+          for(unsigned short im = 0; im < match_vec.size(); ++im) {
+            if(match_vec[im]->ideFraction < 0.5) continue;
+            trackID = particle_vec[im]->TrackId();
+            break;
+          } // im
+          if(trackID == 0) continue;
+          // look for this in MCPartList
+          for(unsigned int ipart = 0; ipart < mcpList.size(); ++ipart) {
+            auto& mcp = mcpList[ipart];
+            if(mcp->TrackId() != trackID) continue;
+            mcpListIndex[iht] = ipart;
+            ++nMatHits;
+            break;
+          } // ipart
+        } // iht
+        if(tca::tcc.matchTruth[1] > 1) std::cout<<"Loaded "<<mcpList.size()<<" MCParticles. "<<nMatHits<<"/"<<(*inputHits).size()<<" hits are matched to MCParticles\n";
+      } // fill mcpList
+      
       // First sort the hits in each sub-slice and then reconstruct
       for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
         auto& slhits = slHitsVec[isl];
@@ -369,72 +430,11 @@ namespace cluster {
       // stitch PFParticles between TPCs, create PFP start vertices, etc
       fTCAlg->FinishEvent();
       
-      if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
-        // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC
-        // when checking neutrino reconstruction performance.
-        // create a list of MCParticles of interest
-        std::vector<simb::MCParticle*> mcpList;
-        // and a vector of MC-matched hits
-        std::vector<unsigned int> mcpListIndex((*inputHits).size(), UINT_MAX);
-        // save MCParticles that have the desired MCTruth origin using
-        // the Origin_t typedef enum: kUnknown, kBeamNeutrino, kCosmicRay, kSuperNovaNeutrino, kSingleParticle
-        simb::Origin_t origin = (simb::Origin_t)tca::tcc.matchTruth[0];
-        // or save them all
-        bool anySource = (origin == simb::kUnknown);
-        // get the assns
-        art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
-        art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-        sim::ParticleList const& plist = pi_serv->ParticleList();
-        for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-          auto& p = (*ipart).second;
-          int trackID = p->TrackId();
-          art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-          int KE = 1000 * (p->E() - p->Mass());
-          if(!anySource && theTruth->Origin() != origin) continue;
-          if(tca::tcc.matchTruth[1] > 1 && KE > 10) {
-            std::cout<<"TCM: mcp Origin "<<theTruth->Origin()
-            <<std::setw(8)<<p->TrackId()
-            <<" pdg "<<p->PdgCode()
-            <<std::setw(7)<<KE<<" mom "<<p->Mother()
-            <<" "<<p->Process()
-            <<"\n";
-          }
-          mcpList.push_back(p);
-        } // ipart
-        if(!mcpList.empty()) {
-          std::vector<art::Ptr<simb::MCParticle>> particle_vec;
-          std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
-          unsigned int nMatHits = 0;
-          for(unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
-            particle_vec.clear(); match_vec.clear();
-            try{ particles_per_hit.get(iht, particle_vec, match_vec); }
-            catch(...) {
-              std::cout<<"BackTrackerHitMatchingData not found\n";
-              break;
-            }
-            if(particle_vec.empty()) continue;
-            int trackID = 0;
-            for(unsigned short im = 0; im < match_vec.size(); ++im) {
-              if(match_vec[im]->ideFraction < 0.5) continue;
-              trackID = particle_vec[im]->TrackId();
-              break;
-            } // im
-            if(trackID == 0) continue;
-            // look for this in MCPartList
-            for(unsigned int ipart = 0; ipart < mcpList.size(); ++ipart) {
-              auto& mcp = mcpList[ipart];
-              if(mcp->TrackId() != trackID) continue;
-              mcpListIndex[iht] = ipart;
-              ++nMatHits;
-              break;
-            } // ipart
-          } // iht
-          if(tca::tcc.matchTruth[1] > 1) std::cout<<"Loaded "<<mcpList.size()<<" MCParticles. "<<nMatHits<<"/"<<(*inputHits).size()<<" hits are matched to MCParticles\n";
-          fTCAlg->fTM.MatchTruth(mcpList, mcpListIndex);
-          if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event());
-        } // mcpList not empty
-      } // match truth
-      if(tca::tcc.dbgSummary) tca::PrintAll("TCM");
+      if(!mcpListIndex.empty()) {
+        fTCAlg->fTM.MatchTruth(mcpList, mcpListIndex);
+        if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event());
+      } // mcpList not empty
+      if(tca::tcc.dbgSummary) tca::PrintAll("TCM", mcpList);
     } // input hits exist
 
     // Vectors to hold all data products that will go into the event
@@ -660,24 +660,23 @@ namespace cluster {
 	    for(auto& vx2str : vx2StrList) {
 	      if(vx2str.slIndx != isl) continue;
 	      if(vx2str.ID != tj.VtxID[end]) continue;
-	      if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2str.vxColIndx, end))
-              {
-                throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with EndPoint2D";
-              } // exception
-              auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
-              if(vx2.Vx3ID > 0) {
-		for(auto vx3str : vx3StrList) {
-                  if(vx3str.slIndx != isl) continue;
-                  if(vx3str.ID != vx2.Vx3ID) continue;
-                  if(!util::CreateAssnD(*this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3str.vxColIndx, end))
-                  {
-                    throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with Vertex";
-                  } // exception
-                  break;
-                } // vx3str
-              } // vx2.Vx3ID > 0
-              break;
-            } // vx2str
+	      if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2str.vxColIndx, end)) {
+          throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with EndPoint2D";
+        } // exception
+        auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
+        if(vx2.Vx3ID > 0) {
+          for(auto vx3str : vx3StrList) {
+            if(vx3str.slIndx != isl) continue;
+            if(vx3str.ID != vx2.Vx3ID) continue;
+            if(!util::CreateAssnD(*this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3str.vxColIndx, end))
+            {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with Vertex";
+            } // exception
+            break;
+          } // vx3str
+        } // vx2.Vx3ID > 0
+        break;
+      } // vx2str
           } // end
         } // tj (aka cluster)
         // make Showers
