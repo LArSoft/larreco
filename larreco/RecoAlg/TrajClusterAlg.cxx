@@ -86,6 +86,7 @@ namespace tca {
     tcc.JTMaxHitSep2         = pset.get< float >("JTMaxHitSep", 2);
     tcc.deltaRayTag       = pset.get< std::vector<short>>("DeltaRayTag", {-1, -1, -1});
     tcc.muonTag           = pset.get< std::vector<short>>("MuonTag", {-1, -1, -1, - 1});
+    if(pset.has_key("ElectronTag")) tcc.electronTag = pset.get<std::vector<float>>("ElectronTag");
     tcc.showerTag         = pset.get< std::vector<float>>("ShowerTag", {-1, -1, -1, -1, -1, -1});
     std::string fMVAShowerParentWeights = "NA";
     pset.get_if_present<std::string>("MVAShowerParentWeights", fMVAShowerParentWeights);    
@@ -106,7 +107,12 @@ namespace tca {
     if(tcc.minMCSMom.size() != tcc.minPts.size()) badinput = true;
     if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxAngleRange and MinMCSMom should be defined for each reconstruction pass";
     
-    if(tcc.vtx2DCuts.size() < 10) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 10\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = min ChgFrac at a vtx or merge point\n 9 = max MCSMom asymmetry";
+    if(tcc.vtx2DCuts.size() < 10) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 10\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = min ChgFrac at a vtx or merge point\n 9 = max MCSMom asymmetry, 10 = require chg on wires btw vtx and tjs in induction planes?";
+    if(tcc.vtx2DCuts.size() == 10) {
+      // User didn't specify a requirement for the presence of charge between a vertex and the start of the
+      // vertex Tjs in induction planes. Assume that it is required
+      tcc.vtx2DCuts.resize(11, 1.);
+    }
     if(tcc.vtx3DCuts.size() < 2)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size 2\n 0 = Max dX (cm)\n 1 = Max pull";
     if(tcc.kinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
     if(tcc.kinkCuts[2] < 2) throw art::Exception(art::errors::Configuration)<<"KinkCuts[2] must be > 1";
@@ -450,6 +456,7 @@ namespace tca {
           // We hope to make a trajectory point at the hit position of iht in WSE units
           // with a direction pointing to jht
           auto& iHit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
+          if(tcc.useAlg[kNewStpCuts] && LongPulseHit(iHit)) continue;
           unsigned int fromWire = iHit.WireID().Wire;
           float fromTick = iHit.PeakTime();
           float iqtot = iHit.Integral();
@@ -484,6 +491,7 @@ namespace tca {
             }
             unsigned int toWire = jwire;
             auto& jHit = (*evt.allHits)[slc.slHits[jht].allHitsIndex];
+            if(tcc.useAlg[kNewStpCuts] && LongPulseHit(jHit)) continue;
             float toTick = jHit.PeakTime();
             float jqtot = jHit.Integral();
             std::vector<unsigned int> jHitsInMultiplet;
@@ -611,7 +619,7 @@ namespace tca {
       // TY: Split high charge hits near the trajectory end
       ChkHiChgHits(slc, inCTP);
 
-      Find2DVertices(slc, inCTP);
+      Find2DVertices(slc, inCTP, pass);
       if(!slc.isValid) return;
 
     } // pass
@@ -674,7 +682,8 @@ namespace tca {
     }
     unsigned short plane = DecodeCTP(inCTP).Plane;
     std::vector<unsigned int> tHits;
-    for(unsigned int iwire = slc.firstWire[plane]; iwire < slc.lastWire[plane] - 1; ++iwire) {
+    // Stay well away from the last wire in the plane
+    for(unsigned int iwire = slc.firstWire[plane]; iwire < slc.lastWire[plane] - 3; ++iwire) {
       // skip bad wires or no hits on the wire
       if(slc.wireHitRange[plane][iwire].first < 0) continue;
       unsigned int jwire = iwire + 1;
@@ -707,14 +716,15 @@ namespace tca {
           for(auto iht : iHits) if(slc.slHits[iht].InTraj == 0) tHits.push_back(iht);
           for(auto jht : jHits) if(slc.slHits[jht].InTraj == 0) tHits.push_back(jht);
           for(auto tht : tHits) slc.slHits[tht].InTraj = -4;
-          unsigned int loWire, hiWire;
+          unsigned int loWire;
           if(iwire != 0) { loWire = iwire - 1; } else { loWire = 0; }
-          if(jwire < slc.nWires[plane] - 3) { hiWire = jwire + 2; } else { hiWire = slc.nWires[plane] - 1; }
-          bool hitsAdded = true;
+          unsigned int hiWire = jwire + 1;
+          if(hiWire > slc.nWires[plane]) break;
+//          if(jwire < slc.nWires[plane] - 3) { hiWire = jwire + 2; } else { hiWire = slc.nWires[plane] - 1; }
           unsigned short nit = 0;
-          while(hitsAdded && nit < 100) {
-            hitsAdded = false;
-            for(unsigned int kwire = loWire; kwire < hiWire + 1; ++kwire) {
+          while(nit < 100) {
+            bool hitsAdded = false;
+            for(unsigned int kwire = loWire; kwire <= hiWire; ++kwire) {
               if(slc.wireHitRange[plane][kwire].first < 0) continue;
               unsigned int kfirsthit = (unsigned int)slc.wireHitRange[plane][kwire].first;
               unsigned int klasthit = (unsigned int)slc.wireHitRange[plane][kwire].second;
@@ -736,8 +746,11 @@ namespace tca {
                 } // jht
               } // kht
             } // kwire
+            if(!hitsAdded) break;
             ++nit;
-          } // hitsAdded && nit < 100
+            ++hiWire;
+            if(hiWire >= slc.nWires[plane]) break;
+          } // nit < 100
           // clear InTraj
           for(auto iht : tHits) slc.slHits[iht].InTraj = 0;
           if(prt) {
