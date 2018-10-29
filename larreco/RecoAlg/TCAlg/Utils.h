@@ -178,10 +178,11 @@ namespace tca {
   bool MakeBareTrajPoint(TCSlice& slc, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
   unsigned short FarEnd(TCSlice& slc, const Trajectory& tj, const Point2_t& pos);
   Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
-  void SetPDGCode(TCSlice& slc, Trajectory& tj);
-  void SetPDGCode(TCSlice& slc, unsigned short itj);
+  void SetPDGCode(TCSlice& slc, Trajectory& tj, bool tjDone);
+  void SetPDGCode(TCSlice& slc, unsigned short itj, bool tjDone);
 //  void AnalyzeHits(TCSlice& slc);
   bool AnalyzeHits();
+  bool LongPulseHit(const recob::Hit& hit);
   bool FillWireHitRange(TCSlice& slc);
 //  bool CheckWireHitRange(TCSlice& slc);
   bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP);
@@ -199,7 +200,7 @@ namespace tca {
   bool DecodeDebugString(std::string ctpwt);
   // ****************************** Printing  ******************************
   void DumpTj();
-  void PrintAll(std::string someText);
+  void PrintAll(std::string someText, const std::vector<simb::MCParticle*>& mcpList);
   void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
   void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2);
