@@ -73,7 +73,6 @@ namespace tca {
     "MergeShChain",
     "CompleteShower",
     "SplitTjCVx",
-    "SetDir",
     "NewStpCuts",
     "NewVtxCuts"
   };
@@ -93,7 +92,8 @@ namespace tca {
     "OnDeadWire",
     "HiVx3Score",
     "VtxTruMatch",
-    "VtxMerged"
+    "VtxMerged",
+    "VtxIndPlnNoChg"
   } ;
   
   geo::PlaneID DecodeCTP(CTP_t CTP) {
