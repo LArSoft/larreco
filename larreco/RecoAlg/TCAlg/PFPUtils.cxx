@@ -1295,7 +1295,7 @@ namespace tca {
       mtj.AlgMod[kMat3DMerge] = true;
       SetEndPoints(mtj);
       mtj.MCSMom = MCSMom(slc, mtj);
-      SetPDGCode(slc, mtj);
+      SetPDGCode(slc, mtj, true);
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<" P"<<pfp.ID<<" try to merge";
@@ -2750,13 +2750,7 @@ namespace tca {
         // ignore Tjs that aren't associated with this pfp
         if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjids[ii]) == pfp.TjIDs.end()) continue;
         auto& tj = slc.tjs[tjids[ii] - 1];
-        if(lastIpt[ii] < firstIpt[ii]) {
-          if(tj.AlgMod[kSetDir]) {
-//            std::cout<<"StorePFP "<<pfp.ID<<" Violating the SetDir flag for Tj "<<tj.ID<<"\n";
-            tj.AlgMod[kSetDir] = false;
-          }
-          ReverseTraj(slc, tj);
-        } // lastIpt[ii] > firstIpt[ii]
+        if(lastIpt[ii] < firstIpt[ii]) ReverseTraj(slc, tj);
       } // ii
     } // Tp3s exist    
     
