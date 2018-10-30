@@ -142,7 +142,7 @@ namespace tca {
   struct Trajectory {
     std::vector<TrajPoint> Pts;    ///< Trajectory points
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
-    std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
+    std::bitset<128> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     int WorkID {0};
     int ParentID {-1};     ///< ID of the parent, or the ID of the Tj this one was merged with if it is killed
     float AveChg {0};                   ///< Calculated using ALL hits
@@ -167,6 +167,12 @@ namespace tca {
     bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
     bool IsGood {true};           ///< set false if there is a failure or the Tj fails quality cuts
     bool MaskedLastTP {false};
+  };
+  
+  struct TjForecast {
+    unsigned short nextForecastUpdate;  ///< Revise the forecast when NumPtsWithCharge == nextForecastUpdate
+    unsigned short leavesNear;    ///< approaches the end of the forecast region near this point (the side if < nextForecastUpdate)
+    float outlook;                     ///< tracklike ~< 2, showerlike > 2
   };
   
   // struct used for TrajCluster 3D trajectory points
@@ -330,6 +336,7 @@ namespace tca {
 
   // Algorithm modification bits
   typedef enum {
+    kStiff,       ///< use the Stiff Tj strategy
     kMaskHits,
     kMaskBadTPs,
     kMichel,
@@ -499,6 +506,7 @@ namespace tca {
     bool dbgDump {false};   /// dump trajectory points
     short nPtsAve;         /// number of points to find AveChg
     std::bitset<16> modes;   /// See TCMode_t above
+    bool doForecast {false};
   };
 
   struct TCHit {
@@ -562,10 +570,10 @@ namespace tca {
   extern TCEvent evt;
   extern TCConfig tcc;
   extern ShowerTreeVars stv;
+  extern std::vector<TjForecast> tjfs;
 
   // vector of hits, tjs, etc in each slice
   extern std::vector<TCSlice> slices;
-  //    TruthMatcher tm{tjs};
 
 } // namespace tca
 
