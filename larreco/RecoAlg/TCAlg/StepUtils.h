@@ -37,7 +37,7 @@ namespace tca {
   
   // Main stepping/crawling routine
   void StepAway(TCSlice& slc, Trajectory& tj);
-  void Forecast(TCSlice& slc, Trajectory& tj, float& outlook, unsigned short& horizon, bool& stops);
+  void Forecast(TCSlice& slc, Trajectory& tj);
   // Updates the last added trajectory point fit, average hit rms, etc.
   void UpdateTraj(TCSlice& slc, Trajectory& tj);
   // Version with a different strategy for tracking high energy electrons
