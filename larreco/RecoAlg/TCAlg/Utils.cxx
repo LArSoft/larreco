@@ -2444,6 +2444,7 @@ namespace tca {
       tp.Environment[kEnvDeadWire] = true;
       return true;
     }
+    tp.Environment[kEnvDeadWire] = false;
     // live wire with no hits
     if(slc.wireHitRange[ipl][wire].first == -2) return false;
     
@@ -2467,7 +2468,7 @@ namespace tca {
     }
     // Set UseHit false. The calling routine should decide if these hits should be used
     tp.UseHit.reset();
-    return true;
+    return (!tp.Hits.empty());
     
   } // FindCloseHits
   
@@ -3729,7 +3730,10 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     // PDG code is left unchanged if these cuts are not met
         
     short npwc = NumPtsWithCharge(slc, tj, false);
-    if(npwc < 6) return;
+    if(npwc < 6) {
+      tj.PDGCode = 0;
+      return;
+    }
     
     if(!tcc.electronTag.empty()) {
       // try to tag a high energy electron - consistent increase in charge at the beginning.
@@ -3793,7 +3797,10 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     bool isAMuon = (npwc > (unsigned short)tcc.muonTag[0] && tj.MCSMom > tcc.muonTag[1]);
     // anything really really long must be a muon
     if(npwc > 500) isAMuon = true;
-    if(isAMuon) tj.PDGCode = 13;
+    if(isAMuon) {
+      tj.PDGCode = 13;
+      // use the normal adaptive strategy
+    }
     
   } // SetPDGCode
 /*
