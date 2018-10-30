@@ -39,6 +39,7 @@ namespace tca {
     short userMode = 1;
     if(pset.has_key("Mode")) userMode = pset.get< short >("Mode");
     if(userMode < 0) tcc.modes[kStepDir] = false;
+    if(pset.has_key("DoForecast")) tcc.doForecast = pset.get< bool >("DoForecast");
     if(pset.has_key("StudyMode")) {
       std::cout<<"StudyMode is not valid anymore. Try Study: 1 or Study: 2, etc/n";
     } // old StudyMode
@@ -194,11 +195,12 @@ namespace tca {
     
     // Ensure that the size of the AlgBitNames vector is consistent with the AlgBit typedef enum
     if(kAlgBitSize != AlgBitNames.size()) throw art::Exception(art::errors::Configuration)<<"kAlgBitSize "<<kAlgBitSize<<" != AlgBitNames size "<<AlgBitNames.size();
+    if(kAlgBitSize > 128) throw art::Exception(art::errors::Configuration)<<"Increase the size of UseAlgs to at least "<<kAlgBitSize;
     fAlgModCount.resize(kAlgBitSize);
 
     if(kFlagBitSize != StopFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != StopFlagNames size "<<StopFlagNames.size();
     
-    if(kFlagBitSize > 128) throw art::Exception(art::errors::Configuration)<<"Increase the size of UseAlgs to at least "<<kFlagBitSize;
+    if(kFlagBitSize > 8) throw art::Exception(art::errors::Configuration)<<"Increase the size of StopFlag to at least "<<kFlagBitSize;
     
     bool printHelp = false;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) tcc.useAlg[ib] = true;
