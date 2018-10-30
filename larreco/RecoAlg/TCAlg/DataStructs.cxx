@@ -4,12 +4,14 @@ namespace tca {
   
   TCEvent evt;
   TCConfig tcc;
+  std::vector<TjForecast> tjfs;
   ShowerTreeVars stv;
   // vector of hits, tjs, etc in each slice
   std::vector<TCSlice> slices;
   //    TruthMatcher tm{tjs};
 
   const std::vector<std::string> AlgBitNames {
+    "Stiff",
     "MaskHits",
     "MaskBadTPs",
     "Michel",
