@@ -140,7 +140,7 @@ namespace tca {
     
     // require charge between the vertex and the tj start points?
     bool requireVtxTjChg = true;
-    if(tcc.vtx2DCuts[10] == 0 && planeID.Plane < slc.nPlanes - 1) requireVtxTjChg = false;
+    if(tcc.vtx2DCuts[10] == 0 && int(planeID.Plane) < slc.nPlanes - 1) requireVtxTjChg = false;
     
     bool prt = (tcc.dbg2V && tcc.dbgSlc && debug.Plane == (int)planeID.Plane);
     if(prt) {
