@@ -14,6 +14,7 @@
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
+#include "lardataobj/RecoBase/PointCharge.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
@@ -804,27 +805,42 @@ void CellTree::processMC( const art::Event& event )
 void CellTree::processSpacePoint( const art::Event& event, TString option, ostream& out)
 {
 
-    art::Handle< std::vector<recob::SpacePoint> > handle;
-    if (! event.getByLabel(option.Data(), handle)) {
+    art::Handle< std::vector<recob::SpacePoint> > sp_handle;
+    art::Handle< std::vector<recob::PointCharge> > pc_handle;
+    bool sp_exists = event.getByLabel(option.Data(), sp_handle);
+    bool pc_exists = event.getByLabel(option.Data(), pc_handle);
+    if (! sp_exists) {
         cout << "WARNING: no label " << option << endl;
         return;
     }
     std::vector< art::Ptr<recob::SpacePoint> >  sps;
-    art::fill_ptr_vector(sps, handle);
-
+    std::vector< art::Ptr<recob::PointCharge> >  pcs;
+    art::fill_ptr_vector(sps, sp_handle);
+    if (pc_exists) {
+        art::fill_ptr_vector(pcs, pc_handle);
+	if (sps.size() != pcs.size()) {
+	    cout << "WARNING: SpacePoint and PointCharge length mismatch" << endl;
+	    return;
+	}
+    }
     double x=0, y=0, z=0, q=0, nq=1;
     vector<double> vx, vy, vz, vq, vnq;
 
-    for (auto const& sp: sps ) {
+    for (uint i=0; i < sps.size(); i++ ) {
         // cout << sp->XYZ()[0] << ", " << sp->XYZ()[1] << ", " << sp->XYZ()[2] << endl;
-        x = sp->XYZ()[0];
-        y = sp->XYZ()[1];
-        z = sp->XYZ()[2];
+        x = sps[i]->XYZ()[0];
+        y = sps[i]->XYZ()[1];
+        z = sps[i]->XYZ()[2];
+	if (pc_exists && pcs[i]->hasCharge()) {
+	  q = pcs[i]->charge();
+	} else {
+	  q = 0;
+	}
         vx.push_back(x);
         vy.push_back(y);
         vz.push_back(z);
-        vq.push_back(q);
-        vnq.push_back(nq);
+	vq.push_back(q);
+	vnq.push_back(nq);
     }
 
     out << fixed << setprecision(1);
