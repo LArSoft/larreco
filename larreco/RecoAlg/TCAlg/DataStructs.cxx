@@ -11,7 +11,6 @@ namespace tca {
   //    TruthMatcher tm{tjs};
 
   const std::vector<std::string> AlgBitNames {
-    "Stiff",
     "MaskHits",
     "MaskBadTPs",
     "Michel",
@@ -78,7 +77,7 @@ namespace tca {
     "NewStpCuts",
     "NewVtxCuts"
   };
-
+  
   const std::vector<std::string> StopFlagNames {
     "Signal",
     "AtKink",
