@@ -186,12 +186,12 @@ namespace trkf {
     
     art::ServiceHandle<geo::Geometry> geom;
 
-    std::vector<double>  dEdx;
-    std::vector<double>  dQdx;
-    std::vector<double>  resRange;
-    std::vector<double>  deadwire;
-    double Range = GetLength();
-    std::vector<double>  TrkPitch;
+    std::vector<float>  dEdx;
+    std::vector<float>  dQdx;
+    std::vector<float>  resRange;
+    std::vector<float>  deadwire;
+    float Range = GetLength();
+    std::vector<float>  TrkPitch;
 
 
 
@@ -245,12 +245,12 @@ namespace trkf {
    
     art::ServiceHandle<geo::Geometry> geom;
 
-    std::vector<double>  dEdx;
-    std::vector<double>  dQdx;
-    std::vector<double>  resRange;
-    std::vector<double>  deadwire;
-    double Range = GetLength();
-    std::vector<double>  TrkPitch;
+    std::vector<float>  dEdx;
+    std::vector<float>  dQdx;
+    std::vector<float>  resRange;
+    std::vector<float>  deadwire;
+    float Range = GetLength();
+    std::vector<float>  TrkPitch;
 
     double WirePitch = geom->WirePitch(view);
 
