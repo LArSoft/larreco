@@ -446,7 +446,7 @@ namespace cluster {
     std::vector<recob::Seed> sedCol;
     std::vector<recob::Shower> shwCol;
     std::vector<anab::CosmicTag> ctCol;
-    // a vector to correlate inputHits with hitCol
+    // a vector to correlate inputHits with output hits
     std::vector<unsigned int> newIndex(nInputHits, UINT_MAX);
     
     // assns for those data products
@@ -551,8 +551,6 @@ namespace cluster {
         bool badSlice = false;
         for(auto& tj : slc.tjs) {
           if(tj.AlgMod[tca::kKilled]) continue;
-          float sumChg = 0;
-          float sumADC = 0;
           hitColBeginIndex = hitCol.size();
           for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
             auto& tp = tj.Pts[ipt];
@@ -583,32 +581,27 @@ namespace cluster {
                 badSlice = true;
                 break;
               }
-              newIndex[allHitsIndex] = hitCol.size();
+//              newIndex[allHitsIndex] = hitCol.size();
             } // ii
-            if(badSlice) break;
             // Let the alg define the hit either by merging multiple hits or by a simple copy
             // of a single hit from inputHits
-            recob::Hit newHit = fTCAlg->MergeTPHits(tpHits);
-            if(newHit.Channel() == raw::InvalidChannelID) {
-              std::cout<<"TrajCluster module failed merging hits\n";
-              badSlice = true;
-              break;
-            } // MergeTPHits failed
-            sumChg += newHit.Integral();
-            sumADC += newHit.SummedADC();
-            // add it to the new hits collection
-            hitCol.push_back(newHit);
-            // Slice -> Hit assn
-            if(!slices.empty() && !util::CreateAssn(*this, evt, hitCol, slices[slcIndex], *slc_hit_assn))
-            {
-              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate new Hit with Slice";
-            } // exception
+            std::vector<std::vector<recob::Hit>> newHits;
+            // Merge hits in the TP that are on the same wire or create hits on multiple wires
+            // and update the old hits -> new hits assn (newIndex)
+            fTCAlg->MergeTPHits(tpHits, hitCol, newIndex);
           } // tp
-          if(badSlice) {
-            std::cout<<"Bad slice. Need some error recovery code here\n";
-            break;
-          }
           if(hitCol.empty()) continue;
+          // Sum the charge and make the associations
+          float sumChg = 0;
+          float sumADC = 0;
+          for(unsigned short indx =  hitColBeginIndex; indx < hitCol.size(); ++indx) {
+            auto& hit = hitCol[indx];
+            sumChg += hit.Integral();
+            sumADC += hit.SummedADC();
+            if(!slices.empty() && !util::CreateAssn(*this, evt, hitCol, slices[slcIndex], *slc_hit_assn, indx)) {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with Slice";
+            }
+          } // indx
           geo::View_t view = hitCol[hitColBeginIndex].View();
           auto& firstTP = tj.Pts[tj.EndPt[0]];
           auto& lastTP = tj.Pts[tj.EndPt[1]];
@@ -656,27 +649,26 @@ namespace cluster {
           // Make cluster -> 2V and cluster -> 3V assns
           for(unsigned short end = 0; end < 2; ++end) {
             if(tj.VtxID[end] <= 0) continue;
-
-	    for(auto& vx2str : vx2StrList) {
-	      if(vx2str.slIndx != isl) continue;
-	      if(vx2str.ID != tj.VtxID[end]) continue;
-	      if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2str.vxColIndx, end)) {
-          throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with EndPoint2D";
-        } // exception
-        auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
-        if(vx2.Vx3ID > 0) {
-          for(auto vx3str : vx3StrList) {
-            if(vx3str.slIndx != isl) continue;
-            if(vx3str.ID != vx2.Vx3ID) continue;
-            if(!util::CreateAssnD(*this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3str.vxColIndx, end))
-            {
-              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with Vertex";
-            } // exception
-            break;
-          } // vx3str
-        } // vx2.Vx3ID > 0
-        break;
-      } // vx2str
+            for(auto& vx2str : vx2StrList) {
+              if(vx2str.slIndx != isl) continue;
+              if(vx2str.ID != tj.VtxID[end]) continue;
+              if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2str.vxColIndx, end)) {
+                throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with EndPoint2D";
+              } // exception
+              auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
+              if(vx2.Vx3ID > 0) {
+                for(auto vx3str : vx3StrList) {
+                  if(vx3str.slIndx != isl) continue;
+                  if(vx3str.ID != vx2.Vx3ID) continue;
+                  if(!util::CreateAssnD(*this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3str.vxColIndx, end))
+                  {
+                    throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with Vertex";
+                  } // exception
+                  break;
+                } // vx3str
+              } // vx2.Vx3ID > 0
+              break;
+            } // vx2str
           } // end
         } // tj (aka cluster)
         // make Showers
@@ -820,12 +812,15 @@ namespace cluster {
         art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
         for(unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
           if(newIndex[allHitsIndex] != UINT_MAX) continue;
-          hitCol.push_back((*inputHits)[allHitsIndex]);
+          std::vector<unsigned int> oneHit(1, allHitsIndex);
+          fTCAlg->MergeTPHits(oneHit, hitCol, newIndex);
           // find out which slice it is in
+          bool gotit = false;
           for(size_t isl = 0; isl < slices.size(); ++isl) {
             auto& hit_in_slc = hitFromSlc.at(isl);
             for(auto& hit : hit_in_slc) {
               if(hit.key() != allHitsIndex) continue;
+              gotit = true;
               // Slice -> Hit assn
               if(!util::CreateAssn(*this, evt, hitCol, slices[isl], *slc_hit_assn))
               {
@@ -833,11 +828,50 @@ namespace cluster {
               } // exception
               break;
             } // hit
+            if(gotit) break;
           } // isl
         } // allHitsIndex
       } // slices exist
+      else {
+        // no recob::Slices. Just copy the unused hits
+        for(unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
+          if(newIndex[allHitsIndex] != UINT_MAX) continue;
+          std::vector<unsigned int> oneHit(1, allHitsIndex);
+          fTCAlg->MergeTPHits(oneHit, hitCol, newIndex);
+        } // allHitsIndex
+      } // recob::Slices
     } // input hits exist
+/*
+    for(unsigned int iht = 0; iht < nInputHits; ++iht) {
+      auto& hit = (*inputHits)[iht];
+      if(hit.WireID().Plane != 1) continue;
+      if(hit.WireID().Wire != 1094) continue;
+      if(hit.PeakTime() < 4700 || hit.PeakTime() > 4850) continue;
+      std::cout<<"in  iht "<<iht<<" "<<(int)hit.PeakTime()<<" amp "<<hit.PeakAmplitude()<<" rms "<<hit.RMS();
+      std::cout<<" GOF "<<hit.GoodnessOfFit();
+      std::cout<<" start/end "<<hit.StartTick()<<"-"<<hit.EndTick();
+      std::cout<<" Mult "<<hit.Multiplicity()<<" li "<<hit.LocalIndex();
+      for(unsigned int sht = 0; sht < tca::slices[0].slHits.size(); ++sht) {
+        if(tca::slices[0].slHits[sht].allHitsIndex == iht) std::cout<<" inTraj "<<tca::slices[0].slHits[sht].InTraj;
+      } // sht
+      std::cout<<"\n";
+    } // iht
     
+    for(unsigned int iht = 0; iht < hitCol.size(); ++iht) {
+      auto& hit = hitCol[iht];
+      if(hit.WireID().Plane != 1) continue;
+      if(hit.WireID().Wire != 1094) continue;
+      if(hit.PeakTime() < 4700 || hit.PeakTime() > 4850) continue;
+      std::cout<<"out iht "<<iht<<" "<<(int)hit.PeakTime()<<" amp "<<hit.PeakAmplitude()<<" rms "<<hit.RMS();
+      std::cout<<" GOF "<<hit.GoodnessOfFit();
+      std::cout<<" start/end "<<hit.StartTick()<<"-"<<hit.EndTick();
+      std::cout<<" Mult "<<hit.Multiplicity()<<" li "<<hit.LocalIndex();
+      for(unsigned short inht = 0; inht < nInputHits; ++inht) {
+        if(iht == newIndex[inht]) std::cout<<" in iht "<<inht;
+      } // oht
+      std::cout<<"\n";
+    } // iht
+*/
     // clear the alg data structures
     fTCAlg->ClearResults();
 
