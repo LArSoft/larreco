@@ -4444,6 +4444,8 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     tj.StepDir = stepdir;
     tj.CTP = tCTP;
     tj.ParentID = -1;
+    tj.Strategy.reset();
+    tj.Strategy[kNormal] = true;
     
     // create a trajectory point
     TrajPoint tp;
