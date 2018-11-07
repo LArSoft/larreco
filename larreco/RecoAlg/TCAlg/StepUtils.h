@@ -37,14 +37,15 @@ namespace tca {
   
   // Main stepping/crawling routine
   void StepAway(TCSlice& slc, Trajectory& tj);
+  void SetStrategy(TCSlice& slc, Trajectory& tj);
   void Forecast(TCSlice& slc, Trajectory& tj);
   // Updates the last added trajectory point fit, average hit rms, etc.
   void UpdateTraj(TCSlice& slc, Trajectory& tj);
   // Version with a different strategy for tracking high energy electrons
-  void UpdateElectronTraj(TCSlice& slc, Trajectory& tj);
+  void UpdateStiffEl(TCSlice& slc, Trajectory& tj);
   // Check the quality of the trajectory and possibly trim it
   void CheckTraj(TCSlice& slc, Trajectory& tj);
-  void CheckElectronTraj(TCSlice& slc, Trajectory& tj);
+  void CheckStiffEl(TCSlice& slc, Trajectory& tj);
   // Add hits on the trajectory point ipt that are close to the trajectory point Pos
   void AddHits(TCSlice& slc, Trajectory& tj, unsigned short ipt, bool& sigOK);
   // Large Angle version
