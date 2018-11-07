@@ -964,18 +964,91 @@ namespace tca {
   } // FindMissedVxTjs
 
   //////////////////////////////////////////
-  recob::Hit TrajClusterAlg::MergeTPHits(std::vector<unsigned int>& tpHits)
+  void TrajClusterAlg::MergeTPHits(std::vector<unsigned int>& tpHits, std::vector<recob::Hit>& newHitCol, 
+                                   std::vector<unsigned int>& newHitAssns)
+  {
+    // merge the hits indexed by tpHits into one or more hits with the requirement that the hits
+    // are on different wires
+    
+    if(tpHits.empty()) return;
+    
+    // no merge required. Just put a close copy of the single hit in the output hit collection
+    if(tpHits.size() == 1) {
+      if(tpHits[0] > (*evt.allHits).size() - 1) {
+        std::cout<<"MergeTPHits Bad input hit index "<<tpHits[0]<<" allHits size "<<(*evt.allHits).size()<<"\n";
+        return;
+      }
+      newHitCol.push_back(MergeTPHitsOnWire(tpHits));
+      newHitAssns[tpHits[0]] = newHitCol.size() - 1;
+      return;
+    } // tpHits.size() == 1
+    
+    // split the hit list into sub-lists of hits on a single wire
+    std::vector<unsigned int> wires;
+    std::vector<std::vector<unsigned int>> wireHits;
+    auto& firstHit = (*evt.allHits)[tpHits[0]];
+    wires.push_back(firstHit.WireID().Wire);
+    std::vector<unsigned int> tmp(1, tpHits[0]);
+    wireHits.push_back(tmp);
+    for(unsigned short ii = 1; ii < tpHits.size(); ++ii) {
+      auto& hit = (*evt.allHits)[tpHits[ii]];
+      unsigned int wire = hit.WireID().Wire;
+      unsigned short indx = 0;
+      for(indx = 0; indx < wires.size(); ++indx) if(wires[indx] == wire) break;
+      if(indx == wires.size()) {
+        wires.push_back(wire);
+        wireHits.resize(wireHits.size() + 1);
+      }
+      wireHits[indx].push_back(tpHits[ii]);
+    } // ii
+    
+    // now merge hits in each sub-list. 
+    for(unsigned short indx = 0; indx < wireHits.size(); ++indx) {
+      auto& hitsOnWire = wireHits[indx];
+      if(hitsOnWire.empty()) {
+        std::cout<<"coding error\n";
+        exit(1);
+      }
+      newHitCol.push_back(MergeTPHitsOnWire(hitsOnWire));
+      for(unsigned short ii = 0; ii < hitsOnWire.size(); ++ii) {
+        newHitAssns[hitsOnWire[ii]] = newHitCol.size() - 1;
+      }
+    } // hitsOnWire
+
+    return;
+
+  } // MergeTPHits
+
+  //////////////////////////////////////////
+  recob::Hit TrajClusterAlg::MergeTPHitsOnWire(std::vector<unsigned int>& tpHits)
   {
     // merge the hits indexed by tpHits into one hit
     
     if(tpHits.empty()) return recob::Hit();
     
-    // no merge required. Just return a copy of the single hit
+    // no merge required. Just return a slightly modified copy of the single hit
     if(tpHits.size() == 1) {
-      if(tpHits[0] > (*evt.allHits).size() - 1) return recob::Hit();
-      return (*evt.allHits)[tpHits[0]];
-    }
-
+      if(tpHits[0] > (*evt.allHits).size() - 1) {
+        std::cout<<"MergeTPHits Bad input hit index "<<tpHits[0]<<" allHits size "<<(*evt.allHits).size()<<"\n";
+        return recob::Hit();
+      }
+      auto& oldHit = (*evt.allHits)[tpHits[0]];
+      raw::TDCtick_t startTick = oldHit.PeakTime() - 3 * oldHit.RMS();
+      raw::TDCtick_t endTick = oldHit.PeakTime() + 3 * oldHit.RMS();
+      
+      return recob::Hit(oldHit.Channel(), 
+                        startTick, endTick, 
+                        oldHit.PeakTime(), oldHit.SigmaPeakTime(), 
+                        oldHit.RMS(), 
+                        oldHit.PeakAmplitude(), oldHit.SigmaPeakAmplitude(), 
+                        oldHit.SummedADC(), oldHit.Integral(), oldHit.SigmaIntegral(), 
+                        1, 0, // Multiplicity, LocalIndex
+                        1, 0, // GoodnessOfFit, DOF
+                        oldHit.View(), 
+                        oldHit.SignalType(),
+                        oldHit.WireID()
+                        );
+    } // tpHits.size() == 1
 
     double integral = 0;
     double sIntegral = 0;
@@ -999,7 +1072,10 @@ namespace tca {
       sIntegral += intgrl * hit.SigmaIntegral();
       // Get the charge normalization from an input hit
     } // tpHit
-    if(integral == 0) return recob::Hit();
+    if(integral <= 0) {
+      std::cout<<"MergeTPHits found bad hit integral "<<integral<<"\n";
+      return recob::Hit();
+    }
     
     // Create a signal shape vector to find the rms and peak tick
     std::vector<double> shape(endTick - startTick + 1, 0.);
@@ -1043,6 +1119,9 @@ namespace tca {
     peakAmp = (float)(integral * chgNorm / (2.507 * rms));
     // Use the sigma integral calculated in the first loop
     sPeakAmp /= integral;
+    // reset the start and end tick
+    startTick = peakTime - 3 * rms;
+    endTick = peakTime + 3 * rms;
     
     // construct the hit
     return recob::Hit(firstHit.Channel(), 
