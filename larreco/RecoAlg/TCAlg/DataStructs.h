@@ -158,21 +158,22 @@ namespace tca {
     int UID;                ///< a unique ID for all slices
     int SSID {0};          ///< ID of a 2D shower struct that this tj is in
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
-//    unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     short StartEnd {-1};               ///< The starting end (-1 = don't know)
     unsigned int mcpListIndex {UINT_MAX};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
+    std::bitset<8> Strategy {};        ///
     bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
     bool IsGood {true};           ///< set false if there is a failure or the Tj fails quality cuts
     bool MaskedLastTP {false};
   };
   
   struct TjForecast {
-    unsigned short nextForecastUpdate;  ///< Revise the forecast when NumPtsWithCharge == nextForecastUpdate
-    unsigned short leavesNear;    ///< approaches the end of the forecast region near this point (the side if < nextForecastUpdate)
-    float outlook;                     ///< tracklike ~< 2, showerlike > 2
+    unsigned short nextForecastUpdate {0};  ///< Revise the forecast when NumPtsWithCharge == nextForecastUpdate
+    bool leavesBeforeEnd {false};    ///< leaves the forecast region before the end
+    bool foundShower {false};
+    float outlook {-1};                     ///< tracklike ~< 2, showerlike > 2
   };
   
   // struct used for TrajCluster 3D trajectory points
@@ -336,7 +337,6 @@ namespace tca {
 
   // Algorithm modification bits
   typedef enum {
-    kStiff,       ///< use the Stiff Tj strategy
     kMaskHits,
     kMaskBadTPs,
     kMichel,
@@ -404,6 +404,13 @@ namespace tca {
     kNewVtxCuts,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
+  
+  typedef enum {
+    kNormal,
+    kStiffEl,       ///< use the stiff electron strategy
+    kStiffMu,       ///< use the stiff muon strategy
+    kSlowing        ///< use the slowing-down strategy
+  } Strategy_t;
   
   // Stop flag bits
   typedef enum {
