@@ -174,6 +174,9 @@ namespace tca {
     bool leavesBeforeEnd {false};    ///< leaves the forecast region before the end
     bool foundShower {false};
     float outlook {-1};                     ///< tracklike ~< 2, showerlike > 2
+    float chgSlope {0};
+    float chgSlopeErr {0};
+    short MCSMom {0};
   };
   
   // struct used for TrajCluster 3D trajectory points
@@ -451,6 +454,7 @@ namespace tca {
   extern const std::vector<std::string> AlgBitNames;
   extern const std::vector<std::string> StopFlagNames;
   extern const std::vector<std::string> VtxBitNames;
+  extern const std::vector<std::string> StrategyBitNames;
 
   // struct for configuration - used in all slices
   struct TCConfig {
