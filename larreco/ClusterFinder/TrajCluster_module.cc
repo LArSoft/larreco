@@ -558,7 +558,6 @@ namespace cluster {
 
         } // vx3
         // Convert the tjs to clusters
-        bool badSlice = false;
         for(auto& tj : slc.tjs) {
           if(tj.AlgMod[tca::kKilled]) continue;
           hitColBeginIndex = hitCol.size();
@@ -570,12 +569,10 @@ namespace cluster {
             for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
               if(!tp.UseHit[ii]) continue;
               if(tp.Hits[ii] > slc.slHits.size() - 1) {
-                badSlice = true;
                 break;
               } // bad slHits index
               unsigned int allHitsIndex = slc.slHits[tp.Hits[ii]].allHitsIndex;
               if(allHitsIndex > nInputHits - 1) {
-                badSlice = true;
                 break;
               } // bad allHitsIndex
               tpHits.push_back(allHitsIndex);
@@ -588,7 +585,6 @@ namespace cluster {
                 std::cout<<" new "<<newhit.WireID().Plane<<":"<<newhit.WireID().Wire<<":"<<(int)newhit.PeakTime();
                 std::cout<<" hitCol size "<<hitCol.size();
                 std::cout<<"\n";
-                badSlice = true;
                 break;
               }
 //              newIndex[allHitsIndex] = hitCol.size();
