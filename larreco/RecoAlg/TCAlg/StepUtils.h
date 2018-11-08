@@ -51,7 +51,7 @@ namespace tca {
   // Large Angle version
   void AddLAHits(TCSlice& slc, Trajectory& tj, unsigned short ipt, bool& sigOK);
   // Try to use unused nearby hits in all trajectories after stepping is done
-  void UseUnusedHits(TCSlice& slc);
+//  void UseUnusedHits(TCSlice& slc);
   // Step through TPs starting at the end and moving to the beginning
   void ReversePropagate(TCSlice& slc, Trajectory& tj);
   void GetHitMultiplet(TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet);

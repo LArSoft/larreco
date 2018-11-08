@@ -65,6 +65,7 @@ namespace cluster {
     art::InputTag fHitModuleLabel;
     art::InputTag fSliceModuleLabel;
     art::InputTag fHitTruthModuleLabel;
+    art::InputTag fSpacePointModuleLabel;
     
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
@@ -137,6 +138,8 @@ namespace cluster {
     if(pset.has_key("SliceModuleLabel")) fSliceModuleLabel = pset.get<art::InputTag>("SliceModuleLabel");
     fHitTruthModuleLabel = "NA";
     if(pset.has_key("HitTruthModuleLabel")) fHitTruthModuleLabel = pset.get<art::InputTag>("HitTruthModuleLabel");
+    fSpacePointModuleLabel = "NA";
+    if(pset.has_key("SpacePointModuleLabel")) fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
 
@@ -174,6 +177,9 @@ namespace cluster {
 
     produces< std::vector<anab::CosmicTag>>();
     produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
+    
+    // www: declear/create SpacePoint and association between SpacePoint and Hits from TrajCluster (Hit->SpacePoint)
+    produces< art::Assns<recob::SpacePoint, recob::Hit> >();
   } // TrajCluster::TrajCluster()
 
   //----------------------------------------------------------------------------
@@ -277,7 +283,7 @@ namespace cluster {
         for(unsigned int iht = 0; iht < nInputHits; ++iht) slHitsVec[0][iht] = iht;
         slcIDs.resize(1, 1);
       } // no input slices
-      
+
       // split slHitsVec so that all hits in a sub-slice are in the same TPC
       const geo::GeometryCore* geom = lar::providerFrom<geo::Geometry>();
       if(geom->NTPC() > 1) {
@@ -479,6 +485,9 @@ namespace cluster {
       slc_pfp_assn(new art::Assns<recob::Slice, recob::PFParticle>);
     std::unique_ptr<art::Assns<recob::Slice, recob::Hit>>
       slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
+    // www: Hit -> SpacePoint
+    std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>>
+      sp_hit_assn(new art::Assns<recob::SpacePoint, recob::Hit>);     
 
     // temp struct to get the index of a 2D (or 3D vertex) into vx2Col (or vx3Col)
     // given a slice index and a vertex ID (not UID)
@@ -490,6 +499,7 @@ namespace cluster {
     std::vector<slcVxStruct> vx2StrList;
     // vector to map 3V UID -> ID in each sub-slice
     std::vector<slcVxStruct> vx3StrList;
+
 
     if(nInputHits > 0) {
       unsigned short nSlices = fTCAlg->GetSlicesSize();
@@ -703,7 +713,8 @@ namespace cluster {
           } // exception
         } // ss3
       } // slice isl
-      
+     
+
       // Add PFParticles now that clsCol is filled
       for(unsigned short isl = 0; isl < nSlices; ++isl) {
         unsigned short slcIndex = 0;
@@ -841,37 +852,26 @@ namespace cluster {
         } // allHitsIndex
       } // recob::Slices
     } // input hits exist
-/*
-    for(unsigned int iht = 0; iht < nInputHits; ++iht) {
-      auto& hit = (*inputHits)[iht];
-      if(hit.WireID().Plane != 1) continue;
-      if(hit.WireID().Wire != 1094) continue;
-      if(hit.PeakTime() < 4700 || hit.PeakTime() > 4850) continue;
-      std::cout<<"in  iht "<<iht<<" "<<(int)hit.PeakTime()<<" amp "<<hit.PeakAmplitude()<<" rms "<<hit.RMS();
-      std::cout<<" GOF "<<hit.GoodnessOfFit();
-      std::cout<<" start/end "<<hit.StartTick()<<"-"<<hit.EndTick();
-      std::cout<<" Mult "<<hit.Multiplicity()<<" li "<<hit.LocalIndex();
-      for(unsigned int sht = 0; sht < tca::slices[0].slHits.size(); ++sht) {
-        if(tca::slices[0].slHits[sht].allHitsIndex == iht) std::cout<<" inTraj "<<tca::slices[0].slHits[sht].InTraj;
-      } // sht
-      std::cout<<"\n";
-    } // iht
-    
-    for(unsigned int iht = 0; iht < hitCol.size(); ++iht) {
-      auto& hit = hitCol[iht];
-      if(hit.WireID().Plane != 1) continue;
-      if(hit.WireID().Wire != 1094) continue;
-      if(hit.PeakTime() < 4700 || hit.PeakTime() > 4850) continue;
-      std::cout<<"out iht "<<iht<<" "<<(int)hit.PeakTime()<<" amp "<<hit.PeakAmplitude()<<" rms "<<hit.RMS();
-      std::cout<<" GOF "<<hit.GoodnessOfFit();
-      std::cout<<" start/end "<<hit.StartTick()<<"-"<<hit.EndTick();
-      std::cout<<" Mult "<<hit.Multiplicity()<<" li "<<hit.LocalIndex();
-      for(unsigned short inht = 0; inht < nInputHits; ++inht) {
-        if(iht == newIndex[inht]) std::cout<<" in iht "<<inht;
-      } // oht
-      std::cout<<"\n";
-    } // iht
-*/
+
+    // www: find spacepoint from hits (inputHits) through SpacePoint->Hit assns, then create association between spacepoint and trajcluster hits (here, hits in hitCol)
+    if (nInputHits > 0) {   
+      // www: expecting to find spacepoint from hits (inputHits): SpacePoint->Hit assns
+      if (fSpacePointModuleLabel != "NA") {
+        art::FindManyP<recob::SpacePoint> spFromHit (inputHits, evt, fSpacePointModuleLabel); 
+        // www: using sp from hit 
+        for (unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
+          if (newIndex[allHitsIndex] == UINT_MAX) continue; // skip hits not used in slice (not TrajCluster hits)
+          auto & sp_from_hit = spFromHit.at(allHitsIndex);
+          for (auto& sp : sp_from_hit) {
+            // SpacePoint -> Hit assn
+            if(!util::CreateAssn(*this, evt, hitCol, sp, *sp_hit_assn, newIndex[allHitsIndex])) {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate new Hit with SpacePoint";
+            } // exception
+          } // sp
+        } // allHitsIndex
+      } // fSpacePointModuleLabel != "NA"
+    } // nInputHits > 0
+
     // clear the alg data structures
     fTCAlg->ClearResults();
 
@@ -884,7 +884,6 @@ namespace cluster {
     std::unique_ptr<std::vector<recob::Seed> > sdcol(new std::vector<recob::Seed>(std::move(sedCol)));
     std::unique_ptr<std::vector<recob::Shower> > scol(new std::vector<recob::Shower>(std::move(shwCol)));
     std::unique_ptr<std::vector<anab::CosmicTag>> ctgcol(new std::vector<anab::CosmicTag>(std::move(ctCol)));
-
 
     // move the cluster collection and the associations into the event:
     if(fHitModuleLabel != "NA") {
@@ -915,6 +914,7 @@ namespace cluster {
     evt.put(std::move(slc_hit_assn));
     evt.put(std::move(ctgcol));
     evt.put(std::move(pfp_cos_assn));
+    evt.put(std::move(sp_hit_assn)); // www: association between sp and hit (trjaclust)
   } // TrajCluster::produce()
   
   //----------------------------------------------------------------------------

@@ -1336,7 +1336,7 @@ namespace tca {
     
   } // ReversePropagate
   
-  
+/*
   //////////////////////////////////////////
   void UseUnusedHits(TCSlice& slc)
   {
@@ -1391,7 +1391,7 @@ namespace tca {
     } // itj
     
   } // UseUnusedHits
-
+*/
   
   ////////////////////////////////////////////////
   void GetHitMultiplet(TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet)

@@ -627,7 +627,9 @@ namespace tca {
     } // pass
     
     // Use unused hits in all trajectories
-    UseUnusedHits(slc);
+    // BB Nov 2018: This can be a bad idea if the fcl configuration allows widely separated hits to
+    // be associated with TPs
+//    UseUnusedHits(slc);
     
     // make junk trajectories using nearby un-assigned hits
     if(tcc.JTMaxHitSep2 > 0) {
