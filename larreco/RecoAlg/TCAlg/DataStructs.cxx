@@ -95,7 +95,14 @@ namespace tca {
     "VtxTruMatch",
     "VtxMerged",
     "VtxIndPlnNoChg"
-  } ;
+  };
+  
+  const std::vector<std::string> StrategyBitNames {
+    "Normal",
+    "StiffEl",
+    "StiffMu",
+    "Slowing"
+  };
   
   geo::PlaneID DecodeCTP(CTP_t CTP) {
     auto const cryo = (CTP / Cpad);
