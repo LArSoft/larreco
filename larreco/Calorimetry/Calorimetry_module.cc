@@ -109,7 +109,7 @@ namespace calo {
     std::vector<double> fdQdx;
     std::vector<double> fdEdx;
     std::vector<double> fResRng;
-    std::vector<float> fpitch;
+    std::vector<double> fpitch;
     std::vector<TVector3> fXYZ;
 
   protected: 
@@ -223,12 +223,12 @@ void calo::Calorimetry::produce(art::Event& evt)
       fResRng.clear();
       fXYZ.clear();
 
-      float Kin_En = 0.;
-      float Trk_Length = 0.;
-      std::vector<float> vdEdx;
-      std::vector<float> vresRange;
-      std::vector<float> vdQdx;
-      std::vector<float> deadwire; //residual range for dead wires
+      double Kin_En = 0.;
+      double Trk_Length = 0.;
+      std::vector<double> vdEdx;
+      std::vector<double> vresRange;
+      std::vector<double> vdQdx;
+      std::vector<double> deadwire; //residual range for dead wires
       std::vector<TVector3> vXYZ;
 
       //range of wire signals
@@ -417,7 +417,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 						    deadwire,
 						    util::kBogusD,
 						    fpitch,
-						    recob::tracking::convertCollToPoint(vXYZ),
+						    vXYZ,
 						    planeID));
 	util::CreateAssn(*this, evt, *calorimetrycol, tracklist[trkIter], *assn);
 	continue;
@@ -561,7 +561,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 						  deadwire,
 						  Trk_Length,
 						  fpitch,
-						  recob::tracking::convertCollToPoint(vXYZ),
+						  vXYZ,
 						  planeID));
       util::CreateAssn(*this, evt, *calorimetrycol, tracklist[trkIter], *assn);
       

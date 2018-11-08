@@ -4,7 +4,7 @@ trackproducerfromtracktrajectory: {
    module_type: TrackProducerFromTrackTrajectory
    trackMaker: @local::kalmanfilterfittrackmakertool
    inputCollection: @nil
-   doTrackFitHitInfo: false
+   doTrackFitHitInfo: true
    doSpacePoints: true
    spacePointsFromTrajP: true
 }

@@ -117,9 +117,9 @@ namespace trkf {
       return fitMcs(tt,pid,momDepConst);
     }
     //
-    void breakTrajInSegments(const recob::TrackTrajectory& traj, std::vector<size_t>& breakpoints, std::vector<float>& segradlengths, std::vector<float>& cumseglens) const;
+    void breakTrajInSegments(const recob::TrackTrajectory& traj, std::vector<size_t>& breakpoints, std::vector<double>& segradlengths, std::vector<double>& cumseglens) const;
     void linearRegression(const recob::TrackTrajectory& traj, const size_t firstPoint, const size_t lastPoint, recob::tracking::Vector_t& pcdir) const;
-    double mcsLikelihood(double p, double theta0x, std::vector<float>& dthetaij, std::vector<float>& seg_nradl, std::vector<float>& cumLen, bool fwd, bool momDepConst, int pid) const;
+    double mcsLikelihood(double p, double theta0x, std::vector<double>& dthetaij, std::vector<double>& seg_nradl, std::vector<double>& cumLen, bool fwd, bool momDepConst, int pid) const;
     //
     struct ScanResult {
       public:
@@ -127,7 +127,7 @@ namespace trkf {
         double p, pUnc, logL;
     };
     //
-    const ScanResult doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen, bool fwdFit, bool momDepConst, int pid) const;
+    const ScanResult doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& cumLen, bool fwdFit, bool momDepConst, int pid) const;
     //
     inline double MomentumDependentConstant(const double p) const {
       //these are from https://arxiv.org/abs/1703.06187
