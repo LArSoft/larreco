@@ -50,8 +50,8 @@ namespace tca {
     tjfs[0].nextForecastUpdate = 10;
     
     for(unsigned short step = 1; step < 10000; ++step) {
-      // Get a forecast of what is ahead.
-      if(NumPtsWithCharge(slc, tj, false) == tjfs[tjfs.size() - 1].nextForecastUpdate) {
+      // Get a forecast of what is ahead. 
+      if(!tj.AlgMod[kRvPrp] && NumPtsWithCharge(slc, tj, false) == tjfs[tjfs.size() - 1].nextForecastUpdate) {
         Forecast(slc, tj);
         SetStrategy(slc, tj);
         SetPDGCode(slc, tj, false);
@@ -76,8 +76,12 @@ namespace tca {
       tp.Pos = ltp.Pos;
       tp.Dir = ltp.Dir;
       if(tcc.dbgStp) {
-        mf::LogVerbatim("TC")<<"StepAway "<<step<<" Pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" Dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" stepSize "<<stepSize<<" AngCode "<<tp.AngleCode;
-      }
+        mf::LogVerbatim myprt("TC");
+        myprt<<"StepAway "<<step<<" Pos "<<tp.Pos[0]<<" "<<tp.Pos[1]<<" Dir "<<tp.Dir[0]<<" "<<tp.Dir[1]<<" stepSize "<<stepSize<<" AngCode "<<tp.AngleCode<<" Strategy";
+        for(unsigned short ibt = 0; ibt < StrategyBitNames.size(); ++ibt) {
+          if(tj.Strategy[ibt]) myprt<<" "<<StrategyBitNames[ibt];
+        } // ib
+      } // tcc.dbgStp
       // hit the boundary of the TPC?
       if(tp.Pos[0] < 0 || tp.Pos[0] > tcc.maxPos0[plane] ||
          tp.Pos[1] < 0 || tp.Pos[1] > tcc.maxPos1[plane]) break;
@@ -300,21 +304,20 @@ namespace tca {
     bool tracklike = (tjf.outlook < 1.5);
     if(tcc.dbgStp) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"SetStrategy: npwc "<<npwc<<" outlook "<<tjf.outlook<<" tracklike? "<<tracklike<<" leavesBeforeEnd? "<<tjf.leavesBeforeEnd; 
+      myprt<<"SetStrategy: npwc "<<npwc<<" outlook "<<tjf.outlook<<" MCSMom "<<tjf.MCSMom<<" tracklike? "<<tracklike<<" leavesBeforeEnd? "<<tjf.leavesBeforeEnd; 
     }
     auto& lastTP = tj.Pts[tj.EndPt[1]];
     if(tjf.outlook < 0) return;
-    // see if the Tj is in a clean environment, there have been several forecasts and the tj
-    // leaves the side of the forecast polygon repeatedly
+    // see if the Tj is in a clean environment, there have been several forecasts and the tj in
+    // the forecast region has a much lower MCSMom
     bool notStiff = (!tj.Strategy[kStiffEl] && !tj.Strategy[kStiffMu]);
-    if(tracklike && tjfs.size() > 1 && tjf.leavesBeforeEnd && notStiff) {
-      unsigned short nside = 0;
-      for(auto& atjf : tjfs) if(atjf.leavesBeforeEnd) ++nside;
-      if(nside > 1) {
-        if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Use the Slowing Tj strategy";
-        tj.Strategy[kSlowing] = true;
-        return;
-      } // nside > 1
+    float momRat = 1;
+    if(tj.MCSMom > 100) momRat = tjf.MCSMom / tj.MCSMom;
+    if(tracklike && tjfs.size() > 1 && notStiff && momRat < 0.5) {
+      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: MCSMom ratio "<<momRat<<" dropped. Use the Slowing Tj strategy";
+      tj.Strategy.reset();
+      tj.Strategy[kSlowing] = true;
+      return;
     } // tracklike with > 1 forecast
     if(npwc > 100 && tracklike && tjf.leavesBeforeEnd) {
       // A long track-like trajectory that has many points fit and the outlook is track-like and 
@@ -323,6 +326,19 @@ namespace tca {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Long track-like wandered out of forecast polygon. Reduce NTPsFit to "<<lastTP.NTPsFit;
       return;
     }
+    // a track-like trajectory that has high MCSMom in the forecast but ends in shower
+    if(tracklike && tjf.foundShower && tjf.MCSMom > 600 ) {
+      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: high MCSMom "<<tjf.MCSMom<<" and a shower ahead. Use the StiffEl strategy";
+      tj.Strategy.reset();
+      tj.Strategy[kStiffEl] = true;
+      return;
+    } // Stiff electron
+    // A short curvy trajectory (not track-like) with a consistent increase in charge
+    if(npwc < 50 && tjf.MCSMom < 100) {
+      // find the charge slope of the trajectory
+      float chgSlope, chgSlopeErr, chiDOF;
+      ChgSlope(slc, tj, chgSlope, chgSlopeErr, chiDOF);
+    } // Slowing
   } // SetStrategy
   
   //////////////////////////////////////////
@@ -343,15 +359,9 @@ namespace tca {
     tjf.outlook = -1;
     tjf.nextForecastUpdate = USHRT_MAX;
 
+    unsigned short minShPts = 3;
+
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
-    // make a local copy of the last point
-    auto tp = tj.Pts[tj.EndPt[1]];
-    // Use the hits position instead of the fitted position so that a bad
-    // fit doesn't screw up the forecast.
-    float forecastWin0 = std::abs(tp.Pos[1] - tp.HitPos[1]);
-    if(forecastWin0 < 1) forecastWin0 = 1;
-    tp.Pos = tp.HitPos;
-    unsigned short plane = DecodeCTP(tp.CTP).Plane;
     unsigned short istp = 0;
     unsigned short nMissed = 0;
     // set number of points to extrapolate = 2 * number of points fit in the tj
@@ -370,15 +380,23 @@ namespace tca {
       minAveChg = tj.Pts[ipt].AveChg;
     } // ipt
     if(minAveChg <= 0 || minAveChg == 1E6) return;
+    // start a forecast Tj comprised of the points in the forecast polygon
+    Trajectory ftj;
+    ftj.CTP = tj.CTP;
+    // make a local copy of the last point
+    auto tp = tj.Pts[tj.EndPt[1]];
+    // Use the hits position instead of the fitted position so that a bad
+    // fit doesn't screw up the forecast.
+    float forecastWin0 = std::abs(tp.Pos[1] - tp.HitPos[1]);
+    if(forecastWin0 < 1) forecastWin0 = 1;
+    tp.Pos = tp.HitPos;
     double stepSize = std::abs(1/tp.Dir[0]);
-    float winSlp = 0.1 * stepSize;
-    float winMax = 10 * stepSize;
+    float window = 10 * stepSize;
     if(doPrt) {
-      mf::LogVerbatim("TC")<<"Forecast T"<<tj.ID<<" PDGCode "<<tj.PDGCode<<" npwc "<<npwc<<" npts "<<npts<<" minAveChg "<<(int)minAveChg<<" stepSize "<<stepSize<<" winMax "<<winMax;
-      mf::LogVerbatim("TC")<<" stp ___Pos____  Window nTPH  Chg nEstHits  Delta  chgWid shLike";
+      mf::LogVerbatim("TC")<<"Forecast T"<<tj.ID<<" PDGCode "<<tj.PDGCode<<" npwc "<<npwc<<" npts "<<npts<<" tj.AveChg "<<(int)tj.AveChg<<" stepSize "<<std::setprecision(2)<<stepSize<<" window "<<window;
+      mf::LogVerbatim("TC")<<" stp ___Pos____  nTPH  Chg ChgPull  Delta  chgWid nTkLike nShLike";
     }
-    // start a list of TPs at each step
-    std::vector<TrajPoint> tpList;
+    unsigned short plane = DecodeCTP(tp.CTP).Plane;
     float totHits = 0;
     float totChg = 0;
     unsigned short leavesNear = USHRT_MAX;
@@ -394,9 +412,6 @@ namespace tca {
       if(wire > slc.lastWire[plane]-1) break;
       MoveTPToWire(tp, (float)wire);
       ++tp.Step;
-      // set the window size for considering a hit to contribute to the forecast
-      float window = forecastWin0 + winSlp * istp;
-      if(window > winMax) window = winMax;
       if(FindCloseHits(slc, tp, window, kAllHits)) {
         // Found hits or the wire is dead
         // set all hits used so that we can use DefineHitPos. Note that 
@@ -409,33 +424,38 @@ namespace tca {
           totChg += tp.Chg;
           tp.Delta = PointTrajDOCA(slc, tp.HitPos[0], tp.HitPos[1], tp);
           tp.DeltaRMS = tp.Delta / window;
+          tp.Environment.reset();
           totHits += tp.Hits.size();
-          float nEffHits = tp.Chg / minAveChg;
-          float shLike = nEffHits * tp.Delta * tp.DeltaRMS;
-          if(shLike > 1) {
+          // high-jack ChgPull
+          tp.ChgPull = (tp.Chg / tj.AveChg - 1) / tj.ChgRMS;
+          if(tp.ChgPull > 3 && tp.Hits.size() > 1) {
             ++nShLike;
             nTkLike = 0;
+            tp.Environment[kEnvNearShower] = true;
+            // flag a showerlike TP so it isn't used in the MCSMom calculation
+            tp.HitPosErr2 = 100;
           } else {
-            nShLike = 0;
             ++nTkLike;
+            nShLike = 0;
           }
-          if(nShLike > 2 && showerStartNear == USHRT_MAX) showerStartNear = npwc + tpList.size() - 2;
+          if(nShLike > minShPts && showerStartNear == USHRT_MAX) showerStartNear = npwc + ftj.Pts.size() - minShPts;
           // find the end of a shower
-          if(showerStartNear < USHRT_MAX && nTkLike > 10) showerEndNear = npwc + tpList.size() - 2;
-          if(tp.DeltaRMS > 0.7 && leavesNear == USHRT_MAX) leavesNear = npwc + tpList.size();
-          tpList.push_back(tp);
+          if(showerStartNear < USHRT_MAX && nTkLike > minShPts) showerEndNear = npwc + ftj.Pts.size() - minShPts;
+          if(tp.DeltaRMS > 0.7 && leavesNear == USHRT_MAX) leavesNear = npwc + ftj.Pts.size();
+          ftj.Pts.push_back(tp);
           if(doPrt) {
             mf::LogVerbatim myprt("TC");
-            myprt<<std::setw(4)<<npwc + tpList.size()<<" "<<PrintPos(slc, tp);
-            myprt<<std::setw(8)<<std::fixed<<std::setprecision(1)<<window;
+            myprt<<std::setw(4)<<npwc + ftj.Pts.size()<<" "<<PrintPos(slc, tp);
             myprt<<std::setw(5)<<tp.Hits.size();
             myprt<<std::setw(5)<<(int)tp.Chg;
-            myprt<<std::setw(8)<<tp.Chg / minAveChg;
+            myprt<<std::fixed<<std::setprecision(1);
+            myprt<<std::setw(8)<<tp.ChgPull;
             myprt<<std::setw(8)<<tp.Delta;
             myprt<<std::setw(5)<<sqrt(tp.HitPosErr2);
-            myprt<<std::setw(6)<<shLike;
+            myprt<<std::setw(6)<<nTkLike;
+            myprt<<std::setw(6)<<nShLike;
           }
-          if(tpList.size() >= npts) break;
+          if(ftj.Pts.size() >= npts) break;
           if(leavesNear != USHRT_MAX || showerStartNear != USHRT_MAX || showerEndNear != USHRT_MAX) break;
         } else {
 //          if(doPrt) std::cout<<istp<<" Pos "<<PrintPos(slc, tp)<<" window "<<window<<" dead wire\n";
@@ -450,11 +470,18 @@ namespace tca {
     } // istp
     // not enuf info to make a forecast
     tcc.dbgStp = doPrt;
-    if(tpList.size() < 10) return;
+    if(ftj.Pts.size() < 6) return;
+    SetEndPoints(ftj);
+    tjf.MCSMom = MCSMom(slc, ftj);
+    // find the charge slope of the forecast trajectory
+    float chgSlope, chgSlopeErr, chiDOF;
+    ChgSlope(slc, ftj, chgSlope, chgSlopeErr, chiDOF);
+    tjf.chgSlope = chgSlope;
+    tjf.chgSlopeErr = chgSlopeErr;
     // Set outlook = Estimate of the number of hits per wire 
-    tjf.outlook = totChg / (tpList.size() * minAveChg);
+    tjf.outlook = totChg / (ftj.Pts.size() * tj.AveChg);
     // assume we got to the end
-    tjf.nextForecastUpdate = npwc + tpList.size();
+    tjf.nextForecastUpdate = npwc + ftj.Pts.size();
     tjf.leavesBeforeEnd = false;
     tjf.foundShower = false;
     if(leavesNear < tjf.nextForecastUpdate) {
@@ -472,9 +499,10 @@ namespace tca {
 
     if(doPrt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"Forecast T"<<tj.ID<<" minAveChg "<<(int)minAveChg;
-      myprt<<" start "<<PrintPos(slc, tj.Pts[tj.EndPt[1]])<<" cnt "<<tpList.size()<<" totChg "<<(int)totChg;
+      myprt<<"Forecast T"<<tj.ID<<" tj.AveChg "<<(int)tj.AveChg;
+      myprt<<" start "<<PrintPos(slc, tj.Pts[tj.EndPt[1]])<<" cnt "<<ftj.Pts.size()<<" totChg "<<(int)totChg;
       myprt<<" last pos "<<PrintPos(slc, tp);
+      myprt<<" MCSMom "<<tjf.MCSMom;
       myprt<<" outlook "<<tjf.outlook;
       myprt<<" nextForecastUpdate "<<tjf.nextForecastUpdate;
       myprt<<" leavesBeforeEnd? "<<tjf.leavesBeforeEnd;
@@ -495,7 +523,8 @@ namespace tca {
     FitTraj(slc, tj);    
     UpdateTjChgProperties("UET", slc, tj, tcc.dbgStp);
     UpdateDeltaRMS(slc, tj);
-    SetAngleCode(lastTP);
+//    SetAngleCode(lastTP);
+    tj.MCSMom = MCSMom(slc, tj);
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"UpdateStiffTj: lastPt "<<tj.EndPt[1]<<" Delta "<<lastTP.Delta<<" AngleCode "<<lastTP.AngleCode<<" FitChi "<<lastTP.FitChi<<" NTPsFit "<<lastTP.NTPsFit<<" MCSMom "<<tj.MCSMom;
     }
@@ -984,6 +1013,8 @@ namespace tca {
     // loosen up a bit if we just passed a block of dead wires
     bool passedDeadWires = (abs(dw) > 20 && DeadWireCount(slc, tp.Pos[0], tj.Pts[lastPtWithUsedHits].Pos[0], tj.CTP) > 10);
     if(passedDeadWires) deltaCut *= 2;
+    // open it up for StiffEl strategy
+    if(tj.Strategy[kStiffEl]) deltaCut = 2.5;
     
     // Create a larger cut to use in case there is nothing close
     float bigDelta = 2 * deltaCut;
@@ -2672,15 +2703,16 @@ namespace tca {
     
     killPts = 0;
     
+    // don't apply kink cuts if this looks a high energy electron
+    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
+    if(tj.Strategy[kStiffEl]) return;
+    
     // decide whether to turn kink checking back on
     if(tcc.kinkCuts[0] > 0 && tj.EndPt[1] == 20) {
       if(MCSMom(slc, tj, 10, 19) > 50) tj.AlgMod[kNoKinkChk] = false;
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GottaKink turn kink checking back on? "<<tj.AlgMod[kNoKinkChk]<<" with MCSMom "<<MCSMom(slc, tj, 10, 19);
     }
     if(tj.AlgMod[kNoKinkChk]) return;
-    
-    // don't apply kink cuts if this looks a high energy electron
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
     
     // we need at least 2 * kinkCuts[2] points with charge to find a kink
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
