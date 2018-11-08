@@ -135,11 +135,11 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
     
     // loop over the track trajectory to get the kinetic energy,
     // residual range and the dQdx
-    double kineticEnergy = 0.;
-    std::vector<double> vdEdx;
-    std::vector<double> vresRange;
-    std::vector<double> vdQdx;
-    std::vector<double> deadwire; //residual range for dead wires
+    float kineticEnergy = 0.;
+    std::vector<float> vdEdx;
+    std::vector<float> vresRange;
+    std::vector<float> vdQdx;
+    std::vector<float> deadwire; //residual range for dead wires
 
     // Check that the number of trajectory points and number of dQdx for the
     // collection view are the same
