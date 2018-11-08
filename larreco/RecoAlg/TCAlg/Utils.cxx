@@ -1202,6 +1202,42 @@ namespace tca {
   } // StoreTraj
 
   ////////////////////////////////////////////////
+  void ChgSlope(TCSlice& slc, Trajectory& tj, float& slope, float& slopeErr, float& chiDOF)
+  {
+    // Fits the points with charge on the Tj and returns the charge slope, slope error and 
+    // Chi/DOF
+    
+    slope = -1000;
+    slopeErr = 1000;
+    chiDOF = 1000;
+    
+    // prepare to do the fit
+    Point2_t inPt;
+    Vector2_t outVec, outVecErr;
+    float chgErr;
+    // Initialize
+    Fit2D(0, inPt, chgErr, outVec, outVecErr, chiDOF);
+    float wire0 = -1;
+    unsigned short cnt = 0;
+    for(auto& tp : tj.Pts) {
+      if(tp.Chg <= 0) continue;
+      ++cnt;
+      if(wire0 < 0) wire0 = tp.Pos[0];
+      // Accumulate and save points
+      inPt[0] = std::abs(tp.Pos[0] - wire0);
+      inPt[1] = tp.Chg;
+      // Assume 10% point-to-point charge fluctuations
+      chgErr = 0.1 * tp.Chg;
+      if(!Fit2D(2, inPt, chgErr, outVec, outVecErr, chiDOF)) break;
+    } // tp
+    if(cnt < 3) return;
+    // do the fit and get the results
+    if(!Fit2D(-1, inPt, chgErr, outVec, outVecErr, chiDOF)) return;
+    slope = outVec[1];
+    slopeErr = outVecErr[1];
+  } // ChgSlope
+
+  ////////////////////////////////////////////////
   bool InTrajOK(TCSlice& slc, std::string someText)
   {
     // Check slc.tjs -> InTraj associations
