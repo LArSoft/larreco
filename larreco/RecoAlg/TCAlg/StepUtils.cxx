@@ -51,7 +51,7 @@ namespace tca {
     
     for(unsigned short step = 1; step < 10000; ++step) {
       // Get a forecast of what is ahead. 
-      if(!tj.AlgMod[kRvPrp] && NumPtsWithCharge(slc, tj, false) == tjfs[tjfs.size() - 1].nextForecastUpdate) {
+      if(tcc.doForecast && !tj.AlgMod[kRvPrp] && NumPtsWithCharge(slc, tj, false) == tjfs[tjfs.size() - 1].nextForecastUpdate) {
         Forecast(slc, tj);
         SetStrategy(slc, tj);
         SetPDGCode(slc, tj, false);
@@ -338,6 +338,13 @@ namespace tca {
       // find the charge slope of the trajectory
       float chgSlope, chgSlopeErr, chiDOF;
       ChgSlope(slc, tj, chgSlope, chgSlopeErr, chiDOF);
+      // a significant increase in the charge in the reconstructed tj, which continues in the
+      // forecase polygon. TODO: use chgSlopeErr?
+      if(chgSlope > 3 * chgSlopeErr && tjf.chgSlope > chgSlope) {
+        tj.Strategy.reset();
+        tj.Strategy[kSlowing] = true;
+      }
+      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Short curvy? tj chgSlope "<<chgSlope<<" err "<<chgSlopeErr<<" forecast chgSlope "<<tjf.chgSlope<<" err "<<tjf.chgSlopeErr<<" Slowing? "<<tj.Strategy[kSlowing];
     } // Slowing
   } // SetStrategy
   
