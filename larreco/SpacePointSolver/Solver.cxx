@@ -268,18 +268,8 @@ void Iterate(CollectionWireHit* cwire, double alpha)
   for(unsigned int i = 0; i+1 < N; ++i){
     SpaceCharge* sci = cwire->fCrossings[i];
 
-    InductionWireHit* iwire1 = sci->fWire1;
-    InductionWireHit* iwire2 = sci->fWire2;
-
     for(unsigned int j = i+1; j < N; ++j){
       SpaceCharge* scj = cwire->fCrossings[j];
-
-      InductionWireHit* jwire1 = scj->fWire1;
-      InductionWireHit* jwire2 = scj->fWire2;
-
-      // There can't be any cross-overs of U and V views like this
-      if(iwire1 && iwire1 == jwire2) abort();
-      if(iwire2 && iwire2 == jwire1) abort();
 
       const double x = SolvePair(cwire, sci, scj, alpha);
 

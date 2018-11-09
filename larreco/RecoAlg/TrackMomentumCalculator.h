@@ -4,151 +4,122 @@
 #ifndef TrackMomentumCalculator_H
 #define TrackMomentumCalculator_H
 
-#include "iostream"
-#include "vector"
-#include "TMath.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "larcorealg/CoreUtils/quiet_Math_Functor.h"
 #include "lardataobj/RecoBase/Track.h"
+
+#include "TAxis.h"
 #include "TGraph.h"
 #include "TGraphErrors.h"
-#include "TAxis.h"
-#include "TPolyLine3D.h"
-#include "TSpline.h"
-#include "art/Framework/Principal/Event.h"
-#include "art/Framework/Principal/Handle.h"
-#include "fhiclcpp/ParameterSet.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "messagefacility/MessageLogger/MessageLogger.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/Minuit2Minimizer.h"
-#include "Minuit2/FunctionMinimum.h" 
-#include "Minuit2/MnMigrad.h" 
-#include "Minuit2/MnUserParameters.h" 
-#include "Minuit2/MnPrint.h" 
-#include "Minuit2/FCNBase.h" 
-#include "Math/Minimizer.h"
-#include "Math/Factory.h"
-#include "larcorealg/CoreUtils/quiet_Math_Functor.h"
+#include "TMath.h"
 #include "TMatrixDSym.h"
 #include "TMatrixDSymEigen.h"
+#include "TPolyLine3D.h"
+#include "TSpline.h"
 #include "TVector3.h"
-#include <math.h>
+
+#include "Math/Factory.h"
+#include "Math/Minimizer.h"
+#include "Minuit2/FCNBase.h"
+#include "Minuit2/FunctionMinimum.h"
+#include "Minuit2/Minuit2Minimizer.h"
+#include "Minuit2/MnMigrad.h"
+#include "Minuit2/MnPrint.h"
+#include "Minuit2/MnUserParameterState.h"
+#include "Minuit2/MnUserParameters.h"
+
 #include <cmath>
+#include <iostream>
+#include <optional>
+#include <vector>
+#include <tuple>
 
-using namespace std;
+namespace trkf {
 
-// Global variables/input 
-
-// A. ---> for the TMinuit2 chi^2 minimization !
-
-Double_t xmeas[30]; Double_t ymeas[30]; Double_t eymeas[30]; Int_t nmeas;
-
-// B. ---> For the LLHD raster scan !
-
-// ..
-
-namespace trkf{
-  
-  class TrackMomentumCalculator
-  {
-    Int_t n;
-  
-    Double_t x[50000]; Double_t y[50000]; Double_t z[50000];
-        
-    Int_t n_reco;
-  
-    Float_t x_reco[50000]; Float_t y_reco[50000]; Float_t z_reco[50000];
-        
-    Float_t seg_size; Float_t seg_stop; Int_t n_seg;
-    
-    Float_t x_seg[50000]; Float_t y_seg[50000]; Float_t z_seg[50000];
-            
-    TVector3 basex; TVector3 basey; TVector3 basez; 
-       
-    std::vector<Float_t> segx; std::vector<Float_t> segy; std::vector<Float_t> segz; 
-  
-    std::vector<Float_t> segnx; std::vector<Float_t> segny; std::vector<Float_t> segnz;
-    
-    std::vector<Float_t> segL;
-    
-    std::vector<Float_t> azx0; std::vector<Float_t> azy0;
-        
-    Double_t find_angle( Double_t vz, Double_t vy );
-    
-    Float_t steps_size; Int_t n_steps; std::vector<Float_t> steps;
-    
-    Float_t steps_size2;
-        
-    Float_t kcal;
-    
-    std::vector<Float_t> dthij; std::vector<Float_t> dEi; std::vector<Float_t> dEj; std::vector<Float_t> ind;
-
-    Double_t minLength;
-
-    Double_t maxLength;
-        
+  class TrackMomentumCalculator {
   public:
-    
-    // Constructor and destructor  // 
-    
-    TrackMomentumCalculator();
-    
-    virtual ~TrackMomentumCalculator();
-    
-    double GetTrackMomentum(double trkrange, int pdg);
-    
-    TPolyLine3D *gr_xyz=0; TGraph *gr_xy=0; TGraph *gr_yz=0; TGraph *gr_xz=0; 
-    
-    Int_t GetTracks( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz );
-        
-    TPolyLine3D *gr_reco_xyz; TGraph *gr_reco_xy; TGraph *gr_reco_yz; TGraph *gr_reco_xz; 
-    
-    Int_t GetRecoTracks( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz );
-        
-    TPolyLine3D *gr_seg_xyz; TGraph *gr_seg_xy; TGraph *gr_seg_yz; TGraph *gr_seg_xz; 
-    
-    Int_t GetSegTracks( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz );
-    
-    Int_t GetSegTracks2( const std::vector<Float_t> &xxx, const std::vector<Float_t> &yyy, const std::vector<Float_t> &zzz );
-    
-    void GetDeltaThetaRMS( Double_t &mean, Double_t &rms, Double_t &rmse, Double_t thick );
-    
-    TGraphErrors *gr_meas = 0;
+    TrackMomentumCalculator(double minLength = 100.0,
+                            double maxLength = 1350.0);
 
-    TGraph *KEvsR;
-    
-    TSpline3 *KEvsR_spline3;
+    double GetTrackMomentum(double trkrange, int pdg) const;
+    double GetMomentumMultiScatterChi2(art::Ptr<recob::Track> const& trk);
+    double GetMomentumMultiScatterLLHD(art::Ptr<recob::Track> const& trk);
+    double GetMuMultiScatterLLHD3(art::Ptr<recob::Track> const& trk, bool dir);
+    TVector3 GetMultiScatterStartingPoint(art::Ptr<recob::Track> const& trk);
 
-    Double_t GetMomentumMultiScatterChi2( const art::Ptr<recob::Track> &trk );
-    
-    Double_t p_mcs; Double_t p_mcs_e; Double_t chi2;
-    
-    Int_t GetDeltaThetaij( std::vector<Float_t> &ei, std::vector<Float_t> &ej, std::vector<Float_t> &th, Double_t thick, std::vector<Float_t> &ind );
-    
-    Double_t my_g( Double_t xx, Double_t Q, Double_t s );
-        
-    Double_t my_mcs_llhd( Double_t x0, Double_t x1 );
-        
-    Double_t GetMomentumMultiScatterLLHD( const art::Ptr<recob::Track> &trk );
-    
-    Double_t p_mcs_2; Double_t LLbf;
-    
-    // Double_t GetMuMultiScatterLLHD( const art::Ptr<recob::Track> &trk );
-    
-    // Double_t GetMuMultiScatterLLHD2( const recob::Track &trk );
-    
-    Double_t GetMuMultiScatterLLHD3( const art::Ptr<recob::Track> &trk, bool dir );
-    
-    TVector3 GetMultiScatterStartingPoint( const art::Ptr<recob::Track> &trk );
+  private:
+    bool plotRecoTracks_(std::vector<float> const& xxx,
+                         std::vector<float> const& yyy,
+                         std::vector<float> const& zzz);
 
-    void SetMinLength(double minLen) {minLength = minLen;}
+    struct Segments {
+      std::vector<float> x, nx;
+      std::vector<float> y, ny;
+      std::vector<float> z, nz;
+      std::vector<float> L;
+    };
 
-    void SetMaxLength(double maxLen) {maxLength = maxLen;}
+    std::optional<Segments> getSegTracks_(std::vector<float> const& xxx,
+                                          std::vector<float> const& yyy,
+                                          std::vector<float> const& zzz,
+                                          double seg_size);
+
+    std::tuple<double, double, double> getDeltaThetaRMS_(Segments const& segments,
+                                                         double thick) const;
+
+    int getDeltaThetaij_(std::vector<float>& ei,
+                         std::vector<float>& ej,
+                         std::vector<float>& th,
+                         std::vector<float>& ind,
+                         Segments const& segments,
+                         double thick) const;
+
+    double my_g(double xx, double Q, double s) const;
+
+    double my_mcs_llhd(std::vector<float> const& dEi,
+                       std::vector<float> const& dEj,
+                       std::vector<float> const& dthij,
+                       std::vector<float> const& ind,
+                       double x0, double x1) const;
+
+    float seg_stop{-1.};
+    int n_seg{};
+
+    float x_seg[50000];
+    float y_seg[50000];
+    float z_seg[50000];
+
+    double find_angle(double vz, double vy) const;
+
+    float steps_size{10.};
+    int n_steps{6};
+    std::vector<float> steps;
+
+    double minLength;
+    double maxLength;
+
+    // The following are objects that are created but not drawn or
+    // saved.  This class should consider accepting a "debug"
+    // parameter where if it is specified, then the graphs will be
+    // created; otherwise, their creation is unnecessary and impedes
+    // efficiency.
+    //
+    // N.B. TPolyLine3D objects are owned by ROOT, and we thus refer
+    // to them by pointer.  It is important that 'delete' is not
+    // called on the TPolyLine3D pointers during destruction of a
+    // TrackMomentumCalculator object.
+    TPolyLine3D* gr_reco_xyz{nullptr};
+    TGraph gr_reco_xy{};
+    TGraph gr_reco_yz{};
+    TGraph gr_reco_xz{};
+
+    TPolyLine3D* gr_seg_xyz{nullptr};
+    TGraph gr_seg_xy{};
+    TGraph gr_seg_yz{};
+    TGraph gr_seg_xz{};
 
   };
-  
-  
-} //namespace trkf
 
-#endif // TrackMomentumCalculator_H  
+} // namespace trkf
+
+#endif // TrackMomentumCalculator_H
