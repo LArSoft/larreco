@@ -246,7 +246,7 @@ namespace trkf{
         
     for ( Int_t i=0; i<n_points; i++ )
       {
-	const TVector3 &pos = trk->LocationAtPoint( i );
+	const auto &pos = trk->LocationAtPoint( i );
 	
 	recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
 	
@@ -336,14 +336,14 @@ namespace trkf{
 	  {
 	    Int_t n_points = trk->NumberTrajectoryPoints();
 	    
-	    const TVector3 &pos = trk->LocationAtPoint( n_points-1 );
+	    const auto &pos = trk->LocationAtPoint( n_points-1 );
 		
 	    start.SetXYZ( pos.X(), pos.Y(), pos.Z() );
 	    
 	  }
 	else 
 	  { 
-	    const TVector3 &pos = trk->LocationAtPoint( 0 );
+	    const auto &pos = trk->LocationAtPoint( 0 );
 	    
 	    start.SetXYZ( pos.X(), pos.Y(), pos.Z() );
 	    
@@ -353,7 +353,7 @@ namespace trkf{
     
     else 
       { 
-	const TVector3 &pos = trk->LocationAtPoint( 0 );
+	const auto &pos = trk->LocationAtPoint( 0 );
 		
 	start.SetXYZ( pos.X(), pos.Y(), pos.Z() );
 	
@@ -493,7 +493,7 @@ namespace trkf{
       {
 	for ( Int_t i=0; i<n_points; i++ )
 	  {
-	    const TVector3 &pos = trk->LocationAtPoint( i );
+	    const auto &pos = trk->LocationAtPoint( i );
 	    
 	    recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
 	    
@@ -506,7 +506,7 @@ namespace trkf{
       {
 	for ( Int_t i=0; i<n_points; i++ )
 	  {
-	    const TVector3 &pos = trk->LocationAtPoint( n_points-1-i );
+	    const auto &pos = trk->LocationAtPoint( n_points-1-i );
 	    
 	    recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
 	    
@@ -724,7 +724,7 @@ namespace trkf{
         
     for ( Int_t i=0; i<n_points; i++ )
       {
-	const TVector3 &pos = trk->LocationAtPoint( i );
+	const auto &pos = trk->LocationAtPoint( i );
 	
 	recoX.push_back( pos.X() ); recoY.push_back( pos.Y() ); recoZ.push_back( pos.Z() ); 
 	

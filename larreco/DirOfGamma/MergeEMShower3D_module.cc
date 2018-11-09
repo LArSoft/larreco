@@ -99,9 +99,9 @@ fGId(gid),
 fVentot(vensum), 
 fP0Dist(0)
 {
-	fDir = trk.VertexDirection();
-	fFront = trk.Vertex();
-	fEnd = trk.End();			
+	fDir = trk.VertexDirection<TVector3>();
+	fFront = trk.Vertex<TVector3>();
+	fEnd = trk.End<TVector3>();			
 	fHasVtx = hasvtx;
 
 	art::ServiceHandle<geo::Geometry> geom;
@@ -841,7 +841,7 @@ TVector3 ems::MergeEMShower3D::getBestPoint(
 					if (showers[t].HasConPoint()) cos *= 3.0;
 					cos *= sqrt( showers[t].GetAdcSum() );
 
-					mid += 0.5 * (trk.Vertex() + trk.End());
+					mid += 0.5 * (trk.Vertex<TVector3>() + trk.End<TVector3>());
 
 					f += cos;
 				//	nOK++;
@@ -871,16 +871,16 @@ double ems::MergeEMShower3D::getCos3D(const TVector3& p0, const recob::Track& tr
 	TVector3 p1, dir;
 
 	if (pma::Dist2(p0, trk.Vertex()) < pma::Dist2(p0, trk.End()))
-		p1 = trk.Vertex();
+		p1 = trk.Vertex<TVector3>();
 	else
-		p1 = trk.End();
+		p1 = trk.End<TVector3>();
 
 	p1 -= p0;
 	double m = p1.Mag();
 	if (m > 0.0)
 	{
 		p1 *= 1.0 / m;
-		double c = fabs(p1 * trk.VertexDirection());
+		double c = fabs(p1 * trk.VertexDirection<TVector3>());
 		if (c > 1.0) c = 1.0;
 		return c;
 	}

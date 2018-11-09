@@ -131,13 +131,13 @@ namespace shower {
       vtx[1] = pfpvtx->position().Y();
       vtx[2] = pfpvtx->position().Z();
 
-      if (pfptrk->Vertex()[2] < pfptrk->End()[2]) {
-	shwvtx = pfptrk->Vertex();
-	shwDir = pfptrk->VertexDirection();
+      if (pfptrk->Vertex().Z() < pfptrk->End().Z()) {
+	shwvtx = pfptrk->Vertex<TVector3>();
+	shwDir = pfptrk->VertexDirection<TVector3>();
       }
       else {
-	shwvtx = pfptrk->End();
-	shwDir = -pfptrk->EndDirection();
+	shwvtx = pfptrk->End<TVector3>();
+	shwDir = -pfptrk->EndDirection<TVector3>();
       }
 
       //      int tolerance = 100; // how many shower like cluster you need to define a shower              

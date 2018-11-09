@@ -58,9 +58,9 @@ std::vector<art::Ptr<recob::Hit> > shower::TrackShowerSeparationAlg::SelectShowe
   std::map<int,std::unique_ptr<ReconTrack> > reconTracks;
   for (std::vector<art::Ptr<recob::Track> >::const_iterator trackIt = tracks.begin(); trackIt != tracks.end(); ++trackIt) {
     std::unique_ptr<ReconTrack> track = std::make_unique<ReconTrack>(trackIt->key());
-    track->SetVertex((*trackIt)->Vertex());
-    track->SetEnd((*trackIt)->End());
-    track->SetVertexDir((*trackIt)->VertexDirection());
+    track->SetVertex((*trackIt)->Vertex<TVector3>());
+    track->SetEnd((*trackIt)->End<TVector3>());
+    track->SetVertexDir((*trackIt)->VertexDirection<TVector3>());
     track->SetLength((*trackIt)->Length());
     track->SetDirection(Gradient(*trackIt));
     track->SetHits(fmht.at(trackIt->key()));
@@ -381,8 +381,8 @@ TVector3 shower::TrackShowerSeparationAlg::Gradient(const art::Ptr<recob::Track>
   std::unique_ptr<TVector3> dir;
 
   for (unsigned int traj = 0; traj < track->NumberTrajectoryPoints(); ++traj)
-    points.push_back(track->LocationAtPoint(traj));
-  dir = std::make_unique<TVector3>(track->VertexDirection());
+    points.push_back(track->LocationAtPoint<TVector3>(traj));
+  dir = std::make_unique<TVector3>(track->VertexDirection<TVector3>());
 
   return Gradient(points, dir);
 

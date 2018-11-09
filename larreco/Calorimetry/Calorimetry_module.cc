@@ -252,7 +252,7 @@ void calo::Calorimetry::produce(art::Event& evt)
       // find track pitch
       double fTrkPitch = 0;
       for (size_t itp = 0; itp < tracklist[trkIter]->NumberTrajectoryPoints(); ++itp){
-        const TVector3& pos = tracklist[trkIter]->LocationAtPoint(itp);
+        const auto& pos = tracklist[trkIter]->LocationAtPoint(itp);
         const double Position[3] = { pos.X(), pos.Y(), pos.Z() };
         geo::TPCID tpcid = geom->FindTPCAtPosition ( Position );
         if (tpcid.isValid) {
@@ -341,7 +341,7 @@ void calo::Calorimetry::produce(art::Event& evt)
                 continue;
               }
               double angleToVert = geom->WireAngleToVertical(vhit[ii]->View(), vhit[ii]->WireID().TPC, vhit[ii]->WireID().Cryostat) - 0.5*::util::pi<>();
-              const TVector3& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
+              const auto& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
               double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
               if (cosgamma){
                 pitch = geom->WirePitch(0)/cosgamma;
@@ -349,7 +349,7 @@ void calo::Calorimetry::produce(art::Event& evt)
               else{
                 pitch = 0;
               }
-              TVector3 loc = tracklist[trkIter]->LocationAtPoint(vmeta[ii]->Index());
+              auto loc = tracklist[trkIter]->LocationAtPoint(vmeta[ii]->Index());
               xyz3d[0] = loc.X();
               xyz3d[1] = loc.Y();
               xyz3d[2] = loc.Z();

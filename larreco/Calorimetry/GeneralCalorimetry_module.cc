@@ -154,7 +154,7 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
 	vdQdx.push_back(trk->DQdxAtPoint(p, fCollectionView));
 	//vdEdx.push_back(vdQdx.back() * fADCToElectrons/util::kGeVToElectrons*1000);
 	vdEdx.push_back(caloAlg.dEdx_AMP(vdQdx.back(),
-					 dp->ConvertXToTicks(trk->LocationAtPoint(p)[0],fCollectionPlane,0,0),
+					 dp->ConvertXToTicks(trk->LocationAtPoint(p).X(),fCollectionPlane,0,0),
 					 fCollectionPlane));
 	kineticEnergy += vdEdx.back(); // \todo should this be converted from electrons to energy?
 	std::cout<<vresRange.back()<<" "<<vdQdx.back()<<" "<<vdEdx.back()<<std::endl;

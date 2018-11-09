@@ -69,10 +69,10 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
     for(int ii = 0; ii < ntrack; ++ii) {
       art::Ptr<recob::Track> ptrack1(ftListHandle, ii);
       const recob::Track& track1 = *ptrack1;
-      const TVector3 start1(track1.Vertex());
-      const TVector3 end1(track1.End());
-      const TVector3 start1Dir(track1.VertexDirection());
-      const TVector3 end1Dir(track1.EndDirection());
+      const TVector3 start1(track1.Vertex<TVector3>());
+      const TVector3 end1(track1.End<TVector3>());
+      const TVector3 start1Dir(track1.VertexDirection<TVector3>());
+      const TVector3 end1Dir(track1.EndDirection<TVector3>());
     // For each outer track, make a vector of 1 candidate track. Doesn't need to be a vector except for desire to have a 2-iteration history.
       std::vector< std::tuple< std::string, int, int, double, double> > headvv;
       std::vector< std::tuple< std::string, int, int, double, double> > tailvv;
@@ -88,10 +88,10 @@ void trkf::StitchAlg::FindHeadsAndTails( const art::Event& EvtArg, const std::st
       for(int jj = ii+1; jj < ntrack; ++jj) {
 	art::Ptr<recob::Track> ptrack2(ftListHandle, jj);
 	const recob::Track& track2 = *ptrack2;
-	const TVector3& start2(track2.Vertex());
-	const TVector3& end2(track2.End());
-	const TVector3& start2Dir(track2.VertexDirection());
-	const TVector3& end2Dir(track2.EndDirection());
+	const TVector3& start2(track2.Vertex<TVector3>());
+	const TVector3& end2(track2.End<TVector3>());
+	const TVector3& start2Dir(track2.VertexDirection<TVector3>());
+	const TVector3& end2Dir(track2.EndDirection<TVector3>());
 	std::string sHT2("NA"); // track2 (receptor track) H or T is tagged as matched
 
 
@@ -298,12 +298,12 @@ void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track
 
 	    try 
 	      { 
-		xyz.push_back((*it).get()->LocationAtPoint(ptHere));
+		xyz.push_back((*it).get()->LocationAtPoint<TVector3>(ptHere));
 		//		std::cout << "Stitching track number " << cnt << " with TrajPt at ptHere " << ptHere << " at x,y,z: " << xyz.back().X() << ", " << xyz.back().Y() << ", " << xyz.back().Z() << std::endl;
-		dxdydz.push_back((*it).get()->DirectionAtPoint(ptHere));
+		dxdydz.push_back((*it).get()->DirectionAtPoint<TVector3>(ptHere));
 		TMatrixT<double>  dumc(5,5); 
 		if (ptHere<(*it).get()->NumberCovariance())
-		  dumc = (*it).get()->CovarianceAtPoint(ptHere);
+		  dumc = (*it).get()->CovarianceAtPoint<TMatrixD>(ptHere);
 		cov.push_back(dumc);
 		double dumm(0.0); 
 		if ((*it).get()->HasMomentum())

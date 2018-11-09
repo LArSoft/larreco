@@ -1003,8 +1003,8 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 
   TVector3 direction, directionError, showerStart, showerStartError;
   if (initialTrack) {
-    direction = initialTrack->VertexDirection();
-    showerStart = initialTrack->Vertex();
+    direction = initialTrack->VertexDirection<TVector3>();
+    showerStart = initialTrack->Vertex<TVector3>();
   }
 
   if (fDebug > 0) {
