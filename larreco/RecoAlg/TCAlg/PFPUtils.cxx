@@ -2119,7 +2119,42 @@ namespace tca {
     } // prt
 
     // create the list of associations to matches that will be converted to PFParticles
-    // Start with Tjs attached to 3D vertices. This is only done when reconstructing neutrino events
+    // Start with large count tj matches that have a consistent PDGCode and no vertex attachments(?)
+    // and high completeness
+    if(slc.matchVec.size() > 1 && slc.matchVec[0].Count > 2 * slc.matchVec[1].Count) {
+      auto& ms = slc.matchVec[0];
+      int pdgCode = PDGCodeVote(slc, ms.TjIDs, prt);
+      if(pdgCode != 0) {
+        float minCompleteness = 1;
+        for(unsigned short itj = 0; itj < ms.TjCompleteness.size(); ++itj) {
+          if(ms.TjCompleteness[itj] < minCompleteness) minCompleteness = ms.TjCompleteness[itj];
+        } // itj
+        if(minCompleteness > 0.5) {
+          PFPStruct pfp = CreatePFP(slc);
+          pfp.TjIDs = ms.TjIDs;
+          // note that the ms position is the average position of all 3D matched Tp3s at this point.
+          // It is not the start position. This will be determined in DefinePFP.
+          pfp.XYZ[0] = ms.Pos;
+          pfp.Dir[0] = ms.Dir;
+          pfp.MatchVecIndex = 0;
+          // Set the PDGCode so DefinePFP can ignore incompatible matches
+          pfp.PDGCode = pdgCode;
+          if(DefinePFP("FPFP", slc, pfp, prt) && AnalyzePFP(slc, pfp, prt) && StorePFP(slc, pfp)) {
+            ms.Count = 0;
+            // clobber MatchStructs that use the Tjs in this pfp
+            for(auto& allms : slc.matchVec) {
+              auto shared = SetIntersection(allms.TjIDs, pfp.TjIDs);
+              if(!shared.empty()) allms.Count = 0;
+            } // allms
+          } // define/analyze/store PFP
+          else {
+            if(prt) mf::LogVerbatim("TC")<<" Define/Analyze/Store PFP failed";
+          } // define/analyze/store PFP
+        } // minCompleteness > 0.5
+      } // pdgCode != 0
+    } // large count on the first matchVec
+    
+    // Next consider Tjs attached to 3D vertices. This is only done when reconstructing neutrino events
     if(!tcc.modes[kTestBeam]) {
       Match3DVtxTjs(slc, prt);
     }
@@ -2175,7 +2210,6 @@ namespace tca {
       if(!AnalyzePFP(slc, pfp, prt)) continue;
       if(!StorePFP(slc, pfp)) {
         if(prt) mf::LogVerbatim("TC")<<" StorePFP failed P"<<pfp.ID;
-        if(prt) std::cout<<" StorePFP failed P"<<pfp.ID<<"\n";
         continue;
       }
       ms.Count = 0;
