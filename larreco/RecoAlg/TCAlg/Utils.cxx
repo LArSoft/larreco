@@ -269,24 +269,22 @@ namespace tca {
     // 13 = Tagged muon
     // 211 = pion-like. There exists a Bragg peak at an end with a vertex
     // 2212 = proton-like. There exists a Bragg peak at an end without a vertex
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
-    std::array<int, 5> codeList = {{0, 11, 13, 211, 2212}};
+    std::array<int, 5> codeList = {{0, 11, 13, 111, 211}};
     unsigned short codeIndex = 0;
     if(tjIDs.empty()) return codeList[codeIndex];
     
     std::array<unsigned short, 5> cnts;
     cnts.fill(0);
     // Count Bragg peaks. This assumes that the Tjs are in order...
-    std::array<unsigned short, 2> stopCnt {{0, 0}};
+//    std::array<unsigned short, 2> stopCnt {{0, 0}};
     float maxLen = 0;
     for(auto tjid : tjIDs) {
       if(tjid <= 0 || tjid > (int)slc.tjs.size()) continue;
       auto& tj = slc.tjs[tjid - 1];
       for(unsigned short ii = 0; ii < 5; ++ii) if(tj.PDGCode == codeList[ii]) ++cnts[ii];
       // count InShower Tjs with PDGCode not set (yet)
-      if(tj.PDGCode != 11 && tj.AlgMod[kShowerLike]) ++cnts[1];
-      for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[end][kBragg]) ++stopCnt[end];
+//      if(tj.PDGCode != 11 && tj.AlgMod[kShowerLike]) ++cnts[1];
+//      for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[end][kBragg]) ++stopCnt[end];
       float len = TrajLength(tj);
       if(len > maxLen) maxLen = len;
     } // tjid
@@ -298,32 +296,7 @@ namespace tca {
         codeIndex = ii;
       }
     } // ii
-    // check for an inconsistent code
-    bool confused = false;
-    for(unsigned short ii = 1; ii < 5; ++ii) {
-      if(ii == codeIndex) continue;
-      if(cnts[ii] == 0) continue;
-      confused = true;
-    } // ii
-    if(confused) {
-      // Check for a muon called it a proton
-      if(cnts[4] > 0 && stopCnt[2] > 0 && NumDeltaRays(slc, tjIDs) == 0) {
-        codeIndex = 4;
-        confused = false;
-      }
-    } // confused
-    if(confused) {
-      codeIndex = 0;
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"PDGCodeVote: mixed vote on the PDGCode: Tj_PDGCode";
-        for(auto tjid : tjIDs) {
-          if(tjid <= 0 || tjid > (int)slc.tjs.size()) continue;
-          auto& tj = slc.tjs[tjid - 1];
-          myprt<<" "<<tj.ID<<"_"<<tj.PDGCode<<"_"<<tj.StopFlag[1][kBragg];
-        } // tjid
-      }
-    } // confused
+
     return codeList[codeIndex];
   } // PDGCodeVote
   
@@ -3769,63 +3742,15 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(npwc < 6) {
       tj.PDGCode = 0;
       return;
+    }    
+    if(tj.Strategy[kStiffEl]) {
+      tj.PDGCode = 111;
+      return;
     }
-    
-    if(!tcc.electronTag.empty()) {
-      // try to tag a high energy electron - consistent increase in charge at the beginning.
-      // Checking the StartEnd ensures that we don't use the end points of a tj if it is
-      // known and has been reversed (StartEnd = 1)
-      // Preserve the state of PDGCode?
-      if(tj.StartEnd == 1 && tj.PDGCode == 111) return;
-      tj.PDGCode = 0;
-      if(tj.StartEnd != 1) {
-        // Scan the first section to find the lowest charge TP
-        unsigned short lowChgPt = 0;
-        short cnt = 0;
-        float lowChg = 1E6;
-        for(unsigned short ipt = tj.EndPt[0] + 1; ipt < tj.EndPt[1]; ++ipt) {
-          ++cnt;
-          if(cnt == 10) break;
-          auto& tp = tj.Pts[ipt];
-          if(tp.Chg <= 0) continue;
-          if(tp.Chg > lowChg) continue;
-          lowChg = tp.Chg;
-          lowChgPt = ipt;
-        } // ipt
-        cnt = 0;
-        float nup = 0;
-        float prevTPChg = tj.Pts[lowChgPt].Chg;
-        unsigned short nBeginPts = tcc.electronTag[0];
-        for(unsigned short ipt = lowChgPt + 1; ipt <= tj.EndPt[1]; ++ipt) {
-          auto& tp = tj.Pts[ipt];
-          if(tp.Chg <= 0) continue;
-          ++cnt;
-          // count nup if charge is increasing by 10% per wire
-          if(tp.Chg / prevTPChg > tcc.electronTag[1]) ++nup;
-//          if(tcc.dbgStp) std::cout<<"chk "<<PrintPos(slc, tp.Pos)<<" chg "<<tp.Chg<<" nup "<<nup<<"\n";
-          prevTPChg = tp.Chg;
-          if(cnt == nBeginPts) break;
-        } // ipt
-        // call it an electron if it is still under construction and passes the
-        // charge increasing cut
-//        if(tcc.dbgStp) std::cout<<" lowPt "<<PrintPos(slc, tj.Pts[lowChgPt].Pos)<<" cnt "<<cnt<<" nup "<<nup<<"\n";
-        if(!tjDone && nup/cnt >= tcc.electronTag[2] && npwc < nBeginPts) {
-          tj.StartEnd = 0;
-          tj.PDGCode = 111;
-          return;
-        }
-        // the number of points downstream of the first 20 points
-        short cntDS = npwc - cnt;
-        // call it an electron if it has been reconstructed, passes the charge
-        // increasing cut and is not too short
-        if(tjDone && nup/cnt > 0.7 && cntDS > 10) {
-//          std::cout<<"Set T"<<tj.ID<<" "<<npwc<<" done? "<<tjDone<<"\n";
-          tj.StartEnd = 0;
-          tj.PDGCode = 111;
-          return;
-        }
-      } // high energy electron
-    } // electronTag defined
+    if(tj.Strategy[kStiffMu]) {
+      tj.PDGCode = 13;
+      return;
+    }
     
     tj.PDGCode = 0;
     if(tcc.muonTag[0] <= 0) return;
