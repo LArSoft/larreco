@@ -1,7 +1,7 @@
 #ifndef TRACKTRAJECTORYCREATIONBOOKKEEPER_H
 #define TRACKTRAJECTORYCREATIONBOOKKEEPER_H
 
-
+#include "canvas/Persistency/Common/Ptr.h"
 #include "lardataobj/RecoBase/TrackTrajectory.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/TrackingTypes.h"
