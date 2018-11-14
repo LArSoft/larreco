@@ -172,7 +172,7 @@ void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t co
 						      std::vector<size_t>& assnTrackCaloVector,
 						      geo::PlaneID const& planeID){
   size_t n_hits = hpm.size();
-  std::vector<double> dEdxVector,dQdxVector,resRangeVector,deadWireVector,pitchVector;
+  std::vector<float> dEdxVector,dQdxVector,resRangeVector,deadWireVector,pitchVector;
   std::vector<TVector3> XYZVector;
 
   dEdxVector.reserve(n_hits);
@@ -182,7 +182,7 @@ void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t co
   pitchVector.reserve(n_hits);
   XYZVector.reserve(n_hits);
 
-  double kinetic_energy=0,track_length=track.Length();
+  float kinetic_energy=0,track_length=track.Length();
   if(IsInvertedTrack(hpm)){
 
     for(HitPropertiesMultiset_t::iterator it_hpm=hpm.begin(); 
@@ -221,7 +221,7 @@ void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t co
 			  deadWireVector,
 			  track_length,
 			  pitchVector,
-			  XYZVector,
+			  recob::tracking::convertCollToPoint(XYZVector),
 			  planeID);
   assnTrackCaloVector.emplace_back(i_track);
 }
