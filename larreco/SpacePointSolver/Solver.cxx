@@ -314,6 +314,15 @@ void Iterate(const std::vector<CollectionWireHit*>& cwires,
              const std::vector<SpaceCharge*>& orphanSCs,
              double alpha)
 {
-  for(CollectionWireHit* cwire: cwires) Iterate(cwire, alpha);
+  // Visiting in a "random" order helps prevent local artefacts that are slow
+  // to break up.
+  unsigned int cwireIdx = 0;
+  do{
+    Iterate(cwires[cwireIdx], alpha);
+
+    const unsigned int prime = 1299827;
+    cwireIdx = (cwireIdx+prime)%cwires.size();
+  } while(cwireIdx != 0);
+
   for(SpaceCharge* sc: orphanSCs) Iterate(sc, alpha);
 }
