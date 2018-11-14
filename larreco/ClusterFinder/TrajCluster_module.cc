@@ -342,7 +342,7 @@ namespace cluster {
           art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
           int KE = 1000 * (p->E() - p->Mass());
           if(!anySource && theTruth->Origin() != origin) continue;
-          if(tca::tcc.matchTruth[1] > 1 && KE > 10) {
+          if(tca::tcc.matchTruth[1] > 1 && KE > 10 && p->Process() == "primary") {
             std::cout<<"TCM: mcp Origin "<<theTruth->Origin()
             <<std::setw(8)<<p->TrackId()
             <<" pdg "<<p->PdgCode()
