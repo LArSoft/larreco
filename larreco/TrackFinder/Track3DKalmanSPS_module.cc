@@ -1122,6 +1122,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		      std::vector < TMatrixT<double> > hitCovLFP;
 		      std::vector <TVector3> hitPlaneXYZLFP;
 		      std::vector <TVector3> hitPlaneUxUyUzLFP;
+		      std::vector <TVector3> hitPlanePxPyPzLFP;
 		      std::vector <TVector3> hitPlaneULFP;
 		      std::vector <TVector3> hitPlaneVLFP;
 		      std::vector <double> pLFP;
@@ -1136,6 +1137,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 			  hitCovLFP.push_back(hitCov.at(totHits-2*totHits/(2*fNumIt)+ii));
 			  hitPlaneXYZLFP.push_back(hitPlaneXYZ.at(totHits-2*totHits/(2*fNumIt)+ii));
 			  hitPlaneUxUyUzLFP.push_back(hitPlaneUxUyUz.at(totHits-2*totHits/(2*fNumIt)+ii));
+			  hitPlanePxPyPzLFP.push_back(hitPlaneUxUyUzLFP.back()*pLFP.back());
 			  hitPlaneULFP.push_back(hitPlaneU.at(totHits-2*totHits/(2*fNumIt)+ii));
 			  hitPlaneVLFP.push_back(hitPlaneV.at(totHits-2*totHits/(2*fNumIt)+ii));
 			  // Transform cov appropriate for track rotated 
@@ -1163,10 +1165,17 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		      
 		      // Put newest track on stack for this set of sppts,
 		      // remove previous one.
-		      recob::Track  the3DTrack(hitPlaneXYZLFP,
-					       hitPlaneUxUyUzLFP,
-					       hitCovLFP,dQdx,pLFP, tcnt++
-					       );
+		      recob::tracking::SMatrixSym55 covVtx, covEnd;
+		      for (unsigned int i=0; i<5; i++) {
+			for (unsigned int j=i; j<5; j++) {
+			  covVtx(i,j) = hitCovLFP.front()(i,j);
+			  covEnd(i,j) = hitCovLFP.back()(i,j);
+			}
+		      }
+		      recob::Track  the3DTrack(recob::TrackTrajectory(recob::tracking::convertCollToPoint(hitPlaneXYZLFP),
+								      recob::tracking::convertCollToVector(hitPlanePxPyPzLFP),
+								      recob::Track::Flags_t(hitPlaneXYZLFP.size()), true),
+					       0, -1., 0, covVtx, covEnd, tcnt++);
 		      if (rePass==1) tcnt1++; // won't get here if Trackfit failed.
 		      if (rePass!=1 && tcnt1) tcol->pop_back();
 		      tcol->push_back(the3DTrack); 

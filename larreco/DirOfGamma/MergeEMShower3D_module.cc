@@ -110,6 +110,17 @@ fP0Dist(0)
 	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kZ));*/ 
 
 	
+	/*************************************************************/
+	/*                          WARNING                          */
+	/*************************************************************/
+	/* The dQdx information in recob::Track has been deprecated  */
+	/* since 2016 and in 11/2018 the recob::Track interface was  */
+	/* changed and DQdxAtPoint and NumberdQdx were removed.      */
+	/* Therefore the code below is now commented out             */
+	/* (note that it was most likely not functional anyways).    */
+	/* For any issue please contact: larsoft-team@fnal.gov       */
+	/*************************************************************/
+	/*
 	bool isplane = false;
 	unsigned int nplanes = geom->Nplanes();
 	for (unsigned int p = 0; p < nplanes; ++p)
@@ -120,6 +131,8 @@ fP0Dist(0)
 		{fPlaneId = int(p); isplane = true;}
 	}
 	if (!isplane) fPlaneId = -1; 
+	*/
+	/*************************************************************/
 
 	/*if (trk.DQdxAtPoint(1, geo::kU) > 0) fPlaneId = geo::kU;
 	else if (trk.DQdxAtPoint(1, geo::kV) > 0) fPlaneId = geo::kV;

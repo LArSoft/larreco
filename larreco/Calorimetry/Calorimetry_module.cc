@@ -177,10 +177,6 @@ void calo::Calorimetry::produce(art::Event& evt)
   for(size_t trkIter = 0; trkIter < tracklist.size(); ++trkIter){   
 
     decltype(auto) larEnd = tracklist[trkIter]->Trajectory().End();
-    //store track directional cosines
-    double trackCosStart[3]={0.,0.,0.};
-    double trackCosEnd[3]={0.,0.,0.};
-    tracklist[trkIter]->Direction(trackCosStart,trackCosEnd);
             
     // Some variables for the hit
     float time;          //hit time at maximum

@@ -263,13 +263,20 @@ void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track
     // take the vector of tracks, walk through each track's vectors of xyz, dxdydz, etc 
     // and concatenate them into longer vectors. Use those to instantiate one new 
     // Stitched-together track.
-    std::vector<TVector3> xyz;
-    std::vector<TVector3> dxdydz;
-    std::vector<TMatrixT<double> > cov;
-    std::vector<double> mom;
-    std::vector< std::vector <double> > dQdx;
+    std::vector<recob::tracking::Point_t> xyz;
+    std::vector<recob::tracking::Vector_t> dxdydz;
+    std::vector<recob::tracking::SMatrixSym55> cov;
+    std::vector<recob::TrackTrajectory::PointFlags_t> flgs;
     //art::PtrVector<recob::Track>::const_iterator
 
+    bool hasMomentum = true; //true only if all tracks have momentum
+    for (auto it = (*itvvArg).begin(); it!=(*itvvArg).end(); ++it)
+      {
+	if ((*it).get()->HasMomentum()==false) {
+	  hasMomentum = false;
+	  break;
+	}
+      }
 
     size_t cnt(0);
     for (auto it = (*itvvArg).begin(); it!=(*itvvArg).end(); ++it)
@@ -277,7 +284,6 @@ void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track
 
 	cnt++;
 	//	std::cout << "Stitching track cnt is: " << cnt << std::endl; 
-
 	for (size_t pt = 0; pt!=(*it).get()->NumberTrajectoryPoints(); pt++)
 	  {
 	    size_t ptHere(pt);
@@ -298,24 +304,11 @@ void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track
 
 	    try 
 	      { 
-		xyz.push_back((*it).get()->LocationAtPoint<TVector3>(ptHere));
+		xyz.push_back((*it).get()->LocationAtPoint(ptHere));
 		//		std::cout << "Stitching track number " << cnt << " with TrajPt at ptHere " << ptHere << " at x,y,z: " << xyz.back().X() << ", " << xyz.back().Y() << ", " << xyz.back().Z() << std::endl;
-		dxdydz.push_back((*it).get()->DirectionAtPoint<TVector3>(ptHere));
-		TMatrixT<double>  dumc(5,5); 
-		if (ptHere<(*it).get()->NumberCovariance())
-		  dumc = (*it).get()->CovarianceAtPoint<TMatrixD>(ptHere);
-		cov.push_back(dumc);
-		double dumm(0.0); 
-		if ((*it).get()->HasMomentum())
-		  dumm = (*it).get()->MomentumAtPoint(ptHere);
-		mom.push_back(dumm);
-		std::vector <double> dum; 
-		if (ptHere<(*it).get()->NumberdQdx(geo::kZ))
-		  dum.push_back((*it).get()->DQdxAtPoint(ptHere,geo::kZ));
-		else
-		  dum.push_back(0.0);
-		dQdx.push_back(dum);
-
+		dxdydz.push_back( (hasMomentum ? (*it).get()->MomentumVectorAtPoint(ptHere) : (*it).get()->DirectionAtPoint(ptHere)) );
+		flgs.push_back((*it).get()->FlagsAtPoint(ptHere));
+		cov.push_back( (ptHere==0 ? (*it).get()->VertexCovariance() : (*it).get()->EndCovariance()));
 	      }
 	    catch (cet::exception &e)
 	      {
@@ -329,7 +322,9 @@ void trkf::StitchAlg::FirstStitch(const std::vector<art::PtrVector <recob::Track
     /// As is, we're not sure we're not forming a stitched track with a (some) 
     /// jump(s) and a reversal(s) of direction in it.
 
-    const recob::Track t(xyz,dxdydz,cov,dQdx,mom,ftNo++);
+    //const recob::Track t(xyz,dxdydz,cov,dQdx,mom,ftNo++);
+    const recob::Track t(recob::TrackTrajectory(std::move(xyz), std::move(dxdydz),  std::move(flgs), hasMomentum), 
+			 0, -1., 0, cov.front(), cov.back(), ftNo++);
     //const art::Ptr<recob::Track> t(xyz,dxdydz,cov,dQdx,mom,ftNo++);
     fTrackVec.insert(itvArg,t);
 
