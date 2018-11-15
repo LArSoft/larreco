@@ -405,11 +405,12 @@ namespace trkf {
 	    continue;
 	  }
 	  //std::cout<<DirCos.x()<<" "<<DirCos.y()<<" "<<DirCos.z()<<std::endl;
-	  // std::vector<TVector3> dircos(spacepoints.size(), DirCos);
+	  std::vector<TVector3> dircos(spacepoints.size(), DirCos);
 	  
-	  // std::vector< std::vector<double> > dQdx;
-	  // std::vector<double> mom(2, util::kBogusD);
-	  // tcol->push_back(recob::Track(xyz, dircos, dQdx, mom, tcol->size()));
+	  tcol->push_back(recob::Track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(xyz),
+							      recob::tracking::convertCollToVector(dircos),
+							      recob::Track::Flags_t(xyz.size()), false),
+				       0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), tcol->size()));
 	  
 	  // make associations between the track and space points
 	  util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
