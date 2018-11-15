@@ -144,7 +144,7 @@ namespace tca {
     
     bool prt = (tcc.dbg2V && tcc.dbgSlc && debug.Plane == (int)planeID.Plane);
     if(prt) {
-      mf::LogVerbatim("TC")<<"prt set for plane "<<planeID.Plane<<" in Find2DVertices. firstPassCuts? "<<firstPassCuts;
+      mf::LogVerbatim("TC")<<"prt set for plane "<<planeID.Plane<<" in Find2DVertices. firstPassCuts? "<<firstPassCuts<<" requireVtxTjChg "<<requireVtxTjChg;
       PrintAllTraj("F2DVi", slc, USHRT_MAX, slc.tjs.size());
     }
     
@@ -2788,7 +2788,7 @@ namespace tca {
         if(closePt > tj.EndPt[1]) continue;
         // try to improve the location of the vertex by looking for a distinctive feature on the
         // trajectory, e.g. high multiplicity hits or larger than normal charge
-        if(RefineVtxPosition(slc, tj, closePt, 3, false)) vtp.Pos = tj.Pts[closePt].Pos;
+//        if(RefineVtxPosition(slc, tj, closePt, 3, false)) vtp.Pos = tj.Pts[closePt].Pos;
         if(prt) mf::LogVerbatim("TC")<<"CI3DV 3V"<<vx3.ID<<" candidate itj ID "<<tj.ID<<" vtx pos "<<PrintPos(slc, vtp.Pos)<<" doca "<<doca;
         tjIDs.push_back(tj.ID);
         tjPts.push_back(closePt);
@@ -2848,9 +2848,17 @@ namespace tca {
         if(dpt < 3) {
           // close to an end
           if(slc.tjs[itj].VtxID[end] > 0) {
-            if(prt) mf::LogVerbatim("TC")<<" T"<<slc.tjs[itj].ID<<" has a vertex "<<slc.tjs[itj].VtxID[end]<<" at end "<<end<<". Skip it";
-            continue;
-          }
+            // find the distance btw the existing vertex and the end of this tj
+            auto& oldTj = slc.tjs[itj];
+            auto& oldVx = slc.vtxs[oldTj.VtxID[end] - 1];
+            short oldSep = fabs(oldVx.Pos[0] - oldTj.Pts[oldTj.EndPt[end]].Pos[0]);
+            if(prt) mf::LogVerbatim("TC")<<" T"<<slc.tjs[itj].ID<<" has vertex 2V"<<slc.tjs[itj].VtxID[end]<<" at end "<<end<<". oldSep "<<oldSep;
+            if(dpt < oldSep) {
+              MakeVertexObsolete(slc, oldVx, true);
+            } else {
+              continue;
+            }
+          } // slc.tjs[itj].VtxID[end] > 0
           slc.tjs[itj].VtxID[end] = slc.vtxs[newVtxIndx].ID;
           ++newVtx.NTraj;
           if(prt) mf::LogVerbatim("TC")<<" attach Traj T"<<slc.tjs[itj].ID<<" at end "<<end;
@@ -2905,7 +2913,7 @@ namespace tca {
     } // vx3
     
   } // CompleteIncomplete3DVertices
-  
+/*
   ////////////////////////////////////////////////
   bool RefineVtxPosition(TCSlice& slc, const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt)
   {
@@ -2928,7 +2936,7 @@ namespace tca {
     nearPt = maxChgPt;
     return true;
   } //RefineVtxPosition
-  
+*/
   /////////////////////TY:///////////////////////////
   void VtxHitsSwap(TCSlice& slc, const CTP_t inCTP){
     
