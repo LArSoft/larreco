@@ -4,7 +4,7 @@ trackproducerfrompfparticle: {
    module_type: TrackProducerFromPFParticle
    trackMaker: @local::kalmanfilterfittrackmakertool
    inputCollection: @nil
-   doTrackFitHitInfo: true
+   doTrackFitHitInfo: false
    doSpacePoints: true
    spacePointsFromTrajP: true
    trackFromPF: true
