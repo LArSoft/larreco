@@ -1332,7 +1332,7 @@ namespace tca {
           if(std::find(vxlist.begin(), vxlist.end(), tj.VtxID[end]) != vxlist.end()) {
             auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
 //            std::cout<<"P"<<pfp.ID<<" Clobber 2V"<<vx2.ID<<"\n";
-            MakeVertexObsolete(slc, vx2, true);
+            MakeVertexObsolete("MPTJ", slc, vx2, true);
           } else {
             vxlist.push_back(tj.VtxID[end]);
           }
@@ -2111,7 +2111,7 @@ namespace tca {
         myprt<<" PDGCodeVote "<<PDGCodeVote(slc, ms.TjIDs, false);
         myprt<<"\n";
         ++cnt;
-        if(cnt == 1000 || ms.Count < 2) {
+        if(cnt == 500 || ms.Count < 2) {
           myprt<<"...stopped printing after 500 entries or Count < 2";
           break;
         }
@@ -2119,12 +2119,17 @@ namespace tca {
     } // prt
 
     // create the list of associations to matches that will be converted to PFParticles
-    // Start with large count tj matches that have a consistent PDGCode and no vertex attachments(?)
+    // Start with large count tj matches that have a consistent PDGCode and no vertex attachments
     // and high completeness
     if(slc.matchVec.size() > 1 && slc.matchVec[0].Count > 2 * slc.matchVec[1].Count) {
       auto& ms = slc.matchVec[0];
       int pdgCode = PDGCodeVote(slc, ms.TjIDs, prt);
-      if(pdgCode != 0) {
+      bool hasVx = false;
+      for(auto tid : ms.TjIDs) {
+        auto& tj = slc.tjs[tid - 1];
+        if(tj.VtxID[0] > 0 || tj.VtxID[1] > 0) hasVx = true;
+      } // tid
+      if(pdgCode != 0 && !hasVx) {
         float minCompleteness = 1;
         for(unsigned short itj = 0; itj < ms.TjCompleteness.size(); ++itj) {
           if(ms.TjCompleteness[itj] < minCompleteness) minCompleteness = ms.TjCompleteness[itj];
@@ -2267,6 +2272,8 @@ namespace tca {
     if(pfp.Vx3ID[0] > 0) PFPVxTjOK(slc, pfp, prt);
     
     bool pfpTrackLike = (MaxTjLen(slc, pfp.TjIDs) > tcc.match3DCuts[5] && MCSMom(slc, pfp.TjIDs) > tcc.match3DCuts[3]);
+    // don't look for broken Tjs for primary electron PFPs
+    if(pfp.PDGCode == 111) pfpTrackLike = false;
 
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2429,6 +2436,8 @@ namespace tca {
     for(auto tjc : pfp.TjCompleteness) if(tjc < minCompleteness) minCompleteness = tjc;
     if(prt) mf::LogVerbatim("TC")<<"inside AnalyzePFP P"<<pfp.ID<<" minCompleteness "<<minCompleteness;
     if(minCompleteness == 0.95) return true;
+    // don't analyze electrons
+    if(pfp.PDGCode == 111) return true;
     
     // compare the Tjs in Tp3s with those in TjIDs
     std::vector<int> tjIDs;
@@ -2643,6 +2652,7 @@ namespace tca {
         pfp.ParentUID = (size_t)neutrinoPFPID;
         pfp.Primary = true;
         neutrinoPFP.DtrUIDs.push_back(pfp.ID);
+        if(pfp.PDGCode == 111) neutrinoPFP.PDGCode = 12;
       } // pfp
     } // neutrino PFP exists    
   } // DefinePFPParents
