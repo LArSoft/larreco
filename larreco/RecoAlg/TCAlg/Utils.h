@@ -66,6 +66,7 @@ namespace tca {
   void UnsetUsedHits(TCSlice& slc, TrajPoint& tp);
   bool StoreTraj(TCSlice& slc, Trajectory& tj);
   void ChgSlope(TCSlice& slc, Trajectory& tj, float& slope, float& slopeErr, float& chiDOF);
+  void ChgSlope(TCSlice& slc, Trajectory& tj, unsigned short fromPt, unsigned short toPt, float& slope, float& slopeErr, float& chiDOF);
   bool InTrajOK(TCSlice& slc, std::string someText);
   void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
   void TrimEndPts(std::string fcnLabel, TCSlice& slc, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
