@@ -176,6 +176,7 @@ namespace tca {
     float outlook {-1};                     ///< tracklike ~< 2, showerlike > 2
     float chgSlope {0};
     float chgSlopeErr {0};
+    float chgFitChiDOF {0};
     short MCSMom {0};
   };
   
