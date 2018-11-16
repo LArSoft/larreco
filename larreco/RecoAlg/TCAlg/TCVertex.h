@@ -50,7 +50,7 @@ namespace tca {
   void Find3DVertices(TCSlice& slc);
   void Match3DVtxTjs(TCSlice& slc, bool prt);
   void CompleteIncomplete3DVertices(TCSlice& slc);
-  bool RefineVtxPosition(TCSlice& slc, const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt);
+//  bool RefineVtxPosition(TCSlice& slc, const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt);
   void CompleteIncomplete3DVerticesInGaps(TCSlice& slc);
   // Improve hit assignments near vertex 
   void VtxHitsSwap(TCSlice& slc, const CTP_t inCTP);
@@ -73,7 +73,7 @@ namespace tca {
   void SetVx3Score(TCSlice& slc, Vtx3Store& vx3);
   unsigned short Vx3Topo(TCSlice& slc, Vtx3Store& vx3);
   void SetHighScoreBits(TCSlice& slc, Vtx3Store& vx3);
-  bool MakeVertexObsolete(TCSlice& slc, VtxStore& vx2, bool forceKill);
+  bool MakeVertexObsolete(std::string fcnLabel, TCSlice& slc, VtxStore& vx2, bool forceKill);
   bool MakeVertexObsolete(TCSlice& slc, Vtx3Store& vx3);
   std::vector<int> GetVtxTjIDs(const TCSlice& slc, const VtxStore& vx2);
   std::vector<int> GetVtxTjIDs(const TCSlice& slc, const Vtx3Store& vx3, float& score);
