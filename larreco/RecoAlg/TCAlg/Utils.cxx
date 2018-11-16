@@ -1173,9 +1173,17 @@ namespace tca {
     return true;
     
   } // StoreTraj
-
+  
   ////////////////////////////////////////////////
   void ChgSlope(TCSlice& slc, Trajectory& tj, float& slope, float& slopeErr, float& chiDOF)
+  {
+    // Fits the points with charge on the Tj and returns the charge slope, slope error and 
+    // Chi/DOF
+    ChgSlope(slc, tj, tj.EndPt[0], tj.EndPt[1], slope, slopeErr, chiDOF);
+  } // ChgSlope
+
+  ////////////////////////////////////////////////
+  void ChgSlope(TCSlice& slc, Trajectory& tj, unsigned short fromPt, unsigned short toPt, float& slope, float& slopeErr, float& chiDOF)
   {
     // Fits the points with charge on the Tj and returns the charge slope, slope error and 
     // Chi/DOF
@@ -1192,7 +1200,8 @@ namespace tca {
     Fit2D(0, inPt, chgErr, outVec, outVecErr, chiDOF);
     float wire0 = -1;
     unsigned short cnt = 0;
-    for(auto& tp : tj.Pts) {
+    for(unsigned short ipt = fromPt; ipt <= toPt; ++ipt) {
+      auto& tp = tj.Pts[ipt];
       if(tp.Chg <= 0) continue;
       ++cnt;
       if(wire0 < 0) wire0 = tp.Pos[0];
@@ -1379,7 +1388,7 @@ namespace tca {
     if(!StoreVertex(slc, aVtx)) return;
     if(!SplitTraj(slc, itj, breakPt, ivx, prt)) {
       if(prt) mf::LogVerbatim("TC")<<"CTBC: Failed to split trajectory";
-      MakeVertexObsolete(slc, slc.vtxs[ivx], false);
+      MakeVertexObsolete("CTBC", slc, slc.vtxs[ivx], false);
       return;
     }
     SetVx2Score(slc);
@@ -4100,7 +4109,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     
     if(tj1.VtxID[1] > 0 && tj2.VtxID[0] == tj1.VtxID[1]) {
       auto& vx = slc.vtxs[tj1.VtxID[1] - 1];
-      if(!MakeVertexObsolete(slc, vx, false)) {
+      if(!MakeVertexObsolete("MAS", slc, vx, false)) {
         if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: Found a good vertex between Tjs "<<tj1.VtxID[1]<<" No merging";
         return false;
       }
@@ -4747,8 +4756,6 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         } // jmcp
         myprt<<std::setw(8)<<eveIndx;
         myprt<<" "<<mcp->Process();
-        myprt<<" TrkID "<<mcp->TrackId();
-        myprt<<" eveID "<<eveID;
         myprt<<"\n";
       } // imcp
     } // mcpList not empty
