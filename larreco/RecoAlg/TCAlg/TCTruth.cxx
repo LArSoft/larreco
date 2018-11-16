@@ -782,7 +782,61 @@ namespace tca {
           } // maxEP > pfp.EffPur
         } // matched pfp
       } // imcp
+      // debug primary electron reconstruction
+      if(tcc.modes[kStudy2] && !mcpList.empty() && abs(mcpList[0]->PdgCode()) == 11 && mcpHits[0].size() > 20) {
+        short TMeV = 1000 * (mcpList[0]->E() - mcpList[0]->Mass());
+        std::cout<<"Study2: Find Tjs matched to primary electron. T = "<<TMeV<<"\n";
+        std::array<bool, 3> inPln {{false}};
+        for(auto& slc : slices) {
+          for(auto& tj : slc.tjs) {
+            if(tj.AlgMod[kKilled]) continue;
+            if(tj.mcpListIndex != 0) continue;
+            unsigned short plane = DecodeCTP(tj.CTP).Plane;
+            inPln[plane] = true;
+            std::cout<<"T"<<tj.UID<<" start ";
+            auto& tp = tj.Pts[tj.EndPt[0]];
+            std::cout<<PrintPos(slc, tp);
+            std::cout<<" PDGCode "<<tj.PDGCode;
+            std::cout<<" len "<<tj.EndPt[1] - tj.EndPt[0] + 1;
+            auto plist = GetAssns(slc, "T", tj.ID, "P");
+            if(!plist.empty()) std::cout<<" P"<<plist[0];
+            std::cout<<" WorkID "<<tj.WorkID;
+            unsigned int firstiht = 0;
+            unsigned int firstwire = 5000;
+            unsigned int lastiht = 0;
+            unsigned int lastwire = 0;
+            unsigned short cntInPln = 0;
+            for(auto iht : mcpHits[0]) {
+              auto& hit = (*evt.allHits)[iht];
+              if(hit.WireID().Plane != plane) continue;
+              ++cntInPln;
+              if(hit.WireID().Wire < firstwire) {
+                firstwire = hit.WireID().Wire;
+                firstiht = iht;
+              }
+              if(hit.WireID().Wire > lastwire) {
+                lastwire = hit.WireID().Wire;
+                lastiht = iht;
+              }
+            } // iht
+            auto& firstHit = (*evt.allHits)[firstiht];
+            std::cout<<" "<<firstHit.WireID().Wire<<":"<<(int)firstHit.PeakTime();
+            auto& lastHit = (*evt.allHits)[lastiht];
+            std::cout<<" - "<<lastHit.WireID().Wire<<":"<<(int)lastHit.PeakTime();
+            std::cout<<" cnt "<<cntInPln;
+            std::cout<<"\n";
+          } // tj
+          if(!slc.pfps.empty()) {
+            auto& pfp = slc.pfps[0];
+            std::cout<<"P"<<pfp.UID<<" PDGCode "<<pfp.PDGCode<<" dtrs";
+            for(auto dtruid : pfp.DtrUIDs) std::cout<<" P"<<dtruid;
+            std::cout<<"\n";
+          } // pfps exist
+        } // slc
+        for(unsigned short plane = 0; plane < 3; ++plane) if(!inPln[plane]) std::cout<<"No match in plane "<<plane<<"\n";
+      } // kStudy2
     } // tpcid
+    
     
   } // MatchAndSum
 
