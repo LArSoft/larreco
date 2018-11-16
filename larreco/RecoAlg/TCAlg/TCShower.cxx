@@ -729,7 +729,7 @@ namespace tca {
       } else {
         auto TIn2V = GetAssns(slc, "2V", vx2.ID, "T");
         for(auto tid : TIn2V) slc.tjs[tid - 1].AlgMod[kKillInShowerVx] = true;
-        MakeVertexObsolete(slc, vx2, true);
+        MakeVertexObsolete("KVIS", slc, vx2, true);
       }
     } // vx2
     
@@ -3746,7 +3746,7 @@ namespace tca {
         }
       } // tid
       if(nsl < 2) continue;
-      MakeVertexObsolete(slc, vx2, true);
+      MakeVertexObsolete("TSL", slc, vx2, true);
       ++nkill;
     } // vx2
     if(prt) mf::LogVerbatim("TC")<<"TagShowerLike tagged "<<nsh<<" Tjs and killed "<<nkill<<" vertices in CTP "<<inCTP;
