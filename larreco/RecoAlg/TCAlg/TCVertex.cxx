@@ -968,7 +968,7 @@ namespace tca {
         if(tj1.AlgMod[kKilled] || tj2.AlgMod[kKilled]) continue;
         if(tj1.AlgMod[kDeltaRay] || tj2.AlgMod[kDeltaRay]) {
           if(prt) mf::LogVerbatim("TC")<<"CVTjs: Merge delta rays "<<tj1.ID<<" and "<<tj2.ID<<" CompatibleMerge? "<<CompatibleMerge(slc, tj1, tj2, prt);
-          MakeVertexObsolete(slc, vx2, true);
+          MakeVertexObsolete("CVTjs", slc, vx2, true);
           MergeAndStore(slc, vxtjs[0] - 1, vxtjs[1] - 1, prt);
         } // one is a tagged delta-ray
       } // delta-ray check
@@ -1340,7 +1340,7 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<"  maxPts "<<maxPts<<" vxtjs[0] "<<vxtjs[0]<<" maxdang "<<maxdang<<" skipit? "<<skipit;
         if(skipit) {
           // kill the vertex?
-          if(doca < 1) MakeVertexObsolete(slc, vx2, true);
+          if(doca < 1) MakeVertexObsolete("STCV", slc, vx2, true);
           continue;
         }
         
@@ -2410,7 +2410,7 @@ namespace tca {
         if(vx3.Primary) continue;
         if(slc.vtx3s[vx.Vx3ID - 1].Score >= tcc.vtx2DCuts[7]) continue;
       }
-      MakeVertexObsolete(slc, vx, false);
+      MakeVertexObsolete("KPV", slc, vx, false);
     } // vx
     
   } // KillPoorVertices
@@ -2854,7 +2854,7 @@ namespace tca {
             short oldSep = fabs(oldVx.Pos[0] - oldTj.Pts[oldTj.EndPt[end]].Pos[0]);
             if(prt) mf::LogVerbatim("TC")<<" T"<<slc.tjs[itj].ID<<" has vertex 2V"<<slc.tjs[itj].VtxID[end]<<" at end "<<end<<". oldSep "<<oldSep;
             if(dpt < oldSep) {
-              MakeVertexObsolete(slc, oldVx, true);
+              MakeVertexObsolete("CI3DV", slc, oldVx, true);
             } else {
               continue;
             }
@@ -2888,7 +2888,7 @@ namespace tca {
       if(newVtx.NTraj == 0) {
         // A failure occurred. Recover
         if(prt) mf::LogVerbatim("TC")<<"  Failed. Recover and delete vertex "<<newVtx.ID;
-        MakeVertexObsolete(slc, newVtx, true);
+        MakeVertexObsolete("CI3DV", slc, newVtx, true);
       } else {
         // success
         vx3.Vx2ID[mPlane] = newVtx.ID;
@@ -3096,13 +3096,17 @@ namespace tca {
   }
   
   ////////////////////////////////////////////////
-  bool MakeVertexObsolete(TCSlice& slc, VtxStore& vx2, bool forceKill)
+  bool MakeVertexObsolete(std::string fcnLabel, TCSlice& slc, VtxStore& vx2, bool forceKill)
   {
     // Makes a 2D vertex obsolete
     
     // check for a high-score 3D vertex
     bool hasHighScoreVx3 = (vx2.Vx3ID > 0);
     if(hasHighScoreVx3 && !forceKill && slc.vtx3s[vx2.Vx3ID - 1].Score >= tcc.vtx2DCuts[7]) return false;
+    
+    if(tcc.dbg2V || tcc.dbg3V) {
+      mf::LogVerbatim("TC")<<fcnLabel<<" MVO: killing 2V"<<vx2.ID;
+    }
     
     // Kill it
     int vx2id = vx2.ID;
@@ -3191,7 +3195,7 @@ namespace tca {
     for(auto vx2id : vx3.Vx2ID) {
       if(vx2id == 0 || vx2id > (int)slc.vtxs.size()) continue;
       auto& vx2 = slc.vtxs[vx2id - 1];
-      MakeVertexObsolete(slc, vx2, true);
+      MakeVertexObsolete("MVO3", slc, vx2, true);
     }
     vx3.ID = 0;
     return true;
