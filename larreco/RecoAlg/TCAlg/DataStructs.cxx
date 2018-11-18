@@ -8,7 +8,7 @@ namespace tca {
   ShowerTreeVars stv;
   // vector of hits, tjs, etc in each slice
   std::vector<TCSlice> slices;
-  //    TruthMatcher tm{tjs};
+  std::vector<TrajPoint> seeds;
 
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
