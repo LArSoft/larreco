@@ -3738,14 +3738,17 @@ namespace tca {
       if(vx2.CTP != inCTP) continue;
       auto TInV2 = GetAssns(slc, "2V", vx2.ID, "T");
       unsigned short nsl = 0;
+      bool has111 = false;
       for(auto tid : TInV2) {
         auto& tj = slc.tjs[tid - 1];
+        if(tj.PDGCode == 111) has111 = true;
         if(tj.AlgMod[kShowerLike]) {
           unsigned short nearEnd = 1 - FarEnd(slc, tj, vx2.Pos);
           if(PosSep(tj.Pts[tj.EndPt[nearEnd]].Pos, vx2.Pos) < 6) ++nsl;
         }
       } // tid
       if(nsl < 2) continue;
+      if(has111) continue;
       MakeVertexObsolete("TSL", slc, vx2, true);
       ++nkill;
     } // vx2
