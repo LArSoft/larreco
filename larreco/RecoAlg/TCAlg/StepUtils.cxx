@@ -288,7 +288,8 @@ namespace tca {
     } // step
     
     // Do a more carefull treatment
-    SetPDGCode(slc, tj, true);
+    // This is the wrong place to do this. 
+//    SetPDGCode(slc, tj, true);
     
     if(tcc.dbgStp) mf::LogVerbatim("TC")<<"End StepAway with tj size "<<tj.Pts.size()<<" isGood = "<<tj.IsGood;
     
@@ -344,8 +345,11 @@ namespace tca {
       tj.StartEnd = 0;
       return;
     } // Stiff electron
-    // A shower-like trajectory
-    if(tjf.outlook > 2 && tjf.chgSlope > 0) {
+    // A showering-electron-like trajectory
+    bool shLike = (tjf.outlook > 2 && tjf.chgSlope > 0);
+    // This cut picks up a 240 MeV electron
+    if(!shLike) shLike = tjf.showerLikeFraction > 0.4;
+    if(shLike) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Inside a shower. Use the StiffEl strategy";
       tj.Strategy.reset();
       tj.Strategy[kStiffEl] = true;
@@ -395,7 +399,6 @@ namespace tca {
     bool doPrt = tcc.dbgStp;
     // turn off annoying output from DefineHitPos
     if(doPrt) tcc.dbgStp = false;
-/*
     // find the minimum average TP charge. This will be used to calculate the
     // 'effective number of hits' on a wire = total charge on the wire within the 
     // window / (minimum average TP charge). This is intended to reduce the sensitivity
@@ -407,7 +410,6 @@ namespace tca {
       minAveChg = tj.Pts[ipt].AveChg;
     } // ipt
     if(minAveChg <= 0 || minAveChg == 1E6) return;
-*/
     // start a forecast Tj comprised of the points in the forecast envelope
     Trajectory fctj;
     fctj.CTP = tj.CTP;
@@ -421,8 +423,8 @@ namespace tca {
     double stepSize = std::abs(1/tp.Dir[0]);
     float window = 10 * stepSize;
     if(doPrt) {
-      mf::LogVerbatim("TC")<<"Forecast T"<<tj.ID<<" PDGCode "<<tj.PDGCode<<" npwc "<<npwc<<" tj.AveChg "<<(int)tj.AveChg<<" stepSize "<<std::setprecision(2)<<stepSize<<" window "<<window;
-      mf::LogVerbatim("TC")<<" stp ___Pos____  nTPH  Chg ChgPull  Delta  chgWid nTkLike nShLike";
+      mf::LogVerbatim("TC")<<"Forecast T"<<tj.ID<<" PDGCode "<<tj.PDGCode<<" npwc "<<npwc<<" minAveChg "<<(int)minAveChg<<" stepSize "<<std::setprecision(2)<<stepSize<<" window "<<window;
+      mf::LogVerbatim("TC")<<" stp ___Pos____  nTPH  Chg ChgPull  Delta DRMS chgWid nTkLike nShLike";
     }
     unsigned short plane = DecodeCTP(tp.CTP).Plane;
     float totHits = 0;
@@ -430,6 +432,7 @@ namespace tca {
     float maxChg = 0;
     unsigned short maxChgPt = 0;
     unsigned short leavesNear = USHRT_MAX;
+    bool leavesBeforeEnd = false;
     unsigned short showerStartNear = USHRT_MAX;
     unsigned short showerEndNear = USHRT_MAX;
     unsigned short nShLike = 0;
@@ -463,7 +466,7 @@ namespace tca {
           }
           // Note that ChgPull uses the average charge and charge RMS of the 
           // trajectory before it entered the forecast envelope
-          tp.ChgPull = (tp.Chg / tj.AveChg - 1) / tj.ChgRMS;
+          tp.ChgPull = (tp.Chg / minAveChg - 1) / tj.ChgRMS;
           if((tp.ChgPull > 3 && tp.Hits.size() > 1) || tp.ChgPull > 10) {
             ++nShLike;
             // break if the tj was tracklike before this point
@@ -478,8 +481,9 @@ namespace tca {
             // not track-like anymore
             if(nShLike >= minShPts) nTkLike = 0;
             // break if it approaches the side of the envelope
-            if(tp.DeltaRMS > 0.7) {
+            if(tp.DeltaRMS > 0.8) {
               leavesNear = npwc + fctj.Pts.size();
+              leavesBeforeEnd = true;
               break;
             }
             tp.Environment[kEnvNearShower] = true;
@@ -498,11 +502,13 @@ namespace tca {
             }
             // not shower-like anymore
             if(nTkLike >= minShPts) nShLike = 0;
+            // break if it approaches the side of the envelope
+            if(tp.DeltaRMS > 0.9) {
+              leavesNear = npwc + fctj.Pts.size();
+              leavesBeforeEnd = true;
+              break;
+            }
           }
-//          if(nShLike > minShPts && showerStartNear == USHRT_MAX) showerStartNear = npwc + fctj.Pts.size() - minShPts;
-          // find the end of a shower
-//          if(showerStartNear < USHRT_MAX && nTkLike > minShPts) showerEndNear = npwc + fctj.Pts.size() - minShPts;
-//          if(tp.DeltaRMS > 0.7 && leavesNear == USHRT_MAX) leavesNear = npwc + fctj.Pts.size();
           fctj.Pts.push_back(tp);
           if(doPrt) {
             mf::LogVerbatim myprt("TC");
@@ -512,6 +518,7 @@ namespace tca {
             myprt<<std::fixed<<std::setprecision(1);
             myprt<<std::setw(8)<<tp.ChgPull;
             myprt<<std::setw(8)<<tp.Delta;
+            myprt<<std::setw(5)<<std::setprecision(2)<<tp.DeltaRMS;
             myprt<<std::setw(5)<<sqrt(tp.HitPosErr2);
             myprt<<std::setw(6)<<nTkLike;
             myprt<<std::setw(6)<<nShLike;
@@ -552,12 +559,11 @@ namespace tca {
     tjf.outlook = fctj.TotChg / (fctj.Pts.size() * tj.AveChg);
     // assume we got to the end
     tjf.nextForecastUpdate = npwc + fctj.Pts.size();
-    tjf.leavesBeforeEnd = false;
+    tjf.leavesBeforeEnd = leavesBeforeEnd;
     tjf.foundShower = false;
     if(leavesNear < tjf.nextForecastUpdate) {
       // left the side
       tjf.nextForecastUpdate = leavesNear;
-      tjf.leavesBeforeEnd = true;
     } else if(showerStartNear < tjf.nextForecastUpdate) {
       // found a shower start
       tjf.nextForecastUpdate = showerStartNear;
@@ -566,6 +572,9 @@ namespace tca {
       // found a shower end
       tjf.nextForecastUpdate = showerEndNear;
     }
+    nShLike = 0;
+    for(auto& tp : fctj.Pts) if(tp.Environment[kEnvNearShower]) ++nShLike;
+    tjf.showerLikeFraction = (float)nShLike / (float)fctj.Pts.size();
 
     if(doPrt) {
       mf::LogVerbatim myprt("TC");
@@ -576,6 +585,7 @@ namespace tca {
       myprt<<" outlook "<<std::fixed<<std::setprecision(2)<<tjf.outlook;
       myprt<<" chgSlope "<<std::setprecision(1)<<tjf.chgSlope<<" +/- "<<tjf.chgSlopeErr;
       myprt<<" chiDOF "<<tjf.chgFitChiDOF;
+      myprt<<" showerLike fraction "<<tjf.showerLikeFraction;
       myprt<<" nextForecastUpdate "<<tjf.nextForecastUpdate;
       myprt<<" leavesBeforeEnd? "<<tjf.leavesBeforeEnd;
       myprt<<" foundShower? "<<tjf.foundShower;
@@ -1052,10 +1062,10 @@ namespace tca {
       AddLAHits(slc, tj, ipt, sigOK);
       return;
     }
-    std::vector<unsigned int> closeHits;
     
-    unsigned int lastPtWithUsedHits = tj.EndPt[1];
     TrajPoint& tp = tj.Pts[ipt];
+    std::vector<unsigned int> closeHits;
+    unsigned int lastPtWithUsedHits = tj.EndPt[1];
     
     unsigned short plane = DecodeCTP(tj.CTP).Plane;
     unsigned int wire = std::nearbyint(tp.Pos[0]);
@@ -1191,8 +1201,21 @@ namespace tca {
     if(!sigOK) return;
     if(closeHits.size() > 16) closeHits.resize(16);
     tp.Hits.insert(tp.Hits.end(), closeHits.begin(), closeHits.end());
+    
     // reset UseHit and assume that none of these hits will be used (yet)
     tp.UseHit.reset();
+    if(tcc.useAlg[kStopAtTj]) {
+      // don't continue if we have run into another trajectory and there are no available hits
+      unsigned short nAvailable = 0;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        auto& tcHit = slc.slHits[tp.Hits[ii]];
+        if(tcHit.InTraj == 0) ++nAvailable;
+      } // ii
+      if(nAvailable == 0) {
+        tj.StopFlag[1][kAtTj] = true;
+        return;
+      }
+    } // stop at Tj
     // decide which of these hits should be used in the fit. Use a generous maximum delta
     // and require a charge check if we'not just starting out
     bool useChg = true;
@@ -1355,9 +1378,6 @@ namespace tca {
     
     // This code can't handle VLA trajectories
     if(tj.Pts[tj.EndPt[0]].AngleCode == 2) return;
-    // ignore high energy electrons
-    // TODO: this should 
-    if(tj.Strategy[kStiffEl]) return;
     
     bool prt = (tcc.dbgStp || tcc.dbgAlg[kRvPrp]);
     
@@ -1407,7 +1427,10 @@ namespace tca {
     ReverseTraj(slc, tjWork);
     // Flag it to use special cuts in StepAway
     tjWork.AlgMod[kRvPrp] = true;
-    // We are doing this probably because the trajectory is stopping.
+    // save the strategy word and set it to normal
+    auto saveStrategy = tjWork.Strategy;
+    tjWork.Strategy.reset();
+    tjWork.Strategy[kNormal] = true;
     // Reduce the number of fitted points to a small number
     unsigned short lastPt = tjWork.Pts.size() - 1;
     if(lastPt < 4) return;
@@ -1427,11 +1450,13 @@ namespace tca {
       if(prt) mf::LogVerbatim("TC")<<" ReversePropagate StepAway failed";
       return;
     }
+    tjWork.Strategy = saveStrategy;
     // check the new stopping point
     ChkStopEndPts(slc, tjWork, tcc.dbgStp);
     // restore the original direction
     if(tjWork.StepDir != stepDir) ReverseTraj(slc, tjWork);
     tj = tjWork;
+    // TODO: Maybe UpdateTjChgProperties should be called here
     // re-check the ends
     ChkStop(slc, tj);
     if(prt) {
@@ -3034,7 +3059,10 @@ namespace tca {
     if(tcc.useAlg[kFTBRvProp] && needsRevProp) {
       // lop off the points before firstPtFit and reverse propagate
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"  clobber TPs "<<PrintPos(slc, tj.Pts[0])<<" to "<<PrintPos(slc, tj.Pts[atPt])<<". Call TrimEndPts then ReversePropagate ";
-      for(unsigned short ipt = 0; ipt < firstPtFit; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
+      // first save the first TP on this trajectory. We will try to re-use it if
+      // it isn't used during reverse propagation
+      if(tcc.useAlg[kNewStpCuts]) seeds.push_back(tj.Pts[0]);
+      for(unsigned short ipt = 0; ipt < atPt; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
       SetEndPoints(tj);
       tj.AlgMod[kFTBRvProp] = true;
       // Check for quality and trim if necessary before reverse propagation
