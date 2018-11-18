@@ -3751,7 +3751,8 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(npwc < 6) {
       tj.PDGCode = 0;
       return;
-    }    
+    }
+    
     if(tj.Strategy[kStiffEl]) {
       tj.PDGCode = 111;
       return;
@@ -3761,16 +3762,16 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       return;
     }
     
-    tj.PDGCode = 0;
+//    tj.PDGCode = 0;
     if(tcc.muonTag[0] <= 0) return;
     // Special handling of very long straight trajectories, e.g. uB cosmic rays
     bool isAMuon = (npwc > (unsigned short)tcc.muonTag[0] && tj.MCSMom > tcc.muonTag[1]);
     // anything really really long must be a muon
     if(npwc > 500) isAMuon = true;
-    if(isAMuon) {
-      tj.PDGCode = 13;
-      // use the normal adaptive strategy
+    if(tj.PDGCode != 0 && tj.PDGCode != 13 && isAMuon) {
+      std::cout<<"T"<<tj.ID<<" changing PDGCode from "<<tj.PDGCode<<" to 13. Is this wise?\n";
     }
+    if(isAMuon) tj.PDGCode = 13;
     
   } // SetPDGCode
 /*
