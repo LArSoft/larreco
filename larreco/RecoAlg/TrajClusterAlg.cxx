@@ -108,7 +108,7 @@ namespace tca {
     if(tcc.minMCSMom.size() != tcc.minPts.size()) badinput = true;
     if(badinput) throw art::Exception(art::errors::Configuration)<< "Bad input from fcl file. Vector lengths for MinPtsFit, MaxAngleRange and MinMCSMom should be defined for each reconstruction pass";
     
-    if(tcc.vtx2DCuts.size() < 10) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 10\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = min ChgFrac at a vtx or merge point\n 9 = max MCSMom asymmetry, 10 = require chg on wires btw vtx and tjs in induction planes?";
+    if(tcc.vtx2DCuts.size() < 10) throw art::Exception(art::errors::Configuration)<<"Vertex2DCuts must be size 11\n 0 = Max length definition for short TJs\n 1 = Max vtx-TJ sep short TJs\n 2 = Max vtx-TJ sep long TJs\n 3 = Max position pull for >2 TJs\n 4 = Max vtx position error\n 5 = Min MCSMom for one of two TJs\n 6 = Min fraction of wires hit btw vtx and Tjs\n 7 = Min Score\n 8 = min ChgFrac at a vtx or merge point\n 9 = max MCSMom asymmetry, 10 = require chg on wires btw vtx and tjs in induction planes?";
     if(tcc.vtx2DCuts.size() == 10) {
       // User didn't specify a requirement for the presence of charge between a vertex and the start of the
       // vertex Tjs in induction planes. Assume that it is required
@@ -583,10 +583,13 @@ namespace tca {
               ReleaseHits(slc, work);
               continue;
             }
-            if(tcc.dbgStp) mf::LogVerbatim("TC")<<"ReconstructAllTraj: calling StoreTraj with npts "<<work.EndPt[1];
             slc.isValid = StoreTraj(slc, work);
             // check for a major failure
             if(!slc.isValid) return;
+            if(tcc.dbgStp) {
+              auto& tj = slc.tjs[slc.tjs.size() - 1];
+              mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID;
+            }
             if(tcc.useAlg[kChkInTraj]) {
               slc.isValid = InTrajOK(slc, "RAT");
               if(!slc.isValid) {
@@ -600,17 +603,62 @@ namespace tca {
           } // jht
         } // iht
       } // iwire
+      
+      // See if there are any seed trajectory points that were saved before reverse
+      // propagation and try to make Tjs from them
+      for(auto tp : seeds) {
+        unsigned short nAvailable = 0;
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(!tp.UseHit[ii]) continue;
+          unsigned int iht = tp.Hits[ii];
+          if(slc.slHits[iht].InTraj == 0) ++nAvailable;
+          tcc.dbgStp = (tcc.modes[kDebug] && (slc.slHits[iht].allHitsIndex == debug.Hit));
+          if(tcc.dbgStp)  {
+            mf::LogVerbatim("TC")<<"+++++++ Seed debug hit "<<slices.size()-1<<":"<<PrintHit(slc.slHits[iht])<<" iht "<<iht;
+          }
+        } // ii
+        if(nAvailable == 0) continue;
+//        std::cout<<"Seed TP "<<PrintPos(slc, tp)<<" is available\n";
+        Trajectory work;
+        work.ID = evt.WorkID;
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(!tp.UseHit[ii]) continue;
+          unsigned int iht = tp.Hits[ii];
+          if(slc.slHits[iht].InTraj == 0) slc.slHits[iht].InTraj = work.ID;
+        } // ii
+        work.Pass = pass;
+        work.StepDir = 1;
+        if(tp.Dir[0] < 0) work.StepDir = -1;
+        work.CTP = tp.CTP;
+        work.ParentID = -1;
+        work.Strategy.reset();
+        work.Strategy[kNormal] = true;
+        // don't allow yet another reverse propagation
+        work.AlgMod[kRvPrp] = true;
+        work.Pts.push_back(tp);
+        // stop stepping if we hit another tj (the one that created this seed TP)
+        tcc.useAlg[kStopAtTj] = true;
+        StepAway(slc, work);
+        tcc.useAlg[kStopAtTj] = false;
+        CheckTraj(slc, work);
+        // check for a major failure
+        if(!slc.isValid) return;
+        // decide if the trajectory is long enough for this pass
+        if(!work.IsGood || NumPtsWithCharge(slc, work, true) < tcc.minPts[work.Pass]) {
+          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" xxxxxxx Not enough points "<<NumPtsWithCharge(slc, work, true)<<" minimum "<<tcc.minPts[work.Pass]<<" or !IsGood";
+          ReleaseHits(slc, work);
+          continue;
+        }
+        slc.isValid = StoreTraj(slc, work);
+        // check for a major failure
+        if(!slc.isValid) return;
+        if(tcc.dbgStp) {
+          auto& tj = slc.tjs[slc.tjs.size() - 1];
+          mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID<<" using seed TP "<<PrintPos(slc, tp);
+        }
+      } // seed
+      seeds.resize(0);
 
-/* This shouldn't be necessary
-      // Ensure that all tjs are in the same order and do some clean up
-      for(auto& tj : slc.tjs) {
-        if(tj.AlgMod[kKilled]) continue;
-        if(tj.CTP != inCTP) continue;
-        if(tj.StepDir != tcc.stepDir && !tj.AlgMod[kSetDir]) ReverseTraj(slc, tj);
-        // Feb 14
-        CheckHiMultUnusedHits(slc, tj);
-      } // tj
-*/
       // Tag delta rays before merging and making vertices
       TagDeltaRays(slc, inCTP);
       // Try to merge trajectories before making vertices
