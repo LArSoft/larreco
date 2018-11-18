@@ -171,7 +171,8 @@ namespace tca {
   
   struct TjForecast {
     unsigned short nextForecastUpdate {0};  ///< Revise the forecast when NumPtsWithCharge == nextForecastUpdate
-    bool leavesBeforeEnd {false};    ///< leaves the forecast region before the end
+    float showerLikeFraction {0};    ///< fraction of points in the forecast envelope that are shower-like
+    bool leavesBeforeEnd {false};    ///< leaves the forecast envelope before the end
     bool foundShower {false};
     float outlook {-1};                     ///< tracklike ~< 2, showerlike > 2
     float chgSlope {0};
@@ -586,6 +587,8 @@ namespace tca {
 
   // vector of hits, tjs, etc in each slice
   extern std::vector<TCSlice> slices;
+  // vector of seed TPs
+  extern std::vector<TrajPoint> seeds;
 
 } // namespace tca
 
