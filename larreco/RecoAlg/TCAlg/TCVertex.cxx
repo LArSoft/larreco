@@ -1955,7 +1955,7 @@ namespace tca {
     
     float length = TrajLength(tj);
     // don't attach it if the tj length is shorter than the separation distance
-    if(length > 2 && length < closestApproach) return false;
+    if(length > 4 && length < closestApproach) return false;
 
     float pullCut = tcc.vtx2DCuts[3];
     // Dec 21, 2017 Loosen up the pull cut for short close slc. These are likely to
@@ -2144,7 +2144,6 @@ namespace tca {
       return true;
     }
     
-    
     // Create a vector of trajectory points that will be used to fit the vertex position
     std::vector<TrajPoint> vxTp;
     for(auto& tj : slc.tjs) {
@@ -2152,8 +2151,22 @@ namespace tca {
       if(tj.CTP != vx.CTP) continue;
       if(tj.AlgMod[kPhoton]) continue;
       if(tj.AlgMod[kNoFitToVx]) continue;
-      if(tj.VtxID[0] == vx.ID) vxTp.push_back(tj.Pts[tj.EndPt[0]]);
-      if(tj.VtxID[1] == vx.ID) vxTp.push_back(tj.Pts[tj.EndPt[1]]);
+      bool added = false;
+      if(tj.VtxID[0] == vx.ID) {
+        vxTp.push_back(tj.Pts[tj.EndPt[0]]);
+        added = true;
+      }
+      if(tj.VtxID[1] == vx.ID) {
+        vxTp.push_back(tj.Pts[tj.EndPt[1]]);
+        added = true;
+      }
+      // stash the ID in Step to help debugging
+      if(added) {
+        auto& tp = vxTp[vxTp.size()-1];
+        if(tj.ID > 0) tp.Step = (int)tj.ID;
+        // inflate the angle errors for Tjs with few fitted points
+        if(tcc.useAlg[kNewVtxCuts] && tp.NTPsFit < 4) tp.AngErr *= 4;
+      }
     } // tj
     
     bool success = FitVertex(slc, vx, vxTp, prt);
@@ -2536,6 +2549,7 @@ namespace tca {
     // Define a weight for each Tj
     std::vector<int> tjids;
     std::vector<float> tjwts;
+    unsigned short cnt13 = 0;
     for(auto tjid : vtxTjIDs) {
       Trajectory& tj = slc.tjs[tjid - 1];
       // Feb 22 Ignore short Tjs and junk tjs
@@ -2544,8 +2558,11 @@ namespace tca {
       if(lenth < 3) continue;
       float wght = (float)tj.MCSMom / momBin;
       if(!tcc.useAlg[kNewVtxCuts] && wght > 10) wght = 10;
-      // weight by tagged muon
-      if(tj.PDGCode == 13) wght *= 2;
+      // weight by the first tagged muon
+      if(tj.PDGCode == 13) {
+        ++cnt13;
+        if(tcc.useAlg[kNewVtxCuts] && cnt13 == 1) wght *= 2;
+      }
       // weight by charge rms
       if(tj.ChgRMS < maxChgRMS) ++wght;
       // Shower Tj
