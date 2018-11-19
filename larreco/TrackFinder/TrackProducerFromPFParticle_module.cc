@@ -20,6 +20,7 @@
 #include "lardataobj/RecoBase/Shower.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Seed.h"
+#include "lardataobj/RecoBase/TrackHitMeta.h"
 //
   /**
    * @file  larreco/TrackFinder/TrackProducerFromPFParticle_module.cc
@@ -90,7 +91,7 @@ TrackProducerFromPFParticle::TrackProducerFromPFParticle(fhicl::ParameterSet con
   if (p.has_key("showerInputTag")) shwInputTag = p.get<art::InputTag>("showerInputTag");
   else shwInputTag = pfpInputTag;
   produces<std::vector<recob::Track> >();
-  produces<art::Assns<recob::Track, recob::Hit> >();
+  produces<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
   produces<art::Assns<recob::PFParticle, recob::Track> >();
   if (doTrackFitHitInfo_) produces<std::vector<std::vector<recob::TrackFitHitInfo> > >();
   if (doSpacePoints_) {
@@ -103,7 +104,7 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 {
   // Output collections
   auto outputTracks  = std::make_unique<std::vector<recob::Track> >();
-  auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
+  auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
   auto outputPfpTAssn = std::make_unique<art::Assns<recob::PFParticle, recob::Track> >();
   auto outputHitInfo = std::make_unique<std::vector<std::vector<recob::TrackFitHitInfo> > >();
   auto outputSpacePoints  = std::make_unique<std::vector<recob::SpacePoint> >();
@@ -174,7 +175,8 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	outputPfpTAssn->addSingle(pfp, aptr);
 	unsigned int ip = 0;
 	for (auto const& trhit: outHits) {
-	  outputHits->addSingle(aptr, trhit);
+	  recob::TrackHitMeta metadata(outputTracks->back().HasValidPoint(ip) ? ip : std::numeric_limits<int>::max(), -std::numeric_limits<double>::max());
+	  outputHits->addSingle(aptr, trhit, metadata);
 	  //
 	  if (doSpacePoints_ && spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
 	    auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
@@ -254,7 +256,8 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	outputPfpTAssn->addSingle(pfp, aptr);
 	unsigned int ip = 0;
 	for (auto const& trhit: outHits) {
-	  outputHits->addSingle(aptr, trhit);
+	  recob::TrackHitMeta metadata(outputTracks->back().HasValidPoint(ip) ? ip : std::numeric_limits<int>::max(), -std::numeric_limits<double>::max());
+	  outputHits->addSingle(aptr, trhit, metadata);
 	  //
 	  if (doSpacePoints_ && spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
 	    auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);
@@ -340,7 +343,8 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	outputPfpTAssn->addSingle(pfp, aptr);
 	unsigned int ip = 0;
 	for (auto const& trhit: outHits) {
-	  outputHits->addSingle(aptr, trhit);
+	  recob::TrackHitMeta metadata(outputTracks->back().HasValidPoint(ip) ? ip : std::numeric_limits<int>::max(), -std::numeric_limits<double>::max());
+	  outputHits->addSingle(aptr, trhit, metadata);
 	  //
 	  if (doSpacePoints_ && spacePointsFromTrajP_ && outputTracks->back().HasValidPoint(ip)) {
 	    auto& tp = outputTracks->back().Trajectory().LocationAtPoint(ip);

@@ -13,14 +13,14 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
   // Break the trajectory in segments of length approximately equal to segLen_
   //
   vector<size_t> breakpoints;
-  vector<double> segradlengths;
-  vector<double> cumseglens;
+  vector<float> segradlengths;
+  vector<float> cumseglens;
   breakTrajInSegments(traj, breakpoints, segradlengths, cumseglens);
   //
   // Fit segment directions, and get 3D angles between them
   //
   if (segradlengths.size()<2) return recob::MCSFitResult();
-  vector<double> dtheta;
+  vector<float> dtheta;
   Vector_t pcdir0;
   Vector_t pcdir1;
   for (unsigned int p = 0; p<segradlengths.size(); p++) {
@@ -41,8 +41,8 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
   //
   // Perform likelihood scan in forward and backward directions
   //
-  vector<double> cumLenFwd;
-  vector<double> cumLenBwd;
+  vector<float> cumLenFwd;
+  vector<float> cumLenBwd;
   for (unsigned int i = 0; i<cumseglens.size()-2; i++) {
     cumLenFwd.push_back(cumseglens[i]);
     cumLenBwd.push_back(cumseglens.back()-cumseglens[i+2]);
@@ -56,7 +56,7 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
 			     segradlengths,dtheta);
 }
 
-void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj, vector<size_t>& breakpoints, vector<double>& segradlengths, vector<double>& cumseglens) const {
+void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj, vector<size_t>& breakpoints, vector<float>& segradlengths, vector<float>& cumseglens) const {
   //
   const double trajlen = traj.Length();
   const int nseg = std::max(minNSegs_,int(trajlen/segLen_));
@@ -95,11 +95,11 @@ void TrajectoryMCSFitter::breakTrajInSegments(const recob::TrackTrajectory& traj
   return;
 }
 
-const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std::vector<double>& dtheta, std::vector<double>& seg_nradlengths, std::vector<double>& cumLen, bool fwdFit, bool momDepConst, int pid) const {
+const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std::vector<float>& dtheta, std::vector<float>& seg_nradlengths, std::vector<float>& cumLen, bool fwdFit, bool momDepConst, int pid) const {
   int    best_idx  = -1;
   double best_logL = std::numeric_limits<double>::max();
   double best_p    = -1.0;
-  std::vector<double> vlogL;
+  std::vector<float> vlogL;
   for (double p_test = pMin_; p_test <= pMax_; p_test+=pStep_) {
     double logL = mcsLikelihood(p_test, angResol_, dtheta, seg_nradlengths, cumLen, fwdFit, momDepConst, pid);
     if (logL < best_logL) {
@@ -185,7 +185,7 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, c
   //
 }
 
-double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<double>& dthetaij, std::vector<double>& seg_nradl, std::vector<double>& cumLen, bool fwd, bool momDepConst, int pid) const {
+double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<float>& dthetaij, std::vector<float>& seg_nradl, std::vector<float>& cumLen, bool fwd, bool momDepConst, int pid) const {
   //
   const int beg  = (fwd ? 0 : (dthetaij.size()-1));
   const int end  = (fwd ? dthetaij.size() : -1);
