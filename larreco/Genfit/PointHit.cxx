@@ -5,7 +5,6 @@
 
 
 // Collaborating Class Headers --------
-#include "larreco/Genfit/GeaneTrackRep2.h"
 #include "larreco/Genfit/RKTrackRep.h"
 #include "larreco/Genfit/SlTrackRep.h"
 #include "larreco/Genfit/GFDetPlane.h"
@@ -65,8 +64,7 @@ genf::GFAbsRecoHit* genf::PointHit::clone(){
 TMatrixT<Double_t>
 genf::PointHit::getHMatrix(const GFAbsTrackRep* stateVector, const Double_t& betac, const Double_t& dist)
 {
-  if ((dynamic_cast<const genf::GeaneTrackRep2*>(stateVector) != NULL) ||
-      (dynamic_cast<const genf::RKTrackRep*>(stateVector) != NULL)){
+  if (dynamic_cast<const genf::RKTrackRep*>(stateVector) != nullptr){
     //I know, since this is the same everytime, it could be done in the
     //the constructor, but I do it here anyway, to make clear that in the
     //case of several track-reps per hit, it would have to be done here
@@ -131,7 +129,7 @@ genf::PointHit::getHMatrix(const GFAbsTrackRep* stateVector, const Double_t& bet
 
  else {
    std::cerr << "PointHit can only handle state"
-	     << " vectors of type GeaneTrackRep2 -> abort" << std::endl;
+             << " vectors of type genf::RKTrackRep or genf::SlTrackRep -> throw" << std::endl;
    throw;
  }
  
@@ -140,8 +138,7 @@ genf::PointHit::getHMatrix(const GFAbsTrackRep* stateVector, const Double_t& bet
 TMatrixT<Double_t>
 genf::PointHit::getHMatrix(const GFAbsTrackRep* stateVector)
 {
-  if ((dynamic_cast<const genf::GeaneTrackRep2*>(stateVector) != NULL) ||
-      (dynamic_cast<const genf::RKTrackRep*>(stateVector) != NULL)){
+  if (dynamic_cast<const genf::RKTrackRep*>(stateVector) != nullptr){
     //I know, since this is the same everytime, it could be done in the
     //the constructor, but I do it here anyway, to make clear that in the
     //case of several track-reps per hit, it would have to be done here
@@ -186,10 +183,8 @@ genf::PointHit::getHMatrix(const GFAbsTrackRep* stateVector)
 
  else {
    std::cerr << "PointHit can only handle state"
-	     << " vectors of type GeaneTrackRep2 -> abort" << std::endl;
+             << " vectors of type genf::RKTrackRep or genf::SlTrackRep -> throw" << std::endl;
    throw;
  }
  
 }
-
-
