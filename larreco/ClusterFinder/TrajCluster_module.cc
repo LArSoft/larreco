@@ -591,10 +591,17 @@ namespace cluster {
             } // ii
             // Let the alg define the hit either by merging multiple hits or by a simple copy
             // of a single hit from inputHits
-            std::vector<std::vector<recob::Hit>> newHits;
             // Merge hits in the TP that are on the same wire or create hits on multiple wires
             // and update the old hits -> new hits assn (newIndex)
-            fTCAlg->MergeTPHits(tpHits, hitCol, newIndex);
+            if(tj.AlgMod[tca::kHaloTj]) {
+              // dressed muon - don't merge hits
+              for(auto iht : tpHits) {
+                hitCol.push_back((*inputHits)[iht]);
+                newIndex[iht] = hitCol.size() - 1;
+              } // iht
+            } else {
+              fTCAlg->MergeTPHits(tpHits, hitCol, newIndex);
+            }
           } // tp
           if(hitCol.empty()) continue;
           // Sum the charge and make the associations
@@ -613,6 +620,8 @@ namespace cluster {
           auto& lastTP = tj.Pts[tj.EndPt[1]];
           int clsID = tj.UID;
           if(tj.AlgMod[tca::kShowerLike]) clsID = -clsID;
+          // dressed muon - give the halo cluster the same ID as the parent
+          if(tj.AlgMod[tca::kHaloTj]) clsID = -tj.ParentID;
           unsigned short nclhits = hitCol.size() - hitColBeginIndex + 1;
           clsCol.emplace_back(
                               firstTP.Pos[0],         // Start wire
