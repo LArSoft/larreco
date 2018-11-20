@@ -49,7 +49,7 @@ namespace tca {
     // look at both ends of long tjs
     for(unsigned short it1 = 0; it1 < slc.tjs.size() - 1; ++it1) {
       auto& tj1 = slc.tjs[it1];
-      if(tj1.AlgMod[kKilled]) continue;
+      if(tj1.AlgMod[kKilled] || tj1.AlgMod[kHaloTj]) continue;
       if(tj1.SSID > 0 || tj1.AlgMod[kShowerLike]) continue;
       if(tj1.CTP != inCTP) continue;
       if(tj1.AlgMod[kJunkTj]) continue;
@@ -151,7 +151,7 @@ namespace tca {
     unsigned short maxShortTjLen = tcc.vtx2DCuts[0];
     for(unsigned short it1 = 0; it1 < slc.tjs.size() - 1; ++it1) {
       auto& tj1 = slc.tjs[it1];
-      if(tj1.AlgMod[kKilled]) continue;
+      if(tj1.AlgMod[kKilled] || tj1.AlgMod[kHaloTj]) continue;
       if(tj1.SSID > 0 || tj1.AlgMod[kShowerLike]) continue;
       if(tj1.CTP != inCTP) continue;
       bool tj1Short = (TrajLength(tj1) < maxShortTjLen);
@@ -185,7 +185,7 @@ namespace tca {
         auto& otp1 = tj1.Pts[oendPt1];
         for(unsigned short it2 = it1 + 1; it2 < slc.tjs.size(); ++it2) {
           auto& tj2 = slc.tjs[it2];
-          if(tj2.AlgMod[kKilled]) continue;
+          if(tj2.AlgMod[kKilled] || tj2.AlgMod[kHaloTj]) continue;
           if(tj2.SSID > 0 || tj2.AlgMod[kShowerLike]) continue;
           if(tj2.CTP != inCTP) continue;
           if(tj1.VtxID[end1] > 0) continue;
@@ -829,7 +829,7 @@ namespace tca {
     
     // update. Remove old associations
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       if(tj.CTP != vx.CTP) continue;
       for(unsigned short end = 0; end < 2; ++end) {
         if(tj.VtxID[end] == vx.ID) tj.VtxID[end] = 0;
@@ -908,7 +908,7 @@ namespace tca {
       }
       for(unsigned short it1 = 0; it1 < vxtjs.size() - 1; ++it1) {
         auto& tj1 = slc.tjs[vxtjs[it1] - 1];
-        if(tj1.AlgMod[kKilled]) continue;
+        if(tj1.AlgMod[kKilled] || tj1.AlgMod[kHaloTj]) continue;
         unsigned short end1 = 0;
         if(tj1.VtxID[1] == vx2.ID) end1 = 1;
         auto& vtp1 = tj1.Pts[tj1.EndPt[end1]];
@@ -916,7 +916,7 @@ namespace tca {
         float tj1sep = PosSep(vtp1.Pos, vx2.Pos);
         for(unsigned short it2 = it1 + 1; it2 < vxtjs.size(); ++it2) {
           auto& tj2 = slc.tjs[vxtjs[it2] - 1];
-          if(tj2.AlgMod[kKilled]) continue;
+          if(tj2.AlgMod[kKilled] || tj2.AlgMod[kHaloTj]) continue;
           unsigned short end2 = 0;
           if(tj2.VtxID[2] == vx2.ID) end2 = 1;
           auto& vtp2 = tj2.Pts[tj2.EndPt[end2]];
@@ -995,7 +995,7 @@ namespace tca {
     
     for(unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
       if(slc.tjs[it1].CTP != inCTP) continue;
-      if(slc.tjs[it1].AlgMod[kKilled]) continue;
+      if(slc.tjs[it1].AlgMod[kKilled] || slc.tjs[it1].AlgMod[kHaloTj]) continue;
       if(slc.tjs[it1].AlgMod[kHamVx]) continue;
       if(slc.tjs[it1].AlgMod[kHamVx2]) continue;
       if(slc.tjs[it1].AlgMod[kJunkTj]) continue;
@@ -1009,7 +1009,7 @@ namespace tca {
         unsigned short endPt1 = slc.tjs[it1].EndPt[end1];
         for(unsigned short it2 = 0; it2 < slc.tjs.size(); ++it2) {
           if(it1 == it2) continue;
-          if(slc.tjs[it2].AlgMod[kKilled]) continue;
+          if(slc.tjs[it2].AlgMod[kKilled] || slc.tjs[it2].AlgMod[kHaloTj]) continue;
           if(slc.tjs[it2].AlgMod[kHamVx]) continue;
           if(slc.tjs[it2].AlgMod[kHamVx2]) continue;
           // require that both be in the same CTP
@@ -1166,7 +1166,7 @@ namespace tca {
 
     for(unsigned short it1 = 0; it1 < slc.tjs.size(); ++it1) {
       if(slc.tjs[it1].CTP != inCTP) continue;
-      if(slc.tjs[it1].AlgMod[kKilled]) continue;
+      if(slc.tjs[it1].AlgMod[kKilled] || slc.tjs[it1].AlgMod[kHaloTj]) continue;
       if(slc.tjs[it1].AlgMod[kShowerLike]) continue;
       if(slc.tjs[it1].AlgMod[kJunkTj]) continue;
       // minimum length requirements
@@ -1181,7 +1181,7 @@ namespace tca {
         for(unsigned short it2 = 0; it2 < slc.tjs.size(); ++it2) {
           if(slc.tjs[it2].CTP != inCTP) continue;
           if(it1 == it2) continue;
-          if(slc.tjs[it2].AlgMod[kKilled]) continue;
+          if(slc.tjs[it2].AlgMod[kKilled] || slc.tjs[it2].AlgMod[kHaloTj]) continue;
           if(slc.tjs[it2].AlgMod[kJunkTj]) continue;
           // length of tj2 cut
           unsigned short tj2len = slc.tjs[it2].EndPt[1] - slc.tjs[it2].EndPt[0] + 1;
@@ -1283,7 +1283,7 @@ namespace tca {
 //      auto& tj = slc.tjs[itj];
       if(slc.tjs[itj].CTP != inCTP) continue;
       // obsolete trajectory
-      if(slc.tjs[itj].AlgMod[kKilled]) continue;
+      if(slc.tjs[itj].AlgMod[kKilled] || slc.tjs[itj].AlgMod[kHaloTj]) continue;
       if(slc.tjs[itj].AlgMod[kSplitTjCVx]) continue;
       // too short
       if(slc.tjs[itj].EndPt[1] < 6) continue;
@@ -1665,7 +1665,7 @@ namespace tca {
     // Score and flag Tjs that are attached to high-score vertices
     // First remove Tj vertex flags
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if(planeID.TPC != tpc || planeID.Cryostat != cstat) continue;
       tj.AlgMod[kTjHiVx3Score] = false;
@@ -1729,7 +1729,7 @@ namespace tca {
         for(auto tjid : ms.TjIDs) {
           auto& tj = slc.tjs[tjid - 1];
           if(tj.AlgMod[kMat3D]) skipit = true;
-          if(tj.AlgMod[kKilled]) skipit = true;
+          if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) skipit = true;
         }
         if(skipit) continue;
         std::vector<int> shared = SetIntersection(ms.TjIDs, v3TjIDs);
@@ -1794,7 +1794,7 @@ namespace tca {
         for(auto& tjid : v3TjIDs) {
           auto& tj = slc.tjs[tjid - 1];
           if(tj.AlgMod[kMat3D]) continue;
-          if(tj.AlgMod[kKilled]) continue;
+          if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
           pfp.TjIDs.push_back(tjid);
         } // tjid
         if(pfp.TjIDs.size() < 2) continue;
@@ -1874,7 +1874,7 @@ namespace tca {
     
     unsigned short nadd = 0;
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       if(tj.CTP != vx.CTP) continue;
       if(tj.VtxID[0] == vx.ID || tj.VtxID[1] == vx.ID) continue;
       if(AttachTrajToVertex(slc, tj, vx, prt)) ++nadd;
@@ -1899,7 +1899,7 @@ namespace tca {
     // 5 = min MCSMom
     // 6 = min Pts/Wire fraction
     
-    if(tj.AlgMod[kKilled]) return false;
+    if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return false;
     if(tj.CTP != vx.CTP) return false;
     // already attached?
     if(tj.VtxID[0] == vx.ID || tj.VtxID[1] == vx.ID) return false;
@@ -1974,7 +1974,7 @@ namespace tca {
       myprt<<" oldTJs";
       for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
         Trajectory& tj = slc.tjs[itj];
-        if(tj.AlgMod[kKilled]) continue;
+        if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
         if(tj.CTP != vx.CTP) continue;
         if(tj.VtxID[0] == vx.ID) myprt<<" T"<<tj.ID<<"_0";
         if(tj.VtxID[1] == vx.ID) myprt<<" T"<<tj.ID<<"_1";
@@ -2147,7 +2147,7 @@ namespace tca {
     // Create a vector of trajectory points that will be used to fit the vertex position
     std::vector<TrajPoint> vxTp;
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       if(tj.CTP != vx.CTP) continue;
       if(tj.AlgMod[kPhoton]) continue;
       if(tj.AlgMod[kNoFitToVx]) continue;
@@ -2361,7 +2361,7 @@ namespace tca {
     
     // check the Tj -> 2D associations
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       for(unsigned short end = 0; end < 2; ++end) {
         if(tj.VtxID[end] == 0) continue;
         if(tj.VtxID[end] > slc.vtxs.size()) {
@@ -2395,7 +2395,7 @@ namespace tca {
     } // vx
     // and the tj bits
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       tj.AlgMod[kTjHiVx3Score] = false;
     } // tj
     // Score the 2D vertices
@@ -2705,7 +2705,7 @@ namespace tca {
       std::vector<unsigned short> tjEnds;
       for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
         if(slc.tjs[itj].CTP != mCTP) continue;
-        if(slc.tjs[itj].AlgMod[kKilled]) continue;
+        if(slc.tjs[itj].AlgMod[kKilled] || slc.tjs[itj].AlgMod[kHaloTj]) continue;
         for(unsigned short end = 0; end < 2; ++end) {
           unsigned short ept = slc.tjs[itj].EndPt[end];
           TrajPoint& tp = slc.tjs[itj].Pts[ept];
@@ -2795,7 +2795,7 @@ namespace tca {
       std::vector<unsigned short> tjPts;
       for(auto& tj : slc.tjs) {
         if(tj.CTP != mCTP) continue;
-        if(tj.AlgMod[kKilled]) continue;
+        if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
         if(tj.Pts.size() < 6) continue;
         if(tj.AlgMod[kComp3DVx]) continue;
         float doca = maxdoca;
@@ -2970,7 +2970,7 @@ namespace tca {
       if (prt) mf::LogVerbatim("TC")<<"VtxHitsSwap: 2V"<<rvx.ID<<" Pos[0]: "<<rvx.Pos[0]<<" "<<rvx.Pos[1];
       std::array<unsigned short, 2> tjlist{{0,0}};
       for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
-        if(slc.tjs[itj].AlgMod[kKilled]) continue;
+        if(slc.tjs[itj].AlgMod[kKilled] || slc.tjs[itj].AlgMod[kHaloTj]) continue;
         if(slc.tjs[itj].CTP != rvx.CTP) continue;
         Trajectory& tj = slc.tjs[itj];
         // ensure that the ID is OK so the code below doesn't choke
@@ -3133,7 +3133,7 @@ namespace tca {
     }
     vx2.ID = 0;
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       for(unsigned short end = 0; end < 2; ++end) {
         if(tj.VtxID[end] != vx2id) continue;
         tj.VtxID[end] = 0;
