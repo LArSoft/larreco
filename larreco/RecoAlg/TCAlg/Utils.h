@@ -41,6 +41,8 @@ namespace tca {
 
   // ****************************** General purpose  ******************************
   
+  // dressed muons
+  void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt);
   void DefineTjParents(TCSlice& slc, bool prt);
   float MaxChargeAsymmetry(TCSlice& slc, std::vector<int>& tjIDs);
   int PDGCodeVote(TCSlice& slc, std::vector<int>& tjIDs, bool prt);
