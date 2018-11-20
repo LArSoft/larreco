@@ -246,8 +246,8 @@ namespace shower {
 	// loop over clusters to see if any fall within the shower
 	for (size_t k = 0; k < clusterlist.size(); ++k) {
 	  std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(clusterlist[k].key());
-	  if (clusterlist[k]->ID() < 0) continue;
-	  if (cls_hitlist.size() > 50) continue;
+	  //	  if (clusterlist[k]->ID() < 0) continue;
+	  if (clusterlist[k]->ID() > 0 && cls_hitlist.size() > 50) continue; 
 
 	  double thisDist = maxDist;
 	  double thisMin = minDistVert;
@@ -257,7 +257,7 @@ namespace shower {
 	    thisMin *= 4;
 	  }
 	  else if (cls_hitlist.size() < 30) thisDist *= 2;
-	  
+
 	  int nhits = 0;
           int ngoodhits = 0;
 
