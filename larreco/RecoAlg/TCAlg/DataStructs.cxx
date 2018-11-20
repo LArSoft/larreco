@@ -46,6 +46,7 @@ namespace tca {
     "ChkVxTj",
     "MisdVxTj",
     "Photon",
+    "HaloTj",
     "NoFitToVx",
     "VxMerge",
     "VxNeutral",
