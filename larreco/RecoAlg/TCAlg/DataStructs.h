@@ -377,6 +377,7 @@ namespace tca {
     kChkVxTj,
     kMisdVxTj,
     kPhoton,
+    kHaloTj,
     kNoFitToVx,
     kVxMerge,
     kVxNeutral,
