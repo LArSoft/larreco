@@ -280,7 +280,7 @@ namespace tca {
     // count the number of TPs and clear out any old 3D match flags
     unsigned int ntp = 0;
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       if(tj.ID <= 0) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
@@ -295,7 +295,7 @@ namespace tca {
     // define mallTraj
     unsigned int icnt = 0;
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
       if((int)planeID.TPC != tpc) continue;
@@ -2302,7 +2302,7 @@ namespace tca {
         for(auto tjid : ms.TjIDs) {
           if(std::find(shared.begin(), shared.end(), tjid) != shared.end()) continue;
           auto& tj = slc.tjs[tjid - 1];
-          if(tj.AlgMod[kKilled]) continue;
+          if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
           if(tj.AlgMod[kMat3D]) continue;
           // check for PDGCode compatibility - muons and delta rays
           if(pfp.PDGCode == 13 && tj.PDGCode == 11) continue;
