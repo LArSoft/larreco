@@ -2726,6 +2726,7 @@ namespace tca {
       // look for a Tj that has higher energy than the shower
       for(auto& tj : slc.tjs) {
         if(tj.AlgMod[kKilled]) continue;
+        if(tj.AlgMod[kHaloTj]) continue;
         if(tj.CTP != ss.CTP) continue;
         // require that it isn't in any shower
         if(tj.SSID > 0) continue;
@@ -3425,7 +3426,7 @@ namespace tca {
     std::vector<int> tjids;
     for(auto& tj : slc.tjs) {
       if(tj.CTP != inCTP) continue;
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       tj.AlgMod[kShowerLike] = false;
       if(tj.AlgMod[kShowerTj]) continue;
       short npwc = NumPtsWithCharge(slc, tj, false);
@@ -3646,6 +3647,7 @@ namespace tca {
     for(auto& tj : slc.tjs) {
       if(tj.CTP != inCTP) continue;
       if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kHaloTj]) continue;
       tj.AlgMod[kShowerLike] = false;
       if(tj.AlgMod[kShowerTj]) continue;
       // ignore Tjs with Bragg peaks
