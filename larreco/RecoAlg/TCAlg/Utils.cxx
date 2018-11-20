@@ -16,6 +16,113 @@ bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 
 namespace tca {
   
+  // dressed muons - new function
+  void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt)
+  {
+    // Creates a "halo trajectory" around a muon tj consisting of hits and trajectories
+    // that are within MuonTag[4] distance. The halo tj is a virtual clone of muTj in the
+    // sense that it has the same number of points and the same start and end points.
+    
+    if(tcc.muonTag.size() < 5) return;
+    if(tcc.muonTag[4] <= 0) return;
+    if(!tcc.useAlg[kHaloTj]) return;
+    
+    if(muTj.PDGCode != 13) return;
+    
+    // check for daughter delta-rays
+    std::vector<int> dtrs;
+    for(auto& dtj : slc.tjs) {
+      if(dtj.AlgMod[kKilled]) continue;
+      if(dtj.ParentID != muTj.ID) continue;
+      dtrs.push_back(dtj.ID);
+      if(!dtj.AlgMod[kDeltaRay]) continue;
+      std::cout<<"MakeHaloTj: Killing delta-ray T"<<dtj.ID<<"\n";
+      // Kill a delta-ray PFParticle?
+      if(dtj.AlgMod[kMat3D]) {
+        unsigned short pfpIndex = GetPFPIndex(slc, dtj.ID);
+        if(pfpIndex == USHRT_MAX) {
+          std::cout<<" No PFP found for 3D-matched delta-ray\n";
+        } else {
+          auto& pfp = slc.pfps[pfpIndex];
+          std::cout<<" Killing delta-ray PFParticle P"<<pfp.UID<<"\n";
+          pfp.ID = 0;
+          // correct the parent -> daughter assn
+          if(pfp.ParentUID > 0) {
+            auto parentIndx = GetSliceIndex("P", pfp.ParentUID);
+            if(parentIndx.first != USHRT_MAX) {
+              auto& parent = slices[parentIndx.first].pfps[parentIndx.second];
+              std::vector<int> newDtrUIDs;
+              for(auto uid : parent.DtrUIDs) if(uid != dtj.UID) newDtrUIDs.push_back(uid);
+              parent.DtrUIDs = newDtrUIDs;
+            } // parent found
+          } // correct the parent
+        } // kill PFParticle
+      } // kill
+      MakeTrajectoryObsolete(slc, (unsigned int)(dtj.ID - 1));
+    } // dtj
+    
+    // make a copy
+    Trajectory tj;
+    tj.CTP = muTj.CTP;
+    // We can't use StoreTraj so variables need to be defined here
+    tj.ID = slc.tjs.size() + 1;
+    tj.WorkID = muTj.WorkID;
+    // increment the global ID
+    ++evt.globalTjID;
+    tj.UID = evt.globalTjID;
+    tj.PDGCode = 11;
+    tj.Pass = muTj.Pass;
+    tj.StepDir = muTj.StepDir;
+    tj.StartEnd = muTj.StartEnd;
+    tj.TotChg = 0;
+    tj.ChgRMS = 0;
+    tj.EndPt[0] = 0;
+    tj.ParentID = muTj.ID;
+    tj.AlgMod.reset();
+    tj.AlgMod[kHaloTj] = true;
+    // start a list of tjs that have points near the muon
+    std::vector<int> closeTjs;
+    for(unsigned short ipt = muTj.EndPt[0]; ipt <= muTj.EndPt[1]; ++ipt) {
+      auto tp = muTj.Pts[ipt];
+      tp.Hits.resize(0);
+      tp.UseHit.reset();
+      tp.Chg = 0; tp.AveChg = 0; tp.ChgPull = 0;
+      tp.Delta = 0; tp.DeltaRMS = 0;
+      tp.FitChi = 0; tp.NTPsFit = 0;
+      float window = tcc.muonTag[4];
+      if(tp.Dir[0] != 0) window *= std::abs(1/tp.Dir[0]);
+      if(!FindCloseHits(slc, tp, window, kAllHits)) continue;
+      // add unused hits to the point and look for close tjs
+      bool hitsAdded = false;
+      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+        unsigned int iht = tp.Hits[ii];
+        auto inTraj = slc.slHits[iht].InTraj;
+        if(inTraj < 0) continue;
+        if(inTraj == 0) {
+          tp.UseHit[ii] = true;
+          slc.slHits[iht].InTraj = tj.ID;
+          hitsAdded = true;
+        } else {
+          // add to the closeTjs list
+          if(inTraj != muTj.ID && std::find(closeTjs.begin(), closeTjs.end(), inTraj) == closeTjs.end()) closeTjs.push_back(inTraj);
+        }
+      } // ii
+      if(hitsAdded) {
+        DefineHitPos(slc, tp);
+        tp.Delta = PointTrajDOCA(slc, tp.HitPos[0], tp.HitPos[1], tp);
+        tj.TotChg += tp.Chg;
+        tj.Pts.push_back(tp);
+      } // hitsAdded
+    } // ipt
+    if(tj.Pts.empty()) return;
+    tj.EndPt[1] = tj.Pts.size() - 1;
+    std::cout<<"MHTj: T"<<muTj.ID<<" npts "<<tj.Pts.size()<<" close";
+    for(auto tid : closeTjs) std::cout<<" T"<<tid;
+    std::cout<<"\n";
+    PrintTrajectory("DM", slc, tj, USHRT_MAX);
+    slc.tjs.push_back(tj);
+  } // MakeHaloTj
+  
   /////////////////////////////////////////
   void DefineTjParents(TCSlice& slc, bool prt)
   {
@@ -53,7 +160,7 @@ namespace tca {
     for(auto& tj : slc.tjs) {
       if(tj.AlgMod[kKilled]) continue;
       // ignore delta rays
-      if(tj.AlgMod[kDeltaRay]) continue;
+      if(tj.AlgMod[kDeltaRay] || tj.AlgMod[kHaloTj]) continue;
       tj.ParentID = 0;
     } // tj
     
@@ -306,7 +413,7 @@ namespace tca {
     // returns the number of delta rays that have this tj as a parent
     unsigned short cnt = 0;
     for(auto& dtj : slc.tjs) {
-      if(dtj.AlgMod[kKilled]) continue;
+      if(dtj.AlgMod[kKilled] || dtj.AlgMod[kHaloTj]) continue;
       if(!dtj.AlgMod[kDeltaRay]) continue;
       if(dtj.ParentID == tj.ID) ++cnt;
     } // tj
@@ -321,7 +428,7 @@ namespace tca {
     if(tjIDs[0] <= 0 || tjIDs[0] > (int)slc.tjs.size()) return 0;
     unsigned short cnt = 0;
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       if(!tj.AlgMod[kDeltaRay]) continue;
       if(std::find(tjIDs.begin(), tjIDs.end(), tj.ParentID) != tjIDs.end()) ++cnt;
     } // tj
@@ -333,7 +440,7 @@ namespace tca {
   {
     // Returns the ID of the grandparent of this tj that is a primary tj that is attached
     // to the neutrino vertex. 0 is returned if this condition is not met.
-    if(tj.AlgMod[kKilled]) return -1;
+    if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return -1;
     if(tj.ParentID <= 0) return -1;
     int primID = PrimaryID(slc, tj);
     if(primID <= 0 || primID > (int)slc.tjs.size()) return -1;
@@ -355,7 +462,7 @@ namespace tca {
   {
     // Returns the ID of the grandparent trajectory of this trajectory that is a primary
     // trajectory (i.e. whose ParentID = 0). 
-    if(tj.AlgMod[kKilled]) return -1;
+    if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return -1;
     if(tj.ParentID < 0 || tj.ParentID > (int)slc.tjs.size()) return -1;
     if(tj.ParentID == 0) return tj.ID;
     int parid = tj.ParentID;
@@ -498,6 +605,7 @@ namespace tca {
     // returns true if the two Tjs are compatible with and end0-end1 merge. This function has many aspects of the
     // compatibility checks done in EndMerge but with looser cuts.
     if(tj1.AlgMod[kKilled] || tj2.AlgMod[kKilled]) return false;
+    if(tj1.AlgMod[kHaloTj] || tj2.AlgMod[kHaloTj]) return false;
     if(tj1.CTP != tj2.CTP) return false;
     unsigned short end1 = -1, end2 = 0;
     float minLen = PosSep(tj1.Pts[tj1.EndPt[0]].Pos, tj1.Pts[tj1.EndPt[1]].Pos);
@@ -878,7 +986,7 @@ namespace tca {
     // Calculate a FOM for the tj to be going from EndPt[0] -> EndPt[1] (FOM = 1)
     // or EndPt[1] -> EndPt[0] (FOM = -1) by finding the overall charge slope, weighted
     // by the presence of nearby InShower Tjs
-    if(tj.AlgMod[kKilled]) return 0;
+    if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return 0;
     if(tj.EndPt[1] - tj.EndPt[0] < 8) return 0;
 
     std::vector<double> x, y;
@@ -1311,7 +1419,7 @@ namespace tca {
     if(!tcc.useAlg[kBeginChg]) return;
     if(tj.StopFlag[0][kBragg]) return;
     if(tj.AlgMod[kFTBRvProp]) return;
-    if(tj.AlgMod[kKilled]) return;
+    if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return;
     if(tj.Pts.size() < 20) return;
     
     bool prt = (tcc.dbgSlc && (tcc.dbgStp || tcc.dbgAlg[kBeginChg]));
@@ -1848,7 +1956,7 @@ namespace tca {
     if(!tcc.useAlg[kMrgGhost]) return;
     
     for(auto& shortTj : slc.tjs) {
-      if(shortTj.AlgMod[kKilled]) continue;
+      if(shortTj.AlgMod[kKilled] || shortTj.AlgMod[kHaloTj]) continue;
       if(shortTj.CTP != inCTP) continue;
       unsigned short spts = shortTj.EndPt[1] - shortTj.EndPt[0];
       if(spts > 20) continue;
@@ -2810,8 +2918,9 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
   {
     // Find the first (last) TPs, EndPt[0] (EndPt[1], that have charge
     
-    // don't mess with showerTjs
-    if(tj.AlgMod[kShowerTj]) return;
+    // don't mess with showerTjs or halo tjs
+    if(tj.AlgMod[kShowerTj] || tj.AlgMod[kHaloTj]) return;
+    
     tj.EndPt[0] = 0; tj.EndPt[1] = 0;
     if(tj.Pts.size() == 0) return;
     
@@ -3031,7 +3140,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
       Trajectory& muTj = slc.tjs[itj];
       if(muTj.CTP != inCTP) continue;
-      if(muTj.AlgMod[kKilled]) continue;
+      if(muTj.AlgMod[kKilled] || muTj.AlgMod[kHaloTj]) continue;
       if(muTj.PDGCode != 13) continue;
       if(prt) mf::LogVerbatim("TC")<<"TagDeltaRays: Muon T"<<muTj.ID<<" EndPts "<<PrintPos(slc, muTj.Pts[muTj.EndPt[0]])<<"-"<<PrintPos(slc, muTj.Pts[muTj.EndPt[1]]);
       // min length
@@ -3042,7 +3151,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
       for(unsigned short jtj = 0; jtj < slc.tjs.size(); ++jtj) {
         if(jtj == itj) continue;
         Trajectory& dtj = slc.tjs[jtj];
-        if(dtj.AlgMod[kKilled]) continue;
+        if(dtj.AlgMod[kKilled] || dtj.AlgMod[kHaloTj]) continue;
         if(dtj.CTP != inCTP) continue;
         if(dtj.PDGCode == 13) continue;
         // MCSMom cut
@@ -3145,7 +3254,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     // The kEnvNearShower bit may be set by TagShowerTjs but this doesn't affect the
     // calculation of the properties of this Tj.tcc.maxPos0 This function simply sets the kEnvUnusedHits bit
     // for all TPs. 
-    if(tj.AlgMod[kKilled]) return;
+    if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return;
 
     std::string fcnLabel = inFcnLabel + ".UpTjProp";
 
@@ -3344,7 +3453,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     unsigned int loWire = vxWire;
     unsigned int hiWire = vxWire;
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       if(tj.CTP != vx2.CTP) continue;
       // ignore photon Tjs
       if(tj.AlgMod[kPhoton]) continue;
@@ -4045,6 +4154,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(itj1 > slc.tjs.size() - 1) return false;
     if(itj2 > slc.tjs.size() - 1) return false;
     if(slc.tjs[itj1].AlgMod[kKilled] || slc.tjs[itj2].AlgMod[kKilled]) return false;
+    if(slc.tjs[itj1].AlgMod[kHaloTj] || slc.tjs[itj2].AlgMod[kHaloTj]) return false;
     
     // Merging shower Tjs requires merging the showers as well.
     if(slc.tjs[itj1].AlgMod[kShowerTj] || slc.tjs[itj2].AlgMod[kShowerTj]) return MergeShowerTjsAndStore(slc, itj1, itj2, doPrt);
@@ -4258,7 +4368,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(type1Name == "2V" && uid <= slc.vtxs.size() && type2Name == "T" ) {
       // 2V -> T
       for(auto& tj : slc.tjs) {
-        if(tj.AlgMod[kKilled]) continue;
+        if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
         for(unsigned short end = 0; end < 2; ++end) {
           if(tj.VtxID[end] != id) continue;
           if(std::find(tmp.begin(), tmp.end(), tj.ID) == tmp.end()) tmp.push_back(tj.ID);
@@ -4282,7 +4392,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     if(type1Name == "3V" && uid <= slc.vtx3s.size() && type2Name == "T") {
       // 3V -> T
       for(auto& tj : slc.tjs) {
-        if(tj.AlgMod[kKilled]) continue;
+        if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
         for(unsigned short end = 0; end < 2; ++end) {
           if(tj.VtxID[end] > 0 && tj.VtxID[end] <= slc.vtxs.size()) {
             auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
@@ -4331,7 +4441,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
         if(ss.ID == 0) continue;
         for(auto tid : ss.TjIDs) {
           auto& tj = slc.tjs[tid - 1];
-          if(tj.AlgMod[kKilled]) continue;
+          if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
           if(!tj.AlgMod[kMat3D]) continue;
           for(auto& pfp : slc.pfps) {
             if(pfp.ID <= 0) continue;
@@ -4437,7 +4547,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
   ////////////////////////////////////////////////
   std::pair<unsigned short, unsigned short> GetSliceIndex(std::string typeName, int uID)
   {
-    // returns the slice index of a data product having typeName and unique ID uID
+    // returns the slice index and product index of a data product having typeName and unique ID uID
     for(unsigned short isl = 0; isl < slices.size(); ++isl) {
       auto& slc = slices[isl];
       if(typeName == "T") {
