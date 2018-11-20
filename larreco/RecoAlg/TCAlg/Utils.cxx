@@ -36,15 +36,15 @@ namespace tca {
       if(dtj.ParentID != muTj.ID) continue;
       dtrs.push_back(dtj.ID);
       if(!dtj.AlgMod[kDeltaRay]) continue;
-      std::cout<<"MakeHaloTj: Killing delta-ray T"<<dtj.ID<<"\n";
+      if(prt) std::cout<<"MakeHaloTj: Killing delta-ray T"<<dtj.ID<<"\n";
       // Kill a delta-ray PFParticle?
       if(dtj.AlgMod[kMat3D]) {
         unsigned short pfpIndex = GetPFPIndex(slc, dtj.ID);
         if(pfpIndex == USHRT_MAX) {
-          std::cout<<" No PFP found for 3D-matched delta-ray\n";
+          if(prt) std::cout<<" No PFP found for 3D-matched delta-ray\n";
         } else {
           auto& pfp = slc.pfps[pfpIndex];
-          std::cout<<" Killing delta-ray PFParticle P"<<pfp.UID<<"\n";
+          if(prt) std::cout<<" Killing delta-ray PFParticle P"<<pfp.UID<<"\n";
           pfp.ID = 0;
           // correct the parent -> daughter assn
           if(pfp.ParentUID > 0) {
@@ -116,10 +116,12 @@ namespace tca {
     } // ipt
     if(tj.Pts.empty()) return;
     tj.EndPt[1] = tj.Pts.size() - 1;
-    std::cout<<"MHTj: T"<<muTj.ID<<" npts "<<tj.Pts.size()<<" close";
-    for(auto tid : closeTjs) std::cout<<" T"<<tid;
-    std::cout<<"\n";
-    PrintTrajectory("DM", slc, tj, USHRT_MAX);
+    if(prt) {
+      std::cout<<"MHTj: T"<<muTj.ID<<" npts "<<tj.Pts.size()<<" close";
+      for(auto tid : closeTjs) std::cout<<" T"<<tid;
+      std::cout<<"\n";
+      PrintTrajectory("DM", slc, tj, USHRT_MAX);
+    }
     slc.tjs.push_back(tj);
   } // MakeHaloTj
   
