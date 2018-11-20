@@ -118,8 +118,8 @@ namespace tca {
     if(tcc.kinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
     if(tcc.kinkCuts[2] < 2) throw art::Exception(art::errors::Configuration)<<"KinkCuts[2] must be > 1";
     if(tcc.chargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
-    
-    if(tcc.muonTag.size() != 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging";
+    // dressed muons - change next line
+    if(tcc.muonTag.size() < 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging\n 4 = dress muon window size (optional)";
     if(tcc.deltaRayTag.size() != 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3\n 0 = Max endpoint sep\n 1 = min MCSMom\n 2 = max MCSMom";
     if(tcc.chkStopCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = Charge fit chisq cut";
     if(tcc.showerTag.size() < 13) {
@@ -685,6 +685,14 @@ namespace tca {
       if(!slc.isValid) return;
     }
     TagDeltaRays(slc, inCTP);
+    // dressed muons with halo trajectories
+    if(tcc.muonTag.size() > 4 && tcc.muonTag[4] > 0) {
+      for(auto& tj : slc.tjs) {
+        if(tj.AlgMod[kKilled]) continue;
+        if(tj.PDGCode != 13) continue;
+        MakeHaloTj(slc, tj, tcc.dbgSlc);
+      } // tj
+    } // dressed muons
     
     // Tag ShowerLike Tjs
     if(tcc.showerTag[0] > 0) TagShowerLike("RAT", slc, inCTP);
@@ -994,7 +1002,7 @@ namespace tca {
       for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
         auto& tj = slc.tjs[itj];
         if(tj.CTP != mCTP) continue;
-        if(tj.AlgMod[kKilled]) continue;
+        if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
         if(tj.Pts.size() < 6) continue;
         if(tj.AlgMod[kComp3DVx]) continue;
         float doca = maxdoca;
