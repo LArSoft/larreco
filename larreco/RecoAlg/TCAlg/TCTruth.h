@@ -48,7 +48,7 @@ namespace tca {
     void PrintResults(int eventNum) const;
     bool CanReconstruct(std::vector<unsigned int> mcpHits, unsigned short nDimensions, const geo::TPCID& inTPCID);
     // Put hits matched to a MCParticle in CTP into a vector
-    std::vector<unsigned int> PutMCPHitsInVector(unsigned int mcpIndex, CTP_t inCTP);
+//    std::vector<unsigned int> PutMCPHitsInVector(unsigned int mcpIndex, CTP_t inCTP);
     void StudyShowerParents(TCSlice& slc, HistStuff& hist);
     void StudyElectrons(TCSlice& slc, const HistStuff& hist);
     void StudyPiZeros(TCSlice& slc, const HistStuff& hist);
