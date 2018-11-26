@@ -172,13 +172,14 @@ namespace tca {
   struct TjForecast {
     unsigned short nextForecastUpdate {0};  ///< Revise the forecast when NumPtsWithCharge == nextForecastUpdate
     float showerLikeFraction {0};    ///< fraction of points in the forecast envelope that are shower-like
-    bool leavesBeforeEnd {false};    ///< leaves the forecast envelope before the end
-    bool foundShower {false};
     float outlook {-1};                     ///< tracklike ~< 2, showerlike > 2
     float chgSlope {0};
     float chgSlopeErr {0};
     float chgFitChiDOF {0};
     short MCSMom {0};
+    bool leavesBeforeEnd {false};    ///< leaves the forecast envelope before the end
+    bool foundShower {false};
+    bool endBraggPeak {false};
   };
   
   // struct used for TrajCluster 3D trajectory points
