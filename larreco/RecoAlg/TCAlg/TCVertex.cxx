@@ -999,6 +999,7 @@ namespace tca {
       if(slc.tjs[it1].AlgMod[kHamVx]) continue;
       if(slc.tjs[it1].AlgMod[kHamVx2]) continue;
       if(slc.tjs[it1].AlgMod[kJunkTj]) continue;
+      if(slc.tjs[it1].PDGCode == 111) continue;
       unsigned short numPtsWithCharge1 = NumPtsWithCharge(slc, slc.tjs[it1], false);
       if(numPtsWithCharge1 < 6) continue;
       // Check each end of tj1
@@ -1016,6 +1017,7 @@ namespace tca {
           if(slc.tjs[it2].CTP != inCTP) continue;
           if(slc.tjs[it2].AlgMod[kShowerLike]) continue;
           if(slc.tjs[it2].AlgMod[kJunkTj]) continue;
+          if(slc.tjs[it2].PDGCode == 111) continue;
           unsigned short numPtsWithCharge2 = NumPtsWithCharge(slc, slc.tjs[it2], true);
           if(numPtsWithCharge2 < 6) continue;
           // ignore muon-like tjs
@@ -1169,6 +1171,7 @@ namespace tca {
       if(slc.tjs[it1].AlgMod[kKilled] || slc.tjs[it1].AlgMod[kHaloTj]) continue;
       if(slc.tjs[it1].AlgMod[kShowerLike]) continue;
       if(slc.tjs[it1].AlgMod[kJunkTj]) continue;
+      if(slc.tjs[it1].PDGCode == 111) continue;
       // minimum length requirements
       unsigned short tj1len = slc.tjs[it1].EndPt[1] - slc.tjs[it1].EndPt[0] + 1;
       if(tj1len < 5) continue;
@@ -1183,6 +1186,7 @@ namespace tca {
           if(it1 == it2) continue;
           if(slc.tjs[it2].AlgMod[kKilled] || slc.tjs[it2].AlgMod[kHaloTj]) continue;
           if(slc.tjs[it2].AlgMod[kJunkTj]) continue;
+          if(slc.tjs[it2].PDGCode == 111) continue;
           // length of tj2 cut
           unsigned short tj2len = slc.tjs[it2].EndPt[1] - slc.tjs[it2].EndPt[0] + 1;
           if(tj2len < 6) continue;
