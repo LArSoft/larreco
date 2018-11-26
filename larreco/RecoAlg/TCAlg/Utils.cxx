@@ -2674,81 +2674,34 @@ namespace tca {
     return tmp;
     
   } // FindCloseTjs
-/* this doesn't do anything but print out at this point. Needs further study
+
   ////////////////////////////////////////////////
-  void PrimaryElectronLikelihood(TCSlice& slc, Trajectory& tj, float& likelihood, bool& flipDirection, bool prt)
+  float ElectronLikelihood(TCSlice& slc, Trajectory& tj)
   {
-    // returns the likelihood that the tj is a primary electron.
-    likelihood = 0;
-    flipDirection = false;
-    // Too short to consider?
-    unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
-    if(npts < 10) return;
-    if(npts > 150) return;
-    unsigned short nPtsInSection = npts / 2;
-    if(npts > 30) nPtsInSection = npts / 3;
-    // Define a range of points at the beginning and the end
-    unsigned short endPt0 = tj.EndPt[0] + nPtsInSection; 
-    float mom0 = MCSMom(slc, tj, tj.EndPt[0], endPt0);
-timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear)
-    float tChg0 = 0;
-    float oChg0 = 0;
-    std::array<int, 2> wireWindow;
-    Point2_t timeWindow;
-    unsigned short plane = DecodeCTP(tj.CTP).Plane;
-    bool hitsNear;
-    for(unsigned short ipt = tj.EndPt[0]; ipt <= endPt0; ++ipt) {
-      auto& tp = tj.Pts[ipt];
-      wireWindow[0] = std::nearbyint(tp.Pos[0]);
-      wireWindow[1] = wireWindow[0];
-      timeWindow[0] = tp.Pos[1] - 5;
-      timeWindow[1] = tp.Pos[1] + 5;
-      auto closeHits = FindCloseHits(slc, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
-      for(auto iht : closeHits) {
-        auto& hit = slc.slHits[iht];
-        if(hit.InTraj == tj.ID) {
-          tChg0 += hit.Integral;
-        } else {
-          oChg0 += hit.Integral;
-        }
-      } // iht
-    } // ipt
-    if(tChg0 == 0) return;
-    float chgFrac0 = tChg0 / (oChg0 + tChg0);
+    // returns a number between 0 (not electron-like) and 1 (electron-like)
+    if(NumPtsWithCharge(slc, tj, false) < 8) return -1;
+    if(tj.StopFlag[0][kBragg] || tj.StopFlag[1][kBragg]) return 0;
     
-    unsigned short startPt1 = tj.EndPt[1] - nPtsInSection;
-    float mom1 = MCSMom(slc, tj, startPt1, tj.EndPt[1]);
-    float tChg1 = 0;
-    float oChg1 = 0;
-    for(unsigned short ipt = startPt1; ipt <= tj.EndPt[1]; ++ipt) {
-      auto& tp = tj.Pts[ipt];
-      wireWindow[0] = std::nearbyint(tp.Pos[0]);
-      wireWindow[1] = wireWindow[0];
-      timeWindow[0] = tp.Pos[1] - 5;
-      timeWindow[1] = tp.Pos[1] + 5;
-      auto closeHits = FindCloseHits(slc, wireWindow, timeWindow, plane, kAllHits, true, hitsNear);
-      for(auto iht : closeHits) {
-        auto& hit = slc.slHits[iht];
-        if(hit.InTraj == tj.ID) {
-          tChg1 += hit.Integral;
-        } else {
-          oChg1 += hit.Integral;
-        }
-      } // iht
-    } // ipt
-    if(tChg1 == 0) return;
-    float chgFrac1 = tChg1 / (oChg1 + tChg1);
+    unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
+    double rms0 = 0, rms1 = 0;
+    unsigned short cnt;
+    TjDeltaRMS(slc, tj, tj.EndPt[0], midPt, rms0, cnt);
+    TjDeltaRMS(slc, tj, midPt, tj.EndPt[1], rms1, cnt);
+    float asym = std::abs(rms0 - rms1) / (rms0 + rms1);
+    std::cout<<"eLlike T"<<tj.ID;
+    std::cout<<" deltaRMS asym "<<std::setprecision(2)<<asym;
+    std::cout<<" tj.ChgRMS "<<tj.ChgRMS;
+    if(tj.ChgRMS < 0.1) {
+      std::cout<<"\n";
+      return 0;
+    }
+    float chgFact = (tj.ChgRMS - 0.1) * 5;
+    float elh = 5 * asym * chgFact;
+    if(elh > 1) elh = 1;
+    std::cout<<" eLike "<<elh<<"\n";
+    return elh;
+  } // ElectronLikelihood
 
-    if(prt) {
-      std::cout<<"PEL: T"<<tj.ID;
-      std::cout<<" sec0 "<<" "<<PrintPos(slc, tj.Pts[tj.EndPt[0]])<<"-"<<PrintPos(slc, tj.Pts[startPt1]);
-      std::cout<<" mom "<<(int)mom0<<" oChg0 "<<(int)oChg0<<" chgFrac0 "<<std::fixed<<std::setprecision(2)<<chgFrac0;
-      std::cout<<" sec1 "<<PrintPos(slc, tj.Pts[startPt1])<<"-"<<PrintPos(slc, tj.Pts[tj.EndPt[1]]);
-      std::cout<<" mom "<<(int)mom1<<" oChg1 "<<(int)oChg1<<" chgFrac1 "<<std::fixed<<std::setprecision(2)<<chgFrac1<<"\n";
-    } // prt
-
-  } // PrimaryElectronLikelihood
-*/
   ////////////////////////////////////////////////
   float ChgFracNearPos(TCSlice& slc, const Point2_t& pos, const std::vector<int>& tjIDs)
   {
@@ -3066,12 +3019,13 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
     unsigned short cnt;
     TjDeltaRMS(slc, tj, firstPt, lastPt, sigmaS, cnt);
     if(sigmaS < 0) return 1;
+    // BB 11/26/2018 A bad idea
     // require that cnt is a significant fraction of the total number of charged points
     // so that we don't get erroneously high MCSMom when there are large gaps.
     // This is the number of points expected in the count if there are no gaps
-    unsigned short numPts = lastPt - firstPt - 1;
+//    unsigned short numPts = lastPt - firstPt - 1;
     // return the previously calculated value of MCSMom
-    if(numPts > 5 && cnt < 0.7 * numPts) return tj.MCSMom;
+//    if(numPts > 5 && cnt < 0.7 * numPts) return tj.MCSMom;
     double tjLen = TrajPointSeparation(tj.Pts[firstPt], tj.Pts[lastPt]);
     if(tjLen < 1) return 1;
     // Theta_o =  4 * sqrt(3) * sigmaS / path
@@ -5164,7 +5118,7 @@ timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime
   {
     // print a 2D vertex on one line
     if(tj.ID <= 0) return;
-    if(tj.AlgMod[kKilled]) return;
+//    if(tj.AlgMod[kKilled]) return;
     
     if(printHeader) {
       myprt<<"************ Trajectories ************\n";
