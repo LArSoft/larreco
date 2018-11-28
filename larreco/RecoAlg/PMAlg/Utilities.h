@@ -42,8 +42,10 @@ namespace pma
 	double Dist2(const TVector2 & v1, const TVector2 & v2);
 	double Dist2(const Vector2D & v1, const Vector2D & v2);
 
-	double Dist2(const TVector3 & v1, const TVector3 & v2);
-	double Dist2(const Vector3D & v1, const Vector3D & v2);
+	template <typename T, typename U> double Dist2(const T & v1, const U & v2) {
+	  double dx = v1.X() - v2.X(), dy = v1.Y() - v2.Y(), dz = v1.Z() - v2.Z();
+	  return dx * dx + dy * dy + dz * dz;
+	}
 
 	size_t GetHitsCount(const std::vector< pma::Hit3D* >& hits, unsigned int view);
 	double GetSummedADC(const std::vector< pma::Hit3D* >& hits, unsigned int view = geo::kUnknown);

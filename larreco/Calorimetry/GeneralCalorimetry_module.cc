@@ -105,6 +105,17 @@ void calo::GeneralCalorimetry::reconfigure(fhicl::ParameterSet const& pset)
 //------------------------------------------------------------------------------------//
 void calo::GeneralCalorimetry::produce(art::Event& evt)
 { 
+  /*************************************************************/
+  /*                          WARNING                          */
+  /*************************************************************/
+  /* The dQdx information in recob::Track has been deprecated  */
+  /* since 2016 and in 11/2018 the recob::Track interface was  */
+  /* changed and DQdxAtPoint and NumberdQdx were removed.      */
+  /* Therefore the code below is now commented out             */
+  /* (note that it was most likely not functional anyways).    */
+  /* For any issue please contact: larsoft-team@fnal.gov       */
+  /*************************************************************/
+  /*
   art::Handle< std::vector<recob::Track> > trackHandle;
   evt.getByLabel(fTrackModuleLabel, trackHandle);
   std::vector< art::Ptr<recob::Track> > tracks;
@@ -154,7 +165,7 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
 	vdQdx.push_back(trk->DQdxAtPoint(p, fCollectionView));
 	//vdEdx.push_back(vdQdx.back() * fADCToElectrons/util::kGeVToElectrons*1000);
 	vdEdx.push_back(caloAlg.dEdx_AMP(vdQdx.back(),
-					 dp->ConvertXToTicks(trk->LocationAtPoint(p)[0],fCollectionPlane,0,0),
+					 dp->ConvertXToTicks(trk->LocationAtPoint(p).X(),fCollectionPlane,0,0),
 					 fCollectionPlane));
 	kineticEnergy += vdEdx.back(); // \todo should this be converted from electrons to energy?
 	std::cout<<vresRange.back()<<" "<<vdQdx.back()<<" "<<vdEdx.back()<<std::endl;
@@ -180,6 +191,8 @@ void calo::GeneralCalorimetry::produce(art::Event& evt)
     evt.put(std::move(assn));
   }
 
+  */
+  /*************************************************************/
   return;
 }
 

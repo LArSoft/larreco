@@ -303,9 +303,9 @@ namespace trkf {
 
     if (LLHDp != -1 && LLHDm != -1 && LLHDp > LLHDm) {
       int const n_points = trk->NumberTrajectoryPoints();
-      return trk->LocationAtPoint(n_points - 1);
+      return trk->LocationAtPoint<TVector3>(n_points - 1);
     } else {
-      return trk->LocationAtPoint(0);
+      return trk->LocationAtPoint<TVector3>(0);
     }
 
     // Should never get here
