@@ -2676,29 +2676,21 @@ namespace tca {
   } // FindCloseTjs
 
   ////////////////////////////////////////////////
-  float ElectronLikelihood(TCSlice& slc, Trajectory& tj)
+  float ElectronLikelihood(TCSlice& slc, Trajectory& tj, float& asym)
   {
     // returns a number between 0 (not electron-like) and 1 (electron-like)
     if(NumPtsWithCharge(slc, tj, false) < 8) return -1;
-    if(tj.StopFlag[0][kBragg] || tj.StopFlag[1][kBragg]) return 0;
+    if(tj.StopFlag[1][kBragg]) return 0;
     
     unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
     double rms0 = 0, rms1 = 0;
     unsigned short cnt;
     TjDeltaRMS(slc, tj, tj.EndPt[0], midPt, rms0, cnt);
     TjDeltaRMS(slc, tj, midPt, tj.EndPt[1], rms1, cnt);
-    float asym = std::abs(rms0 - rms1) / (rms0 + rms1);
-    std::cout<<"eLlike T"<<tj.ID;
-    std::cout<<" deltaRMS asym "<<std::setprecision(2)<<asym;
-    std::cout<<" tj.ChgRMS "<<tj.ChgRMS;
-    if(tj.ChgRMS < 0.1) {
-      std::cout<<"\n";
-      return 0;
-    }
+    asym = std::abs(rms0 - rms1) / (rms0 + rms1);
     float chgFact = (tj.ChgRMS - 0.1) * 5;
     float elh = 5 * asym * chgFact;
     if(elh > 1) elh = 1;
-    std::cout<<" eLike "<<elh<<"\n";
     return elh;
   } // ElectronLikelihood
 
