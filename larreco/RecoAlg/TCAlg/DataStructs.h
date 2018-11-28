@@ -176,6 +176,7 @@ namespace tca {
     float chgSlope {0};
     float chgSlopeErr {0};
     float chgFitChiDOF {0};
+    float chgRMS {0};
     short MCSMom {0};
     bool leavesBeforeEnd {false};    ///< leaves the forecast envelope before the end
     bool foundShower {false};
