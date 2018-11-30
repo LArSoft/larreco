@@ -489,8 +489,8 @@ void calo::Calorimetry::produce(art::Event& evt)
           nPIDA++;
           PIDA += Ai;
 	}
-	//LOG_DEBUG("CaloPrtHit") <<std::setw(4)<< trkIter
-          std::cout<<std::setw(4)<< trkIter
+	LOG_DEBUG("CaloPrtHit") <<std::setw(4)<< trkIter
+    //      std::cout<<std::setw(4)<< trkIter
                    <<std::setw(4)<< ipl
                    <<std::setw(4) << i
 		   <<std::setw(4)  << fwire[i]
