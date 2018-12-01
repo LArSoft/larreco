@@ -4,7 +4,6 @@
 
 BEGIN_PROLOG
 microboone_trajcluster:                       @local::standard_trajcluster
-microboone_trajcluster.TrajClusterAlg:        @local::microboone_trajclusteralg
 
 microboone_clustercrawler:                    @local::standard_clustercrawler
 microboone_clustercrawler.ClusterCrawlerAlg:  @local::microboone_clustercrawleralg
@@ -70,5 +69,7 @@ microboone_trajclusteralg.NeutralVxCuts:       [0.6, 15, 0.4, 5 ]
 microboone_trajclusteralg.KalmanFilterFit:     false 
 microboone_trajclusteralg.SkipAlgs:            [ "MisdVxTj", "Split3DKink", "CTKink", "SplitHiChgHits" ]
 microboone_trajclusteralg.SpecialAlgs:         [  ] # , e.g. "ChkInTraj" 
+
+microboone_trajcluster.TrajClusterAlg:        @local::microboone_trajclusteralg
 
 END_PROLOG
