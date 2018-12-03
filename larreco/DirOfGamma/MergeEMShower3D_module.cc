@@ -99,9 +99,9 @@ fGId(gid),
 fVentot(vensum), 
 fP0Dist(0)
 {
-	fDir = trk.VertexDirection();
-	fFront = trk.Vertex();
-	fEnd = trk.End();			
+	fDir = trk.VertexDirection<TVector3>();
+	fFront = trk.Vertex<TVector3>();
+	fEnd = trk.End<TVector3>();			
 	fHasVtx = hasvtx;
 
 	art::ServiceHandle<geo::Geometry> geom;
@@ -110,6 +110,17 @@ fP0Dist(0)
 	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kZ));*/ 
 
 	
+	/*************************************************************/
+	/*                          WARNING                          */
+	/*************************************************************/
+	/* The dQdx information in recob::Track has been deprecated  */
+	/* since 2016 and in 11/2018 the recob::Track interface was  */
+	/* changed and DQdxAtPoint and NumberdQdx were removed.      */
+	/* Therefore the code below is now commented out             */
+	/* (note that it was most likely not functional anyways).    */
+	/* For any issue please contact: larsoft-team@fnal.gov       */
+	/*************************************************************/
+	/*
 	bool isplane = false;
 	unsigned int nplanes = geom->Nplanes();
 	for (unsigned int p = 0; p < nplanes; ++p)
@@ -120,6 +131,8 @@ fP0Dist(0)
 		{fPlaneId = int(p); isplane = true;}
 	}
 	if (!isplane) fPlaneId = -1; 
+	*/
+	/*************************************************************/
 
 	/*if (trk.DQdxAtPoint(1, geo::kU) > 0) fPlaneId = geo::kU;
 	else if (trk.DQdxAtPoint(1, geo::kV) > 0) fPlaneId = geo::kV;
@@ -841,7 +854,7 @@ TVector3 ems::MergeEMShower3D::getBestPoint(
 					if (showers[t].HasConPoint()) cos *= 3.0;
 					cos *= sqrt( showers[t].GetAdcSum() );
 
-					mid += 0.5 * (trk.Vertex() + trk.End());
+					mid += 0.5 * (trk.Vertex<TVector3>() + trk.End<TVector3>());
 
 					f += cos;
 				//	nOK++;
@@ -871,16 +884,16 @@ double ems::MergeEMShower3D::getCos3D(const TVector3& p0, const recob::Track& tr
 	TVector3 p1, dir;
 
 	if (pma::Dist2(p0, trk.Vertex()) < pma::Dist2(p0, trk.End()))
-		p1 = trk.Vertex();
+		p1 = trk.Vertex<TVector3>();
 	else
-		p1 = trk.End();
+		p1 = trk.End<TVector3>();
 
 	p1 -= p0;
 	double m = p1.Mag();
 	if (m > 0.0)
 	{
 		p1 *= 1.0 / m;
-		double c = fabs(p1 * trk.VertexDirection());
+		double c = fabs(p1 * trk.VertexDirection<TVector3>());
 		if (c > 1.0) c = 1.0;
 		return c;
 	}
