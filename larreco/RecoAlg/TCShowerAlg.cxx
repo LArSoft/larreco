@@ -146,6 +146,10 @@ namespace shower {
       double maxDist = 20; // how far a shower like cluster can be from the track
       double minDistVert = 15; // exclude tracks near the vertex
 
+      // TODO: count number of shower-like hits hits "behind" vertex
+      // if high, pick an earlier cluster and refit hits
+      // this is going to take some restructuring
+
       if (pfphits.size() < 30) continue;
       //      if (pfphits.size() < 15) continue;
       if (pfphits.size() > 500) continue;  

@@ -20,7 +20,7 @@ standard_tcshower:
  ClusterModuleLabel: "trajcluster"
  TrackModuleLabel:   "pmtrack"
  CalorimetryModuleLabel:  "calo"
- CalorimetryAlg:           @local::standard_calorimetryalgmc
+# CalorimetryAlg:           @local::standard_calorimetryalgmc
  TCAlg:                    @local::standard_tcshoweralg
 # ProjectionMatchingAlg:    @local::standard_projectionmatchingalg
 }
