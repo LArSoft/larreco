@@ -109,7 +109,7 @@ std::vector<float> calo::TrackCalorimetryAlg::CreatePathLengthFractionVector(rec
   float cumulative_path_length=0;
   const float total_path_length = track.Length();
   for(size_t i_trj=1; i_trj<track.NumberTrajectoryPoints(); i_trj++){    
-    cumulative_path_length+=(track.LocationAtPoint(i_trj)-track.LocationAtPoint(i_trj-1)).Mag();
+    cumulative_path_length+=(track.LocationAtPoint(i_trj)-track.LocationAtPoint(i_trj-1)).R();
     trk_path_length_frac_vec[i_trj]=cumulative_path_length/total_path_length;
   }
 
@@ -133,7 +133,7 @@ void calo::TrackCalorimetryAlg::AnalyzeHit(recob::Hit const& hit,
 				hit.Integral()/pitch,
 				caloAlg.dEdx_AREA(hit,pitch),
 				pitch,
-				track.LocationAtPoint(traj_iter),
+				track.LocationAtPoint<TVector3>(traj_iter),
 				path_length_fraction_vec[traj_iter]);
 }
 
@@ -172,7 +172,7 @@ void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t co
 						      std::vector<size_t>& assnTrackCaloVector,
 						      geo::PlaneID const& planeID){
   size_t n_hits = hpm.size();
-  std::vector<double> dEdxVector,dQdxVector,resRangeVector,deadWireVector,pitchVector;
+  std::vector<float> dEdxVector,dQdxVector,resRangeVector,deadWireVector,pitchVector;
   std::vector<TVector3> XYZVector;
 
   dEdxVector.reserve(n_hits);
@@ -182,7 +182,7 @@ void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t co
   pitchVector.reserve(n_hits);
   XYZVector.reserve(n_hits);
 
-  double kinetic_energy=0,track_length=track.Length();
+  float kinetic_energy=0,track_length=track.Length();
   if(IsInvertedTrack(hpm)){
 
     for(HitPropertiesMultiset_t::iterator it_hpm=hpm.begin(); 
@@ -221,7 +221,7 @@ void calo::TrackCalorimetryAlg::MakeCalorimetryObject(HitPropertiesMultiset_t co
 			  deadWireVector,
 			  track_length,
 			  pitchVector,
-			  XYZVector,
+			  recob::tracking::convertCollToPoint(XYZVector),
 			  planeID);
   assnTrackCaloVector.emplace_back(i_track);
 }

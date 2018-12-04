@@ -1065,27 +1065,27 @@ void MuonTrackingEff::FuncDistanceAndAngleBetweenTracks(art::Ptr<recob::Track> T
 {
 
 TempDistanceBetweenTracks = sqrt(pow(Track1->End().X()-Track2->Vertex().X(),2) + pow(Track1->End().Y()-Track2->Vertex().Y(),2) + pow(Track1->End().Z()-Track2->Vertex().Z(),2));
-TempAngleBetweenTracks = (180.0/3.14159)*Track1->EndDirection().Angle(Track2->VertexDirection());
+TempAngleBetweenTracks = (180.0/3.14159)*Track1->EndDirection<TVector3>().Angle(Track2->VertexDirection<TVector3>());
 TempCriteriaTwoTracks = 1.;
 
 if(TempDistanceBetweenTracks > sqrt(pow(Track1->End().X()-Track2->End().X(),2) + pow(Track1->End().Y()-Track2->End().Y(),2) + pow(Track1->End().Z()-Track2->End().Z(),2)))
 	{
 	TempDistanceBetweenTracks = sqrt(pow(Track1->End().X()-Track2->End().X(),2) + pow(Track1->End().Y()-Track2->End().Y(),2) + pow(Track1->End().Z()-Track2->End().Z(),2));
-	TempAngleBetweenTracks = 180. - (180.0/3.14159)*Track1->EndDirection().Angle(Track2->EndDirection());
+	TempAngleBetweenTracks = 180. - (180.0/3.14159)*Track1->EndDirection<TVector3>().Angle(Track2->EndDirection<TVector3>());
 	TempCriteriaTwoTracks = 2.;
 	}
 
 if(TempDistanceBetweenTracks > sqrt(pow(Track1->Vertex().X()-Track2->End().X(),2) + pow(Track1->Vertex().Y()-Track2->End().Y(),2) + pow(Track1->Vertex().Z()-Track2->End().Z(),2)))
 	{
 	TempDistanceBetweenTracks = sqrt(pow(Track1->Vertex().X()-Track2->End().X(),2) + pow(Track1->Vertex().Y()-Track2->End().Y(),2) + pow(Track1->Vertex().Z()-Track2->End().Z(),2));
-	TempAngleBetweenTracks = (180.0/3.14159)*Track1->VertexDirection().Angle(Track2->EndDirection());
+	TempAngleBetweenTracks = (180.0/3.14159)*Track1->VertexDirection<TVector3>().Angle(Track2->EndDirection<TVector3>());
 	TempCriteriaTwoTracks = 3.;
 	}
 
 if(TempDistanceBetweenTracks > sqrt(pow(Track1->Vertex().X()-Track2->Vertex().X(),2) + pow(Track1->Vertex().Y()-Track2->Vertex().Y(),2) + pow(Track1->Vertex().Z()-Track2->Vertex().Z(),2)))
 	{
 	TempDistanceBetweenTracks = sqrt(pow(Track1->Vertex().X()-Track2->Vertex().X(),2) + pow(Track1->Vertex().Y()-Track2->Vertex().Y(),2) + pow(Track1->Vertex().Z()-Track2->Vertex().Z(),2));
-	TempAngleBetweenTracks = 180. - (180.0/3.14159)*Track1->VertexDirection().Angle(Track2->VertexDirection());
+	TempAngleBetweenTracks = 180. - (180.0/3.14159)*Track1->VertexDirection<TVector3>().Angle(Track2->VertexDirection<TVector3>());
 	TempCriteriaTwoTracks = 4.;
 	}
 

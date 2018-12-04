@@ -312,6 +312,7 @@ namespace hit {
               while (thisadc<0 && bin<fDataSize) {
                 //	      std::cout << bin << " " << thisadc << std::endl;
                 bin++;
+                if (bin == fDataSize) break;
                 thisadc=holder[bin];
               }
             } // end region
@@ -353,6 +354,7 @@ namespace hit {
                     madc=thisadc;
                   }
                   bin++;
+                  if (bin == fDataSize) break;
                   thisadc=holder[bin];
                 }
               }

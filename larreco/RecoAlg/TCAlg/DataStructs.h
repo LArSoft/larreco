@@ -76,6 +76,7 @@ namespace tca {
     kHiVx3Score,      ///< matched to a high-score 3D vertex
     kVtxTruMatch,      ///< tagged as a vertex between Tjs that are matched to MC truth neutrino interaction particles
     kVtxMerged,
+    kVtxIndPlnNoChg,  ///< vertex quality is suspect - No requirement made on chg btw it and the Tj
     kVtxBitSize     ///< don't mess with this line
   } VtxBit_t;
   
@@ -141,7 +142,7 @@ namespace tca {
   struct Trajectory {
     std::vector<TrajPoint> Pts;    ///< Trajectory points
     CTP_t CTP {0};                      ///< Cryostat, TPC, Plane code
-    std::bitset<64> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
+    std::bitset<128> AlgMod;        ///< Bit set if algorithm AlgBit_t modifed the trajectory
     int WorkID {0};
     int ParentID {-1};     ///< ID of the parent, or the ID of the Tj this one was merged with if it is killed
     float AveChg {0};                   ///< Calculated using ALL hits
@@ -157,12 +158,29 @@ namespace tca {
     int UID;                ///< a unique ID for all slices
     int SSID {0};          ///< ID of a 2D shower struct that this tj is in
     unsigned short PDGCode {0};            ///< shower-like or track-like {default is track-like}
-//    unsigned int ClusterIndex {USHRT_MAX};   ///< Index not the ID...
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
+    short StartEnd {-1};               ///< The starting end (-1 = don't know)
     unsigned int mcpListIndex {UINT_MAX};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
-    bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated (only for the TP Environment right now)
+    std::bitset<8> Strategy {};        ///
+    bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
+    bool IsGood {true};           ///< set false if there is a failure or the Tj fails quality cuts
+    bool MaskedLastTP {false};
+  };
+  
+  struct TjForecast {
+    unsigned short nextForecastUpdate {0};  ///< Revise the forecast when NumPtsWithCharge == nextForecastUpdate
+    float showerLikeFraction {0};    ///< fraction of points in the forecast envelope that are shower-like
+    float outlook {-1};                     ///< tracklike ~< 2, showerlike > 2
+    float chgSlope {0};
+    float chgSlopeErr {0};
+    float chgFitChiDOF {0};
+    float chgRMS {0};
+    short MCSMom {0};
+    bool leavesBeforeEnd {false};    ///< leaves the forecast envelope before the end
+    bool foundShower {false};
+    bool endBraggPeak {false};
   };
   
   // struct used for TrajCluster 3D trajectory points
@@ -361,6 +379,7 @@ namespace tca {
     kChkVxTj,
     kMisdVxTj,
     kPhoton,
+    kHaloTj,
     kNoFitToVx,
     kVxMerge,
     kVxNeutral,
@@ -372,6 +391,7 @@ namespace tca {
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
+    kM3DVxTj,
     kMat3DMerge,
     kSplit3DKink,
     kTjHiVx3Score,
@@ -388,9 +408,17 @@ namespace tca {
     kMergeShChain,
     kCompleteShower,
     kSplitTjCVx,
-    kSetDir,
+    kNewStpCuts,
+    kNewVtxCuts,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
+  
+  typedef enum {
+    kNormal,
+    kStiffEl,       ///< use the stiff electron strategy
+    kStiffMu,       ///< use the stiff muon strategy
+    kSlowing        ///< use the slowing-down strategy
+  } Strategy_t;
   
   // Stop flag bits
   typedef enum {
@@ -405,6 +433,7 @@ namespace tca {
   
   // Environment near a trajectory point
   typedef enum {
+    kEnvDeadWire,
     kEnvNearTj,
     kEnvNearShower,
     kEnvOverlap,
@@ -430,6 +459,7 @@ namespace tca {
   extern const std::vector<std::string> AlgBitNames;
   extern const std::vector<std::string> StopFlagNames;
   extern const std::vector<std::string> VtxBitNames;
+  extern const std::vector<std::string> StrategyBitNames;
 
   // struct for configuration - used in all slices
   struct TCConfig {
@@ -439,6 +469,7 @@ namespace tca {
     std::vector<float> neutralVxCuts;
     std::vector<short> deltaRayTag; ///< min length, min MCSMom and min separation (WSE) for a delta ray tag
     std::vector<short> muonTag; ///< min length and min MCSMom for a muon tag
+    std::vector<float> electronTag;
     std::vector<float> chkStopCuts; ///< [Min Chg ratio, Chg slope pull cut, Chg fit chi cut]
     std::vector<float> showerTag; ///< [min MCSMom, max separation, min # Tj < separation] for a shower tag
     std::vector<float> kinkCuts; ///< kink angle, nPts fit, (alternate) kink angle significance
@@ -488,8 +519,10 @@ namespace tca {
     bool dbg3S {false};
     bool dbgStitch {false};    ///< debug PFParticle stitching
     bool dbgSummary {false};    ///< print a summary report
+    bool dbgDump {false};   /// dump trajectory points
     short nPtsAve;         /// number of points to find AveChg
     std::bitset<16> modes;   /// See TCMode_t above
+    bool doForecast {false};
   };
 
   struct TCHit {
@@ -506,13 +539,14 @@ namespace tca {
     unsigned int subRun;
     unsigned int eventsProcessed;
     std::vector<float> aveHitRMS;      ///< average RMS of an isolated hit
-    bool aveHitRMSValid {false};          ///< set true when the average hit RMS is well-known
+    int WorkID;
     int globalTjID;
     int globalPFPID;
     int globalVx2ID;
     int globalVx3ID;
     int globalS2ID;
     int globalS3ID;
+    bool aveHitRMSValid {false};          ///< set true when the average hit RMS is well-known
   };
 
   struct TCSlice {
@@ -552,10 +586,12 @@ namespace tca {
   extern TCEvent evt;
   extern TCConfig tcc;
   extern ShowerTreeVars stv;
+  extern std::vector<TjForecast> tjfs;
 
   // vector of hits, tjs, etc in each slice
   extern std::vector<TCSlice> slices;
-  //    TruthMatcher tm{tjs};
+  // vector of seed TPs
+  extern std::vector<TrajPoint> seeds;
 
 } // namespace tca
 

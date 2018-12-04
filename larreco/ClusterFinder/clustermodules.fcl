@@ -12,7 +12,7 @@ standard_trajcluster:
   # configuration for non-sliced hit collection
   HitModuleLabel: "gaushit"
   HitTruthModuleLabel: "gaushit"
-  SlicerModuleLabel: "NA"
+  SliceModuleLabel: "NA"
   # configuration for sliced hit collection
 #  HitModuleLabel: "NA"
 #  SlicerModuleLabel: "slicermodule"

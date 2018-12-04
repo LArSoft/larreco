@@ -109,7 +109,7 @@ namespace calo {
     std::vector<double> fdQdx;
     std::vector<double> fdEdx;
     std::vector<double> fResRng;
-    std::vector<double> fpitch;
+    std::vector<float> fpitch;
     std::vector<TVector3> fXYZ;
 
   protected: 
@@ -177,10 +177,6 @@ void calo::Calorimetry::produce(art::Event& evt)
   for(size_t trkIter = 0; trkIter < tracklist.size(); ++trkIter){   
 
     decltype(auto) larEnd = tracklist[trkIter]->Trajectory().End();
-    //store track directional cosines
-    double trackCosStart[3]={0.,0.,0.};
-    double trackCosEnd[3]={0.,0.,0.};
-    tracklist[trkIter]->Direction(trackCosStart,trackCosEnd);
             
     // Some variables for the hit
     float time;          //hit time at maximum
@@ -223,12 +219,12 @@ void calo::Calorimetry::produce(art::Event& evt)
       fResRng.clear();
       fXYZ.clear();
 
-      double Kin_En = 0.;
-      double Trk_Length = 0.;
-      std::vector<double> vdEdx;
-      std::vector<double> vresRange;
-      std::vector<double> vdQdx;
-      std::vector<double> deadwire; //residual range for dead wires
+      float Kin_En = 0.;
+      float Trk_Length = 0.;
+      std::vector<float> vdEdx;
+      std::vector<float> vresRange;
+      std::vector<float> vdQdx;
+      std::vector<float> deadwire; //residual range for dead wires
       std::vector<TVector3> vXYZ;
 
       //range of wire signals
@@ -252,7 +248,7 @@ void calo::Calorimetry::produce(art::Event& evt)
       // find track pitch
       double fTrkPitch = 0;
       for (size_t itp = 0; itp < tracklist[trkIter]->NumberTrajectoryPoints(); ++itp){
-        const TVector3& pos = tracklist[trkIter]->LocationAtPoint(itp);
+        const auto& pos = tracklist[trkIter]->LocationAtPoint(itp);
         const double Position[3] = { pos.X(), pos.Y(), pos.Z() };
         geo::TPCID tpcid = geom->FindTPCAtPosition ( Position );
         if (tpcid.isValid) {
@@ -329,6 +325,10 @@ void calo::Calorimetry::produce(art::Event& evt)
           auto vmeta = fmthm.data(trkIter);
           for (size_t ii = 0; ii<vhit.size(); ++ii){
             if (vhit[ii].key() == allHits[hits[ipl][ihit]].key()){
+              if (vmeta[ii]->Index() == std::numeric_limits<int>::max()){
+                fBadhit = true;
+                continue;
+              }
               if (vmeta[ii]->Index()>=tracklist[trkIter]->NumberTrajectoryPoints()){
                 throw cet::exception("Calorimetry_module.cc") << "Requested track trajectory index "<<vmeta[ii]->Index()<<" exceeds the total number of trajectory points "<<tracklist[trkIter]->NumberTrajectoryPoints()<<" for track index "<<trkIter<<". Something is wrong with the track reconstruction. Please contact tjyang@fnal.gov";
               }
@@ -337,7 +337,7 @@ void calo::Calorimetry::produce(art::Event& evt)
                 continue;
               }
               double angleToVert = geom->WireAngleToVertical(vhit[ii]->View(), vhit[ii]->WireID().TPC, vhit[ii]->WireID().Cryostat) - 0.5*::util::pi<>();
-              const TVector3& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
+              const auto& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
               double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
               if (cosgamma){
                 pitch = geom->WirePitch(0)/cosgamma;
@@ -345,7 +345,7 @@ void calo::Calorimetry::produce(art::Event& evt)
               else{
                 pitch = 0;
               }
-              TVector3 loc = tracklist[trkIter]->LocationAtPoint(vmeta[ii]->Index());
+              auto loc = tracklist[trkIter]->LocationAtPoint(vmeta[ii]->Index());
               xyz3d[0] = loc.X();
               xyz3d[1] = loc.Y();
               xyz3d[2] = loc.Z();
@@ -413,7 +413,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 						    deadwire,
 						    util::kBogusD,
 						    fpitch,
-						    vXYZ,
+						    recob::tracking::convertCollToPoint(vXYZ),
 						    planeID));
 	util::CreateAssn(*this, evt, *calorimetrycol, tracklist[trkIter], *assn);
 	continue;
@@ -557,7 +557,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 						  deadwire,
 						  Trk_Length,
 						  fpitch,
-						  vXYZ,
+						  recob::tracking::convertCollToPoint(vXYZ),
 						  planeID));
       util::CreateAssn(*this, evt, *calorimetrycol, tracklist[trkIter], *assn);
       

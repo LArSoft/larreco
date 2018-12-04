@@ -51,7 +51,7 @@ standard_trajclusteralg:
     # 1 = 3D match weight
     # 2 = Charge fraction of vertex Tjs near the vertex weight
     # 3 = Tj MCSMom, ChgRMS, Angle difference significance between Tjs weight
-   Vertex2DCuts:  [6, 8, 45, 3, 3, 50, 0.6, 0, 0.8, 0.8]
+   Vertex2DCuts:  [6, 8, 45, 3, 3, 50, 0.6, 50, 0.8, 0.8]
    # 0 User definition of a short Tj => max number of Tj points
    # 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
    # 2 max separation for a user-defined long Tj
@@ -235,6 +235,7 @@ standard_dbscan3dalg:
 standard_tcshoweralg:
 {
     CalorimetryAlg: @local::standard_calorimetryalgmc
+    ProjectionMatchingAlg:    @local::standard_projectionmatchingalg 
 }
 
 standard_fuzzyclusteralg:
@@ -414,7 +415,7 @@ microboone_trajclusteralg.MultHitSep: 3.2
 microboone_trajclusteralg.MaxWireSkipNoSignal: 2
 microboone_trajclusteralg.MuonTag: [40, 500, 10, 3]
 microboone_trajclusteralg.VLAStepSize: 1
-microboone_trajclusteralg.Vertex2DCuts: [ 6, 8, 45, 3, 3, 50, 0.6, 10, 0.8, 0.8]
+microboone_trajclusteralg.Vertex2DCuts: [ 6, 8, 45, 3, 3, 50, 0.6, 50, 0.8, 0.8]
 microboone_trajclusteralg.Vertex3DCuts: [1, 2]
 microboone_trajclusteralg.Match3DCuts: [ 0.3, -0.3, 4, 0.9, 2000, 10, 0.2]
 microboone_trajclusteralg.SkipAlgs: [ "Mat3DMerge", "Split3DKink", "CTKink", "SplitHiChgHits" ]

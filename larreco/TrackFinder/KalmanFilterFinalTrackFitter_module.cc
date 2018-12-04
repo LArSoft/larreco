@@ -169,7 +169,6 @@ namespace trkf {
     using Parameters = art::EDProducer::Table<Config>;
 
     explicit KalmanFilterFinalTrackFitter(Parameters const & p);
-    ~KalmanFilterFinalTrackFitter();
 
     // Plugins should not be copied or assigned.
     KalmanFilterFinalTrackFitter(KalmanFilterFinalTrackFitter const &) = delete;
@@ -181,9 +180,9 @@ namespace trkf {
 
   private:
     Parameters p_;
-    trkf::TrackKalmanFitter* kalmanFitter;
-    TrackStatePropagator* prop;
-    trkf::TrackMomentumCalculator* tmc;
+    TrackStatePropagator prop;
+    trkf::TrackKalmanFitter kalmanFitter;
+    mutable trkf::TrackMomentumCalculator tmc{};
     bool inputFromPF;
 
     art::InputTag pfParticleInputTag;
@@ -209,13 +208,10 @@ namespace trkf {
 
 trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFilterFinalTrackFitter::Parameters const & p)
   : p_(p)
+  , prop{p_().propagator}
+  , kalmanFitter{&prop, p_().fitter}
+  , inputFromPF{p_().options().trackFromPF() || p_().options().showerFromPF()}
 {
-
-  prop = new TrackStatePropagator(p_().propagator);
-  kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().fitter);
-  tmc = new trkf::TrackMomentumCalculator();
-
-  inputFromPF = ( p_().options().trackFromPF() || p_().options().showerFromPF() );
 
   if (inputFromPF) {
     pfParticleInputTag = art::InputTag(p_().inputs().inputPFParticleLabel());
@@ -290,12 +286,6 @@ trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFil
   }
 }
 
-trkf::KalmanFilterFinalTrackFitter::~KalmanFilterFinalTrackFitter() {
-  delete prop;
-  delete kalmanFitter;
-  delete tmc;
-}
-
 void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 {
 
@@ -333,10 +323,10 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 
     auto outputPFAssn = std::make_unique<art::Assns<recob::PFParticle, recob::Track> >();
 
-    art::ValidHandle<std::vector<recob::PFParticle> > inputPFParticle = e.getValidHandle<std::vector<recob::PFParticle> >(pfParticleInputTag);
-    if (p_().options().trackFromPF()) assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPFParticle, e, pfParticleInputTag));
-    if (p_().options().showerFromPF()) assocShowers = std::unique_ptr<art::FindManyP<recob::Shower> >(new art::FindManyP<recob::Shower>(inputPFParticle, e, showerInputTag));
-    assocVertices = std::unique_ptr<art::FindManyP<recob::Vertex> >(new art::FindManyP<recob::Vertex>(inputPFParticle, e, pfParticleInputTag));
+    auto  inputPFParticle = e.getValidHandle<std::vector<recob::PFParticle> >(pfParticleInputTag);
+    if (p_().options().trackFromPF()) assocTracks = std::make_unique<art::FindManyP<recob::Track>>(inputPFParticle, e, pfParticleInputTag);
+    if (p_().options().showerFromPF()) assocShowers = std::make_unique<art::FindManyP<recob::Shower>>(inputPFParticle, e, showerInputTag);
+    assocVertices = std::make_unique<art::FindManyP<recob::Vertex>>(inputPFParticle, e, pfParticleInputTag);
 
     for (unsigned int iPF = 0; iPF < inputPFParticle->size(); ++iPF) {
 
@@ -346,7 +336,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	const std::vector<art::Ptr<recob::Vertex> >& vertices = assocVertices->at(iPF);
 
 	if (p_().options().pFromCalo()) {
-	  trackCalo = std::unique_ptr<art::FindManyP<anab::Calorimetry> >(new art::FindManyP<anab::Calorimetry>(tracks, e, caloInputTag));
+          trackCalo = std::make_unique<art::FindManyP<anab::Calorimetry>>(tracks, e, caloInputTag);
 	}
 
 	for (unsigned int iTrack = 0; iTrack < tracks.size(); ++iTrack) {
@@ -368,7 +358,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	  std::vector<art::Ptr<recob::Hit> > outHits;
 	  trkmkr::OptionalOutputs optionals;
 	  if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
-	  bool fitok = kalmanFitter->fitTrack(track.Trajectory(),track.ID(),
+          bool fitok = kalmanFitter.fitTrack(track.Trajectory(),track.ID(),
 					      track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
 					      inHits, mom, pId, flipDir, outTrack, outHits, optionals);
 	  if (!fitok) continue;
@@ -428,7 +418,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
 	  auto cov = SMatrixSym55();
 	  auto pid = p_().options().pdgId();
 	  auto mom = p_().options().pval();
-	  bool fitok = kalmanFitter->fitTrack(pos, dir, cov, inHits, std::vector<recob::TrajectoryPointFlags>(),
+          bool fitok = kalmanFitter.fitTrack(pos, dir, cov, inHits, std::vector<recob::TrajectoryPointFlags>(),
 					      shower.ID(), mom, pid,
 					      outTrack, outHits, optionals);
 	  if (!fitok) continue;
@@ -475,11 +465,11 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
     auto const& tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(trackInputTag);
 
     if (p_().options().pFromCalo()) {
-      trackCalo = std::unique_ptr<art::FindManyP<anab::Calorimetry> >(new art::FindManyP<anab::Calorimetry>(inputTracks, e, caloInputTag));
+      trackCalo = std::make_unique<art::FindManyP<anab::Calorimetry>>(inputTracks, e, caloInputTag);
     }
 
     if (p_().options().idFromCollection()) {
-      trackId = std::unique_ptr<art::FindManyP<anab::ParticleID> >(new art::FindManyP<anab::ParticleID>(inputTracks, e, pidInputTag));
+      trackId = std::make_unique<art::FindManyP<anab::ParticleID>>(inputTracks, e, pidInputTag);
     }
 
     for (unsigned int iTrack = 0; iTrack < inputTracks->size(); ++iTrack) {
@@ -501,7 +491,7 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
       std::vector<art::Ptr<recob::Hit> > outHits;
       trkmkr::OptionalOutputs optionals;
       if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
-      bool fitok = kalmanFitter->fitTrack(track.Trajectory(),track.ID(),
+      bool fitok = kalmanFitter.fitTrack(track.Trajectory(),track.ID(),
 					  track.VertexCovarianceLocal5D(),track.EndCovarianceLocal5D(),
 					  inHits, mom, pId, flipDir, outTrack, outHits, optionals);
       if (!fitok) continue;
@@ -571,9 +561,9 @@ void trkf::KalmanFilterFinalTrackFitter::restoreInputPoints(const recob::Traject
 double trkf::KalmanFilterFinalTrackFitter::setMomValue(art::Ptr<recob::Track> ptrack, const std::unique_ptr<art::FindManyP<anab::Calorimetry> >& trackCalo, const double pMC, const int pId) const {
   double result = p_().options().pval();
   if (p_().options().pFromMSChi2()) {
-    result = tmc->GetMomentumMultiScatterChi2(ptrack);
+    result = tmc.GetMomentumMultiScatterChi2(ptrack);
   } else if (p_().options().pFromLength()) {
-    result = tmc->GetTrackMomentum(ptrack->Length(), pId);
+    result = tmc.GetTrackMomentum(ptrack->Length(), pId);
   } else if (p_().options().pFromCalo()) {
     //take average energy from available views
     const std::vector<art::Ptr<anab::Calorimetry> >& calo = trackCalo->at(ptrack.key());

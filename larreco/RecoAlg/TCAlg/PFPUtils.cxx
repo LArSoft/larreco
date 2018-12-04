@@ -280,7 +280,7 @@ namespace tca {
     // count the number of TPs and clear out any old 3D match flags
     unsigned int ntp = 0;
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       if(tj.ID <= 0) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
@@ -295,7 +295,7 @@ namespace tca {
     // define mallTraj
     unsigned int icnt = 0;
     for(auto& tj : slc.tjs) {
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       geo::PlaneID planeID = DecodeCTP(tj.CTP);
       if((int)planeID.Cryostat != cstat) continue;
       if((int)planeID.TPC != tpc) continue;
@@ -1295,7 +1295,7 @@ namespace tca {
       mtj.AlgMod[kMat3DMerge] = true;
       SetEndPoints(mtj);
       mtj.MCSMom = MCSMom(slc, mtj);
-      SetPDGCode(slc, mtj);
+      SetPDGCode(slc, mtj, true);
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<" P"<<pfp.ID<<" try to merge";
@@ -1332,7 +1332,7 @@ namespace tca {
           if(std::find(vxlist.begin(), vxlist.end(), tj.VtxID[end]) != vxlist.end()) {
             auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
 //            std::cout<<"P"<<pfp.ID<<" Clobber 2V"<<vx2.ID<<"\n";
-            MakeVertexObsolete(slc, vx2, true);
+            MakeVertexObsolete("MPTJ", slc, vx2, true);
           } else {
             vxlist.push_back(tj.VtxID[end]);
           }
@@ -2111,7 +2111,7 @@ namespace tca {
         myprt<<" PDGCodeVote "<<PDGCodeVote(slc, ms.TjIDs, false);
         myprt<<"\n";
         ++cnt;
-        if(cnt == 1000 || ms.Count < 2) {
+        if(cnt == 500 || ms.Count < 2) {
           myprt<<"...stopped printing after 500 entries or Count < 2";
           break;
         }
@@ -2119,7 +2119,47 @@ namespace tca {
     } // prt
 
     // create the list of associations to matches that will be converted to PFParticles
-    // Start with Tjs attached to 3D vertices. This is only done when reconstructing neutrino events
+    // Start with large count tj matches that have a consistent PDGCode and no vertex attachments
+    // and high completeness
+    if(slc.matchVec.size() > 1 && slc.matchVec[0].Count > 2 * slc.matchVec[1].Count) {
+      auto& ms = slc.matchVec[0];
+      int pdgCode = PDGCodeVote(slc, ms.TjIDs, prt);
+      bool hasVx = false;
+      for(auto tid : ms.TjIDs) {
+        auto& tj = slc.tjs[tid - 1];
+        if(tj.VtxID[0] > 0 || tj.VtxID[1] > 0) hasVx = true;
+      } // tid
+      if(pdgCode != 0 && !hasVx) {
+        float minCompleteness = 1;
+        for(unsigned short itj = 0; itj < ms.TjCompleteness.size(); ++itj) {
+          if(ms.TjCompleteness[itj] < minCompleteness) minCompleteness = ms.TjCompleteness[itj];
+        } // itj
+        if(minCompleteness > 0.5) {
+          PFPStruct pfp = CreatePFP(slc);
+          pfp.TjIDs = ms.TjIDs;
+          // note that the ms position is the average position of all 3D matched Tp3s at this point.
+          // It is not the start position. This will be determined in DefinePFP.
+          pfp.XYZ[0] = ms.Pos;
+          pfp.Dir[0] = ms.Dir;
+          pfp.MatchVecIndex = 0;
+          // Set the PDGCode so DefinePFP can ignore incompatible matches
+          pfp.PDGCode = pdgCode;
+          if(DefinePFP("FPFP", slc, pfp, prt) && AnalyzePFP(slc, pfp, prt) && StorePFP(slc, pfp)) {
+            ms.Count = 0;
+            // clobber MatchStructs that use the Tjs in this pfp
+            for(auto& allms : slc.matchVec) {
+              auto shared = SetIntersection(allms.TjIDs, pfp.TjIDs);
+              if(!shared.empty()) allms.Count = 0;
+            } // allms
+          } // define/analyze/store PFP
+          else {
+            if(prt) mf::LogVerbatim("TC")<<" Define/Analyze/Store PFP failed";
+          } // define/analyze/store PFP
+        } // minCompleteness > 0.5
+      } // pdgCode != 0
+    } // large count on the first matchVec
+    
+    // Next consider Tjs attached to 3D vertices. This is only done when reconstructing neutrino events
     if(!tcc.modes[kTestBeam]) {
       Match3DVtxTjs(slc, prt);
     }
@@ -2175,7 +2215,6 @@ namespace tca {
       if(!AnalyzePFP(slc, pfp, prt)) continue;
       if(!StorePFP(slc, pfp)) {
         if(prt) mf::LogVerbatim("TC")<<" StorePFP failed P"<<pfp.ID;
-        if(prt) std::cout<<" StorePFP failed P"<<pfp.ID<<"\n";
         continue;
       }
       ms.Count = 0;
@@ -2214,6 +2253,13 @@ namespace tca {
     unsigned short npl = 0;
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) if(nInPln[plane] > 0) ++npl;
     if(npl < 2) return false;
+    
+    for(unsigned short end = 0; end < 2; ++end) {
+      if(pfp.Vx3ID[end] < 0 || pfp.Vx3ID[end] > (int)slc.vtxs.size()) {
+        std::cout<<fcnLabel<<" P"<<pfp.ID<<" end "<<end<<" is invalid\n";
+        return false;
+      } 
+    } // end
 
     if(pfp.Vx3ID[0] == 0 && pfp.Vx3ID[1] > 0) {
       std::cout<<fcnLabel<<" P"<<pfp.ID<<" end 1 has a vertex but end 0 doesn't. No endpoints defined\n";
@@ -2226,6 +2272,8 @@ namespace tca {
     if(pfp.Vx3ID[0] > 0) PFPVxTjOK(slc, pfp, prt);
     
     bool pfpTrackLike = (MaxTjLen(slc, pfp.TjIDs) > tcc.match3DCuts[5] && MCSMom(slc, pfp.TjIDs) > tcc.match3DCuts[3]);
+    // don't look for broken Tjs for primary electron PFPs
+    if(pfp.PDGCode == 111) pfpTrackLike = false;
 
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2254,7 +2302,7 @@ namespace tca {
         for(auto tjid : ms.TjIDs) {
           if(std::find(shared.begin(), shared.end(), tjid) != shared.end()) continue;
           auto& tj = slc.tjs[tjid - 1];
-          if(tj.AlgMod[kKilled]) continue;
+          if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
           if(tj.AlgMod[kMat3D]) continue;
           // check for PDGCode compatibility - muons and delta rays
           if(pfp.PDGCode == 13 && tj.PDGCode == 11) continue;
@@ -2323,7 +2371,7 @@ namespace tca {
     // return true if nothing was done to TjIDs
     if(pfp.ID == 0) return true;
     if(pfp.TjIDs.empty()) return true;
-    if(pfp.Vx3ID[0] == 0) return true;
+    if(pfp.Vx3ID[0] <= 0 || pfp.Vx3ID[0] > (int)slc.vtx3s.size()) return true;
     
     auto& vx3 = slc.vtx3s[pfp.Vx3ID[0] - 1];
     std::vector<int> killMe;
@@ -2388,6 +2436,8 @@ namespace tca {
     for(auto tjc : pfp.TjCompleteness) if(tjc < minCompleteness) minCompleteness = tjc;
     if(prt) mf::LogVerbatim("TC")<<"inside AnalyzePFP P"<<pfp.ID<<" minCompleteness "<<minCompleteness;
     if(minCompleteness == 0.95) return true;
+    // don't analyze electrons
+    if(pfp.PDGCode == 111) return true;
     
     // compare the Tjs in Tp3s with those in TjIDs
     std::vector<int> tjIDs;
@@ -2602,6 +2652,7 @@ namespace tca {
         pfp.ParentUID = (size_t)neutrinoPFPID;
         pfp.Primary = true;
         neutrinoPFP.DtrUIDs.push_back(pfp.ID);
+        if(pfp.PDGCode == 111) neutrinoPFP.PDGCode = 12;
       } // pfp
     } // neutrino PFP exists    
   } // DefinePFPParents
@@ -2743,13 +2794,7 @@ namespace tca {
         // ignore Tjs that aren't associated with this pfp
         if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tjids[ii]) == pfp.TjIDs.end()) continue;
         auto& tj = slc.tjs[tjids[ii] - 1];
-        if(lastIpt[ii] < firstIpt[ii]) {
-          if(tj.AlgMod[kSetDir]) {
-//            std::cout<<"StorePFP "<<pfp.ID<<" Violating the SetDir flag for Tj "<<tj.ID<<"\n";
-            tj.AlgMod[kSetDir] = false;
-          }
-          ReverseTraj(slc, tj);
-        } // lastIpt[ii] > firstIpt[ii]
+        if(lastIpt[ii] < firstIpt[ii]) ReverseTraj(slc, tj);
       } // ii
     } // Tp3s exist    
     

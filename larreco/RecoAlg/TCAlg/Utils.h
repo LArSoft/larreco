@@ -41,6 +41,8 @@ namespace tca {
 
   // ****************************** General purpose  ******************************
   
+  // dressed muons
+  void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt);
   void DefineTjParents(TCSlice& slc, bool prt);
   float MaxChargeAsymmetry(TCSlice& slc, std::vector<int>& tjIDs);
   int PDGCodeVote(TCSlice& slc, std::vector<int>& tjIDs, bool prt);
@@ -65,6 +67,8 @@ namespace tca {
   void ReleaseHits(TCSlice& slc, Trajectory& tj);
   void UnsetUsedHits(TCSlice& slc, TrajPoint& tp);
   bool StoreTraj(TCSlice& slc, Trajectory& tj);
+  void ChgSlope(TCSlice& slc, Trajectory& tj, float& slope, float& slopeErr, float& chiDOF);
+  void ChgSlope(TCSlice& slc, Trajectory& tj, unsigned short fromPt, unsigned short toPt, float& slope, float& slopeErr, float& chiDOF);
   bool InTrajOK(TCSlice& slc, std::string someText);
   void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
   void TrimEndPts(std::string fcnLabel, TCSlice& slc, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
@@ -101,7 +105,7 @@ namespace tca {
   bool FindCloseHits(TCSlice& slc, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
   std::vector<unsigned int> FindCloseHits(TCSlice& slc, std::array<int, 2> const& wireWindow, Point2_t const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
   std::vector<int> FindCloseTjs(TCSlice& slc, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta);
-//  void PrimaryElectronLikelihood(TCSlice& slc, Trajectory& tj, float& likelihood, bool& flipDirection, bool prt);
+  float ElectronLikelihood(TCSlice& slc, Trajectory& tj, float& asym);
   float ChgFracNearPos(TCSlice& slc, const Point2_t& pos, const std::vector<int>& tjIDs);
   float MaxHitDelta(TCSlice& slc, Trajectory& tj);
   void ReverseTraj(TCSlice& slc, Trajectory& tj);
@@ -178,15 +182,20 @@ namespace tca {
   bool MakeBareTrajPoint(TCSlice& slc, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
   unsigned short FarEnd(TCSlice& slc, const Trajectory& tj, const Point2_t& pos);
   Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
-  void SetPDGCode(TCSlice& slc, Trajectory& tj);
-  void SetPDGCode(TCSlice& slc, unsigned short itj);
+  void SetPDGCode(TCSlice& slc, Trajectory& tj, bool tjDone);
+  void SetPDGCode(TCSlice& slc, unsigned short itj, bool tjDone);
 //  void AnalyzeHits(TCSlice& slc);
   bool AnalyzeHits();
+  bool LongPulseHit(const recob::Hit& hit);
   bool FillWireHitRange(TCSlice& slc);
 //  bool CheckWireHitRange(TCSlice& slc);
   bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP);
   bool MergeAndStore(TCSlice& slc, unsigned int itj1, unsigned int itj2, bool doPrt);
   std::vector<int> GetAssns(TCSlice& slc, std::string type1Name, int id, std::string type2Name);
+  // Start a trajectory going from fromHit to (toWire, toTick)
+  bool StartTraj(TCSlice& slc, Trajectory& tj, unsigned int fromhit, unsigned int tohit, unsigned short pass);
+  bool StartTraj(TCSlice& slc, Trajectory& tj, float fromWire, float fromTick, float toWire, float toTick, CTP_t& tCTP, unsigned short pass);
+  bool Fit2D(short mode, Point2_t inPt, float& inPtErr, Vector2_t& outVec, Vector2_t& outVecErr, float& chiDOF);
   std::pair<unsigned short, unsigned short> GetSliceIndex(std::string typeName, int uID);
   template <typename T>
   std::vector<T> SetIntersection(const std::vector<T>& set1, const std::vector<T>& set2);
@@ -194,7 +203,8 @@ namespace tca {
   std::vector<T> SetDifference(const std::vector<T>& set1, const std::vector<T>& set2);
   bool DecodeDebugString(std::string ctpwt);
   // ****************************** Printing  ******************************
-  void PrintAll(std::string someText);
+  void DumpTj();
+  void PrintAll(std::string someText, const std::vector<simb::MCParticle*>& mcpList);
   void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
   void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2);

@@ -131,7 +131,6 @@ namespace trkf {
     using Parameters = art::EDProducer::Table<Config>;
 
     explicit KalmanFilterTrajectoryFitter(Parameters const & p);
-    ~KalmanFilterTrajectoryFitter();
 
     // Plugins should not be copied or assigned.
     KalmanFilterTrajectoryFitter(KalmanFilterTrajectoryFitter const &) = delete;
@@ -143,9 +142,9 @@ namespace trkf {
 
   private:
     Parameters p_;
-    trkf::TrackKalmanFitter* kalmanFitter;
-    TrackStatePropagator* prop;
-    trkf::TrackMomentumCalculator* tmc;
+    TrackStatePropagator prop;
+    trkf::TrackKalmanFitter kalmanFitter;
+    trkf::TrackMomentumCalculator tmc{};
 
     art::InputTag trajectoryInputTag;
     art::InputTag simTrackInputTag;
@@ -162,14 +161,11 @@ namespace trkf {
 
 trkf::KalmanFilterTrajectoryFitter::KalmanFilterTrajectoryFitter(trkf::KalmanFilterTrajectoryFitter::Parameters const & p)
   : p_(p)
+  , prop{p_().propagator}
+  , kalmanFitter{&prop, p_().fitter}
+  , trajectoryInputTag{p_().inputs().inputTrajectoryLabel()}
 {
-
-  prop = new TrackStatePropagator(p_().propagator);
-  kalmanFitter = new trkf::TrackKalmanFitter(prop,p_().fitter);
-  tmc = new trkf::TrackMomentumCalculator();
-
-  trajectoryInputTag = art::InputTag(p_().inputs().inputTrajectoryLabel());
-  if (p_().options().pFromMC() || p_().options().dirFromMC()) simTrackInputTag = art::InputTag(p_().inputs().inputMCLabel());
+  if (p_().options().pFromMC() || p_().options().dirFromMC()) simTrackInputTag = art::InputTag{p_().inputs().inputMCLabel()};
 
   isTT = p_().inputs().isTrackTrajectory();
 
@@ -217,12 +213,6 @@ trkf::KalmanFilterTrajectoryFitter::KalmanFilterTrajectoryFitter(trkf::KalmanFil
   }
 }
 
-trkf::KalmanFilterTrajectoryFitter::~KalmanFilterTrajectoryFitter() {
-  delete prop;
-  delete kalmanFitter;
-  delete tmc;
-}
-
 void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
 {
 
@@ -264,10 +254,10 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
 
   art::Handle<std::vector<recob::TrackTrajectory> > inputTrackTrajectoryH;
   art::Handle<std::vector<recob::Trajectory     > > inputTrajectoryH;
-  const std::vector<recob::TrackTrajectory>* trackTrajectoryVec = 0;
-  const std::vector<recob::Trajectory     >* trajectoryVec      = 0;
-  const art::Assns<recob::TrackTrajectory, recob::Hit>* trackTrajectoryHitsAssn = 0;
-  const art::Assns<recob::Trajectory     , recob::Hit>* trajectoryHitsAssn      = 0;
+  const std::vector<recob::TrackTrajectory>* trackTrajectoryVec = nullptr;
+  const std::vector<recob::Trajectory     >* trajectoryVec      = nullptr;
+  const art::Assns<recob::TrackTrajectory, recob::Hit>* trackTrajectoryHitsAssn = nullptr;
+  const art::Assns<recob::Trajectory     , recob::Hit>* trajectoryHitsAssn      = nullptr;
   if (isTT) {
     bool ok = e.getByLabel(trajectoryInputTag,inputTrackTrajectoryH);
     if (!ok) throw cet::exception("KalmanFilterTrajectoryFitter") << "Cannot find recob::TrackTrajectory art::Handle with inputTag " << trajectoryInputTag;
@@ -307,7 +297,7 @@ void trkf::KalmanFilterTrajectoryFitter::produce(art::Event & e)
     std::vector<art::Ptr<recob::Hit> > outHits;
     trkmkr::OptionalOutputs optionals;
     if (p_().options().produceTrackFitHitInfo()) optionals.initTrackFitInfos();
-    bool fitok = kalmanFitter->fitTrack(inTraj,iTraj,
+    bool fitok = kalmanFitter.fitTrack(inTraj,iTraj,
 					SMatrixSym55(),SMatrixSym55(),
 					inHits,//inFlags,
 					mom, pId, flipDir, outTrack, outHits, optionals);
@@ -387,7 +377,7 @@ double trkf::KalmanFilterTrajectoryFitter::setMomValue(const recob::TrackTraject
   //   result = tmc->GetMomentumMultiScatterChi2(ptrack);
   // } else
   if (p_().options().pFromLength()) {
-    result = tmc->GetTrackMomentum(ptraj->Length(), pId);
+    result = tmc.GetTrackMomentum(ptraj->Length(), pId);
   } else if (p_().options().pFromMC() && pMC>0.) {
     result = pMC;
   }
