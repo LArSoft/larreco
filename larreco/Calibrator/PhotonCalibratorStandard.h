@@ -60,7 +60,6 @@ namespace calib {
   }; // class PhotonCalibratorStandard
 }
 
-DECLARE_ART_SERVICE_INTERFACE_IMPL(calib::PhotonCalibratorStandard, calib::IPhotonCalibrator, LEGACY)
 
 
 #endif
