@@ -729,7 +729,7 @@ namespace tca {
       } else {
         auto TIn2V = GetAssns(slc, "2V", vx2.ID, "T");
         for(auto tid : TIn2V) slc.tjs[tid - 1].AlgMod[kKillInShowerVx] = true;
-        MakeVertexObsolete(slc, vx2, true);
+        MakeVertexObsolete("KVIS", slc, vx2, true);
       }
     } // vx2
     
@@ -2726,6 +2726,7 @@ namespace tca {
       // look for a Tj that has higher energy than the shower
       for(auto& tj : slc.tjs) {
         if(tj.AlgMod[kKilled]) continue;
+        if(tj.AlgMod[kHaloTj]) continue;
         if(tj.CTP != ss.CTP) continue;
         // require that it isn't in any shower
         if(tj.SSID > 0) continue;
@@ -3425,7 +3426,7 @@ namespace tca {
     std::vector<int> tjids;
     for(auto& tj : slc.tjs) {
       if(tj.CTP != inCTP) continue;
-      if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       tj.AlgMod[kShowerLike] = false;
       if(tj.AlgMod[kShowerTj]) continue;
       short npwc = NumPtsWithCharge(slc, tj, false);
@@ -3646,6 +3647,7 @@ namespace tca {
     for(auto& tj : slc.tjs) {
       if(tj.CTP != inCTP) continue;
       if(tj.AlgMod[kKilled]) continue;
+      if(tj.AlgMod[kHaloTj]) continue;
       tj.AlgMod[kShowerLike] = false;
       if(tj.AlgMod[kShowerTj]) continue;
       // ignore Tjs with Bragg peaks
@@ -3727,8 +3729,6 @@ namespace tca {
       for(auto& tjID : tjl) {
         auto& tj = slc.tjs[tjID - 1];
         tj.AlgMod[kShowerLike] = true;
-        // unset flags
-        tj.AlgMod[kSetDir] = false;
       } // tjid
     } // tjl
     
@@ -3740,15 +3740,18 @@ namespace tca {
       if(vx2.CTP != inCTP) continue;
       auto TInV2 = GetAssns(slc, "2V", vx2.ID, "T");
       unsigned short nsl = 0;
+      bool has111 = false;
       for(auto tid : TInV2) {
         auto& tj = slc.tjs[tid - 1];
+        if(tj.PDGCode == 111) has111 = true;
         if(tj.AlgMod[kShowerLike]) {
           unsigned short nearEnd = 1 - FarEnd(slc, tj, vx2.Pos);
           if(PosSep(tj.Pts[tj.EndPt[nearEnd]].Pos, vx2.Pos) < 6) ++nsl;
         }
       } // tid
       if(nsl < 2) continue;
-      MakeVertexObsolete(slc, vx2, true);
+      if(has111) continue;
+      MakeVertexObsolete("TSL", slc, vx2, true);
       ++nkill;
     } // vx2
     if(prt) mf::LogVerbatim("TC")<<"TagShowerLike tagged "<<nsh<<" Tjs and killed "<<nkill<<" vertices in CTP "<<inCTP;

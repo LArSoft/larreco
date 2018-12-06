@@ -546,10 +546,11 @@ void Track3Dreco::produce(art::Event& evt)
 	   std::vector<TVector3>               dir_xyz;
 	   dir_xyz.push_back(DirCos);
 	   dir_xyz.push_back(DirCos);
-	   std::vector< std::vector <double> > dQdx = std::vector< std::vector<double> >(0);
-	   std::vector<double>                 fitMomentum = std::vector<double>(2, util::kBogusD);
 	  
-	   recob::Track  the3DTrack(xyz,dir_xyz,dQdx, fitMomentum,tcol->size());
+	   recob::Track the3DTrack(recob::TrackTrajectory(recob::tracking::convertCollToPoint(xyz),
+							  recob::tracking::convertCollToVector(dir_xyz),
+							  recob::Track::Flags_t(xyz.size()), false),
+				   0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), tcol->size());
 	   tcol->push_back(the3DTrack);
 
 	   // associate the track with its spacepoints

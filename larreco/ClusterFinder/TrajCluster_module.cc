@@ -65,6 +65,7 @@ namespace cluster {
     art::InputTag fHitModuleLabel;
     art::InputTag fSliceModuleLabel;
     art::InputTag fHitTruthModuleLabel;
+    art::InputTag fSpacePointModuleLabel;
     
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
@@ -137,6 +138,8 @@ namespace cluster {
     if(pset.has_key("SliceModuleLabel")) fSliceModuleLabel = pset.get<art::InputTag>("SliceModuleLabel");
     fHitTruthModuleLabel = "NA";
     if(pset.has_key("HitTruthModuleLabel")) fHitTruthModuleLabel = pset.get<art::InputTag>("HitTruthModuleLabel");
+    fSpacePointModuleLabel = "NA";
+    if(pset.has_key("SpacePointModuleLabel")) fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
 
@@ -174,6 +177,9 @@ namespace cluster {
 
     produces< std::vector<anab::CosmicTag>>();
     produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
+    
+    // www: declear/create SpacePoint and association between SpacePoint and Hits from TrajCluster (Hit->SpacePoint)
+    produces< art::Assns<recob::SpacePoint, recob::Hit> >();
   } // TrajCluster::TrajCluster()
 
   //----------------------------------------------------------------------------
@@ -226,16 +232,13 @@ namespace cluster {
     unsigned int nInputHits = 0;
     // get a handle for the hit collection
     auto inputHits = art::Handle<std::vector<recob::Hit>>();
-    if(!evt.getByLabel(fHitModuleLabel, inputHits)) {
-      std::cout<<"Failed to get a hits handle\n";
-      return;
-    }
+    if(!evt.getByLabel(fHitModuleLabel, inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
     nInputHits = (*inputHits).size();
     if(nInputHits > 0) {
       // This is a pointer to a vector of recob::Hits that exist in the event. The hits
       // are not copied.
       if(!fTCAlg->SetInputHits(*inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to process hits from '"<<fHitModuleLabel.label()<<"'\n";
-      if(tca::tcc.dbgStp) std::cout<<"DebugMode: Looking for hit near "<<tca::debug.Cryostat<<":"<<tca::debug.TPC<<":"<<tca::debug.Wire<<":"<<tca::debug.Plane<<":"<<tca::debug.Tick<<"\n";
+      if(tca::tcc.dbgStp) std::cout<<"DebugMode: Looking for hit near "<<tca::debug.Cryostat<<":"<<tca::debug.TPC<<":"<<tca::debug.Plane<<":"<<tca::debug.Wire<<":"<<tca::debug.Tick<<"\n";
       if(fSliceModuleLabel != "NA") {
         // Expecting to find sliced hits from Slice -> Hits assns
         auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
@@ -267,18 +270,6 @@ namespace cluster {
             if(hit.key() > nInputHits - 1) throw cet::exception("TrajClusterModule")<<"Found an invalid slice index "<<hit.key()<<" to the input hit collection of size "<<nInputHits<<"\n";
             slhits[indx] = hit.key();
             ++indx;
-            if(tca::tcc.dbgStp && 
-               (int)hit->WireID().TPC == tca::debug.TPC && 
-               (int)hit->WireID().Plane == tca::debug.Plane &&
-               (int)hit->WireID().Wire == tca::debug.Wire &&
-               hit->PeakTime() > tca::debug.Tick - 10  && hit->PeakTime() < tca::debug.Tick + 10) {
-              std::cout<<" Debug hit is in slice "<<slices[isl]->ID();
-              std::cout<<std::setprecision(3);
-              std::cout<<" Direction "<<slices[isl]->Direction().X()<<" "<<slices[isl]->Direction().Y()<<" "<<slices[isl]->Direction().Z();
-              std::cout<<" AspectRatio "<<std::setprecision(2)<<slices[isl]->AspectRatio();
-              std::cout<<"\n";
-              tca::debug.Hit = hit.key();
-            } // Look for debug hit
           } // hit
           if(slhits.size() < 3) continue;
           slHitsVec.push_back(slhits);
@@ -292,7 +283,7 @@ namespace cluster {
         for(unsigned int iht = 0; iht < nInputHits; ++iht) slHitsVec[0][iht] = iht;
         slcIDs.resize(1, 1);
       } // no input slices
-      
+
       // split slHitsVec so that all hits in a sub-slice are in the same TPC
       const geo::GeometryCore* geom = lar::providerFrom<geo::Geometry>();
       if(geom->NTPC() > 1) {
@@ -327,6 +318,70 @@ namespace cluster {
         slcIDs = tpcSlcIDs;
       } // > 1 TPC
       
+      // Get truth info before reconstructing
+      // list of selected MCParticles
+      std::vector<simb::MCParticle*> mcpList;
+      // and a vector of MC-matched hits
+      std::vector<unsigned int> mcpListIndex((*inputHits).size(), UINT_MAX);
+      if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
+        // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC
+        // when checking neutrino reconstruction performance.
+        // create a list of MCParticles of interest
+        // save MCParticles that have the desired MCTruth origin using
+        // the Origin_t typedef enum: kUnknown, kBeamNeutrino, kCosmicRay, kSuperNovaNeutrino, kSingleParticle
+        simb::Origin_t origin = (simb::Origin_t)tca::tcc.matchTruth[0];
+        // or save them all
+        bool anySource = (origin == simb::kUnknown);
+        // get the assns
+        art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
+        art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+        sim::ParticleList const& plist = pi_serv->ParticleList();
+        for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
+          auto& p = (*ipart).second;
+          int trackID = p->TrackId();
+          art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+          int KE = 1000 * (p->E() - p->Mass());
+          if(!anySource && theTruth->Origin() != origin) continue;
+          if(tca::tcc.matchTruth[1] > 1 && KE > 10 && p->Process() == "primary") {
+            std::cout<<"TCM: mcp Origin "<<theTruth->Origin()
+            <<std::setw(8)<<p->TrackId()
+            <<" pdg "<<p->PdgCode()
+            <<std::setw(7)<<KE<<" mom "<<p->Mother()
+            <<" "<<p->Process()
+            <<"\n";
+          }
+          mcpList.push_back(p);
+        } // ipart
+        std::vector<art::Ptr<simb::MCParticle>> particle_vec;
+        std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
+        unsigned int nMatHits = 0;
+        for(unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
+          particle_vec.clear(); match_vec.clear();
+          try{ particles_per_hit.get(iht, particle_vec, match_vec); }
+          catch(...) {
+            std::cout<<"BackTrackerHitMatchingData not found\n";
+            break;
+          }
+          if(particle_vec.empty()) continue;
+          int trackID = 0;
+          for(unsigned short im = 0; im < match_vec.size(); ++im) {
+            if(match_vec[im]->ideFraction < 0.5) continue;
+            trackID = particle_vec[im]->TrackId();
+            break;
+          } // im
+          if(trackID == 0) continue;
+          // look for this in MCPartList
+          for(unsigned int ipart = 0; ipart < mcpList.size(); ++ipart) {
+            auto& mcp = mcpList[ipart];
+            if(mcp->TrackId() != trackID) continue;
+            mcpListIndex[iht] = ipart;
+            ++nMatHits;
+            break;
+          } // ipart
+        } // iht
+        if(tca::tcc.matchTruth[1] > 1) std::cout<<"Loaded "<<mcpList.size()<<" MCParticles. "<<nMatHits<<"/"<<(*inputHits).size()<<" hits are matched to MCParticles\n";
+      } // fill mcpList
+      
       // First sort the hits in each sub-slice and then reconstruct
       for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
         auto& slhits = slHitsVec[isl];
@@ -357,6 +412,22 @@ namespace cluster {
         for(unsigned short ii = 0; ii < slhits.size(); ++ii) slhits[ii] = tmp[sortVec[ii].index];
         // clear the temp vector
         tmp.resize(0);
+        // try to find a hit in debug step mode
+        if(tca::tcc.modes[tca::kDebug]) {
+          for(unsigned short indx = 0; indx < slhits.size(); ++indx) {
+            auto& hit = (*inputHits)[slhits[indx]];
+            if((int)hit.WireID().TPC == tca::debug.TPC && 
+               (int)hit.WireID().Plane == tca::debug.Plane &&
+               (int)hit.WireID().Wire == tca::debug.Wire &&
+               hit.PeakTime() > tca::debug.Tick - 10  && hit.PeakTime() < tca::debug.Tick + 10) {
+              std::cout<<"Debug hit "<<slhits[indx]<<" found in sub-slice index "<<isl;
+              std::cout<<"\n";
+              tca::debug.Hit = slhits[indx];
+              tca::tcc.dbgStp = true;
+              break;
+            } // Look for debug hit
+          } // iht
+        } // Debug mode
         // reconstruct using the hits in this sub-slice. The data products are stored internally in
         // TrajCluster data structs.
         fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
@@ -365,72 +436,11 @@ namespace cluster {
       // stitch PFParticles between TPCs, create PFP start vertices, etc
       fTCAlg->FinishEvent();
       
-      if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
-        // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC
-        // when checking neutrino reconstruction performance.
-        // create a list of MCParticles of interest
-        std::vector<simb::MCParticle*> mcpList;
-        // and a vector of MC-matched hits
-        std::vector<unsigned int> mcpListIndex((*inputHits).size(), UINT_MAX);
-        // save MCParticles that have the desired MCTruth origin using
-        // the Origin_t typedef enum: kUnknown, kBeamNeutrino, kCosmicRay, kSuperNovaNeutrino, kSingleParticle
-        simb::Origin_t origin = (simb::Origin_t)tca::tcc.matchTruth[0];
-        // or save them all
-        bool anySource = (origin == simb::kUnknown);
-        // get the assns
-        art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
-        art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-        sim::ParticleList const& plist = pi_serv->ParticleList();
-        for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
-          auto& p = (*ipart).second;
-          int trackID = p->TrackId();
-          art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
-          int KE = 1000 * (p->E() - p->Mass());
-          if(!anySource && theTruth->Origin() != origin) continue;
-          if(tca::tcc.matchTruth[1] > 1 && KE > 10) {
-            std::cout<<"TCM: mcp Origin "<<theTruth->Origin()
-            <<std::setw(8)<<p->TrackId()
-            <<" pdg "<<p->PdgCode()
-            <<std::setw(7)<<KE<<" mom "<<p->Mother()
-            <<" "<<p->Process()
-            <<"\n";
-          }
-          mcpList.push_back(p);
-        } // ipart
-        if(!mcpList.empty()) {
-          std::vector<art::Ptr<simb::MCParticle>> particle_vec;
-          std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
-          unsigned int nMatHits = 0;
-          for(unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
-            particle_vec.clear(); match_vec.clear();
-            try{ particles_per_hit.get(iht, particle_vec, match_vec); }
-            catch(...) {
-              std::cout<<"BackTrackerHitMatchingData not found\n";
-              break;
-            }
-            if(particle_vec.empty()) continue;
-            int trackID = 0;
-            for(unsigned short im = 0; im < match_vec.size(); ++im) {
-              if(match_vec[im]->ideFraction < 0.5) continue;
-              trackID = particle_vec[im]->TrackId();
-              break;
-            } // im
-            if(trackID == 0) continue;
-            // look for this in MCPartList
-            for(unsigned int ipart = 0; ipart < mcpList.size(); ++ipart) {
-              auto& mcp = mcpList[ipart];
-              if(mcp->TrackId() != trackID) continue;
-              mcpListIndex[iht] = ipart;
-              ++nMatHits;
-              break;
-            } // ipart
-          } // iht
-          if(tca::tcc.matchTruth[1] > 1) std::cout<<"Loaded "<<mcpList.size()<<" MCParticles. "<<nMatHits<<"/"<<(*inputHits).size()<<" hits are matched to MCParticles\n";
-          fTCAlg->fTM.MatchTruth(mcpList, mcpListIndex);
-          if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event());
-        } // mcpList not empty
-      } // match truth
-      if(tca::tcc.dbgSummary) tca::PrintAll("TCM");
+      if(!mcpListIndex.empty()) {
+        fTCAlg->fTM.MatchTruth(mcpList, mcpListIndex);
+        if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event());
+      } // mcpList not empty
+      if(tca::tcc.dbgSummary) tca::PrintAll("TCM", mcpList);
     } // input hits exist
 
     // Vectors to hold all data products that will go into the event
@@ -442,7 +452,7 @@ namespace cluster {
     std::vector<recob::Seed> sedCol;
     std::vector<recob::Shower> shwCol;
     std::vector<anab::CosmicTag> ctCol;
-    // a vector to correlate inputHits with hitCol
+    // a vector to correlate inputHits with output hits
     std::vector<unsigned int> newIndex(nInputHits, UINT_MAX);
     
     // assns for those data products
@@ -475,6 +485,9 @@ namespace cluster {
       slc_pfp_assn(new art::Assns<recob::Slice, recob::PFParticle>);
     std::unique_ptr<art::Assns<recob::Slice, recob::Hit>>
       slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
+    // www: Hit -> SpacePoint
+    std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>>
+      sp_hit_assn(new art::Assns<recob::SpacePoint, recob::Hit>);     
 
     // temp struct to get the index of a 2D (or 3D vertex) into vx2Col (or vx3Col)
     // given a slice index and a vertex ID (not UID)
@@ -486,6 +499,7 @@ namespace cluster {
     std::vector<slcVxStruct> vx2StrList;
     // vector to map 3V UID -> ID in each sub-slice
     std::vector<slcVxStruct> vx3StrList;
+
 
     if(nInputHits > 0) {
       unsigned short nSlices = fTCAlg->GetSlicesSize();
@@ -544,25 +558,21 @@ namespace cluster {
 
         } // vx3
         // Convert the tjs to clusters
-        bool badSlice = false;
         for(auto& tj : slc.tjs) {
           if(tj.AlgMod[tca::kKilled]) continue;
-          float sumChg = 0;
-          float sumADC = 0;
           hitColBeginIndex = hitCol.size();
-          for(auto& tp : tj.Pts) {
+          for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+            auto& tp = tj.Pts[ipt];
             if(tp.Chg <= 0) continue;
             // index of inputHits indices  of hits used in one TP
             std::vector<unsigned int> tpHits;
             for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
               if(!tp.UseHit[ii]) continue;
               if(tp.Hits[ii] > slc.slHits.size() - 1) {
-                badSlice = true;
                 break;
               } // bad slHits index
               unsigned int allHitsIndex = slc.slHits[tp.Hits[ii]].allHitsIndex;
               if(allHitsIndex > nInputHits - 1) {
-                badSlice = true;
                 break;
               } // bad allHitsIndex
               tpHits.push_back(allHitsIndex);
@@ -575,40 +585,43 @@ namespace cluster {
                 std::cout<<" new "<<newhit.WireID().Plane<<":"<<newhit.WireID().Wire<<":"<<(int)newhit.PeakTime();
                 std::cout<<" hitCol size "<<hitCol.size();
                 std::cout<<"\n";
-                badSlice = true;
                 break;
               }
-              newIndex[allHitsIndex] = hitCol.size();
+//              newIndex[allHitsIndex] = hitCol.size();
             } // ii
-            if(badSlice) break;
             // Let the alg define the hit either by merging multiple hits or by a simple copy
             // of a single hit from inputHits
-            recob::Hit newHit = fTCAlg->MergeTPHits(tpHits);
-            if(newHit.Channel() == raw::InvalidChannelID) {
-              std::cout<<"TrajCluster module failed merging hits\n";
-              badSlice = true;
-              break;
-            } // MergeTPHits failed
-            sumChg += newHit.Integral();
-            sumADC += newHit.SummedADC();
-            // add it to the new hits collection
-            hitCol.push_back(newHit);
-            // Slice -> Hit assn
-            if(!slices.empty() && !util::CreateAssn(*this, evt, hitCol, slices[slcIndex], *slc_hit_assn))
-            {
-              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate new Hit with Slice";
-            } // exception
+            // Merge hits in the TP that are on the same wire or create hits on multiple wires
+            // and update the old hits -> new hits assn (newIndex)
+            if(tj.AlgMod[tca::kHaloTj]) {
+              // dressed muon - don't merge hits
+              for(auto iht : tpHits) {
+                hitCol.push_back((*inputHits)[iht]);
+                newIndex[iht] = hitCol.size() - 1;
+              } // iht
+            } else {
+              fTCAlg->MergeTPHits(tpHits, hitCol, newIndex);
+            }
           } // tp
-          if(badSlice) {
-            std::cout<<"Bad slice. Need some error recovery code here\n";
-            break;
-          }
           if(hitCol.empty()) continue;
+          // Sum the charge and make the associations
+          float sumChg = 0;
+          float sumADC = 0;
+          for(unsigned short indx =  hitColBeginIndex; indx < hitCol.size(); ++indx) {
+            auto& hit = hitCol[indx];
+            sumChg += hit.Integral();
+            sumADC += hit.SummedADC();
+            if(!slices.empty() && !util::CreateAssn(*this, evt, hitCol, slices[slcIndex], *slc_hit_assn, indx)) {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate hits with Slice";
+            }
+          } // indx
           geo::View_t view = hitCol[hitColBeginIndex].View();
           auto& firstTP = tj.Pts[tj.EndPt[0]];
           auto& lastTP = tj.Pts[tj.EndPt[1]];
           int clsID = tj.UID;
           if(tj.AlgMod[tca::kShowerLike]) clsID = -clsID;
+          // dressed muon - give the halo cluster the same ID as the parent
+          if(tj.AlgMod[tca::kHaloTj]) clsID = -tj.ParentID;
           unsigned short nclhits = hitCol.size() - hitColBeginIndex + 1;
           clsCol.emplace_back(
                               firstTP.Pos[0],         // Start wire
@@ -651,17 +664,15 @@ namespace cluster {
           // Make cluster -> 2V and cluster -> 3V assns
           for(unsigned short end = 0; end < 2; ++end) {
             if(tj.VtxID[end] <= 0) continue;
-
-	    for(auto& vx2str : vx2StrList) {
-	      if(vx2str.slIndx != isl) continue;
-	      if(vx2str.ID != tj.VtxID[end]) continue;
-	      if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2str.vxColIndx, end))
-              {
+            for(auto& vx2str : vx2StrList) {
+              if(vx2str.slIndx != isl) continue;
+              if(vx2str.ID != tj.VtxID[end]) continue;
+              if(!util::CreateAssnD(*this, evt, *cls_vx2_assn, clsCol.size() - 1, vx2str.vxColIndx, end)) {
                 throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate cluster "<<tj.UID<<" with EndPoint2D";
               } // exception
               auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
               if(vx2.Vx3ID > 0) {
-		for(auto vx3str : vx3StrList) {
+                for(auto vx3str : vx3StrList) {
                   if(vx3str.slIndx != isl) continue;
                   if(vx3str.ID != vx2.Vx3ID) continue;
                   if(!util::CreateAssnD(*this, evt, *cls_vx3_assn, clsCol.size() - 1, vx3str.vxColIndx, end))
@@ -707,7 +718,8 @@ namespace cluster {
           } // exception
         } // ss3
       } // slice isl
-      
+     
+
       // Add PFParticles now that clsCol is filled
       for(unsigned short isl = 0; isl < nSlices; ++isl) {
         unsigned short slcIndex = 0;
@@ -730,10 +742,10 @@ namespace cluster {
           std::vector<size_t> dtrIndices(pfp.DtrUIDs.size());
           for(unsigned short idtr = 0; idtr < pfp.DtrUIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrUIDs[idtr] + offset - 1;
           pfpCol.emplace_back(pfp.PDGCode, self, parentIndex, dtrIndices);
-	  double sp[] = {pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]};
-	  double sd[] = {pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]};
-	  double spe[] = {0.,0.,0.};
-	  double sde[] = {0.,0.,0.};
+          double sp[] = {pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]};
+          double sd[] = {pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]};
+          double spe[] = {0.,0.,0.};
+          double sde[] = {0.,0.,0.};
           sedCol.emplace_back(sp,sd,spe,sde);
           // PFParticle -> clusters
           std::vector<unsigned int> clsIndices;
@@ -752,13 +764,11 @@ namespace cluster {
           } // exception
           // PFParticle -> Vertex
           if(pfp.Vx3ID[0] > 0) {
-	    for(auto vx3str : vx3StrList) {
+            for(auto vx3str : vx3StrList) {
               if(vx3str.slIndx != isl) continue;
               if(vx3str.ID != pfp.Vx3ID[0]) continue;
-	      std::vector<unsigned short> indx(1, vx3str.vxColIndx);
-        
-	      if(!util::CreateAssn(*this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end()))
-
+              std::vector<unsigned short> indx(1, vx3str.vxColIndx);
+              if(!util::CreateAssn(*this, evt, *pfp_vx3_assn, pfpCol.size() - 1, indx.begin(), indx.end()))
               {
                 throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate PFParticle "<<pfp.UID<<" with Vertex";
               } // exception
@@ -818,12 +828,15 @@ namespace cluster {
         art::FindManyP<recob::Hit> hitFromSlc(slcHandle, evt, fSliceModuleLabel);
         for(unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
           if(newIndex[allHitsIndex] != UINT_MAX) continue;
-          hitCol.push_back((*inputHits)[allHitsIndex]);
+          std::vector<unsigned int> oneHit(1, allHitsIndex);
+          fTCAlg->MergeTPHits(oneHit, hitCol, newIndex);
           // find out which slice it is in
+          bool gotit = false;
           for(size_t isl = 0; isl < slices.size(); ++isl) {
             auto& hit_in_slc = hitFromSlc.at(isl);
             for(auto& hit : hit_in_slc) {
               if(hit.key() != allHitsIndex) continue;
+              gotit = true;
               // Slice -> Hit assn
               if(!util::CreateAssn(*this, evt, hitCol, slices[isl], *slc_hit_assn))
               {
@@ -831,11 +844,39 @@ namespace cluster {
               } // exception
               break;
             } // hit
+            if(gotit) break;
           } // isl
         } // allHitsIndex
       } // slices exist
+      else {
+        // no recob::Slices. Just copy the unused hits
+        for(unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
+          if(newIndex[allHitsIndex] != UINT_MAX) continue;
+          std::vector<unsigned int> oneHit(1, allHitsIndex);
+          fTCAlg->MergeTPHits(oneHit, hitCol, newIndex);
+        } // allHitsIndex
+      } // recob::Slices
     } // input hits exist
-    
+
+    // www: find spacepoint from hits (inputHits) through SpacePoint->Hit assns, then create association between spacepoint and trajcluster hits (here, hits in hitCol)
+    if (nInputHits > 0) {   
+      // www: expecting to find spacepoint from hits (inputHits): SpacePoint->Hit assns
+      if (fSpacePointModuleLabel != "NA") {
+        art::FindManyP<recob::SpacePoint> spFromHit (inputHits, evt, fSpacePointModuleLabel); 
+        // www: using sp from hit 
+        for (unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
+          if (newIndex[allHitsIndex] == UINT_MAX) continue; // skip hits not used in slice (not TrajCluster hits)
+          auto & sp_from_hit = spFromHit.at(allHitsIndex);
+          for (auto& sp : sp_from_hit) {
+            // SpacePoint -> Hit assn
+            if(!util::CreateAssn(*this, evt, hitCol, sp, *sp_hit_assn, newIndex[allHitsIndex])) {
+              throw art::Exception(art::errors::ProductRegistrationFailure)<<"Failed to associate new Hit with SpacePoint";
+            } // exception
+          } // sp
+        } // allHitsIndex
+      } // fSpacePointModuleLabel != "NA"
+    } // nInputHits > 0
+
     // clear the alg data structures
     fTCAlg->ClearResults();
 
@@ -848,7 +889,6 @@ namespace cluster {
     std::unique_ptr<std::vector<recob::Seed> > sdcol(new std::vector<recob::Seed>(std::move(sedCol)));
     std::unique_ptr<std::vector<recob::Shower> > scol(new std::vector<recob::Shower>(std::move(shwCol)));
     std::unique_ptr<std::vector<anab::CosmicTag>> ctgcol(new std::vector<anab::CosmicTag>(std::move(ctCol)));
-
 
     // move the cluster collection and the associations into the event:
     if(fHitModuleLabel != "NA") {
@@ -879,6 +919,7 @@ namespace cluster {
     evt.put(std::move(slc_hit_assn));
     evt.put(std::move(ctgcol));
     evt.put(std::move(pfp_cos_assn));
+    evt.put(std::move(sp_hit_assn)); // www: association between sp and hit (trjaclust)
   } // TrajCluster::produce()
   
   //----------------------------------------------------------------------------

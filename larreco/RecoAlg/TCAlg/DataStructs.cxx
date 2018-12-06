@@ -4,10 +4,11 @@ namespace tca {
   
   TCEvent evt;
   TCConfig tcc;
+  std::vector<TjForecast> tjfs;
   ShowerTreeVars stv;
   // vector of hits, tjs, etc in each slice
   std::vector<TCSlice> slices;
-  //    TruthMatcher tm{tjs};
+  std::vector<TrajPoint> seeds;
 
   const std::vector<std::string> AlgBitNames {
     "MaskHits",
@@ -41,10 +42,11 @@ namespace tca {
     "BeginChg",
     "FixEnd",
     "UUH",
-    "MisdVxTj",
     "VtxTj",
     "ChkVxTj",
+    "MisdVxTj",
     "Photon",
+    "HaloTj",
     "NoFitToVx",
     "VxMerge",
     "VxNeutral",
@@ -56,6 +58,7 @@ namespace tca {
     "FTBRvProp",
     "StopAtTj",
     "Mat3D",
+    "M3DVxTj",
     "Mat3DMerge",
     "Split3DKink",
     "TjHiVx3Score",
@@ -72,9 +75,10 @@ namespace tca {
     "MergeShChain",
     "CompleteShower",
     "SplitTjCVx",
-    "SetDir"
+    "NewStpCuts",
+    "NewVtxCuts"
   };
-
+  
   const std::vector<std::string> StopFlagNames {
     "Signal",
     "AtKink",
@@ -90,8 +94,16 @@ namespace tca {
     "OnDeadWire",
     "HiVx3Score",
     "VtxTruMatch",
-    "VtxMerged"
-  } ;
+    "VtxMerged",
+    "VtxIndPlnNoChg"
+  };
+  
+  const std::vector<std::string> StrategyBitNames {
+    "Normal",
+    "StiffEl",
+    "StiffMu",
+    "Slowing"
+  };
   
   geo::PlaneID DecodeCTP(CTP_t CTP) {
     auto const cryo = (CTP / Cpad);

@@ -4,12 +4,6 @@
 
 BEGIN_PROLOG
 
-microboone_trajclusteralg:                    @local::standard_trajclusteralg
-microboone_trajclusteralg.MaxWireSkipNoSignal: 15 # increase a bit to allow for low gain wires
-microboone_trajclusteralg.CaloAlg:            @local::microboone_calorimetryalgmc
-microboone_trajcluster:                       @local::standard_trajcluster
-microboone_trajcluster.TrajClusterAlg:        @local::microboone_trajclusteralg
-
 microboone_clustercrawler:                    @local::standard_clustercrawler
 microboone_clustercrawler.ClusterCrawlerAlg:  @local::microboone_clustercrawleralg
 microboone_clustercrawler.CCHitFinderAlg:     @local::microboone_cchitfinderalg
@@ -26,6 +20,15 @@ microboone_cluster3d.SkeletonAlg:             @local::microboone_cluster3dskelet
 microboone_cluster3d.SeedFinderAlg:           @local::microboone_cluster3dhoughseedfinderalg
 microboone_cluster3d.PCASeedFinderAlg:        @local::microboone_cluster3dpcaseedfinderalg
 microboone_cluster3d.ParallelHitsAlg:         @local::microboone_cluster3dparallelhitsseedfinderalg
+
+microboone_dbcluster3d:                              @local::standard_dbcluster3d
+microboone_dbcluster3d.HitModuleLabel:               "gaushit"
+microboone_dbcluster3d.SpacePointModuleLabel:        "sps3d"
+microboone_dbcluster3d.SPHitAssnLabel:               "sps3d"
+microboone_dbcluster3d.MinHitDis:                    1000000
+microboone_dbcluster3d.DBScan3DAlg.epsilon:          30
+microboone_dbcluster3d.DBScan3DAlg.minpts:           2
+microboone_dbcluster3d.DBScan3DAlg.badchannelweight: 0.
 
 microboone_dbscanalg:                         @local::standard_dbscanalg_fast 
 microboone_endpointalg:                       @local::standard_endpointalg    
@@ -49,4 +52,98 @@ microboone_linemerger:                   @local::standard_linemerger
 microboone_endpointmod:                  @local::standard_endpointmod       
 microboone_endpointmod.EndPointAlg:      @local::microboone_endpointalg
 microboone_smallclusterfinder:		 @local::standard_smallclusterfinder
+
+microboone_trajclusteralg:                     @local::standard_trajclusteralg
+microboone_trajclusteralg.CaloAlg:             @local::microboone_calorimetryalgmc
+microboone_trajclusteralg.Mode:   1
+microboone_trajclusteralg.DoForecast:   true
+microboone_trajclusteralg.NPtsAve: 10
+microboone_trajclusteralg.AveHitRMS: [4.3, 4.5, 5.0]
+
+microboone_trajclusteralg.MinPtsFit: [4, 3, 3]
+microboone_trajclusteralg.MinPts:   [5, 5, 3]
+microboone_trajclusteralg.MaxAngleCode: [0, 1, 2] 
+microboone_trajclusteralg.AngleRanges: [40, 85, 90] # [SA, LA, VLA]
+
+microboone_trajclusteralg.MinMCSMom: [0, 0, 0] 
+
+microboone_trajclusteralg.MaxChi: 20
+microboone_trajclusteralg.HitErrFac: 0.4
+microboone_trajclusteralg.MinAmp: 0 # not used
+microboone_trajclusteralg.MultHitSep: 3.2 # 2.5
+microboone_trajclusteralg.ChargeCuts: [4, 0.15, 0.25]
+microboone_trajclusteralg.MaxWireSkipNoSignal:   2 # when there is no signal, e.g. low efficiency
+microboone_trajclusteralg.MaxWireSkipWithSignal: 100 # when there is a signal
+microboone_trajclusteralg.KinkCuts: [ 0.4, 1.5, 3 ] # kink angle, MCS kink significance, nPts fit
+microboone_trajclusteralg.QualityCuts: [ 0.8, 3] # Min points/wire, min consecutive pts after a gap
+microboone_trajclusteralg.ProjectionErrFactor: 2
+microboone_trajclusteralg.VLAStepSize: 1
+
+microboone_trajclusteralg.JTMaxHitSep: 3 # max hit separation for making Junk Trajectories
+#microboone_trajclusteralg.ElectronTag: [15, 1.1, 0.5] 
+# number of points to check at the beginning, Chg jump fraction, min jump fraction
+microboone_trajclusteralg.MuonTag: [40, 500, 10, 3] 
+# minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
+microboone_trajclusteralg.DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
+
+microboone_trajclusteralg.ChkStopCuts: [ 5, 8, 1.5] # [Min chg slope, Number of points to check, Chg fit Chi cut]
+#                                                              0  1   2  3  4  5    6   7   8    9   10
+microboone_trajclusteralg.Vertex2DCuts:  [ 6, 8, 45, 3, 3, 50, 0.6, 10, 0.8, 0.8, 1] 
+# 0 User definition of a short Tj => max number of Tj points
+# 1 max separation between a vertex and the start of a trajectory for a user-defined short Tj
+# 2 max separation for a user-defined long Tj
+# 3 max position pull when attaching a Tj to a vertex
+# 4 max position error for creating a Tj or attaching Tjs to an existing vertex
+# 5 Min MCSMom of Tjs that can be used to create a vertex
+# 6 min frac of Points/Wire between a vtx and a Tj. Ideally one if the efficiency is good
+# 7 min Score
+# 8 Min charge fraction near a merge point (not a vertex)
+# 9 max MCSmom asymmetry for a merge
+# 10 Require signal on wires btw Tjs and Vtx in induction plane?
+
+microboone_trajclusteralg.Vertex3DCuts: [ 1, 2]
+# 0 = dX match cut 
+# 1 = dY, dZ match cut
+
+microboone_trajclusteralg.VertexScoreWeights: [1, 2, 10, 2]
+# 0 = Vertex error weight
+# 1 = 3D match weight
+# 2 = Charge fraction of vertex Tjs near the vertex weight
+# 3 = Tj MCSMom, ChgRMS, Angle difference significance between Tjs weight
+
+microboone_trajclusteralg.NeutralVxCuts: [0.6, 15, 0.4, 5 ]
+# 0 = Min charge fraction near the start of a pfparticle
+# 1 = Max distance of closest approach (cm) between intersection pfparticles
+# 2 = Max charge fraction btw vertex and pfparticle start
+# 3 = Min pfparticle length (cm)
+
+#                                                          0   1    2   3   4  5   6  7  8    9   10  11  12
+microboone_trajclusteralg.ShowerTag: [ 3, 100, 10, 20, 2.5, 0, 15, 3, 3, 0.7, 0.1, 10, 0]
+# 0 Mode (<= 0 OFF, 1 = Tag shower-like Tjs, 2 = Find showers, 3 = Tag with new cuts, 4 = Tag & find showers with new cuts)
+# 1 Max Tj MCSMom for a shower-like tag
+# 2 Max shower-like Tj separation (WSE units in 2D)
+# 3 Min energy (MeV)
+# 4 rms width factor
+# 5 Min shower 1/2 width (WSE units)
+# 6 Not used
+# 7 Not used
+# 8 Not used
+# 9 direction FOM cut
+# 10 Min AspectRatio for a 2D shower
+# 11 Not used
+microboone_trajclusteralg.SaveShowerTree: false
+microboone_trajclusteralg.MVAShowerParentWeights: "TMVA_ShowerParent_BDT.weights.xml"
+
+microboone_trajclusteralg.Match3DCuts: [ 0.3, -0.3, 4, 100, 2000, 10, 0.2] 
+# 0 dx (cm) matching cut
+# 1 delta angle cut (radians). Set <= 0 to turn off angle checking
+# 2 min length for 2-view match 
+# 3 min MCSMom (if max Tj length > 10)
+# 4 max allowed number of 3D combinations
+# 5 min 2D length for 3D merging
+# 6 angle cut for 3D merging (radians)
+
+microboone_trajcluster:                       @local::standard_trajcluster
+microboone_trajcluster.TrajClusterAlg:        @local::microboone_trajclusteralg
+
 END_PROLOG

@@ -131,13 +131,13 @@ namespace shower {
       vtx[1] = pfpvtx->position().Y();
       vtx[2] = pfpvtx->position().Z();
 
-      if (pfptrk->Vertex()[2] < pfptrk->End()[2]) {
-	shwvtx = pfptrk->Vertex();
-	shwDir = pfptrk->VertexDirection();
+      if (pfptrk->Vertex().Z() < pfptrk->End().Z()) {
+	shwvtx = pfptrk->Vertex<TVector3>();
+	shwDir = pfptrk->VertexDirection<TVector3>();
       }
       else {
-	shwvtx = pfptrk->End();
-	shwDir = -pfptrk->EndDirection();
+	shwvtx = pfptrk->End<TVector3>();
+	shwDir = -pfptrk->EndDirection<TVector3>();
       }
 
       //      int tolerance = 100; // how many shower like cluster you need to define a shower              
@@ -145,6 +145,10 @@ namespace shower {
       double pullTolerance = 0.7; // hits should be evenly distributed around the track
       double maxDist = 20; // how far a shower like cluster can be from the track
       double minDistVert = 15; // exclude tracks near the vertex
+
+      // TODO: count number of shower-like hits hits "behind" vertex
+      // if high, pick an earlier cluster and refit hits
+      // this is going to take some restructuring
 
       if (pfphits.size() < 30) continue;
       //      if (pfphits.size() < 15) continue;
@@ -246,8 +250,8 @@ namespace shower {
 	// loop over clusters to see if any fall within the shower
 	for (size_t k = 0; k < clusterlist.size(); ++k) {
 	  std::vector< art::Ptr<recob::Hit> > cls_hitlist = cls_fm.at(clusterlist[k].key());
-	  if (clusterlist[k]->ID() < 0) continue;
-	  if (cls_hitlist.size() > 50) continue;
+	  //	  if (clusterlist[k]->ID() < 0) continue;
+	  if (clusterlist[k]->ID() > 0 && cls_hitlist.size() > 50) continue; 
 
 	  double thisDist = maxDist;
 	  double thisMin = minDistVert;
@@ -257,7 +261,7 @@ namespace shower {
 	    thisMin *= 4;
 	  }
 	  else if (cls_hitlist.size() < 30) thisDist *= 2;
-	  
+
 	  int nhits = 0;
           int ngoodhits = 0;
 
