@@ -294,12 +294,12 @@ void trkf::KalmanFilterFinalTrackFitter::produce(art::Event & e)
   auto outputHits    = std::make_unique<art::Assns<recob::Track, recob::Hit> >();
   auto outputHitInfo = std::make_unique<std::vector<std::vector<recob::TrackFitHitInfo> > >();
 
-  auto const tid = getProductID<std::vector<recob::Track> >();
+  auto const tid = e.getProductID<std::vector<recob::Track> >();
   auto const tidgetter = e.productGetter(tid);
 
   auto outputSpacePoints  = std::make_unique<std::vector<recob::SpacePoint> >();
   auto outputHitSpacePointAssn = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint> >();
-  auto const spid = getProductID<std::vector<recob::SpacePoint> >();
+  auto const spid = e.getProductID<std::vector<recob::SpacePoint> >();
   auto const spidgetter = e.productGetter(spid);
 
   //FIXME, eventually remove this (ok only for single particle MC)

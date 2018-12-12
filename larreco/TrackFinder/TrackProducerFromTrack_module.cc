@@ -85,8 +85,8 @@ void TrackProducerFromTrack::produce(art::Event & e)
   auto outputHitSpacePointAssn = std::make_unique<art::Assns<recob::Hit, recob::SpacePoint> >();
   //
   // PtrMakers for Assns
-  art::PtrMaker<recob::Track> trackPtrMaker(e, *this);
-  art::PtrMaker<recob::SpacePoint> spacePointPtrMaker(e, *this);
+  art::PtrMaker<recob::Track> trackPtrMaker(e);
+  art::PtrMaker<recob::SpacePoint> spacePointPtrMaker(e);
   //
   // Input from event
   art::ValidHandle<std::vector<recob::Track> > inputTracks = e.getValidHandle<std::vector<recob::Track> >(trackInputTag);

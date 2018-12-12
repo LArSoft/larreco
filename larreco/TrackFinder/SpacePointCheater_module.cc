@@ -245,7 +245,7 @@ namespace trkf {
 		    // make the PtrVector for this collection of space points
 		    // Do not reproduce the following lines
 		    // Contact brebel@fnal.gov if you think you need to reproduce these lines.
-		    art::ProductID spid = this->getProductID< std::vector<recob::SpacePoint> >();
+                    art::ProductID spid = evt.getProductID< std::vector<recob::SpacePoint> >();
 		    art::Ptr<recob::SpacePoint> spptr(spid, ispt, evt.productGetter(spid));
 		    sptvec.push_back(spptr);
 		  }
@@ -315,7 +315,7 @@ namespace trkf {
 		      // make the PtrVector for this collection of space points
 		      // Do not reproduce the following lines
 		      // Contact brebel@fnal.gov if you think you need to reproduce these lines.
-		      art::ProductID spid = this->getProductID< std::vector<recob::SpacePoint> >();
+                      art::ProductID spid = evt.getProductID< std::vector<recob::SpacePoint> >();
 		      art::Ptr<recob::SpacePoint> spptr(spid, ispt, evt.productGetter(spid));
 		      sptvec.push_back(spptr);
 		    }
