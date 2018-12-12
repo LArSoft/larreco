@@ -440,7 +440,7 @@ namespace cluster {
         fTCAlg->fTM.MatchTruth(mcpList, mcpListIndex);
         if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event());
       } // mcpList not empty
-      if(tca::tcc.dbgSummary) tca::PrintAll("TCM", mcpList);
+      if(tca::tcc.dbgSummary) tca::PrintAll("TCM", mcpList, mcpListIndex);
     } // input hits exist
 
     // Vectors to hold all data products that will go into the event
