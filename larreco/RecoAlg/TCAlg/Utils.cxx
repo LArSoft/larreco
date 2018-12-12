@@ -4771,7 +4771,7 @@ namespace tca {
   } // DumpTj
   
   ////////////////////////////////////////////////
-  void PrintAll(std::string someText, const std::vector<simb::MCParticle*>& mcpList)
+  void PrintAll(std::string someText, const std::vector<simb::MCParticle*>& mcpList, std::vector<unsigned int> const& mcpListIndex)
   {
     // print everything in all slices
     bool prt3V = false;
@@ -4793,9 +4793,18 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     myprt<<"Debug report from caller "<<someText<<"\n";
     if(!mcpList.empty()) {
+      // mcpList   list of hits in this TPC
+      std::vector<unsigned int> mcpHitCnt(mcpList.size());
+      for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
+        if(mcpListIndex[iht] > mcpList.size() - 1) continue;
+//        auto& hit = (*evt.allHits)[iht];
+//        if(hit.WireID().Cryostat != cstat) continue;
+//        if(hit.WireID().TPC != tpc) continue;
+        ++mcpHitCnt[mcpListIndex[iht]];
+      } // iht
       art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
       myprt<<"************ "<<mcpList.size()<<" MCParticles (> 10 MeV) ************\n";
-      myprt<<" mcpindx  PDG    KE eveIndx   Process\n";
+      myprt<<" mcpindx  PDG    KE eveIndx  nHits   Process\n";
       for(unsigned int imcp = 0; imcp < mcpList.size(); ++imcp) {
         auto& mcp = mcpList[imcp];
         int pdg = abs(mcp->PdgCode());
@@ -4814,6 +4823,7 @@ namespace tca {
           } 
         } // jmcp
         myprt<<std::setw(8)<<eveIndx;
+        myprt<<std::setw(7)<<mcpHitCnt[imcp];
         myprt<<" "<<mcp->Process();
         myprt<<"\n";
       } // imcp
