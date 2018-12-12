@@ -1295,7 +1295,7 @@ namespace tca {
       mtj.AlgMod[kMat3DMerge] = true;
       SetEndPoints(mtj);
       mtj.MCSMom = MCSMom(slc, mtj);
-      SetPDGCode(slc, mtj, true);
+      SetPDGCode(slc, mtj);
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<" P"<<pfp.ID<<" try to merge";
