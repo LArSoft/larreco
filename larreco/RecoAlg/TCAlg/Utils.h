@@ -204,7 +204,7 @@ namespace tca {
   bool DecodeDebugString(std::string ctpwt);
   // ****************************** Printing  ******************************
   void DumpTj();
-  void PrintAll(std::string someText, const std::vector<simb::MCParticle*>& mcpList);
+  void PrintAll(std::string someText, const std::vector<simb::MCParticle*>& mcpList, std::vector<unsigned int> const& mcpListIndex);
   void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
   void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2);
