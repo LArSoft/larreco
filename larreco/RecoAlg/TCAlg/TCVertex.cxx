@@ -1138,9 +1138,9 @@ namespace tca {
           AttachAnyTrajToVertex(slc, ivx, prt);
           SetVx2Score(slc);
           // Update the PDGCode for the chopped trajectory
-          SetPDGCode(slc, it2, true);
+          SetPDGCode(slc, it2);
           // and for the new trajectory
-          SetPDGCode(slc, newTjIndex, true);
+          SetPDGCode(slc, newTjIndex);
           if(prt) mf::LogVerbatim("TC")<<" FHV2: New vtx 2V"<<slc.vtxs[ivx].ID<<" Score "<<slc.vtxs[ivx].Score;
           didaSplit = true;
           break;
@@ -1245,9 +1245,9 @@ namespace tca {
           slc.tjs[newTjIndex].AlgMod[kHamVx] = true;
           SetVx2Score(slc);
           // Update the PDGCode for the chopped trajectory
-          SetPDGCode(slc, it2, true);
+          SetPDGCode(slc, it2);
           // and for the new trajectory
-          SetPDGCode(slc, newTjIndex, true);
+          SetPDGCode(slc, newTjIndex);
           if(prt) {
             auto& vx2 = slc.vtxs[ivx];
             mf::LogVerbatim myprt("TC");
@@ -2898,9 +2898,9 @@ namespace tca {
             break;
           }
           // Update the PDGCode for the chopped trajectory
-          SetPDGCode(slc, itj, true);
+          SetPDGCode(slc, itj);
           // and for the new trajectory
-          SetPDGCode(slc, slc.tjs.size()-1, true);
+          SetPDGCode(slc, slc.tjs.size()-1);
         } // closePt is not near an end, so split the trajectory
         slc.tjs[itj].AlgMod[kComp3DVx] = true;
         unsigned short newtj = slc.tjs.size() - 1;
