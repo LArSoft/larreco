@@ -56,7 +56,7 @@ namespace tca {
       if(tcc.doForecast && !tj.AlgMod[kRvPrp] && span == tjfs[tjfs.size() - 1].nextForecastUpdate) {
         Forecast(slc, tj);
         SetStrategy(slc, tj);
-        SetPDGCode(slc, tj, false);
+        SetPDGCode(slc, tj);
       }
       // make a copy of the previous TP
       lastPt = tj.Pts.size() - 1;
@@ -291,9 +291,7 @@ namespace tca {
       }
     } // step
     
-    // Do a more carefull treatment
-    // This is the wrong place to do this. 
-//    SetPDGCode(slc, tj, true);
+    SetPDGCode(slc, tj);
     
     if(tcc.dbgStp) mf::LogVerbatim("TC")<<"End StepAway with tj size "<<tj.Pts.size()<<" isGood = "<<tj.IsGood;
     
@@ -327,7 +325,7 @@ namespace tca {
       myprt<<"SetStrategy: npwc "<<npwc<<" outlook "<<tjf.outlook;
       myprt<<" tj MCSMom "<<tj.MCSMom<<" forecast MCSMom "<<tjf.MCSMom;
       myprt<<" momRat "<<std::fixed<<std::setprecision(2)<<momRat;
-      myprt<<" tkLike? "<<tkLike<<" showerLike? "<<shLike;
+      myprt<<" tkLike? "<<tkLike<<" shLike? "<<shLike;
       myprt<<" leavesBeforeEnd? "<<tjf.leavesBeforeEnd<<" endBraggPeak? "<<tjf.endBraggPeak; 
     }
     if(tjf.outlook < 0) return;
@@ -346,13 +344,13 @@ namespace tca {
       lastTP.NTPsFit = 5;
       return;
     } // tracklike with > 1 forecast
-    if(notStiff && tkLike && tj.MCSMom < 200 && momRat < 0.7) {
+    if(notStiff && !shLike && tj.MCSMom < 200 && momRat < 0.7) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Low MCSMom & low momRat. Use the Slowing Tj strategy";
       tj.Strategy.reset();
       tj.Strategy[kSlowing] = true;
       lastTP.NTPsFit = 5;
       return;
-    } // tracklike with > 1 forecast
+    } // low MCSMom
     if(!tjf.leavesBeforeEnd && tjf.endBraggPeak) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Found a Bragg peak. Use the Slowing Tj strategy";
       tj.Strategy.reset();
@@ -1143,7 +1141,7 @@ namespace tca {
     bool passedDeadWires = (abs(dw) > 20 && DeadWireCount(slc, tp.Pos[0], tj.Pts[lastPtWithUsedHits].Pos[0], tj.CTP) > 10);
     if(passedDeadWires) deltaCut *= 2;
     // open it up for StiffEl and Slowing strategies
-    if(tj.Strategy[kStiffEl] || tj.Strategy[kSlowing]) deltaCut = 2.5;
+    if(tj.Strategy[kStiffEl] || tj.Strategy[kSlowing]) deltaCut = 3;
     
     // Create a larger cut to use in case there is nothing close
     float bigDelta = 2 * deltaCut;
@@ -2999,6 +2997,7 @@ namespace tca {
     
     // don't bother with really short tjs
     if(tj.Pts.size() < 3) return;
+    if(tcc.useAlg[kNewStpCuts] && tj.MCSMom < 50) return;
 
     unsigned short atPt = tj.EndPt[1];
     unsigned short maxPtsFit = 0;
@@ -4049,6 +4048,7 @@ namespace tca {
   bool ChkMichel(TCSlice& slc, Trajectory& tj, unsigned short& lastGoodPt){
     
     if(!tcc.useAlg[kMichel]) return false;
+    if(tj.PDGCode == 11 || tj.PDGCode == 111) return false;
     
     bool prt = (tcc.dbgStp || tcc.dbgAlg[kMichel]);
     
