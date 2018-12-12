@@ -2108,7 +2108,7 @@ namespace tca {
     SetEndPoints(tj);
     tj.MCSMom = MCSMom(slc, tj);
     UpdateTjChgProperties("ST", slc, tj, prt);
-    if(splittingMuon) SetPDGCode(slc, tj, true);
+    if(splittingMuon) SetPDGCode(slc, tj);
     
     // Append 3 points from the end of tj onto the
     // beginning of newTj so that hits can be swapped between
@@ -2135,7 +2135,7 @@ namespace tca {
     SetEndPoints(newTj);
     newTj.MCSMom = MCSMom(slc, newTj);
     UpdateTjChgProperties("ST", slc, newTj, prt);
-    if(splittingMuon) SetPDGCode(slc, newTj, true);
+    if(splittingMuon) SetPDGCode(slc, newTj);
     if(ivx < slc.vtxs.size()) newTj.VtxID[0] = slc.vtxs[ivx].ID;
     newTj.AlgMod[kSplit] = true;
     newTj.ParentID = 0;
@@ -2676,7 +2676,7 @@ namespace tca {
   } // FindCloseTjs
 
   ////////////////////////////////////////////////
-  float ElectronLikelihood(TCSlice& slc, Trajectory& tj, float& asym)
+  float ElectronLikelihood(TCSlice& slc, Trajectory& tj)
   {
     // returns a number between 0 (not electron-like) and 1 (electron-like)
     if(NumPtsWithCharge(slc, tj, false) < 8) return -1;
@@ -2687,7 +2687,7 @@ namespace tca {
     unsigned short cnt;
     TjDeltaRMS(slc, tj, tj.EndPt[0], midPt, rms0, cnt);
     TjDeltaRMS(slc, tj, midPt, tj.EndPt[1], rms1, cnt);
-    asym = std::abs(rms0 - rms1) / (rms0 + rms1);
+    float asym = std::abs(rms0 - rms1) / (rms0 + rms1);
     float chgFact = (tj.ChgRMS - 0.1) * 5;
     float elh = 5 * asym * chgFact;
     if(elh > 1) elh = 1;
@@ -3792,14 +3792,14 @@ namespace tca {
   } // NumHitsInTP
   
   ////////////////////////////////////////////////
-  void SetPDGCode(TCSlice& slc, unsigned short itj, bool tjDone)
+  void SetPDGCode(TCSlice& slc, unsigned short itj)
   {
     if(itj > slc.tjs.size() - 1) return;
-    SetPDGCode(slc, slc.tjs[itj], tjDone);
+    SetPDGCode(slc, slc.tjs[itj]);
   }
   
   ////////////////////////////////////////////////
-  void SetPDGCode(TCSlice& slc, Trajectory& tj, bool tjDone)
+  void SetPDGCode(TCSlice& slc, Trajectory& tj)
   {
     // Sets the PDG code for the supplied trajectory. Note that the existing
     // PDG code is left unchanged if these cuts are not met
@@ -3819,7 +3819,11 @@ namespace tca {
       return;
     }
     
-//    tj.PDGCode = 0;
+    if(tcc.showerTag[6] > 0 && ElectronLikelihood(slc, tj) > tcc.showerTag[6]) {
+      tj.PDGCode = 11;
+      return;
+    }
+    
     if(tcc.muonTag[0] <= 0) return;
     // Special handling of very long straight trajectories, e.g. uB cosmic rays
     bool isAMuon = (npwc > (unsigned short)tcc.muonTag[0] && tj.MCSMom > tcc.muonTag[1]);
@@ -4259,7 +4263,7 @@ namespace tca {
     MakeTrajectoryObsolete(slc, itj2);
     // Do this so that StoreTraj keeps the correct WorkID (of itj1)
     tj1.ID = tj1.WorkID;
-    SetPDGCode(slc, tj1, true);
+    SetPDGCode(slc, tj1);
     if(!StoreTraj(slc, tj1)) return false;
     int newTjID = slc.tjs.size();
     // Use the ParentID to trace which new Tj is superseding the merged ones
@@ -4626,7 +4630,7 @@ namespace tca {
       std::cout<<" 'PFP' to debug 3D matching and PFParticles\n";
       std::cout<<" 'DeltaRay' to debug delta ray tagging\n";
       std::cout<<" 'Muon' to debug muon tagging\n";
-      std::cout<<" '2S <plane>' to debug a 2D shower in plane <plane>\n";
+      std::cout<<" '2S <CTP>' to debug a 2D shower in CTP\n";
       std::cout<<" 'Reco <ID>' to reconstruct all sub-slices in the recob::Slice with the specified ID\n";
       std::cout<<" 'SubSlice <sub-slice index>' where <slice index> restricts output to the specified sub-slice index\n";
       std::cout<<" 'Stitch' to debug PFParticle stitching between TPCs\n";
@@ -4705,7 +4709,7 @@ namespace tca {
       return true;
     }
     if(words.size() == 2 && words[0] == "2S") {
-      debug.Plane = std::stoi(words[1]);
+      debug.CTP = std::stoi(words[1]);
       tcc.dbg2S = true;
       tcc.modes[kDebug] = true;
       return true;
@@ -5114,7 +5118,7 @@ namespace tca {
     
     if(printHeader) {
       myprt<<"************ Trajectories ************\n";
-      myprt<<"     prodID    CTP Pass  Pts     W:T      Ang CS AveQ     W:T      Ang CS AveQ Chg(k) chgRMS  Mom SDr __Vtx__  PDG DirFOM  Par Pri NuPar  E*P mcpIndex  WorkID \n";
+      myprt<<"     prodID    CTP Pass  Pts     W:T      Ang CS AveQ     W:T      Ang CS AveQ Chg(k) chgRMS  Mom SDr __Vtx__  PDG eLike  Par Pri NuPar  E*P mcpIndex  WorkID \n";
       printHeader = false;
     }
     auto sIndx = GetSliceIndex("T", tj.UID);
@@ -5178,7 +5182,8 @@ namespace tca {
     if(tj.VtxID[1] > 0) vxid = slc.vtxs[tj.VtxID[1]-1].UID;
     myprt<<std::setw(4)<<vxid;
     myprt<<std::setw(5)<<tj.PDGCode;
-    myprt<<std::setw(7)<<std::setprecision(1)<<tj.DirFOM;
+//    myprt<<std::setw(7)<<std::setprecision(1)<<tj.DirFOM;
+    myprt<<std::setw(7)<<std::setprecision(2)<<ElectronLikelihood(slc, tj);
     myprt<<std::setw(5)<<tj.ParentID;
     myprt<<std::setw(5)<<PrimaryID(slc, tj);
     myprt<<std::setw(6)<<NeutrinoPrimaryTjID(slc, tj);
