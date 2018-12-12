@@ -105,7 +105,7 @@ namespace tca {
   bool FindCloseHits(TCSlice& slc, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
   std::vector<unsigned int> FindCloseHits(TCSlice& slc, std::array<int, 2> const& wireWindow, Point2_t const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
   std::vector<int> FindCloseTjs(TCSlice& slc, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta);
-  float ElectronLikelihood(TCSlice& slc, Trajectory& tj, float& asym);
+  float ElectronLikelihood(TCSlice& slc, Trajectory& tj);
   float ChgFracNearPos(TCSlice& slc, const Point2_t& pos, const std::vector<int>& tjIDs);
   float MaxHitDelta(TCSlice& slc, Trajectory& tj);
   void ReverseTraj(TCSlice& slc, Trajectory& tj);
@@ -182,8 +182,8 @@ namespace tca {
   bool MakeBareTrajPoint(TCSlice& slc, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
   unsigned short FarEnd(TCSlice& slc, const Trajectory& tj, const Point2_t& pos);
   Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
-  void SetPDGCode(TCSlice& slc, Trajectory& tj, bool tjDone);
-  void SetPDGCode(TCSlice& slc, unsigned short itj, bool tjDone);
+  void SetPDGCode(TCSlice& slc, Trajectory& tj);
+  void SetPDGCode(TCSlice& slc, unsigned short itj);
 //  void AnalyzeHits(TCSlice& slc);
   bool AnalyzeHits();
   bool LongPulseHit(const recob::Hit& hit);
