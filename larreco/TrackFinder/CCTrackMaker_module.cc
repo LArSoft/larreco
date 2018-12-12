@@ -447,15 +447,6 @@ namespace trkf {
     // are possibly broken clusters but we will consider these when matching between planes
     fMergeErrorCut = 10;
     
-    // some junk vectors to satisfy the recob::Track constructor
-    std::vector< std::vector<double> > dQdx;
-    std::vector<double> mom(2, util::kBogusD);
-    // prepare a bogus covariance matrix so that the TrackAna module doesn't bomb
-    TMatrixD cov(5,5);
-    for(unsigned short ii = 0; ii < 5; ++ii) cov(ii, ii) = 1;
-    std::vector<TMatrixD> tmpCov;
-    tmpCov.push_back(cov);
-    tmpCov.push_back(cov);
     std::vector< art::Ptr<recob::Hit > > tmpHits;
     std::vector< art::Ptr<recob::Cluster > > tmpCls;
     std::vector< art::Ptr<recob::Vertex > > tmpVtx;
@@ -694,7 +685,10 @@ namespace trkf {
             // track
             // make the track
             size_t tStart = tcol->size();
-            recob::Track track(trk[tIndex].TrjPos, trk[tIndex].TrjDir, tmpCov, dQdx, mom, tID);
+	    recob::Track track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(trk[tIndex].TrjPos),
+						      recob::tracking::convertCollToVector(trk[tIndex].TrjDir),
+						      recob::Track::Flags_t(trk[itr].TrjPos.size()), false),
+			       0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), tID);
             tcol->emplace_back(std::move(track));
             size_t tEnd = tcol->size();
             // PFParticle - track association
@@ -740,7 +734,10 @@ namespace trkf {
         for(unsigned short itr = 0; itr < trk.size(); ++itr) {
           // ignore already saved tracks
           if(trk[itr].ID < 0) continue;
-          recob::Track track(trk[itr].TrjPos, trk[itr].TrjDir, tmpCov, dQdx, mom, trk[itr].ID);
+	  recob::Track track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(trk[itr].TrjPos), 
+						    recob::tracking::convertCollToVector(trk[itr].TrjDir), 
+						    recob::Track::Flags_t(trk[itr].TrjPos.size()), false), 
+			     0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), trk[itr].ID);
           tcol->emplace_back(std::move(track));
           tmpHits.clear();
           for(ipl = 0; ipl < nplanes; ++ipl)

@@ -149,10 +149,10 @@ namespace trkf{
 
 	// vectors to hold the positions and directions of the track
 	std::vector<TVector3> points;
-	std::vector<TVector3> dirs;
+	std::vector<TVector3> moms;
 
-	size_t nviews = geo->Nviews();
-	std::vector< std::vector<double> > dQdx(nviews);
+	// size_t nviews = geo->Nviews();
+	// std::vector< std::vector<double> > dQdx(nviews);
 
 	mf::LogInfo("TrackCheater") << "G4 id " << clusterMapItr.first 
 				    << " is a track with pdg code "
@@ -181,10 +181,11 @@ namespace trkf{
 	size_t spStart = spcol->size();
 	for(size_t t = 0; t < hits.size(); ++t){
 	  std::vector<double> xyz = bt_serv->HitToXYZ(hits[t]);
-	  points.push_back(TVector3(xyz[0], xyz[1], xyz[2]));
+	  TVector3 point(xyz[0], xyz[1], xyz[2]);
+	  points.push_back(point);
 
 	  std::vector<double> xyz1;
-	  double charge = hits[t]->Integral();
+	  //double charge = hits[t]->Integral();
 	  double dx     = 0.;
 	  double sign   = 1.;
 
@@ -200,16 +201,41 @@ namespace trkf{
 	  dx = std::sqrt(std::pow(xyz1[0] - xyz[0], 2) + 
 			 std::pow(xyz1[1] - xyz[1], 2) + 
 			 std::pow(xyz1[2] - xyz[2], 2));
+
+	  // figure out momentum
+	  double mom = 0;
+	  double drmin = std::numeric_limits<double>::max();
+	  for (unsigned int itp = 0; itp<part->NumberTrajectoryPoints(); itp++) {
+	    TVector3 p(part->Vx(itp), part->Vy(itp), part->Vz(itp));
+	    double dr = (p-point).Mag();
+	    if ( dr<drmin ) {
+	      mom = part->P(itp);
+	      drmin = dr;
+	    }
+	  }
 	  
 	  // direction is always from the previous point along track to
 	  // the next point, that is why sign is there
-	  dirs.push_back(TVector3(sign*(xyz1[0] - xyz[0])/dx, 
-				  sign*(xyz1[1] - xyz[1])/dx, 
-				  sign*(xyz1[2] - xyz[2])/dx));
+	  moms.push_back(TVector3(mom*sign*(xyz1[0] - xyz[0])/dx,
+				  mom*sign*(xyz1[1] - xyz[1])/dx,
+				  mom*sign*(xyz1[2] - xyz[2])/dx));
 
-	  dQdx[0].push_back(charge/dx);
-	  dQdx[1].push_back(charge/dx);
-	  dQdx[2].push_back(charge/dx);
+	  /*************************************************************/
+	  /*                          WARNING                          */
+	  /*************************************************************/
+	  /* The dQdx information in recob::Track has been deprecated  */
+	  /* since 2016 and in 11/2018 the recob::Track interface was  */
+	  /* changed and DQdxAtPoint and NumberdQdx were removed.      */
+	  /* Therefore the code below is now commented out             */
+	  /* (note that it was most likely not functional anyways).    */
+	  /* For any issue please contact: larsoft-team@fnal.gov       */
+	  /*************************************************************/
+	  /*
+	    dQdx[0].push_back(charge/dx);
+	    dQdx[1].push_back(charge/dx);
+	    dQdx[2].push_back(charge/dx);
+	  */
+	  /*************************************************************/
 
 	  // make the space point and set its ID and XYZ
 	  double xyzerr[6] = {1.e-3};
@@ -222,10 +248,10 @@ namespace trkf{
 	
 	// add a track to the collection.  Make the track
 	// ID be the same as the track ID for the eve particle
-	std::vector<double> momentum(2);
-	momentum[0] = part->P();
-	momentum[1] = part->P(part->NumberTrajectoryPoints()-1);
-	trackcol->push_back(recob::Track(points, dirs, dQdx, momentum, clusterMapItr.first));
+	trackcol->push_back(recob::Track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(points),
+								recob::tracking::convertCollToVector(moms),
+								recob::Track::Flags_t(points.size()), true),
+					 0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), clusterMapItr.first));
 
 	// associate the track with its clusters
 	util::CreateAssn(*this, evt, *trackcol, ptrvs, *tcassn);

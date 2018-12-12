@@ -109,7 +109,7 @@ std::vector<float> calo::TrackCalorimetryAlg::CreatePathLengthFractionVector(rec
   float cumulative_path_length=0;
   const float total_path_length = track.Length();
   for(size_t i_trj=1; i_trj<track.NumberTrajectoryPoints(); i_trj++){    
-    cumulative_path_length+=(track.LocationAtPoint(i_trj)-track.LocationAtPoint(i_trj-1)).Mag();
+    cumulative_path_length+=(track.LocationAtPoint(i_trj)-track.LocationAtPoint(i_trj-1)).R();
     trk_path_length_frac_vec[i_trj]=cumulative_path_length/total_path_length;
   }
 
@@ -133,7 +133,7 @@ void calo::TrackCalorimetryAlg::AnalyzeHit(recob::Hit const& hit,
 				hit.Integral()/pitch,
 				caloAlg.dEdx_AREA(hit,pitch),
 				pitch,
-				track.LocationAtPoint(traj_iter),
+				track.LocationAtPoint<TVector3>(traj_iter),
 				path_length_fraction_vec[traj_iter]);
 }
 

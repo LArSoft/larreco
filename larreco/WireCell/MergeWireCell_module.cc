@@ -348,15 +348,13 @@ void wc::MergeWireCell::MakeTracks(art::Event &evt,
   
   for (Long64_t i=0; i<nentries; ++i) {
     tree->GetEntry(i);
-    std::vector<TVector3> xyz;
-    std::vector<TVector3> dircos;
-    std::vector< std::vector<double> > dQdx;
-    std::vector<double> mom(2, util::kBogusD);
+    std::vector<recob::tracking::Point_t> xyz;
+    std::vector<recob::tracking::Vector_t> dircos;
     std::vector<size_t> hits;
     std::vector<size_t> spts;
     for (int i = 0; i<npoints; ++i){
-      xyz.push_back(TVector3(x[i],y[i],z[i]));
-      dircos.push_back(TVector3(sin(theta[i])*cos(phi[i]),sin(theta[i])*sin(phi[i]),cos(theta[i])));
+      xyz.emplace_back(x[i],y[i],z[i]);
+      dircos.emplace_back(sin(theta[i])*cos(phi[i]),sin(theta[i])*sin(phi[i]),cos(theta[i]));
       for (size_t j = 0; j<index.size(); ++j){
 	if (index[j]==msc_id[i]){
 	  spts.push_back(j);
@@ -366,7 +364,8 @@ void wc::MergeWireCell::MakeTracks(art::Event &evt,
 	}
       }
     }
-    trk_coll->push_back(recob::Track(xyz, dircos, dQdx, mom, trackid));
+    trk_coll->push_back(recob::Track(recob::TrackTrajectory(std::move(xyz), std::move(dircos), recob::Track::Flags_t(xyz.size()), false), 
+				     0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), trackid));
     // make associations between the track and space points
     util::CreateAssn(*this, evt, *trk_coll, *spt_coll, *trksassn, spts);
     // make associations between the track and hits

@@ -225,7 +225,11 @@ recob::Track ems::EMShower3D::ConvertFrom(pma::Track3D& src)
 		else dircos.push_back(dircos.back());
 	}
 
-	return recob::Track(xyz, dircos, vdedx, std::vector< double >(2, util::kBogusD), fIniIndex);
+	return recob::Track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(xyz),
+						   recob::tracking::convertCollToVector(dircos),
+						   recob::Track::Flags_t(xyz.size()), false),
+			    0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), fIniIndex);
+
 }
 
 recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
@@ -283,7 +287,10 @@ recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
 		else dircos.push_back(dircos.back());
 	}
 
-	return recob::Track(xyz, dircos, vdedx, std::vector< double >(2, util::kBogusD), fIniIndex);
+	return recob::Track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(xyz),
+						   recob::tracking::convertCollToVector(dircos),
+						   recob::Track::Flags_t(xyz.size()), false),
+			    0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), fIniIndex);
 }
 
 void ems::EMShower3D::produce(art::Event & e)
