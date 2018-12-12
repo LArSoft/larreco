@@ -130,7 +130,8 @@
 #include <map>
 #include <utility> // std::pair<>
 
-#include <TMath.h>
+#include "TMath.h"
+#include "CLHEP/Random/RandomEngine.h"
 
 #include "fhiclcpp/ParameterSet.h" 
 #include "canvas/Persistency/Common/Ptr.h" 
@@ -571,10 +572,12 @@ namespace cluster {
     size_t FastTransform(const std::vector<art::Ptr<recob::Cluster> >         & clusIn,
 			 std::vector<recob::Cluster>                    & ccol,  
 			 std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut,
+                         CLHEP::HepRandomEngine& engine,
 			 art::Event                                const& evt,
 			 std::string                               const& label);
 
     size_t Transform(std::vector<art::Ptr<recob::Hit> > const& hits,
+                     CLHEP::HepRandomEngine& engine,
                      std::vector<unsigned int>     *fpointId_to_clusterId,
                      unsigned int clusterId, // The id of the cluster we are examining
                      unsigned int *nClusters,
@@ -583,14 +586,16 @@ namespace cluster {
     
     // interface to look for lines only on a set of hits,without slope and totalQ arrays
     size_t FastTransform(
-      std::vector<art::Ptr<recob::Hit>>      & clusIn,
-      std::vector<art::PtrVector<recob::Hit>>& clusHitsOut
+      std::vector<art::Ptr<recob::Hit>> const& clusIn,
+      std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
+      CLHEP::HepRandomEngine& engine
       );
     
     // interface to look for lines only on a set of hits
     size_t FastTransform(
-      std::vector<art::Ptr<recob::Hit>>      & clusIn,
+      std::vector<art::Ptr<recob::Hit>> const& clusIn,
       std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
+      CLHEP::HepRandomEngine& engine,
       std::vector<double>                    & slope,
       std::vector<ChargeInfo_t>              & totalQ
       );

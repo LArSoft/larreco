@@ -145,6 +145,7 @@ namespace trkf {
 
 //-------------------------------------------------
 Track3DKalman::Track3DKalman(fhicl::ParameterSet const& pset) 
+  : EDProducer{pset}
 {
 
   this->reconfigure(pset);
@@ -272,7 +273,8 @@ void Track3DKalman::produce(art::Event& evt)
   art::ServiceHandle<geo::Geometry> geom;
   // get the random number generator service and make some CLHEP generators
   art::ServiceHandle<art::RandomNumberGenerator> rng;
-  CLHEP::HepRandomEngine &engine = rng->getEngine();
+  CLHEP::HepRandomEngine &engine = rng->getEngine(art::ScheduleID::first(),
+                                                  moduleDescription().moduleLabel());
   CLHEP::RandGaussQ gauss(engine);
 
   //////////////////////////////////////////////////////

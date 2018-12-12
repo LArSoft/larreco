@@ -247,6 +247,7 @@ cluster::HoughTransform::HoughTransform()
 //------------------------------------------------------------------------------
 size_t cluster::HoughBaseAlg::Transform(
   std::vector<art::Ptr<recob::Hit> > const& hits,
+  CLHEP::HepRandomEngine& engine,
   std::vector<unsigned int>                *fpointId_to_clusterId,
   unsigned int                              clusterId, // The id of the cluster we are examining
   unsigned int                             *nClusters,
@@ -397,9 +398,6 @@ size_t cluster::HoughBaseAlg::Transform(
 
   unsigned int randInd;
 
-  /// Get the random number generator
-  art::ServiceHandle<art::RandomNumberGenerator> rng;
-  CLHEP::HepRandomEngine & engine = rng -> getEngine();
   CLHEP::RandFlat flat(engine);
   TStopwatch w;
   //float timeTotal = 0;
@@ -1051,6 +1049,7 @@ void cluster::HoughBaseAlg::HLSSaveBMPFile(const char *fileName, unsigned char *
 size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cluster> >         & clusIn,
 					    std::vector<recob::Cluster>                    & ccol,  
 					    std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut,
+                                            CLHEP::HepRandomEngine& engine,
 					    art::Event                                const& evt,
 					    std::string                               const& label)
 {
@@ -1063,11 +1062,6 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 //  lariov::ChannelStatusProvider const* channelStatus
 //    = lar::providerFrom<lariov::ChannelStatusService>();
   HoughTransform c;
-
-  // Get the random number generator
-  art::ServiceHandle<art::RandomNumberGenerator> rng;
-  CLHEP::HepRandomEngine & engine = rng -> getEngine();
-  CLHEP::RandFlat flat(engine);
 
   // prepare the algorithm to compute the cluster characteristics;
   // we use the "standard" one here; configuration would happen here,
@@ -1369,7 +1363,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       std::vector<double> slopevec;
       std::vector<ChargeInfo_t> totalQvec;
       std::vector< art::PtrVector<recob::Hit> >   planeClusHitsOut;
-      this->FastTransform(hit,planeClusHitsOut,slopevec,totalQvec );
+      this->FastTransform(hit,planeClusHitsOut,engine, slopevec,totalQvec);
       
       LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
 
@@ -1438,21 +1432,23 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 }
 
 //------------------------------------------------------------------------------
-  size_t cluster::HoughBaseAlg::FastTransform(std::vector < art::Ptr < recob::Hit > >                 & clusIn,
-     	             std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut )
+size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Hit>> const& clusIn,
+                                            std::vector<art::PtrVector<recob::Hit>>& clusHitsOut,
+                                            CLHEP::HepRandomEngine& engine)
   {
    std::vector<double> slopevec;
    std::vector<ChargeInfo_t> totalQvec;
-   return  FastTransform( clusIn, clusHitsOut, slopevec, totalQvec );
-        
+  return FastTransform(clusIn, clusHitsOut, engine, slopevec, totalQvec);
   }
 
 
 
 //------------------------------------------------------------------------------
-  size_t cluster::HoughBaseAlg::FastTransform(std::vector < art::Ptr < recob::Hit > >                 & clusIn,
+size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Hit>> const& clusIn,
      	             std::vector< art::PtrVector<recob::Hit> >      & clusHitsOut, 
-		     std::vector<double> &slopevec, std::vector<ChargeInfo_t>& totalQvec )
+                                            CLHEP::HepRandomEngine& engine,
+                                            std::vector<double>& slopevec,
+                                            std::vector<ChargeInfo_t>& totalQvec)
 {
   std::vector<int> skip;  
 
@@ -1463,9 +1459,6 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
   lariov::ChannelStatusProvider const* channelStatus
     = lar::providerFrom<lariov::ChannelStatusService>();
 
-  // Get the random number generator
-  art::ServiceHandle<art::RandomNumberGenerator> rng;
-  CLHEP::HepRandomEngine & engine = rng -> getEngine();
   CLHEP::RandFlat flat(engine);
 
   std::vector< art::Ptr<recob::Hit> > hit;
@@ -1932,10 +1925,3 @@ size_t cluster::HoughBaseAlg::Transform(std::vector< art::Ptr<recob::Hit> > cons
 
   return hits.size();
 }
-
-
-
-
-
-
-

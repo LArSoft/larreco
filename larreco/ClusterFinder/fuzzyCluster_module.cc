@@ -56,16 +56,14 @@ namespace cluster{
   {
   public:
     explicit fuzzyCluster(fhicl::ParameterSet const& pset); 
-    ~fuzzyCluster();
-    void produce(art::Event& evt);
-    void beginJob();
-    void reconfigure(fhicl::ParameterSet const& p);
+    void produce(art::Event& evt) override;
+    void beginJob() override;
     
   private:
        
-    TH1F *fhitwidth;
-    TH1F *fhitwidth_ind_test;  
-    TH1F *fhitwidth_coll_test;  
+    TH1F *fhitwidth{nullptr};
+    TH1F *fhitwidth_ind_test{nullptr};
+    TH1F *fhitwidth_coll_test{nullptr};
   
     std::string fhitsModuleLabel;
     unsigned int fHoughSeed;
@@ -77,12 +75,14 @@ namespace cluster{
 
 namespace cluster{
 
-
   //-------------------------------------------------
   fuzzyCluster::fuzzyCluster(fhicl::ParameterSet const& pset) :
-    ffuzzyCluster(pset.get< fhicl::ParameterSet >("fuzzyClusterAlg"))
+    EDProducer{pset},
+    fhitsModuleLabel{pset.get< std::string >("HitsModuleLabel")},
+    fHoughSeed{pset.get< unsigned int >("HoughSeed")},
+    ffuzzyCluster{pset.get< fhicl::ParameterSet >("fuzzyClusterAlg")}
   {  
-    this->reconfigure(pset);
+    ffuzzyCluster.reconfigure(pset.get< fhicl::ParameterSet >("fuzzyClusterAlg"));
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     
@@ -90,31 +90,17 @@ namespace cluster{
     // unless overridden in configuration with key "Seed"
     art::ServiceHandle<rndm::NuRandomService>()
       ->createEngine(*this, pset, "Seed");
-    
   }
   
   //-------------------------------------------------
-  fuzzyCluster::~fuzzyCluster()
+  void fuzzyCluster::beginJob()
   {
-  }
-  
-  //-------------------------------------------------
-  void fuzzyCluster::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fhitsModuleLabel  = p.get< std::string >("HitsModuleLabel");
-    fHoughSeed = p.get< unsigned int >("HoughSeed");
-    ffuzzyCluster.reconfigure(p.get< fhicl::ParameterSet >("fuzzyClusterAlg"));
-  }
-  
-  //-------------------------------------------------
-  void fuzzyCluster::beginJob(){
     // get access to the TFile service
     art::ServiceHandle<art::TFileService> tfs;
   
     fhitwidth= tfs->make<TH1F>(" fhitwidth","width of hits in cm", 50000,0 ,5  );
     fhitwidth_ind_test= tfs->make<TH1F>("fhitwidth_ind_test","width of hits in cm", 50000,0 ,5  );
     fhitwidth_coll_test= tfs->make<TH1F>("fhitwidth_coll_test","width of hits in cm", 50000,0 ,5  );
-      
   }
   
   //-----------------------------------------------------------------
@@ -133,11 +119,12 @@ namespace cluster{
     // loop over all hits in the event and look for clusters (for each plane)
     std::vector<art::Ptr<recob::Hit> > allhits;
 
+    art::ServiceHandle<art::RandomNumberGenerator> rng;
+    CLHEP::HepRandomEngine &engine = rng->getEngine(art::ScheduleID::first(),
+                                                    moduleDescription().moduleLabel());
     // If a nonzero random number seed has been provided, 
     // overwrite the seed already initialized
     if(fHoughSeed != 0){
-      art::ServiceHandle<art::RandomNumberGenerator> rng;
-      CLHEP::HepRandomEngine &engine = rng->getEngine();
       engine.setSeed(fHoughSeed,0);
     } 
 
@@ -182,7 +169,7 @@ namespace cluster{
       }
       
       //*******************************************************************
-      ffuzzyCluster.run_fuzzy_cluster(allhits);
+      ffuzzyCluster.run_fuzzy_cluster(allhits, engine);
       
       //End clustering with fuzzy
       
@@ -250,15 +237,4 @@ namespace cluster{
   
 } // end namespace
 
-namespace cluster{
-
-  DEFINE_ART_MODULE(fuzzyCluster)
-  
-} 
-
-
-
-
-
-
-
+DEFINE_ART_MODULE(cluster::fuzzyCluster)
