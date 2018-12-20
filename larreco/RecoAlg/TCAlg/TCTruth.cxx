@@ -95,8 +95,7 @@ namespace tca {
           auto& mcp = mcpList[tj.mcpListIndex];
           int pdg = abs(mcp->PdgCode());
           short TMeV = 1000 * (mcpList[0]->E() - mcpList[0]->Mass());
-          float asym;
-          float eLike = ElectronLikelihood(slc, tj, asym);
+          float eLike = ElectronLikelihood(slc, tj);
           mf::LogVerbatim myprt("TC");
           myprt<<"ntp "<<pdg<<" "<<TMeV;
           myprt<<" "<<tj.MCSMom;
@@ -104,7 +103,6 @@ namespace tca {
           myprt<<" "<<std::fixed<<std::setprecision(1);
           myprt<<" "<<TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
           myprt<<" "<<std::fixed<<std::setprecision(2);
-          myprt<<" "<<asym;
           myprt<<" "<<std::setprecision(3)<<tj.ChgRMS;
           myprt<<" "<<eLike;
           myprt<<" "<<tj.EffPur;
@@ -314,8 +312,7 @@ namespace tca {
             std::cout<<" MCSMom "<<tj.MCSMom;
             std::cout<<" ChgRMS "<<std::fixed<<std::setprecision(2)<<tj.ChgRMS;
             std::cout<<" BraggPeak? "<<tj.StopFlag[1][kBragg];
-            float asym;
-            std::cout<<" eLike "<<ElectronLikelihood(slc, tj, asym);
+            std::cout<<" eLike "<<ElectronLikelihood(slc, tj);
 /*
             auto plist = GetAssns(slc, "T", tj.ID, "P");
             if(!plist.empty()) std::cout<<" P"<<plist[0];

@@ -1138,9 +1138,9 @@ namespace tca {
           AttachAnyTrajToVertex(slc, ivx, prt);
           SetVx2Score(slc);
           // Update the PDGCode for the chopped trajectory
-          SetPDGCode(slc, it2, true);
+          SetPDGCode(slc, it2);
           // and for the new trajectory
-          SetPDGCode(slc, newTjIndex, true);
+          SetPDGCode(slc, newTjIndex);
           if(prt) mf::LogVerbatim("TC")<<" FHV2: New vtx 2V"<<slc.vtxs[ivx].ID<<" Score "<<slc.vtxs[ivx].Score;
           didaSplit = true;
           break;
@@ -1200,9 +1200,8 @@ namespace tca {
           } else {
             if(tj2len > 100 && DeltaAngle(slc.tjs[it2].Pts[end20].Ang, slc.tjs[it2].Pts[end21].Ang) < 0.2) continue;
           }
-          // Require no vertex associated with itj2
-//          if(slc.tjs[it2].VtxID[0] > 0 || slc.tjs[it2].VtxID[1] > 0) continue;
           float minDOCA = 5;
+          if(tcc.useAlg[kNewVtxCuts]) minDOCA /= std::abs(slc.tjs[it1].Pts[endPt1].Dir[0]);
           float doca = minDOCA;
           unsigned short closePt2 = 0;
           TrajPointTrajDOCA(slc, slc.tjs[it1].Pts[endPt1], slc.tjs[it2], closePt2, doca);
@@ -1222,9 +1221,18 @@ namespace tca {
           float chgFrac = ChgFracNearPos(slc, slc.tjs[it2].Pts[closePt2].Pos, tjids);
           if(prt) mf::LogVerbatim("TC")<<" chgFrac "<<chgFrac;
           if(chgFrac < 0.9) continue;
+          Point2_t vxpos = slc.tjs[it2].Pts[closePt2].Pos;
+          if(tcc.useAlg[kNewVtxCuts]) {
+            // get a better estimate of the vertex position
+            TrajIntersection(slc.tjs[it1].Pts[endPt1], slc.tjs[it2].Pts[closePt2], vxpos[0], vxpos[1]);
+            // and a better estimate of the point on tj2 where the split should be made
+            doca = minDOCA;
+            TrajClosestApproach(slc.tjs[it2], vxpos[0], vxpos[1], closePt2, doca);
+            if(prt) mf::LogVerbatim("TC")<<" better pos "<<PrintPos(slc, vxpos)<<" new closePt2 "<<closePt2;
+          } // kNewVtxCuts
           // create a new vertex
           VtxStore aVtx;
-          aVtx.Pos = slc.tjs[it2].Pts[closePt2].Pos;
+          aVtx.Pos = vxpos;
           aVtx.NTraj = 3;
           aVtx.Pass = slc.tjs[it2].Pass;
           aVtx.Topo = 5;
@@ -1245,9 +1253,9 @@ namespace tca {
           slc.tjs[newTjIndex].AlgMod[kHamVx] = true;
           SetVx2Score(slc);
           // Update the PDGCode for the chopped trajectory
-          SetPDGCode(slc, it2, true);
+          SetPDGCode(slc, it2);
           // and for the new trajectory
-          SetPDGCode(slc, newTjIndex, true);
+          SetPDGCode(slc, newTjIndex);
           if(prt) {
             auto& vx2 = slc.vtxs[ivx];
             mf::LogVerbatim myprt("TC");
@@ -2516,7 +2524,7 @@ namespace tca {
     if(vx2.ID == 0) return;
     
     // Don't score vertices from CheckTrajBeginChg, MakeJunkVertices or Neutral vertices. Set to the minimum
-    if(vx2.Topo == 8 || vx2.Topo == 9 || vx2.Topo == 11) {
+    if(vx2.Topo == 8 || vx2.Topo == 9 || vx2.Topo == 11 || vx2.Topo == 12) {
       vx2.Score = tcc.vtx2DCuts[7] + 0.1;
       auto vtxTjID = GetVtxTjIDs(slc, vx2);
       vx2.TjChgFrac = ChgFracNearPos(slc, vx2.Pos, vtxTjID);
@@ -2898,9 +2906,9 @@ namespace tca {
             break;
           }
           // Update the PDGCode for the chopped trajectory
-          SetPDGCode(slc, itj, true);
+          SetPDGCode(slc, itj);
           // and for the new trajectory
-          SetPDGCode(slc, slc.tjs.size()-1, true);
+          SetPDGCode(slc, slc.tjs.size()-1);
         } // closePt is not near an end, so split the trajectory
         slc.tjs[itj].AlgMod[kComp3DVx] = true;
         unsigned short newtj = slc.tjs.size() - 1;

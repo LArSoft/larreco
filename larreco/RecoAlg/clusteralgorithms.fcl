@@ -28,14 +28,14 @@ standard_trajclusteralg:
    MuonTag: [40, 500, 40, 3]    # minLength, minMCSMom, maxWireSkip,(min delta-ray length for muon direction tag)
    DeltaRayTag:  [10, 5, 500] # Tag short TJs as delta-rays close to muons [min sep, min MCSMom, max MCSMom]
 #               0   1   2   3   4  5    6   7  8  9 10 11 12
-   ShowerTag: [ 1, 100, 10, 50, 2.5, 1, 15, 3, 5, 0.7, 1, 10, -13]
+   ShowerTag: [ 1, 100, 10, 50, 2.5, 1, 0, 3, 5, 0.7, 1, 10, -13]
 # 0 Mode (<= 0 OFF, 1 = tag only, 2 = find showers)
   # 1 Max Tj MCSMom for a shower tag
   # 2 Max separation
   # 3 Min energy (MeV)
   # 4 rms width factor
   # 5 Min shower 1/2 width (WSE units)
-  # 6 Min total Tj Pts
+  # 6 Min ElectronLikelihood (if > 0)
   # 7 Min Tjs
   # 8 max parent FOM
   # 9 max direction FOM

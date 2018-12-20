@@ -41,6 +41,7 @@ namespace tca {
     "FTBChg",
     "BeginChg",
     "FixEnd",
+    "BraggSplit",
     "UUH",
     "VtxTj",
     "ChkVxTj",
