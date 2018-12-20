@@ -74,11 +74,8 @@ namespace cluster {
   public:
     
     explicit HoughLineFinder(fhicl::ParameterSet const& pset); 
-    virtual ~HoughLineFinder();
 
-    void reconfigure(fhicl::ParameterSet const& p);
-         
-    void produce(art::Event& evt);
+    void produce(art::Event& evt) override;
      
     
   private:
@@ -98,12 +95,14 @@ namespace cluster {
 
 namespace cluster {
 
-
   //------------------------------------------------------------------------------
   HoughLineFinder::HoughLineFinder(fhicl::ParameterSet const& pset) 
-    : fHLAlg(pset.get< fhicl::ParameterSet >("HoughBaseAlg"))
+    : EDProducer{pset}
+    , fDBScanModuleLabel{pset.get< std::string >("DBScanModuleLabel")}
+    , fHoughSeed{pset.get< unsigned int >("HoughSeed", 0)}
+    , fHLAlg(pset.get< fhicl::ParameterSet >("HoughBaseAlg"))
   {
-    this->reconfigure(pset);
+    fHLAlg.reconfigure(pset.get< fhicl::ParameterSet >("HoughBaseAlg"));
     produces< std::vector<recob::Cluster> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
     
@@ -113,19 +112,6 @@ namespace cluster {
     // remember that HoughSeed will override this on each event if specified
     art::ServiceHandle<rndm::NuRandomService>()
       ->createEngine(*this, pset, "Seed");
-  }
-  
-  //------------------------------------------------------------------------------
-  HoughLineFinder::~HoughLineFinder()
-  {
-  }
-  
-  //------------------------------------------------------------------------------
-  void HoughLineFinder::reconfigure(fhicl::ParameterSet const& p)
-  {
-    fDBScanModuleLabel = p.get< std::string >("DBScanModuleLabel");
-    fHoughSeed = p.get< unsigned int >("HoughSeed", 0);
-    fHLAlg.reconfigure(p.get< fhicl::ParameterSet >("HoughBaseAlg"));
   }
   
   //------------------------------------------------------------------------------
@@ -157,16 +143,16 @@ namespace cluster {
     
     size_t numclus = 0;
      
-   
+    art::ServiceHandle<art::RandomNumberGenerator> rng;
+    CLHEP::HepRandomEngine &engine = rng->getEngine(art::ScheduleID::first(),
+                                                    moduleDescription().moduleLabel());
     // If a nonzero random number seed has been provided, 
     // overwrite the seed already initialized
     if(fHoughSeed != 0){
-      art::ServiceHandle<art::RandomNumberGenerator> rng;
-      CLHEP::HepRandomEngine &engine = rng->getEngine();
       engine.setSeed(fHoughSeed,0);
     } 
 
-    numclus = fHLAlg.FastTransform(clusIn, *ccol, clusHitsOut, evt, fDBScanModuleLabel);
+    numclus = fHLAlg.FastTransform(clusIn, *ccol, clusHitsOut, engine, evt, fDBScanModuleLabel);
 
 
     //size_t Transform(std::vector<art::Ptr<recob::Cluster> >           & clusIn,
@@ -204,4 +190,3 @@ namespace cluster{
   DEFINE_ART_MODULE(HoughLineFinder)
   
 } 
-

@@ -245,7 +245,7 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 			//auto const trkPtr = make_trkptr(tracks->size() - 1); // PtrMaker Step #2
 
 			size_t trkIdx = tracks->size() - 1; // stuff for assns:
-			art::ProductID trkId = getProductID< std::vector<recob::Track> >();
+                        art::ProductID trkId = evt.getProductID< std::vector<recob::Track> >();
 			art::Ptr<recob::Track> trkPtr(trkId, trkIdx, evt.productGetter(trkId));
 
 			//gc: save associated hits in the same order as trajectory points
@@ -298,17 +298,17 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 			if (result[trkIndex].Key() > -1)
 			{
 				size_t trackIdx = tracks->size() - 1;
-				art::ProductID trackId = getProductID< std::vector<recob::Track> >();
+                                art::ProductID trackId = evt.getProductID< std::vector<recob::Track> >();
 				art::Ptr<recob::Track> trackPtr(trackId, trackIdx, evt.productGetter(trackId));
 				pfPartToTrackVecMap[result[trkIndex].Key()].push_back(trackPtr);
 			}
 		}
 
-		auto vid = getProductID< std::vector<recob::Vertex> >();
-		auto kid = getProductID< std::vector<recob::Vertex> >(kKinksName);
+                auto vid = evt.getProductID< std::vector<recob::Vertex> >();
+                auto kid = evt.getProductID< std::vector<recob::Vertex> >(kKinksName);
 		auto const* kinkGetter = evt.productGetter(kid);
 
-		auto tid = getProductID< std::vector<recob::Track> >();
+                auto tid = evt.getProductID< std::vector<recob::Track> >();
 		auto const* trkGetter = evt.productGetter(tid);
 
 		auto vsel = pmalgFitter.getVertices(fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
@@ -413,4 +413,3 @@ void PMAlgTrajFitter::produce(art::Event& evt)
 DEFINE_ART_MODULE(PMAlgTrajFitter)
 
 } // namespace trkf
-

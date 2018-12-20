@@ -77,12 +77,5 @@ namespace calib
 
 }
 
-DECLARE_ART_SERVICE_INTERFACE(calib::IPhotonCalibrator, LEGACY)
-
-// Concrete implementations inherit, and need something like this
-//
-// DECLARE_ART_SERVICE_INTERFACE_IMPL(DuneSPWireCalibrator, calib::IChargeCalibrator, LEGACY)
-//
-// in the header.
 
 #endif

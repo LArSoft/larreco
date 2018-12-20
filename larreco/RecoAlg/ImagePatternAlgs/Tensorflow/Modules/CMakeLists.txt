@@ -55,12 +55,12 @@ simple_plugin(EmTrackClusterId2out "module"
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+                        art_Framework_Services_System_TriggerNamesService_service
  			art_Persistency_Common
 			art_Persistency_Provenance
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )
@@ -77,12 +77,12 @@ simple_plugin(EmTrackClusterId3out "module"
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL}
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+                        art_Framework_Services_System_TriggerNamesService_service
  			art_Persistency_Common
 			art_Persistency_Provenance
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )
@@ -101,10 +101,10 @@ simple_plugin(EmTrackMichelId "module"
 			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
  			art_Persistency_Common
 			art_Persistency_Provenance
+                        art_Framework_Services_System_TriggerNamesService_service
 			art_Utilities
                         canvas
 			${MF_MESSAGELOGGER}
-			
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )
@@ -126,7 +126,6 @@ simple_plugin(ParticleDecayId "module"
 			art_Utilities
 			canvas
 			${MF_MESSAGELOGGER}
-			
 			cetlib cetlib_except
 			${ROOT_BASIC_LIB_LIST}
 )

@@ -214,7 +214,8 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
 // This is the algorithm that finds clusters:
 //
 //  Ben Carls' implementation of fuzzyClusterAlg as much like examples as possible
-void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<recob::Hit> >& allhits) {
+void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<recob::Hit> >& allhits,
+                                                 CLHEP::HepRandomEngine& engine) {
 
   // Don't attempt to run the algorithm if we have 1 or fewer hits
   if(allhits.size() <= 1)
@@ -302,7 +303,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
     for (unsigned int i = 0; i <= (unsigned int)nClustersTemp-1; ++i){
       LOG_DEBUG("fuzzyClusterAlg")
         << "Running Hough transform on protocluster " << i;
-      fHBAlg.Transform(allhits, &fpointId_to_clusterId, i, &nClusters, &protoTracksFound);
+      fHBAlg.Transform(allhits, engine, &fpointId_to_clusterId, i, &nClusters, &protoTracksFound);
     }
 
   // Determine the shower likeness of lines
@@ -1536,6 +1537,3 @@ double cluster::fuzzyClusterAlg::PointSegmentDistance(double px,
   return ::norm(dx, dy);
 
 }
-
-
-

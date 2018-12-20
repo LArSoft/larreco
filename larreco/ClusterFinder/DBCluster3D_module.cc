@@ -120,13 +120,15 @@ void cluster::DBCluster3D::produce(art::Event & evt)
   static bool first = true;
   if(first) {
     bool success = false;
+    bool foundsps = false;
     for(auto &hit : hits) {
       auto &sps = spFromHit.at(hit.key());
       if(sps.empty()) continue;
       success = (sps[0].id() == spsHandle.id());
+      foundsps = true;
       break;
     } // hit
-    if(!success) throw cet::exception("DBCluster3D")<<"HitModuleLabel, SpacePointModuleLabel and SPHitAssnLabel are inconsistent\n";
+    if((!success)&&foundsps) throw cet::exception("DBCluster3D")<<"HitModuleLabel, SpacePointModuleLabel and SPHitAssnLabel are inconsistent\n";
     first = false;
   } // first
 
