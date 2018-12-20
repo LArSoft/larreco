@@ -1284,50 +1284,42 @@ namespace tca {
     
   } // StoreTraj
   
-  ////////////////////////////////////////////////
-  void ChgSlope(TCSlice& slc, Trajectory& tj, float& slope, float& slopeErr, float& chiDOF)
+  //////////////////////////////////////////
+  void FitChg(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, ChgFit& chgFit) 
   {
-    // Fits the points with charge on the Tj and returns the charge slope, slope error and 
-    // Chi/DOF
-    ChgSlope(slc, tj, tj.EndPt[0], tj.EndPt[1], slope, slopeErr, chiDOF);
-  } // ChgSlope
-
-  ////////////////////////////////////////////////
-  void ChgSlope(TCSlice& slc, Trajectory& tj, unsigned short fromPt, unsigned short toPt, float& slope, float& slopeErr, float& chiDOF)
-  {
-    // Fits the points with charge on the Tj and returns the charge slope, slope error and 
-    // Chi/DOF
-    
-    slope = -1000;
-    slopeErr = 1000;
-    chiDOF = 1000;
-    
-    // prepare to do the fit
+    chgFit.ChiDOF = 999;
+    if(originPt > tj.Pts.size() - 1) return;
+    if(fitDir != 1 && fitDir != -1) return;
     Point2_t inPt;
     Vector2_t outVec, outVecErr;
-    float chgErr;
-    // Initialize
+    float chgErr, chiDOF;
     Fit2D(0, inPt, chgErr, outVec, outVecErr, chiDOF);
-    float wire0 = -1;
     unsigned short cnt = 0;
-    for(unsigned short ipt = fromPt; ipt <= toPt; ++ipt) {
+    for(unsigned short ii = 0; ii < tj.Pts.size(); ++ii) {
+      unsigned short ipt = originPt + ii * fitDir;
+      if(ipt < tj.EndPt[0] || ipt > tj.EndPt[1]) break;
       auto& tp = tj.Pts[ipt];
       if(tp.Chg <= 0) continue;
-      ++cnt;
-      if(wire0 < 0) wire0 = tp.Pos[0];
       // Accumulate and save points
-      inPt[0] = std::abs(tp.Pos[0] - wire0);
+      inPt[0] = std::abs(tp.Pos[0] - tj.Pts[originPt].Pos[0]);
       inPt[1] = tp.Chg;
       // Assume 10% point-to-point charge fluctuations
       chgErr = 0.1 * tp.Chg;
       if(!Fit2D(2, inPt, chgErr, outVec, outVecErr, chiDOF)) break;
-    } // tp
-    if(cnt < 3) return;
+      ++cnt;
+      if(cnt == npts) break;
+    } // ii
+    if(cnt < npts) return;
     // do the fit and get the results
     if(!Fit2D(-1, inPt, chgErr, outVec, outVecErr, chiDOF)) return;
-    slope = outVec[1];
-    slopeErr = outVecErr[1];
-  } // ChgSlope
+    chgFit.Pos = tj.Pts[originPt].Pos;
+    chgFit.Chg = outVec[0];
+    chgFit.Pos = tj.Pts[originPt].Pos;
+    chgFit.ChgSlp = outVec[1];
+    chgFit.ChgSlpErr = outVecErr[1];
+    chgFit.ChiDOF = chiDOF;
+    chgFit.nPtsFit = cnt;
+  } // FitChg
 
   ////////////////////////////////////////////////
   bool InTrajOK(TCSlice& slc, std::string someText)
@@ -1502,10 +1494,121 @@ namespace tca {
       return;
     }
     SetVx2Score(slc);
+    slc.tjs[itj].AlgMod[kBeginChg] = true;
     
     if(prt) mf::LogVerbatim("TC")<<"CTBC: Split T"<<tj.ID<<" at "<<PrintPos(slc, tj.Pts[breakPt].Pos)<<"\n";
     
   } // CheckTrajBeginChg
+  
+  //////////////////////////////////////////
+  bool BraggSplit(TCSlice& slc, unsigned short itj)
+  {
+    // Searches the stored trajectory for a Bragg Peak and kink and splits it
+    if(!tcc.useAlg[kBraggSplit]) return false;
+    if(itj > slc.tjs.size() - 1) return false;
+    if(tcc.chkStopCuts.size() < 4) return false;
+    if(tcc.chkStopCuts[3] <= 0) return false;
+    unsigned short nPtsToCheck = tcc.chkStopCuts[1];
+    auto& tj = slc.tjs[itj];
+    unsigned short npwc = NumPtsWithCharge(slc, tj, false);
+    if(npwc < 4) return false;
+    if(npwc < nPtsToCheck) nPtsToCheck = npwc;
+    // do a rough ChgPull check first
+    float maxPull = 2;
+    unsigned short maxPullPt = USHRT_MAX;
+    for(unsigned short ipt = tj.EndPt[0]; ipt < tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.ChgPull < maxPull) continue;
+      maxPull = tp.ChgPull;
+      maxPullPt = ipt;
+    } // ipt
+    if(maxPullPt == USHRT_MAX) return false;
+    short dpt;
+    if(maxPullPt < 0.5 * (tj.EndPt[0] + tj.EndPt[1])) {
+      dpt = maxPullPt - tj.EndPt[0];
+    } else {
+      dpt = tj.EndPt[1] - maxPullPt;
+    }
+    if(dpt < 3) return false;
+    bool prt = (tcc.dbgSlc && (tcc.dbgStp || tcc.dbgAlg[kBraggSplit]));
+    if(prt) mf::LogVerbatim("TC")<<"BS: T"<<tj.ID<<" maxPull "<<maxPull<<" at "<<PrintPos(slc, tj.Pts[maxPullPt])<<" dpt "<<dpt;
+    unsigned short breakPt = USHRT_MAX;
+    float bestFOM = tcc.chkStopCuts[3];
+    unsigned short bestBragg = 0;
+    unsigned short nPtsFit = tcc.kinkCuts[2];
+    TrajPoint tp1, tp2;
+    ChgFit chgFit1, chgFit2;
+    for(unsigned short ipt = maxPullPt - 2; ipt <= maxPullPt + 2; ++ipt) {
+      FitTraj(slc, tj, ipt - 1, nPtsFit, -1, tp1);
+      if(tp1.FitChi > 10) continue;
+      FitTraj(slc, tj, ipt + 1, nPtsFit, 1, tp2);
+      if(tp2.FitChi > 10) continue;
+      float dang = std::abs(tp1.Ang - tp2.Ang);
+      FitChg(slc, tj, ipt - 1, nPtsToCheck, -1, chgFit1);
+      if(chgFit1.ChiDOF > 100) continue;
+      chgFit1.ChgSlp = -chgFit1.ChgSlp;
+      FitChg(slc, tj, ipt + 1, nPtsToCheck, 1, chgFit2);
+      if(chgFit2.ChiDOF > 100) continue;
+      chgFit2.ChgSlp = -chgFit2.ChgSlp;
+      // require a large positive slope on at least one side
+      if(chgFit1.ChgSlp < tcc.chkStopCuts[0] && chgFit2.ChgSlp < tcc.chkStopCuts[0]) continue;
+      // assume it is on side 1
+      unsigned short bragg = 1;
+      float slp = chgFit1.ChgSlp;
+      float bchi = chgFit1.ChiDOF;
+      if(chgFit2.ChgSlp > chgFit1.ChgSlp) {
+        bragg = 2;
+        slp = chgFit2.ChgSlp;
+        bchi = chgFit2.ChiDOF;
+      }
+      float chgAsym = std::abs(chgFit1.Chg - chgFit2.Chg) / (chgFit1.Chg + chgFit2.Chg);
+      float slpAsym = std::abs(chgFit1.ChgSlp - chgFit2.ChgSlp) / (chgFit1.ChgSlp + chgFit2.ChgSlp);
+      if(bchi < 1) bchi = 1;
+      float fom = 10 * dang * chgAsym * slpAsym / bchi;
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"pt "<<PrintPos(slc, tj.Pts[ipt])<<" "<<std::setprecision(2)<<dang;
+        myprt<<" chg1 "<<(int)chgFit1.Chg<<" slp "<<chgFit1.ChgSlp<<" chi "<<chgFit1.ChiDOF;
+        myprt<<" chg2 "<<(int)chgFit2.Chg<<" slp "<<chgFit2.ChgSlp<<" chi "<<chgFit2.ChiDOF;
+        myprt<<" chgAsym "<<chgAsym;
+        myprt<<" slpAsym "<<slpAsym;
+        myprt<<" fom "<<fom;
+        myprt<<" bragg "<<bragg;
+      }
+      if(fom < bestFOM) continue;
+      bestFOM = fom;
+      breakPt = ipt;
+      bestBragg = bragg;
+    } // ipt
+    if(breakPt == USHRT_MAX) return false;
+    if(prt) mf::LogVerbatim("TC")<<" breakPt "<<PrintPos(slc, tj.Pts[breakPt])<<" bragg "<<bestBragg;
+    // Create a vertex at the break point
+    VtxStore aVtx;
+    aVtx.Pos = tj.Pts[breakPt].Pos;
+    aVtx.NTraj = 2;
+    aVtx.Pass = tj.Pass;
+    aVtx.Topo = 12;
+    aVtx.ChiDOF = 0;
+    aVtx.CTP = tj.CTP;
+    aVtx.ID = slc.vtxs.size() + 1;
+    aVtx.Stat[kFixed] = true;
+    unsigned short ivx = slc.vtxs.size();
+    if(!StoreVertex(slc, aVtx)) return false;
+    if(!SplitTraj(slc, itj, breakPt, ivx, prt)) {
+      if(prt) mf::LogVerbatim("TC")<<"BS: Failed to split trajectory";
+      MakeVertexObsolete("BS", slc, slc.vtxs[ivx], false);
+      return false;
+    }
+    SetVx2Score(slc);
+    slc.tjs[itj].AlgMod[kBraggSplit] = true;
+    std::cout<<"BS: split T"<<tj.ID<<"\n";
+    unsigned short otj = slc.tjs.size() - 1;
+    if(bestBragg == 2) std::swap(itj, otj);
+    slc.tjs[itj].PDGCode = 211;
+    slc.tjs[itj].StopFlag[1][kBragg] = true;
+    slc.tjs[otj].PDGCode = 13;
+    return true;
+  } // BraggSplit
 
   //////////////////////////////////////////
   void TrimEndPts(std::string fcnLabel, TCSlice& slc, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt)
@@ -1549,7 +1652,7 @@ namespace tca {
       // check for an error
       if(lastPt == 1) break;
       if(tj.Pts[lastPt].Chg == 0) continue;
-      // number of adjacent points on adjacent wires
+      // number of points on adjacent wires
       unsigned short nadj = 0;
       unsigned short npwc = 0;
       for(short ipt = lastPt - minPts; ipt < lastPt; ++ipt) {
@@ -1567,12 +1670,13 @@ namespace tca {
       float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[lastPt].Pos[0]) + 1;
       float hitFrac = ntpwc / nwires;
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: T"<<tj.ID<<" lastPt "<<lastPt<<" npwc "<<npwc<<" ntpwc "<<ntpwc<<" nadj "<<nadj<<" hitFrac "<<hitFrac;
+/*
       if(tcc.useAlg[kNewStpCuts]) {
         // use new cuts
         if(hitFrac > fQualityCuts[0] && ntpwc > minPts) break;
-      } else {
-        if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj == minPts) break;
       }
+*/
+      if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj == minPts) break;
     } // lastPt
     
     // trim the last point if it just after a dead wire.
@@ -2059,7 +2163,7 @@ namespace tca {
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"SplitTraj: Split T"<<tj.ID<<" at point "<<pos;
+      myprt<<"SplitTraj: Split T"<<tj.ID<<" at point "<<PrintPos(slc, tj.Pts[pos]);
       if(ivx < slc.vtxs.size()) myprt<<" with Vtx 2V"<<slc.vtxs[ivx].ID;
     }
 
@@ -2680,7 +2784,7 @@ namespace tca {
   {
     // returns a number between 0 (not electron-like) and 1 (electron-like)
     if(NumPtsWithCharge(slc, tj, false) < 8) return -1;
-    if(tj.StopFlag[1][kBragg]) return 0;
+    if(tj.StopFlag[0][kBragg] || tj.StopFlag[1][kBragg]) return 0;
     
     unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
     double rms0 = 0, rms1 = 0;
@@ -3803,7 +3907,7 @@ namespace tca {
   {
     // Sets the PDG code for the supplied trajectory. Note that the existing
     // PDG code is left unchanged if these cuts are not met
-        
+    
     short npwc = NumPtsWithCharge(slc, tj, false);
     if(npwc < 6) {
       tj.PDGCode = 0;
@@ -3835,48 +3939,7 @@ namespace tca {
     if(isAMuon) tj.PDGCode = 13;
     
   } // SetPDGCode
-/*
-  ////////////////////////////////////////////////
-  void AnalyzeHits(TCSlice& slc)
-  {
-    // Analyze the hits in this slice and possibly tag them hiMult
-    
-    bool first = true;
-    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-      for(unsigned int wire = slc.firstWire[plane]; wire < slc.lastWire[plane]; ++wire) {
-        if(slc.wireHitRange[plane][wire].first < 0) continue;
-        unsigned int firstHit = (unsigned int)slc.wireHitRange[plane][wire].first;
-        unsigned int lastHit = (unsigned int)slc.wireHitRange[plane][wire].second;
-        for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-          auto& ihit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
-          unsigned short multCnt = 0;
-          float rms = ihit.RMS();
-          float time = ihit.PeakTime();
-          bool prt = first && ihit.WireID().TPC == 2 && ihit.WireID().Plane == 2 && ihit.PeakTime() > 1100 && ihit.PeakTime() < 1400;
-          if(prt) {
-            std::cout<<"chk "<<(int)ihit.PeakTime()<<" iht "<<iht<<"\n";
-            first = false;
-          }
-          for(unsigned int jht = iht + 1; jht < lastHit; ++jht) {
-            auto& jhit = (*evt.allHits)[slc.slHits[jht].allHitsIndex];
-            if(jhit.RMS() > rms) rms = jhit.RMS();
-            float hitSep = tcc.multHitSep * rms;
-            if(prt) std::cout<<" jht "<<jht<<" "<<(int)jhit.PeakTime()<<" rms "<<rms<<" hitSep "<<hitSep<<"\n";
-            // break out if the next hit isn't close
-            if(jhit.PeakTime() - time > hitSep) break;
-            ++multCnt;
-            time = jhit.PeakTime();
-          } // jht
-          if(multCnt > 8) {
-            for(unsigned int jht = iht; jht <= iht + multCnt; ++jht) slc.slHits[jht].hiMult = true;
-            std::cout<<"hiMult "<<PrintHit(slc.slHits[iht])<<" "<<multCnt<<"\n";
-          } // high multiplicity
-          iht += multCnt;
-        } // iht
-      } // wire
-    } // plane
-  } // AnalyzeHits
-*/
+
   ////////////////////////////////////////////////
   bool AnalyzeHits()
   {
@@ -5195,6 +5258,7 @@ namespace tca {
     }
     myprt<<std::setw(7)<<tj.WorkID;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
+    for(unsigned short ib = 0; ib < StrategyBitNames.size(); ++ib) if(tj.Strategy[ib]) myprt<<" "<<StrategyBitNames[ib];
     myprt<<"\n";
   } // PrintT
 
