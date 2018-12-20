@@ -59,6 +59,7 @@ namespace tca {
     float ChiDOF {0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 
     //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = 3D split, 11 = neutral decay (pizero)
+    //       12 = BraggSplit
     short Topo {0}; 			
     CTP_t CTP {0};
     int ID {0};          ///< set to 0 if killed
@@ -136,6 +137,17 @@ namespace tca {
     std::vector<unsigned int> Hits; // vector of fHits indices
     std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
     std::bitset<8> Environment {0};    // TPEnvironment_t bitset that describes the environment, e.g. nearby showers or other Tjs
+  };
+  
+  // struct filled by FitChg
+  struct ChgFit {
+    Point2_t Pos {{0,0}}; // position origin of the fit
+    float Chg;
+    float ChgErr;
+    float ChgSlp;       // slope relative to the origin
+    float ChgSlpErr;
+    float ChiDOF;
+    unsigned short nPtsFit;
   };
   
   // Global information for the trajectory
@@ -374,6 +386,7 @@ namespace tca {
     kFTBChg,
     kBeginChg,
     kFixEnd,
+    kBraggSplit,
     kUUH,
     kVtxTj,
     kChkVxTj,
