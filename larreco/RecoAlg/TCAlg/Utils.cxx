@@ -15,7 +15,7 @@ bool valDecreasing (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
 bool valIncreasing (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
 
 namespace tca {
-  
+
   // dressed muons - new function
   void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt)
   {
@@ -4014,9 +4014,16 @@ namespace tca {
     
     unsigned int lastWire = 0, lastPlane = 0;
     for(unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
+      if(slc.slHits[iht].allHitsIndex > (*evt.allHits).size() - 1) {
+        std::cout<<"FWHR: slice "<<slc.ID<<" Bad allHits index\n";
+        return false;
+      }
       auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
       if(hit.WireID().Cryostat != cstat) continue;
       if(hit.WireID().TPC != tpc) continue;
+      if(slc.TPCID.TPC == 20) {
+        std::cout<<"hit "<<iht<<" "<<hit<<"\n";
+      }
       unsigned short plane = hit.WireID().Plane;
       unsigned int wire = hit.WireID().Wire;
       if(wire > slc.nWires[plane] - 1) {
@@ -4034,6 +4041,35 @@ namespace tca {
       slc.wireHitRange[plane][wire].second = iht + 1;
       slc.lastWire[plane] = wire + 1;
     } // iht
+    
+    if(slc.TPCID.TPC == 20) {
+      std::cout<<"TPC20 "<<slc.slHits.size()<<"\n";
+      unsigned short plane = 2;
+      for(unsigned int wire = slc.firstWire[plane]; wire < slc.lastWire[plane]; ++wire) {
+        std::cout<<wire<<" "<<slc.wireHitRange[plane][wire].first;
+        std::cout<<" "<<slc.wireHitRange[plane][wire].second;
+        std::cout<<"\n";
+      } // wire
+    } // TPCID == 20
+    
+    // check
+    int slhitsSize = (int)slc.slHits.size();
+    for(unsigned short plane = 0; plane < nplanes; ++plane) {
+      for(unsigned int wire = slc.firstWire[plane]; wire < slc.lastWire[plane]; ++wire) {
+        if(slc.wireHitRange[plane][wire].first > slhitsSize - 1 || 
+           slc.wireHitRange[plane][wire].second > slhitsSize) {
+            std::cout<<"CWHR: slice "<<slc.ID<<" Bad wire hit range in "<<slc.TPCID;
+            std::cout<<" plane "<<plane<<":"<<wire<<" first "<<slc.wireHitRange[plane][wire].first;
+            std::cout<<" second "<<slc.wireHitRange[plane][wire].second;
+            std::cout<<" hits size "<<slc.slHits.size();
+            std::cout<<"\n";
+            return false;
+          }
+      } // wire
+    } // plane
+    
+//    if(slc.TPCID.TPC != 20) return false;
+//    if(slc.wireHitRange[2][481].first < 4) return false;
     
 //    if(!CheckWireHitRange(tcs)) return false;
     

@@ -40,7 +40,6 @@ namespace tca {
   } HitStatus_t ;
 
   // ****************************** General purpose  ******************************
-  
   // dressed muons
   void MakeHaloTj(TCSlice& slc, Trajectory& muTj, bool prt);
   void DefineTjParents(TCSlice& slc, bool prt);
