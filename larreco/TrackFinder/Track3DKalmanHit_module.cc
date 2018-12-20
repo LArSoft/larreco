@@ -388,10 +388,10 @@ void trkf::Track3DKalmanHit::createOutputs(const art::Event &evt,
    }
    tracks.reserve(tracksSize);
    
-   auto const tid = getProductID<std::vector<recob::Track> >();
+   auto const tid = evt.getProductID<std::vector<recob::Track> >();
    auto const tidgetter = evt.productGetter(tid);
    
-   auto const spacepointId = getProductID<std::vector<recob::SpacePoint> >();
+   auto const spacepointId = evt.getProductID<std::vector<recob::SpacePoint> >();
    auto const getter = evt.productGetter(spacepointId);
    for (size_t i = 0; i<outputs.size();++i) {
       // Recover the kalman tracks double ended queue
@@ -482,6 +482,3 @@ void trkf::Track3DKalmanHit::fillHistograms(std::vector<KalmanOutput>& outputs)
       }
    }
 }
-
-
-

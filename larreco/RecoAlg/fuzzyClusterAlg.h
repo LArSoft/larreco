@@ -1,4 +1,3 @@
-
 #ifndef fuzzyClusterALG_H
 #define fuzzyClusterALG_H
 
@@ -15,6 +14,8 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larreco/RecoAlg/HoughBaseAlg.h"
 #include "larreco/RecoAlg/DBScanAlg.h"
+
+namespace CLHEP { class HepRandomEngine; }
 
 namespace fhicl { class ParameterSet; }
 
@@ -33,7 +34,8 @@ namespace cluster {
     void reconfigure(fhicl::ParameterSet const& p);
     void InitFuzzy(std::vector<art::Ptr<recob::Hit> >& allhits, std::set<uint32_t> badChannels);
     // Three differnt version of the clustering code
-    void run_fuzzy_cluster(const std::vector<art::Ptr<recob::Hit> >& allhits);
+    void run_fuzzy_cluster(const std::vector<art::Ptr<recob::Hit> >& allhits,
+                           CLHEP::HepRandomEngine& engine);
    
 
     std::vector<std::vector<unsigned int> > fclusters;               ///< collection of something
@@ -183,17 +185,3 @@ namespace cluster {
 } // namespace
 
 #endif // ifndef fuzzyClusterALG_H
-
-
-
-
-
-
-
-
-
-
-
-
-
-

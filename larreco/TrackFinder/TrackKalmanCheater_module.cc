@@ -468,7 +468,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
       
     for(unsigned int ispt = nspt; ispt < spts->size(); ++ispt) {
       const recob::SpacePoint& spt = (*spts)[ispt];
-      art::ProductID sptid = getProductID<std::vector<recob::SpacePoint> >();
+      art::ProductID sptid = evt.getProductID<std::vector<recob::SpacePoint> >();
       art::Ptr<recob::SpacePoint> sptptr(sptid, ispt, evt.productGetter(sptid));
       sptvec.push_back(sptptr);
 
