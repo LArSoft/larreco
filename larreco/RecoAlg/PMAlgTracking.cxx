@@ -816,6 +816,7 @@ bool pma::PMAlgTracker::mergeCoLinear(pma::TrkCandidateColl & tracks)
 		pma::Track3D* trk2 = 0;
 		pma::Track3D* best_trk2 = 0;
 		dmin = 1.0e12; cmax = 0; lbest = 0;
+		size_t ubest = 0;
 		for (u = t + 1; u < tracks.size(); u++)
 		{
 			trk2 = tracks[u].Track();
@@ -828,6 +829,7 @@ bool pma::PMAlgTracker::mergeCoLinear(pma::TrkCandidateColl & tracks)
 					cmax = c; dmin = d;
 					best_trk2 = trk2;
 					lbest = l;
+					ubest = u;
 				}
 			}
 			trk2 = 0;
@@ -846,9 +848,9 @@ bool pma::PMAlgTracker::mergeCoLinear(pma::TrkCandidateColl & tracks)
 			else
 			{
 				fProjectionMatchingAlg.mergeTracks(*trk1, *trk2, true);
-				tracks[u].DeleteTrack();
+				tracks[ubest].DeleteTrack();
 			}
-			tracks.erase_at(u);
+			tracks.erase_at(ubest);
 			foundMerge = true;
 		}
 		else t++;
