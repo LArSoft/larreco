@@ -317,13 +317,15 @@ namespace cluster {
         slHitsVec = tpcSlcHitsVec;
         slcIDs = tpcSlcIDs;
       } // > 1 TPC
-      
-      // Get truth info before reconstructing
-      // list of selected MCParticles
-      std::vector<simb::MCParticle*> mcpList;
-      // and a vector of MC-matched hits
-      std::vector<unsigned int> mcpListIndex((*inputHits).size(), UINT_MAX);
+
+      bool requireSliceMCTruthMatch = false;
       if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
+        // pass a reference to the MCParticle collection to TrajClusterAlg
+        auto mcpHandle = art::Handle<std::vector<simb::MCParticle>>();
+        if(!evt.getByLabel("largeant", mcpHandle)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to MCParticles\n";
+        fTCAlg->SetMCPHandle(*mcpHandle);
+        // size the hit -> MCParticle match vector
+        tca::evt.allHitsMCPIndex.resize(nInputHits, UINT_MAX);
         // TODO: Add a check here to ensure that a neutrino vertex exists inside any TPC
         // when checking neutrino reconstruction performance.
         // create a list of MCParticles of interest
@@ -332,6 +334,8 @@ namespace cluster {
         simb::Origin_t origin = (simb::Origin_t)tca::tcc.matchTruth[0];
         // or save them all
         bool anySource = (origin == simb::kUnknown);
+        // only reconstruct slices that have hits matched to the desired MC origin?
+        if(tca::tcc.matchTruth.size() > 4 && tca::tcc.matchTruth[4] > 0) requireSliceMCTruthMatch = true;
         // get the assns
         art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
         art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
@@ -344,17 +348,14 @@ namespace cluster {
           if(!anySource && theTruth->Origin() != origin) continue;
           if(tca::tcc.matchTruth[1] > 1 && KE > 10 && p->Process() == "primary") {
             std::cout<<"TCM: mcp Origin "<<theTruth->Origin()
-            <<std::setw(8)<<p->TrackId()
             <<" pdg "<<p->PdgCode()
-            <<std::setw(7)<<KE<<" mom "<<p->Mother()
+            <<std::setw(7)<<KE
             <<" "<<p->Process()
             <<"\n";
           }
-          mcpList.push_back(p);
         } // ipart
         std::vector<art::Ptr<simb::MCParticle>> particle_vec;
         std::vector<anab::BackTrackerHitMatchingData const*> match_vec;
-        unsigned int nMatHits = 0;
         for(unsigned int iht = 0; iht < (*inputHits).size(); ++iht) {
           particle_vec.clear(); match_vec.clear();
           try{ particles_per_hit.get(iht, particle_vec, match_vec); }
@@ -370,16 +371,17 @@ namespace cluster {
             break;
           } // im
           if(trackID == 0) continue;
-          // look for this in MCPartList
-          for(unsigned int ipart = 0; ipart < mcpList.size(); ++ipart) {
-            auto& mcp = mcpList[ipart];
-            if(mcp->TrackId() != trackID) continue;
-            mcpListIndex[iht] = ipart;
-            ++nMatHits;
+          // see if this is a MCParticle that should be tracked
+          art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
+          if(!anySource && theTruth->Origin() != origin) continue;
+          // get the index
+          for(unsigned int indx = 0; indx < (*mcpHandle).size(); ++indx) {
+            auto& mcp = (*mcpHandle)[indx];
+            if(mcp.TrackId() != trackID) continue;
+            tca::evt.allHitsMCPIndex[iht] = indx;
             break;
-          } // ipart
-        } // iht
-        if(tca::tcc.matchTruth[1] > 1) std::cout<<"Loaded "<<mcpList.size()<<" MCParticles. "<<nMatHits<<"/"<<(*inputHits).size()<<" hits are matched to MCParticles\n";
+          } // indx
+        }
       } // fill mcpList
       
       // First sort the hits in each sub-slice and then reconstruct
@@ -428,19 +430,32 @@ namespace cluster {
             } // Look for debug hit
           } // iht
         } // Debug mode
+        // determine if this is a slice that should be reconstructed - default is yes
+        bool reconstructSlice = true;
+        // unless we are reconstructing MC events and require a good truth match
+        if(requireSliceMCTruthMatch) {
+          // require that at least 50% of the hits in the slice are matched to a MCParticle
+          // that has the desired origin specified in MatchTruth[0]
+          unsigned int ntm = 0;
+          for(unsigned short indx = 0; indx < slhits.size(); ++indx) {
+            // get the index to this hit in this slice
+            unsigned int iht = slhits[indx];
+            // ensure that it is MC-matched
+            if(tca::evt.allHitsMCPIndex[iht] != UINT_MAX) ++ntm;
+          } // indx
+          if(slhits.size() > 2 && ntm < tca::tcc.matchTruth[4]) reconstructSlice = false;
+          if(reconstructSlice) std::cout<<"requireSliceMCTruthMatch slice "<<isl<<" ntm "<<ntm<<"\n";
+        } // requireSliceMCTruthMatch
         // reconstruct using the hits in this sub-slice. The data products are stored internally in
         // TrajCluster data structs.
-        fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
+        if(reconstructSlice) fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
       } // isl
       
       // stitch PFParticles between TPCs, create PFP start vertices, etc
       fTCAlg->FinishEvent();
-      
-      if(!mcpListIndex.empty()) {
-        fTCAlg->fTM.MatchTruth(mcpList, mcpListIndex);
-        if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event());
-      } // mcpList not empty
-      if(tca::tcc.dbgSummary) tca::PrintAll("TCM", mcpList, mcpListIndex);
+      fTCAlg->fTM.MatchTruth();
+      if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event());
+      if(tca::tcc.dbgSummary) tca::PrintAll("TCM");
     } // input hits exist
 
     // Vectors to hold all data products that will go into the event
