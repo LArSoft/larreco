@@ -2519,7 +2519,7 @@ namespace tca {
   ////////////////////////////////////////////////
   std::vector<unsigned int> PutTrajHitsInVector(Trajectory const& tj, HitStatus_t hitRequest)
   {
-    // Put hits in each trajectory point into a flat vector
+    // Put hits (which are indexed into slHits) in each trajectory point into a flat vector
     std::vector<unsigned int> hitVec;
     
     // special handling for shower trajectories. UseHit isn't valid
@@ -3934,7 +3934,7 @@ namespace tca {
     // anything really really long must be a muon
     if(npwc > 500) isAMuon = true;
     if(tj.PDGCode != 0 && tj.PDGCode != 13 && isAMuon) {
-      std::cout<<"T"<<tj.ID<<" changing PDGCode from "<<tj.PDGCode<<" to 13. Is this wise?\n";
+      std::cout<<"T"<<tj.ID<<" changing PDGCode from "<<tj.PDGCode<<" to 13. Is this wise? eventsProcessed "<<evt.eventsProcessed<<"\n";
     }
     if(isAMuon) tj.PDGCode = 13;
     
@@ -4874,7 +4874,7 @@ namespace tca {
   } // DumpTj
   
   ////////////////////////////////////////////////
-  void PrintAll(std::string someText, const std::vector<simb::MCParticle*>& mcpList, std::vector<unsigned int> const& mcpListIndex)
+  void PrintAll(std::string someText)
   {
     // print everything in all slices
     bool prt3V = false;
@@ -4895,39 +4895,37 @@ namespace tca {
     } // slc
     mf::LogVerbatim myprt("TC");
     myprt<<"Debug report from caller "<<someText<<"\n";
-    if(!mcpList.empty()) {
-      // mcpList   list of hits in this TPC
-      std::vector<unsigned int> mcpHitCnt(mcpList.size());
-      for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
-        if(mcpListIndex[iht] > mcpList.size() - 1) continue;
-//        auto& hit = (*evt.allHits)[iht];
-//        if(hit.WireID().Cryostat != cstat) continue;
-//        if(hit.WireID().TPC != tpc) continue;
-        ++mcpHitCnt[mcpListIndex[iht]];
-      } // iht
+    if(!evt.allHitsMCPIndex.empty()) {
       art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-      myprt<<"************ "<<mcpList.size()<<" MCParticles (> 10 MeV) ************\n";
+      TruthMatcher tm;
+      myprt<<"************  MCParticles  ************\n";
       myprt<<" mcpindx  PDG    KE eveIndx  nHits   Process\n";
-      for(unsigned int imcp = 0; imcp < mcpList.size(); ++imcp) {
-        auto& mcp = mcpList[imcp];
-        int pdg = abs(mcp->PdgCode());
+      for(unsigned int imcp = 0; imcp < (*evt.mcpHandle).size(); ++imcp) {
+        auto& mcp = (*evt.mcpHandle)[imcp];
+        int pdg = abs(mcp.PdgCode());
         if(pdg > 3000) continue;
-        float TMeV = 1000 * (mcp->E() - mcp->Mass());
+        float TMeV = 1000 * (mcp.E() - mcp.Mass());
         if(TMeV < 10) continue;
+        // See if there are MC-matched hits in any cryostat, TPC, plane
+        unsigned short nht = 0;
+        for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) if(evt.allHitsMCPIndex[iht] == imcp) ++nht;
+        if(nht == 0) continue;
         myprt<<std::setw(8)<<imcp;
         myprt<<std::setw(5)<<pdg;
         myprt<<std::setw(6)<<(int)TMeV;
-        int eveID = pi_serv->ParticleList().EveId(mcp->TrackId());
+/*
+        int eveID = pi_serv->ParticleList().EveId(mcp.TrackId());
         int eveIndx = -1;
         for(unsigned int jmcp = 0; jmcp < mcpList.size(); ++jmcp) {
-          if(mcpList[jmcp]->TrackId() == eveID) {
+          if((*evt.mcpHandle)[jmcp]->TrackId() == eveID) {
             eveIndx = jmcp;
             break;
           } 
         } // jmcp
         myprt<<std::setw(8)<<eveIndx;
-        myprt<<std::setw(7)<<mcpHitCnt[imcp];
-        myprt<<" "<<mcp->Process();
+*/
+        myprt<<std::setw(7)<<nht;
+        myprt<<" "<<mcp.Process();
         myprt<<"\n";
       } // imcp
     } // mcpList not empty
@@ -5044,10 +5042,10 @@ namespace tca {
     myprt<<std::setw(5)<<std::setprecision(2)<<pfp.Tp3s.size();
     myprt<<std::setw(3)<<IsShowerLike(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
-    if(pfp.mcpListIndex == UINT_MAX) {
+    if(pfp.mcpIndex == UINT_MAX) {
       myprt<<"      --";
     } else {
-      myprt<<std::setw(8)<<pfp.mcpListIndex;
+      myprt<<std::setw(8)<<pfp.mcpIndex;
     }
     myprt<<std::setw(4)<<pfp.ParentUID;
 //    myprt<<std::setw(5)<<PrimaryUID(slc, pfp);
@@ -5297,10 +5295,10 @@ namespace tca {
     myprt<<std::setw(5)<<PrimaryID(slc, tj);
     myprt<<std::setw(6)<<NeutrinoPrimaryTjID(slc, tj);
     myprt<<std::setw(6)<<std::setprecision(2)<<tj.EffPur;
-    if(tj.mcpListIndex == UINT_MAX) {
+    if(tj.mcpIndex == UINT_MAX) {
       myprt<<"    --";
     } else {
-      myprt<<std::setw(6)<<tj.mcpListIndex;
+      myprt<<std::setw(6)<<tj.mcpIndex;
     }
     myprt<<std::setw(7)<<tj.WorkID;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
