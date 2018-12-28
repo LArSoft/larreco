@@ -1050,7 +1050,7 @@ namespace tca {
       } // tcc.useAlg[kCTStepChk]
     } // isSA
     // Oct 30, 2018. FindSoftKink needs work
-    FindSoftKink(slc, tj);
+//    FindSoftKink(slc, tj);
     
     HiEndDelta(slc, tj);
     
@@ -2244,7 +2244,7 @@ namespace tca {
     tj.AlgMod[kSoftKink] = true;
     if(tcc.dbgStp) mf::LogVerbatim("TC")<<" truncated trajectory at "<<PrintPos(slc, tj.Pts[tj.Pts.size()-1]);
     
-  } // FindSoftKinks
+  } // FindSoftKink
   
   ////////////////////////////////////////////////
   void FillGaps(TCSlice& slc, Trajectory& tj)
