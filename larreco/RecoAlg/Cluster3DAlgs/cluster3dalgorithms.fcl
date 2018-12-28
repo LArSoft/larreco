@@ -21,9 +21,10 @@ standard_standardhit3dbuilder:
 
 standard_spacepointhit3dbuilder:
 {
-  tool_type:            SpacePointHit3DBuilder
-  SpacePointTag:        "SpacePointSolver"
-  EnableMonitoring:     true  # enable monitoring of functions
+  tool_type:               SpacePointHit3DBuilder
+  SpacePointProducerLabel: "SpacePointSolver"
+  HitProducerLabel:        "gaushit"
+  EnableMonitoring:        true  # enable monitoring of functions
 }
 
 standard_cluster3dprincipalcomponentsalg:

@@ -63,7 +63,7 @@ void PrincipalComponentsAlg::getHit2DPocaToAxis(const Eigen::Vector3f&    axisPo
     // Step one is to set up to determine the point of closest approach of this 2D hit to
     // the cluster's current axis.
     // Get this wire's geometry object
-    const geo::WireID&  hitID     = hit2D->getHit().WireID();
+    const geo::WireID&  hitID     = hit2D->WireID();
     const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
         
     // From this, get the parameters of the line for the wire
@@ -73,7 +73,7 @@ void PrincipalComponentsAlg::getHit2DPocaToAxis(const Eigen::Vector3f&    axisPo
     wire_geom.GetCenter(wirePos);
         
     // Correct the wire position in x to set to correspond to the drift time
-    float hitPeak(hit2D->getHit().PeakTime());
+    float hitPeak(hit2D->getHit()->PeakTime());
         
     wirePos[0] = m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat);
         
@@ -390,7 +390,7 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
             // Step one is to set up to determine the point of closest approach of this 2D hit to
             // the cluster's current axis.
             // Get this wire's geometry object
-            const geo::WireID&  hitID     = hit->getHit().WireID();
+            const geo::WireID&  hitID     = hit->WireID();
             const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
             
             // From this, get the parameters of the line for the wire
@@ -401,7 +401,7 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
             Eigen::Vector3f wireDirVec(wire_geom.Direction().X(),wire_geom.Direction().Y(),wire_geom.Direction().Z());
             
             // Correct the wire position in x to set to correspond to the drift time
-            float hitPeak(hit->getHit().PeakTime());
+            float hitPeak(hit->getHit()->PeakTime());
             
             Eigen::Vector3f wirePos(m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat), wireCenter[1], wireCenter[2]);
             
@@ -666,7 +666,7 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
         // the cluster's current axis. We do that by finding the point of intersection of the
         // cluster's axis with a plane defined by the wire the hit is associated with.
         // Get this wire's geometry object
-        const geo::WireID&  hitID     = hit->getHit().WireID();
+        const geo::WireID&  hitID     = hit->WireID();
         const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
         
         // From this, get the parameters of the line for the wire

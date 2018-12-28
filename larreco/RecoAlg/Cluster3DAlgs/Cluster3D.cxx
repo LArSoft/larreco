@@ -21,6 +21,7 @@ ClusterHit2D::ClusterHit2D() : m_statusBits(0),
                                m_arcLenToPoca(0.),
                                m_xPosition(0.),
                                m_timeTicks(0.),
+                               m_wireID(geo::WireID()),
                                m_hit(nullptr) {}
 
 ClusterHit2D::ClusterHit2D(unsigned           statusBits,
@@ -28,15 +29,27 @@ ClusterHit2D::ClusterHit2D(unsigned           statusBits,
                            float              poca,
                            float              xPosition,
                            float              timeTicks,
-                           const recob::Hit&  hit) :
+                           const geo::WireID& wireID,
+                           const recob::Hit*  hit) :
                            m_statusBits(statusBits),
                            m_docaToAxis(doca),
                            m_arcLenToPoca(poca),
                            m_xPosition(xPosition),
                            m_timeTicks(timeTicks),
-                           m_hit(&hit) {}
-
+                           m_wireID(wireID),
+                           m_hit(hit) {}
     
+ClusterHit2D::ClusterHit2D(const ClusterHit2D& toCopy)
+{
+    m_statusBits    = toCopy.m_statusBits;
+    m_docaToAxis    = toCopy.m_docaToAxis;
+    m_arcLenToPoca  = toCopy.m_arcLenToPoca;
+    m_xPosition     = toCopy.m_xPosition;
+    m_timeTicks     = toCopy.m_timeTicks;
+    m_wireID        = toCopy.m_wireID;
+    m_hit           = toCopy.m_hit;
+}
+
 std::ostream& operator<< (std::ostream& o, const ClusterHit2D& c)
 {
     o << c.getHit();
@@ -194,7 +207,7 @@ PrincipalComponents::PrincipalComponents(bool ok, int nHits, const float* eigenV
     
 void PrincipalComponents::flipAxis(size_t axisDir)
 {
-    std::vector<float>& axis = m_eigenVectors.at(axisDir);
+    std::vector<float>& axis = m_eigenVectors[axisDir];
     
     for(auto& val : axis) val *= -1.;
     
@@ -353,26 +366,26 @@ void RecobClusterParameters::UpdateParameters(const reco::ClusterHit2D* clusterH
      *  @brief a utility routine for building 3D clusters to keep basic info up to date
      *         (a candidate for a better way to do this)
      */
-    const recob::Hit& hit = clusterHit->getHit();
+    const recob::Hit* hit = clusterHit->getHit();
     
     // Need to keep track of stuff so we can form cluster
-    if (hit.WireID().Wire < m_startWire)
+    if (clusterHit->WireID().Wire < m_startWire)
     {
-        m_startWire      = hit.WireID().Wire;
-        m_startTime      = hit.PeakTimeMinusRMS();
-        m_sigmaStartTime = hit.SigmaPeakTime();
+        m_startWire      = clusterHit->WireID().Wire;
+        m_startTime      = hit->PeakTimeMinusRMS();
+        m_sigmaStartTime = hit->SigmaPeakTime();
     }
     
-    if (hit.WireID().Wire > m_endWire)
+    if (clusterHit->WireID().Wire > m_endWire)
     {
-        m_endWire      = hit.WireID().Wire;
-        m_endTime      = hit.PeakTimePlusRMS();
-        m_sigmaEndTime = hit.SigmaPeakTime();
+        m_endWire      = clusterHit->WireID().Wire;
+        m_endTime      = hit->PeakTimePlusRMS();
+        m_sigmaEndTime = hit->SigmaPeakTime();
     }
     
-    m_totalCharge += hit.Integral();
-    m_plane        = hit.WireID().Plane;
-    m_view         = hit.View();
+    m_totalCharge += hit->Integral();
+    m_plane        = clusterHit->WireID().planeID();
+    m_view         = hit->View();
     
     m_hitVector.push_back(clusterHit);
     

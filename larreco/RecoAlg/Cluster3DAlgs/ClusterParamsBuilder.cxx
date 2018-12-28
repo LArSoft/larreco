@@ -156,7 +156,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     // The map from 2D to 3D hits will contain unique entries for 2D hits so we can do some quick accounting here
     for(const auto& hitMapPair : hit2DToHit3DListMap)
     {
-        size_t plane = hitMapPair.first->getHit().WireID().Plane;
+        size_t plane = hitMapPair.first->WireID().Plane;
         
         planeHit2DVec[plane] += hitMapPair.second.size();
         if (!(hitMapPair.first->getStatusBits() & reco::ClusterHit2D::USED)) planeUniqueHit2DVec[plane] += hitMapPair.second.size();
@@ -171,25 +171,25 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     int                nPlanesWithHits(0);
     int                nPlanesWithUniqueHits(0);
     size_t             minPlane(0);
-    size_t             minPlaneCnt = planeUniqueHit2DVec.at(0);
+    size_t             minPlaneCnt = planeUniqueHit2DVec[0];
     
     // Loop through the planes
     for(int idx = 0; idx < 3; idx++)
     {
         // numerology
-        numTotalHits  += planeHit2DVec.at(idx);
-        numUniqueHits += planeUniqueHit2DVec.at(idx);
+        numTotalHits  += planeHit2DVec[idx];
+        numUniqueHits += planeUniqueHit2DVec[idx];
         
-        if (planeHit2DVec.at(idx)       > 0) nPlanesWithHits++;
-        if (planeUniqueHit2DVec.at(idx) > 0) nPlanesWithUniqueHits++;
+        if (planeHit2DVec[idx]       > 0) nPlanesWithHits++;
+        if (planeUniqueHit2DVec[idx] > 0) nPlanesWithUniqueHits++;
         
         // Compute the fraction of unique hits in this plane
-        uniqueHitFracVec[idx] = float(planeUniqueHit2DVec.at(idx)) / std::max(float(planeHit2DVec.at(idx)),float(1.));
+        uniqueHitFracVec[idx] = float(planeUniqueHit2DVec[idx]) / std::max(float(planeHit2DVec[idx]),float(1.));
         
         // Finding the plane with the fewest hits
-        if (planeHit2DVec.at(idx) < minPlaneCnt)
+        if (planeHit2DVec[idx] < minPlaneCnt)
         {
-            minPlaneCnt = planeHit2DVec.at(idx);
+            minPlaneCnt = planeHit2DVec[idx];
             minPlane    = idx;
         }
     }
@@ -228,7 +228,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                 }
                 
                 // Which plane for this hit?
-                size_t hitPlane = pair.first->getHit().WireID().Plane;
+                size_t hitPlane = pair.first->WireID().Plane;
                 
                 // Only reject hits on the planes not the fewest 2D hits and really only do this if more than a couple
                 if (hitPlane != minPlane && pair.second.size() > 2)
@@ -282,7 +282,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                             // Watch for null hit (dead channels)
                             if (!hit2D) continue;
                         
-                            reco::HitPairListPtr& removeHitList = hit2DToHit3DListMap.at(hit2D);
+                            reco::HitPairListPtr& removeHitList = hit2DToHit3DListMap[hit2D];
 
                             // Don't allow all the 3D hits associated to this 2D hit to be rejected?
                             if (removeHitList.size() < 2)

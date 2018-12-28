@@ -285,7 +285,7 @@ void PCASeedFinderAlg::LineFit2DHits(const reco::HitPairListPtr& hit3DList,
     // Loop over the 2D hits in the above
     for (const auto& hit : hit2DSet)
     {
-        geo::WireID wireID = hit->getHit().WireID();
+        geo::WireID wireID = hit->WireID();
         
         cstat = wireID.Cryostat;
         tpc   = wireID.TPC;
@@ -332,7 +332,7 @@ void PCASeedFinderAlg::LineFit2DHits(const reco::HitPairListPtr& hit3DList,
     
     for (const auto& hit : hit2DSet)
     {
-        geo::WireID wireID = hit->getHit().WireID();
+        geo::WireID wireID = hit->WireID();
         
         cstat = wireID.Cryostat;
         tpc   = wireID.TPC;

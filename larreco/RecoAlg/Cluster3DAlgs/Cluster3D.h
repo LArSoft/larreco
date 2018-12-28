@@ -45,6 +45,7 @@ private:
     mutable float     m_arcLenToPoca; ///< arc length to POCA along cluster axis
     float             m_xPosition;    ///< The x coordinate for this hit
     float             m_timeTicks;    ///< The time (in ticks) for this hit
+    geo::WireID       m_wireID;       ///< Keep track this particular hit's wireID
     const recob::Hit* m_hit;          ///< Hit we are augmenting
     
 public:
@@ -58,24 +59,30 @@ public:
                       USED            = 0x00000001
                     };
     
-    ClusterHit2D(unsigned          statusBits,
-                 float             doca,
-                 float             poca,
-                 float             xPosition,
-                 float             timeTicks,
-                 const recob::Hit& recobHit);
+    ClusterHit2D(unsigned           statusBits,
+                 float              doca,
+                 float              poca,
+                 float              xPosition,
+                 float              timeTicks,
+                 const geo::WireID& wireID,
+                 const recob::Hit*  recobHit);
     
-    unsigned          getStatusBits()   const {return m_statusBits;}
-    float             getDocaToAxis()   const {return m_docaToAxis;}
-    float             getArcLenToPoca() const {return m_arcLenToPoca;}
-    float             getXPosition()    const {return m_xPosition;}
-    float             getTimeTicks()    const {return m_timeTicks;}
-    const recob::Hit& getHit()          const {return *m_hit;}
+    ClusterHit2D(const ClusterHit2D&);
+
+    unsigned           getStatusBits()   const {return m_statusBits;}
+    float              getDocaToAxis()   const {return m_docaToAxis;}
+    float              getArcLenToPoca() const {return m_arcLenToPoca;}
+    float              getXPosition()    const {return m_xPosition;}
+    float              getTimeTicks()    const {return m_timeTicks;}
+    const geo::WireID& WireID()          const {return m_wireID;}
+    const recob::Hit*  getHit()          const {return m_hit;}
     
     void setStatusBit(unsigned bits)    const {m_statusBits   |= bits;}
     void clearStatusBits(unsigned bits) const {m_statusBits   &= ~bits;}
     void setDocaToAxis(float doca)      const {m_docaToAxis    = doca;}
     void setArcLenToPoca(float poca)    const {m_arcLenToPoca  = poca;}
+    
+    void setHit(const recob::Hit* hit)        {m_hit = hit;}
     
     friend std::ostream& operator << (std::ostream& o, const ClusterHit2D& c);
     friend bool          operator <  (const ClusterHit2D & a, const ClusterHit2D & b);
@@ -159,6 +166,8 @@ public:
     const std::vector<float>            getHitDelTSigVec() const {return m_hitDelTSigVec;}
     const std::vector<geo::WireID>&     getWireIDs()       const {return m_wireIDVector;}
     
+    ClusterHit2DVec&                    getHits()                {return m_hitVector;}
+
     bool bitsAreSet(const unsigned int& bitsToCheck)       const {return m_statusBits & bitsToCheck;}
 
     void setID(const size_t& id)           const {m_id            = id;}
@@ -289,7 +298,7 @@ public:
     m_totalCharge(0.),
     m_startWire(9999999),
     m_endWire(0),
-    m_plane(100),
+    m_plane(geo::PlaneID()),
     m_view(geo::kUnknown)
     {
         m_hitVector.clear();
@@ -304,7 +313,7 @@ public:
     float           m_totalCharge;
     unsigned int    m_startWire;
     unsigned int    m_endWire;
-    unsigned int    m_plane;
+    geo::PlaneID    m_plane;
     geo::View_t     m_view;
     ClusterHit2DVec m_hitVector;
 };
@@ -318,8 +327,9 @@ using HitPairListPtr           = std::list<const reco::ClusterHit3D*>;
 using HitPairSetPtr            = std::set<const reco::ClusterHit3D*>;
 using HitPairListPtrList       = std::list<HitPairListPtr>;
 using HitPairClusterMap        = std::map<int, HitPairListPtr>;
-using HitPairList              = std::list<std::unique_ptr<reco::ClusterHit3D>>;
-    
+using HitPairList              = std::list<reco::ClusterHit3D>;
+//using HitPairList              = std::list<std::unique_ptr<reco::ClusterHit3D>>;
+
 using PCAHitPairClusterMapPair = std::pair<reco::PrincipalComponents, reco::HitPairClusterMap::iterator>;
 using PlaneToClusterParamsMap  = std::map<size_t, RecobClusterParameters>;
 using EdgeTuple                = std::tuple<const reco::ClusterHit3D*,const reco::ClusterHit3D*,double>;
@@ -432,7 +442,7 @@ public:
     
     void UpdateParameters(const reco::ClusterHit2D* hit)
     {
-        fClusterParams[hit->getHit().WireID().Plane].UpdateParameters(hit);
+        fClusterParams[hit->WireID().Plane].UpdateParameters(hit);
     }
     
     void addHit3D(const reco::ClusterHit3D* hit3D)

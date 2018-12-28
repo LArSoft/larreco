@@ -54,8 +54,8 @@ double SkeletonAlg::FindFirstAndLastWires(std::vector<const reco::ClusterHit3D*>
                                           int&                                    lastWire) const
 {
     // In the simple case the first and last wires are simply the front and back of the input vector
-    firstWire = hitVec.front()->getHits()[planeToCheck]->getHit().WireID().Wire;
-    lastWire  = hitVec.back()->getHits()[planeToCheck]->getHit().WireID().Wire;
+    firstWire = hitVec.front()->getHits()[planeToCheck]->WireID().Wire;
+    lastWire  = hitVec.back()->getHits()[planeToCheck]->WireID().Wire;
     
     double maxDeltaTicks = referenceTicks - hitVec.front()->getHits()[planeToCheck]->getTimeTicks();
     double minDeltaTicks = referenceTicks - hitVec.back()->getHits()[planeToCheck]->getTimeTicks();
@@ -76,7 +76,7 @@ double SkeletonAlg::FindFirstAndLastWires(std::vector<const reco::ClusterHit3D*>
         
         for(const auto& hitPair : hitVec)
         {
-            int    curWire    = hitPair->getHits()[planeToCheck]->getHit().WireID().Wire;
+            int    curWire    = hitPair->getHits()[planeToCheck]->WireID().Wire;
             double deltaTicks = referenceTicks - hitPair->getHits()[planeToCheck]->getTimeTicks();
             
             maxDeltaTicks = std::max(maxDeltaTicks, deltaTicks);
@@ -129,13 +129,13 @@ public:
     {
         for(const auto leftHit : left->getHits())
         {
-            if (leftHit->getHit().WireID().Plane == m_plane)
+            if (leftHit->WireID().Plane == m_plane)
             {
                 for(const auto rightHit : right->getHits())
                 {
-                    if (rightHit->getHit().WireID().Plane == m_plane)
+                    if (rightHit->WireID().Plane == m_plane)
                     {
-                        return leftHit->getHit().WireID().Wire < rightHit->getHit().WireID().Wire;
+                        return leftHit->WireID().Wire < rightHit->WireID().Wire;
                     }
                 }
                 return true;
@@ -178,7 +178,7 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
         
         for(const auto& hit2D : hitPair->getHits())
         {
-            size_t plane = hit2D->getHit().WireID().Plane;
+            size_t plane = hit2D->WireID().Plane;
             
             hit2DToHit3DMap[plane][hit2D].push_back(hitPair);
         }
@@ -224,9 +224,9 @@ int SkeletonAlg::FindMedialSkeleton(reco::HitPairListPtr& hitPairList) const
         int    deltaWires[3]     = {0,  0,  0};
         double planeDeltaT[3]    = {0., 0., 0.};
         double bestDeltaTicks[3] = {0., 0., 0.};
-        int    wireNumByPlane[3] = {int(hitPair->getHits()[0]->getHit().WireID().Wire),
-                                    int(hitPair->getHits()[1]->getHit().WireID().Wire),
-                                    int(hitPair->getHits()[2]->getHit().WireID().Wire)};
+        int    wireNumByPlane[3] = {int(hitPair->getHits()[0]->WireID().Wire),
+                                    int(hitPair->getHits()[1]->WireID().Wire),
+                                    int(hitPair->getHits()[2]->WireID().Wire)};
         
         size_t bestPlaneIdx(0);
         
@@ -353,7 +353,7 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
         
         for(const auto& hit2D : hitPair->getHits())
         {
-            size_t plane = hit2D->getHit().WireID().Plane;
+            size_t plane = hit2D->WireID().Plane;
             
             hit2DToHit3DMap[plane][hit2D].push_back(hitPair);
         }
@@ -399,7 +399,7 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
             
             for(const auto& hit2D : hit3D->getHits())
             {
-                bestPlaneVec.push_back(std::pair<size_t,size_t>(hit2D->getHit().WireID().Plane,hit2DToHit3DMap[hit2D->getHit().WireID().Plane][hit2D].size()));
+                bestPlaneVec.push_back(std::pair<size_t,size_t>(hit2D->WireID().Plane,hit2DToHit3DMap[hit2D->WireID().Plane][hit2D].size()));
             }
             
             std::sort(bestPlaneVec.begin(), bestPlaneVec.end(), OrderBestPlanes());

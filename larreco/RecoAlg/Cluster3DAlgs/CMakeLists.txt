@@ -7,6 +7,7 @@ add_subdirectory(PathFinding)
 art_make( LIB_LIBRARIES  lardataobj_RecoBase
                          larcorealg_Geometry
                          larcore_Geometry_Geometry_service
+                         lardata_ArtDataHelper
                          lardata_RecoObjects
                          lardata_Utilities
                          larreco_RecoAlg_Cluster3DAlgs_ConvexHull

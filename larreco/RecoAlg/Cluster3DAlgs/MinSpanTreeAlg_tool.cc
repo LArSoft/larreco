@@ -271,7 +271,7 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList&           hitPairList,
     
     // Get the first point
     reco::HitPairList::iterator freeHitItr   = hitPairList.begin();
-    const reco::ClusterHit3D*   lastAddedHit = (*freeHitItr++).get();
+    const reco::ClusterHit3D*   lastAddedHit = &(*freeHitItr++);
     
     lastAddedHit->setStatusBit(reco::ClusterHit3D::CLUSTERATTACHED);
     
@@ -320,7 +320,7 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList&           hitPairList,
             std::cout << "**> Cluster idx: " << clusterIdx++ << " has " << curCluster->size() << " hits" << std::endl;
 
             // Look for the next "free" hit
-            freeHitItr = std::find_if(freeHitItr,hitPairList.end(),[](const auto& hit){return !(hit->getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED);});
+            freeHitItr = std::find_if(freeHitItr,hitPairList.end(),[](const auto& hit){return !(hit.getStatusBits() & reco::ClusterHit3D::CLUSTERATTACHED);});
             
             // If at end of input list we are done with all hits
             if (freeHitItr == hitPairList.end()) break;
@@ -334,7 +334,7 @@ void MinSpanTreeAlg::RunPrimsAlgorithm(reco::HitPairList&           hitPairList,
             
             curEdgeMap   = &(*curClusterItr).getHit3DToEdgeMap();
             curCluster   = &(*curClusterItr).getHitPairListPtr();
-            lastAddedHit = (*freeHitItr++).get();
+            lastAddedHit = &(*freeHitItr++);
         }
         // Otherwise we are still processing the current cluster
         else
@@ -907,7 +907,7 @@ public:
             // Same wire but not same hit, order by primary hit time
             if (left->getHits()[m_plane[0]] && right->getHits()[m_plane[0]] && left->getHits()[m_plane[0]] != right->getHits()[m_plane[0]])
             {
-                return left->getHits()[m_plane[0]]->getHit().PeakTime() < right->getHits()[m_plane[0]]->getHit().PeakTime();
+                return left->getHits()[m_plane[0]]->getHit()->PeakTime() < right->getHits()[m_plane[0]]->getHit()->PeakTime();
             }
             
             // Primary view is same hit, look at next view's wire
@@ -916,7 +916,7 @@ public:
                 // Same wire but not same hit, order by secondary hit time
                 if (left->getHits()[m_plane[1]] && right->getHits()[m_plane[1]] && left->getHits()[m_plane[1]] != right->getHits()[m_plane[1]])
                 {
-                    return left->getHits()[m_plane[1]]->getHit().PeakTime() < right->getHits()[m_plane[1]]->getHit().PeakTime();
+                    return left->getHits()[m_plane[1]]->getHit()->PeakTime() < right->getHits()[m_plane[1]]->getHit()->PeakTime();
                 }
             
                 // All that is left is the final view... and this can't be the same hit... (else it is the same 3D hit)

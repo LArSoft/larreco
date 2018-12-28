@@ -68,7 +68,7 @@ kdTree::KdTreeNode kdTree::BuildKdTree(const reco::HitPairList& hitPairList,
     
     hit3DVec.reserve(hitPairList.size());
 
-    for(const auto& hitPtr : hitPairList) hit3DVec.emplace_back(hitPtr.get());
+    for(const auto& hit : hitPairList) hit3DVec.emplace_back(&hit);
     
     KdTreeNode topNode = BuildKdTree(hit3DVec.begin(), hit3DVec.end(), kdTreeNodeContainer);
     
@@ -301,10 +301,23 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
         
             // put wire deltas in order...
             std::sort(wireDeltas, wireDeltas + 3);
+            
+            bool checkSeparation(false);
+            
+            // 3 conditions: same 3 wires so looking for next "long" pulse
+            //               Nearest neighbor, first diff = 0, next two are 1
+            //               First two diffs are 1, last is 2
+            if (wireDeltas[0] == 0)
+            {
+                if      (wireDeltas[1] == 1 && wireDeltas[2] == 1) checkSeparation = true;
+                else if (wireDeltas[1] == 0 && wireDeltas[2] == 0) checkSeparation = true;
+            }
+            else if (wireDeltas[0] == 1 && wireDeltas[1] == 1 && wireDeltas[2] == 2) checkSeparation = true;
+            // This until we understand this better
+            else if (wireDeltas[2] < 3) checkSeparation = true;
         
             // Requirement to be considered a nearest neighbor
-            //if (wireDeltas[0] < 2 && wireDeltas[1] < 2 && wireDeltas[2] < 3)
-            if (wireDeltas[2] < 3) //2)
+            if (checkSeparation)
             {
                 float hitSeparation = std::max(float(0.0001),DistanceBetweenNodes(pair1,pair2));
             
@@ -326,9 +339,11 @@ float kdTree::DistanceBetweenNodes(const reco::ClusterHit3D* node1,const reco::C
     const float* node1Pos    = node1->getPosition();
     const float* node2Pos    = node2->getPosition();
     float        deltaNode[] = {node1Pos[0]-node2Pos[0], node1Pos[1]-node2Pos[1], node1Pos[2]-node2Pos[2]};
+    float        yzDist2     = deltaNode[1]*deltaNode[1] + deltaNode[2]*deltaNode[2];
+    float        xDist2      = deltaNode[0]*deltaNode[0];
     
     // Standard euclidean distance
-    return std::sqrt(deltaNode[0]*deltaNode[0]+deltaNode[1]*deltaNode[1]+deltaNode[2]*deltaNode[2]);
+    return std::sqrt(xDist2 + yzDist2);
     
     // Manhatten distance
     //return std::fabs(deltaNode[0]) + std::fabs(deltaNode[1]) + std::fabs(deltaNode[2]);

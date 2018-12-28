@@ -288,7 +288,7 @@ public:
     {
         int planeToCheck = (m_plane + 1) % 3;
         
-        return left->getHits()[planeToCheck]->getHit().WireID().Wire < right->getHits()[planeToCheck]->getHit().WireID().Wire;
+        return left->getHits()[planeToCheck]->WireID().Wire < right->getHits()[planeToCheck]->WireID().Wire;
     }
 private:
     int m_plane;
@@ -1028,7 +1028,7 @@ void HoughSeedFinderAlg::LineFit2DHits(std::set<const reco::ClusterHit2D*>& hit2
     // Loop over unique 2D hits from the input list of 3D hits
     for (const auto& hit : hit2DSet)
     {
-        geo::WireID wireID = hit->getHit().WireID();
+        geo::WireID wireID = hit->WireID();
     
         cstat = wireID.Cryostat;
         tpc   = wireID.TPC;
@@ -1075,7 +1075,7 @@ void HoughSeedFinderAlg::LineFit2DHits(std::set<const reco::ClusterHit2D*>& hit2
     
     for (const auto& hit : hit2DSet)
     {
-        geo::WireID wireID = hit->getHit().WireID();
+        geo::WireID wireID = hit->WireID();
         
         cstat = wireID.Cryostat;
         tpc   = wireID.TPC;
