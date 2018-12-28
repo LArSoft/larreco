@@ -285,7 +285,7 @@ namespace tca {
     evt.eventsProcessed = 0;
    
   } // reconfigure
-  
+
   ////////////////////////////////////////////////
   bool TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits)
   {
