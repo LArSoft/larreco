@@ -290,6 +290,7 @@ namespace tca {
     } // tj
     if(ntp < 2) return;
     
+    if(tcc.match3DCuts.size() > 7 && tcc.match3DCuts[7] > 0 && ntp > tcc.match3DCuts[7]) ntp = tcc.match3DCuts[7];
     slc.mallTraj.resize(ntp);
     
     // define mallTraj
@@ -327,6 +328,7 @@ namespace tca {
         slc.mallTraj[icnt].npts = tj.EndPt[1] - tj.EndPt[0] + 1;
         slc.mallTraj[icnt].score = score;
         ++icnt;
+        if(icnt == ntp) break;
       } // tp
     } // tj
     
