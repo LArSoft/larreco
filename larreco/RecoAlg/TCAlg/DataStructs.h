@@ -173,7 +173,7 @@ namespace tca {
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     short StartEnd {-1};               ///< The starting end (-1 = don't know)
-    unsigned int mcpListIndex {UINT_MAX};
+    unsigned int mcpIndex {UINT_MAX};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     std::bitset<8> Strategy {};        ///
     bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
@@ -234,7 +234,7 @@ namespace tca {
     size_t ParentUID {0};       // Parent PFP UID (or 0 if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
-    unsigned int mcpListIndex {UINT_MAX};
+    unsigned int mcpIndex {UINT_MAX};
     unsigned short MatchVecIndex {USHRT_MAX};
     float CosmicScore{0};
     int ID {0};
@@ -547,6 +547,8 @@ namespace tca {
   // Note: Ideally this hit collection would be the FULL hit collection before cosmic removal
   struct TCEvent {
     std::vector<recob::Hit> const* allHits = nullptr;
+    std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles
+    std::vector<unsigned int> allHitsMCPIndex;               ///< index of matched hits into the MCParticle vector
     unsigned int event;
     unsigned int run;
     unsigned int subRun;
