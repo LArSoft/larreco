@@ -542,11 +542,20 @@ namespace tca {
     unsigned int allHitsIndex; // index into fHits
     int InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
   };
+  
+  // lower/upper range of hits indexed into allHits for a CTP - wire pair
+  struct AllHitsRange {
+    CTP_t CTP;
+    unsigned int wire {UINT_MAX};
+    unsigned int firstHit {UINT_MAX}; 
+    unsigned int lastHit {UINT_MAX};
+  };
 
   // hit collection for all slices, TPCs and cryostats + event information
   // Note: Ideally this hit collection would be the FULL hit collection before cosmic removal
   struct TCEvent {
     std::vector<recob::Hit> const* allHits = nullptr;
+    std::vector<AllHitsRange> allHitsRanges;
     std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles
     std::vector<unsigned int> allHitsMCPIndex;               ///< index of matched hits into the MCParticle vector
     unsigned int event;
