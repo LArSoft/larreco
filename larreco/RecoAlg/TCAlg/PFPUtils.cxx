@@ -1490,7 +1490,7 @@ namespace tca {
             float xp = 0.5 * (iTjPt.xlo + iTjPt.xhi);
             tpk.Pos[1] = tcc.detprop->ConvertXToTicks(xp, kplane, tpc, cstat) * tcc.unitsPerTick;
             // Note that SignalAtTp assumes that a signal exists if the wire is dead
-            if(!SignalAtTp(slc, tpk)) continue;
+            if(!SignalAtTp(tpk)) continue;
           }
           // Just fill temp. See if the Tj IDs are in the match list
           bool gotit = false;
@@ -2976,7 +2976,7 @@ namespace tca {
         tp.Pos[0] = tcc.geom->WireCoordinate(pos1[1], pos1[2], plane, slc.TPCID.TPC, slc.TPCID.Cryostat);
         tp.Pos[1] = tcc.detprop->ConvertXToTicks(pos1[0], plane, slc.TPCID.TPC, slc.TPCID.Cryostat) * tcc.unitsPerTick;
         ++cnt;
-        if(SignalAtTp(slc, tp)) ++sum;
+        if(SignalAtTp(tp)) ++sum;
       } // plane
     } // step
     if(cnt == 0) return -1;
