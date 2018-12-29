@@ -108,12 +108,14 @@ namespace tca {
         if(tj.Pts[lastPt].AngleCode == 0 && lastPt == 2) return;
         // No close hits added.
         ++nMissedSteps;
-        // First check for no signal in the vicinity
+        // First check for no signal in the vicinity. AddHits checks the hit collection for
+        // the current slice. This version of SignalAtTp checks the allHits collection.
+        sigOK = SignalAtTp(ltp);
         if(lastPt > 0) {
           // break if this is a reverse propagate activity and there was no signal (not on a dead wire)
           if(!sigOK && tj.AlgMod[kRvPrp]) break;
           // Ensure that there is a signal here after missing a number of steps on a LA trajectory
-          if(tj.Pts[lastPt].AngleCode > 0 && nMissedSteps > 4 && !SignalAtTp(slc, ltp)) {
+          if(tj.Pts[lastPt].AngleCode > 0 && nMissedSteps > 4 && !sigOK) {
             tj.StopFlag[1][kSignal] = false;
             break;
           }
@@ -123,8 +125,9 @@ namespace tca {
           float dwc = DeadWireCount(slc, ltp, tj.Pts[lastPtWithHits]);
           float nMissedWires = tps * std::abs(ltp.Dir[0]) - dwc;
           float maxWireSkip = tcc.maxWireSkipNoSignal;
+          if(sigOK) maxWireSkip = tcc.maxWireSkipWithSignal;
           if(tj.PDGCode == 13) maxWireSkip = tcc.muonTag[2];
-          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" StepAway: no signal at ltp "<<PrintPos(slc, ltp)<<" nMissedWires "<<std::fixed<<std::setprecision(1)<<nMissedWires<<" dead wire count "<<dwc<<" maxWireSkip "<<maxWireSkip<<" tj.PDGCode "<<tj.PDGCode;
+          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" StepAway: no hits found at ltp "<<PrintPos(slc, ltp)<<" nMissedWires "<<std::fixed<<std::setprecision(1)<<nMissedWires<<" dead wire count "<<dwc<<" maxWireSkip "<<maxWireSkip<<" tj.PDGCode "<<tj.PDGCode;
           if(nMissedWires > maxWireSkip) {
             // We passed a number of wires without adding hits and are ready to quit.
             // First see if there is one good unused hit on the end TP and if so use it
@@ -330,8 +333,9 @@ namespace tca {
     }
     if(tjf.outlook < 0) return;
     // Look for a long clean muon in the forecast
-    if(tkLike && tj.MCSMom > 200 && tjf.MCSMom > 800 && tjf.nextForecastUpdate > 50 && tjf.chgFitChiDOF < 10) {
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Use the StiffMu strategy";
+//    if(tkLike && tj.MCSMom > 200 && tjf.MCSMom > 800 && tjf.nextForecastUpdate > 50 && tjf.chgFitChiDOF < 10) {
+    if(tkLike && tjf.MCSMom > 800 && tjf.nextForecastUpdate > 100) {
+      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: High MCSMom, long forecast. Use the StiffMu strategy";
       tj.Strategy.reset();
       tj.Strategy[kStiffMu] = true;
       return;
@@ -358,7 +362,7 @@ namespace tca {
       lastTP.NTPsFit = 5;
       return;
     } // tracklike with Bragg peak
-    if(tkLike && tjf.nextForecastUpdate > 100 && tjf.leavesBeforeEnd) {
+    if(tkLike && tjf.nextForecastUpdate > 100 && tjf.leavesBeforeEnd && tjf.MCSMom < 500) {
       // A long track-like trajectory that has many points fit and the outlook is track-like and 
       // it leaves the forecast polygon. Don't change the strategy but decrease the number of points fit
       lastTP.NTPsFit /= 2;
@@ -820,6 +824,7 @@ namespace tca {
         float prevChi = lastTP.FitChi;
         unsigned short ntry = 0;
         float chiCut = 1.5;
+        if(tj.Strategy[kStiffMu]) chiCut = 5;
         while(lastTP.FitChi > chiCut && lastTP.NTPsFit > minPtsFit) {
           if(lastTP.NTPsFit > 15) {
             newNTPSFit = 0.7 * newNTPSFit;
