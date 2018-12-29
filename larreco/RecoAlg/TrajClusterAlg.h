@@ -77,7 +77,7 @@ namespace tca {
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
     
     /// Deletes all the results
-    void ClearResults() { slices.resize(0); evt.allHitsMCPIndex.clear(); }
+    void ClearResults() { slices.resize(0); evt.allHitsMCPIndex.resize(0); evt.allHitsRanges.resize(0);}
     TruthMatcher fTM;
     
     private:
