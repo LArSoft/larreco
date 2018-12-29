@@ -1106,7 +1106,7 @@ namespace tca {
           bool skipIt = false;
           for(unsigned int wire = fromWire + 1; wire < toWire; ++wire) {
             MoveTPToWire(ltp, (float)wire);
-            if(!SignalAtTp(slc, ltp)) {
+            if(!SignalAtTp(ltp)) {
               skipIt = true;
               break;
             }
