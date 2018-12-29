@@ -444,7 +444,6 @@ namespace cluster {
             if(tca::evt.allHitsMCPIndex[iht] != UINT_MAX) ++ntm;
           } // indx
           if(slhits.size() > 2 && ntm < tca::tcc.matchTruth[4]) reconstructSlice = false;
-          if(reconstructSlice) std::cout<<"requireSliceMCTruthMatch slice "<<isl<<" ntm "<<ntm<<"\n";
         } // requireSliceMCTruthMatch
         // reconstruct using the hits in this sub-slice. The data products are stored internally in
         // TrajCluster data structs.
