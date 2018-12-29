@@ -1785,7 +1785,7 @@ namespace tca {
       TrajPoint tp = tp1;
       // check for a signal midway between
       tp.Pos[1] = 0.5 * (tp1.Pos[1] + tp2.Pos[1]);
-      return SignalAtTp(slc, tp);
+      return SignalAtTp(tp);
     }
     // define a trajectory point located at tp1 that has a direction towards tp2
     TrajPoint tp;
@@ -1813,7 +1813,7 @@ namespace tca {
     int toWire = std::nearbyint(toPos0);
     
     if(fromWire == toWire) {
-      return SignalAtTp(slc, tp);
+      return SignalAtTp(tp);
     }
     
     int nWires = abs(toWire - fromWire) + 1;
@@ -1827,7 +1827,7 @@ namespace tca {
     float num = 0;
     for(unsigned short cnt = 0; cnt < nWires; ++cnt) {
       ++num;
-      if(SignalAtTp(slc, tp)) ++nsig;
+      if(SignalAtTp(tp)) ++nsig;
       tp.Pos[0] += tp.Dir[0] * stepSize;
       tp.Pos[1] += tp.Dir[1] * stepSize;
     } // cnt
@@ -1913,6 +1913,69 @@ namespace tca {
       return 500;
     }
   } // ExpectedHitsRMS
+  
+  /////////////////////////////////////////
+  bool SignalAtTp(const TrajPoint& tp)
+  {
+    // returns true if there is a hit near tp.Pos by searching through the full hit collection using the
+    // allHitsRanges vector to speed the search. Note that dead wires are added to the vector in 
+    // FillWireHitRange which is called for each TPCID before this function is used
+    
+    if(tp.Pos[0] < -0.4) return false;
+    geo::PlaneID planeID = DecodeCTP(tp.CTP);
+    unsigned int wire = std::nearbyint(tp.Pos[0]);
+    // Find the correct hitRanges entry
+    unsigned int ihr = 0;
+    for(ihr = 0; ihr < evt.allHitsRanges.size(); ++ihr) {
+      auto& ahr = evt.allHitsRanges[ihr];
+      if(ahr.CTP != tp.CTP) continue;
+      if(ahr.wire != wire) continue;
+      break;
+    } // ahr
+    if(ihr == evt.allHitsRanges.size()) {
+      // didn't find this hit range so add it
+      AllHitsRange ahr;
+      ahr.CTP = tp.CTP;
+      ahr.wire = wire;
+      for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
+        auto& hit = (*evt.allHits)[iht];
+        if(hit.WireID().Cryostat != planeID.Cryostat) continue;
+        if(hit.WireID().TPC != planeID.TPC) continue;
+        if(hit.WireID().Plane != planeID.Plane) continue;
+        if(ahr.firstHit == UINT_MAX) ahr.firstHit = iht;
+        ahr.lastHit = iht;
+      } // iht
+      evt.allHitsRanges.push_back(ahr);
+    } // hit range missing
+    auto& ahr = evt.allHitsRanges[ihr];
+    // check for the no-hits-on-wire condition
+    if(ahr.firstHit == UINT_MAX && ahr.lastHit == UINT_MAX) return false;
+    // check for the dead-wire condition
+    if(ahr.firstHit == UINT_MAX && ahr.lastHit == UINT_MAX - 1) return true;
+    float projTick = (float)(tp.Pos[1] / tcc.unitsPerTick);
+    float tickRange = 0;
+    if(std::abs(tp.Dir[1]) != 0) {
+      tickRange = std::abs(0.5 / tp.Dir[1]) / tcc.unitsPerTick;
+      // don't let it get too large
+      if(tickRange > 40) tickRange = 40;
+    }
+    float loTpTick = projTick - tickRange;
+    float hiTpTick = projTick + tickRange;
+    for(unsigned int iht = ahr.firstHit; iht <= ahr.lastHit; ++iht) {
+      auto& hit = (*evt.allHits)[iht];
+      if(hit.WireID().Cryostat != planeID.Cryostat) continue;
+      if(hit.WireID().TPC != planeID.TPC) continue;
+      if(hit.WireID().Plane != planeID.Plane) continue;
+      if(projTick < hit.PeakTime()) {
+        float loHitTick = hit.PeakTime() - 3 * hit.RMS();
+        if(hiTpTick > loHitTick) return true;
+      } else {
+        float hiHitTick = hit.PeakTime() + 3 * hit.RMS();
+        if(loTpTick < hiHitTick) return true;
+      }    
+    } // iht
+    return false;
+  } // SignalAtTp
 
   /////////////////////////////////////////
   bool SignalAtTp(TCSlice& slc, const TrajPoint& tp)
@@ -4075,7 +4138,17 @@ namespace tca {
     for(unsigned short ipl = 0; ipl < nplanes; ++ipl) {
       for(unsigned int wire = 0; wire < slc.nWires[ipl]; ++wire) {
         raw::ChannelID_t chan = tcc.geom->PlaneWireToChannel((int)ipl, (int)wire, (int)tpc, (int)cstat);
-        if(!channelStatus.IsGood(chan)) slc.wireHitRange[ipl][wire] = flag;
+        if(!channelStatus.IsGood(chan)) {
+          slc.wireHitRange[ipl][wire] = flag;
+          // flag this wire in allHitsRanges
+          AllHitsRange ahr;
+          ahr.CTP = EncodeCTP(cstat, tpc, ipl);
+          ahr.wire = wire;
+          // Overwrite the AllHitsRange constructor no-hits-on-wire condition (firstWire = lastWire = UINT_MAX)
+          // with the dead-wire condition
+          ahr.lastHit = UINT_MAX - 1;
+          evt.allHitsRanges.push_back(ahr);
+        }
       } // wire
     } // ipl
     
