@@ -1918,8 +1918,8 @@ namespace tca {
   bool SignalAtTp(const TrajPoint& tp)
   {
     // returns true if there is a hit near tp.Pos by searching through the full hit collection using the
-    // allHitsRanges vector to speed the search. Note that dead wires are added to the vector in 
-    // FillWireHitRange which is called for each TPCID before this function is used
+    // allHitsRanges vector to speed the search. Note that dead wires are added to the  
+    // FillWireHitRange vector which is called for each TPCID before this function is used
     
     if(tp.Pos[0] < -0.4) return false;
     geo::PlaneID planeID = DecodeCTP(tp.CTP);
@@ -1939,6 +1939,7 @@ namespace tca {
       ahr.wire = wire;
       for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
         auto& hit = (*evt.allHits)[iht];
+        // TODO: we could break instead of continue if the hit sorting was standarized
         if(hit.WireID().Cryostat != planeID.Cryostat) continue;
         if(hit.WireID().TPC != planeID.TPC) continue;
         if(hit.WireID().Plane != planeID.Plane) continue;
@@ -1952,6 +1953,7 @@ namespace tca {
     if(ahr.firstHit == UINT_MAX && ahr.lastHit == UINT_MAX) return false;
     // check for the dead-wire condition
     if(ahr.firstHit == UINT_MAX && ahr.lastHit == UINT_MAX - 1) return true;
+    // check the proximity of all of the hits in the range
     float projTick = (float)(tp.Pos[1] / tcc.unitsPerTick);
     float tickRange = 0;
     if(std::abs(tp.Dir[1]) != 0) {
@@ -1963,6 +1965,7 @@ namespace tca {
     float hiTpTick = projTick + tickRange;
     for(unsigned int iht = ahr.firstHit; iht <= ahr.lastHit; ++iht) {
       auto& hit = (*evt.allHits)[iht];
+      // We wouldn't need to make this check if hits were sorted
       if(hit.WireID().Cryostat != planeID.Cryostat) continue;
       if(hit.WireID().TPC != planeID.TPC) continue;
       if(hit.WireID().Plane != planeID.Plane) continue;
@@ -1976,7 +1979,7 @@ namespace tca {
     } // iht
     return false;
   } // SignalAtTp
-
+/* This function only considers hits in the current slice
   /////////////////////////////////////////
   bool SignalAtTp(TCSlice& slc, const TrajPoint& tp)
   {
@@ -2015,7 +2018,7 @@ namespace tca {
     return false;
     
   } // SignalAtTp
-
+*/
   //////////////////////////////////////////
   float TpSumHitChg(TCSlice& slc, TrajPoint const& tp){
     float totchg = 0;
