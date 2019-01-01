@@ -79,7 +79,7 @@ namespace tca {
   bool TrajHitsOK(TCSlice& slc, const unsigned int iht, const unsigned int jht);
   float ExpectedHitsRMS(TCSlice& slc, const TrajPoint& tp);
   bool SignalAtTp(TrajPoint const& tp);
-  bool SignalAtTp(TCSlice& slc, TrajPoint const& tp);
+//  bool SignalAtTp(TCSlice& slc, TrajPoint const& tp);
   float TpSumHitChg(TCSlice& slc, TrajPoint const& tp);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
