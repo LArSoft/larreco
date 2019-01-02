@@ -66,10 +66,10 @@ namespace tca {
   void ReleaseHits(TCSlice& slc, Trajectory& tj);
   void UnsetUsedHits(TCSlice& slc, TrajPoint& tp);
   bool StoreTraj(TCSlice& slc, Trajectory& tj);
-  void ChgSlope(TCSlice& slc, Trajectory& tj, float& slope, float& slopeErr, float& chiDOF);
-  void ChgSlope(TCSlice& slc, Trajectory& tj, unsigned short fromPt, unsigned short toPt, float& slope, float& slopeErr, float& chiDOF);
+  void FitChg(TCSlice& slc, Trajectory& tj, unsigned short originPt, unsigned short npts, short fitDir, ChgFit& chgFit);
   bool InTrajOK(TCSlice& slc, std::string someText);
   void CheckTrajBeginChg(TCSlice& slc, unsigned short itj);
+  bool BraggSplit(TCSlice& slc, unsigned short itj);
   void TrimEndPts(std::string fcnLabel, TCSlice& slc, Trajectory& tj, const std::vector<float>& fQualityCuts, bool prt);
   void ChkChgAsymmetry(TCSlice& slc, Trajectory& tj, bool prt);
   bool SignalBetween(TCSlice& slc, const TrajPoint& tp1, const TrajPoint& tp2, const float& MinWireSignalFraction);
@@ -78,6 +78,7 @@ namespace tca {
   bool TrajHitsOK(TCSlice& slc, const std::vector<unsigned int>& iHitsInMultiplet, const std::vector<unsigned int>& jHitsInMultiplet);
   bool TrajHitsOK(TCSlice& slc, const unsigned int iht, const unsigned int jht);
   float ExpectedHitsRMS(TCSlice& slc, const TrajPoint& tp);
+  bool SignalAtTp(TrajPoint const& tp);
   bool SignalAtTp(TCSlice& slc, TrajPoint const& tp);
   float TpSumHitChg(TCSlice& slc, TrajPoint const& tp);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires);
@@ -104,7 +105,7 @@ namespace tca {
   bool FindCloseHits(TCSlice& slc, TrajPoint& tp, float const& maxDelta, HitStatus_t hitRequest);
   std::vector<unsigned int> FindCloseHits(TCSlice& slc, std::array<int, 2> const& wireWindow, Point2_t const& timeWindow, const unsigned short plane, HitStatus_t hitRequest, bool usePeakTime, bool& hitsNear);
   std::vector<int> FindCloseTjs(TCSlice& slc, const TrajPoint& fromTp, const TrajPoint& toTp, const float& maxDelta);
-  float ElectronLikelihood(TCSlice& slc, Trajectory& tj, float& asym);
+  float ElectronLikelihood(TCSlice& slc, Trajectory& tj);
   float ChgFracNearPos(TCSlice& slc, const Point2_t& pos, const std::vector<int>& tjIDs);
   float MaxHitDelta(TCSlice& slc, Trajectory& tj);
   void ReverseTraj(TCSlice& slc, Trajectory& tj);
@@ -181,9 +182,8 @@ namespace tca {
   bool MakeBareTrajPoint(TCSlice& slc, const TrajPoint& tpIn1, const TrajPoint& tpIn2, TrajPoint& tpOut);
   unsigned short FarEnd(TCSlice& slc, const Trajectory& tj, const Point2_t& pos);
   Vector2_t PointDirection(const Point2_t p1, const Point2_t p2);
-  void SetPDGCode(TCSlice& slc, Trajectory& tj, bool tjDone);
-  void SetPDGCode(TCSlice& slc, unsigned short itj, bool tjDone);
-//  void AnalyzeHits(TCSlice& slc);
+  void SetPDGCode(TCSlice& slc, Trajectory& tj);
+  void SetPDGCode(TCSlice& slc, unsigned short itj);
   bool AnalyzeHits();
   bool LongPulseHit(const recob::Hit& hit);
   bool FillWireHitRange(TCSlice& slc);
@@ -203,7 +203,7 @@ namespace tca {
   bool DecodeDebugString(std::string ctpwt);
   // ****************************** Printing  ******************************
   void DumpTj();
-  void PrintAll(std::string someText, const std::vector<simb::MCParticle*>& mcpList);
+  void PrintAll(std::string someText);
   void PrintP(std::string someText, mf::LogVerbatim& myprt, PFPStruct& pfp, bool& printHeader);
   void Print3V(std::string someText, mf::LogVerbatim& myprt, Vtx3Store& vx3);
   void Print2V(std::string someText, mf::LogVerbatim& myprt, VtxStore& vx2);

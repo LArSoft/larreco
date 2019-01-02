@@ -59,6 +59,7 @@ namespace tca {
     float ChiDOF {0};
     // Topo: 0 = end0-end0, 1 = end0(1)-end1(0), 2 = end1-end1, 3 = CI3DV, 
     //       4 = C3DIVIG, 5 = FHV, 6 = FHV2, 7 = SHCH, 8 = CTBC, 9 = Junk, 10 = 3D split, 11 = neutral decay (pizero)
+    //       12 = BraggSplit
     short Topo {0}; 			
     CTP_t CTP {0};
     int ID {0};          ///< set to 0 if killed
@@ -138,6 +139,17 @@ namespace tca {
     std::bitset<8> Environment {0};    // TPEnvironment_t bitset that describes the environment, e.g. nearby showers or other Tjs
   };
   
+  // struct filled by FitChg
+  struct ChgFit {
+    Point2_t Pos {{0,0}}; // position origin of the fit
+    float Chg;
+    float ChgErr;
+    float ChgSlp;       // slope relative to the origin
+    float ChgSlpErr;
+    float ChiDOF;
+    unsigned short nPtsFit;
+  };
+  
   // Global information for the trajectory
   struct Trajectory {
     std::vector<TrajPoint> Pts;    ///< Trajectory points
@@ -161,7 +173,7 @@ namespace tca {
     unsigned short Pass {0};            ///< the pass on which it was created
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     short StartEnd {-1};               ///< The starting end (-1 = don't know)
-    unsigned int mcpListIndex {UINT_MAX};
+    unsigned int mcpIndex {UINT_MAX};
     std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
     std::bitset<8> Strategy {};        ///
     bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
@@ -222,7 +234,7 @@ namespace tca {
     size_t ParentUID {0};       // Parent PFP UID (or 0 if no parent exists)
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
-    unsigned int mcpListIndex {UINT_MAX};
+    unsigned int mcpIndex {UINT_MAX};
     unsigned short MatchVecIndex {USHRT_MAX};
     float CosmicScore{0};
     int ID {0};
@@ -374,6 +386,7 @@ namespace tca {
     kFTBChg,
     kBeginChg,
     kFixEnd,
+    kBraggSplit,
     kUUH,
     kVtxTj,
     kChkVxTj,
@@ -529,11 +542,22 @@ namespace tca {
     unsigned int allHitsIndex; // index into fHits
     int InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
   };
+  
+  // lower/upper range of hits indexed into allHits for a CTP - wire pair
+  struct AllHitsRange {
+    CTP_t CTP;
+    unsigned int wire {UINT_MAX};
+    unsigned int firstHit {UINT_MAX}; 
+    unsigned int lastHit {UINT_MAX};
+  };
 
   // hit collection for all slices, TPCs and cryostats + event information
   // Note: Ideally this hit collection would be the FULL hit collection before cosmic removal
   struct TCEvent {
     std::vector<recob::Hit> const* allHits = nullptr;
+    std::vector<AllHitsRange> allHitsRanges;
+    std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles
+    std::vector<unsigned int> allHitsMCPIndex;               ///< index of matched hits into the MCParticle vector
     unsigned int event;
     unsigned int run;
     unsigned int subRun;
