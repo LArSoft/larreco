@@ -173,9 +173,7 @@ void PrincipalComponentsAlg::PCAAnalysis(const reco::HitPairListPtr& hitPairVect
     if (pcaLoop.getSvdOK())
     {
         // Let's check the angle between the original and the updated axis
-        float cosAngle = pcaLoop.getEigenVectors()[0][0] * pca.getEigenVectors()[0][0]
-                       + pcaLoop.getEigenVectors()[0][1] * pca.getEigenVectors()[0][1]
-                       + pcaLoop.getEigenVectors()[0][2] * pca.getEigenVectors()[0][2];
+        float cosAngle = pcaLoop.getEigenVectors().row(0) * pca.getEigenVectors().row(0).transpose();
         
         // Set the scale factor for the outlier rejection
         float sclFctr(3.);
@@ -228,7 +226,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     // see what happens
     
     // Run through the HitPairList and get the mean position of all the hits
-    float meanPos[] = {0.,0.,0.};
+    Eigen::Vector3f meanPos(Eigen::Vector3f::Zero());
     float meanWeightSum(0.);
     int   numPairsInt(0);
     
@@ -264,17 +262,15 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
         // Weight the hit by the peak time difference significance
         float weight = std::max(minimumDeltaPeakSig, hit->getHitChiSquare()); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
         
-        meanPos[0] += hit->getPosition()[0] * weight;
-        meanPos[1] += hit->getPosition()[1] * weight;
-        meanPos[2] += hit->getPosition()[2] * weight;
+        meanPos(0) += hit->getPosition()[0] * weight;
+        meanPos(1) += hit->getPosition()[1] * weight;
+        meanPos(2) += hit->getPosition()[2] * weight;
         numPairsInt++;
         
         meanWeightSum += weight;
     }
     
-    meanPos[0] /= meanWeightSum;
-    meanPos[1] /= meanWeightSum;
-    meanPos[2] /= meanWeightSum;
+    meanPos /= meanWeightSum;
 
     // Define elements of our covariance matrix
     float xi2(0.);
@@ -291,9 +287,9 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
 
         float weight = 1. / std::max(minimumDeltaPeakSig, hit->getHitChiSquare()); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
-        float x      = (hit->getPosition()[0] - meanPos[0]) * weight;
-        float y      = (hit->getPosition()[1] - meanPos[1]) * weight;
-        float z      = (hit->getPosition()[2] - meanPos[2]) * weight;
+        float x      = (hit->getPosition()[0] - meanPos(0)) * weight;
+        float y      = (hit->getPosition()[1] - meanPos(1)) * weight;
+        float z      = (hit->getPosition()[2] - meanPos(2)) * weight;
         
         weightSum += weight*weight;
         
@@ -329,17 +325,15 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
         
         // Now copy output
         // Get the eigen values
-        float recobEigenVals[] = {eigenValColVec[0].first, eigenValColVec[1].first, eigenValColVec[2].first};
+        reco::PrincipalComponents::EigenValues recobEigenVals;
+        
+        recobEigenVals << eigenValColVec[0].first, eigenValColVec[1].first, eigenValColVec[2].first;
         
         // Grab the principle axes
         reco::PrincipalComponents::EigenVectors recobEigenVecs;
-        Eigen::Matrix3f eigenVecs(eigenMat.eigenvectors());
         
-        for(const auto& pair : eigenValColVec)
-        {
-            std::vector<float> tempVec = {eigenVecs(0,pair.second),eigenVecs(1,pair.second),eigenVecs(2,pair.second)};
-            recobEigenVecs.push_back(tempVec);
-        }
+        for(size_t idx = 0; idx < 3; idx++)
+            recobEigenVecs.row(idx) = eigenMat.eigenvectors().col(eigenValColVec[idx].second);
         
         // Store away
         pca = reco::PrincipalComponents(true, numPairsInt, recobEigenVals, recobEigenVecs, meanPos);
@@ -373,8 +367,8 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
     
     // Recover existing line parameters for current cluster
     const reco::PrincipalComponents& inputPca = pca;
-    Eigen::Vector3f                  avePosition(inputPca.getAvePosition()[0], inputPca.getAvePosition()[1], inputPca.getAvePosition()[2]);
-    Eigen::Vector3f                  axisDirVec(inputPca.getEigenVectors()[0][0], inputPca.getEigenVectors()[0][1], inputPca.getEigenVectors()[0][2]);
+    Eigen::Vector3f                  avePosition(inputPca.getAvePosition());
+    Eigen::Vector3f                  axisDirVec(inputPca.getEigenVectors().row(0));
     
     // We float loop here so we can use this method for both the first time through
     // and a second time through where we re-calculate the mean position
@@ -509,9 +503,7 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
     }
     
     // Get updated average position
-    avePosUpdate[0] /= float(nHits);
-    avePosUpdate[1] /= float(nHits);
-    avePosUpdate[2] /= float(nHits);
+    avePosUpdate /= float(nHits);
     
     // Get the average hit doca
     aveHitDoca /= float(nHits);
@@ -563,23 +555,16 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
         
         // Now copy output
         // Get the eigen values
-        float recobEigenVals[] = {eigenValColVec[0].first, eigenValColVec[1].first, eigenValColVec[2].first};
+        reco::PrincipalComponents::EigenValues recobEigenVals;
         
-        // Grab the principle axes
+        recobEigenVals << eigenValColVec[0].first, eigenValColVec[1].first, eigenValColVec[2].first;
+        
         reco::PrincipalComponents::EigenVectors recobEigenVecs;
-        Eigen::Matrix3f eigenVecs(eigenMat.eigenvectors());
         
-        for(const auto& pair : eigenValColVec)
-        {
-            std::vector<float> tempVec = {eigenVecs(0,pair.second),eigenVecs(1,pair.second),eigenVecs(2,pair.second)};
-            recobEigenVecs.push_back(tempVec);
-        }
-        
-        // Save the average position
-        float avePosToSave[] = {float(avePosition[0]),float(avePosition[1]),float(avePosition[2])};
-        
+        for(size_t idx = 0; idx < 3; idx++) recobEigenVecs.row(idx) = eigenMat.eigenvectors().col(eigenValColVec[idx].second);
+
         // Store away
-        pca = reco::PrincipalComponents(true, nHits, recobEigenVals, recobEigenVecs, avePosToSave, aveHitDoca);
+        pca = reco::PrincipalComponents(true, nHits, recobEigenVals, recobEigenVecs, avePosition, aveHitDoca);
     }
     else
     {
@@ -599,7 +584,7 @@ void PrincipalComponentsAlg::PCAAnalysis_calc3DDocas(const reco::HitPairListPtr&
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(0));
     
     // We want to keep track of the average
     float aveDoca3D(0.);
@@ -651,7 +636,7 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(0));
     
     // Recover the principle eigen value for range constraints
     float maxArcLen = 4.*sqrt(pca.getEigenValues()[0]);
@@ -769,7 +754,7 @@ int PrincipalComponentsAlg::PCAAnalysis_reject3DOutliers(const reco::HitPairList
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(0));
     
     // Outer loop over views
     for (const auto* clusterHit3D : hitPairVector)

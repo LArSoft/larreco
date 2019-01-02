@@ -104,14 +104,14 @@ class AccumulatorValues
      */
 public:
     AccumulatorValues() : m_position(0.,0.,0.) {}
-    AccumulatorValues(const TVector3& position, const reco::HitPairListPtr::const_iterator& itr) :
+    AccumulatorValues(const Eigen::Vector3f& position, const reco::HitPairListPtr::const_iterator& itr) :
          m_position(position), m_hit3DIterator(itr) {}
      
-    const TVector3&                      getPosition()    const {return m_position;}
+    const Eigen::Vector3f&               getPosition()    const {return m_position;}
     reco::HitPairListPtr::const_iterator getHitIterator() const {return m_hit3DIterator;}
      
 private:
-    TVector3                             m_position;       ///< We really only need the x,y coordinates here but keep all three for now
+    Eigen::Vector3f                      m_position;       ///< We really only need the x,y coordinates here but keep all three for now
     reco::HitPairListPtr::const_iterator m_hit3DIterator;  ///< This will be used to take us back to our 3D hit
 };
      
@@ -392,14 +392,14 @@ void HoughSeedFinderAlg::findHoughClusters(const reco::HitPairListPtr& hitPairLi
     const double rhoBinSizeMin(m_geometry->WirePitch());       // Wire spacing gives a natural bin size?
     
     // Recover the parameters from the Principal Components Analysis that we need to project and accumulate
-    TVector3 pcaCenter(pca.getAvePosition()[0],pca.getAvePosition()[1],pca.getAvePosition()[2]);
-    TVector3 planeVec0(pca.getEigenVectors()[0][0],pca.getEigenVectors()[0][1],pca.getEigenVectors()[0][2]);
-    TVector3 planeVec1(pca.getEigenVectors()[1][0],pca.getEigenVectors()[1][1],pca.getEigenVectors()[1][2]);
-    TVector3 pcaPlaneNrml(pca.getEigenVectors()[2][0],pca.getEigenVectors()[2][1],pca.getEigenVectors()[2][2]);
-    double   eigenVal0  = 3. * sqrt(pca.getEigenValues()[0]);
-    double   eigenVal1  = 3. * sqrt(pca.getEigenValues()[1]);
-    double   maxRho     = std::sqrt(eigenVal0*eigenVal0 + eigenVal1*eigenVal1) * 2. / 3.;
-    double   rhoBinSize = maxRho / double(m_rhoBins);
+    Eigen::Vector3f pcaCenter(pca.getAvePosition()[0],pca.getAvePosition()[1],pca.getAvePosition()[2]);
+    Eigen::Vector3f planeVec0(pca.getEigenVectors().row(0));
+    Eigen::Vector3f planeVec1(pca.getEigenVectors().row(1));
+    Eigen::Vector3f pcaPlaneNrml(pca.getEigenVectors().row(2));
+    double          eigenVal0  = 3. * sqrt(pca.getEigenValues()[0]);
+    double          eigenVal1  = 3. * sqrt(pca.getEigenValues()[1]);
+    double          maxRho     = std::sqrt(eigenVal0*eigenVal0 + eigenVal1*eigenVal1) * 2. / 3.;
+    double          rhoBinSize = maxRho / double(m_rhoBins);
     
     if (rhoBinSize < rhoBinSizeMin) rhoBinSize = rhoBinSizeMin;
     
@@ -423,12 +423,11 @@ void HoughSeedFinderAlg::findHoughClusters(const reco::HitPairListPtr& hitPairLi
         
         nAccepted3DHits++;
         
-        TVector3 hit3DPosition(hit3D->getPosition()[0], hit3D->getPosition()[1], hit3D->getPosition()[2]);
-        TVector3 pcaToHitVec = hit3DPosition - pcaCenter;
-        TVector3 pcaToHitPlaneVec(pcaToHitVec.Dot(planeVec0), pcaToHitVec.Dot(planeVec1), 0.);
-        
-        double   xPcaToHit = pcaToHitPlaneVec[0];
-        double   yPcaToHit = pcaToHitPlaneVec[1];
+        Eigen::Vector3f hit3DPosition(hit3D->getPosition()[0], hit3D->getPosition()[1], hit3D->getPosition()[2]);
+        Eigen::Vector3f pcaToHitVec = hit3DPosition - pcaCenter;
+        Eigen::Vector3f pcaToHitPlaneVec(pcaToHitVec.dot(planeVec0), pcaToHitVec.dot(planeVec1), 0.);
+        double          xPcaToHit = pcaToHitPlaneVec[0];
+        double          yPcaToHit = pcaToHitPlaneVec[1];
         
         // Create an accumulator value
         AccumulatorValues accValue(pcaToHitPlaneVec, hit3DItr);
@@ -615,7 +614,7 @@ bool HoughSeedFinderAlg::buildSeed(reco::HitPairListPtr& seed3DHits, SeedHitPair
     
     // Now translate the seedCenter by the arc len to the first hit
     double seedCenter[3] = {seedPca.getAvePosition()[0],     seedPca.getAvePosition()[1],     seedPca.getAvePosition()[2]};
-    double seedDir[3]    = {seedPca.getEigenVectors()[0][0], seedPca.getEigenVectors()[0][1], seedPca.getEigenVectors()[0][2]};
+    double seedDir[3]    = {seedPca.getEigenVectors().row(0)[0], seedPca.getEigenVectors().row(0)[1], seedPca.getEigenVectors().row(0)[2]};
     
     double arcLen       = seedHit3DList.front()->getArclenToPoca();
     double seedStart[3] = {seedCenter[0]+arcLen*seedDir[0], seedCenter[1]+arcLen*seedDir[1], seedCenter[2]+arcLen*seedDir[2]};

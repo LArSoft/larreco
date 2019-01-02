@@ -402,7 +402,7 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
 
         // Recover the PCA for the input cluster
         reco::PrincipalComponents& fullPCA     = clusterToBreak.getFullPCA();
-        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors().row(0));
 
         // Calculate the doca to the PCA primary axis for each 3D hit
         // Importantly, this also gives us the arclength along that axis to the hit
@@ -510,8 +510,8 @@ reco::ClusterParametersList::iterator ConvexHullPathFinder::subDivideCluster(rec
                 // Recover the new fullPCA
                 reco::PrincipalComponents& newFullPCA = clusterParams.getFullPCA();
                 
-                Eigen::Vector3f newPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
-                Eigen::Vector3f lastPrimaryVec(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
+                Eigen::Vector3f newPrimaryVec(fullPCA.getEigenVectors().row(0));
+                Eigen::Vector3f lastPrimaryVec(newFullPCA.getEigenVectors().row(0));
                 
                 int             num3DHits      = clusterParams.getHitPairListPtr().size();
                 int             numEdges       = clusterParams.getConvexHull().getConvexHullEdgeList().size();
@@ -564,7 +564,7 @@ bool ConvexHullPathFinder::makeCandidateCluster(Eigen::Vector3f&               p
         reco::PrincipalComponents& newFullPCA = candCluster.getFullPCA();
         
         // Need to check if the PCA direction has been reversed
-        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
+        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors().row(0));
 
         std::vector<double> eigenValVec      = {3. * std::sqrt(newFullPCA.getEigenValues()[0]),
                                                 3. * std::sqrt(newFullPCA.getEigenValues()[1]),
@@ -606,11 +606,11 @@ bool ConvexHullPathFinder::makeCandidateCluster(Eigen::Vector3f&         primary
         reco::PrincipalComponents& newFullPCA = candCluster.getFullPCA();
         
         // Need to check if the PCA direction has been reversed
-        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
+        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors().row(0));
         
         std::vector<double> eigenValVec      = {3. * std::sqrt(newFullPCA.getEigenValues()[0]),
-            3. * std::sqrt(newFullPCA.getEigenValues()[1]),
-            3. * std::sqrt(newFullPCA.getEigenValues()[2])};
+                                                3. * std::sqrt(newFullPCA.getEigenValues()[1]),
+                                                3. * std::sqrt(newFullPCA.getEigenValues()[2])};
         double              cosNewToLast     = std::abs(primaryPCA.dot(newPrimaryVec));
         double              eigen2To1Ratio   = eigenValVec[2] / eigenValVec[1];
         double              eigen1To0Ratio   = eigenValVec[1] / eigenValVec[0];
@@ -641,30 +641,12 @@ bool ConvexHullPathFinder::completeCandidateCluster(Eigen::Vector3f& primaryPCA,
     if (newFullPCA.getSvdOK())
     {
         // Need to check if the PCA direction has been reversed
-        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
+        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors().row(0));
         
         // If the PCA's are opposite the flip the axes
         if (primaryPCA.dot(newPrimaryVec) < 0.)
         {
-            reco::PrincipalComponents::EigenVectors eigenVectors;
-            
-            eigenVectors.resize(3);
-            
-            for(size_t vecIdx = 0; vecIdx < 3; vecIdx++)
-            {
-                eigenVectors[vecIdx].resize(3,0.);
-                
-                eigenVectors[vecIdx][0] = -newFullPCA.getEigenVectors()[vecIdx][0];
-                eigenVectors[vecIdx][1] = -newFullPCA.getEigenVectors()[vecIdx][1];
-                eigenVectors[vecIdx][2] = -newFullPCA.getEigenVectors()[vecIdx][2];
-            }
-            
-            newFullPCA = reco::PrincipalComponents(true,
-                                                   newFullPCA.getNumHitsUsed(),
-                                                   newFullPCA.getEigenValues(),
-                                                   eigenVectors,
-                                                   newFullPCA.getAvePosition(),
-                                                   newFullPCA.getAveHitDoca());
+            for(size_t vecIdx = 0; vecIdx < 3; vecIdx++) newFullPCA.flipAxis(vecIdx);
         }
         
         // Set the skeleton PCA to make sure it has some value
@@ -723,7 +705,7 @@ bool ConvexHullPathFinder::breakClusterByKinks(reco::ClusterParameters& clusterT
         reco::ClusterParameters& clusterParams1  = outputClusterList.back();
         
         reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
-        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors().row(0));
         
         if (makeCandidateCluster(fullPrimaryVec, clusterParams1, hitList.begin(), kinkItr, level))
         {
@@ -809,7 +791,7 @@ bool ConvexHullPathFinder::breakClusterByKinksTrial(reco::ClusterParameters& clu
         reco::ClusterParameters& clusterParams1  = outputClusterList.back();
         
         reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
-        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors().row(0));
 
         if (makeCandidateCluster(fullPrimaryVec, clusterParams1, std::get<2>(kinkTuple), level))
         {
@@ -953,7 +935,7 @@ bool ConvexHullPathFinder::breakClusterByMaxDefect(reco::ClusterParameters& clus
     std::sort(distEdgeTupleVec.begin(),distEdgeTupleVec.end(),[](const auto& left,const auto& right){return std::get<0>(left) > std::get<0>(right);});
     
     reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
-    Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+    Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors().row(0));
     
     // Recover our hits
     reco::HitPairListPtr& hitList = clusterToBreak.getHitPairListPtr();
@@ -1012,7 +994,7 @@ bool ConvexHullPathFinder::breakClusterByMaxDefect(reco::ClusterParameters& clus
 bool ConvexHullPathFinder::breakClusterInHalf(reco::ClusterParameters& clusterToBreak, reco::ClusterParametersList& outputClusterList, int level) const
 {
     reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
-    Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+    Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors().row(0));
     
     // Recover our hits
     reco::HitPairListPtr& hitList = clusterToBreak.getHitPairListPtr();
@@ -1089,7 +1071,7 @@ bool ConvexHullPathFinder::breakClusterAtBigGap(reco::ClusterParameters& cluster
         reco::ClusterParameters& clusterParams1  = outputClusterList.back();
         
         reco::PrincipalComponents& fullPCA(clusterToBreak.getFullPCA());
-        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
+        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors().row(0));
         
         if (makeCandidateCluster(fullPrimaryVec, clusterParams1, hitList.begin(), bigGapHitItr, level))
         {
@@ -1121,16 +1103,6 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
 
     // Recover the parameters from the Principal Components Analysis that we need to project and accumulate
     Eigen::Vector3f pcaCenter(pca.getAvePosition()[0],pca.getAvePosition()[1],pca.getAvePosition()[2]);
-    Eigen::Vector3f planeVec0(pca.getEigenVectors()[0][0],pca.getEigenVectors()[0][1],pca.getEigenVectors()[0][2]);
-    Eigen::Vector3f planeVec1(pca.getEigenVectors()[1][0],pca.getEigenVectors()[1][1],pca.getEigenVectors()[1][2]);
-    Eigen::Vector3f pcaPlaneNrml(pca.getEigenVectors()[2][0],pca.getEigenVectors()[2][1],pca.getEigenVectors()[2][2]);
-
-    // Let's get the rotation matrix from the standard coordinate system to the PCA system.
-    Eigen::Matrix3f rotationMatrix;
-    
-    rotationMatrix << planeVec0(0),    planeVec0(1),    planeVec0(2),
-                      planeVec1(0),    planeVec1(1),    planeVec1(2),
-                      pcaPlaneNrml(0), pcaPlaneNrml(1), pcaPlaneNrml(2);
     
     reco::ConvexHull&         convexHull = clusterParameters.getConvexHull();
     reco::ProjectedPointList& pointList  = convexHull.getProjectedPointList();
@@ -1141,7 +1113,7 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
         Eigen::Vector3f pcaToHitVec(hit3D->getPosition()[0] - pcaCenter(0),
                                     hit3D->getPosition()[1] - pcaCenter(1),
                                     hit3D->getPosition()[2] - pcaCenter(2));
-        Eigen::Vector3f pcaToHit = rotationMatrix * pcaToHitVec;
+        Eigen::Vector3f pcaToHit = pca.getEigenVectors() * pcaToHitVec;
 
         pointList.emplace_back(dcel2d::Point(pcaToHit(0),pcaToHit(1),hit3D));
     }
