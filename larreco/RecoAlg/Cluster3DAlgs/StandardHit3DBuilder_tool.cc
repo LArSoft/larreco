@@ -215,6 +215,8 @@ private:
     mutable ChannelStatusByPlaneVec      m_channelStatus;
     mutable size_t                       m_numBadChannels;
     
+    mutable bool                         m_weHaveAllBeenHereBefore = false;
+    
     geo::Geometry*                       m_geometry;              //< pointer to the Geometry service
     const detinfo::DetectorProperties*   m_detector;              //< Pointer to the detector properties
     const lariov::ChannelStatusProvider* m_channelFilter;
@@ -249,6 +251,7 @@ void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     m_geometry = &*geometry;
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
+    // Returns the wire pitch per plane assuming they will be the same for all TPCs
     m_wirePitch[0] = m_geometry->WirePitch(0);
     m_wirePitch[1] = m_geometry->WirePitch(1);
     m_wirePitch[2] = m_geometry->WirePitch(2);
@@ -872,7 +875,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     static const float rmsToSig(1.0); //0.75); //0.57735027);
     
     // We are going to force the wire pitch here, some time in the future we need to fix
-    static const double wirePitch(0.3);
+    static const double wirePitch = 1.01 * *std::max_element(m_wirePitch,m_wirePitch+3);
 
     // Recover hit info
     float hitTimeTicks = hit->getTimeTicks();
@@ -1196,6 +1199,9 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
     // (note this is already taken care of when converting to position)
     std::map<geo::PlaneID, double> planeOffsetMap;
     
+    // Try to output a formatted string
+    std::string debugMessage("");
+    
     // Initialize the plane to hit vector map
     for(size_t cryoIdx = 0; cryoIdx < m_geometry->Ncryostats(); cryoIdx++)
     {
@@ -1213,9 +1219,24 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
             planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] = m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2))
                                                            - m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0));
             
-            mf::LogDebug("Cluster3D") << "***> plane 0 offset: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,0)] << ", plane 1: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,1)] << ", plane 2: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] << std::endl;
-            mf::LogDebug("Cluster3D") << "     Det prop plane 0: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0)) << ", plane 1: "  << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,1)) << ", plane 2: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2)) << ", Trig: " << m_detector->TriggerOffset() << std::endl;
+            // Should we provide output?
+            if (!m_weHaveAllBeenHereBefore)
+            {
+                std::ostringstream outputString;
+    
+                outputString << "***> plane 0 offset: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,0)] << ", plane 1: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,1)] << ", plane    2: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] << "\n";
+                debugMessage += outputString.str();
+                outputString << "     Det prop plane 0: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0)) << ", plane 1: "  << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,1)) << ", plane 2: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2)) << ", Trig: " << m_detector->TriggerOffset() << "\n";
+                debugMessage += outputString.str();
+            }
         }
+    }
+
+    if (!m_weHaveAllBeenHereBefore)
+    {
+        mf::LogDebug("Cluster3D") << debugMessage << std::endl;
+        
+        m_weHaveAllBeenHereBefore = true;
     }
 
     // Cycle through the recob hits to build ClusterHit2D objects and insert
@@ -1225,30 +1246,22 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
         art::Ptr<recob::Hit> recobHit(recobHitHandle, cIdx);
         
         // For some detectors we can have multiple wire ID's associated to a given channel.
-        // The below somewhat complicated scheme matches TPC's to wire numbers...
-        // So, first we get the list of unique TPC's that contain this channel
-        const std::vector<geo::TPCID>& tpcIDs = m_geometry->ROPtoTPCs(m_geometry->ChannelToROP(recobHit->Channel()));
-
-        for(const auto& tpcID : tpcIDs)
+        // So we recover the list of these wire IDs
+        const std::vector<geo::WireID>& wireIDs = m_geometry->ChannelToWire(recobHit->Channel());
+        
+        // And then loop over all possible to build out our maps
+        for(const auto& wireID : wireIDs)
         {
-            // Now get the list of WireID's associated to this channel
-            const std::vector<geo::WireID>& wireIDs = m_geometry->ChannelToWire(recobHit->Channel());
+            // Note that a plane ID will define cryostat, TPC and plane
+            const geo::PlaneID& planeID = wireID.planeID();
             
-            // Loop to find match
-            for(const auto& wireID : wireIDs)
-            {
-                if (wireID.TPC != tpcID.TPC) continue;
-
-                geo::PlaneID planeID(tpcID,wireID.Plane);
-                
-                double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[planeID]);
-                double xPosition(m_detector->ConvertTicksToX(recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
-                
-                m_clusterHit2DMasterList.emplace_back(0, 0., 0., xPosition, hitPeakTime, wireID, recobHit.get());
-                
-                m_planeToHitVectorMap[planeID].push_back(&m_clusterHit2DMasterList.back());
-                m_planeToWireToHitSetMap[planeID][wireID.Wire].insert(&m_clusterHit2DMasterList.back());
-            }
+            double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[planeID]);
+            double xPosition(m_detector->ConvertTicksToX(recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
+            
+            m_clusterHit2DMasterList.emplace_back(0, 0., 0., xPosition, hitPeakTime, wireID, recobHit.get());
+            
+            m_planeToHitVectorMap[planeID].push_back(&m_clusterHit2DMasterList.back());
+            m_planeToWireToHitSetMap[planeID][wireID.Wire].insert(&m_clusterHit2DMasterList.back());
         }
         
         const recob::Hit* recobHitPtr = recobHit.get();
