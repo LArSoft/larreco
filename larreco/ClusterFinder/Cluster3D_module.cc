@@ -69,7 +69,6 @@
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
-#include "lardata/ArtDataHelper/HitCreator.h"
 
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/HoughSeedFinderAlg.h"
@@ -385,7 +384,7 @@ private:
      */
     bool aParallelHitsCluster(const reco::PrincipalComponents& pca) const
     {
-        return fabs(pca.getEigenVectors()[2][0]) > m_parallelHitsCosAng && 3. * sqrt(pca.getEigenValues()[1]) > m_parallelHitsTransWid;
+        return fabs(pca.getEigenVectors().row(2)(0)) > m_parallelHitsCosAng && 3. * sqrt(pca.getEigenValues()(1)) > m_parallelHitsTransWid;
     }
     
     /**
@@ -558,9 +557,6 @@ void Cluster3D::produce(art::Event &evt)
     reco::ClusterParametersList          clusterParametersList;
     IHit3DBuilder::RecobHitToPtrMap      clusterHitToArtPtrMap;
     std::unique_ptr< reco::HitPairList > hitPairList(new reco::HitPairList); // Potentially lots of hits, use heap instead of stack
-    
-    art::InputTag testing("xxxx");
-    recob::HitRefinerAssociator hitRefiner(*this, evt, testing, true, true);
 
     // Call the algorithm that builds 3D hits and stores the hit collection
     m_hit3DBuilderAlg->Hit3DBuilder(*this, evt, *hitPairList, clusterHitToArtPtrMap);
@@ -1133,7 +1129,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
             dcel2d::VertexList&   vertexList   = clusterParameters.getVertexList();
             dcel2d::HalfEdgeList& halfEdgeList = clusterParameters.getHalfEdgeList();
             
-            std::cout << "Preparing to save the vertex point list, size: " << vertexList.size() << ", half edges: " << halfEdgeList.size() << std::endl;
+//            std::cout << "Preparing to save the vertex point list, size: " << vertexList.size() << ", half edges: " << halfEdgeList.size() << std::endl;
             
             MakeAndSaveVertexPoints(output, vertexList, halfEdgeList);
 
@@ -1182,8 +1178,9 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
                     eigenVals[outerIdx]   = skeletonPCA.getEigenValues()[outerIdx];
                     
                     eigenVecs[outerIdx].resize(3);
-                    
-                    for(size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = skeletonPCA.getEigenVectors()[outerIdx][innerIdx];
+
+                    // Be careful here... eigen stores in column major order buy default
+                    for(size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = skeletonPCA.getEigenVectors().row(outerIdx)[innerIdx];
                 }
                 
                 
@@ -1204,7 +1201,7 @@ void Cluster3D::ProduceArtClusters(ArtOutputHandler&                output,
                     avePosition[outerIdx] = fullPCA.getAvePosition()[outerIdx];
                     eigenVals[outerIdx]   = fullPCA.getEigenValues()[outerIdx];
                     
-                    for(size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = fullPCA.getEigenVectors()[outerIdx][innerIdx];
+                    for (size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = fullPCA.getEigenVectors().row(outerIdx)(innerIdx);
                 }
                 
                 recob::PCAxis fullPcAxis(fullPCA.getSvdOK(),
@@ -1538,7 +1535,7 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&                output,
         
         eigenVecs[outerIdx].resize(3);
         
-        for(size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = skeletonPCA.getEigenVectors()[outerIdx][innerIdx];
+        for(size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = skeletonPCA.getEigenVectors().row(outerIdx)(innerIdx);
     }
     
     
@@ -1557,7 +1554,7 @@ size_t Cluster3D::ConvertToArtOutput(ArtOutputHandler&                output,
         avePosition[outerIdx] = fullPCA.getAvePosition()[outerIdx];
         eigenVals[outerIdx]   = fullPCA.getEigenValues()[outerIdx];
         
-        for(size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = fullPCA.getEigenVectors()[outerIdx][innerIdx];
+        for(size_t innerIdx = 0; innerIdx < 3; innerIdx++) eigenVecs[outerIdx][innerIdx] = fullPCA.getEigenVectors().row(outerIdx)(innerIdx);
     }
     
     recob::PCAxis fullPcAxis(fullPCA.getSvdOK(),
@@ -1735,7 +1732,7 @@ void Cluster3D::MakeAndSavePCAPoints(ArtOutputHandler&                output,
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(fullPCA.getAvePosition()[0], fullPCA.getAvePosition()[1], fullPCA.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(fullPCA.getEigenVectors()[0][0], fullPCA.getEigenVectors()[0][1], fullPCA.getEigenVectors()[0][2]);
+    Eigen::Vector3f axisDirVec(fullPCA.getEigenVectors().row(0));
     
     using DocaToPCAPair = std::pair<float, const reco::PrincipalComponents*>;
     using DocaToPCAVec  = std::vector<DocaToPCAPair>;
