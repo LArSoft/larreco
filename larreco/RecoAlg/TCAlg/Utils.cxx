@@ -1554,6 +1554,11 @@ namespace tca {
       if(chgFit1.ChgSlp < tcc.chkStopCuts[0] && chgFit2.ChgSlp < tcc.chkStopCuts[0]) continue;
       // assume it is on side 1
       unsigned short bragg = 1;
+      // variable slp is only used in printout (sometimes)
+#ifndef __clang__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
       float slp = chgFit1.ChgSlp;
       float bchi = chgFit1.ChiDOF;
       if(chgFit2.ChgSlp > chgFit1.ChgSlp) {
@@ -1580,6 +1585,9 @@ namespace tca {
       breakPt = ipt;
       bestBragg = bragg;
     } // ipt
+#ifndef __clang__
+#pragma GCC diagnostic pop 
+#endif
     if(breakPt == USHRT_MAX) return false;
     if(prt) mf::LogVerbatim("TC")<<" breakPt "<<PrintPos(slc, tj.Pts[breakPt])<<" bragg "<<bestBragg;
     // Create a vertex at the break point
