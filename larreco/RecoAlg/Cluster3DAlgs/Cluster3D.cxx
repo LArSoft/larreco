@@ -186,30 +186,24 @@ std::ostream& operator<< (std::ostream& o, const ClusterHit3D& c)
 PrincipalComponents::PrincipalComponents() :
        m_svdOK(false),
        m_numHitsUsed(0),
-       m_eigenValues{0.,0.,0.},
-       m_avePosition{0.,0.,0.},
+       m_eigenValues(EigenValues::Zero()),
+       m_eigenVectors(EigenVectors::Zero()),
+       m_avePosition(Eigen::Vector3f::Zero()),
        m_aveHitDoca(9999.)
 {}    
     
-PrincipalComponents::PrincipalComponents(bool ok, int nHits, const float* eigenValues, const EigenVectors& eigenVecs, const float* avePos, const float aveHitDoca) :
+PrincipalComponents::PrincipalComponents(bool ok, int nHits, const EigenValues& eigenValues, const EigenVectors& eigenVecs, const Eigen::Vector3f& avePos, const float aveHitDoca) :
            m_svdOK(ok),
            m_numHitsUsed(nHits),
+           m_eigenValues(eigenValues),
            m_eigenVectors(eigenVecs),
+           m_avePosition(avePos),
            m_aveHitDoca(aveHitDoca)
-{
-    m_eigenValues[0]     = eigenValues[0];
-    m_eigenValues[1]     = eigenValues[1];
-    m_eigenValues[2]     = eigenValues[2];
-    m_avePosition[0]     = avePos[0];
-    m_avePosition[1]     = avePos[1];
-    m_avePosition[2]     = avePos[2];
-}
+{}
     
 void PrincipalComponents::flipAxis(size_t axisDir)
 {
-    std::vector<float>& axis = m_eigenVectors[axisDir];
-    
-    for(auto& val : axis) val *= -1.;
+    m_eigenVectors.row(axisDir) = -m_eigenVectors.row(axisDir);
     
     return;
 }
@@ -220,13 +214,13 @@ std::ostream&  operator << (std::ostream & o, const PrincipalComponents& a)
     {
         o << std::setiosflags(std::ios::fixed) << std::setprecision(2);
         o << " PCAxis ID run with " << a.m_numHitsUsed << " space points" << std::endl;
-        o << "   - center position: " << std::setw(6) << a.m_avePosition[0] << ", " << a.m_avePosition[1] << ", " << a.m_avePosition[2] << std::endl;
-        o << "   - eigen values: " << std::setw(8) << std::right << a.m_eigenValues[0] << ", "
-        << a.m_eigenValues[1] << ", " << a.m_eigenValues[2] << std::endl;
+        o << "   - center position: " << std::setw(6) << a.m_avePosition(0) << ", " << a.m_avePosition(1) << ", " << a.m_avePosition(2) << std::endl;
+        o << "   - eigen values: " << std::setw(8) << std::right << a.m_eigenValues(0) << ", "
+        << a.m_eigenValues(1) << ", " << a.m_eigenValues(1) << std::endl;
         o << "   - average doca: " << a.m_aveHitDoca << std::endl;
-        o << "   - Principle axis: " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors[0][0] << ", " << a.m_eigenVectors[0][1] << ", " << a.m_eigenVectors[0][2] << std::endl;
-        o << "   - second axis:    " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors[1][0] << ", " << a.m_eigenVectors[1][1] << ", " << a.m_eigenVectors[1][2] << std::endl;
-        o << "   - third axis:     " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors[2][0] << ", " << a.m_eigenVectors[2][1] << ", " << a.m_eigenVectors[2][2] << std::endl;
+        o << "   - Principle axis: " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors(0,0) << ", " << a.m_eigenVectors(0,1) << ", " << a.m_eigenVectors(0,2) << std::endl;
+        o << "   - second axis:    " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors(1,0) << ", " << a.m_eigenVectors(1,1) << ", " << a.m_eigenVectors(1,2) << std::endl;
+        o << "   - third axis:     " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors(2,0) << ", " << a.m_eigenVectors(2,1) << ", " << a.m_eigenVectors(2,2) << std::endl;
     }
     else
         o << " Principal Components Axis is not valid" << std::endl;
@@ -237,7 +231,7 @@ std::ostream&  operator << (std::ostream & o, const PrincipalComponents& a)
 bool operator < (const PrincipalComponents& a, const PrincipalComponents& b)
 {
     if (a.m_svdOK && b.m_svdOK)
-        return a.m_eigenValues[0] > b.m_eigenValues[0];
+        return a.m_eigenValues(0) > b.m_eigenValues(0);
     
     return false; //They are equal
 }
@@ -252,9 +246,9 @@ Cluster3D::Cluster3D() : m_statusBits(0),
 
 Cluster3D::Cluster3D(unsigned                   statusBits,
                      const PrincipalComponents& pcaResults,
-                     float                     totalCharge,
-                     const float*              startPosition,
-                     const float*              endPosition,
+                     float                      totalCharge,
+                     const float*               startPosition,
+                     const float*               endPosition,
                      int                        idx) :
         m_statusBits(statusBits),
         m_pcaResults(pcaResults),
