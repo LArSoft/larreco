@@ -199,6 +199,7 @@ private:
     float                                m_numSigmaPeakTime;
     float                                m_hitWidthSclFctr;
     float                                m_deltaPeakTimeSig;
+    std::vector<int>                     m_invalidTPCVec;
     
     bool                                 m_enableMonitoring;      ///<
     float                                m_wirePitch[3];
@@ -239,12 +240,13 @@ StandardHit3DBuilder::~StandardHit3DBuilder()
     
 void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 {
-    m_hitFinderTag     = pset.get<art::InputTag>("HitFinderTag");
-    m_enableMonitoring = pset.get<bool>         ("EnableMonitoring",    true);
-    m_numSigmaPeakTime = pset.get<float>        ("NumSigmaPeakTime",    3.  );
-    m_hitWidthSclFctr  = pset.get<float>        ("HitWidthScaleFactor", 6.  );
-    m_deltaPeakTimeSig = pset.get<float>        ("DeltaPeakTimeSig",    1.7 );
-    m_zPosOffset       = pset.get<float>        ("ZPosOffset",          0.0 );
+    m_hitFinderTag     = pset.get<art::InputTag   >("HitFinderTag");
+    m_enableMonitoring = pset.get<bool            >("EnableMonitoring",    true);
+    m_numSigmaPeakTime = pset.get<float           >("NumSigmaPeakTime",    3.  );
+    m_hitWidthSclFctr  = pset.get<float           >("HitWidthScaleFactor", 6.  );
+    m_deltaPeakTimeSig = pset.get<float           >("DeltaPeakTimeSig",    1.7 );
+    m_zPosOffset       = pset.get<float           >("ZPosOffset",          0.0 );
+    m_invalidTPCVec    = pset.get<std::vector<int>>("InvalidTPCVec",       std::vector<int>());
     
     art::ServiceHandle<geo::Geometry> geometry;
     
@@ -1252,6 +1254,10 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
         // And then loop over all possible to build out our maps
         for(const auto& wireID : wireIDs)
         {
+            // Check if this is an invalid TPC
+            // (for example, in protoDUNE there are logical TPC's which see no signal)
+            if (std::find(m_invalidTPCVec.begin(),m_invalidTPCVec.end(),wireID.TPC) != m_invalidTPCVec.end()) continue;
+            
             // Note that a plane ID will define cryostat, TPC and plane
             const geo::PlaneID& planeID = wireID.planeID();
             
