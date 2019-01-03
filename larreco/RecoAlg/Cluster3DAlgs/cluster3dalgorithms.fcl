@@ -34,6 +34,7 @@ standard_cluster3dprincipalcomponentsalg:
 
 standard_cluster3dParamsBuilder:
 {
+  tool_type:                ClusterParamsBuilder
   ClusterMinHits:           3
   ClusterMinUniqueFraction: 0.5
   ClusterMaxLostFraction:   0.5

@@ -74,7 +74,7 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/HoughSeedFinderAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PCASeedFinderAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/ParallelHitsSeedFinderAlg.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/ClusterParamsBuilder.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IClusterParamsBuilder.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/SkeletonAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/IHit3DBuilder.h"
@@ -397,46 +397,46 @@ private:
     /**
      *   Algorithm parameters
      */
-    bool                                           m_enableMonitoring;      ///< Turn on monitoring of this algorithm
-    float                                          m_parallelHitsCosAng;    ///< Cut for PCA 3rd axis angle to X axis
-    float                                          m_parallelHitsTransWid;  ///< Cut on transverse width of cluster (PCA 2nd eigenvalue)
+    bool                                                      m_enableMonitoring;      ///< Turn on monitoring of this algorithm
+    float                                                     m_parallelHitsCosAng;    ///< Cut for PCA 3rd axis angle to X axis
+    float                                                     m_parallelHitsTransWid;  ///< Cut on transverse width of cluster (PCA 2nd eigenvalue)
 
     /**
      *   Tree variables for output
      */
-    TTree*                                         m_pRecoTree;             ///<
-    int                                            m_run;                   ///<
-    int                                            m_event;                 ///<
-    int                                            m_hits;                  ///< Keeps track of the number of hits seen
-    int                                            m_hits3D;                ///< Keeps track of the number of 3D hits made
-    float                                          m_totalTime;             ///< Keeps track of total execution time
-    float                                          m_artHitsTime;           ///< Keeps track of time to recover hits
-    float                                          m_makeHitsTime;          ///< Keeps track of time to build 3D hits
-    float                                          m_buildNeighborhoodTime; ///< Keeps track of time to build epsilon neighborhood
-    float                                          m_dbscanTime;            ///< Keeps track of time to run DBScan
-    float                                          m_clusterMergeTime;      ///< Keeps track of the time to merge clusters
-    float                                          m_pathFindingTime;       ///< Keeps track of the path finding time
-    float                                          m_finishTime;            ///< Keeps track of time to run output module
-    std::string                                    m_spacePointInstance;    ///< Special instance name for vertex points
-    std::string                                    m_extremeInstance;       ///< Instance name for the extreme points
+    TTree*                                                    m_pRecoTree;             ///<
+    int                                                       m_run;                   ///<
+    int                                                       m_event;                 ///<
+    int                                                       m_hits;                  ///< Keeps track of the number of hits seen
+    int                                                       m_hits3D;                ///< Keeps track of the number of 3D hits made
+    float                                                     m_totalTime;             ///< Keeps track of total execution time
+    float                                                     m_artHitsTime;           ///< Keeps track of time to recover hits
+    float                                                     m_makeHitsTime;          ///< Keeps track of time to build 3D hits
+    float                                                     m_buildNeighborhoodTime; ///< Keeps track of time to build epsilon neighborhood
+    float                                                     m_dbscanTime;            ///< Keeps track of time to run DBScan
+    float                                                     m_clusterMergeTime;      ///< Keeps track of the time to merge clusters
+    float                                                     m_pathFindingTime;       ///< Keeps track of the path finding time
+    float                                                     m_finishTime;            ///< Keeps track of time to run output module
+    std::string                                               m_spacePointInstance;    ///< Special instance name for vertex points
+    std::string                                               m_extremeInstance;       ///< Instance name for the extreme points
     
     /** 
      *   Other useful variables
      */
-    geo::Geometry*                                 m_geometry;              ///<  pointer to the Geometry service
-    const detinfo::DetectorProperties*             m_detector;              ///<  Pointer to the detector properties
+    geo::Geometry*                                            m_geometry;              ///<  pointer to the Geometry service
+    const detinfo::DetectorProperties*                        m_detector;              ///<  Pointer to the detector properties
 
     // Algorithms
-    std::unique_ptr<lar_cluster3d::IHit3DBuilder>  m_hit3DBuilderAlg;       ///<  Builds the 3D hits to operate on
-    std::unique_ptr<lar_cluster3d::IClusterAlg>    m_clusterAlg;            ///<  Algorithm to do 3D space point clustering
-    std::unique_ptr<lar_cluster3d::IClusterModAlg> m_clusterMergeAlg;       ///<  Algorithm to do cluster merging
-    std::unique_ptr<lar_cluster3d::IClusterModAlg> m_clusterPathAlg;        ///<  Algorithm to do cluster path finding
-    ClusterParamsBuilder                           m_clusterBuilder;        ///<  Common cluster builder tool
-    PrincipalComponentsAlg                         m_pcaAlg;                ///<  Principal Components algorithm
-    SkeletonAlg                                    m_skeletonAlg;           ///<  Skeleton point finder
-    HoughSeedFinderAlg                             m_seedFinderAlg;         ///<  Seed finder
-    PCASeedFinderAlg                               m_pcaSeedFinderAlg;      ///<  Use PCA axis to find seeds
-    ParallelHitsSeedFinderAlg                      m_parallelHitsAlg;       ///<  Deal with parallel hits clusters
+    std::unique_ptr<lar_cluster3d::IHit3DBuilder>             m_hit3DBuilderAlg;       ///<  Builds the 3D hits to operate on
+    std::unique_ptr<lar_cluster3d::IClusterAlg>               m_clusterAlg;            ///<  Algorithm to do 3D space point clustering
+    std::unique_ptr<lar_cluster3d::IClusterModAlg>            m_clusterMergeAlg;       ///<  Algorithm to do cluster merging
+    std::unique_ptr<lar_cluster3d::IClusterModAlg>            m_clusterPathAlg;        ///<  Algorithm to do cluster path finding
+    std::unique_ptr<lar_cluster3d::IClusterParametersBuilder> m_clusterBuilder;        ///<  Common cluster builder tool
+    PrincipalComponentsAlg                                    m_pcaAlg;                ///<  Principal Components algorithm
+    SkeletonAlg                                               m_skeletonAlg;           ///<  Skeleton point finder
+    HoughSeedFinderAlg                                        m_seedFinderAlg;         ///<  Seed finder
+    PCASeedFinderAlg                                          m_pcaSeedFinderAlg;      ///<  Use PCA axis to find seeds
+    ParallelHitsSeedFinderAlg                                 m_parallelHitsAlg;       ///<  Deal with parallel hits clusters
 };
 
 DEFINE_ART_MODULE(Cluster3D)
@@ -449,7 +449,6 @@ DEFINE_ART_MODULE(Cluster3D)
 namespace lar_cluster3d {
 
 Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
-    m_clusterBuilder(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder")),
     m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg")),
     m_skeletonAlg(pset.get<fhicl::ParameterSet>("SkeletonAlg")),
     m_seedFinderAlg(pset.get<fhicl::ParameterSet>("SeedFinderAlg")),
@@ -503,6 +502,7 @@ void Cluster3D::reconfigure(fhicl::ParameterSet const &pset)
     m_clusterAlg      = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
     m_clusterMergeAlg = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterMergeAlg"));
     m_clusterPathAlg  = art::make_tool<lar_cluster3d::IClusterModAlg>(pset.get<fhicl::ParameterSet>("ClusterPathAlg"));
+    m_clusterBuilder  = art::make_tool<lar_cluster3d::IClusterParametersBuilder>(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder"));
 
     m_pcaAlg.reconfigure(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"));
     m_skeletonAlg.reconfigure(pset.get<fhicl::ParameterSet>("SkeletonAlg"));
@@ -1038,7 +1038,7 @@ void Cluster3D::splitClustersWithHough(reco::ClusterParameters&     clusterParam
         reco::Hit2DToClusterMap hit2DToClusterMap;
 
         // Now "fill" the cluster parameters but turn off the hit rejection
-        m_clusterBuilder.FillClusterParams(newClusterParams, hit2DToClusterMap, 0., 1.);
+        m_clusterBuilder->FillClusterParams(newClusterParams, hit2DToClusterMap, 0., 1.);
 
         // Set the skeleton pca to the value calculated above on input
         clusterParameters.getSkeletonPCA() = firstHitListPCA;
@@ -1078,7 +1078,7 @@ void Cluster3D::splitClustersWithHough(reco::ClusterParameters&     clusterParam
         reco::ClusterParameters originalParams(hitPairListPtr);
         
         // Now "fill" the cluster parameters but turn off the hit rejection
-        m_clusterBuilder.FillClusterParams(originalParams, hit2DToClusterMap, 0., 1.);
+        m_clusterBuilder->FillClusterParams(originalParams, hit2DToClusterMap, 0., 1.);
 
         // Overwrite original cluster parameters with our new values
         clusterParameters.getClusterParams() = originalParams.getClusterParams();

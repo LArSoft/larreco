@@ -6,6 +6,7 @@
  */
 
 // Framework Includes
+#include "art/Utilities/make_tool.h"
 #include "art/Utilities/ToolMacros.h"
 #include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
@@ -15,7 +16,7 @@
 // LArSoft includes
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/kdTree.h"
-#include "larreco/RecoAlg/Cluster3DAlgs/ClusterParamsBuilder.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IClusterParamsBuilder.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larcore/Geometry/Geometry.h"
@@ -134,19 +135,19 @@ private:
     /**
      *  @brief Data members to follow
      */
-    bool                                 m_enableMonitoring;      ///<
-    mutable std::vector<float>           m_timeVector;            ///<
-    std::vector<std::vector<float>>      m_wireDir;               ///<
-    
-    geo::Geometry*                       m_geometry;              //< pointer to the Geometry service
-    
-    ClusterParamsBuilder                 m_clusterBuilder;        // Common cluster builder tool
-    PrincipalComponentsAlg               m_pcaAlg;                // For running Principal Components Analysis
-    kdTree                               m_kdTree;                // For the kdTree
+    bool                                                      m_enableMonitoring;      ///<
+    mutable std::vector<float>                                m_timeVector;            ///<
+    std::vector<std::vector<float>>                           m_wireDir;               ///<
+                         
+    geo::Geometry*                                            m_geometry;              //< pointer to the Geometry service
+                         
+    PrincipalComponentsAlg                                    m_pcaAlg;                // For running Principal Components Analysis
+    kdTree                                                    m_kdTree;                // For the kdTree
+
+    std::unique_ptr<lar_cluster3d::IClusterParametersBuilder> m_clusterBuilder;        ///<  Common cluster builder tool
 };
 
 MinSpanTreeAlg::MinSpanTreeAlg(fhicl::ParameterSet const &pset) :
-    m_clusterBuilder(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder")),
     m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg")),
     m_kdTree(pset.get<fhicl::ParameterSet>("kdTree"))
 {
@@ -200,6 +201,8 @@ void MinSpanTreeAlg::configure(fhicl::ParameterSet const &pset)
     m_wireDir[2][0] = 0.;
     m_wireDir[2][1] = 0.;
     m_wireDir[2][2] = 1.;
+
+    m_clusterBuilder = art::make_tool<lar_cluster3d::IClusterParametersBuilder>(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder"));
     
     return;
 }
@@ -232,7 +235,7 @@ void MinSpanTreeAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
     // Start clocks if requested
     if (m_enableMonitoring) theClockBuildClusters.start();
     
-    m_clusterBuilder.BuildClusterInfo(clusterParametersList);
+    m_clusterBuilder->BuildClusterInfo(clusterParametersList);
     
     if (m_enableMonitoring)
     {
