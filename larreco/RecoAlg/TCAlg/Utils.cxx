@@ -1554,11 +1554,9 @@ namespace tca {
       if(chgFit1.ChgSlp < tcc.chkStopCuts[0] && chgFit2.ChgSlp < tcc.chkStopCuts[0]) continue;
       // assume it is on side 1
       unsigned short bragg = 1;
-      float slp = chgFit1.ChgSlp;
       float bchi = chgFit1.ChiDOF;
       if(chgFit2.ChgSlp > chgFit1.ChgSlp) {
         bragg = 2;
-        slp = chgFit2.ChgSlp;
         bchi = chgFit2.ChiDOF;
       }
       float chgAsym = std::abs(chgFit1.Chg - chgFit2.Chg) / (chgFit1.Chg + chgFit2.Chg);
