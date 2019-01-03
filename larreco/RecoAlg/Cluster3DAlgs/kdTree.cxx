@@ -44,11 +44,12 @@ kdTree::~kdTree()
 
 void kdTree::configure(fhicl::ParameterSet const &pset)
 {
-    m_enableMonitoring  = pset.get<bool> ("EnableMonitoring",  true);
-    m_pairSigmaPeakTime = pset.get<float>("PairSigmaPeakTime", 3.  );
-    m_refLeafBestDist   = pset.get<float>("RefLeafBestDist",   0.5 );
+    fEnableMonitoring  = pset.get<bool> ("EnableMonitoring",  true);
+    fPairSigmaPeakTime = pset.get<float>("PairSigmaPeakTime", 3.  );
+    fRefLeafBestDist   = pset.get<float>("RefLeafBestDist",   0.5 );
+    fMaxWireDeltas     = pset.get<int>  ("MaxWireDeltas",     3   );
 
-    m_timeToBuild = 0;
+    fTimeToBuild = 0;
     
     return;
 }
@@ -57,11 +58,10 @@ void kdTree::configure(fhicl::ParameterSet const &pset)
 kdTree::KdTreeNode kdTree::BuildKdTree(const reco::HitPairList& hitPairList,
                                        KdTreeNodeList&          kdTreeNodeContainer) const
 {
-    
     // The first task is to build the kd tree
     cet::cpu_timer theClockBuildNeighborhood;
     
-    if (m_enableMonitoring) theClockBuildNeighborhood.start();
+    if (fEnableMonitoring) theClockBuildNeighborhood.start();
     
     // The input is a list and we need to copy to a vector so we can sort ranges
     Hit3DVec hit3DVec;
@@ -72,10 +72,10 @@ kdTree::KdTreeNode kdTree::BuildKdTree(const reco::HitPairList& hitPairList,
     
     KdTreeNode topNode = BuildKdTree(hit3DVec.begin(), hit3DVec.end(), kdTreeNodeContainer);
     
-    if (m_enableMonitoring)
+    if (fEnableMonitoring)
     {
         theClockBuildNeighborhood.stop();
-        m_timeToBuild = theClockBuildNeighborhood.accumulated_real_time();
+        fTimeToBuild = theClockBuildNeighborhood.accumulated_real_time();
     }
     
     return topNode;
@@ -89,7 +89,7 @@ kdTree::KdTreeNode kdTree::BuildKdTree(const reco::HitPairListPtr& hitPairList,
     // The first task is to build the kd tree
     cet::cpu_timer theClockBuildNeighborhood;
     
-    if (m_enableMonitoring) theClockBuildNeighborhood.start();
+    if (fEnableMonitoring) theClockBuildNeighborhood.start();
     
     // The input is a list and we need to copy to a vector so we can sort ranges
     //Hit3DVec hit3DVec{std::begin(hitPairList),std::end(hitPairList)};
@@ -108,10 +108,10 @@ kdTree::KdTreeNode kdTree::BuildKdTree(const reco::HitPairListPtr& hitPairList,
 
     KdTreeNode topNode = BuildKdTree(hit3DVec.begin(), hit3DVec.end(), kdTreeNodeContainer);
     
-    if (m_enableMonitoring)
+    if (fEnableMonitoring)
     {
         theClockBuildNeighborhood.stop();
-        m_timeToBuild = theClockBuildNeighborhood.accumulated_real_time();
+        fTimeToBuild = theClockBuildNeighborhood.accumulated_real_time();
     }
     
     return topNode;
@@ -181,13 +181,13 @@ size_t kdTree::FindNearestNeighbors(const reco::ClusterHit3D* refHit, const KdTr
     if (node.isLeafNode())
     {
         // Is this the droid we are looking for?
-        if (refHit == node.getClusterHit3D()) bestDist = m_refLeafBestDist;  // This distance will grab neighbors with delta wire # = 1 in all three planes
+        if (refHit == node.getClusterHit3D()) bestDist = fRefLeafBestDist;  // This distance will grab neighbors with delta wire # = 1 in all three planes
         // This is the tight constraint on the hits
         else if (consistentPairs(refHit, node.getClusterHit3D(), bestDist))
         {
             CandPairList.emplace_back(bestDist,node.getClusterHit3D());
             
-            bestDist = std::max(m_refLeafBestDist, bestDist);  // This insures we will always consider neighbors with wire # changing in 2 planes
+            bestDist = std::max(fRefLeafBestDist, bestDist);  // This insures we will always consider neighbors with wire # changing in 2 planes
         }
     }
     // Otherwise we need to keep searching
@@ -291,7 +291,7 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
     {
         // Loose constraint to weed out the obviously bad combinations
         // So this is not strictly correct but is close enough and should save computation time...
-        if (std::fabs(pair1->getAvePeakTime() - pair2->getAvePeakTime()) < m_pairSigmaPeakTime * (pair1->getSigmaPeakTime() + pair2->getSigmaPeakTime()))
+        if (std::fabs(pair1->getAvePeakTime() - pair2->getAvePeakTime()) < fPairSigmaPeakTime * (pair1->getSigmaPeakTime() + pair2->getSigmaPeakTime()))
         {
             int wireDeltas[] = {0, 0, 0};
             
@@ -315,11 +315,17 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
             else if (wireDeltas[0] == 1 && wireDeltas[1] == 1 && wireDeltas[2] == 2) checkSeparation = true;
             // This until we understand this better
             else if (wireDeltas[2] < 3) checkSeparation = true;
+            
+            int totWireDeltas = wireDeltas[0] + wireDeltas[1] + wireDeltas[2];
+            
+            checkSeparation = false;
+            
+            if (totWireDeltas < fMaxWireDeltas) checkSeparation = true;
         
             // Requirement to be considered a nearest neighbor
             if (checkSeparation)
             {
-                float hitSeparation = std::max(float(0.0001),DistanceBetweenNodes(pair1,pair2));
+                float hitSeparation = std::max(float(0.0001),DistanceBetweenNodesYZ(pair1,pair2));
             
                 // Final cut...
                 if (hitSeparation < bestDist)
@@ -332,6 +338,18 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
     }
     
     return consistent;
+}
+
+    
+float kdTree::DistanceBetweenNodesYZ(const reco::ClusterHit3D* node1,const reco::ClusterHit3D* node2) const
+{
+    const float* node1Pos    = node1->getPosition();
+    const float* node2Pos    = node2->getPosition();
+    float        deltaNode[] = {node1Pos[0]-node2Pos[0], node1Pos[1]-node2Pos[1], node1Pos[2]-node2Pos[2]};
+    float        yzDist2     = deltaNode[1]*deltaNode[1] + deltaNode[2]*deltaNode[2];
+    
+    // Standard euclidean distance
+    return std::sqrt(yzDist2);
 }
     
 float kdTree::DistanceBetweenNodes(const reco::ClusterHit3D* node1,const reco::ClusterHit3D* node2) const
