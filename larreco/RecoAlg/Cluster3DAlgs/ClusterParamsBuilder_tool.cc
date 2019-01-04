@@ -212,9 +212,13 @@ bool ClusterParamsBuilder::keepThisCluster(reco::ClusterParameters& clusterParam
     
     bool keepThisCluster = false;
     
-    std::vector<int> totalNumHitVec  = {0,0,0};
-    std::vector<int> numSharedHitVec = {0,0,0};
-    std::vector<int> numUniqueHitVec = {0,0,0};
+    // Define some handy data structures for counting the number of times hits get used and shared
+    using HitCountMap         = std::unordered_map<const reco::ClusterHit2D*,int>;
+    using PlaneHitCountMapVec = std::vector<HitCountMap>;
+    
+    PlaneHitCountMapVec totalPlaneHitCountMapVec(3);   // counts total number of hits
+    PlaneHitCountMapVec sharedPlaneHitCountMapVec(3);  // this is the number shared with a bigger cluster
+    PlaneHitCountMapVec uniquePlaneHitCountMapVec(3);  // this is the number unique to this cluster (so far)
 
     // Go through the hits and check usage...
     for(const auto& hit3D : clusterParams.getHitPairListPtr())
@@ -225,30 +229,30 @@ bool ClusterParamsBuilder::keepThisCluster(reco::ClusterParameters& clusterParam
             
             size_t hitPlane = hit2D->WireID().Plane;
             
-            totalNumHitVec[hitPlane]++;
+            totalPlaneHitCountMapVec[hitPlane][hit2D]++;
             
             reco::Hit2DToClusterMap::const_iterator hit2DToClusIter = hit2DToClusterMap.find(hit2D);
             
             if (hit2DToClusIter != hit2DToClusterMap.end())
             {
-                numSharedHitVec[hitPlane]++;
+                sharedPlaneHitCountMapVec[hitPlane][hit2D]++;
             }
-            else numUniqueHitVec[hitPlane]++;
+            else uniquePlaneHitCountMapVec[hitPlane][hit2D]++;
         }
     }
-    
+
     // First try... look at fractions of unique hits each plane
     std::vector<float> uniqueFractionVec(3,0.);
     
-    for(size_t idx = 0; idx < numUniqueHitVec.size(); idx++)
+    for(size_t idx = 0; idx < 3; idx++)
     {
-        if (totalNumHitVec[idx] > 0) uniqueFractionVec[idx] = float(numUniqueHitVec[idx]) / float(totalNumHitVec[idx]);
+        if (!totalPlaneHitCountMapVec[idx].empty()) uniqueFractionVec[idx] = float(uniquePlaneHitCountMapVec[idx].size()) / float(totalPlaneHitCountMapVec[idx].size());
     }
     
     float overallFraction = uniqueFractionVec[0] * uniqueFractionVec[1] * uniqueFractionVec[2];
     float maxFraction     = *std::max_element(uniqueFractionVec.begin(),uniqueFractionVec.end());
     
-    if (maxFraction > 0.5 && overallFraction > 0.2) keepThisCluster = true;
+    if (maxFraction > 0.9 || overallFraction > 0.2) keepThisCluster = true;
 
     return keepThisCluster;
 }
@@ -256,7 +260,7 @@ bool ClusterParamsBuilder::keepThisCluster(reco::ClusterParameters& clusterParam
 void ClusterParamsBuilder::storeThisCluster(reco::ClusterParameters& clusterParams, reco::Hit2DToClusterMap& hit2DToClusterMap) const
 {
     // See if we can avoid duplicates by temporarily transferring to a set
-    std::set<const reco::ClusterHit2D*> hitSet;
+    std::unordered_set<const reco::ClusterHit2D*> hitSet;
     
     // first task is to mark the hits and update the hit to cluster mapping
     for(const auto& hit3D : clusterParams.getHitPairListPtr())
