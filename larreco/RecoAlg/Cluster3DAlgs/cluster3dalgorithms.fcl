@@ -45,7 +45,8 @@ standard_cluster3dMergeAlg:
 {
   tool_type:              ClusterMergeAlg
   EnableMonitoring:       true    # enable monitoring of functions
-  MinCosAxisAng:          0.95    # Minimum cos(angle) between axes
+  AxisAngleScaleFactor:   5.
+  MinTransEigenVal:       0.09
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
 }
 
