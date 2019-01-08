@@ -353,8 +353,13 @@ namespace tca {
       }
     } // plane
       if(tcc.match3DCuts[0] > 0) {
-        FillmAllTraj(slc);
-        FindPFParticles(slc);
+        if(evt.sptHandle) {
+          // Use space points to find PFParticles
+//          FindSptPFParticles(slc);
+        } else {
+          FillmAllTraj(slc);
+          FindPFParticles(slc);
+        }
         // TODO: decide how to print debug output
         DefinePFPParents(slc, false);
 /*

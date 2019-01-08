@@ -11,7 +11,38 @@ namespace tca {
   // TODO: Fix the sorting mess
   bool valDecreasings (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
   bool valIncreasings (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
-  
+/*
+  /////////////////////////////////////////
+  void FindSptPFParticles(TCSlice& slc)
+  {
+    if(tcc.match3DCuts[0] <= 0) return;
+    if(!evt.sptHandle) return;
+    bool prt = false;
+//    bool prt = (tcc.dbgPFP && tcc.dbgSlc);
+    //   tj        TP        list of Spt indices
+    std::vector<std::vector<std::vector<unsigned int>>> tpSpts;
+    for(unsigned int itj = 0; itj < slc.tjs.size(); ++itj) {
+      auto& tj = slc.tjs[itj];
+      if(tj.AlgMod[kKilled]) continue;
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        auto& tp = tj.Pts[ipt];
+        if(tp.Chg <= 0) continue;
+        std::vector<unsigned int> spts;
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(!tp.UseHit[ii]) continue;
+          unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
+//          auto& sp_from_hit = (*evt.sptFromHit).at(ahi);
+          std::vector<art::Ptr<recob::SpacePoint>> spts = evt.sptFromHit.at(ahi);
+          std::cout<<"tp "<<PrintPos(slc, tp)<<" nspt "<<spts.size();
+//          for(auto& spt : spts) std::cout<<" "<<spt;
+          std::cout<<"\n";
+          prt = true;
+        } // ii
+      } // ipt
+      if(prt) break;
+    } // itj
+  } // FindSptPFParticles
+*/
   /////////////////////////////////////////
   void StitchPFPs()
   {
@@ -272,6 +303,7 @@ namespace tca {
   {
     // Fills the mallTraj vector with trajectory points in the tpc and sorts
     // them by increasing X
+    
     slc.matchVec.clear();
     
     int cstat = slc.TPCID.Cryostat;

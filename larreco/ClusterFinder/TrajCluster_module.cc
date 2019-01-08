@@ -317,7 +317,13 @@ namespace cluster {
         slHitsVec = tpcSlcHitsVec;
         slcIDs = tpcSlcIDs;
       } // > 1 TPC
-
+/* Disable for now
+      if (fSpacePointModuleLabel != "NA") {
+        auto sptHandle = art::Handle<std::vector<recob::SpacePoint>>();
+        if(!evt.getByLabel(fSpacePointModuleLabel, sptHandle)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoints\n";
+        fTCAlg->SetSptHandle(*sptHandle);
+      } // 
+*/
       bool requireSliceMCTruthMatch = false;
       if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
         // pass a reference to the MCParticle collection to TrajClusterAlg
@@ -437,7 +443,7 @@ namespace cluster {
           // require that at least 50% of the hits in the slice are matched to a MCParticle
           // that has the desired origin specified in MatchTruth[0]
           unsigned int ntm = 0;
-          for(unsigned short indx = 0; indx < slhits.size(); ++indx) {
+          for(unsigned int indx = 0; indx < slhits.size(); ++indx) {
             // get the index to this hit in this slice
             unsigned int iht = slhits[indx];
             // ensure that it is MC-matched
@@ -447,7 +453,44 @@ namespace cluster {
         } // requireSliceMCTruthMatch
         // reconstruct using the hits in this sub-slice. The data products are stored internally in
         // TrajCluster data structs.
-        if(reconstructSlice) fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
+        if(reconstructSlice) {
+/* disable for now
+          if(fSpacePointModuleLabel != "NA") {
+            // fill a vector of SpacePoint - hit triplets (or doublets) and pass it to the alg
+            std::vector<tca::SptHits> sptHits;
+            art::FindManyP<recob::SpacePoint> sptFromHit (inputHits, evt, fSpacePointModuleLabel); 
+            for(unsigned int indx = 0; indx < slhits.size(); ++indx) {
+              unsigned int ahi = slhits[indx];
+              auto& spt_from_hit = sptFromHit.at(ahi);
+              for(auto& spt : spt_from_hit) {
+                // see if this space point is already in the vector
+                unsigned int sIndx = 0;
+                for(sIndx = 0; sIndx < sptHits.size(); ++sIndx) {
+                  if(spt.key() == sptHits[sIndx].sptIndex) break;
+                } // sIndx
+                if(sIndx == sptHits.size()) {
+                  // not found so add one
+                  tca::SptHits sph;
+                  sph.sptIndex = spt.key();
+                  sptHits.push_back(sph);
+                } // sIndx == sptHits.size()
+                // associate the hit with the space point
+                auto& sph = sptHits[sIndx];
+                // get the hit so we can find out which plane it is in
+                auto& hit = (*inputHits)[slhits[indx]];
+                unsigned short plane = hit.WireID().Plane;
+                if(plane > 2) {
+                  std::cout<<"Crazy plane "<<plane<<"\n";
+                  exit(1);
+                }
+                sph.allHitsIndex[plane] = slhits[indx];
+              } // spt
+            } // indx
+            fTCAlg->SetSptHits(sptHits);
+          } // space point collection exists
+*/
+          fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
+        } // reconstructSlice
       } // isl
       
       // stitch PFParticles between TPCs, create PFP start vertices, etc
@@ -873,7 +916,7 @@ namespace cluster {
     } // input hits exist
 
     // www: find spacepoint from hits (inputHits) through SpacePoint->Hit assns, then create association between spacepoint and trajcluster hits (here, hits in hitCol)
-    if (nInputHits > 0) {   
+    if (nInputHits > 0) {
       // www: expecting to find spacepoint from hits (inputHits): SpacePoint->Hit assns
       if (fSpacePointModuleLabel != "NA") {
         art::FindManyP<recob::SpacePoint> spFromHit (inputHits, evt, fSpacePointModuleLabel); 

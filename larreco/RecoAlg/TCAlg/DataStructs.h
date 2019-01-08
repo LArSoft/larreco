@@ -25,6 +25,7 @@
 #include "lardataobj/RecoBase/Wire.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Shower.h"
+#include "lardataobj/RecoBase/SpacePoint.h"
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 #include "nusimdata/SimulationBase/MCParticle.h"
 
@@ -550,13 +551,20 @@ namespace tca {
     unsigned int firstHit {UINT_MAX}; 
     unsigned int lastHit {UINT_MAX};
   };
+  
+  struct SptHits {
+    unsigned int sptIndex {UINT_MAX};                   ///< index into SpacePoint collection offset by sptHandle
+    std::array<unsigned int, 3> allHitsIndex {{UINT_MAX}}; ///< index into allHits collection for each plane
+  };
 
   // hit collection for all slices, TPCs and cryostats + event information
   // Note: Ideally this hit collection would be the FULL hit collection before cosmic removal
   struct TCEvent {
     std::vector<recob::Hit> const* allHits = nullptr;
     std::vector<AllHitsRange> allHitsRanges;
-    std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles
+    std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles in the event
+    std::vector<recob::SpacePoint> const* sptHandle = nullptr; ///< handle to SpacePoints in the event
+    std::vector<SptHits> const* sptHits = nullptr;           ///< pointer to the spacepoint - hit vector
     std::vector<unsigned int> allHitsMCPIndex;               ///< index of matched hits into the MCParticle vector
     unsigned int event;
     unsigned int run;
