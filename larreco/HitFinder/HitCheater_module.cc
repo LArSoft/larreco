@@ -36,7 +36,7 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardata/ArtDataHelper/HitCreator.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
-#include "lardata/Utilities/StatCollector.h"
+#include "lardataalg/Utilities/StatCollector.h"
 
 namespace hit {
   class HitCheater;
