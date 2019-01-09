@@ -1102,8 +1102,7 @@ void ConvexHullPathFinder::buildConvexHull(reco::ClusterParameters& clusterParam
     reco::PrincipalComponents& pca = clusterParameters.getFullPCA();
 
     // Recover the parameters from the Principal Components Analysis that we need to project and accumulate
-    Eigen::Vector3f pcaCenter(pca.getAvePosition()[0],pca.getAvePosition()[1],pca.getAvePosition()[2]);
-    
+    const Eigen::Vector3f&    pcaCenter  = pca.getAvePosition();
     reco::ConvexHull&         convexHull = clusterParameters.getConvexHull();
     reco::ProjectedPointList& pointList  = convexHull.getProjectedPointList();
 

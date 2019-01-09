@@ -298,7 +298,7 @@ void SpacePointHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt
         }
 
         // The x position is a weighted sum but the y-z position is simply the average
-        float position[]  = { float(spacePoint->XYZ()[0]), float(spacePoint->XYZ()[1]), float(spacePoint->XYZ()[2])};
+        Eigen::Vector3f position(float(spacePoint->XYZ()[0]), float(spacePoint->XYZ()[1]), float(spacePoint->XYZ()[2]));
         float totalCharge = hit2DVec[0]->getHit()->Integral() + hit2DVec[1]->getHit()->Integral() + hit2DVec[2]->getHit()->Integral();
             
         reco::ClusterHit2DVec hitVector;

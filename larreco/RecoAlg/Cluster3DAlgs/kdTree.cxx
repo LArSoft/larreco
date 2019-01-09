@@ -343,10 +343,10 @@ bool kdTree::consistentPairs(const reco::ClusterHit3D* pair1, const reco::Cluste
     
 float kdTree::DistanceBetweenNodesYZ(const reco::ClusterHit3D* node1,const reco::ClusterHit3D* node2) const
 {
-    const float* node1Pos    = node1->getPosition();
-    const float* node2Pos    = node2->getPosition();
-    float        deltaNode[] = {node1Pos[0]-node2Pos[0], node1Pos[1]-node2Pos[1], node1Pos[2]-node2Pos[2]};
-    float        yzDist2     = deltaNode[1]*deltaNode[1] + deltaNode[2]*deltaNode[2];
+    const Eigen::Vector3f& node1Pos    = node1->getPosition();
+    const Eigen::Vector3f& node2Pos    = node2->getPosition();
+    float                  deltaNode[] = {node1Pos[0]-node2Pos[0], node1Pos[1]-node2Pos[1], node1Pos[2]-node2Pos[2]};
+    float                  yzDist2     = deltaNode[1]*deltaNode[1] + deltaNode[2]*deltaNode[2];
     
     // Standard euclidean distance
     return std::sqrt(yzDist2);
@@ -354,11 +354,11 @@ float kdTree::DistanceBetweenNodesYZ(const reco::ClusterHit3D* node1,const reco:
     
 float kdTree::DistanceBetweenNodes(const reco::ClusterHit3D* node1,const reco::ClusterHit3D* node2) const
 {
-    const float* node1Pos    = node1->getPosition();
-    const float* node2Pos    = node2->getPosition();
-    float        deltaNode[] = {node1Pos[0]-node2Pos[0], node1Pos[1]-node2Pos[1], node1Pos[2]-node2Pos[2]};
-    float        yzDist2     = deltaNode[1]*deltaNode[1] + deltaNode[2]*deltaNode[2];
-    float        xDist2      = deltaNode[0]*deltaNode[0];
+    const Eigen::Vector3f& node1Pos    = node1->getPosition();
+    const Eigen::Vector3f& node2Pos    = node2->getPosition();
+    float                  deltaNode[] = {node1Pos[0]-node2Pos[0], node1Pos[1]-node2Pos[1], node1Pos[2]-node2Pos[2]};
+    float                  yzDist2     = deltaNode[1]*deltaNode[1] + deltaNode[2]*deltaNode[2];
+    float                  xDist2      = deltaNode[0]*deltaNode[0];
     
     // Standard euclidean distance
     return std::sqrt(xDist2 + yzDist2);

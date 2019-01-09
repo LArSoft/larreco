@@ -65,7 +65,7 @@ bool operator < (const ClusterHit2D & a, const ClusterHit2D & b)
 
 ClusterHit3D::ClusterHit3D() : m_id(std::numeric_limits<size_t>::max()),
                                m_statusBits(0),
-                               m_position{0.,0.,0.},
+                               m_position(Eigen::Vector3f::Zero()),
                                m_totalCharge(0.),
                                m_avePeakTime(-1.),
                                m_deltaPeakTime(0.),
@@ -77,7 +77,6 @@ ClusterHit3D::ClusterHit3D() : m_id(std::numeric_limits<size_t>::max()),
     m_hitDelTSigVec.clear();
     m_wireIDVector.clear();
     m_hitVector.clear();
-    
     m_hitDelTSigVec.resize(3, 0.);
     m_wireIDVector.resize(3, geo::WireID());
     m_hitVector.resize(3, NULL);
@@ -85,7 +84,7 @@ ClusterHit3D::ClusterHit3D() : m_id(std::numeric_limits<size_t>::max()),
     
 ClusterHit3D::ClusterHit3D(size_t                          id,
                            unsigned int                    statusBits,
-                           const float*                    position,
+                           const Eigen::Vector3f&          position,
                            float                           totalCharge,
                            float                           avePeakTime,
                            float                           deltaPeakTime,
@@ -98,7 +97,7 @@ ClusterHit3D::ClusterHit3D(size_t                          id,
                            const std::vector<geo::WireID>& wireIDs) :
               m_id(id),
               m_statusBits(statusBits),
-              m_position{position[0],position[1],position[2]},
+              m_position(position),
               m_totalCharge(totalCharge),
               m_avePeakTime(avePeakTime),
               m_deltaPeakTime(deltaPeakTime),
@@ -117,9 +116,7 @@ ClusterHit3D::ClusterHit3D(const ClusterHit3D& toCopy)
 {
     m_id             = toCopy.m_id;
     m_statusBits     = toCopy.m_statusBits;
-    m_position[0]    = toCopy.m_position[0];
-    m_position[1]    = toCopy.m_position[1];
-    m_position[2]    = toCopy.m_position[2];
+    m_position       = toCopy.m_position;
     m_totalCharge    = toCopy.m_totalCharge;
     m_avePeakTime    = toCopy.m_avePeakTime;
     m_deltaPeakTime  = toCopy.m_deltaPeakTime;
@@ -134,7 +131,7 @@ ClusterHit3D::ClusterHit3D(const ClusterHit3D& toCopy)
     
 void ClusterHit3D::initialize(size_t                          id,
                               unsigned int                    statusBits,
-                              const float*                    position,
+                              const Eigen::Vector3f&          position,
                               float                           totalCharge,
                               float                           avePeakTime,
                               float                           deltaPeakTime,
@@ -148,9 +145,7 @@ void ClusterHit3D::initialize(size_t                          id,
 {
     m_id             = id;
     m_statusBits     = statusBits;
-    m_position[0]    = position[0];
-    m_position[1]    = position[1];
-    m_position[2]    = position[2];
+    m_position       = position;
     m_totalCharge    = totalCharge;
     m_avePeakTime    = avePeakTime;
     m_deltaPeakTime  = deltaPeakTime;

@@ -411,7 +411,7 @@ void SkeletonAlg::AverageSkeletonPositions(reco::HitPairListPtr& skeletonHitList
             
             std::vector<const reco::ClusterHit3D*>& hit3DVec = hit2DToHit3DMap[bestPlaneIdx][hit3D->getHits()[bestPlaneIdx]];
             
-            float avePosition[3] = {hit3D->getPosition()[0],0.,0.};
+            Eigen::Vector3f avePosition(hit3D->getPosition()[0],0.,0.);
             
             for(const auto& tempHit3D : hit3DVec)
             {

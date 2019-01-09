@@ -121,7 +121,7 @@ public:
 
     ClusterHit3D(size_t                          id,
                  unsigned int                    statusBits,
-                 const float*                    position,
+                 const Eigen::Vector3f&          position,
                  float                           totalCharge,
                  float                           avePeakTime,
                  float                           deltaPeakTime,
@@ -137,7 +137,7 @@ public:
 
     void initialize(size_t                          id,
                     unsigned int                    statusBits,
-                    const float*                    position,
+                    const Eigen::Vector3f&          position,
                     float                           totalCharge,
                     float                           avePeakTime,
                     float                           deltaPeakTime,
@@ -151,7 +151,7 @@ public:
 
     size_t                              getID()            const {return m_id;}
     unsigned int                        getStatusBits()    const {return m_statusBits;}
-    const float*                        getPosition()      const {return m_position;}
+    const Eigen::Vector3f               getPosition()      const {return m_position;}
     float                               getX()             const {return m_position[0];}
     float                               getY()             const {return m_position[1];}
     float                               getZ()             const {return m_position[2];}
@@ -177,7 +177,7 @@ public:
     void setArclenToPoca(double poca)      const {m_arclenToPoca  = poca;}
     void setWireID(const geo::WireID& wid) const;
     
-    void setPosition(const float* pos) const {m_position[0] = pos[0]; m_position[1] = pos[1]; m_position[2] = pos[2];}
+    void setPosition(const Eigen::Vector3f& pos) const {m_position = pos;}
 
     const bool operator<(const reco::ClusterHit3D& other) const
     {
@@ -197,7 +197,7 @@ private:
     
     mutable size_t                   m_id;                 ///< "id" of this hit (useful for indexing)
     mutable unsigned int             m_statusBits;         ///< Volatile status information of this 3D hit
-    mutable float                    m_position[3];        ///< position of this hit combination in world coordinates
+    mutable Eigen::Vector3f          m_position;           ///< position of this hit combination in world coordinates
     float                            m_totalCharge;        ///< Sum of charges of all associated recob::Hits
     float                            m_avePeakTime;        ///< Average peak time of all associated recob::Hits
     float                            m_deltaPeakTime;      ///< Largest delta peak time of associated recob::Hits

@@ -179,7 +179,7 @@ private:
     /**
      *  @brief Jacket the calls to finding the nearest wire in order to intercept the exceptions if out of range
      */
-    geo::WireID NearestWireID(const float* position, const geo::WireID& wireID) const;
+    geo::WireID NearestWireID(const Eigen::Vector3f& position, const geo::WireID& wireID) const;
     
     /**
      *  @brief Create the internal channel status vector (assume will eventually be event-by-event)
@@ -806,7 +806,7 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
                 float xPositionHit2(hit2->getXPosition());
                 float xPosition = (xPositionHit1 / hit1SigSq + xPositionHit2 / hit2SigSq) * hit1SigSq * hit2SigSq / (hit1SigSq + hit2SigSq);
                 
-                float position[] = {xPosition, float(widIntersect.y), float(widIntersect.z)-m_zPosOffset};
+                Eigen::Vector3f position(xPosition, float(widIntersect.y), float(widIntersect.z)-m_zPosOffset);
                 
                 // If to here then we need to sort out the hit pair code telling what views are used
                 unsigned statusBits = 1 << hit1->WireID().Plane | 1 << hit2->WireID().Plane;
@@ -965,9 +965,9 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     avePeakTime /= weightSum;
                     xPosition   /= weightSum;
                     
-                    float position[]  = { xPosition,
-                                          float((pairYZVec[0] + pair0hYZVec[0] + pair1hYZVec[0]) / 3.),
-                                          float((pairYZVec[1] + pair0hYZVec[1] + pair1hYZVec[1]) / 3.)};
+                    Eigen::Vector3f position(xPosition,
+                                             float((pairYZVec[0] + pair0hYZVec[0] + pair1hYZVec[0]) / 3.),
+                                             float((pairYZVec[1] + pair0hYZVec[1] + pair1hYZVec[1]) / 3.));
 
                     // Armed with the average peak time, now get hitChiSquare and the sig vec
                     float              hitChiSquare(0.);
@@ -1069,7 +1069,7 @@ bool StandardHit3DBuilder::makeDeadChannelPair(reco::ClusterHit3D&       pairOut
             
             if (m_geometry->WireIDsIntersect(wireID1, wireID, widIntersect1))
             {
-                float newPosition[] = {pair.getPosition()[0],pair.getPosition()[1],pair.getPosition()[2]};
+                Eigen::Vector3f newPosition(pair.getPosition()[0],pair.getPosition()[1],pair.getPosition()[2]);
                 
                 newPosition[1] = (newPosition[1] + widIntersect0.y + widIntersect1.y) / 3.;
                 newPosition[2] = (newPosition[2] + widIntersect0.z + widIntersect1.z - 2. * m_zPosOffset) / 3.;
@@ -1144,7 +1144,7 @@ int StandardHit3DBuilder::FindNumberInRange(const Hit2DSet& hit2DSet, const reco
     return numberInRange;
 }
 
-geo::WireID StandardHit3DBuilder::NearestWireID(const float* position, const geo::WireID& wireIDIn) const
+geo::WireID StandardHit3DBuilder::NearestWireID(const Eigen::Vector3f& position, const geo::WireID& wireIDIn) const
 {
     geo::WireID wireID = wireIDIn;
     
@@ -1152,7 +1152,7 @@ geo::WireID StandardHit3DBuilder::NearestWireID(const float* position, const geo
     try
     {
         // Switch from NearestWireID to this method to avoid the roundoff error issues...
-        double distanceToWire = m_geometry->Plane(wireIDIn).WireCoordinate(position);
+        double distanceToWire = m_geometry->Plane(wireIDIn).WireCoordinate(position.data());
         
         wireID.Wire = int(distanceToWire);
     }

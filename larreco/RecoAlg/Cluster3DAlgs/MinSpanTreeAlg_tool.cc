@@ -476,17 +476,17 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParam
             {
                 const reco::ClusterHit3D* firstHit = *firstItr++;
             
-                const float* firstPos      = firstHit->getPosition();
-                float        delta1stPca[] = {firstPos[0]-pcaPos[0],firstPos[1]-pcaPos[1],firstPos[2]-pcaPos[2]};
-                float        firstPcaProj  = std::fabs(delta1stPca[0]*pcaAxis[0] + delta1stPca[1]*pcaAxis[1] + delta1stPca[2]*pcaAxis[2]);
+                const Eigen::Vector3f& firstPos      = firstHit->getPosition();
+                float                  delta1stPca[] = {firstPos[0]-pcaPos[0],firstPos[1]-pcaPos[1],firstPos[2]-pcaPos[2]};
+                float                  firstPcaProj  = std::fabs(delta1stPca[0]*pcaAxis[0] + delta1stPca[1]*pcaAxis[1] + delta1stPca[2]*pcaAxis[2]);
             
                 if (firstPcaProj < 0.75 * pcaLen) continue;
             
                 for(reco::HitPairListPtr::iterator secondItr = firstItr; secondItr != isolatedHitList.end(); secondItr++)
                 {
-                    const float* secondPos     = (*secondItr)->getPosition();
-                    float        delta2ndPca[] = {secondPos[0]-pcaPos[0],secondPos[1]-pcaPos[1],secondPos[2]-pcaPos[2]};
-                    float        secondPcaProj = std::fabs(delta2ndPca[0]*pcaAxis[0] + delta2ndPca[1]*pcaAxis[1] + delta2ndPca[2]*pcaAxis[2]);
+                    const Eigen::Vector3f& secondPos     = (*secondItr)->getPosition();
+                    float                  delta2ndPca[] = {secondPos[0]-pcaPos[0],secondPos[1]-pcaPos[1],secondPos[2]-pcaPos[2]};
+                    float                  secondPcaProj = std::fabs(delta2ndPca[0]*pcaAxis[0] + delta2ndPca[1]*pcaAxis[1] + delta2ndPca[2]*pcaAxis[2]);
                 
                     if (secondPcaProj < 0.75 * pcaLen) continue;
                 
@@ -629,17 +629,17 @@ void MinSpanTreeAlg::AStar(const reco::ClusterHit3D* startNode,
                 else if (tentative_gScore > std::get<1>(candNodeItr->second)) continue;
 
                 // Experiment with modification to cost estimate
-                const float* currentNodePos  = currentNode->getPosition();
-                const float* nextNodePos     = candPair.second->getPosition();
-                float        curNextDelta[]  = {nextNodePos[0]-currentNodePos[0], nextNodePos[1]-currentNodePos[1], nextNodePos[2]-currentNodePos[2]};
+                const Eigen::Vector3f& currentNodePos  = currentNode->getPosition();
+                const Eigen::Vector3f& nextNodePos     = candPair.second->getPosition();
+                float                  curNextDelta[]  = {nextNodePos[0]-currentNodePos[0], nextNodePos[1]-currentNodePos[1], nextNodePos[2]-currentNodePos[2]};
                 
-                const float* goalNodePos     = goalNode->getPosition();
-                float        goalNextDelta[] = {goalNodePos[0]-nextNodePos[0], goalNodePos[1]-nextNodePos[1], goalNodePos[2]-nextNodePos[2]};
+                const Eigen::Vector3f& goalNodePos     = goalNode->getPosition();
+                float                  goalNextDelta[] = {goalNodePos[0]-nextNodePos[0], goalNodePos[1]-nextNodePos[1], goalNodePos[2]-nextNodePos[2]};
                 
-                float        curNextMag      = std::sqrt(curNextDelta[0]*curNextDelta[0]   + curNextDelta[1]*curNextDelta[1]   + curNextDelta[2]*curNextDelta[2]);
-                float        goalNextMag     = std::sqrt(goalNextDelta[0]*goalNextDelta[0] + goalNextDelta[1]*goalNextDelta[1] + goalNextDelta[2]*goalNextDelta[2]);
+                float                  curNextMag      = std::sqrt(curNextDelta[0]*curNextDelta[0]   + curNextDelta[1]*curNextDelta[1]   + curNextDelta[2]*curNextDelta[2]);
+                float                  goalNextMag     = std::sqrt(goalNextDelta[0]*goalNextDelta[0] + goalNextDelta[1]*goalNextDelta[1] + goalNextDelta[2]*goalNextDelta[2]);
                 
-                float        cosTheta        = (curNextDelta[0]*goalNextDelta[0] + curNextDelta[1]*goalNextDelta[1] + curNextDelta[2]*goalNextDelta[2]);
+                float                  cosTheta        = (curNextDelta[0]*goalNextDelta[0] + curNextDelta[1]*goalNextDelta[1] + curNextDelta[2]*goalNextDelta[2]);
                 
                 if (cosTheta > 0. || cosTheta < 0.) cosTheta /= (curNextMag * goalNextMag);
                 
@@ -732,9 +732,9 @@ void MinSpanTreeAlg::LeastCostPath(const reco::EdgeTuple&      curEdge,
     
 float MinSpanTreeAlg::DistanceBetweenNodes(const reco::ClusterHit3D* node1,const reco::ClusterHit3D* node2) const
 {
-    const float* node1Pos    = node1->getPosition();
-    const float* node2Pos    = node2->getPosition();
-    float        deltaNode[] = {node1Pos[0]-node2Pos[0], node1Pos[1]-node2Pos[1], node1Pos[2]-node2Pos[2]};
+    const Eigen::Vector3f& node1Pos    = node1->getPosition();
+    const Eigen::Vector3f& node2Pos    = node2->getPosition();
+    float                  deltaNode[] = {node1Pos[0]-node2Pos[0], node1Pos[1]-node2Pos[1], node1Pos[2]-node2Pos[2]};
     
     // Standard euclidean distance
     return std::sqrt(deltaNode[0]*deltaNode[0]+deltaNode[1]*deltaNode[1]+deltaNode[2]*deltaNode[2]);
@@ -772,10 +772,10 @@ reco::HitPairListPtr MinSpanTreeAlg::DepthFirstSearch(const reco::EdgeTuple&    
     if (edgeListItr != hitToEdgeMap.end())
     {
         // The input edge weight has quality factors applied, recalculate just the position difference
-        const float* firstHitPos  = std::get<0>(curEdge)->getPosition();
-        const float* secondHitPos = std::get<1>(curEdge)->getPosition();
-        float        curEdgeVec[] = {secondHitPos[0]-firstHitPos[0],secondHitPos[1]-firstHitPos[1],secondHitPos[2]-firstHitPos[2]};
-        float        curEdgeMag   = std::sqrt(curEdgeVec[0]*curEdgeVec[0]+curEdgeVec[1]*curEdgeVec[1]+curEdgeVec[2]*curEdgeVec[2]);
+        const Eigen::Vector3f& firstHitPos  = std::get<0>(curEdge)->getPosition();
+        const Eigen::Vector3f& secondHitPos = std::get<1>(curEdge)->getPosition();
+        float                  curEdgeVec[] = {secondHitPos[0]-firstHitPos[0],secondHitPos[1]-firstHitPos[1],secondHitPos[2]-firstHitPos[2]};
+        float                  curEdgeMag   = std::sqrt(curEdgeVec[0]*curEdgeVec[0]+curEdgeVec[1]*curEdgeVec[1]+curEdgeVec[2]*curEdgeVec[2]);
         
         curEdgeMag = std::max(float(0.1),curEdgeMag);
         
