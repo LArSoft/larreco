@@ -226,18 +226,18 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     // see what happens
     
     // Run through the HitPairList and get the mean position of all the hits
-    Eigen::Vector3f meanPos(Eigen::Vector3f::Zero());
-    float meanWeightSum(0.);
-    int   numPairsInt(0);
+    Eigen::Vector3d meanPos(Eigen::Vector3d::Zero());
+    double          meanWeightSum(0.);
+    int             numPairsInt(0);
     
 //    const float minimumDeltaPeakSig(0.00001);
-    float minimumDeltaPeakSig(0.00001);
+    double minimumDeltaPeakSig(0.00001);
 
     // Want to use the hit "chi square" to weight the hits but we need to put a lower limit on its value
     // to prevent a few hits being over counted.
     // This is a bit experimental until we can evaluate the cost (time to calculate) vs the benefit
     // (better fits)..
-    std::vector<float> hitChiSquareVec;
+    std::vector<double> hitChiSquareVec;
 
     hitChiSquareVec.resize(hitPairVector.size());
 
@@ -248,8 +248,8 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     
     hitChiSquareVec.resize(numToKeep);
     
-    float aveValue = std::accumulate(hitChiSquareVec.begin(),hitChiSquareVec.end(),float(0.)) / float(hitChiSquareVec.size());
-    float rms      = std::sqrt(std::inner_product(hitChiSquareVec.begin(),hitChiSquareVec.end(), hitChiSquareVec.begin(), 0.,std::plus<>(),[aveValue](const auto& left,const auto& right){return (left - aveValue) * (right - aveValue);}) / float(hitChiSquareVec.size()));
+    double aveValue = std::accumulate(hitChiSquareVec.begin(),hitChiSquareVec.end(),double(0.)) / double(hitChiSquareVec.size());
+    double rms      = std::sqrt(std::inner_product(hitChiSquareVec.begin(),hitChiSquareVec.end(), hitChiSquareVec.begin(), 0.,std::plus<>(),[aveValue](const auto& left,const auto& right){return (left - aveValue) * (right - aveValue);}) / double(hitChiSquareVec.size()));
 
     minimumDeltaPeakSig = std::max(minimumDeltaPeakSig, aveValue - rms);
     
@@ -260,7 +260,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
 
         // Weight the hit by the peak time difference significance
-        float weight = std::max(minimumDeltaPeakSig, hit->getHitChiSquare()); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
+        double weight = std::max(minimumDeltaPeakSig, double(hit->getHitChiSquare())); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
         
         meanPos(0) += hit->getPosition()[0] * weight;
         meanPos(1) += hit->getPosition()[1] * weight;
@@ -273,23 +273,23 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     meanPos /= meanWeightSum;
 
     // Define elements of our covariance matrix
-    float xi2(0.);
-    float xiyi(0.);
-    float xizi(0.0);
-    float yi2(0.0);
-    float yizi(0.0);
-    float zi2(0.);
-    float weightSum(0.);
+    double xi2(0.);
+    double xiyi(0.);
+    double xizi(0.0);
+    double yi2(0.0);
+    double yizi(0.0);
+    double zi2(0.);
+    double weightSum(0.);
     
     // Back through the hits to build the matrix
     for (const auto& hit : hitPairVector)
     {
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
 
-        float weight = 1. / std::max(minimumDeltaPeakSig, hit->getHitChiSquare()); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
-        float x      = (hit->getPosition()[0] - meanPos(0)) * weight;
-        float y      = (hit->getPosition()[1] - meanPos(1)) * weight;
-        float z      = (hit->getPosition()[2] - meanPos(2)) * weight;
+        double weight = 1. / std::max(minimumDeltaPeakSig, double(hit->getHitChiSquare())); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
+        double x      = (hit->getPosition()[0] - meanPos(0)) * weight;
+        double y      = (hit->getPosition()[1] - meanPos(1)) * weight;
+        double z      = (hit->getPosition()[2] - meanPos(2)) * weight;
         
         weightSum += weight*weight;
         
@@ -302,7 +302,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     }
     
     // Using Eigen package
-    Eigen::Matrix3f sig;
+    Eigen::Matrix3d sig;
     
     sig <<  xi2, xiyi, xizi,
            xiyi,  yi2, yizi,
@@ -310,11 +310,11 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     
     sig *= 1./weightSum;
     
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigenMat(sig);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigenMat(sig);
     
     if (eigenMat.info() == Eigen::ComputationInfo::Success)
     {
-        using eigenValColPair = std::pair<float,size_t>;
+        using eigenValColPair = std::pair<double,size_t>;
         std::vector<eigenValColPair> eigenValColVec;
         
         eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(0),0));
@@ -327,16 +327,27 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
         // Get the eigen values
         reco::PrincipalComponents::EigenValues recobEigenVals;
         
-        recobEigenVals << eigenValColVec[0].first, eigenValColVec[1].first, eigenValColVec[2].first;
+        recobEigenVals << float(eigenValColVec[0].first), float(eigenValColVec[1].first), float(eigenValColVec[2].first);
         
         // Grab the principle axes
         reco::PrincipalComponents::EigenVectors recobEigenVecs;
         
         for(size_t idx = 0; idx < 3; idx++)
-            recobEigenVecs.row(idx) = eigenMat.eigenvectors().col(eigenValColVec[idx].second);
+            recobEigenVecs.row(idx) = eigenMat.eigenvectors().col(eigenValColVec[idx].second).cast<float>();
         
+        // Check for a special case (which may have gone away with switch back to doubles for computation?)
+        if (std::isnan(recobEigenVals[2]))
+        {
+            std::cout << "==> Third eigenvalue returns a nan" << std::endl;
+            
+            recobEigenVals[2] = 0.;
+            
+            // Assume the third axis is also kaput?
+            recobEigenVecs.row(2) = recobEigenVecs.row(0).cross(recobEigenVecs.row(1));
+        }
+
         // Store away
-        pca = reco::PrincipalComponents(true, numPairsInt, recobEigenVals, recobEigenVecs, meanPos);
+        pca = reco::PrincipalComponents(true, numPairsInt, recobEigenVals, recobEigenVecs, meanPos.cast<float>());
     }
     else
     {
