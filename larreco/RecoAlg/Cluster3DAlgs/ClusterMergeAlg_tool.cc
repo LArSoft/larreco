@@ -85,6 +85,8 @@ private:
     
     const reco::ClusterHit3D* findClosestHit3D(const Eigen::Vector3f&, const Eigen::Vector3f&, const reco::HitPairListPtr&) const;
     
+    const reco::ClusterHit3D* findFurthestHit3D(const Eigen::Vector3f&, const Eigen::Vector3f&, const reco::HitPairListPtr&) const;
+
     /**
      *  @brief Data members to follow
      */
@@ -260,9 +262,7 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
     size_t                                lastClusterListCount = clusterParametersList.size() + 1;
     reco::ClusterParametersList::iterator lastFirstClusterItr  = clusterParametersList.begin();
     
-    int numMergedClusters = 0;
-    
-    int outerLoopCount(0);
+    int numMergedClusters(0);
 
     while(clusterParametersList.size() != lastClusterListCount)
     {
@@ -271,12 +271,6 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
         
         // Keep track of the first cluster iterator each pass through
         reco::ClusterParametersList::iterator firstClusterItr = lastFirstClusterItr++;
-        
-        std::cout << std::endl;
-        std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-        std::cout << "        Outer loop # " << outerLoopCount++ << std::endl;
-        
-        int clusterIdx(0);
 
         // Loop through the clusters
         while(firstClusterItr != clusterParametersList.end())
@@ -298,10 +292,7 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
 
             // Once you get down to the smallest clusters if they haven't already been absorbed there is no need to check them
             if (firstClusterParams.getFullPCA().getEigenValues()[0] < fMinEigenToProcess) break;
-            
-            std::cout << "************** First Cluster ptr: " << &firstClusterParams << ", internal count: " << clusterIdx++ << " **************" << std::endl;
-            std::cout << "   PCA eigen: " << 1.5*std::sqrt(firstClusterParams.getFullPCA().getEigenValues()[0]) << ", " << 1.5*std::sqrt(firstClusterParams.getFullPCA().getEigenValues()[1]) << ", " << 1.5*std::sqrt(firstClusterParams.getFullPCA().getEigenValues()[2])  << std::endl;
-            
+           
             // want the next one...
             nextClusterItr++;
             
@@ -315,10 +306,6 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
                 {
                     if (mergeClusters(firstClusterParams, nextClusterParams))
                     {
-                        Eigen::Vector3f firstPosToNextPosVec  = nextClusterParams.getFullPCA().getAvePosition() - firstClusterParams.getFullPCA().getAvePosition();
-                        std::cout << "   ---> Merged cluster ptr: " << &nextClusterParams << ", dist: " << firstPosToNextPosVec.norm() << ", eigen: " << 1.5*std::sqrt(nextClusterParams.getFullPCA().getEigenValues()[0]) << ", " << 1.5*std::sqrt(nextClusterParams.getFullPCA().getEigenValues()[1]) << ", " <<  1.5*std::sqrt(nextClusterParams.getFullPCA().getEigenValues()[2]) << std::endl;
-                        std::cout << "   ~~~> New PCA eigen: " << 1.5*std::sqrt(firstClusterParams.getFullPCA().getEigenValues()[0]) << ", " << 1.5*std::sqrt(firstClusterParams.getFullPCA().getEigenValues()[1]) << ", " << 1.5*std::sqrt(firstClusterParams.getFullPCA().getEigenValues()[2])  << std::endl;
-
                         // Now remove the "next" cluster
                         nextClusterItr = clusterParametersList.erase(nextClusterItr);
                         
@@ -335,8 +322,6 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
             firstClusterItr++;
         }
     }
-    
-    std::cout << "***>> Merged " << numMergedClusters << std::endl;
     
     if (fOutputHistograms) fNumMergedClusters->Fill(numMergedClusters, 1.);
     
@@ -408,7 +393,7 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
                                + firstEigenVals[2] * std::abs(firstPosToNextPosUnit.dot(firstAxis2));
 
     // This makes first selection:
-    if (cosFirstAxis > cosMaxFirst && arcLenToNextDoca < 3. * firstToNextProjEigen)
+    if (cosFirstAxis > cosMaxFirst && arcLenToNextDoca < 5. * firstToNextProjEigen)
     {
         // Recover the axes for the next PCA and make sure pointing convention is observed
         Eigen::Vector3f nextAxis0(nextPCA.getEigenVectors().row(0));
@@ -432,46 +417,46 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
                                       std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[1],fMinTransEigenVal)), 64.),
                                       std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[2],fMinTransEigenVal)), 32.));
         
-        // Develop metric for max allowed angle from the eigen values
-        float rMaxNext    = std::sqrt(nextEigenVals[1] * nextEigenVals[1] + nextEigenVals[2] * nextEigenVals[2]);
-        float cosMaxNext  = std::max(nextEigenVals[0] / std::sqrt(nextEigenVals[0] * nextEigenVals[0] + fNumTransEigens * rMaxNext * fNumTransEigens * rMaxNext),float(0.8));
-        float cosNextAxis = nextAxis0.dot(firstPosToNextPosUnit);
-        
-        // To really get the gap we need to look at the projected distance between the last hit in the first cluster and the first hit
-        // in the next cluster...
-        const reco::ClusterHit3D* closestNextHit3D      = findClosestHit3D(firstCenter, firstPosToNextPosUnit, nextCluster.getHitPairListPtr());
-        Eigen::Vector3f           nextPosToFirstPosUnit = -firstPosToNextPosUnit;
-        const reco::ClusterHit3D* closestFirstHit3D     = findClosestHit3D(nextCenter, nextPosToFirstPosUnit, firstCluster.getHitPairListPtr());
-        Eigen::Vector3f           firstToNextGapVec     = closestNextHit3D->getPosition() - closestFirstHit3D->getPosition();
+        // Want to find the "gap" between the first cluster and the next cluster.
+        // We define the gap to be the distance between the space point in the first cluster furthest along the first axis towards the next cluster
+        // and the space point in the next cluster furthest along the next axis towards the first cluster...
+        const reco::ClusterHit3D* furthestFirstHit3D        = findFurthestHit3D(firstCenter, firstAxis0, firstCluster.getHitPairListPtr());
+        Eigen::Vector3f           revNextAxis0              = -nextAxis0;
+        const reco::ClusterHit3D* furthestNextHit3D         = findFurthestHit3D(nextCenter, revNextAxis0, nextCluster.getHitPairListPtr());
+        Eigen::Vector3f           furthestFirstToNextHitVec = furthestNextHit3D->getPosition() - furthestFirstHit3D->getPosition();
+        Eigen::Vector3f           firstToFurthestNextVec    = furthestNextHit3D->getPosition() - firstCenter;
 
         // Guesstimate the gap between the two PCAs
-        float firstToNextGap = firstToNextGapVec.dot(firstPosToNextPosUnit);
+        float firstToNextProjGap = furthestFirstToNextHitVec.dot(firstPosToNextPosUnit);
+        
+        // Also get the doca of the furthest next point to the first axis0
+        float           arcLenToFurthestNextHit = (furthestNextHit3D->getPosition() - firstCenter).dot(firstAxis0);
+        Eigen::Vector3f furthestNextHitDocaVec  = furthestNextHit3D->getPosition() - (firstCenter + arcLenToFurthestNextHit * firstAxis0);
         
         // Determine the projected "eigen distance"
         // First for the next cluster...
-        float nextToFirstProjEigen = nextEigenVals[0] * std::abs(nextPosToFirstPosUnit.dot(nextAxis0))
-                                   + nextEigenVals[1] * std::abs(nextPosToFirstPosUnit.dot(nextAxis1))
-                                   + nextEigenVals[2] * std::abs(nextPosToFirstPosUnit.dot(nextAxis2));
+        float nextToFirstProjEigen = nextEigenVals[0] * std::abs(firstPosToNextPosUnit.dot(nextAxis0))
+                                   + nextEigenVals[1] * std::abs(firstPosToNextPosUnit.dot(nextAxis1))
+                                   + nextEigenVals[2] * std::abs(firstPosToNextPosUnit.dot(nextAxis2));
         
-        std::cout << "  --> dCenters: " << firstPosToNextPosVec.norm() << ", gap: " << firstToNextGap << ", next eig: " << nextEigenVals[0] << ", proj: " << nextToFirstProjEigen << ", cos: " << cosNextAxis << ", first eig: " << firstEigenVals[0] << ", proj: " << firstToNextProjEigen << ", cos: " << cosFirstAxis << std::endl;
+        // Develop metric for max allowed angle from the eigen values
+//        float rMaxNext    = std::sqrt(nextEigenVals[1] * nextEigenVals[1] + nextEigenVals[2] * nextEigenVals[2]);
+//        float cosMaxNext  = std::max(nextEigenVals[0] / std::sqrt(nextEigenVals[0] * nextEigenVals[0] + fNumTransEigens * rMaxNext * fNumTransEigens * rMaxNext),float(0.7));
+//        float cosNextAxis = nextAxis0.dot(firstPosToNextPosUnit);
 
         // This makes first selection:
-        if (cosNextAxis > cosMaxNext && firstToNextGap < nextToFirstProjEigen)
+//        if (cosNextAxis > cosMaxNext && std::abs(firstToNextProjGap) < std::max(3.,0.5 * nextToFirstProjEigen) && furthestNextHitDocaVec.norm() < 2. * rMaxFirst)
+        if (std::abs(firstToNextProjGap) < std::max(3.,0.5 * nextToFirstProjEigen) && furthestNextHitDocaVec.norm() < 2. * rMaxFirst)
         {
             // We need to watch out for the case of colinearity which can screw up a calculation of the distance of closest approach
-            // Basically, we look to see if the angle between the two axes is less than 5 degrees
-            if (firstAxis0.dot(nextAxis0) > 0.9961)
-            {
-                // Check the transverse distance
-                Eigen::Vector3f pocaVec = nextCenter - (firstCenter + arcLenToNextDoca * firstAxis0);
-                
-//                std::cout << "**>> cos: " << firstAxis0.dot(nextAxis0) << ", dist: " << firstPosToNextPosVec.norm() << ", 1st eigen: " << firstEigenVals[0] << ", 2nd: " << nextEigenVals[0] << ", poca len: " << pocaVec.norm() << ", max: " << rMaxFirst << std::endl;
-                
-                if (pocaVec.norm() < rMaxFirst) consistent = true;
-            }
+           // Check if the next cluster's closest point is "in range" already
+            float           arcLenToNextClosestHit = (furthestNextHit3D->getPosition() - firstCenter).dot(firstAxis0);
+            Eigen::Vector3f pocaVec                = (furthestNextHit3D->getPosition() - (firstCenter + arcLenToNextClosestHit * firstAxis0));
+            
+            if (pocaVec.norm() < 2.5 * rMaxFirst) consistent = true;
             
             // Might be nearly colinear but outside of the above off
-            if (!consistent)
+            else if (firstToFurthestNextVec.normalized().dot(firstAxis0) > cosMaxFirst)
             {
                 // Closest approach calculaiton results vectors
                 Eigen::Vector3f firstPoca;
@@ -499,6 +484,14 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
                     consistent = true;
                 }
             }
+        }
+        // We need to check the special case of an embedded cluster
+        else if (arcLenToNextDoca < firstEigenVals[0])
+        {
+            // Get the point of closest approach vector
+            Eigen::Vector3f pocaVec = (nextCenter - (firstCenter + arcLenToNextDoca * firstAxis0));
+            
+            if (pocaVec.norm() < 0.5 * rMaxFirst) consistent = true;
         }
     }
 
@@ -838,6 +831,26 @@ const reco::ClusterHit3D* ClusterMergeAlg::findClosestHit3D(const Eigen::Vector3
         {
             nearestHit3D = hit3D;
             closest      = arcLenToHit;
+        }
+    }
+    
+    return nearestHit3D;
+}
+    
+const reco::ClusterHit3D* ClusterMergeAlg::findFurthestHit3D(const Eigen::Vector3f& refPoint, const Eigen::Vector3f& refVector, const reco::HitPairListPtr& hitList) const
+{
+    const reco::ClusterHit3D* nearestHit3D(hitList.front());
+    float                     furthest(-std::numeric_limits<float>::max());
+    
+    for(const auto& hit3D : hitList)
+    {
+        Eigen::Vector3f refToHitVec = hit3D->getPosition() - refPoint;
+        float           arcLenToHit = refToHitVec.dot(refVector);
+        
+        if (arcLenToHit > furthest)
+        {
+            nearestHit3D = hit3D;
+            furthest     = arcLenToHit;
         }
     }
     
