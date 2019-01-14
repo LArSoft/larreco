@@ -121,7 +121,7 @@ namespace tca {
     // dressed muons - change next line
     if(tcc.muonTag.size() < 4) throw art::Exception(art::errors::Configuration)<<"MuonTag must be size 4\n 0 = minPtsFit\n 1 = minMCSMom\n 2= maxWireSkipNoSignal\n 3 = min delta ray length for tagging\n 4 = dress muon window size (optional)";
     if(tcc.deltaRayTag.size() != 3) throw art::Exception(art::errors::Configuration)<<"DeltaRayTag must be size 3\n 0 = Max endpoint sep\n 1 = min MCSMom\n 2 = max MCSMom";
-    if(tcc.chkStopCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = Charge fit chisq cut";
+    if(tcc.chkStopCuts.size() < 3) throw art::Exception(art::errors::Configuration)<<"ChkStopCuts must be size 3\n 0 = Min Charge ratio\n 1 = Charge slope pull cut\n 2 = Charge fit chisq cut\n 3 = BraggSplit FOM (optional)";
     if(tcc.showerTag.size() < 13) {
       std::cout<< "ShowerTag must be size 13\n 0 = Mode\n 1 = max MCSMom\n 2 = max separation (WSE units)\n 3 = Max angle diff\n 4 = Factor * rms width\n 5 = Min half width\n 6 = min total Tps\n 7 = Min Tjs\n 8 = max parent FOM\n 9 = max direction FOM 10 = max AspectRatio\n 11 = min Score to preserve a vertex\n 12 = Debug showers in CTP\n";
       std::cout<<" Fixing this problem...";
@@ -285,7 +285,7 @@ namespace tca {
     evt.eventsProcessed = 0;
    
   } // reconfigure
-  
+
   ////////////////////////////////////////////////
   bool TrajClusterAlg::SetInputHits(std::vector<recob::Hit> const& inputHits)
   {
@@ -353,8 +353,13 @@ namespace tca {
       }
     } // plane
       if(tcc.match3DCuts[0] > 0) {
-        FillmAllTraj(slc);
-        FindPFParticles(slc);
+        if(evt.sptHandle) {
+          // Use space points to find PFParticles
+//          FindSptPFParticles(slc);
+        } else {
+          FillmAllTraj(slc);
+          FindPFParticles(slc);
+        }
         // TODO: decide how to print debug output
         DefinePFPParents(slc, false);
 /*
@@ -608,6 +613,7 @@ namespace tca {
             } // use ChkInTraj
             // See if it should be split
             CheckTrajBeginChg(slc, slc.tjs.size() - 1);
+            BraggSplit(slc, slc.tjs.size() - 1);
             break;
           } // jht
         } // iht
@@ -665,6 +671,7 @@ namespace tca {
           auto& tj = slc.tjs[slc.tjs.size() - 1];
           mf::LogVerbatim("TC")<<"TRP RAT Stored T"<<tj.ID<<" using seed TP "<<PrintPos(slc, tp);
         }
+        BraggSplit(slc, slc.tjs.size() - 1);
       } // seed
 
       seeds.resize(0);

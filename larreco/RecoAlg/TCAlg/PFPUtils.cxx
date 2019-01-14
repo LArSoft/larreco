@@ -11,7 +11,38 @@ namespace tca {
   // TODO: Fix the sorting mess
   bool valDecreasings (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
   bool valIncreasings (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
-  
+/*
+  /////////////////////////////////////////
+  void FindSptPFParticles(TCSlice& slc)
+  {
+    if(tcc.match3DCuts[0] <= 0) return;
+    if(!evt.sptHandle) return;
+    bool prt = false;
+//    bool prt = (tcc.dbgPFP && tcc.dbgSlc);
+    //   tj        TP        list of Spt indices
+    std::vector<std::vector<std::vector<unsigned int>>> tpSpts;
+    for(unsigned int itj = 0; itj < slc.tjs.size(); ++itj) {
+      auto& tj = slc.tjs[itj];
+      if(tj.AlgMod[kKilled]) continue;
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        auto& tp = tj.Pts[ipt];
+        if(tp.Chg <= 0) continue;
+        std::vector<unsigned int> spts;
+        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
+          if(!tp.UseHit[ii]) continue;
+          unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
+//          auto& sp_from_hit = (*evt.sptFromHit).at(ahi);
+          std::vector<art::Ptr<recob::SpacePoint>> spts = evt.sptFromHit.at(ahi);
+          std::cout<<"tp "<<PrintPos(slc, tp)<<" nspt "<<spts.size();
+//          for(auto& spt : spts) std::cout<<" "<<spt;
+          std::cout<<"\n";
+          prt = true;
+        } // ii
+      } // ipt
+      if(prt) break;
+    } // itj
+  } // FindSptPFParticles
+*/
   /////////////////////////////////////////
   void StitchPFPs()
   {
@@ -272,6 +303,7 @@ namespace tca {
   {
     // Fills the mallTraj vector with trajectory points in the tpc and sorts
     // them by increasing X
+    
     slc.matchVec.clear();
     
     int cstat = slc.TPCID.Cryostat;
@@ -290,6 +322,7 @@ namespace tca {
     } // tj
     if(ntp < 2) return;
     
+    if(tcc.match3DCuts.size() > 7 && tcc.match3DCuts[7] > 0 && ntp > tcc.match3DCuts[7]) ntp = tcc.match3DCuts[7];
     slc.mallTraj.resize(ntp);
     
     // define mallTraj
@@ -327,6 +360,7 @@ namespace tca {
         slc.mallTraj[icnt].npts = tj.EndPt[1] - tj.EndPt[0] + 1;
         slc.mallTraj[icnt].score = score;
         ++icnt;
+        if(icnt == ntp) break;
       } // tp
     } // tj
     
@@ -1295,7 +1329,7 @@ namespace tca {
       mtj.AlgMod[kMat3DMerge] = true;
       SetEndPoints(mtj);
       mtj.MCSMom = MCSMom(slc, mtj);
-      SetPDGCode(slc, mtj, true);
+      SetPDGCode(slc, mtj);
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<" P"<<pfp.ID<<" try to merge";
@@ -1488,7 +1522,7 @@ namespace tca {
             float xp = 0.5 * (iTjPt.xlo + iTjPt.xhi);
             tpk.Pos[1] = tcc.detprop->ConvertXToTicks(xp, kplane, tpc, cstat) * tcc.unitsPerTick;
             // Note that SignalAtTp assumes that a signal exists if the wire is dead
-            if(!SignalAtTp(slc, tpk)) continue;
+            if(!SignalAtTp(tpk)) continue;
           }
           // Just fill temp. See if the Tj IDs are in the match list
           bool gotit = false;
@@ -2974,7 +3008,7 @@ namespace tca {
         tp.Pos[0] = tcc.geom->WireCoordinate(pos1[1], pos1[2], plane, slc.TPCID.TPC, slc.TPCID.Cryostat);
         tp.Pos[1] = tcc.detprop->ConvertXToTicks(pos1[0], plane, slc.TPCID.TPC, slc.TPCID.Cryostat) * tcc.unitsPerTick;
         ++cnt;
-        if(SignalAtTp(slc, tp)) ++sum;
+        if(SignalAtTp(tp)) ++sum;
       } // plane
     } // step
     if(cnt == 0) return -1;
