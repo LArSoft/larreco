@@ -52,7 +52,7 @@
 #include "larcorealg/Geometry/TPCGeo.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
-#include "lardata/Utilities/StatCollector.h"
+#include "lardataalg/Utilities/StatCollector.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/StandardClusterParamsAlg.h"
