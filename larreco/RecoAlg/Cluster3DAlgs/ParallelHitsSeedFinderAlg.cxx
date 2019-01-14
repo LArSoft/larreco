@@ -78,7 +78,7 @@ bool ParallelHitsSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputH
     if (pca.getSvdOK())
     {
         // Presume CR muons will be "downward going"...
-        if (pca.getEigenVectors().row(0)(1) > 0.) pca.flipAxis(0);
+        if (pca.getEigenVectors().row(2)(1) > 0.) pca.flipAxis(0);
         
         // This routine is typically called when there are LOTS of hits... so we are going to try
         // to reduce the number of operations on the full list as much as possible. However, we
@@ -159,7 +159,7 @@ bool ParallelHitsSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputH
             if (seedPCA.getSvdOK())
             {
                 // Still looking to point "down"
-                if (seedPCA.getEigenVectors().row(0)(1) > 0.) seedPCA.flipAxis(0);
+                if (seedPCA.getEigenVectors().row(2)(1) > 0.) seedPCA.flipAxis(0);
             
                 // Recompute the 3D docas and arc lengths
                 m_pcaAlg.PCAAnalysis_calc3DDocas(hit3DList, seedPCA);
@@ -169,7 +169,7 @@ bool ParallelHitsSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputH
                 seedHit3DList.sort(SeedFinderAlgBase::Sort3DHitsByArcLen3D());
                 
                 // Now translate the seedCenter by the arc len to the first hit
-                double seedDir[3]   = {seedPCA.getEigenVectors().row(0)(0),seedPCA.getEigenVectors().row(0)(1),seedPCA.getEigenVectors().row(0)(2)};
+                double seedDir[3]   = {seedPCA.getEigenVectors().row(2)(0),seedPCA.getEigenVectors().row(2)(1),seedPCA.getEigenVectors().row(2)(2)};
                 double seedStart[3] = {seedHit3DList.front()->getX(), seedHit3DList.front()->getY(), seedHit3DList.front()->getZ()};
                 
                 // Move from the first hit to the halfway point but from the first hit, not from the axis position

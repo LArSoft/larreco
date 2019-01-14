@@ -77,8 +77,10 @@ private:
     
     bool linearClusters(reco::ClusterParameters&, reco::ClusterParameters&) const;
     
-    bool linearClusters2(const reco::PrincipalComponents&, const reco::PrincipalComponents&) const;
+    bool linearClusters2(reco::ClusterParameters&, reco::ClusterParameters&) const;
     
+    bool linearClusters3(const reco::PrincipalComponents&, const reco::PrincipalComponents&) const;
+
     bool mergeClusters(reco::ClusterParameters&, reco::ClusterParameters&) const;
     
     float closestApproach(const Eigen::Vector3f&, const Eigen::Vector3f&, const Eigen::Vector3f&, const Eigen::Vector3f&, Eigen::Vector3f&, Eigen::Vector3f&, Eigen::Vector3f&) const;
@@ -254,7 +256,7 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
     if (fEnableMonitoring) theClockBuildClusters.start();
     
     // Resort by the largest first eigen value (so the "longest" cluster)
-    clusterParametersList.sort([](auto& left, auto& right){return left.getFullPCA().getEigenValues()[0] > right.getFullPCA().getEigenValues()[0];});
+    clusterParametersList.sort([](auto& left, auto& right){return left.getFullPCA().getEigenValues()[2] > right.getFullPCA().getEigenValues()[2];});
     
     // The idea is to continually loop through all clusters until we get to the point where we are no longer doing any merging.
     // If two clusters are merged then we need to recycle through again because it may be that the new cluster can match when
@@ -283,15 +285,15 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
             {
                 const reco::PrincipalComponents& firstPCA = firstClusterParams.getFullPCA();
                 
-                Eigen::Vector3f firstEigenVals(         2.0 * sqrt(firstPCA.getEigenValues()[0]),
-                                               std::min(2.0 * sqrt(std::max(firstPCA.getEigenValues()[1],fMinTransEigenVal)), 100.),
-                                               std::min(2.0 * sqrt(std::max(firstPCA.getEigenValues()[2],fMinTransEigenVal)), 50.));
+                Eigen::Vector3f firstEigenVals(std::min(1.5 * std::sqrt(std::max(firstPCA.getEigenValues()[0],fMinTransEigenVal)),  50.),
+                                               std::min(1.5 * std::sqrt(std::max(firstPCA.getEigenValues()[1],fMinTransEigenVal)), 100.),
+                                                        1.5 * std::sqrt(         firstPCA.getEigenValues()[2]));
                 
                 for(size_t idx = 0; idx < 3; idx++) fFirstEigenValueHists[idx]->Fill(firstEigenVals[idx],1.);
             }
 
             // Once you get down to the smallest clusters if they haven't already been absorbed there is no need to check them
-            if (firstClusterParams.getFullPCA().getEigenValues()[0] < fMinEigenToProcess) break;
+            if (firstClusterParams.getFullPCA().getEigenValues()[2] < fMinEigenToProcess) break;
            
             // want the next one...
             nextClusterItr++;
@@ -323,6 +325,8 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
         }
     }
     
+    std::cout << "==> # merged: " << numMergedClusters << std::endl;
+    
     if (fOutputHistograms) fNumMergedClusters->Fill(numMergedClusters, 1.);
     
     
@@ -350,6 +354,69 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
     // Dereference the PCA's
     const reco::PrincipalComponents& firstPCA = firstCluster.getFullPCA();
     const reco::PrincipalComponents& nextPCA  = nextCluster.getFullPCA();
+    
+    // Recover the positions of the centers of the two clusters
+    const Eigen::Vector3f& firstCenter = firstPCA.getAvePosition();
+    const Eigen::Vector3f& nextCenter  = nextPCA.getAvePosition();
+    
+    // And form a vector between the two centers
+    Eigen::Vector3f firstPosToNextPosVec  = nextCenter - firstCenter;
+    Eigen::Vector3f firstPosToNextPosUnit = firstPosToNextPosVec.normalized();
+    
+    // Now get the first PCA's primary axis and since we'll use them get all of them at once...
+    Eigen::Vector3f firstAxis0(firstPCA.getEigenVectors().row(0));
+    Eigen::Vector3f firstAxis1(firstPCA.getEigenVectors().row(1));
+    Eigen::Vector3f firstAxis2(firstPCA.getEigenVectors().row(2));
+    
+    // Will want the distance of closest approach of the next cluser's center to the primary, start by finding arc length
+    float arcLenToNextDoca = firstPosToNextPosVec.dot(firstAxis2);
+    
+    // Adopt the convention that the cluster axis is in same direction as vector from first to next centers
+    // And preserve the overall orientation of the PCA by flipping all if we flip the first one
+    if (arcLenToNextDoca < 0.)
+    {
+        firstAxis0       = -firstAxis0;
+        firstAxis1       = -firstAxis1;
+        firstAxis2       = -firstAxis2;
+        arcLenToNextDoca = -arcLenToNextDoca;
+    }
+    
+    // Recover the eigen values of the first and second PCAs for selection cuts
+    Eigen::Vector3f firstEigenVals(std::min(1.5 * sqrt(std::max(firstPCA.getEigenValues()[0],fMinTransEigenVal)),  50.),
+                                   std::min(1.5 * sqrt(std::max(firstPCA.getEigenValues()[1],fMinTransEigenVal)), 100.),
+                                   1.5 * sqrt(         firstPCA.getEigenValues()[2]));
+    
+    // Develop metric for max allowed angle from the eigen values
+    float rMaxFirst    = std::sqrt(firstEigenVals[0] * firstEigenVals[0] + firstEigenVals[1] * firstEigenVals[1]);
+    float cosMaxFirst  = std::max(firstEigenVals[2] / std::sqrt(firstEigenVals[2] * firstEigenVals[2] + fNumTransEigens * rMaxFirst * fNumTransEigens * rMaxFirst),float(0.8));
+    float cosFirstAxis = firstAxis2.dot(firstPosToNextPosUnit);
+    
+    // Get a measure of the projection of the three eigen values along the axis from the first to next PCA centers
+    float firstToNextProjEigen = firstEigenVals[0] * std::abs(firstPosToNextPosUnit.dot(firstAxis0))
+    + firstEigenVals[1] * std::abs(firstPosToNextPosUnit.dot(firstAxis1))
+    + firstEigenVals[2] * std::abs(firstPosToNextPosUnit.dot(firstAxis2));
+    
+    // This makes first selection:
+    if (cosFirstAxis > cosMaxFirst && arcLenToNextDoca < 5. * firstToNextProjEigen)
+    {
+        consistent = true;
+    }
+    
+    return consistent;
+}
+
+bool ClusterMergeAlg::linearClusters2(reco::ClusterParameters& firstCluster, reco::ClusterParameters& nextCluster) const
+{
+    // Assume failure
+    bool consistent(false);
+    
+    // The goal here is to compare the two input PCA's and determine if they are effectively colinear and
+    // within reasonable range to consider merging them. Note that a key assumption is that the first input
+    // PCA is from the "bigger" cluster, the second is "smaller" and may have a less reliable PCA.
+    
+    // Dereference the PCA's
+    const reco::PrincipalComponents& firstPCA = firstCluster.getFullPCA();
+    const reco::PrincipalComponents& nextPCA  = nextCluster.getFullPCA();
 
     // Recover the positions of the centers of the two clusters
     const Eigen::Vector3f& firstCenter = firstPCA.getAvePosition();
@@ -365,7 +432,7 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
     Eigen::Vector3f firstAxis2(firstPCA.getEigenVectors().row(2));
     
     // Will want the distance of closest approach of the next cluser's center to the primary, start by finding arc length
-    float arcLenToNextDoca = firstPosToNextPosVec.dot(firstAxis0);
+    float arcLenToNextDoca = firstPosToNextPosVec.dot(firstAxis2);
     
     // Adopt the convention that the cluster axis is in same direction as vector from first to next centers
     // And preserve the overall orientation of the PCA by flipping all if we flip the first one
@@ -378,14 +445,14 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
     }
     
     // Recover the eigen values of the first and second PCAs for selection cuts
-    Eigen::Vector3f firstEigenVals(         1.5 * sqrt(         firstPCA.getEigenValues()[0]                          ),
+    Eigen::Vector3f firstEigenVals(std::min(1.5 * sqrt(std::max(firstPCA.getEigenValues()[0],fMinTransEigenVal)),  50.),
                                    std::min(1.5 * sqrt(std::max(firstPCA.getEigenValues()[1],fMinTransEigenVal)), 100.),
-                                   std::min(1.5 * sqrt(std::max(firstPCA.getEigenValues()[2],fMinTransEigenVal)),  50.));
+                                            1.5 * sqrt(         firstPCA.getEigenValues()[2]));
     
     // Develop metric for max allowed angle from the eigen values
-    float rMaxFirst    = std::sqrt(firstEigenVals[1] * firstEigenVals[1] + firstEigenVals[2] * firstEigenVals[2]);
-    float cosMaxFirst  = std::max(firstEigenVals[0] / std::sqrt(firstEigenVals[0] * firstEigenVals[0] + fNumTransEigens * rMaxFirst * fNumTransEigens * rMaxFirst),float(0.8));
-    float cosFirstAxis = firstAxis0.dot(firstPosToNextPosUnit);
+    float rMaxFirst    = std::sqrt(firstEigenVals[0] * firstEigenVals[0] + firstEigenVals[1] * firstEigenVals[1]);
+    float cosMaxFirst  = std::max(firstEigenVals[2] / std::sqrt(firstEigenVals[2] * firstEigenVals[2] + fNumTransEigens * rMaxFirst * fNumTransEigens * rMaxFirst),float(0.8));
+    float cosFirstAxis = firstAxis2.dot(firstPosToNextPosUnit);
     
     // Get a measure of the projection of the three eigen values along the axis from the first to next PCA centers
     float firstToNextProjEigen = firstEigenVals[0] * std::abs(firstPosToNextPosUnit.dot(firstAxis0))
@@ -401,7 +468,7 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
         Eigen::Vector3f nextAxis2(nextPCA.getEigenVectors().row(2));
         
         // Get the arc length from next to first centers - note convention for PCA orientation
-        float arcLenToFirstDoca = -firstPosToNextPosVec.dot(nextAxis0);
+        float arcLenToFirstDoca = -firstPosToNextPosVec.dot(nextAxis2);
         
         // Convention on axis direction applied again
         if (arcLenToFirstDoca > 0.)
@@ -413,16 +480,16 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
         }
         
         // Get the eigen values again
-        Eigen::Vector3f nextEigenVals(         1.5 * sqrt(nextPCA.getEigenValues()[0]),
+        Eigen::Vector3f nextEigenVals(std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[0],fMinTransEigenVal)), 32.),
                                       std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[1],fMinTransEigenVal)), 64.),
-                                      std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[2],fMinTransEigenVal)), 32.));
+                                               1.5 * sqrt(         nextPCA.getEigenValues()[2]));
         
         // Want to find the "gap" between the first cluster and the next cluster.
         // We define the gap to be the distance between the space point in the first cluster furthest along the first axis towards the next cluster
         // and the space point in the next cluster furthest along the next axis towards the first cluster...
-        const reco::ClusterHit3D* furthestFirstHit3D        = findFurthestHit3D(firstCenter, firstAxis0, firstCluster.getHitPairListPtr());
-        Eigen::Vector3f           revNextAxis0              = -nextAxis0;
-        const reco::ClusterHit3D* furthestNextHit3D         = findFurthestHit3D(nextCenter, revNextAxis0, nextCluster.getHitPairListPtr());
+        const reco::ClusterHit3D* furthestFirstHit3D        = findFurthestHit3D(firstCenter, firstAxis2, firstCluster.getHitPairListPtr());
+        Eigen::Vector3f           revNextAxis2              = -nextAxis2;
+        const reco::ClusterHit3D* furthestNextHit3D         = findFurthestHit3D(nextCenter, revNextAxis2, nextCluster.getHitPairListPtr());
         Eigen::Vector3f           furthestFirstToNextHitVec = furthestNextHit3D->getPosition() - furthestFirstHit3D->getPosition();
         Eigen::Vector3f           firstToFurthestNextVec    = furthestNextHit3D->getPosition() - firstCenter;
 
@@ -430,8 +497,8 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
         float firstToNextProjGap = furthestFirstToNextHitVec.dot(firstPosToNextPosUnit);
         
         // Also get the doca of the furthest next point to the first axis0
-        float           arcLenToFurthestNextHit = (furthestNextHit3D->getPosition() - firstCenter).dot(firstAxis0);
-        Eigen::Vector3f furthestNextHitDocaVec  = furthestNextHit3D->getPosition() - (firstCenter + arcLenToFurthestNextHit * firstAxis0);
+        float           arcLenToFurthestNextHit = (furthestNextHit3D->getPosition() - firstCenter).dot(firstAxis2);
+        Eigen::Vector3f furthestNextHitDocaVec  = furthestNextHit3D->getPosition() - (firstCenter + arcLenToFurthestNextHit * firstAxis2);
         
         // Determine the projected "eigen distance"
         // First for the next cluster...
@@ -446,17 +513,17 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
 
         // This makes first selection:
 //        if (cosNextAxis > cosMaxNext && std::abs(firstToNextProjGap) < std::max(3.,0.5 * nextToFirstProjEigen) && furthestNextHitDocaVec.norm() < 2. * rMaxFirst)
-        if (std::abs(firstToNextProjGap) < std::max(3.,0.5 * nextToFirstProjEigen) && furthestNextHitDocaVec.norm() < 2. * rMaxFirst)
+        if (std::abs(firstToNextProjGap) < std::max(3.,0.5 * nextToFirstProjEigen) && furthestNextHitDocaVec.norm() < 4. * rMaxFirst)
         {
             // We need to watch out for the case of colinearity which can screw up a calculation of the distance of closest approach
            // Check if the next cluster's closest point is "in range" already
-            float           arcLenToNextClosestHit = (furthestNextHit3D->getPosition() - firstCenter).dot(firstAxis0);
-            Eigen::Vector3f pocaVec                = (furthestNextHit3D->getPosition() - (firstCenter + arcLenToNextClosestHit * firstAxis0));
+            float           arcLenToNextClosestHit = (furthestNextHit3D->getPosition() - firstCenter).dot(firstAxis2);
+            Eigen::Vector3f pocaVec                = (furthestNextHit3D->getPosition() - (firstCenter + arcLenToNextClosestHit * firstAxis2));
             
             if (pocaVec.norm() < 2.5 * rMaxFirst) consistent = true;
             
             // Might be nearly colinear but outside of the above off
-            else if (firstToFurthestNextVec.normalized().dot(firstAxis0) > cosMaxFirst)
+            else if (firstToFurthestNextVec.normalized().dot(firstAxis2) > cosMaxFirst)
             {
                 // Closest approach calculaiton results vectors
                 Eigen::Vector3f firstPoca;
@@ -464,32 +531,32 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
                 Eigen::Vector3f firstToNextVec;
                 
                 // Recover the doca of the two axes and their points of closest approach along each axis
-                float lineDoca = closestApproach(firstCenter, firstAxis0, nextCenter, nextAxis0, firstPoca, nextPoca, firstToNextVec);
+                float lineDoca = closestApproach(firstCenter, firstAxis2, nextCenter, nextAxis2, firstPoca, nextPoca, firstToNextVec);
                 
                 // The below returned the signed arc lengths to their respective pocas
-                float arcLenToFirstPoca = (firstPoca - firstCenter).dot(firstAxis0);
-                float arcLenToNextPoca  = (nextPoca  - nextCenter ).dot(nextAxis0);
+                float arcLenToFirstPoca = (firstPoca - firstCenter).dot(firstAxis2);
+                float arcLenToNextPoca  = (nextPoca  - nextCenter ).dot(nextAxis2);
                 
                 if (fOutputHistograms)
                 {
                     fAxesDocaHist->Fill(lineDoca, 1.);
-                    f1stDocaArcLRatHist->Fill(arcLenToFirstPoca/firstEigenVals[0],1.);
-                    f2ndDocaArcLRatHist->Fill(arcLenToNextPoca/nextEigenVals[0],1.);
+                    f1stDocaArcLRatHist->Fill(arcLenToFirstPoca/firstEigenVals[2],1.);
+                    f2ndDocaArcLRatHist->Fill(arcLenToNextPoca/nextEigenVals[2],1.);
                 }
                 
                 if (lineDoca < fMaxDOCASeparation &&
-                    arcLenToFirstPoca > 0. && arcLenToFirstPoca          < 2. * firstEigenVals[0] &&
-                    arcLenToNextPoca  < 0. && std::abs(arcLenToNextPoca) < 5. * nextEigenVals[0]    )
+                    arcLenToFirstPoca > 0. && arcLenToFirstPoca          < 2. * firstEigenVals[2] &&
+                    arcLenToNextPoca  < 0. && std::abs(arcLenToNextPoca) < 5. * nextEigenVals[2]    )
                 {
                     consistent = true;
                 }
             }
         }
         // We need to check the special case of an embedded cluster
-        else if (arcLenToNextDoca < firstEigenVals[0])
+        else if (arcLenToNextDoca < firstEigenVals[2])
         {
             // Get the point of closest approach vector
-            Eigen::Vector3f pocaVec = (nextCenter - (firstCenter + arcLenToNextDoca * firstAxis0));
+            Eigen::Vector3f pocaVec = (nextCenter - (firstCenter + arcLenToNextDoca * firstAxis2));
             
             if (pocaVec.norm() < 0.5 * rMaxFirst) consistent = true;
         }
@@ -498,7 +565,7 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
     return consistent;
 }
 
-bool ClusterMergeAlg::linearClusters2(const reco::PrincipalComponents& firstPCA, const reco::PrincipalComponents& nextPCA) const
+bool ClusterMergeAlg::linearClusters3(const reco::PrincipalComponents& firstPCA, const reco::PrincipalComponents& nextPCA) const
 {
     // Assume failure
     bool consistent(false);
@@ -542,10 +609,10 @@ bool ClusterMergeAlg::linearClusters2(const reco::PrincipalComponents& firstPCA,
     // In an ideal world we would imagine the tolerance for this being automagically generated... for example by using the transverse
     // eigen values...
     // First up is to determine the distance the next PCAs center is from the first axis
-    Eigen::Vector3f firstPocaToNextCenter = nextCenter - (firstCenter + arcLenToNextDoca * firstAxis0);
+    Eigen::Vector3f firstPocaToNextCenter = nextCenter - (firstCenter + arcLenToNextDoca * firstAxis2);
     
     // This should be perpendicular to the first axis, check:
-    float cosPocaToFirst = firstAxis0.dot(firstPocaToNextCenter.normalized());
+    float cosPocaToFirst = firstAxis2.dot(firstPocaToNextCenter.normalized());
     
     if (std::abs(cosPocaToFirst) > 2.e-4)
     {
@@ -554,24 +621,24 @@ bool ClusterMergeAlg::linearClusters2(const reco::PrincipalComponents& firstPCA,
     
     // Get the projections of this vector along both transverse axes
     float firstPocaProj1 = firstPocaToNextCenter.dot(firstAxis1);
-    float firstPocaProj2 = firstPocaToNextCenter.dot(firstAxis2);
+    float firstPocaProj2 = firstPocaToNextCenter.dot(firstAxis0);
     
     // We are going to then compare these with the eigen values, which will define an acceptance cone along the direction
     // of the first axis. If the projectsion fall in range then we are good to go to the next step
     // If the next PCA is some distance from the first then we want to scale the the eigenvalues accordingly
-    float pocaScaleFactor = std::max(arcLenToNextDoca / firstEigenVals[0],float(1.));
+    float pocaScaleFactor = std::max(arcLenToNextDoca / firstEigenVals[2],float(1.));
     
     // Do some histogramming if asked
     if (fOutputHistograms)
     {
-        f1stEndPtLenRatHist->Fill(std::min(arcLenToNextDoca/firstEigenVals[0],float(19.99)),1.);
+        f1stEndPtLenRatHist->Fill(std::min(arcLenToNextDoca/firstEigenVals[2],float(19.99)),1.);
         f1stPocaProj1Hist->Fill(firstPocaProj1/(pocaScaleFactor * firstEigenVals[1]),1.);
-        f1stPocaProj2Hist->Fill(firstPocaProj2/(pocaScaleFactor * firstEigenVals[2]),1.);
+        f1stPocaProj2Hist->Fill(firstPocaProj2/(pocaScaleFactor * firstEigenVals[0]),1.);
     }
     
     // Ok, check colinearity
     if (std::abs(firstPocaProj1) < fNumTransEigens * pocaScaleFactor * firstEigenVals[1] &&
-        std::abs(firstPocaProj2) < fNumTransEigens * pocaScaleFactor * firstEigenVals[2]   )
+        std::abs(firstPocaProj2) < fNumTransEigens * pocaScaleFactor * firstEigenVals[0]   )
     {
         // Recover the axes for the next PCA and make sure pointing convention is observed
         Eigen::Vector3f nextAxis0(nextPCA.getEigenVectors().row(0));
@@ -591,11 +658,11 @@ bool ClusterMergeAlg::linearClusters2(const reco::PrincipalComponents& firstPCA,
         }
         
         // Handle the special case that the cluster we are comparing to is "embedded" in the current cluster
-        if (arcLenToNextDoca < firstEigenVals[0] && std::abs(firstPocaProj1) < firstEigenVals[1] && std::abs(firstPocaProj2) < 2. * firstEigenVals[2])
+        if (arcLenToNextDoca < firstEigenVals[2] && std::abs(firstPocaProj1) < firstEigenVals[1] && std::abs(firstPocaProj2) < 2. * firstEigenVals[0])
         {
             // Either the primary or the secondary PCA axis will be more or less aligned with the first primary
             // (the secondary alignment is a special case for isochronous clusters)
-            if (firstAxis0.dot(nextAxis0) > 0.95 || std::abs(firstAxis1.dot(nextAxis1)) > 0.95) consistent = true;
+            if (firstAxis2.dot(nextAxis2) > 0.95 || std::abs(firstAxis1.dot(nextAxis1)) > 0.95) consistent = true;
         }
         
         // If no consistency don't give up, more detailed checks may be necessary
@@ -605,7 +672,7 @@ bool ClusterMergeAlg::linearClusters2(const reco::PrincipalComponents& firstPCA,
             // vs the projected distance from the PCA center to its "shell" defined by the eigen values
             
             // Get the eigen values again
-            Eigen::Vector3f nextEigenVals(         1.5 * sqrt(nextPCA.getEigenValues()[0]),
+            Eigen::Vector3f nextEigenVals(         1.5 * sqrt(         nextPCA.getEigenValues()[0]),
                                           std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[1],fMinTransEigenVal)), 64.),
                                           std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[2],fMinTransEigenVal)), 32.));
             
@@ -797,8 +864,9 @@ float ClusterMergeAlg::closestApproach(const Eigen::Vector3f& P0, const Eigen::V
     float d(u0.dot(w0));
     float e(u1.dot(w0));
     float den(a * c - b * b);
-    
-    if (std::abs(den) > std::numeric_limits<float>::epsilon())
+
+    // Make sure lines are not colinear
+    if (std::abs(den) > 10. * std::numeric_limits<float>::epsilon())
     {
         float arcLen0 = (b * e - c * d) / den;
         float arcLen1 = (a * e - b * d) / den;

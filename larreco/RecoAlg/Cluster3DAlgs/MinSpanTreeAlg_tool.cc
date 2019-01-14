@@ -452,10 +452,10 @@ void MinSpanTreeAlg::FindBestPathInCluster(reco::ClusterParameters& clusterParam
         
         if (pca.getSvdOK())
         {
-            const Eigen::Vector3f&    pcaAxis   = pca.getEigenVectors().row(0);
-            float                     pcaLen    = 1.5*sqrt(pca.getEigenValues()[0]);
+            const Eigen::Vector3f&    pcaAxis   = pca.getEigenVectors().row(2);
+            float                     pcaLen    = 1.5*sqrt(pca.getEigenValues()[2]);
             float                     pcaWidth  = 1.5*sqrt(pca.getEigenValues()[1]);
-            float                     pcaHeight = 1.5*sqrt(pca.getEigenValues()[2]);
+            float                     pcaHeight = 1.5*sqrt(pca.getEigenValues()[0]);
             const Eigen::Vector3f&    pcaPos    = pca.getAvePosition();
             float                     alpha     = std::min(float(1.),std::max(float(0.001),pcaWidth/pcaLen));
         
@@ -950,7 +950,7 @@ void MinSpanTreeAlg::CheckHitSorting(reco::ClusterParameters& clusterParams) con
         
         if (pca.getSvdOK())
         {
-            const Eigen::Vector3f& pcaAxis  = pca.getEigenVectors().row(0);
+            const Eigen::Vector3f& pcaAxis  = pca.getEigenVectors().row(2);
             
             std::vector<size_t> closestPlane = {0, 0, 0 };
             std::vector<float>  bestAngle    = {0.,0.,0.};

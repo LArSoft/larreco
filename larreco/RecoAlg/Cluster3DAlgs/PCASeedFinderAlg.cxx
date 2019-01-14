@@ -82,13 +82,13 @@ bool PCASeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputHitPairLis
     reco::PrincipalComponents pca = inputPCA;
 
     // We also require that there be some spread in the data, otherwise not worth running?
-    double eigenVal0 = 3. * sqrt(pca.getEigenValues()[0]);
+    double eigenVal0 = 3. * sqrt(pca.getEigenValues()[2]);
     double eigenVal1 = 3. * sqrt(pca.getEigenValues()[1]);
     
     if (eigenVal0 > 5. && eigenVal1 > 0.001)
     {
         // Presume CR muons will be "downward going"...
-        if (pca.getEigenVectors().row(0)(1) > 0.) pca.flipAxis(0);
+        if (pca.getEigenVectors().row(2)(1) > 0.) pca.flipAxis(0);
         
         // Use the following to set the 3D doca and arclength for each hit
         m_pcaAlg.PCAAnalysis_calc3DDocas(hitPairListPtr, pca);
@@ -132,7 +132,7 @@ bool PCASeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputHitPairLis
                 hit3DList.sort(SeedFinderAlgBase::Sort3DHitsByAbsArcLen3D());
             
                 // Now translate the seedCenter by the arc len to the first hit
-                double seedDir[3]   = {seedPca.getEigenVectors().row(0)(0), seedPca.getEigenVectors().row(0)(1), seedPca.getEigenVectors().row(0)(2)};
+                double seedDir[3]   = {seedPca.getEigenVectors().row(2)(0), seedPca.getEigenVectors().row(2)(1), seedPca.getEigenVectors().row(2)(2)};
                 double seedStart[3] = {hit3DList.front()->getX(), hit3DList.front()->getY(), hit3DList.front()->getZ()};
                 
                 if (hit3DList.size() > 10)
@@ -211,17 +211,17 @@ bool PCASeedFinderAlg::getHitsAtEnd(reco::HitPairListPtr& hit3DList, reco::Princ
         if (lastItr  != hit3DList.end()  ) hit3DList.erase(lastItr,           hit3DList.end());
         
         // On input, the seedPca will contain the original values so we can recover the original axis now
-        Eigen::Vector3f planeVec0(seedPca.getEigenVectors().row(0));
+        Eigen::Vector3f planeVec0(seedPca.getEigenVectors().row(2));
         
         m_pcaAlg.PCAAnalysis_3D(hit3DList, seedPca, true);
         
         if (seedPca.getSvdOK())
         {
             // Still looking to point "down"
-            if (seedPca.getEigenVectors().row(0)(1) > 0.) seedPca.flipAxis(0);
+            if (seedPca.getEigenVectors().row(2)(1) > 0.) seedPca.flipAxis(0);
             
             // Check that the seed PCA we have found is consistent with the input PCA
-            Eigen::Vector3f primarySeedAxis(seedPca.getEigenVectors().row(0));
+            Eigen::Vector3f primarySeedAxis(seedPca.getEigenVectors().row(2));
             
             double cosAng = primarySeedAxis.dot(planeVec0);
             

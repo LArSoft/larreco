@@ -687,7 +687,7 @@ void Cluster3D::findTrackSeeds(art::Event&                         evt,
     float eigenVal0 = 3. * sqrt(skeletonPCA.getEigenValues()[0]);
     float eigenVal1 = 3. * sqrt(skeletonPCA.getEigenValues()[1]);
     float eigenVal2 = 3. * sqrt(skeletonPCA.getEigenValues()[2]);
-    float transRMS  = sqrt(std::pow(eigenVal1,2) + std::pow(eigenVal2,2));
+    float transRMS  = sqrt(std::pow(eigenVal0,2) + std::pow(eigenVal1,2));
     
     bool   foundGoodSeed(false);
 
@@ -701,7 +701,7 @@ void Cluster3D::findTrackSeeds(art::Event&                         evt,
         // This algorithm does not fail (foundGoodSeed will always return true)
         foundGoodSeed = m_parallelHitsAlg.findTrackSeeds(hitPairListPtr, skeletonPCA, seedHitPairVec);
     }
-    else if (eigenVal0 > 40. && transRMS < 5.)
+    else if (eigenVal2 > 40. && transRMS < 5.)
     {
         // If the input cluster is relatively "straight" then chances are it is a single straight track,
         // probably a CR muon, and we can simply use the PCA to determine the seed
@@ -1732,7 +1732,7 @@ void Cluster3D::MakeAndSavePCAPoints(ArtOutputHandler&                output,
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(fullPCA.getAvePosition()[0], fullPCA.getAvePosition()[1], fullPCA.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(fullPCA.getEigenVectors().row(0));
+    Eigen::Vector3f axisDirVec(fullPCA.getEigenVectors().row(2));
     
     using DocaToPCAPair = std::pair<float, const reco::PrincipalComponents*>;
     using DocaToPCAVec  = std::vector<DocaToPCAPair>;

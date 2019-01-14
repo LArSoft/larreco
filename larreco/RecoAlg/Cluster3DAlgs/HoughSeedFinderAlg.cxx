@@ -393,10 +393,10 @@ void HoughSeedFinderAlg::findHoughClusters(const reco::HitPairListPtr& hitPairLi
     
     // Recover the parameters from the Principal Components Analysis that we need to project and accumulate
     Eigen::Vector3f pcaCenter(pca.getAvePosition()[0],pca.getAvePosition()[1],pca.getAvePosition()[2]);
-    Eigen::Vector3f planeVec0(pca.getEigenVectors().row(0));
+    Eigen::Vector3f planeVec0(pca.getEigenVectors().row(2));
     Eigen::Vector3f planeVec1(pca.getEigenVectors().row(1));
-    Eigen::Vector3f pcaPlaneNrml(pca.getEigenVectors().row(2));
-    double          eigenVal0  = 3. * sqrt(pca.getEigenValues()[0]);
+    Eigen::Vector3f pcaPlaneNrml(pca.getEigenVectors().row(0));
+    double          eigenVal0  = 3. * sqrt(pca.getEigenValues()[2]);
     double          eigenVal1  = 3. * sqrt(pca.getEigenValues()[1]);
     double          maxRho     = std::sqrt(eigenVal0*eigenVal0 + eigenVal1*eigenVal1) * 2. / 3.;
     double          rhoBinSize = maxRho / double(m_rhoBins);
@@ -614,7 +614,7 @@ bool HoughSeedFinderAlg::buildSeed(reco::HitPairListPtr& seed3DHits, SeedHitPair
     
     // Now translate the seedCenter by the arc len to the first hit
     double seedCenter[3] = {seedPca.getAvePosition()[0],     seedPca.getAvePosition()[1],     seedPca.getAvePosition()[2]};
-    double seedDir[3]    = {seedPca.getEigenVectors().row(0)[0], seedPca.getEigenVectors().row(0)[1], seedPca.getEigenVectors().row(0)[2]};
+    double seedDir[3]    = {seedPca.getEigenVectors().row(2)[0], seedPca.getEigenVectors().row(2)[1], seedPca.getEigenVectors().row(2)[2]};
     
     double arcLen       = seedHit3DList.front()->getArclenToPoca();
     double seedStart[3] = {seedCenter[0]+arcLen*seedDir[0], seedCenter[1]+arcLen*seedDir[1], seedCenter[2]+arcLen*seedDir[2]};
@@ -700,7 +700,7 @@ bool HoughSeedFinderAlg::findTrackSeeds(reco::HitPairListPtr&      inputHitPairL
     while(!hitPairListPtr.empty())
     {
         // We also require that there be some spread in the data, otherwise not worth running?
-        double eigenVal0 = 3. * sqrt(pca.getEigenValues()[0]);
+        double eigenVal0 = 3. * sqrt(pca.getEigenValues()[2]);
         double eigenVal1 = 3. * sqrt(pca.getEigenValues()[1]);
         
         if (eigenVal0 > 5. && eigenVal1 > 0.001)
@@ -884,7 +884,7 @@ bool HoughSeedFinderAlg::findTrackHits(reco::HitPairListPtr&      inputHitPairLi
     reco::PrincipalComponents pca = inputPCA;
     
     // We also require that there be some spread in the data, otherwise not worth running?
-    double eigenVal0 = 3. * sqrt(pca.getEigenValues()[0]);
+    double eigenVal0 = 3. * sqrt(pca.getEigenValues()[2]);
     double eigenVal1 = 3. * sqrt(pca.getEigenValues()[1]);
     
     if (eigenVal0 > 5. && eigenVal1 > 0.001)

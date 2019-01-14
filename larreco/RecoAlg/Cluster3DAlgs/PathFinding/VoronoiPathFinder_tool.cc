@@ -312,9 +312,9 @@ void VoronoiPathFinder::ModifyClusters(reco::ClusterParametersList& clusterParam
                         std::vector<double>        eigenValVec    = {3. * std::sqrt(fullPCA.getEigenValues()[0]),
                                                                      3. * std::sqrt(fullPCA.getEigenValues()[1]),
                                                                      3. * std::sqrt(fullPCA.getEigenValues()[2])};
-                        double                     eigen2To1Ratio = eigenValVec[2] / eigenValVec[1];
-                        double                     eigen1To0Ratio = eigenValVec[1] / eigenValVec[0];
-                        double                     eigen2To0Ratio = eigenValVec[2] / eigenValVec[0];
+                        double                     eigen2To1Ratio = eigenValVec[0] / eigenValVec[1];
+                        double                     eigen1To0Ratio = eigenValVec[1] / eigenValVec[2];
+                        double                     eigen2To0Ratio = eigenValVec[0] / eigenValVec[2];
                         int                        num3DHits      = cluster.getHitPairListPtr().size();
                         int                        numEdges       = cluster.getBestEdgeList().size();
                         
@@ -372,15 +372,15 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
     std::vector<double>        eigenValVec = {3. * std::sqrt(fullPCA.getEigenValues()[0]),
                                               3. * std::sqrt(fullPCA.getEigenValues()[1]),
                                               3. * std::sqrt(fullPCA.getEigenValues()[2])};
-    Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors().row(0));
-    Eigen::Vector3f            lastPrimaryVec(lastPCA.getEigenVectors().row(0));
+    Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors().row(2));
+    Eigen::Vector3f            lastPrimaryVec(lastPCA.getEigenVectors().row(2));
     
     double cosNewToLast     = std::abs(fullPrimaryVec.dot(lastPrimaryVec));
     double eigen2To1Ratio   = eigenValVec[2] / eigenValVec[1];
-    double eigen1To0Ratio   = eigenValVec[1] / eigenValVec[0];
-    double eigen2To0Ratio   = eigenValVec[2] / eigenValVec[0];
-    double eigen2And1Ave    = 0.5 * (eigenValVec[1] + eigenValVec[2]);
-    double eigenAveTo0Ratio = eigen2And1Ave / eigenValVec[0];
+    double eigen1To0Ratio   = eigenValVec[1] / eigenValVec[2];
+    double eigen2To0Ratio   = eigenValVec[0] / eigenValVec[2];
+    double eigen2And1Ave    = 0.5 * (eigenValVec[1] + eigenValVec[0]);
+    double eigenAveTo0Ratio = eigen2And1Ave / eigenValVec[2];
 
     bool storeCurrentCluster(true);
     int  minimumClusterSize(fMinTinyClusterSize);
@@ -499,7 +499,7 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
                     std::cout << indent << "+>    -- >> cluster has a valid Full PCA" << std::endl;
                 
                     // If the PCA's are opposite the flip the axes
-                    if (fullPrimaryVec.dot(newFullPCA.getEigenVectors().row(0)) < 0.)
+                    if (fullPrimaryVec.dot(newFullPCA.getEigenVectors().row(2)) < 0.)
                     {
                         for(size_t vecIdx = 0; vecIdx < 3; vecIdx++) newFullPCA.flipAxis(vecIdx);
                     }
@@ -553,8 +553,8 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
         {
             int             num3DHits = clusterToBreak.getHitPairListPtr().size();
             int             numEdges  = clusterToBreak.getBestEdgeList().size();
-            Eigen::Vector3f newPrimaryVec(fullPCA.getEigenVectors().row(0));
-            Eigen::Vector3f lastPrimaryVec(lastPCA.getEigenVectors().row(0));
+            Eigen::Vector3f newPrimaryVec(fullPCA.getEigenVectors().row(2));
+            Eigen::Vector3f lastPrimaryVec(lastPCA.getEigenVectors().row(2));
             float           cosToLast = newPrimaryVec.dot(lastPrimaryVec);
 
             fSubNum3DHits->Fill(std::min(num3DHits,199), 1.);
@@ -563,7 +563,7 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::breakIntoTinyBits(reco:
             fSubEigen20Ratio->Fill(eigen2To0Ratio, 1.);
             fSubEigen10Ratio->Fill(eigen1To0Ratio, 1.);
             fSubCosToPrevPCA->Fill(cosToLast, 1.);
-            fSubPrimaryLength->Fill(std::min(eigenValVec[0],199.), 1.);
+            fSubPrimaryLength->Fill(std::min(eigenValVec[2],199.), 1.);
         }
         
         // The above points to the element, want the next element
@@ -603,7 +603,7 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::subDivideCluster(reco::
         std::vector<double>        eigenValVec = {3. * std::sqrt(fullPCA.getEigenValues()[0]),
                                                   3. * std::sqrt(fullPCA.getEigenValues()[1]),
                                                   3. * std::sqrt(fullPCA.getEigenValues()[2])};
-        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors().row(0));
+        Eigen::Vector3f            fullPrimaryVec(fullPCA.getEigenVectors().row(2));
 
         // We want to find the convex hull vertices that lie furthest from the line to/from the extreme points
         // To find these we:
@@ -771,15 +771,15 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::subDivideCluster(reco::
                 // Recover the new fullPCA
                 reco::PrincipalComponents& newFullPCA = clusterParams.getFullPCA();
                 
-                Eigen::Vector3f newPrimaryVec(fullPCA.getEigenVectors().row(0));
-                Eigen::Vector3f lastPrimaryVec(newFullPCA.getEigenVectors().row(0));
+                Eigen::Vector3f newPrimaryVec(fullPCA.getEigenVectors().row(2));
+                Eigen::Vector3f lastPrimaryVec(newFullPCA.getEigenVectors().row(2));
                 
                 int             num3DHits      = clusterParams.getHitPairListPtr().size();
                 int             numEdges       = clusterParams.getBestEdgeList().size();
                 float           cosToLast      = newPrimaryVec.dot(lastPrimaryVec);
-                double          eigen2To1Ratio = eigenValVec[2] / eigenValVec[1];
-                double          eigen1To0Ratio = eigenValVec[1] / eigenValVec[0];
-                double          eigen2To0Ratio = eigenValVec[2] / eigenValVec[0];
+                double          eigen2To1Ratio = eigenValVec[0] / eigenValVec[1];
+                double          eigen1To0Ratio = eigenValVec[1] / eigenValVec[2];
+                double          eigen2To0Ratio = eigenValVec[2] / eigenValVec[2];
 
                 fSubNum3DHits->Fill(std::min(num3DHits,199), 1.);
                 fSubNumEdges->Fill(std::min(numEdges,199),   1.);
@@ -787,7 +787,7 @@ reco::ClusterParametersList::iterator VoronoiPathFinder::subDivideCluster(reco::
                 fSubEigen20Ratio->Fill(eigen2To0Ratio, 1.);
                 fSubEigen10Ratio->Fill(eigen1To0Ratio, 1.);
                 fSubCosToPrevPCA->Fill(cosToLast, 1.);
-                fSubPrimaryLength->Fill(std::min(eigenValVec[0],199.), 1.);
+                fSubPrimaryLength->Fill(std::min(eigenValVec[2],199.), 1.);
                 fSubCosExtToPCA->Fill(fullPrimaryVec.dot(edgeVec), 1.);
                 fSubMaxDefect->Fill(std::get<0>(distEdgeTupleVec.front()), 1.);
                 fSubUsedDefect->Fill(usedDefectDist, 1.);
@@ -834,14 +834,14 @@ bool VoronoiPathFinder::makeCandidateCluster(Eigen::Vector3f&               prim
         std::cout << indent << "+>    -- >> cluster has a valid Full PCA" << std::endl;
         
         // Need to check if the PCA direction has been reversed
-        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors().row(0));
+        Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors().row(2));
         
         // If the PCA's are opposite the flip the axes
         if (primaryPCA.dot(newPrimaryVec) < 0.)
         {
             for(size_t vecIdx = 0; vecIdx < 3; vecIdx++) newFullPCA.flipAxis(vecIdx);
             
-            newPrimaryVec = Eigen::Vector3f(newFullPCA.getEigenVectors().row(0));
+            newPrimaryVec = Eigen::Vector3f(newFullPCA.getEigenVectors().row(2));
         }
         
         // Set the skeleton PCA to make sure it has some value
@@ -855,10 +855,10 @@ bool VoronoiPathFinder::makeCandidateCluster(Eigen::Vector3f&               prim
                                                 3. * std::sqrt(newFullPCA.getEigenValues()[2])};
         double              cosNewToLast     = std::abs(primaryPCA.dot(newPrimaryVec));
         double              eigen2To1Ratio   = eigenValVec[2] / eigenValVec[1];
-        double              eigen1To0Ratio   = eigenValVec[1] / eigenValVec[0];
-        double              eigen2To0Ratio   = eigenValVec[2] / eigenValVec[0];
-        double              eigen2And1Ave    = 0.5 * (eigenValVec[1] + eigenValVec[2]);
-        double              eigenAveTo0Ratio = eigen2And1Ave / eigenValVec[0];
+        double              eigen1To0Ratio   = eigenValVec[1] / eigenValVec[2];
+        double              eigen2To0Ratio   = eigenValVec[0] / eigenValVec[2];
+        double              eigen2And1Ave    = 0.5 * (eigenValVec[1] + eigenValVec[0]);
+        double              eigenAveTo0Ratio = eigen2And1Ave / eigenValVec[2];
         
         std::cout << indent << ">>> subDivideClusters with " << candCluster.getHitPairListPtr().size() << " input hits, " << candCluster.getBestEdgeList().size() << " edges, rat21: " << eigen2To1Ratio << ", rat20: " << eigen2To0Ratio << ", rat10: " << eigen1To0Ratio << ", ave0: " << eigenAveTo0Ratio <<  std::endl;
         std::cout << indent << "   --> eigen 0/1/2: " << eigenValVec[0] << "/" << eigenValVec[1] << "/" << eigenValVec[2] << ", cos: " << cosNewToLast << std::endl;
@@ -1036,7 +1036,7 @@ void VoronoiPathFinder::buildVoronoiDiagram(reco::ClusterParameters& clusterPara
                                     hit3D->getPosition()[2] - pcaCenter(2));
         Eigen::Vector3f pcaToHit = pca.getEigenVectors() * pcaToHitVec;
         
-        pointList.emplace_back(dcel2d::Point(pcaToHit(0),pcaToHit(1),hit3D));
+        pointList.emplace_back(dcel2d::Point(pcaToHit(1),pcaToHit(2),hit3D));
     }
     
     // Sort the point vec by increasing x, then increase y
