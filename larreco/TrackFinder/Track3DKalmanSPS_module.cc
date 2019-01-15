@@ -261,7 +261,7 @@ namespace trkf {
     fMaxPass               = pset.get< int  >("MaxPass", 2); // mu+ Hypothesis.
     bool fGenfPRINT;
     if (pset.get_if_present("GenfPRINT", fGenfPRINT)) {
-      LOG_WARNING("Track3DKalmanSPS_GenFit")
+      MF_LOG_WARNING("Track3DKalmanSPS_GenFit")
         << "Parameter 'GenfPRINT' has been deprecated.\n"
         "Please use the standard message facility to enable GenFit debug output.";
       // A way to enable debug output is all of the following:
@@ -629,7 +629,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
   // std::cout<<"Run "<<evt.run()<<" Event "<<evt.id().event()<<std::endl;
 
   // Put this back when Wes's reign of terror ends ...
-  //  LOG_DEBUG("Track3DKalmanSPS") << "There are " <<  spptListHandle->size() << " Spacepoint PtrVectors (spacepoint clumps) in this event.";
+  //  MF_LOG_DEBUG("Track3DKalmanSPS") << "There are " <<  spptListHandle->size() << " Spacepoint PtrVectors (spacepoint clumps) in this event.";
 
   std::vector < art::PtrVector<recob::SpacePoint> > spptIn(spptListHandle->begin(),spptListHandle->end());
   // Get the spptvectors that are largest to be first, and smallest last.
@@ -665,7 +665,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		simb::MCParticle part(mc->GetParticle(jj));
 		MCOrigin.SetXYZ(part.Vx(),part.Vy(),part.Vz()); // V for Vertex
 		MCMomentum.SetXYZ(part.Px(),part.Py(),part.Pz());
-		LOG_DEBUG("Track3DKalmanSPS_GenFit")
+		MF_LOG_DEBUG("Track3DKalmanSPS_GenFit")
 		  << "FROM MC TRUTH, the particle's pdg code is: "<<part.PdgCode()<< " with energy = "<<part.E() <<", with energy = "<<part.E()
 		  << "\n  vtx: " << genf::ROOTobjectToString(MCOrigin)
 		  << "\n  momentum: " << genf::ROOTobjectToString(MCMomentum)
@@ -685,7 +685,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	  *stMCT = repMC->getState();
 	  covMCT-> ResizeTo(repMC->getCov());
 	  *covMCT = repMC->getCov();
-	  LOG_DEBUG("Track3DKalmanSPS_GenFit") << " repMC, covMC are ... \n"
+	  MF_LOG_DEBUG("Track3DKalmanSPS_GenFit") << " repMC, covMC are ... \n"
 	    << genf::ROOTobjectToString(repMC->getState())
 	    << genf::ROOTobjectToString(repMC->getCov());
 
@@ -710,7 +710,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	  if (spacepoints.size()<5) 
 	    { sppt++; rePass0 = 3; continue;} // for now...
 		  
-	  LOG_DEBUG("Track3DKalmanSPS_GenFit")
+	  MF_LOG_DEBUG("Track3DKalmanSPS_GenFit")
 	    <<"\n\t found "<<spacepoints.size()<<" 3D spacepoint(s) for this element of std::vector<art:PtrVector> spacepoints. \n";
 	  
 	  //const double resolution = posErr.Mag(); 
@@ -827,13 +827,13 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	      // track and give large angular deviations which
 	      // will kill the fit.
 	      mom.SetMag(2.0 * mom.Mag()); 
-	      LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Uncontained track ... ";
+	      MF_LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Uncontained track ... ";
 	      fDecimateHere = fDecimateU;
 	      fMaxUpdateHere = fMaxUpdateU;
 	    }
 	  else
 	    {
-	      LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Contained track ... Run "<<evt.run()<<" Event "<<evt.id().event();
+	      MF_LOG_DEBUG("Track3DKalmanSPS_GenFit")<<"Contained track ... Run "<<evt.run()<<" Event "<<evt.id().event();
 	      // Don't decimate contained tracks as drastically, 
 	      // and omit only very large corrections ...
 	      // which hurt only high momentum tracks.
@@ -973,7 +973,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		    }
 	      
 	      
-		  LOG_DEBUG("Track3DKalmanSPS_GenFit") << "ihit xyz..." << spt3[0]<<","<< spt3[1]<<","<< spt3[2];
+		  MF_LOG_DEBUG("Track3DKalmanSPS_GenFit") << "ihit xyz..." << spt3[0]<<","<< spt3[1]<<","<< spt3[2];
 
 		  fitTrack.addHit(new genf::PointHit(spt3,err3),
 				  1,//dummy detector id
@@ -985,11 +985,11 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	  
 	      if (fptsNo<=fMinNumSppts) // Cuz 1st 2 in each direction don't count. Should have, say, 3 more.
 		{ 
-		  LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Bailing cuz only " << fptsNo << " spacepoints.";
+		  MF_LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Bailing cuz only " << fptsNo << " spacepoints.";
 		  rePass++;
 		  continue;
 		} 
-	      LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Fitting on " << fptsNo << " spacepoints.";
+	      MF_LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Fitting on " << fptsNo << " spacepoints.";
 	      //      std::cout<<"Track3DKalmanSPS about to do GFKalman."<<std::endl;
 	      genf::GFKalman k;
 	      k.setBlowUpFactor(5); // 500 out of box. EC, 6-Jan-2011.
@@ -1022,7 +1022,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 	      }
 	      //catch(GFException& e){
 	      catch(cet::exception &e){
-		LOG_ERROR("Track3DKalmanSPS") << "just caught a cet::exception: " << e.what()
+		MF_LOG_ERROR("Track3DKalmanSPS") << "just caught a cet::exception: " << e.what()
 		  << "\nExceptions won't be further handled; skip filling big chunks of the TTree.";
 		skipFill = true;
 		//	exit(1);
@@ -1045,7 +1045,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		    if (planeG != rep->getReferencePlane())
 		      dbgmsg <<"  => original hit plane (not surprisingly) not current reference Plane!";
 		    
-		    LOG_DEBUG("Track3DKalmanSPS_GenFit") << dbgmsg.str();
+		    MF_LOG_DEBUG("Track3DKalmanSPS_GenFit") << dbgmsg.str();
 		  }
 		  if (!skipFill)
 		    {
@@ -1092,7 +1092,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 			      fCov0[ii*5+jj] = dum2[jj];
 			    }
 			}
-		      LOG_DEBUG("Track3DKalmanSPS_GenFit")
+		      MF_LOG_DEBUG("Track3DKalmanSPS_GenFit")
 		        << " First State and Cov:" << genf::ROOTobjectToString(*stREC)
 		        << genf::ROOTobjectToString(*covREC);
 		      chi2 = (Float_t)(rep->getChiSqu());
@@ -1103,7 +1103,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
 		      chi2ndf = (Float_t)(chi2/ndf);
 		  
 		      nTrks++;
-		      LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Track3DKalmanSPS about to do tree->Fill(). Chi2/ndf is " << chi2/ndf << ".";
+		      MF_LOG_DEBUG("Track3DKalmanSPS_GenFit") << "Track3DKalmanSPS about to do tree->Fill(). Chi2/ndf is " << chi2/ndf << ".";
 		      fpMCMom[3] = MCMomentum.Mag();
 		      for (int ii=0;ii<3;++ii)
 			{

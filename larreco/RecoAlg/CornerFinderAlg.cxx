@@ -229,7 +229,7 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 	int startx = std::get<2>(WireData_trimmed_histos.at(histos));
 	int starty = std::get<3>(WireData_trimmed_histos.at(histos));
 
-	LOG_DEBUG("CornerFinderAlg") 
+	MF_LOG_DEBUG("CornerFinderAlg") 
 	  << "Doing histogram " << histos 
 	  << ", of plane " << plane 
 	  << " with start points " << startx << " " << starty;
@@ -237,7 +237,7 @@ void corner::CornerFinderAlg::get_feature_points_fast(std::vector<recob::EndPoin
 	attach_feature_points(std::get<1>(WireData_trimmed_histos.at(histos)),
 			      WireData_IDs.at(plane),my_geometry.Cryostat(cstat).TPC(tpc).Plane(plane).View(),corner_vector,startx,starty);
 
-	LOG_DEBUG("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
+	MF_LOG_DEBUG("CornerFinderAlg") << "Total feature points now is " << corner_vector.size();
       }
       
       //remove_duplicates(corner_vector);
@@ -331,7 +331,7 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
 
   for(auto const& pid : my_geometry.IteratePlaneIDs() ){
 
-    LOG_DEBUG("CornerFinderAlg") 
+    MF_LOG_DEBUG("CornerFinderAlg") 
       << "Working plane " << pid.Plane << ".";
 
     int x_bins = WireData_histos_ProjectionX.at(pid.Plane).GetNbinsX();
@@ -376,7 +376,7 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
       
     }
     
-    LOG_DEBUG("CornerFinderAlg") 
+    MF_LOG_DEBUG("CornerFinderAlg") 
       << "We have a total of " << cut_points_x.size() << " x cut points."
       << "\nWe have a total of " << cut_points_y.size() << " y cut points.";
     
@@ -455,23 +455,23 @@ void corner::CornerFinderAlg::create_smaller_histos(geo::Geometry const& my_geom
       
     }
     
-    LOG_DEBUG("CornerFinderAlg") 
+    MF_LOG_DEBUG("CornerFinderAlg") 
       << "First point in x is " << cut_points_x.at(0);
     
     std::sort(cut_points_x.begin(),cut_points_x.end(),compare_to_value(x_bins/2));	
     
-    LOG_DEBUG("CornerFinderAlg") 
+    MF_LOG_DEBUG("CornerFinderAlg") 
       << "Now the first point in x is " << cut_points_x.at(0);
     
-    LOG_DEBUG("CornerFinderAlg") 
+    MF_LOG_DEBUG("CornerFinderAlg") 
        << "First point in y is " << cut_points_y.at(0);
     
     std::sort(cut_points_y.begin(),cut_points_y.end(),compare_to_value(y_bins/2));	
     
-    LOG_DEBUG("CornerFinderAlg") 
+    MF_LOG_DEBUG("CornerFinderAlg") 
       << "Now the first point in y is " << cut_points_y.at(0);
       
-    LOG_DEBUG("CornerFinderAlg") 
+    MF_LOG_DEBUG("CornerFinderAlg") 
       << "\nIntegral on the SW side is " 
       << WireData_histos.at(pid.Plane).Integral(1,cut_points_x.at(0),1,cut_points_y.at(0))
       << "\nIntegral on the SE side is " 

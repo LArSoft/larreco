@@ -137,7 +137,7 @@ namespace sppt{
     sortHitsByTime(hitVec_V);
     sortHitsByTime(hitVec_Y);
     
-    LOG_DEBUG("SpacePointAlg_TimeSort") 
+    MF_LOG_DEBUG("SpacePointAlg_TimeSort") 
       << "Sorted " 
       << hitVec_U.size() << " u hits, "
       << hitVec_V.size() << " v hits, "
@@ -265,7 +265,7 @@ namespace sppt{
       ihitu++;
     }// end while looping over u hits
 
-    LOG_DEBUG("SpacePointAlg_TimeSort") 
+    MF_LOG_DEBUG("SpacePointAlg_TimeSort") 
       << "Finished with " << spptCollection->size() << " spacepoints.";
 
   }//end createSpacePoints

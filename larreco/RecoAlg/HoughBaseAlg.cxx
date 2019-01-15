@@ -536,7 +536,7 @@ size_t cluster::HoughBaseAlg::Transform(
 
     // Find the lines equation
     c.GetEquation(yMax+centerofmassy, xMax+centerofmassx, rho, theta);
-    LOG_DEBUG("HoughBaseAlg")
+    MF_LOG_DEBUG("HoughBaseAlg")
       << "Transform(II) found maximum at (d=" << rho << " a=" << theta << ")"
          " from absolute maximum " << c.GetCell(yMax,xMax)
       << " at (d=" << yMax << ", a=" << xMax << ")";
@@ -1072,7 +1072,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 
   for(auto view : geom->Views() ){
 
-    LOG_DEBUG("HoughBaseAlg") << "Analyzing view " << view;
+    MF_LOG_DEBUG("HoughBaseAlg") << "Analyzing view " << view;
 
     art::PtrVector<recob::Cluster>::const_iterator clusterIter = clusIn.begin();
     int clusterID = 0;//the unique ID of the cluster
@@ -1080,7 +1080,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
     size_t cinctr = 0;
     while(clusterIter != clusIn.end()) {
 
-      LOG_DEBUG("HoughBaseAlg") << "Analyzing cinctr=" << cinctr << " which is in view " << (*clusterIter)->View();
+      MF_LOG_DEBUG("HoughBaseAlg") << "Analyzing cinctr=" << cinctr << " which is in view " << (*clusterIter)->View();
 
       hit.clear();
       if(fPerCluster){
@@ -1104,7 +1104,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
 	continue;
       }
       
-      LOG_DEBUG("HoughBaseAlg") << "We have all the hits..." << hit.size();
+      MF_LOG_DEBUG("HoughBaseAlg") << "We have all the hits..." << hit.size();
       
       /*
       //factor to make x and y scale the same units
@@ -1365,7 +1365,7 @@ size_t cluster::HoughBaseAlg::FastTransform(const std::vector<art::Ptr<recob::Cl
       std::vector< art::PtrVector<recob::Hit> >   planeClusHitsOut;
       this->FastTransform(hit,planeClusHitsOut,engine, slopevec,totalQvec);
       
-      LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
+      MF_LOG_DEBUG("HoughBaseAlg") << "Made it through FastTransform" << planeClusHitsOut.size();
 
       for(size_t xx = 0; xx < planeClusHitsOut.size(); ++xx){
 	auto const& hits = planeClusHitsOut.at(xx);
@@ -1574,7 +1574,7 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Hit>> co
     // The random hit we are examining
     unsigned int randInd = (unsigned int)(flat.fire()*hit.size());
     
-    LOG_DEBUG("HoughBaseAlg") << "randInd=" << randInd << " and size is " << hit.size();
+    MF_LOG_DEBUG("HoughBaseAlg") << "randInd=" << randInd << " and size is " << hit.size();
 
   // Skip if it's already in a line
     if(skip.at(randInd)==1)
@@ -1647,7 +1647,7 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Hit>> co
     // Find the lines equation
     c.GetEquation(yMax+centerofmassy, xMax+centerofmassx, rho, theta);
     //c.GetEquation(yMax, xMax, rho, theta);
-    LOG_DEBUG("HoughBaseAlg")
+    MF_LOG_DEBUG("HoughBaseAlg")
       << "Transform(I) found maximum at (d=" << rho << " a=" << theta << ")"
          " from absolute maximum " << c.GetCell(yMax,xMax)
       << " at (d=" << yMax << ", a=" << xMax << ")"; 
@@ -1715,7 +1715,7 @@ size_t cluster::HoughBaseAlg::FastTransform(std::vector<art::Ptr<recob::Hit>> co
       int lastHitsChannel = 0;//lastHits.at(0);
       int nHitsPerChannel = 1;
 
-      LOG_DEBUG("HoughBaseAlg") << "filling the pCorner arrays around here..."
+      MF_LOG_DEBUG("HoughBaseAlg") << "filling the pCorner arrays around here..."
                                 << "\n but first, lastHits size is " << lastHits.size() 
                                 << " and lastHitsChannel=" << lastHitsChannel;
 
@@ -1913,7 +1913,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector< art::Ptr<recob::Hit> > cons
   float rho   = 0.;
   float theta = 0.;
   c.GetEquation(yMax+centerofmassy, xMax+centerofmassx, rho, theta);
-  LOG_DEBUG("HoughBaseAlg") 
+  MF_LOG_DEBUG("HoughBaseAlg") 
     << "Transform(III) found maximum at (d=" << rho << " a=" << theta << ")"
        " from absolute maximum " << c.GetCell(yMax,xMax)
     << " at (d=" << yMax << ", a=" << xMax << ")"; 

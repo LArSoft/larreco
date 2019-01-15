@@ -161,7 +161,7 @@ namespace cluster {
   		     //art::Event                                const& evt,
   		     //std::string                               const& label);
   
-    LOG_DEBUG("HoughLineClusters") << "found " << numclus << "clusters with HoughBaseAlg";
+    MF_LOG_DEBUG("HoughLineClusters") << "found " << numclus << "clusters with HoughBaseAlg";
   
   
     mf::LogVerbatim("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');

@@ -141,7 +141,7 @@ void hit::HitCheater::produce(art::Event & e)
   }// end loop over SimChannels
 
   // put the cheated hits into the event
-  LOG_DEBUG("HitCheater") << "putting " << hits.size() << " hits into the event";
+  MF_LOG_DEBUG("HitCheater") << "putting " << hits.size() << " hits into the event";
   hits.put_into(e);
 
   return;
@@ -257,7 +257,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
             widitr.first                      // wireID
             );
           
-          LOG_DEBUG("HitCheater") << "new hit is " << hits.back();
+          MF_LOG_DEBUG("HitCheater") << "new hit is " << hits.back();
           
         }// end if charge is large enough
 
@@ -310,7 +310,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
         widitr.first                      // wireID
         );
       
-      LOG_DEBUG("HitCheater") << "last hit is " << hits.back();
+      MF_LOG_DEBUG("HitCheater") << "last hit is " << hits.back();
       
     }// end if charge is large enough
     
