@@ -457,7 +457,7 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
         Eigen::Vector3f nextFirstAxisPOCA = firstCenter + arcLenToNextDoca * firstAxis2;
         Eigen::Vector3f nextDocaVec       = nextCenter - nextFirstAxisPOCA;
         
-        if (firstPosToNextPosLen < firstToNextProjEigen && nextDocaVec.norm() < 0.5 * rMaxFirst && firstAxisTailDocaVec.norm() < rMaxFirst)
+        if (firstPosToNextPosLen < firstToNextProjEigen && nextDocaVec.norm() < rMaxFirst && firstAxisTailDocaVec.norm() < rMaxFirst)
         {
             consistent = true;
         }
@@ -486,9 +486,9 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
                 f2ndDocaArcLRatHist->Fill(arcLenToNextPoca/nextEigenVals[2],1.);
             }
             
-            if (lineDoca < fMaxDOCASeparation &&
-                arcLenToFirstPoca > 0. && arcLenToFirstPoca          < 1.5 * firstEigenVals[2] &&
-                arcLenToNextPoca  < 0. && std::abs(arcLenToNextPoca) < 5.  * nextEigenVals[2]    )
+            if (lineDoca < 2. * rMaxFirst &&   //fMaxDOCASeparation &&
+                arcLenToFirstPoca >= 0. && arcLenToFirstPoca          < 2.5 * firstEigenVals[2] &&
+                arcLenToNextPoca  <= 0. && std::abs(arcLenToNextPoca) < 5.  * nextEigenVals[2]    )
             {
                 consistent = true;
             }
@@ -958,7 +958,7 @@ float ClusterMergeAlg::closestApproach(const Eigen::Vector3f& P0, const Eigen::V
     float d(u0.dot(w0));
     float e(u1.dot(w0));
     float den(a * c - b * b);
-
+    
     // Make sure lines are not colinear
     if (std::abs(den) > 10. * std::numeric_limits<float>::epsilon())
     {
