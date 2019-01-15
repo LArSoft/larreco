@@ -113,7 +113,7 @@ void trkf::VertexFitter::produce(art::Event & e)
   auto assocTracks = unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPFParticle, e, trackInputTag));
 
   // PtrMakers for Assns
-  art::PtrMaker<recob::Vertex> vtxPtrMaker(e, *this);
+  art::PtrMaker<recob::Vertex> vtxPtrMaker(e);
 
   for (size_t iPF = 0; iPF < inputPFParticle->size(); ++iPF) {
     //

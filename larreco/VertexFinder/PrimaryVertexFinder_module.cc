@@ -234,9 +234,9 @@ namespace vertex{
       std::vector<recob::SpacePoint const*> const& spacepoints
         = TrackSpacePoints.at(track.key());
 
-      startXYZ  = trackpair[j].first->Vertex();
-      endXYZ    = trackpair[j].first->End();
-      dircosXYZ = trackpair[j].first->VertexDirection();
+      startXYZ  = trackpair[j].first->Vertex<TVector3>();
+      endXYZ    = trackpair[j].first->End<TVector3>();
+      dircosXYZ = trackpair[j].first->VertexDirection<TVector3>();
  
       startvec.push_back(startXYZ);
       endvec.push_back(endXYZ);

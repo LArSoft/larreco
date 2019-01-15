@@ -43,9 +43,9 @@ namespace calib {
     using Parameters = art::ServiceTable<ServiceConfiguration_t>;
 
   public:
-    PhotonCalibratorServiceStandard(art::ServiceTable<Config> const & config,
+    PhotonCalibratorServiceStandard(Parameters const & config,
                                     art::ActivityRegistry& aReg)
-      : fProvider( new PhotonCalibratorStandard(config.get_PSet(), aReg) ); 
+      : fProvider( new PhotonCalibratorStandard(config.get_PSet(), aReg) ) 
       { }
     
     provider_type const* provider() const override { return fProvider.get(); }
@@ -54,7 +54,11 @@ namespace calib {
     std::unique_ptr<PhotonCalibratorStandard> fProvider;
   };
 
-  DECLARE_ART_SERVICE(DetectorPropertiesService, LEGACY)
 }
+
+DECLARE_ART_SERVICE_INTERFACE_IMPL(calib::PhotonCalibratorServiceStandard, 
+                                   calib::IPhotonCalibratorService, 
+                                   LEGACY)
+
 
 #endif // PHOTONCALIBRATORSERVICESTANDARD

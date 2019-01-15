@@ -145,6 +145,7 @@ namespace trkf {
 
 //-------------------------------------------------
 Track3DKalman::Track3DKalman(fhicl::ParameterSet const& pset) 
+  : EDProducer{pset}
 {
 
   this->reconfigure(pset);
@@ -272,7 +273,8 @@ void Track3DKalman::produce(art::Event& evt)
   art::ServiceHandle<geo::Geometry> geom;
   // get the random number generator service and make some CLHEP generators
   art::ServiceHandle<art::RandomNumberGenerator> rng;
-  CLHEP::HepRandomEngine &engine = rng->getEngine();
+  CLHEP::HepRandomEngine &engine = rng->getEngine(art::ScheduleID::first(),
+                                                  moduleDescription().moduleLabel());
   CLHEP::RandGaussQ gauss(engine);
 
   //////////////////////////////////////////////////////
@@ -517,8 +519,7 @@ void Track3DKalman::produce(art::Event& evt)
 	      ndf = rep->getNDF();
 	      nfail = fitTrack.getFailedHits();
 	      chi2ndf = chi2/ndf;
-	      double dircoss[3],dircose[3];
-	      (*trackIter)->Direction(dircoss,dircose);      
+	      TVector3 dircoss = (*trackIter)->VertexDirection<TVector3>();
 	      
 	      for (int ii=0;ii<3;++ii)
 		{
@@ -553,8 +554,10 @@ void Track3DKalman::produce(art::Event& evt)
 	      }
 	      size_t spEnd = spcol->size();
 
-	      tcol->push_back(recob::Track(xyz, dircos, std::vector< std::vector<double> >(0), 
-					   std::vector<double>(2, util::kBogusD), tcol->size()-1));
+	      tcol->push_back(recob::Track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(xyz),
+								  recob::tracking::convertCollToVector(dircos),
+								  recob::Track::Flags_t(xyz.size()), false),
+					   0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), tcol->size()-1));
 
 	      // associate the track with its clusters and tracks
 	      util::CreateAssn(*this, evt, *tcol, clusters, *tcassn);

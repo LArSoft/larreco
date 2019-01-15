@@ -456,7 +456,7 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
   }
 
   std::vector<TVector3> xyz, dircos;
-  std::vector<std::vector<double> > dEdx; // Right now, not finding the dE/dx for these tracks.  Can extend if needed.
+  // std::vector<std::vector<double> > dEdx; // Right now, not finding the dE/dx for these tracks.  Can extend if needed.
 
   for (unsigned int i = 0; i < pmatrack->size(); i++) {
 
@@ -523,7 +523,10 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
   if (xyz.size() != dircos.size())
     mf::LogError("EMShowerAlg") << "Problem converting pma::Track3D to recob::Track";
 
-  track = std::make_unique<recob::Track>(xyz, dircos, dEdx);
+  track = std::make_unique<recob::Track>(recob::TrackTrajectory(recob::tracking::convertCollToPoint(xyz),
+								recob::tracking::convertCollToVector(dircos),
+								recob::Track::Flags_t(xyz.size()), false),
+					 0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), -1);
 
   return track;
 
@@ -1003,8 +1006,8 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 
   TVector3 direction, directionError, showerStart, showerStartError;
   if (initialTrack) {
-    direction = initialTrack->VertexDirection();
-    showerStart = initialTrack->Vertex();
+    direction = initialTrack->VertexDirection<TVector3>();
+    showerStart = initialTrack->Vertex<TVector3>();
   }
 
   if (fDebug > 0) {
