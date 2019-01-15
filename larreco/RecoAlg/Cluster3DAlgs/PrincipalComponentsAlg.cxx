@@ -314,31 +314,11 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     
     if (eigenMat.info() == Eigen::ComputationInfo::Success)
     {
-//        using eigenValColPair = std::pair<double,size_t>;
-//        std::vector<eigenValColPair> eigenValColVec;
-//
-//        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(0),0));
-//        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(1),1));
-//        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(2),2));
-//
-//        std::sort(eigenValColVec.begin(),eigenValColVec.end(),[](const eigenValColPair& left, const eigenValColPair& right){return left.first > right.first;});
-//
-//        // Now copy output
-//        // Get the eigen values
-        reco::PrincipalComponents::EigenValues recobEigenVals;
-        
-//        recobEigenVals << float(eigenValColVec[0].first), float(eigenValColVec[1].first), float(eigenValColVec[2].first);
-//
-//        // Grab the principle axes
-        reco::PrincipalComponents::EigenVectors recobEigenVecs;
-        
-//        for(size_t idx = 0; idx < 3; idx++)
-//            recobEigenVecs.row(idx) = eigenMat.eigenvectors().col(eigenValColVec[idx].second).cast<float>();
-        
+        // Now copy output
         // The returned eigen values and vectors will be returned in an xyz system where x is the smallest spread,
         // y is the next smallest and z is the largest. Adopt that convention going forward
-        recobEigenVals = eigenMat.eigenvalues().cast<float>();
-        recobEigenVecs = eigenMat.eigenvectors().transpose().cast<float>();
+        reco::PrincipalComponents::EigenValues  recobEigenVals = eigenMat.eigenvalues().cast<float>();
+        reco::PrincipalComponents::EigenVectors recobEigenVecs = eigenMat.eigenvectors().transpose().cast<float>();
         
         // Check for a special case (which may have gone away with switch back to doubles for computation?)
         if (std::isnan(recobEigenVals[0]))
@@ -560,29 +540,11 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
     
     if (eigenMat.info() == Eigen::ComputationInfo::Success)
     {
-//       using eigenValColPair = std::pair<float,size_t>;
-//       std::vector<eigenValColPair> eigenValColVec;
-//
-//       eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(0),0));
-//       eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(1),1));
-//       eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(2),2));
-//
-//       std::sort(eigenValColVec.begin(),eigenValColVec.end(),[](const eigenValColPair& left, const eigenValColPair& right){return left.first > right.first;});
-//
-//       // Now copy output
-//       // Get the eigen values
-        reco::PrincipalComponents::EigenValues recobEigenVals;
-        
-//        recobEigenVals << eigenValColVec[0].first, eigenValColVec[1].first, eigenValColVec[2].first;
-        
-        reco::PrincipalComponents::EigenVectors recobEigenVecs;
-        
-//        for(size_t idx = 0; idx < 3; idx++) recobEigenVecs.row(idx) = eigenMat.eigenvectors().col(eigenValColVec[idx].second);
-        
+       // Now copy output
         // The returned eigen values and vectors will be returned in an xyz system where x is the smallest spread,
         // y is the next smallest and z is the largest. Adopt that convention going forward
-        recobEigenVals = eigenMat.eigenvalues().cast<float>();
-        recobEigenVecs = eigenMat.eigenvectors().cast<float>();
+        reco::PrincipalComponents::EigenValues  recobEigenVals = eigenMat.eigenvalues().cast<float>();
+        reco::PrincipalComponents::EigenVectors recobEigenVecs = eigenMat.eigenvectors().transpose().cast<float>();
 
         // Store away
         pca = reco::PrincipalComponents(true, nHits, recobEigenVals, recobEigenVecs, avePosition, aveHitDoca);
