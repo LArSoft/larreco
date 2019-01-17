@@ -76,10 +76,6 @@ public:
 private:
     
     bool linearClusters(reco::ClusterParameters&, reco::ClusterParameters&) const;
-    
-    bool linearClusters2(reco::ClusterParameters&, reco::ClusterParameters&) const;
-    
-    bool linearClusters3(const reco::PrincipalComponents&, const reco::PrincipalComponents&) const;
 
     bool mergeClusters(reco::ClusterParameters&, reco::ClusterParameters&) const;
     
@@ -106,39 +102,28 @@ private:
     std::vector<TH1F*>                   fFirstEigenValueHists;   ///< First Cluster eigen value
     std::vector<TH1F*>                   fNextEigenValueHists;    ///< Next Cluster eigen value
     TH1F*                                fNumMergedClusters;      ///< How many clusters were merged?
-    TH1F*                                f1stEndPtLenRatHist;     ///< Ratio of distance from first to next PCA to first eigen value
-    TH1F*                                f1stPocaProj1Hist;       ///< First endpoint trans 1 doca to next
-    TH1F*                                f1stPocaProj2Hist;       ///< First endpoint trans 2 doca to next
     
-    TH1F*                                f1st2ndPocaLenHist;      ///< Length of POCA firs axis to 2nd PCA center
-    TH1F*                                f2ndPProjEigenHist;      ///< Poca vec projection of next eigen vals
-    TH1F*                                f2ndProjEigenRatHist;    ///< Ratio of projected to first eigen values
-    TH1F*                                f2ndVProjEigenHist;      ///< First center/ Next center vec projection of next eigen vals
-    TH1F*                                f2ndVProjEigenRatHist;   ///< Ratio of projected to first eigen values
-    TH1F*                                f1st2ndVecLenHist;       ///< First center/ Next center vector length
-    TH1F*                                f1stDProjEigenHist;      ///< First/Next projected first PCA eigen vals
-    TH1F*                                f1stProjEigenRatHist;    ///< Ratio of projected to first eigen values
-    TH1F*                                f1st2ndPocaRatHist;      ///< ratio of POCA to projected eigen
-    TH1F*                                f1st2ndVecRatHist;       ///< ratio of first/next distance to projected eigen
-    TH1F*                                f1st2ndVecGapHist;       ///< First center/ Next center vector "gap"
-
-    TH1F*                                fAxesDocaHist;           ///< Doca between two axes
-    TH1F*                                f1stDocaArcLRatHist;     ///< Arclen ratio to first POCA
-    TH1F*                                f1stDocaArcLRatPHist;    ///< Arclen ratio to first POCA
-    TH1F*                                f2ndDocaArcLRatHist;     ///< Arclen ratio to second POCA
-    TH1F*                                f2ndDocaArcLRatPHist;    ///< Arclen ratio to second POCA
+    TH1F*                                f1stTo2ndPosLenHist;     ///< Distance between cluster centers
     
-    TH1F*                                fAxisDocaFirstProj1Hist; ///< DOCA projection on 1st axis
-    TH1F*                                fAxisDocaFirstProj2Hist; ///< DOCA projection on 2nd axis
-    TH1F*                                fAxisDocaNextProj1Hist;  ///< DOCA projection on 1st axis
-    TH1F*                                fAxisDocaNextProj2Hist;  ///< DOCA projection on 2nd axis
+    TH1F*                                fRMaxFirstHist;          ///< radius of "cylinder" first cluster
+    TH1F*                                fCosMaxFirstHist;        ///< Cos angle beteeen cylinder axis and edge
+    TH1F*                                fCosFirstAxisHist;       ///< Cos angle between vector between centers and first axis
+    TH1F*                                f1stTo2ndProjEigenHist;  ///< arc length along vector between centers from first center to cylinder
+    
+    TH1F*                                fRMaxNextHist;           ///< radius of "cylinder" next cluster
+    TH1F*                                fCosMaxNextHist;         ///< Cos angle beteeen cylinder axis and edge
+    TH1F*                                fCosNextAxisHist;        ///< Cos angle between vector between centers and next axis
+    TH1F*                                f2ndTo1stProjEigenHist;  ///< arc length along vector between centers from next center to cylinder
+    
+    TH1F*                                fGapBetweenClusHist;     ///< Gap between clusters
+    TH1F*                                fGapRatToLenHist;        ///< Ratio of gap to distance between centers
 
-    TH1F*                                fG1stEndPtLenRatHist;    ///< Ratio of distance from first to next PCA to first eigen value
-    TH1F*                                fG1stPocaProj1RatHist;   ///< First endpoint trans 1 doca to next
-    TH1F*                                fG1stPocaProj2RatHist;   ///< First endpoint trans 2 doca to next
-    TH1F*                                fGAxesDocaHist;          ///< Doca between two axes
-    TH1F*                                fG1stDocaArcLRatHist;    ///< Arclen ratio to first POCA
-    TH1F*                                fG2ndDocaArcLRatHist;    ///< Arclen ratio to second POCA
+    TH1F*                                fAxesDocaHist;           ///< Closest distance between two primary axes
+    TH1F*                                f1stDocaArcLRatHist;     ///< arc length to POCA for DOCA first cluster
+    TH1F*                                f2ndDocaArcLRatHist;     ///< arc length to POCA for DOCA second cluster
+    
+    TH1F*                                f1stTo2ndPosLenRatHist;  ///< Ratio of distance between centers and first proj eigen
+    TH1F*                                fGapRatHist;             ///< Ratio of gap and next proj eigen
 
     geo::Geometry*                       fGeometry;               //< pointer to the Geometry service
     
@@ -164,7 +149,7 @@ void ClusterMergeAlg::configure(fhicl::ParameterSet const &pset)
     fEnableMonitoring     = pset.get<bool> ("EnableMonitoring",     true  );
     fAxisAngleScaleFactor = pset.get<float>("AxisAngleScaleFactor", 5.    );
     fMinTransEigenVal     = pset.get<float>("MinTransEigenVal",     0.09  );
-    fNumTransEigens       = pset.get<float>("NumTransEigenVals",    10.   );
+    fNumTransEigens       = pset.get<float>("NumTransEigenVals",    5.    );
     fMaxDOCASeparation    = pset.get<float>("MaxDOCASeparation",    10.   );
     fMinEigenToProcess    = pset.get<float>("MinEigenToProcess",    2.0   );
     fOutputHistograms     = pset.get<bool> ("OutputHistograms",     false );
@@ -194,42 +179,29 @@ void ClusterMergeAlg::configure(fhicl::ParameterSet const &pset)
             fNextEigenValueHists[idx]  = dir.make<TH1F>(Form("FEigen2nd%1zu",idx),"Eigen Val", 200, 0., 1024./std::max(float(16*idx),float(1)));
         }
         
-        fNumMergedClusters      = dir.make<TH1F>("NumMergedClus",      "Number Merged",           200,    0., 200.);
+        fNumMergedClusters      = dir.make<TH1F>("NumMergedClus",      "Number Merged",             200,    0., 200.);
         
-        f1stEndPtLenRatHist     = dir.make<TH1F>("FirstNextLenRat",    "First/Next Length ratio", 200,    0.,  20.);
-        f1stPocaProj1Hist       = dir.make<TH1F>("FirstProj1Rat",      "First EP Doca 1 ratio",   200,  -50.,  50.);
-        f1stPocaProj2Hist       = dir.make<TH1F>("FirstProj2Rat",      "First EP Doca 1 ratio",   200,  -50.,  50.);
+        f1stTo2ndPosLenHist     = dir.make<TH1F>("1stTo2ndPosLen",     "Distance between Clusters", 250,    0., 500.);
         
-        f1st2ndPocaLenHist      = dir.make<TH1F>("First2ndPocaLen",    "First/Next POCA len",     200,    0., 100.);
-        f2ndPProjEigenHist      = dir.make<TH1F>("ScndProjEigen",      "POCA Projected Eigen",    200,    0., 100.);
-        f2ndProjEigenRatHist    = dir.make<TH1F>("ScndProjEigenRat",   "2nd Proj Eigen Rat",      200,    0.,   2.);
-        f2ndVProjEigenHist      = dir.make<TH1F>("ScndVProjEigen",     "POCA Projected Eigen",    200,    0., 100.);
-        f2ndVProjEigenRatHist   = dir.make<TH1F>("ScndVProjEigenRat",  "2nd Proj Eigen Rat",      200,    0.,   2.);
-        f1st2ndVecLenHist       = dir.make<TH1F>("First2ndVecLen",     "First/Next Vec len",      200,    0., 400.);
-        f1stDProjEigenHist      = dir.make<TH1F>("FirstProjEigen",     "First/Next Proj Eigen",   200,    0., 400.);
-        f1stProjEigenRatHist    = dir.make<TH1F>("FirstProjEigenRat",  "First Proj Eigen Rat",    200,    0.,   2.);
-        f1st2ndPocaRatHist      = dir.make<TH1F>("First2ndPocaProj",   "First/Next Poca/Eigen",   200,    0.,  50.);
-        f1st2ndVecRatHist       = dir.make<TH1F>("First2ndVecProj",    "First/Next Proj/Eigen",   200,    0.,  50.);
-        f1st2ndVecGapHist       = dir.make<TH1F>("First2ndVecGap",     "First/Next Vec len",      200, -400., 400.);
- 
-        fAxesDocaHist           = dir.make<TH1F>("AxesDoca",           "Axes doca",               200,    0., 200.);
-        f1stDocaArcLRatHist     = dir.make<TH1F>("Doca1stArcLRat",     "First arclen ratio",      200,  -25.,  25.);
-        f1stDocaArcLRatPHist    = dir.make<TH1F>("Doca1stArcLRatP",    "First arclen P ratio",    200,  -25.,  25.);
-        f2ndDocaArcLRatHist     = dir.make<TH1F>("Doca2ndArcLRat",     "First arclen ratio",      200,  -25.,  25.);
-        f2ndDocaArcLRatPHist    = dir.make<TH1F>("Doca2ndArcLRatP",    "First arclen P ratio",    200,  -25.,  25.);
+        fRMaxFirstHist          = dir.make<TH1F>("rMaxFirst",          "Radius of First Cluster",   200,    0., 100.);
+        fCosMaxFirstHist        = dir.make<TH1F>("CosMaxFirst",        "Cos Angle First Cyl/Axis",  200,    0., 1.  );
+        fCosFirstAxisHist       = dir.make<TH1F>("CosFirstAxis",       "Cos Angle First Next/Axis", 200,    0., 1.  );
+        f1stTo2ndProjEigenHist  = dir.make<TH1F>("1stTo2ndProjEigen",  "Projected Distance First",  200,    0., 200.);
         
-        fAxisDocaFirstProj1Hist = dir.make<TH1F>("AxisDocaFProj1",     "Axis Doca First Proj 1",  200,    0., 100.);
-        fAxisDocaFirstProj2Hist = dir.make<TH1F>("AxisDocaFProj2",     "Axis Doca First Proj 1",  200,    0., 100.);
-        fAxisDocaNextProj1Hist  = dir.make<TH1F>("AxisDocaNProj1",     "Axis Doca First Proj 1",  200,    0., 100.);
-        fAxisDocaNextProj2Hist  = dir.make<TH1F>("AxisDocaNProj2",     "Axis Doca First Proj 1",  200,    0., 100.);
+        fRMaxNextHist           = dir.make<TH1F>("rMaxNext",           "Radius of Next Cluster",    200,    0., 100.);
+        fCosMaxNextHist         = dir.make<TH1F>("CosMaxNext",         "Cos Angle Next Cyl/Axis",   200,    0., 1.  );
+        fCosNextAxisHist        = dir.make<TH1F>("CosNextAxis",        "Cos Angle Next Next/Axis",  200,    0., 1.  );
+        f2ndTo1stProjEigenHist  = dir.make<TH1F>("2ndTo1stProjEigen",  "Projected Distance Next",   200,    0., 200.);
+        
+        fGapBetweenClusHist     = dir.make<TH1F>("ClusterGap",         "Gap Between Clusters",      400, -200., 200.);
+        fGapRatToLenHist        = dir.make<TH1F>("GapRatToLen",        "Ratio Gap to Distance",     400,  -20.,  20.);
 
-        fG1stEndPtLenRatHist    = dir.make<TH1F>("GFirstNextLenRat",   "First/Next Length ratio", 200,    0., 20.);
-        fG1stPocaProj1RatHist   = dir.make<TH1F>("GFirstEPDoca1Rat",   "First EP Doca 1 ratio",   200,   -1.,  1.);
-        fG1stPocaProj2RatHist   = dir.make<TH1F>("GFirstEPDoca2Rat",   "First EP Doca 1 ratio",   200,   -1.,  1.);
- 
-        fGAxesDocaHist          = dir.make<TH1F>("GAxesDoca",          "Axes doca",               250,    0., 500.);
-        fG1stDocaArcLRatHist    = dir.make<TH1F>("GDoca1stArcLRat",    "First arclen ratio",      200,  -25., 25.);
-        fG2ndDocaArcLRatHist    = dir.make<TH1F>("GDoca2ndArcLRat",    "First arclen ratio",      200,  -25., 25.);
+        fAxesDocaHist           = dir.make<TH1F>("AxesDocaHist",       "DOCA",                      200,    0., 200.);
+        f1stDocaArcLRatHist     = dir.make<TH1F>("ALenPOCA1Hist",      "Arc Len to POCA 1",         400, -200., 200.);
+        f2ndDocaArcLRatHist     = dir.make<TH1F>("ALenPOCA2Hist",      "Arc Len to POCA 2",         400, -200., 200.);
+        
+        f1stTo2ndPosLenRatHist  = dir.make<TH1F>("1stTo2ndPosLenRat",  "Ratio clus dist to eigen",  200.,   0.,  20.);
+        fGapRatHist             = dir.make<TH1F>("GapRat",             "Ratio Gap to Next Eigen",   400,  -20.,  20.);
     }
     
     return;
@@ -273,7 +245,7 @@ void ClusterMergeAlg::ModifyClusters(reco::ClusterParametersList& clusterParamet
         lastClusterListCount = clusterParametersList.size();
         
         // Keep track of the first cluster iterator each pass through
-        reco::ClusterParametersList::iterator firstClusterItr = lastFirstClusterItr; //++;
+        reco::ClusterParametersList::iterator firstClusterItr = lastFirstClusterItr++;
 
         // Loop through the clusters
         while(firstClusterItr != clusterParametersList.end())
@@ -404,12 +376,37 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
                                    std::min(1.5 * sqrt(std::max(firstPCA.getEigenValues()[1],fMinTransEigenVal)), 100.),
                                             1.5 * sqrt(         firstPCA.getEigenValues()[2]));
     
-    // Get a measure of the projection of the three eigen values along the axis from the first to next PCA centers
-    float firstToNextProjEigen = firstEigenVals[0] * std::abs(firstPosToNextPosUnit.dot(firstAxis0))
-                               + firstEigenVals[1] * std::abs(firstPosToNextPosUnit.dot(firstAxis1))
-                               + firstEigenVals[2] * std::abs(firstPosToNextPosUnit.dot(firstAxis2));
+    // We treat the PCA as defining a cyclinder of radius given by the quadrature sum of the two transverse eigenvalues
+    float rMaxFirst    = fNumTransEigens * std::sqrt(firstEigenVals[0] * firstEigenVals[0] + firstEigenVals[1] * firstEigenVals[1]);
+    float cosMaxFirst  = std::max(firstEigenVals[2] / std::sqrt(firstEigenVals[2] * firstEigenVals[2] + rMaxFirst * rMaxFirst),float(0.8));
+    float cosFirstAxis = firstAxis2.dot(firstPosToNextPosUnit);
+    
+    // Now calculate a measure of the length inside the cylider along the vector between the cluster centers
+    float firstToNextProjEigen = firstEigenVals[2];
+    
+    // There are two cases to consider, the first is that the vector exits out the side of the cylinder
+    if (cosFirstAxis < cosMaxFirst)
+    {
+        // In this case we need the sign of the angle between the vector and the cluster primary axis
+        float sinFirstAxis = std::sqrt(1. - cosFirstAxis * cosFirstAxis);
+        
+        // Here the length will be given by the radius, not the primary eigen value
+        firstToNextProjEigen = rMaxFirst / sinFirstAxis;
+    }
+    else firstToNextProjEigen /= cosFirstAxis;
+    
+    // A brief interlude to fill a few histograms
+    if (fOutputHistograms)
+    {
+        f1stTo2ndPosLenHist->Fill(firstPosToNextPosLen, 1.);
+        
+        fRMaxFirstHist->Fill(rMaxFirst, 1.);
+        fCosMaxFirstHist->Fill(cosMaxFirst, 1.);
+        fCosFirstAxisHist->Fill(cosFirstAxis, 1.);
+        f1stTo2ndProjEigenHist->Fill(firstToNextProjEigen, 1.);
+    }
 
-    // This makes first selection:
+    // This makes first selection, it should eliminate most of the junk cases:
     if (firstPosToNextPosLen < 3. * firstToNextProjEigen)
     {
         // Recover the axes for the next PCA and make sure pointing convention is observed
@@ -434,466 +431,112 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
                                       std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[1],fMinTransEigenVal)), 100.),
                                                1.5 * sqrt(         nextPCA.getEigenValues()[2]));
         
-        // Get a measure of the projection of the three eigen values along the axis from the first to next PCA centers
-        float nextToFirstProjEigen = nextEigenVals[0] * std::abs(firstPosToNextPosUnit.dot(nextAxis0))
-                                   + nextEigenVals[1] * std::abs(firstPosToNextPosUnit.dot(nextAxis1))
-                                   + nextEigenVals[2] * std::abs(firstPosToNextPosUnit.dot(nextAxis2));
+        // Repeat the calculation of the length of the vector through the cluster "cylinder"...
+        float rMaxNext    = fNumTransEigens * std::sqrt(nextEigenVals[0] * nextEigenVals[0] + nextEigenVals[1] * nextEigenVals[1]);
+        float cosMaxNext  = std::max(nextEigenVals[2] / std::sqrt(nextEigenVals[2] * nextEigenVals[2] + rMaxNext * rMaxNext),float(0.8));
+        float cosNextAxis = nextAxis2.dot(firstPosToNextPosUnit);
         
-        // Develop metric for max allowed angle from the eigen values
-        float rMaxFirst    = std::sqrt(firstEigenVals[0] * firstEigenVals[0] + firstEigenVals[1] * firstEigenVals[1]);
-        float cosMaxFirst  = std::max(firstEigenVals[2] / std::sqrt(firstEigenVals[2] * firstEigenVals[2] + fNumTransEigens * rMaxFirst * fNumTransEigens * rMaxFirst),float(0.8));
-        float cosFirstAxis = firstAxis2.dot(firstPosToNextPosUnit);
+        // Now calculate a measure of the length inside the cylider along the vector between the cluster centers
+        float nextToFirstProjEigen = nextEigenVals[2];
         
-        // Get the position of the tail of the primary axis for the next cluster
-        Eigen::Vector3f nextTailPos          = nextCenter - nextEigenVals[2] * nextAxis2;
-        Eigen::Vector3f firstToNextTailVec   = nextTailPos - firstCenter;
-        float           arcLenToTailDoca     = firstToNextTailVec.dot(firstAxis2);
-        Eigen::Vector3f firstAxisTailDocaPos = firstCenter + arcLenToTailDoca * firstAxis2;
-        Eigen::Vector3f firstAxisTailDocaVec = nextTailPos - firstAxisTailDocaPos;
-        
-        // Look for the case that we have an embedded cluster
-        // This would be signified by the next cluster's axis being close to parallel, its center within the transverse dimensions of the first cluster
-        // and it should be less than the first clusters "length" along the primary axis.
-        Eigen::Vector3f nextFirstAxisPOCA = firstCenter + arcLenToNextDoca * firstAxis2;
-        Eigen::Vector3f nextDocaVec       = nextCenter - nextFirstAxisPOCA;
-        
-        if (firstPosToNextPosLen < firstToNextProjEigen && nextDocaVec.norm() < rMaxFirst && firstAxisTailDocaVec.norm() < rMaxFirst)
+        // There are two cases to consider, the first is that the vector exits out the side of the cylinder
+        if (cosNextAxis < cosMaxNext)
         {
-            consistent = true;
+            // In this case we need the sign of the angle between the vector and the cluster primary axis
+            float sinNextAxis = std::sqrt(1. - cosNextAxis * cosNextAxis);
+            
+            // Here the length will be given by the radius, not the primary eigen value
+            nextToFirstProjEigen = rMaxNext / sinNextAxis;
         }
-        // Be a bit more generous on distance since the second cluster is probably smaller
-        // Require the arc length along the primary axis to the first point doca to be "large" to keep the angle "close"
-        // And also apply an angle cut on the axis from the first to next
-        else if (cosFirstAxis > cosMaxFirst && std::abs(arcLenToFirstDoca) > 0.8 * nextEigenVals[2] && firstPosToNextPosLen < 10. * nextToFirstProjEigen)
+        else nextToFirstProjEigen /= cosNextAxis;
+
+        // Compute the "gap" between the clusters
+        float gapBetweenClusters = firstPosToNextPosLen - firstToNextProjEigen - nextToFirstProjEigen;
+
+        // Allow a generous gap but significantly derate as angle to next cluster increases
+        //float nextToFirstScaleFactor = 6. * firstAxis2.dot(nextAxis2);
+        float nextToFirstScaleFactor = 3. * firstAxis2.dot(nextAxis2);
+        
+        nextToFirstScaleFactor = 6.;
+        
+        // Another brief interlude to fill some histograms
+        if (fOutputHistograms)
         {
-            // Now check the distance of closest approach betweent the two vectors
-            // Closest approach calculaiton results vectors
-            Eigen::Vector3f firstPoca;
-            Eigen::Vector3f nextPoca;
-            Eigen::Vector3f firstToNextVec;
+            for(size_t idx = 0; idx < 3; idx++) fNextEigenValueHists[idx]->Fill(nextEigenVals[idx],1.);
             
-            // Recover the doca of the two axes and their points of closest approach along each axis
-            float lineDoca = closestApproach(firstCenter, firstAxis2, nextCenter, nextAxis2, firstPoca, nextPoca, firstToNextVec);
+            fRMaxNextHist->Fill(rMaxNext, 1.);
+            fCosMaxNextHist->Fill(cosMaxNext, 1.);
+            fCosNextAxisHist->Fill(cosNextAxis, 1.);
+            f2ndTo1stProjEigenHist->Fill(nextToFirstProjEigen, 1.);
             
-            // The below returned the signed arc lengths to their respective pocas
-            float arcLenToFirstPoca = (firstPoca - firstCenter).dot(firstAxis2);
-            float arcLenToNextPoca  = (nextPoca  - nextCenter ).dot(nextAxis2);
-            
-            if (fOutputHistograms)
-            {
-                fAxesDocaHist->Fill(lineDoca, 1.);
-                f1stDocaArcLRatHist->Fill(arcLenToFirstPoca/firstEigenVals[2],1.);
-                f2ndDocaArcLRatHist->Fill(arcLenToNextPoca/nextEigenVals[2],1.);
-            }
-            
-            if (lineDoca < 2. * rMaxFirst &&   //fMaxDOCASeparation &&
-                arcLenToFirstPoca >= 0. && arcLenToFirstPoca          < 2.5 * firstEigenVals[2] &&
-                arcLenToNextPoca  <= 0. && std::abs(arcLenToNextPoca) < 5.  * nextEigenVals[2]    )
-            {
-                consistent = true;
-            }
+            fGapBetweenClusHist->Fill(gapBetweenClusters, 1.);
+            fGapRatToLenHist->Fill(gapBetweenClusters/firstPosToNextPosLen, 1.);
         }
 
-    }
-    
-    return consistent;
-}
-
-bool ClusterMergeAlg::linearClusters2(reco::ClusterParameters& firstCluster, reco::ClusterParameters& nextCluster) const
-{
-    // Assume failure
-    bool consistent(false);
-    
-    // The goal here is to compare the two input PCA's and determine if they are effectively colinear and
-    // within reasonable range to consider merging them. Note that a key assumption is that the first input
-    // PCA is from the "bigger" cluster, the second is "smaller" and may have a less reliable PCA.
-    
-    // Dereference the PCA's
-    const reco::PrincipalComponents& firstPCA = firstCluster.getFullPCA();
-    const reco::PrincipalComponents& nextPCA  = nextCluster.getFullPCA();
-
-    // Recover the positions of the centers of the two clusters
-    const Eigen::Vector3f& firstCenter = firstPCA.getAvePosition();
-    const Eigen::Vector3f& nextCenter  = nextPCA.getAvePosition();
-    
-    // And form a vector between the two centers
-    Eigen::Vector3f firstPosToNextPosVec  = nextCenter - firstCenter;
-    Eigen::Vector3f firstPosToNextPosUnit = firstPosToNextPosVec.normalized();
-    
-    // Now get the first PCA's primary axis and since we'll use them get all of them at once...
-    Eigen::Vector3f firstAxis0(firstPCA.getEigenVectors().row(0));
-    Eigen::Vector3f firstAxis1(firstPCA.getEigenVectors().row(1));
-    Eigen::Vector3f firstAxis2(firstPCA.getEigenVectors().row(2));
-    
-    // Will want the distance of closest approach of the next cluser's center to the primary, start by finding arc length
-    float arcLenToNextDoca = firstPosToNextPosVec.dot(firstAxis2);
-    
-    // Adopt the convention that the cluster axis is in same direction as vector from first to next centers
-    // And preserve the overall orientation of the PCA by flipping all if we flip the first one
-    if (arcLenToNextDoca < 0.)
-    {
-        firstAxis0       = -firstAxis0;
-        firstAxis1       = -firstAxis1;
-        firstAxis2       = -firstAxis2;
-        arcLenToNextDoca = -arcLenToNextDoca;
-    }
-    
-    // Recover the eigen values of the first and second PCAs for selection cuts
-    Eigen::Vector3f firstEigenVals(std::min(1.5 * sqrt(std::max(firstPCA.getEigenValues()[0],fMinTransEigenVal)),  50.),
-                                   std::min(1.5 * sqrt(std::max(firstPCA.getEigenValues()[1],fMinTransEigenVal)), 100.),
-                                            1.5 * sqrt(         firstPCA.getEigenValues()[2]));
-    
-    // Develop metric for max allowed angle from the eigen values
-    float rMaxFirst    = std::sqrt(firstEigenVals[0] * firstEigenVals[0] + firstEigenVals[1] * firstEigenVals[1]);
-    float cosMaxFirst  = std::max(firstEigenVals[2] / std::sqrt(firstEigenVals[2] * firstEigenVals[2] + fNumTransEigens * rMaxFirst * fNumTransEigens * rMaxFirst),float(0.8));
-    float cosFirstAxis = firstAxis2.dot(firstPosToNextPosUnit);
-    
-    // Get a measure of the projection of the three eigen values along the axis from the first to next PCA centers
-    float firstToNextProjEigen = firstEigenVals[0] * std::abs(firstPosToNextPosUnit.dot(firstAxis0))
-                               + firstEigenVals[1] * std::abs(firstPosToNextPosUnit.dot(firstAxis1))
-                               + firstEigenVals[2] * std::abs(firstPosToNextPosUnit.dot(firstAxis2));
-
-    // This makes first selection:
-    if (cosFirstAxis > cosMaxFirst && arcLenToNextDoca < 5. * firstToNextProjEigen)
-    {
-        // Recover the axes for the next PCA and make sure pointing convention is observed
-        Eigen::Vector3f nextAxis0(nextPCA.getEigenVectors().row(0));
-        Eigen::Vector3f nextAxis1(nextPCA.getEigenVectors().row(1));
-        Eigen::Vector3f nextAxis2(nextPCA.getEigenVectors().row(2));
-        
-        // Get the arc length from next to first centers - note convention for PCA orientation
-        float arcLenToFirstDoca = -firstPosToNextPosVec.dot(nextAxis2);
-        
-        // Convention on axis direction applied again
-        if (arcLenToFirstDoca > 0.)
+        // If the gap is negative then the clusters "overlap" (one might be embedded or the PCA axes extend past the space points)
+        // We simply check that they are not too far apart
+        if (gapBetweenClusters < nextToFirstScaleFactor * nextToFirstProjEigen)
         {
-            nextAxis0         = -nextAxis0;
-            nextAxis1         = -nextAxis1;
-            nextAxis2         = -nextAxis2;
-            arcLenToFirstDoca = -arcLenToFirstDoca;
-        }
-        
-        // Get the eigen values again
-        Eigen::Vector3f nextEigenVals(std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[0],fMinTransEigenVal)), 32.),
-                                      std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[1],fMinTransEigenVal)), 64.),
-                                               1.5 * sqrt(         nextPCA.getEigenValues()[2]));
-        
-        // Want to find the "gap" between the first cluster and the next cluster.
-        // We define the gap to be the distance between the space point in the first cluster furthest along the first axis towards the next cluster
-        // and the space point in the next cluster furthest along the next axis towards the first cluster...
-        const reco::ClusterHit3D* furthestFirstHit3D        = findFurthestHit3D(firstCenter, firstAxis2, firstCluster.getHitPairListPtr());
-        Eigen::Vector3f           revNextAxis2              = -nextAxis2;
-        const reco::ClusterHit3D* furthestNextHit3D         = findFurthestHit3D(nextCenter, revNextAxis2, nextCluster.getHitPairListPtr());
-        Eigen::Vector3f           furthestFirstToNextHitVec = furthestNextHit3D->getPosition() - furthestFirstHit3D->getPosition();
-        Eigen::Vector3f           firstToFurthestNextVec    = furthestNextHit3D->getPosition() - firstCenter;
-
-        // Guesstimate the gap between the two PCAs
-        float firstToNextProjGap = furthestFirstToNextHitVec.dot(firstPosToNextPosUnit);
-        
-        // Also get the doca of the furthest next point to the first axis0
-        float           arcLenToFurthestNextHit = (furthestNextHit3D->getPosition() - firstCenter).dot(firstAxis2);
-        Eigen::Vector3f furthestNextHitDocaVec  = furthestNextHit3D->getPosition() - (firstCenter + arcLenToFurthestNextHit * firstAxis2);
-        
-        // Determine the projected "eigen distance"
-        // First for the next cluster...
-        float nextToFirstProjEigen = nextEigenVals[0] * std::abs(firstPosToNextPosUnit.dot(nextAxis0))
-                                   + nextEigenVals[1] * std::abs(firstPosToNextPosUnit.dot(nextAxis1))
-                                   + nextEigenVals[2] * std::abs(firstPosToNextPosUnit.dot(nextAxis2));
-        
-        // Develop metric for max allowed angle from the eigen values
-//        float rMaxNext    = std::sqrt(nextEigenVals[1] * nextEigenVals[1] + nextEigenVals[2] * nextEigenVals[2]);
-//        float cosMaxNext  = std::max(nextEigenVals[0] / std::sqrt(nextEigenVals[0] * nextEigenVals[0] + fNumTransEigens * rMaxNext * fNumTransEigens * rMaxNext),float(0.7));
-//        float cosNextAxis = nextAxis0.dot(firstPosToNextPosUnit);
-
-        // This makes first selection:
-//        if (cosNextAxis > cosMaxNext && std::abs(firstToNextProjGap) < std::max(3.,0.5 * nextToFirstProjEigen) && furthestNextHitDocaVec.norm() < 2. * rMaxFirst)
-        if (std::abs(firstToNextProjGap) < std::max(3.,0.5 * nextToFirstProjEigen) && furthestNextHitDocaVec.norm() < 4. * rMaxFirst)
-        {
-            // We need to watch out for the case of colinearity which can screw up a calculation of the distance of closest approach
-           // Check if the next cluster's closest point is "in range" already
-            float           arcLenToNextClosestHit = (furthestNextHit3D->getPosition() - firstCenter).dot(firstAxis2);
-            Eigen::Vector3f pocaVec                = (furthestNextHit3D->getPosition() - (firstCenter + arcLenToNextClosestHit * firstAxis2));
+            // Look for the case that we have an embedded cluster
+            // An embedded cluster will have its center very close to the center of the surrounding cluster. In most cases its primary axis will be close
+            // to that of the surrounding cluster. However, a case to be sensitve to is a small cluster that gets its axis rotated ~90 degrees... so try to
+            // stay away from angle cuts...
+            // So, we are looking for clusters that lie within the length of the first cluster, with a center that is close to the first cluster's primary
+            // axis and which should be fully "contained" in the first cluster.
             
-            if (pocaVec.norm() < 2.5 * rMaxFirst) consistent = true;
+            Eigen::Vector3f nextFirstAxisPOCA = firstCenter + arcLenToNextDoca * firstAxis2;
+            Eigen::Vector3f nextDocaVec       = nextCenter - nextFirstAxisPOCA;
+            Eigen::Vector3f nextDocaVecUnit   = nextDocaVec.normalized();
             
-            // Might be nearly colinear but outside of the above off
-            else if (firstToFurthestNextVec.normalized().dot(firstAxis2) > cosMaxFirst)
+            // Get a measure of the projection of the three eigen values along the axis from the next center to the first primary axis
+            float nextDocaVecProjEigen = nextEigenVals[0] * std::abs(nextDocaVecUnit.dot(nextAxis0))
+                                       + nextEigenVals[1] * std::abs(nextDocaVecUnit.dot(nextAxis1))
+                                       + nextEigenVals[2] * std::abs(nextDocaVecUnit.dot(nextAxis2));
+            
+            float nextDocaScaleFactor  = 5.; //6. * firstAxis2.dot(nextAxis2);
+            
+            // Now we start the search for matching clusters that are essentially side by side
+            // These clusters should be in the forward direction (hence an angle cut), arc length along the primary axis to the center should place it
+            // "outside" the first cluster and looking back from the next cluster we can't be too far away....
+            //else if (cosFirstAxis > cosMaxFirst && std::abs(arcLenToFirstDoca) > 0.8 * nextEigenVals[2] && firstPosToNextPosLen < 10. * nextToFirstProjEigen)
+            if (cosFirstAxis > cosMaxFirst && nextDocaVec.norm() < nextDocaScaleFactor * nextDocaVecProjEigen)
             {
+                // Now check the distance of closest approach betweent the two vectors
                 // Closest approach calculaiton results vectors
                 Eigen::Vector3f firstPoca;
                 Eigen::Vector3f nextPoca;
                 Eigen::Vector3f firstToNextVec;
-                
+            
                 // Recover the doca of the two axes and their points of closest approach along each axis
                 float lineDoca = closestApproach(firstCenter, firstAxis2, nextCenter, nextAxis2, firstPoca, nextPoca, firstToNextVec);
                 
-                // The below returned the signed arc lengths to their respective pocas
-                float arcLenToFirstPoca = (firstPoca - firstCenter).dot(firstAxis2);
-                float arcLenToNextPoca  = (nextPoca  - nextCenter ).dot(nextAxis2);
-                
+                // Scaling factor to increase doca distance as distance grows
+                float rMaxScaleFactor = 2. * std::min(firstPosToNextPosLen / firstToNextProjEigen, float(3.));
+            
                 if (fOutputHistograms)
                 {
+                    // The below returned the signed arc lengths to their respective pocas
+                    float arcLenToFirstPoca = (firstPoca - firstCenter).dot(firstAxis2);
+                    float arcLenToNextPoca  = (nextPoca  - nextCenter ).dot(nextAxis2);
+                    
                     fAxesDocaHist->Fill(lineDoca, 1.);
                     f1stDocaArcLRatHist->Fill(arcLenToFirstPoca/firstEigenVals[2],1.);
                     f2ndDocaArcLRatHist->Fill(arcLenToNextPoca/nextEigenVals[2],1.);
                 }
-                
-                if (lineDoca < fMaxDOCASeparation &&
-                    arcLenToFirstPoca > 0. && arcLenToFirstPoca          < 2. * firstEigenVals[2] &&
-                    arcLenToNextPoca  < 0. && std::abs(arcLenToNextPoca) < 5. * nextEigenVals[2]    )
+ 
+                if (lineDoca < rMaxScaleFactor * rMaxFirst)
                 {
                     consistent = true;
-                }
-            }
-        }
-        // We need to check the special case of an embedded cluster
-        else if (arcLenToNextDoca < firstEigenVals[2])
-        {
-            // Get the point of closest approach vector
-            Eigen::Vector3f pocaVec = (nextCenter - (firstCenter + arcLenToNextDoca * firstAxis2));
-            
-            if (pocaVec.norm() < 0.5 * rMaxFirst) consistent = true;
-        }
-    }
-
-    return consistent;
-}
-
-bool ClusterMergeAlg::linearClusters3(const reco::PrincipalComponents& firstPCA, const reco::PrincipalComponents& nextPCA) const
-{
-    // Assume failure
-    bool consistent(false);
-    
-    // The goal here is to compare the two input PCA's and determine if they are effectively colinear and
-    // within reasonable range to consider merging them. Note that a key assumption is that the first input
-    // PCA is from the "bigger" cluster, the second is "smaller" and may have a less reliable PCA.
-    
-    // Recover the positions of the centers of the two clusters
-    const Eigen::Vector3f& firstCenter = firstPCA.getAvePosition();
-    const Eigen::Vector3f& nextCenter  = nextPCA.getAvePosition();
-    
-    // And form a vector between the two centers
-    Eigen::Vector3f firstPosToNextPosVec  = nextCenter - firstCenter;
-    Eigen::Vector3f firstPosToNextPosUnit = firstPosToNextPosVec.normalized();
-    
-    // Now get the first PCA's primary axis and since we'll use them get all of them at once...
-    Eigen::Vector3f firstAxis0(firstPCA.getEigenVectors().row(0));
-    Eigen::Vector3f firstAxis1(firstPCA.getEigenVectors().row(1));
-    Eigen::Vector3f firstAxis2(firstPCA.getEigenVectors().row(2));
-    
-    // Will want the distance of closest approach of the next cluser's center to the primary, start by finding arc length
-    float arcLenToNextDoca = firstPosToNextPosVec.dot(firstAxis0);
-    
-    // Adopt the convention that the cluster axis is in same direction as vector from first to next centers
-    // And preserve the overall orientation of the PCA by flipping all if we flip the first one
-    if (arcLenToNextDoca < 0.)
-    {
-        firstAxis0       = -firstAxis0;
-        firstAxis1       = -firstAxis1;
-        firstAxis2       = -firstAxis2;
-        arcLenToNextDoca = -arcLenToNextDoca;
-    }
-    
-    // Recover the eigen values of the first and second PCAs for selection cuts
-    Eigen::Vector3f firstEigenVals(         1.5 * sqrt(firstPCA.getEigenValues()[0]),
-                                   std::min(1.5 * sqrt(std::max(firstPCA.getEigenValues()[1],fMinTransEigenVal)), 64.),
-                                   std::min(1.5 * sqrt(std::max(firstPCA.getEigenValues()[2],fMinTransEigenVal)), 32.));
-    
-    // First task is to develop something that determines that the center of the next PCA is essentially colinear with the first one.
-    // In an ideal world we would imagine the tolerance for this being automagically generated... for example by using the transverse
-    // eigen values...
-    // First up is to determine the distance the next PCAs center is from the first axis
-    Eigen::Vector3f firstPocaToNextCenter = nextCenter - (firstCenter + arcLenToNextDoca * firstAxis2);
-    
-    // This should be perpendicular to the first axis, check:
-    float cosPocaToFirst = firstAxis2.dot(firstPocaToNextCenter.normalized());
-    
-    if (std::abs(cosPocaToFirst) > 2.e-4)
-    {
-        std::cout << "POCA vector is not perpendicular to the first axis: " << cosPocaToFirst << std::endl;
-    }
-    
-    // Get the projections of this vector along both transverse axes
-    float firstPocaProj1 = firstPocaToNextCenter.dot(firstAxis1);
-    float firstPocaProj2 = firstPocaToNextCenter.dot(firstAxis0);
-    
-    // We are going to then compare these with the eigen values, which will define an acceptance cone along the direction
-    // of the first axis. If the projectsion fall in range then we are good to go to the next step
-    // If the next PCA is some distance from the first then we want to scale the the eigenvalues accordingly
-    float pocaScaleFactor = std::max(arcLenToNextDoca / firstEigenVals[2],float(1.));
-    
-    // Do some histogramming if asked
-    if (fOutputHistograms)
-    {
-        f1stEndPtLenRatHist->Fill(std::min(arcLenToNextDoca/firstEigenVals[2],float(19.99)),1.);
-        f1stPocaProj1Hist->Fill(firstPocaProj1/(pocaScaleFactor * firstEigenVals[1]),1.);
-        f1stPocaProj2Hist->Fill(firstPocaProj2/(pocaScaleFactor * firstEigenVals[0]),1.);
-    }
-    
-    // Ok, check colinearity
-    if (std::abs(firstPocaProj1) < fNumTransEigens * pocaScaleFactor * firstEigenVals[1] &&
-        std::abs(firstPocaProj2) < fNumTransEigens * pocaScaleFactor * firstEigenVals[0]   )
-    {
-        // Recover the axes for the next PCA and make sure pointing convention is observed
-        Eigen::Vector3f nextAxis0(nextPCA.getEigenVectors().row(0));
-        Eigen::Vector3f nextAxis1(nextPCA.getEigenVectors().row(1));
-        Eigen::Vector3f nextAxis2(nextPCA.getEigenVectors().row(2));
-        
-        // Get the arc length from next to first centers - note convention for PCA orientation
-        float arcLenToFirstDoca = -firstPosToNextPosVec.dot(nextAxis0);
-        
-        // Convention on axis direction applied again
-        if (arcLenToFirstDoca > 0.)
-        {
-            nextAxis0         = -nextAxis0;
-            nextAxis1         = -nextAxis1;
-            nextAxis2         = -nextAxis2;
-            arcLenToFirstDoca = -arcLenToFirstDoca;
-        }
-        
-        // Handle the special case that the cluster we are comparing to is "embedded" in the current cluster
-        if (arcLenToNextDoca < firstEigenVals[2] && std::abs(firstPocaProj1) < firstEigenVals[1] && std::abs(firstPocaProj2) < 2. * firstEigenVals[0])
-        {
-            // Either the primary or the secondary PCA axis will be more or less aligned with the first primary
-            // (the secondary alignment is a special case for isochronous clusters)
-            if (firstAxis2.dot(nextAxis2) > 0.95 || std::abs(firstAxis1.dot(nextAxis1)) > 0.95) consistent = true;
-        }
-        
-        // If no consistency don't give up, more detailed checks may be necessary
-        if (!consistent)
-        {
-            // First check if these two clusters can possibly be consistent where we'll look at the projected distance
-            // vs the projected distance from the PCA center to its "shell" defined by the eigen values
-            
-            // Get the eigen values again
-            Eigen::Vector3f nextEigenVals(         1.5 * sqrt(         nextPCA.getEigenValues()[0]),
-                                          std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[1],fMinTransEigenVal)), 64.),
-                                          std::min(1.5 * sqrt(std::max(nextPCA.getEigenValues()[2],fMinTransEigenVal)), 32.));
-            
-            // Convert the poca vector to a unit vector but remember its magnitude
-            float           firstPocaLen              = firstPocaToNextCenter.norm();
-            Eigen::Vector3f firstPocaToNextCenterUnit = firstPocaToNextCenter.normalized();
-
-            // Armed with this info we can get projected eigen value distances...
-            float nextPocaProjEigen = nextEigenVals[0] * std::abs(firstPocaToNextCenterUnit.dot(nextAxis0))
-                                    + nextEigenVals[1] * std::abs(firstPocaToNextCenterUnit.dot(nextAxis1))
-                                    + nextEigenVals[2] * std::abs(firstPocaToNextCenterUnit.dot(nextAxis2));
-            
-            float nextToFirstProjEigen = nextEigenVals[0] * std::abs(firstPosToNextPosUnit.dot(nextAxis0))
-                                       + nextEigenVals[1] * std::abs(firstPosToNextPosUnit.dot(nextAxis1))
-                                       + nextEigenVals[2] * std::abs(firstPosToNextPosUnit.dot(nextAxis2));
-            
-            // Also look at the same for the first PCA to the next
-            float firstToNextProjEigen = firstEigenVals[0] * std::abs(firstPosToNextPosUnit.dot(firstAxis0))
-                                       + firstEigenVals[1] * std::abs(firstPosToNextPosUnit.dot(firstAxis1))
-                                       + firstEigenVals[2] * std::abs(firstPosToNextPosUnit.dot(firstAxis2));
-            
-            float firstPosToNextPosLen = firstPosToNextPosVec.norm();
-            float firstPosToNextPosGap = firstPosToNextPosLen - firstToNextProjEigen - nextToFirstProjEigen;
-            
-            if (fOutputHistograms)
-            {
-                for(size_t idx = 0; idx < 3; idx++)
-                {
-                    fNextEigenValueHists[idx]->Fill(firstEigenVals[idx],1.);
-                }
-                
-                f1st2ndPocaLenHist->Fill(firstPocaLen, 1.);
-                f2ndPProjEigenHist->Fill(nextPocaProjEigen, 1.);
-                f2ndVProjEigenHist->Fill(nextToFirstProjEigen, 1.);
-                f2ndProjEigenRatHist->Fill(nextPocaProjEigen/nextEigenVals[0], 1.);
-                f2ndVProjEigenRatHist->Fill(nextToFirstProjEigen/nextEigenVals[0], 1.);
-                f1st2ndVecLenHist->Fill(firstPosToNextPosLen, 1.);
-                f1st2ndVecGapHist->Fill(firstPosToNextPosGap, 1.);
-                f1stDProjEigenHist->Fill(firstToNextProjEigen, 1.);
-                f1stProjEigenRatHist->Fill(firstToNextProjEigen/firstEigenVals[0], 1.);
-                f1st2ndPocaRatHist->Fill(firstPocaLen/nextPocaProjEigen, 1.);
-                f1st2ndVecRatHist->Fill(firstPosToNextPosLen/firstToNextProjEigen, 1.);
-            }
-            
-            // Require both distance between clusters and projected distance to first axis to be "in range"
-//            if (firstPosToNextPosLen < 4. * firstToNextProjEigen && firstPocaLen < 20. * nextPocaProjEigen)
-            if (firstToNextProjEigen/firstEigenVals[0] > 0.9 && nextToFirstProjEigen/nextEigenVals[0] > 0.95)
-            {
-                // Strategy now will be to find the points of closest approach and compare these to the with of the PCAs
-                // If this good then look at the gap along the vector from the first to second PCA center.
-                // Require the gap to be less than the smaller PCA primary eigenvalue
-                // Now we recover the doca of the two primary axes of the input clusters
-                
-                // Closest approach calculaiton results vectors
-                Eigen::Vector3f firstPoca;
-                Eigen::Vector3f nextPoca;
-                Eigen::Vector3f firstToNextVec;
-                
-                // Recover the doca of the two axes and their points of closest approach along each axis
-                float lineDoca = closestApproach(firstCenter, firstAxis0, nextCenter, nextAxis0, firstPoca, nextPoca, firstToNextVec);
-                
-                // The below returned the signed arc lengths to their respective pocas
-                float arcLenToFirstPoca = (firstPoca - firstCenter).dot(firstAxis0);
-                float arcLenToNextPoca  = (nextPoca  - nextCenter ).dot(nextAxis0);
-                
-                if (fOutputHistograms)
-                {
-                    fAxesDocaHist->Fill(lineDoca, 1.);
-                    f1stDocaArcLRatHist->Fill(arcLenToFirstPoca/firstEigenVals[0],1.);
-                    f1stDocaArcLRatPHist->Fill(arcLenToFirstPoca/firstToNextProjEigen,1.);
-                    f2ndDocaArcLRatHist->Fill(arcLenToNextPoca/nextEigenVals[0],1.);
-                    f2ndDocaArcLRatPHist->Fill(arcLenToNextPoca/nextPocaProjEigen,1.);
-                }
-                
-                if (lineDoca < fMaxDOCASeparation &&
-                    arcLenToFirstPoca > 0. && arcLenToFirstPoca          <  5. * firstEigenVals[0] &&
-                    arcLenToNextPoca  < 0. && std::abs(arcLenToNextPoca) < 10. * nextEigenVals[0])
-                {
-                    // Compute docas to both PCA axes
-                    float firstToNextPocaVecProj1 = std::fabs(firstAxis1.dot(firstToNextVec));
-                    float firstToNextPocaVecProj2 = std::fabs(firstAxis2.dot(firstToNextVec));
-                    float nextToFirstPocaVecProj1 = std::fabs(nextAxis1.dot(firstToNextVec));
-                    float nextToFirstPocaVecProj2 = std::fabs(nextAxis2.dot(firstToNextVec));
-                    
-                    // Get angular expansion factors based on the points of closest approach of the two axes
-                    float firstAngleScaleFactor = std::min(fAxisAngleScaleFactor, std::max(std::abs(arcLenToFirstPoca) / firstEigenVals(0),float(1.)));
-                    float nextAngleScaleFactor  = std::min(fAxisAngleScaleFactor, std::max(std::abs(arcLenToNextPoca)  / nextEigenVals(0), float(1.)));
                     
                     if (fOutputHistograms)
                     {
-                        fAxisDocaFirstProj1Hist->Fill(firstToNextPocaVecProj1, 1.);
-                        fAxisDocaFirstProj2Hist->Fill(firstToNextPocaVecProj2, 1.);
-                        fAxisDocaNextProj1Hist->Fill(nextToFirstPocaVecProj1, 1.);
-                        fAxisDocaNextProj2Hist->Fill(nextToFirstPocaVecProj2, 1.);
-                    }
-                    
-                    // Check these are consistent with the eigen values
-                    if (firstToNextPocaVecProj1 < firstAngleScaleFactor*firstEigenVals[1] && firstToNextPocaVecProj2 < firstAngleScaleFactor*firstEigenVals[2] &&
-                        nextToFirstPocaVecProj1 < nextAngleScaleFactor*nextEigenVals[1]   && nextToFirstPocaVecProj2 < nextAngleScaleFactor*nextEigenVals[2])
-                    {
-                        // So far so good, now look at the gap...
-                        // Last up try to compute the gap between the two clusters. This will be taken as
-                        // the projections of the eigenvectors of length given by their eigenvalues along
-                        // the vector between the two centers
-                        float projectionFirstClus  = firstEigenVals(0) * firstPosToNextPosUnit.dot(firstAxis0);
-                        float projectionNextClus   = nextEigenVals(0)  * firstPosToNextPosUnit.dot(nextAxis0);
-                        
-                        float gap = firstPosToNextPosLen - projectionFirstClus - projectionNextClus;
-                        
-                        if (gap < 20000. * nextEigenVals(0)) consistent = true;
-                        
-                        if (fOutputHistograms)
-                        {
-                            fG1stEndPtLenRatHist->Fill(std::min(arcLenToNextDoca/firstEigenVals[0],float(19.99)),1.);
-                            fG1stPocaProj1RatHist->Fill(std::abs(firstPocaProj1)/(pocaScaleFactor * firstEigenVals[1]),1.);
-                            fG1stPocaProj2RatHist->Fill(std::abs(firstPocaProj2)/(pocaScaleFactor * firstEigenVals[2]),1.);
-                            
-                            fGAxesDocaHist->Fill(lineDoca, 1.);
-                            fG1stDocaArcLRatHist->Fill(arcLenToFirstPoca/firstEigenVals[0],1.);
-                            fG2ndDocaArcLRatHist->Fill(arcLenToNextPoca/nextEigenVals[0],1.);
-                        }
+                        f1stTo2ndPosLenRatHist->Fill(firstPosToNextPosLen/firstToNextProjEigen, 1.);
+                        fGapRatHist->Fill(gapBetweenClusters/nextToFirstProjEigen, 1.);
                     }
                 }
             }
         }
     }
-
     
     return consistent;
 }
