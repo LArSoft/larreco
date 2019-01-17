@@ -135,7 +135,7 @@ namespace cluster{
     // a responsible particle for an EM process
     pi_serv->SetEveIdCalculator(new sim::EmEveIdCalculator);
 
-    LOG_DEBUG("ClusterCheater") << pi_serv->ParticleList();
+    MF_LOG_DEBUG("ClusterCheater") << pi_serv->ParticleList();
 
     // make a map of vectors of art::Ptrs keyed by eveID values and 
     // location in cryostat, TPC, plane coordinates of where the hit originated
@@ -187,7 +187,7 @@ namespace cluster{
       unsigned int plane    = hitMapItr.first.planeID.Plane;
       geo->Cryostat(cryostat).TPC(tpc).Plane(plane).LocalToWorld(local, xyz);
 
-      LOG_DEBUG("ClusterCheater") << "make cluster for eveID: " << hitMapItr.first.eveID
+      MF_LOG_DEBUG("ClusterCheater") << "make cluster for eveID: " << hitMapItr.first.eveID
 				  << " in cryostat: "           << cryostat
 				  << " tpc: "         	        << tpc     
 				  << " plane: "       	        << plane

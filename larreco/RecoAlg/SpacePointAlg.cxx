@@ -1026,7 +1026,7 @@ namespace  trkf{
             }// end loop over cryostats
         }// end if MC
         
-        // use mf::LogDebug instead of LOG_DEBUG because we reuse it in many lines
+        // use mf::LogDebug instead of MF_LOG_DEBUG because we reuse it in many lines
         // insertions are protected by mf::isDebugEnabled()
         mf::LogDebug debug("SpacePointAlg");
         if (mf::isDebugEnabled()) {

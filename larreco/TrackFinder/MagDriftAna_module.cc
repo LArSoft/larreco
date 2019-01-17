@@ -161,7 +161,7 @@ namespace hit {
     // 0 if there is no field
     fDirCosY = -DriftVelocity * MagField->FieldAtPoint().z() / Efield;
     fDirCosZ = +DriftVelocity * MagField->FieldAtPoint().y() / Efield;
-    LOG_VERBATIM("MagDriftAna")
+    MF_LOG_VERBATIM("MagDriftAna")
     << "Drift ratios: "
 		<< "dY/dX = " << fDirCosY << ", " 
     << "dZ/dX = " << fDirCosZ;

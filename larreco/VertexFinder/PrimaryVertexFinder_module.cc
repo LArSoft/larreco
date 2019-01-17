@@ -399,9 +399,9 @@ namespace vertex{
       
     }// end loop over vertex_collection_ind
 
-    LOG_VERBATIM("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');
-    LOG_VERBATIM("Summary") << "PrimaryVertexFinder Summary:";
-    for(size_t i = 0; i < vcol->size(); ++i) LOG_VERBATIM("Summary") << vcol->at(i) ;
+    MF_LOG_VERBATIM("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');
+    MF_LOG_VERBATIM("Summary") << "PrimaryVertexFinder Summary:";
+    for(size_t i = 0; i < vcol->size(); ++i) MF_LOG_VERBATIM("Summary") << vcol->at(i) ;
 
     evt.put(std::move(vcol));
     evt.put(std::move(vtassn));
