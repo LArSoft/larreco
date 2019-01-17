@@ -100,6 +100,7 @@ namespace calo {
     std::string fSpacePointModuleLabel;
     std::string fT0ModuleLabel;
     bool fUseArea;
+    bool fSCE;
     bool fFlipTrack_dQdx; //flip track direction if significant rise of dQ/dx at the track start
     CalorimetryAlg caloAlg;
 	
@@ -130,6 +131,7 @@ calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
     fSpacePointModuleLabel (pset.get< std::string >("SpacePointModuleLabel")       ),
     fT0ModuleLabel (pset.get< std::string >("T0ModuleLabel") ),
     fUseArea(pset.get< bool >("UseArea") ),
+    fSCE(pset.get< bool >("CorrectSCE")),
     fFlipTrack_dQdx(pset.get< bool >("FlipTrack_dQdx",true)),
     caloAlg(pset.get< fhicl::ParameterSet >("CaloAlg"))
 {
@@ -152,6 +154,8 @@ void calo::Calorimetry::beginJob()
 //------------------------------------------------------------------------------------//
 void calo::Calorimetry::produce(art::Event& evt)
 { 
+
+  
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
 
@@ -265,8 +269,8 @@ void calo::Calorimetry::produce(art::Event& evt)
             //Correct for SCE
             geo::Vector_t posOffsets = {0., 0., 0.};
             geo::Vector_t dirOffsets = {0., 0., 0.};
-            if(sce->EnableCalSpatialSCE()) posOffsets = sce->GetCalPosOffsets(geo::Point_t(pos));
-            if(sce->EnableCalSpatialSCE()) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{pos.X() + dir.X(), pos.Y() + dir.Y(), pos.Z() + dir.Z()});
+            if(sce->EnableCalSpatialSCE()&&fSCE) posOffsets = sce->GetCalPosOffsets(geo::Point_t(pos));
+            if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{pos.X() + dir.X(), pos.Y() + dir.Y(), pos.Z() + dir.Z()});
             TVector3 dir_corr = {dir.X() - dirOffsets.X() + posOffsets.X(), dir.Y() + dirOffsets.Y() - posOffsets.Y(), dir.Z() + dirOffsets.Z() - posOffsets.Z()};
             
             fTrkPitch = fTrkPitch * dir_corr.Mag() / pow(dir.Mag2(),0.5);
@@ -356,7 +360,7 @@ void calo::Calorimetry::produce(art::Event& evt)
               //Correct location for SCE
               auto loc = tracklist[trkIter]->LocationAtPoint(vmeta[ii]->Index());
               geo::Vector_t locOffsets = {0., 0., 0.,};
-              if(sce->EnableCalSpatialSCE()) locOffsets = sce->GetCalPosOffsets(geo::Point_t(loc));
+              if(sce->EnableCalSpatialSCE()&&fSCE) locOffsets = sce->GetCalPosOffsets(geo::Point_t(loc));
               xyz3d[0] = loc.X() - locOffsets.X();
               xyz3d[1] = loc.Y() + locOffsets.Y();
               xyz3d[2] = loc.Z() + locOffsets.Z();
@@ -366,7 +370,7 @@ void calo::Calorimetry::produce(art::Event& evt)
               
               //Correct pitch for SCE
               geo::Vector_t dirOffsets = {0., 0., 0.};
-              if(sce->EnableCalSpatialSCE()) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{loc.X() + dir_tmp.X(), loc.Y() + dir_tmp.Y(), loc.Z() + dir_tmp.Z()});
+              if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{loc.X() + dir_tmp.X(), loc.Y() + dir_tmp.Y(), loc.Z() + dir_tmp.Z()});
               const TVector3& dir = {dir_tmp.X() - dirOffsets.X() + locOffsets.X(), dir_tmp.Y() + dirOffsets.Y() - locOffsets.Y(), dir_tmp.Z() + dirOffsets.Z() - locOffsets.Z()}; 
               
               double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
@@ -756,8 +760,8 @@ void calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit, std::vector<double> t
     //Correct for SCE
     geo::Vector_t posOffsets = {0., 0., 0.};
     geo::Vector_t dirOffsets = {0., 0., 0.};
-    if(sce->EnableCalSpatialSCE()) posOffsets = sce->GetCalPosOffsets(geo::Point_t{xyz3d[0], xyz3d[1], xyz3d[2]});
-    if(sce->EnableCalSpatialSCE()) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{xyz3d[0] + kx, xyz3d[1] + ky, xyz3d[2] + kz});
+    if(sce->EnableCalSpatialSCE()&&fSCE) posOffsets = sce->GetCalPosOffsets(geo::Point_t{xyz3d[0], xyz3d[1], xyz3d[2]});
+    if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{xyz3d[0] + kx, xyz3d[1] + ky, xyz3d[2] + kz});
     
     xyz3d[0] = xyz3d[0] - posOffsets.X();
     xyz3d[1] = xyz3d[1] + posOffsets.Y();
