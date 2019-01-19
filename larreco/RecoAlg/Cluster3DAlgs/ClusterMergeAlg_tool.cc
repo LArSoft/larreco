@@ -172,16 +172,18 @@ void ClusterMergeAlg::configure(fhicl::ParameterSet const &pset)
         
         fFirstEigenValueHists.resize(3,nullptr);
         fNextEigenValueHists.resize(3,nullptr);
+        
+        std::vector<float> maxValsVec = {50., 100., 500.};
 
         for(size_t idx : {0, 1, 2})
         {
-            fFirstEigenValueHists[idx] = dir.make<TH1F>(Form("FEigen1st%1zu",idx),"Eigen Val", 200, 0., 1024./std::max(float(16*idx),float(1)));
-            fNextEigenValueHists[idx]  = dir.make<TH1F>(Form("FEigen2nd%1zu",idx),"Eigen Val", 200, 0., 1024./std::max(float(16*idx),float(1)));
+            fFirstEigenValueHists[idx] = dir.make<TH1F>(Form("FEigen1st%1zu",idx),"Eigen Val", 200, 0., maxValsVec[idx]);
+            fNextEigenValueHists[idx]  = dir.make<TH1F>(Form("FEigen2nd%1zu",idx),"Eigen Val", 200, 0., maxValsVec[idx]);
         }
         
-        fNumMergedClusters      = dir.make<TH1F>("NumMergedClus",      "Number Merged",             200,    0., 200.);
+        fNumMergedClusters      = dir.make<TH1F>("NumMergedClus",      "Number Merged",             200,    0., 1000.);
         
-        f1stTo2ndPosLenHist     = dir.make<TH1F>("1stTo2ndPosLen",     "Distance between Clusters", 250,    0., 500.);
+        f1stTo2ndPosLenHist     = dir.make<TH1F>("1stTo2ndPosLen",     "Distance between Clusters", 250,    0., 1000.);
         
         fRMaxFirstHist          = dir.make<TH1F>("rMaxFirst",          "Radius of First Cluster",   200,    0., 100.);
         fCosMaxFirstHist        = dir.make<TH1F>("CosMaxFirst",        "Cos Angle First Cyl/Axis",  200,    0., 1.  );
@@ -194,11 +196,11 @@ void ClusterMergeAlg::configure(fhicl::ParameterSet const &pset)
         f2ndTo1stProjEigenHist  = dir.make<TH1F>("2ndTo1stProjEigen",  "Projected Distance Next",   200,    0., 200.);
         
         fGapBetweenClusHist     = dir.make<TH1F>("ClusterGap",         "Gap Between Clusters",      400, -200., 200.);
-        fGapRatToLenHist        = dir.make<TH1F>("GapRatToLen",        "Ratio Gap to Distance",     400,  -20.,  20.);
+        fGapRatToLenHist        = dir.make<TH1F>("GapRatToLen",        "Ratio Gap to Distance",     100,   -8.,   2.);
 
-        fAxesDocaHist           = dir.make<TH1F>("AxesDocaHist",       "DOCA",                      200,    0., 200.);
-        f1stDocaArcLRatHist     = dir.make<TH1F>("ALenPOCA1Hist",      "Arc Len to POCA 1",         400, -200., 200.);
-        f2ndDocaArcLRatHist     = dir.make<TH1F>("ALenPOCA2Hist",      "Arc Len to POCA 2",         400, -200., 200.);
+        fAxesDocaHist           = dir.make<TH1F>("AxesDocaHist",       "DOCA",                      200,    0.,  25.);
+        f1stDocaArcLRatHist     = dir.make<TH1F>("ALenPOCA1Hist",      "Arc Len to POCA 1",         400,  -50.,  50.);
+        f2ndDocaArcLRatHist     = dir.make<TH1F>("ALenPOCA2Hist",      "Arc Len to POCA 2",         400,  -50.,  50.);
         
         f1stTo2ndPosLenRatHist  = dir.make<TH1F>("1stTo2ndPosLenRat",  "Ratio clus dist to eigen",  200.,   0.,  20.);
         fGapRatHist             = dir.make<TH1F>("GapRat",             "Ratio Gap to Next Eigen",   400,  -20.,  20.);
@@ -378,7 +380,7 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
     
     // We treat the PCA as defining a cyclinder of radius given by the quadrature sum of the two transverse eigenvalues
     float rMaxFirst    = fNumTransEigens * std::sqrt(firstEigenVals[0] * firstEigenVals[0] + firstEigenVals[1] * firstEigenVals[1]);
-    float cosMaxFirst  = std::max(firstEigenVals[2] / std::sqrt(firstEigenVals[2] * firstEigenVals[2] + rMaxFirst * rMaxFirst),float(0.8));
+    float cosMaxFirst  = firstEigenVals[2] / std::sqrt(firstEigenVals[2] * firstEigenVals[2] + rMaxFirst * rMaxFirst);
     float cosFirstAxis = firstAxis2.dot(firstPosToNextPosUnit);
     
     // Now calculate a measure of the length inside the cylider along the vector between the cluster centers
@@ -395,6 +397,9 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
     }
     else firstToNextProjEigen /= cosFirstAxis;
     
+    // Get scale factor for selecting this pair
+    float firstPosToNextPosScaleFactor = 3. * cosFirstAxis;
+    
     // A brief interlude to fill a few histograms
     if (fOutputHistograms)
     {
@@ -407,7 +412,7 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
     }
 
     // This makes first selection, it should eliminate most of the junk cases:
-    if (firstPosToNextPosLen < 3. * firstToNextProjEigen)
+    if (firstPosToNextPosLen < firstPosToNextPosScaleFactor * firstToNextProjEigen)
     {
         // Recover the axes for the next PCA and make sure pointing convention is observed
         Eigen::Vector3f nextAxis0(nextPCA.getEigenVectors().row(0));
@@ -432,9 +437,10 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
                                                1.5 * sqrt(         nextPCA.getEigenValues()[2]));
         
         // Repeat the calculation of the length of the vector through the cluster "cylinder"...
-        float rMaxNext    = fNumTransEigens * std::sqrt(nextEigenVals[0] * nextEigenVals[0] + nextEigenVals[1] * nextEigenVals[1]);
-        float cosMaxNext  = std::max(nextEigenVals[2] / std::sqrt(nextEigenVals[2] * nextEigenVals[2] + rMaxNext * rMaxNext),float(0.8));
-        float cosNextAxis = nextAxis2.dot(firstPosToNextPosUnit);
+        float rMaxNext         = fNumTransEigens * std::sqrt(nextEigenVals[0] * nextEigenVals[0] + nextEigenVals[1] * nextEigenVals[1]);
+        float cosMaxNext       = nextEigenVals[2] / std::sqrt(nextEigenVals[2] * nextEigenVals[2] + rMaxNext * rMaxNext);
+        float cosNextAxis      = nextAxis2.dot(firstPosToNextPosUnit);
+        float cosFirstNextAxis = firstAxis2.dot(nextAxis2);
         
         // Now calculate a measure of the length inside the cylider along the vector between the cluster centers
         float nextToFirstProjEigen = nextEigenVals[2];
@@ -454,8 +460,8 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
         float gapBetweenClusters = firstPosToNextPosLen - firstToNextProjEigen - nextToFirstProjEigen;
 
         // Allow a generous gap but significantly derate as angle to next cluster increases
-        //float nextToFirstScaleFactor = 6. * firstAxis2.dot(nextAxis2);
-        float nextToFirstScaleFactor = 3. * firstAxis2.dot(nextAxis2);
+        //float nextToFirstScaleFactor = 6. * cosFirstNextAxis;
+        float nextToFirstScaleFactor = 3. * cosFirstNextAxis;
         
         nextToFirstScaleFactor = 6.;
         
@@ -473,6 +479,7 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
             fGapRatToLenHist->Fill(gapBetweenClusters/firstPosToNextPosLen, 1.);
         }
 
+        // Now that we have the information for the second cluster we can make a bit tighter selection cut based on distance from first cluster
         // If the gap is negative then the clusters "overlap" (one might be embedded or the PCA axes extend past the space points)
         // We simply check that they are not too far apart
         if (gapBetweenClusters < nextToFirstScaleFactor * nextToFirstProjEigen)
@@ -493,13 +500,13 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
                                        + nextEigenVals[1] * std::abs(nextDocaVecUnit.dot(nextAxis1))
                                        + nextEigenVals[2] * std::abs(nextDocaVecUnit.dot(nextAxis2));
             
-            float nextDocaScaleFactor  = 5.; //6. * firstAxis2.dot(nextAxis2);
+            float nextDocaScaleFactor  = 3. * cosFirstNextAxis;
             
             // Now we start the search for matching clusters that are essentially side by side
             // These clusters should be in the forward direction (hence an angle cut), arc length along the primary axis to the center should place it
             // "outside" the first cluster and looking back from the next cluster we can't be too far away....
             //else if (cosFirstAxis > cosMaxFirst && std::abs(arcLenToFirstDoca) > 0.8 * nextEigenVals[2] && firstPosToNextPosLen < 10. * nextToFirstProjEigen)
-            if (cosFirstAxis > cosMaxFirst && nextDocaVec.norm() < nextDocaScaleFactor * nextDocaVecProjEigen)
+            if (cosFirstAxis > std::max(cosMaxFirst,float(0.8)) && nextDocaVec.norm() < nextDocaScaleFactor * nextDocaVecProjEigen)
             {
                 // Now check the distance of closest approach betweent the two vectors
                 // Closest approach calculaiton results vectors
@@ -511,7 +518,7 @@ bool ClusterMergeAlg::linearClusters(reco::ClusterParameters& firstCluster, reco
                 float lineDoca = closestApproach(firstCenter, firstAxis2, nextCenter, nextAxis2, firstPoca, nextPoca, firstToNextVec);
                 
                 // Scaling factor to increase doca distance as distance grows
-                float rMaxScaleFactor = 2. * std::min(firstPosToNextPosLen / firstToNextProjEigen, float(3.));
+                float rMaxScaleFactor = 3. * std::min(firstPosToNextPosLen / firstToNextProjEigen, float(3.));
             
                 if (fOutputHistograms)
                 {
