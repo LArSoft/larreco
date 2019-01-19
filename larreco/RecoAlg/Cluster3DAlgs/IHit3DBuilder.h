@@ -38,6 +38,12 @@ public:
     virtual ~IHit3DBuilder() noexcept = default;
     
     /**
+     *  @brief The space point building should output the hit collection
+     *         for those hits which combine to form space points - a nice noise filter!
+     */
+    virtual void produces(art::EDProducer*) = 0;
+
+    /**
      *  @brief Interface for configuring the particular algorithm tool
      *
      *  @param ParameterSet  The input set of parameters for configuration

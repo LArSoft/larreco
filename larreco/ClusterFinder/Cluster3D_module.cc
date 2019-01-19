@@ -459,10 +459,9 @@ Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
     
     m_spacePointInstance = "Voronoi";
     m_extremeInstance    = "Extreme";
-
-    produces< std::vector<recob::Hit>>();
-    produces< art::Assns<recob::Wire,   recob::Hit>>();
-    produces< art::Assns<raw::RawDigit, recob::Hit>>();
+    
+    // Handle special case of Space Point building outputting a new hit collection
+    m_hit3DBuilderAlg->produces(this);
     
     produces< std::vector<recob::PCAxis>>();
     produces< std::vector<recob::PFParticle>>();

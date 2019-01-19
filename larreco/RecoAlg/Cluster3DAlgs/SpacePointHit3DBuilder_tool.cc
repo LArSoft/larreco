@@ -52,6 +52,12 @@ public:
      */
     ~SpacePointHit3DBuilder();
     
+    /**
+     *  @brief Each algorithm may have different objects it wants "produced" so use this to
+     *         let the top level producer module "know" what it is outputting
+     */
+    virtual void produces(art::EDProducer*) override;
+
     void configure(const fhicl::ParameterSet&) override;
     
     /**
@@ -76,7 +82,9 @@ private:
      */
     art::InputTag                        fSpacePointProducerLabel;
     art::InputTag                        fHitProducerLabel;
-    
+    bool                                 fDoWireAssns;
+    bool                                 fDoRawDigitAssns;
+
     bool                                 fEnableMonitoring;       ///<
     mutable std::vector<float>           fTimeVector;             ///<
     
@@ -97,13 +105,25 @@ SpacePointHit3DBuilder::SpacePointHit3DBuilder(fhicl::ParameterSet const &pset)
 SpacePointHit3DBuilder::~SpacePointHit3DBuilder()
 {
 }
+    
+void SpacePointHit3DBuilder::produces(art::EDProducer* producer)
+{
+    producer->produces< std::vector<recob::Hit>>();
+    
+    if (fDoWireAssns)     producer->produces< art::Assns<recob::Wire,   recob::Hit>>();
+    if (fDoRawDigitAssns) producer->produces< art::Assns<raw::RawDigit, recob::Hit>>();
+    
+    return;
+}
 
 //------------------------------------------------------------------------------------------------------------------------------------------
     
 void SpacePointHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 {
-    fSpacePointProducerLabel = pset.get<art::InputTag>("SpacePointProducerLabel");
-    fHitProducerLabel        = pset.get<art::InputTag>("HitProducerLabel");
+    fSpacePointProducerLabel = pset.get<art::InputTag>("SpacePointProducerLabel"  );
+    fHitProducerLabel        = pset.get<art::InputTag>("HitProducerLabel"         );
+    fDoWireAssns             = pset.get<bool         >("DoWireAssns",         true);
+    fDoRawDigitAssns         = pset.get<bool         >("DoRawDigitAssns",     true);
     fEnableMonitoring        = pset.get<bool>         ("EnableMonitoring",    true);
     
     art::ServiceHandle<geo::Geometry> geometry;

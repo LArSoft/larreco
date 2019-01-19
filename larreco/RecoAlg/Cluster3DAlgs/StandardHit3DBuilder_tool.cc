@@ -80,7 +80,13 @@ public:
      */
     ~StandardHit3DBuilder();
     
-    void configure(const fhicl::ParameterSet&) override;
+    /**
+     *  @brief Each algorithm may have different objects it wants "produced" so use this to
+     *         let the top level producer module "know" what it is outputting
+     */
+    virtual void produces(art::EDProducer*) override;
+
+    virtual void configure(const fhicl::ParameterSet&) override;
     
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -88,12 +94,12 @@ public:
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    void Hit3DBuilder(art::EDProducer&, art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
+    virtual void Hit3DBuilder(art::EDProducer&, art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
     
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    float getTimeToExecute(IHit3DBuilder::TimeValues index) const override {return m_timeVector[index];}
+    virtual float getTimeToExecute(IHit3DBuilder::TimeValues index) const override {return m_timeVector[index];}
     
 private:
 
@@ -196,6 +202,8 @@ private:
      *  @brief Data members to follow
      */
     art::InputTag                        m_hitFinderTag;
+    bool                                 m_doWireAssns;
+    bool                                 m_doRawDigitAssns;
     float                                m_numSigmaPeakTime;
     float                                m_hitWidthSclFctr;
     float                                m_deltaPeakTimeSig;
@@ -235,12 +243,24 @@ StandardHit3DBuilder::StandardHit3DBuilder(fhicl::ParameterSet const &pset) :
 StandardHit3DBuilder::~StandardHit3DBuilder()
 {
 }
+    
+void StandardHit3DBuilder::produces(art::EDProducer* producer)
+{
+    producer->produces< std::vector<recob::Hit>>();
+    
+    if (m_doWireAssns)     producer->produces< art::Assns<recob::Wire,   recob::Hit>>();
+    if (m_doRawDigitAssns) producer->produces< art::Assns<raw::RawDigit, recob::Hit>>();
+    
+    return;
+}
 
 //------------------------------------------------------------------------------------------------------------------------------------------
     
 void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 {
-    m_hitFinderTag     = pset.get<art::InputTag   >("HitFinderTag");
+    m_hitFinderTag     = pset.get<art::InputTag   >("HitFinderTag",        "gaushits");
+    m_doWireAssns      = pset.get<bool            >("DoWireAssns",         true);
+    m_doRawDigitAssns  = pset.get<bool            >("DoRawDigitAssns",     true);
     m_enableMonitoring = pset.get<bool            >("EnableMonitoring",    true);
     m_numSigmaPeakTime = pset.get<float           >("NumSigmaPeakTime",    3.  );
     m_hitWidthSclFctr  = pset.get<float           >("HitWidthScaleFactor", 6.  );
@@ -334,7 +354,7 @@ void StandardHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt, 
     m_timeVector.resize(NUMTIMEVALUES, 0.);
     
     // Get a hit refiner
-    recob::HitRefinerAssociator hitRefiner(prod, evt, m_hitFinderTag, true, true);
+    recob::HitRefinerAssociator hitRefiner(prod, evt, m_hitFinderTag, m_doWireAssns, m_doRawDigitAssns);
     
     // Temporary definition
     RecobHitToPtrMap recobHitToHitMap;
