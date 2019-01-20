@@ -1668,13 +1668,7 @@ namespace tca {
       float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[lastPt].Pos[0]) + 1;
       float hitFrac = ntpwc / nwires;
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: T"<<tj.ID<<" lastPt "<<lastPt<<" npwc "<<npwc<<" ntpwc "<<ntpwc<<" nadj "<<nadj<<" hitFrac "<<hitFrac;
-/*
-      if(tcc.useAlg[kNewStpCuts]) {
-        // use new cuts
-        if(hitFrac > fQualityCuts[0] && ntpwc > minPts) break;
-      }
-*/
-      if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj == minPts) break;
+      if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj >= minPts - 1) break;
     } // lastPt
     
     // trim the last point if it just after a dead wire.
