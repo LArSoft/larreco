@@ -35,39 +35,42 @@ standard_hitfinder:
 
 gaus_hitfinder:
 {
- module_type:          "GausHitFinder"
- CalDataModuleLabel:   "caldata"
- MaxMultiHit:          10                 # maximum hits for multi fit
- AreaMethod:           0                  # 0 = area by integral, 1 = area by gaussian area formula
- AreaNorms:            [ 13.25, 26.31 ]   # normalizations that put signal area in
-                                          # same scale as peak height.
- LongMaxHits:          [  1,  1,  1]      # max number hits in long pulse trains
- LongPulseWidth:       [ 16, 16, 16]      # max widths for hits in long pulse trains
- TryNplus1Fits:        true		          # true will try to re-fit poorly modeled hits with n+1 gaussians
- 					                      # false will NOT try to re-fit poorly modled hits
- Chi2NDF:              2000               # maximum Chisquared / NDF allowed for a hit to be saved (Set very high by default)
+    module_type:          "GausHitFinder"
+    CalDataModuleLabel:   "caldata"
+    MaxMultiHit:          10                 # maximum hits for multi gaussia fit attempt
+    AreaMethod:           0                  # 0 = area by integral, 1 = area by gaussian area formula
+    AreaNorms:            [ 13.25, 26.31 ]   # normalizations that put signal area in
+                                             # same scale as peak height.
+    LongMaxHits:          [  1,  1,  1]      # max number hits in long pulse trains
+    LongPulseWidth:       [ 16, 16, 16]      # max widths for hits in long pulse trains
+    Chi2NDF:              2000               # maximum Chisquared / NDF allowed to store fit, if fail
+                                             # will use "long" pulse method to return hit
+    AllHitsInstanceName:  ""                 # If non-null then this will be the instance name of all hits output to event
+                                             # in this case there will be two hit collections, one filtered and one containing all hits
 
- AllHitsInstanceName:  ""                 # If non-null then this will be the instance name of all hits output to event
-                                          # in this case there will be two hit collections, one filtered and one containing all hits
- FilterHits:           false              # true = do not keep undesired hits according to settings of HitFilterAlg object
- PeakFitter:           @local::peakfitter_gaussian
- HitFilterAlg:
- {
-   AlgName: "HitFilterAlg"
-   MinPulseHeight: [5.0, 5.0, 5.0]        #minimum hit peak amplitude per plane
-   MinPulseSigma:  [1.0, 1.0, 1.0]        #minimum hit rms per plane
- }
- # Candididate peak finding done by tool, one tool instantiated per plane (but could be other divisions too)
- HitFinderToolVec:
- {
-   CandidateHitsPlane0:  @local::candhitfinder_standard  # plane 0
-   CandidateHitsPlane1:  @local::candhitfinder_standard  # plane 1
-   CandidateHitsPlane2:  @local::candhitfinder_standard  # plane 2
- }
-                                          # In addition to the filter alg we can also filter hits on the same pulse train
- PulseHeightCuts:      [3.0,  3.0,  3.0 ] # Minimum pulse height
- PulseWidthCuts:       [2.0,  1.5,  1.0 ] # Minimum pulse width
- PulseRatioCuts:       [0.35, 0.40, 0.20] # Ratio of pulse height to width
+    # Candididate peak finding done by tool, one tool instantiated per plane (but could be other divisions too)
+    HitFinderToolVec:
+    {
+        CandidateHitsPlane0:  @local::candhitfinder_standard  # plane 0
+        CandidateHitsPlane1:  @local::candhitfinder_standard  # plane 1
+        CandidateHitsPlane2:  @local::candhitfinder_standard  # plane 2
+    }
+
+    # Declare the peak fitting tool
+    PeakFitter:           @local::peakfitter_gaussian
+
+    # The below are for the hit filtering section of the gaushit finder
+    FilterHits:           false              # true = do not keep undesired hits according to settings of HitFilterAlg object
+    HitFilterAlg:
+    {
+        AlgName: "HitFilterAlg"
+        MinPulseHeight: [5.0, 5.0, 5.0]      #minimum hit peak amplitude per plane
+        MinPulseSigma:  [1.0, 1.0, 1.0]      #minimum hit rms per plane
+    }
+                                             # In addition to the filter alg we can also filter hits on the same pulse train
+    PulseHeightCuts:      [3.0,  3.0,  3.0 ] # Minimum pulse height
+    PulseWidthCuts:       [2.0,  1.5,  1.0 ] # Minimum pulse width
+    PulseRatioCuts:       [0.35, 0.40, 0.20] # Ratio of pulse height to width
 }
 
 # Currently have to tell each tool which plane it is operating on... this is really

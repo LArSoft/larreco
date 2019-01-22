@@ -78,7 +78,8 @@ private:
     float                fMinHitHeight;         //< Drop candidate hits with height less than this
     size_t               fNumInterveningTicks;  //< Number ticks between candidate hits to merge
     int                  fStructuringElement;   //< Window size for morphologcial filter
-    bool                 fOutputHistograms;     //< If true will generate a very large file of hists!
+    bool                 fOutputHistograms;     //< If true will generate summary style histograms
+    bool                 fOutputWaveforms;      //< If true will output waveform related info <<< very big output file!
 
     art::TFileDirectory* fHistDirectory;
     
@@ -120,6 +121,7 @@ void CandHitMorphological::configure(const fhicl::ParameterSet& pset)
     fNumInterveningTicks = pset.get< size_t >("NumInterveningTicks", 6);
     fStructuringElement  = pset.get< int    >("StructuringElement",  20);
     fOutputHistograms    = pset.get< bool   >("OutputHistograms",    false);
+    fOutputWaveforms     = pset.get< bool   >("OutputWaveforms",     false);
 
     // Recover the baseline tool
     fWaveformTool = art::make_tool<reco_tool::IWaveformTool> (pset.get<fhicl::ParameterSet>("WaveformAlgs"));
@@ -190,7 +192,7 @@ void CandHitMorphological::findHitCandidates(const Waveform&  waveform,
     }
     
     // Keep track of histograms if requested
-    if (fOutputHistograms)
+    if (fOutputWaveforms)
     {
         // Recover the details...
         std::vector<geo::WireID> wids  = fGeometry->ChannelToWire(channel);
@@ -233,14 +235,21 @@ void CandHitMorphological::findHitCandidates(const Waveform&  waveform,
             maxDerivHist->Fill(hitCandidate.minTick,   hitCandidate.minDerivative);
             strtStopHist->Fill(hitCandidate.startTick, waveform.at(hitCandidate.startTick));
             strtStopHist->Fill(hitCandidate.stopTick,  waveform.at(hitCandidate.stopTick));
-
-            fDStopStartHist->Fill(hitCandidate.stopTick - hitCandidate.startTick, 1.);
-            fDMaxTickMinTickHist->Fill(hitCandidate.minTick - hitCandidate.maxTick, 1.);
-            fDMaxDerivMinDerivHist->Fill(hitCandidate.maxDerivative - hitCandidate.minDerivative, 1.);
         }
         
         fLastChannel = channel;
         fChannelCnt++;
+    }
+    
+    if (fOutputHistograms)
+    {
+        // Fill hits
+        for(const auto& hitCandidate : hitCandidateVec)
+        {
+            fDStopStartHist->Fill(hitCandidate.stopTick - hitCandidate.startTick, 1.);
+            fDMaxTickMinTickHist->Fill(hitCandidate.minTick - hitCandidate.maxTick, 1.);
+            fDMaxDerivMinDerivHist->Fill(hitCandidate.maxDerivative - hitCandidate.minDerivative, 1.);
+        }
     }
     
     return;

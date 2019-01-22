@@ -31,6 +31,15 @@ class kdTree
 {
 public:
     /**
+     *  @brief  Default Constructor
+     */
+    kdTree() : fEnableMonitoring(false),
+               fTimeToBuild(0.),
+               fPairSigmaPeakTime(0.),
+               fRefLeafBestDist(0.),
+               fMaxWireDeltas(0) {}
+
+    /**
      *  @brief  Constructor
      * 
      *  @param  pset
@@ -83,7 +92,7 @@ public:
      */
     KdTreeNode BuildKdTree(const reco::HitPairListPtr&, KdTreeNodeList&) const;
 
-    float getTimeToExecute() const {return m_timeToBuild;}
+    float getTimeToExecute() const {return fTimeToBuild;}
     
 private:
     
@@ -92,12 +101,14 @@ private:
      */
     bool consistentPairs(const reco::ClusterHit3D* pair1, const reco::ClusterHit3D* pair2, float& hitSeparation) const;
     
-    float DistanceBetweenNodes(const reco::ClusterHit3D*,const reco::ClusterHit3D*) const;
-    
-    bool           m_enableMonitoring;      ///<
-    mutable float  m_timeToBuild;           ///<
-    float          m_pairSigmaPeakTime;     ///< Consider hits consistent if "significance" less than this
-    float          m_refLeafBestDist;       ///< Set neighborhood distance to this when ref leaf found
+    float DistanceBetweenNodes  (const reco::ClusterHit3D*,const reco::ClusterHit3D*) const;
+    float DistanceBetweenNodesYZ(const reco::ClusterHit3D*,const reco::ClusterHit3D*) const;
+
+    bool           fEnableMonitoring;      ///<
+    mutable float  fTimeToBuild;           ///<
+    float          fPairSigmaPeakTime;     ///< Consider hits consistent if "significance" less than this
+    float          fRefLeafBestDist;       ///< Set neighborhood distance to this when ref leaf found
+    int            fMaxWireDeltas;          ///< Maximum total number of delta wires
 
 };
     

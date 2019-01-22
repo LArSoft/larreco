@@ -21,9 +21,10 @@ standard_standardhit3dbuilder:
 
 standard_spacepointhit3dbuilder:
 {
-  tool_type:            SpacePointHit3DBuilder
-  SpacePointTag:        "SpacePointSolver"
-  EnableMonitoring:     true  # enable monitoring of functions
+  tool_type:               SpacePointHit3DBuilder
+  SpacePointProducerLabel: "SpacePointSolver"
+  HitProducerLabel:        "gaushit"
+  EnableMonitoring:        true  # enable monitoring of functions
 }
 
 standard_cluster3dprincipalcomponentsalg:
@@ -33,6 +34,7 @@ standard_cluster3dprincipalcomponentsalg:
 
 standard_cluster3dParamsBuilder:
 {
+  tool_type:                ClusterParamsBuilder
   ClusterMinHits:           3
   ClusterMinUniqueFraction: 0.5
   ClusterMaxLostFraction:   0.5
@@ -43,7 +45,8 @@ standard_cluster3dMergeAlg:
 {
   tool_type:              ClusterMergeAlg
   EnableMonitoring:       true    # enable monitoring of functions
-  MinCosAxisAng:          0.95    # Minimum cos(angle) between axes
+  AxisAngleScaleFactor:   5.
+  MinTransEigenVal:       0.09
   PrincipalComponentsAlg: @local::standard_cluster3dprincipalcomponentsalg
 }
 
