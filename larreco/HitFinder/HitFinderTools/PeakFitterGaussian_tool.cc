@@ -9,6 +9,7 @@
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 #include "cetlib_except/exception.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "larcore/Geometry/Geometry.h"
@@ -73,11 +74,19 @@ public:
     
 private:
     // Member variables from the fhicl file
-    double                   fMinWidth;      ///< minimum initial width for gaussian fit
-    double                   fMaxWidthMult;  ///< multiplier for max width for gaussian fit
-    double                   fPeakRange;     ///< set range limits for peak center
-    double                   fAmpRange;      ///< set range limit for peak amplitude
-    bool                     fFloatBaseline; ///< Allow baseline to "float" away from zero
+    double                   fMinWidth;          ///< minimum initial width for gaussian fit
+    double                   fMaxWidthMult;      ///< multiplier for max width for gaussian fit
+    double                   fPeakRange;         ///< set range limits for peak center
+    double                   fAmpRange;          ///< set range limit for peak amplitude
+    bool                     fFloatBaseline;     ///< Allow baseline to "float" away from zero
+    bool                     fOutputHistograms;  ///< If true will generate summary style histograms
+
+    TH1F*                    fNumCandHitsHist;
+    TH1F*                    fROISizeHist;      
+    TH1F*                    fPeakPositionHist; 
+    TH1F*                    fPeakWidHist;      
+    TH1F*                    fPeakAmpitudeHist; 
+    TH1F*                    fBaselineHist;         
     
     mutable BaselinedGausFitCache fFitCache; ///< Preallocated ROOT functions for the fits.
     
@@ -100,17 +109,36 @@ PeakFitterGaussian::~PeakFitterGaussian()
 void PeakFitterGaussian::configure(const fhicl::ParameterSet& pset)
 {
     // Start by recovering the parameters
-    fMinWidth      = pset.get<double>("MinWidth",      0.5);
-    fMaxWidthMult  = pset.get<double>("MaxWidthMult",  3.);
-    fPeakRange     = pset.get<double>("PeakRangeFact", 2.);
-    fAmpRange      = pset.get<double>("PeakAmpRange",  2.);
-    fFloatBaseline = pset.get< bool >("FloatBaseline", false);
+    fMinWidth         = pset.get<double>("MinWidth",         0.5);
+    fMaxWidthMult     = pset.get<double>("MaxWidthMult",     3.);
+    fPeakRange        = pset.get<double>("PeakRangeFact",    2.);
+    fAmpRange         = pset.get<double>("PeakAmpRange",     2.);
+    fFloatBaseline    = pset.get< bool >("FloatBaseline",    false);
+    fOutputHistograms = pset.get< bool >("OutputHistograms", false);
     
-    fHistogram    = TH1F("PeakFitterHitSignal","",500,0.,500.);
+    fHistogram = TH1F("PeakFitterHitSignal","",500,0.,500.);
     
     fHistogram.Sumw2();
     
     std::string function = "Gaus(0)";
+    
+    // If asked, define the global histograms
+    if (fOutputHistograms)
+    {
+        // Access ART's TFileService, which will handle creating and writing
+        // histograms and n-tuples for us.
+        art::ServiceHandle<art::TFileService> tfs;
+
+        // Make a directory for these histograms
+        art::TFileDirectory dir = tfs.get()->mkdir("PeakFit");
+
+        fNumCandHitsHist  = dir.make<TH1F>("NumCandHits",   "# Candidate Hits", 100,   0., 100.);
+        fROISizeHist      = dir.make<TH1F>("ROISize",       "ROI Size",         400,   0., 400.);
+        fPeakPositionHist = dir.make<TH1F>("PeakPosition",  "Peak Position",    200,   0., 400.);
+        fPeakWidHist      = dir.make<TH1F>("PeadWidth",     "Peak Width",       100,   0.,  25.);
+        fPeakAmpitudeHist = dir.make<TH1F>("PeakAmplitude", "Peak Amplitude",   100,   0., 200.);
+        fBaselineHist     = dir.make<TH1F>("Baseline",      "Baseline",         200, -25.,  25.);
+    }
     
     return;
 }
@@ -173,9 +201,16 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     // Set the baseline if so desired
     float const baseline = fFloatBaseline? roiSignalVec.at(startTime): 0.0;
     
-    Gaus.FixParameter(nGaus * 3, baseline); // last parameter is the baseline
+    Gaus.FixParameter(nGaus * 3, roiSignalVec.at(startTime)); // last parameter is the baseline
 
 #endif // 0
+
+    if (fOutputHistograms)
+    {
+        fNumCandHitsHist->Fill(hitCandidateVec.size(), 1.);
+        fROISizeHist->Fill(roiSize, 1.);
+        fBaselineHist->Fill(baseline, 1.);
+    }
 
     // ### Setting the parameters for the Gaussian Fit ###
     int parIdx{0};
@@ -186,6 +221,13 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
         double const amplitude  = candidateHit.hitHeight - baseline;
         double const meanLowLim = std::max(peakMean - fPeakRange * peakWidth,              0.);
         double const meanHiLim  = std::min(peakMean + fPeakRange * peakWidth, double(roiSize));
+
+        if (fOutputHistograms)
+        {
+            fPeakPositionHist->Fill(peakMean, 1.);
+            fPeakWidHist->Fill(peakWidth, 1.);
+            fPeakAmpitudeHist->Fill(amplitude, 1.);
+        }
         
         Gaus.SetParameter(  parIdx, amplitude);
         Gaus.SetParameter(1+parIdx, peakMean);
