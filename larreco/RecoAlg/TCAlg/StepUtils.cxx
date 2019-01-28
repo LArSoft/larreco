@@ -1160,12 +1160,12 @@ namespace tca {
     unsigned int ipl = planeID.Plane;
     if(wire > slc.lastWire[ipl]) return;
     // Assume a signal exists on a dead wire
-    if(slc.wireHitRange[ipl][wire].first == -1) sigOK = true;
-    if(slc.wireHitRange[ipl][wire].first < 0) return;
-    unsigned int firstHit = (unsigned int)slc.wireHitRange[ipl][wire].first;
-    unsigned int lastHit = (unsigned int)slc.wireHitRange[ipl][wire].second;
+    if(!evt.goodWire[ipl][wire]) sigOK = true;
+    if(slc.wireHitRange[ipl][wire].first == UINT_MAX) return;
+    unsigned int firstHit = slc.wireHitRange[ipl][wire].first;
+    unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
     float fwire = wire;
-    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+    for(unsigned int iht = firstHit; iht <= lastHit; ++iht) {
       if(slc.slHits[iht].InTraj == tj.ID) continue;
       if(slc.slHits[iht].InTraj == SHRT_MAX) continue;
       auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
@@ -1323,8 +1323,8 @@ namespace tca {
       int wire = wires[ii];
       if(wire < 0 || wire > (int)slc.lastWire[plane]) continue;
       // Assume a signal exists on a dead wire
-      if(slc.wireHitRange[plane][wire].first == -1) sigOK = true;
-      if(slc.wireHitRange[plane][wire].first < 0) continue;
+      if(slc.wireHitRange[plane][wire].first == UINT_MAX) sigOK = true;
+      if(slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
       wireWindow[0] = wire;
       wireWindow[1] = wire;
       bool hitsNear;
@@ -1435,7 +1435,8 @@ namespace tca {
     geo::PlaneID planeID = DecodeCTP(tj.CTP);
     unsigned short ipl = planeID.Plane;
     while(nextWire > slc.firstWire[ipl] && nextWire < slc.lastWire[ipl]) {
-      if(slc.wireHitRange[ipl][nextWire].first >= 0) break;
+      if(evt.goodWire[ipl][nextWire]) break;
+//      if(slc.wireHitRange[ipl][nextWire].first >= 0) break;
       nextWire -= tj.StepDir;
     }
     if(nextWire == slc.lastWire[ipl] - 1) return;
@@ -3041,7 +3042,7 @@ namespace tca {
         // launch RevProp if this wire is dead
         unsigned int wire = std::nearbyint(tp.Pos[0]);
         unsigned short plane = DecodeCTP(tp.CTP).Plane;
-        needsRevProp = (wire < slc.nWires[plane] && slc.wireHitRange[plane][wire].first == -1);
+        needsRevProp = (wire < slc.nWires[plane] && !evt.goodWire[plane][wire]);
         if(tcc.dbgStp && needsRevProp) mf::LogVerbatim("TC")<<"FTB: Previous wire "<<wire<<" is dead. Call ReversePropagate";
       } // NewStpCuts
       if(!needsRevProp) {
