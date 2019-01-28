@@ -2036,7 +2036,6 @@ namespace tca {
     if(tcc.match3DCuts[0] <= 0) return;
     
     bool prt = (tcc.dbgPFP && tcc.dbgSlc);
-    
     if(prt) mf::LogVerbatim("TC")<<" inside FindPFParticles";
     // clear matchVec
     slc.matchVec.clear();
@@ -2197,7 +2196,6 @@ namespace tca {
     if(!tcc.modes[kTestBeam]) {
       Match3DVtxTjs(slc, prt);
     }
-
     // define the PFParticleList
     for(unsigned int indx = 0; indx < slc.matchVec.size(); ++indx) {
       auto& ms = slc.matchVec[indx];
