@@ -4038,9 +4038,10 @@ namespace tca {
     std::array<float, 2> point;
     for(unsigned int wire = loWire; wire < hiWire; ++wire) {
       // skip bad wires or no hits on the wire
-      if(slc.wireHitRange[ipl][wire].first < 0) continue;
-      unsigned int firstHit = (unsigned int)slc.wireHitRange[ipl][wire].first;
-      unsigned int lastHit = (unsigned int)slc.wireHitRange[ipl][wire].second;
+//      if(slc.wireHitRange[ipl][wire].first < 0) continue;
+      if(slc.wireHitRange[ipl][wire].first == UINT_MAX) continue;
+      unsigned int firstHit = slc.wireHitRange[ipl][wire].first;
+      unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
         // used in a trajectory?
         if(slc.slHits[iht].InTraj != 0) continue;
