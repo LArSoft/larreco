@@ -544,15 +544,7 @@ namespace tca {
     unsigned int allHitsIndex; // index into fHits
     int InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
   };
-/*
-  // lower/upper range of hits indexed into allHits for a CTP - wire pair
-  struct AllHitsRange {
-    CTP_t CTP;
-    unsigned int wire {UINT_MAX};
-    unsigned int firstHit {UINT_MAX}; 
-    unsigned int lastHit {UINT_MAX};
-  };
-*/
+
   struct SptHits {
     unsigned int sptIndex {UINT_MAX};                   ///< index into SpacePoint collection offset by sptHandle
     std::array<unsigned int, 3> allHitsIndex {{UINT_MAX}}; ///< index into allHits collection for each plane
