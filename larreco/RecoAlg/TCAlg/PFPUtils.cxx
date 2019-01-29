@@ -876,7 +876,7 @@ namespace tca {
         float fwire = tcc.geom->WireCoordinate(ijtp3.Pos[1], ijtp3.Pos[2], kplane, tpc, cstat);
         if(fwire < -0.4) continue;
         unsigned int kwire = std::nearbyint(fwire);
-        if(kwire < slc.wireHitRange[kplane].size() && slc.wireHitRange[kplane][kwire].first == -1) {
+        if(kwire < slc.wireHitRange[kplane].size() && !evt.goodWire[kplane][kwire]) {
           // accumulate the fit sums
           if(doFit) Fit3D(1, ijtp3.Pos, ijtp3.Dir, point, dir);
           // fill Tp3s?
