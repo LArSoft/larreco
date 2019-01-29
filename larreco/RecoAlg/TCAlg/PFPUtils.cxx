@@ -3043,7 +3043,7 @@ namespace tca {
         // check for dead wires
         unsigned int wire = std::nearbyint(pos[0]);
         if(wire > slc.nWires[plane]) continue;
-        if(slc.wireHitRange[plane][wire].first == -1) continue;
+        if(slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
         pos[1] = tcc.detprop->ConvertXToTicks(pfp.XYZ[end][0], planeID) * tcc.unitsPerTick;
         float cf = ChgFracNearPos(slc, pos, tjids);
         if(cf < lo) lo = cf;
