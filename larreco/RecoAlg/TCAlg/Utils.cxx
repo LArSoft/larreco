@@ -4146,7 +4146,7 @@ namespace tca {
     } // iht
     
     // check
-    int slhitsSize = (int)slc.slHits.size();
+    unsigned int slhitsSize = slc.slHits.size();
     for(unsigned short plane = 0; plane < nplanes; ++plane) {
       for(unsigned int wire = slc.firstWire[plane]; wire < slc.lastWire[plane]; ++wire) {
         if(slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
