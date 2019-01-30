@@ -309,16 +309,18 @@ namespace tca {
     auto& tjf = tjfs[tjfs.size() - 1];
     
     auto& lastTP = tj.Pts[tj.EndPt[1]];
+/*
     // Stay in Slowing strategy if we are in it and reduce the number of points fit further
     if(tj.Strategy[kSlowing]) {
       lastTP.NTPsFit = 5;
       return;
     }
-    
+*/
     float npwc = NumPtsWithCharge(slc, tj, false);
     bool tkLike = (tjf.outlook < 1.5);
+    bool chgIncreasing = (tjf.chgSlope > 0);
     // A showering-electron-like trajectory
-    bool shLike = (tjf.outlook > 2 && tjf.chgSlope > 0);
+    bool shLike = (tjf.outlook > 2 && chgIncreasing);
     if(!shLike) shLike = tjf.showerLikeFraction > 0.5;
     float momRat = 0;
     if(tj.MCSMom > 0) momRat = (float)tjf.MCSMom / (float)tj.MCSMom;
@@ -328,6 +330,7 @@ namespace tca {
       myprt<<" tj MCSMom "<<tj.MCSMom<<" forecast MCSMom "<<tjf.MCSMom;
       myprt<<" momRat "<<std::fixed<<std::setprecision(2)<<momRat;
       myprt<<" tkLike? "<<tkLike<<" shLike? "<<shLike;
+      myprt<<" chgIncreasing? "<<chgIncreasing;
       myprt<<" leavesBeforeEnd? "<<tjf.leavesBeforeEnd<<" endBraggPeak? "<<tjf.endBraggPeak; 
       myprt<<" nextForecastUpdate "<<tjf.nextForecastUpdate;
     }
@@ -341,21 +344,21 @@ namespace tca {
       return;
     } // StiffMu
     bool notStiff = (!tj.Strategy[kStiffEl] && !tj.Strategy[kStiffMu]);
-    if(notStiff && !shLike && tj.MCSMom < 100 && tjf.MCSMom < 100) {
+    if(notStiff && !shLike && tj.MCSMom < 100 && tjf.MCSMom < 100 && chgIncreasing) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Low MCSMom. Use the Slowing Tj strategy";
       tj.Strategy.reset();
       tj.Strategy[kSlowing] = true;
       lastTP.NTPsFit = 5;
       return;
     } // Low MCSMom
-    if(notStiff && !shLike && tj.MCSMom < 200 && momRat < 0.7) {
+    if(notStiff && !shLike && tj.MCSMom < 200 && momRat < 0.7 && chgIncreasing) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Low MCSMom & low momRat. Use the Slowing Tj strategy";
       tj.Strategy.reset();
       tj.Strategy[kSlowing] = true;
       lastTP.NTPsFit = 5;
       return;
     } // low MCSMom
-    if(!tjf.leavesBeforeEnd && tjf.endBraggPeak) {
+    if(!tjf.leavesBeforeEnd && tjf.endBraggPeak && chgIncreasing) {
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Found a Bragg peak. Use the Slowing Tj strategy";
       tj.Strategy.reset();
       tj.Strategy[kSlowing] = true;
@@ -386,22 +389,6 @@ namespace tca {
       tj.StartEnd = 0;
       return;
     }
-/* fix this
-    // A curvy trajectory (not nessecarily track-like) with a consistent increase in charge
-    if(tkLike && tjf.MCSMom < 100 && !tjf.leavesBeforeEnd) {
-      // find the charge slope of the trajectory
-      float chgSlope, chgSlopeErr, chiDOF;
-      ChgSlope(slc, tj, chgSlope, chgSlopeErr, chiDOF);
-      // a significant increase in the charge in the reconstructed tj, which continues in the
-      // forecase polygon. TODO: use chgSlopeErr?
-      if(chgSlope > 3 * chgSlopeErr && (tjf.chgSlope > 3 * tjf.chgSlopeErr)) {
-        tj.Strategy.reset();
-        tj.Strategy[kSlowing] = true;
-        lastTP.NTPsFit = 5;
-      }
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"SetStrategy: Curvy? tj chgSlope "<<chgSlope<<" +/ "<<chgSlopeErr<<" forecast chgSlope "<<tjf.chgSlope<<" +/- "<<tjf.chgSlopeErr<<" Slowing? "<<tj.Strategy[kSlowing];
-    } // Slowing
-*/
   } // SetStrategy
   
   //////////////////////////////////////////
@@ -520,7 +507,7 @@ namespace tca {
           // break if it approaches the side of the envelope
           if(tp.DeltaRMS > 0.8) {
             leavesNear = npwc + fctj.Pts.size();
-            if(doPrt) mf::LogVerbatim("TC")<<"leaves before end - break";
+            if(doPrt) mf::LogVerbatim("TC")<<"leaves before end - break at leavesNear "<<leavesNear;
             leavesBeforeEnd = true;
             break;
           }
@@ -552,7 +539,7 @@ namespace tca {
     } // istp
     // not enuf info to make a forecast
     tcc.dbgStp = doPrt;
-    if(fctj.Pts.size() < 6) return;
+    if(fctj.Pts.size() < 3) return;
     // truncate and re-calculate totChg?
     if(trimPts > 0) {
       // truncate the forecast trajectory
@@ -1160,12 +1147,12 @@ namespace tca {
     unsigned int ipl = planeID.Plane;
     if(wire > slc.lastWire[ipl]) return;
     // Assume a signal exists on a dead wire
-    if(slc.wireHitRange[ipl][wire].first == -1) sigOK = true;
-    if(slc.wireHitRange[ipl][wire].first < 0) return;
-    unsigned int firstHit = (unsigned int)slc.wireHitRange[ipl][wire].first;
-    unsigned int lastHit = (unsigned int)slc.wireHitRange[ipl][wire].second;
+    if(!evt.goodWire[ipl][wire]) sigOK = true;
+    if(slc.wireHitRange[ipl][wire].first == UINT_MAX) return;
+    unsigned int firstHit = slc.wireHitRange[ipl][wire].first;
+    unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
     float fwire = wire;
-    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+    for(unsigned int iht = firstHit; iht <= lastHit; ++iht) {
       if(slc.slHits[iht].InTraj == tj.ID) continue;
       if(slc.slHits[iht].InTraj == SHRT_MAX) continue;
       auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
@@ -1323,8 +1310,8 @@ namespace tca {
       int wire = wires[ii];
       if(wire < 0 || wire > (int)slc.lastWire[plane]) continue;
       // Assume a signal exists on a dead wire
-      if(slc.wireHitRange[plane][wire].first == -1) sigOK = true;
-      if(slc.wireHitRange[plane][wire].first < 0) continue;
+      if(slc.wireHitRange[plane][wire].first == UINT_MAX) sigOK = true;
+      if(slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
       wireWindow[0] = wire;
       wireWindow[1] = wire;
       bool hitsNear;
@@ -1435,7 +1422,8 @@ namespace tca {
     geo::PlaneID planeID = DecodeCTP(tj.CTP);
     unsigned short ipl = planeID.Plane;
     while(nextWire > slc.firstWire[ipl] && nextWire < slc.lastWire[ipl]) {
-      if(slc.wireHitRange[ipl][nextWire].first >= 0) break;
+      if(evt.goodWire[ipl][nextWire]) break;
+//      if(slc.wireHitRange[ipl][nextWire].first >= 0) break;
       nextWire -= tj.StepDir;
     }
     if(nextWire == slc.lastWire[ipl] - 1) return;
@@ -3041,7 +3029,7 @@ namespace tca {
         // launch RevProp if this wire is dead
         unsigned int wire = std::nearbyint(tp.Pos[0]);
         unsigned short plane = DecodeCTP(tp.CTP).Plane;
-        needsRevProp = (wire < slc.nWires[plane] && slc.wireHitRange[plane][wire].first == -1);
+        needsRevProp = (wire < slc.nWires[plane] && !evt.goodWire[plane][wire]);
         if(tcc.dbgStp && needsRevProp) mf::LogVerbatim("TC")<<"FTB: Previous wire "<<wire<<" is dead. Call ReversePropagate";
       } // NewStpCuts
       if(!needsRevProp) {
