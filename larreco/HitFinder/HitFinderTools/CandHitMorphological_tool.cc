@@ -376,7 +376,6 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStart
     
     // Now call ourselves again to find any hits trailing the region we just identified
     if (std::distance(lastDerItr,derivStopItr) > fMinDeltaTicks)
-//    if (std::distance(lastDilItr,dilationStopItr) > fMinDeltaTicks)
         findHitCandidates(derivStartItr    + hitRegionStop,    derivStopItr,
                           erosionStartItr  + hitRegionStop,    erosionStopItr,
                           dilationStartItr + hitRegionStop,    dilationStopItr,
