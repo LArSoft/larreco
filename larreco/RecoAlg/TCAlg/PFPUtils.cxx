@@ -11,38 +11,7 @@ namespace tca {
   // TODO: Fix the sorting mess
   bool valDecreasings (SortEntry c1, SortEntry c2) { return (c1.val > c2.val);}
   bool valIncreasings (SortEntry c1, SortEntry c2) { return (c1.val < c2.val);}
-/*
-  /////////////////////////////////////////
-  void FindSptPFParticles(TCSlice& slc)
-  {
-    if(tcc.match3DCuts[0] <= 0) return;
-    if(!evt.sptHandle) return;
-    bool prt = false;
-//    bool prt = (tcc.dbgPFP && tcc.dbgSlc);
-    //   tj        TP        list of Spt indices
-    std::vector<std::vector<std::vector<unsigned int>>> tpSpts;
-    for(unsigned int itj = 0; itj < slc.tjs.size(); ++itj) {
-      auto& tj = slc.tjs[itj];
-      if(tj.AlgMod[kKilled]) continue;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        auto& tp = tj.Pts[ipt];
-        if(tp.Chg <= 0) continue;
-        std::vector<unsigned int> spts;
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(!tp.UseHit[ii]) continue;
-          unsigned int ahi = slc.slHits[tp.Hits[ii]].allHitsIndex;
-//          auto& sp_from_hit = (*evt.sptFromHit).at(ahi);
-          std::vector<art::Ptr<recob::SpacePoint>> spts = evt.sptFromHit.at(ahi);
-          std::cout<<"tp "<<PrintPos(slc, tp)<<" nspt "<<spts.size();
-//          for(auto& spt : spts) std::cout<<" "<<spt;
-          std::cout<<"\n";
-          prt = true;
-        } // ii
-      } // ipt
-      if(prt) break;
-    } // itj
-  } // FindSptPFParticles
-*/
+
   /////////////////////////////////////////
   void StitchPFPs()
   {
@@ -876,7 +845,7 @@ namespace tca {
         float fwire = tcc.geom->WireCoordinate(ijtp3.Pos[1], ijtp3.Pos[2], kplane, tpc, cstat);
         if(fwire < -0.4) continue;
         unsigned int kwire = std::nearbyint(fwire);
-        if(kwire < slc.wireHitRange[kplane].size() && slc.wireHitRange[kplane][kwire].first == -1) {
+        if(kwire < slc.wireHitRange[kplane].size() && !evt.goodWire[kplane][kwire]) {
           // accumulate the fit sums
           if(doFit) Fit3D(1, ijtp3.Pos, ijtp3.Dir, point, dir);
           // fill Tp3s?
@@ -2036,7 +2005,6 @@ namespace tca {
     if(tcc.match3DCuts[0] <= 0) return;
     
     bool prt = (tcc.dbgPFP && tcc.dbgSlc);
-    
     if(prt) mf::LogVerbatim("TC")<<" inside FindPFParticles";
     // clear matchVec
     slc.matchVec.clear();
@@ -2197,7 +2165,6 @@ namespace tca {
     if(!tcc.modes[kTestBeam]) {
       Match3DVtxTjs(slc, prt);
     }
-
     // define the PFParticleList
     for(unsigned int indx = 0; indx < slc.matchVec.size(); ++indx) {
       auto& ms = slc.matchVec[indx];
@@ -3045,7 +3012,7 @@ namespace tca {
         // check for dead wires
         unsigned int wire = std::nearbyint(pos[0]);
         if(wire > slc.nWires[plane]) continue;
-        if(slc.wireHitRange[plane][wire].first == -1) continue;
+        if(slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
         pos[1] = tcc.detprop->ConvertXToTicks(pfp.XYZ[end][0], planeID) * tcc.unitsPerTick;
         float cf = ChgFracNearPos(slc, pos, tjids);
         if(cf < lo) lo = cf;
