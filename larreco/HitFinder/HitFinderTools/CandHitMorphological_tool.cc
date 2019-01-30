@@ -98,6 +98,9 @@ private:
     TH1F*                fDStopStartHist;        //< Basically keeps track of the length of hit regions
     TH1F*                fDMaxTickMinTickHist;   //< This will be a measure of the width of candidate hits
     TH1F*                fDMaxDerivMinDerivHist; //< This is the difference peak to peak of derivative for cand hit
+    TH1F*                fMaxErosionHist;        //< Keep track of the maximum erosion
+    TH1F*                fMaxDilationHist;       //< Keep track of the maximum dilation
+    TH1F*                fMaxDilEroRatHist;      //< Ratio of the maxima of the two
     
     mutable size_t       fLastChannel;           //< Kludge to keep track of last channel when histogramming in effect
     mutable size_t       fChannelCnt;            //< Counts the number of times a channel is used (assumed in order)
@@ -153,9 +156,12 @@ void CandHitMorphological::configure(const fhicl::ParameterSet& pset)
         // Make a directory for these histograms
         art::TFileDirectory dir = fHistDirectory->mkdir(Form("HitPlane_%1zu",fPlane));
         
-        fDStopStartHist        = dir.make<TH1F>(Form("DStopStart_%1zu", fPlane), ";Delta Stop/Start;",    200, 0., 200.);
-        fDMaxTickMinTickHist   = dir.make<TH1F>(Form("DMaxTMinT_%1zu",  fPlane), ";Delta Max/Min Tick;",  200, 0., 200.);
-        fDMaxDerivMinDerivHist = dir.make<TH1F>(Form("DMaxDMinD_%1zu",  fPlane), ";Delta Max/Min Deriv;", 200, 0., 200.);
+        fDStopStartHist        = dir.make<TH1F>(Form("DStopStart_%1zu",   fPlane), ";Delta Stop/Start;",    100,   0., 100.);
+        fDMaxTickMinTickHist   = dir.make<TH1F>(Form("DMaxTMinT_%1zu",    fPlane), ";Delta Max/Min Tick;",  100,   0., 100.);
+        fDMaxDerivMinDerivHist = dir.make<TH1F>(Form("DMaxDMinD_%1zu",    fPlane), ";Delta Max/Min Deriv;", 200,   0., 100.);
+        fMaxErosionHist        = dir.make<TH1F>(Form("MaxErosion_%1zu",   fPlane), ";Max Erosion;",         200, -50., 150.);
+        fMaxDilationHist       = dir.make<TH1F>(Form("MaxDilation_%1zu",  fPlane), ";Max Dilation;",        200, -50., 150.);
+        fMaxDilEroRatHist      = dir.make<TH1F>(Form("MaxDilEroRat_%1zu", fPlane), ";Max Dil/Ero;",         200,  -1.,   1.);
     }
 
     return;
@@ -261,6 +267,18 @@ void CandHitMorphological::findHitCandidates(const Waveform&  waveform,
             fDMaxTickMinTickHist->Fill(hitCandidate.minTick - hitCandidate.maxTick, 1.);
             fDMaxDerivMinDerivHist->Fill(hitCandidate.maxDerivative - hitCandidate.minDerivative, 1.);
         }
+        
+        // Get the max dilation/erosion
+        Waveform::const_iterator maxDilationItr = std::max_element(dilationVec.begin(), dilationVec.end());
+        Waveform::const_iterator maxErosionItr  = std::max_element(erosionVec.begin(),  erosionVec.end());
+        
+        float dilEroRat(1.);
+        
+        if (std::abs(*maxDilationItr) > 0.) dilEroRat = *maxErosionItr / *maxDilationItr;
+
+        fMaxErosionHist->Fill(*maxErosionItr,  1.);
+        fMaxDilationHist->Fill(*maxDilationItr, 1.);
+        fMaxDilEroRatHist->Fill(dilEroRat, 1.);
     }
     
     return;
@@ -346,7 +364,7 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStart
                           erosionStartItr,  erosionStartItr  + hitRegionStart,
                           dilationStartItr, dilationStartItr + hitRegionStart,
                           roiStartTick,
-                          2. * fDilationThreshold,
+                          fDilationThreshold,
                           hitCandidateVec);
     
     // Call the differential hit finding to get the actual hits within the region
@@ -363,7 +381,7 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStart
                           erosionStartItr  + hitRegionStop,    erosionStopItr,
                           dilationStartItr + hitRegionStop,    dilationStopItr,
                           roiStartTick     + hitRegionStop,
-                          2. * fDilationThreshold,
+                          fDilationThreshold,
                           hitCandidateVec);
 
     return;
@@ -531,7 +549,7 @@ bool CandHitMorphological::getListOfHitCandidates(Waveform::const_iterator start
     
     // Search for candidate hits...
     // But only if enough ticks
-    if (dTicks < 6) return foundCandidate;
+    if (dTicks < fMinDeltaTicks) return foundCandidate;
     
     // Generally, the mission is simple... the goal is to find all possible combinations of maximum/minimum pairs in
     // the input (presumed) derivative waveform. We can do this with a divice and conquer approach where we start by
