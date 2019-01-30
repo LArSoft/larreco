@@ -4401,6 +4401,8 @@ namespace tca {
     if(doPrt) mf::LogVerbatim("TC")<<" MAS success. Created T"<<newTjID;
     // Transfer the ParentIDs of any other Tjs that refer to Tj1 and Tj2 to the new Tj
     for(auto& tj : slc.tjs) if(tj.ParentID == tj1ID || tj.ParentID == tj2ID) tj.ParentID = newTjID;
+    // try to attach it to a vertex
+    AttachAnyVertexToTraj(slc, newTjID, doPrt);
 
     return true;
   } // MergeAndStore
