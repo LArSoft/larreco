@@ -363,7 +363,7 @@ namespace tca {
     kDeltaRay,
     kCTKink,        ///< kink found in CheckTraj
     kCTStepChk,
-    kTryWithNextPass,
+    kMake3D,
     kRvPrp,
     kCHMUH,
     kSplit,
@@ -536,22 +536,15 @@ namespace tca {
     bool dbgDump {false};   /// dump trajectory points
     short nPtsAve;         /// number of points to find AveChg
     std::bitset<16> modes;   /// See TCMode_t above
-    bool doForecast {false};
+    bool doForecast {true};
+    bool useChannelStatus {true};
   };
 
   struct TCHit {
     unsigned int allHitsIndex; // index into fHits
     int InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
   };
-  
-  // lower/upper range of hits indexed into allHits for a CTP - wire pair
-  struct AllHitsRange {
-    CTP_t CTP;
-    unsigned int wire {UINT_MAX};
-    unsigned int firstHit {UINT_MAX}; 
-    unsigned int lastHit {UINT_MAX};
-  };
-  
+
   struct SptHits {
     unsigned int sptIndex {UINT_MAX};                   ///< index into SpacePoint collection offset by sptHandle
     std::array<unsigned int, 3> allHitsIndex {{UINT_MAX}}; ///< index into allHits collection for each plane
@@ -561,7 +554,11 @@ namespace tca {
   // Note: Ideally this hit collection would be the FULL hit collection before cosmic removal
   struct TCEvent {
     std::vector<recob::Hit> const* allHits = nullptr;
-    std::vector<AllHitsRange> allHitsRanges;
+    //  hit Range for the full hit collection in the current TPCID
+    //   plane      wire             firstHit, lastHit
+    std::vector<std::vector< std::pair<unsigned int, unsigned int>>> wireHitRange; 
+    // list of good wires in the current TPCID
+    std::vector<std::vector<bool>> goodWire;
     std::vector<simb::MCParticle> const* mcpHandle = nullptr;  ///< handle to MCParticles in the event
     std::vector<recob::SpacePoint> const* sptHandle = nullptr; ///< handle to SpacePoints in the event
     std::vector<SptHits> const* sptHits = nullptr;           ///< pointer to the spacepoint - hit vector
@@ -602,9 +599,9 @@ namespace tca {
     std::vector<Trajectory> tjs; ///< vector of all trajectories in each plane
     std::vector<Tj2Pt> mallTraj;      ///< vector of trajectory points ordered by increasing X
     // vector of pairs of first (.first) and last+1 (.second) hit on each wire
-    // in the range fFirstWire to fLastWire. A value of -2 indicates that there
-    // are no hits on the wire. A value of -1 indicates that the wire is dead
-    std::vector<std::vector< std::pair<int, int>>> wireHitRange;
+    // in the range fFirstWire to fLastWire. A value of UINT_MAX indicates that there
+    // are no hits on the wire.
+    std::vector<std::vector< std::pair<unsigned int, unsigned int>>> wireHitRange;
     std::vector< VtxStore > vtxs; ///< 2D vertices
     std::vector< Vtx3Store > vtx3s; ///< 3D vertices
     std::vector<MatchStruct> matchVec; ///< 3D matching vector
