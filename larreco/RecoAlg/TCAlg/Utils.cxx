@@ -393,7 +393,7 @@ namespace tca {
       for(unsigned short ii = 0; ii < 5; ++ii) if(tj.PDGCode == codeList[ii]) ++cnts[ii];
       // count InShower Tjs with PDGCode not set (yet)
 //      if(tj.PDGCode != 11 && tj.AlgMod[kShowerLike]) ++cnts[1];
-//      for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[end][kBragg]) ++stopCnt[end];
+//      for(unsigned short end = 0; end < 2; ++end) if(tj.EndFlag[end][kBragg]) ++stopCnt[end];
       float len = TrajLength(tj);
       if(len > maxLen) maxLen = len;
     } // tjid
@@ -1091,8 +1091,8 @@ namespace tca {
       unsigned short braggCnt1 = 0;
       for(auto& tjID : pfp.TjIDs) {
         auto& tj = slc.tjs[tjID - 1];
-        if(tj.StopFlag[0][kBragg]) ++braggCnt0;
-        if(tj.StopFlag[1][kBragg]) ++braggCnt1;
+        if(tj.EndFlag[0][kBragg]) ++braggCnt0;
+        if(tj.EndFlag[1][kBragg]) ++braggCnt1;
       }
       if(braggCnt0 > 0 || braggCnt1 > 0) {
         pfp.PDGCode = 2212;
@@ -1411,7 +1411,7 @@ namespace tca {
     auto& tj = slc.tjs[itj];
     
     if(!tcc.useAlg[kBeginChg]) return;
-    if(tj.StopFlag[0][kBragg]) return;
+    if(tj.EndFlag[0][kBragg]) return;
     if(tj.AlgMod[kFTBRvProp]) return;
     if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return;
     if(tj.Pts.size() < 20) return;
@@ -1603,7 +1603,7 @@ namespace tca {
     unsigned short otj = slc.tjs.size() - 1;
     if(bestBragg == 2) std::swap(itj, otj);
     slc.tjs[itj].PDGCode = 211;
-    slc.tjs[itj].StopFlag[1][kBragg] = true;
+    slc.tjs[itj].EndFlag[1][kBragg] = true;
     slc.tjs[otj].PDGCode = 13;
     return true;
   } // BraggSplit
@@ -2778,7 +2778,7 @@ namespace tca {
   {
     // returns a number between 0 (not electron-like) and 1 (electron-like)
     if(NumPtsWithCharge(slc, tj, false) < 8) return -1;
-    if(tj.StopFlag[0][kBragg] || tj.StopFlag[1][kBragg]) return 0;
+    if(tj.EndFlag[0][kBragg] || tj.EndFlag[1][kBragg]) return 0;
     
     unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
     double rms0 = 0, rms1 = 0;
@@ -2858,7 +2858,7 @@ namespace tca {
     // trajectory points
     std::reverse(tj.Pts.begin(), tj.Pts.end());
     // reverse the stop flag
-    std::reverse(tj.StopFlag.begin(), tj.StopFlag.end());
+    std::reverse(tj.EndFlag.begin(), tj.EndFlag.end());
     std::swap(tj.dEdx[0], tj.dEdx[1]);
     // reverse the direction vector on all points
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
@@ -4304,7 +4304,7 @@ namespace tca {
       }
     }
     
-    if(tj1.StopFlag[1][kBragg]) {
+    if(tj1.EndFlag[1][kBragg]) {
       if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: You are merging the end of trajectory T"<<tj1.ID<<" with a Bragg peak. Not merging\n";
       return false;
     }
@@ -4359,7 +4359,7 @@ namespace tca {
     tj1.Pts.insert(tj1.Pts.end(), tj2.Pts.begin() + tj2ClosePt, tj2.Pts.end());
     // re-define the end points
     SetEndPoints(tj1);
-    tj1.StopFlag[1] = tj2.StopFlag[1];
+    tj1.EndFlag[1] = tj2.EndFlag[1];
     
     // A more exhaustive check that hits only appear once
     if(HasDuplicateHits(slc, tj1, doPrt)) {
@@ -4756,6 +4756,7 @@ namespace tca {
       std::cout<<" 'VxMerge' to debug 2D vertex merging\n";
       std::cout<<" 'JunkVx' to debug 2D junk vertex finder\n";
       std::cout<<" 'PFP' to debug 3D matching and PFParticles\n";
+      std::cout<<" 'MVI <MVI>' for detailed debugging of one MatchVecIndex\n";
       std::cout<<" 'DeltaRay' to debug delta ray tagging\n";
       std::cout<<" 'Muon' to debug muon tagging\n";
       std::cout<<" '2S <CTP>' to debug a 2D shower in CTP\n";
@@ -4774,7 +4775,6 @@ namespace tca {
     if(strng.find("3S") != std::string::npos) { tcc.dbg3S = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("VxMerge") != std::string::npos) { tcc.dbgVxMerge = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("JunkVx") != std::string::npos) { tcc.dbgVxJunk = true; tcc.modes[kDebug] = true; return true; }
-    if(strng.find("PFP")  != std::string::npos) { tcc.dbgPFP = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("DeltaRay") != std::string::npos) { tcc.dbgDeltaRayTag = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("Muon") != std::string::npos) { tcc.dbgMuonTag = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("Stitch") != std::string::npos) { tcc.dbgStitch = true; tcc.modes[kDebug] = true; return true; }
@@ -4795,6 +4795,13 @@ namespace tca {
       tcc.dbgDump = true;
       return true;
     } // nums.size() == 5
+    if(words[0] == "PFP" || words[0] == "MVI") {
+      tcc.dbgPFP = true;
+      tcc.modes[kDebug] = true;
+      // Use debug.Hit to identify the matchVec index
+      if(words.size() == 2) debug.MVI = std::stoi(words[1]);
+      return true;
+    } // PFP
     if(words.size() == 2 && words[0] == "Dump") {
       debug.WorkID = std::stoi(words[1]);
       debug.Slice = 0;
@@ -5278,13 +5285,13 @@ namespace tca {
     if(itick < 1000) { myprt<<" "; }
     myprt<<std::setw(6)<<std::setprecision(2)<<tp0.Ang;
     myprt<<std::setw(2)<<tp0.AngleCode;
-    if(tj.StopFlag[0][kBragg]) {
+    if(tj.EndFlag[0][kBragg]) {
       myprt<<"B";
-    } else if(tj.StopFlag[0][kAtVtx]) {
+    } else if(tj.EndFlag[0][kAtVtx]) {
       myprt<<"V";
-    } else if(tj.StopFlag[0][kAtKink]) {
+    } else if(tj.EndFlag[0][kAtKink]) {
       myprt<<"K";
-    } else if(tj.StopFlag[0][kAtTj]) {
+    } else if(tj.EndFlag[0][kAtTj]) {
       myprt<<"T";
     } else {
       myprt<<" ";
@@ -5299,9 +5306,9 @@ namespace tca {
     if(itick < 1000) { myprt<<" "; }
     myprt<<std::setw(6)<<std::setprecision(2)<<tp1.Ang;
     myprt<<std::setw(2)<<tp1.AngleCode;
-    if(tj.StopFlag[1][kBragg]) {
+    if(tj.EndFlag[1][kBragg]) {
       myprt<<"B";
-    } else if(tj.StopFlag[1][kAtVtx]) {
+    } else if(tj.EndFlag[1][kAtVtx]) {
       myprt<<"V";
     } else {
       myprt<<" ";
@@ -5481,13 +5488,13 @@ namespace tca {
         if(itick < 1000) { myprt<<" "; }
         myprt<<std::setw(6)<<std::setprecision(2)<<tp0.Ang;
         myprt<<std::setw(2)<<tp0.AngleCode;
-        if(aTj.StopFlag[0][kBragg]) {
+        if(aTj.EndFlag[0][kBragg]) {
           myprt<<"B";
-        } else if(aTj.StopFlag[0][kAtVtx]) {
+        } else if(aTj.EndFlag[0][kAtVtx]) {
           myprt<<"V";
-        } else if(aTj.StopFlag[0][kAtKink]) {
+        } else if(aTj.EndFlag[0][kAtKink]) {
           myprt<<"K";
-        } else if(aTj.StopFlag[0][kAtTj]) {
+        } else if(aTj.EndFlag[0][kAtTj]) {
           myprt<<"T";
         } else {
           myprt<<" ";
@@ -5519,9 +5526,9 @@ namespace tca {
         if(itick < 1000) { myprt<<" "; }
         myprt<<std::setw(6)<<std::setprecision(2)<<tp1.Ang;
         myprt<<std::setw(2)<<tp1.AngleCode;
-        if(aTj.StopFlag[1][kBragg]) {
+        if(aTj.EndFlag[1][kBragg]) {
           myprt<<"B";
-        } else if(aTj.StopFlag[1][kAtVtx]) {
+        } else if(aTj.EndFlag[1][kAtVtx]) {
           myprt<<"V";
         } else {
           myprt<<" ";
@@ -5607,7 +5614,7 @@ namespace tca {
         myprt<<someText<<" ";
         myprt<<"Work:   UID "<<tj.UID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
-        myprt<<" StopFlags "<<PrintStopFlag(tj, 0)<<" "<<PrintStopFlag(tj, 1);
+        myprt<<" EndFlags "<<PrintEndFlag(tj, 0)<<" "<<PrintEndFlag(tj, 1);
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
@@ -5615,7 +5622,7 @@ namespace tca {
         myprt<<someText<<" ";
         myprt<<"slc.tjs: UID "<<tj.UID<<" WorkID "<<tj.WorkID<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
-        myprt<<" StopFlags "<<PrintStopFlag(tj, 0)<<" "<<PrintStopFlag(tj, 1);
+        myprt<<" EndFlags "<<PrintEndFlag(tj, 0)<<" "<<PrintEndFlag(tj, 1);
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
@@ -5816,23 +5823,23 @@ namespace tca {
   } // PrintPFPs
   
   /////////////////////////////////////////
-  std::string PrintStopFlag(const Trajectory& tj, unsigned short end)
+  std::string PrintEndFlag(const Trajectory& tj, unsigned short end)
   {
     if(end > 1) return "Invalid end";
     std::string tmp;
     bool first = true;
-    for(unsigned short ib = 0; ib < StopFlagNames.size(); ++ib) {
-      if(tj.StopFlag[end][ib]) {
+    for(unsigned short ib = 0; ib < EndFlagNames.size(); ++ib) {
+      if(tj.EndFlag[end][ib]) {
         if(first) {
-          tmp = std::to_string(end) + ":" + StopFlagNames[ib];
+          tmp = std::to_string(end) + ":" + EndFlagNames[ib];
           first = false;
         } else {
-          tmp += "," + StopFlagNames[ib];
+          tmp += "," + EndFlagNames[ib];
         }
       }
     } // ib
     return tmp;
-  } // PrintStopFlag
+  } // PrintEndFlag
   
   /////////////////////////////////////////
   std::string PrintHitShort(const TCHit& tch)
