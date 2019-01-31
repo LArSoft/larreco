@@ -2064,9 +2064,6 @@ namespace tca {
     // remove the fixed position flag if there are more than 2 tjs
     bool fixedBit = vx.Stat[kFixed];
     if(fixedBit && vx.NTraj < 2) vx.Stat[kFixed] = false;
-    
-    // don't allow a short Tj with a large pull to bias the fit
-    if(tjShort && tpVxPull > tcc.vtx2DCuts[3]) tj.AlgMod[kNoFitToVx] = true;
 
     // Passed all the cuts. Attach it to the vertex and try a fit
     tj.VtxID[end] = vx.ID;
@@ -2080,9 +2077,9 @@ namespace tca {
       vx = vxTmp;
       return true;
     }
-    // Keep the Tj -> Vx assn since we got this far, but don't include this Tj in the fit
-    tj.AlgMod[kNoFitToVx] = true;
-    if(prt) mf::LogVerbatim("TC")<<" Poor fit. Keep T"<<tj.ID<<"-2V"<<vx.ID<<" assn with kNoFitToVx";
+    // Keep the Tj -> Vx assn since we got this far, but don't include this end of the Tj in the fit
+    tj.EndFlag[end][kNoFitVx] = true;
+    if(prt) mf::LogVerbatim("TC")<<" Poor fit. Keep T"<<tj.ID<<"-2V"<<vx.ID<<" assn with kNoFitVx";
     // restore the fixed flag
     vx.Stat[kFixed] = fixedBit;
     return true;
@@ -2217,13 +2214,12 @@ namespace tca {
       if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       if(tj.CTP != vx.CTP) continue;
       if(tj.AlgMod[kPhoton]) continue;
-      if(tj.AlgMod[kNoFitToVx]) continue;
       bool added = false;
-      if(tj.VtxID[0] == vx.ID) {
+      if(tj.VtxID[0] == vx.ID && !tj.EndFlag[0][kNoFitVx]) {
         vxTp.push_back(tj.Pts[tj.EndPt[0]]);
         added = true;
       }
-      if(tj.VtxID[1] == vx.ID) {
+      if(tj.VtxID[1] == vx.ID && !tj.EndFlag[1][kNoFitVx]) {
         vxTp.push_back(tj.Pts[tj.EndPt[1]]);
         added = true;
       }
@@ -2654,7 +2650,7 @@ namespace tca {
       unsigned short endPt1 = tj1.EndPt[end1];
       // bump up the weight if there is a Bragg peak at the other end
       unsigned short oend1 = 1 - end1;
-      if(tj1.StopFlag[oend1][kBragg]) ++wght1;
+      if(tj1.EndFlag[oend1][kBragg]) ++wght1;
       float ang1 = tj1.Pts[endPt1].Ang;
       float ang1Err2 = tj1.Pts[endPt1].AngErr * tj1.Pts[endPt1].AngErr;
       for(unsigned short it2 = it1 + 1; it2 < tjids.size(); ++it2) {
@@ -2664,7 +2660,7 @@ namespace tca {
         if(tj2.VtxID[1] == vx2.ID) end2 = 1;
         // bump up the weight if there is a Bragg peak at the other end
         unsigned short oend2 = 1 - end2;
-        if(tj2.StopFlag[oend2][kBragg]) ++wght2;
+        if(tj2.EndFlag[oend2][kBragg]) ++wght2;
         unsigned short endPt2 = tj2.EndPt[end2];
         float ang2 = tj2.Pts[endPt2].Ang;
         float ang2Err2 = tj2.Pts[endPt2].AngErr * tj2.Pts[endPt2].AngErr;
