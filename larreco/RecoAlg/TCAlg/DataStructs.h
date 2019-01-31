@@ -421,8 +421,6 @@ namespace tca {
     kMergeShChain,
     kCompleteShower,
     kSplitTjCVx,
-    kNewStpCuts,
-    kNewVtxCuts,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
