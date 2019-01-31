@@ -473,7 +473,7 @@ namespace tca {
             continue;
           }
           auto& iHit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
-          if(tcc.useAlg[kNewStpCuts] && LongPulseHit(iHit)) continue;
+          if(LongPulseHit(iHit)) continue;
           unsigned int fromWire = iHit.WireID().Wire;
           float fromTick = iHit.PeakTime();
           float iqtot = iHit.Integral();
@@ -508,7 +508,7 @@ namespace tca {
             }
             unsigned int toWire = jwire;
             auto& jHit = (*evt.allHits)[slc.slHits[jht].allHitsIndex];
-            if(tcc.useAlg[kNewStpCuts] && LongPulseHit(jHit)) continue;
+            if(LongPulseHit(jHit)) continue;
             float toTick = jHit.PeakTime();
             float jqtot = jHit.Integral();
             std::vector<unsigned int> jHitsInMultiplet;
@@ -572,20 +572,10 @@ namespace tca {
             // We can't update the trajectory yet because there is only one TP.
             work.EndPt[0] = 0;
             // now try stepping away
-             StepAway(slc, work);
-             // check for a major failure
+            StepAway(slc, work);
+            // check for a major failure
             if(!slc.isValid) return;
-            if(tcc.dbgStp) mf::LogVerbatim("TC")<<" After first StepAway. IsGood "<<work.IsGood;
-/*
-            if(!work.IsGood && fTryWithNextPass) {
-              StepAway(slc, work);
-              if(!work.IsGood || work.NeedsUpdate) {
-                if(tcc.dbgStp) mf::LogVerbatim("TC")<<" xxxxxxx StepAway failed AGAIN ";
-                ReleaseHits(slc, work);
-                continue;
-              } // Failed again
-            }
-*/
+            if(tcc.dbgStp) mf::LogVerbatim("TC")<<" After StepAway. IsGood "<<work.IsGood;
             // Check the quality of the work trajectory
             CheckTraj(slc, work);
             // check for a major failure
