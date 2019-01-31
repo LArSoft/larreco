@@ -175,7 +175,7 @@ namespace tca {
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     short StartEnd {-1};               ///< The starting end (-1 = don't know)
     unsigned int mcpIndex {UINT_MAX};
-    std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
+    std::array<std::bitset<8>, 2> EndFlag {};  // Bitset that encodes the reason for stopping, special vertex handling, etc
     std::bitset<8> Strategy {};        ///
     bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
     bool IsGood {true};           ///< set false if there is a failure or the Tj fails quality cuts
@@ -394,7 +394,6 @@ namespace tca {
     kMisdVxTj,
     kPhoton,
     kHaloTj,
-    kNoFitToVx,
     kVxMerge,
     kVxNeutral,
     kNoKinkChk,
@@ -442,8 +441,9 @@ namespace tca {
     kBragg,
     kAtTj,
     kOutFV,
+    kNoFitVx,
     kFlagBitSize     ///< don't mess with this line
-  } StopFlag_t; 
+  } EndFlag_t; 
   
   // Environment near a trajectory point
   typedef enum {
@@ -471,7 +471,7 @@ namespace tca {
   } TCModes_t;
   
   extern const std::vector<std::string> AlgBitNames;
-  extern const std::vector<std::string> StopFlagNames;
+  extern const std::vector<std::string> EndFlagNames;
   extern const std::vector<std::string> VtxBitNames;
   extern const std::vector<std::string> StrategyBitNames;
 
