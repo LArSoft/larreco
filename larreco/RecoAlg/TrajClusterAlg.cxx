@@ -199,9 +199,9 @@ namespace tca {
     if(kAlgBitSize > 128) throw art::Exception(art::errors::Configuration)<<"Increase the size of UseAlgs to at least "<<kAlgBitSize;
     fAlgModCount.resize(kAlgBitSize);
 
-    if(kFlagBitSize != StopFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != StopFlagNames size "<<StopFlagNames.size();
+    if(kFlagBitSize != EndFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != EndFlagNames size "<<EndFlagNames.size();
     
-    if(kFlagBitSize > 8) throw art::Exception(art::errors::Configuration)<<"Increase the size of StopFlag to at least "<<kFlagBitSize;
+    if(kFlagBitSize > 8) throw art::Exception(art::errors::Configuration)<<"Increase the size of EndFlag to at least "<<kFlagBitSize;
     
     bool printHelp = false;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) tcc.useAlg[ib] = true;
