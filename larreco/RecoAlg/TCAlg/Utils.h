@@ -223,7 +223,7 @@ namespace tca {
   // Print Trajectory position in the standard format
   std::string PrintPos(TCSlice& slc, const TrajPoint& tp);
   std::string PrintPos(TCSlice& slc, const Point2_t& pos);
-  std::string PrintStopFlag(const Trajectory& tj, unsigned short end);
+  std::string PrintEndFlag(const Trajectory& tj, unsigned short end);
   
   ////////////////////////////////////////////////
   template <typename T>
