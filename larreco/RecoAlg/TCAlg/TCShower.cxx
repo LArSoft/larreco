@@ -3652,7 +3652,7 @@ namespace tca {
       if(tj.AlgMod[kShowerTj]) continue;
       // ignore Tjs with Bragg peaks
       bool skipit = false;
-      for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[end][kBragg]) skipit = true;
+      for(unsigned short end = 0; end < 2; ++end) if(tj.EndFlag[end][kBragg]) skipit = true;
       if(skipit) continue;
       short npwc = NumPtsWithCharge(slc, tj, false);
       if(newCuts) {
