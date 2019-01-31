@@ -1443,39 +1443,37 @@ namespace tca {
       }
     } // breakPt
     if(breakPt == USHRT_MAX) return;
-    if(tcc.useAlg[kNewStpCuts]) {
-      // check the charge and rms before and after the split
-      std::array<double, 2> cnt, sum, sum2;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        auto& tp = tj.Pts[ipt];
-        if(tp.Chg <= 0) continue;
-        unsigned short end = 0;
-        if(ipt > breakPt) end = 1;
-        ++cnt[end];
-        sum[end] += tp.Chg;
-        sum2[end] += tp.Chg * tp.Chg;
-      } // ipt
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(cnt[end] < 3) return;
-        double ave = sum[end] / cnt[end];
-        double arg = sum2[end] - cnt[end] * ave * ave;
-        if(arg <= 0) return;
-        sum2[end] = sqrt(arg / (cnt[end] - 1));
-        sum2[end] /= ave;
-        sum[end] = ave;
-      } // region
-      bool doSplit = true;
-      // don't split if this looks like an electron - no significant improvement
-      // in the charge rms before and after
-      if(tj.ChgRMS > 0.5 && sum2[0] > 0.3 && sum2[1] > 0.3) doSplit = false;
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"CTBC: T"<<tj.ID<<" chgRMS "<<tj.ChgRMS;
-        myprt<<" AveChg before split point "<<(int)sum[0]<<" rms "<<sum2[0];
-        myprt<<" after "<<(int)sum[1]<<" rms "<<sum2[1]<<" doSplit? "<<doSplit;
-      } // prt
-      if(!doSplit) return;
-    } // NewStpCuts
+    // check the charge and rms before and after the split
+    std::array<double, 2> cnt, sum, sum2;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg <= 0) continue;
+      unsigned short end = 0;
+      if(ipt > breakPt) end = 1;
+      ++cnt[end];
+      sum[end] += tp.Chg;
+      sum2[end] += tp.Chg * tp.Chg;
+    } // ipt
+    for(unsigned short end = 0; end < 2; ++end) {
+      if(cnt[end] < 3) return;
+      double ave = sum[end] / cnt[end];
+      double arg = sum2[end] - cnt[end] * ave * ave;
+      if(arg <= 0) return;
+      sum2[end] = sqrt(arg / (cnt[end] - 1));
+      sum2[end] /= ave;
+      sum[end] = ave;
+    } // region
+    bool doSplit = true;
+    // don't split if this looks like an electron - no significant improvement
+    // in the charge rms before and after
+    if(tj.ChgRMS > 0.5 && sum2[0] > 0.3 && sum2[1] > 0.3) doSplit = false;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"CTBC: T"<<tj.ID<<" chgRMS "<<tj.ChgRMS;
+      myprt<<" AveChg before split point "<<(int)sum[0]<<" rms "<<sum2[0];
+      myprt<<" after "<<(int)sum[1]<<" rms "<<sum2[1]<<" doSplit? "<<doSplit;
+    } // prt
+    if(!doSplit) return;
     // Create a vertex at the break point
     VtxStore aVtx;
     aVtx.Pos = tj.Pts[breakPt].Pos;
@@ -1621,7 +1619,7 @@ namespace tca {
     //  ----DDDDD-- is not OK
     
     if(!tcc.useAlg[kTEP]) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
+    if(tj.PDGCode == 111) return;
     
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
     short minPts = fQualityCuts[1];
@@ -1711,7 +1709,7 @@ namespace tca {
     // sides of the high-charge point are analyzed. If significant differences are found, all points
     // near the high-charge point are removed as well as those from that point to the end
     if(!tcc.useAlg[kChkChgAsym]) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
+    if(tj.PDGCode == 111) return;
     unsigned short npts = tj.EndPt[1] - tj.EndPt[0];
     if(prt) mf::LogVerbatim("TC")<<" Inside ChkChgAsymmetry T"<<tj.ID;
     // ignore long tjs
@@ -2546,7 +2544,7 @@ namespace tca {
     
     // Don't bother if it is too long
     if(tj.Pts.size() > 10) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
+    if(tj.PDGCode == 111) return;
     // count the number of points that have many used hits
     unsigned short nhm = 0;
     unsigned short npwc = 0;
@@ -3150,7 +3148,7 @@ namespace tca {
     for(unsigned short ipt = firstPt + 1; ipt < lastPt; ++ipt) {
       if(tj.Pts[ipt].Chg == 0) continue;
       // ignore points with large error
-      if(tcc.useAlg[kNewStpCuts] && tj.Pts[ipt].HitPosErr2 > 4) continue;
+      if(tj.Pts[ipt].HitPosErr2 > 4) continue;
       dsum += PointTrajDOCA2(slc, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
       ++cnt;
     } // ipt
