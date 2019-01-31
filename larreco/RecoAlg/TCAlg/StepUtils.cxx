@@ -70,7 +70,7 @@ namespace tca {
       unsigned short ivx = TPNearVertex(slc, ltp);
       if(ivx != USHRT_MAX) {
         // Trajectory stops near a vertex so make the assignment
-        if(AttachTrajToVertex(slc, tj, slc.vtxs[ivx], tcc.dbgStp || tcc.dbg2V)) tj.StopFlag[1][kAtVtx] = true;
+        if(AttachTrajToVertex(slc, tj, slc.vtxs[ivx], tcc.dbgStp || tcc.dbg2V)) tj.EndFlag[1][kAtVtx] = true;
         break;
       }
       
@@ -99,7 +99,7 @@ namespace tca {
       bool sigOK = false;
       AddHits(slc, tj, lastPt, sigOK);
       // Check the stop flag
-      if(tj.StopFlag[1][kAtTj]) break;
+      if(tj.EndFlag[1][kAtTj]) break;
       // If successfull, AddHits has defined UseHit for this TP,
       // set the trajectory endpoints, and define HitPos.
       if(tj.Pts[lastPt].Hits.empty()) {
@@ -116,7 +116,7 @@ namespace tca {
           if(!sigOK && tj.AlgMod[kRvPrp]) break;
           // Ensure that there is a signal here after missing a number of steps on a LA trajectory
           if(tj.Pts[lastPt].AngleCode > 0 && nMissedSteps > 4 && !sigOK) {
-            tj.StopFlag[1][kSignal] = false;
+            tj.EndFlag[1][kSignal] = false;
             break;
           }
           // the last point with hits (used or not) is the previous point
@@ -243,7 +243,7 @@ namespace tca {
       bool keepGoing = true;
       // check for a kink. Stop crawling if one is found
       GottaKink(slc, tj, killPts);
-      if(tj.StopFlag[1][kAtKink]) {
+      if(tj.EndFlag[1][kAtKink]) {
         if(tcc.dbgStp) mf::LogVerbatim("TC")<<"   stop at kink with killPts "<<killPts;
         keepGoing = false;
       }
@@ -565,7 +565,7 @@ namespace tca {
     ChkStop(slc, fctj);
     UpdateTjChgProperties("Fc", slc, fctj, false);
     tjf.chgRMS = fctj.ChgRMS;
-    tjf.endBraggPeak = fctj.StopFlag[1][kBragg];
+    tjf.endBraggPeak = fctj.EndFlag[1][kBragg];
     // Set outlook = Estimate of the number of hits per wire 
     tjf.outlook = fctj.TotChg / (fctj.Pts.size() * tj.AveChg);
     // assume we got to the end
@@ -951,11 +951,11 @@ namespace tca {
     bool isSA = (tj.Pts[tj.EndPt[1]].AngleCode == 0);
     
     // First remove any TPs at the end that have no hits after
-    // setting the StopFlag. Assume that there are no hits on TPs after the end
-    tj.StopFlag[1][kSignal] = false;
+    // setting the EndFlag. Assume that there are no hits on TPs after the end
+    tj.EndFlag[1][kSignal] = false;
     if(tj.EndPt[1] < tj.Pts.size() - 1) {
-      // There must be hits at the end so set the kSignal StopFlag
-      if(!tj.Pts[tj.EndPt[1]+1].Hits.empty()) tj.StopFlag[1][kSignal] = true;
+      // There must be hits at the end so set the kSignal EndFlag
+      if(!tj.Pts[tj.EndPt[1]+1].Hits.empty()) tj.EndFlag[1][kSignal] = true;
     }
     tj.Pts.resize(tj.EndPt[1] + 1);
     
@@ -997,10 +997,10 @@ namespace tca {
     // ignore short trajectories
     if(tj.EndPt[1] < 4) return;
     
-    if(isSA && !tj.StopFlag[1][kBragg]) {
+    if(isSA && !tj.EndFlag[1][kBragg]) {
       // Small angle checks
       
-      if(tcc.useAlg[kCTKink] && tj.EndPt[1] > 8 && !tj.StopFlag[1][kAtKink] && tj.MCSMom > 50) {
+      if(tcc.useAlg[kCTKink] && tj.EndPt[1] > 8 && !tj.EndFlag[1][kAtKink] && tj.MCSMom > 50) {
         // look for the signature of a kink near the end of the trajectory.
         // These are: Increasing delta for the last few hits
         unsigned short newSize = USHRT_MAX;
@@ -1236,7 +1236,7 @@ namespace tca {
         if(tcHit.InTraj == 0) ++nAvailable;
       } // ii
       if(nAvailable == 0) {
-        tj.StopFlag[1][kAtTj] = true;
+        tj.EndFlag[1][kAtTj] = true;
         return;
       }
     } // stop at Tj
@@ -1369,8 +1369,8 @@ namespace tca {
           if(atPt != USHRT_MAX) break;
         } // ipt
         if(atPt != USHRT_MAX && DeltaAngle(tp.Ang, otj.Pts[atPt].Ang) < 0.1) {
-          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Found a VLA merge candidate trajectory "<<otj.ID<<". Set StopFlag[kAtTj] and stop stepping";
-          tj.StopFlag[1][kAtTj] = true;
+          if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Found a VLA merge candidate trajectory "<<otj.ID<<". Set EndFlag[kAtTj] and stop stepping";
+          tj.EndFlag[1][kAtTj] = true;
           return;
         } // atPt is valid
       } // nAvailable == 0 &&
@@ -1805,7 +1805,7 @@ namespace tca {
     
     // require a Bragg peak
     ChkStop(slc, tj);
-    if(!tj.StopFlag[1][kBragg]) {
+    if(!tj.EndFlag[1][kBragg]) {
       // restore the original
       for(unsigned short ipt = originalEndPt; ipt <= lastPt; ++ipt) UnsetUsedHits(slc, tj.Pts[ipt]);
       SetEndPoints(tj);
@@ -2495,7 +2495,7 @@ namespace tca {
     // if we made it here it must be OK
     SetEndPoints(tj);
     // Try to extend it, unless there was a kink
-    if(tj.StopFlag[1][kAtKink]) return;
+    if(tj.EndFlag[1][kAtKink]) return;
     // trim the end points although this shouldn't happen
     if(tj.EndPt[1] != tj.Pts.size() - 1) tj.Pts.resize(tj.EndPt[1] + 1);
     tj.AlgMod[kCHMUH] = true;
@@ -2506,7 +2506,7 @@ namespace tca {
   {
     // mask off high multiplicity TPs at the end
     if(!tcc.useAlg[kCHMEH]) return;
-    if(tj.StopFlag[1][kBragg]) return;
+    if(tj.EndFlag[1][kBragg]) return;
     if(tj.Pts.size() < 10) return;
     if(tj.Pts[tj.EndPt[1]].AngleCode == 0) return;
     // find the average multiplicity in the first half
@@ -2549,7 +2549,7 @@ namespace tca {
     // This needs to be done carefully...
     
     if(!tcc.useAlg[kHED]) return;
-    if(tj.StopFlag[1][kBragg]) return;
+    if(tj.EndFlag[1][kBragg]) return;
     if(tj.Strategy[kStiffEl]) return;
     // Only consider long high momentum.
     if(tj.MCSMom < 100) return;
@@ -2914,7 +2914,7 @@ namespace tca {
       } // debug
       if(foundKink) {
         killPts = nPtsFit;
-        tj.StopFlag[1][kAtKink] = true;
+        tj.EndFlag[1][kAtKink] = true;
         tj.AlgMod[kNewStpCuts] = true;
         if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Found a short Tj kink";
         return;
@@ -2929,14 +2929,14 @@ namespace tca {
       if(dang < 2 * kinkAngCut && endChgAsym > 0.2) return;
       if(tcc.dbgStp) mf::LogVerbatim("TC")<<" Found a muon Tj kink. Calling it not-a-kink";
       killPts = nPtsFit;
-      tj.StopFlag[1][kAtKink] = true;
+      tj.EndFlag[1][kAtKink] = true;
       tj.AlgMod[kNewStpCuts] = true;
       return;
     } // kNewStpCuts and muon with a kink
 
     if(dang > kinkAngCut) {
       killPts = nPtsFit;
-      tj.StopFlag[1][kAtKink] = true;
+      tj.EndFlag[1][kAtKink] = true;
     }
     
     if(killPts > 0) {
@@ -2947,19 +2947,19 @@ namespace tca {
         if(tj.MCSMom < 0) tj.MCSMom = MCSMom(slc, tj);
         if(tj.MCSMom < 50) {
           killPts = 0;
-          tj.StopFlag[1][kAtKink] = false;
+          tj.EndFlag[1][kAtKink] = false;
           tj.AlgMod[kNoKinkChk] = true;
           if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GottaKink turning off kink checking. MCSMom "<<tj.MCSMom;
         }
       } // turn off kink check
       // Don't stop if the last few points had high charge pull and we are tracking a muon, but do mask off the hits
-      if(killPts > 0 && tj.PDGCode == 13 && tj.Pts[lastPt].ChgPull > 2  && tj.Pts[lastPt-1].ChgPull > 2) tj.StopFlag[1][kAtKink] = false;
+      if(killPts > 0 && tj.PDGCode == 13 && tj.Pts[lastPt].ChgPull > 2  && tj.Pts[lastPt-1].ChgPull > 2) tj.EndFlag[1][kAtKink] = false;
       // Don't keep stepping or mask off any TPs if we hit a kink while doing RevProp
       if(tj.AlgMod[kRvPrp]) killPts = 0;
     }
     
-    if(tcc.dbgStp && tj.StopFlag[1][kAtKink]) mf::LogVerbatim("TC")<<"GottaKink killPts "<<killPts;
-//    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GottaKink "<<kinkPt<<" Pos "<<PrintPos(slc, tj.Pts[kinkPt])<<" dang "<<std::fixed<<std::setprecision(2)<<dang<<" cut "<<kinkAngCut<<" tpFit chi "<<tpFit.FitChi<<" killPts "<<killPts<<" GottaKink? "<<tj.StopFlag[1][kAtKink]<<" MCSMom "<<tj.MCSMom<<" thetaRMS "<<thetaRMS;
+    if(tcc.dbgStp && tj.EndFlag[1][kAtKink]) mf::LogVerbatim("TC")<<"GottaKink killPts "<<killPts;
+//    if(tcc.dbgStp) mf::LogVerbatim("TC")<<"GottaKink "<<kinkPt<<" Pos "<<PrintPos(slc, tj.Pts[kinkPt])<<" dang "<<std::fixed<<std::setprecision(2)<<dang<<" cut "<<kinkAngCut<<" tpFit chi "<<tpFit.FitChi<<" killPts "<<killPts<<" GottaKink? "<<tj.EndFlag[1][kAtKink]<<" MCSMom "<<tj.MCSMom<<" thetaRMS "<<thetaRMS;
     
   } // GottaKink
 
@@ -3088,7 +3088,7 @@ namespace tca {
     // ignore junk trajectories
     if(tj.AlgMod[kJunkTj]) return;
     // ignore stopping trajectories
-    if(tj.StopFlag[0][kBragg]) return;
+    if(tj.EndFlag[0][kBragg]) return;
     
     
     unsigned short firstPt = tj.EndPt[0];
@@ -3108,7 +3108,7 @@ namespace tca {
     } // kNewStpCuts
     
     if(tcc.dbgStp) {
-      mf::LogVerbatim("TC")<<"FixTrajBegin: atPt "<<atPt<<" firstPt "<<firstPt<<" Stops at end 0? "<<PrintStopFlag(tj, 0)<<" start vertex "<<tj.VtxID[0]<<" maxDelta "<<maxDelta;
+      mf::LogVerbatim("TC")<<"FixTrajBegin: atPt "<<atPt<<" firstPt "<<firstPt<<" Stops at end 0? "<<PrintEndFlag(tj, 0)<<" start vertex "<<tj.VtxID[0]<<" maxDelta "<<maxDelta;
     }
     
     // update the trajectory for all the points up to atPt
@@ -3169,7 +3169,7 @@ namespace tca {
     // ignore junk trajectories
     if(tj.AlgMod[kJunkTj]) return;
     // ingore stopping trajectories
-    if(tj.StopFlag[1][kBragg]) return;
+    if(tj.EndFlag[1][kBragg]) return;
     
     if(tcc.dbgStp) {
       mf::LogVerbatim("TC")<<"FixTrajEnd: atPt "<<atPt;
@@ -3697,7 +3697,7 @@ namespace tca {
           if(doMerge && bestDOCA > 1 && chgFrac < chgFracCut) doMerge = false;
           
           // don't merge if a Bragg peak exists. A vertex should be made instead
-          if(doMerge && (tj1.StopFlag[end1][kBragg] || tj2.StopFlag[end2][kBragg])) doMerge = false;
+          if(doMerge && (tj1.EndFlag[end1][kBragg] || tj2.EndFlag[end2][kBragg])) doMerge = false;
           
           // Check the MCSMom asymmetry and don't merge if it is higher than the user-specified cut
           float momAsym = std::abs(tj1.MCSMom - tj2.MCSMom) / (float)(tj1.MCSMom + tj2.MCSMom);
@@ -3803,8 +3803,8 @@ namespace tca {
             tj2.AlgMod[kMerge] = true;
             // Set pion-like PDGCodes
             if(!tj1.Strategy[kStiffEl] && !tj2.Strategy[kStiffEl]) {
-              if(tj1.StopFlag[end1][kBragg] && !tj2.StopFlag[end2][kBragg]) tj1.PDGCode = 211;
-              if(tj2.StopFlag[end2][kBragg] && !tj1.StopFlag[end1][kBragg]) tj2.PDGCode = 211;
+              if(tj1.EndFlag[end1][kBragg] && !tj2.EndFlag[end2][kBragg]) tj1.PDGCode = 211;
+              if(tj2.EndFlag[end2][kBragg] && !tj1.EndFlag[end1][kBragg]) tj2.PDGCode = 211;
             }
             if(!StoreVertex(slc, aVtx)) continue;
             SetVx2Score(slc);
@@ -3941,15 +3941,15 @@ namespace tca {
   ////////////////////////////////////////////////
   void ChkStop(TCSlice& slc, Trajectory& tj)
   {
-    // Sets the StopFlag[kBragg] bits on the trajectory by identifying the Bragg peak
+    // Sets the EndFlag[kBragg] bits on the trajectory by identifying the Bragg peak
     // at each end. This function checks both ends, finding the point with the highest charge nearest the
     // end and considering the first (when end = 0) 4 points or last 4 points (when end = 1). The next
     // 5 - 10 points (fChkStop[0]) are fitted to a line, Q(x - x0) = Qo + (x - x0) * slope where x0 is the
     // wire position of the highest charge point. A large negative slope indicates that there is a Bragg
     // peak at the end.
     
-    tj.StopFlag[0][kBragg] = false;
-    tj.StopFlag[1][kBragg] = false;
+    tj.EndFlag[0][kBragg] = false;
+    tj.EndFlag[1][kBragg] = false;
     if(!tcc.useAlg[kChkStop]) return;
     if(tcc.chkStopCuts[0] < 0) return;
     
@@ -4023,7 +4023,7 @@ namespace tca {
       // Flip the sign so we can make a cut against tcc.chkStopCuts[0] which is positive.
       outVec[1] = -outVec[1];
       if(outVec[1] > tcc.chkStopCuts[0] && chiDOF < tcc.chkStopCuts[2] && outVec[1] > 2 * outVecErr[1]) {
-        tj.StopFlag[end][kBragg] = true;
+        tj.EndFlag[end][kBragg] = true;
         tj.AlgMod[kChkStop] = true;
         if(tj.PDGCode == 11) tj.PDGCode = 0;
         // Put the charge at the end into tp.AveChg
