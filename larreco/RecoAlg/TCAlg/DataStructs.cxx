@@ -74,9 +74,7 @@ namespace tca {
     "MergeNrShowers",
     "MergeShChain",
     "CompleteShower",
-    "SplitTjCVx",
-    "NewStpCuts",
-    "NewVtxCuts"
+    "SplitTjCVx"
   };
   
   const std::vector<std::string> EndFlagNames {
