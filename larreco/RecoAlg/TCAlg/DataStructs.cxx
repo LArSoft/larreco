@@ -48,7 +48,6 @@ namespace tca {
     "MisdVxTj",
     "Photon",
     "HaloTj",
-    "NoFitToVx",
     "VxMerge",
     "VxNeutral",
     "NoKinkChk",
@@ -80,13 +79,14 @@ namespace tca {
     "NewVtxCuts"
   };
   
-  const std::vector<std::string> StopFlagNames {
+  const std::vector<std::string> EndFlagNames {
     "Signal",
     "AtKink",
     "AtVtx",
     "Bragg",
     "AtTj",
-    "OutFV"
+    "OutFV",
+    "NoFitVx"
   };
   
   const std::vector<std::string> VtxBitNames {
