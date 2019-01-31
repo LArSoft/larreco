@@ -134,7 +134,7 @@ namespace tca {
     if(tcc.vtx2DCuts[0] <= 0) return;
     if(slc.tjs.size() < 2) return;
     
-    bool firstPassCuts = (tcc.useAlg[kNewVtxCuts] && pass == 0);
+    bool firstPassCuts = (pass == 0);
     
     geo::PlaneID planeID = DecodeCTP(inCTP);
     
@@ -368,24 +368,6 @@ namespace tca {
             myprt<<" at "<<std::fixed<<std::setprecision(1)<<aVtx.Pos[0]<<":"<<aVtx.Pos[1]/tcc.unitsPerTick;
           }
           AttachAnyTrajToVertex(slc, slc.vtxs.size() - 1, prt);
-/*
-          if(tcc.useAlg[kNewVtxCuts]) {
-            // try stepping away from the vertex
-            auto& newVx2 = slc.vtxs[slc.vtxs.size() - 1];
-            auto tjlist = GetAssns(slc, "2V", newVx2.ID, "T");
-            // count the number of long straight Tjs
-            unsigned short nlong = 0;
-            for(auto tjid : tjlist) {
-              auto& vtj = slc.tjs[tjid - 1];
-              unsigned short npts = vtj.EndPt[1] - vtj.EndPt[0] + 1;
-              if(npts > 20 && vtj.MCSMom > 100) ++nlong;
-            } // tjid
-            if(nlong > 1) {
-              std::cout<<"Try 2V"<<newVx2.ID<<" nlong "<<nlong<<"\n";
-              FindVtxTjs(slc, newVx2);
-            }
-          } // new cuts
-*/
           SetVx2Score(slc);
         } // it2
       } // end1
@@ -883,8 +865,7 @@ namespace tca {
       if(vx2.CTP != inCTP) continue;
       auto vxtjs = GetAssns(slc, "2V", vx2.ID, "T");
       if(vxtjs.size() < 2) continue;
-      if(tcc.useAlg[kNewVtxCuts] && vx2.Stat[kOnDeadWire]) continue;
-      // BB added June 4, 2018
+      if(vx2.Stat[kOnDeadWire]) continue;
       // find the closest separation between the vertex and the ends of the tjs
       float close = 200;
       int closeID = 0;
@@ -1023,7 +1004,7 @@ namespace tca {
           unsigned short numPtsWithCharge2 = NumPtsWithCharge(slc, slc.tjs[it2], true);
           if(numPtsWithCharge2 < 6) continue;
           // ignore muon-like tjs
-          if(tcc.useAlg[kNewVtxCuts] && numPtsWithCharge2 > 100 && slc.tjs[it2].MCSMom > 500) continue;
+          if(numPtsWithCharge2 > 100 && slc.tjs[it2].MCSMom > 500) continue;
           // Find the minimum separation between tj1 and tj2
           float minDOCA = 5;
           float doca = minDOCA;
@@ -1194,18 +1175,10 @@ namespace tca {
           // length of tj2 cut
           unsigned short tj2len = slc.tjs[it2].EndPt[1] - slc.tjs[it2].EndPt[0] + 1;
           if(tj2len < 6) continue;
-          // ignore if tj1 is a lot shorter than tj2
-//          if(tj1len < 0.5 * tj2len) continue;
           // ignore very long straight trajectories (probably a cosmic muon)
-          unsigned short end20 = slc.tjs[it2].EndPt[0];
-          unsigned short end21 = slc.tjs[it2].EndPt[1];
-          if(tcc.useAlg[kNewVtxCuts]) {
-            if(tj2len > 200 && slc.tjs[it2].PDGCode == 13) continue;
-          } else {
-            if(tj2len > 100 && DeltaAngle(slc.tjs[it2].Pts[end20].Ang, slc.tjs[it2].Pts[end21].Ang) < 0.2) continue;
-          }
+          if(tj2len > 200 && slc.tjs[it2].PDGCode == 13) continue;
           float minDOCA = 5;
-          if(tcc.useAlg[kNewVtxCuts]) minDOCA /= std::abs(slc.tjs[it1].Pts[endPt1].Dir[0]);
+          minDOCA /= std::abs(slc.tjs[it1].Pts[endPt1].Dir[0]);
           float doca = minDOCA;
           unsigned short closePt2 = 0;
           TrajPointTrajDOCA(slc, slc.tjs[it1].Pts[endPt1], slc.tjs[it2], closePt2, doca);
@@ -1226,14 +1199,12 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<" chgFrac "<<chgFrac;
           if(chgFrac < 0.9) continue;
           Point2_t vxpos = slc.tjs[it2].Pts[closePt2].Pos;
-          if(tcc.useAlg[kNewVtxCuts]) {
-            // get a better estimate of the vertex position
-            TrajIntersection(slc.tjs[it1].Pts[endPt1], slc.tjs[it2].Pts[closePt2], vxpos[0], vxpos[1]);
-            // and a better estimate of the point on tj2 where the split should be made
-            doca = minDOCA;
-            TrajClosestApproach(slc.tjs[it2], vxpos[0], vxpos[1], closePt2, doca);
-            if(prt) mf::LogVerbatim("TC")<<" better pos "<<PrintPos(slc, vxpos)<<" new closePt2 "<<closePt2;
-          } // kNewVtxCuts
+          // get a better estimate of the vertex position
+          TrajIntersection(slc.tjs[it1].Pts[endPt1], slc.tjs[it2].Pts[closePt2], vxpos[0], vxpos[1]);
+          // and a better estimate of the point on tj2 where the split should be made
+          doca = minDOCA;
+          TrajClosestApproach(slc.tjs[it2], vxpos[0], vxpos[1], closePt2, doca);
+          if(prt) mf::LogVerbatim("TC")<<" better pos "<<PrintPos(slc, vxpos)<<" new closePt2 "<<closePt2;
           // create a new vertex
           VtxStore aVtx;
           aVtx.Pos = vxpos;
@@ -1441,7 +1412,7 @@ namespace tca {
     
     for(unsigned short ivx = 0; ivx < vsize; ++ivx) {
       if(slc.vtxs[ivx].ID <= 0) continue;
-      if(tcc.useAlg[kNewVtxCuts] && slc.vtxs[ivx].Score < tcc.vtx2DCuts[7]) continue;
+      if(slc.vtxs[ivx].Score < tcc.vtx2DCuts[7]) continue;
       geo::PlaneID planeID = DecodeCTP(slc.vtxs[ivx].CTP);
       if(slc.vtxs[ivx].Pos[0] < -0.4) continue;
       unsigned int wire = std::nearbyint(slc.vtxs[ivx].Pos[0]);
@@ -2000,7 +1971,7 @@ namespace tca {
     // is the trajectory short?
     bool tjShort = (tj.EndPt[1] - tj.EndPt[0] < maxShortTjLen);
     // use the short Tj cut if the trajectory looks like an electron
-    if(tcc.useAlg[kNewVtxCuts] && !tjShort && tj.ChgRMS > 0.5) tjShort = true;
+    if(!tjShort && tj.ChgRMS > 0.5) tjShort = true;
     float closestApproach;
     // ignore bad separation between the closest tj end and the vertex
     if(tjShort) {
@@ -2036,12 +2007,8 @@ namespace tca {
     float pullCut = tcc.vtx2DCuts[3];
     // Dec 21, 2017 Loosen up the pull cut for short close slc. These are likely to
     // be poorly reconstructed. It is better to have them associated with the vertex
-    // than not. Oct 5, 2018 This was too loose.
-    if(tcc.useAlg[kNewVtxCuts]) {
-      if(tjShort) pullCut *= 2;
-    } else {
-      if(tjShort) pullCut = 10;
-    }
+    // than not.
+    if(tjShort) pullCut *= 2;
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2228,7 +2195,7 @@ namespace tca {
         auto& tp = vxTp[vxTp.size()-1];
         if(tj.ID > 0) tp.Step = (int)tj.ID;
         // inflate the angle errors for Tjs with few fitted points
-        if(tcc.useAlg[kNewVtxCuts] && tp.NTPsFit < 4) tp.AngErr *= 4;
+        if(tp.NTPsFit < 4) tp.AngErr *= 4;
       }
     } // tj
     
@@ -2620,11 +2587,10 @@ namespace tca {
       unsigned short lenth = tj.EndPt[1] - tj.EndPt[0] + 1;
       if(lenth < 3) continue;
       float wght = (float)tj.MCSMom / momBin;
-      if(!tcc.useAlg[kNewVtxCuts] && wght > 10) wght = 10;
       // weight by the first tagged muon
       if(tj.PDGCode == 13) {
         ++cnt13;
-        if(tcc.useAlg[kNewVtxCuts] && cnt13 == 1) wght *= 2;
+        if(cnt13 == 1) wght *= 2;
       }
       // weight by charge rms
       if(tj.ChgRMS < maxChgRMS) ++wght;
