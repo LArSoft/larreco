@@ -1,0 +1,13 @@
+BEGIN_PROLOG
+
+standard_Hits:
+{
+  tool_type:              HitsStandard
+}
+
+standard_HitsICARUS:
+{
+  tool_type:              HitsICARUS
+}
+
+END_PROLOG

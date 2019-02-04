@@ -2,6 +2,7 @@
  *  @file   IHit3DBuilder.h
  * 
  *  @brief  This provides an art tool interface definition for tools which construct 3D hits used in 3D clustering
+ *          and outputs a new hit collection based on those 3D hits
  *
  *  @author usher@slac.stanford.edu
  * 
@@ -18,6 +19,11 @@
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+namespace art
+{
+    class EDProducer;
+}
+
 namespace lar_cluster3d
 {
 /**
@@ -32,6 +38,12 @@ public:
     virtual ~IHit3DBuilder() noexcept = default;
     
     /**
+     *  @brief The space point building should output the hit collection
+     *         for those hits which combine to form space points - a nice noise filter!
+     */
+    virtual void produces(art::EDProducer*) = 0;
+
+    /**
      *  @brief Interface for configuring the particular algorithm tool
      *
      *  @param ParameterSet  The input set of parameters for configuration
@@ -41,7 +53,7 @@ public:
     /**
      *  @brief Defines a structure mapping art representation to internal
      */
-    using RecobHitToPtrMap = std::map<const recob::Hit*, art::Ptr<recob::Hit>>;
+    using RecobHitToPtrMap = std::unordered_map<const recob::Hit*, art::Ptr<recob::Hit>>;
 
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -49,13 +61,14 @@ public:
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    virtual void Hit3DBuilder(const art::Event&, reco::HitPairList&, RecobHitToPtrMap&) const = 0;
+    virtual void Hit3DBuilder(art::EDProducer&, art::Event&, reco::HitPairList&, RecobHitToPtrMap&) = 0;
 
     /**
      *  @brief enumerate the possible values for time checking if monitoring timing
      */
     enum TimeValues {COLLECTARTHITS   = 0,
                      BUILDTHREEDHITS  = 1,
+                     BUILDNEWHITS     = 2,
                      NUMTIMEVALUES
     };
     

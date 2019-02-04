@@ -15,6 +15,7 @@
 #include "art/Framework/Principal/Handle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art/Utilities/make_tool.h"
 #include "canvas/Persistency/Common/Ptr.h"
 
 // LArSoft libraries
@@ -35,6 +36,8 @@
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 
 #include "larsim/MCCheater/BackTracker.h"
+
+#include "larreco/SpacePointSolver/HitReaders/IHitReader.h"
 
 #include "TGraph.h"
 #include "TH1.h"
@@ -121,6 +124,8 @@ protected:
 
   const detinfo::DetectorProperties* detprop;
   const geo::GeometryCore* geom;
+private:
+  std::unique_ptr<reco3d::IHitReader> fHitReader; ///<  Expt specific tool for reading hits
 };
 
 DEFINE_ART_MODULE(SpacePointSolver)
@@ -144,6 +149,8 @@ SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset)
     produces<art::Assns<recob::SpacePoint, recob::Hit>>();
     recob::ChargedSpacePointCollectionCreator::produces(*this, "noreg");
   }
+    
+  fHitReader = art::make_tool<reco3d::IHitReader>(pset.get<fhicl::ParameterSet>("HitReaderTool"));
 }
 
 // ---------------------------------------------------------------------------
@@ -472,37 +479,8 @@ void SpacePointSolver::produce(art::Event& evt)
 
   art::ServiceHandle<geo::Geometry> geom;
 
-  bool is2view = false;
   std::vector<art::Ptr<recob::Hit>> xhits, uhits, vhits;
-  for(auto& hit: hitlist){
-    if(hit->Integral() < 0 || isnan(hit->Integral()) || isinf(hit->Integral())){
-      std::cout << "WARNING: bad recob::Hit::Integral() = "
-                << hit->Integral()
-                << ". Skipping." << std::endl;
-      continue;
-    }
-
-    if(hit->SignalType() == geo::kCollection){
-      // For DualPhase, both view are collection. Arbitrarily map V to the main
-      // "X" view. For Argoneut and Lariat, collection=V is also the right
-      // convention.
-      if(hit->View() == geo::kZ){
-        xhits.push_back(hit);
-      }
-      if(hit->View() == geo::kV){
-        xhits.push_back(hit);
-        is2view = true;
-      }
-      if(hit->View() == geo::kU || hit->View() == geo::kY){
-        uhits.push_back(hit);
-        is2view = true;
-      }
-    }
-    else{
-      if(hit->View() == geo::kU) uhits.push_back(hit);
-      if(hit->View() == geo::kV) vhits.push_back(hit);
-    }
-  } // end for hit
+  bool is2view = fHitReader->readHits(hitlist, xhits, uhits, vhits);
 
   std::vector<raw::ChannelID_t> xbadchans, ubadchans, vbadchans;
   if(fAllowBadInductionHit || fAllowBadCollectionHit){

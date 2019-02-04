@@ -377,31 +377,13 @@ reco::ClusterParametersList::iterator ClusterPathFinder::breakIntoTinyBits(reco:
                     std::cout << indent << "+>    -- >> cluster has a valid Full PCA" << std::endl;
 
                     // Need to check if the PCA direction has been reversed
-                    Eigen::Vector3f fullPrimaryVec(fullPCA.getEigenVectors()[0][0],fullPCA.getEigenVectors()[0][1],fullPCA.getEigenVectors()[0][2]);
-                    Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors()[0][0],newFullPCA.getEigenVectors()[0][1],newFullPCA.getEigenVectors()[0][2]);
+                    Eigen::Vector3f fullPrimaryVec(fullPCA.getEigenVectors().row(0));
+                    Eigen::Vector3f newPrimaryVec(newFullPCA.getEigenVectors().row(0));
                     
                     // If the PCA's are opposite the flip the axes
                     if (fullPrimaryVec.dot(newPrimaryVec) < 0.)
                     {
-                        reco::PrincipalComponents::EigenVectors eigenVectors;
-                        
-                        eigenVectors.resize(3);
-                        
-                        for(size_t vecIdx = 0; vecIdx < 3; vecIdx++)
-                        {
-                            eigenVectors[vecIdx].resize(3,0.);
-                            
-                            eigenVectors[vecIdx][0] = -newFullPCA.getEigenVectors()[vecIdx][0];
-                            eigenVectors[vecIdx][1] = -newFullPCA.getEigenVectors()[vecIdx][1];
-                            eigenVectors[vecIdx][2] = -newFullPCA.getEigenVectors()[vecIdx][2];
-                        }
-                        
-                        newFullPCA = reco::PrincipalComponents(true,
-                                                               newFullPCA.getNumHitsUsed(),
-                                                               newFullPCA.getEigenValues(),
-                                                               eigenVectors,
-                                                               newFullPCA.getAvePosition(),
-                                                               newFullPCA.getAveHitDoca());
+                        for(size_t vecIdx = 0; vecIdx < 3; vecIdx++) newFullPCA.flipAxis(vecIdx);
                     }
 
                     // Set the skeleton PCA to make sure it has some value
@@ -462,17 +444,7 @@ void ClusterPathFinder::buildConvexHull(reco::ClusterParameters& clusterParamete
     reco::PrincipalComponents& pca = clusterParameters.getFullPCA();
 
     // Recover the parameters from the Principal Components Analysis that we need to project and accumulate
-    Eigen::Vector3f pcaCenter(pca.getAvePosition()[0],pca.getAvePosition()[1],pca.getAvePosition()[2]);
-    Eigen::Vector3f planeVec0(pca.getEigenVectors()[0][0],pca.getEigenVectors()[0][1],pca.getEigenVectors()[0][2]);
-    Eigen::Vector3f planeVec1(pca.getEigenVectors()[1][0],pca.getEigenVectors()[1][1],pca.getEigenVectors()[1][2]);
-    Eigen::Vector3f pcaPlaneNrml(pca.getEigenVectors()[2][0],pca.getEigenVectors()[2][1],pca.getEigenVectors()[2][2]);
-
-    // Let's get the rotation matrix from the standard coordinate system to the PCA system.
-    Eigen::Matrix3f rotationMatrix;
-    
-    rotationMatrix << planeVec0(0),    planeVec0(1),    planeVec0(2),
-                      planeVec1(0),    planeVec1(1),    planeVec1(2),
-                      pcaPlaneNrml(0), pcaPlaneNrml(1), pcaPlaneNrml(2);
+    const Eigen::Vector3f& pcaCenter = pca.getAvePosition();
 
     //dcel2d::PointList pointList;
     using Point     = std::tuple<float,float,const reco::ClusterHit3D*>;
@@ -485,7 +457,7 @@ void ClusterPathFinder::buildConvexHull(reco::ClusterParameters& clusterParamete
         Eigen::Vector3f pcaToHitVec(hit3D->getPosition()[0] - pcaCenter(0),
                                     hit3D->getPosition()[1] - pcaCenter(1),
                                     hit3D->getPosition()[2] - pcaCenter(2));
-        Eigen::Vector3f pcaToHit = rotationMatrix * pcaToHitVec;
+        Eigen::Vector3f pcaToHit = pca.getEigenVectors() * pcaToHitVec;
 
         pointList.emplace_back(dcel2d::Point(pcaToHit(0),pcaToHit(1),hit3D));
     }
@@ -600,29 +572,8 @@ void ClusterPathFinder::buildVoronoiDiagram(reco::ClusterParameters& clusterPara
     reco::PrincipalComponents& pca = clusterParameters.getFullPCA();
     
     // Recover the parameters from the Principal Components Analysis that we need to project and accumulate
-    Eigen::Vector3f pcaCenter(pca.getAvePosition()[0],pca.getAvePosition()[1],pca.getAvePosition()[2]);
-    Eigen::Vector3f planeVec0(pca.getEigenVectors()[0][0],pca.getEigenVectors()[0][1],pca.getEigenVectors()[0][2]);
-    Eigen::Vector3f planeVec1(pca.getEigenVectors()[1][0],pca.getEigenVectors()[1][1],pca.getEigenVectors()[1][2]);
-    Eigen::Vector3f pcaPlaneNrml(pca.getEigenVectors()[2][0],pca.getEigenVectors()[2][1],pca.getEigenVectors()[2][2]);
-    
-    // Leave the following code bits as an example of a more complicated way to do what we are trying to do here
-    // (but in case I want to use quaternions again!)
-    //
-    //Eigen::Vector3f unitVecX(1.,0.,0.);
-    //
-    //Eigen::Quaternionf rotationMatrix = Eigen::Quaternionf::FromTwoVectors(planeVec0,unitVecX);
-    //
-    //Eigen::Matrix3f Rmatrix    = rotationMatrix.toRotationMatrix();
-    //Eigen::Matrix3f RInvMatrix = rotationMatrix.inverse().toRotationMatrix();
-    
-    // Let's get the rotation matrix from the standard coordinate system to the PCA system.
-    Eigen::Matrix3f rotationMatrix;
-    
-    rotationMatrix << planeVec0(0),    planeVec0(1),    planeVec0(2),
-                      planeVec1(0),    planeVec1(1),    planeVec1(2),
-                      pcaPlaneNrml(0), pcaPlaneNrml(1), pcaPlaneNrml(2);
-    
-    dcel2d::PointList pointList;
+    const Eigen::Vector3f& pcaCenter = pca.getAvePosition();
+    dcel2d::PointList      pointList;
     
     // Loop through hits and do projection to plane
     for(const auto& hit3D : clusterParameters.getHitPairListPtr())
@@ -630,7 +581,7 @@ void ClusterPathFinder::buildVoronoiDiagram(reco::ClusterParameters& clusterPara
         Eigen::Vector3f pcaToHitVec(hit3D->getPosition()[0] - pcaCenter(0),
                                     hit3D->getPosition()[1] - pcaCenter(1),
                                     hit3D->getPosition()[2] - pcaCenter(2));
-        Eigen::Vector3f pcaToHit = rotationMatrix * pcaToHitVec;
+        Eigen::Vector3f pcaToHit = pca.getEigenVectors() * pcaToHitVec;
         
         pointList.emplace_back(dcel2d::Point(pcaToHit(0),pcaToHit(1),hit3D));
     }
@@ -649,7 +600,7 @@ void ClusterPathFinder::buildVoronoiDiagram(reco::ClusterParameters& clusterPara
     
     // Now get the inverse of the rotation matrix so we can get the vertex positions,
     // which lie in the plane of the two largest PCA axes, in the standard coordinate system
-    Eigen::Matrix3f rotationMatrixInv = rotationMatrix.inverse();
+    Eigen::Matrix3f rotationMatrixInv = pca.getEigenVectors().inverse();
     
     // Translate and fill
     for(auto& vertex : vertexList)

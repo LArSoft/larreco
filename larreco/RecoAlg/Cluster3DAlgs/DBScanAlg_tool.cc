@@ -6,6 +6,7 @@
  */
 
 // Framework Includes
+#include "art/Utilities/make_tool.h"
 #include "art/Utilities/ToolMacros.h"
 #include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
@@ -13,7 +14,8 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
 
 // LArSoft includes
-#include "larreco/RecoAlg/Cluster3DAlgs/ClusterParamsBuilder.h"
+#include "larcore/Geometry/Geometry.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IClusterParamsBuilder.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/kdTree.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
@@ -70,7 +72,7 @@ public:
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    float getTimeToExecute(IClusterAlg::TimeValues index) const override {return m_timeVector.at(index);}
+    float getTimeToExecute(IClusterAlg::TimeValues index) const override {return m_timeVector[index];}
     
 private:
     
@@ -85,17 +87,15 @@ private:
     /**
      *  @brief Data members to follow
      */
-    bool                       m_enableMonitoring;      ///<
-    size_t                     m_minPairPts;
-    mutable std::vector<float> m_timeVector;            ///<
+    bool                                                      m_enableMonitoring;      ///<
+    size_t                                                    m_minPairPts;
+    mutable std::vector<float>                                m_timeVector;            ///<
     
-    ClusterParamsBuilder       m_clusterBuilder;        // Common cluster builder tool
-    kdTree                     m_kdTree;                // For the kdTree
+    std::unique_ptr<lar_cluster3d::IClusterParametersBuilder> m_clusterBuilder;        ///<  Common cluster builder tool
+    kdTree                                                    m_kdTree;                // For the kdTree
 };
 
-DBScanAlg::DBScanAlg(fhicl::ParameterSet const &pset) :
-    m_clusterBuilder(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder")),
-    m_kdTree(pset.get<fhicl::ParameterSet>("kdTree"))
+DBScanAlg::DBScanAlg(fhicl::ParameterSet const &pset)
 {
     this->configure(pset);
 }
@@ -110,8 +110,29 @@ DBScanAlg::~DBScanAlg()
 
 void DBScanAlg::configure(fhicl::ParameterSet const &pset)
 {
-    m_enableMonitoring         = pset.get<bool>  ("EnableMonitoring",  true  );
-    m_minPairPts               = pset.get<size_t>("MinPairPts",        2     );
+    m_enableMonitoring  = pset.get<bool>  ("EnableMonitoring",  true  );
+    m_minPairPts        = pset.get<size_t>("MinPairPts",        2     );
+
+    m_clusterBuilder    = art::make_tool<lar_cluster3d::IClusterParametersBuilder>(pset.get<fhicl::ParameterSet>("ClusterParamsBuilder"));
+    
+    // Recover the parameter set for the kdTree
+    fhicl::ParameterSet kdTreeParams(pset.get<fhicl::ParameterSet>("kdTree"));
+    
+    // Now work out the maximum wire pitch
+    art::ServiceHandle<geo::Geometry> geometry;
+
+    // Returns the wire pitch per plane assuming they will be the same for all TPCs
+    std::vector<float> wirePitchVec(3,0.);
+    
+    wirePitchVec[0] = geometry->WirePitch(0);
+    wirePitchVec[1] = geometry->WirePitch(1);
+    wirePitchVec[2] = geometry->WirePitch(2);
+    
+    float maxBestDist = 1.99 * *std::max_element(wirePitchVec.begin(),wirePitchVec.end());
+    
+    kdTreeParams.put_or_replace<float>("RefLeafBestDist", maxBestDist);
+    
+    m_kdTree = kdTree(kdTreeParams);
 }
     
 void DBScanAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
@@ -131,7 +152,7 @@ void DBScanAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
     kdTree::KdTreeNodeList kdTreeNodeContainer;
     kdTree::KdTreeNode     topNode = m_kdTree.BuildKdTree(hitPairList, kdTreeNodeContainer);
 
-    if (m_enableMonitoring) m_timeVector.at(BUILDHITTOHITMAP) = m_kdTree.getTimeToExecute();
+    if (m_enableMonitoring) m_timeVector[BUILDHITTOHITMAP] = m_kdTree.getTimeToExecute();
     
     if (m_enableMonitoring) theClockDBScan.start();
     
@@ -140,20 +161,20 @@ void DBScanAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
     for(const auto& hit : hitPairList)
     {
         // Check if the hit has already been visited
-        if (hit->getStatusBits() & reco::ClusterHit3D::CLUSTERVISITED) continue;
+        if (hit.getStatusBits() & reco::ClusterHit3D::CLUSTERVISITED) continue;
         
         // Mark as visited
-        hit->setStatusBit(reco::ClusterHit3D::CLUSTERVISITED);
+        hit.setStatusBit(reco::ClusterHit3D::CLUSTERVISITED);
         
         // Find the neighborhood for this hit
         kdTree::CandPairList candPairList;
         float                bestDistance(std::numeric_limits<float>::max());
         
-        m_kdTree.FindNearestNeighbors(hit.get(), topNode, candPairList, bestDistance);
+        m_kdTree.FindNearestNeighbors(&hit, topNode, candPairList, bestDistance);
         
         if (candPairList.size() < m_minPairPts)
         {
-            hit->setStatusBit(reco::ClusterHit3D::CLUSTERNOISE);
+            hit.setStatusBit(reco::ClusterHit3D::CLUSTERNOISE);
         }
         else
         {
@@ -162,8 +183,8 @@ void DBScanAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
             
             reco::ClusterParameters& curCluster = clusterParametersList.back();
             
-            hit->setStatusBit(reco::ClusterHit3D::CLUSTERATTACHED);
-            curCluster.addHit3D(hit.get());
+            hit.setStatusBit(reco::ClusterHit3D::CLUSTERATTACHED);
+            curCluster.addHit3D(&hit);
             
             // expand the cluster
             expandCluster(topNode, candPairList, curCluster, m_minPairPts);
@@ -183,7 +204,7 @@ void DBScanAlg::Cluster3DHits(reco::HitPairList&           hitPairList,
     // Start clocks if requested
     if (m_enableMonitoring) theClockBuildClusters.start();
     
-    m_clusterBuilder.BuildClusterInfo(clusterParametersList);
+    m_clusterBuilder->BuildClusterInfo(clusterParametersList);
     
     if (m_enableMonitoring)
     {
@@ -214,7 +235,7 @@ void DBScanAlg::Cluster3DHits(reco::HitPairListPtr&        hitPairList,
     kdTree::KdTreeNodeList kdTreeNodeContainer;
     kdTree::KdTreeNode     topNode = m_kdTree.BuildKdTree(hitPairList, kdTreeNodeContainer);
     
-    if (m_enableMonitoring) m_timeVector.at(BUILDHITTOHITMAP) = m_kdTree.getTimeToExecute();
+    if (m_enableMonitoring) m_timeVector[BUILDHITTOHITMAP] = m_kdTree.getTimeToExecute();
     
     if (m_enableMonitoring) theClockDBScan.start();
     
@@ -266,7 +287,7 @@ void DBScanAlg::Cluster3DHits(reco::HitPairListPtr&        hitPairList,
     // Start clocks if requested
     if (m_enableMonitoring) theClockBuildClusters.start();
     
-    m_clusterBuilder.BuildClusterInfo(clusterParametersList);
+    m_clusterBuilder->BuildClusterInfo(clusterParametersList);
     
     if (m_enableMonitoring)
     {
