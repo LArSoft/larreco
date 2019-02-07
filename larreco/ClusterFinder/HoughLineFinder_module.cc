@@ -71,8 +71,8 @@ namespace cluster {
     // obtain the random seed from NuRandomService,
     // unless overridden in configuration with key "Seed"
     // remember that HoughSeed will override this on each event if specified
-    , fEngine{art::ServiceHandle<rndm::NuRandomService>{}
-              ->createEngine(*this, pset, "Seed")}
+    , fEngine(art::ServiceHandle<rndm::NuRandomService>{}
+              ->createEngine(*this, pset, "Seed"))
   {
     fHLAlg.reconfigure(pset.get< fhicl::ParameterSet >("HoughBaseAlg"));
     produces< std::vector<recob::Cluster> >();
