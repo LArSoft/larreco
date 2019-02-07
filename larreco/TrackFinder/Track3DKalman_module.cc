@@ -141,7 +141,7 @@ Track3DKalman::Track3DKalman(fhicl::ParameterSet const& pset)
   , fMomStart{pset.get< std::vector < double >  >("MomStart3")} // Will be unit norm'd.
   // create a default random engine; obtain the random seed from NuRandomService,
   // unless overridden in configuration with key "Seed"
-  , fEngine{art::ServiceHandle<rndm::NuRandomService>()->createEngine(*this, pset, "Seed")}
+  , fEngine(art::ServiceHandle<rndm::NuRandomService>()->createEngine(*this, pset, "Seed"))
 {
   produces< std::vector<recob::Track> >();
   produces< std::vector<recob::SpacePoint>              >();
