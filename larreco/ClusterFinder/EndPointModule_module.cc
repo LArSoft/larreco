@@ -133,7 +133,7 @@ namespace cluster {
     std::vector< art::PtrVector<recob::Hit> > vtxHitsOut;
     size_t numvtx = fEPAlg.EndPoint(clusIn, vtxOut, vtxHitsOut, evt, fDBScanModuleLabel);
   
-    LOG_DEBUG("Vertex") << "found " << numvtx << "vertices with VertexService";
+    MF_LOG_DEBUG("Vertex") << "found " << numvtx << "vertices with VertexService";
   
     //Point to a collection of vertices to output.
     std::unique_ptr<std::vector<recob::EndPoint2D> > vtxcol(new std::vector<recob::EndPoint2D>(vtxOut));

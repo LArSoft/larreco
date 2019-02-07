@@ -34,6 +34,7 @@ candhitfinder_morphological:
     NumInterveningTicks: 6
     StructuringElement:  20
     OutputHistograms:    false
+    OutputWaveforms:     false
     WaveformAlgs:        @local::hitfinderwaveformalgs
 }
 

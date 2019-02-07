@@ -1002,6 +1002,8 @@ namespace tca {
       if(slc.tjs[it1].PDGCode == 111) continue;
       unsigned short numPtsWithCharge1 = NumPtsWithCharge(slc, slc.tjs[it1], false);
       if(numPtsWithCharge1 < 6) continue;
+      // require high MCSMom
+      if(slc.tjs[it1].MCSMom < 200) continue;
       // Check each end of tj1
       bool didaSplit = false;
       for(unsigned short end1 = 0; end1 < 2; ++end1) {
@@ -1175,6 +1177,8 @@ namespace tca {
       // minimum length requirements
       unsigned short tj1len = slc.tjs[it1].EndPt[1] - slc.tjs[it1].EndPt[0] + 1;
       if(tj1len < 5) continue;
+      // require high MCSMom
+      if(slc.tjs[it1].MCSMom < 200) continue;
       // Check each end of tj1
       bool didaSplit = false;
       for(unsigned short end1 = 0; end1 < 2; ++end1) {

@@ -124,7 +124,7 @@ namespace sppt{
     std::vector< art::Ptr<recob::Hit> > hitVec_Y;
     art::fill_ptr_vector(hitVec_Y,hitHandle_Y);
 
-    LOG_DEBUG("TTSpacePointFinder") 
+    MF_LOG_DEBUG("TTSpacePointFinder") 
       << "Got handles to hits:\n"
       << hitVec_U.size() << " u hits, "
       << hitVec_V.size() << " v hits, "

@@ -63,7 +63,7 @@ void PrincipalComponentsAlg::getHit2DPocaToAxis(const Eigen::Vector3f&    axisPo
     // Step one is to set up to determine the point of closest approach of this 2D hit to
     // the cluster's current axis.
     // Get this wire's geometry object
-    const geo::WireID&  hitID     = hit2D->getHit().WireID();
+    const geo::WireID&  hitID     = hit2D->WireID();
     const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
         
     // From this, get the parameters of the line for the wire
@@ -73,7 +73,7 @@ void PrincipalComponentsAlg::getHit2DPocaToAxis(const Eigen::Vector3f&    axisPo
     wire_geom.GetCenter(wirePos);
         
     // Correct the wire position in x to set to correspond to the drift time
-    float hitPeak(hit2D->getHit().PeakTime());
+    float hitPeak(hit2D->getHit()->PeakTime());
         
     wirePos[0] = m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat);
         
@@ -173,9 +173,7 @@ void PrincipalComponentsAlg::PCAAnalysis(const reco::HitPairListPtr& hitPairVect
     if (pcaLoop.getSvdOK())
     {
         // Let's check the angle between the original and the updated axis
-        float cosAngle = pcaLoop.getEigenVectors()[0][0] * pca.getEigenVectors()[0][0]
-                       + pcaLoop.getEigenVectors()[0][1] * pca.getEigenVectors()[0][1]
-                       + pcaLoop.getEigenVectors()[0][2] * pca.getEigenVectors()[0][2];
+        float cosAngle = pcaLoop.getEigenVectors().row(0) * pca.getEigenVectors().row(0).transpose();
         
         // Set the scale factor for the outlier rejection
         float sclFctr(3.);
@@ -228,18 +226,18 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     // see what happens
     
     // Run through the HitPairList and get the mean position of all the hits
-    float meanPos[] = {0.,0.,0.};
-    float meanWeightSum(0.);
-    int   numPairsInt(0);
+    Eigen::Vector3d meanPos(Eigen::Vector3d::Zero());
+    double          meanWeightSum(0.);
+    int             numPairsInt(0);
     
 //    const float minimumDeltaPeakSig(0.00001);
-    float minimumDeltaPeakSig(0.00001);
+    double minimumDeltaPeakSig(0.00001);
 
     // Want to use the hit "chi square" to weight the hits but we need to put a lower limit on its value
     // to prevent a few hits being over counted.
     // This is a bit experimental until we can evaluate the cost (time to calculate) vs the benefit
     // (better fits)..
-    std::vector<float> hitChiSquareVec;
+    std::vector<double> hitChiSquareVec;
 
     hitChiSquareVec.resize(hitPairVector.size());
 
@@ -250,8 +248,8 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     
     hitChiSquareVec.resize(numToKeep);
     
-    float aveValue = std::accumulate(hitChiSquareVec.begin(),hitChiSquareVec.end(),float(0.)) / float(hitChiSquareVec.size());
-    float rms      = std::sqrt(std::inner_product(hitChiSquareVec.begin(),hitChiSquareVec.end(), hitChiSquareVec.begin(), 0.,std::plus<>(),[aveValue](const auto& left,const auto& right){return (left - aveValue) * (right - aveValue);}) / float(hitChiSquareVec.size()));
+    double aveValue = std::accumulate(hitChiSquareVec.begin(),hitChiSquareVec.end(),double(0.)) / double(hitChiSquareVec.size());
+    double rms      = std::sqrt(std::inner_product(hitChiSquareVec.begin(),hitChiSquareVec.end(), hitChiSquareVec.begin(), 0.,std::plus<>(),[aveValue](const auto& left,const auto& right){return (left - aveValue) * (right - aveValue);}) / double(hitChiSquareVec.size()));
 
     minimumDeltaPeakSig = std::max(minimumDeltaPeakSig, aveValue - rms);
     
@@ -262,38 +260,36 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
 
         // Weight the hit by the peak time difference significance
-        float weight = std::max(minimumDeltaPeakSig, hit->getHitChiSquare()); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
+        double weight = std::max(minimumDeltaPeakSig, double(hit->getHitChiSquare())); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
         
-        meanPos[0] += hit->getPosition()[0] * weight;
-        meanPos[1] += hit->getPosition()[1] * weight;
-        meanPos[2] += hit->getPosition()[2] * weight;
+        meanPos(0) += hit->getPosition()[0] * weight;
+        meanPos(1) += hit->getPosition()[1] * weight;
+        meanPos(2) += hit->getPosition()[2] * weight;
         numPairsInt++;
         
         meanWeightSum += weight;
     }
     
-    meanPos[0] /= meanWeightSum;
-    meanPos[1] /= meanWeightSum;
-    meanPos[2] /= meanWeightSum;
+    meanPos /= meanWeightSum;
 
     // Define elements of our covariance matrix
-    float xi2(0.);
-    float xiyi(0.);
-    float xizi(0.0);
-    float yi2(0.0);
-    float yizi(0.0);
-    float zi2(0.);
-    float weightSum(0.);
+    double xi2(0.);
+    double xiyi(0.);
+    double xizi(0.0);
+    double yi2(0.0);
+    double yizi(0.0);
+    double zi2(0.);
+    double weightSum(0.);
     
     // Back through the hits to build the matrix
     for (const auto& hit : hitPairVector)
     {
         if (skeletonOnly && !((hit->getStatusBits() & reco::ClusterHit3D::SKELETONHIT) == reco::ClusterHit3D::SKELETONHIT)) continue;
 
-        float weight = 1. / std::max(minimumDeltaPeakSig, hit->getHitChiSquare()); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
-        float x      = (hit->getPosition()[0] - meanPos[0]) * weight;
-        float y      = (hit->getPosition()[1] - meanPos[1]) * weight;
-        float z      = (hit->getPosition()[2] - meanPos[2]) * weight;
+        double weight = 1. / std::max(minimumDeltaPeakSig, double(hit->getHitChiSquare())); //hit->getDeltaPeakTime()); ///hit->getSigmaPeakTime());
+        double x      = (hit->getPosition()[0] - meanPos(0)) * weight;
+        double y      = (hit->getPosition()[1] - meanPos(1)) * weight;
+        double z      = (hit->getPosition()[2] - meanPos(2)) * weight;
         
         weightSum += weight*weight;
         
@@ -306,7 +302,7 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     }
     
     // Using Eigen package
-    Eigen::Matrix3f sig;
+    Eigen::Matrix3d sig;
     
     sig <<  xi2, xiyi, xizi,
            xiyi,  yi2, yizi,
@@ -314,35 +310,29 @@ void PrincipalComponentsAlg::PCAAnalysis_3D(const reco::HitPairListPtr& hitPairV
     
     sig *= 1./weightSum;
     
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigenMat(sig);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigenMat(sig);
     
     if (eigenMat.info() == Eigen::ComputationInfo::Success)
     {
-        using eigenValColPair = std::pair<float,size_t>;
-        std::vector<eigenValColPair> eigenValColVec;
-        
-        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(0),0));
-        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(1),1));
-        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(2),2));
-        
-        std::sort(eigenValColVec.begin(),eigenValColVec.end(),[](const eigenValColPair& left, const eigenValColPair& right){return left.first > right.first;});
-        
         // Now copy output
-        // Get the eigen values
-        float recobEigenVals[] = {eigenValColVec[0].first, eigenValColVec[1].first, eigenValColVec[2].first};
+        // The returned eigen values and vectors will be returned in an xyz system where x is the smallest spread,
+        // y is the next smallest and z is the largest. Adopt that convention going forward
+        reco::PrincipalComponents::EigenValues  recobEigenVals = eigenMat.eigenvalues().cast<float>();
+        reco::PrincipalComponents::EigenVectors recobEigenVecs = eigenMat.eigenvectors().transpose().cast<float>();
         
-        // Grab the principle axes
-        reco::PrincipalComponents::EigenVectors recobEigenVecs;
-        Eigen::Matrix3f eigenVecs(eigenMat.eigenvectors());
-        
-        for(const auto& pair : eigenValColVec)
+        // Check for a special case (which may have gone away with switch back to doubles for computation?)
+        if (std::isnan(recobEigenVals[0]))
         {
-            std::vector<float> tempVec = {eigenVecs(0,pair.second),eigenVecs(1,pair.second),eigenVecs(2,pair.second)};
-            recobEigenVecs.push_back(tempVec);
+            std::cout << "==> Third eigenvalue returns a nan" << std::endl;
+            
+            recobEigenVals[0] = 0.;
+            
+            // Assume the third axis is also kaput?
+            recobEigenVecs.row(0) = recobEigenVecs.row(1).cross(recobEigenVecs.row(2));
         }
-        
+
         // Store away
-        pca = reco::PrincipalComponents(true, numPairsInt, recobEigenVals, recobEigenVecs, meanPos);
+        pca = reco::PrincipalComponents(true, numPairsInt, recobEigenVals, recobEigenVecs, meanPos.cast<float>());
     }
     else
     {
@@ -373,8 +363,8 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
     
     // Recover existing line parameters for current cluster
     const reco::PrincipalComponents& inputPca = pca;
-    Eigen::Vector3f                  avePosition(inputPca.getAvePosition()[0], inputPca.getAvePosition()[1], inputPca.getAvePosition()[2]);
-    Eigen::Vector3f                  axisDirVec(inputPca.getEigenVectors()[0][0], inputPca.getEigenVectors()[0][1], inputPca.getEigenVectors()[0][2]);
+    Eigen::Vector3f                  avePosition(inputPca.getAvePosition());
+    Eigen::Vector3f                  axisDirVec(inputPca.getEigenVectors().row(0));
     
     // We float loop here so we can use this method for both the first time through
     // and a second time through where we re-calculate the mean position
@@ -390,7 +380,7 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
             // Step one is to set up to determine the point of closest approach of this 2D hit to
             // the cluster's current axis.
             // Get this wire's geometry object
-            const geo::WireID&  hitID     = hit->getHit().WireID();
+            const geo::WireID&  hitID     = hit->WireID();
             const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
             
             // From this, get the parameters of the line for the wire
@@ -401,7 +391,7 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
             Eigen::Vector3f wireDirVec(wire_geom.Direction().X(),wire_geom.Direction().Y(),wire_geom.Direction().Z());
             
             // Correct the wire position in x to set to correspond to the drift time
-            float hitPeak(hit->getHit().PeakTime());
+            float hitPeak(hit->getHit()->PeakTime());
             
             Eigen::Vector3f wirePos(m_detector->ConvertTicksToX(hitPeak, hitID.Plane, hitID.TPC, hitID.Cryostat), wireCenter[1], wireCenter[2]);
             
@@ -509,9 +499,7 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
     }
     
     // Get updated average position
-    avePosUpdate[0] /= float(nHits);
-    avePosUpdate[1] /= float(nHits);
-    avePosUpdate[2] /= float(nHits);
+    avePosUpdate /= float(nHits);
     
     // Get the average hit doca
     aveHitDoca /= float(nHits);
@@ -552,34 +540,14 @@ void PrincipalComponentsAlg::PCAAnalysis_2D(const reco::HitPairListPtr& hitPairV
     
     if (eigenMat.info() == Eigen::ComputationInfo::Success)
     {
-        using eigenValColPair = std::pair<float,size_t>;
-        std::vector<eigenValColPair> eigenValColVec;
-        
-        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(0),0));
-        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(1),1));
-        eigenValColVec.push_back(eigenValColPair(eigenMat.eigenvalues()(2),2));
-        
-        std::sort(eigenValColVec.begin(),eigenValColVec.end(),[](const eigenValColPair& left, const eigenValColPair& right){return left.first > right.first;});
-        
-        // Now copy output
-        // Get the eigen values
-        float recobEigenVals[] = {eigenValColVec[0].first, eigenValColVec[1].first, eigenValColVec[2].first};
-        
-        // Grab the principle axes
-        reco::PrincipalComponents::EigenVectors recobEigenVecs;
-        Eigen::Matrix3f eigenVecs(eigenMat.eigenvectors());
-        
-        for(const auto& pair : eigenValColVec)
-        {
-            std::vector<float> tempVec = {eigenVecs(0,pair.second),eigenVecs(1,pair.second),eigenVecs(2,pair.second)};
-            recobEigenVecs.push_back(tempVec);
-        }
-        
-        // Save the average position
-        float avePosToSave[] = {float(avePosition[0]),float(avePosition[1]),float(avePosition[2])};
-        
+       // Now copy output
+        // The returned eigen values and vectors will be returned in an xyz system where x is the smallest spread,
+        // y is the next smallest and z is the largest. Adopt that convention going forward
+        reco::PrincipalComponents::EigenValues  recobEigenVals = eigenMat.eigenvalues().cast<float>();
+        reco::PrincipalComponents::EigenVectors recobEigenVecs = eigenMat.eigenvectors().transpose().cast<float>();
+
         // Store away
-        pca = reco::PrincipalComponents(true, nHits, recobEigenVals, recobEigenVecs, avePosToSave, aveHitDoca);
+        pca = reco::PrincipalComponents(true, nHits, recobEigenVals, recobEigenVecs, avePosition, aveHitDoca);
     }
     else
     {
@@ -599,7 +567,7 @@ void PrincipalComponentsAlg::PCAAnalysis_calc3DDocas(const reco::HitPairListPtr&
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(0));
     
     // We want to keep track of the average
     float aveDoca3D(0.);
@@ -651,7 +619,7 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(0));
     
     // Recover the principle eigen value for range constraints
     float maxArcLen = 4.*sqrt(pca.getEigenValues()[0]);
@@ -666,7 +634,7 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
         // the cluster's current axis. We do that by finding the point of intersection of the
         // cluster's axis with a plane defined by the wire the hit is associated with.
         // Get this wire's geometry object
-        const geo::WireID&  hitID     = hit->getHit().WireID();
+        const geo::WireID&  hitID     = hit->WireID();
         const geo::WireGeo& wire_geom = m_geometry->WireIDToWireGeo(hitID);
         
         // From this, get the parameters of the line for the wire
@@ -769,7 +737,7 @@ int PrincipalComponentsAlg::PCAAnalysis_reject3DOutliers(const reco::HitPairList
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(pca.getEigenVectors()[0][0], pca.getEigenVectors()[0][1], pca.getEigenVectors()[0][2]);
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(0));
     
     // Outer loop over views
     for (const auto* clusterHit3D : hitPairVector)

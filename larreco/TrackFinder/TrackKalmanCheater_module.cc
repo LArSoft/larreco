@@ -294,7 +294,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
   // Loop over geant particles.
 
   {
-    // use mf::LogDebug instead of LOG_DEBUG because we reuse it in many lines;
+    // use mf::LogDebug instead of MF_LOG_DEBUG because we reuse it in many lines;
     // insertions are protected by mf::isDebugEnabled()
     mf::LogDebug log("TrackKalmanCheater");
     for(sim::ParticleList::const_iterator ipart = plist.begin();

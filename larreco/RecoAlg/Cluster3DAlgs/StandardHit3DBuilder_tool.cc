@@ -10,6 +10,9 @@
 #include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
 #include "canvas/Utilities/InputTag.h"
+#include "art/Framework/Core/EDProducer.h"
+
+#include "art/Persistency/Common/PtrMaker.h"
 
 #include "larreco/RecoAlg/Cluster3DAlgs/IHit3DBuilder.h"
 
@@ -20,6 +23,7 @@
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "lardata/ArtDataHelper/HitCreator.h"
 
 // Eigen
 #include <Eigen/Dense>
@@ -46,17 +50,17 @@ struct Hit2DSetCompare
     bool operator() (const reco::ClusterHit2D*, const reco::ClusterHit2D*) const;
 };
 
-using HitVector                   = std::vector<reco::ClusterHit2D*>;
+using HitVector                   = std::vector<const reco::ClusterHit2D*>;
 using PlaneToHitVectorMap         = std::map<geo::PlaneID, HitVector>;
 using TPCToPlaneToHitVectorMap    = std::map<geo::TPCID, PlaneToHitVectorMap>;
-using Hit2DVector                 = std::vector<reco::ClusterHit2D>;
+using Hit2DList                   = std::list<const reco::ClusterHit2D>;
 using Hit2DSet                    = std::set<const reco::ClusterHit2D*, Hit2DSetCompare>;
 using WireToHitSetMap             = std::map<unsigned int, Hit2DSet>;
 using PlaneToWireToHitSetMap      = std::map<geo::PlaneID, WireToHitSetMap>;
 using TPCToPlaneToWireToHitSetMap = std::map<geo::TPCID, PlaneToWireToHitSetMap>;
 using HitVectorMap                = std::map<size_t, HitVector>;
 
-using HitPairVector               = std::vector<std::unique_ptr<reco::ClusterHit3D>>;
+//using HitPairVector               = std::vector<std::unique_ptr<reco::ClusterHit3D>>;
 
 /**
  *  @brief  StandardHit3DBuilder class definiton
@@ -76,7 +80,13 @@ public:
      */
     ~StandardHit3DBuilder();
     
-    void configure(const fhicl::ParameterSet&) override;
+    /**
+     *  @brief Each algorithm may have different objects it wants "produced" so use this to
+     *         let the top level producer module "know" what it is outputting
+     */
+    virtual void produces(art::EDProducer*) override;
+
+    virtual void configure(const fhicl::ParameterSet&) override;
     
     /**
      *  @brief Given a set of recob hits, run DBscan to form 3D clusters
@@ -84,12 +94,12 @@ public:
      *  @param hitPairList           The input list of 3D hits to run clustering on
      *  @param clusterParametersList A list of cluster objects (parameters from associated hits)
      */
-    void Hit3DBuilder(const art::Event &evt, reco::HitPairList& hitPairList, RecobHitToPtrMap&) const override;
+    virtual void Hit3DBuilder(art::EDProducer&, art::Event&, reco::HitPairList&, RecobHitToPtrMap&) override;
     
     /**
      *  @brief If monitoring, recover the time to execute a particular function
      */
-    float getTimeToExecute(IHit3DBuilder::TimeValues index) const override {return m_timeVector.at(index);}
+    virtual float getTimeToExecute(IHit3DBuilder::TimeValues index) const override {return m_timeVector[index];}
     
 private:
 
@@ -109,6 +119,11 @@ private:
      *  @brief Given the ClusterHit2D objects, build the HitPairMap
      */
     void BuildHit3D(reco::HitPairList& hitPairList) const;
+    
+    /**
+     *  @brief Create a new 2D hit collection from hits associated to 3D space points
+     */
+    void CreateNewRecobHitCollection(art::Event&, reco::HitPairList&, recob::HitRefinerAssociator&, RecobHitToPtrMap&);
 
     /**
      *  @brief Given the ClusterHit2D objects, build the HitPairMap
@@ -170,7 +185,7 @@ private:
     /**
      *  @brief Jacket the calls to finding the nearest wire in order to intercept the exceptions if out of range
      */
-    geo::WireID NearestWireID(const float* position, const geo::WireID& wireID) const;
+    geo::WireID NearestWireID(const Eigen::Vector3f& position, const geo::WireID& wireID) const;
     
     /**
      *  @brief Create the internal channel status vector (assume will eventually be event-by-event)
@@ -187,9 +202,12 @@ private:
      *  @brief Data members to follow
      */
     art::InputTag                        m_hitFinderTag;
+    bool                                 m_doWireAssns;
+    bool                                 m_doRawDigitAssns;
     float                                m_numSigmaPeakTime;
     float                                m_hitWidthSclFctr;
     float                                m_deltaPeakTimeSig;
+    std::vector<int>                     m_invalidTPCVec;
     
     bool                                 m_enableMonitoring;      ///<
     float                                m_wirePitch[3];
@@ -198,13 +216,15 @@ private:
     float                                m_zPosOffset;
     
     // Get instances of the primary data structures needed
-    mutable Hit2DVector                  m_clusterHit2DMasterVec;
+    mutable Hit2DList                    m_clusterHit2DMasterList;
     mutable PlaneToHitVectorMap          m_planeToHitVectorMap;
     mutable PlaneToWireToHitSetMap       m_planeToWireToHitSetMap;
     
 
     mutable ChannelStatusByPlaneVec      m_channelStatus;
     mutable size_t                       m_numBadChannels;
+    
+    mutable bool                         m_weHaveAllBeenHereBefore = false;
     
     geo::Geometry*                       m_geometry;              //< pointer to the Geometry service
     const detinfo::DetectorProperties*   m_detector;              //< Pointer to the detector properties
@@ -223,23 +243,37 @@ StandardHit3DBuilder::StandardHit3DBuilder(fhicl::ParameterSet const &pset) :
 StandardHit3DBuilder::~StandardHit3DBuilder()
 {
 }
+    
+void StandardHit3DBuilder::produces(art::EDProducer* producer)
+{
+    producer->produces< std::vector<recob::Hit>>();
+    
+    if (m_doWireAssns)     producer->produces< art::Assns<recob::Wire,   recob::Hit>>();
+    if (m_doRawDigitAssns) producer->produces< art::Assns<raw::RawDigit, recob::Hit>>();
+    
+    return;
+}
 
 //------------------------------------------------------------------------------------------------------------------------------------------
     
 void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 {
-    m_hitFinderTag     = pset.get<art::InputTag>("HitFinderTag");
-    m_enableMonitoring = pset.get<bool>         ("EnableMonitoring",    true);
-    m_numSigmaPeakTime = pset.get<float>        ("NumSigmaPeakTime",    3.  );
-    m_hitWidthSclFctr  = pset.get<float>        ("HitWidthScaleFactor", 6.  );
-    m_deltaPeakTimeSig = pset.get<float>        ("DeltaPeakTimeSig",    1.7 );
-    m_zPosOffset       = pset.get<float>        ("ZPosOffset",          0.0 );
+    m_hitFinderTag     = pset.get<art::InputTag   >("HitFinderTag",        "gaushits");
+    m_doWireAssns      = pset.get<bool            >("DoWireAssns",         true);
+    m_doRawDigitAssns  = pset.get<bool            >("DoRawDigitAssns",     true);
+    m_enableMonitoring = pset.get<bool            >("EnableMonitoring",    true);
+    m_numSigmaPeakTime = pset.get<float           >("NumSigmaPeakTime",    3.  );
+    m_hitWidthSclFctr  = pset.get<float           >("HitWidthScaleFactor", 6.  );
+    m_deltaPeakTimeSig = pset.get<float           >("DeltaPeakTimeSig",    1.7 );
+    m_zPosOffset       = pset.get<float           >("ZPosOffset",          0.0 );
+    m_invalidTPCVec    = pset.get<std::vector<int>>("InvalidTPCVec",       std::vector<int>());
     
     art::ServiceHandle<geo::Geometry> geometry;
     
     m_geometry = &*geometry;
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
+    // Returns the wire pitch per plane assuming they will be the same for all TPCs
     m_wirePitch[0] = m_geometry->WirePitch(0);
     m_wirePitch[1] = m_geometry->WirePitch(1);
     m_wirePitch[2] = m_geometry->WirePitch(2);
@@ -256,7 +290,7 @@ void StandardHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeTo
     // Loop through views/planes to set the wire length vectors
     for(size_t idx = 0; idx < m_channelStatus.size(); idx++)
     {
-        m_channelStatus.at(idx) = ChannelStatusVec(m_geometry->Nwires(idx), 5);
+        m_channelStatus[idx] = ChannelStatusVec(m_geometry->Nwires(idx), 5);
     }
     
     // Loop through the channels and mark those that are "bad"
@@ -295,7 +329,7 @@ void StandardHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeTo
     
 bool SetPeakHitPairIteratorOrder(const reco::HitPairList::iterator& left, const reco::HitPairList::iterator& right)
 {
-    return (*left)->getAvePeakTime() < (*right)->getAvePeakTime();
+    return (*left).getAvePeakTime() < (*right).getAvePeakTime();
 }
 
 struct HitPairClusterOrder
@@ -310,27 +344,37 @@ struct HitPairClusterOrder
     }
 };
     
-void StandardHit3DBuilder::Hit3DBuilder(const art::Event& evt, reco::HitPairList& hitPairList, RecobHitToPtrMap& clusterHitToArtPtrMap) const
+void StandardHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt, reco::HitPairList& hitPairList, RecobHitToPtrMap& clusterHitToArtPtrMap)
 {
     // Clear the internal data structures
-    m_clusterHit2DMasterVec.clear();
+    m_clusterHit2DMasterList.clear();
     m_planeToHitVectorMap.clear();
     m_planeToWireToHitSetMap.clear();
 
     m_timeVector.resize(NUMTIMEVALUES, 0.);
+    
+    // Get a hit refiner
+    recob::HitRefinerAssociator hitRefiner(prod, evt, m_hitFinderTag, m_doWireAssns, m_doRawDigitAssns);
+    
+    // Temporary definition
+    RecobHitToPtrMap recobHitToHitMap;
 
     // Recover the 2D hits and then organize them into data structures which will be used in the
     // DBscan algorithm for building the 3D clusters
-    this->CollectArtHits(evt, clusterHitToArtPtrMap);
-    
-//    if (m_enableMonitoring) theClockArtHits.stop();
+    this->CollectArtHits(evt, recobHitToHitMap);
     
     // If there are no hits in our view/wire data structure then do not proceed with the full analysis
     if (!m_planeToWireToHitSetMap.empty())
     {
         // Call the algorithm that builds 3D hits
         this->BuildHit3D(hitPairList);
+        
+        // If we built 3D points then attempt to output a new hit list as well
+        if (!hitPairList.empty())
+            CreateNewRecobHitCollection(evt, hitPairList, hitRefiner, clusterHitToArtPtrMap);
     }
+    
+    hitRefiner.put_into();
     
     return;
 }
@@ -379,7 +423,7 @@ public:
     
     bool operator()(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right) const
     {
-        return left->getTimeTicks() - m_numRMS * left->getHit().RMS() < right->getTimeTicks() - m_numRMS * right->getHit().RMS();
+        return left->getTimeTicks() - m_numRMS * left->getHit()->RMS() < right->getTimeTicks() - m_numRMS * right->getHit()->RMS();
     }
     
 public:
@@ -400,7 +444,7 @@ public:
         if (left.first != left.second && right.first != right.second)
         {
             // Sort by "modified start time" of pulse
-            return (*left.first)->getTimeTicks() - m_numRMS*(*left.first)->getHit().RMS() < (*right.first)->getTimeTicks() - m_numRMS*(*right.first)->getHit().RMS();
+            return (*left.first)->getTimeTicks() - m_numRMS*(*left.first)->getHit()->RMS() < (*right.first)->getTimeTicks() - m_numRMS*(*right.first)->getHit()->RMS();
         }
         
         return left.first != left.second;
@@ -410,10 +454,10 @@ private:
     float m_numRMS;
 };
 
-bool SetPairStartTimeOrder(const std::unique_ptr<reco::ClusterHit3D>& left, const std::unique_ptr<reco::ClusterHit3D>& right)
+bool SetPairStartTimeOrder(const reco::ClusterHit3D& left, const reco::ClusterHit3D& right)
 {
     // Sort by "modified start time" of pulse
-    return left->getAvePeakTime() - left->getSigmaPeakTime() < right->getAvePeakTime() - right->getSigmaPeakTime();
+    return left.getAvePeakTime() - left.getSigmaPeakTime() < right.getAvePeakTime() - right.getSigmaPeakTime();
 }
 }
 
@@ -497,7 +541,7 @@ size_t StandardHit3DBuilder::BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& hitI
         while(startItr != endItr)
         {
             float numRMS(rms);
-            if ((*startItr)->getTimeTicks() + numRMS * (*startItr)->getHit().RMS() < startTime) startItr++;
+            if ((*startItr)->getTimeTicks() + numRMS * (*startItr)->getHit()->RMS() < startTime) startItr++;
             else break;
         }
         return startItr;
@@ -508,7 +552,7 @@ size_t StandardHit3DBuilder::BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& hitI
         while(firstItr != endItr)
         {
             float numRMS(rms);
-            if ((*firstItr)->getTimeTicks() - numRMS * (*firstItr)->getHit().RMS() < endTime) firstItr++;
+            if ((*firstItr)->getTimeTicks() - numRMS * (*firstItr)->getHit()->RMS() < endTime) firstItr++;
             else break;
         }
         return firstItr;
@@ -528,8 +572,8 @@ size_t StandardHit3DBuilder::BuildHitPairMapByTPC(PlaneHitVectorItrPairVec& hitI
         const reco::ClusterHit2D* goldenHit = *hitItrVec[0].first;
         
         // The range of history... (for this hit)
-        float goldenTimeStart = goldenHit->getTimeTicks() - m_numSigmaPeakTime * goldenHit->getHit().RMS() - std::numeric_limits<float>::epsilon();
-        float goldenTimeEnd   = goldenHit->getTimeTicks() + m_numSigmaPeakTime * goldenHit->getHit().RMS() + std::numeric_limits<float>::epsilon();
+        float goldenTimeStart = goldenHit->getTimeTicks() - m_numSigmaPeakTime * goldenHit->getHit()->RMS() - std::numeric_limits<float>::epsilon();
+        float goldenTimeEnd   = goldenHit->getTimeTicks() + m_numSigmaPeakTime * goldenHit->getHit()->RMS() + std::numeric_limits<float>::epsilon();
         
         // Set iterators to insure we'll be in the overlap ranges
         HitVector::iterator hitItr1Start = SetStartIterator(hitItrVec[1].first, hitItrVec[1].second, m_numSigmaPeakTime, goldenTimeStart);
@@ -576,13 +620,13 @@ int StandardHit3DBuilder::findGoodHitPairs(const reco::ClusterHit2D* goldenHit,
     // Loop through the input secon hits and make pairs
     while(startItr != endItr)
     {
-        reco::ClusterHit2D* hit = *startItr++;
+        const reco::ClusterHit2D* hit = *startItr++;
         reco::ClusterHit3D  pair;
         
         // pair returned with a negative ave time is signal of failure
         if (!makeHitPair(pair, goldenHit, hit, m_hitWidthSclFctr)) continue;
         
-        geo::WireID wireID = hit->getHit().WireID();
+        geo::WireID wireID = hit->WireID();
         
         hitMatchMap[wireID].emplace_back(hit,pair);
         
@@ -661,7 +705,7 @@ void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMa
                             if (makeHitTriplet(triplet, pair1, hit2))
                             {
                                 triplet.setID(hitPairList.size());
-                                hitPairList.emplace_back(new reco::ClusterHit3D(triplet));
+                                hitPairList.emplace_back(triplet);
                                 usedPairMap[&pair1] = true;
                                 usedPairMap[&pair2] = true;
                             }
@@ -720,7 +764,7 @@ void StandardHit3DBuilder::findGoodTriplets(HitMatchPairVecMap& pair12Map, HitMa
                 for(auto& pair : tempDeadChanVec)
                 {
                     pair.setID(hitPairList.size());
-                    hitPairList.emplace_back(new reco::ClusterHit3D(pair));
+                    hitPairList.emplace_back(pair);
                 }
             }
         }
@@ -740,8 +784,8 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
     
     // We assume in this routine that we are looking at hits in different views
     // The first mission is to check that the wires intersect
-    const geo::WireID& hit1WireID = hit1->getHit().WireID();
-    const geo::WireID& hit2WireID = hit2->getHit().WireID();
+    const geo::WireID& hit1WireID = hit1->WireID();
+    const geo::WireID& hit2WireID = hit2->WireID();
     
     geo::WireIDIntersection widIntersect;
     
@@ -749,14 +793,14 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
     {
         // Wires intersect so now we can check the timing
         float hit1Peak  = hit1->getTimeTicks();
-        float hit1Sigma = hit1->getHit().RMS();
+        float hit1Sigma = hit1->getHit()->RMS();
         
         float hit2Peak  = hit2->getTimeTicks();
-        float hit2Sigma = hit2->getHit().RMS();
+        float hit2Sigma = hit2->getHit()->RMS();
         
         // ad hoc correction for most bad fits...
-        if (hit1Sigma > 2. * hit1->getHit().PeakAmplitude()) hit1Sigma = 2. * hit1->getHit().PeakAmplitude();
-        if (hit2Sigma > 2. * hit2->getHit().PeakAmplitude()) hit2Sigma = 2. * hit2->getHit().PeakAmplitude();
+        if (hit1Sigma > 2. * hit1->getHit()->PeakAmplitude()) hit1Sigma = 2. * hit1->getHit()->PeakAmplitude();
+        if (hit2Sigma > 2. * hit2->getHit()->PeakAmplitude()) hit2Sigma = 2. * hit2->getHit()->PeakAmplitude();
 
         float hit1Width = hitWidthSclFctr * hit1Sigma;
         float hit2Width = hitWidthSclFctr * hit2Sigma;
@@ -774,7 +818,7 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
             // delta peak time consistency check here
             if (deltaPeakTime < m_deltaPeakTimeSig * sigmaPeakTime)    // 2 sigma consistency? (do this way to avoid divide)
             {
-                float totalCharge   = hit1->getHit().Integral() + hit2->getHit().Integral();
+                float totalCharge   = hit1->getHit()->Integral() + hit2->getHit()->Integral();
                 float hitChiSquare  = std::pow((hit1Peak - avePeakTime),2) / hit1SigSq
                                     + std::pow((hit2Peak - avePeakTime),2) / hit2SigSq;
                 
@@ -782,10 +826,10 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
                 float xPositionHit2(hit2->getXPosition());
                 float xPosition = (xPositionHit1 / hit1SigSq + xPositionHit2 / hit2SigSq) * hit1SigSq * hit2SigSq / (hit1SigSq + hit2SigSq);
                 
-                float position[] = {xPosition, float(widIntersect.y), float(widIntersect.z)-m_zPosOffset};
+                Eigen::Vector3f position(xPosition, float(widIntersect.y), float(widIntersect.z)-m_zPosOffset);
                 
                 // If to here then we need to sort out the hit pair code telling what views are used
-                unsigned statusBits = 1 << hit1->getHit().WireID().Plane | 1 << hit2->getHit().WireID().Plane;
+                unsigned statusBits = 1 << hit1->WireID().Plane | 1 << hit2->WireID().Plane;
                 
                 // handle status bits for the 2D hits
                 if (hit1->getStatusBits() & reco::ClusterHit2D::USEDINPAIR) hit1->setStatusBit(reco::ClusterHit2D::SHAREDINPAIR);
@@ -798,25 +842,25 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
                 
                 hitVector.resize(3, NULL);
                 
-                hitVector.at(hit1->getHit().WireID().Plane) = hit1;
-                hitVector.at(hit2->getHit().WireID().Plane) = hit2;
+                hitVector[hit1->WireID().Plane] = hit1;
+                hitVector[hit2->WireID().Plane] = hit2;
                 
-                unsigned int cryostatIdx = hit1->getHit().WireID().Cryostat;
-                unsigned int tpcIdx      = hit1->getHit().WireID().TPC;
+                unsigned int cryostatIdx = hit1->WireID().Cryostat;
+                unsigned int tpcIdx      = hit1->WireID().TPC;
                 
                 // Initialize the wireIdVec
                 std::vector<geo::WireID> wireIDVec = {geo::WireID(cryostatIdx,tpcIdx,0,0),
                                                       geo::WireID(cryostatIdx,tpcIdx,1,0),
                                                       geo::WireID(cryostatIdx,tpcIdx,2,0)};
                 
-                wireIDVec[hit1->getHit().WireID().Plane] = hit1->getHit().WireID();
-                wireIDVec[hit2->getHit().WireID().Plane] = hit2->getHit().WireID();
+                wireIDVec[hit1->WireID().Plane] = hit1->WireID();
+                wireIDVec[hit2->WireID().Plane] = hit2->WireID();
                 
                 // For compiling at the moment
                 std::vector<float> hitDelTSigVec = {0.,0.,0.};
                 
-                hitDelTSigVec.at(hit1->getHit().WireID().Plane) = deltaPeakTime / sigmaPeakTime;
-                hitDelTSigVec.at(hit2->getHit().WireID().Plane) = deltaPeakTime / sigmaPeakTime;
+                hitDelTSigVec[hit1->WireID().Plane] = deltaPeakTime / sigmaPeakTime;
+                hitDelTSigVec[hit2->WireID().Plane] = deltaPeakTime / sigmaPeakTime;
                 
                 // Create the 3D cluster hit
                 hitPair.initialize(hitPairCntr,
@@ -853,24 +897,24 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     static const float rmsToSig(1.0); //0.75); //0.57735027);
     
     // We are going to force the wire pitch here, some time in the future we need to fix
-    static const double wirePitch(0.3);
+    static const double wirePitch = 1.01 * *std::max_element(m_wirePitch,m_wirePitch+3);
 
     // Recover hit info
     float hitTimeTicks = hit->getTimeTicks();
-    float hitSigma     = hit->getHit().RMS();
+    float hitSigma     = hit->getHit()->RMS();
     
     // Special case check
-    if (hitSigma > 2. * hit->getHit().PeakAmplitude()) hitSigma = 2. * hit->getHit().PeakAmplitude();
+    if (hitSigma > 2. * hit->getHit()->PeakAmplitude()) hitSigma = 2. * hit->getHit()->PeakAmplitude();
 
     // Let's do a quick consistency check on the input hits to make sure we are in range...
     // Require the W hit to be "in range" with the UV Pair
     if (fabs(hitTimeTicks - pair.getAvePeakTime()) < m_hitWidthSclFctr * (pair.getSigmaPeakTime() + hitSigma))
     {
         // Timing in range, now check that the input hit wire "intersects" with the input pair's wires
-        geo::WireID wireID = NearestWireID(pair.getPosition(), hit->getHit().WireID());
+        geo::WireID wireID = NearestWireID(pair.getPosition(), hit->WireID());
 
         // There is an interesting round off issue that we need to watch for...
-        if (wireID.Wire == hit->getHit().WireID().Wire || wireID.Wire + 1 == hit->getHit().WireID().Wire)
+        if (wireID.Wire == hit->WireID().Wire || wireID.Wire + 1 == hit->WireID().Wire)
         {
             // Use the existing code to see the U and W hits are willing to pair with the V hit
             reco::ClusterHit3D pair0h;
@@ -878,11 +922,11 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
             
             // Recover all the hits involved
             const reco::ClusterHit2DVec& pairHitVec = pair.getHits();
-            const reco::ClusterHit2D*    hit0       = pairHitVec.at(0);
-            const reco::ClusterHit2D*    hit1       = pairHitVec.at(1);
+            const reco::ClusterHit2D*    hit0       = pairHitVec[0];
+            const reco::ClusterHit2D*    hit1       = pairHitVec[1];
             
-            if      (!hit0) hit0 = pairHitVec.at(2);
-            else if (!hit1) hit1 = pairHitVec.at(2);
+            if      (!hit0) hit0 = pairHitVec[2];
+            else if (!hit1) hit1 = pairHitVec[2];
             
             // If good pairs made here then we can try to make a triplet
             if (makeHitPair(pair0h, hit0, hit, m_hitWidthSclFctr) && makeHitPair(pair1h, hit1, hit, m_hitWidthSclFctr))
@@ -905,7 +949,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     reco::ClusterHit2DVec hitVector = pair.getHits();
                     
                     // include the new hit
-                    hitVector.at(hit->getHit().WireID().Plane) = hit;
+                    hitVector[hit->WireID().Plane] = hit;
                     
                     // Set up to get average peak time, hitChiSquare, etc.
                     unsigned int statusBits(0x7);
@@ -915,35 +959,35 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     float        xPosition(0.);
                     
                     // And get the wire IDs
-                    std::vector<geo::WireID> wireIDVec = {geo::WireID(0,0,geo::kU,0), geo::WireID(0,0,geo::kV,0), geo::WireID(0,0,geo::kW,0)};
+                    std::vector<geo::WireID> wireIDVec = {geo::WireID(), geo::WireID(), geo::WireID()};
                     
                     // First loop through the hits to get WireIDs and calculate the averages
                     for(size_t planeIdx = 0; planeIdx < 3; planeIdx++)
                     {
-                        const reco::ClusterHit2D* hit2D = hitVector.at(planeIdx);
+                        const reco::ClusterHit2D* hit2D = hitVector[planeIdx];
                         
-                        wireIDVec.at(planeIdx) = hit2D->getHit().WireID();
+                        wireIDVec[planeIdx] = hit2D->WireID();
                         
                         if (hit2D->getStatusBits() & reco::ClusterHit2D::USEDINTRIPLET) hit2D->setStatusBit(reco::ClusterHit2D::SHAREDINTRIPLET);
                         
                         hit2D->setStatusBit(reco::ClusterHit2D::USEDINTRIPLET);
                         
-                        float hitRMS   = rmsToSig * hit2D->getHit().RMS();
+                        float hitRMS   = rmsToSig * hit2D->getHit()->RMS();
                         float weight   = 1. / (hitRMS * hitRMS);
                         float peakTime = hit2D->getTimeTicks();
                         
                         avePeakTime += peakTime * weight;
                         xPosition   += hit2D->getXPosition() * weight;
                         weightSum   += weight;
-                        totalCharge += hit2D->getHit().Integral();
+                        totalCharge += hit2D->getHit()->Integral();
                     }
                     
                     avePeakTime /= weightSum;
                     xPosition   /= weightSum;
                     
-                    float position[]  = { xPosition,
-                                          float((pairYZVec[0] + pair0hYZVec[0] + pair1hYZVec[0]) / 3.),
-                                          float((pairYZVec[1] + pair0hYZVec[1] + pair1hYZVec[1]) / 3.)};
+                    Eigen::Vector3f position(xPosition,
+                                             float((pairYZVec[0] + pair0hYZVec[0] + pair1hYZVec[0]) / 3.),
+                                             float((pairYZVec[1] + pair0hYZVec[1] + pair1hYZVec[1]) / 3.));
 
                     // Armed with the average peak time, now get hitChiSquare and the sig vec
                     float              hitChiSquare(0.);
@@ -952,7 +996,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     
                     for(const auto& hit2D : hitVector)
                     {
-                        float hitRMS    = rmsToSig * hit2D->getHit().RMS();
+                        float hitRMS    = rmsToSig * hit2D->getHit()->RMS();
                         float combRMS   = std::sqrt(hitRMS*hitRMS - sigmaPeakTime*sigmaPeakTime);
                         float peakTime  = hit2D->getTimeTicks();
                         float deltaTime = peakTime - avePeakTime;
@@ -1000,27 +1044,27 @@ bool StandardHit3DBuilder::makeDeadChannelPair(reco::ClusterHit3D&       pairOut
     // Assume failure (most common result)
     bool result(false);
     
-    const reco::ClusterHit2D* hit0 = pair.getHits().at(0);
-    const reco::ClusterHit2D* hit1 = pair.getHits().at(1);
+    const reco::ClusterHit2D* hit0 = pair.getHits()[0];
+    const reco::ClusterHit2D* hit1 = pair.getHits()[1];
     
     size_t missPlane(2);
     
     // u plane hit is missing
     if (!hit0)
     {
-        hit0      = pair.getHits().at(2);
+        hit0      = pair.getHits()[2];
         missPlane = 0;
     }
     // v plane hit is missing
     else if (!hit1)
     {
-        hit1      = pair.getHits().at(2);
+        hit1      = pair.getHits()[2];
         missPlane = 1;
     }
     
     // Which plane is missing?
-    geo::WireID wireID0 = hit0->getHit().WireID();
-    geo::WireID wireID1 = hit1->getHit().WireID();
+    geo::WireID wireID0 = hit0->WireID();
+    geo::WireID wireID1 = hit1->WireID();
     
     // Ok, recover the wireID expected in the third plane...
     geo::WireID wireIn(wireID0.Cryostat,wireID0.TPC,missPlane,0);
@@ -1045,7 +1089,7 @@ bool StandardHit3DBuilder::makeDeadChannelPair(reco::ClusterHit3D&       pairOut
             
             if (m_geometry->WireIDsIntersect(wireID1, wireID, widIntersect1))
             {
-                float newPosition[] = {pair.getPosition()[0],pair.getPosition()[1],pair.getPosition()[2]};
+                Eigen::Vector3f newPosition(pair.getPosition()[0],pair.getPosition()[1],pair.getPosition()[2]);
                 
                 newPosition[1] = (newPosition[1] + widIntersect0.y + widIntersect1.y) / 3.;
                 newPosition[2] = (newPosition[2] + widIntersect0.z + widIntersect1.z - 2. * m_zPosOffset) / 3.;
@@ -1079,7 +1123,7 @@ const reco::ClusterHit2D* StandardHit3DBuilder::FindBestMatchingHit(const Hit2DS
     // Idea is to loop through the input set of hits and look for the best combination
     for (const auto& hit2D : hit2DSet)
     {
-        if (hit2D->getHit().Integral() < minCharge) continue;
+        if (hit2D->getHit()->Integral() < minCharge) continue;
         
         float hitVPeakTime(hit2D->getTimeTicks());
         float deltaPeakTime(pairAvePeakTime-hitVPeakTime);
@@ -1105,7 +1149,7 @@ int StandardHit3DBuilder::FindNumberInRange(const Hit2DSet& hit2DSet, const reco
     // Idea is to loop through the input set of hits and look for the best combination
     for (const auto& hit2D : hit2DSet)
     {
-        if (hit2D->getHit().Integral() < minCharge) continue;
+        if (hit2D->getHit()->Integral() < minCharge) continue;
         
         float hitVPeakTime(hit2D->getTimeTicks());
         float deltaPeakTime(pairAvePeakTime-hitVPeakTime);
@@ -1120,7 +1164,7 @@ int StandardHit3DBuilder::FindNumberInRange(const Hit2DSet& hit2DSet, const reco
     return numberInRange;
 }
 
-geo::WireID StandardHit3DBuilder::NearestWireID(const float* position, const geo::WireID& wireIDIn) const
+geo::WireID StandardHit3DBuilder::NearestWireID(const Eigen::Vector3f& position, const geo::WireID& wireIDIn) const
 {
     geo::WireID wireID = wireIDIn;
     
@@ -1128,7 +1172,7 @@ geo::WireID StandardHit3DBuilder::NearestWireID(const float* position, const geo
     try
     {
         // Switch from NearestWireID to this method to avoid the roundoff error issues...
-        double distanceToWire = m_geometry->Plane(wireIDIn).WireCoordinate(position);
+        double distanceToWire = m_geometry->Plane(wireIDIn).WireCoordinate(position.data());
         
         wireID.Wire = int(distanceToWire);
     }
@@ -1149,12 +1193,12 @@ geo::WireID StandardHit3DBuilder::NearestWireID(const float* position, const geo
 bool SetHitTimeOrder(const reco::ClusterHit2D* left, const reco::ClusterHit2D* right)
 {
     // Sort by "modified start time" of pulse
-    return left->getHit().PeakTime() < right->getHit().PeakTime();
+    return left->getHit()->PeakTime() < right->getHit()->PeakTime();
 }
 
 bool Hit2DSetCompare::operator() (const reco::ClusterHit2D* left, const reco::ClusterHit2D* right) const
 {
-    return left->getHit().PeakTime() < right->getHit().PeakTime();
+    return left->getHit()->PeakTime() < right->getHit()->PeakTime();
 }
     
 //------------------------------------------------------------------------------------------------------------------------------------------
@@ -1177,8 +1221,8 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
     // (note this is already taken care of when converting to position)
     std::map<geo::PlaneID, double> planeOffsetMap;
     
-    // Reserve memory for the hit vector
-    m_clusterHit2DMasterVec.reserve(recobHitHandle->size());
+    // Try to output a formatted string
+    std::string debugMessage("");
     
     // Initialize the plane to hit vector map
     for(size_t cryoIdx = 0; cryoIdx < m_geometry->Ncryostats(); cryoIdx++)
@@ -1197,9 +1241,24 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
             planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] = m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2))
                                                            - m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0));
             
-            std::cout << "***> plane 0 offset: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,0)] << ", plane 1: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,1)] << ", plane 2: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] << std::endl;
-            std::cout << "     Det prop plane 0: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0)) << ", plane 1: "  << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,1)) << ", plane 2: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2)) << ", Trig: " << m_detector->TriggerOffset() << std::endl;
+            // Should we provide output?
+            if (!m_weHaveAllBeenHereBefore)
+            {
+                std::ostringstream outputString;
+    
+                outputString << "***> plane 0 offset: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,0)] << ", plane 1: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,1)] << ", plane    2: " << planeOffsetMap[geo::PlaneID(cryoIdx,tpcIdx,2)] << "\n";
+                debugMessage += outputString.str();
+                outputString << "     Det prop plane 0: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,0)) << ", plane 1: "  << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,1)) << ", plane 2: " << m_detector->GetXTicksOffset(geo::PlaneID(cryoIdx,tpcIdx,2)) << ", Trig: " << m_detector->TriggerOffset() << "\n";
+                debugMessage += outputString.str();
+            }
         }
+    }
+
+    if (!m_weHaveAllBeenHereBefore)
+    {
+        mf::LogDebug("Cluster3D") << debugMessage << std::endl;
+        
+        m_weHaveAllBeenHereBefore = true;
     }
 
     // Cycle through the recob hits to build ClusterHit2D objects and insert
@@ -1208,18 +1267,28 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
     {
         art::Ptr<recob::Hit> recobHit(recobHitHandle, cIdx);
         
-        // Skip junk hits
-//        if (recobHit->DegreesOfFreedom() > 1 && recobHit->Multiplicity() > 1 && (recobHit->RMS() < 3.8 || recobHit->PeakAmplitude() < 10)) continue;
+        // For some detectors we can have multiple wire ID's associated to a given channel.
+        // So we recover the list of these wire IDs
+        const std::vector<geo::WireID>& wireIDs = m_geometry->ChannelToWire(recobHit->Channel());
         
-        const geo::WireID& hitWireID(recobHit->WireID());
-        
-        double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[recobHit->WireID().planeID()]);
-        double xPosition(m_detector->ConvertTicksToX(recobHit->PeakTime(), hitWireID.Plane, hitWireID.TPC, hitWireID.Cryostat));
-        
-        m_clusterHit2DMasterVec.emplace_back(0, 0., 0., xPosition, hitPeakTime, *recobHit);
-        
-        m_planeToHitVectorMap[recobHit->WireID().planeID()].push_back(&m_clusterHit2DMasterVec.back());
-        m_planeToWireToHitSetMap[recobHit->WireID().planeID()][recobHit->WireID().Wire].insert(&m_clusterHit2DMasterVec.back());
+        // And then loop over all possible to build out our maps
+        for(const auto& wireID : wireIDs)
+        {
+            // Check if this is an invalid TPC
+            // (for example, in protoDUNE there are logical TPC's which see no signal)
+            if (std::find(m_invalidTPCVec.begin(),m_invalidTPCVec.end(),wireID.TPC) != m_invalidTPCVec.end()) continue;
+            
+            // Note that a plane ID will define cryostat, TPC and plane
+            const geo::PlaneID& planeID = wireID.planeID();
+            
+            double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[planeID]);
+            double xPosition(m_detector->ConvertTicksToX(recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
+            
+            m_clusterHit2DMasterList.emplace_back(0, 0., 0., xPosition, hitPeakTime, wireID, recobHit.get());
+            
+            m_planeToHitVectorMap[planeID].push_back(&m_clusterHit2DMasterList.back());
+            m_planeToWireToHitSetMap[planeID][wireID.Wire].insert(&m_clusterHit2DMasterList.back());
+        }
         
         const recob::Hit* recobHitPtr = recobHit.get();
         hitToPtrMap[recobHitPtr]      = recobHit;
@@ -1236,10 +1305,86 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
         m_timeVector[COLLECTARTHITS] = theClockMakeHits.accumulated_real_time();
     }
 
-    mf::LogDebug("Cluster3D") << ">>>>> Number of ART hits: " << m_clusterHit2DMasterVec.size() << std::endl;
+    mf::LogDebug("Cluster3D") << ">>>>> Number of ART hits: " << m_clusterHit2DMasterList.size() << std::endl;
 }
     
 //------------------------------------------------------------------------------------------------------------------------------------------
     
+void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&                  event,
+                                                       reco::HitPairList&           hitPairList,
+                                                       recob::HitRefinerAssociator& hitRefiner,
+                                                       RecobHitToPtrMap&            recobHitToPtrMap)
+{
+    // Set up the timing
+    cet::cpu_timer theClockBuildNewHits;
+    
+    if (m_enableMonitoring) theClockBuildNewHits.start();
+    
+    // We want to build a unique list of hits from the input 3D points which, we know, reuse 2D points frequently
+    // At the same time we need to create a new 2D hit with the "correct" WireID and replace the old 2D hit in the
+    // ClusterHit2D object with this new one... while keeping track of the use of the old ones. My head is spinning...
+    // Ok, start all of this by declaring a container for the new hit collection
+    std::unique_ptr<std::vector<recob::Hit>> newHitVecPtr(new std::vector<recob::Hit>);
+    
+    // Now declare a set which will allow us to keep track of those CusterHit2D objects we have seen already
+    std::set<const reco::ClusterHit2D*> visitedHit2DSet;
+    
+    // Use this handy art utility to make art::Ptr objects to the new recob::Hits for use in the output phase
+    art::PtrMaker<recob::Hit> ptrMaker(event);
+
+    // Reserve enough memory to replace every recob::Hit we have considered (this is upper limit)
+    newHitVecPtr->reserve(m_clusterHit2DMasterList.size());
+
+    // Scheme is to loop through all 3D hits, then through each associated ClusterHit2D object
+    for(reco::ClusterHit3D& hit3D : hitPairList)
+    {
+        reco::ClusterHit2DVec& hit2DVec = hit3D.getHits();
+        
+        // The loop is over the index so we can recover the correct WireID to associate to the new hit when made
+        for(size_t idx = 0; idx < hit3D.getHits().size(); idx++)
+        {
+            const reco::ClusterHit2D* hit2D = hit2DVec[idx];
+            
+            // Have we seen this 2D hit already?
+            if (visitedHit2DSet.find(hit2D) == visitedHit2DSet.end())
+            {
+                visitedHit2DSet.insert(hit2D);
+                
+                // Create and save the new recob::Hit with the correct WireID
+                newHitVecPtr->emplace_back(recob::HitCreator(*hit2D->getHit(), hit3D.getWireIDs()[idx]).copy());
+                
+                // Recover a pointer to it...
+                recob::Hit* newHit = &newHitVecPtr->back();
+                
+                // Create a mapping from this hit to an art Ptr representing it
+                recobHitToPtrMap[newHit] = ptrMaker(newHitVecPtr->size()-1);
+                
+                // And set the pointer to this hit in the ClusterHit2D object
+                const_cast<reco::ClusterHit2D*>(hit2D)->setHit(newHit);
+            }
+        }
+    }
+    
+    size_t numNewHits = newHitVecPtr->size();
+    
+    // Now we give the new hits to the refinery
+    // Note that one advantage of using this utility is that it handles the
+    // Hit/Wire and Hit/RawDigit associations all behind the scenes for us
+    hitRefiner.use_hits(std::move(newHitVecPtr));
+    
+    if (m_enableMonitoring)
+    {
+        theClockBuildNewHits.stop();
+        
+        m_timeVector[BUILDNEWHITS] = theClockBuildNewHits.accumulated_real_time();
+    }
+    
+    mf::LogDebug("Cluster3D") << ">>>>> New output recob::Hit size: " << numNewHits << " (vs " << m_clusterHit2DMasterList.size() << " input)" << std::endl;
+
+    return;
+}
+    
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 DEFINE_ART_CLASS_TOOL(StandardHit3DBuilder)
 } // namespace lar_cluster3d

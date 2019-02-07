@@ -21,6 +21,7 @@ ClusterHit2D::ClusterHit2D() : m_statusBits(0),
                                m_arcLenToPoca(0.),
                                m_xPosition(0.),
                                m_timeTicks(0.),
+                               m_wireID(geo::WireID()),
                                m_hit(nullptr) {}
 
 ClusterHit2D::ClusterHit2D(unsigned           statusBits,
@@ -28,15 +29,27 @@ ClusterHit2D::ClusterHit2D(unsigned           statusBits,
                            float              poca,
                            float              xPosition,
                            float              timeTicks,
-                           const recob::Hit&  hit) :
+                           const geo::WireID& wireID,
+                           const recob::Hit*  hit) :
                            m_statusBits(statusBits),
                            m_docaToAxis(doca),
                            m_arcLenToPoca(poca),
                            m_xPosition(xPosition),
                            m_timeTicks(timeTicks),
-                           m_hit(&hit) {}
-
+                           m_wireID(wireID),
+                           m_hit(hit) {}
     
+ClusterHit2D::ClusterHit2D(const ClusterHit2D& toCopy)
+{
+    m_statusBits    = toCopy.m_statusBits;
+    m_docaToAxis    = toCopy.m_docaToAxis;
+    m_arcLenToPoca  = toCopy.m_arcLenToPoca;
+    m_xPosition     = toCopy.m_xPosition;
+    m_timeTicks     = toCopy.m_timeTicks;
+    m_wireID        = toCopy.m_wireID;
+    m_hit           = toCopy.m_hit;
+}
+
 std::ostream& operator<< (std::ostream& o, const ClusterHit2D& c)
 {
     o << c.getHit();
@@ -52,7 +65,7 @@ bool operator < (const ClusterHit2D & a, const ClusterHit2D & b)
 
 ClusterHit3D::ClusterHit3D() : m_id(std::numeric_limits<size_t>::max()),
                                m_statusBits(0),
-                               m_position{0.,0.,0.},
+                               m_position(Eigen::Vector3f::Zero()),
                                m_totalCharge(0.),
                                m_avePeakTime(-1.),
                                m_deltaPeakTime(0.),
@@ -64,7 +77,6 @@ ClusterHit3D::ClusterHit3D() : m_id(std::numeric_limits<size_t>::max()),
     m_hitDelTSigVec.clear();
     m_wireIDVector.clear();
     m_hitVector.clear();
-    
     m_hitDelTSigVec.resize(3, 0.);
     m_wireIDVector.resize(3, geo::WireID());
     m_hitVector.resize(3, NULL);
@@ -72,7 +84,7 @@ ClusterHit3D::ClusterHit3D() : m_id(std::numeric_limits<size_t>::max()),
     
 ClusterHit3D::ClusterHit3D(size_t                          id,
                            unsigned int                    statusBits,
-                           const float*                    position,
+                           const Eigen::Vector3f&          position,
                            float                           totalCharge,
                            float                           avePeakTime,
                            float                           deltaPeakTime,
@@ -85,7 +97,7 @@ ClusterHit3D::ClusterHit3D(size_t                          id,
                            const std::vector<geo::WireID>& wireIDs) :
               m_id(id),
               m_statusBits(statusBits),
-              m_position{position[0],position[1],position[2]},
+              m_position(position),
               m_totalCharge(totalCharge),
               m_avePeakTime(avePeakTime),
               m_deltaPeakTime(deltaPeakTime),
@@ -104,9 +116,7 @@ ClusterHit3D::ClusterHit3D(const ClusterHit3D& toCopy)
 {
     m_id             = toCopy.m_id;
     m_statusBits     = toCopy.m_statusBits;
-    m_position[0]    = toCopy.m_position[0];
-    m_position[1]    = toCopy.m_position[1];
-    m_position[2]    = toCopy.m_position[2];
+    m_position       = toCopy.m_position;
     m_totalCharge    = toCopy.m_totalCharge;
     m_avePeakTime    = toCopy.m_avePeakTime;
     m_deltaPeakTime  = toCopy.m_deltaPeakTime;
@@ -121,7 +131,7 @@ ClusterHit3D::ClusterHit3D(const ClusterHit3D& toCopy)
     
 void ClusterHit3D::initialize(size_t                          id,
                               unsigned int                    statusBits,
-                              const float*                    position,
+                              const Eigen::Vector3f&          position,
                               float                           totalCharge,
                               float                           avePeakTime,
                               float                           deltaPeakTime,
@@ -135,9 +145,7 @@ void ClusterHit3D::initialize(size_t                          id,
 {
     m_id             = id;
     m_statusBits     = statusBits;
-    m_position[0]    = position[0];
-    m_position[1]    = position[1];
-    m_position[2]    = position[2];
+    m_position       = position;
     m_totalCharge    = totalCharge;
     m_avePeakTime    = avePeakTime;
     m_deltaPeakTime  = deltaPeakTime;
@@ -173,30 +181,24 @@ std::ostream& operator<< (std::ostream& o, const ClusterHit3D& c)
 PrincipalComponents::PrincipalComponents() :
        m_svdOK(false),
        m_numHitsUsed(0),
-       m_eigenValues{0.,0.,0.},
-       m_avePosition{0.,0.,0.},
+       m_eigenValues(EigenValues::Zero()),
+       m_eigenVectors(EigenVectors::Zero()),
+       m_avePosition(Eigen::Vector3f::Zero()),
        m_aveHitDoca(9999.)
 {}    
     
-PrincipalComponents::PrincipalComponents(bool ok, int nHits, const float* eigenValues, const EigenVectors& eigenVecs, const float* avePos, const float aveHitDoca) :
+PrincipalComponents::PrincipalComponents(bool ok, int nHits, const EigenValues& eigenValues, const EigenVectors& eigenVecs, const Eigen::Vector3f& avePos, const float aveHitDoca) :
            m_svdOK(ok),
            m_numHitsUsed(nHits),
+           m_eigenValues(eigenValues),
            m_eigenVectors(eigenVecs),
+           m_avePosition(avePos),
            m_aveHitDoca(aveHitDoca)
-{
-    m_eigenValues[0]     = eigenValues[0];
-    m_eigenValues[1]     = eigenValues[1];
-    m_eigenValues[2]     = eigenValues[2];
-    m_avePosition[0]     = avePos[0];
-    m_avePosition[1]     = avePos[1];
-    m_avePosition[2]     = avePos[2];
-}
+{}
     
 void PrincipalComponents::flipAxis(size_t axisDir)
 {
-    std::vector<float>& axis = m_eigenVectors.at(axisDir);
-    
-    for(auto& val : axis) val *= -1.;
+    m_eigenVectors.row(axisDir) = -m_eigenVectors.row(axisDir);
     
     return;
 }
@@ -207,13 +209,13 @@ std::ostream&  operator << (std::ostream & o, const PrincipalComponents& a)
     {
         o << std::setiosflags(std::ios::fixed) << std::setprecision(2);
         o << " PCAxis ID run with " << a.m_numHitsUsed << " space points" << std::endl;
-        o << "   - center position: " << std::setw(6) << a.m_avePosition[0] << ", " << a.m_avePosition[1] << ", " << a.m_avePosition[2] << std::endl;
-        o << "   - eigen values: " << std::setw(8) << std::right << a.m_eigenValues[0] << ", "
-        << a.m_eigenValues[1] << ", " << a.m_eigenValues[2] << std::endl;
+        o << "   - center position: " << std::setw(6) << a.m_avePosition(0) << ", " << a.m_avePosition(1) << ", " << a.m_avePosition(2) << std::endl;
+        o << "   - eigen values: " << std::setw(8) << std::right << a.m_eigenValues(0) << ", "
+        << a.m_eigenValues(1) << ", " << a.m_eigenValues(1) << std::endl;
         o << "   - average doca: " << a.m_aveHitDoca << std::endl;
-        o << "   - Principle axis: " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors[0][0] << ", " << a.m_eigenVectors[0][1] << ", " << a.m_eigenVectors[0][2] << std::endl;
-        o << "   - second axis:    " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors[1][0] << ", " << a.m_eigenVectors[1][1] << ", " << a.m_eigenVectors[1][2] << std::endl;
-        o << "   - third axis:     " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors[2][0] << ", " << a.m_eigenVectors[2][1] << ", " << a.m_eigenVectors[2][2] << std::endl;
+        o << "   - Principle axis: " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors(0,0) << ", " << a.m_eigenVectors(0,1) << ", " << a.m_eigenVectors(0,2) << std::endl;
+        o << "   - second axis:    " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors(1,0) << ", " << a.m_eigenVectors(1,1) << ", " << a.m_eigenVectors(1,2) << std::endl;
+        o << "   - third axis:     " << std::setw(7) << std::setprecision(4) << a.m_eigenVectors(2,0) << ", " << a.m_eigenVectors(2,1) << ", " << a.m_eigenVectors(2,2) << std::endl;
     }
     else
         o << " Principal Components Axis is not valid" << std::endl;
@@ -224,7 +226,7 @@ std::ostream&  operator << (std::ostream & o, const PrincipalComponents& a)
 bool operator < (const PrincipalComponents& a, const PrincipalComponents& b)
 {
     if (a.m_svdOK && b.m_svdOK)
-        return a.m_eigenValues[0] > b.m_eigenValues[0];
+        return a.m_eigenValues(0) > b.m_eigenValues(0);
     
     return false; //They are equal
 }
@@ -239,9 +241,9 @@ Cluster3D::Cluster3D() : m_statusBits(0),
 
 Cluster3D::Cluster3D(unsigned                   statusBits,
                      const PrincipalComponents& pcaResults,
-                     float                     totalCharge,
-                     const float*              startPosition,
-                     const float*              endPosition,
+                     float                      totalCharge,
+                     const float*               startPosition,
+                     const float*               endPosition,
                      int                        idx) :
         m_statusBits(statusBits),
         m_pcaResults(pcaResults),
@@ -353,26 +355,26 @@ void RecobClusterParameters::UpdateParameters(const reco::ClusterHit2D* clusterH
      *  @brief a utility routine for building 3D clusters to keep basic info up to date
      *         (a candidate for a better way to do this)
      */
-    const recob::Hit& hit = clusterHit->getHit();
+    const recob::Hit* hit = clusterHit->getHit();
     
     // Need to keep track of stuff so we can form cluster
-    if (hit.WireID().Wire < m_startWire)
+    if (clusterHit->WireID().Wire < m_startWire)
     {
-        m_startWire      = hit.WireID().Wire;
-        m_startTime      = hit.PeakTimeMinusRMS();
-        m_sigmaStartTime = hit.SigmaPeakTime();
+        m_startWire      = clusterHit->WireID().Wire;
+        m_startTime      = hit->PeakTimeMinusRMS();
+        m_sigmaStartTime = hit->SigmaPeakTime();
     }
     
-    if (hit.WireID().Wire > m_endWire)
+    if (clusterHit->WireID().Wire > m_endWire)
     {
-        m_endWire      = hit.WireID().Wire;
-        m_endTime      = hit.PeakTimePlusRMS();
-        m_sigmaEndTime = hit.SigmaPeakTime();
+        m_endWire      = clusterHit->WireID().Wire;
+        m_endTime      = hit->PeakTimePlusRMS();
+        m_sigmaEndTime = hit->SigmaPeakTime();
     }
     
-    m_totalCharge += hit.Integral();
-    m_plane        = hit.WireID().Plane;
-    m_view         = hit.View();
+    m_totalCharge += hit->Integral();
+    m_plane        = clusterHit->WireID().planeID();
+    m_view         = hit->View();
     
     m_hitVector.push_back(clusterHit);
     

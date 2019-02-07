@@ -4,7 +4,7 @@
 #include "ClusterParamsAlg.h"
 
 // LArSoft includes
-#include "lardata/Utilities/StatCollector.h" // StatCollector<>
+#include "lardataalg/Utilities/StatCollector.h" // StatCollector<>
 #include "lardata/Utilities/SimpleFits.h" // LinearFit<>
 
 //-----Math-------

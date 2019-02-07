@@ -1,16 +1,18 @@
 /**
- *  @file   Cluster3D_module.cc
+ *  @file   ClusterParamsBuilder.cc
  * 
- *  @brief  Producer module to create 3D clusters from input hits
+ *  @brief  A tool to select good clusters and fill their output parameters
  * 
  */
 
 // Framework Includes
+#include "art/Utilities/ToolMacros.h"
 #include "cetlib/search_path.h"
 
-#include "larreco/RecoAlg/Cluster3DAlgs/ClusterParamsBuilder.h"
+#include "larreco/RecoAlg/Cluster3DAlgs/IClusterParamsBuilder.h"
 
 // LArSoft includes
+#include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "larcorealg/Geometry/PlaneGeo.h"
@@ -22,10 +24,82 @@
 #include <iostream>
 #include <memory>
 
+namespace lar_cluster3d {
+
+/**
+ *  @brief  ClusterParamsBuilder class definiton
+ */
+class ClusterParamsBuilder : virtual public IClusterParametersBuilder
+{
+public:
+    /**
+     *  @brief  Constructor
+     *
+     *  @param  pset
+     */
+    explicit ClusterParamsBuilder(fhicl::ParameterSet const &pset);
+    
+    /**
+     *  @brief  Destructor
+     */
+    virtual ~ClusterParamsBuilder();
+    
+    void configure(const fhicl::ParameterSet&) override;
+    
+    /**
+     *  @brief Given the results of running DBScan, format the clusters so that they can be
+     *         easily transferred back to the larsoft world
+     *
+     *  @param hitPairClusterMap      map between view and a list of 3D hits
+     *  @param clusterParametersList  a container for our candidate 3D clusters
+     *  @param rejectionFraction      Used for determine "hit purity" when rejecting clusters
+     *
+     *                                The last two parameters are passed through to the FillClusterParams method
+     */
+    void BuildClusterInfo(reco::ClusterParametersList& clusterParametersList) const override;
+    
+    /**
+     *  @brief Fill the cluster parameters (expose to outside world for case of splitting/merging clusters)
+     *
+     *  @param ClusterParameters   The cluster parameters container to be modified
+     *  @param Hit2DToClusterMap   Map to keep track of 2D hit to cluster association
+     *  @param double              minimum fraction of unique hits
+     *  @param double              maximum fraction of "lost" hits
+     */
+    
+    void FillClusterParams(reco::ClusterParameters&,
+                           reco::Hit2DToClusterMap&,
+                           double minUniqueFrac = 0.,
+                           double maxLostFrac=1.) const override;
+    
+private:
+    
+    /**
+     *  @brief Is a cluster "good" and worth keeping?
+     *
+     *  @param ClusterParameters   The cluster parameters of cluster to be checked
+     *  @param Hit2DToClusterMap   Map to keep track of 2D hit to cluster association
+     */
+    
+    bool keepThisCluster(reco::ClusterParameters&, const reco::Hit2DToClusterMap&) const;
+    
+    void storeThisCluster(reco::ClusterParameters&, reco::Hit2DToClusterMap&) const;
+    
+    void removeUsedHitsFromMap(reco::ClusterParameters&, reco::HitPairListPtr&, reco::Hit2DToClusterMap&) const;
+    
+    /**
+     *  @brief Data members to follow
+     */
+    size_t                 m_clusterMinHits;
+    double                 m_clusterMinUniqueFraction;
+    double                 m_clusterMaxLostFraction;
+    
+    PrincipalComponentsAlg m_pcaAlg;                // For running Principal Components Analysis
+};
+
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows
-
-namespace lar_cluster3d {
 
 ClusterParamsBuilder::ClusterParamsBuilder(fhicl::ParameterSet const &pset) :
     m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg"))
@@ -78,40 +152,142 @@ void ClusterParamsBuilder::BuildClusterInfo(reco::ClusterParametersList& cluster
         
         reco::ClusterParametersList::iterator clusterItr = clusterParametersList.begin();
         
-        for(auto& clusterParams : clusterParametersList)
-        {
-            for(const auto& hit3D : clusterParams.getHitPairListPtr())
-            {
-                for(const auto& hit2D : hit3D->getHits())
-                {
-                    if (!hit2D) continue;
-                    
-                    hit2DToClusterMap[hit2D][&clusterParams].insert(hit3D);
-                }
-            }
-        }
+//        for(auto& clusterParams : clusterParametersList)
+//        {
+//            for(const auto& hit3D : clusterParams.getHitPairListPtr())
+//            {
+//                for(const auto& hit2D : hit3D->getHits())
+//                {
+//                    if (!hit2D) continue;
+//
+//                    hit2DToClusterMap[hit2D][&clusterParams].insert(hit3D);
+//                }
+//            }
+//        }
         
         // Ok, spin through again to remove ambiguous hits
         //        for(auto& clusterParams : clusterParametersList) PruneAmbiguousHits(clusterParams,hit2DToClusterMap);
         
         // What remains is an order set of clusters, largest first
         // Now go through and obtain cluster parameters
-        clusterItr = clusterParametersList.begin();
+//        clusterItr = clusterParametersList.begin();
+        
+//        while(clusterItr != clusterParametersList.end())
+//        {
+//            // Dereference for ease...
+//            reco::ClusterParameters& clusterParams = *clusterItr;
+//
+//            // Do the actual work of filling the parameters
+//            FillClusterParams(clusterParams, hit2DToClusterMap, m_clusterMinUniqueFraction, m_clusterMaxLostFraction);
+//
+//            // If this cluster is rejected then the parameters will be empty
+//            if (clusterParams.getClusterParams().empty() || !clusterParams.getFullPCA().getSvdOK())
+//            {
+//                clusterItr = clusterParametersList.erase(clusterItr);
+//            }
+//            else clusterItr++;
+//        }
         
         while(clusterItr != clusterParametersList.end())
         {
             // Dereference for ease...
             reco::ClusterParameters& clusterParams = *clusterItr;
             
-            // Do the actual work of filling the parameters
-            FillClusterParams(clusterParams, hit2DToClusterMap, m_clusterMinUniqueFraction, m_clusterMaxLostFraction);
-            
-            // If this cluster is rejected then the parameters will be empty
-            if (clusterParams.getClusterParams().empty() || !clusterParams.getFullPCA().getSvdOK())
+            if (keepThisCluster(clusterParams, hit2DToClusterMap))
             {
-                clusterItr = clusterParametersList.erase(clusterItr);
+                storeThisCluster(clusterParams, hit2DToClusterMap);
+                clusterItr++;
             }
-            else clusterItr++;
+            else clusterItr = clusterParametersList.erase(clusterItr);
+        }
+   }
+    
+    return;
+}
+    
+bool ClusterParamsBuilder::keepThisCluster(reco::ClusterParameters& clusterParams, const reco::Hit2DToClusterMap& hit2DToClusterMap) const
+{
+    // Try to keep simple by looking at the 2D hits associated to the cluster and checking to see how many, by plane, are already
+    // in use. Reject clusters where too many hits are shared.
+    
+    bool keepThisCluster = false;
+    
+    // Define some handy data structures for counting the number of times hits get used and shared
+    using HitCountMap         = std::unordered_map<const reco::ClusterHit2D*,int>;
+    using PlaneHitCountMapVec = std::vector<HitCountMap>;
+    
+    PlaneHitCountMapVec totalPlaneHitCountMapVec(3);   // counts total number of hits
+    PlaneHitCountMapVec sharedPlaneHitCountMapVec(3);  // this is the number shared with a bigger cluster
+    PlaneHitCountMapVec uniquePlaneHitCountMapVec(3);  // this is the number unique to this cluster (so far)
+
+    // Go through the hits and check usage...
+    for(const auto& hit3D : clusterParams.getHitPairListPtr())
+    {
+        for(const auto& hit2D : hit3D->getHits())
+        {
+            if (!hit2D) continue;
+            
+            size_t hitPlane = hit2D->WireID().Plane;
+            
+            totalPlaneHitCountMapVec[hitPlane][hit2D]++;
+            
+            reco::Hit2DToClusterMap::const_iterator hit2DToClusIter = hit2DToClusterMap.find(hit2D);
+            
+            if (hit2DToClusIter != hit2DToClusterMap.end())
+            {
+                sharedPlaneHitCountMapVec[hitPlane][hit2D]++;
+            }
+            else uniquePlaneHitCountMapVec[hitPlane][hit2D]++;
+        }
+    }
+
+    // First try... look at fractions of unique hits each plane
+    std::vector<float> uniqueFractionVec(3,0.);
+    
+    for(size_t idx = 0; idx < 3; idx++)
+    {
+        if (!totalPlaneHitCountMapVec[idx].empty()) uniqueFractionVec[idx] = float(uniquePlaneHitCountMapVec[idx].size()) / float(totalPlaneHitCountMapVec[idx].size());
+    }
+    
+    float overallFraction = uniqueFractionVec[0] * uniqueFractionVec[1] * uniqueFractionVec[2];
+    float maxFraction     = *std::max_element(uniqueFractionVec.begin(),uniqueFractionVec.end());
+    
+    if (maxFraction > 0.9 || overallFraction > 0.2) keepThisCluster = true;
+
+    return keepThisCluster;
+}
+    
+void ClusterParamsBuilder::storeThisCluster(reco::ClusterParameters& clusterParams, reco::Hit2DToClusterMap& hit2DToClusterMap) const
+{
+    // See if we can avoid duplicates by temporarily transferring to a set
+    std::unordered_set<const reco::ClusterHit2D*> hitSet;
+    
+    // first task is to mark the hits and update the hit to cluster mapping
+    for(const auto& hit3D : clusterParams.getHitPairListPtr())
+    {
+        for(const auto& hit2D : hit3D->getHits())
+        {
+            if (!hit2D) continue;
+            
+            hit2DToClusterMap[hit2D][&clusterParams].insert(hit3D);
+            hitSet.insert(hit2D);
+        }
+    }
+
+    // First stage of feature extraction runs here
+    m_pcaAlg.PCAAnalysis_3D(clusterParams.getHitPairListPtr(), clusterParams.getFullPCA());
+    
+    // Must have a valid pca
+    if (clusterParams.getFullPCA().getSvdOK())
+    {
+        // Set the skeleton PCA to make sure it has some value
+        clusterParams.getSkeletonPCA() = clusterParams.getFullPCA();
+        
+        // Add the "good" hits to our cluster parameters
+        for(const auto& hit2D : hitSet)
+        {
+            hit2D->setStatusBit(reco::ClusterHit2D::USED);
+            clusterParams.UpdateParameters(hit2D);
         }
     }
     
@@ -156,7 +332,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     // The map from 2D to 3D hits will contain unique entries for 2D hits so we can do some quick accounting here
     for(const auto& hitMapPair : hit2DToHit3DListMap)
     {
-        size_t plane = hitMapPair.first->getHit().WireID().Plane;
+        size_t plane = hitMapPair.first->WireID().Plane;
         
         planeHit2DVec[plane] += hitMapPair.second.size();
         if (!(hitMapPair.first->getStatusBits() & reco::ClusterHit2D::USED)) planeUniqueHit2DVec[plane] += hitMapPair.second.size();
@@ -171,25 +347,25 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
     int                nPlanesWithHits(0);
     int                nPlanesWithUniqueHits(0);
     size_t             minPlane(0);
-    size_t             minPlaneCnt = planeUniqueHit2DVec.at(0);
+    size_t             minPlaneCnt = planeUniqueHit2DVec[0];
     
     // Loop through the planes
     for(int idx = 0; idx < 3; idx++)
     {
         // numerology
-        numTotalHits  += planeHit2DVec.at(idx);
-        numUniqueHits += planeUniqueHit2DVec.at(idx);
+        numTotalHits  += planeHit2DVec[idx];
+        numUniqueHits += planeUniqueHit2DVec[idx];
         
-        if (planeHit2DVec.at(idx)       > 0) nPlanesWithHits++;
-        if (planeUniqueHit2DVec.at(idx) > 0) nPlanesWithUniqueHits++;
+        if (planeHit2DVec[idx]       > 0) nPlanesWithHits++;
+        if (planeUniqueHit2DVec[idx] > 0) nPlanesWithUniqueHits++;
         
         // Compute the fraction of unique hits in this plane
-        uniqueHitFracVec[idx] = float(planeUniqueHit2DVec.at(idx)) / std::max(float(planeHit2DVec.at(idx)),float(1.));
+        uniqueHitFracVec[idx] = float(planeUniqueHit2DVec[idx]) / std::max(float(planeHit2DVec[idx]),float(1.));
         
         // Finding the plane with the fewest hits
-        if (planeHit2DVec.at(idx) < minPlaneCnt)
+        if (planeHit2DVec[idx] < minPlaneCnt)
         {
-            minPlaneCnt = planeHit2DVec.at(idx);
+            minPlaneCnt = planeHit2DVec[idx];
             minPlane    = idx;
         }
     }
@@ -228,7 +404,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                 }
                 
                 // Which plane for this hit?
-                size_t hitPlane = pair.first->getHit().WireID().Plane;
+                size_t hitPlane = pair.first->WireID().Plane;
                 
                 // Only reject hits on the planes not the fewest 2D hits and really only do this if more than a couple
                 if (hitPlane != minPlane && pair.second.size() > 2)
@@ -282,7 +458,7 @@ void ClusterParamsBuilder::FillClusterParams(reco::ClusterParameters& clusterPar
                             // Watch for null hit (dead channels)
                             if (!hit2D) continue;
                         
-                            reco::HitPairListPtr& removeHitList = hit2DToHit3DListMap.at(hit2D);
+                            reco::HitPairListPtr& removeHitList = hit2DToHit3DListMap[hit2D];
 
                             // Don't allow all the 3D hits associated to this 2D hit to be rejected?
                             if (removeHitList.size() < 2)
@@ -413,4 +589,5 @@ void ClusterParamsBuilder::removeUsedHitsFromMap(reco::ClusterParameters& cluste
     return;
 }
     
+DEFINE_ART_CLASS_TOOL(ClusterParamsBuilder)
 } // namespace lar_cluster3d

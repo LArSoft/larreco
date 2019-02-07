@@ -202,9 +202,9 @@ namespace cluster {
       dbclusters.push_back(dbcluster);
     }
     
-    LOG_VERBATIM("HoughLineFinderAna") << "run    : " << evt.id().run();
+    MF_LOG_VERBATIM("HoughLineFinderAna") << "run    : " << evt.id().run();
     //std::cout << "subrun : " << evt.subRun() << std::endl;
-    LOG_VERBATIM("HoughLineFinderAna") << "event  : " << evt.id().event();
+    MF_LOG_VERBATIM("HoughLineFinderAna") << "event  : " << evt.id().event();
     fm_run=evt.id().run();
     fm_event=evt.id().event();
     fm_run_timestamp=evt.time().value(); // won't cast, EC, 7-Oct-2010.
