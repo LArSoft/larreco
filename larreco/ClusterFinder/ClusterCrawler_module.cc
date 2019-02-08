@@ -54,11 +54,9 @@ class cluster::ClusterCrawler : public art::EDProducer {
 
 public:
   explicit ClusterCrawler(fhicl::ParameterSet const & pset);
-  virtual ~ClusterCrawler();
 
   void reconfigure(fhicl::ParameterSet const & pset) ;
   void produce(art::Event & evt) override;
-  void beginJob() override;
 
 private:
   hit::CCHitFinderAlg fCCHFAlg; // define CCHitFinderAlg object
@@ -70,6 +68,7 @@ private:
 namespace cluster {
 
   ClusterCrawler::ClusterCrawler(fhicl::ParameterSet const& pset) :
+    EDProducer{pset},
     fCCHFAlg           (pset.get<fhicl::ParameterSet>("CCHitFinderAlg")),
     fCCAlg             (pset.get<fhicl::ParameterSet>("ClusterCrawlerAlg")),
     fCalDataModuleLabel(pset.get<std::string>("CalDataModuleLabel"))
@@ -92,17 +91,10 @@ namespace cluster {
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
   }
 
-  ClusterCrawler::~ClusterCrawler()
-  {
-  }
-
   void ClusterCrawler::reconfigure(fhicl::ParameterSet const & pset)
   {
     fCCAlg.reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
     fCCHFAlg.reconfigure(pset.get< fhicl::ParameterSet >("CCHitFinderAlg"));
-  }
-  
-  void ClusterCrawler::beginJob(){
   }
   
   void ClusterCrawler::produce(art::Event & evt)
@@ -312,4 +304,3 @@ namespace cluster{
   DEFINE_ART_MODULE(ClusterCrawler)
   
 } 
-

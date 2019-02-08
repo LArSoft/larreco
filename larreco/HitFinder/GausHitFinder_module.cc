@@ -73,13 +73,12 @@ public:
   
     explicit GausHitFinder(fhicl::ParameterSet const& pset);
        
+private:
+
     void produce(art::Event& evt) override;
     void beginJob() override;
-    void endJob() override;
     void reconfigure(fhicl::ParameterSet const& p) ;
 
-private:
-  
     void FillOutHitParameterVector(const std::vector<double>& input, std::vector<double>& output);
    
     bool                fFilterHits;
@@ -115,6 +114,7 @@ private:
 //-------------------------------------------------
 //-------------------------------------------------
 GausHitFinder::GausHitFinder(fhicl::ParameterSet const& pset)
+  : EDProducer{pset}
 {
     this->reconfigure(pset);
   
@@ -218,13 +218,6 @@ void GausHitFinder::beginJob()
     // === Hit Information for Histograms ===
     fFirstChi2	= tfs->make<TH1F>("fFirstChi2", "#chi^{2}", 10000, 0, 5000);
     fChi2	        = tfs->make<TH1F>("fChi2", "#chi^{2}", 10000, 0, 5000);
-}
-
-//-------------------------------------------------
-//-------------------------------------------------
-void GausHitFinder::endJob()
-{
-
 }
 
 //  This algorithm uses the fact that deconvolved signals are very smooth 

@@ -65,6 +65,7 @@ private:
 // ------------------------------------------------------
 
 TrackShowerHits::TrackShowerHits(fhicl::ParameterSet const & p) :
+        EDProducer{p},
 	fSegmentation2D(p.get< fhicl::ParameterSet >("Segmentation2DAlg"))
 {
 	this->reconfigure(p);
@@ -198,4 +199,3 @@ void TrackShowerHits::produce(art::Event & evt)
 DEFINE_ART_MODULE(TrackShowerHits)
 
 }
-

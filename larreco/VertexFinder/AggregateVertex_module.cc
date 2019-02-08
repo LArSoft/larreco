@@ -49,18 +49,15 @@ namespace vertex {
   public:
 
     explicit AggregateVertex(fhicl::ParameterSet const& pset);
-    virtual ~AggregateVertex();
 
-    void produce(art::Event& evt); 
-    void beginJob(); 
+
+  private:
+    void produce(art::Event& evt) override;
 
     std::unique_ptr< std::vector<recob::Vertex> >  MatchV2T(art::Event& evt,
 							  art::Assns<recob::Vertex, recob::Track>& vtassn,
 							  art::Assns<recob::Vertex, recob::Shower>& vsassn,
 							  art::Assns<recob::Vertex, recob::Hit>& vhassn);
-
-  private:
-
     std::string fDBScanModuleLabel;
     std::string fHoughModuleLabel;
     std::string fTrack3DModuleLabel;
@@ -78,7 +75,8 @@ namespace vertex {
 
   //-----------------------------------------------
   AggregateVertex::AggregateVertex(fhicl::ParameterSet const& pset) 
-    : fDBScanModuleLabel  (pset.get< std::string >("DBScanModuleLabel"  ))
+    : EDProducer{pset}
+    , fDBScanModuleLabel  (pset.get< std::string >("DBScanModuleLabel"  ))
     , fHoughModuleLabel   (pset.get< std::string >("HoughModuleLabel"   ))
     , fTrack3DModuleLabel (pset.get< std::string >("Track3DModuleLabel" ))
     , fEndPointModuleLabel(pset.get< std::string >("EndPointModuleLabel"))
@@ -89,16 +87,6 @@ namespace vertex {
     produces< art::Assns<recob::Vertex, recob::Shower> >();
   }
   
-  //-----------------------------------------------
-  AggregateVertex::~AggregateVertex()
-  {
-  }
-
-  //-----------------------------------------------
-  void AggregateVertex::beginJob()
-  {
-  }
-
   //-----------------------------------------------
   void AggregateVertex::produce(art::Event& evt) 
   {
@@ -256,4 +244,3 @@ namespace vertex{
 
 }
 #endif // AGGREGATEVERTEX_H
-

@@ -78,7 +78,7 @@ namespace trkf {
 }
 
 trkf::MCSFitProducer::MCSFitProducer(trkf::MCSFitProducer::Parameters const & p)
-  : p_(p), mcsfitter(p_().fitter)
+  : EDProducer{p}, p_(p), mcsfitter(p_().fitter)
 {
   inputTag = art::InputTag(p_().inputs().inputLabel());
   produces<std::vector<recob::MCSFitResult> >();

@@ -41,25 +41,14 @@
 #include "larreco/RecoAlg/ClusterParamsImportWrapper.h"
 #include "larreco/ClusterFinder/ClusterCreator.h"
 
-
-
-//#ifndef LINEMERGER_H
-//#define LINEMERGER_H
-
-
 namespace cluster {
   
   class LineMerger : public art::EDProducer {
-    
   public:
-    
     explicit LineMerger(fhicl::ParameterSet const& pset); 
-    ~LineMerger();
-    
-    void produce(art::Event& evt);
-    void beginJob();
     
   private:
+    void produce(art::Event& evt) override;
         
     std::string     fClusterModuleLabel;
     double          fSlope; // tolerance for matching angles between two lines (in units of radians) 
@@ -72,8 +61,6 @@ namespace cluster {
       float cl2startwire, float cl2starttime,
       float cl2endwire,   float cl2endtime
       );
-    
-  protected: 
     
   }; // class LineMerger
 
@@ -377,7 +364,8 @@ namespace cluster{
   
   //-------------------------------------------------
   LineMerger::LineMerger(fhicl::ParameterSet const& pset) 
-    : fClusterModuleLabel(pset.get<std::string>("ClusterModuleLabel"))
+    : EDProducer{pset}
+    , fClusterModuleLabel(pset.get<std::string>("ClusterModuleLabel"))
     , fSlope             (pset.get<double     >("Slope"))
     , fEndpointWindow    (pset.get<double     >("EndpointWindow"))
   {
@@ -385,17 +373,6 @@ namespace cluster{
     produces< art::Assns<recob::Cluster, recob::Hit> >();
   }
 
-  //-------------------------------------------------
-  LineMerger::~LineMerger()
-  {
-  }
-
-  //-------------------------------------------------
-  void LineMerger::beginJob()
-  {
-    //this doesn't do anything now, but it might someday
-  }
-    
   //------------------------------------------------------------------------------------//
   void LineMerger::produce(art::Event& evt)
   { 
@@ -612,4 +589,3 @@ namespace cluster{
   DEFINE_ART_MODULE(LineMerger)
   
 } // end namespace 
-

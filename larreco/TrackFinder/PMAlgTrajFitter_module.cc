@@ -125,6 +125,7 @@ const std::string PMAlgTrajFitter::kNodesName = "node";
 // -------------------------------------------------------------
 
 PMAlgTrajFitter::PMAlgTrajFitter(PMAlgTrajFitter::Parameters const& config) :
+    EDProducer{config},
 	fHitModuleLabel(config().HitModuleLabel()),
 	fPfpModuleLabel(config().PfpModuleLabel()),
 

@@ -1,5 +1,3 @@
-#ifndef EventMaker_h
-#define EventMaker_h
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindManyP.h"
@@ -17,34 +15,26 @@ namespace event {
 class event::EventMaker : public art::EDProducer {
 public:
   explicit EventMaker(fhicl::ParameterSet const &p);
-  virtual ~EventMaker();
-
-  virtual void produce(art::Event &e);
-
-  virtual void reconfigure(fhicl::ParameterSet const & p);
 
 private:
+  void produce(art::Event &e) override;
+
+  void reconfigure(fhicl::ParameterSet const & p);
 
   std::string fVertexModuleLabel;  ///< label of the module making the recob::Vertex objects
   double      fProximity;          ///< how close a vertex needs to be to another to be from the same event
 
 };
-#endif /* EventMaker_h */
 
 //--------------------------------------------------------
 event::EventMaker::EventMaker(fhicl::ParameterSet const &p)
+  : EDProducer{p}
 {
   this->reconfigure(p);
   
   produces< std::vector<recob::Event> >();
   produces< art::Assns<recob::Event, recob::Vertex> >();
   produces< art::Assns<recob::Event, recob::Hit> >();
-}
-
-//--------------------------------------------------------
-event::EventMaker::~EventMaker() 
-{
-  // Clean up dynamic memory and other resources here.
 }
 
 //--------------------------------------------------------

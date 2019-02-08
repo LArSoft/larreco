@@ -160,7 +160,8 @@ namespace trkf {
 }
 
 trkf::KalmanFilterTrajectoryFitter::KalmanFilterTrajectoryFitter(trkf::KalmanFilterTrajectoryFitter::Parameters const & p)
-  : p_(p)
+  : EDProducer{p}
+  , p_(p)
   , prop{p_().propagator}
   , kalmanFitter{&prop, p_().fitter}
   , trajectoryInputTag{p_().inputs().inputTrajectoryLabel()}

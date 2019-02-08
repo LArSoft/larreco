@@ -63,11 +63,8 @@ namespace hit {
     public:
 
       explicit RawHitFinder(fhicl::ParameterSet const& pset); 
-      virtual ~RawHitFinder();
 
-      void produce(art::Event& evt); 
-      void beginJob(); 
-      void endJob(); 
+      void produce(art::Event& evt) override;
       void reconfigure(fhicl::ParameterSet const& p);
 
 
@@ -102,6 +99,7 @@ namespace hit {
 
   //-------------------------------------------------
   RawHitFinder::RawHitFinder(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {
     this->reconfigure(pset);
 
@@ -112,11 +110,6 @@ namespace hit {
         /*instance_name*/"", 
         /*doWireAssns*/false, 
         /*doRawDigitAssns*/true);
-  }
-
-  //-------------------------------------------------
-  RawHitFinder::~RawHitFinder()
-  {
   }
 
   void RawHitFinder::reconfigure(fhicl::ParameterSet const& p)
@@ -138,15 +131,6 @@ namespace hit {
     fColMinWindow        = p.get< int       >("ColMinWindow",0); 	  	
     fIndCutoff        = p.get< int       >("IndCutoff",20); 	  	
     mf::LogInfo("RawHitFinder_module") << "fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
-  }
-
-  //-------------------------------------------------
-  void RawHitFinder::beginJob()
-  {  
-  }
-
-  void RawHitFinder::endJob()
-  {  
   }
 
   //-------------------------------------------------

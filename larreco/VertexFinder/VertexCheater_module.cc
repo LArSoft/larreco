@@ -5,8 +5,6 @@
 // brebel@fnal.gov
 //
 ////////////////////////////////////////////////////////////////////////
-#ifndef VERTEX_VERTEXCHEATER_H
-#define VERTEX_VERTEXCHEATER_H
 #include <string>
 #include <vector>
 
@@ -38,7 +36,6 @@ namespace vertex {
   class VertexCheater : public art::EDProducer {
   public:
     explicit VertexCheater(fhicl::ParameterSet const& pset);
-    virtual ~VertexCheater();
 
     void produce(art::Event& evt);
 
@@ -57,6 +54,7 @@ namespace vertex{
 
   //--------------------------------------------------------------------
   VertexCheater::VertexCheater(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {
     this->reconfigure(pset);
 
@@ -68,18 +66,11 @@ namespace vertex{
   }
 
   //--------------------------------------------------------------------
-  VertexCheater::~VertexCheater()
-  {
-  }
-
-  //--------------------------------------------------------------------
   void VertexCheater::reconfigure(fhicl::ParameterSet const& pset)
   {
     fCheatedTrackLabel  = pset.get< std::string >("CheatedTrackLabel",  "track"   );
     fCheatedShowerLabel = pset.get< std::string >("CheatedShowerLabel", "shower"  );
     fG4ModuleLabel      = pset.get< std::string >("G4ModuleLabel",      "largeant");
-
-    return;
   }
 
   //--------------------------------------------------------------------
@@ -276,5 +267,3 @@ namespace vertex{
   DEFINE_ART_MODULE(VertexCheater)
 
 }
-
-#endif

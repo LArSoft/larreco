@@ -36,14 +36,10 @@ namespace hit{
   public:
     
     explicit TTHitFinder(fhicl::ParameterSet const& pset); 
-    virtual ~TTHitFinder();
-         
-    void produce(art::Event& evt); 
-    void beginJob(); 
-    void endJob(); 
-    void reconfigure(fhicl::ParameterSet const& p);                
 
   private:
+    void produce(art::Event& evt) override;
+    void reconfigure(fhicl::ParameterSet const& p);
         
     std::string    fCalDataModuleLabel; /// Input caldata module name
     float          fMinSigPeakInd;      /// Induction wire signal height threshold at peak 
@@ -60,7 +56,9 @@ namespace hit{
   }; // class TTHitFinder  
   
   //-------------------------------------------------
-  TTHitFinder::TTHitFinder(fhicl::ParameterSet const& pset) {
+  TTHitFinder::TTHitFinder(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
+  {
     this->reconfigure(pset);
     
     // let HitCollectionCreator declare that we are going to produce
@@ -70,9 +68,6 @@ namespace hit{
     recob::HitCollectionCreator::declare_products(*this, "yhits");
     
   }
-
-  //-------------------------------------------------
-  TTHitFinder::~TTHitFinder(){}
 
   //-------------------------------------------------
   void TTHitFinder::reconfigure(fhicl::ParameterSet const& p) {
@@ -95,12 +90,6 @@ namespace hit{
     }
 
   }
-
-  //-------------------------------------------------
-  void TTHitFinder::beginJob(){}
-
-  //-------------------------------------------------
-  void TTHitFinder::endJob(){}
 
   //-------------------------------------------------
   void TTHitFinder::produce(art::Event& evt)

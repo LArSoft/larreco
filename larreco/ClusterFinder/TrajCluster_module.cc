@@ -146,8 +146,9 @@ namespace cluster {
   } // TrajCluster::reconfigure()
   
   //----------------------------------------------------------------------------
-  TrajCluster::TrajCluster(fhicl::ParameterSet const& pset) {
-    
+  TrajCluster::TrajCluster(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
+  {
     reconfigure(pset);
     
     // let HitCollectionAssociator declare that we are going to produce
@@ -983,4 +984,3 @@ namespace cluster {
   DEFINE_ART_MODULE(TrajCluster)
   
 } // namespace cluster
-

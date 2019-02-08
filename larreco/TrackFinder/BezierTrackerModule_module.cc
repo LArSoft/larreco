@@ -103,6 +103,7 @@ namespace trkf {
 namespace trkf {
 
   BezierTrackerModule::BezierTrackerModule(const fhicl::ParameterSet& pset)
+    : EDProducer{pset}
   {
     reconfigure(pset);
     produces< std::vector<recob::Trajectory> >("bezierformat");

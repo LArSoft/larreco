@@ -54,25 +54,16 @@
 namespace trkf {
    
   class Track3Dreco : public art::EDProducer {
-    
   public:
-    
     explicit Track3Dreco(fhicl::ParameterSet const& pset);
-    ~Track3Dreco();
-    
-    //////////////////////////////////////////////////////////
-    void reconfigure(fhicl::ParameterSet const& p);
-    void produce(art::Event& evt); 
-    void beginJob();
-    void endJob();
 
   private:
+    void reconfigure(fhicl::ParameterSet const& p);
+    void produce(art::Event& evt) override;
         
     int             ftmatch;             ///< tolerance for time matching (in time samples) 
     double          fchi2dof;            ///< tolerance for chi2/dof of cluster fit to function
     std::string     fClusterModuleLabel; ///< label for input cluster collection
-
-  
   }; // class Track3Dreco
 
 }
@@ -81,6 +72,7 @@ namespace trkf {
 
 //-------------------------------------------------
 Track3Dreco::Track3Dreco(fhicl::ParameterSet const& pset)
+  : EDProducer{pset}
 {
   this->reconfigure(pset);
   produces< std::vector<recob::Track>                        >();
@@ -91,27 +83,11 @@ Track3Dreco::Track3Dreco(fhicl::ParameterSet const& pset)
   produces< art::Assns<recob::Track,      recob::Hit>        >();
 }
 
-//-------------------------------------------------
-Track3Dreco::~Track3Dreco()
-{
-}
-
 void Track3Dreco::reconfigure(fhicl::ParameterSet const& pset)
 {
   fClusterModuleLabel     = pset.get< std::string >("ClusterModuleLabel");
   ftmatch                 = pset.get< int    >("TMatch");
   fchi2dof                = pset.get< double >("Chi2DOFmax");
-}
-
-//-------------------------------------------------
-void Track3Dreco::beginJob()
-{
-  
-
-}
-
-void Track3Dreco::endJob()
-{
 }
 
 //------------------------------------------------------------------------------------//

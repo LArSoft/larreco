@@ -68,13 +68,11 @@ class SpacePointSolver : public art::EDProducer
 public:
 
   explicit SpacePointSolver(const fhicl::ParameterSet& pset);
-  virtual ~SpacePointSolver();
 
-  void produce(art::Event& evt);
-  void beginJob();
-  void endJob();
+private:
+  void produce(art::Event& evt) override;
+  void beginJob() override;
 
-protected:
   void AddNeighbours(const std::vector<SpaceCharge*>& spaceCharges) const;
 
   typedef std::map<const WireHit*, const recob::Hit*> HitMap_t;
@@ -124,15 +122,15 @@ protected:
 
   const detinfo::DetectorProperties* detprop;
   const geo::GeometryCore* geom;
-private:
   std::unique_ptr<reco3d::IHitReader> fHitReader; ///<  Expt specific tool for reading hits
 };
 
 DEFINE_ART_MODULE(SpacePointSolver)
 
 // ---------------------------------------------------------------------------
-SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset)
-  : fHitLabel(pset.get<std::string>("HitLabel")),
+SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset) :
+    EDProducer{pset},
+    fHitLabel(pset.get<std::string>("HitLabel")),
     fFit(pset.get<bool>("Fit")),
     fAllowBadInductionHit(pset.get<bool>("AllowBadInductionHit")),
     fAllowBadCollectionHit(pset.get<bool>("AllowBadCollectionHit")),
@@ -154,20 +152,10 @@ SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset)
 }
 
 // ---------------------------------------------------------------------------
-SpacePointSolver::~SpacePointSolver()
-{
-}
-
-// ---------------------------------------------------------------------------
 void SpacePointSolver::beginJob()
 {
   detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
   geom = art::ServiceHandle<geo::Geometry>()->provider();
-}
-
-// ---------------------------------------------------------------------------
-void SpacePointSolver::endJob()
-{
 }
 
 // ---------------------------------------------------------------------------

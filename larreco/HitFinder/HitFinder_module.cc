@@ -31,14 +31,13 @@ namespace hit {
   
     public:
       explicit HitFinder(fhicl::ParameterSet const & pset);
-      virtual ~HitFinder() = default;
-  
-      virtual void reconfigure(fhicl::ParameterSet const & pset) ;
-      virtual void produce(art::Event & evt) override;
-      
-      virtual void endJob() override;
   
     private:
+      void reconfigure(fhicl::ParameterSet const & pset) ;
+      void produce(art::Event & evt) override;
+      
+      void endJob() override;
+  
       art::InputTag fCalDataModuleLabel; ///< label of module producing input wires
       std::unique_ptr<CCHitFinderAlg> fCCHFAlg; // define CCHitFinderAlg object
       
@@ -68,6 +67,7 @@ namespace hit {
   
   //----------------------------------------------------------------------------
   HitFinder::HitFinder(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {
     reconfigure(pset);
     

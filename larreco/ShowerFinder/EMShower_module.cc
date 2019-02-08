@@ -85,7 +85,10 @@ private:
 
 };
 
-shower::EMShower::EMShower(fhicl::ParameterSet const& pset) : fEMShowerAlg(pset.get<fhicl::ParameterSet>("EMShowerAlg")) {
+shower::EMShower::EMShower(fhicl::ParameterSet const& pset) :
+  EDProducer{pset},
+  fEMShowerAlg(pset.get<fhicl::ParameterSet>("EMShowerAlg"))
+{
   this->reconfigure(pset);
   produces<std::vector<recob::Shower> >();
   produces<std::vector<recob::SpacePoint> >();

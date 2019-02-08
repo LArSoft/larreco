@@ -5,8 +5,6 @@
 // brebel@fnal.gov
 //
 ////////////////////////////////////////////////////////////////////////
-#ifndef CLUSTER_CLUSTERCHEATER_H
-#define CLUSTER_CLUSTERCHEATER_H
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -47,7 +45,6 @@ namespace cluster {
   class ClusterCheater : public art::EDProducer {
   public:
     explicit ClusterCheater(fhicl::ParameterSet const& pset);
-    virtual ~ClusterCheater();
 
     void produce(art::Event& evt);
 
@@ -91,16 +88,12 @@ namespace cluster{
 
   //--------------------------------------------------------------------
   ClusterCheater::ClusterCheater(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {
     this->reconfigure(pset);
 
     produces< std::vector<recob::Cluster> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
-  }
-
-  //--------------------------------------------------------------------
-  ClusterCheater::~ClusterCheater()
-  {
   }
 
   //--------------------------------------------------------------------
@@ -110,8 +103,6 @@ namespace cluster{
     fHitModuleLabel    = pset.get< std::string  >("HitModuleLabel",    "hit"      );
     fG4ModuleLabel     = pset.get< std::string  >("G4ModuleLabel",     "largeant" );
     fMinHits           = pset.get< unsigned int >("MinHits",           1          );
-
-    return;
   }
 
   //--------------------------------------------------------------------
@@ -292,7 +283,3 @@ namespace cluster{
   DEFINE_ART_MODULE(ClusterCheater)
 
 }
-
-#endif
-
-

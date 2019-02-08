@@ -65,6 +65,7 @@ private:
 };
 
 calo::TrackCalorimetry::TrackCalorimetry(fhicl::ParameterSet const & p):
+  EDProducer{p},
   fTrackModuleLabel(p.get<std::string>("TrackModuleLabel")),
   fHitModuleLabel(p.get<std::string>("HitModuleLabel")),
   fTrackCaloAlg(p.get<fhicl::ParameterSet>("TrackCalorimetryAlg"))

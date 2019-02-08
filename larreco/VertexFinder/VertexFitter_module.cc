@@ -91,7 +91,8 @@ namespace trkf {
 }
 
 trkf::VertexFitter::VertexFitter(Parameters const & p)
-  : pfParticleInputTag(p().inputs().inputPFParticleLabel())
+  : EDProducer{p}
+  , pfParticleInputTag(p().inputs().inputPFParticleLabel())
   , trackInputTag(p().inputs().inputTracksLabel())
   , fitter(p().geom3dvtxfit,p().propagator)
 {

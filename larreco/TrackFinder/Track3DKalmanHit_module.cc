@@ -71,14 +71,11 @@ namespace trkf {
       // Copnstructors, destructor.
       explicit Track3DKalmanHit(fhicl::ParameterSet const & pset);
       
-      // Overrides.
-      // Put override right next to each function
-      virtual void reconfigure(fhicl::ParameterSet const & pset) ;
-      virtual void produce(art::Event & e) override;
-      virtual void beginJob() override;
-      virtual void endJob() override;
-      
    private:
+      void reconfigure(fhicl::ParameterSet const & pset) ;
+      void produce(art::Event & e) override;
+      void beginJob() override;
+      void endJob() override;
       
       //Member functions that depend on art::event and use art::Assns
       //note that return types are move aware
@@ -129,6 +126,7 @@ namespace trkf {
 /// p - Fcl parameters.
 ///
 trkf::Track3DKalmanHit::Track3DKalmanHit(fhicl::ParameterSet const & pset) :
+EDProducer{pset},
 fHist(false),
 fUseClusterHits(false),
 fUsePFParticleHits(false),

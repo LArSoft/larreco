@@ -50,12 +50,10 @@ public:
   MergeWireCell & operator = (MergeWireCell const &) = delete;
   MergeWireCell & operator = (MergeWireCell &&) = delete;
 
+private:
+
   // Required functions.
   void produce(art::Event & e) override;
-
-  // Selected optional functions.
-  void beginJob() override;
-  void reconfigure(fhicl::ParameterSet const & p) ;
 
   // Make recob::Tracks
   void MakeTracks(art::Event &evt,
@@ -77,8 +75,6 @@ public:
 		  std::vector<int> &index,
 		  TTree *tree);
 
-private:
-
   // Declare member data here.
   std::string fInput;
 
@@ -89,6 +85,7 @@ private:
 
 
 wc::MergeWireCell::MergeWireCell(fhicl::ParameterSet const & p) :
+  EDProducer{p},
   fInput(p.get<std::string>("WireCellInput"))
 {
   // Call appropriate produces<>() functions here.
@@ -415,15 +412,5 @@ void wc::MergeWireCell::MakeShowers(art::Event &evt,
     util::CreateAssn(*this, evt, *shw_coll, *hit_coll, *shwhassn, hits);
   }
 }    
-
-void wc::MergeWireCell::beginJob()
-{
-  // Implementation of optional member function here.
-}
-
-void wc::MergeWireCell::reconfigure(fhicl::ParameterSet const & p)
-{
-  // Implementation of optional member function here.
-}
 
 DEFINE_ART_MODULE(wc::MergeWireCell)

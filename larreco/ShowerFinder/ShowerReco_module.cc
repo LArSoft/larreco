@@ -209,7 +209,8 @@ namespace shwf {
 
  
 //------------------------------------------------------------------------------
-ShowerReco::ShowerReco(fhicl::ParameterSet const& pset) 
+ShowerReco::ShowerReco(fhicl::ParameterSet const& pset) :
+    EDProducer{pset}
 {
   this->reconfigure(pset);
   produces< std::vector<recob::Shower>                >();

@@ -52,7 +52,6 @@ namespace cluster{
   {
   public:
     explicit DBcluster(fhicl::ParameterSet const& pset); 
-    ~DBcluster();
     void produce(art::Event& evt);
     void beginJob();
     void reconfigure(fhicl::ParameterSet const& p);
@@ -74,16 +73,12 @@ namespace cluster{
 
   //-------------------------------------------------
   DBcluster::DBcluster(fhicl::ParameterSet const& pset)
-    : fDBScan(pset.get< fhicl::ParameterSet >("DBScanAlg")) 
+    : EDProducer{pset}
+    , fDBScan(pset.get< fhicl::ParameterSet >("DBScanAlg"))
   {  
     this->reconfigure(pset);
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
-  }
-  
-  //-------------------------------------------------
-  DBcluster::~DBcluster()
-  {
   }
   
   //-------------------------------------------------
@@ -235,4 +230,3 @@ namespace cluster{
   DEFINE_ART_MODULE(DBcluster)
   
 } 
-

@@ -8,9 +8,6 @@
 //  This algorithm is designed to perform the calorimetric reconstruction 
 //  of the 3D reconstructed tracks
 ////////////////////////////////////////////////////////////////////////
-#ifndef CALO_H
-#define CALO_H
-
 
 extern "C" {
 #include <sys/types.h>
@@ -77,15 +74,9 @@ namespace calo {
   public:
     
     explicit Calorimetry(fhicl::ParameterSet const& pset); 
-    virtual ~Calorimetry();
-    
-    void beginJob(); 
-    //    void endJob();
-
-    void produce(art::Event& evt);
 
   private:
-        
+    void produce(art::Event& evt) override;
     void   ReadCaloTree();
 
     bool BeginsOnBoundary(art::Ptr<recob::Track> lar_track);
@@ -112,18 +103,14 @@ namespace calo {
     std::vector<float> fpitch;
     std::vector<TVector3> fXYZ;
 
-  protected: 
-    
-  
   }; // class Calorimetry
 
 }
 
-#endif // CALO_H
-
 //-------------------------------------------------
 calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
-  : fTrackModuleLabel(pset.get< std::string >("TrackModuleLabel")      ),
+  : EDProducer{pset},
+    fTrackModuleLabel(pset.get< std::string >("TrackModuleLabel")      ),
     fSpacePointModuleLabel (pset.get< std::string >("SpacePointModuleLabel")       ),
     fT0ModuleLabel (pset.get< std::string >("T0ModuleLabel") ),
     fUseArea(pset.get< bool >("UseArea") ),
@@ -132,18 +119,6 @@ calo::Calorimetry::Calorimetry(fhicl::ParameterSet const& pset)
 {
   produces< std::vector<anab::Calorimetry>              >();
   produces< art::Assns<recob::Track, anab::Calorimetry> >();
-}
-
-//-------------------------------------------------
-calo::Calorimetry::~Calorimetry()
-{
-  
-}
-
-//-------------------------------------------------
-void calo::Calorimetry::beginJob()
-{
-  return;
 }
 
 //------------------------------------------------------------------------------------//
@@ -738,4 +713,3 @@ namespace calo{
   DEFINE_ART_MODULE(Calorimetry)
   
 } // end namespace 
-

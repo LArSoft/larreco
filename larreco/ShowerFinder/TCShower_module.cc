@@ -85,6 +85,7 @@ private:
 // -----------------------------------------------------
 
 shower::TCShower::TCShower(fhicl::ParameterSet const & pset) : 
+  EDProducer{pset},
   fTCAlg(pset.get< fhicl::ParameterSet >("TCAlg") ),
   fClusterModuleLabel       (pset.get< std::string >("ClusterModuleLabel", "trajcluster" ) ),
   fTrackModuleLabel         (pset.get< std::string >("TrackModuleLabel", "trajclusterKalmanTrack" ) ),

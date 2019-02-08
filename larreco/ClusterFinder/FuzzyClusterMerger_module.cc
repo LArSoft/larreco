@@ -51,8 +51,6 @@ namespace cluster {
 
     explicit FuzzyClusterMerger(fhicl::ParameterSet const & p);
 
-    virtual ~FuzzyClusterMerger();
-    
     void produce(art::Event & evt) override;
     
   private:
@@ -141,6 +139,7 @@ namespace cluster {
 namespace cluster {
 
   FuzzyClusterMerger::FuzzyClusterMerger(fhicl::ParameterSet const & p)
+    : EDProducer{p}
   {
     // Declare output data products
     produces< std::vector<recob::Cluster> >();
@@ -286,11 +285,6 @@ namespace cluster {
     //fCMerge.GetManager(0).AddMergeAlgo( new CMAlgoMergeAll );
 
     
-  }
-  
-  FuzzyClusterMerger::~FuzzyClusterMerger()
-  {
-    // Clean up dynamic memory and other resources here.
   }
   
   void FuzzyClusterMerger::produce(art::Event & evt)

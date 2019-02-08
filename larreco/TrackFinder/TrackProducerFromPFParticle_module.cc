@@ -76,7 +76,8 @@ private:
 };
 //
 TrackProducerFromPFParticle::TrackProducerFromPFParticle(fhicl::ParameterSet const & p)
-  : trackMaker_{art::make_tool<trkmkr::TrackMaker>(p.get<fhicl::ParameterSet>("trackMaker"))}
+  : EDProducer{p}
+  , trackMaker_{art::make_tool<trkmkr::TrackMaker>(p.get<fhicl::ParameterSet>("trackMaker"))}
   , pfpInputTag{p.get<art::InputTag>("inputCollection")}
   , doTrackFitHitInfo_{p.get<bool>("doTrackFitHitInfo")}
   , doSpacePoints_{p.get<bool>("doSpacePoints")}

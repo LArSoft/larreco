@@ -67,7 +67,6 @@ namespace cluster {
   public:
     
     explicit EndPointModule(fhicl::ParameterSet const& pset); 
-    virtual ~EndPointModule();        
 
     void reconfigure(fhicl::ParameterSet const& p);
     void produce(art::Event& evt);
@@ -91,16 +90,12 @@ namespace cluster {
 
   //-----------------------------------------------------------------------------
   EndPointModule::EndPointModule(fhicl::ParameterSet const& pset)
-    : fEPAlg(pset.get< fhicl::ParameterSet >("EndPointAlg"))
+    : EDProducer{pset}
+    , fEPAlg(pset.get< fhicl::ParameterSet >("EndPointAlg"))
   {
     this->reconfigure(pset);
     produces< std::vector<recob::EndPoint2D> >();
     produces< art::Assns<recob::EndPoint2D, recob::Hit> >();
-  }
-  
-  //-----------------------------------------------------------------------------
-  EndPointModule::~EndPointModule()
-  {
   }
   
   //-----------------------------------------------------------------------------
@@ -160,4 +155,3 @@ namespace cluster{
   DEFINE_ART_MODULE(EndPointModule)
   
 } 
-

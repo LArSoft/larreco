@@ -81,6 +81,7 @@ namespace cluster {
 namespace cluster {
 
   SimpleClusterMerger::SimpleClusterMerger(fhicl::ParameterSet const & p)
+    : EDProducer{p}
   {
     // Declare output data products
     produces< std::vector<recob::Cluster> >();

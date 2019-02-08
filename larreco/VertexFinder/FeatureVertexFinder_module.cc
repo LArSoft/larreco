@@ -112,14 +112,10 @@ namespace vertex {
   public:
     
     explicit FeatureVertexFinder(fhicl::ParameterSet const& pset); 
-    virtual ~FeatureVertexFinder();        
-    void beginJob();
-    void reconfigure(fhicl::ParameterSet const& p);
-    void produce(art::Event& evt);
-    
-    
 
   private:
+    void reconfigure(fhicl::ParameterSet const& p);
+    void produce(art::Event& evt);
    
    // ### This function will take in and EndPoint2d from either cluster crawler
    // ### or corner finder and only save points that make a 3d-candidate 
@@ -211,7 +207,8 @@ namespace vertex{
 
 //-----------------------------------------------------------------------------
 // fhicl::ParameterSet
-FeatureVertexFinder::FeatureVertexFinder(fhicl::ParameterSet const& pset)
+  FeatureVertexFinder::FeatureVertexFinder(fhicl::ParameterSet const& pset) :
+    EDProducer{pset}
   //fClParAlg(pset.get<fhicl::ParameterSet>("ClusterParamsAlg"), pset.get< std::string >("module_type"))
   {  
     /*this->*/reconfigure(pset);    
@@ -228,11 +225,6 @@ FeatureVertexFinder::FeatureVertexFinder(fhicl::ParameterSet const& pset)
     art::ServiceHandle<geo::Geometry> geom;
     Cls.resize(geom->Nplanes(),std::vector<int>());
   }
-//-----------------------------------------------------------------------------
-// Destructor
-FeatureVertexFinder::~FeatureVertexFinder()
-  {
-  }
 
 //---------------------------------------------------------------------------
 void FeatureVertexFinder::reconfigure(fhicl::ParameterSet const& p) 
@@ -242,16 +234,6 @@ void FeatureVertexFinder::reconfigure(fhicl::ParameterSet const& p)
     fHitModuleLabel	      	   = p.get< std::string >("HitModuleLabel");
     fCCrawlerEndPoint2dModuleLabel = p.get< std::string >("CCrawlerEndPoint2dModuleLabel");
     fRunningMode                   = p.get< double       >("RunningMode");
-    return;
-  }
-//-------------------------------------------------------------------------
-// BeginJob
-void FeatureVertexFinder::beginJob(){
-    // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
-    
-    //std::cout<<"Begin Job"<<std::endl;
-
   }
 
 // -----------------------------------------------------------------------------

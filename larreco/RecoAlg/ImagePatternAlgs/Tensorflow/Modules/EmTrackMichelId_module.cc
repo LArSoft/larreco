@@ -113,6 +113,7 @@ private:
 // ------------------------------------------------------
 
 EmTrackMichelId::EmTrackMichelId(EmTrackMichelId::Parameters const& config) :
+        EDProducer{config},
 	fBatchSize(config().BatchSize()),
 	fPointIdAlg(config().PointIdAlg()), fMVAWriter(this, "emtrkmichel"),
 	fWireProducerLabel(config().WireLabel()),
@@ -375,4 +376,3 @@ bool EmTrackMichelId::isViewSelected(int view) const
 DEFINE_ART_MODULE(EmTrackMichelId)
 
 }
-

@@ -63,7 +63,6 @@ namespace vertex {
   public:
     
     explicit PrimaryVertexFinder(fhicl::ParameterSet const& pset); 
-    virtual ~PrimaryVertexFinder();        
     void beginJob();
     void reconfigure(fhicl::ParameterSet const& p);
 
@@ -104,6 +103,7 @@ namespace vertex{
   
   //-----------------------------------------------------------------------------
   PrimaryVertexFinder::PrimaryVertexFinder(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {  
     this->reconfigure(pset);    
     produces< std::vector<recob::Vertex> >();
@@ -112,18 +112,13 @@ namespace vertex{
     produces< art::Assns<recob::Vertex, recob::Shower> >();
   }
   
-  //-----------------------------------------------------------------------------
-  PrimaryVertexFinder::~PrimaryVertexFinder()
-  {
-  }
-
   //---------------------------------------------------------------------------
   void PrimaryVertexFinder::reconfigure(fhicl::ParameterSet const& p) 
   {
     fTrackModuleLabel  = p.get< std::string >("TrackModuleLabel");
     fVertexWindow      = p.get<double     >  ("VertexWindow");
-    return;
   }
+
   //-------------------------------------------------------------------------
   void PrimaryVertexFinder::beginJob(){
     // get access to the TFile service

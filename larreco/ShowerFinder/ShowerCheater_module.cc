@@ -41,7 +41,6 @@ namespace shwf {
   class ShowerCheater : public art::EDProducer {
   public:
     explicit ShowerCheater(fhicl::ParameterSet const& pset);
-    virtual ~ShowerCheater();
 
     void produce(art::Event& evt);
 
@@ -59,6 +58,7 @@ namespace shwf{
 
   //--------------------------------------------------------------------
   ShowerCheater::ShowerCheater(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {
     this->reconfigure(pset);
 
@@ -71,17 +71,10 @@ namespace shwf{
   }
 
   //--------------------------------------------------------------------
-  ShowerCheater::~ShowerCheater()
-  {
-  }
-
-  //--------------------------------------------------------------------
   void ShowerCheater::reconfigure(fhicl::ParameterSet const& pset)
   {
     fCheatedClusterLabel = pset.get< std::string >("CheatedClusterLabel", "cluster" );
     fG4ModuleLabel       = pset.get< std::string >("G4ModuleLabel",       "largeant");
-
-    return;
   }
 
   //--------------------------------------------------------------------

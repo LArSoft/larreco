@@ -113,6 +113,7 @@ private:
 // ------------------------------------------------------
 
 EmTrackClusterId2out::EmTrackClusterId2out(EmTrackClusterId2out::Parameters const& config) :
+        EDProducer{config},
 	fBatchSize(config().BatchSize()),
 	fPointIdAlg(config().PointIdAlg()), fMVAWriter(this, "emtrack"),
 	fWireProducerLabel(config().WireLabel()),
@@ -372,4 +373,3 @@ bool EmTrackClusterId2out::isViewSelected(int view) const
 DEFINE_ART_MODULE(EmTrackClusterId2out)
 
 }
-

@@ -66,6 +66,7 @@ namespace sppt{
   
   //-------------------------------------------------
   TTSpacePointFinder::TTSpacePointFinder(fhicl::ParameterSet const& pset):
+    EDProducer{pset},
     fSpptAlg( pset.get< fhicl::ParameterSet >("SpacePointAlgParams") )
   {
     this->reconfigure(pset);

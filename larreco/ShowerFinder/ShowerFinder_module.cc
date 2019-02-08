@@ -88,7 +88,8 @@ namespace shwf {
 namespace shwf{
 
   //-------------------------------------------------
-  ShowerFinder::ShowerFinder(fhicl::ParameterSet const& pset) 
+  ShowerFinder::ShowerFinder(fhicl::ParameterSet const& pset)  :
+    EDProducer{pset}
   {
     this->reconfigure(pset);
 

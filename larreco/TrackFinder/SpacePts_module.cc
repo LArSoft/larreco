@@ -88,6 +88,7 @@ namespace trkf {
 
 //-------------------------------------------------
 SpacePts::SpacePts(fhicl::ParameterSet const& pset)
+  : EDProducer{pset}
 {
   this->reconfigure(pset);
   
@@ -627,4 +628,3 @@ void SpacePts::produce(art::Event& evt)
   DEFINE_ART_MODULE(SpacePts)
   
 } // end namespace 
-

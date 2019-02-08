@@ -56,6 +56,7 @@ namespace hit{
 
   RFFHitFinder::RFFHitFinder(fhicl::ParameterSet const & p)
     :
+    EDProducer{p},
     fWireModuleLabel(p.get<std::string>("WireModuleLabel")),
     fAlg(p.get<fhicl::ParameterSet>("RFFHitFinderAlgParams"))
   {

@@ -193,7 +193,6 @@ bool spt_sort_z1(const recob::SpacePoint h1, const recob::SpacePoint h2)
 namespace trkf {
 
   class CosmicTracker : public art::EDProducer {
-    
   public:
     
     explicit CosmicTracker(fhicl::ParameterSet const& pset);
@@ -201,8 +200,6 @@ namespace trkf {
     //////////////////////////////////////////////////////////
     void reconfigure(fhicl::ParameterSet const& p);
     void produce(art::Event& evt); 
-    void beginJob();
-    void endJob();
 
   private:
 
@@ -228,6 +225,7 @@ namespace trkf {
 
   //-------------------------------------------------
   CosmicTracker::CosmicTracker(fhicl::ParameterSet const& pset) :
+    EDProducer{pset},
     fClusterMatch(pset.get< fhicl::ParameterSet >("ClusterMatch")),
     fCTAlg(pset.get< fhicl::ParameterSet >("CTAlg"))
   {
@@ -250,16 +248,6 @@ namespace trkf {
     fDisCut                 = pset.get< double >("DisCut");
     fAngCut                 = pset.get< double >("AngCut");
     fTrajOnly               = pset.get< bool   >("TrajOnly");
-  }
-
-  //-------------------------------------------------
-  void CosmicTracker::beginJob()
-  {
-  }
-
-  //-------------------------------------------------
-  void CosmicTracker::endJob()
-  {
   }
 
   //------------------------------------------------------------------------------------//

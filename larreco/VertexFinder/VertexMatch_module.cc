@@ -61,33 +61,25 @@ namespace vertex {
   public:
     
     explicit VertexMatch(fhicl::ParameterSet const& pset); 
-    virtual ~VertexMatch();
-    void produce(art::Event& evt);
     
   private:
+    void produce(art::Event& evt) override;
+
     std::string fVertexModuleLabel; 
     std::string fHoughModuleLabel;
     double fMaxDistance;
-  protected:
-
-    
-    
   };
 }
 
 //------------------------------------------------------------------------------
 vertex::VertexMatch::VertexMatch(fhicl::ParameterSet const& pset) 
-  : fVertexModuleLabel(pset.get< std::string >("VertexModuleLabel"))
+  : EDProducer{pset}
+  , fVertexModuleLabel(pset.get< std::string >("VertexModuleLabel"))
   , fHoughModuleLabel (pset.get< std::string >("HoughModuleLabel"))
   , fMaxDistance      (pset.get< double      >("MaxDistance"))
 {
   produces< std::vector<recob::EndPoint2D> >();
   produces< art::Assns<recob::EndPoint2D, recob::Hit> >();
-}
-
-//------------------------------------------------------------------------------
-vertex::VertexMatch::~VertexMatch()
-{
 }
 
 //------------------------------------------------------------------------------

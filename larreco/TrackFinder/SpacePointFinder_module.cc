@@ -35,20 +35,12 @@ namespace trkf {
   class SpacePointFinder : public art::EDProducer
   {
   public:
- 
-    // Constructors, destructor
-
     explicit SpacePointFinder(fhicl::ParameterSet const& pset);
-    virtual ~SpacePointFinder();
-
-    // Overrides.
-
-    void reconfigure(fhicl::ParameterSet const& pset);
-    void beginJob();
-    void produce(art::Event& evt);
-    void endJob();
 
   private:
+    void reconfigure(fhicl::ParameterSet const& pset);
+    void produce(art::Event& evt) override;
+    void endJob() override;
 
     // Fcl Attributes.
 
@@ -73,7 +65,8 @@ namespace trkf {
   //
   // Arguments: pset - Module parameters.
   //
-    : fSptalg(pset.get<fhicl::ParameterSet>("SpacePointAlg"))
+    : EDProducer{pset}
+    , fSptalg(pset.get<fhicl::ParameterSet>("SpacePointAlg"))
     , fMinHits(0)
     , fClusterAssns(false)
     , fNumEvent(0)
@@ -97,13 +90,6 @@ namespace trkf {
   }
 
   //----------------------------------------------------------------------------
-  SpacePointFinder::~SpacePointFinder()
-  //
-  // Purpose: Destructor.
-  //
-  {}
-
-  //----------------------------------------------------------------------------
   void SpacePointFinder::reconfigure(fhicl::ParameterSet const& pset)
   //
   // Purpose: Reconfigure method.
@@ -116,10 +102,6 @@ namespace trkf {
     fMinHits = pset.get<unsigned int>("MinHits");
     fClusterAssns = pset.get<bool>("ClusterAssns");
   }
-
-  //----------------------------------------------------------------------------
-  void SpacePointFinder::beginJob()
-  {}
 
   //----------------------------------------------------------------------------
   void SpacePointFinder::produce(art::Event& evt)

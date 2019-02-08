@@ -71,6 +71,7 @@ private:
 
 
 ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const & p)
+  : EDProducer{p}
 {
   fInputProducer = p.get<std::string>("InputProducer");
   fUsePFParticle = p.get<bool>("UsePFParticle");

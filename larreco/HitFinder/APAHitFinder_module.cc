@@ -42,32 +42,24 @@ namespace apa{
   public:
     
     explicit APAHitFinder(fhicl::ParameterSet const& pset); 
-    virtual ~APAHitFinder();
-         
-    void produce(art::Event& evt); 
-    void beginJob(); 
-    void endJob(); 
-    void reconfigure(fhicl::ParameterSet const& p);                
-
 
   private:
+    void produce(art::Event& evt) override;
+    void reconfigure(fhicl::ParameterSet const& p);
 
     apa::DisambigAlg    fDisambigAlg;
     art::ServiceHandle<geo::Geometry> fGeom;
 
     std::string fChanHitLabel;
 
-
-  protected: 
-    
-  
   }; // class APAHitFinder
   
 
 //-------------------------------------------------
 //-------------------------------------------------
 APAHitFinder::APAHitFinder(fhicl::ParameterSet const& pset)
-  : fDisambigAlg(pset.get< fhicl::ParameterSet >("DisambigAlg"))
+  : EDProducer{pset}
+  , fDisambigAlg(pset.get< fhicl::ParameterSet >("DisambigAlg"))
 {
   this->reconfigure(pset);
   
@@ -80,34 +72,12 @@ APAHitFinder::APAHitFinder(fhicl::ParameterSet const& pset)
 
 //-------------------------------------------------
 //-------------------------------------------------
-  APAHitFinder::~APAHitFinder()
-{
-
-}
-  
-//-------------------------------------------------
-//-------------------------------------------------
 void APAHitFinder::reconfigure(fhicl::ParameterSet const& p)
 {
 
   fChanHitLabel =  p.get< std::string >("ChanHitLabel");
   
 }  
-
-//-------------------------------------------------
-//-------------------------------------------------
-void APAHitFinder::beginJob()
-{
-
-}
-
-//-------------------------------------------------
-//-------------------------------------------------
-void APAHitFinder::endJob()
-{
-
-}
-
 
 //-------------------------------------------------
 void APAHitFinder::produce(art::Event& evt)

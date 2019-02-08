@@ -71,7 +71,8 @@ private:
 
 
 cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
-  : fHitModuleLabel(p.get< art::InputTag >("HitModuleLabel"))
+  : EDProducer{p}
+  , fHitModuleLabel(p.get< art::InputTag >("HitModuleLabel"))
   , fSpacePointModuleLabel(p.get< art::InputTag >("SpacePointModuleLabel"))
   , fSPHitAssnLabel(p.get< art::InputTag >("SPHitAssnLabel"))
   , fDBScan(p.get< fhicl::ParameterSet >("DBScan3DAlg"))

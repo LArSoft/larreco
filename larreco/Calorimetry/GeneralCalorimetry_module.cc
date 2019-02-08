@@ -70,7 +70,8 @@ namespace calo {
 
 //-------------------------------------------------
 calo::GeneralCalorimetry::GeneralCalorimetry(fhicl::ParameterSet const& pset)
-  : fCollectionView(geo::kUnknown)
+  : EDProducer{pset}
+  , fCollectionView(geo::kUnknown)
   , fCollectionPlane(0)
   , caloAlg(pset.get< fhicl::ParameterSet >("CaloAlg"))
 {
@@ -201,4 +202,3 @@ namespace calo{
   DEFINE_ART_MODULE(GeneralCalorimetry)
   
 } // end namespace 
-
