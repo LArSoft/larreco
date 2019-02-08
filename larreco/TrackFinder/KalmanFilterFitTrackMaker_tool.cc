@@ -344,7 +344,7 @@ trkmkr::KalmanFilterFitTrackMaker::getMomentum(const recob::TrackTrajectory& tra
                                                const bool isFlip,
                                                const int tkID) const
 {
-  double mom = mom_def_;
+  double mom = (mom_def_ >0 ? mom_def_ : traj.StartMomentum());
   if (momFromMCSColl_) {
     double mcsmom =
       (isFlip ? mcs->at(tkID).bwdMomentum() : mcs->at(tkID).fwdMomentum());

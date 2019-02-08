@@ -9,24 +9,22 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
-#include "TGeoManager.h"
 #include "TH1.h"
 
-//Framework includes:
+// Framework includes
 #include "art/Framework/Core/EDProducer.h"
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h"
-#include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
-#include "canvas/Persistency/Common/Ptr.h"
-#include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
-#include "CLHEP/Random/JamesRandom.h"
 
-// art extensions
+// nutools
 #include "nutools/RandomUtils/NuRandomService.h"
 
 // LArSoft includes
@@ -69,6 +67,7 @@ namespace cluster{
     unsigned int fHoughSeed;
    
     fuzzyClusterAlg ffuzzyCluster; ///< object that implements the fuzzy cluster algorithm
+    CLHEP::HepRandomEngine& fEngine;
   };
 
 }
@@ -80,16 +79,14 @@ namespace cluster{
     EDProducer{pset},
     fhitsModuleLabel{pset.get< std::string >("HitsModuleLabel")},
     fHoughSeed{pset.get< unsigned int >("HoughSeed")},
-    ffuzzyCluster{pset.get< fhicl::ParameterSet >("fuzzyClusterAlg")}
+    ffuzzyCluster{pset.get< fhicl::ParameterSet >("fuzzyClusterAlg")},
+    // create a default random engine; obtain the random seed from NuRandomService,
+    // unless overridden in configuration with key "Seed"
+    fEngine(art::ServiceHandle<rndm::NuRandomService>{}->createEngine(*this, pset, "Seed"))
   {  
     ffuzzyCluster.reconfigure(pset.get< fhicl::ParameterSet >("fuzzyClusterAlg"));
     produces< std::vector<recob::Cluster> >();  
     produces< art::Assns<recob::Cluster, recob::Hit> >();
-    
-    // create a default random engine; obtain the random seed from NuRandomService,
-    // unless overridden in configuration with key "Seed"
-    art::ServiceHandle<rndm::NuRandomService>()
-      ->createEngine(*this, pset, "Seed");
   }
   
   //-------------------------------------------------
@@ -106,26 +103,16 @@ namespace cluster{
   //-----------------------------------------------------------------
   void fuzzyCluster::produce(art::Event& evt)
   {
-     
-    //get a collection of clusters   
-    std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>);
-    std::unique_ptr< art::Assns<recob::Cluster, recob::Hit> > assn(new art::Assns<recob::Cluster, recob::Hit>);
-  
-    art::ServiceHandle<geo::Geometry> geom;
-  
-    art::Handle< std::vector<recob::Hit> > hitcol;
-    evt.getByLabel(fhitsModuleLabel,hitcol);
+    auto ccol = std::make_unique<std::vector<recob::Cluster>>();
+    auto assn = std::make_unique<art::Assns<recob::Cluster, recob::Hit>>();
    
     // loop over all hits in the event and look for clusters (for each plane)
     std::vector<art::Ptr<recob::Hit> > allhits;
 
-    art::ServiceHandle<art::RandomNumberGenerator> rng;
-    CLHEP::HepRandomEngine &engine = rng->getEngine(art::ScheduleID::first(),
-                                                    moduleDescription().moduleLabel());
     // If a nonzero random number seed has been provided, 
     // overwrite the seed already initialized
     if(fHoughSeed != 0){
-      engine.setSeed(fHoughSeed,0);
+      fEngine.setSeed(fHoughSeed,0);
     } 
 
     // get the ChannelFilter
@@ -141,11 +128,15 @@ namespace cluster{
     // but we are using the default configuration for that algorithm
     ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
     
+    auto const hitcol = evt.getValidHandle<std::vector<recob::Hit>>(fhitsModuleLabel);
+
     // make a map of the geo::PlaneID to vectors of art::Ptr<recob::Hit>
     std::map<geo::PlaneID, std::vector< art::Ptr<recob::Hit> > > planeIDToHits;
-    for(size_t i = 0; i < hitcol->size(); ++i)
-      planeIDToHits[hitcol->at(i).WireID().planeID()].push_back(art::Ptr<recob::Hit>(hitcol, i));
+    for(size_t i = 0; i < hitcol->size(); ++i) {
+      planeIDToHits[hitcol->at(i).WireID().planeID()].emplace_back(hitcol, i);
+    }
 
+    art::ServiceHandle<geo::Geometry> geom;
 
     for(auto & itr : planeIDToHits){
       
@@ -169,7 +160,7 @@ namespace cluster{
       }
       
       //*******************************************************************
-      ffuzzyCluster.run_fuzzy_cluster(allhits, engine);
+      ffuzzyCluster.run_fuzzy_cluster(allhits, fEngine);
       
       //End clustering with fuzzy
       
@@ -229,10 +220,8 @@ namespace cluster{
     mf::LogVerbatim("Summary") << "fuzzyCluster Summary:";
     for(size_t i = 0; i<ccol->size(); ++i) mf::LogVerbatim("Summary") << ccol->at(i) ;
   
-    evt.put(std::move(ccol));
-    evt.put(std::move(assn));
-  
-    return;
+    evt.put(move(ccol));
+    evt.put(move(assn));
   } // end produce
   
 } // end namespace

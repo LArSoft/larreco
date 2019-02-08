@@ -67,6 +67,7 @@ private:
   art::InputTag pfpInputTag;
   art::InputTag trkInputTag;
   art::InputTag shwInputTag;
+  art::InputTag clsInputTag;
   bool doTrackFitHitInfo_;
   bool doSpacePoints_;
   bool spacePointsFromTrajP_;
@@ -91,6 +92,8 @@ TrackProducerFromPFParticle::TrackProducerFromPFParticle(fhicl::ParameterSet con
   else trkInputTag = pfpInputTag;
   if (p.has_key("showerInputTag")) shwInputTag = p.get<art::InputTag>("showerInputTag");
   else shwInputTag = pfpInputTag;
+  if (p.has_key("clusterInputTag")) clsInputTag = p.get<art::InputTag>("clusterInputTag");
+  else clsInputTag = pfpInputTag;
   produces<std::vector<recob::Track> >();
   produces<art::Assns<recob::Track, recob::Hit, recob::TrackHitMeta> >();
   produces<art::Assns<recob::PFParticle, recob::Track> >();
@@ -123,15 +126,15 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
   std::unique_ptr<art::FindManyP<recob::Shower> > assocShowers;
   std::unique_ptr<art::FindManyP<recob::Seed> > assocSeeds;
   if (trackFromPF_) {
-    assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPfps, e, pfpInputTag));
+    assocTracks = std::unique_ptr<art::FindManyP<recob::Track> >(new art::FindManyP<recob::Track>(inputPfps, e, trkInputTag));
     tkHitsAssn = *e.getValidHandle<art::Assns<recob::Track, recob::Hit> >(trkInputTag);
   }
-  if (showerFromPF_) assocShowers = std::unique_ptr<art::FindManyP<recob::Shower> >(new art::FindManyP<recob::Shower>(inputPfps, e, pfpInputTag));
+  if (showerFromPF_) assocShowers = std::unique_ptr<art::FindManyP<recob::Shower> >(new art::FindManyP<recob::Shower>(inputPfps, e, shwInputTag));
   if (seedFromPF_) assocSeeds = std::unique_ptr<art::FindManyP<recob::Seed> >(new art::FindManyP<recob::Seed>(inputPfps, e, pfpInputTag));
   const auto& trackHitsGroups = util::associated_groups(tkHitsAssn);
   //
   std::unique_ptr<art::FindManyP<recob::Cluster> > assocClusters = std::unique_ptr<art::FindManyP<recob::Cluster> >(new art::FindManyP<recob::Cluster>(inputPfps, e, pfpInputTag));
-  auto const& clHitsAssn = *e.getValidHandle<art::Assns<recob::Cluster, recob::Hit> >(shwInputTag);
+  auto const& clHitsAssn = *e.getValidHandle<art::Assns<recob::Cluster, recob::Hit> >(clsInputTag);
   const auto& clusterHitsGroups = util::associated_groups(clHitsAssn);
   //
   // Initialize tool for this event
@@ -226,11 +229,13 @@ void TrackProducerFromPFParticle::produce(art::Event & e)
 	art::Ptr<recob::Shower> shower = showers[iShower];
 	recob::tracking::Point_t pos(shower->ShowerStart().X(),shower->ShowerStart().Y(),shower->ShowerStart().Z());
 	recob::tracking::Vector_t dir(shower->Direction().X(),shower->Direction().Y(),shower->Direction().Z());
+	float mom = 1.;
+	if (shower->Energy().size()==3) mom = shower->Energy()[2]*0.001;
 	std::vector<recob::tracking::Point_t> p;
 	std::vector<recob::tracking::Vector_t> d;
 	for (unsigned int i=0; i<inHits.size(); ++i) {
 	  p.push_back(pos);
-	  d.push_back(dir);
+	  d.push_back(mom*dir);
 	}
 	recob::TrackTrajectory traj(std::move(p), std::move(d), recob::TrackTrajectory::Flags_t(p.size()), false);
 	//

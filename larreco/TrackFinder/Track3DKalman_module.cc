@@ -13,36 +13,35 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
-
-#include "art/Framework/Core/ModuleMacros.h" 
-
+#include <vector>
+#include <string>
 
 // Framework includes
-#include "canvas/Persistency/Common/FindManyP.h"
+#include "art/Framework/Core/EDProducer.h"
+#include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Principal/Event.h" 
-#include "fhiclcpp/ParameterSet.h" 
 #include "art/Framework/Principal/Handle.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "canvas/Persistency/Common/FindManyP.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "fhiclcpp/ParameterSet.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
 
-// art extensions
+// nutools
+#include "nusimdata/SimulationBase/MCTruth.h"
 #include "nutools/RandomUtils/NuRandomService.h"
 
 // LArSoft includes
-
 #include "larcore/Geometry/Geometry.h"
 #include "lardataobj/RecoBase/Cluster.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
 #include "lardata/Utilities/AssociationUtil.h"
-#include "nusimdata/SimulationBase/MCTruth.h"
 #include "lardataobj/Simulation/sim.h"
-
 
 // ROOT includes
 #include "TVectorD.h"
@@ -51,6 +50,8 @@
 #include "TF1.h"
 #include "TGraph.h"
 #include "TMath.h"
+#include "TTree.h"
+#include "TMatrixT.h"
 
 // GENFIT includes
 #include "larreco/Genfit/GFException.h"
@@ -59,47 +60,31 @@
 #include "larreco/Genfit/GFConstField.h"
 #include "larreco/Genfit/GFFieldManager.h"
 #include "larreco/Genfit/PointHit.h"
+#include "larreco/Genfit/GFAbsTrackRep.h"
 #include "larreco/Genfit/GFTrack.h"
 #include "larreco/Genfit/GFKalman.h"
 #include "larreco/Genfit/GFDaf.h"
 
-#include "art/Framework/Core/EDProducer.h"
-#include <TTree.h>
-#include <TMatrixT.h>
-
-#include "larreco/Genfit/GFAbsTrackRep.h"
-
+// CLHEP includes
 #include "CLHEP/Random/RandFlat.h"
 #include "CLHEP/Random/RandGaussQ.h"
-
-#include <vector>
-#include <string>
-
-//#include "RecoBase/SpacePoint.h"
 
 namespace trkf {
 
   class Track3DKalman : public art::EDProducer {
-    
   public:
-    
     explicit Track3DKalman(fhicl::ParameterSet const& pset);
-    ~Track3DKalman();
-    
-    //////////////////////////////////////////////////////////
-    void produce(art::Event& evt); 
-    void beginJob();
-    void endJob();
-    void reconfigure(fhicl::ParameterSet const& p);
 
   private:
+    void produce(art::Event& evt) override;
+    void beginJob() override;
+    void endJob() override;
         
     std::string     fSpacePtsModuleLabel;// label for input collection
     std::string     fGenieGenModuleLabel;// label for input MC single particle generator
     std::string     fG4ModuleLabel;// label for input MC single particle generator
     bool fGenfPRINT;
       
-  //  TFile *fileGENFIT;
     TTree *tree;
 
     TMatrixT<Double_t> *stMCT;
@@ -128,17 +113,18 @@ namespace trkf {
     std::vector<double> fMomStart;
     genf::GFAbsTrackRep *repMC;
     genf::GFAbsTrackRep *rep;
-
-  
+    CLHEP::HepRandomEngine& fEngine;
   }; // class Track3DKalman
 
 } // end namespace
 
-static bool sp_sort_3dz(const art::Ptr<recob::SpacePoint>& h1, const art::Ptr<recob::SpacePoint>& h2)
+namespace {
+  bool sp_sort_3dz(const art::Ptr<recob::SpacePoint>& h1, const art::Ptr<recob::SpacePoint>& h2)
 {
   const double* xyz1 = h1->XYZ();
   const double* xyz2 = h2->XYZ();
   return xyz1[2] < xyz2[2];
+}
 }
 
 namespace trkf {
@@ -146,14 +132,17 @@ namespace trkf {
 //-------------------------------------------------
 Track3DKalman::Track3DKalman(fhicl::ParameterSet const& pset) 
   : EDProducer{pset}
-{
-
-  this->reconfigure(pset);
-  
+  , fSpacePtsModuleLabel{pset.get< std::string >("SpacePtsModuleLabel")}
+  , fGenieGenModuleLabel{pset.get< std::string >("GenieGenModuleLabel")}
+  , fG4ModuleLabel{pset.get< std::string >("G4ModuleLabel")}
+  , fGenfPRINT{pset.get< bool >("GenfPRINT")}
+  , fPosErr{pset.get< std::vector < double >  >("PosErr3")}   // resolution. cm
+  , fMomErr{pset.get< std::vector < double >  >("MomErr3")}   // GeV
+  , fMomStart{pset.get< std::vector < double >  >("MomStart3")} // Will be unit norm'd.
   // create a default random engine; obtain the random seed from NuRandomService,
   // unless overridden in configuration with key "Seed"
-  art::ServiceHandle<rndm::NuRandomService>()->createEngine(*this, pset, "Seed");
-  
+  , fEngine(art::ServiceHandle<rndm::NuRandomService>()->createEngine(*this, pset, "Seed"))
+{
   produces< std::vector<recob::Track> >();
   produces< std::vector<recob::SpacePoint>              >();
   produces< art::Assns<recob::Track, recob::Cluster>    >();
@@ -162,42 +151,8 @@ Track3DKalman::Track3DKalman(fhicl::ParameterSet const& pset)
 }
 
 //-------------------------------------------------
-void Track3DKalman::reconfigure(fhicl::ParameterSet const& pset) 
-{
-
-  fSpacePtsModuleLabel   = pset.get< std::string >("SpacePtsModuleLabel");
-  fGenieGenModuleLabel   = pset.get< std::string >("GenieGenModuleLabel");
-  fG4ModuleLabel         = pset.get< std::string >("G4ModuleLabel");
-  
-  fPosErr                = pset.get< std::vector < double >  >("PosErr3");   // resolution. cm
-  fMomErr                = pset.get< std::vector < double >  >("MomErr3");   // GeV
-  fMomStart              = pset.get< std::vector < double >  >("MomStart3"); // Will be unit norm'd.
-  fGenfPRINT             = pset.get< bool >("GenfPRINT");
-  
-}
-
-//-------------------------------------------------
-Track3DKalman::~Track3DKalman()
-{
-
-  /*
-    delete stMCT ;
-    delete covMCT;
-    delete stREC;
-    delete covREC;
-    
-    delete fpMCT;
-    delete fpREC;
-    delete fpRECL;
-    delete fpRECt3D;
-  */
-}
-
-//-------------------------------------------------
 void Track3DKalman::beginJob()
 {
-
-
   art::ServiceHandle<art::TFileService> tfs;
   
   stMCT  = new TMatrixT<Double_t>(5,1);
@@ -215,9 +170,6 @@ void Track3DKalman::beginJob()
   fshy = new Float_t[fDimSize];
   fshz = new Float_t[fDimSize];
 
-//   //TFile fileGENFIT("GENFITout.root","RECREATE");
-
-  
   tree = tfs->make<TTree>("GENFITttree","GENFITttree");
   //tree->Branch("stMCT",&stMCT,"stMCT[5]/F"); // "TMatrixT<Double_t>"
 
@@ -246,12 +198,6 @@ void Track3DKalman::beginJob()
   tree->Branch("pRECKalF",fpREC,"pRECKalF[4]/F");
   tree->Branch("pRECKalL",fpRECL,"pRECKalL[4]/F");
   tree->Branch("pRECt3D",fpRECt3D,"pRECt3D[4]/F");
-  
-
-  //TGeoManager* geomGENFIT = new TGeoManager("Geometry", "Geane geometry");
-  //TGeoManager::Import("config/genfitGeom.root");
-  //  gROOT->Macro("config/Geane.C"); 
- 
 }
 
 //-------------------------------------------------
@@ -265,17 +211,12 @@ void Track3DKalman::endJob()
 //------------------------------------------------------------------------------------//
 void Track3DKalman::produce(art::Event& evt)
 { 
-
   rep=0;
   repMC=0;
 
   // get services
   art::ServiceHandle<geo::Geometry> geom;
-  // get the random number generator service and make some CLHEP generators
-  art::ServiceHandle<art::RandomNumberGenerator> rng;
-  CLHEP::HepRandomEngine &engine = rng->getEngine(art::ScheduleID::first(),
-                                                  moduleDescription().moduleLabel());
-  CLHEP::RandGaussQ gauss(engine);
+  CLHEP::RandGaussQ gauss(fEngine);
 
   //////////////////////////////////////////////////////
   // Make a std::unique_ptr<> for the thing you want to put into the event
@@ -299,10 +240,6 @@ void Track3DKalman::produce(art::Event& evt)
 
   if (!evt.isRealData())
     {
-
-      //      std::cout << "Track3DKalman: This is MC." << std::endl;
-      // std::cout<<"Run "<<evt.run()<<" Event "<<evt.id().event()<<std::endl;
-
       art::Handle< std::vector<simb::MCTruth> > mctruthListHandle;
       evt.getByLabel(fGenieGenModuleLabel,mctruthListHandle);
 
@@ -311,7 +248,6 @@ void Track3DKalman::produce(art::Event& evt)
 	  art::Ptr<simb::MCTruth> mctparticle(mctruthListHandle,ii);
 	  mclist.push_back(mctparticle);
 	}
-
     }
 
   //create collection of spacepoints that will be used when creating the Track object
@@ -585,8 +521,6 @@ void Track3DKalman::produce(art::Event& evt)
 
 } // end method
 
-  DEFINE_ART_MODULE(Track3DKalman)
-
-
-
 } // end namespace trkf
+
+DEFINE_ART_MODULE(trkf::Track3DKalman)
