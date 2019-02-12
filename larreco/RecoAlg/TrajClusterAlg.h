@@ -57,7 +57,10 @@ namespace tca {
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
+    void SetMCPHandle(std::vector<simb::MCParticle> const& mcpHandle) { evt.mcpHandle = &mcpHandle; }
     bool SetInputHits(std::vector<recob::Hit> const& inputHits);
+    void SetSptHandle(std::vector<recob::SpacePoint> const& sptHandle) { evt.sptHandle = &sptHandle; }
+    void SetSptHits(std::vector<SptHits> const& sptHits) { evt.sptHits = &sptHits; }
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID);
     bool CreateSlice(std::vector<unsigned int>& hitsInSlice);
     void FinishEvent();
@@ -76,7 +79,7 @@ namespace tca {
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
     
     /// Deletes all the results
-    void ClearResults() { slices.resize(0); }
+    void ClearResults() { slices.resize(0); evt.allHitsMCPIndex.resize(0); evt.allHitsRanges.resize(0);}
     TruthMatcher fTM;
     
     private:

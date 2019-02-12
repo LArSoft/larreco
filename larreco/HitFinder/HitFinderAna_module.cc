@@ -220,7 +220,7 @@ namespace hit{
 
     sim::ParticleList const& _particleList = pi_serv->ParticleList();
 
-    LOG_VERBATIM("HitFinderAna") << _particleList;
+    MF_LOG_VERBATIM("HitFinderAna") << _particleList;
 
     art::ServiceHandle<geo::Geometry> geom;  
 

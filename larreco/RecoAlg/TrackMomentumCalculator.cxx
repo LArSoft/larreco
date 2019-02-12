@@ -89,7 +89,7 @@ namespace {
       result += 2.0 / (4.6) * theta0; // *std::log( 1.0/14.0 );
 
       if (std::isnan(result) || std::isinf(result)) {
-        LOG_DEBUG("TrackMomentumCalculator") << " Is nan in my_mcs_chi2 ! ";
+        MF_LOG_DEBUG("TrackMomentumCalculator") << " Is nan in my_mcs_chi2 ! ";
         return -1;
       }
 

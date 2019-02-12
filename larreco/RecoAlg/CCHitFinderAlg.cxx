@@ -88,10 +88,10 @@ namespace hit {
     }
     
     if (fMaxBumps > MaxGaussians) {
-      // LOG_WARNING will point the user to this line of code.
+      // MF_LOG_WARNING will point the user to this line of code.
       // Any value of MaxGaussians can be used.
       // That value is defined in the header file.
-      LOG_WARNING("CCHitFinderAlg")
+      MF_LOG_WARNING("CCHitFinderAlg")
         << "CCHitFinder algorithm is currently hard-coded to support at most "
         << MaxGaussians << " bumps per region of interest, but " << fMaxBumps
         << " have been requested.\n"
@@ -295,7 +295,7 @@ namespace hit {
     // fill the input data, no uncertainty
     for (size_t i = 0; i < npt; ++i) {
       if (signl[i] <= 0) {
-        LOG_DEBUG("CCHitFinderAlg")
+        MF_LOG_DEBUG("CCHitFinderAlg")
           << "Non-positive charge encountered. Backing up to ROOT fit.";
         return false;
       }
@@ -306,7 +306,7 @@ namespace hit {
     // we might have found that we don't want the fast fit after all...
     if (!fitter.FillResults(params, paramerrors)) {
       // something went wrong...
-      LOG_DEBUG("CCHitFinderAlg") << "Fast Gaussian fit failed.";
+      MF_LOG_DEBUG("CCHitFinderAlg") << "Fast Gaussian fit failed.";
       return false;
     }
     

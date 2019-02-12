@@ -445,7 +445,7 @@ void calo::Calorimetry::produce(art::Event& evt)
         }
       }
     
-      LOG_DEBUG("CaloPrtHit") << " pt wire  time  ResRng    MIPs   pitch   dE/dx    Ai X Y Z\n";
+      MF_LOG_DEBUG("CaloPrtHit") << " pt wire  time  ResRng    MIPs   pitch   dE/dx    Ai X Y Z\n";
 
       double Ai = -1;
       for (int i = 0; i < fnsps; ++i){//loop over all 3D points
@@ -459,7 +459,7 @@ void calo::Calorimetry::produce(art::Event& evt)
           nPIDA++;
           PIDA += Ai;
 	}
-	LOG_DEBUG("CaloPrtHit") <<std::setw(4)<< trkIter
+	MF_LOG_DEBUG("CaloPrtHit") <<std::setw(4)<< trkIter
           //std::cout<<std::setw(4)<< trkIter
                    <<std::setw(4)<< ipl
                    <<std::setw(4) << i
@@ -485,7 +485,7 @@ void calo::Calorimetry::produce(art::Event& evt)
       else {
 	PIDA = -1;
       }
-      LOG_DEBUG("CaloPrtTrk") << "Plane # "<< ipl
+      MF_LOG_DEBUG("CaloPrtTrk") << "Plane # "<< ipl
 		 << "TrkPitch= "
 		 << std::setprecision(2) << fTrkPitch 
 		 << " nhits= "        << fnsps
@@ -505,7 +505,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 	cstat = allHits[hits[ipl][0]]->WireID().Cryostat;
 	channel = geom->PlaneWireToChannel(plane,iw,tpc,cstat);
 	if (channelStatus.IsBad(channel)){
-	  LOG_DEBUG("Calorimetry") << "Found dead wire at Plane = " << plane 
+	  MF_LOG_DEBUG("Calorimetry") << "Found dead wire at Plane = " << plane 
 					 << " Wire =" << iw;
 	  unsigned int closestwire = 0;
 	  unsigned int endwire = 0;

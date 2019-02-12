@@ -301,7 +301,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
   std::vector<protoTrack> protoTracksFound;
   if(nClustersTemp > 0 && fRunHough)
     for (unsigned int i = 0; i <= (unsigned int)nClustersTemp-1; ++i){
-      LOG_DEBUG("fuzzyClusterAlg")
+      MF_LOG_DEBUG("fuzzyClusterAlg")
         << "Running Hough transform on protocluster " << i;
       fHBAlg.Transform(allhits, engine, &fpointId_to_clusterId, i, &nClusters, &protoTracksFound);
     }

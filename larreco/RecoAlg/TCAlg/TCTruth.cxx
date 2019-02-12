@@ -28,16 +28,16 @@ namespace tca {
   } // Initialize
   
   //////////////////////////////////////////
-  void TruthMatcher::MatchTruth(std::vector<simb::MCParticle*> const& mcpList, std::vector<unsigned int> const& mcpListIndex)
+  void TruthMatcher::MatchTruth()
   {
     // Match trajectories, PFParticles, etc to the MC truth matched hits then
     // calculate reconstruction efficiency and purity. This function should only be
     // called once per event after reconstruction has been done in all slices
     
-    // mcpList is a vector of all MCParticles that have been selected in the module
-    if(mcpList.empty()) return;
-    // mcpListIndex points to the MCParticle to which each hit is matched
-    if(mcpListIndex.size() != (*evt.allHits).size()) return;
+    // check for a serious error
+    if(!evt.mcpHandle) return;
+    // and no MCParticles
+    if((*evt.mcpHandle).empty()) return;
     
     
 /* TODO: fix this later
@@ -84,8 +84,8 @@ namespace tca {
     // decide if electrons inside showers should be associated with the eve electron
 //    bool showerRecoMode = (tcc.showerTag[0] == 2) || (tcc.showerTag[0] == 4);
     
-    MatchAndSum(mcpList, mcpListIndex);
-
+    MatchAndSum();
+/*
     // print electron likelihood to output to create an ntuple
     if(tcc.modes[kStudy2]) {
       for(auto& slc : slices) {
@@ -95,8 +95,7 @@ namespace tca {
           auto& mcp = mcpList[tj.mcpListIndex];
           int pdg = abs(mcp->PdgCode());
           short TMeV = 1000 * (mcpList[0]->E() - mcpList[0]->Mass());
-          float asym;
-          float eLike = ElectronLikelihood(slc, tj, asym);
+          float eLike = ElectronLikelihood(slc, tj);
           mf::LogVerbatim myprt("TC");
           myprt<<"ntp "<<pdg<<" "<<TMeV;
           myprt<<" "<<tj.MCSMom;
@@ -104,7 +103,6 @@ namespace tca {
           myprt<<" "<<std::fixed<<std::setprecision(1);
           myprt<<" "<<TrajPointSeparation(tj.Pts[tj.EndPt[0]], tj.Pts[tj.EndPt[1]]);
           myprt<<" "<<std::fixed<<std::setprecision(2);
-          myprt<<" "<<asym;
           myprt<<" "<<std::setprecision(3)<<tj.ChgRMS;
           myprt<<" "<<eLike;
           myprt<<" "<<tj.EffPur;
@@ -113,34 +111,42 @@ namespace tca {
         } // tj
       } // slc
     } // study2
-
+*/
   } // MatchTruth
 
   ////////////////////////////////////////////////
-  void TruthMatcher::MatchAndSum(std::vector<simb::MCParticle*> const& mcpList, std::vector<unsigned int> const& mcpListIndex)
+  void TruthMatcher::MatchAndSum()
   {
     // Match Tjs and PFParticles and accumulate performance statistics
+    
+    if(!evt.mcpHandle) return;
+    if(evt.allHitsMCPIndex.size() != (*evt.allHits).size()) return;
     
     // A MCParticle may span more than one TPC but trajectories and PFParticles are
     // reconstructed in only one TPC so we need to consider them separately
     for(const geo::TPCID& tpcid : tcc.geom->IterateTPCIDs()) {
       unsigned int tpc = tpcid.TPC;
       unsigned int cstat = tpcid.Cryostat;
-      // select the MCParticles with matched hits in this TPC
+      // find the MCParticles with matched hits in this TPC
+      std::vector<unsigned int> mcpIndex;
       // mcpList   list of hits in this TPC
-      std::vector<std::vector<unsigned int>> mcpHits(mcpList.size());
-      bool hitsInTPC = false;
+      std::vector<std::vector<unsigned int>> mcpHits;
       for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
-        if(mcpListIndex[iht] > mcpList.size() - 1) continue;
+        if(evt.allHitsMCPIndex[iht] == UINT_MAX) continue;
         auto& hit = (*evt.allHits)[iht];
         if(hit.WireID().Cryostat != cstat) continue;
         if(hit.WireID().TPC != tpc) continue;
-        mcpHits[mcpListIndex[iht]].push_back(iht);
-        hitsInTPC = true;
+        unsigned int indx = 0;
+        for(indx = 0; indx < mcpIndex.size(); ++indx) if(evt.allHitsMCPIndex[iht] == mcpIndex[indx]) break;
+        if(indx == mcpIndex.size()) {
+          mcpIndex.push_back(evt.allHitsMCPIndex[iht]);
+          mcpHits.resize(mcpIndex.size());
+        }
+        mcpHits[indx].push_back(iht);
       } // iht
       // no sense continuing if there are no selected MCParticles that have hits
       // in this TPC
-      if(!hitsInTPC) continue;
+      if(mcpIndex.empty()) continue;
       // get the location of a tj in terms of (slice index, tj index) 
       std::vector<std::pair<unsigned short, unsigned short>> tjLocs;
       // and the hits
@@ -153,23 +159,28 @@ namespace tca {
         for(auto& tj : slc.tjs) {
           if(tj.AlgMod[kKilled]) continue;
           if(DecodeCTP(tj.CTP).TPC != tpc) continue;
-          tj.mcpListIndex = UINT_MAX;
+          tj.mcpIndex = UINT_MAX;
           tj.EffPur = 0;
           tjLocs.push_back(std::make_pair(isl, (unsigned short)(tj.ID-1)));
-          tjHits.push_back(PutTrajHitsInVector(tj, kUsedHits));
+          // get the tj hits which are indexed into slHits
+          auto thits = PutTrajHitsInVector(tj, kUsedHits);
+          // convert to the index into allHits
+          for(unsigned short ii = 0; ii < thits.size(); ++ii) thits[ii] = slc.slHits[thits[ii]].allHitsIndex;
+          tjHits.push_back(thits);
         } // tj
         for(auto& pfp : slc.pfps) {
           if(pfp.ID <= 0) continue;
           if(pfp.TPCID != tpcid) continue;
           // ignore neutrino PFParticles
           if(pfp.PDGCode == 14 || pfp.PDGCode == 12) continue;
-          pfp.mcpListIndex = UINT_MAX;
+          pfp.mcpIndex = UINT_MAX;
           pfp.EffPur = 0;
           pfpLocs.push_back(std::make_pair(isl, (unsigned short)(pfp.ID-1)));
           std::vector<unsigned int> tmp;
           for(auto tjid : pfp.TjIDs) {
             auto& tj = slc.tjs[tjid - 1];
             auto thits = PutTrajHitsInVector(tj, kUsedHits);
+            for(unsigned short ii = 0; ii < thits.size(); ++ii) thits[ii] = slc.slHits[thits[ii]].allHitsIndex;
             tmp.insert(tmp.end(), thits.begin(), thits.end());
           } // tjid
           pfpHits.push_back(tmp);
@@ -177,15 +188,15 @@ namespace tca {
       } // slc
       unsigned short nplanes = tcc.geom->Nplanes(tpc, cstat);
       // match them
-      for(unsigned int imcp = 0; imcp < mcpList.size(); ++imcp) {
+      for(unsigned int imcp = 0; imcp < mcpIndex.size(); ++imcp) {
         if(mcpHits[imcp].empty()) continue;
         // ignore if it isn't reconstructable in 3D
         if(!CanReconstruct(mcpHits[imcp], 3, tpcid)) continue;
-        auto& mcp = mcpList[imcp];
-        unsigned short pdgIndex = PDGCodeIndex(mcp->PdgCode());
+        auto& mcp = (*evt.mcpHandle)[mcpIndex[imcp]];
+        unsigned short pdgIndex = PDGCodeIndex(mcp.PdgCode());
         if(pdgIndex > 4) continue;
         std::string particleName = "Other";
-        int pdg = abs(mcp->PdgCode());
+        int pdg = abs(mcp.PdgCode());
         if(pdg == 11) particleName = "Electron";
         if(pdg == 22) particleName = "Photon";
         if(pdg == 13) particleName = "Muon";
@@ -193,15 +204,28 @@ namespace tca {
         if(pdg == 321) particleName = "Kaon";
         if(pdg == 2212) particleName = "Proton";
         if(particleName == "Other") particleName = "PDG_" + std::to_string(pdg);
-        float TMeV = 1000 * (mcp->E() - mcp->Mass());
+        float TMeV = 1000 * (mcp.E() - mcp.Mass());
         ++MCP_Cnt;
         MCP_TSum += TMeV;
         for(unsigned short plane = 0; plane < nplanes; ++plane) {
           // get the MCP hits in this plane 
           std::vector<unsigned int> mcpPlnHits;
+          unsigned int firstHit = 0;
+          unsigned int firstWire = USHRT_MAX;
+          unsigned int lastHit = 0;
+          unsigned int lastWire = 0;
           for(auto iht : mcpHits[imcp]) {
             auto& hit = (*evt.allHits)[iht];
-            if(hit.WireID().Plane == plane) mcpPlnHits.push_back(iht);
+            if(hit.WireID().Plane != plane) continue;
+            mcpPlnHits.push_back(iht);
+            if(hit.WireID().Wire < firstWire) {
+              firstWire = hit.WireID().Wire;
+              firstHit = iht;
+            }
+            if(hit.WireID().Wire > lastWire) {
+              lastWire = hit.WireID().Wire;
+              lastHit = iht;
+            }
           } // iht
           // require 2 truth-matched hits
           if(mcpPlnHits.size() < 2) continue;
@@ -230,8 +254,12 @@ namespace tca {
               ++nBadEP;
               mf::LogVerbatim myprt("TC");
               myprt<<particleName<<" BadEP TMeV "<<(int)TMeV<<" No matched trajectory to imcp "<<imcp;
+              myprt<<" in pln "<<plane;
               myprt<<" nTrue hits "<<mcpPlnHits.size();
-//              myprt<<" extent "<<PrintHit(slc.slHits[mcpPlnHits[0]])<<"-"<<PrintHit(slc.slHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
+              auto& fhit = (*evt.allHits)[firstHit];
+              myprt<<" extent "<<fhit.WireID().Plane<<":"<<fhit.WireID().Wire<<":"<<(int)(fhit.PeakTime());
+              auto& lhit = (*evt.allHits)[lastHit];
+              myprt<<" - "<<lhit.WireID().Plane<<":"<<lhit.WireID().Wire<<":"<<(int)(lhit.PeakTime());
               myprt<<" events processed "<<evt.eventsProcessed;
             } // BadEP
           } else {
@@ -239,7 +267,7 @@ namespace tca {
             auto& tj = slices[tjLocs[mtjLoc].first].tjs[tjLocs[mtjLoc].second];
             if(maxEP > tj.EffPur) {
               tj.EffPur = maxEP;
-              tj.mcpListIndex = imcp;
+              tj.mcpIndex = imcp;
               EPTSums[pdgIndex] += TMeV * tj.EffPur;
             }
             // print BadEP ignoring electrons
@@ -248,8 +276,12 @@ namespace tca {
               mf::LogVerbatim myprt("TC");
               myprt<<particleName<<" BadEP: "<<std::fixed<<std::setprecision(2)<<tj.EffPur;
               myprt<<" imcp "<<imcp;
+              myprt<<" in pln "<<plane;
               myprt<<" TMeV "<<(int)TMeV<<" MCP hits "<<mcpPlnHits.size();
-              //            myprt<<" extent "<<PrintHit(slc.slHits[mcpPlnHits[0]])<<"-"<<PrintHit(slc.slHits[mcpPlnHits[mcpPlnHits.size() - 1]]);
+              auto& fhit = (*evt.allHits)[firstHit];
+              myprt<<" extent "<<fhit.WireID().Plane<<":"<<fhit.WireID().Wire<<":"<<(int)(fhit.PeakTime());
+              auto& lhit = (*evt.allHits)[lastHit];
+              myprt<<" - "<<lhit.WireID().Plane<<":"<<lhit.WireID().Wire<<":"<<(int)(lhit.PeakTime());
               myprt<<" T"<<tj.ID;
               myprt<<" Algs";
               for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
@@ -279,7 +311,7 @@ namespace tca {
           // no matching pfp
           if(TMeV > 30) {
             mf::LogVerbatim myprt("TC");
-            myprt<<"BadPFP: MCParticle "<<imcp<<" w PDGCode "<<mcp->PdgCode()<<" T "<<(int)TMeV<<" not reconstructed.";
+            myprt<<"BadPFP: MCParticle "<<imcp<<" w PDGCode "<<mcp.PdgCode()<<" T "<<(int)TMeV<<" not reconstructed.";
             myprt<<" events processed "<<evt.eventsProcessed;
           } // TMeV > 30
         } else {
@@ -287,7 +319,7 @@ namespace tca {
           auto& pfp = slices[pfpLocs[mpfpLoc].first].pfps[pfpLocs[mpfpLoc].second];
           if(maxEP > pfp.EffPur) {
             pfp.EffPur = maxEP;
-            pfp.mcpListIndex = imcp;
+            pfp.mcpIndex = imcp;
             MCP_EPTSum += TMeV * maxEP;
             ++MCP_PFP_Cnt;
             if(longMCP && maxEP > 0.8) ++nGoodLongMCP;
@@ -295,9 +327,9 @@ namespace tca {
         } // matched pfp
       } // imcp
       // debug primary electron reconstruction
-//      if(tcc.modes[kStudy2] && !mcpList.empty() && abs(mcpList[0]->PdgCode()) == 11 && mcpHits[0].size() > 20) {
-      if(tcc.modes[kStudy3] && !mcpList.empty() && mcpHits[0].size() > 10) {
-        short TMeV = 1000 * (mcpList[0]->E() - mcpList[0]->Mass());
+/*
+      if(tcc.modes[kStudy3] && !mcpIndex.empty() && mcpHits[0].size() > 10) {
+        short TMeV = 1000 * (mcpIndex[0]->E() - mcpIndex[0]->Mass());
         std::cout<<"Study3: Find Tjs matched to primary w PDGCode "<<mcpList[0]->PdgCode()<<". T = "<<TMeV<<"\n";
         std::array<bool, 3> inPln {{false}};
         for(auto& slc : slices) {
@@ -314,36 +346,7 @@ namespace tca {
             std::cout<<" MCSMom "<<tj.MCSMom;
             std::cout<<" ChgRMS "<<std::fixed<<std::setprecision(2)<<tj.ChgRMS;
             std::cout<<" BraggPeak? "<<tj.StopFlag[1][kBragg];
-            float asym;
-            std::cout<<" eLike "<<ElectronLikelihood(slc, tj, asym);
-/*
-            auto plist = GetAssns(slc, "T", tj.ID, "P");
-            if(!plist.empty()) std::cout<<" P"<<plist[0];
-            std::cout<<" WorkID "<<tj.WorkID;
-            unsigned int firstiht = 0;
-            unsigned int firstwire = 5000;
-            unsigned int lastiht = 0;
-            unsigned int lastwire = 0;
-            unsigned short cntInPln = 0;
-            for(auto iht : mcpHits[0]) {
-              auto& hit = (*evt.allHits)[iht];
-              if(hit.WireID().Plane != plane) continue;
-              ++cntInPln;
-              if(hit.WireID().Wire < firstwire) {
-                firstwire = hit.WireID().Wire;
-                firstiht = iht;
-              }
-              if(hit.WireID().Wire > lastwire) {
-                lastwire = hit.WireID().Wire;
-                lastiht = iht;
-              }
-            } // iht
-            auto& firstHit = (*evt.allHits)[firstiht];
-            std::cout<<" "<<firstHit.WireID().Wire<<":"<<(int)firstHit.PeakTime();
-            auto& lastHit = (*evt.allHits)[lastiht];
-            std::cout<<" - "<<lastHit.WireID().Wire<<":"<<(int)lastHit.PeakTime();
-            std::cout<<" cnt "<<cntInPln;
-*/
+            std::cout<<" eLike "<<ElectronLikelihood(slc, tj);
             std::cout<<"\n";
           } // tj
           if(!slc.pfps.empty()) {
@@ -355,6 +358,7 @@ namespace tca {
         } // slc
         for(unsigned short plane = 0; plane < 3; ++plane) if(!inPln[plane]) std::cout<<"No match in plane "<<plane<<"\n";
       } // kStudy2
+*/
     } // tpcid
     
   } // MatchAndSum
@@ -434,6 +438,7 @@ namespace tca {
     for(unsigned short plane = 0; plane < nplanes; ++plane) if(cntInPln[plane] > 1) ++nPlnOK;
     return (nPlnOK >= 2);
   } // CanReconstruct
+  
   /* This code was used to develop the TMVA showerParentReader. The MakeCheatShower function needs
    to be re-written if this function is used in the future
    //////////////////////////////////////////
