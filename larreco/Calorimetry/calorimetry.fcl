@@ -24,7 +24,8 @@ standard_calodata:
  TrackModuleLabel:       "track3d" #this must have track-spacepoint and track-hit associations
  SpacePointModuleLabel:  "spacepointfinder" #this must have spacepoint-hit associations
  T0ModuleLabel:          "mctrutht0"
- UseArea:		 true
+ UseArea:		 		 true
+ CorrectSCE:			 false
  Flip_dQdx:              false
  CaloAlg:	         @local::standard_calorimetryalgdata
 }
@@ -35,7 +36,8 @@ standard_calomc:
  TrackModuleLabel:       "track3d" #this must have track-spacepoint and track-hit associations
  SpacePointModuleLabel:  "spacepointfinder" #this must have spacepoint-hit associations
  T0ModuleLabel:          "mctrutht0"
- UseArea:		 true
+ UseArea:				 true
+ CorrectSCE:			 false
  Flip_dQdx:              false
  CaloAlg:	         @local::standard_calorimetryalgmc
 }
