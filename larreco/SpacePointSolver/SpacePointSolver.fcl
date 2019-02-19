@@ -32,15 +32,5 @@ standard_spacepointsolver:
   HitReaderTool: @local::standard_Hits
 }
 
-microboone_spacepointsolver: @local::standard_spacepointsolver
-microboone_spacepointsolver.WireIntersectThreshold:         0.3
-microboone_spacepointsolver.WireIntersectThresholdDriftDir: 0.3
-microboone_spacepointsolver.XHitOffset:                     0
-microboone_spacepointsolver.MaxIterationsNoReg:             20
-microboone_spacepointsolver.MaxIterationsReg:               20
-
-microboone_spacepointsolver.AllowBadCollectionHit:          false
-microboone_spacepointsolver.AllowBadInductionHit:           false
-
 END_PROLOG
 
