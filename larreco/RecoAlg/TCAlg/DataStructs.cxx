@@ -17,7 +17,7 @@ namespace tca {
     "DeltaRay",
     "CTKink",
     "CTStepChk",
-    "TryNextPass",
+    "Make3D",
     "RvPrp",
     "CHMUH",
     "Split",
@@ -48,7 +48,6 @@ namespace tca {
     "MisdVxTj",
     "Photon",
     "HaloTj",
-    "NoFitToVx",
     "VxMerge",
     "VxNeutral",
     "NoKinkChk",
@@ -75,18 +74,17 @@ namespace tca {
     "MergeNrShowers",
     "MergeShChain",
     "CompleteShower",
-    "SplitTjCVx",
-    "NewStpCuts",
-    "NewVtxCuts"
+    "SplitTjCVx"
   };
   
-  const std::vector<std::string> StopFlagNames {
+  const std::vector<std::string> EndFlagNames {
     "Signal",
     "AtKink",
     "AtVtx",
     "Bragg",
     "AtTj",
-    "OutFV"
+    "OutFV",
+    "NoFitVx"
   };
   
   const std::vector<std::string> VtxBitNames {

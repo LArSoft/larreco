@@ -79,7 +79,6 @@ namespace tca {
   bool TrajHitsOK(TCSlice& slc, const unsigned int iht, const unsigned int jht);
   float ExpectedHitsRMS(TCSlice& slc, const TrajPoint& tp);
   bool SignalAtTp(TrajPoint const& tp);
-//  bool SignalAtTp(TCSlice& slc, TrajPoint const& tp);
   float TpSumHitChg(TCSlice& slc, TrajPoint const& tp);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires);
   unsigned short NumPtsWithCharge(TCSlice& slc, const Trajectory& tj, bool includeDeadWires, unsigned short firstPt, unsigned short lastPt);
@@ -186,6 +185,7 @@ namespace tca {
   void SetPDGCode(TCSlice& slc, unsigned short itj);
   bool AnalyzeHits();
   bool LongPulseHit(const recob::Hit& hit);
+  void FillWireHitRange(geo::TPCID inTPCID);
   bool FillWireHitRange(TCSlice& slc);
 //  bool CheckWireHitRange(TCSlice& slc);
   bool WireHitRangeOK(TCSlice& slc, const CTP_t& inCTP);
@@ -223,7 +223,7 @@ namespace tca {
   // Print Trajectory position in the standard format
   std::string PrintPos(TCSlice& slc, const TrajPoint& tp);
   std::string PrintPos(TCSlice& slc, const Point2_t& pos);
-  std::string PrintStopFlag(const Trajectory& tj, unsigned short end);
+  std::string PrintEndFlag(const Trajectory& tj, unsigned short end);
   
   ////////////////////////////////////////////////
   template <typename T>
