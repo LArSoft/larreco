@@ -32,11 +32,9 @@ namespace hit {
   class MCHitFinder : public art::EDProducer {
   public:
     explicit MCHitFinder(fhicl::ParameterSet const & p);
-    virtual ~MCHitFinder();
-    
-    void produce(art::Event & e) override;
     
   private:
+    void produce(art::Event & e) override;
     
     std::string fLArG4ModuleName;
     bool fVerbose;
@@ -46,6 +44,7 @@ namespace hit {
   
   
   MCHitFinder::MCHitFinder(fhicl::ParameterSet const & p)
+    : EDProducer{p}
   {
     fLArG4ModuleName = p.get<std::string>("LArG4ModuleName");
     fMakeMCWire      = p.get<bool>("MakeMCWire");
@@ -53,10 +52,6 @@ namespace hit {
     produces< std::vector< sim::MCHitCollection> >();
     if(fMakeMCWire)
       produces< std::vector< sim::MCWireCollection> >();
-  }
-  
-  MCHitFinder::~MCHitFinder()
-  {
   }
   
   void MCHitFinder::produce(art::Event & e)

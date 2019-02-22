@@ -185,6 +185,7 @@ const std::string PMAlgTrackMaker::kNodesName = "node";
 // -------------------------------------------------------------
 
 PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
+    EDProducer{config},
 	fHitModuleLabel(config().HitModuleLabel()),
 	fWireModuleLabel(config().WireModuleLabel()),
 	fCluModuleLabel(config().ClusterModuleLabel()),

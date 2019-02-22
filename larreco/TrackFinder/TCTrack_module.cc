@@ -38,11 +38,9 @@ namespace trkf {
     
   public:
     explicit TCTrack(fhicl::ParameterSet const & pset);
-    virtual ~TCTrack() = default;
     
     void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
-    void endJob() override;
     
   private:
 
@@ -66,7 +64,8 @@ namespace trkf {
     
   //----------------------------------------------------------------------------
   TCTrack::TCTrack(fhicl::ParameterSet const& pset)
-    : fSptalg(pset.get<fhicl::ParameterSet>("SpacePointAlg"))
+    : EDProducer{pset}
+    , fSptalg(pset.get<fhicl::ParameterSet>("SpacePointAlg"))
   {
     
     reconfigure(pset);
@@ -75,11 +74,6 @@ namespace trkf {
     produces<art::Assns<recob::SpacePoint, recob::Hit>       >();
     
   } // TCTrack::TCTrack()
-  
-  //----------------------------------------------------------------------------
-  void TCTrack::endJob()
-  {
-  } // endJob
   
   //----------------------------------------------------------------------------
   void TCTrack::produce(art::Event & evt)
@@ -144,5 +138,3 @@ namespace trkf {
   DEFINE_ART_MODULE(TCTrack)
 
 } // namespace trkf
-
-

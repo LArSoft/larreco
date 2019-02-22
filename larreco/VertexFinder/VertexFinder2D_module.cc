@@ -78,7 +78,6 @@ namespace vertex {
   public:
     
     explicit VertexFinder2D(fhicl::ParameterSet const& pset); 
-    virtual ~VertexFinder2D();        
     void beginJob();
     void reconfigure(fhicl::ParameterSet const& p);
 
@@ -99,6 +98,7 @@ namespace vertex{
 
 //-----------------------------------------------------------------------------
   VertexFinder2D::VertexFinder2D(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {  
     this->reconfigure(pset);    
     produces< std::vector<recob::Vertex> >();
@@ -108,16 +108,11 @@ namespace vertex{
     produces< art::Assns<recob::Vertex, recob::Shower> >();
     produces< art::Assns<recob::Vertex, recob::Track> >();
   }
-//-----------------------------------------------------------------------------
-  VertexFinder2D::~VertexFinder2D()
-  {
-  }
 
   //---------------------------------------------------------------------------
   void VertexFinder2D::reconfigure(fhicl::ParameterSet const& p) 
   {
     fClusterModuleLabel  = p.get< std::string >("ClusterModuleLabel");
-    return;
   }
   //-------------------------------------------------------------------------
   void VertexFinder2D::beginJob(){

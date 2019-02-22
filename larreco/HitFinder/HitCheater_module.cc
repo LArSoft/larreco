@@ -45,14 +45,11 @@ namespace hit {
 class hit::HitCheater : public art::EDProducer {
 public:
   explicit HitCheater(fhicl::ParameterSet const & p);
-  virtual ~HitCheater();
-
-  virtual void produce(art::Event & e);
-
-  virtual void beginJob();
-  virtual void reconfigure(fhicl::ParameterSet const & p);
 
 private:
+  void produce(art::Event & e) override;
+
+  void reconfigure(fhicl::ParameterSet const & p);
 
   void FindHitsOnChannel(
     const sim::SimChannel*   sc,
@@ -75,6 +72,7 @@ private:
 
 //-------------------------------------------------------------------
 hit::HitCheater::HitCheater(fhicl::ParameterSet const & p)
+  : EDProducer{p}
 {
   this->reconfigure(p);
 
@@ -82,11 +80,6 @@ hit::HitCheater::HitCheater(fhicl::ParameterSet const & p)
   // hits and associations with wires and raw digits
   // (with no particular product label)
   recob::HitCollectionCreator::declare_products(*this);
-}
-
-//-------------------------------------------------------------------
-hit::HitCheater::~HitCheater()
-{
 }
 
 //-------------------------------------------------------------------
@@ -317,12 +310,6 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
   }// end loop over map of geo::WireID to map<tdc,electrons>
   
 
-  return;
-}
-
-//-------------------------------------------------------------------
-void hit::HitCheater::beginJob()
-{
   return;
 }
 

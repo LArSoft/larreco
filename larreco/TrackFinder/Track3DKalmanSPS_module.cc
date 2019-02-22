@@ -205,7 +205,8 @@ namespace trkf {
 
 //-------------------------------------------------
   Track3DKalmanSPS::Track3DKalmanSPS(fhicl::ParameterSet const& pset) 
-    : fDoFit(true)
+    : EDProducer{pset}
+    , fDoFit(true)
     , fNumIt(5)
     , fMinNumSppts(5)
     , fErrScaleS(1.0)

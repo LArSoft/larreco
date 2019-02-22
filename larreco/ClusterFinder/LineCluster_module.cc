@@ -42,7 +42,6 @@ namespace cluster {
     
     public:
       explicit LineCluster(fhicl::ParameterSet const & pset);
-      virtual ~LineCluster() = default;
       
       void reconfigure(fhicl::ParameterSet const & pset) ;
       void produce(art::Event & evt) override;
@@ -87,7 +86,9 @@ namespace cluster {
 namespace cluster {
   
   //----------------------------------------------------------------------------
-  LineCluster::LineCluster(fhicl::ParameterSet const& pset) {
+  LineCluster::LineCluster(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
+  {
     reconfigure(pset);
     
     // let HitCollectionAssociator declare that we are going to produce
@@ -356,4 +357,3 @@ namespace cluster {
   DEFINE_ART_MODULE(LineCluster)
   
 } // namespace cluster
-

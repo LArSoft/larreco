@@ -24,8 +24,6 @@
 #include "canvas/Persistency/Common/Ptr.h"
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
-#include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
@@ -44,46 +42,23 @@
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Services/Optional/RandomNumberGenerator.h"
-#include <TTree.h>
-#include <TMatrixT.h>
-
 
 #include <vector>
 #include <string>
 
-
-// ROOT includes
-#include "TVectorD.h"
-#include "TFile.h"
-#include "TGeoManager.h"
-#include "TF1.h"
-#include "TGraph.h"
-#include "TMath.h"
-#include "TPrincipal.h"
-#include "TDatabasePDG.h"
-
-class StitchAlg;
-
 namespace trkf {
    
    class TrackStitcher : public art::EDProducer {
-      
    public:
-      
       explicit TrackStitcher(fhicl::ParameterSet const& pset);
-      virtual ~TrackStitcher();
-      
-      //////////////////////////////////////////////////////////
-      void produce(art::Event& evt);
-      void beginJob();
-      void endJob();
-      void reconfigure(fhicl::ParameterSet const& p);
       
    private:
+      void produce(art::Event& evt) override;
+      void reconfigure(fhicl::ParameterSet const& p);
       
-      const art::PtrVector<recob::Hit> GetHitsFromComponentTracks(const art::PtrVector<recob::Track> &, const art::Event& evt);
-      const art::PtrVector<recob::SpacePoint> GetSpacePointsFromComponentTracks(const art::PtrVector<recob::Track> &, const art::Event& evt);
-      const std::vector<art::Ptr<recob::Hit>> GetHitsFromAssdSpacePoints(const art::PtrVector<recob::SpacePoint> &, const art::Event& evt,  std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > > &vpi);
+      art::PtrVector<recob::Hit> GetHitsFromComponentTracks(const art::PtrVector<recob::Track> &, const art::Event& evt);
+      art::PtrVector<recob::SpacePoint> GetSpacePointsFromComponentTracks(const art::PtrVector<recob::Track> &, const art::Event& evt);
+      std::vector<art::Ptr<recob::Hit>> GetHitsFromAssdSpacePoints(const art::PtrVector<recob::SpacePoint> &, const art::Event& evt,  std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > > &vpi);
       std::string     fTrackModuleLabel;// label for input collection
       std::string     fSpptModuleLabel;// label for input collection
       bool            fStizatch; // CommonComponentStitch
@@ -97,6 +72,7 @@ namespace trkf {
    
    //-------------------------------------------------
    TrackStitcher::TrackStitcher(fhicl::ParameterSet const& pset) :
+     EDProducer{pset},
    fStitchAlg(pset.get< fhicl::ParameterSet >("StitchAlg"))
    {
       
@@ -118,24 +94,6 @@ namespace trkf {
       fStizatch            = pset.get< bool >       ("CommonComponentStitch",true);
       fStitchAlg.reconfigure(pset.get< fhicl::ParameterSet >("StitchAlg"));
    }
-   
-   //-------------------------------------------------
-   TrackStitcher::~TrackStitcher()
-   {
-   }
-   
-   
-   //-------------------------------------------------
-   void TrackStitcher::beginJob()
-   {
-      art::ServiceHandle<art::TFileService> tfs;
-   }
-   
-   //-------------------------------------------------
-   void TrackStitcher::endJob()
-   {
-   }
-   
    
    //------------------------------------------------------------------------------------//
    void TrackStitcher::produce(art::Event& evt)
@@ -275,7 +233,7 @@ namespace trkf {
       
    }
    
-   const art::PtrVector<recob::Hit> TrackStitcher::GetHitsFromComponentTracks(const art::PtrVector<recob::Track> &tcomp, const art::Event& evtGHFCT)
+   art::PtrVector<recob::Hit> TrackStitcher::GetHitsFromComponentTracks(const art::PtrVector<recob::Track> &tcomp, const art::Event& evtGHFCT)
    {
       
       art::PtrVector<recob::Hit> hits;
@@ -291,7 +249,7 @@ namespace trkf {
       return hits;
    }
    
-   const art::PtrVector<recob::SpacePoint> TrackStitcher::GetSpacePointsFromComponentTracks(const art::PtrVector<recob::Track> &tcomp, const art::Event& evtGHFCT)
+   art::PtrVector<recob::SpacePoint> TrackStitcher::GetSpacePointsFromComponentTracks(const art::PtrVector<recob::Track> &tcomp, const art::Event& evtGHFCT)
    {
       
       art::PtrVector<recob::SpacePoint> sppts;
@@ -305,7 +263,7 @@ namespace trkf {
       return sppts;
    }
    
-   const std::vector<art::Ptr<recob::Hit>> TrackStitcher::GetHitsFromAssdSpacePoints(const art::PtrVector<recob::SpacePoint> &sppts, const art::Event& evtGHFCT, std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > > &pithit)
+   std::vector<art::Ptr<recob::Hit>> TrackStitcher::GetHitsFromAssdSpacePoints(const art::PtrVector<recob::SpacePoint> &sppts, const art::Event& evtGHFCT, std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > > &pithit)
    {
       
       std::vector<art::Ptr<recob::Hit>> hits;

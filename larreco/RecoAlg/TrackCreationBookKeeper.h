@@ -49,8 +49,10 @@ namespace trkmkr {
     /// Add a single point; different version of the functions are provided using const references or rvalue references, with and without an OptionalPointElement argument.
     void addPoint(const Point_t& point, const Vector_t& vect, art::Ptr<Hit> hit, const PointFlags_t& flag, double chi2) {
       ttcbk_.addPoint(point, vect, hit, flag);
-      chi2v.push_back(chi2);
-      totChi2_+=chi2;
+      if (chi2>=0) {
+        chi2v.push_back(chi2);
+        totChi2_+=chi2;
+      }
     }
     void addPoint(const Point_t& point, const Vector_t& vect, art::Ptr<Hit> hit, const PointFlags_t& flag, double chi2, OptionalPointElement& ope) {
       addPoint(point, vect, hit, flag, chi2);
@@ -58,8 +60,10 @@ namespace trkmkr {
     }
     void addPoint(Point_t&& point, Vector_t&& vect, art::Ptr<Hit> hit, PointFlags_t&& flag, double chi2) {
       ttcbk_.addPoint(std::move(point), std::move(vect), hit, std::move(flag));
-      chi2v.push_back(chi2);
-      totChi2_+=chi2;
+      if (chi2>=0) {
+        chi2v.push_back(chi2);
+        totChi2_+=chi2;
+      }
     }
     void addPoint(Point_t&& point, Vector_t&& vect, art::Ptr<Hit> hit, PointFlags_t&& flag, double chi2, OptionalPointElement& ope) {
       addPoint(std::move(point), std::move(vect), hit, std::move(flag), chi2);

@@ -5,8 +5,6 @@
 // brebel@fnal.gov
 //
 ////////////////////////////////////////////////////////////////////////
-#ifndef EVENT_EVENTCHEATER_H
-#define EVENT_EVENTCHEATER_H
 #include <string>
 #include <vector>
 
@@ -41,7 +39,6 @@ namespace event {
   class EventCheater : public art::EDProducer {
   public:
     explicit EventCheater(fhicl::ParameterSet const& pset);
-    virtual ~EventCheater();
 
     void produce(art::Event& evt);
 
@@ -59,6 +56,7 @@ namespace event{
 
   //--------------------------------------------------------------------
   EventCheater::EventCheater(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {
     this->reconfigure(pset);
 
@@ -68,17 +66,10 @@ namespace event{
   }
 
   //--------------------------------------------------------------------
-  EventCheater::~EventCheater()
-  {
-  }
-
-  //--------------------------------------------------------------------
   void EventCheater::reconfigure(fhicl::ParameterSet const& pset)
   {
     fCheatedVertexLabel = pset.get< std::string >("CheatedVertexLabel", "prong" );
     fG4ModuleLabel      = pset.get< std::string >("G4ModuleLabel",      "largeant");
-
-    return;
   }
 
   //--------------------------------------------------------------------
@@ -169,5 +160,3 @@ namespace event{
   DEFINE_ART_MODULE(EventCheater)
 
 }
-
-#endif

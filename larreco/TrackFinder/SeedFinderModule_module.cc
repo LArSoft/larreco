@@ -1,6 +1,3 @@
-#ifndef SEEDFINDER_H
-#define SEEDFINDER_H
-
 //
 // Name: SeedFinderModule.h
 //
@@ -25,49 +22,30 @@ namespace recob
 
 namespace trkf {
 
-  class SeedFinderModule : public art::EDProducer
-  {
+  class SeedFinderModule : public art::EDProducer {
   public:
- 
-    // Constructors, destructor
-
     explicit SeedFinderModule(fhicl::ParameterSet const& pset);
-    virtual ~SeedFinderModule();
-
-    // Overrides.
-
-    void reconfigure(fhicl::ParameterSet const& pset);
-    void beginJob();
-    void produce(art::Event& evt);
-    
-    void endJob();
-  
-    
-    art::PtrVector<recob::Hit>       GetHitsFromEvent(std::string HitModuleLabel, art::Event & evt);
-    void                             GetSortedHitsFromClusters(std::string ClusterModuleLabel, art::Event& evt,std::vector< std::vector< art::PtrVector<recob::Hit> > > & SortedHits );
-
-
 
   private:
+    void reconfigure(fhicl::ParameterSet const& pset);
+    void produce(art::Event& evt) override;
 
+    art::PtrVector<recob::Hit> GetHitsFromEvent(std::string HitModuleLabel,
+                                                art::Event & evt);
+    void GetSortedHitsFromClusters(std::string ClusterModuleLabel,
+                                   art::Event& evt,
+                                   std::vector<std::vector<art::PtrVector<recob::Hit>>>& SortedHits);
    
     // Fcl Attributes.
-
     SeedFinderAlgorithm     fSeedAlg;                  // Algorithm object
     std::string             fInputModuleLabel;         // Where to find hits, if we need them
     int                     fInputSource;              // 1: Use Clusters
                                                       // 2: Use Hits
-
   };
   
 }
 
-#endif // SEEDFINDER_H
-
-
-
 #include "art/Framework/Core/ModuleMacros.h" 
-
 
 namespace trkf {
   DEFINE_ART_MODULE(SeedFinderModule)
@@ -99,17 +77,11 @@ namespace trkf {
 
   //----------------------------------------------------------------------------
   SeedFinderModule::SeedFinderModule(const fhicl::ParameterSet& pset) :
+    EDProducer{pset},
     fSeedAlg(pset.get<fhicl::ParameterSet>("SeedAlg"))
   {
     reconfigure(pset);
     produces<std::vector<recob::Seed> >();
-  
-  
-  }
-
-  //----------------------------------------------------------------------------
-  SeedFinderModule::~SeedFinderModule()
-  {
   }
 
   //----------------------------------------------------------------------------
@@ -118,15 +90,7 @@ namespace trkf {
     fSeedAlg.reconfigure ( pset.get<fhicl::ParameterSet>("SeedAlg") );
     fInputModuleLabel      = pset.get<std::string>("InputModuleLabel");
     fInputSource           = pset.get<int>("InputSource");
-  
   }
-
-  //----------------------------------------------------------------------------
-  void SeedFinderModule::beginJob()
-  {}
-
-
-
 
   //----------------------------------------------------------------------------
   void SeedFinderModule::produce(art::Event& evt)
@@ -190,7 +154,9 @@ namespace trkf {
   // Get the hits associated with stored clusters
   //
 
-  void SeedFinderModule::GetSortedHitsFromClusters(std::string ClusterModuleLabel, art::Event& evt,std::vector< std::vector< art::PtrVector<recob::Hit> > > & SortedHits )
+  void SeedFinderModule::GetSortedHitsFromClusters(std::string ClusterModuleLabel,
+                                                   art::Event& evt,
+                                                   std::vector<std::vector<art::PtrVector<recob::Hit>>>& SortedHits)
   {
     
     SortedHits.clear();
@@ -221,16 +187,9 @@ namespace trkf {
     }
   }
 
-
-
-
-
-
-  
   //----------------------------------------------------------------------------
   // Extract vector of hits from event
   //
-
   art::PtrVector<recob::Hit> SeedFinderModule::GetHitsFromEvent(std::string HitModuleLabel, art::Event & evt)
   {
     
@@ -244,16 +203,5 @@ namespace trkf {
       }
     
     return TheHits;
-  }
-
-  
-
-
-
-
-  //----------------------------------------------------------------------------
-  void SeedFinderModule::endJob()
-  {
-
   }
 }

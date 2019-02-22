@@ -207,7 +207,8 @@ namespace trkf {
 }
 
 trkf::KalmanFilterFinalTrackFitter::KalmanFilterFinalTrackFitter(trkf::KalmanFilterFinalTrackFitter::Parameters const & p)
-  : p_(p)
+  : EDProducer{p}
+  , p_(p)
   , prop{p_().propagator}
   , kalmanFitter{&prop, p_().fitter}
   , inputFromPF{p_().options().trackFromPF() || p_().options().showerFromPF()}

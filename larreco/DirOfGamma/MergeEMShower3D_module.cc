@@ -400,7 +400,8 @@ private:
 };
 
 ems::MergeEMShower3D::MergeEMShower3D(fhicl::ParameterSet const & p) 
-  : fShowerEnergyAlg(p.get<fhicl::ParameterSet>("ShowerEnergyAlg"))
+  : EDProducer{p}
+  , fShowerEnergyAlg(p.get<fhicl::ParameterSet>("ShowerEnergyAlg"))
 {
 	reconfigure(p);
 

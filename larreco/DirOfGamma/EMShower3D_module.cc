@@ -135,8 +135,9 @@ private:
 
 
 ems::EMShower3D::EMShower3D(fhicl::ParameterSet const & p)
-	: fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg")),
-		fCalorimetryAlg(p.get< fhicl::ParameterSet >("CalorimetryAlg"))
+  : EDProducer{p}
+  , fProjectionMatchingAlg(p.get< fhicl::ParameterSet >("ProjectionMatchingAlg"))
+  , fCalorimetryAlg(p.get< fhicl::ParameterSet >("CalorimetryAlg"))
 {
 	reconfigure(p);
   

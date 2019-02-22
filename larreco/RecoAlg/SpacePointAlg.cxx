@@ -24,7 +24,6 @@
 #include "larcorealg/Geometry/WireGeo.h"
 #include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Optional/TFileService.h"
-#include "art/Framework/Principal/View.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 //\todo Remove include of BackTrackerService.h once this algorithm is stripped of test for MC
 #include "larsim/MCCheater/BackTrackerService.h"

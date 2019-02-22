@@ -68,7 +68,8 @@ private:
 };
 
 cluster::BlurredClustering::BlurredClustering(fhicl::ParameterSet const &pset)
-  : fHitsModuleLabel{pset.get<std::string>("HitsModuleLabel")}
+  : EDProducer{pset}
+  , fHitsModuleLabel{pset.get<std::string>("HitsModuleLabel")}
   , fTrackModuleLabel{pset.get<std::string>("TrackModuleLabel")}
   , fVertexModuleLabel{pset.get<std::string>("VertexModuleLabel")}
   , fPFParticleModuleLabel{pset.get<std::string>("PFParticleModuleLabel")}

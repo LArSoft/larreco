@@ -82,12 +82,11 @@ namespace hit{
     
     explicit DPRawHitFinder(fhicl::ParameterSet const& pset); 
          
+  private:
+
     void produce(art::Event& evt) override;
     void beginJob() override;
-    void endJob() override;
     void reconfigure(fhicl::ParameterSet const& p) ;
-
-  private:
 
     using TimeValsVec      = std::vector<std::tuple<int,int,int>>; // start, max, end of a peak
     using PeakTimeWidVec   = std::vector<std::tuple<int,int,int,int>>; // max, width, start, end of a peak within a group
@@ -215,15 +214,13 @@ namespace hit{
     TH1F* fFirstChi2;
     TH1F* fChi2;
 		
-  protected: 
-    
-  
   }; // class DPRawHitFinder
   
 
 //-------------------------------------------------
 //-------------------------------------------------
 DPRawHitFinder::DPRawHitFinder(fhicl::ParameterSet const& pset) :
+        EDProducer{pset},
 	fNewHitsTag(
 	    pset.get<std::string>("module_label"), "",
 	    art::ServiceHandle<art::TriggerNamesService>()->getProcessName()),
@@ -314,13 +311,6 @@ void DPRawHitFinder::beginJob()
     // === Hit Information for Histograms ===
     fFirstChi2 = tfs->make<TH1F>("fFirstChi2", "#chi^{2}", 10000, 0, 5000);
     fChi2      = tfs->make<TH1F>("fChi2", "#chi^{2}", 10000, 0, 5000);
-}
-
-//-------------------------------------------------
-//-------------------------------------------------
-void DPRawHitFinder::endJob()
-{
-
 }
 
 //-------------------------------------------------

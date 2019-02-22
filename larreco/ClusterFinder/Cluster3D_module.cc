@@ -449,6 +449,7 @@ DEFINE_ART_MODULE(Cluster3D)
 namespace lar_cluster3d {
 
 Cluster3D::Cluster3D(fhicl::ParameterSet const &pset) :
+    EDProducer{pset},
     m_pcaAlg(pset.get<fhicl::ParameterSet>("PrincipalComponentsAlg")),
     m_skeletonAlg(pset.get<fhicl::ParameterSet>("SkeletonAlg")),
     m_seedFinderAlg(pset.get<fhicl::ParameterSet>("SeedFinderAlg")),

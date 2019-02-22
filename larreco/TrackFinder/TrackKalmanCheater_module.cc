@@ -53,20 +53,13 @@ namespace trkf {
 
   class TrackKalmanCheater : public art::EDProducer {
   public:
-
-    // Copnstructors, destructor.
-
     explicit TrackKalmanCheater(fhicl::ParameterSet const & pset);
-    virtual ~TrackKalmanCheater();
-
-    // Overrides.
-
-    virtual void reconfigure(fhicl::ParameterSet const & pset);
-    virtual void produce(art::Event & e);
-    virtual void beginJob();
-    virtual void endJob();
 
   private:
+    void reconfigure(fhicl::ParameterSet const & pset);
+    void produce(art::Event & e) override;
+    void beginJob() override;
+    void endJob() override;
 
     // Fcl parameters.
 
@@ -105,7 +98,8 @@ namespace trkf {
 /// p - Fcl parameters.
 ///
 trkf::TrackKalmanCheater::TrackKalmanCheater(fhicl::ParameterSet const & pset)
-  : fHist(false)
+  : EDProducer{pset}
+  , fHist(false)
   , fKFAlg(pset.get<fhicl::ParameterSet>("KalmanFilterAlg"))
   , fSpacePointAlg(pset.get<fhicl::ParameterSet>("SpacePointAlg"))
   , fUseClusterHits(false)
@@ -131,11 +125,6 @@ trkf::TrackKalmanCheater::TrackKalmanCheater(fhicl::ParameterSet const & pset)
     << "  HitModuleLabel = " << fHitModuleLabel << "\n"
     << "  ClusterModuleLabel = " << fClusterModuleLabel;
 }
-
-//------------------------------------------------------------------------------
-/// Destructor.
-trkf::TrackKalmanCheater::~TrackKalmanCheater()
-{}
 
 //------------------------------------------------------------------------------
 /// Reconfigure method.

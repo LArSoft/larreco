@@ -59,7 +59,8 @@ private:
 
 
 cluster::SimpleLineCluster::SimpleLineCluster(fhicl::ParameterSet const & p)
-  : fHitFinderLabel(p.get<art::InputTag>("HitFinderModuleLabel"))
+  : EDProducer{p}
+  , fHitFinderLabel(p.get<art::InputTag>("HitFinderModuleLabel"))
   , fPFParticleLabel(p.get<art::InputTag>("PFParticleModuleLabel"))
 {
   // this trick avoids double configuration on construction

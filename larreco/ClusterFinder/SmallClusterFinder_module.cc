@@ -42,7 +42,6 @@
 // include the proper bit of the framework
 #include "art/Framework/Core/EDProducer.h" 
 #include "art/Framework/Principal/Event.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Core/ModuleMacros.h"
 
 //All the larsoft goodies:
@@ -65,9 +64,7 @@ namespace cluster {
 
     /**METHODS global*/
     explicit SmallClusterFinder(fhicl::ParameterSet const& pset);/**Constructor*/
-    virtual ~SmallClusterFinder();                               /**Destructor*/
     void beginJob();                                     
-    void beginRun(art::Run& run);
     void reconfigure(fhicl::ParameterSet const& pset);
     void produce(art::Event& evt);                       /**Routine that finds the cluster and sets the dTdW of the 2D shower*/
    
@@ -97,6 +94,7 @@ namespace cluster {
 }
 namespace cluster{
 	SmallClusterFinder::SmallClusterFinder(fhicl::ParameterSet const& pset)
+          : EDProducer{pset}
 	{
 		this->reconfigure(pset);
 		produces< std::vector<recob::Cluster> >();				//This code makes clusters
@@ -113,28 +111,10 @@ namespace cluster{
 	 }
 
 	// ***************** //
-	SmallClusterFinder::~SmallClusterFinder()
-	{
-		//Nothing to do in the destructor
-	}
-
-	//____________________________________________________________________________
-	void SmallClusterFinder::beginRun(art::Run& /*run*/)
-	  {
-		//nothing to do at beginRun()
-		return;
-	  }
-
-	//-----------------------------------------------
-
-	// ***************** //
 	void SmallClusterFinder::beginJob()
 	{
 		// this will not change on a run per run basis.
 		fNPlanes = geom->Nplanes(); 				//get the number of planes in the TPC
-		/**Get TFileService and define output Histograms*/
-		art::ServiceHandle<art::TFileService> tfs;
-		return;
 	}
   
   
@@ -283,7 +263,6 @@ namespace cluster{
 		evt.put(std::move(SmallClusterFinder));
 		evt.put(std::move(assn));
  
-		return;
 	} //end produce
 
 } // end namespace cluster
@@ -293,5 +272,3 @@ namespace cluster {
   DEFINE_ART_MODULE(SmallClusterFinder)
 
 }
-
-

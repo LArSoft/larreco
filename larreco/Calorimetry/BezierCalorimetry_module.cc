@@ -46,12 +46,10 @@ namespace calo {
     public:
     
       explicit BezierCalorimetry(fhicl::ParameterSet const& pset); 
-      virtual ~BezierCalorimetry();
-    
-      void reconfigure(fhicl::ParameterSet const& pset);
-      void produce(art::Event& evt);
 
     private:
+      void reconfigure(fhicl::ParameterSet const& pset);
+      void produce(art::Event& evt) override;
         
       std::string    fBTrackModuleLabel; ///< module creating the track objects and assns to hits
       art::ServiceHandle<geo::Geometry> fGeo;
@@ -65,6 +63,7 @@ namespace calo {
 
 //-------------------------------------------------
 calo::BezierCalorimetry::BezierCalorimetry(fhicl::ParameterSet const& pset):
+  EDProducer{pset},
   caloAlg(pset.get< fhicl::ParameterSet >("CaloAlg"))
 {
   
@@ -74,17 +73,10 @@ calo::BezierCalorimetry::BezierCalorimetry(fhicl::ParameterSet const& pset):
   produces< art::Assns<recob::Track, anab::Calorimetry> >();
 }
 
-//-------------------------------------------------
-calo::BezierCalorimetry::~BezierCalorimetry()
-{
-  
-}
-
 //------------------------------------------------------------------------------------//
 void calo::BezierCalorimetry::reconfigure(fhicl::ParameterSet const& pset)
 {
   fBTrackModuleLabel = pset.get< std::string >("BTrackModuleLabel");
-  return;
 }
 
 //------------------------------------------------------------------------------------//
@@ -129,4 +121,3 @@ namespace calo{
   DEFINE_ART_MODULE(BezierCalorimetry)
   
 } // end namespace 
-

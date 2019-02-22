@@ -61,7 +61,8 @@ private:
 };
 //
 TrackProducerFromTrackTrajectory::TrackProducerFromTrackTrajectory(fhicl::ParameterSet const & p)
-  : trackMaker_{art::make_tool<trkmkr::TrackMaker>(p.get<fhicl::ParameterSet>("trackMaker"))}
+  : EDProducer{p}
+  , trackMaker_{art::make_tool<trkmkr::TrackMaker>(p.get<fhicl::ParameterSet>("trackMaker"))}
   , trajInputTag{p.get<art::InputTag>("inputCollection")}
   , doTrackFitHitInfo_{p.get<bool>("doTrackFitHitInfo")}
   , doSpacePoints_{p.get<bool>("doSpacePoints")}

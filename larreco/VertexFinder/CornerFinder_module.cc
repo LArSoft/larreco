@@ -1,5 +1,3 @@
-#ifndef CORNERFINDER_H
-#define CORNERFINDER_H
 /*!
  * Title:   CornerFinder class
  * Author:  wketchum@lanl.gov
@@ -38,13 +36,11 @@ namespace vertex {
   public:
     
     explicit CornerFinder(fhicl::ParameterSet const& pset); 
-    virtual ~CornerFinder();        
-    void reconfigure(fhicl::ParameterSet const& p);
-
-    
-    void produce(art::Event& evt);
     
   private:
+    void reconfigure(fhicl::ParameterSet const& p);
+    void produce(art::Event& evt) override;
+
     corner::CornerFinderAlg  fCornerAlg;
     art::ServiceHandle<geo::Geometry> fGeometryHandle;
 
@@ -58,20 +54,17 @@ namespace vertex {
 
   //-----------------------------------------------------------------------------
   CornerFinder::CornerFinder(fhicl::ParameterSet const& pset):
+    EDProducer{pset},
     fCornerAlg(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"))
   {  
     this->reconfigure(pset);    
     produces< std::vector<recob::EndPoint2D> >();
   }
   
-  //-----------------------------------------------------------------------------
-  CornerFinder::~CornerFinder(){}
-
   //---------------------------------------------------------------------------
   void CornerFinder::reconfigure(fhicl::ParameterSet const& pset) {
     fCalDataModuleLabel = pset.get<std::string>("CalDataModuleLabel");
     fCornerAlg.reconfigure(pset.get<fhicl::ParameterSet>("CornerAlgParamSet"));
-    return;
   }
 
   //-----------------------------------------------------------------------------
@@ -123,4 +116,3 @@ namespace vertex {
   DEFINE_ART_MODULE(CornerFinder)
 
 }
-#endif // CORNERFINDER_H

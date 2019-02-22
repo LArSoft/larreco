@@ -66,7 +66,6 @@ namespace vertex {
   public:
     
    explicit HarrisVertexFinder(fhicl::ParameterSet const& pset); 
-   virtual ~HarrisVertexFinder();        
    void beginJob();
    
    void produce(art::Event& evt);
@@ -93,7 +92,8 @@ namespace vertex {
 
 //-----------------------------------------------------------------------------
 vertex::HarrisVertexFinder::HarrisVertexFinder(fhicl::ParameterSet const& pset) 
-  : fDBScanModuleLabel  (pset.get< std::string >("DBScanModuleLabel"))
+  : EDProducer{pset}
+  , fDBScanModuleLabel  (pset.get< std::string >("DBScanModuleLabel"))
   , fTimeBins        (pset.get< int         >("TimeBins")      )
   , fMaxCorners      (pset.get< int         >("MaxCorners")    )
   , fGsigma          (pset.get< double      >("Gsigma")        )
@@ -103,11 +103,6 @@ vertex::HarrisVertexFinder::HarrisVertexFinder(fhicl::ParameterSet const& pset)
 {
   produces< std::vector<recob::EndPoint2D> >();
   produces< art::Assns<recob::EndPoint2D, recob::Hit> >();
-}
-
-//-----------------------------------------------------------------------------
-vertex::HarrisVertexFinder::~HarrisVertexFinder()
-{
 }
 
 void vertex::HarrisVertexFinder::beginJob(){

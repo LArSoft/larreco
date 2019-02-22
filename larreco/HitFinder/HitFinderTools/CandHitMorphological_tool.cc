@@ -60,6 +60,17 @@ private:
                            float,
                            HitCandidateVec&) const;
     
+    //< For a given range, return the list of max/min pairs
+    using MaxMinPair       = std::pair<Waveform::const_iterator,Waveform::const_iterator>;
+    using CandHitParams    = std::tuple<Waveform::const_iterator,Waveform::const_iterator,Waveform::const_iterator,Waveform::const_iterator>;
+    using CandHitParamsVec = std::vector<CandHitParams>;
+    
+    bool getListOfHitCandidates(Waveform::const_iterator,
+                                Waveform::const_iterator,
+                                int,
+                                float,
+                                CandHitParamsVec&) const;
+
     // Finding the nearest maximum/minimum from current point
     Waveform::const_iterator findNearestMax(Waveform::const_iterator, Waveform::const_iterator) const;
     Waveform::const_iterator findNearestMin(Waveform::const_iterator, Waveform::const_iterator) const;
@@ -87,6 +98,9 @@ private:
     TH1F*                fDStopStartHist;        //< Basically keeps track of the length of hit regions
     TH1F*                fDMaxTickMinTickHist;   //< This will be a measure of the width of candidate hits
     TH1F*                fDMaxDerivMinDerivHist; //< This is the difference peak to peak of derivative for cand hit
+    TH1F*                fMaxErosionHist;        //< Keep track of the maximum erosion
+    TH1F*                fMaxDilationHist;       //< Keep track of the maximum dilation
+    TH1F*                fMaxDilEroRatHist;      //< Ratio of the maxima of the two
     
     mutable size_t       fLastChannel;           //< Kludge to keep track of last channel when histogramming in effect
     mutable size_t       fChannelCnt;            //< Counts the number of times a channel is used (assumed in order)
@@ -142,9 +156,12 @@ void CandHitMorphological::configure(const fhicl::ParameterSet& pset)
         // Make a directory for these histograms
         art::TFileDirectory dir = fHistDirectory->mkdir(Form("HitPlane_%1zu",fPlane));
         
-        fDStopStartHist        = dir.make<TH1F>(Form("DStopStart_%1zu", fPlane), ";Delta Stop/Start;",    200, 0., 200.);
-        fDMaxTickMinTickHist   = dir.make<TH1F>(Form("DMaxTMinT_%1zu",  fPlane), ";Delta Max/Min Tick;",  200, 0., 200.);
-        fDMaxDerivMinDerivHist = dir.make<TH1F>(Form("DMaxDMinD_%1zu",  fPlane), ";Delta Max/Min Deriv;", 200, 0., 200.);
+        fDStopStartHist        = dir.make<TH1F>(Form("DStopStart_%1zu",   fPlane), ";Delta Stop/Start;",    100,   0., 100.);
+        fDMaxTickMinTickHist   = dir.make<TH1F>(Form("DMaxTMinT_%1zu",    fPlane), ";Delta Max/Min Tick;",  100,   0., 100.);
+        fDMaxDerivMinDerivHist = dir.make<TH1F>(Form("DMaxDMinD_%1zu",    fPlane), ";Delta Max/Min Deriv;", 200,   0., 100.);
+        fMaxErosionHist        = dir.make<TH1F>(Form("MaxErosion_%1zu",   fPlane), ";Max Erosion;",         200, -50., 150.);
+        fMaxDilationHist       = dir.make<TH1F>(Form("MaxDilation_%1zu",  fPlane), ";Max Dilation;",        200, -50., 150.);
+        fMaxDilEroRatHist      = dir.make<TH1F>(Form("MaxDilEroRat_%1zu", fPlane), ";Max Dil/Ero;",         200,  -1.,   1.);
     }
 
     return;
@@ -250,6 +267,18 @@ void CandHitMorphological::findHitCandidates(const Waveform&  waveform,
             fDMaxTickMinTickHist->Fill(hitCandidate.minTick - hitCandidate.maxTick, 1.);
             fDMaxDerivMinDerivHist->Fill(hitCandidate.maxDerivative - hitCandidate.minDerivative, 1.);
         }
+        
+        // Get the max dilation/erosion
+        Waveform::const_iterator maxDilationItr = std::max_element(dilationVec.begin(), dilationVec.end());
+        Waveform::const_iterator maxErosionItr  = std::max_element(erosionVec.begin(),  erosionVec.end());
+        
+        float dilEroRat(1.);
+        
+        if (std::abs(*maxDilationItr) > 0.) dilEroRat = *maxErosionItr / *maxDilationItr;
+
+        fMaxErosionHist->Fill(*maxErosionItr,  1.);
+        fMaxDilationHist->Fill(*maxDilationItr, 1.);
+        fMaxDilEroRatHist->Fill(dilEroRat, 1.);
     }
     
     return;
@@ -335,7 +364,7 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStart
                           erosionStartItr,  erosionStartItr  + hitRegionStart,
                           dilationStartItr, dilationStartItr + hitRegionStart,
                           roiStartTick,
-                          2. * fDilationThreshold,
+                          fDilationThreshold,
                           hitCandidateVec);
     
     // Call the differential hit finding to get the actual hits within the region
@@ -347,12 +376,11 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator derivStart
     
     // Now call ourselves again to find any hits trailing the region we just identified
     if (std::distance(lastDerItr,derivStopItr) > fMinDeltaTicks)
-//    if (std::distance(lastDilItr,dilationStopItr) > fMinDeltaTicks)
         findHitCandidates(derivStartItr    + hitRegionStop,    derivStopItr,
                           erosionStartItr  + hitRegionStop,    erosionStopItr,
                           dilationStartItr + hitRegionStop,    dilationStopItr,
                           roiStartTick     + hitRegionStop,
-                          2. * fDilationThreshold,
+                          fDilationThreshold,
                           hitCandidateVec);
 
     return;
@@ -366,10 +394,166 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator startItr,
                                              HitCandidateVec&         hitCandidateVec) const
 {
     // Search for candidate hits...
-    // The idea will be to find the largest deviation in the input derivative waveform as the starting point. Depending
-    // on if a maximum or minimum, we search forward or backward to find the minimum or maximum that our extremum
-    // corresponds to.
-    std::pair<Waveform::const_iterator, Waveform::const_iterator> minMaxPair = std::minmax_element(startItr, stopItr);
+    // Strategy is to get the list of all possible max/min pairs of the input derivative vector and then
+    // look for candidate hits in that list
+    CandHitParamsVec candHitParamsVec;
+    
+    if (getListOfHitCandidates(startItr, stopItr, dTicksThreshold, dPeakThreshold, candHitParamsVec))
+    {
+        // We've been given a list of candidate hits so now convert to hits
+        // Version one... simply convert all the candidates
+        for(const auto& tuple : candHitParamsVec)
+        {
+            // Create a new hit candidate and store away
+            HitCandidate_t hitCandidate;
+            
+            Waveform::const_iterator candStartItr = std::get<0>(tuple);
+            Waveform::const_iterator maxItr       = std::get<1>(tuple);
+            Waveform::const_iterator minItr       = std::get<2>(tuple);
+            Waveform::const_iterator candStopItr  = std::get<3>(tuple);
+            
+            Waveform::const_iterator peakItr = std::min_element(maxItr,minItr,[](const auto& left, const auto& right){return std::fabs(left) < std::fabs(right);});
+            
+            // Check balance
+            if      (2 * std::distance(peakItr,minItr) < std::distance(maxItr,peakItr)) peakItr--;
+            else if (2 * std::distance(maxItr,peakItr) < std::distance(peakItr,minItr)) peakItr++;
+            
+            // Special handling of the start tick for multiple hits
+            size_t hitCandidateStartTick = roiStartTick + std::distance(startItr,candStartItr);
+            
+            if (!hitCandidateVec.empty())
+            {
+                int deltaTicks = hitCandidateStartTick - hitCandidateVec.back().stopTick;
+                
+                if (deltaTicks > 0)
+                {
+                    hitCandidateStartTick           -= deltaTicks / 2;
+                    hitCandidateVec.back().stopTick += deltaTicks / 2;
+                }
+            }
+            
+            hitCandidate.startTick     = hitCandidateStartTick;
+            hitCandidate.stopTick      = roiStartTick + std::distance(startItr,candStopItr);
+            hitCandidate.maxTick       = roiStartTick + std::distance(startItr,maxItr);
+            hitCandidate.minTick       = roiStartTick + std::distance(startItr,minItr);
+            hitCandidate.maxDerivative = maxItr != stopItr ? *maxItr : 0.;
+            hitCandidate.minDerivative = minItr != stopItr ? *minItr : 0.;
+            hitCandidate.hitCenter     = roiStartTick + std::distance(startItr,peakItr) + 0.5;
+            hitCandidate.hitSigma      = 0.5 * float(hitCandidate.minTick - hitCandidate.maxTick);
+            hitCandidate.hitHeight     = hitCandidate.hitSigma * (hitCandidate.maxDerivative - hitCandidate.minDerivative) / 1.2130;
+            
+            hitCandidateVec.push_back(hitCandidate);
+        }
+    }
+    
+//    // The idea will be to find the largest deviation in the input derivative waveform as the starting point. Depending
+//    // on if a maximum or minimum, we search forward or backward to find the minimum or maximum that our extremum
+//    // corresponds to.
+//    std::pair<Waveform::const_iterator, Waveform::const_iterator> minMaxPair = std::minmax_element(startItr, stopItr);
+//
+//    Waveform::const_iterator maxItr = minMaxPair.second;
+//    Waveform::const_iterator minItr = minMaxPair.first;
+//
+//    // Use the larger of the two as the starting point and recover the nearest max or min
+//    if (std::fabs(*maxItr) > std::fabs(*minItr)) minItr = findNearestMin(maxItr, stopItr);
+//    else                                         maxItr = findNearestMax(minItr,startItr);
+//
+//    int   deltaTicks = std::distance(maxItr,minItr);
+//    float range      = *maxItr - *minItr;
+//
+//    // At some point small rolling oscillations on the waveform need to be ignored...
+//    if (deltaTicks >= dTicksThreshold && range > dPeakThreshold)
+//    {
+//        // Need to back up to find zero crossing, this will be the starting point of our
+//        // candidate hit but also the endpoint of the pre sub-waveform we'll search next
+//        Waveform::const_iterator newEndItr = findStartTick(maxItr, startItr);
+//
+//        int startTick = std::distance(startItr,newEndItr);
+//
+//        // Now need to go forward to again get close to zero, this will then be the end point
+//        // of our candidate hit and the starting point for the post sub-waveform to search
+//        Waveform::const_iterator newStartItr = findStopTick(minItr, stopItr);
+//
+//        int stopTick = std::distance(startItr,newStartItr);
+//
+//        // Find hits in the section of the waveform leading up to this candidate hit
+//        if (startTick > 2)
+//        {
+//            // Special handling for merged hits
+//            if (*(newEndItr-1) > 0.) {dTicksThreshold = 2;              dPeakThreshold = 0.;            }
+//            else                     {dTicksThreshold = fMinDeltaTicks; dPeakThreshold = fMinDeltaPeaks;}
+//
+//            findHitCandidates(startItr,newEndItr+1,roiStartTick,dTicksThreshold,dPeakThreshold,hitCandidateVec);
+//        }
+//
+//        // Create a new hit candidate and store away
+//        HitCandidate_t hitCandidate;
+//
+//        Waveform::const_iterator peakItr = std::min_element(maxItr,minItr,[](const auto& left, const auto& right){return std::fabs(left) < std::fabs(right);});
+//
+//        // Check balance
+//        if      (2 * std::distance(peakItr,minItr) < std::distance(maxItr,peakItr)) peakItr--;
+//        else if (2 * std::distance(maxItr,peakItr) < std::distance(peakItr,minItr)) peakItr++;
+//
+//        // Special handling of the start tick for multiple hits
+//        size_t hitCandidateStartTick = roiStartTick + startTick;
+//
+//        if (!hitCandidateVec.empty())
+//        {
+//            int deltaTicks = hitCandidateStartTick - hitCandidateVec.back().stopTick;
+//
+//            if (deltaTicks > 0)
+//            {
+//                hitCandidateStartTick           -= deltaTicks / 2;
+//                hitCandidateVec.back().stopTick += deltaTicks / 2;
+//            }
+//        }
+//
+//        hitCandidate.startTick     = hitCandidateStartTick;
+//        hitCandidate.stopTick      = roiStartTick + stopTick;
+//        hitCandidate.maxTick       = roiStartTick + std::distance(startItr,maxItr);
+//        hitCandidate.minTick       = roiStartTick + std::distance(startItr,minItr);
+//        hitCandidate.maxDerivative = maxItr != stopItr ? *maxItr : 0.;
+//        hitCandidate.minDerivative = minItr != stopItr ? *minItr : 0.;
+//        hitCandidate.hitCenter     = roiStartTick + std::distance(startItr,peakItr) + 0.5;
+//        hitCandidate.hitSigma      = 0.5 * float(hitCandidate.minTick - hitCandidate.maxTick);
+//        hitCandidate.hitHeight     = hitCandidate.hitSigma * (hitCandidate.maxDerivative - hitCandidate.minDerivative) / 1.2130;
+//
+//        hitCandidateVec.push_back(hitCandidate);
+//
+//        // Finally, search the section of the waveform following this candidate for more hits
+//        if (std::distance(newStartItr,stopItr) > 2)
+//        {
+//            // Special handling for merged hits
+//            if (*(newStartItr+1) < 0.) {dTicksThreshold = 2;              dPeakThreshold = 0.;            }
+//            else                       {dTicksThreshold = fMinDeltaTicks; dPeakThreshold = fMinDeltaPeaks;}
+//
+//            findHitCandidates(newStartItr,stopItr,roiStartTick + stopTick,dTicksThreshold,dPeakThreshold,hitCandidateVec);
+//        }
+//    }
+    
+    return;
+}
+    
+bool CandHitMorphological::getListOfHitCandidates(Waveform::const_iterator startItr,
+                                                  Waveform::const_iterator stopItr,
+                                                  int                      dTicksThreshold,
+                                                  float                    dPeakThreshold,
+                                                  CandHitParamsVec&        candHitParamsVec) const
+{
+    // We'll check if any of our candidates meet the requirements so declare the result here
+    bool foundCandidate(false);
+    
+    int dTicks = std::distance(startItr,stopItr);
+    
+    // Search for candidate hits...
+    // But only if enough ticks
+    if (dTicks < fMinDeltaTicks) return foundCandidate;
+    
+    // Generally, the mission is simple... the goal is to find all possible combinations of maximum/minimum pairs in
+    // the input (presumed) derivative waveform. We can do this with a divice and conquer approach where we start by
+    // finding the largerst max or min and start from there
+    MaxMinPair minMaxPair = std::minmax_element(startItr, stopItr);
     
     Waveform::const_iterator maxItr = minMaxPair.second;
     Waveform::const_iterator minItr = minMaxPair.first;
@@ -381,79 +565,31 @@ void CandHitMorphological::findHitCandidates(Waveform::const_iterator startItr,
     int   deltaTicks = std::distance(maxItr,minItr);
     float range      = *maxItr - *minItr;
     
-    // At some point small rolling oscillations on the waveform need to be ignored...
-    if (deltaTicks >= dTicksThreshold && range > dPeakThreshold)
-    {
-        // Need to back up to find zero crossing, this will be the starting point of our
-        // candidate hit but also the endpoint of the pre sub-waveform we'll search next
-        Waveform::const_iterator newEndItr = findStartTick(maxItr, startItr);
-        
-        int startTick = std::distance(startItr,newEndItr);
-        
-        // Now need to go forward to again get close to zero, this will then be the end point
-        // of our candidate hit and the starting point for the post sub-waveform to search
-        Waveform::const_iterator newStartItr = findStopTick(minItr, stopItr);
-        
-        int stopTick = std::distance(startItr,newStartItr);
-        
-        // Find hits in the section of the waveform leading up to this candidate hit
-        if (startTick > 2)
-        {
-            // Special handling for merged hits
-            if (*(newEndItr-1) > 0.) {dTicksThreshold = 2;              dPeakThreshold = 0.;            }
-            else                     {dTicksThreshold = fMinDeltaTicks; dPeakThreshold = fMinDeltaPeaks;}
-            
-            findHitCandidates(startItr,newEndItr+1,roiStartTick,dTicksThreshold,dPeakThreshold,hitCandidateVec);
-        }
-        
-        // Create a new hit candidate and store away
-        HitCandidate_t hitCandidate;
-        
-        Waveform::const_iterator peakItr = std::min_element(maxItr,minItr,[](const auto& left, const auto& right){return std::fabs(left) < std::fabs(right);});
-        
-        // Check balance
-        if      (2 * std::distance(peakItr,minItr) < std::distance(maxItr,peakItr)) peakItr--;
-        else if (2 * std::distance(maxItr,peakItr) < std::distance(peakItr,minItr)) peakItr++;
-        
-        // Special handling of the start tick for multiple hits
-        size_t hitCandidateStartTick = roiStartTick + startTick;
-        
-        if (!hitCandidateVec.empty())
-        {
-            int deltaTicks = hitCandidateStartTick - hitCandidateVec.back().stopTick;
-            
-            if (deltaTicks > 0)
-            {
-                hitCandidateStartTick           -= deltaTicks / 2;
-                hitCandidateVec.back().stopTick += deltaTicks / 2;
-            }
-        }
-        
-        hitCandidate.startTick     = hitCandidateStartTick;
-        hitCandidate.stopTick      = roiStartTick + stopTick;
-        hitCandidate.maxTick       = roiStartTick + std::distance(startItr,maxItr);
-        hitCandidate.minTick       = roiStartTick + std::distance(startItr,minItr);
-        hitCandidate.maxDerivative = maxItr != stopItr ? *maxItr : 0.;
-        hitCandidate.minDerivative = minItr != stopItr ? *minItr : 0.;
-        hitCandidate.hitCenter     = roiStartTick + std::distance(startItr,peakItr) + 0.5;
-        hitCandidate.hitSigma      = 0.5 * float(hitCandidate.minTick - hitCandidate.maxTick);
-        hitCandidate.hitHeight     = hitCandidate.hitSigma * (hitCandidate.maxDerivative - hitCandidate.minDerivative) / 1.2130;
-        
-        hitCandidateVec.push_back(hitCandidate);
-        
-        // Finally, search the section of the waveform following this candidate for more hits
-        if (std::distance(newStartItr,stopItr) > 2)
-        {
-            // Special handling for merged hits
-            if (*(newStartItr+1) < 0.) {dTicksThreshold = 2;              dPeakThreshold = 0.;            }
-            else                       {dTicksThreshold = fMinDeltaTicks; dPeakThreshold = fMinDeltaPeaks;}
-            
-            findHitCandidates(newStartItr,stopItr,roiStartTick + stopTick,dTicksThreshold,dPeakThreshold,hitCandidateVec);
-        }
-    }
+    if (deltaTicks < 2) return foundCandidate;
     
-    return;
+    // Check if this particular max/min pair would meet the requirements...
+    if (deltaTicks >= dTicksThreshold && range > dPeakThreshold) foundCandidate = true;
+
+    // Need to back up to find zero crossing, this will be the starting point of our
+    // candidate hit but also the endpoint of the pre sub-waveform we'll search next
+    Waveform::const_iterator candStartItr = findStartTick(maxItr, startItr);
+    
+    // Now need to go forward to again get close to zero, this will then be the end point
+    // of our candidate hit and the starting point for the post sub-waveform to search
+    Waveform::const_iterator candStopItr = findStopTick(minItr, stopItr);
+    
+    // Call ourself to find hit candidates preceding this one
+    bool prevTicks = getListOfHitCandidates(startItr, candStartItr, dTicksThreshold, dPeakThreshold, candHitParamsVec);
+    
+    // The above call will have populated the list of candidate max/min pairs preceding this one, so now add our contribution
+    candHitParamsVec.emplace_back(candStartItr, maxItr, minItr, candStopItr);
+    
+    // Now catch any that might follow this one
+    bool postTicks = getListOfHitCandidates(candStopItr, stopItr, dTicksThreshold, dPeakThreshold, candHitParamsVec);
+    
+    return foundCandidate || prevTicks || postTicks;
 }
+
     
 void CandHitMorphological::MergeHitCandidates(const Waveform&        signalVec,
                                               const HitCandidateVec& hitCandidateVec,

@@ -88,7 +88,7 @@ bool HitsICARUS::readHits(const std::vector<art::Ptr<recob::Hit>>& inputHits,   
 {
     for(auto& hit: inputHits)
     {
-        if(isnan(hit->Integral()) || isinf(hit->Integral()))
+        if(hit->Integral() < 0 || isnan(hit->Integral()) || isinf(hit->Integral()))
         {
             mf::LogWarning("Hits_ICARUS") << "WARNING: bad recob::Hit::Integral() = "
             << hit->Integral()

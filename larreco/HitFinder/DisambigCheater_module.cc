@@ -32,14 +32,11 @@ namespace hit{
   class DisambigCheater : public art::EDProducer {
     public:
       explicit DisambigCheater(fhicl::ParameterSet const & p);
-      virtual ~DisambigCheater();
-
-      void produce(art::Event & e);
-      void beginJob();
-      void endJob();
-      void reconfigure(fhicl::ParameterSet const & p);
 
     private:
+      void produce(art::Event & e) override;
+      void endJob() override;
+      void reconfigure(fhicl::ParameterSet const & p);
 
       art::ServiceHandle<geo::Geometry> geom;
       art::ServiceHandle<cheat::BackTrackerService> bt_serv;
@@ -67,6 +64,7 @@ namespace hit{
 
   //-------------------------------------------------------------------
   DisambigCheater::DisambigCheater(fhicl::ParameterSet const & p)
+    : EDProducer{p}
   {
     this->reconfigure(p);
 
@@ -115,11 +113,6 @@ namespace hit{
         fMaxWireShift[i] = std::floor(fMaxWireShift[i]/2);
     }
 
-  }
-
-  //-------------------------------------------------------------------
-  hit::DisambigCheater::~DisambigCheater()
-  {
   }
 
   //-------------------------------------------------------------------
@@ -185,8 +178,6 @@ namespace hit{
     hits.put_into(evt);
 
     fHitToWids.clear();
-    return;
-
   }
 
 
@@ -306,14 +297,6 @@ namespace hit{
       //throw cet::exception("DisambigCheat");
       mf::LogWarning("DisambigCheat")<<"Nhits mismatch: "<<fHitToWids.size()<<" "<<Ucount+Vcount;
     }
-    return;
-  }
-
-
-  //-------------------------------------------------------------------
-  void DisambigCheater::beginJob()
-  {
-    return;
   }
 
 
@@ -323,8 +306,6 @@ namespace hit{
 
     if(fFalseChanHits > 0)
       mf::LogWarning("DisambigCheater") << fFalseChanHits << " hits had no associated IDE or WireIDs";
-
-    return;
   }
 
 
@@ -332,7 +313,6 @@ namespace hit{
   void DisambigCheater::reconfigure(fhicl::ParameterSet const & p)
   {
     fChanHitLabel =  p.get< std::string >("ChanHitLabel");
-    return;
   }
 
 #endif // DisambigCheater_h

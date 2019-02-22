@@ -97,6 +97,7 @@ private:
 // ------------------------------------------------------
 
 ParticleDecayId::ParticleDecayId(ParticleDecayId::Parameters const& config) :
+        EDProducer{config},
 	fPointIdAlg(config().PointIdAlg()),
 	fWireProducerLabel(config().WireLabel()),
 	fTrackModuleLabel(config().TrackModuleLabel()),
@@ -286,4 +287,3 @@ bool ParticleDecayId::DetectDecay(
 DEFINE_ART_MODULE(ParticleDecayId)
 
 }
-

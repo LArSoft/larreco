@@ -59,12 +59,9 @@ namespace event {
   public:
     
     explicit AggregateEvent(fhicl::ParameterSet const& );
-    ~AggregateEvent();
-
-    void produce(art::Event& evt);
-    void beginJob();
     
   private:
+    void produce(art::Event& evt) override;
 
     std::string fVertexModuleLabel;
 
@@ -79,21 +76,12 @@ namespace event {
 
   //-------------------------------------------------
   AggregateEvent::AggregateEvent(fhicl::ParameterSet const& pset) : 
+    EDProducer{pset},
     fVertexModuleLabel(pset.get< std::string >("VertexModuleLabel"))
   {
 
     produces< std::vector<recob::Event> >();
 
-  }
-
-  //-------------------------------------------------
-  AggregateEvent::~AggregateEvent()
-  {
-  }
-
-  //-------------------------------------------------
-  void AggregateEvent::beginJob()
-  {
   }
 
   //------------------------------------------------------------------------------------//
@@ -117,7 +105,3 @@ namespace event {
   DEFINE_ART_MODULE(AggregateEvent)
 
 } // end namespace
-
-
-
-

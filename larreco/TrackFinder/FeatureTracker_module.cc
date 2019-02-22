@@ -1,20 +1,14 @@
-#include "canvas/Persistency/Common/PtrVector.h"
-
-#ifndef FEATURETRACKER_H
-#define FEATURETRACKER_H
-
 //
 // Name: FeatureTracker.h
 //
 // Purpose:  This module takes features found in 2D and uses them
 //            to produce seeds for 3D tracking.
 // 
-//
-//
 // Ben Jones, MIT
 //
 
 #include "art/Framework/Core/EDProducer.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "larreco/RecoAlg/SeedFinderAlgorithm.h"
 #include "TVector3.h"
 #include "larcorealg/Geometry/CryostatGeo.h"
@@ -37,27 +31,13 @@ namespace trkf {
   class BezierTrack;
   class BezierTrackerAlgorithm;
  
-  class FeatureTracker : public art::EDProducer
-  {
+  class FeatureTracker : public art::EDProducer {
   public:
- 
-    // Constructors, destructor
-
     explicit FeatureTracker(fhicl::ParameterSet const& pset);
-    virtual ~FeatureTracker();
-
-    
-    // Overrides.
-
-    void reconfigure(fhicl::ParameterSet const& pset);
-    void beginJob();
-    void produce(art::Event& evt);
-    void endJob();
-    
-    
-    
 
   private:
+    void reconfigure(fhicl::ParameterSet const& pset);
+    void produce(art::Event& evt) override;
 
     // Fcl Attributes.
 
@@ -99,10 +79,7 @@ namespace trkf {
   };
 }
 
-#endif 
-
 #include "art/Framework/Core/ModuleMacros.h" 
-
 
 namespace trkf {
   DEFINE_ART_MODULE(FeatureTracker)
@@ -126,15 +103,12 @@ namespace trkf {
 namespace trkf {
 
   FeatureTracker::FeatureTracker(const fhicl::ParameterSet& pset):
+    EDProducer{pset},
     fSP(pset.get<fhicl::ParameterSet>("SpacepointPset")),
     fCorner(pset.get<fhicl::ParameterSet>("CornerPset"))
   {
     reconfigure(pset);
     produces< std::vector<recob::Seed> >();
-  }
-
-  FeatureTracker::~FeatureTracker()
-  {
   }
 
   void FeatureTracker::reconfigure(fhicl::ParameterSet const& pset)
@@ -146,10 +120,6 @@ namespace trkf {
     fCalDataModuleLabel = CornerPset.get<std::string>("CalDataModuleLabel");
  
   }
-
-  void FeatureTracker::beginJob()
-  {}
-
 
   void FeatureTracker::produce(art::Event& evt)
   {
@@ -785,12 +755,4 @@ namespace trkf {
     return std::vector<trkf::BezierTrack>();
   }
 
-
-
-  //----------------------------------------------------------------------
-  void FeatureTracker::endJob()
-  {
-    
-  }
 }
-

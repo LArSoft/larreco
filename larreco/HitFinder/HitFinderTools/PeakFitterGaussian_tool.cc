@@ -28,31 +28,30 @@ namespace reco_tool
 /// The baseline parameter is always the last one.
 class BaselinedGausFitCache: public hit::GausFitCache {
     
-        public:
+public:
     /// Constructor (see base class constructor).
     BaselinedGausFitCache(std::string const& new_name="BaselinedGausFitCache")
       : hit::GausFitCache(new_name)
       {}
     
-        protected:
+protected:
     
     /// Creates and returns the function with specified number of Gaussians.
     ///
     /// The formula is `gaus(0) + gaus(3) + ... + gaus(3*(nFunc-1)) + [nFunc*3]`.
     virtual TF1* CreateFunction(size_t nFunc) const
-        {
-             // add the Gaussians first
-             std::string formula;
-             std::size_t iGaus = 0;
-             while (iGaus < nFunc)
-                 formula += "gaus(" + std::to_string(3 * (iGaus++)) + ") + ";
-             formula += "[" + std::to_string(3 * iGaus) + "]";
-             
-             std::string const func_name = FunctionName(nFunc);
-             auto* pF = new TF1(func_name.c_str(), formula.c_str());
-             pF->SetParName(iGaus * 3, "baseline");
-             return pF;
-        } // CreateFunction()
+    {
+         // add the Gaussians first
+         std::string formula;
+         std::size_t iGaus = 0;
+         while (iGaus < nFunc) formula += "gaus(" + std::to_string(3 * (iGaus++)) + ") + ";
+         formula += "[" + std::to_string(3 * nFunc) + "]";
+        
+         std::string const func_name = FunctionName(nFunc);
+         auto* pF = new TF1(func_name.c_str(), formula.c_str());
+         pF->SetParName(iGaus * 3, "baseline");
+         return pF;
+    } // CreateFunction()
     
 }; // BaselinedGausFitCache
 
@@ -83,11 +82,15 @@ private:
 
     TH1F*                    fNumCandHitsHist;
     TH1F*                    fROISizeHist;      
-    TH1F*                    fPeakPositionHist; 
-    TH1F*                    fPeakWidHist;      
-    TH1F*                    fPeakAmpitudeHist; 
-    TH1F*                    fBaselineHist;         
-    
+    TH1F*                    fCandPeakPositionHist;
+    TH1F*                    fCandPeakWidHist;
+    TH1F*                    fCandPeakAmpitudeHist;
+    TH1F*                    fCandBaselineHist;
+    TH1F*                    fFitPeakPositionHist;
+    TH1F*                    fFitPeakWidHist;
+    TH1F*                    fFitPeakAmpitudeHist;
+    TH1F*                    fFitBaselineHist;
+
     mutable BaselinedGausFitCache fFitCache; ///< Preallocated ROOT functions for the fits.
     
     mutable TH1F             fHistogram;
@@ -132,12 +135,16 @@ void PeakFitterGaussian::configure(const fhicl::ParameterSet& pset)
         // Make a directory for these histograms
         art::TFileDirectory dir = tfs.get()->mkdir("PeakFit");
 
-        fNumCandHitsHist  = dir.make<TH1F>("NumCandHits",   "# Candidate Hits", 100,   0., 100.);
-        fROISizeHist      = dir.make<TH1F>("ROISize",       "ROI Size",         400,   0., 400.);
-        fPeakPositionHist = dir.make<TH1F>("PeakPosition",  "Peak Position",    200,   0., 400.);
-        fPeakWidHist      = dir.make<TH1F>("PeadWidth",     "Peak Width",       100,   0.,  25.);
-        fPeakAmpitudeHist = dir.make<TH1F>("PeakAmplitude", "Peak Amplitude",   100,   0., 200.);
-        fBaselineHist     = dir.make<TH1F>("Baseline",      "Baseline",         200, -25.,  25.);
+        fNumCandHitsHist      = dir.make<TH1F>("NumCandHits",    "# Candidate Hits", 100,   0., 100.);
+        fROISizeHist          = dir.make<TH1F>("ROISize",        "ROI Size",         400,   0., 400.);
+        fCandPeakPositionHist = dir.make<TH1F>("CPeakPosition",  "Peak Position",    200,   0., 400.);
+        fCandPeakWidHist      = dir.make<TH1F>("CPeadWidth",     "Peak Width",       100,   0.,  25.);
+        fCandPeakAmpitudeHist = dir.make<TH1F>("CPeakAmplitude", "Peak Amplitude",   100,   0., 200.);
+        fCandBaselineHist     = dir.make<TH1F>("CBaseline",      "Baseline",         200, -25.,  25.);
+        fFitPeakPositionHist  = dir.make<TH1F>("FPeakPosition",  "Peak Position",    200,   0., 400.);
+        fFitPeakWidHist       = dir.make<TH1F>("FPeadWidth",     "Peak Width",       100,   0.,  25.);
+        fFitPeakAmpitudeHist  = dir.make<TH1F>("FPeakAmplitude", "Peak Amplitude",   100,   0., 200.);
+        fFitBaselineHist      = dir.make<TH1F>("FBaseline",      "Baseline",         200, -25.,  25.);
     }
     
     return;
@@ -173,7 +180,7 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
         fHistogram.Sumw2();
     }
     
-    for(int idx = 0; idx < roiSize; idx++) fHistogram.SetBinContent(idx+1,roiSignalVec.at(startTime+idx));
+    for(int idx = 0; idx < roiSize; idx++) fHistogram.SetBinContent(idx+1,roiSignalVec[startTime+idx]);
     
     // Build the string to describe the fit formula
 #if 0
@@ -186,7 +193,7 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     
     if (fFloatBaseline)
     {
-        baseline = roiSignalVec.at(startTime);
+        baseline = roiSignalVec[startTime];
     
         equation += "+" + std::to_string(baseline);
     }
@@ -199,9 +206,15 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     TF1& Gaus = *(fFitCache.Get(nGaus));
 
     // Set the baseline if so desired
-    float const baseline = fFloatBaseline? roiSignalVec.at(startTime): 0.0;
+    float baseline(0.);
     
-    Gaus.FixParameter(nGaus * 3, roiSignalVec.at(startTime)); // last parameter is the baseline
+    if (fFloatBaseline)
+    {
+        baseline = roiSignalVec[startTime];
+        Gaus.SetParameter(nGaus * 3, baseline);
+        Gaus.SetParLimits( nGaus * 3, baseline - 12., baseline + 12.);
+    }
+    else Gaus.FixParameter(nGaus * 3, baseline); // last parameter is the baseline
 
 #endif // 0
 
@@ -209,7 +222,7 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     {
         fNumCandHitsHist->Fill(hitCandidateVec.size(), 1.);
         fROISizeHist->Fill(roiSize, 1.);
-        fBaselineHist->Fill(baseline, 1.);
+        fCandBaselineHist->Fill(baseline, 1.);
     }
 
     // ### Setting the parameters for the Gaussian Fit ###
@@ -224,9 +237,9 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
 
         if (fOutputHistograms)
         {
-            fPeakPositionHist->Fill(peakMean, 1.);
-            fPeakWidHist->Fill(peakWidth, 1.);
-            fPeakAmpitudeHist->Fill(amplitude, 1.);
+            fCandPeakPositionHist->Fill(peakMean, 1.);
+            fCandPeakWidHist->Fill(peakWidth, 1.);
+            fCandPeakAmpitudeHist->Fill(amplitude, 1.);
         }
         
         Gaus.SetParameter(  parIdx, amplitude);
@@ -266,11 +279,20 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
             peakParams.peakCenterError    = Gaus.GetParError( parIdx + 1);
             peakParams.peakSigma          = Gaus.GetParameter(parIdx + 2);
             peakParams.peakSigmaError     = Gaus.GetParError( parIdx + 2);
-        
+
+            if (fOutputHistograms)
+            {
+                fFitPeakPositionHist->Fill(peakParams.peakCenter, 1.);
+                fFitPeakWidHist->Fill(peakParams.peakSigma, 1.);
+                fFitPeakAmpitudeHist->Fill(peakParams.peakAmplitude, 1.);
+            }
+
             peakParamsVec.emplace_back(peakParams);
         
             parIdx += 3;
         }
+        
+        if (fOutputHistograms) fFitBaselineHist->Fill(Gaus.GetParameter(3*nGaus), 1.);
     }
 #if 0
     Gaus.Delete();    

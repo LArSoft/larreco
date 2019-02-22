@@ -48,14 +48,10 @@ namespace hit{
   public:
     
     explicit FFTHitFinder(fhicl::ParameterSet const& pset); 
-    virtual ~FFTHitFinder();
-         
-    void produce(art::Event& evt); 
-    void beginJob(); 
-    void endJob(); 
-    void reconfigure(fhicl::ParameterSet const& p);                
 
   private:
+    void produce(art::Event& evt) override;
+    void reconfigure(fhicl::ParameterSet const& p);
         
     std::string     fCalDataModuleLabel;
     double          fMinSigInd;     ///<Induction signal height threshold 
@@ -67,13 +63,12 @@ namespace hit{
     int             fMaxMultiHit;   ///<maximum hits for multi fit
     int             fAreaMethod;    ///<Type of area calculation  
     std::vector<double> fAreaNorms; ///<factors for converting area to same units as peak height 
-  protected: 
-    
   
   }; // class FFTHitFinder  
   
   //-------------------------------------------------
   FFTHitFinder::FFTHitFinder(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {
     this->reconfigure(pset);
     
@@ -84,11 +79,6 @@ namespace hit{
   }
 
 
-  //-------------------------------------------------
-  FFTHitFinder::~FFTHitFinder()
-  {
-  }
-  
   //-------------------------------------------------
   void FFTHitFinder::reconfigure(fhicl::ParameterSet const& p)
   {
@@ -103,16 +93,6 @@ namespace hit{
     fAreaMethod         = p.get< int          >("AreaMethod");
     fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
   }  
-
-  //-------------------------------------------------
-  void FFTHitFinder::beginJob()
-  { 
-  }
-
-  //-------------------------------------------------
-  void FFTHitFinder::endJob()
-  {
-  }
 
   //  This algorithm uses the fact that deconvolved signals are very smooth 
   //  and looks for hits as areas between local minima that have signal above 

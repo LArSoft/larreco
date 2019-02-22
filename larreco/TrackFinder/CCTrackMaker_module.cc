@@ -60,18 +60,12 @@ bool lessThan (CluLen c1, CluLen c2) { return (c1.length < c2.length);}
 namespace trkf {
   
   class CCTrackMaker : public art::EDProducer {
-    
   public:
-    
     explicit CCTrackMaker(fhicl::ParameterSet const& pset);
-    virtual ~CCTrackMaker();
-    
-    void reconfigure(fhicl::ParameterSet const& p);
-    void produce(art::Event& evt);
-    void beginJob();
-    //    void endJob();
     
   private:
+    void reconfigure(fhicl::ParameterSet const& p);
+    void produce(art::Event& evt) override;
     
     std::string     fHitModuleLabel;
     std::string     fClusterModuleLabel;
@@ -303,6 +297,7 @@ namespace trkf {
   
   //-------------------------------------------------
   CCTrackMaker::CCTrackMaker(fhicl::ParameterSet const& pset)
+    : EDProducer{pset}
   {
     this->reconfigure(pset);
     produces< std::vector<recob::PFParticle>                   >();
@@ -368,22 +363,6 @@ namespace trkf {
     
   } // reconfigure
   
-  //-------------------------------------------------
-  CCTrackMaker::~CCTrackMaker()
-  {
-  }
-  
-  //-------------------------------------------------
-  void CCTrackMaker::beginJob()
-  {
-  }
-  
-  /*
-   //-------------------------------------------------
-   void CCTrackMaker::endJob()
-   {
-   }
-   */
   //------------------------------------------------------------------------------------//
   void CCTrackMaker::produce(art::Event& evt)
   {
