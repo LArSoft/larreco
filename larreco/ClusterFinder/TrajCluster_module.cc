@@ -66,6 +66,7 @@ namespace cluster {
     art::InputTag fSliceModuleLabel;
     art::InputTag fHitTruthModuleLabel;
     art::InputTag fSpacePointModuleLabel;
+    unsigned int fMaxSliceHits;
     
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
@@ -138,6 +139,8 @@ namespace cluster {
     if(pset.has_key("SliceModuleLabel")) fSliceModuleLabel = pset.get<art::InputTag>("SliceModuleLabel");
     fHitTruthModuleLabel = "NA";
     if(pset.has_key("HitTruthModuleLabel")) fHitTruthModuleLabel = pset.get<art::InputTag>("HitTruthModuleLabel");
+    fMaxSliceHits = UINT_MAX;
+    if(pset.has_key("MaxSliceHits")) fMaxSliceHits = pset.get<unsigned int>("MaxSliceHits");
     fSpacePointModuleLabel = "NA";
     if(pset.has_key("SpacePointModuleLabel")) fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
@@ -293,6 +296,8 @@ namespace cluster {
         for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
           auto& slhits = slHitsVec[isl];
           if(slhits.size() < 2) continue;
+          // don't attempt to reconstruct if too many hits
+          if(slhits.size() > fMaxSliceHits) continue;
           // list of hits in this slice in each TPC
           std::vector<std::vector<unsigned int>> tpcHits;
           // list of TPCs in this slice
