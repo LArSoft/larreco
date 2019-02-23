@@ -1921,19 +1921,6 @@ namespace tca {
     TrajPoint& tp = tj.Pts[ipt];
     
     if(tp.Hits.empty()) return;
-/* Nov 6, 2018. This is a bad idea if widely separated hits were associated with the TP
-    // Use all available hits on the last pass for the first few points when starting out
-    if(ipt < 3 && tj.Pass == tcc.minPts.size() - 1) {
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        unsigned int iht = tp.Hits[ii];
-        if(slc.slHits[iht].InTraj > 0) continue;
-        tp.UseHit[ii] = true;
-        slc.slHits[iht].InTraj = tj.ID;
-      }
-      if(tcc.dbgStp) mf::LogVerbatim("TC")<<"FUH: Using all hits on seed trajectory on the last pass";
-      return;
-    } // last pass for the first two points
-*/
     // don't check charge when starting out
     if(ipt < 5) useChg = false; 
     float chgPullCut = 1000;
