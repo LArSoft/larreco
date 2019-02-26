@@ -7,6 +7,7 @@
 
 // Framework Includes
 #include "art/Utilities/ToolMacros.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 #include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
 #include "canvas/Utilities/InputTag.h"
@@ -33,6 +34,9 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+
+// Ack!
+#include "TH1F.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows
@@ -193,6 +197,11 @@ private:
     void BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWiretoHitSetMap) const;
     
     /**
+     * @brief Perform charge integration between limits
+     */
+    float chargeIntegral(float,float,float,float,int,int) const;
+    
+    /**
      *  @brief define data structure for keeping track of channel status
      */
     using ChannelStatusVec        = std::vector<size_t>;
@@ -208,12 +217,17 @@ private:
     float                                m_hitWidthSclFctr;
     float                                m_deltaPeakTimeSig;
     std::vector<int>                     m_invalidTPCVec;
-    
+    bool                                 m_outputHistograms;      ///< Take the time to create and fill some histograms for diagnostics
+
     bool                                 m_enableMonitoring;      ///<
     float                                m_wirePitch[3];
     mutable std::vector<float>           m_timeVector;            ///<
     
     float                                m_zPosOffset;
+    
+    // Define some basic histograms
+    TH1F*                                m_QualityMetricHist;     ///< Basic plot of the quality metric for space points
+    TH1F*                                m_SpacePointChargeHist;  ///< Charge in the overlap window for space points
     
     // Get instances of the primary data structures needed
     mutable Hit2DList                    m_clusterHit2DMasterList;
@@ -267,7 +281,8 @@ void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     m_deltaPeakTimeSig = pset.get<float           >("DeltaPeakTimeSig",    1.7 );
     m_zPosOffset       = pset.get<float           >("ZPosOffset",          0.0 );
     m_invalidTPCVec    = pset.get<std::vector<int>>("InvalidTPCVec",       std::vector<int>());
-    
+    m_outputHistograms = pset.get<bool            >("OutputHistograms",    false );
+
     art::ServiceHandle<geo::Geometry> geometry;
     
     m_geometry = &*geometry;
@@ -277,6 +292,20 @@ void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     m_wirePitch[0] = m_geometry->WirePitch(0);
     m_wirePitch[1] = m_geometry->WirePitch(1);
     m_wirePitch[2] = m_geometry->WirePitch(2);
+    
+    // Do we want histograms?
+    if (m_outputHistograms)
+    {
+        // Access ART's TFileService, which will handle creating and writing
+        // histograms and n-tuples for us.
+        art::ServiceHandle<art::TFileService> tfs;
+        
+        // Make a directory for these histograms
+        art::TFileDirectory dir = tfs->mkdir("Hit3DBuilder");
+
+        m_QualityMetricHist    = dir.make<TH1F>("Hit3DQuality","Quality",        200, 0.,   20.);
+        m_SpacePointChargeHist = dir.make<TH1F>("Hit2DCharge", "3D Hit Chargel", 250, 0., 2500.);
+    }
 }
     
 void StandardHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireToHitSetMap) const
@@ -953,11 +982,12 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     
                     // Set up to get average peak time, hitChiSquare, etc.
                     unsigned int statusBits(0x7);
-                    float        totalCharge(0.);
                     float        avePeakTime(0.);
                     float        weightSum(0.);
                     float        xPosition(0.);
-                    
+                    int          lowIndex(std::numeric_limits<int>::min());
+                    int          hiIndex(std::numeric_limits<int>::max());
+
                     // And get the wire IDs
                     std::vector<geo::WireID> wireIDVec = {geo::WireID(), geo::WireID(), geo::WireID()};
                     
@@ -975,11 +1005,26 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                         float hitRMS   = rmsToSig * hit2D->getHit()->RMS();
                         float weight   = 1. / (hitRMS * hitRMS);
                         float peakTime = hit2D->getTimeTicks();
+                        int   hitStart = hit2D->getHit()->PeakTime() - 2. * hit2D->getHit()->RMS() - 0.5;
+                        int   hitStop  = hit2D->getHit()->PeakTime() + 2. * hit2D->getHit()->RMS() + 0.5;
                         
+                        lowIndex = std::max(hitStart,    lowIndex);
+                        hiIndex  = std::min(hitStop + 1, hiIndex);
+
                         avePeakTime += peakTime * weight;
                         xPosition   += hit2D->getXPosition() * weight;
                         weightSum   += weight;
-                        totalCharge += hit2D->getHit()->Integral();
+                    }
+                    
+                    // One more pass through hits to get charge
+                    float totalCharge(0.);
+                    
+                    if (hiIndex > lowIndex)
+                    {
+                        for(const auto& hit2D : hitVector)
+                            totalCharge += chargeIntegral(hit2D->getHit()->PeakTime(),hit2D->getHit()->PeakAmplitude(),hit2D->getHit()->RMS(),1.,lowIndex,hiIndex);
+                        
+                        totalCharge /= float(hitVector.size());
                     }
                     
                     avePeakTime /= weightSum;
@@ -1033,6 +1078,20 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
     
     // return success/fail
     return result;
+}
+
+float StandardHit3DBuilder::chargeIntegral(float peakMean,
+                                           float peakAmp,
+                                           float peakSigma,
+                                           float areaNorm,
+                                           int   low,
+                                           int   hi) const
+{
+    float integral(0);
+    
+    for(int sigPos = low; sigPos < hi; sigPos++) integral += peakAmp * TMath::Gaus(double(sigPos)+0.5,peakMean,peakSigma);
+    
+    return integral;
 }
 
 bool StandardHit3DBuilder::makeDeadChannelPair(reco::ClusterHit3D&       pairOut,
@@ -1362,6 +1421,12 @@ void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&              
                 // And set the pointer to this hit in the ClusterHit2D object
                 const_cast<reco::ClusterHit2D*>(hit2D)->setHit(newHit);
             }
+        }
+        
+        if (m_outputHistograms)
+        {
+            m_QualityMetricHist->Fill(hit3D.getHitChiSquare(),1.);
+            m_SpacePointChargeHist->Fill(hit3D.getTotalCharge(),1.);
         }
     }
     
