@@ -1976,7 +1976,7 @@ namespace tca {
 
     return true;
   } // SetParent
-  
+/*
   ////////////////////////////////////////////////
   PFPStruct CreateFakePFP(TCSlice& slc, const ShowerStruct3D& ss3)
   {
@@ -1997,7 +1997,7 @@ namespace tca {
     } // ipt
     return pfp;
   } // CreateFakePFP
-
+*/
   ////////////////////////////////////////////////
   bool IsShowerLike(TCSlice& slc, const std::vector<int> TjIDs)
   {
@@ -3333,7 +3333,9 @@ namespace tca {
     // to the same high-score vertex, etc
     
     slc.dontCluster.clear();
-
+    
+    std::cout<<"DefineDontCluster doesn't work...\n";
+/*
     DontClusterStruct dc;
     for(auto& vx3 : slc.vtx3s) {
       if(vx3.ID == 0) continue;
@@ -3409,15 +3411,18 @@ namespace tca {
         } // ip2
       } // ip1
     } // vx3
-
+*/
   } // DefineDontCluster
-  
+
   ////////////////////////////////////////////////
   void FindCots(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, std::vector<std::vector<int>>& tjLists, bool prt)
   {
     // Version 2 of TagShowerLike to try to improve the separation between close showers, e.g. from pi-zeros
     tjLists.clear();    
     if(tcc.showerTag[0] <= 0) return;
+    
+    std::cout<<"FindCots doesn't work\n";
+/*
 
     // take the average of the low and high charge RMS range to use as a cut
     float typicalChgRMS = 0.5 * (tcc.chargeCuts[1] + tcc.chargeCuts[2]);
@@ -3585,18 +3590,6 @@ namespace tca {
         tjLists.push_back(tlist);
       } // tlist.size() > 1
     } // ii
-/* This causes  problems later on
-    // Check for leftover tjs and add them if they are shower-like
-    for(auto tjid : closeTjs) {
-      auto& tj = slc.tjs[tjid - 1];
-      if(tj.AlgMod[kShowerLike]) continue;
-      std::vector<int> tlist(1, tjid);
-      tj.AlgMod[kShowerLike] = true;
-      // ignore wimpy cots (< 10 MeV)
-      if(ShowerEnergy(slc, tlist) < 10) continue;
-      tjLists.push_back(tlist);
-    } // tjid
-*/
     if(tjLists.size() < 2) return;
     // check consistency
     for(unsigned short ip = 0; ip < tjLists.size() - 1; ++ip) {
@@ -3611,20 +3604,7 @@ namespace tca {
         }
       } // jp
     } // ip
-/*
-    std::cout<<"FindCots inCTP "<<inCTP<<" tjLists size "<<tjLists.size()<<"\n";
-    for(unsigned short ip = 0; ip < tjLists.size(); ++ip) {
-      auto& tlist = tjLists[ip];
-      std::cout<<"ip "<<ip;
-      for(auto tid : tlist) {
-        std::cout<<" T"<<tid;
-        auto plist = GetAssns(slc, "T", tid, "P");
-        if(!plist.empty()) std::cout<<"_P"<<plist[0];
-      }
-      std::cout<<"\n";
-    } // ip
 */
-
   } // FindCots
 
   ////////////////////////////////////////////////
