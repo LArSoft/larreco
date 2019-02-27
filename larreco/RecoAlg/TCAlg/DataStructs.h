@@ -114,7 +114,6 @@ namespace tca {
     unsigned short ipt; // The trajectory point
     // the number of points in the Tj so that the minimum Tj length cut (MatchCuts[2]) can be made
     unsigned short npts;
-    short score; // 0 = Tj with nice vertex, 1 = high quality Tj, 2 = normal, -1 = already matched
   };
 
   struct TrajPoint {
@@ -195,14 +194,27 @@ namespace tca {
     bool foundShower {false};
     bool endBraggPeak {false};
   };
-  
-  // struct used for TrajCluster 3D trajectory points
+
+  // Temporary 3D trajectory points composed of triplet or doublet wire intersections
   struct TrajPoint3 {
     Point3_t Pos {{ 0.0, 0.0, 0.0 }};
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
-    float dEdx {0};             // The charge is stored here before dE/dx is calculated
-    Point2_t AlongTrans;         // Longitudinal & transverse position (cm) relative to the trajectory
+  };
+
+  // a 3D trajectory point composed of a 3D point & direction and a single TP or single hit
+  struct TP3D {
+    Point3_t Pos {{ 0.0, 0.0, 0.0 }};
+    Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
+    float Delta {10};           ///< distance from the 3D trajectory
+    float along {-1};                ///< temp for debugging
+    int TjID {0};               ///< ID of the trajectory -> TP3D assn
+    unsigned short TPIndex;     ///< and the TP index
+    unsigned int slHitsIndex {UINT_MAX};  ///< index of a single hit that is not used in a Tj (TjID == 0)
+    unsigned short nTPsFit {0};
+    float ChiDOF {-1};
+    bool IsGood {true};
+    bool flag {false};  // temp for debugging, e.g. was the point re-fitted locally?
   };
 
   // Struct for 3D trajectory matching
@@ -220,7 +232,7 @@ namespace tca {
     std::vector<int> TjIDs;             // used to reference Tjs within a slice
     std::vector<int> TjUIDs;             // used to reference Tjs in any slice
     std::vector<float> TjCompleteness;  // fraction of TP points that are 3D-matched
-    std::vector<TrajPoint3> Tp3s;    // TrajCluster 3D trajectory points
+    std::vector<TP3D> TP3Ds;
     // Start is 0, End is 1
     std::array<Point3_t, 2> XYZ;        // XYZ position at both ends (cm)
     std::array<Vector3_t, 2> Dir;
@@ -236,7 +248,6 @@ namespace tca {
     geo::TPCID TPCID;
     float EffPur {0};                     ///< Efficiency * Purity
     unsigned int mcpIndex {UINT_MAX};
-    unsigned short MatchVecIndex {USHRT_MAX};
     float CosmicScore{0};
     int ID {0};
     int UID {0};              // unique global ID
@@ -453,6 +464,7 @@ namespace tca {
     kEnvOverlap,
     kEnvUnusedHits,
     kEnvClean,      ///< the charge fraction is small near this point
+    kEnvInPFP,     ///< TP is used in a stored PFParticle
     kEnvFlag       ///< a general purpose flag bit used in 3D matching
   } TPEnvironment_t;
   
@@ -543,6 +555,7 @@ namespace tca {
   struct TCHit {
     unsigned int allHitsIndex; // index into fHits
     int InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
+    int InPFP {0};      // ID of the PFP
   };
 
   struct SptHits {
