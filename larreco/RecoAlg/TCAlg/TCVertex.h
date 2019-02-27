@@ -48,7 +48,7 @@ namespace tca {
   void FindHammerVertices(TCSlice& slc, const CTP_t& inCTP);
   void FindHammerVertices2(TCSlice& slc, const CTP_t& inCTP);
   void Find3DVertices(TCSlice& slc);
-  void Match3DVtxTjs(TCSlice& slc, bool prt);
+//  void Match3DVtxTjs(TCSlice& slc, bool prt);
   void CompleteIncomplete3DVertices(TCSlice& slc);
 //  bool RefineVtxPosition(TCSlice& slc, const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt);
   void CompleteIncomplete3DVerticesInGaps(TCSlice& slc);
