@@ -1700,7 +1700,7 @@ namespace tca {
     } // vx3
 
   } // Find3DVertices
-
+/*
   ////////////////////////////////////////////////
   void Match3DVtxTjs(TCSlice& slc, bool prt)
   {
@@ -1764,10 +1764,10 @@ namespace tca {
         pfp.PDGCode = PDGCodeVote(slc, pfp.TjIDs, prt);
         // make a copy of the TjIDs to test for changes
         auto saveTjIDs = pfp.TjIDs;
-        if(!DefinePFP("M3DVTj1", slc, pfp, prt)) continue;
+//        if(!DefinePFP("M3DVTj1", slc, pfp, prt)) continue;
         // separation distance (cm) for kink detection.
-        double sep = 1;
-        bool didSplit = Split3DKink(slc, pfp, sep, prt);
+//        double sep = 1;
+//        bool didSplit = Split3DKink(slc, pfp, sep, prt);
         if(prt) PrintPFP("M3D", slc, pfp, true);
         if(!didSplit && shared.size() != ms.TjIDs.size()) {
           // Try to repair the PFParticle by merging the Tj that was in the match list but
@@ -1823,7 +1823,7 @@ namespace tca {
       }
     } // ims
   } // Match3DVtxTjs
-
+*/
   //////////////////////////////////////////
   unsigned short TPNearVertex(TCSlice& slc, const TrajPoint& tp)
   {
