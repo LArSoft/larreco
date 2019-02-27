@@ -51,6 +51,7 @@ namespace tca {
   int PrimaryID(TCSlice& slc, const Trajectory& tj);
   int PrimaryUID(TCSlice& slc, const PFPStruct& pfp);
   bool MergeTjIntoPFP(TCSlice& slc, int mtjid, PFPStruct& pfp, bool prt);
+  float PointPull(TCSlice& slc, Point2_t pos, float chg, const Trajectory& tj);
   bool CompatibleMerge(TCSlice& slc, std::vector<int>& tjIDs, bool prt);
   bool CompatibleMerge(TCSlice& slc, const Trajectory& tj1, const Trajectory& tj2, bool prt);
   float OverlapFraction(TCSlice& slc, const Trajectory& tj1, const Trajectory& tj2);
