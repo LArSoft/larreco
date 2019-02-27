@@ -531,6 +531,39 @@ namespace tca {
   } // MergeTjIntoPFP
   
   /////////////////////////////////////////
+  float PointPull(TCSlice& slc, Point2_t pos, float chg, const Trajectory& tj)
+  {
+    // returns the combined position and charge pull for the charge at pos 
+    // relative to the Tj closest to that point using a loose requirement on position separation.
+    if(tj.AlgMod[kKilled]) return 0;
+    if(tj.AveChg <= 0) return 0;
+    // find the closest point on the tj to pos
+    unsigned short closePt = USHRT_MAX;
+    float close = 1000;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      float sep2 = PosSep2(pos, tp.Pos);
+      if(sep2 > close) continue;
+      close = sep2;
+      closePt = ipt;
+    } // ipt
+    if(closePt == USHRT_MAX) return 0;
+    // find the delta between the projection of the Tj close TP to inTP
+    auto& tp = tj.Pts[closePt];
+    float delta = PointTrajDOCA(slc, pos[0], pos[1], tp);
+    // estimate the proejcted position error (roughly)
+    float posErr = tp.DeltaRMS;
+    if(tp.AngErr > 0 && close > 10) posErr += sqrt(tp.AngErr * sqrt(close));
+    if(posErr < 0.1) posErr = 0.1;
+    float posPull = delta / posErr;
+    float chgErr = tj.ChgRMS;
+    if(chgErr < 0.15) chgErr = 0.15;
+    float chgPull = std::abs(chg / tj.AveChg - 1) / chgErr;
+    // return a simple average
+    return 0.5 * (posPull + chgPull);
+  } // PointPull
+  
+  /////////////////////////////////////////
   bool CompatibleMerge(TCSlice& slc, std::vector<int>& tjIDs, bool prt)
   {
     // Returns true if the last Tj in tjIDs has a topology consistent with it being
@@ -638,12 +671,6 @@ namespace tca {
     
     auto& tp1 = tj1.Pts[tj1.EndPt[end1]];
     auto& tp2 = tj2.Pts[tj2.EndPt[end2]];
-/* This causes problems with hit collections that have cosmics removed
-    if(!SignalBetween(slc, tp1, tp2, 0.8, false)) {
-      if(prt) mf::LogVerbatim("TC")<<"CM: "<<tj1.ID<<" "<<tj2.ID<<" no signal between these points "<<PrintPos(slc, tp1.Pos)<<" "<<PrintPos(slc, tp2.Pos);
-      return false;
-    }
-*/
     float doca1 = PointTrajDOCA(slc, tp1.Pos[0], tp1.Pos[1], tp2);
     float doca2 = PointTrajDOCA(slc, tp2.Pos[0], tp2.Pos[1], tp1);
     if(doca1 > 2 && doca2 > 2) {
@@ -3638,9 +3665,8 @@ namespace tca {
     
     // now find the direction if dir is defined
     if(dir[0] == 0 && dir[1] == 0 && dir[2] == 0) return tp;
+    
     // Make a point at the origin and one 100 units away
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
     Point3_t ori3 = {{0.0, 0.0, 0.0}};
     Point3_t pos3 = {{100 * dir[0], 100 * dir[1], 100 * dir[2]}};
     // 2D position of ori3 and the pos3 projection
@@ -3671,8 +3697,8 @@ namespace tca {
     double sn = tcc.geom->WireCoordinate(0, 1, planeID) - w0;
     norm = sqrt(cs * cs + sn * sn);
     tp.Delta /= norm;
-    
     return tp;
+    
   } // MakeBareTP
 
   /////////////////////////////////////////
@@ -3709,14 +3735,6 @@ namespace tca {
   {
     tpOut.Pos = fromPos;
     tpOut.Dir = PointDirection(fromPos, toPos);
-/*
-    tpOut.Dir[0] = toPos[0] - fromPos[0];
-    tpOut.Dir[1] = toPos[1] - fromPos[1];
-    double norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
-    if(norm == 0) return false;
-    tpOut.Dir[0] /= norm;
-    tpOut.Dir[1] /= norm;
-*/
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
     return true;
     
@@ -3728,14 +3746,6 @@ namespace tca {
     tpOut.CTP = tpIn1.CTP;
     tpOut.Pos = tpIn1.Pos;
     tpOut.Dir = PointDirection(tpIn1.Pos, tpIn2.Pos);
-/*
-    tpOut.Dir[0] = tpIn2.Pos[0] - tpIn1.Pos[0];
-    tpOut.Dir[1] = tpIn2.Pos[1] - tpIn1.Pos[1];
-    double norm = sqrt(tpOut.Dir[0] * tpOut.Dir[0] + tpOut.Dir[1] * tpOut.Dir[1]);
-    if(norm == 0) return false;
-    tpOut.Dir[0] /= norm;
-    tpOut.Dir[1] /= norm;
-*/
     tpOut.Ang = atan2(tpOut.Dir[1], tpOut.Dir[0]);
     return true;
   } // MakeBareTrajPoint
@@ -4754,6 +4764,7 @@ namespace tca {
       std::cout<<" 'VxMerge' to debug 2D vertex merging\n";
       std::cout<<" 'JunkVx' to debug 2D junk vertex finder\n";
       std::cout<<" 'PFP' to debug 3D matching and PFParticles\n";
+      std::cout<<" 'MVI <MVI>' for detailed debugging of one MatchVecIndex\n";
       std::cout<<" 'DeltaRay' to debug delta ray tagging\n";
       std::cout<<" 'Muon' to debug muon tagging\n";
       std::cout<<" '2S <CTP>' to debug a 2D shower in CTP\n";
@@ -4772,7 +4783,6 @@ namespace tca {
     if(strng.find("3S") != std::string::npos) { tcc.dbg3S = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("VxMerge") != std::string::npos) { tcc.dbgVxMerge = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("JunkVx") != std::string::npos) { tcc.dbgVxJunk = true; tcc.modes[kDebug] = true; return true; }
-    if(strng.find("PFP")  != std::string::npos) { tcc.dbgPFP = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("DeltaRay") != std::string::npos) { tcc.dbgDeltaRayTag = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("Muon") != std::string::npos) { tcc.dbgMuonTag = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("Stitch") != std::string::npos) { tcc.dbgStitch = true; tcc.modes[kDebug] = true; return true; }
@@ -4793,6 +4803,13 @@ namespace tca {
       tcc.dbgDump = true;
       return true;
     } // nums.size() == 5
+    if(words[0] == "PFP" || words[0] == "MVI") {
+      tcc.dbgPFP = true;
+      tcc.modes[kDebug] = true;
+      // Use debug.Hit to identify the matchVec index
+      if(words.size() == 2) debug.MVI = std::stoi(words[1]);
+      return true;
+    } // PFP
     if(words.size() == 2 && words[0] == "Dump") {
       debug.WorkID = std::stoi(words[1]);
       debug.Slice = 0;
@@ -5066,7 +5083,7 @@ namespace tca {
     } else {
       myprt<<std::setw(5)<<std::setprecision(0)<<length;
     }
-    myprt<<std::setw(5)<<std::setprecision(2)<<pfp.Tp3s.size();
+    myprt<<std::setw(5)<<std::setprecision(2)<<pfp.TP3Ds.size();
     myprt<<std::setw(3)<<IsShowerLike(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
     if(pfp.mcpIndex == UINT_MAX) {
@@ -5233,11 +5250,6 @@ namespace tca {
       auto& ss = slc.cots[cid - 1];
       str = "2S" + std::to_string(ss.UID);
       myprt<<std::setw(5)<<str;
-/*
-      auto& stj = slc.tjs[ss.ShowerTjID - 1];
-      myprt<<" ST"<<stj.ID;
-      myprt<<" "<<PrintPos(slc, stj.Pts[stj.EndPt[0]].Pos)<<" - "<<PrintPos(slc, stj.Pts[stj.EndPt[1]].Pos);
-*/
     } // ci
     if(ss3.NeedsUpdate) myprt<<" *** Needs update";
     myprt<<"\n";
@@ -5503,11 +5515,6 @@ namespace tca {
         } // ipt
         if(cnt > 0) frac /= cnt;
         myprt<<std::setw(5)<<std::setprecision(1)<<frac;
-/* print NearInShower fraction instead
-        unsigned short prec = 1;
-        if(aTj.dEdx[0] > 99) prec = 0;
-        myprt<<std::setw(5)<<std::setprecision(prec)<<aTj.dEdx[0];
-*/
         unsigned short endPt1 = aTj.EndPt[1];
         auto& tp1 = aTj.Pts[endPt1];
         itick = tp1.Pos[1]/tcc.unitsPerTick;
@@ -5773,7 +5780,7 @@ namespace tca {
     } else {
       myprt<<std::setw(5)<<std::setprecision(0)<<length;
     }
-    myprt<<std::setw(5)<<std::setprecision(2)<<pfp.Tp3s.size();
+    myprt<<std::setw(5)<<std::setprecision(2)<<pfp.TP3Ds.size();
     myprt<<std::setw(7)<<MCSMom(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<IsShowerLike(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
