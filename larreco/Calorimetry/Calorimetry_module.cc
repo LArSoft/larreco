@@ -436,8 +436,30 @@ void calo::Calorimetry::produce(art::Event& evt)
 	ChargeEnd.pop();
 	++countsp;
       }
-      // Going DS if charge is higher at the end
-      GoingDS = (DSChg > USChg) || (!fFlipTrack_dQdx);
+      if (fFlipTrack_dQdx){
+        // Going DS if charge is higher at the end
+        GoingDS = (DSChg > USChg);
+      }
+      else{
+        // Use the track direction to determine the residual range 
+        if (!fXYZ.empty()){
+          TVector3 track_start(tracklist[trkIter]->Trajectory().Vertex().X(),
+                              tracklist[trkIter]->Trajectory().Vertex().Y(),
+                              tracklist[trkIter]->Trajectory().Vertex().Z());
+          TVector3 track_end(tracklist[trkIter]->Trajectory().End().X(),
+                            tracklist[trkIter]->Trajectory().End().Y(),
+                            tracklist[trkIter]->Trajectory().End().Z());
+
+          if ((fXYZ[0] - track_start).Mag()+(fXYZ.back() - track_end).Mag() <
+              (fXYZ[0] - track_end).Mag()+(fXYZ.back() - track_start).Mag()){
+            GoingDS = true;
+          }
+          else{
+            GoingDS = false;
+          }
+        }
+      }
+
       // determine the starting residual range and fill the array
       fResRng.resize(fnsps);
       if(GoingDS) {
