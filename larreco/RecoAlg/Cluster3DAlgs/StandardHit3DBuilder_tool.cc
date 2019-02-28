@@ -37,6 +37,7 @@
 
 // Ack!
 #include "TH1F.h"
+#include "TTree.h"
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 // implementation follows
@@ -217,6 +218,7 @@ private:
     float                                m_hitWidthSclFctr;
     float                                m_deltaPeakTimeSig;
     std::vector<int>                     m_invalidTPCVec;
+    float                                m_maxHit3DChiSquare;     ///< Provide ability to select hits based on "chi square"
     bool                                 m_outputHistograms;      ///< Take the time to create and fill some histograms for diagnostics
 
     bool                                 m_enableMonitoring;      ///<
@@ -229,6 +231,12 @@ private:
     TH1F*                                m_QualityMetricHist;     ///< Basic plot of the quality metric for space points
     TH1F*                                m_SpacePointChargeHist;  ///< Charge in the overlap window for space points
     
+    TTree*                               m_tupleTree;             ///< output analysis tree
+    
+    std::vector<float>                   m_chiSquareVec;
+    std::vector<float>                   m_totChargeVec;
+    std::vector<float>                   m_hitOverlapFracVec;
+
     // Get instances of the primary data structures needed
     mutable Hit2DList                    m_clusterHit2DMasterList;
     mutable PlaneToHitVectorMap          m_planeToHitVectorMap;
@@ -272,16 +280,17 @@ void StandardHit3DBuilder::produces(art::EDProducer* producer)
     
 void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 {
-    m_hitFinderTag     = pset.get<art::InputTag   >("HitFinderTag",        "gaushits");
-    m_doWireAssns      = pset.get<bool            >("DoWireAssns",         true);
-    m_doRawDigitAssns  = pset.get<bool            >("DoRawDigitAssns",     true);
-    m_enableMonitoring = pset.get<bool            >("EnableMonitoring",    true);
-    m_numSigmaPeakTime = pset.get<float           >("NumSigmaPeakTime",    3.  );
-    m_hitWidthSclFctr  = pset.get<float           >("HitWidthScaleFactor", 6.  );
-    m_deltaPeakTimeSig = pset.get<float           >("DeltaPeakTimeSig",    1.7 );
-    m_zPosOffset       = pset.get<float           >("ZPosOffset",          0.0 );
-    m_invalidTPCVec    = pset.get<std::vector<int>>("InvalidTPCVec",       std::vector<int>());
-    m_outputHistograms = pset.get<bool            >("OutputHistograms",    false );
+    m_hitFinderTag      = pset.get<art::InputTag   >("HitFinderTag",        "gaushits");
+    m_doWireAssns       = pset.get<bool            >("DoWireAssns",         true);
+    m_doRawDigitAssns   = pset.get<bool            >("DoRawDigitAssns",     true);
+    m_enableMonitoring  = pset.get<bool            >("EnableMonitoring",    true);
+    m_numSigmaPeakTime  = pset.get<float           >("NumSigmaPeakTime",    3.  );
+    m_hitWidthSclFctr   = pset.get<float           >("HitWidthScaleFactor", 6.  );
+    m_deltaPeakTimeSig  = pset.get<float           >("DeltaPeakTimeSig",    1.7 );
+    m_zPosOffset        = pset.get<float           >("ZPosOffset",          0.0 );
+    m_invalidTPCVec     = pset.get<std::vector<int>>("InvalidTPCVec",       std::vector<int>());
+    m_maxHit3DChiSquare = pset.get<float           >("MaxHitChiSquare",     6.0 );
+    m_outputHistograms  = pset.get<bool            >("OutputHistograms",    false );
 
     art::ServiceHandle<geo::Geometry> geometry;
     
@@ -293,19 +302,31 @@ void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     m_wirePitch[1] = m_geometry->WirePitch(1);
     m_wirePitch[2] = m_geometry->WirePitch(2);
     
+    // Access ART's TFileService, which will handle creating and writing
+    // histograms and n-tuples for us.
+    art::ServiceHandle<art::TFileService> tfs;
+    
     // Do we want histograms?
     if (m_outputHistograms)
     {
-        // Access ART's TFileService, which will handle creating and writing
-        // histograms and n-tuples for us.
-        art::ServiceHandle<art::TFileService> tfs;
-        
         // Make a directory for these histograms
         art::TFileDirectory dir = tfs->mkdir("Hit3DBuilder");
 
         m_QualityMetricHist    = dir.make<TH1F>("Hit3DQuality","Quality",        200, 0.,   20.);
         m_SpacePointChargeHist = dir.make<TH1F>("Hit2DCharge", "3D Hit Chargel", 250, 0., 2500.);
     }
+    
+    m_tupleTree = tfs->make<TTree>("Hit3DBuilderTree", "Tree by StandardHit3DBuilder");
+    
+    m_chiSquareVec.clear();
+    m_totChargeVec.clear();
+    m_hitOverlapFracVec.clear();
+
+    m_tupleTree->Branch("QualityMetric",  "std::vector<float>", &m_chiSquareVec);
+    m_tupleTree->Branch("SPCharge",       "std::vector<float>", &m_totChargeVec);
+    m_tupleTree->Branch("HitOverlapFrac", "std::vector<float>", &m_hitOverlapFracVec);
+
+    return;
 }
     
 void StandardHit3DBuilder::BuildChannelStatusVec(PlaneToWireToHitSetMap& planeToWireToHitSetMap) const
@@ -404,6 +425,13 @@ void StandardHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt, 
     }
     
     hitRefiner.put_into();
+    
+    // Handle tree output too
+    m_tupleTree->Fill();
+    
+    m_chiSquareVec.clear();
+    m_totChargeVec.clear();
+    m_hitOverlapFracVec.clear();
     
     return;
 }
@@ -902,6 +930,7 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
                                    hitChiSquare,
                                    0.,
                                    0.,
+                                   0.,
                                    hitVector,
                                    hitDelTSigVec,
                                    wireIDVec);
@@ -985,8 +1014,10 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     float        avePeakTime(0.);
                     float        weightSum(0.);
                     float        xPosition(0.);
-                    int          lowIndex(std::numeric_limits<int>::min());
-                    int          hiIndex(std::numeric_limits<int>::max());
+                    int          lowMinIndex(std::numeric_limits<int>::max());
+                    int          lowMaxIndex(std::numeric_limits<int>::min());
+                    int          hiMinIndex(std::numeric_limits<int>::max());
+                    int          hiMaxIndex(std::numeric_limits<int>::min());
 
                     // And get the wire IDs
                     std::vector<geo::WireID> wireIDVec = {geo::WireID(), geo::WireID(), geo::WireID()};
@@ -1008,23 +1039,14 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                         int   hitStart = hit2D->getHit()->PeakTime() - 2. * hit2D->getHit()->RMS() - 0.5;
                         int   hitStop  = hit2D->getHit()->PeakTime() + 2. * hit2D->getHit()->RMS() + 0.5;
                         
-                        lowIndex = std::max(hitStart,    lowIndex);
-                        hiIndex  = std::min(hitStop + 1, hiIndex);
+                        lowMinIndex = std::min(hitStart,    lowMinIndex);
+                        lowMaxIndex = std::max(hitStart,    lowMaxIndex);
+                        hiMinIndex  = std::min(hitStop + 1, hiMinIndex);
+                        hiMaxIndex  = std::max(hitStop + 1, hiMaxIndex);
 
                         avePeakTime += peakTime * weight;
                         xPosition   += hit2D->getXPosition() * weight;
                         weightSum   += weight;
-                    }
-                    
-                    // One more pass through hits to get charge
-                    float totalCharge(0.);
-                    
-                    if (hiIndex > lowIndex)
-                    {
-                        for(const auto& hit2D : hitVector)
-                            totalCharge += chargeIntegral(hit2D->getHit()->PeakTime(),hit2D->getHit()->PeakAmplitude(),hit2D->getHit()->RMS(),1.,lowIndex,hiIndex);
-                        
-                        totalCharge /= float(hitVector.size());
                     }
                     
                     avePeakTime /= weightSum;
@@ -1051,26 +1073,45 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                         
                         hitDelTSigVec.emplace_back(std::fabs(hitSig));
                     }
-                    
-                    // Usurping "deltaPeakTime" to be the maximum pull
-                    float deltaPeakTime = *std::max_element(hitDelTSigVec.begin(),hitDelTSigVec.end());
-                    
-                    // Create the 3D cluster hit
-                    hitTriplet.initialize(0,
-                                          statusBits,
-                                          position,
-                                          totalCharge,
-                                          avePeakTime,
-                                          deltaPeakTime,
-                                          sigmaPeakTime,
-                                          hitChiSquare,
-                                          0.,
-                                          0.,
-                                          hitVector,
-                                          hitDelTSigVec,
-                                          wireIDVec);
-                    
-                    result = true;
+
+                    // Keep only "good" hits...
+                    if (hitChiSquare < m_maxHit3DChiSquare)
+                    {
+                        // One more pass through hits to get charge
+                        float totalCharge(0.);
+                        float overlapFraction(0.);
+                        
+                        if (hiMinIndex > lowMaxIndex)
+                        {
+                            for(const auto& hit2D : hitVector)
+                                totalCharge += chargeIntegral(hit2D->getHit()->PeakTime(),hit2D->getHit()->PeakAmplitude(),hit2D->getHit()->RMS(),1.,lowMaxIndex,hiMinIndex);
+                            
+                            totalCharge /= float(hitVector.size());
+                            
+                            overlapFraction = float(hiMinIndex - lowMaxIndex) / (hiMaxIndex - lowMinIndex);
+                        }
+                        
+                        // Usurping "deltaPeakTime" to be the maximum pull
+                        float deltaPeakTime = *std::max_element(hitDelTSigVec.begin(),hitDelTSigVec.end());
+                        
+                        // Create the 3D cluster hit
+                        hitTriplet.initialize(0,
+                                              statusBits,
+                                              position,
+                                              totalCharge,
+                                              avePeakTime,
+                                              deltaPeakTime,
+                                              sigmaPeakTime,
+                                              hitChiSquare,
+                                              overlapFraction,
+                                              0.,
+                                              0.,
+                                              hitVector,
+                                              hitDelTSigVec,
+                                              wireIDVec);
+                        
+                        result = true;
+                    }
                 }
             }
         }
@@ -1089,7 +1130,11 @@ float StandardHit3DBuilder::chargeIntegral(float peakMean,
 {
     float integral(0);
     
-    for(int sigPos = low; sigPos < hi; sigPos++) integral += peakAmp * TMath::Gaus(double(sigPos)+0.5,peakMean,peakSigma);
+    for(int sigPos = low; sigPos < hi; sigPos++)
+    {
+        float arg = (float(sigPos) - peakMean + 0.5) / peakSigma;
+        integral += peakAmp * std::exp(-0.5 * arg * arg);
+    }
     
     return integral;
 }
@@ -1428,6 +1473,10 @@ void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&              
             m_QualityMetricHist->Fill(hit3D.getHitChiSquare(),1.);
             m_SpacePointChargeHist->Fill(hit3D.getTotalCharge(),1.);
         }
+        
+        m_chiSquareVec.push_back(hit3D.getHitChiSquare());
+        m_totChargeVec.push_back(hit3D.getTotalCharge());
+        m_hitOverlapFracVec.push_back(hit3D.getOverlapFraction());
     }
     
     size_t numNewHits = newHitVecPtr->size();
