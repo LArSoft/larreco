@@ -373,7 +373,7 @@ void calo::Calorimetry::produce(art::Event& evt)
               if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{loc.X() + dir_tmp.X(), loc.Y() + dir_tmp.Y(), loc.Z() + dir_tmp.Z()});
               const TVector3& dir = {dir_tmp.X() - dirOffsets.X() + locOffsets.X(), dir_tmp.Y() + dirOffsets.Y() - locOffsets.Y(), dir_tmp.Z() + dirOffsets.Z() - locOffsets.Z()}; 
               
-              double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
+              double cosgamma = std::abs(std::sin(angleToVert)*dir.Y()/pow(dir.Mag2(),0.5) + std::cos(angleToVert)*dir.Z()/pow(dir.Mag2(),0.5));
               if (cosgamma){
                 pitch = (geom->WirePitch(0)/cosgamma) * (pow(dir.Mag2(),0.5) / pow(dir_tmp.Mag2(),0.5));
               }
