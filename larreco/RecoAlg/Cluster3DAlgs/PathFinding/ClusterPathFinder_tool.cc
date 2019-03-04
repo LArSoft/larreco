@@ -259,9 +259,6 @@ reco::ClusterParametersList::iterator ClusterPathFinder::breakIntoTinyBits(reco:
     // To make best use of this we'll also want the PCA for this cluster... so...
     // Recover the prime ingredients
     reco::PrincipalComponents& fullPCA     = clusterToBreak.getFullPCA();
-    std::vector<double>        eigenValVec = {3. * std::sqrt(fullPCA.getEigenValues()[0]),
-                                              3. * std::sqrt(fullPCA.getEigenValues()[1]),
-                                              3. * std::sqrt(fullPCA.getEigenValues()[2])};
     
     std::cout << indent << ">>> breakIntoTinyBits with " << clusterToBreak.getHitPairListPtr().size() << " input hits " << std::endl;
     
@@ -459,7 +456,7 @@ void ClusterPathFinder::buildConvexHull(reco::ClusterParameters& clusterParamete
                                     hit3D->getPosition()[2] - pcaCenter(2));
         Eigen::Vector3f pcaToHit = pca.getEigenVectors() * pcaToHitVec;
 
-        pointList.emplace_back(dcel2d::Point(pcaToHit(0),pcaToHit(1),hit3D));
+        pointList.emplace_back(dcel2d::Point(pcaToHit(1),pcaToHit(2),hit3D));
     }
     
     // Sort the point vec by increasing x, then increase y
@@ -583,7 +580,7 @@ void ClusterPathFinder::buildVoronoiDiagram(reco::ClusterParameters& clusterPara
                                     hit3D->getPosition()[2] - pcaCenter(2));
         Eigen::Vector3f pcaToHit = pca.getEigenVectors() * pcaToHitVec;
         
-        pointList.emplace_back(dcel2d::Point(pcaToHit(0),pcaToHit(1),hit3D));
+        pointList.emplace_back(dcel2d::Point(pcaToHit(1),pcaToHit(2),hit3D));
     }
     
     // Sort the point vec by increasing x, then increase y
