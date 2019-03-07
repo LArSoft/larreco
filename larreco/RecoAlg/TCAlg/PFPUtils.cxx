@@ -165,23 +165,20 @@ namespace tca {
     
     bool prt = (tcc.dbgPFP && tcc.dbgSlc);
     if(prt) mf::LogVerbatim("TC")<<" inside FindPFParticles";
-    // clear matchVec
-    slc.matchVec.clear();
     // clear the kEnvInPFP bits on all Tjs. The bit will be set true when a TP is
     // used in a PFParticle
     for(auto& tj : slc.tjs) {
       for(auto& tp : tj.Pts) tp.Environment[kEnvInPFP] = false;
     } // tj
     
-    // Match these points in 3D and put the results in slc.matchVec
+    // Match these points in 3D
     std::vector<MatchStruct> matVec;
     // Look for matches in all planes in the TPC
     MatchPlanes(slc, slc.nPlanes, matVec, prt);
-    // Make 2-plane matches if we haven't hit the user-defined size limit
-    if(matVec.size() < tcc.match3DCuts[4] && slc.nPlanes == 3) MatchPlanes(slc, 2, matVec, prt);
+    // Make 2-plane matches if we haven't hit the size limit
+    if(matVec.size() < tcc.match3DCuts[1] && slc.nPlanes == 3) MatchPlanes(slc, 2, matVec, prt);
     
     if(matVec.empty()) return;
-    std::cout<<"FPFP matVec size "<<matVec.size()<<"\n";
     
     // sort by decreasing number of matched points
     if(matVec.size() > 1) {
@@ -204,7 +201,6 @@ namespace tca {
       } // ii
       matVec = tmpVec;
     } // sort matVec
-/*
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"FPFP: matVec\n";
@@ -231,7 +227,7 @@ namespace tca {
           auto tp = MakeBareTP(slc, pfp.XYZ[0], pfp.Dir[0], inCTP);
           myprt<<" "<<std::setprecision(2)<<tp.Delta;
         } // plane
-        myprt<<" maxTjLen "<<(int)MaxTjLen(slc, pfp.TjIDs);
+//        myprt<<" maxTjLen "<<(int)MaxTjLen(slc, pfp.TjIDs);
         myprt<<" MCSMom "<<MCSMom(slc, pfp.TjIDs);
         myprt<<" PDGCodeVote "<<PDGCodeVote(slc, pfp.TjIDs, false);
         myprt<<"\n";
@@ -242,25 +238,20 @@ namespace tca {
         }
       } // ii
     } // prt
-*/
     // create a PFParticle for each valid match combination
     for(unsigned int indx = 0; indx < matVec.size(); ++indx) {
       prt = (tcc.dbgPFP && debug.MVI < matVec.size() && indx == debug.MVI);
-      if(!prt) continue;
+      if(debug.MVI != UINT_MAX && !prt) continue;
       std::cout<<"Detailed output mvi "<<indx<<"\n";
       auto& ms = matVec[indx];
       // ignore dead matches
       if(ms.Count == 0) continue;
-      // skip this match if any of the trajectories is already matched or merged and killed
+      // skip this match if any of the trajectories is already matched or merged or killed
       bool skipit = false;
-      // check for muons and delta rays or InShower Tjs
+      // check for incompatible muons, delta rays and InShower Tjs
       bool has13 = false;
       bool has11 = false;
       for(unsigned short itj = 0; itj < ms.TjIDs.size(); ++itj) {
-        if(ms.TjIDs[itj] <= 0 || ms.TjIDs[itj] > (int)slc.tjs.size()) {
-          std::cout<<"FindPFParticles: bogus ms TjID "<<ms.TjIDs[itj]<<"\n";
-          return;
-        }
         auto& tj = slc.tjs[ms.TjIDs[itj] - 1];
         if(tj.AlgMod[kMat3D] || tj.AlgMod[kKilled]) skipit = true;
         if(tj.PDGCode == 13) has13 = true;
@@ -271,6 +262,7 @@ namespace tca {
       int pdgCode = PDGCodeVote(slc, ms.TjIDs, prt);
       PFPStruct pfp = CreatePFP(slc);
       pfp.TjIDs = ms.TjIDs;
+      pfp.MVI = indx;
       FindCompleteness(slc, pfp, true, false);
       // skip low TjCompleteness
       if(pfp.TjCompleteness.empty()) {
@@ -283,14 +275,15 @@ namespace tca {
         if(prt) mf::LogVerbatim()<<" skip it - low completeness";
         continue;
       }
-      // Set the PDGCode so DefinePFP can ignore incompatible matches
       pfp.PDGCode = pdgCode;
       // set the PDGCode to ensure that delta rays aren't merged with muons. PDGCodeVote
       // returns 0 if the vote is mixed
       if(has13) pfp.PDGCode = 13;
       if(has11) pfp.PDGCode = 11;
-      // fill the TP3D points using the 2D trajectory points for Tjs in TjIDs
+      // fill the TP3D points using the 2D trajectory points for Tjs in TjIDs. This function
+      // also finds the 3D position of those points using the global fit results from FindCompleteness
       FillTP3Ds(slc, pfp);
+      if(pfp.TP3Ds.empty()) continue;
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<std::setw(4)<<"MVI "<<indx<<" Count "<<std::setw(5)<<(int)ms.Count;
@@ -315,17 +308,26 @@ namespace tca {
         myprt<<" PDGCodeVote "<<PDGCodeVote(slc, pfp.TjIDs, false);
         myprt<<" nTP3Ds "<<pfp.TP3Ds.size();
       } // prt
+      // Define the PFP, the most important aspect being the 3D trajectory
       if(!DefinePFP("FPFP", slc, pfp, prt)) {
         if(prt) mf::LogVerbatim("TC")<<" DefinePFP failed";
         continue;
       }
       // Look for problems and fix them
+/*
       AddMissedTP3Ds(slc, pfp, prt);
       if(pfp.NeedsUpdate && !DefinePFP("FPFP", slc, pfp, prt)) {
         if(prt) mf::LogVerbatim("TC")<<" DefinePFP failed after AddMissedTP3Ds";
         continue;
       }
+*/
+      if(!StorePFP(slc, pfp)) {
+        std::cout<<"StorePFP failed P"<<pfp.ID<<"\n";
+        continue;
+      }
     } // indx
+    
+    slc.mallTraj.resize(0);
 
   } // FindPFParticles
   
@@ -341,8 +343,8 @@ namespace tca {
     
     int cstat = DecodeCTP(slc.mallTraj[0].ctp).Cryostat;
     int tpc = DecodeCTP(slc.mallTraj[0].ctp).TPC;
-    constexpr float twopi = 2 * M_PI;
-    constexpr float piOver2 = M_PI / 2;
+//    constexpr float twopi = 2 * M_PI;
+//    constexpr float piOver2 = M_PI / 2;
     
     // create a temp vector to check for duplicates
     auto inMatVec = matVec;
@@ -355,8 +357,8 @@ namespace tca {
     
     // max number of match combos left
     unsigned int nAvailable = 0;
-    if(matVec.size() < tcc.match3DCuts[4]) nAvailable = tcc.match3DCuts[4] - matVec.size();
-    if(nAvailable == 0 || nAvailable > tcc.match3DCuts[4]) return;
+    if(matVec.size() < tcc.match3DCuts[1]) nAvailable = tcc.match3DCuts[1] - matVec.size();
+    if(nAvailable == 0 || nAvailable > tcc.match3DCuts[1]) return;
     
     // these cuts presume that the resolution in X is better than it is in Y and Z
     float xcut = tcc.match3DCuts[0];
@@ -398,6 +400,7 @@ namespace tca {
             if(!MakeTp3(slc, itp, ktp, iktp3, false)) continue;
             if(std::abs(tp3.Pos[1] - iktp3.Pos[1]) > yzcut) continue;
             if(std::abs(tp3.Pos[2] - iktp3.Pos[2]) > yzcut) continue;
+/* See if we can do without this
             float dang = 0;
             if(tcc.match3DCuts[1] > 0) {
               dang = std::abs(DeltaAngle(tp3.Dir, iktp3.Dir));
@@ -407,6 +410,7 @@ namespace tca {
               mcsmom /= 3;
               if(mcsmom > 150 && dang > tcc.match3DCuts[1]) continue;
             }
+*/
             // we have a match.
             // Just fill temp. See if the Tj IDs are in the match list.
             // first check the input matVec
@@ -419,9 +423,8 @@ namespace tca {
               } 
             } // ms
             if(gotit) continue;
-            // Triple match count = 2 de-weighted by delta angle
-            cntWght = 2 - dang;
-            if(cntWght <= 0) continue;
+            // Triple match count = 2 
+            cntWght = 2;
             // next check the temp vector
             unsigned short indx = 0;
             for(indx = 0; indx < temp.size(); ++indx) {
@@ -520,7 +523,7 @@ namespace tca {
       matVec.insert(matVec.end(), temp.begin(), temp.end());
     } // temp size > 1
     
-    if(prt) mf::LogVerbatim("TC")<<"FindXMatches: Found "<<temp.size()<<" matches in "<<numPlanes<<" planes";
+    if(prt) mf::LogVerbatim("TC")<<"MatchPlanes: Found "<<temp.size()<<" matches in "<<numPlanes<<" planes";
     
   } // MatchPlanes
 
@@ -730,76 +733,117 @@ namespace tca {
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) if(nInPln[plane] > 0) ++npl;
     if(npl < 2) return false;
     
-    // Fit all points to get the general direction and central position and stuff
-    // that into XYZ and Dir at the "start end"
-    float chiDOF;
-    if(!FitTP3Ds(slc, pfp.TP3Ds, 0, pfp.TP3Ds.size(), pfp.XYZ[0], pfp.Dir[0], chiDOF, true)) return false;
     // Correct the start position
     if(!SetStartEnd(slc, pfp)) return false;
-    SortTP3Ds(slc, pfp);
+    // and sort by the distance along the trajectory (just a 3D line at this point)
+    if(!SortTP3Ds(slc, pfp)) return false;
     
-    // Do a series of fits in sections with the requirement that there are at least
-    // 5 2D points in at least 2 planes
-    unsigned short min2DPts = 5;
-    unsigned short fromPt = 0;
-    Point3_t dumPos;
+    // do a fit of all points to a a Chisq but don't update yet
+    float chiDOF;
+    // define the fit origin
+    Point3_t dumPos = pfp.XYZ[0];
     Vector3_t dumDir;
-    // Set ChiDOF negative to indicate a fit failure
-    for(auto& tp3d : pfp.TP3Ds) tp3d.ChiDOF = -1;
-    dumPos = pfp.TP3Ds[fromPt].Pos;
-    for(auto& tp3d : pfp.TP3Ds) tp3d.flag = false;
-    while(fromPt < pfp.TP3Ds.size()) {
-      // iterate several times to reject outliers
-      unsigned short toPt = Find3DRecoRange(slc, pfp, fromPt, min2DPts, 1);
-      for(unsigned short nit = 0; nit < 3; ++nit) {
-//        std::cout<<nit<<" chk "<<fromPt<<" - "<<toPt<<"\n";
-        if(toPt > pfp.TP3Ds.size()) break;
-        if(!FitTP3Ds(slc, pfp.TP3Ds, fromPt, toPt, dumPos, dumDir, chiDOF, true)) {
-          std::cout<<fromPt<<"-"<<toPt<<" fit failed. Do something about it\n";
-          break;
-        }
-        // no sense iterating if the fit is good
-        if(pfp.TP3Ds[fromPt].ChiDOF < 2) break;
-        // find the point with the largest Delta
-        float maxDelta = 0;
-        unsigned short badPt = fromPt;
-        for(unsigned short ipt = fromPt; ipt < toPt; ++ipt) {
-          auto& tp3d = pfp.TP3Ds[ipt];
-          if(!tp3d.IsGood) continue;
-          if(std::abs(tp3d.Delta) < maxDelta) continue;
-          maxDelta = std::abs(tp3d.Delta);
-          badPt = ipt;
-        } // ipt
-        // clobber that point
-        pfp.TP3Ds[badPt].IsGood = false;
-        // re-find the toPt
-        toPt = Find3DRecoRange(slc, pfp, fromPt, min2DPts, 1);
-      } // nit
-      if(toPt > pfp.TP3Ds.size()) break;
-      // update all the points in each section
-      fromPt = toPt;
-      if(fromPt > pfp.TP3Ds.size()) break;
-    } // ipt
-    // The last section was most likely not fit because it wasn't reconstructable in 3D
-    // so reverse the fromPt and toPt points and do the fit
-    if(fromPt < pfp.TP3Ds.size()) {
-      // Find the reconstructable range working backwards from the end
-      fromPt = pfp.TP3Ds.size() - 1;
-      unsigned short toPt = Find3DRecoRange(slc, pfp, fromPt, min2DPts, -1);
-      // swap to and from
-      std::swap(fromPt, toPt);
-      // and increment to
-      ++toPt;
-      if(!FitTP3Ds(slc, pfp.TP3Ds, fromPt, toPt, dumPos, dumDir, chiDOF, true)) {
-        std::cout<<fromPt<<"-"<<toPt<<" fit failed. Do something about it\n";
-      }
+    if(!FitTP3Ds(slc, pfp.TP3Ds, 0, pfp.TP3Ds.size(), dumPos, dumDir, chiDOF, true)) {
+      std::cout<<"First fit failed\n";
+      return false;
     }
-    // debug check that all the points were fit in each section
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<fcnLabel<<" FitTP3Ds: P"<<pfp.ID<<" first fit Dir"<<std::fixed<<std::setprecision(2);
+      myprt<<" "<<dumDir[0]<<" "<<dumDir[1]<<" "<<dumDir[2];
+      myprt<<" dang "<<std::setprecision(3)<<DeltaAngle(pfp.Dir[0], dumDir);
+    }
+    // debug aftr the first fit?
+//    if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("FF", slc, pfp, -1);
+    
+    // See if the TP3Ds need to be fit in sections. First test for a bad chiDOF
+    bool doSectionFit = (chiDOF > 2);
+    // Next see if it is long enough to be reconstructed in more than one section
+    // Scale by the MCSMom to have 20 points in a plane in each section for a PFParticle
+    // with MCSMom = 1000;
+    unsigned short min2DPts = MCSMom(slc, pfp.TjIDs) / 50;
+    if(min2DPts < (unsigned short)tcc.match3DCuts[3]) min2DPts = tcc.match3DCuts[3];
+    if(doSectionFit) {
+      unsigned short nSections = 0;
+      unsigned short fromPt = 0;
+      while(fromPt < pfp.TP3Ds.size()) {
+        unsigned short toPt = Find3DRecoRange(slc, pfp, fromPt, min2DPts, 1);
+        if(toPt > pfp.TP3Ds.size()) break;
+        ++nSections;
+        fromPt = toPt;
+      } // fromPt < pfp.TP3Ds.size()
+      doSectionFit = (nSections > 1);
+      if(prt && doSectionFit) mf::LogVerbatim("TC")<<" Fit P"<<pfp.ID<<" in "<<nSections<<" sections";
+    } // doSectionFit
+
+    if(doSectionFit) {
+      unsigned short fromPt = 0;
+      Point3_t dumPos;
+      Vector3_t dumDir;
+      // Set ChiDOF negative to indicate a fit failure
+      for(auto& tp3d : pfp.TP3Ds) tp3d.ChiDOF = -1;
+      dumPos = pfp.TP3Ds[fromPt].Pos;
+      for(auto& tp3d : pfp.TP3Ds) tp3d.flag = false;
+      while(fromPt < pfp.TP3Ds.size()) {
+        // iterate several times to reject outliers and poorly reconstructed Tjs
+        unsigned short toPt = Find3DRecoRange(slc, pfp, fromPt, min2DPts, 1);
+        if(toPt > pfp.TP3Ds.size()) break;
+        for(unsigned short nit = 0; nit < 20; ++nit) {
+          if(toPt > pfp.TP3Ds.size()) break;
+          if(!FitTP3Ds(slc, pfp.TP3Ds, fromPt, toPt, dumPos, dumDir, chiDOF, true)) {
+            std::cout<<fromPt<<"-"<<toPt<<" fit failed MVI = "<<pfp.MVI<<". Do something about it\n";
+            break;
+          }
+          // no sense iterating if the fit is good
+          if(pfp.TP3Ds[fromPt].ChiDOF < 2) break;
+          // find the point with the largest Delta, kill it and continue iterating
+          if(!KillBadPoint(slc, pfp, fromPt, toPt, prt)) break;
+          // re-find the toPt
+          toPt = Find3DRecoRange(slc, pfp, fromPt, min2DPts, 1);
+        } // nit
+        if(toPt > pfp.TP3Ds.size()) break;
+        // update all the points in each section
+        fromPt = toPt;
+        if(fromPt > pfp.TP3Ds.size()) break;
+      } // ipt
+      // The last section was most likely not fit because it wasn't reconstructable in 3D
+      // so reverse the fromPt and toPt points and do the fit
+      if(fromPt < pfp.TP3Ds.size()) {
+        // Find the reconstructable range working backwards from the end
+        fromPt = pfp.TP3Ds.size() - 1;
+        unsigned short toPt = Find3DRecoRange(slc, pfp, fromPt, min2DPts, -1);
+        // swap to and from
+        std::swap(fromPt, toPt);
+        // and increment to
+        ++toPt;
+        if(!FitTP3Ds(slc, pfp.TP3Ds, fromPt, toPt, dumPos, dumDir, chiDOF, true)) {
+          std::cout<<fromPt<<"-"<<toPt<<" fit failed MVI = "<<pfp.MVI<<". Do something about it\n";
+        }
+        if(chiDOF > 2) {
+          // kill points in this region
+          // TODO: Loosen up the cuts so we don't clobber a high dE/dx point at the end
+          for(unsigned short nit = 0; nit < 5; ++nit) {
+            if(!KillBadPoint(slc, pfp, fromPt, toPt, prt)) break;
+            unsigned short toPt = Find3DRecoRange(slc, pfp, fromPt, min2DPts, -1);
+            if(toPt > pfp.TP3Ds.size()) break;
+            FitTP3Ds(slc, pfp.TP3Ds, fromPt, toPt, dumPos, dumDir, chiDOF, true);
+          } // nit
+        } // chiDOF large
+      } // last section
+      // re-check the start and end 
+      SetStartEnd(slc, pfp);
+      // debug after the section fit?
+      if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("SF", slc, pfp, -1);
+    } // long track with poor ChiDOF
+    
+    // debug check that all the points were fit
     for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
-      if(tp3d.IsGood && !tp3d.flag) std::cout<<"point "<<ipt<<" not fit\n";
+      if(tp3d.IsGood && tp3d.ChiDOF < 0) {
+        std::cout<<"P"<<pfp.ID<<" point "<<ipt<<" not fit. MVI = "<<pfp.MVI<<"\n";
+        return false;
+      }
     }
-    PrintTP3Ds("DP", slc, pfp, -1);
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -808,12 +852,41 @@ namespace tca {
       for(auto id : pfp.TjIDs) myprt<<" T"<<id;
       myprt<<" max Tj len "<<MaxTjLen(slc, pfp.TjIDs);
       myprt<<" MCSMom "<<MCSMom(slc, pfp.TjIDs);
-      myprt<<" Tp3s TP3Ds "<<pfp.TP3Ds.size();
+      myprt<<" TP3Ds "<<pfp.TP3Ds.size();
     } // prt
-    
     pfp.NeedsUpdate = false;
     return true;
   } // DefinePFP
+  
+  /////////////////////////////////////////
+  bool KillBadPoint(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, bool prt)
+  {
+    // Sets IsGood false if Delta < match3DCuts[4] for a single point in the range
+    // returns true if one is found
+    if(fromPt > pfp.TP3Ds.size() - 1) return false;
+    if(toPt > pfp.TP3Ds.size()) toPt = pfp.TP3Ds.size();
+    float maxDelta = tcc.match3DCuts[4];
+    unsigned short badPt = USHRT_MAX;
+    for(unsigned short ipt = fromPt; ipt < toPt; ++ipt) {
+      auto& tp3d = pfp.TP3Ds[ipt];
+      if(!tp3d.IsGood) continue;
+      // don't clobber a point if it is on a TP that is overlapping another Tj. This will
+      // happen for points close to a vertex and when trajectories cross
+      auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+      if(tp.Environment[kEnvOverlap]) continue;
+      if(std::abs(tp3d.Delta) < maxDelta) continue;
+      maxDelta = std::abs(tp3d.Delta);
+      badPt = ipt;
+    } // ipt
+    if(badPt == USHRT_MAX) return false;
+    // clobber that point
+    pfp.TP3Ds[badPt].IsGood = false;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<" KBP: P"<<pfp.ID<<" clobber "<<pfp.TP3Ds[badPt].TjID<<"_"<<pfp.TP3Ds[badPt].TPIndex;
+    } // prt
+    return true;
+  } // KillBadPoint
   
   /////////////////////////////////////////
   unsigned short Find3DRecoRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir)
@@ -848,65 +921,6 @@ namespace tca {
     } // ipt
     return USHRT_MAX;
   } // Find3DRecoRange
-  
-  /////////////////////////////////////////
-  bool FitTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short atPt, unsigned short requestedNumPts)
-  {
-    // Fit the trajectory at point atPt using nTPsfit points and define the PFPstruct variables at
-    // that point
-    if(pfp.TP3Ds.size() < 3) return false;
-    if(atPt > pfp.TP3Ds.size()) return false;
-    if(requestedNumPts < 2) return false;
-    
-    unsigned short fromPt = 0;
-    unsigned short toPt = 0;
-    // ensure a valid value of fromPt
-    short tmp = (short)atPt - (short)requestedNumPts / 2;
-    if(tmp > 0) fromPt = (unsigned short)tmp;
-    // find the upper bound (toPt - 1)
-    unsigned short cnt = 0;
-    for(toPt = fromPt; toPt < pfp.TP3Ds.size(); ++toPt) {
-      if(!pfp.TP3Ds[toPt].IsGood) continue;
-      ++cnt;
-      if(cnt == requestedNumPts) break;
-    } // toPt
-    // check for failures
-    if(toPt <= fromPt) return false;
-    if(cnt < 3) return false;
-    Point3_t pos;
-    // define the fit origin
-    pos[0] = pfp.TP3Ds[atPt].Pos[0];
-    Vector3_t dir;
-    float chiDOF;
-    // Don't update all of the points between fromPt to toPt.
-    if(FitTP3Ds(slc, pfp.TP3Ds, fromPt, toPt, pos, dir, chiDOF, false)) {
-      // successfull fit. Update the point
-      auto& tp3d = pfp.TP3Ds[atPt];
-      tp3d.ChiDOF = chiDOF;
-      tp3d.nTPsFit = cnt;
-      tp3d.Pos = pos;
-      tp3d.Dir = dir;
-      Point2_t hitPos;
-      CTP_t inCTP = 0;
-      if(tp3d.TjID > 0) {
-        // a real TP exists
-        inCTP = slc.tjs[tp3d.TjID - 1].CTP;
-        // transfer the hit position
-        hitPos = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex].HitPos;
-      } else {
-        unsigned int ahi = slc.slHits[tp3d.slHitsIndex].allHitsIndex;
-        auto& hit = (*evt.allHits)[ahi];
-        inCTP = EncodeCTP(hit.WireID().Cryostat, hit.WireID().TPC, hit.WireID().Plane);
-        // define the hit position
-        hitPos[0] = hit.WireID().Wire;
-        hitPos[1] = hit.PeakTime() * tcc.unitsPerTick;
-      }
-      // get the 2D position for this 3D point
-      auto tp = MakeBareTP(slc, pos, dir, inCTP);
-      tp3d.Delta = PosSep(hitPos, tp.Pos);
-    } // success
-    return true;
-  } // FitTP3Ds
 
   /////////////////////////////////////////
   bool FitTP3Ds(TCSlice& slc, std::vector<TP3D>& tp3s, unsigned short fromPt, unsigned short toPt, Point3_t& pos, Vector3_t& dir, float& chiDOF, bool doUpdate)
@@ -932,6 +946,8 @@ namespace tca {
     
     // count the number of TPs in each plane
     std::vector<unsigned short> cntInPln(slc.nPlanes);
+    // create a list of plane IDs with the assumption that repeating this
+    // for every point is a more expensive calculation
     std::vector<geo::PlaneID> plnIDs(slc.nPlanes);
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       plnIDs[plane] = geo::PlaneID(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
@@ -952,9 +968,8 @@ namespace tca {
         x = tcc.detprop->ConvertTicksToX(hit.PeakTime(), plnIDs[plane]) - x0;
         double tickErr = hit.RMS() * tcc.hitErrFac * hit.Multiplicity();
         double xdx = tcc.detprop->ConvertTicksToX(hit.PeakTime() + tickErr, plnIDs[plane]) - x0;
-        double xErr = xdx - x;
-        // TODO: This isn't correct. We need to know the error on the wire
-        // position - not the error on X
+        // inflate the errors for single hit. It must be poor quality since it isn't used in a TP
+        double xErr = 2 * (xdx - x);
         wght = 1 / (xErr * xErr);
       } else {
         // TP
@@ -967,6 +982,9 @@ namespace tca {
         double tickErr = tp2.HitPosErr2 / (tcc.unitsPerTick * tcc.unitsPerTick);
         double xdx = tcc.detprop->ConvertTicksToX(tp2.Pos[1]/tcc.unitsPerTick + tickErr, plnIDs[plane]) - x0;
         double xErr = xdx - x;
+        // increase the error if the TP overlaps with another trajectory
+        if(tp2.Environment[kEnvOverlap]) xErr *= 2;
+        // TODO: increase the error if this near an end that has a Bragg peak
         wght = 1 / (xErr * xErr);
       }
       ++cntInPln[plane];
@@ -1157,13 +1175,10 @@ namespace tca {
             } // tjPt
             if(tjPt == USHRT_MAX) continue;
             auto& tpm = tj.Pts[tjPt];
+            // see if the TP is already used in this function
             if(tpm.Environment[kEnvFlag]) continue;
-            if(tpm.Environment[kEnvInPFP]) {
-              std::cout<<"FindPFParticles: coding error. Trying to make a TP -> PFP assn when one already exists\n";
-              return;
-            } // kEnvInPFP
-            // see if the TP is already used
-            if(tpm.Environment[kEnvFlag]) continue;
+            // or if used in a different PFP
+            if(tpm.Environment[kEnvInPFP]) continue;
             tp3d.TPIndex = tjPt;
             tp3d.Pos[0] = tcc.detprop->ConvertTicksToX(tpm.Pos[1]/tcc.unitsPerTick, planeID);
             tpm.Environment[kEnvFlag] = true;
@@ -1284,17 +1299,19 @@ namespace tca {
     unsigned short minAlongPt = 0;
     float maxAlong = -1E6;
     unsigned short maxAlongPt = 0;
-    Point2_t alongTrans;
     for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
       if(!tp3d.IsGood) continue;
-      FindAlongTrans(pfp.XYZ[0], pfp.Dir[0], tp3d.Pos, alongTrans);
-      if(alongTrans[0] < minAlong) {
-        minAlong = alongTrans[0];
+      if(tp3d.along == 1E6) {
+        std::cout<<"along isn't defined for this tp3d\n";
+        exit(1);
+      }
+      if(tp3d.along < minAlong) {
+        minAlong = tp3d.along;
         minAlongPt = ipt;
       }
-      if(alongTrans[0] > maxAlong) {
-        maxAlong = alongTrans[0];
+      if(tp3d.along > maxAlong) {
+        maxAlong = tp3d.along;
         maxAlongPt = ipt;
       }
     } // tp3d
@@ -1302,59 +1319,107 @@ namespace tca {
     pfp.Dir[0] = pfp.TP3Ds[minAlongPt].Dir;
     pfp.XYZ[1] = pfp.TP3Ds[maxAlongPt].Pos;
     pfp.Dir[1] = pfp.TP3Ds[maxAlongPt].Dir;
-    // update the along variable
+    // offset the along variable from the start end
     for(auto& tp3d : pfp.TP3Ds) tp3d.along -= minAlong;
     return true;
   } // SetStartEnd
 
   /////////////////////////////////////////
-  void SortTP3Ds(TCSlice& slc, PFPStruct& pfp)
+  bool SortTP3Ds(TCSlice& slc, PFPStruct& pfp)
   {
     // sorts the TP3Ds by the distance from the start. Note that the !IsGood TP3s are
     // sorted as well.
-    Point2_t alongTrans;
+    
     std::vector<SortEntry> sortVec(pfp.TP3Ds.size());
     for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
-      FindAlongTrans(pfp.XYZ[0], pfp.Dir[0], tp3d.Pos, alongTrans);
+      if(tp3d.along == 1E6) {
+        std::cout<<"P"<<pfp.ID<<" tp3d "<<ipt<<" along is not defined\n";
+        return false;
+      } // along not defined
       sortVec[ipt].index = ipt;
-      sortVec[ipt].val = alongTrans[0];
-      tp3d.along = alongTrans[0];
-    } // tp3d
+      sortVec[ipt].val = tp3d.along;
+    } // ipt
     std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
     std::vector<TP3D> temp(pfp.TP3Ds.size());
     for(unsigned int ii = 0; ii < sortVec.size(); ++ii) temp[ii] = pfp.TP3Ds[sortVec[ii].index];
     pfp.TP3Ds = temp;
-    // set the start and end points
-    pfp.XYZ[0] = pfp.TP3Ds[0].Pos;
-    pfp.Dir[0] = pfp.TP3Ds[0].Dir;
-    pfp.XYZ[1] = pfp.TP3Ds[pfp.TP3Ds.size() - 1].Pos;
-    pfp.Dir[1] = pfp.TP3Ds[pfp.TP3Ds.size() - 1].Dir;
+/*
+    unsigned short nBad = 0;
+    for(auto tid : pfp.TjIDs) {
+      unsigned short nPos, nNeg;
+      CountOrder(slc, tid, pfp.TP3Ds, nNeg, nPos);
+      if(nNeg > 0 && nPos > 0) {
+        if(nNeg < nPos) { nBad += nNeg; } else { nBad += nPos; }
+        std::cout<<"STP3Ds: P"<<pfp.ID<<" T"<<tid<<" nNeg "<<nNeg<<" nPos "<<nPos;
+        auto& tj = slc.tjs[tid - 1];
+        auto& tp3 = pfp.TP3Ds[0];
+        auto tp2 = MakeBareTP(slc, tp3.Pos, tp3.Dir, tj.CTP);
+        std::cout<<" tp2 "<<PrintPos(slc, tp2)<<" dir "<<std::setprecision(2)<<tp2.Dir[0]<<" "<<tp2.Dir[1];
+        std::cout<<"\n";
+      }
+    } // tid
+*/
+    return true;
   } // SortTP3Ds
+  
+  /////////////////////////////////////////
+  void CountOrder(TCSlice& slc, int tid, const std::vector<TP3D>& tp3ds, unsigned short& nNeg, unsigned short& nPos)
+  {
+    // returns a count of Tj points that are in negative and positive order
+    nNeg = 0; nPos = 0;
+    if(tid <= 0) return;
+    if(tp3ds.empty()) return;
+    unsigned short prevTPIndex = USHRT_MAX;
+    for(auto& tp3d : tp3ds) {
+      if(!tp3d.IsGood) continue;
+      if(tp3d.TjID != tid) continue;
+      if(prevTPIndex == USHRT_MAX) {
+        prevTPIndex = tp3d.TPIndex;
+      } else {
+        if(tp3d.TPIndex > prevTPIndex) { ++nPos; } else { ++nNeg; }
+        prevTPIndex = tp3d.TPIndex;
+      }
+    } // tp3d
+  } // CountOrder
   
   /////////////////////////////////////////
   void FillTP3Ds(TCSlice& slc, PFPStruct& pfp)
   {
-    // Fill the TP3Ds vector and flag hits
+    // Fill the TP3Ds vector. This function is called after FindCompleteness has
+    // done a fit of the 3D TP intersections and put the results in XYZ[0] and Dir[0].
     pfp.TP3Ds.clear();
     for(auto tid : pfp.TjIDs) {
       auto& tj = slc.tjs[tid - 1];
+      // Project the 3D fit parameters found in FindCompleteness into this plane
+      TrajPoint ptp = MakeBareTP(slc, pfp.XYZ[0], pfp.Dir[0], tj.CTP);
+      if(ptp.Pos[0] < -0.5) {
+        std::cout<<"FillTP3Ds: MakeBareTP Failed\n";
+        pfp.TP3Ds.clear();
+        return;
+      }
       TP3D tp3d;
       tp3d.TjID = tid;
       for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
         auto& tp = tj.Pts[ipt];
         if(tp.Chg <= 0) continue;
-        geo::PlaneID planeID = DecodeCTP(tp.CTP);
-        // Define the X position. Y and Z will be determined later in a fit
-        tp3d.Pos[0] = tcc.detprop->ConvertTicksToX(tp.Pos[1]/tcc.unitsPerTick, planeID);
+        if(tp.Environment[kEnvInPFP]) continue;
+        // find the point of closest approach in 2D
+        double t = (double)(tp.Pos[0] - ptp.Pos[0]) * ptp.Dir[0] + (double)(tp.Pos[1] - ptp.Pos[1]) * ptp.Dir[1];
+        float dp0 = ptp.Pos[0] + t * ptp.Dir[0] - tp.Pos[0];
+        float dp1 = ptp.Pos[1] + t * ptp.Dir[1] - tp.Pos[1];
+        tp3d.Delta = tcc.wirePitch * sqrt(dp0 * dp0 + dp1 * dp1);
+//        std::cout<<"T"<<tj.ID<<"_"<<ipt<<" t2d "<<t<<" Delta "<<tp3d.Delta;
+        // find the position in 3D by correcting t for the direction vector projection in this plane.
+        // This was stashed in ptp.Delta by MakeBareTP
+        t /= ptp.Delta;
+        tp3d.along = t;
+        for(unsigned short xyz = 0; xyz < 3; ++xyz) tp3d.Pos[xyz] = pfp.XYZ[0][xyz] + t * pfp.Dir[0][xyz];
+//        std::cout<<" Pos ("<<std::fixed<<std::setprecision(1)<<tp3d.Pos[0]<<", "<<tp3d.Pos[1]<<", "<<tp3d.Pos[2]<<")";
+//        std::cout<<"\n";
+        tp3d.Dir = pfp.Dir[0];
         tp3d.TPIndex = ipt;
         pfp.TP3Ds.push_back(tp3d);
-/* This should be done later in StorePFP
-        // flag the hits used
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(tp.UseHit[ii]) slc.slHits[tp.Hits[ii]].InPFP = pfp.ID;
-        } // ii
-*/
       } // ipt
     } // tid
   } // FillTP3Ds
@@ -1362,7 +1427,7 @@ namespace tca {
   /////////////////////////////////////////
   void UpdateMatchStructs(TCSlice& slc, int oldTj, int newTj)
   {
-    // Replaces tjid and ipt references in slc.matchVec and slc.pfps from
+    // Replaces tjid and ipt references in slc.pfps from
     // oldTj to newTj. This function is called when Tjs are split or merged
     // or if a Tj is reversed (in which case oldTj = newTj).
     // The method used is to match the trajectory point positions
@@ -1410,8 +1475,6 @@ namespace tca {
     // Fills the mallTraj vector with trajectory points in the tpc and sorts
     // them by increasing X
     
-    slc.matchVec.clear();
-    
     int cstat = slc.TPCID.Cryostat;
     int tpc = slc.TPCID.TPC;
     
@@ -1428,7 +1491,6 @@ namespace tca {
     } // tj
     if(ntp < 2) return;
     
-    if(tcc.match3DCuts.size() > 7 && tcc.match3DCuts[7] > 0 && ntp > tcc.match3DCuts[7]) ntp = tcc.match3DCuts[7];
     slc.mallTraj.resize(ntp);
     
     // define mallTraj
@@ -1469,7 +1531,7 @@ namespace tca {
     
     if(icnt < slc.mallTraj.size()) slc.mallTraj.resize(icnt);
     
-    // This is pretty self-explanatory
+    // sort by increasing x
     std::vector<SortEntry> sortVec(slc.mallTraj.size());
     for(unsigned int ipt = 0; ipt < slc.mallTraj.size(); ++ipt) {
       // populate the sort vector
@@ -1734,104 +1796,87 @@ namespace tca {
     v1[2] *= mag / den;
     return true;
   } // SetMag
-/*
+
   /////////////////////////////////////////
   void FilldEdx(TCSlice& slc, PFPStruct& pfp)
   {
-    // Fills the dEdX vector in the match struct. This function should be called after the
-    // matched trajectory points are ordered so that dE/dx is calculated at the start of the PFParticle
-    if(pfp.ID == 0) return;
-    // error check
-    bool notgood = false;
-    for(unsigned short end = 0; end < 2; ++end) {
-      if(pfp.dEdx[end].size() != slc.nPlanes) notgood = true;
-      if(pfp.dEdxErr[end].size() != slc.nPlanes) notgood = true;
-    }
-    if(notgood) {
-      //      if(prt) mf::LogVerbatim("TC")<<"FilldEdx found inconsistent sizes for dEdx\n";
-      return;
-    }
-    
-    double t0 = 0;
+    // Fills dE/dx variables in the pfp struct
+    // TODO: Do this correctly instead of just quickly
     
     // don't attempt to find dE/dx at the end of a shower
     unsigned short numEnds = 2;
     if(pfp.PDGCode == 1111) numEnds = 1;
     
-    unsigned short maxlen = 0;
-    for(auto tjID : pfp.TjIDs) {
-      
-      Trajectory& tj = slc.tjs[tjID - 1];
-      geo::PlaneID planeID = DecodeCTP(tj.CTP);
-      double angleToVert = tcc.geom->Plane(planeID).ThetaZ() - 0.5 * ::util::pi<>();
-      for(unsigned short end = 0; end < numEnds; ++end) {
-        pfp.dEdx[end][planeID.Plane] = 0;
-        tj.dEdx[end] = 0;
-        double cosgamma = std::abs(std::sin(angleToVert) * pfp.Dir[end][1] + std::cos(angleToVert) * pfp.Dir[end][2]);
-        if(cosgamma == 0) continue;
-        double dx = tcc.geom->WirePitch(planeID) / cosgamma;
-        if(dx == 0) continue;
-        double dQ = tj.Pts[tj.EndPt[end]].AveChg;
-        if(dQ == 0) continue;
-        // convert to dQ/dx
-        dQ /= dx;
-        double time = tj.Pts[tj.EndPt[end]].Pos[1] / tcc.unitsPerTick;
-        float dedx = tcc.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
-        if(dedx > 999) dedx = -1;
-        pfp.dEdx[end][planeID.Plane] = dedx;
-        tj.dEdx[end] = dedx;
-        // ChgRMS is the fractional error
-        pfp.dEdxErr[end][planeID.Plane] = dedx * tj.ChgRMS;
-        
+    // set dE/dx to 0 to indicate that a valid dE/dx is expected
+    for(unsigned short end = 0; end < numEnds; ++end) {
+      for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) pfp.dEdx[end][plane] = 0;
+    } // end
+    
+//    Fit2D();
+    float rngOff = tcc.wirePitch / 2;
+    
+    // find dE/dx for points in each plane at both ends
+    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+      for(unsigned short end = 0; end < 2; ++end) {
+        short dir = 1 - 2 * end;
+        for(unsigned short ii = 0; ii < pfp.TP3Ds.size(); ++ii) {
+          unsigned short ipt;
+          if(dir > 0) {
+            ipt = ii;
+          } else {
+            ipt = pfp.TP3Ds.size() - ii - 1;
+          }
+          if(ipt >= pfp.TP3Ds.size()) break;
+          auto& tp3d = pfp.TP3Ds[ipt];
+          if(!tp3d.IsGood) continue;
+          // ignore single hits
+          if(tp3d.TjID <= 0) continue;
+          auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+          // look for a TP in this plane
+          if(DecodeCTP(tp.CTP).Plane != plane) continue;
+          // check for overlap condition
+          if(tp.Environment[kEnvOverlap]) continue;
+          float dedx = dEdx(slc, tp3d);
+          if(dedx < 0.5) continue;
+          // find the residual range and add the offset
+          float rr = PosSep(tp3d.Pos, pfp.XYZ[end]) + rngOff;
+          std::cout<<"FdEdx: P"<<pfp.ID<<" T"<<tp3d.TjID<<"_"<<tp3d.TPIndex<<" rr "<<rr<<" dEdx "<<dedx<<"\n";
+          if(ipt == 0) break;
+          // break after getting 30 cm away from the end
+          if(rr > 30) break;
+        } // ii
       } // end
-      // Grab the best plane iusing the start f 1 < dE/dx < 50 MeV/cm
-      if(pfp.dEdx[0][planeID.Plane] > 1 && pfp.dEdx[0][planeID.Plane] < 50) {
-        if(tj.Pts.size() > maxlen) {
-          maxlen = tj.Pts.size();
-          pfp.BestPlane = planeID.Plane;
-        }
-      } // valid dE/dx
-      
-    } // tj
-  } // FilldEdX
+    } // plane
 
-  ////////////////////////////////////////////////
-  void FilldEdx(TCSlice& slc, TrajPoint3& tp3)
-  {
-    // fills the dEdx variables in tp3 (MeV/cm)
-    tp3.dEdx = 0;
-    if(tp3.Tj2Pts.empty()) return;
-    double t0 = 0;
-    float sum = 0;
-    float sum2 = 0;
-    float cnt = 0;
-    for(auto& tj2pt : tp3.Tj2Pts) {
-      auto& tp = slc.tjs[tj2pt.id - 1].Pts[tj2pt.ipt];
-      if(tp.Chg <= 0) continue;
-      geo::PlaneID planeID = DecodeCTP(tp.CTP);
-      double angleToVert = tcc.geom->Plane(planeID).ThetaZ() - 0.5 * ::util::pi<>();
-      double cosgamma = std::abs(std::sin(angleToVert) * tp3.Dir[1] + std::cos(angleToVert) * tp3.Dir[2]);
-      if(cosgamma == 0) continue;
-      double dx = tcc.geom->WirePitch(planeID) / cosgamma;
-      // sum the hit charge
-      double chg = 0;
-      for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-        if(!tp.UseHit[ii]) continue;
-        unsigned int iht = tp.Hits[ii];
-        chg += (*evt.allHits)[slc.slHits[iht].allHitsIndex].Integral();
-      }
-      double dQ = chg / dx;
-      double time = tp.Pos[1] / tcc.unitsPerTick;
-      float dedx = tcc.caloAlg->dEdx_AREA(dQ, time, planeID.Plane, t0);
-      if(dedx > 200) continue;
-      sum += dedx;
-      sum2 += dedx * dedx;
-      ++cnt;
-    } // tj2pt
-    if(cnt == 0) return;
-    tp3.dEdx = sum / cnt;
+    
   } // FilldEdx
-*/
+
+  /////////////////////////////////////////
+  float dEdx(TCSlice& slc, TP3D& tp3d)
+  {
+    if(!tp3d.IsGood) return 0;
+    if(tp3d.TjID <= 0) {
+      std::cout<<"Fix dEdx to handle single hits\n";
+      return 0;
+    }
+    auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+    geo::PlaneID planeID = DecodeCTP(tp.CTP);
+    double angleToVert = tcc.geom->Plane(planeID).ThetaZ() - 0.5 * ::util::pi<>();
+    double cosgamma = std::abs(std::sin(angleToVert) * tp3d.Dir[1] + std::cos(angleToVert) * tp3d.Dir[2]);
+    if(cosgamma == 0) return 0;
+    double dx = tcc.geom->WirePitch(planeID) / cosgamma;
+    double dQ = tp.Chg;
+    // Correct for the 1 WSE path length normalization
+    if(tp.Dir[0] != 0) {
+      double pathInv = std::abs(tp.Dir[0]);
+      if(pathInv < 0.05) pathInv = 0.05;
+      dQ /= pathInv;
+    }
+    double dQdx = dQ / dx;
+    double time = tp.Pos[1] / tcc.unitsPerTick;
+    double t0 = 0;
+    return tcc.caloAlg->dEdx_AREA(dQdx, time, planeID.Plane, t0);
+  } // dEdx
 /*
   ////////////////////////////////////////////////
   float PFPDOCA(const PFPStruct& pfp1,  const PFPStruct& pfp2, unsigned short& close1, unsigned short& close2)
@@ -1865,10 +1910,10 @@ namespace tca {
     pfp.TPCID = slc.TPCID;
     // initialize arrays for both ends
     if(slc.nPlanes < 4) {
-      pfp.dEdx[0].resize(slc.nPlanes, 0);
-      pfp.dEdx[1].resize(slc.nPlanes, 0);
-      pfp.dEdxErr[0].resize(slc.nPlanes, 0);
-      pfp.dEdxErr[1].resize(slc.nPlanes, 0);
+      pfp.dEdx[0].resize(slc.nPlanes, -1);
+      pfp.dEdx[1].resize(slc.nPlanes, -1);
+      pfp.dEdxErr[0].resize(slc.nPlanes, -1);
+      pfp.dEdxErr[1].resize(slc.nPlanes, -1);
     }
     for(unsigned short end = 0; end < 2; ++end) {
       // BUG the double brace syntax is required to work around clang bug 21629
@@ -2141,8 +2186,12 @@ namespace tca {
     ++evt.globalPFPID;
     pfp.UID = evt.globalPFPID;
     
+    // ensure that dE/dx is defined
+//    if(pfp.dEdx[0][0] < 0) FilldEdx(slc, pfp);
+    
     // set the TP used in PFP bit
     for(auto& tp3d : pfp.TP3Ds) {
+      if(tp3d.TjID <= 0) continue;
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
       if(tp.Environment[kEnvInPFP]) {
         std::cout<<"StorePFP: Trying to use already-used TP T"<<tp3d.TjID<<"_"<<tp3d.TPIndex<<"\n";
@@ -2157,8 +2206,6 @@ namespace tca {
       if(tj.AlgMod[kMat3D]) return false;
       tj.AlgMod[kMat3D] = true;
     } // tjid
-    
-//    if(pfp.BestPlane < 0) FilldEdx(slc, pfp);
     
     if(pfp.NeedsUpdate) std::cout<<"StorePFP: stored P"<<pfp.ID<<" but NeedsUpdate is true...\n";
     
@@ -2404,7 +2451,7 @@ namespace tca {
     if(printPts < 0) {
       // print the head if we are print all points
       myprt<<someText<<" pfp P"<<pfp.ID<<"\n";
-      myprt<<someText<<"  ipt ________Pos________  Path   ________Dir_______ Delta IsGood ChiDOF nTPsFit  T_ipt_P:W:T\n";
+      myprt<<someText<<"  ipt ________Pos________  Along   ________Dir_______ Delta IsGood ChiDOF nTPsFit  T_ipt_P:W:T\n";
     }
     // print the start
     myprt<<someText<<"    ";
@@ -2418,13 +2465,12 @@ namespace tca {
     unsigned short fromPt = 0;
     unsigned short toPt = pfp.TP3Ds.size() - 1;
     if(printPts >= 0) fromPt = toPt;
-    //    Vector3_t prevDir = pfp.Dir[0];
     for(unsigned short ipt = fromPt; ipt <= toPt; ++ipt) {
       auto tp3d = pfp.TP3Ds[ipt];
       myprt<<someText<<std::setw(4)<<ipt;
       myprt<<std::fixed<<std::setprecision(1);
       myprt<<std::setw(7)<<tp3d.Pos[0]<<std::setw(7)<<tp3d.Pos[1]<<std::setw(7)<<tp3d.Pos[2];
-      myprt<<std::setprecision(1)<<std::setw(6)<<PosSep(tp3d.Pos, pfp.XYZ[0]);
+      myprt<<std::setprecision(1)<<std::setw(6)<<tp3d.along;
       myprt<<std::setprecision(2)<<std::setw(7)<<tp3d.Dir[0]<<std::setw(7)<<tp3d.Dir[1]<<std::setw(7)<<tp3d.Dir[2];
       myprt<<std::setprecision(1)<<std::setw(6)<<tp3d.Delta;
       myprt<<std::setw(7)<<tp3d.IsGood;
@@ -2432,11 +2478,13 @@ namespace tca {
       myprt<<std::setw(6)<<tp3d.nTPsFit;
       if(tp3d.slHitsIndex < slc.slHits.size()) {
         myprt<<" "<<PrintHit(slc.slHits[tp3d.slHitsIndex]);
-      } else {
+      } else if(tp3d.TjID > 0) {
         auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
         myprt<<" T"<<tp3d.TjID<<"_"<<tp3d.TPIndex<<"_"<<PrintPos(slc, tp);
+      } else {
+        myprt<<" UNDEFINED";
       }
-      myprt<<" along "<<std::setprecision(3)<<tp3d.along;
+      myprt<<" dE/dx "<<std::setprecision(2)<<dEdx(slc, tp3d);
       myprt<<"\n";
     } // ipt
     // print the end
