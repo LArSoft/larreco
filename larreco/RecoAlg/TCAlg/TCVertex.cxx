@@ -134,7 +134,7 @@ namespace tca {
     if(tcc.vtx2DCuts[0] <= 0) return;
     if(slc.tjs.size() < 2) return;
     
-    bool firstPassCuts = (tcc.useAlg[kNewVtxCuts] && pass == 0);
+    bool firstPassCuts = (pass == 0);
     
     geo::PlaneID planeID = DecodeCTP(inCTP);
     
@@ -368,24 +368,6 @@ namespace tca {
             myprt<<" at "<<std::fixed<<std::setprecision(1)<<aVtx.Pos[0]<<":"<<aVtx.Pos[1]/tcc.unitsPerTick;
           }
           AttachAnyTrajToVertex(slc, slc.vtxs.size() - 1, prt);
-/*
-          if(tcc.useAlg[kNewVtxCuts]) {
-            // try stepping away from the vertex
-            auto& newVx2 = slc.vtxs[slc.vtxs.size() - 1];
-            auto tjlist = GetAssns(slc, "2V", newVx2.ID, "T");
-            // count the number of long straight Tjs
-            unsigned short nlong = 0;
-            for(auto tjid : tjlist) {
-              auto& vtj = slc.tjs[tjid - 1];
-              unsigned short npts = vtj.EndPt[1] - vtj.EndPt[0] + 1;
-              if(npts > 20 && vtj.MCSMom > 100) ++nlong;
-            } // tjid
-            if(nlong > 1) {
-              std::cout<<"Try 2V"<<newVx2.ID<<" nlong "<<nlong<<"\n";
-              FindVtxTjs(slc, newVx2);
-            }
-          } // new cuts
-*/
           SetVx2Score(slc);
         } // it2
       } // end1
@@ -883,8 +865,7 @@ namespace tca {
       if(vx2.CTP != inCTP) continue;
       auto vxtjs = GetAssns(slc, "2V", vx2.ID, "T");
       if(vxtjs.size() < 2) continue;
-      if(tcc.useAlg[kNewVtxCuts] && vx2.Stat[kOnDeadWire]) continue;
-      // BB added June 4, 2018
+      if(vx2.Stat[kOnDeadWire]) continue;
       // find the closest separation between the vertex and the ends of the tjs
       float close = 200;
       int closeID = 0;
@@ -1023,7 +1004,7 @@ namespace tca {
           unsigned short numPtsWithCharge2 = NumPtsWithCharge(slc, slc.tjs[it2], true);
           if(numPtsWithCharge2 < 6) continue;
           // ignore muon-like tjs
-          if(tcc.useAlg[kNewVtxCuts] && numPtsWithCharge2 > 100 && slc.tjs[it2].MCSMom > 500) continue;
+          if(numPtsWithCharge2 > 100 && slc.tjs[it2].MCSMom > 500) continue;
           // Find the minimum separation between tj1 and tj2
           float minDOCA = 5;
           float doca = minDOCA;
@@ -1194,18 +1175,10 @@ namespace tca {
           // length of tj2 cut
           unsigned short tj2len = slc.tjs[it2].EndPt[1] - slc.tjs[it2].EndPt[0] + 1;
           if(tj2len < 6) continue;
-          // ignore if tj1 is a lot shorter than tj2
-//          if(tj1len < 0.5 * tj2len) continue;
           // ignore very long straight trajectories (probably a cosmic muon)
-          unsigned short end20 = slc.tjs[it2].EndPt[0];
-          unsigned short end21 = slc.tjs[it2].EndPt[1];
-          if(tcc.useAlg[kNewVtxCuts]) {
-            if(tj2len > 200 && slc.tjs[it2].PDGCode == 13) continue;
-          } else {
-            if(tj2len > 100 && DeltaAngle(slc.tjs[it2].Pts[end20].Ang, slc.tjs[it2].Pts[end21].Ang) < 0.2) continue;
-          }
+          if(tj2len > 200 && slc.tjs[it2].PDGCode == 13) continue;
           float minDOCA = 5;
-          if(tcc.useAlg[kNewVtxCuts]) minDOCA /= std::abs(slc.tjs[it1].Pts[endPt1].Dir[0]);
+          minDOCA /= std::abs(slc.tjs[it1].Pts[endPt1].Dir[0]);
           float doca = minDOCA;
           unsigned short closePt2 = 0;
           TrajPointTrajDOCA(slc, slc.tjs[it1].Pts[endPt1], slc.tjs[it2], closePt2, doca);
@@ -1226,14 +1199,12 @@ namespace tca {
           if(prt) mf::LogVerbatim("TC")<<" chgFrac "<<chgFrac;
           if(chgFrac < 0.9) continue;
           Point2_t vxpos = slc.tjs[it2].Pts[closePt2].Pos;
-          if(tcc.useAlg[kNewVtxCuts]) {
-            // get a better estimate of the vertex position
-            TrajIntersection(slc.tjs[it1].Pts[endPt1], slc.tjs[it2].Pts[closePt2], vxpos[0], vxpos[1]);
-            // and a better estimate of the point on tj2 where the split should be made
-            doca = minDOCA;
-            TrajClosestApproach(slc.tjs[it2], vxpos[0], vxpos[1], closePt2, doca);
-            if(prt) mf::LogVerbatim("TC")<<" better pos "<<PrintPos(slc, vxpos)<<" new closePt2 "<<closePt2;
-          } // kNewVtxCuts
+          // get a better estimate of the vertex position
+          TrajIntersection(slc.tjs[it1].Pts[endPt1], slc.tjs[it2].Pts[closePt2], vxpos[0], vxpos[1]);
+          // and a better estimate of the point on tj2 where the split should be made
+          doca = minDOCA;
+          TrajClosestApproach(slc.tjs[it2], vxpos[0], vxpos[1], closePt2, doca);
+          if(prt) mf::LogVerbatim("TC")<<" better pos "<<PrintPos(slc, vxpos)<<" new closePt2 "<<closePt2;
           // create a new vertex
           VtxStore aVtx;
           aVtx.Pos = vxpos;
@@ -1441,7 +1412,7 @@ namespace tca {
     
     for(unsigned short ivx = 0; ivx < vsize; ++ivx) {
       if(slc.vtxs[ivx].ID <= 0) continue;
-      if(tcc.useAlg[kNewVtxCuts] && slc.vtxs[ivx].Score < tcc.vtx2DCuts[7]) continue;
+      if(slc.vtxs[ivx].Score < tcc.vtx2DCuts[7]) continue;
       geo::PlaneID planeID = DecodeCTP(slc.vtxs[ivx].CTP);
       if(slc.vtxs[ivx].Pos[0] < -0.4) continue;
       unsigned int wire = std::nearbyint(slc.vtxs[ivx].Pos[0]);
@@ -1700,130 +1671,7 @@ namespace tca {
     } // vx3
 
   } // Find3DVertices
-/*
-  ////////////////////////////////////////////////
-  void Match3DVtxTjs(TCSlice& slc, bool prt)
-  {
-    // Matches Tjs that are attached to 2D vertices that are matched in 3D. This function does not attempt
-    // to determine the appropriate ends of matched Tjs when there is a 3D vertex at both ends. 
-    
-    if(!tcc.useAlg[kM3DVxTj]) return;
-    if(slc.vtx3s.empty()) return;
-    if(slc.matchVec.empty()) return;
 
-    // sort the vertices by decreasing score
-    std::vector<SortEntry> sortVec;
-    for(unsigned short iv3 = 0; iv3 < slc.vtx3s.size(); ++iv3) {
-      auto& vx3 = slc.vtx3s[iv3];
-      if(vx3.ID == 0) continue;
-      // put the TjIDs into a vector for matching
-      float score = 0;
-      auto v3TjIDs = GetVtxTjIDs(slc, vx3, score);
-      if(v3TjIDs.empty()) continue;
-      if(score < tcc.vtx2DCuts[7]) continue;
-      SortEntry se;
-      se.index = iv3;
-      se.val = score;
-      sortVec.push_back(se);
-    } // vx3
-    if(sortVec.empty()) return;
-    if(sortVec.size() > 1) std::sort(sortVec.begin(), sortVec.end(), valDecreasing);
-    
-    for(unsigned short ii = 0; ii < sortVec.size(); ++ii) {
-      auto& vx3 = slc.vtx3s[sortVec[ii].index];
-      float score = 0;
-      std::vector<int> v3TjIDs = GetVtxTjIDs(slc, vx3, score);
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"M3DVTj 3V"<<vx3.ID<<" score "<<score<<" Tjs";
-        for(auto& tjID : v3TjIDs) myprt<<" T"<<tjID;
-      }
-      for(unsigned int ims = 0; ims < slc.matchVec.size(); ++ims) {
-        auto& ms = slc.matchVec[ims];
-        if(ms.Count == 0) continue;
-        bool skipit = false;
-        for(auto tjid : ms.TjIDs) {
-          auto& tj = slc.tjs[tjid - 1];
-          if(tj.AlgMod[kMat3D]) skipit = true;
-          if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) skipit = true;
-        }
-        if(skipit) continue;
-        std::vector<int> shared = SetIntersection(ms.TjIDs, v3TjIDs);
-        if(shared.size() < 2) continue;
-        if(prt) mf::LogVerbatim("TC")<<" ims "<<ims<<" shared size "<<shared.size();
-        PFPStruct pfp = CreatePFP(slc);
-        pfp.TjIDs = ms.TjIDs;
-        pfp.Vx3ID[0] = vx3.ID;
-        // note that the ms position is the average position of all 3D matched Tp3s at this point.
-        // It is not the start position. This will be determined in DefinePFP.
-        pfp.XYZ[0] = ms.Pos;
-        pfp.Dir[0] = ms.Dir;
-        pfp.MatchVecIndex = ims;
-        if(prt) mf::LogVerbatim("TC")<<"M3DVTj: pfp P"<<pfp.ID<<" 3V"<<vx3.ID<<" ims "<<ims;
-        // Set the PDGCode so DefinePFP can ignore incompatible matches
-        pfp.PDGCode = PDGCodeVote(slc, pfp.TjIDs, prt);
-        // make a copy of the TjIDs to test for changes
-        auto saveTjIDs = pfp.TjIDs;
-//        if(!DefinePFP("M3DVTj1", slc, pfp, prt)) continue;
-        // separation distance (cm) for kink detection.
-//        double sep = 1;
-//        bool didSplit = Split3DKink(slc, pfp, sep, prt);
-        if(prt) PrintPFP("M3D", slc, pfp, true);
-        if(!didSplit && shared.size() != ms.TjIDs.size()) {
-          // Try to repair the PFParticle by merging the Tj that was in the match list but
-          // wasn't attached to the vertex. Hopefully there aren't more than one...
-          auto tjNotInVx = SetDifference(ms.TjIDs, shared);
-        }
-        AnalyzePFP(slc, pfp, prt);
-        if(!StorePFP(slc, pfp)) continue;
-        if(pfp.TjIDs != saveTjIDs) {
-          // v3TjIDs is wrong if Tjs were merged so re-make it.
-          auto tmp = GetVtxTjIDs(slc, vx3, score);
-          v3TjIDs.clear();
-          // then re-build it
-          for(auto tjid : tmp) {
-            auto& tj = slc.tjs[tjid - 1];
-            if(!tj.AlgMod[kMat3D]) v3TjIDs.push_back(tjid);
-          } // tjid
-          if(v3TjIDs.size() < 2) break;
-        } // pfp.TjIDs != saveTjIDs
-        ms.Count = 0;
-        // clobber MatchStructs that use the Tjs in this pfp
-        for(auto& allms : slc.matchVec) {
-          auto mfpfp = SetIntersection(allms.TjIDs, pfp.TjIDs);
-          if(!mfpfp.empty()) allms.Count = 0;
-        } // allms
-        auto leftover = SetDifference(v3TjIDs, pfp.TjIDs);
-        if(prt) {
-          mf::LogVerbatim myprt("TC");
-          myprt<<" leftover";
-          for(auto tjid : leftover) myprt<<" T"<<tjid;
-        }
-        if(leftover.size() < 2) break;
-        // keep looking using the leftovers
-        v3TjIDs = leftover;
-      } // ims
-      if(v3TjIDs.size() > 1 && v3TjIDs.size() <= slc.nPlanes) {
-        // a last-ditch attempt
-        PFPStruct pfp = CreatePFP(slc);
-        // put the available leftovers in
-        for(auto& tjid : v3TjIDs) {
-          auto& tj = slc.tjs[tjid - 1];
-          if(tj.AlgMod[kMat3D]) continue;
-          if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
-          pfp.TjIDs.push_back(tjid);
-        } // tjid
-        if(pfp.TjIDs.size() < 2) continue;
-        pfp.Vx3ID[0] = vx3.ID;
-        if(!DefinePFP("M3DVTj2", slc, pfp, prt)) continue;
-        Split3DKink(slc, pfp, 1, prt);
-        AnalyzePFP(slc, pfp, prt);
-        if(prt) PrintPFP("left", slc, pfp, true);
-        if(!StorePFP(slc, pfp)) continue;
-      }
-    } // ims
-  } // Match3DVtxTjs
-*/
   //////////////////////////////////////////
   unsigned short TPNearVertex(TCSlice& slc, const TrajPoint& tp)
   {
@@ -1839,42 +1687,95 @@ namespace tca {
   } // TPNearVertex
   
   //////////////////////////////////////////
-  bool AttachPFPToVertex(TCSlice& slc, PFPStruct& pfp, unsigned short end, unsigned short vx3ID, bool prt)
+  bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, bool prt)
   {
-    if(vx3ID > int(slc.vtx3s.size())) return false;
-    if(pfp.ID > int(slc.pfps.size())) return false;
-    if(pfp.PDGCode == 22) return false;
-    if(end > 1) return false;
+    // Attaches to any 3D vertex but doesn't require consistency with
+    // PFP -> Tj -> 2V -> 3V assns
+    if(pfp.ID <= 0) return false;
     
-    auto& vx3 = slc.vtx3s[vx3ID - 1];
+    if(prt) mf::LogVerbatim("TC")<<"ATAV: P"<<pfp.ID<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
     
-    pfp.Vx3ID[end] = vx3.ID;
+    float pLen = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+    if(pLen == 0) {
+      std::cout<<"ATAV: P"<<pfp.ID<<" is length 0. End positions not defined\n";
+      return false;
+    } 
     
-    // We are done if this a PFP-only vertex
-    if(vx3.Wire == -2) return true;
+    // save the old assignents and clear them
+    //    auto oldVx3ID = pfp.Vx3ID;
+    for(unsigned short end = 0; end < 2; ++end) pfp.Vx3ID[end] = 0;
     
-    // Update the 2D and 3D vertex and tj associations
-    for(auto tjid : pfp.TjIDs) {
-      auto& tj = slc.tjs[tjid - 1];
-      unsigned short plane = DecodeCTP(tj.CTP).Plane;
-      // TODO: Check to see if the Tjs have been ordered correctly? 
-      if(tj.VtxID[end] == 0) {
-        // tj is available to be attached to a 2D vertex. See if the 3D vertex is matched to 
-        // an existing 2D vertex in this plane
-        if(vx3.Vx2ID[plane] == 0) {
-          // not matched. Look for one
-          std::array<float, 2> pos;
-          PosInPlane(slc, vx3, plane, pos);
-//          if(prt) std::cout<<" tj "<<tj.ID<<" has no 2D vertex. Look for one vertex near "<<tj.CTP<<":"<<PrintPos(slc, pos)<<" Events processed "<<slc.EventsProcessed<<"\n";
-        } else {
-          // Existing 2D vertex matched to the 3D vertex
-//          if(prt) std::cout<<" tj "<<tj.ID<<" has no 2D vertex in CTP "<<tj.CTP<<" but vx3 is matched to 2D vertex"<<vx3.Vx2ID[plane]<<". Attach it? Events processed "<<slc.EventsProcessed<<"\n";
-        }
-      }
-    } // tjid
+    std::array<float, 2> foms {{100.}};
+    std::array<int, 2> vtxs {{0}};
+    for(auto& vx3 : slc.vtx3s) {
+      if(vx3.ID <= 0) continue;
+      if(vx3.TPCID != pfp.TPCID) continue;
+      std::array<float, 2> sep;
+      Point3_t vpos = {{vx3.X, vx3.Y, vx3.Z}};
+      sep[0] = PosSep(vpos, pfp.XYZ[0]);
+      sep[1] = PosSep(vpos, pfp.XYZ[1]);
+      unsigned short end = 0;
+      if(sep[1] < sep[0]) end = 1;
+      // ignore if separation > 100 cm
+      if(sep[end] > 100) continue;
+      // ensure that the separation btw the vertex and the far end is
+      // larger than the PFP length
+      if(sep[1 - end] < pLen) continue;
+      // find the direction vector between these points
+      auto vpDir = PointDirection(vpos, pfp.XYZ[end]);
+      double dotp = DotProd(vpDir, pfp.Dir[end]);
+      float fom = dotp * sep[end];
+      if(fom < foms[end]) {
+        foms[end] = fom;
+        vtxs[end] = vx3.ID;
+      } 
+      if(prt) std::cout<<"ATAV: P"<<pfp.ID<<" 3V"<<vx3.ID<<" dotp "<<dotp<<" sep "<<sep[end]<<"\n";
+    } // vx3
+    for(unsigned short end = 0; end < 2; ++end) {
+      if(vtxs[end] == 0) continue;
+      pfp.Vx3ID[end] = vtxs[end];
+    } // end
+    return false;
+  } // AttachToAnyVertex
+  
+  //////////////////////////////////////////
+  bool AttachAnyVertexToTraj(TCSlice& slc, int tjID, bool prt)
+  {
+    // Try to attach a tj that is stored in slc.tjs with any vertex
+    if(tjID <= 0 || tjID > slc.tjs.size()) return false;
+    if(slc.vtxs.empty()) return false;
+    auto& tj = slc.tjs[tjID - 1];
+    if(tj.AlgMod[kKilled]) return false;
+    if(tcc.vtx2DCuts[0] <= 0) return false;
     
-    return true;
-  } // AttachPFPToVertex
+    unsigned short bestVx = USHRT_MAX;
+    // Construct a FOM = (TP-Vtx pull) * (TP-Vtx sep + 1) * (Vtx Score).
+    // The +1 keeps FOM from being 0
+    float bestFOM = 2 * tcc.vtx2DCuts[3] * (tcc.vtx2DCuts[0] + 1) * tcc.vtx2DCuts[7];
+    for(unsigned short ivx = 0; ivx < slc.vtxs.size(); ++ivx) {
+      auto& vx = slc.vtxs[ivx];
+      if(vx.ID == 0) continue;
+      if(vx.CTP != tj.CTP) continue;
+      // make some rough cuts
+      std::array<float, 2> sep;
+      sep[0] = PosSep(vx.Pos, tj.Pts[tj.EndPt[0]].Pos);
+      sep[1] = PosSep(vx.Pos, tj.Pts[tj.EndPt[1]].Pos);
+      unsigned short end = 0;
+      if(sep[1] < sep[0]) end = 1;
+      if(sep[end] > 100) continue;
+      if(tj.VtxID[end] > 0) continue;
+      auto& tp = tj.Pts[tj.EndPt[end]];
+      // Pad the separation a bit so we don't get zero
+      float fom = TrajPointVertexPull(slc, tp, vx) * (sep[end] + 1) * vx.Score;
+      if(fom > bestFOM) continue;
+      if(prt) mf::LogVerbatim("TC")<<"AAVTT: T"<<tjID<<" 2V"<<vx.ID<<" FOM "<<fom<<" cut "<<bestFOM;
+      bestVx = ivx;
+      bestFOM = fom;
+    } // vx
+    if(bestVx > slc.vtxs.size() - 1) return false;
+    auto& vx = slc.vtxs[bestVx];
+    return AttachTrajToVertex(slc, tj, vx, prt);
+  } // AttachAnyVertexToTraj
 
   //////////////////////////////////////////
   bool AttachAnyTrajToVertex(TCSlice& slc, unsigned short ivx, bool prt)
@@ -1888,17 +1789,34 @@ namespace tca {
     // Hammer vertices should be isolated and clean
     if(vx.Topo == 5 || vx.Topo == 6) return false;
     
-    unsigned short nadd = 0;
-    for(auto& tj : slc.tjs) {
+    unsigned short bestTj = USHRT_MAX;
+    // Construct a FOM = (TP-Vtx pull) * (TP-Vtx sep + 1).
+    // The +1 keeps FOM from being 0
+    float bestFOM = 2 * tcc.vtx2DCuts[3] * (tcc.vtx2DCuts[0] + 1);
+    for(unsigned int itj = 0; itj < slc.tjs.size(); ++itj) {
+      auto& tj = slc.tjs[itj];
       if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       if(tj.CTP != vx.CTP) continue;
-      if(tj.VtxID[0] == vx.ID || tj.VtxID[1] == vx.ID) continue;
-      if(AttachTrajToVertex(slc, tj, vx, prt)) ++nadd;
+      //      if(tj.VtxID[0] == vx.ID || tj.VtxID[1] == vx.ID) continue;
+      // make some rough cuts
+      std::array<float, 2> sep;
+      sep[0] = PosSep(vx.Pos, tj.Pts[tj.EndPt[0]].Pos);
+      sep[1] = PosSep(vx.Pos, tj.Pts[tj.EndPt[1]].Pos);
+      unsigned short end = 0;
+      if(sep[1] < sep[0]) end = 1;
+      if(sep[end] > 100) continue;
+      if(tj.VtxID[end] > 0) continue;
+      auto& tp = tj.Pts[tj.EndPt[end]];
+      // Pad the separation a bit so we don't get zero
+      float fom = TrajPointVertexPull(slc, tp, vx) * (sep[end] + 1);
+      if(fom > bestFOM) continue;
+      if(prt) mf::LogVerbatim("TC")<<"AATTV: T"<<tj.ID<<" 2V"<<vx.ID<<" FOM "<<fom<<" cut "<<bestFOM;
+      bestTj = itj;
+      bestFOM = fom;
     } // tj
-    if(prt) mf::LogVerbatim("TC")<<" AttachAnyTrajToVertex: nadd "<<nadd;
-    if(nadd == 0) return false;
-    return true;
-    
+    if(bestTj > slc.tjs.size() - 1) return false;
+    auto& tj = slc.tjs[bestTj];
+    return AttachTrajToVertex(slc, tj, vx, prt);
   } // AttachAnyTrajToVertex
 
   //////////////////////////////////////////
@@ -1940,7 +1858,7 @@ namespace tca {
     // is the trajectory short?
     bool tjShort = (tj.EndPt[1] - tj.EndPt[0] < maxShortTjLen);
     // use the short Tj cut if the trajectory looks like an electron
-    if(tcc.useAlg[kNewVtxCuts] && !tjShort && tj.ChgRMS > 0.5) tjShort = true;
+    if(!tjShort && tj.ChgRMS > 0.5) tjShort = true;
     float closestApproach;
     // ignore bad separation between the closest tj end and the vertex
     if(tjShort) {
@@ -1976,12 +1894,8 @@ namespace tca {
     float pullCut = tcc.vtx2DCuts[3];
     // Dec 21, 2017 Loosen up the pull cut for short close slc. These are likely to
     // be poorly reconstructed. It is better to have them associated with the vertex
-    // than not. Oct 5, 2018 This was too loose.
-    if(tcc.useAlg[kNewVtxCuts]) {
-      if(tjShort) pullCut *= 2;
-    } else {
-      if(tjShort) pullCut = 10;
-    }
+    // than not.
+    if(tjShort) pullCut *= 2;
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -2004,9 +1918,6 @@ namespace tca {
     // remove the fixed position flag if there are more than 2 tjs
     bool fixedBit = vx.Stat[kFixed];
     if(fixedBit && vx.NTraj < 2) vx.Stat[kFixed] = false;
-    
-    // don't allow a short Tj with a large pull to bias the fit
-    if(tjShort && tpVxPull > tcc.vtx2DCuts[3]) tj.AlgMod[kNoFitToVx] = true;
 
     // Passed all the cuts. Attach it to the vertex and try a fit
     tj.VtxID[end] = vx.ID;
@@ -2020,21 +1931,13 @@ namespace tca {
       vx = vxTmp;
       return true;
     }
-
-    // fit failed so remove the tj -> vx assignment if it is long and
-    // set noFitToVtx if it is short
-    if(tjShort) {
-      tj.AlgMod[kNoFitToVx] = true;
-      if(prt) mf::LogVerbatim("TC")<<" Poor fit. Keep short Tj "<<tj.ID<<" with kNoFitToVx";
-      return true;
-    } else {
-      tj.VtxID[end] = 0;
-      // restore the fixed flag
-      vx.Stat[kFixed] = fixedBit;
-      if(prt) mf::LogVerbatim("TC")<<" Poor fit. Removed Tj "<<tj.ID;
-      return false;
-    }
-
+    // Keep the Tj -> Vx assn since we got this far, but don't include this end of the Tj in the fit
+    tj.EndFlag[end][kNoFitVx] = true;
+    if(prt) mf::LogVerbatim("TC")<<" Poor fit. Keep T"<<tj.ID<<"-2V"<<vx.ID<<" assn with kNoFitVx";
+    // restore the fixed flag
+    vx.Stat[kFixed] = fixedBit;
+    return true;
+    
   } // AttachTrajToVertex
   
   /////////////////////////////////////////
@@ -2166,13 +2069,12 @@ namespace tca {
       if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) continue;
       if(tj.CTP != vx.CTP) continue;
       if(tj.AlgMod[kPhoton]) continue;
-      if(tj.AlgMod[kNoFitToVx]) continue;
       bool added = false;
-      if(tj.VtxID[0] == vx.ID) {
+      if(tj.VtxID[0] == vx.ID && !tj.EndFlag[0][kNoFitVx]) {
         vxTp.push_back(tj.Pts[tj.EndPt[0]]);
         added = true;
       }
-      if(tj.VtxID[1] == vx.ID) {
+      if(tj.VtxID[1] == vx.ID && !tj.EndFlag[1][kNoFitVx]) {
         vxTp.push_back(tj.Pts[tj.EndPt[1]]);
         added = true;
       }
@@ -2181,7 +2083,7 @@ namespace tca {
         auto& tp = vxTp[vxTp.size()-1];
         if(tj.ID > 0) tp.Step = (int)tj.ID;
         // inflate the angle errors for Tjs with few fitted points
-        if(tcc.useAlg[kNewVtxCuts] && tp.NTPsFit < 4) tp.AngErr *= 4;
+        if(tp.NTPsFit < 4) tp.AngErr *= 4;
       }
     } // tj
     
@@ -2573,11 +2475,10 @@ namespace tca {
       unsigned short lenth = tj.EndPt[1] - tj.EndPt[0] + 1;
       if(lenth < 3) continue;
       float wght = (float)tj.MCSMom / momBin;
-      if(!tcc.useAlg[kNewVtxCuts] && wght > 10) wght = 10;
       // weight by the first tagged muon
       if(tj.PDGCode == 13) {
         ++cnt13;
-        if(tcc.useAlg[kNewVtxCuts] && cnt13 == 1) wght *= 2;
+        if(cnt13 == 1) wght *= 2;
       }
       // weight by charge rms
       if(tj.ChgRMS < maxChgRMS) ++wght;
@@ -2603,7 +2504,7 @@ namespace tca {
       unsigned short endPt1 = tj1.EndPt[end1];
       // bump up the weight if there is a Bragg peak at the other end
       unsigned short oend1 = 1 - end1;
-      if(tj1.StopFlag[oend1][kBragg]) ++wght1;
+      if(tj1.EndFlag[oend1][kBragg]) ++wght1;
       float ang1 = tj1.Pts[endPt1].Ang;
       float ang1Err2 = tj1.Pts[endPt1].AngErr * tj1.Pts[endPt1].AngErr;
       for(unsigned short it2 = it1 + 1; it2 < tjids.size(); ++it2) {
@@ -2613,7 +2514,7 @@ namespace tca {
         if(tj2.VtxID[1] == vx2.ID) end2 = 1;
         // bump up the weight if there is a Bragg peak at the other end
         unsigned short oend2 = 1 - end2;
-        if(tj2.StopFlag[oend2][kBragg]) ++wght2;
+        if(tj2.EndFlag[oend2][kBragg]) ++wght2;
         unsigned short endPt2 = tj2.EndPt[end2];
         float ang2 = tj2.Pts[endPt2].Ang;
         float ang2Err2 = tj2.Pts[endPt2].AngErr * tj2.Pts[endPt2].AngErr;
