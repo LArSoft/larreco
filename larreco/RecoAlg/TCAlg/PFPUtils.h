@@ -40,13 +40,14 @@ namespace tca {
   void MatchPlanes(TCSlice& slc, unsigned short numPlanes, std::vector<MatchStruct>& matVec, bool prt);
   void FindCompleteness(TCSlice& slc, PFPStruct& pfp, bool doFit, bool prt);
   bool DefinePFP(std::string inFcnLabel, TCSlice& slc, PFPStruct& pfp, bool prt);
+  bool KillBadPoint(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, bool prt);
   unsigned short Find3DRecoRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir);
-  bool FitTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short atPt, unsigned short requestedNumPts);
   bool FitTP3Ds(TCSlice& slc, std::vector<TP3D>& tp3s, unsigned short fromPt, unsigned short toPt, Point3_t& pos, Vector3_t& dir, float& chiDOF, bool doUpdate);
   void AddMissedTP3Ds(TCSlice& slc, PFPStruct& pfp, bool prt);
   void AddMissedTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, CTP_t inCTP, bool prt);
   bool SetStartEnd(TCSlice& slc, PFPStruct& pfp);
-  void SortTP3Ds(TCSlice& slc, PFPStruct& pfp);
+  bool SortTP3Ds(TCSlice& slc, PFPStruct& pfp);
+  void CountOrder(TCSlice& slc, int tid, const std::vector<TP3D>& tp3ds, unsigned short& nNeg, unsigned short& nPos);
   void FillTP3Ds(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(TCSlice& slc);
   bool SharesHighScoreVx(TCSlice& slc, const PFPStruct& pfp, const Trajectory& tj);
@@ -61,8 +62,8 @@ namespace tca {
   double PosSep(const Point3_t& pos1, const Point3_t& pos2);
   double PosSep2(const Point3_t& pos1, const Point3_t& pos2);
   bool SetMag(Vector3_t& v1, double mag);
-//  void FilldEdx(TCSlice& slc, PFPStruct& pfp);
-//  void FilldEdx(TCSlice& slc, TrajPoint3& tp3);
+  void FilldEdx(TCSlice& slc, PFPStruct& pfp);
+  float dEdx(TCSlice& slc, TP3D& tp3d);
   float PFPDOCA(const PFPStruct& pfp1,  const PFPStruct& pfp2, unsigned short& close1, unsigned short& close2);
   PFPStruct CreatePFP(TCSlice& slc);
   void PFPVertexCheck(TCSlice& tcs);
