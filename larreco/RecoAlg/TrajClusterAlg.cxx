@@ -132,18 +132,7 @@ namespace tca {
       // turn off printing
       tcc.showerTag[12] = -1;
     }
-    if(tcc.match3DCuts.size() < 7) {
-      std::cout<<">>>>>>>> Match3DCuts has been expanded to size 7. Please update your fcl file\n";
-      unsigned short oldsize = tcc.match3DCuts.size();
-      tcc.match3DCuts.resize(7);
-      if(oldsize < 5) std::cout<<" Setting Match3DCuts[4] = 2000 combinations\n";
-      if(oldsize < 6) std::cout<<" Setting Match3DCuts[5] = 1, which disables charge asymmetry checking\n";
-      tcc.match3DCuts[4] = 2000;
-      tcc.match3DCuts[5] = 1;
-      tcc.match3DCuts[6] = tcc.kinkCuts[0];
-    }
-    // convert Match3DCuts[6] from angle to cos(angle)
-    tcc.match3DCuts[6] = cos(tcc.match3DCuts[6]);
+    if(tcc.match3DCuts.size() < 5) throw art::Exception(art::errors::Configuration)<<"Match3DCuts must be size 5\n 0 = dx (cm) matching cut\n 1 = max number of 3D combinations\n 2 = min length for 2-view match\n 3 = number of TP3Ds in each plane to fit in each PFP section\n 4 = max chiDOF for rejecting TP3Ds in sections";
     
     // check the angle ranges and convert from degrees to radians
     if(tcc.angleRanges.back() < 90) {
@@ -199,9 +188,9 @@ namespace tca {
     if(kAlgBitSize > 128) throw art::Exception(art::errors::Configuration)<<"Increase the size of UseAlgs to at least "<<kAlgBitSize;
     fAlgModCount.resize(kAlgBitSize);
 
-    if(kFlagBitSize != StopFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != StopFlagNames size "<<StopFlagNames.size();
+    if(kFlagBitSize != EndFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != EndFlagNames size "<<EndFlagNames.size();
     
-    if(kFlagBitSize > 8) throw art::Exception(art::errors::Configuration)<<"Increase the size of StopFlag to at least "<<kFlagBitSize;
+    if(kFlagBitSize > 8) throw art::Exception(art::errors::Configuration)<<"Increase the size of EndFlag to at least "<<kFlagBitSize;
     
     bool printHelp = false;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) tcc.useAlg[ib] = true;
@@ -412,8 +401,7 @@ namespace tca {
     } // tj
     
     // clear vectors that are not needed later
-    slc.mallTraj.clear();
-    slc.matchVec.clear();
+    slc.mallTraj.resize(0);
     
   } // RunTrajClusterAlg
 
@@ -473,7 +461,7 @@ namespace tca {
             continue;
           }
           auto& iHit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
-          if(tcc.useAlg[kNewStpCuts] && LongPulseHit(iHit)) continue;
+          if(LongPulseHit(iHit)) continue;
           unsigned int fromWire = iHit.WireID().Wire;
           float fromTick = iHit.PeakTime();
           float iqtot = iHit.Integral();
@@ -508,7 +496,7 @@ namespace tca {
             }
             unsigned int toWire = jwire;
             auto& jHit = (*evt.allHits)[slc.slHits[jht].allHitsIndex];
-            if(tcc.useAlg[kNewStpCuts] && LongPulseHit(jHit)) continue;
+            if(LongPulseHit(jHit)) continue;
             float toTick = jHit.PeakTime();
             float jqtot = jHit.Integral();
             std::vector<unsigned int> jHitsInMultiplet;
@@ -572,20 +560,10 @@ namespace tca {
             // We can't update the trajectory yet because there is only one TP.
             work.EndPt[0] = 0;
             // now try stepping away
-             StepAway(slc, work);
-             // check for a major failure
+            StepAway(slc, work);
+            // check for a major failure
             if(!slc.isValid) return;
             if(tcc.dbgStp) mf::LogVerbatim("TC")<<" After first StepAway. IsGood "<<work.IsGood;
-/*
-            if(!work.IsGood && fTryWithNextPass) {
-              StepAway(slc, work);
-              if(!work.IsGood || work.NeedsUpdate) {
-                if(tcc.dbgStp) mf::LogVerbatim("TC")<<" xxxxxxx StepAway failed AGAIN ";
-                ReleaseHits(slc, work);
-                continue;
-              } // Failed again
-            }
-*/
             // Check the quality of the work trajectory
             CheckTraj(slc, work);
             // check for a major failure
