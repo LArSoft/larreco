@@ -63,7 +63,6 @@ namespace tca {
   float TjDirFOM(TCSlice& slc, const Trajectory& tj, bool prt);
 //  void WatchHit(std::string someText, TCSlice& slc);
   unsigned short GetPFPIndex(TCSlice& slc, int tjID);
-  unsigned short MatchVecIndex(TCSlice& slc, int tjID);
   void ReleaseHits(TCSlice& slc, Trajectory& tj);
   void UnsetUsedHits(TCSlice& slc, TrajPoint& tp);
   bool StoreTraj(TCSlice& slc, Trajectory& tj);
@@ -224,7 +223,7 @@ namespace tca {
   // Print Trajectory position in the standard format
   std::string PrintPos(TCSlice& slc, const TrajPoint& tp);
   std::string PrintPos(TCSlice& slc, const Point2_t& pos);
-  std::string PrintStopFlag(const Trajectory& tj, unsigned short end);
+  std::string PrintEndFlag(const Trajectory& tj, unsigned short end);
   
   ////////////////////////////////////////////////
   template <typename T>
