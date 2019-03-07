@@ -59,8 +59,6 @@ namespace tca {
     "FTBRvProp",
     "StopAtTj",
     "Mat3D",
-    "M3DVxTj",
-    "Mat3DMerge",
     "Split3DKink",
     "TjHiVx3Score",
     "VtxHitsSwap",
@@ -75,18 +73,17 @@ namespace tca {
     "MergeNrShowers",
     "MergeShChain",
     "CompleteShower",
-    "SplitTjCVx",
-    "NewStpCuts",
-    "NewVtxCuts"
+    "SplitTjCVx"
   };
   
-  const std::vector<std::string> StopFlagNames {
+  const std::vector<std::string> EndFlagNames {
     "Signal",
     "AtKink",
     "AtVtx",
     "Bragg",
     "AtTj",
-    "OutFV"
+    "OutFV",
+    "NoFitVx"
   };
   
   const std::vector<std::string> VtxBitNames {
