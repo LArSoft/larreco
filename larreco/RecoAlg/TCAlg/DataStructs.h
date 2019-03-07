@@ -174,7 +174,7 @@ namespace tca {
     short StepDir {0};                 ///< -1 = going US (-> small wire#), 1 = going DS (-> large wire#)
     short StartEnd {-1};               ///< The starting end (-1 = don't know)
     unsigned int mcpIndex {UINT_MAX};
-    std::array<std::bitset<8>, 2> StopFlag {};  // Bitset that encodes the reason for stopping
+    std::array<std::bitset<8>, 2> EndFlag {};  // Bitset that encodes the reason for stopping
     std::bitset<8> Strategy {};        ///
     bool NeedsUpdate {false};          ///< Set true when the Tj needs to be updated
     bool IsGood {true};           ///< set false if there is a failure or the Tj fails quality cuts
@@ -204,17 +204,17 @@ namespace tca {
 
   // a 3D trajectory point composed of a 3D point & direction and a single TP or single hit
   struct TP3D {
-    Point3_t Pos {{ 0.0, 0.0, 0.0 }};
+    Point3_t Pos {{ 0.0, 0.0, 0.0 }};  ///< position of the trajectory
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
     float Delta {10};           ///< distance from the 3D trajectory
-    float along {-1};                ///< temp for debugging
+    float along {1E6};           ///< distance from pfp.XYZ[0] to this point along the pfp.Dir[0] direction
     int TjID {0};               ///< ID of the trajectory -> TP3D assn
     unsigned short TPIndex;     ///< and the TP index
     unsigned int slHitsIndex {UINT_MAX};  ///< index of a single hit that is not used in a Tj (TjID == 0)
     unsigned short nTPsFit {0};
     float ChiDOF {-1};
     bool IsGood {true};
-    bool flag {false};  // temp for debugging, e.g. was the point re-fitted locally?
+    bool flag {false};  // temp for debugging section fits
   };
 
   // Struct for 3D trajectory matching
@@ -251,6 +251,7 @@ namespace tca {
     float CosmicScore{0};
     int ID {0};
     int UID {0};              // unique global ID
+    unsigned short MVI;       // matVec index for detailed debugging
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
   };
@@ -416,8 +417,6 @@ namespace tca {
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
-    kM3DVxTj,
-    kMat3DMerge,
     kSplit3DKink,
     kTjHiVx3Score,
     kVtxHitsSwap,
@@ -433,8 +432,6 @@ namespace tca {
     kMergeShChain,
     kCompleteShower,
     kSplitTjCVx,
-    kNewStpCuts,
-    kNewVtxCuts,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
@@ -453,8 +450,9 @@ namespace tca {
     kBragg,
     kAtTj,
     kOutFV,
+    kNoFitVx,
     kFlagBitSize     ///< don't mess with this line
-  } StopFlag_t; 
+  } EndFlag_t; 
   
   // Environment near a trajectory point
   typedef enum {
@@ -463,7 +461,6 @@ namespace tca {
     kEnvNearShower,
     kEnvOverlap,
     kEnvUnusedHits,
-    kEnvClean,      ///< the charge fraction is small near this point
     kEnvInPFP,     ///< TP is used in a stored PFParticle
     kEnvFlag       ///< a general purpose flag bit used in 3D matching
   } TPEnvironment_t;
@@ -483,7 +480,7 @@ namespace tca {
   } TCModes_t;
   
   extern const std::vector<std::string> AlgBitNames;
-  extern const std::vector<std::string> StopFlagNames;
+  extern const std::vector<std::string> EndFlagNames;
   extern const std::vector<std::string> VtxBitNames;
   extern const std::vector<std::string> StrategyBitNames;
 
@@ -617,7 +614,6 @@ namespace tca {
     std::vector<std::vector< std::pair<unsigned int, unsigned int>>> wireHitRange;
     std::vector< VtxStore > vtxs; ///< 2D vertices
     std::vector< Vtx3Store > vtx3s; ///< 3D vertices
-    std::vector<MatchStruct> matchVec; ///< 3D matching vector
     std::vector<PFPStruct> pfps;
     std::vector<ShowerStruct> cots;       // Clusters of Trajectories that define 2D showers
     std::vector<DontClusterStruct> dontCluster; // pairs of Tjs that shouldn't clustered in one shower
