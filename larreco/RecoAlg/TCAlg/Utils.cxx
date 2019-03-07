@@ -393,7 +393,7 @@ namespace tca {
       for(unsigned short ii = 0; ii < 5; ++ii) if(tj.PDGCode == codeList[ii]) ++cnts[ii];
       // count InShower Tjs with PDGCode not set (yet)
 //      if(tj.PDGCode != 11 && tj.AlgMod[kShowerLike]) ++cnts[1];
-//      for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[end][kBragg]) ++stopCnt[end];
+//      for(unsigned short end = 0; end < 2; ++end) if(tj.EndFlag[end][kBragg]) ++stopCnt[end];
       float len = TrajLength(tj);
       if(len > maxLen) maxLen = len;
     } // tjid
@@ -1118,8 +1118,8 @@ namespace tca {
       unsigned short braggCnt1 = 0;
       for(auto& tjID : pfp.TjIDs) {
         auto& tj = slc.tjs[tjID - 1];
-        if(tj.StopFlag[0][kBragg]) ++braggCnt0;
-        if(tj.StopFlag[1][kBragg]) ++braggCnt1;
+        if(tj.EndFlag[0][kBragg]) ++braggCnt0;
+        if(tj.EndFlag[1][kBragg]) ++braggCnt1;
       }
       if(braggCnt0 > 0 || braggCnt1 > 0) {
         pfp.PDGCode = 2212;
@@ -1160,18 +1160,6 @@ namespace tca {
     } // indx
     return USHRT_MAX;
   } // GetPFPIndex
-
-  ////////////////////////////////////////////////
-  unsigned short MatchVecIndex(TCSlice& slc, int tjID)
-  {
-    // returns the index into the tjs.matchVec vector of the first 3D match that
-    // includes tjID
-    for(unsigned int ims = 0; ims < slc.matchVec.size(); ++ims) {
-      const auto& ms = slc.matchVec[ims];
-      if(std::find(ms.TjIDs.begin(), ms.TjIDs.end(), tjID) != ms.TjIDs.end()) return ims;
-    } // indx
-    return USHRT_MAX;
-  } // MatchVecIndex
 
   ////////////////////////////////////////////////
   void ReleaseHits(TCSlice& slc, Trajectory& tj)
@@ -1438,7 +1426,7 @@ namespace tca {
     auto& tj = slc.tjs[itj];
     
     if(!tcc.useAlg[kBeginChg]) return;
-    if(tj.StopFlag[0][kBragg]) return;
+    if(tj.EndFlag[0][kBragg]) return;
     if(tj.AlgMod[kFTBRvProp]) return;
     if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return;
     if(tj.Pts.size() < 20) return;
@@ -1470,39 +1458,37 @@ namespace tca {
       }
     } // breakPt
     if(breakPt == USHRT_MAX) return;
-    if(tcc.useAlg[kNewStpCuts]) {
-      // check the charge and rms before and after the split
-      std::array<double, 2> cnt, sum, sum2;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        auto& tp = tj.Pts[ipt];
-        if(tp.Chg <= 0) continue;
-        unsigned short end = 0;
-        if(ipt > breakPt) end = 1;
-        ++cnt[end];
-        sum[end] += tp.Chg;
-        sum2[end] += tp.Chg * tp.Chg;
-      } // ipt
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(cnt[end] < 3) return;
-        double ave = sum[end] / cnt[end];
-        double arg = sum2[end] - cnt[end] * ave * ave;
-        if(arg <= 0) return;
-        sum2[end] = sqrt(arg / (cnt[end] - 1));
-        sum2[end] /= ave;
-        sum[end] = ave;
-      } // region
-      bool doSplit = true;
-      // don't split if this looks like an electron - no significant improvement
-      // in the charge rms before and after
-      if(tj.ChgRMS > 0.5 && sum2[0] > 0.3 && sum2[1] > 0.3) doSplit = false;
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"CTBC: T"<<tj.ID<<" chgRMS "<<tj.ChgRMS;
-        myprt<<" AveChg before split point "<<(int)sum[0]<<" rms "<<sum2[0];
-        myprt<<" after "<<(int)sum[1]<<" rms "<<sum2[1]<<" doSplit? "<<doSplit;
-      } // prt
-      if(!doSplit) return;
-    } // NewStpCuts
+    // check the charge and rms before and after the split
+    std::array<double, 2> cnt, sum, sum2;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg <= 0) continue;
+      unsigned short end = 0;
+      if(ipt > breakPt) end = 1;
+      ++cnt[end];
+      sum[end] += tp.Chg;
+      sum2[end] += tp.Chg * tp.Chg;
+    } // ipt
+    for(unsigned short end = 0; end < 2; ++end) {
+      if(cnt[end] < 3) return;
+      double ave = sum[end] / cnt[end];
+      double arg = sum2[end] - cnt[end] * ave * ave;
+      if(arg <= 0) return;
+      sum2[end] = sqrt(arg / (cnt[end] - 1));
+      sum2[end] /= ave;
+      sum[end] = ave;
+    } // region
+    bool doSplit = true;
+    // don't split if this looks like an electron - no significant improvement
+    // in the charge rms before and after
+    if(tj.ChgRMS > 0.5 && sum2[0] > 0.3 && sum2[1] > 0.3) doSplit = false;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"CTBC: T"<<tj.ID<<" chgRMS "<<tj.ChgRMS;
+      myprt<<" AveChg before split point "<<(int)sum[0]<<" rms "<<sum2[0];
+      myprt<<" after "<<(int)sum[1]<<" rms "<<sum2[1]<<" doSplit? "<<doSplit;
+    } // prt
+    if(!doSplit) return;
     // Create a vertex at the break point
     VtxStore aVtx;
     aVtx.Pos = tj.Pts[breakPt].Pos;
@@ -1630,7 +1616,7 @@ namespace tca {
     unsigned short otj = slc.tjs.size() - 1;
     if(bestBragg == 2) std::swap(itj, otj);
     slc.tjs[itj].PDGCode = 211;
-    slc.tjs[itj].StopFlag[1][kBragg] = true;
+    slc.tjs[itj].EndFlag[1][kBragg] = true;
     slc.tjs[otj].PDGCode = 13;
     return true;
   } // BraggSplit
@@ -1648,7 +1634,7 @@ namespace tca {
     //  ----DDDDD-- is not OK
     
     if(!tcc.useAlg[kTEP]) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
+    if(tj.PDGCode == 111) return;
     
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
     short minPts = fQualityCuts[1];
@@ -1738,7 +1724,7 @@ namespace tca {
     // sides of the high-charge point are analyzed. If significant differences are found, all points
     // near the high-charge point are removed as well as those from that point to the end
     if(!tcc.useAlg[kChkChgAsym]) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
+    if(tj.PDGCode == 111) return;
     unsigned short npts = tj.EndPt[1] - tj.EndPt[0];
     if(prt) mf::LogVerbatim("TC")<<" Inside ChkChgAsymmetry T"<<tj.ID;
     // ignore long tjs
@@ -2573,7 +2559,7 @@ namespace tca {
     
     // Don't bother if it is too long
     if(tj.Pts.size() > 10) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
+    if(tj.PDGCode == 111) return;
     // count the number of points that have many used hits
     unsigned short nhm = 0;
     unsigned short npwc = 0;
@@ -2805,7 +2791,7 @@ namespace tca {
   {
     // returns a number between 0 (not electron-like) and 1 (electron-like)
     if(NumPtsWithCharge(slc, tj, false) < 8) return -1;
-    if(tj.StopFlag[0][kBragg] || tj.StopFlag[1][kBragg]) return 0;
+    if(tj.EndFlag[0][kBragg] || tj.EndFlag[1][kBragg]) return 0;
     
     unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
     double rms0 = 0, rms1 = 0;
@@ -2885,7 +2871,7 @@ namespace tca {
     // trajectory points
     std::reverse(tj.Pts.begin(), tj.Pts.end());
     // reverse the stop flag
-    std::reverse(tj.StopFlag.begin(), tj.StopFlag.end());
+    std::reverse(tj.EndFlag.begin(), tj.EndFlag.end());
     std::swap(tj.dEdx[0], tj.dEdx[1]);
     // reverse the direction vector on all points
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
@@ -3177,7 +3163,7 @@ namespace tca {
     for(unsigned short ipt = firstPt + 1; ipt < lastPt; ++ipt) {
       if(tj.Pts[ipt].Chg == 0) continue;
       // ignore points with large error
-      if(tcc.useAlg[kNewStpCuts] && tj.Pts[ipt].HitPosErr2 > 4) continue;
+      if(tj.Pts[ipt].HitPosErr2 > 4) continue;
       dsum += PointTrajDOCA2(slc, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
       ++cnt;
     } // ipt
@@ -4314,7 +4300,7 @@ namespace tca {
       }
     }
     
-    if(tj1.StopFlag[1][kBragg]) {
+    if(tj1.EndFlag[1][kBragg]) {
       if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: You are merging the end of trajectory T"<<tj1.ID<<" with a Bragg peak. Not merging\n";
       return false;
     }
@@ -4369,7 +4355,7 @@ namespace tca {
     tj1.Pts.insert(tj1.Pts.end(), tj2.Pts.begin() + tj2ClosePt, tj2.Pts.end());
     // re-define the end points
     SetEndPoints(tj1);
-    tj1.StopFlag[1] = tj2.StopFlag[1];
+    tj1.EndFlag[1] = tj2.EndFlag[1];
     
     // A more exhaustive check that hits only appear once
     if(HasDuplicateHits(slc, tj1, doPrt)) {
@@ -4411,8 +4397,10 @@ namespace tca {
     if(doPrt) mf::LogVerbatim("TC")<<" MAS success. Created T"<<newTjID;
     // Transfer the ParentIDs of any other Tjs that refer to Tj1 and Tj2 to the new Tj
     for(auto& tj : slc.tjs) if(tj.ParentID == tj1ID || tj.ParentID == tj2ID) tj.ParentID = newTjID;
-
+    // try to attach it to a vertex
+    AttachAnyVertexToTraj(slc, newTjID, doPrt);
     return true;
+    
   } // MergeAndStore
   
   ////////////////////////////////////////////////
@@ -5288,13 +5276,13 @@ namespace tca {
     if(itick < 1000) { myprt<<" "; }
     myprt<<std::setw(6)<<std::setprecision(2)<<tp0.Ang;
     myprt<<std::setw(2)<<tp0.AngleCode;
-    if(tj.StopFlag[0][kBragg]) {
+    if(tj.EndFlag[0][kBragg]) {
       myprt<<"B";
-    } else if(tj.StopFlag[0][kAtVtx]) {
+    } else if(tj.EndFlag[0][kAtVtx]) {
       myprt<<"V";
-    } else if(tj.StopFlag[0][kAtKink]) {
+    } else if(tj.EndFlag[0][kAtKink]) {
       myprt<<"K";
-    } else if(tj.StopFlag[0][kAtTj]) {
+    } else if(tj.EndFlag[0][kAtTj]) {
       myprt<<"T";
     } else {
       myprt<<" ";
@@ -5309,9 +5297,9 @@ namespace tca {
     if(itick < 1000) { myprt<<" "; }
     myprt<<std::setw(6)<<std::setprecision(2)<<tp1.Ang;
     myprt<<std::setw(2)<<tp1.AngleCode;
-    if(tj.StopFlag[1][kBragg]) {
+    if(tj.EndFlag[1][kBragg]) {
       myprt<<"B";
-    } else if(tj.StopFlag[1][kAtVtx]) {
+    } else if(tj.EndFlag[1][kAtVtx]) {
       myprt<<"V";
     } else {
       myprt<<" ";
@@ -5491,13 +5479,13 @@ namespace tca {
         if(itick < 1000) { myprt<<" "; }
         myprt<<std::setw(6)<<std::setprecision(2)<<tp0.Ang;
         myprt<<std::setw(2)<<tp0.AngleCode;
-        if(aTj.StopFlag[0][kBragg]) {
+        if(aTj.EndFlag[0][kBragg]) {
           myprt<<"B";
-        } else if(aTj.StopFlag[0][kAtVtx]) {
+        } else if(aTj.EndFlag[0][kAtVtx]) {
           myprt<<"V";
-        } else if(aTj.StopFlag[0][kAtKink]) {
+        } else if(aTj.EndFlag[0][kAtKink]) {
           myprt<<"K";
-        } else if(aTj.StopFlag[0][kAtTj]) {
+        } else if(aTj.EndFlag[0][kAtTj]) {
           myprt<<"T";
         } else {
           myprt<<" ";
@@ -5524,9 +5512,9 @@ namespace tca {
         if(itick < 1000) { myprt<<" "; }
         myprt<<std::setw(6)<<std::setprecision(2)<<tp1.Ang;
         myprt<<std::setw(2)<<tp1.AngleCode;
-        if(aTj.StopFlag[1][kBragg]) {
+        if(aTj.EndFlag[1][kBragg]) {
           myprt<<"B";
-        } else if(aTj.StopFlag[1][kAtVtx]) {
+        } else if(aTj.EndFlag[1][kAtVtx]) {
           myprt<<"V";
         } else {
           myprt<<" ";
@@ -5612,7 +5600,7 @@ namespace tca {
         myprt<<someText<<" ";
         myprt<<"Work:   UID "<<tj.UID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
-        myprt<<" StopFlags "<<PrintStopFlag(tj, 0)<<" "<<PrintStopFlag(tj, 1);
+        myprt<<" EndFlags "<<PrintEndFlag(tj, 0)<<" "<<PrintEndFlag(tj, 1);
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
@@ -5620,7 +5608,7 @@ namespace tca {
         myprt<<someText<<" ";
         myprt<<"slc.tjs: UID "<<tj.UID<<" WorkID "<<tj.WorkID<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
-        myprt<<" StopFlags "<<PrintStopFlag(tj, 0)<<" "<<PrintStopFlag(tj, 1);
+        myprt<<" EndFlags "<<PrintEndFlag(tj, 0)<<" "<<PrintEndFlag(tj, 1);
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
@@ -5821,23 +5809,23 @@ namespace tca {
   } // PrintPFPs
   
   /////////////////////////////////////////
-  std::string PrintStopFlag(const Trajectory& tj, unsigned short end)
+  std::string PrintEndFlag(const Trajectory& tj, unsigned short end)
   {
     if(end > 1) return "Invalid end";
     std::string tmp;
     bool first = true;
-    for(unsigned short ib = 0; ib < StopFlagNames.size(); ++ib) {
-      if(tj.StopFlag[end][ib]) {
+    for(unsigned short ib = 0; ib < EndFlagNames.size(); ++ib) {
+      if(tj.EndFlag[end][ib]) {
         if(first) {
-          tmp = std::to_string(end) + ":" + StopFlagNames[ib];
+          tmp = std::to_string(end) + ":" + EndFlagNames[ib];
           first = false;
         } else {
-          tmp += "," + StopFlagNames[ib];
+          tmp += "," + EndFlagNames[ib];
         }
       }
     } // ib
     return tmp;
-  } // PrintStopFlag
+  } // PrintEndFlag
   
   /////////////////////////////////////////
   std::string PrintHitShort(const TCHit& tch)
