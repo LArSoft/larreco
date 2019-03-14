@@ -806,8 +806,10 @@ namespace cluster {
           std::vector<size_t> dtrIndices(pfp.DtrUIDs.size());
           for(unsigned short idtr = 0; idtr < pfp.DtrUIDs.size(); ++idtr) dtrIndices[idtr] = pfp.DtrUIDs[idtr] + offset - 1;
           pfpCol.emplace_back(pfp.PDGCode, self, parentIndex, dtrIndices);
-          double sp[] = {pfp.XYZ[0][0],pfp.XYZ[0][1],pfp.XYZ[0][2]};
-          double sd[] = {pfp.Dir[0][0],pfp.Dir[0][1],pfp.Dir[0][2]};
+          auto pos = PosAtEnd(pfp, 0);
+          auto dir = DirAtEnd(pfp, 0);
+          double sp[] = {pos[0],pos[1],pos[2]};
+          double sd[] = {dir[0],dir[1],dir[2]};
           double spe[] = {0.,0.,0.};
           double sde[] = {0.,0.,0.};
           sedCol.emplace_back(sp,sd,spe,sde);
