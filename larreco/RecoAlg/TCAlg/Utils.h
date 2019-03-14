@@ -224,6 +224,7 @@ namespace tca {
   std::string PrintPos(TCSlice& slc, const TrajPoint& tp);
   std::string PrintPos(TCSlice& slc, const Point2_t& pos);
   std::string PrintEndFlag(const Trajectory& tj, unsigned short end);
+  std::string PrintEndFlag(const PFPStruct& pfp, unsigned short end);
   
   ////////////////////////////////////////////////
   template <typename T>
