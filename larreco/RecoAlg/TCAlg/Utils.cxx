@@ -68,8 +68,8 @@ namespace tca {
     tj.ID = slc.tjs.size() + 1;
     tj.WorkID = muTj.WorkID;
     // increment the global ID
-    ++evt.globalTjID;
-    tj.UID = evt.globalTjID;
+    ++evt.globalT_UID;
+    tj.UID = evt.globalT_UID;
     tj.PDGCode = 11;
     tj.Pass = muTj.Pass;
     tj.StepDir = muTj.StepDir;
@@ -218,12 +218,12 @@ namespace tca {
         // call it the neutrino vertex
         vx3.Neutrino = true;
         // put the vertex at the end of the neutrino
-        neutrinoPFP.XYZ[1][0] = vx3.X;
-        neutrinoPFP.XYZ[1][1] = vx3.Y;
-        neutrinoPFP.XYZ[1][2] = vx3.Z;
-        neutrinoPFP.XYZ[0] = neutrinoPFP.XYZ[1];
-        neutrinoPFP.Dir[1][2] = 1;
-        neutrinoPFP.Dir[0][2] = 1;
+        auto& sf = neutrinoPFP.SectionFits[0];
+        sf.EndPos[0] = vx3.X;
+        sf.EndPos[1] = vx3.Y;
+        sf.EndPos[2] = vx3.Z;
+        sf.Pos = sf.EndPos;
+        sf.Dir[2] = 1;
         // This may be set to 12 later on if a primary shower is reconstructed 
         neutrinoPFP.PDGCode = 14;
         neutrinoPFP.Vx3ID[1] = vx3.ID;
@@ -1101,55 +1101,7 @@ namespace tca {
     }
   } // WatchHit
 */
-  ////////////////////////////////////////////////
-  void Reverse3DMatchTjs(TCSlice& slc, PFPStruct& pfp, bool prt)
-  {
-    // Return true if the 3D matched hits in the trajectories in slc.pfps are in the wrong order in terms of the
-    // physics standpoint, e.g. dQ/dx, muon delta-ray tag, cosmic rays entering the detector, etc. 
-    
-    // Don't reverse showers
-    if(pfp.PDGCode == 1111) return;
-    
-    bool reverseMe = false;
 
-    // look for stopping Tjs for contained PFParticles
-    if(!reverseMe) {
-      unsigned short braggCnt0 = 0;
-      unsigned short braggCnt1 = 0;
-      for(auto& tjID : pfp.TjIDs) {
-        auto& tj = slc.tjs[tjID - 1];
-        if(tj.EndFlag[0][kBragg]) ++braggCnt0;
-        if(tj.EndFlag[1][kBragg]) ++braggCnt1;
-      }
-      if(braggCnt0 > 0 || braggCnt1 > 0) {
-        pfp.PDGCode = 2212;
-        // Vote for a Bragg peak at the beginning. It should be at the end
-        if(braggCnt0 > braggCnt1) reverseMe = true;
-      } // found a Bragg Peak 
-    } // look for stopping Tjs 
-    
-    if(!reverseMe) return;
-    
-    // All of the trajectories should be reversed
-    for(auto& tjID : pfp.TjIDs) {
-      unsigned short itj = tjID - 1;
-      Trajectory& tj = slc.tjs[itj];
-      tj.AlgMod[kMat3D] = false;
-      ReverseTraj(slc, tj);
-      tj.AlgMod[kMat3D] = true;
-    } // tjID
-    // swap the matchVec end info also
-    std::swap(pfp.XYZ[0], pfp.XYZ[1]);
-    std::swap(pfp.Dir[0], pfp.Dir[1]);
-    std::swap(pfp.DirErr[0], pfp.DirErr[1]);
-    std::swap(pfp.dEdx[0], pfp.dEdx[1]);
-    std::swap(pfp.dEdxErr[0], pfp.dEdxErr[1]);
-    std::swap(pfp.Vx3ID[0], pfp.Vx3ID[1]);
-    
-    return;
-    
-  } // Reverse3DMatchTjs
-  
   ////////////////////////////////////////////////
   unsigned short GetPFPIndex(TCSlice& slc, int tjID)
   {
@@ -1280,8 +1232,8 @@ namespace tca {
     tj.WorkID = tj.ID;
     tj.ID = trID;
     // increment the global ID
-    ++evt.globalTjID;
-    tj.UID = evt.globalTjID;
+    ++evt.globalT_UID;
+    tj.UID = evt.globalT_UID;
     // Don't clobber the ParentID if it was defined by the calling function
     if(tj.ParentID == 0) tj.ParentID = trID;
     slc.tjs.push_back(tj);
@@ -2198,8 +2150,8 @@ namespace tca {
     // make a copy that will become the Tj after the split point
     Trajectory newTj = tj;
     newTj.ID = slc.tjs.size() + 1;
-    ++evt.globalTjID;
-    newTj.UID = evt.globalTjID;
+    ++evt.globalT_UID;
+    newTj.UID = evt.globalT_UID;
     // make another copy in case something goes wrong
     Trajectory oldTj = tj;
     
@@ -5032,40 +4984,42 @@ namespace tca {
     str += "/" + std::to_string(pfp.UID);
     myprt<<std::setw(12)<<str;
     // start and end stuff
-    for(unsigned short startend = 0; startend < 2; ++startend) {
+    for(unsigned short end = 0; end < 2; ++end) {
       str = "--";
-      if(pfp.Vx3ID[startend] > 0) str = "3V" + std::to_string(slc.vtx3s[pfp.Vx3ID[startend]-1].UID);
+      if(pfp.Vx3ID[end] > 0) str = "3V" + std::to_string(slc.vtx3s[pfp.Vx3ID[end]-1].UID);
       myprt<<std::setw(6)<<str;
       myprt<<std::fixed<<std::right<<std::setprecision(0);
-      myprt<<std::setw(5)<<pfp.XYZ[startend][0];
-      myprt<<std::setw(5)<<pfp.XYZ[startend][1];
-      myprt<<std::setw(5)<<pfp.XYZ[startend][2];
+      auto pos = PosAtEnd(pfp, end);
+      myprt<<std::setw(5)<<pos[0];
+      myprt<<std::setw(5)<<pos[1];
+      myprt<<std::setw(5)<<pos[2];
       // print character for Outside or Inside the FV
-      if(InsideFV(slc, pfp, startend)) {
+      if(InsideFV(slc, pfp, end)) {
         myprt<<"  I";
       } else {
         myprt<<"  O";
       }
       myprt<<std::fixed<<std::right<<std::setprecision(2);
-      myprt<<std::setw(6)<<pfp.Dir[startend][0];
-      myprt<<std::setw(6)<<pfp.Dir[startend][1];
-      myprt<<std::setw(6)<<pfp.Dir[startend][2];
-      for(auto& dedx : pfp.dEdx[startend]) {
+      auto dir = DirAtEnd(pfp, end);
+      myprt<<std::setw(6)<<dir[0];
+      myprt<<std::setw(6)<<dir[1];
+      myprt<<std::setw(6)<<dir[2];
+      for(auto& dedx : pfp.dEdx[end]) {
         if(dedx < 50) {
           myprt<<std::setw(5)<<std::setprecision(1)<<dedx;
         } else {
           myprt<<std::setw(5)<<std::setprecision(0)<<dedx;
         }
       } // dedx
-      if (pfp.dEdx[startend].size()<3){
-        for(size_t i = 0; i<3-pfp.dEdx[startend].size(); ++i){
+      if (pfp.dEdx[end].size()<3){
+        for(size_t i = 0; i<3-pfp.dEdx[end].size(); ++i){
           myprt<<std::setw(6)<<' ';
         }
       }
     } // startend
     // global stuff
     myprt<<std::setw(7)<<MCSMom(slc, pfp.TjIDs);
-    float length = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+    float length = Length(pfp);
     if(length < 100) {
       myprt<<std::setw(5)<<std::setprecision(1)<<length;
     } else {
@@ -5730,39 +5684,39 @@ namespace tca {
     std::string pid = "P" + std::to_string(pfp.ID);
     myprt<<std::setw(5)<<pid;
     // start and end stuff
-    for(unsigned short startend = 0; startend < 2; ++startend) {
-      myprt<<std::setw(4)<<pfp.Vx3ID[startend];
+    for(unsigned short end = 0; end < 2; ++end) {
+      myprt<<std::setw(4)<<pfp.Vx3ID[end];
       myprt<<std::fixed<<std::right<<std::setprecision(1);
-      myprt<<std::setw(7)<<pfp.XYZ[startend][0];
-      myprt<<std::setw(7)<<pfp.XYZ[startend][1];
-      myprt<<std::setw(7)<<pfp.XYZ[startend][2];
-      // print character for Outside or Inside the FV
-      geo::TPCID tpcid;
-      if(InsideTPC(pfp.XYZ[startend], tpcid)) {
-        myprt<<"  I";
-      } else {
-        myprt<<"  O";
-      }
+      auto pos = PosAtEnd(pfp, end);
+      myprt<<std::setw(7)<<pos[0];
+      myprt<<std::setw(7)<<pos[1];
+      myprt<<std::setw(7)<<pos[2];
+      // print characters that encode the EndFlag
+      std::string ef;
+      if(pfp.EndFlag[end][kOutFV]) { ef = "O"; } else { ef = "I"; }
+      if(pfp.EndFlag[end][kBragg]) ef += "B";
+      myprt<<std::setw(6)<<ef;
       myprt<<std::fixed<<std::right<<std::setprecision(2);
-      myprt<<std::setw(6)<<pfp.Dir[startend][0];
-      myprt<<std::setw(6)<<pfp.Dir[startend][1];
-      myprt<<std::setw(6)<<pfp.Dir[startend][2];
-      for(auto& dedx : pfp.dEdx[startend]) {
+      auto dir = DirAtEnd(pfp, end);
+      myprt<<std::setw(6)<<dir[0];
+      myprt<<std::setw(6)<<dir[1];
+      myprt<<std::setw(6)<<dir[2];
+      for(auto& dedx : pfp.dEdx[end]) {
         if(dedx < 50) {
           myprt<<std::setw(5)<<std::setprecision(1)<<dedx;
         } else {
           myprt<<std::setw(5)<<std::setprecision(0)<<dedx;
         }
       } // dedx
-      if (pfp.dEdx[startend].size()<3){
-        for(size_t i = 0; i<3-pfp.dEdx[startend].size(); ++i){
+      if (pfp.dEdx[end].size()<3){
+        for(size_t i = 0; i<3-pfp.dEdx[end].size(); ++i){
           myprt<<std::setw(6)<<' ';
         }
       }
     } // startend
     // global stuff
 //    myprt<<std::setw(5)<<pfp.BestPlane;
-    float length = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+    float length = Length(pfp);
     if(length < 100) {
       myprt<<std::setw(5)<<std::setprecision(1)<<length;
     } else {
@@ -5808,6 +5762,25 @@ namespace tca {
     
   } // PrintPFPs
   
+  /////////////////////////////////////////
+  std::string PrintEndFlag(const PFPStruct& pfp, unsigned short end)
+  {
+    if(end > 1) return "Invalid end";
+    std::string tmp;
+    bool first = true;
+    for(unsigned short ib = 0; ib < EndFlagNames.size(); ++ib) {
+      if(pfp.EndFlag[end][ib]) {
+        if(first) {
+          tmp = std::to_string(end) + ":" + EndFlagNames[ib];
+          first = false;
+        } else {
+          tmp += "," + EndFlagNames[ib];
+        }
+      }
+    } // ib
+    return tmp;
+  } // PrintEndFlag
+
   /////////////////////////////////////////
   std::string PrintEndFlag(const Trajectory& tj, unsigned short end)
   {
