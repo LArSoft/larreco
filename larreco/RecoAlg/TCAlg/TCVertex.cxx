@@ -40,8 +40,6 @@ namespace tca {
     // set an invalid ID
     junkVx.ID = USHRT_MAX;
     // put in generous errors
-    // BUG the double brace syntax is required to work around clang bug 21629
-    // (https://bugs.llvm.org/show_bug.cgi?id=21629)
     junkVx.PosErr = {{2.0, 2.0}};
     // define a minimal score so it won't get clobbered
     junkVx.Score = tcc.vtx2DCuts[7] + 0.1;
@@ -671,8 +669,8 @@ namespace tca {
       vx3.Z = candVx.intersect[2];
       vx3.Primary = true;
       SetVx3Score(slc, vx3);
-      ++evt.globalS3ID;
-      vx3.UID = evt.globalS3ID;
+      ++evt.global3V_UID;
+      vx3.UID = evt.global3VID;
       slc.vtx3s.push_back(vx3);
       if(prt) mf::LogVerbatim("TC")<<"FNV: P"<<p1.ID<<"_"<<candVx.end1<<" P"<<p2.ID<<"_"<<candVx.end2<<" -> 3V"<<vx3.ID;
     } // candVx
@@ -1109,8 +1107,7 @@ namespace tca {
           if(!StoreVertex(slc, aVtx)) continue;
           if(!SplitTraj(slc, it2, intPt2, ivx, prt)) {
             if(prt) mf::LogVerbatim("TC")<<"FHV2: Failed to split trajectory";
-            // we can just remove the vertex since no Tj VtxID association has been made yet
-            slc.vtxs.pop_back();
+            MakeVertexObsolete("HamVx2", slc, slc.vtxs[ivx], true);
             continue;
           }
           slc.tjs[it1].VtxID[end1] = slc.vtxs[ivx].ID;
@@ -1218,7 +1215,7 @@ namespace tca {
           unsigned short ivx = slc.vtxs.size() - 1;
           if(!SplitTraj(slc, it2, closePt2, ivx, prt)) {
             if(prt) mf::LogVerbatim("TC")<<"FHV: Failed to split trajectory";
-            slc.vtxs.pop_back();
+            MakeVertexObsolete("HamVx", slc, slc.vtxs[slc.vtxs.size() - 1], true);
             continue;
           }
           slc.tjs[it1].VtxID[end1] = slc.vtxs[ivx].ID;
@@ -1626,8 +1623,8 @@ namespace tca {
     for(auto& vx3 : v3sel) {
       if(slc.nPlanes == 3 && vx3.Wire >= 0) ++ninc;
       vx3.ID = slc.vtx3s.size() + 1;
-      ++evt.globalS3ID;
-      vx3.UID = evt.globalS3ID;
+      ++evt.global3V_UID;
+      vx3.UID = evt.global3V_UID;
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<" 3V"<<vx3.ID;
@@ -1695,7 +1692,7 @@ namespace tca {
     
     if(prt) mf::LogVerbatim("TC")<<"ATAV: P"<<pfp.ID<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
     
-    float pLen = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+    float pLen = Length(pfp);
     if(pLen == 0) {
       std::cout<<"ATAV: P"<<pfp.ID<<" is length 0. End positions not defined\n";
       return false;
@@ -1704,6 +1701,9 @@ namespace tca {
     // save the old assignents and clear them
     //    auto oldVx3ID = pfp.Vx3ID;
     for(unsigned short end = 0; end < 2; ++end) pfp.Vx3ID[end] = 0;
+    std::array<Point3_t, 2> endPos;
+    endPos[0] = PosAtEnd(pfp, 0);
+    endPos[1] = PosAtEnd(pfp, 1);
     
     std::array<float, 2> foms {{100.}};
     std::array<int, 2> vtxs {{0}};
@@ -1712,8 +1712,8 @@ namespace tca {
       if(vx3.TPCID != pfp.TPCID) continue;
       std::array<float, 2> sep;
       Point3_t vpos = {{vx3.X, vx3.Y, vx3.Z}};
-      sep[0] = PosSep(vpos, pfp.XYZ[0]);
-      sep[1] = PosSep(vpos, pfp.XYZ[1]);
+      sep[0] = PosSep(vpos, endPos[0]);
+      sep[1] = PosSep(vpos, endPos[1]);
       unsigned short end = 0;
       if(sep[1] < sep[0]) end = 1;
       // ignore if separation > 100 cm
@@ -1722,8 +1722,9 @@ namespace tca {
       // larger than the PFP length
       if(sep[1 - end] < pLen) continue;
       // find the direction vector between these points
-      auto vpDir = PointDirection(vpos, pfp.XYZ[end]);
-      double dotp = DotProd(vpDir, pfp.Dir[end]);
+      auto vpDir = PointDirection(vpos, endPos[end]);
+      auto dir = DirAtEnd(pfp, end);
+      double dotp = DotProd(vpDir, dir);
       float fom = dotp * sep[end];
       if(fom < foms[end]) {
         foms[end] = fom;
@@ -2011,12 +2012,12 @@ namespace tca {
     // The calling function should score the vertex after the trajectories are attached
     
     if(vx.ID != int(slc.vtxs.size() + 1)) {
-      mf::LogVerbatim("TC")<<"StoreVertex: Invalid ID "<<vx.ID<<" It should be "<<slc.vtxs.size() + 1;
+//      mf::LogVerbatim("TC")<<"StoreVertex: Invalid ID "<<vx.ID<<" It should be "<<slc.vtxs.size() + 1;
       return false;
     }
     
-    ++evt.globalS2ID;
-    vx.UID = evt.globalS2ID;
+    ++evt.global2V_UID;
+    vx.UID = evt.global2V_UID;
     
     unsigned short nvxtj = 0;
     unsigned short nok = 0;
@@ -3041,7 +3042,7 @@ namespace tca {
     if(tcc.dbg2V || tcc.dbg3V) {
       mf::LogVerbatim("TC")<<fcnLabel<<" MVO: killing 2V"<<vx2.ID;
     }
-    
+
     // Kill it
     int vx2id = vx2.ID;
     if(vx2.Vx3ID > 0) {
