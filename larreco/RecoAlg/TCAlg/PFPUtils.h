@@ -40,15 +40,19 @@ namespace tca {
   void MatchPlanes(TCSlice& slc, unsigned short numPlanes, std::vector<MatchStruct>& matVec, bool prt);
   void FindCompleteness(TCSlice& slc, PFPStruct& pfp, bool doFit, bool prt);
   bool DefinePFP(std::string inFcnLabel, TCSlice& slc, PFPStruct& pfp, bool prt);
+  bool ReSection(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool KillBadPoint(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, bool prt);
   unsigned short Find3DRecoRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir);
-  bool FitTP3Ds(TCSlice& slc, std::vector<TP3D>& tp3s, unsigned short fromPt, unsigned short toPt, Point3_t& pos, Vector3_t& dir, float& chiDOF, bool doUpdate);
+  bool FitTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex, Point3_t& pos, Vector3_t& dir, float& chiDOF, bool doUpdate);
+  void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt);
+  void AddMissedTPs(TCSlice& slc, PFPStruct& pfp, bool prt);
   void AddMissedTP3Ds(TCSlice& slc, PFPStruct& pfp, bool prt);
   void AddMissedTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, CTP_t inCTP, bool prt);
-  bool SetStartEnd(TCSlice& slc, PFPStruct& pfp);
-  bool SortTP3Ds(TCSlice& slc, PFPStruct& pfp);
+  bool SetStartEndPos(PFPStruct& pfp, unsigned short sfIndex);
+  bool SortTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short sectionFitIndex);
   void CountOrder(TCSlice& slc, int tid, const std::vector<TP3D>& tp3ds, unsigned short& nNeg, unsigned short& nPos);
   void FillTP3Ds(TCSlice& slc, PFPStruct& pfp);
+  void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(TCSlice& slc);
   bool SharesHighScoreVx(TCSlice& slc, const PFPStruct& pfp, const Trajectory& tj);
   void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir);
@@ -77,6 +81,9 @@ namespace tca {
   bool LineLineIntersect(Point3_t p1, Point3_t p2, Point3_t p3, Point3_t p4, Point3_t& intersect, float& doca);
   float ChgFracBetween(TCSlice& slc, Point3_t pos1, Point3_t pos2);
   float ChgFracNearEnd(TCSlice& slc, PFPStruct& pfp, unsigned short end);
+  Point3_t PosAtEnd(const PFPStruct& pfp, unsigned short end);
+  Vector3_t DirAtEnd(const PFPStruct& pfp, unsigned short end);
+  float Length(const PFPStruct& pfp);
   unsigned short FarEnd(TCSlice& slc, const PFPStruct& pfp, const Point3_t& pos);
   void PrintTP3Ds(std::string someText, TCSlice& slc, const PFPStruct& pfp, short printPts);
   
