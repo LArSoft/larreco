@@ -18,22 +18,24 @@ namespace tca {
     }
 
     // save the xmin and xmax of each pfp
-    slc.crt.cr_pfpxmin.push_back(std::min(pfp.XYZ[0][0], pfp.XYZ[1][0]));
-    slc.crt.cr_pfpxmax.push_back(std::max(pfp.XYZ[0][0], pfp.XYZ[1][0]));
+    auto& startPos = pfp.SectionFits[0].Pos;
+    auto& endPos = pfp.SectionFits[pfp.SectionFits.size() - 1].EndPos;
+    slc.crt.cr_pfpxmin.push_back(std::min(startPos[0], endPos[0]));
+    slc.crt.cr_pfpxmax.push_back(std::max(startPos[0], endPos[0]));
 
     //find max 
     const geo::TPCGeo &tpc = tcc.geom->TPC(0);
     float mindis0 = FLT_MAX;
     float mindis1 = FLT_MAX;
-    if (std::abs(pfp.XYZ[0][1] - tpc.MinY())<mindis0) mindis0 = std::abs(pfp.XYZ[0][1] - tpc.MinY());
-    if (std::abs(pfp.XYZ[0][1] - tpc.MaxY())<mindis0) mindis0 = std::abs(pfp.XYZ[0][1] - tpc.MaxY());
-    if (std::abs(pfp.XYZ[0][2] - tpc.MinZ())<mindis0) mindis0 = std::abs(pfp.XYZ[0][2] - tpc.MinZ());
-    if (std::abs(pfp.XYZ[0][2] - tpc.MaxZ())<mindis0) mindis0 = std::abs(pfp.XYZ[0][2] - tpc.MaxZ());
-    if (std::abs(pfp.XYZ[1][1] - tpc.MinY())<mindis1) mindis1 = std::abs(pfp.XYZ[1][1] - tpc.MinY());
-    if (std::abs(pfp.XYZ[1][1] - tpc.MaxY())<mindis1) mindis1 = std::abs(pfp.XYZ[1][1] - tpc.MaxY());
-    if (std::abs(pfp.XYZ[1][2] - tpc.MinZ())<mindis1) mindis1 = std::abs(pfp.XYZ[1][2] - tpc.MinZ());
-    if (std::abs(pfp.XYZ[1][2] - tpc.MaxZ())<mindis1) mindis1 = std::abs(pfp.XYZ[1][2] - tpc.MaxZ());
-    //std::cout<<pfp.XYZ[0][1]<<" "<<pfp.XYZ[0][2]<<" "<<pfp.XYZ[1][1]<<" "<<pfp.XYZ[1][2]<<" "<<tpc.MinY()<<" "<<tpc.MaxY()<<" "<<tpc.MinZ()<<" "<<tpc.MaxZ()<<" "<<mindis0<<" "<<mindis1<<" "<<mindis0+mindis1<<std::endl;
+    if (std::abs(startPos[1] - tpc.MinY())<mindis0) mindis0 = std::abs(startPos[1] - tpc.MinY());
+    if (std::abs(startPos[1] - tpc.MaxY())<mindis0) mindis0 = std::abs(startPos[1] - tpc.MaxY());
+    if (std::abs(startPos[2] - tpc.MinZ())<mindis0) mindis0 = std::abs(startPos[2] - tpc.MinZ());
+    if (std::abs(startPos[2] - tpc.MaxZ())<mindis0) mindis0 = std::abs(startPos[2] - tpc.MaxZ());
+    if (std::abs(endPos[1] - tpc.MinY())<mindis1) mindis1 = std::abs(endPos[1] - tpc.MinY());
+    if (std::abs(endPos[1] - tpc.MaxY())<mindis1) mindis1 = std::abs(endPos[1] - tpc.MaxY());
+    if (std::abs(endPos[2] - tpc.MinZ())<mindis1) mindis1 = std::abs(endPos[2] - tpc.MinZ());
+    if (std::abs(endPos[2] - tpc.MaxZ())<mindis1) mindis1 = std::abs(endPos[2] - tpc.MaxZ());
+    //std::cout<<startPos[1]<<" "<<startPos[2]<<" "<<endPos[1]<<" "<<endPos[2]<<" "<<tpc.MinY()<<" "<<tpc.MaxY()<<" "<<tpc.MinZ()<<" "<<tpc.MaxZ()<<" "<<mindis0<<" "<<mindis1<<" "<<mindis0+mindis1<<std::endl;
     slc.crt.cr_pfpyzmindis.push_back(mindis0+mindis1);
 
     if (slc.crt.cr_pfpxmin.back()<-2||
@@ -69,7 +71,7 @@ namespace tca {
     slc.crt.cr_pfpmaxtick.push_back(maxx);
     */
 //    std::cout<<pfp.mcpListIndex<<std::endl;
-//    std::cout<<pfp.XYZ[0][0]<<" "<<pfp.XYZ[1][0]<<std::endl;
+//    std::cout<<startPos[0]<<" "<<endPos[0]<<std::endl;
 
   }
 
