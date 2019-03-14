@@ -238,7 +238,7 @@ namespace cluster {
     auto inputHits = art::Handle<std::vector<recob::Hit>>();
     if(!evt.getByLabel(fHitModuleLabel, inputHits)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to hit collection '"<<fHitModuleLabel.label()<<"'\n";
     nInputHits = (*inputHits).size();
-    std::cout<<"Module on branch bb_TCOpt\n";
+    std::cout<<"Module on branch bb_new3D\n";
     if(nInputHits > 0) {
       // This is a pointer to a vector of recob::Hits that exist in the event. The hits
       // are not copied.
