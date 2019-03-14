@@ -201,20 +201,29 @@ namespace tca {
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
   };
+  
+  // TP3D Section fit ranges
+  struct SectionFit {
+    Point3_t Pos{{ 0.0, 0.0, 0.0 }};      ///< start position of this section
+    Point3_t EndPos{{ 0.0, 0.0, 0.0 }};      ///< end position of this section
+    Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};   ///< and direction
+    Vector3_t DirErr  {{ 0.0, 0.0, 0.0 }};   ///< and direction error
+    float ChiDOF {-1};
+    float maxAlong {-1E6};
+    unsigned short NPts {0};
+  };
 
   // a 3D trajectory point composed of a 3D point & direction and a single TP or single hit
   struct TP3D {
     Point3_t Pos {{ 0.0, 0.0, 0.0 }};  ///< position of the trajectory
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
-    float Delta {10};           ///< distance from the 3D trajectory
-    float along {1E6};           ///< distance from pfp.XYZ[0] to this point along the pfp.Dir[0] direction
+    float Delta {10};           ///< distance from the 3D trajectory defined by (Pos, Dir)
+    float along {1E6};           ///< distance from the start point (of the section)
     int TjID {0};               ///< ID of the trajectory -> TP3D assn
-    unsigned short TPIndex;     ///< and the TP index
+    unsigned short TPIndex {USHRT_MAX};     ///< and the TP index
+    unsigned short SFIndex {USHRT_MAX};     ///< and the section fit index
     unsigned int slHitsIndex {UINT_MAX};  ///< index of a single hit that is not used in a Tj (TjID == 0)
-    unsigned short nTPsFit {0};
-    float ChiDOF {-1};
     bool IsGood {true};
-    bool flag {false};  // temp for debugging section fits
   };
 
   // Struct for 3D trajectory matching
@@ -233,10 +242,8 @@ namespace tca {
     std::vector<int> TjUIDs;             // used to reference Tjs in any slice
     std::vector<float> TjCompleteness;  // fraction of TP points that are 3D-matched
     std::vector<TP3D> TP3Ds;
+    std::vector<SectionFit> SectionFits;
     // Start is 0, End is 1
-    std::array<Point3_t, 2> XYZ;        // XYZ position at both ends (cm)
-    std::array<Vector3_t, 2> Dir;
-    std::array<Vector3_t, 2> DirErr;
     std::array<std::vector<float>, 2> dEdx;
     std::array<std::vector<float>, 2> dEdxErr;
     std::array<int, 2> Vx3ID {{ 0, 0 }};
@@ -252,6 +259,7 @@ namespace tca {
     int ID {0};
     int UID {0};              // unique global ID
     unsigned short MVI;       // matVec index for detailed debugging
+    std::array<std::bitset<8>, 2> EndFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
     bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
   };
@@ -579,12 +587,12 @@ namespace tca {
     unsigned int eventsProcessed;
     std::vector<float> aveHitRMS;      ///< average RMS of an isolated hit
     int WorkID;
-    int globalTjID;
-    int globalPFPID;
-    int globalVx2ID;
-    int globalVx3ID;
-    int globalS2ID;
-    int globalS3ID;
+    int globalT_UID;
+    int globalP_UID;
+    int global2V_UID;
+    int global3V_UID;
+    int global2S_UID;
+    int global3S_UID;
     bool aveHitRMSValid {false};          ///< set true when the average hit RMS is well-known
   };
 
