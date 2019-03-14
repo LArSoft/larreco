@@ -168,12 +168,13 @@ namespace tca {
         showerPFP.TjIDs[ii] = stj.ID;
       } // ci
       showerPFP.PDGCode = 1111;
-      showerPFP.XYZ[0] = ss3.Start;
-      showerPFP.Dir[0] = ss3.Dir;
-      showerPFP.DirErr[0] = ss3.DirErr;
+      auto& sf = showerPFP.SectionFits[0];
+      sf.Pos = ss3.Start;
+      sf.Dir = ss3.Dir;
+      sf.DirErr = ss3.DirErr;
       showerPFP.Vx3ID[0] = ss3.Vx3ID;
-      showerPFP.XYZ[1] = ss3.End;
-      showerPFP.Dir[1] = ss3.Dir;
+      sf.EndPos = ss3.End;
+      sf.Dir = ss3.Dir;
       // dEdx is indexed by plane for pfps and by 2D shower index for 3D showers
       for(auto cid : ss3.CotIDs) {
         auto& ss = slc.cots[cid - 1];
@@ -674,7 +675,8 @@ namespace tca {
         auto& pfp = slc.pfps[pc[0] - 1];
         unsigned short nearEnd = 1 - FarEnd(slc, pfp, ss3.ChgPos);
         float prob = InShowerProb(slc, ss3, pfp);
-        float sep = PosSep(pfp.XYZ[nearEnd], ss3.ChgPos);
+        auto pos = PosAtEnd(pfp, nearEnd);
+        float sep = PosSep(pos, ss3.ChgPos);
         if(prt) {
           mf::LogVerbatim myprt("TC");
           myprt<<fcnLabel<<" one occurrence: P"<<pfp.ID<<"_"<<nearEnd<<" closest to ChgPos";
@@ -1309,7 +1311,7 @@ namespace tca {
       // shower center should be shower start
       auto& pfp = slc.pfps[ss3.ParentID - 1];
       unsigned short pend = FarEnd(slc, pfp, ss3.ChgPos);
-      ss3.Start = pfp.XYZ[pend];
+      ss3.Start = PosAtEnd(pfp, pend);
       // TODO: use charge weighted average of shower direction and pfp direction?
       ss3.Dir = dir;
     } else {
@@ -1756,14 +1758,16 @@ namespace tca {
       if(pfpEnergy > energy) continue;
       // find the end that is farthest away
       unsigned short pEnd = FarEnd(slc, pfp, ss3.ChgPos);
-      auto pToS = PointDirection(pfp.XYZ[pEnd], ss3.ChgPos);
+      auto pos = PosAtEnd(pfp, pEnd);
+      auto pToS = PointDirection(pos, ss3.ChgPos);
       double costh1 = std::abs(DotProd(pToS, ss3.Dir));
       if(costh1 < 0.4) continue;
-      float costh2 = DotProd(pToS, pfp.Dir[pEnd]);
+      auto dir = DirAtEnd(pfp, pEnd);
+      float costh2 = DotProd(pToS, dir);
       // distance^2 between the pfp end and the shower start, charge center, and shower end
-      float distToStart2 = PosSep2(pfp.XYZ[pEnd], ss3.Start);
-      float distToChgPos2 = PosSep2(pfp.XYZ[pEnd], ss3.ChgPos);
-      float distToEnd2 = PosSep2(pfp.XYZ[pEnd], ss3.End);
+      float distToStart2 = PosSep2(pos, ss3.Start);
+      float distToChgPos2 = PosSep2(pos, ss3.ChgPos);
+      float distToEnd2 = PosSep2(pos, ss3.End);
       if(dprt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" P"<<pfp.ID<<"_"<<pEnd<<" distToStart "<<sqrt(distToStart2)<<" distToChgPos "<<sqrt(distToChgPos2)<<" distToEnd "<<sqrt(distToEnd2);
       // find the end of the shower closest to the pfp
       unsigned short shEnd = 0;
@@ -1775,7 +1779,7 @@ namespace tca {
       Point2_t alongTrans;
       // find the longitudinal and transverse components of the pfp start point relative to the
       // shower center
-      FindAlongTrans(ss3.ChgPos, ss3.Dir, pfp.XYZ[pEnd], alongTrans);
+      FindAlongTrans(ss3.ChgPos, ss3.Dir, pos, alongTrans);
       if(dprt) mf::LogVerbatim("TC")<<fcnLabel<<"   alongTrans "<<alongTrans[0]<<" "<<alongTrans[1];
       // find the probability this point is inside the shower. Offset by the expected
       // shower max distance. distToShowerMax will be > 0 if the pfp end is closer to
@@ -1798,7 +1802,7 @@ namespace tca {
           break;
         } // cid
         if(ssid == 0) continue;
-        auto tpFrom = MakeBareTP(slc, pfp.XYZ[pEnd], pToS, inCTP);
+        auto tpFrom = MakeBareTP(slc, pos, pToS, inCTP);
         auto& ss = slc.cots[ssid - 1];
         auto& stp1 = slc.tjs[ss.ShowerTjID - 1].Pts[1];
         float sep = PosSep(tpFrom.Pos, stp1.Pos);
@@ -1824,7 +1828,9 @@ namespace tca {
       tcc.showerParentVars[0] = energy;
       tcc.showerParentVars[1] = pfpEnergy;
       tcc.showerParentVars[2] = MCSMom(slc, pfp.TjIDs);
-      tcc.showerParentVars[3] = PosSep(pfp.XYZ[0], pfp.XYZ[1]);
+      auto startPos = PosAtEnd(pfp, 0);
+      auto endPos = PosAtEnd(pfp, 1);
+      tcc.showerParentVars[3] = PosSep(startPos, endPos);
       tcc.showerParentVars[4] = sqrt(distToChgPos2);
       tcc.showerParentVars[5] = acos(costh1);
       tcc.showerParentVars[6] = acos(costh2);
@@ -1943,8 +1949,9 @@ namespace tca {
           if(!AddTj(fcnLabel, slc, tjid, ss, false, prt)) return false;
         } // parent not in ss
         // Don't define it to be the parent if it is short and the pfp projection in this plane is low 
-        unsigned short pEnd = FarEnd(slc, pfp, ss3.ChgPos);
-        auto tp = MakeBareTP(slc, pfp.XYZ[0], pfp.Dir[pEnd], tj.CTP);
+        auto pos = PosAtEnd(pfp, 0);
+        auto dir = DirAtEnd(pfp, 0);
+        auto tp = MakeBareTP(slc, pos, dir, tj.CTP);
         unsigned short npts = tj.EndPt[1] - tj.EndPt[0] + 1;
         if(tp.Delta > 0.5 || npts > 20) {
           if(prt) mf::LogVerbatim("TC")<<fcnLabel<<" 3S"<<ss3.ID<<" parent P"<<pfp.ID<<" -> T"<<tjid<<" -> 2S"<<ss.ID<<" parent";
@@ -3711,7 +3718,7 @@ namespace tca {
         tj.AlgMod[kShowerLike] = true;
       } // tjid
     } // tjl
-    
+/* BB: March 19, 2019 This is the wrong place to do this
     // kill vertices with more than 1 shower-like tj that is close to the
     // vertex
     unsigned short nkill = 0;
@@ -3734,8 +3741,8 @@ namespace tca {
       MakeVertexObsolete("TSL", slc, vx2, true);
       ++nkill;
     } // vx2
-    if(prt) mf::LogVerbatim("TC")<<"TagShowerLike tagged "<<nsh<<" Tjs and killed "<<nkill<<" vertices in CTP "<<inCTP;
-
+*/
+    if(prt) mf::LogVerbatim("TC")<<"TagShowerLike tagged "<<nsh<<" Tjs vertices in CTP "<<inCTP;
   } // TagShowerLike
   
   ////////////////////////////////////////////////
@@ -4418,8 +4425,8 @@ namespace tca {
     // set the 2S -> 3S assns
     for(auto cid : ss3.CotIDs) slc.cots[cid - 1].SS3ID = ss3.ID;
     
-    ++evt.globalS3ID;
-    ss3.UID = evt.globalS3ID;
+    ++evt.global3S_UID;
+    ss3.UID = evt.global3S_UID;
     
     slc.showers.push_back(ss3);
     return true;
@@ -4464,8 +4471,8 @@ namespace tca {
       if(tj.ID == ss.ParentID) tj.AlgMod[kShwrParent] = true;
     } // tjID
     
-    ++evt.globalS2ID;
-    ss.UID = evt.globalS2ID;
+    ++evt.global2S_UID;
+    ss.UID = evt.global2S_UID;
     
     slc.cots.push_back(ss);
     return true;
