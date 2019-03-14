@@ -3731,7 +3731,7 @@ namespace tca {
             if(newVx2.Score < tcc.vtx2DCuts[7] && CompatibleMerge(slc, tj1, tj2, tcc.dbgMrg)) {
               slc.tjs[it1].VtxID[end1] = 0;
               slc.tjs[it2].VtxID[end2] = 0;
-              slc.vtxs.pop_back();
+              MakeVertexObsolete("EM", slc, newVx2, true);
               bool didMerge = false;
               if(end1 == 1) {
                 didMerge = MergeAndStore(slc, it1, it2, tcc.dbgMrg);
