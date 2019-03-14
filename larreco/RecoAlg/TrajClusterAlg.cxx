@@ -287,12 +287,12 @@ namespace tca {
     tcc.detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     tcc.geom = lar::providerFrom<geo::Geometry>();
     evt.WorkID = 0;
-    evt.globalTjID = 0;
-    evt.globalVx2ID = 0;
-    evt.globalVx3ID = 0;
-    evt.globalPFPID = 0;
-    evt.globalS2ID = 0;
-    evt.globalS3ID = 0;
+    evt.globalT_UID = 0;
+    evt.global2V_UID = 0;
+    evt.global3V_UID = 0;
+    evt.globalP_UID = 0;
+    evt.global2S_UID = 0;
+    evt.global3S_UID = 0;
     // find the average hit RMS using the full hit collection and define the
     // configuration for the current TPC
     return AnalyzeHits();
