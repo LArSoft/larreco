@@ -106,6 +106,7 @@ namespace calo {
     std::vector<double> fResRng;
     std::vector<float> fpitch;
     std::vector<TVector3> fXYZ;
+    std::vector<size_t> ftpIndex;
 
   }; // class Calorimetry
 
@@ -201,6 +202,7 @@ void calo::Calorimetry::produce(art::Event& evt)
       fpitch.clear();
       fResRng.clear();
       fXYZ.clear();
+      ftpIndex.clear();
 
       float Kin_En = 0.;
       float Trk_Length = 0.;
@@ -332,6 +334,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 	//not all hits are associated with space points, the method uses neighboring spacepts to interpolate
 	double xyz3d[3];
 	double pitch;
+	size_t tpIndex = hits[ipl][ihit];
         bool fBadhit = false;
         if (fmthm.isValid()){
           auto vhit = fmthm.at(trkIter);
@@ -373,6 +376,7 @@ void calo::Calorimetry::produce(art::Event& evt)
               else{
                 pitch = 0;
               }
+              tpIndex = vmeta[ii]->Index();
 
               break;
             }
@@ -427,6 +431,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 	TVector3 v(xyz3d[0],xyz3d[1],xyz3d[2]);
 	//std::cout << "Adding these positions to v and then fXYZ " << xyz3d[0] << " " << xyz3d[1] << " " << xyz3d[2] << "\n" <<std::endl;
 	fXYZ.push_back(v);
+	ftpIndex.push_back(tpIndex);
 	++fnsps;
       }
       if (!fnsps){
@@ -606,6 +611,7 @@ void calo::Calorimetry::produce(art::Event& evt)
 						  Trk_Length,
 						  fpitch,
 						  recob::tracking::convertCollToPoint(vXYZ),
+						  ftpIndex,
 						  planeID));
       util::CreateAssn(*this, evt, *calorimetrycol, tracklist[trkIter], *assn);
       
