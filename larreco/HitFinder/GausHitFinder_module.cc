@@ -409,7 +409,7 @@ void GausHitFinder::produce(art::Event& evt)
                     if (nHitsThisPulse * longPulseWidth < endT - startT) nHitsThisPulse++;
                     
                     int firstTick = startT;
-                    int lastTick  = firstTick + std::min(endT,longPulseWidth);
+                    int lastTick  = std::min(firstTick + longPulseWidth, endT);
                     
                     peakParamsVec.clear();
                     nGausForFit = nHitsThisPulse;
