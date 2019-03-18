@@ -31,14 +31,18 @@ kalmantrackfit: {
   }
   fitter: {
   	useRMSError: true
-        sortHitsByPlane: true
-        sortOutputHitsMinLength: true
-        skipNegProp: true
+	sortHitsByPlane: true
+	sortHitsByWire: false
+	sortOutputHitsMinLength: true
+	skipNegProp: true
 	cleanZigzag: false
         rejectHighMultHits: true
         rejectHitsNegativeGOF: true
 	hitErr2ScaleFact: 1.0
  	tryNoSkipWhenFails: true
+	maxResidue: -1.
+	maxChi2: -1.
+	maxDist: -1.
 	dumpLevel: 0
   }
   propagator: {

@@ -393,6 +393,10 @@ namespace cluster {
       // First sort the hits in each sub-slice and then reconstruct
       for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
         auto& slhits = slHitsVec[isl];
+        if(slhits.size() > 50000) {
+          std::cout<<"Too many hits "<<slhits.size()<<" in slice\n";
+          continue;
+        }
         // sort the slice hits by Cryostat, TPC, Wire, Plane, Start Tick and LocalIndex.
         // This assumes that hits with larger LocalIndex are at larger Tick.
         std::vector<HitLoc> sortVec(slhits.size());

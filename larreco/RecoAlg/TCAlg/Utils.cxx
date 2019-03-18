@@ -393,7 +393,7 @@ namespace tca {
       for(unsigned short ii = 0; ii < 5; ++ii) if(tj.PDGCode == codeList[ii]) ++cnts[ii];
       // count InShower Tjs with PDGCode not set (yet)
 //      if(tj.PDGCode != 11 && tj.AlgMod[kShowerLike]) ++cnts[1];
-//      for(unsigned short end = 0; end < 2; ++end) if(tj.StopFlag[end][kBragg]) ++stopCnt[end];
+//      for(unsigned short end = 0; end < 2; ++end) if(tj.EndFlag[end][kBragg]) ++stopCnt[end];
       float len = TrajLength(tj);
       if(len > maxLen) maxLen = len;
     } // tjid
@@ -1091,8 +1091,8 @@ namespace tca {
       unsigned short braggCnt1 = 0;
       for(auto& tjID : pfp.TjIDs) {
         auto& tj = slc.tjs[tjID - 1];
-        if(tj.StopFlag[0][kBragg]) ++braggCnt0;
-        if(tj.StopFlag[1][kBragg]) ++braggCnt1;
+        if(tj.EndFlag[0][kBragg]) ++braggCnt0;
+        if(tj.EndFlag[1][kBragg]) ++braggCnt1;
       }
       if(braggCnt0 > 0 || braggCnt1 > 0) {
         pfp.PDGCode = 2212;
@@ -1411,7 +1411,7 @@ namespace tca {
     auto& tj = slc.tjs[itj];
     
     if(!tcc.useAlg[kBeginChg]) return;
-    if(tj.StopFlag[0][kBragg]) return;
+    if(tj.EndFlag[0][kBragg]) return;
     if(tj.AlgMod[kFTBRvProp]) return;
     if(tj.AlgMod[kKilled] || tj.AlgMod[kHaloTj]) return;
     if(tj.Pts.size() < 20) return;
@@ -1443,39 +1443,37 @@ namespace tca {
       }
     } // breakPt
     if(breakPt == USHRT_MAX) return;
-    if(tcc.useAlg[kNewStpCuts]) {
-      // check the charge and rms before and after the split
-      std::array<double, 2> cnt, sum, sum2;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        auto& tp = tj.Pts[ipt];
-        if(tp.Chg <= 0) continue;
-        unsigned short end = 0;
-        if(ipt > breakPt) end = 1;
-        ++cnt[end];
-        sum[end] += tp.Chg;
-        sum2[end] += tp.Chg * tp.Chg;
-      } // ipt
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(cnt[end] < 3) return;
-        double ave = sum[end] / cnt[end];
-        double arg = sum2[end] - cnt[end] * ave * ave;
-        if(arg <= 0) return;
-        sum2[end] = sqrt(arg / (cnt[end] - 1));
-        sum2[end] /= ave;
-        sum[end] = ave;
-      } // region
-      bool doSplit = true;
-      // don't split if this looks like an electron - no significant improvement
-      // in the charge rms before and after
-      if(tj.ChgRMS > 0.5 && sum2[0] > 0.3 && sum2[1] > 0.3) doSplit = false;
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"CTBC: T"<<tj.ID<<" chgRMS "<<tj.ChgRMS;
-        myprt<<" AveChg before split point "<<(int)sum[0]<<" rms "<<sum2[0];
-        myprt<<" after "<<(int)sum[1]<<" rms "<<sum2[1]<<" doSplit? "<<doSplit;
-      } // prt
-      if(!doSplit) return;
-    } // NewStpCuts
+    // check the charge and rms before and after the split
+    std::array<double, 2> cnt, sum, sum2;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg <= 0) continue;
+      unsigned short end = 0;
+      if(ipt > breakPt) end = 1;
+      ++cnt[end];
+      sum[end] += tp.Chg;
+      sum2[end] += tp.Chg * tp.Chg;
+    } // ipt
+    for(unsigned short end = 0; end < 2; ++end) {
+      if(cnt[end] < 3) return;
+      double ave = sum[end] / cnt[end];
+      double arg = sum2[end] - cnt[end] * ave * ave;
+      if(arg <= 0) return;
+      sum2[end] = sqrt(arg / (cnt[end] - 1));
+      sum2[end] /= ave;
+      sum[end] = ave;
+    } // region
+    bool doSplit = true;
+    // don't split if this looks like an electron - no significant improvement
+    // in the charge rms before and after
+    if(tj.ChgRMS > 0.5 && sum2[0] > 0.3 && sum2[1] > 0.3) doSplit = false;
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"CTBC: T"<<tj.ID<<" chgRMS "<<tj.ChgRMS;
+      myprt<<" AveChg before split point "<<(int)sum[0]<<" rms "<<sum2[0];
+      myprt<<" after "<<(int)sum[1]<<" rms "<<sum2[1]<<" doSplit? "<<doSplit;
+    } // prt
+    if(!doSplit) return;
     // Create a vertex at the break point
     VtxStore aVtx;
     aVtx.Pos = tj.Pts[breakPt].Pos;
@@ -1603,7 +1601,7 @@ namespace tca {
     unsigned short otj = slc.tjs.size() - 1;
     if(bestBragg == 2) std::swap(itj, otj);
     slc.tjs[itj].PDGCode = 211;
-    slc.tjs[itj].StopFlag[1][kBragg] = true;
+    slc.tjs[itj].EndFlag[1][kBragg] = true;
     slc.tjs[otj].PDGCode = 13;
     return true;
   } // BraggSplit
@@ -1621,7 +1619,7 @@ namespace tca {
     //  ----DDDDD-- is not OK
     
     if(!tcc.useAlg[kTEP]) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
+    if(tj.PDGCode == 111) return;
     
     unsigned short npwc = NumPtsWithCharge(slc, tj, false);
     short minPts = fQualityCuts[1];
@@ -1668,13 +1666,7 @@ namespace tca {
       float nwires = std::abs(tj.Pts[tj.EndPt[0]].Pos[0] - tj.Pts[lastPt].Pos[0]) + 1;
       float hitFrac = ntpwc / nwires;
       if(prt) mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: T"<<tj.ID<<" lastPt "<<lastPt<<" npwc "<<npwc<<" ntpwc "<<ntpwc<<" nadj "<<nadj<<" hitFrac "<<hitFrac;
-/*
-      if(tcc.useAlg[kNewStpCuts]) {
-        // use new cuts
-        if(hitFrac > fQualityCuts[0] && ntpwc > minPts) break;
-      }
-*/
-      if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj == minPts) break;
+      if(hitFrac > fQualityCuts[0] && npwc == minPts && nadj >= minPts - 1) break;
     } // lastPt
     
     // trim the last point if it just after a dead wire.
@@ -1689,7 +1681,7 @@ namespace tca {
         mf::LogVerbatim("TC")<<fcnLabel<<"-TEP: is prevWire "<<prevWire<<" dead? ";
       }
       unsigned short plane = DecodeCTP(tj.CTP).Plane;
-      if(prevWire < slc.nWires[plane] && slc.wireHitRange[plane][prevWire].first == -1) --lastPt;
+      if(prevWire < slc.nWires[plane] && !evt.goodWire[plane][prevWire]) --lastPt;
     } // valid Pos[0]
     
     // Nothing needs to be done
@@ -1717,7 +1709,7 @@ namespace tca {
     // sides of the high-charge point are analyzed. If significant differences are found, all points
     // near the high-charge point are removed as well as those from that point to the end
     if(!tcc.useAlg[kChkChgAsym]) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
+    if(tj.PDGCode == 111) return;
     unsigned short npts = tj.EndPt[1] - tj.EndPt[0];
     if(prt) mf::LogVerbatim("TC")<<" Inside ChkChgAsymmetry T"<<tj.ID;
     // ignore long tjs
@@ -1915,42 +1907,17 @@ namespace tca {
   /////////////////////////////////////////
   bool SignalAtTp(const TrajPoint& tp)
   {
-    // returns true if there is a hit near tp.Pos by searching through the full hit collection using the
-    // allHitsRanges vector to speed the search. Note that dead wires are added to the  
-    // FillWireHitRange vector which is called for each TPCID before this function is used
+    // returns true if there is a hit near tp.Pos by searching through the full hit collection 
     
     if(tp.Pos[0] < -0.4) return false;
     geo::PlaneID planeID = DecodeCTP(tp.CTP);
+    unsigned short pln = planeID.Plane;
     unsigned int wire = std::nearbyint(tp.Pos[0]);
-    // Find the correct hitRanges entry
-    unsigned int ihr = 0;
-    for(ihr = 0; ihr < evt.allHitsRanges.size(); ++ihr) {
-      auto& ahr = evt.allHitsRanges[ihr];
-      if(ahr.CTP != tp.CTP) continue;
-      if(ahr.wire != wire) continue;
-      break;
-    } // ahr
-    if(ihr == evt.allHitsRanges.size()) {
-      // didn't find this hit range so add it
-      AllHitsRange ahr;
-      ahr.CTP = tp.CTP;
-      ahr.wire = wire;
-      for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
-        auto& hit = (*evt.allHits)[iht];
-        // TODO: we could break instead of continue if the hit sorting was standarized
-        if(hit.WireID().Cryostat != planeID.Cryostat) continue;
-        if(hit.WireID().TPC != planeID.TPC) continue;
-        if(hit.WireID().Plane != planeID.Plane) continue;
-        if(ahr.firstHit == UINT_MAX) ahr.firstHit = iht;
-        ahr.lastHit = iht;
-      } // iht
-      evt.allHitsRanges.push_back(ahr);
-    } // hit range missing
-    auto& ahr = evt.allHitsRanges[ihr];
-    // check for the no-hits-on-wire condition
-    if(ahr.firstHit == UINT_MAX && ahr.lastHit == UINT_MAX) return false;
-    // check for the dead-wire condition
-    if(ahr.firstHit == UINT_MAX && ahr.lastHit == UINT_MAX - 1) return true;
+    if(wire > evt.goodWire[pln].size() - 1) return false;
+    // assume there is a signal on a dead wire
+    if(!evt.goodWire[pln][wire]) return true;
+    // no signal here if there are no hits on this wire
+    if(evt.wireHitRange[pln][wire].first == UINT_MAX) return false;
     // check the proximity of all of the hits in the range
     float projTick = (float)(tp.Pos[1] / tcc.unitsPerTick);
     float tickRange = 0;
@@ -1961,12 +1928,13 @@ namespace tca {
     }
     float loTpTick = projTick - tickRange;
     float hiTpTick = projTick + tickRange;
-    for(unsigned int iht = ahr.firstHit; iht <= ahr.lastHit; ++iht) {
+    for(unsigned int iht = evt.wireHitRange[pln][wire].first; iht <= evt.wireHitRange[pln][wire].second; ++iht) {
       auto& hit = (*evt.allHits)[iht];
       // We wouldn't need to make this check if hits were sorted
-      if(hit.WireID().Cryostat != planeID.Cryostat) continue;
-      if(hit.WireID().TPC != planeID.TPC) continue;
-      if(hit.WireID().Plane != planeID.Plane) continue;
+      auto wid = hit.WireID();
+      if(wid.Cryostat != planeID.Cryostat) continue;
+      if(wid.TPC != planeID.TPC) continue;
+      if(wid.Plane != planeID.Plane) continue;
       if(projTick < hit.PeakTime()) {
         float loHitTick = hit.PeakTime() - 3 * hit.RMS();
         if(hiTpTick > loHitTick) return true;
@@ -1977,46 +1945,7 @@ namespace tca {
     } // iht
     return false;
   } // SignalAtTp
-/* This function only considers hits in the current slice
-  /////////////////////////////////////////
-  bool SignalAtTp(TCSlice& slc, const TrajPoint& tp)
-  {
-    // returns true if there is a hit near tp.Pos
-    
-    if(tp.Pos[0] < -0.4) return false;
-    unsigned int wire = std::nearbyint(tp.Pos[0]);
-    geo::PlaneID planeID = DecodeCTP(tp.CTP);
-    unsigned int ipl = planeID.Plane;
-    if(wire >= slc.nWires[ipl]) return false;
-    if(tp.Pos[1] > tcc.maxPos1[ipl]) return false;
-    // Assume dead wires have a signal
-    if(slc.wireHitRange[ipl][wire].first == -1) return true;
-    float projTick = (float)(tp.Pos[1] / tcc.unitsPerTick);
-    float tickRange = 0;
-    if(std::abs(tp.Dir[1]) != 0) {
-      tickRange = std::abs(0.5 / tp.Dir[1]) / tcc.unitsPerTick;
-      // don't let it get too large
-      if(tickRange > 40) tickRange = 40;
-    }
-    float loTpTick = projTick - tickRange;
-    float hiTpTick = projTick + tickRange;
-    unsigned int firstHit = (unsigned int)slc.wireHitRange[ipl][wire].first;
-    unsigned int lastHit = (unsigned int)slc.wireHitRange[ipl][wire].second;
-    
-    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
-      auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
-      if(projTick < hit.PeakTime()) {
-        float loHitTick = hit.PeakTime() - 3 * hit.RMS();
-        if(hiTpTick > loHitTick) return true;
-      } else {
-        float hiHitTick = hit.PeakTime() + 3 * hit.RMS();
-        if(loTpTick < hiHitTick) return true;
-      }
-    } // iht
-    return false;
-    
-  } // SignalAtTp
-*/
+
   //////////////////////////////////////////
   float TpSumHitChg(TCSlice& slc, TrajPoint const& tp){
     float totchg = 0;
@@ -2068,7 +1997,7 @@ namespace tca {
     } // inWire1 > inWire2
     ++inWire2;
     unsigned int wire, ndead = 0;
-    for(wire = inWire1; wire < inWire2; ++wire) if(slc.wireHitRange[plane][wire].first == -1) ++ndead;
+    for(wire = inWire1; wire < inWire2; ++wire) if(!evt.goodWire[plane][wire]) ++ndead;
     return ndead;
   } // DeadWireCount
 
@@ -2615,7 +2544,7 @@ namespace tca {
     
     // Don't bother if it is too long
     if(tj.Pts.size() > 10) return;
-    if(tcc.useAlg[kNewStpCuts] && tj.PDGCode == 111) return;
+    if(tj.PDGCode == 111) return;
     // count the number of points that have many used hits
     unsigned short nhm = 0;
     unsigned short npwc = 0;
@@ -2689,10 +2618,10 @@ namespace tca {
     float maxTick = timeWindow[1] / tcc.unitsPerTick;
     for(int wire = loWire; wire <= hiWire; ++wire) {
       // Set hitsNear if the wire is dead
-      if(slc.wireHitRange[plane][wire].first == -2) hitsNear = true;
-      if(slc.wireHitRange[plane][wire].first < 0) continue;
-      unsigned int firstHit = (unsigned int)slc.wireHitRange[plane][wire].first;
-      unsigned int lastHit = (unsigned int)slc.wireHitRange[plane][wire].second;
+      if(!evt.goodWire[plane][wire]) hitsNear = true;
+      if(slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
+      unsigned int firstHit = slc.wireHitRange[plane][wire].first;
+      unsigned int lastHit = slc.wireHitRange[plane][wire].second;
       for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
         auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
         if(usePeakTime) {
@@ -2736,16 +2665,16 @@ namespace tca {
     if(wire > slc.lastWire[ipl]-1) return false;
     
     // dead wire
-    if(slc.wireHitRange[ipl][wire].first == -1) {
+    if(!evt.goodWire[ipl][wire]) {
       tp.Environment[kEnvDeadWire] = true;
       return true;
     }
     tp.Environment[kEnvDeadWire] = false;
     // live wire with no hits
-    if(slc.wireHitRange[ipl][wire].first == -2) return false;
+    if(slc.wireHitRange[ipl][wire].first == UINT_MAX) return false;
     
-    unsigned int firstHit = (unsigned int)slc.wireHitRange[ipl][wire].first;
-    unsigned int lastHit = (unsigned int)slc.wireHitRange[ipl][wire].second;
+    unsigned int firstHit = slc.wireHitRange[ipl][wire].first;
+    unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
 
     float fwire = wire;
     for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
@@ -2819,15 +2748,14 @@ namespace tca {
     if(lastWire > slc.lastWire[ipl]-1) lastWire = slc.lastWire[ipl]-1;
     
     for(unsigned int wire = firstWire; wire <= lastWire; ++wire) {
-      if(slc.wireHitRange[ipl][wire].first == -1) continue;
-      if(slc.wireHitRange[ipl][wire].first == -2) continue;
+      if(slc.wireHitRange[ipl][wire].first == UINT_MAX) continue;
       MoveTPToWire(tp, (float)wire);
       // Find the tick range at this position
       float minTick = (tp.Pos[1] - maxDelta) / tcc.unitsPerTick;
       float maxTick = (tp.Pos[1] + maxDelta) / tcc.unitsPerTick;
-      unsigned int firstHit = (unsigned int)slc.wireHitRange[ipl][wire].first;
-      unsigned int lastHit = (unsigned int)slc.wireHitRange[ipl][wire].second;
-      for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+      unsigned int firstHit = slc.wireHitRange[ipl][wire].first;
+      unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
+      for(unsigned int iht = firstHit; iht <= lastHit; ++iht) {
         if(slc.slHits[iht].InTraj <= 0) continue;
         if((unsigned int)slc.slHits[iht].InTraj > slc.tjs.size()) continue;
         auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
@@ -2848,7 +2776,7 @@ namespace tca {
   {
     // returns a number between 0 (not electron-like) and 1 (electron-like)
     if(NumPtsWithCharge(slc, tj, false) < 8) return -1;
-    if(tj.StopFlag[0][kBragg] || tj.StopFlag[1][kBragg]) return 0;
+    if(tj.EndFlag[0][kBragg] || tj.EndFlag[1][kBragg]) return 0;
     
     unsigned short midPt = 0.5 * (tj.EndPt[0] + tj.EndPt[1]);
     double rms0 = 0, rms1 = 0;
@@ -2928,7 +2856,7 @@ namespace tca {
     // trajectory points
     std::reverse(tj.Pts.begin(), tj.Pts.end());
     // reverse the stop flag
-    std::reverse(tj.StopFlag.begin(), tj.StopFlag.end());
+    std::reverse(tj.EndFlag.begin(), tj.EndFlag.end());
     std::swap(tj.dEdx[0], tj.dEdx[1]);
     // reverse the direction vector on all points
     for(unsigned short ipt = 0; ipt < tj.Pts.size(); ++ipt) {
@@ -3220,7 +3148,7 @@ namespace tca {
     for(unsigned short ipt = firstPt + 1; ipt < lastPt; ++ipt) {
       if(tj.Pts[ipt].Chg == 0) continue;
       // ignore points with large error
-      if(tcc.useAlg[kNewStpCuts] && tj.Pts[ipt].HitPosErr2 > 4) continue;
+      if(tj.Pts[ipt].HitPosErr2 > 4) continue;
       dsum += PointTrajDOCA2(slc, tj.Pts[ipt].HitPos[0],  tj.Pts[ipt].HitPos[1], tmp);
       ++cnt;
     } // ipt
@@ -4072,6 +4000,61 @@ namespace tca {
   }
   
   ////////////////////////////////////////////////
+  void FillWireHitRange(geo::TPCID inTPCID)
+  {
+    // Defines the local vector of dead wires and the low-high range of hits in each wire in
+    // the TPCID. Note that there is no requirement that the allHits collection is sorted. Care should
+    // be taken when looping over hits using this range - see SignalAtTp
+    
+    // see if this function was called in a TPCID that has already been analyzed
+    if(!slices.empty()) {
+      // compare the TPCID of the last slice with the one passed here
+      auto& slc = slices[slices.size() - 1];
+      if(slc.TPCID == inTPCID) return;
+    } // wireHitRange not empty
+    
+    unsigned short nplanes = tcc.geom->Nplanes(inTPCID);
+    unsigned int cstat = inTPCID.Cryostat;
+    unsigned int tpc = inTPCID.TPC;
+    if(tcc.useChannelStatus) {
+      lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+      evt.wireHitRange.resize(nplanes);
+      evt.goodWire.resize(nplanes);
+      for(unsigned short pln = 0; pln < nplanes; ++pln) {
+        unsigned int nwires = tcc.geom->Nwires(pln, tpc, cstat);
+        evt.wireHitRange[pln].resize(nwires);
+        // set all wires dead
+        evt.goodWire[pln].resize(nwires, false);
+        for(unsigned int wire = 0; wire < nwires; ++wire) {
+          evt.wireHitRange[pln][wire] = {UINT_MAX, UINT_MAX};
+          raw::ChannelID_t chan = tcc.geom->PlaneWireToChannel((int)pln, (int)wire, (int)tpc, (int)cstat);
+          evt.goodWire[pln][wire] = channelStatus.IsGood(chan);
+        } // wire
+      } // pln
+    } else {
+      // resize and set every channel good
+      evt.goodWire.resize(nplanes);
+      for(unsigned short pln = 0; pln < nplanes; ++pln) {
+        unsigned int nwires = tcc.geom->Nwires(pln, tpc, cstat);
+        evt.goodWire[pln].resize(nwires, true);
+      } // pln
+    } // don't use channelStatus
+    
+    // next define the wireHitRange values. Make one loop through the allHits collection
+    for(unsigned int iht = 0; iht < (*evt.allHits).size(); ++iht) {
+      auto& hit = (*evt.allHits)[iht];
+      auto wid = hit.WireID();
+      if(wid.Cryostat != cstat) continue;
+      if(wid.TPC != tpc) continue;
+      unsigned short pln = wid.Plane;
+      unsigned int wire = wid.Wire;
+      if(evt.wireHitRange[pln][wire].first == UINT_MAX) evt.wireHitRange[pln][wire].first = iht;
+      evt.wireHitRange[pln][wire].second = iht;
+    } // iht
+    
+  } // FillWireHitRange
+  
+  ////////////////////////////////////////////////
   bool FillWireHitRange(TCSlice& slc)
   {
     // fills the WireHitRange vector. Slightly modified version of the one in ClusterCrawlerAlg.
@@ -4100,8 +4083,6 @@ namespace tca {
     slc.zLo = world[2]-tcc.geom->DetLength(tpc,cstat)/2 + 1;
     slc.zHi = world[2]+tcc.geom->DetLength(tpc,cstat)/2 - 1;
     
-    lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
-    
     // initialize everything
     slc.wireHitRange.resize(nplanes);
     slc.firstWire.resize(nplanes);
@@ -4111,8 +4092,8 @@ namespace tca {
     tcc.maxPos1.resize(nplanes);
     evt.aveHitRMS.resize(nplanes, nplanes);
     
-    std::pair<int, int> flag;
-    flag.first = -2; flag.second = -2;
+    std::pair<unsigned int, unsigned int> flag;
+    flag.first = UINT_MAX; flag.second = UINT_MAX;
     
     // Calculate tcc.unitsPerTick, the scale factor to convert a tick into
     // Wire Spacing Equivalent (WSE) units where the wire spacing in this plane = 1.
@@ -4126,45 +4107,24 @@ namespace tca {
     tickToDist *= 1.e-3 * tcc.detprop->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
     tcc.unitsPerTick = tickToDist / tcc.wirePitch;
     for(unsigned short plane = 0; plane < nplanes; ++plane) {
-      slc.firstWire[plane] = INT_MAX;
+      slc.firstWire[plane] = UINT_MAX;
       slc.lastWire[plane] = 0;
       slc.nWires[plane] = tcc.geom->Nwires(plane, tpc, cstat);
       slc.wireHitRange[plane].resize(slc.nWires[plane], flag);
       tcc.maxPos0[plane] = (float)slc.nWires[plane] - 0.5;
       tcc.maxPos1[plane] = (float)tcc.detprop->NumberTimeSamples() * tcc.unitsPerTick;
     }
-    
-    // overwrite with the "dead wires" condition
-    flag.first = -1; flag.second = -1;
-    for(unsigned short ipl = 0; ipl < nplanes; ++ipl) {
-      for(unsigned int wire = 0; wire < slc.nWires[ipl]; ++wire) {
-        raw::ChannelID_t chan = tcc.geom->PlaneWireToChannel((int)ipl, (int)wire, (int)tpc, (int)cstat);
-        if(!channelStatus.IsGood(chan)) {
-          slc.wireHitRange[ipl][wire] = flag;
-          // flag this wire in allHitsRanges
-          AllHitsRange ahr;
-          ahr.CTP = EncodeCTP(cstat, tpc, ipl);
-          ahr.wire = wire;
-          // Overwrite the AllHitsRange constructor no-hits-on-wire condition (firstWire = lastWire = UINT_MAX)
-          // with the dead-wire condition
-          ahr.lastHit = UINT_MAX - 1;
-          evt.allHitsRanges.push_back(ahr);
-        }
-      } // wire
-    } // ipl
-    
+
     unsigned int lastWire = 0, lastPlane = 0;
     for(unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
-      if(slc.slHits[iht].allHitsIndex > (*evt.allHits).size() - 1) {
+      unsigned int ahi = slc.slHits[iht].allHitsIndex;
+      if(ahi > (*evt.allHits).size() - 1) {
         std::cout<<"FWHR: slice "<<slc.ID<<" Bad allHits index\n";
         return false;
       }
-      auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
+      auto& hit = (*evt.allHits)[ahi];
       if(hit.WireID().Cryostat != cstat) continue;
       if(hit.WireID().TPC != tpc) continue;
-      if(slc.TPCID.TPC == 20) {
-        std::cout<<"hit "<<iht<<" "<<hit<<"\n";
-      }
       unsigned short plane = hit.WireID().Plane;
       unsigned int wire = hit.WireID().Wire;
       if(wire > slc.nWires[plane] - 1) {
@@ -4177,27 +4137,18 @@ namespace tca {
       } // hits out of order
       lastWire = wire;
       lastPlane = plane;
-      if(slc.firstWire[plane] == INT_MAX) slc.firstWire[plane] = wire;
-      if(slc.wireHitRange[plane][wire].first < 0) slc.wireHitRange[plane][wire].first = iht;
-      slc.wireHitRange[plane][wire].second = iht + 1;
+      if(slc.firstWire[plane] == UINT_MAX) slc.firstWire[plane] = wire;
+      if(slc.wireHitRange[plane][wire].first == UINT_MAX) slc.wireHitRange[plane][wire].first = iht;
+      slc.wireHitRange[plane][wire].second = iht;
       slc.lastWire[plane] = wire + 1;
     } // iht
     
-    if(slc.TPCID.TPC == 20) {
-      std::cout<<"TPC20 "<<slc.slHits.size()<<"\n";
-      unsigned short plane = 2;
-      for(unsigned int wire = slc.firstWire[plane]; wire < slc.lastWire[plane]; ++wire) {
-        std::cout<<wire<<" "<<slc.wireHitRange[plane][wire].first;
-        std::cout<<" "<<slc.wireHitRange[plane][wire].second;
-        std::cout<<"\n";
-      } // wire
-    } // TPCID == 20
-    
     // check
-    int slhitsSize = (int)slc.slHits.size();
+    unsigned int slhitsSize = slc.slHits.size();
     for(unsigned short plane = 0; plane < nplanes; ++plane) {
       for(unsigned int wire = slc.firstWire[plane]; wire < slc.lastWire[plane]; ++wire) {
-        if(slc.wireHitRange[plane][wire].first > slhitsSize - 1 || 
+        if(slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
+        if(slc.wireHitRange[plane][wire].first > slhitsSize - 1 &&
            slc.wireHitRange[plane][wire].second > slhitsSize) {
             std::cout<<"CWHR: slice "<<slc.ID<<" Bad wire hit range in "<<slc.TPCID;
             std::cout<<" plane "<<plane<<":"<<wire<<" first "<<slc.wireHitRange[plane][wire].first;
@@ -4351,7 +4302,7 @@ namespace tca {
       }
     }
     
-    if(tj1.StopFlag[1][kBragg]) {
+    if(tj1.EndFlag[1][kBragg]) {
       if(doPrt) mf::LogVerbatim("TC")<<"MergeAndStore: You are merging the end of trajectory T"<<tj1.ID<<" with a Bragg peak. Not merging\n";
       return false;
     }
@@ -4406,7 +4357,7 @@ namespace tca {
     tj1.Pts.insert(tj1.Pts.end(), tj2.Pts.begin() + tj2ClosePt, tj2.Pts.end());
     // re-define the end points
     SetEndPoints(tj1);
-    tj1.StopFlag[1] = tj2.StopFlag[1];
+    tj1.EndFlag[1] = tj2.EndFlag[1];
     
     // A more exhaustive check that hits only appear once
     if(HasDuplicateHits(slc, tj1, doPrt)) {
@@ -4448,6 +4399,8 @@ namespace tca {
     if(doPrt) mf::LogVerbatim("TC")<<" MAS success. Created T"<<newTjID;
     // Transfer the ParentIDs of any other Tjs that refer to Tj1 and Tj2 to the new Tj
     for(auto& tj : slc.tjs) if(tj.ParentID == tj1ID || tj.ParentID == tj2ID) tj.ParentID = newTjID;
+    // try to attach it to a vertex
+    AttachAnyVertexToTraj(slc, newTjID, doPrt);
 
     return true;
   } // MergeAndStore
@@ -4801,6 +4754,7 @@ namespace tca {
       std::cout<<" 'VxMerge' to debug 2D vertex merging\n";
       std::cout<<" 'JunkVx' to debug 2D junk vertex finder\n";
       std::cout<<" 'PFP' to debug 3D matching and PFParticles\n";
+      std::cout<<" 'MVI <MVI>' for detailed debugging of one MatchVecIndex\n";
       std::cout<<" 'DeltaRay' to debug delta ray tagging\n";
       std::cout<<" 'Muon' to debug muon tagging\n";
       std::cout<<" '2S <CTP>' to debug a 2D shower in CTP\n";
@@ -4819,7 +4773,6 @@ namespace tca {
     if(strng.find("3S") != std::string::npos) { tcc.dbg3S = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("VxMerge") != std::string::npos) { tcc.dbgVxMerge = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("JunkVx") != std::string::npos) { tcc.dbgVxJunk = true; tcc.modes[kDebug] = true; return true; }
-    if(strng.find("PFP")  != std::string::npos) { tcc.dbgPFP = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("DeltaRay") != std::string::npos) { tcc.dbgDeltaRayTag = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("Muon") != std::string::npos) { tcc.dbgMuonTag = true; tcc.modes[kDebug] = true; return true; }
     if(strng.find("Stitch") != std::string::npos) { tcc.dbgStitch = true; tcc.modes[kDebug] = true; return true; }
@@ -4840,6 +4793,13 @@ namespace tca {
       tcc.dbgDump = true;
       return true;
     } // nums.size() == 5
+    if(words[0] == "PFP" || words[0] == "MVI") {
+      tcc.dbgPFP = true;
+      tcc.modes[kDebug] = true;
+      // Use debug.Hit to identify the matchVec index
+      if(words.size() == 2) debug.MVI = std::stoi(words[1]);
+      return true;
+    } // PFP
     if(words.size() == 2 && words[0] == "Dump") {
       debug.WorkID = std::stoi(words[1]);
       debug.Slice = 0;
@@ -5323,13 +5283,13 @@ namespace tca {
     if(itick < 1000) { myprt<<" "; }
     myprt<<std::setw(6)<<std::setprecision(2)<<tp0.Ang;
     myprt<<std::setw(2)<<tp0.AngleCode;
-    if(tj.StopFlag[0][kBragg]) {
+    if(tj.EndFlag[0][kBragg]) {
       myprt<<"B";
-    } else if(tj.StopFlag[0][kAtVtx]) {
+    } else if(tj.EndFlag[0][kAtVtx]) {
       myprt<<"V";
-    } else if(tj.StopFlag[0][kAtKink]) {
+    } else if(tj.EndFlag[0][kAtKink]) {
       myprt<<"K";
-    } else if(tj.StopFlag[0][kAtTj]) {
+    } else if(tj.EndFlag[0][kAtTj]) {
       myprt<<"T";
     } else {
       myprt<<" ";
@@ -5344,9 +5304,9 @@ namespace tca {
     if(itick < 1000) { myprt<<" "; }
     myprt<<std::setw(6)<<std::setprecision(2)<<tp1.Ang;
     myprt<<std::setw(2)<<tp1.AngleCode;
-    if(tj.StopFlag[1][kBragg]) {
+    if(tj.EndFlag[1][kBragg]) {
       myprt<<"B";
-    } else if(tj.StopFlag[1][kAtVtx]) {
+    } else if(tj.EndFlag[1][kAtVtx]) {
       myprt<<"V";
     } else {
       myprt<<" ";
@@ -5526,13 +5486,13 @@ namespace tca {
         if(itick < 1000) { myprt<<" "; }
         myprt<<std::setw(6)<<std::setprecision(2)<<tp0.Ang;
         myprt<<std::setw(2)<<tp0.AngleCode;
-        if(aTj.StopFlag[0][kBragg]) {
+        if(aTj.EndFlag[0][kBragg]) {
           myprt<<"B";
-        } else if(aTj.StopFlag[0][kAtVtx]) {
+        } else if(aTj.EndFlag[0][kAtVtx]) {
           myprt<<"V";
-        } else if(aTj.StopFlag[0][kAtKink]) {
+        } else if(aTj.EndFlag[0][kAtKink]) {
           myprt<<"K";
-        } else if(aTj.StopFlag[0][kAtTj]) {
+        } else if(aTj.EndFlag[0][kAtTj]) {
           myprt<<"T";
         } else {
           myprt<<" ";
@@ -5564,9 +5524,9 @@ namespace tca {
         if(itick < 1000) { myprt<<" "; }
         myprt<<std::setw(6)<<std::setprecision(2)<<tp1.Ang;
         myprt<<std::setw(2)<<tp1.AngleCode;
-        if(aTj.StopFlag[1][kBragg]) {
+        if(aTj.EndFlag[1][kBragg]) {
           myprt<<"B";
-        } else if(aTj.StopFlag[1][kAtVtx]) {
+        } else if(aTj.EndFlag[1][kAtVtx]) {
           myprt<<"V";
         } else {
           myprt<<" ";
@@ -5652,7 +5612,7 @@ namespace tca {
         myprt<<someText<<" ";
         myprt<<"Work:   UID "<<tj.UID<<"    CTP "<<tj.CTP<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
-        myprt<<" StopFlags "<<PrintStopFlag(tj, 0)<<" "<<PrintStopFlag(tj, 1);
+        myprt<<" EndFlags "<<PrintEndFlag(tj, 0)<<" "<<PrintEndFlag(tj, 1);
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       } else {
@@ -5660,7 +5620,7 @@ namespace tca {
         myprt<<someText<<" ";
         myprt<<"slc.tjs: UID "<<tj.UID<<" WorkID "<<tj.WorkID<<" StepDir "<<tj.StepDir<<" PDG "<<tj.PDGCode<<" TruPDG "<<trupdg<<" slc.vtxs "<<tj.VtxID[0]<<" "<<tj.VtxID[1]<<" nPts "<<tj.Pts.size()<<" EndPts "<<tj.EndPt[0]<<" "<<tj.EndPt[1];
         myprt<<" MCSMom "<<tj.MCSMom;
-        myprt<<" StopFlags "<<PrintStopFlag(tj, 0)<<" "<<PrintStopFlag(tj, 1);
+        myprt<<" EndFlags "<<PrintEndFlag(tj, 0)<<" "<<PrintEndFlag(tj, 1);
         myprt<<" AlgMod names:";
         for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) myprt<<" "<<AlgBitNames[ib];
       }
@@ -5861,23 +5821,23 @@ namespace tca {
   } // PrintPFPs
   
   /////////////////////////////////////////
-  std::string PrintStopFlag(const Trajectory& tj, unsigned short end)
+  std::string PrintEndFlag(const Trajectory& tj, unsigned short end)
   {
     if(end > 1) return "Invalid end";
     std::string tmp;
     bool first = true;
-    for(unsigned short ib = 0; ib < StopFlagNames.size(); ++ib) {
-      if(tj.StopFlag[end][ib]) {
+    for(unsigned short ib = 0; ib < EndFlagNames.size(); ++ib) {
+      if(tj.EndFlag[end][ib]) {
         if(first) {
-          tmp = std::to_string(end) + ":" + StopFlagNames[ib];
+          tmp = std::to_string(end) + ":" + EndFlagNames[ib];
           first = false;
         } else {
-          tmp += "," + StopFlagNames[ib];
+          tmp += "," + EndFlagNames[ib];
         }
       }
     } // ib
     return tmp;
-  } // PrintStopFlag
+  } // PrintEndFlag
   
   /////////////////////////////////////////
   std::string PrintHitShort(const TCHit& tch)

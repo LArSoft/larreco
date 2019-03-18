@@ -152,7 +152,7 @@ Track3DKalman::Track3DKalman(fhicl::ParameterSet const& pset)
   
   // create a default random engine; obtain the random seed from NuRandomService,
   // unless overridden in configuration with key "Seed"
-  art::ServiceHandle<rndm::NuRandomService>()->createEngine(*this, pset, "Seed");
+  (void)art::ServiceHandle<rndm::NuRandomService>()->createEngine(*this, pset, "Seed");
   
   produces< std::vector<recob::Track> >();
   produces< std::vector<recob::SpacePoint>              >();

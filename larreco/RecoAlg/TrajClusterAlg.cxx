@@ -40,6 +40,7 @@ namespace tca {
     if(pset.has_key("Mode")) userMode = pset.get< short >("Mode");
     if(userMode < 0) tcc.modes[kStepDir] = false;
     if(pset.has_key("DoForecast")) tcc.doForecast = pset.get< bool >("DoForecast");
+    if(pset.has_key("UseChannelStatus")) tcc.useChannelStatus = pset.get< bool >("UseChannelStatus");
     if(pset.has_key("StudyMode")) {
       std::cout<<"StudyMode is not valid anymore. Try Study: 1 or Study: 2, etc/n";
     } // old StudyMode
@@ -198,9 +199,9 @@ namespace tca {
     if(kAlgBitSize > 128) throw art::Exception(art::errors::Configuration)<<"Increase the size of UseAlgs to at least "<<kAlgBitSize;
     fAlgModCount.resize(kAlgBitSize);
 
-    if(kFlagBitSize != StopFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != StopFlagNames size "<<StopFlagNames.size();
+    if(kFlagBitSize != EndFlagNames.size()) throw art::Exception(art::errors::Configuration)<<"kFlagBitSize "<<kFlagBitSize<<" != EndFlagNames size "<<EndFlagNames.size();
     
-    if(kFlagBitSize > 8) throw art::Exception(art::errors::Configuration)<<"Increase the size of StopFlag to at least "<<kFlagBitSize;
+    if(kFlagBitSize > 8) throw art::Exception(art::errors::Configuration)<<"Increase the size of EndFlag to at least "<<kFlagBitSize;
     
     bool printHelp = false;
     for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) tcc.useAlg[ib] = true;
@@ -448,17 +449,17 @@ namespace tca {
         if(iwire > slc.wireHitRange[plane].size() - 1) continue;
         if(jwire > slc.wireHitRange[plane].size() - 1) continue;
         // skip bad wires or no hits on the wire
-        if(slc.wireHitRange[plane][iwire].first < 0) continue;
-        if(slc.wireHitRange[plane][jwire].first < 0) continue;
-        unsigned int ifirsthit = (unsigned int)slc.wireHitRange[plane][iwire].first;
-        unsigned int ilasthit = (unsigned int)slc.wireHitRange[plane][iwire].second;
-        unsigned int jfirsthit = (unsigned int)slc.wireHitRange[plane][jwire].first;
-        unsigned int jlasthit = (unsigned int)slc.wireHitRange[plane][jwire].second;
-      if(ifirsthit > slc.slHits.size() || ilasthit > slc.slHits.size()) {
-        std::cout<<"RAT: bad hit range "<<ifirsthit<<" "<<ilasthit<<" size "<<slc.slHits.size()<<" inCTP "<<inCTP<<"\n";
-        return;
-      }
-        for(unsigned int iht = ifirsthit; iht < ilasthit; ++iht) {
+        if(slc.wireHitRange[plane][iwire].first == UINT_MAX) continue;
+        if(slc.wireHitRange[plane][jwire].first == UINT_MAX) continue;
+        unsigned int ifirsthit = slc.wireHitRange[plane][iwire].first;
+        unsigned int ilasthit = slc.wireHitRange[plane][iwire].second;
+        unsigned int jfirsthit = slc.wireHitRange[plane][jwire].first;
+        unsigned int jlasthit = slc.wireHitRange[plane][jwire].second;
+        if(ifirsthit > slc.slHits.size() || ilasthit > slc.slHits.size()) {
+          std::cout<<"RAT: bad hit range "<<ifirsthit<<" "<<ilasthit<<" size "<<slc.slHits.size()<<" inCTP "<<inCTP<<"\n";
+          return;
+        }
+        for(unsigned int iht = ifirsthit; iht <= ilasthit; ++iht) {
           tcc.dbgStp = (tcc.modes[kDebug] && (slc.slHits[iht].allHitsIndex == debug.Hit));
           if(tcc.dbgStp)  {
             mf::LogVerbatim("TC")<<"+++++++ Pass "<<pass<<" Found debug hit "<<slices.size()-1<<":"<<PrintHit(slc.slHits[iht])<<" iht "<<iht;
@@ -472,7 +473,7 @@ namespace tca {
             continue;
           }
           auto& iHit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
-          if(tcc.useAlg[kNewStpCuts] && LongPulseHit(iHit)) continue;
+          if(LongPulseHit(iHit)) continue;
           unsigned int fromWire = iHit.WireID().Wire;
           float fromTick = iHit.PeakTime();
           float iqtot = iHit.Integral();
@@ -494,7 +495,7 @@ namespace tca {
           if(hitsRMSTick == 0) continue;
           bool fatIHit = (hitsRMSTick > maxHitsRMS);
           if(tcc.dbgStp) mf::LogVerbatim("TC")<<" hit RMS "<<iHit.RMS()<<" BB Multiplicity "<<iHitsInMultiplet.size()<<" AveHitRMS["<<plane<<"] "<<evt.aveHitRMS[plane]<<" HitsRMSTick "<<hitsRMSTick<<" fatIHit "<<fatIHit;
-          for(unsigned int jht = jfirsthit; jht < jlasthit; ++jht) {
+          for(unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
             // Only consider hits that are available
             if(slc.slHits[iht].InTraj != 0) break;
             if(slc.slHits[jht].InTraj != 0) continue;
@@ -507,7 +508,7 @@ namespace tca {
             }
             unsigned int toWire = jwire;
             auto& jHit = (*evt.allHits)[slc.slHits[jht].allHitsIndex];
-            if(tcc.useAlg[kNewStpCuts] && LongPulseHit(jHit)) continue;
+            if(LongPulseHit(jHit)) continue;
             float toTick = jHit.PeakTime();
             float jqtot = jHit.Integral();
             std::vector<unsigned int> jHitsInMultiplet;
@@ -571,20 +572,10 @@ namespace tca {
             // We can't update the trajectory yet because there is only one TP.
             work.EndPt[0] = 0;
             // now try stepping away
-             StepAway(slc, work);
-             // check for a major failure
+            StepAway(slc, work);
+            // check for a major failure
             if(!slc.isValid) return;
-            if(tcc.dbgStp) mf::LogVerbatim("TC")<<" After first StepAway. IsGood "<<work.IsGood;
-/*
-            if(!work.IsGood && fTryWithNextPass) {
-              StepAway(slc, work);
-              if(!work.IsGood || work.NeedsUpdate) {
-                if(tcc.dbgStp) mf::LogVerbatim("TC")<<" xxxxxxx StepAway failed AGAIN ";
-                ReleaseHits(slc, work);
-                continue;
-              } // Failed again
-            }
-*/
+            if(tcc.dbgStp) mf::LogVerbatim("TC")<<" After StepAway. IsGood "<<work.IsGood;
             // Check the quality of the work trajectory
             CheckTraj(slc, work);
             // check for a major failure
@@ -762,18 +753,18 @@ namespace tca {
     // Stay well away from the last wire in the plane
     for(unsigned int iwire = slc.firstWire[plane]; iwire < slc.lastWire[plane] - 3; ++iwire) {
       // skip bad wires or no hits on the wire
-      if(slc.wireHitRange[plane][iwire].first < 0) continue;
+      if(slc.wireHitRange[plane][iwire].first == UINT_MAX) continue;
       unsigned int jwire = iwire + 1;
-      if(slc.wireHitRange[plane][jwire].first < 0) continue;
-      unsigned int ifirsthit = (unsigned int)slc.wireHitRange[plane][iwire].first;
-      unsigned int ilasthit = (unsigned int)slc.wireHitRange[plane][iwire].second;
-      unsigned int jfirsthit = (unsigned int)slc.wireHitRange[plane][jwire].first;
-      unsigned int jlasthit = (unsigned int)slc.wireHitRange[plane][jwire].second;
+      if(slc.wireHitRange[plane][jwire].first == UINT_MAX) continue;
+      unsigned int ifirsthit = slc.wireHitRange[plane][iwire].first;
+      unsigned int ilasthit = slc.wireHitRange[plane][iwire].second;
+      unsigned int jfirsthit = slc.wireHitRange[plane][jwire].first;
+      unsigned int jlasthit = slc.wireHitRange[plane][jwire].second;
       if(ifirsthit > slc.slHits.size() || ilasthit > slc.slHits.size()) {
         std::cout<<"FJT: bad hit range wire "<<iwire<<" "<<ifirsthit<<" "<<ilasthit<<" size "<<slc.slHits.size()<<" inCTP "<<inCTP<<"\n";
         return;
       }
-      for(unsigned int iht = ifirsthit; iht < ilasthit; ++iht) {
+      for(unsigned int iht = ifirsthit; iht <= ilasthit; ++iht) {
         tcc.dbgStp = (tcc.modes[kDebug] && slc.slHits[iht].allHitsIndex == debug.Hit);
         auto& islHit = slc.slHits[iht];
         if(islHit.InTraj != 0) continue;
@@ -783,7 +774,7 @@ namespace tca {
         }
         std::vector<unsigned int> iHits;
         GetHitMultiplet(slc, iht, iHits);
-        for(unsigned int jht = jfirsthit; jht < jlasthit; ++jht) {
+        for(unsigned int jht = jfirsthit; jht <= jlasthit; ++jht) {
           auto& jslHit = slc.slHits[jht];
           if(jslHit.InTraj != 0) continue;
           if(prt && HitSep2(slc, iht, jht) < 100) mf::LogVerbatim("TC")<<" use "<<PrintHit(jslHit);
@@ -806,10 +797,10 @@ namespace tca {
           while(nit < 100) {
             bool hitsAdded = false;
             for(unsigned int kwire = loWire; kwire <= hiWire; ++kwire) {
-              if(slc.wireHitRange[plane][kwire].first < 0) continue;
-              unsigned int kfirsthit = (unsigned int)slc.wireHitRange[plane][kwire].first;
-              unsigned int klasthit = (unsigned int)slc.wireHitRange[plane][kwire].second;
-              for(unsigned int kht = kfirsthit; kht < klasthit; ++kht) {
+              if(slc.wireHitRange[plane][kwire].first == UINT_MAX) continue;
+              unsigned int kfirsthit = slc.wireHitRange[plane][kwire].first;
+              unsigned int klasthit = slc.wireHitRange[plane][kwire].second;
+              for(unsigned int kht = kfirsthit; kht <= klasthit; ++kht) {
                 if(slc.slHits[kht].InTraj != 0) continue;
                 // this shouldn't be needed but do it anyway
                 if(std::find(tHits.begin(), tHits.end(), kht) != tHits.end()) continue;
@@ -1281,12 +1272,14 @@ namespace tca {
     unsigned int tpc = 0;
     unsigned int cnt = 0;
     std::vector<unsigned int> nHitsInPln;
+    bool newTPC = false;
     for(auto iht : hitsInSlice) {
       if(iht > (*evt.allHits).size() - 1) return false;
       auto& hit = (*evt.allHits)[iht];
       if(first) {
         cstat = hit.WireID().Cryostat;
         tpc = hit.WireID().TPC;
+        newTPC = (tpc != slc.TPCID.TPC);
         slc.TPCID = geo::TPCID(cstat, tpc);
         nHitsInPln.resize(tcc.geom->Nplanes(slc.TPCID));
         first = false;
@@ -1298,7 +1291,9 @@ namespace tca {
     } // iht
     // require at least two hits in each plane
     for(auto hip : nHitsInPln) if(hip < 2) return false;
-    // Define the wire hit range vectors, UnitsPerTick, etc
+    // Define the wire hit range vector for this new TPC for ALL hits
+    if(newTPC) FillWireHitRange(slc.TPCID);
+    // next define the wire hit range vectors, UnitsPerTick, etc for this slice
     if(!FillWireHitRange(slc)) return false;
     slc.isValid = true;
     slices.push_back(slc);

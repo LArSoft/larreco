@@ -20,6 +20,7 @@ kalmanfilterfittrackmakertool: {
    fitter: {
       useRMSError: true
       sortHitsByPlane: true
+      sortHitsByWire: false
       sortOutputHitsMinLength: true
       skipNegProp: true
       cleanZigzag: false
@@ -27,6 +28,13 @@ kalmanfilterfittrackmakertool: {
       rejectHitsNegativeGOF: true
       hitErr2ScaleFact: 1.0
       tryNoSkipWhenFails: true
+      tryBothDirs: false
+      pickBestHitOnWire: false
+      maxResidue: -1.
+      maxResidueFirstHit: -1.
+      maxChi2: -1.
+      maxDist: -1.
+      negDistTolerance: 0.
       dumpLevel: 0
    }
    propagator: {

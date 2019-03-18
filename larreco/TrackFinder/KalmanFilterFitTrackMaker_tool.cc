@@ -344,7 +344,7 @@ trkmkr::KalmanFilterFitTrackMaker::getMomentum(const recob::TrackTrajectory& tra
                                                const bool isFlip,
                                                const int tkID) const
 {
-  double mom = mom_def_;
+  double mom = (mom_def_ >0 ? mom_def_ : traj.StartMomentum());
   if (momFromMCSColl_) {
     double mcsmom =
       (isFlip ? mcs->at(tkID).bwdMomentum() : mcs->at(tkID).fwdMomentum());
@@ -380,7 +380,7 @@ trkmkr::KalmanFilterFitTrackMaker::getParticleID(const recob::TrackTrajectory& t
                                                  const int tkID) const
 {
   if (pidFromColl_) {
-    return pid->at(tkID).Pdg();
+    return -1; //pid->at(tkID).Pdg();
   }
   if (mom_len_cut_ > 0.) {
     return (traj.Length() < mom_len_cut_ ? 2212 : 13);

@@ -110,7 +110,7 @@ namespace cluster {
     // obtain the random seed from NuRandomService,
     // unless overridden in configuration with key "Seed"
     // remember that HoughSeed will override this on each event if specified
-    art::ServiceHandle<rndm::NuRandomService>()
+    (void)art::ServiceHandle<rndm::NuRandomService>()
       ->createEngine(*this, pset, "Seed");
   }
   
