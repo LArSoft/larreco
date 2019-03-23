@@ -1141,12 +1141,7 @@ namespace tca {
   ////////////////////////////////////////////////
   bool StoreTraj(TCSlice& slc, Trajectory& tj)
   {
-    
-    if(!(tj.StepDir == 1 || tj.StepDir == -1)) {
-      mf::LogError("TC")<<"StoreTraj: Invalid StepDir "<<tj.StepDir;
-      return false;
-    }
-    
+
     if(slc.tjs.size() >= USHRT_MAX) {
       mf::LogError("TC")<<"StoreTraj: Too many trajectories "<<slc.tjs.size();
       return false;
