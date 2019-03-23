@@ -350,7 +350,6 @@ namespace tca {
           FillmAllTraj(slc);
           FindPFParticles(slc);
         }
-        // TODO: decide how to print debug output
         DefinePFPParents(slc, false);
 /*
         if(tcc.modes[kTagCosmics]) {
@@ -1304,6 +1303,7 @@ namespace tca {
     // define the PFP TjUIDs vector before calling StitchPFPs
     for(auto& slc : slices) {
       if(!slc.isValid) continue;
+      MakePFPTjs(slc);
       for(auto& pfp : slc.pfps) {
         if(pfp.ID <= 0) continue;
         pfp.TjUIDs.resize(pfp.TjIDs.size());
