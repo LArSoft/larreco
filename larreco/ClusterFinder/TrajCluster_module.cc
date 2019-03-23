@@ -70,6 +70,7 @@ namespace cluster {
     
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
+    bool fSaveAll2DVertices;
     
   }; // class TrajCluster
   
@@ -145,6 +146,8 @@ namespace cluster {
     if(pset.has_key("SpacePointModuleLabel")) fSpacePointModuleLabel = pset.get<art::InputTag>("SpacePointModuleLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
+    fSaveAll2DVertices = false;
+    if(pset.has_key("SaveAll2DVertices")) fSaveAll2DVertices = pset.get<bool>("SaveAll2DVertices");
 
   } // TrajCluster::reconfigure()
   
@@ -564,7 +567,6 @@ namespace cluster {
     // vector to map 3V UID -> ID in each sub-slice
     std::vector<slcVxStruct> vx3StrList;
 
-
     if(nInputHits > 0) {
       unsigned short nSlices = fTCAlg->GetSlicesSize();
       // define a hit collection begin index to pass to CreateAssn for each cluster
@@ -581,6 +583,8 @@ namespace cluster {
         // make EndPoint2Ds
         for(auto& vx2 : slc.vtxs) {
           if(vx2.ID <= 0) continue;
+          // skip complete 2D vertices?
+          if(!fSaveAll2DVertices && vx2.Vx3ID != 0) continue;
           unsigned int vtxID = vx2.UID;
           unsigned int wire = std::nearbyint(vx2.Pos[0]);
           geo::PlaneID plID = tca::DecodeCTP(vx2.CTP);
@@ -750,6 +754,7 @@ namespace cluster {
             } // vx2str
           } // end
         } // tj (aka cluster)
+        
         // make Showers
         for(auto& ss3 : slc.showers) {
           if(ss3.ID <= 0) continue;
