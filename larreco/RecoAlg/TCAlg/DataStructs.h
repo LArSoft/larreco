@@ -211,14 +211,15 @@ namespace tca {
     float ChiDOF {-1};
     float maxAlong {-1E6};
     unsigned short NPts {0};
+    bool NeedsUpdate {true};        ///< set true if the section needs to be updatesd
   };
 
   // a 3D trajectory point composed of a 3D point & direction and a single TP or single hit
   struct TP3D {
     Point3_t Pos {{ 0.0, 0.0, 0.0 }};  ///< position of the trajectory
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
-    float Delta {10};           ///< distance from the 3D trajectory defined by (Pos, Dir)
-    float along {1E6};           ///< distance from the start point (of the section)
+    float Delta {10};           ///< Transverse distance from the 3D trajectory defined by SectionFit (Pos, Dir)
+    float along {1E6};           ///< distance from the start Pos of the section
     int TjID {0};               ///< ID of the trajectory -> TP3D assn
     unsigned short TPIndex {USHRT_MAX};     ///< and the TP index
     unsigned short SFIndex {USHRT_MAX};     ///< and the section fit index
@@ -261,7 +262,7 @@ namespace tca {
     unsigned short MVI;       // matVec index for detailed debugging
     std::array<std::bitset<8>, 2> EndFlag {};  // Bitset that encodes the reason for stopping
     bool Primary;             // PFParticle is attached to a primary vertex
-    bool NeedsUpdate {true};    // Set true if the PFParticle needs to be (re-)defined
+    bool NeedsUpdate {true};    // Set true if the Update function needs to be called
   };
 
   struct ShowerPoint {
@@ -440,6 +441,7 @@ namespace tca {
     kMergeShChain,
     kCompleteShower,
     kSplitTjCVx,
+    kMakePFPTjs,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
