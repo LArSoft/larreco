@@ -17,6 +17,8 @@ standard_standardhit3dbuilder:
   NumSigmaPeakTime:     1.5   # Number "sigma" for peak times when building hits
   HitWidthScaleFactor:  6.    #
   DeltaPeakTimeSig:     1.7   # "Significance" of agreement between 2 hit peak times
+  MaxHitChiSquare:      6.0
+  OutputHistograms:     false
 }
 
 standard_spacepointhit3dbuilder:

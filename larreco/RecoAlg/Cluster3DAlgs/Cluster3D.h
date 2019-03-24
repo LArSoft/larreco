@@ -127,6 +127,7 @@ public:
                  float                           deltaPeakTime,
                  float                           sigmaPeakTime,
                  float                           hitChiSquare,
+                 float                           overlapFraction,
                  float                           docaToAxis,
                  float                           arclenToPoca,
                  const ClusterHit2DVec&          hitVec,
@@ -143,32 +144,34 @@ public:
                     float                           deltaPeakTime,
                     float                           sigmaPeakTime,
                     float                           hitChiSquare,
+                    float                           overlapFraction,
                     float                           docaToAxis,
                     float                           arclenToPoca,
                     const ClusterHit2DVec&          hitVec,
                     const std::vector<float>&       hitDelTSigVec,
                     const std::vector<geo::WireID>& wireIDVec);
 
-    size_t                              getID()            const {return m_id;}
-    unsigned int                        getStatusBits()    const {return m_statusBits;}
-    const Eigen::Vector3f               getPosition()      const {return m_position;}
-    float                               getX()             const {return m_position[0];}
-    float                               getY()             const {return m_position[1];}
-    float                               getZ()             const {return m_position[2];}
-    float                               getTotalCharge()   const {return m_totalCharge;}
-    float                               getAvePeakTime()   const {return m_avePeakTime;}
-    float                               getDeltaPeakTime() const {return m_deltaPeakTime;}
-    float                               getSigmaPeakTime() const {return m_sigmaPeakTime;}
-    float                               getHitChiSquare()  const {return m_hitChiSquare;}
-    float                               getDocaToAxis()    const {return m_docaToAxis;}
-    float                               getArclenToPoca()  const {return m_arclenToPoca;}
-    const ClusterHit2DVec&              getHits()          const {return m_hitVector;}
-    const std::vector<float>            getHitDelTSigVec() const {return m_hitDelTSigVec;}
-    const std::vector<geo::WireID>&     getWireIDs()       const {return m_wireIDVector;}
+    size_t                              getID()              const {return m_id;}
+    unsigned int                        getStatusBits()      const {return m_statusBits;}
+    const Eigen::Vector3f               getPosition()        const {return m_position;}
+    float                               getX()               const {return m_position[0];}
+    float                               getY()               const {return m_position[1];}
+    float                               getZ()               const {return m_position[2];}
+    float                               getTotalCharge()     const {return m_totalCharge;}
+    float                               getAvePeakTime()     const {return m_avePeakTime;}
+    float                               getDeltaPeakTime()   const {return m_deltaPeakTime;}
+    float                               getSigmaPeakTime()   const {return m_sigmaPeakTime;}
+    float                               getHitChiSquare()    const {return m_hitChiSquare;}
+    float                               getOverlapFraction() const {return m_overlapFraction;}
+    float                               getDocaToAxis()      const {return m_docaToAxis;}
+    float                               getArclenToPoca()    const {return m_arclenToPoca;}
+    const ClusterHit2DVec&              getHits()            const {return m_hitVector;}
+    const std::vector<float>            getHitDelTSigVec()   const {return m_hitDelTSigVec;}
+    const std::vector<geo::WireID>&     getWireIDs()         const {return m_wireIDVector;}
     
-    ClusterHit2DVec&                    getHits()                {return m_hitVector;}
+    ClusterHit2DVec&                    getHits()                  {return m_hitVector;}
 
-    bool bitsAreSet(const unsigned int& bitsToCheck)       const {return m_statusBits & bitsToCheck;}
+    bool bitsAreSet(const unsigned int& bitsToCheck)         const {return m_statusBits & bitsToCheck;}
 
     void setID(const size_t& id)           const {m_id            = id;}
     void setStatusBit(unsigned bits)       const {m_statusBits   |= bits;}
@@ -203,6 +206,7 @@ private:
     float                            m_deltaPeakTime;      ///< Largest delta peak time of associated recob::Hits
     float                            m_sigmaPeakTime;      ///< Quad sum of peak time sigmas
     float                            m_hitChiSquare;       ///< Hit ChiSquare relative to the average time
+    float                            m_overlapFraction;    ///< Hit overlap fraction start/stop of triplet
     mutable float                    m_docaToAxis;         ///< DOCA to the associated cluster axis
     mutable float                    m_arclenToPoca;       ///< arc length along axis to DOCA point
     ClusterHit2DVec                  m_hitVector;          ///< Hits comprising this 3D hit

@@ -567,7 +567,7 @@ void PrincipalComponentsAlg::PCAAnalysis_calc3DDocas(const reco::HitPairListPtr&
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(0));
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(2));
     
     // We want to keep track of the average
     float aveDoca3D(0.);
@@ -619,7 +619,7 @@ void PrincipalComponentsAlg::PCAAnalysis_calc2DDocas(const reco::Hit2DListPtr&  
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(0));
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(2));
     
     // Recover the principle eigen value for range constraints
     float maxArcLen = 4.*sqrt(pca.getEigenValues()[0]);
@@ -737,7 +737,7 @@ int PrincipalComponentsAlg::PCAAnalysis_reject3DOutliers(const reco::HitPairList
     
     // We'll need the current PCA axis to determine doca and arclen
     Eigen::Vector3f avePosition(pca.getAvePosition()[0], pca.getAvePosition()[1], pca.getAvePosition()[2]);
-    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(0));
+    Eigen::Vector3f axisDirVec(pca.getEigenVectors().row(2));
     
     // Outer loop over views
     for (const auto* clusterHit3D : hitPairVector)
