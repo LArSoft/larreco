@@ -210,6 +210,24 @@ void calo::Calorimetry::produce(art::Event& evt)
       std::vector<float> deadwire; //residual range for dead wires
       std::vector<TVector3> vXYZ;
 
+      // Require at least 2 hits in this view
+      if (hits[ipl].size() < 2){
+        if (hits[ipl].size() == 1){
+          mf::LogWarning("Calorimetry") << "Only one hit in plane "<<ipl<<" associated with track id "<<trkIter;
+        }
+	calorimetrycol->push_back(anab::Calorimetry(util::kBogusD,
+						    vdEdx,
+						    vdQdx,
+						    vresRange,
+						    deadwire,
+						    util::kBogusD,
+						    fpitch,
+						    recob::tracking::convertCollToPoint(vXYZ),
+						    planeID));
+	util::CreateAssn(*this, evt, *calorimetrycol, tracklist[trkIter], *assn);
+        continue;
+      }
+
       //range of wire signals
       unsigned int wire0 = 100000;
       unsigned int wire1 = 0;
