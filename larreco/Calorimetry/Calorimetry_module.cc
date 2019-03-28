@@ -188,13 +188,7 @@ void calo::Calorimetry::produce(art::Event& evt)
     }
     //get hits in each plane
     for (size_t ipl = 0; ipl < nplanes; ++ipl){//loop over all wire planes
-      // Require at least 2 hits in this view
-      if (hits[ipl].size() < 2){
-        if (hits[ipl].size() == 1){
-          mf::LogWarning("Calorimetry") << "Only one hit in plane "<<ipl<<" associated with track id "<<trkIter;
-        }
-        continue;
-      }
+
       geo::PlaneID planeID;//(cstat,tpc,ipl);
 
       fwire.clear();
