@@ -41,18 +41,18 @@ namespace tca {
   void MatchPlanes(TCSlice& slc, unsigned short numPlanes, std::vector<MatchStruct>& matVec, bool prt);
   void FindCompleteness(TCSlice& slc, PFPStruct& pfp, bool doFit, bool prt);
   bool Define(TCSlice& slc, PFPStruct& pfp, bool prt);
-  void ChkOrder(TCSlice& slc, PFPStruct& pfp, bool prt);
+  void FixOrder(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool Update(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool ReSection(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool KillBadPoint(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, bool prt);
   unsigned short Find3DRecoRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir);
-  bool FitTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex, Point3_t& pos, Vector3_t& dir, float& chiDOF, bool doUpdate);
+  bool FitSection(TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex);
   void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt);
   void AddMissedTP3Ds(TCSlice& slc, PFPStruct& pfp, bool prt);
   void AddMissedTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, CTP_t inCTP, bool prt);
-  unsigned short FindSection(PFPStruct& pfp, Point3_t pos);
+  bool InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SetStartEndPos(PFPStruct& pfp, unsigned short sfIndex);
-  bool SortTP3Ds(PFPStruct& pfp, unsigned short sectionFitIndex);
+  bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
   void CountOrder(TCSlice& slc, int tid, const std::vector<TP3D>& tp3ds, unsigned short& nNeg, unsigned short& nPos);
   void FillTP3Ds(TCSlice& slc, PFPStruct& pfp);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
@@ -71,7 +71,8 @@ namespace tca {
   bool SetMag(Vector3_t& v1, double mag);
   void FilldEdx(TCSlice& slc, PFPStruct& pfp);
   float dEdx(TCSlice& slc, TP3D& tp3d);
-  float PFPDOCA(const PFPStruct& pfp1,  const PFPStruct& pfp2, unsigned short& close1, unsigned short& close2);
+  TP3D CreateTP3D(TCSlice& slc, unsigned short slHitsIndex);
+  TP3D CreateTP3D(TCSlice& slc, int tjID, unsigned short tjPt);
   PFPStruct CreatePFP(TCSlice& slc);
   void PFPVertexCheck(TCSlice& tcs);
   void DefinePFPParents(TCSlice& slc, bool prt);
@@ -87,6 +88,7 @@ namespace tca {
   Point3_t PosAtEnd(const PFPStruct& pfp, unsigned short end);
   Vector3_t DirAtEnd(const PFPStruct& pfp, unsigned short end);
   float Length(const PFPStruct& pfp);
+  bool FindStartEnd(const PFPStruct& pfp, unsigned short sfIndex, unsigned short& startPt, unsigned short& endPt);
   unsigned short FarEnd(TCSlice& slc, const PFPStruct& pfp, const Point3_t& pos);
   void PrintTP3Ds(std::string someText, TCSlice& slc, const PFPStruct& pfp, short printPts);
   
