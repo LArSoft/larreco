@@ -173,7 +173,6 @@ namespace tca {
       sf.Dir = ss3.Dir;
       sf.DirErr = ss3.DirErr;
       showerPFP.Vx3ID[0] = ss3.Vx3ID;
-      sf.EndPos = ss3.End;
       sf.Dir = ss3.Dir;
       // dEdx is indexed by plane for pfps and by 2D shower index for 3D showers
       for(auto cid : ss3.CotIDs) {
