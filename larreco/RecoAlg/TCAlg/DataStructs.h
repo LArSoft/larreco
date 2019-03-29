@@ -204,27 +204,29 @@ namespace tca {
   
   // TP3D Section fit ranges
   struct SectionFit {
-    Point3_t Pos{{ 0.0, 0.0, 0.0 }};      ///< start position of this section
-    Point3_t EndPos{{ 0.0, 0.0, 0.0 }};      ///< end position of this section
+    Point3_t Pos   {{ 0.0, 0.0, 0.0 }};      ///< center position of this section
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};   ///< and direction
     Vector3_t DirErr  {{ 0.0, 0.0, 0.0 }};   ///< and direction error
     float ChiDOF {-1};
-    float maxAlong {-1E6};
     unsigned short NPts {0};
-    bool NeedsUpdate {true};        ///< set true if the section needs to be updatesd
+    bool NeedsUpdate {true};        ///< set true if the section needs to be updated
   };
 
   // a 3D trajectory point composed of a 3D point & direction and a single TP or single hit
   struct TP3D {
-    Point3_t Pos {{ 0.0, 0.0, 0.0 }};  ///< position of the trajectory
+    Point3_t Pos {{ -10.0, -10.0, -10.0 }};  ///< position of the trajectory
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};
+    double TPX {-10};        ///< X position of the TP or the single hit
+    double TPXErr2 {1};      ///< (X position error)^2
+    float Wire {-1};
     float Delta {10};           ///< Transverse distance from the 3D trajectory defined by SectionFit (Pos, Dir)
     float along {1E6};           ///< distance from the start Pos of the section
     int TjID {0};               ///< ID of the trajectory -> TP3D assn
+    unsigned short Plane {USHRT_MAX};
     unsigned short TPIndex {USHRT_MAX};     ///< and the TP index
     unsigned short SFIndex {USHRT_MAX};     ///< and the section fit index
     unsigned int slHitsIndex {UINT_MAX};  ///< index of a single hit that is not used in a Tj (TjID == 0)
-    bool IsGood {true};
+    bool IsGood {false};          ///< TP should not be used for anything if this is false
   };
 
   // Struct for 3D trajectory matching
