@@ -18,8 +18,8 @@ namespace tca {
     }
 
     // save the xmin and xmax of each pfp
-    auto& startPos = pfp.SectionFits[0].Pos;
-    auto& endPos = pfp.SectionFits[pfp.SectionFits.size() - 1].EndPos;
+    auto& startPos = pfp.TP3Ds[0].Pos;
+    auto& endPos = pfp.TP3Ds[pfp.TP3Ds.size() - 1].Pos;
     slc.crt.cr_pfpxmin.push_back(std::min(startPos[0], endPos[0]));
     slc.crt.cr_pfpxmax.push_back(std::max(startPos[0], endPos[0]));
 
