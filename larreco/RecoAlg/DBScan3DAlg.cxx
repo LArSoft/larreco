@@ -4,6 +4,7 @@
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 #include "larevt/CalibrationDBI/Interface/ChannelStatusService.h"
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
+#include "cetlib/pow.h"
 
 #include <limits.h>
 #include <math.h>
@@ -43,7 +44,7 @@ void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& 
         }
         badchannelmap[wid1] = nbadchs;
       }
-    }     
+    }
     std::cout<<"Done building bad channel map."<<std::endl;
   }
 
@@ -206,11 +207,13 @@ int cluster::DBScan3DAlg::spread(unsigned int index,
 
 float cluster::DBScan3DAlg::dist(point_t *a, point_t *b)
 {
-  float dx = a->sp->XYZ()[0] - b->sp->XYZ()[0];
-  float dy = a->sp->XYZ()[1] - b->sp->XYZ()[1];
-  float dz = a->sp->XYZ()[2] - b->sp->XYZ()[2];
-  float dist = dx*dx + dy*dy + dz*dz - (a->nbadchannels + b->nbadchannels)*(a->nbadchannels + b->nbadchannels)*badchannelweight*badchannelweight;
-  //std::cout<<dx*dx + dy*dy + dz*dz<<" "<<(a->nbadchannels + b->nbadchannels)*(a->nbadchannels + b->nbadchannels)*badchannelweight*badchannelweight<<std::endl;
-  if ( dist < 0 ) dist = 0;
-  return dist;
+  Double32_t const* a_xyz = a->sp->XYZ();
+  Double32_t const* b_xyz = b->sp->XYZ();
+  auto const nbadchannels = a->nbadchannels + b->nbadchannels;
+  float const dx = a_xyz[0] - b_xyz[0];
+  float const dy = a_xyz[1] - b_xyz[1];
+  float const dz = a_xyz[2] - b_xyz[2];
+  float const dist = cet::sum_of_squares(dx, dy, dz) - cet::square(nbadchannels * badchannelweight);
+  // Do not return a distance smaller than 0.
+  return std::max(dist, 0.f);
 }

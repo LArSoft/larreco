@@ -63,6 +63,7 @@ extern "C" {
 #include "art/Framework/Principal/Handle.h" 
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
+#include "cetlib/pow.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h" 
 #include "art/Framework/Services/Optional/TFileService.h" 
 #include "art/Framework/Services/Optional/TFileDirectory.h" 
@@ -268,7 +269,7 @@ void calo::Calorimetry::produce(art::Event& evt)
             if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{pos.X() + dir.X(), pos.Y() + dir.Y(), pos.Z() + dir.Z()});
             TVector3 dir_corr = {dir.X() - dirOffsets.X() + posOffsets.X(), dir.Y() + dirOffsets.Y() - posOffsets.Y(), dir.Z() + dirOffsets.Z() - posOffsets.Z()};
             
-            fTrkPitch = fTrkPitch * dir_corr.Mag() / pow(dir.Mag2(),0.5);
+            fTrkPitch = fTrkPitch * dir_corr.Mag() / dir.R();
           }
           catch( cet::exception &e){
             mf::LogWarning("Calorimetry") << "caught exception " 
@@ -371,7 +372,7 @@ void calo::Calorimetry::produce(art::Event& evt)
               
               double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
               if (cosgamma){
-                pitch = (geom->WirePitch(0)/cosgamma) * (pow(dir.Mag2(),0.5) / pow(dir_tmp.Mag2(),0.5));
+                pitch = (geom->WirePitch(0)/cosgamma) * dir.Mag() / dir_tmp.R();
               }
               else{
                 pitch = 0;
@@ -646,7 +647,7 @@ void calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit, std::vector<double> t
   double w0 = hit->WireID().Wire;
 
   for (size_t i = 0; i<trkx.size(); ++i){
-    double distance = pow((trkw[i]-w0)*wire_pitch,2)+pow(trkx0[i]-x0,2);
+    double distance = cet::sum_of_squares((trkw[i]-w0)*wire_pitch, trkx0[i]-x0);
     if (distance>0) distance = sqrt(distance);
     //std::cout << "Dis " << distance << ", sqaured " << distance*distance << " = " << wire_pitch*wire_pitch <<"("<<trkw[i]<<"-"<<w0<<")^2 + ("<<trkx0[i]<<"-"<<x0<<")^2"<<std::endl;
     sptmap.insert(std::pair<double,size_t>(distance,i));
