@@ -219,10 +219,9 @@ namespace tca {
         vx3.Neutrino = true;
         // put the vertex at the end of the neutrino
         auto& sf = neutrinoPFP.SectionFits[0];
-        sf.EndPos[0] = vx3.X;
-        sf.EndPos[1] = vx3.Y;
-        sf.EndPos[2] = vx3.Z;
-        sf.Pos = sf.EndPos;
+        sf.Pos[0] = vx3.X;
+        sf.Pos[1] = vx3.Y;
+        sf.Pos[2] = vx3.Z;
         sf.Dir[2] = 1;
         // This may be set to 12 later on if a primary shower is reconstructed 
         neutrinoPFP.PDGCode = 14;
@@ -3590,10 +3589,6 @@ namespace tca {
     geo::PlaneID planeID = DecodeCTP(inCTP);
     
     tp.Pos[0] = tcc.geom->WireCoordinate(pos[1], pos[2], planeID);
-    if(tp.Pos[0] < 0 || (!tcc.maxPos0.empty() && tp.Pos[0] > tcc.maxPos0[planeID.Plane])) {
-      tp.Pos[0] = -1;
-      return tp;
-    }
     tp.Pos[1] = tcc.detprop->ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
     
     // now find the direction if dir is defined
@@ -4968,7 +4963,7 @@ namespace tca {
     if(pfp.ID <= 0) return;
     if(printHeader) {
       myprt<<"************ PFParticles ************\n";
-      myprt<<"     prodID    sVx  _____sPos____ CS _______sDir______ ____sdEdx_____    eVx  _____ePos____ CS _______eDir______ ____edEdx_____   MCS  Len nTp3 SLk? PDG mcpIndx Par E*P\n";
+      myprt<<"     prodID    sVx  _____sPos____ CS _______sDir______ ____sdEdx_____    eVx  _____ePos____ CS _______eDir______ ____edEdx_____   MCS  Len nTP3 nSec SLk? PDG mcpIndx Par E*P\n";
       printHeader = false;
     } // printHeader
     auto sIndx = GetSliceIndex("P", pfp.UID);
@@ -5020,7 +5015,8 @@ namespace tca {
     } else {
       myprt<<std::setw(5)<<std::setprecision(0)<<length;
     }
-    myprt<<std::setw(5)<<std::setprecision(2)<<pfp.TP3Ds.size();
+    myprt<<std::setw(5)<<pfp.TP3Ds.size();
+    myprt<<std::setw(5)<<pfp.SectionFits.size();
     myprt<<std::setw(3)<<IsShowerLike(slc, pfp.TjIDs);
     myprt<<std::setw(5)<<pfp.PDGCode;
     if(pfp.mcpIndex == UINT_MAX) {
