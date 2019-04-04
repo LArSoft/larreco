@@ -50,7 +50,7 @@
 #include "canvas/Persistency/Common/FindOneP.h"
 #include "canvas/Utilities/InputTag.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "art/Framework/Services/System/TriggerNamesService.h"
 #include "fhiclcpp/ParameterSet.h"
 

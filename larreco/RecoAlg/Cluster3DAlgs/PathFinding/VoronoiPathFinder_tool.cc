@@ -8,7 +8,7 @@
 // Framework Includes
 #include "art/Utilities/ToolMacros.h"
 #include "art/Utilities/make_tool.h"
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "art_root_io/TFileService.h"
 #include "cetlib/search_path.h"
 #include "cetlib/cpu_timer.h"
 
