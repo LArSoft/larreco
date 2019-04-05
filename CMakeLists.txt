@@ -34,7 +34,6 @@ cet_cmake_env()
 cet_set_compiler_flags(DIAGS CAUTIOUS
   WERROR
   NO_UNDEFINED
-  ALLOW_DEPRECATIONS
   EXTRA_FLAGS -pedantic -Wno-unused-local-typedefs
 )
 
