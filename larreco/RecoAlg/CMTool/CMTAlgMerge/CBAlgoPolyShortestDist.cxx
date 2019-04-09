@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOPOLYSHORTESTDIST_CXX
-#define RECOTOOL_CBALGOPOLYSHORTESTDIST_CXX
-
 #include "CBAlgoPolyShortestDist.h"
 
 namespace cmtool {
@@ -110,4 +107,3 @@ namespace cmtool {
   }
     
 }
-#endif

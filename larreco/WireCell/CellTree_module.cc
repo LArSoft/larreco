@@ -2,9 +2,6 @@
 // Chao Zhang (chao@bnl.gov) 5/13/2014
 // Added optical info --- Brooke Russell (brussell@yale.edu) 1/31/2017
 
-#ifndef CELLTREE_MODULE
-#define CELLTREE_MODULE
-
 // LArSoft includes
 #include "lardata/Utilities/GeometryUtilities.h"
 
@@ -1141,6 +1138,3 @@ void CellTree::InitProcessMap()
 //-----------------------------------------------------------------------
 DEFINE_ART_MODULE(CellTree)
 } // namespace microboone
-
-
-#endif

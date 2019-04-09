@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOANGLEINCOMPAT_CXX
-#define RECOTOOL_CBALGOANGLEINCOMPAT_CXX
-
 #include "CBAlgoAngleIncompat.h"
 
 namespace cmtool {
@@ -74,4 +71,3 @@ namespace cmtool {
   }
 
 }
-#endif

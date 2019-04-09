@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_MCMATCHALG_CXX
-#define RECOTOOL_MCMATCHALG_CXX
-
 #include "MCMatchAlg.h"
 
 namespace btutil {
@@ -257,4 +254,3 @@ namespace btutil {
   }
 
 }
-#endif

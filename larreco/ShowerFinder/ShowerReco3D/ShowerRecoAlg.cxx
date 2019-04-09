@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_SHOWERRECOALG_CXX
-#define RECOTOOL_SHOWERRECOALG_CXX
-
 #include "ShowerRecoAlg.h"
 
 namespace showerreco {
@@ -361,5 +358,3 @@ namespace showerreco {
     }
 
 }
-
-#endif

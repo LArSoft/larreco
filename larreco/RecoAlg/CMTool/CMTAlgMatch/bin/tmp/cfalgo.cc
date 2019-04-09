@@ -1,6 +1,3 @@
-#ifndef CFALGO_CLASS_NAME_CXX
-#define CFALGO_CLASS_NAME_CXX
-
 #include "CFAlgo_Class_Name.hh"
 
 namespace cmtool {
@@ -35,4 +32,3 @@ namespace cmtool {
   }
     
 }
-#endif

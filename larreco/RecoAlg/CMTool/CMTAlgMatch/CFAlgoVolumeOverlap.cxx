@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOVOLUMEOVERLAP_CXX
-#define RECOTOOL_CFALGOVOLUMEOVERLAP_CXX
-
 #include "CFAlgoVolumeOverlap.h"
 #include <algorithm>
 
@@ -320,4 +317,3 @@ namespace cmtool {
   }
     
 }
-#endif

@@ -1,5 +1,3 @@
-#ifndef FFTHITFINDER_H
-#define FFTHITFINDER_H
 ////////////////////////////////////////////////////////////////////////
 //
 // FFTHitFinder class
@@ -377,6 +375,3 @@ namespace hit{
   DEFINE_ART_MODULE(FFTHitFinder)
 
 } // end of hit namespace
-
-
-#endif // FFTHITFINDER_H

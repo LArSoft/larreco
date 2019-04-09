@@ -13,9 +13,6 @@
 // Christoph Alt
 // christoph.alt@cern.ch
 
-#ifndef MuonTrackingEff_Module
-#define MuonTrackingEff_Module
-
 // LArSoft includes
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/GeometryUtilities.h"
@@ -1299,5 +1296,3 @@ void MuonTrackingEff::doEfficiencies(){
 DEFINE_ART_MODULE(MuonTrackingEff)
 
 } 
-
-#endif // MuonTrackingEff_Module

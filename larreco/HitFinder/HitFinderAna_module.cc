@@ -9,9 +9,6 @@
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h" 
 
-#ifndef HITFINDERANA_H
-#define HITFINDERANA_H
-
 // ROOT includes
 #include <TMath.h>
 #include <TH1F.h>
@@ -329,6 +326,3 @@ namespace hit{
   DEFINE_ART_MODULE(HitFinderAna)
 
 } // end of hit namespace
-
-#endif // HITFINDERANA_H
-

@@ -1,6 +1,3 @@
-#ifndef CBALGOSHORTESTDISTNONENDPOINT_CXX
-#define CBALGOSHORTESTDISTNONENDPOINT_CXX
-
 #include "CBAlgoShortestDistNonEndPoint.h"
 
 namespace cmtool {
@@ -148,4 +145,3 @@ namespace cmtool {
   }//end ShortestDistanceSquared function
   
 }
-#endif

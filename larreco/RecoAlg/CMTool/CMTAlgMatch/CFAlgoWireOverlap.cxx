@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOWIREOVERLAP_CXX
-#define RECOTOOL_CFALGOWIREOVERLAP_CXX
-
 #include "CFAlgoWireOverlap.h"
 #include <algorithm>
 
@@ -309,4 +306,3 @@ namespace cmtool {
   }
     
 }
-#endif

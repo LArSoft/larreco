@@ -8,9 +8,6 @@
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef PointIdTrainingData_Module
-#define PointIdTrainingData_Module
-
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -242,6 +239,3 @@ namespace nnet	 {
   DEFINE_ART_MODULE(PointIdTrainingData)
 
 }
-
-#endif // PointIdTrainingData_Module
-

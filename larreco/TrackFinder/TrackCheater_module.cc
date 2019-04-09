@@ -8,8 +8,6 @@
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
 
-#ifndef TRKF_TRACKCHEATER_H
-#define TRKF_TRACKCHEATER_H
 #include <string>
 
 #include <vector>
@@ -283,5 +281,3 @@ namespace trkf{
   DEFINE_ART_MODULE(TrackCheater)
 
 }
-
-#endif

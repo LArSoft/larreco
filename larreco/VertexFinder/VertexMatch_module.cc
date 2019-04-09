@@ -10,8 +10,7 @@
 //  vertex is a vertex that has been found using a dedicated vertex finding algorithm and 
 //  matched to a crossing of two or more HoughLineFinder lines.
 ////////////////////////////////////////////////////////////////////////
-#ifndef VERTEXMATCH_H
-#define VERTEXMATCH_H
+
 extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -331,5 +330,3 @@ namespace vertex{
   DEFINE_ART_MODULE(VertexMatch)
 
 } // end of vertex namespace
-
-#endif // VERTEXMATCH_H

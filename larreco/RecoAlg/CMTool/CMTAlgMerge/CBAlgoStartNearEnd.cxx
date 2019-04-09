@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOSTARTNEAREND_CXX
-#define RECOTOOL_CBALGOSTARTNEAREND_CXX
-
 #include "CBAlgoStartNearEnd.h"
 
 namespace cmtool {
@@ -65,5 +62,3 @@ namespace cmtool {
   }
 
 }
-
-#endif

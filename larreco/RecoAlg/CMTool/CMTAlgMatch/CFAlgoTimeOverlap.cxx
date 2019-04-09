@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOTIMEOVERLAP_CXX
-#define RECOTOOL_CFALGOTIMEOVERLAP_CXX
-
 #include "CFAlgoTimeOverlap.h"
 
 namespace cmtool {
@@ -240,4 +237,3 @@ namespace cmtool {
   }
     
 }
-#endif

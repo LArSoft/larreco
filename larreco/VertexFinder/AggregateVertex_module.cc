@@ -5,8 +5,6 @@
 // brebel@fnal.gov
 //
 ////////////////////////////////////////////////////////////////////////
-#ifndef AGGREGATEVERTEX_H
-#define AGGREGATEVERTEX_H
 
 extern "C" {
 #include <sys/types.h>
@@ -243,4 +241,3 @@ namespace vertex{
   DEFINE_ART_MODULE(AggregateVertex)
 
 }
-#endif // AGGREGATEVERTEX_H

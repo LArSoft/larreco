@@ -6,8 +6,6 @@
 // tylerdalion@gmail.com
 //
 ////////////////////////////////////////////////////////////////////////
-#ifndef DisambigCheater_h
-#define DisambigCheater_h
 
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Core/EDProducer.h"
@@ -314,8 +312,6 @@ namespace hit{
   {
     fChanHitLabel =  p.get< std::string >("ChanHitLabel");
   }
-
-#endif // DisambigCheater_h
 
   DEFINE_ART_MODULE(DisambigCheater)
 

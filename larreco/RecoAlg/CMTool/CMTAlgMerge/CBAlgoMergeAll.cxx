@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOMERGEALL_CXX
-#define RECOTOOL_CBALGOMERGEALL_CXX
-
 #include "CBAlgoMergeAll.h"
 
 namespace cmtool {
@@ -22,5 +19,3 @@ namespace cmtool {
   }
   
 }
-
-#endif

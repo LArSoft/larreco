@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOPOLYCONTAIN_CXX
-#define RECOTOOL_CBALGOPOLYCONTAIN_CXX
-
 #include "CBAlgoPolyContain.h"
 
 namespace cmtool {
@@ -37,5 +34,3 @@ namespace cmtool {
   
 
 }
-
-#endif

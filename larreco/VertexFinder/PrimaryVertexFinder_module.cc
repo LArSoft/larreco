@@ -3,8 +3,6 @@
 // PrimaryVertexFinder class
 //  
 ////////////////////////////////////////////////////////////////////////
-#ifndef PrimaryVertexFinder_H
-#define PrimaryVertexFinder_H
 
 #include <iostream>
 
@@ -494,5 +492,3 @@ namespace vertex{
   DEFINE_ART_MODULE(PrimaryVertexFinder)
 
 } // end of vertex namespace
-
-#endif // PrimaryVertexFinder_H

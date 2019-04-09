@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_SHOWERCALO_CXX
-#define RECOTOOL_SHOWERCALO_CXX
-
 #include "ShowerCalo.h"
 
 namespace showerreco {
@@ -31,4 +28,3 @@ namespace showerreco {
   }
 
 }
-#endif

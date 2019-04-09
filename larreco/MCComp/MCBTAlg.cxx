@@ -1,6 +1,3 @@
-#ifndef MCBTALG_CXX
-#define MCBTALG_CXX
-
 #include "MCBTAlg.h"
 
 namespace btutil {
@@ -195,5 +192,3 @@ namespace btutil {
   }
 
 }
-
-#endif  

@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOARRAY_CXX
-#define RECOTOOL_CFALGOARRAY_CXX
-
 #include "CFAlgoArray.h"
 
 namespace cmtool {
@@ -59,4 +56,3 @@ namespace cmtool {
   }
 
 }
-#endif

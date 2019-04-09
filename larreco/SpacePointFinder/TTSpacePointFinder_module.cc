@@ -1,5 +1,3 @@
-#ifndef TTSPACEPOINTFINDER_H
-#define TTSPACEPOINTFINDER_H
 /*!
  * Title:   TTSpacePointFinder class
  * Author:  wketchum@lanl.gov
@@ -162,6 +160,3 @@ namespace sppt{
   DEFINE_ART_MODULE(TTSpacePointFinder)
 
 } // end of sppt namespace
-
-
-#endif // TTSPACEPOINTFINDER_H

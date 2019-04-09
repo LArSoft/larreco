@@ -1,6 +1,3 @@
-#ifndef CMALGO_CLASS_NAME_CXX
-#define CMALGO_CLASS_NAME_CXX
-
 #include "CMAlgo_Class_Name.h"
 
 namespace cluster {
@@ -63,4 +60,3 @@ namespace cluster {
   }
     
 }
-#endif

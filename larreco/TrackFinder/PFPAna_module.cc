@@ -6,9 +6,6 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-//#ifndef PFPANA_H
-//#define PFPANA_H
-
 #include <iomanip>
 #include <TH1F.h>
 #include <TProfile.h>
@@ -716,6 +713,3 @@ namespace pfpf {
 
   
 } //end namespace
-
-
-

@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOPOLYHITOVERLAP_CXX
-#define RECOTOOL_CBALGOPOLYHITOVERLAP_CXX
-
 #include "CBAlgoPolyHitOverlap.h"
 
 namespace cmtool {
@@ -32,5 +29,3 @@ namespace cmtool {
 
 
 }
-
-#endif

@@ -1,6 +1,3 @@
-#ifndef APAHITFINDER_H
-#define APAHITFINDER_H
-
 ////////////////////////////////////////////////////////////////////////
 //
 // APAHitFinder class
@@ -140,4 +137,3 @@ void APAHitFinder::produce(art::Event& evt)
 DEFINE_ART_MODULE(APAHitFinder)
 
 } // end of apa namespace
-#endif // APAHITFINDER_H

@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOQRATIO_CXX
-#define RECOTOOL_CFALGOQRATIO_CXX
-
 #include "CFAlgoQRatio.h"
 
 namespace cmtool {
@@ -81,4 +78,3 @@ namespace cmtool {
   }
     
 }
-#endif

@@ -10,9 +10,6 @@
 // A. Higuera
 // ahiguera@central.uh.edu
 
-#ifndef NeutrinoTrackingEff_Module
-#define NeutrinoTrackingEff_Module
-
 // LArSoft includes
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/GeometryUtilities.h"
@@ -1009,5 +1006,3 @@ void NeutrinoTrackingEff::doEfficiencies(){
 DEFINE_ART_MODULE(NeutrinoTrackingEff)
 
 } 
-
-#endif // NeutrinoTrackingEff_Module

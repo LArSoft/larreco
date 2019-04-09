@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CMMANAGERBASE_CXX
-#define RECOTOOL_CMMANAGERBASE_CXX
-
 #include "CMManagerBase.h"
 
 namespace cmtool {
@@ -190,5 +187,3 @@ namespace cmtool {
 
 
 }
-
-#endif

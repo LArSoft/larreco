@@ -1,6 +1,3 @@
-#ifndef NeutrinoShowerEff_Module
-#define NeutrinoShowerEff_Module
-
 // LArSoft includes
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/GeometryUtilities.h"
@@ -1399,5 +1396,3 @@ namespace DUNE{
   DEFINE_ART_MODULE(NeutrinoShowerEff)
 
 } 
-
-#endif // NeutrinoShowerEff_Module

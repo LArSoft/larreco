@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOSTARTTIMECOMPAT_CXX
-#define RECOTOOL_CFALGOSTARTTIMECOMPAT_CXX
-
 #include "CFAlgoStartTimeCompat.h"
 #include <algorithm>
 
@@ -197,4 +194,3 @@ namespace cmtool {
   }
     
 }
-#endif

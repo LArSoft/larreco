@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOTRACKSEPARATE_CXX
-#define RECOTOOL_CBALGOTRACKSEPARATE_CXX
-
 #include "CBAlgoTrackSeparate.h"
 
 namespace cmtool {
@@ -114,5 +111,3 @@ namespace cmtool {
   }
 
 }
-
-#endif

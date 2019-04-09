@@ -1,6 +1,3 @@
-#ifndef RAWHITFINDER_H
-#define RAWHITFINDER_H
-
 ////////////////////////////////////////////////////////////////////
 //HIT FINDER THAT RUNS ON RAW SIGNALS INSTEAD OF DECONVOLUTED ONES.
 //WRITTEN INITIALLY FOR DUNE 35T ONLINE FILTER.
@@ -474,6 +471,3 @@ namespace hit {
   DEFINE_ART_MODULE(RawHitFinder)   
 
 } // end namespace hit
-
-
-#endif //RAWHITFINDER_H

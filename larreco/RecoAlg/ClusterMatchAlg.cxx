@@ -4,9 +4,6 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-#ifndef CLUSTERMATCHALG_CC
-#define CLUSTERMATCHALG_CC
-
 #include "ClusterMatchAlg.h"
 
 namespace cluster{
@@ -756,5 +753,3 @@ namespace cluster{
   }
 
 } // namespace match
-
-#endif 

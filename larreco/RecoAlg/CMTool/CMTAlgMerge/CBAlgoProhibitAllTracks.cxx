@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOPROHIBITALLTRACKS_CXX
-#define RECOTOOL_CBALGOPROHIBITALLTRACKS_CXX
-
 #include "CBAlgoProhibitAllTracks.h"
 
 namespace cmtool {
@@ -75,4 +72,3 @@ namespace cmtool {
   }
     
 }
-#endif

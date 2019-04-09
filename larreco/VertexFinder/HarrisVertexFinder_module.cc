@@ -15,8 +15,6 @@
 ///B. Morgan (2010). "Interest Point Detection for Reconstruction in High Granularity Tracking Detectors". 
 ///arXiv:1006.3012v1 [physics.ins-det]
 //Thanks to B. Morgan of U. of Warwick for comments and suggestions
-#ifndef HarrisVertexFinder_H
-#define HarrisVertexFinder_H
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h" 
@@ -422,5 +420,3 @@ namespace vertex{
   DEFINE_ART_MODULE(HarrisVertexFinder)
 
 } // end of vertex namespace
-
-#endif // HarrisVertexFinder_H

@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOCHARGEDISTRIB_CXX
-#define RECOTOOL_CFALGOCHARGEDISTRIB_CXX
-
 #include "CFAlgoChargeDistrib.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
@@ -155,4 +152,3 @@ namespace cmtool {
 
     
 }
-#endif

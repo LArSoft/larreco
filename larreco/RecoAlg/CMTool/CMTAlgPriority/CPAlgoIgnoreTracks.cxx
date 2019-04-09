@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CPALGOIGNORETRACKS_CXX
-#define RECOTOOL_CPALGOIGNORETRACKS_CXX
-
 #include "CPAlgoIgnoreTracks.h"
 
 namespace cmtool {
@@ -60,4 +57,3 @@ namespace cmtool {
     return isTrack;
   }
 }
-#endif

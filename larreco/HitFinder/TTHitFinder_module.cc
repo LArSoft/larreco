@@ -1,5 +1,3 @@
-#ifndef TTHITFINDER_H
-#define TTHITFINDER_H
 /*!
  * Title:   TTHitFinder class
  * Author:  wketchum@lanl.gov
@@ -249,6 +247,3 @@ namespace hit{
   DEFINE_ART_MODULE(TTHitFinder)
 
 } // end of hit namespace
-
-
-#endif // TTHITFINDER_H

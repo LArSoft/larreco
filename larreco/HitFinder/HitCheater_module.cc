@@ -6,8 +6,6 @@
 // Generated at Tue Nov  8 09:41:20 2011 by Brian Rebel using artmod
 // from art v1_00_02.
 ////////////////////////////////////////////////////////////////////////
-#ifndef HitCheater_h
-#define HitCheater_h
 
 // C/C++ standard libraries
 #include <cmath> // std::sqrt()
@@ -338,7 +336,5 @@ void hit::HitCheater::reconfigure(fhicl::ParameterSet const & p)
 
   return;
 }
-
-#endif /* HitCheater_h */
 
 DEFINE_ART_MODULE(hit::HitCheater)

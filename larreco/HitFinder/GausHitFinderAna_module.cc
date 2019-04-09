@@ -1,5 +1,3 @@
-#ifndef GAUSHITFINDERANA_H
-#define GAUSHITFINDERANA_H
 ////////////////////////////////////////////////////////////////////////
 //
 // Gaus(s)HitFinder class designed to analyze signal on a wire in the TPC
@@ -409,7 +407,3 @@ namespace hit{
   DEFINE_ART_MODULE(GausHitFinderAna)
 
 } // end of hit namespace
-
-
-
-#endif // GAUSHITFINDERANA_H

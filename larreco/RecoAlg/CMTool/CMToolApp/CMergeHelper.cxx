@@ -1,6 +1,3 @@
-#ifndef CMERGEHELPER_CXX
-#define CMERGEHELPER_CXX
-
 #include "CMergeHelper.h"
 
 namespace cmtool {
@@ -46,5 +43,3 @@ namespace cmtool {
     return _mgr_v.back().GetClusters();
   }
 }
-
-#endif

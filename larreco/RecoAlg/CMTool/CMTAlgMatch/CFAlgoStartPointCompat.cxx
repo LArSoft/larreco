@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOSTARTPOINTCOMPAT_CXX
-#define RECOTOOL_CFALGOSTARTPOINTCOMPAT_CXX
-
 #include "CFAlgoStartPointCompat.h"
 #include <algorithm>
 
@@ -228,4 +225,3 @@ namespace cmtool {
   }
     
 }
-#endif

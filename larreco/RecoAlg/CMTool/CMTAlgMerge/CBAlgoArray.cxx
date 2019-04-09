@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOARRAY_CXX
-#define RECOTOOL_CBALGOARRAY_CXX
-
 #include "CBAlgoArray.h"
 
 namespace cmtool {
@@ -99,4 +96,3 @@ namespace cmtool {
   }
     
 }
-#endif

@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOTIMEPROF_CXX
-#define RECOTOOL_CFALGOTIMEPROF_CXX
-
 #include "CFAlgoTimeProf.h"
 // ROOT includes
 #include "TF1.h"
@@ -225,4 +222,3 @@ namespace cmtool {
   }
     
 }
-#endif

@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOMERGETINYWITHBIG_CXX
-#define RECOTOOL_CBALGOMERGETINYWITHBIG_CXX
-
 #include "CBAlgoMergeTinyWithBig.h"
 
 namespace cmtool {
@@ -119,4 +116,3 @@ namespace cmtool {
   }
     
 }
-#endif

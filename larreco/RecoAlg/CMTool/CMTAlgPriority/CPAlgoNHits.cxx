@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CPALGONHITS_CXX
-#define RECOTOOL_CPALGONHITS_CXX
-
 #include "CPAlgoNHits.h"
 
 namespace cmtool {
@@ -22,4 +19,3 @@ namespace cmtool {
   }
   
 }
-#endif

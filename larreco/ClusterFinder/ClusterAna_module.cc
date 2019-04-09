@@ -6,9 +6,6 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-//#ifndef CLUSTERANA_H
-//#define CLUSTERANA_H
-
 #include <iomanip>
 #include <TH1F.h>
 #include <TProfile.h>
@@ -127,8 +124,6 @@ namespace cluster {
   }; // class ClusterAna
 
 }
-
-//#endif 
 
 namespace cluster{
 
@@ -756,4 +751,3 @@ namespace cluster{
   DEFINE_ART_MODULE(ClusterAna)
   
 } 
-

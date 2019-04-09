@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOPROHIBITBIGCLUSTERS_CXX
-#define RECOTOOL_CBALGOPROHIBITBIGCLUSTERS_CXX
-
 #include "CBAlgoProhibitBigClusters.h"
 
 namespace cmtool {
@@ -40,4 +37,3 @@ namespace cmtool {
   }
     
 }
-#endif

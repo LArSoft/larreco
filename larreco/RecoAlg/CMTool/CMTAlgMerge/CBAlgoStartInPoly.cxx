@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOSTARTINPOLY_CXX
-#define RECOTOOL_CBALGOSTARTINPOLY_CXX
-
 #include "CBAlgoStartInPoly.h"
 
 namespace cmtool {
@@ -90,5 +87,3 @@ namespace cmtool {
 
 
 }
-
-#endif

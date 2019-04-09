@@ -387,7 +387,7 @@ namespace hit {
         eqn.append(")");
       }
       
-      std::unique_ptr<TF1> Gn(new TF1("gn",eqn.c_str()));
+      auto Gn = std::make_unique<TF1>("gn",eqn.c_str());
       /*
       TF1* Gn = FitCache->Get(nGaus);
       */

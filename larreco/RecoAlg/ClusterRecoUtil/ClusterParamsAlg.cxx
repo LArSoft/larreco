@@ -1,6 +1,3 @@
-#ifndef CLUSTERPARAMSALG_CXX
-#define CLUSTERPARAMSALG_CXX
-
 #include "ClusterParamsAlg.h"
 
 // LArSoft includes
@@ -1838,6 +1835,3 @@ namespace cluster{
   
 
 } //end namespace
-
-
-#endif

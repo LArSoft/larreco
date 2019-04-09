@@ -5,8 +5,6 @@
 // brebel@fnal.gov
 //
 ////////////////////////////////////////////////////////////////////////
-#ifndef SHWF_SHOWERCHEATER_H
-#define SHWF_SHOWERCHEATER_H
 #include <string>
 #include <vector>
 
@@ -237,5 +235,3 @@ namespace shwf{
   DEFINE_ART_MODULE(ShowerCheater)
 
 }
-
-#endif

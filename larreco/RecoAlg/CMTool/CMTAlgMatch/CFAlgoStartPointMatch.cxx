@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOSTARTPOINTMATCH_CXX
-#define RECOTOOL_CFALGOSTARTPOINTMATCH_CXX
-
 #include "CFAlgoStartPointMatch.h"
 
 namespace cmtool {
@@ -151,4 +148,3 @@ namespace cmtool {
 
     
 }
-#endif

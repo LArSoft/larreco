@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_MATCHBOOKKEEPER_CXX
-#define RECOTOOL_MATCHBOOKKEEPER_CXX
-
 #include "CMatchBookKeeper.h"
 
 namespace cmtool {
@@ -73,6 +70,3 @@ namespace cmtool {
   }
   
 }
-
-
-#endif

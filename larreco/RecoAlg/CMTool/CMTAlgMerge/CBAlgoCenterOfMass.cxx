@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOCENTEROFMASS_CXX
-#define RECOTOOL_CBALGOCENTEROFMASS_CXX
-
 #include "CBAlgoCenterOfMass.h"
 
 namespace cmtool {
@@ -188,5 +185,3 @@ namespace cmtool {
 
 
 }
-
-#endif

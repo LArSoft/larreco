@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGO3DANGLE_CXX
-#define RECOTOOL_CFALGO3DANGLE_CXX
-
 #include "CFAlgo3DAngle.h"
 
 namespace cmtool {
@@ -274,4 +271,3 @@ namespace cmtool {
   }
     
 }
-#endif

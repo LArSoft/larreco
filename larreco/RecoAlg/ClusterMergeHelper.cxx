@@ -4,9 +4,6 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-#ifndef CLUSTERMERGEHELPER_CXX
-#define CLUSTERMERGEHELPER_CXX
-
 #include "ClusterMergeHelper.h"
 #include "larreco/RecoAlg/ClusterRecoUtil/LazyClusterParamsAlg.h"
 
@@ -228,5 +225,3 @@ namespace cluster{
   }
 
 } // namespace cluster
-
-#endif 

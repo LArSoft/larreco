@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CMATCHMANAGER_CXX
-#define RECOTOOL_CMATCHMANAGER_CXX
-
 #include "CMatchManager.h"
 
 namespace cmtool {
@@ -261,5 +258,3 @@ namespace cmtool {
   }
 
 }
-
-#endif

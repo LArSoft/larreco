@@ -1,6 +1,3 @@
-#ifndef CBALGOSHORTESTDISTSMALLCLUSTER_CXX
-#define CBALGOSHORTESTDISTSMALLCLUSTER_CXX
-
 #include "CBAlgoShortestDistSmallCluster.h"
 
 namespace cmtool {
@@ -156,4 +153,3 @@ namespace cmtool {
   }//end ShortestDistanceSquared function
   
 }
-#endif

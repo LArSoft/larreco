@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOSHORTESTDIST_CXX
-#define RECOTOOL_CBALGOSHORTESTDIST_CXX
-
 #include "CBAlgoShortestDist.h"
 
 namespace cmtool {
@@ -152,4 +149,3 @@ namespace cmtool {
   }//end ShortestDistanceSquared function
   
 }
-#endif

@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOANGLESEPARATE_CXX
-#define RECOTOOL_CBALGOANGLESEPARATE_CXX
-
 #include "CBAlgoAngleSeparate.h"
 
 namespace cmtool {
@@ -110,5 +107,3 @@ namespace cmtool {
   }
 
 }
-
-#endif

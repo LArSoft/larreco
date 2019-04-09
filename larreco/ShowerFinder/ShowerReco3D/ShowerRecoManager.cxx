@@ -1,6 +1,3 @@
-#ifndef SHOWERRECOMANAGER_CXX
-#define SHOWERRECOMANAGER_CXX
-
 #include "ShowerRecoManager.h"
 
 namespace showerreco {
@@ -74,5 +71,3 @@ namespace showerreco {
   }
 
 }
-
-#endif

@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CPALGOPOLYAREA_CXX
-#define RECOTOOL_CPALGOPOLYAREA_CXX
-
 #include "CPAlgoPolyArea.h"
 
 namespace cmtool {
@@ -23,4 +20,3 @@ namespace cmtool {
   }
   
 }
-#endif

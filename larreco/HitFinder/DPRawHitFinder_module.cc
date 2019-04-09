@@ -1,6 +1,3 @@
-#ifndef DPRAWHITFINDER_H
-#define DPRAWHITFINDER_H
-
 ////////////////////////////////////////////////////////////////////////
 //
 // DPRawHitFinder class
@@ -1850,4 +1847,3 @@ void hit::DPRawHitFinder::reBin(const std::vector<float>& inputVec,
   DEFINE_ART_MODULE(DPRawHitFinder)
 
 } // end of hit namespace
-#endif // DPRawHitFinder_H

@@ -53,11 +53,6 @@ extern "C" {
 #include "lardata/Utilities/AssociationUtil.h"
 #include "larreco/RecoAlg/EndPointAlg.h"
 
-//#ifndef EndPointModule_H
-//#define EndPointModule_H
-
-
-
 /// 2D end point reconstruction
 namespace cluster {
 
@@ -80,9 +75,6 @@ namespace cluster {
   };
     
 }
-
-//#endif // EndPointModule_H
-
 
 
 namespace cluster {

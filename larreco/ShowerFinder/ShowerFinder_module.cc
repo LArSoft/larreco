@@ -5,9 +5,6 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-#ifndef SHOWERFINDER_H
-#define SHOWERFINDER_H
-
 #include <vector>
 #include <string>
 
@@ -81,9 +78,6 @@ namespace shwf {
   
   
 }
-
-#endif // SHOWERFINDER_H
-
 
 namespace shwf{
 

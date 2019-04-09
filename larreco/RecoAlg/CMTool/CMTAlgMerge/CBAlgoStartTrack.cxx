@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOSTARTTRACK_CXX
-#define RECOTOOL_CBALGOSTARTTRACK_CXX
-
 #include "CBAlgoStartTrack.h"
 
 namespace cmtool {
@@ -163,4 +160,3 @@ namespace cmtool {
       return false;
   }
 }
-#endif

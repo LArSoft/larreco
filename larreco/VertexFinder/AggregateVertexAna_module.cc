@@ -5,8 +5,6 @@
 // brebel@fnal.gov
 //
 ////////////////////////////////////////////////////////////////////////
-#ifndef VERTEX_AGGREGATEVERTEXANA_H
-#define VERTEX_AGGREGATEVERTEXANA_H
 
 extern "C" {
 #include <sys/types.h>
@@ -188,4 +186,3 @@ namespace vertex{
   DEFINE_ART_MODULE(AggregateVertexAna)
 
 }
-#endif // AGGREGATEVTXANA_H

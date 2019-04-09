@@ -13,9 +13,6 @@
 // 
 ///////////////////////////////////////////////////////////////////////
 
-#ifndef SHOWERRECO_H
-#define SHOWERRECO_H
-
 // ### Generic C++ includes ###
 #include <vector>
 #include <string>
@@ -1227,5 +1224,3 @@ void   ShowerReco::GetVertexAndAnglesFromCluster(art::Ptr< recob::Cluster > clus
   
   
 }
-
-#endif // SHOWERRECO_H

@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOSTARTINCONE_CXX
-#define RECOTOOL_CBALGOSTARTINCONE_CXX
-
 #include "CBAlgoStartInCone.h"
 
 namespace cmtool {
@@ -118,6 +115,3 @@ namespace cmtool {
 
 
 }
-
-
-#endif

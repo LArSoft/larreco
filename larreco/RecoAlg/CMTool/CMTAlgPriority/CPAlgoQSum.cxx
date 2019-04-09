@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CPALGOQSUM_CXX
-#define RECOTOOL_CPALGOQSUM_CXX
-
 #include "CPAlgoQSum.h"
 
 namespace cmtool {
@@ -23,4 +20,3 @@ namespace cmtool {
   
     
 }
-#endif

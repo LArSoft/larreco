@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CMERGEBOOKKEEPER_CXX
-#define RECOTOOL_CMERGEBOOKKEEPER_CXX
-
 #include "CMergeBookKeeper.h"
 
 namespace cmtool {
@@ -320,5 +317,3 @@ namespace cmtool {
   }
 
 }
-
-#endif

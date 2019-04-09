@@ -1,6 +1,3 @@
-#ifndef GAUSHITFINDER_H
-#define GAUSHITFINDER_H
-
 ////////////////////////////////////////////////////////////////////////
 //
 // GaussHitFinder class
@@ -587,4 +584,3 @@ void GausHitFinder::produce(art::Event& evt)
   DEFINE_ART_MODULE(GausHitFinder)
 
 } // end of hit namespace
-#endif // GAUSHITFINDER_H

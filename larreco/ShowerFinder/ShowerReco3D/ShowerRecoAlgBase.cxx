@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_SHOWERRECOALGBASE_CXX
-#define RECOTOOL_SHOWERRECOALGBASE_CXX
-
 #include "ShowerRecoAlgBase.h"
 
 namespace showerreco {
@@ -57,5 +54,3 @@ namespace showerreco {
 
 
 }
-
-#endif

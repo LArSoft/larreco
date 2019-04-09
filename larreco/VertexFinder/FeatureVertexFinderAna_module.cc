@@ -1,5 +1,3 @@
-#ifndef FEATUREVERTEXFINDERANA_H
-#define FEATUREVERTEXFINDERANA_H
 ///////////////////////////////////////////////////////////////////////////////////////////
 //
 // FeatureVertexFinder designed to analyze 2d & 3d verticies found in the TPC
@@ -643,5 +641,3 @@ return;
 DEFINE_ART_MODULE(FeatureVertexFinderAna)
 
 }// end of vertex namespace
-
-#endif // FEATUREVERTEXFINDERANA_H

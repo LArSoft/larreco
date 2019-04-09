@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CFALGOZOVERLAP_CXX
-#define RECOTOOL_CFALGOZOVERLAP_CXX
-
 #include "CFAlgoZOverlap.h"
 
 namespace cmtool {
@@ -121,4 +118,3 @@ namespace cmtool {
   }
     
 }
-#endif

@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CMERGEMANAGER_CXX
-#define RECOTOOL_CMERGEMANAGER_CXX
-
 #include "CMergeManager.h"
 
 namespace cmtool {
@@ -405,5 +402,3 @@ namespace cmtool {
   }
 
 }
-
-#endif

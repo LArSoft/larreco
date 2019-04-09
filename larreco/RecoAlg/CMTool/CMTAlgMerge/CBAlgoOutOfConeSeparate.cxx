@@ -1,6 +1,3 @@
-#ifndef RECOTOOL_CBALGOOUTOFCONESEPARATE_CXX
-#define RECOTOOL_CBALGOOUTOFCONESEPARATE_CXX
-
 #include "CBAlgoOutOfConeSeparate.h"
 
 namespace cmtool {
@@ -120,5 +117,3 @@ namespace cmtool {
   }
 
 }
-
-#endif

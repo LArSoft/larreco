@@ -1,6 +1,3 @@
-#ifndef CFALGOSHOWERCOMPAT_CXX
-#define CFALGOSHOWERCOMPAT_CXX
-
 #include "CFAlgoShowerCompat.h"
 #include "TTree.h"
 
@@ -109,4 +106,3 @@ namespace cmtool {
 
   }
 }
-#endif

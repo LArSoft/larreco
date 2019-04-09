@@ -1,8 +1,5 @@
 #include "canvas/Persistency/Common/PtrVector.h"
 
-#ifndef BEZIERTRACKERMOD_H
-#define BEZIERTRACKERMOD_H
-
 //
 // Name: BezierTrackerModule.h
 //
@@ -66,8 +63,6 @@ namespace trkf {
     
   };
 }
-
-#endif 
 
 #include "art/Framework/Core/ModuleMacros.h" 
 

@@ -6,9 +6,6 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-//#ifndef DBCLUSTERANA_H
-//#define DBCLUSTERANA_H
-
 #include <sstream>
 #include <fstream>
 #include <algorithm>
@@ -120,8 +117,6 @@ namespace cluster {
   }; // class DBclusterAna
 
 }
-
-//#endif 
 
 namespace cluster{
 
@@ -1239,4 +1234,3 @@ namespace cluster{
   DEFINE_ART_MODULE(DBclusterAna)
   
 } 
-
