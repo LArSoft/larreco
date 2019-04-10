@@ -317,20 +317,16 @@ namespace tca {
         if(prt) mf::LogVerbatim("TC")<<" DefinePFP failed";
         continue;
       }
-      // Look for problems and fix them
-      // This function looks for gaps in the TP3Ds vector caused by broken trajectories and
-      // creates new TP3Ds if there are hits in the gaps
-      AddMissedTP3Ds(slc, pfp, prt);
-      if(!Update(slc, pfp, prt)) {
-        if(prt) mf::LogVerbatim("TC")<<" Update failed after AddMissedTP3Ds"; 
-        continue;
-      }
+//      if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("TMP", slc, pfp, -1);
+      // FillGaps3D looks for gaps in the TP3Ds vector caused by broken trajectories and
+      // inserts new TP3Ds if there are hits in the gaps
+      FillGaps3D(slc, pfp, prt);
+      // Trim points from the ends until there is one point in two planes
+      TrimEndPts(slc, pfp, prt);
+      // Look for evidence of broken tjs in one plane
+      ChkEndPts(slc, pfp, prt);
       // Look for mis-placed 2D and 3D vertices
 //      ReconcileVertices(slc, pfp, prt);
-      if(!Update(slc, pfp, prt)) {
-        if(prt) mf::LogVerbatim("TC")<<" Update failed after ReconcileVertices"; 
-        continue;
-      }
       // set the end flag bits
       geo::TPCID tpcid;
       for(unsigned short end = 0; end < 2; ++end) {
@@ -350,8 +346,8 @@ namespace tca {
       if(braggCnt > 1) {
         std::cout<<"P"<<pfp.ID<<" has Tjs with more than one Bragg peak. Write some code\n";
       }
-      // debug after ReSection?
-//      if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("FPFP", slc, pfp, -1);
+      // debug?
+      if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("FPFP", slc, pfp, -1);
       if(!StorePFP(slc, pfp)) {
         std::cout<<"StorePFP failed P"<<pfp.ID<<"\n";
         continue;
@@ -874,26 +870,6 @@ namespace tca {
       std::cout<<"DPFP: First fit failed\n";
       return false;
     }
-/*
-    std::cout<<"CHK P"<<pfp.ID<<" Pos "<<std::fixed<<std::setprecision(1);
-    std::cout<<" Pos ("<<pos[0]<<" "<<pos[1]<<" "<<pos[2];
-    std::cout<<std::fixed<<std::setprecision(2);
-    std::cout<<") Dir ("<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<")";
-    std::cout<<" AF "<<std::fixed<<std::setprecision(1);
-    auto pos2 = PosAtEnd(pfp, 0);
-    std::cout<<" Pos ("<<pos2[0]<<" "<<pos2[1]<<" "<<pos2[2];
-    std::cout<<std::fixed<<std::setprecision(2);
-    auto dir2 = DirAtEnd(pfp, 0);
-    std::cout<<") Dir ("<<dir2[0]<<" "<<dir2[1]<<" "<<dir2[2]<<")";
-    std::cout<<"\n";
-    for(auto tid : pfp.TjIDs) {
-      auto& tj = slc.tjs[tid - 1];
-      auto& tp0 = tj.Pts[tj.EndPt[0]];
-      std::cout<<"T"<<tid<<" "<<PrintPos(slc, tp0)<<" dir "<<tp0.Dir[0]<<" "<<tp0.Dir[1];
-      auto& tp1 = tj.Pts[tj.EndPt[1]];
-      std::cout<<" -> "<<PrintPos(slc, tp1)<<" dir "<<tp1.Dir[0]<<" "<<tp1.Dir[1]<<"\n";
-    }
-*/
     // sort again (TODO Is this necessary?)
     if(!SortSection(pfp, 0)) return false;
     if(prt) {
@@ -906,8 +882,6 @@ namespace tca {
       auto dir = DirAtEnd(pfp, 0);
       myprt<<") Dir ("<<dir[0]<<" "<<dir[1]<<" "<<dir[2]<<")";
     }
-    // debug after the first fit?
-    PrintTP3Ds("Def", slc, pfp, -1);
     
     // See if the TP3Ds need to be fit in sections. First test for a bad chiDOF
     auto& sf = pfp.SectionFits[0];
@@ -918,13 +892,8 @@ namespace tca {
     } // ReSection
 
     // Check the ordering of the TPs and possibly declare the out-of-order
-    // TPs invalid
+    // TPs invalid. Update is called within FixOrder
     FixOrder(slc, pfp, prt);
-    
-    if(!Update(slc, pfp, prt)) {
-      std::cout<<"Update failed\n";
-      return false;
-    }
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -946,7 +915,6 @@ namespace tca {
   {
     // Check the wire order of the 2D TPs and fix them
     
-    std::cout<<"FixOrder\n";
     std::vector<short> plnOrder(slc.nPlanes);
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
@@ -978,10 +946,10 @@ namespace tca {
         } // !first
       } // tp3d
       // Nothing to do if the order is all positive or all negative
-//      if(npl == 0 || nmi == 0) continue;
+      if(npl == 0 || nmi == 0) continue;
       short ordr = 1;
       if(nmi > npl) ordr = -1;
-      std::cout<<" plane "<<plane<<" nmi "<<nmi<<" npl "<<npl<<" ordr "<<ordr;
+      std::cout<<"FixOrder found a problem: plane "<<plane<<" nmi "<<nmi<<" npl "<<npl<<" ordr "<<ordr;
       std::cout<<" plnOrder "<<plnOrder[plane]<<" dir "<<tp.Dir[0];
       std::cout<<" cnt "<<cnt<<"\n";
       // create a list of indices into TP3D of points in this plane to simplify checking
@@ -1005,12 +973,6 @@ namespace tca {
         auto& nextTP2 = slc.tjs[nextTP3.TjID - 1].Pts[nextTP3.TPIndex];
         short prevdw = std::nearbyint(thisTP2.Pos[0] - prevTP2.Pos[0]);
         short nextdw = std::nearbyint(nextTP2.Pos[0] - thisTP2.Pos[0]);
-/*
-        std::cout<<"prev T"<<prevTP3.TPIndex<<"_"<<PrintPos(slc, prevTP2)<<"_"<<prevTP3.IsGood;
-        std::cout<<" this T"<<thisTP3.TPIndex<<"_"<<PrintPos(slc, thisTP2)<<"_"<<thisTP3.IsGood;
-        std::cout<<" next T"<<nextTP3.TPIndex<<"_"<<PrintPos(slc, nextTP2)<<"_"<<nextTP3.IsGood;
-        std::cout<<" prevdw "<<prevdw<<" nextdw "<<nextdw<<"\n";
-*/
         if(prevdw == ordr && nextdw == ordr) continue;
         if(prevdw != ordr && nextdw != ordr) {
           // mark both as not good
@@ -1187,11 +1149,11 @@ namespace tca {
   /////////////////////////////////////////
   bool KillBadPoint(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, bool prt)
   {
-    // Sets IsGood false if Delta < match3DCuts[4] for a single point in the range and
+    // Sets IsGood false if pull < match3DCuts[4] for a single point in the range and
     // returns true if one is found
     if(fromPt > pfp.TP3Ds.size() - 1) return false;
     if(toPt > pfp.TP3Ds.size()) toPt = pfp.TP3Ds.size();
-    float maxDelta = tcc.match3DCuts[4];
+    float maxPull = tcc.match3DCuts[4];
     unsigned short badPt = USHRT_MAX;
     for(unsigned short ipt = fromPt; ipt < toPt; ++ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
@@ -1200,8 +1162,9 @@ namespace tca {
       // happen for points close to a vertex and when trajectories cross
       auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
       if(tp.Environment[kEnvOverlap]) continue;
-      if(std::abs(tp3d.Delta) < maxDelta) continue;
-      maxDelta = std::abs(tp3d.Delta);
+      float pull = std::abs(tp3d.Pos[0] - tp3d.TPX) / tp3d.TPXErr2;
+      if(pull < maxPull) continue;
+      maxPull = pull;
       badPt = ipt;
     } // ipt
     if(badPt == USHRT_MAX) return false;
@@ -1253,32 +1216,31 @@ namespace tca {
     // Fits the TP3D points in the selected section to a 3D line with the origin at the center of
     // the section
     if(pfp.TP3Ds.size() < 4) return false;
-    if(sfIndex > pfp.SectionFits.size() - 1) return false;
+    if(sfIndex >= pfp.SectionFits.size()) return false;
     auto& sf = pfp.SectionFits[sfIndex];
     sf.ChiDOF = 999;
 
-    // create a list of plane IDs with the assumption that repeating this
-    // for every point is more expensive
-    std::vector<geo::PlaneID> plnIDs(slc.nPlanes);
+    // put the offset, cosine-like and sine-like components in a vector
+    std::vector<std::array<double, 3>> ocs(slc.nPlanes);
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-      plnIDs[plane] = geo::PlaneID(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
+      auto planeID = geo::PlaneID(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
+      // plane offset
+      ocs[plane][0] = tcc.geom->WireCoordinate(0, 0, planeID);
+      // get the "cosine-like" component
+      ocs[plane][1] = tcc.geom->WireCoordinate(1, 0, planeID) - ocs[plane][0];
+      // the "sine-like" component
+      ocs[plane][2] = tcc.geom->WireCoordinate(0, 1, planeID) - ocs[plane][0];
     } // plane
 
     // count the number of points in this section
     sf.NPts = 0;
-    // and define the new X position
+    // and define the X position for the fit origin
     double x0 = 0.;
-    // vector of points in this section. This isn't necessary if all of the
-    // points in the section are contiguous.
+    // vector of points in this section
     std::vector<unsigned short> tpIndex;
     for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
       auto& tp3d = pfp.TP3Ds[ipt];
       if(!tp3d.IsGood) continue;
-      // check consistency
-      if(tp3d.TPX < -0.5 || tp3d.Wire < 0 || tp3d.Plane > slc.nPlanes) {
-        std::cout<<"FitSection found bad tp3d\n";
-        exit(1);
-      }
       if(tp3d.SFIndex != sfIndex) continue;
       tpIndex.push_back(ipt);
       x0 += tp3d.TPX;
@@ -1295,26 +1257,17 @@ namespace tca {
     
     // count the number of TPs in each plane
     std::vector<unsigned short> cntInPln(slc.nPlanes);
-    unsigned short cnt = 0;
     for(unsigned short indx = 0; indx < tpIndex.size(); ++indx) {
       auto& tp3d = pfp.TP3Ds[tpIndex[indx]];
-      if(!tp3d.IsGood) continue;
-      unsigned short plane = tp3d.Plane;
+      unsigned short plane = DecodeCTP(tp3d.CTP).Plane;
       ++cntInPln[plane];
-      // get the wire plane offset
-      double off = tcc.geom->WireCoordinate(0, 0, plnIDs[plane]);
-      // get the "cosine-like" component
-      double cw = tcc.geom->WireCoordinate(1, 0, plnIDs[plane]) - off;
-      // the "sine-like" component
-      double sw = tcc.geom->WireCoordinate(0, 1, plnIDs[plane]) - off;
       double x = tp3d.TPX - x0;
       double wght = 1 / tp3d.TPXErr2;
-      A[cnt][0] = wght * cw;
-      A[cnt][1] = wght * sw;
-      A[cnt][2] = wght * cw * x;
-      A[cnt][3] = wght * sw * x;
-      w[cnt] = wght * (tp3d.Wire - off);
-      ++cnt;
+      A[indx][0] = wght * ocs[plane][1];
+      A[indx][1] = wght * ocs[plane][2];
+      A[indx][2] = wght * ocs[plane][1] * x;
+      A[indx][3] = wght * ocs[plane][2] * x;
+      w[indx] = wght * (tp3d.Wire - ocs[plane][0]);
     } // ipt
     // ensure there are at least two points in at least two planes
     unsigned short enufInPlane = 0;
@@ -1340,48 +1293,26 @@ namespace tca {
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
       CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
       plnTP[plane] = MakeBareTP(slc, sf.Pos, sf.Dir, inCTP);
-//      std::cout<<"pl "<<plane<<" plnTP "<<PrintPos(slc, plnTP[plane]);
-//      std::cout<<" dir "<<plnTP[plane].Dir[0]<<" "<<plnTP[plane].Dir[1]<<"\n";
     } // plane
-    // make a template 2D TP with one hit. Set dir[0] = 1 so that a path
-    // length correction to the charge isn't made
-    TrajPoint tp;
-    tp.Hits.resize(1);
-    tp.UseHit[0] = true;
-    tp.Dir[0] = 1;
     for(unsigned short indx = 0; indx < tpIndex.size(); ++indx) {
       auto& tp3d = pfp.TP3Ds[tpIndex[indx]];
-      unsigned short plane = 0;
-      if(tp3d.TjID > 0) {
-        auto& tp2 = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-        plane = DecodeCTP(tp2.CTP).Plane;
-        tp.HitPos = tp2.HitPos;
-        tp.CTP = tp2.CTP;
-      } else {
-        // single hit
-        tp.Hits[0] = tp3d.slHitsIndex;
-        unsigned int ahi = slc.slHits[tp3d.slHitsIndex].allHitsIndex;
-        auto& hit = (*evt.allHits)[ahi];
-        plane = hit.WireID().Plane;
-        tp.CTP = EncodeCTP(slc.TPCID.Cryostat, slc.TPCID.TPC, plane);
-        DefineHitPos(slc, tp);
-      }
-      auto& ptp = plnTP[plane];
-      // find the distance along using the TP hit position 
-      double t = (double)(tp.HitPos[0] - ptp.Pos[0]) * ptp.Dir[0] + (double)(tp.HitPos[1] - ptp.Pos[1]) * ptp.Dir[1];
-      double dp0 = ptp.Pos[0] + t * ptp.Dir[0] - tp.HitPos[0];
-      double dp1 = ptp.Pos[1] + t * ptp.Dir[1] - tp.HitPos[1];
-      tp3d.Delta = tcc.wirePitch * (float)sqrt(dp0 * dp0 + dp1 * dp1);
-      // find the position in 3D by correcting t (constructed in 2D) for the direction vector projection in this plane.
-      // This was stashed in ptp.Delta by MakeBareTP (with float precision...)
-      t /= ptp.Delta;
-      tp3d.along = t;
-      for(unsigned short xyz = 0; xyz < 3; ++xyz) tp3d.Pos[xyz] = sf.Pos[xyz] + t * sf.Dir[xyz];
       tp3d.Dir = sf.Dir;
-      sf.ChiDOF += tp3d.Delta * tp3d.Delta;
-    } // ipt
+      // interpoloate to find the position
+      unsigned short plane = DecodeCTP(tp3d.CTP).Plane;
+      double dw = tp3d.Wire - plnTP[plane].Pos[0];
+      // dt/dW was stored in DeltaRMS
+      double t = dw * plnTP[plane].DeltaRMS;
+      for(unsigned short xyz = 0; xyz < 3; ++xyz) tp3d.Pos[xyz] = sf.Pos[xyz] + t * sf.Dir[xyz];
+      tp3d.along = t;
+      // Note that the tp3d position is directly above the wire position and not the
+      // distance of closest approach. The Delta variable is the difference in the
+      // drift direction in cm
+      double delta = tp3d.Pos[0] - tp3d.TPX;
+      sf.ChiDOF += delta * delta / tp3d.TPXErr2;
+    } // indx
 
     sf.ChiDOF /= (float)(sf.NPts - 4);
+    
     return true;
     
   } // FitSection
@@ -1468,114 +1399,329 @@ namespace tca {
     
     return;
   } // ReconcileVertices
-
-  /////////////////////////////////////////
-  void AddMissedTP3Ds(TCSlice& slc, PFPStruct& pfp, bool prt)
-  {
-    // Analyze the TP3Ds vector to look for missing Tj points. Add them if any
-    // are found and set pfp.NeedsUpdate true
-    if(pfp.TP3Ds.empty()) return;
-    
-    // find the first and last occurrences of TPs on the 3D trajectory
-    std::vector<std::pair<unsigned short, unsigned short>> firstLast(pfp.TjIDs.size());
-    for(auto& fl : firstLast) fl.first = USHRT_MAX;
-    for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
-      auto& tp3d = pfp.TP3Ds[ipt];
-      unsigned short indx = 0;
-      for(indx = 0; indx < pfp.TjIDs.size(); ++indx) if(pfp.TjIDs[indx] == tp3d.TjID) break;
-      if(indx == pfp.TjIDs.size()) {
-        std::cout<<"AMTP3D: T"<<tp3d.TjID<<" isn't in TjIDs in P"<<pfp.ID<<"\n";
-        continue;
-      }
-      if(firstLast[indx].first == USHRT_MAX) firstLast[indx].first = ipt;
-      firstLast[indx].second = ipt;
-    } // ipt
-
-    // look for evidence of missing Tj points
-    for(unsigned short indx = 0; indx < pfp.TjIDs.size(); ++indx) {
-      if(prt) mf::LogVerbatim("TC")<<"AMTP3D: T"<<pfp.TjIDs[indx]<<" firstLast "<<firstLast[indx].first<<" "<<firstLast[indx].second;
-      auto& tj = slc.tjs[pfp.TjIDs[indx] - 1];
-      AddMissedTP3Ds(slc, pfp, 0, firstLast[indx].first, tj.CTP, prt);
-    } // indx
-    
-  } // AddMissedTP3Ds
   
   /////////////////////////////////////////
-  void AddMissedTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, CTP_t inCTP, bool prt)
+  void ChkEndPts(TCSlice& slc, PFPStruct& pfp, bool prt)
   {
-    // Try to insert 2D trajectory points into the 3D trajectory point vector pfp.TP3Ds. This function appends
-    // new Tp3Ds and sets the NeedsUpdate flag true. The calling function should call Define to finish
+    // This function looks for 
+    if(pfp.ID <= 0) return;
+    if(pfp.TP3Ds.empty()) return;
+    if(pfp.SectionFits.empty()) return;
+    
+    for(unsigned short end = 0; end < 2; ++end) {
+      // find the first good point in each plane from the end
+      std::vector<unsigned short> firstPt(slc.nPlanes, USHRT_MAX);
+      unsigned short minPlnPt = USHRT_MAX;
+      unsigned short maxPlnPt = 0;
+      for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+        firstPt[plane] = FirstPointInPlane(pfp, plane, end);
+        if(firstPt[plane] < minPlnPt) minPlnPt = firstPt[plane];
+        if(firstPt[plane] > maxPlnPt) maxPlnPt = firstPt[plane];
+      } // plane
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"CEP: P"<<pfp.ID<<" end "<<end<<" plane_firstPt";
+        for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) myprt<<" "<<plane<<"_"<<firstPt[plane];
+      } // prt
+      if(maxPlnPt > minPlnPt + 8) {
+        unsigned short fromPt = 0;
+        unsigned short toPt = pfp.TP3Ds.size();
+        unsigned short inPlane = 0;
+        if(end == 0) {
+          toPt = maxPlnPt;
+          for(inPlane = 0; inPlane < slc.nPlanes; ++inPlane) if(firstPt[inPlane] == maxPlnPt) break;
+        } else {
+          fromPt = minPlnPt;
+          for(inPlane = 0; inPlane < slc.nPlanes; ++inPlane) if(firstPt[inPlane] == minPlnPt) break;
+        }
+        std::cout<<"CEP: P"<<pfp.ID<<" check points "<<fromPt<<" to "<<toPt<<" in plane "<<inPlane<<"\n";
+        AddPointsInRange(slc, pfp, fromPt, toPt, inPlane, tcc.match3DCuts[4], prt);
+      } // maxPlnPt > minPlnPt + 8
+    } // end
+    if(!Update(slc, pfp, prt)) {
+      std::cout<<"Update failed in ChkEndPts. Debug this\n";
+    }
+  } // ChkEndPts
+  
+  /////////////////////////////////////////
+  void TrimEndPts(TCSlice& slc, PFPStruct& pfp, bool prt)
+  {
+    // Check the end TP3Ds points for consistency and trim if necessary.
+    // Ideally there will be a TP3D in each plane in any local region of ~few cm
+    // along the 3D trajectory, unless there are dead wires or there are overlapping
+    // trajectories in this view, mostly likely due to the presence of a nearby
+    // vertex. This function only checks the ends.
+    if(pfp.ID <= 0) return;
+    if(pfp.TP3Ds.empty()) return;
+    if(pfp.SectionFits.empty()) return;
+    
+    for(unsigned short end = 0; end < 2; ++end) {
+      // find the first good point in each plane from the end
+      std::vector<unsigned short> firstPt(slc.nPlanes, USHRT_MAX);
+      unsigned short minPlnPt = USHRT_MAX;
+      unsigned short maxPlnPt = 0;
+      for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+        firstPt[plane] = FirstPointInPlane(pfp, plane, end);
+        if(firstPt[plane] < minPlnPt) minPlnPt = firstPt[plane];
+        if(firstPt[plane] > maxPlnPt) maxPlnPt = firstPt[plane];
+      } // plane
+      if(prt) {
+        mf::LogVerbatim myprt("TC");
+        myprt<<"TEP: P"<<pfp.ID<<" end "<<end<<" plane_firstPt";
+        for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) myprt<<" "<<plane<<"_"<<firstPt[plane];
+      } // prt
+      // expect that the min and max points are similar if the ends are well-reconstructed
+      if(maxPlnPt > minPlnPt + 8) {
+        unsigned short fromPt = 0;
+        unsigned short toPt = pfp.TP3Ds.size();
+        unsigned short trimPt = 0;
+        for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+          if(firstPt[plane] != minPlnPt && firstPt[plane] != maxPlnPt) trimPt = firstPt[plane];
+        } // plane
+        if(end == 0) {
+          toPt = trimPt;
+        } else {
+          fromPt = trimPt;
+        }
+        for(unsigned short ipt = fromPt; ipt < toPt; ++ipt) {
+          auto& tp3d = pfp.TP3Ds[ipt];
+          // already declared not good?
+          if(!tp3d.IsGood) continue;
+          if(tp3d.TjID > 0) {
+            auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+            // don't trim the point if it is overlapped with a different tj (e.g. close to a vertex)
+            if(tp.Environment[kEnvOverlap]) continue;
+          } // tp3d.TjID > 0
+          // check the pull
+//          double pull = std::abs(tp3d.Pos[0] - tp3d.TPX) / sqrt(tp3d.TPXErr2);
+//          std::cout<<" pull "<<pull<<"\n";
+          tp3d.IsGood = false;
+          auto& sfi = tp3d.SFIndex;
+          pfp.SectionFits[sfi].NeedsUpdate = true;
+          pfp.NeedsUpdate = true;
+        } // ipt
+      } // maxPlnPt > minPlnPt + 5
+    } // end
+    if(!Update(slc, pfp, prt)) {
+      std::cout<<"Update failed in TrimEndPts. Debug this\n";
+    }
+  } // TrimEndPts
+  
+  /////////////////////////////////////////
+  unsigned short FirstPointInPlane(PFPStruct& pfp, unsigned short plane, unsigned short end)
+  {
+    // returns the first (last) point in the TP3Ds that is in the plane when end = 0 (1)
+    if(pfp.ID <= 0) return USHRT_MAX;
+    if(pfp.TP3Ds.empty()) return USHRT_MAX;
+    // assume end = 0
+    short dir = 1;
+    short endPt = 0;
+    if(end == 1) {
+      dir = -1;
+      endPt = pfp.TP3Ds.size() - 1;
+    }
+    for(short ii = 0; ii < pfp.TP3Ds.size(); ++ii) {
+      short sipt = endPt + ii * dir;
+      if(sipt < 0 || sipt >= pfp.TP3Ds.size()) break;
+      unsigned short ipt = sipt;
+      if(DecodeCTP(pfp.TP3Ds[ipt].CTP).Plane == plane) return ipt;
+    } // ii
+    return USHRT_MAX;
+  } // FirstPointInPlane
+  
+  /////////////////////////////////////////
+  void FillGaps3D(TCSlice& slc, PFPStruct& pfp, bool prt)
+  {
+    // Look for gaps in each plane in the TP3Ds vector. Note that this only looks for
+    // interior gaps. 
+    if(pfp.ID <= 0) return;
+    if(pfp.TP3Ds.empty()) return;
+    if(pfp.SectionFits.empty()) return;
+    if(!tcc.useAlg[kFillGaps3D]) return;
+    
+    // Ignore gaps that are less than (10 cm)^2 in length
+    constexpr float minGapLength2 = 100;
+    
+    // project the first section fit into a TP in each plane
+    std::vector<TrajPoint> plnTP(slc.nPlanes);
+    unsigned short sfi = 0;
+    auto& sf = pfp.SectionFits[sfi];
+    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+      CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
+      plnTP[plane] = MakeBareTP(slc, sf.Pos, sf.Dir, inCTP);
+    } // plane
+    
+    // index of the previous point in each plane
+    std::vector<unsigned short> prevPt(slc.nPlanes, USHRT_MAX);
+    for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
+      auto& tp3d = pfp.TP3Ds[ipt];
+      // Don't test for a bad point since we are looking for missing points
+      // update the plnTPs?
+      if(tp3d.SFIndex != sfi) {
+        sfi = tp3d.SFIndex;
+        auto& sf = pfp.SectionFits[sfi];
+        for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+          CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
+          plnTP[plane] = MakeBareTP(slc, sf.Pos, sf.Dir, inCTP);
+        } // plane
+      } // new section
+      // check after the previous point is defined
+      unsigned short plane = DecodeCTP(tp3d.CTP).Plane;
+      if(plane < ipt) {
+        // check the separation^2
+        auto& fromTP3D = pfp.TP3Ds[prevPt[plane]];
+        float sep2 = PosSep2(fromTP3D.Pos, tp3d.Pos);
+        if(sep2 > minGapLength2) {
+          // do a more careful check. Find the start and end points in 2D in this plane
+          auto& tp0 = slc.tjs[fromTP3D.TjID - 1].Pts[fromTP3D.TPIndex];
+          auto& tp1 = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+          if(tp0.CTP != tp1.CTP) {
+            std::cout<<"AMP: Coding error\n";
+            exit(1);
+          }
+          // check the wire separation and correct for dead wires
+          float dw = std::abs(tp0.Pos[0] - tp1.Pos[0]);
+          float dwc = DeadWireCount(slc, tp0, tp1);
+          float missed = dw - dwc;
+          if(missed > 3) {
+            std::cout<<"AMP: P"<<pfp.ID<<" check missed in range ";
+            std::cout<<prevPt[plane]<<" "<<ipt<<" in CTP "<<tp3d.CTP;
+            std::cout<<" "<<PrintPos(slc, tp0)<<" - "<<PrintPos(slc, tp1);
+            std::cout<<" dw "<<dw<<" dwc "<<dwc;
+            std::cout<<" >>>>>>>. write code to do something here";
+            std::cout<<"\n";
+          } // missed > 3
+        } // sep2 > 25
+      } // prevTP3D defined
+      prevPt[plane] = ipt;
+    } // ipt
+    
+  } // FillGaps3D
+
+  /////////////////////////////////////////
+  void AddPointsInRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, 
+                        unsigned short inPlane, float maxPull, bool prt)
+  {
+    // Try to insert 2D trajectory points into the 3D trajectory point vector pfp.TP3Ds. This function inserts
+    // new Tp3Ds and sets the NeedsUpdate flags true. The calling function should call Update
     if(fromPt > toPt) return;
     if(toPt > pfp.TP3Ds.size()) toPt = pfp.TP3Ds.size();
-    
-    constexpr float maxPull = 3; 
-    
-    // reset the general purpose flag on all Tjs in this CTP so we can use it
-    for(auto& tj : slc.tjs) {
-      if(tj.CTP != inCTP) continue;
-      if(tj.AlgMod[kKilled]) continue;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        tj.Pts[ipt].Environment[kEnvFlag] = false;
-      } // ipt
-    } // tj
+    if(pfp.SectionFits.empty()) return;
     
     // put the new points into a temporary vector so we can decide if adding them
     // makes sense
     std::vector<TP3D> temp;
     
     bool added = false;
+    // max deviation in 2D (WSE units) for considering a hit to be "close" in time. This
+    // is a rough cut that is made before a TP3D is created and the pull cut applied
+    float maxDelta = 5;
     
-    TrajPoint tp2;
-    float maxDelta = 2;
-    for(unsigned short ipt = fromPt; ipt < toPt; ++ipt) {
-      auto& tp3d = pfp.TP3Ds[ipt];
-      if(!tp3d.IsGood) continue;
-      tp2 = MakeBareTP(slc, tp3d.Pos, tp3d.Dir, inCTP);
-      // check for a failure
-      if(tp2.Pos[0] < 0) continue;
-      tp2.Hits.clear();
-      if(FindCloseHits(slc, tp2, maxDelta, kAllHits)) {
-        for(auto iht : tp2.Hits) {
-          // ignore hits that are used in a PFP
-          if(slc.slHits[iht].InPFP > 0) continue;
-          int inTj = slc.slHits[iht].InTraj;
-          // put it in the same section 
-          if(inTj <= 0) {
-            // using a single unused hit
-            auto newTP3D = CreateTP3D(slc, iht);
-            newTP3D.SFIndex = tp3d.SFIndex;
-            temp.push_back(newTP3D);
-          } else {
-            // using a TP. Find the TP index in the trajectory
-            unsigned short tjPt = USHRT_MAX;
-            auto& tj = slc.tjs[inTj - 1];
-            for(tjPt = tj.EndPt[0]; tjPt <= tj.EndPt[1]; ++tjPt) {
-              if(std::find(tj.Pts[tjPt].Hits.begin(), tj.Pts[tjPt].Hits.end(), iht) != tj.Pts[tjPt].Hits.end()) break;
-            } // tjPt
-            if(tjPt == USHRT_MAX) continue;
-            auto& tpm = tj.Pts[tjPt];
-            // see if the TP is already used in this function
-            if(tpm.Environment[kEnvFlag]) continue;
-            // or if used in a different PFP
-            if(tpm.Environment[kEnvInPFP]) continue;
-            auto newTP3D = CreateTP3D(slc, inTj, tjPt);
-            newTP3D.SFIndex = tp3d.SFIndex;
-            tpm.Environment[kEnvFlag] = true;
-            temp.push_back(newTP3D);
-          } // inTj > 0
-        } // iht
-      } // FindCloseHits
-    } // ipt
+    // find the range of wires in each plane that need to be considered
+    unsigned int fromWire, toWire;
+    auto& fromTP3D = pfp.TP3Ds[fromPt];
+    auto& toTP3D = pfp.TP3Ds[toPt - 1];
+
+    // flag the TPs that are already in this PFP.
+    // This requires clearing the flag on ALL TPs first
+    for(auto& tj : slc.tjs) {
+      if(tj.AlgMod[kKilled]) continue;
+      for(auto& tp : tj.Pts) tp.Environment[kEnvFlag] = false;
+    } // tj
+    for(auto& tp3d : pfp.TP3Ds) {
+      if(tp3d.TjID <= 0) continue;
+      auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
+      tp.Environment[kEnvFlag] = true;
+    } // tp3d
+    
+    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+      // restrict the search to one plane?
+      if(inPlane < slc.nPlanes && plane != inPlane) continue;
+      CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
+      // TODO: Note that no check is made for the SectionFit. The assumption is
+      // that the trajectory doesn't change significantly between sections
+      auto tp = MakeBareTP(slc, fromTP3D.Pos, fromTP3D.Dir, inCTP);
+      fromWire = std::nearbyint(tp.Pos[0]);
+      tp = MakeBareTP(slc, toTP3D.Pos, toTP3D.Dir, inCTP);
+      toWire = std::nearbyint(tp.Pos[0]);
+      if(prt) mf::LogVerbatim("TC")<<"APIR: checking wire range "<<fromWire<<" -> "<<toWire;
+      if(toWire < fromWire) std::swap(fromWire, toWire);
+      for(float wire = fromWire; wire <= toWire; ++wire) {
+        // ignore this wire if there is a point on it in this PFP and CTP
+        bool skipit = false;
+        for(auto& tp3d : pfp.TP3Ds) {
+          if(tp3d.Wire == wire && tp3d.CTP == inCTP) {
+            skipit = true;
+            break;
+          }
+        } // tp3d
+        if(skipit) continue;
+        MoveTPToWire(tp, wire);
+        if(!FindCloseHits(slc, tp, maxDelta, kAllHits)) continue;
+        // Either found one or more hits or we are on a dead wire
+        if(tp.Hits.empty()) continue;
+        // inspect the hits. Assume that there is only one
+        unsigned int iht = tp.Hits[0];
+        if(tp.Hits.size() > 1) {
+          // Use the closest hit if there are several
+          float best = maxDelta;
+          for(auto iiht : tp.Hits) {
+            // ignore hits that are used in a PFP
+            if(slc.slHits[iiht].InPFP > 0) continue;
+            float delta = PointTrajDOCA(slc, iiht, tp);
+            if(delta > best) continue;
+            best = delta;
+            iht = iiht;
+          } // iiht
+          continue;
+        } // > 1 hit
+        // ignore hits that are used in a PFP
+        if(slc.slHits[iht].InPFP > 0) continue;
+        // Is used in a trajectory?
+        int inTj = slc.slHits[iht].InTraj;
+        if(inTj <= 0) {
+          // an unused hit. Create a new TP3D
+          auto newTP3D = CreateTP3D(slc, iht);
+          SetSection(slc, pfp, newTP3D);
+          float pull = (newTP3D.Pos[0] - newTP3D.TPX) / sqrt(newTP3D.TPXErr2);
+          if(pull > maxPull) continue;
+          temp.push_back(newTP3D);
+        } else {
+          // hit is used in a trajectory. Find the TP index in the trajectory
+          unsigned short tjPt = USHRT_MAX;
+          auto& tj = slc.tjs[inTj - 1];
+          for(tjPt = tj.EndPt[0]; tjPt <= tj.EndPt[1]; ++tjPt) {
+            if(std::find(tj.Pts[tjPt].Hits.begin(), tj.Pts[tjPt].Hits.end(), iht) != tj.Pts[tjPt].Hits.end()) break;
+          } // tjPt
+          if(tjPt == USHRT_MAX) continue;
+          auto& tpm = tj.Pts[tjPt];
+          // see if the TP is already used in this function
+          if(tpm.Environment[kEnvFlag]) continue;
+          // or if used in a different PFP
+          if(tpm.Environment[kEnvInPFP]) continue;
+          auto newTP3D = CreateTP3D(slc, inTj, tjPt);
+          SetSection(slc, pfp, newTP3D);
+          float pull = (newTP3D.Pos[0] - newTP3D.TPX) / sqrt(newTP3D.TPXErr2);
+          if(pull > maxPull) continue;
+          tpm.Environment[kEnvFlag] = true;
+          temp.push_back(newTP3D);
+        } // hit is used in a trajectory
+      } // wire
+    } // plane
+    
     if(temp.empty()) return;
     
-    // make a list of Tjs that are not in pfp.TjIDs and have a significant fraction of points used in this PFP
+    // make a list of Tjs that are not known to belong to this pfp but have a significant fraction 
+    // of points used in this PFP
     std::vector<int> tjList;
     for(auto& tp3d : temp) {
       // ignore single hits for this check
       if(tp3d.TjID <= 0) continue;
+      // ignore the known Tjs
       if(std::find(pfp.TjIDs.begin(), pfp.TjIDs.end(), tp3d.TjID) != pfp.TjIDs.end()) continue;
       if(std::find(tjList.begin(), tjList.end(), tp3d.TjID) != tjList.end()) continue;
-      // determine the fraction of points used in this PFP
+      // We found a Tj point that maybe should be associated with this pfp. Determine
+      // the fraction of points in this Tj that are used in this PFP
       auto& tj = slc.tjs[tp3d.TjID - 1];
       float cnt = 0;
       float use = 0;
@@ -1593,7 +1739,7 @@ namespace tca {
     } // tp3d
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"AddMissedTP3Ds: P"<<pfp.ID<<" Found "<<temp.size()<<" TP3D candidates inCTP "<<inCTP;
+      myprt<<"APIR: P"<<pfp.ID<<" Found "<<temp.size()<<" candidate points:";
       for(auto tid : tjList) {
         auto& tj = slc.tjs[tid - 1];
         float cnt = 0;
@@ -1604,16 +1750,15 @@ namespace tca {
           ++cnt;
           if(tp.Environment[kEnvFlag]) ++use;
         }
-        myprt<<" T"<<tid<<" cnt "<<(int)cnt<<" fracUsed "<<use/cnt;
+        myprt<<" T"<<tid<<" cnt "<<(int)cnt<<" fracUsed "<<std::setprecision(2)<<use/cnt;
       } // tid
     } // prt
-    // Add the TP3Ds that are in the list and the single-hit TP3Ds after making
-    // a rough check on the pulls
+    // Add the TP3Ds that are in the list
     for(auto& tp3d : temp) {
-      if(tp3d.TjID > 0 && tp3d.slHitsIndex < slc.slHits.size()) {
-        std::cout<<"Invalid combination\n";
-        exit(1);
-      }
+      // don't add the ones that aren't in the list
+      if(tp3d.TjID > 0 && std::find(tjList.begin(), tjList.end(), tp3d.TjID) == tjList.end()) continue;
+//      float pull = PointPull(slc, pfp, tp3d);
+/*
       // We need to find the tj that is in the same CTP as the tp3d
       int useTj = 0;
       for(auto tjid : pfp.TjIDs) {
@@ -1621,6 +1766,7 @@ namespace tca {
         useTj = tjid;
         break;
       } // tjid
+      if(useTj == 0) continue;
       if(tp3d.slHitsIndex < slc.slHits.size()) {
         if(slc.slHits[tp3d.slHitsIndex].InPFP > 0) continue;
         // single hit
@@ -1639,7 +1785,7 @@ namespace tca {
         slc.slHits[tp3d.slHitsIndex].InPFP = pfp.ID;
         if(prt) mf::LogVerbatim("TC")<<" P"<<pfp.ID<<" add hit "<<tp3d.slHitsIndex<<" "<<PrintHit(slc.slHits[tp3d.slHitsIndex])<<" pull "<<pull<<" in section "<<tp3d.SFIndex;
         if(!InsertTP3D(pfp, tp3d)) {
-          std::cout<<"AddMissedTP3Ds insert failed\n";
+          std::cout<<"APIR: insert failed\n";
           continue;
         }
         added = true;
@@ -1649,24 +1795,24 @@ namespace tca {
         // TP
         auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
         // check the pull
-        float pull = -1;
+        float pull = 100;
         if(useTj > 0) {
           auto& tj = slc.tjs[useTj - 1];
           pull = PointPull(slc, tp.Pos, tp.Chg, tj);
         } // useTj > 0
         if(pull > maxPull) continue;
-        if(prt) mf::LogVerbatim("TC")<<" P"<<pfp.ID<<" add TP T"<<tp3d.TjID<<"_"<<tp3d.TPIndex<<" "<<PrintPos(slc, tp)<<" pull "<<pull<<" in section "<<tp3d.SFIndex;
-        if(!InsertTP3D(pfp, tp3d)) {
-          std::cout<<"AddMissedTP3Ds insert failed\n";
-          continue;
-        }
+        if(prt) mf::LogVerbatim("TC")<<" P"<<pfp.ID<<" add TP T"<<tp3d.TjID<<"_"<<tp3d.TPIndex<<" "<<PrintPos(slc, tp)<<" in section "<<tp3d.SFIndex;
+        if(!InsertTP3D(pfp, tp3d)) continue;
         added = true;
       }
+*/
+      if(!InsertTP3D(pfp, tp3d)) continue;
+      added = true;
     } // tp3d
     if(prt) mf::LogVerbatim("TC")<<" P"<<pfp.ID<<" added TP3Ds? "<<added;
     if(!pfp.NeedsUpdate && added) pfp.NeedsUpdate = true;
-  } // AddMissedTP3Ds
-  
+  } // AddPointsInRange
+
   /////////////////////////////////////////
   bool InsertTP3D(PFPStruct& pfp, TP3D& tp3d)
   {
@@ -1774,21 +1920,22 @@ namespace tca {
         if(tp.Chg <= 0) continue;
         if(tp.Environment[kEnvInPFP]) continue;
         auto tp3d = CreateTP3D(slc, tid, ipt);
-        if(!tp3d.IsGood) {
-          std::cout<<"Failed\n";
-          exit(1);
-        }
+        SetSection(slc, pfp, tp3d);
+/*
+        tp3d.IsGood = true;
         tp3d.SFIndex = 0;
-        // find the point of closest approach in 2D
+        // find the point of closest approach in 2D. Note that t is
+        // re-defined in FitSection to be the closest wire
         double t = (double)(tp.Pos[0] - ptp.Pos[0]) * ptp.Dir[0] + (double)(tp.Pos[1] - ptp.Pos[1]) * ptp.Dir[1];
         double dp0 = ptp.Pos[0] + t * ptp.Dir[0] - tp.Pos[0];
         double dp1 = ptp.Pos[1] + t * ptp.Dir[1] - tp.Pos[1];
-        tp3d.Delta = tcc.wirePitch * (float)sqrt(dp0 * dp0 + dp1 * dp1);
+        double delta = tcc.wirePitch * (float)sqrt(dp0 * dp0 + dp1 * dp1);
         // find the position in 3D by correcting t (constructed in 2D) for the direction vector projection in this plane.
         // This was stashed in ptp.Delta by MakeBareTP
-        t /= ptp.Delta;
+        t /= delta;
         tp3d.along = t;
         for(unsigned short xyz = 0; xyz < 3; ++xyz) tp3d.Pos[xyz] = sf.Pos[xyz] + t * sf.Dir[xyz];
+*/
         pfp.TP3Ds.push_back(tp3d);
       } // ipt
     } // tid
@@ -1999,7 +2146,7 @@ namespace tca {
     fitDir = {{fSumDir0, fSumDir1, fSumDir2}};
     SetMag(fitDir, 1);
   } // Fit3D
-
+/*
   /////////////////////////////////////////
   unsigned short WiresSkippedInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP)
   {
@@ -2045,7 +2192,8 @@ namespace tca {
     return (nskip / npwc);
     
   } // WiresSkippedInCTP
-  
+*/
+/*
   /////////////////////////////////////////
   float LengthInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP)
   {
@@ -2069,7 +2217,7 @@ namespace tca {
     } // pt1
     return sqrt(extent);
   } // LengthInCTP
-
+*/
   /////////////////////////////////////////
   bool MakeTp3(TCSlice& slc, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3, bool findDirection)
   {
@@ -2278,13 +2426,15 @@ namespace tca {
   ////////////////////////////////////////////////
   TP3D CreateTP3D(TCSlice& slc, unsigned short slHitsIndex)
   {
-    // create a TP3D with a single hit
+    // create a TP3D with a single hit. Note that the SectionFit in which it
+    // should be placed and the 3D position can't be determined until the the TP3D is 
+    // associated with a pfp. See SetSection()
     TP3D tp3d;
     if(slHitsIndex < slc.slHits.size()) {
       tp3d.slHitsIndex = slHitsIndex;
       auto& hit = (*evt.allHits)[slc.slHits[tp3d.slHitsIndex].allHitsIndex];
-      tp3d.Plane = hit.WireID().Plane;
-      auto plnID = geo::PlaneID(slc.TPCID.Cryostat, slc.TPCID.TPC, tp3d.Plane);
+      auto plnID = geo::PlaneID(slc.TPCID.Cryostat, slc.TPCID.TPC, hit.WireID().Plane);
+      tp3d.CTP = EncodeCTP(plnID);
       tp3d.TPX = tcc.detprop->ConvertTicksToX(hit.PeakTime(), plnID);
       double tickErr = hit.RMS() * tcc.hitErrFac * hit.Multiplicity();
       double xdx = tcc.detprop->ConvertTicksToX(hit.PeakTime() + tickErr, plnID);
@@ -2292,7 +2442,8 @@ namespace tca {
       double xErr = 2 * (xdx - tp3d.TPX);
       tp3d.TPXErr2 = xErr * xErr;
       tp3d.Wire = hit.WireID().Wire;
-      tp3d.IsGood = true;
+      // Can't declare it good since Pos and SFIndex aren't defined
+      tp3d.IsGood = false;
     } // valid slHitsIndex
     return tp3d;
   } // CreateTP3D
@@ -2300,10 +2451,12 @@ namespace tca {
   ////////////////////////////////////////////////
   TP3D CreateTP3D(TCSlice& slc, int tjID, unsigned short tpIndex)
   {
-    // create a TP3D with a 2D TP
-    TP3D tp3d;
+    // create a TP3D with a single TP. Note that the SectionFit in which it
+    // should be placed and the 3D position can't be determined until the the TP3D is 
+    // associated with a pfp. See SetSection()
     
-    // add a TP
+    TP3D tp3d;    
+    // add the 2D TP
     if(tjID > 0 && tjID <= slc.tjs.size()) {
       tp3d.TjID = tjID;
       auto& tj = slc.tjs[tp3d.TjID - 1];
@@ -2311,7 +2464,7 @@ namespace tca {
         tp3d.TPIndex = tpIndex;
         auto& tp2 = tj.Pts[tp3d.TPIndex];
         auto plnID = DecodeCTP(tp2.CTP);
-        tp3d.Plane = plnID.Plane;
+        tp3d.CTP = tp2.CTP;
         tp3d.TPX = tcc.detprop->ConvertTicksToX(tp2.Pos[1]/tcc.unitsPerTick, plnID);
         // The TP2 hit error is in WSE units and includes the wire error. See
         // StepUtils/DefineHitPos. Ignore these details for now and fake it.
@@ -2320,14 +2473,55 @@ namespace tca {
         double xErr = xdx - tp3d.TPX;
         // increase the error if the TP overlaps with another trajectory
         if(tp2.Environment[kEnvOverlap]) xErr *= 2;
-        // TODO: increase the error if this near an end that has a Bragg peak
+        // TODO: increase the error if this near an end that has a Bragg peak. How is this
+        // known here?
         tp3d.TPXErr2 = xErr * xErr;
         tp3d.Wire = tp2.Pos[0];
-        tp3d.IsGood = true;
+        // Can't declare it good since Pos and SFIndex aren't defined
+        tp3d.IsGood = false;
       } // valid tpIndex
     } // valid tjID
     return tp3d;
   } // CreateTP3D
+
+  /////////////////////////////////////////
+  void SetSection(TCSlice& slc, PFPStruct& pfp, TP3D& tp3d)
+  {
+    // Determine which SectionFit this tp3d should reside, then calculate
+    // the 3D position and the distance fromt the center of the SectionFit
+    tp3d.IsGood = false;
+    if(tp3d.TPIndex == USHRT_MAX && tp3d.SFIndex == USHRT_MAX) return;
+    if(tp3d.Wire < 0) return;
+    if(pfp.SectionFits.empty()) return;
+    
+    auto plnID = DecodeCTP(tp3d.CTP);
+    
+    if(pfp.SectionFits.size() == 1) {
+      tp3d.SFIndex = 0;
+    } else {
+      // Find the section center that is closest to this point in the wire coordinate
+      float best = 1E6;
+      for(unsigned short sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
+        auto& sf = pfp.SectionFits[sfi];
+        float sfWire = tcc.geom->WireCoordinate(sf.Pos[1], sf.Pos[2], plnID);
+        float sep = std::abs(sfWire - tp3d.Wire);
+        if(sep < best) {
+          best = sep;
+          tp3d.SFIndex = sfi;
+        }
+      } // sfi
+    } // pfp.SectionFits.size() > 1
+    auto& sf = pfp.SectionFits[tp3d.SFIndex];
+    auto plnTP = MakeBareTP(slc, sf.Pos, sf.Dir, tp3d.CTP);
+    // the number of wires relative to the SectionFit center
+    double dw = tp3d.Wire - plnTP.Pos[0];
+    // dt/dW was stored in DeltaRMS
+    double t = dw * plnTP.DeltaRMS;
+    // define the 3D position 
+    for(unsigned short xyz = 0; xyz < 3; ++xyz) tp3d.Pos[xyz] = sf.Pos[xyz] + t * sf.Dir[xyz];
+    tp3d.along = t;
+    tp3d.IsGood = true;
+  } // SetSection
 
   ////////////////////////////////////////////////
   PFPStruct CreatePFP(TCSlice& slc)
@@ -2951,8 +3145,8 @@ namespace tca {
       } // sec
     } // SectionFits
     if(printPts < 0) {
-      // print the head if we are print all points
-      myprt<<someText<<"  ipt SFI ________Pos________  Delta IsGood  along dE/dx  T_ipt_P:W:T\n";
+      // print the head if we print all points
+      myprt<<someText<<"  ipt SFI ________Pos________  Delta   Pull IsGood  along dE/dx  T_ipt_P:W:T    3D->2D\n";
     }
     unsigned short fromPt = 0;
     unsigned short toPt = pfp.TP3Ds.size() - 1;
@@ -2963,7 +3157,9 @@ namespace tca {
       myprt<<std::setw(4)<<tp3d.SFIndex;
       myprt<<std::fixed<<std::setprecision(1);
       myprt<<std::setw(7)<<tp3d.Pos[0]<<std::setw(7)<<tp3d.Pos[1]<<std::setw(7)<<tp3d.Pos[2];
-      myprt<<std::setprecision(1)<<std::setw(6)<<tp3d.Delta;
+      myprt<<std::setprecision(1)<<std::setw(6)<<(tp3d.Pos[0] - tp3d.TPX);
+      float pull = (tp3d.Pos[0] - tp3d.TPX) / sqrt(tp3d.TPXErr2);
+      myprt<<std::setprecision(1)<<std::setw(6)<<pull;
       myprt<<std::setw(7)<<tp3d.IsGood;
       myprt<<std::setw(7)<<std::setprecision(1)<<tp3d.along;
       myprt<<std::setw(6)<<std::setprecision(2)<<dEdx(slc, tp3d);
@@ -2972,9 +3168,13 @@ namespace tca {
       } else if(tp3d.TjID > 0) {
         auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
         myprt<<" T"<<tp3d.TjID<<"_"<<tp3d.TPIndex<<"_"<<PrintPos(slc, tp);
+        // print the 2D position
+        auto tmp = MakeBareTP(slc, tp3d.Pos, tp3d.Dir, tp.CTP);
+        myprt<<" "<<PrintPos(slc, tmp.Pos);
       } else {
         myprt<<" UNDEFINED";
       }
+
       myprt<<"\n";
     } // ipt
     // print the end
