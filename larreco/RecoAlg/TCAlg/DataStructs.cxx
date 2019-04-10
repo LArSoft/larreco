@@ -74,7 +74,8 @@ namespace tca {
     "MergeShChain",
     "CompleteShower",
     "SplitTjCVx",
-    "MakePFPTjs"
+    "MakePFPTjs",
+    "FillGaps3D"
   };
   
   const std::vector<std::string> EndFlagNames {
