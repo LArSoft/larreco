@@ -20,9 +20,6 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 
 // Eigen
 #include <Eigen/Dense>
@@ -182,8 +179,6 @@ private:
     /**
      *  @brief Tools
      */
-    geo::Geometry*                              fGeometry;              //< pointer to the Geometry service
-    
     std::unique_ptr<lar_cluster3d::IClusterAlg> fClusterAlg;            ///<  Algorithm to do 3D space point clustering
     PrincipalComponentsAlg                      fPCAAlg;                // For running Principal Components Analysis
 };
@@ -212,10 +207,6 @@ void ConvexHullPathFinder::configure(fhicl::ParameterSet const &pset)
     fConvexHullMinSep     = pset.get<float >("ConvexHullMinSep",    0.65);
     fClusterAlg           = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
 
-    art::ServiceHandle<geo::Geometry> geometry;
-    
-    fGeometry = &*geometry;
-    
     fTimeToProcess = 0.;
     
     return;

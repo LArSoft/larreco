@@ -123,7 +123,7 @@ private:
     int                                            m_maxLoopsPerCluster; ///<
     double                                         m_maximumGap;         ///<
 
-    geo::Geometry*                                 m_geometry;           // pointer to the Geometry service
+    geo::Geometry const*                           m_geometry;           // pointer to the Geometry service
     //    const detinfo::DetectorProperties*            m_detector;           // Pointer to the detector properties
     
     PrincipalComponentsAlg                         m_pcaAlg;             // For running Principal Components Analysis

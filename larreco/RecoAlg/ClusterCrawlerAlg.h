@@ -212,7 +212,7 @@ namespace cluster {
     bool vtxprt;
     unsigned short NClusters;
     
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     
     std::vector<recob::Hit> fHits; ///< our version of the hits
     std::vector<short> inClus;    ///< Hit used in cluster (-1 = obsolete, 0 = free)

@@ -126,7 +126,7 @@ void pma::Track3D::ClearNodes(void)
 bool pma::Track3D::InitFromHits(int tpc, int cryo, float initEndSegW)
 {
 	auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 
 	float wtmp = fEndSegWeight;
 	fEndSegWeight = initEndSegW;
@@ -298,7 +298,7 @@ bool pma::Track3D::InitFromRefPoints(int tpc, int cryo)
 
 void pma::Track3D::InitFromMiddle(int tpc, int cryo)
 {
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 
 	const auto& tpcGeo = geom->TPC(tpc, cryo);
 

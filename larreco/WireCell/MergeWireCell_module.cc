@@ -102,7 +102,7 @@ wc::MergeWireCell::MergeWireCell(fhicl::ParameterSet const & p) :
 
 void wc::MergeWireCell::produce(art::Event & evt){
 
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   int run = evt.run();
   int subrun = evt.subRun();

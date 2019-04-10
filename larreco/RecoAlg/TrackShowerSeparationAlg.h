@@ -308,8 +308,8 @@ class shower::TrackShowerSeparationAlg {
  /*  // Configurable parameters */
  /*  double fAngleCut, fDistanceCut, fVertexProximityCut, fTrackProximityCut, fAvTrackHitDistance; */
 
- /*  art::ServiceHandle<cheat::BackTracker> backtracker; */
- /*  art::ServiceHandle<art::TFileService> tfs; */
+ /*  art::ServiceHandle<cheat::BackTracker const> backtracker; */
+ /*  art::ServiceHandle<art::TFileService const> tfs; */
 
  /*  TTree* ftree; */
  /*  double Distance, Angle, Length, AvDistance; */

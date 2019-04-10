@@ -195,7 +195,7 @@ void FeatureVertexFinderAna::reconfigure(fhicl::ParameterSet const& p)
 void FeatureVertexFinderAna::beginJob() 
 {
 	// get access to the TFile service
-    	art::ServiceHandle<art::TFileService> tfs;
+    	art::ServiceHandle<art::TFileService const> tfs;
 	// ====================================
     	// ==== Outputting TH1F Histograms ====
     	// ====================================
@@ -297,12 +297,12 @@ void FeatureVertexFinderAna::analyze(const art::Event& evt)
   // ############################################
   // ### Getting information from BackTrackerService ###
   // ############################################
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
   
   // ####################################
   // ### Getting Geometry Information ###
   // ####################################
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   
   // ###################################
   // ### Getting Detector Properties ###

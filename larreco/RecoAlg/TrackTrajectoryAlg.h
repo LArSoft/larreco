@@ -39,7 +39,7 @@ namespace trkf {
     
     private:
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     
     double minX;
     unsigned short minXPln;

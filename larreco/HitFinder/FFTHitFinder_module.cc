@@ -106,7 +106,7 @@ namespace hit{
     // Read in the wire List object(s).
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
    
     // also get the raw digits associated with wires
     art::FindOneP<raw::RawDigit> WireToRawDigits

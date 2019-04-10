@@ -108,7 +108,7 @@ void vertex::VertexMatch::produce(art::Event& evt)
   std::unique_ptr<std::vector<recob::EndPoint2D> > mvertexcol(new std::vector<recob::EndPoint2D>);
   std::unique_ptr< art::Assns<recob::EndPoint2D, recob::Hit> > assn(new art::Assns<recob::EndPoint2D, recob::Hit>);
   
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   //hits associated with a vertex
   std::vector< art::Ptr<recob::Hit> > vHits;
   art::PtrVector<recob::Hit> vertexhit;

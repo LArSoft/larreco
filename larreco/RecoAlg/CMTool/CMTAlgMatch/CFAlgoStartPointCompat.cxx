@@ -65,7 +65,7 @@ namespace cmtool {
     //used to generate that intersection point
     double yS01, zS01, yS02, zS02, yS12, zS12;
 
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     geo->IntersectionPoint( startWire0, startWire1,
 			    Pl0, Pl1,
 			    cryo, tpc,

@@ -21,9 +21,6 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 
 // boost includes
 #include <boost/range/adaptor/reversed.hpp>
@@ -114,8 +111,6 @@ private:
     size_t                                      m_minTinyClusterSize;    ///< Minimum size for a "tiny" cluster
     mutable float                               m_timeToProcess;         ///<
     
-    geo::Geometry*                              m_geometry;              //< pointer to the Geometry service
-    
     std::unique_ptr<lar_cluster3d::IClusterAlg> m_clusterAlg;            ///<  Algorithm to do 3D space point clustering
     PrincipalComponentsAlg                      m_pcaAlg;                // For running Principal Components Analysis
 };
@@ -140,10 +135,6 @@ void ClusterPathFinder::configure(fhicl::ParameterSet const &pset)
     m_minTinyClusterSize = pset.get<size_t>("MinTinyClusterSize",40);
     m_clusterAlg         = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
 
-    art::ServiceHandle<geo::Geometry> geometry;
-    
-    m_geometry = &*geometry;
-    
     m_timeToProcess = 0.;
     
     return;

@@ -143,7 +143,7 @@ namespace hit {
 
 //    prt = false;
     lariov::ChannelStatusProvider const& channelStatus
-      = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+      = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
     for(size_t wireIter = 0; wireIter < Wires.size(); wireIter++){
 

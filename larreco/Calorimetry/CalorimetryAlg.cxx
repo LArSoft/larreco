@@ -27,7 +27,7 @@ namespace calo{
   {
      this->reconfigure(config);
 
-     detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
+     detprop = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
   }
 
   //--------------------------------------------------------------------
@@ -149,7 +149,7 @@ namespace calo{
     }
     else if (fLifeTimeForm==1){
       //Exponential+constant form
-      const lariov::ElectronLifetimeProvider& elifetime_provider = art::ServiceHandle<lariov::ElectronLifetimeService>()->GetProvider();
+      const lariov::ElectronLifetimeProvider& elifetime_provider = art::ServiceHandle<lariov::ElectronLifetimeService const>()->GetProvider();
       double correction = elifetime_provider.Lifetime(time);
       //std::cout<<correction<<std::endl;
       return correction;

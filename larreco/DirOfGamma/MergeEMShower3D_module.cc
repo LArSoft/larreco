@@ -104,7 +104,7 @@ fP0Dist(0)
 	fEnd = trk.End<TVector3>();			
 	fHasVtx = hasvtx;
 
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 	/*fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kU)); 
 	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kV));
 	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kZ));*/ 
@@ -415,7 +415,7 @@ ems::MergeEMShower3D::MergeEMShower3D(fhicl::ParameterSet const & p)
 
 void ems::MergeEMShower3D::beginJob()
 {
-	art::ServiceHandle<art::TFileService> tfs;
+	art::ServiceHandle<art::TFileService const> tfs;
 
 	fEvTree = tfs->make<TTree>("ShowerTestEv", "pi0 tests");
 	fEvTree->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
@@ -635,7 +635,7 @@ std::vector< ems::ShowersCollection > ems::MergeEMShower3D::collectshowers(art::
 	bool merge = true;
 	if (refpoint)
 	{
-		art::ServiceHandle< geo::Geometry > geom;
+		art::ServiceHandle<geo::Geometry const> geom;
 		art::Handle< std::vector<recob::Track> > trkListHandle;		
 		if (evt.getByLabel(fTrk3DModuleLabel, trkListHandle)) 
 		{
@@ -736,7 +736,7 @@ std::vector< ems::ShowersCollection > ems::MergeEMShower3D::collectshowers(art::
 
 int ems::MergeEMShower3D::getClusterBestId(const std::vector< art::Ptr<recob::Hit> >& v)
 {
-	art::ServiceHandle< cheat::BackTrackerService > bt_serv;
+	art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
 	std::map< int, size_t > ids;
 	for (auto ptr : v)

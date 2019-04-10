@@ -196,9 +196,9 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
   // Get Services.
 
-  art::ServiceHandle<geo::Geometry> geom;
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+  art::ServiceHandle<geo::Geometry const> geom;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+  art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
 
   // Reset space point algorithm.
 

@@ -111,7 +111,7 @@ fFidVolCut(2.0)
 
 void ems::MCinfo::Findtpcborders(const art::Event& evt) 
 {
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 	
 	fMinx = geom->IterateTPCs().begin()->MinX();
 	fMiny = geom->IterateTPCs().begin()->MinY();
@@ -143,7 +143,7 @@ void ems::MCinfo::Info(const art::Event& evt)
 	fConvgamma1.SetXYZ(0,0,0); fConvgamma2.SetXYZ(0,0,0); 
 	fDirgamma1.SetXYZ(0,0,0); fDirgamma2.SetXYZ(0,0,0);
 
-	art::ServiceHandle< cheat::ParticleInventoryService > pi_serv;
+	art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
 	const sim::ParticleList& plist = pi_serv->ParticleList();
 	for (sim::ParticleList::const_iterator ipar = plist.begin(); ipar != plist.end(); ++ipar)
 	{
@@ -336,7 +336,7 @@ void ems::MultiEMShowers::reconfigure(fhicl::ParameterSet const& p)
 
 void ems::MultiEMShowers::beginJob()
 {
-	art::ServiceHandle<art::TFileService> tfs;
+	art::ServiceHandle<art::TFileService const> tfs;
 
 	fEvTree = tfs->make<TTree>("MultiShowers", "showers3d");
 	fEvTree->Branch("fEvNumber", &fEvNumber, "fEvNumber/I");
@@ -593,7 +593,7 @@ bool ems::MultiEMShowers::convCluster(art::Event const & evt)
 
 	double vtx[3] = {convp[0].X(), convp[0].Y(), convp[0].Z()};
 
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 	geo::TPCID idtpc = geom->FindTPCAtPosition(vtx);
 	size_t cryoid = geom->FindCryostatAtPosition(vtx);
 

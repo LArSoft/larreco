@@ -209,7 +209,7 @@ void shower::TCShowerElectronLikelihood::reconfigure(fhicl::ParameterSet const& 
 
 void shower::TCShowerElectronLikelihood::beginJob() {
 
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
   //fTree = tfs->make<TTree>("elikelihood", "elikelihood");
 
   energyDist = tfs->make<TH1F>("energyDist", "true energy - guess energy", 41, -20.5, 20.5);
@@ -320,7 +320,7 @@ void shower::TCShowerElectronLikelihood::resetProfiles() {
 void shower::TCShowerElectronLikelihood::getShowerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir) {
 
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   auto collectionPlane = geo::PlaneID(0, 0, 1);
 

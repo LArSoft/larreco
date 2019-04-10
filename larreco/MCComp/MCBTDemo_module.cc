@@ -83,7 +83,7 @@ void MCBTDemo::analyze(art::Event const & e)
 
   if(g4_track_id.size()) {
 
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     btutil::MCBTAlg alg_mct(g4_track_id,*schHandle);
 
     auto sum_mcq_v = alg_mct.MCQSum(2);

@@ -45,7 +45,7 @@ namespace apa{
     void reconfigure(fhicl::ParameterSet const& p);
 
     apa::DisambigAlg    fDisambigAlg;
-    art::ServiceHandle<geo::Geometry> fGeom;
+    art::ServiceHandle<geo::Geometry const> fGeom;
 
     std::string fChanHitLabel;
 

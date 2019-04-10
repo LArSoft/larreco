@@ -48,10 +48,8 @@ PCASeedFinderAlg::PCASeedFinderAlg(fhicl::ParameterSet const &pset) :
 {
     this->reconfigure(pset);
     
-    art::ServiceHandle<geo::Geometry>            geometry;
+    m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
     //    auto const* detectorProperties = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    
-    m_geometry = &*geometry;
     //    m_detector = detectorProperties->provider();
 }
 

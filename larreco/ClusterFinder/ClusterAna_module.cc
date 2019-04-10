@@ -169,7 +169,7 @@ namespace cluster{
   {
   
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
   
     fNClusters=tfs->make<TH1F>("fNoClustersInEvent","Number of Clusters", 40,0 ,400);
     fNHitInCluster = tfs->make<TH1F>("fNHitInCluster","NHitInCluster",100,0,100);
@@ -228,7 +228,7 @@ namespace cluster{
   {
     
     // code stolen from TrackAna_module.cc
-    art::ServiceHandle<geo::Geometry>      geom;  
+    art::ServiceHandle<geo::Geometry const>      geom;  
     if(geom->Nplanes() > 3) {
       mf::LogError("ClusterAna")<<"Too many planes for this code...";
       return;
@@ -265,8 +265,8 @@ namespace cluster{
     } // vertexListHandle
     
     // list of all true particles
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     sim::ParticleList const& plist = pi_serv->ParticleList();
     // list of all true particles that will be considered
     std::vector<const simb::MCParticle*> plist2;

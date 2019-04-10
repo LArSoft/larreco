@@ -63,7 +63,6 @@ public:
 
 private:
 
-    geo::Geometry*                         m_geometry;        // pointer to the Geometry service
     //    const detinfo::DetectorProperties*    m_detector;        // Pointer to the detector properties
 
     size_t                                 m_maxNumEdgeHits;  ///< Maximum number hits each end of PCA axis

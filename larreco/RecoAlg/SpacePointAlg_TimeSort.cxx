@@ -80,7 +80,7 @@ namespace sppt{
   //-------------------------------------------------
   void SpacePointAlg_TimeSort::fillCoordinatesArrays(){
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     unsigned int nwires_u = geom->Nwires(geo::View_t::kU);
     unsigned int nwires_v = geom->Nwires(geo::View_t::kV);
     unsigned int nwires_y = geom->Nwires(geo::View_t::kZ);

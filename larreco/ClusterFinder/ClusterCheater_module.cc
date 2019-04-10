@@ -108,8 +108,8 @@ namespace cluster{
   //--------------------------------------------------------------------
   void ClusterCheater::produce(art::Event& evt)
   {
-    art::ServiceHandle<geo::Geometry>      geo;
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<geo::Geometry const>      geo;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     
     // grab the hits that have been reconstructed

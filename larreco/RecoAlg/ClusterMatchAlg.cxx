@@ -150,7 +150,7 @@ namespace cluster{
   //##################################################################
   {
     if(!_match_tree){
-      art::ServiceHandle<art::TFileService> fileService;
+      art::ServiceHandle<art::TFileService const> fileService;
       _match_tree = fileService->make<TTree>("match_tree","");
       _match_tree->Branch("mc_E",&_mc_E,"mc_E/D");
       _match_tree->Branch("mc_Px",&_mc_Px,"mc_Px/D");
@@ -180,7 +180,7 @@ namespace cluster{
       _match_tree->Branch("nsps",  "std::vector<UShort_t>",&_nsps);
     }
     if(_save_cluster_info && !_cluster_tree){
-      art::ServiceHandle<art::TFileService> fileService;
+      art::ServiceHandle<art::TFileService const> fileService;
       _cluster_tree = fileService->make<TTree>("cluster_tree","");
       _cluster_tree->Branch("view_v","std::vector<uint16_t>", &_view_v);
       _cluster_tree->Branch("charge_v","std::vector<double>", &_charge_v);
@@ -245,7 +245,7 @@ namespace cluster{
   {
     if(!_det_params_prepared){
       // Total number of planes
-      art::ServiceHandle<geo::Geometry> geo;
+      art::ServiceHandle<geo::Geometry const> geo;
       _tot_planes = geo->Nplanes();
       
       // Ask DetectorPrperties about time-offset among different wire planes ... used to correct timing
@@ -389,7 +389,7 @@ namespace cluster{
 				     const geo::View_t v1,     const geo::View_t v2 ) const
   //########################################################################################
   {
-    art::ServiceHandle<geo::Geometry> geo_h;
+    art::ServiceHandle<geo::Geometry const> geo_h;
     double y, z_min, z_max;
     y = z_min = z_max = -1;
     geo_h->IntersectionPoint(ci1.wire_min, ci2.wire_min, v1, v2, 0, 0, y, z_min);

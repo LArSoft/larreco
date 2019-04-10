@@ -181,7 +181,7 @@ namespace cluster {
     // make EndPoints (aka 2D vertices)
     std::vector<ClusterCrawlerAlg::VtxStore> const& EndPts = fCCAlg->GetEndPoints();
     std::vector<unsigned int> indxToIndx(EndPts.size());
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     unsigned short vtxID = 0, end, wire, ivx;
     for(ivx = 0; ivx < EndPts.size(); ++ivx) {
       if(EndPts[ivx].NClusters == 0) continue;

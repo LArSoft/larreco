@@ -259,7 +259,7 @@ int shower::TCShower::getShowersWithoutSlices(art::Event & evt) {
 
 // -----------------------------------------------------
 void shower::TCShower::beginJob() {
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 }
 
 // -----------------------------------------------------

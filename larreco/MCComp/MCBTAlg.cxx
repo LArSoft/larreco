@@ -40,7 +40,7 @@ namespace btutil {
   void MCBTAlg::ProcessSimChannel(const std::vector<sim::SimChannel>& simch_v)
   {
 
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     //auto geo = ::larutil::Geometry::GetME();
     _sum_mcq.resize(geo->Nplanes(),std::vector<double>(_num_parts,0));
     

@@ -147,11 +147,11 @@ namespace hit {
     initDone = true; // Insure that we bail later on
 
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
     // Find magetic field related corrections
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     
-    art::ServiceHandle<mag::MagneticField> MagField;
+    art::ServiceHandle<mag::MagneticField const> MagField;
     double Efield         = detprop->Efield();  
     double Temperature    = detprop->Temperature();  
     double DriftVelocity  = detprop->DriftVelocity(Efield,Temperature)/1000.;
@@ -167,7 +167,7 @@ namespace hit {
     << "dZ/dX = " << fDirCosZ;
     
     // geometry data.
-    art::ServiceHandle<geo::Geometry> geom; 
+    art::ServiceHandle<geo::Geometry const> geom; 
     // assumes all TPCs are the same
     double width  = 2 * geom->TPC(0).HalfWidth(); 
     double halfHeight = geom->TPC(0).HalfHeight(); 
@@ -254,13 +254,13 @@ namespace hit {
 //     art::Handle< std::vector<recob::Track> > trackHandle;
 //     evt.getByLabel(fTrackFinderModuleLabel,trackHandle);
 
-    art::ServiceHandle<geo::Geometry> geom; 
+    art::ServiceHandle<geo::Geometry const> geom; 
 
     // We're going to want to compare the reconstructed Z with the
     // simulted Z. For that purpose we use the simultion backtracking.
     //
 
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
     //    art::PtrVector<recob::Hit> hits;
     std::vector< art::Ptr<recob::Hit> > hits;

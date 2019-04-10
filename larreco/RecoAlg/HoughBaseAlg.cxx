@@ -1870,7 +1870,7 @@ size_t cluster::HoughBaseAlg::Transform(std::vector< art::Ptr<recob::Hit> > cons
 {
   HoughTransform c;
 
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   
   int dx = geom->Nwires(0);               //number of wires 

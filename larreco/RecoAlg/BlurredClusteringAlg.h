@@ -177,9 +177,9 @@ private:
   std::string fDebugPDFName{};
 
   // art service handles
-  art::ServiceHandle<geo::Geometry> fGeom;
+  art::ServiceHandle<geo::Geometry const> fGeom;
   detinfo::DetectorProperties const* fDetProp;
-  lariov::ChannelStatusProvider const& fChanStatus{art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider()};
+  lariov::ChannelStatusProvider const& fChanStatus{art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider()};
 
 };
 

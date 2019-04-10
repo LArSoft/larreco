@@ -163,7 +163,7 @@ namespace cluster{
 	<< std::endl;
 
     
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     
     // Store output
     for(size_t out_index=0; out_index < GetMergedCPAN().size(); ++out_index) {

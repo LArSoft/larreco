@@ -109,7 +109,7 @@ TrueSpacePoints(art::Handle<std::vector<recob::Hit>> hits) const
 
   const double err[6] = {0,};
 
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
   for(unsigned int i = 0; i < hits->size(); ++i){
     try{
       const std::vector<double> xyz = bt_serv->HitToXYZ(art::Ptr<recob::Hit>(hits, i));

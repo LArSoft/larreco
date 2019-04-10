@@ -733,7 +733,7 @@ namespace trkf {
     void SeedFinderAlgorithm::GetHitDistAndProj( recob::Seed const& ASeed,  art::Ptr<recob::Hit> const& AHit, double& disp, double& s)
     {
         const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
-        art::ServiceHandle<geo::Geometry> geom;
+        art::ServiceHandle<geo::Geometry const> geom;
         
         double xyzStart[3], xyzEnd[3];
         
@@ -1082,7 +1082,7 @@ namespace trkf {
     //-----------------------------------------------
     void SeedFinderAlgorithm::CalculateGeometricalElements()
     {
-        art::ServiceHandle<geo::Geometry> geom;
+        art::ServiceHandle<geo::Geometry const> geom;
         
         // Total number of channels in the detector
         fNChannels = geom->Nchannels();

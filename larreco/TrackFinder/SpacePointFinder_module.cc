@@ -115,7 +115,7 @@ namespace trkf {
 
     // Get Services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     // Get clusters.
 

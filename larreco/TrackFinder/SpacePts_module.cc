@@ -129,7 +129,7 @@ void SpacePts::produce(art::Event& evt)
 
   
   // get services
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   
   //////////////////////////////////////////////////////

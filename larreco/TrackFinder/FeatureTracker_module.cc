@@ -75,7 +75,7 @@ namespace trkf {
     double  fLineIntFraction;
 
     std::map<int, std::vector<double> > fEndPointTimes;
-    art::ServiceHandle<geo::Geometry> fGeometryHandle;
+    art::ServiceHandle<geo::Geometry const> fGeometryHandle;
   };
 }
 
@@ -363,7 +363,7 @@ namespace trkf {
   {
     
     const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    art::ServiceHandle<geo::Geometry>              geo;
+    art::ServiceHandle<geo::Geometry const>              geo;
 
     int NPlanes=geo->Cryostat(cryo).TPC(tpc).Nplanes();
   
@@ -530,7 +530,7 @@ namespace trkf {
   std::map<int, std::map<int, double> > FeatureTracker::GetConnectionMap(std::vector<recob::Seed>& Seeds, double ADCThresh, double FracThresh)
   {
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     std::vector<TVector3> WireDirs;
     
     double EndThresh = 0.5;

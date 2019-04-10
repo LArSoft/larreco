@@ -245,7 +245,7 @@ void NuShowerEff::beginJob(){
        //<< "\t" << fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
        //<< "\t" << fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
 
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   double E_bins[21] = {0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4,4.5,5.0,5.5,6.0,7.0,8.0,10.0,12.0,14.0,17.0,20.0,25.0};
 //  double theta_bins[44]= { 0.,1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15.,16.,17.,18.,19.,20.,22.,24.,26.,28.,30.,32.,34.,36.,38.,40.,42.,44.,46.,48.,50.,55.,60.,65.,70.,75.,80.,85.,90.};
@@ -367,7 +367,7 @@ void NuShowerEff::analyze(art::Event const & e)
   // Geant4: MCParticle -> lepton (e)
   // Note: generator level MCPartilceList is different from Geant4 level MCParticleList.  MCParticleList(Geant4) contains all particles in MCParticleList(generator) but their the indexes (TrackIds) are different.
   simb::MCParticle *MClepton = NULL; //Geant4 level 
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+  art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
   const sim::ParticleList& plist = pi_serv->ParticleList();
   simb::MCParticle *particle=0;
 
@@ -678,7 +678,7 @@ void NuShowerEff::analyze(art::Event const & e)
 void NuShowerEff::doEfficiencies(){
   //cout << "\n==== function: doEfficiencies() ====" << endl;
   
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   if(TEfficiency::CheckConsistency(*h_Ev_num,*h_Ev_den)){
     h_Eff_Ev = tfs->make<TEfficiency>(*h_Ev_num,*h_Ev_den);

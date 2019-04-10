@@ -100,7 +100,7 @@ namespace trkf {
    {
       
       // get services
-      art::ServiceHandle<geo::Geometry> geom;
+      art::ServiceHandle<geo::Geometry const> geom;
       
       //////////////////////////////////////////////////////
       // Make a std::unique_ptr<> for the thing you want to put into the event

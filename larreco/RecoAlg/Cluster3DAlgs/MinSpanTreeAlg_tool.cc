@@ -139,7 +139,7 @@ private:
     mutable std::vector<float>                                m_timeVector;            ///<
     std::vector<std::vector<float>>                           m_wireDir;               ///<
                          
-    geo::Geometry*                                            m_geometry;              //< pointer to the Geometry service
+    geo::Geometry const*                                      m_geometry;              //< pointer to the Geometry service
                          
     PrincipalComponentsAlg                                    m_pcaAlg;                // For running Principal Components Analysis
     kdTree                                                    m_kdTree;                // For the kdTree
@@ -166,7 +166,7 @@ void MinSpanTreeAlg::configure(fhicl::ParameterSet const &pset)
 {
     m_enableMonitoring         = pset.get<bool>  ("EnableMonitoring",  true  );
     
-    art::ServiceHandle<geo::Geometry> geometry;
+    art::ServiceHandle<geo::Geometry const> geometry;
     
     m_geometry = &*geometry;
     

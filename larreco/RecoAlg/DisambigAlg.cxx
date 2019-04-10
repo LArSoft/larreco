@@ -73,7 +73,7 @@ void DisambigAlg::RunDisambig(   art::Handle< std::vector<recob::Hit> > ChannelH
 {
 
   // **tomporarily** here to look at performance without noise hits
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
   fUeffSoFar.clear();
   fVeffSoFar.clear();

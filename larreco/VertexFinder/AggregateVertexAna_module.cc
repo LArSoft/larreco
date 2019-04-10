@@ -96,7 +96,7 @@ namespace vertex{
   //-----------------------------------------------
   void AggregateVertexAna::beginJob()
   {
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
 
     HnVtxes   = tfs->make<TH1F>("Num Vertices","Num Vertices",8,-0.5,7.5);
     HVtxSep   = tfs->make<TH1F>("Vertices spacing","Vertices spacing",20,0.001,5.0);

@@ -103,7 +103,7 @@ namespace cluster {
     double fNTimes;
 
     //The various art grabbed Larsoft stuff to get physical properties.
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     util::GeometryUtilities gser;
    
    	//The vectors that actually get used to hold hits, sets of hits, etc.

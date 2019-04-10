@@ -176,18 +176,18 @@ nnet::PointIdEffTest::PointIdEffTest(nnet::PointIdEffTest::Parameters const& con
 	fNNetModuleLabel(config().NNetModuleLabel()),
 	fSaveHitsFile(config().SaveHitsFile())
 {
-    fGeometry = &*(art::ServiceHandle<geo::Geometry>());
+    fGeometry = &*(art::ServiceHandle<geo::Geometry const>());
 }
 
 void nnet::PointIdEffTest::beginRun(const art::Run&)
 {
-	art::ServiceHandle< sim::LArG4Parameters > larParameters;
+	art::ServiceHandle<sim::LArG4Parameters const> larParameters;
 	fElectronsToGeV = 1./larParameters->GeVToElectrons();
 }
 
 void nnet::PointIdEffTest::beginJob()
 {
-	art::ServiceHandle<art::TFileService> tfs;
+	art::ServiceHandle<art::TFileService const> tfs;
 
     fEventTree = tfs->make<TTree>("event","event info");
     fEventTree->Branch("fRun", &fRun, "fRun/I");
@@ -249,7 +249,7 @@ void nnet::PointIdEffTest::endJob()
 {
 	if (fSaveHitsFile) fHitsOutFile.close();
 
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
 
     TTree *thrTree = tfs->make<TTree>("threshold","error rate vs threshold");
 

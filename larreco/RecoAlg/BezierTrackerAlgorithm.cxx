@@ -84,7 +84,7 @@ namespace trkf {
     std::vector< std::vector< std::vector<int> > > OrgHitsW(WEntries);
 
 
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     size_t NChannels = geo->Nchannels();
     
     std::vector<double> MinUTime(UEntries,10000);
@@ -1049,7 +1049,7 @@ namespace trkf {
 
   void BezierTrackerAlgorithm::CalculateGeometricalElements()
   {
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* det = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 

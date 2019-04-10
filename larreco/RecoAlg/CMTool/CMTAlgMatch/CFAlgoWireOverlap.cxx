@@ -25,7 +25,7 @@ namespace cmtool {
   float CFAlgoWireOverlap::Float(const std::vector<const cluster::ClusterParamsAlg*> &clusters)
   //----------------------------------------------------------------------------------------------
   {
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     // Code-block by Kazu starts
     // This ensures the algorithm works only if # clusters is > 2 (and not =2)
     // You may take out this block if you want to allow matching using clusters from only 2 planes.

@@ -207,7 +207,7 @@ bool pma::VtxCandidate::Add(const pma::TrkCandidate & trk)
 
 double pma::VtxCandidate::ComputeMse2D(void)
 {
-	art::ServiceHandle< geo::Geometry > geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 
 	double mse = 0.0;
 	TVector2 center2d;

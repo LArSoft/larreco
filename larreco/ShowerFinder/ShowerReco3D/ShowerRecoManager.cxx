@@ -8,7 +8,7 @@ namespace showerreco {
   {
     fMatch    = true;
     //auto geom = ::larutil::Geometry::GetME();
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     fMatchMgr = new ::cmtool::CMatchManager(geom->Nplanes());
   }
 

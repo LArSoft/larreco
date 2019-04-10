@@ -149,7 +149,7 @@ namespace hit{
   void GausHitFinderAna::beginJob() 
   {
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
    
     
     // ======================================
@@ -211,7 +211,7 @@ namespace hit{
     // ####################################
     // ### Getting Geometry Information ###
     // ####################################
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
   
     // ###################################
     // ### Getting Detector Properties ###
@@ -357,7 +357,7 @@ namespace hit{
           // ####################################
           // ### Using BackTrackerService HitCheater ###
           // ####################################
-          art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+          art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
           trackides = bt_serv->HitToTrackIDEs(hitPoint);
           xyz = bt_serv->HitToXYZ(hitPoint);

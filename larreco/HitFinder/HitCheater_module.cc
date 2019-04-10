@@ -143,7 +143,7 @@ void hit::HitCheater::FindHitsOnChannel(const sim::SimChannel*   sc,
                                         std::vector<recob::Hit>& hits,
                                         int                      spill)
 {
-  art::ServiceHandle<geo::Geometry> geo;
+  art::ServiceHandle<geo::Geometry const> geo;
   
   raw::ChannelID_t channel = sc->Channel();
   geo::SigType_t signal_type = geo->SignalType(channel);

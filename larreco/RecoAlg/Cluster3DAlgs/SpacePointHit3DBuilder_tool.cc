@@ -91,7 +91,7 @@ private:
     // Get instances of the primary data structures needed
     mutable Hit2DVector                  m_clusterHit2DMasterVec;
     
-    geo::Geometry*                       fGeometry;               //< pointer to the Geometry service
+    const geo::Geometry*                 fGeometry;               //< pointer to the Geometry service
     const detinfo::DetectorProperties*   fDetector;               //< Pointer to the detector properties
 };
 
@@ -126,7 +126,7 @@ void SpacePointHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     fDoRawDigitAssns         = pset.get<bool         >("DoRawDigitAssns",     true);
     fEnableMonitoring        = pset.get<bool>         ("EnableMonitoring",    true);
     
-    art::ServiceHandle<geo::Geometry> geometry;
+    art::ServiceHandle<geo::Geometry const> geometry;
     
     fGeometry = &*geometry;
     fDetector = lar::providerFrom<detinfo::DetectorPropertiesService>();

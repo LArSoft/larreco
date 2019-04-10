@@ -21,7 +21,7 @@ namespace tca {
     tcc.showerParentReader = &fMVAReader;
     reconfigure(pset);
     tcc.caloAlg = &fCaloAlg;
-//    art::ServiceHandle<art::TFileService> tfs;
+//    art::ServiceHandle<art::TFileService const> tfs;
 //    hist.CreateHists(*tfs);
 //    tm.Initialize();
   }

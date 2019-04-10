@@ -270,7 +270,7 @@ private:
     detinfo::DetectorClocks const *ts = lar::providerFrom<detinfo::DetectorClocksService>();
     double XDriftVelocity = detprop->DriftVelocity()*1e-3; //cm/ns
     double WindowSize     = detprop->NumberTimeSamples() * ts->TPCClock().TickPeriod() * 1e3;
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
   
   //My histograms
   int NThetaXZBins=36;
@@ -360,7 +360,7 @@ void MuonTrackingEff::beginJob(){
 	   <<fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
 	   <<fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
 
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   //TH1D's
   gStyle->SetTitleOffset (1.3,"Y");
@@ -612,7 +612,7 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
     EventCounter++;
     simb::MCParticle *MCTruthMuonParticle = NULL;
  
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     const sim::ParticleList& plist = pi_serv->ParticleList();
     simb::MCParticle *particle=0;
 
@@ -861,7 +861,7 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 		        h_Criteria_NMuonTrack_num->Fill(Criteria,static_cast<double>(NMuonTracks));
 		
 			/*std::cout << "Track too long!" << std::endl;
-    			art::ServiceHandle<cheat::BackTracker> bt2;
+    			art::ServiceHandle<cheat::BackTracker const> bt2;
    			const sim::ParticleList& plist2 = bt2->ParticleList();
     			simb::MCParticle *particle2=0;
 
@@ -1005,8 +1005,8 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 void MuonTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> AllHits, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Purity, double &Completeness, double &TotalRecoEnergy){
 
     //std::cout<<"truthMatcher..."<<std::endl;
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     std::map<int,double> trkID_E;   //map that connects TrackID and energy for each hit <trackID, energy>
     for(size_t j = 0; j < track_hits.size(); ++j){			 //loop over all the hits in this track
        art::Ptr<recob::Hit> hit = track_hits[j];
@@ -1226,7 +1226,7 @@ void MuonTrackingEff::doEfficiencies(){
   std::cout << "BadEvents3MuonTrack: " << BadEvents3MuonTrack << std::endl;
   std::cout << "BadEvents4OrMoreMuonTrack: " << BadEvents4OrMoreMuonTrack << std::endl;
 
-   art::ServiceHandle<art::TFileService> tfs;
+   art::ServiceHandle<art::TFileService const> tfs;
 
    for(int i=0; i < (NCriteriaBins+1)/2; ++i)
    {

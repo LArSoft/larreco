@@ -220,7 +220,7 @@ DPRawHitFinder::DPRawHitFinder(fhicl::ParameterSet const& pset) :
         EDProducer{pset},
 	fNewHitsTag(
 	    pset.get<std::string>("module_label"), "",
-	    art::ServiceHandle<art::TriggerNamesService>()->getProcessName()),
+	    art::ServiceHandle<art::TriggerNamesService const>()->getProcessName()),
 	fHitParamWriter(this)
 {
     this->reconfigure(pset);
@@ -245,7 +245,7 @@ void DPRawHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
     if(input.size()==0)
         throw std::runtime_error("DPRawHitFinder::FillOutHitParameterVector ERROR! Input config vector has zero size.");
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const unsigned int N_PLANES = geom->Nplanes();
 
     if(input.size()==1)
@@ -302,7 +302,7 @@ void DPRawHitFinder::reconfigure(fhicl::ParameterSet const& p)
 void DPRawHitFinder::beginJob()
 {
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
    
     // ======================================
     // === Hit Information for Histograms ===
@@ -323,7 +323,7 @@ void DPRawHitFinder::produce(art::Event& evt)
   // ################################
   // ### Calling Geometry service ###
   // ################################
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   // ###############################################
   // ### Making a ptr vector to put on the event ###

@@ -203,7 +203,7 @@ void hit::HitAnaModule::analyze(art::Event const & e)
 
 void hit::HitAnaModule::beginJob()
 {
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
   wireDataTree = tfs->make<TTree>("wireDataTree","WireDataTree");
   analysisAlg.SetWireDataTree(wireDataTree);
 

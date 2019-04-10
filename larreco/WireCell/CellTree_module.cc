@@ -129,9 +129,9 @@ private:
   bool fSaveMC;
   bool fSaveTrigger;
   bool fSaveJSON;
-  art::ServiceHandle<geo::Geometry> fGeometry;       // pointer to Geometry service
+  art::ServiceHandle<geo::Geometry const> fGeometry;       // pointer to Geometry service
 
-  // art::ServiceHandle<geo::Geometry> fGeom;
+  // art::ServiceHandle<geo::Geometry const> fGeom;
   // // auto const* larp = lar::providerFrom<detinfo::LArPropertiesService>();
 
   TFile *fOutFile;
@@ -685,7 +685,7 @@ void CellTree::processMC( const art::Event& event )
     art::Handle< std::vector<sim::SimChannel> > simChannelHandle;
     event.getByLabel("largeant", simChannelHandle);
 
-    // art::ServiceHandle<cheat::BackTracker> bt;
+    // art::ServiceHandle<cheat::BackTracker const> bt;
     art::FindOneP<simb::MCTruth> fo(particleHandle, event, "largeant");
 
     int i=0; // track index in saved MCParticles;

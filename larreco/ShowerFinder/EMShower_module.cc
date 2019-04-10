@@ -75,7 +75,7 @@ private:
   bool fUseCNNtoIDEMHit;
   double fMinTrackLikeScore;
 
-  art::ServiceHandle<geo::Geometry> fGeom;
+  art::ServiceHandle<geo::Geometry const> fGeom;
   detinfo::DetectorProperties const* fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   int fShower;

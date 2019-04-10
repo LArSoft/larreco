@@ -296,7 +296,7 @@ recob::Track ems::EMShower3D::ConvertFrom2(pma::Track3D& src)
 
 void ems::EMShower3D::produce(art::Event & e)
 {
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 	fSeltracks.clear();
 	fInisegs.clear();
 	fClusters.clear();
@@ -704,7 +704,7 @@ void ems::EMShower3D::Link(art::Event const & e, std::vector< ems::DirOfGamma* >
 
 size_t ems::EMShower3D::LinkCandidates(art::Event const & e, std::vector< ems::DirOfGamma* > input, size_t id)
 {
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 
 	size_t index = id; bool found = false;
 

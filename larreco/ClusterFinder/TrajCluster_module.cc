@@ -186,7 +186,7 @@ namespace cluster {
   //----------------------------------------------------------------------------
   void TrajCluster::beginJob()
   {
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
 
     showertree = tfs->make<TTree>("showervarstree", "showerVarsTree");
     fTCAlg->DefineShTree(showertree);
@@ -345,7 +345,7 @@ namespace cluster {
         if(tca::tcc.matchTruth.size() > 4 && tca::tcc.matchTruth[4] > 0) requireSliceMCTruthMatch = true;
         // get the assns
         art::FindManyP<simb::MCParticle,anab::BackTrackerHitMatchingData> particles_per_hit(inputHits, evt, fHitTruthModuleLabel);
-        art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+        art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
         sim::ParticleList const& plist = pi_serv->ParticleList();
         for(sim::ParticleList::const_iterator ipart = plist.begin(); ipart != plist.end(); ++ipart) {
           auto& p = (*ipart).second;

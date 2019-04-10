@@ -71,9 +71,9 @@ namespace apa{
 
     // other classes we will use
     apa::APAGeometryAlg                           fAPAGeo;
-    art::ServiceHandle<geo::Geometry>             geom;
+    art::ServiceHandle<geo::Geometry const>             geom;
     const detinfo::DetectorProperties*           detprop;
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;                     ///< For *TEMPORARY* monitering of potential problems
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;                     ///< For *TEMPORARY* monitering of potential problems
 
     // Hits organization
     std::map< raw::ChannelID_t, std::vector< art::Ptr< recob::Hit > > > fChannelToHits; 

@@ -212,7 +212,7 @@ namespace trkf {
     if(!fBooked) {
       fBooked = true;
 
-      art::ServiceHandle<geo::Geometry> geom;
+      art::ServiceHandle<geo::Geometry const> geom;
       art::ServiceHandle<art::TFileService> tfs;
       art::TFileDirectory dir = tfs->mkdir("sptana", "SpacePointAna histograms");
 
@@ -320,7 +320,7 @@ namespace trkf {
 
     // Get Services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get Hits.
@@ -371,7 +371,7 @@ namespace trkf {
 
     if(mc && fUseMC) {
 
-      art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+      art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
       // Loop over hits and fill hit-electron time difference histogram.
 
@@ -648,7 +648,7 @@ namespace trkf {
 
       if(mc && fUseMC) {
 
-	art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+        art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
 	try {
 	  std::vector<double> mcxyz = bt_serv->SpacePointHitsToWeightedXYZ(spthits);

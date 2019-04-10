@@ -82,7 +82,7 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
   produces< art::Assns<recob::Slice, recob::Hit> >();
   produces< art::Assns<recob::Slice, recob::SpacePoint> >();
 
-  fGeom = &*(art::ServiceHandle<geo::Geometry>());
+  fGeom = &*(art::ServiceHandle<geo::Geometry const>());
   fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   tickToDist = fDetProp->DriftVelocity(fDetProp->Efield(),fDetProp->Temperature());

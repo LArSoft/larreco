@@ -231,9 +231,9 @@ private:
   std::vector<double>  fToler;
 
   // Services used by this class
-  art::ServiceHandle<geo::Geometry> fGeom;
+  art::ServiceHandle<geo::Geometry const> fGeom;
   detinfo::DetectorProperties const* fDetProp;
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   // Algs used by this class
   shower::ShowerEnergyAlg fShowerEnergyAlg;
@@ -246,7 +246,7 @@ private:
   // tmp
   int FindTrueParticle(const std::vector<art::Ptr<recob::Hit> >& showerHits);
   int FindParticleID(const art::Ptr<recob::Hit>& hit);
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
   TH1I* hTrueDirection;
   TProfile* hNumHitsInSegment, *hNumSegments;
   void MakePicture();

@@ -133,7 +133,7 @@ void PeakFitterGaussian::configure(const fhicl::ParameterSet& pset)
         art::ServiceHandle<art::TFileService> tfs;
 
         // Make a directory for these histograms
-        art::TFileDirectory dir = tfs.get()->mkdir("PeakFit");
+        art::TFileDirectory dir = tfs->mkdir("PeakFit");
 
         fNumCandHitsHist      = dir.make<TH1F>("NumCandHits",    "# Candidate Hits", 100,   0., 100.);
         fROISizeHist          = dir.make<TH1F>("ROISize",        "ROI Size",         400,   0., 400.);

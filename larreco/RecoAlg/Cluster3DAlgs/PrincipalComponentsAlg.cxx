@@ -45,10 +45,8 @@ PrincipalComponentsAlg::~PrincipalComponentsAlg()
     
 void PrincipalComponentsAlg::reconfigure(fhicl::ParameterSet const &pset)
 {
-    art::ServiceHandle<geo::Geometry>            geometry;
-    
     m_parallel = pset.get<float>("ParallelLines", 0.00001);
-    m_geometry = &*geometry;
+    m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 }
     

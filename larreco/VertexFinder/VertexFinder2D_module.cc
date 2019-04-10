@@ -117,7 +117,7 @@ namespace vertex{
   //-------------------------------------------------------------------------
   void VertexFinder2D::beginJob(){
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
     dtIC = tfs->make<TH1D>("dtIC","It0-Ct0",100,-5,5);
     dtIC->Sumw2();
   }
@@ -127,7 +127,7 @@ namespace vertex{
   {
 
     
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     // define TPC parameters
     TString tpcName = geom->GetLArTPCVolumeName();

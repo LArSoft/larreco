@@ -15,7 +15,7 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 pma::ProjectionMatchingAlg::ProjectionMatchingAlg(const pma::ProjectionMatchingAlg::Config& config) :
-    fGeom( &*(art::ServiceHandle<geo::Geometry>()) ),
+    fGeom( &*(art::ServiceHandle<geo::Geometry const>()) ),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
 	fOptimizationEps = config.OptimizationEps();
@@ -47,7 +47,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc(
 
 	unsigned int tpc, cryo;
 
-	auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
+	auto const & channelStatus = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
 	double step = 0.3;
 	// check how pixels with a high signal are distributed along the track
@@ -152,7 +152,7 @@ double pma::ProjectionMatchingAlg::validate_on_adc_test(const pma::Track3D& trk,
 		}
 	}
 
-	auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
+	auto const & channelStatus = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
 	double step = 0.3;
 	// then check how points-close-to-the-track-projection are distributed along the
@@ -273,7 +273,7 @@ double pma::ProjectionMatchingAlg::validate(const pma::Track3D& trk,
 		}
 	}
 
-	auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
+	auto const & channelStatus = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
 	double step = 0.3;
 	// then check how points-close-to-the-track-projection are distributed along the
@@ -352,7 +352,7 @@ double pma::ProjectionMatchingAlg::validate(
 	TVector3 dc(p1); dc -= p;
 	dc *= step / dc.Mag();
 
-	auto const & channelStatus = art::ServiceHandle< lariov::ChannelStatusService >()->GetProvider();
+	auto const & channelStatus = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
 	double f = pma::GetSegmentProjVector(p, p0, p1);
 	double wirepitch = fGeom->TPC(tpc, cryo).Plane(testPlane).WirePitch();

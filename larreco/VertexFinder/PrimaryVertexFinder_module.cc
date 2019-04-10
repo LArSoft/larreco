@@ -120,7 +120,7 @@ namespace vertex{
   //-------------------------------------------------------------------------
   void PrimaryVertexFinder::beginJob(){
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
     
     //    fNoVertices= tfs->make<TH2F>("fNoVertices", ";Event No; No of vertices", 100,0, 100, 30, 0, 30);
      fNoTracks= tfs->make<TH2F>("fNoTracks", ";Event No; No of Tracks", 10,0, 10, 10, 0, 10);
@@ -144,7 +144,7 @@ namespace vertex{
     mf::LogInfo("PrimaryVertexFinder") << "event  : " << evt.id().event();
     
     
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     
     //mf::LogInfo("PrimaryVertexFinder") << "I am in Primary vertex finder " << std::endl;
         

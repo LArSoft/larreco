@@ -309,7 +309,7 @@ void cluster::DBScanAlg::InitScan(const std::vector< art::Ptr<recob::Hit> >& all
   ///get 2 first wires and find their spacing (wire_dist)
 
   const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   for(size_t p = 0; p < geom->Nplanes(); ++p)
     fWirePitch.push_back(geom->WirePitch(p));

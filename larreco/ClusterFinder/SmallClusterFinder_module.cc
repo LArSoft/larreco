@@ -70,7 +70,7 @@ namespace cluster {
    
   private:
     
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     
     //input parameters
     std::string fHitFinderModuleLabel; 

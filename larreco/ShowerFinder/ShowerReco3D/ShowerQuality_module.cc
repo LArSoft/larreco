@@ -219,8 +219,8 @@ void ShowerQuality::beginJob()
     throw ::showerreco::ShowerRecoException(msg.c_str());
   }
 
-  art::ServiceHandle<geo::Geometry> geo;
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<geo::Geometry const> geo;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   if(fTree) delete fTree;
   fTree = tfs->make<TTree>("fShowerQualityTree","");

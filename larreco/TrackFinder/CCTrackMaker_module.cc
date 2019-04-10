@@ -72,7 +72,7 @@ namespace trkf {
     std::string     fVertexModuleLabel;
     
     // services
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* detprop;
     
     TrackTrajectoryAlg fTrackTrajectoryAlg;
@@ -3410,7 +3410,7 @@ namespace trkf {
     
     // get the service to learn about channel status
     //lariov::ChannelStatusProvider const& channelStatus
-    //  = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+    //  = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
     
     // now we can define the WireHitRange vector.
     int sflag, nwires, wire;

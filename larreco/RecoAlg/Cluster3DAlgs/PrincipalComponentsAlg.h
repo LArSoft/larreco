@@ -89,7 +89,7 @@ private:
     
     float                                 m_parallel;  ///< means lines are parallel
     
-    geo::Geometry*                        m_geometry;  // pointer to the Geometry service
+    const geo::Geometry*                  m_geometry;  // pointer to the Geometry service
     const detinfo::DetectorProperties*    m_detector;  // Pointer to the detector properties
 };
 

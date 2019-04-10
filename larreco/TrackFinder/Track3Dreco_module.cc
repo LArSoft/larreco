@@ -94,7 +94,7 @@ void Track3Dreco::reconfigure(fhicl::ParameterSet const& pset)
 void Track3Dreco::produce(art::Event& evt)
 { 
    // get services
-   art::ServiceHandle<geo::Geometry> geom;
+   art::ServiceHandle<geo::Geometry const> geom;
    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
    std::unique_ptr<std::vector<recob::Track>                    > tcol(new std::vector<recob::Track>);

@@ -148,7 +148,7 @@ namespace cluster {
   
   
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
     ftree= tfs->make<TTree>("HoughTree","HoughTree");
     fm_hitidZ = new int[fm_sizeHitZ];
     fm_mipZ = new float[fm_sizeHitZ];
@@ -213,7 +213,7 @@ namespace cluster {
     fm_sizeClusterZ=0;
     fm_sizeHitZ=0;
     fm_dbsize=0;  
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
 
     for(auto view : geo->Views()){
 

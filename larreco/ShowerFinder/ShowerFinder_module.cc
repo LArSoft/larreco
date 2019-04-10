@@ -144,7 +144,7 @@ namespace shwf{
 
     std::vector< art::Ptr<recob::Hit> > clusterhits; //hits in the cluster
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     
     //This vector will contain all strong and strongest vertices
     art::PtrVector<recob::EndPoint2D> vertSel;

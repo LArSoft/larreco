@@ -17,9 +17,6 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/PrincipalComponentsAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 
 // Root includes
 #include "TH1F.h"
@@ -124,8 +121,6 @@ private:
     TH1F*                                f1stTo2ndPosLenRatHist;  ///< Ratio of distance between centers and first proj eigen
     TH1F*                                fGapRatHist;             ///< Ratio of gap and next proj eigen
 
-    geo::Geometry*                       fGeometry;               //< pointer to the Geometry service
-    
     PrincipalComponentsAlg               fPCAAlg;                 // For running Principal Components Analysis
 };
 
@@ -149,10 +144,6 @@ void ClusterMergeAlg::configure(fhicl::ParameterSet const &pset)
     fMinTransEigenVal     = pset.get<float>("MinTransEigenVal",     0.09  );
     fMinEigenToProcess    = pset.get<float>("MinEigenToProcess",    2.0   );
     fOutputHistograms     = pset.get<bool> ("OutputHistograms",     false );
-    
-    art::ServiceHandle<geo::Geometry> geometry;
-    
-    fGeometry = &*geometry;
     
     fTimeToProcess = 0.;
 

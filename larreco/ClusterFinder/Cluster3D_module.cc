@@ -52,7 +52,6 @@
 #include "cetlib/cpu_timer.h"
 
 // LArSoft includes
-#include "larcore/Geometry/Geometry.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "nusimdata/SimulationBase/MCTruth.h"
@@ -66,9 +65,6 @@
 #include "lardataobj/RecoBase/PCAxis.h"
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Seed.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 #include "larreco/RecoAlg/Cluster3DAlgs/HoughSeedFinderAlg.h"
@@ -423,7 +419,6 @@ private:
     /** 
      *   Other useful variables
      */
-    geo::Geometry*                                            m_geometry;              ///<  pointer to the Geometry service
     const detinfo::DetectorProperties*                        m_detector;              ///<  Pointer to the detector properties
 
     // Algorithms
@@ -522,9 +517,6 @@ void Cluster3D::beginJob()
     if (m_enableMonitoring)
         this->InitializeMonitoring();
     
-    art::ServiceHandle<geo::Geometry> geometry;
-    
-    m_geometry = &*geometry;
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 }
 

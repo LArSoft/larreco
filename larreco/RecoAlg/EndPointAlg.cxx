@@ -140,7 +140,7 @@ size_t cluster::EndPointAlg::EndPoint(const art::PtrVector<recob::Cluster>      
 				      std::string                               const& label)
 {
 
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
      
   //Point to a collection of vertices to output.

@@ -120,7 +120,7 @@ namespace  trkf{
         
         // Get services.
         
-        art::ServiceHandle<geo::Geometry> geom;
+        art::ServiceHandle<geo::Geometry const> geom;
         const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
         
         // Calculate and print geometry information.
@@ -218,7 +218,7 @@ namespace  trkf{
     {
         // Get services.
         
-        art::ServiceHandle<geo::Geometry> geom;
+        art::ServiceHandle<geo::Geometry const> geom;
         const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
         
         // Correct time for trigger offset and plane-dependent time offsets.
@@ -240,7 +240,7 @@ namespace  trkf{
     {
         // Get geometry service.
         
-        art::ServiceHandle<geo::Geometry> geom;
+        art::ServiceHandle<geo::Geometry const> geom;
         
         // Trivial case - fewer than three hits.
         
@@ -324,7 +324,7 @@ namespace  trkf{
     {
         // Get services.
         
-        art::ServiceHandle<geo::Geometry> geom;
+        art::ServiceHandle<geo::Geometry const> geom;
         const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
         
         int nhits = hits.size();
@@ -476,7 +476,7 @@ namespace  trkf{
     {
         // Get services.
         
-        art::ServiceHandle<geo::Geometry> geom;
+        art::ServiceHandle<geo::Geometry const> geom;
         const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
         
         double timePitch=detprop->GetXTicksCoefficient();
@@ -686,7 +686,7 @@ namespace  trkf{
     {
         // Get services.
         
-        art::ServiceHandle<geo::Geometry> geom;
+        art::ServiceHandle<geo::Geometry const> geom;
         const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
         
         // Calculate time pitch.
@@ -883,7 +883,7 @@ namespace  trkf{
     {
         // Get services.
         
-        art::ServiceHandle<geo::Geometry> geom;
+        art::ServiceHandle<geo::Geometry const> geom;
         const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
         
         // Clear space point to hit map.
@@ -939,7 +939,7 @@ namespace  trkf{
         ///\todo Why are we still checking on whether this is MC or not?
         ///\todo Such checks should not be in reconstruction code.
         if(useMC) {
-            art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+            art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
             
             // First loop over hits and fill track ids and mc position.
             for(unsigned int cstat = 0; cstat < ncstat; ++cstat){

@@ -21,9 +21,6 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/IClusterAlg.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "lardataobj/RecoBase/Hit.h"
-#include "larcore/Geometry/Geometry.h"
-#include "larcorealg/Geometry/PlaneGeo.h"
-#include "larcorealg/Geometry/WireGeo.h"
 
 // boost includes
 #include <boost/range/adaptor/reversed.hpp>
@@ -166,8 +163,6 @@ private:
     /**
      *  @brief Tools
      */
-    geo::Geometry*                              fGeometry;              //< pointer to the Geometry service
-    
     std::unique_ptr<lar_cluster3d::IClusterAlg> fClusterAlg;            ///<  Algorithm to do 3D space point clustering
     PrincipalComponentsAlg                      fPCAAlg;                // For running Principal Components Analysis
 };
@@ -192,10 +187,6 @@ void VoronoiPathFinder::configure(fhicl::ParameterSet const &pset)
     fMinTinyClusterSize = pset.get<size_t>("MinTinyClusterSize",40);
     fClusterAlg         = art::make_tool<lar_cluster3d::IClusterAlg>(pset.get<fhicl::ParameterSet>("ClusterAlg"));
 
-    art::ServiceHandle<geo::Geometry> geometry;
-    
-    fGeometry = &*geometry;
-    
     fTimeToProcess = 0.;
     
     return;

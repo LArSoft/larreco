@@ -40,7 +40,7 @@
 
 genf::GFKalman::GFKalman():fInitialDirection(1),fNumIt(3),fBlowUpFactor(50.),fMomLow(-100.0),fMomHigh(100.0),fMaxUpdate(1.0),fErrScaleSTh(1.0),fErrScaleMTh(1.0), fGENfPRINT(false)
 {
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 }
 
 genf::GFKalman::~GFKalman(){;}

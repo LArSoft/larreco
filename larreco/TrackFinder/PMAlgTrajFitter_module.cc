@@ -117,7 +117,7 @@ private:
   static const std::string kNodesName;        // pma nodes
 
   // *********************** geometry **************************
-  art::ServiceHandle< geo::Geometry > fGeom;
+  art::ServiceHandle<geo::Geometry const> fGeom;
 };
 // -------------------------------------------------------------
 const std::string PMAlgTrajFitter::kKinksName = "kink";

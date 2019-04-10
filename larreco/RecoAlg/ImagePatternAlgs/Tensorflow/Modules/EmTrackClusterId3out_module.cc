@@ -125,7 +125,7 @@ EmTrackClusterId::EmTrackClusterId(EmTrackClusterId::Parameters const& config) :
 
 	fNewClustersTag(
 	    config.get_PSet().get<std::string>("module_label"), "",
-	    art::ServiceHandle<art::TriggerNamesService>()->getProcessName())
+	    art::ServiceHandle<art::TriggerNamesService const>()->getProcessName())
 {
     fMVAWriter.produces_using< recob::Hit >();
 

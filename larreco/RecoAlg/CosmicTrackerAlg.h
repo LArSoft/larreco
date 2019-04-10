@@ -70,7 +70,7 @@ namespace trkf
     std::vector<std::vector<std::vector<std::vector<unsigned int>>>> vtraj;
 
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::LArProperties* larprop;
     const detinfo::DetectorProperties* detprop;
 

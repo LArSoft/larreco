@@ -142,11 +142,11 @@ void calo::Calorimetry::produce(art::Event& evt)
     art::fill_ptr_vector(tracklist, trackListHandle);
   
   // Get Geometry
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   
   // channel quality
   lariov::ChannelStatusProvider const& channelStatus
-    = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+    = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
   size_t nplanes = geom->Nplanes();
 
@@ -631,7 +631,7 @@ void calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit, std::vector<double> t
   //std::cout << "Start of get pitch" << std::endl;
 
   // Get services
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   auto const* dp = lar::providerFrom<detinfo::DetectorPropertiesService>();
   auto const* sce = lar::providerFrom<spacecharge::SpaceChargeService>();
   

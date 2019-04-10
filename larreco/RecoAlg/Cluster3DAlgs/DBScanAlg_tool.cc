@@ -119,7 +119,7 @@ void DBScanAlg::configure(fhicl::ParameterSet const &pset)
     fhicl::ParameterSet kdTreeParams(pset.get<fhicl::ParameterSet>("kdTree"));
     
     // Now work out the maximum wire pitch
-    art::ServiceHandle<geo::Geometry> geometry;
+    art::ServiceHandle<geo::Geometry const> geometry;
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs
     std::vector<float> wirePitchVec(3,0.);

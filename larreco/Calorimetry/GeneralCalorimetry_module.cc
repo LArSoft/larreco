@@ -59,7 +59,7 @@ namespace calo {
       double         fADCToElectrons;   ///< filled using the detinfo::DetectorPropertiesService service
       geo::View_t    fCollectionView;   ///< view of the collection plane
       unsigned int   fCollectionPlane;  ///< plane of the collection plane
-      art::ServiceHandle<geo::Geometry> fGeo;
+      art::ServiceHandle<geo::Geometry const> fGeo;
 
       CalorimetryAlg caloAlg;
 

@@ -55,7 +55,7 @@ namespace shower {
     dEdxErr.resize(2);   
 
     auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     std::vector<pfpStuff> allpfps;
 
@@ -390,7 +390,7 @@ namespace shower {
   int TCShowerAlg::goodHit(art::Ptr<recob::Hit> hit, double maxDist, double minDistVert, std::map<geo::PlaneID, double> trk_wire1, std::map<geo::PlaneID, double> trk_tick1, std::map<geo::PlaneID, double> trk_wire2, std::map<geo::PlaneID, double> trk_tick2, int& pull){
 
     auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     double wirePitch = geom->WirePitch(hit->WireID());
     double tickToDist = detprop->DriftVelocity(detprop->Efield(),detprop->Temperature());

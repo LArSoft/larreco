@@ -154,8 +154,8 @@ SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset) :
 // ---------------------------------------------------------------------------
 void SpacePointSolver::beginJob()
 {
-  detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
-  geom = art::ServiceHandle<geo::Geometry>()->provider();
+  detprop = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
+  geom = art::ServiceHandle<geo::Geometry const>()->provider();
 }
 
 // ---------------------------------------------------------------------------
@@ -465,14 +465,14 @@ void SpacePointSolver::produce(art::Event& evt)
     return;
   }
 
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   std::vector<art::Ptr<recob::Hit>> xhits, uhits, vhits;
   bool is2view = fHitReader->readHits(hitlist, xhits, uhits, vhits);
 
   std::vector<raw::ChannelID_t> xbadchans, ubadchans, vbadchans;
   if(fAllowBadInductionHit || fAllowBadCollectionHit){
-    for(raw::ChannelID_t cid: art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider().BadChannels()){
+    for(raw::ChannelID_t cid: art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider().BadChannels()){
       if(geom->SignalType(cid) == geo::kCollection){
         if(fAllowBadCollectionHit && geom->View(cid) == geo::kZ){
           xbadchans.push_back(cid);

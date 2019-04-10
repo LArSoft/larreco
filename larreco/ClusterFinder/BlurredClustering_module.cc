@@ -100,7 +100,7 @@ void cluster::BlurredClustering::produce(art::Event &evt)
   ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
 
   // Create geometry handle
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   // Get the hits from the event
   art::Handle<std::vector<recob::Hit>> hitCollection;

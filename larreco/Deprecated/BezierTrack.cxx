@@ -135,7 +135,7 @@ namespace trkf {
         unsigned int p;
         unsigned int pTop;
 
-        art::ServiceHandle<geo::Geometry> geom;
+        art::ServiceHandle<geo::Geometry const> geom;
 
         pTop=geom->Cryostat(c).TPC(t).Nplanes();
         for(p=0; p!=pTop; ++p)
@@ -184,7 +184,7 @@ namespace trkf {
   {
 
     
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     std::vector<float>  dEdx;
     std::vector<float>  dQdx;
@@ -243,7 +243,7 @@ namespace trkf {
   {
 
    
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     std::vector<float>  dEdx;
     std::vector<float>  dQdx;
@@ -327,7 +327,7 @@ namespace trkf {
   //----------------------------------------------------------------------
   void BezierTrack::FillTrajectoryVectors()
   {
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     int NPlanes = geom->Nplanes();
     fdQdx.resize(NPlanes) ;
     double Pt[3], Dir[3], ErrPt[3], ErrDir[3];
@@ -463,7 +463,7 @@ namespace trkf {
   void BezierTrack::GetProjectedPointUVWX(double s, double *uvw, double*x, int t=0, int c=0) const
   {
 
-    art::ServiceHandle<geo::Geometry>   geo;
+    art::ServiceHandle<geo::Geometry const>   geo;
 
     double  xyz[3];
 
@@ -491,8 +491,8 @@ namespace trkf {
 
   void BezierTrack::GetProjectedPointUVWT(double s, double *uvw, double*ticks, int t=0, int c=0) const
   {
-    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
-    art::ServiceHandle<geo::Geometry>            geo;
+    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
+    art::ServiceHandle<geo::Geometry const>            geo;
 
     double  xyz[3];
 
@@ -519,8 +519,8 @@ namespace trkf {
   void BezierTrack::GetClosestApproaches( art::PtrVector<recob::Hit> const & hits ,     std::vector<double>& s,  std::vector<double>& Distances) const
   {
 
-    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
-    art::ServiceHandle<geo::Geometry>            geo;
+    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
+    art::ServiceHandle<geo::Geometry const>            geo;
 
     s.clear();
     Distances.clear();
@@ -601,9 +601,9 @@ namespace trkf {
 
   void BezierTrack::GetClosestApproach( recob::Hit const & hit,       double& s,  double& Distance) const
   {
-    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
+    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
     
-    art::ServiceHandle<geo::Geometry>            geo;
+    art::ServiceHandle<geo::Geometry const>            geo;
 
     //unsigned int c1, t1, p1, w1;
 
@@ -649,8 +649,8 @@ namespace trkf {
 
   void BezierTrack::GetClosestApproach( art::Ptr<recob::Hit> const& hit,       double& s,  double& Distance) const
   {
-    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
-    art::ServiceHandle<geo::Geometry>            geo;
+    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
+    art::ServiceHandle<geo::Geometry const>            geo;
 
     //unsigned int c1, t1, p1, w1;
 
@@ -695,8 +695,8 @@ namespace trkf {
 
   void BezierTrack::GetClosestApproach( uint32_t w, int p, int t, int c, float x, double& s,  double& Distance) const
   {
-    //    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
-    art::ServiceHandle<geo::Geometry>            geo;
+    //    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
+    art::ServiceHandle<geo::Geometry const>            geo;
     
     
     double xyzend1[3], xyzend2[3];
@@ -763,8 +763,8 @@ namespace trkf {
 
   void BezierTrack::GetClosestApproach( TVector3 vec,          double& s,  double& Distance) const
   {
-    //    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
-    art::ServiceHandle<geo::Geometry>            geo;
+    //    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
+    art::ServiceHandle<geo::Geometry const>            geo;
 
     double iS, xyz[3], MinDistanceToPoint=10000, MinS=0;
 

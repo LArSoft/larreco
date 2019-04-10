@@ -90,7 +90,7 @@ namespace cluster{
   // Set up analysis tree
   void ClusterPCA::beginJob()
   {
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
     fTree = tfs->make<TTree>("PCATree","PCATree");
     fTree->Branch("View",      &fView,      "View/I");
     fTree->Branch("PrincDirW", &fPrincDirW, "PrincDirW/F");

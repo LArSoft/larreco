@@ -248,13 +248,13 @@ private:
     
     mutable bool                         m_weHaveAllBeenHereBefore = false;
     
-    geo::Geometry*                       m_geometry;              //< pointer to the Geometry service
+    const geo::Geometry*                 m_geometry;              //< pointer to the Geometry service
     const detinfo::DetectorProperties*   m_detector;              //< Pointer to the detector properties
     const lariov::ChannelStatusProvider* m_channelFilter;
 };
 
 StandardHit3DBuilder::StandardHit3DBuilder(fhicl::ParameterSet const &pset) :
-    m_channelFilter(&art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider())
+    m_channelFilter(&art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider())
 
 {
     this->configure(pset);
@@ -292,9 +292,7 @@ void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
     m_maxHit3DChiSquare = pset.get<float           >("MaxHitChiSquare",     6.0 );
     m_outputHistograms  = pset.get<bool            >("OutputHistograms",    false );
 
-    art::ServiceHandle<geo::Geometry> geometry;
-    
-    m_geometry = &*geometry;
+    m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Returns the wire pitch per plane assuming they will be the same for all TPCs

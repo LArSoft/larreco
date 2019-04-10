@@ -137,7 +137,7 @@ namespace hit{
   void HitFinderAna::beginJob() 
   {
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
     fNp0 = 9000;
     fNp1 = 9000;
     fNp2 = 9000;
@@ -212,14 +212,14 @@ namespace hit{
     art::Handle< std::vector<recob::Hit> > hitHandle;
     evt.getByLabel(fFFTHitFinderModuleLabel,hitHandle);
 
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
 
     sim::ParticleList const& _particleList = pi_serv->ParticleList();
 
     MF_LOG_VERBATIM("HitFinderAna") << _particleList;
 
-    art::ServiceHandle<geo::Geometry> geom;  
+    art::ServiceHandle<geo::Geometry const> geom;  
 
     std::map<geo::PlaneID, std::vector< art::Ptr<recob::Hit> > > planeIDToHits;
     for(size_t h = 0; h < hitHandle->size(); ++h)

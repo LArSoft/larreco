@@ -30,7 +30,7 @@ namespace btutil {
     size_t num_mcobj = fBTAlgo.NumParts();
     size_t num_cluster = cluster_v.size();
     //auto geo = ::larutil::Geometry::GetME();
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
 
     //
     // Perform back-tracking

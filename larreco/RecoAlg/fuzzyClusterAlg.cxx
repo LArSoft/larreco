@@ -169,7 +169,7 @@ void cluster::fuzzyClusterAlg::InitFuzzy(std::vector<art::Ptr<recob::Hit> >& all
   fBadWireSum.clear();
 
   const detinfo::DetectorProperties* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
 
   unsigned int cs=allhits[0]->WireID().Cryostat;
@@ -228,7 +228,7 @@ void cluster::fuzzyClusterAlg::run_fuzzy_cluster(const std::vector<art::Ptr<reco
   fnoise.resize(fps.size(), false);
   fvisited.resize(fps.size(), false);
 
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 

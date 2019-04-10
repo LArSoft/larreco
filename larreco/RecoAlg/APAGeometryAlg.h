@@ -92,7 +92,7 @@ namespace apa{
 
   private:
 
-    art::ServiceHandle<geo::Geometry> fGeom;           // handle to geometry service
+    art::ServiceHandle<geo::Geometry const> fGeom;           // handle to geometry service
 
     unsigned int fChannelsPerAPA;                      ///< All APAs have this same number of channels
     unsigned int fAPAsPerCryo;

@@ -911,7 +911,7 @@ bool nnet::TrainingDataAlg::setEventData(const art::Event& event,
         return true;
     }
 
-	art::ServiceHandle<sim::LArG4Parameters> larParameters;
+	art::ServiceHandle<sim::LArG4Parameters const> larParameters;
 	double electronsToGeV = 1. / larParameters->GeVToElectrons();
 
 	auto particleHandle = event.getValidHandle< std::vector<simb::MCParticle> >(fSimulationProducerLabel);

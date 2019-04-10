@@ -66,7 +66,7 @@ namespace hit{
   
   void RFFHitFinder::produce(art::Event & e)
   {
-    art::ServiceHandle<geo::Geometry> geoHandle;
+    art::ServiceHandle<geo::Geometry const> geoHandle;
 
     art::Handle< std::vector<recob::Wire> > wireHandle;
     e.getByLabel(fWireModuleLabel,wireHandle);
@@ -83,7 +83,7 @@ namespace hit{
   
   void RFFHitFinder::beginJob()
   {
-    art::ServiceHandle<geo::Geometry> geoHandle;
+    art::ServiceHandle<geo::Geometry const> geoHandle;
     geo::Geometry const& geo(*geoHandle);
     fAlg.SetFitterParamsVectors(geo);
   }

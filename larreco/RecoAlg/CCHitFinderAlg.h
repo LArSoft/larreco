@@ -125,7 +125,7 @@ namespace hit {
 
 //    bool prt;
     
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     // fit n Gaussians possibly with bounds setting (parmin, parmax)
     void FitNG(unsigned short nGaus, unsigned short npt, float *ticks,

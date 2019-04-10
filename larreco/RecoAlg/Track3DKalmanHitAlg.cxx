@@ -492,7 +492,7 @@ recob::Seed trkf::Track3DKalmanHitAlg::makeSeed(const Hits& hits) const
    
    // Get Services.
    
-   art::ServiceHandle<geo::Geometry> geom;
+   art::ServiceHandle<geo::Geometry const> geom;
    const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
    
    // Do a linear 3D least squares for of y and z vs. x.

@@ -187,7 +187,7 @@ void shower::TCShowerTemplateMaker::reconfigure(fhicl::ParameterSet const& pset)
 
 void shower::TCShowerTemplateMaker::beginJob() {
 
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   //  fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
 
@@ -322,7 +322,7 @@ void shower::TCShowerTemplateMaker::analyze(const art::Event& evt) {
 void shower::TCShowerTemplateMaker::showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir, double elep) {
 
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   auto collectionPlane = geo::PlaneID(0, 0, 1);
 
@@ -417,10 +417,10 @@ void shower::TCShowerTemplateMaker::showerProfile(std::vector< art::Ptr<recob::H
 void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits, double elep) {
 
   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   auto collectionPlane = geo::PlaneID(0, 0, 1);
-  art::ServiceHandle<cheat::BackTrackerService> btserv;
-  art::ServiceHandle<cheat::ParticleInventoryService> piserv;
+  art::ServiceHandle<cheat::BackTrackerService const> btserv;
+  art::ServiceHandle<cheat::ParticleInventoryService const> piserv;
   std::map<int,double> trkID_E;  
 
   TH1F* ltemp = new TH1F("ltemp", "ltemp", LBINS, LMIN, LMAX);
@@ -547,8 +547,8 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<reco
 // -------------------------------------------------
 
 void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan, simb::MCParticle electron) {
-  art::ServiceHandle<cheat::ParticleInventoryService> piserv;
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<cheat::ParticleInventoryService const> piserv;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   std::vector<sim::MCEnDep> alledep;
 

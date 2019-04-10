@@ -219,7 +219,7 @@ namespace vertex{
     produces< art::Assns<recob::Vertex, recob::Shower> >();
     produces< art::Assns<recob::Vertex, recob::Track> >();
     
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     Cls.resize(geom->Nplanes(),std::vector<int>());
   }
 
@@ -241,7 +241,7 @@ void FeatureVertexFinder::produce(art::Event& evt)
    // #########################
    // ### Geometry Services ###
    // #########################
-   art::ServiceHandle<geo::Geometry> geom;
+   art::ServiceHandle<geo::Geometry const> geom;
     
    // ####################################
    // ### Detector Properties Services ###
@@ -643,7 +643,7 @@ void vertex::FeatureVertexFinder::Get3dVertexCandidates(std::vector< art::Ptr<re
    // #########################
    // ### Geometry Services ###
    // #########################
-   art::ServiceHandle<geo::Geometry> geom;
+   art::ServiceHandle<geo::Geometry const> geom;
    
    // ####################################
    // ### Detector Properties Services ###
@@ -788,7 +788,7 @@ void vertex::FeatureVertexFinder::Find2dClusterVertexCandidates(art::PtrVector<r
    // #########################
    // ### Geometry Services ###
    // #########################
-   art::ServiceHandle<geo::Geometry> geom;
+   art::ServiceHandle<geo::Geometry const> geom;
    
    // ####################################
    // ### Detector Properties Services ###
@@ -1139,7 +1139,7 @@ void vertex::FeatureVertexFinder::Find3dVtxFrom2dClusterVtxCand(std::vector<doub
    // #########################
    // ### Geometry Services ###
    // #########################
-   art::ServiceHandle<geo::Geometry> geom;
+   art::ServiceHandle<geo::Geometry const> geom;
    
    // ####################################
    // ### Detector Properties Services ###

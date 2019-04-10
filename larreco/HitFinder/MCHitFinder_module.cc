@@ -57,7 +57,7 @@ namespace hit {
   void MCHitFinder::produce(art::Event & e)
   {
     
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     
     const unsigned int nch = geo->Nchannels();
     

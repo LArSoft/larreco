@@ -470,7 +470,7 @@ namespace tca {
    
    std::string fcnLabel = "SSP";
    // Create a truth shower for each primary electron
-   art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+   art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
    MCParticleListUtils mcpu{slc};
    for(unsigned int part = 0; part < slc.mcpList.size(); ++part) {
    auto& mcp = slc.mcpList[part];

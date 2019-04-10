@@ -52,7 +52,7 @@ namespace calo {
       void produce(art::Event& evt) override;
         
       std::string    fBTrackModuleLabel; ///< module creating the track objects and assns to hits
-      art::ServiceHandle<geo::Geometry> fGeo;
+      art::ServiceHandle<geo::Geometry const> fGeo;
 
       CalorimetryAlg caloAlg;
 

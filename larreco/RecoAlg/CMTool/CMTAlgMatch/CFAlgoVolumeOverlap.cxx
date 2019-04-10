@@ -26,7 +26,7 @@ namespace cmtool {
   //----------------------------------------------------------------------------------------------
   {
 
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
 
     // Code-block by Kazu starts
     // This ensures the algorithm works only if # clusters is > 2 (and not =2)

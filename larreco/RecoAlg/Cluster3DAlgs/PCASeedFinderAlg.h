@@ -69,7 +69,7 @@ private:
     
     void LineFit2DHits(const reco::HitPairListPtr& hitList, double XOrigin, TVector3& Pos, TVector3& Dir, double& ChiDOF) const;
 
-    geo::Geometry*                         m_geometry;         // pointer to the Geometry service
+    geo::Geometry const*                   m_geometry;         // pointer to the Geometry service
     //    const detinfo::DetectorProperties*    m_detector;         // Pointer to the detector properties
 
     double                                 m_gapDistance;      ///<

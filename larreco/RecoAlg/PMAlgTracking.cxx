@@ -333,7 +333,7 @@ pma::PMAlgTracker::PMAlgTracker(const std::vector< art::Ptr<recob::Hit> > & allh
 
 	fAdcInPassingPoints(hpassing), fAdcInRejectedPoints(hrejected),
 
-    fGeom(&*(art::ServiceHandle<geo::Geometry>())),
+    fGeom(&*(art::ServiceHandle<geo::Geometry const>())),
 	fDetProp(lar::providerFrom<detinfo::DetectorPropertiesService>())
 {
     for (const auto v : fGeom->Views()) { fAvailableViews.push_back(v); }

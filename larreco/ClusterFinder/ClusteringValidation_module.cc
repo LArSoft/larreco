@@ -109,9 +109,9 @@ private:
   std::map<TrackID,std::map<std::string,double> > particleProperties;
   std::map<TrackID,simb::MCParticle>              trueParticles;
 
-  art::ServiceHandle<geo::Geometry> geometry;
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+  art::ServiceHandle<geo::Geometry const> geometry;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+  art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
 
 };
 
@@ -204,9 +204,9 @@ private:
   std::map<TrackID,const simb::MCParticle*>                                       trueParticles;
 
   // Services
-  art::ServiceHandle<geo::Geometry> geometry;
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+  art::ServiceHandle<geo::Geometry const> geometry;
+  art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
 };
 

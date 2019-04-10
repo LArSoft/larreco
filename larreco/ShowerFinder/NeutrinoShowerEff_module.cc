@@ -258,7 +258,7 @@ namespace DUNE{
     float fFidVolZmin;
     float fFidVolZmax;
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
 
 
@@ -341,7 +341,7 @@ namespace DUNE{
              <<fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
              <<fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
 
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
 
 
     double E_bins[21] ={0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4,4.5,5.0,5.5,6.0,7.0,8.0,10.0,12.0,14.0,17.0,20.0,25.0};
@@ -671,7 +671,7 @@ namespace DUNE{
 
     //!save lepton 
     simb::MCParticle *MClepton = NULL; 
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     const sim::ParticleList& plist = pi_serv->ParticleList();
     simb::MCParticle *particle=0;
 
@@ -1150,8 +1150,8 @@ namespace DUNE{
     Efrac=1.0;
     Ecomplet=0;
     
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     std::map<int,double> trkID_E;
     for(size_t j = 0; j < shower_hits.size(); ++j){
       art::Ptr<recob::Hit> hit = shower_hits[j];
@@ -1231,7 +1231,7 @@ namespace DUNE{
   //========================================================================
   void NeutrinoShowerEff::doEfficiencies(){
 
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
 
     if(TEfficiency::CheckConsistency(*h_Ev_num,*h_Ev_den)){
       h_Eff_Ev = tfs->make<TEfficiency>(*h_Ev_num,*h_Ev_den);
@@ -1282,8 +1282,8 @@ namespace DUNE{
   template <size_t N> void NeutrinoShowerEff::checkCNNtrkshw(const art::Event& evt, std::vector<art::Ptr<recob::Hit>>all_hits){
     if (fCNNEMModuleLabel=="") return;
 
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     //auto const* geo = lar::providerFrom<geo::Geometry>();
 
     auto hitResults = anab::MVAReader<recob::Hit, N>::create(evt, fCNNEMModuleLabel);

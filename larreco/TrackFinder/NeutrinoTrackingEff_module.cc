@@ -188,7 +188,7 @@ private:
     detinfo::DetectorClocks const *ts = lar::providerFrom<detinfo::DetectorClocksService>();
     double XDriftVelocity = detprop->DriftVelocity()*1e-3; //cm/ns
     double WindowSize     = detprop->NumberTimeSamples() * ts->TPCClock().TickPeriod() * 1e3;
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
  }; // class NeutrinoTrackingEff
 
@@ -261,7 +261,7 @@ void NeutrinoTrackingEff::beginJob(){
 	   <<fFidVolYmin<<"\t< y <\t"<<fFidVolYmax<<"\n"
 	   <<fFidVolZmin<<"\t< z <\t"<<fFidVolZmax<<"\n";
 
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   double E_bins[21] ={0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4,4.5,5.0,5.5,6.0,7.0,8.0,10.0,12.0,14.0,17.0,20.0,25.0};
   double theta_bin[44]= { 0.,1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.,14.,15.,16.,17.,18.,19.,20.,22.,24.,26.,28.,30.,32.,34.,36.,38.,40.,42.,44.,46.,48.,50.,55.,60.,65.,70.,75.,80.,85.,90.};
@@ -424,7 +424,7 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
     simb::MCParticle *MCkaon = NULL;
     simb::MCParticle *MCmichel = NULL;
  
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     const sim::ParticleList& plist = pi_serv->ParticleList();
     simb::MCParticle *particle=0;
     int i=0; // particle index
@@ -811,8 +811,8 @@ void NeutrinoTrackingEff::processEff( const art::Event& event, bool &isFiducial)
 void NeutrinoTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> all_hits, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet){
 
     //std::cout<<"truthMatcher..."<<std::endl;
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     std::map<int,double> trkID_E;
     for(size_t j = 0; j < track_hits.size(); ++j){
        art::Ptr<recob::Hit> hit = track_hits[j];
@@ -914,7 +914,7 @@ bool NeutrinoTrackingEff::insideFV( double vertex[4]){
 //========================================================================
 void NeutrinoTrackingEff::doEfficiencies(){
 
-   art::ServiceHandle<art::TFileService> tfs;
+   art::ServiceHandle<art::TFileService const> tfs;
 
    if(TEfficiency::CheckConsistency(*h_Ev_num,*h_Ev_den)){
      h_Eff_Ev = tfs->make<TEfficiency>(*h_Ev_num,*h_Ev_den);

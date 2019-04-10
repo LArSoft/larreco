@@ -134,7 +134,7 @@ namespace hit {
   void RawHitFinder::produce(art::Event& evt)
   {      
     //GET THE GEOMETRY.
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     //READ IN THE DIGIT LIST OBJECTS(S). 
     art::Handle< std::vector<raw::RawDigit> > digitVecHandle;
@@ -192,7 +192,7 @@ namespace hit {
 
       //GET THE LIST OF BAD CHANNELS.
       lariov::ChannelStatusProvider const& channelStatus
-        = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+        = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
 
       lariov::ChannelStatusProvider::ChannelSet_t const BadChannels
         = channelStatus.BadChannels();

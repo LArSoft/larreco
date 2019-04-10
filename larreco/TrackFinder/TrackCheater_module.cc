@@ -81,9 +81,9 @@ namespace trkf{
   //--------------------------------------------------------------------
   void TrackCheater::produce(art::Event& evt)
   {
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-    art::ServiceHandle<geo::Geometry>            geo;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+    art::ServiceHandle<geo::Geometry const>            geo;
 
     // grab the clusters that have been reconstructed
     art::Handle< std::vector<recob::Cluster> > clustercol;

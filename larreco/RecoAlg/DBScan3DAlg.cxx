@@ -31,8 +31,8 @@ void cluster::DBScan3DAlg::init(const std::vector<art::Ptr<recob::SpacePoint>>& 
 {
 
   if (badchannelmap.empty()){
-    lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
-    geo::GeometryCore const* geom = &*(art::ServiceHandle<geo::Geometry>());
+    lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
+    geo::GeometryCore const* geom = &*(art::ServiceHandle<geo::Geometry const>());
     // build a map to count bad channels around each wire ID
     for (auto &pid : geom->IteratePlaneIDs()){
       for (auto& wid1: geom->IterateWireIDs(pid)) {

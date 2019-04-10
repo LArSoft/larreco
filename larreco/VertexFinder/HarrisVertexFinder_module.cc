@@ -105,7 +105,7 @@ vertex::HarrisVertexFinder::HarrisVertexFinder(fhicl::ParameterSet const& pset)
 
 void vertex::HarrisVertexFinder::beginJob(){
   // get access to the TFile service
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   fNoVertices= tfs->make<TH2F>("fNoVertices", ";Event No; No of vertices", 100,0, 100, 30, 0, 30);
 
@@ -139,7 +139,7 @@ double vertex::HarrisVertexFinder::GaussianDerivativeY(int x,int y)
 void vertex::HarrisVertexFinder::produce(art::Event& evt)
 {
 
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   
   art::Handle< std::vector<recob::Cluster> > clusterListHandle;
   evt.getByLabel(fDBScanModuleLabel, clusterListHandle);

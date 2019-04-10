@@ -6118,7 +6118,7 @@ namespace cluster {
       }
       // overwrite with the "dead wires" condition
       lariov::ChannelStatusProvider const& channelStatus
-        = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+        = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
       
       flag.first = -1; flag.second = -1;
       unsigned int nbad = 0;

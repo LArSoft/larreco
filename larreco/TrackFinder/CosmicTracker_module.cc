@@ -83,7 +83,7 @@ bool MatchTrack(const std::vector<trkPoint>& trkpts1, const std::vector<trkPoint
   if (!trkpts2.size()) return match;
   if ((trkpts1[0].hit)->WireID().Cryostat == (trkpts2[0].hit)->WireID().Cryostat &&
       (trkpts1[0].hit)->WireID().TPC == (trkpts2[0].hit)->WireID().TPC) return match; 
-//  art::ServiceHandle<geo::Geometry> geom;
+//  art::ServiceHandle<geo::Geometry const> geom;
 //  const geo::TPCGeo &thetpc1 = geom->TPC((trkpts1[0].hit)->WireID().TPC, (trkpts1[0].hit)->WireID().Cryostat);
 //  const geo::TPCGeo &thetpc2 = geom->TPC((trkpts2[0].hit)->WireID().TPC, (trkpts2[0].hit)->WireID().Cryostat);
 
@@ -254,7 +254,7 @@ namespace trkf {
   void CosmicTracker::produce(art::Event& evt){
   
     // get services
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     std::unique_ptr<std::vector<recob::Track>      >              tcol (new std::vector<recob::Track>);           
     std::unique_ptr<std::vector<recob::SpacePoint> >                 spcol(new std::vector<recob::SpacePoint>);

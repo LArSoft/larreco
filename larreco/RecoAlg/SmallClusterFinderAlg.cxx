@@ -391,7 +391,7 @@ int cluster::SmallClusterFinderAlg::GetPlaneAndTPC(art::Ptr<recob::Hit> a, //the
 						unsigned int &t, //time
 						unsigned int &w) //wire
 {
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 	unsigned int channel = a->Channel(); 
 	geom->ChannelToWire(channel);
 	p = a -> WireID().Plane;

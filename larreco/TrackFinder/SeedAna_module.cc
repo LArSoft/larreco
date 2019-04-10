@@ -47,7 +47,7 @@ namespace {
   {
     // Get geometry.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     double d1 = pos.X();                             // Distance to right side (wires).
     double d2 = 2.*geom->DetHalfWidth() - pos.X();   // Distance to left side (cathode).
@@ -106,7 +106,7 @@ namespace {
   {
     // Get services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
     // Get fiducial volume boundary.
@@ -414,7 +414,7 @@ namespace trkf {
 
     // Get services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<art::TFileService> tfs;
 
     // Make histogram directory.
@@ -521,7 +521,7 @@ namespace trkf {
 
     // Get services.
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     art::ServiceHandle<art::TFileService> tfs;
 
     // Make histogram directory.

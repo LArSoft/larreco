@@ -138,7 +138,7 @@ void GausHitFinder::FillOutHitParameterVector(const std::vector<double>& input,
     if(input.size()==0)
         throw std::runtime_error("GausHitFinder::FillOutHitParameterVector ERROR! Input config vector has zero size.");
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const unsigned int N_PLANES = geom->Nplanes();
 
     if(input.size()==1)
@@ -208,7 +208,7 @@ void GausHitFinder::reconfigure(fhicl::ParameterSet const& p)
 void GausHitFinder::beginJob()
 {
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
    
     
     // ======================================
@@ -234,7 +234,7 @@ void GausHitFinder::produce(art::Event& evt)
     // ################################
     // ### Calling Geometry service ###
     // ################################
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     // ###############################################
     // ### Making a ptr vector to put on the event ###

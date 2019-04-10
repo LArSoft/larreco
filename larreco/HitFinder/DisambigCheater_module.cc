@@ -36,8 +36,8 @@ namespace hit{
       void endJob() override;
       void reconfigure(fhicl::ParameterSet const & p);
 
-      art::ServiceHandle<geo::Geometry> geom;
-      art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+      art::ServiceHandle<geo::Geometry const> geom;
+      art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
 
       std::string fChanHitLabel;
       std::string fWidHitLabel;

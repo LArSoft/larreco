@@ -187,7 +187,7 @@ namespace shwf {
   std::vector< double > fTotADCperplane;
   //services 
     
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
   
 //    //temporary
@@ -251,7 +251,7 @@ void ShowerReco::beginJob()
 
 
   /** Get Geometry*/
-  art::ServiceHandle<geo::Geometry> geo;
+  art::ServiceHandle<geo::Geometry const> geo;
 
   detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
@@ -261,7 +261,7 @@ void ShowerReco::beginJob()
   fMean_wire_pitch = geo->WirePitch(); //wire pitch in cm
 
   /**Get TFileService and define output Histograms*/
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
  // auto const* detp = lar::providerFrom<detinfo::DetectorPropertiesService>();
   ftimetick=detprop->SamplingRate()/1000.;
@@ -854,7 +854,7 @@ void ShowerReco::LongTransEnergy(unsigned int set, std::vector < art::Ptr<recob:
   
   
   double totCnrg = 0,totCnrg_corr =0;//, totNewCnrg=0 ; // tot enegry of the shower in collection
-//   art::ServiceHandle<geo::Geometry> geom;
+//   art::ServiceHandle<geo::Geometry const> geom;
 //   auto const* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   double time;

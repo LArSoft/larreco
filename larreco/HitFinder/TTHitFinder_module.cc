@@ -108,7 +108,7 @@ namespace hit{
     art::FindOneP<raw::RawDigit> WireToRawDigits
       (wireVecHandle, evt, fCalDataModuleLabel);
     
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
    
     //initialize some variables that will be in the loop.
     float threshold_peak = 0;

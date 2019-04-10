@@ -153,7 +153,7 @@ Track3DKalman::Track3DKalman(fhicl::ParameterSet const& pset)
 //-------------------------------------------------
 void Track3DKalman::beginJob()
 {
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
   
   stMCT  = new TMatrixT<Double_t>(5,1);
   covMCT = new TMatrixT<Double_t>(5,5);
@@ -215,7 +215,7 @@ void Track3DKalman::produce(art::Event& evt)
   repMC=0;
 
   // get services
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
   CLHEP::RandGaussQ gauss(fEngine);
 
   //////////////////////////////////////////////////////

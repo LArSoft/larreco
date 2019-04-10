@@ -93,7 +93,7 @@ namespace cluster{
   void fuzzyCluster::beginJob()
   {
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
   
     fhitwidth= tfs->make<TH1F>(" fhitwidth","width of hits in cm", 50000,0 ,5  );
     fhitwidth_ind_test= tfs->make<TH1F>("fhitwidth_ind_test","width of hits in cm", 50000,0 ,5  );
@@ -118,7 +118,7 @@ namespace cluster{
     // get the ChannelFilter
     // get channel quality service:
     lariov::ChannelStatusProvider const& channelStatus
-      = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+      = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
     
     lariov::ChannelStatusProvider::ChannelSet_t const BadChannels
       = channelStatus.BadChannels();
@@ -136,7 +136,7 @@ namespace cluster{
       planeIDToHits[hitcol->at(i).WireID().planeID()].emplace_back(hitcol, i);
     }
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     for(auto & itr : planeIDToHits){
       

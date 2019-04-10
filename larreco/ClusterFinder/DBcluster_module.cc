@@ -91,7 +91,7 @@ namespace cluster{
   //-------------------------------------------------
   void DBcluster::beginJob(){
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
   
     fhitwidth= tfs->make<TH1F>(" fhitwidth","width of hits in cm", 50000,0 ,5  );
     fhitwidth_ind_test= tfs->make<TH1F>("fhitwidth_ind_test","width of hits in cm", 50000,0 ,5  );
@@ -112,7 +112,7 @@ namespace cluster{
     // but we are using the default configuration for that algorithm
     ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
     
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
   
     art::Handle< std::vector<recob::Hit> > hitcol;
     evt.getByLabel(fhitsModuleLabel,hitcol);
@@ -122,7 +122,7 @@ namespace cluster{
   
     // get channel quality service:
     lariov::ChannelStatusProvider const& channelStatus
-      = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+      = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
     
     lariov::ChannelStatusProvider::ChannelSet_t const BadChannels
       = channelStatus.BadChannels();

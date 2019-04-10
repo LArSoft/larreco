@@ -23,7 +23,7 @@ bool pma::Node3D::fGradFixed[3] = { false, false, false };
 double pma::Node3D::fMargin = 3.0;
 
 pma::Node3D::Node3D(void) :
-    fTpcGeo(art::ServiceHandle<geo::Geometry>()->TPC(0, 0)),
+    fTpcGeo(art::ServiceHandle<geo::Geometry const>()->TPC(0, 0)),
 	fMinX(0), fMaxX(0),
 	fMinY(0), fMaxY(0),
 	fMinZ(0), fMaxZ(0),
@@ -39,7 +39,7 @@ pma::Node3D::Node3D(void) :
 }
 
 pma::Node3D::Node3D(const TVector3& p3d, unsigned int tpc, unsigned int cryo, bool vtx, double xshift) :
-    fTpcGeo( art::ServiceHandle<geo::Geometry>()->TPC(tpc, cryo) ),
+    fTpcGeo( art::ServiceHandle<geo::Geometry const>()->TPC(tpc, cryo) ),
     fDriftOffset(xshift),
 	fIsVertex(vtx)
 {

@@ -4094,7 +4094,7 @@ namespace tca {
     slc.zLo = world[2]-tcc.geom->DetLength(tpc,cstat)/2 + 1;
     slc.zHi = world[2]+tcc.geom->DetLength(tpc,cstat)/2 - 1;
     
-    lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService>()->GetProvider();
+    lariov::ChannelStatusProvider const& channelStatus = art::ServiceHandle<lariov::ChannelStatusService const>()->GetProvider();
     
     // initialize everything
     slc.wireHitRange.resize(nplanes);
@@ -4964,7 +4964,7 @@ namespace tca {
     mf::LogVerbatim myprt("TC");
     myprt<<"Debug report from caller "<<someText<<"\n";
     if(!evt.allHitsMCPIndex.empty()) {
-      art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+      art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
       TruthMatcher tm;
       myprt<<"************  MCParticles  ************\n";
       myprt<<" mcpindx  PDG    KE eveIndx  nHits   Process\n";

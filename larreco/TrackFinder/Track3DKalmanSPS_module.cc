@@ -353,7 +353,7 @@ namespace trkf {
       // For now just Collection plane.
       // We should loop over all views, more generally.
       geo::SigType_t sig(geo::kCollection);
-      art::ServiceHandle<geo::Geometry> geom;
+      art::ServiceHandle<geo::Geometry const> geom;
       static art::PtrVector<recob::SpacePoint>::const_iterator sstart(s.begin());
       //      art::PtrVector<recob::SpacePoint>::const_iterator sppt = sstart;
       art::PtrVector<recob::SpacePoint>::const_iterator sppt = s.begin();
@@ -423,7 +423,7 @@ namespace trkf {
   {
 
 
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
     
     stMCT  = new TMatrixT<Double_t>(5,1);
     covMCT = new TMatrixT<Double_t>(5,5);
@@ -582,7 +582,7 @@ void Track3DKalmanSPS::produce(art::Event& evt)
   rep=0;
   repMC=0;
   // get services
-  art::ServiceHandle<geo::Geometry> geom;
+  art::ServiceHandle<geo::Geometry const> geom;
 
   //////////////////////////////////////////////////////
   // Make a std::unique_ptr<> for the thing you want to put into the event

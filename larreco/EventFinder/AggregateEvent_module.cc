@@ -91,7 +91,7 @@ namespace event {
     std::unique_ptr<std::vector<recob::Event> > ecol(new std::vector<recob::Event>);
     
     // get the geometry
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
 
     art::Handle< std::vector<recob::Vertex> > vertexListHandle;
     evt.getByLabel(fVertexModuleLabel,vertexListHandle);

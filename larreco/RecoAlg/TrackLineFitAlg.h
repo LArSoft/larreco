@@ -40,7 +40,7 @@ namespace trkf {
     
     private:
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     
   }; // class TrackLineFitAlg
 

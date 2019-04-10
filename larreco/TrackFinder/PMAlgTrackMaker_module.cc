@@ -200,7 +200,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
 	fSavePmaNodes(config().SavePmaNodes()),
 	
-	fGeom( &*(art::ServiceHandle<geo::Geometry>()))
+	fGeom( &*(art::ServiceHandle<geo::Geometry const>()))
 {
 	produces< std::vector<recob::Track> >();
 	produces< std::vector<recob::SpacePoint> >();
@@ -227,7 +227,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 
     if (fPmaTrackerConfig.Validation() == "calib") // create histograms only in the calibration mode
     {
-    	art::ServiceHandle<art::TFileService> tfs;
+    	art::ServiceHandle<art::TFileService const> tfs;
 	    for (size_t p = 0; p < fGeom->MaxPlanes(); ++p)
 	    {
 	        std::ostringstream ss1; ss1 << "adc_plane_" << p ;

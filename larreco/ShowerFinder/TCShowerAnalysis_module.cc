@@ -125,7 +125,7 @@ void shower::TCShowerAnalysis::reconfigure(fhicl::ParameterSet const& pset) {
 
 void shower::TCShowerAnalysis::beginJob() {
 
-  art::ServiceHandle<art::TFileService> tfs;
+  art::ServiceHandle<art::TFileService const> tfs;
 
   fTree = tfs->make<TTree>("tcshowerana", "tcshowerana");
   fTree->Branch("run",&run,"run/I");
@@ -274,8 +274,8 @@ void shower::TCShowerAnalysis::truthMatcher(std::vector<art::Ptr<recob::Hit>> al
   Efrac=1.0;
   Ecomplet=0;
 
-  art::ServiceHandle<cheat::BackTrackerService> bt_serv;
-  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+  art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
+  art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
   std::map<int,double> trkID_E;
   for(size_t j = 0; j < shower_hits.size(); ++j){
     art::Ptr<recob::Hit> hit = shower_hits[j];

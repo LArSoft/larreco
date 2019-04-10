@@ -76,7 +76,7 @@ namespace vertex{
   //--------------------------------------------------------------------
   void VertexCheater::produce(art::Event& evt)
   {
-    art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
+    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
 
     // grab the sim::ParticleList
     const sim::ParticleList& plist = pi_serv->ParticleList();

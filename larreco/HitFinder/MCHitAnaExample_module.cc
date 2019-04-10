@@ -135,9 +135,9 @@ namespace hit {
     fRecoHitModuleName = p.get<std::string>( "RecoHitModuleName" );
     fMCHitModuleName   = p.get<std::string>( "MCHitModuleName"   );
     
-    art::ServiceHandle<art::TFileService> fs;
+    art::ServiceHandle<art::TFileService const> fs;
     
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     
     for(unsigned char plane=0; plane < geo->Nplanes(); ++plane) {
       
@@ -222,7 +222,7 @@ namespace hit {
   {
     fAnaWatch.Start();
     
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     const detinfo::DetectorClocks* ts = lar::providerFrom<detinfo::DetectorClocksService>();
     
     fReadWatch.Start();

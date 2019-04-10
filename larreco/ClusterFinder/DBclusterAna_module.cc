@@ -144,7 +144,7 @@ namespace cluster{
   {
   
     // get access to the TFile service
-    art::ServiceHandle<art::TFileService> tfs;
+    art::ServiceHandle<art::TFileService const> tfs;
   
     fNoParticles_pdg_per_event = tfs->make<TH1F>("fNoParticles_pdg_per_event","Average # of Particles per cluster for each event", 500,0 ,5);
     fNoParticles_pdg=tfs->make<TH1F>("fNoParticles_pdg","Number of Particles in a Cluster for each cluster", 500,0 ,5);
@@ -207,8 +207,8 @@ namespace cluster{
         exit (1);
       }
   
-    art::ServiceHandle<geo::Geometry>      geom;  
-    art::ServiceHandle<cheat::BackTrackerService> bt_serv;
+    art::ServiceHandle<geo::Geometry const>      geom;
+    art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
     
     art::Handle< std::vector<raw::RawDigit>  > rdListHandle;

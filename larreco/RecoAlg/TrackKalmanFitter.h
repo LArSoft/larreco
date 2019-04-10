@@ -166,7 +166,7 @@ namespace trkf {
       maxDist_ = (maxDist>0 ? maxDist : std::numeric_limits<float>::max());
       negDistTolerance_ = negDistTolerance;
       dumpLevel_=dumpLevel;
-      detprop = art::ServiceHandle<detinfo::DetectorPropertiesService>()->provider();
+      detprop = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
     }
 
     /// Constructor from TrackStatePropagator and Parameters table
@@ -213,7 +213,7 @@ namespace trkf {
 		    std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx,
 		    recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const;
 
-    art::ServiceHandle<geo::Geometry> geom;
+    art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* detprop;
     const TrackStatePropagator* propagator;
     bool useRMS_;

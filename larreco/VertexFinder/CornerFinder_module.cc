@@ -42,7 +42,7 @@ namespace vertex {
     void produce(art::Event& evt) override;
 
     corner::CornerFinderAlg  fCornerAlg;
-    art::ServiceHandle<geo::Geometry> fGeometryHandle;
+    art::ServiceHandle<geo::Geometry const> fGeometryHandle;
 
     std::string               fCalDataModuleLabel;
 

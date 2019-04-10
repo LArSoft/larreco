@@ -117,7 +117,7 @@ namespace cluster {
     std::unique_ptr<std::vector<recob::Hit>> FinalHits
       (new std::vector<recob::Hit>(std::move(fCCAlg.YieldHits())));
     
-    art::ServiceHandle<geo::Geometry> geo;
+    art::ServiceHandle<geo::Geometry const> geo;
     
     // shcol contains the hit collection
     // and its associations to wires and raw digits;

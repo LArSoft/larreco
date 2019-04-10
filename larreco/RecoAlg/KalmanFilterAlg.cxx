@@ -61,7 +61,7 @@ namespace {
 	double z0 = pyz->z0();
 	double y0 = pyz->y0();
 	double phi = pyz->phi();
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 	double ymax = geom->DetHalfWidth();
 	if(phi > 0.)
 	  z = z0 * std::cos(phi) + (ymax - y0) * std::sin(phi);
@@ -93,7 +93,7 @@ namespace {
 	double z0 = pyz->z0();
 	double y0 = pyz->y0();
 	double phi = pyz->phi();
-	art::ServiceHandle<geo::Geometry> geom;
+	art::ServiceHandle<geo::Geometry const> geom;
 	double ymax = geom->DetHalfWidth();
 	if(phi > 0.)
 	  z = z0 * std::cos(phi) + (ymax - y0) * std::sin(phi);
