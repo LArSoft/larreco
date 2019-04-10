@@ -1468,64 +1468,7 @@ namespace tca {
     }
     
   } // ReversePropagate
-  
-/*
-  //////////////////////////////////////////
-  void UseUnusedHits(TCSlice& slc)
-  {
-    if(slc.tjs.size() == 0) return;
-    if(!tcc.useAlg[kUUH]) return;
     
-    // max change in position allowed after adding all unused hits in a multiplet 
-    float maxPosSep2 = 0.25;
-    
-    std::vector<unsigned int> hitsInMultiplet;
-    for(unsigned short itj = 0; itj < slc.tjs.size(); ++itj) {
-      Trajectory& tj = slc.tjs[itj];
-      if(tj.AlgMod[kKilled]) continue;
-      // Find the max delta
-      unsigned short firstPt = tj.EndPt[0];
-      unsigned short lastPt = tj.EndPt[1];
-      for(unsigned short ipt = firstPt; ipt <= lastPt; ++ipt) {
-        TrajPoint& tp = tj.Pts[ipt];
-        if(AngleRange(tp) == 0) continue;
-        if(tp.Hits.empty()) continue;
-        // ignore if the TP has long-pulse hits -> large HitPosErr2
-        if(tp.HitPosErr2 > 50) continue;
-        bool hitsAdded = false;
-        for(unsigned short ii = 0; ii < tp.Hits.size(); ++ii) {
-          if(!tp.UseHit[ii]) continue;
-          unsigned int iht = tp.Hits[ii];
-          GetHitMultiplet(slc, iht, hitsInMultiplet);
-          if(hitsInMultiplet.size() > 1) {
-            for(unsigned short jj = ii + 1; jj < tp.Hits.size(); ++jj) {
-              if(!tp.UseHit[jj]) continue;
-              if(std::find(hitsInMultiplet.begin(), hitsInMultiplet.end(), tp.Hits[jj]) != hitsInMultiplet.end()) {
-                tp.UseHit[jj] = true;
-                slc.slHits[tp.Hits[jj]].InTraj = tj.ID;
-                hitsAdded = true;
-              }
-            } // jj
-          }
-        } // ii
-        if(hitsAdded) {
-          // save the hit position
-          std::array<float, 2> oldHitPos = tp.HitPos;
-          DefineHitPos(slc, tp);
-          // keep it if 
-          if(PosSep2(tj.Pts[ipt].HitPos, oldHitPos) < maxPosSep2) {
-            tj.AlgMod[kUUH] = true;
-          } else {
-            UnsetUsedHits(slc, tj.Pts[ipt]);
-          }
-        }
-      } // ipt
-      if(tj.AlgMod[kUUH]) SetEndPoints(tj);
-    } // itj
-    
-  } // UseUnusedHits
-*/
-  
   ////////////////////////////////////////////////
   void GetHitMultiplet(TCSlice& slc, unsigned int theHit, std::vector<unsigned int>& hitsInMultiplet)
   {
@@ -2190,7 +2133,7 @@ namespace tca {
   {
     // Fill in any gaps in the trajectory with close hits regardless of charge (well maybe not quite that)
     
-    if(!tcc.useAlg[kFillGap]) return;
+    if(!tcc.useAlg[kFillGaps]) return;
     if(tj.AlgMod[kJunkTj]) return;
     
     if(tcc.dbgStp) mf::LogVerbatim("TC")<<"FG: Check Tj "<<tj.ID<<" from "<<PrintPos(slc, tj.Pts[tj.EndPt[0]])<<" to "<<PrintPos(slc, tj.Pts[tj.EndPt[1]]);
@@ -2276,7 +2219,7 @@ namespace tca {
         }
         if(filled) {
           DefineHitPos(slc, tj.Pts[mpt]);
-          tj.AlgMod[kFillGap] = true;
+          tj.AlgMod[kFillGaps] = true;
           if(tcc.dbgStp) {
             PrintTrajPoint("FG", slc, mpt, tj.StepDir, tj.Pass, tj.Pts[mpt]);
             mf::LogVerbatim("TC")<<"Check MCSMom "<<MCSMom(slc, tj);
@@ -2286,7 +2229,7 @@ namespace tca {
       firstPtWithChg = nextPtWithChg;
     } // firstPtWithChg
     
-    if(tj.AlgMod[kFillGap]) tj.MCSMom = MCSMom(slc, tj);
+    if(tj.AlgMod[kFillGaps]) tj.MCSMom = MCSMom(slc, tj);
     
   } // FillGaps 
   
