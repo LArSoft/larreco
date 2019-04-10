@@ -534,8 +534,8 @@ namespace tca {
   {
     // returns the combined position and charge pull for the charge at pos 
     // relative to the Tj closest to that point using a loose requirement on position separation.
-    if(tj.AlgMod[kKilled]) return 0;
-    if(tj.AveChg <= 0) return 0;
+    if(tj.AlgMod[kKilled]) return 100;
+    if(tj.AveChg <= 0) return 100;
     // find the closest point on the tj to pos
     unsigned short closePt = USHRT_MAX;
     float close = 1000;
@@ -546,7 +546,7 @@ namespace tca {
       close = sep2;
       closePt = ipt;
     } // ipt
-    if(closePt == USHRT_MAX) return 0;
+    if(closePt == USHRT_MAX) return 100;
     // find the delta between the projection of the Tj close TP to inTP
     auto& tp = tj.Pts[closePt];
     float delta = PointTrajDOCA(slc, pos[0], pos[1], tp);
@@ -3625,6 +3625,11 @@ namespace tca {
     double sn = tcc.geom->WireCoordinate(0, 1, planeID) - w0;
     norm = sqrt(cs * cs + sn * sn);
     tp.Delta /= norm;
+    
+    // Stasb dt/dWire in DeltaRMS. This is used in PFPUtils/FitSection to find the
+    // distance along a 3D line given the wire number in a plane
+    tp.DeltaRMS = 100 / (pos2[0] - ori2[0]);
+    
     return tp;
     
   } // MakeBareTP
