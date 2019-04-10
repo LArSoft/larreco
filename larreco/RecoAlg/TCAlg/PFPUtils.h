@@ -48,10 +48,13 @@ namespace tca {
   unsigned short Find3DRecoRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir);
   bool FitSection(TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex);
   void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt);
-  void AddMissedTP3Ds(TCSlice& slc, PFPStruct& pfp, bool prt);
-  void AddMissedTP3Ds(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, CTP_t inCTP, bool prt);
+  void ChkEndPts(TCSlice& slc, PFPStruct& pfp, bool prt);
+  void TrimEndPts(TCSlice& slc, PFPStruct& pfp, bool prt);
+  unsigned short FirstPointInPlane(PFPStruct& pfp, unsigned short plane, unsigned short end);
+  void FillGaps3D(TCSlice& slc, PFPStruct& pfp, bool prt);
+  void AddPointsInRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, 
+                        unsigned short inPlane, float maxPull, bool prt);
   bool InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
-  bool SetStartEndPos(PFPStruct& pfp, unsigned short sfIndex);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
   void CountOrder(TCSlice& slc, int tid, const std::vector<TP3D>& tp3ds, unsigned short& nNeg, unsigned short& nPos);
   void FillTP3Ds(TCSlice& slc, PFPStruct& pfp);
@@ -59,9 +62,8 @@ namespace tca {
   void FillmAllTraj(TCSlice& slc);
   bool SharesHighScoreVx(TCSlice& slc, const PFPStruct& pfp, const Trajectory& tj);
   void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir);
-  float AspectRatio(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
-  unsigned short WiresSkippedInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
-  float LengthInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
+//  unsigned short WiresSkippedInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
+//  float LengthInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
   bool MakeTp3(TCSlice& slc, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3, bool findDirection);
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2);
   inline double DotProd(const Vector3_t& v1, const Vector3_t& v2) {return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]; }
@@ -73,6 +75,7 @@ namespace tca {
   float dEdx(TCSlice& slc, TP3D& tp3d);
   TP3D CreateTP3D(TCSlice& slc, unsigned short slHitsIndex);
   TP3D CreateTP3D(TCSlice& slc, int tjID, unsigned short tjPt);
+  void SetSection(TCSlice& slc, PFPStruct& pfp, TP3D& tp3d);
   PFPStruct CreatePFP(TCSlice& slc);
   void PFPVertexCheck(TCSlice& tcs);
   void DefinePFPParents(TCSlice& slc, bool prt);
