@@ -202,7 +202,6 @@ namespace tca {
     std::vector<Tj2Pt> Tj2Pts;  // list of trajectory points
   };
   
-  // TP3D Section fit ranges
   struct SectionFit {
     Point3_t Pos   {{ 0.0, 0.0, 0.0 }};      ///< center position of this section
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};   ///< and direction
@@ -219,10 +218,9 @@ namespace tca {
     double TPX {-10};        ///< X position of the TP or the single hit
     double TPXErr2 {1};      ///< (X position error)^2
     float Wire {-1};
-    float Delta {10};           ///< Transverse distance from the 3D trajectory defined by SectionFit (Pos, Dir)
     float along {1E6};           ///< distance from the start Pos of the section
     int TjID {0};               ///< ID of the trajectory -> TP3D assn
-    unsigned short Plane {USHRT_MAX};
+    CTP_t CTP;
     unsigned short TPIndex {USHRT_MAX};     ///< and the TP index
     unsigned short SFIndex {USHRT_MAX};     ///< and the section fit index
     unsigned int slHitsIndex {UINT_MAX};  ///< index of a single hit that is not used in a Tj (TjID == 0)
@@ -401,7 +399,7 @@ namespace tca {
     kMerge,
     kTEP,
     kCHMEH,
-    kFillGap,
+    kFillGaps,
     kUseGhostHits,
     kMrgGhost,
     kChkInTraj,
@@ -444,6 +442,7 @@ namespace tca {
     kCompleteShower,
     kSplitTjCVx,
     kMakePFPTjs,
+    kFillGaps3D,
     kAlgBitSize     ///< don't mess with this line
   } AlgBit_t;
   
