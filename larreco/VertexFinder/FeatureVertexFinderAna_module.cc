@@ -30,16 +30,13 @@
 // ##########################
 // ### Basic C++ Includes ###
 // ##########################
-#include <vector>
 #include <string>
 #include <iostream>
 #include <iomanip>
 #include <ios>
-#include <sstream>
 #include <fstream>
 #include <math.h>
 #include <algorithm>
-#include <vector>
 
 // ##########################
 // ### Framework Includes ###

@@ -27,7 +27,6 @@
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
 #include <cmath>
-#include <vector>
 #include <algorithm>
 #include <iostream>
 #include <fstream>

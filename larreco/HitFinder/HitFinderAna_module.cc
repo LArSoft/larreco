@@ -17,7 +17,6 @@
 
 // C++ includes
 #include <algorithm>
-#include <sstream>
 #include <fstream>
 #include <bitset>
 
@@ -51,7 +50,6 @@
 
 #include "art/Framework/Core/EDAnalyzer.h"
 
-#include <vector>
 #include <string>
 
 namespace geo { class Geometry; }

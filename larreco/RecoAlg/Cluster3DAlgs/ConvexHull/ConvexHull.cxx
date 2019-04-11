@@ -18,9 +18,7 @@
 #include <Eigen/Dense>
 
 // std includes
-#include <string>
 #include <functional>
-#include <iostream>
 #include <memory>
 
 //------------------------------------------------------------------------------------------------------------------------------------------

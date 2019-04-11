@@ -18,7 +18,6 @@
 #include "cetlib_except/exception.h"
 
 #include <utility> // std::forward()
-#include <cassert>
 
 
 namespace trkf {

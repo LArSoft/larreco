@@ -17,7 +17,6 @@
 #include "fhiclcpp/ParameterSet.h"
 #include "canvas/Persistency/Common/FindOneP.h"
 
-#include <vector>
 #include <algorithm> // std::max()
 #include <functional> // std::mem_fn()
 #include <memory> // std::move

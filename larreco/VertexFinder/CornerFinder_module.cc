@@ -12,7 +12,6 @@
 
 
 //Basic includes
-#include <vector>
 #include <string>
 
 //Framework includes

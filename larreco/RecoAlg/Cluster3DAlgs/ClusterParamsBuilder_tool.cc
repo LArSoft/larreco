@@ -19,7 +19,6 @@
 #include "larcorealg/Geometry/WireGeo.h"
 
 // std includes
-#include <string>
 #include <functional>
 #include <iostream>
 #include <memory>

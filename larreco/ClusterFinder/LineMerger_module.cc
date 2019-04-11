@@ -15,7 +15,6 @@
 #include <string>
 #include <cmath> // std::abs(), std::sqrt()
 #include <iomanip>
-#include <vector>
 #include <array>
 #include <memory> // std::unique_ptr<>
 #include <utility> // std::move()

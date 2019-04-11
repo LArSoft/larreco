@@ -6,7 +6,6 @@
 #include "larevt/CalibrationDBI/Interface/ChannelStatusProvider.h"
 #include "cetlib/pow.h"
 
-#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

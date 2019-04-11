@@ -20,7 +20,6 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <stdint.h>
 extern "C" {
 #include <sys/types.h>

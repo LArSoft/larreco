@@ -16,13 +16,11 @@
 ///arXiv:1006.3012v1 [physics.ins-det]
 //Thanks to B. Morgan of U. of Warwick for comments and suggestions
 
-#include <iostream>
 #include <vector>
 extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 }
-#include <sstream>
 #include <fstream>
 #include <math.h>
 #include <algorithm>

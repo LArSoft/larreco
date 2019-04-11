@@ -85,7 +85,6 @@ namespace trkf {
   DEFINE_ART_MODULE(FeatureTracker)
 }
 
-#include <vector>
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "larcore/Geometry/Geometry.h"
 #include "larcorealg/Geometry/TPCGeo.h"

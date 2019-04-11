@@ -25,7 +25,6 @@ extern "C" {
 #include "canvas/Persistency/Common/Ptr.h" 
 #include "canvas/Persistency/Common/PtrVector.h" 
 
-#include <vector>
 #include <string>
 
 #include "lardataobj/RecoBase/Track.h"

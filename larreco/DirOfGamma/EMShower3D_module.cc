@@ -42,7 +42,6 @@
 #include "TLorentzVector.h"
 #include "TMathBase.h"
 
-#include <iostream>
 #include <fstream>
 
 struct IniSeg

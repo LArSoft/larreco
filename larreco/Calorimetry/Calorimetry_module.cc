@@ -13,7 +13,6 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 }
-#include <vector>
 #include <string>
 #include <math.h>
 #include <algorithm>

@@ -11,7 +11,6 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "TMath.h"
-#include <vector>
 #include <string>
 
 
@@ -30,7 +29,6 @@ extern "C" {
 #include "TDatabasePDG.h"
 #include "TSystem.h"
 
-#include <sstream>
 #include <fstream>
 #include <math.h>
 #include <algorithm>

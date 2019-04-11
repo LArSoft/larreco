@@ -28,7 +28,6 @@
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 
 // std includes
-#include <string>
 #include <functional>
 #include <iostream>
 #include <memory>

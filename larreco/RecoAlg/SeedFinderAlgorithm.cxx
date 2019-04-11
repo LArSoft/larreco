@@ -6,9 +6,7 @@
 // Ben Jones, MIT
 //
 
-#include <vector>
 #include <stdint.h>
-#include <iostream>
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "art/Framework/Principal/Event.h"

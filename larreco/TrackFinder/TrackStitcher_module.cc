@@ -13,7 +13,6 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
-#include <map>
 #include <tuple>
 
 // Framework includes

@@ -38,9 +38,7 @@
 #include <cstdlib>
 #include "TGeoManager.h"
 #include "TH1.h"
-#include <vector>
 #include <cmath>
-#include <iostream>
 #include <iomanip>
 
 class TH1F;

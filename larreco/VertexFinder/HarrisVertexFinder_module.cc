@@ -35,12 +35,9 @@ extern "C" {
 #include <sys/stat.h>
 }
 
-#include <sstream>
 #include <fstream>
 #include <math.h>
 #include <algorithm>
-#include <iostream>
-#include <vector>
 #include <string>
 
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"

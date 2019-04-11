@@ -16,13 +16,10 @@ extern "C" {
 #include <sys/stat.h>
 }
 #include <stdint.h>
-#include <sstream>
 #include <fstream>
 #include <math.h>
 #include <algorithm>
-#include <vector>
 #include <string>
-#include <map>
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h" 

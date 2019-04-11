@@ -44,7 +44,6 @@
 
 // ROOT & C++ includes
 #include <string>
-#include <vector>
 #include <map>
 
 namespace cluster {

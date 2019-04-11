@@ -28,9 +28,7 @@
 #include "TDecompSVD.h"
 
 // std includes
-#include <string>
 #include <functional>
-#include <iostream>
 #include <memory>
 
 //------------------------------------------------------------------------------------------------------------------------------------------

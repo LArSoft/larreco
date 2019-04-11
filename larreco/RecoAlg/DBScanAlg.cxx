@@ -30,7 +30,6 @@
 #include "larcorealg/CoreUtils/NumericUtils.h" // util::absDiff()
 
 #include <cmath>
-#include <iostream>
 #include <fstream>
 #include <cstdlib>
 

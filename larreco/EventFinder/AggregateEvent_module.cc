@@ -11,7 +11,6 @@ extern "C" {
 }
 #include <math.h>
 #include <algorithm>
-#include <iostream>
 #include <fstream>
 
 // Framework includes
@@ -47,7 +46,6 @@ extern "C" {
 
 #include "TH2F.h"
 #include "TF1.h"
-#include <vector>
 #include <string>
 
 namespace recob{ class Vertex; }

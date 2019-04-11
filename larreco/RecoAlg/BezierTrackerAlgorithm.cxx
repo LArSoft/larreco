@@ -6,7 +6,6 @@
 // Ben Jones, MIT
 //
 
-#include <vector>
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "larreco/RecoAlg/BezierTrackerAlgorithm.h"
 #include "lardataobj/RecoBase/Hit.h"

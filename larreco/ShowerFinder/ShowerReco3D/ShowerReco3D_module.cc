@@ -35,7 +35,6 @@
 
 #include <string>
 #include <iostream>
-#include <vector>
 #include <memory>
 
 class ShowerReco3D;

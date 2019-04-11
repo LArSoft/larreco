@@ -25,7 +25,6 @@
 
 // C/C++ standard library
 #include <algorithm> // std::accumulate()
-#include <vector>
 #include <string>
 #include <memory> // std::unique_ptr()
 #include <utility> // std::move()

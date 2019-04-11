@@ -9,16 +9,13 @@
 // 
 // This is Preliminary Work and needs modifications
 // ////////////////////////////////////////////////////////////////////////
-#include <vector>
 #include <string>
 #include <iostream>
 #include <iomanip>
 #include <ios>
-#include <sstream>
 #include <fstream>
 #include <cmath>
 #include <algorithm>
-#include <vector>
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h" 

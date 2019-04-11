@@ -45,7 +45,6 @@
 #include "TGraphAsymmErrors.h"
 
 // C/C++ standard libraries
-#include <vector>
 
 #define MAX_TRACKS 1000
 using namespace std;

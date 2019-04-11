@@ -11,7 +11,6 @@
 #include <cmath> // std::sqrt()
 #include <string>
 #include <map>
-#include <vector>
 
 #include "canvas/Utilities/InputTag.h"
 #include "canvas/Utilities/Exception.h"

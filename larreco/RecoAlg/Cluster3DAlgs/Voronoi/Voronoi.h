@@ -10,7 +10,6 @@
 #define VoronoiDiagram_h
 
 // std includes
-#include <list>
 #include <algorithm>
 #include <queue>
 

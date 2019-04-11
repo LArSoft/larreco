@@ -27,7 +27,6 @@
 #include "fhiclcpp/types/Sequence.h"
 
 // C++ Includes
-#include <vector>
 #include <string>
 #include <cmath>
 #include <fstream>

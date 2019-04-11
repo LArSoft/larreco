@@ -37,7 +37,6 @@
 
 #include <cmath>
 #include <algorithm>
-#include <vector>
 #include <deque>
 
 #include "art/Framework/Core/ModuleMacros.h"

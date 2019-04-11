@@ -10,7 +10,6 @@
 
 // C/C++ standard library
 #include <string>
-#include <vector>
 #include <utility> // std::move
 #include <algorithm> // std::accumulate
 

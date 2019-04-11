@@ -31,7 +31,6 @@
 
 #include "art/Framework/Services/Optional/TFileService.h"
 
-#include <vector>
 #include <string>
 
 #include "lardataobj/RecoBase/Wire.h"

@@ -35,7 +35,6 @@ extern "C" {
 #include "lardataobj/RecoBase/EndPoint2D.h"
 #include "lardata/Utilities/AssociationUtil.h"
 
-#include <vector>
 #include <string>
 
 namespace vertex {

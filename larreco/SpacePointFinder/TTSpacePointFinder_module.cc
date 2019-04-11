@@ -5,13 +5,13 @@
  * Outputs: recob::SpacePoint
  *
  * Description:
- * This module, TimeTickSpacePointFinder (or TTSpacePointFinder for short) was 
- * originally designed to produce a spacepoint object based on hits from 
- * TTHitFinder, with the  intention to allow for a significant number of 
- * ghost spacepoints, where some downstream application would deal with the 
+ * This module, TimeTickSpacePointFinder (or TTSpacePointFinder for short) was
+ * originally designed to produce a spacepoint object based on hits from
+ * TTHitFinder, with the  intention to allow for a significant number of
+ * ghost spacepoints, where some downstream application would deal with the
  * results.
  *
- * In reality, it is just a generic SpacePointFinder implementing the 
+ * In reality, it is just a generic SpacePointFinder implementing the
  * SpacePointAlg_TimeSort algorithm.
  *
  * This code is totally microboone specific, btw.
@@ -21,9 +21,9 @@
 #include <math.h>
 
 // Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Principal/Event.h" 
-#include "art/Framework/Core/EDProducer.h" 
+#include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Core/EDProducer.h"
 
 // LArSoft Includes
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -37,20 +37,17 @@
 namespace sppt{
 
   class TTSpacePointFinder : public art::EDProducer {
-    
+
   public:
-    
-    explicit TTSpacePointFinder(fhicl::ParameterSet const& pset); 
-    virtual ~TTSpacePointFinder();
-         
-    void produce(art::Event& evt); 
-    void beginJob();
+
+    explicit TTSpacePointFinder(fhicl::ParameterSet const& pset);
+
+    void produce(art::Event& evt);
     void beginRun(art::Run& run);
-    void endJob(); 
-    void reconfigure(fhicl::ParameterSet const& p);                
+    void reconfigure(fhicl::ParameterSet const& p);
 
   private:
-        
+
     std::string    fHitModuleLabel;     /// Input hit module name
     std::string    fUHitsInstanceLabel; /// Input U hits instance name
     std::string    fVHitsInstanceLabel; /// Input V hits instance name
@@ -58,10 +55,10 @@ namespace sppt{
 
     SpacePointAlg_TimeSort fSpptAlg;
 
-  protected:     
-  
-  }; // class TTSpacePointFinder  
-  
+  protected:
+
+  }; // class TTSpacePointFinder
+
   //-------------------------------------------------
   TTSpacePointFinder::TTSpacePointFinder(fhicl::ParameterSet const& pset):
     EDProducer{pset},
@@ -71,9 +68,6 @@ namespace sppt{
     produces< std::vector<recob::SpacePoint> >();
     produces<art::Assns<recob::SpacePoint, recob::Hit>       >();
   }
-
-  //-------------------------------------------------
-  TTSpacePointFinder::~TTSpacePointFinder(){}
 
   //-------------------------------------------------
   void TTSpacePointFinder::reconfigure(fhicl::ParameterSet const& p) {
@@ -87,24 +81,18 @@ namespace sppt{
   }
 
   //-------------------------------------------------
-  void TTSpacePointFinder::beginJob(){}
-
-  //-------------------------------------------------
   void TTSpacePointFinder::beginRun(art::Run &run){
     fSpptAlg.setTimeOffsets();
-    fSpptAlg.fillCoordinatesArrays();    
+    fSpptAlg.fillCoordinatesArrays();
   }
 
   //-------------------------------------------------
-  void TTSpacePointFinder::endJob(){}
-
-  //-------------------------------------------------
   void TTSpacePointFinder::produce(art::Event& evt)
-  { 
+  {
 
     //initialize our spacepoint collection
     std::unique_ptr<std::vector<recob::SpacePoint> > spptCollection(new std::vector<recob::SpacePoint>);
-    std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit> > > > 
+    std::unique_ptr<std::vector<std::vector<art::Ptr<recob::Hit> > > >
       spptAssociatedHits(new std::vector<std::vector<art::Ptr<recob::Hit> > >);
 
     // Read in the hits. Note, we will reorder hit vector, so we do in fact need a copy.
@@ -123,15 +111,15 @@ namespace sppt{
     std::vector< art::Ptr<recob::Hit> > hitVec_Y;
     art::fill_ptr_vector(hitVec_Y,hitHandle_Y);
 
-    MF_LOG_DEBUG("TTSpacePointFinder") 
+    MF_LOG_DEBUG("TTSpacePointFinder")
       << "Got handles to hits:\n"
       << hitVec_U.size() << " u hits, "
       << hitVec_V.size() << " v hits, "
       << hitVec_Y.size() << " y hits.";
-    
+
     //now, call the space point alg
     fSpptAlg.createSpacePoints(hitVec_U,hitVec_V,hitVec_Y,
-			       spptCollection,spptAssociatedHits);
+                               spptCollection,spptAssociatedHits);
 
     mf::LogInfo("TTSpacePointFinder") << "Finished spacepoint alg. Created " << spptCollection->size() << " spacepoints.";
 
@@ -139,9 +127,9 @@ namespace sppt{
     //check that spptCollection and spptAssociatedHits have same size
     if(spptCollection->size() != spptAssociatedHits->size()){
       mf::LogError("TTSpacePointFinder") << "ERROR in space point alg.\n"
-					 << "Spacepoint and associated hit collections have different sizes!\n"
-					 << spptCollection->size() << " != " << spptAssociatedHits->size()
-					 << "\nWill return with no space points put on event.";
+                                         << "Spacepoint and associated hit collections have different sizes!\n"
+                                         << spptCollection->size() << " != " << spptAssociatedHits->size()
+                                         << "\nWill return with no space points put on event.";
       return;
     }
 
@@ -155,8 +143,8 @@ namespace sppt{
     evt.put(std::move(spptCollection));
     evt.put(std::move(spptAssns));
 
-  } // End of produce()  
-    
+  } // End of produce()
+
   DEFINE_ART_MODULE(TTSpacePointFinder)
 
 } // end of sppt namespace

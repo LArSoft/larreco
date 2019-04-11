@@ -14,7 +14,6 @@
 //
 
 #include <cassert>
-#include <vector>
 
 #include "art/Framework/Core/ModuleMacros.h" 
 #include "art/Framework/Core/EDProducer.h"

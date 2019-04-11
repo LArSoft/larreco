@@ -17,9 +17,7 @@
 // Created: 2-Aug-2011  H. Greenlee
 //
 
-#include <iostream>
 #include <map>
-#include <vector>
 #include <algorithm>
 
 #include "art/Framework/Core/ModuleMacros.h" 

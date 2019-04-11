@@ -9,7 +9,6 @@
 
 
 // C/C++ standard libraries
-#include <string>
 #include <utility> // std::unique_ptr<>
 
 // Framework libraries
@@ -50,7 +49,6 @@ namespace hit {
 //***
 
 // C/C++ standard libraries
-#include <vector>
 #include <memory> // std::move()
 
 // Framework libraries

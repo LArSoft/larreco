@@ -10,7 +10,6 @@
 
 #include <string>
 
-#include <vector>
 
 // ROOT includes
 #include "TVector3.h"

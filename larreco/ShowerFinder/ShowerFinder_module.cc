@@ -5,7 +5,6 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-#include <vector>
 #include <string>
 
 // Framework includes
@@ -17,7 +16,6 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 }
-#include <sstream>
 #include <math.h>
 #include <algorithm>
 

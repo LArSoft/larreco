@@ -6,7 +6,6 @@
 //
 ////////////////////////////////////////////////////////////////////////
 
-#include <sstream>
 #include <fstream>
 #include <algorithm>
 #include <functional>
@@ -16,7 +15,6 @@
 #include <TH2F.h>
 #include "TDatabasePDG.h"
 #include "TSystem.h"
-#include <vector>
 #include <string>
 
 //Framework includes

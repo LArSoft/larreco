@@ -22,7 +22,6 @@
 #include "TH1F.h"
 
 // std includes
-#include <string>
 #include <functional>
 #include <iostream>
 #include <memory>

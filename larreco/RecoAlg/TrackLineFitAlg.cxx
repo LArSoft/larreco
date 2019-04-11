@@ -13,7 +13,6 @@ extern "C" {
 #include <sys/stat.h>
 }
 #include <stdint.h>
-#include <iostream>
 #include <iomanip>
 
 #include "larreco/RecoAlg/TrackLineFitAlg.h"

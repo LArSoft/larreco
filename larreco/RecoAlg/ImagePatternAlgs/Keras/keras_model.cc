@@ -3,7 +3,6 @@
 #include "tbb/parallel_for.h"
 #include "tbb/tbb.h"
 
-#include <iostream>
 #include <fstream>
 #include <chrono>
 #include <algorithm>

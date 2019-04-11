@@ -12,9 +12,7 @@
 #include "larreco/RecoAlg/Cluster3DAlgs/Cluster3D.h"
 
 // std includes
-#include <string>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <queue>
 

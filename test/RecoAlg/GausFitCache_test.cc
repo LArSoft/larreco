@@ -13,7 +13,6 @@
 #include <cassert>
 #include <cmath>
 #include <array>
-#include <vector>
 #include <limits> // std::numeric_limits<>
 // #include <iostream>
 

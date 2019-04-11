@@ -13,7 +13,6 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include <iostream>
 
 //***********************  SortedObjectBase  ***********************
 pma::SortedObjectBase::SortedObjectBase(pma::SortedObjectBase* prevElement, pma::SortedObjectBase* nextElement) :

@@ -8,7 +8,6 @@
  * ****************************************************************************/
 
 // C/C++ standard library
-#include <vector>
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/PhysicalConstants.h" // util::DegreesToRadians()

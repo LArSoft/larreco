@@ -4,9 +4,7 @@
  * @author kinga.partyka@yale.edu , bcarls@fnal.gov
  */
 
-#include <vector>
 #include <cmath>
-#include <iostream>
 #include <fstream>
 #include <cstdlib>
 #include "TH1.h"

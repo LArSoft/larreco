@@ -17,7 +17,6 @@
 // C++ includes
 #include <math.h>
 #include <algorithm>
-#include <iostream>
 #include <fstream>
 
 // Framework includes

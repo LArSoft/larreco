@@ -79,7 +79,6 @@ namespace cluster {
 //***
 
 // C/C++ standard libraries
-#include <vector>
 #include <memory> // std::move()
 
 // Framework libraries

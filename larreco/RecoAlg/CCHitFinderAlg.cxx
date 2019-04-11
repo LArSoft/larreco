@@ -20,7 +20,6 @@
 #include <iomanip>
 #include <sstream>
 #include <array>
-#include <vector>
 #include <utility> // std::pair<>, std::make_pair()
 #include <algorithm> // std::sort(), std::copy()
 

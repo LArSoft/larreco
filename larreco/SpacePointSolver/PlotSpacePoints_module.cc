@@ -1,7 +1,6 @@
 // Christopher Backhouse - bckhouse@fnal.gov
 
 #include <string>
-#include <vector>
 
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Core/ModuleMacros.h"

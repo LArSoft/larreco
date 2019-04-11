@@ -59,7 +59,6 @@ namespace trkf {
 // Ben Jones, MIT
 //
 
-#include <vector>
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "larcore/Geometry/Geometry.h"
 #include "art/Framework/Principal/Event.h"
