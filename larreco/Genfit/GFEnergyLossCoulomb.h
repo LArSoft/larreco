@@ -20,27 +20,27 @@
 /** @addtogroup RKTrackRep
  * @{
  */
- 
+
 #ifndef GFENERGYLOSSCOULOMB_H
 #define GFENERGYLOSSCOULOMB_H
 
 #include"GFAbsEnergyLoss.h"
 
-  
+
 /** @brief Multiple scattering due to coulomb interaction
- * 
+ *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Johannes Rauch  (Technische Universit&auml;t M&uuml;nchen, author)
- * 
- *  
- *  
- *  
- *  
+ *
+ *
+ *
+ *
+ *
  */
 namespace genf {
 
-class GFEnergyLossCoulomb : public GFAbsEnergyLoss{ 
+class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
  public:
   //! Optional calculation of multiple scattering
   /**  Only multiple scattering is calculated, the returned value for the energy loss is always 0.
@@ -50,11 +50,11 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
     *  The mean value of these two matrices is added to the noise matrix #noise.
     *  This method gives better results than either calculating only noiseBefore or noiseAfter.
     *  \n\n
-    *  This is a detailed description of the mathematics involved: 
+    *  This is a detailed description of the mathematics involved:
     * \n
-    *  
-    *  
-    *  
+    *
+    *
+    *
     *  We define a local coordinate system cs' with initial momentum in z-direction:
     *  \f[
     *  \left(\begin{array}{c}
@@ -65,13 +65,13 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
     *  a_{y}'\\
     *  a_{z}'\\
     *  \frac{q}{p}'\end{array}\right)=\left(\begin{array}{ccccccc}
-    *  \cos\psi & \sin\psi & 0\\ 
-    *  -\cos\vartheta\sin\psi & \cos\vartheta\cos\psi & \sin\psi\\ 
-    *  \sin\vartheta\sin\psi & -\sin\vartheta\cos\psi & \cos\vartheta\\ 
-    *   &  &  & \cos\psi & \sin\psi & 0\\ 
-    *   &  &  & -\cos\vartheta\sin\psi & \cos\vartheta\cos\psi & \sin\psi\\ 
-    *   &  &  & \sin\vartheta\sin\psi & -\sin\vartheta\cos\psi & \cos\vartheta\\ 
-    *   &  &  &  &  &  & 1\end{array}\right)\left(\begin{array}{c} 
+    *  \cos\psi & \sin\psi & 0\\
+    *  -\cos\vartheta\sin\psi & \cos\vartheta\cos\psi & \sin\psi\\
+    *  \sin\vartheta\sin\psi & -\sin\vartheta\cos\psi & \cos\vartheta\\
+    *   &  &  & \cos\psi & \sin\psi & 0\\
+    *   &  &  & -\cos\vartheta\sin\psi & \cos\vartheta\cos\psi & \sin\psi\\
+    *   &  &  & \sin\vartheta\sin\psi & -\sin\vartheta\cos\psi & \cos\vartheta\\
+    *   &  &  &  &  &  & 1\end{array}\right)\left(\begin{array}{c}
     *  x\\
     *  y\\
     *  z\\
@@ -90,7 +90,7 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
     *  \n
     *
     * Now the global coordinate system cs is:\n
-    *  \f[ 
+    *  \f[
     *  \left(\begin{array}{c}
     *  x\\
     *  y\\
@@ -99,12 +99,12 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
     *  a_{y}\\
     *  a_{z}\\
     *  \frac{q}{p}\end{array}\right)=\left(\begin{array}{ccccccc}
-    *  \cos\psi & -\cos\vartheta\sin\psi & \sin\vartheta\sin\psi\\ 
-    *  \sin\psi & \cos\vartheta\cos\psi & -\sin\vartheta\cos\psi\\ 
-    *  0 & \sin\psi & \cos\vartheta\\ 
-    *   &  &  & \cos\psi & -\cos\vartheta\sin\psi & \sin\vartheta\sin\psi\\ 
-    *   &  &  & \sin\psi & \cos\vartheta\cos\psi & -\sin\vartheta\cos\psi\\ 
-    *   &  &  & 0 & \sin\psi & \cos\vartheta\\ 
+    *  \cos\psi & -\cos\vartheta\sin\psi & \sin\vartheta\sin\psi\\
+    *  \sin\psi & \cos\vartheta\cos\psi & -\sin\vartheta\cos\psi\\
+    *  0 & \sin\psi & \cos\vartheta\\
+    *   &  &  & \cos\psi & -\cos\vartheta\sin\psi & \sin\vartheta\sin\psi\\
+    *   &  &  & \sin\psi & \cos\vartheta\cos\psi & -\sin\vartheta\cos\psi\\
+    *   &  &  & 0 & \sin\psi & \cos\vartheta\\
     *   &  &  &  &  &  & 1\end{array}\right)\left(\begin{array}{c}
     *  x'\\
     *  y'\\
@@ -119,31 +119,31 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
     *  a_{x}'\\
     *  a_{y}'\\
     *  a_{z}'\\
-    *  \frac{q}{p}'\end{array}\right) \f] 
+    *  \frac{q}{p}'\end{array}\right) \f]
     *
     *  \n
     *
     *
-    *  with the Euler angles 
+    *  with the Euler angles
     *
-    * \f{eqnarray*} 
-    * \psi & = & 
-    * \begin{cases} 
+    * \f{eqnarray*}
+    * \psi & = &
+    * \begin{cases}
     *   \begin{cases}
-    *     \frac{\pi}{2} & a_{x} \geq 0 \\ 
-    *     \frac{3\pi}{2} & a_{x} < 0 
-    *   \end{cases} 
-    *   & a_{y}=0 \mbox{ resp. } |a_{y}|<10^{-14} \\ 
-    *   - \arctan \frac{a_{x}}{a_{y}} & a_{y} < 0 \\ 
-    *   \pi - \arctan \frac{a_{x}}{a_{y}} & a_{y} > 0 
-    * \end{cases} \\ 
-    * \vartheta & = & \arccos a_{z} 
+    *     \frac{\pi}{2} & a_{x} \geq 0 \\
+    *     \frac{3\pi}{2} & a_{x} < 0
+    *   \end{cases}
+    *   & a_{y}=0 \mbox{ resp. } |a_{y}|<10^{-14} \\
+    *   - \arctan \frac{a_{x}}{a_{y}} & a_{y} < 0 \\
+    *   \pi - \arctan \frac{a_{x}}{a_{y}} & a_{y} > 0
+    * \end{cases} \\
+    * \vartheta & = & \arccos a_{z}
     * \f}
     *
     * \n
-    * \f$M\f$ is the multiple scattering error-matrix in the \f$\theta\f$ coordinate system. 
-    * \f$\theta_{1/2}=0\f$ are the multiple scattering angles. There is only an error in direction 
-    * (which later leads to an error in position, when \f$N_{before}\f$ is propagated with \f$T\f$). 
+    * \f$M\f$ is the multiple scattering error-matrix in the \f$\theta\f$ coordinate system.
+    * \f$\theta_{1/2}=0\f$ are the multiple scattering angles. There is only an error in direction
+    * (which later leads to an error in position, when \f$N_{before}\f$ is propagated with \f$T\f$).
     * \f[
     * M=\left(\begin{array}{cc}
     * \sigma^{2} & 0\\
@@ -154,24 +154,24 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
     * The mean scattering angle is always 0, this means that \f$\theta_{1/2}=0\f$):
     *
     * \f{eqnarray*}
-    * x' & = & x'\\ 
-    * y' & = & y'\\ 
-    * z' & = & z'\\ 
-    * a_{x}' & = & \sin\theta_{1}\\ 
-    * a_{y}' & = & \sin\theta_{2}\\ 
-    * a_{z}' & = & \sqrt{1-\sin^{2}\theta_{1}-\sin^{2}\theta_{2}}\\ 
+    * x' & = & x'\\
+    * y' & = & y'\\
+    * z' & = & z'\\
+    * a_{x}' & = & \sin\theta_{1}\\
+    * a_{y}' & = & \sin\theta_{2}\\
+    * a_{z}' & = & \sqrt{1-\sin^{2}\theta_{1}-\sin^{2}\theta_{2}}\\
     * \frac{q}{p}' & = & \frac{q}{p}'\f}
     *
-    * 
     *
-    * \f[ 
+    *
+    * \f[
     * M=\left(\begin{array}{cc}
     * \sigma^{2} & 0\\
-    * 0 & \sigma^{2}\end{array}\right)\f] 
+    * 0 & \sigma^{2}\end{array}\right)\f]
     *
     * \n
     *
-    * \f[ 
+    * \f[
     * J=\frac{\partial\left(x',y',z',a_{x}',a_{y}',a_{z}',\frac{q}{p}'\right)}{\partial\left(\theta_{1},\theta_{2}\right)}\f]
     *
     * \n
@@ -222,7 +222,7 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
     * \n
     *
     *
-    * Now two \f$N\f$ are calculated: \f$N_{before}\f$ (at the start point, with initial direction #directionBefore) 
+    * Now two \f$N\f$ are calculated: \f$N_{before}\f$ (at the start point, with initial direction #directionBefore)
     * and \f$N_{after}\f$ (at the final point, with direction #directionAfter).
     * \f$N_{before}\f$ is the propagated with the #jacobian of extrapolation \f$T\f$.
     * The new covariance matrix with multiple scattering in global cs is:
@@ -238,10 +238,10 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
     * PANDA Report PV/01-07
     * \n
     * \n
-    */   
+    */
   double energyLoss(const double& step,
                     const double& mom,
-                    const int&    pdg,              
+                    const int&    pdg,
                     const double& matDensity,
                     const double& matZ,
                     const double& matA,
@@ -256,7 +256,7 @@ class GFEnergyLossCoulomb : public GFAbsEnergyLoss{
 
   // public:
   //ClassDef(GFEnergyLossCoulomb,1);
-  
+
 };
 
 } // namespace genf

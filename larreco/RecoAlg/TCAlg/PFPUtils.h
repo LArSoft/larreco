@@ -88,7 +88,7 @@ namespace tca {
   unsigned short FarEnd(TCSlice& slc, const PFPStruct& pfp, const Point3_t& pos);
   void PrintTp3(std::string fcnLabel, TCSlice& slc, const TrajPoint3& tp3);
   void PrintTp3s(std::string someText, TCSlice& slc, const PFPStruct& pfp, short printPts);
-  
+
 } // namespace tca
 
 #endif // ifndef TRAJCLUSTERALGSPTUTILS_H

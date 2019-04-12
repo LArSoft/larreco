@@ -31,12 +31,12 @@
 genf::GFDetPlane::GFDetPlane(const TVector3& o,
 		       const TVector3& u,
 		       const TVector3& v,
-		       GFAbsFinitePlane* finite) 
+		       GFAbsFinitePlane* finite)
 :fO(o),fU(u),fV(v),fFinitePlane(finite)
 {
   sane();
 }
-genf::GFDetPlane::GFDetPlane(GFAbsFinitePlane* finite) 
+genf::GFDetPlane::GFDetPlane(GFAbsFinitePlane* finite)
   :fFinitePlane(finite)
 {
   static TRandom3 r(0);
@@ -81,7 +81,7 @@ genf::GFDetPlane& genf::GFDetPlane::operator=(const genf::GFDetPlane& rhs){
   return *this;
 }
 
-void 
+void
 genf::GFDetPlane::set(const TVector3& o,
 	      const TVector3& u,
 	      const TVector3& v)
@@ -90,45 +90,45 @@ genf::GFDetPlane::set(const TVector3& o,
   sane();
 }
 
-void 
+void
 genf::GFDetPlane::setO(const TVector3& o)
 {
   fO=o;
   sane();
 }
-void 
+void
 genf::GFDetPlane::setO(double X,double Y,double Z)
 {
   fO.SetXYZ(X,Y,Z);
   sane();
 }
 
-void 
+void
 genf::GFDetPlane::setU(const TVector3& u)
 {
   fU=u;
   sane();
 }
-void 
+void
 genf::GFDetPlane::setU(double X,double Y,double Z)
 {
   fU.SetXYZ(X,Y,Z);
   sane();
 }
 
-void 
+void
 genf::GFDetPlane::setV(const TVector3& v)
 {
   fV=v;
   sane();
 }
-void 
+void
 genf::GFDetPlane::setV(double X,double Y,double Z)
 {
   fV.SetXYZ(X,Y,Z);
   sane();
 }
-void 
+void
 genf::GFDetPlane::setUV(const TVector3& u,const TVector3& v)
 {
   fU=u;
@@ -171,7 +171,7 @@ genf::GFDetPlane::setNormal(TVector3 n){
 	  fU.SetMag(1.);
 	}
   }
-  fV=n.Cross(fU);   
+  fV=n.Cross(fU);
 }
 
 void genf::GFDetPlane::setNormal(const double& theta, const double& phi){
@@ -187,7 +187,7 @@ genf::GFDetPlane::project(const TVector3& x)const
   return TVector2(xfU,xfV);
 }
 
-TVector2 
+TVector2
 genf::GFDetPlane::LabToPlane(const TVector3& x)const
 {
   TVector3 d=x-fO;
@@ -205,7 +205,7 @@ genf::GFDetPlane::toLab(const TVector2& x)const
 
 
 
-TVector3 
+TVector3
 genf::GFDetPlane::dist(const TVector3& x)const
 {
   TVector2 p=LabToPlane(x);
@@ -223,18 +223,18 @@ genf::GFDetPlane::sane(){
   fU.SetMag(1.);
   fV.SetMag(1.);
   // ensure orthogonal system
-  // fV should be reached by 
+  // fV should be reached by
   // rotating fU around _n in a counterclockwise direction
 
   TVector3 n=getNormal();
   fV=n.Cross(fU);
-  
+
   TVector3 v=fU;
   v.Rotate(TMath::Pi()*0.5,n);
   TVector3 null=v-fV;
   if (null.Mag() >= 1E-6)
     throw GFException("genf::GFDetPlane::sane(): non orthogonal!", __LINE__, __FILE__).setFatal();
- 
+
 }
 
 
@@ -249,12 +249,12 @@ genf::GFDetPlane::Print(std::ostream& out /* = std::cout */) const
 		   <<std::endl;
   out << fFinitePlane << std::endl;
   if(fFinitePlane!=NULL) fFinitePlane->Print(out);
-    
+
 }
 
 
 /*
-  I could write pages of comments about correct equality checking for 
+  I could write pages of comments about correct equality checking for
   floating point numbers, but: When two planes are as close as 10E-5 cm
   in all nine numbers that define the plane, this will be enough for all
   practical purposes
@@ -266,17 +266,17 @@ bool genf::operator== (const GFDetPlane& lhs, const GFDetPlane& rhs){
   if(
      fabs( (lhs.fO.X()-rhs.fO.X()) ) > DETPLANE_EPSILON  ||
      fabs( (lhs.fO.Y()-rhs.fO.Y()) ) > DETPLANE_EPSILON  ||
-     fabs( (lhs.fO.Z()-rhs.fO.Z()) ) > DETPLANE_EPSILON 
+     fabs( (lhs.fO.Z()-rhs.fO.Z()) ) > DETPLANE_EPSILON
      ) return false;
   else if(
 	  fabs( (lhs.fU.X()-rhs.fU.X()) ) > DETPLANE_EPSILON  ||
 	  fabs( (lhs.fU.Y()-rhs.fU.Y()) ) > DETPLANE_EPSILON  ||
-	  fabs( (lhs.fU.Z()-rhs.fU.Z()) ) > DETPLANE_EPSILON 
+	  fabs( (lhs.fU.Z()-rhs.fU.Z()) ) > DETPLANE_EPSILON
 	  ) return false;
   else if(
 	  fabs( (lhs.fV.X()-rhs.fV.X()) ) > DETPLANE_EPSILON  ||
 	  fabs( (lhs.fV.Y()-rhs.fV.Y()) ) > DETPLANE_EPSILON  ||
-	  fabs( (lhs.fV.Z()-rhs.fV.Z()) ) > DETPLANE_EPSILON 
+	  fabs( (lhs.fV.Z()-rhs.fV.Z()) ) > DETPLANE_EPSILON
 	  ) return false;
   return true;
 }
@@ -349,14 +349,14 @@ void genf::GFDetPlane::getGraphics(double mesh, double length, TPolyMarker3D **p
 double genf::GFDetPlane::distance(TVector3& v) const{
   double s = (v - fO)*fU;
   double t = (v - fO)*fV;
-  TVector3 distanceVector = v - fO - (s*fU) - (t*fV); 
+  TVector3 distanceVector = v - fO - (s*fU) - (t*fV);
   return distanceVector.Mag();
 }
 double genf::GFDetPlane::distance(double x,double y,double z) const{
   TVector3 v(x,y,z);
   double s = (v - fO)*fU;
   double t = (v - fO)*fV;
-  TVector3 distanceVector = v - fO - (s*fU) - (t*fV); 
+  TVector3 distanceVector = v - fO - (s*fU) - (t*fV);
   return distanceVector.Mag();
 }
 

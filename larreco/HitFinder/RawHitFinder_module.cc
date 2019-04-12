@@ -9,14 +9,14 @@
 #include <fstream>
 
 //Framework
-#include "fhiclcpp/ParameterSet.h" 
-#include "messagefacility/MessageLogger/MessageLogger.h" 
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "fhiclcpp/ParameterSet.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
+#include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Principal/Event.h" 
-#include "art/Framework/Principal/Handle.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Principal/Handle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "canvas/Utilities/InputTag.h"
 
 //LArSoft
@@ -55,7 +55,7 @@ namespace hit {
 
     public:
 
-      explicit RawHitFinder(fhicl::ParameterSet const& pset); 
+      explicit RawHitFinder(fhicl::ParameterSet const& pset);
 
       void produce(art::Event& evt) override;
       void reconfigure(fhicl::ParameterSet const& p);
@@ -65,27 +65,27 @@ namespace hit {
     unsigned int  fDataSize;                  //SIZE OF RAW DATA ON ONE WIRE.
     art::InputTag fDigitModuleLabel;          //MODULE THAT MADE DIGITS.
     std::string   fSpillName;                 //NOMINAL SPILL IS AN EMPTY STRING.
-    
+
     //FFT COPIED VARIABLES.
     std::string         fCalDataModuleLabel;
     std::string         fHitLabelName;
-    double              fMinSigInd;           //INDUCTION SIGNAL HEIGHT THRESHOLD. 
-    double              fMinSigCol;           //COLLECTION SIGNAL HEIGHT THRESHOLD. 
+    double              fMinSigInd;           //INDUCTION SIGNAL HEIGHT THRESHOLD.
+    double              fMinSigCol;           //COLLECTION SIGNAL HEIGHT THRESHOLD.
     double              fIndWidth;            //INITIAL WIDTH FOR COLLECTION FIT.
     double              fColWidth;            //INITIAL WIDTH FOR COLLECTION FIT.
     double              fIndMinWidth;         //MINIMUM INDUCTION HIT WIDTH.
     double              fColMinWidth;         //MINIMUM COLLECTION HIT WIDTH.
     int                 fMaxMultiHit;         //MAXIMUM HITS FOR MULTIFIT.
-    int                 fAreaMethod;          //TYPE OF AREA CALCULATION.  
+    int                 fAreaMethod;          //TYPE OF AREA CALCULATION.
     std::vector<double> fAreaNorms;           //FACTORS FOR CONVERTING AREA TO SAME UNIT AS PEAK HEIGHT.
     bool                fUncompressWithPed;   //OPTION TO UNCOMPRESS WITH PEDESTAL.
     bool fSkipInd;  //OPTION TO SKIP INDUCTION PLANES
-    double              fIncludeMoreTail;     //FRACTION OF THE HIT WIDTH INCLUDED BELOW THRESHOLD IN 
+    double              fIncludeMoreTail;     //FRACTION OF THE HIT WIDTH INCLUDED BELOW THRESHOLD IN
                                               //    THE CALCULATION OF CHARGE.  COLLECTION PLANE ONLY
     int              fColMinWindow;       // Minimum length of integration window for charge in ticks
     int              fIndCutoff;          //MAX WIDTH FOR EARLY SIDE OF INDUCTION HIT IN TICKS
-    
-    protected: 
+
+    protected:
 
   }; // class RawHitFinder
 
@@ -99,9 +99,9 @@ namespace hit {
     //LET HITCOLLECTIONCREATOR DECLARE THAT WE ARE GOING TO PRODUCE
     //HITS AND ASSOCIATIONS TO RAW DIGITS BUT NOT ASSOCIATIONS TO WIRES
     //(WITH NO PARTICULAR PRODUCT LABEL).
-    recob::HitCollectionCreator::declare_products(*this, 
-        /*instance_name*/"", 
-        /*doWireAssns*/false, 
+    recob::HitCollectionCreator::declare_products(*this,
+        /*instance_name*/"",
+        /*doWireAssns*/false,
         /*doRawDigitAssns*/true);
   }
 
@@ -110,35 +110,35 @@ namespace hit {
     fDigitModuleLabel   = p.get< art::InputTag >("DigitModuleLabel", "daq");
     fCalDataModuleLabel = p.get< std::string  >("CalDataModuleLabel");
     fMinSigInd          = p.get< double       >("MinSigInd");
-    fMinSigCol          = p.get< double       >("MinSigCol"); 
+    fMinSigCol          = p.get< double       >("MinSigCol");
     fIncludeMoreTail    = p.get< double       >("IncludeMoreTail", 0.);
-    fIndWidth           = p.get< int          >("IndWidth",20);  
+    fIndWidth           = p.get< int          >("IndWidth",20);
     fColWidth           = p.get< double       >("ColWidth");
     fIndMinWidth        = p.get< double       >("IndMinWidth");
-    fColMinWidth        = p.get< double       >("ColMinWidth",0.); 	  	
+    fColMinWidth        = p.get< double       >("ColMinWidth",0.);
     fMaxMultiHit        = p.get< int          >("MaxMultiHit");
     fAreaMethod         = p.get< int          >("AreaMethod");
     fAreaNorms          = p.get< std::vector< double > >("AreaNorms");
     fUncompressWithPed  = p.get< bool         >("UncompressWithPed", true);
     fSkipInd = p.get< bool         >("SkipInd", false);
-    fColMinWindow        = p.get< int       >("ColMinWindow",0); 	  	
-    fIndCutoff        = p.get< int       >("IndCutoff",20); 	  	
+    fColMinWindow        = p.get< int       >("ColMinWindow",0);
+    fIndCutoff        = p.get< int       >("IndCutoff",20);
     mf::LogInfo("RawHitFinder_module") << "fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
   }
 
   //-------------------------------------------------
   void RawHitFinder::produce(art::Event& evt)
-  {      
+  {
     //GET THE GEOMETRY.
     art::ServiceHandle<geo::Geometry const> geom;
 
-    //READ IN THE DIGIT LIST OBJECTS(S). 
+    //READ IN THE DIGIT LIST OBJECTS(S).
     art::Handle< std::vector<raw::RawDigit> > digitVecHandle;
 
     bool retVal = evt.getByLabel(fDigitModuleLabel, digitVecHandle);
-    if(retVal==true) 
+    if(retVal==true)
       mf::LogInfo("RawHitFinder_module")    << "I got fDigitModuleLabel: "         << fDigitModuleLabel << std::endl;
-    else 
+    else
       mf::LogWarning("RawHitFinder_module") << "Could not get fDigitModuleLabel: " << fDigitModuleLabel << std::endl;
 
     std::vector<float> holder;      //HOLDS SIGNAL DATA.
@@ -151,7 +151,7 @@ namespace hit {
     recob::HitCollectionCreator hcol(*this, evt, false /* doWireAssns */, true /* doRawDigitAssns */);
 
     std::vector<float> startTimes;  //STORES TIME OF WINDOW START.
-    std::vector<float> maxTimes;    //STORES TIME OF LOCAL MAXIMUM.    
+    std::vector<float> maxTimes;    //STORES TIME OF LOCAL MAXIMUM.
     std::vector<float> endTimes;    //STORES TIME OF WINDOW END.
     std::vector<float> peakHeight;  //STORES ADC COUNT AT THE MAXIMUM.
     std::vector<float> hitrms;    	 //STORES CHARGE WEIGHTED RMS OF TIME ACROSS THE HIT.
@@ -193,7 +193,7 @@ namespace hit {
       lariov::ChannelStatusProvider::ChannelSet_t const BadChannels
         = channelStatus.BadChannels();
 
-      for(unsigned int bin = 0; bin < fDataSize; ++bin){ 
+      for(unsigned int bin = 0; bin < fDataSize; ++bin){
         holder[bin]=(rawadc[bin]-digitVec->GetPedestal());
       }
 
@@ -267,22 +267,22 @@ namespace hit {
               }
               startTimes.push_back(bin+1);
               // now step forward from hit time to find end time, area of dip
-              bin=place; 	      
+              bin=place;
               thisadc=holder[bin];
               minadc=thisadc;
 	      bin++;
               totSig = fabs(thisadc);
               while (thisadc<negthr && bin<fDataSize) {
-                totSig += fabs(thisadc); 
+                totSig += fabs(thisadc);
                 thisadc=holder[bin];
-                if (thisadc<minadc) minadc=thisadc;		
+                if (thisadc<minadc) minadc=thisadc;
                 bin++;
               }
               endTimes.push_back(bin-1);
               peakHeight.push_back(-1.0*minadc);
               charge.push_back(totSig);
               hitrms.push_back(5.0);
-              //	    std::cout << "TOTAL SIGNAL INDUCTION " << totSig << "  5.0" << std::endl; 
+              //	    std::cout << "TOTAL SIGNAL INDUCTION " << totSig << "  5.0" << std::endl;
               // std::cout << "filled end times " << bin-1 << "peak height vector size " << peakHeight.size() << std::endl;
 
               // don't look for a new hit until it returns to baseline
@@ -293,13 +293,13 @@ namespace hit {
                 thisadc=holder[bin];
               }
             } // end region
-            bin++;	  
+            bin++;
           }// loop over ticks
         }
 
         // ###############################################
         // ###             Collection Plane            ###
-        // ###############################################    
+        // ###############################################
 
         else if(sigType == geo::kCollection)
         {
@@ -327,7 +327,7 @@ namespace hit {
                 {
                   if (thisadc>madc)
                   {
-                    ibin=bin; 
+                    ibin=bin;
                     madc=thisadc;
                   }
                   bin++;
@@ -345,7 +345,7 @@ namespace hit {
               if(start!=end)
               {
                 maxTimes.push_back(ibin);
-                peakHeight.push_back(madc);	    
+                peakHeight.push_back(madc);
                 startTimes.push_back(start);
                 endTimes.push_back(end);
 
@@ -441,7 +441,7 @@ namespace hit {
             *digitVec,                                                                     //RAW DIGIT REFERENCE.
             wid,                                                                           //WIRE ID.
             start,                                                                         //START TICK.
-            end,                                                                           //END TICK. 
+            end,                                                                           //END TICK.
             hrms,                                                                          //RMS.
             position,                                                                      //PEAK_TIME.
             positionErr,                                                                   //SIGMA_PEAK_TIME.
@@ -449,7 +449,7 @@ namespace hit {
             amplitudeErr,                                                                  //SIGMA_PEAK_AMPLITUDE.
             totSig,                                                                        //HIT_INTEGRAL.
             chargeErr,                                                                     //HIT_SIGMA_INTEGRAL.
-            std::accumulate(holder.begin() + (int) start, holder.begin() + (int) end, 0.), //SUMMED CHARGE. 
+            std::accumulate(holder.begin() + (int) start, holder.begin() + (int) end, 0.), //SUMMED CHARGE.
             1,                                                                             //MULTIPLICITY.
             -1,                                                                            //LOCAL_INDEX.
             goodnessOfFit,                                                                 //WIRE ID.
@@ -464,6 +464,6 @@ namespace hit {
     hcol.put_into(evt);
   }
 
-  DEFINE_ART_MODULE(RawHitFinder)   
+  DEFINE_ART_MODULE(RawHitFinder)
 
 } // end namespace hit

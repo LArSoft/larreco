@@ -2,7 +2,7 @@
  * Title:   GaussianEliminationAlg Class
  * Author:  Wes Ketchum (wketchum@lanl.gov)
  *
- * Description: 
+ * Description:
  * Class that solves system of linear equations via Gaussian Elimination.
  * Intended for use with RFFHitFitter
  *
@@ -38,7 +38,7 @@ void util::GaussianEliminationAlg::FillDistanceLookupTable()
     x_val += fDistanceStepSize;
   }
   //do one more to be sure to push beyond...
-  fDistanceLookupTable.push_back( std::exp(x_val*x_val*0.5*-1) ); 
+  fDistanceLookupTable.push_back( std::exp(x_val*x_val*0.5*-1) );
 }
 
 double util::GaussianEliminationAlg::GetDistance(float d) const
@@ -50,7 +50,7 @@ double util::GaussianEliminationAlg::GetDistance(float d) const
   size_t low_bin = std::floor(d_abs/fDistanceStepSize);
   return fDistanceLookupTable[low_bin] -
     (d_abs/fDistanceStepSize-(double)low_bin)*(fDistanceLookupTable[low_bin]-fDistanceLookupTable[low_bin+1]);
-  
+
 }
 
 const std::vector<float>& util::GaussianEliminationAlg::SolveEquations(const std::vector<float>& meanVector,
@@ -76,7 +76,7 @@ void util::GaussianEliminationAlg::FillAugmentedMatrix(const std::vector<float>&
 
   fMatrix.resize(meanVector.size());
   for(size_t i=0; i<meanVector.size(); i++){
-    
+
     fMatrix[i].resize(meanVector.size()+1);
     for(size_t j=0; j<meanVector.size(); j++){
       if(sigmaVector[j] < std::numeric_limits<float>::epsilon()){
@@ -89,7 +89,7 @@ void util::GaussianEliminationAlg::FillAugmentedMatrix(const std::vector<float>&
 	fMatrix[i][j] = GetDistance( (meanVector[i]-meanVector[j])/sigmaVector[j] );
     }
     fMatrix[i][meanVector.size()] = heightVector[i];
-    
+
   }
 
 }
@@ -104,9 +104,9 @@ void util::GaussianEliminationAlg::GaussianElimination()
     for(size_t j=i+1; j<(fMatrix[i].size()-1); j++){
       float scale_value = fMatrix[j][i] / fMatrix[i][i];
       for(size_t k=i; k<fMatrix[i].size(); k++)
-	fMatrix[j][k] -= fMatrix[i][k]*scale_value;      
+	fMatrix[j][k] -= fMatrix[i][k]*scale_value;
     }//end column loop
-  
+
   }//end row loop
 
   for(int i=fMatrix.size()-1; i>=0; i--){

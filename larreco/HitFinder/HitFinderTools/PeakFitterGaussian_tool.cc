@@ -27,15 +27,15 @@ namespace reco_tool
 ///
 /// The baseline parameter is always the last one.
 class BaselinedGausFitCache: public hit::GausFitCache {
-    
+
 public:
     /// Constructor (see base class constructor).
     BaselinedGausFitCache(std::string const& new_name="BaselinedGausFitCache")
       : hit::GausFitCache(new_name)
       {}
-    
+
 protected:
-    
+
     /// Creates and returns the function with specified number of Gaussians.
     ///
     /// The formula is `gaus(0) + gaus(3) + ... + gaus(3*(nFunc-1)) + [nFunc*3]`.
@@ -46,13 +46,13 @@ protected:
          std::size_t iGaus = 0;
          while (iGaus < nFunc) formula += "gaus(" + std::to_string(3 * (iGaus++)) + ") + ";
          formula += "[" + std::to_string(3 * nFunc) + "]";
-        
+
          std::string const func_name = FunctionName(nFunc);
          auto* pF = new TF1(func_name.c_str(), formula.c_str());
          pF->SetParName(iGaus * 3, "baseline");
          return pF;
     } // CreateFunction()
-    
+
 }; // BaselinedGausFitCache
 
 
@@ -60,17 +60,17 @@ class PeakFitterGaussian : IPeakFitter
 {
 public:
     explicit PeakFitterGaussian(const fhicl::ParameterSet& pset);
-    
+
     ~PeakFitterGaussian();
-    
+
     void configure(const fhicl::ParameterSet& pset) override;
-    
+
     void findPeakParameters(const std::vector<float>&,
                             const ICandidateHitFinder::HitCandidateVec&,
                             PeakParamsVec&,
                             double&,
                             int&) const override;
-    
+
 private:
     // Member variables from the fhicl file
     double                   fMinWidth;          ///< minimum initial width for gaussian fit
@@ -81,7 +81,7 @@ private:
     bool                     fOutputHistograms;  ///< If true will generate summary style histograms
 
     TH1F*                    fNumCandHitsHist;
-    TH1F*                    fROISizeHist;      
+    TH1F*                    fROISizeHist;
     TH1F*                    fCandPeakPositionHist;
     TH1F*                    fCandPeakWidHist;
     TH1F*                    fCandPeakAmpitudeHist;
@@ -92,23 +92,23 @@ private:
     TH1F*                    fFitBaselineHist;
 
     mutable BaselinedGausFitCache fFitCache; ///< Preallocated ROOT functions for the fits.
-    
+
     mutable TH1F             fHistogram;
-    
+
     const geo::GeometryCore* fGeometry = lar::providerFrom<geo::Geometry>();
 };
-    
+
 //----------------------------------------------------------------------
 // Constructor.
 PeakFitterGaussian::PeakFitterGaussian(const fhicl::ParameterSet& pset)
 {
     configure(pset);
 }
-    
+
 PeakFitterGaussian::~PeakFitterGaussian()
 {
 }
-    
+
 void PeakFitterGaussian::configure(const fhicl::ParameterSet& pset)
 {
     // Start by recovering the parameters
@@ -118,13 +118,13 @@ void PeakFitterGaussian::configure(const fhicl::ParameterSet& pset)
     fAmpRange         = pset.get<double>("PeakAmpRange",     2.);
     fFloatBaseline    = pset.get< bool >("FloatBaseline",    false);
     fOutputHistograms = pset.get< bool >("OutputHistograms", false);
-    
+
     fHistogram = TH1F("PeakFitterHitSignal","",500,0.,500.);
-    
+
     fHistogram.Sumw2();
-    
+
     std::string function = "Gaus(0)";
-    
+
     // If asked, define the global histograms
     if (fOutputHistograms)
     {
@@ -146,10 +146,10 @@ void PeakFitterGaussian::configure(const fhicl::ParameterSet& pset)
         fFitPeakAmpitudeHist  = dir.make<TH1F>("FPeakAmplitude", "Peak Amplitude",   100,   0., 200.);
         fFitBaselineHist      = dir.make<TH1F>("FBaseline",      "Baseline",         200, -25.,  25.);
     }
-    
+
     return;
 }
-    
+
 // --------------------------------------------------------------------------------------------
 void PeakFitterGaussian::findPeakParameters(const std::vector<float>&                   roiSignalVec,
                                             const ICandidateHitFinder::HitCandidateVec& hitCandidateVec,
@@ -164,14 +164,14 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
     //           the first tick of the input waveform (ie 0)
     //
     if (hitCandidateVec.empty()) return;
-    
+
     // in case of a fit failure, set the chi-square to infinity
     chi2PerNDF = std::numeric_limits<double>::infinity();
-    
+
     int startTime = hitCandidateVec.front().startTick;
     int endTime   = hitCandidateVec.back().stopTick;
     int roiSize   = endTime - startTime;
-    
+
     // Check to see if we need a bigger histogram for fitting
     if (roiSize > fHistogram.GetNbinsX())
     {
@@ -179,22 +179,22 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
         fHistogram = TH1F(histName.c_str(),"",roiSize,0.,roiSize);
         fHistogram.Sumw2();
     }
-    
+
     for(int idx = 0; idx < roiSize; idx++) fHistogram.SetBinContent(idx+1,roiSignalVec[startTime+idx]);
-    
+
     // Build the string to describe the fit formula
 #if 0
     std::string equation = "gaus(0)";
-    
+
     for(size_t idx = 1; idx < hitCandidateVec.size(); idx++) equation += "+gaus(" + std::to_string(3*idx) + ")";
-    
+
     // Set the baseline if so desired
     float baseline(0.);
-    
+
     if (fFloatBaseline)
     {
         baseline = roiSignalVec[startTime];
-    
+
         equation += "+" + std::to_string(baseline);
     }
 
@@ -207,7 +207,7 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
 
     // Set the baseline if so desired
     float baseline(0.);
-    
+
     if (fFloatBaseline)
     {
         baseline = roiSignalVec[startTime];
@@ -241,24 +241,24 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
             fCandPeakWidHist->Fill(peakWidth, 1.);
             fCandPeakAmpitudeHist->Fill(amplitude, 1.);
         }
-        
+
         Gaus.SetParameter(  parIdx, amplitude);
         Gaus.SetParameter(1+parIdx, peakMean);
         Gaus.SetParameter(2+parIdx, peakWidth);
         Gaus.SetParLimits(  parIdx, 0.1 * amplitude,  fAmpRange * amplitude);
         Gaus.SetParLimits(1+parIdx, meanLowLim,       meanHiLim);
         Gaus.SetParLimits(2+parIdx, std::max(fMinWidth, 0.1 * peakWidth), fMaxWidthMult * peakWidth);
-        
+
         parIdx += 3;
     }
-    
+
     int fitResult{-1};
-    
+
     try
     { fitResult = fHistogram.Fit(&Gaus,"QNWB","", 0., roiSize);}
     catch(...)
     {mf::LogWarning("GausHitFinder") << "Fitter failed finding a hit";}
-    
+
     // If the fit result is not zero there was an error
     if (!fitResult)
     {
@@ -267,12 +267,12 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
         // ##################################################
         chi2PerNDF = (Gaus.GetChisquare() / Gaus.GetNDF());
         NDF        = Gaus.GetNDF();
-    
+
         int parIdx { 0 };
         for(size_t idx = 0; idx < hitCandidateVec.size(); idx++)
         {
             PeakFitParams_t peakParams;
-        
+
             peakParams.peakAmplitude      = Gaus.GetParameter(parIdx);
             peakParams.peakAmplitudeError = Gaus.GetParError( parIdx);
             peakParams.peakCenter         = Gaus.GetParameter(parIdx + 1) + float(startTime);
@@ -288,14 +288,14 @@ void PeakFitterGaussian::findPeakParameters(const std::vector<float>&           
             }
 
             peakParamsVec.emplace_back(peakParams);
-        
+
             parIdx += 3;
         }
-        
+
         if (fOutputHistograms) fFitBaselineHist->Fill(Gaus.GetParameter(3*nGaus), 1.);
     }
 #if 0
-    Gaus.Delete();    
+    Gaus.Delete();
 #endif // 0
     return;
 }

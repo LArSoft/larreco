@@ -20,7 +20,7 @@
 /** @addtogroup RKTrackRep
  * @{
  */
- 
+
 #ifndef GFMATERIALEFFECTS_H
 #define GFMATERIALEFFECTS_H
 
@@ -37,27 +37,27 @@
 #include "larreco/Genfit/GFAbsEnergyLoss.h"
 #include "larreco/Genfit/GFGeoMatManager.h"
 
-  
+
 /** @brief  Handles energy loss classes. Contains stepper and energy loss/noise matrix calculation
- * 
+ *
  *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Johannes Rauch  (Technische Universit&auml;t M&uuml;nchen, author)
- * 
- *  This class handles the different energy loss classes that inherit from GFAbsEnergyLoss. 
+ *
+ *  This class handles the different energy loss classes that inherit from GFAbsEnergyLoss.
  *  It provides functionality to limit the stepsize of an extrapolation in order not to
- *  exceed a specified maximum momentum loss. After propagation, the energy loss 
+ *  exceed a specified maximum momentum loss. After propagation, the energy loss
  *  for the given length and (optionally) the noise matrix can be calculated.
- *  
- *  
+ *
+ *
  */
 
 namespace genf {
 
-class GFMaterialEffects : public TObject{ 
+class GFMaterialEffects : public TObject{
  private:
-    
+
   GFMaterialEffects();
   virtual ~GFMaterialEffects();
   static GFMaterialEffects* finstance;
@@ -73,14 +73,14 @@ class GFMaterialEffects : public TObject{
   void setNoiseBrems(bool opt = true){fNoiseBrems=opt;}
 
   //! Calculates energy loss in the travelled path, optional calculation of noise matrix
-  double effects(const std::vector<TVector3>& points, 
-                 const std::vector<double>& pointPaths, 
+  double effects(const std::vector<TVector3>& points,
+                 const std::vector<double>& pointPaths,
                  const double& mom,
                  const int& pdg,
                  const bool& doNoise = false,
                        TMatrixT<Double_t>* noise = NULL,
                  const TMatrixT<Double_t>* jacobian = NULL,
-                 const TVector3* directionBefore = NULL, 
+                 const TVector3* directionBefore = NULL,
                  const TVector3* directionAfter = NULL);
 
   //! Returns maximum length so that a specified momentum loss will not be exceeded
@@ -96,7 +96,7 @@ class GFMaterialEffects : public TObject{
                  const double& mom,
                  const int& pdg);
   double stepper(const double& maxDist,
-                 const TVector3& pos, 
+                 const TVector3& pos,
                  const TVector3& dir,
                  const double& mom,
                  const int& pdg){
@@ -106,7 +106,7 @@ class GFMaterialEffects : public TObject{
   //! contains energy loss classes
   //  std::vector<GFAbsEnergyLoss*> fEnergyLoss;
   //! interface to material and geometry
-  //GFGeoMatManager *geoMatManager; 
+  //GFGeoMatManager *geoMatManager;
   void getParameters();
 
   //! sets fbeta, fgamma, fgammasquare; must only be used after calling getParameters()
@@ -369,7 +369,7 @@ class GFMaterialEffects : public TObject{
   int fpdg;
   double fcharge;
   double fmass;
- 
+
 
   // public:
   //classDef(GFMaterialEffects,1)

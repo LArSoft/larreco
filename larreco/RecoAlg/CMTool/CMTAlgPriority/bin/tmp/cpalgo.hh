@@ -2,7 +2,7 @@
  * \file CPAlgo_Class_Name.hh
  *
  * \ingroup Working_Package
- * 
+ *
  * \brief Class def header for a class CPAlgo_Class_Name
  *
  * @author USER_NAME
@@ -23,23 +23,23 @@ namespace cmtool {
      doxygen documentation!
   */
   class CPAlgo_Class_Name : public CPriorityAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CPAlgo_Class_Name();
-    
+
     /// Default destructor
     virtual ~CPAlgo_Class_Name(){};
 
     //
-    // Author should be aware of 3 functions at least: Priority, Report, 
-    // and Reset. More possibly-useful functions can be found in the later 
+    // Author should be aware of 3 functions at least: Priority, Report,
+    // and Reset. More possibly-useful functions can be found in the later
     // part but commented out. All of these functions are virtual and defined
     // in the base class.
 
     /**
-       Core function: given the CPAN input, return a float which indicates 
+       Core function: given the CPAN input, return a float which indicates
        the user-defined priority for analysis.
     */
     virtual float Priority(const ::cluster::ClusterParamsAlg &cluster);
@@ -49,7 +49,7 @@ namespace cmtool {
        run with verbosity level <= kPerIteration. Maybe useful for debugging.
     */
     virtual void Report();
-    
+
     /// Function to reset the algorithm instance, called together with manager's Reset()
     virtual void Reset();
 
@@ -62,7 +62,7 @@ namespace cmtool {
        Optional function: called at the end of event ... after the last merging iteration is over.
      */
     //virtual void EventEnd();
- 
+
     /**
        Optional function: called at the beggining of each iterative loop.
        This provides all clusters' information in case the algorithm need them. Note this
@@ -78,5 +78,5 @@ namespace cmtool {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

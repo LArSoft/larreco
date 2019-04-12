@@ -2,7 +2,7 @@
  *  @file   PmaTrkCandidate.cxx
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Track finding helper for the Projection Matching Algorithm
  *
  *          Candidate for 3D track. Used to test 2D cluster associations, validadion result, MSE value.
@@ -100,14 +100,14 @@ void pma::TrkCandidateColl::setParentDaughterConnections(void)
 				if (idx >= 0)
 				{
 				    fCandidates[(size_t)idx].SetParent(pri_idx);
-				    fParents.back().Daughters().push_back((size_t)idx);				    
+				    fParents.back().Daughters().push_back((size_t)idx);
 				}
 		    }
 		}
 
 		for (size_t n = 1; n < trk->Nodes().size(); ++n)
 		{
-			auto node = trk->Nodes()[n]; 
+			auto node = trk->Nodes()[n];
 			for (size_t i = 0; i < node->NextCount(); ++i)
 			{
 				pma::Track3D const * daughterTrk = static_cast< pma::Segment3D* >(node->Next(i))->Parent();

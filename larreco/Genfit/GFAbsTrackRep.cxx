@@ -45,7 +45,7 @@ double genf::GFAbsTrackRep::extrapolate(const GFDetPlane& plane, TMatrixT<Double
 }
 
 void genf::GFAbsTrackRep::Abort(std::string method){
-  std::cerr << method <<  " as implemented in " << __FILE__ 
+  std::cerr << method <<  " as implemented in " << __FILE__
 	    << " was called. This means that this feature was used "
 	    << "in a track rep which didnt overwrite this method. "
 	    << std::endl << "C++ throw;" << std::endl;
@@ -59,14 +59,14 @@ void genf::GFAbsTrackRep::extrapolateToPoint(const TVector3& /* point */,
   Abort("extrapolateToPoca()");
 }
 
-void genf::GFAbsTrackRep::extrapolateToLine(const TVector3& /* point1 */, 
+void genf::GFAbsTrackRep::extrapolateToLine(const TVector3& /* point1 */,
 									const TVector3& /* point2 */,
 									TVector3& /* poca */,
 									TVector3& /* normVec */,
 									TVector3& /* poca_onwire */){
   Abort("extrapolateToLine()");
 }
-  
+
 
 void genf::GFAbsTrackRep::stepalong(double /* h */){
   Abort("stepalong()");

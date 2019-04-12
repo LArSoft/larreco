@@ -30,7 +30,7 @@ namespace cmtool {
 
     double len1 = cluster1.GetParams().length;
     double len2 = cluster2.GetParams().length;
-    
+
     size_t hits1 = cluster1.GetHitVector().size();
     size_t hits2 = cluster1.GetHitVector().size();
 
@@ -38,7 +38,7 @@ namespace cmtool {
     if ( (hits1 < _minHits) or (hits2 < _minHits)
 	 or (angle1 < -360) or (angle2 < -360) )
       return false;
-    
+
     if (_debug){
       std::cout << "Cluster 1:" << std::endl;
       std::cout << "\tStart: ( " << w_start1 << ", " << t_start1 << " )" << std::endl;

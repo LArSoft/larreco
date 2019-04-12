@@ -34,15 +34,15 @@
 namespace cluster {
 
   class SimpleClusterMerger : public art::EDProducer {
-    
+
   public:
 
     explicit SimpleClusterMerger(fhicl::ParameterSet const & p);
 
     virtual ~SimpleClusterMerger();
-    
+
     void produce(art::Event & evt) override;
-    
+
   private:
 
     /// ClusterMergeHelper
@@ -74,7 +74,7 @@ namespace cluster {
 
     /// Example prohibit algorithm
     ::cmtool::CBAlgoTrackSeparate fProhibitAlg;
-  
+
   };
 }
 
@@ -86,7 +86,7 @@ namespace cluster {
     // Declare output data products
     produces< std::vector<recob::Cluster> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
-    
+
     // Fill fcl parameter
     fClusterModuleLabel = p.get<std::string>("InputClusterLabel");
 
@@ -96,7 +96,7 @@ namespace cluster {
       we defined as class member. Here, for simplicity, I don't pass any configuration
       parameters but you should in your custom merging module.
     */
-    
+
     // Configure angle algorithm
     fAngleAlg.SetVerbose(false);       // no verbous mode... annoying
     fAngleAlg.SetMinHits(10);          // Set minimum # hits to be 10
@@ -105,7 +105,7 @@ namespace cluster {
 
     // Configure distance algorithm
     fDistAlg.SetVerbose(false);        // No verbous mode ... annoying
-    fDistAlg.SetMinHits(10);           // Set minimum # hits to be 10 
+    fDistAlg.SetMinHits(10);           // Set minimum # hits to be 10
     fDistAlg.SetSquaredDistanceCut(9); // Set distance-squared cut to be 9 cm^2
 
     // Attach them to CBAlgoArray to make it into one merging algorithm
@@ -114,15 +114,15 @@ namespace cluster {
 
     //--- Configure Prohibit Algorithm ---//
 
-    // I configure this using totally arbitrary numbers + I do not configure all parameters... 
+    // I configure this using totally arbitrary numbers + I do not configure all parameters...
     // This is just for example.
     fProhibitAlg.SetVerbose(false);
     fProhibitAlg.SetDebug(false);
-    fProhibitAlg.SetMinNumHits(10);       
+    fProhibitAlg.SetMinNumHits(10);
     fProhibitAlg.SetMinAngleDiff(5);
     fProhibitAlg.SetMaxOpeningAngle(10);
     fProhibitAlg.SetMinLength(5);
-    
+
 
     //--- Configure Merger ---//
 
@@ -136,19 +136,19 @@ namespace cluster {
     //
     //fCMerge.GetManager(0).AddMergeAlgo( new CBAlgoMergeAll );
 
-    
+
   }
-  
+
   SimpleClusterMerger::~SimpleClusterMerger()
   {
     // Clean up dynamic memory and other resources here.
   }
-  
+
   void SimpleClusterMerger::produce(art::Event & evt)
   {
     std::unique_ptr<std::vector<recob::Cluster> > out_clusters(new std::vector<recob::Cluster>);
     std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > out_assn(new art::Assns<recob::Cluster, recob::Hit>);
-    
+
     art::ServiceHandle<geo::Geometry const> geo;
 
     //
@@ -162,7 +162,7 @@ namespace cluster {
     if(!cHandle.isValid())
       throw cet::exception(__FUNCTION__) << "Invalid input cluster label!" << std::endl;
 
-    // Cluster type conversion: recob::Hit => util::PxHit 
+    // Cluster type conversion: recob::Hit => util::PxHit
     std::vector<std::vector< ::util::PxHit> > local_clusters;
     art::FindManyP<recob::Hit> hit_m(cHandle, evt, fClusterModuleLabel);
     ::util::PxHitConverter conv;
@@ -174,10 +174,10 @@ namespace cluster {
 
       conv.GeneratePxHit(hits, local_clusters.back());
     }
-    
+
     //--- Process merging ---//
     fCMerge.Process(local_clusters);
-    
+
     // Store output
     auto merged_clusters = fCMerge.GetResult().GetResult();
 
@@ -187,28 +187,28 @@ namespace cluster {
       throw cet::exception(__FUNCTION__) << "LOGIC ERROR: merged cluster id length != output cluster counts..." << std::endl;
 
     for(size_t out_index=0; out_index < merged_clusters.size(); ++out_index) {
-      
+
       // To save typing let's just retrieve const cluster_params instance
       const cluster_params &res = cpan_v[out_index].GetParams();
-      
+
       // this "algo" is actually parroting its cluster_params
       LazyClusterParamsAlg algo(res);
-      
+
       std::vector<art::Ptr<recob::Hit> > merged_hits;
       for(auto const& c_index : merged_clusters[out_index]) {
         const std::vector<art::Ptr<recob::Hit> >& hits = hit_m.at(c_index);
         merged_hits.reserve(merged_hits.size() + hits.size());
         for(auto const& ptr : hits) merged_hits.push_back(ptr);
       }
-      
+
       // the full plane needed but not a part of cluster_params...
       // get the one from the first hit
       geo::PlaneID plane; // invalid by default
       if (!merged_hits.empty()) plane = merged_hits.front()->WireID().planeID();
-      
+
       // View_t needed but not a part of cluster_params, so retrieve it here
       geo::View_t view_id = geo->Plane(plane).View();
-      
+
       // Push back a new cluster data product with parameters copied from cluster_params
       out_clusters->emplace_back(
         res.start_point.w / fGeoU.WireToCm(), // start_wire
@@ -237,16 +237,16 @@ namespace cluster {
         plane,                                // plane
         recob::Cluster::Sentry                // sentry
         );
-      
-      util::CreateAssn(*this, 
-		       evt, 
-		       *(out_clusters.get()), 
+
+      util::CreateAssn(*this,
+		       evt,
+		       *(out_clusters.get()),
 		       merged_hits,
 		       *(out_assn.get())
 		       );
 
     }
-    
+
   evt.put(std::move(out_clusters));
   evt.put(std::move(out_assn));
   }

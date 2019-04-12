@@ -34,7 +34,7 @@ namespace cmtool {
       small = 1;
     else
       return false;
-    
+
     //Define COM values on w & t
     double COM_t_s = 0;
     double COM_w_s = 0;
@@ -63,7 +63,7 @@ namespace cmtool {
       end_w = cluster2.GetParams().end_point.w;
       end_t = cluster2.GetParams().end_point.t;
       poly  = cluster2.GetParams().PolyObject;
-    }      
+    }
     if ( small == 2 ){
       hitss = cluster2.GetHitVector();
       hitssmall = hitss.size();
@@ -138,21 +138,21 @@ namespace cmtool {
 
   }
 
-  double CBAlgoCenterOfMass::ShortestDistanceSquared(double point_x, double point_y, 
+  double CBAlgoCenterOfMass::ShortestDistanceSquared(double point_x, double point_y,
 						     double start_x, double start_y,
 						     double end_x,   double end_y  ) const {
-    
-    //This code finds the shortest distance between a point and a line segment.    
-    //code based off sample from 
+
+    //This code finds the shortest distance between a point and a line segment.
+    //code based off sample from
     //http://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
-    //note to self: rewrite this with TVector2 and compare time differences... 
+    //note to self: rewrite this with TVector2 and compare time differences...
     //TVector2 code might be more understandable
-    
+
     double distance_squared = -1;
-    
+
     // Line segment: from ("V") = (start_x, start_y) to ("W")=(end_x, end_y)
     double length_squared = pow((end_x - start_x), 2) + pow((end_y - start_y), 2);
-    
+
     // Treat the case start & end point overlaps
     if(length_squared < 0.1) {
       if(_verbose){
@@ -166,21 +166,21 @@ namespace cmtool {
 	std::cout << " to represent this cluster's location." << std::endl;
 	std::cout << std::endl;
       }
-      
+
       return (pow((point_x - start_x),2) + pow((point_y - start_y),2));
     }
-    
+
     //Find shortest distance between point ("P")=(point_x,point_y) to this line segment
     double t = ( (point_x - start_x)*(end_x - start_x) + (point_y - start_y)*(end_y - start_y) ) / length_squared;
-    
+
     if(t<0.0) distance_squared = pow((point_x - start_x), 2) + pow((point_y - start_y), 2);
-    
+
     else if (t>1.0) distance_squared = pow((point_x - end_x), 2) + pow(point_y - end_y, 2);
-    
+
     else distance_squared = pow((point_x - (start_x + t*(end_x - start_x))), 2) + pow((point_y - (start_y + t*(end_y - start_y))),2);
-    
+
     return distance_squared;
-    
+
   }//end ShortestDistanceSquared function
 
 

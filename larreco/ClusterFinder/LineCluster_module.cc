@@ -2,8 +2,8 @@
  * @file   LineCluster_module.cc
  * @brief  Cluster finder using cluster crawler algorithm
  * @author Bruce Baller (bballer@fnal.gov)
- * 
- * Generated at Fri Jun  7 09:44:09 2013 by Bruce Baller using artmod 
+ *
+ * Generated at Fri Jun  7 09:44:09 2013 by Bruce Baller using artmod
  * from cetpkgsupport v1_02_00.
  */
 
@@ -27,34 +27,34 @@
 namespace cluster {
   /**
    * @brief Produces clusters by ClusterCrawler algorithm
-   * 
+   *
    * Configuration parameters
    * -------------------------
-   * 
+   *
    * - *HitFinderModuleLabel* (InputTag, mandatory): label of the hits to be
    *   used as input (usually the label of the producing module is enough)
    * - *ClusterCrawlerAlg* (parameter set, mandatory): full configuration for
    *   ClusterCrawlerAlg algorithm
-   * 
+   *
    */
   class LineCluster: public art::EDProducer {
-    
+
     public:
       explicit LineCluster(fhicl::ParameterSet const & pset);
-      
+
       void reconfigure(fhicl::ParameterSet const & pset) ;
       void produce(art::Event & evt) override;
-      
+
     private:
       std::unique_ptr<ClusterCrawlerAlg> fCCAlg; // define ClusterCrawlerAlg object
-      
+
       art::InputTag fHitFinderLabel; ///< label of module producing input hits
 
       bool fDoWireAssns;
       bool fDoRawDigitAssns;
-    
+
   }; // class LineCluster
-  
+
 } // namespace cluster
 
 //******************************************************************************
@@ -82,18 +82,18 @@ namespace cluster {
 
 
 namespace cluster {
-  
+
   //----------------------------------------------------------------------------
   LineCluster::LineCluster(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
     reconfigure(pset);
-    
+
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
     recob::HitCollectionAssociator::declare_products(*this,"",fDoWireAssns,fDoRawDigitAssns);
-    
+
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
     produces< std::vector<recob::EndPoint2D> >();
@@ -101,15 +101,15 @@ namespace cluster {
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
     produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
   } // LineCluster::LineCluster()
-  
-  
+
+
   //----------------------------------------------------------------------------
   void LineCluster::reconfigure(fhicl::ParameterSet const & pset)
   {
     fHitFinderLabel = pset.get<art::InputTag>("HitFinderModuleLabel");
     fDoWireAssns = pset.get<bool>("DoWireAssns",true);
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",false);
-    
+
     // this trick avoids double configuration on construction
     if (fCCAlg)
       fCCAlg->reconfigure(pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg"));
@@ -118,7 +118,7 @@ namespace cluster {
         (pset.get< fhicl::ParameterSet >("ClusterCrawlerAlg")));
     }
   } // LineCluster::reconfigure()
-  
+
   //----------------------------------------------------------------------------
   void LineCluster::produce(art::Event & evt)
   {
@@ -130,10 +130,10 @@ namespace cluster {
 
     // look for clusters in all planes
     fCCAlg->RunCrawler(*hitVecHandle);
-    
+
     std::unique_ptr<std::vector<recob::Hit>> FinalHits
       (new std::vector<recob::Hit>(std::move(fCCAlg->YieldHits())));
-    
+
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
     // we get the association to raw digits through wire associations
@@ -142,15 +142,15 @@ namespace cluster {
     std::vector<recob::Vertex> sv3col;
     std::vector<recob::EndPoint2D> sv2col;
 
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > 
+    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> >
         hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>> 
+    std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>>
         cv_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
     std::unique_ptr<art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short>>
        cep_assn(new art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short>);
 
     std::vector<ClusterCrawlerAlg::ClusterStore> const& Clusters = fCCAlg->GetClusters();
-    
+
 
 // Consistency check
 /*
@@ -217,7 +217,7 @@ namespace cluster {
     } // 3D vertices
     // convert Vertex vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Vertex> > v3col(new std::vector<recob::Vertex>(std::move(sv3col)));
-    
+
     // make the clusters and associations
     float sumChg, sumADC;
     unsigned int clsID = 0, nclhits;
@@ -240,7 +240,7 @@ namespace cluster {
       } // itt
       // get the wire, plane from a hit
       unsigned int iht = clstr.tclhits[0];
-      
+
       geo::View_t view = FinalHits->at(iht).View();
       sccol.emplace_back(
           (float)clstr.BeginWir,  // Start wire
@@ -329,12 +329,12 @@ namespace cluster {
         } // 3D vertices
       } // clstr.BeginVtx >= 0
     } // icl
-    
+
     // convert cluster vector to unique_ptrs
     std::unique_ptr<std::vector<recob::Cluster> > ccol(new std::vector<recob::Cluster>(std::move(sccol)));
 
     shcol.use_hits(std::move(FinalHits));
-    
+
     // clean up
     fCCAlg->ClearResults();
 
@@ -348,10 +348,10 @@ namespace cluster {
     evt.put(std::move(cep_assn));
 
   } // LineCluster::produce()
-  
-  
-  
+
+
+
   //----------------------------------------------------------------------------
   DEFINE_ART_MODULE(LineCluster)
-  
+
 } // namespace cluster

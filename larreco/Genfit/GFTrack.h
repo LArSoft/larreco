@@ -21,7 +21,7 @@
  */
 
 
-#ifndef GFTRACK_H 
+#ifndef GFTRACK_H
 #define GFTRACK_H
 
 #include<map>
@@ -38,21 +38,21 @@
 
 class TVirtualGeoTrack;
 
-/** @brief Track object for genfit. genfit algorithms work on these objects. 
+/** @brief Track object for genfit. genfit algorithms work on these objects.
  *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
- * Can be used as transient (only in memory) or 
+ *
+ * Can be used as transient (only in memory) or
  * persistent (written to ROOT-file) object.
  *
- * A GFTrack contains a collection of RecoHits plus a collection of 
+ * A GFTrack contains a collection of RecoHits plus a collection of
  * track representations. The GFTrackCand member is a helper object to store the
  * indices of the hits in the GFTrack.
  *
- * For a GFTrack one so called "cardinal representation" can be defined. It is 
- * that track representation that is used to access the fit results. Usually 
- * one will after the fit choose the best fitting representation to be 
+ * For a GFTrack one so called "cardinal representation" can be defined. It is
+ * that track representation that is used to access the fit results. Usually
+ * one will after the fit choose the best fitting representation to be
  * the cardinal rep.
  *
  * The GFTrack takes ownership over the GFAbsRecoHit pointers it holds.
@@ -60,12 +60,12 @@ class TVirtualGeoTrack;
 
 namespace genf {
 
-class GFTrack : public TObject {   
+class GFTrack : public TObject {
 private:
-  
-  
+
+
   /** @brief Collection of track representations
-   * 
+   *
    * this array is only to be added to in the addTrackRep method
    * because the synchronized construction of bookkeeping objects
    * and repAtHit array is ensured there. NEVER delete elements from
@@ -79,7 +79,7 @@ private:
    */
   std::vector<GFAbsRecoHit*>      fHits;
   //!
-  
+
   /** @brief Collection of Bookeeping objects for failed hits
    * in every trackrep
    */
@@ -90,7 +90,7 @@ private:
    */
   std::vector<int> fRepAtHit;
 
-  /** @brief Helper to store the indices of the hits in the track. 
+  /** @brief Helper to store the indices of the hits in the track.
    * See GFTrackCand for details.
    */
   GFTrackCand fCand; // list of hits
@@ -108,30 +108,30 @@ private:
   std::vector < TVector3 >  fHitPlaneV;
 
   int fPDG;
-    
+
   static const int fDefNumTrackReps = 10; //!
   unsigned int fCardinal_rep; // THE selected rep, default=0;
 
   unsigned int fNextHitToFit;
-  
+
 public:
-  
+
   /** @brief Default constructor -- needed for compatibility with ROOT */
-  GFTrack(); 
+  GFTrack();
 
   /** @brief Copy constructor */
-  GFTrack(const GFTrack&); 
+  GFTrack(const GFTrack&);
 
   /** @brief assignement operator */
   GFTrack& operator=(const GFTrack&);
 
   /** @brief Initializing constructor
    *
-   * A track needs at least one track representation to be useable. 
+   * A track needs at least one track representation to be useable.
    * The given track representation has to contain starting values for the fit!
    */
-  GFTrack(GFAbsTrackRep*); 
-  
+  GFTrack(GFAbsTrackRep*);
+
   virtual ~GFTrack();
 
   // -----------------------
@@ -166,21 +166,21 @@ public:
 
   /** @brief Merge two GFTracks. Only hits will be merged.
    *
-   * All hits from trk will be merged into this GFTrack. 
+   * All hits from trk will be merged into this GFTrack.
    * trk will be empty afterwards.
    *
-   * Kalman::continueTrack can be used to include the newly added hits 
+   * Kalman::continueTrack can be used to include the newly added hits
    * in the fit.
    *
    * Note that the new hits are inserted at the end of the present track!
    */
-  void mergeHits(GFTrack* trk); 
+  void mergeHits(GFTrack* trk);
 
   /** @brief Clear hit vector. Note that hits will not be deleted!
-   * 
-   * Be carefull not to create memory leaks here. 
+   *
+   * Be carefull not to create memory leaks here.
    */
-  void releaseHits(){fHits.clear();} 
+  void releaseHits(){fHits.clear();}
 
   /** @brief Accessor for fNextHitToFit
    */
@@ -205,11 +205,11 @@ public:
   /** @brief Get cardinal track representation
    *
    * The user has to choose which track rep should be considered the
-   * best one after the fit. Usually the track representation giving the 
+   * best one after the fit. Usually the track representation giving the
    * smallest chi2 is choosen. By default the first in the list is returned.
    */
   GFAbsTrackRep* getCardinalRep() const {return ((GFAbsTrackRep*)fTrackReps->At(fCardinal_rep));}
-  
+
 
   /** @brief Get momentum at the present position
    *
@@ -280,12 +280,12 @@ public:
 
   /** @brief Fill TVirtualGeoTrack object Cardinal representation is used.
    */
-  void fillGeoTrack(TVirtualGeoTrack* tr) const {fillGeoTrack(tr,fCardinal_rep);} 
+  void fillGeoTrack(TVirtualGeoTrack* tr) const {fillGeoTrack(tr,fCardinal_rep);}
 
-  /** @brief Fill TVirtualGeoTrack object with data from specified track rep 
+  /** @brief Fill TVirtualGeoTrack object with data from specified track rep
    */
   void fillGeoTrack(TVirtualGeoTrack* tr,unsigned int repid) const;
-  
+
   // ---------------------
   // Modifiers
   // ---------------------
@@ -296,13 +296,13 @@ public:
 
   /** @brief deprecated!
    */
-  inline void addHit(GFAbsRecoHit* theHit) { 
+  inline void addHit(GFAbsRecoHit* theHit) {
     fHits.push_back(theHit);
   }
-  
+
   /** @brief Add single hit. Updates the GFTrackCand
    */
-  void addHit(GFAbsRecoHit* theHit, 
+  void addHit(GFAbsRecoHit* theHit,
 	      unsigned int detId,
 	      unsigned int hitId,
 	      double rho=0.,
@@ -337,16 +337,16 @@ public:
       throw GFException("genf::GFTrack::getBK(): index out of range", __LINE__, __FILE__).setFatal();
     return fBookkeeping.at(index);
   }
-    
+
   //! set track candidate
   void setCandidate(const GFTrackCand& cand, bool doreset=false);
-  
+
   /** @brief Choose cardinal track represenatation
    *
    * @sa getCardinalRep
    */
   void setCardinalRep(unsigned int r){if((int)r<fTrackReps->GetEntriesFast())fCardinal_rep=r;}
-  
+
   void setHitMeasuredCov(TMatrixT<Double_t> mat) {fHitMeasCov.push_back(mat);}
   void setHitUpdate(TMatrixT<Double_t> mat) {fHitUpdate.push_back(mat);}
   void setHitChi2(Double_t mat) {fHitChi2.push_back(mat);}
@@ -381,7 +381,7 @@ public:
 		    unsigned int dim,   // which projection?
 		    unsigned int rep,   // which trackrep ?
 		    std::vector<double>& result);
-		    
+
 
   /** @brief set the hit index at which plane,state&cov of rep irep is defined
    */
@@ -410,7 +410,7 @@ public:
   /** @brief print bookkeeping
    */
   void printBookkeeping(std::ostream& out = std::cout) const;
-  
+
   void Print(std::ostream& out = std::cout) const;
 
   void clearBookkeeping(){
@@ -428,7 +428,7 @@ public:
   //! use planeId information of GFTrackCand and return by ref groups of hit ids which
   //! are in the same planes.
   void getHitsByPlane(std::vector<std::vector<int>*>& retVal);
-  
+
 
 private:
   virtual void Print(Option_t*) const
@@ -439,6 +439,6 @@ private:
 };
 } // namespace genf
 
-#endif 
+#endif
 
 /** @} */

@@ -15,16 +15,16 @@ extern "C" {
 
 // Framework includes
 #include "art/Framework/Core/ModuleMacros.h"
-#include "art/Framework/Principal/Event.h" 
-#include "fhiclcpp/ParameterSet.h" 
-#include "art/Framework/Principal/Handle.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
-#include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "art/Framework/Principal/Event.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "art/Framework/Principal/Handle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
 #include "lardataobj/RecoBase/Event.h"
@@ -50,13 +50,13 @@ extern "C" {
 namespace recob{ class Vertex; }
 
 namespace event {
-   
+
   class AggregateEvent : public art::EDProducer {
-    
+
   public:
-    
+
     explicit AggregateEvent(fhicl::ParameterSet const& );
-    
+
   private:
     void produce(art::Event& evt) override;
 
@@ -72,7 +72,7 @@ namespace event {
 namespace event {
 
   //-------------------------------------------------
-  AggregateEvent::AggregateEvent(fhicl::ParameterSet const& pset) : 
+  AggregateEvent::AggregateEvent(fhicl::ParameterSet const& pset) :
     EDProducer{pset},
     fVertexModuleLabel(pset.get< std::string >("VertexModuleLabel"))
   {
@@ -83,10 +83,10 @@ namespace event {
 
   //------------------------------------------------------------------------------------//
   void AggregateEvent::produce(art::Event& evt)
-  { 
+  {
 
     std::unique_ptr<std::vector<recob::Event> > ecol(new std::vector<recob::Event>);
-    
+
     // get the geometry
     art::ServiceHandle<geo::Geometry const> geom;
 

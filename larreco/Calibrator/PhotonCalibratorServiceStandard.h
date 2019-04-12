@@ -22,32 +22,32 @@
 #include "art/Framework/Services/Registry/ActivityRegistry.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Registry/ServiceMacros.h"
-#include "art/Framework/Services/Registry/ServiceTable.h" 
+#include "art/Framework/Services/Registry/ServiceTable.h"
 #include "art/Framework/Principal/Run.h"
 
 namespace calib {
 
-  
+
   class PhotonCalibratorServiceStandard : public IPhotonCalibratorService
   {
   public:
     using provider_type = PhotonCalibratorStandard;
-    
+
     struct ServiceConfiguration_t
     {
       fhicl::Atom<float> SPESize  { fhicl::Name("SPESize")  };
       fhicl::Atom<float> SPEShift { fhicl::Name("SPEShift") };
       fhicl::Atom<float> UseArea  { fhicl::Name("UseArea")  };
     };
-    
+
     using Parameters = art::ServiceTable<ServiceConfiguration_t>;
 
   public:
     PhotonCalibratorServiceStandard(Parameters const & config,
                                     art::ActivityRegistry& aReg)
-      : fProvider( new PhotonCalibratorStandard(config.get_PSet(), aReg) ) 
+      : fProvider( new PhotonCalibratorStandard(config.get_PSet(), aReg) )
       { }
-    
+
     provider_type const* provider() const override { return fProvider.get(); }
 
   private:
@@ -56,8 +56,8 @@ namespace calib {
 
 }
 
-DECLARE_ART_SERVICE_INTERFACE_IMPL(calib::PhotonCalibratorServiceStandard, 
-                                   calib::IPhotonCalibratorService, 
+DECLARE_ART_SERVICE_INTERFACE_IMPL(calib::PhotonCalibratorServiceStandard,
+                                   calib::IPhotonCalibratorService,
                                    LEGACY)
 
 

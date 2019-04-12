@@ -146,7 +146,7 @@ SpacePointSolver::SpacePointSolver(const fhicl::ParameterSet& pset) :
     produces<art::Assns<recob::SpacePoint, recob::Hit>>();
     recob::ChargedSpacePointCollectionCreator::produces(*this, "noreg");
   }
-    
+
   fHitReader = art::make_tool<reco3d::IHitReader>(pset.get<fhicl::ParameterSet>("HitReaderTool"));
 }
 

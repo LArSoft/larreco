@@ -2,7 +2,7 @@
  * \file CFAlgoQRatio.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CFAlgoQRatio
  *
  * @author kazuhiro
@@ -23,23 +23,23 @@ namespace cmtool {
      This algorithm compares charge ratio of clusters to find a match
   */
   class CFAlgoQRatio : public CFloatAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CFAlgoQRatio();
-    
+
     /// Default destructor
     virtual ~CFAlgoQRatio(){};
 
     //
-    // Author should be aware of 3 functions at least: Float, Report, 
-    // and Reset. More possibly-useful functions can be found in the later 
+    // Author should be aware of 3 functions at least: Float, Report,
+    // and Reset. More possibly-useful functions can be found in the later
     // part but commented out. All of these functions are virtual and defined
     // in the base class.
 
     /**
-       Core function: given a set of CPANs, return a float which indicates 
+       Core function: given a set of CPANs, return a float which indicates
        the compatibility the cluster combination.
     */
     virtual float Float(const std::vector<const cluster::ClusterParamsAlg*> &clusters);
@@ -49,7 +49,7 @@ namespace cmtool {
        run with verbosity level <= kPerIteration. Maybe useful for debugging.
     */
     virtual void Report();
-    
+
     /// Function to reset the algorithm instance, called together with manager's Reset()
     virtual void Reset();
 
@@ -57,10 +57,10 @@ namespace cmtool {
     void SetQRatioCut(float cut) { _qratio_cut = cut; }
 
   protected:
-    
+
     float _qratio_cut;
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

@@ -336,26 +336,26 @@ keras::DataChunk* keras::LayerConv2D::compute_output(keras::DataChunk* dc) {
 	float bias = m_bias[j];
 	size_t k = 0;
 
-	for(unsigned int y = 0; y < size/8; ++y) {	  
-	  y_ret[j][x][k] += bias; 
+	for(unsigned int y = 0; y < size/8; ++y) {
+	  y_ret[j][x][k] += bias;
 	  y_ret[j][x][k+1] += bias;
 	  y_ret[j][x][k+2] += bias;
 	  y_ret[j][x][k+3] += bias;
 	  y_ret[j][x][k+4] += bias;
 	  y_ret[j][x][k+5] += bias;
 	  y_ret[j][x][k+6] += bias;
-	  y_ret[j][x][k+7] += bias; 
+	  y_ret[j][x][k+7] += bias;
 	  k += 8;
 	}
 	while (k < size) { y_ret[j][x][k] += bias; ++k; }
-      
+
       }
     });
 
   //auto t2 = std::chrono::high_resolution_clock::now();
   /*
-  cout << "Parallal : " 
-       << std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() 
+  cout << "Parallal : "
+       << std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count()
        << " microseconds." << endl;
   */
 

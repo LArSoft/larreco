@@ -2,7 +2,7 @@
  *  @file   PmaSegment3D.cxx
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          3D track segment. See PmaTrack3D.h file for details.
@@ -75,10 +75,10 @@ TVector3 pma::Segment3D::GetProjection(const TVector2& p, unsigned int view) con
 
 	TVector2 v1(vStop->Projection2D(view));
 	v1 -= vStart->Projection2D(view);
-	
+
 	TVector3 v3d(vStop->Point3D());
 	v3d -= vStart->Point3D();
-	
+
 	TVector3 v3dStart(vStart->Point3D());
 	TVector3 v3dStop(vStop->Point3D());
 

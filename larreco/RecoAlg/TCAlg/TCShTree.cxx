@@ -29,7 +29,7 @@ namespace tca {
             inShower = true;
             break;
           }
-        } // end list loop 2 
+        } // end list loop 2
       } // end list loop 1
     } // end tjs loop
     // add meaningless envelope to list for counting purposes
@@ -42,7 +42,7 @@ namespace tca {
       stv.EnvShowerID.push_back(-1);
     }
 
-  } // SaveTjInfo (tjlist) 
+  } // SaveTjInfo (tjlist)
 
   void SaveTjInfo(TCSlice& slc, const ShowerStruct& ss, std::string stageName) {
     if(!tcc.modes[kSaveShowerTree]) return;
@@ -68,7 +68,7 @@ namespace tca {
       for (size_t i = 0; i < stv.TjID.size(); ++i) {
         if (stv.StageNum.at(i) != (int)stageNum) continue;
         if (stv.PlaneNum.at(i) != (short)DecodeCTP(ss.CTP).Plane) continue;
-        
+
         if (stv.TjID.at(i) == trajID) {
           tjIndex = i;
           if (stv.IsShowerTj.at(tjIndex) == 1) isShowerTj = true;
@@ -86,11 +86,11 @@ namespace tca {
           if (tjIndex == -1) stv.ShowerID.back() = ss.ID;
           else stv.ShowerID.at(tjIndex) = ss.ID;
         }
-        
+
         if (it1 == (ss.ShowerTjID - 1)) stv.IsShowerTj.back() = 1;
         else if (tj1.AlgMod[kShowerTj]) stv.IsShowerTj.back() = 1; // this is a better check
         // check if tj is shower parent. if so, add to ttree
-        // and mark parent flag	
+        // and mark parent flag
         if (trajID == ss.ParentID) {
           if (tjIndex == -1) {
             stv.ShowerID.back() = ss.ID;
@@ -101,14 +101,14 @@ namespace tca {
             stv.IsShowerParent.at(tjIndex) = 1;
           }
           break;
-          
+
         }
       } // ss TjID loop
     } // end tjs loop
-    
+
     if (noMatch) return;
 
-    // add envelope information to showertreevars 
+    // add envelope information to showertreevars
     geo::PlaneID iPlnID = DecodeCTP(ss.CTP);
 
     for (int i = 0; i < 8; i++) {
@@ -159,7 +159,7 @@ namespace tca {
 
     stv.nPlanes = slc.nPlanes;
 
-  } // SaveTjInfoStuff  
+  } // SaveTjInfoStuff
 
   ////////////////////////////////////////////////
   void SaveAllCots(TCSlice& slc, const CTP_t& inCTP, std::string someText) {

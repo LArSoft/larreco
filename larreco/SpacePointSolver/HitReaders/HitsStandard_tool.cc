@@ -1,8 +1,8 @@
 /**
  *  @file   HitsStandard_tool.cc
- * 
+ *
  *  @brief  art Tool for comparing clusters and merging those that are consistent
- * 
+ *
  */
 
 // Framework Includes
@@ -30,7 +30,7 @@
 // implementation follows
 
 namespace reco3d {
-    
+
 class HitsStandard : virtual public IHitReader
 {
 public:
@@ -40,14 +40,14 @@ public:
      *  @param  pset
      */
     explicit HitsStandard(const fhicl::ParameterSet&);
-    
+
     /**
      *  @brief  Destructor
      */
     ~HitsStandard();
-    
+
     void configure(fhicl::ParameterSet const &pset) override;
-    
+
     /**
      *  @brief Scan an input collection of clusters and modify those according
      *         to the specific implementing algorithm
@@ -77,7 +77,7 @@ HitsStandard::~HitsStandard()
 void HitsStandard::configure(fhicl::ParameterSet const &pset)
 {
 //    m_enableMonitoring   = pset.get<bool>  ("EnableMonitoring",  true  );
-    
+
     return;
 }
 
@@ -98,7 +98,7 @@ bool HitsStandard::readHits(const std::vector<art::Ptr<recob::Hit>>& inputHits, 
             << ". Skipping." << std::endl;
             continue;
         }
-            
+
         if(hit->SignalType() == geo::kCollection){
             // For DualPhase, both view are collection. Arbitrarily map V to the main
             // "X" view. For Argoneut and Lariat, collection=V is also the right
@@ -122,9 +122,9 @@ bool HitsStandard::readHits(const std::vector<art::Ptr<recob::Hit>>& inputHits, 
     } // end for hit
 
     mf::LogDebug("HitsStandard") << ">>>>> Reading hits done" << std::endl;
-    
+
     return is2view;
 }
-    
+
 DEFINE_ART_CLASS_TOOL(HitsStandard)
 } // namespace lar_cluster3d

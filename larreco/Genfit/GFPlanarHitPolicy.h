@@ -32,12 +32,12 @@
 #include "larreco/Genfit/GFDetPlane.h"
 
 
-/** @brief Policy class implementing a planar hit geometry. 
+/** @brief Policy class implementing a planar hit geometry.
  *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
- * RecoHits for planar detectors should inherit 
+ *
+ * RecoHits for planar detectors should inherit
  * from RecoHitIfc<GFPlanarHitPolicy>.
  *
  * The main feature of this type of hit is, that the detector plane
@@ -55,18 +55,18 @@ public:
 
   // Constructors/Destructors ---------
  GFPlanarHitPolicy(){}
-  
+
 
   // Accessors -----------------------
-  
+
   /** @brief Returns the physical detector plane.
    */
   const GFDetPlane& detPlane(GFAbsRecoHit*,const GFAbsTrackRep*);
-  
+
 
   // Modifiers -----------------------
 
-  /** @brief Set physical detector plane. 
+  /** @brief Set physical detector plane.
    * Needs to be called before hit can be used.
    *
    * For the planar detector the detector plane is fixed by the geometry of the
@@ -94,7 +94,7 @@ public:
 protected:
 
   // Private Data Members ------------
-  
+
   /** @brief Physical detector plane. Given by detector hardware.
    */
   GFDetPlane fPhysicalDetPlane;

@@ -1,9 +1,9 @@
 /**
  *  @file   SeedFinderAlgBase.h
- * 
+ *
  *  @brief  This is intended to define an interface to all Seed finder algorithms employed
  *          by the 3D clustering
- * 
+ *
  */
 #ifndef SeedFinderAlgBase_h
 #define SeedFinderAlgBase_h
@@ -52,9 +52,9 @@ protected:
         {
             return left->getArclenToPoca() < right->getArclenToPoca();
         }
-        
+
     };
-    
+
     /**
      *  @brief Define a comparator which will sort hits by the absolute value of arc length
      *         so hits are ordered closed to PCA origin to furthest
@@ -65,9 +65,9 @@ protected:
         {
             return fabs(left->getArclenToPoca()) < fabs(right->getArclenToPoca());
         }
-        
+
     };
-    
+
 private:
 };
 

@@ -2,7 +2,7 @@
  * @file   TrajCluster_module.cc
  * @brief  Cluster finder using trajectories
  * @author Bruce Baller (baller@fnal.gov)
- * 
+ *
 *
  */
 
@@ -36,26 +36,26 @@
 namespace cluster {
   /**
    * @brief Produces clusters by the TrajCluster algorithm
-   * 
+   *
    * Configuration parameters
    * -------------------------
-   * 
+   *
    * - *HitFinderModuleLabel* (InputTag, mandatory): label of the hits to be
    *   used as input (usually the label of the producing module is enough)
    * - *TrajClusterAlg* (parameter set, mandatory): full configuration for
    *   TrajClusterAlg algorithm
-   * 
+   *
    */
   class TrajCluster: public art::EDProducer {
-    
+
   public:
     explicit TrajCluster(fhicl::ParameterSet const & pset);
-    
+
     void reconfigure(fhicl::ParameterSet const & pset) ;
     void produce(art::Event & evt) override;
     void beginJob() override;
     void endJob() override;
-    
+
   private:
 
     std::unique_ptr<tca::TrajClusterAlg> fTCAlg; // define TrajClusterAlg object
@@ -66,12 +66,12 @@ namespace cluster {
     art::InputTag fSliceModuleLabel;
     art::InputTag fHitTruthModuleLabel;
     art::InputTag fSpacePointModuleLabel;
-    
+
     bool fDoWireAssns;
     bool fDoRawDigitAssns;
-    
+
   }; // class TrajCluster
-  
+
 } // namespace cluster
 
 //******************************************************************************
@@ -101,11 +101,11 @@ namespace cluster {
 
 
 namespace cluster {
-  
+
   struct HitLoc {
     unsigned int index; // index of this entry in a sort vector
     unsigned int ctp;   // encoded Cryostat, TPC and Plane
-    unsigned int wire;  
+    unsigned int wire;
     int tick;           // hit StartTick using typedef int TDCtick_t in RawTypes.h
     short localIndex;   // defined in Hit.h
   };
@@ -143,18 +143,18 @@ namespace cluster {
     fDoRawDigitAssns = pset.get<bool>("DoRawDigitAssns",true);
 
   } // TrajCluster::reconfigure()
-  
+
   //----------------------------------------------------------------------------
   TrajCluster::TrajCluster(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
     reconfigure(pset);
-    
+
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label)
     recob::HitCollectionAssociator::declare_products(*this,"",fDoWireAssns,fDoRawDigitAssns);
-    
+
     produces< std::vector<recob::Cluster> >();
     produces< std::vector<recob::Vertex> >();
     produces< std::vector<recob::EndPoint2D> >();
@@ -164,20 +164,20 @@ namespace cluster {
     produces< art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short> >();
     produces< art::Assns<recob::Cluster, recob::Vertex, unsigned short> >();
     produces< art::Assns<recob::Shower, recob::Hit> >();
-    
+
     produces< std::vector<recob::PFParticle> >();
     produces< art::Assns<recob::PFParticle, recob::Cluster> >();
     produces< art::Assns<recob::PFParticle, recob::Shower> >();
     produces< art::Assns<recob::PFParticle, recob::Vertex> >();
     produces< art::Assns<recob::PFParticle, recob::Seed> >();
-    
+
     produces< art::Assns<recob::Slice, recob::Cluster> >();
     produces< art::Assns<recob::Slice, recob::PFParticle> >();
     produces< art::Assns<recob::Slice, recob::Hit> >();
 
     produces< std::vector<anab::CosmicTag>>();
     produces< art::Assns<recob::PFParticle, anab::CosmicTag>>();
-    
+
     // www: declear/create SpacePoint and association between SpacePoint and Hits from TrajCluster (Hit->SpacePoint)
     produces< art::Assns<recob::SpacePoint, recob::Hit> >();
   } // TrajCluster::TrajCluster()
@@ -192,7 +192,7 @@ namespace cluster {
 //    crtree = tfs->make<TTree>("crtree", "Cosmic removal variables");
 //    fTCAlg->DefineCRTree(crtree);
   }
-  
+
   //----------------------------------------------------------------------------
   void TrajCluster::endJob()
   {
@@ -209,20 +209,20 @@ namespace cluster {
       if(icol == 4) { myprt<<"\n"; icol = 0; }
     } // ib
   } // endJob
-  
+
   //----------------------------------------------------------------------------
   void TrajCluster::produce(art::Event & evt)
   {
     // Get a single hit collection from a HitsModuleLabel or multiple sets of "sliced" hits
-    // (aka clusters of hits that are close to each other in 3D) from a SliceModuleLabel. 
-    // A pointer to the full hit collection is passed to TrajClusterAlg. The hits that are 
-    // in each slice are tracked to find 2D trajectories (that become clusters), 
+    // (aka clusters of hits that are close to each other in 3D) from a SliceModuleLabel.
+    // A pointer to the full hit collection is passed to TrajClusterAlg. The hits that are
+    // in each slice are tracked to find 2D trajectories (that become clusters),
     // 2D vertices (EndPoint2D), 3D vertices, PFParticles and Showers. These data products
     // are then collected and written to the event. Each slice is considered as an independent
     // collection of hits with the additional requirement that all hits in a slice reside in
     // one TPC
-    
-    // Define a vector of indices into inputHits (= evt.allHits in TrajClusterAlg) 
+
+    // Define a vector of indices into inputHits (= evt.allHits in TrajClusterAlg)
     // for each slice for hits associated with 3D-clustered SpacePoints
     std::vector<std::vector<unsigned int>> slHitsVec;
     // Slice IDs that will be correlated with sub-slices
@@ -322,7 +322,7 @@ namespace cluster {
         auto sptHandle = art::Handle<std::vector<recob::SpacePoint>>();
         if(!evt.getByLabel(fSpacePointModuleLabel, sptHandle)) throw cet::exception("TrajClusterModule")<<"Failed to get a handle to SpacePoints\n";
         fTCAlg->SetSptHandle(*sptHandle);
-      } // 
+      } //
 */
       bool requireSliceMCTruthMatch = false;
       if(!evt.isRealData() && tca::tcc.matchTruth[0] >= 0 && fHitTruthModuleLabel != "NA") {
@@ -389,7 +389,7 @@ namespace cluster {
           } // indx
         }
       } // fill mcpList
-      
+
       // First sort the hits in each sub-slice and then reconstruct
       for(unsigned short isl = 0; isl < slHitsVec.size(); ++isl) {
         auto& slhits = slHitsVec[isl];
@@ -424,7 +424,7 @@ namespace cluster {
         if(tca::tcc.modes[tca::kDebug]) {
           for(unsigned short indx = 0; indx < slhits.size(); ++indx) {
             auto& hit = (*inputHits)[slhits[indx]];
-            if((int)hit.WireID().TPC == tca::debug.TPC && 
+            if((int)hit.WireID().TPC == tca::debug.TPC &&
                (int)hit.WireID().Plane == tca::debug.Plane &&
                (int)hit.WireID().Wire == tca::debug.Wire &&
                hit.PeakTime() > tca::debug.Tick - 10  && hit.PeakTime() < tca::debug.Tick + 10) {
@@ -458,7 +458,7 @@ namespace cluster {
           if(fSpacePointModuleLabel != "NA") {
             // fill a vector of SpacePoint - hit triplets (or doublets) and pass it to the alg
             std::vector<tca::SptHits> sptHits;
-            art::FindManyP<recob::SpacePoint> sptFromHit (inputHits, evt, fSpacePointModuleLabel); 
+            art::FindManyP<recob::SpacePoint> sptFromHit (inputHits, evt, fSpacePointModuleLabel);
             for(unsigned int indx = 0; indx < slhits.size(); ++indx) {
               unsigned int ahi = slhits[indx];
               auto& spt_from_hit = sptFromHit.at(ahi);
@@ -492,7 +492,7 @@ namespace cluster {
           fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
         } // reconstructSlice
       } // isl
-      
+
       // stitch PFParticles between TPCs, create PFP start vertices, etc
       fTCAlg->FinishEvent();
       fTCAlg->fTM.MatchTruth();
@@ -511,15 +511,15 @@ namespace cluster {
     std::vector<anab::CosmicTag> ctCol;
     // a vector to correlate inputHits with output hits
     std::vector<unsigned int> newIndex(nInputHits, UINT_MAX);
-    
+
     // assns for those data products
     // Cluster -> ...
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>> 
+    std::unique_ptr<art::Assns<recob::Cluster, recob::Hit>>
       cls_hit_assn(new art::Assns<recob::Cluster, recob::Hit>);
     // unsigned short is the end to which a vertex is attached
-    std::unique_ptr<art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short>>  
+    std::unique_ptr<art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short>>
       cls_vx2_assn(new art::Assns<recob::Cluster, recob::EndPoint2D, unsigned short>);
-    std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>>  
+    std::unique_ptr<art::Assns<recob::Cluster, recob::Vertex, unsigned short>>
       cls_vx3_assn(new art::Assns<recob::Cluster, recob::Vertex, unsigned short>);
     // Shower -> ...
     std::unique_ptr<art::Assns<recob::Shower, recob::Hit>>
@@ -529,7 +529,7 @@ namespace cluster {
       pfp_cls_assn(new art::Assns<recob::PFParticle, recob::Cluster>);
     std::unique_ptr<art::Assns<recob::PFParticle, recob::Shower>>
       pfp_shwr_assn(new art::Assns<recob::PFParticle, recob::Shower>);
-    std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>> 
+    std::unique_ptr<art::Assns<recob::PFParticle, recob::Vertex>>
       pfp_vx3_assn(new art::Assns<recob::PFParticle, recob::Vertex>);
     std::unique_ptr<art::Assns<recob::PFParticle, anab::CosmicTag>>
       pfp_cos_assn(new art::Assns<recob::PFParticle, anab::CosmicTag>);
@@ -544,7 +544,7 @@ namespace cluster {
       slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
     // www: Hit -> SpacePoint
     std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit>>
-      sp_hit_assn(new art::Assns<recob::SpacePoint, recob::Hit>);     
+      sp_hit_assn(new art::Assns<recob::SpacePoint, recob::Hit>);
 
     // temp struct to get the index of a 2D (or 3D vertex) into vx2Col (or vx3Col)
     // given a slice index and a vertex ID (not UID)
@@ -775,7 +775,7 @@ namespace cluster {
           } // exception
         } // ss3
       } // slice isl
-     
+
 
       // Add PFParticles now that clsCol is filled
       for(unsigned short isl = 0; isl < nSlices; ++isl) {
@@ -877,8 +877,8 @@ namespace cluster {
           } // cosmic tag
         } // ipfp
       } // isl
-      
-      // add the hits that weren't used in any slice to hitCol unless this is a 
+
+      // add the hits that weren't used in any slice to hitCol unless this is a
       // special debugging mode and would be a waste of time
       if(!slices.empty() && tca::tcc.recoSlice == 0) {
         auto slcHandle = evt.getValidHandle<std::vector<recob::Slice>>(fSliceModuleLabel);
@@ -919,8 +919,8 @@ namespace cluster {
     if (nInputHits > 0) {
       // www: expecting to find spacepoint from hits (inputHits): SpacePoint->Hit assns
       if (fSpacePointModuleLabel != "NA") {
-        art::FindManyP<recob::SpacePoint> spFromHit (inputHits, evt, fSpacePointModuleLabel); 
-        // www: using sp from hit 
+        art::FindManyP<recob::SpacePoint> spFromHit (inputHits, evt, fSpacePointModuleLabel);
+        // www: using sp from hit
         for (unsigned int allHitsIndex = 0; allHitsIndex < nInputHits; ++allHitsIndex) {
           if (newIndex[allHitsIndex] == UINT_MAX) continue; // skip hits not used in slice (not TrajCluster hits)
           auto & sp_from_hit = spFromHit.at(allHitsIndex);
@@ -978,8 +978,8 @@ namespace cluster {
     evt.put(std::move(pfp_cos_assn));
     evt.put(std::move(sp_hit_assn)); // www: association between sp and hit (trjaclust)
   } // TrajCluster::produce()
-  
+
   //----------------------------------------------------------------------------
   DEFINE_ART_MODULE(TrajCluster)
-  
+
 } // namespace cluster

@@ -146,7 +146,7 @@ TVector3 BezierCurveHelper::GetBezierPointQuartic(recob::Seed const& s1, recob::
 
 
   int Sign1, Sign2;
-  
+
   if(lambda1>0) Sign1=1;
   else Sign1=-1;
 
@@ -166,9 +166,9 @@ TVector3 BezierCurveHelper::GetBezierPointQuartic(recob::Seed const& s1, recob::
 	+ 4.*ns*s*s*s      * Mid3[i]
 	+ s*s*s*s          * Pt2[i];
     }
-  
+
   return ReturnVec3;
-  
+
 }
 
 
@@ -186,7 +186,7 @@ TVector3 BezierCurveHelper::GetBezierPointCubic(recob::Seed const& s1, recob::Se
 
   if(s<=0.) return TVector3(Pt1[0],Pt1[1],Pt1[2]);
   if(s>=1.) return TVector3(Pt2[0],Pt2[1],Pt2[2]);
-  
+
 
   double DirScales[2];
   GetDirectionScales(Pt1,Pt2,Dir1,Dir2,DirScales);
@@ -257,7 +257,7 @@ std::vector<TVector3> BezierCurveHelper::GetBezierPointsCubic(recob::Seed const&
 	    + t*t*t         * Pt2[i];
 	}
     }
-  
+
   return ReturnVec;
 }
 
@@ -280,13 +280,13 @@ std::vector<TVector3> BezierCurveHelper::GetBezierPointsQuartic(recob::Seed cons
   TVector3 pt2(Pt2[0],Pt2[1],Pt2[2]);
   TVector3 dir1(Dir1[0],Dir1[1],Dir1[2]);
   TVector3 dir2(Dir2[0],Dir2[1],Dir2[2]);
-  
+
 
   double lambda1 = (pt1-pt2).Dot(dir1-dir2)/(pow(dir2.Dot(dir1),2)-dir2.Mag2()*dir1.Mag2());
   double lambda2 = (pt2-pt1).Dot(dir2-dir1)/(pow(dir1.Dot(dir2),2)-dir1.Mag2()*dir2.Mag2());
-   
+
   int Sign1, Sign2;
-  
+
   if(lambda1>0) Sign1=1;
   else Sign1=-1;
 
@@ -295,8 +295,8 @@ std::vector<TVector3> BezierCurveHelper::GetBezierPointsQuartic(recob::Seed cons
 
   for(int i=0; i!=3; i++)
     {
-     
-         
+
+
       Mid1[i]=Pt1[i] + Sign1*Dir1[i];
       Mid2[i]=0.5*(Pt1[i] + lambda1 * Dir1[i] + Pt2[i] +lambda2 * Dir2[i]);
       Mid3[i]=Pt2[i] - Sign2*Dir2[i];
@@ -310,10 +310,10 @@ std::vector<TVector3> BezierCurveHelper::GetBezierPointsQuartic(recob::Seed cons
 	    + 6.*nt*nt*t*t     * Mid2[i]
 	    + 4.*nt*t*t*t      * Mid3[i]
 	    + t*t*t*t          * Pt2[i];
-	  
+
 	}
     }
-  
+
   return ReturnVec;
 }
 

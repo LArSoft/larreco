@@ -2,7 +2,7 @@
  *  @file   PmaVtxCandidate.cxx
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Vertex finding helper for the Projection Matching Algorithm
  *
  *          Candidate for 3D vertex. Used to test intersections and join tracks in vertices.
@@ -585,7 +585,7 @@ bool pma::VtxCandidate::JoinTracks(pma::TrkCandidateColl & tracks, pma::TrkCandi
 				}
 
 				pma::Track3D* t0 = trk->Split(idx); // makes both tracks attached to each other
-				
+
 				if (t0)
 				{
 					mf::LogVerbatim("pma::VtxCandidate") << "  trk size:" << trk->size() << " (nodes:" << trk->Nodes().size() << ")";
@@ -593,9 +593,9 @@ bool pma::VtxCandidate::JoinTracks(pma::TrkCandidateColl & tracks, pma::TrkCandi
 					trk->MakeProjection();
 
 					mf::LogVerbatim("pma::VtxCandidate") << "  t0 size:" << t0->size() << " (nodes:" << t0->Nodes().size() << ")";
-					
+
 					t0->MakeProjection();
-	
+
 					tracks.tracks().emplace_back(t0, key, tid);
 					if (i == 0)
 					{

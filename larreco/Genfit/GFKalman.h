@@ -34,14 +34,14 @@
  *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
+ *
  * The Kalman Filter operates on genfit GFTrack objects. It is an implementation
- * of the Kalman Filter algebra that uses the genfit interface classes 
+ * of the Kalman Filter algebra that uses the genfit interface classes
  * GFAbsRecoHit and GFAbsTrackRep in order to be independent from the specific
  * detector geometry and the details of the track parameterization /
  * track extraoplation engine.
  *
- * The Kalman Filter can use hits from several detectors in a single fit 
+ * The Kalman Filter can use hits from several detectors in a single fit
  * to estimate the parameters of several track representations in parallel.
  */
 
@@ -67,7 +67,7 @@ public:
    * STL container o GFTrack* objects.
    */
   inline void operator()(GFTrack* track){processTrack(track);}
-  
+
   /** @brief Operator for use with STL.
    *
    * This operator allows to use the std::foreach algorithm with an
@@ -100,7 +100,7 @@ public:
    */
   void fittingPass(GFTrack*,int dir); // continues track from lastHitInFit
 
-  /** @brief Calculates chi2 of a given hit with respect to a 
+  /** @brief Calculates chi2 of a given hit with respect to a
    * given track representation.
    */
   double getChi2Hit(GFAbsRecoHit*, GFAbsTrackRep*);
@@ -130,14 +130,14 @@ private:
    *
    */
   void processHit(GFTrack*, int, int, int);
-  
+
   /** @brief Used to switch between forward and backward filtering
    */
   void switchDirection(GFTrack* trk); // switches the direction of propagation for all reps
 
   /** @brief Calculate Kalman Gain
    */
-  TMatrixT<Double_t> calcGain(const TMatrixT<Double_t>& cov, 
+  TMatrixT<Double_t> calcGain(const TMatrixT<Double_t>& cov,
 						const TMatrixT<Double_t>& HitCov,
 						const TMatrixT<Double_t>& H);
   TMatrixT<Double_t> calcCov7x7(const TMatrixT<Double_t>& cov, const genf::GFDetPlane& plane) ;
@@ -160,8 +160,8 @@ private:
   Double_t fMomLow;
   Double_t fMomHigh;
   Double_t fMaxUpdate;
-  Double_t fErrScaleSTh; // simulated theta error scale 
-  Double_t fErrScaleMTh; // measured theta error scale 
+  Double_t fErrScaleSTh; // simulated theta error scale
+  Double_t fErrScaleMTh; // measured theta error scale
   bool fGENfPRINT;
   //TH1D* fUpdate;
   //TH1D* fIhitvUpdate;

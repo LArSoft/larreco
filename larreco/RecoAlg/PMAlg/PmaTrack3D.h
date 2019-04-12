@@ -2,7 +2,7 @@
  *  @file   PmaTrack3D.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Build 3D segments and whole tracks by simultaneous matching hits in 2D projections.
@@ -54,7 +54,7 @@ public:
 	bool HasTagFlag(ETag value) const { return (fTag & value); }
 	void SetTagFlag(ETag value) { fTag = (ETag)(fTag | value); }
 	void SetTag(ETag value) { fTag = value; }
-	
+
 
 	Track3D(void);
 	Track3D(const Track3D& src);

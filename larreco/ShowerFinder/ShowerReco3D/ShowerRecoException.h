@@ -2,7 +2,7 @@
  * \file ShowerRecoException.h
  *
  * \ingroup ShowerReco3D
- * 
+ *
  * \brief Class def header for exception classes in ShowerReco3D package
  *
  * @author kazuhiro
@@ -34,7 +34,7 @@ namespace showerreco {
     }
 
     virtual ~ShowerRecoException() throw(){};
-    virtual const char* what() const throw() 
+    virtual const char* what() const throw()
     { return _msg.c_str(); }
 
   private:
@@ -44,5 +44,5 @@ namespace showerreco {
 
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

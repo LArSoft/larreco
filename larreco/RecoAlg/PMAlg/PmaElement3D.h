@@ -2,7 +2,7 @@
  *  @file   PmaElement3D.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Base for 3D segments and track nodes. See PmaTrack3D.h file for details.
@@ -54,7 +54,7 @@ public:
     {
         for (const auto a : fAssignedHits) { if (h == a) return true; }
         return false;
-    } 
+    }
 
 	pma::Hit3D& Hit(size_t index) { return *(fAssignedHits[index]); }
 	void RemoveHitAt(size_t index)

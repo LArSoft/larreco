@@ -30,7 +30,7 @@
  *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
+ *
  */
 namespace genf {
 
@@ -42,8 +42,8 @@ public:
 
   //! override this is you concrete implementation
   virtual TVector3 get(const TVector3&) const =0;
- 
+
 };
 } // namespace genf
 #endif
-/** @} */ 
+/** @} */

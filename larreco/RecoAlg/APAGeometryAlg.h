@@ -37,15 +37,15 @@ namespace apa{
   } APAView_t;
 
 
-  //--------------------------------------------------------------- 
+  //---------------------------------------------------------------
   class APAGeometryAlg {
   public:
-    
-    
+
+
     APAGeometryAlg(fhicl::ParameterSet const& pset);
     APAGeometryAlg();
     virtual ~APAGeometryAlg();
-    
+
     void                 reconfigure(fhicl::ParameterSet const& p);
 
     void                 Init();                       ///< Initialize some chanel numbers to speed up other methods
@@ -70,20 +70,20 @@ namespace apa{
 
     geo::WireID          NearestWireIDOnChan( const double WorldLoc[3],
 					      uint32_t chan,
-					      unsigned int const plane, 
-					      unsigned int const tpc=0, 
+					      unsigned int const plane,
+					      unsigned int const tpc=0,
 					      unsigned int const cstat=0);
 
-    unsigned int         ChannelToAPA(uint32_t chan);  ///< Get number of the APA containing the given channel 
-    void                 ChannelToAPA(         uint32_t chan, 
-				               unsigned int & apa, 
+    unsigned int         ChannelToAPA(uint32_t chan);  ///< Get number of the APA containing the given channel
+    void                 ChannelToAPA(         uint32_t chan,
+				               unsigned int & apa,
 					       unsigned int & cryo);
     APAView_t            APAView(uint32_t chan);       ///< Get which of the 4 APA views the channel is in
     unsigned int         ChannelsInView( geo::View_t geoview );
-    uint32_t             FirstChannelInView(   geo::View_t geoview, 
-					       unsigned int apa, 
+    uint32_t             FirstChannelInView(   geo::View_t geoview,
+					       unsigned int apa,
 					       unsigned int cryo );
-    uint32_t             FirstChannelInView(   geo::View_t geoview, 
+    uint32_t             FirstChannelInView(   geo::View_t geoview,
 					       uint32_t chan );
     uint32_t             FirstChannelInView(   uint32_t chan );
     unsigned int         ChannelsInAPAView( APAView_t apaview );

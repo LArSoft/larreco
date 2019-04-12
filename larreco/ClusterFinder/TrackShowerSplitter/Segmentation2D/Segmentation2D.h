@@ -2,7 +2,7 @@
  *  @file   Segmentation2D.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Split into linear clusters.
  */
 

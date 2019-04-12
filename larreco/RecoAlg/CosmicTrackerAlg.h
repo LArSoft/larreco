@@ -12,7 +12,7 @@
 #ifndef COSMICTRACKERALG_H
 #define COSMICTRACKERALG_H
 #include "fhiclcpp/ParameterSet.h"
-#include "canvas/Persistency/Common/Ptr.h" 
+#include "canvas/Persistency/Common/Ptr.h"
 
 #include "lardataobj/RecoBase/Hit.h"
 #include "larcore/Geometry/Geometry.h"
@@ -49,13 +49,13 @@ namespace trkf
                     //1: Use only Track3DReco alg
 
     bool fTrajOnly; //if true, only return trajectory points, if false, return a 3D point for every hit
-    
+
     //use TrackTrajectoryAlg to get trajectory points
     void TrackTrajectory(std::vector<art::Ptr<recob::Hit> >&fHits);
 
     //use algorithm in Track3DReco
     void   Track3D(std::vector<art::Ptr<recob::Hit> >&fHits);
-    double ftmatch;             ///< tolerance for time matching (in ticks) 
+    double ftmatch;             ///< tolerance for time matching (in ticks)
     double fsmatch;             ///< tolerance for distance matching (in cm)
 
     //create one 3D point for each hit using trajectory points

@@ -7,12 +7,12 @@
  * Outputs: std::vector<recob::SpacePoint>
  *
  * Description:
- * This space point algorithm tries to improve speed by 
+ * This space point algorithm tries to improve speed by
  * (1) keeping hit collections distinct among planes;
  * (2) sorting hit collections by time; and,
  * (3) having a lookup table for (y,z) coordinate positions.
- * The original use case for this code was with the TTHitFinder, 
- * which produces an incredibly large number of hits per plane, 
+ * The original use case for this code was with the TTHitFinder,
+ * which produces an incredibly large number of hits per plane,
  * making some sorted space point alg more attractive.
  *
  * This code is totally microboone specific, btw.
@@ -67,7 +67,7 @@ namespace sppt{
     boost::multi_array<double, 2> coordinates_UY_z;
 
     void sortHitsByTime(std::vector< art::Ptr<recob::Hit> > &hits_handle);
-    
+
   }; //class SpacePointAlg_TimeSort
 
 } //end sppt namespace

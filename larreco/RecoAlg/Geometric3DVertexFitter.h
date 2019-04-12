@@ -86,7 +86,7 @@ namespace trkf {
 	prop = std::make_unique<TrackStatePropagator>(p);
       }
 
-    VertexWrapper fitPFP(size_t iPF, const art::ValidHandle<std::vector<recob::PFParticle> >& inputPFParticle, 
+    VertexWrapper fitPFP(size_t iPF, const art::ValidHandle<std::vector<recob::PFParticle> >& inputPFParticle,
 			const std::unique_ptr<art::FindManyP<recob::Track> >& assocTracks) const;
     VertexWrapper fitTracks(const std::vector< art::Ptr<recob::Track> >& arttracks) const;
     VertexWrapper fitTracks(TrackRefVec& tracks) const;

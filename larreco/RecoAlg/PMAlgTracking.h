@@ -237,7 +237,7 @@ public:
 		const pma::PMAlgVertexing::Config& pmvtxConfig,
 		const pma::PMAlgStitching::Config& pmstitchConfig,
 		const pma::PMAlgCosmicTagger::Config& pmtaggerConfig,
-		
+
 		const std::vector< TH1F* > & hpassing, const std::vector< TH1F* > & hrejected);
 
 	void init(const art::FindManyP< recob::Hit > & hitsFromClusters);
@@ -359,7 +359,7 @@ private:
     EValidationMode fValidation;                    // track validation mode
     std::vector< img::DataProviderAlg > fAdcImages; // adc image making algorithms for each plane
     std::vector<double> fAdcValidationThr;          // threshold on pixel values in the adc image
-    
+
     // references to the validation calibration histograms
 	const std::vector< TH1F* > & fAdcInPassingPoints;
 	const std::vector< TH1F* > & fAdcInRejectedPoints;

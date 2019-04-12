@@ -3,7 +3,7 @@
 
 /*!
  * Title:   HitAnaModule
- * Author:  wketchum@lanl.gov. 
+ * Author:  wketchum@lanl.gov.
  * Inputs:  recob::Wire (calibrated), recob::Hit, Assns<recob::Wire, recob::Hit>
  * Outputs: validation histograms for wire aggregated hits.
  *
@@ -29,7 +29,7 @@
 namespace hit{
 
   struct HitInfo{
-    
+
     //need a constructor here
     HitInfo(float pt, float pt_s,
 	    float w,
@@ -106,7 +106,7 @@ namespace hit{
   public:
 
     HitAnaAlg();
-    
+
     void SetWireDataTree(TTree*);
 
     void SetHitDataTree(std::vector<TTree*>& trees);
@@ -118,20 +118,20 @@ namespace hit{
 		      unsigned int,
 		      unsigned int);
 
-    void LoadHitAssocPair( std::vector<recob::Hit> const&, 
+    void LoadHitAssocPair( std::vector<recob::Hit> const&,
 			   std::vector< std::vector<int> > const&,
 			   std::string const&);
 
     void ClearHitModules();
-    
+
   private:
-    
+
     void InitWireData(unsigned int, unsigned int);
     void ClearWireDataHitInfo();
 
     void FillHitInfo(recob::Hit const&, std::vector<HitInfo>&);
 
-    void FillWireInfo(recob::Wire const&, 
+    void FillWireInfo(recob::Wire const&,
 		      int,
 		      std::vector<sim::MCHitCollection> const&,
 		      std::vector<int> const&,
@@ -152,7 +152,7 @@ namespace hit{
 				   std::vector<int> const&,
 				   size_t,size_t,
 				   const detinfo::DetectorClocks *);
-    
+
     WireROIInfo wireData;
     std::vector<recob::Hit*> hitData;
 

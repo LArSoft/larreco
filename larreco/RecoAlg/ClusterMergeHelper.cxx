@@ -8,11 +8,11 @@
 #include "larreco/RecoAlg/ClusterRecoUtil/LazyClusterParamsAlg.h"
 
 namespace cluster{
-  
-  
-  //####################################################################################################  
+
+
+  //####################################################################################################
   void ClusterMergeHelper::SetClusters(const std::vector<std::vector<art::Ptr<recob::Hit> > > &clusters)
-  //####################################################################################################  
+  //####################################################################################################
   {
     fInputClusters.clear();
     fOutputClusters.clear();
@@ -28,7 +28,7 @@ namespace cluster{
       fInputClusters.at(cluster_index).resize(clusters.at(cluster_index).size());
 
       for(size_t hit_index=0; hit_index < clusters.at(cluster_index).size(); ++hit_index) {
-	
+
 	px_clusters.at(cluster_index).at(hit_index).plane  = clusters.at(cluster_index).at(hit_index)->WireID().Plane;
 	px_clusters.at(cluster_index).at(hit_index).w      = clusters.at(cluster_index).at(hit_index)->WireID().Wire * fGeoU.WireToCm();
 	px_clusters.at(cluster_index).at(hit_index).t      = clusters.at(cluster_index).at(hit_index)->PeakTime() * fGeoU.TimeToCm();
@@ -37,7 +37,7 @@ namespace cluster{
 	fInputClusters.at(cluster_index).at(hit_index) = clusters.at(cluster_index).at(hit_index);
 
       }
-      
+
     }
 
     SetClusters(px_clusters);
@@ -54,9 +54,9 @@ namespace cluster{
 
     if(!(clusters_h.isValid()))
 
-      throw cet::exception(__FUNCTION__) 
+      throw cet::exception(__FUNCTION__)
 	<< "\033[93m"
-	<< " Failed to retrieve recob::Cluster with label: " 
+	<< " Failed to retrieve recob::Cluster with label: "
 	<< cluster_module_label.c_str()
 	<< "\033[00m"
 	<< std::endl;
@@ -72,14 +72,14 @@ namespace cluster{
       cluster_hits_v.push_back(hit_m.at(i));
 
     SetClusters(cluster_hits_v);
-    
+
   }
 
   //################################
   void ClusterMergeHelper::Process()
   //################################
   {
-    if(fMgr.GetClusters().size()) 
+    if(fMgr.GetClusters().size())
 
       throw cet::exception(__PRETTY_FUNCTION__) << "\033[93m"
 						<< "Merged cluster set not empty... Called Process() twice?"
@@ -91,15 +91,15 @@ namespace cluster{
 
     // Now create output clusters
     auto res = fMgr.GetBookKeeper();
-    
+
     std::vector<std::vector<unsigned short> > out_clusters = res.GetResult();
 
     fOutputClusters.clear();
-    
+
     fOutputClusters.reserve(out_clusters.size());
 
     for(auto const &cluster_index_v : out_clusters) {
-      
+
       std::vector<art::Ptr<recob::Hit> > out_cluster;
 
       for(auto const& cluster_index : cluster_index_v) {
@@ -121,10 +121,10 @@ namespace cluster{
   //######################################################################################################
   const std::vector<std::vector<art::Ptr<recob::Hit> > >& ClusterMergeHelper::GetMergedClusterHits() const
   //######################################################################################################
-  { 
-    if(!fOutputClusters.size()) 
+  {
+    if(!fOutputClusters.size())
 
-      throw cet::exception(__FUNCTION__) 
+      throw cet::exception(__FUNCTION__)
 	<< "\033[93m"
 	<< "You must call Process() before calling " << __FUNCTION__ << " to retrieve result."
 	<< "\033[00m"
@@ -132,14 +132,14 @@ namespace cluster{
 
     return fOutputClusters;
   }
-  
+
   //#####################################################################################
   const std::vector<cluster::ClusterParamsAlg>& ClusterMergeHelper::GetMergedCPAN() const
   //#####################################################################################
   {
-    if(!fOutputClusters.size()) 
+    if(!fOutputClusters.size())
 
-      throw cet::exception(__FUNCTION__) 
+      throw cet::exception(__FUNCTION__)
 	<< "\033[93m"
 	<< "You must call Process() before calling " << __FUNCTION__ << " to retrieve result."
 	<< "\033[00m"
@@ -154,37 +154,37 @@ namespace cluster{
 					art::Assns<recob::Cluster,recob::Hit> &assns) const
   {
 
-    if(!fOutputClusters.size()) 
+    if(!fOutputClusters.size())
 
-      throw cet::exception(__FUNCTION__) 
+      throw cet::exception(__FUNCTION__)
 	<< "\033[93m"
 	<< "You must call Process() before calling " << __FUNCTION__ << " to retrieve result."
 	<< "\033[00m"
 	<< std::endl;
 
-    
+
     art::ServiceHandle<geo::Geometry const> geo;
-    
+
     // Store output
     for(size_t out_index=0; out_index < GetMergedCPAN().size(); ++out_index) {
-      
+
       // To save typing let's just retrieve const cluster_params instance
       const cluster_params &res = GetMergedCPAN().at(out_index).GetParams();
-      
+
       // this "algo" is actually parroting its cluster_params
       LazyClusterParamsAlg algo(res);
-      
+
       std::vector<art::Ptr<recob::Hit>> const& hits
         = GetMergedClusterHits().at(out_index);
-      
+
       // the full plane needed but not a part of cluster_params...
       // get the one from the first hit
       geo::PlaneID plane; // invalid by default
       if (!hits.empty()) plane = hits.front()->WireID().planeID();
-      
+
       // View_t needed but not a part of cluster_params, so retrieve it here
       geo::View_t view_id = geo->Plane(plane).View();
-      
+
       // Push back a new cluster data product with parameters copied from cluster_params
       out_clusters.emplace_back(
         res.start_point.w / fGeoU.WireToCm(), // start_wire
@@ -213,15 +213,15 @@ namespace cluster{
         plane,                                // plane
         recob::Cluster::Sentry                // sentry
         );
-      
+
       util::CreateAssn(ed,
-		       ev, 
+		       ev,
 		       out_clusters,
-		       GetMergedClusterHits().at(out_index), 
+		       GetMergedClusterHits().at(out_index),
 		       assns
 		       );
     }
-    
+
   }
 
 } // namespace cluster

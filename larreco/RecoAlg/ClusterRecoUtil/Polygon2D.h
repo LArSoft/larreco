@@ -2,7 +2,7 @@
  * \file Polygon2D.h
  *
  * \ingroup ClusterRecoUtil
- * 
+ *
  * \brief 2D polygon object
  *
  * @author kazuhiro & david caratelli
@@ -35,17 +35,17 @@
 //                BEGIN POLYGON CLASS               //
 //\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
 class Polygon2D{
-  
+
 private:
   std::vector< std::pair<float,float> > vertices;
-  
+
  public:
 
   Polygon2D() { }
   Polygon2D(const std::vector< std::pair<float,float> > &points) { vertices = points; }
   Polygon2D(const Polygon2D &poly1, const Polygon2D &poly2); /// Create Intersection Polygon
-  unsigned int Size() const { return vertices.size(); } 
-  const std::pair<float,float>& Point(unsigned int p) const; 
+  unsigned int Size() const { return vertices.size(); }
+  const std::pair<float,float>& Point(unsigned int p) const;
   std::pair<float,float> Project(const std::pair<float,float>&,float) const;
   float Area() const;
   float Perimeter() const;

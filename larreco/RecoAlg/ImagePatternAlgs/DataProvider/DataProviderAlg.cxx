@@ -319,7 +319,7 @@ bool img::DataProviderAlg::setWireDriftData(const std::vector<recob::Wire> & wir
 	        << cryo << " tpc:" << tpc << " plane:" << plane;
 	    return false;
 	}
-	
+
     applyBlur();
     addWhiteNoise();
     addCoherentNoise();

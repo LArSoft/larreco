@@ -1,7 +1,7 @@
 #include "ShowerRecoAlgBase.h"
 
 namespace showerreco {
-  
+
   ShowerRecoAlgBase::ShowerRecoAlgBase() : fInputClusters()
   {
     fVerbosity = false;

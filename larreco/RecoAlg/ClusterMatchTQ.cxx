@@ -8,7 +8,7 @@
 /// based on time and charge information
 ///
 ////////////////////////////////////////////////////////////////////////
-#include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/RecoAlg/ClusterMatchTQ.h"
 #include "larcore/Geometry/Geometry.h"
@@ -21,11 +21,11 @@ struct CluLen{
   float length;
 };
 
-bool SortByLength (CluLen const&c1, CluLen const& c2) { 
+bool SortByLength (CluLen const&c1, CluLen const& c2) {
   return (c1.length>c2.length);
 }
 
-bool SortByWire (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) { 
+bool SortByWire (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) {
   return h1->WireID().Wire < h2->WireID().Wire;
 }
 
@@ -59,7 +59,7 @@ namespace cluster{
 
     std::vector< std::vector<unsigned int> > Cls(nplanes);
     std::vector< std::vector<CluLen> > clulens(nplanes);
- 
+
     for (size_t iclu = 0; iclu<clusterlist.size(); ++iclu){
 
       float wire_pitch = geom->WirePitch(clusterlist[iclu]->Plane());
@@ -68,11 +68,11 @@ namespace cluster{
       float w1 = clusterlist[iclu]->EndWire();
       float t0 = clusterlist[iclu]->StartTick();
       float t1 = clusterlist[iclu]->EndTick();
- 
+
       CluLen clulen;
       clulen.index = iclu;
       clulen.length = sqrt(pow((w0-w1)*wire_pitch,2)+pow(detprop->ConvertTicksToX(t0,clusterlist[iclu]->Plane().Plane,clusterlist[iclu]->Plane().TPC,clusterlist[iclu]->Plane().Cryostat)-detprop->ConvertTicksToX(t1,clusterlist[iclu]->Plane().Plane,clusterlist[iclu]->Plane().TPC,clusterlist[iclu]->Plane().Cryostat),2));
-    
+
       switch(clusterlist[iclu]->View()){
       case geo::kU :
         if (fEnableU) clulens[0].push_back(clulen);
@@ -87,7 +87,7 @@ namespace cluster{
         break;
       }
     }
-    
+
     //sort clusters based on 2D length
     for (size_t i = 0; i<clulens.size(); ++i){
       std::sort (clulens[i].begin(),clulens[i].end(), SortByLength);
@@ -99,12 +99,12 @@ namespace cluster{
     for (int i = 0; i<nplanes; ++i){
       for (size_t ic = 0; ic < Cls[i].size(); ++ic){
         TH1D sig(Form("sig_%d_%d",i,int(ic)),Form("sig_%d_%d",i,int(ic)),nts+100,-100,nts);
-        TH1D sigint(Form("sigint_%d_%d",i,int(ic)),Form("sigint_%d_%d",i,int(ic)),nts+100,-100,nts);    
+        TH1D sigint(Form("sigint_%d_%d",i,int(ic)),Form("sigint_%d_%d",i,int(ic)),nts+100,-100,nts);
         std::vector< art::Ptr<recob::Hit> > hitlist = fm.at(Cls[i][ic]);
         std::sort(hitlist.begin(), hitlist.end(), SortByWire);
 
         for(auto theHit = hitlist.begin(); theHit != hitlist.end();  theHit++){
-        
+
           double time = (*theHit)->PeakTime();
           time -= detprop->GetXTicksOffset((*theHit)->WireID().Plane,
                                            (*theHit)->WireID().TPC,
@@ -130,7 +130,7 @@ namespace cluster{
       for (int j = i+1; j<nplanes; ++j){
         for (size_t c1 = 0; c1<Cls[i].size(); ++c1){
           for (size_t c2 = 0; c2<Cls[j].size(); ++c2){
-            
+
             // check if both are the same view
             if (clusterlist[Cls[i][c1]]->View()==
                 clusterlist[Cls[j][c2]]->View()) continue;
@@ -154,7 +154,7 @@ namespace cluster{
             int iadd = -1; //cluster index to be inserted
             if (ks>fKSCut){//pass KS test
               // check both clusters with all matched clusters
-              // if one is already matched, 
+              // if one is already matched,
               // check if need to add the other to the same track candidate
               for (size_t l = 0; l<matchedclusters.size(); ++l){
                 for (size_t m = 0; m<matchedclusters[l].size(); ++m){
@@ -206,7 +206,7 @@ namespace cluster{
                   if (!matchview){
                     matchedclusters[imatch].push_back(Cls[j][c2]);
                     matched[Cls[j][c2]] = 1;
-                  }                
+                  }
                 }
               }
               else{
@@ -228,7 +228,7 @@ namespace cluster{
       for (size_t j = 0; j<matchedclusters[i].size(); ++j){
         mf::LogVerbatim("ClusterMatchTQ")<<matchedclusters[i][j];
       }
-    } 
+    }
 
 
     for (int i = 0; i<nplanes; ++i){

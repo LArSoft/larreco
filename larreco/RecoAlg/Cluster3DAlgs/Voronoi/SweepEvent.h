@@ -1,10 +1,10 @@
 /**
  *  @file   Event.h
- * 
+ *
  *  @brief  Represents the Event implemented as a self balancing binary search tree
  *
  *  @author usher@slac.stanford.edu
- * 
+ *
  */
 #ifndef Event_h
 #define Event_h
@@ -38,7 +38,7 @@ public:
         m_coords = dcel2d::Coords(std::get<0>(point),std::get<1>(point),0.);
     }
     ~SiteEvent() {}
-    
+
     void                  setInvalid()              const override {m_valid = false;}
     void                  setBSTNode(BSTNode* node)       override {m_node = node;}
 
@@ -75,7 +75,7 @@ public:
         m_circleCenter = center;
     }
     ~CircleEvent() {}
-    
+
     void                  setInvalid()              const override {m_valid = false;}
     void                  setBSTNode(BSTNode* node)       override {m_node = node;}
 
@@ -98,6 +98,6 @@ private:
 
 using SiteEventList   = std::list<SiteEvent>;
 using CircleEventList = std::list<CircleEvent>;
-    
+
 } // namespace lar_cluster3d
 #endif

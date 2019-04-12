@@ -681,11 +681,11 @@ double shower::TrackShowerSeparationAlg::SpacePointsRMS(const std::vector<art::P
 //   for (std::vector<art::Ptr<recob::SpacePoint> >::const_iterator spacePointIt = spacePoints.begin(); spacePointIt != spacePoints.end(); ++spacePointIt) {
 
 //     bool spacePointIsInCurrentTrack = false;
-  
+
 //     std::vector<art::Ptr<recob::Track> > spacePointTracks = fmt.at(spacePointIt->key());
 //     for (std::vector<art::Ptr<recob::Track> >::iterator spacePointTrackIt = spacePointTracks.begin(); spacePointTrackIt != spacePointTracks.end(); ++spacePointTrackIt)
 //       if (spacePointTrackIt->key() == trackID) spacePointIsInCurrentTrack = true;
-    
+
 //     if (!spacePointIsInCurrentTrack)
 //       surroundingSpacePoints.push_back(*spacePointIt);
 

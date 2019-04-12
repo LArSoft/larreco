@@ -23,12 +23,12 @@ namespace cmtool {
     if(cluster.GetNHits()) return 1.;
     else return -1.;
   }
-  
+
   //------------------------------
   void CPAlgo_Class_Name::Report()
   //------------------------------
   {
 
   }
-    
+
 }

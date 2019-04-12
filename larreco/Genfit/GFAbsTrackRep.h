@@ -34,34 +34,34 @@
 
 #include "larreco/Genfit/GFDetPlane.h"
 
-//class genf::GFAbsRecoHit;    
+//class genf::GFAbsRecoHit;
 
 namespace genf {
 
 
 
-/** @brief Base Class for genfit track representations. 
+/** @brief Base Class for genfit track representations.
  * Defines interface for track parameterizations.
  *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
- * It is important to understand the difference between a track and a 
+ *
+ * It is important to understand the difference between a track and a
  * track representation in genfit:
- * - A track representation is a specific parameterization of a trajectory. 
- * It contains the parameters that describe the track at some point and 
- * code for the extrapolation of the track parameters through space. 
+ * - A track representation is a specific parameterization of a trajectory.
+ * It contains the parameters that describe the track at some point and
+ * code for the extrapolation of the track parameters through space.
  * The actual extrapolation code is not part of genfit but has to be supplied
  * in some additional package (e.g. GEANE). LSLTrackRep is a very basic example
  * of a track representation.
  * - A Track is a collection of RecoHits (see GFAbsRecoHit) plus a collection
  * of track representation objects. The hits can be from different detectors.
- * There can be several representations of the same track. This makes it 
- * possible to perform several fits in parallel, for example to compare 
+ * There can be several representations of the same track. This makes it
+ * possible to perform several fits in parallel, for example to compare
  * different parameterizations or to fit different particle hypotheses.
  *
- * All track tepresentations must inherit GFAbsTrackRep to be available 
- * in genfit. Algorithms in genfit use this class as interface to 
+ * All track tepresentations must inherit GFAbsTrackRep to be available
+ * in genfit. Algorithms in genfit use this class as interface to
  * access track parameters
  *
  * Provides:
@@ -69,15 +69,15 @@ namespace genf {
  *  - ... and covariances
  *  - interface to track extrapolation code
  *
- * The track extrapolation engine can be exchanged in genfit. 
+ * The track extrapolation engine can be exchanged in genfit.
  * Or one can even use more than one engine in parallel!
  * In order to use a track extrapolation engine (like e.g. GEANE) with genfit
  * one has to write a TrackRep class that inherits from GFAbsTrackRep. This makes
  * it possible to uses different track extrapolation codes within a unified
  * framework without major changes in the detector code.
  *
- * There is only one thing one has to do to use a specific track 
- * representation together with the hits from a detector: 
+ * There is only one thing one has to do to use a specific track
+ * representation together with the hits from a detector:
  * add the respective code in the GFAbsRecoHit::getHMatrix method implementation
  * of the RecoHit in question.
  */
@@ -91,38 +91,38 @@ class GFAbsTrackRep : public TObject{
 
   //! The vector of track parameters
   TMatrixT<Double_t> fState;
-  
+
   //! The covariance matrix
-  TMatrixT<Double_t> fCov;   
+  TMatrixT<Double_t> fCov;
 
   //! chiSqu of the track fit
   double           fChiSqu;
   unsigned int     fNdf;
 
   //! status of track representation: 0 means everything's OK
-  int fStatusFlag; 
+  int fStatusFlag;
   //! specifies the direction of flight of the particle
-  bool fInverted;   
+  bool fInverted;
 
   //!state, cov and plane for first and last point in fit
-  TMatrixT<Double_t> fFirstState; 
+  TMatrixT<Double_t> fFirstState;
   TMatrixT<Double_t> fFirstCov;
 
-  TMatrixT<Double_t> fLastState; 
+  TMatrixT<Double_t> fLastState;
   TMatrixT<Double_t> fLastCov;
-  GFDetPlane fFirstPlane;  
-  GFDetPlane fLastPlane;  
+  GFDetPlane fFirstPlane;
+  GFDetPlane fLastPlane;
 
   // detector plane where the track parameters are given
   GFDetPlane         fRefPlane;
-  
+
 
 
  public:
   virtual GFAbsTrackRep* clone() const = 0;
 
   virtual GFAbsTrackRep* prototype() const = 0;
-  
+
   //! returns the tracklength spanned in this extrapolation
   /* ! There is a default implementation in GFAbsTrackRep.cxx which just drops
      the predicted covaraiance. If your trackrep has a way to extrapolate
@@ -152,38 +152,38 @@ class GFAbsTrackRep : public TObject{
    */
   virtual void extrapolateToPoint(const TVector3& point,
 				 TVector3& poca,
-				 TVector3& normVec); 
+				 TVector3& normVec);
 
-  //! 
+  //!
   /** @brief This method extrapolates to the point of closest approach to a line
-   * 
+   *
    * This method extrapolates to the POCA to a line, i.e. a wire. There
    * is a default implementation just like for the extrapolateToPoca for
    * trackReps which do not need this feature, which will abort the
    * execution if it is ever called.
    */
-  virtual void extrapolateToLine(const TVector3& point1, 
+  virtual void extrapolateToLine(const TVector3& point1,
 				 const TVector3& point2,
 				 TVector3& poca,
 				 TVector3& normVec,
 				 TVector3& poca_onwire);
-  
-  
+
+
   //! make step of h cm along the track
   /*! There is an emply implementation in GFAbsTrackRep.cxx which will abort
       (see one of the extrapolate methods above). This can be overwritten,
       if this feature is needed.
   */
-  virtual void stepalong(double h); 
+  virtual void stepalong(double h);
 
   //! Extrapolates the track to the given detectorplane
   /*! Results are put into statePred and covPred
       This method does NOT alter the state of the object!
-   */ 
+   */
   virtual double extrapolate(const GFDetPlane& plane,
 			     TMatrixT<Double_t>& statePred,
 			     TMatrixT<Double_t>& covPred)=0;
-  
+
   //! This changes the state and cov and plane of the rep
   /*! This method extrapolates to to the plane and sets the results of state,
       cov and also plane in itself.
@@ -191,8 +191,8 @@ class GFAbsTrackRep : public TObject{
   double extrapolate(const GFDetPlane& plane);
 
   //! returns dimension of state vector
-  unsigned int getDim() const {return fDimension;}  
-  
+  unsigned int getDim() const {return fDimension;}
+
   virtual void Print(std::ostream& out = std::cout) const;
 
   const TMatrixT<Double_t>& getState() const { return fState; }
@@ -201,16 +201,16 @@ class GFAbsTrackRep : public TObject{
   double getStateElem(int i) const {return fState(i,0);}
   double getCovElem(int i, int j) const {return fCov(i,j);}
 
-  
 
-  virtual TVector3 getPos(const GFDetPlane& pl)=0; 
-  virtual TVector3 getMom(const GFDetPlane& pl)=0; 
+
+  virtual TVector3 getPos(const GFDetPlane& pl)=0;
+  virtual TVector3 getMom(const GFDetPlane& pl)=0;
 
   virtual void getPosMom(const GFDetPlane& pl,TVector3& pos,TVector3& mom)=0;
 
   //! method which gets position, momentum and 6x6 covariance matrix
-  /*! 
-   * default implementation in cxx file, if a ConcreteTrackRep can 
+  /*!
+   * default implementation in cxx file, if a ConcreteTrackRep can
    * not implement this functionality
    */
   virtual void getPosMomCov(const GFDetPlane& pl,TVector3& pos,TVector3& mom,TMatrixT<Double_t>& cov);
@@ -299,12 +299,12 @@ class GFAbsTrackRep : public TObject{
   inline void setStatusFlag(int _val) {
     fStatusFlag = _val;
   }
-  
+
   virtual void switchDirection() = 0;
 
   //! Deprecated. Should be removed soon.
   bool setInverted(bool f=true){fInverted=f; return true;}
-  
+
   inline bool getStatusFlag() {
     return fStatusFlag;
   }

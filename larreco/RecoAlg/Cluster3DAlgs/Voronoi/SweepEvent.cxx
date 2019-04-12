@@ -1,8 +1,8 @@
 /**
  *  @file   Event.cxx
- * 
+ *
  *  @brief  Producer module to create 3D clusters from input hits
- * 
+ *
  */
 
 // Framework Includes

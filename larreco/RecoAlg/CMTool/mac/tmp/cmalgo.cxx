@@ -43,7 +43,7 @@ namespace cluster {
   {
 
   }
-  
+
   //----------------------------------------------------------------
   bool CMAlgo_Class_Name::Bool(const ClusterParamsAlg &cluster1,
 			       const ClusterParamsAlg &cluster2)
@@ -58,5 +58,5 @@ namespace cluster {
   {
 
   }
-    
+
 }

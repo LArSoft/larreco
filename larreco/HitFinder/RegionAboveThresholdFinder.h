@@ -5,7 +5,7 @@
  * Title:   RegionAboveThresholdFinder Class
  * Author:  Wes Ketchum (wketchum@lanl.gov)
  *
- * Description: Class that finds a region above threshold in which to do 
+ * Description: Class that finds a region above threshold in which to do
  *              hit-finding.
  *
  * Input:  Vector of floats (like a recob::Wire vector)

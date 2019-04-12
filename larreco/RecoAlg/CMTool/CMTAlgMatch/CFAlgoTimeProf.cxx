@@ -38,7 +38,7 @@ namespace cmtool {
   {
   // We now have a vector a clusters.
 
-  //### need a pointer to the cluster just return -1  
+  //### need a pointer to the cluster just return -1
     for(auto const& ptr : clusters) if(!ptr) return -1;
 
         std::vector<util::PxHit> hits0;
@@ -88,7 +88,7 @@ namespace cmtool {
 	      tprof02 =TProfCompare(hits0,hits2);
 		}// hits2size>0
 	}// hits0size >0
-	
+
 	if(hits1.size()>0)
 	  {
 	    //pl1 = true;
@@ -99,42 +99,42 @@ namespace cmtool {
 		tprof12 =TProfCompare(hits1,hits2);
 	      }//hits2.size>0
 	  }// hits1size>0
-	
+
 	// This is going to be slow is we are having to re-calutlate this ever time. For now it will have to do
-	
+
 	//	std::cout<< " \t summary of timeprof Planes that are accepted :" <<pl0<<" | " <<pl1<<" | " <<pl2<<" |"<<std::endl;
-	std::vector<float> tprofmatches;	
+	std::vector<float> tprofmatches;
 //	std::cout<< " \t                  Value of timeprof(01,02,12) :" <<tprof01<<" | " <<tprof02<<" | " <<tprof12<<" |"<<std::endl;
 	tprofmatches.push_back(tprof01);
 	tprofmatches.push_back(tprof02);
 	tprofmatches.push_back(tprof12);
-	
+
 	float matchscore=0;
 	float avgcounter=0;
 //	std::cout<<"SIZE of trpfmoatch"<< tprofmatches.size()<<std::endl;
 	for( unsigned int a=0;a<tprofmatches.size();a++)
 	{
-	if(tprofmatches[a]==-1) continue;	
+	if(tprofmatches[a]==-1) continue;
 	else {
 		matchscore +=tprofmatches[a];
 		avgcounter +=1;
 		}// end of else
 	}//for over the tprofmatchs
 		if(avgcounter!=0){
-//		std::cout << " Match Score pree "<< matchscore<<std::endl;		
+//		std::cout << " Match Score pree "<< matchscore<<std::endl;
 //		std::cout<< " Counter "<< avgcounter;
 		matchscore /= avgcounter;
-//		std::cout << " Match Score "<< matchscore<<std::endl;		
+//		std::cout << " Match Score "<< matchscore<<std::endl;
 		}
 		else{
-//		std::cout << " Match Score "<< -1<<std::endl;		
+//		std::cout << " Match Score "<< -1<<std::endl;
 		 return -1;
 		}
 		return matchscore;
-		
-	
-		
-  
+
+
+
+
     //if(clusters.size()) return 1.;
     //else return -1.;
   }
@@ -151,11 +151,11 @@ namespace cmtool {
    double ks = 0.0;
    std::vector< std::vector<TH1D*> > signals(nplanes);
    std::vector< std::vector<TH1D*> > pulses(nplanes);
-   
-   double time_diff = ( detp->GetXTicksOffset((int)(hita.at(0).plane),0,0) - 
+
+   double time_diff = ( detp->GetXTicksOffset((int)(hita.at(0).plane),0,0) -
 			detp->GetXTicksOffset((int)(hitb.at(0).plane),0,0) ) * geou.TimeToCm();
-   
-   // First go look for the min & max of hits 
+
+   // First go look for the min & max of hits
    double min_time = detp->NumberTimeSamples() * geou.TimeToCm();
    double max_time = 0;
    for(auto const& h : hita) {
@@ -198,7 +198,7 @@ namespace cmtool {
    }
 
 /*
-   std::cout 
+   std::cout
      << "siga: "<< histo_a.GetEntries() << std::endl
      << "sigb: "<< histo_b.GetEntries() << std::endl
      << "siginta: "<<histo_inta.GetEntries() << std::endl
@@ -219,5 +219,5 @@ namespace cmtool {
   {
 
   }
-    
+
 }

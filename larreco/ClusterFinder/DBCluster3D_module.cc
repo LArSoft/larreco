@@ -35,10 +35,10 @@ namespace cluster {
 
 
 class cluster::DBCluster3D : public art::EDProducer {
-  
+
   using Point_t = recob::tracking::Point_t;
   using Vector_t  = recob::tracking::Vector_t;
-  
+
 public:
   explicit DBCluster3D(fhicl::ParameterSet const & p);
   // The compiler-generated destructor is fine for non-base
@@ -86,7 +86,7 @@ cluster::DBCluster3D::DBCluster3D(fhicl::ParameterSet const & p)
   fDetProp = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
   tickToDist = fDetProp->DriftVelocity(fDetProp->Efield(),fDetProp->Temperature());
-  tickToDist *= 1.e-3 * fDetProp->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns     
+  tickToDist *= 1.e-3 * fDetProp->SamplingRate(); // 1e-3 is conversion of 1/us to 1/ns
   fMinHitDis *= fMinHitDis;
 }
 
@@ -95,10 +95,10 @@ void cluster::DBCluster3D::produce(art::Event & evt)
 
   std::vector<recob::Slice> slcCol;
 
-  std::unique_ptr<art::Assns<recob::Slice, recob::Hit>> 
+  std::unique_ptr<art::Assns<recob::Slice, recob::Hit>>
     slc_hit_assn(new art::Assns<recob::Slice, recob::Hit>);
 
-  std::unique_ptr<art::Assns<recob::Slice, recob::SpacePoint>> 
+  std::unique_ptr<art::Assns<recob::Slice, recob::SpacePoint>>
     slc_sps_assn(new art::Assns<recob::Slice, recob::SpacePoint>);
 
   auto hitsHandle = evt.getValidHandle< std::vector<recob::Hit> >(fHitModuleLabel);
@@ -278,7 +278,7 @@ void cluster::DBCluster3D::produce(art::Event & evt)
     util::CreateAssn(*this, evt, slcCol, slcHits[isl], *slc_hit_assn);
     util::CreateAssn(*this, evt, slcCol, sps_in_slc[isl], *slc_sps_assn);
   } // isl
-  
+
   std::unique_ptr<std::vector<recob::Slice> > scol(new std::vector<recob::Slice>(std::move(slcCol)));
   evt.put(std::move(scol));
   evt.put(std::move(slc_hit_assn));

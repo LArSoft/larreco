@@ -74,18 +74,18 @@ namespace trkf {
     using Parameters = art::EDProducer::Table<Config>;
 
     explicit VertexFitter(Parameters const & p);
-    
+
     // Plugins should not be copied or assigned.
     VertexFitter(VertexFitter const &) = delete;
     VertexFitter(VertexFitter &&) = delete;
     VertexFitter & operator = (VertexFitter const &) = delete;
     VertexFitter & operator = (VertexFitter &&) = delete;
-    
+
     void produce(art::Event & e) override;
 
   private:
     art::InputTag pfParticleInputTag;
-    art::InputTag trackInputTag;    
+    art::InputTag trackInputTag;
     Geometric3DVertexFitter fitter;
   };
 }

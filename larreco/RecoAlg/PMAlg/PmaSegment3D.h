@@ -2,7 +2,7 @@
  *  @file   PmaSegment3D.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          3D track segment. See PmaTrack3D.h file for details.

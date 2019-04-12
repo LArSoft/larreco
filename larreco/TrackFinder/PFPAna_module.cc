@@ -13,17 +13,17 @@
 #include <array>
 
 //Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "art/Framework/Principal/Event.h" 
-#include "fhiclcpp/ParameterSet.h" 
-#include "art/Framework/Principal/Handle.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
-#include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "art/Framework/Principal/Event.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "art/Framework/Principal/Handle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 //LArSoft includes
 #include "larcore/Geometry/Geometry.h"
@@ -50,14 +50,14 @@ class TH2F;
 
 namespace pfpf {
 
-   
+
   class PFPAna : public art::EDAnalyzer {
 
   public:
-          
-    explicit PFPAna(fhicl::ParameterSet const& pset); 
+
+    explicit PFPAna(fhicl::ParameterSet const& pset);
     virtual ~PFPAna();
- 
+
     /// read access to event
     void analyze(const art::Event& evt);
     void beginJob();
@@ -91,17 +91,17 @@ namespace pfpf {
     TH1F* fNuP_pion;
     TH1F* fNuP_kaon;
     TH1F* fNuP_prot;
-    
+
     TH1F* fNuVtx_dx;
     TH1F* fNuVtx_dy;
     TH1F* fNuVtx_dz;
-    
+
     TProfile* fNuEP2_KE_elec;
     TProfile* fNuEP2_KE_muon;
     TProfile* fNuEP2_KE_pion;
     TProfile* fNuEP2_KE_kaon;
     TProfile* fNuEP2_KE_prot;
-    
+
     std::string fHitsModuleLabel;
     std::string fClusterModuleLabel;
     std::string fTrackModuleLabel;
@@ -117,12 +117,12 @@ namespace pfpf {
   //  float fMergeAngleCut;
     bool  fSkipCosmics;
     short fPrintLevel;
-      	 
+
   }; // class PFPAna
 
 
   //--------------------------------------------------------------------
-  PFPAna::PFPAna(fhicl::ParameterSet const& pset)  
+  PFPAna::PFPAna(fhicl::ParameterSet const& pset)
     : EDAnalyzer(pset)
     , fHitsModuleLabel      (pset.get< std::string > ("HitsModuleLabel"))
     , fClusterModuleLabel   (pset.get< std::string > ("ClusterModuleLabel"))
@@ -139,22 +139,22 @@ namespace pfpf {
     , fSkipCosmics          (pset.get< bool >        ("SkipCosmics"))
     , fPrintLevel           (pset.get< short >       ("PrintLevel"))
   {
-  
-  
+
+
   }
-  
+
   //------------------------------------------------------------------
   PFPAna::~PFPAna()
   {
-  
+
   }
-  
+
   void PFPAna::beginJob()
   {
-  
+
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
-  
+
     fNClusters=tfs->make<TH1F>("fNoClustersInEvent","Number of Clusters", 40,0 ,400);
     fNHitInCluster = tfs->make<TH1F>("fNHitInCluster","NHitInCluster",100,0,100);
 
@@ -170,7 +170,7 @@ namespace pfpf {
     fNuKE_pion = tfs->make<TH1F>("NuKE_pion","NuKE pion",100,0,4000);
     fNuKE_kaon = tfs->make<TH1F>("NuKE_kaon","NuKE kaon",100,0,4000);
     fNuKE_prot = tfs->make<TH1F>("NuKE_prot","NuKE proton",100,0,4000);
-    
+
     fNuEP2_elec = tfs->make<TH1F>("NuEP2_elec","NuEP2 electron",50,0,1);
     fNuEP2_muon = tfs->make<TH1F>("NuEP2_muon","NuEP2 muon",50,0,1);
     fNuEP2_pion = tfs->make<TH1F>("NuEP2_pion","NuEP2 pion",50,0,1);
@@ -193,22 +193,22 @@ namespace pfpf {
     fNuVtx_dx = tfs->make<TH1F>("Vtx dx","Vtx dx",80,-10,10);
     fNuVtx_dy = tfs->make<TH1F>("Vtx dy","Vtx dy",80,-10,10);
     fNuVtx_dz = tfs->make<TH1F>("Vtx dz","Vtx dz",80,-10,10);
-    
+
     fNuEP2_KE_elec = tfs->make<TProfile>("NuEP2_KE_elec","NuEP2 electron vs KE",20,0,2000);
     fNuEP2_KE_muon = tfs->make<TProfile>("NuEP2_KE_muon","NuEP2 muon vs KE",20,0,2000);
     fNuEP2_KE_pion = tfs->make<TProfile>("NuEP2_KE_pion","NuEP2 pion vs KE",20,0,2000);
     fNuEP2_KE_kaon = tfs->make<TProfile>("NuEP2_KE_kaon","NuEP2 kaon vs KE",20,0,2000);
     fNuEP2_KE_prot = tfs->make<TProfile>("NuEP2_KE_prot","NuEP2 proton vs KE",20,0,2000);
-  
+
   }
-  
+
   void PFPAna::analyze(const art::Event& evt)
   {
-    
+
     // code stolen from TrackAna_module.cc
-    art::ServiceHandle<geo::Geometry const>      geom;  
+    art::ServiceHandle<geo::Geometry const>      geom;
     if(geom->Nplanes() > 3) return;
-    
+
     // get all hits in the event
     art::Handle< std::vector<recob::Hit> > hitListHandle;
     evt.getByLabel(fHitsModuleLabel, hitListHandle);
@@ -234,7 +234,7 @@ namespace pfpf {
 //  mf::LogVerbatim("PFPAna")
 //    <<"Reco Vtx "<<xyz[0]<<" "<<xyz[1]<<" "<<xyz[2];
     }
-    
+
     // get PFParticles
     art::Handle< std::vector<recob::PFParticle> > PFPListHandle;
     evt.getByLabel(fPFParticleModuleLabel,PFPListHandle);
@@ -244,7 +244,7 @@ namespace pfpf {
       recoPFPList.push_back(pfp);
       mf::LogVerbatim("PFPAna")<<"PFParticle PDG "<<pfp->PdgCode();
     }
-    
+
     // list of all true particles
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
@@ -259,7 +259,7 @@ namespace pfpf {
     std::vector<std::vector<unsigned short>> nTruHitInCl;
     //number of reconstructed hits in all clusters
     std::vector<unsigned short> nRecHitInCl;
-    
+
     // calculate average EP2 for every event to facilitate code development
     // Beam Neutrinos - muons and not-muons
 
@@ -308,7 +308,7 @@ namespace pfpf {
           fNuVtx_dy->Fill(part->Vy() - xyz[1]);
           fNuVtx_dz->Fill(part->Vz() - xyz[2]);
         } // iv
-      } // theTruth->Origin() == simb::kBeamNeutrino && neutTrackID < 
+      } // theTruth->Origin() == simb::kBeamNeutrino && neutTrackID <
 
       bool isCharged = (pdg == 11) || (pdg == 13) || (pdg == 211)
          || (pdg == 321) || (pdg == 2212);
@@ -359,9 +359,9 @@ namespace pfpf {
         <<" Mother "<<part->Mother() + neutTrackID
         <<" Proc "<<part->Process();
     }
-    
+
     if(plist2.size() == 0) return;
-    
+
     // get the hits (in all planes) that are matched to the true tracks
     hlist2 = bt_serv->TrackIdsToHits_Ps( tidlist, allhits);
     if(hlist2.size() != plist2.size()) {
@@ -409,17 +409,17 @@ namespace pfpf {
         moda.push_back(std::make_pair(mpl, dpl));
       } //  dpl
     } // MergeDaughters
-    
+
     // Now match reconstructed clusters to true particles.
     art::PtrVector<recob::Cluster> clusters;
     for (unsigned int ii = 0; ii <  clusterListHandle->size(); ++ii){
       art::Ptr<recob::Cluster> clusterHolder(clusterListHandle,ii);
       clusters.push_back(clusterHolder);
     }
-    
+
     fNClusters->Fill(clusterListHandle->size());
     nRecHitInCl.resize(clusters.size());
-    
+
     // get the plane from the view. Perhaps there is a method that does
     // this somewhere...
     std::map< geo::View_t, unsigned int > ViewToPlane;
@@ -473,7 +473,7 @@ namespace pfpf {
           imtru = ipl;
         }
       } // ipl
-      // make the cluster->(true,plane) association and save the 
+      // make the cluster->(true,plane) association and save the
       // number of true hits in the cluster
       if(imtru != -1) {
         // clobber a previously made association?
@@ -498,13 +498,13 @@ namespace pfpf {
       // ignore true particles with few true hits. Outside the detector
       // or not reconstructable?
       if(hlist2[ipl].size() < 3) continue;
-      
+
       int trackID = plist2[ipl]->TrackId();
       art::Ptr<simb::MCTruth> theTruth = pi_serv->TrackIdToMCTruth_P(trackID);
       bool isCosmic = (theTruth->Origin() == simb::kCosmicRay);
       float KE = 1000 * (plist2[ipl]->E() - plist2[ipl]->Mass());
       int PDG = abs(plist2[ipl]->PdgCode());
-      
+
       std::vector<short> nTru(geom->Nplanes());
       std::vector<short> nRec(geom->Nplanes());
       std::vector<short> nTruRec(geom->Nplanes());
@@ -521,7 +521,7 @@ namespace pfpf {
 //    <<"Chk mom "<<ipl<<" plane "<<plane<<" nTru "<<nTru[plane];
         // next look for daughters and count those hits in all generations
         unsigned short mom = ipl;
-        std::vector<std::pair<unsigned short, unsigned short>>::reverse_iterator 
+        std::vector<std::pair<unsigned short, unsigned short>>::reverse_iterator
           rit = moda.rbegin();
         while(rit != moda.rend()) {
           if((*rit).first == mom) {
@@ -548,9 +548,9 @@ namespace pfpf {
         nTruRec[plane] = nTruHitInCl[ipl][plane];
 //  mf::LogVerbatim("PFPAna")<<"icl "<<icl<<" nRec "<<nRec[plane]
 //    <<" nTruRec "<<nTruRec[plane];
-        if(nTru[plane] > 0) 
+        if(nTru[plane] > 0)
           eff[plane] = (float)nTruRec[plane] / (float)nTru[plane];
-        if(nRec[plane] > 0) 
+        if(nRec[plane] > 0)
           pur[plane] = (float)nTruRec[plane] / (float)nRec[plane];
         ep[plane] = eff[plane] * pur[plane];
       } // plane
@@ -682,7 +682,7 @@ namespace pfpf {
   float ave3 = -1.;
   if(numCREP2 > 0.) ave3 = aveCREP2/numCREP2;
 
-  
+
 
     if(fPrintLevel > 0) {
       std::string nuType = "Other";
@@ -705,10 +705,10 @@ namespace pfpf {
       <<" NuPiKp "<<ave2
       <<" CosmicRays "<<ave3
       <<" CCNC "<<neutCCNC<<" IntType "<<neutIntType;
-    }  
+    }
   } // analyze
 
   DEFINE_ART_MODULE(PFPAna)
 
-  
+
 } //end namespace

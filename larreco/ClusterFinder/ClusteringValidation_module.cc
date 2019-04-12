@@ -6,7 +6,7 @@
 //
 // A module to validate clustering algorithms.
 // Compares the output of different clustering algorithms run over a pi0 sample.
-// 
+//
 // Usage: Specify the hit finder (HitsModuleLabel) and the clustering outputs
 // to validate (ClusterModuleLabels) in the fhicl file.
 // Module will make validation plots for all clusterings specified and also
@@ -15,16 +15,16 @@
 //////////////////////////////////////////////////////////////////////////////////////
 
 #include "art/Framework/Core/EDAnalyzer.h"
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Principal/Event.h" 
-#include "fhiclcpp/ParameterSet.h" 
-#include "art/Framework/Principal/Handle.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
-#include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Principal/Event.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "art/Framework/Principal/Handle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 
 // LArSoft includes
@@ -368,7 +368,7 @@ TObjArray ClusteringValidation::ClusterAnalyser::GetHistograms() {
   fHistArray.Add(hCleanliness);      fHistArray.Add(hCleanlinessEnergy);  fHistArray.Add(hCleanlinessAngle);  fHistArray.Add(hCleanlinessConversionDistance);  fHistArray.Add(hCleanlinessConversionSeparation);
   fHistArray.Add(hComplCleanl);      fHistArray.Add(hComplCleanlEnergy);  fHistArray.Add(hComplCleanlAngle);  fHistArray.Add(hComplCleanlConversionDistance);  fHistArray.Add(hComplCleanlConversionSeparation);
   fHistArray.Add(hEfficiencyEnergy); fHistArray.Add(hEfficiencyAngle);    fHistArray.Add(hEfficiencyConversionDistance); fHistArray.Add(hEfficiencyConversionSeparation);
-  fHistArray.Add(hNumHitsCompleteness); fHistArray.Add(hNumHitsEnergy);  
+  fHistArray.Add(hNumHitsCompleteness); fHistArray.Add(hNumHitsEnergy);
 
   return fHistArray;
 }

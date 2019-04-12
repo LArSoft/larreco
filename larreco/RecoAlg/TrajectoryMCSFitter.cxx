@@ -28,7 +28,7 @@ recob::MCSFitResult TrajectoryMCSFitter::fitMcs(const recob::TrackTrajectory& tr
     if (p>0) {
       if (segradlengths[p]<-100. || segradlengths[p-1]<-100.) {
 	dtheta.push_back(-999.);
-      } else { 
+      } else {
 	const double cosval = pcdir0.X()*pcdir1.X()+pcdir0.Y()*pcdir1.Y()+pcdir0.Z()*pcdir1.Z();
 	//assert(std::abs(cosval)<=1);
 	//units are mrad
@@ -122,7 +122,7 @@ const TrajectoryMCSFitter::ScanResult TrajectoryMCSFitter::doLikelihoodScan(std:
   }
   //uncertainty from right side scan
   double runc = -1.0;
-  if (best_idx<int(vlogL.size()-1)) {  
+  if (best_idx<int(vlogL.size()-1)) {
     for (unsigned int j=best_idx+1;j<vlogL.size();j++) {
       double dLL = vlogL[j]-vlogL[best_idx];
       if ( dLL<0.5 ) {
@@ -178,7 +178,7 @@ void TrajectoryMCSFitter::linearRegression(const recob::TrackTrajectory& traj, c
       maxevalidx = i;
       maxeval = eigenval(i);
     }
-  } 
+  }
   //
   pcdir = Vector_t(eigenvec(0, maxevalidx),eigenvec(1, maxevalidx),eigenvec(2, maxevalidx));
   if (traj.DirectionAtPoint(firstPoint).Dot(pcdir)<0.) pcdir*=-1.;
@@ -230,7 +230,7 @@ double TrajectoryMCSFitter::mcsLikelihood(double p, double theta0x, std::vector<
     if (rms==0.0) {
       std::cout << " Error : RMS cannot be zero ! " << std::endl;
       return std::numeric_limits<double>::max();
-    } 
+    }
     const double arg = dthetaij[i]/rms;
     result += ( std::log( rms ) + 0.5 * arg * arg + fixedterm);
     // if (print && fwd==true) cout << "TrajectoryMCSFitter pij=" << pij << " dthetaij[i]=" << dthetaij[i] << " tH0=" << tH0 << " rms=" << rms << " prob=" << ( std::log( rms ) + 0.5 * arg * arg + fixedterm) << " const=" << (momDepConst ? MomentumDependentConstant(pij) : tuned_HL_term1) << " beta=" << beta << " red_length=" << seg_nradl[i] << endl;

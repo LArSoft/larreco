@@ -20,37 +20,37 @@
 /** @addtogroup RKTrackRep
  * @{
  */
- 
+
 #ifndef GFABSENERGYLOSS_H
 #define GFABSENERGYLOSS_H
 
 #include"TObject.h"
 #include<vector>
 #include"TVector3.h"
-#include"TMatrixT.h"  
+#include"TMatrixT.h"
 
- 
+
 /** @brief Base class for energy loss and noise matrix calculation
- * 
+ *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Johannes Rauch  (Technische Universit&auml;t M&uuml;nchen, author)
- * 
- *  
- *  
- *  
- *  
+ *
+ *
+ *
+ *
+ *
  */
 namespace genf {
 
-class GFAbsEnergyLoss : public TObject{  
+class GFAbsEnergyLoss : public TObject{
  public:
   //! Calculates energy loss in a given step, optional calculation of noise matrix
-  /** 
+  /**
   */
   virtual double energyLoss(const double& step,
                             const double& mom,
-                            const int&    pdg,              
+                            const int&    pdg,
                             const double& matDensity,
                             const double& matZ,
                             const double& matA,
@@ -62,7 +62,7 @@ class GFAbsEnergyLoss : public TObject{
                             const TVector3* directionBefore = NULL,
                             const TVector3* directionAfter = NULL) = 0;
   virtual ~GFAbsEnergyLoss();
- 
+
  protected:
   //! Gets particle charge and mass (in GeV)
   void getParticleParameters(const int&    pdg,
@@ -73,7 +73,7 @@ class GFAbsEnergyLoss : public TObject{
 
   // public:
   //ClassDef(GFAbsEnergyLoss,1);
-  
+
 };
 
 } // namespace genf

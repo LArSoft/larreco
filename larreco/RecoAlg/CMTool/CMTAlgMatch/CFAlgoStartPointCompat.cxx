@@ -56,7 +56,7 @@ namespace cmtool {
     int startWire2 = int( startWirecm2 / _w2cm );
     unsigned int Pl2 = clusters.at(2)->GetParams().start_point.plane;
     //int startChan3 = larutil::Geometry::GetME()->PlaneWireToChannel(Pl2, startWire2);
-    
+
     unsigned int cryo=0;
     unsigned int tpc =0;
 
@@ -70,17 +70,17 @@ namespace cmtool {
 			    Pl0, Pl1,
 			    cryo, tpc,
 			    yS01, zS01);
-    
+
     geo->IntersectionPoint( startWire0, startWire2,
 			    Pl0, Pl2,
 			    cryo, tpc,
 			    yS02, zS02);
-    
+
     geo->IntersectionPoint( startWire1, startWire2,
 			    Pl1, Pl2,
 			    cryo, tpc,
 			    yS12, zS12);
-    
+
     //assume X coordinate for these start-points is 0
     //i.e. only focus on projection onto wire-plane
     //then check if the start point reconstructe from
@@ -223,5 +223,5 @@ namespace cmtool {
   {
 
   }
-    
+
 }

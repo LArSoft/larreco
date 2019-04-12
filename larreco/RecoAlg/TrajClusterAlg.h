@@ -48,11 +48,11 @@ namespace tca {
 
   class TrajClusterAlg {
     public:
-    
- 
+
+
     /// @{
     /// @name Data structures for the reconstruction results
-    
+
     TrajClusterAlg(fhicl::ParameterSet const& pset);
 
     virtual void reconfigure(fhicl::ParameterSet const& pset);
@@ -64,24 +64,24 @@ namespace tca {
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID);
     bool CreateSlice(std::vector<unsigned int>& hitsInSlice);
     void FinishEvent();
-    
+
 
     void DefineShTree(TTree* t);
-    
+
 //    void DefineCRTree(TTree* t);
 
     unsigned short GetSlicesSize() { return slices.size(); }
     TCSlice const& GetSlice(unsigned short sliceIndex) const {return slices[sliceIndex]; }
-    void MergeTPHits(std::vector<unsigned int>& tpHits, std::vector<recob::Hit>& newHitCol, 
+    void MergeTPHits(std::vector<unsigned int>& tpHits, std::vector<recob::Hit>& newHitCol,
                      std::vector<unsigned int>& newHitAssns);
-    
+
     std::vector<unsigned int> const& GetAlgModCount() const {return fAlgModCount; }
     std::vector<std::string> const& GetAlgBitNames() const {return AlgBitNames; }
-    
+
     /// Deletes all the results
     void ClearResults() { slices.resize(0); evt.allHitsMCPIndex.resize(0); evt.allHitsRanges.resize(0);}
     TruthMatcher fTM;
-    
+
     private:
 
     recob::Hit MergeTPHitsOnWire(std::vector<unsigned int>& tpHits);
@@ -91,10 +91,10 @@ namespace tca {
 
     // Cosmic Removal Variable Tree
 //    TTree* crtree;
-    
+
     calo::CalorimetryAlg fCaloAlg;
     TMVA::Reader fMVAReader;
-        
+
     std::vector<unsigned int> fAlgModCount;
 
     void ReconstructAllTraj(TCSlice& slc, CTP_t inCTP);

@@ -44,7 +44,7 @@
 #include <TROOT.h>
 #include <TStyle.h>
 
-const int kMaxShowers = 1000;  //maximum number of showers   
+const int kMaxShowers = 1000;  //maximum number of showers
 
 namespace shower {
 
@@ -58,7 +58,7 @@ namespace shower {
     void reconfigure(fhicl::ParameterSet const& pset);
     void beginJob();
     void analyze(const art::Event& evt);
-   
+
   protected:
 
     void reset();
@@ -66,7 +66,7 @@ namespace shower {
     void truthMatcher(std::vector<art::Ptr<recob::Hit>>all_hits, std::vector<art::Ptr<recob::Hit>> shower_hits, const simb::MCParticle *&MCparticle, double &Efrac, double &Ecomplet);
 
   private:
-    
+
     TTree* fTree;
     int run;
     int subrun;
@@ -76,7 +76,7 @@ namespace shower {
     int mode_truth;
     int nshws;                         //number of showers
     int shwid[kMaxShowers];             //recob::Shower::ID()
-    float shwdcosx[kMaxShowers];      //shower direction cosin                                                        
+    float shwdcosx[kMaxShowers];      //shower direction cosin
     float shwdcosy[kMaxShowers];
     float shwdcosz[kMaxShowers];
     float shwstartx[kMaxShowers];     //shower start position (cm)
@@ -146,7 +146,7 @@ void shower::TCShowerAnalysis::beginJob() {
   fTree->Branch("shwstartz",shwstartz,"shwstartz[nshws]/F");
   fTree->Branch("shwdedx",shwdedx,"shwdedx[nshws][2]/D");
   fTree->Branch("shwbestplane",shwbestplane,"shwbestplane[nshws]/I");
-  
+
   fTree->Branch("highestHitsPDG",&highestHitsPDG,"highestHitsPDG/I");
   fTree->Branch("highestHitsFrac",&highestHitsFrac,"highestHitsFrac/D");
 
@@ -174,7 +174,7 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
   std::vector<art::Ptr<recob::Shower> > showerlist;
   if (evt.getByLabel(fShowerModuleLabel,showerListHandle))
     art::fill_ptr_vector(showerlist, showerListHandle);
-  
+
   art::Handle< std::vector<simb::MCTruth> > mctruthListHandle;
   std::vector<art::Ptr<simb::MCTruth> > mclist;
   if (evt.getByLabel(fGenieGenModuleLabel,mctruthListHandle))
@@ -182,7 +182,7 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
 
   art::FindManyP<recob::Hit> shwfm(showerListHandle, evt, fShowerModuleLabel);
 
-  //shower information                                                                                                     
+  //shower information
   if (showerListHandle.isValid()) {
     nshws = showerlist.size();
 
@@ -200,7 +200,7 @@ void shower::TCShowerAnalysis::analyze(const art::Event& evt) {
       shwbestplane[i] = showerlist[i]->best_plane();
     }
 
-  } // shower info                                                                                                         
+  } // shower info
 
 
   if (mclist.size()) {
@@ -279,8 +279,8 @@ void shower::TCShowerAnalysis::truthMatcher(std::vector<art::Ptr<recob::Hit>> al
   std::map<int,double> trkID_E;
   for(size_t j = 0; j < shower_hits.size(); ++j){
     art::Ptr<recob::Hit> hit = shower_hits[j];
-    //For know let's use collection plane to look at the shower reconstruction                                            
-    if( hit->View() != 1) continue;                                                                                     
+    //For know let's use collection plane to look at the shower reconstruction
+    if( hit->View() != 1) continue;
     std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToEveTrackIDEs(hit);
     for(size_t k = 0; k < TrackIDs.size(); k++){
       if (trkID_E.find(std::abs(TrackIDs[k].trackID))==trkID_E.end()) trkID_E[std::abs(TrackIDs[k].trackID)] = 0;
@@ -291,8 +291,8 @@ void shower::TCShowerAnalysis::truthMatcher(std::vector<art::Ptr<recob::Hit>> al
   double total_E = 0.0;
   int TrackID = -999;
   double partial_E=0.0;
-  //double noEM_E = 0.0;  //non electromagnetic energy is defined as energy from charged pion and protons                 
-  if( !trkID_E.size() ) return; //Ghost shower???                                                                         
+  //double noEM_E = 0.0;  //non electromagnetic energy is defined as energy from charged pion and protons
+  if( !trkID_E.size() ) return; //Ghost shower???
   for(std::map<int,double>::iterator ii = trkID_E.begin(); ii!=trkID_E.end(); ++ii){
     total_E += ii->second;
     if((ii->second)>max_E){
@@ -300,12 +300,12 @@ void shower::TCShowerAnalysis::truthMatcher(std::vector<art::Ptr<recob::Hit>> al
       max_E = ii->second;
       TrackID = ii->first;
     }
-    //int ID = ii->first;                                                                                                 
-    // const simb::MCParticle *particle = pi_serv->TrackIDToParticle(ID);                                                 
-    //if( abs(particle->PdgCode()) == 211 || particle->PdgCode() == 2212 ){                                               
-    //if( particle->PdgCode() != 22 && abs(particle->PdgCode()) != 11){                                                   
-    //noEM_E += ii->second;                                                                                               
-    //}                                                                                                                   
+    //int ID = ii->first;
+    // const simb::MCParticle *particle = pi_serv->TrackIDToParticle(ID);
+    //if( abs(particle->PdgCode()) == 211 || particle->PdgCode() == 2212 ){
+    //if( particle->PdgCode() != 22 && abs(particle->PdgCode()) != 11){
+    //noEM_E += ii->second;
+    //}
 
   }
   MCparticle = pi_serv->TrackIdToParticle_P(TrackID);
@@ -313,7 +313,7 @@ void shower::TCShowerAnalysis::truthMatcher(std::vector<art::Ptr<recob::Hit>> al
   //  Efrac = 1-(partial_E/total_E);
   Efrac = partial_E/total_E;
 
-  //completeness                                                                                                          
+  //completeness
   double totenergy =0;
   for(size_t k = 0; k < all_hits.size(); ++k){
     art::Ptr<recob::Hit> hit = all_hits[k];

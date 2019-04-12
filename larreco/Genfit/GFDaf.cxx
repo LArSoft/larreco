@@ -22,7 +22,7 @@
   R. Fruehwirth & A. Strandlie,
   Computer Physics Communications 120 (199) 197-214
   &
-  CERN thesis: Dissertation by Matthias Winkler 
+  CERN thesis: Dissertation by Matthias Winkler
  */
 
 
@@ -38,7 +38,7 @@
 #include "larreco/Genfit/GFException.h"
 #include "larreco/Genfit/GFAbsRecoHit.h"
 #include "larreco/Genfit/GFAbsTrackRep.h"
-  
+
 #define COVEXC "cov_is_zero"
 
 
@@ -54,11 +54,11 @@ void genf::GFDaf::processTrack(GFTrack* trk){
   trk->clearBookkeeping();
 
 
-  
+
   unsigned int nreps=trk->getNumReps();
   unsigned int nhits=trk->getNumHits();
-  
-  for(unsigned int i=0; i<nreps; ++i){ 
+
+  for(unsigned int i=0; i<nreps; ++i){
     GFBookkeeping *bk = trk->getBK(i);
     bk->setNhits(nhits);
     bk->bookMatrices("fPredSt");
@@ -68,7 +68,7 @@ void genf::GFDaf::processTrack(GFTrack* trk){
     bk->bookMatrices("H");
     bk->bookMatrices("m");
     bk->bookMatrices("V");
-    bk->bookGFDetPlanes("pl");  
+    bk->bookGFDetPlanes("pl");
     bk->bookMatrices("smooResid");
     bk->bookNumbers("p",1.);
   }
@@ -144,16 +144,16 @@ void genf::GFDaf::processTrack(GFTrack* trk){
 
 	TMatrixT<Double_t> Htransp(H);
 	Htransp.T();
-	
+
 	bk->setMatrix("H",planes.at(ipl)->at(0),H);
 	bk->setDetPlane("pl",planes.at(ipl)->at(0),pl);
 
-	TMatrixT<Double_t> stMod(state.GetNrows(),1);	
+	TMatrixT<Double_t> stMod(state.GetNrows(),1);
 
 	double sumPk(0);
 	for(unsigned int ihit=0;ihit<nhitsInPlane;++ihit){
 	  double pki;
-	  bk->getNumber("p",planes.at(ipl)->at(ihit),pki);	  
+	  bk->getNumber("p",planes.at(ipl)->at(ihit),pki);
 	  sumPk+=pki;
 	}
 	TMatrixT<Double_t> V = hits.at(0)->getHitCov(pl);
@@ -237,14 +237,14 @@ void genf::GFDaf::processTrack(GFTrack* trk){
 
 	bk->setMatrix("bPredSt",planes.at(ipl)->at(0),state);
 	bk->setMatrix("bPredCov",planes.at(ipl)->at(0),cov);
-	
+
 
 	TMatrixT<Double_t> stMod(state.GetNrows(),1);
 
 	double sumPk(0);
 	for(unsigned int ihit=0;ihit<nhitsInPlane;++ihit){
 	  double pki;
-	  bk->getNumber("p",planes.at(ipl)->at(ihit),pki);	  
+	  bk->getNumber("p",planes.at(ipl)->at(ihit),pki);
 	  sumPk+=pki;
 	}
 
@@ -258,7 +258,7 @@ void genf::GFDaf::processTrack(GFTrack* trk){
 	  //std::cout << "%%bw%% hit " << planes.at(ipl)->at(ihit) << std::endl;
 	  TMatrixT<Double_t> m;
 	  bk->getMatrix("m",planes.at(ipl)->at(ihit),m);
-	  
+
 	  double pki;
 	  bk->getNumber("p",planes.at(ipl)->at(ihit),pki);
 	  TMatrixT<Double_t> Gain = calcGain(cov,V,H,sumPk);
@@ -318,7 +318,7 @@ void genf::GFDaf::processTrack(GFTrack* trk){
 	  TMatrixT<Double_t> V;
 	  bk->getMatrix("V",planes.at(ipl)->at(0),V);
 	  V *= fBeta.at(iBeta);
-	  TMatrixT<Double_t> Vinv; 
+	  TMatrixT<Double_t> Vinv;
 	  invertMatrix(V,Vinv);
 	  for(unsigned int ihit=0;ihit<planes.at(ipl)->size();++ihit){
 	    //TMatrixT<Double_t> smooResid;
@@ -345,12 +345,12 @@ void genf::GFDaf::processTrack(GFTrack* trk){
 	}
       }
     }
-      
-  }//loop over betas    
 
-  
+  }//loop over betas
+
+
   return;
-  
+
   }
 
 void genf::GFDaf::blowUpCovs(GFTrack* trk){
@@ -358,7 +358,7 @@ void genf::GFDaf::blowUpCovs(GFTrack* trk){
   for(int irep=0; irep<nreps; ++irep){
     GFAbsTrackRep* arep=trk->getTrackRep(irep);
     //dont do it for already compromsied reps, since they wont be fitted anyway
-    if(arep->getStatusFlag()==0) { 
+    if(arep->getStatusFlag()==0) {
       TMatrixT<Double_t> cov = arep->getCov();
       for(int i=0;i<cov.GetNrows();++i){
 	for(int j=0;j<cov.GetNcols();++j){
@@ -372,12 +372,12 @@ void genf::GFDaf::blowUpCovs(GFTrack* trk){
       }
       arep->setCov(cov);
     }
-  }  
+  }
 }
 
 
 
-  
+
 void genf::GFDaf::invertMatrix(const TMatrixT<Double_t>& mat, TMatrixT<Double_t>& inv){
   inv.ResizeTo(mat);
   inv = (mat);
@@ -397,7 +397,7 @@ void genf::GFDaf::invertMatrix(const TMatrixT<Double_t>& mat, TMatrixT<Double_t>
 
 }
 
- TMatrixT<Double_t> genf::GFDaf::calcGain(const TMatrixT<Double_t>& C, 
+ TMatrixT<Double_t> genf::GFDaf::calcGain(const TMatrixT<Double_t>& C,
 				  const TMatrixT<Double_t>& V,
 				  const TMatrixT<Double_t>& H,
 				  const double& p){
@@ -410,7 +410,7 @@ void genf::GFDaf::invertMatrix(const TMatrixT<Double_t>& mat, TMatrixT<Double_t>
    //get H^T
    TMatrixT<Double_t> Htransp(H);
    Htransp.T();
-   
+
    TMatrixT<Double_t> covsum = Cinv + (p*Htransp*Vinv*H);
    TMatrixT<Double_t> covsumInv;
    invertMatrix(covsum,covsumInv);
@@ -460,7 +460,7 @@ void genf::GFDaf::setBetas(
   double b9 /* = -1. */,
   double b10 /* = -1. */
 ) {
-  
+
   /* // asserting version
   assert(b1>0);fBeta.push_back(b1);
   assert(b2>0 && b2<=b1);fBeta.push_back(b2);
@@ -492,50 +492,50 @@ void genf::GFDaf::setBetas(
   if (b1 <= 0)
     throw std::runtime_error("genf::GFDaf::setBetas(): b1 <= 0");
   fBeta.push_back(b1);
-  
+
   if (b2 <= 0 || b2 > b1)
     throw std::runtime_error("genf::GFDaf::setBetas(): b2 in wrong range");
   fBeta.push_back(b2);
-  
+
   if(b3 < 0.) return;
   if (b3 > b2)
     throw std::runtime_error("genf::GFDaf::setBetas(): b3 > b2");
   fBeta.push_back(b3);
-  
+
   if(b4 < 0.) return;
   if (b4 > b3)
     throw std::runtime_error("genf::GFDaf::setBetas(): b4 > b3");
   fBeta.push_back(b4);
-  
+
   if(b5 < 0.) return;
   if (b5 > b4)
     throw std::runtime_error("genf::GFDaf::setBetas(): b5 > b4");
   fBeta.push_back(b5);
-  
+
   if(b6 < 0.) return;
   if (b6 > b5)
     throw std::runtime_error("genf::GFDaf::setBetas(): b6 > b5");
   fBeta.push_back(b6);
-  
+
   if(b7 < 0.) return;
   if (b7 > b6)
     throw std::runtime_error("genf::GFDaf::setBetas(): b7 > b6");
   fBeta.push_back(b7);
-  
+
   if(b8 < 0.) return;
   if (b8 > b7)
     throw std::runtime_error("genf::GFDaf::setBetas(): b8 > b7");
   fBeta.push_back(b8);
-  
+
   if(b9 < 0.) return;
   if (b9 > b8)
     throw std::runtime_error("genf::GFDaf::setBetas(): b9 > b8");
   fBeta.push_back(b9);
-  
+
   if(b10 < 0.) return;
   if (b10 > b9)
     throw std::runtime_error("genf::GFDaf::setBetas(): b10 > b9");
   fBeta.push_back(b10);
-  
+
 }
 

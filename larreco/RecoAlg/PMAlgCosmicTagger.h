@@ -93,7 +93,7 @@ public:
     PMAlgCosmicTagger(const pma::PMAlgCosmicTagger::Config &config) :
         fTagOutOfDriftTracks(config.TagOutOfDriftTracks()),
         fOutOfDriftMargin(config.OutOfDriftMargin()),
-        
+
         fTagFullHeightTracks(config.TagFullHeightTracks()),
         fTagFullWidthTracks(config.TagFullWidthTracks()),
         fTagFullLengthTracks(config.TagFullLengthTracks()),
@@ -109,7 +109,7 @@ public:
         fStopperBuffer(config.StopperBuffer())
     { }
 
-    bool tagAny() const { return (fTagOutOfDriftTracks || fTagFullHeightTracks || fTagFullWidthTracks || fTagFullLengthTracks 
+    bool tagAny() const { return (fTagOutOfDriftTracks || fTagFullHeightTracks || fTagFullWidthTracks || fTagFullLengthTracks
                                || fTagNonBeamT0Tracks || fTagApparentStopper || fTagTopFrontBack); }
 
     void tag(pma::TrkCandidateColl& tracks);
@@ -127,7 +127,7 @@ private:
 
     // Convenience functions to see if we have a vertex at the top of the detector
     bool isTopVertex(const TVector3 &pos, double tolerance, short int dirIndx) const;
-    // or at the front / back walls 
+    // or at the front / back walls
     bool isFrontBackVertex(const TVector3 &pos, double tolerance, short int dirIndx) const;
 
 		void GetDimensions(); // Use the geometry to get the extent of the detector in x, y and z.

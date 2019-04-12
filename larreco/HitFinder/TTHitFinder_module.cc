@@ -7,16 +7,16 @@
  * Description:
  * This module, TimeTickHitFinder (or TTHitFinder for short) is designed to
  * produce a minimal hit object, that is simple a time tick above threshold.
- * There is intention to allow for overlap of hits, with a downstream app 
+ * There is intention to allow for overlap of hits, with a downstream app
  * that will need to clean it up.
  */
 #include <string>
 #include <math.h>
 
 // Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
-#include "art/Framework/Principal/Event.h" 
-#include "art/Framework/Core/EDProducer.h" 
+#include "art/Framework/Core/ModuleMacros.h"
+#include "art/Framework/Principal/Event.h"
+#include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindOneP.h"
 
 // LArSoft Includes
@@ -30,17 +30,17 @@
 namespace hit{
 
   class TTHitFinder : public art::EDProducer {
-    
+
   public:
-    
-    explicit TTHitFinder(fhicl::ParameterSet const& pset); 
+
+    explicit TTHitFinder(fhicl::ParameterSet const& pset);
 
   private:
     void produce(art::Event& evt) override;
     void reconfigure(fhicl::ParameterSet const& p);
-        
+
     std::string    fCalDataModuleLabel; /// Input caldata module name
-    float          fMinSigPeakInd;      /// Induction wire signal height threshold at peak 
+    float          fMinSigPeakInd;      /// Induction wire signal height threshold at peak
     float          fMinSigPeakCol;      /// Collection wire signal height threshold at peak
     float          fMinSigTailInd;      /// Induction wire signal height threshold outside peak
     float          fMinSigTailCol;      /// Collection wire signal height threshold outside peak
@@ -48,33 +48,33 @@ namespace hit{
     int            fColWidth;           /// Collection wire hit width (in time ticks)
 
     float getTotalCharge(const float*,int,float);
-   
-  protected:     
-  
-  }; // class TTHitFinder  
-  
+
+  protected:
+
+  }; // class TTHitFinder
+
   //-------------------------------------------------
   TTHitFinder::TTHitFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
     this->reconfigure(pset);
-    
+
     // let HitCollectionCreator declare that we are going to produce
     // hits and associations with wires and raw digits
     recob::HitCollectionCreator::declare_products(*this, "uhits");
     recob::HitCollectionCreator::declare_products(*this, "vhits");
     recob::HitCollectionCreator::declare_products(*this, "yhits");
-    
+
   }
 
   //-------------------------------------------------
   void TTHitFinder::reconfigure(fhicl::ParameterSet const& p) {
     fCalDataModuleLabel = p.get< std::string >("CalDataModuleLabel");
     fMinSigPeakInd      = p.get< float       >("MinSigPeakInd");
-    fMinSigPeakCol      = p.get< float       >("MinSigPeakCol"); 
+    fMinSigPeakCol      = p.get< float       >("MinSigPeakCol");
     fMinSigTailInd      = p.get< float       >("MinSigTailInd",-99); //defaulting to well-below zero
     fMinSigTailCol      = p.get< float       >("MinSigTailCol",-99); //defaulting to well-below zero
-    fIndWidth           = p.get< int         >("IndWidth", 3); //defaulting to 3  
+    fIndWidth           = p.get< int         >("IndWidth", 3); //defaulting to 3
     fColWidth           = p.get< int         >("ColWidth", 3); //defaulting to 3
 
     //enforce a minimum width
@@ -91,14 +91,14 @@ namespace hit{
 
   //-------------------------------------------------
   void TTHitFinder::produce(art::Event& evt)
-  { 
-    
+  {
+
     // these objects contain the hit collections
     // and their associations to wires and raw digits:
     recob::HitCollectionCreator hitCollection_U(*this, evt, "uhits");
     recob::HitCollectionCreator hitCollection_V(*this, evt, "vhits");
     recob::HitCollectionCreator hitCollection_Y(*this, evt, "yhits");
-  
+
     // Read in the wire List object(s).
     art::Handle< std::vector<recob::Wire> > wireVecHandle;
     evt.getByLabel(fCalDataModuleLabel,wireVecHandle);
@@ -107,9 +107,9 @@ namespace hit{
     // also get the raw digits associated with wires
     art::FindOneP<raw::RawDigit> WireToRawDigits
       (wireVecHandle, evt, fCalDataModuleLabel);
-    
+
     art::ServiceHandle<geo::Geometry const> geom;
-   
+
     //initialize some variables that will be in the loop.
     float threshold_peak = 0;
     float threshold_tail = -99;
@@ -117,16 +117,16 @@ namespace hit{
 
     //Loop over wires
     for(unsigned int wireIter = 0; wireIter < wireVec.size(); wireIter++) {
-      
+
       //get our wire
       art::Ptr<recob::Wire> wire(wireVecHandle, wireIter);
       art::Ptr<raw::RawDigit> const& rawdigits = WireToRawDigits.at(wireIter);
-      
+
       std::vector<float> signal(wire->Signal());
       std::vector<float>::iterator timeIter;   // iterator for time bins
       geo::WireID wire_id = (geom->ChannelToWire(wire->Channel())).at(0); //just grabbing the first one
-      
-      
+
+
       //set the thresholds and widths based on wire type
       geo::SigType_t sigType = geom->SignalType(wire->Channel());
       if(sigType == geo::kInduction){
@@ -159,28 +159,28 @@ namespace hit{
 	//continue if we are too close to the edge
 	if( time_bin-half_width < 0 ) continue;
 	if( time_bin+half_width > signal.size() ) continue;
-	
+
 	//if necessary, do loop over hit width, and check tail thresholds
 	int begin_tail_tick = std::floor(time_bin-half_width);
 	float totalCharge = getTotalCharge(&signal[begin_tail_tick],width,threshold_tail);
 	if(totalCharge==-999) {
-	  MF_LOG_DEBUG("TTHitFinder") << "Rejecting would be hit at (plane,wire,time_bin,first_bin,last_bin)=(" 
-				   << wire_id.Plane << "," << wire_id.Wire << "," << time_bin << "," << begin_tail_tick << "," << begin_tail_tick+width-1 << "): " 
+	  MF_LOG_DEBUG("TTHitFinder") << "Rejecting would be hit at (plane,wire,time_bin,first_bin,last_bin)=("
+				   << wire_id.Plane << "," << wire_id.Wire << "," << time_bin << "," << begin_tail_tick << "," << begin_tail_tick+width-1 << "): "
 				   << signal.at(time_bin-1) << " "
 				   << signal.at(time_bin) << " "
 				   << signal.at(time_bin+1);
 	  continue;
 	}
-	
+
 	//OK, if we've passed all tests up to this point, we have a hit!
 
 	float hit_time = time_bin;
 	if(width%2==0) hit_time = time_bin+0.5;
-	
+
 	// hit time region is 2 widths (4 RMS) wide
 	const raw::TDCtick_t start_tick = hit_time - width,
 	  end_tick = hit_time + width;
-	
+
 	// make the hit
 	recob::HitCreator hit(
 	  *wire,                     // wire
@@ -210,7 +210,7 @@ namespace hit{
       }//End loop over time ticks on wire
 
       MF_LOG_DEBUG("TTHitFinder") << "Finished wire " << wire_id.Wire << " (plane " << wire_id.Plane << ")"
-			       << "\tTotal hits (U,V,Y)= (" 
+			       << "\tTotal hits (U,V,Y)= ("
 			       << hitCollection_U.size() << ","
 			       << hitCollection_V.size() << ","
 			       << hitCollection_Y.size() << ")";
@@ -218,7 +218,7 @@ namespace hit{
     }//End loop over all wires
 
     // put the hit collection and associations into the event
-    mf::LogInfo("TTHitFinder") << "Total TTHitFinder hits (U,V,Y)=(" 
+    mf::LogInfo("TTHitFinder") << "Total TTHitFinder hits (U,V,Y)=("
 			       << hitCollection_U.size() << ","
 			       << hitCollection_V.size() << ","
 			       << hitCollection_Y.size() << ")";
@@ -226,8 +226,8 @@ namespace hit{
     hitCollection_V.put_into(evt); // reminder: instance name was "vhits"
     hitCollection_Y.put_into(evt); // reminder: instance name was "yhits"
 
-  } // End of produce()  
-  
+  } // End of produce()
+
 
   //-------------------------------------------------
   float TTHitFinder::getTotalCharge(const float* signal_vector,int width=3,float threshold=-99){
@@ -241,9 +241,9 @@ namespace hit{
       totalCharge += signal_vector[tick];
     }
     return totalCharge;
-    
+
   }//end getTotalCharge method
-  
+
   DEFINE_ART_MODULE(TTHitFinder)
 
 } // end of hit namespace

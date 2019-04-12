@@ -17,6 +17,6 @@ namespace cmtool {
 
     return cluster.GetParams().sum_charge;
   }
-  
-    
+
+
 }

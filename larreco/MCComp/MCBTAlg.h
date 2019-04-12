@@ -2,7 +2,7 @@
  * \file MCBTAlg.h
  *
  * \ingroup MCComp
- * 
+ *
  * \brief Class def header for a class MCBTAlg
  *
  * @author littlejohn, kaleko, terao
@@ -41,19 +41,19 @@ namespace btutil {
       start = end = std::numeric_limits<double>::max();
     }
     WireRange_t(unsigned int c,double s, double e)
-    { ch = c; start = s; end = e; }		
+    { ch = c; start = s; end = e; }
   };
 
   typedef std::vector<double> edep_info_t; // vector of energy deposition
-  
+
   typedef std::map<unsigned int, ::btutil::edep_info_t > ch_info_t; // vector of time (index) for each edep (value)
-  
+
   class MCBTAlg {
-    
+
   public:
 
     MCBTAlg(){}
-    
+
     MCBTAlg(const std::vector<unsigned int>& g4_trackid_v,
 	    const std::vector<sim::SimChannel>& simch_v);
 
@@ -69,47 +69,47 @@ namespace btutil {
     const std::vector<double>& MCQSum(const size_t plane_id) const;
 
     /**
-       Relate Hit => MCShower/MCTrack (called MCX). 
+       Relate Hit => MCShower/MCTrack (called MCX).
        Returns a vector of double w/ length = # of relevant MCX + 1.
        Each entry is # drifted electrons from each relevant MCX.
        The last element contains a sum of drifted electrons that do not belong
        to any of relevant MCX.
-    */      
+    */
     std::vector<double> MCQ(const WireRange_t& hit) const;
 
     /**
-       Relate Hit => MCX. 
+       Relate Hit => MCX.
        Returns a vector of double w/ length = # of relevant MCXs + 1.
        Each entry is a fraction of # drifted electrons within the specified time
-       range from each relevant MCX. The last element contains a sum of drifted 
+       range from each relevant MCX. The last element contains a sum of drifted
        electrons that do not belong to any of relevant MCX.
-    */      
+    */
     std::vector<double> MCQFrac(const WireRange_t& hit) const;
 
     /**
-       Relate Cluster => MCX. 
+       Relate Cluster => MCX.
        Returns a vector of double w/ length = # of relevant MCXs + 1.
        Each entry is # drifted electrons from each relevant MCX.
        The last element contains a sum of drifted electrons that do not belong
        to any of relevant MCX.
-    */      
+    */
     std::vector<double> MCQ(const std::vector<btutil::WireRange_t>& hit_v) const;
 
     /**
-       Relate Cluster => MCX. 
+       Relate Cluster => MCX.
        Returns a vector of double w/ length = # of relevant MCXs + 1.
        Each entry is a fraction of # drifted electrons within the specified time
-       range from each relevant MCX. The last element contains a sum of drifted 
+       range from each relevant MCX. The last element contains a sum of drifted
        electrons that do not belong to any of relevant MCX.
-    */      
+    */
     std::vector<double> MCQFrac(const std::vector<btutil::WireRange_t>& hit_v) const;
-      
+
     size_t Index(const unsigned int g4_track_id) const;
 
     size_t NumParts() const { return _num_parts-1; }
-    
+
   protected:
-      
+
     void Register(const unsigned int& g4_track_id);
 
     void Register(const std::vector<unsigned int>& g4_track_id);
@@ -123,5 +123,5 @@ namespace btutil {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

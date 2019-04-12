@@ -38,7 +38,7 @@ namespace trkf {
   //----------------------------------------------------------------------
   BezierTrack::BezierTrack(const recob::Track& track)
     : BezierTrack(track.ID(), track.Trajectory().Trajectory()) {}
-  
+
   //----------------------------------------------------------------------
   // Constructor from seed vector (for production)
   //
@@ -78,7 +78,7 @@ namespace trkf {
           }
         fSeedCollection.push_back(recob::Seed(LastPt, LastDir, PtErr, DirErr));
       }
-   
+
     CalculateSegments();
     fBezierResolution=1000;
   }
@@ -115,7 +115,7 @@ namespace trkf {
       }
     else
       return std::vector<recob::Seed>();
-    
+
   }
 
 
@@ -172,7 +172,7 @@ namespace trkf {
         Hitv.push_back(Hits.at(i));
       }
     Hitv.clear();
-    
+
     return GetCalorimetryObject(Hitv, sigtype, calalg);
   }
 
@@ -182,7 +182,7 @@ namespace trkf {
   anab::Calorimetry BezierTrack::GetCalorimetryObject(art::PtrVector<recob::Hit > const & Hits, geo::SigType_t sigtype, calo::CalorimetryAlg const& calalg)
   {
 
-    
+
     art::ServiceHandle<geo::Geometry const> geom;
 
     std::vector<float>  dEdx;
@@ -219,7 +219,7 @@ namespace trkf {
                   do_now=false;
                 }
               }
-            
+
           }
       }
 
@@ -241,7 +241,7 @@ namespace trkf {
   anab::Calorimetry BezierTrack::GetCalorimetryObject(art::PtrVector<recob::Hit > const & Hits, geo::View_t view, calo::CalorimetryAlg const& calalg)
   {
 
-   
+
     art::ServiceHandle<geo::Geometry const> geom;
 
     std::vector<float>  dEdx;
@@ -253,8 +253,8 @@ namespace trkf {
 
     double WirePitch = geom->WirePitch(view);
 
-    double KineticEnergy = 0;                
- 
+    double KineticEnergy = 0;
+
     double s, d;
 
     bool do_now=true;
@@ -274,14 +274,14 @@ namespace trkf {
                 double ThisdEdx = calalg.dEdx_AMP(Hits.at(i), ThisPitch);
                 dEdx.push_back( ThisdEdx);
                 KineticEnergy+=ThisdEdx*ThisPitch;
-                                
+
                 if(do_now) {
                   planeID = Hits.at(i)->WireID().planeID();
                   do_now=false;
                 }
 
               }
-            
+
           }
       }
 
@@ -347,10 +347,10 @@ namespace trkf {
         positions.push_back(Point);
         directions.push_back(Direction);
       }
-    
+
     fTraj
       = recob::Trajectory(std::move(positions), std::move(directions), false);
-    
+
   }
 
 
@@ -472,7 +472,7 @@ namespace trkf {
     int NPlanes=geo->Cryostat(c).TPC(t).Nplanes();
 
     for(int p=0; p!=NPlanes; p++)
-      {        
+      {
         uvw[p]= geo->NearestWire(xyz,p,t,c);
       }
     x[0]=xyz[0];
@@ -497,7 +497,7 @@ namespace trkf {
 
     // Get point in 3D space
     GetTrackPoint(s , xyz);
-    
+
     int NPlanes=geo->Cryostat(c).TPC(t).Nplanes();
 
     for(int p=0; p!=NPlanes; p++)
@@ -601,7 +601,7 @@ namespace trkf {
   void BezierTrack::GetClosestApproach( recob::Hit const & hit,       double& s,  double& Distance) const
   {
     const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
-    
+
     art::ServiceHandle<geo::Geometry const>            geo;
 
     //unsigned int c1, t1, p1, w1;
@@ -610,9 +610,9 @@ namespace trkf {
 
     geo::WireID hitWireID = hit.WireID();
     geo->WireEndPoints(hitWireID.Cryostat,hitWireID.TPC,hitWireID.Plane,hitWireID.Wire,xyzend1,xyzend2);
-    
+
     xyzend1[0] = xyzend2[0] = det->ConvertTicksToX(hit.PeakTime(),hitWireID.Plane,hitWireID.TPC,hitWireID.Cryostat);
-    
+
     double iS, xyz[3], MinDistanceToPoint=10000, MinS=0;
 
     for(int i=0; i<=fBezierResolution; ++i)
@@ -696,8 +696,8 @@ namespace trkf {
   {
     //    const detinfo::DetectorProperties* det = art::ServiceHandle<detinfo::DetectorPropertiesService const>()->provider();
     art::ServiceHandle<geo::Geometry const>            geo;
-    
-    
+
+
     double xyzend1[3], xyzend2[3];
 
     geo->WireEndPoints(c,t,p,w,xyzend1,xyzend2);
@@ -908,46 +908,46 @@ namespace trkf {
       {
         mf::LogError("BezierTrack")<<"Error in partial track calc - S out of range";
       }
-   
+
     int LowSegment  = WhichSegment(LowS);
     int HighSegment = WhichSegment(HighS);
-  
+
     TVector3 HighEnd = GetTrackPointV(HighS);
     TVector3 LowEnd  = GetTrackPointV(LowS);
-    
+
     if(LowSegment!=HighSegment)
       {
-        
+
         std::vector<recob::Seed> NewSeedCollection;
         for(int seg=LowSegment+1; seg<=HighSegment; ++seg)
           {
             NewSeedCollection.push_back(fSeedCollection.at(seg));
           }
-        
+
         double PtLow[3],  DirLow[3], Err[3];
         double PtHigh[3], DirHigh[3];
         double LengthLow, LengthHigh;
-        
+
         NewSeedCollection.at(0).GetPoint(PtLow,Err);
         NewSeedCollection.at(0).GetDirection(DirLow,Err);
         LengthLow = NewSeedCollection.at(0).GetLength();
-        
+
         NewSeedCollection.at(NewSeedCollection.size()-1).GetPoint(PtHigh,Err);
         NewSeedCollection.at(NewSeedCollection.size()-1).GetDirection(DirHigh,Err);
         LengthHigh = NewSeedCollection.at(NewSeedCollection.size()-1).GetLength();
-        
+
         double LowScale = fabs((TVector3(PtLow[0],PtLow[1],PtLow[2]) - LowEnd).Dot(TVector3(DirLow[0],DirLow[1],DirLow[2]).Unit()));
-        
+
         double HighScale = fabs((TVector3(PtHigh[0],PtHigh[1],PtHigh[2]) - HighEnd).Dot(TVector3(DirHigh[0],DirHigh[1],DirHigh[2]).Unit()));
-        
+
 
         for(size_t n=0; n!=3; ++n)
           {
             DirLow[n]  *= LowScale  / LengthLow;
             DirHigh[n] *= HighScale / LengthHigh;
             Err[n]      = 0;
-          } 
-        
+          }
+
         NewSeedCollection.at(0).SetDirection(DirLow, Err);
         NewSeedCollection.at(NewSeedCollection.size()-1).SetDirection(DirHigh, Err);
         return trkf::BezierTrack(NewSeedCollection);
@@ -964,10 +964,10 @@ namespace trkf {
         recob::Seed OneSeed(Pt, Dir, Err, Err);
         std::vector<recob::Seed> NewSeedCollection;
         NewSeedCollection.push_back(OneSeed);
-        
+
         return trkf::BezierTrack(NewSeedCollection);
       }
-   
+
   }
 
   //----------------------------------------------------------------------
@@ -1042,7 +1042,7 @@ namespace trkf {
         for(std::map<int,double>::const_iterator itseg=itview->second.begin();
             itseg!=itview->second.end(); ++itseg)
           {
-          
+
             int seg = itseg->first;
 
             // need to nudge hits which fell outside the track
@@ -1052,7 +1052,7 @@ namespace trkf {
           }
         fdQdx.push_back(ThisViewdQdx);
       }
-   
+
 
   }
 
@@ -1216,8 +1216,8 @@ namespace trkf {
 
 
   }
-  
-} 
+
+}
 
 
 

@@ -27,15 +27,15 @@ namespace cmtool {
 	return score;
 
       score_array.push_back(score);
-      
+
     }
 
     float score_result = 0;
 
     switch(_mode) {
-      
+
     case kLastAlgo:
-      
+
       score_result = (*score_array.rbegin());
       break;
 
@@ -51,7 +51,7 @@ namespace cmtool {
       break;
 
     }
-    
+
     return score_result;
   }
 

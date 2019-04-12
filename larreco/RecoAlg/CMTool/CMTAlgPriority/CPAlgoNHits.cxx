@@ -17,5 +17,5 @@ namespace cmtool {
 
     return ( nhit < _min_hits ? -1 : (float)nhit );
   }
-  
+
 }

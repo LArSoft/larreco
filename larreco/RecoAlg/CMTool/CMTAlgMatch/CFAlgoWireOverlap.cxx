@@ -41,7 +41,7 @@ namespace cmtool {
       return -1;
 
     if (_verbose) { std::cout << "Number of clusters taken into account: " << clusters.size() << std::endl; }
-    
+
     //Nomenclature:
     //Planes: U == 0; V == 1; Y == 2.
 
@@ -54,7 +54,7 @@ namespace cmtool {
     //std::vector<util::PxHit> hits0 = clusters.at(0)->GetHitVector();
     //std::vector<util::PxHit> hits1 = clusters.at(1)->GetHitVector();
     //std::vector<util::PxHit> hits2 = clusters.at(2)->GetHitVector();
-    
+
     //Wire Range Vector. Entries 0,1,2 correspond to planes
     std::vector<int> StartWires;
     std::vector<int> EndWires;
@@ -105,17 +105,17 @@ namespace cmtool {
     */
     //Now get start & end points of all these wires
     Double_t xyzStart0WireStart[3] = {0., 0., 0.}; //xyz array info of start point for smallest wire number on plane 0
-    Double_t xyzStart0WireEnd[3]   = {0., 0., 0.}; 
-    Double_t xyzEnd0WireStart[3] = {0., 0., 0.}; 
-    Double_t xyzEnd0WireEnd[3]   = {0., 0., 0.}; 
+    Double_t xyzStart0WireEnd[3]   = {0., 0., 0.};
+    Double_t xyzEnd0WireStart[3] = {0., 0., 0.};
+    Double_t xyzEnd0WireEnd[3]   = {0., 0., 0.};
     Double_t xyzStart1WireStart[3] = {0., 0., 0.}; //xyz array info of start point for smallest wire number on plane 1
-    Double_t xyzStart1WireEnd[3]   = {0., 0., 0.}; 
-    Double_t xyzEnd1WireStart[3] = {0., 0., 0.}; 
-    Double_t xyzEnd1WireEnd[3]   = {0., 0., 0.}; 
+    Double_t xyzStart1WireEnd[3]   = {0., 0., 0.};
+    Double_t xyzEnd1WireStart[3] = {0., 0., 0.};
+    Double_t xyzEnd1WireEnd[3]   = {0., 0., 0.};
     Double_t xyzStart2WireStart[3] = {0., 0., 0.}; //xyz array info of start point for smallest wire number on plane 2
-    Double_t xyzStart2WireEnd[3]   = {0., 0., 0.}; 
-    Double_t xyzEnd2WireStart[3] = {0., 0., 0.}; 
-    Double_t xyzEnd2WireEnd[3]   = {0., 0., 0.}; 
+    Double_t xyzStart2WireEnd[3]   = {0., 0., 0.};
+    Double_t xyzEnd2WireStart[3] = {0., 0., 0.};
+    Double_t xyzEnd2WireEnd[3]   = {0., 0., 0.};
 
     if (_debug) {
       std::cout << "Wire Ranges:" << std::endl;
@@ -155,10 +155,10 @@ namespace cmtool {
     double slopeV = tan(-30*3.14/180.);
 
     //Find intercepts:
-    double bUup = xyzStart0WireStart[1] - xyzStart0WireStart[2] * slopeU; 
-    double bUdn   = xyzEnd0WireStart[1] - xyzEnd0WireStart[2] * slopeU; 
-    double bVdn = xyzStart1WireStart[1] - xyzStart1WireStart[2] * slopeV; 
-    double bVup   = xyzEnd1WireStart[1] - xyzEnd1WireStart[2] * slopeV; 
+    double bUup = xyzStart0WireStart[1] - xyzStart0WireStart[2] * slopeU;
+    double bUdn   = xyzEnd0WireStart[1] - xyzEnd0WireStart[2] * slopeU;
+    double bVdn = xyzStart1WireStart[1] - xyzStart1WireStart[2] * slopeV;
+    double bVup   = xyzEnd1WireStart[1] - xyzEnd1WireStart[2] * slopeV;
     //make sure we know which line is above which
     if ( bUup < bUdn ) { std::cout << "Uup and Udn are mixed up!" << std::endl; }
     if ( bVdn > bVup ) { std::cout << "Vup and Vdn are mixed up!" << std::endl; }
@@ -168,13 +168,13 @@ namespace cmtool {
     //For now assume wire-ranges go to infinity, worry about TPC constraints later
 
     //Plug in Y-plane zMin and zMax coordinates into equations for U/V wire lines
-    double VdnZmin = slopeV * zMin + bVdn; 
-    double VdnZmax = slopeV * zMax + bVdn; 
-    double VupZmin = slopeV * zMin + bVup; 
-    double VupZmax = slopeV * zMax + bVup; 
-    double UdnZmin = slopeU * zMin + bUdn; 
-    double UdnZmax = slopeU * zMax + bUdn; 
-    double UupZmin = slopeU * zMin + bUup; 
+    double VdnZmin = slopeV * zMin + bVdn;
+    double VdnZmax = slopeV * zMax + bVdn;
+    double VupZmin = slopeV * zMin + bVup;
+    double VupZmax = slopeV * zMax + bVup;
+    double UdnZmin = slopeU * zMin + bUdn;
+    double UdnZmax = slopeU * zMax + bUdn;
+    double UupZmin = slopeU * zMin + bUup;
     double UupZmax = slopeU * zMax + bUup;
 
     if (_debug){
@@ -192,10 +192,10 @@ namespace cmtool {
     //We now have Two polygons:
     //One is the intersection of Y-Plane wires with U-Plane wires
     //The other the intersection of planes Y and V.
-    //The intersection points of these two polygons is the 
+    //The intersection points of these two polygons is the
     //overall intersection Area of the 3 clusters on the Y-Z plane.
 
-    //Go through all segment intersections. If one is found add to 
+    //Go through all segment intersections. If one is found add to
     //list of points.
     //Create a list of points for polygon
     std::vector< std::pair<float,float> > WireIntersection;
@@ -215,7 +215,7 @@ namespace cmtool {
     zInt = (bUdn-bVup)/(slopeV-slopeU);
     if ( (zInt > zMin) and (zInt < zMax) )
       WireIntersection.push_back( std::make_pair( zInt, slopeV*zInt+bVup ) );
-    
+
     //Check: Vdn and Uup, Uright, Uleft, Udn:
     //Intersection between Vdn and Uup:
     zInt = (bUup-bVdn)/(slopeV-slopeU);
@@ -231,7 +231,7 @@ namespace cmtool {
     zInt = (bUdn-bVdn)/(slopeV-slopeU);
     if ( (zInt > zMin) and (zInt < zMax) )
       WireIntersection.push_back( std::make_pair( zInt, slopeV*zInt+bVdn ) );
-      
+
     //Check: Vright and Uup, Udn:
     //Intersection between Vright and Uup:
     if ( (UupZmax < VupZmax) and ( UupZmax > VdnZmax) )
@@ -257,7 +257,7 @@ namespace cmtool {
     //Now our polygon is complete...
     //need to disentangle in case points added in incorrect order
     //then calculate area
-    Polygon2D WirePolygon(WireIntersection);    
+    Polygon2D WirePolygon(WireIntersection);
     //Variable to hold final output Area
     double PolyArea = -1;
     //Check order
@@ -294,7 +294,7 @@ namespace cmtool {
     }
 
     //return polygon area -> larger = better!
-    if (_verbose) { std::cout << "Intersection area: " << PolyArea << std::endl << std::endl; }    
+    if (_verbose) { std::cout << "Intersection area: " << PolyArea << std::endl << std::endl; }
     return  PolyArea;
   }
 
@@ -304,5 +304,5 @@ namespace cmtool {
   {
 
   }
-    
+
 }

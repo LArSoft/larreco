@@ -2,7 +2,7 @@
  * \file CPAlgoArray.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CPAlgoArray
  *
  * @author kazuhiro
@@ -24,7 +24,7 @@ namespace cmtool {
      modes to compute combined Priority() return value.
   */
   class CPAlgoArray : public CPriorityAlgoBase {
-    
+
   public:
 
     enum EvaluationMode_t {
@@ -49,13 +49,13 @@ namespace cmtool {
 	 If all algorithms return positive values, return the last algorithm's
 	 Priority() return value. If any algorithm returns negative, it returns that
 	 and stop processing the rest of algorithms
-      */      
+      */
       kLastAlgo,
     };
-    
+
     /// Default constructor
     CPAlgoArray();
-    
+
     /// Default destructor
     virtual ~CPAlgoArray(){};
 
@@ -66,7 +66,7 @@ namespace cmtool {
     void SetMode(EvaluationMode_t mode) { _mode = mode; }
 
     /**
-       Core function: given a set of CPANs, return a float which indicates 
+       Core function: given a set of CPANs, return a float which indicates
        the compatibility the cluster combination.
     */
     virtual float Priority(const ::cluster::ClusterParamsAlg &cluster);
@@ -76,7 +76,7 @@ namespace cmtool {
        run with verbosity level <= kPerIteration. Maybe useful for debugging.
     */
     virtual void Report() { for(auto const& algo : _algo_array) algo->Report(); }
-    
+
     /// Function to reset the algorithm instance, called together with manager's Reset()
     virtual void Reset() { for(auto const& algo : _algo_array) algo->Reset(); }
 
@@ -91,7 +91,7 @@ namespace cmtool {
      */
     virtual void EventEnd()
     { for(auto const& algo : _algo_array) algo->EventEnd(); }
- 
+
     /**
        Optional function: called at the beggining of each iterative loop.
        This provides all clusters' information in case the algorithm need them. Note this
@@ -117,5 +117,5 @@ namespace cmtool {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

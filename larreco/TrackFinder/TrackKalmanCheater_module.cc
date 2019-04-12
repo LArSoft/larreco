@@ -24,7 +24,7 @@
 #include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "art/Framework/Services/Optional/TFileService.h" 
+#include "art/Framework/Services/Optional/TFileService.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "cetlib_except/exception.h"
 
@@ -118,7 +118,7 @@ trkf::TrackKalmanCheater::TrackKalmanCheater(fhicl::ParameterSet const & pset)
 
   // Report.
 
-  mf::LogInfo("TrackKalmanCheater") 
+  mf::LogInfo("TrackKalmanCheater")
     << "TrackKalmanCheater configured with the following parameters:\n"
     << "  UseClusterHits = " << fUseClusterHits << "\n"
     << "  HitModuleLabel = " << fHitModuleLabel << "\n"
@@ -306,10 +306,10 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 	  nhit = hitmap[trackid].size();
 	const TLorentzVector& pos = part->Position();
 	const TLorentzVector& mom = part->Momentum();
-	
+
 	if (mf::isDebugEnabled()) {
-	  log << "Trackid=" << trackid 
-	      << ", pdgid=" << pdg 
+	  log << "Trackid=" << trackid
+	      << ", pdgid=" << pdg
 	      << ", status=" << stat
 	      << ", NHit=" << nhit << "\n"
 	      << "  x = " << pos.X()
@@ -319,7 +319,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 	      << ", py= " << mom.Py()
 	      << ", pz= " << mom.Pz() << "\n";
 	} // if debugging
-	
+
 	double x = pos.X();
 	double y = pos.Y();
 	double z = pos.Z();
@@ -389,7 +389,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 	  }
 	  if (mf::isDebugEnabled())
 	    log << (ok? "Build track succeeded.": "Build track failed.") << "\n";
-	  
+
 	}
       }
     }
@@ -435,7 +435,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
     tracks->push_back(recob::Track());
     kalman_track.fillTrack(tracks->back(), tracks->size() - 1);
 
-    // Make Track to Hit associations.  
+    // Make Track to Hit associations.
 
     art::PtrVector<recob::Hit> trhits;
     std::vector<unsigned int> hittpindex;
@@ -453,7 +453,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
     art::PtrVector<recob::SpacePoint> sptvec;
 
     // Loop over newly created space points.
-      
+
     for(unsigned int ispt = nspt; ispt < spts->size(); ++ispt) {
       const recob::SpacePoint& spt = (*spts)[ispt];
       art::ProductID sptid = evt.getProductID<std::vector<recob::SpacePoint> >();
@@ -462,7 +462,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 
       // Make space point to hit associations.
 
-      const art::PtrVector<recob::Hit>& sphits = 
+      const art::PtrVector<recob::Hit>& sphits =
 	fSpacePointAlg.getAssociatedHits(spt);
       util::CreateAssn(*this, evt, *spts, sphits, *sph_assn, ispt);
     }
@@ -485,7 +485,7 @@ void trkf::TrackKalmanCheater::produce(art::Event & evt)
 /// End job method.
 void trkf::TrackKalmanCheater::endJob()
 {
-  mf::LogInfo("TrackKalmanCheater") 
+  mf::LogInfo("TrackKalmanCheater")
     << "TrackKalmanCheater statistics:\n"
     << "  Number of events = " << fNumEvent << "\n"
     << "  Number of tracks created = " << fNumTrack;

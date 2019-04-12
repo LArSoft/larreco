@@ -7,10 +7,10 @@ namespace cmtool {
   //----------------------------------------
   {
 
-    //this just sets default values    
+    //this just sets default values
     SetVerbose(true);
     SetDebug(true);
-    
+
     //1e9 is huge; everything will be merged
     SetMinNumHits(30);
     SetMinAngleDiff(15.); //in degrees
@@ -18,7 +18,7 @@ namespace cmtool {
     SetMinLength(10.);
     SetMinPolyHitDensity(10.);
     SetMaxWidth(10.);
-    
+
 
     //NOTE! Using this flag means all of the other crap
     //(minNumHits, anglediff, openingangle, blah blah)
@@ -45,12 +45,12 @@ namespace cmtool {
     }
     //if you are using the original method for this algo:
     else{
-      
+
       //two clusters are considered un-mergable if:
       //1) both have more than _MinNumHits
       //2) opening angle for both < _MAxOpeningAngle
       //3) diff. in direction of both < _MinAngleDiff
-      
+
       size_t N_Hits1 = cluster1.GetHitVector().size();
       size_t N_Hits2 = cluster2.GetHitVector().size();
       auto start_point1 = cluster1.GetParams().start_point;
@@ -65,7 +65,7 @@ namespace cmtool {
       double length2 = cluster2.GetParams().length;
       double width1 = cluster1.GetParams().width;
       double width2 = cluster2.GetParams().width;
-      
+
       //first filter out low hits clusters
       if ( (N_Hits1 > _MinNumHits) and
 	   (N_Hits2 > _MinNumHits) ) {
@@ -99,7 +99,7 @@ namespace cmtool {
 	}
       }
     }
-    
+
     return false;
 
   }

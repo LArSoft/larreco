@@ -20,26 +20,26 @@ namespace tca {
   void TruthMatcher::Initialize()
   {
      // Initialize the variables used to calculate Efficiency * Purity (aka EP) for matching to truth
-    EPCnts.fill(0); 
+    EPCnts.fill(0);
     TSums.fill(0.0);
     EPTSums.fill(0.0);
     TruVxCounts.fill(0);
     nBadEP = 0;
   } // Initialize
-  
+
   //////////////////////////////////////////
   void TruthMatcher::MatchTruth()
   {
     // Match trajectories, PFParticles, etc to the MC truth matched hits then
     // calculate reconstruction efficiency and purity. This function should only be
     // called once per event after reconstruction has been done in all slices
-    
+
     // check for a serious error
     if(!evt.mcpHandle) return;
     // and no MCParticles
     if((*evt.mcpHandle).empty()) return;
-    
-    
+
+
 /* TODO: fix this later
     // Form a list of mother-daughter pairs that should be considered as a single particle
     std::vector<std::pair<unsigned int, unsigned int>> moda;
@@ -83,7 +83,7 @@ namespace tca {
 */
     // decide if electrons inside showers should be associated with the eve electron
 //    bool showerRecoMode = (tcc.showerTag[0] == 2) || (tcc.showerTag[0] == 4);
-    
+
     MatchAndSum();
 /*
     // print electron likelihood to output to create an ntuple
@@ -118,10 +118,10 @@ namespace tca {
   void TruthMatcher::MatchAndSum()
   {
     // Match Tjs and PFParticles and accumulate performance statistics
-    
+
     if(!evt.mcpHandle) return;
     if(evt.allHitsMCPIndex.size() != (*evt.allHits).size()) return;
-    
+
     // A MCParticle may span more than one TPC but trajectories and PFParticles are
     // reconstructed in only one TPC so we need to consider them separately
     for(const geo::TPCID& tpcid : tcc.geom->IterateTPCIDs()) {
@@ -147,7 +147,7 @@ namespace tca {
       // no sense continuing if there are no selected MCParticles that have hits
       // in this TPC
       if(mcpIndex.empty()) continue;
-      // get the location of a tj in terms of (slice index, tj index) 
+      // get the location of a tj in terms of (slice index, tj index)
       std::vector<std::pair<unsigned short, unsigned short>> tjLocs;
       // and the hits
       std::vector<std::vector<unsigned int>> tjHits;
@@ -208,7 +208,7 @@ namespace tca {
         ++MCP_Cnt;
         MCP_TSum += TMeV;
         for(unsigned short plane = 0; plane < nplanes; ++plane) {
-          // get the MCP hits in this plane 
+          // get the MCP hits in this plane
           std::vector<unsigned int> mcpPlnHits;
           unsigned int firstHit = 0;
           unsigned int firstWire = USHRT_MAX;
@@ -360,15 +360,15 @@ namespace tca {
       } // kStudy2
 */
     } // tpcid
-    
+
   } // MatchAndSum
 
-  
+
   ////////////////////////////////////////////////
   void TruthMatcher::PrintResults(int eventNum) const
   {
     // Print performance metrics for each selected event
-    
+
     mf::LogVerbatim myprt("TC");
     myprt<<"Evt "<<eventNum;
     float sum = 0;
@@ -438,7 +438,7 @@ namespace tca {
     for(unsigned short plane = 0; plane < nplanes; ++plane) if(cntInPln[plane] > 1) ++nPlnOK;
     return (nPlnOK >= 2);
   } // CanReconstruct
-  
+
   /* This code was used to develop the TMVA showerParentReader. The MakeCheatShower function needs
    to be re-written if this function is used in the future
    //////////////////////////////////////////
@@ -447,7 +447,7 @@ namespace tca {
    // study characteristics of shower parent pfps. This code is adapted from TCShower FindParent
    if(slc.pfps.empty()) return;
    if(slc.mcpList.empty()) return;
-   
+
    // Look for truth pfp primary electron
    Point3_t primVx {{-666.0, -666.0, -666.0}};
    // the primary should be the first one in the list as selected in GetHitCollection
@@ -467,7 +467,7 @@ namespace tca {
    if(!InsideTPC(primVx, inTPCID)) return;
    // or if it is inside the wrong tpc
    if(inTPCID != slc.TPCID) return;
-   
+
    std::string fcnLabel = "SSP";
    // Create a truth shower for each primary electron
    art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
@@ -537,7 +537,7 @@ namespace tca {
    hist.fChgFrac = 0;
    float chgFrac = 0;
    float totSep = 0;
-   // find the charge fraction btw the pfp start and the point that is 
+   // find the charge fraction btw the pfp start and the point that is
    // half the distance to the charge center in each plane
    for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
    CTP_t inCTP = EncodeCTP(ss3.TPCID.Cryostat, ss3.TPCID.TPC, plane);

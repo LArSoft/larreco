@@ -432,7 +432,7 @@ std::unique_ptr<recob::Track> shower::EMShowerAlg::ConstructTrack(std::vector<ar
     for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits1.begin(); hitIt != hits1.end(); ++hitIt)
       if ((*hitIt)->WireID().TPC == firstTPC1) track1.push_back(*hitIt);
     for (std::vector<art::Ptr<recob::Hit> >::const_iterator hitIt = hits2.begin(); hitIt != hits2.end(); ++hitIt)
-      if ((*hitIt)->WireID().TPC == firstTPC2) track2.push_back(*hitIt);    
+      if ((*hitIt)->WireID().TPC == firstTPC2) track2.push_back(*hitIt);
   }
   else {
     track1 = hits1;
@@ -716,7 +716,7 @@ std::vector<std::vector<int> > shower::EMShowerAlg::FindShowers(std::map<int,std
   // Showers are vectors of clusters
   std::vector<std::vector<int> > showers;
 
-  // Loop over all tracks 
+  // Loop over all tracks
   for (std::map<int,std::vector<int> >::const_iterator trackToClusterIt = trackToClusters.begin(); trackToClusterIt != trackToClusters.end(); ++ trackToClusterIt) {
 
     // Find which showers already made are associated with this track
@@ -1025,7 +1025,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
 recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& hits,
 					      art::Ptr<recob::Vertex> const& vertex,
 					      int & iok) {
-  
+
   iok = 1;
 
   // Find the shower hits on each plane
@@ -1041,7 +1041,7 @@ recob::Shower shower::EMShowerAlg::MakeShower(art::PtrVector<recob::Hit> const& 
   unsigned maxhits1 = 0;
 
   for (std::map<int,std::vector<art::Ptr<recob::Hit> > >::iterator planeHits = planeHitsMap.begin(); planeHits != planeHitsMap.end(); ++planeHits) {
-    
+
     std::vector<art::Ptr<recob::Hit> > showerHits;
     OrderShowerHits(planeHits->second, showerHits, vertex);
     //if (!isCleanShower(showerHits)) continue;
@@ -1479,7 +1479,7 @@ std::map<int,std::vector<art::Ptr<recob::Hit> > > shower::EMShowerAlg::OrderShow
       else
   	showerHitsMap[showerHitsIt->first] = hits;
     }
-    ++n;      
+    ++n;
   }
 
   // Go back to original if still no consistency
@@ -1574,7 +1574,7 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> 
   std::vector<double> wfit;
   std::vector<double> tfit;
   std::vector<double> cfit;
-    
+
   for (size_t i = 0; i<fNfitpass; ++i){
 
     // Fit a straight line through hits
@@ -1600,7 +1600,7 @@ void shower::EMShowerAlg::FindInitialTrackHits(std::vector<art::Ptr<recob::Hit> 
 	}
       }
     }
-  
+
     if (i<fNfitpass-1&&wfit.size()){
       fitok = WeightedFit(wfit.size(), &wfit[0], &tfit[0], &cfit[0], &parm[0]);
     }
@@ -2166,37 +2166,37 @@ Int_t shower::EMShowerAlg::WeightedFit(const Int_t n, const Double_t *x, const D
   Double_t sumxy=0.;
   Double_t sumw=0.;
   Double_t eparm[2];
-    
+
   parm[0]  = 0.;
   parm[1]  = 0.;
   eparm[0] = 0.;
   eparm[1] = 0.;
-    
+
   for (Int_t i=0; i<n; i++) {
     sumx += x[i]*w[i];
     sumx2 += x[i]*x[i]*w[i];
-    sumy += y[i]*w[i]; 
+    sumy += y[i]*w[i];
     sumy2 += y[i]*y[i]*w[i];
     sumxy += x[i]*y[i]*w[i];
     sumw += w[i];
   }
-    
+
   if (sumx2*sumw-sumx*sumx==0.) return 1;
   if (sumx2-sumx*sumx/sumw==0.) return 1;
-    
+
   parm[0] = (sumy*sumx2-sumx*sumxy)/(sumx2*sumw-sumx*sumx);
   parm[1] = (sumxy-sumx*sumy/sumw)/(sumx2-sumx*sumx/sumw);
-    
+
   eparm[0] = sumx2*(sumx2*sumw-sumx*sumx);
   eparm[1] = (sumx2-sumx*sumx/sumw);
-    
+
   if (eparm[0]<0. || eparm[1]<0.) return 1;
-    
+
   eparm[0] = sqrt(eparm[0])/(sumx2*sumw-sumx*sumx);
   eparm[1] = sqrt(eparm[1])/(sumx2-sumx*sumx/sumw);
-    
+
   return 0;
-    
+
 }
 
 bool shower::EMShowerAlg::isCleanShower(std::vector<art::Ptr<recob::Hit> > const& hits){

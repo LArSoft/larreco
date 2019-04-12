@@ -65,17 +65,17 @@ class GFException : public std::exception
   bool fFatal;
 
  public:
-  /** @brief Initializing constructor 
+  /** @brief Initializing constructor
    *
    * @param what error message
    * @param line line at which the exception is created. Can be set through
    * __LINE__ macro
-   * @param file sorcefile in which the exception is created. 
+   * @param file sorcefile in which the exception is created.
    * Can be set through __FILE__ macro
    */
   GFException(std::string, int, std::string);
   virtual ~GFException() throw();
-  
+
   /** @brief set fatal flag. if this is true, the fit stops for this current track repr. */
   GFException& setFatal (bool b = true) { fFatal=b; return *this; }
   /** @brief get fatal flag. */
@@ -130,27 +130,27 @@ void genf::PrintROOTobject(std::ostream&, const ROOTOBJ& obj) { obj.Print(); }
 
 template <typename T>
 void genf::PrintROOTmatrix(std::ostream& out, const TMatrixT<T>& m) {
-  
+
   constexpr std::streamsize fw = 11;
   constexpr std::streamsize ifw = 4 + (fw & 1);
   const Int_t rb = m.GetRowLwb(), cb = m.GetColLwb();
-  
+
   const Int_t R = m.GetNrows(), C = m.GetNcols();
   out << R << "x" << C << " matrix is as follows";
-  
+
   std::streamsize swidth = out.width(4);
   std::ios::fmtflags sflags = out.flags();
   out.unsetf(std::ios_base::floatfield); // out << std::defaultfloat;
-  
+
   // header: column number
   std::string index_pad((fw-ifw)/2, ' ');
   out << "\n" << std::string(ifw, ' ') << " |";
   for (Int_t c = 0; c < C; ++c)
     out << index_pad << std::setw(ifw) << (cb + c) << index_pad << "|";
-  
+
   // dashed line
   out << "\n" << std::string((C+1) * (fw+1), '-');
-  
+
   // content, row by row
   for (Int_t r = 0; r < R; ++r) {
     // header: row number
@@ -158,7 +158,7 @@ void genf::PrintROOTmatrix(std::ostream& out, const TMatrixT<T>& m) {
     for (Int_t c = 0; c < C; ++c) out << std::setw(fw) << m(rb + r, cb + c) << " ";
   } // for r
   out << "\n\n";
-  
+
   // restore the stream features
   out.flags(sflags);
   out.width(swidth);

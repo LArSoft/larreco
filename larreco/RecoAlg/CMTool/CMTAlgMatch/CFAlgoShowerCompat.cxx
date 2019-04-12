@@ -7,13 +7,13 @@ namespace cmtool {
   CFAlgoShowerCompat::CFAlgoShowerCompat() : CFloatAlgoBase()
   //-------------------------------------------------------
   {
-    
-    _fout_hax = 0; 
+
+    _fout_hax = 0;
     _ana_tree = 0;
 
     if(!_fout_hax)
       _fout_hax = new TFile("fout_hax.root","RECREATE");
-    
+
     if(!_ana_tree){
       _ana_tree = new TTree("ana_tree","ana_tree");
       _ana_tree->Branch("o_ang_avg",&_o_ang_avg,"o_ang_avg/D");
@@ -26,7 +26,7 @@ namespace cmtool {
       _ana_tree->Branch("max_poly_perim_over_A",&_max_poly_perim_over_A,"max_poly_perim_over_A/D");
       _ana_tree->Branch("min_modhitdens",&_min_modhitdens,"min_modhitdens/D");
     }
-    
+
   }
 
   //-----------------------------
@@ -50,7 +50,7 @@ namespace cmtool {
     _max_poly_perim_over_A = -9999.;
     _min_modhitdens = 9999.;
 
-    //Take the smallest and largest opening angles of clusters in this 
+    //Take the smallest and largest opening angles of clusters in this
     //permutation and average them
     double min_OA = 99999.;
     double max_OA = -99999.;
@@ -75,20 +75,20 @@ namespace cmtool {
       double this_modhitdens = c->GetParams().modified_hit_density;
       if(this_modhitdens < _min_modhitdens) _min_modhitdens = this_modhitdens;
     }
-  
+
     _o_ang_avg = (min_OA + max_OA)/2;
     _o_ang_rms = pow( (pow(min_OA,2)+pow(max_OA,2))/2 , 0.5);
     _o_ang_wt_avg = (min_OA_wt + max_OA_wt)/2;
     _o_ang_wt_rms = pow( (pow(min_OA_wt,2)+pow(max_OA_wt,2))/2 , 0.5);
-    
+
     _ana_tree->Fill();
-       
+
     bool accept_match = true;
     //Reject match if it is very track-like
     if(_min_oa_over_len < 0.0007) accept_match = false;
     if(_o_ang_avg*_o_ang_rms < 0.01) accept_match = false;
     if(_max_len_over_width > 20) accept_match = false;
-   
+
     return accept_match ? 1 : -1;
   }
 

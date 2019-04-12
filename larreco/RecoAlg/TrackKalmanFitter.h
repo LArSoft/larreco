@@ -189,7 +189,7 @@ namespace trkf {
     /// Function where the core of the fit is performed
     bool doFitWork(KFTrackState& trackState, std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
 		   std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
-		   std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx, 
+		   std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx,
 		   bool applySkipClean = true) const;
 
   private:

@@ -1,7 +1,7 @@
 #include "larreco/RecoAlg/TCAlg/DataStructs.h"
 
 namespace tca {
-  
+
   TCEvent evt;
   TCConfig tcc;
   std::vector<TjForecast> tjfs;
@@ -79,7 +79,7 @@ namespace tca {
     "NewStpCuts",
     "NewVtxCuts"
   };
-  
+
   const std::vector<std::string> StopFlagNames {
     "Signal",
     "AtKink",
@@ -88,7 +88,7 @@ namespace tca {
     "AtTj",
     "OutFV"
   };
-  
+
   const std::vector<std::string> VtxBitNames {
     "VtxTrjTried",
     "Fixed",
@@ -98,14 +98,14 @@ namespace tca {
     "VtxMerged",
     "VtxIndPlnNoChg"
   };
-  
+
   const std::vector<std::string> StrategyBitNames {
     "Normal",
     "StiffEl",
     "StiffMu",
     "Slowing"
   };
-  
+
   geo::PlaneID DecodeCTP(CTP_t CTP) {
     auto const cryo = (CTP / Cpad);
     return geo::PlaneID(
@@ -114,6 +114,6 @@ namespace tca {
          /* Plane */ (CTP % 10)
       );
   }
-  
+
 } // namespace tca
 

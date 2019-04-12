@@ -7,7 +7,7 @@
 //  This algorithm is designed to analyze hits on wires after deconvolution
 ////////////////////////////////////////////////////////////////////////
 // Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 
 // ROOT includes
 #include <TMath.h>
@@ -24,8 +24,8 @@
 #include "art/Framework/Principal/Event.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Handle.h"
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 #include "art/Framework/Services/Optional/TFileDirectory.h"
@@ -57,14 +57,14 @@ namespace geo { class Geometry; }
 ///Detector simulation of raw signals on wires
 namespace hit {
 
-  /// Base class for creation of raw signals on wires. 
+  /// Base class for creation of raw signals on wires.
   class HitFinderAna : public art::EDAnalyzer {
-    
+
   public:
-        
-    explicit HitFinderAna(fhicl::ParameterSet const& pset); 
+
+    explicit HitFinderAna(fhicl::ParameterSet const& pset);
     virtual ~HitFinderAna();
-    
+
     /// read/write access to event
     void analyze (const art::Event& evt);
     void beginJob();
@@ -74,7 +74,7 @@ namespace hit {
 
     std::string            fFFTHitFinderModuleLabel;
     std::string            fLArG4ModuleLabel;
-    
+
       TTree* fHTree;
       Int_t fRun;
       Int_t fEvt;
@@ -114,7 +114,7 @@ namespace hit {
 namespace hit{
 
   //-------------------------------------------------
-  HitFinderAna::HitFinderAna(fhicl::ParameterSet const& pset) 
+  HitFinderAna::HitFinderAna(fhicl::ParameterSet const& pset)
     : EDAnalyzer(pset)
   {
     this->reconfigure(pset);
@@ -132,7 +132,7 @@ namespace hit{
     return;
   }
   //-------------------------------------------------
-  void HitFinderAna::beginJob() 
+  void HitFinderAna::beginJob()
   {
     // get access to the TFile service
     art::ServiceHandle<art::TFileService const> tfs;
@@ -194,7 +194,7 @@ namespace hit{
     fHTree->Branch("HMCEp1", fMCE1, "HMCEp1[HNp1]/F");
     fHTree->Branch("HMCEp2", fMCE2, "HMCEp2[HNp2]/F");
 
-  
+
     return;
 
   }
@@ -206,7 +206,7 @@ namespace hit{
     if (evt.isRealData()){
       throw cet::exception("HitFinderAna: ") << "Not for use on Data yet...\n";
     }
-    
+
     art::Handle< std::vector<recob::Hit> > hitHandle;
     evt.getByLabel(fFFTHitFinderModuleLabel,hitHandle);
 
@@ -217,39 +217,39 @@ namespace hit{
 
     MF_LOG_VERBATIM("HitFinderAna") << _particleList;
 
-    art::ServiceHandle<geo::Geometry const> geom;  
+    art::ServiceHandle<geo::Geometry const> geom;
 
     std::map<geo::PlaneID, std::vector< art::Ptr<recob::Hit> > > planeIDToHits;
     for(size_t h = 0; h < hitHandle->size(); ++h)
       planeIDToHits[hitHandle->at(h).WireID().planeID()].push_back(art::Ptr<recob::Hit>(hitHandle, h));
-  
-    
+
+
     for(auto mapitr : planeIDToHits){
       fNp0=0;       fN3p0=0;
       fNp1=0;       fN3p1=0;
       fNp2=0;       fN3p2=0;
-      
+
       geo::PlaneID pid = mapitr.first;
       auto itr = mapitr.second.begin();
       while(itr != mapitr.second.end()) {
-	  
+
 	fRun = evt.run();
 	fEvt = evt.id().event();
-	  
+
 	std::vector<sim::TrackIDE> trackides = bt_serv->HitToTrackIDEs(*itr);
 	std::vector<sim::TrackIDE>::iterator idesitr = trackides.begin();
 	std::vector<double> xyz = bt_serv->HitToXYZ(*itr);
-	
+
 	if (pid.Plane == 0 && fNp0 < 9000){
 	  fTimep0[fNp0] = (*itr)->PeakTime();
 	  fWirep0[fNp0] = (*itr)->WireID().Wire;
 	  fChgp0[fNp0] = (*itr)->Integral();
-	  
+
 	  for (unsigned int kk = 0; kk < 3; ++kk){
 	    fXYZp0[fNp0*3+kk] = xyz[kk];
 	  }
-	    
-	    
+
+
 	  while( idesitr != trackides.end() ){
 	    fMCTId0[fNp0] = (*idesitr).trackID;
 	    if (_particleList.find((*idesitr).trackID) != _particleList.end()){
@@ -259,19 +259,19 @@ namespace hit{
 	    }
 	    idesitr++;
 	  }
-	  
+
 	  ++fNp0;
 	}
-	  
+
 	else if (pid.Plane == 1 && fNp1 < 9000){
 	  fTimep1[fNp1] = (*itr)->PeakTime();
 	  fWirep1[fNp1] = (*itr)->WireID().Wire;
 	  fChgp1[fNp1] = (*itr)->Integral();
-	  
+
 	  for (unsigned int kk = 0; kk < 3; ++kk){
 	    fXYZp1[fNp1*3+kk] = xyz[kk];
 	  }
-	    
+
 	  while( idesitr != trackides.end() ){
 	    fMCTId1[fNp1] = (*idesitr).trackID;
 	    if (_particleList.find((*idesitr).trackID) != _particleList.end()){
@@ -283,16 +283,16 @@ namespace hit{
 	  }
 	  ++fNp1;
 	}
-	
+
 	else if (pid.Plane == 2  && fNp2 < 9000){
 	  fTimep2[fNp2] = (*itr)->PeakTime();
 	  fWirep2[fNp2] = (*itr)->WireID().Wire;
 	  fChgp2[fNp2] = (*itr)->Integral();
-	  
+
 	  for (unsigned int kk = 0; kk < 3; ++kk){
 	    fXYZp2[fNp2*3+kk] = xyz[kk];
 	  }
-	  
+
 	  while( idesitr != trackides.end()){
 	    fMCTId2[fNp2] = (*idesitr).trackID;
 	    if (_particleList.find((*idesitr).trackID) != _particleList.end() ){
@@ -304,11 +304,11 @@ namespace hit{
 	  }
 	  ++fNp2;
 	}
-	
+
 	fN3p0 = 3* fNp0;
 	fN3p1 = 3* fNp1;
 	fN3p2 = 3* fNp2;
-	
+
 	fHTree->Fill();
 	itr++;
       } // loop on Hits
@@ -316,7 +316,7 @@ namespace hit{
 
     return;
   }//end analyze method
-  
+
 }//end namespace
 
 namespace hit{

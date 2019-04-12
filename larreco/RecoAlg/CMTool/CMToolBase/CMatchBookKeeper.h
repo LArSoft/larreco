@@ -2,7 +2,7 @@
  * \file CMatchBookKeeper.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CMatchBookKeeper
  *
  * @author kazuhiro
@@ -26,15 +26,15 @@ namespace cmtool {
      doxygen documentation!
   */
   class CMatchBookKeeper {
-    
+
   public:
-    
+
     /// Default constructor
     CMatchBookKeeper();
-    
+
     /// Default destructor
     virtual ~CMatchBookKeeper(){};
-  
+
     /// Reset method
     void Reset();
 
@@ -55,5 +55,5 @@ namespace cmtool {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

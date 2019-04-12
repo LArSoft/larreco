@@ -2,7 +2,7 @@
  *  @file   PmaHit3D.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Hit 3D wrapped around recob::Hit. Support for PMA optimizations.

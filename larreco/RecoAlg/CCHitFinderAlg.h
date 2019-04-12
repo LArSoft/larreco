@@ -16,11 +16,11 @@
 #include <ostream> // std::endl
 
 // framework libraries
-#include "fhiclcpp/ParameterSet.h" 
+#include "fhiclcpp/ParameterSet.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 
 // LArSoft libraries
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
@@ -31,15 +31,15 @@
 
 
 namespace hit {
-  
+
   /**
    * @brief Hit finder algorithm designed to work with Cluster Crawler
-   * 
+   *
    * This algorithm used to store hits in a proprietary `CCHit` data structure.
    * It has now been changed to use `recob::Hit` class directly.
    * It is possible to translate the former into the latter, with one exception,
    * as follows:
-   *     
+   *
    *     // this is the original CCHit definition
    *     struct CCHit {
    *       float Charge;            // recob::Hit::Integral()
@@ -62,9 +62,9 @@ namespace hit {
    *       geo::WireID WirID;       // recob::Hit::WireID()
    *       recob::Wire const* Wire; // dropped; see below
    *     };
-   *     
+   *
    * The uncertainty on RMS has been dropped for good.
-   * 
+   *
    * The `LoHitID` member used to mean the index of the first hit in the "hit
    * train" (that is the set of hits extracted from the same region of
    * interest). That is a concept that is not portable. If your hit list is
@@ -72,17 +72,17 @@ namespace hit {
    * hits from the same train are stored sorted and contiguously, for a hit with
    * index `iHit`, the equivalent value of `LoHitID` is
    * `iHit - hit.LocalIndex()`.
-   * 
+   *
    * There is no pointer to the wire any more in `recob::Hit`. The wire can be
    * obtained through associations, that are typically produced by the art
    * module that runs CCHitFinderAlg (e.g. `CCHitFinder`). The channel ID is
    * also directly available as `recob::Hit::Channel()`.
    */
-  
+
   class CCHitFinderAlg {
-  
+
   public:
-    
+
     std::vector<recob::Hit> allhits;
 
     CCHitFinderAlg(fhicl::ParameterSet const& pset);
@@ -91,16 +91,16 @@ namespace hit {
     virtual void reconfigure(fhicl::ParameterSet const& pset);
 
     void RunCCHitFinder(std::vector<recob::Wire> const& Wires);
-    
+
     /// Returns (and loses) the collection of reconstructed hits
     std::vector<recob::Hit>&& YieldHits() { return std::move(allhits); }
-    
+
     /// Print the fit statistics
     template <typename Stream>
     void PrintStats(Stream& out) const;
-    
+
   private:
-    
+
     std::vector<float> fMinPeak;
     std::vector<float> fMinRMS;
     unsigned short fMaxBumps; // make a crude hit if > MaxBumps are found in the RAT
@@ -120,11 +120,11 @@ namespace hit {
   //  float timeoff;
     static constexpr float Sqrt2Pi = 2.5066;
     static constexpr float SqrtPi  = 1.7725;
-    
+
     bool fUseChannelFilter;
 
 //    bool prt;
-    
+
     art::ServiceHandle<geo::Geometry const> geom;
 
     // fit n Gaussians possibly with bounds setting (parmin, parmax)
@@ -138,22 +138,22 @@ namespace hit {
     float chidof;
     int dof;
     std::vector<unsigned short> bumps;
-    
+
     /// exchange data about the originating wire
     class HitChannelInfo_t {
         public:
       recob::Wire const* wire;
       geo::WireID wireID;
       geo::SigType_t sigType;
-      
+
       HitChannelInfo_t
         (recob::Wire const* w, geo::WireID wid, geo::Geometry const& geom);
     }; // HitChannelInfo_t
-    
+
     // make a cruddy hit if fitting fails
     void MakeCrudeHit(unsigned short npt, float *ticks, float *signl);
     // store the hits
-    void StoreHits(unsigned short TStart, unsigned short npt, 
+    void StoreHits(unsigned short TStart, unsigned short npt,
       HitChannelInfo_t info, float adcsum
       );
 
@@ -176,27 +176,27 @@ namespace hit {
     std::vector<float> hiWire;
     std::vector<float> hiTime;
     bool SelRAT; // set true if a Region Above Threshold should be studied
-    
+
     bool fUseFastFit; ///< whether to attempt using a fast fit on single gauss.
-    
+
     std::unique_ptr<GausFitCache> FitCache; ///< a set of functions ready to be used
-    
-    
+
+
     typedef struct {
       unsigned int FastFits; ///< count of single-Gaussian fast fits
       std::vector<unsigned int> MultiGausFits; ///< multi-Gaussian stats
-      
+
       void Reset(unsigned int nGaus);
-      
+
       void AddMultiGaus(unsigned int nGaus);
-      
+
       void AddFast() { ++FastFits; }
-      
+
     } FitStats_t;
-    
+
     FitStats_t FinalFitStats; ///< counts of the good fits
     FitStats_t TriedFitStats; ///< counts of the tried fits
-    
+
     /**
      * @brief Performs a "fast" fit
      * @param npt number of points to be fitted
@@ -206,10 +206,10 @@ namespace hit {
      * @param paramerrors an array where the fit parameter errors will be stored
      * @param chidof a variable where to store chi^2 over degrees of freedom
      * @return whether the fit was successful or not
-     * 
+     *
      * Note that the fit will bail out and rteurn false if any of the input
      * signal amplitudes is zero or negative.
-     * 
+     *
      * Also note that currently the chi^2 is not the one from comparing the
      * Gaussian to the signal, but from comparing a fitted parabola to the
      * logarithm of the signal.
@@ -220,11 +220,11 @@ namespace hit {
       std::array<double, 3>& paramerrors,
       float& chidof
       );
-    
+
     static constexpr unsigned int MaxGaussians = 20;
-    
+
   }; // class CCHitFinderAlg
-  
+
 } // namespace hit
 
 
@@ -233,7 +233,7 @@ namespace hit {
 //===
 template <typename Stream>
 void hit::CCHitFinderAlg::PrintStats(Stream& out) const {
-  
+
   out << "CCHitFinderAlg fit statistics:";
   if (fUseFastFit) {
     out << "\n  fast 1-Gaussian fits: " << FinalFitStats.FastFits
@@ -241,7 +241,7 @@ void hit::CCHitFinderAlg::PrintStats(Stream& out) const {
   }
   else
     out << "\n  fast 1-Gaussian fits: disabled";
-  
+
   for (unsigned int nGaus = 1; nGaus < MaxGaussians; ++nGaus) {
     if (TriedFitStats.MultiGausFits[nGaus-1] == 0) continue;
     out << "\n  " << nGaus << "-Gaussian fits: "
@@ -254,7 +254,7 @@ void hit::CCHitFinderAlg::PrintStats(Stream& out) const {
       << " accepted (" << TriedFitStats.MultiGausFits.back() << " tried)";
   }
   out << std::endl;
-  
+
 } // CCHitFinderAlg::FitStats_t::Print()
 
 

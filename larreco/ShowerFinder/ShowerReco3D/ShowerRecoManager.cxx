@@ -33,12 +33,12 @@ namespace showerreco {
       return res_ass;
     }
     res_ass = fMatchMgr->GetBookKeeper().GetResult();
-  
+
     Process(res_ass, showers);
 
     return res_ass;
   }
-  
+
   void ShowerRecoManager::Reconstruct (const std::vector<std::vector<util::PxHit> >& clusters,
 				       const ClusterAss_t& ass,
 				       std::vector< ::recob::Shower>& showers)
@@ -48,17 +48,17 @@ namespace showerreco {
 
     Process(ass,showers);
   }
-  
+
   void ShowerRecoManager::Process(const ClusterAss_t& ass,
 				  std::vector< ::recob::Shower>& showers)
   {
-    
+
     for(auto const& pair : ass) {
-      
+
       std::vector< ::cluster::ClusterParamsAlg> cpans;
-      
+
       cpans.reserve(pair.size());
-      
+
       for(auto const& index : pair)
 
 	cpans.push_back(fMatchMgr->GetInputClusters()[index]);

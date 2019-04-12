@@ -2,8 +2,8 @@
  * @file   HitFinder_module.cc
  * @brief  Hit finder (originating for cluster crawler algorithm)
  * @author Bruce Baller (bballer@fnal.gov)
- * 
- * Generated at Fri Jun  7 09:44:09 2013 by Bruce Baller using artmod 
+ *
+ * Generated at Fri Jun  7 09:44:09 2013 by Bruce Baller using artmod
  * from cetpkgsupport v1_02_00.
  */
 
@@ -25,23 +25,23 @@
 
 
 namespace hit {
-  
+
   class HitFinder: public art::EDProducer {
-  
+
     public:
       explicit HitFinder(fhicl::ParameterSet const & pset);
-  
+
     private:
       void reconfigure(fhicl::ParameterSet const & pset) ;
       void produce(art::Event & evt) override;
-      
+
       void endJob() override;
-  
+
       art::InputTag fCalDataModuleLabel; ///< label of module producing input wires
       std::unique_ptr<CCHitFinderAlg> fCCHFAlg; // define CCHitFinderAlg object
-      
+
   }; // hit::HitFinder()
-  
+
 } // namespace hit
 
 //******************************************************************************
@@ -61,28 +61,28 @@ namespace hit {
 
 
 namespace hit {
-  
-  
+
+
   //----------------------------------------------------------------------------
   HitFinder::HitFinder(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
   {
     reconfigure(pset);
-    
+
     // let HitCollectionAssociator declare that we are going to produce
     // hits and associations with wires and raw digits
     // (with no particular product label);
     // TODO this should be marked as transient when art will implement issue #8018
     recob::HitCollectionAssociator::declare_products(*this);
-    
+
   } // HitFinder::HitFinder()
-  
-  
+
+
   //----------------------------------------------------------------------------
   void HitFinder::reconfigure(fhicl::ParameterSet const & pset)
   {
     fCalDataModuleLabel = pset.get<art::InputTag>("CalDataModuleLabel");
-    
+
     // this trick avoids double configuration on construction
     if (fCCHFAlg)
       fCCHFAlg->reconfigure(pset.get<fhicl::ParameterSet>("CCHitFinderAlg"));
@@ -91,8 +91,8 @@ namespace hit {
         (new CCHitFinderAlg(pset.get<fhicl::ParameterSet>("CCHitFinderAlg")));
     }
   } // HitFinder::reconfigure()
-  
-  
+
+
   //----------------------------------------------------------------------------
   void HitFinder::produce(art::Event & evt)
   {
@@ -104,34 +104,34 @@ namespace hit {
 
     // find hits in all planes
     fCCHFAlg->RunCCHitFinder(*wireVecHandle);
-    
+
     // extract the result of the algorithm (it's moved)
     std::unique_ptr<std::vector<recob::Hit>> Hits
       (new std::vector<recob::Hit>(std::move(fCCHFAlg->YieldHits())));
-    
+
     mf::LogInfo("HitFinder") << Hits->size() << " hits produced.";
-    
+
     // shcol contains the hit collection
     // and its associations to wires and raw digits;
     // we get the association to raw digits through wire associations
     recob::HitCollectionAssociator shcol(*this, evt, fCalDataModuleLabel, true);
 
     shcol.use_hits(std::move(Hits));
-    
+
     // move the hit collection and the associations into the event:
     shcol.put_into(evt);
-    
+
   } // produce()
-  
-  
+
+
   //----------------------------------------------------------------------------
   void HitFinder::endJob() {
     // print the statistics about fits
     mf::LogInfo log("HitFinder"); // messages are printed on "log" destruction
     fCCHFAlg->PrintStats(log);
   } // HitFinder::endJob()
-  
-  
+
+
   DEFINE_ART_MODULE(HitFinder)
-  
+
 } // namespace hit

@@ -20,7 +20,7 @@
 /** @addtogroup RKTrackRep
  * @{
  */
- 
+
 #ifndef GFGEOMATMANAGER_H
 #define GFGEOMATMANAGER_H
 
@@ -28,17 +28,17 @@
 
 #include"TObject.h"
 
-  
+
 /** @brief Material and geometry interface via TGeoMaterial and gGeoManager
- * 
+ *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Johannes Rauch  (Technische Universit&auml;t M&uuml;nchen, author)
- * 
- *  
- *  
- *  
- *  
+ *
+ *
+ *
+ *
+ *
  */
 namespace genf {
 
@@ -50,19 +50,19 @@ class GFGeoMatManager : public GFAbsGeoMatManager{
                              double& matA,
                              double& radiationLength,
                              double& mEE);
- 
+
   void initTrack(const double& posx,
                  const double& posy,
                  const double& posz,
                  const double& dirx,
                  const double& diry,
                  const double& dirz);
- 
+
   double stepOrNextBoundary(const double& maxDist);
-     
+
   // public:
   //ClassDef(GFGeoMatManager,1)
- 
+
 };
 
 } // namespace genf

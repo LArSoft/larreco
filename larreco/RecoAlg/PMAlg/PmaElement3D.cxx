@@ -2,7 +2,7 @@
  *  @file   PmaElement3D.cxx
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Base for 3D segments and track nodes. See PmaTrack3D.h file for details.

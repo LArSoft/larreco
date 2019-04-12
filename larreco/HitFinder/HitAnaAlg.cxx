@@ -30,7 +30,7 @@ void hit::HitAnaAlg::SetHitDataTree(std::vector<TTree*>& trees){
   hitData.clear();
 
   hitDataTree.reserve (trees.size());
-  // This is particularly important: to establish the hitData memory -- all before 
+  // This is particularly important: to establish the hitData memory -- all before
   // individually making the tree->Branch() calls, specifying those addresses.
   hitData.reserve     (trees.size());
 
@@ -86,7 +86,7 @@ void hit::HitAnaAlg::ClearHitModules(){
 void hit::HitAnaAlg::LoadHitAssocPair( std::vector<recob::Hit> const& HitVector,
 				       std::vector< std::vector<int> > const& AssocVector,
 				       std::string const& HitModuleLabel){
-  
+
   HitProcessingQueue.push_back( std::make_pair( std::cref(HitVector), std::cref(AssocVector)) );
   HitModuleLabels.push_back(HitModuleLabel);
 
@@ -100,7 +100,7 @@ void hit::HitAnaAlg::AnalyzeWires(std::vector<recob::Wire> const& WireVector,
 				  std::vector< std::vector<int> > const& AssocVector,
 				  const detinfo::DetectorClocks *ts,
 				  unsigned int event, unsigned int run){
-  
+
   InitWireData(event,run);
   for(size_t iwire=0 ; iwire < WireVector.size(); iwire++)
     FillWireInfo(WireVector[iwire], iwire, MCHitCollectionVector, AssocVector[iwire], ts);
@@ -124,7 +124,7 @@ void hit::HitAnaAlg::ClearWireDataHitInfo(){
   wireData.MCHits_PeakTime = 0;
   wireData.MCHits_wAverageCharge = 0;
   wireData.MCHits_wAverageTime = 0;
-  
+
   wireData.NHits.assign(wireData.NHitModules,0);
   wireData.Hits_IntegratedCharge.assign(wireData.NHitModules,0);
   wireData.Hits_AverageCharge.assign(wireData.NHitModules,0);
@@ -136,12 +136,12 @@ void hit::HitAnaAlg::ClearWireDataHitInfo(){
   wireData.Hits.clear(); wireData.Hits.resize(wireData.NHitModules);
 }
 
-void hit::HitAnaAlg::FillWireInfo(recob::Wire const& wire, 
+void hit::HitAnaAlg::FillWireInfo(recob::Wire const& wire,
 				  int WireIndex,
 				  std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
 				  std::vector<int> const& thisAssocVector,
 				  const detinfo::DetectorClocks *ts){
-  
+
   wireData.channel = wire.Channel();
   wireData.plane = wire.View();
   unsigned int range_index = 0;
@@ -181,7 +181,7 @@ void hit::HitAnaAlg::ROIInfo(lar::sparse_vector<float>::datarange_t const& range
 
 }
 
-void hit::HitAnaAlg::ProcessROI(lar::sparse_vector<float>::datarange_t const& range, 
+void hit::HitAnaAlg::ProcessROI(lar::sparse_vector<float>::datarange_t const& range,
 				int WireIndex,
 				std::vector<sim::MCHitCollection> const& MCHitCollectionVector,
 				std::vector<int> const& thisAssocVector,
@@ -195,7 +195,7 @@ void hit::HitAnaAlg::ProcessROI(lar::sparse_vector<float>::datarange_t const& ra
   //std::cout << "\tRange end: " << range.begin_index()+range.size() << std::endl;
 
   for(size_t iter = 0; iter < HitProcessingQueue.size(); iter++)
-    FindAndStoreHitsInRange(HitProcessingQueue[iter].first, 
+    FindAndStoreHitsInRange(HitProcessingQueue[iter].first,
 			    HitProcessingQueue[iter].second.at(WireIndex),
 			    iter,
 			    range.begin_index(),
@@ -243,11 +243,11 @@ void hit::HitAnaAlg::FindAndStoreHitsInRange( std::vector<recob::Hit> const& Hit
     (hitDataTree.at(hitmodule_iter))->Fill();
   }
 
-  wireData.Hits_AverageCharge[hitmodule_iter] = 
+  wireData.Hits_AverageCharge[hitmodule_iter] =
     wireData.Hits_IntegratedCharge[hitmodule_iter]/wireData.NHits[hitmodule_iter];
-  wireData.Hits_wAverageCharge[hitmodule_iter] = 
+  wireData.Hits_wAverageCharge[hitmodule_iter] =
     wireData.Hits_wAverageCharge[hitmodule_iter]/wireData.Hits_IntegratedCharge[hitmodule_iter];
-  wireData.Hits_wAverageTime[hitmodule_iter] = 
+  wireData.Hits_wAverageTime[hitmodule_iter] =
     wireData.Hits_wAverageTime[hitmodule_iter]/wireData.Hits_IntegratedCharge[hitmodule_iter];
 
     wireData.Hits_MeanMultiplicity[hitmodule_iter] /=wireData.NHits[hitmodule_iter];
@@ -280,28 +280,28 @@ void hit::HitAnaAlg::FindAndStoreMCHitsInRange( std::vector<sim::MCHitCollection
 
       nmchits_per_trackID_map[thishit.PartTrackId()] += 1;
       wireData.MCHits_IntegratedCharge += thishit.Charge();
-      
+
       if(thishit.Charge(true) > wireData.MCHits_PeakCharge){
 	wireData.MCHits_PeakCharge = thishit.Charge(true);
 	wireData.MCHits_PeakTime   = ts->TPCTDC2Tick(thishit.PeakTime());
       }
-      
+
       wireData.MCHits_wAverageCharge += thishit.Charge()*thishit.Charge();
       wireData.MCHits_wAverageTime   += thishit.Charge()*ts->TPCTDC2Tick(thishit.PeakTime());
 
     }
-    
+
     wireData.NMCHits = nmchits_per_trackID_map.size();
 
-    wireData.MCHits_AverageCharge = 
+    wireData.MCHits_AverageCharge =
       wireData.MCHits_IntegratedCharge/wireData.NMCHits;
-    wireData.MCHits_wAverageCharge = 
+    wireData.MCHits_wAverageCharge =
       wireData.MCHits_wAverageCharge/wireData.MCHits_IntegratedCharge;
-    wireData.MCHits_wAverageTime = 
+    wireData.MCHits_wAverageTime =
       wireData.MCHits_wAverageTime/wireData.MCHits_IntegratedCharge;
 
   }
-  
+
 }
 
 void hit::HitAnaAlg::FillHitInfo(recob::Hit const& hit, std::vector<HitInfo>& HitInfoVector){

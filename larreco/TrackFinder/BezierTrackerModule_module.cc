@@ -32,22 +32,22 @@ namespace trkf {
   class BezierTrackerModule : public art::EDProducer
   {
   public:
- 
+
     // Constructors, destructor
 
     explicit BezierTrackerModule(fhicl::ParameterSet const& pset);
     virtual ~BezierTrackerModule();
 
-    
+
     // Overrides.
 
     void reconfigure(fhicl::ParameterSet const& pset);
     void beginJob();
     void produce(art::Event& evt);
     void endJob();
-    
-    
-    
+
+
+
 
   private:
 
@@ -55,16 +55,16 @@ namespace trkf {
 
     std::string fClusterModuleLabel;
     double      fTrajPtPitch;
-    
+
     std::unique_ptr<trkf::BezierTrackerAlgorithm> fBTrackAlg;
-    
+
 
     void GetHitsFromClusters(std::string ClusterModuleLabel, art::Event& evt,     std::vector< std::vector<art::PtrVector<recob::Hit> > >& ReturnVec, std::vector<std::map<int, int> >& ClusterMap);
-    
+
   };
 }
 
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 
 
 namespace trkf {
@@ -82,7 +82,7 @@ namespace trkf {
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "larcore/Geometry/Geometry.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Seed.h"
 #include "lardataobj/RecoBase/Vertex.h"
@@ -105,7 +105,7 @@ namespace trkf {
     produces< art::Assns<recob::Trajectory, recob::Hit> >("bezierformat");
     produces< art::Assns<recob::Cluster, recob::Trajectory> >("bezierformat");
     produces< art::Assns<recob::Trajectory, recob::Vertex> >("bezierformat");
-      
+
     produces< std::vector<recob::Trajectory> >();
     produces< art::Assns<recob::Trajectory, recob::Hit> >();
     produces< art::Assns<recob::Cluster, recob::Trajectory> >();
@@ -121,9 +121,9 @@ namespace trkf {
   {
     fClusterModuleLabel = pset.get<std::string>("ClusterModuleLabel");
     fTrajPtPitch        = pset.get<double>("TrajPtPitch",0.1);
-    
+
     fBTrackAlg.reset( new trkf::BezierTrackerAlgorithm(pset.get<fhicl::ParameterSet>("BezierTrackerAlgorithm")) );
-      
+
 }
 
   void BezierTrackerModule::beginJob()
@@ -132,7 +132,7 @@ namespace trkf {
 
   void BezierTrackerModule::produce(art::Event& evt)
   {
- 
+
     // Declare products to store
 
     std::unique_ptr< std::vector<recob::Trajectory > > btracks ( new std::vector<recob::Trajectory>);
@@ -140,41 +140,41 @@ namespace trkf {
     std::unique_ptr< art::Assns<recob::Trajectory, recob::Hit > >  assnhit( new art::Assns<recob::Trajectory, recob::Hit>);
     std::unique_ptr< art::Assns<recob::Trajectory, recob::Vertex > > assnvtx( new art::Assns<recob::Trajectory, recob::Vertex>);
     std::unique_ptr< art::Assns<recob::Cluster, recob::Trajectory> > assnclus( new art::Assns<recob::Cluster, recob::Trajectory>);
-   
+
     std::unique_ptr< std::vector<recob::Trajectory > > ub_tracks ( new std::vector<recob::Trajectory>);
     std::unique_ptr< art::Assns<recob::Trajectory, recob::Hit > >  ub_assnhit( new art::Assns<recob::Trajectory, recob::Hit>);
     std::unique_ptr< art::Assns<recob::Trajectory, recob::Vertex > > ub_assnvtx( new art::Assns<recob::Trajectory, recob::Vertex>);
     std::unique_ptr< art::Assns<recob::Cluster, recob::Trajectory > > ub_assnclus( new art::Assns<recob::Cluster, recob::Trajectory>);
 
     std::vector<trkf::BezierTrack >           BTracks;
-    
+
     std::vector<art::PtrVector<recob::Hit> >  HitsForAssns;
-    
+
     std::vector<std::map<int, int> > ClusterMap;
     std::vector< std::vector<art::PtrVector<recob::Hit> > > SortedHits;
     // Produce appropriately organized hit object
     GetHitsFromClusters(fClusterModuleLabel, evt, SortedHits,ClusterMap);
- 
+
     // Produce bezier tracks
     std::vector<std::vector<std::pair<int, int> > > ClustersUsed;
     BTracks = fBTrackAlg->MakeTracks(SortedHits, HitsForAssns, ClustersUsed);
-    
+
     // Attempt to mitigate clustering imperfections
     fBTrackAlg->FilterOverlapTracks( BTracks, HitsForAssns, ClustersUsed );
     fBTrackAlg->SortTracksByLength(  BTracks, HitsForAssns, ClustersUsed );
-    fBTrackAlg->MakeOverlapJoins(    BTracks, HitsForAssns, ClustersUsed ); 
-    fBTrackAlg->SortTracksByLength(  BTracks, HitsForAssns, ClustersUsed );  
+    fBTrackAlg->MakeOverlapJoins(    BTracks, HitsForAssns, ClustersUsed );
+    fBTrackAlg->SortTracksByLength(  BTracks, HitsForAssns, ClustersUsed );
     fBTrackAlg->MakeDirectJoins(     BTracks, HitsForAssns, ClustersUsed );
-    fBTrackAlg->FilterOverlapTracks( BTracks, HitsForAssns, ClustersUsed );    
-    
+    fBTrackAlg->FilterOverlapTracks( BTracks, HitsForAssns, ClustersUsed );
+
     // Perform bezier vertexing
     std::vector<recob::Vertex> Vertices;
     std::vector<std::vector<int> > VertexMapping;
     fBTrackAlg->MakeVertexJoins(BTracks, Vertices, VertexMapping);
-      
+
     for(size_t i=0; i!=BTracks.size(); ++i)
       {
-	
+
 	btracks->push_back(BTracks.at(i).GetTrajectory());
 
 	std::vector<TVector3> track_xyz,track_dir;
@@ -196,16 +196,16 @@ namespace trkf {
 	    util::CreateAssn(*this, evt, *(ub_tracks), *(vertices), *(assnvtx.get()), v, v, VertexMapping[v][t]);
 	  }
       }
-    
+
     // Store cluster assns
     std::vector<art::Ptr<recob::Cluster> > Clusters;
-    
+
     art::Handle< std::vector<recob::Cluster> > clusterh;
     evt.getByLabel(fClusterModuleLabel, clusterh);
-    
+
     if(clusterh.isValid()) {
       art::fill_ptr_vector(Clusters, clusterh);
-      
+
 
       for(size_t t=0; t!=btracks->size(); ++t)
 	{
@@ -238,7 +238,7 @@ namespace trkf {
     for(size_t i=0; i!=HitsForAssns.size(); ++i)
       HitsForAssns.at(i).clear();
     HitsForAssns.clear();
-  
+
   }
   //-----------------------------------------
 
@@ -250,32 +250,32 @@ namespace trkf {
     ClusterMap.resize(3);
 
     std::vector<art::Ptr<recob::Cluster> > Clusters;
-    
+
     art::Handle< std::vector<recob::Cluster> > clusterh;
     evt.getByLabel(ClusterModuleLabel, clusterh);
-    
+
     if(clusterh.isValid()) {
       art::fill_ptr_vector(Clusters, clusterh);
     }
-    
+
     art::FindManyP<recob::Hit> fm(clusterh, evt, ClusterModuleLabel);
-      
+
     for(size_t iclus = 0; iclus < Clusters.size(); ++iclus) {
       art::Ptr<recob::Cluster> ThisCluster = Clusters.at(iclus);
-      
+
       std::vector< art::Ptr<recob::Hit> > ihits = fm.at(iclus);
-      
-      art::PtrVector<recob::Hit> HitsThisCluster;    
+
+      art::PtrVector<recob::Hit> HitsThisCluster;
       for(std::vector< art::Ptr<recob::Hit> >::const_iterator i = ihits.begin();
 	  i != ihits.end(); ++i)
 	HitsThisCluster.push_back(*i);
 
       int View = ThisCluster->View();
-      ClusterMap[View][ReturnVec[View].size()] = iclus;      
+      ClusterMap[View][ReturnVec[View].size()] = iclus;
       ReturnVec[View].push_back(HitsThisCluster);
     }
   }
-  
+
 
 
   //----------------------------------------------------------------------

@@ -59,7 +59,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const recob::TrackTrajectory& traj, const
   }
 }
 
-bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov, 
+bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov,
 				       const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
 				       const int tkID, const double pval, const int pdgid,
 				       recob::Track& outTrack, std::vector<art::Ptr<recob::Hit> >& outHits, trkmkr::OptionalOutputs& optionals) const {
@@ -107,7 +107,7 @@ bool trkf::TrackKalmanFitter::fitTrack(const Point_t& position, const Vector_t& 
   return fillok;
 }
 
-trkf::KFTrackState trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov, 
+trkf::KFTrackState trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t& position, const Vector_t& direction, SMatrixSym55& trackStateCov,
 								   const double pval, const int pdgid) const {
   //start from large enough covariance matrix so that the fit is not biased
   if (trackStateCov==SMatrixSym55()) {
@@ -122,7 +122,7 @@ trkf::KFTrackState trkf::TrackKalmanFitter::setupInitialTrackState(const Point_t
   return KFTrackState(trackStatePar, trackStateCov, Plane(position,direction), true, pdgid);//along direction by definition
 }
 
-bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags, 
+bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob::Hit> >& hits, const std::vector<recob::TrajectoryPointFlags>& flags,
 					       const KFTrackState& trackState,
 					       std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv) const {
   if (dumpLevel_>1) std::cout << "flags.size()=" << flags.size() << " hits.size()=" << hits.size() << std::endl;
@@ -161,8 +161,8 @@ bool trkf::TrackKalmanFitter::setupInputStates(const std::vector<art::Ptr<recob:
 }
 
 bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<HitState>& hitstatev, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv,
-					std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState, 
-					std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx, 
+					std::vector<KFTrackState>& fwdPrdTkState, std::vector<KFTrackState>& fwdUpdTkState,
+					std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx, std::vector<unsigned int>& sortedtksidx,
 					bool applySkipClean) const {
 
   fwdPrdTkState.clear();
@@ -540,7 +540,7 @@ bool trkf::TrackKalmanFitter::doFitWork(KFTrackState& trackState, std::vector<Hi
   return true;
 }
 
-void trkf::TrackKalmanFitter::sortOutput(std::vector<HitState>& hitstatev, std::vector<KFTrackState>& fwdUpdTkState, 
+void trkf::TrackKalmanFitter::sortOutput(std::vector<HitState>& hitstatev, std::vector<KFTrackState>& fwdUpdTkState,
 					 std::vector<unsigned int>& hitstateidx, std::vector<unsigned int>& rejectedhsidx,
 					 std::vector<unsigned int>& sortedtksidx, std::vector<recob::TrajectoryPointFlags::Mask_t>& hitflagsv, bool applySkipClean) const {
   //

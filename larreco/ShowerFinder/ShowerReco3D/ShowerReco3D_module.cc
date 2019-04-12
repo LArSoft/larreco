@@ -87,7 +87,7 @@ ShowerReco3D::ShowerReco3D(fhicl::ParameterSet const & p)
   fCPAlgoNHits = new ::cmtool::CPAlgoNHits;
   fCPAlgoIgnoreTracks = new ::cmtool::CPAlgoIgnoreTracks;
   fCFAlgoTimeOverlap  = new ::cmtool::CFAlgoTimeOverlap;
-  
+
   // Configure
   fCPAlgoNHits->SetMinHits(p.get<int>("MinHits"));
 
@@ -127,7 +127,7 @@ void ShowerReco3D::produce(art::Event & e)
   art::Handle<std::vector<recob::Cluster> > cHandle;
   e.getByLabel(fInputProducer,cHandle);
 
-  if(!cHandle.isValid()) 
+  if(!cHandle.isValid())
     throw cet::exception(__FUNCTION__) << "Invalid input cluster label!" << std::endl;
 
   // Cluster type conversion: recob::Hit => util::PxHit
@@ -147,9 +147,9 @@ void ShowerReco3D::produce(art::Event & e)
   // Run shower reconstruction
   //
   // shower pfparticle index (later used to make an association)
-  std::vector<size_t> shower_pfpart_index; 
+  std::vector<size_t> shower_pfpart_index;
   // cluster combination in terms of cluster index (for ShowerRecoManager::Reconstruct)
-  std::vector<std::vector<unsigned int> > matched_pairs; 
+  std::vector<std::vector<unsigned int> > matched_pairs;
   // shower vector container to receive from ShowerRecoManager::Reconstruct
   std::vector<recob::Shower> shower_v;
 
@@ -160,7 +160,7 @@ void ShowerReco3D::produce(art::Event & e)
     // Retrieve PFParticle
     art::Handle<std::vector<recob::PFParticle> > pfHandle;
     e.getByLabel(fInputProducer,pfHandle);
-    if(!pfHandle.isValid()) 
+    if(!pfHandle.isValid())
       throw cet::exception(__FUNCTION__) << "Invalid input PFParticle label!" << std::endl;
 
     // Make a cluster ptr => index map to fill matched_pairs
@@ -176,9 +176,9 @@ void ShowerReco3D::produce(art::Event & e)
     art::FindManyP<recob::Cluster> cluster_m(pfHandle, e, fInputProducer);
 
     for(size_t i=0; i<pfHandle->size(); ++i) {
-      
+
       const art::Ptr<recob::PFParticle> pf(pfHandle,i);
-      
+
       if(pf->PdgCode()!=11) continue;
 
       const std::vector<art::Ptr<recob::Cluster> >& clusters = cluster_m.at(i);
@@ -224,7 +224,7 @@ void ShowerReco3D::produce(art::Event & e)
       ass_clusters.push_back( art::Ptr<recob::Cluster>(cHandle,cindex) );
 
       const std::vector<art::Ptr<recob::Hit> >& hits = hit_m.at(cindex);
-      
+
       for(auto const& ptr : hits) ass_hits.push_back(ptr);
     }
     // Shower=>Cluster
@@ -246,7 +246,7 @@ void ShowerReco3D::produce(art::Event & e)
 
       art::Handle<std::vector<recob::PFParticle> > pfHandle;
       e.getByLabel(fInputProducer,pfHandle);
-      
+
       art::Ptr<recob::PFParticle> pf_ptr(pfHandle,shower_pfpart_index[i]);
 
       util::CreateAssn(*this,

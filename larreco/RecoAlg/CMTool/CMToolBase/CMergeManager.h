@@ -2,7 +2,7 @@
  * \file CMergeManager.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CMergeManager
  *
  * @author kazuhiro
@@ -30,10 +30,10 @@ namespace cmtool {
   class CMergeManager : public CMManagerBase {
 
   public:
-    
+
     /// Default constructor
     CMergeManager();
-    
+
     /// Default destructor
     virtual ~CMergeManager(){}
 
@@ -53,7 +53,7 @@ namespace cmtool {
     const CMergeBookKeeper& GetBookKeeper() const { return _book_keeper; }
 
   protected:
-    
+
     //
     // FMWK functions override
     //
@@ -69,7 +69,7 @@ namespace cmtool {
 
     /// FMWK function called @ end of iterative loop inside Process()
     virtual void IterationEnd();
-    
+
     /// FMWK function called @ end of Process()
     virtual void EventEnd();
 
@@ -111,5 +111,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

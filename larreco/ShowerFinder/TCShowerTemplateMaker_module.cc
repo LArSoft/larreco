@@ -56,7 +56,7 @@ namespace shower {
     void reconfigure(fhicl::ParameterSet const& pset);
     void beginJob();
     void analyze(const art::Event& evt);
-   
+
     void showerProfile(std::vector< art::Ptr<recob::Hit> > showerhits, TVector3 shwvtx, TVector3 shwdir, double elep);
     void showerProfileTrue(std::vector< art::Ptr<recob::Hit> > allhits, double elep);
     void showerProfileTrue(std::vector< art::Ptr<sim::SimChannel> > allchan, simb::MCParticle electron);
@@ -104,7 +104,7 @@ namespace shower {
     TH3F* fTransverse;
     TH3F* fTransverse_1;
     TH3F* fTransverse_2;
-    TH3F* fTransverse_3;    
+    TH3F* fTransverse_3;
     TH3F* fTransverse_4;
     TH3F* fTransverse_5;
 
@@ -202,7 +202,7 @@ void shower::TCShowerTemplateMaker::beginJob() {
   fShowerProfileSimTrans = tfs->make<TProfile>("fShowerProfileSimTrans", "transverse e- profile (true, simchannel);dist (cm);E (MeV)", TBINS, TMIN, TMAX);
   fShowerProfileHitTrans = tfs->make<TProfile>("fShowerProfileHitTrans", "transverse e- profile (true, hit);dist (cm);E (MeV)", TBINS, TMIN, TMAX);
   fShowerProfileRecoTrans = tfs->make<TProfile>("fShowerProfileRecoTrans", "transverse e- profile (reco);dist (cm);Q", TBINS, TMIN, TMAX);
-  
+
   fShowerProfileSimTrans2D = tfs->make<TProfile2D>("fShowerProfileSimTrans2D", "transverse e- profile (true, simchannel);t;electron energy (MeV);E (MeV)", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX);
   fShowerProfileHitTrans2D = tfs->make<TProfile2D>("fShowerProfileHitTrans2D", "transverse e- profile (true, hit);t;electron energy (MeV);E (MeV)", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX);
   fShowerProfileRecoTrans2D = tfs->make<TProfile2D>("fShowerProfileRecoTrans2D", "transverse e- profile (reco);t;electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX);
@@ -236,28 +236,28 @@ void shower::TCShowerTemplateMaker::beginJob() {
   fTransverse_5 = tfs->make<TH3F>("fTransverse_5", "transverse e- profile [4 <= t < 5];dist (cm);electron energy (MeV);Q", TBINS, TMIN, TMAX, EBINS, EMIN, EMAX, 100, 0, 100000);
 
   // electrons
-  fLongitudinal_electron = tfs->make<TProfile>("fLongitudinal_electron", "longitudinal e- profile (reco);t;Q", LBINS, LMIN, LMAX);  
-  fTransverse1_electron = tfs->make<TProfile>("fTransverse1_electron", "transverse e- profile [0 <= t < 1] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse2_electron = tfs->make<TProfile>("fTransverse2_electron", "transverse e- profile [1 <= t < 2] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse3_electron = tfs->make<TProfile>("fTransverse3_electron", "transverse e- profile [2 <= t < 3] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse4_electron = tfs->make<TProfile>("fTransverse4_electron", "transverse e- profile [3 <= t < 4] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse5_electron = tfs->make<TProfile>("fTransverse5_electron", "transverse e- profile [4 <= t < 5] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fLongitudinal_electron = tfs->make<TProfile>("fLongitudinal_electron", "longitudinal e- profile (reco);t;Q", LBINS, LMIN, LMAX);
+  fTransverse1_electron = tfs->make<TProfile>("fTransverse1_electron", "transverse e- profile [0 <= t < 1] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse2_electron = tfs->make<TProfile>("fTransverse2_electron", "transverse e- profile [1 <= t < 2] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse3_electron = tfs->make<TProfile>("fTransverse3_electron", "transverse e- profile [2 <= t < 3] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse4_electron = tfs->make<TProfile>("fTransverse4_electron", "transverse e- profile [3 <= t < 4] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse5_electron = tfs->make<TProfile>("fTransverse5_electron", "transverse e- profile [4 <= t < 5] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
 
   // photons
-  fLongitudinal_photon = tfs->make<TProfile>("fLongitudinal_photon", "longitudinal photon profile (reco);t;Q", LBINS, LMIN, LMAX);  
-  fTransverse1_photon = tfs->make<TProfile>("fTransverse1_photon", "transverse photon profile [0 <= t < 1] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse2_photon = tfs->make<TProfile>("fTransverse2_photon", "transverse photon profile [1 <= t < 2] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse3_photon = tfs->make<TProfile>("fTransverse3_photon", "transverse photon profile [2 <= t < 3] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse4_photon = tfs->make<TProfile>("fTransverse4_photon", "transverse photon profile [3 <= t < 4] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse5_photon = tfs->make<TProfile>("fTransverse5_photon", "transverse photon profile [4 <= t < 5] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fLongitudinal_photon = tfs->make<TProfile>("fLongitudinal_photon", "longitudinal photon profile (reco);t;Q", LBINS, LMIN, LMAX);
+  fTransverse1_photon = tfs->make<TProfile>("fTransverse1_photon", "transverse photon profile [0 <= t < 1] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse2_photon = tfs->make<TProfile>("fTransverse2_photon", "transverse photon profile [1 <= t < 2] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse3_photon = tfs->make<TProfile>("fTransverse3_photon", "transverse photon profile [2 <= t < 3] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse4_photon = tfs->make<TProfile>("fTransverse4_photon", "transverse photon profile [3 <= t < 4] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse5_photon = tfs->make<TProfile>("fTransverse5_photon", "transverse photon profile [4 <= t < 5] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
 
   // other
-  fLongitudinal_other = tfs->make<TProfile>("fLongitudinal_other", "longitudinal other profile (reco);t;Q", LBINS, LMIN, LMAX);  
-  fTransverse1_other = tfs->make<TProfile>("fTransverse1_other", "transverse other profile [0 <= t < 1] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse2_other = tfs->make<TProfile>("fTransverse2_other", "transverse other profile [1 <= t < 2] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse3_other = tfs->make<TProfile>("fTransverse3_other", "transverse other profile [2 <= t < 3] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse4_other = tfs->make<TProfile>("fTransverse4_other", "transverse other profile [3 <= t < 4] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
-  fTransverse5_other = tfs->make<TProfile>("fTransverse5_other", "transverse other profile [4 <= t < 5] (reco);dist (cm);Q", TBINS, TMIN, TMAX);  
+  fLongitudinal_other = tfs->make<TProfile>("fLongitudinal_other", "longitudinal other profile (reco);t;Q", LBINS, LMIN, LMAX);
+  fTransverse1_other = tfs->make<TProfile>("fTransverse1_other", "transverse other profile [0 <= t < 1] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse2_other = tfs->make<TProfile>("fTransverse2_other", "transverse other profile [1 <= t < 2] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse3_other = tfs->make<TProfile>("fTransverse3_other", "transverse other profile [2 <= t < 3] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse4_other = tfs->make<TProfile>("fTransverse4_other", "transverse other profile [3 <= t < 4] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
+  fTransverse5_other = tfs->make<TProfile>("fTransverse5_other", "transverse other profile [4 <= t < 5] (reco);dist (cm);Q", TBINS, TMIN, TMAX);
 
 
 } // beginJob
@@ -269,7 +269,7 @@ void shower::TCShowerTemplateMaker::analyze(const art::Event& evt) {
   art::Handle< std::vector<recob::Hit> > hitListHandle;
   std::vector<art::Ptr<recob::Hit> > hitlist;
   if (evt.getByLabel(fHitModuleLabel,hitListHandle))
-    art::fill_ptr_vector(hitlist, hitListHandle); 
+    art::fill_ptr_vector(hitlist, hitListHandle);
 
   art::Handle< std::vector<sim::SimChannel> > scListHandle;
   std::vector<art::Ptr<sim::SimChannel> > simchanlist;
@@ -280,7 +280,7 @@ void shower::TCShowerTemplateMaker::analyze(const art::Event& evt) {
   std::vector<art::Ptr<recob::Shower> > showerlist;
   if (evt.getByLabel(fShowerModuleLabel,showerListHandle))
     art::fill_ptr_vector(showerlist, showerListHandle);
-  
+
   art::Handle< std::vector<simb::MCTruth> > mctruthListHandle;
   std::vector<art::Ptr<simb::MCTruth> > mclist;
   if (evt.getByLabel(fGenieGenModuleLabel,mctruthListHandle))
@@ -302,7 +302,7 @@ void shower::TCShowerTemplateMaker::analyze(const art::Event& evt) {
       }
       // use this to look at background
       /*
-      if (!(std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0)) { 
+      if (!(std::abs(mctruth->GetNeutrino().Nu().PdgCode()) == 12 && mctruth->GetNeutrino().CCNC() == 0)) {
 	if (showerlist.size()) {
 	  std::vector< art::Ptr<recob::Hit> > showerhits = shwfm.at(0);
           showerProfile(showerhits, showerlist[0]->ShowerStart(), showerlist[0]->Direction(), 0);
@@ -363,7 +363,7 @@ void shower::TCShowerTemplateMaker::showerProfile(std::vector< art::Ptr<recob::H
     double ldist = std::abs((ytwoorth-yvtx)*xhit - (xtwoorth-xvtx)*yhit + xtwoorth*yvtx - ytwoorth*xvtx)/std::sqrt( pow((ytwoorth-yvtx), 2) + pow((xtwoorth-xvtx), 2) );
     double tdist = ((ytwo-yvtx)*xhit - (xtwo-xvtx)*yhit + xtwo*yvtx - ytwo*xvtx)/std::sqrt( pow((ytwo-yvtx), 2) + pow((xtwo-xvtx), 2) );
 
-    double to3D = 1. / sqrt( pow(xvtx-xtwo,2) + pow(yvtx-ytwo,2) ) ; // distance between two points in 3D space is one 
+    double to3D = 1. / sqrt( pow(xvtx-xtwo,2) + pow(yvtx-ytwo,2) ) ; // distance between two points in 3D space is one
     ldist *= to3D;
     tdist *= to3D;
     double t = ldist/X0;
@@ -421,7 +421,7 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<reco
   auto collectionPlane = geo::PlaneID(0, 0, 1);
   art::ServiceHandle<cheat::BackTrackerService const> btserv;
   art::ServiceHandle<cheat::ParticleInventoryService const> piserv;
-  std::map<int,double> trkID_E;  
+  std::map<int,double> trkID_E;
 
   TH1F* ltemp = new TH1F("ltemp", "ltemp", LBINS, LMIN, LMAX);
   TH1F* ttemp = new TH1F("ttemp", "ttemp", TBINS, TMIN, TMAX);
@@ -502,7 +502,7 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<reco
       double ldist = abs((ytwoorth-shwvtxy)*xhit - (xtwoorth-shwvtxx)*yhit + xtwoorth*shwvtxy - ytwoorth*shwvtxx)/sqrt( pow((ytwoorth-shwvtxy), 2) + pow((xtwoorth-shwvtxx), 2) );
       double tdist = ((shwtwoy-shwvtxy)*xhit - (shwtwox-shwvtxx)*yhit + shwtwox*shwvtxy - shwtwoy*shwvtxx)/sqrt( pow((shwtwoy-shwvtxy), 2) + pow((shwtwox-shwvtxx), 2) );
 
-      double to3D = sqrt( pow(xvtx-xtwo , 2) + pow(yvtx-ytwo , 2) + pow(zvtx-ztwo , 2) ) / sqrt( pow(shwvtxx-shwtwox,2) + pow(shwvtxy-shwtwoy,2) ) ; // distance between two points in 3D space is one 
+      double to3D = sqrt( pow(xvtx-xtwo , 2) + pow(yvtx-ytwo , 2) + pow(zvtx-ztwo , 2) ) / sqrt( pow(shwvtxx-shwtwox,2) + pow(shwvtxy-shwtwoy,2) ) ; // distance between two points in 3D space is one
       ldist *= to3D;
       tdist *= to3D;
       double t = ldist/X0;
@@ -517,7 +517,7 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<reco
       else if (t < 3) ttemp_3->Fill(tdist, energy);
       else if (t < 4) ttemp_4->Fill(tdist, energy);
       else if (t < 5) ttemp_5->Fill(tdist, energy);
-      
+
     } // loop through track IDE
 
   } // loop through all hits
@@ -576,9 +576,9 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<sim:
 	edep.SetVertex(ide.x,ide.y,ide.z);
 	edep.SetEnergy(ide.energy);
 	edep.SetTrackId(ide.trackID);
-	
+
 	alledep.push_back(edep);
-	
+
       } // loop through ide
     } // loop through tdc_ide
 
@@ -618,7 +618,7 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<sim:
     else if (t < 5) ttemp_5->Fill(tdist, energy);
 
   }
-  
+
   for (int i = 0; i < LBINS; ++i) {
     if (ltemp->GetBinContent(i+1) == 0) continue;
     fShowerProfileSimLong->Fill(ltemp->GetBinCenter(i+1), ltemp->GetBinContent(i+1));
@@ -639,7 +639,7 @@ void shower::TCShowerTemplateMaker::showerProfileTrue(std::vector< art::Ptr<sim:
 
   return;
 
-} // showerProfileTrue 
+} // showerProfileTrue
 
 // -------------------------------------------------
 

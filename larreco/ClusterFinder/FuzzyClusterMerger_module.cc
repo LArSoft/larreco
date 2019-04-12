@@ -8,7 +8,7 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
@@ -46,13 +46,13 @@
 namespace cluster {
 
   class FuzzyClusterMerger : public art::EDProducer {
-    
+
   public:
 
     explicit FuzzyClusterMerger(fhicl::ParameterSet const & p);
 
     void produce(art::Event & evt) override;
-    
+
   private:
 
     /// ClusterMergeHelper
@@ -61,78 +61,78 @@ namespace cluster {
     /// Input cluster data product producer name label
     std::string fClusterModuleLabel;
 
-    
+
 
     /// GeometryUtilities instance
     ::util::GeometryUtilities fGeoU;
 
     bool fTSep1UseEP;
-    
-    double fOOCS1MaxAngle; 
-    
+
+    double fOOCS1MaxAngle;
+
     int fSDMinHits;
     double fSDSqDistCut;
-    
+
     bool fTSep2UseEP;
-    
+
     double fOOCS2MaxAngle;
-    
+
     int fAI2MinHits;
     bool fAI2Allow180Ambig;
     bool fAI2UseOpeningAngle;
     double fAI2AngleCut;
     double fAI2MinLength;
-    
+
     bool fCOM2UseCOMInPoly;
     bool fCOM2UseCOMInCone;
     bool fCOM2UseCOMNearClus;
     double fCOM2SetLengthReach;
 
     int fPO2MinHits;
- 
+
     int fPSD2MinHits;
-    int fPSD2MaxHits; 
-    double fPSD2MinDistSqd; 
-    
-    
+    int fPSD2MaxHits;
+    double fPSD2MinDistSqd;
+
+
 //     TSep1UseEP:  true
 //  OOCS1MaxAngle:   20.     # OutOfConeSeparate 1st stage
-//     
+//
 //  SDMinHits:      10.     # CBAlgoShortestDist # SetMinHits; SetSquaredDistanceCut
-//  SDSqDistCut:     5.  
-//     
+//  SDSqDistCut:     5.
+//
 //  # 2nd stage merge
 // #TSep2Debug:         false      # CBAlgoTrackSeparate // SetDebug(false); SetVerbose(false); SetUseEP(true);
 // # TSep2Verbose:          false
 //  TSep2UseEP:        true
-//  
+//
 // # OOCS2Debug:         false        # CBAlgoOutOfConeSeparate // SetDebug(false); SetVerbose(false); SetMaxAngleSep(20.);
 // # OOCS2Verbose:       false
 //  OOCS2MaxAngle:      20.
-//    
-//  AI2MinHits:         50            # CBAlgoAngleIncompat // SetMinHits(50); SetAllow180Ambig(true); SetUseOpeningAngle(false); 
+//
+//  AI2MinHits:         50            # CBAlgoAngleIncompat // SetMinHits(50); SetAllow180Ambig(true); SetUseOpeningAngle(false);
 //  AI2Allow180Ambig:   true         #                     // SetAngleCut(10.); SetMinLength(20.); SetDebug(false);
 //  AI2UseOpeningAngle: false
 //  AI2AngleCut:        10.
 //  AI2MinLength:       20.
 // # AI2Debug:           false
-//  
+//
 // # COM2Debug:         false      # CBAlgoCenterOfMass // SetDebug(false); SetVerbose(false); UseCOMInPoly(true);
 // # COM2Verbose:       false      # 		 	   //	UseCOMInCone(true); UseCOMNearClus(true); SetLengthReach(3.);
 //  COM2UseCOMInPoly:  true
 //  COM2UseCOMInCone:  true
-//  COM2UseCOMNearClus: true 
+//  COM2UseCOMNearClus: true
 //  COM2SetLengthReach:  3.
-// 
+//
 //  PO2MinHits:        0          # CBAlgoPolyOverlap  // SetMinNumHits(0);
-//  
+//
 //  PSD2MinHits:        30        # CCBAlgoPolyShortestDist; // SetMinNumHits(30); SetMaxNumHits(9999); SetMinDistSquared(1.); SetDebug(false);
 //  PSD2MaxHits:        9999
 //  PSD2MinDistSqd:    1
-  
-   
-    
-  
+
+
+
+
   };
 }
 
@@ -144,49 +144,49 @@ namespace cluster {
     // Declare output data products
     produces< std::vector<recob::Cluster> >();
     produces< art::Assns<recob::Cluster, recob::Hit> >();
-    
+
     // Fill fcl parameter
     fClusterModuleLabel = p.get<std::string>("InputClusterLabel");
-    
+
     fTSep1UseEP = p.get<bool>("TSep1UseEP");
-    
+
     fOOCS1MaxAngle = p.get<double>("OOCS1MaxAngle");
-    
+
     fSDMinHits = p.get<int>("SDMinHits");
     fSDSqDistCut = p.get<double>("SDSqDistCut");
-    
+
     fTSep2UseEP = p.get<bool>("TSep2UseEP");
-    
+
     fOOCS2MaxAngle = p.get<double>("OOCS2MaxAngle");
-    
+
     fAI2MinHits = p.get<int>("AI2MinHits");
     fAI2Allow180Ambig = p.get<bool>("AI2Allow180Ambig");
     fAI2UseOpeningAngle = p.get<bool>("AI2UseOpeningAngle");
     fAI2AngleCut = p.get<double>("AI2AngleCut");
     fAI2MinLength = p.get<double>("AI2MinLength");
-    
-    
+
+
     fCOM2UseCOMInPoly = p.get<bool>("COM2UseCOMInPoly");
     fCOM2UseCOMInCone = p.get<bool>("COM2UseCOMInCone");
     fCOM2UseCOMNearClus = p.get<bool>("COM2UseCOMNearClus");
     fCOM2SetLengthReach = p.get<double>("COM2SetLengthReach");
-    
-   
+
+
     fPO2MinHits = p.get<int>("PO2MinHits");
-    
+
     fPSD2MinHits = p.get<int>("PSD2MinHits");
     fPSD2MaxHits = p.get<int>("PSD2MaxHits");
     fPSD2MinDistSqd = p.get<double>("PSD2MinDistSqd");
- 
- 
-    
+
+
+
     //--- Configure Merging Algorithm ---//
-   
+
 
     fCMerge.GetManager(0).MergeTillConverge(true);
     //fCMerge.GetManager(0).DebugMode(::cmtool::CMergeManager::kPerIteration);
 
-    // Prohibit algorithms    
+    // Prohibit algorithms
     auto prohib_algo_1_1 = new ::cmtool::CBAlgoTrackSeparate;
     prohib_algo_1_1->SetUseEP(fTSep1UseEP);
 
@@ -219,7 +219,7 @@ namespace cluster {
     //auto& fCMerge.GetManager(1) = GetManager(1);
     fCMerge.GetManager(1).MergeTillConverge(true);
     //fCMerge.GetManager(0).DebugMode(::cmtool::CMergeManager::kPerIteration);
-    
+
     // Prohibit algorithms
     auto prohib_algo_2_1 = new ::cmtool::CBAlgoTrackSeparate;
   //  prohib_algo_2_1->SetDebug(false);
@@ -238,9 +238,9 @@ namespace cluster {
     prohib_algo_2_3->SetAngleCut(fAI2AngleCut);
     prohib_algo_2_3->SetMinLength(fAI2MinLength);
    // prohib_algo_2_3->SetDebug(false);
-    
-       
-    
+
+
+
     auto prohib_algo_2 = new ::cmtool::CBAlgoArray;
     prohib_algo_2->AddAlgo(prohib_algo_2_1,false);
     prohib_algo_2->AddAlgo(prohib_algo_2_2,false);
@@ -257,7 +257,7 @@ namespace cluster {
     merge_algo_2_1->UseCOMNearClus(fCOM2UseCOMNearClus);
     merge_algo_2_1->SetLengthReach(fCOM2SetLengthReach);
 
-    
+
     auto merge_algo_2_2 = new ::cmtool::CBAlgoPolyOverlap;
     merge_algo_2_2->SetMinNumHits(fPO2MinHits);
 
@@ -271,7 +271,7 @@ namespace cluster {
     merge_algo_2->AddAlgo(merge_algo_2_1,false);
     merge_algo_2->AddAlgo(merge_algo_2_2,false);
     merge_algo_2->AddAlgo(merge_algo_2_3,false);
-    
+
     fCMerge.GetManager(1).AddMergeAlgo(merge_algo_2);
 
     // Prohibit algorithms
@@ -284,9 +284,9 @@ namespace cluster {
     //
     //fCMerge.GetManager(0).AddMergeAlgo( new CMAlgoMergeAll );
 
-    
+
   }
-  
+
   void FuzzyClusterMerger::produce(art::Event & evt)
   {
     std::unique_ptr<std::vector<recob::Cluster> > out_clusters(new std::vector<recob::Cluster>);
@@ -344,17 +344,17 @@ namespace cluster {
     if(merged_clusters.size()!=cpan_v.size())
 
       throw cet::exception(__FUNCTION__) << "LOGIC ERROR: merged cluster id length != output cluster counts..." << std::endl;
-  
-    
-   
+
+
+
    for(size_t out_index=0; out_index < merged_clusters.size(); ++out_index) {
-      
+
       // To save typing let's just retrieve const cluster_params instance
       const cluster_params &res = cpan_v[out_index].GetParams();
-      
+
       // this "algo" is actually parroting its cluster_params
       LazyClusterParamsAlg algo(res);
-      
+
       std::vector<art::Ptr<recob::Hit> > merged_hits;
       for(auto const& c_index : merged_clusters[out_index]) {
         const std::vector<art::Ptr<recob::Hit> >& hits = hit_m.at(c_index);
@@ -363,15 +363,15 @@ namespace cluster {
           if (hit->Integral() > 0.) merged_hits.push_back(hit);
         }
       }
-      
+
       // the full plane needed but not a part of cluster_params...
       // get the one from the first hit
       geo::PlaneID plane; // invalid by default
       if (!merged_hits.empty()) plane = merged_hits.front()->WireID().planeID();
-      
+
       // View_t needed but not a part of cluster_params, so retrieve it here
       geo::View_t view_id = geo->Plane(plane).View();
-      
+
       // Push back a new cluster data product with parameters copied from cluster_params
       out_clusters->emplace_back(
         res.start_point.w / fGeoU.WireToCm(), // start_wire
@@ -400,23 +400,23 @@ namespace cluster {
         plane,                                // plane
         recob::Cluster::Sentry                // sentry
         );
-       
-      util::CreateAssn(*this, 
-		       evt, 
-		       *(out_clusters.get()), 
+
+      util::CreateAssn(*this,
+		       evt,
+		       *(out_clusters.get()),
 		       merged_hits,
 		       *(out_assn.get())
 		       );
 
     }
-      
-      
-      
-      
-      
-      
-      
-  /*    
+
+
+
+
+
+
+
+  /*
       for(size_t out_index=0; out_index < merged_clusters.size(); ++out_index) {
 
       // To save typing let's just retrieve const cluster_params instance
@@ -438,7 +438,7 @@ namespace cluster {
                                                )
                                );
 
-      
+
 
       std::vector<art::Ptr<recob::Hit> > merged_hits;
 
@@ -450,7 +450,7 @@ namespace cluster {
 
 	for(auto const& ptr : hits) merged_hits.push_back(ptr);
 
-      } 
+      }
 
       util::CreateAssn(*this,
                        evt,

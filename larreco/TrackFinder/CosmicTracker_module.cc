@@ -3,16 +3,16 @@
 //  CosmicTracker
 //
 //  Tracker to reconstruct cosmic ray muons and neutrino interactions
-// 
+//
 //  tjyang@fnal.gov
-// 
+//
 //
 //  ** Modified by Muhammad Elnimr to check multiple TPCs for the 35t prototype.
-//   
+//
 //  mmelnimr@as.ua.edu
 //  April 2014
 //
-//  Major modifications to separate algorithms from the module and 
+//  Major modifications to separate algorithms from the module and
 //  use Bruce's TrackTrajectoryAlg to get trajectory points. T. Yang
 //  June 2015
 ////////////////////////////////////////////////////////////////////////
@@ -27,17 +27,17 @@
 
 // Framework includes
 #include "art/Framework/Core/EDProducer.h"
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "art/Framework/Principal/Event.h" 
-#include "fhiclcpp/ParameterSet.h" 
-#include "art/Framework/Principal/Handle.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
-#include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "art/Framework/Principal/Event.h"
+#include "fhiclcpp/ParameterSet.h"
+#include "art/Framework/Principal/Handle.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Services/Optional/TFileDirectory.h"
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 // LArSoft includes
 #include "larcore/Geometry/Geometry.h"
@@ -81,7 +81,7 @@ bool MatchTrack(const std::vector<trkPoint>& trkpts1, const std::vector<trkPoint
   if (!trkpts1.size()) return match;
   if (!trkpts2.size()) return match;
   if ((trkpts1[0].hit)->WireID().Cryostat == (trkpts2[0].hit)->WireID().Cryostat &&
-      (trkpts1[0].hit)->WireID().TPC == (trkpts2[0].hit)->WireID().TPC) return match; 
+      (trkpts1[0].hit)->WireID().TPC == (trkpts2[0].hit)->WireID().TPC) return match;
 //  art::ServiceHandle<geo::Geometry const> geom;
 //  const geo::TPCGeo &thetpc1 = geom->TPC((trkpts1[0].hit)->WireID().TPC, (trkpts1[0].hit)->WireID().Cryostat);
 //  const geo::TPCGeo &thetpc2 = geom->TPC((trkpts2[0].hit)->WireID().TPC, (trkpts2[0].hit)->WireID().Cryostat);
@@ -100,19 +100,19 @@ bool MatchTrack(const std::vector<trkPoint>& trkpts1, const std::vector<trkPoint
 //      thetpc2.InFiducialZ(trkpts2.back().pos.Z(),5)) return match;
 //  //std::cout<<"pass 2"<<std::endl;
 
-  if (AnglesConsistent(trkpts1[0].pos, trkpts2[0].pos, 
+  if (AnglesConsistent(trkpts1[0].pos, trkpts2[0].pos,
 		       trkpts1[0].dir, trkpts2[0].dir, angcut)) match = true;
-  if (AnglesConsistent(trkpts1.back().pos, trkpts2[0].pos, 
+  if (AnglesConsistent(trkpts1.back().pos, trkpts2[0].pos,
 		       trkpts1.back().dir, trkpts2[0].dir, angcut)) match = true;
-  if (AnglesConsistent(trkpts1[0].pos, trkpts2.back().pos, 
+  if (AnglesConsistent(trkpts1[0].pos, trkpts2.back().pos,
 		       trkpts1[0].dir, trkpts2.back().dir, angcut)) match = true;
-  if (AnglesConsistent(trkpts1.back().pos, trkpts2.back().pos, 
+  if (AnglesConsistent(trkpts1.back().pos, trkpts2.back().pos,
 		       trkpts1.back().dir, trkpts2.back().dir, angcut)) match = true;
 
   return match;
 }
 
-bool SortByWire (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) { 
+bool SortByWire (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) {
   return h1->WireID().Wire < h2->WireID().Wire;
 }
 
@@ -193,12 +193,12 @@ namespace trkf {
 
   class CosmicTracker : public art::EDProducer {
   public:
-    
+
     explicit CosmicTracker(fhicl::ParameterSet const& pset);
-    
+
     //////////////////////////////////////////////////////////
     void reconfigure(fhicl::ParameterSet const& p);
-    void produce(art::Event& evt); 
+    void produce(art::Event& evt);
 
   private:
 
@@ -206,15 +206,15 @@ namespace trkf {
     trkf::CosmicTrackerAlg   fCTAlg;
 
     std::string     fClusterModuleLabel; ///< label for input cluster collection
-    
-    std::string     fSortDir;            ///< sort space points 
+
+    std::string     fSortDir;            ///< sort space points
 
     bool            fStitchTracks;       ///< Stitch tracks from different TPCs
     double          fDisCut;             ///< Distance cut for track merging
     double          fAngCut;             ///< Angle cut for track merging
 
     bool            fTrajOnly;           ///< Only use trajectory points from TrackTrajectoryAlg for debugging
-  
+
 
   }; // class CosmicTracker
 
@@ -251,11 +251,11 @@ namespace trkf {
 
   //------------------------------------------------------------------------------------//
   void CosmicTracker::produce(art::Event& evt){
-  
+
     // get services
     art::ServiceHandle<geo::Geometry const> geom;
 
-    std::unique_ptr<std::vector<recob::Track>      >              tcol (new std::vector<recob::Track>);           
+    std::unique_ptr<std::vector<recob::Track>      >              tcol (new std::vector<recob::Track>);
     std::unique_ptr<std::vector<recob::SpacePoint> >                 spcol(new std::vector<recob::SpacePoint>);
     std::unique_ptr<art::Assns<recob::Track, recob::SpacePoint> > tspassn(new art::Assns<recob::Track, recob::SpacePoint>);
     std::unique_ptr<art::Assns<recob::Track, recob::Cluster> >    tcassn(new art::Assns<recob::Track, recob::Cluster>);
@@ -263,14 +263,14 @@ namespace trkf {
     std::unique_ptr<art::Assns<recob::SpacePoint, recob::Hit> >   shassn(new art::Assns<recob::SpacePoint, recob::Hit>);
 
     //double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
-    //double presamplings = detprop->TriggerOffset(); // presamplings in ticks  
-    //double plane_pitch = geom->PlanePitch(0,1);   //wire plane pitch in cm 
+    //double presamplings = detprop->TriggerOffset(); // presamplings in ticks
+    //double plane_pitch = geom->PlanePitch(0,1);   //wire plane pitch in cm
     //double wire_pitch = geom->WirePitch();    //wire pitch in cm
     //double Efield_drift = larprop->Efield(0);  // Electric Field in the drift region in kV/cm
     //double Temperature = detprop->Temperature();  // LAr Temperature in K
 
     //double driftvelocity = larprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
-    //double timepitch = driftvelocity*timetick;                         //time sample (cm) 
+    //double timepitch = driftvelocity*timetick;                         //time sample (cm)
 
 
     // get input Cluster object(s).
@@ -333,12 +333,12 @@ namespace trkf {
 //	    std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
 //	  }
 	  double err[6] = {util::kBogusD};
-	  recob::SpacePoint mysp(hitcoord, 
-				 err, 
-				 util::kBogusD, 
+	  recob::SpacePoint mysp(hitcoord,
+				 err,
+				 util::kBogusD,
 				 spStart + spacepoints.size());//3d point at end of track
 	  spacepoints.push_back(mysp);
-	  spcol->push_back(mysp);        
+	  spcol->push_back(mysp);
 	  util::CreateAssn(*this, evt, *spcol, fCTAlg.trajHit[ipt], *shassn);
 	  //}//
 	}//ihit
@@ -372,13 +372,13 @@ namespace trkf {
 	}
 
 	if(spacepoints.size()>0){
-	  
+
 	  // make a vector of the trajectory points along the track
 	  std::vector<TVector3> xyz(spacepoints.size());
 	  for(size_t s = 0; s < spacepoints.size(); ++s){
 	    xyz[s] = TVector3(spacepoints[s].XYZ());
-	  }        
-	  //Calculate track direction cosines 
+	  }
+	  //Calculate track direction cosines
 	  TVector3 startpointVec,endpointVec, DirCos;
 	  startpointVec = xyz[0];
 	  endpointVec = xyz.back();
@@ -393,20 +393,20 @@ namespace trkf {
 	  }
 	  //std::cout<<DirCos.x()<<" "<<DirCos.y()<<" "<<DirCos.z()<<std::endl;
 	  std::vector<TVector3> dircos(spacepoints.size(), DirCos);
-	  
+
 	  tcol->push_back(recob::Track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(xyz),
 							      recob::tracking::convertCollToVector(dircos),
 							      recob::Track::Flags_t(xyz.size()), false),
 				       0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), tcol->size()));
-	  
+
 	  // make associations between the track and space points
 	  util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
-	  
+
 	  // now the track and clusters
 	  //util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *tcassn);
-	  
+
 	  // and the hits and track
-	  std::vector<art::Ptr<recob::Hit> > trkhits;       
+	  std::vector<art::Ptr<recob::Hit> > trkhits;
 	  for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
 	    //if (fCTAlg.usehit[ihit] == 1){
 	    trkhits.push_back(hitlist[ihit]);
@@ -475,7 +475,7 @@ namespace trkf {
 	  trkidx[i].push_back(i);
 	}
       }
-      
+
       //make recob::track and associations
       for (size_t i = 0; i<trkidx.size(); ++i){
 	//all track points
@@ -493,7 +493,7 @@ namespace trkf {
 	    art::Ptr <recob::Cluster> cluster(clusterListHandle,matchedclusters[trkidx[i][j]][iclu]);
 	    clustersPerTrack.push_back(cluster);
 	  }
-	  
+
 	}//j
 	if (fStitchTracks){
 	  if (fSortDir=="+x") std::sort(finaltrkpts.begin(),finaltrkpts.end(),sp_sort_x0);
@@ -514,12 +514,12 @@ namespace trkf {
 	  hitcoord[2] = finaltrkpts[ipt].pos.Z();
 	  //std::cout<<"hitcoord "<<hitcoord[0]<<" "<<hitcoord[1]<<" "<<hitcoord[2]<<std::endl;
 	  double err[6] = {util::kBogusD};
-	  recob::SpacePoint mysp(hitcoord, 
-				 err, 
-				 util::kBogusD, 
+	  recob::SpacePoint mysp(hitcoord,
+				 err,
+				 util::kBogusD,
 				 spStart + spacepoints.size());//3d point at end of track
 	  spacepoints.push_back(mysp);
-	  spcol->push_back(mysp);   
+	  spcol->push_back(mysp);
 	  util::CreateAssn(*this, evt, *spcol, sp_hits, *shassn);
 	}//ipt
 	size_t spEnd = spcol->size();
@@ -547,20 +547,20 @@ namespace trkf {
 	      }
 	    }
 	    //std::cout<<s<<" "<<xyz[s].X()<<" "<<xyz[s].Y()<<" "<<xyz[s].Z()<<" "<<dircos[s].X()<<" "<<dircos[s].Y()<<" "<<dircos[s].Z()<<std::endl;
-	  }        
+	  }
 	  tcol->push_back(recob::Track(recob::TrackTrajectory(recob::tracking::convertCollToPoint(xyz),
 							      recob::tracking::convertCollToVector(dircos),
 							      recob::Track::Flags_t(xyz.size()), false),
 				       0, -1., 0, recob::tracking::SMatrixSym55(), recob::tracking::SMatrixSym55(), tcol->size()));
-	  
+
 	  // make associations between the track and space points
 	  util::CreateAssn(*this, evt, *tcol, *spcol, *tspassn, spStart, spEnd);
-	  
+
 	  // now the track and clusters
 	  util::CreateAssn(*this, evt, *tcol, clustersPerTrack, *tcassn);
-	  
+
 	  // and the hits and track
-	  std::vector<art::Ptr<recob::Hit> > trkhits;       
+	  std::vector<art::Ptr<recob::Hit> > trkhits;
 	  for (size_t ihit = 0; ihit<hitlist.size(); ++ihit){
 	    //if (fCTAlg.usehit[ihit] == 1){
 	    trkhits.push_back(hitlist[ihit]);
@@ -568,17 +568,17 @@ namespace trkf {
 	  }
 	  util::CreateAssn(*this, evt, *tcol, trkhits, *thassn);
 	}
-	
+
       }//i
     }
-    mf::LogVerbatim("Summary") << std::setfill('-') 
-                               << std::setw(175) 
-                               << "-" 
+    mf::LogVerbatim("Summary") << std::setfill('-')
+                               << std::setw(175)
+                               << "-"
                                << std::setfill(' ');
     mf::LogVerbatim("Summary") << "CosmicTracker Summary:";
     for(unsigned int i = 0; i<tcol->size(); ++i) mf::LogVerbatim("Summary") << tcol->at(i) ;
     mf::LogVerbatim("Summary") << "CosmicTracker Summary End:";
-    
+
     evt.put(std::move(tcol));
     evt.put(std::move(spcol));
     evt.put(std::move(tspassn));
@@ -588,7 +588,7 @@ namespace trkf {
 
     return;
   }
-  
+
   DEFINE_ART_MODULE(CosmicTracker)
 
 } // namespace

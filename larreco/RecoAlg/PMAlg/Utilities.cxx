@@ -2,7 +2,7 @@
  *  @file   Utilities.h
  *
  *  @author D.Stefan and R.Sulej
- * 
+ *
  *  @brief  Implementation of the Projection Matching Algorithm
  *
  *          Some geometrical functions and sorting helpers.

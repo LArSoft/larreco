@@ -1,13 +1,13 @@
 //
 // **Muon Tracking Efficiency module**
 // This module is based on NeutrinoTrackingEff_module.cc from A. Higuera.
-// I have changed the module so that it only calculates the Muon Tracking 
+// I have changed the module so that it only calculates the Muon Tracking
 // Efficiency by checking the Completeness and Purity (see function: "truthMatcher")
-// and track length (see function: "truthLength") of the leading reconstructed muon 
+// and track length (see function: "truthLength") of the leading reconstructed muon
 // track (This is the one with the highest Completeness).
-// In case the leading muon track failed and there is more than one reconstructed 
-// muon track (e.g. due tue to track splitting in the reconstruction bc of a kink 
-// after multiple scattering), I check the efficiency criteria for the sum of the 
+// In case the leading muon track failed and there is more than one reconstructed
+// muon track (e.g. due tue to track splitting in the reconstruction bc of a kink
+// after multiple scattering), I check the efficiency criteria for the sum of the
 // leading and second reconstructed muon track.
 //
 // Christoph Alt
@@ -70,7 +70,7 @@ public:
     void reconfigure(fhicl::ParameterSet const& pset);
 
     void processEff(const art::Event& evt, bool &isFiducial);
-   
+
     void truthMatcher( std::vector<art::Ptr<recob::Hit>> AllHits, std::vector<art::Ptr<recob::Hit>> track_hits, const simb::MCParticle *&MCparticle, double &Purity, double &Completeness, double &TotalRecoEnergy);
 
     void FuncDistanceAndAngleBetweenTracks(art::Ptr<recob::Track> Track1, art::Ptr<recob::Track> Track2, double &TempDistanceBetweenTracks, double 						   &TempAngleBetweenTracks, double &TempCriteriaTwoTracks);
@@ -89,7 +89,7 @@ private:
     std::string fMCTruthModuleLabel;
     std::string fTrackModuleLabel;
     int		fMuonPDGCode;
- 
+
   //  int    MC_isCC;
   //  int    MC_incoming_PDG;
   //  double MC_incoming_P[4];
@@ -103,7 +103,7 @@ private:
   //  double MCTruthMuonMomentumYZ=0;
     double MCTruthMuonThetaXZ=0;
     double MCTruthMuonThetaYZ=0;
- 
+
     //Counts to calculate efficiency and failed criteria
     int EventCounter=0;
 
@@ -149,7 +149,7 @@ private:
 
     //TH1Ds
     //Single Criteria and total reco energy
-    TH1D *h_Purity;     
+    TH1D *h_Purity;
     TH1D *h_Completeness;
     TH1D *h_TrackRes;
     TH1D *h_TotalRecoEnergy;
@@ -270,7 +270,7 @@ private:
     double XDriftVelocity = detprop->DriftVelocity()*1e-3; //cm/ns
     double WindowSize     = detprop->NumberTimeSamples() * ts->TPCClock().TickPeriod() * 1e3;
     art::ServiceHandle<geo::Geometry const> geom;
-  
+
   //My histograms
   int NThetaXZBins=36;
   int ThetaXZBinMin=0;
@@ -363,16 +363,16 @@ void MuonTrackingEff::beginJob(){
 
   //TH1D's
   gStyle->SetTitleOffset (1.3,"Y");
-  
+
   //Single Criteria and total reco energy
   h_Purity = tfs->make<TH1D>("h_Purity","All events: Purity vs. # events; Purity; # events",60,0,1.2);
-  
+
   h_Completeness = tfs->make<TH1D>("h_Completeness","All events: Completeness vs # events; Completeness; # events",60,0,1.2);
   h_Completeness->SetLineColor(kBlue);
-  
+
   h_TrackRes = tfs->make<TH1D>("h_TrackRes", "All events: L_{reco}/L_{truth} vs. # events; L_{reco}/L_{truth}; # events;",75,0,1.5);
   h_TrackRes->SetLineColor(kRed);
-  
+
   h_TotalRecoEnergy = tfs->make<TH1D>("h_TotalRecoEnergy", "All events: Total reco energy (sum of all hits in all tracks) vs. # events; E_{reco., tot.} [MeV]; # events",100,0,1000);
 
   h_TruthLength = tfs->make<TH1D>("h_TruthLength", "All events: truth muon length vs. # events; truth muon length [cm]; # events",100,0,300);
@@ -421,7 +421,7 @@ void MuonTrackingEff::beginJob(){
   //Efficiency and Failed Reconstruction ThetaXZ vs. ThetaYZ
   h_Efficiency_ThetaXZ_ThetaYZ = tfs->make<TH2D>("h_Efficiency_ThetaXZ_ThetaYZ","Muon reco efficiency: #theta_{XZ} vs. #theta_{YZ}; #theta_{XZ} [#circ]; #theta_{YZ} [#circ]",NThetaXZBins,ThetaXZBinMin,ThetaXZBinMax,NThetaYZBins,ThetaYZBinMin,ThetaYZBinMax);
   h_Efficiency_ThetaXZ_ThetaYZ->SetOption("colz");
- 
+
  h_ThetaXZ_ThetaYZ_den = tfs->make<TH2D>("h_ThetaXZ_ThetaYZ_den","# generated muons: #theta_{XZ} vs. #theta_{YZ}; #theta_{XZ} [#circ]; #theta_{YZ} [#circ]",NThetaXZBins,ThetaXZBinMin,ThetaXZBinMax,NThetaYZBins,ThetaYZBinMin,ThetaYZBinMax);
   h_ThetaXZ_ThetaYZ_den->SetOption("colz");
 
@@ -446,7 +446,7 @@ void MuonTrackingEff::beginJob(){
 
   //Efficiency ThetaXZ vs. ThetaYZ after summing up leading plus second
   h_Efficiency_ThetaXZ_ThetaYZ_LeadingPlusSecond = tfs->make<TH2D>("h_Efficiency_ThetaXZ_ThetaYZ_LeadingPlusSecond","Muon reco efficiency after stitching: #theta_{XZ} vs. #theta_{YZ}; #theta_{XZ} [#circ]; #theta_{YZ} [#circ]",NThetaXZBins,ThetaXZBinMin,ThetaXZBinMax,NThetaYZBins,ThetaYZBinMin,ThetaYZBinMax);
-  h_Efficiency_ThetaXZ_ThetaYZ_LeadingPlusSecond->SetOption("colz"); 
+  h_Efficiency_ThetaXZ_ThetaYZ_LeadingPlusSecond->SetOption("colz");
 
   h_ThetaXZ_ThetaYZ_LeadingPlusSecondOk = tfs->make<TH2D>("h_ThetaXZ_ThetaYZ_LeadingPlusSecondOk","# reconstructed muons after stitching (failed before stitching): #theta_{XZ} vs #theta_{YZ}; #theta_{XZ} [#circ]; #theta_{YZ} [#circ]",NThetaXZBins,ThetaXZBinMin,ThetaXZBinMax,NThetaYZBins,ThetaYZBinMin,ThetaYZBinMax);
   h_ThetaXZ_ThetaYZ_LeadingPlusSecondOk->SetOption("colz");
@@ -456,7 +456,7 @@ void MuonTrackingEff::beginJob(){
 
   //Efficiency ThetaXZ vs. SinThetaYZ after summing up leading plus second
   h_Efficiency_ThetaXZ_SinThetaYZ_LeadingPlusSecond = tfs->make<TH2D>("h_Efficiency_ThetaXZ_SinThetaYZ_LeadingPlusSecond","Muon reco efficiency after stitching: #theta_{XZ} vs. sin(#theta_{YZ}); #theta_{XZ} [#circ]; sin(#theta_{YZ})",NThetaXZBins,ThetaXZBinMin,ThetaXZBinMax,NSinThetaYZBins,SinThetaYZBinMin,SinThetaYZBinMax);
-  h_Efficiency_ThetaXZ_SinThetaYZ_LeadingPlusSecond->SetOption("colz"); 
+  h_Efficiency_ThetaXZ_SinThetaYZ_LeadingPlusSecond->SetOption("colz");
 
   h_ThetaXZ_SinThetaYZ_LeadingPlusSecondOk = tfs->make<TH2D>("h_ThetaXZ_SinThetaYZ_LeadingPlusSecondOk","# reconstructed muons after stitching (failed before stitching): #theta_{XZ} vs. sin(#theta_{YZ}); #theta_{XZ} [#circ]; sin(#theta_{YZ})",NThetaXZBins,ThetaXZBinMin,ThetaXZBinMax,NSinThetaYZBins,SinThetaYZBinMin,SinThetaYZBinMax);
   h_ThetaXZ_SinThetaYZ_LeadingPlusSecondOk->SetOption("colz");
@@ -466,7 +466,7 @@ void MuonTrackingEff::beginJob(){
 
   //Difference in efficiency before and after summing up leading plus second: ThetaXZ vs. ThetaYZ
   h_Efficiency_ThetaXZ_ThetaYZ_DifferenceLeadingAndLeadingPlusSecond = tfs->make<TH2D>("h_Efficiency_ThetaXZ_ThetaYZ_DifferenceLeadingAndLeadingPlusSecond","Muon reco efficiency: difference before and after stitching: #theta_{XZ} vs. #theta_{YZ}; #theta_{XZ} [#circ]; #theta_{YZ} [#circ]",NThetaXZBins,ThetaXZBinMin,ThetaXZBinMax,NThetaYZBins,ThetaYZBinMin,ThetaYZBinMax);
-  h_Efficiency_ThetaXZ_ThetaYZ_DifferenceLeadingAndLeadingPlusSecond->SetOption("colz"); 
+  h_Efficiency_ThetaXZ_ThetaYZ_DifferenceLeadingAndLeadingPlusSecond->SetOption("colz");
 
   //Failed Criteria
   h_NoRecoTrackAtAll_ThetaXZ_SinThetaYZ = tfs->make<TH2D>("h_NoRecoTrackAtAll_ThetaXZ_SinThetaYZ","# events with no reco track at all: #theta_{XZ} vs. sin(#theta_{YZ}); #theta_{XZ} [#circ]; sin(#theta_{YZ})",NThetaXZBins,ThetaXZBinMin,ThetaXZBinMax,NSinThetaYZBins,SinThetaYZBinMin,SinThetaYZBinMax);
@@ -590,7 +590,7 @@ void MuonTrackingEff::beginJob(){
 }
 //========================================================================
 void MuonTrackingEff::endJob(){
-     
+
   doEfficiencies();
 
 }
@@ -607,19 +607,19 @@ void MuonTrackingEff::analyze( const art::Event& event ){
 }
 //========================================================================
 void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
-  
+
     EventCounter++;
     simb::MCParticle *MCTruthMuonParticle = NULL;
- 
+
     art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
     const sim::ParticleList& plist = pi_serv->ParticleList();
     simb::MCParticle *particle=0;
 
     for( sim::ParticleList::const_iterator ipar = plist.begin(); ipar!=plist.end(); ++ipar){
        particle = ipar->second;
-       
+
          if( particle->Mother() == 0 ){   //0=particle has no mother particle, 1=particle has a mother particle
-          const TLorentzVector& positionStart = particle->Position(0); 
+          const TLorentzVector& positionStart = particle->Position(0);
           positionStart.GetXYZT(MCTruthMuonVertex); //MCTruthMuonVertex[0-2]=truth vertex, MCTruthMuonVertex[3]=t=0
          }
 
@@ -627,36 +627,36 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
           	MCTruthMuonParticle = particle;
          	MCTruthMuonID = particle->TrackId();
            	MCTruthMuonMomentum =  sqrt(pow(particle->Momentum().Px(),2)+pow(particle->Momentum().Py(),2)+pow(particle->Momentum().Pz(),2));
-	
+
 		 if(particle->Momentum().Pz() >=0 && particle->Momentum().Px() >=0)
 		 {
 	 		MCTruthMuonThetaXZ = (180.0/3.14159)*atan(particle->Momentum().Px()/particle->Momentum().Pz());
 		 }
 		 else if(particle->Momentum().Pz() < 0 && particle->Momentum().Px() >=0)
 		 {
-	 		MCTruthMuonThetaXZ = 180.0 + (180.0/3.14159)*atan(particle->Momentum().Px()/particle->Momentum().Pz()); 
+	 		MCTruthMuonThetaXZ = 180.0 + (180.0/3.14159)*atan(particle->Momentum().Px()/particle->Momentum().Pz());
 		 }
 		 else if(particle->Momentum().Pz() < 0 && particle->Momentum().Px() < 0)
 		 {
-		 	MCTruthMuonThetaXZ = 180.0 + (180.0/3.14159)*atan(particle->Momentum().Px()/particle->Momentum().Pz()); 
+		 	MCTruthMuonThetaXZ = 180.0 + (180.0/3.14159)*atan(particle->Momentum().Px()/particle->Momentum().Pz());
 		 }
 		 else if(particle->Momentum().Pz() >= 0 && particle->Momentum().Px() < 0)
 		 {
-		 	MCTruthMuonThetaXZ = 360.0 + (180.0/3.14159)*atan(particle->Momentum().Px()/particle->Momentum().Pz());  
+		 	MCTruthMuonThetaXZ = 360.0 + (180.0/3.14159)*atan(particle->Momentum().Px()/particle->Momentum().Pz());
 		 }
 
 	 	 MCTruthMuonThetaYZ = (180.0/3.14159)*asin(particle->Momentum().Py()/MCTruthMuonMomentum);
          }
     }
-    double MCTruthLengthMuon = truthLength(MCTruthMuonParticle); 
+    double MCTruthLengthMuon = truthLength(MCTruthMuonParticle);
     h_TruthLength->Fill(MCTruthLengthMuon);
 
     //===================================================================
-    //Saving denominator histograms  
+    //Saving denominator histograms
     //===================================================================
     isFiducial =insideFV( MCTruthMuonVertex );
     if( !isFiducial ) return;
- 
+
     //save events for Nucleon decay and particle cannon
       if( MCTruthMuonParticle ){
 	 h_ThetaXZ_den->Fill(MCTruthMuonThetaXZ);
@@ -670,7 +670,7 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 
 
     //========================================================================
-    // Reco stuff, once we have selected a MC Particle let's find out if there is a track associated 
+    // Reco stuff, once we have selected a MC Particle let's find out if there is a track associated
     //========================================================================
 
     int NMuonTracks=0;
@@ -695,14 +695,14 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
       return;
     }
     MF_LOG_DEBUG("MuonTrackingEff")<<"Found this many reco tracks "<<NRecoTracks;
- 
+
     //std::cout << "NRecoTracks: " << NRecoTracks << std::endl;
 
     double PurityLeadingMuon=0.;
     double CompletenessLeadingMuon=0.;
     double RecoLengthLeadingMuon=0.;
     art::Ptr<recob::Track> TrackLeadingMuon;
-   
+
     double RecoLengthSecondMuon=0.;
     double CompletenessSecondMuon=0.;
     double PuritySecondMuon=0.;
@@ -714,9 +714,9 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
     double MaxLengthNoRecoMuon=0;
     int PDGCodeMaxLengthNoRecoMuon=0;
 
-    const simb::MCParticle *RecoMuonParticle = NULL; 
+    const simb::MCParticle *RecoMuonParticle = NULL;
 
-    std::vector<art::Ptr<recob::Hit>> tmp_TrackHits = track_hits.at(0);  
+    std::vector<art::Ptr<recob::Hit>> tmp_TrackHits = track_hits.at(0);
     std::vector<art::Ptr<recob::Hit>> AllHits;
     art::Handle<std::vector<recob::Hit>> HitHandle;
     if(event.get(tmp_TrackHits[0].id(), HitHandle))  art::fill_ptr_vector(AllHits, HitHandle);
@@ -725,11 +725,11 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
     //Loop over reco tracks
     for(int i=0; i<NRecoTracks; i++) {
        art::Ptr<recob::Track> track = TrackList[i];
-       std::vector<art::Ptr<recob::Hit>> TrackHits = track_hits.at(i);  
+       std::vector<art::Ptr<recob::Hit>> TrackHits = track_hits.at(i);
        double tmpPurity=0.;
        double tmpCompleteness=0.;
        const simb::MCParticle *particle;
-       
+
        truthMatcher(AllHits, TrackHits, particle, tmpPurity, tmpCompleteness, tmpTotalRecoEnergy);
 
        if (!particle) { std::cout << "ERROR: Truth matcher didn't find a particle!" << std::endl; continue;}
@@ -740,11 +740,11 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 		PDGCodeMaxLengthNoRecoMuon = particle->PdgCode();
        }
        //some muon tracks have Completeness=0 and Purity=0 but are still considered as muon tracks in function truthmatcher. Getting rid of these tracks by asking tmpCompleteness > 0 && tmpPurity > 0
-       if( (particle->PdgCode() == fMuonPDGCode) && (particle->TrackId() == MCTruthMuonID) && tmpCompleteness > 0 && tmpPurity > 0 ){ 
+       if( (particle->PdgCode() == fMuonPDGCode) && (particle->TrackId() == MCTruthMuonID) && tmpCompleteness > 0 && tmpPurity > 0 ){
 
 		NMuonTracks++;
 		TrackLengthMuonSum+=track->Length();
-	
+
 		if(NMuonTracks==1)
 		{
            		CompletenessLeadingMuon = tmpCompleteness;
@@ -798,7 +798,7 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 
 		std::cout << "TrackLeadingMuon->Vertex().X(): " << TrackLeadingMuon->Vertex().X() << std::endl;
 		std::cout << "MCTruthMuonParticle->Vz(): " << MCTruthMuonParticle->Vz() << std::endl;
-		std::cout << " " << std::endl; 
+		std::cout << " " << std::endl;
 
 		double DistanceBetweenTruthAndRecoTrack;
 		double AngleBetweenTruthAndRecoTrack;
@@ -808,8 +808,8 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 		h_DirectionRes->Fill(AngleBetweenTruthAndRecoTrack);
 
 		h_MuonTrackStitching_TrackRes_Completeness->Fill(RecoLengthLeadingMuon/MCTruthLengthMuon, CompletenessLeadingMuon);
-		if(NMuonTracks>=2) 
-		{	
+		if(NMuonTracks>=2)
+		{
     			double DistanceBetweenTracks;
 			double AngleBetweenTracks;
 			double CriteriaTwoTracks;
@@ -824,16 +824,16 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 		}
 
 		//Completeness
-   		if(CompletenessLeadingMuon < 0.5) 
+   		if(CompletenessLeadingMuon < 0.5)
 		{
-			CountCompleteness++; 
+			CountCompleteness++;
 			Criteria=2.;
 			h_Completeness_ThetaXZ_SinThetaYZ->Fill(MCTruthMuonThetaXZ,sin((3.14159/180.)*MCTruthMuonThetaYZ));
       			h_Criteria_NRecoTrack_num->Fill(Criteria,static_cast<double>(NRecoTracks));
       			h_Criteria_NMuonTrack_num->Fill(Criteria,static_cast<double>(NMuonTracks));
 		}
 		//Purity
-   		if(PurityLeadingMuon < 0.5) 
+   		if(PurityLeadingMuon < 0.5)
 		{
 			CountPurity++;
 			Criteria=3.;
@@ -842,23 +842,23 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 			h_Criteria_NMuonTrack_num->Fill(Criteria,static_cast<double>(NMuonTracks));
 		}
 		//Track too short
-   		if(RecoLengthLeadingMuon/MCTruthLengthMuon < 0.75) 
+   		if(RecoLengthLeadingMuon/MCTruthLengthMuon < 0.75)
 		{
-			CountTrackLengthTooShort++; 
+			CountTrackLengthTooShort++;
 			Criteria=4.;
 			h_TrackTooShort_ThetaXZ_SinThetaYZ->Fill(MCTruthMuonThetaXZ,sin((3.14159/180.)*MCTruthMuonThetaYZ));
 		        h_Criteria_NRecoTrack_num->Fill(Criteria,static_cast<double>(NRecoTracks));
 		        h_Criteria_NMuonTrack_num->Fill(Criteria,static_cast<double>(NMuonTracks));
 		}
 		//Track too long
-   		if(RecoLengthLeadingMuon/MCTruthLengthMuon > 1.25) 
+   		if(RecoLengthLeadingMuon/MCTruthLengthMuon > 1.25)
 		{
-			CountTrackLengthTooLong++; 
+			CountTrackLengthTooLong++;
 			Criteria=5.;
 			h_TrackTooLong_ThetaXZ_SinThetaYZ->Fill(MCTruthMuonThetaXZ,sin((3.14159/180.)*MCTruthMuonThetaYZ));
 			h_Criteria_NRecoTrack_num->Fill(Criteria,static_cast<double>(NRecoTracks));
 		        h_Criteria_NMuonTrack_num->Fill(Criteria,static_cast<double>(NMuonTracks));
-		
+
 			/*std::cout << "Track too long!" << std::endl;
     			art::ServiceHandle<cheat::BackTracker const> bt2;
    			const sim::ParticleList& plist2 = bt2->ParticleList();
@@ -886,7 +886,7 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 			h_FailedReconstruction_ThetaXZ_ThetaYZ->Fill(MCTruthMuonThetaXZ,MCTruthMuonThetaYZ);
 			h_FailedReconstruction_ThetaXZ_SinThetaYZ->Fill(MCTruthMuonThetaXZ,sin((3.14159/180.)*MCTruthMuonThetaYZ));
 			h_MuonTrackStitching_FailedCriteria_TrackRes_Completeness->Fill(RecoLengthLeadingMuon/MCTruthLengthMuon, CompletenessLeadingMuon);
-			
+
 
 			if(NMuonTracks==1) {BadEvents1MuonTrack++;}
 			if(NMuonTracks==2) {BadEvents2MuonTrack++;}
@@ -899,8 +899,8 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
     				double DistanceBetweenTracks;
 				double CriteriaTwoTracks;
     				FuncDistanceAndAngleBetweenTracks(TrackSecondMuon,TrackLeadingMuon,DistanceBetweenTracks, AngleBetweenTracks, CriteriaTwoTracks);
-    				
-				if(AngleBetweenTracks>160.) 
+
+				if(AngleBetweenTracks>160.)
 				{
 				std::cout << "EventCounter: " << EventCounter << std::endl;
 				std::cout << "Angle b/w tracks: " << AngleBetweenTracks << std::endl;
@@ -923,7 +923,7 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 				h_MuonTrackStitching_FailedCriteria_CriteriaTwoTracks_Angle->Fill(CriteriaTwoTracks, AngleBetweenTracks);
 				if( (CompletenessLeadingMuon+CompletenessSecondMuon) >= 0.5 && PurityLeadingMuon >= 0.5 && PuritySecondMuon >= 0.5 && (RecoLengthLeadingMuon+RecoLengthSecondMuon)/MCTruthLengthMuon >= 0.75 && (RecoLengthLeadingMuon+RecoLengthSecondMuon)/MCTruthLengthMuon <= 1.25 ) 					{
 					CountBadLeadingMuonTrackButLeadingPlusSecondGood++;
-					h_ThetaXZ_ThetaYZ_LeadingPlusSecondOk->Fill(MCTruthMuonThetaXZ,MCTruthMuonThetaYZ);				
+					h_ThetaXZ_ThetaYZ_LeadingPlusSecondOk->Fill(MCTruthMuonThetaXZ,MCTruthMuonThetaYZ);
 					h_ThetaXZ_SinThetaYZ_LeadingPlusSecondOk->Fill(MCTruthMuonThetaXZ,sin((3.14159/180.)*MCTruthMuonThetaYZ));
 
 					h_MuonTrackStitching_FailedCriteriaButLeadingPlusSecondGood_TrackRes_Completeness->Fill(RecoLengthLeadingMuon/MCTruthLengthMuon, CompletenessLeadingMuon);
@@ -944,17 +944,17 @@ void MuonTrackingEff::processEff( const art::Event& event, bool &isFiducial){
 				if((RecoLengthLeadingMuon+RecoLengthSecondMuon)/MCTruthLengthMuon > 1.25) {CountBadLeadingMuonTrackAndLeadingPlusSecondBadTrackTooLong++;}
 
 			}
-			else if(NMuonTracks==1) 
+			else if(NMuonTracks==1)
 			{
 				CountBadLeadingMuonTrackAndOnlyOneMuonTrack++;
-				if(CompletenessLeadingMuon < 0.5) {CountBadLeadingMuonTrackAndOnlyOneMuonTrackCompleteness++;}	
-				if(PurityLeadingMuon < 0.5) {CountBadLeadingMuonTrackAndOnlyOneMuonTrackPurity++;}	
-				if(RecoLengthLeadingMuon/MCTruthLengthMuon < 0.75) {CountBadLeadingMuonTrackAndOnlyOneMuonTrackTrackTooShort++;}	
-				if(RecoLengthLeadingMuon/MCTruthLengthMuon > 1.25) {CountBadLeadingMuonTrackAndOnlyOneMuonTrackTrackTooLong++;}		
+				if(CompletenessLeadingMuon < 0.5) {CountBadLeadingMuonTrackAndOnlyOneMuonTrackCompleteness++;}
+				if(PurityLeadingMuon < 0.5) {CountBadLeadingMuonTrackAndOnlyOneMuonTrackPurity++;}
+				if(RecoLengthLeadingMuon/MCTruthLengthMuon < 0.75) {CountBadLeadingMuonTrackAndOnlyOneMuonTrackTrackTooShort++;}
+				if(RecoLengthLeadingMuon/MCTruthLengthMuon > 1.25) {CountBadLeadingMuonTrackAndOnlyOneMuonTrackTrackTooLong++;}
 			}
 		}
 		//Reco succesful according to the above criteria
-		if(CompletenessLeadingMuon >= 0.5 && PurityLeadingMuon >= 0.5 && RecoLengthLeadingMuon/MCTruthLengthMuon >= 0.75 && RecoLengthLeadingMuon/MCTruthLengthMuon <= 1.25)    
+		if(CompletenessLeadingMuon >= 0.5 && PurityLeadingMuon >= 0.5 && RecoLengthLeadingMuon/MCTruthLengthMuon >= 0.75 && RecoLengthLeadingMuon/MCTruthLengthMuon <= 1.25)
 		{
       			CountGoodLeadingMuonTrack++;
 			Criteria=6.;
@@ -1012,7 +1012,7 @@ void MuonTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> AllHits, s
        std::vector<sim::TrackIDE> TrackIDs = bt_serv->HitToTrackIDEs(hit);	//TrackIDE contains TrackID, energy and energyFrac. A hit can have several TrackIDs (so this hit is associated with multiple MC truth track IDs (EM shower IDs are negative). If a hit ahs multiple trackIDs, "energyFrac" contains the fraction of the energy of for each ID compared to the total energy of the hit. "energy" contains only the energy associated with the specific ID in that case. This requires MC truth info!
        for(size_t k = 0; k < TrackIDs.size(); k++){			//Loop over the TrackIDs of each hit
           trkID_E[TrackIDs[k].trackID] += TrackIDs[k].energy;		//sum up the energy for each TrackID and store <TrackID, energy> in "TrkID_E"
-       }            
+       }
     }
 
 
@@ -1021,7 +1021,7 @@ void MuonTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> AllHits, s
     double TotalEnergyTrack = 0.0;
     int TrackID = -999;
     double PartialEnergyTrackID=0.0; // amount of energy deposited by the particle that deposited more energy... tomato potato... blabla
-    //!if the collection of hits have more than one particle associate save the particle w/ the highest energy deposition 
+    //!if the collection of hits have more than one particle associate save the particle w/ the highest energy deposition
     //!since we are looking for muons/pions/protons this should be enough
     if( !trkID_E.size() ) {
       MCparticle = 0;
@@ -1037,9 +1037,9 @@ void MuonTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> AllHits, s
        }
     }
     MCparticle = pi_serv->TrackIdToParticle_P(TrackID);
-    //In the current simulation, we do not save EM Shower daughters in GEANT. But we do save the energy deposition in TrackIDEs. If the energy deposition is from a particle that is the daughter of 
+    //In the current simulation, we do not save EM Shower daughters in GEANT. But we do save the energy deposition in TrackIDEs. If the energy deposition is from a particle that is the daughter of
     //an EM particle, the negative of the parent track ID is saved in TrackIDE for the daughter particle
-    //we don't want to track gammas or any other EM activity 
+    //we don't want to track gammas or any other EM activity
     if( TrackID < 0 ) {return;}
 
     //Purity = (PartialEnergyTrackID+E_em)/TotalEnergyTrack;
@@ -1053,7 +1053,7 @@ void MuonTrackingEff::truthMatcher( std::vector<art::Ptr<recob::Hit>> AllHits, s
        for(size_t l = 0; l < TrackIDs.size(); ++l){  //and over all track IDs of the hits
           if(TrackIDs[l].trackID==TrackID) TotalRecoEnergy += TrackIDs[l].energy;  //and sum up the energy fraction of all hits that correspond ot the saved trackID
        }
-    } 
+    }
     Completeness = PartialEnergyTrackID/TotalRecoEnergy;
 }
 
@@ -1124,7 +1124,7 @@ double MuonTrackingEff::truthLength( const simb::MCParticle *MCparticle ){
 	std::cout << "tmpPosition[0]: " << tmpPosition[0] << std::endl;
 	std::cout << "XDriftVelocity: " << XDriftVelocity << std::endl;
 	std::cout << "MCparticle->T(): " << MCparticle->T() << std::endl;
-        double TimeAtPlane         = MCparticle->T() + DriftTimeCorrection; 
+        double TimeAtPlane         = MCparticle->T() + DriftTimeCorrection;
 	std::cout << "TimeAtPlane: " << TimeAtPlane << "\t" << "detprop->TriggerOffset(): " << detprop->TriggerOffset() << std::endl;
 	std::cout << "WindowSize: " << WindowSize << std::endl;
         if( TimeAtPlane < detprop->TriggerOffset() || TimeAtPlane > detprop->TriggerOffset() + WindowSize ){ std::cout << "BYE" << std::endl; continue;} */
@@ -1133,13 +1133,13 @@ double MuonTrackingEff::truthLength( const simb::MCParticle *MCparticle ){
 	  BeenInVolume = true;
           FirstHit = MCHit;
 	}
-      }		
+      }
    }
    for (int Hit = FirstHit+1; Hit <= LastHit; ++Hit ) TPCLength += TPCLengthHits[Hit];
    return TPCLength;
 }
 //========================================================================
-bool MuonTrackingEff::insideFV( double vertex[4]){ 
+bool MuonTrackingEff::insideFV( double vertex[4]){
 
      double x = vertex[0];
      double y = vertex[1];
@@ -1175,7 +1175,7 @@ void MuonTrackingEff::doEfficiencies(){
 
    std::cout << "CountPurity: " << "\t" << CountPurity << " = " << 100*static_cast<double>(CountPurity)/static_cast<double>(CountMCTruthMuon) <<"%" << std::endl;
 
- 
+
   std::cout << std::endl;
 
    std::cout << "GoodLeadingMuonTrack+CountBadLeadingMuonTrackButLeadingPlusSecondGood (=good events after stitching): " << "\t" << CountGoodLeadingMuonTrack+CountBadLeadingMuonTrackButLeadingPlusSecondGood << "/" << CountMCTruthMuon << " = " << 100*static_cast<double>(CountGoodLeadingMuonTrack+CountBadLeadingMuonTrackButLeadingPlusSecondGood)/static_cast<double>(CountMCTruthMuon) <<"%" << std::endl;
@@ -1246,7 +1246,7 @@ void MuonTrackingEff::doEfficiencies(){
 			h_Criteria_NRecoTrack_den->SetBinContent(1+2*i,1+2*j,CountCompleteness);
 			h_Criteria_NMuonTrack_den->SetBinContent(1+2*i,1+2*j,CountCompleteness);
 		}
-		else if(i==3) 
+		else if(i==3)
 		{
 			h_Criteria_NRecoTrack_den->SetBinContent(1+2*i,1+2*j,CountPurity);
 			h_Criteria_NMuonTrack_den->SetBinContent(1+2*i,1+2*j,CountPurity);
@@ -1267,22 +1267,22 @@ void MuonTrackingEff::doEfficiencies(){
  			h_Criteria_NMuonTrack_den->SetBinContent(1+2*i,1+2*j,CountRecoMuon);
 		}
 	}
-   }	
+   }
 
-   
+
    h_Efficiency_ThetaXZ->Divide(h_ThetaXZ_num,h_ThetaXZ_den,1,1, "");
-   h_Efficiency_ThetaYZ->Divide(h_ThetaYZ_num,h_ThetaYZ_den,1,1, "");   
+   h_Efficiency_ThetaYZ->Divide(h_ThetaYZ_num,h_ThetaYZ_den,1,1, "");
    h_Efficiency_SinThetaYZ->Divide(h_SinThetaYZ_num,h_SinThetaYZ_den,1,1, "");
-  
+
    h_Efficiency_ThetaXZ_ThetaYZ->Divide(h_ThetaXZ_ThetaYZ_num, h_ThetaXZ_ThetaYZ_den, 1, 1, "");
    h_Efficiency_ThetaXZ_SinThetaYZ->Divide(h_ThetaXZ_SinThetaYZ_num, h_ThetaXZ_SinThetaYZ_den, 1, 1, "");
-  
+
    h_Criteria_NRecoTrack->Divide(h_Criteria_NRecoTrack_num, h_Criteria_NRecoTrack_den, 1, 1, "");
    h_Criteria_NMuonTrack->Divide(h_Criteria_NMuonTrack_num, h_Criteria_NMuonTrack_den, 1, 1, "");
 
    h_ThetaXZ_ThetaYZ_LeadingPlusSecondOk_num->Add(h_ThetaXZ_ThetaYZ_num,1);
    h_ThetaXZ_ThetaYZ_LeadingPlusSecondOk_num->Add(h_ThetaXZ_ThetaYZ_LeadingPlusSecondOk,1);
-   h_Efficiency_ThetaXZ_ThetaYZ_LeadingPlusSecond->Divide(h_ThetaXZ_ThetaYZ_LeadingPlusSecondOk_num,h_ThetaXZ_ThetaYZ_den, 1, 1, "");	
+   h_Efficiency_ThetaXZ_ThetaYZ_LeadingPlusSecond->Divide(h_ThetaXZ_ThetaYZ_LeadingPlusSecondOk_num,h_ThetaXZ_ThetaYZ_den, 1, 1, "");
 
    h_ThetaXZ_SinThetaYZ_LeadingPlusSecondOk_num->Add(h_ThetaXZ_SinThetaYZ_num,1);
    h_ThetaXZ_SinThetaYZ_LeadingPlusSecondOk_num->Add(h_ThetaXZ_SinThetaYZ_LeadingPlusSecondOk,1);
@@ -1294,4 +1294,4 @@ void MuonTrackingEff::doEfficiencies(){
 //========================================================================
 DEFINE_ART_MODULE(MuonTrackingEff)
 
-} 
+}

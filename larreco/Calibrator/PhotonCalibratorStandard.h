@@ -26,17 +26,17 @@ namespace calib {
   {
   public:
     PhotonCalibratorStandard(fhicl::ParameterSet const& pset, art::ActivityRegistry& reg)
-      : fSPESize  ( pset.get< float >("SPESize")     ), 
+      : fSPESize  ( pset.get< float >("SPESize")     ),
         fSPEShift ( pset.get< float >("SPEShift", 0.)),
         fUseArea  ( pset.get< bool  >("UseArea")     )
       {}
 
-    
+
     PhotonCalibratorStandard(float size, float shift, bool useArea)
       : fSPESize  ( size ),
         fSPEShift ( shift ),
         fUseArea  ( useArea )
-      {}      
+      {}
 
     // Override base class functions
     double PE(double adcs, int opchannel) const override { return adcs/fSPESize + fSPEShift; }
@@ -46,7 +46,7 @@ namespace calib {
     void SetSPESize (float size)    { fSPESize  = size; }
     void SetSPEShift(float shift)   { fSPEShift = shift; }
     void SetUseArea (bool  useArea) { fUseArea  = useArea; }
-        
+
     /// Need a 3D position because result depends on position along length of
     /// bar. This is going to be pretty imprecise even so.
     // virtual double GeV(double PE, int opchannel, TVector3 pos) override;
@@ -56,7 +56,7 @@ namespace calib {
     float  fSPEShift;
     bool   fUseArea;
 
-    
+
   }; // class PhotonCalibratorStandard
 }
 

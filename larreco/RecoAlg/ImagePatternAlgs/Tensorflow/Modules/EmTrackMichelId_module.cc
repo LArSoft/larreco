@@ -261,7 +261,7 @@ void EmTrackMichelId::produce(art::Event & evt)
                 {
                     view = pview.first;
                     if (!isViewSelected(view)) continue; // should not happen, clusters were pre-selected
-                
+
                     for (size_t c : pview.second) // c is the Ptr< recob::Cluster >::key()
                     {
 		                auto v = hitsFromClusters.at(c);

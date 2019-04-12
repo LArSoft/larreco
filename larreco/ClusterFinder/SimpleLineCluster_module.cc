@@ -51,10 +51,10 @@ public:
 private:
 
   std::unique_ptr<ClusterCrawlerAlg> fCCAlg; // define ClusterCrawlerAlg object
-  
+
   art::InputTag fHitFinderLabel; ///< label of module producing input hits
   art::InputTag fPFParticleLabel; ///< label of module producing input pfparticles
-  
+
 };
 
 
@@ -82,11 +82,11 @@ void cluster::SimpleLineCluster::produce(art::Event & evt)
   auto hitsHandle = evt.getValidHandle< std::vector<recob::Hit> >(fHitFinderLabel);
   auto clusHandle = evt.getValidHandle< std::vector<recob::Cluster> >(fPFParticleLabel);
   auto pfpsHandle = evt.getValidHandle< std::vector<recob::PFParticle> >(fPFParticleLabel);
-  
+
   // all hits in the collection
   std::vector< art::Ptr<recob::Hit> > hits;
   art::fill_ptr_vector(hits, hitsHandle);
-  
+
   // all pfps in the collection
   std::vector< art::Ptr<recob::PFParticle> > pfps;
   art::fill_ptr_vector(pfps, pfpsHandle);
@@ -126,11 +126,11 @@ void cluster::SimpleLineCluster::produce(art::Event & evt)
 
     fCCAlg->ClearResults();
   }
-  
+
 
   std::vector<recob::Cluster> sccol;
 
-  std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> > 
+  std::unique_ptr<art::Assns<recob::Cluster, recob::Hit> >
     hc_assn(new art::Assns<recob::Cluster, recob::Hit>);
 
   // make the clusters and associations
@@ -155,7 +155,7 @@ void cluster::SimpleLineCluster::produce(art::Event & evt)
     } // itt
       // get the wire, plane from a hit
     unsigned int iht = clstr.tclhits[0];
-    
+
     geo::View_t view = allHits[iht].View();
     sccol.emplace_back(
                        (float)clstr.BeginWir,  // Start wire
@@ -204,8 +204,8 @@ void cluster::SimpleLineCluster::produce(art::Event & evt)
   std::unique_ptr<std::vector<recob::Hit>> FinalHits
     (new std::vector<recob::Hit>(std::move(allHits)));
 
-  recob::HitRefinerAssociator shcol(*this, evt, fHitFinderLabel, 
-                                    channelHitWires.isValid(), 
+  recob::HitRefinerAssociator shcol(*this, evt, fHitFinderLabel,
+                                    channelHitWires.isValid(),
                                     channelHitRawDigits.isValid());
 
   shcol.use_hits(std::move(FinalHits));
@@ -214,7 +214,7 @@ void cluster::SimpleLineCluster::produce(art::Event & evt)
   shcol.put_into(evt);
   evt.put(std::move(ccol));
   evt.put(std::move(hc_assn));
-  
+
 
 }
 

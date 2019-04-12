@@ -55,7 +55,7 @@ namespace {
 	x = pyz->x0() + phit1->getMeasVector()(0);
 
 	// Get z position from surface parameters.
-	// The "z" position is actually calculated as the perpendicular distance 
+	// The "z" position is actually calculated as the perpendicular distance
 	// from a corner, which is a proxy for wire number.
 
 	double z0 = pyz->z0();
@@ -87,7 +87,7 @@ namespace {
 	x = pyz->x0();
 
 	// Get z position from surface parameters.
-	// The "z" position is actually calculated as the perpendicular distance 
+	// The "z" position is actually calculated as the perpendicular distance
 	// from a corner, which is a proxy for wire number.
 
 	double z0 = pyz->z0();
@@ -120,7 +120,7 @@ namespace {
   //
   // Arguments: defl - Deflection (2D slope residual between two
   //                   sampled points on track).
-  //            errc - Error matrix of deflection residual 
+  //            errc - Error matrix of deflection residual
   //                   exclusive of multiple scattering.
   //            errn - Part of deflection noise error matrix
   //                   proportional to 1/(beta*momentum).
@@ -130,7 +130,7 @@ namespace {
   //
   // Returns: True if success.
   //
-  // The total deflection residual error matrix is 
+  // The total deflection residual error matrix is
   //
   // err = errc + [1/(beta*momentum)] * errn.
   //
@@ -206,7 +206,7 @@ namespace {
       double newq = newvarq * (q/varq + q1/varq1);
       q = newq;
       varq = newvarq;
-      
+
       // Calculate updated c = 1./p and variance.
 
       double q2 = q*q;
@@ -225,7 +225,7 @@ namespace {
 }
 
 /// Constructor.
-  
+
 trkf::KalmanFilterAlg::KalmanFilterAlg(const fhicl::ParameterSet& pset) :
   fTrace(false),
   fMaxPErr(0.),
@@ -334,7 +334,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
   // Direction must be forward or backward (unknown is not allowed).
 
   if(dir != Propagator::FORWARD && dir != Propagator::BACKWARD)
-    throw cet::exception("KalmanFilterAlg") 
+    throw cet::exception("KalmanFilterAlg")
 	<< "No direction for Kalman fit.\n";
 
   // Set up canvas for graphical trace.
@@ -393,7 +393,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 			       fGTraceXMin, fGTraceXMax, 510, "");
       px1->SetBit(kCanDelete);   // Give away ownership.
       px1->Draw();
-      
+
       TGaxis* pz2 = new TGaxis(zmin, xmax, zmax, xmax,
 			       fGTraceZMin[iview], fGTraceZMax[iview], 510, "-");
       pz2->SetBit(kCanDelete);   // Give away ownership.
@@ -403,7 +403,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 			       fGTraceXMin, fGTraceXMax, 510, "L+");
       px2->SetBit(kCanDelete);   // Give away ownership.
       px2->Draw();
-      
+
     }
 
     // Draw legend.
@@ -468,7 +468,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
     leg->Draw();
 
     // Draw message box.
-    
+
     fMessages = new TPaveText(0.01, 0.01, 0.55, 0.99, "");
     fMessages->SetBit(kCanDelete);
     fMessages->SetTextFont(42);
@@ -692,7 +692,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	fCanvases.back()->Update();
 
       // If we found a best measurement, and if the incremental
-      // chisquare passes the cut, add it to the track and update 
+      // chisquare passes the cut, add it to the track and update
       // fit information.
 
       bool update_ok = false;
@@ -721,7 +721,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 	    log << "Quitting because pointing error got too large.\n";
 	  break;
 	}
-	  
+
 	// Test number of consecutive measurements in the same plane.
 
 	if(gr.getPlane() >= 0) {
@@ -789,7 +789,7 @@ bool trkf::KalmanFilterAlg::buildTrack(const KTrack& trk,
 
     // If the propagation distance was the wrong direction, resort the measurements.
 
-    if(pref == 0 && !!dist && 
+    if(pref == 0 && !!dist &&
        ((dir == Propagator::FORWARD && (ds < fMinSortDist || ds > fMaxSortDist)) ||
 	(dir == Propagator::BACKWARD && (-ds < fMinSortDist || -ds > fMaxSortDist)))) {
       if(fTrace)
@@ -1022,7 +1022,7 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 	const KHitBase& hit = *(trh.getHit());
 
 	// Propagate KFitTrack to the next track surface.
-	  
+
 	std::shared_ptr<const Surface> psurf = trh.getSurface();
 	boost::optional<double> dist = prop->noise_prop(trf, psurf, Propagator::UNKNOWN,
 							true, &ref);
@@ -1109,7 +1109,7 @@ bool trkf::KalmanFilterAlg::smoothTrack(KGTrack& trg,
 	      // Update the reverse fitting track using the current measurement
 	      // (both track parameters and status).
 
-	      KFitTrack trf0(trf);	      
+	      KFitTrack trf0(trf);
 	      hit.update(trf);
 	      bool update_ok = trf.isValid();
 	      if(!update_ok)
@@ -1522,7 +1522,7 @@ bool trkf::KalmanFilterAlg::extendTrack(KGTrack& trg,
 	    fCanvases.back()->Update();
 
 	  // If we found a best measurement, and if the incremental
-	  // chisquare passes the cut, add it to the track and update 
+	  // chisquare passes the cut, add it to the track and update
 	  // fit information.
 
 	  bool update_ok = false;
@@ -1801,7 +1801,7 @@ bool trkf::KalmanFilterAlg::fitMomentumMS(const KGTrack& trg,
   double var_invp0 = tre_noise.getError()(4,4);
 
   // Loop over fits, starting at the high path distance (low momentum)
-  // end.  
+  // end.
 
   for(std::multimap<double, KHitTrack>::const_reverse_iterator it = trackmap.rbegin();
       it != trackmap.rend(); ++it) {
@@ -1854,7 +1854,7 @@ bool trkf::KalmanFilterAlg::fitMomentumMS(const KGTrack& trg,
 	//
 	// slope0 - Predicted slope vector (from infinite momentum track).
 	// slope1 - Measured slope vector (from new sample point).
-	// defl - Deflection (slope residual = difference between measured 
+	// defl - Deflection (slope residual = difference between measured
 	//        and predicted slope vector).
 	// err0 - Slope error matrix of prediction.
 	// err1 - Slope error matrix of measurement
@@ -2044,12 +2044,12 @@ bool trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
   // out which track fit is closer to the momentum estimating track.
 
   // Find distance to first track fit.
-  
+
   KETrack tre0(tremom);
   boost::optional<double> dist0 = prop->vec_prop(tre0, trackmap.begin()->second.getSurface(),
 						 Propagator::UNKNOWN, false, 0, 0);
   // Find distance to last track fit.
-  
+
   KETrack tre1(tremom);
   boost::optional<double> dist1 = prop->vec_prop(tre1, trackmap.rbegin()->second.getSurface(),
 						 Propagator::UNKNOWN, false, 0, 0);
@@ -2095,7 +2095,7 @@ bool trkf::KalmanFilterAlg::updateMomentum(const KETrack& tremom,
   }
 
   // Loop over track fits in global track.
-  
+
   KETrack tre(tremom);
   bool done = false;
   while(!done) {
@@ -2314,7 +2314,7 @@ void trkf::KalmanFilterAlg::cleanTrack(KGTrack& trg) const
 	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::cleanTrack(): nb not positive\n";
 	if (ne < 1)
 	  throw cet::exception("KalmanFilterAlg") << "KalmanFilterAlg::cleanTrack(): ne not positive\n";
-	
+
 	double disti = (*it).first;
 	double distj = (*jt).first;
 	double sep = disti - distj;

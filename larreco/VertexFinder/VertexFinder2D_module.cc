@@ -6,7 +6,7 @@
 //
 // This algorithm is designed to reconstruct the vertices using the
 // 2D cluster information
-// 
+//
 // This is Preliminary Work and needs modifications
 // ////////////////////////////////////////////////////////////////////////
 #include <string>
@@ -18,7 +18,7 @@
 #include <algorithm>
 
 // Framework includes
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
@@ -61,33 +61,33 @@ struct CluLen{
 bool myfunction (CluLen c1, CluLen c2) { return (c1.length>c2.length);}
 
 struct SortByWire {
-  bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const { 
+  bool operator() (art::Ptr<recob::Hit> const& h1, art::Ptr<recob::Hit> const& h2) const {
     return h1->Channel() < h2->Channel();
   }
 };
 
 ///vertex reconstruction
 namespace vertex {
-   
+
  class VertexFinder2D :  public art::EDProducer {
-    
+
   public:
-    
-    explicit VertexFinder2D(fhicl::ParameterSet const& pset); 
+
+    explicit VertexFinder2D(fhicl::ParameterSet const& pset);
     void beginJob();
     void reconfigure(fhicl::ParameterSet const& p);
 
-    
+
     void produce(art::Event& evt);
 
   private:
-    
+
     TH1D *dtIC;
-  
+
     std::string fClusterModuleLabel;
 
   };
-    
+
 }
 
 namespace vertex{
@@ -95,8 +95,8 @@ namespace vertex{
 //-----------------------------------------------------------------------------
   VertexFinder2D::VertexFinder2D(fhicl::ParameterSet const& pset)
     : EDProducer{pset}
-  {  
-    this->reconfigure(pset);    
+  {
+    this->reconfigure(pset);
     produces< std::vector<recob::Vertex> >();
     produces< std::vector<recob::EndPoint2D> >();
     produces< art::Assns<recob::EndPoint2D, recob::Hit> >();
@@ -106,7 +106,7 @@ namespace vertex{
   }
 
   //---------------------------------------------------------------------------
-  void VertexFinder2D::reconfigure(fhicl::ParameterSet const& p) 
+  void VertexFinder2D::reconfigure(fhicl::ParameterSet const& p)
   {
     fClusterModuleLabel  = p.get< std::string >("ClusterModuleLabel");
   }
@@ -122,17 +122,17 @@ namespace vertex{
   void VertexFinder2D::produce(art::Event& evt)
   {
 
-    
+
     art::ServiceHandle<geo::Geometry const> geom;
     const detinfo::DetectorProperties* detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
     // define TPC parameters
     TString tpcName = geom->GetLArTPCVolumeName();
-    
+
     double YC =  (geom->DetHalfHeight())*2.;
 
     // wire angle with respect to the vertical direction
-    double Angle = geom->Plane(1).Wire(0).ThetaZ(false)-TMath::Pi()/2.; 
-    
+    double Angle = geom->Plane(1).Wire(0).ThetaZ(false)-TMath::Pi()/2.;
+
     // Parameters temporary defined here, but possibly to be retrieved somewhere in the code
     double timetick = detprop->SamplingRate()*1.e-3; //time sample in us
     double presamplings = detprop->TriggerOffset(); //trigger offset
@@ -140,13 +140,13 @@ namespace vertex{
     double wire_pitch   = geom->WirePitch(); //wire pitch in cm
     double Efield_drift = detprop->Efield();      // Electric Field in the drift region in kV/cm
     double Temperature  = detprop->Temperature(); // LAr Temperature in K
-    
-    //drift velocity in the drift region (cm/us)
-    double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature); 
 
-    //time sample (cm) 
-    double timepitch = driftvelocity*timetick; 
-    
+    //drift velocity in the drift region (cm/us)
+    double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature);
+
+    //time sample (cm)
+    double timepitch = driftvelocity*timetick;
+
     art::Handle< std::vector<recob::Cluster> > clusterListHandle;
     evt.getByLabel(fClusterModuleLabel,clusterListHandle);
 
@@ -166,18 +166,18 @@ namespace vertex{
     std::unique_ptr< art::Assns<recob::Vertex, recob::Track> >   assntr(new art::Assns<recob::Vertex, recob::Track>);
     std::unique_ptr< art::Assns<recob::Vertex, recob::Hit> >     assnh(new art::Assns<recob::Vertex, recob::Hit>);
 
-    // nplanes here is really being used as a proxy for the 
+    // nplanes here is really being used as a proxy for the
     // number of views in the detector
     int nplanes = geom->Views().size();
-	
+
     std::vector< std::vector<int> > Cls(nplanes); //index to clusters in each view
     std::vector< std::vector<CluLen> > clulens(nplanes);
 
     std::vector<double> dtdwstart;
-      
+
     //loop over clusters
     for(size_t iclu = 0; iclu < clusters.size(); ++iclu){
-      
+
       float w0 = clusters[iclu]->StartWire();
       float w1 = clusters[iclu]->EndWire();
       float t0 = clusters[iclu]->StartTick();
@@ -190,7 +190,7 @@ namespace vertex{
       clulen.length = sqrt(pow((w0-w1)*wire_pitch,2)+pow(detprop->ConvertTicksToX(t0,clusters[iclu]->View(),0,0)-detprop->ConvertTicksToX(t1,clusters[iclu]->View(),0,0),2));
 
       switch(clusters[iclu]->View()){
-	
+
       case geo::kU :
 	clulens[0].push_back(clulen);
 	break;
@@ -206,7 +206,7 @@ namespace vertex{
 
       std::vector<double> wires;
       std::vector<double> times;
-      
+
       std::vector< art::Ptr<recob::Hit> > hit = fmh.at(iclu);
       std::sort(hit.begin(), hit.end(), SortByWire());
       int n = 0;
@@ -216,7 +216,7 @@ namespace vertex{
 	++n;
       }
       if(n>=2){
-	TGraph *the2Dtrack = new TGraph(std::min(10,n),&wires[0],&times[0]);           
+	TGraph *the2Dtrack = new TGraph(std::min(10,n),&wires[0],&times[0]);
 	try{
 	  the2Dtrack->Fit("pol1","Q");
 	  TF1 *pol1=(TF1*) the2Dtrack->GetFunction("pol1");
@@ -234,9 +234,9 @@ namespace vertex{
 	delete the2Dtrack;
       }
       else dtdwstart.push_back(std::tan(clusters[iclu]->StartAngle()));
-    
+
     }
-    
+
     //sort clusters based on 2D length
     for (size_t i = 0; i<clulens.size(); ++i){
       std::sort (clulens[i].begin(),clulens[i].end(), myfunction);
@@ -248,7 +248,7 @@ namespace vertex{
     std::vector< std::vector<int> > cluvtx(nplanes);
     std::vector<double> vtx_w;
     std::vector<double> vtx_t;
-    
+
     for (int i = 0; i < nplanes; ++i){
       if (Cls[i].size() >= 1){
 	//at least one cluster
@@ -292,7 +292,7 @@ namespace vertex{
 	    double alpha = std::atan(dtdw);
 	    if (nhits >= int(2+3*(1-std::abs(std::cos(alpha))))) enoughhits = true;
 	    if (nhits < 5 && (ww0 < wb1-20 || ww0 > we1+20)) enoughhits = false;
-	    
+
 	  }
 	  //do not replace the second cluster if the 3rd cluster is not consistent with the existing 2
 	  bool replace = true;
@@ -341,7 +341,7 @@ namespace vertex{
 	if (c1 != -1 && c2 != -1){
 	  cluvtx[i].push_back(c1);
 	  cluvtx[i].push_back(c2);
-	  
+
 	  double w1 = clusters[c1]->StartWire();
 	  double t1 = clusters[c1]->StartTick();
 	  if (clusters[c1]->StartWire()>clusters[c1]->EndWire()){
@@ -389,12 +389,12 @@ namespace vertex{
 	std::vector< art::Ptr<recob::Hit> > hits = fmh.at(Cls[i][0]);
 	double totalQ = 0.;
 	for(size_t h = 0; h < hits.size(); ++h) totalQ += hits[h]->Integral();
-	
+
 	geo::WireID wireID(hits[0]->WireID().Cryostat,
 			   hits[0]->WireID().TPC,
 			   hits[0]->WireID().Plane,
 			   (unsigned int)vtx_w.back());  //for update to EndPoint2D ... WK 4/22/13
-	
+
 	recob::EndPoint2D vertex(vtx_t.back(),
 				 wireID, //for update to EndPoint2D ... WK 4/22/13
 				 1,
@@ -402,9 +402,9 @@ namespace vertex{
 				 clusters[Cls[i][0]]->View(),
 				 totalQ);
 	epcol->push_back(vertex);
-	
+
 	util::CreateAssn(*this, evt, *epcol, hits, *assnep);
-	
+
       }
       else{
 	//no cluster found
@@ -413,12 +413,12 @@ namespace vertex{
       }
     }
     //std::cout<<vtx_w[0]<<" "<<vtx_t[0]<<" "<<vtx_w[1]<<" "<<vtx_t[1]<<std::endl;
-    
+
     Double_t vtxcoord[3];
     if (Cls[0].size()>0&&Cls[1].size()>0){//ignore w view
       double Iw0 = (vtx_w[0]+3.95)*wire_pitch;
       double Cw0 = (vtx_w[1]+1.84)*wire_pitch;
-      
+
       double It0 = vtx_t[0] - presamplings;
       It0 *= timepitch;
       double Ct0 = vtx_t[1] - presamplings ;
@@ -426,13 +426,13 @@ namespace vertex{
       vtxcoord[0] = detprop->ConvertTicksToX(vtx_t[1],1,0,0);
       vtxcoord[1] = (Cw0-Iw0)/(2.*std::sin(Angle));
       vtxcoord[2] = (Cw0+Iw0)/(2.*std::cos(Angle))-YC/2.*std::tan(Angle);
-      
-      double yy,zz;       
+
+      double yy,zz;
       if(vtx_w[0]>=0&&vtx_w[0]<=239&&vtx_w[1]>=0&&vtx_w[1]<=239){
-	if(geom->ChannelsIntersect(geom->PlaneWireToChannel(0,(int)((Iw0/wire_pitch)-3.95)),      
+	if(geom->ChannelsIntersect(geom->PlaneWireToChannel(0,(int)((Iw0/wire_pitch)-3.95)),
 				   geom->PlaneWireToChannel(1,(int)((Cw0/wire_pitch)-1.84)),
 				   yy,zz)){
-	  //channelsintersect provides a slightly more accurate set of y and z coordinates. 
+	  //channelsintersect provides a slightly more accurate set of y and z coordinates.
 	  // use channelsintersect in case the wires in question do cross.
 	  vtxcoord[1] = yy;
 	  vtxcoord[2] = zz;
@@ -442,7 +442,7 @@ namespace vertex{
 	  vtxcoord[1] = -99999;
 	  vtxcoord[2] = -99999;
 	}
-      }	
+      }
       dtIC->Fill(It0-Ct0);
     }
     else{
@@ -450,15 +450,15 @@ namespace vertex{
       vtxcoord[1] = -99999;
       vtxcoord[2] = -99999;
     }
-    
+
     /// \todo need to actually make tracks and showers to go into 3D vertex
     /// \todo currently just passing empty collections to the ctor
     art::PtrVector<recob::Track> vTracks_vec;
     art::PtrVector<recob::Shower> vShowers_vec;
-    
+
     recob::Vertex the3Dvertex(vtxcoord, vcol->size());
     vcol->push_back(the3Dvertex);
-    
+
     if(vShowers_vec.size() > 0){
       util::CreateAssn(*this, evt, *vcol, vShowers_vec, *assnsh);
       // get the hits associated with each track and associate those with the vertex
@@ -468,7 +468,7 @@ namespace vertex{
       // 	    util::CreateAssn(*this, evt, *vcol, hits, *assnh);
       // 	  }
     }
-    
+
     if(vTracks_vec.size() > 0){
       util::CreateAssn(*this, evt, *vcol, vTracks_vec, *assntr);
       // get the hits associated with each track and associate those with the vertex
@@ -478,12 +478,12 @@ namespace vertex{
       // 	    util::CreateAssn(*this, evt, *vcol, hits, *assnh);
       // 	  }
     }
-    
+
     MF_LOG_VERBATIM("Summary") << std::setfill('-') << std::setw(175) << "-" << std::setfill(' ');
     MF_LOG_VERBATIM("Summary") << "VertexFinder2D Summary:";
     for(size_t i = 0; i<epcol->size(); ++i) MF_LOG_VERBATIM("Summary") << epcol->at(i) ;
     for(size_t i = 0; i<vcol->size(); ++i) MF_LOG_VERBATIM("Summary") << vcol->at(i) ;
-    
+
     evt.put(std::move(epcol));
     evt.put(std::move(vcol));
     evt.put(std::move(assnep));

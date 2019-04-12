@@ -24,7 +24,7 @@ namespace art { class Event; }
 namespace trkf{
 
 
-class StitchAlg 
+class StitchAlg
 {
 
 

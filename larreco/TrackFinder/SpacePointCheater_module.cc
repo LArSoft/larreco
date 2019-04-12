@@ -15,11 +15,11 @@
 
 #include <cassert>
 
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDProducer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/RecoAlg/SpacePointAlg.h"
@@ -81,7 +81,7 @@ namespace trkf {
 
     // Report.
 
-    mf::LogInfo("SpacePointCheater") 
+    mf::LogInfo("SpacePointCheater")
       << "SpacePointCheater configured with the following parameters:\n"
       << "  ClusterModuleLabel = " << fClusterModuleLabel << "\n"
       << "  Minimum Hits per Cluster = " << fMinHits << "\n"
@@ -136,7 +136,7 @@ namespace trkf {
       // Make a hit vector which will be used to store hits to be passed
       // to SpacePointAlg.
 
-      art::PtrVector<recob::Hit> hits;      
+      art::PtrVector<recob::Hit> hits;
       art::FindManyP<recob::Hit> fm(clusterh, evt, fClusterModuleLabel);
 
       // Loop over first cluster.
@@ -163,7 +163,7 @@ namespace trkf {
 	  for(std::vector< art::Ptr<recob::Hit> >::const_iterator i = ihits.begin();
 	      i != ihits.end(); ++i)
 	    hits.push_back(*i);
-	  
+
 	  // Loop over second cluster.
 
 	  for(int jclus = 0; jclus < iclus; ++jclus) {
@@ -192,7 +192,7 @@ namespace trkf {
 	      for(std::vector< art::Ptr<recob::Hit> >::const_iterator j = jhits.begin();
 		  j != jhits.end(); ++j)
 		hits.push_back(*j);
-	  
+
 	      // If two-view space points are allowed, make them here.
 
 	      if(fSptalg.minViews() <= 2) {
@@ -325,7 +325,7 @@ namespace trkf {
   // Purpose: Print summary.
   //
   {
-    mf::LogInfo("SpacePointCheater") 
+    mf::LogInfo("SpacePointCheater")
       << "SpacePointCheater statistics:\n"
       << "  Number of events = " << fNumEvent << "\n"
       << "  Number of 2-view space points created = " << fNumSpt2 << "\n"

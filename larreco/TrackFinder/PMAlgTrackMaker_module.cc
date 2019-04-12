@@ -57,8 +57,8 @@
 #include "lardataobj/RecoBase/TrackHitMeta.h"
 #include "lardataobj/RecoBase/Vertex.h"
 #include "lardataobj/RecoBase/SpacePoint.h"
-#include "lardataobj/AnalysisBase/T0.h" 
-#include "lardataobj/AnalysisBase/CosmicTag.h" 
+#include "lardataobj/AnalysisBase/T0.h"
+#include "lardataobj/AnalysisBase/CosmicTag.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
 #include "lardata/Utilities/AssociationUtil.h"
 #include "art/Persistency/Common/PtrMaker.h"
@@ -199,7 +199,7 @@ PMAlgTrackMaker::PMAlgTrackMaker(PMAlgTrackMaker::Parameters const& config) :
 
 	fSaveOnlyBranchingVtx(config().SaveOnlyBranchingVtx()),
 	fSavePmaNodes(config().SavePmaNodes()),
-	
+
 	fGeom( &*(art::ServiceHandle<geo::Geometry const>()))
 {
 	produces< std::vector<recob::Track> >();
@@ -307,7 +307,7 @@ bool PMAlgTrackMaker::init(const art::Event & evt, pma::PMAlgTracker & pmalgTrac
 std::vector<anab::CosmicTagID_t> PMAlgTrackMaker::getCosmicTag(const pma::Track3D::ETag pmaTag) const
 {
     std::vector<anab::CosmicTagID_t> anabTags;
-    
+
     if (pmaTag & pma::Track3D::kOutsideDrift_Partial)  { anabTags.push_back(anab::CosmicTagID_t::kOutsideDrift_Partial);   }
     if (pmaTag & pma::Track3D::kOutsideDrift_Complete) { anabTags.push_back(anab::CosmicTagID_t::kOutsideDrift_Complete);  }
     if (pmaTag & pma::Track3D::kBeamIncompatible)      { anabTags.push_back(anab::CosmicTagID_t::kFlash_BeamIncompatible); }
@@ -318,7 +318,7 @@ std::vector<anab::CosmicTagID_t> PMAlgTrackMaker::getCosmicTag(const pma::Track3
     if (pmaTag & pma::Track3D::kGeometry_Y)            { anabTags.push_back(anab::CosmicTagID_t::kGeometry_Y);             }
 
     if (anabTags.empty())                              { anabTags.push_back(anab::CosmicTagID_t::kUnknown);                }
-    
+
     return anabTags;
 }
 
@@ -466,10 +466,10 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 				// Get the drift direction, but don't care about the sign
 				// Also need to subtract 1 due to the definition.
 				int driftDir = abs(fGeom->TPC(trk->FrontTPC(), trk->FrontCryo()).DetectDriftDirection()) - 1;
-				
+
 				for(int i = 0; i < 3; ++i){
 					// Get the drift direction and apply the opposite of the drift shift in order to
-					// give the CosmicTag the drift coordinate assuming T0 = T_beam as it requests. 
+					// give the CosmicTag the drift coordinate assuming T0 = T_beam as it requests.
 					double shift = 0.0;
 					if(i == driftDir){
 						shift = trk->Nodes()[0]->GetDriftShift();
@@ -537,7 +537,7 @@ void PMAlgTrackMaker::produce(art::Event& evt)
 		}
 
 		auto vsel = pmalgTracker.getVertices(fSaveOnlyBranchingVtx); // vtx pos's with vector of connected track idxs
-		auto ksel = pmalgTracker.getKinks(); // pairs of kink position - associated track idx 
+		auto ksel = pmalgTracker.getKinks(); // pairs of kink position - associated track idx
 		std::map< size_t, art::Ptr<recob::Vertex> > frontVtxs; // front vertex ptr for each track index
 
 		if (fPmaTrackerConfig.RunVertexing()) // save vertices and vtx-trk assns

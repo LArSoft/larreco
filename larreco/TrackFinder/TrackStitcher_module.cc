@@ -46,15 +46,15 @@
 #include <string>
 
 namespace trkf {
-   
+
    class TrackStitcher : public art::EDProducer {
    public:
       explicit TrackStitcher(fhicl::ParameterSet const& pset);
-      
+
    private:
       void produce(art::Event& evt) override;
       void reconfigure(fhicl::ParameterSet const& p);
-      
+
       art::PtrVector<recob::Hit> GetHitsFromComponentTracks(const art::PtrVector<recob::Track> &, const art::Event& evt);
       art::PtrVector<recob::SpacePoint> GetSpacePointsFromComponentTracks(const art::PtrVector<recob::Track> &, const art::Event& evt);
       std::vector<art::Ptr<recob::Hit>> GetHitsFromAssdSpacePoints(const art::PtrVector<recob::SpacePoint> &, const art::Event& evt,  std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > > &vpi);
@@ -62,29 +62,29 @@ namespace trkf {
       std::string     fSpptModuleLabel;// label for input collection
       bool            fStizatch; // CommonComponentStitch
       StitchAlg fStitchAlg;
-      
+
    }; // class TrackStitcher
-   
+
 } // end namespace for declarations
 
 namespace trkf {
-   
+
    //-------------------------------------------------
    TrackStitcher::TrackStitcher(fhicl::ParameterSet const& pset) :
      EDProducer{pset},
    fStitchAlg(pset.get< fhicl::ParameterSet >("StitchAlg"))
    {
-      
+
       this->reconfigure(pset);
-      
+
       produces< std::vector<recob::Track>                  >();
       produces<std::vector<art::PtrVector<recob::Track> >  >();
       produces<art::Assns<recob::Track, recob::Hit>        >();
       produces<art::Assns<recob::Track, recob::SpacePoint> >();
       produces<art::Assns<recob::SpacePoint, recob::Hit>   >();
-      
+
    }
-   
+
    //-------------------------------------------------
    void TrackStitcher::reconfigure(fhicl::ParameterSet const& pset)
    {
@@ -93,14 +93,14 @@ namespace trkf {
       fStizatch            = pset.get< bool >       ("CommonComponentStitch",true);
       fStitchAlg.reconfigure(pset.get< fhicl::ParameterSet >("StitchAlg"));
    }
-   
+
    //------------------------------------------------------------------------------------//
    void TrackStitcher::produce(art::Event& evt)
    {
-      
+
       // get services
       art::ServiceHandle<geo::Geometry const> geom;
-      
+
       //////////////////////////////////////////////////////
       // Make a std::unique_ptr<> for the thing you want to put into the event
       //////////////////////////////////////////////////////
@@ -112,11 +112,11 @@ namespace trkf {
       std::unique_ptr< art::Assns<recob::Track, recob::Hit> > thassn(new art::Assns<recob::Track, recob::Hit>);
       std::unique_ptr< art::Assns<recob::Track, recob::SpacePoint> > tsptassn(new art::Assns<recob::Track, recob::SpacePoint>);
       std::unique_ptr< art::Assns<recob::SpacePoint, recob::Hit > > spthassn(new art::Assns<recob::SpacePoint, recob::Hit>);
-      
-      
+
+
       // Get the original Spacepoints. Trackers other than CosmicTracker wrote the
       // SpacePoints as a PtrVec of vecs. If they look like that, flatten into one vec.
-      
+
       art::Handle< std::vector < recob::SpacePoint > > sppth;
       try
       {
@@ -140,10 +140,10 @@ namespace trkf {
             art::Ptr<recob::SpacePoint> sptmpf(sppthf,ii);
             scol->push_back(sptmpf);
          }
-         
+
       }
-      
-      
+
+
       // Find the best match for each track's Head and Tail.
       fStitchAlg.FindHeadsAndTails(evt,fTrackModuleLabel);
       // walk through each vertex of one track to its match on another, and so on and stitch 'em.
@@ -155,18 +155,18 @@ namespace trkf {
          stizatch = fStitchAlg.CommonComponentStitch();
       }
       mf::LogVerbatim("TrackStitcher.beginning") << "There are " <<  fStitchAlg.ftListHandle->size() << " Tracks in this event before stitching.";
-      
+
       fStitchAlg.GetTracks(*tcol);
       fStitchAlg.GetTrackComposites(*tvcol);
-      
+
       if (tcol->size()!=tvcol->size())
          throw cet::exception("TrackStitcher") << "Tracks and TrackComposites do not match: "<<tcol->size()<<" vs "<<tvcol->size()<<"\n";
-      
+
       std::vector<size_t> spIndices(scol->size());
       // create spIndices, index array for searching into original scol SpacePoints.
       for ( size_t ii=0; ii<scol->size(); ii++ )
       {spIndices[ii]=ii;}
-      
+
       for (size_t ii=0; ii<tvcol->size(); ii++)
       {
          const art::PtrVector<recob::Hit>& hits(GetHitsFromComponentTracks(tvcol->at(ii), evt));
@@ -175,15 +175,15 @@ namespace trkf {
          const art::PtrVector<recob::SpacePoint>& sppts(GetSpacePointsFromComponentTracks(tvcol->at(ii), evt));
          // Now make the Assns of relevant Sppts to stitched Track
          util::CreateAssn(*this, evt, *tcol, sppts, *tsptassn, ii);
-         
+
          // Now Assns of sppts to hits. For this Sppt
          // I call the function to bring back the vec of associated Hits and the vector of
          // pairs of iterators that allow to pull those Hits needed from each Sppt.
          std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > >  pits;
-         
+
          std::vector<art::Ptr<recob::Hit>> hitsFromSppts;
          art::FindManyP<recob::Hit> hitAssns(sppts, evt, fSpptModuleLabel);
-         
+
          size_t start(0), finish(0);
          for (unsigned int ii=0; ii < sppts.size(); ++ii )
          {
@@ -220,8 +220,8 @@ namespace trkf {
             }
          }
       }
-      
-      
+
+
       mf::LogVerbatim("TrackStitcher.end") << "There are " <<  tvcol->size() << " Tracks in this event after stitching.";
       evt.put(std::move(tcol));
       evt.put(std::move(tvcol));
@@ -229,45 +229,45 @@ namespace trkf {
       evt.put(std::move(thassn));
       evt.put(std::move(tsptassn));
       evt.put(std::move(spthassn));
-      
+
    }
-   
+
    art::PtrVector<recob::Hit> TrackStitcher::GetHitsFromComponentTracks(const art::PtrVector<recob::Track> &tcomp, const art::Event& evtGHFCT)
    {
-      
+
       art::PtrVector<recob::Hit> hits;
       art::FindManyP<recob::Hit> hitAssns(tcomp, evtGHFCT, fTrackModuleLabel);
-      
+
       for (unsigned int ii=0; ii < tcomp.size(); ++ii )
       {
          hits.insert(hits.end(),hitAssns.at(ii).begin(), hitAssns.at(ii).end());
       }
-      
-      
+
+
       //    const art::PtrVector<recob::Hit> chits(hits);
       return hits;
    }
-   
+
    art::PtrVector<recob::SpacePoint> TrackStitcher::GetSpacePointsFromComponentTracks(const art::PtrVector<recob::Track> &tcomp, const art::Event& evtGHFCT)
    {
-      
+
       art::PtrVector<recob::SpacePoint> sppts;
       art::FindManyP<recob::SpacePoint> spptAssns(tcomp, evtGHFCT, fTrackModuleLabel);
       for (unsigned int ii=0; ii < tcomp.size(); ++ii )
       {
          sppts.insert(sppts.end(),spptAssns.at(ii).begin(), spptAssns.at(ii).end());
       }
-      
+
       //    const art::PtrVector<recob::Hit> chits(hits);
       return sppts;
    }
-   
+
    std::vector<art::Ptr<recob::Hit>> TrackStitcher::GetHitsFromAssdSpacePoints(const art::PtrVector<recob::SpacePoint> &sppts, const art::Event& evtGHFCT, std::vector<std::pair<std::vector<art::Ptr<recob::Hit> >::const_iterator, std::vector<art::Ptr<recob::Hit> >::const_iterator > > &pithit)
    {
-      
+
       std::vector<art::Ptr<recob::Hit>> hits;
       art::FindManyP<recob::Hit> hitAssns(sppts, evtGHFCT, fSpptModuleLabel);
-      
+
       size_t start(0), finish(0);
       for (unsigned int ii=0; ii < sppts.size(); ++ii )
       {
@@ -277,11 +277,11 @@ namespace trkf {
          pithit.push_back(pithittmp);
          start += (finish+1);
       }
-      
+
       return hits;
    }
-   
+
    DEFINE_ART_MODULE(TrackStitcher)
-   
-   
+
+
 }  // end namespace

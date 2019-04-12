@@ -2,7 +2,7 @@
  * \file CBAlgoStartInCone.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoStartInCone
  *
  * @author david
@@ -20,25 +20,25 @@
 #include <math.h>
 
 namespace cmtool {
-  
+
   /**
      \class CBAlgoStartInCone
      If start point of Cluster B in Cone region of Cluster A then merge
   */
   class CBAlgoStartInCone : public CBoolAlgoBase{
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoStartInCone();
-    
+
     /// Default destructor
     virtual ~CBAlgoStartInCone(){};
-  
+
     /// Merging Algorithm is Here
     virtual bool Bool(const ::cluster::ClusterParamsAlg &cluster1,
 		      const ::cluster::ClusterParamsAlg &cluster2);
-    
+
     /// Method to re-configure the instance
     void reconfigure();
 
@@ -70,10 +70,10 @@ namespace cmtool {
     bool _debug;
     double _angleCompat; /// Two clusters must have direction within this value of each other
     double _lengthReach; ///How four out - as percent of cluster length - cone will extend from start point
-    
+
   };
 
-}  
+}
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

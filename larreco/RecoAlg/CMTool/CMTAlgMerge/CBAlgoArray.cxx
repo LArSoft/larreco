@@ -51,7 +51,7 @@ namespace cmtool {
   //--------------------------------------------------------------------
   {
     bool status = true;
-    
+
     for(size_t i=0; i<_algo_array.size(); ++i) {
 
       if(!i) status = _algo_array.at(i)->Bool(cluster1,cluster2);
@@ -74,14 +74,14 @@ namespace cmtool {
 	//
 	// Execute algorithm
 	//
-	if( _ask_and.at(i) ) 
+	if( _ask_and.at(i) )
 
 	  status = status && _algo_array.at(i)->Bool(cluster1,cluster2);
 
-	else 
-	  
+	else
+
 	  status = status || _algo_array.at(i)->Bool(cluster1,cluster2);
-	
+
       }
     }
 
@@ -94,5 +94,5 @@ namespace cmtool {
   {
     for(auto &algo : _algo_array) algo->Report();
   }
-    
+
 }

@@ -12,7 +12,7 @@ namespace cluster{
   ClusterMatchAlg::ClusterMatchAlg(fhicl::ParameterSet const& pset):
     _ModName_MCTruth("")
   //##################################################################
-  {    
+  {
 
     _debug_mode         = pset.get<bool>   ("DebugMode");
     _store_sps          = pset.get<bool>   ("StoreSpacePoint");
@@ -36,7 +36,7 @@ namespace cluster{
       if(v >= (size_t)(kMATCH_METHOD_MAX))
 
 	mf::LogError("ClusterMatchAlg")<<Form("Invalid algorithm enum: %zu",v);
-      
+
       else _match_methods[v]=true;
     }
 
@@ -77,7 +77,7 @@ namespace cluster{
     _ucluster_v.clear();
     _vcluster_v.clear();
     _wcluster_v.clear();
-    
+
     _uhits_v.clear();
     _vhits_v.clear();
     _whits_v.clear();
@@ -126,7 +126,7 @@ namespace cluster{
     _tpeak_min_v.clear();
     _tpeak_max_v.clear();
     _tend_min_v.clear();
-    _tend_max_v.clear();   
+    _tend_max_v.clear();
 
   }
 
@@ -144,7 +144,7 @@ namespace cluster{
     ClearTTreeInfo();
 
   }
-  
+
   //##################################################################
   void ClusterMatchAlg::PrepareTTree()
   //##################################################################
@@ -196,7 +196,7 @@ namespace cluster{
 
   //##########################################################################################
   void ClusterMatchAlg::FillMCInfo(const art::Event &evt)
-  //##########################################################################################  
+  //##########################################################################################
   {
     if(!_ModName_MCTruth.size()) return;
 
@@ -213,7 +213,7 @@ namespace cluster{
     }
 
     for(size_t i=0; i < mciArray.size(); ++i){
-      
+
       if(i==1) {
 	mf::LogWarning("ClusterMatchAlg")<<" Ignoring > 2nd MCTruth in MC generator...";
 	break;
@@ -228,7 +228,7 @@ namespace cluster{
 	}
 
 	const simb::MCParticle part(mci_ptr->GetParticle(j));
-	
+
 	_pdgid = part.PdgCode();
 	_mc_E  = part.E();
 	_mc_Px = part.Px();
@@ -241,13 +241,13 @@ namespace cluster{
     }
   }
 
-  void ClusterMatchAlg::PrepareDetParams() 
+  void ClusterMatchAlg::PrepareDetParams()
   {
     if(!_det_params_prepared){
       // Total number of planes
       art::ServiceHandle<geo::Geometry const> geo;
       _tot_planes = geo->Nplanes();
-      
+
       // Ask DetectorPrperties about time-offset among different wire planes ... used to correct timing
       // difference among different wire planes in the following loop.
       const detinfo::DetectorProperties* det_h = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -259,7 +259,7 @@ namespace cluster{
       _det_params_prepared = true;
     }
   }
-  
+
   void ClusterMatchAlg::AppendClusterInfo(const recob::Cluster &in_cluster,
 					  const std::vector<art::Ptr<recob::Hit> > &in_hit_v) {
 
@@ -290,9 +290,9 @@ namespace cluster{
     default:
       mf::LogError("ClusterMatchAlg")<<Form("Found an invalid plane ID: %d",in_cluster.View());
     }
-    
+
   }
-  
+
   void ClusterMatchAlg::AppendClusterInfo(const art::Ptr<recob::Cluster> in_cluster,
 					  const std::vector<art::Ptr<recob::Hit> > &in_hit_v) {
 
@@ -303,7 +303,7 @@ namespace cluster{
     art::PtrVector<recob::Hit> hit_ptrv;
     FillHitInfo(ci, hit_ptrv, in_hit_v);
 
-    // Save created art::PtrVector & cluster_match_info struct object                                                                       
+    // Save created art::PtrVector & cluster_match_info struct object
     switch(ci.view){
     case geo::kU:
       _uhits_v.push_back(hit_ptrv);
@@ -325,16 +325,16 @@ namespace cluster{
     }
 
   }
-  
 
 
-  void ClusterMatchAlg::FillHitInfo(cluster_match_info &ci, 
+
+  void ClusterMatchAlg::FillHitInfo(cluster_match_info &ci,
 				    art::PtrVector<recob::Hit> &out_hit_v,
-				    const std::vector<art::Ptr<recob::Hit> > &in_hit_v) 
+				    const std::vector<art::Ptr<recob::Hit> > &in_hit_v)
   {
 
     out_hit_v.reserve(in_hit_v.size());
-    
+
     double time_offset = 0;
     if(ci.view == geo::kU) time_offset = _time_offset_uplane;
     else if(ci.view == geo::kV) time_offset = _time_offset_vplane;
@@ -349,21 +349,21 @@ namespace cluster{
       double tend = hit->PeakTimePlusRMS(+1.) - time_offset;
 
       ci.sum_charge += hit->Integral();
-      
+
       ci.wire_max = (ci.wire_max < wire) ? wire : ci.wire_max;
       ci.wire_min = (ci.wire_min > wire) ? wire : ci.wire_min;
-      
+
       ci.start_time_max = ( ci.start_time_max < tstart ) ? tstart : ci.start_time_max;
       ci.peak_time_max  = ( ci.peak_time_max  < tpeak  ) ? tpeak  : ci.peak_time_max;
       ci.end_time_max   = ( ci.end_time_max   < tend   ) ? tend   : ci.end_time_max;
-      
+
       ci.start_time_min = ( ci.start_time_min > tstart) ? tstart : ci.start_time_min;
       ci.peak_time_min  = ( ci.peak_time_min  > tpeak)  ? tpeak  : ci.peak_time_min;
       ci.end_time_min   = ( ci.end_time_min   > tend)   ? tend   : ci.end_time_min;
-      
+
       out_hit_v.push_back(hit);
     }
-    
+
     ci.nhits = in_hit_v.size();
   }
 
@@ -407,7 +407,7 @@ namespace cluster{
     //if(time_overlay <= 0 && !_debug_mode) return false;
 
     double overlay_tratio = time_overlay /  (ci1.end_time_max - ci1.start_time_min + ci2.end_time_max - ci2.start_time_min) * 2.;
-    
+
     if( (ci1.view==geo::kU && ci2.view==geo::kV) || (ci1.view==geo::kV && ci2.view==geo::kU) )
       _uv_tratio_v.push_back(overlay_tratio);
     else if( (ci1.view==geo::kV && ci2.view==geo::kW) || (ci1.view==geo::kW && ci2.view==geo::kV) )
@@ -423,7 +423,7 @@ namespace cluster{
   //##############################################################################################
   {
     double qratio = (uc.sum_charge)/(vc.sum_charge);
-    
+
     // For quality check log
     _qratio_v.push_back(qratio);
 
@@ -431,9 +431,9 @@ namespace cluster{
   }
 
   //#####################################################################################################
-  bool ClusterMatchAlg::Match_SpacePoint(const size_t uindex, 
-					 const size_t vindex, 
-					 const size_t windex, 
+  bool ClusterMatchAlg::Match_SpacePoint(const size_t uindex,
+					 const size_t vindex,
+					 const size_t windex,
 					 std::vector<recob::SpacePoint> &sps_v)
   //#####################################################################################################
   {
@@ -442,7 +442,7 @@ namespace cluster{
     if( uindex >= _ucluster_v.size() ||
 	vindex >= _vcluster_v.size() ||
 	(use_wplane && (windex >= _wcluster_v.size())) ) {
-      
+
       mf::LogError("ClusterMatchAlg")
 	<< std::endl
 	<< Form("Requested to cluster-index (U,V,W) = (%zu,%zu,%zu) where max-length is (%zu,%zu,%zu)",
@@ -457,11 +457,11 @@ namespace cluster{
 
     double trange_max = std::max(_ucluster_v.at(uindex).peak_time_max,_vcluster_v.at(vindex).peak_time_max);
     if(use_wplane) trange_max = std::max(trange_max,_wcluster_v.at(windex).peak_time_max);
-    
+
     // Space-point algorithm applies additional dT
     trange_min -= _sps_algo->maxDT();
     trange_max += _sps_algo->maxDT();
-    
+
     // Make PtrVector<recob::Hit> for relevant Hits
     art::PtrVector<recob::Hit> hit_group;
     size_t max_size = _uhits_v.at(uindex).size() + _vhits_v.at(vindex).size();
@@ -485,7 +485,7 @@ namespace cluster{
     // Check if any hit found in this plane
     size_t v_nhits = hit_group.size() - u_nhits;
     if( !(v_nhits) && !_debug_mode) return false;
-    
+
     // Loop over hits in W-plane
     if(use_wplane) {
       for(auto const hit: _whits_v.at(windex)) {
@@ -499,7 +499,7 @@ namespace cluster{
     if( !(w_nhits) && use_wplane && !_debug_mode) return false;
 
     // Run SpacePoint finder algo
-    if(u_nhits && v_nhits && 
+    if(u_nhits && v_nhits &&
        (!use_wplane || (w_nhits && use_wplane))) {
       _sps_algo->clearHitMap();
       _sps_algo->makeSpacePoints(hit_group,sps_v);
@@ -509,7 +509,7 @@ namespace cluster{
     _u_nhits_v.push_back(u_nhits);
     _v_nhits_v.push_back(v_nhits);
     if(use_wplane)
-      _w_nhits_v.push_back(w_nhits); 
+      _w_nhits_v.push_back(w_nhits);
     _nsps.push_back(nsps);
 
     if( nsps < _num_sps_cut ) return false;
@@ -542,7 +542,7 @@ namespace cluster{
     _tot_w = _wcluster_v.size();
 
     if(!(_tot_u + _tot_v + _tot_w)) {
-      
+
       mf::LogError(__PRETTY_FUNCTION__)<<"No input cluster info found! Aborting the function call...";
 
       return;
@@ -569,10 +569,10 @@ namespace cluster{
 	  else overlay_2d = false;
 	}
 
-		
+
 	// Sum charge cut
 	if(_match_methods[kSumCharge]) {
-	  
+
 	  if(Match_SumCharge(_ucluster_v.at(uci_index),_vcluster_v.at(vci_index)))
 	    _tot_pass_qsum++;
 	  else if(!_debug_mode) continue;
@@ -581,7 +581,7 @@ namespace cluster{
 
 	// Rough time overlap cut
 	if(_match_methods[kRoughT]) {
-	  
+
 	  if(Match_RoughTime(_ucluster_v.at(uci_index), _vcluster_v.at(vci_index)))
 	    _tot_pass_t++;
 	  else if(!_debug_mode) continue;
@@ -591,13 +591,13 @@ namespace cluster{
         // SpacePoint cut
 	std::vector<recob::SpacePoint> sps_v;
 	if(_match_methods[kSpacePoint]) {
-	  
-	  if(Match_SpacePoint(uci_index, vci_index, 0, sps_v)) 
+
+	  if(Match_SpacePoint(uci_index, vci_index, 0, sps_v))
 	    _tot_pass_sps++;
 	  else if(!_debug_mode) continue;
 	  else overlay_2d = false;
-	}	      
-	
+	}
+
 	if(overlay_2d) {
 	  _matched_uclusters_v.push_back((unsigned int)(_ucluster_v[uci_index].cluster_index));
 	  _matched_vclusters_v.push_back((unsigned int)(_vcluster_v[vci_index].cluster_index));
@@ -609,14 +609,14 @@ namespace cluster{
 
     // Report
     msg << std::endl
-	<< Form("Found %zu matched cluster pairs...",_matched_uclusters_v.size()) 
+	<< Form("Found %zu matched cluster pairs...",_matched_uclusters_v.size())
 	<< std::endl;
     for(size_t i=0; i<_matched_uclusters_v.size(); ++i){
 
       if(i==0) msg << "Listing matched clusters (U,V)..." << std::endl;
-      
+
       msg << Form("Pair %-2zu: (%-3d, %-3d)",i,_matched_uclusters_v[i],_matched_vclusters_v[i]) << std::endl;
-      
+
     }
     msg << std::endl;
     mf::LogWarning("ClusterMatchAlg")<<msg.str();
@@ -645,7 +645,7 @@ namespace cluster{
     _tot_w = _wcluster_v.size();
 
     if(!(_tot_u + _tot_v + _tot_w)) {
-      
+
       mf::LogError(__PRETTY_FUNCTION__)<<"No input cluster info found! Aborting the function call...";
 
       return;
@@ -676,7 +676,7 @@ namespace cluster{
 
 	// Sum charge cut
 	if(_match_methods[kSumCharge]) {
-	  
+
 	  if(Match_SumCharge(_ucluster_v.at(uci_index),_vcluster_v.at(vci_index)))
 	    _tot_pass_qsum++;
 	  else if(!_debug_mode) continue;
@@ -690,13 +690,13 @@ namespace cluster{
 
 	  // Rough time overlap cut
 	  if(_match_methods[kRoughT]) {
-	    
+
 	    bool rough_time_match = Match_RoughTime(_ucluster_v.at(uci_index), _vcluster_v.at(vci_index));
 	    if(!_debug_mode && !rough_time_match) continue;
-	    
+
 	    rough_time_match = (Match_RoughTime(_vcluster_v.at(vci_index), _wcluster_v.at(wci_index)) && rough_time_match);
 	    if(!_debug_mode && !rough_time_match) continue;
-	    
+
 	    rough_time_match = (Match_RoughTime(_wcluster_v.at(wci_index), _ucluster_v.at(uci_index)) && rough_time_match);
 
 	    overlay_3d = overlay_3d && rough_time_match;
@@ -710,9 +710,9 @@ namespace cluster{
 
 	    if(Match_SpacePoint(uci_index, vci_index, wci_index, sps_v))
 	      _tot_pass_sps++;
-	    else if(!_debug_mode) continue; 
+	    else if(!_debug_mode) continue;
 	    else overlay_3d = false;
-	  }	      
+	  }
 
 	  if(overlay_3d) {
 	    _matched_uclusters_v.push_back((unsigned int)(_ucluster_v[uci_index].cluster_index));
@@ -727,18 +727,18 @@ namespace cluster{
 
     // Report
     msg << std::endl
-	<< Form("Found %zu matched cluster pairs...",_matched_uclusters_v.size()) 
+	<< Form("Found %zu matched cluster pairs...",_matched_uclusters_v.size())
 	<< std::endl;
     for(size_t i=0; i<_matched_uclusters_v.size(); ++i){
 
       if(i==0) msg << "Listing matched clusters (U,V,W)..." << std::endl;
-      
+
       msg << Form("Pair %-2zu: (%-3d, %-3d, %-3d)",
 		  i,
 		  _matched_uclusters_v[i],
 		  _matched_vclusters_v[i],
 		  _matched_wclusters_v[i]) << std::endl;
-      
+
     }
     msg << std::endl;
     mf::LogWarning("ClusterMatchAlg")<<msg.str();

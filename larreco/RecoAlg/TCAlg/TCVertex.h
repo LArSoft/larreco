@@ -52,7 +52,7 @@ namespace tca {
   void CompleteIncomplete3DVertices(TCSlice& slc);
 //  bool RefineVtxPosition(TCSlice& slc, const Trajectory& tj, unsigned short& nearPt, short nPtsToChk, bool prt);
   void CompleteIncomplete3DVerticesInGaps(TCSlice& slc);
-  // Improve hit assignments near vertex 
+  // Improve hit assignments near vertex
   void VtxHitsSwap(TCSlice& slc, const CTP_t inCTP);
 
   unsigned short TPNearVertex(TCSlice& slc, const TrajPoint& tp);

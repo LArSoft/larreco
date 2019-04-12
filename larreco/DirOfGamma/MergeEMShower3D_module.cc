@@ -2,7 +2,7 @@
 // Class:       MergeEMShower3D
 // Module Type: producer
 // File:        MergeEMShower3D_module.cc
-// Authors: dorota.stefan@cern.ch robert.sulej@cern.ch	
+// Authors: dorota.stefan@cern.ch robert.sulej@cern.ch
 ////////////////////////////////////////////////////////////////////////
 
 #include "art/Framework/Core/EDProducer.h"
@@ -13,9 +13,9 @@
 #include "art/Framework/Principal/SubRun.h"
 #include "canvas/Utilities/InputTag.h"
 #include "fhiclcpp/ParameterSet.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
-#include "art/Framework/Services/Optional/TFileDirectory.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art/Framework/Services/Optional/TFileService.h"
+#include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "lardata/Utilities/AssociationUtil.h"
@@ -60,13 +60,13 @@ class ems::ShowerInfo
 	int GetKey(void) const {return fKey;}
 	int GetGid(void) const {return fGId;}
 	int GetPlaneId(void) const {return fPlaneId;}
-	double GetAdcSum(void) const {return fAdcSum;} 
-	std::vector<double> GetEnTot(void) const {return fVentot; } 
+	double GetAdcSum(void) const {return fAdcSum;}
+	std::vector<double> GetEnTot(void) const {return fVentot; }
 
 	TVector3 GetFront(void) const {return fFront;}
 	TVector3 GetEnd(void) const {return fEnd;}
 	TVector3 GetDir(void) const {return fDir;}
-	std::vector<double> GetDedx(void) const { return fVdqdx; } 
+	std::vector<double> GetDedx(void) const { return fVdqdx; }
 
 	double GetP0Dist(void) const { return fP0Dist; }
 	void SetP0Dist(const TVector3 p)
@@ -74,7 +74,7 @@ class ems::ShowerInfo
 		if (fHasVtx) fP0Dist = std::sqrt( pma::Dist2(p, fFront) );
 		else fP0Dist = std::sqrt( pma::Dist2(p, 0.5 * (fFront + fEnd)) );
 	}
- 	
+
 	private:
 	int fKey;
 	int fGId;
@@ -85,30 +85,30 @@ class ems::ShowerInfo
 	double fP0Dist;
 
 	TVector3 fFront;
-	TVector3 fEnd; 
+	TVector3 fEnd;
 	TVector3 fDir;
 
 	std::vector<double> fVdqdx;
-	 
+
 };
 
 ems::ShowerInfo::ShowerInfo(int key, int gid,  bool hasvtx, std::vector<double> vensum, recob::Track const& trk) :
 fKey(key),
 fGId(gid),
-fVentot(vensum), 
+fVentot(vensum),
 fP0Dist(0)
 {
 	fDir = trk.VertexDirection<TVector3>();
 	fFront = trk.Vertex<TVector3>();
-	fEnd = trk.End<TVector3>();			
+	fEnd = trk.End<TVector3>();
 	fHasVtx = hasvtx;
 
 	art::ServiceHandle<geo::Geometry const> geom;
-	/*fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kU)); 
+	/*fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kU));
 	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kV));
-	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kZ));*/ 
+	fVdqdx.push_back(trk.DQdxAtPoint(0, geo::kZ));*/
 
-	
+
 	/*************************************************************/
 	/*                          WARNING                          */
 	/*************************************************************/
@@ -126,16 +126,16 @@ fP0Dist(0)
 	{
 		geo::View_t view = geom->View(p);
 		fVdqdx.push_back(trk.DQdxAtPoint(0, view));
-		if (trk.DQdxAtPoint(1, view) > 0) 
+		if (trk.DQdxAtPoint(1, view) > 0)
 		{fPlaneId = int(p); isplane = true;}
 	}
-	if (!isplane) fPlaneId = -1; 
+	if (!isplane) fPlaneId = -1;
 	*/
 	/*************************************************************/
 
 	/*if (trk.DQdxAtPoint(1, geo::kU) > 0) fPlaneId = geo::kU;
 	else if (trk.DQdxAtPoint(1, geo::kV) > 0) fPlaneId = geo::kV;
-	else if (trk.DQdxAtPoint(1, geo::kZ) > 0) fPlaneId = geo::kZ; 
+	else if (trk.DQdxAtPoint(1, geo::kZ) > 0) fPlaneId = geo::kZ;
 	else fPlaneId = -1;*/
 }
 
@@ -150,12 +150,12 @@ double ems::ShowerInfo::Pointsto(ems::ShowerInfo const& s1) const
 
 	TVector3 isect, pm;
 	pma::SolveLeastSquares3D(lines, isect);
-	pm = pma::GetProjectionToSegment(isect, this->fFront, this->fFront +  this->fDir); 
+	pm = pma::GetProjectionToSegment(isect, this->fFront, this->fFront +  this->fDir);
 	double cosine1 = (pm - s1.fFront) * (1.0/(pm - s1.fFront).Mag()) * s1.fDir;
 	double th1 = 180.0F * (std::acos(cosine1)) / TMath::Pi();
 
 	double thmin = th0;
-	if (th1 < th0) thmin = th1;	
+	if (th1 < th0) thmin = th1;
 
 	return thmin;
 }
@@ -164,8 +164,8 @@ double ems::ShowerInfo::Angleto(TVector3 const& pmapoint) const
 {
 	double cosine = (pmapoint - this->fFront) * (1.0 / (pmapoint - this->fFront).Mag()) * this->fDir;
 	double th = 180.0F * (std::acos(cosine)) / TMath::Pi();
-	
-	return th;	
+
+	return th;
 }
 
 class ems::bDistLess :
@@ -198,15 +198,15 @@ class ems::ShowersCollection
 		bool IsClean() {return Clean;}
 
 		int PlaneId();
-		TVector3 Front(); 
-		TVector3 Dir(); 
+		TVector3 Front();
+		TVector3 Dir();
 		std::vector<double> DeDx(void);
-		std::vector<double> TotEn(void); 
+		std::vector<double> TotEn(void);
 
 		ShowerInfo first;
-	
+
 	private:
-		bool Clean;	
+		bool Clean;
 		int GId;
 		std::vector< ShowerInfo > fParts;
 };
@@ -218,7 +218,7 @@ first(part)
 	GId = part.GetGid();
 	if (GId == 9999)
 		Clean = false;
-	
+
 	fParts.push_back(part);
 }
 
@@ -246,7 +246,7 @@ std::vector<double> ems::ShowersCollection::DeDx()
 	else return std::vector<double>(0.0);
 }
 
-std::vector<double> ems::ShowersCollection::TotEn() 
+std::vector<double> ems::ShowersCollection::TotEn()
 {
 	std::vector<double> en;
 
@@ -303,7 +303,7 @@ void ems::ShowersCollection::Merge(ShowersCollection const& col2)
 {
 	for (size_t i = 0; i < col2.fParts.size(); ++i)
 		for (size_t j = 0; j < fParts.size(); ++j)
-			if (fParts[j].GetGid() != col2.fParts[i].GetGid())	
+			if (fParts[j].GetGid() != col2.fParts[i].GetGid())
 			{
 				Clean = false;
 				break;
@@ -311,7 +311,7 @@ void ems::ShowersCollection::Merge(ShowersCollection const& col2)
 
 	for (size_t i = 0; i < col2.fParts.size(); ++i)
 		fParts.push_back(col2.fParts[i]);
-	
+
 }
 
 void ems::ShowersCollection::Merge(ShowerInfo const& src)
@@ -398,7 +398,7 @@ private:
 
 };
 
-ems::MergeEMShower3D::MergeEMShower3D(fhicl::ParameterSet const & p) 
+ems::MergeEMShower3D::MergeEMShower3D(fhicl::ParameterSet const & p)
   : EDProducer{p}
   , fShowerEnergyAlg(p.get<fhicl::ParameterSet>("ShowerEnergyAlg"))
 {
@@ -407,7 +407,7 @@ ems::MergeEMShower3D::MergeEMShower3D(fhicl::ParameterSet const & p)
 	produces< std::vector<recob::Shower> >();
 	produces< std::vector<recob::Vertex> >();
 
-	produces< art::Assns<recob::Shower, recob::Vertex> >(); 
+	produces< art::Assns<recob::Shower, recob::Vertex> >();
 	produces< art::Assns<recob::Shower, recob::Cluster> >();
 	produces< art::Assns<recob::Shower, recob::Hit> >();
 }
@@ -483,8 +483,8 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 			auto src_clu_list = cluFromTrk.at(t);
 			double adcsum = 0.0;
 			std::vector<double> ensum(3, 0.0);
-			
-			for (size_t c = 0; c < src_clu_list.size(); ++c)  
+
+			for (size_t c = 0; c < src_clu_list.size(); ++c)
 			{
 				std::vector< art::Ptr<recob::Hit> > v = hitFromClu.at(src_clu_list[c].key());
 				adcsum += getClusterAdcSum(v);
@@ -495,14 +495,14 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 			}
 
 			auto cnv = vtxFromTrk.at(t);
-			if (cnv.size()) 
+			if (cnv.size())
 			{
 				int gid = getGammaId(evt, t);
 				ShowerInfo si(t, gid, true, ensum, trk);
-				showers.push_back(si);	
+				showers.push_back(si);
 			}
-			else	
-			{	
+			else
+			{
 				int gid = getGammaId(evt, t);
 				ShowerInfo si(t, gid, false, ensum, trk);
 				showers.push_back(si);
@@ -511,16 +511,16 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 
 		fNTot = showers.size();
 
-		//// collect shower fragments 
+		//// collect shower fragments
 		gammawithconv = collectshowers(evt, showers, true); // true switches on refpoint
-	
+
 		// with pma segments reconstructed
-		// procceed with pma segments when two conversions 
+		// procceed with pma segments when two conversions
 		std::vector< ShowerInfo > pmaseg;
 		for (size_t i = 0; i < showers.size(); ++i)
 			if (!showers[i].HasConPoint())
-				pmaseg.push_back(showers[i]);			
-		
+				pmaseg.push_back(showers[i]);
+
 		fNPMA = pmaseg.size();
 
 		const double bigcone = fWideConeAngle; // degree.
@@ -539,23 +539,23 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 					}
 				}
 				if (a_min < bigcone)
-					gammawithconv[best].Merge(pmaseg[i]);		
+					gammawithconv[best].Merge(pmaseg[i]);
 			}
-		
+
 		mcinfo(evt);
-		
+
 
 		for (size_t i = 0; i < gammawithconv.size(); ++i)
 				if (gammawithconv[i].IsClean()) fNCleanMerged++;
-		
-		fNMerged = gammawithconv.size(); 
+
+		fNMerged = gammawithconv.size();
 		if (gammawithconv.size() == 2)
 		{
 			fNParts[0] = gammawithconv[0].Size();
 			fNParts[1] = gammawithconv[1].Size();
 		}
 
-		fDistvtxmcreco = std::sqrt(pma::Dist2(fRefPoint, fPi0vtx));	
+		fDistvtxmcreco = std::sqrt(pma::Dist2(fRefPoint, fPi0vtx));
 		fEvTree->Fill();
 
 		fVtxIndex = 0;
@@ -565,12 +565,12 @@ void ems::MergeEMShower3D::produce(art::Event & evt)
 			TVector3 v0(0., 0., 0.);
 			TVector3 dir = gammawithconv[i].Dir();
 			TVector3 front = gammawithconv[i].Front();
-			 
+
 			std::vector<double> dedx = gammawithconv[i].DeDx();
 			std::vector< double > vd;
 			recob::Shower cas(
 				dir, v0, front, v0,
-				vd, vd, dedx, vd, gammawithconv[i].PlaneId(), id); 
+				vd, vd, dedx, vd, gammawithconv[i].PlaneId(), id);
 
 
 			std::vector< art::Ptr<recob::Cluster> > cls;
@@ -635,8 +635,8 @@ std::vector< ems::ShowersCollection > ems::MergeEMShower3D::collectshowers(art::
 	if (refpoint)
 	{
 		art::ServiceHandle<geo::Geometry const> geom;
-		art::Handle< std::vector<recob::Track> > trkListHandle;		
-		if (evt.getByLabel(fTrk3DModuleLabel, trkListHandle)) 
+		art::Handle< std::vector<recob::Track> > trkListHandle;
+		if (evt.getByLabel(fTrk3DModuleLabel, trkListHandle))
 		{
 			double dsize[6];
 			geom->CryostatBoundaries(dsize, 0);
@@ -657,7 +657,7 @@ std::vector< ems::ShowersCollection > ems::MergeEMShower3D::collectshowers(art::
 					a = gammawithconv[m].Angle(showers[is].GetFront());
 					if ((a < fNarrowConeAngle) && (a < a_min))
 					{
-						m_idx = m; a_min = a; 
+						m_idx = m; a_min = a;
 					}
 
 					std::vector< std::pair<TVector3, TVector3> > lines;
@@ -680,7 +680,7 @@ std::vector< ems::ShowersCollection > ems::MergeEMShower3D::collectshowers(art::
 						}
 					}
 				}
-				if (a_min < fNarrowConeAngle) 
+				if (a_min < fNarrowConeAngle)
 				{
 					gammawithconv[m_idx].Merge(showers[is]);
 				}
@@ -709,7 +709,7 @@ std::vector< ems::ShowersCollection > ems::MergeEMShower3D::collectshowers(art::
 			size_t i = 0;
 			while (i < gammawithconv.size())
 			{
-				size_t best = 0; double a_min = smallcone; 
+				size_t best = 0; double a_min = smallcone;
 				for (size_t j = 0; j < gammawithconv.size(); j++)
 					if (i != j)
 					{
@@ -775,7 +775,7 @@ void ems::MergeEMShower3D::mcinfo(art::Event & evt)
 		}
 	}
 
-	if (pi0_idx < 0) return; 
+	if (pi0_idx < 0) return;
 
 	const simb::MCParticle & pi0 = mclist[0]->GetParticle(pi0_idx);
 	TVector3 pi0_vtx(pi0.Vx(), pi0.Vy(), pi0.Vz());
@@ -801,15 +801,15 @@ int ems::MergeEMShower3D::getGammaId(art::Event & evt, const size_t t)
 		art::FindManyP< recob::Hit > hitFromClu(cluListHandle, evt, fCluModuleLabel);
 
 		auto src_clu_list = cluFromTrk.at(t);
-		for (size_t c = 0; c < src_clu_list.size(); ++c)  
+		for (size_t c = 0; c < src_clu_list.size(); ++c)
 		{
 			std::vector< art::Ptr<recob::Hit> > v = hitFromClu.at(src_clu_list[c].key());
 			cid = getClusterBestId(v);
 
 			if ((fWhat == 0) && (cid == 9999)) fWhat = 1; // confused 2D
-			if ((fWhat == 0) && (gid == 0)) gid = cid;    
-			if ((fWhat == 0) && (cid != gid)) fWhat = 2;  // confused 3D 
-		}	
+			if ((fWhat == 0) && (gid == 0)) gid = cid;
+			if ((fWhat == 0) && (cid != gid)) fWhat = 2;  // confused 3D
+		}
 	}
 
 	if (fWhat == 0) return gid;
@@ -825,9 +825,9 @@ TVector3 ems::MergeEMShower3D::getBestPoint(
 
 	double f, fmin = 1.0e10;
 
-	double dx = step; 
-	double dy = step; 
-	double dz = step; 
+	double dx = step;
+	double dy = step;
+	double dz = step;
 
 	double x0 = p0.X();
 	while (x0 < p1.X())

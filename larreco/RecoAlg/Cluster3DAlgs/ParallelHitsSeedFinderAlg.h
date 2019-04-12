@@ -1,8 +1,8 @@
 /**
  *  @file   ParallelHitsSeedFinderAlg.h
- * 
+ *
  *  @brief  This is an algorithm for finding recob::Seed objects in 3D clusters
- * 
+ *
  */
 #ifndef ParallelHitsSeedFinderAlg_h
 #define ParallelHitsSeedFinderAlg_h
@@ -26,7 +26,7 @@
 
 namespace lar_cluster3d
 {
-    
+
 //typedef std::pair<recob::Seed, reco::HitPairListPtr> SeedHitListPair;
 //typedef std::list<SeedHitListPair >                  SeedHitPairList;
 
@@ -39,7 +39,7 @@ class ParallelHitsSeedFinderAlg : virtual public SeedFinderAlgBase
 public:
     /**
      *  @brief  Constructor
-     * 
+     *
      *  @param  pset
      */
     ParallelHitsSeedFinderAlg(fhicl::ParameterSet const &pset);
@@ -48,7 +48,7 @@ public:
      *  @brief  Destructor
      */
     virtual ~ParallelHitsSeedFinderAlg();
-    
+
     /**
      *  @brief a handler for the case where the algorithm control parameters are to be reset
      */
@@ -68,7 +68,7 @@ private:
     size_t                                 m_maxNumEdgeHits;  ///< Maximum number hits each end of PCA axis
     double                                 m_gapDistance;     ///< Maximum allowed distance between hits
     size_t                                 m_numSeed2DHits;   ///< Number 2D seed hits desired
-    
+
     PrincipalComponentsAlg                 m_pcaAlg;          // For running Principal Components Analysis
 };
 

@@ -38,7 +38,7 @@ void genf::GFGeoMatManager::getMaterialParameters(double& matDensity,
                                             double& mEE){
   if (!gGeoManager->GetCurrentVolume()->GetMedium())
     throw GFException("genf::GFGeoMatManager::getMaterialParameters(): no medium in volume!", __LINE__, __FILE__).setFatal();
-  TGeoMaterial * mat = gGeoManager->GetCurrentVolume()->GetMedium()->GetMaterial(); 
+  TGeoMaterial * mat = gGeoManager->GetCurrentVolume()->GetMedium()->GetMaterial();
   //std::cout << "GFGeoMatManager::getMaterialParameters: CurrentVolume is " << std::endl;
   //gGeoManager->GetCurrentVolume()->Print();
   //std::cout << "GFGeoMatManager::getMaterialParameters: Material is " << std::endl;
@@ -46,8 +46,8 @@ void genf::GFGeoMatManager::getMaterialParameters(double& matDensity,
 
   matDensity      = mat->GetDensity();
   matZ            = mat->GetZ();
-  matA            = mat->GetA();                          
-  radiationLength = mat->GetRadLen();  
+  matA            = mat->GetA();
+  radiationLength = mat->GetRadLen();
   mEE             = MeanExcEnergy_get(mat);
 }
 
@@ -80,7 +80,7 @@ float MeanExcEnergy_get(int Z){
       throw GFException("MeanExcEnergy_get(): Z out of range", __LINE__, __FILE__).setFatal();
     return MeanExcEnergy_vals[Z-1];
 }
-  
+
 float MeanExcEnergy_get(TGeoMaterial* mat){
   if(mat->IsMixture()){
     double logMEE = 0.;

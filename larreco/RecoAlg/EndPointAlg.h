@@ -9,37 +9,37 @@
 #define ENDPOINTALG_H
 
 #include "art/Framework/Principal/Event.h"
-#include "fhiclcpp/ParameterSet.h" 
-#include "canvas/Persistency/Common/Ptr.h" 
-#include "canvas/Persistency/Common/PtrVector.h" 
+#include "fhiclcpp/ParameterSet.h"
+#include "canvas/Persistency/Common/Ptr.h"
+#include "canvas/Persistency/Common/PtrVector.h"
 #include "TMath.h"
 #include <vector>
 #include <string>
 
-namespace recob { 
+namespace recob {
   class Cluster;
-  class EndPoint2D; 
+  class EndPoint2D;
   class Hit;
 }
 
 namespace cluster {
-   
+
   ///Algorithm to find 2D end points
  class EndPointAlg {
-    
+
   public:
-    
-    explicit EndPointAlg(fhicl::ParameterSet const& pset); 
-    virtual ~EndPointAlg();        
+
+    explicit EndPointAlg(fhicl::ParameterSet const& pset);
+    virtual ~EndPointAlg();
 
     void   reconfigure(fhicl::ParameterSet const& pset);
 
-    size_t EndPoint(const art::PtrVector<recob::Cluster>           & clusIn, 
+    size_t EndPoint(const art::PtrVector<recob::Cluster>           & clusIn,
 		    std::vector<recob::EndPoint2D>                 & vtxcol,
 		    std::vector< art::PtrVector<recob::Hit> >      & vtxHitsOut,
 		    art::Event                                const& evt,
 		    std::string                               const& label);
-    
+
   private:
 
     double Gaussian(int x, int y, double sigma);
@@ -47,7 +47,7 @@ namespace cluster {
     double GaussianDerivativeY(int x, int y);
     void VSSaveBMPFile(const char *fileName, unsigned char *pix, int dx, int dy);
 
-    
+
     int          fTimeBins;
     int          fMaxCorners;
     double       fGsigma;
@@ -55,7 +55,7 @@ namespace cluster {
     double       fThreshold;
     int          fSaveVertexMap;
   };
-    
+
 }
 
 

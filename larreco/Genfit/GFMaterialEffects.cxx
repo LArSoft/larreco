@@ -47,7 +47,7 @@ genf::GFMaterialEffects::GFMaterialEffects(){
   fEnergyLoss.push_back(new GFEnergyLossBetheBloch());
   fEnergyLoss.push_back(new GFEnergyLossBrems());
   fEnergyLoss.push_back(new GFEnergyLossCoulomb());
-  
+
   //geoMatManager = new GFGeoMatManager(); // handles material parameters and geometry - GFGeoMatManager uses TGeoMaterial and TGeoManager
 }
 */
@@ -84,21 +84,21 @@ void genf::GFMaterialEffects::destruct() {
   }
 }
 
-double genf::GFMaterialEffects::effects(const std::vector<TVector3>& points, 
-					const std::vector<double>& pointPaths, 
+double genf::GFMaterialEffects::effects(const std::vector<TVector3>& points,
+					const std::vector<double>& pointPaths,
 					const double& mom,
 					const int& pdg,
 					const bool& doNoise,
                                         TMatrixT<Double_t>* noise,
 					const TMatrixT<Double_t>* jacobian,
-					const TVector3* directionBefore, 
+					const TVector3* directionBefore,
 					const TVector3* directionAfter){
 
   //assert(points.size()==pointPaths.size());
   fpdg = pdg;
 
   double momLoss=0.;
-                     
+
   for(unsigned int i=1;i<points.size();++i){
     //    TVector3 p1=points.at(i-1);
     //TVector3 p2=points.at(i);
@@ -106,23 +106,23 @@ double genf::GFMaterialEffects::effects(const std::vector<TVector3>& points,
     TVector3 dir=points.at(i)-points.at(i-1);
     double dist=dir.Mag();
     double realPath = pointPaths.at(i);
-    
+
     if (dist > 1.E-8) { // do material effects only if distance is not too small
       dir*=1./dist; //normalize dir
 
       double X(0.);
       /*
-      double matDensity, matZ, matA, radiationLength, mEE; 
+      double matDensity, matZ, matA, radiationLength, mEE;
       double step;
       */
-      
+
       gGeoManager->InitTrack(points.at(i-1).X(),points.at(i-1).Y(),points.at(i-1).Z(),
 			       dir.X(),dir.Y(),dir.Z());
 
       while(X<dist){
-        
+
 	getParameters();
-	//        geoMatManager->getMaterialParameters(matDensity, matZ, matA, radiationLength, mEE); 
+	//        geoMatManager->getMaterialParameters(matDensity, matZ, matA, radiationLength, mEE);
 
 	//        step = geoMatManager->stepOrNextBoundary(dist-X);
 	gGeoManager->FindNextBoundaryAndStep(dist-X);
@@ -134,7 +134,7 @@ double genf::GFMaterialEffects::effects(const std::vector<TVector3>& points,
           for(unsigned int j=0;j<fEnergyLoss.size();++j){
             momLoss += realPath/dist*fEnergyLoss.at(j)->energyLoss(step,
                                                                    mom,
-                                                                   pdg,              
+                                                                   pdg,
                                                                    matDensity,
                                                                    matZ,
                                                                    matA,
@@ -162,7 +162,7 @@ double genf::GFMaterialEffects::effects(const std::vector<TVector3>& points,
           if (doNoise && fEnergyLossBrems && fNoiseBrems)
             this->noiseBrems(mom, noise);
 
-	  
+
 
         }
 
@@ -202,39 +202,39 @@ double genf::GFMaterialEffects::stepper(const double& maxDist,
   */
 
   while(X<maxDist){
-    
+
     getParameters();
 
     gGeoManager->FindNextBoundaryAndStep(maxDist-X);
     fstep = gGeoManager->GetStep();
     //
     //    step = geoMatManager->stepOrNextBoundary(maxDist-X);
-    
+
     // Loop over EnergyLoss classes
-    
+
     if(fmatZ>1.E-3){
-      /*  
+      /*
       for(unsigned int j=0;j<fEnergyLoss.size();++j){
         momLoss += fEnergyLoss.at(j)->energyLoss(step,
                                                  mom,
-                                                 pdg,              
+                                                 pdg,
                                                  matDensity,
                                                  matZ,
                                                  matA,
                                                  radiationLength,
-                                                 mEE);  
+                                                 mEE);
 						 }
     */
       calcBeta(mom);
- 
+
       if (fEnergyLossBetheBloch)
         momLoss += this->energyLossBetheBloch(mom);
 
       if (fEnergyLossBrems)
         momLoss += this->energyLossBrems(mom);
-      
+
     }
-    
+
     if(dP + momLoss > mom*maxPloss){
       double fraction = (mom*maxPloss-dP)/momLoss;
       if ((fraction <= 0.) || (fraction >= 1.))
@@ -243,7 +243,7 @@ double genf::GFMaterialEffects::stepper(const double& maxDist,
       X+=fraction*fstep;
       break;
     }
-    
+
     dP += momLoss;
     X += fstep;
   }
@@ -264,7 +264,7 @@ void genf::GFMaterialEffects::getParameters(){
   // You know what? F*ck it. Just force this to be LAr.... is what I *could/will* say here ....
   // See comment in energyLossBetheBloch() for why fmEE is in eV here.
   fmatDensity = 1.40; fmatZ = 18.0; fmatA = 39.95; fradiationLength=13.947; fmEE=188.0;
-  
+
 
   TParticlePDG * part = TDatabasePDG::Instance()->GetParticle(fpdg);
   fcharge = part->Charge()/(3.);
@@ -293,10 +293,10 @@ double genf::GFMaterialEffects::energyLossBetheBloch(const double& mom){
   double massRatio = me/fmass;
   // me=0.000511 here is in GeV. So fmEE must come in here in eV to get converted to MeV.
   double argument = fgammaSquare*fbeta*fbeta*me*1.E3*2./((1.E-6*fmEE) * sqrt(1+2*sqrt(fgammaSquare)*massRatio + massRatio*massRatio));
-  
+
   if (fmass==0.0) return(0.0);
   if (argument <= exp(fbeta*fbeta))
-    { 
+    {
       fdedx = 0.;
       // so-called Anderson-Ziegler domain ... Let's approximate it with a flat
       // 100 MeV/cm, looking at the muon dE/dx curve in the PRD Review, or, ahem, wikipedia.

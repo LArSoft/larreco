@@ -23,10 +23,10 @@ namespace cmtool {
   void CBAlgoStartInCone::reconfigure(){
 
     //not sure what needs to be reset/reconfigured for this algo
-    
+
   }//end reconfigure function
 
-  
+
   bool CBAlgoStartInCone::Bool(const ::cluster::ClusterParamsAlg &cluster1,
 			       const ::cluster::ClusterParamsAlg &cluster2)
   {
@@ -61,7 +61,7 @@ namespace cmtool {
       if (_debug) { std::cout << "Directions too different....do not merge" << std::endl; }
       return false;
     }
-    
+
     if (_debug){
       std::cout << "Cluster 1:" << std::endl;
       std::cout << "\tStart: ( " << w_start1 << ", " << t_start1 << " )" << std::endl;
@@ -75,7 +75,7 @@ namespace cmtool {
       std::cout << "\tLength: " << len2 << std::endl;
       std::cout << std::endl;
     }
-    
+
     //find if start point of A (B) in cone of B (A)
     //do this by translating point A (B) such that
     //start point of B (A) is at origin and +  axis
@@ -97,14 +97,14 @@ namespace cmtool {
 
     if ( (w_start1_rot < len2*_lengthReach ) and (w_start1_rot > 0) and
 	 ( abs(t_start1_rot) < (abs(w_start1_rot*sin(opening2*3.14/180.))) ) and
-	 (len2 > _lenMin) and 
+	 (len2 > _lenMin) and
 	 (cluster2.GetHitVector().size() > _NhitsMin) ){
       if (_verbose) { std::cout << "Start point of Cluster 1 in cone of Cluster 2!" << std::endl; }
       return true;
     }
     if ( (w_start2_rot < len1*_lengthReach ) and (w_start2_rot > 0) and
 	 ( abs(t_start2_rot) < (abs(w_start2_rot*sin(opening1*3.14/180.))) ) and
-	 (len1 > _lenMin) and 
+	 (len1 > _lenMin) and
 	 (cluster1.GetHitVector().size() > _NhitsMin) ){
       if (_verbose) { std::cout << "Start point of Cluster 2 in cone of Cluster 1!" << std::endl; }
       return true;

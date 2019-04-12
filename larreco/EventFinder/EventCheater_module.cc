@@ -45,7 +45,7 @@ namespace event {
 
   private:
 
-    std::string fCheatedVertexLabel; ///< label for module creating recob::Vertex objects	   
+    std::string fCheatedVertexLabel; ///< label for module creating recob::Vertex objects
     std::string fG4ModuleLabel;      ///< label for module running G4 and making particles, etc
 
   };
@@ -80,7 +80,7 @@ namespace event{
 
     art::FindOneP<simb::MCTruth> fo(pcol, evt, fG4ModuleLabel);
 
-    // make a map of the track id for each sim::Particle to its entry in the 
+    // make a map of the track id for each sim::Particle to its entry in the
     // collection of sim::Particles
     std::map<int, int> trackIDToPColEntry;
     for(size_t p = 0; p < pcol.vals().size(); ++p) trackIDToPColEntry[pcol.vals().at(p)->TrackId()] = p;
@@ -108,7 +108,7 @@ namespace event{
 
       size_t pcolEntry = trackIDToPColEntry.find((*vertexitr)->ID())->second;
       const art::Ptr<simb::MCTruth> primary = fo.at(pcolEntry);
-      
+
       vertexMap[primary].push_back(*vertexitr);
 
       vertexitr++;
@@ -125,12 +125,12 @@ namespace event{
 
       std::vector< art::Ptr<recob::Vertex> > verts( (*vertexMapItr).second );
 
-      // add an event to the collection.  
+      // add an event to the collection.
       eventcol->push_back(recob::Event(eventcol->size()-1));
 
       // associate the event with its vertices
       util::CreateAssn(*this, evt, *eventcol, verts, *evassn);
-      
+
       // get the hits associated with each vertex and associate those with the event
       for(size_t p = 0; p < ptrvs.size(); ++p){
 	std::vector< art::Ptr<recob::Hit> > hits = fm.at(p);
@@ -138,7 +138,7 @@ namespace event{
       }
 
 
-      mf::LogInfo("EventCheater") << "adding event: \n" 
+      mf::LogInfo("EventCheater") << "adding event: \n"
 				  << eventcol->back()
 				  << "\nto collection";
 

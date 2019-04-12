@@ -1,7 +1,7 @@
 #include "Polygon2D.h"
 
 //------------------------------------------------
-float FindSlope( const std::pair<float,float> &p1, 
+float FindSlope( const std::pair<float,float> &p1,
 		 const std::pair<float,float> &p2 )
 {
   float slope = (p2.second-p1.second)/(p2.first-p1.first);
@@ -87,7 +87,7 @@ Polygon2D::Polygon2D(const Polygon2D &poly1, const Polygon2D &poly2)
 						       poly2.Point(j+1).first, poly2.Point(j+1).second) );
     }//for all segments in poly2
   }//for all segments in poly1
-  
+
   vertices = IntersectionPoints;
   return;
 }
@@ -150,7 +150,7 @@ const std::pair<float,float>& Polygon2D::Point(unsigned int p) const
 }
 
 //------------------------------------------------------------------------
-std::pair<float,float> Polygon2D::Project(const std::pair<float,float> &p, 
+std::pair<float,float> Polygon2D::Project(const std::pair<float,float> &p,
 					float theta) const
 {
 
@@ -177,8 +177,8 @@ std::pair<float,float> Polygon2D::Project(const std::pair<float,float> &p,
 }
 
 //---------------------------------------------------------------
-bool Polygon2D::Overlap(float slope, 
-		      const Polygon2D &poly2, 
+bool Polygon2D::Overlap(float slope,
+		      const Polygon2D &poly2,
 		      const std::pair<float,float> &origin) const
 {
   //translate and rotate both polygons
@@ -204,10 +204,10 @@ bool Polygon2D::PolyOverlap(const Polygon2D &poly2) const
   //of vertexes
   for (unsigned int i=0; i<this->Size(); i++){//loop over first polygon's vertices
     //find projection line's slope
-    //line: y=ax+b --- slope is a variable 
+    //line: y=ax+b --- slope is a variable
     float slope;
     slope = FindSlope( this->Point(i) , this->Point(i+1) );
-    //if there is even one no-overlap 
+    //if there is even one no-overlap
     //need to exit and return no overlap!
     if (! (this->Overlap( slope, poly2, this->Point(i) )) )
       return false;
@@ -221,7 +221,7 @@ bool Polygon2D::PolyOverlap(const Polygon2D &poly2) const
       return false;
   }//loop over second polygon vertices
   return true;
-} 
+}
 
 //---------------------------------------------------------------
 bool Polygon2D::PolyOverlapSegments(const Polygon2D &poly2) const
@@ -262,9 +262,9 @@ bool Polygon2D::PointInside(const std::pair<float,float> &point) const
   }
   if ( (intersections%2) == 0 )
     return false;
-  else 
+  else
     return true;
-  
+
 }
 
 //-----------------------------------------------------
@@ -277,7 +277,7 @@ bool Polygon2D::Contained(const Polygon2D &poly2) const
     if ( !(this->PointInside( poly2.Point(i)) ) )
       return false;
   }
-  
+
   return true;
 
 }

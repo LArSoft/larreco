@@ -1,20 +1,20 @@
 #include "larreco/RecoAlg/Geometric3DVertexFitter.h"
 
-trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitPFP(size_t iPF, const art::ValidHandle<std::vector<recob::PFParticle> >& inputPFParticle, 
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::fitPFP(size_t iPF, const art::ValidHandle<std::vector<recob::PFParticle> >& inputPFParticle,
 							 const std::unique_ptr<art::FindManyP<recob::Track> >& assocTracks) const
 {
   using namespace std;
   //
   art::Ptr<recob::PFParticle> pfp(inputPFParticle, iPF);
   //
-  if (debugLevel>1) std::cout << "pfp#" << iPF << " PdgCode=" << pfp->PdgCode() 
+  if (debugLevel>1) std::cout << "pfp#" << iPF << " PdgCode=" << pfp->PdgCode()
 			      << " IsPrimary=" << pfp->IsPrimary()
 			      << " NumDaughters=" << pfp->NumDaughters()
 			      << std::endl;
   if (pfp->IsPrimary()==false || pfp->NumDaughters()<2) VertexWrapper();
-  
+
   TrackRefVec tracks;
-  
+
   auto& pfd = pfp->Daughters();
   for (auto ipfd : pfd) {
     vector< art::Ptr<recob::Track> > pftracks = assocTracks->at(ipfd);
@@ -168,7 +168,7 @@ std::pair<trkf::TrackState, double> trkf::Geometric3DVertexFitter::weightedAvera
     std::cout << "vtxpar2=" << vtxpar2 << std::endl;
     std::cout << "vtxcov22=\n" << vtxcov22 << std::endl;
   }
-  
+
   auto chi2 = ROOT::Math::Similarity(deltapar,covsum);
 
   SVector5 vtxpar5(vtxpar2[0],vtxpar2[1],0,0,0);
@@ -401,7 +401,7 @@ void trkf::Geometric3DVertexFitter::addTrackToVertex(trkf::VertexWrapper& vtx, c
     std::cout << "add chi2=" << was.second << std::endl;
   }
 
-  return;  
+  return;
 }
 
 double trkf::Geometric3DVertexFitter::chi2(const trkf::Geometric3DVertexFitter::ParsCovsOnPlane& pcp) const
@@ -415,7 +415,7 @@ double trkf::Geometric3DVertexFitter::chi2(const trkf::Geometric3DVertexFitter::
   return ROOT::Math::Similarity(deltapar,covsum);
 }
 
-double trkf::Geometric3DVertexFitter::chi2(const VertexWrapper& vtx, const recob::Track& tk) const 
+double trkf::Geometric3DVertexFitter::chi2(const VertexWrapper& vtx, const recob::Track& tk) const
 {
   return chi2(getParsCovsOnPlane(vtx, tk));
 }
@@ -459,7 +459,7 @@ double trkf::Geometric3DVertexFitter::pDist(const VertexWrapper& vtx, const reco
   return tk.Trajectory().StartDirection().Dot(vtx.position()-tk.Trajectory().Start());
 }
 
-trkf::VertexWrapper trkf::Geometric3DVertexFitter::unbiasedVertex(const trkf::VertexWrapper& vtx, const recob::Track& tk) const 
+trkf::VertexWrapper trkf::Geometric3DVertexFitter::unbiasedVertex(const trkf::VertexWrapper& vtx, const recob::Track& tk) const
 {
   auto ittoerase = vtx.findTrack(tk);
   if (ittoerase == vtx.tracksSize()) {

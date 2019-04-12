@@ -17,12 +17,12 @@ namespace cluster{
     cluster_params(){
       //Initialize all values.
       Clear();
-    } 
+    }
 
     Polygon2D PolyObject;               ///< Polygon Object...see Polygon2D.hh
 
-    util::PxPoint start_point;      ///< start point 
-    util::PxPoint end_point;        ///< end point 
+    util::PxPoint start_point;      ///< start point
+    util::PxPoint end_point;        ///< end point
 
     double sum_charge;                 ///< Sum charge of hits in ADC
     double mean_charge;                ///< Mean (average) charge of hits in ADC
@@ -61,7 +61,7 @@ namespace cluster{
 
     double modmeancharge;
     double RMS_charge;
-    
+
     /**
        +1 means shower is "forward - start wire < end wire"
        -1 is backwards, 0 is undecided
@@ -69,7 +69,7 @@ namespace cluster{
     int    direction;
 
     double showerness;                 ///< got heart
-    double trackness;                  ///< got soul                                       
+    double trackness;                  ///< got soul
     double offaxis_hits;               ///< got brain
 
     void Clear(){
@@ -103,9 +103,9 @@ namespace cluster{
       offaxis_hits                      = -999.999 ;
       modmeancharge                     = -999.999 ;
       RMS_charge                        = -999.999 ;
-      modified_hit_density              = -999.999 ;    
-      N_Hits                            = -999.999 ;    
-      N_Hits_HC                         = -999.999 ;    
+      modified_hit_density              = -999.999 ;
+      N_Hits                            = -999.999 ;
+      N_Hits_HC                         = -999.999 ;
       length                            = -999.999 ;
       width                             = -999.999 ;
       hit_density_1D                    = -999.999 ;

@@ -35,9 +35,9 @@
 
 namespace apa{
 
-  APAGeometryAlg::APAGeometryAlg(fhicl::ParameterSet const& pset) 
+  APAGeometryAlg::APAGeometryAlg(fhicl::ParameterSet const& pset)
   {
-    this->reconfigure(pset); 
+    this->reconfigure(pset);
     this->Init();
   }
 
@@ -80,7 +80,7 @@ namespace apa{
       }
 
 
-    // Step through channel c and find the view boundaries, until 
+    // Step through channel c and find the view boundaries, until
     // outside of first APA - these help optimize ChannelToAPAView
     // (very dependent on the conventions implimented in the channel map)
     fFirstU = 0;
@@ -92,11 +92,11 @@ namespace apa{
       if( fGeom->View(c) == geo::kV && fGeom->View(c-1) == geo::kU ){
 	fLastU = c-1;
 	fFirstV = c;   }
-      
+
       if( fGeom->View(c) == geo::kZ && fGeom->View(c-1) == geo::kV ){
 	fLastV = c-1;
 	fFirstZ0 = c;  }
-      
+
       if( wid.TPC == lastwid.TPC + 1  ){
 	fLastZ0 = c-1;
 	fFirstZ1 = c;  }
@@ -123,8 +123,8 @@ namespace apa{
 
 
   //----------------------------------------------------------
-  void APAGeometryAlg::ChannelToAPA( uint32_t chan, 
-				     unsigned int & apa, 
+  void APAGeometryAlg::ChannelToAPA( uint32_t chan,
+				     unsigned int & apa,
 				     unsigned int & cryo){
 
     cryo  =  chan / (fAPAsPerCryo*fChannelsPerAPA);
@@ -132,7 +132,7 @@ namespace apa{
     // Number apa uniquely across cryostats so that
     // apa to recob::Object maps are easy to work with.
     // If we decide to reset APA number per cryo, uncomment:
-    //chan -= cryo*fAPAsPerCryo*fChannelsPerAPA; 
+    //chan -= cryo*fAPAsPerCryo*fChannelsPerAPA;
     apa   =  chan / fChannelsPerAPA;
 
     return;
@@ -149,14 +149,14 @@ namespace apa{
   unsigned int APAGeometryAlg::ChannelsInView( geo::View_t geoview ){
 
     switch(geoview){
-    default       :  
+    default       :
       return 0;
     case geo::kU  :
       return ChannelsInAPAView( kU );
     case geo::kV  :
       return ChannelsInAPAView( kV );
     case geo::kZ  :
-      if( ChannelsInAPAView( kZ0 ) == ChannelsInAPAView( kZ1 ) ) 
+      if( ChannelsInAPAView( kZ0 ) == ChannelsInAPAView( kZ1 ) )
 	return ChannelsInAPAView( kZ0 );
       else throw cet::exception("ChannelsInView")
 	     << "Both Z sides should have the same amount of channels\n";
@@ -169,7 +169,7 @@ namespace apa{
   unsigned int APAGeometryAlg::ChannelsInAPAView( APAView_t apaview ){
 
     switch(apaview){
-    default  :  
+    default  :
       return 0;
     case kU  :
       return fFirstV-fFirstU;
@@ -185,13 +185,13 @@ namespace apa{
 
 
   //----------------------------------------------------------
-  uint32_t APAGeometryAlg::FirstChannelInView( geo::View_t geoview, 
-					       unsigned int apa, 
+  uint32_t APAGeometryAlg::FirstChannelInView( geo::View_t geoview,
+					       unsigned int apa,
 					       unsigned int cryo ){
 
 
     switch(geoview){
-    default       :  
+    default       :
       return 0        + (uint32_t)(apa + cryo*fAPAsPerCryo)*fChannelsPerAPA;
     case geo::kU  :
       return fFirstU  + (uint32_t)(apa + cryo*fAPAsPerCryo)*fChannelsPerAPA;
@@ -215,7 +215,7 @@ namespace apa{
   }
 
   //----------------------------------------------------------
-  uint32_t APAGeometryAlg::FirstChannelInView( geo::View_t geoview, 
+  uint32_t APAGeometryAlg::FirstChannelInView( geo::View_t geoview,
 					       uint32_t chan ){
 
     unsigned int apa, cryo;
@@ -228,13 +228,13 @@ namespace apa{
 
   //----------------------------------------------------------
   APAView_t APAGeometryAlg::APAView( uint32_t chan ){
-    
+
     // it seems trivial to do this for U and V, but this gives a side to
     // geo::kZ, unlike Geometry::View(c), as is often needed in disambiguation
 
     geo::View_t view = fGeom->View( chan );
     switch(view){
-    default       :  
+    default       :
       break;
     case geo::kU  :
       return kU;
@@ -267,12 +267,12 @@ namespace apa{
   {
     // Given a vector of wireIDs and an APA side, return
     // the wireIDs the the tpc side where tpc%2 = side
-    
+
     std::vector<geo::WireID> thisSide;
-    
+
     for(size_t i = 0; i < wids.size(); i++)
       if( wids[i].TPC % 2 == side ) thisSide.push_back(wids[i]);
-    
+
     return thisSide;
   }
 
@@ -280,20 +280,20 @@ namespace apa{
 
 
   //----------------------------------------------------------
-  geo::WireID APAGeometryAlg::NearestWireIDOnChan(  const double WorldLoc[3],  
+  geo::WireID APAGeometryAlg::NearestWireIDOnChan(  const double WorldLoc[3],
 						    uint32_t chan,
-						    unsigned int const plane,  
-						    unsigned int const tpc,    
+						    unsigned int const plane,
+						    unsigned int const tpc,
 						    unsigned int const cstat   )
   {
 
     std::vector<geo::WireID> cWids = fGeom->ChannelToWire( chan );
 
-    if( cWids[0].Cryostat != cstat ) 
-      throw cet::exception("APAGeometryAlg") << "Channel " << chan 
+    if( cWids[0].Cryostat != cstat )
+      throw cet::exception("APAGeometryAlg") << "Channel " << chan
 					     << "not in cryostat " << cstat << "\n";
-    if( std::floor( cWids[0].TPC / 2 ) != std::floor( tpc / 2 ) ) 
-      throw cet::exception("APAGeometryAlg") << "Channel " << chan 
+    if( std::floor( cWids[0].TPC / 2 ) != std::floor( tpc / 2 ) )
+      throw cet::exception("APAGeometryAlg") << "Channel " << chan
 					     << "not in APA " << std::floor(tpc/2) << "\n";
 
     // special case for vertical wires
@@ -301,21 +301,21 @@ namespace apa{
 
     unsigned int xyzWire = fGeom->NearestWireID( WorldLoc, plane, tpc, cstat ).Wire;
 
-    // The desired wire ID will be the only channel 
+    // The desired wire ID will be the only channel
     // segment within half the channel range.
     geo::WireID wid;
     for(size_t i=0; i<cWids.size(); i++){
       if( cWids[i].TPC != tpc ) continue;
       if( std::abs((int)cWids[i].Wire - (int)xyzWire) < fChannelRange[plane]/2 ) wid=cWids[i];
     }
-    
+
     return wid;
 
   }
 
 
   //----------------------------------------------------------
-  bool APAGeometryAlg::LineSegChanIntersect( TVector3 xyzStart, TVector3 xyzEnd, uint32_t chan, 
+  bool APAGeometryAlg::LineSegChanIntersect( TVector3 xyzStart, TVector3 xyzEnd, uint32_t chan,
 					     std::vector<geo::WireID> & widsCrossed,
 					     bool ExtendLine = true )
   {
@@ -346,7 +346,7 @@ namespace apa{
       if( wids[w].Cryostat != cryo ) throw cet::exception("LineSegChanIntersect")
 				       << "Channel and line not in the same crostat.\n";
 
-      // If the current wire id wire number is inbetween the start/end 
+      // If the current wire id wire number is inbetween the start/end
       // point wires, the line segment intersects the wireID at some point.
 
       // TODO: for now, extend range, but that is application specific. fix asap
@@ -401,7 +401,7 @@ namespace apa{
     //std::cout << "U = " << u << " V = " << v << ", " << UVIntersects.size() << std::endl;
 
     if( UVIntersects.size() == 0 ){
-      if( UwidsInTPC.size() > 1 || VwidsInTPC.size() > 1 ) 
+      if( UwidsInTPC.size() > 1 || VwidsInTPC.size() > 1 )
 	throw cet::exception("ThreeChanPos")    << "U/V channels don't intersect, bad return.\n";
 
       // Now assume there are only one of each u and v wireIDs on in this TPC
@@ -437,16 +437,16 @@ namespace apa{
     double minZdiff = fGeom->Cryostat(cryo).TPC(tpc).Length(); // start it out at maximum z
     for( unsigned int widI = 0; widI < UVIntersects.size(); widI++ ){
 
-      //std::cout << "widI = " << widI << std::endl; 
+      //std::cout << "widI = " << widI << std::endl;
 
-      if( UVIntersects[widI].TPC == tpc  &&  UVzToZ[widI] < minZdiff ){ 
+      if( UVIntersects[widI].TPC == tpc  &&  UVzToZ[widI] < minZdiff ){
 	minZdiff = UVzToZ[widI];
 	bestWidI = widI;
 	//std::cout << "bestWidI = " << bestWidI << std::endl;
       }
     }
     geo::WireIDIntersection ChosenUVInt = UVIntersects[bestWidI];
-    
+
     // Now having the UV intersection, get the UZ and VZ
     double UVInt[3] = {0.};
     UVInt[1] = ChosenUVInt.y; UVInt[2] = ChosenUVInt.z;
@@ -457,7 +457,7 @@ namespace apa{
     bool checkVZ = fGeom->WireIDsIntersect( Vwid, Zwid, VZInt );
 
     std::cout << "UZint.z = " << UZInt.z << " (" << checkUZ << "), VZint.z = " << VZInt.z << " (" << checkVZ << ")\n";
-    
+
     // find the center
     std::vector<double> yzCenter(2,0.);
 
@@ -466,7 +466,7 @@ namespace apa{
       //throw cet::exception("ThreeChanPos")  << "WireIDs were expected to intersect.\n";
 
       std::cout << "ChosenUVint.y = " << ChosenUVInt.y << "ChosenUVint.z = " << ChosenUVInt.z << std::endl;
-      
+
       //temporary case
       yzCenter[0] = ChosenUVInt.y;
       yzCenter[1] = ChosenUVInt.z;
@@ -474,7 +474,7 @@ namespace apa{
 
     } else {
 
-    yzCenter[0] =  (ChosenUVInt.y + UZInt.y + VZInt.y)/3; 
+    yzCenter[0] =  (ChosenUVInt.y + UZInt.y + VZInt.y)/3;
     yzCenter[1] =  (ChosenUVInt.z + UZInt.z + VZInt.z)/3;
 
     }
@@ -482,17 +482,17 @@ namespace apa{
 
     return yzCenter;
 
-  } 
+  }
 
 
 
 
   //----------------------------------------------------------
-  bool APAGeometryAlg::APAChannelsIntersect( uint32_t chan1, uint32_t chan2, 
+  bool APAGeometryAlg::APAChannelsIntersect( uint32_t chan1, uint32_t chan2,
 					     std::vector< geo::WireIDIntersection >& IntersectVector )
   {
 
-    
+
     // Get the WireIDs and view for each channel, make sure views are different
     geo::WireIDIntersection    widIntersect;
     std::vector< geo::WireID > wids1 = fGeom->ChannelToWire( chan1 );
@@ -505,15 +505,15 @@ namespace apa{
     if( wids1[0].Cryostat         != wids2[0].Cryostat         ||
 	this->ChannelToAPA(chan1) != this->ChannelToAPA(chan2)    ){
       throw cet::exception("APAChannelsIntersect") << "Comparing two channels in in different APAs: "
-						   << "channel " << chan1 << " in Cryo " 
+						   << "channel " << chan1 << " in Cryo "
 						   << wids1[0].Cryostat << ", APA " << this->ChannelToAPA(chan1)
-						   << ", and channel " << chan2 << " in Cryo " 
+						   << ", and channel " << chan2 << " in Cryo "
 						   << wids2[0].Cryostat << ", APA " << this->ChannelToAPA(chan2)
 						   << "\n";
       return false;     }
- 
 
-    // Loop through wids1 and see if wids2 has any intersecting wires, 
+
+    // Loop through wids1 and see if wids2 has any intersecting wires,
     // given that the WireIDs are in the same TPC
     for( unsigned int i1 = 0; i1 < wids1.size() ; i1++){
       for( unsigned int i2 = 0; i2 < wids2.size() ; i2++){
@@ -523,7 +523,7 @@ namespace apa{
 	    wids1[i1].TPC      != wids2[i2].TPC   ||      // not reasonable for a *WireID*
 	    wids1[i1].Cryostat != wids2[i2].Cryostat ) continue;
 
-// 	std::cout << "Checking: \n WireID 1 = (" 
+// 	std::cout << "Checking: \n WireID 1 = ("
 // 		  << wids1[i1].Cryostat << "," << wids1[i1].TPC << ","
 // 		  << wids1[i1].Plane    << "," << wids1[i1].Wire
 // 		  << ") \n WireID 2 = ("
@@ -540,16 +540,16 @@ namespace apa{
       }
     }
 
-    // Of all considered configurations, there are never more than 
+    // Of all considered configurations, there are never more than
     // 4 intersections per channel pair
     if( IntersectVector.size() > 4 ){
-      mf::LogWarning("APAChannelsIntersect") << "Got " << IntersectVector.size() 
+      mf::LogWarning("APAChannelsIntersect") << "Got " << IntersectVector.size()
 					     << " intersections for channels "
-					     << chan1 << " and " << chan2 
+					     << chan1 << " and " << chan2
 					     << " - never expect more than 4, so far";  }
 
 
-    // With increasing IntersectVector index, the WireID 
+    // With increasing IntersectVector index, the WireID
     // vector indices of the intersecting wireIDs increase.
     //   This matches the direction in which ChannelToWire
     //   builds its output WireID vector in the APA/35t Alg

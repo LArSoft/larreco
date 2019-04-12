@@ -45,7 +45,7 @@ namespace shwf {
 
  private:
 
-    std::string fCheatedClusterLabel; ///< label for module creating recob::Cluster objects	   
+    std::string fCheatedClusterLabel; ///< label for module creating recob::Cluster objects
     std::string fG4ModuleLabel;       ///< label for module running G4 and making particles, etc
 
   };
@@ -91,14 +91,14 @@ namespace shwf{
     // so no need for a art::PtrVector here
     std::vector< art::Ptr<recob::Cluster> > clusters;
     art::fill_ptr_vector(clusters, clustercol);
-    
+
     // make a map of vectors of art::Ptrs keyed by eveID values
     std::map< int, std::vector<std::pair<size_t, art::Ptr<recob::Cluster> > > > eveClusterMap;
 
     // loop over all clusters and fill in the map
     for(size_t c = 0; c < clusters.size(); ++c){
 
-      // in the ClusterCheater module we set the cluster ID to be 
+      // in the ClusterCheater module we set the cluster ID to be
       // the eve particle track ID*1000 + plane*100 + tpc*10 + cryostat number.  The
       // floor function on the cluster ID / 1000 will give us
       // the eve track ID
@@ -107,7 +107,7 @@ namespace shwf{
       std::pair<size_t, art::Ptr<recob::Cluster> > indexPtr(c, clusters[c]);
 
       eveClusterMap[eveID].push_back(indexPtr);
-	
+
     }// end loop over clusters
 
     // loop over the map and make prongs
@@ -135,12 +135,12 @@ namespace shwf{
 	ptrvs.push_back(idxPtr.second);
 
 	// need to make the space points for this prong
-	// loop over the hits for this cluster and make 
+	// loop over the hits for this cluster and make
 	// a space point for each one
-	// set the SpacePoint ID to be the cluster ID*10000 
+	// set the SpacePoint ID to be the cluster ID*10000
 	// + the hit index in the cluster PtrVector of hits
 	std::vector< art::Ptr<recob::Hit> > const& hits = fmh.at(idxPtr.first);
-	
+
 	for(size_t h = 0; h < hits.size(); ++h){
 	  art::Ptr<recob::Hit> hit = hits[h];
 	  // add up the charge from the hits on the collection plane
@@ -161,16 +161,16 @@ namespace shwf{
 
 	}// end loop over hits
       } // end loop over pairs of index values and cluster Ptrs
-      
+
       size_t endSPIndx = spcol->size();
 
-      // is this prong electro-magnetic in nature or 
+      // is this prong electro-magnetic in nature or
       // hadronic/muonic?  EM --> shower, everything else is a track
       if( std::abs(pi_serv->ParticleList()[clusterMapItr.first]->PdgCode()) == 11  ||
 	  std::abs(pi_serv->ParticleList()[clusterMapItr.first]->PdgCode()) == 22  ||
 	  std::abs(pi_serv->ParticleList()[clusterMapItr.first]->PdgCode()) == 111 ){
 
-	mf::LogInfo("ShowerCheater") << "prong of " << clusterMapItr.first 
+	mf::LogInfo("ShowerCheater") << "prong of " << clusterMapItr.first
 				    << " is a shower with pdg code "
 				    << pi_serv->ParticleList()[clusterMapItr.first]->PdgCode();
 
@@ -181,7 +181,7 @@ namespace shwf{
 		       initmom.Py()/initmom.Mag(),
 		       initmom.Pz()/initmom.Mag() );
 	TVector3 dcosErr(1.e-3, 1.e-3, 1.e-3 );
-	
+
 	/// \todo figure out the max transverse width of the shower in the x and y directions
 	//double maxTransWidth[2] = { util::kBogusD, util::kBogusD };
 	//double distanceMaxWidth = util::kBogusD;
@@ -193,7 +193,7 @@ namespace shwf{
 	s.set_direction(dcos);
 	s.set_direction_err(dcosErr);
 	/*
-	showercol->push_back(recob::Shower(dcos, dcosErr, maxTransWidth, 
+	showercol->push_back(recob::Shower(dcos, dcosErr, maxTransWidth,
 					   distanceMaxWidth, totalCharge, clusterMapItr.first));
 	*/
 	showercol->push_back(s);
@@ -209,7 +209,7 @@ namespace shwf{
 	// associate the shower with the space points
 	util::CreateAssn(*this, evt, *showercol, *spcol, *sspassn, startSPIndx, endSPIndx);
 
-	mf::LogInfo("ShowerCheater") << "adding shower: \n" 
+	mf::LogInfo("ShowerCheater") << "adding shower: \n"
 				     << showercol->back()
 				     << "\nto collection.";
 

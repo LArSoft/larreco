@@ -3,10 +3,10 @@
 
 namespace hit{
 
-  HitFilterAlg::HitFilterAlg(fhicl::ParameterSet const & p) {   
+  HitFilterAlg::HitFilterAlg(fhicl::ParameterSet const & p) {
     this->reconfigure(p);
   }
-  
+
   void HitFilterAlg::reconfigure(fhicl::ParameterSet const & p) {
     // Implementation of optional member function here.
     fMinPulseHeight   = p.get< std::vector<float> >("MinPulseHeight");
@@ -25,7 +25,7 @@ namespace hit{
       mf::LogError("HitFilterAlg") << "Filtering settings not configured for all views! Will not filter hits in unconfigured views!";
       return true;
     }
-    
+
     if ( hitPH    > fMinPulseHeight[view] &&
 	 hitSigma > fMinPulseSigma[view] ) {
       return true;

@@ -18,5 +18,5 @@ namespace cmtool {
 
     return ( area < _area_cut ? -1 : area);
   }
-  
+
 }

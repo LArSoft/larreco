@@ -168,7 +168,7 @@ public:
 
 	/// Build a shower segment from sets of hits and attached to the provided vertex.
 	pma::Track3D* buildShowerSeg(
-		const std::vector< art::Ptr<recob::Hit> >& hits, 
+		const std::vector< art::Ptr<recob::Hit> >& hits,
 		const pma::Vector3D & vtx) const;
 
 	/// Build a straight segment from two sets of hits (they should origin from two wire planes);
@@ -252,16 +252,16 @@ private:
 		std::pair<int, int> const * wires, double const * xPos,
 		unsigned int tpc, unsigned int cryo) const;
 
-	// Helpers for FilterOutSmallParts 
+	// Helpers for FilterOutSmallParts
 	bool GetCloseHits(
-		double r2d, 
-		const std::vector< art::Ptr<recob::Hit> >& hits_in, 
+		double r2d,
+		const std::vector< art::Ptr<recob::Hit> >& hits_in,
 		std::vector<size_t>& used,
 		std::vector< art::Ptr<recob::Hit> >& hits_out) const;
 
 	bool Has(const std::vector<size_t>& v, size_t idx) const;
 
-	// Make segment shorter depending on mse 
+	// Make segment shorter depending on mse
 	void ShortenSeg(pma::Track3D& trk, const geo::TPCGeo& tpcgeom) const;
 
 	// Control length of the track and number of hits which are still enabled

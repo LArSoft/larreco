@@ -20,12 +20,12 @@
 #include <map>
 #include <algorithm>
 
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "art/Framework/Principal/Event.h"
-#include "art/Framework/Services/Registry/ServiceHandle.h" 
-#include "art/Framework/Services/Optional/TFileService.h" 
+#include "art/Framework/Services/Registry/ServiceHandle.h"
+#include "art/Framework/Services/Optional/TFileService.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "larreco/RecoAlg/SpacePointAlg.h"
@@ -49,7 +49,7 @@ namespace trkf {
   class SpacePointAna : public art::EDAnalyzer
   {
   public:
- 
+
     // Constructors, destructor
 
     explicit SpacePointAna(fhicl::ParameterSet const& pset);
@@ -188,7 +188,7 @@ namespace trkf {
 
     // Report.
 
-    mf::LogInfo("SpacePointAna") 
+    mf::LogInfo("SpacePointAna")
       << "SpacePointAna configured with the following parameters:\n"
       << "  HitModuleLabel = " << fHitModuleLabel << "\n"
       << "  UseClusterHits = " << fUseClusterHits << "\n"
@@ -229,7 +229,7 @@ namespace trkf {
 
 	  const geo::TPCGeo& tpcgeom = cryogeom.TPC(tpc);
 	  unsigned int const nplane = tpcgeom.Nplanes();
-                
+
 	  for(unsigned int plane = 0; plane < nplane; ++plane) {
 
 	    const geo::PlaneGeo& pgeom = tpcgeom.Plane(plane);
@@ -244,7 +244,7 @@ namespace trkf {
 	  }
 	}
       }
- 
+
 
 
 
@@ -441,7 +441,7 @@ namespace trkf {
 	}
       }
     }
-    
+
     std::vector<recob::SpacePoint> spts1;  // For time histograms.
     std::vector<recob::SpacePoint> spts2;  // For separation histogram.
     std::vector<recob::SpacePoint> spts3;  // Default cuts.
@@ -457,11 +457,11 @@ namespace trkf {
 
       // Report number of space points.
 
-      MF_LOG_DEBUG("SpacePointAna") << "Found " << spts1.size() 
+      MF_LOG_DEBUG("SpacePointAna") << "Found " << spts1.size()
 				    << " space points using special time cut.";
     }
 
-    // If nonzero separation cut is specified, make space points using that 
+    // If nonzero separation cut is specified, make space points using that
     // separation cut (for separation histogram).
 
     if(!fSptalgSep.merge()) {
@@ -472,7 +472,7 @@ namespace trkf {
 
       // Report number of space points.
 
-      MF_LOG_DEBUG("SpacePointAna") << "Found " << spts2.size() 
+      MF_LOG_DEBUG("SpacePointAna") << "Found " << spts2.size()
 				    << " space points using special seperation cut.";
     }
 
@@ -485,14 +485,14 @@ namespace trkf {
 
     // Report number of space points.
 
-    MF_LOG_DEBUG("SpacePointAna") << "Found " << spts3.size() 
+    MF_LOG_DEBUG("SpacePointAna") << "Found " << spts3.size()
 				  << " space points using default cuts.";
 
     if(!fSptalgTime.merge()) {
 
       // Loop over space points and fill time histograms.
 
-      for(std::vector<recob::SpacePoint>::const_iterator i = spts1.begin(); 
+      for(std::vector<recob::SpacePoint>::const_iterator i = spts1.begin();
 	  i != spts1.end(); ++i) {
 	const recob::SpacePoint& spt = *i;
 	if(spt.XYZ()[0] < fMinX || spt.XYZ()[0] > fMaxX ||
@@ -515,7 +515,7 @@ namespace trkf {
 	  tpc1 = hit1WireID.TPC;
 	  plane1 = hit1WireID.Plane;
 	  wire1 = hit1WireID.Wire;
-		
+
 	  geo::View_t view1 = hit1.View();
 	  double t1 = fSptalgTime.correctedTime(hit1);
 
@@ -579,7 +579,7 @@ namespace trkf {
 
       // Loop over space points and fill seperation histograms.
 
-      for(std::vector<recob::SpacePoint>::const_iterator i = spts2.begin(); 
+      for(std::vector<recob::SpacePoint>::const_iterator i = spts2.begin();
 	  i != spts2.end(); ++i) {
 	const recob::SpacePoint& spt = *i;
 	if(spt.XYZ()[0] < fMinX || spt.XYZ()[0] > fMaxX ||

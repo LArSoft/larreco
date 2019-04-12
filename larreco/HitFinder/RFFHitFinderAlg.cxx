@@ -2,9 +2,9 @@
  * Title:   RFFHitFinderAlg Class
  * Author:  Wes Ketchum (wketchum@lanl.gov)
  *
- * Description: 
- * Class that runs the RFF HitFinder. Implements an RFFHitFitter, and takes 
- * the result and stores it in recob::Hit objects. 
+ * Description:
+ * Class that runs the RFF HitFinder. Implements an RFFHitFitter, and takes
+ * the result and stores it in recob::Hit objects.
  *
  * Input:  recob::Wire
  * Output: recob::Hit
@@ -36,7 +36,7 @@ void hit::RFFHitFinderAlg::SetFitterParamsVectors(geo::Geometry const& geo)
         (fMergeMultiplicityVec.size()>1 && fMergeMultiplicityVec.size()<n_planes) ||
         (fAmpThresholdVec.size()>1 && fAmpThresholdVec.size()<n_planes) )
         throw std::runtime_error("Error in RFFHitFinderAlg: Configured with incorrect n_planes.");
-    
+
     if(fMatchThresholdVec.size()==1)
         fMatchThresholdVec.resize(n_planes,fMatchThresholdVec[0]);
 
@@ -61,9 +61,9 @@ void hit::RFFHitFinderAlg::Run(std::vector<recob::Wire> const& wireVector,
     {
         geo::SigType_t const& sigtype = geo.SignalType(wire.Channel());
         geo::WireID const& wireID = geo.ChannelToWire(wire.Channel()).at(0);
-    
+
         SetFitterParams(wire.View());
-    
+
         for(auto const& roi : wire.SignalROI().get_ranges())
         {
             fFitter.RunFitter(roi.data());
@@ -71,12 +71,12 @@ void hit::RFFHitFinderAlg::Run(std::vector<recob::Wire> const& wireVector,
             const float summedADCTotal = std::accumulate(roi.data().begin(),roi.data().end(),0.0);
             const raw::TDCtick_t startTick = roi.begin_index();
             const raw::TDCtick_t endTick = roi.begin_index()+roi.size();
-      
+
             EmplaceHit(hitVector,wire,summedADCTotal,startTick,endTick,sigtype,wireID);
         }//end loop over ROIs on wire
 
     }//end loop over wires
-  
+
 }
 
 void hit::RFFHitFinderAlg::EmplaceHit(std::vector<recob::Hit>& hitVector,
@@ -102,7 +102,7 @@ void hit::RFFHitFinderAlg::EmplaceHit(std::vector<recob::Hit>& hitVector,
     for(size_t ihit=0; ihit < fFitter.NHits(); ihit++)
     {
         areaFracVector[ihit] = areaVector[ihit]/totalArea;
-    
+
         hitVector.emplace_back(wire.Channel(),
                                startTick,
                                endTick,
@@ -122,5 +122,5 @@ void hit::RFFHitFinderAlg::EmplaceHit(std::vector<recob::Hit>& hitVector,
                                sigtype,
                                wireID);
     }
-			 
+
 }

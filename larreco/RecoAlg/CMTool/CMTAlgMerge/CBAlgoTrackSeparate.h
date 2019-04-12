@@ -2,7 +2,7 @@
  * \file CBAlgoTrackSeparate.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoTrackSeparate
  *
  * @author david caratelli
@@ -23,12 +23,12 @@ namespace cmtool {
      \class CBAlgoTrackSeparate
   */
   class CBAlgoTrackSeparate : public CBoolAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoTrackSeparate();
-    
+
     /// Default destructor
     virtual ~CBAlgoTrackSeparate(){};
 
@@ -46,7 +46,7 @@ namespace cmtool {
     void SetMinNumHits(size_t n) { _MinNumHits = n; }
 
     void SetMinAngleDiff(float anglesep) { _MinAngleDiff = anglesep; }
-    
+
     void SetMaxOpeningAngle(float maxangle) { _MaxOpeningAngle = maxangle; }
 
     void SetMinLength(float minlength) { _MinLength = minlength; }
@@ -83,5 +83,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

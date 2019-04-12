@@ -29,7 +29,7 @@
  *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
+ *
  */
 namespace genf {
 
@@ -48,4 +48,4 @@ class GFConstField : public GFAbsBField{
 };
 } //  namespace genf
 #endif
-/** @} */ 
+/** @} */

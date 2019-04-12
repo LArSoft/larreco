@@ -2,7 +2,7 @@
  * \file CBAlgoPolyOverlap.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoPolyOverlap
  *
  * @author David Caratelli
@@ -25,15 +25,15 @@ namespace cmtool {
      Merge Polygons if the two overlap even partially
   */
   class CBAlgoPolyOverlap : public CBoolAlgoBase{
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoPolyOverlap();
-    
+
     /// Default destructor
     virtual ~CBAlgoPolyOverlap(){};
- 
+
     /**
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
@@ -50,12 +50,12 @@ namespace cmtool {
     void reconfigure();
 
   private:
-    
+
     bool _debug;
     size_t _min_hits;
   };
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

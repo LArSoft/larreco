@@ -32,7 +32,7 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 namespace tca {
-  
+
   void ConfigureMVA(TCConfig& tcc, std::string fMVAShowerParentWeights);
   bool FindShowerStart(TCSlice& slc, ShowerStruct3D& ss3, bool prt);
   void KillVerticesInShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
@@ -43,7 +43,7 @@ namespace tca {
   bool MergeShowerTjsAndStore(TCSlice& slc, unsigned short istj, unsigned short jstj, bool prt);
   bool TransferTjHits(TCSlice& slc, bool prt);
   int GetCotID(TCSlice& slc, int ShowerTjID);
-  
+
   bool CompleteIncompleteShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct3D& ss3, bool prt);
   void Match2DShowers(std::string inFcnLabel, TCSlice& slc, bool prt);
   bool UpdateShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);
@@ -82,7 +82,7 @@ namespace tca {
   void FindStartChg(std::string inFcnLabel, TCSlice& slc, int cotID, bool prt);
   std::vector<float> StartChgVec(TCSlice& slc, int cotID, bool prt);
   void DumpShowerPts(std::string inFcnLabel, TCSlice& slc, int cotID);
-  
+
   void FindCots(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP, std::vector<std::vector<int>>& tjLists, bool prt);
   void TagShowerLike(std::string inFcnLabel, TCSlice& slc, const CTP_t& inCTP);
   void FindNearbyTjs(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt);

@@ -206,7 +206,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 
   // for (unsigned int cluster1It = 0; cluster1It < planeClusters.size(); ++cluster1It) {
   //   for (unsigned int cluster2It = cluster1It+1; cluster2It < planeClusters.size(); ++cluster2It) {
-      
+
   //     const art::PtrVector<recob::Hit> cluster1 = planeClusters.at(cluster1It);
   //     const art::PtrVector<recob::Hit> cluster2 = planeClusters.at(cluster2It);
 
@@ -294,7 +294,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
 
   //   }
   // }
-    
+
   // ----------------------------- END OF MESSY CODE! --------------------------------------------------------------------------------------------------------------
 
   std::vector<unsigned int> mergedClusters;
@@ -323,7 +323,7 @@ int cluster::MergeClusterAlg::MergeClusters(std::vector<art::PtrVector<recob::Hi
       mergedClusters.push_back(initCluster);
       break;
     }
-    
+
     // Merge all aligned clusters to this
     bool mergedAllToThisCluster = false;
     while (!mergedAllToThisCluster) {

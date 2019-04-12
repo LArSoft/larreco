@@ -50,9 +50,9 @@ namespace cluster {
     void reconfigure(fhicl::ParameterSet const& pset);
 
  private:
-    
+
     std::string  fMCGeneratorLabel;  ///< label for module to get MC truth information
-    std::string  fHitModuleLabel;    ///< label for module creating recob::Hit objects	   
+    std::string  fHitModuleLabel;    ///< label for module creating recob::Hit objects
     std::string  fG4ModuleLabel;     ///< label for module running G4 and making particles, etc
     unsigned int fMinHits;           ///< minimum number of hits to make a cluster
 
@@ -69,13 +69,13 @@ namespace cluster{
     {}
 
     friend bool operator < (eveLoc const& a, eveLoc const& b)
-    { 
-      if(a.eveID    != b.eveID)    
+    {
+      if(a.eveID    != b.eveID)
 	return a.eveID    < b.eveID;
-      
+
       return a.planeID < b.planeID;
     }
-    
+
     int          eveID;
     geo::PlaneID planeID;
   };
@@ -110,7 +110,7 @@ namespace cluster{
     art::ServiceHandle<geo::Geometry const>      geo;
     art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
     art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
-    
+
     // grab the hits that have been reconstructed
     art::Handle< std::vector<recob::Hit> > hitcol;
     evt.getByLabel(fHitModuleLabel, hitcol);
@@ -119,20 +119,20 @@ namespace cluster{
     // so no need for a art::PtrVector here
     std::vector< art::Ptr<recob::Hit> > hits;
     art::fill_ptr_vector(hits, hitcol);
-    
-    // adopt an EmEveIdCalculator to find the eve ID.  
-    // will return a primary particle if it doesn't find 
+
+    // adopt an EmEveIdCalculator to find the eve ID.
+    // will return a primary particle if it doesn't find
     // a responsible particle for an EM process
     pi_serv->SetEveIdCalculator(new sim::EmEveIdCalculator);
 
     MF_LOG_DEBUG("ClusterCheater") << pi_serv->ParticleList();
 
-    // make a map of vectors of art::Ptrs keyed by eveID values and 
+    // make a map of vectors of art::Ptrs keyed by eveID values and
     // location in cryostat, TPC, plane coordinates of where the hit originated
     std::map< eveLoc, std::vector< art::Ptr<recob::Hit> > > eveHitMap;
 
     // loop over all hits and fill in the map
-    for( auto const& itr : hits ){ 
+    for( auto const& itr : hits ){
 
       std::vector<sim::TrackIDE> eveides = bt_serv->HitToEveTrackIDEs(itr);
 
@@ -143,7 +143,7 @@ namespace cluster{
 	// energy in the current hit
 	if( eveides[e].energyFrac < 0.1) continue;
 
-	eveLoc el(eveides[e].trackID, 
+	eveLoc el(eveides[e].trackID,
 		  itr->WireID().planeID());
 
 	eveHitMap[el].push_back(itr);
@@ -160,14 +160,14 @@ namespace cluster{
     // we use the "standard" one here; configuration would happen here,
     // but we are using the default configuration for that algorithm
     ClusterParamsImportWrapper<StandardClusterParamsAlg> ClusterParamAlgo;
-    
+
     for(auto hitMapItr : eveHitMap){
 
       // ================================================================================
-      // === Only keeping clusters with fMinHits 
+      // === Only keeping clusters with fMinHits
       // ================================================================================
       if(hitMapItr.second.size() < fMinHits) continue;
-	            
+
       // get the center of this plane in world coordinates
       double xyz[3]   = {0.};
       double xyz2[3]  = {0.};
@@ -179,7 +179,7 @@ namespace cluster{
 
       MF_LOG_DEBUG("ClusterCheater") << "make cluster for eveID: " << hitMapItr.first.eveID
 				  << " in cryostat: "           << cryostat
-				  << " tpc: "         	        << tpc     
+				  << " tpc: "         	        << tpc
 				  << " plane: "       	        << plane
 				  << " view: "                  << hitMapItr.second.at(0)->View();
 
@@ -189,7 +189,7 @@ namespace cluster{
 
       // now set the y and z coordinates of xyz to be the first point on the particle
       // trajectory and use the initial directions to determine the dT/dW
-      // multiply the direction cosine by 10 to give a decent lever arm for determining 
+      // multiply the direction cosine by 10 to give a decent lever arm for determining
       // dW
       xyz[1]  = part->Vy();
       xyz[2]  = part->Vz();
@@ -200,22 +200,22 @@ namespace cluster{
       // convert positions to wire and time
       unsigned int w1 = 0;
       unsigned int w2 = 0;
-			
+
       try{
-	w1 = geo->NearestWire(xyz, plane, tpc, cryostat); 
+	w1 = geo->NearestWire(xyz, plane, tpc, cryostat);
       }
       catch(cet::exception& e){
 	w1 = atoi(e.explain_self().substr(e.explain_self().find("#")+1,5).c_str());
       }
       try{
-	w2 = geo->NearestWire(xyz2, plane, tpc, cryostat); 
+	w2 = geo->NearestWire(xyz2, plane, tpc, cryostat);
       }
       catch(cet::exception& e){
 	w2 = atoi(e.explain_self().substr(e.explain_self().find("#")+1,5).c_str());
       }
 
-      // sort the vector of hits with respect to the directionality of the wires determined by 
-      if(w2 < w1) 
+      // sort the vector of hits with respect to the directionality of the wires determined by
+      if(w2 < w1)
 	std::sort(hitMapItr.second.rbegin(), hitMapItr.second.rend(), sortHitsByWire);
       else
 	std::sort(hitMapItr.second.begin(),  hitMapItr.second.end(),  sortHitsByWire);
@@ -236,10 +236,10 @@ namespace cluster{
         )*10 + planeID.TPC // 10 is weird choice for DUNE FD... should be 1000! FIXME
         )*10 + planeID.Cryostat
         ;
-      
+
       // feed the algorithm with all the cluster hits
       ClusterParamAlgo.ImportHits(hitMapItr.second);
-      
+
       // create the recob::Cluster directly in the vector
       ClusterCreator cluster(
         ClusterParamAlgo,               // algo
@@ -247,7 +247,7 @@ namespace cluster{
         0.,                             // sigma_start_wire
         startTime,                      // start_tick
         0.,                             // sigma_start_tick
-        endWire,                        // end_wire 
+        endWire,                        // end_wire
         0.,                             // sigma_end_wire
         endTime,                        // end_tick
         0.,                             // sigma_end_tick
@@ -256,16 +256,16 @@ namespace cluster{
         planeID,                        // plane
         recob::Cluster::Sentry          // sentry
         );
-      
+
       clustercol->emplace_back(cluster.move());
-      
+
       // association the hits to this cluster
       util::CreateAssn(*this, evt, *clustercol, hitMapItr.second, *assn);
-      
-      mf::LogInfo("ClusterCheater") << "adding cluster: \n" 
+
+      mf::LogInfo("ClusterCheater") << "adding cluster: \n"
 				    << clustercol->back()
 				    << "\nto collection.";
-      
+
     } // end loop over the map
 
     evt.put(std::move(clustercol));

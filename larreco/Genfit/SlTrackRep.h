@@ -25,10 +25,10 @@ public:
 
   // Operations ----------------------
 
-  virtual double extrapolate(const GFDetPlane&, 
+  virtual double extrapolate(const GFDetPlane&,
 			   TMatrixT<double>& statePred,
 			   TMatrixT<double>& covPred);
-  virtual double extrapolate(const GFDetPlane&, 
+  virtual double extrapolate(const GFDetPlane&,
 			   TMatrixT<double>& statePred);
 
 

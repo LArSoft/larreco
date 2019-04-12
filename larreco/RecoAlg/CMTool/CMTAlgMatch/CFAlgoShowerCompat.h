@@ -2,7 +2,7 @@
  * \file CFAlgoShowerCompat.h
  *
  * \ingroup CMTAlgMatch
- * 
+ *
  * \brief This algo only matches clusters if they are not track-like.
  * This is implemented in an algo because it allows the comparison of
  * cluster parameters across planes, rather than individually.
@@ -29,23 +29,23 @@ namespace cmtool {
      doxygen documentation!
   */
   class CFAlgoShowerCompat : public CFloatAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CFAlgoShowerCompat();
-    
+
     /// Default destructor
     virtual ~CFAlgoShowerCompat(){};
 
     //
-    // Author should be aware of 3 functions at least: Float, Report, 
-    // and Reset. More possibly-useful functions can be found in the later 
+    // Author should be aware of 3 functions at least: Float, Report,
+    // and Reset. More possibly-useful functions can be found in the later
     // part but commented out. All of these functions are virtual and defined
     // in the base class.
 
     /**
-       Core function: given a set of CPANs, return a float which indicates 
+       Core function: given a set of CPANs, return a float which indicates
        the compatibility the cluster combination.
     */
     virtual float Float(const std::vector<const cluster::ClusterParamsAlg*> &clusters);
@@ -55,19 +55,19 @@ namespace cmtool {
        run with verbosity level <= kPerIteration. Maybe useful for debugging.
     */
     virtual void Report();
-    
+
     /// Function to reset the algorithm instance, called together with manager's Reset()
     virtual void Reset();
 
     void PrintClusterInfo(const cluster::ClusterParamsAlg &c);
-    
+
    void WriteHaxFile()
     {
       _fout_hax->cd();
       _ana_tree->Write();
       _fout_hax->Close();
     };
-    
+
 
     /**
        Optional function: called at the beginning of 1st iteration. This is called per event.
@@ -78,7 +78,7 @@ namespace cmtool {
        Optional function: called at the end of event ... after the last merging iteration is over.
      */
     //virtual void EventEnd();
- 
+
     /**
        Optional function: called at the beggining of each iterative loop.
        This provides all clusters' information in case the algorithm need them. Note this
@@ -109,5 +109,5 @@ namespace cmtool {
   };
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

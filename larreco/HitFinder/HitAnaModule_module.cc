@@ -98,7 +98,7 @@ void hit::HitAnaModule::createAssocVector(
   std::vector< std::vector<int> > & WireHitAssocVector
 ) {
   // WireHitAssocVector: for each wire, indices of all the hits associated to it
-  
+
   // the iteration to art::Assns<Hit, Wire> points to a art::Ptr pair (assn_t)
   // with a hit as first element ("left") and a wire as the second one ("right")
   for (HitWireAssns_t::assn_t const& assn: HitToWire)
@@ -122,22 +122,22 @@ void hit::HitAnaModule::createAssocVector(std::vector<recob::Wire> const& wireVe
 void hit::HitAnaModule::createMCAssocVector( std::vector<recob::Wire> const& wireVector,
 					     std::vector<sim::MCHitCollection> const& mcHitVector,
 					     std::vector< std::vector<int> > & WireMCHitAssocVector){
-  
+
   WireMCHitAssocVector.clear(); WireMCHitAssocVector.resize(wireVector.size());
-  
+
   //first, store all the MCHitCollection indices in a map keyed on channel
   //then, loop through wires, and lookup mchitcollections based on the wire's channel
-  
+
   std::map<unsigned int,std::vector<int> > mcHitIndicesByChannel;
   for(unsigned int icol=0; icol<mcHitVector.size(); icol++)
     mcHitIndicesByChannel[mcHitVector[icol].Channel()].push_back(icol);
-  
-  
+
+
   for(unsigned int iwire=0; iwire<wireVector.size(); iwire++)
     WireMCHitAssocVector[iwire].insert(WireMCHitAssocVector[iwire].end(),
 				       mcHitIndicesByChannel[wireVector[iwire].Channel()].begin(),
 				       mcHitIndicesByChannel[wireVector[iwire].Channel()].end());
-  
+
 }
 
 void hit::HitAnaModule::analyze(art::Event const & e)
@@ -187,12 +187,12 @@ void hit::HitAnaModule::analyze(art::Event const & e)
       createAssocVector(*HitToWireAssns,WireHitAssocVectors[iter]);
     else
       createAssocVector(wireVector,*(hitHandles[iter]),WireHitAssocVectors[iter]);
-    
+
     //load in this hit/assoc pair
     analysisAlg.LoadHitAssocPair( *(hitHandles[iter]),
 				  WireHitAssocVectors[iter],
 				  fHitModuleLabels[iter]);
-    
+
   }
 
   //run the analzyer alg
@@ -206,10 +206,10 @@ void hit::HitAnaModule::beginJob()
   wireDataTree = tfs->make<TTree>("wireDataTree","WireDataTree");
   analysisAlg.SetWireDataTree(wireDataTree);
 
-  // The below creates a Tree with one branch - a recob::Hit branch - for each 
+  // The below creates a Tree with one branch - a recob::Hit branch - for each
   // Hit module specified in the fcl file. So, don't run this module once per Hit
   // Finder as one normally would. Just run it once and specify all HitFinders.
-  // This was the design for the WireDataTree; we follow it here for the 
+  // This was the design for the WireDataTree; we follow it here for the
   // Hit trees.
   for(auto const& label : fHitModuleLabels) {
     std::string firstArg("hitData_");

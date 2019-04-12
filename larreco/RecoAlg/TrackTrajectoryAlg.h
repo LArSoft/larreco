@@ -19,7 +19,7 @@
 #include "larcorealg/Geometry/PlaneGeo.h"
 #include "larcorealg/Geometry/WireGeo.h"
 #include "larreco/RecoAlg/TrackLineFitAlg.h"
-#include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "TVectorD.h"
 
@@ -29,35 +29,35 @@ namespace trkf {
     public:
 
     TrackTrajectoryAlg();
-    
+
     virtual ~TrackTrajectoryAlg();
 
     void TrackTrajectory(std::array<std::vector<geo::WireID>,3> trkWID,
                          std::array<std::vector<double>,3> trkX,
                          std::array<std::vector<double>,3> trkXErr,
                          std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir);
-    
+
     private:
 
     art::ServiceHandle<geo::Geometry const> geom;
-    
+
     double minX;
     unsigned short minXPln;
     double maxX;
     unsigned short maxXPln;
     bool prt;
-    
+
     unsigned short fMaxTrajPoints;  // maximum number of trajectory points
     double fHitWidthFactor;         // scales the number of trajectory points to the hit rms
 
 
     TrackLineFitAlg fTrackLineFitAlg;
-    
+
     void ShortTrackTrajectory(std::array<std::vector<geo::WireID>,3> trkWID,
                               std::array<std::vector<double>,3> trkX,
                               std::array<std::vector<double>,3> trkXErr,
                               std::vector<TVector3>& TrajPos, std::vector<TVector3>& TrajDir);
-    
+
   }; // class TrackTrajectoryAlg
 
 } // namespace trkf

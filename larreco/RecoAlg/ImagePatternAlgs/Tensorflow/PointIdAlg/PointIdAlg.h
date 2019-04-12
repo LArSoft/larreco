@@ -21,7 +21,7 @@
 #include "canvas/Utilities/InputTag.h"
 
 // LArSoft includes
-#include "canvas/Persistency/Common/FindManyP.h" 
+#include "canvas/Persistency/Common/FindManyP.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Track.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
@@ -244,7 +244,7 @@ public:
 			Name("SaveVtxFlags"),
 			Comment("Include (or not) vertex info in PDG map.")
 		};
-		
+
 		fhicl::Atom<unsigned int> AdcDelayTicks {
 			Name("AdcDelayTicks"),
 			Comment("ADC pulse peak delay in ticks (non-zero for not deconvoluted waveforms).")

@@ -20,7 +20,7 @@
 /** @addtogroup RKTrackRep
  * @{
  */
- 
+
 #ifndef GFENERGYLOSSBETHEBLOCH_H
 #define GFENERGYLOSSBETHEBLOCH_H
 
@@ -28,34 +28,34 @@
 
 #include"GFAbsEnergyLoss.h"
 
-  
+
 /** @brief Energy loss for charged particles (Bethe Bloch), energy loss straggeling
- * 
+ *
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Johannes Rauch  (Technische Universit&auml;t M&uuml;nchen, author)
- * 
- *  
- *  
- *  
- *  
+ *
+ *
+ *
+ *
+ *
  */
 namespace genf {
 
-class GFEnergyLossBetheBloch : public GFAbsEnergyLoss{  
+class GFEnergyLossBetheBloch : public GFAbsEnergyLoss{
  public:
   //! Returns energy loss, optional calculation of energy loss straggeling
-  /**  Uses Bethe Bloch formula to calculate energy loss. 
+  /**  Uses Bethe Bloch formula to calculate energy loss.
     *  For the energy loss straggeling, different formulas are used for different regions:
     *  - Vavilov-Gaussian regime
     *  - Urban/Landau approximation
-    *  - truncated Landau distribution 
-    *  - Urban model 
-    * 
+    *  - truncated Landau distribution
+    *  - Urban model
+    *
   */
   double energyLoss(const double& step,
                     const double& mom,
-                    const int&    pdg,              
+                    const int&    pdg,
                     const double& matDensity,
                     const double& matZ,
                     const double& matA,
@@ -67,10 +67,10 @@ class GFEnergyLossBetheBloch : public GFAbsEnergyLoss{
                     const TVector3* directionBefore = NULL,
                     const TVector3* directionAfter = NULL);
   virtual ~GFEnergyLossBetheBloch();
- 
+
   // public:
-  //ClassDef(GFEnergyLossBetheBloch,1); 
- 
+  //ClassDef(GFEnergyLossBetheBloch,1);
+
 };
 
 } // namespace genf

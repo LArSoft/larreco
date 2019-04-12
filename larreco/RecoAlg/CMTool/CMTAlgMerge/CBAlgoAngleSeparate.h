@@ -2,7 +2,7 @@
  * \file CBAlgoMergeAll.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoAngleSeparate
  *
  * @author david caratelli
@@ -25,15 +25,15 @@ namespace cmtool {
      algorithm has performed
   */
   class CBAlgoAngleSeparate: public CBoolAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoAngleSeparate();
-    
+
     /// Default destructor
     virtual ~CBAlgoAngleSeparate(){};
- 
+
     /**
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
@@ -70,5 +70,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

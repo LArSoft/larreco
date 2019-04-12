@@ -16,13 +16,13 @@
    You should have received a copy of the GNU Lesser General Public License
    along with GENFIT.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @addtogroup genfit 
+/** @addtogroup genfit
  * @{ */
 
 /**
  *  @author Christian H&ouml;ppner (Technische Universit&auml;t M&uuml;nchen, original author)
  *  @author Sebastian Neubert  (Technische Universit&auml;t M&uuml;nchen, original author)
- * 
+ *
  */
 
 #ifndef GFRECOHITFACTORY_H
@@ -42,11 +42,11 @@ class GFAbsRecoHit;
 
 /** @brief Factory object to create RecoHits from digitized and clustered data
  *
- * The GFRecoHitFactory is used to automatically fill Track objects with 
- * hit data. For each detector type that is used, one GFRecoHitProducer 
+ * The GFRecoHitFactory is used to automatically fill Track objects with
+ * hit data. For each detector type that is used, one GFRecoHitProducer
  * has to be registered in the factory. The factory can the use the index
  * information from a GFTrackCand object to load the indexed hits into
- * the Track. 
+ * the Track.
  *
  * @sa GFAbsRecoHitProducer
  * @sa GFTrackCand
@@ -75,7 +75,7 @@ public:
   /** @brief Create a RecoHit
    *
    * RecoHits have to implement a Constructor which takes the cluster object
-   * from which the RecoHit is build as the only parameter. 
+   * from which the RecoHit is build as the only parameter.
    * See GFAbsRecoHitProducer for details
    */
   GFAbsRecoHit*              createOne (int detID,int index);
@@ -88,11 +88,11 @@ public:
    * is already along the track.
    *
    * RecoHits have to implement a constructor which takes the cluster object
-   * from which the RecoHit is build as the only parameter. 
+   * from which the RecoHit is build as the only parameter.
    * See GFAbsRecoHitProducer for details
    */
   std::vector<GFAbsRecoHit*> createMany(const GFTrackCand& cand);
-					 
+
 
 };
 

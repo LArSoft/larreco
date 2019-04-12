@@ -33,15 +33,15 @@ namespace cmtool {
 	double max_wire_distance	= -1;
 
 	//Recond the start/end points that retunr the maximum wire distance
-	//double max_start_w			= -1; 
+	//double max_start_w			= -1;
 	double max_end_w			= -1;
 	//Record the plane that contains the maximum wire spacing
-	//int max_plane				= -1; 
+	//int max_plane				= -1;
 
 	double start_w				= 0;
 	double end_w				= 0;
 	_verbose					= true ;
-	
+
 
 	for(auto const& c : clusters){
 
@@ -52,7 +52,7 @@ namespace cmtool {
 				end_w		= 0.5* c->GetParams().end_point.w  ;
 				wire_distance 	= end_w - start_w 	;
 				}
-			else {			
+			else {
 				start_w  	=  c->GetParams().start_point.w ;
 				end_w		=  c->GetParams().end_point.w  ;
 				wire_distance   = c->GetParams().end_point.w - c->GetParams().start_point.w ;
@@ -60,10 +60,10 @@ namespace cmtool {
 
 			if(wire_distance < 0)
 				wire_distance *= -1 ;
-	
+
 			if(max_wire_distance < wire_distance){
 			  max_wire_distance = wire_distance;
-			  //max_plane 	=	c->Plane();		
+			  //max_plane 	=	c->Plane();
 			  //max_start_w =	start_w ;
 			  max_end_w	=	end_w ;
 			}
@@ -74,7 +74,7 @@ namespace cmtool {
 //in this sense, to time.
 
  	for(auto const& c : clusters){
-			
+
 		if(c->Plane() !=2){
 			start_w  	= 0.5* c->GetParams().start_point.w ;
 			end_w		= 0.5* c->GetParams().end_point.w  ;
@@ -88,21 +88,21 @@ namespace cmtool {
 
 		if(wire_distance < 0)
 			wire_distance *= -1 ;
-	
+
 		if(start_w <= max_end_w) // && end_w+25 >=max_start_w )
- 			ratio *= wire_distance / max_wire_distance ; 
-		else 
-			ratio *=0.1 ;	
-	
+ 			ratio *= wire_distance / max_wire_distance ;
+		else
+			ratio *=0.1 ;
+
 		if(_verbose && ratio > _wire_ratio_cut){
 			std::cout<<"\nThe wire distance for cluster in plane "<<c->Plane()<<" is: "<<wire_distance <<std::endl;
-			std::cout<<"Max wire disatance is: "<<max_wire_distance<<std::endl ;	
+			std::cout<<"Max wire disatance is: "<<max_wire_distance<<std::endl ;
 			std::cout<<"Ratio is: "<<ratio<<std::endl;
 			std::cout<<"Start and end points: "<<start_w<<",  "<<end_w<<std::endl;
-			}		
+			}
 
 		}
-//	std::cout<<"******** ** ** **** END OF CLUSTER PERMUTAITON **** ** ** ***********" <<std::endl;	
+//	std::cout<<"******** ** ** **** END OF CLUSTER PERMUTAITON **** ** ** ***********" <<std::endl;
 	if(_verbose && ratio>_wire_ratio_cut)
 		std::cout<<" FOOOOUUUUNNNND ONE WOooooooooooooooooooooooooooooooooooooooooooooooooo: "<<ratio<<std::endl;
 
@@ -116,5 +116,5 @@ namespace cmtool {
   {
 
   }
-    
+
 }

@@ -29,25 +29,25 @@ BOOST_AUTO_TEST_CASE(GaussianTest)
 {
   const exp1sigma = std::exp(-0.5);
   const exp2sigma = std::exp(-2.0);
-  
+
   // here there should be some more believable test...
   const double amplitude = 16.;
   for (double sigma = 0.5; sigma < 2.25; ++sigma) {
     for (double mean = -5; mean < 5.5; ++mean) {
-      
+
       const double x0 = mean / sigma;
       double value;
-      
+
       // we use tolerance of 10^-5 (0.001%)
       BOOST_CHECK_CLOSE(gaus(-2., mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
       BOOST_CHECK_CLOSE(gaus(-1., mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
       BOOST_CHECK_CLOSE(gaus( 0., mean, sigma, amplitude), amplitude, 0.001);
       BOOST_CHECK_CLOSE(gaus( 1., mean, sigma, amplitude), amplitude * exp1sigma, 0.001);
       BOOST_CHECK_CLOSE(gaus( 2., mean, sigma, amplitude), amplitude * exp2sigma, 0.001);
-      
+
     } // for mean
   } // for sigma
-  
+
 } // BOOST_AUTO_TEST_CASE(GaussianTest)
 
 

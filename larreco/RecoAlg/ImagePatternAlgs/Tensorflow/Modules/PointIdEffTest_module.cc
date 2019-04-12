@@ -133,14 +133,14 @@ private:
 	int fMcPid;
 	int fClSize;
 	float fPidValue; // P(track-like)
-	
+
 
 	int fTrkOk[100], fTrkBad[100];
 	int fShOk[100], fShBad[100];
 	int fNone, fTotal;
 
 	double fElectronsToGeV;
-	
+
 	int fTrkLikeIdx, fEmLikeIdx, fNoneIdx, fMichelLikeIdx;
 
 	TTree *fEventTree, *fClusterTree, *fHitTree;
@@ -301,7 +301,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
 	// std::cout << "event " << fEvent << std::endl;
 
 	// access to MC information
-	
+
 	// MC particles list
 	auto particleHandle = e.getValidHandle< std::vector<simb::MCParticle> >(fSimulationProducerLabel);
 	for (auto const& particle : *particleHandle) { fParticleMap[particle.TrackId()] = &particle; }
@@ -332,7 +332,7 @@ void nnet::PointIdEffTest::analyze(art::Event const & e)
         throw cet::exception("PointIdEffTest") << "No em/track labeled columns in MVA data products." << std::endl;
     }
 
-    auto cluResults = anab::MVAReader<recob::Cluster, MVA_LENGTH>::create(e, fNNetModuleLabel);  // outputs for clusters recovered in not-throwing way 
+    auto cluResults = anab::MVAReader<recob::Cluster, MVA_LENGTH>::create(e, fNNetModuleLabel);  // outputs for clusters recovered in not-throwing way
     if (cluResults)
     {
     	const art::FindManyP<recob::Hit> hitsFromClusters(cluResults->dataHandle(), e, cluResults->dataTag());
@@ -516,7 +516,7 @@ int nnet::PointIdEffTest::testCNN(
 		auto hitChannelNumber = hit->Channel();
 
 		double hitEn = 0, hitEnSh = 0, hitEnTrk = 0, hitEnMichel = 0;
-        
+
 		auto const & vout = hit_outs[hit.key()];
 		fOutTrk = vout[fTrkLikeIdx];
 		fOutEM = vout[fEmLikeIdx];
@@ -536,7 +536,7 @@ int nnet::PointIdEffTest::testCNN(
 				{
 					// loop over the energy deposits.
 					auto const & energyDeposits = timeSlice.second;
-		
+
 					for (auto const & energyDeposit : energyDeposits)
 					{
 						int trackID = energyDeposit.trackID;
@@ -686,7 +686,7 @@ int nnet::PointIdEffTest::testCNN(
 	    else if ((recoPid == nnet::PointIdEffTest::kTrack) && (fMcPid == nnet::PointIdEffTest::kTrack))
 	    {
 	    	fTrkOk[i] += fClSize;
-	    }	
+	    }
 	    else if ((recoPid == nnet::PointIdEffTest::kShower) && (fMcPid == nnet::PointIdEffTest::kTrack))
 	    {
 	    	fTrkBad[i] += fClSize;

@@ -39,7 +39,7 @@ namespace nnet	 {
   class PointIdTrainingData : public art::EDAnalyzer
   {
   public:
- 
+
  	struct Config {
 		using Name = fhicl::Name;
 		using Comment = fhicl::Comment;
@@ -124,9 +124,9 @@ namespace nnet	 {
   }
 
   //-----------------------------------------------------------------------
-  void PointIdTrainingData::analyze(const art::Event& event) 
+  void PointIdTrainingData::analyze(const art::Event& event)
   {
-    fEvent  = event.id().event(); 
+    fEvent  = event.id().event();
     fRun    = event.run();
     fSubRun = event.subRun();
 

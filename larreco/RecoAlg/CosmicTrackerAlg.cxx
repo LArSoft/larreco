@@ -6,7 +6,7 @@
 // CosmicTrackerAlg class
 //
 /////////////////////////////////////////////////////////////////////////
-#include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "messagefacility/MessageLogger/MessageLogger.h"
 
 #include "CosmicTrackerAlg.h"
 
@@ -15,17 +15,17 @@
 #include <iostream>
 
 /*
-bool SortByMultiplet(art::Ptr<recob::Hit> const& a, 
+bool SortByMultiplet(art::Ptr<recob::Hit> const& a,
 		     art::Ptr<recob::Hit> const& b){
   // compare the wire IDs first:
-  if (a->WireID().Plane != b->WireID().Plane) 
+  if (a->WireID().Plane != b->WireID().Plane)
     return a->WireID().Plane < b->WireID().Plane;
   if (a->WireID().Wire != b->WireID().Wire)
     return a->WireID().Wire > b->WireID().Wire;
   if (a->StartTick() != b->StartTick()) return a->StartTick() < b->StartTick();
   // if still undecided, resolve by local index
   return a->LocalIndex() < b->LocalIndex(); // if still unresolved, it's a bug!
-}   
+}
 */
 namespace {
   template <typename T>
@@ -52,7 +52,7 @@ namespace trkf{
     ftmatch   = pset.get< double >("TMatch");
     fsmatch   = pset.get< double >("SMatch");
   }
-  
+
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::SPTReco(std::vector<art::Ptr<recob::Hit> >&fHits){
 
@@ -70,7 +70,7 @@ namespace trkf{
       Track3D(fHits);
     }
     else{
-      throw cet::exception("CosmicTrackerAlg")<<"Unknown SPTAlg "<<fSPTAlg<<", needs to be 0 or 1"; 
+      throw cet::exception("CosmicTrackerAlg")<<"Unknown SPTAlg "<<fSPTAlg<<", needs to be 0 or 1";
     }
 
     if (!fTrajOnly&&trajPos.size()) MakeSPT(fHits);
@@ -82,7 +82,7 @@ namespace trkf{
 
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::TrackTrajectory(std::vector<art::Ptr<recob::Hit> >&fHits){
-    
+
     detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
 /*
@@ -99,13 +99,13 @@ namespace trkf{
     std::array<std::vector<geo::WireID>,3> trkWID;
     std::array<std::vector<double>,3> trkX;
     std::array<std::vector<double>,3> trkXErr;
-    
+
     std::array< std::vector<art::Ptr<recob::Hit>>,3> trajHits;
-    
+
     for (size_t i = 0; i<fHits.size(); ++i){
       trajHits[fHits[i]->WireID().Plane].push_back(fHits[i]);
     }
-    
+
     std::vector<PlnLen> spl;
     PlnLen plnlen;
     for(unsigned int ipl = 0; ipl < 3; ++ipl) {
@@ -142,7 +142,7 @@ namespace trkf{
 	  &&dx2<dx1){
 	std::reverse(trajHits[ipl].begin(),trajHits[ipl].end());
       }
-    }	
+    }
 /*
     // make the track trajectory
     for(size_t ipl = 0; ipl < 3; ++ipl) {
@@ -150,8 +150,8 @@ namespace trkf{
       trajXW[ipl].resize(trajHits[ipl].size());
       trajChg[ipl].resize(trajHits[ipl].size());
       for(size_t iht = 0; iht < trajHits[ipl].size(); ++iht) {
-        double xx = detprop->ConvertTicksToX(trajHits[ipl][iht]->PeakTime(), 
-					     ipl, trajHits[ipl][iht]->WireID().TPC, 
+        double xx = detprop->ConvertTicksToX(trajHits[ipl][iht]->PeakTime(),
+					     ipl, trajHits[ipl][iht]->WireID().TPC,
 					     trajHits[ipl][iht]->WireID().Cryostat);
         trajXW[ipl][iht] = std::make_pair(xx, trajHits[ipl][iht]->WireID());
         trajChg[ipl][iht] = trajHits[ipl][iht]->Integral();
@@ -252,14 +252,14 @@ namespace trkf{
     int iclu3 = -1;
     unsigned maxnumhits0 = 0;
     unsigned maxnumhits1 = 0;
-    
+
     std::vector<double> tmin(vtimemap.size());
     std::vector<double> tmax(vtimemap.size());
     for (size_t iclu = 0; iclu<vtimemap.size(); ++iclu){
       tmin[iclu] = 1e9;
       tmax[iclu] = -1e9;
     }
-    
+
     for (size_t iclu = 0; iclu<vtimemap.size(); ++iclu){
       for (auto itime = vtimemap[iclu].begin(); itime!=vtimemap[iclu].end(); ++itime){
 	if (itime->second>tmax[iclu]){
@@ -282,14 +282,14 @@ namespace trkf{
 	maxnumhits1 = vtimemap[iclu].size();
       }
     }
-    
+
     std::swap(iclu1,iclu2); //now iclu1 has fewer hits than iclu2
-    
+
     //find iclu3
     for (int iclu = 0; iclu<(int)vtimemap.size(); ++iclu){
       if (iclu!=iclu1&&iclu!=iclu2) iclu3 = iclu;
     }
-    
+
     if (iclu1!=-1&&iclu2!=-1){//at least two good clusters
       //select hits in a common time range
       auto ihit = vhitmap[iclu1].begin();
@@ -305,7 +305,7 @@ namespace trkf{
 	  ++ihit;
 	}
       }
-      
+
       ihit = vhitmap[iclu2].begin();
       itime = vtimemap[iclu2].begin();
       while (itime!=vtimemap[iclu2].end()){
@@ -319,7 +319,7 @@ namespace trkf{
 	  ++ihit;
 	}
       }
-      
+
       //if one cluster is empty, replace it with iclu3
       if (!vtimemap[iclu1].size()){
 	if (iclu3!=-1){
@@ -333,7 +333,7 @@ namespace trkf{
 	}
       }
       if ((!vtimemap[iclu1].size())||(!vtimemap[iclu2].size())) return;
-      
+
       bool rev = false;
       auto times1 = vtimemap[iclu1].begin();
       auto timee1 = vtimemap[iclu1].end();
@@ -341,12 +341,12 @@ namespace trkf{
       auto times2 = vtimemap[iclu2].begin();
       auto timee2 = vtimemap[iclu2].end();
       --timee2;
-      
+
       double ts1 = times1->second;
       double te1 = timee1->second;
       double ts2 = times2->second;
       double te2 = timee2->second;
-      
+
       //find out if we need to flip ends
       if (std::abs(ts1-ts2)+std::abs(te1-te2)>std::abs(ts1-te2)+std::abs(te1-ts2)){
 	rev = true;
@@ -355,19 +355,19 @@ namespace trkf{
       double timetick = detprop->SamplingRate()*1e-3;    //time sample in us
       double Efield_drift = detprop->Efield(0);  // Electric Field in the drift region in kV/cm
       double Temperature = detprop->Temperature();  // LAr Temperature in K
-      
+
       double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
-      double timepitch = driftvelocity*timetick;         
+      double timepitch = driftvelocity*timetick;
 
       double wire_pitch = geom->WirePitch(
 					  vhitmap[0].begin()->second->WireID().Plane,
 					  vhitmap[0].begin()->second->WireID().TPC,
 					  vhitmap[0].begin()->second->WireID().Cryostat);    //wire pitch in cm
-      
+
       //find out 2d track length for all clusters associated with track candidate
-      std::vector<double> vtracklength;      
+      std::vector<double> vtracklength;
       for (size_t iclu = 0; iclu<vtimemap.size(); ++iclu){
-	
+
         double tracklength = 0;
         if (vtimemap[iclu].size()==1){
           tracklength = wire_pitch;
@@ -384,12 +384,12 @@ namespace trkf{
         }
 	vtracklength.push_back(tracklength);
       }
-      
+
       std::map<int,int> maxhitsMatch;
-      
+
       auto ihit1 = vhitmap[iclu1].begin();
-      for (auto itime1 = vtimemap[iclu1].begin(); 
-	   itime1 != vtimemap[iclu1].end(); 
+      for (auto itime1 = vtimemap[iclu1].begin();
+	   itime1 != vtimemap[iclu1].end();
 	   ++itime1, ++ihit1){//loop over min-hits
 	std::vector<art::Ptr<recob::Hit>> sp_hits;
 	sp_hits.push_back(ihit1->second);
@@ -409,10 +409,10 @@ namespace trkf{
 	double difference = 1e10; //distance between two matched hits
 	auto matchedtime = vtimemap[iclu2].end();
 	auto matchedhit  = vhitmap[iclu2].end();
-	
+
 	auto ihit2 = vhitmap[iclu2].begin();
-	for (auto itime2 = vtimemap[iclu2].begin(); 
-	     itime2!=vtimemap[iclu2].end(); 
+	for (auto itime2 = vtimemap[iclu2].begin();
+	     itime2!=vtimemap[iclu2].end();
 	     ++itime2, ++ihit2){//loop over max-hits
 	  if (maxhitsMatch[itime2->first]) continue;
 	  double length2 = 0;
@@ -451,15 +451,15 @@ namespace trkf{
 
 	  geo::WireID c1=(ihit1->second)->WireID();
 	  geo::WireID c2=(matchedhit->second)->WireID();
-	  
-	  geo::WireIDIntersection tmpWIDI;            
+
+	  geo::WireIDIntersection tmpWIDI;
 	  bool sameTpcOrNot=geom->WireIDsIntersect(c1,c2, tmpWIDI);
-	  
+
 	  if(sameTpcOrNot){
 	    hitcoord[1]=tmpWIDI.y;
 	    hitcoord[2]=tmpWIDI.z;
 	  }
-	  
+
 	  if (hitcoord[1]>-1e9&&hitcoord[2]>-1e9){
 	    maxhitsMatch[matchedtime->first] = 1;
 	    sp_hits.push_back(matchedhit->second);
@@ -477,7 +477,7 @@ namespace trkf{
 
   //---------------------------------------------------------------------
   void CosmicTrackerAlg::MakeSPT(std::vector<art::Ptr<recob::Hit> >&fHits){
-    
+
     larprop = lar::providerFrom<detinfo::LArPropertiesService>();
     detprop = lar::providerFrom<detinfo::DetectorPropertiesService>();
 
@@ -485,7 +485,7 @@ namespace trkf{
     double Efield_drift = detprop->Efield(0);  // Electric Field in the drift region in kV/cm
     double Temperature = detprop->Temperature();  // LAr Temperature in K
     double driftvelocity = detprop->DriftVelocity(Efield_drift,Temperature);    //drift velocity in the drift region (cm/us)
-    double time_pitch = driftvelocity*timetick;   //time sample (cm) 
+    double time_pitch = driftvelocity*timetick;   //time sample (cm)
 
     for (size_t i = 0; i<fHits.size(); ++i){
       int ip1 = -1;
@@ -556,7 +556,7 @@ namespace trkf{
       //std::cout<<v1.X()<<" "<<v1.Y()<<" "<<v2.X()<<" "<<v2.Y()<<" "<<v1.Mag()<<" "<<v2.Mag()<<std::endl;
       if (!v2.Mag()){
 	throw cet::exception("CosmicTrackerAlg")<<"Two identical trajectory points.";
-      }	
+      }
       double ratio = v1.Dot(v2)/v2.Mag2();
       TVector3 pos = trajPos[ip1]+ratio*(trajPos[ip2]-trajPos[ip1]);
       trkPos.push_back(pos);

@@ -2,7 +2,7 @@
  * \file CBAlgoCenterOfMassSmall.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CBAlgoCenterOfMassSmall
  *
  * @author david caratelli
@@ -27,15 +27,15 @@ namespace cmtool {
      If so -> merge
   */
   class CBAlgoCenterOfMassSmall: public CBoolAlgoBase {
-    
+
   public:
-    
+
     /// Default constructor
     CBAlgoCenterOfMassSmall();
-    
+
     /// Default destructor
     virtual ~CBAlgoCenterOfMassSmall(){};
- 
+
     /**
        Core function: given the ClusterParamsAlg input, return whether a cluster should be
        merged or not.
@@ -73,11 +73,11 @@ namespace cmtool {
     /// Set Length Reach: How for out the cone extends as percent of cluster length
     void SetLengthReach(double frac){ _lengthReach = frac; }
 
-    double ShortestDistanceSquared(double point_x, double point_y, 
+    double ShortestDistanceSquared(double point_x, double point_y,
 				   double start_x, double start_y,
 				   double end_x,   double end_y  ) const;
-    
-    
+
+
   protected:
 
     bool _debug;
@@ -92,5 +92,5 @@ namespace cmtool {
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

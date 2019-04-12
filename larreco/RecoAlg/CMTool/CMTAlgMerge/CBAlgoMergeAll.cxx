@@ -17,5 +17,5 @@ namespace cmtool {
     if(cluster1.GetNHits() && cluster2.GetNHits()) return true;
     else return false;
   }
-  
+
 }

@@ -1,11 +1,11 @@
 /**
  *  @file   DCEL2D.h
- * 
+ *
  *  @brief  Definitions for a doubly connected edge list
  *          This will define a vertex, half edge and face
  *
  *  @author usher@slac.stanford.edu
- * 
+ *
  */
 #ifndef DCEL2D_h
 #define DCEL2D_h
@@ -27,7 +27,7 @@ namespace reco
 namespace dcel2d
 {
 class HalfEdge;  // Forward declaration
-    
+
 /**
  *  @brief Definitions used by the VoronoiDiagram algorithm
  */
@@ -47,36 +47,36 @@ public:
      *  @brief  Constructor
      */
     Vertex() : fCoords(0.,0.,0.), fHalfEdge(NULL) {}
-    
+
     Vertex(const double* coords, HalfEdge* half) : fHalfEdge(half)
     {
         setCoords(coords);
     }
-    
+
     Vertex(const Coords& coords, HalfEdge* half) : fCoords(coords), fHalfEdge(half)
     {}
-    
+
     ~Vertex() {}
-    
+
     const Coords&   getCoords()   const {return fCoords;}
     const HalfEdge* getHalfEdge() const {return fHalfEdge;}
-    
+
     void setCoords(const double* coords)
     {
         fCoords[0] = coords[0];
         fCoords[1] = coords[1];
         fCoords[2] = coords[2];
     }
-    
+
     void setCoords(const Coords& coords) {fCoords = coords;}
-    
+
     void setHalfEdge(HalfEdge* half) {fHalfEdge = half;}
 
 private:
     Coords    fCoords;    // x,y coordinates of this vertex
     HalfEdge* fHalfEdge;  // pointer to one of the half edges
 };
-    
+
 class Face
 {
     /**
@@ -90,7 +90,7 @@ public:
      *  @brief  Constructor
      */
 //    Face() : fHalfEdge(NULL), fPoint(0.,0.,NULL) {}
-    
+
     Face(HalfEdge* half, const Coords& coords, const reco::ClusterHit3D* clusterHit3D) :
         fHalfEdge(half),
         fConvexHull(false),
@@ -98,19 +98,19 @@ public:
         fFaceArea(0.),
         fClusterHit3D(clusterHit3D)
     {}
-    
+
     ~Face() {}
-    
+
     const HalfEdge*           getHalfEdge()     const {return fHalfEdge;}
     const bool                onConvexHull()    const {return fConvexHull;}
     const Coords&             getCoords()       const {return fCoords;}
     const double              getFaceArea()     const {return fFaceArea;}
     const reco::ClusterHit3D* getClusterHit3D() const {return fClusterHit3D;}
-    
+
     void setHalfEdge(HalfEdge* half)  {fHalfEdge   = half;}
     void setOnConvexHull()            {fConvexHull = true;}
     void setFaceArea(double area)     {fFaceArea   = area;}
-    
+
 private:
     HalfEdge*                 fHalfEdge;     // pointer to one of the half edges
     mutable bool              fConvexHull;   // This face on convex hull
@@ -139,7 +139,7 @@ public:
         m_nextHalfEdge(NULL),
         m_lastHalfEdge(NULL)
     {}
-    
+
     HalfEdge(Vertex*   vertex,
              Face*     face,
              HalfEdge* twin,
@@ -151,15 +151,15 @@ public:
         m_nextHalfEdge(next),
         m_lastHalfEdge(last)
     {}
-    
+
     ~HalfEdge() {}
-    
+
     Vertex*   getTargetVertex() const {return m_targetVertex;}
     Face*     getFace()         const {return m_face;}
     HalfEdge* getTwinHalfEdge() const {return m_twinHalfEdge;}
     HalfEdge* getNextHalfEdge() const {return m_nextHalfEdge;}
     HalfEdge* getLastHalfEdge() const {return m_lastHalfEdge;}
-    
+
     void setTargetVertex(Vertex* vertex) {m_targetVertex = vertex;}
     void setFace(Face* face)             {m_face         = face;}
     void setTwinHalfEdge(HalfEdge* twin) {m_twinHalfEdge = twin;}
@@ -173,7 +173,7 @@ private:
     HalfEdge*   m_nextHalfEdge;  // Pointer ot the next half edge
     HalfEdge*   m_lastHalfEdge;  // Pointer to the previous half edge
 };
-    
+
 // Define containers to hold the above objects
 using VertexList   = std::list<Vertex>;
 using FaceList     = std::list<Face>;

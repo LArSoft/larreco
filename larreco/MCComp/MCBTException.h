@@ -2,7 +2,7 @@
  * \file MCBTException.h
  *
  * \ingroup MCComp
- * 
+ *
  * \brief Class def header for exception classes in MCComp package
  *
  * @author kazuhiro
@@ -31,7 +31,7 @@ namespace btutil {
     {}
 
     virtual ~MCBTException() throw(){};
-    virtual const char* what() const throw() 
+    virtual const char* what() const throw()
     {return _msg.c_str(); }
 
   private:
@@ -41,5 +41,5 @@ namespace btutil {
 
 }
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

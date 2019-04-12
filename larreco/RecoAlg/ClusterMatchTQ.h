@@ -14,7 +14,7 @@
 #ifndef CLUSTERMATCHTQ_H
 #define CLUSTERMATCHTQ_H
 #include "canvas/Persistency/Common/FindManyP.h"
-#include "canvas/Persistency/Common/Ptr.h" 
+#include "canvas/Persistency/Common/Ptr.h"
 #include "fhiclcpp/ParameterSet.h"
 
 #include "lardataobj/RecoBase/Cluster.h"
@@ -26,7 +26,7 @@ namespace cluster
 {
   class ClusterMatchTQ {
   public:
-    
+
     ClusterMatchTQ(fhicl::ParameterSet const& pset);
 
     void reconfigure(fhicl::ParameterSet const& p);
@@ -46,4 +46,4 @@ namespace cluster
   }; // class ClusterMatchTQ
 } // namespace cluster
 
-#endif //ifndef CLUSTERMATCHTQ_H 
+#endif //ifndef CLUSTERMATCHTQ_H

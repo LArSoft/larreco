@@ -220,7 +220,7 @@ void shower::EMShower::produce(art::Event& evt) {
             pfphits.insert(pfphits.end(), ClusterHits.begin(), ClusterHits.end());
           }
           if (pfphits.size()){//find hits
-            auto vout = hitResults->getOutput(pfphits); 
+            auto vout = hitResults->getOutput(pfphits);
             double trk_like = -1, trk_or_em = vout[trkLikeIdx] + vout[emLikeIdx];
             if (trk_or_em > 0){
               trk_like = vout[trkLikeIdx] / trk_or_em;
@@ -424,7 +424,7 @@ void shower::EMShower::produce(art::Event& evt) {
         }
 
 	int iok = 0;
-        
+
 	recob::Shower shower = fEMShowerAlg.MakeShower(showerHits, bestvtx, iok);
 	//shower.set_id(showerNum);
 	if (iok==0) {

@@ -122,7 +122,7 @@ namespace vertex{
     // make a map of eve id's to collections of prongs
     std::map<int, std::vector< std::pair<size_t, art::Ptr<recob::Shower> > > > eveShowerMap;
     std::map<int, std::vector< std::pair<size_t, art::Ptr<recob::Track>  > > > eveTrackMap;
-    
+
     // make a map of eve id's to the number of prongs corresponding to that id
     std::vector<int> eveIDs;
 
@@ -131,7 +131,7 @@ namespace vertex{
 
       std::pair<size_t, art::Ptr<recob::Shower> > idxShw(s, showers[s]);
 
-      // in the ProngCheater module we set the prong ID to be 
+      // in the ProngCheater module we set the prong ID to be
       // the particle track ID creating the energy depositions
       // of the prong
       int prongID = showers[s]->ID();
@@ -145,13 +145,13 @@ namespace vertex{
       if(std::find(eveIDs.begin(), eveIDs.end(), eveID) == eveIDs.end())
 	eveIDs.push_back(eveID);
 
-      // now we want to associate all prongs having the same 
+      // now we want to associate all prongs having the same
       // eve ID, so look to see if there are other prongs with that
       // ID
       eveShowerMap[eveID].push_back(idxShw);
 
       mf::LogInfo("VertexCheater") << "shower: " << prongID << " has mother " << eveID;
-	
+
     }// end loop over showers
 
     // loop over all tracks
@@ -159,7 +159,7 @@ namespace vertex{
 
       std::pair<size_t, art::Ptr<recob::Track> > idxTrk(t, tracks[t]);
 
-      // in the ProngCheater module we set the prong ID to be 
+      // in the ProngCheater module we set the prong ID to be
       // the particle track ID creating the energy depositions
       // of the prong
       int prongID = tracks[t]->ID();
@@ -173,13 +173,13 @@ namespace vertex{
       if(std::find(eveIDs.begin(), eveIDs.end(), eveID) == eveIDs.end())
 	eveIDs.push_back(eveID);
 
-      // now we want to associate all prongs having the same 
+      // now we want to associate all prongs having the same
       // eve ID, so look to see if there are other prongs with that
       // ID
       eveTrackMap[eveID].push_back(idxTrk);
 
       mf::LogInfo("VertexCheater") << "track: " << prongID << " has mother " << eveID;
-	
+
     }// end loop over tracks
 
     std::unique_ptr< std::vector<recob::Vertex> > vertexcol(new std::vector<recob::Vertex>);
@@ -214,12 +214,12 @@ namespace vertex{
 	  idxTrk.push_back(it.first);
 	} // end loop over tracks for this particle
       } // end find tracks for this particle
- 
+
       double xyz[3] = { plist[eveID]->Vx(),
 			plist[eveID]->Vy(),
 			plist[eveID]->Vz() };
 
-      // add a vector to the collection.  
+      // add a vector to the collection.
       vertexcol->push_back(recob::Vertex(xyz, eveID));
 
       // associate the vertex with its showers and tracks
@@ -233,7 +233,7 @@ namespace vertex{
 	  util::CreateAssn(*this, evt, *vertexcol, hits, *vhassn);
 	}
       }
-      
+
       if( ptrvshw.size() > 0 ){
 	util::CreateAssn(*this, evt, *vertexcol, ptrvshw, *vsassn);
 	// get the hits associated with each shower and associate those with the vertex
@@ -243,7 +243,7 @@ namespace vertex{
 	}
       }
 
-      mf::LogInfo("VertexCheater") << "adding vertex: \n" 
+      mf::LogInfo("VertexCheater") << "adding vertex: \n"
 				   << vertexcol->back()
 				   << "\nto collection.";
 

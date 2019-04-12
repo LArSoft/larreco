@@ -2,7 +2,7 @@
  * \file Empty_Class_Name.hh
  *
  * \ingroup Working_Package
- * 
+ *
  * \brief Class def header for a class Empty_Class_Name
  *
  * @author USER_NAME
@@ -34,5 +34,5 @@ public:
 };
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 

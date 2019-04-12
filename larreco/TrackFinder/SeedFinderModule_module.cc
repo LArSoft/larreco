@@ -35,17 +35,17 @@ namespace trkf {
     void GetSortedHitsFromClusters(std::string ClusterModuleLabel,
                                    art::Event& evt,
                                    std::vector<std::vector<art::PtrVector<recob::Hit>>>& SortedHits);
-   
+
     // Fcl Attributes.
     SeedFinderAlgorithm     fSeedAlg;                  // Algorithm object
     std::string             fInputModuleLabel;         // Where to find hits, if we need them
     int                     fInputSource;              // 1: Use Clusters
                                                       // 2: Use Hits
   };
-  
+
 }
 
-#include "art/Framework/Core/ModuleMacros.h" 
+#include "art/Framework/Core/ModuleMacros.h"
 
 namespace trkf {
   DEFINE_ART_MODULE(SeedFinderModule)
@@ -94,17 +94,17 @@ namespace trkf {
   //----------------------------------------------------------------------------
   void SeedFinderModule::produce(art::Event& evt)
   {
-    
+
     std::unique_ptr<std::vector<recob::Seed> > seeds(new std::vector<recob::Seed>);
 
     std::vector<std::vector<recob::SpacePoint> > SpacePointsWithSeeds;
     std::vector<recob::Seed> SeedVector;
 
-    // Make seeds from clusters    
+    // Make seeds from clusters
     if(fInputSource==1)
       {
 	std::vector<std::vector<art::PtrVector<recob::Hit> > > HitsPerSeed;
-	
+
 	std::vector< std::vector< art::PtrVector<recob::Hit> > > SortedHits;
         GetSortedHitsFromClusters(fInputModuleLabel, evt, SortedHits);
 
@@ -114,18 +114,18 @@ namespace trkf {
 	  for(size_t j=0; j!=Seeds.at(i).size(); ++j)
 	    SeedVector.push_back(Seeds.at(i).at(j));
       }
-    
+
     // Make seeds from unsorted hits
     else if(fInputSource==0)
       {
-	
+
 	art::PtrVector<recob::Hit> Hits = GetHitsFromEvent(fInputModuleLabel, evt);
 	std::vector<art::PtrVector<recob::Hit> > HitCatalogue;
   	SeedVector = fSeedAlg.GetSeedsFromUnSortedHits(Hits, HitCatalogue);
       }
-    else	  
+    else
       {
-	throw cet::exception("SeedFinderModule") << 
+	throw cet::exception("SeedFinderModule") <<
 	  "Unkown source mode " << fInputSource<<"\n";
       }
 
@@ -135,13 +135,13 @@ namespace trkf {
 	  {
 	    seeds->push_back(SeedVector.at(i));
 	  }
-	
+
       }
     else
       mf::LogInfo("SeedFinder")<<"Seed finder made no seeds : no space points in event"<<std::endl;
-    
+
     evt.put(std::move(seeds));
-    
+
 
 
   }
@@ -157,7 +157,7 @@ namespace trkf {
                                                    art::Event& evt,
                                                    std::vector<std::vector<art::PtrVector<recob::Hit>>>& SortedHits)
   {
-    
+
     SortedHits.clear();
     SortedHits.resize(3);
     std::vector<art::Ptr<recob::Cluster> > Clusters;
@@ -182,7 +182,7 @@ namespace trkf {
         HitsThisCluster.push_back(*i);
 
       SortedHits[ThisCluster->View()].push_back(HitsThisCluster);
-      
+
     }
   }
 
@@ -191,7 +191,7 @@ namespace trkf {
   //
   art::PtrVector<recob::Hit> SeedFinderModule::GetHitsFromEvent(std::string HitModuleLabel, art::Event & evt)
   {
-    
+
     art::PtrVector<recob::Hit> TheHits;
     art::Handle< std::vector<recob::Hit> > hith;
     evt.getByLabel(HitModuleLabel, hith);
@@ -200,7 +200,7 @@ namespace trkf {
 	art::Ptr<recob::Hit> hit(hith, i);
 	TheHits.push_back(hit);
       }
-    
+
     return TheHits;
   }
 }

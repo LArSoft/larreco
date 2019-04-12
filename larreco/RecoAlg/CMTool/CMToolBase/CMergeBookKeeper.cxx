@@ -3,7 +3,7 @@
 namespace cmtool {
 
   CMergeBookKeeper::CMergeBookKeeper(unsigned short nclusters)
-  { 
+  {
     Reset(nclusters);
   }
 
@@ -19,7 +19,7 @@ namespace cmtool {
       _prohibit_merge.push_back(std::vector<bool>(nclusters-i,false));
     }
     _out_cluster_count = nclusters;
-    
+
   }
 
   void CMergeBookKeeper::ProhibitMerge(unsigned short index1, unsigned short index2)
@@ -37,7 +37,7 @@ namespace cmtool {
     auto out_index2 = this->at(index2);
 
     if(out_index1 == out_index2)
-      throw CMTException(Form("Cluster %d and %d already merged!",index1,index2));    
+      throw CMTException(Form("Cluster %d and %d already merged!",index1,index2));
 
     if(out_index2 < out_index1) std::swap(out_index1,out_index2);
 
@@ -66,7 +66,7 @@ namespace cmtool {
     if(out_index2 < out_index1) std::swap(out_index1,out_index2);
 
     return !(_prohibit_merge.at(out_index1).at(out_index2-out_index1));
-    
+
   }
 
   void CMergeBookKeeper::Merge(unsigned short index1, unsigned short index2)
@@ -89,7 +89,7 @@ namespace cmtool {
     if(out_index2 < out_index1) std::swap(out_index1,out_index2);
 
     if(_prohibit_merge.at(out_index1).at(out_index2-out_index1))
-      
+
       throw CMTException(Form("Clusters (%d,%d) correspond to output (%d,%d) which is prohibited to merge",
 				   index1,index2,
 				   out_index1,out_index2));
@@ -110,7 +110,7 @@ namespace cmtool {
     //
     // (1) handle index < out_index1
     for(size_t index=0; index < out_index1; ++index) {
-      
+
       size_t tmp_out_index1 = out_index1 - index;
       size_t tmp_out_index2 = out_index2 - index;
 
@@ -118,19 +118,19 @@ namespace cmtool {
 						       ||
 						       _prohibit_merge.at(index).at(tmp_out_index2)
 						       );
-      
-      for(size_t in_index=tmp_out_index2; 
+
+      for(size_t in_index=tmp_out_index2;
 	  //in_index < _prohibit_merge.at(index).size() - 1;
 	  in_index < (_out_cluster_count - index - 1);
 	  ++in_index) {
 
 	/*
-	if(in_index >= (_out_cluster_count - 1 - index)) 
+	if(in_index >= (_out_cluster_count - 1 - index))
 
 	  _prohibit_merge.at(index).at(in_index) = false;
 
 	else
-	*/	  
+	*/
 	_prohibit_merge.at(index).at(in_index) = _prohibit_merge.at(index).at(in_index+1);
       }
 
@@ -140,8 +140,8 @@ namespace cmtool {
     }
 
     // (2) handle index == out_index1
-    for(size_t in_index = 1; 
-	//in_index < _prohibit_merge.at(out_index1).size() - 1; 
+    for(size_t in_index = 1;
+	//in_index < _prohibit_merge.at(out_index1).size() - 1;
 	in_index < (_out_cluster_count - out_index1 - 1);
 	++in_index) {
       if( (in_index + out_index1) < out_index2 ) {
@@ -172,14 +172,14 @@ namespace cmtool {
 							||
 							_prohibit_merge.at(out_index2).at(in_index+1+out_index1-out_index2)
 							);
-	
+
       }
     }
     //(*_prohibit_merge.at(out_index1).rbegin()) = false;
     _prohibit_merge.at(out_index1).at(_out_cluster_count - out_index1 - 1) = false;
 
     // (3) handle out_index1 < index < out_index2
-    for(size_t index = out_index1+1; 
+    for(size_t index = out_index1+1;
 	index < out_index2;
 	++index){
       for(size_t in_index = (out_index2 - index);
@@ -188,7 +188,7 @@ namespace cmtool {
 	  ++in_index)
 
 	_prohibit_merge.at(index).at(in_index) = _prohibit_merge.at(index).at(in_index+1);
-      
+
       //(*_prohibit_merge.at(index).rbegin()) = false;
       _prohibit_merge.at(index).at(_out_cluster_count - index - 1) = false;
     }
@@ -197,7 +197,7 @@ namespace cmtool {
 	//index < (_prohibit_merge.size() - 1);
 	index < (_out_cluster_count - 1);
 	++index) {
-      
+
       for(size_t in_index = 0;
 	  in_index < _prohibit_merge.at(index).size();
 	  ++in_index)
@@ -214,7 +214,7 @@ namespace cmtool {
 
   }
 
-  void CMergeBookKeeper::Report() const 
+  void CMergeBookKeeper::Report() const
   {
     std::cout<<"Merge Result:"<<std::endl;
     for(auto const& v : *this)
@@ -223,7 +223,7 @@ namespace cmtool {
 
     std::cout<<"Prohibit Status:"<<std::endl;
     for(auto const &bs : _prohibit_merge) {
-      
+
       for(auto const &b : bs) {
 
 	if(b) std::cout<<"\033[93mT\033[00m ";
@@ -237,14 +237,14 @@ namespace cmtool {
   }
 
   bool CMergeBookKeeper::IsMerged(unsigned short index1, unsigned short index2) const
-  { 
+  {
     if( index1 >= this->size() || index2 >= this->size() )
       throw CMTException(Form("Invalid cluster index: %d or %d",index1,index2));
 
-    return this->at(index1) == this->at(index2); 
+    return this->at(index1) == this->at(index2);
   }
 
-  
+
   std::vector<unsigned short> CMergeBookKeeper::GetMergedSet(unsigned short index1) const
   {
 
@@ -253,7 +253,7 @@ namespace cmtool {
 
     auto out_index = this->at(index1);
     std::vector<unsigned short> result;
-    
+
     for(size_t i=0; i<this->size(); ++i)
       if( this->at(i) == out_index ) result.push_back(i);
 
@@ -305,7 +305,7 @@ namespace cmtool {
 	for(auto const &orig_index : my_result.at(res_index)) {
 
 	  if(target == orig_index) continue;
-	
+
 	  else this->Merge(target,orig_index);
 
 	}

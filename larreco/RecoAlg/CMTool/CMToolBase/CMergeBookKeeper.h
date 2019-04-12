@@ -2,7 +2,7 @@
  * \file CMergeBookKeeper.h
  *
  * \ingroup CMTool
- * 
+ *
  * \brief Class def header for a class CMergeBookKeeper
  *
  * @author kazuhiro
@@ -33,12 +33,12 @@ namespace cmtool {
      asked to return a vector of merged cluster indexes.
   */
   class CMergeBookKeeper : public std::vector<unsigned short>{
-    
+
   public:
-    
+
     /// Default constructor
     CMergeBookKeeper(unsigned short nclusters=0);
-    
+
     /// Default destructor
     virtual ~CMergeBookKeeper(){};
 
@@ -55,7 +55,7 @@ namespace cmtool {
     void Merge(unsigned short index1, unsigned short index2);
 
     /**
-       Method to retrieve a vector of cluster indexes which 
+       Method to retrieve a vector of cluster indexes which
        is merged with the input cluster index. All indexes here
        are regarding the original cluster index.
     */
@@ -77,8 +77,8 @@ namespace cmtool {
 
 
     std::vector<std::vector<unsigned short> > GetResult() const
-    { 
-      std::vector<std::vector<unsigned short> > result; 
+    {
+      std::vector<std::vector<unsigned short> > result;
       PassResult(result);
       return result;
     }
@@ -86,7 +86,7 @@ namespace cmtool {
     /**
        Method to combine with another CMergeBookKeeper instance.
      */
-    
+
     void Combine(const CMergeBookKeeper &another);
 
     void Report() const;
@@ -100,11 +100,11 @@ namespace cmtool {
 
     /// Number of output clusters
     size_t _out_cluster_count;
-    
+
   };
-  
+
 }
 
 #endif
-/** @} */ // end of doxygen group 
+/** @} */ // end of doxygen group
 
