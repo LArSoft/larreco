@@ -68,7 +68,6 @@
 #include "TDecompSVD.h"
 #include "TMath.h"
 #include "TF1.h"
-#include "TTree.h"
 #include "TStopwatch.h"
 
 namespace hit{

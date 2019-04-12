@@ -42,8 +42,6 @@
 
 #include "TH1.h"
 #include "TTree.h"
-#include "TLorentzVector.h"
-#include "TVector3.h"
 
 #include <iostream>
 #include <fstream>

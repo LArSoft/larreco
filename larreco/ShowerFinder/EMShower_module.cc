@@ -50,7 +50,6 @@
 #include "TStyle.h"
 #include "TGraph2D.h"
 #include "TF2.h"
-#include "TTree.h"
 
 namespace shower {
   class EMShower;

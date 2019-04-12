@@ -44,9 +44,7 @@
 #include "nusimdata/SimulationBase/MCTruth.h"
 
 // ROOT & STL includes
-#include "TTree.h"
 #include "TTimeStamp.h"
-#include "TLorentzVector.h"
 #include "TH2F.h"
 #include "TFile.h"
 #include "TH1.h"

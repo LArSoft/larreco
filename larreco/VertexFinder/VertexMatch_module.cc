@@ -48,7 +48,6 @@ extern "C" {
 #include <TCanvas.h>
 #include "TDatabasePDG.h"
 #include "TSystem.h"
-#include "TMath.h"
 
 namespace vertex {
    

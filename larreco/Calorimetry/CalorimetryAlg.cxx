@@ -12,7 +12,6 @@
 #include "messagefacility/MessageLogger/MessageLogger.h"
 // 
 
-#include "TMath.h"
 
 // LArSoft includes
 #include "lardataobj/RecoBase/Hit.h"

@@ -19,7 +19,6 @@
 #include "larcorealg/Geometry/WireGeo.h"
 
 // ROOT includes
-#include "TTree.h"
 #include "TCanvas.h"
 #include "TFrame.h"
 #include "TH2D.h"

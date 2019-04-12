@@ -52,7 +52,6 @@
 #include "TMath.h"
 #include "TGraph.h"
 #include "TF1.h"
-#include "TVector3.h"
 
 struct CluLen{
   int index;

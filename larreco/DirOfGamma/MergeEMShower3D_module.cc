@@ -39,7 +39,6 @@
 
 // ROOT includes
 #include "TTree.h"
-#include "TLorentzVector.h"
 #include "TMathBase.h"
 
 namespace ems

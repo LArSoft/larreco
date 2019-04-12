@@ -40,7 +40,6 @@ extern "C" {
 #include "TVectorD.h"
 #include "TFile.h"
 #include "TGraph.h"
-#include "TMath.h"
 
 #include "art/Framework/Core/EDProducer.h"
 

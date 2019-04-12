@@ -41,7 +41,6 @@
 //ROOT from CalData
 
 #include "TComplex.h"
-#include "TFile.h"
 #include "TH2D.h"
 #include "TF1.h"
 
@@ -49,7 +48,6 @@
 
 #include "TH1D.h"
 #include "TDecompSVD.h"
-#include "TMath.h"
 
 namespace hit {
 

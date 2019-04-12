@@ -18,7 +18,6 @@
 #include "larcorealg/Geometry/WireGeo.h"
 
 // ROOT includes
-#include "TTree.h"
 #include "TVectorD.h"
 #include "TMatrixD.h"
 #include "TDecompSVD.h"

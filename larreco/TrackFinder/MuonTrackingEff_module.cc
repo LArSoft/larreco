@@ -41,7 +41,6 @@
 
 // ROOT includes
 #include "TFile.h"
-#include "TTree.h"
 #include "TDirectory.h"
 #include "TH1.h"
 #include "TH2.h"

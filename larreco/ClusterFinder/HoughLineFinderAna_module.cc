@@ -10,7 +10,6 @@
 //  Niblack, W. and Petkovic, D. On Improving the Accuracy of the Hough Transform", Machine Vision and Applications 3, 87 (1990)  
 ////////////////////////////////////////////////////////////////////////
 
-#include "TMath.h"
 #include <string>
 
 

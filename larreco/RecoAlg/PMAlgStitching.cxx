@@ -10,8 +10,6 @@
 
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "TMath.h"
-#include "TVector2.h"
 #include "TVector3.h"
 
 // Constructor

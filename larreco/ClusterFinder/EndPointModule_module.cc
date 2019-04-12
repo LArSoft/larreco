@@ -26,8 +26,6 @@ extern "C" {
 #include <fstream>
 #include <math.h>
 #include <algorithm>
-#include "TMath.h"
-#include "TMath.h"
 #include <string>
 
 // Framework includes

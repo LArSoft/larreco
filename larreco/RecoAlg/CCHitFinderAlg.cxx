@@ -38,7 +38,6 @@
 
 // ROOT Includes
 #include "TGraph.h"
-#include "TMath.h"
 #include "TF1.h"
 
 

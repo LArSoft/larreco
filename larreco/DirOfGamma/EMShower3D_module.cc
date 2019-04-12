@@ -39,8 +39,6 @@
 #include "larreco/Calorimetry/CalorimetryAlg.h"
 
 // ROOT includes
-#include "TLorentzVector.h"
-#include "TMathBase.h"
 
 #include <fstream>
 

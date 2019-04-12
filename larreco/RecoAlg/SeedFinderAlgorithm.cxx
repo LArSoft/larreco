@@ -27,7 +27,6 @@
 #include "TMatrixD.h"
 #include "TVectorD.h"
 #include "TPrincipal.h"
-#include "TTree.h"
 #include "art/Framework/Services/Optional/TFileService.h"
 
 

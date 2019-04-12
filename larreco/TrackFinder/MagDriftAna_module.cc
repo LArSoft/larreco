@@ -29,7 +29,6 @@ extern "C" {
 #include "art/Framework/Services/Optional/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 // Root Includes
-#include "TMath.h"
 #include "TGraph.h"
 #include "TFile.h"
 #include "TLine.h"

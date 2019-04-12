@@ -16,7 +16,6 @@
 #include "larcore/Geometry/Geometry.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
-#include "TMath.h"
 
 pma::Track3D::Track3D(void) :
 	fMaxHitsPerSeg(70),

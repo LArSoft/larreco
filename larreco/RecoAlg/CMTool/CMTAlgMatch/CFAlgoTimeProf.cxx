@@ -6,7 +6,6 @@
 #include "TPrincipal.h"
 #include "TVectorD.h"
 #include "TGraph.h"
-#include "TMath.h"
 #include "TH1D.h"
 #include "TVirtualFitter.h"
 #include "lardata/DetectorInfoServices/DetectorPropertiesService.h"
