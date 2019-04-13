@@ -115,7 +115,10 @@ namespace tca {
       // vertex Tjs in induction planes. Assume that it is required
       tcc.vtx2DCuts.resize(11, 1.);
     }
-    if(tcc.vtx3DCuts.size() < 2)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size 2\n 0 = Max dX (cm)\n 1 = Max pull";
+    if(tcc.vtx3DCuts.size() < 2)  throw art::Exception(art::errors::Configuration)<<"Vertex3DCuts must be size > 2\n 0 = 2D Vtx max dX (cm)\n 1 = 2D Vtx max pull\n 2 = max 3D separation (cm) btw PFP and vertex";
+    if(tcc.vtx3DCuts.size() == 2) {
+      tcc.vtx3DCuts.resize(3, 2.);
+    }
     if(tcc.kinkCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"KinkCuts must be size 2\n 0 = Hard kink angle cut\n 1 = Kink angle significance\n 2 = nPts fit";
     if(tcc.kinkCuts[2] < 2) throw art::Exception(art::errors::Configuration)<<"KinkCuts[2] must be > 1";
     if(tcc.chargeCuts.size() != 3) throw art::Exception(art::errors::Configuration)<<"ChargeCuts must be size 3\n 0 = Charge pull cut\n 1 = Min allowed fractional chg RMS\n 2 = Max allowed fractional chg RMS";
@@ -652,27 +655,28 @@ namespace tca {
         BraggSplit(slc, slc.tjs.size() - 1);
       } // seed
 
-      seeds.resize(0);
+       seeds.resize(0);
 
-      // Tag delta rays before merging and making vertices
-      TagDeltaRays(slc, inCTP);
-      // Try to merge trajectories before making vertices
-      bool lastPass = (pass == tcc.minPtsFit.size() - 1);
-      EndMerge(slc, inCTP, lastPass);
-      if(!slc.isValid) return;
-
-      // TY: Split high charge hits near the trajectory end
-      ChkHiChgHits(slc, inCTP);
-
-      Find2DVertices(slc, inCTP, pass);
-      if(!slc.isValid) return;
+       // Tag delta rays before merging and making vertices
+       TagDeltaRays(slc, inCTP);
+       // Try to merge trajectories before making vertices
+       
+       bool lastPass = (pass == tcc.minPtsFit.size() - 1);
+       // don't use lastPass cuts if we will use LastEndMerge
+       if(tcc.useAlg[kLastEndMerge]) lastPass = false;
+       EndMerge(slc, inCTP, lastPass);
+       if(!slc.isValid) return;
+       
+       // TY: Split high charge hits near the trajectory end
+       ChkHiChgHits(slc, inCTP);
+       
+       Find2DVertices(slc, inCTP, pass);
+       if(!slc.isValid) return;
 
     } // pass
     
-    // Use unused hits in all trajectories
-    // BB Nov 2018: This can be a bad idea if the fcl configuration allows widely separated hits to
-    // be associated with TPs
-//    UseUnusedHits(slc);
+    // Last attempt to merge long straight Tjs that failed the EndMerge cuts
+    LastEndMerge(slc, inCTP);
     
     // make junk trajectories using nearby un-assigned hits
     if(tcc.JTMaxHitSep2 > 0) {
