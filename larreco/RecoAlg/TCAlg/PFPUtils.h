@@ -48,7 +48,6 @@ namespace tca {
   unsigned short Find3DRecoRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short min2DPts, short dir);
   bool FitSection(TCSlice& slc, PFPStruct& pfp, unsigned short sfIndex);
   void ReconcileVertices(TCSlice& slc, PFPStruct& pfp, bool prt);
-  void ChkEndPts(TCSlice& slc, PFPStruct& pfp, bool prt);
   void TrimEndPts(TCSlice& slc, PFPStruct& pfp, bool prt);
   unsigned short FirstPointInPlane(PFPStruct& pfp, unsigned short plane, unsigned short end);
   void FillGaps3D(TCSlice& slc, PFPStruct& pfp, bool prt);
@@ -76,6 +75,7 @@ namespace tca {
   TP3D CreateTP3D(TCSlice& slc, unsigned short slHitsIndex);
   TP3D CreateTP3D(TCSlice& slc, int tjID, unsigned short tjPt);
   void SetSection(TCSlice& slc, PFPStruct& pfp, TP3D& tp3d);
+  float PointPull(PFPStruct& pfp, TP3D& tp3d);
   PFPStruct CreatePFP(TCSlice& slc);
   void PFPVertexCheck(TCSlice& tcs);
   void DefinePFPParents(TCSlice& slc, bool prt);
