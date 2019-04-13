@@ -204,7 +204,7 @@ namespace tca {
     } // sort matVec
     if(prt) {
       mf::LogVerbatim myprt("TC");
-      myprt<<"FPFP: matVec\n";
+      myprt<<"FPFP: matVec. Note: dt/dW has units of cm/wire.\n";
       unsigned short cnt = 0;
       PFPStruct pfp = CreatePFP(slc);
       for(unsigned int ii = 0; ii < matVec.size(); ++ii) {
@@ -224,11 +224,11 @@ namespace tca {
         myprt<<pos[0]<<", "<<pos[1]<<", "<<pos[2];
         auto dir = DirAtEnd(pfp, 0);
         myprt<<") Dir "<<std::setprecision(2)<<std::setw(6)<<dir[0]<<std::setw(6)<<dir[1]<<std::setw(6)<<dir[2];
-        myprt<<" projInPlane";
+        myprt<<" dt/dW";
         for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
           CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
           auto tp = MakeBareTP(slc, pos, dir, inCTP);
-          myprt<<" "<<std::setprecision(2)<<tp.Delta;
+          myprt<<" "<<std::setprecision(2)<<tp.DeltaRMS;
         } // plane
 //        myprt<<" maxTjLen "<<(int)MaxTjLen(slc, pfp.TjIDs);
         myprt<<" MCSMom "<<MCSMom(slc, pfp.TjIDs);
@@ -243,8 +243,6 @@ namespace tca {
     } // prt
     // create a PFParticle for each valid match combination
     for(unsigned int indx = 0; indx < matVec.size(); ++indx) {
-      // skip making all PFParticles except for the selected one
-      if(debug.MVI < matVec.size() && indx != debug.MVI) continue;
       auto& ms = matVec[indx];
       // ignore dead matches
       if(ms.Count == 0) continue;
@@ -320,13 +318,12 @@ namespace tca {
 //      if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("TMP", slc, pfp, -1);
       // FillGaps3D looks for gaps in the TP3Ds vector caused by broken trajectories and
       // inserts new TP3Ds if there are hits in the gaps
-      FillGaps3D(slc, pfp, prt);
-      // Trim points from the ends until there is one point in two planes
+      // This is an early algorithm that may 
+//      FillGaps3D(slc, pfp, prt);
+      // Trim points from the ends until there is a 3D point where there is a signal in at least two planes
       TrimEndPts(slc, pfp, prt);
-      // Look for evidence of broken tjs in one plane
-      ChkEndPts(slc, pfp, prt);
       // Look for mis-placed 2D and 3D vertices
-//      ReconcileVertices(slc, pfp, prt);
+      ReconcileVertices(slc, pfp, prt);
       // set the end flag bits
       geo::TPCID tpcid;
       for(unsigned short end = 0; end < 2; ++end) {
@@ -344,7 +341,7 @@ namespace tca {
         if(tj.EndFlag[1][kBragg]) ++braggCnt;
       } // tid
       if(braggCnt > 1) {
-        std::cout<<"P"<<pfp.ID<<" has Tjs with more than one Bragg peak. Write some code\n";
+        std::cout<<"P"<<pfp.ID<<" has Tjs with more than one Bragg peak. Write some code MVI = "<<pfp.MVI<<"\n";
       }
       // debug?
       if(tcc.dbgPFP && pfp.MVI == debug.MVI) PrintTP3Ds("FPFP", slc, pfp, -1);
@@ -385,7 +382,7 @@ namespace tca {
     // into the event. Note that none of the Tjs are attached to 2D vertices.
     if(!tcc.useAlg[kMakePFPTjs]) return;
     
-    bool prt = (tcc.dbgPFP && tcc.dbgSlc);
+//    bool prt = (tcc.dbgPFP && tcc.dbgSlc);
     
     // kill trajectories
     for(auto& pfp : slc.pfps) {
@@ -467,11 +464,13 @@ namespace tca {
         pfp.TjIDs.push_back(newTj.ID);
         pfp.TjCompleteness.push_back(1.);
       } // tj
+/*
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<"MPFPTjs: P"<<pfp.ID<<" ->";
         for(auto tjid : pfp.TjIDs) myprt<<" T"<<tjid;
       } // prt
+*/
     } // pfp
   } // MakePFPTjs
   
@@ -871,7 +870,7 @@ namespace tca {
       return false;
     }
     // sort again (TODO Is this necessary?)
-    if(!SortSection(pfp, 0)) return false;
+//    if(!SortSection(pfp, 0)) return false;
     if(prt) {
       mf::LogVerbatim myprt("TC");
       myprt<<"DPFP: FitSection: P"<<pfp.ID<<" first fit";
@@ -893,7 +892,7 @@ namespace tca {
 
     // Check the ordering of the TPs and possibly declare the out-of-order
     // TPs invalid. Update is called within FixOrder
-    FixOrder(slc, pfp, prt);
+//    FixOrder(slc, pfp, prt);
     
     if(prt) {
       mf::LogVerbatim myprt("TC");
@@ -907,13 +906,17 @@ namespace tca {
       for(unsigned short end = 0; end < 2; ++end) myprt<<PrintEndFlag(pfp, end);
     } // prt
     
+    pfp.NeedsUpdate = false;
     return true;
   } // Define
 
   /////////////////////////////////////////
   void FixOrder(TCSlice& slc, PFPStruct& pfp, bool prt)
   {
-    // Check the wire order of the 2D TPs and fix them
+    // Check the wire order of the 2D TPs and fix them.
+    // TODO: This is an early algorithm that might not be useful now
+    
+    if(IsShowerLike(slc, pfp.TjIDs)) return;
     
     std::vector<short> plnOrder(slc.nPlanes);
     for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
@@ -949,7 +952,7 @@ namespace tca {
       if(npl == 0 || nmi == 0) continue;
       short ordr = 1;
       if(nmi > npl) ordr = -1;
-      std::cout<<"FixOrder found a problem: plane "<<plane<<" nmi "<<nmi<<" npl "<<npl<<" ordr "<<ordr;
+      std::cout<<"FixOrder found a problem: P"<<pfp.ID<<" plane "<<plane<<" nmi "<<nmi<<" npl "<<npl<<" ordr "<<ordr;
       std::cout<<" plnOrder "<<plnOrder[plane]<<" dir "<<tp.Dir[0];
       std::cout<<" cnt "<<cnt<<"\n";
       // create a list of indices into TP3D of points in this plane to simplify checking
@@ -1008,7 +1011,7 @@ namespace tca {
     // be good so don't eliminate them.
     bool reBuild = !pfp.TP3Ds[0].IsGood || !pfp.TP3Ds[pfp.TP3Ds.size() - 1].IsGood;
     if(reBuild) {
-      if(prt) mf::LogVerbatim("TC")<<"Update: P"<<pfp.ID<<" needs a re-build. First/last points are !IsGood";
+      if(prt) mf::LogVerbatim("TC")<<"Update: re-building P"<<pfp.ID<<" TP3Ds vector. First/last points are not good";
       // find the first good point
       unsigned short firstGood = 0;
       for(firstGood = 0; firstGood < pfp.TP3Ds.size(); ++firstGood) if(pfp.TP3Ds[firstGood].IsGood) break;
@@ -1023,13 +1026,19 @@ namespace tca {
       std::vector<TP3D> temp(pfp.TP3Ds.begin() + firstGood, pfp.TP3Ds.begin() + lastGood);
       pfp.TP3Ds = temp;
     } // reBuild
+    
+    // make some checks
+    unsigned short nsu = 0;
+    for(auto& sf : pfp.SectionFits) {
+      if(sf.NeedsUpdate) ++nsu;
+    } // sf
+    if(!pfp.NeedsUpdate && nsu > 0) {
+      std::cout<<"Update: P"<<pfp.ID<<" has "<<nsu<<" sections that need an update, but the PFP doesn't...\n";
+    }
 
     for(unsigned short sfi = 0; sfi < pfp.SectionFits.size(); ++sfi) {
       auto& sf = pfp.SectionFits[sfi];
       if(sf.NPts == 0) continue;
-      if(sf.ChiDOF <= 0) {
-        std::cout<<"Update: P"<<pfp.ID<<" NPts is > 0 but ChiDOF <= 0. Does this make sense?\n";
-      }
       if(!sf.NeedsUpdate) continue;
       if(!FitSection(slc, pfp, sfi)) return false;
       if(!SortSection(pfp, sfi)) return false;
@@ -1121,8 +1130,6 @@ namespace tca {
         std::cout<<"SortSection failed in section "<<sfi<<"\n";
         continue;
       }
-      // set the maxAlong variable for this section
-//      sf.maxAlong = pfp.TP3Ds[toPt - 1].along;
       fromPt = toPt;
       toPt = Find3DRecoRange(slc, pfp, fromPt, min2DPts, 1);
       if(toPt > pfp.TP3Ds.size()) break;
@@ -1142,6 +1149,7 @@ namespace tca {
       FitSection(slc, pfp, sfi);
       SortSection(pfp, sfi);
     } // 
+    pfp.NeedsUpdate = false;
     
     return true;
   } // resection
@@ -1328,6 +1336,8 @@ namespace tca {
     // a re-definition of the pfp, e.g. adding or removing TP3Ds. Note that this
     // never occurs as the function is currently written
     
+    if(tcc.vtx3DCuts.size() < 3) return;
+    
     if(pfp.NeedsUpdate) {
       std::cout<<"ReconcileVertices: P"<<pfp.ID<<" NeedsUpdate is true at entry. Fixing it...\n";
       if(!Update(slc, pfp, prt)) {
@@ -1387,126 +1397,83 @@ namespace tca {
     } // vx2List
     // ignore the T -> 2V -> 3V assns (if any exist) and try to directly
     // attach to 3D vertices at both ends
-    AttachToAnyVertex(slc, pfp, prt);
-    // check for differences
+    AttachToAnyVertex(slc, pfp, tcc.vtx3DCuts[2], prt);
+    // check for differences and while we are here, see if the pfp was attached
+    // to a neutrino vertex and the direction is wrong
+    int neutrinoVx = 0;
+    if(!slc.pfps.empty()) {
+      auto& npfp = slc.pfps[0];
+      bool neutrinoPFP = (npfp.PDGCode == 12 || npfp.PDGCode == 14);
+      if(neutrinoPFP) neutrinoVx = npfp.Vx3ID[0];
+    } // pfps exist
+    unsigned short neutrinoVxEnd = 2;
     for(unsigned short end = 0; end < 2; ++end) {
       // see if a vertex got attached
       if(pfp.Vx3ID[end] <= 0) continue;
+      if(pfp.Vx3ID[end] == neutrinoVx) neutrinoVxEnd = end;
       // see if this is a vertex in the list using the T -> 2V -> 3V assns
       if(std::find(vx3List.begin(), vx3List.end(), pfp.Vx3ID[end]) != vx3List.end()) continue;
       std::cout<<"RV: P"<<pfp.ID<<" was attached to 3V"<<pfp.Vx3ID[end]<<" but a P -> T -> 2V -> 3V assn exists. Write some code to clobber this assn or deal with it somehow.\n";
     } // end
+    if(neutrinoVxEnd < 2 && neutrinoVxEnd != 0) {
+      std::cout<<"RV: reversing P"<<pfp.ID<<"\n";
+      Reverse(slc, pfp);
+    }
     
     return;
   } // ReconcileVertices
-  
-  /////////////////////////////////////////
-  void ChkEndPts(TCSlice& slc, PFPStruct& pfp, bool prt)
-  {
-    // This function looks for 
-    if(pfp.ID <= 0) return;
-    if(pfp.TP3Ds.empty()) return;
-    if(pfp.SectionFits.empty()) return;
-    
-    for(unsigned short end = 0; end < 2; ++end) {
-      // find the first good point in each plane from the end
-      std::vector<unsigned short> firstPt(slc.nPlanes, USHRT_MAX);
-      unsigned short minPlnPt = USHRT_MAX;
-      unsigned short maxPlnPt = 0;
-      for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-        firstPt[plane] = FirstPointInPlane(pfp, plane, end);
-        if(firstPt[plane] < minPlnPt) minPlnPt = firstPt[plane];
-        if(firstPt[plane] > maxPlnPt) maxPlnPt = firstPt[plane];
-      } // plane
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"CEP: P"<<pfp.ID<<" end "<<end<<" plane_firstPt";
-        for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) myprt<<" "<<plane<<"_"<<firstPt[plane];
-      } // prt
-      if(maxPlnPt > minPlnPt + 8) {
-        unsigned short fromPt = 0;
-        unsigned short toPt = pfp.TP3Ds.size();
-        unsigned short inPlane = 0;
-        if(end == 0) {
-          toPt = maxPlnPt;
-          for(inPlane = 0; inPlane < slc.nPlanes; ++inPlane) if(firstPt[inPlane] == maxPlnPt) break;
-        } else {
-          fromPt = minPlnPt;
-          for(inPlane = 0; inPlane < slc.nPlanes; ++inPlane) if(firstPt[inPlane] == minPlnPt) break;
-        }
-        std::cout<<"CEP: P"<<pfp.ID<<" check points "<<fromPt<<" to "<<toPt<<" in plane "<<inPlane<<"\n";
-        AddPointsInRange(slc, pfp, fromPt, toPt, inPlane, tcc.match3DCuts[4], prt);
-      } // maxPlnPt > minPlnPt + 8
-    } // end
-    if(!Update(slc, pfp, prt)) {
-      std::cout<<"Update failed in ChkEndPts. Debug this\n";
-    }
-  } // ChkEndPts
-  
+
   /////////////////////////////////////////
   void TrimEndPts(TCSlice& slc, PFPStruct& pfp, bool prt)
   {
-    // Check the end TP3Ds points for consistency and trim if necessary.
-    // Ideally there will be a TP3D in each plane in any local region of ~few cm
-    // along the 3D trajectory, unless there are dead wires or there are overlapping
-    // trajectories in this view, mostly likely due to the presence of a nearby
-    // vertex. This function only checks the ends.
+    // Check for a wire signal and set IsGood false on all points starting
+    // at the ends until there at least 2 planes that have a wire signal. The
+    // sections that have points removed are re-fit without those points and
+    // another check is made in a second iteration
+
     if(pfp.ID <= 0) return;
-    if(pfp.TP3Ds.empty()) return;
-    if(pfp.SectionFits.empty()) return;
+    // Trimming short tracks that are barely reconstructable isn't a good idea
+    if(pfp.TP3Ds.size() < 10) return;
+    // don't trim shower-like pfps
+    if(IsShowerLike(slc, pfp.TjIDs)) return;
     
-    for(unsigned short end = 0; end < 2; ++end) {
-      // find the first good point in each plane from the end
-      std::vector<unsigned short> firstPt(slc.nPlanes, USHRT_MAX);
-      unsigned short minPlnPt = USHRT_MAX;
-      unsigned short maxPlnPt = 0;
-      for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-        firstPt[plane] = FirstPointInPlane(pfp, plane, end);
-        if(firstPt[plane] < minPlnPt) minPlnPt = firstPt[plane];
-        if(firstPt[plane] > maxPlnPt) maxPlnPt = firstPt[plane];
-      } // plane
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<"TEP: P"<<pfp.ID<<" end "<<end<<" plane_firstPt";
-        for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) myprt<<" "<<plane<<"_"<<firstPt[plane];
-      } // prt
-      // expect that the min and max points are similar if the ends are well-reconstructed
-      if(maxPlnPt > minPlnPt + 8) {
-        unsigned short fromPt = 0;
-        unsigned short toPt = pfp.TP3Ds.size();
-        unsigned short trimPt = 0;
+    for(unsigned short nit = 0; nit < 2; ++nit) {
+      for(unsigned short ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) {
+        auto& tp3d = pfp.TP3Ds[ipt];
+        if(!tp3d.IsGood) continue;
+        unsigned short cnt = 0;
         for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-          if(firstPt[plane] != minPlnPt && firstPt[plane] != maxPlnPt) trimPt = firstPt[plane];
+          CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
+          auto tp = MakeBareTP(slc, tp3d.Pos, inCTP);
+          if(SignalAtTp(tp)) ++cnt;
         } // plane
-        if(end == 0) {
-          toPt = trimPt;
-        } else {
-          fromPt = trimPt;
-        }
-        for(unsigned short ipt = fromPt; ipt < toPt; ++ipt) {
-          auto& tp3d = pfp.TP3Ds[ipt];
-          // already declared not good?
-          if(!tp3d.IsGood) continue;
-          if(tp3d.TjID > 0) {
-            auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
-            // don't trim the point if it is overlapped with a different tj (e.g. close to a vertex)
-            if(tp.Environment[kEnvOverlap]) continue;
-          } // tp3d.TjID > 0
-          // check the pull
-//          double pull = std::abs(tp3d.Pos[0] - tp3d.TPX) / sqrt(tp3d.TPXErr2);
-//          std::cout<<" pull "<<pull<<"\n";
-          tp3d.IsGood = false;
-          auto& sfi = tp3d.SFIndex;
-          pfp.SectionFits[sfi].NeedsUpdate = true;
-          pfp.NeedsUpdate = true;
-        } // ipt
-      } // maxPlnPt > minPlnPt + 5
-    } // end
-    if(!Update(slc, pfp, prt)) {
-      std::cout<<"Update failed in TrimEndPts. Debug this\n";
-    }
+        if(cnt >= 2) break;
+//        if(prt) mf::LogVerbatim("TC")<<"TEP: P"<<pfp.ID<<" nit "<<nit<<" trim TP3D "<<tp3d.TjID<<"_"<<tp3d.TPIndex;
+        tp3d.IsGood = false;
+        pfp.SectionFits[tp3d.SFIndex].NeedsUpdate = true;
+        pfp.NeedsUpdate = true;
+      } // ipt
+      for(unsigned short ipt = pfp.TP3Ds.size() - 1; ipt > 0; --ipt) {
+        auto& tp3d = pfp.TP3Ds[ipt];
+        if(!tp3d.IsGood) continue;
+        unsigned short cnt = 0;
+        for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+          CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
+          auto tp = MakeBareTP(slc, tp3d.Pos, inCTP);
+          if(SignalAtTp(tp)) ++cnt;
+        } // plane
+        if(cnt >= 2) break;
+//        if(prt) mf::LogVerbatim("TC")<<"TEP: P"<<pfp.ID<<" nit "<<nit<<" trim TP3D "<<tp3d.TjID<<"_"<<tp3d.TPIndex;
+        tp3d.IsGood = false;
+        pfp.SectionFits[tp3d.SFIndex].NeedsUpdate = true;
+        pfp.NeedsUpdate = true;
+      } // ipt
+      if(pfp.NeedsUpdate && !Update(slc, pfp, prt)) {
+        std::cout<<"Update P"<<pfp.ID<<" failed in TrimEndPts\n";
+      }
+    } // nit
   } // TrimEndPts
-  
+
   /////////////////////////////////////////
   unsigned short FirstPointInPlane(PFPStruct& pfp, unsigned short plane, unsigned short end)
   {
@@ -1615,7 +1582,7 @@ namespace tca {
     bool added = false;
     // max deviation in 2D (WSE units) for considering a hit to be "close" in time. This
     // is a rough cut that is made before a TP3D is created and the pull cut applied
-    float maxDelta = 5;
+    float maxDelta = 20;
     
     // find the range of wires in each plane that need to be considered
     unsigned int fromWire, toWire;
@@ -1644,8 +1611,8 @@ namespace tca {
       fromWire = std::nearbyint(tp.Pos[0]);
       tp = MakeBareTP(slc, toTP3D.Pos, toTP3D.Dir, inCTP);
       toWire = std::nearbyint(tp.Pos[0]);
-      if(prt) mf::LogVerbatim("TC")<<"APIR: checking wire range "<<fromWire<<" -> "<<toWire;
       if(toWire < fromWire) std::swap(fromWire, toWire);
+      if(prt) mf::LogVerbatim("TC")<<"APIR: checking wire range "<<fromWire<<" -> "<<toWire<<" in plane "<<plane;
       for(float wire = fromWire; wire <= toWire; ++wire) {
         // ignore this wire if there is a point on it in this PFP and CTP
         bool skipit = false;
@@ -1657,6 +1624,9 @@ namespace tca {
         } // tp3d
         if(skipit) continue;
         MoveTPToWire(tp, wire);
+        if(pfp.ID == 2) {
+          std::cout<<"Pos "<<PrintPos(slc, tp)<<"\n";
+        }
         if(!FindCloseHits(slc, tp, maxDelta, kAllHits)) continue;
         // Either found one or more hits or we are on a dead wire
         if(tp.Hits.empty()) continue;
@@ -1683,7 +1653,7 @@ namespace tca {
           // an unused hit. Create a new TP3D
           auto newTP3D = CreateTP3D(slc, iht);
           SetSection(slc, pfp, newTP3D);
-          float pull = (newTP3D.Pos[0] - newTP3D.TPX) / sqrt(newTP3D.TPXErr2);
+          float pull = PointPull(pfp, newTP3D);
           if(pull > maxPull) continue;
           temp.push_back(newTP3D);
         } else {
@@ -1701,7 +1671,8 @@ namespace tca {
           if(tpm.Environment[kEnvInPFP]) continue;
           auto newTP3D = CreateTP3D(slc, inTj, tjPt);
           SetSection(slc, pfp, newTP3D);
-          float pull = (newTP3D.Pos[0] - newTP3D.TPX) / sqrt(newTP3D.TPXErr2);
+          float pull = PointPull(pfp, newTP3D);
+          if(pfp.ID == 2) std::cout<<"T"<<inTj<<" "<<PrintPos(slc, tpm)<<" sfi "<<newTP3D.SFIndex<<" pull "<<pull<<"\n";
           if(pull > maxPull) continue;
           tpm.Environment[kEnvFlag] = true;
           temp.push_back(newTP3D);
@@ -1821,6 +1792,16 @@ namespace tca {
     unsigned short ipt = 0;
     for(ipt = 0; ipt < pfp.TP3Ds.size(); ++ipt) if(tp3d.SFIndex == pfp.TP3Ds[ipt].SFIndex) break;
     if(ipt == pfp.TP3Ds.size()) return false;
+    // next see if we can insert it so that re-sorting isn't required
+    auto& along = tp3d.along;
+    for(unsigned short iipt = ipt; iipt < pfp.TP3Ds.size() - 1; ++iipt) {
+      // break out if the next point is in a different section
+      if(pfp.TP3Ds[iipt + 1].SFIndex != tp3d.SFIndex) break;
+      if(along > pfp.TP3Ds[iipt].along && along < pfp.TP3Ds[iipt + 1].along) {
+        ipt = iipt + 1;
+        break;
+      }
+    } // iipt
     pfp.TP3Ds.insert(pfp.TP3Ds.begin() + ipt, tp3d);
     pfp.SectionFits[tp3d.SFIndex].NeedsUpdate = true;
     return true;
@@ -1842,15 +1823,31 @@ namespace tca {
     std::vector<TP3D> temp;
     // and the index into TP3Ds
     std::vector<unsigned short> indx;
+    // See if the along variable is monotonically increasing
+    float prevAlong = 0;
+    bool first = true;
+    bool needsSort = false;
     for(unsigned short ii = 0; ii < pfp.TP3Ds.size(); ++ii) {
       auto& tp3d = pfp.TP3Ds[ii];
       if(tp3d.SFIndex != sfIndex) continue;
+      if(first) {
+        first = false;
+        prevAlong = tp3d.along;
+      } else {
+        if(tp3d.along < prevAlong) needsSort = true;
+        prevAlong = tp3d.along;
+      }
       temp.push_back(tp3d);
       indx.push_back(ii);
     } // tp3d
     if(temp.empty()) return false;
-    // no sort needed
+    // no sort needed?
     if(temp.size() == 1) return true;
+    if(!needsSort) {
+//      std::cout<<"SortSection: P"<<pfp.ID<<" section "<<sfIndex<<" doesn't need sorting\n";
+      sf.NeedsUpdate = false;
+      return true;
+    }
     
     // see if the points are not-contiguous
     bool contiguous = true;
@@ -1869,7 +1866,6 @@ namespace tca {
     for(unsigned short ii = 0; ii < temp.size(); ++ii) {
       sortVec[ii].index = ii;
       sortVec[ii].val = temp[ii].along;
-//      sortVec[ii].val = PosSep(sf.Pos, temp[ii].Pos);
     } // ipt
     std::sort(sortVec.begin(), sortVec.end(), valIncreasings);
     for(unsigned short ii = 0; ii < temp.size(); ++ii) {
@@ -2358,7 +2354,6 @@ namespace tca {
       for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) pfp.dEdx[end][plane] = 0;
     } // end
     
-//    Fit2D();
     float rngOff = tcc.wirePitch / 2;
     
     // find dE/dx for points in each plane at both ends
@@ -2522,6 +2517,14 @@ namespace tca {
     tp3d.along = t;
     tp3d.IsGood = true;
   } // SetSection
+  
+  ////////////////////////////////////////////////
+  float PointPull(PFPStruct& pfp, TP3D& tp3d)
+  {
+    // returns the pull that the tp3d will cause in the pfp section fit. This
+    // currently only uses position but eventually will include charge
+    return (tp3d.Pos[0] - tp3d.TPX) / sqrt(tp3d.TPXErr2);
+  } // PointPull
 
   ////////////////////////////////////////////////
   PFPStruct CreatePFP(TCSlice& slc)
@@ -2558,7 +2561,14 @@ namespace tca {
       vx3.Vx2ID.resize(slc.nPlanes);
       // Flag it as a PFP vertex that isn't required to have matched 2D vertices
       vx3.Wire = -2;
-      auto& startPos = pfp.SectionFits[0].Pos;
+      Point3_t startPos;
+      if(pfp.TP3Ds.empty()) {
+        // must be a neutrino pfp
+        startPos = pfp.SectionFits[0].Pos;
+      } else if(!pfp.TP3Ds.empty()) {
+        // normal pfp
+        startPos = pfp.TP3Ds[0].Pos;
+      }
       vx3.X = startPos[0];
       vx3.Y = startPos[1];
       vx3.Z = startPos[2];
@@ -2681,13 +2691,6 @@ namespace tca {
         ppfp.DtrUIDs.push_back(pfp.UID);
       } // nParent > 1
     } // ipfp
-
-/* TODO: This needs work
-    if(tcc.modes[kTestBeam]) {
-      DefinePFPParentsTestBeam(slc, prt);
-      return;
-    }
-*/
     // associate primary PFParticles with a neutrino PFParticle
     if(neutrinoPFPID > 0) {
       auto& neutrinoPFP = slc.pfps[neutrinoPFPID - 1];
@@ -2702,95 +2705,7 @@ namespace tca {
       } // pfp
     } // neutrino PFP exists    
   } // DefinePFPParents
-/*
-  /////////////////////////////////////////
-  void DefinePFPParentsTestBeam(TCSlice& slc, bool prt)
-  {
-    // analog of the one above that was written for neutrino interactions. This differs in that
-    // the Tj parent - daughter relationship isn't known yet. If one exists, it is ignored...
-    // The assumption here is that all PFParticles that enter (end0) from upstream Z are parents and 
-    // any PFParticles attached to them at end1 are daughters. 
 
-    // create a list (stack) of parent ID <-> daughter IDs. The idea is similar to that
-    // used in DefineTjParents. A parent-daughter association is made for each entry. After
-    // it is made, 1) that entry is removed from the stack, 2) the daughter is checked to see
-    // if it a parent of a grand-daughter and if so that pair is added to the stack. 
-    std::vector<std::pair<unsigned short, unsigned short>> pardtr;
-
-    // Fill the stack with parents that enter the TPC and have daughters attached to
-    // 3D vertices at the other end
-    double fidZCut = slc.zLo + 2;
-    for(auto& parPFP : slc.pfps) {
-      if(parPFP.ID == 0) continue;
-      parPFP.Primary = false;
-      if(parPFP.XYZ[0][2] > fidZCut) continue;
-      parPFP.Primary = true;
-      // we found a pfp that entered the TPC. Call it the parent and look for a daughter
-      if(prt) mf::LogVerbatim("TC")<<"DPFPTestBeam: parent "<<parPFP.ID<<" end1 vtx "<<parPFP.Vx3ID[1];
-      if(parPFP.Vx3ID[1] == 0) continue;
-      // There must be other Tjs attached to this vertex which are the daughters. Find them
-      // and add them to the pardtr stack
-      float score = 0;
-      auto& vx3 = slc.vtx3s[parPFP.Vx3ID[1] - 1];
-      // ensure that it is valid
-      if(vx3.ID == 0) continue;
-      // get a list of Tjs attached to this vertex. This will include the Tjs in the parent.
-      auto vx3TjList = GetVtxTjIDs(slc, vx3, score);
-      if(vx3TjList.empty()) continue;
-      // filter out the parent Tjs
-      auto dtrTjlist = SetDifference(vx3TjList, parPFP.TjIDs);
-      if(prt) {
-        mf::LogVerbatim myprt("TC");
-        myprt<<" Dtrs:";
-        for(auto dtjID : dtrTjlist) myprt<<" "<<dtjID<<"_"<<GetPFPIndex(slc, dtjID);
-      }
-      // Add to the stack
-      for(auto dtjID : dtrTjlist) {
-        unsigned short pfpIndex = GetPFPIndex(slc, dtjID);
-        if(pfpIndex > slc.pfps.size() - 1) continue;
-        unsigned short dtrID = pfpIndex + 1;
-        // See if this is a duplicate
-        bool duplicate = false;
-        for(auto& pd : pardtr) if(parPFP.ID == pd.first && dtrID == pd.second) duplicate = true;
-        if(!duplicate) pardtr.push_back(std::make_pair(parPFP.ID, dtrID));
-      } // dtjID
-    } // parPFP
-    
-    // iterate through the parent - daughter stack, removing the last pair when a 
-    // ParentID is updated and adding pairs for new daughters
-    for(unsigned short nit = 0; nit < 100; ++nit) {
-      if(pardtr.empty()) break;
-      auto lastPair = pardtr[pardtr.size() - 1];
-      auto& dtr = slc.pfps[lastPair.second - 1];
-      auto& par = slc.pfps[lastPair.first - 1];
-      dtr.ParentUID = par.UID;
-      par.DtrUIDs.push_back(dtr.UID);
-      // remove the last pair
-      pardtr.pop_back();
-      // Now see if the daughter is a parent. First check for a vertex at the other end.
-      // To do that we need to know which end has the vertex between the parent and daughter
-      unsigned short dtrEnd = USHRT_MAX;
-      for(unsigned short ep = 0; ep < 2; ++ep) {
-        if(par.Vx3ID[ep] == 0) continue;
-        for(unsigned short ed = 0; ed < 2; ++ed) if(dtr.Vx3ID[ed] == par.Vx3ID[ep]) dtrEnd = ed;
-      } // ep
-      if(dtrEnd > 1) continue;
-      // look at the other end of the daughter
-      dtrEnd = 1 - dtrEnd;
-      // check for a vertex
-      if(dtr.Vx3ID[dtrEnd] == 0) continue;
-      // get the list of Tjs attached to it
-      auto& vx3 = slc.vtx3s[dtr.Vx3ID[dtrEnd] - 1];
-      float score = 0;
-      auto vx3TjList = GetVtxTjIDs(slc, vx3, score);
-      if(vx3TjList.empty()) continue;
-      // filter out the new parent
-      auto dtrTjlist = SetDifference(vx3TjList, dtr.TjIDs);
-      // put these onto the stack
-      for(auto tjid : dtrTjlist) pardtr.push_back(std::make_pair(dtr.ID, tjid));
-    } // nit
-  } // DefinePFPParentsTestBeam
-*/
   ////////////////////////////////////////////////
   bool StorePFP(TCSlice& slc, PFPStruct& pfp)
   {
@@ -2848,10 +2763,13 @@ namespace tca {
     // require that the points are sorted which ensures that the start and end points
     // are the first and last points in the TP3Ds vector
     if(pfp.NeedsUpdate) return false;
+    bool neutrinoPFP = pfp.PDGCode == 12 || pfp.PDGCode == 14;
     
     float abit = 5;
     Point3_t pos;
-    if(end == 0) {
+    if(neutrinoPFP) {
+      pos = pfp.SectionFits[0].Pos;
+    } else if(end == 0) {
       pos = pfp.TP3Ds[0].Pos;
     } else {
       pos = pfp.TP3Ds[pfp.TP3Ds.size() - 1].Pos;
@@ -3146,7 +3064,7 @@ namespace tca {
     } // SectionFits
     if(printPts < 0) {
       // print the head if we print all points
-      myprt<<someText<<"  ipt SFI ________Pos________  Delta   Pull IsGood  along dE/dx  T_ipt_P:W:T    3D->2D\n";
+      myprt<<someText<<"  ipt SFI ________Pos________  Delta   Pull IsGood  along dE/dx  T_ipt_P:W:T  SignalAtTP?\n";
     }
     unsigned short fromPt = 0;
     unsigned short toPt = pfp.TP3Ds.size() - 1;
@@ -3168,12 +3086,16 @@ namespace tca {
       } else if(tp3d.TjID > 0) {
         auto& tp = slc.tjs[tp3d.TjID - 1].Pts[tp3d.TPIndex];
         myprt<<" T"<<tp3d.TjID<<"_"<<tp3d.TPIndex<<"_"<<PrintPos(slc, tp);
-        // print the 2D position
-        auto tmp = MakeBareTP(slc, tp3d.Pos, tp3d.Dir, tp.CTP);
-        myprt<<" "<<PrintPos(slc, tmp.Pos);
       } else {
         myprt<<" UNDEFINED";
       }
+      // print SignalAtTP in each plane
+      myprt<<" ";
+      for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
+        CTP_t inCTP = EncodeCTP(pfp.TPCID.Cryostat, pfp.TPCID.TPC, plane);
+        auto tp = MakeBareTP(slc, tp3d.Pos, inCTP);
+        myprt<<" "<<SignalAtTp(tp);
+      } // plane
 
       myprt<<"\n";
     } // ipt
