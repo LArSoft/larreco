@@ -397,6 +397,7 @@ namespace tca {
     kJunkTj,
     kKilled,
     kMerge,
+    kLastEndMerge,
     kTEP,
     kCHMEH,
     kFillGaps,
