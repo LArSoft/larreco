@@ -55,7 +55,7 @@ namespace tca {
   void VtxHitsSwap(TCSlice& slc, const CTP_t inCTP);
 
   unsigned short TPNearVertex(TCSlice& slc, const TrajPoint& tp);
-  bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, bool prt);
+  bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, float maxSep, bool prt);
   bool AttachAnyVertexToTraj(TCSlice& slc, int tjID, bool prt);
   bool AttachAnyTrajToVertex(TCSlice& slc, unsigned short iv, bool prt);
   bool AttachTrajToVertex(TCSlice& slc, Trajectory& tj, VtxStore& vx, bool prt);
@@ -77,7 +77,6 @@ namespace tca {
   bool MakeVertexObsolete(TCSlice& slc, Vtx3Store& vx3);
   std::vector<int> GetVtxTjIDs(const TCSlice& slc, const VtxStore& vx2);
   std::vector<int> GetVtxTjIDs(const TCSlice& slc, const Vtx3Store& vx3, float& score);
-  std::vector<unsigned short> GetPFPVertices(const TCSlice& slc, const PFPStruct& pfp);
   void PosInPlane(const TCSlice& slc, const Vtx3Store& vx3, unsigned short plane, Point2_t& pos);
   unsigned short IsCloseToVertex(TCSlice& slc, VtxStore& vx);
   unsigned short IsCloseToVertex(TCSlice& slc, Vtx3Store& vx3);
