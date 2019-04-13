@@ -1684,19 +1684,16 @@ namespace tca {
   } // TPNearVertex
   
   //////////////////////////////////////////
-  bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, bool prt)
+  bool AttachToAnyVertex(TCSlice& slc, PFPStruct& pfp, float maxSep, bool prt)
   {
     // Attaches to any 3D vertex but doesn't require consistency with
     // PFP -> Tj -> 2V -> 3V assns
     if(pfp.ID <= 0) return false;
     
-    if(prt) mf::LogVerbatim("TC")<<"ATAV: P"<<pfp.ID<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
+//    if(prt) mf::LogVerbatim("TC")<<"ATAV: P"<<pfp.ID<<" Vx3ID "<<pfp.Vx3ID[0]<<" "<<pfp.Vx3ID[1];
     
     float pLen = Length(pfp);
-    if(pLen == 0) {
-      std::cout<<"ATAV: P"<<pfp.ID<<" is length 0. End positions not defined\n";
-      return false;
-    } 
+    if(pLen == 0) return false;
     
     // save the old assignents and clear them
     //    auto oldVx3ID = pfp.Vx3ID;
@@ -1716,8 +1713,8 @@ namespace tca {
       sep[1] = PosSep(vpos, endPos[1]);
       unsigned short end = 0;
       if(sep[1] < sep[0]) end = 1;
-      // ignore if separation > 100 cm
-      if(sep[end] > 100) continue;
+      // ignore if separation is too large
+      if(sep[end] > maxSep) continue;
       // ensure that the separation btw the vertex and the far end is
       // larger than the PFP length
       if(sep[1 - end] < pLen) continue;
@@ -1730,13 +1727,15 @@ namespace tca {
         foms[end] = fom;
         vtxs[end] = vx3.ID;
       } 
-      if(prt) std::cout<<"ATAV: P"<<pfp.ID<<" 3V"<<vx3.ID<<" dotp "<<dotp<<" sep "<<sep[end]<<"\n";
+      if(prt) mf::LogVerbatim("TC")<<"ATAV: P"<<pfp.ID<<" 3V"<<vx3.ID<<" dotp "<<dotp<<" sep "<<sep[end]<<" fom "<<fom;
     } // vx3
+    bool bingo = false;
     for(unsigned short end = 0; end < 2; ++end) {
       if(vtxs[end] == 0) continue;
       pfp.Vx3ID[end] = vtxs[end];
+      bingo = true;
     } // end
-    return false;
+    return bingo;
   } // AttachToAnyVertex
   
   //////////////////////////////////////////
@@ -3176,26 +3175,6 @@ namespace tca {
     std::sort(tmp.begin(), tmp.end());
     return tmp;
   } // GetVtxTjIDs
-
-  //////////////////////////////////////////
-  std::vector<unsigned short> GetPFPVertices(const TCSlice& slc, const PFPStruct& pfp)
-  {
-    // returns a list of 3D vertices that are attached to Tjs in this pfp. No check is
-    // made of the actual vertex attachment of the pfp.
-    std::vector<unsigned short> tmp;
-    if(pfp.TjIDs.empty()) return tmp;
-    for(auto tjid : pfp.TjIDs) {
-      auto& tj = slc.tjs[tjid - 1];
-      for(unsigned short end = 0; end < 2; ++end) {
-        if(tj.VtxID[end] == 0) continue;
-        auto& vx2 = slc.vtxs[tj.VtxID[end] - 1];
-        if(vx2.Vx3ID == 0) continue;
-        if(std::find(tmp.begin(), tmp.end(), vx2.Vx3ID) != tmp.end()) continue;
-        tmp.push_back(vx2.Vx3ID);
-      } // end
-    } // tjid
-    return tmp;
-  } // GetPFPVertices
 
   //////////////////////////////////////////
   void PosInPlane(const TCSlice& slc, const Vtx3Store& vx3, unsigned short plane, Point2_t& pos)
