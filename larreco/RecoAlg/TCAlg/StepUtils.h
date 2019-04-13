@@ -93,6 +93,7 @@ namespace tca {
   void FixTrajEnd(TCSlice& slc, Trajectory& tj, unsigned short atPt);
   bool IsGhost(TCSlice& slc, std::vector<unsigned int>& tHits);
   bool IsGhost(TCSlice& slc, Trajectory& tj);
+  void LastEndMerge(TCSlice& slc, CTP_t inCTP);
   void EndMerge(TCSlice& slc, CTP_t inCTP, bool lastPass);
   void MaskTrajEndPoints(TCSlice& slc, Trajectory& tj, unsigned short nPts);
   // Sets the StopsAtEnd bits for the trajectory
