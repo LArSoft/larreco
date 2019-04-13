@@ -3307,6 +3307,109 @@ namespace tca {
   } // IsGhost
 
   ////////////////////////////////////////////////
+  void LastEndMerge(TCSlice& slc, CTP_t inCTP)
+  {
+    // last ditch attempt to merge long straight broken trajectories by averaging
+    // all points in the trajectory and applying tight angle and separation cuts. 
+    if(slc.tjs.size() < 2) return;
+    if(!tcc.useAlg[kLastEndMerge]) return;
+    
+    bool prt = (tcc.dbgMrg && tcc.dbgSlc && inCTP == debug.CTP);
+    if(prt) mf::LogVerbatim("TC")<<"inside LastEndMerge slice "<<slices.size()-1<<" inCTP "<<inCTP;
+    
+    // create an averaged TP for each long Trajectory
+    std::vector<TrajPoint> tjTP;
+    for(auto& tj : slc.tjs) {
+      if(tj.AlgMod[kKilled]) continue;
+      if(tj.CTP != inCTP) continue;
+      if(tj.Pts.size() < 10) continue;
+      if(tj.MCSMom < 100) continue;
+      // Average the position and angle
+      TrajPoint tjtp;
+      // stash the ID in the Step
+      tjtp.Step = tj.ID;
+      tjtp.CTP = tj.CTP;
+      float cnt = 0;
+      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+        auto& tp = tj.Pts[ipt];
+        if(tp.Chg <= 0) continue;
+        tjtp.Pos[0] += tp.Pos[0];
+        tjtp.Pos[1] += tp.Pos[1];
+        tjtp.Dir[1] += tp.Dir[1];
+        ++cnt;
+      } // ipt
+      tjtp.Pos[0] /= cnt;
+      tjtp.Pos[1] /= cnt;
+      tjtp.Dir[1] /= cnt;
+      double arg = 1 - tjtp.Dir[1] * tjtp.Dir[1];
+      if(arg < 0) arg = 0;
+      tjtp.Dir[0] = sqrt(arg);
+      tjtp.Ang = atan2(tjtp.Dir[1], tjtp.Dir[0]);
+//      PrintTrajPoint("LEM", slc, 0, 1., 0, tjtp);
+      tjTP.push_back(tjtp);
+    } // tj
+    if(tjTP.size() < 2) return;
+    
+    for(unsigned short pt1 = 0; pt1 < tjTP.size() - 1; ++pt1) {
+      auto& tp1 = tjTP[pt1];
+      auto& tj1 = slc.tjs[tp1.Step - 1];
+      if(tj1.AlgMod[kKilled]) continue;
+      for(unsigned short pt2 = pt1 + 1; pt2 < tjTP.size(); ++pt2) {
+        auto& tp2 = tjTP[pt2];
+        auto& tj2 = slc.tjs[tp2.Step - 1];
+        if(tj2.AlgMod[kKilled]) continue;
+        float dang = DeltaAngle(tp1.Ang, tp2.Ang);
+        // make an angle cut
+        if(dang > 0.1) continue;
+        // and an impact parameter cut
+        unsigned short ipt1, ipt2;
+        float ip12 = PointTrajDOCA(slc, tp1.Pos[0], tp1.Pos[1], tp2);
+        float ip21 = PointTrajDOCA(slc, tp2.Pos[0], tp2.Pos[1], tp1);
+        if(ip12 > 5 && ip21 > 5) continue;
+        // and a proximity cut
+        float minSep = 5;
+        TrajTrajDOCA(slc, tj1, tj2, ipt1, ipt2, minSep);
+        if(minSep == 5) continue;
+        // finally require that the proximate points are close to the ends
+        float sep10 = PosSep(tj1.Pts[ipt1].Pos, tj1.Pts[tj1.EndPt[0]].Pos);
+        float sep11 = PosSep(tj1.Pts[ipt1].Pos, tj1.Pts[tj1.EndPt[1]].Pos);
+        if(sep10 > 5 && sep11 > 5) continue;
+        unsigned short end1 = 0;
+        if(sep11 < sep10) end1 = 1;
+        float sep20 = PosSep(tj2.Pts[ipt2].Pos, tj2.Pts[tj2.EndPt[0]].Pos);
+        float sep21 = PosSep(tj2.Pts[ipt2].Pos, tj2.Pts[tj2.EndPt[1]].Pos);
+        if(sep20 > 5 && sep21 > 5) continue;
+        unsigned short end2 = 0;
+        if(sep21 < sep20) end2 = 1;
+        if(prt) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<"LEM: T"<<tj1.ID<<"_"<<PrintPos(slc, tp1);
+          if(tj1.VtxID[end1] > 0) myprt<<"->2V"<<tj1.VtxID[end1];
+          myprt<<" T"<<tj2.ID<<"_"<<PrintPos(slc, tp2);
+          if(tj2.VtxID[end2] > 0) myprt<<"->2V"<<tj2.VtxID[end2];
+          myprt<<" dang "<<std::setprecision(2)<<dang<<" ip12 "<<ip12;
+          myprt<<" ip21 "<<ip21;
+          myprt<<" minSep "<<minSep;
+          myprt<<" end sep1 "<<sep10<<" "<<sep11;
+          myprt<<" end sep2 "<<sep20<<" "<<sep21;
+        } // prt
+        if(tj1.VtxID[end1] > 0) {
+          auto& vx2 = slc.vtxs[tj1.VtxID[end1] - 1];
+          MakeVertexObsolete("LEM", slc, vx2, true);
+        }
+        if(tj2.VtxID[end2] > 0 && tj2.VtxID[end2] != tj1.VtxID[end1]) {
+          auto& vx2 = slc.vtxs[tj2.VtxID[end2] - 1];
+          MakeVertexObsolete("LEM", slc, vx2, true);
+        }
+        unsigned int it1 = tj1.ID - 1;
+        unsigned int it2 = tj2.ID - 1;
+        MergeAndStore(slc, it1, it2, tcc.dbgMrg);
+      } // pt1
+    } // pt1
+    
+  } // LastEndMerge
+
+  ////////////////////////////////////////////////
   void EndMerge(TCSlice& slc, CTP_t inCTP, bool lastPass)
   {
     // Merges trajectories end-to-end or makes vertices. Does a more careful check on the last pass
