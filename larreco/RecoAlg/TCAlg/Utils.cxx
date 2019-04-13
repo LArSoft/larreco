@@ -2583,7 +2583,7 @@ namespace tca {
       if(slc.wireHitRange[plane][wire].first == UINT_MAX) continue;
       unsigned int firstHit = slc.wireHitRange[plane][wire].first;
       unsigned int lastHit = slc.wireHitRange[plane][wire].second;
-      for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+      for(unsigned int iht = firstHit; iht <= lastHit; ++iht) {
         auto& hit = (*evt.allHits)[slc.slHits[iht].allHitsIndex];
         if(usePeakTime) {
           if(hit.PeakTime() < minTick) continue;
@@ -2638,7 +2638,7 @@ namespace tca {
     unsigned int lastHit = slc.wireHitRange[ipl][wire].second;
 
     float fwire = wire;
-    for(unsigned int iht = firstHit; iht < lastHit; ++iht) {
+    for(unsigned int iht = firstHit; iht <= lastHit; ++iht) {
       if((unsigned int)slc.slHits[iht].InTraj > slc.tjs.size()) continue;
       bool useit = (hitRequest == kAllHits);
       if(hitRequest == kUsedHits && slc.slHits[iht].InTraj > 0) useit = true;
@@ -3575,6 +3575,21 @@ namespace tca {
     } // tjid
     
   } // UpdateVxEnvironment
+  
+  /////////////////////////////////////////
+  TrajPoint MakeBareTP(TCSlice& slc, Point3_t& pos, CTP_t inCTP)
+  {
+    // A version to use when the 2D direction isn't required
+    TrajPoint tp;
+    tp.Pos = {{0,0}};
+    tp.Dir = {{0,1}};
+    tp.CTP = inCTP;
+    geo::PlaneID planeID = DecodeCTP(inCTP);
+    
+    tp.Pos[0] = tcc.geom->WireCoordinate(pos[1], pos[2], planeID);
+    tp.Pos[1] = tcc.detprop->ConvertXToTicks(pos[0], planeID) * tcc.unitsPerTick;
+    return tp;
+  } // MakeBareTP
 
   /////////////////////////////////////////
   TrajPoint MakeBareTP(TCSlice& slc, Point3_t& pos, Vector3_t& dir, CTP_t inCTP)
