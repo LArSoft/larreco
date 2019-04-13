@@ -173,6 +173,7 @@ namespace tca {
 //  void TagMuonDirections(TCSlice& slc, short debugWorkID);
   void UpdateTjChgProperties(std::string inFcnLabel, TCSlice& slc, Trajectory& tj, bool prt);
   void UpdateVxEnvironment(std::string inFcnLabel, TCSlice& slc, VtxStore& vx2, bool prt);
+  TrajPoint MakeBareTP(TCSlice& slc, Point3_t& pos, CTP_t inCTP);
   // Make a bare trajectory point that only has position and direction defined
   TrajPoint MakeBareTP(TCSlice& slc, Point3_t& pos, Vector3_t& dir, CTP_t inCTP);
   bool MakeBareTrajPoint(TCSlice& slc, unsigned int fromHit, unsigned int toHit, TrajPoint& tp);
