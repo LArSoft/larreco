@@ -51,8 +51,7 @@ namespace tca {
   void TrimEndPts(TCSlice& slc, PFPStruct& pfp, bool prt);
   unsigned short FirstPointInPlane(PFPStruct& pfp, unsigned short plane, unsigned short end);
   void FillGaps3D(TCSlice& slc, PFPStruct& pfp, bool prt);
-  void AddPointsInRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, 
-                        unsigned short inPlane, float maxPull, bool prt);
+  void AddPointsInRange(TCSlice& slc, PFPStruct& pfp, unsigned short fromPt, unsigned short toPt, CTP_t inCTP, float maxPull, bool prt);
   bool InsertTP3D(PFPStruct& pfp, TP3D& tp3d);
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
   void CountOrder(TCSlice& slc, int tid, const std::vector<TP3D>& tp3ds, unsigned short& nNeg, unsigned short& nPos);
@@ -74,7 +73,7 @@ namespace tca {
   float dEdx(TCSlice& slc, TP3D& tp3d);
   TP3D CreateTP3D(TCSlice& slc, unsigned short slHitsIndex);
   TP3D CreateTP3D(TCSlice& slc, int tjID, unsigned short tjPt);
-  void SetSection(TCSlice& slc, PFPStruct& pfp, TP3D& tp3d);
+  bool SetSection(TCSlice& slc, PFPStruct& pfp, TP3D& tp3d);
   float PointPull(PFPStruct& pfp, TP3D& tp3d);
   PFPStruct CreatePFP(TCSlice& slc);
   void PFPVertexCheck(TCSlice& tcs);
