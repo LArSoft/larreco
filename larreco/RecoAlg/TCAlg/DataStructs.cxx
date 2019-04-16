@@ -60,7 +60,6 @@ namespace tca {
     "FTBRvProp",
     "StopAtTj",
     "Mat3D",
-    "Split3DKink",
     "TjHiVx3Score",
     "VtxHitsSwap",
     "SplitHiChgHits",
