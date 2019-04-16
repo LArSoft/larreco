@@ -3404,6 +3404,7 @@ namespace tca {
         unsigned int it1 = tj1.ID - 1;
         unsigned int it2 = tj2.ID - 1;
         MergeAndStore(slc, it1, it2, tcc.dbgMrg);
+        break;
       } // pt1
     } // pt1
     
