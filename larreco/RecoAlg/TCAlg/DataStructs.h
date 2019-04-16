@@ -223,8 +223,9 @@ namespace tca {
     CTP_t CTP;
     unsigned short TPIndex {USHRT_MAX};     ///< and the TP index
     unsigned short SFIndex {USHRT_MAX};     ///< and the section fit index
-    unsigned int slHitsIndex {UINT_MAX};  ///< index of a single hit that is not used in a Tj (TjID == 0)
-    bool IsGood {false};          ///< TP should not be used for anything if this is false
+    unsigned int HitIndex {UINT_MAX};  ///< index of a single hit that is not used in a Tj (TjID == 0)
+    bool IsGood {true};      ///< TP shouldn't be used in the fit or for calorimetry
+    bool IsValid {false};          ///< TP shouldn't be used for anything if this is false
   };
 
   // Struct for 3D trajectory matching
@@ -427,7 +428,6 @@ namespace tca {
     kFTBRvProp,
     kStopAtTj,
     kMat3D,
-    kSplit3DKink,
     kTjHiVx3Score,
     kVtxHitsSwap,
     kSplitHiChgHits,
