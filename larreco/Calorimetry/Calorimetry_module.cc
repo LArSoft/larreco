@@ -66,6 +66,7 @@ extern "C" {
 #include "art_root_io/TFileService.h"
 #include "art_root_io/TFileDirectory.h"
 #include "messagefacility/MessageLogger/MessageLogger.h" 
+#include "cetlib/pow.h" // cet::sum_of_squares()
 
 
 ///calorimetry
