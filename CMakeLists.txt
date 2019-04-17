@@ -34,7 +34,6 @@ cet_cmake_env()
 cet_set_compiler_flags(DIAGS CAUTIOUS
   WERROR
   NO_UNDEFINED
-  ALLOW_DEPRECATIONS
   EXTRA_FLAGS -pedantic -Wno-unused-local-typedefs
 )
 
@@ -51,6 +50,7 @@ find_ups_product( larevt v1_00_00 )
 find_ups_product( larsim v1_00_00 )
 find_ups_product( nutools v1_00_00 )
 find_ups_product( art v1_09_00 )
+find_ups_product(art_root_io)
 find_ups_product( cetbuildtools v4_09_00 )
 find_ups_product( geant4 v4_9_6 )
 find_ups_product( postgresql v9_1_5 )

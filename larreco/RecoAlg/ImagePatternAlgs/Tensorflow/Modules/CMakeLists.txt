@@ -9,8 +9,8 @@ simple_plugin(PointIdEffTest "module"
 			${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+			${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
+			${ART_ROOT_IO_TFILESERVICE_SERVICE}
  			art_Persistency_Common
 			art_Persistency_Provenance
 			art_Utilities
@@ -31,8 +31,8 @@ simple_plugin(PointIdTrainingData "module"
 			${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+			${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
+			${ART_ROOT_IO_TFILESERVICE_SERVICE}
  			art_Persistency_Common
 			art_Persistency_Provenance
 			art_Utilities
@@ -53,8 +53,8 @@ simple_plugin(EmTrackClusterId2out "module"
 			${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+			${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
+			${ART_ROOT_IO_TFILESERVICE_SERVICE}
                         art_Framework_Services_System_TriggerNamesService_service
  			art_Persistency_Common
 			art_Persistency_Provenance
@@ -75,8 +75,8 @@ simple_plugin(EmTrackClusterId3out "module"
 			${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+			${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
+			${ART_ROOT_IO_TFILESERVICE_SERVICE}
                         art_Framework_Services_System_TriggerNamesService_service
  			art_Persistency_Common
 			art_Persistency_Provenance
@@ -97,8 +97,8 @@ simple_plugin(EmTrackMichelId "module"
 			${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+			${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
+			${ART_ROOT_IO_TFILESERVICE_SERVICE}
  			art_Persistency_Common
 			art_Persistency_Provenance
                         art_Framework_Services_System_TriggerNamesService_service
@@ -119,8 +119,8 @@ simple_plugin(ParticleDecayId "module"
 			${ART_FRAMEWORK_CORE}
 			${ART_FRAMEWORK_PRINCIPAL}
 			${ART_FRAMEWORK_SERVICES_REGISTRY}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL}
-			${ART_FRAMEWORK_SERVICES_OPTIONAL_TFILESERVICE_SERVICE}
+			${ART_ROOT_IO_TFILE_SUPPORT} ${ROOT_CORE}
+			${ART_ROOT_IO_TFILESERVICE_SERVICE}
  			art_Persistency_Common
 			art_Persistency_Provenance
 			art_Utilities

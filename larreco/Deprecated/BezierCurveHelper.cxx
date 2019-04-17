@@ -14,7 +14,8 @@
 #include "lardataobj/RecoBase/Hit.h"
 #include "larreco/Deprecated/BezierCurveHelper.h"
 
-#include "art/Framework/Services/Optional/TFileService.h"
+#include "canvas/Persistency/Common/PtrVector.h"
+#include "art_root_io/TFileService.h"
 #include "cetlib_except/exception.h"
 #include "messagefacility/MessageLogger/MessageLogger.h"
 
