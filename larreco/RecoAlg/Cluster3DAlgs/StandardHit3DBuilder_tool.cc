@@ -1105,7 +1105,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                             else
                             {
                                 float q12Ave = 0.5 * (chargeVec[1] + chargeVec[2]);
-                                float qSum   = q01Ave + chargeVec[2];
+                                float qSum   = q12Ave + chargeVec[2];
 
                                if (qSum > 0.) chargeAsymmetry = (q12Ave - chargeVec[0]) / qSum;
 
