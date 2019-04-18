@@ -270,10 +270,10 @@ void calo::Calorimetry::produce(art::Event& evt)
             geo::Vector_t posOffsets = {0., 0., 0.};
             geo::Vector_t dirOffsets = {0., 0., 0.};
             if(sce->EnableCalSpatialSCE()&&fSCE) posOffsets = sce->GetCalPosOffsets(geo::Point_t(pos));
-            if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{pos.X() + dir.X(), pos.Y() + dir.Y(), pos.Z() + dir.Z()});
-            TVector3 dir_corr = {dir.X() - dirOffsets.X() + posOffsets.X(), dir.Y() + dirOffsets.Y() - posOffsets.Y(), dir.Z() + dirOffsets.Z() - posOffsets.Z()};
+            if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{pos.X() + fTrkPitch*dir.X(), pos.Y() + fTrkPitch*dir.Y(), pos.Z() + fTrkPitch*dir.Z()});
+             TVector3 dir_corr = {fTrkPitch*dir.X() - dirOffsets.X() + posOffsets.X(), fTrkPitch*dir.Y() + dirOffsets.Y() - posOffsets.Y(), fTrkPitch*dir.Z() + dirOffsets.Z() - posOffsets.Z()};
             
-            fTrkPitch = fTrkPitch * dir_corr.Mag() / pow(dir.Mag2(),0.5);
+            fTrkPitch = dir_corr.Mag();
           }
           catch( cet::exception &e){
             mf::LogWarning("Calorimetry") << "caught exception " 
@@ -366,20 +366,22 @@ void calo::Calorimetry::produce(art::Event& evt)
               xyz3d[2] = loc.Z() + locOffsets.Z();
               
               double angleToVert = geom->WireAngleToVertical(vhit[ii]->View(), vhit[ii]->WireID().TPC, vhit[ii]->WireID().Cryostat) - 0.5*::util::pi<>();
-              auto dir_tmp = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
-              
-               //Correct pitch for SCE
-              geo::Vector_t dirOffsets = {0., 0., 0.};
-              if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{loc.X() + dir_tmp.X(), loc.Y() + dir_tmp.Y(), loc.Z() + dir_tmp.Z()});
-              const TVector3& dir = {dir_tmp.X() - dirOffsets.X() + locOffsets.X(), dir_tmp.Y() + dirOffsets.Y() - locOffsets.Y(), dir_tmp.Z() + dirOffsets.Z() - locOffsets.Z()}; 
-              
-              double cosgamma = std::abs(std::sin(angleToVert)*dir.Y()/pow(dir.Mag2(),0.5) + std::cos(angleToVert)*dir.Z()/pow(dir.Mag2(),0.5));
+              const geo::Vector_t& dir = tracklist[trkIter]->DirectionAtPoint(vmeta[ii]->Index());
+              double cosgamma = std::abs(std::sin(angleToVert)*dir.Y() + std::cos(angleToVert)*dir.Z());
               if (cosgamma){
-                pitch = (geom->WirePitch(0)/cosgamma) * (pow(dir.Mag2(),0.5) / pow(dir_tmp.Mag2(),0.5));
+                pitch = geom->WirePitch(0)/cosgamma;        
+              
               }
               else{
                 pitch = 0;
               }
+              
+              //Correct pitch for SCE
+              geo::Vector_t dirOffsets = {0., 0., 0.};
+              if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{loc.X() + pitch*dir.X(), loc.Y() + pitch*dir.Y(), loc.Z() + pitch*dir.Z()});
+              const TVector3& dir_corr = {pitch*dir.X() - dirOffsets.X() + locOffsets.X(), pitch*dir.Y() + dirOffsets.Y() - locOffsets.Y(), pitch*dir.Z() + dirOffsets.Z() - locOffsets.Z()}; 
+              
+               pitch = dir_corr.Mag();
               
               break;
             }
@@ -756,23 +758,24 @@ void calo::Calorimetry::GetPitch(art::Ptr<recob::Hit> hit, std::vector<double> t
     ky /= tot;
     kz /= tot;
     //get pitch
+    double wirePitch = geom->WirePitch(hit->WireID().Plane,hit->WireID().TPC,hit->WireID().Cryostat);
+    double angleToVert = geom->Plane(hit->WireID().Plane,hit->WireID().TPC,hit->WireID().Cryostat).Wire(0).ThetaZ(false) - 0.5*TMath::Pi();
+    double cosgamma = TMath::Abs(TMath::Sin(angleToVert)*ky + TMath::Cos(angleToVert)*kz);
+    if (cosgamma>0) pitch = wirePitch/cosgamma;
     
     //Correct for SCE
     geo::Vector_t posOffsets = {0., 0., 0.};
     geo::Vector_t dirOffsets = {0., 0., 0.};
     if(sce->EnableCalSpatialSCE()&&fSCE) posOffsets = sce->GetCalPosOffsets(geo::Point_t{xyz3d[0], xyz3d[1], xyz3d[2]});
-    if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{xyz3d[0] + kx, xyz3d[1] + ky, xyz3d[2] + kz});
+    if(sce->EnableCalSpatialSCE()&&fSCE) dirOffsets = sce->GetCalPosOffsets(geo::Point_t{xyz3d[0] + pitch*kx, xyz3d[1] + pitch*ky, xyz3d[2] + pitch*kz});
     
     xyz3d[0] = xyz3d[0] - posOffsets.X();
     xyz3d[1] = xyz3d[1] + posOffsets.Y();
     xyz3d[2] = xyz3d[2] + posOffsets.Z();
     
-    TVector3 dir = {kx - dirOffsets.X() + posOffsets.X(), ky + dirOffsets.Y() - posOffsets.Y(), kz + dirOffsets.Z() - posOffsets.Z()}; 
-    
-    double wirePitch = geom->WirePitch(hit->WireID().Plane,hit->WireID().TPC,hit->WireID().Cryostat);
-    double angleToVert = geom->Plane(hit->WireID().Plane,hit->WireID().TPC,hit->WireID().Cryostat).Wire(0).ThetaZ(false) - 0.5*TMath::Pi();
-    double cosgamma = TMath::Abs(TMath::Sin(angleToVert)*dir.Y()/dir.Mag()+TMath::Cos(angleToVert)*dir.Z()/dir.Mag());
-    if (cosgamma>0) pitch = (wirePitch/cosgamma) * dir.Mag();  
+    //Correct pitch for SCE
+    TVector3 dir = {pitch*kx - dirOffsets.X() + posOffsets.X(), pitch*ky + dirOffsets.Y() - posOffsets.Y(), pitch*kz + dirOffsets.Z() - posOffsets.Z()};
+    pitch = dir.Mag();  
 
   }
   //std::cout << "At end of get pitch " << xyz3d[0] << " " << xyz3d[1] << " " << xyz3d[2] << " " << x0 << " " << std::endl;
