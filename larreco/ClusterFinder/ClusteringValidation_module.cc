@@ -109,7 +109,7 @@ private:
 
   art::ServiceHandle<geo::Geometry const> geometry;
   art::ServiceHandle<cheat::BackTrackerService const> bt_serv;
-  art::ServiceHandle<cheat::ParticleInventoryService const> pi_serv;
+  art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
 
 };
 
