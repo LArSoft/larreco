@@ -929,6 +929,7 @@ bool StandardHit3DBuilder::makeHitPair(reco::ClusterHit3D&       hitPair,
                                    0.,
                                    0.,
                                    0.,
+                                   0.,
                                    hitVector,
                                    hitDelTSigVec,
                                    wireIDVec);
@@ -1078,15 +1079,37 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                         // One more pass through hits to get charge
                         float totalCharge(0.);
                         float overlapFraction(0.);
+                        float chargeAsymmetry(-1.);
 
                         if (hiMinIndex > lowMaxIndex)
                         {
+                            std::vector<float> chargeVec;
+                            
                             for(const auto& hit2D : hitVector)
-                                totalCharge += chargeIntegral(hit2D->getHit()->PeakTime(),hit2D->getHit()->PeakAmplitude(),hit2D->getHit()->RMS(),1.,lowMaxIndex,hiMinIndex);
+                                chargeVec.push_back(chargeIntegral(hit2D->getHit()->PeakTime(),hit2D->getHit()->PeakAmplitude(),hit2D->getHit()->RMS(),1.,lowMaxIndex,hiMinIndex));
+                            
+                            std::sort(chargeVec.begin(),chargeVec.end());
 
-                            totalCharge /= float(hitVector.size());
+                            totalCharge = std::accumulate(chargeVec.begin(),chargeVec.end(),0.) / float(chargeVec.size());
 
                             overlapFraction = float(hiMinIndex - lowMaxIndex) / (hiMaxIndex - lowMinIndex);
+                            
+                            // Compute the asymmetry of the average of the two closest charges to the third charge
+                            if (chargeVec[1]-chargeVec[0] < chargeVec[2] - chargeVec[1])
+                            {
+                                float q01Ave = 0.5 * (chargeVec[0] + chargeVec[1]);
+                                float qSum   = q01Ave + chargeVec[2];
+                                
+                                if (qSum > 0.) chargeAsymmetry = (q01Ave - chargeVec[2]) / qSum;
+                            }
+                            else
+                            {
+                                float q12Ave = 0.5 * (chargeVec[1] + chargeVec[2]);
+                                float qSum   = q01Ave + chargeVec[2];
+
+                               if (qSum > 0.) chargeAsymmetry = (q12Ave - chargeVec[0]) / qSum;
+
+                            }
                         }
 
                         // Usurping "deltaPeakTime" to be the maximum pull
@@ -1102,6 +1125,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                                               sigmaPeakTime,
                                               hitChiSquare,
                                               overlapFraction,
+                                              chargeAsymmetry,
                                               0.,
                                               0.,
                                               hitVector,
