@@ -1017,6 +1017,18 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                     int          lowMaxIndex(std::numeric_limits<int>::min());
                     int          hiMinIndex(std::numeric_limits<int>::max());
                     int          hiMaxIndex(std::numeric_limits<int>::min());
+                    
+                    // First task is to get the min/max values for the common overlap region
+                    for(const auto& hit2D : hitVector)
+                    {
+                        int   hitStart = hit2D->getHit()->PeakTime() - 2. * hit2D->getHit()->RMS() - 0.5;
+                        int   hitStop  = hit2D->getHit()->PeakTime() + 2. * hit2D->getHit()->RMS() + 0.5;
+                        
+                        lowMinIndex = std::min(hitStart,    lowMinIndex);
+                        lowMaxIndex = std::max(hitStart,    lowMaxIndex);
+                        hiMinIndex  = std::min(hitStop + 1, hiMinIndex);
+                        hiMaxIndex  = std::max(hitStop + 1, hiMaxIndex);
+                    }
 
                     // And get the wire IDs
                     std::vector<geo::WireID> wireIDVec = {geo::WireID(), geo::WireID(), geo::WireID()};
@@ -1035,13 +1047,6 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                         float hitRMS   = rmsToSig * hit2D->getHit()->RMS();
                         float weight   = 1. / (hitRMS * hitRMS);
                         float peakTime = hit2D->getTimeTicks();
-                        int   hitStart = hit2D->getHit()->PeakTime() - 2. * hit2D->getHit()->RMS() - 0.5;
-                        int   hitStop  = hit2D->getHit()->PeakTime() + 2. * hit2D->getHit()->RMS() + 0.5;
-
-                        lowMinIndex = std::min(hitStart,    lowMinIndex);
-                        lowMaxIndex = std::max(hitStart,    lowMaxIndex);
-                        hiMinIndex  = std::min(hitStop + 1, hiMinIndex);
-                        hiMaxIndex  = std::max(hitStop + 1, hiMaxIndex);
 
                         avePeakTime += peakTime * weight;
                         xPosition   += hit2D->getXPosition() * weight;
@@ -1095,7 +1100,7 @@ bool StandardHit3DBuilder::makeHitTriplet(reco::ClusterHit3D&       hitTriplet,
                             overlapFraction = float(hiMinIndex - lowMaxIndex) / (hiMaxIndex - lowMinIndex);
                             
                             // Compute the asymmetry of the average of the two closest charges to the third charge
-                            if (chargeVec[1]-chargeVec[0] < chargeVec[2] - chargeVec[1])
+                            if (std::abs(chargeVec[1]-chargeVec[0]) < std::abs(chargeVec[2] - chargeVec[1]))
                             {
                                 float q01Ave = 0.5 * (chargeVec[0] + chargeVec[1]);
                                 float qSum   = q01Ave + chargeVec[2];
