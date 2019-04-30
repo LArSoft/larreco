@@ -95,6 +95,7 @@ namespace tca {
   bool IsGhost(TCSlice& slc, Trajectory& tj);
   void LastEndMerge(TCSlice& slc, CTP_t inCTP);
   void EndMerge(TCSlice& slc, CTP_t inCTP, bool lastPass);
+  TrajPoint CreateTPFromTj(TCSlice& slc, const Trajectory& tj);
   void MaskTrajEndPoints(TCSlice& slc, Trajectory& tj, unsigned short nPts);
   // Sets the StopsAtEnd bits for the trajectory
   void ChkStop(TCSlice& slc, Trajectory& tj);
