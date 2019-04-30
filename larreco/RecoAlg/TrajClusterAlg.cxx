@@ -312,13 +312,12 @@ namespace tca {
       if(sliceID != tcc.recoSlice) return;
     }
     
-    if(!CreateSlice(hitsInSlice)) {
+    if(!CreateSlice(hitsInSlice, sliceID)) {
 //      std::cout<<"CreateSlice failed\n";
       return;
     }
     // get a reference to the stored slice
     auto& slc = slices[slices.size() - 1];
-    slc.ID = sliceID;
     if(evt.aveHitRMS.size() != slc.nPlanes) throw art::Exception(art::errors::Configuration)<<" AveHitRMS vector size != the number of planes ";
     // flag high-multiplicity hits
 //    AnalyzeHits(slc);    
@@ -350,7 +349,6 @@ namespace tca {
           // Use space points to find PFParticles
 //          FindSptPFParticles(slc);
         } else {
-          FillmAllTraj(slc);
           FindPFParticles(slc);
         }
         DefinePFPParents(slc, false);
@@ -364,7 +362,6 @@ namespace tca {
  */
       } // 3D matching requested
       KillPoorVertices(slc);
-      FindNeutralVertices(slc);
       // Use 3D matching information to find showers in 2D. FindShowers3D returns
       // true if the algorithm was successful indicating that the matching needs to be redone
       if(tcc.showerTag[0] == 2 || tcc.showerTag[0] == 4) {
@@ -1249,7 +1246,7 @@ namespace tca {
   }
 */
   /////////////////////////////////////////
-  bool TrajClusterAlg::CreateSlice(std::vector<unsigned int>& hitsInSlice)
+  bool TrajClusterAlg::CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID)
   {
     // Defines a TCSlice struct and pushes the slice onto slices. 
     // Sets the isValid flag true if successful.
@@ -1257,6 +1254,7 @@ namespace tca {
     if(hitsInSlice.size() < 2) return false;
     
     TCSlice slc;
+    slc.ID = sliceID;
     slc.slHits.resize(hitsInSlice.size());
     bool first = true;
     unsigned int cstat = 0;
@@ -1307,7 +1305,7 @@ namespace tca {
     // define the PFP TjUIDs vector before calling StitchPFPs
     for(auto& slc : slices) {
       if(!slc.isValid) continue;
-      MakePFPTjs(slc);
+//      MakePFPTjs(slc);
       for(auto& pfp : slc.pfps) {
         if(pfp.ID <= 0) continue;
         pfp.TjUIDs.resize(pfp.TjIDs.size());
