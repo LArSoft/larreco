@@ -7,7 +7,7 @@
 //
 ///////////////////////////////////////////////////////////////////////
 #ifndef TRAJCLUSTERALGVERTEX_H
-#define TRAJCLUSTERALGVERTEX_H
+#define TRAJCLUSTERALGVERTEX_HOngoing 3D reconstruction re-write
 
 
 // C/C++ standard libraries
@@ -40,7 +40,6 @@ namespace tca {
   void MakeJunkVertices(TCSlice& slc, const CTP_t& inCTP);
   void Find2DVertices(TCSlice& slc, const CTP_t& inCTP, unsigned short pass = USHRT_MAX);
   void FindVtxTjs(TCSlice& slc, VtxStore& theVtx);
-  void FindNeutralVertices(TCSlice& slc);
   void MakeJunkTjVertices(TCSlice& slc, const CTP_t& inCTP);
   void ChkVxTjs(TCSlice& slc, const CTP_t& inCTP, bool prt);
   bool MergeWithVertex(TCSlice& slc, VtxStore& vx2, unsigned short existingVxID);
