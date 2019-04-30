@@ -134,6 +134,7 @@ namespace tca {
     unsigned short NTPsFit {2}; // Number of trajectory points fitted to make this point
     unsigned short Step {0};      // Step number at which this TP was created
     unsigned short AngleCode {0};          // 0 = small angle, 1 = large angle, 2 = very large angle
+    unsigned short InPFP {0};     // ID of the PFParticle that owns this TP
     std::vector<unsigned int> Hits; // vector of fHits indices
     std::bitset<16> UseHit {0};   // set true if the hit is used in the fit
     std::bitset<8> Environment {0};    // TPEnvironment_t bitset that describes the environment, e.g. nearby showers or other Tjs
@@ -203,7 +204,7 @@ namespace tca {
   };
   
   struct SectionFit {
-    Point3_t Pos   {{ 0.0, 0.0, 0.0 }};      ///< center position of this section
+    Point3_t Pos   {{ -10.0, 0.0, 0.0 }};      ///< center position of this section
     Vector3_t Dir  {{ 0.0, 0.0, 0.0 }};   ///< and direction
     Vector3_t DirErr  {{ 0.0, 0.0, 0.0 }};   ///< and direction error
     float ChiDOF {-1};
@@ -223,9 +224,8 @@ namespace tca {
     CTP_t CTP;
     unsigned short TPIndex {USHRT_MAX};     ///< and the TP index
     unsigned short SFIndex {USHRT_MAX};     ///< and the section fit index
-    unsigned int HitIndex {UINT_MAX};  ///< index of a single hit that is not used in a Tj (TjID == 0)
-    bool IsGood {true};      ///< TP shouldn't be used in the fit or for calorimetry
-    bool IsValid {false};          ///< TP shouldn't be used for anything if this is false
+    bool VLAInduction {false};  ///< Very Large Angle projection in an induction plane
+    bool IsGood {true};      ///< TP can be used in the fit and for calorimetry
   };
 
   // Struct for 3D trajectory matching
@@ -473,7 +473,6 @@ namespace tca {
     kEnvNearShower,
     kEnvOverlap,
     kEnvUnusedHits,
-    kEnvInPFP,     ///< TP is used in a stored PFParticle
     kEnvFlag       ///< a general purpose flag bit used in 3D matching
   } TPEnvironment_t;
   
@@ -564,7 +563,6 @@ namespace tca {
   struct TCHit {
     unsigned int allHitsIndex; // index into fHits
     int InTraj {0};     // ID of the trajectory this hit is used in, 0 = none, < 0 = Tj under construction
-    int InPFP {0};      // ID of the PFP
   };
 
   struct SptHits {
