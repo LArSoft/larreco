@@ -3315,7 +3315,6 @@ namespace tca {
     if(!tcc.useAlg[kLastEndMerge]) return;
     
     bool prt = (tcc.dbgMrg && tcc.dbgSlc && inCTP == debug.CTP);
-    if(prt) mf::LogVerbatim("TC")<<"inside LastEndMerge slice "<<slices.size()-1<<" inCTP "<<inCTP;
     
     // create an averaged TP for each long Trajectory
     std::vector<TrajPoint> tjTP;
@@ -3324,32 +3323,18 @@ namespace tca {
       if(tj.CTP != inCTP) continue;
       if(tj.Pts.size() < 10) continue;
       if(tj.MCSMom < 100) continue;
-      // Average the position and angle
-      TrajPoint tjtp;
-      // stash the ID in the Step
-      tjtp.Step = tj.ID;
-      tjtp.CTP = tj.CTP;
-      float cnt = 0;
-      for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
-        auto& tp = tj.Pts[ipt];
-        if(tp.Chg <= 0) continue;
-        tjtp.Pos[0] += tp.Pos[0];
-        tjtp.Pos[1] += tp.Pos[1];
-        tjtp.Dir[1] += tp.Dir[1];
-        ++cnt;
-      } // ipt
-      tjtp.Pos[0] /= cnt;
-      tjtp.Pos[1] /= cnt;
-      tjtp.Dir[1] /= cnt;
-      double arg = 1 - tjtp.Dir[1] * tjtp.Dir[1];
-      if(arg < 0) arg = 0;
-      tjtp.Dir[0] = sqrt(arg);
-      tjtp.Ang = atan2(tjtp.Dir[1], tjtp.Dir[0]);
-//      PrintTrajPoint("LEM", slc, 0, 1., 0, tjtp);
+      auto tjtp = CreateTPFromTj(slc, tj);
+      if(tjtp.Chg < 0) continue;
       tjTP.push_back(tjtp);
     } // tj
     if(tjTP.size() < 2) return;
     
+    if(prt) {
+      mf::LogVerbatim myprt("TC");
+      myprt<<"inside LastEndMerge slice "<<slices.size()-1<<" inCTP "<<inCTP<<" tjTPs";
+      for(auto& tjtp : tjTP) myprt<<" T"<<tjtp.Step;
+    }
+
     for(unsigned short pt1 = 0; pt1 < tjTP.size() - 1; ++pt1) {
       auto& tp1 = tjTP[pt1];
       auto& tj1 = slc.tjs[tp1.Step - 1];
@@ -3367,7 +3352,7 @@ namespace tca {
         float ip21 = PointTrajDOCA(slc, tp2.Pos[0], tp2.Pos[1], tp1);
         if(ip12 > 5 && ip21 > 5) continue;
         // and a proximity cut
-        float minSep = 5;
+        float minSep = 25;
         TrajTrajDOCA(slc, tj1, tj2, ipt1, ipt2, minSep);
         if(minSep == 5) continue;
         // finally require that the proximate points are close to the ends
@@ -3401,14 +3386,61 @@ namespace tca {
           auto& vx2 = slc.vtxs[tj2.VtxID[end2] - 1];
           MakeVertexObsolete("LEM", slc, vx2, true);
         }
+        // remove Bragg flags
+        tj1.EndFlag[end1][kBragg] = false;
+        tj2.EndFlag[end2][kBragg] = false;
         unsigned int it1 = tj1.ID - 1;
         unsigned int it2 = tj2.ID - 1;
-        MergeAndStore(slc, it1, it2, tcc.dbgMrg);
+        if(!MergeAndStore(slc, it1, it2, tcc.dbgMrg)) continue;
+        // set the AlgMod bit
+        auto& ntj = slc.tjs[slc.tjs.size() - 1];
+        ntj.AlgMod[kLastEndMerge] = true;
+        // create a tp for this tj and add it to the list
+        auto tjtp = CreateTPFromTj(slc, ntj);
+        if(tjtp.Chg < 0) continue;
+        if(prt) mf::LogVerbatim("TC")<<" added T"<<ntj.ID<<" to the merge list";
+        tjTP.push_back(tjtp);
         break;
       } // pt1
     } // pt1
     
   } // LastEndMerge
+  
+  ////////////////////////////////////////////////
+  TrajPoint CreateTPFromTj(TCSlice& slc, const Trajectory& tj)
+  {
+    // Create a trajectory point by averaging the position and direction of all
+    // TPs in the trajectory. This is used in LastEndMerge
+    TrajPoint tjtp;
+    // set the charge invalid
+    tjtp.Chg = -1;
+    if(tj.AlgMod[kKilled]) return tjtp;
+    // stash the ID in the Step
+    tjtp.Step = tj.ID;
+    tjtp.CTP = tj.CTP;
+    tjtp.Pos[0] = 0;
+    tjtp.Pos[1] = 0;
+    tjtp.Dir[0] = 0;
+    tjtp.Dir[1] = 0;
+    float cnt = 0;
+    for(unsigned short ipt = tj.EndPt[0]; ipt <= tj.EndPt[1]; ++ipt) {
+      auto& tp = tj.Pts[ipt];
+      if(tp.Chg <= 0) continue;
+      tjtp.Pos[0] += tp.Pos[0];
+      tjtp.Pos[1] += tp.Pos[1];
+      tjtp.Dir[1] += tp.Dir[1];
+      ++cnt;
+    } // ipt
+    tjtp.Pos[0] /= cnt;
+    tjtp.Pos[1] /= cnt;
+    tjtp.Dir[1] /= cnt;
+    double arg = 1 - tjtp.Dir[1] * tjtp.Dir[1];
+    if(arg < 0) arg = 0;
+    tjtp.Dir[0] = sqrt(arg);
+    tjtp.Ang = atan2(tjtp.Dir[1], tjtp.Dir[0]);
+    tjtp.Chg = 1;
+    return tjtp;
+  } // CreateTjTP
 
   ////////////////////////////////////////////////
   void EndMerge(TCSlice& slc, CTP_t inCTP, bool lastPass)
