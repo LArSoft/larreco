@@ -1202,7 +1202,7 @@ namespace tca {
             return false;
           }
           if(slc.slHits[iht].InTraj > 0) {
-            std::cout<<"StoreTraj fail "<<iht<<" "<<slc.slHits[iht].InTraj<<" WorkID "<<tj.WorkID<<" InTraj "<<slc.slHits[iht].InTraj;
+            std::cout<<"StoreTraj: fail hit "<<iht<<" "<<PrintHit(slc.slHits[iht])<<" is in T"<<slc.slHits[iht].InTraj<<" WorkID "<<tj.WorkID;
             std::cout<<" algs ";
             for(unsigned short ib = 0; ib < AlgBitNames.size(); ++ib) if(tj.AlgMod[ib]) std::cout<<" "<<AlgBitNames[ib];
             std::cout<<"\n";
@@ -1218,7 +1218,6 @@ namespace tca {
     for(unsigned int iht = 0; iht < slc.slHits.size(); ++iht) {
       if(slc.slHits[iht].InTraj == tj.ID) {
         mf::LogWarning("TC")<<"StoreTraj: Hit "<<PrintHit(slc.slHits[iht])<<" thinks it belongs to T"<<tj.ID<<" but it isn't in the Tj\n";
-//        PrintTrajectory("ST", tjs, tj, USHRT_MAX);
         return false;
       }
     } // iht
@@ -4127,8 +4126,10 @@ namespace tca {
     
     // Find the average multiplicity 1 hit RMS and calculate the expected max RMS for each range
     if(tcc.modes[kDebug] && (int)tpc == debug.TPC) {
-      std::cout<<"tpc "<<tpc<<" tcc.unitsPerTick "<<std::setprecision(3)<<tcc.unitsPerTick<<"\n";
-      std::cout<<"Active volume (";
+      // Note that this function is called before the slice is pushed into slices so the index
+      // isn't decremented by 1
+      std::cout<<"Slice ID/Index "<<slc.ID<<"/"<<slices.size()<<" tpc "<<tpc<<" tcc.unitsPerTick "<<std::setprecision(3)<<tcc.unitsPerTick;
+      std::cout<<" Active volume (";
       std::cout<<std::fixed<<std::setprecision(1)<<slc.xLo<<" < X < "<<slc.xHi<<") (";
       std::cout<<std::fixed<<std::setprecision(1)<<slc.yLo<<" < Y < "<<slc.yHi<<") (";
       std::cout<<std::fixed<<std::setprecision(1)<<slc.zLo<<" < Z < "<<slc.zHi<<")\n";
@@ -4893,7 +4894,7 @@ namespace tca {
       art::ServiceHandle<cheat::ParticleInventoryService> pi_serv;
       TruthMatcher tm;
       myprt<<"************  MCParticles  ************\n";
-      myprt<<" mcpindx  PDG    KE eveIndx  nHits   Process\n";
+      myprt<<" mcpindx  PDG    KE   nHits Process\n";
       for(unsigned int imcp = 0; imcp < (*evt.mcpHandle).size(); ++imcp) {
         auto& mcp = (*evt.mcpHandle)[imcp];
         int pdg = abs(mcp.PdgCode());
@@ -5789,6 +5790,7 @@ namespace tca {
         }
       }
     } // ib
+    if(first) tmp = " none";
     return tmp;
   } // PrintEndFlag
 
