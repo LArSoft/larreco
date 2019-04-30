@@ -62,7 +62,7 @@ namespace tca {
     void SetSptHandle(std::vector<recob::SpacePoint> const& sptHandle) { evt.sptHandle = &sptHandle; }
     void SetSptHits(std::vector<SptHits> const& sptHits) { evt.sptHits = &sptHits; }
     void RunTrajClusterAlg(std::vector<unsigned int>& hitsInSlice, int sliceID);
-    bool CreateSlice(std::vector<unsigned int>& hitsInSlice);
+    bool CreateSlice(std::vector<unsigned int>& hitsInSlice, int sliceID);
     void FinishEvent();
     
 
