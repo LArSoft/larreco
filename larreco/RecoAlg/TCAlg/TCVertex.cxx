@@ -504,179 +504,7 @@ namespace tca {
     // Flag this as tried so we don't try again
     vx2.Stat[kVtxTrjTried] = true;
   } // FindVtxTjs
-
-  //////////////////////////////////////////
-  void FindNeutralVertices(TCSlice& slc)
-  {
-    // Look for 2D neutral vertices between Tjs 
-    if(!tcc.useAlg[kVxNeutral]) return;
-    if(tcc.neutralVxCuts.size() < 4) return;
-    if(slc.nPlanes < 3) return;
-    if(slc.pfps.size() < 2) return;
-    
-    /* TODO This algorithm needs work.
-    
-    bool prt = tcc.dbgVxNeutral && tcc.dbgSlc;
-    
-    struct CandVx {
-      unsigned short ip1;
-      unsigned short end1;
-      unsigned short ip2;
-      unsigned short end2;
-      Point3_t intersect;
-      float sepSum;
-      bool isValid;
-    };
-    std::vector<CandVx> candVxs;
-
-    for(unsigned short ip1 = 0; ip1 < slc.pfps.size() - 1; ++ip1) {
-      auto& p1 = slc.pfps[ip1];
-      if(p1.ID == 0) continue;
-      if(p1.Tp3s.empty()) continue;
-      float len1 = PosSep(p1.XYZ[0], p1.XYZ[1]);
-      if(len1 < tcc.neutralVxCuts[3]) continue;
-      for(unsigned short end1 = 0; end1 < 2; ++end1) {
-        float cfne1 = ChgFracNearEnd(slc, p1, end1);
-        if(cfne1 < tcc.neutralVxCuts[0]) continue;
-        for(unsigned short ip2 = ip1 + 1; ip2 < slc.pfps.size(); ++ip2) {
-          auto& p2 = slc.pfps[ip2];
-          if(p2.ID == 0) continue;
-          if(p2.Tp3s.empty()) continue;
-          float len2 = PosSep(p2.XYZ[0], p2.XYZ[1]);
-          if(len2 < tcc.neutralVxCuts[3]) continue;
-          for(unsigned short end2 = 0; end2 < 2; ++end2) {
-            float cfne2 = ChgFracNearEnd(slc, p2, end2);
-            if(cfne2 < tcc.neutralVxCuts[0]) continue;
-            float vxDOCA = 1E6;
-            Point3_t intersect;
-            if(!PointDirIntersect(p1.XYZ[end1], p1.Dir[end1], p2.XYZ[end2], p2.Dir[end2], intersect, vxDOCA)) continue;
-            if(intersect[0] < slc.xLo || intersect[0] > slc.xHi) continue;
-            if(intersect[1] < slc.yLo || intersect[1] > slc.yHi) continue;
-            if(intersect[2] < slc.zLo || intersect[2] > slc.zHi) continue;
-            // ensure that the pfp end and the vertex are consistent
-            float sep1 = PosSep(intersect, p1.XYZ[end1]);
-            if(PosSep(intersect, p1.XYZ[1-end1]) < sep1) continue;
-            float sep2 = PosSep(intersect, p2.XYZ[end2]);
-            if(PosSep(intersect, p2.XYZ[1-end2]) < sep2) continue;
-            if(vxDOCA > tcc.neutralVxCuts[1]) continue;
-            // ensure that there isn't a lot of charge between the end of each pfp and the intersection point
-            float cfb1 = ChgFracBetween(slc, p1.XYZ[end1], intersect);
-            float cfb2 = ChgFracBetween(slc, p2.XYZ[end2], intersect);
-            if(prt) {
-              mf::LogVerbatim myprt("TC");
-              myprt<<"FNV: P"<<p1.ID<<"_"<<end1<<" sep1 "<<std::fixed<<std::setprecision(2)<<sep1;
-              myprt<<" cfne1 "<<cfne1<<" cfb1 "<<cfb1;
-              myprt<<" P"<<p2.ID<<"_"<<end2<<" sep2 "<<sep2<<" cfne2 "<<cfne2<<" cfb2 "<<cfb2;
-              myprt<<" intersect "<<intersect[0]<<" "<<intersect[1]<<" "<<intersect[2];
-              myprt<<" vxDOCA "<<vxDOCA;
-            } // prt
-            if(cfb1 > tcc.neutralVxCuts[2]) continue;
-            if(cfb2 > tcc.neutralVxCuts[2]) continue;
-            // check existing candidates
-            float sepSum = sep1 + sep2;
-            bool skipit = false;
-            for(auto& candVx : candVxs) {
-              if(!candVx.isValid) continue;
-              if(candVx.ip1 != ip1 && candVx.ip2 != ip2) continue;
-              // see if the separation sum is smaller
-              if(sepSum < candVx.sepSum) {
-                // flag the saved one as not valid
-                candVx.isValid = false;
-              } else {
-                skipit = true;
-                break;
-              }
-            } // candVx
-            if(skipit) continue;
-            CandVx candVx;
-            candVx.ip1 = ip1;
-            candVx.end1 = end1;
-            candVx.ip2 = ip2;
-            candVx.end2 = end2;
-            candVx.intersect = intersect;
-            candVx.sepSum = sep1 + sep2;
-            candVx.isValid = true;
-            candVxs.push_back(candVx);
-            if(prt) mf::LogVerbatim("TC")<<" candidate";
-          } // end2
-        } // ip2
-      } // end1
-    } // ip1
-    
-    if(candVxs.empty()) return;
-    
-    // Make vertices with the valid candidates
-    for(auto& candVx : candVxs) {
-      if(!candVx.isValid) continue;
-      Vtx3Store vx3;
-      auto& p1 = slc.pfps[candVx.ip1];
-      auto& p2 = slc.pfps[candVx.ip2];
-      vx3.TPCID = p1.TPCID;
-      vx3.Vx2ID.resize(slc.nPlanes);
-      vx3.ID = slc.vtx3s.size() + 1;
-      // try to improve the vertex position by fitting the Tjs in 2D
-      std::vector<TrajPoint> vxTps;
-      Vector3_t dir = {{0, 0, 0}};
-      for(unsigned short plane = 0; plane < slc.nPlanes; ++plane) {
-        vxTps.clear();
-        CTP_t inCTP = EncodeCTP(p1.TPCID.Cryostat, p1.TPCID.TPC, plane);
-        // Need the position in this plane to find the closest end
-        auto vtp = MakeBareTP(slc, candVx.intersect, dir, inCTP);
-        if(vtp.Pos[0] < 0) continue;
-        for(auto tid : p1.TjIDs) {
-          auto& tj = slc.tjs[tid - 1];
-          if(tj.CTP != vtp.CTP) continue;
-          unsigned short end = CloseEnd(slc, tj, vtp.Pos);
-          auto vxTp = tj.Pts[tj.EndPt[end]];
-          vxTp.Step = tid;
-          vxTp.AngleCode = end;
-          vxTps.push_back(vxTp);
-        } // tid
-        for(auto tid : p2.TjIDs) {
-          auto& tj = slc.tjs[tid - 1];
-          if(tj.CTP != vtp.CTP) continue;
-          unsigned short end = CloseEnd(slc, tj, vtp.Pos);
-          auto vxTp = tj.Pts[tj.EndPt[end]];
-          vxTp.Step = tid;
-          vxTp.AngleCode = end;
-          vxTps.push_back(vxTp);
-        } // tid
-        if(vxTps.size() < 2) continue;
-        VtxStore vx2;
-        vx2.CTP = inCTP;
-        vx2.Topo = 11;
-        if(!FitVertex(slc, vx2, vxTps, prt)) {
-          if(prt) mf::LogVerbatim("TC")<<"FNV: vertex fit failed";
-          continue;
-        } // fit failed
-        vx2.ID = slc.vtxs.size() + 1;
-        for(auto& vxTp : vxTps) {
-          int tid = vxTp.Step;
-          auto& tj = slc.tjs[tid - 1];
-          tj.VtxID[vxTp.AngleCode] = vx2.ID;
-        }
-        if(prt) mf::LogVerbatim("TC")<<"FNV: 2V fit inCTP "<<inCTP<<" pos "<<PrintPos(slc, vx2.Pos);
-        vx2.Vx3ID = vx3.ID;
-        vx3.Vx2ID[plane] = vx2.ID;
-        SetVx2Score(slc, vx2);
-        if(!StoreVertex(slc, vx2)) {
-          if(prt) mf::LogVerbatim("TC")<<"FNV: store vertex failed";
-          continue;
-        } // StoreVertex failed
-      } // plane
-      vx3.X = candVx.intersect[0];
-      vx3.Y = candVx.intersect[1];
-      vx3.Z = candVx.intersect[2];
-      vx3.Primary = true;
-      SetVx3Score(slc, vx3);
-      ++evt.global3V_UID;
-      vx3.UID = evt.global3VID;
-      slc.vtx3s.push_back(vx3);
-      if(prt) mf::LogVerbatim("TC")<<"FNV: P"<<p1.ID<<"_"<<candVx.end1<<" P"<<p2.ID<<"_"<<candVx.end2<<" -> 3V"<<vx3.ID;
-    } // candVx
-*/
-  } // FindNeutralVertices
-
+  
   //////////////////////////////////////////
   bool MergeWithVertex(TCSlice& slc, VtxStore& vx, unsigned short oVxID)
   {
@@ -1702,7 +1530,7 @@ namespace tca {
     endPos[0] = PosAtEnd(pfp, 0);
     endPos[1] = PosAtEnd(pfp, 1);
     
-    std::array<float, 2> foms {{100.}};
+    std::array<float, 2> foms {{100., 100.}};
     std::array<int, 2> vtxs {{0}};
     for(auto& vx3 : slc.vtx3s) {
       if(vx3.ID <= 0) continue;
@@ -1714,24 +1542,24 @@ namespace tca {
       unsigned short end = 0;
       if(sep[1] < sep[0]) end = 1;
       // ignore if separation is too large
-      if(sep[end] > maxSep) continue;
-      // ensure that the separation btw the vertex and the far end is
-      // larger than the PFP length
-      if(sep[1 - end] < pLen) continue;
+      if(sep[end] > 100) continue;
       // find the direction vector between these points
       auto vpDir = PointDirection(vpos, endPos[end]);
       auto dir = DirAtEnd(pfp, end);
-      double dotp = DotProd(vpDir, dir);
+      double dotp = std::abs(DotProd(vpDir, dir));
       float fom = dotp * sep[end];
+      if(prt) mf::LogVerbatim("TC")<<"ATAV: P"<<pfp.ID<<" end "<<end<<" 3V"<<vx3.ID<<" sep "<<sep[end]<<" fom "<<fom;
+      // ignore if separation is too large
+      if(sep[end] > maxSep) continue;
       if(fom < foms[end]) {
         foms[end] = fom;
         vtxs[end] = vx3.ID;
       } 
-      if(prt) mf::LogVerbatim("TC")<<"ATAV: P"<<pfp.ID<<" 3V"<<vx3.ID<<" dotp "<<dotp<<" sep "<<sep[end]<<" fom "<<fom;
     } // vx3
     bool bingo = false;
     for(unsigned short end = 0; end < 2; ++end) {
       if(vtxs[end] == 0) continue;
+      if(prt) mf::LogVerbatim("TC")<<"ATAV: set P"<<pfp.ID<<" end "<<end<<" -> 3V"<<vtxs[end];
       pfp.Vx3ID[end] = vtxs[end];
       bingo = true;
     } // end
