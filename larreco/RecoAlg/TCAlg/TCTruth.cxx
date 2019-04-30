@@ -267,7 +267,7 @@ namespace tca {
             auto& tj = slices[tjLocs[mtjLoc].first].tjs[tjLocs[mtjLoc].second];
             if(maxEP > tj.EffPur) {
               tj.EffPur = maxEP;
-              tj.mcpIndex = imcp;
+              tj.mcpIndex = mcpIndex[imcp];
               EPTSums[pdgIndex] += TMeV * tj.EffPur;
             }
             // print BadEP ignoring electrons
@@ -311,7 +311,7 @@ namespace tca {
           // no matching pfp
           if(TMeV > 30) {
             mf::LogVerbatim myprt("TC");
-            myprt<<"BadPFP: MCParticle "<<imcp<<" w PDGCode "<<mcp.PdgCode()<<" T "<<(int)TMeV<<" not reconstructed.";
+            myprt<<"BadPFP: MCParticle "<<imcp<<" w PDGCode "<<mcp.PdgCode()<<" T = "<<(int)TMeV<<" MeV not reconstructed.";
             myprt<<" events processed "<<evt.eventsProcessed;
           } // TMeV > 30
         } else {
@@ -319,7 +319,7 @@ namespace tca {
           auto& pfp = slices[pfpLocs[mpfpLoc].first].pfps[pfpLocs[mpfpLoc].second];
           if(maxEP > pfp.EffPur) {
             pfp.EffPur = maxEP;
-            pfp.mcpIndex = imcp;
+            pfp.mcpIndex = mcpIndex[imcp];
             MCP_EPTSum += TMeV * maxEP;
             ++MCP_PFP_Cnt;
             if(longMCP && maxEP > 0.8) ++nGoodLongMCP;
