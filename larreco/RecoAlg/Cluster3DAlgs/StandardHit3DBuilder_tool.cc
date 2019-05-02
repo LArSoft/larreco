@@ -111,14 +111,9 @@ private:
     /**
      *  @brief  Extract the ART hits and the ART hit-particle relationships
      *
-     *  @param  evt                   the ART event
-     *  @param  hit2DVector           A container for the internal Cluster3D 2D hit objects
-     *  @param  PlaneToHitVectorMap   A map between view and the internal Cluster3D 2D hit objects
-     *  @param  viewToWireToHitSetMap This maps 2D hits to wires and stores by view
-     *  @param  hitToPtrMap           This maps our Cluster2D hits back to art Ptr's to reco Hits
+     *  @param  evt - the ART event
      */
-    void CollectArtHits(const art::Event& evt,
-                        RecobHitToPtrMap& hitToPtrMap) const;
+    void CollectArtHits(const art::Event& evt) const;
 
     /**
      *  @brief Given the ClusterHit2D objects, build the HitPairMap
@@ -128,7 +123,17 @@ private:
     /**
      *  @brief Create a new 2D hit collection from hits associated to 3D space points
      */
-    void CreateNewRecobHitCollection(art::Event&, reco::HitPairList&, recob::HitRefinerAssociator&, RecobHitToPtrMap&);
+    void CreateNewRecobHitCollection(art::Event&, reco::HitPairList&, std::vector<recob::Hit>&, RecobHitToPtrMap&);
+    
+    /**
+     *  @brief Create recob::Wire to recob::Hit associations
+     */
+    void makeWireAssns(const art::Event&, art::Assns<recob::Wire, recob::Hit>&, RecobHitToPtrMap&) const;
+    
+    /**
+     *  @brief Create raw::RawDigit to recob::Hit associations
+     */
+    void makeRawDigitAssns(const art::Event&, art::Assns<raw::RawDigit, recob::Hit>&, RecobHitToPtrMap&) const;
 
     /**
      *  @brief Given the ClusterHit2D objects, build the HitPairMap
@@ -211,9 +216,7 @@ private:
     /**
      *  @brief Data members to follow
      */
-    art::InputTag                        m_hitFinderTag;
-    bool                                 m_doWireAssns;
-    bool                                 m_doRawDigitAssns;
+    std::vector<art::InputTag>           m_hitFinderTagVec;
     float                                m_numSigmaPeakTime;
     float                                m_hitWidthSclFctr;
     float                                m_deltaPeakTimeSig;
@@ -269,9 +272,8 @@ StandardHit3DBuilder::~StandardHit3DBuilder()
 void StandardHit3DBuilder::produces(art::EDProducer* producer)
 {
     producer->produces< std::vector<recob::Hit>>();
-
-    if (m_doWireAssns)     producer->produces< art::Assns<recob::Wire,   recob::Hit>>();
-    if (m_doRawDigitAssns) producer->produces< art::Assns<raw::RawDigit, recob::Hit>>();
+    producer->produces< art::Assns<recob::Wire,   recob::Hit>>();
+    producer->produces< art::Assns<raw::RawDigit, recob::Hit>>();
 
     return;
 }
@@ -280,17 +282,15 @@ void StandardHit3DBuilder::produces(art::EDProducer* producer)
 
 void StandardHit3DBuilder::configure(fhicl::ParameterSet const &pset)
 {
-    m_hitFinderTag      = pset.get<art::InputTag   >("HitFinderTag",        "gaushits");
-    m_doWireAssns       = pset.get<bool            >("DoWireAssns",         true);
-    m_doRawDigitAssns   = pset.get<bool            >("DoRawDigitAssns",     true);
-    m_enableMonitoring  = pset.get<bool            >("EnableMonitoring",    true);
-    m_numSigmaPeakTime  = pset.get<float           >("NumSigmaPeakTime",    3.  );
-    m_hitWidthSclFctr   = pset.get<float           >("HitWidthScaleFactor", 6.  );
-    m_deltaPeakTimeSig  = pset.get<float           >("DeltaPeakTimeSig",    1.7 );
-    m_zPosOffset        = pset.get<float           >("ZPosOffset",          0.0 );
-    m_invalidTPCVec     = pset.get<std::vector<int>>("InvalidTPCVec",       std::vector<int>());
-    m_maxHit3DChiSquare = pset.get<float           >("MaxHitChiSquare",     6.0 );
-    m_outputHistograms  = pset.get<bool            >("OutputHistograms",    false );
+    m_hitFinderTagVec   = pset.get<std::vector<art::InputTag>>("HitFinderTagVec",     std::vector<art::InputTag>()={"gaushit"});
+    m_enableMonitoring  = pset.get<bool                      >("EnableMonitoring",    true);
+    m_numSigmaPeakTime  = pset.get<float                     >("NumSigmaPeakTime",    3.  );
+    m_hitWidthSclFctr   = pset.get<float                     >("HitWidthScaleFactor", 6.  );
+    m_deltaPeakTimeSig  = pset.get<float                     >("DeltaPeakTimeSig",    1.7 );
+    m_zPosOffset        = pset.get<float                     >("ZPosOffset",          0.0 );
+    m_invalidTPCVec     = pset.get<std::vector<int>          >("InvalidTPCVec",       std::vector<int>());
+    m_maxHit3DChiSquare = pset.get<float                     >("MaxHitChiSquare",     6.0 );
+    m_outputHistograms  = pset.get<bool                      >("OutputHistograms",    false );
 
     m_geometry = art::ServiceHandle<geo::Geometry const>{}.get();
     m_detector = lar::providerFrom<detinfo::DetectorPropertiesService>();
@@ -400,29 +400,40 @@ void StandardHit3DBuilder::Hit3DBuilder(art::EDProducer& prod, art::Event& evt, 
     m_planeToWireToHitSetMap.clear();
 
     m_timeVector.resize(NUMTIMEVALUES, 0.);
-
+    
     // Get a hit refiner
-    recob::HitRefinerAssociator hitRefiner(prod, evt, m_hitFinderTag, m_doWireAssns, m_doRawDigitAssns);
-
-    // Temporary definition
-    RecobHitToPtrMap recobHitToHitMap;
-
+    std::unique_ptr<std::vector<recob::Hit>> outputHitPtrVec(new std::vector<recob::Hit>);
+    
     // Recover the 2D hits and then organize them into data structures which will be used in the
     // DBscan algorithm for building the 3D clusters
-    this->CollectArtHits(evt, recobHitToHitMap);
-
+    this->CollectArtHits(evt);
+    
     // If there are no hits in our view/wire data structure then do not proceed with the full analysis
     if (!m_planeToWireToHitSetMap.empty())
     {
         // Call the algorithm that builds 3D hits
         this->BuildHit3D(hitPairList);
-
+        
         // If we built 3D points then attempt to output a new hit list as well
         if (!hitPairList.empty())
-            CreateNewRecobHitCollection(evt, hitPairList, hitRefiner, clusterHitToArtPtrMap);
+            CreateNewRecobHitCollection(evt, hitPairList, *outputHitPtrVec, clusterHitToArtPtrMap);
     }
+    
+    // Set up to make the associations (if desired)
+    /// Associations with wires.
+    std::unique_ptr<art::Assns<recob::Wire, recob::Hit>> wireAssns(new art::Assns<recob::Wire, recob::Hit>);
+    
+    makeWireAssns(evt, *wireAssns, clusterHitToArtPtrMap);
+    
+    /// Associations with raw digits.
+    std::unique_ptr<art::Assns<raw::RawDigit, recob::Hit>> rawDigitAssns(new art::Assns<raw::RawDigit, recob::Hit>);
 
-    hitRefiner.put_into();
+    makeRawDigitAssns(evt, *rawDigitAssns, clusterHitToArtPtrMap);
+
+    // Move everything into the event
+    evt.put(std::move(outputHitPtrVec));
+    evt.put(std::move(wireAssns));
+    evt.put(std::move(rawDigitAssns));
 
     // Handle tree output too
     m_tupleTree->Fill();
@@ -1333,16 +1344,31 @@ bool Hit2DSetCompare::operator() (const reco::ClusterHit2D* left, const reco::Cl
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
-void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
-                                          RecobHitToPtrMap& hitToPtrMap) const
+void StandardHit3DBuilder::CollectArtHits(const art::Event& evt) const
 {
     /**
      *  @brief Recover the 2D hits from art and fill out the local data structures for the 3D clustering
      */
-    art::Handle< std::vector<recob::Hit> > recobHitHandle;
-    evt.getByLabel(m_hitFinderTag, recobHitHandle);
+    
+    // Start by getting a vector of valid, non empty hit collections to make sure we really have something to do here...
+    // Here is a container for the hits...
+    std::vector<const recob::Hit*> recobHitVec;
+    
+    // Loop through the list of input sources
+    for(const auto& inputTag : m_hitFinderTagVec)
+    {
+        art::Handle< std::vector<recob::Hit> > recobHitHandle;
+        evt.getByLabel(inputTag, recobHitHandle);
 
-    if (!recobHitHandle.isValid()) return;
+        if (!recobHitHandle.isValid() || recobHitHandle->size() == 0) continue;
+        
+        recobHitVec.reserve(recobHitVec.size() + recobHitHandle->size());
+        
+        for(const auto& hit : *recobHitHandle) recobHitVec.push_back(&hit);
+    }
+    
+    // If the vector is empty there is nothing to do
+    if (recobHitVec.empty()) return;
 
     cet::cpu_timer theClockMakeHits;
 
@@ -1394,10 +1420,8 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
 
     // Cycle through the recob hits to build ClusterHit2D objects and insert
     // them into the map
-    for (size_t cIdx = 0; cIdx < recobHitHandle->size(); cIdx++)
+    for (const auto& recobHit : recobHitVec)
     {
-        art::Ptr<recob::Hit> recobHit(recobHitHandle, cIdx);
-
         // For some detectors we can have multiple wire ID's associated to a given channel.
         // So we recover the list of these wire IDs
         const std::vector<geo::WireID>& wireIDs = m_geometry->ChannelToWire(recobHit->Channel());
@@ -1415,14 +1439,11 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
             double hitPeakTime(recobHit->PeakTime() - planeOffsetMap[planeID]);
             double xPosition(m_detector->ConvertTicksToX(recobHit->PeakTime(), planeID.Plane, planeID.TPC, planeID.Cryostat));
 
-            m_clusterHit2DMasterList.emplace_back(0, 0., 0., xPosition, hitPeakTime, wireID, recobHit.get());
+            m_clusterHit2DMasterList.emplace_back(0, 0., 0., xPosition, hitPeakTime, wireID, recobHit);
 
             m_planeToHitVectorMap[planeID].push_back(&m_clusterHit2DMasterList.back());
             m_planeToWireToHitSetMap[planeID][wireID.Wire].insert(&m_clusterHit2DMasterList.back());
         }
-
-        const recob::Hit* recobHitPtr = recobHit.get();
-        hitToPtrMap[recobHitPtr]      = recobHit;
     }
 
     // Make a loop through to sort the recover hits in time order
@@ -1441,10 +1462,10 @@ void StandardHit3DBuilder::CollectArtHits(const art::Event& evt,
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&                  event,
-                                                       reco::HitPairList&           hitPairList,
-                                                       recob::HitRefinerAssociator& hitRefiner,
-                                                       RecobHitToPtrMap&            recobHitToPtrMap)
+void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&              event,
+                                                       reco::HitPairList&       hitPairList,
+                                                       std::vector<recob::Hit>& hitPtrVec,
+                                                       RecobHitToPtrMap&        recobHitToPtrMap)
 {
     // Set up the timing
     cet::cpu_timer theClockBuildNewHits;
@@ -1454,17 +1475,14 @@ void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&              
     // We want to build a unique list of hits from the input 3D points which, we know, reuse 2D points frequently
     // At the same time we need to create a new 2D hit with the "correct" WireID and replace the old 2D hit in the
     // ClusterHit2D object with this new one... while keeping track of the use of the old ones. My head is spinning...
-    // Ok, start all of this by declaring a container for the new hit collection
-    std::unique_ptr<std::vector<recob::Hit>> newHitVecPtr(new std::vector<recob::Hit>);
-
-    // Now declare a set which will allow us to keep track of those CusterHit2D objects we have seen already
+    // Declare a set which will allow us to keep track of those CusterHit2D objects we have seen already
     std::set<const reco::ClusterHit2D*> visitedHit2DSet;
 
     // Use this handy art utility to make art::Ptr objects to the new recob::Hits for use in the output phase
     art::PtrMaker<recob::Hit> ptrMaker(event);
 
     // Reserve enough memory to replace every recob::Hit we have considered (this is upper limit)
-    newHitVecPtr->reserve(m_clusterHit2DMasterList.size());
+    hitPtrVec.reserve(m_clusterHit2DMasterList.size());
 
     // Scheme is to loop through all 3D hits, then through each associated ClusterHit2D object
     for(reco::ClusterHit3D& hit3D : hitPairList)
@@ -1482,13 +1500,13 @@ void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&              
                 visitedHit2DSet.insert(hit2D);
 
                 // Create and save the new recob::Hit with the correct WireID
-                newHitVecPtr->emplace_back(recob::HitCreator(*hit2D->getHit(), hit3D.getWireIDs()[idx]).copy());
+                hitPtrVec.emplace_back(recob::HitCreator(*hit2D->getHit(), hit3D.getWireIDs()[idx]).copy());
 
                 // Recover a pointer to it...
-                recob::Hit* newHit = &newHitVecPtr->back();
+                recob::Hit* newHit = &hitPtrVec.back();
 
                 // Create a mapping from this hit to an art Ptr representing it
-                recobHitToPtrMap[newHit] = ptrMaker(newHitVecPtr->size()-1);
+                recobHitToPtrMap[newHit] = ptrMaker(hitPtrVec.size()-1);
 
                 // And set the pointer to this hit in the ClusterHit2D object
                 const_cast<reco::ClusterHit2D*>(hit2D)->setHit(newHit);
@@ -1506,12 +1524,7 @@ void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&              
         m_hitOverlapFracVec.push_back(hit3D.getOverlapFraction());
     }
 
-    size_t numNewHits = newHitVecPtr->size();
-
-    // Now we give the new hits to the refinery
-    // Note that one advantage of using this utility is that it handles the
-    // Hit/Wire and Hit/RawDigit associations all behind the scenes for us
-    hitRefiner.use_hits(std::move(newHitVecPtr));
+    size_t numNewHits = hitPtrVec.size();
 
     if (m_enableMonitoring)
     {
@@ -1522,6 +1535,98 @@ void StandardHit3DBuilder::CreateNewRecobHitCollection(art::Event&              
 
     mf::LogDebug("Cluster3D") << ">>>>> New output recob::Hit size: " << numNewHits << " (vs " << m_clusterHit2DMasterList.size() << " input)" << std::endl;
 
+    return;
+}
+    
+void StandardHit3DBuilder::makeWireAssns(const art::Event& evt, art::Assns<recob::Wire, recob::Hit>& wireAssns, RecobHitToPtrMap& recobHitPtrMap) const
+{
+    // Let's make sure the input associations container is empty
+    wireAssns = art::Assns<recob::Wire, recob::Hit>();
+    
+    // First task is to recover all of the previous wire <--> hit associations and map them by channel number
+    // Create the temporary container
+    std::unordered_map<raw::ChannelID_t, art::Ptr<recob::Wire>> channelToWireMap;
+    
+    // Go through the list of input sources and fill out the map
+    for(const auto& inputTag : m_hitFinderTagVec)
+    {
+        art::ValidHandle<std::vector<recob::Hit>> hitHandle = evt.getValidHandle<std::vector<recob::Hit>>(inputTag);
+
+        art::FindOneP<recob::Wire> hitToWireAssns(hitHandle, evt, inputTag);
+        
+        if (hitToWireAssns.isValid())
+        {
+            for(size_t wireIdx = 0; wireIdx < hitToWireAssns.size(); wireIdx++)
+            {
+                art::Ptr<recob::Wire> wire = hitToWireAssns.at(wireIdx);
+                
+                channelToWireMap[wire->Channel()] = wire;
+            }
+        }
+    }
+    
+    // Now fill the container
+    for(const auto& hitPtrPair : recobHitPtrMap)
+    {
+        raw::ChannelID_t channel = hitPtrPair.first->Channel();
+        
+        std::unordered_map<raw::ChannelID_t, art::Ptr<recob::Wire>>::iterator chanWireItr = channelToWireMap.find(channel);
+        
+        if (!(chanWireItr != channelToWireMap.end()))
+        {
+            std::cout << "******>> Did not find channel to wire match! Skipping..." << std::endl;
+            continue;
+        }
+        
+        wireAssns.addSingle(chanWireItr->second, hitPtrPair.second);
+    }
+    
+    return;
+}
+    
+void StandardHit3DBuilder::makeRawDigitAssns(const art::Event& evt, art::Assns<raw::RawDigit, recob::Hit>& rawDigitAssns, RecobHitToPtrMap& recobHitPtrMap) const
+{
+    // Let's make sure the input associations container is empty
+    rawDigitAssns = art::Assns<raw::RawDigit, recob::Hit>();
+    
+    // First task is to recover all of the previous wire <--> hit associations and map them by channel number
+    // Create the temporary container
+    std::unordered_map<raw::ChannelID_t, art::Ptr<raw::RawDigit>> channelToRawDigitMap;
+    
+    // Go through the list of input sources and fill out the map
+    for(const auto& inputTag : m_hitFinderTagVec)
+    {
+        art::ValidHandle<std::vector<recob::Hit>> hitHandle = evt.getValidHandle<std::vector<recob::Hit>>(inputTag);
+        
+        art::FindOneP<raw::RawDigit> hitToRawDigitAssns(hitHandle, evt, inputTag);
+        
+        if (hitToRawDigitAssns.isValid())
+        {
+            for(size_t rawDigitIdx = 0; rawDigitIdx < hitToRawDigitAssns.size(); rawDigitIdx++)
+            {
+                art::Ptr<raw::RawDigit> rawDigit = hitToRawDigitAssns.at(rawDigitIdx);
+                
+                channelToRawDigitMap[rawDigit->Channel()] = rawDigit;
+            }
+        }
+    }
+    
+    // Now fill the container
+    for(const auto& hitPtrPair : recobHitPtrMap)
+    {
+        raw::ChannelID_t channel = hitPtrPair.first->Channel();
+        
+        std::unordered_map<raw::ChannelID_t, art::Ptr<raw::RawDigit>>::iterator chanRawDigitItr = channelToRawDigitMap.find(channel);
+        
+        if (!(chanRawDigitItr != channelToRawDigitMap.end()))
+        {
+            std::cout << "******>> Did not find channel to RawDigit match! Skipping..." << std::endl;
+            continue;
+        }
+        
+        rawDigitAssns.addSingle(chanRawDigitItr->second, hitPtrPair.second);
+    }
+    
     return;
 }
 
