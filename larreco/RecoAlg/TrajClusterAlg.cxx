@@ -693,7 +693,7 @@ namespace tca {
     // Tag ShowerLike Tjs
     if(tcc.showerTag[0] > 0) TagShowerLike("RAT", slc, inCTP);
     
-    Find2DVertices(slc, inCTP);
+    Find2DVertices(slc, inCTP, USHRT_MAX);
     SplitTrajCrossingVertices(slc, inCTP);
     // Make vertices between long Tjs and junk Tjs
     MakeJunkVertices(slc, inCTP);
