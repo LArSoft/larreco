@@ -40,7 +40,6 @@ namespace tca {
   void ReconcileTPs(TCSlice& slc);
   void MakePFPTjs(TCSlice& slc);
   void MatchPlanes(TCSlice& slc, unsigned short numPlanes, std::vector<MatchStruct>& matVec, bool prt);
-//  void FindCompleteness(TCSlice& slc, PFPStruct& pfp, bool doFit, bool prt);
   bool Define(TCSlice& slc, PFPStruct& pfp, bool prt);
   void FixOrder(TCSlice& slc, PFPStruct& pfp, bool prt);
   bool Update(TCSlice& slc, PFPStruct& pfp, bool prt);
@@ -58,13 +57,9 @@ namespace tca {
   bool SortSection(PFPStruct& pfp, unsigned short sectionFitIndex);
   void CountOrder(TCSlice& slc, int tid, const std::vector<TP3D>& tp3ds, unsigned short& nNeg, unsigned short& nPos);
   void MakeTP3Ds(TCSlice& slc, PFPStruct& pfp);
-//  void FillTP3Ds(TCSlice& slc, PFPStruct& pfp);
   void Reverse(TCSlice& slc, PFPStruct& pfp);
   void FillmAllTraj(TCSlice& slc);
   bool SharesHighScoreVx(TCSlice& slc, const PFPStruct& pfp, const Trajectory& tj);
-  void Fit3D(unsigned short mode, Point3_t point, Vector3_t dir, Point3_t& fitPos, Vector3_t& fitDir);
-//  unsigned short WiresSkippedInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
-//  float LengthInCTP(TCSlice& slc, std::vector<int>& tjids, CTP_t inCTP);
   bool MakeTp3(TCSlice& slc, const TrajPoint& itp, const TrajPoint& jtp, TrajPoint3& tp3, bool findDirection);
   double DeltaAngle(const Vector3_t v1, const Vector3_t v2);
   inline double DotProd(const Vector3_t& v1, const Vector3_t& v2) {return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]; }
