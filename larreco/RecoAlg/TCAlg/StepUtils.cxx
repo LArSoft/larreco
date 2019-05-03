@@ -1024,7 +1024,8 @@ namespace tca {
     // Oct 30, 2018. FindSoftKink needs work
 //    FindSoftKink(slc, tj);
     
-    HiEndDelta(slc, tj);
+    // BB May 2, 2019 The value of this function need to be re-evaluated
+//    HiEndDelta(slc, tj);
     
     // final quality check
     float npwc = NumPtsWithCharge(slc, tj, true);
@@ -2420,7 +2421,7 @@ namespace tca {
       SetEndPoints(tj);
     }
   } // CheckHiMultEndHits
-  
+/* BB May 2, 2019 This value of this function needs to be re-evaluated.
   ////////////////////////////////////////////////
   void HiEndDelta(TCSlice& slc, Trajectory& tj)
   {
@@ -2489,7 +2490,7 @@ namespace tca {
     tj.AlgMod[kHED] = true;
     
   } // HiEndDelta
-
+*/
   //////////////////////////////////////////
   void UpdateDeltaRMS(TCSlice& slc, Trajectory& tj)
   {
