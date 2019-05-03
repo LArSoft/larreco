@@ -73,7 +73,7 @@ namespace tca {
   void CheckHiMultUnusedHits(TCSlice& slc, Trajectory& tj);
   void CheckHiMultEndHits(TCSlice& slc, Trajectory& tj);
   // Check for high values of Delta at the beginning of the trajectory
-  void HiEndDelta(TCSlice& slc, Trajectory& tj);
+//  void HiEndDelta(TCSlice& slc, Trajectory& tj);
 
   // Estimate the Delta RMS of the TPs on the end of tj.
   void UpdateDeltaRMS(TCSlice& slc, Trajectory& tj);
