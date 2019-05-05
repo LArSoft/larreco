@@ -28,6 +28,9 @@
 #include "larsim/MCCheater/ParticleInventoryService.h"
 #include "lardataobj/AnalysisBase/BackTrackerMatchingData.h"
 
+// temp for timing studies
+//#include <time.h> // clock
+
 //root includes
 #include "TTree.h"
 
@@ -499,14 +502,19 @@ namespace cluster {
             fTCAlg->SetSptHits(sptHits);
           } // space point collection exists
 */
+          clock_t tim;
+          tim = clock();
           fTCAlg->RunTrajClusterAlg(slhits, slcIDs[isl]);
+          tim = clock() - tim;
+          auto& slc = fTCAlg->GetSlice(isl);
+          std::cout<<"TCA: Event "<<evt.event()<<" CPU "<<std::setprecision(1)<<(float)tim / CLOCKS_PER_SEC<<" s nPFP "<<slc.pfps.size()<<"\n";
         } // reconstructSlice
       } // isl
       
       // stitch PFParticles between TPCs, create PFP start vertices, etc
       fTCAlg->FinishEvent();
       fTCAlg->fTM.MatchTruth();
-      if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event());
+      if(tca::tcc.matchTruth[0] >= 0) fTCAlg->fTM.PrintResults(evt.event()); 
       if(tca::tcc.dbgSummary) tca::PrintAll("TCM");
     } // input hits exist
 
