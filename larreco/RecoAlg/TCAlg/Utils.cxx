@@ -2197,9 +2197,9 @@ namespace tca {
     newTj.AlgMod[kSplit] = true;
     newTj.ParentID = 0;
     // save the ID before push_back in case the tj reference gets lost
-    int tjid = tj.ID;
+//    int tjid = tj.ID;
     slc.tjs.push_back(newTj);
-    UpdateMatchStructs(slc, tjid, newTj.ID);
+//    UpdateMatchStructs(slc, tjid, newTj.ID);
 
     if(prt) {
       mf::LogVerbatim("TC")<<"  newTj T"<<newTj.ID<<" EndPts "<<newTj.EndPt[0]<<" to "<<newTj.EndPt[1];
@@ -2830,7 +2830,7 @@ namespace tca {
     } // ipt
     if(tj.StartEnd == 0 || tj.StartEnd == 1) tj.StartEnd = 1 - tj.StartEnd;
     SetEndPoints(tj);
-    UpdateMatchStructs(slc, tj.ID, tj.ID);
+//    UpdateMatchStructs(slc, tj.ID, tj.ID);
   } // ReverseTraj
   
   //////////////////////////////////////////
@@ -4355,8 +4355,8 @@ namespace tca {
     tj1.ParentID = newTjID;
     tj2.ParentID = newTjID;
     // update match structs if they exist
-    UpdateMatchStructs(slc, tj1.ID, newTjID);
-    UpdateMatchStructs(slc, tj2.ID, newTjID);
+//    UpdateMatchStructs(slc, tj1.ID, newTjID);
+//    UpdateMatchStructs(slc, tj2.ID, newTjID);
     if(doPrt) mf::LogVerbatim("TC")<<" MAS success. Created T"<<newTjID;
     // Transfer the ParentIDs of any other Tjs that refer to Tj1 and Tj2 to the new Tj
     for(auto& tj : slc.tjs) if(tj.ParentID == tj1ID || tj.ParentID == tj2ID) tj.ParentID = newTjID;
