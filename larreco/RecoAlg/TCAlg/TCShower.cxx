@@ -1528,9 +1528,6 @@ namespace tca {
       if(prt) {
         mf::LogVerbatim myprt("TC");
         myprt<<fcnLabel<<" 3S"<<ss3.ID<<" adding P"<<pfp.ID<<" -> T"<<tid;
-        for(unsigned short ii = 0; ii < pfp.TjIDs.size(); ++ii) {
-          if(pfp.TjIDs[ii] == tid) myprt<<" pfp TjCompleteness "<<std::fixed<<std::setprecision(2)<<pfp.TjCompleteness[ii];
-        } // itj
         myprt<<" tj.SSID 2S"<<tj.SSID;
       } // prt
       // add it to the shower in the correct CTP
