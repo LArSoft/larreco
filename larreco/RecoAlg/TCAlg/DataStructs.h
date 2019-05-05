@@ -103,12 +103,11 @@ namespace tca {
   // A temporary struct for matching trajectory points; 1 struct for each TP for
   // each trajectory. These are put into mallTraj which is then sorted by increasing xlo
   struct Tj2Pt{
-    Vector2_t dir;
     unsigned int wire;
     // x range spanned by hits on the TP
     float xlo;
     float xhi;
-    CTP_t ctp;
+    unsigned short plane;
     // the Trajectory ID
     unsigned short id;
     unsigned short ipt; // The trajectory point
@@ -232,7 +231,6 @@ namespace tca {
   struct MatchStruct {
     // IDs of Trajectories that match in all planes
     std::vector<int> TjIDs;
-    std::vector<float> TjCompleteness;  // fraction of TP points that are 3D-matched
     // Count of the number of X-matched hits and de-weight by angle
     float Count {0};                    // Set to 0 if matching failed
     Point3_t Pos;               // Position center using 3D-matched points on the Tjs - 3D fit
@@ -242,15 +240,13 @@ namespace tca {
   struct PFPStruct {
     std::vector<int> TjIDs;             // used to reference Tjs within a slice
     std::vector<int> TjUIDs;             // used to reference Tjs in any slice
-    std::vector<float> TjCompleteness;  // fraction of TP points that are 3D-matched
-    std::vector<TP3D> TP3Ds;
+    std::vector<TP3D> TP3Ds;      // vector of 3D trajectory points
     std::vector<SectionFit> SectionFits;
     // Start is 0, End is 1
     std::array<std::vector<float>, 2> dEdx;
     std::array<std::vector<float>, 2> dEdxErr;
     std::array<int, 2> Vx3ID {{ 0, 0 }};
     int BestPlane {-1};
-    // stuff for constructing the PFParticle
     int PDGCode {-1};
     std::vector<int> DtrUIDs;
     size_t ParentUID {0};       // Parent PFP UID (or 0 if no parent exists)
