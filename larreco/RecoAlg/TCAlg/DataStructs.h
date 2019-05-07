@@ -233,8 +233,6 @@ namespace tca {
     std::vector<int> TjIDs;
     // Count of the number of X-matched hits and de-weight by angle
     float Count {0};                    // Set to 0 if matching failed
-    Point3_t Pos;               // Position center using 3D-matched points on the Tjs - 3D fit
-    Vector3_t Dir;              // Direction using 3D-matched points on the Tjs - 3D fit
   };
   
   struct PFPStruct {
