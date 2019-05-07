@@ -383,7 +383,7 @@ namespace tca {
     if(slc.cots.empty()) return false;
     if(prt3S) Print2DShowers("B4", slc, USHRT_MAX, false);
     // Match in 3D, make 3D showers and define them
-    Match2DShowers(fcnLabel, slc, prt3S);
+//    Match2DShowers(fcnLabel, slc, prt3S);
     SaveAllCots(slc, "M2DS");
     // Reconcile pfp and shower assns before the Parent search
     Reconcile3D(fcnLabel, slc, false, prt3S);
@@ -878,7 +878,7 @@ namespace tca {
     return true;
 
  } // CompleteIncompleteShower
-
+/*
   ////////////////////////////////////////////////
   void Match2DShowers(std::string inFcnLabel, TCSlice& slc, bool prt)
   {
@@ -1029,7 +1029,7 @@ namespace tca {
     if(prt) PrintShowers("M2DS", slc);
 
   } // Match2DShowers
-
+*/
   ////////////////////////////////////////////////
   bool UpdateShower(std::string inFcnLabel, TCSlice& slc, ShowerStruct& ss, bool prt)
   {
@@ -1266,7 +1266,7 @@ namespace tca {
         dir[xyz] = 0;
       }
     } // ipt
-
+/* May 7 Disable for now
     for(unsigned short ii = 0; ii < ss3.CotIDs.size() - 1; ++ii) {
       unsigned short ciid = ss3.CotIDs[ii];
       auto& iss = slc.cots[ciid - 1];
@@ -1290,7 +1290,7 @@ namespace tca {
         } // ipt
       } // jj
     } // ii
-
+*/
     unsigned short nok = 0;
     for(unsigned short ipt = 0; ipt < 3; ++ipt) {
       if(chg[ipt] == 0) continue;
