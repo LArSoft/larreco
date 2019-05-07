@@ -186,6 +186,10 @@ namespace tca {
           pfpHits.push_back(tmp);
         } // pfp
       } // slc
+      if(pfpHits.size() != pfpLocs.size()) {
+        std::cout<<"TCTruth coding error. pfpHits size "<<pfpHits.size()<<" != pfpLoocs size "<<pfpLocs.size()<<"\n";
+        exit(1);
+      }
       unsigned short nplanes = tcc.geom->Nplanes(tpc, cstat);
       // match them
       for(unsigned int imcp = 0; imcp < mcpIndex.size(); ++imcp) {
@@ -290,7 +294,6 @@ namespace tca {
           } // matched tj in this plane
         } // plane
         // pfp matching
-        bool longMCP = (pdgIndex > 0 && pdgIndex < 5 && (float)mcpHits[imcp].size() >= 2 * tcc.matchTruth[3]);
         float maxEP = 0;
         unsigned short mpfpLoc = USHRT_MAX;
         for(unsigned short iit = 0; iit < pfpLocs.size(); ++iit) {
@@ -307,25 +310,79 @@ namespace tca {
             mpfpLoc = iit;
           } // ep > tj.EffPur
         } // iit
-        if(mpfpLoc == USHRT_MAX) {
-          // no matching pfp
-          if(TMeV > 30) {
-            mf::LogVerbatim myprt("TC");
-            myprt<<"BadPFP: MCParticle "<<imcp<<" w PDGCode "<<mcp.PdgCode()<<" T = "<<(int)TMeV<<" MeV not reconstructed.";
-            myprt<<" events processed "<<evt.eventsProcessed;
-          } // TMeV > 30
-        } else {
-          // matched pfp
-          auto& pfp = slices[pfpLocs[mpfpLoc].first].pfps[pfpLocs[mpfpLoc].second];
-          if(maxEP > pfp.EffPur) {
-            pfp.EffPur = maxEP;
-            pfp.mcpIndex = mcpIndex[imcp];
-            MCP_EPTSum += TMeV * maxEP;
-            ++MCP_PFP_Cnt;
-            if(longMCP && maxEP > 0.8) ++nGoodLongMCP;
-          } // maxEP > pfp.EffPur
-        } // matched pfp
+        if(mpfpLoc >= pfpLocs.size()) continue;
+        // matched pfp
+        auto& pfp = slices[pfpLocs[mpfpLoc].first].pfps[pfpLocs[mpfpLoc].second];
+        if(maxEP > pfp.EffPur) {
+          pfp.EffPur = maxEP;
+          pfp.mcpIndex = mcpIndex[imcp];
+        } // maxEP > pfp.EffPur
       } // imcp
+      
+      // accumulate
+      for(unsigned int imcp = 0; imcp < mcpIndex.size(); ++imcp) {
+        if(mcpHits[imcp].empty()) continue;
+        // ignore if it isn't reconstructable in 3D
+        if(!CanReconstruct(mcpHits[imcp], 3, tpcid)) continue;
+        auto& mcp = (*evt.mcpHandle)[mcpIndex[imcp]];
+        unsigned short pdgIndex = PDGCodeIndex(mcp.PdgCode());
+        if(pdgIndex == 0) continue;
+        int pdg = abs(mcp.PdgCode());
+        // ignore electrons
+        if(pdg == 11) continue;
+        bool longMCP = (pdgIndex > 0 && pdgIndex < 5 && (float)mcpHits[imcp].size() >= 2 * tcc.matchTruth[3]);
+        float TMeV = 1000 * (mcp.E() - mcp.Mass());
+        float maxEP = 0;
+        unsigned short mpfpLoc = USHRT_MAX;
+        for(unsigned short iit = 0; iit < pfpLocs.size(); ++iit) {
+          if(pfpHits[iit].empty()) continue;
+          auto& pfp = slices[pfpLocs[iit].first].pfps[pfpLocs[iit].second];
+          if(pfp.mcpIndex != mcpIndex[imcp]) continue;
+          if(maxEP > 0) std::cout<<"hmmm\n";
+          maxEP = pfp.EffPur;
+          mpfpLoc = iit;
+        } // iit
+        MCP_EPTSum += TMeV * maxEP;
+        ++MCP_PFP_Cnt;
+        if(longMCP && maxEP > 0.8) ++nGoodLongMCP;
+        if(mpfpLoc >= pfpLocs.size()) {
+          mf::LogVerbatim myprt("TC");
+          myprt<<"BadP: MCParticle "<<mcpIndex[imcp]<<" PDG "<<mcp.PdgCode()<<" T "<<(int)TMeV<<" MeV not reconstructed.";
+          myprt<<" "<<mcpHits.size()<<" mcp Hits";
+          myprt<<" events processed "<<evt.eventsProcessed;
+          std::vector<std::pair<int, int>> tlist;
+          // find all hits that are matched to this mcp, find hit -> Tj assns and put the Tj IDs into
+          // the vector for printing
+          for(auto& slc : slices) {
+            for(auto& sht : slc.slHits) {
+              if(sht.InTraj <= 0) continue;
+              auto ahi = sht.allHitsIndex;
+              if(evt.allHitsMCPIndex[ahi] != mcpIndex[imcp]) continue;
+              // We found a hit that is matched to this MCParticle and is used in a Tj. Add it to the list
+              // if it isn't already in it
+              unsigned short ii = 0;
+              for(ii = 0; ii < tlist.size(); ++ii) {
+                if(tlist[ii].first == slc.ID && tlist[ii].second == sht.InTraj) break;
+              } // ii
+              if(ii == tlist.size()) tlist.push_back(std::make_pair(slc.ID, sht.InTraj));
+            } // sht
+          } // slc
+          // print a list of trajectories
+          myprt<<" Hits in";
+          for(auto tid : tlist) myprt<<" "<<tid.first<<":T"<<tid.second;
+          continue;
+        } // no match
+        if(maxEP < 0.8) {
+          auto& pfp = slices[pfpLocs[mpfpLoc].first].pfps[pfpLocs[mpfpLoc].second];
+          mf::LogVerbatim myprt("TC");
+          myprt<<"BadP"<<pfp.ID<<" -> mcp "<<pfp.mcpIndex<<" T "<<(int)TMeV;
+          myprt<<" PDG "<<pdg;
+          myprt<<" EP "<<std::setprecision(2)<<pfp.EffPur;
+          for(auto tid : pfp.TjIDs) myprt<<" T"<<tid;
+        } // Poor EP
+      } // imcp
+      
+      
       // debug primary electron reconstruction
 /*
       if(tcc.modes[kStudy3] && !mcpIndex.empty() && mcpHits[0].size() > 10) {
